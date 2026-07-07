@@ -29,35 +29,35 @@ templ (ws WidgetShow) Page() {
 			<main id="widget-show-container" class="flex-1 px-6 py-10">
 				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
-						<h1 class="text-2xl font-semibold text-gray-900">Widget Details</h1>
+						<h1 class="text-2xl font-semibold text-slate-100">Widget Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
 							
 							
 						</div>
 					</div>
-					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
 						<div class="p-6 pt-0">
 							<div class="grid gap-5 sm:grid-cols-2">
 								
 								<div class="space-y-1">
-									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Name</label>
-									<p class="text-sm text-gray-900">{ ws.Item.Name }</p>
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Name</label>
+									<p class="text-sm text-slate-100">{ ws.Item.Name }</p>
 								</div>
 								<div class="space-y-1">
-									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Quantity</label>
-									<p class="text-sm text-gray-900">{ fmt.Sprintf("%d", ws.Item.Quantity) }</p>
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Quantity</label>
+									<p class="text-sm text-slate-100">{ fmt.Sprintf("%d", ws.Item.Quantity) }</p>
 								</div>
 								<div class="space-y-1">
-									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Active</label>
-									<p class="text-sm text-gray-900">{ fmt.Sprintf("%t", ws.Item.Active) }</p>
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Active</label>
+									<p class="text-sm text-slate-100">{ fmt.Sprintf("%t", ws.Item.Active) }</p>
 								</div>
 								<div class="space-y-1">
-									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
-									<p class="text-sm text-gray-900">{ ws.Item.CreatedAt.String() }</p>
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
+									<p class="text-sm text-slate-100">{ ws.Item.CreatedAt.String() }</p>
 								</div>
 								<div class="space-y-1">
-									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
-									<p class="text-sm text-gray-900">{ ws.Item.UpdatedAt.String() }</p>
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
+									<p class="text-sm text-slate-100">{ ws.Item.UpdatedAt.String() }</p>
 								</div>
 								
 							</div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3'
+import { Link, useForm } from '@inertiajs/vue3'
 
 const form = useForm({
   title: '' as string,
@@ -12,24 +12,23 @@ function submit() {
 </script>
 
 <template>
-  <Head title="Project" />
   <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold text-gray-900">New Project</h1>
-      <Link href="/projects" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Back</Link>
+      <h1 class="text-2xl font-bold text-slate-100">New Project</h1>
+      <Link href="/projects" class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
     </div>
 
-    <form @submit.prevent="submit" class="mt-8 space-y-6 overflow-hidden rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+    <form @submit.prevent="submit" class="mt-8 space-y-6 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 p-6 shadow-sm">
       <div>
-        <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
-        <input id="title" type="text" v-model="form.title" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+        <label for="title" class="block text-sm font-medium text-slate-200">Title</label>
+        <input id="title" type="text" v-model="form.title" class="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
       </div>
       <div>
-        <label for="status" class="block text-sm font-medium text-gray-700">Status</label>
-        <input id="status" type="text" v-model="form.status" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+        <label for="status" class="block text-sm font-medium text-slate-200">Status</label>
+        <input id="status" type="text" v-model="form.status" class="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
       </div>
       <div class="flex justify-end">
-        <button type="submit" :disabled="form.processing" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">{{ form.processing ? 'Creating...' : 'Create Project' }}</button>
+        <button type="submit" :disabled="form.processing" class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300 disabled:opacity-50">{{ form.processing ? 'Creating...' : 'Create Project' }}</button>
       </div>
     </form>
   </div>

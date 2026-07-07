@@ -2781,7 +2781,7 @@ func (p Pages) Home(etx *echo.Context) error {
 	cacheKey := "home"
 
 	component, err := p.cache.Get(cacheKey, func() (templ.Component, error) {
-		return views.Home{}.Page(), nil
+		return views.Welcome{}.Page(), nil
 	})
 	if err != nil {
 		return err
@@ -3288,12 +3288,14 @@ html {
 }
 
 body {
+	background: oklch(8% 0.01 220);
+	color: oklch(96% 0.01 220);
 	font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	font-style: normal;
 	font-weight: 400;
-	letter-spacing: -0.0125em;
+	letter-spacing: 0;
 	line-height: 1.5;
 	-webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 	text-rendering: optimizeLegibility;
@@ -11621,19 +11623,19 @@ import (
 const UserPrefix = "/users"
 
 var SessionNew = routing.NewSimpleRoute(
-	"/sign_in",
+	"/sign-in",
 	"users.new_user_session",
 	UserPrefix,
 )
 
 var SessionCreate = routing.NewSimpleRoute(
-	"/sign_in",
+	"/sign-in",
 	"users.user_session",
 	UserPrefix,
 )
 
 var SessionDestroy = routing.NewSimpleRoute(
-	"/sign_out",
+	"/sign-out",
 	"users.destroy_user_session",
 	UserPrefix,
 )
@@ -11663,7 +11665,7 @@ var PasswordUpdate = routing.NewSimpleRoute(
 )
 
 var RegistrationNew = routing.NewSimpleRoute(
-	"/sign_up",
+	"/sign-up",
 	"users.new_user_registration",
 	UserPrefix,
 )
@@ -13586,7 +13588,13 @@ package views
 
 templ BadRequest() {
 	@base() {
-		<h1>The request made was invalid</h1>
+		<section class="flex flex-1 items-center justify-center px-6 py-16">
+			<div class="w-full max-w-md rounded-lg border border-cyan-400/25 bg-slate-900 p-6 text-center shadow-sm shadow-cyan-950/30">
+				<p class="text-sm font-medium uppercase tracking-wide text-cyan-300">400</p>
+				<h1 class="mt-2 text-2xl font-semibold text-white">Bad request</h1>
+				<p class="mt-3 text-sm leading-6 text-slate-400">The request made was invalid.</p>
+			</div>
+		</section>
 	}
 }
 ```
@@ -13636,7 +13644,7 @@ func BadRequest() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<h1>The request made was invalid</h1>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<section class=\"flex flex-1 items-center justify-center px-6 py-16\"><div class=\"w-full max-w-md rounded-lg border border-cyan-400/25 bg-slate-900 p-6 text-center shadow-sm shadow-cyan-950/30\"><p class=\"text-sm font-medium uppercase tracking-wide text-cyan-300\">400</p><h1 class=\"mt-2 text-2xl font-semibold text-white\">Bad request</h1><p class=\"mt-3 text-sm leading-6 text-slate-400\">The request made was invalid.</p></div></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -13681,22 +13689,22 @@ templ (cf ConfirmationForm) Page() {
 		@templ.Fragment(cf.PageFragment()) {
 			<main id="confirmation-container" class="flex flex-1 items-center justify-center px-6 py-10">
 				<div class="mx-auto my-6 flex w-full max-w-md flex-col gap-6">
-					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30">
 						<div class="flex flex-col space-y-1.5 p-8 pb-0">
-							<h2 class="text-xl font-semibold text-gray-900">Verify Your Email</h2>
-							<p class="text-sm text-gray-500">Please enter the 6-digit verification code sent to your email.</p>
+							<h2 class="text-xl font-semibold text-slate-100">Verify Your Email</h2>
+							<p class="text-sm text-slate-400">Please enter the 6-digit verification code sent to your email.</p>
 						</div>
 						<div class="p-8">
 							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ConfirmationCreate.URL()) }>
 								<fieldset class="space-y-5 border-0 p-0" data-attr:disabled="$_submitting">
 									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="code">Verification Code</label>
-										<input id="code" type="text" maxlength="6" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-center text-sm tracking-[0.3em] text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="code" required/>
+										<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="code">Verification Code</label>
+										<input id="code" type="text" maxlength="6" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-center text-sm tracking-[0.3em] text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="code" required/>
 										if cf.FieldError("code") != "" {
-											<p id="code-error" class="text-sm font-medium text-red-600" role="alert">{ cf.FieldError("code") }</p>
+											<p id="code-error" class="text-sm font-medium text-red-400" role="alert">{ cf.FieldError("code") }</p>
 										}
 									</div>
-									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60">
+									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 transition-colors hover:bg-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60">
 										<span data-show="!$_submitting">Verify Email</span>
 										<span data-show="$_submitting">Loading</span>
 									</button>
@@ -13787,7 +13795,7 @@ func (cf ConfirmationForm) Page() templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"confirmation-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto my-6 flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-gray-300 bg-white shadow-sm\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-gray-900\">Verify Your Email</h2><p class=\"text-sm text-gray-500\">Please enter the 6-digit verification code sent to your email.</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"confirmation-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto my-6 flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-slate-100\">Verify Your Email</h2><p class=\"text-sm text-slate-400\">Please enter the 6-digit verification code sent to your email.</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -13800,12 +13808,12 @@ func (cf ConfirmationForm) Page() templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"code\">Verification Code</label> <input id=\"code\" type=\"text\" maxlength=\"6\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-center text-sm tracking-[0.3em] text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"code\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"code\">Verification Code</label> <input id=\"code\" type=\"text\" maxlength=\"6\" class=\"flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-center text-sm tracking-[0.3em] text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"code\" required> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if cf.FieldError("code") != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p id=\"code-error\" class=\"text-sm font-medium text-red-600\" role=\"alert\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p id=\"code-error\" class=\"text-sm font-medium text-red-400\" role=\"alert\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -13823,7 +13831,7 @@ func (cf ConfirmationForm) Page() templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Verify Email</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form></div></div></div></main>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 transition-colors hover:bg-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Verify Email</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form></div></div></div></main>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -14572,122 +14580,19 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 var _ = templruntime.GeneratedTemplate
 ```
 
-file -----------rw-r--r-- views/home.templ
-```
-package views
-
-type Home struct{}
-
-func (h Home) PageFragment() string {
-	return "home-page-fragment"
-}
-
-templ (h Home) Page() {
-	@base() {
-		@templ.Fragment(h.PageFragment()) {
-			<main id="home-container" class="flex-1">
-				<div class="space-y-3">
-					<h1 class="text-3xl font-bold">Welcome to Andurel</h1>
-				</div>
-			</main>
-		}
-	}
-}
-```
-
-file -----------rw-r--r-- views/home_templ.go
-```
-// Code generated by templ - DO NOT EDIT.
-
-// templ: version: v0.3.1020
-package views
-
-//lint:file-ignore SA4006 This context is only used if a nested component is present.
-
-import "github.com/a-h/templ"
-import templruntime "github.com/a-h/templ/runtime"
-
-type Home struct{}
-
-func (h Home) PageFragment() string {
-	return "home-page-fragment"
-}
-
-func (h Home) Page() templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var1 == nil {
-			templ_7745c5c3_Var1 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var2 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-			if !templ_7745c5c3_IsBuffer {
-				defer func() {
-					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-					if templ_7745c5c3_Err == nil {
-						templ_7745c5c3_Err = templ_7745c5c3_BufErr
-					}
-				}()
-			}
-			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Var3 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-				if !templ_7745c5c3_IsBuffer {
-					defer func() {
-						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-						if templ_7745c5c3_Err == nil {
-							templ_7745c5c3_Err = templ_7745c5c3_BufErr
-						}
-					}()
-				}
-				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"home-container\" class=\"flex-1\"><div class=\"space-y-3\"><h1 class=\"text-3xl font-bold\">Welcome to Andurel</h1></div></main>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				return nil
-			})
-			templ_7745c5c3_Err = templ.Fragment(h.PageFragment()).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			return nil
-		})
-		templ_7745c5c3_Err = base().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
-var _ = templruntime.GeneratedTemplate
-```
-
 file -----------rw-r--r-- views/internal_error.templ
 ```
 package views
 
 templ InternalError() {
 	@base() {
-		<h1>something went wrong on our end.</h1>
+		<section class="flex flex-1 items-center justify-center px-6 py-16">
+			<div class="w-full max-w-md rounded-lg border border-cyan-400/25 bg-slate-900 p-6 text-center shadow-sm shadow-cyan-950/30">
+				<p class="text-sm font-medium uppercase tracking-wide text-cyan-300">500</p>
+				<h1 class="mt-2 text-2xl font-semibold text-white">Something went wrong.</h1>
+				<p class="mt-3 text-sm leading-6 text-slate-400">The application hit an unexpected error.</p>
+			</div>
+		</section>
 	}
 }
 ```
@@ -14737,7 +14642,7 @@ func InternalError() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<h1>something went wrong on our end.</h1>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<section class=\"flex flex-1 items-center justify-center px-6 py-16\"><div class=\"w-full max-w-md rounded-lg border border-cyan-400/25 bg-slate-900 p-6 text-center shadow-sm shadow-cyan-950/30\"><p class=\"text-sm font-medium uppercase tracking-wide text-cyan-300\">500</p><h1 class=\"mt-2 text-2xl font-semibold text-white\">Something went wrong.</h1><p class=\"mt-3 text-sm leading-6 text-slate-400\">The application hit an unexpected error.</p></div></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -14768,16 +14673,16 @@ templ base(headOpts ...HeadDataOption) {
 	<!DOCTYPE html>
 	<html lang="en" class="dark">
 		@SetupHead(ctx, headOpts...)
-		<body class="min-h-screen flex flex-col bg-gray-50 text-gray-900">
+		<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100">
 			{ children... }
 			<footer>
-				<div class="container mx-auto py-4 text-center text-sm text-gray-500">
+				<div class="container mx-auto py-4 text-center text-sm text-slate-400">
 					&copy; { time.Now().Format("2006") } andurel.
 				</div>
 			</footer>
 			<div id="flashContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
 				for _, flash := range request.ExtractContext[[]cookies.FlashMessage](ctx, request.SessionFlashesKey) {
-					<div class="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-lg">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 px-4 py-3 shadow-lg">
 						{ flash.Message }
 					</div>
 				}
@@ -14834,7 +14739,7 @@ func base(headOpts ...HeadDataOption) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<body class=\"min-h-screen flex flex-col bg-gray-50 text-gray-900\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<body class=\"min-h-screen flex flex-col bg-slate-950 text-slate-100\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -14842,7 +14747,7 @@ func base(headOpts ...HeadDataOption) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<footer><div class=\"container mx-auto py-4 text-center text-sm text-gray-500\">&copy; ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<footer><div class=\"container mx-auto py-4 text-center text-sm text-slate-400\">&copy; ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -14860,7 +14765,7 @@ func base(headOpts ...HeadDataOption) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		for _, flash := range request.ExtractContext[[]cookies.FlashMessage](ctx, request.SessionFlashesKey) {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-lg\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"rounded-lg border border-cyan-400/25 bg-slate-900 px-4 py-3 shadow-lg\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -14917,39 +14822,39 @@ templ (lf LoginForm) Page() {
 		@templ.Fragment(lf.PageFragment()) {
 			<main id="login-container" class="flex flex-1 items-center justify-center px-6 py-10">
 				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30">
 						<div class="flex flex-col space-y-1.5 p-8 pb-0">
-							<h2 class="text-xl font-semibold text-gray-900">Login to your account</h2>
-							<p class="text-sm text-gray-500">Enter your details below to login to your account</p>
+							<h2 class="text-xl font-semibold text-slate-100">Login to your account</h2>
+							<p class="text-sm text-slate-400">Enter your details below to login to your account</p>
 						</div>
 						<div class="p-8">
 							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.SessionCreate.URL()) }>
 								<fieldset class="space-y-5 border-0 p-0" data-attr:disabled="$_submitting">
 									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="email">Email</label>
-										<input id="email" type="email" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="email" required/>
+										<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="email">Email</label>
+										<input id="email" type="email" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="email" required/>
 										if lf.FieldError("email") != "" {
-											<p id="email-error" class="text-sm font-medium text-red-600" role="alert">{ lf.FieldError("email") }</p>
+											<p id="email-error" class="text-sm font-medium text-red-400" role="alert">{ lf.FieldError("email") }</p>
 										}
 									</div>
 									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="password">Password</label>
-										<input id="password" type="password" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="password" required/>
+										<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="password">Password</label>
+										<input id="password" type="password" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="password" required/>
 										if lf.FieldError("password") != "" {
-											<p id="password-error" class="text-sm font-medium text-red-600" role="alert">{ lf.FieldError("password") }</p>
+											<p id="password-error" class="text-sm font-medium text-red-400" role="alert">{ lf.FieldError("password") }</p>
 										}
 									</div>
 									<p class="mb-1 text-right text-sm">
-										<a class="text-gray-600 hover:text-gray-900 hover:underline" href={ routes.PasswordNew.URL() }>Forgot your password?</a>
+										<a class="text-slate-300 hover:text-slate-100 hover:underline" href={ routes.PasswordNew.URL() }>Forgot your password?</a>
 									</p>
-									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60">
+									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 transition-colors hover:bg-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60">
 										<span data-show="!$_submitting">Login</span>
 										<span data-show="$_submitting">Loading</span>
 									</button>
 								</fieldset>
 							</form>
-							<p class="mt-6 text-center text-sm text-gray-500">
-								Don't have an account? <a class="text-gray-600 hover:text-gray-900 hover:underline" href={ routes.RegistrationNew.URL() }>Sign up</a>
+							<p class="mt-6 text-center text-sm text-slate-400">
+								Don't have an account? <a class="text-slate-300 hover:text-slate-100 hover:underline" href={ routes.RegistrationNew.URL() }>Sign up</a>
 							</p>
 						</div>
 					</div>
@@ -15036,7 +14941,7 @@ func (lf LoginForm) Page() templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"login-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-gray-300 bg-white shadow-sm\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-gray-900\">Login to your account</h2><p class=\"text-sm text-gray-500\">Enter your details below to login to your account</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"login-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-slate-100\">Login to your account</h2><p class=\"text-sm text-slate-400\">Enter your details below to login to your account</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -15049,12 +14954,12 @@ func (lf LoginForm) Page() templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"email\">Email</label> <input id=\"email\" type=\"email\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"email\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"email\">Email</label> <input id=\"email\" type=\"email\" class=\"flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"email\" required> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if lf.FieldError("email") != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p id=\"email-error\" class=\"text-sm font-medium text-red-600\" role=\"alert\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p id=\"email-error\" class=\"text-sm font-medium text-red-400\" role=\"alert\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -15072,12 +14977,12 @@ func (lf LoginForm) Page() templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"password\">Password</label> <input id=\"password\" type=\"password\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"password\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"password\">Password</label> <input id=\"password\" type=\"password\" class=\"flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"password\" required> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if lf.FieldError("password") != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p id=\"password-error\" class=\"text-sm font-medium text-red-600\" role=\"alert\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p id=\"password-error\" class=\"text-sm font-medium text-red-400\" role=\"alert\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -15095,27 +15000,27 @@ func (lf LoginForm) Page() templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><p class=\"mb-1 text-right text-sm\"><a class=\"text-gray-600 hover:text-gray-900 hover:underline\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><p class=\"mb-1 text-right text-sm\"><a class=\"text-slate-300 hover:text-slate-100 hover:underline\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var7 templ.SafeURL
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinURLErrs(routes.PasswordNew.URL())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/login.templ`, Line: 50, Col: 102}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/login.templ`, Line: 50, Col: 104}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">Forgot your password?</a></p><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Login</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form><p class=\"mt-6 text-center text-sm text-gray-500\">Don't have an account? <a class=\"text-gray-600 hover:text-gray-900 hover:underline\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">Forgot your password?</a></p><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 transition-colors hover:bg-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Login</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form><p class=\"mt-6 text-center text-sm text-slate-400\">Don't have an account? <a class=\"text-slate-300 hover:text-slate-100 hover:underline\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var8 templ.SafeURL
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(routes.RegistrationNew.URL())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/login.templ`, Line: 59, Col: 127}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/login.templ`, Line: 59, Col: 129}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -15150,7 +15055,13 @@ package views
 
 templ NotFound() {
 	@base() {
-		<h1>Not found</h1>
+		<section class="flex flex-1 items-center justify-center px-6 py-16">
+			<div class="w-full max-w-md rounded-lg border border-cyan-400/25 bg-slate-900 p-6 text-center shadow-sm shadow-cyan-950/30">
+				<p class="text-sm font-medium uppercase tracking-wide text-cyan-300">404</p>
+				<h1 class="mt-2 text-2xl font-semibold text-white">Not found</h1>
+				<p class="mt-3 text-sm leading-6 text-slate-400">The page you are looking for could not be found.</p>
+			</div>
+		</section>
 	}
 }
 ```
@@ -15200,7 +15111,7 @@ func NotFound() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<h1>Not found</h1>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<section class=\"flex flex-1 items-center justify-center px-6 py-16\"><div class=\"w-full max-w-md rounded-lg border border-cyan-400/25 bg-slate-900 p-6 text-center shadow-sm shadow-cyan-950/30\"><p class=\"text-sm font-medium uppercase tracking-wide text-cyan-300\">404</p><h1 class=\"mt-2 text-2xl font-semibold text-white\">Not found</h1><p class=\"mt-3 text-sm leading-6 text-slate-400\">The page you are looking for could not be found.</p></div></section>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -15245,43 +15156,43 @@ templ (rf RegistrationForm) Page() {
 		@templ.Fragment(rf.PageFragment()) {
 			<main id="registration-container" class="flex flex-1 items-center justify-center px-6 py-10">
 				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30">
 						<div class="flex flex-col space-y-1.5 p-8 pb-0">
-							<h2 class="text-xl font-semibold text-gray-900">Create an account</h2>
-							<p class="text-sm text-gray-500">Enter your details below to create your account</p>
+							<h2 class="text-xl font-semibold text-slate-100">Create an account</h2>
+							<p class="text-sm text-slate-400">Enter your details below to create your account</p>
 						</div>
 						<div class="p-8">
 							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()) }>
 								<fieldset class="space-y-5 border-0 p-0" data-attr:disabled="$_submitting">
 									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="email">Email</label>
-										<input id="email" type="email" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="email" required/>
+										<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="email">Email</label>
+										<input id="email" type="email" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="email" required/>
 										if rf.FieldError("email") != "" {
-											<p id="email-error" class="text-sm font-medium text-red-600" role="alert">{ rf.FieldError("email") }</p>
+											<p id="email-error" class="text-sm font-medium text-red-400" role="alert">{ rf.FieldError("email") }</p>
 										}
 									</div>
 									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="password">Password</label>
-										<input id="password" type="password" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="password" required/>
+										<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="password">Password</label>
+										<input id="password" type="password" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="password" required/>
 										if rf.FieldError("password") != "" {
-											<p id="password-error" class="text-sm font-medium text-red-600" role="alert">{ rf.FieldError("password") }</p>
+											<p id="password-error" class="text-sm font-medium text-red-400" role="alert">{ rf.FieldError("password") }</p>
 										}
 									</div>
 									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="confirmPassword">Confirm Password</label>
-										<input id="confirmPassword" type="password" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="confirmPassword" required/>
+										<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="confirmPassword">Confirm Password</label>
+										<input id="confirmPassword" type="password" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="confirmPassword" required/>
 										if rf.FieldError("confirmPassword") != "" {
-											<p id="confirm-password-error" class="text-sm font-medium text-red-600" role="alert">{ rf.FieldError("confirmPassword") }</p>
+											<p id="confirm-password-error" class="text-sm font-medium text-red-400" role="alert">{ rf.FieldError("confirmPassword") }</p>
 										}
 									</div>
-									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60">
+									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 transition-colors hover:bg-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60">
 										<span data-show="!$_submitting">Sign Up</span>
 										<span data-show="$_submitting">Loading</span>
 									</button>
 								</fieldset>
 							</form>
-							<p class="mt-6 text-center text-sm text-gray-500">
-								Already have an account? <a class="text-gray-600 hover:text-gray-900 hover:underline" href={ routes.SessionNew.URL() }>Login</a>
+							<p class="mt-6 text-center text-sm text-slate-400">
+								Already have an account? <a class="text-slate-300 hover:text-slate-100 hover:underline" href={ routes.SessionNew.URL() }>Login</a>
 							</p>
 						</div>
 					</div>
@@ -15368,7 +15279,7 @@ func (rf RegistrationForm) Page() templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"registration-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-gray-300 bg-white shadow-sm\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-gray-900\">Create an account</h2><p class=\"text-sm text-gray-500\">Enter your details below to create your account</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"registration-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-slate-100\">Create an account</h2><p class=\"text-sm text-slate-400\">Enter your details below to create your account</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -15381,12 +15292,12 @@ func (rf RegistrationForm) Page() templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"email\">Email</label> <input id=\"email\" type=\"email\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"email\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"email\">Email</label> <input id=\"email\" type=\"email\" class=\"flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"email\" required> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if rf.FieldError("email") != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p id=\"email-error\" class=\"text-sm font-medium text-red-600\" role=\"alert\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p id=\"email-error\" class=\"text-sm font-medium text-red-400\" role=\"alert\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -15404,12 +15315,12 @@ func (rf RegistrationForm) Page() templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"password\">Password</label> <input id=\"password\" type=\"password\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"password\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"password\">Password</label> <input id=\"password\" type=\"password\" class=\"flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"password\" required> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if rf.FieldError("password") != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p id=\"password-error\" class=\"text-sm font-medium text-red-600\" role=\"alert\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p id=\"password-error\" class=\"text-sm font-medium text-red-400\" role=\"alert\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -15427,12 +15338,12 @@ func (rf RegistrationForm) Page() templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"confirmPassword\">Confirm Password</label> <input id=\"confirmPassword\" type=\"password\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"confirmPassword\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"confirmPassword\">Confirm Password</label> <input id=\"confirmPassword\" type=\"password\" class=\"flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"confirmPassword\" required> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if rf.FieldError("confirmPassword") != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p id=\"confirm-password-error\" class=\"text-sm font-medium text-red-600\" role=\"alert\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p id=\"confirm-password-error\" class=\"text-sm font-medium text-red-400\" role=\"alert\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -15450,14 +15361,14 @@ func (rf RegistrationForm) Page() templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Sign Up</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form><p class=\"mt-6 text-center text-sm text-gray-500\">Already have an account? <a class=\"text-gray-600 hover:text-gray-900 hover:underline\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 transition-colors hover:bg-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Sign Up</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form><p class=\"mt-6 text-center text-sm text-slate-400\">Already have an account? <a class=\"text-slate-300 hover:text-slate-100 hover:underline\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var8 templ.SafeURL
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(routes.SessionNew.URL())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/registration.templ`, Line: 63, Col: 124}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/registration.templ`, Line: 63, Col: 126}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -15514,29 +15425,29 @@ templ (rprf ResetPasswordRequestForm) Page() {
 		@templ.Fragment(rprf.PageFragment()) {
 			<main id="reset-password-request-container" class="flex flex-1 items-center justify-center px-6 py-10">
 				<div class="mx-auto my-6 flex w-full max-w-md flex-col gap-6">
-					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30">
 						<div class="flex flex-col space-y-1.5 p-8 pb-0">
-							<h2 class="text-xl font-semibold text-gray-900">Reset Password</h2>
-							<p class="text-sm text-gray-500">Enter your email address and we'll send you a code to reset your password.</p>
+							<h2 class="text-xl font-semibold text-slate-100">Reset Password</h2>
+							<p class="text-sm text-slate-400">Enter your email address and we'll send you a code to reset your password.</p>
 						</div>
 						<div class="p-8">
 							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.PasswordCreate.URL()) }>
 								<fieldset class="space-y-5 border-0 p-0" data-attr:disabled="$_submitting">
 									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="email">Email</label>
-										<input id="email" type="email" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="email" required/>
+										<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="email">Email</label>
+										<input id="email" type="email" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="email" required/>
 										if rprf.FieldError("email") != "" {
-											<p id="email-error" class="text-sm font-medium text-red-600" role="alert">{ rprf.FieldError("email") }</p>
+											<p id="email-error" class="text-sm font-medium text-red-400" role="alert">{ rprf.FieldError("email") }</p>
 										}
 									</div>
-									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60">
+									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 transition-colors hover:bg-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60">
 										<span data-show="!$_submitting">Send Reset Code</span>
 										<span data-show="$_submitting">Loading</span>
 									</button>
 								</fieldset>
 							</form>
-							<p class="mt-6 text-center text-sm text-gray-500">
-								Remember your password? <a class="text-gray-600 hover:text-gray-900 hover:underline" href={ routes.SessionNew.URL() }>Login</a>
+							<p class="mt-6 text-center text-sm text-slate-400">
+								Remember your password? <a class="text-slate-300 hover:text-slate-100 hover:underline" href={ routes.SessionNew.URL() }>Login</a>
 							</p>
 						</div>
 					</div>
@@ -15564,33 +15475,33 @@ templ (rpf ResetPasswordForm) Page() {
 		@templ.Fragment(rpf.PageFragment()) {
 			<main id="reset-password-container" class="flex flex-1 items-center justify-center px-6 py-10">
 				<div class="mx-auto my-6 flex w-full max-w-md flex-col gap-6">
-					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30">
 						<div class="flex flex-col space-y-1.5 p-8 pb-0">
-							<h2 class="text-xl font-semibold text-gray-900">Reset Your Password</h2>
-							<p class="text-sm text-gray-500">Enter your new password below.</p>
+							<h2 class="text-xl font-semibold text-slate-100">Reset Your Password</h2>
+							<p class="text-sm text-slate-400">Enter your new password below.</p>
 						</div>
 						<div class="p-8">
 							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.PasswordUpdate.URL()) }>
 								<fieldset class="space-y-5 border-0 p-0" data-attr:disabled="$_submitting">
 									<input type="hidden" data-bind="resetPasswordToken" value={ rpf.Token }/>
 									if rpf.FieldError("resetPasswordToken") != "" {
-										<p id="reset-password-token-error" class="text-sm font-medium text-red-600" role="alert">{ rpf.FieldError("resetPasswordToken") }</p>
+										<p id="reset-password-token-error" class="text-sm font-medium text-red-400" role="alert">{ rpf.FieldError("resetPasswordToken") }</p>
 									}
 									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="password">New Password</label>
-										<input id="password" type="password" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="password" required/>
+										<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="password">New Password</label>
+										<input id="password" type="password" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="password" required/>
 										if rpf.FieldError("password") != "" {
-											<p id="password-error" class="text-sm font-medium text-red-600" role="alert">{ rpf.FieldError("password") }</p>
+											<p id="password-error" class="text-sm font-medium text-red-400" role="alert">{ rpf.FieldError("password") }</p>
 										}
 									</div>
 									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="confirmPassword">Confirm New Password</label>
-										<input id="confirmPassword" type="password" class="flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="confirmPassword" required/>
+										<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="confirmPassword">Confirm New Password</label>
+										<input id="confirmPassword" type="password" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="confirmPassword" required/>
 										if rpf.FieldError("confirmPassword") != "" {
-											<p id="confirm-password-error" class="text-sm font-medium text-red-600" role="alert">{ rpf.FieldError("confirmPassword") }</p>
+											<p id="confirm-password-error" class="text-sm font-medium text-red-400" role="alert">{ rpf.FieldError("confirmPassword") }</p>
 										}
 									</div>
-									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60">
+									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 transition-colors hover:bg-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60">
 										<span data-show="!$_submitting">Reset Password</span>
 										<span data-show="$_submitting">Loading</span>
 									</button>
@@ -15681,7 +15592,7 @@ func (rprf ResetPasswordRequestForm) Page() templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"reset-password-request-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto my-6 flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-gray-300 bg-white shadow-sm\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-gray-900\">Reset Password</h2><p class=\"text-sm text-gray-500\">Enter your email address and we'll send you a code to reset your password.</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"reset-password-request-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto my-6 flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-slate-100\">Reset Password</h2><p class=\"text-sm text-slate-400\">Enter your email address and we'll send you a code to reset your password.</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -15694,12 +15605,12 @@ func (rprf ResetPasswordRequestForm) Page() templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"email\">Email</label> <input id=\"email\" type=\"email\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"email\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"email\">Email</label> <input id=\"email\" type=\"email\" class=\"flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"email\" required> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if rprf.FieldError("email") != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p id=\"email-error\" class=\"text-sm font-medium text-red-600\" role=\"alert\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p id=\"email-error\" class=\"text-sm font-medium text-red-400\" role=\"alert\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -15717,14 +15628,14 @@ func (rprf ResetPasswordRequestForm) Page() templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Send Reset Code</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form><p class=\"mt-6 text-center text-sm text-gray-500\">Remember your password? <a class=\"text-gray-600 hover:text-gray-900 hover:underline\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 transition-colors hover:bg-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Send Reset Code</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form><p class=\"mt-6 text-center text-sm text-slate-400\">Remember your password? <a class=\"text-slate-300 hover:text-slate-100 hover:underline\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var6 templ.SafeURL
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(routes.SessionNew.URL())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/reset_password.templ`, Line: 49, Col: 123}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/reset_password.templ`, Line: 49, Col: 125}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -15808,7 +15719,7 @@ func (rpf ResetPasswordForm) Page() templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<main id=\"reset-password-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto my-6 flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-gray-300 bg-white shadow-sm\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-gray-900\">Reset Your Password</h2><p class=\"text-sm text-gray-500\">Enter your new password below.</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<main id=\"reset-password-container\" class=\"flex flex-1 items-center justify-center px-6 py-10\"><div class=\"mx-auto my-6 flex w-full max-w-md flex-col gap-6\"><div class=\"rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30\"><div class=\"flex flex-col space-y-1.5 p-8 pb-0\"><h2 class=\"text-xl font-semibold text-slate-100\">Reset Your Password</h2><p class=\"text-sm text-slate-400\">Enter your new password below.</p></div><div class=\"p-8\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -15839,7 +15750,7 @@ func (rpf ResetPasswordForm) Page() templ.Component {
 					return templ_7745c5c3_Err
 				}
 				if rpf.FieldError("resetPasswordToken") != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<p id=\"reset-password-token-error\" class=\"text-sm font-medium text-red-600\" role=\"alert\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<p id=\"reset-password-token-error\" class=\"text-sm font-medium text-red-400\" role=\"alert\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -15857,12 +15768,12 @@ func (rpf ResetPasswordForm) Page() templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"password\">New Password</label> <input id=\"password\" type=\"password\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"password\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"password\">New Password</label> <input id=\"password\" type=\"password\" class=\"flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"password\" required> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if rpf.FieldError("password") != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<p id=\"password-error\" class=\"text-sm font-medium text-red-600\" role=\"alert\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<p id=\"password-error\" class=\"text-sm font-medium text-red-400\" role=\"alert\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -15880,12 +15791,12 @@ func (rpf ResetPasswordForm) Page() templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"confirmPassword\">Confirm New Password</label> <input id=\"confirmPassword\" type=\"password\" class=\"flex h-9 w-full rounded border border-gray-300 bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"confirmPassword\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"confirmPassword\">Confirm New Password</label> <input id=\"confirmPassword\" type=\"password\" class=\"flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"confirmPassword\" required> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if rpf.FieldError("confirmPassword") != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<p id=\"confirm-password-error\" class=\"text-sm font-medium text-red-600\" role=\"alert\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<p id=\"confirm-password-error\" class=\"text-sm font-medium text-red-400\" role=\"alert\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -15903,7 +15814,7 @@ func (rpf ResetPasswordForm) Page() templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Reset Password</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form></div></div></div></main>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 transition-colors hover:bg-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Reset Password</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form></div></div></div></main>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -15916,6 +15827,409 @@ func (rpf ResetPasswordForm) Page() templ.Component {
 			return nil
 		})
 		templ_7745c5c3_Err = base().Render(templ.WithChildren(ctx, templ_7745c5c3_Var8), templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+var _ = templruntime.GeneratedTemplate
+```
+
+file -----------rw-r--r-- views/welcome.templ
+```
+package views
+
+import "testapp/router/routes"
+
+type Welcome struct{}
+
+func (w Welcome) PageFragment() string {
+	return "welcome-page-fragment"
+}
+
+templ (w Welcome) Page() {
+	@base(SetTitle("Welcome")) {
+		@templ.Fragment(w.PageFragment()) {
+			<main id="welcome-container" class="relative flex-1 overflow-hidden bg-slate-950 text-slate-100">
+				<div class="pointer-events-none absolute inset-0 opacity-50" style="background-image: linear-gradient(rgba(34, 211, 238, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 211, 238, 0.07) 1px, transparent 1px); background-size: 36px 36px;"></div>
+				<div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300 to-transparent"></div>
+				<div class="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-gradient-to-b from-cyan-300/0 via-cyan-300/25 to-cyan-300/0"></div>
+				<div class="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-8 lg:px-8">
+					<header class="flex items-center justify-between border-b border-cyan-400/20 pb-5">
+						<a class="inline-flex items-center gap-3 text-sm font-semibold text-slate-100" href={ routes.HomePage.URL() }>
+							<span class="grid size-8 grid-cols-2 gap-1 rounded border border-cyan-400/40 bg-cyan-400/10 p-1 shadow-sm shadow-cyan-950/30">
+								<span class="border border-cyan-300/80"></span>
+								<span class="border border-cyan-300/40"></span>
+								<span class="border border-cyan-300/40"></span>
+								<span class="bg-cyan-300"></span>
+							</span>
+							<span>Andurel.</span>
+						</a>
+						<nav class="flex flex-wrap items-center justify-end gap-3 text-sm">
+							<a class="rounded px-3 py-1.5 text-slate-400 transition hover:text-white" href="https://andurel.com">Documentation</a>
+							<a class="rounded px-3 py-1.5 text-slate-400 transition hover:text-white" href={ routes.SessionNew.URL() }>Log in</a>
+							<a class="rounded border border-cyan-400/35 bg-slate-900/70 px-3 py-1.5 text-slate-200 transition hover:border-cyan-300/70 hover:text-white" href={ routes.RegistrationNew.URL() }>Register</a>
+						</nav>
+					</header>
+					<section class="grid flex-1 items-center gap-10 py-16 lg:grid-cols-[minmax(0,1fr)_25rem]">
+						<div class="max-w-3xl">
+							<div class="mb-6 inline-flex items-center gap-2 rounded border border-cyan-400/25 bg-slate-900/80 px-4 py-1.5 text-sm text-cyan-100 shadow-sm shadow-cyan-950/30">
+								<span class="relative flex size-2">
+									<span class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+									<span class="relative inline-flex size-2 rounded-full bg-emerald-400"></span>
+								</span>
+								Runtime online
+							</div>
+							<h1 class="text-5xl font-semibold text-white sm:text-6xl lg:text-7xl">PaaS-grade Go, wired locally.</h1>
+							<p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
+								Andurel has generated the core app shell: routing, controllers, validation, authentication, email, queues, Templ, and Inertia-ready frontends.
+							</p>
+							<div class="mt-9 flex flex-wrap gap-3">
+								<a class="rounded bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-sm shadow-cyan-950/30 transition hover:bg-cyan-300" href="https://andurel.com">Read the docs</a>
+								<a class="rounded border border-cyan-400/35 bg-slate-900/70 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/70 hover:text-white" href={ routes.RegistrationNew.URL() }>Create account</a>
+							</div>
+						</div>
+						<div class="border border-cyan-400/25 bg-slate-900/80 p-5 shadow-2xl shadow-cyan-950/40">
+							<div class="mb-4 flex items-center justify-between border-b border-cyan-400/20 pb-3 text-xs uppercase text-slate-400">
+								<span>deploy console</span>
+								<span class="text-emerald-300">ready</span>
+							</div>
+							<div class="space-y-4 font-mono text-sm">
+								@consoleLine("auth", "sessions, registration, reset password")
+								@consoleLine("views", "Templ + Inertia scaffold online")
+								@consoleLine("routes", "slugged endpoints mounted")
+								@consoleLine("jobs", "queue worker ready")
+							</div>
+						</div>
+						<section class="mt-12 grid gap-4 md:grid-cols-2 lg:col-span-2">
+							@welcomeCard("Documentation", "Start with the framework guides and learn the conventions that shape an Andurel app.", "https://andurel.com")
+							@welcomeCard("Authentication", "Registration, sessions, email confirmation, and password reset are already wired.", routes.RegistrationNew.URL())
+							@welcomeCard("Templ and Inertia", "Render server-side Templ pages or scaffold Vue and React pages when Inertia is enabled.", routes.HomePage.URL())
+							@welcomeCard("Command line", "Generate models, factories, controllers, routes, jobs, emails, and views from the CLI.", "https://andurel.com")
+						</section>
+					</section>
+				</div>
+			</main>
+		}
+	}
+}
+
+templ welcomeCard(title string, description string, href string) {
+	<a class="group border border-cyan-400/25 bg-slate-900/75 p-5 text-left shadow-sm shadow-cyan-950/30 transition hover:border-cyan-300/70 hover:bg-slate-900" href={ href }>
+		<div class="mb-4 flex size-10 items-center justify-center border border-cyan-400/35 bg-slate-950 text-cyan-300 transition group-hover:border-cyan-300/70">
+			<span class="size-2 bg-cyan-300"></span>
+		</div>
+		<h2 class="text-base font-semibold text-white">{ title }</h2>
+		<p class="mt-2 text-sm leading-6 text-slate-400">{ description }</p>
+	</a>
+}
+
+templ consoleLine(label string, value string) {
+	<div class="flex items-start gap-3">
+		<span class="mt-1 size-1.5 bg-emerald-400"></span>
+		<div>
+			<p class="text-cyan-300">{ label }</p>
+			<p class="text-slate-400">{ value }</p>
+		</div>
+	</div>
+}
+```
+
+file -----------rw-r--r-- views/welcome_templ.go
+```
+// Code generated by templ - DO NOT EDIT.
+
+// templ: version: v0.3.1020
+package views
+
+//lint:file-ignore SA4006 This context is only used if a nested component is present.
+
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
+
+import "testapp/router/routes"
+
+type Welcome struct{}
+
+func (w Welcome) PageFragment() string {
+	return "welcome-page-fragment"
+}
+
+func (w Welcome) Page() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var1 == nil {
+			templ_7745c5c3_Var1 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Var2 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Var3 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+				if !templ_7745c5c3_IsBuffer {
+					defer func() {
+						templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+						if templ_7745c5c3_Err == nil {
+							templ_7745c5c3_Err = templ_7745c5c3_BufErr
+						}
+					}()
+				}
+				ctx = templ.InitializeContext(ctx)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"welcome-container\" class=\"relative flex-1 overflow-hidden bg-slate-950 text-slate-100\"><div class=\"pointer-events-none absolute inset-0 opacity-50\" style=\"background-image: linear-gradient(rgba(34, 211, 238, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 211, 238, 0.07) 1px, transparent 1px); background-size: 36px 36px;\"></div><div class=\"pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300 to-transparent\"></div><div class=\"pointer-events-none absolute inset-y-0 left-1/2 w-px bg-gradient-to-b from-cyan-300/0 via-cyan-300/25 to-cyan-300/0\"></div><div class=\"relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-8 lg:px-8\"><header class=\"flex items-center justify-between border-b border-cyan-400/20 pb-5\"><a class=\"inline-flex items-center gap-3 text-sm font-semibold text-slate-100\" href=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var4 templ.SafeURL
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(routes.HomePage.URL())
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/welcome.templ`, Line: 20, Col: 113}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><span class=\"grid size-8 grid-cols-2 gap-1 rounded border border-cyan-400/40 bg-cyan-400/10 p-1 shadow-sm shadow-cyan-950/30\"><span class=\"border border-cyan-300/80\"></span> <span class=\"border border-cyan-300/40\"></span> <span class=\"border border-cyan-300/40\"></span> <span class=\"bg-cyan-300\"></span></span> <span>Andurel.</span></a><nav class=\"flex flex-wrap items-center justify-end gap-3 text-sm\"><a class=\"rounded px-3 py-1.5 text-slate-400 transition hover:text-white\" href=\"https://andurel.com\">Documentation</a> <a class=\"rounded px-3 py-1.5 text-slate-400 transition hover:text-white\" href=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var5 templ.SafeURL
+				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinURLErrs(routes.SessionNew.URL())
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/welcome.templ`, Line: 31, Col: 111}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\">Log in</a> <a class=\"rounded border border-cyan-400/35 bg-slate-900/70 px-3 py-1.5 text-slate-200 transition hover:border-cyan-300/70 hover:text-white\" href=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var6 templ.SafeURL
+				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(routes.RegistrationNew.URL())
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/welcome.templ`, Line: 32, Col: 183}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\">Register</a></nav></header><section class=\"grid flex-1 items-center gap-10 py-16 lg:grid-cols-[minmax(0,1fr)_25rem]\"><div class=\"max-w-3xl\"><div class=\"mb-6 inline-flex items-center gap-2 rounded border border-cyan-400/25 bg-slate-900/80 px-4 py-1.5 text-sm text-cyan-100 shadow-sm shadow-cyan-950/30\"><span class=\"relative flex size-2\"><span class=\"absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75\"></span> <span class=\"relative inline-flex size-2 rounded-full bg-emerald-400\"></span></span> Runtime online</div><h1 class=\"text-5xl font-semibold text-white sm:text-6xl lg:text-7xl\">PaaS-grade Go, wired locally.</h1><p class=\"mt-6 max-w-2xl text-lg leading-8 text-slate-300\">Andurel has generated the core app shell: routing, controllers, validation, authentication, email, queues, Templ, and Inertia-ready frontends.</p><div class=\"mt-9 flex flex-wrap gap-3\"><a class=\"rounded bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-sm shadow-cyan-950/30 transition hover:bg-cyan-300\" href=\"https://andurel.com\">Read the docs</a> <a class=\"rounded border border-cyan-400/35 bg-slate-900/70 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/70 hover:text-white\" href=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var7 templ.SafeURL
+				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinURLErrs(routes.RegistrationNew.URL())
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/welcome.templ`, Line: 50, Col: 204}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\">Create account</a></div></div><div class=\"border border-cyan-400/25 bg-slate-900/80 p-5 shadow-2xl shadow-cyan-950/40\"><div class=\"mb-4 flex items-center justify-between border-b border-cyan-400/20 pb-3 text-xs uppercase text-slate-400\"><span>deploy console</span> <span class=\"text-emerald-300\">ready</span></div><div class=\"space-y-4 font-mono text-sm\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = consoleLine("auth", "sessions, registration, reset password").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = consoleLine("views", "Templ + Inertia scaffold online").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = consoleLine("routes", "slugged endpoints mounted").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = consoleLine("jobs", "queue worker ready").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></div><section class=\"mt-12 grid gap-4 md:grid-cols-2 lg:col-span-2\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = welcomeCard("Documentation", "Start with the framework guides and learn the conventions that shape an Andurel app.", "https://andurel.com").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = welcomeCard("Authentication", "Registration, sessions, email confirmation, and password reset are already wired.", routes.RegistrationNew.URL()).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = welcomeCard("Templ and Inertia", "Render server-side Templ pages or scaffold Vue and React pages when Inertia is enabled.", routes.HomePage.URL()).Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = welcomeCard("Command line", "Generate models, factories, controllers, routes, jobs, emails, and views from the CLI.", "https://andurel.com").Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</section></section></div></main>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				return nil
+			})
+			templ_7745c5c3_Err = templ.Fragment(w.PageFragment()).Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = base(SetTitle("Welcome")).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func welcomeCard(title string, description string, href string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var8 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var8 == nil {
+			templ_7745c5c3_Var8 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<a class=\"group border border-cyan-400/25 bg-slate-900/75 p-5 text-left shadow-sm shadow-cyan-950/30 transition hover:border-cyan-300/70 hover:bg-slate-900\" href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var9 templ.SafeURL
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(href)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/welcome.templ`, Line: 79, Col: 169}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"><div class=\"mb-4 flex size-10 items-center justify-center border border-cyan-400/35 bg-slate-950 text-cyan-300 transition group-hover:border-cyan-300/70\"><span class=\"size-2 bg-cyan-300\"></span></div><h2 class=\"text-base font-semibold text-white\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var10 string
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(title)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/welcome.templ`, Line: 83, Col: 56}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</h2><p class=\"mt-2 text-sm leading-6 text-slate-400\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var11 string
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(description)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/welcome.templ`, Line: 84, Col: 64}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</p></a>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func consoleLine(label string, value string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var12 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var12 == nil {
+			templ_7745c5c3_Var12 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div class=\"flex items-start gap-3\"><span class=\"mt-1 size-1.5 bg-emerald-400\"></span><div><p class=\"text-cyan-300\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var13 string
+		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(label)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/welcome.templ`, Line: 92, Col: 35}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</p><p class=\"text-slate-400\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var14 string
+		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(value)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/welcome.templ`, Line: 93, Col: 36}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</p></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

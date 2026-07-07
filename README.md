@@ -529,7 +529,7 @@ myapp/
 ├── views/                    # Templ templates
 │   ├── layout.templ
 │   ├── head.templ
-│   ├── home.templ
+│   ├── welcome.templ
 │   ├── bad_request.templ
 │   ├── confirm_email.templ
 │   ├── internal_error.templ
@@ -554,11 +554,14 @@ myapp/
 ├── resources/
 │   └── js/
 │       ├── app.ts/app.tsx       # Vue/React + Inertia app entry point
+│       ├── Layouts/
+│       │   └── Layout.vue/tsx    # Shared Inertia page layout
 │       └── Pages/
-│           └── Welcome.vue/tsx  # Home page component
+│           ├── Auth/             # Login, registration, email confirmation, password reset
+│           └── Errors/           # Bad request, not found, internal error
 ├── views/
 │   ├── root.go.html             # Inertia root HTML shell
-│   └── (no home.templ — replaced by Vue Welcome page)
+│   └── welcome.templ            # Server-rendered welcome page
 ├── internal/
 │   └── inertia/
 │       ├── render.go            # Inertia response helpers
@@ -568,7 +571,7 @@ myapp/
 ├── tsconfig.json
 ```
 
-The `controllers/pages.go` uses Inertia rendering instead of Templ, and `cmd/app/main.go` initializes `internal/inertia`. Run the configured package manager's install command after scaffolding (the `andurel new` output shows the right command based on the configured runtime). Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia resource pages (reads the adapter from `andurel.lock`).
+The auth and default error pages use Inertia, while `controllers/pages.go` keeps the welcome page server-rendered with Templ. `cmd/app/main.go` initializes `internal/inertia`. Run the configured package manager's install command after scaffolding (the `andurel new` output shows the right command based on the configured runtime). Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia resource pages (reads the adapter from `andurel.lock`).
 
 When using `--inertia vue` or `--inertia react`, controllers can render Inertia pages alongside Templ.
 
@@ -583,25 +586,25 @@ The runtime is stored in `andurel.lock` as `scaffoldConfig.javascriptRuntime`. `
 
 ### Real Example: Controller to Vue Component
 
-Here's how a controller passes data to a Vue component via Inertia, from route definition to rendered page.
+Here's how an auth controller renders a Vue component via Inertia, from route definition to rendered page.
 
 #### Route Definition
 
 ```go
-// router/routes/pages.go
-var HomePage = routing.NewSimpleRoute("/", "pages.home", "")
+// router/routes/users.go
+var SessionNew = routing.NewSimpleRoute("/sign-in", "users.new_user_session", UserPrefix)
 ```
 
 #### Route Registration
 
 ```go
-// controllers/pages.go
-func (p Pages) RegisterRoutes(r *router.Router) error {
+// controllers/sessions.go
+func (s Sessions) RegisterRoutes(r *router.Router) error {
     _, err := r.AddRoute(echo.Route{
         Method:  http.MethodGet,
-        Path:    routes.HomePage.Path(),
-        Name:    routes.HomePage.Name(),
-        Handler: p.Home,
+        Path:    routes.SessionNew.Path(),
+        Name:    routes.SessionNew.Name(),
+        Handler: s.New,
     })
     return err
 }
@@ -610,34 +613,30 @@ func (p Pages) RegisterRoutes(r *router.Router) error {
 #### Controller
 
 ```go
-// controllers/pages.go
-func (p Pages) Home(etx *echo.Context) error {
-    return inertia.Page(etx, "Welcome", inertia.Props{
-        "appName": "MyApp",
-    })
+// controllers/sessions.go
+func (s Sessions) New(etx *echo.Context) error {
+    return inertia.Page(etx, "Auth/Login", inertia.Props{})
 }
 ```
 
 #### Vue Component
 
 ```vue
-<!-- resources/js/Pages/Welcome.vue -->
+<!-- resources/js/Pages/Auth/Login.vue -->
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3'
+import { Head, useForm } from '@inertiajs/vue3'
+import Layout from '../../Layouts/Layout.vue'
 
-defineProps<{
-  appName: string
-}>()
+const form = useForm({ email: '', password: '' })
 </script>
 
 <template>
-  <Head :title="appName" />
-  <div class="min-h-screen flex items-center justify-center bg-gray-50">
-    <div class="text-center">
-      <h1 class="mb-4 text-4xl font-bold text-gray-900">{{ appName }}</h1>
-      <p class="text-gray-600">Built with Andurel + Inertia + Vue</p>
-    </div>
-  </div>
+  <Layout>
+    <Head title="Login" />
+    <form @submit.prevent="form.post('/users/sign-in')">
+      <!-- login fields -->
+    </form>
+  </Layout>
 </template>
 ```
 

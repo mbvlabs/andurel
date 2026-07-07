@@ -31,37 +31,37 @@ templ (ws WidgetShow) Page() {
 			<main id="widget-show-container" class="flex-1 px-6 py-10">
 				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
-						<h1 class="text-2xl font-semibold text-gray-900">Widget Details</h1>
+						<h1 class="text-2xl font-semibold text-slate-100">Widget Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
 							
-							<a href={ routes.WidgetEdit.URL(ws.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50 disabled:opacity-60 disabled:cursor-not-allowed bg-blue-600 text-white shadow-sm hover:bg-blue-700 h-9 px-4 py-2 text-sm rounded">Edit</a>
+							<a href={ routes.WidgetEdit.URL(ws.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
 							
 							
 						</div>
 					</div>
-					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
 						<div class="p-6 pt-0">
 							<div class="grid gap-5 sm:grid-cols-2">
 								
 								<div class="space-y-1">
-									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Name</label>
-									<p class="text-sm text-gray-900">{ ws.Item.Name }</p>
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Name</label>
+									<p class="text-sm text-slate-100">{ ws.Item.Name }</p>
 								</div>
 								<div class="space-y-1">
-									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Quantity</label>
-									<p class="text-sm text-gray-900">{ fmt.Sprintf("%d", ws.Item.Quantity) }</p>
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Quantity</label>
+									<p class="text-sm text-slate-100">{ fmt.Sprintf("%d", ws.Item.Quantity) }</p>
 								</div>
 								<div class="space-y-1">
-									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Active</label>
-									<p class="text-sm text-gray-900">{ fmt.Sprintf("%t", ws.Item.Active) }</p>
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Active</label>
+									<p class="text-sm text-slate-100">{ fmt.Sprintf("%t", ws.Item.Active) }</p>
 								</div>
 								<div class="space-y-1">
-									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
-									<p class="text-sm text-gray-900">{ ws.Item.CreatedAt.String() }</p>
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
+									<p class="text-sm text-slate-100">{ ws.Item.CreatedAt.String() }</p>
 								</div>
 								<div class="space-y-1">
-									<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
-									<p class="text-sm text-gray-900">{ ws.Item.UpdatedAt.String() }</p>
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
+									<p class="text-sm text-slate-100">{ ws.Item.UpdatedAt.String() }</p>
 								</div>
 								
 							</div>
@@ -90,10 +90,10 @@ templ (we WidgetEdit) Page() {
 		@templ.Fragment(we.PageFragment()) {
 			<main id="widget-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
 				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-					<div class="rounded-lg border border-gray-300 bg-white shadow-sm">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
 						<div class="flex flex-col space-y-1.5 p-6">
-							<h3 class="text-lg font-semibold leading-none text-gray-900">Edit Widget</h3>
-							<p class="text-sm text-gray-500">Update the details for this widget.</p>
+							<h3 class="text-lg font-semibold leading-none text-slate-100">Edit Widget</h3>
+							<p class="text-sm text-slate-400">Update the details for this widget.</p>
 						</div>
 						<div class="p-6 pt-0">
 							<form class="space-y-5" data-indicator:_submitting>
@@ -101,16 +101,16 @@ templ (we WidgetEdit) Page() {
 									<div class="space-y-4">
 										
 										<div class="space-y-1">
-											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
-											<input type="text" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="name" value={ we.Item.Name } />
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="name" value={ we.Item.Name } />
 										</div>
 										<div class="space-y-1">
-											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="quantity">Quantity</label>
-											<input type="number" class="flex h-9 w-full rounded border bg-gray-50 px-3 py-1 text-sm text-gray-900 shadow-inner transition placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60 border-gray-300" data-bind="quantity" value={ fmt.Sprintf("%d", we.Item.Quantity) } />
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="quantity">Quantity</label>
+											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="quantity" value={ fmt.Sprintf("%d", we.Item.Quantity) } />
 										</div>
 										<div class="flex items-center gap-2">
-											<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-gray-300 bg-gray-50 accent-blue-600 transition focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60" data-bind="active" if we.Item.Active { checked } />
-											<label class="text-sm font-medium leading-none text-gray-700 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="active">Active</label>
+											<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-cyan-400/25 bg-slate-950 accent-cyan-400 transition focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="active" if we.Item.Active { checked } />
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="active">Active</label>
 										</div>
 										
 									</div>

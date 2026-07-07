@@ -10,16 +10,16 @@ templ base(headOpts ...HeadDataOption) {
 	<!DOCTYPE html>
 	<html lang="en" class="dark">
 		@SetupHead(ctx, headOpts...)
-		<body class="min-h-screen flex flex-col bg-gray-50 text-gray-900">
+		<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100">
 			{ children... }
 			<footer>
-				<div class="container mx-auto py-4 text-center text-sm text-gray-500">
+				<div class="container mx-auto py-4 text-center text-sm text-slate-400">
 					&copy; { time.Now().Format("2006") } andurel.
 				</div>
 			</footer>
 			<div id="flashContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
 				for _, flash := range request.ExtractContext[[]cookies.FlashMessage](ctx, request.SessionFlashesKey) {
-					<div class="rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-lg">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 px-4 py-3 shadow-lg">
 						{ flash.Message }
 					</div>
 				}

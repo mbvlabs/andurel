@@ -1,0 +1,96 @@
+package views
+
+import "{{.ModuleName}}/router/routes"
+
+type Welcome struct{}
+
+func (w Welcome) PageFragment() string {
+	return "welcome-page-fragment"
+}
+
+templ (w Welcome) Page() {
+	@base(SetTitle("Welcome")) {
+		@templ.Fragment(w.PageFragment()) {
+			<main id="welcome-container" class="relative flex-1 overflow-hidden bg-slate-950 text-slate-100">
+				<div class="pointer-events-none absolute inset-0 opacity-50" style="background-image: linear-gradient(rgba(34, 211, 238, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 211, 238, 0.07) 1px, transparent 1px); background-size: 36px 36px;"></div>
+				<div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300 to-transparent"></div>
+				<div class="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-gradient-to-b from-cyan-300/0 via-cyan-300/25 to-cyan-300/0"></div>
+				<div class="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-8 lg:px-8">
+					<header class="flex items-center justify-between border-b border-cyan-400/20 pb-5">
+						<a class="inline-flex items-center gap-3 text-sm font-semibold text-slate-100" href={ routes.HomePage.URL() }>
+							<span class="grid size-8 grid-cols-2 gap-1 rounded border border-cyan-400/40 bg-cyan-400/10 p-1 shadow-sm shadow-cyan-950/30">
+								<span class="border border-cyan-300/80"></span>
+								<span class="border border-cyan-300/40"></span>
+								<span class="border border-cyan-300/40"></span>
+								<span class="bg-cyan-300"></span>
+							</span>
+							<span>Andurel.</span>
+						</a>
+						<nav class="flex flex-wrap items-center justify-end gap-3 text-sm">
+							<a class="rounded px-3 py-1.5 text-slate-400 transition hover:text-white" href="https://andurel.com">Documentation</a>
+							<a class="rounded px-3 py-1.5 text-slate-400 transition hover:text-white" href={ routes.SessionNew.URL() }>Log in</a>
+							<a class="rounded border border-cyan-400/35 bg-slate-900/70 px-3 py-1.5 text-slate-200 transition hover:border-cyan-300/70 hover:text-white" href={ routes.RegistrationNew.URL() }>Register</a>
+						</nav>
+					</header>
+					<section class="grid flex-1 items-center gap-10 py-16 lg:grid-cols-[minmax(0,1fr)_25rem]">
+						<div class="max-w-3xl">
+							<div class="mb-6 inline-flex items-center gap-2 rounded border border-cyan-400/25 bg-slate-900/80 px-4 py-1.5 text-sm text-cyan-100 shadow-sm shadow-cyan-950/30">
+								<span class="relative flex size-2">
+									<span class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+									<span class="relative inline-flex size-2 rounded-full bg-emerald-400"></span>
+								</span>
+								Runtime online
+							</div>
+							<h1 class="text-5xl font-semibold text-white sm:text-6xl lg:text-7xl">PaaS-grade Go, wired locally.</h1>
+							<p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
+								Andurel has generated the core app shell: routing, controllers, validation, authentication, email, queues, Templ, and Inertia-ready frontends.
+							</p>
+							<div class="mt-9 flex flex-wrap gap-3">
+								<a class="rounded bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 shadow-sm shadow-cyan-950/30 transition hover:bg-cyan-300" href="https://andurel.com">Read the docs</a>
+								<a class="rounded border border-cyan-400/35 bg-slate-900/70 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/70 hover:text-white" href={ routes.RegistrationNew.URL() }>Create account</a>
+							</div>
+						</div>
+						<div class="border border-cyan-400/25 bg-slate-900/80 p-5 shadow-2xl shadow-cyan-950/40">
+							<div class="mb-4 flex items-center justify-between border-b border-cyan-400/20 pb-3 text-xs uppercase text-slate-400">
+								<span>deploy console</span>
+								<span class="text-emerald-300">ready</span>
+							</div>
+							<div class="space-y-4 font-mono text-sm">
+								@consoleLine("auth", "sessions, registration, reset password")
+								@consoleLine("views", "Templ + Inertia scaffold online")
+								@consoleLine("routes", "slugged endpoints mounted")
+								@consoleLine("jobs", "queue worker ready")
+							</div>
+						</div>
+						<section class="mt-12 grid gap-4 md:grid-cols-2 lg:col-span-2">
+							@welcomeCard("Documentation", "Start with the framework guides and learn the conventions that shape an Andurel app.", "https://andurel.com")
+							@welcomeCard("Authentication", "Registration, sessions, email confirmation, and password reset are already wired.", routes.RegistrationNew.URL())
+							@welcomeCard("Templ and Inertia", "Render server-side Templ pages or scaffold Vue and React pages when Inertia is enabled.", routes.HomePage.URL())
+							@welcomeCard("Command line", "Generate models, factories, controllers, routes, jobs, emails, and views from the CLI.", "https://andurel.com")
+						</section>
+					</section>
+				</div>
+			</main>
+		}
+	}
+}
+
+templ welcomeCard(title string, description string, href string) {
+	<a class="group border border-cyan-400/25 bg-slate-900/75 p-5 text-left shadow-sm shadow-cyan-950/30 transition hover:border-cyan-300/70 hover:bg-slate-900" href={ href }>
+		<div class="mb-4 flex size-10 items-center justify-center border border-cyan-400/35 bg-slate-950 text-cyan-300 transition group-hover:border-cyan-300/70">
+			<span class="size-2 bg-cyan-300"></span>
+		</div>
+		<h2 class="text-base font-semibold text-white">{ title }</h2>
+		<p class="mt-2 text-sm leading-6 text-slate-400">{ description }</p>
+	</a>
+}
+
+templ consoleLine(label string, value string) {
+	<div class="flex items-start gap-3">
+		<span class="mt-1 size-1.5 bg-emerald-400"></span>
+		<div>
+			<p class="text-cyan-300">{ label }</p>
+			<p class="text-slate-400">{ value }</p>
+		</div>
+	</div>
+}

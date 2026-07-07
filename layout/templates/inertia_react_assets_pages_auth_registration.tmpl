@@ -1,0 +1,49 @@
+import { Link, useForm } from '@inertiajs/react'
+import type { FormEvent } from 'react'
+
+import Layout from '../../Layouts/Layout'
+
+type RegistrationProps = {
+  errors?: Record<string, string>
+}
+
+export default function Registration({ errors = {} }: RegistrationProps) {
+  const form = useForm({ email: '', password: '', confirmPassword: '' })
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    form.post('/users')
+  }
+
+  return (
+    <Layout>
+      <section className="w-full max-w-md rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30">
+        <div className="p-8 pb-0">
+          <h1 className="text-xl font-semibold text-slate-100">Create an account</h1>
+          <p className="mt-1 text-sm text-slate-400">Enter your details below to create your account</p>
+        </div>
+        <div className="p-8">
+          <form onSubmit={submit} className="space-y-5">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-200" htmlFor="email">Email</label>
+              <input id="email" type="email" value={form.data.email} onChange={(event) => form.setData('email', event.target.value)} className="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40" required />
+              {errors.email && <p className="text-sm font-medium text-red-400">{errors.email}</p>}
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-200" htmlFor="password">Password</label>
+              <input id="password" type="password" value={form.data.password} onChange={(event) => form.setData('password', event.target.value)} className="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40" required />
+              {errors.password && <p className="text-sm font-medium text-red-400">{errors.password}</p>}
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-200" htmlFor="confirmPassword">Confirm Password</label>
+              <input id="confirmPassword" type="password" value={form.data.confirmPassword} onChange={(event) => form.setData('confirmPassword', event.target.value)} className="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40" required />
+              {errors.confirmPassword && <p className="text-sm font-medium text-red-400">{errors.confirmPassword}</p>}
+            </div>
+            <button type="submit" disabled={form.processing} className="inline-flex w-full items-center justify-center rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 hover:bg-cyan-300 disabled:opacity-60">{form.processing ? 'Loading' : 'Sign Up'}</button>
+          </form>
+          <p className="mt-6 text-center text-sm text-slate-400">Already have an account? <Link className="text-slate-300 hover:text-slate-100 hover:underline" href="/users/sign-in">Login</Link></p>
+        </div>
+      </section>
+    </Layout>
+  )
+}

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3'
+import { Link, useForm } from '@inertiajs/vue3'
 
 defineProps<{
   item: Record<string, unknown>
@@ -7,33 +7,32 @@ defineProps<{
 </script>
 
 <template>
-  <Head title="Project" />
   <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold text-gray-900">Project Details</h1>
+      <h1 class="text-2xl font-bold text-slate-100">Project Details</h1>
       <div class="flex gap-3">
-        <Link :href="`/projects/${item.ID}/edit`" class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Edit</Link>
-        <Link href="/projects" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Back</Link>
+        <Link :href="`/projects/${item.ID}/edit`" class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">Edit</Link>
+        <Link href="/projects" class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
       </div>
     </div>
 
-    <div class="mt-8 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-      <dl class="divide-y divide-gray-200">
+    <div class="mt-8 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
+      <dl class="divide-y divide-cyan-400/20">
         <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-          <dt class="text-sm font-medium text-gray-500">Title</dt>
-          <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{{ item.Title }}</dd>
+          <dt class="text-sm font-medium text-slate-400">Title</dt>
+          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.Title }}</dd>
         </div>
         <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-          <dt class="text-sm font-medium text-gray-500">Status</dt>
-          <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{{ item.Status }}</dd>
+          <dt class="text-sm font-medium text-slate-400">Status</dt>
+          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.Status }}</dd>
         </div>
         <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-          <dt class="text-sm font-medium text-gray-500">Created At</dt>
-          <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{{ item.CreatedAt }}</dd>
+          <dt class="text-sm font-medium text-slate-400">Created At</dt>
+          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.CreatedAt }}</dd>
         </div>
         <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-          <dt class="text-sm font-medium text-gray-500">Updated At</dt>
-          <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{{ item.UpdatedAt }}</dd>
+          <dt class="text-sm font-medium text-slate-400">Updated At</dt>
+          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.UpdatedAt }}</dd>
         </div>
       </dl>
     </div>

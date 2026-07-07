@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, useForm } from '@inertiajs/vue3'
+import { Link, useForm } from '@inertiajs/vue3'
 
 defineProps<{
   items: Array<Record<string, unknown>>
@@ -7,34 +7,33 @@ defineProps<{
 </script>
 
 <template>
-  <Head title="Projects" />
   <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold text-gray-900">Projects</h1>
-      <Link href="/projects/new" class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">New Project</Link>
+      <h1 class="text-2xl font-bold text-slate-100">Projects</h1>
+      <Link href="/projects/new" class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">New Project</Link>
     </div>
 
-    <div class="mt-8 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+    <div class="mt-8 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
+      <table class="min-w-full divide-y divide-cyan-400/20">
+        <thead class="bg-slate-950">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Title</th>
-            <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Status</th>
-            <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Created At</th>
-            <th class="px-6 py-3 text-left text-xs font-medium uppercase text-gray-500">Updated At</th>
-            <th class="px-6 py-3 text-right text-xs font-medium uppercase text-gray-500">Actions</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase text-slate-400">Title</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase text-slate-400">Status</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase text-slate-400">Created At</th>
+            <th class="px-6 py-3 text-left text-xs font-medium uppercase text-slate-400">Updated At</th>
+            <th class="px-6 py-3 text-right text-xs font-medium uppercase text-slate-400">Actions</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-200 bg-white">
-          <tr v-for="item in items" :key="item.ID" class="hover:bg-gray-50">
-            <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{{ item.Title }}</td>
-            <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{{ item.Status }}</td>
-            <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{{ item.CreatedAt }}</td>
-            <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{{ item.UpdatedAt }}</td>
+        <tbody class="divide-y divide-cyan-400/20 bg-slate-900">
+          <tr v-for="item in items" :key="item.ID" class="hover:bg-slate-950">
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ item.Title }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ item.Status }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ item.CreatedAt }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ item.UpdatedAt }}</td>
             <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-              <Link :href="`/projects/${item.ID}`" class="mr-3 text-blue-600 hover:text-blue-900">View</Link>
-              <Link :href="`/projects/${item.ID}/edit`" class="mr-3 text-indigo-600 hover:text-indigo-900">Edit</Link>
-              <Link :href="`/projects/${item.ID}`" method="delete" as="button" class="text-red-600 hover:text-red-900">Delete</Link>
+              <Link :href="`/projects/${item.ID}`" class="mr-3 text-cyan-300 hover:text-white">View</Link>
+              <Link :href="`/projects/${item.ID}/edit`" class="mr-3 text-cyan-300 hover:text-white">Edit</Link>
+              <Link :href="`/projects/${item.ID}`" method="delete" as="button" class="text-red-400 hover:text-red-300">Delete</Link>
             </td>
           </tr>
         </tbody>

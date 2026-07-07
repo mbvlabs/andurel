@@ -15,7 +15,14 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	}
 
 	assertFileContains(t, projectDir, "resources/js/app.tsx", "@inertiajs/react")
-	assertFileContains(t, projectDir, "resources/js/Pages/Welcome.tsx", "Inertia + React")
+	assertFileContains(t, projectDir, "resources/js/Layouts/Layout.tsx", "children")
+	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", "form.post('/users/sign-in')")
+	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Registration.tsx", "form.post('/users')")
+	assertFileContains(t, projectDir, "resources/js/Pages/Auth/ResetPassword.tsx", "form.put('/users/password')")
+	assertFileContains(t, projectDir, "resources/js/Pages/Auth/ResetPasswordRequest.tsx", "form.post('/users/password')")
+	assertFileContains(t, projectDir, "resources/js/Pages/Auth/ConfirmEmail.tsx", "form.post('/users/confirmation')")
+	assertFileContains(t, projectDir, "resources/js/Pages/Errors/NotFound.tsx", "Not found")
+	assertFileContains(t, projectDir, "views/welcome.templ", "type Welcome struct{}")
 	assertFileContains(t, projectDir, "package.json", "@vitejs/plugin-react")
 	assertFileContains(t, projectDir, "vite.config.ts", "resources/js/app.tsx")
 	assertFileContains(t, projectDir, "tsconfig.json", "resources/js/**/*.tsx")
@@ -23,7 +30,15 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileContains(t, projectDir, "router/router.go", "inertia.Middleware()")
 	assertFileContains(t, projectDir, "go.mod", "github.com/romsar/gonertia")
 	assertFileMissing(t, projectDir, "resources/js/app.ts")
+	assertFileMissing(t, projectDir, "resources/js/Pages/Head.tsx")
+	assertFileMissing(t, projectDir, "resources/js/Pages/Layout.tsx")
+	assertFileMissing(t, projectDir, "resources/js/Pages/Welcome.tsx")
 	assertFileMissing(t, projectDir, "resources/js/Pages/Welcome.vue")
+	assertFileMissing(t, projectDir, "views/home.templ")
+	assertFileMissing(t, projectDir, "views/login.templ")
+	assertFileMissing(t, projectDir, "views/registration.templ")
+	assertFileMissing(t, projectDir, "views/reset_password.templ")
+	assertFileMissing(t, projectDir, "views/confirm_email.templ")
 }
 
 func assertFileContains(t *testing.T, root, relPath, want string) {

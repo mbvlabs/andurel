@@ -224,24 +224,24 @@ type FrameworkManagedFile struct {
 	TargetPath   string
 }
 
-var baseTailwindTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"tw_css_base.tmpl": "css/base.css",
+var baseStyleTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"css_base.tmpl": "css/base.css",
 
 	// Views
-	"tw_views_layout.tmpl": "views/layout.templ",
-	"tw_views_home.tmpl":   "views/home.templ",
+	"views_layout.tmpl":  "views/layout.templ",
+	"views_welcome.tmpl": "views/welcome.templ",
 
 	// Views — Pages
-	"tw_views_bad_request.tmpl":    "views/bad_request.templ",
-	"tw_views_internal_error.tmpl": "views/internal_error.templ",
-	"tw_views_not_found.tmpl":      "views/not_found.templ",
-	"tw_views_confirm_email.tmpl":  "views/confirm_email.templ",
-	"tw_views_login.tmpl":          "views/login.templ",
-	"tw_views_registration.tmpl":   "views/registration.templ",
-	"tw_views_reset_password.tmpl": "views/reset_password.templ",
+	"views_bad_request.tmpl":    "views/bad_request.templ",
+	"views_internal_error.tmpl": "views/internal_error.templ",
+	"views_not_found.tmpl":      "views/not_found.templ",
+	"views_confirm_email.tmpl":  "views/confirm_email.templ",
+	"views_login.tmpl":          "views/login.templ",
+	"views_registration.tmpl":   "views/registration.templ",
+	"views_reset_password.tmpl": "views/reset_password.templ",
 
 	// Views
-	"tw_views_head.tmpl": "views/head.templ",
+	"views_head.tmpl": "views/head.templ",
 }
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -381,23 +381,45 @@ var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
 }
 
 var inertiaVueTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"inertia_assets_app.tmpl":           "resources/js/app.ts",
-	"inertia_assets_pages_welcome.tmpl": "resources/js/Pages/Welcome.vue",
-	"inertia_assets_vite_config.tmpl":   "vite.config.ts",
-	"inertia_assets_package_json.tmpl":  "package.json",
-	"inertia_assets_tsconfig.tmpl":      "tsconfig.json",
+	"inertia_assets_app.tmpl":                               "resources/js/app.ts",
+	"inertia_assets_layouts_layout.tmpl":                    "resources/js/Layouts/Layout.vue",
+	"inertia_assets_pages_auth_confirm_email.tmpl":          "resources/js/Pages/Auth/ConfirmEmail.vue",
+	"inertia_assets_pages_auth_login.tmpl":                  "resources/js/Pages/Auth/Login.vue",
+	"inertia_assets_pages_auth_registration.tmpl":           "resources/js/Pages/Auth/Registration.vue",
+	"inertia_assets_pages_auth_reset_password.tmpl":         "resources/js/Pages/Auth/ResetPassword.vue",
+	"inertia_assets_pages_auth_reset_password_request.tmpl": "resources/js/Pages/Auth/ResetPasswordRequest.vue",
+	"inertia_assets_pages_errors_bad_request.tmpl":          "resources/js/Pages/Errors/BadRequest.vue",
+	"inertia_assets_pages_errors_internal_error.tmpl":       "resources/js/Pages/Errors/InternalError.vue",
+	"inertia_assets_pages_errors_not_found.tmpl":            "resources/js/Pages/Errors/NotFound.vue",
+	"inertia_assets_vite_config.tmpl":                       "vite.config.ts",
+	"inertia_assets_package_json.tmpl":                      "package.json",
+	"inertia_assets_tsconfig.tmpl":                          "tsconfig.json",
 }
 
 var inertiaReactTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"inertia_react_assets_app.tmpl":           "resources/js/app.tsx",
-	"inertia_react_assets_pages_welcome.tmpl": "resources/js/Pages/Welcome.tsx",
-	"inertia_react_assets_vite_config.tmpl":   "vite.config.ts",
-	"inertia_react_assets_package_json.tmpl":  "package.json",
-	"inertia_react_assets_tsconfig.tmpl":      "tsconfig.json",
+	"inertia_react_assets_app.tmpl":                               "resources/js/app.tsx",
+	"inertia_react_assets_layouts_layout.tmpl":                    "resources/js/Layouts/Layout.tsx",
+	"inertia_react_assets_pages_auth_confirm_email.tmpl":          "resources/js/Pages/Auth/ConfirmEmail.tsx",
+	"inertia_react_assets_pages_auth_login.tmpl":                  "resources/js/Pages/Auth/Login.tsx",
+	"inertia_react_assets_pages_auth_registration.tmpl":           "resources/js/Pages/Auth/Registration.tsx",
+	"inertia_react_assets_pages_auth_reset_password.tmpl":         "resources/js/Pages/Auth/ResetPassword.tsx",
+	"inertia_react_assets_pages_auth_reset_password_request.tmpl": "resources/js/Pages/Auth/ResetPasswordRequest.tsx",
+	"inertia_react_assets_pages_errors_bad_request.tmpl":          "resources/js/Pages/Errors/BadRequest.tsx",
+	"inertia_react_assets_pages_errors_internal_error.tmpl":       "resources/js/Pages/Errors/InternalError.tsx",
+	"inertia_react_assets_pages_errors_not_found.tmpl":            "resources/js/Pages/Errors/NotFound.tsx",
+	"inertia_react_assets_vite_config.tmpl":                       "vite.config.ts",
+	"inertia_react_assets_package_json.tmpl":                      "package.json",
+	"inertia_react_assets_tsconfig.tmpl":                          "tsconfig.json",
 }
 
 var inertiaSkippedTemplates = map[TmplTarget]bool{
-	"tw_views_home.tmpl": true,
+	"views_bad_request.tmpl":    true,
+	"views_confirm_email.tmpl":  true,
+	"views_internal_error.tmpl": true,
+	"views_login.tmpl":          true,
+	"views_not_found.tmpl":      true,
+	"views_registration.tmpl":   true,
+	"views_reset_password.tmpl": true,
 }
 
 func inertiaAdapterTemplateMappings(adapter string) map[TmplTarget]TmplTargetPath {
@@ -479,7 +501,15 @@ func processTemplatedFiles(targetDir string, data extensions.TemplateData) error
 			delete(mappings, k)
 		}
 		delete(mappings, "controllers_pages.tmpl")
+		delete(mappings, "controllers_confirmations.tmpl")
+		delete(mappings, "controllers_registrations.tmpl")
+		delete(mappings, "controllers_reset_passwords.tmpl")
+		delete(mappings, "controllers_sessions.tmpl")
 		mappings["controllers_pages_inertia.tmpl"] = "controllers/pages.go"
+		mappings["controllers_confirmations_inertia.tmpl"] = "controllers/confirmations.go"
+		mappings["controllers_registrations_inertia.tmpl"] = "controllers/registrations.go"
+		mappings["controllers_reset_passwords_inertia.tmpl"] = "controllers/reset_passwords.go"
+		mappings["controllers_sessions_inertia.tmpl"] = "controllers/sessions.go"
 		maps.Copy(mappings, inertiaSharedTemplateMappings)
 		maps.Copy(mappings, inertiaAdapterTemplateMappings(td.Inertia))
 	}
@@ -502,12 +532,12 @@ func processTemplatedFiles(targetDir string, data extensions.TemplateData) error
 		}
 	}
 
-	for templateFile, targetPath := range baseTailwindTemplateMappings {
+	for templateFile, targetPath := range baseStyleTemplateMappings {
 		if td, ok := data.(*TemplateData); ok && IsSupportedInertiaAdapter(td.Inertia) && inertiaSkippedTemplates[templateFile] {
 			continue
 		}
 		if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
-			return fmt.Errorf("failed to process tailwind template %s: %w", templateFile, err)
+			return fmt.Errorf("failed to process style template %s: %w", templateFile, err)
 		}
 	}
 

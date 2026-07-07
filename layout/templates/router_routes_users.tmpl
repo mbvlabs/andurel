@@ -7,19 +7,19 @@ import (
 const UserPrefix = "/users"
 
 var SessionNew = routing.NewSimpleRoute(
-	"/sign_in",
+	"/sign-in",
 	"users.new_user_session",
 	UserPrefix,
 )
 
 var SessionCreate = routing.NewSimpleRoute(
-	"/sign_in",
+	"/sign-in",
 	"users.user_session",
 	UserPrefix,
 )
 
 var SessionDestroy = routing.NewSimpleRoute(
-	"/sign_out",
+	"/sign-out",
 	"users.destroy_user_session",
 	UserPrefix,
 )
@@ -49,7 +49,7 @@ var PasswordUpdate = routing.NewSimpleRoute(
 )
 
 var RegistrationNew = routing.NewSimpleRoute(
-	"/sign_up",
+	"/sign-up",
 	"users.new_user_registration",
 	UserPrefix,
 )

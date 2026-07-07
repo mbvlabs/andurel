@@ -56,11 +56,9 @@ func (p Pages) RegisterRoutes(r *router.Router) error {
 }
 
 func (p Pages) Home(etx *echo.Context) error {
-	return inertia.Page(etx, "Welcome", inertia.Props{
-		"appName": "{{.ProjectName}}",
-	})
+	return hypermedia.RenderPage(etx, views.Welcome{}.Page())
 }
 
 func (p Pages) NotFound(etx *echo.Context) error {
-	return hypermedia.RenderPage(etx, views.NotFound())
+	return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
 }

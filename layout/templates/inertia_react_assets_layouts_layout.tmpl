@@ -1,0 +1,14 @@
+import type { ReactNode } from 'react'
+
+type LayoutProps = {
+  children: ReactNode
+}
+
+export default function Layout({ children }: LayoutProps) {
+  return (
+    <main className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
+      <div className="flex flex-1 items-center justify-center px-6 py-10">{children}</div>
+      <footer className="py-4 text-center text-sm text-slate-400">&copy; {new Date().getFullYear()} andurel.</footer>
+    </main>
+  )
+}

@@ -81,6 +81,14 @@ func Redirect(etx *echo.Context, url string, status ...int) error {
 	return nil
 }
 
+func Location(etx *echo.Context, url string, status ...int) error {
+	if gInertia == nil {
+		return errors.New("inertia: not initialized")
+	}
+	gInertia.Location(etx.Response(), etx.Request(), url, status...)
+	return nil
+}
+
 func Middleware() echo.MiddlewareFunc {
 	if gInertia == nil {
 		return func(next echo.HandlerFunc) echo.HandlerFunc {
