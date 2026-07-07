@@ -63,6 +63,9 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 	if controller.ModelPluralResourceName == "" {
 		controller.ModelPluralResourceName = controller.PluralResourceName
 	}
+	if controller.Package == "" {
+		controller.Package = naming.ControllerPackageName(controller.Namespace)
+	}
 
 	var templateName string
 	if controller.IsAPI {
