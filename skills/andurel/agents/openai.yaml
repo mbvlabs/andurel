@@ -1,0 +1,4 @@
+interface:
+  display_name: "Andurel"
+  short_description: "Place Andurel code in the right layer"
+  default_prompt: "Use $andurel to decide where new Andurel project code should live."

@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/skills"
@@ -28,7 +30,24 @@ func newSkillCommand() *cobra.Command {
 		Short: "Show the embedded Andurel skill",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return output.OK(cmd, skillReport{Name: "andurel", Body: skills.AndurelSkill}, "Loaded Andurel skill")
+			opts, err := output.ParseOptions(cmd)
+			if err != nil {
+				return err
+			}
+			if opts.Mode == output.ModeJSON || opts.Mode == output.ModeAgent {
+				return output.OK(cmd, skillReport{Name: "andurel", Body: skills.AndurelSkill}, "Loaded Andurel skill")
+			}
+			if opts.Quiet {
+				return nil
+			}
+			if _, err := fmt.Fprint(cmd.OutOrStdout(), skills.AndurelSkill); err != nil {
+				return err
+			}
+			if !strings.HasSuffix(skills.AndurelSkill, "\n") {
+				_, err = fmt.Fprintln(cmd.OutOrStdout())
+				return err
+			}
+			return nil
 		},
 	})
 
@@ -41,10 +60,7 @@ func newSkillCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-				return err
-			}
-			if err := os.WriteFile(target, []byte(skills.AndurelSkill), 0o644); err != nil {
+			if err := installAndurelSkill(filepath.Dir(target)); err != nil {
 				return err
 			}
 			return output.OK(cmd, skillReport{Name: "andurel", Path: target}, "Installed Andurel skill")
@@ -60,4 +76,14 @@ func projectCodexSkillPath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(rootDir, ".codex", "skills", "andurel", "SKILL.md"), nil
+}
+
+func installAndurelSkill(targetDir string) error {
+	return skills.WalkAndurelSkillFiles(func(path string, data []byte) error {
+		target := filepath.Join(targetDir, filepath.FromSlash(path))
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, 0o644)
+	})
 }
