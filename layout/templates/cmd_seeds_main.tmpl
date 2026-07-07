@@ -1,0 +1,75 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"strings"
+
+	"github.com/joho/godotenv"
+	"{{.ModuleName}}/database/seeds"
+	"{{.ModuleName}}/internal/storage"
+)
+
+func main() {
+	if err := run(os.Args[1:]); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(args []string) error {
+	flags := flag.NewFlagSet("seeds", flag.ExitOnError)
+	list := flags.Bool("list", false, "list available seeds")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+
+	if *list {
+		fmt.Println(strings.Join(seeds.Names(), "\n"))
+		return nil
+	}
+
+	if flags.NArg() > 1 {
+		return fmt.Errorf("expected at most one seed name, got %d", flags.NArg())
+	}
+
+	godotenv.Load()
+
+	ctx := context.Background()
+
+	db, err := storage.NewPostgres(ctx, buildDatabaseURL())
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+	defer db.Close()
+
+	seedName := ""
+	if flags.NArg() == 1 {
+		seedName = flags.Arg(0)
+	}
+	if seedName == "" {
+		seedName = seeds.Default
+	}
+
+	fmt.Printf("Seeding database with %q...\n", seedName)
+	if err := seeds.Run(ctx, db.Executor(), seedName); err != nil {
+		return err
+	}
+
+	fmt.Println("Seeding complete!")
+	return nil
+}
+
+func buildDatabaseURL() string {
+	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
+		os.Getenv("DB_KIND"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_SSL_MODE"),
+	)
+}

@@ -39,6 +39,20 @@ Generate and review artifacts:
 andurel generate scaffold Product --json
 ```
 
+Generate a named database seed:
+
+1. Inspect the relevant models and existing factories in `models/factories`.
+2. Add a seed function to `database/seeds`, using only exported model/factory/storage primitives.
+3. Register it in `seeds.Registry` with a stable lowercase name.
+4. Keep the seed idempotence expectations explicit in code comments when it may be re-run.
+5. Verify the seed is discoverable:
+
+```bash
+andurel database seed --list
+andurel database seed development
+andurel database seed test
+```
+
 Check project health:
 
 ```bash
