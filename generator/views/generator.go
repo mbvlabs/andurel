@@ -380,10 +380,10 @@ func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
 	}
 
 	if hasCssComponents {
-		return "tw_"
+		return "css_components_"
 	}
 
-	return "tw_bare_"
+	return ""
 }
 
 func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, templatePrefix string) (string, error) {
@@ -588,7 +588,7 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 	}
 
 	// Read lock file to determine extensions and view layer.
-	templatePrefix := "tw_bare_"
+	templatePrefix := ""
 	var lock *layout.AndurelLock
 	if rootDir, err := g.fileManager.FindGoModRoot(); err == nil {
 		if projectLock, err := layout.ReadLockFile(rootDir); err == nil {
@@ -654,9 +654,9 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 func inertiaViewTemplatePrefix(adapter string) string {
 	switch adapter {
 	case "react":
-		return "inertia_react_tw_bare_"
+		return "inertia_react_"
 	default:
-		return "inertia_vue_tw_bare_"
+		return "inertia_vue_"
 	}
 }
 

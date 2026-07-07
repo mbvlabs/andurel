@@ -25,7 +25,7 @@ templ ({{$indexRecv}} {{.NamespacePascal}}{{.ResourceName}}Index) Page() {
 			<main id="{{.ResourceName | ToLower}}-index-container" class="flex-1 px-6 py-10">
 				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
-						<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{Plural .ResourceName}}</h1>
+						<h1 class="text-2xl font-semibold tracking-normal text-base-content">{{Plural .ResourceName}}</h1>
 					</div>
 					if len({{$indexRecv}}.Items) == 0 {
 						<p class="text-sm text-base-content/60">No {{.PluralName}} found.</p>
@@ -69,7 +69,7 @@ templ ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) Page() {
 			<main id="{{.ResourceName | ToLower}}-show-container" class="flex-1 px-6 py-10">
 				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
-						<h1 class="text-2xl font-semibold tracking-tight text-base-content">{{.ResourceName}} Details</h1>
+						<h1 class="text-2xl font-semibold tracking-normal text-base-content">{{.ResourceName}} Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
 							<a class="inline-link text-sm">Back to List</a>
 						</div>

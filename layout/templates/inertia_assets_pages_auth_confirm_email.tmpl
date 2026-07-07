@@ -1,0 +1,31 @@
+<script setup lang="ts">
+import { useForm } from '@inertiajs/vue3'
+import Layout from '../../Layouts/Layout.vue'
+
+defineProps<{ errors?: Record<string, string> }>()
+
+const form = useForm({
+  code: '',
+})
+</script>
+
+<template>
+  <Layout>
+    <section class="w-full max-w-md rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30">
+      <div class="p-8 pb-0">
+        <h1 class="text-xl font-semibold text-slate-100">Verify Your Email</h1>
+        <p class="mt-1 text-sm text-slate-400">Please enter the 6-digit verification code sent to your email.</p>
+      </div>
+      <div class="p-8">
+        <form class="space-y-5" @submit.prevent="form.post('/users/confirmation')">
+          <div class="space-y-1">
+            <label class="text-sm font-medium text-slate-200" for="code">Verification Code</label>
+            <input id="code" v-model="form.code" type="text" maxlength="6" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-center text-sm tracking-[0.3em] text-slate-100 shadow-inner shadow-cyan-950/30 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40" required>
+            <p v-if="errors?.code" class="text-sm font-medium text-red-400">{{ errors.code }}</p>
+          </div>
+          <button type="submit" :disabled="form.processing" class="inline-flex w-full items-center justify-center rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 hover:bg-cyan-300 disabled:opacity-60">{{ form.processing ? 'Loading' : 'Verify Email' }}</button>
+        </form>
+      </div>
+    </section>
+  </Layout>
+</template>

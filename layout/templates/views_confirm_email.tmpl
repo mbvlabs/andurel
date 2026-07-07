@@ -1,0 +1,54 @@
+package views
+
+import (
+	"net/http"
+	"{{.ModuleName}}/internal/hypermedia"
+	"{{.ModuleName}}/internal/validation"
+	"{{.ModuleName}}/router/routes"
+)
+
+type ConfirmationForm struct {
+	Errors validation.ValidationErrors
+}
+
+func (cf ConfirmationForm) FieldError(field string) string {
+	return cf.Errors.ToMap()[field]
+}
+
+func (cf ConfirmationForm) PageFragment() string {
+	return "confirmation-page-fragment"
+}
+
+templ (cf ConfirmationForm) Page() {
+	@base() {
+		@templ.Fragment(cf.PageFragment()) {
+			<main id="confirmation-container" class="flex flex-1 items-center justify-center px-6 py-10">
+				<div class="mx-auto my-6 flex w-full max-w-md flex-col gap-6">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30">
+						<div class="flex flex-col space-y-1.5 p-8 pb-0">
+							<h2 class="text-xl font-semibold text-slate-100">Verify Your Email</h2>
+							<p class="text-sm text-slate-400">Please enter the 6-digit verification code sent to your email.</p>
+						</div>
+						<div class="p-8">
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.ConfirmationCreate.URL()) }>
+								<fieldset class="space-y-5 border-0 p-0" data-attr:disabled="$_submitting">
+									<div class="space-y-1">
+										<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="code">Verification Code</label>
+										<input id="code" type="text" maxlength="6" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-center text-sm tracking-[0.3em] text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="code" required/>
+										if cf.FieldError("code") != "" {
+											<p id="code-error" class="text-sm font-medium text-red-400" role="alert">{ cf.FieldError("code") }</p>
+										}
+									</div>
+									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 transition-colors hover:bg-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60">
+										<span data-show="!$_submitting">Verify Email</span>
+										<span data-show="$_submitting">Loading</span>
+									</button>
+								</fieldset>
+							</form>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}

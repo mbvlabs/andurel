@@ -1,0 +1,38 @@
+import { useForm } from '@inertiajs/react'
+import type { FormEvent } from 'react'
+
+import Layout from '../../Layouts/Layout'
+
+type ConfirmEmailProps = {
+  errors?: Record<string, string>
+}
+
+export default function ConfirmEmail({ errors = {} }: ConfirmEmailProps) {
+  const form = useForm({ code: '' })
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    form.post('/users/confirmation')
+  }
+
+  return (
+    <Layout>
+      <section className="w-full max-w-md rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30">
+        <div className="p-8 pb-0">
+          <h1 className="text-xl font-semibold text-slate-100">Verify Your Email</h1>
+          <p className="mt-1 text-sm text-slate-400">Please enter the 6-digit verification code sent to your email.</p>
+        </div>
+        <div className="p-8">
+          <form onSubmit={submit} className="space-y-5">
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-slate-200" htmlFor="code">Verification Code</label>
+              <input id="code" type="text" maxLength={6} value={form.data.code} onChange={(event) => form.setData('code', event.target.value)} className="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-center text-sm tracking-[0.3em] text-slate-100 shadow-inner shadow-cyan-950/30 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40" required />
+              {errors.code && <p className="text-sm font-medium text-red-400">{errors.code}</p>}
+            </div>
+            <button type="submit" disabled={form.processing} className="inline-flex w-full items-center justify-center rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 hover:bg-cyan-300 disabled:opacity-60">{form.processing ? 'Loading' : 'Verify Email'}</button>
+          </form>
+        </div>
+      </section>
+    </Layout>
+  )
+}

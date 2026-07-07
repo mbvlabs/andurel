@@ -1,0 +1,109 @@
+package controllers
+
+import (
+	"errors"
+	"log/slog"
+	"net/http"
+
+	"{{.ModuleName}}/internal/inertia"
+	"{{.ModuleName}}/internal/validation"
+	"{{.ModuleName}}/router"
+	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/router/middleware"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/services"
+
+	"github.com/labstack/echo/v5"
+)
+
+type Registrations struct {
+	identity services.Identity
+}
+
+func NewRegistrations(identity services.Identity) Registrations {
+	return Registrations{identity}
+}
+
+func (r Registrations) RegisterRoutes(rtr *router.Router) error {
+	errs := []error{}
+
+	_, err := rtr.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.RegistrationNew.Path(),
+		Name:    routes.RegistrationNew.Name(),
+		Handler: r.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = rtr.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.RegistrationCreate.Path(),
+		Name:    routes.RegistrationCreate.Name(),
+		Handler: r.Create,
+		Middlewares: []echo.MiddlewareFunc{
+			middleware.IPRateLimiter(5, routes.RegistrationNew),
+		},
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+func (r Registrations) New(etx *echo.Context) error {
+	return inertia.Page(etx, "Auth/Registration", inertia.Props{})
+}
+
+func (r Registrations) Create(etx *echo.Context) error {
+	var payload struct {
+		Email           string `json:"email"`
+		Password        string `json:"password"`
+		ConfirmPassword string `json:"confirmPassword"`
+	}
+
+	if err := etx.Bind(&payload); err != nil {
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"could not parse signup form payload",
+			"error",
+			err,
+		)
+		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+	}
+
+	if err := r.identity.RegisterUser(
+		etx.Request().Context(),
+		services.RegisterUserData{
+			Email:           payload.Email,
+			Password:        payload.Password,
+			ConfirmPassword: payload.ConfirmPassword,
+		},
+	); err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+			return inertia.Page(
+				etx,
+				"Auth/Registration",
+				inertia.Props{},
+				inertia.WithValidationErrors(validationErrors.ToMap()),
+			)
+		}
+
+		slog.ErrorContext(
+			etx.Request().Context(),
+			"failed to register user",
+			"error",
+			err,
+		)
+
+		if flashErr := cookies.AddFlash(etx, cookies.FlashError, "Failed to register user"); flashErr != nil {
+			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		}
+
+		return inertia.Redirect(etx, routes.RegistrationNew.URL())
+	}
+
+	return inertia.Redirect(etx, routes.ConfirmationNew.URL())
+}
