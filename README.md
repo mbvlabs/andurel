@@ -53,7 +53,7 @@ The core philosophy around resource generation in andurel, is that it should be 
 - **[PostgreSQL](https://www.postgresql.org/)** - Powerful open-source database with pgx driver and native UUID support
 - **[Shadowfax](https://github.com/mbvlabs/shadowfax)** - Andurel-specific app runner
 - **[go.uber.org/fx](https://uber-go.github.io/fx/)** - Dependency injection framework
-- **[gonertia](https://github.com/romsar/gonertia)** - Inertia.js Go adapter (optional, `--inertia vue` or `--inertia react`; append `/pnpm`, `/bun`, or `/yarn` to set JS runtime)
+- **[gonertia](https://github.com/romsar/gonertia)** - Inertia.js Go adapter (optional, `--inertia vue` or `--inertia react`; append `/npm`, `/pnpm`, `/bun`, or `/yarn` to set JS runtime)
 - **[Vue.js](https://vuejs.org/) / [React](https://react.dev/)** - JavaScript UI adapters (optional, via Inertia)
 - **[Vite](https://vitejs.dev/)** - Next-generation frontend build tool (optional, via Inertia)
 
@@ -96,7 +96,7 @@ cp .env.example .env
 # Note: you need to edit .env with your database details
 
 # Install JS dependencies (only if using --inertia vue/react)
-andurel new prints the correct package manager command based on the configured runtime (npm/pnpm/bun/yarn)
+# andurel new prints the correct package manager command based on the configured runtime (npm/pnpm/bun/yarn)
 
 # Apply database migrations
 andurel database migrate up
@@ -287,7 +287,16 @@ Build the application binary and compile all assets for production deployment.
 andurel build [--version]
 ```
 
-Runs Templ generation, minifies Tailwind CSS, installs NPM dependencies and builds Vite assets (if using Inertia), downloads Go dependencies, and compiles a static Linux binary.
+Runs Templ generation, minifies Tailwind CSS, installs JavaScript dependencies and builds Vite assets with the runtime stored in `andurel.lock` (if using Inertia), downloads Go dependencies, and compiles a static Linux binary.
+
+For Inertia projects, `andurel build` reads `scaffoldConfig.javascriptRuntime` from `andurel.lock`. Existing locks without that field default to `npm`.
+
+| Runtime | Install command used by `andurel build` | Vite build command used by `andurel build` |
+|---------|------------------------------------------|---------------------------------------------|
+| `npm`   | `npm ci`                                 | `npm run build`                             |
+| `pnpm`  | `pnpm install --frozen-lockfile`         | `pnpm run build`                            |
+| `bun`   | `bun install --frozen-lockfile`          | `bun run build`                             |
+| `yarn`  | `yarn install --frozen-lockfile`         | `yarn build`                                |
 
 | Flag | Description |
 |------|-------------|
@@ -569,7 +578,7 @@ You can specify the JS runtime by appending `/npm`, `/pnpm`, `/bun`, or `/yarn` 
 - `--inertia react/bun` — uses `bun`
 - `--inertia react/yarn` — uses `yarn`
 
-The runtime is stored in `andurel.lock` as `javascriptRuntime`.
+The runtime is stored in `andurel.lock` as `scaffoldConfig.javascriptRuntime`. `andurel build` uses this value for both dependency installation and Vite asset compilation, so a project created with `--inertia react/pnpm` uses `pnpm`, not `npm`.
 
 
 ### Real Example: Controller to Vue Component

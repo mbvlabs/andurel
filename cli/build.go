@@ -100,24 +100,29 @@ func buildApp(rootDir string, versionFlag string) error {
 		return fmt.Errorf("tailwind build failed: %w", err)
 	}
 
-	// 2.5. Vite/NPM build for Inertia frontend
+	// 2.5. Vite build for Inertia frontend
 	if lock.ScaffoldConfig != nil && layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
-		fmt.Println("Installing NPM dependencies...")
-		npmCi := exec.Command("npm", "ci")
-		npmCi.Dir = rootDir
-		npmCi.Stdout = os.Stdout
-		npmCi.Stderr = os.Stderr
-		if err := npmCi.Run(); err != nil {
-			return fmt.Errorf("npm ci failed: %w", err)
+		installCmd, buildCmd, err := inertiaPackageManagerCommands(lock.ScaffoldConfig.JavaScriptRuntime)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Installing %s dependencies...\n", installCmd.Name)
+		install := exec.Command(installCmd.Name, installCmd.Args...)
+		install.Dir = rootDir
+		install.Stdout = os.Stdout
+		install.Stderr = os.Stderr
+		if err := install.Run(); err != nil {
+			return fmt.Errorf("%s failed: %w", installCmd.String(), err)
 		}
 
 		fmt.Println("Building Vite assets...")
-		viteBuild := exec.Command("npm", "run", "build")
+		viteBuild := exec.Command(buildCmd.Name, buildCmd.Args...)
 		viteBuild.Dir = rootDir
 		viteBuild.Stdout = os.Stdout
 		viteBuild.Stderr = os.Stderr
 		if err := viteBuild.Run(); err != nil {
-			return fmt.Errorf("npm run build failed: %w", err)
+			return fmt.Errorf("%s failed: %w", buildCmd.String(), err)
 		}
 	}
 
@@ -166,6 +171,45 @@ func buildApp(rootDir string, versionFlag string) error {
 		fmt.Printf("✓ Build complete: %s\n", binName)
 	}
 	return nil
+}
+
+type shellCommand struct {
+	Name string
+	Args []string
+}
+
+func (c shellCommand) String() string {
+	return strings.Join(append([]string{c.Name}, c.Args...), " ")
+}
+
+func inertiaPackageManagerCommands(runtime string) (shellCommand, shellCommand, error) {
+	if runtime == "" {
+		runtime = "npm"
+	}
+
+	switch runtime {
+	case "npm":
+		return shellCommand{Name: "npm", Args: []string{"ci"}},
+			shellCommand{Name: "npm", Args: []string{"run", "build"}},
+			nil
+	case "pnpm":
+		return shellCommand{Name: "pnpm", Args: []string{"install", "--frozen-lockfile"}},
+			shellCommand{Name: "pnpm", Args: []string{"run", "build"}},
+			nil
+	case "bun":
+		return shellCommand{Name: "bun", Args: []string{"install", "--frozen-lockfile"}},
+			shellCommand{Name: "bun", Args: []string{"run", "build"}},
+			nil
+	case "yarn":
+		return shellCommand{Name: "yarn", Args: []string{"install", "--frozen-lockfile"}},
+			shellCommand{Name: "yarn", Args: []string{"build"}},
+			nil
+	default:
+		return shellCommand{}, shellCommand{}, fmt.Errorf(
+			"invalid JavaScript runtime in andurel.lock: %s - valid options are 'npm', 'pnpm', 'bun', 'yarn'",
+			runtime,
+		)
+	}
 }
 
 func detectGitVersion(rootDir string) (string, error) {
