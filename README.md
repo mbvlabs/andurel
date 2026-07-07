@@ -216,7 +216,7 @@ andurel generate controller Users --api
 andurel generate controller admin/Widget export --api
 ```
 
-When `--api` is set, the namespace is forced to `"api"` (overriding any namespace segment in the name), and the default action set excludes `new` and `edit`. Custom actions create `etx.JSON(http.StatusOK, map[string]any{})` stubs.
+When `--api` is set, any namespace segment is nested under `api`, and the default action set excludes `new` and `edit`. For example, `andurel generate controller v1/User create --api` writes `controllers/api/v1/users.go`. Custom actions create `etx.JSON(http.StatusOK, map[string]any{})` stubs.
 
 | Flag | Description |
 |------|-------------|

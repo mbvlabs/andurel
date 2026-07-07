@@ -336,7 +336,7 @@ func ensureRegisterRoutes(content, receiverName, controllerName, namespace, reso
 	}
 
 	var additions strings.Builder
-	routePrefix := naming.ToPascalCase(namespace) + resourceName
+	routePrefix := naming.NamespaceToPascal(namespace) + resourceName
 	for _, action := range actions {
 		action = strings.ToLower(action)
 		methodName := naming.ToPascalCase(action)
@@ -388,7 +388,7 @@ func routeRegistrationBlock(receiverName, namespace, resourceName, action string
 	if httpMethod == "" {
 		return ""
 	}
-	routePrefix := naming.ToPascalCase(namespace) + resourceName
+	routePrefix := naming.NamespaceToPascal(namespace) + resourceName
 
 	return fmt.Sprintf("\t_, err = r.AddRoute(echo.Route{\n\t\tMethod:  %s,\n\t\tPath:    routes.%s%s.Path(),\n\t\tName:    routes.%s%s.Name(),\n\t\tHandler: %s.%s,\n\t})\n\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n",
 		httpMethod,

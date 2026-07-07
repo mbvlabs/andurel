@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"go/parser"
+	"go/token"
 	"strings"
 	"testing"
 )
@@ -49,6 +51,37 @@ func TestRenderAPIControllerHonorsRequestedActions(t *testing.T) {
 		if strings.Contains(rendered, part) {
 			t.Fatalf("expected rendered API controller not to contain %q:\n%s", part, rendered)
 		}
+	}
+}
+
+func TestRenderAPIControllerUsesLastNamespaceSegmentAsPackage(t *testing.T) {
+	controller := &GeneratedController{
+		ResourceName:            "Work",
+		ModelName:               "Work",
+		PluralName:              "works",
+		ModelPluralName:         "works",
+		PluralResourceName:      "Works",
+		ModelPluralResourceName: "Works",
+		ReceiverName:            "w",
+		Namespace:               "api/v1",
+		NamespacePascal:         "ApiV1",
+		ModulePath:              "example.com/app",
+		Type:                    ResourceController,
+		IDType:                  "uuid.UUID",
+		IDGoFieldName:           "ID",
+		Actions:                 []string{"create"},
+		IsAPI:                   true,
+	}
+
+	rendered, err := NewTemplateRenderer().RenderControllerFile(controller, "")
+	if err != nil {
+		t.Fatalf("RenderControllerFile returned error: %v", err)
+	}
+	if !strings.Contains(rendered, "package v1") {
+		t.Fatalf("expected rendered API controller to use package v1:\n%s", rendered)
+	}
+	if _, err := parser.ParseFile(token.NewFileSet(), "controller.go", rendered, parser.ParseComments); err != nil {
+		t.Fatalf("expected rendered API controller to parse: %v\n%s", err, rendered)
 	}
 }
 

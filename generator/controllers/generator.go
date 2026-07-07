@@ -116,7 +116,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 		ModelPluralResourceName: modelPluralResourceName,
 		ReceiverName:            naming.ToReceiverName(config.ResourceName),
 		Namespace:               config.Namespace,
-		NamespacePascal:         naming.ToPascalCase(config.Namespace),
+		NamespacePascal:         naming.NamespaceToPascal(config.Namespace),
 		Package:                 config.PackageName,
 		ModulePath:              config.ModulePath,
 		Type:                    config.ControllerType,

@@ -61,7 +61,7 @@ func (mi *MainInjector) InjectController(resourceName, namespace, pluralName str
 			contentStr = nextContent
 			updated = true
 		}
-		constructorRef = namespace + ".New" + capitalizedPlural
+		constructorRef = packageName + ".New" + capitalizedPlural
 		constructorProvideRef = constructorRef
 	}
 

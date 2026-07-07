@@ -151,6 +151,7 @@ type scaffoldCall struct {
 	skipFactory bool
 	primaryKey  string
 	inertia     string
+	isAPI       bool
 }
 
 type controllerCall struct {
@@ -160,6 +161,7 @@ type controllerCall struct {
 	tableName string
 	actions   []string
 	inertia   string
+	isAPI     bool
 }
 
 func (f *fakeGenerator) GenerateModel(resourceName string, tableNameOverride string, skipFactory bool) error {
@@ -192,6 +194,7 @@ func (f *fakeGenerator) GenerateControllerWithActions(resourceName, namespace, t
 		tableName: tableName,
 		actions:   append([]string(nil), actions...),
 		inertia:   inertia,
+		isAPI:     isAPI,
 	})
 	return f.err
 }
@@ -204,6 +207,7 @@ func (f *fakeGenerator) GenerateControllerWithActionsForModel(resourceName, name
 		tableName: tableName,
 		actions:   append([]string(nil), actions...),
 		inertia:   inertia,
+		isAPI:     isAPI,
 	})
 	return f.err
 }
@@ -216,6 +220,7 @@ func (f *fakeGenerator) GenerateScaffold(resourceName, namespace, tableName stri
 		skipFactory: skipFactory,
 		primaryKey:  primaryKeyColumn,
 		inertia:     inertia,
+		isAPI:       isAPI,
 	})
 	return f.err
 }

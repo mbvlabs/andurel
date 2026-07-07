@@ -94,7 +94,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 		PluralName:      config.PluralName,
 		ModelPluralName: modelPluralName,
 		Namespace:       config.Namespace,
-		NamespacePascal: naming.ToPascalCase(config.Namespace),
+		NamespacePascal: naming.NamespaceToPascal(config.Namespace),
 		ModulePath:      config.ModulePath,
 		Fields:          make([]ViewField, 0),
 		IDType:          "uuid.UUID", // Default to UUID
@@ -511,10 +511,7 @@ func (g *Generator) GenerateInertiaViewFiles(view *GeneratedView, templatePrefix
 }
 
 func namespacePrefix(namespace string) string {
-	if namespace == "" {
-		return ""
-	}
-	return namespace + "_"
+	return naming.NamespaceFilePrefix(namespace)
 }
 
 func (g *Generator) GenerateView(
@@ -725,7 +722,7 @@ func existingResourceViewActions(viewPath, resourceName, namespace string) ([]st
 	}
 
 	contentStr := string(content)
-	prefix := naming.ToPascalCase(namespace)
+	prefix := naming.NamespaceToPascal(namespace)
 	actions := make([]string, 0, len(resourceViewActions))
 	for _, action := range []string{"index", "show", "new", "edit"} {
 		typeName := prefix + resourceName + naming.ToPascalCase(action)

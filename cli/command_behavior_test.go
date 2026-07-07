@@ -212,6 +212,25 @@ func TestGenerateScaffoldMapsNamespaceToGenerator(t *testing.T) {
 	}
 }
 
+func TestGenerateScaffoldAPINestsNamespaceUnderAPI(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+
+	result := executeCLITest(t, "generate", "scaffold", "v1/User", "--api")
+	if result.err != nil {
+		t.Fatalf("generate scaffold failed: %v", result.err)
+	}
+
+	want := []scaffoldCall{{
+		name:      "User",
+		namespace: "api/v1",
+		isAPI:     true,
+	}}
+	if !reflect.DeepEqual(fake.scaffoldCalls, want) {
+		t.Fatalf("scaffold calls: expected %#v, got %#v", want, fake.scaffoldCalls)
+	}
+}
+
 func TestGenerateScaffoldRejectsInvalidNamespaceBeforeGenerator(t *testing.T) {
 	resetCLITestSeams(t)
 	fake := installFakeGenerator(t)
@@ -268,6 +287,27 @@ func TestGenerateControllerMapsNamespaceToGenerator(t *testing.T) {
 		namespace: "admin",
 		modelName: "Widget",
 		actions:   []string{"index"},
+	}}
+	if !reflect.DeepEqual(fake.controllerCalls, want) {
+		t.Fatalf("controller calls: expected %#v, got %#v", want, fake.controllerCalls)
+	}
+}
+
+func TestGenerateControllerAPINestsNamespaceUnderAPI(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+
+	result := executeCLITest(t, "generate", "controller", "v1/User", "create", "--api")
+	if result.err != nil {
+		t.Fatalf("generate controller failed: %v", result.err)
+	}
+
+	want := []controllerCall{{
+		name:      "User",
+		namespace: "api/v1",
+		modelName: "User",
+		actions:   []string{"create"},
+		isAPI:     true,
 	}}
 	if !reflect.DeepEqual(fake.controllerCalls, want) {
 		t.Fatalf("controller calls: expected %#v, got %#v", want, fake.controllerCalls)
@@ -597,6 +637,57 @@ func TestGenerateControllerSingleCRUDActionInertiaProjectDefaultsToTemplControll
 	assertCLITestFileContains(t, rootDir, "views/project_inquiries_resource.templ", "Items []models.ProjectInquiryEntity")
 	assertCLITestFileNotContains(t, rootDir, "views/project_inquiries_resource.templ", "ProjectinquiryEntity")
 	assertCLITestFileMissing(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Index.vue"))
+}
+
+func TestGenerateControllerAPIWithNamespaceWritesUnderAPIPath(t *testing.T) {
+	resetCLITestSeams(t)
+	rootDir := t.TempDir()
+	setupProjectInquiryCLITestProject(t, rootDir)
+	writeCLITestFile(t, rootDir, "controllers/controller.go", `package controllers
+
+import (
+	"example.com/app/router"
+
+	"go.uber.org/fx"
+)
+
+var constructors = fx.Provide()
+
+var Module = fx.Module(
+	"controllers",
+	constructors,
+)
+`)
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(rootDir); err != nil {
+		t.Fatalf("chdir temp project: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	stdoutCapture := captureProcessOutput(t, &os.Stdout)
+	err = generateControllerWithActions("v1/ProjectInquiry", "", []string{"create"}, "", true)
+	stdout := stdoutCapture()
+	if err != nil {
+		t.Fatalf("generate controller: %v", err)
+	}
+
+	assertCLITestFileExists(t, rootDir, filepath.Join("controllers", "api", "v1", "project_inquiries.go"))
+	assertCLITestFileContains(t, rootDir, filepath.Join("controllers", "api", "v1", "project_inquiries.go"), "package v1")
+	assertCLITestFileContains(t, rootDir, filepath.Join("controllers", "api", "v1", "project_inquiries.go"), "routes.ApiV1ProjectInquiryCreate.Path()")
+	assertCLITestFileContains(t, rootDir, filepath.Join("router", "routes", "api_v1_project_inquiries.go"), `const ApiV1ProjectInquiryPrefix = "/api/v1/project-inquiries"`)
+	assertCLITestFileContains(t, rootDir, filepath.Join("router", "routes", "api_v1_project_inquiries.go"), `"api.v1.project_inquiries.create"`)
+	assertCLITestFileContains(t, rootDir, "controllers/controller.go", `"example.com/app/controllers/api/v1"`)
+	assertCLITestFileContains(t, rootDir, "controllers/controller.go", "v1.NewProjectInquiries")
+	assertCLITestFileMissing(t, rootDir, "views/api_v1_project_inquiries_resource.templ")
+	if strings.Contains(stdout, "with views") {
+		t.Fatalf("expected API generation output not to mention views, got:\n%s", stdout)
+	}
 }
 
 func TestGenerateControllerRejectsModelNameForCustomOnly(t *testing.T) {
