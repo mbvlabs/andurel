@@ -70,3 +70,11 @@ func (g *Generator) UpdateModel(resourceName string) (*UpdateModelResult, error)
 func (g *Generator) ApplyModelUpdate(result *UpdateModelResult) error {
 	return g.coordinator.ModelManager.ApplyModelUpdate(result)
 }
+
+func (g *Generator) SyncFactory(resourceName string, opts FactorySyncOptions) (*FactorySyncResult, error) {
+	return g.coordinator.ModelManager.SyncFactory(resourceName, opts)
+}
+
+func (g *Generator) SyncFactories(opts FactorySyncOptions) ([]*FactorySyncResult, error) {
+	return g.coordinator.ModelManager.SyncFactories(opts)
+}

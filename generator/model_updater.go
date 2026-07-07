@@ -13,7 +13,6 @@ import (
 
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/models"
-	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/pmezard/go-difflib/difflib"
 )
@@ -216,33 +215,14 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 	oldParts := string(src[structStart:structEnd])
 	newParts := newEntityStr
 
-	// Generate factory content for the updated model
 	factoryPath := fmt.Sprintf("%s/models/factories/%s.go", rootDir, naming.ToSnakeCase(resourceName))
 	var oldFactoryContent, newFactoryContent string
 	if existingSrc, err := os.ReadFile(factoryPath); err == nil {
 		oldFactoryContent = string(existingSrc)
 	}
-
-	factoryGenFactory, factoryErr := m.modelGenerator.BuildFactory(cat, models.Config{
-		TableName:    tableName,
-		ResourceName: resourceName,
-		PackageName:  "factories",
-		DatabaseType: m.config.Database.Type,
-		ModulePath:   m.projectManager.GetModulePath(),
-		NullType:     nullType,
-	}, newModel)
-	if factoryErr == nil {
-		factoryTmplContent, tmplErr := templates.Files.ReadFile("factory.tmpl")
-		if tmplErr == nil {
-			if genFactoryContent, genErr := m.modelGenerator.GenerateFactoryFile(factoryGenFactory, string(factoryTmplContent)); genErr == nil {
-				formattedFactory, fmtErr := format.Source([]byte(genFactoryContent))
-				if fmtErr == nil {
-					newFactoryContent = string(formattedFactory)
-				} else {
-					newFactoryContent = genFactoryContent
-				}
-			}
-		}
+	if factoryPlan, factoryErr := m.planFactorySync(resourceName, tableName, newModel, FactorySyncOptions{}); factoryErr == nil {
+		factoryPath = factoryPlan.Path
+		newFactoryContent = factoryPlan.newContent
 	}
 
 	return &UpdateModelResult{

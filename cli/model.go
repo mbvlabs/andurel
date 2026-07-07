@@ -11,7 +11,7 @@ import (
 	"github.com/mbvlabs/andurel/generator"
 )
 
-func runModelUpdate(resourceName string, autoApply bool) error {
+func runModelUpdate(resourceName string, autoApply bool, skipFactory bool) error {
 	gen, err := generator.New()
 	if err != nil {
 		return err
@@ -20,6 +20,12 @@ func runModelUpdate(resourceName string, autoApply bool) error {
 	result, err := gen.UpdateModel(resourceName)
 	if err != nil {
 		return err
+	}
+	if skipFactory {
+		result.FactoryPath = ""
+		result.OldFactoryContent = ""
+		result.NewFactoryContent = ""
+		result.FactoryHasChanges = false
 	}
 
 	if !result.HasChanges && !result.FactoryHasChanges {

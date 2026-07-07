@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mbvlabs/andurel/generator"
 	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/spf13/cobra"
 )
@@ -127,6 +128,8 @@ type fakeGenerator struct {
 	modelWithPKCalls []modelWithPKCall
 	scaffoldCalls    []scaffoldCall
 	controllerCalls  []controllerCall
+	factoryCalls     []factoryCall
+	factoriesCalls   []generator.FactorySyncOptions
 	err              error
 	onGenerateModel  func()
 }
@@ -152,6 +155,11 @@ type scaffoldCall struct {
 	primaryKey  string
 	inertia     string
 	isAPI       bool
+}
+
+type factoryCall struct {
+	name string
+	opts generator.FactorySyncOptions
 }
 
 type controllerCall struct {
@@ -223,6 +231,22 @@ func (f *fakeGenerator) GenerateScaffold(resourceName, namespace, tableName stri
 		isAPI:       isAPI,
 	})
 	return f.err
+}
+
+func (f *fakeGenerator) SyncFactory(resourceName string, opts generator.FactorySyncOptions) (*generator.FactorySyncResult, error) {
+	f.factoryCalls = append(f.factoryCalls, factoryCall{name: resourceName, opts: opts})
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &generator.FactorySyncResult{ResourceName: resourceName, Path: "models/factories/" + resourceName + ".go"}, nil
+}
+
+func (f *fakeGenerator) SyncFactories(opts generator.FactorySyncOptions) ([]*generator.FactorySyncResult, error) {
+	f.factoriesCalls = append(f.factoriesCalls, opts)
+	if f.err != nil {
+		return nil, f.err
+	}
+	return []*generator.FactorySyncResult{}, nil
 }
 
 func installFakeGenerator(t *testing.T) *fakeGenerator {
