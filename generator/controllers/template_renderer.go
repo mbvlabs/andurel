@@ -199,6 +199,7 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, namespace, plural
 		ResourceName    string
 		Namespace       string
 		NamespacePascal string
+		NamespaceRoute  string
 		PluralName      string
 		ModulePath      string
 		IDType          string
@@ -207,7 +208,8 @@ func (tr *TemplateRenderer) generateRouteContent(resourceName, namespace, plural
 	}{
 		ResourceName:    resourceName,
 		Namespace:       namespace,
-		NamespacePascal: naming.ToPascalCase(namespace),
+		NamespacePascal: naming.NamespaceToPascal(namespace),
+		NamespaceRoute:  naming.NamespaceRouteName(namespace),
 		PluralName:      pluralName,
 		ModulePath:      modulePath,
 		IDType:          idType,

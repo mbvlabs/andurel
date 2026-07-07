@@ -76,6 +76,9 @@ with echo.JSON responses. No views are generated.`,
 			if err != nil {
 				return err
 			}
+			if api {
+				namespace = apiNamespace(namespace)
+			}
 
 			rootDir, err := findGoModRoot()
 			if err != nil {
