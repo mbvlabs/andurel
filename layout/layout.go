@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -643,6 +644,10 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 		return fmt.Errorf("failed to render go.mod template: %w", err)
 	}
 
+	if err := renderTemplate(targetDir, "css_base.tmpl", "css/base.css", templates.Files, data); err != nil {
+		return fmt.Errorf("failed to render css base template: %w", err)
+	}
+
 	return nil
 }
 
@@ -749,8 +754,13 @@ func renderTemplate(
 
 func templateFuncMap() template.FuncMap {
 	return template.FuncMap{
-		"lower": strings.ToLower,
+		"hasExtension": hasExtension,
+		"lower":        strings.ToLower,
 	}
+}
+
+func hasExtension(extensions []string, name string) bool {
+	return slices.Contains(extensions, name)
 }
 
 func registerBuiltinExtensions() error {

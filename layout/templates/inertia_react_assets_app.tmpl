@@ -57,17 +57,17 @@ function FlashToasts({ initialFlashes }: { initialFlashes?: FlashMessage[] }) {
   return (
     <div className="fixed bottom-4 right-4 z-50">
       {toasts.map((toast) => {
-        const color =
+        const colorClass =
           toast.Type === 'success'
-            ? 'bg-green-600'
+            ? 'border-[#8df7a4] text-[#8df7a4]'
             : toast.Type === 'error'
-              ? 'bg-red-600'
-              : 'bg-blue-600'
+              ? 'border-[#ff875f] text-[#ff875f]'
+              : 'border-[#ff6b1a] text-[#e4dfd2]'
 
         return (
           <div
             key={toast.id}
-            className={`${color} mb-2 rounded-lg px-4 py-3 text-white shadow-lg transition-opacity duration-300`}
+            className={`${colorClass} mb-2 border bg-[#101414] px-4 py-3 shadow-lg shadow-black/40 transition-opacity duration-300`}
           >
             {toast.Message}
           </div>

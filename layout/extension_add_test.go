@@ -336,6 +336,9 @@ func TestApplyExtension_CssComponents(t *testing.T) {
 	fileExists(t, projectDir, "css/utilities.css")
 	fileExists(t, projectDir, "css/components.css")
 	fileExists(t, projectDir, "views/components/toast.templ")
+	fileContains(t, projectDir, "css/base.css", `@import "./themes.css";`)
+	fileContains(t, projectDir, "css/base.css", `@import "./components.css";`)
+	fileContains(t, projectDir, "css/base.css", `@import "./utilities.css";`)
 
 	lock, err := ReadLockFile(projectDir)
 	if err != nil {

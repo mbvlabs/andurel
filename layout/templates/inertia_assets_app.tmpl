@@ -31,10 +31,14 @@ const FlashToasts = defineComponent({
     return () => {
       if (toasts.value.length === 0) {return null}
       const items = toasts.value.map(t => {
-        const color = t.Type === 'success' ? 'bg-green-600' : t.Type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+        const colorClass = t.Type === 'success'
+          ? 'border-[#8df7a4] text-[#8df7a4]'
+          : t.Type === 'error'
+            ? 'border-[#ff875f] text-[#ff875f]'
+            : 'border-[#ff6b1a] text-[#e4dfd2]'
         return h('div', {
           key: t.id,
-          class: `${color} text-white px-4 py-3 rounded-lg shadow-lg mb-2 transition-opacity duration-300`,
+          class: `${colorClass} mb-2 border bg-[#101414] px-4 py-3 shadow-lg shadow-black/40 transition-opacity duration-300`,
         }, t.Message)
       })
       return h('div', { class: 'fixed bottom-4 right-4 z-50' }, items)

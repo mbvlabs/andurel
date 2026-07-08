@@ -3,6 +3,7 @@ package views
 import (
 	"{{.ModuleName}}/internal/request"
 	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/router/routes"
 	"time"
 )
 
@@ -10,16 +11,34 @@ templ base(headOpts ...HeadDataOption) {
 	<!DOCTYPE html>
 	<html lang="en" class="dark">
 		@SetupHead(ctx, headOpts...)
-		<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+		<body class="min-h-screen flex flex-col bg-[#090b0d] text-[#e4dfd2]">
+			<header>
+				<div class="mx-auto flex w-full max-w-[960px] items-center justify-between px-4 py-3">
+					<a class="inline-flex items-center gap-3 text-sm font-semibold text-[#f2ead8]" href={ routes.HomePage.URL() }>
+						<span class="grid size-8 grid-cols-2 gap-1 border border-[#52605c] bg-[#101414] p-1 shadow-sm shadow-black/40">
+							<span class="border border-[#8df7a4]"></span>
+							<span class="border border-[#52605c]"></span>
+							<span class="border border-[#52605c]"></span>
+							<span class="bg-[#8df7a4]"></span>
+						</span>
+						<span>Andurel.</span>
+					</a>
+					<nav class="flex flex-wrap items-center justify-end gap-3 text-sm">
+						<a class="px-2 py-1 text-[#aaa393] transition hover:text-[#f2ead8]" href="https://andurel.com">Documentation</a>
+						<a class="px-2 py-1 text-[#aaa393] transition hover:text-[#f2ead8]" href={ routes.SessionNew.URL() }>Log in</a>
+						<a class="px-2 py-1 text-[#aaa393] transition hover:text-[#f2ead8]" href={ routes.RegistrationNew.URL() }>Register</a>
+					</nav>
+				</div>
+			</header>
 			{ children... }
 			<footer>
-				<div class="container mx-auto py-4 text-center text-sm text-slate-400">
+				<div class="mx-auto w-full max-w-[960px] px-4 py-3 text-center text-sm text-[#8f8a7d]">
 					&copy; { time.Now().Format("2006") } andurel.
 				</div>
 			</footer>
 			<div id="flashContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
 				for _, flash := range request.ExtractContext[[]cookies.FlashMessage](ctx, request.SessionFlashesKey) {
-					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 px-4 py-3 shadow-lg">
+					<div class="border border-[#2f3a37] bg-[#101414] px-4 py-3 text-[#e4dfd2] shadow-lg shadow-black/40">
 						{ flash.Message }
 					</div>
 				}
