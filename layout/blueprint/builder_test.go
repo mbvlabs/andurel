@@ -139,7 +139,7 @@ func TestBuilder_AddRouteCollection(t *testing.T) {
 	builder := blueprint.NewBuilder(nil)
 
 	builder.
-		AddRouteCollection("RouteA", "RouteB", "RouteA").
+		AddRouteCollection("RouteA", " RouteB ", "RouteA", "").
 		AddRouteCollection("RouteC")
 
 	collections := builder.Blueprint().Routes.SortedRouteCollections()
@@ -153,6 +153,73 @@ func TestBuilder_AddRouteCollection(t *testing.T) {
 
 	if got := collections[1].Routes; len(got) != 1 || got[0] != "RouteC" {
 		t.Fatalf("unexpected routes in second collection: %#v", got)
+	}
+}
+
+func TestBuilder_AddRouteRegistration(t *testing.T) {
+	builder := blueprint.NewBuilder(nil)
+
+	result := builder.
+		AddRouteRegistration("http.MethodGet", "routes.Home", "ctrls.Pages.Home", "auth").
+		AddRouteRegistration("", "routes.Empty", "ctrls.Empty").
+		AddRouteRegistration("http.MethodPost", "", "ctrls.Empty").
+		AddRouteRegistration("http.MethodPost", "routes.Empty", "")
+
+	if result != builder {
+		t.Fatal("expected AddRouteRegistration to return builder")
+	}
+
+	registrations := builder.Blueprint().Routes.SortedRegistrations()
+	if len(registrations) != 1 {
+		t.Fatalf("expected 1 route registration, got %d", len(registrations))
+	}
+	if registrations[0].Method != "http.MethodGet" {
+		t.Fatalf("Method = %q", registrations[0].Method)
+	}
+	if registrations[0].RouteVariable != "routes.Home" {
+		t.Fatalf("RouteVariable = %q", registrations[0].RouteVariable)
+	}
+	if registrations[0].HandlerRef != "ctrls.Pages.Home" {
+		t.Fatalf("HandlerRef = %q", registrations[0].HandlerRef)
+	}
+	if got := registrations[0].Middleware; len(got) != 1 || got[0] != "auth" {
+		t.Fatalf("Middleware = %#v", got)
+	}
+}
+
+func TestBuilder_RouteRegistrationFunction(t *testing.T) {
+	builder := blueprint.NewBuilder(nil)
+
+	builder.
+		StartRouteRegistrationFunction("", "ctrls").
+		StartRouteRegistrationFunction("registerAdminRoutes", "admin").
+		StartRouteRegistrationFunction("ignoredNested", "nested").
+		AddRouteRegistration("http.MethodGet", "routes.AdminDashboard", "admin.Dashboard").
+		EndRouteRegistrationFunction().
+		EndRouteRegistrationFunction()
+
+	functions := builder.Blueprint().Routes.SortedRegistrationFunctions()
+	if len(functions) != 1 {
+		t.Fatalf("expected 1 registration function, got %d", len(functions))
+	}
+	if functions[0].FunctionName != "registerAdminRoutes" {
+		t.Fatalf("FunctionName = %q", functions[0].FunctionName)
+	}
+	if functions[0].ControllerVarName != "admin" {
+		t.Fatalf("ControllerVarName = %q", functions[0].ControllerVarName)
+	}
+	if len(functions[0].Registrations) != 1 {
+		t.Fatalf("expected 1 nested registration, got %d", len(functions[0].Registrations))
+	}
+
+	builder.
+		StartRouteRegistrationFunction("registerAdminRoutes", "other").
+		AddRouteRegistration("http.MethodPost", "routes.AdminCreate", "other.Create").
+		EndRouteRegistrationFunction()
+
+	functions = builder.Blueprint().Routes.SortedRegistrationFunctions()
+	if len(functions) != 1 {
+		t.Fatalf("duplicate function should be ignored, got %d", len(functions))
 	}
 }
 
@@ -448,17 +515,91 @@ func TestBuilder_MainSection(t *testing.T) {
 	if len(hooks) != 2 {
 		t.Errorf("expected 2 hooks, got %d", len(hooks))
 	}
+
+	b.AddServiceProvide("email.NewSender").
+		AddServiceProvide("queue.NewWorker").
+		AddServiceProvide("email.NewSender").
+		AddServiceProvide("")
+	if got := b.Blueprint().Main.ServiceProvides; len(got) != 2 {
+		t.Fatalf("expected 2 service provides, got %#v", got)
+	}
+
+	b.AddWorkerDependency("queue", "queue.Queue").
+		AddWorkerDependency("queue", "queue.PriorityQueue").
+		AddWorkerDependency("", "missing.Name").
+		AddWorkerDependency("cache", "")
+	if got := b.Blueprint().Main.WorkerDependencies; len(got) != 1 {
+		t.Fatalf("expected 1 worker dependency, got %#v", got)
+	} else if got[0].Name != "queue" || got[0].Type != "queue.PriorityQueue" {
+		t.Fatalf("unexpected worker dependency: %#v", got[0])
+	}
+}
+
+func TestBuilder_CookiesSection(t *testing.T) {
+	b := blueprint.NewBuilder(nil)
+
+	b.AddCookiesImport("net/http").AddCookiesImport("net/http").AddCookiesImport("")
+	if got := b.Blueprint().Cookies.Imports.Items(); len(got) != 1 || got[0] != "net/http" {
+		t.Fatalf("cookies imports = %#v", got)
+	}
+
+	b.AddCookiesConstant("SessionName", `"session"`).
+		AddCookiesConstant("CSRFName", `"csrf"`).
+		AddCookiesConstant("SessionName", `"other"`).
+		AddCookiesConstant("", `"empty"`).
+		AddCookiesConstant("EmptyValue", "")
+	if got := b.Blueprint().Cookies.SortedConstants(); len(got) != 2 {
+		t.Fatalf("expected 2 constants, got %#v", got)
+	} else if got[0].Name != "SessionName" || got[1].Name != "CSRFName" {
+		t.Fatalf("unexpected constants: %#v", got)
+	}
+
+	b.AddCookiesAppField("Store", "*sessions.CookieStore").
+		AddCookiesAppField("Signer", "Signer").
+		AddCookiesAppField("Store", "Other").
+		AddCookiesAppField("", "Missing").
+		AddCookiesAppField("Missing", "")
+	if got := b.Blueprint().Cookies.SortedAppFields(); len(got) != 2 {
+		t.Fatalf("expected 2 app fields, got %#v", got)
+	} else if got[0].Name != "Store" || got[1].Name != "Signer" {
+		t.Fatalf("unexpected app fields: %#v", got)
+	}
+
+	b.AddCookiesFunction("CreateSession", "return nil").
+		AddCookiesFunction("GetSession", "return nil").
+		AddCookiesFunction("CreateSession", "panic(\"duplicate\")").
+		AddCookiesFunction("", "return nil").
+		AddCookiesFunction("Empty", "").
+		SetCookiesCreateSessionCode("session.Values[\"id\"] = id").
+		SetCookiesGetSessionCode("return session.Values[\"id\"]")
+	if got := b.Blueprint().Cookies.SortedFunctions(); len(got) != 2 {
+		t.Fatalf("expected 2 functions, got %#v", got)
+	} else if got[0].Name != "CreateSession" || got[1].Name != "GetSession" {
+		t.Fatalf("unexpected functions: %#v", got)
+	}
+	if got := b.Blueprint().Cookies.CreateSessionCode; got != "session.Values[\"id\"] = id" {
+		t.Fatalf("CreateSessionCode = %q", got)
+	}
+	if got := b.Blueprint().Cookies.GetSessionCode; got != "return session.Values[\"id\"]" {
+		t.Fatalf("GetSessionCode = %q", got)
+	}
 }
 
 func TestBuilder_MergeMainSection(t *testing.T) {
 	b1 := blueprint.NewBuilder(nil)
 	b1.AddMainImport("myapp/email")
 	b1.AddMainInitialization("emailSender", "email.New()")
+	b1.AddServiceProvide("email.NewSender")
+	b1.AddWorkerDependency("queue", "queue.Queue")
 
 	b2 := blueprint.NewBuilder(nil)
 	b2.AddMainImport("myapp/queue")
 	b2.AddMainInitialization("queue", "queue.New()")
 	b2.AddBackgroundWorker("worker", "worker.Start()")
+	b2.AddServiceProvide("queue.NewWorker")
+	b2.AddServiceProvide("email.NewSender")
+	b2.AddWorkerDependency("queue", "queue.PriorityQueue")
+	b2.AddWorkerDependency("cache", "cache.Cache")
 
 	err := b1.Merge(b2.Blueprint())
 	if err != nil {
@@ -481,5 +622,73 @@ func TestBuilder_MergeMainSection(t *testing.T) {
 	workers := b1.Blueprint().Main.SortedBackgroundWorkers()
 	if len(workers) != 1 {
 		t.Errorf("expected 1 worker after merge, got %d", len(workers))
+	}
+
+	if got := b1.Blueprint().Main.ServiceProvides; len(got) != 2 {
+		t.Fatalf("expected 2 service provides after merge, got %#v", got)
+	}
+
+	deps := b1.Blueprint().Main.WorkerDependencies
+	if len(deps) != 2 {
+		t.Fatalf("expected 2 worker dependencies after merge, got %#v", deps)
+	}
+	if deps[0].Name != "queue" || deps[0].Type != "queue.PriorityQueue" {
+		t.Fatalf("expected queue dependency to be updated, got %#v", deps[0])
+	}
+}
+
+func TestBuilder_MergeRouteRegistrationsAndCookies(t *testing.T) {
+	b1 := blueprint.NewBuilder(nil)
+	b1.AddRouteGroup("public")
+	b1.AddRouteRegistration("http.MethodGet", "routes.Home", "ctrls.Pages.Home")
+	b1.StartRouteRegistrationFunction("registerAdminRoutes", "admin").
+		AddRouteRegistration("http.MethodGet", "routes.AdminDashboard", "admin.Dashboard").
+		EndRouteRegistrationFunction()
+	b1.AddCookiesConstant("SessionName", `"session"`)
+	b1.SetCookiesCreateSessionCode("old")
+
+	b2 := blueprint.NewBuilder(nil)
+	b2.AddRouteGroup("admin")
+	b2.AddRouteRegistration("http.MethodPost", "routes.Login", "ctrls.Auth.Login", "guest")
+	b2.StartRouteRegistrationFunction("registerAPIRoutes", "api").
+		AddRouteRegistration("http.MethodGet", "routes.APIHealth", "api.Health").
+		EndRouteRegistrationFunction()
+	b2.AddCookiesImport("net/http")
+	b2.AddCookiesConstant("CSRFName", `"csrf"`)
+	b2.AddCookiesAppField("Store", "*sessions.CookieStore")
+	b2.AddCookiesFunction("CreateSession", "return nil")
+	b2.SetCookiesCreateSessionCode("new")
+	b2.SetCookiesGetSessionCode("get")
+
+	if err := b1.Merge(b2.Blueprint()); err != nil {
+		t.Fatalf("merge failed: %v", err)
+	}
+
+	if got := b1.Blueprint().Routes.RouteGroups.Items(); len(got) != 2 {
+		t.Fatalf("expected 2 route groups, got %#v", got)
+	}
+	if got := b1.Blueprint().Routes.SortedRegistrations(); len(got) != 2 {
+		t.Fatalf("expected 2 route registrations, got %#v", got)
+	}
+	if got := b1.Blueprint().Routes.SortedRegistrationFunctions(); len(got) != 2 {
+		t.Fatalf("expected 2 registration functions, got %#v", got)
+	}
+	if got := b1.Blueprint().Cookies.Imports.Items(); len(got) != 1 || got[0] != "net/http" {
+		t.Fatalf("cookies imports = %#v", got)
+	}
+	if got := b1.Blueprint().Cookies.SortedConstants(); len(got) != 2 {
+		t.Fatalf("expected 2 cookie constants, got %#v", got)
+	}
+	if got := b1.Blueprint().Cookies.SortedAppFields(); len(got) != 1 {
+		t.Fatalf("expected 1 cookie app field, got %#v", got)
+	}
+	if got := b1.Blueprint().Cookies.SortedFunctions(); len(got) != 1 {
+		t.Fatalf("expected 1 cookie function, got %#v", got)
+	}
+	if got := b1.Blueprint().Cookies.CreateSessionCode; got != "new" {
+		t.Fatalf("CreateSessionCode = %q", got)
+	}
+	if got := b1.Blueprint().Cookies.GetSessionCode; got != "get" {
+		t.Fatalf("GetSessionCode = %q", got)
 	}
 }

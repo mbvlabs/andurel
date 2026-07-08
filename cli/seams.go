@@ -1,6 +1,9 @@
 package cli
 
-import "github.com/mbvlabs/andurel/generator"
+import (
+	"github.com/mbvlabs/andurel/generator"
+	"github.com/mbvlabs/andurel/layout/upgrade"
+)
 
 type cliGenerator interface {
 	GenerateModel(resourceName string, tableNameOverride string, skipFactory bool) error
@@ -27,3 +30,13 @@ var runGoFmtFunc = runGoFmt
 var runGolinesFunc = runGolines
 var runTemplFmtFunc = runTemplFmt
 var generateControllerWithActionsFunc = generateControllerWithActions
+var syncSingleToolFunc = syncSingleTool
+var downloadFromLockToolFunc = downloadFromLockTool
+
+type cliUpgrader interface {
+	Execute() (*upgrade.UpgradeReport, error)
+}
+
+var newUpgraderFunc = func(projectRoot string, opts upgrade.UpgradeOptions) (cliUpgrader, error) {
+	return upgrade.NewUpgrader(projectRoot, opts)
+}

@@ -62,7 +62,7 @@ func buildApp(rootDir string, versionFlag string) error {
 
 	// 1. Templ generate
 	if tool, ok := lock.Tools["templ"]; ok {
-		if err := syncSingleTool(rootDir, "templ", tool, goos, goarch); err != nil {
+		if err := syncSingleToolFunc(rootDir, "templ", tool, goos, goarch); err != nil {
 			return fmt.Errorf("failed to sync templ: %w", err)
 		}
 
@@ -82,7 +82,7 @@ func buildApp(rootDir string, versionFlag string) error {
 		tailwindTool = layout.NewBinaryTool("tailwindcli", versions.TailwindCLI)
 	}
 
-	if err := syncSingleTool(rootDir, "tailwindcli", tailwindTool, goos, goarch); err != nil {
+	if err := syncSingleToolFunc(rootDir, "tailwindcli", tailwindTool, goos, goarch); err != nil {
 		return fmt.Errorf("failed to sync tailwind CLI: %w", err)
 	}
 

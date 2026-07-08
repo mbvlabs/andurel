@@ -1,11 +1,16 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/mbvlabs/andurel/cli/output"
+	"github.com/spf13/cobra"
 )
 
 func TestDefaultAgentConfig(t *testing.T) {
@@ -191,4 +196,96 @@ func TestSetUnsetAndSortedConfigKeys(t *testing.T) {
 	if !reflect.DeepEqual(keys, []string{"alpha"}) {
 		t.Fatalf("sortedConfigKeys = %#v", keys)
 	}
+}
+
+func TestConfigCommandInitSetUnsetAndShow(t *testing.T) {
+	rootDir := t.TempDir()
+	writeGoModule(t, rootDir)
+	configHome := t.TempDir()
+	cacheHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configHome)
+	t.Setenv("XDG_CACHE_HOME", cacheHome)
+
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) {
+		return rootDir, nil
+	}
+	t.Cleanup(func() {
+		findGoModRoot = originalFindGoModRoot
+	})
+
+	cmd := newConfigTestCommand()
+	cmd.SetArgs([]string{"--scope", "project", "init", "--json"})
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("config init: %v", err)
+	}
+	projectPath := filepath.Join(rootDir, ".andurel", "config.json")
+	if _, err := os.Stat(projectPath); err != nil {
+		t.Fatalf("expected project config: %v", err)
+	}
+
+	cmd = newConfigTestCommand()
+	cmd.SetArgs([]string{"--scope", "project", "set", "default_namespace", "admin", "--json"})
+	cmd.SetOut(&out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("config set known key: %v", err)
+	}
+	cmd = newConfigTestCommand()
+	cmd.SetArgs([]string{"--scope", "project", "set", "custom_key", "custom_value", "--json"})
+	cmd.SetOut(&out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("config set custom key: %v", err)
+	}
+
+	cfg, err := readAgentConfig(projectPath)
+	if err != nil {
+		t.Fatalf("read project config: %v", err)
+	}
+	if cfg.DefaultNamespace != "admin" || cfg.Values["custom_key"] != "custom_value" {
+		t.Fatalf("unexpected config after set: %#v", cfg)
+	}
+
+	cmd = newConfigTestCommand()
+	cmd.SetArgs([]string{"--scope", "project", "unset", "custom_key", "--json"})
+	cmd.SetOut(&out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("config unset custom key: %v", err)
+	}
+	cfg, err = readAgentConfig(projectPath)
+	if err != nil {
+		t.Fatalf("read project config after unset: %v", err)
+	}
+	if _, ok := cfg.Values["custom_key"]; ok {
+		t.Fatalf("custom key was not removed: %#v", cfg.Values)
+	}
+
+	if err := writeAgentConfig(filepath.Join(configHome, "andurel", "config.json"), agentConfig{JavaScriptRuntime: "bun"}); err != nil {
+		t.Fatalf("write user config: %v", err)
+	}
+	if err := writeAgentConfig(filepath.Join(cacheHome, "andurel", "config.json"), agentConfig{OutputFormat: "agent"}); err != nil {
+		t.Fatalf("write cache config: %v", err)
+	}
+
+	out.Reset()
+	cmd = newConfigTestCommand()
+	cmd.SetArgs([]string{"show", "--json"})
+	cmd.SetOut(&out)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("config show: %v", err)
+	}
+	var envelope output.Envelope
+	if err := json.Unmarshal(out.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode config show: %v\n%s", err, out.String())
+	}
+	if envelope.Summary != "Loaded Andurel config" {
+		t.Fatalf("unexpected summary: %q", envelope.Summary)
+	}
+}
+
+func newConfigTestCommand() *cobra.Command {
+	cmd := newConfigCommand()
+	output.RegisterPersistentFlags(cmd)
+	return cmd
 }

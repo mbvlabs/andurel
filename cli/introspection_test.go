@@ -1,11 +1,15 @@
 package cli
 
 import (
+	"bytes"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/spf13/cobra"
 )
 
 func TestReadGoModMetadata(t *testing.T) {
@@ -116,5 +120,76 @@ func TestCollectProjectInfo(t *testing.T) {
 	}
 	if info.ConfigPath != filepath.Join(root, ".andurel", "config.json") || info.UserConfigPath == "" || info.UserCacheDirectory == "" {
 		t.Fatalf("unexpected paths: %#v", info)
+	}
+}
+
+func TestIntrospectionCommands(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/acme/orders\n\ngo 1.26\n")
+	writeTestFile(t, root, "models/user.go", "package models\n")
+	writeTestFile(t, root, "controllers/users.go", "package controllers\n")
+	writeTestFile(t, root, "views/users.templ", "package views\n")
+	writeTestFile(t, root, "database/migrations/0001_init.sql", "-- noop\n")
+	writeTestFile(t, root, "queue/jobs/send_email.go", "package jobs\n")
+	writeTestFile(t, root, "queue/workers.go", "package queue\n")
+	writeRouteManifestTestFile(t, root, "users.go", `package routes
+
+import "example.com/app/internal/routing"
+
+const UserPrefix = "/users"
+
+var UserIndex = routing.NewSimpleRoute("", "users.index", UserPrefix)
+`)
+	lock := layout.NewAndurelLock("v1.2.3")
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() {
+		findGoModRoot = originalFindGoModRoot
+	})
+
+	for _, cmd := range []*cobra.Command{
+		newProjectInfoCommand(),
+		newModelsCommand(),
+		newMigrationsCommand(),
+		newControllersCommand(),
+		newViewsCommand(),
+		newJobsCommand(),
+	} {
+		var out bytes.Buffer
+		output.RegisterPersistentFlags(cmd)
+		cmd.SetOut(&out)
+		_ = cmd.PersistentFlags().Set("json", "true")
+		if err := cmd.Execute(); err != nil {
+			t.Fatalf("%s command: %v", cmd.Use, err)
+		}
+		if !strings.Contains(out.String(), "ok") {
+			t.Fatalf("%s command output missing envelope:\n%s", cmd.Use, out.String())
+		}
+	}
+
+	var human bytes.Buffer
+	routes := newRoutesCommand()
+	routes.SetOut(&human)
+	if err := routes.Execute(); err != nil {
+		t.Fatalf("routes human: %v", err)
+	}
+	if !strings.Contains(human.String(), "UserIndex") {
+		t.Fatalf("routes human output missing route:\n%s", human.String())
+	}
+
+	var quiet bytes.Buffer
+	routes = newRoutesCommand()
+	output.RegisterPersistentFlags(routes)
+	routes.SetOut(&quiet)
+	_ = routes.PersistentFlags().Set("quiet", "true")
+	if err := routes.Execute(); err != nil {
+		t.Fatalf("routes quiet: %v", err)
+	}
+	if quiet.Len() != 0 {
+		t.Fatalf("quiet routes should not output, got:\n%s", quiet.String())
 	}
 }

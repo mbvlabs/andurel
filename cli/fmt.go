@@ -82,13 +82,21 @@ func runFmt(rootDir string, checkMode, skipTempl, skipGo bool) error {
 }
 
 func runGoFmt(rootDir string, checkMode bool) error {
-	args := []string{"fmt"}
-	if checkMode {
-		args = append(args, "-e", "-l")
+	files, err := collectGoFiles(rootDir)
+	if err != nil {
+		return fmt.Errorf("collecting Go files: %w", err)
 	}
-	args = append(args, "./...")
+	if len(files) == 0 {
+		return nil
+	}
 
-	cmd := exec.Command("go", args...)
+	args := []string{"-w"}
+	if checkMode {
+		args = []string{"-e", "-l"}
+	}
+	args = append(args, files...)
+
+	cmd := exec.Command("gofmt", args...)
 	cmd.Dir = rootDir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

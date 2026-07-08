@@ -60,6 +60,47 @@ func TestContextualError(t *testing.T) {
 			t.Error("Wrapping nil error should return nil")
 		}
 	})
+
+	t.Run("WrapErrorWithCaller", func(t *testing.T) {
+		originalErr := errors.New("original error")
+		ctx := NewErrorContext("operation", "resource", "file.txt")
+
+		wrappedErr := WrapErrorWithCaller(originalErr, *ctx)
+		if wrappedErr == nil {
+			t.Fatal("Expected non-nil error")
+		}
+		if !errors.Is(wrappedErr, originalErr) {
+			t.Error("Wrapped error should wrap the original error")
+		}
+		if !contains(wrappedErr.Error(), "caller:") {
+			t.Fatalf("expected caller detail in %q", wrappedErr.Error())
+		}
+	})
+
+	t.Run("WrapErrorWithCallerNil", func(t *testing.T) {
+		ctx := NewErrorContext("operation", "resource", "file.txt")
+		if wrappedErr := WrapErrorWithCaller(nil, *ctx); wrappedErr != nil {
+			t.Fatalf("Wrapping nil error should return nil, got %v", wrappedErr)
+		}
+	})
+
+	t.Run("NewContextualError", func(t *testing.T) {
+		originalErr := errors.New("original error")
+
+		wrappedErr := NewContextualError("operation", "resource", "file.txt", originalErr)
+		if wrappedErr == nil {
+			t.Fatal("Expected non-nil error")
+		}
+		if !errors.Is(wrappedErr, originalErr) {
+			t.Error("Wrapped error should wrap the original error")
+		}
+		errorStr := wrappedErr.Error()
+		for _, want := range []string{"operation: operation", "resource: resource", "file: file.txt", "caller:"} {
+			if !contains(errorStr, want) {
+				t.Fatalf("expected %q in %q", want, errorStr)
+			}
+		}
+	})
 }
 
 func TestErrorBuilder(t *testing.T) {
@@ -155,6 +196,54 @@ func TestConvenienceFunctions(t *testing.T) {
 			t.Error("Error should contain template name")
 		}
 	})
+
+	t.Run("WrapValidationError", func(t *testing.T) {
+		originalErr := errors.New("invalid resource")
+		wrappedErr := WrapValidationError(originalErr, "resource", "users")
+
+		if wrappedErr == nil {
+			t.Fatal("Expected non-nil error")
+		}
+
+		errorStr := wrappedErr.Error()
+		for _, want := range []string{"operation: validation", "resource: resource", "value: users"} {
+			if !contains(errorStr, want) {
+				t.Fatalf("expected %q in %q", want, errorStr)
+			}
+		}
+	})
+
+	t.Run("WrapDatabaseError", func(t *testing.T) {
+		originalErr := errors.New("connection refused")
+		wrappedErr := WrapDatabaseError(originalErr, "migrate", "users")
+
+		if wrappedErr == nil {
+			t.Fatal("Expected non-nil error")
+		}
+
+		errorStr := wrappedErr.Error()
+		for _, want := range []string{"operation: migrate", "resource: database", "table: users"} {
+			if !contains(errorStr, want) {
+				t.Fatalf("expected %q in %q", want, errorStr)
+			}
+		}
+	})
+
+	t.Run("WrapGenerationError", func(t *testing.T) {
+		originalErr := errors.New("missing migration")
+		wrappedErr := WrapGenerationError(originalErr, "generate", "model")
+
+		if wrappedErr == nil {
+			t.Fatal("Expected non-nil error")
+		}
+
+		errorStr := wrappedErr.Error()
+		for _, want := range []string{"operation: generate", "resource: model"} {
+			if !contains(errorStr, want) {
+				t.Fatalf("expected %q in %q", want, errorStr)
+			}
+		}
+	})
 }
 
 func TestErrorRecovery(t *testing.T) {
@@ -200,6 +289,8 @@ func TestIsRecoverable(t *testing.T) {
 		{"TimeoutError", errors.New("operation timeout"), true},
 		{"TemporaryError", errors.New("temporary failure"), true},
 		{"ConnectionRefused", errors.New("connection refused"), true},
+		{"NestedRecoverable", WrapError(errors.New("temporary failure"), *NewErrorContext("sync", "tool", "")), true},
+		{"NestedNonRecoverable", WrapError(errors.New("syntax error"), *NewErrorContext("sync", "tool", "")), false},
 		{"SyntaxError", errors.New("syntax error"), false},
 		{"ValidationError", errors.New("validation failed"), false},
 	}

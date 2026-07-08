@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mbvlabs/andurel/generator"
 	"github.com/mbvlabs/andurel/layout"
 )
 
@@ -352,6 +353,61 @@ func TestGenerateControllerMapsModelName(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("controller call: expected %#v, got %#v", want, got)
+	}
+}
+
+func TestGenerateFactoryCommandsMapOptionsAndReportDrift(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+	fake.factoryResult = &generator.FactorySyncResult{
+		ResourceName: "Widget",
+		Path:         "models/factories/widget.go",
+		Written:      true,
+	}
+
+	result := executeCLITest(t, "generate", "factory", "Widget", "--sync", "--diff")
+	if result.err != nil {
+		t.Fatalf("generate factory sync failed: %v", result.err)
+	}
+	if len(fake.factoryCalls) != 1 {
+		t.Fatalf("factory calls = %#v", fake.factoryCalls)
+	}
+	if fake.factoryCalls[0].name != "Widget" || !fake.factoryCalls[0].opts.Sync || fake.factoryCalls[0].opts.Check || !fake.factoryCalls[0].opts.Diff {
+		t.Fatalf("unexpected factory call: %#v", fake.factoryCalls[0])
+	}
+	if !strings.Contains(result.stdout, "Synced models/factories/widget.go") {
+		t.Fatalf("expected human sync output, got:\n%s", result.stdout)
+	}
+
+	fake.factoryCalls = nil
+	fake.factoryResult = &generator.FactorySyncResult{
+		ResourceName: "Widget",
+		Path:         "models/factories/widget.go",
+		Stale:        true,
+		Diff:         "--- old\n+++ new\n",
+	}
+	result = executeCLITest(t, "generate", "factory", "Widget", "--check", "--diff")
+	if result.err == nil || !strings.Contains(result.err.Error(), "factories are stale") {
+		t.Fatalf("expected stale factory error, got %v", result.err)
+	}
+	if len(fake.factoryCalls) != 1 || !fake.factoryCalls[0].opts.Check || fake.factoryCalls[0].opts.Sync {
+		t.Fatalf("unexpected check call: %#v", fake.factoryCalls)
+	}
+	if !strings.Contains(result.stdout, "Stale models/factories/widget.go") || !strings.Contains(result.stdout, "--- old") {
+		t.Fatalf("expected stale output with diff, got:\n%s", result.stdout)
+	}
+
+	fake.factoriesResult = []*generator.FactorySyncResult{{
+		ResourceName: "Order",
+		Path:         "models/factories/order.go",
+		Missing:      true,
+	}}
+	result = executeCLITest(t, "generate", "factories", "--check")
+	if result.err == nil || !strings.Contains(result.err.Error(), "factories are stale") {
+		t.Fatalf("expected bulk stale factory error, got %v", result.err)
+	}
+	if len(fake.factoriesCalls) != 1 || !fake.factoriesCalls[0].Check {
+		t.Fatalf("unexpected factories calls: %#v", fake.factoriesCalls)
 	}
 }
 

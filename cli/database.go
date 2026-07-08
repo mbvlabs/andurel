@@ -15,6 +15,7 @@ import (
 	"github.com/mbvlabs/andurel/cli/output"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
@@ -47,6 +48,15 @@ var runGooseCommand = func(rootDir, goosePath string, args []string) error {
 	cmd.Dir = rootDir
 	return cmd.Run()
 }
+
+type adminConnection interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Close(ctx context.Context) error
+}
+
+var openAdminConnectionFunc = openAdminConnection
+var runGooseFunc = runGoose
+var runSeedFunc = runSeed
 
 func newDatabaseCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -538,7 +548,7 @@ func dropDatabase(force bool) error {
 		return nil
 	}
 
-	cfg, conn, ctx, cancel, err := openAdminConnection()
+	cfg, conn, ctx, cancel, err := openAdminConnectionFunc()
 	if err != nil {
 		return err
 	}
@@ -560,7 +570,7 @@ func createDatabase() error {
 	}
 	loadProjectEnv(rootDir)
 
-	cfg, conn, ctx, cancel, err := openAdminConnection()
+	cfg, conn, ctx, cancel, err := openAdminConnectionFunc()
 	if err != nil {
 		return err
 	}
@@ -596,7 +606,7 @@ func nukeDatabase(force bool) error {
 		return nil
 	}
 
-	cfg, conn, ctx, cancel, err := openAdminConnection()
+	cfg, conn, ctx, cancel, err := openAdminConnectionFunc()
 	if err != nil {
 		return err
 	}
@@ -631,7 +641,7 @@ func rebuildDatabase(cmd *cobra.Command, force bool, skipSeed bool, seedName str
 		return err
 	}
 
-	if err := runGoose("up"); err != nil {
+	if err := runGooseFunc("up"); err != nil {
 		return err
 	}
 
@@ -639,7 +649,7 @@ func rebuildDatabase(cmd *cobra.Command, force bool, skipSeed bool, seedName str
 		return nil
 	}
 
-	if err := runSeed(cmd, seedName, false); err != nil {
+	if err := runSeedFunc(cmd, seedName, false); err != nil {
 		return err
 	}
 
@@ -647,7 +657,7 @@ func rebuildDatabase(cmd *cobra.Command, force bool, skipSeed bool, seedName str
 	return nil
 }
 
-func openAdminConnection() (dbConfig, *pgx.Conn, context.Context, context.CancelFunc, error) {
+func openAdminConnection() (dbConfig, adminConnection, context.Context, context.CancelFunc, error) {
 	cfg, err := loadDatabaseConfig()
 	if err != nil {
 		return dbConfig{}, nil, nil, nil, err
@@ -683,7 +693,7 @@ func openAdminConnection() (dbConfig, *pgx.Conn, context.Context, context.Cancel
 	return cfg, conn, ctx, cancel, nil
 }
 
-func dropDatabaseWithConn(ctx context.Context, cfg dbConfig, conn *pgx.Conn, force bool) error {
+func dropDatabaseWithConn(ctx context.Context, cfg dbConfig, conn adminConnection, force bool) error {
 	if isSystemDatabase(cfg.Name) && !force {
 		return fmt.Errorf("refusing to drop system database %q without --force", cfg.Name)
 	}
@@ -696,7 +706,7 @@ func dropDatabaseWithConn(ctx context.Context, cfg dbConfig, conn *pgx.Conn, for
 	return err
 }
 
-func createDatabaseWithConn(ctx context.Context, cfg dbConfig, conn *pgx.Conn) error {
+func createDatabaseWithConn(ctx context.Context, cfg dbConfig, conn adminConnection) error {
 	if isSystemDatabase(cfg.Name) {
 		return fmt.Errorf("refusing to create system database %q", cfg.Name)
 	}

@@ -355,6 +355,83 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 	}
 }
 
+func TestRunDoctorHumanPassWarnAndProjectFailure(t *testing.T) {
+	root := t.TempDir()
+	writeGoModule(t, root)
+	writeTestFile(t, root, "main.go", "package main\n\nfunc main() {}\n")
+	lock := layout.NewAndurelLock("v1.2.3")
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+
+	fakePath := t.TempDir()
+	writeExecutable(t, fakePath, "go", "#!/bin/sh\nexit 0\n")
+	t.Setenv("PATH", fakePath)
+
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() {
+		findGoModRoot = originalFindGoModRoot
+	})
+
+	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
+	capture := captureProcessOutput(t, &os.Stdout)
+	if err := runDoctor("1.2.3", true); err != nil {
+		t.Fatalf("runDoctor pass: %v", err)
+	}
+	if out := capture(); !strings.Contains(out, "All checks passed") {
+		t.Fatalf("expected pass summary, got:\n%s", out)
+	}
+
+	if err := os.Remove(filepath.Join(root, "bin", "templ")); err != nil {
+		t.Fatalf("remove templ: %v", err)
+	}
+	capture = captureProcessOutput(t, &os.Stdout)
+	if err := runDoctor("1.2.3", false); err != nil {
+		t.Fatalf("runDoctor warn: %v", err)
+	}
+	if out := capture(); !strings.Contains(out, "warnings to review") {
+		t.Fatalf("expected warning summary, got:\n%s", out)
+	}
+
+	findGoModRoot = func() (string, error) { return "", os.ErrNotExist }
+	capture = captureProcessOutput(t, &os.Stdout)
+	if err := runDoctor("1.2.3", false); err == nil {
+		t.Fatalf("expected project failure")
+	}
+	if out := capture(); !strings.Contains(out, "Cannot continue") {
+		t.Fatalf("expected cannot continue output, got:\n%s", out)
+	}
+}
+
+func TestDoctorToolVersionMismatchesAndUnknowns(t *testing.T) {
+	root := t.TempDir()
+	writeGoModule(t, root)
+	writeExecutable(t, root, "bin/templ", "#!/bin/sh\necho templ v0.1.0\n")
+	writeExecutable(t, root, "bin/goose", "#!/bin/sh\necho no version here\n")
+	lock := layout.NewAndurelLock("v1.2.3")
+	lock.Tools["templ"] = &layout.Tool{Version: "v9.9.9", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}}
+	lock.Tools["goose"] = &layout.Tool{Version: "v1.0.0", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}}
+	lock.Tools["mailpit"] = &layout.Tool{Version: "v1.0.0", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() {
+		findGoModRoot = originalFindGoModRoot
+	})
+
+	result := checkToolVersions(root, true)
+	if result.status != statusWarn || !strings.Contains(result.message, "1 mismatched, 1 missing, 1 unknown") {
+		t.Fatalf("unexpected tool version result: %#v", result)
+	}
+	if len(result.details) != 3 {
+		t.Fatalf("expected verbose details for all issues, got %#v", result.details)
+	}
+}
+
 func writeGoModule(t *testing.T, root string) {
 	t.Helper()
 	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.26.0\n")

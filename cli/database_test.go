@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/spf13/cobra"
 )
@@ -289,6 +291,121 @@ func TestRunGooseBuildsCommand(t *testing.T) {
 	}
 }
 
+func TestDatabaseLifecycleWithFakeAdminConnection(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/app\n")
+	writeTestFile(t, root, ".env", strings.Join([]string{
+		"DB_KIND=postgres",
+		"DB_PORT=5432",
+		"DB_HOST=localhost",
+		"DB_NAME=app_db",
+		"DB_USER=app_user",
+		"DB_PASSWORD=secret",
+		"DB_SSL_MODE=disable",
+		"",
+	}, "\n"))
+	unsetEnvForTest(t, "DB_KIND", "DB_PORT", "DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_SSL_MODE")
+
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() {
+		findGoModRoot = originalFindGoModRoot
+	})
+
+	fake := &fakeAdminConnection{}
+	openAdminConnectionFunc = func() (dbConfig, adminConnection, context.Context, context.CancelFunc, error) {
+		cfg, err := loadDatabaseConfig()
+		ctx, cancel := context.WithCancel(context.Background())
+		return cfg, fake, ctx, cancel, err
+	}
+
+	if err := createDatabase(); err != nil {
+		t.Fatalf("createDatabase: %v", err)
+	}
+	if !fake.closed || !containsSQL(fake.execs, `CREATE DATABASE "app_db"`) {
+		t.Fatalf("createDatabase execs=%#v closed=%v", fake.execs, fake.closed)
+	}
+
+	fake.reset()
+	originalStdin := os.Stdin
+	t.Cleanup(func() { os.Stdin = originalStdin })
+	os.Stdin = tempInputFile(t, "yes\n")
+	if err := dropDatabase(false); err != nil {
+		t.Fatalf("dropDatabase: %v", err)
+	}
+	if !containsSQL(fake.execs, "pg_terminate_backend") || !containsSQL(fake.execs, `DROP DATABASE IF EXISTS "app_db"`) {
+		t.Fatalf("dropDatabase execs=%#v", fake.execs)
+	}
+
+	fake.reset()
+	os.Stdin = tempInputFile(t, "n\n")
+	if err := nukeDatabase(false); err != nil {
+		t.Fatalf("nukeDatabase abort: %v", err)
+	}
+	if len(fake.execs) != 0 {
+		t.Fatalf("aborted nuke should not connect or exec, got %#v", fake.execs)
+	}
+
+	fake.reset()
+	os.Stdin = tempInputFile(t, "yes\n")
+	var gooseArgs []string
+	var seedName string
+	runGooseFunc = func(args ...string) error {
+		gooseArgs = append([]string(nil), args...)
+		return nil
+	}
+	runSeedFunc = func(cmd *cobra.Command, name string, list bool) error {
+		seedName = name
+		return nil
+	}
+	cmd := newStructuredTestCommand(&bytes.Buffer{})
+	if err := rebuildDatabase(cmd, false, false, "development"); err != nil {
+		t.Fatalf("rebuildDatabase: %v", err)
+	}
+	if !reflect.DeepEqual(gooseArgs, []string{"up"}) || seedName != "development" {
+		t.Fatalf("rebuild orchestration goose=%#v seed=%q", gooseArgs, seedName)
+	}
+	if !containsSQL(fake.execs, `DROP DATABASE IF EXISTS "app_db"`) || !containsSQL(fake.execs, `CREATE DATABASE "app_db"`) {
+		t.Fatalf("rebuild execs=%#v", fake.execs)
+	}
+}
+
+func TestDatabaseLifecycleProtectionsAndExecErrors(t *testing.T) {
+	cfg := dbConfig{Name: "postgres"}
+	fake := &fakeAdminConnection{}
+	if err := dropDatabaseWithConn(context.Background(), cfg, fake, false); err == nil ||
+		!strings.Contains(err.Error(), "refusing to drop system database") {
+		t.Fatalf("expected system drop protection, got %v", err)
+	}
+	if err := createDatabaseWithConn(context.Background(), cfg, fake); err == nil ||
+		!strings.Contains(err.Error(), "refusing to create system database") {
+		t.Fatalf("expected system create protection, got %v", err)
+	}
+
+	fake.err = errors.New("exec failed")
+	cfg.Name = "app_db"
+	if err := dropDatabaseWithConn(context.Background(), cfg, fake, false); err == nil ||
+		!strings.Contains(err.Error(), "exec failed") {
+		t.Fatalf("expected terminate exec error, got %v", err)
+	}
+
+	fake.reset()
+	fake.errOn = `DROP DATABASE`
+	fake.err = errors.New("drop failed")
+	if err := dropDatabaseWithConn(context.Background(), cfg, fake, false); err == nil ||
+		!strings.Contains(err.Error(), "drop failed") {
+		t.Fatalf("expected drop exec error, got %v", err)
+	}
+
+	fake.reset()
+	fake.err = errors.New("create failed")
+	if err := createDatabaseWithConn(context.Background(), cfg, fake); err == nil ||
+		!strings.Contains(err.Error(), "create failed") {
+		t.Fatalf("expected create exec error, got %v", err)
+	}
+}
+
 func TestRunGooseMissingBinary(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/app\n")
@@ -388,4 +505,40 @@ func newStructuredTestCommand(out *bytes.Buffer) *cobra.Command {
 	cmd.SetOut(out)
 	_ = cmd.PersistentFlags().Set("json", "true")
 	return cmd
+}
+
+type fakeAdminConnection struct {
+	execs  []string
+	closed bool
+	err    error
+	errOn  string
+}
+
+func (f *fakeAdminConnection) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
+	f.execs = append(f.execs, sql)
+	if f.err != nil && (f.errOn == "" || strings.Contains(sql, f.errOn)) {
+		return pgconn.CommandTag{}, f.err
+	}
+	return pgconn.CommandTag{}, nil
+}
+
+func (f *fakeAdminConnection) Close(ctx context.Context) error {
+	f.closed = true
+	return nil
+}
+
+func (f *fakeAdminConnection) reset() {
+	f.execs = nil
+	f.closed = false
+	f.err = nil
+	f.errOn = ""
+}
+
+func containsSQL(statements []string, want string) bool {
+	for _, statement := range statements {
+		if strings.Contains(statement, want) {
+			return true
+		}
+	}
+	return false
 }

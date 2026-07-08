@@ -69,7 +69,7 @@ func syncBinaries(projectRoot string) error {
 	}
 
 	for name, tool := range lock.Tools {
-		if err := syncSingleTool(projectRoot, name, tool, goos, goarch); err != nil {
+		if err := syncSingleToolFunc(projectRoot, name, tool, goos, goarch); err != nil {
 			if errors.Is(err, cmds.ErrFailedToGetRleaseURL) {
 				fmt.Printf(
 					"failed to find release for %s %s on %s/%s \n",
@@ -127,7 +127,7 @@ func syncSingleTool(projectRoot, name string, tool *layout.Tool, goos, goarch st
 	}
 
 	fmt.Printf("⬇ Downloading %s %s for %s/%s...\n", name, tool.Version, goos, goarch)
-	if err := downloadFromLockTool(name, tool, goos, goarch, binPath); err != nil {
+	if err := downloadFromLockToolFunc(name, tool, goos, goarch, binPath); err != nil {
 		return fmt.Errorf("failed to download %s: %w", name, err)
 	}
 	fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, tool.Version)
