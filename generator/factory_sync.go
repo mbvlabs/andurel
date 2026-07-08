@@ -224,7 +224,6 @@ func (m *ModelManager) planFactorySync(resourceName, tableName string, genModel 
 
 func renderSyncedFactoryFile(factory *models.GeneratedFactory, oldContent string) (string, error) {
 	generatedOptions := expectedFactoryOptionNames(factory)
-	customOptionOverrides := customOptionOverrides(oldContent, factory, generatedOptions)
 	customDecls, oldImports, err := customFactoryDecls(oldContent, factory, generatedOptions)
 	if err != nil {
 		return "", err
@@ -236,7 +235,7 @@ func renderSyncedFactoryFile(factory *models.GeneratedFactory, oldContent string
 	sb.WriteString("\n// Code below is managed by Andurel. Custom helpers should live outside generated regions.\n\n")
 	writeFactoryCoreRegion(&sb, factory)
 	sb.WriteString("\n")
-	writeFactoryOptionsRegion(&sb, factory, customOptionOverrides)
+	writeFactoryOptionsRegion(&sb, factory)
 	if strings.TrimSpace(customDecls) != "" {
 		sb.WriteString("\n")
 		sb.WriteString(strings.TrimSpace(customDecls))
@@ -369,10 +368,10 @@ func writeFactoryCreateFunctions(sb *strings.Builder, factory *models.GeneratedF
 	fmt.Fprintf(sb, "\treturn %ss, nil\n}\n", lower)
 }
 
-func writeFactoryOptionsRegion(sb *strings.Builder, factory *models.GeneratedFactory, customOverrides map[string]bool) {
+func writeFactoryOptionsRegion(sb *strings.Builder, factory *models.GeneratedFactory) {
 	fmt.Fprintf(sb, "// BEGIN ANDUREL %s %s\n", factoryOptionsRegion, factory.ModelName)
 	for _, field := range factory.Fields {
-		if field.IsAutoManaged || customOverrides[field.OptionName] {
+		if field.IsAutoManaged {
 			continue
 		}
 		fmt.Fprintf(sb, "func %s(value %s) %sOption {\n", field.OptionName, field.Type, factory.ModelName)
@@ -406,31 +405,7 @@ func expectedFactoryOptionNames(factory *models.GeneratedFactory) map[string]boo
 	return names
 }
 
-func customOptionOverrides(src string, factory *models.GeneratedFactory, expectedOptions map[string]bool) map[string]bool {
-	overrides := make(map[string]bool)
-	if src == "" {
-		return overrides
-	}
-	ranges := generatedRegionRanges(src)
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "", src, parser.ParseComments)
-	if err != nil {
-		return overrides
-	}
-	for _, decl := range file.Decls {
-		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || !expectedOptions[fn.Name.Name] {
-			continue
-		}
-		start := fset.Position(fn.Pos()).Offset
-		if !offsetInRanges(start, ranges) {
-			overrides[fn.Name.Name] = true
-		}
-	}
-	return overrides
-}
-
-func customFactoryDecls(src string, factory *models.GeneratedFactory, _ map[string]bool) (string, []string, error) {
+func customFactoryDecls(src string, factory *models.GeneratedFactory, expectedOptions map[string]bool) (string, []string, error) {
 	if src == "" {
 		return "", nil, nil
 	}
@@ -454,13 +429,20 @@ func customFactoryDecls(src string, factory *models.GeneratedFactory, _ map[stri
 		}
 		start := fset.Position(decl.Pos()).Offset
 		end := fset.Position(decl.End()).Offset
-		if offsetInRanges(start, ranges) || isGeneratedFactoryDecl(decl, factory) {
+		if offsetInRanges(start, ranges) ||
+			isGeneratedFactoryDecl(decl, factory) ||
+			isExpectedFactoryOptionDecl(decl, expectedOptions) {
 			continue
 		}
 		custom.WriteString(strings.TrimSpace(src[start:end]))
 		custom.WriteString("\n\n")
 	}
 	return custom.String(), imports, nil
+}
+
+func isExpectedFactoryOptionDecl(decl ast.Decl, expectedOptions map[string]bool) bool {
+	fn, ok := decl.(*ast.FuncDecl)
+	return ok && expectedOptions[fn.Name.Name]
 }
 
 func isGeneratedFactoryDecl(decl ast.Decl, factory *models.GeneratedFactory) bool {

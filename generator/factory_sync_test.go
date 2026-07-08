@@ -94,7 +94,7 @@ func generatedOption() {}
 	}
 }
 
-func TestRenderSyncedFactoryFilePreservesCustomOptionsAndDeclarations(t *testing.T) {
+func TestRenderSyncedFactoryFileRegeneratesOptionsAndPreservesCustomDeclarations(t *testing.T) {
 	factory := factorySyncGeneratedFactory()
 	oldContent := `package factories
 
@@ -114,6 +114,12 @@ func WithProductsName(value string) ProductOption {
 	}
 }
 
+func WithProductsPrice(value int16) ProductOption {
+	return func(f *ProductFactory) {
+		f.ProductEntity.Price = int32(value)
+	}
+}
+
 func CustomProductScore() int {
 	return int(math.Max(1, 2))
 }
@@ -129,7 +135,10 @@ func CustomProductScore() int {
 	}
 
 	if count := strings.Count(rendered, "func WithProductsName"); count != 1 {
-		t.Fatalf("expected custom option to replace generated option, got %d definitions:\n%s", count, rendered)
+		t.Fatalf("expected one regenerated name option, got %d definitions:\n%s", count, rendered)
+	}
+	if strings.Contains(rendered, `"custom:"`) {
+		t.Fatalf("expected same-name custom option to be replaced by generated option:\n%s", rendered)
 	}
 	if !strings.Contains(rendered, `"math"`) {
 		t.Fatalf("expected preserved custom import:\n%s", rendered)
@@ -138,7 +147,10 @@ func CustomProductScore() int {
 		t.Fatalf("expected preserved custom helper:\n%s", rendered)
 	}
 	if !strings.Contains(rendered, "func WithProductsPrice(value int32) ProductOption") {
-		t.Fatalf("expected generated option for non-overridden field:\n%s", rendered)
+		t.Fatalf("expected stale same-name option signature to be regenerated:\n%s", rendered)
+	}
+	if strings.Contains(rendered, "func WithProductsPrice(value int16) ProductOption") {
+		t.Fatalf("expected stale same-name option signature to be removed:\n%s", rendered)
 	}
 }
 
