@@ -1,12 +1,17 @@
 @import "tailwindcss";
+{{if hasExtension .Extensions "css-components"}}
+@import "./themes.css";
+@import "./components.css";
+@import "./utilities.css";
+{{end}}
 
 html {
 	scroll-behavior: smooth;
 }
 
 body {
-	background: oklch(8% 0.01 220);
-	color: oklch(96% 0.01 220);
+	background: oklch(7% 0.008 235);
+	color: oklch(91% 0.02 88);
 	font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;

@@ -22,41 +22,41 @@ func (lf LoginForm) PageFragment() string {
 templ (lf LoginForm) Page() {
 	@base() {
 		@templ.Fragment(lf.PageFragment()) {
-			<main id="login-container" class="flex flex-1 items-center justify-center px-6 py-10">
+			<main id="login-container" class="flex flex-1 items-center justify-center px-6 py-6">
 				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
-					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm shadow-cyan-950/30">
-						<div class="flex flex-col space-y-1.5 p-8 pb-0">
-							<h2 class="text-xl font-semibold text-slate-100">Login to your account</h2>
-							<p class="text-sm text-slate-400">Enter your details below to login to your account</p>
+					<div class="border border-[#2f3a37] bg-[#101414]/90 shadow-sm shadow-black/40">
+						<div class="flex flex-col space-y-1.5 p-6 pb-0">
+							<h2 class="text-xl font-semibold text-[#f2ead8]">Login to your account</h2>
+							<p class="text-sm text-[#8f8a7d]">Enter your details below to login to your account</p>
 						</div>
-						<div class="p-8">
+						<div class="p-6">
 							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.SessionCreate.URL()) }>
 								<fieldset class="space-y-5 border-0 p-0" data-attr:disabled="$_submitting">
 									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="email">Email</label>
-										<input id="email" type="email" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="email" required/>
+										<label class="text-sm font-medium leading-none text-[#c7c0ad] peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="email">Email</label>
+										<input id="email" type="email" class="flex h-9 w-full border border-[#2f3a37] bg-[#090c0d] px-3 py-1 text-sm text-[#e4dfd2] shadow-inner shadow-black/35 transition placeholder:text-[#8f8a7d] focus:border-[#8df7a4] focus:outline-none focus:ring-2 focus:ring-[#8df7a4]/20 disabled:cursor-not-allowed disabled:opacity-60" data-bind="email" required/>
 										if lf.FieldError("email") != "" {
-											<p id="email-error" class="text-sm font-medium text-red-400" role="alert">{ lf.FieldError("email") }</p>
+											<p id="email-error" class="text-sm font-medium text-[#ff875f]" role="alert">{ lf.FieldError("email") }</p>
 										}
 									</div>
 									<div class="space-y-1">
-										<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="password">Password</label>
-										<input id="password" type="password" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner shadow-cyan-950/30 transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="password" required/>
+										<label class="text-sm font-medium leading-none text-[#c7c0ad] peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="password">Password</label>
+										<input id="password" type="password" class="flex h-9 w-full border border-[#2f3a37] bg-[#090c0d] px-3 py-1 text-sm text-[#e4dfd2] shadow-inner shadow-black/35 transition placeholder:text-[#8f8a7d] focus:border-[#8df7a4] focus:outline-none focus:ring-2 focus:ring-[#8df7a4]/20 disabled:cursor-not-allowed disabled:opacity-60" data-bind="password" required/>
 										if lf.FieldError("password") != "" {
-											<p id="password-error" class="text-sm font-medium text-red-400" role="alert">{ lf.FieldError("password") }</p>
+											<p id="password-error" class="text-sm font-medium text-[#ff875f]" role="alert">{ lf.FieldError("password") }</p>
 										}
 									</div>
 									<p class="mb-1 text-right text-sm">
-										<a class="text-slate-300 hover:text-slate-100 hover:underline" href={ routes.PasswordNew.URL() }>Forgot your password?</a>
+										<a class="text-[#d7d0bf] hover:text-[#f2ead8] hover:underline" href={ routes.PasswordNew.URL() }>Forgot your password?</a>
 									</p>
-									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 shadow-sm shadow-cyan-950/30 transition-colors hover:bg-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60">
+									<button type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap bg-[#ff6b1a] px-4 py-2 text-sm font-medium text-[#130f0b] shadow-sm shadow-black/40 transition-colors hover:bg-[#ff8748] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6b1a]/30 disabled:cursor-not-allowed disabled:opacity-60">
 										<span data-show="!$_submitting">Login</span>
 										<span data-show="$_submitting">Loading</span>
 									</button>
 								</fieldset>
 							</form>
-							<p class="mt-6 text-center text-sm text-slate-400">
-								Don't have an account? <a class="text-slate-300 hover:text-slate-100 hover:underline" href={ routes.RegistrationNew.URL() }>Sign up</a>
+							<p class="mt-6 text-center text-sm text-[#8f8a7d]">
+								Don't have an account? <a class="text-[#d7d0bf] hover:text-[#f2ead8] hover:underline" href={ routes.RegistrationNew.URL() }>Sign up</a>
 							</p>
 						</div>
 					</div>
