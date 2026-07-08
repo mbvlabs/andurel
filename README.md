@@ -340,7 +340,7 @@ andurel generate routes
 andurel generate routes --json
 ```
 
-The command reads the same `router/routes/*.go` route package used by `andurel routes --json` and writes `resources/js/routes.ts`. Route variables become lower-camel-case helper names, and typed route params become function arguments:
+The command is always visible in CLI discovery, but only runs in projects whose `andurel.lock` has `scaffoldConfig.inertia` set to `vue` or `react`. It reads the same `router/routes/*.go` route package used by `andurel routes --json` and writes `resources/js/routes.ts`. Route variables become lower-camel-case helper names, and typed route params become function arguments:
 
 ```ts
 // resources/js/routes.ts
@@ -350,7 +350,7 @@ export const routes = {
 }
 ```
 
-Use this after adding or changing routes for an Inertia project so Vue or React pages can import route helpers instead of hard-coding URL strings. `--json` reports the generated file, helper count, skipped count, and any skipped manifest entries.
+Use this after adding or changing routes for an Inertia project so Vue or React pages can import route helpers instead of hard-coding URL strings. Non-Inertia projects receive a structured `invalid_inertia_adapter` error. `--json` reports the generated file, helper count, skipped count, and any skipped manifest entries.
 
 ### `andurel routes` — Route manifest
 
@@ -546,6 +546,8 @@ Run comprehensive diagnostic checks (Go version, config, code quality, code gene
 ```bash
 andurel doctor (alias: doc) [--verbose]
 ```
+
+For Inertia projects, the Code Generation checks also compare `resources/js/routes.ts` against the current `router/routes/*.go` manifest and fail when the file is missing or stale. Run `andurel generate routes` to update it.
 
 ### `andurel commands` — Structured command discovery
 

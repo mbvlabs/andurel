@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/mbvlabs/andurel/cli/output"
+	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
 )
@@ -44,6 +45,9 @@ resources/js/routes.ts for Vue or React Inertia frontends.`,
 			if err != nil {
 				return err
 			}
+			if err := requireInertiaProjectForRoutesJS(rootDir); err != nil {
+				return err
+			}
 			manifest, err := collectRouteManifest(rootDir)
 			if err != nil {
 				return err
@@ -57,6 +61,35 @@ resources/js/routes.ts for Vue or React Inertia frontends.`,
 	}
 	setAgentMetadata(cmd, "generation", "Writes Inertia frontend route helpers to resources/js/routes.ts from the route manifest. Use --json for generated helper and skipped counts.")
 	return cmd
+}
+
+func requireInertiaProjectForRoutesJS(rootDir string) error {
+	lock, err := layout.ReadLockFile(rootDir)
+	if err != nil {
+		return output.WrapError(
+			output.CodeConfigError,
+			err,
+			output.ExitConfig,
+			"Run this from an Andurel project with andurel.lock.",
+		)
+	}
+	if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia == "" {
+		return output.NewError(
+			output.CodeInvalidInertiaAdapter,
+			"andurel generate routes requires an Inertia project",
+			output.ExitUsage,
+			"Create the project with --inertia vue or --inertia react before generating TypeScript route helpers.",
+		)
+	}
+	if !layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
+		return output.NewError(
+			output.CodeInvalidInertiaAdapter,
+			fmt.Sprintf("unsupported inertia adapter in andurel.lock: %s", lock.ScaffoldConfig.Inertia),
+			output.ExitUsage,
+			"Use vue or react in scaffoldConfig.inertia before generating TypeScript route helpers.",
+		)
+	}
+	return nil
 }
 
 func generateRoutesJSFile(rootDir string, manifest routeManifest) (routesJSReport, error) {

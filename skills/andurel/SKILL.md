@@ -91,7 +91,7 @@ andurel routes --json
 andurel generate routes --json
 ```
 
-`andurel generate routes` reads `router/routes/*.go` as the source of truth and writes `resources/js/routes.ts`. Import helpers from that file in Vue or React pages instead of hard-coding URLs.
+`andurel generate routes` reads `router/routes/*.go` as the source of truth and writes `resources/js/routes.ts`. It only runs when `andurel.lock` has `scaffoldConfig.inertia` set to `vue` or `react`. Import helpers from that file in Vue or React pages instead of hard-coding URLs.
 
 Check or sync factories:
 
@@ -129,6 +129,8 @@ Check project health:
 ```bash
 andurel doctor --json
 ```
+
+In Inertia projects, `doctor` checks whether `resources/js/routes.ts` matches the current `router/routes/*.go` manifest. If the `routes.ts` check fails, run `andurel generate routes --json`.
 
 ## Validation
 

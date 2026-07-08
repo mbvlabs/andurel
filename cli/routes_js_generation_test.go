@@ -1,10 +1,15 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mbvlabs/andurel/cli/output"
+	"github.com/mbvlabs/andurel/layout"
 )
 
 func TestRenderRoutesJSGeneratesDeterministicHelpers(t *testing.T) {
@@ -142,5 +147,151 @@ func TestGenerateRoutesJSFileCreatesDirectoryAndOverwritesFile(t *testing.T) {
 	}
 	if !strings.Contains(string(got), "sessionCreate: () => '/users/sign-in'") {
 		t.Fatalf("unexpected generated routes.ts:\n%s", got)
+	}
+}
+
+func TestGenerateRoutesCommandRequiresInertiaProject(t *testing.T) {
+	rootDir := setupRoutesJSCommandProject(t, "")
+
+	result := runRoutesJSCommandInProject(t, rootDir, "generate", "routes", "--json")
+	if result.err == nil {
+		t.Fatal("expected generate routes to reject non-Inertia project")
+	}
+	envelope := output.Fail(result.err)
+	if envelope.Code != output.CodeInvalidInertiaAdapter {
+		t.Fatalf("expected invalid inertia error, got %#v", envelope)
+	}
+	if _, err := os.Stat(filepath.Join(rootDir, generatedRoutesJSPath)); !os.IsNotExist(err) {
+		t.Fatalf("expected routes.ts not to be generated, stat err: %v", err)
+	}
+}
+
+func TestGenerateRoutesCommandAllowsInertiaProject(t *testing.T) {
+	rootDir := setupRoutesJSCommandProject(t, "vue")
+
+	result := runRoutesJSCommandInProject(t, rootDir, "generate", "routes", "--json")
+	if result.err != nil {
+		t.Fatalf("generate routes failed: %v\nstderr:\n%s", result.err, result.stderr)
+	}
+
+	target := filepath.Join(rootDir, generatedRoutesJSPath)
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("read generated routes.ts: %v", err)
+	}
+	if !strings.Contains(string(got), "sessionCreate: () => '/users/sign-in'") {
+		t.Fatalf("unexpected generated routes.ts:\n%s", got)
+	}
+	if !strings.Contains(result.stdout, `"generated_file": "resources/js/routes.ts"`) {
+		t.Fatalf("expected structured generation report, got:\n%s", result.stdout)
+	}
+}
+
+func TestCodeGenerationChecksSkipsRoutesTSForNonInertiaProject(t *testing.T) {
+	rootDir := setupRoutesJSCommandProject(t, "")
+
+	results := codeGenerationChecks(rootDir, false)
+	for _, result := range results {
+		if result.name == "routes.ts" {
+			t.Fatalf("expected routes.ts check to be skipped for non-Inertia project: %#v", results)
+		}
+	}
+}
+
+func TestCheckRoutesTSGeneratePassesWhenCurrent(t *testing.T) {
+	rootDir := setupRoutesJSCommandProject(t, "react")
+	manifest, err := collectRouteManifest(rootDir)
+	if err != nil {
+		t.Fatalf("collect route manifest: %v", err)
+	}
+	if _, err := generateRoutesJSFile(rootDir, manifest); err != nil {
+		t.Fatalf("generate routes.ts: %v", err)
+	}
+
+	result := checkRoutesTSGenerate(rootDir, false)
+	if result.status != statusPass {
+		t.Fatalf("expected routes.ts check to pass, got %#v", result)
+	}
+}
+
+func TestCheckRoutesTSGenerateFailsWhenMissingOrStale(t *testing.T) {
+	rootDir := setupRoutesJSCommandProject(t, "vue")
+
+	missing := checkRoutesTSGenerate(rootDir, false)
+	if missing.status != statusFail || !strings.Contains(missing.message, "missing") {
+		t.Fatalf("expected missing routes.ts failure, got %#v", missing)
+	}
+
+	target := filepath.Join(rootDir, generatedRoutesJSPath)
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatalf("create resources/js: %v", err)
+	}
+	if err := os.WriteFile(target, []byte("stale"), 0o644); err != nil {
+		t.Fatalf("write stale routes.ts: %v", err)
+	}
+
+	stale := checkRoutesTSGenerate(rootDir, false)
+	if stale.status != statusFail || !strings.Contains(stale.message, "out of date") {
+		t.Fatalf("expected stale routes.ts failure, got %#v", stale)
+	}
+}
+
+func setupRoutesJSCommandProject(t *testing.T, inertia string) string {
+	t.Helper()
+
+	rootDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(rootDir, "go.mod"), []byte("module example.com/app\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	lock := layout.AndurelLock{
+		Version: "test",
+		Tools:   map[string]*layout.Tool{},
+		ScaffoldConfig: &layout.ScaffoldConfig{
+			ProjectName: "app",
+			Database:    "postgres",
+			Inertia:     inertia,
+		},
+	}
+	lockData, err := json.MarshalIndent(lock, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal lock: %v", err)
+	}
+	lockData = append(lockData, '\n')
+	if err := os.WriteFile(filepath.Join(rootDir, "andurel.lock"), lockData, 0o644); err != nil {
+		t.Fatalf("write andurel.lock: %v", err)
+	}
+	writeRouteManifestTestFile(t, rootDir, "users.go", `package routes
+
+import "example.com/app/internal/routing"
+
+const UserPrefix = "/users"
+
+var SessionCreate = routing.NewSimpleRoute(
+	"/sign-in",
+	"users.user_session",
+	UserPrefix,
+)
+`)
+	return rootDir
+}
+
+func runRoutesJSCommandInProject(t *testing.T, rootDir string, args ...string) cliTestResult {
+	t.Helper()
+	resetCLITestSeams(t)
+	findGoModRoot = func() (string, error) {
+		return rootDir, nil
+	}
+
+	var stdout, stderr bytes.Buffer
+	cmd := NewRootCommand("test", "test-date")
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs(args)
+	err := cmd.Execute()
+	return cliTestResult{
+		cmd:    cmd,
+		stdout: stdout.String(),
+		stderr: stderr.String(),
+		err:    err,
 	}
 }

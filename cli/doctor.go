@@ -145,7 +145,7 @@ func collectDoctorReport(currentVersion string, verbose bool) (doctorReport, err
 	)...)
 
 	results = append(results, categorizeResults("code_generation",
-		checkTemplGenerate(rootDir, verbose),
+		codeGenerationChecks(rootDir, verbose)...,
 	)...)
 
 	return buildDoctorReport(currentVersion, rootDir, results), nil
@@ -220,6 +220,8 @@ func doctorHint(result checkResult) string {
 		return "Run go mod tidy and commit the resulting go.mod or go.sum changes."
 	case "views generate":
 		return "Run andurel generate view and fix any template generation errors."
+	case "routes.ts":
+		return "Run andurel generate routes and commit the updated resources/js/routes.ts file."
 	default:
 		return ""
 	}
@@ -279,9 +281,7 @@ func runDoctor(currentVersion string, verbose bool) error {
 
 	// Code generation checks
 	fmt.Println("\n=== Code Generation ===")
-	genResults := []checkResult{
-		checkTemplGenerate(rootDir, verbose),
-	}
+	genResults := codeGenerationChecks(rootDir, verbose)
 	results = append(results, genResults...)
 	printResults(genResults, verbose)
 
@@ -846,5 +846,85 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 		name:    "views generate",
 		status:  statusPass,
 		message: "templates generated successfully",
+	}
+}
+
+func codeGenerationChecks(rootDir string, verbose bool) []checkResult {
+	results := []checkResult{
+		checkTemplGenerate(rootDir, verbose),
+	}
+	if projectUsesInertia(rootDir) {
+		results = append(results, checkRoutesTSGenerate(rootDir, verbose))
+	}
+	return results
+}
+
+func projectUsesInertia(rootDir string) bool {
+	lock, err := layout.ReadLockFile(rootDir)
+	return err == nil &&
+		lock.ScaffoldConfig != nil &&
+		layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia)
+}
+
+func checkRoutesTSGenerate(rootDir string, verbose bool) checkResult {
+	manifest, err := collectRouteManifest(rootDir)
+	if err != nil {
+		return checkResult{
+			name:    "routes.ts",
+			status:  statusFail,
+			message: "could not inspect route manifest",
+			details: []string{err.Error()},
+		}
+	}
+
+	expected, helperCount, err := renderRoutesJS(manifest)
+	if err != nil {
+		return checkResult{
+			name:    "routes.ts",
+			status:  statusFail,
+			message: "could not render expected route helpers",
+			details: []string{err.Error()},
+		}
+	}
+
+	target := filepath.Join(rootDir, generatedRoutesJSPath)
+	actual, err := os.ReadFile(target)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return checkResult{
+				name:    "routes.ts",
+				status:  statusFail,
+				message: "resources/js/routes.ts is missing",
+				details: []string{"Run 'andurel generate routes' to create it."},
+			}
+		}
+		return checkResult{
+			name:    "routes.ts",
+			status:  statusFail,
+			message: "could not read resources/js/routes.ts",
+			details: []string{err.Error()},
+		}
+	}
+
+	if !bytes.Equal(actual, expected) {
+		details := []string{"Run 'andurel generate routes' to update resources/js/routes.ts."}
+		if verbose {
+			details = append(details, fmt.Sprintf("expected %d bytes, found %d bytes", len(expected), len(actual)))
+			if len(manifest.Skipped) > 0 {
+				details = append(details, fmt.Sprintf("%d route manifest entries were skipped", len(manifest.Skipped)))
+			}
+		}
+		return checkResult{
+			name:    "routes.ts",
+			status:  statusFail,
+			message: "resources/js/routes.ts is out of date",
+			details: details,
+		}
+	}
+
+	return checkResult{
+		name:    "routes.ts",
+		status:  statusPass,
+		message: fmt.Sprintf("matches route manifest (%d helpers)", helperCount),
 	}
 }
