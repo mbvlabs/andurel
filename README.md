@@ -143,6 +143,90 @@ andurel generate scaffold Product
 
 This single command creates everything you need for a full CRUD interface: model, factory, controller, Templ views, and resource routes. Pass `--inertia` when you want the generated resource/controller views as Inertia pages instead (reads the adapter from `andurel.lock`).
 
+## Agent-Ready CLI
+
+Andurel's CLI is designed to be consumed by people and agents. Commands that support structured output use a stable response envelope:
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "summary": "Generated resource",
+  "breadcrumbs": [{"cmd": "andurel routes --json", "description": "Inspect generated routes"}]
+}
+```
+
+Structured errors use the same contract:
+
+```json
+{
+  "ok": false,
+  "code": "generation_failed",
+  "error": "failed to generate resource",
+  "hint": "Inspect the error details and generated files, then retry.",
+  "exit_code": 5
+}
+```
+
+### Output modes
+
+| Flag | Purpose |
+|------|---------|
+| `--json` | Emit the full `{ok,data,summary,breadcrumbs}` envelope |
+| `--agent` | Emit structured output for agents and suppress non-essential human progress output |
+| `--md` | Emit Markdown where supported |
+| `--quiet` | Suppress non-essential human output |
+| `--jq '.field.path'` | Apply a built-in simple field-path filter to structured data |
+| `--ids-only` | Emit only resource identifiers where supported |
+| `--count` | Emit only resource counts where supported |
+| `--verbose` | Emit additional diagnostics where supported |
+
+### Discovery and project inspection
+
+Agents should start with CLI discovery instead of scraping prose:
+
+```bash
+andurel --agent --help
+andurel commands --json
+andurel project info --json
+andurel config show --json
+```
+
+Project-shape commands are read-only and return structured data:
+
+```bash
+andurel routes --json
+andurel models --json
+andurel migrations --json
+andurel controllers --json
+andurel views --json
+andurel jobs --json
+```
+
+The embedded agent skill is available from the binary:
+
+```bash
+andurel skill show
+andurel skill show --json
+andurel skill install
+```
+
+`skill install` writes the Andurel skill into the current project at `.codex/skills/andurel/`, including the framework-specific layer-placement reference.
+
+### Mutation previews
+
+Mutating commands that support `--dry-run` report artifact changes before writing files:
+
+```bash
+andurel new myapp --dry-run --json
+andurel generate scaffold Product --dry-run --json
+andurel generate controller Dashboard overview --dry-run --json
+andurel extension add docker --dry-run --json
+andurel upgrade --dry-run --json
+```
+
+Add `--diff` with structured output when you need a text diff preview. Structured mutation reports include created, updated, and deleted files, route additions, commands run, warnings, and breadcrumbs.
+
 ## CLI Commands
 
 ### `andurel new` — Create a new project
@@ -164,11 +248,14 @@ Generate models, controllers, and scaffolds from your existing database migratio
 
 ```bash
 andurel generate (alias: g) model NAME [flags]
+andurel generate factory NAME [flags]
+andurel generate factories [flags]
 andurel generate view (alias: v)
 andurel generate controller (alias: c) NAME [action ...] [flags]
 andurel generate scaffold (alias: s) NAME [flags]
 andurel generate job (alias: j) NAME [flags]
 andurel generate email (alias: e) NAME
+andurel generate routes
 ```
 
 **`generate model`** — Creates a model from a database migration, or updates an existing one. Fields, types, and timestamps are read from the migration automatically.
@@ -180,6 +267,12 @@ andurel generate email (alias: e) NAME
 | `--update`       | Update an existing model from migration changes |
 | `--yes`          | Apply changes without prompting for confirmation (use with `--update`) |
 | `--primary-key`  | Specify the primary key column (skips interactive detection) |
+| `--dry-run`      | Preview file changes without applying them |
+| `--diff`         | Include a text diff preview in structured output |
+
+**`generate factory`** — Generates or syncs one model factory from the model entity. Use `--check --json` in CI or agent workflows to detect drift without writing files, and `--sync --json` to update generated factory regions.
+
+**`generate factories`** — Checks or syncs every model factory in the project. Use `--check --json` for a structured drift report across all models.
 
 **`generate controller`** — Creates a controller for a resource. With no actions, it generates the full standard CRUD controller, views, and routes. With one or more standard CRUD actions (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it generates only those resource actions; partial CRUD views are self-contained and only link to companion actions that are also present. Generated resource/controller views default to Templ in every project; pass `--inertia` to generate Inertia pages (uses the adapter from `andurel.lock`).
 
@@ -223,6 +316,8 @@ When `--api` is set, any namespace segment is nested under `api`, and the defaul
 | `--model-name` | Use a different existing model for model-backed controller generation |
 | `--inertia` | Generate Inertia views using the adapter configured in `andurel.lock` |
 | `--api`       | Generate a JSON API controller under `controllers/api` without views |
+| `--dry-run`   | Preview file changes without applying them |
+| `--diff`      | Include a text diff preview in structured output |
 
 **`generate view`** — Generates Go code from `.templ` template files (runs `templ generate`).
 
@@ -235,6 +330,27 @@ When `--api` is set, any namespace segment is nested under `api`, and the defaul
 | `--inertia`      | Generate Inertia views using the adapter configured in `andurel.lock` |
 | `--api`          | Generate a JSON API controller under `controllers/api` without views |
 | `--primary-key`  | Specify the primary key column (skips interactive detection) |
+| `--dry-run`      | Preview file changes without applying them |
+| `--diff`         | Include a text diff preview in structured output |
+
+**`generate routes`** — Generates framework-neutral TypeScript helpers for Inertia frontends.
+
+```bash
+andurel generate routes
+andurel generate routes --json
+```
+
+The command is always visible in CLI discovery, but only runs in projects whose `andurel.lock` has `scaffoldConfig.inertia` set to `vue` or `react`. It reads the same `router/routes/*.go` route package used by `andurel routes --json` and writes `resources/js/routes.ts`. Route variables become lower-camel-case helper names, and typed route params become function arguments:
+
+```ts
+// resources/js/routes.ts
+export const routes = {
+  passwordEdit: (token: string) => `/users/password/${token}/edit`,
+  sessionCreate: () => '/users/sign-in',
+}
+```
+
+Use this after adding or changing routes for an Inertia project so Vue or React pages can import route helpers instead of hard-coding URL strings. Non-Inertia projects receive a structured `invalid_inertia_adapter` error. `--json` reports the generated file, helper count, skipped count, and any skipped manifest entries.
 
 ### `andurel routes` — Route manifest
 
@@ -247,7 +363,7 @@ andurel routes --json
 
 The default output is a table with route variables, route names, actual URL paths, parameters, and source locations. In this command, `path` means the URL path for the route. The Go file where the route variable is declared is reported separately as `source_file` in JSON output.
 
-`andurel routes --json` is the stable machine-readable route manifest. It is intended for tooling such as future Inertia route helper generation.
+`andurel routes --json` is the stable machine-readable route manifest. `andurel generate routes` uses this same source of truth to generate Inertia `resources/js/routes.ts` helpers.
 
 Example JSON shape:
 
@@ -431,6 +547,55 @@ Run comprehensive diagnostic checks (Go version, config, code quality, code gene
 andurel doctor (alias: doc) [--verbose]
 ```
 
+For Inertia projects, the Code Generation checks also compare `resources/js/routes.ts` against the current `router/routes/*.go` manifest and fail when the file is missing or stale. Run `andurel generate routes` to update it.
+
+### `andurel commands` — Structured command discovery
+
+Shows the full command tree, flags, descriptions, examples, and agent metadata.
+
+```bash
+andurel commands --json
+andurel commands --agent
+andurel generate --agent --help
+```
+
+Use this when an agent or script needs to discover the CLI surface without parsing human help text.
+
+### `andurel project` — Project metadata
+
+Reads project metadata from `go.mod`, `andurel.lock`, and Andurel config files.
+
+```bash
+andurel project info --json
+```
+
+The response includes the project root, Go module, Andurel version, scaffold config, database config, extensions, tools, and config/cache paths.
+
+### `andurel config` — Agent configuration
+
+Manages non-secret Andurel configuration across project, user, and cache scopes.
+
+```bash
+andurel config init [--scope project|user|cache]
+andurel config show --json
+andurel config set KEY VALUE [--scope project|user|cache]
+andurel config unset KEY [--scope project|user|cache]
+```
+
+Project config is stored at `.andurel/config.json`. User config uses the OS config directory under `andurel/config.json`, and cache config uses the OS cache directory under `andurel/config.json`.
+
+### `andurel skill` — Embedded agent skill
+
+Shows or installs the Andurel agent skill with CLI recipes, invariants, and framework layer-placement guidance.
+
+```bash
+andurel skill show
+andurel skill show --json
+andurel skill install
+```
+
+`andurel skill install` copies the embedded skill into `.codex/skills/andurel/` for the current project.
+
 ---
 
 ### Alias Reference
@@ -440,11 +605,14 @@ andurel doctor (alias: doc) [--verbose]
 | `andurel new` | `n` |
 | `andurel generate` | `g` |
 | `andurel generate model` | `m` |
+| `andurel generate factory` | none |
+| `andurel generate factories` | none |
 | `andurel generate view` | `v` |
 | `andurel generate controller` | `c` |
 | `andurel generate scaffold` | `s` |
 | `andurel generate job` | `j` |
 | `andurel generate email` | `e` |
+| `andurel generate routes` | none |
 | `andurel fmt` | `f` |
 | `andurel database` | `d`, `db` |
 | `andurel database create` | `crt` |
@@ -468,6 +636,11 @@ andurel doctor (alias: doc) [--verbose]
 | `andurel extension list` | `ls` |
 | `andurel upgrade` | `up` |
 | `andurel doctor` | `doc` |
+| `andurel commands` | none |
+| `andurel project info` | none |
+| `andurel config` | none |
+| `andurel routes` | none |
+| `andurel skill` | none |
 
 ## Project Structure
 
@@ -649,13 +822,14 @@ The runtime is stored in `andurel.lock` as `scaffoldConfig.javascriptRuntime`. `
 
 Here's how an auth controller renders a Vue component via Inertia, from route definition to rendered page.
 
-Use `andurel routes --json` when frontend tooling needs the same route metadata. The JSON manifest keeps `router/routes/*.go` as the source of truth while exposing URL paths, route names, params, and source locations to external generators.
+Use `andurel routes --json` when frontend tooling needs the same route metadata. The JSON manifest keeps `router/routes/*.go` as the source of truth while exposing URL paths, route names, params, and source locations to external generators. Use `andurel generate routes` to write those URLs as TypeScript helpers in `resources/js/routes.ts`.
 
 #### Route Definition
 
 ```go
 // router/routes/users.go
 var SessionNew = routing.NewSimpleRoute("/sign-in", "users.new_user_session", UserPrefix)
+var SessionCreate = routing.NewSimpleRoute("/sign-in", "users.user_session", UserPrefix)
 ```
 
 #### Route Registration
@@ -689,6 +863,7 @@ func (s Sessions) New(etx *echo.Context) error {
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3'
 import Layout from '../../Layouts/Layout.vue'
+import { routes } from '../../routes'
 
 const form = useForm({ email: '', password: '' })
 </script>
@@ -696,7 +871,7 @@ const form = useForm({ email: '', password: '' })
 <template>
   <Layout>
     <Head title="Login" />
-    <form @submit.prevent="form.post('/users/sign-in')">
+    <form @submit.prevent="form.post(routes.sessionCreate())">
       <!-- login fields -->
     </form>
   </Layout>
@@ -768,7 +943,7 @@ Contributions are welcome! Here's how to get started:
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
 3. Make your changes and add tests
-4. Run quality checks: `go vet ./...` and `golangci-lint run`
+4. Run quality checks allowed by this repository's agent guidance: `go fix ./...`, `gofmt -w <changed-go-files>`, and `go vet ./...`
 5. Commit your changes: `git commit -m 'Add amazing feature'`
 6. Push to the branch: `git push origin feature/amazing-feature`
 7. Open a Pull Request
@@ -779,7 +954,8 @@ Contributions are welcome! Here's how to get started:
 git clone https://github.com/mbvlabs/andurel
 cd andurel
 go mod download
-go test ./...
+go fix ./...
+go vet ./...
 ```
 
 ## License

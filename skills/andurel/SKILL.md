@@ -14,6 +14,7 @@ Use this skill when working in an Andurel project or generating Andurel code. It
 - Use `--json` or `--jq` when extracting data.
 - Use `--dry-run --json` before mutating commands when intent is uncertain.
 - Inspect returned artifact arrays before assuming which files changed.
+- After adding or changing Inertia routes, run `andurel generate routes --json` so frontend pages can import `resources/js/routes.ts`.
 - Follow the repository rules for verification.
 - Prefer the local project pattern over a generic Rails, Echo, Bun, Templ, or Vue convention.
 - Keep controllers as HTTP adapters: parse input, call models or services, map errors, and render a response.
@@ -45,6 +46,20 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 - Put reusable framework-like support that is independent of one resource in `internal/`.
 - Register new constructors in the existing `fx` modules for the package that owns them.
 
+## Output Modes
+
+Use structured output by default when automating:
+
+| Flag | Use |
+|------|-----|
+| `--json` | Full `{ok,data,summary,breadcrumbs}` envelope |
+| `--agent` | Structured output with non-essential human progress suppressed |
+| `--jq '.field.path'` | Built-in simple field-path extraction |
+| `--quiet` | Suppress human-only output |
+| `--md` | Markdown output where supported |
+
+Structured failures include `ok:false`, a stable `code`, `error`, optional `hint`, and `exit_code`. Prefer the `hint` and `breadcrumbs` fields over guessing the next command.
+
 ## Common Workflows
 
 Inspect a project:
@@ -54,6 +69,7 @@ andurel project info --json
 andurel routes --json
 andurel models --json
 andurel migrations --json
+andurel commands --json
 ```
 
 Preview scaffold generation:
@@ -67,6 +83,15 @@ Generate and review artifacts:
 ```bash
 andurel generate scaffold Product --json
 ```
+
+Generate Inertia route helpers:
+
+```bash
+andurel routes --json
+andurel generate routes --json
+```
+
+`andurel generate routes` reads `router/routes/*.go` as the source of truth and writes `resources/js/routes.ts`. It only runs when `andurel.lock` has `scaffoldConfig.inertia` set to `vue` or `react`. Import helpers from that file in Vue or React pages instead of hard-coding URLs.
 
 Check or sync factories:
 
@@ -104,6 +129,8 @@ Check project health:
 ```bash
 andurel doctor --json
 ```
+
+In Inertia projects, `doctor` checks whether `resources/js/routes.ts` matches the current `router/routes/*.go` manifest. If the `routes.ts` check fails, run `andurel generate routes --json`.
 
 ## Validation
 

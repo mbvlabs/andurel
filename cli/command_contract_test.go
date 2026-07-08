@@ -59,6 +59,7 @@ func TestGenerateCommandPublicSurface(t *testing.T) {
 		{name: "factory"},
 		{name: "job", aliases: []string{"j"}},
 		{name: "model", aliases: []string{"m"}},
+		{name: "routes"},
 		{name: "scaffold", aliases: []string{"s"}},
 		{name: "view", aliases: []string{"v"}},
 	}
