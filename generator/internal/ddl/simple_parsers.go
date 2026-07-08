@@ -9,10 +9,12 @@ import (
 // DropTableParser handles DROP TABLE statements
 type DropTableParser struct{}
 
+// NewDropTableParser creates a new drop table parser.
 func NewDropTableParser() *DropTableParser {
 	return &DropTableParser{}
 }
 
+// Parse performs the parse operation.
 func (p *DropTableParser) Parse(sql string) (*DropTableStatement, error) {
 	dropRegex, err := regexp.Compile(
 		`(?i)drop\s+table(?:\s+if\s+exists)?\s+(?:(\w+)\.)?(\w+)`,
@@ -41,10 +43,12 @@ func (p *DropTableParser) Parse(sql string) (*DropTableStatement, error) {
 // CreateIndexParser handles CREATE INDEX statements
 type CreateIndexParser struct{}
 
+// NewCreateIndexParser creates a new create index parser.
 func NewCreateIndexParser() *CreateIndexParser {
 	return &CreateIndexParser{}
 }
 
+// Parse performs the parse operation.
 func (p *CreateIndexParser) Parse(sql string) (*CreateIndexStatement, error) {
 	return &CreateIndexStatement{
 		Raw: sql,
@@ -54,10 +58,12 @@ func (p *CreateIndexParser) Parse(sql string) (*CreateIndexStatement, error) {
 // DropIndexParser handles DROP INDEX statements
 type DropIndexParser struct{}
 
+// NewDropIndexParser creates a new drop index parser.
 func NewDropIndexParser() *DropIndexParser {
 	return &DropIndexParser{}
 }
 
+// Parse performs the parse operation.
 func (p *DropIndexParser) Parse(sql string) (*DropIndexStatement, error) {
 	return &DropIndexStatement{
 		Raw: sql,
@@ -67,10 +73,12 @@ func (p *DropIndexParser) Parse(sql string) (*DropIndexStatement, error) {
 // CreateSchemaParser handles CREATE SCHEMA statements
 type CreateSchemaParser struct{}
 
+// NewCreateSchemaParser creates a new create schema parser.
 func NewCreateSchemaParser() *CreateSchemaParser {
 	return &CreateSchemaParser{}
 }
 
+// Parse performs the parse operation.
 func (p *CreateSchemaParser) Parse(sql string) (*CreateSchemaStatement, error) {
 	schemaRegex, err := regexp.Compile(`(?i)create\s+schema\s+(?:if\s+not\s+exists\s+)?(\w+)`)
 	if err != nil {
@@ -92,10 +100,12 @@ func (p *CreateSchemaParser) Parse(sql string) (*CreateSchemaStatement, error) {
 // DropSchemaParser handles DROP SCHEMA statements
 type DropSchemaParser struct{}
 
+// NewDropSchemaParser creates a new drop schema parser.
 func NewDropSchemaParser() *DropSchemaParser {
 	return &DropSchemaParser{}
 }
 
+// Parse performs the parse operation.
 func (p *DropSchemaParser) Parse(sql string) (*DropSchemaStatement, error) {
 	schemaRegex, err := regexp.Compile(`(?i)drop\s+schema\s+(?:if\s+exists\s+)?(\w+)`)
 	if err != nil {
@@ -117,10 +127,12 @@ func (p *DropSchemaParser) Parse(sql string) (*DropSchemaStatement, error) {
 // CreateEnumParser handles CREATE TYPE (enum) statements
 type CreateEnumParser struct{}
 
+// NewCreateEnumParser creates a new create enum parser.
 func NewCreateEnumParser() *CreateEnumParser {
 	return &CreateEnumParser{}
 }
 
+// Parse performs the parse operation.
 func (p *CreateEnumParser) Parse(sql string) (*CreateEnumStatement, error) {
 	enumRegex, err := regexp.Compile(`(?i)create\s+type\s+(?:(\w+)\.)?(\w+)\s+as\s+enum`)
 	if err != nil {
@@ -145,10 +157,12 @@ func (p *CreateEnumParser) Parse(sql string) (*CreateEnumStatement, error) {
 // DropEnumParser handles DROP TYPE (enum) statements
 type DropEnumParser struct{}
 
+// NewDropEnumParser creates a new drop enum parser.
 func NewDropEnumParser() *DropEnumParser {
 	return &DropEnumParser{}
 }
 
+// Parse performs the parse operation.
 func (p *DropEnumParser) Parse(sql string) (*DropEnumStatement, error) {
 	enumRegex, err := regexp.Compile(`(?i)drop\s+type\s+(?:if\s+exists\s+)?(?:(\w+)\.)?(\w+)`)
 	if err != nil {

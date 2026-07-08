@@ -18,6 +18,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
+// FileGenerator generates file artifacts.
 type FileGenerator struct {
 	fileManager      files.Manager
 	templateRenderer *TemplateRenderer
@@ -25,6 +26,7 @@ type FileGenerator struct {
 	mainInjector     *MainInjector
 }
 
+// NewFileGenerator creates a new file generator.
 func NewFileGenerator() *FileGenerator {
 	return &FileGenerator{
 		fileManager:      files.NewUnifiedFileManager(),
@@ -34,6 +36,7 @@ func NewFileGenerator() *FileGenerator {
 	}
 }
 
+// GenerateController performs the generate controller operation.
 func (fg *FileGenerator) GenerateController(
 	cat *catalog.Catalog,
 	resourceName string,
@@ -50,6 +53,7 @@ func (fg *FileGenerator) GenerateController(
 	return fg.GenerateControllerWithActionsForModel(cat, resourceName, namespace, resourceName, tableName, tableName, controllerType, modulePath, databaseType, tableNameOverridden, tableNameOverridden, nullType, primaryKeyColumn, inertia, nil, false)
 }
 
+// GenerateControllerWithActionsForModel performs the generate controller with actions for model operation.
 func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 	cat *catalog.Catalog,
 	resourceName string,

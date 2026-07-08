@@ -16,10 +16,12 @@ const (
 	controllerFileRelPath = "controllers/controller.go"
 )
 
+// MainInjector represents main injector.
 type MainInjector struct {
 	fileManager files.Manager
 }
 
+// NewMainInjector creates a new main injector.
 func NewMainInjector() *MainInjector {
 	return &MainInjector{
 		fileManager: files.NewUnifiedFileManager(),

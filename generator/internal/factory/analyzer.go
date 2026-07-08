@@ -13,6 +13,7 @@ type FieldAnalyzer struct {
 	databaseType string
 }
 
+// NewFieldAnalyzer creates a new field analyzer.
 func NewFieldAnalyzer(dbType string) *FieldAnalyzer {
 	return &FieldAnalyzer{databaseType: dbType}
 }

@@ -12,6 +12,7 @@ type FileOperationError struct {
 	Output    string // Optional command output
 }
 
+// Error performs the error operation.
 func (e *FileOperationError) Error() string {
 	if e.Output != "" {
 		return fmt.Sprintf("file operation '%s' failed for path '%s': %v\nOutput: %s",
@@ -21,6 +22,7 @@ func (e *FileOperationError) Error() string {
 		e.Operation, e.Path, e.Err)
 }
 
+// Unwrap performs the unwrap operation.
 func (e *FileOperationError) Unwrap() error {
 	return e.Err
 }

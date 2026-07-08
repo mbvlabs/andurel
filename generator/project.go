@@ -11,11 +11,13 @@ import (
 	"github.com/mbvlabs/andurel/pkg/cache"
 )
 
+// ProjectManager coordinates project operations.
 type ProjectManager struct {
 	modulePath  string
 	fileManager files.Manager
 }
 
+// NewProjectManager creates a new project manager.
 func NewProjectManager() (*ProjectManager, error) {
 	fm := files.NewUnifiedFileManager()
 	modulePath, err := getCurrentModulePath(fm)
@@ -29,6 +31,7 @@ func NewProjectManager() (*ProjectManager, error) {
 	}, nil
 }
 
+// GetModulePath returns module path.
 func (pm *ProjectManager) GetModulePath() string {
 	return pm.modulePath
 }

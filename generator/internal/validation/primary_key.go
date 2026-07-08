@@ -9,9 +9,13 @@ import (
 type PKType string
 
 const (
-	PKTypeUUID   PKType = "uuid"
-	PKTypeInt32  PKType = "int32"
-	PKTypeInt64  PKType = "int64"
+	// PKTypeUUID is a constant value for primary key type UUID.
+	PKTypeUUID PKType = "uuid"
+	// PKTypeInt32 is a constant value for primary key type int32.
+	PKTypeInt32 PKType = "int32"
+	// PKTypeInt64 is a constant value for primary key type int64.
+	PKTypeInt64 PKType = "int64"
+	// PKTypeString is a constant value for primary key type string.
 	PKTypeString PKType = "string"
 )
 

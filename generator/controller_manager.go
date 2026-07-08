@@ -13,6 +13,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
+// ControllerManager coordinates controller operations.
 type ControllerManager struct {
 	validator        *InputValidator
 	projectManager   *ProjectManager
@@ -21,6 +22,7 @@ type ControllerManager struct {
 	pkResolver       PrimaryKeyResolver
 }
 
+// NewControllerManager creates a new controller manager.
 func NewControllerManager(
 	validator *InputValidator,
 	projectManager *ProjectManager,
@@ -36,6 +38,7 @@ func NewControllerManager(
 	}
 }
 
+// SetPrimaryKeyResolver sets primary key resolver.
 func (c *ControllerManager) SetPrimaryKeyResolver(resolver PrimaryKeyResolver) {
 	c.pkResolver = resolver
 }
@@ -62,6 +65,7 @@ func (c *ControllerManager) resolvePK(cat *catalog.Catalog, tableName string) (P
 	return pkInfo, nil
 }
 
+// GenerateController generates a resource controller using default actions.
 func (c *ControllerManager) GenerateController(
 	resourceName, namespace string,
 	inertia string,
@@ -69,6 +73,7 @@ func (c *ControllerManager) GenerateController(
 	return c.GenerateControllerWithActions(resourceName, namespace, nil, inertia)
 }
 
+// GenerateControllerWithActions generates a resource controller for selected actions.
 func (c *ControllerManager) GenerateControllerWithActions(
 	resourceName, namespace string,
 	actions []string,
@@ -77,6 +82,7 @@ func (c *ControllerManager) GenerateControllerWithActions(
 	return c.GenerateControllerWithActionsForModel(resourceName, namespace, resourceName, "", actions, inertia, false)
 }
 
+// GenerateControllerWithActionsForModel generates a controller when resource and model names differ.
 func (c *ControllerManager) GenerateControllerWithActionsForModel(
 	resourceName, namespace, modelName, tableName string,
 	actions []string,
@@ -154,6 +160,7 @@ func (c *ControllerManager) GenerateControllerWithActionsForModel(
 	return nil
 }
 
+// GenerateControllerFromModel generates a controller by inspecting an existing model file.
 func (c *ControllerManager) GenerateControllerFromModel(resourceName string) error {
 	modulePath := c.projectManager.GetModulePath()
 

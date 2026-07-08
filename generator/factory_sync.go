@@ -17,12 +17,14 @@ import (
 	"github.com/pmezard/go-difflib/difflib"
 )
 
+// FactorySyncOptions configures factory sync behavior.
 type FactorySyncOptions struct {
 	Check bool
 	Sync  bool
 	Diff  bool
 }
 
+// FactorySyncResult represents factory sync result.
 type FactorySyncResult struct {
 	ResourceName string   `json:"resource_name"`
 	Path         string   `json:"path"`
@@ -35,10 +37,12 @@ type FactorySyncResult struct {
 	newContent string
 }
 
+// HasDrift reports whether drift is present.
 func (r FactorySyncResult) HasDrift() bool {
 	return r.Missing || r.Stale
 }
 
+// SyncFactory performs the sync factory operation.
 func (m *ModelManager) SyncFactory(resourceName string, opts FactorySyncOptions) (*FactorySyncResult, error) {
 	genModel, tableName, err := m.factoryModelFromEntity(resourceName)
 	if err != nil {
@@ -61,6 +65,7 @@ func (m *ModelManager) SyncFactory(resourceName string, opts FactorySyncOptions)
 	return result, nil
 }
 
+// SyncFactories performs the sync factories operation.
 func (m *ModelManager) SyncFactories(opts FactorySyncOptions) ([]*FactorySyncResult, error) {
 	names, err := m.discoverFactoryResourceNames()
 	if err != nil {

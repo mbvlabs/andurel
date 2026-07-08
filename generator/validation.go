@@ -11,16 +11,19 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
+// InputValidator validates resource, table, file, and module names used by generators.
 type InputValidator struct {
 	warnedTableOverrides map[string]bool
 }
 
+// NewInputValidator creates a new input validator.
 func NewInputValidator() *InputValidator {
 	return &InputValidator{
 		warnedTableOverrides: make(map[string]bool),
 	}
 }
 
+// ValidateResourceName checks that a resource name is singular PascalCase.
 func (v *InputValidator) ValidateResourceName(resourceName string) error {
 	if resourceName == "" {
 		return fmt.Errorf("resource name cannot be empty")
@@ -72,6 +75,7 @@ func (v *InputValidator) ValidateResourceName(resourceName string) error {
 	return nil
 }
 
+// ValidateTableName checks that a database table name is plural snake_case.
 func (v *InputValidator) ValidateTableName(tableName string) error {
 	if tableName == "" {
 		return fmt.Errorf("table name cannot be empty")
@@ -110,6 +114,7 @@ func (v *InputValidator) ValidateTableName(tableName string) error {
 	return nil
 }
 
+// ValidateTableNameOverride checks a custom table name and warns about convention drift.
 func (v *InputValidator) ValidateTableNameOverride(resourceName, tableNameOverride string) error {
 	if tableNameOverride == "" {
 		return fmt.Errorf("table name override cannot be empty")
@@ -173,6 +178,7 @@ func (v *InputValidator) shouldWarnTableOverride(resourceName, tableNameOverride
 	return true
 }
 
+// ValidateFilePath rejects unsafe, absolute, or traversal-based paths.
 func (v *InputValidator) ValidateFilePath(filePath string) error {
 	if filePath == "" {
 		return fmt.Errorf("file path cannot be empty")
@@ -190,6 +196,7 @@ func (v *InputValidator) ValidateFilePath(filePath string) error {
 	return nil
 }
 
+// ValidateModulePath checks that a Go module path has a usable import shape.
 func (v *InputValidator) ValidateModulePath(modulePath string) error {
 	if modulePath == "" {
 		return fmt.Errorf("module path cannot be empty")
@@ -206,6 +213,7 @@ func (v *InputValidator) ValidateModulePath(modulePath string) error {
 	return nil
 }
 
+// ValidateAll checks the common generation inputs together.
 func (v *InputValidator) ValidateAll(resourceName, tableName, modulePath string) error {
 	if err := v.ValidateResourceName(resourceName); err != nil {
 		return fmt.Errorf("resource name validation failed: %w", err)

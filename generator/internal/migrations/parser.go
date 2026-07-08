@@ -11,6 +11,7 @@ import (
 	"strings"
 )
 
+// DiscoverMigrations performs discover migrations.
 func DiscoverMigrations(dirs []string) ([]Migration, error) {
 	var migrations []Migration
 
@@ -68,6 +69,7 @@ func discoverMigrationsInDir(dir string) ([]Migration, error) {
 	return migrations, err
 }
 
+// ParseMigration parses migration.
 func ParseMigration(filePath string) (*Migration, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -101,6 +103,7 @@ func ParseMigration(filePath string) (*Migration, error) {
 	return migration, nil
 }
 
+// RemoveRollbackStatements performs remove rollback statements.
 func RemoveRollbackStatements(content string, format MigrationFormat) string {
 	switch format {
 	case Goose:
@@ -110,6 +113,7 @@ func RemoveRollbackStatements(content string, format MigrationFormat) string {
 	}
 }
 
+// IsDownMigration reports whether down migration.
 func IsDownMigration(filename string) bool {
 	return strings.Contains(filename, ".down.") ||
 		strings.HasSuffix(filename, ".down.sql")

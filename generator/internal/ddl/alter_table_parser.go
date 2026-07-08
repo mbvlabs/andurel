@@ -11,12 +11,14 @@ type AlterTableParser struct {
 	createTableParser *CreateTableParser
 }
 
+// NewAlterTableParser creates a new alter table parser.
 func NewAlterTableParser() *AlterTableParser {
 	return &AlterTableParser{
 		createTableParser: NewCreateTableParser(),
 	}
 }
 
+// Parse performs the parse operation.
 func (p *AlterTableParser) Parse(
 	sql, migrationFile string,
 	databaseType string,

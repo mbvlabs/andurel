@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// Project represents project.
 type Project struct {
 	Dir          string
 	Name         string
@@ -17,6 +18,7 @@ type Project struct {
 	SharedBinDir string
 }
 
+// NewProject creates a new project.
 func NewProject(t *testing.T, andurelBinary, sharedBinDir string) *Project {
 	t.Helper()
 
@@ -33,6 +35,7 @@ func NewProject(t *testing.T, andurelBinary, sharedBinDir string) *Project {
 	}
 }
 
+// NewProjectWithDatabase creates a new project with database.
 func NewProjectWithDatabase(t *testing.T, andurelBinary, sharedBinDir, database string) *Project {
 	t.Helper()
 
@@ -49,6 +52,7 @@ func NewProjectWithDatabase(t *testing.T, andurelBinary, sharedBinDir, database 
 	}
 }
 
+// Scaffold performs the scaffold operation.
 func (p *Project) Scaffold(args ...string) error {
 	p.T.Helper()
 
@@ -134,6 +138,7 @@ func copyFile(src, dst string) error {
 	return err
 }
 
+// Generate performs the generate operation.
 func (p *Project) Generate(args ...string) error {
 	p.T.Helper()
 
@@ -155,18 +160,21 @@ func (p *Project) GenerateExpectError(args ...string) error {
 	return RunCommandExpectError(p.T, p.BinaryPath, p.Dir, env, args...)
 }
 
+// GoVet performs the go vet operation.
 func (p *Project) GoVet() error {
 	p.T.Helper()
 
 	return RunCommand(p.T, "go", p.Dir, nil, "vet", "./...")
 }
 
+// GoBuild performs the go build operation.
 func (p *Project) GoBuild(target string) error {
 	p.T.Helper()
 
 	return RunCommand(p.T, "go", p.Dir, nil, "build", target)
 }
 
+// FileExists performs the file exists operation.
 func (p *Project) FileExists(path string) bool {
 	p.T.Helper()
 
@@ -175,6 +183,7 @@ func (p *Project) FileExists(path string) bool {
 	return err == nil
 }
 
+// DirExists performs the dir exists operation.
 func (p *Project) DirExists(path string) bool {
 	p.T.Helper()
 

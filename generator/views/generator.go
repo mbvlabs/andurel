@@ -20,6 +20,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
+// ViewField describes one form or display field in generated views.
 type ViewField struct {
 	Name            string
 	GoType          string
@@ -33,11 +34,13 @@ type ViewField struct {
 	IsSystemField   bool
 }
 
+// InertiaPageData wraps generated view data with an Inertia component name.
 type InertiaPageData struct {
 	*GeneratedView
 	ComponentName string
 }
 
+// GeneratedView contains the template data for generated resource views.
 type GeneratedView struct {
 	ResourceName    string
 	ModelName       string
@@ -53,6 +56,7 @@ type GeneratedView struct {
 	Actions         []string
 }
 
+// Config controls view generation for a resource.
 type Config struct {
 	ResourceName    string
 	ModelName       string
@@ -66,11 +70,13 @@ type Config struct {
 	Actions         []string
 }
 
+// Generator builds view template data and writes view files.
 type Generator struct {
 	typeMapper  *types.TypeMapper
 	fileManager files.Manager
 }
 
+// NewGenerator creates a new generator.
 func NewGenerator(databaseType string) *Generator {
 	return &Generator{
 		typeMapper:  types.NewTypeMapper(databaseType),
@@ -78,6 +84,7 @@ func NewGenerator(databaseType string) *Generator {
 	}
 }
 
+// Build converts catalog metadata and config into generated view data.
 func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, error) {
 	modelName := config.ModelName
 	if modelName == "" {
@@ -386,6 +393,7 @@ func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
 	return ""
 }
 
+// GenerateViewFile renders a server-rendered view template.
 func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, templatePrefix string) (string, error) {
 	// Custom template functions for view-specific operations
 	customFuncs := template.FuncMap{
@@ -475,6 +483,7 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, t
 	return result, nil
 }
 
+// GenerateInertiaViewFiles renders Inertia page components for a resource.
 func (g *Generator) GenerateInertiaViewFiles(view *GeneratedView, templatePrefix, extension string) (map[string]string, error) {
 	service := templates.GetGlobalTemplateService()
 	fileNames := make(map[string]string, 4)
@@ -514,6 +523,7 @@ func namespacePrefix(namespace string) string {
 	return naming.NamespaceFilePrefix(namespace)
 }
 
+// GenerateView renders server-rendered views for a resource.
 func (g *Generator) GenerateView(
 	cat *catalog.Catalog,
 	resourceName string,
@@ -524,6 +534,7 @@ func (g *Generator) GenerateView(
 	return g.GenerateViewWithController(cat, resourceName, tableName, modulePath, false, "", namespace)
 }
 
+// GenerateViewWithController renders views and optionally supports controller wiring.
 func (g *Generator) GenerateViewWithController(
 	cat *catalog.Catalog,
 	resourceName string,
@@ -536,6 +547,7 @@ func (g *Generator) GenerateViewWithController(
 	return g.GenerateViewWithControllerActions(cat, resourceName, tableName, modulePath, withController, nil, inertia, namespace)
 }
 
+// GenerateViewWithControllerActions renders views for a selected action set.
 func (g *Generator) GenerateViewWithControllerActions(
 	cat *catalog.Catalog,
 	resourceName string,
@@ -549,6 +561,7 @@ func (g *Generator) GenerateViewWithControllerActions(
 	return g.GenerateViewWithControllerActionsForModel(cat, resourceName, resourceName, tableName, tableName, modulePath, namespace, withController, actions, inertia)
 }
 
+// GenerateViewWithControllerActionsForModel renders action views for a distinct model name.
 func (g *Generator) GenerateViewWithControllerActionsForModel(
 	cat *catalog.Catalog,
 	resourceName string,

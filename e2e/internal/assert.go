@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// AssertFileExists performs assert file exists.
 func AssertFileExists(t *testing.T, p *Project, path string) {
 	t.Helper()
 
@@ -15,6 +16,7 @@ func AssertFileExists(t *testing.T, p *Project, path string) {
 	}
 }
 
+// AssertDirExists performs assert dir exists.
 func AssertDirExists(t *testing.T, p *Project, path string) {
 	t.Helper()
 
@@ -23,6 +25,7 @@ func AssertDirExists(t *testing.T, p *Project, path string) {
 	}
 }
 
+// AssertFilesExist performs assert files exist.
 func AssertFilesExist(t *testing.T, p *Project, paths []string) {
 	t.Helper()
 
@@ -31,6 +34,7 @@ func AssertFilesExist(t *testing.T, p *Project, paths []string) {
 	}
 }
 
+// AssertGoVetPasses performs assert go vet passes.
 func AssertGoVetPasses(t *testing.T, p *Project) {
 	t.Helper()
 
@@ -39,6 +43,7 @@ func AssertGoVetPasses(t *testing.T, p *Project) {
 	}
 }
 
+// AssertCommandSucceeds performs assert command succeeds.
 func AssertCommandSucceeds(t *testing.T, err error, cmdDesc string) {
 	t.Helper()
 
@@ -47,6 +52,7 @@ func AssertCommandSucceeds(t *testing.T, err error, cmdDesc string) {
 	}
 }
 
+// AssertOutputContains performs assert output contains.
 func AssertOutputContains(t *testing.T, output, expected string) {
 	t.Helper()
 
@@ -55,6 +61,7 @@ func AssertOutputContains(t *testing.T, output, expected string) {
 	}
 }
 
+// AssertFileContains performs assert file contains.
 func AssertFileContains(t *testing.T, p *Project, path, expected string) {
 	t.Helper()
 

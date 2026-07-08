@@ -35,10 +35,12 @@ func GetFrameworkTemplates(config *layout.ScaffoldConfig) []FrameworkTemplate {
 	return templates
 }
 
+// TemplateGenerator generates template artifacts.
 type TemplateGenerator struct {
 	targetVersion string
 }
 
+// NewTemplateGenerator creates a new template generator.
 func NewTemplateGenerator(targetVersion string) *TemplateGenerator {
 	return &TemplateGenerator{
 		targetVersion: targetVersion,

@@ -15,35 +15,59 @@ import (
 )
 
 const (
-	CodeError                 = "error"
-	CodeUsage                 = "usage_error"
-	CodeOutputMode            = "invalid_output_mode"
-	CodeProjectNotFound       = "project_not_found"
-	CodeMissingTool           = "missing_tool"
-	CodeInvalidExtension      = "invalid_extension"
+	// CodeError is the generic structured error code.
+	CodeError = "error"
+	// CodeUsage identifies invalid command usage.
+	CodeUsage = "usage_error"
+	// CodeOutputMode identifies an invalid output mode selection.
+	CodeOutputMode = "invalid_output_mode"
+	// CodeProjectNotFound identifies commands run outside an Andurel project.
+	CodeProjectNotFound = "project_not_found"
+	// CodeMissingTool identifies a missing external tool dependency.
+	CodeMissingTool = "missing_tool"
+	// CodeInvalidExtension identifies an unknown extension name.
+	CodeInvalidExtension = "invalid_extension"
+	// CodeInvalidInertiaAdapter identifies an unsupported Inertia adapter.
 	CodeInvalidInertiaAdapter = "invalid_inertia_adapter"
-	CodeUnsafeAction          = "unsafe_action_requires_confirmation"
-	CodeGenerationFailed      = "generation_failed"
+	// CodeUnsafeAction identifies an action that requires explicit confirmation.
+	CodeUnsafeAction = "unsafe_action_requires_confirmation"
+	// CodeGenerationFailed identifies a failed code generation command.
+	CodeGenerationFailed = "generation_failed"
+	// CodeExternalCommandFailed identifies a failed external command.
 	CodeExternalCommandFailed = "external_command_failed"
-	CodeConfigError           = "config_error"
-	CodeAmbiguousInput        = "ambiguous_input"
-	ExitUsage                 = 1
-	ExitProject               = 2
-	ExitDependency            = 3
-	ExitUnsafe                = 4
-	ExitGeneration            = 5
-	ExitExternal              = 6
-	ExitConfig                = 7
-	ExitAmbiguous             = 8
+	// CodeConfigError identifies invalid or unreadable configuration.
+	CodeConfigError = "config_error"
+	// CodeAmbiguousInput identifies user input that cannot be resolved safely.
+	CodeAmbiguousInput = "ambiguous_input"
+	// ExitUsage is the exit code for command usage errors.
+	ExitUsage = 1
+	// ExitProject is the exit code for missing project context.
+	ExitProject = 2
+	// ExitDependency is the exit code for missing dependencies.
+	ExitDependency = 3
+	// ExitUnsafe is the exit code for unsafe unconfirmed actions.
+	ExitUnsafe = 4
+	// ExitGeneration is the exit code for generation failures.
+	ExitGeneration = 5
+	// ExitExternal is the exit code for failed external commands.
+	ExitExternal = 6
+	// ExitConfig is the exit code for configuration errors.
+	ExitConfig = 7
+	// ExitAmbiguous is the exit code for ambiguous input.
+	ExitAmbiguous = 8
 )
 
 // Mode is the selected output format for a command invocation.
 type Mode string
 
 const (
-	ModeHuman    Mode = "human"
-	ModeJSON     Mode = "json"
-	ModeAgent    Mode = "agent"
+	// ModeHuman renders the default human-readable output.
+	ModeHuman Mode = "human"
+	// ModeJSON renders structured JSON output.
+	ModeJSON Mode = "json"
+	// ModeAgent renders structured output optimized for agent workflows.
+	ModeAgent Mode = "agent"
+	// ModeMarkdown renders Markdown output.
 	ModeMarkdown Mode = "markdown"
 )
 
@@ -89,6 +113,7 @@ type CLIError struct {
 	Cause    error
 }
 
+// Error returns the best available human-readable error message.
 func (e *CLIError) Error() string {
 	if e == nil {
 		return ""
@@ -102,6 +127,7 @@ func (e *CLIError) Error() string {
 	return e.Code
 }
 
+// Unwrap returns the underlying cause, if one was recorded.
 func (e *CLIError) Unwrap() error {
 	if e == nil {
 		return nil

@@ -2,12 +2,15 @@ package extensions
 
 import "fmt"
 
+// CssComponents adds optional CSS component examples to a scaffolded project.
 type CssComponents struct{}
 
+// Name returns the extension name used in lock files and CLI flags.
 func (c CssComponents) Name() string {
 	return "css-components"
 }
 
+// Apply renders component CSS and example templates.
 func (c CssComponents) Apply(ctx *Context) error {
 	if ctx == nil || ctx.Data == nil {
 		return fmt.Errorf("css-components: context or data is nil")
@@ -20,6 +23,7 @@ func (c CssComponents) Apply(ctx *Context) error {
 	return nil
 }
 
+// Dependencies returns extension names that must be applied first.
 func (c CssComponents) Dependencies() []string {
 	return nil
 }

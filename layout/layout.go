@@ -26,6 +26,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/constants"
 )
 
+// Element describes a directory tree node to create during scaffolding.
 type Element struct {
 	RootDir string
 	SubDirs []Element
@@ -36,6 +37,7 @@ var (
 	registerBuiltinErr  error
 )
 
+// Scaffold creates a new Andurel project in the target directory.
 func Scaffold(
 	targetDir, projectName, database, version string,
 	extensionNames []string,
@@ -214,7 +216,9 @@ func Scaffold(
 }
 
 type (
-	TmplTarget     string
+	// TmplTarget represents tmpl target.
+	TmplTarget string
+	// TmplTargetPath represents tmpl target path.
 	TmplTargetPath string
 )
 
@@ -925,12 +929,14 @@ func topologicalSort(extSet map[string]struct{}) ([]string, error) {
 
 const goVersion = "1.26.0"
 
+// GoTool represents go tool.
 type GoTool struct {
 	Name    string
 	Source  string
 	Version string
 }
 
+// DefaultGoTools provides default go tools.
 var DefaultGoTools = []GoTool{
 	{Name: "templ", Source: "github.com/a-h/templ/cmd/templ", Version: versions.Templ},
 	{Name: "goose", Source: "github.com/pressly/goose/v3/cmd/goose", Version: versions.Goose},

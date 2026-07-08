@@ -11,6 +11,7 @@ import (
 	"github.com/mbvlabs/andurel/layout/cmds"
 )
 
+// AndurelLock is the serialized project lock file for tools and extensions.
 type AndurelLock struct {
 	Version        string                `json:"version"`
 	Extensions     map[string]*Extension `json:"extensions,omitempty"`
@@ -19,10 +20,12 @@ type AndurelLock struct {
 	DatabaseConfig *DatabaseConfig       `json:"databaseConfig,omitempty"`
 }
 
+// DatabaseConfig records database generation settings.
 type DatabaseConfig struct {
 	NullType string `json:"nullType"`
 }
 
+// ScaffoldConfig records the options used to create a project.
 type ScaffoldConfig struct {
 	ProjectName       string `json:"projectName"`
 	Database          string `json:"database"`
@@ -30,21 +33,25 @@ type ScaffoldConfig struct {
 	JavaScriptRuntime string `json:"javascriptRuntime,omitempty"`
 }
 
+// Extension records when an extension was applied.
 type Extension struct {
 	AppliedAt string `json:"appliedAt"`
 }
 
+// ToolDownload describes how to download a managed tool binary.
 type ToolDownload struct {
 	URLTemplate string `json:"urlTemplate"`
 	Archive     string `json:"archive,omitempty"`
 	BinaryName  string `json:"binaryName,omitempty"`
 }
 
+// VersionCheck describes how to check an installed tool version.
 type VersionCheck struct {
 	Args   []string `json:"args"`
 	Regexp string   `json:"regexp,omitempty"`
 }
 
+// Tool records the desired version and source for a managed tool.
 type Tool struct {
 	Version      string        `json:"version,omitempty"`
 	Source       string        `json:"source,omitempty"`
@@ -101,6 +108,7 @@ var defaultToolDownloads = map[string]ToolDownload{
 	},
 }
 
+// NewAndurelLock creates an empty lock file model for a version.
 func NewAndurelLock(version string) *AndurelLock {
 	return &AndurelLock{
 		Version:    version,
@@ -109,6 +117,7 @@ func NewAndurelLock(version string) *AndurelLock {
 	}
 }
 
+// GetDefaultToolVersionCheck returns the built-in version check for a tool.
 func GetDefaultToolVersionCheck(name string) (*VersionCheck, bool) {
 	vc, ok := defaultToolVersionChecks[name]
 	if !ok {
@@ -120,6 +129,7 @@ func GetDefaultToolVersionCheck(name string) (*VersionCheck, bool) {
 	}, true
 }
 
+// GetDefaultToolDownload returns the built-in download spec for a tool.
 func GetDefaultToolDownload(name string) (*ToolDownload, bool) {
 	spec, ok := defaultToolDownloads[name]
 	if !ok {
@@ -133,6 +143,7 @@ func GetDefaultToolDownload(name string) (*ToolDownload, bool) {
 	}, true
 }
 
+// NewGoTool creates a managed Go-installed tool entry.
 func NewGoTool(name, source, version string) *Tool {
 	tool := &Tool{
 		Source:  source,
@@ -150,6 +161,7 @@ func NewGoTool(name, source, version string) *Tool {
 	return tool
 }
 
+// NewBinaryTool creates a managed downloaded binary tool entry.
 func NewBinaryTool(name, version string) *Tool {
 	tool := &Tool{Version: version}
 	if spec, ok := GetDefaultToolDownload(name); ok {
@@ -161,6 +173,7 @@ func NewBinaryTool(name, version string) *Tool {
 	return tool
 }
 
+// NewBuiltTool creates a managed project-built tool entry.
 func NewBuiltTool(path, version string) *Tool {
 	return &Tool{
 		Path:    path,
@@ -168,10 +181,12 @@ func NewBuiltTool(path, version string) *Tool {
 	}
 }
 
+// AddTool records a managed tool in the lock file.
 func (l *AndurelLock) AddTool(name string, tool *Tool) {
 	l.Tools[name] = tool
 }
 
+// AddExtension records an applied extension in the lock file.
 func (l *AndurelLock) AddExtension(name, appliedAt string) {
 	l.Extensions[name] = &Extension{
 		AppliedAt: appliedAt,
@@ -188,6 +203,7 @@ func (l *AndurelLock) ExtensionNames() []string {
 	return names
 }
 
+// WriteLockFile writes andurel.lock into the target directory.
 func (l *AndurelLock) WriteLockFile(targetDir string) error {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {
@@ -210,6 +226,7 @@ func (l *AndurelLock) WriteLockFile(targetDir string) error {
 	return nil
 }
 
+// Sync downloads missing managed tools and rewrites the lock file.
 func (l *AndurelLock) Sync(targetDir string, silent bool) error {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {
@@ -277,6 +294,7 @@ func downloadToolBinary(name string, tool *Tool, goos, goarch, destPath string) 
 	return fmt.Errorf("tool has no download metadata")
 }
 
+// ReadLockFile reads lock file.
 func ReadLockFile(targetDir string) (*AndurelLock, error) {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {

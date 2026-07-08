@@ -13,11 +13,13 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
+// RouteGenerator generates route artifacts.
 type RouteGenerator struct {
 	fileManager      files.Manager
 	templateRenderer *TemplateRenderer
 }
 
+// NewRouteGenerator creates a new route generator.
 func NewRouteGenerator() *RouteGenerator {
 	return &RouteGenerator{
 		fileManager:      files.NewUnifiedFileManager(),
@@ -25,6 +27,7 @@ func NewRouteGenerator() *RouteGenerator {
 	}
 }
 
+// GenerateRoutes performs the generate routes operation.
 func (rg *RouteGenerator) GenerateRoutes(resourceName, namespace, pluralName, idType string, actions []string) error {
 	prefixedPluralName := namespacePrefix(namespace) + pluralName
 	routesPath := filepath.Join("router/routes", prefixedPluralName+".go")

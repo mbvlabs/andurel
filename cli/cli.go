@@ -90,6 +90,7 @@ func isInAndurelProject() bool {
 	return true
 }
 
+// NewRootCommand creates a new root command.
 func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:           "andurel",
