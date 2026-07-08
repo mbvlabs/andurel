@@ -63,11 +63,14 @@ func TestRenderSyncedFactoryFileRegeneratesOptionsAndPreservesCustomDeclarations
 	factory := factorySyncGeneratedFactory()
 	oldContent := `package factories
 
-import "math"
+import (
+	"math"
+	"strings"
+)
 
 func WithProductsName(value string) ProductOption {
 	return func(f *ProductFactory) {
-		f.ProductEntity.Name = "custom:" + value
+		f.ProductEntity.Name = strings.ToUpper(value)
 	}
 }
 
@@ -99,6 +102,9 @@ func CustomProductScore() int {
 	}
 	if !strings.Contains(rendered, `"math"`) {
 		t.Fatalf("expected preserved custom import:\n%s", rendered)
+	}
+	if strings.Contains(rendered, `"strings"`) {
+		t.Fatalf("expected import used only by discarded option override to be removed:\n%s", rendered)
 	}
 	if !strings.Contains(rendered, "func CustomProductScore() int") {
 		t.Fatalf("expected preserved custom helper:\n%s", rendered)

@@ -7,6 +7,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -407,26 +408,78 @@ func customFactoryDecls(src string, factory *models.GeneratedFactory, expectedOp
 		return "", nil, fmt.Errorf("parse existing factory: %w", err)
 	}
 
-	var imports []string
+	var imports []existingFactoryImport
 	for _, imp := range file.Imports {
-		imports = append(imports, strings.Trim(imp.Path.Value, `"`))
+		imports = append(imports, existingFactoryImport{
+			Path: strings.Trim(imp.Path.Value, `"`),
+			Name: importLocalName(imp),
+		})
 	}
 
 	var custom strings.Builder
+	var retainedDecls []ast.Decl
 	for _, decl := range file.Decls {
 		if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
 			continue
 		}
-		start := fset.Position(decl.Pos()).Offset
-		end := fset.Position(decl.End()).Offset
 		if isGeneratedFactoryDecl(decl, factory) ||
 			isExpectedFactoryOptionDecl(decl, expectedOptions) {
 			continue
 		}
+		start := fset.Position(decl.Pos()).Offset
+		end := fset.Position(decl.End()).Offset
 		custom.WriteString(strings.TrimSpace(src[start:end]))
 		custom.WriteString("\n\n")
+		retainedDecls = append(retainedDecls, decl)
 	}
-	return custom.String(), imports, nil
+	return custom.String(), retainedCustomImportPaths(imports, retainedDecls), nil
+}
+
+type existingFactoryImport struct {
+	Path string
+	Name string
+}
+
+func importLocalName(imp *ast.ImportSpec) string {
+	if imp.Name != nil {
+		return imp.Name.Name
+	}
+	base := path.Base(strings.Trim(imp.Path.Value, `"`))
+	if base == "" || strings.Contains(base, ".") || strings.Contains(base, "-") {
+		return ""
+	}
+	return base
+}
+
+func retainedCustomImportPaths(imports []existingFactoryImport, decls []ast.Decl) []string {
+	if len(decls) == 0 {
+		return nil
+	}
+
+	usedNames := make(map[string]bool)
+	for _, decl := range decls {
+		ast.Inspect(decl, func(node ast.Node) bool {
+			if selector, ok := node.(*ast.SelectorExpr); ok {
+				if ident, ok := selector.X.(*ast.Ident); ok {
+					usedNames[ident.Name] = true
+				}
+			}
+			return true
+		})
+	}
+
+	paths := make([]string, 0, len(imports))
+	for _, imp := range imports {
+		switch imp.Name {
+		case "", ".", "_":
+			paths = append(paths, imp.Path)
+		default:
+			if usedNames[imp.Name] {
+				paths = append(paths, imp.Path)
+			}
+		}
+	}
+	return paths
 }
 
 func isExpectedFactoryOptionDecl(decl ast.Decl, expectedOptions map[string]bool) bool {
