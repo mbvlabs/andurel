@@ -38,9 +38,10 @@ test:
 	go list ./... | grep -v /e2e | xargs go test -v
 
 # Run unit tests with coverage
-test-cover:
+test-coverage:
 	go test $(go list ./... | grep -v /e2e) -v -race -cover -coverprofile coverage.out -coverpkg ./...
-	go tool cover -func coverage.out | tail -1
+	go tool cover -func coverage.out -o coverage-summary.out
+	awk '/^total:/ {printf "total coverage: %s\n", $3; found=1} END {exit !found}' coverage-summary.out
 
 # Run critical e2e tests only
 test-e2e-critical:
@@ -83,7 +84,7 @@ ci:
 	@echo "Running go vet..."
 	@just vet
 	@echo "\nRunning unit tests with coverage..."
-	@just test-cover
+	@just test-coverage
 	@echo "\nRunning critical e2e tests..."
 	@just test-e2e-critical
 	@echo "\n✅ All CI checks passed!"
@@ -119,5 +120,5 @@ update-golden-all:
 # Clean test artifacts and cache
 clean-test:
 	go clean -testcache
-	rm -f coverage.txt
+	rm -f coverage.out coverage-summary.out coverage.txt
 	rm -rf /tmp/andurel-e2e-*
