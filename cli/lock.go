@@ -126,7 +126,7 @@ func setVersion(projectRoot, toolName, version string) error {
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
-	if err := syncSingleTool(projectRoot, toolName, lock.Tools[toolName], runtime.GOOS, runtime.GOARCH); err != nil {
+	if err := syncSingleToolFunc(projectRoot, toolName, lock.Tools[toolName], runtime.GOOS, runtime.GOARCH); err != nil {
 		return err
 	}
 

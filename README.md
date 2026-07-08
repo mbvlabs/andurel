@@ -258,11 +258,11 @@ andurel generate email (alias: e) NAME
 andurel generate routes
 ```
 
-**`generate model`** — Creates a model from a database migration, or updates an existing one. Fields, types, and timestamps are read from the migration automatically.
+**`generate model`** — Creates a model from a database migration, or updates an existing one. Fields, types, and timestamps are read from the migration automatically. When `--update` is applied, Andurel also syncs the matching factory unless `--skip-factory` is passed.
 
 | Flag | Description |
 |------|-------------|
-| `--skip-factory` | Skip generating a factory file |
+| `--skip-factory` | Skip generating or updating the matching factory file |
 | `--table-name`   | Override the default table name (e.g. `--table-name=people_data`) |
 | `--update`       | Update an existing model from migration changes |
 | `--yes`          | Apply changes without prompting for confirmation (use with `--update`) |
@@ -270,9 +270,11 @@ andurel generate routes
 | `--dry-run`      | Preview file changes without applying them |
 | `--diff`         | Include a text diff preview in structured output |
 
-**`generate factory`** — Generates or syncs one model factory from the model entity. Use `--check --json` in CI or agent workflows to detect drift without writing files, and `--sync --json` to update generated factory regions.
+**`generate factory`** — Generates or syncs one model factory from the model entity. With no flags, the singular command syncs by default. Use `--check --json` in CI or agent workflows to detect drift without writing files, and `--sync --json` to update the factory.
 
-**`generate factories`** — Checks or syncs every model factory in the project. Use `--check --json` for a structured drift report across all models.
+**`generate factories`** — Checks or syncs every model factory in the project. The plural command requires `--check` or `--sync` to avoid accidental repo-wide writes. Use `--check --json` for a structured drift report across all models.
+
+Factory sync treats generated factory declarations as owned by Andurel. In practice, `Build<Name>`, `Create<Name>`, `Create<Name>s`, the factory types, and generated `WithX` option functions are regenerated from the current model entity. Custom helpers are preserved when they use names that do not collide with those generated declarations.
 
 **`generate controller`** — Creates a controller for a resource. With no actions, it generates the full standard CRUD controller, views, and routes. With one or more standard CRUD actions (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it generates only those resource actions; partial CRUD views are self-contained and only link to companion actions that are also present. Generated resource/controller views default to Templ in every project; pass `--inertia` to generate Inertia pages (uses the adapter from `andurel.lock`).
 

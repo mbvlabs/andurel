@@ -82,13 +82,21 @@ func runFmt(rootDir string, checkMode, skipTempl, skipGo bool) error {
 }
 
 func runGoFmt(rootDir string, checkMode bool) error {
-	args := []string{"fmt"}
-	if checkMode {
-		args = append(args, "-e", "-l")
+	files, err := collectGoFiles(rootDir)
+	if err != nil {
+		return fmt.Errorf("collecting Go files: %w", err)
 	}
-	args = append(args, "./...")
+	if len(files) == 0 {
+		return nil
+	}
 
-	cmd := exec.Command("go", args...)
+	args := []string{"-w"}
+	if checkMode {
+		args = []string{"-e", "-l"}
+	}
+	args = append(args, files...)
+
+	cmd := exec.Command("gofmt", args...)
 	cmd.Dir = rootDir
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -147,8 +155,11 @@ func collectGoFiles(rootDir string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() && d.Name() == ".git" {
-			return filepath.SkipDir
+		if d.IsDir() {
+			if path != rootDir && skipGoPackageDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if !d.IsDir() && strings.HasSuffix(d.Name(), ".go") {
 			files = append(files, path)
@@ -156,6 +167,10 @@ func collectGoFiles(rootDir string) ([]string, error) {
 		return nil
 	})
 	return files, err
+}
+
+func skipGoPackageDir(name string) bool {
+	return name == "vendor" || name == "testdata" || strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")
 }
 
 func runTemplFmt(rootDir string, checkMode bool) error {

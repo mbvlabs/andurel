@@ -23,8 +23,9 @@ func newGenerateFactoryCommand() *cobra.Command {
 		Short: "Generate or sync one model factory",
 		Long: `Generate or sync a model factory from the current model Entity.
 
-The sync rewrites Andurel generated regions and preserves custom helpers outside
-those regions.`,
+With no flags, the singular factory command syncs by default. Factory sync
+regenerates Andurel-owned factory declarations, including generated WithX
+options, and preserves custom helpers with non-conflicting names.`,
 		Example: `  andurel generate factory User
   andurel generate factory User --check
   andurel generate factory User --sync
@@ -41,7 +42,7 @@ those regions.`,
 	setAgentMetadata(cmd, "generation", "Syncs one factory from the model Entity. Use --check --json in CI and --sync to write changes.")
 
 	cmd.Flags().BoolVar(&check, "check", false, "Report factory drift without writing")
-	cmd.Flags().BoolVar(&sync, "sync", false, "Create or update generated factory regions")
+	cmd.Flags().BoolVar(&sync, "sync", false, "Create or update the generated factory")
 	cmd.Flags().BoolVar(&diff, "diff", false, "Include proposed factory changes")
 
 	return cmd
@@ -57,7 +58,10 @@ func newGenerateFactoriesCommand() *cobra.Command {
 		Short: "Check or sync all model factories",
 		Long: `Check or sync every model factory from the current model Entity files.
 
-The plural command requires --check or --sync to avoid accidental repo-wide writes.`,
+The plural command requires --check or --sync to avoid accidental repo-wide
+writes. Factory sync regenerates Andurel-owned factory declarations, including
+generated WithX options, and preserves custom helpers with non-conflicting
+names.`,
 		Example: `  andurel generate factories --check
   andurel generate factories --check --diff
   andurel generate factories --sync`,
@@ -73,7 +77,7 @@ The plural command requires --check or --sync to avoid accidental repo-wide writ
 	setAgentMetadata(cmd, "generation", "Bulk factory drift command. Use --check --json for CI and --sync to write changes.")
 
 	cmd.Flags().BoolVar(&check, "check", false, "Report factory drift without writing")
-	cmd.Flags().BoolVar(&sync, "sync", false, "Create or update generated factory regions")
+	cmd.Flags().BoolVar(&sync, "sync", false, "Create or update generated factories")
 	cmd.Flags().BoolVar(&diff, "diff", false, "Include proposed factory changes")
 
 	return cmd

@@ -642,20 +642,6 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 	return nil
 }
 
-// func processTemplate(
-// 	targetDir, templateFile, targetPath string,
-// 	data extensions.TemplateData,
-// ) error {
-// 	return renderTemplate(targetDir, templateFile, targetPath, templates.Files, data)
-// }
-//
-// func ProcessTemplateFromRecipe(
-// 	targetDir, templateFile, targetPath string,
-// 	data extensions.TemplateData,
-// ) error {
-// 	return renderTemplate(targetDir, templateFile, targetPath, extensions.Files, data)
-// }
-
 func copyFile(
 	targetDir, sourceFile, targetPath string,
 	fsys fs.FS,

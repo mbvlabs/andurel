@@ -39,7 +39,8 @@ test:
 
 # Run unit tests with coverage
 test-cover:
-	go list ./... | grep -v /e2e | xargs go test -v -race -coverprofile=coverage.txt -covermode=atomic
+	go test $(go list ./... | grep -v /e2e) -v -race -cover -coverprofile coverage.out -coverpkg ./...
+	go tool cover -func coverage.out | tail -1
 
 # Run critical e2e tests only
 test-e2e-critical:

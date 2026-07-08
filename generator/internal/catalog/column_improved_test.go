@@ -86,7 +86,7 @@ func testValidatePrimaryKeyDatatype(t *testing.T) {
 			}{
 				column: &Column{
 					Name:         "id",
-					DataType:     "text",
+					DataType:     "bytea",
 					IsPrimaryKey: true,
 				},
 				databaseType:  "postgresql",

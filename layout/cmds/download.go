@@ -22,6 +22,8 @@ type ToolDownloader struct {
 
 var ErrFailedToGetRleaseURL = fmt.Errorf("failed to get release URL")
 
+var downloadFileFunc = downloadFile
+
 func DownloadFromURLTemplate(
 	name,
 	version,
@@ -49,7 +51,7 @@ func DownloadFromURLTemplate(
 
 func DownloadFromURL(name, url, archiveType, binaryName, destPath string) error {
 	if archiveType == "binary" {
-		if err := downloadFile(url, destPath); err != nil {
+		if err := downloadFileFunc(url, destPath); err != nil {
 			return fmt.Errorf("failed to download %s: %w", name, err)
 		}
 
@@ -67,7 +69,7 @@ func DownloadFromURL(name, url, archiveType, binaryName, destPath string) error 
 	defer os.RemoveAll(tmpDir)
 
 	archivePath := filepath.Join(tmpDir, fmt.Sprintf("%s.%s", name, archiveType))
-	if err := downloadFile(url, archivePath); err != nil {
+	if err := downloadFileFunc(url, archivePath); err != nil {
 		return fmt.Errorf("failed to download %s: %w", name, err)
 	}
 
@@ -133,7 +135,7 @@ func DownloadGoTool(name, module, version, goos, goarch, destPath string) error 
 
 	archivePath := filepath.Join(tmpDir, fmt.Sprintf("%s.%s", name, archiveType))
 
-	if err := downloadFile(url, archivePath); err != nil {
+	if err := downloadFileFunc(url, archivePath); err != nil {
 		return fmt.Errorf("failed to download %s: %w", name, err)
 	}
 
@@ -212,7 +214,7 @@ func DownloadTailwindCLI(version, goos, goarch, destPath string) error {
 		arch,
 	)
 
-	if err := downloadFile(url, destPath); err != nil {
+	if err := downloadFileFunc(url, destPath); err != nil {
 		return fmt.Errorf("failed to download tailwindcli: %w", err)
 	}
 

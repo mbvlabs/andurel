@@ -108,6 +108,12 @@ func resetCLITestSeams(t *testing.T) {
 	defaultRunGolines := runGolinesFunc
 	defaultRunTemplFmt := runTemplFmtFunc
 	defaultGenerateController := generateControllerWithActionsFunc
+	defaultSyncSingleTool := syncSingleToolFunc
+	defaultDownloadFromLockTool := downloadFromLockToolFunc
+	defaultNewUpgrader := newUpgraderFunc
+	defaultOpenAdminConnection := openAdminConnectionFunc
+	defaultRunGoose := runGooseFunc
+	defaultRunSeed := runSeedFunc
 
 	t.Cleanup(func() {
 		findGoModRoot = defaultFindGoModRoot
@@ -119,6 +125,12 @@ func resetCLITestSeams(t *testing.T) {
 		runGolinesFunc = defaultRunGolines
 		runTemplFmtFunc = defaultRunTemplFmt
 		generateControllerWithActionsFunc = defaultGenerateController
+		syncSingleToolFunc = defaultSyncSingleTool
+		downloadFromLockToolFunc = defaultDownloadFromLockTool
+		newUpgraderFunc = defaultNewUpgrader
+		openAdminConnectionFunc = defaultOpenAdminConnection
+		runGooseFunc = defaultRunGoose
+		runSeedFunc = defaultRunSeed
 		cache.ClearFileSystemCache()
 	})
 }
@@ -130,6 +142,8 @@ type fakeGenerator struct {
 	controllerCalls  []controllerCall
 	factoryCalls     []factoryCall
 	factoriesCalls   []generator.FactorySyncOptions
+	factoryResult    *generator.FactorySyncResult
+	factoriesResult  []*generator.FactorySyncResult
 	err              error
 	onGenerateModel  func()
 }
@@ -238,6 +252,9 @@ func (f *fakeGenerator) SyncFactory(resourceName string, opts generator.FactoryS
 	if f.err != nil {
 		return nil, f.err
 	}
+	if f.factoryResult != nil {
+		return f.factoryResult, nil
+	}
 	return &generator.FactorySyncResult{ResourceName: resourceName, Path: "models/factories/" + resourceName + ".go"}, nil
 }
 
@@ -245,6 +262,9 @@ func (f *fakeGenerator) SyncFactories(opts generator.FactorySyncOptions) ([]*gen
 	f.factoriesCalls = append(f.factoriesCalls, opts)
 	if f.err != nil {
 		return nil, f.err
+	}
+	if f.factoriesResult != nil {
+		return f.factoriesResult, nil
 	}
 	return []*generator.FactorySyncResult{}, nil
 }

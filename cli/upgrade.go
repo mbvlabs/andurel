@@ -65,7 +65,7 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		fmt.Printf("Upgrading project to version %s...\n\n", targetVersion)
 	}
 
-	upgrader, err := upgrade.NewUpgrader(projectRoot, opts)
+	upgrader, err := newUpgraderFunc(projectRoot, opts)
 	if err != nil {
 		return fmt.Errorf("failed to initialize upgrader: %w", err)
 	}

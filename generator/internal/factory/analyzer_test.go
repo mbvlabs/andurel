@@ -45,6 +45,57 @@ func TestFieldAnalyzer_IntDefaults(t *testing.T) {
 	}
 }
 
+func TestFieldAnalyzer_DetermineDefaultAndGoZero(t *testing.T) {
+	analyzer := NewFieldAnalyzer("postgres")
+
+	defaults := map[string]string{
+		"string":          "faker.Word()",
+		"int32":           "randomInt(1, 1000, 100)",
+		"int":             "randomInt(1, 1000, 100)",
+		"int64":           "randomInt64(1, 1000, 100)",
+		"int16":           "randomInt16(1, 1000, 100)",
+		"bool":            "randomBool()",
+		"time.Time":       "time.Now()",
+		"uuid.UUID":       "uuid.New()",
+		"json.RawMessage": "json.RawMessage{}",
+		"[]byte":          "[]byte{}",
+		"*string":         "faker.Word()",
+		"*time.Time":      "time.Now()",
+		"*bool":           "randomBool()",
+		"CustomType":      "CustomType{}",
+	}
+	for typ, want := range defaults {
+		if got := analyzer.determineDefault("Field", typ); got != want {
+			t.Fatalf("determineDefault(%q) = %q, want %q", typ, got, want)
+		}
+	}
+
+	zeros := map[string]string{
+		"string":          `""`,
+		"int":             "0",
+		"int32":           "0",
+		"int64":           "0",
+		"float32":         "0",
+		"float64":         "0",
+		"bool":            "false",
+		"time.Time":       "time.Time{}",
+		"uuid.UUID":       "uuid.UUID{}",
+		"json.RawMessage": "nil",
+		"[]byte":          "nil",
+		"[]string":        "nil",
+		"CustomType":      "CustomType{}",
+	}
+	for typ, want := range zeros {
+		if got := analyzer.getGoZero(typ); got != want {
+			t.Fatalf("getGoZero(%q) = %q, want %q", typ, got, want)
+		}
+	}
+
+	if got := analyzer.pgtypeDefault("pgtype.Text"); got != "pgtype.Text{}" {
+		t.Fatalf("pgtypeDefault = %q", got)
+	}
+}
+
 func TestFieldAnalyzer_AnalyzeField(t *testing.T) {
 	analyzer := NewFieldAnalyzer("postgres")
 
