@@ -27,7 +27,7 @@ func newGenerateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "generate",
 		Aliases: []string{"g"},
-		Short:   "Generate new code (model, factory, controller, scaffold, job, email)",
+		Short:   "Generate new code (model, factory, controller, scaffold, job, email, routes)",
 		Long: `Generates new code for your Andurel application. The following
 generators are available:
 
@@ -40,6 +40,7 @@ generators are available:
   scaffold    Generate a complete resource with model, controller, views, and routes
   job         Generate a background job with a worker
   email       Generate an email template
+  routes      Generate TypeScript route helpers for Inertia frontends
 
 Controller and scaffold names may include one lowercase namespace segment,
 for example admin/Widget. Namespaces generate controllers/admin, admin route
@@ -54,7 +55,8 @@ names, and Admin-prefixed route/view symbols.`,
   andurel generate scaffold Product
   andurel generate scaffold admin/Widget
   andurel generate job SendWelcomeEmail
-  andurel generate email WelcomeEmail`,
+  andurel generate email WelcomeEmail
+  andurel generate routes`,
 	}
 	setAgentMetadata(cmd, "generation", "Requires an Andurel project root for generators that inspect or write project files.")
 
@@ -67,6 +69,7 @@ names, and Admin-prefixed route/view symbols.`,
 		newGenerateScaffoldCommand(),
 		newGenerateJobCommand(),
 		newGenerateEmailCommand(),
+		newGenerateRoutesCommand(),
 	)
 
 	setStandardHelp(cmd,
@@ -101,6 +104,10 @@ names, and Admin-prefixed route/view symbols.`,
 		helpCommand{
 			Use:         "generate email NAME",
 			Description: "generates a new email template",
+		},
+		helpCommand{
+			Use:         "generate routes",
+			Description: "generates TypeScript route helpers for Inertia frontends",
 		},
 	)
 
