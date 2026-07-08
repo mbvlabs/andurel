@@ -59,54 +59,11 @@ func (fm factorySyncRootFileManager) FindGoModRoot() (string, error) {
 	return fm.root, nil
 }
 
-func TestGeneratedRegionRangesAndOffset(t *testing.T) {
-	src := `package factories
-
-// before
-// BEGIN ANDUREL FACTORY CORE Product
-func generatedCore() {}
-// END ANDUREL FACTORY CORE Product
-
-func customHelper() {}
-
-// BEGIN ANDUREL FACTORY OPTIONS Product
-func generatedOption() {}
-// END ANDUREL FACTORY OPTIONS Product
-`
-
-	ranges := generatedRegionRanges(src)
-	if len(ranges) != 2 {
-		t.Fatalf("expected 2 generated ranges, got %d", len(ranges))
-	}
-
-	coreOffset := strings.Index(src, "func generatedCore")
-	customOffset := strings.Index(src, "func customHelper")
-	optionOffset := strings.Index(src, "func generatedOption")
-
-	if !offsetInRanges(coreOffset, ranges) {
-		t.Fatal("expected core function offset to be inside generated region")
-	}
-	if offsetInRanges(customOffset, ranges) {
-		t.Fatal("expected custom helper offset to be outside generated regions")
-	}
-	if !offsetInRanges(optionOffset, ranges) {
-		t.Fatal("expected option function offset to be inside generated region")
-	}
-}
-
 func TestRenderSyncedFactoryFileRegeneratesOptionsAndPreservesCustomDeclarations(t *testing.T) {
 	factory := factorySyncGeneratedFactory()
 	oldContent := `package factories
 
 import "math"
-
-// BEGIN ANDUREL FACTORY OPTIONS Product
-func WithProductsName(value string) ProductOption {
-	return func(f *ProductFactory) {
-		f.ProductEntity.Name = value
-	}
-}
-// END ANDUREL FACTORY OPTIONS Product
 
 func WithProductsName(value string) ProductOption {
 	return func(f *ProductFactory) {

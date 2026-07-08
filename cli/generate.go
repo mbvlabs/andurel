@@ -32,7 +32,8 @@ func newGenerateCommand() *cobra.Command {
 generators are available:
 
   model       Generate a model from the existing migration, or update one
-              with --update
+              with --update. Model updates also sync the matching factory
+              unless --skip-factory is passed.
   factory     Generate or sync a model factory
   factories   Check or sync all model factories
   views       Generate Go code from Templ templates (templ generate)

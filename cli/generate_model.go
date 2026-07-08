@@ -34,7 +34,8 @@ For example, if a migration creates a "posts" table, running:
 
 will generate a Post model with columns matching the posts table.
 
-Use --update to sync an existing model file with migration changes.`,
+Use --update to sync an existing model file with migration changes. Applying an
+update also syncs the matching factory unless --skip-factory is passed.`,
 		Example: `  andurel generate model Post
 
       Generates a Post model from the existing posts table migration.
@@ -47,11 +48,15 @@ Use --update to sync an existing model file with migration changes.`,
 
   andurel generate model Post --update
 
-      Shows pending changes and prompts to apply them.
+      Shows pending model and factory changes and prompts to apply them.
 
   andurel generate model Post --update --yes
 
-      Applies model changes without prompting.`,
+      Applies model and factory changes without prompting.
+
+  andurel generate model Post --update --skip-factory
+
+      Applies model changes without syncing the factory.`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
@@ -95,7 +100,7 @@ Use --update to sync an existing model file with migration changes.`,
 		},
 	}
 
-	cmd.Flags().BoolVar(&skipFactory, "skip-factory", false, "Skip generating a factory for the model")
+	cmd.Flags().BoolVar(&skipFactory, "skip-factory", false, "Skip generating or updating the matching factory")
 	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name")
 	cmd.Flags().BoolVar(&updateModel, "update", false, "Update an existing model from migration changes")
 	cmd.Flags().BoolVar(&autoApply, "yes", false, "Apply changes without prompting for confirmation")
