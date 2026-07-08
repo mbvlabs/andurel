@@ -102,7 +102,7 @@ and the default action set excludes new/edit.`,
 				DryRun:   dryRun,
 				Diff:     diff,
 				Breadcrumbs: []output.Breadcrumb{
-					{Command: "andurel routes --json", Description: "Inspect generated route files"},
+					{Command: "andurel routes --json", Description: "Inspect generated route manifest"},
 					{Command: "andurel doctor", Description: "Verify project health"},
 				},
 				Run: func(rootDir string) error {

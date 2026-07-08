@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -108,7 +109,48 @@ func collectProjectInfo(rootDir string) (projectInfo, error) {
 }
 
 func newRoutesCommand() *cobra.Command {
-	return readOnlyListCommand("routes", "List route files", "router/routes", ".go")
+	cmd := &cobra.Command{
+		Use:   "routes",
+		Short: "List route manifest",
+		Long: `List route metadata extracted from router/routes/*.go.
+
+The manifest reports actual URL paths, route names, parameter names and
+types, and the Go source location for each route variable. In this command's
+output, path means the route URL path. The declaring Go file is reported as
+source_file in structured output.`,
+		Example: `  andurel routes
+  andurel routes --json
+  andurel routes --jq .routes`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rootDir, err := findGoModRoot()
+			if err != nil {
+				return err
+			}
+			manifest, err := collectRouteManifest(rootDir)
+			if err != nil {
+				return err
+			}
+			opts, err := output.ParseOptions(cmd)
+			if err != nil {
+				return err
+			}
+			if opts.Mode == output.ModeHuman {
+				if opts.Quiet {
+					return nil
+				}
+				return renderRouteManifestHuman(cmd.OutOrStdout(), manifest)
+			}
+
+			summary := fmt.Sprintf("Listed %d routes", len(manifest.Routes))
+			if len(manifest.Skipped) > 0 {
+				summary = fmt.Sprintf("%s (%d skipped)", summary, len(manifest.Skipped))
+			}
+			return output.OK(cmd, manifest, summary)
+		},
+	}
+	setAgentMetadata(cmd, "introspection", "Read-only route manifest with actual URL paths, route names, params, and source files.")
+	return cmd
 }
 
 func newModelsCommand() *cobra.Command {
