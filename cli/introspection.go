@@ -112,7 +112,16 @@ func newRoutesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "routes",
 		Short: "List route manifest",
-		Args:  cobra.NoArgs,
+		Long: `List route metadata extracted from router/routes/*.go.
+
+The manifest reports actual URL paths, route names, parameter names and
+types, and the Go source location for each route variable. In this command's
+output, path means the route URL path. The declaring Go file is reported as
+source_file in structured output.`,
+		Example: `  andurel routes
+  andurel routes --json
+  andurel routes --jq .routes`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {

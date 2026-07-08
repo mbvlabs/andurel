@@ -236,6 +236,67 @@ When `--api` is set, any namespace segment is nested under `api`, and the defaul
 | `--api`          | Generate a JSON API controller under `controllers/api` without views |
 | `--primary-key`  | Specify the primary key column (skips interactive detection) |
 
+### `andurel routes` — Route manifest
+
+Lists route metadata extracted from `router/routes/*.go`.
+
+```bash
+andurel routes
+andurel routes --json
+```
+
+The default output is a table with route variables, route names, actual URL paths, parameters, and source locations. In this command, `path` means the URL path for the route. The Go file where the route variable is declared is reported separately as `source_file` in JSON output.
+
+`andurel routes --json` is the stable machine-readable route manifest. It is intended for tooling such as future Inertia route helper generation.
+
+Example JSON shape:
+
+```json
+{
+  "ok": true,
+  "data": {
+    "routes": [
+      {
+        "variable": "SessionCreate",
+        "name": "users.user_session",
+        "path": "/users/sign-in",
+        "constructor": "NewSimpleRoute",
+        "kind": "simple",
+        "source_file": "router/routes/users.go",
+        "line": 12
+      },
+      {
+        "variable": "PasswordEdit",
+        "name": "users.edit_user_password",
+        "path": "/users/password/:token/edit",
+        "constructor": "NewRouteWithToken",
+        "kind": "token",
+        "params": [
+          {
+            "name": "token",
+            "type": "string"
+          }
+        ],
+        "source_file": "router/routes/users.go",
+        "line": 39
+      }
+    ],
+    "skipped": [
+      {
+        "variable": "Scripts",
+        "constructor": "NewSimpleRoute",
+        "source_file": "router/routes/assets.go",
+        "line": 33,
+        "reason": "route path is not a static string expression"
+      }
+    ]
+  },
+  "summary": "Listed 2 routes (1 skipped)"
+}
+```
+
+`skipped` entries mean Andurel found a route constructor but could not statically evaluate its path, name, or prefix. This commonly happens for dynamic asset routes.
+
 ### `andurel fmt` — Format source files
 
 Formats Go and Templ source files in the project.
@@ -587,6 +648,8 @@ The runtime is stored in `andurel.lock` as `scaffoldConfig.javascriptRuntime`. `
 ### Real Example: Controller to Vue Component
 
 Here's how an auth controller renders a Vue component via Inertia, from route definition to rendered page.
+
+Use `andurel routes --json` when frontend tooling needs the same route metadata. The JSON manifest keeps `router/routes/*.go` as the source of truth while exposing URL paths, route names, params, and source locations to external generators.
 
 #### Route Definition
 
