@@ -40,8 +40,7 @@ test:
 # Run unit tests with coverage
 test-cover:
 	go test $(go list ./... | grep -v /e2e) -v -race -cover -coverprofile coverage.out -coverpkg ./...
-	go tool cover -func coverage.out -o coverage.out
-	tail -1 coverage.out
+	go tool cover -func coverage.out | tail -1
 
 # Run critical e2e tests only
 test-e2e-critical:

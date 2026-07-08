@@ -140,6 +140,10 @@ func TestFormatterHelpers(t *testing.T) {
 	writeGoModule(t, root)
 	writeTestFile(t, root, "main.go", "package main\n\nfunc main() {}\n")
 	writeTestFile(t, root, ".git/ignored.go", "package ignored\n")
+	writeTestFile(t, root, "vendor/example.com/ignored/ignored.go", "package ignored\n")
+	writeTestFile(t, root, ".hidden/ignored.go", "package ignored\n")
+	writeTestFile(t, root, "_tools/ignored.go", "package ignored\n")
+	writeTestFile(t, root, "testdata/ignored.go", "package ignored\n")
 
 	if err := runGoFmt(root, true); err != nil {
 		t.Fatalf("runGoFmt check: %v", err)
