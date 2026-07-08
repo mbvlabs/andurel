@@ -60,7 +60,9 @@ jobs:
       run: go vet ./...
 
     - name: Run tests
-      run: go test $(go list ./... | grep -v /e2e) -v -race -coverprofile=coverage.txt -covermode=atomic
+      run: |
+        go test $(go list ./... | grep -v /e2e) -v -race -coverprofile=coverage.txt -covermode=atomic
+        go tool cover -func coverage.txt | awk '/^total:/ {printf "total coverage: %s\n", $3; found=1} END {exit !found}'
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
