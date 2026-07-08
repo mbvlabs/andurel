@@ -12,10 +12,12 @@ import (
 // CreateTableParser handles CREATE TABLE statements
 type CreateTableParser struct{}
 
+// NewCreateTableParser creates a new create table parser.
 func NewCreateTableParser() *CreateTableParser {
 	return &CreateTableParser{}
 }
 
+// Parse performs the parse operation.
 func (p *CreateTableParser) Parse(
 	sql, migrationFile string,
 	databaseType string,

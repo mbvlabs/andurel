@@ -39,6 +39,7 @@ func ExtractTableNameOverride(modelPath string, resourceName string) (string, bo
 	return "", false
 }
 
+// BuildModelPath performs build model path.
 func BuildModelPath(modelsDir, resourceName string) string {
 	var modelFileName strings.Builder
 	modelFileName.Grow(len(resourceName) + 3)
@@ -47,11 +48,13 @@ func BuildModelPath(modelsDir, resourceName string) string {
 	return filepath.Join(modelsDir, modelFileName.String())
 }
 
+// ResolveTableName resolves table name.
 func ResolveTableName(modelsDir, resourceName string) string {
 	tableName, _ := ResolveTableNameWithFlag(modelsDir, resourceName)
 	return tableName
 }
 
+// ResolveTableNameWithFlag resolves table name with flag.
 func ResolveTableNameWithFlag(modelsDir, resourceName string) (string, bool) {
 	modelPath := BuildModelPath(modelsDir, resourceName)
 	if tableName, found := ExtractTableNameOverride(modelPath, resourceName); found {

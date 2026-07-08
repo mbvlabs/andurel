@@ -6,11 +6,17 @@ import "strings"
 type RouteType int
 
 const (
+	// SimpleRoute is a constant value for simple route.
 	SimpleRoute RouteType = iota
+	// RouteWithID is a constant value for route with i d.
 	RouteWithID
+	// RouteWithSlug is a constant value for route with slug.
 	RouteWithSlug
+	// RouteWithToken is a constant value for route with token.
 	RouteWithToken
+	// RouteWithFile is a constant value for route with file.
 	RouteWithFile
+	// RouteWithSlugs is a constant value for route with slugs.
 	RouteWithSlugs
 )
 

@@ -106,6 +106,7 @@ type DDLParser struct {
 	dropEnumParser     *DropEnumParser
 }
 
+// NewDDLParser creates a new d d l parser.
 func NewDDLParser() *DDLParser {
 	return &DDLParser{
 		createTableParser:  NewCreateTableParser(),
@@ -120,6 +121,7 @@ func NewDDLParser() *DDLParser {
 	}
 }
 
+// Parse performs the parse operation.
 func (p *DDLParser) Parse(sql, migrationFile string, databaseType string) (Statement, error) {
 	// Strip SQL comments before parsing
 	sql = StripComments(sql)

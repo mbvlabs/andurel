@@ -109,6 +109,7 @@ func ToKebabCase(s string) string {
 	return strings.ReplaceAll(s, "_", "-")
 }
 
+// Capitalize performs capitalize.
 func Capitalize(s string) string {
 	if len(s) == 0 {
 		return s

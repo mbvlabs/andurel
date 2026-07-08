@@ -6,16 +6,19 @@ import (
 	"strings"
 )
 
+// GitAnalyzer represents git analyzer.
 type GitAnalyzer struct {
 	projectRoot string
 }
 
+// NewGitAnalyzer creates a new git analyzer.
 func NewGitAnalyzer(projectRoot string) *GitAnalyzer {
 	return &GitAnalyzer{
 		projectRoot: projectRoot,
 	}
 }
 
+// IsClean reports whether clean.
 func (g *GitAnalyzer) IsClean() (bool, error) {
 	cmd := exec.Command("git", "status", "--porcelain")
 	cmd.Dir = g.projectRoot
@@ -50,6 +53,7 @@ func (g *GitAnalyzer) getFirstCommit() (string, error) {
 	return commits[0], nil
 }
 
+// GetModifiedFiles returns modified files.
 func (g *GitAnalyzer) GetModifiedFiles() (map[string]bool, error) {
 	firstCommit, err := g.getFirstCommit()
 	if err != nil {
@@ -75,6 +79,7 @@ func (g *GitAnalyzer) GetModifiedFiles() (map[string]bool, error) {
 	return modifiedFiles, nil
 }
 
+// GetFileFromInitialCommit returns file from initial commit.
 func (g *GitAnalyzer) GetFileFromInitialCommit(relPath string) ([]byte, error) {
 	firstCommit, err := g.getFirstCommit()
 	if err != nil {

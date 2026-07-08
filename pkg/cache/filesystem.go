@@ -5,21 +5,25 @@ import (
 	"time"
 )
 
+// Entry stores a cached value and its expiration time.
 type Entry struct {
 	Value     any
 	ExpiresAt time.Time
 }
 
+// IsExpired reports whether the entry is past its expiration time.
 func (e *Entry) IsExpired() bool {
 	return time.Now().After(e.ExpiresAt)
 }
 
+// FileSystemCache is a small TTL cache for repeated filesystem lookups.
 type FileSystemCache struct {
 	entries map[string]*Entry
 	mutex   sync.RWMutex
 	ttl     time.Duration
 }
 
+// NewFileSystemCache creates a new file system cache.
 func NewFileSystemCache(ttl time.Duration) *FileSystemCache {
 	return &FileSystemCache{
 		entries: make(map[string]*Entry),
@@ -27,6 +31,7 @@ func NewFileSystemCache(ttl time.Duration) *FileSystemCache {
 	}
 }
 
+// Get returns a cached value when it exists and has not expired.
 func (fsc *FileSystemCache) Get(key string) (any, bool) {
 	fsc.mutex.RLock()
 	defer fsc.mutex.RUnlock()
@@ -39,6 +44,7 @@ func (fsc *FileSystemCache) Get(key string) (any, bool) {
 	return entry.Value, true
 }
 
+// Set stores a value under key using the cache TTL.
 func (fsc *FileSystemCache) Set(key string, value any) {
 	fsc.mutex.Lock()
 	defer fsc.mutex.Unlock()
@@ -49,6 +55,7 @@ func (fsc *FileSystemCache) Set(key string, value any) {
 	}
 }
 
+// Delete removes a value from the cache.
 func (fsc *FileSystemCache) Delete(key string) {
 	fsc.mutex.Lock()
 	defer fsc.mutex.Unlock()
@@ -56,6 +63,7 @@ func (fsc *FileSystemCache) Delete(key string) {
 	delete(fsc.entries, key)
 }
 
+// Clear removes all cached entries.
 func (fsc *FileSystemCache) Clear() {
 	fsc.mutex.Lock()
 	defer fsc.mutex.Unlock()
@@ -63,6 +71,7 @@ func (fsc *FileSystemCache) Clear() {
 	fsc.entries = make(map[string]*Entry)
 }
 
+// CleanupExpired removes entries whose TTL has elapsed.
 func (fsc *FileSystemCache) CleanupExpired() {
 	fsc.mutex.Lock()
 	defer fsc.mutex.Unlock()
@@ -76,6 +85,7 @@ func (fsc *FileSystemCache) CleanupExpired() {
 
 var globalFSCache = NewFileSystemCache(5 * time.Minute)
 
+// GetModulePath returns a cached module path or resolves and caches it.
 func GetModulePath(key string, resolver func() (string, error)) (string, error) {
 	if cached, found := globalFSCache.Get(key); found {
 		return cached.(string), nil
@@ -90,6 +100,7 @@ func GetModulePath(key string, resolver func() (string, error)) (string, error) 
 	return modulePath, nil
 }
 
+// GetDirectoryRoot returns a cached directory root or resolves and caches it.
 func GetDirectoryRoot(key string, resolver func() (string, error)) (string, error) {
 	if cached, found := globalFSCache.Get(key); found {
 		return cached.(string), nil
@@ -104,6 +115,7 @@ func GetDirectoryRoot(key string, resolver func() (string, error)) (string, erro
 	return rootDir, nil
 }
 
+// GetFileExists returns a cached file existence check or runs and caches it.
 func GetFileExists(key string, checker func() bool) bool {
 	if cached, found := globalFSCache.Get(key); found {
 		return cached.(bool)
@@ -114,10 +126,12 @@ func GetFileExists(key string, checker func() bool) bool {
 	return exists
 }
 
+// ClearFileSystemCache clears file system cache.
 func ClearFileSystemCache() {
 	globalFSCache.Clear()
 }
 
+// CleanupExpiredFileSystemEntries cleans up expired file system entries.
 func CleanupExpiredFileSystemEntries() {
 	globalFSCache.CleanupExpired()
 }

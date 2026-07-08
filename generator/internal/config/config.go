@@ -1,5 +1,6 @@
 package config
 
+// Config configures the value.
 type Config struct {
 	MigrationDirs []string
 	DatabaseType  string
@@ -9,6 +10,7 @@ type Config struct {
 	GenerateJSON  bool
 }
 
+// NewDefaultConfig creates a new default config.
 func NewDefaultConfig() *Config {
 	return &Config{
 		MigrationDirs: []string{"database/migrations"},

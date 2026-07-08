@@ -36,6 +36,7 @@ const (
 	statusFail
 )
 
+// String returns the status value used in doctor output.
 func (s checkStatus) String() string {
 	switch s {
 	case statusPass:

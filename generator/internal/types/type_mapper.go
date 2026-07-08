@@ -15,12 +15,14 @@ type TypeOverride struct {
 	Package      string
 }
 
+// TypeMapper represents type mapper.
 type TypeMapper struct {
 	DatabaseType string
 	NullType     string // "pointer", "sql.Null", or "bun.Null"
 	Overrides    []TypeOverride
 }
 
+// NewTypeMapper creates a new type mapper.
 func NewTypeMapper(databaseType string) *TypeMapper {
 	return &TypeMapper{
 		DatabaseType: databaseType,
@@ -219,6 +221,7 @@ func normalizeSQLType(sqlType string) string {
 	return normalizedType
 }
 
+// FormatFieldName formats field name.
 func FormatFieldName(dbColumnName string) string {
 	if dbColumnName == "id" {
 		return "ID"
@@ -243,6 +246,7 @@ func FormatFieldName(dbColumnName string) string {
 	return builder.String()
 }
 
+// FormatDisplayName formats display name.
 func FormatDisplayName(dbColumnName string) string {
 	parts := strings.Split(dbColumnName, "_")
 
@@ -261,6 +265,7 @@ func FormatDisplayName(dbColumnName string) string {
 	return builder.String()
 }
 
+// FormatCamelCase formats camel case.
 func FormatCamelCase(dbColumnName string) string {
 	parts := strings.Split(dbColumnName, "_")
 	if len(parts) == 0 {
@@ -280,6 +285,7 @@ func FormatCamelCase(dbColumnName string) string {
 	return builder.String()
 }
 
+// GetDatabaseType returns database type.
 func (tm *TypeMapper) GetDatabaseType() string {
 	return tm.DatabaseType
 }

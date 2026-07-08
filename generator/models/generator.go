@@ -20,6 +20,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
+// GeneratedField describes one model field derived from a database column.
 type GeneratedField struct {
 	Name         string
 	Type         string
@@ -31,6 +32,7 @@ type GeneratedField struct {
 	IsPrimaryKey bool
 }
 
+// GeneratedModel contains the template data for a generated model file.
 type GeneratedModel struct {
 	Name                string
 	PluralName          string // The pluralized form of Name for function names (respects --table-name override)
@@ -58,6 +60,7 @@ type GeneratedModel struct {
 	HasUpdatedAt        bool
 }
 
+// Config controls model generation for a database table.
 type Config struct {
 	TableName         string
 	ResourceName      string
@@ -79,11 +82,13 @@ type BunModelConfig struct {
 	UseSoftDelete bool // If true, use deleted_at for soft deletes
 }
 
+// Generator builds model template data and writes model files.
 type Generator struct {
 	typeMapper   *types.TypeMapper
 	databaseType string
 }
 
+// NewGenerator creates a new generator.
 func NewGenerator(databaseType string) *Generator {
 	return &Generator{
 		typeMapper:   types.NewTypeMapper(databaseType),
@@ -111,6 +116,7 @@ func (g *Generator) BuildCatalogFromMigrations(tableName string, migrationDirs [
 	return cat, nil
 }
 
+// Build converts catalog metadata and config into a generated model.
 func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel, error) {
 	table, err := cat.GetTable("", config.TableName)
 	if err != nil {
@@ -298,6 +304,7 @@ func (g *Generator) addModelTypeImports(goType string) map[string]bool {
 	return importSet
 }
 
+// GenerateModelFile renders model template data into Go source.
 func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string) (string, error) {
 	funcMap := template.FuncMap{
 		"lower": func(s string) string {
@@ -325,6 +332,7 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 	return buf.String(), nil
 }
 
+// GenerateModel renders and writes a model file for a resource.
 func (g *Generator) GenerateModel(
 	cat *catalog.Catalog,
 	resourceName string,

@@ -9,12 +9,14 @@ import (
 	"golang.org/x/mod/semver"
 )
 
+// UpgradeOptions configures upgrade behavior.
 type UpgradeOptions struct {
 	DryRun        bool
 	Auto          bool
 	TargetVersion string
 }
 
+// Upgrader represents upgrader.
 type Upgrader struct {
 	projectRoot string
 	lock        *layout.AndurelLock
@@ -23,6 +25,7 @@ type Upgrader struct {
 	opts        UpgradeOptions
 }
 
+// UpgradeReport represents upgrade report.
 type UpgradeReport struct {
 	FromVersion   string
 	ToVersion     string
@@ -43,6 +46,7 @@ type UpgradeReport struct {
 	Error   error
 }
 
+// NewUpgrader creates a new upgrader.
 func NewUpgrader(projectRoot string, opts UpgradeOptions) (*Upgrader, error) {
 	lock, err := layout.ReadLockFile(projectRoot)
 	if err != nil {
@@ -58,6 +62,7 @@ func NewUpgrader(projectRoot string, opts UpgradeOptions) (*Upgrader, error) {
 	}, nil
 }
 
+// Execute performs the execute operation.
 func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	report := &UpgradeReport{
 		FromVersion:   u.lock.Version,

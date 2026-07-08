@@ -21,6 +21,7 @@ type database struct {
 	SslMode      string `env:"DB_SSL_MODE"`
 }
 
+// GetDatabaseURL returns database URL.
 func (d database) GetDatabaseURL() string {
 	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
 		d.DatabaseKind, d.User, d.Password, d.Host, d.Port,

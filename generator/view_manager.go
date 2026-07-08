@@ -11,6 +11,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
+// ViewManager coordinates view operations.
 type ViewManager struct {
 	validator        *InputValidator
 	projectManager   *ProjectManager
@@ -19,6 +20,7 @@ type ViewManager struct {
 	config           *UnifiedConfig
 }
 
+// NewViewManager creates a new view manager.
 func NewViewManager(
 	validator *InputValidator,
 	projectManager *ProjectManager,
@@ -35,14 +37,17 @@ func NewViewManager(
 	}
 }
 
+// GenerateView generates views for a resource without changing controllers.
 func (v *ViewManager) GenerateView(resourceName, tableName, namespace string) error {
 	return v.generateView(resourceName, tableName, namespace, false)
 }
 
+// GenerateViewWithControllerActions generates views for selected controller actions.
 func (v *ViewManager) GenerateViewWithControllerActions(resourceName, tableName string, namespace string, actions []string, inertia string) error {
 	return v.GenerateViewWithControllerActionsForModel(resourceName, resourceName, tableName, namespace, actions, inertia)
 }
 
+// GenerateViewWithControllerActionsForModel generates views when resource and model names differ.
 func (v *ViewManager) GenerateViewWithControllerActionsForModel(resourceName, modelName, tableName string, namespace string, actions []string, inertia string) error {
 	return v.generateViewWithActionsForModel(resourceName, modelName, tableName, namespace, true, actions, inertia)
 }
@@ -110,6 +115,7 @@ func (v *ViewManager) generateViewWithActionsForModel(resourceName, modelName, t
 	return nil
 }
 
+// GenerateViewFromModel generates views by inspecting an existing model file.
 func (v *ViewManager) GenerateViewFromModel(resourceName string, withController bool) error {
 	modulePath := v.projectManager.GetModulePath()
 

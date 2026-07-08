@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// Table represents table.
 type Table struct {
 	Schema    string
 	Name      string
@@ -12,6 +13,7 @@ type Table struct {
 	CreatedBy string // migration file that created this table
 }
 
+// Index represents index.
 type Index struct {
 	Name      string
 	Columns   []string
@@ -19,6 +21,7 @@ type Index struct {
 	CreatedBy string
 }
 
+// NewTable creates a new table.
 func NewTable(schema, name string) *Table {
 	return &Table{
 		Schema:  schema,
@@ -28,6 +31,7 @@ func NewTable(schema, name string) *Table {
 	}
 }
 
+// AddColumn performs the add column operation.
 func (t *Table) AddColumn(column *Column) error {
 	for _, existingCol := range t.Columns {
 		if existingCol.Name == column.Name {
@@ -43,6 +47,7 @@ func (t *Table) AddColumn(column *Column) error {
 	return nil
 }
 
+// GetColumn returns column.
 func (t *Table) GetColumn(name string) (*Column, error) {
 	for _, col := range t.Columns {
 		if col.Name == name {
@@ -52,6 +57,7 @@ func (t *Table) GetColumn(name string) (*Column, error) {
 	return nil, fmt.Errorf("column %s not found in table %s", name, t.Name)
 }
 
+// DropColumn performs the drop column operation.
 func (t *Table) DropColumn(name string) error {
 	for i, col := range t.Columns {
 		if col.Name == name {
@@ -62,6 +68,7 @@ func (t *Table) DropColumn(name string) error {
 	return fmt.Errorf("column %s not found in table %s", name, t.Name)
 }
 
+// ModifyColumn performs the modify column operation.
 func (t *Table) ModifyColumn(name string, newColumn *Column) error {
 	for i, col := range t.Columns {
 		if col.Name == name {
@@ -73,6 +80,7 @@ func (t *Table) ModifyColumn(name string, newColumn *Column) error {
 	return fmt.Errorf("column %s not found in table %s", name, t.Name)
 }
 
+// RenameColumn performs the rename column operation.
 func (t *Table) RenameColumn(oldName, newName string) error {
 	col, err := t.GetColumn(oldName)
 	if err != nil {
@@ -91,6 +99,7 @@ func (t *Table) RenameColumn(oldName, newName string) error {
 	return nil
 }
 
+// AddIndex performs the add index operation.
 func (t *Table) AddIndex(index *Index) error {
 	for _, existingIdx := range t.Indexes {
 		if existingIdx.Name == index.Name {
@@ -106,6 +115,7 @@ func (t *Table) AddIndex(index *Index) error {
 	return nil
 }
 
+// DropIndex performs the drop index operation.
 func (t *Table) DropIndex(name string) error {
 	for i, idx := range t.Indexes {
 		if idx.Name == name {
@@ -116,6 +126,7 @@ func (t *Table) DropIndex(name string) error {
 	return fmt.Errorf("index %s not found in table %s", name, t.Name)
 }
 
+// GetPrimaryKeyColumns returns primary key columns.
 func (t *Table) GetPrimaryKeyColumns() []*Column {
 	var pkColumns []*Column
 	for _, col := range t.Columns {
@@ -126,11 +137,13 @@ func (t *Table) GetPrimaryKeyColumns() []*Column {
 	return pkColumns
 }
 
+// SetCreatedBy sets created by.
 func (t *Table) SetCreatedBy(migrationFile string) *Table {
 	t.CreatedBy = migrationFile
 	return t
 }
 
+// Clone performs the clone operation.
 func (t *Table) Clone() *Table {
 	clone := &Table{
 		Schema:    t.Schema,

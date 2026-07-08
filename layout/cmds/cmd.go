@@ -9,6 +9,7 @@ import (
 	"github.com/mbvlabs/andurel/layout/versions"
 )
 
+// RunGoModTidy runs go mod tidy.
 func RunGoModTidy(targetDir string) error {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {
@@ -20,6 +21,7 @@ func RunGoModTidy(targetDir string) error {
 	return cmd.Run()
 }
 
+// RunGoFmt runs go fmt.
 func RunGoFmt(targetDir string) error {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {
@@ -35,6 +37,7 @@ func RunGoFmt(targetDir string) error {
 	return nil
 }
 
+// RunGoFmtPath runs go fmt path.
 func RunGoFmtPath(targetDir, path string) error {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {
@@ -50,6 +53,7 @@ func RunGoFmtPath(targetDir, path string) error {
 	return nil
 }
 
+// RunGolines runs golines.
 func RunGolines(targetDir string) error {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {
@@ -61,6 +65,7 @@ func RunGolines(targetDir string) error {
 	return cmd.Run()
 }
 
+// RunTemplGenerate runs templ generate.
 func RunTemplGenerate(targetDir string) error {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {
@@ -78,6 +83,7 @@ func RunTemplGenerate(targetDir string) error {
 	return cmd.Run()
 }
 
+// RunTemplFmt runs templ fmt.
 func RunTemplFmt(targetDir string) error {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {
@@ -95,6 +101,7 @@ func RunTemplFmt(targetDir string) error {
 	return cmd.Run()
 }
 
+// RunGooseFix runs goose fix.
 func RunGooseFix(targetDir string) error {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {

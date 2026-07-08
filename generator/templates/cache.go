@@ -5,17 +5,20 @@ import (
 	"text/template"
 )
 
+// TemplateCache represents template cache.
 type TemplateCache struct {
 	templates map[string]*template.Template
 	mutex     sync.RWMutex
 }
 
+// NewTemplateCache creates a new template cache.
 func NewTemplateCache() *TemplateCache {
 	return &TemplateCache{
 		templates: make(map[string]*template.Template),
 	}
 }
 
+// GetTemplate returns template.
 func (tc *TemplateCache) GetTemplate(
 	templateName string,
 	funcMap template.FuncMap,
@@ -52,10 +55,12 @@ func (tc *TemplateCache) GetTemplate(
 
 var globalCache = NewTemplateCache()
 
+// GetCachedTemplate returns cached template.
 func GetCachedTemplate(templateName string, funcMap template.FuncMap) (*template.Template, error) {
 	return globalCache.GetTemplate(templateName, funcMap)
 }
 
+// ClearCache clears cache.
 func ClearCache() {
 	globalCache.mutex.Lock()
 	defer globalCache.mutex.Unlock()

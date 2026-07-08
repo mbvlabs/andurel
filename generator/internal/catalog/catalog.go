@@ -5,24 +5,28 @@ import (
 	"sync"
 )
 
+// Catalog represents catalog.
 type Catalog struct {
 	DefaultSchema string
 	Schemas       map[string]*Schema
 	mutex         sync.RWMutex
 }
 
+// Schema represents schema.
 type Schema struct {
 	Name   string
 	Tables map[string]*Table
 	Enums  map[string]*Enum
 }
 
+// Enum represents enum.
 type Enum struct {
 	Name      string
 	Values    []string
 	CreatedBy string
 }
 
+// NewCatalog creates a new catalog.
 func NewCatalog(defaultSchema string) *Catalog {
 	catalog := &Catalog{
 		DefaultSchema: defaultSchema,
@@ -38,6 +42,7 @@ func NewCatalog(defaultSchema string) *Catalog {
 	return catalog
 }
 
+// GetSchema returns schema.
 func (c *Catalog) GetSchema(name string) (*Schema, error) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
@@ -54,6 +59,7 @@ func (c *Catalog) GetSchema(name string) (*Schema, error) {
 	return schema, nil
 }
 
+// CreateSchema performs the create schema operation.
 func (c *Catalog) CreateSchema(name string) (*Schema, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -72,6 +78,7 @@ func (c *Catalog) CreateSchema(name string) (*Schema, error) {
 	return schema, nil
 }
 
+// GetTable returns table.
 func (c *Catalog) GetTable(schemaName, tableName string) (*Table, error) {
 	schema, err := c.GetSchema(schemaName)
 	if err != nil {
@@ -90,6 +97,7 @@ func (c *Catalog) GetTable(schemaName, tableName string) (*Table, error) {
 	return table, nil
 }
 
+// AddTable performs the add table operation.
 func (c *Catalog) AddTable(schemaName string, table *Table) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -116,6 +124,7 @@ func (c *Catalog) AddTable(schemaName string, table *Table) error {
 	return nil
 }
 
+// DropTable performs the drop table operation.
 func (c *Catalog) DropTable(schemaName, tableName string) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -141,6 +150,7 @@ func (c *Catalog) DropTable(schemaName, tableName string) error {
 	return nil
 }
 
+// RenameTable performs the rename table operation.
 func (c *Catalog) RenameTable(schemaName, oldName, newName string) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -178,6 +188,7 @@ func (c *Catalog) RenameTable(schemaName, oldName, newName string) error {
 	return nil
 }
 
+// TableAlteration represents table alteration.
 type TableAlteration struct {
 	Type      AlterationType
 	Column    *Column
@@ -187,17 +198,25 @@ type TableAlteration struct {
 	IndexDef  *Index
 }
 
+// AlterationType represents alteration type.
 type AlterationType int
 
 const (
+	// AddColumn is a constant value for add column.
 	AddColumn AlterationType = iota
+	// DropColumn is a constant value for drop column.
 	DropColumn
+	// ModifyColumn is a constant value for modify column.
 	ModifyColumn
+	// RenameColumn is a constant value for rename column.
 	RenameColumn
+	// AddIndex is a constant value for add index.
 	AddIndex
+	// DropIndex is a constant value for drop index.
 	DropIndex
 )
 
+// AlterTable performs the alter table operation.
 func (c *Catalog) AlterTable(
 	schemaName, tableName string,
 	alteration TableAlteration,
@@ -282,6 +301,7 @@ func (c *Catalog) getTableUnsafe(schemaName, tableName string) (*Table, error) {
 	return table, nil
 }
 
+// ListTables performs the list tables operation.
 func (c *Catalog) ListTables(schemaName string) ([]*Table, error) {
 	schema, err := c.GetSchema(schemaName)
 	if err != nil {
@@ -296,6 +316,7 @@ func (c *Catalog) ListTables(schemaName string) ([]*Table, error) {
 	return tables, nil
 }
 
+// AddEnum performs the add enum operation.
 func (c *Catalog) AddEnum(schemaName string, enum *Enum) error {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()

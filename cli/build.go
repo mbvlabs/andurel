@@ -178,6 +178,7 @@ type shellCommand struct {
 	Args []string
 }
 
+// String returns the shell command as it should be displayed.
 func (c shellCommand) String() string {
 	return strings.Join(append([]string{c.Name}, c.Args...), " ")
 }

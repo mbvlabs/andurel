@@ -15,6 +15,7 @@ import (
 //go:embed templates/*/*.tmpl
 var Files embed.FS
 
+// TemplateData exposes scaffold data to extension templates and blueprints.
 type TemplateData interface {
 	DatabaseDialect() string
 	GetModuleName() string
@@ -23,8 +24,10 @@ type TemplateData interface {
 	SetBlueprint(bp *blueprint.Blueprint)
 }
 
+// ProcessTemplateFunc renders an extension template into a target file.
 type ProcessTemplateFunc func(templateFile, targetPath string, data TemplateData) error
 
+// Context carries state and callbacks for applying an extension.
 type Context struct {
 	TargetDir         string
 	Data              TemplateData
@@ -43,6 +46,7 @@ func (ctx *Context) Builder() *blueprint.Builder {
 	return ctx.Data.Builder()
 }
 
+// Extension adds files, blueprint entries, or post-processing steps to a scaffold.
 type Extension interface {
 	Name() string
 	Apply(ctx *Context) error
@@ -54,6 +58,7 @@ var (
 	registry   = map[string]Extension{}
 )
 
+// Register adds an extension to the global registry.
 func Register(ext Extension) error {
 	registryMu.Lock()
 	defer registryMu.Unlock()
@@ -75,6 +80,7 @@ func Register(ext Extension) error {
 	return nil
 }
 
+// Get returns a registered extension by name.
 func Get(name string) (Extension, bool) {
 	registryMu.RLock()
 	defer registryMu.RUnlock()
@@ -83,6 +89,7 @@ func Get(name string) (Extension, bool) {
 	return ext, ok
 }
 
+// Names returns all registered extension names in sorted order.
 func Names() []string {
 	registryMu.RLock()
 	defer registryMu.RUnlock()

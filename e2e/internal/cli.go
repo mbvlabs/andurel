@@ -9,12 +9,14 @@ import (
 	"testing"
 )
 
+// RunCLI runs CLI.
 func RunCLI(t *testing.T, binary, workDir string, env []string, args ...string) error {
 	t.Helper()
 
 	return RunCommand(t, binary, workDir, env, args...)
 }
 
+// RunCommand runs command.
 func RunCommand(t *testing.T, cmdName, workDir string, env []string, args ...string) error {
 	t.Helper()
 
@@ -57,6 +59,7 @@ func runCommandInternal(t *testing.T, cmdName, workDir string, env []string, log
 	return nil
 }
 
+// RunCommandOutput runs command output.
 func RunCommandOutput(t *testing.T, cmdName, workDir string, env []string, args ...string) (string, error) {
 	t.Helper()
 

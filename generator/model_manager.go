@@ -13,6 +13,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
+// ModelManager coordinates model operations.
 type ModelManager struct {
 	validator        *InputValidator
 	fileManager      files.Manager
@@ -32,6 +33,7 @@ type modelSetupContext struct {
 	PluralName   string
 }
 
+// NewModelManager creates a new model manager.
 func NewModelManager(
 	validator *InputValidator,
 	fileManager files.Manager,
@@ -51,6 +53,7 @@ func NewModelManager(
 	}
 }
 
+// SetPrimaryKeyResolver overrides primary key resolution during model generation.
 func (m *ModelManager) SetPrimaryKeyResolver(resolver PrimaryKeyResolver) {
 	m.pkResolver = resolver
 }
@@ -98,6 +101,7 @@ func (m *ModelManager) setupModelContext(
 	}, nil
 }
 
+// GenerateModel generates model files for a resource from project migrations.
 func (m *ModelManager) GenerateModel(
 	resourceName string,
 	tableNameOverride string,

@@ -14,16 +14,19 @@ import (
 	"strings"
 )
 
+// ToolDownloader represents tool downloader.
 type ToolDownloader struct {
 	Name    string
 	Module  string
 	Version string
 }
 
+// ErrFailedToGetRleaseURL is returned when failed to get release URL.
 var ErrFailedToGetRleaseURL = fmt.Errorf("failed to get release URL")
 
 var downloadFileFunc = downloadFile
 
+// DownloadFromURLTemplate downloads from URL template.
 func DownloadFromURLTemplate(
 	name,
 	version,
@@ -49,6 +52,7 @@ func DownloadFromURLTemplate(
 	return DownloadFromURL(name, url, archiveType, binaryName, destPath)
 }
 
+// DownloadFromURL downloads from URL.
 func DownloadFromURL(name, url, archiveType, binaryName, destPath string) error {
 	if archiveType == "binary" {
 		if err := downloadFileFunc(url, destPath); err != nil {
@@ -115,6 +119,7 @@ func normalizeTailwindArch(goarch string) string {
 	return goarch
 }
 
+// DownloadGoTool downloads go tool.
 func DownloadGoTool(name, module, version, goos, goarch, destPath string) error {
 	downloader := &ToolDownloader{
 		Name:    name,
@@ -196,6 +201,7 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 	}
 }
 
+// DownloadTailwindCLI downloads tailwind CLI.
 func DownloadTailwindCLI(version, goos, goarch, destPath string) error {
 	osName := goos
 	if osName == "darwin" {
@@ -422,6 +428,7 @@ func mapArch(goarch string) string {
 	}
 }
 
+// GetPlatform returns platform.
 func GetPlatform() (string, string) {
 	return runtime.GOOS, runtime.GOARCH
 }

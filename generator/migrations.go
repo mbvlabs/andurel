@@ -10,12 +10,15 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/migrations"
 )
 
+// MigrationManager coordinates migration operations.
 type MigrationManager struct{}
 
+// NewMigrationManager creates a new migration manager.
 func NewMigrationManager() *MigrationManager {
 	return &MigrationManager{}
 }
 
+// BuildCatalogFromMigrations performs the build catalog from migrations operation.
 func (mm *MigrationManager) BuildCatalogFromMigrations(
 	tableName string,
 	config *UnifiedConfig,

@@ -13,6 +13,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
+// TemplateRenderer represents template renderer.
 type TemplateRenderer struct {
 	service *templates.TemplateService
 }
@@ -47,12 +48,14 @@ func customRouteActions(actions []string) []customRouteAction {
 	return customActions
 }
 
+// NewTemplateRenderer creates a new template renderer.
 func NewTemplateRenderer() *TemplateRenderer {
 	return &TemplateRenderer{
 		service: templates.GetGlobalTemplateService(),
 	}
 }
 
+// RenderControllerFile performs the render controller file operation.
 func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController, inertia string) (string, error) {
 	if controller.ModelName == "" {
 		controller.ModelName = controller.ResourceName

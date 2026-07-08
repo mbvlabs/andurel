@@ -2,12 +2,15 @@ package extensions
 
 import "fmt"
 
+// AwsSes adds AWS SES email client support to a scaffolded project.
 type AwsSes struct{}
 
+// Name returns the extension name used in lock files and CLI flags.
 func (e AwsSes) Name() string {
 	return "aws-ses"
 }
 
+// Apply adds AWS SES configuration, providers, and client files.
 func (e AwsSes) Apply(ctx *Context) error {
 	if ctx == nil || ctx.Data == nil {
 		return fmt.Errorf("aws-ses: context or data is nil")
@@ -37,6 +40,7 @@ func (e AwsSes) Apply(ctx *Context) error {
 	return nil
 }
 
+// Dependencies returns extension names that must be applied first.
 func (e AwsSes) Dependencies() []string {
 	return nil
 }

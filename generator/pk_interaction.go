@@ -11,6 +11,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/validation"
 )
 
+// PrimaryKeyInfo represents primary key info.
 type PrimaryKeyInfo struct {
 	ColumnName      string // SQL column name (e.g., "id", "user_id")
 	GoFieldName     string // Go struct field name (e.g., "ID", "UserID")
@@ -21,13 +22,16 @@ type PrimaryKeyInfo struct {
 	IsNamedID       bool // Whether the PK column is named "id"
 }
 
+// PrimaryKeyResolver represents primary key resolver.
 type PrimaryKeyResolver interface {
 	ResolveAlternatePK(info PrimaryKeyInfo, tableName string) (PrimaryKeyInfo, error)
 	ConfirmNoPK(tableName string) (bool, error)
 }
 
+// DefaultPrimaryKeyResolver represents default primary key resolver.
 type DefaultPrimaryKeyResolver struct{}
 
+// ResolveAlternatePK resolves alternate primary key.
 func (DefaultPrimaryKeyResolver) ResolveAlternatePK(info PrimaryKeyInfo, tableName string) (PrimaryKeyInfo, error) {
 	fmt.Printf("\nDetected primary key for table %q:\n", tableName)
 	fmt.Printf("  Column: %s (%s)\n", info.ColumnName, info.DataType)
@@ -48,6 +52,7 @@ func (DefaultPrimaryKeyResolver) ResolveAlternatePK(info PrimaryKeyInfo, tableNa
 	return info, fmt.Errorf("generation aborted: primary key not confirmed by user")
 }
 
+// ConfirmNoPK performs the confirm no primary key operation.
 func (DefaultPrimaryKeyResolver) ConfirmNoPK(tableName string) (bool, error) {
 	fmt.Printf("\nTable %q has no primary key defined.\n", tableName)
 	fmt.Print("Generate model without primary key? (only Create/All/Paginate will be generated) [y/N]: ")
@@ -62,16 +67,20 @@ func (DefaultPrimaryKeyResolver) ConfirmNoPK(tableName string) (bool, error) {
 	return response == "y" || response == "yes", nil
 }
 
+// NopPrimaryKeyResolver represents nop primary key resolver.
 type NopPrimaryKeyResolver struct{}
 
+// ResolveAlternatePK resolves alternate primary key.
 func (NopPrimaryKeyResolver) ResolveAlternatePK(info PrimaryKeyInfo, _ string) (PrimaryKeyInfo, error) {
 	return info, nil
 }
 
+// ConfirmNoPK performs the confirm no primary key operation.
 func (NopPrimaryKeyResolver) ConfirmNoPK(_ string) (bool, error) {
 	return true, nil
 }
 
+// DetectPrimaryKey detects primary key.
 func DetectPrimaryKey(cat *catalog.Catalog, tableName string) PrimaryKeyInfo {
 	table, err := cat.GetTable("", tableName)
 	if err != nil {

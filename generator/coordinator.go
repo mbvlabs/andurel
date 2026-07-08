@@ -9,6 +9,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
+// Coordinator wires the managers that implement high-level generation workflows.
 type Coordinator struct {
 	ModelManager      *ModelManager
 	ControllerManager *ControllerManager
@@ -18,6 +19,7 @@ type Coordinator struct {
 	config            *UnifiedConfig
 }
 
+// NewCoordinator creates a new coordinator.
 func NewCoordinator() (Coordinator, error) {
 	projectManager, err := NewProjectManager()
 	if err != nil {
@@ -80,10 +82,12 @@ func (c *Coordinator) GenerateController(resourceName, namespace, tableName stri
 	return c.GenerateControllerWithActions(resourceName, namespace, tableName, nil, inertia, isAPI)
 }
 
+// GenerateControllerWithActions generates a controller and views for selected actions.
 func (c *Coordinator) GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string, isAPI bool) error {
 	return c.GenerateControllerWithActionsForModel(resourceName, namespace, resourceName, tableName, actions, inertia, isAPI)
 }
 
+// GenerateControllerWithActionsForModel generates a controller and views when resource and model names differ.
 func (c *Coordinator) GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string, isAPI bool) error {
 	if modelName == "" {
 		modelName = resourceName

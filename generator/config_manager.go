@@ -208,6 +208,7 @@ func (uc *UnifiedConfig) GetViewConfig() ViewConfig {
 	}
 }
 
+// ModelConfig configures model.
 type ModelConfig struct {
 	TableName    string           `json:"table_name"`
 	ResourceName string           `json:"resource_name"`
@@ -218,10 +219,12 @@ type ModelConfig struct {
 	Generation   GenerationConfig `json:"generation"`
 }
 
+// ModelPaths represents model paths.
 type ModelPaths struct {
 	Models string `json:"models"`
 }
 
+// ControllerConfig configures controller.
 type ControllerConfig struct {
 	ResourceName string          `json:"resource_name"`
 	PluralName   string          `json:"plural_name"`
@@ -230,11 +233,13 @@ type ControllerConfig struct {
 	Paths        ControllerPaths `json:"paths"`
 }
 
+// ControllerPaths represents controller paths.
 type ControllerPaths struct {
 	Controllers string `json:"controllers"`
 	Routes      string `json:"routes"`
 }
 
+// ViewConfig configures view.
 type ViewConfig struct {
 	ResourceName string    `json:"resource_name"`
 	PluralName   string    `json:"plural_name"`
@@ -242,6 +247,7 @@ type ViewConfig struct {
 	Paths        ViewPaths `json:"paths"`
 }
 
+// ViewPaths represents view paths.
 type ViewPaths struct {
 	Views string `json:"views"`
 }

@@ -12,13 +12,17 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
+// ControllerType identifies the shape of controller being generated.
 type ControllerType int
 
 const (
+	// ResourceController generates a REST-style resource controller.
 	ResourceController ControllerType = iota
+	// NormalController generates a non-resource controller.
 	NormalController
 )
 
+// GeneratedField describes one controller field derived from a database column.
 type GeneratedField struct {
 	Name          string
 	GoType        string
@@ -29,6 +33,7 @@ type GeneratedField struct {
 	IsPointer     bool
 }
 
+// GeneratedController contains the template data for generated controllers.
 type GeneratedController struct {
 	ResourceName            string
 	ModelName               string
@@ -53,6 +58,7 @@ type GeneratedController struct {
 	IsAPI                   bool // Generate JSON API controller under controllers/api
 }
 
+// Config controls controller generation for a resource.
 type Config struct {
 	ResourceName             string
 	ModelName                string
@@ -71,11 +77,13 @@ type Config struct {
 	IsAPI                    bool // Controller is JSON API
 }
 
+// Generator builds controller template data and writes controller files.
 type Generator struct {
 	typeMapper  *types.TypeMapper
 	fileManager files.Manager
 }
 
+// NewGenerator creates a new generator.
 func NewGenerator(databaseType string) *Generator {
 	return &Generator{
 		typeMapper:  types.NewTypeMapper(databaseType),
@@ -83,10 +91,12 @@ func NewGenerator(databaseType string) *Generator {
 	}
 }
 
+// SetNullType sets null type.
 func (g *Generator) SetNullType(nullType string) {
 	g.typeMapper.NullType = nullType
 }
 
+// Build converts catalog metadata and config into generated controller data.
 func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedController, error) {
 	modelName := config.ModelName
 	if modelName == "" {

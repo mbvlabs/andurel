@@ -9,6 +9,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 )
 
+// ApplyDDL applies d d l.
 func ApplyDDL(
 	catalog *catalog.Catalog,
 	sql string,

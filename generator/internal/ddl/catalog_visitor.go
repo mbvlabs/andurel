@@ -7,12 +7,14 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 )
 
+// CatalogVisitor visits catalog data.
 type CatalogVisitor struct {
 	catalog       *catalog.Catalog
 	migrationFile string
 	databaseType  string
 }
 
+// NewCatalogVisitor creates a new catalog visitor.
 func NewCatalogVisitor(cat *catalog.Catalog, migrationFile, databaseType string) *CatalogVisitor {
 	return &CatalogVisitor{
 		catalog:       cat,
@@ -21,6 +23,7 @@ func NewCatalogVisitor(cat *catalog.Catalog, migrationFile, databaseType string)
 	}
 }
 
+// VisitCreateTable performs the visit create table operation.
 func (v *CatalogVisitor) VisitCreateTable(stmt *CreateTableStatement) error {
 	schemaName := stmt.SchemaName
 	if schemaName == "" {
@@ -50,6 +53,7 @@ func (v *CatalogVisitor) VisitCreateTable(stmt *CreateTableStatement) error {
 	return v.catalog.AddTable(schemaName, table)
 }
 
+// VisitAlterTable performs the visit alter table operation.
 func (v *CatalogVisitor) VisitAlterTable(stmt *AlterTableStatement) error {
 	schemaName := stmt.SchemaName
 	if schemaName == "" {
@@ -160,6 +164,7 @@ func (v *CatalogVisitor) applyMultipleOperations(schemaName, tableName string, o
 	return nil
 }
 
+// VisitDropTable performs the visit drop table operation.
 func (v *CatalogVisitor) VisitDropTable(stmt *DropTableStatement) error {
 	schemaName := stmt.SchemaName
 	if schemaName == "" {
@@ -173,22 +178,27 @@ func (v *CatalogVisitor) VisitCreateIndex(stmt *CreateIndexStatement) error {
 	return nil
 }
 
+// VisitDropIndex performs the visit drop index operation.
 func (v *CatalogVisitor) VisitDropIndex(stmt *DropIndexStatement) error {
 	return nil
 }
 
+// VisitCreateSchema performs the visit create schema operation.
 func (v *CatalogVisitor) VisitCreateSchema(stmt *CreateSchemaStatement) error {
 	return nil
 }
 
+// VisitDropSchema performs the visit drop schema operation.
 func (v *CatalogVisitor) VisitDropSchema(stmt *DropSchemaStatement) error {
 	return nil
 }
 
+// VisitCreateEnum performs the visit create enum operation.
 func (v *CatalogVisitor) VisitCreateEnum(stmt *CreateEnumStatement) error {
 	return nil
 }
 
+// VisitDropEnum performs the visit drop enum operation.
 func (v *CatalogVisitor) VisitDropEnum(stmt *DropEnumStatement) error {
 	return nil
 }
