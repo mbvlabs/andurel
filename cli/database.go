@@ -25,6 +25,29 @@ type seedReport struct {
 	Output []string `json:"output,omitempty"`
 }
 
+type commandOutputRunner func(rootDir string, args []string, stdin io.Reader, stdout, stderr io.Writer) ([]byte, error)
+
+var runSeedCommandOutput commandOutputRunner = func(rootDir string, args []string, stdin io.Reader, stdout, stderr io.Writer) ([]byte, error) {
+	runCmd := exec.Command("go", args...)
+	runCmd.Stdin = stdin
+	runCmd.Dir = rootDir
+	if stdout != nil || stderr != nil {
+		runCmd.Stdout = stdout
+		runCmd.Stderr = stderr
+		return nil, runCmd.Run()
+	}
+	return runCmd.CombinedOutput()
+}
+
+var runGooseCommand = func(rootDir, goosePath string, args []string) error {
+	cmd := exec.Command(goosePath, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Dir = rootDir
+	return cmd.Run()
+}
+
 func newDatabaseCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "database",
@@ -353,21 +376,16 @@ func runSeed(cmd *cobra.Command, name string, list bool) error {
 		goArgs = append(goArgs, name)
 	}
 
-	runCmd := exec.Command("go", goArgs...)
-	runCmd.Stdin = os.Stdin
-	runCmd.Dir = rootDir
-
 	opts, err := output.ParseOptions(cmd)
 	if err != nil {
 		return err
 	}
 	if !output.UsesStructuredOutput(opts) {
-		runCmd.Stdout = os.Stdout
-		runCmd.Stderr = os.Stderr
-		return runCmd.Run()
+		_, err := runSeedCommandOutput(rootDir, goArgs, os.Stdin, os.Stdout, os.Stderr)
+		return err
 	}
 
-	out, err := runCmd.CombinedOutput()
+	out, err := runSeedCommandOutput(rootDir, goArgs, os.Stdin, nil, nil)
 	lines := splitNonEmptyLines(string(out))
 	if err != nil {
 		return output.WrapError(
@@ -436,13 +454,7 @@ func runGoose(args ...string) error {
 
 	gooseArgs := append([]string{"-dir", migrationDir, driver, dbString}, args...)
 
-	cmd := exec.Command(goosePath, gooseArgs...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	cmd.Dir = rootDir
-
-	return cmd.Run()
+	return runGooseCommand(rootDir, goosePath, gooseArgs)
 }
 
 type dbConfig struct {

@@ -430,7 +430,7 @@ func customOptionOverrides(src string, factory *models.GeneratedFactory, expecte
 	return overrides
 }
 
-func customFactoryDecls(src string, factory *models.GeneratedFactory, expectedOptions map[string]bool) (string, []string, error) {
+func customFactoryDecls(src string, factory *models.GeneratedFactory, _ map[string]bool) (string, []string, error) {
 	if src == "" {
 		return "", nil, nil
 	}
@@ -454,7 +454,7 @@ func customFactoryDecls(src string, factory *models.GeneratedFactory, expectedOp
 		}
 		start := fset.Position(decl.Pos()).Offset
 		end := fset.Position(decl.End()).Offset
-		if offsetInRanges(start, ranges) || isGeneratedFactoryDecl(decl, factory, expectedOptions) {
+		if offsetInRanges(start, ranges) || isGeneratedFactoryDecl(decl, factory) {
 			continue
 		}
 		custom.WriteString(strings.TrimSpace(src[start:end]))
@@ -463,14 +463,13 @@ func customFactoryDecls(src string, factory *models.GeneratedFactory, expectedOp
 	return custom.String(), imports, nil
 }
 
-func isGeneratedFactoryDecl(decl ast.Decl, factory *models.GeneratedFactory, expectedOptions map[string]bool) bool {
+func isGeneratedFactoryDecl(decl ast.Decl, factory *models.GeneratedFactory) bool {
 	switch d := decl.(type) {
 	case *ast.FuncDecl:
 		name := d.Name.Name
 		return name == "Build"+factory.ModelName ||
 			name == "Create"+factory.ModelName ||
-			name == "Create"+factory.ModelName+"s" ||
-			expectedOptions[name]
+			name == "Create"+factory.ModelName+"s"
 	case *ast.GenDecl:
 		for _, spec := range d.Specs {
 			typeSpec, ok := spec.(*ast.TypeSpec)
