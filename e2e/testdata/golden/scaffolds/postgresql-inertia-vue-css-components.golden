@@ -11659,6 +11659,16 @@ type Processor struct {
 	Client *river.Client[*sql.Tx]
 }
 
+const periodicJobsGroup = `group:"periodic_jobs"`
+
+type ProcessorParams struct {
+	fx.In
+
+	DB           storage.Pool
+	Workers      *river.Workers
+	PeriodicJobs []*river.PeriodicJob `group:"periodic_jobs"`
+}
+
 func (p Processor) Shutdown(ctx context.Context) error {
 	return p.Client.Stop(ctx)
 }
@@ -11671,16 +11681,14 @@ func (p Processor) Stop(ctx context.Context) error {
 	return p.Client.Stop(ctx)
 }
 
-func NewProcessor(
-	db storage.Pool,
-	workers *river.Workers,
-) (Processor, error) {
-	riverClient, err := river.NewClient(riverdatabasesql.New(db.Conn()), &river.Config{
+func NewProcessor(params ProcessorParams) (Processor, error) {
+	riverClient, err := river.NewClient(riverdatabasesql.New(params.DB.Conn()), &river.Config{
+		PeriodicJobs: params.PeriodicJobs,
 		Queues: map[string]river.QueueConfig{
 			river.QueueDefault: {MaxWorkers: 100},
 		},
 		Logger:  slog.Default(),
-		Workers: workers,
+		Workers: params.Workers,
 	})
 	if err != nil {
 		return Processor{}, err
