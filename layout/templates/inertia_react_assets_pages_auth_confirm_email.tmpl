@@ -1,5 +1,4 @@
 import { useForm } from '@inertiajs/react'
-import type { FormEvent } from 'react'
 
 import Layout, { errorTextClass, inputClass, labelClass, panelClass, panelCopyClass, panelTitleClass, primaryButtonClass } from '../../Layouts/Layout'
 import { routes } from '../../routes'
@@ -11,7 +10,7 @@ type ConfirmEmailProps = {
 export default function ConfirmEmail({ errors = {} }: ConfirmEmailProps) {
   const form = useForm({ code: '' })
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: SubmitEvent) {
     event.preventDefault()
     form.post(routes.confirmationCreate())
   }
@@ -24,7 +23,7 @@ export default function ConfirmEmail({ errors = {} }: ConfirmEmailProps) {
           <p className={panelCopyClass}>Please enter the 6-digit verification code sent to your email.</p>
         </div>
         <div className="p-6">
-          <form onSubmit={submit} className="space-y-5">
+          <form onSubmit={(event) => submit(event.nativeEvent as SubmitEvent)} className="space-y-5">
             <div className="space-y-1">
               <label className={labelClass} htmlFor="code">Verification Code</label>
               <input id="code" type="text" maxLength={6} value={form.data.code} onChange={(event) => form.setData('code', event.target.value)} className={`${inputClass} text-center tracking-[0.3em]`} required />

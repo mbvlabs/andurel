@@ -292,6 +292,70 @@ func viewDataDefinition(view *GeneratedView) string {
 	return b.String()
 }
 
+func inertiaUsesForm(componentName string) bool {
+	return componentName == "Create" || componentName == "Edit"
+}
+
+func inertiaNeedsItem(componentName string) bool {
+	return componentName == "Index" || componentName == "Show" || componentName == "Edit"
+}
+
+func inertiaReactFieldType(field ViewField) string {
+	switch field.GoFormType {
+	case "bool":
+		return "boolean"
+	case "int16", "int32", "int64", "float32", "float64":
+		return "number"
+	default:
+		return "string"
+	}
+}
+
+func inertiaReactCreateValue(field ViewField) string {
+	switch inertiaReactFieldType(field) {
+	case "boolean":
+		return "false"
+	case "number":
+		return "0"
+	default:
+		return "''"
+	}
+}
+
+func inertiaReactEditValue(field ViewField) string {
+	switch inertiaReactFieldType(field) {
+	case "boolean":
+		return "Boolean(item." + field.Name + ")"
+	case "number":
+		return "Number(item." + field.Name + " ?? 0)"
+	default:
+		value := "String(item." + field.Name + " ?? '')"
+		if field.InputType == "date" {
+			value += ".slice(0, 10)"
+		}
+		return value
+	}
+}
+
+func inertiaReactInputValue(field ViewField) string {
+	switch inertiaReactFieldType(field) {
+	case "boolean":
+		return "event.currentTarget.checked"
+	case "number":
+		return "Number(event.currentTarget.value)"
+	default:
+		return "event.currentTarget.value"
+	}
+}
+
+func inertiaReactDisplay(field ViewField, objRef string) string {
+	ref := objRef + "." + field.Name
+	if inertiaReactFieldType(field) == "boolean" {
+		return ref + " ? 'Yes' : 'No'"
+	}
+	return ref
+}
+
 func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 	goType, _, err := g.typeMapper.MapSQLTypeToGo(col.DataType, col.IsNullable)
 	if err != nil {
@@ -494,6 +558,13 @@ func (g *Generator) GenerateInertiaViewFiles(view *GeneratedView, templatePrefix
 			}
 			return slices.Contains(view.Actions, action)
 		},
+		"InertiaUsesForm":  inertiaUsesForm,
+		"InertiaNeedsItem": inertiaNeedsItem,
+		"ReactFieldType":   inertiaReactFieldType,
+		"ReactCreateValue": inertiaReactCreateValue,
+		"ReactEditValue":   inertiaReactEditValue,
+		"ReactInputValue":  inertiaReactInputValue,
+		"ReactDisplay":     inertiaReactDisplay,
 		"InertiaRouteHelper": func(action string) string {
 			return naming.ToLowerCamelCase(view.NamespacePascal + view.ResourceName + naming.ToPascalCase(action))
 		},

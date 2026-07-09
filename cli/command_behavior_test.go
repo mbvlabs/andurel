@@ -356,6 +356,69 @@ func TestGenerateControllerMapsModelName(t *testing.T) {
 	}
 }
 
+func TestGenerateControllerInertiaRefreshesRoutesTSForCustomActions(t *testing.T) {
+	resetCLITestSeams(t)
+	rootDir := t.TempDir()
+	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
+
+	lock := layout.NewAndurelLock("test")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName: "app",
+		Database:    "postgresql",
+		Inertia:     "react",
+	}
+	if err := lock.WriteLockFile(rootDir); err != nil {
+		t.Fatalf("write andurel.lock: %v", err)
+	}
+
+	findGoModRoot = func() (string, error) {
+		return rootDir, nil
+	}
+	generateControllerWithActionsFunc = func(name, modelName string, actions []string, inertia string, isAPI bool) error {
+		if name != "Widget" || modelName != "" || inertia != "react" || isAPI {
+			t.Fatalf("unexpected controller call: name=%q model=%q inertia=%q api=%v", name, modelName, inertia, isAPI)
+		}
+		if !reflect.DeepEqual(actions, []string{"export"}) {
+			t.Fatalf("unexpected actions: %#v", actions)
+		}
+		writeCLITestFile(t, rootDir, "router/routes/widgets.go", `package routes
+
+import "example.com/app/internal/routing"
+
+const WidgetPrefix = "/widgets"
+
+var WidgetExport = routing.NewSimpleRoute(
+	"/export",
+	"widgets.export",
+	WidgetPrefix,
+)
+`)
+		return nil
+	}
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(rootDir); err != nil {
+		t.Fatalf("chdir temp project: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	var stdout, stderr bytes.Buffer
+	cmd := NewRootCommand("test", "test-date")
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stderr)
+	cmd.SetArgs([]string{"generate", "controller", "Widget", "export", "--inertia"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("generate controller failed: %v\nstderr:\n%s", err, stderr.String())
+	}
+
+	assertCLITestFileContains(t, rootDir, filepath.Join("resources", "js", "routes.ts"), "widgetExport: () => '/widgets/export'")
+}
+
 func TestGenerateFactoryCommandsMapOptionsAndReportDrift(t *testing.T) {
 	resetCLITestSeams(t)
 	fake := installFakeGenerator(t)
