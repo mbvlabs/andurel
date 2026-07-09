@@ -62,7 +62,7 @@ The core philosophy around resource generation in andurel, is that it should be 
 ### Installation
 
 ```bash
-go install github.com/mbvlabs/andurel@v1.0.0-rc.2
+go install github.com/mbvlabs/andurel@v1.0.0-rc.3
 ```
 
 ### Create Your First Project
