@@ -6,9 +6,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/generator"
+	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/spf13/cobra"
 )
@@ -18,6 +20,37 @@ type cliTestResult struct {
 	stdout string
 	stderr string
 	err    error
+}
+
+func validTestDownload(binaryName string) *layout.ToolDownload {
+	return &layout.ToolDownload{
+		URLTemplate: "https://example.invalid/{{version}}/" + binaryName,
+		Archive:     "binary",
+		BinaryName:  binaryName,
+		SHA256: map[string]string{
+			"linux/amd64":  strings.Repeat("1", 64),
+			"linux/arm64":  strings.Repeat("2", 64),
+			"darwin/amd64": strings.Repeat("3", 64),
+			"darwin/arm64": strings.Repeat("4", 64),
+		},
+	}
+}
+
+func validTestTool(name, version string) *layout.Tool {
+	return &layout.Tool{
+		Version:      version,
+		Download:     validTestDownload(name),
+		VersionCheck: &layout.VersionCheck{Args: []string{"--version"}},
+	}
+}
+
+func testChecksumArguments() []string {
+	return []string{
+		"linux/amd64=" + strings.Repeat("1", 64),
+		"linux/arm64=" + strings.Repeat("2", 64),
+		"darwin/amd64=" + strings.Repeat("3", 64),
+		"darwin/arm64=" + strings.Repeat("4", 64),
+	}
 }
 
 func runCLITest(t *testing.T, args ...string) cliTestResult {
@@ -110,6 +143,7 @@ func resetCLITestSeams(t *testing.T) {
 	defaultGenerateController := generateControllerWithActionsFunc
 	defaultSyncSingleTool := syncSingleToolFunc
 	defaultDownloadFromLockTool := downloadFromLockToolFunc
+	defaultInstallToolVersionAndLock := installToolVersionAndLockFunc
 	defaultNewUpgrader := newUpgraderFunc
 	defaultOpenAdminConnection := openAdminConnectionFunc
 	defaultRunGoose := runGooseFunc
@@ -127,6 +161,7 @@ func resetCLITestSeams(t *testing.T) {
 		generateControllerWithActionsFunc = defaultGenerateController
 		syncSingleToolFunc = defaultSyncSingleTool
 		downloadFromLockToolFunc = defaultDownloadFromLockTool
+		installToolVersionAndLockFunc = defaultInstallToolVersionAndLock
 		newUpgraderFunc = defaultNewUpgrader
 		openAdminConnectionFunc = defaultOpenAdminConnection
 		runGooseFunc = defaultRunGoose

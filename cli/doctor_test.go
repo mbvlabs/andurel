@@ -110,7 +110,7 @@ func TestDoctorLockAndVersionChecks(t *testing.T) {
 	}
 
 	lock := layout.NewAndurelLock("v1.2.3")
-	lock.Tools["templ"] = layout.NewBinaryTool("templ", "v0.3.1")
+	lock.Tools["templ"] = validTestTool("templ", "v0.3.1")
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
@@ -285,6 +285,18 @@ func TestDoctorVersionCommandHelpers(t *testing.T) {
 	if version != "v1.2.3" {
 		t.Fatalf("tool version = %q", version)
 	}
+	writeExecutable(t, root, "bin/custom", "#!/bin/sh\necho release-build-42\n")
+	customVersion, err := getToolVersion(
+		"bin/custom",
+		&layout.VersionCheck{Args: []string{"--version"}, Regexp: `release-build-([0-9]+)`},
+		"custom",
+	)
+	if err != nil {
+		t.Fatalf("configured regexp: %v", err)
+	}
+	if customVersion != "42" {
+		t.Fatalf("configured regexp version = %q", customVersion)
+	}
 
 	if _, err := versionFromCommand("bin/tool", nil, "tool"); err == nil {
 		t.Fatalf("expected missing version check error")
@@ -346,7 +358,7 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 		t.Fatalf("codeGenerationChecks = %#v", got)
 	}
 
-	lock.ScaffoldConfig = &layout.ScaffoldConfig{Inertia: "react"}
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "app", Database: "postgresql", Inertia: "react"}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write inertia lock: %v", err)
 	}
@@ -410,9 +422,9 @@ func TestDoctorToolVersionMismatchesAndUnknowns(t *testing.T) {
 	writeExecutable(t, root, "bin/templ", "#!/bin/sh\necho templ v0.1.0\n")
 	writeExecutable(t, root, "bin/goose", "#!/bin/sh\necho no version here\n")
 	lock := layout.NewAndurelLock("v1.2.3")
-	lock.Tools["templ"] = &layout.Tool{Version: "v9.9.9", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}}
-	lock.Tools["goose"] = &layout.Tool{Version: "v1.0.0", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}}
-	lock.Tools["mailpit"] = &layout.Tool{Version: "v1.0.0", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}}
+	lock.Tools["templ"] = &layout.Tool{Version: "v9.9.9", Path: "bin/templ", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}}
+	lock.Tools["goose"] = &layout.Tool{Version: "v1.0.0", Path: "bin/goose", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}}
+	lock.Tools["mailpit"] = &layout.Tool{Version: "v1.0.0", Path: "bin/mailpit", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}

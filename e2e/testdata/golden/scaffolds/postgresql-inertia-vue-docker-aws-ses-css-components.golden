@@ -1141,11 +1141,18 @@ file -----------rw-r--r-- andurel.lock
     "javascriptRuntime": "npm",
     "projectName": "testapp"
   },
+  "schemaVersion": 1,
   "tools": {
     "dblab": {
       "download": {
         "archive": "tar.gz",
         "binaryName": "dblab",
+        "sha256": {
+          "darwin/amd64": "9070295d6f75e9cd5c015c3624c4fdf081711c16d44775d87aaeff44febe086a",
+          "darwin/arm64": "99322f9e494a4b17a65d1c3618c7cad5694387325749be82255aa6afa2c0cdf5",
+          "linux/amd64": "5672260f7230cda2a8a464480d80a5c08fba5e48ccc637cd709ade2c19bd1509",
+          "linux/arm64": "516487b248472edac79bd3a0c6a5b3a78a4bbef5990876bb4b9a1176c3252b1b"
+        },
         "urlTemplate": "https://github.com/danvergara/dblab/releases/download/{{version}}/dblab_{{version_no_v}}_{{os}}_{{arch}}.tar.gz"
       },
       "source": "github.com/danvergara/dblab",
@@ -1153,13 +1160,20 @@ file -----------rw-r--r-- andurel.lock
       "versionCheck": {
         "args": [
           "--version"
-        ]
+        ],
+        "regexp": "v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)"
       }
     },
     "goose": {
       "download": {
         "archive": "binary",
         "binaryName": "goose",
+        "sha256": {
+          "darwin/amd64": "24f3b4dc3c792a7afba348de12245af8b4199cfd0ac6a673f7ab483b2ad48f08",
+          "darwin/arm64": "d7867b7a9d1117024b17afdb043c573909e595d2c29dcee13bd96c341eb98ff2",
+          "linux/amd64": "c5f1e5cd3b8e5da05592c2714b079d78ec846ddc7ec1f70d474c0449e79f6ab4",
+          "linux/arm64": "638af56b2ed33ff33cc3f30447f447b1c8e5894c6252fbda1e459adec94ba0fe"
+        },
         "urlTemplate": "https://github.com/pressly/goose/releases/download/{{version}}/goose_{{os}}_{{arch_x86_64}}"
       },
       "source": "github.com/pressly/goose",
@@ -1167,13 +1181,20 @@ file -----------rw-r--r-- andurel.lock
       "versionCheck": {
         "args": [
           "--version"
-        ]
+        ],
+        "regexp": "v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)"
       }
     },
     "mailpit": {
       "download": {
         "archive": "tar.gz",
         "binaryName": "mailpit",
+        "sha256": {
+          "darwin/amd64": "6aabc9576350b98eed9d6d96427fec092361415c6a7c094842cba5773716a5b3",
+          "darwin/arm64": "05b92a4b804c34b0f6e665a482a1141be64256f500ecf23a204c2084a27a248b",
+          "linux/amd64": "63b113aa9748adf7091b649ebe02693f99a459000cbe415faa6679f4b39f82cf",
+          "linux/arm64": "b159574f32e527f34624e5683f79859258360179268a8fac0f3030f74ca6bb96"
+        },
         "urlTemplate": "https://github.com/axllent/mailpit/releases/download/{{version}}/mailpit-{{os}}-{{arch}}.tar.gz"
       },
       "source": "github.com/axllent/mailpit",
@@ -1182,40 +1203,61 @@ file -----------rw-r--r-- andurel.lock
         "args": [
           "version",
           "--no-release-check"
-        ]
+        ],
+        "regexp": "v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)"
       }
     },
     "shadowfax": {
       "download": {
         "archive": "binary",
         "binaryName": "shadowfax",
+        "sha256": {
+          "darwin/amd64": "fd8b0008864d504c0b2785ce8d748c3e15435a87ee791bd00d5b6ca87690e6d6",
+          "darwin/arm64": "3cc078faca14b0b1bf013d06d6ab0a37b86dc113477925637ac6d896e088fcac",
+          "linux/amd64": "50a765168bd579f2b8c997658aee6d06aac9462b91276403b9caab7d96d6ff25",
+          "linux/arm64": "f92633ae3cff487c8973d7e289d81f9b78c60e1175758bc9c4676db9255b85b3"
+        },
         "urlTemplate": "https://github.com/mbvlabs/shadowfax/releases/download/{{version}}/shadowfax-{{os}}-{{arch}}"
       },
       "source": "github.com/mbvlabs/shadowfax",
-      "version": "v0.8.3",
+      "version": "v0.8.4",
       "versionCheck": {
         "args": [
           "--version"
-        ]
+        ],
+        "regexp": "v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)"
       }
     },
     "tailwindcli": {
       "download": {
         "archive": "binary",
         "binaryName": "tailwindcli",
+        "sha256": {
+          "darwin/amd64": "cef8f110471e889c3c4409055cf8aff33076f58a081867b0dfc6534b290bfbb0",
+          "darwin/arm64": "b800b0659dc64b9f03ede5660244d9415d777d5739ae2889280877ca37be742a",
+          "linux/amd64": "5036c4fb4328e0bcdbb6065c70d8ac9452e0d4c947113a788a8f94fd390425c1",
+          "linux/arm64": "394ddccc2402cfa3abd97dfba56f3587781a3d6e6ce66e65ceada14beb7664b8"
+        },
         "urlTemplate": "https://github.com/tailwindlabs/tailwindcss/releases/download/{{version}}/tailwindcss-{{os_tailwind}}-{{arch_tailwind}}"
       },
       "version": "v4.3.2",
       "versionCheck": {
         "args": [
           "--version"
-        ]
+        ],
+        "regexp": "v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)"
       }
     },
     "templ": {
       "download": {
         "archive": "tar.gz",
         "binaryName": "templ",
+        "sha256": {
+          "darwin/amd64": "f1522f2558081335584fd4fb67d329d02a9ae6e83dd88b14cae1ad84c770e5c0",
+          "darwin/arm64": "f391943e3e49ece301f90c2283c7f9e629081f18b0b3ab6b48cb4b87ad94b206",
+          "linux/amd64": "d1e726e8e78a6cf7e1e72ce3746f30fd94ec0eba10be1abab02208a41efc9aa5",
+          "linux/arm64": "8d38728fa82c0ee568d2ae1ce0720963402d384dd59d4c76bcdbb38d581c815c"
+        },
         "urlTemplate": "https://github.com/a-h/templ/releases/download/{{version}}/templ_{{os_capitalized}}_{{arch_x86_64}}.tar.gz"
       },
       "source": "github.com/a-h/templ",
@@ -1223,13 +1265,20 @@ file -----------rw-r--r-- andurel.lock
       "versionCheck": {
         "args": [
           "--version"
-        ]
+        ],
+        "regexp": "v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)"
       }
     },
     "usql": {
       "download": {
         "archive": "tar.bz2",
         "binaryName": "usql",
+        "sha256": {
+          "darwin/amd64": "60feb0d73b2e29e4ecf6b36bf34b23c230d8233c778893b0b56811036d16d17e",
+          "darwin/arm64": "cee9fd2117c17fd622fe0df37b334c356b80cf48d6e9bb164084830ae4ce6d05",
+          "linux/amd64": "78bd9b221e223d7a954d41f51e9eca98bdd94b401618367ba0f3887abebd44fc",
+          "linux/arm64": "ccad89d6f4c67a9bf595df0aa8a550e0a9e3d6a6f9356356ba1e164e311335e4"
+        },
         "urlTemplate": "https://github.com/xo/usql/releases/download/{{version}}/usql-{{version_no_v}}-{{os}}-{{arch}}.tar.bz2"
       },
       "source": "github.com/xo/usql",
@@ -1237,7 +1286,8 @@ file -----------rw-r--r-- andurel.lock
       "versionCheck": {
         "args": [
           "--version"
-        ]
+        ],
+        "regexp": "v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)"
       }
     }
   },

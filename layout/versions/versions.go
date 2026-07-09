@@ -14,5 +14,5 @@ const (
 	// TailwindCLI is the default Tailwind CSS CLI version.
 	TailwindCLI = "v4.3.2"
 	// Shadowfax is the default Shadowfax runner version.
-	Shadowfax = "v0.8.3"
+	Shadowfax = "v0.8.4"
 )

@@ -1072,6 +1072,11 @@
           "shorthand": "h",
           "type": "bool",
           "default": "false"
+        },
+        {
+          "name": "sha256",
+          "type": "stringArray",
+          "default": "[]"
         }
       ]
     },
@@ -2047,6 +2052,10 @@
       "type": "github.com/mbvlabs/andurel/layout.AndurelLock",
       "fields": [
         {
+          "go_name": "SchemaVersion",
+          "json_name": "schemaVersion"
+        },
+        {
           "go_name": "Version",
           "json_name": "version"
         },
@@ -2158,6 +2167,10 @@
           "go_name": "BinaryName",
           "json_name": "binaryName",
           "omitempty": true
+        },
+        {
+          "go_name": "SHA256",
+          "json_name": "sha256"
         }
       ]
     },

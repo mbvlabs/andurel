@@ -1521,6 +1521,7 @@ func Scaffold(
 TYPES
 
 type AndurelLock struct {
+	SchemaVersion  int                   `json:"schemaVersion"`
 	Version        string                `json:"version"`
 	Extensions     map[string]*Extension `json:"extensions,omitempty"`
 	Tools          map[string]*Tool      `json:"tools"`
@@ -1658,9 +1659,10 @@ func NewGoTool(name, source, version string) *Tool
     NewGoTool creates a managed Go-installed tool entry.
 
 type ToolDownload struct {
-	URLTemplate string `json:"urlTemplate"`
-	Archive     string `json:"archive,omitempty"`
-	BinaryName  string `json:"binaryName,omitempty"`
+	URLTemplate string            `json:"urlTemplate"`
+	Archive     string            `json:"archive,omitempty"`
+	BinaryName  string            `json:"binaryName,omitempty"`
+	SHA256      map[string]string `json:"sha256"`
 }
     ToolDownload describes how to download a managed tool binary.
 
@@ -1668,8 +1670,10 @@ func GetDefaultToolDownload(name string) (*ToolDownload, bool)
     GetDefaultToolDownload returns the built-in download spec for a tool.
 
 type VersionCheck struct {
-	Args   []string `json:"args"`
-	Regexp string   `json:"regexp,omitempty"`
+	Args []string `json:"args"`
+	// Regexp extracts a version from command output. When omitted, Andurel uses
+	// v?MAJOR.MINOR.PATCH with optional prerelease or build metadata.
+	Regexp string `json:"regexp,omitempty"`
 }
     VersionCheck describes how to check an installed tool version.
 
@@ -2196,8 +2200,9 @@ var ErrFailedToGetRleaseURL = fmt.Errorf("failed to get release URL")
 
 FUNCTIONS
 
-func DownloadFromURL(name, url, archiveType, binaryName, destPath string) error
-    DownloadFromURL downloads from URL.
+func DownloadFromURL(name, sourceURL, archiveType, binaryName, destPath string, expectedSHA256 ...string) error
+    DownloadFromURL downloads from URL. Exactly one expected SHA-256 digest is
+    required.
 
 func DownloadFromURLTemplate(
 	name,
@@ -2208,14 +2213,19 @@ func DownloadFromURLTemplate(
 	goos,
 	goarch,
 	destPath string,
+	expectedSHA256 ...string,
 ) error
-    DownloadFromURLTemplate downloads from URL template.
+    DownloadFromURLTemplate downloads from URL template. Exactly one expected
+    SHA-256 digest is required. The variadic form preserves source compatibility
+    while making calls without integrity metadata fail.
 
-func DownloadGoTool(name, module, version, goos, goarch, destPath string) error
-    DownloadGoTool downloads go tool.
+func DownloadGoTool(name, module, version, goos, goarch, destPath string, expectedSHA256 ...string) error
+    DownloadGoTool downloads go tool. Exactly one expected SHA-256 digest is
+    required.
 
-func DownloadTailwindCLI(version, goos, goarch, destPath string) error
-    DownloadTailwindCLI downloads tailwind CLI.
+func DownloadTailwindCLI(version, goos, goarch, destPath string, expectedSHA256 ...string) error
+    DownloadTailwindCLI downloads tailwind CLI. Exactly one expected SHA-256
+    digest is required.
 
 func GetPlatform() (string, string)
     GetPlatform returns platform.
@@ -2471,7 +2481,7 @@ const (
 	// TailwindCLI is the default Tailwind CSS CLI version.
 	TailwindCLI = "v4.3.2"
 	// Shadowfax is the default Shadowfax runner version.
-	Shadowfax = "v0.8.3"
+	Shadowfax = "v0.8.4"
 )
 
 ## github.com/mbvlabs/andurel/pkg/cache

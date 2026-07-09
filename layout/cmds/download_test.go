@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -143,7 +145,7 @@ func TestToolDownloaderReleaseURLs(t *testing.T) {
 
 func TestDownloadFromURLTemplateAndURL(t *testing.T) {
 	var requested []string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requested = append(requested, r.URL.Path)
 		switch r.URL.Path {
 		case "/v1.2.3/linux/amd64/tool":
@@ -159,6 +161,9 @@ func TestDownloadFromURLTemplateAndURL(t *testing.T) {
 		}
 	}))
 	defer server.Close()
+	originalClient := downloadHTTPClient
+	downloadHTTPClient = server.Client()
+	t.Cleanup(func() { downloadHTTPClient = originalClient })
 
 	tmpDir := t.TempDir()
 	binaryDest := filepath.Join(tmpDir, "tool")
@@ -171,6 +176,7 @@ func TestDownloadFromURLTemplateAndURL(t *testing.T) {
 		"linux",
 		"amd64",
 		binaryDest,
+		sha256Hex("binary content"),
 	)
 	if err != nil {
 		t.Fatalf("DownloadFromURLTemplate binary: %v", err)
@@ -181,13 +187,19 @@ func TestDownloadFromURLTemplateAndURL(t *testing.T) {
 	}
 
 	tarDest := filepath.Join(tmpDir, "tar-tool")
-	if err := DownloadFromURL("tool", server.URL+"/archive.tar.gz", "tar.gz", "tool", tarDest); err != nil {
+	archivePath := filepath.Join(tmpDir, "expected.tar.gz")
+	writeTarGz(t, archivePath, "nested/tool-linux-amd64", "tar content")
+	archiveDigest := sha256File(t, archivePath)
+	if err := DownloadFromURL("tool", server.URL+"/archive.tar.gz", "tar.gz", "tool-linux-amd64", tarDest, archiveDigest); err != nil {
 		t.Fatalf("DownloadFromURL tar.gz: %v", err)
 	}
 	assertFileContent(t, tarDest, "tar content")
 
 	zipDest := filepath.Join(tmpDir, "zip-tool")
-	if err := DownloadFromURL("tool", server.URL+"/archive.zip", "zip", "tool", zipDest); err != nil {
+	zipPath := filepath.Join(tmpDir, "expected.zip")
+	writeZip(t, zipPath, "bin/tool.exe", "zip content")
+	zipDigest := sha256File(t, zipPath)
+	if err := DownloadFromURL("tool", server.URL+"/archive.zip", "zip", "tool.exe", zipDest, zipDigest); err != nil {
 		t.Fatalf("DownloadFromURL zip: %v", err)
 	}
 	assertFileContent(t, zipDest, "zip content")
@@ -195,7 +207,7 @@ func TestDownloadFromURLTemplateAndURL(t *testing.T) {
 	if err := DownloadFromURLTemplate("tool", "v1.0.0", "", "binary", "", "linux", "amd64", filepath.Join(tmpDir, "missing")); err == nil {
 		t.Fatalf("expected missing urlTemplate error")
 	}
-	err = DownloadFromURL("tool", server.URL+"/missing", "binary", "tool", filepath.Join(tmpDir, "missing"))
+	err = DownloadFromURL("tool", server.URL+"/missing", "binary", "tool", filepath.Join(tmpDir, "missing"), strings.Repeat("0", 64))
 	if err == nil || !strings.Contains(err.Error(), "unexpected status code 404") {
 		t.Fatalf("expected status error, got %v", err)
 	}
@@ -205,30 +217,29 @@ func TestDownloadFromURLTemplateAndURL(t *testing.T) {
 }
 
 func TestDownloadGoToolAndTailwindUseResolvedAssets(t *testing.T) {
-	originalDownloadFile := downloadFileFunc
+	originalDownloadVerified := downloadVerifiedFunc
 	t.Cleanup(func() {
-		downloadFileFunc = originalDownloadFile
+		downloadVerifiedFunc = originalDownloadVerified
 	})
 
 	var downloadedURLs []string
-	downloadFileFunc = func(url, destPath string) error {
-		downloadedURLs = append(downloadedURLs, url)
-		if strings.HasSuffix(destPath, ".tar.gz") {
-			writeTarGz(t, destPath, "bin/templ", "templ binary")
-			return nil
+	downloadVerifiedFunc = func(name, sourceURL, archiveType, binaryName, destPath, digest string) error {
+		downloadedURLs = append(downloadedURLs, sourceURL)
+		if archiveType == "tar.gz" {
+			return os.WriteFile(destPath, []byte("templ binary"), 0o755)
 		}
 		return os.WriteFile(destPath, []byte("plain binary"), 0o644)
 	}
 
 	tmpDir := t.TempDir()
 	templDest := filepath.Join(tmpDir, "templ")
-	if err := DownloadGoTool("templ", "github.com/a-h/templ/cmd/templ", "v0.3.0", "linux", "amd64", templDest); err != nil {
+	if err := DownloadGoTool("templ", "github.com/a-h/templ/cmd/templ", "v0.3.0", "linux", "amd64", templDest, strings.Repeat("1", 64)); err != nil {
 		t.Fatalf("DownloadGoTool templ: %v", err)
 	}
 	assertFileContent(t, templDest, "templ binary")
 
 	tailwindDest := filepath.Join(tmpDir, "tailwindcli")
-	if err := DownloadTailwindCLI("v4.0.0", "darwin", "amd64", tailwindDest); err != nil {
+	if err := DownloadTailwindCLI("v4.0.0", "darwin", "amd64", tailwindDest, strings.Repeat("2", 64)); err != nil {
 		t.Fatalf("DownloadTailwindCLI: %v", err)
 	}
 	assertFileContent(t, tailwindDest, "plain binary")
@@ -239,15 +250,15 @@ func TestDownloadGoToolAndTailwindUseResolvedAssets(t *testing.T) {
 		t.Fatalf("unexpected downloaded URLs: %#v", downloadedURLs)
 	}
 
-	if err := DownloadGoTool("unknown", "github.com/example/tool", "v1.0.0", "linux", "amd64", filepath.Join(tmpDir, "unknown")); err == nil ||
+	if err := DownloadGoTool("unknown", "github.com/example/tool", "v1.0.0", "linux", "amd64", filepath.Join(tmpDir, "unknown"), strings.Repeat("3", 64)); err == nil ||
 		!strings.Contains(err.Error(), ErrFailedToGetRleaseURL.Error()) {
 		t.Fatalf("expected release URL error, got %v", err)
 	}
 
-	downloadFileFunc = func(url, destPath string) error {
+	downloadVerifiedFunc = func(name, sourceURL, archiveType, binaryName, destPath, digest string) error {
 		return os.ErrPermission
 	}
-	if err := DownloadTailwindCLI("v4.0.0", "linux", "arm64", filepath.Join(tmpDir, "blocked")); err == nil ||
+	if err := DownloadTailwindCLI("v4.0.0", "linux", "arm64", filepath.Join(tmpDir, "blocked"), strings.Repeat("4", 64)); err == nil ||
 		!strings.Contains(err.Error(), "failed to download tailwindcli") {
 		t.Fatalf("expected tailwind download error, got %v", err)
 	}
@@ -270,7 +281,7 @@ func TestExtractBinary(t *testing.T) {
 
 	t.Run("tar.gz", func(t *testing.T) {
 		archivePath := filepath.Join(tmpDir, "tool.tar.gz")
-		writeTarGz(t, archivePath, "nested/tool-linux-amd64", "tar content")
+		writeTarGz(t, archivePath, "nested/tool", "tar content")
 		dest := filepath.Join(tmpDir, "tar-tool")
 		if err := extractBinary(archivePath, "tool", dest, "tar.gz"); err != nil {
 			t.Fatalf("extract tar.gz failed: %v", err)
@@ -280,7 +291,7 @@ func TestExtractBinary(t *testing.T) {
 
 	t.Run("zip", func(t *testing.T) {
 		archivePath := filepath.Join(tmpDir, "tool.zip")
-		writeZip(t, archivePath, "bin/tool.exe", "zip content")
+		writeZip(t, archivePath, "bin/tool", "zip content")
 		dest := filepath.Join(tmpDir, "zip-tool")
 		if err := extractBinary(archivePath, "tool", dest, "zip"); err != nil {
 			t.Fatalf("extract zip failed: %v", err)
@@ -436,4 +447,19 @@ func executableMode(t *testing.T, path string) os.FileMode {
 		t.Fatalf("stat %s: %v", path, err)
 	}
 	return info.Mode()
+}
+
+func sha256Hex(content string) string {
+	digest := sha256.Sum256([]byte(content))
+	return hex.EncodeToString(digest[:])
+}
+
+func sha256File(t *testing.T, path string) string {
+	t.Helper()
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read digest input: %v", err)
+	}
+	digest := sha256.Sum256(content)
+	return hex.EncodeToString(digest[:])
 }
