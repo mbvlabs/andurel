@@ -553,9 +553,10 @@ func TestExecuteDryRun_ReportsRenderedFilesToolsAndObsoleteCleanup(t *testing.T)
 
 	projectRoot := newGitUpgradeProject(t)
 	lock := &layout.AndurelLock{
-		Version: "v0.1.0",
+		SchemaVersion: 1,
+		Version:       "v0.1.0",
 		Tools: map[string]*layout.Tool{
-			"templ": layout.NewGoTool("templ", "github.com/a-h/templ", "v0.0.1"),
+			"templ": {Version: "v0.0.1", Path: "bin/templ", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}},
 			"run":   layout.NewBuiltTool("cmd/run/main.go", "v0.1.0"),
 		},
 		ScaffoldConfig: &layout.ScaffoldConfig{
@@ -621,8 +622,9 @@ func TestExecuteDryRun_ReturnsScaffoldConfigError(t *testing.T) {
 
 	projectRoot := newGitUpgradeProject(t)
 	lock := &layout.AndurelLock{
-		Version: "v0.1.0",
-		Tools:   map[string]*layout.Tool{},
+		SchemaVersion: 1,
+		Version:       "v0.1.0",
+		Tools:         map[string]*layout.Tool{},
 	}
 	if err := lock.WriteLockFile(projectRoot); err != nil {
 		t.Fatalf("failed to write lock file: %v", err)

@@ -272,8 +272,9 @@ func setupRoutesJSCommandProject(t *testing.T, inertia string) string {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	lock := layout.AndurelLock{
-		Version: "test",
-		Tools:   map[string]*layout.Tool{},
+		SchemaVersion: 1,
+		Version:       "test",
+		Tools:         map[string]*layout.Tool{},
 		ScaffoldConfig: &layout.ScaffoldConfig{
 			ProjectName: "app",
 			Database:    "postgres",

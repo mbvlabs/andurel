@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -70,18 +69,7 @@ func syncBinaries(projectRoot string) error {
 
 	for name, tool := range lock.Tools {
 		if err := syncSingleToolFunc(projectRoot, name, tool, goos, goarch); err != nil {
-			if errors.Is(err, cmds.ErrFailedToGetRleaseURL) {
-				fmt.Printf(
-					"failed to find release for %s %s on %s/%s \n",
-					name,
-					tool.Version,
-					goos,
-					goarch,
-				)
-				continue
-			}
-
-			return err
+			return fmt.Errorf("tool synchronization incomplete: %w", err)
 		}
 	}
 
@@ -121,18 +109,54 @@ func syncSingleTool(projectRoot, name string, tool *layout.Tool, goos, goarch st
 			fmt.Printf("⟳ %s: updating %s → %s\n", name, actualVersion, tool.Version)
 		}
 
-		if err := os.Remove(binPath); err != nil {
-			return fmt.Errorf("failed to remove outdated %s: %w", name, err)
-		}
 	}
 
 	fmt.Printf("⬇ Downloading %s %s for %s/%s...\n", name, tool.Version, goos, goarch)
-	if err := downloadFromLockToolFunc(name, tool, goos, goarch, binPath); err != nil {
-		return fmt.Errorf("failed to download %s: %w", name, err)
+	candidatePath, err := prepareToolCandidate(projectRoot, name, tool, goos, goarch)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(candidatePath)
+	if err := os.Rename(candidatePath, binPath); err != nil {
+		return fmt.Errorf("failed to atomically replace %s: %w", name, err)
 	}
 	fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, tool.Version)
 
 	return nil
+}
+
+func prepareToolCandidate(projectRoot, name string, tool *layout.Tool, goos, goarch string) (string, error) {
+	binPath := filepath.Join(projectRoot, "bin", name)
+	if err := os.MkdirAll(filepath.Dir(binPath), 0o755); err != nil {
+		return "", fmt.Errorf("failed to create bin directory: %w", err)
+	}
+	candidate, err := os.CreateTemp(filepath.Dir(binPath), ".andurel-candidate-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create candidate path for %s: %w", name, err)
+	}
+	candidatePath := candidate.Name()
+	if err := candidate.Close(); err != nil {
+		_ = os.Remove(candidatePath)
+		return "", fmt.Errorf("failed to close candidate path for %s: %w", name, err)
+	}
+	if err := os.Remove(candidatePath); err != nil {
+		return "", fmt.Errorf("failed to prepare candidate path for %s: %w", name, err)
+	}
+
+	if err := downloadFromLockToolFunc(name, tool, goos, goarch, candidatePath); err != nil {
+		_ = os.Remove(candidatePath)
+		return "", fmt.Errorf("failed to download %s: %w", name, err)
+	}
+	actualVersion, err := versionFromExecutable(candidatePath, tool.VersionCheck, name)
+	if err != nil {
+		_ = os.Remove(candidatePath)
+		return "", fmt.Errorf("failed to verify downloaded %s: %w", name, err)
+	}
+	if !versionsMatch(tool.Version, actualVersion) {
+		_ = os.Remove(candidatePath)
+		return "", fmt.Errorf("downloaded %s version %s does not match expected %s", name, actualVersion, tool.Version)
+	}
+	return candidatePath, nil
 }
 
 func downloadFromLockTool(name string, tool *layout.Tool, goos, goarch, binPath string) error {
@@ -141,12 +165,22 @@ func downloadFromLockTool(name string, tool *layout.Tool, goos, goarch, binPath 
 	}
 
 	if tool.Download != nil && tool.Download.URLTemplate != "" {
+		platform := goos + "/" + goarch
+		switch platform {
+		case "linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64":
+		default:
+			return fmt.Errorf("unsupported platform %s", platform)
+		}
+		digest, ok := tool.Download.SHA256[platform]
+		if !ok || digest == "" {
+			return fmt.Errorf("missing SHA-256 digest for %s", platform)
+		}
 		archive := tool.Download.Archive
 		if archive == "" {
 			archive = "binary"
 		}
 
-		return cmds.DownloadFromURLTemplate(
+		return cmds.DownloadVerifiedFromURLTemplate(
 			name,
 			tool.Version,
 			tool.Download.URLTemplate,
@@ -155,16 +189,9 @@ func downloadFromLockTool(name string, tool *layout.Tool, goos, goarch, binPath 
 			goos,
 			goarch,
 			binPath,
+			digest,
 		)
 	}
 
-	if tool.Source != "" {
-		return cmds.DownloadGoTool(name, tool.Source, tool.Version, goos, goarch, binPath)
-	}
-
-	if name == "tailwindcli" {
-		return cmds.DownloadTailwindCLI(tool.Version, goos, goarch, binPath)
-	}
-
-	return fmt.Errorf("tool has no download metadata")
+	return fmt.Errorf("tool has no verified download metadata")
 }

@@ -33,6 +33,8 @@ var generateControllerWithActionsFunc = generateControllerWithActions
 var syncSingleToolFunc = syncSingleTool
 var downloadFromLockToolFunc = downloadFromLockTool
 
+var installToolVersionAndLockFunc = installToolVersionAndLock
+
 type cliUpgrader interface {
 	Execute() (*upgrade.UpgradeReport, error)
 }

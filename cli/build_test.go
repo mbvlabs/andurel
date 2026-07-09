@@ -136,8 +136,8 @@ func TestBuildAppRunsExpectedToolchain(t *testing.T) {
 	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.26\n")
 	writeTestFile(t, root, "cmd/app/main.go", "package main\n\nfunc main() {}\n")
 	lock := layout.NewAndurelLock("test")
-	lock.Tools["templ"] = layout.NewBinaryTool("templ", "v0.3.0")
-	lock.ScaffoldConfig = &layout.ScaffoldConfig{Inertia: "react", JavaScriptRuntime: "pnpm"}
+	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "app", Database: "postgresql", Inertia: "react", JavaScriptRuntime: "pnpm"}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
@@ -187,7 +187,7 @@ func TestBuildAppReportsErrors(t *testing.T) {
 
 	writeTestFile(t, root, "go.mod", "go 1.26\n")
 	lock := layout.NewAndurelLock("test")
-	lock.ScaffoldConfig = &layout.ScaffoldConfig{Inertia: "vue", JavaScriptRuntime: "deno"}
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "app", Database: "postgresql", Inertia: "vue", JavaScriptRuntime: "deno"}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}

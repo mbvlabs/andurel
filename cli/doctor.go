@@ -638,6 +638,17 @@ func versionFromCommand(binPath string, vc *layout.VersionCheck, toolName string
 	}
 
 	fullPath := filepath.Join(rootDir, binPath)
+	return versionFromExecutable(fullPath, vc, toolName)
+}
+
+func versionFromExecutable(fullPath string, vc *layout.VersionCheck, toolName string) (string, error) {
+	if vc == nil || len(vc.Args) == 0 {
+		return "", fmt.Errorf(
+			"%s: missing versionCheck in andurel.lock (e.g. \"versionCheck\": {\"args\": [\"version\", \"--flag\"]})",
+			toolName,
+		)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	output, err := runWithTimeout(ctx, fullPath, vc.Args...)
 	cancel()
@@ -645,11 +656,34 @@ func versionFromCommand(binPath string, vc *layout.VersionCheck, toolName string
 		return "", fmt.Errorf("version command failed for %s: %w", toolName, err)
 	}
 
-	version := extractVersion(string(output))
+	version, err := extractVersionWithCheck(string(output), vc.Regexp)
+	if err != nil {
+		return "", fmt.Errorf("invalid version expression for %s: %w", toolName, err)
+	}
 	if version == "" {
 		return "", fmt.Errorf("no version output for %s", toolName)
 	}
 	return version, nil
+}
+
+func extractVersionWithCheck(output, expression string) (string, error) {
+	if expression == "" {
+		return extractVersion(output), nil
+	}
+	pattern, err := regexp.Compile(expression)
+	if err != nil {
+		return "", err
+	}
+	matches := pattern.FindStringSubmatch(output)
+	if len(matches) == 0 {
+		return "", nil
+	}
+	for _, match := range matches[1:] {
+		if match != "" {
+			return match, nil
+		}
+	}
+	return matches[0], nil
 }
 
 func extractVersion(output string) string {

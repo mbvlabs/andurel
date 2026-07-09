@@ -93,7 +93,7 @@ func TestCollectProjectInfo(t *testing.T) {
 		JavaScriptRuntime: "pnpm",
 	}
 	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
-	lock.Tools["goose"] = layout.NewBinaryTool("goose", "v3.0.0")
+	lock.Tools["goose"] = validTestTool("goose", "v3.0.0")
 	lock.Extensions["docker"] = &layout.Extension{AppliedAt: "2026-07-08T10:00:00Z"}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)

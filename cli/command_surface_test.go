@@ -187,7 +187,7 @@ func TestSyncBinariesCleansStaleToolsAndSkipsCurrentVersions(t *testing.T) {
 	lock.Tools["alpha"] = &layout.Tool{
 		Version:      "v1.2.3",
 		VersionCheck: &layout.VersionCheck{Args: []string{"--version"}},
-		Download:     &layout.ToolDownload{URLTemplate: "https://example.invalid/{{version}}", Archive: "binary"},
+		Download:     validTestDownload("alpha"),
 	}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
@@ -230,7 +230,7 @@ func TestSyncSingleToolDownloadsMissingAndOutdatedTools(t *testing.T) {
 	tool := &layout.Tool{
 		Version:      "v2.0.0",
 		VersionCheck: &layout.VersionCheck{Args: []string{"--version"}},
-		Download:     &layout.ToolDownload{URLTemplate: "https://example.invalid/{{version}}", Archive: "binary"},
+		Download:     validTestDownload("tool"),
 	}
 	if err := syncSingleTool(root, "alpha", tool, "linux", "amd64"); err != nil {
 		t.Fatalf("sync missing tool: %v", err)
@@ -246,12 +246,40 @@ func TestSyncSingleToolDownloadsMissingAndOutdatedTools(t *testing.T) {
 	}
 }
 
+func TestSyncSingleToolVerifiesVersionBeforeAtomicReplacement(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeGoModule(t, root)
+	writeExecutable(t, root, "bin/tool", "#!/bin/sh\necho v1.0.0\n")
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() { findGoModRoot = originalFindGoModRoot })
+	downloadFromLockToolFunc = func(name string, tool *layout.Tool, goos, goarch, binPath string) error {
+		return os.WriteFile(binPath, []byte("#!/bin/sh\necho v9.9.9\n"), 0o755)
+	}
+
+	tool := validTestTool("tool", "v2.0.0")
+	if err := syncSingleTool(root, "tool", tool, "linux", "amd64"); err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("version mismatch error = %v", err)
+	}
+	assertTestFileContains(t, root, "bin/tool", "v1.0.0")
+	entries, err := os.ReadDir(filepath.Join(root, "bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".andurel-candidate-") {
+			t.Fatalf("candidate remains after verification failure: %s", entry.Name())
+		}
+	}
+}
+
 func TestSyncBinariesHandlesDownloadLookupFailures(t *testing.T) {
 	resetCLITestSeams(t)
 	root := t.TempDir()
 	writeGoModule(t, root)
 	lock := layout.NewAndurelLock("test")
-	lock.Tools["missing-release"] = &layout.Tool{Version: "v9.9.9", Source: "example.com/tool"}
+	lock.Tools["missing-release"] = validTestTool("missing-release", "v9.9.9")
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
@@ -260,8 +288,8 @@ func TestSyncBinariesHandlesDownloadLookupFailures(t *testing.T) {
 		return cmds.ErrFailedToGetRleaseURL
 	}
 
-	if err := syncBinaries(root); err != nil {
-		t.Fatalf("release lookup failure should be non-fatal: %v", err)
+	if err := syncBinaries(root); err == nil || !strings.Contains(err.Error(), "incomplete") {
+		t.Fatalf("release lookup failure should fail synchronization: %v", err)
 	}
 }
 
@@ -275,12 +303,12 @@ func TestSetVersionAddsManagedToolsAndRejectsInvalidInput(t *testing.T) {
 	}
 
 	var synced []string
-	syncSingleToolFunc = func(projectRoot, name string, tool *layout.Tool, goos, goarch string) error {
+	installToolVersionAndLockFunc = func(projectRoot, name string, tool *layout.Tool, lock *layout.AndurelLock, goos, goarch string) error {
 		synced = append(synced, name+":"+tool.Version)
-		return nil
+		return lock.WriteLockFile(projectRoot)
 	}
 
-	if err := setVersion(root, "tailwindcli", "v4.1.0"); err != nil {
+	if err := setVersion(root, "tailwindcli", "v4.1.0", testChecksumArguments()...); err != nil {
 		t.Fatalf("setVersion: %v", err)
 	}
 	if !reflect.DeepEqual(synced, []string{"tailwindcli:v4.1.0"}) {
@@ -299,6 +327,132 @@ func TestSetVersionAddsManagedToolsAndRejectsInvalidInput(t *testing.T) {
 	}
 	if err := setVersion(root, "unknown-tool", "1.0.0"); err == nil || !strings.Contains(err.Error(), "unknown tool") {
 		t.Fatalf("expected unknown tool error, got %v", err)
+	}
+}
+
+func TestParseRepeatedChecksumArguments(t *testing.T) {
+	checksums, err := parseChecksumArguments(testChecksumArguments())
+	if err != nil {
+		t.Fatalf("parseChecksumArguments: %v", err)
+	}
+	if len(checksums) != 4 || checksums["linux/amd64"] != strings.Repeat("1", 64) {
+		t.Fatalf("checksums = %#v", checksums)
+	}
+
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "missing platform", args: testChecksumArguments()[:3], want: "missing --sha256"},
+		{name: "duplicate", args: append(testChecksumArguments(), testChecksumArguments()[0]), want: "duplicate"},
+		{name: "unsupported", args: []string{"freebsd/amd64=" + strings.Repeat("1", 64)}, want: "unsupported"},
+		{name: "malformed assignment", args: []string{"linux/amd64"}, want: "expected os/arch"},
+		{name: "malformed digest", args: []string{"linux/amd64=xyz"}, want: "invalid SHA-256"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := parseChecksumArguments(test.args); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("error = %v, want substring %q", err, test.want)
+			}
+		})
+	}
+}
+
+func TestCustomToolVersionRequiresChecksumsBeforeMutation(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeGoModule(t, root)
+	lock := layout.NewAndurelLock("test")
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatal(err)
+	}
+	installToolVersionAndLockFunc = func(string, string, *layout.Tool, *layout.AndurelLock, string, string) error {
+		t.Fatal("sync must not run without complete checksums")
+		return nil
+	}
+	if err := setVersion(root, "tailwindcli", "v4.1.0"); err == nil || !strings.Contains(err.Error(), "requires four repeated") {
+		t.Fatalf("missing checksum error = %v", err)
+	}
+	persisted, err := layout.ReadLockFile(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(persisted.Tools) != 0 {
+		t.Fatalf("lock mutated after checksum failure: %#v", persisted.Tools)
+	}
+}
+
+func TestSetVersionCommitsLockAndBinaryTogether(t *testing.T) {
+	tests := []struct {
+		name          string
+		downloadedVer string
+		wantErr       bool
+	}{
+		{name: "success", downloadedVer: "v4.1.0"},
+		{name: "version mismatch", downloadedVer: "v9.9.9", wantErr: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resetCLITestSeams(t)
+			root := t.TempDir()
+			writeGoModule(t, root)
+			lock := layout.NewAndurelLock("test")
+			if err := lock.WriteLockFile(root); err != nil {
+				t.Fatal(err)
+			}
+			writeExecutable(t, root, "bin/tailwindcli", "#!/bin/sh\necho v0.1.0\n")
+			downloadFromLockToolFunc = func(name string, tool *layout.Tool, goos, goarch, path string) error {
+				return os.WriteFile(path, []byte("#!/bin/sh\necho "+test.downloadedVer+"\n"), 0o755)
+			}
+
+			err := setVersion(root, "tailwindcli", "v4.1.0", testChecksumArguments()...)
+			if test.wantErr {
+				if err == nil || !strings.Contains(err.Error(), "does not match") {
+					t.Fatalf("version mismatch error = %v", err)
+				}
+				persisted, readErr := layout.ReadLockFile(root)
+				if readErr != nil {
+					t.Fatal(readErr)
+				}
+				if len(persisted.Tools) != 0 {
+					t.Fatalf("lock changed after failed install: %#v", persisted.Tools)
+				}
+				assertTestFileContains(t, root, "bin/tailwindcli", "v0.1.0")
+			} else {
+				if err != nil {
+					t.Fatalf("setVersion: %v", err)
+				}
+				persisted, readErr := layout.ReadLockFile(root)
+				if readErr != nil {
+					t.Fatal(readErr)
+				}
+				if persisted.Tools["tailwindcli"].Version != "v4.1.0" {
+					t.Fatalf("persisted tool = %#v", persisted.Tools["tailwindcli"])
+				}
+				assertTestFileContains(t, root, "bin/tailwindcli", "v4.1.0")
+			}
+			entries, readErr := os.ReadDir(root)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			for _, entry := range entries {
+				if strings.HasPrefix(entry.Name(), ".andurel-lock-") {
+					t.Fatalf("lock staging data remains: %s", entry.Name())
+				}
+			}
+		})
+	}
+}
+
+func TestDownloadFromLockToolRejectsMissingAndUnsupportedPlatformDigests(t *testing.T) {
+	tool := validTestTool("tool", "v1.2.3")
+	delete(tool.Download.SHA256, "linux/arm64")
+	if err := downloadFromLockTool("tool", tool, "linux", "arm64", filepath.Join(t.TempDir(), "tool")); err == nil || !strings.Contains(err.Error(), "missing SHA-256") {
+		t.Fatalf("missing digest error = %v", err)
+	}
+	if err := downloadFromLockTool("tool", validTestTool("tool", "v1.2.3"), "freebsd", "amd64", filepath.Join(t.TempDir(), "tool")); err == nil || !strings.Contains(err.Error(), "unsupported platform") {
+		t.Fatalf("unsupported platform error = %v", err)
 	}
 }
 
@@ -455,7 +609,7 @@ func TestRunTemplAndToolListCommands(t *testing.T) {
 	assertTestFileContains(t, root, "templ.args", "./views")
 
 	lock := layout.NewAndurelLock("test")
-	lock.Tools["templ"] = layout.NewBinaryTool("templ", "v0.3.0")
+	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
@@ -568,7 +722,7 @@ func TestRunUpgradeStructuredAndHumanBranches(t *testing.T) {
 		return nil
 	}
 	lock := layout.NewAndurelLock("v1.0.0")
-	lock.Tools["templ"] = &layout.Tool{Version: "v0.1.0", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}}
+	lock.Tools["templ"] = validTestTool("templ", "v0.1.0")
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}

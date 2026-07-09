@@ -172,6 +172,7 @@ func writeGenerateFileTestLock(t *testing.T, rootDir string) {
 	t.Helper()
 
 	content := `{
+  "schemaVersion": 1,
   "version": "test",
   "tools": {},
   "scaffoldConfig": {
