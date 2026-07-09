@@ -12,6 +12,8 @@ stable_ref="$2"
 module_path='github.com/mbvlabs/andurel'
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
+allowlist="$repo_root/contracts/api-compat-allowlist.txt"
+allow_patterns="$tmp_dir/api-compat-allow-patterns.txt"
 
 if ! command -v apidiff >/dev/null 2>&1; then
   echo 'apidiff is required' >&2
@@ -21,6 +23,12 @@ fi
 cd "$repo_root"
 git rev-parse --verify "${base_ref}^{commit}" >/dev/null
 git rev-parse --verify "${stable_ref}^{commit}" >/dev/null
+
+if [[ -f "$allowlist" ]]; then
+  sed -e '/^[[:space:]]*#/d' -e '/^[[:space:]]*$/d' "$allowlist" > "$allow_patterns"
+else
+  : > "$allow_patterns"
+fi
 
 apidiff -m -w "$tmp_dir/current.export" "$module_path"
 
@@ -38,6 +46,8 @@ compare_ref() {
     apidiff -m -w "$tmp_dir/$label.export" "$module_path"
   )
   apidiff -m -incompatible "$tmp_dir/$label.export" "$tmp_dir/current.export" > "$report"
+  grep -F -x -v -f "$allow_patterns" "$report" > "$report.unexpected" || true
+  mv "$report.unexpected" "$report"
   if [[ -s "$report" ]]; then
     echo "Incompatible public API changes relative to $ref ($label):" >&2
     cat "$report" >&2
