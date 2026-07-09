@@ -10,7 +10,7 @@ permissions:
   issues: write
 
 env:
-  GO_VERSION: '1.26.x'
+  GO_VERSION: '1.26.5'
 
 jobs:
   build:

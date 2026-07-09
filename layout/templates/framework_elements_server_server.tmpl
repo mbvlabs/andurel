@@ -5,12 +5,9 @@ package server
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net"
 	"net/http"
 	"time"
-
-	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -75,52 +72,9 @@ func New(
 }
 
 func (s *Server) Start(
-	ctx context.Context,
-	env string,
+	_ context.Context,
+	_ string,
 ) error {
-	if env == ProdEnvironment {
-		eg, egCtx := errgroup.WithContext(ctx)
-
-		eg.Go(func() error {
-			if err := s.srv.ListenAndServe(); err != nil &&
-				err != http.ErrServerClosed {
-				return fmt.Errorf("server: listen: %w", err)
-			}
-			return nil
-		})
-
-		eg.Go(func() error {
-			<-egCtx.Done()
-			slog.InfoContext(ctx, "initiating graceful shutdown")
-			shutdownCtx, cancel := context.WithTimeout(
-				context.Background(),
-				10*time.Second,
-			)
-			defer cancel()
-
-			for _, shutdowner := range s.Shutdowners {
-				slog.InfoContext(
-					ctx,
-					"shutting down component",
-					"component",
-					fmt.Sprintf("%T", shutdowner),
-				)
-				if err := shutdowner.Shutdown(shutdownCtx); err != nil {
-					return fmt.Errorf("server: shutdown component %T: %w", shutdowner, err)
-				}
-			}
-
-			return nil
-		})
-
-		if err := eg.Wait(); err != nil {
-			slog.InfoContext(ctx, "wait error", "e", err)
-			return err
-		}
-
-		return nil
-	}
-
 	if err := s.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("server: listen: %w", err)
 	}

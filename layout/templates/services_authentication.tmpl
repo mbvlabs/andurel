@@ -48,7 +48,12 @@ func (i Identity) AuthenticateUser(
 	}
 
 
-	validPassword, err := user.ValidPassword(data.Password, i.pepper)
+	validPassword, needsRehash, err := verifyPasswordWithPeppers(
+		user,
+		data.Password,
+		i.pepper,
+		i.previousPeppers,
+	)
 
 	if err != nil {
 
@@ -61,9 +66,51 @@ func (i Identity) AuthenticateUser(
 		return models.UserEntity{}, ErrInvalidCredentials
 	}
 
+	if needsRehash {
+		hashedPassword, err := models.HashPassword(data.Password, i.pepper)
+		if err != nil {
+			return models.UserEntity{}, fmt.Errorf("rehash password with current pepper: %w", err)
+		}
+
+		user, err = models.User.Update(ctx, i.db.Executor(), models.UpdateUserData{
+			ID:               user.ID,
+			Email:            user.Email,
+			EmailValidatedAt: user.EmailValidatedAt,
+			Password:         []byte(hashedPassword),
+			IsAdmin:          user.IsAdmin,
+		})
+		if err != nil {
+			return models.UserEntity{}, fmt.Errorf("persist password rehash: %w", err)
+		}
+	}
+
 	if !user.HasValidatedEmail() {
 		return models.UserEntity{}, ErrEmailNotVerified
 	}
 
 	return user, nil
+}
+
+func verifyPasswordWithPeppers(
+	user models.UserEntity,
+	providedPassword string,
+	currentPepper string,
+	previousPeppers []string,
+) (valid bool, needsRehash bool, err error) {
+	valid, err = user.ValidPassword(providedPassword, currentPepper)
+	if err != nil || valid {
+		return valid, false, err
+	}
+
+	for _, previousPepper := range previousPeppers {
+		valid, err = user.ValidPassword(providedPassword, previousPepper)
+		if err != nil {
+			return false, false, err
+		}
+		if valid {
+			return true, true, nil
+		}
+	}
+
+	return false, false, nil
 }

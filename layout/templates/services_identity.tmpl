@@ -1,6 +1,8 @@
 package services
 
 import (
+	"strings"
+
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/storage"
 	"{{.ModuleName}}/queue"
@@ -9,9 +11,24 @@ import (
 type Identity struct {
 	db         storage.Pool
 	insertOnly queue.InsertOnly
-	pepper     string
+	pepper          string
+	previousPeppers []string
+	tokenSigningKey string
 }
 
 func NewIdentity(db storage.Pool, insertOnly queue.InsertOnly, cfg config.Config) Identity {
-	return Identity{db: db, insertOnly: insertOnly, pepper: cfg.Auth.Pepper}
+	previousPeppers := make([]string, 0, len(cfg.Auth.PreviousPeppers))
+	for _, pepper := range cfg.Auth.PreviousPeppers {
+		if pepper = strings.TrimSpace(pepper); pepper != "" && pepper != cfg.Auth.Pepper {
+			previousPeppers = append(previousPeppers, pepper)
+		}
+	}
+
+	return Identity{
+		db:              db,
+		insertOnly:      insertOnly,
+		pepper:          cfg.Auth.Pepper,
+		previousPeppers: previousPeppers,
+		tokenSigningKey: cfg.App.TokenSigningKey,
+	}
 }

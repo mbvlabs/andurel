@@ -34,18 +34,20 @@ func IPRateLimiter(
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
 			ip := c.RealIP()
+			allowed := false
+			cache.Compute(ip, func(hits int32, found bool) (int32, otter.ComputeOp) {
+				if !found {
+					hits = 0
+				}
+				if hits >= limit {
+					return hits, otter.CancelOp
+				}
 
-			hits, ok := cache.GetIfPresent(ip)
-			if !ok {
-				cache.Set(ip, 1)
-				return next(c)
-			}
+				allowed = true
+				return hits + 1, otter.WriteOp
+			})
 
-			if hits <= limit {
-				cache.Set(ip, hits+1)
-			}
-
-			if hits > limit {
+			if !allowed {
 				return c.String(http.StatusTooManyRequests, redirectURL.URL())
 			}
 
