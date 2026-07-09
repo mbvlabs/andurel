@@ -5,13 +5,16 @@ import (
 	"encoding/gob"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"{{.ModuleName}}/config"
 {{- if .Inertia}}
 	"{{.ModuleName}}/internal/inertia"
 {{- end}}
+	"{{.ModuleName}}/internal/server"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/telemetry"
@@ -97,35 +100,89 @@ func SetupGlobalMiddleware(
 	if err != nil {
 		return nil, err
 	}
+	sessionStore, err := newApplicationSessionStore(
+		authKey,
+		encKey,
+		cfg.App.SessionMaxAge,
+		config.Env == server.ProdEnvironment,
+	)
+	if err != nil {
+		return nil, err
+	}
+	corsConfig, err := newCORSConfig(config.BaseURL, cfg.App.CORSAllowedOrigins)
+	if err != nil {
+		return nil, err
+	}
 
 	// Order matters: middlewares execute in the order listed, with Recover last
 	// to catch panics from all preceding middlewares.
 	middlewares := []echo.MiddlewareFunc{
 		middleware.TraceRouteAttributes(tel),
 		middleware.Logger(tel),
-		session.Middleware(
-			sessions.NewCookieStore(
-				authKey,
-				encKey,
-			),
-		),
+		session.Middleware(sessionStore),
 		middleware.ValidateSession,
 		middleware.RegisterRequestMeta,
 {{- if .Inertia}}
 		inertia.Middleware(),
 {{- end}}
-		echomw.CORSWithConfig(echomw.CORSConfig{
-			AllowOrigins:     []string{"https://*", "http://*"},
-			AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
-			AllowHeaders:     []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-			AllowCredentials: true,
-			MaxAge:           300,
-		}),
+		echomw.CORSWithConfig(corsConfig),
 		csrfMiddleware,
 		echomw.Recover(),
 	}
 
 	return middlewares, nil
+}
+
+func newApplicationSessionStore(
+	authKey []byte,
+	encKey []byte,
+	maxAge int,
+	secure bool,
+) (*sessions.CookieStore, error) {
+	if maxAge <= 0 {
+		return nil, errors.New("SESSION_MAX_AGE must be greater than zero")
+	}
+
+	store := sessions.NewCookieStore(authKey, encKey)
+	store.Options = &sessions.Options{
+		Path:     "/",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	}
+
+	return store, nil
+}
+
+func newCORSConfig(applicationOrigin string, additionalOrigins []string) (echomw.CORSConfig, error) {
+	applicationOrigin = strings.TrimSpace(applicationOrigin)
+	if applicationOrigin == "" {
+		return echomw.CORSConfig{}, errors.New("application origin must not be empty")
+	}
+	if strings.Contains(applicationOrigin, "*") {
+		return echomw.CORSConfig{}, fmt.Errorf("credentialed CORS origin %q must not contain a wildcard", applicationOrigin)
+	}
+
+	origins := []string{applicationOrigin}
+	for _, configuredOrigin := range additionalOrigins {
+		origin := strings.TrimSpace(configuredOrigin)
+		if origin == "" {
+			continue
+		}
+		if strings.Contains(origin, "*") {
+			return echomw.CORSConfig{}, fmt.Errorf("credentialed CORS origin %q must not contain a wildcard", origin)
+		}
+		origins = append(origins, origin)
+	}
+
+	return echomw.CORSConfig{
+		AllowOrigins:     origins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}, nil
 }
 
 func (r *Router) AddRoute(route echo.Route) (echo.RouteInfo, error) {
