@@ -418,11 +418,8 @@ var inertiaReactTemplateMappings = map[TmplTarget]TmplTargetPath{
 }
 
 var inertiaSkippedTemplates = map[TmplTarget]bool{
-	"views_bad_request.tmpl":    true,
 	"views_confirm_email.tmpl":  true,
-	"views_internal_error.tmpl": true,
 	"views_login.tmpl":          true,
-	"views_not_found.tmpl":      true,
 	"views_registration.tmpl":   true,
 	"views_reset_password.tmpl": true,
 }
