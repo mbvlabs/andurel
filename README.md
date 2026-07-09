@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/mbvlabs/andurel.svg)](https://pkg.go.dev/github.com/mbvlabs/andurel)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mbvlabs/andurel)](https://goreportcard.com/report/github.com/mbvlabs/andurel)
-![Coverage](https://img.shields.io/badge/Coverage-49.3%25-yellow)
+![Coverage](https://img.shields.io/badge/Coverage-80.4%25-brightgreen)
 
 ---
 
@@ -62,7 +62,7 @@ The core philosophy around resource generation in andurel, is that it should be 
 ### Installation
 
 ```bash
-go install github.com/mbvlabs/andurel@v1.0.0-rc.2
+go install github.com/mbvlabs/andurel@v1.0.0-rc.3
 ```
 
 ### Create Your First Project
