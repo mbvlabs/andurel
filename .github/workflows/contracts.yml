@@ -1,0 +1,60 @@
+name: Public Contracts
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  fixtures:
+    name: Deterministic contract fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.0'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Check contract fixtures
+        run: ./scripts/check-contracts.sh
+
+  api-diff:
+    name: Public API compatibility
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code and release tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.0'
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Install pinned API diff tool
+        run: go install golang.org/x/exp/cmd/apidiff@v0.0.0-20250620022241-b7579e27df2b
+
+      - name: Check compatibility with PR base and RC.3
+        run: ./scripts/check-api-compat.sh "${{ github.event.pull_request.base.sha }}" v1.0.0-rc.3

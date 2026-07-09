@@ -1,0 +1,2292 @@
+{
+  "schema_version": 1,
+  "commands": [
+    {
+      "path": "andurel",
+      "use": "andurel",
+      "flags": [
+        {
+          "name": "agent",
+          "type": "bool",
+          "default": "false",
+          "persistent": true
+        },
+        {
+          "name": "count",
+          "type": "bool",
+          "default": "false",
+          "persistent": true
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "ids-only",
+          "type": "bool",
+          "default": "false",
+          "persistent": true
+        },
+        {
+          "name": "jq",
+          "type": "string",
+          "default": "",
+          "persistent": true
+        },
+        {
+          "name": "json",
+          "type": "bool",
+          "default": "false",
+          "persistent": true
+        },
+        {
+          "name": "md",
+          "type": "bool",
+          "default": "false",
+          "persistent": true
+        },
+        {
+          "name": "quiet",
+          "type": "bool",
+          "default": "false",
+          "persistent": true
+        },
+        {
+          "name": "verbose",
+          "type": "bool",
+          "default": "false",
+          "persistent": true
+        },
+        {
+          "name": "version",
+          "shorthand": "v",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel build",
+      "use": "build",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "version",
+          "type": "string",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "path": "andurel commands",
+      "use": "commands",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel config",
+      "use": "config",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "scope",
+          "type": "string",
+          "default": "project",
+          "persistent": true
+        }
+      ]
+    },
+    {
+      "path": "andurel config init",
+      "use": "init",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel config set",
+      "use": "set KEY VALUE",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel config show",
+      "use": "show",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel config unset",
+      "use": "unset KEY",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel console",
+      "use": "console",
+      "aliases": [
+        "c"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel controllers",
+      "use": "controllers",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database",
+      "use": "database",
+      "aliases": [
+        "d",
+        "db"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database create",
+      "use": "create",
+      "aliases": [
+        "crt"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database drop",
+      "use": "drop",
+      "flags": [
+        {
+          "name": "force",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database migrate",
+      "use": "migrate",
+      "aliases": [
+        "m",
+        "mig"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database migrate down",
+      "use": "down",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database migrate down-to",
+      "use": "down-to [version]",
+      "aliases": [
+        "downto"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database migrate fix",
+      "use": "fix",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database migrate new",
+      "use": "new [name]",
+      "aliases": [
+        "n"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database migrate reset",
+      "use": "reset",
+      "aliases": [
+        "rs"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database migrate status",
+      "use": "status",
+      "aliases": [
+        "st"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database migrate up",
+      "use": "up",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database migrate up-to",
+      "use": "up-to [version]",
+      "aliases": [
+        "upto"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database nuke",
+      "use": "nuke",
+      "flags": [
+        {
+          "name": "force",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database rebuild",
+      "use": "rebuild",
+      "aliases": [
+        "rb"
+      ],
+      "flags": [
+        {
+          "name": "force",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "seed",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "name": "skip-seed",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel database seed",
+      "use": "seed [name]",
+      "aliases": [
+        "s"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "list",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel doctor",
+      "use": "doctor",
+      "aliases": [
+        "doc"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "verbose",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel extension",
+      "use": "extension",
+      "aliases": [
+        "extensions",
+        "ext",
+        "e"
+      ],
+      "flags": [
+        {
+          "name": "available",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel extension add",
+      "use": "add [extension-name]",
+      "aliases": [
+        "a"
+      ],
+      "flags": [
+        {
+          "name": "diff",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "dry-run",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel extension list",
+      "use": "list",
+      "aliases": [
+        "ls"
+      ],
+      "flags": [
+        {
+          "name": "available",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel fmt",
+      "use": "fmt",
+      "aliases": [
+        "f"
+      ],
+      "flags": [
+        {
+          "name": "check",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "skip-go",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "skip-templ",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel generate",
+      "use": "generate",
+      "aliases": [
+        "g"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel generate controller",
+      "use": "controller NAME [action action ...]",
+      "aliases": [
+        "c"
+      ],
+      "flags": [
+        {
+          "name": "api",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "diff",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "dry-run",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "inertia",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "model-name",
+          "type": "string",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "path": "andurel generate email",
+      "use": "email NAME",
+      "aliases": [
+        "e"
+      ],
+      "flags": [
+        {
+          "name": "diff",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "dry-run",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel generate factories",
+      "use": "factories",
+      "flags": [
+        {
+          "name": "check",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "diff",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "sync",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel generate factory",
+      "use": "factory NAME",
+      "flags": [
+        {
+          "name": "check",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "diff",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "sync",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel generate job",
+      "use": "job NAME",
+      "aliases": [
+        "j"
+      ],
+      "flags": [
+        {
+          "name": "diff",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "dry-run",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "queue",
+          "type": "string",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "path": "andurel generate model",
+      "use": "model NAME",
+      "aliases": [
+        "m"
+      ],
+      "flags": [
+        {
+          "name": "diff",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "dry-run",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "primary-key",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "name": "skip-factory",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "table-name",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "name": "update",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "yes",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel generate routes",
+      "use": "routes",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel generate scaffold",
+      "use": "scaffold NAME",
+      "aliases": [
+        "s"
+      ],
+      "flags": [
+        {
+          "name": "api",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "diff",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "dry-run",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "inertia",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "primary-key",
+          "type": "string",
+          "default": ""
+        },
+        {
+          "name": "skip-factory",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "table-name",
+          "type": "string",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "path": "andurel generate view",
+      "use": "view",
+      "aliases": [
+        "v"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel jobs",
+      "use": "jobs",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel migrations",
+      "use": "migrations",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel models",
+      "use": "models",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel new",
+      "use": "new [project-name]",
+      "aliases": [
+        "n"
+      ],
+      "flags": [
+        {
+          "name": "diff",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "dry-run",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "extensions",
+          "shorthand": "e",
+          "type": "stringSlice",
+          "default": "[]"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "inertia",
+          "type": "string",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "path": "andurel project",
+      "use": "project",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel project info",
+      "use": "info",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel routes",
+      "use": "routes",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel run",
+      "use": "run",
+      "aliases": [
+        "r"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel skill",
+      "use": "skill",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel skill install",
+      "use": "install",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel skill show",
+      "use": "show",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel tool",
+      "use": "tool",
+      "aliases": [
+        "tools",
+        "t"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel tool dblab",
+      "use": "dblab",
+      "aliases": [
+        "d"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel tool list",
+      "use": "list",
+      "aliases": [
+        "ls",
+        "status"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel tool mailpit",
+      "use": "mailpit",
+      "aliases": [
+        "m"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel tool set-version",
+      "use": "set-version <tool> <version>",
+      "aliases": [
+        "sv"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel tool sync",
+      "use": "sync",
+      "aliases": [
+        "s"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel upgrade",
+      "use": "upgrade",
+      "aliases": [
+        "up"
+      ],
+      "flags": [
+        {
+          "name": "diff",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "dry-run",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel views",
+      "use": "views",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    }
+  ],
+  "json_structs": [
+    {
+      "type": "github.com/mbvlabs/andurel/cli.agentConfig",
+      "fields": [
+        {
+          "go_name": "PreferredGeneratorMode",
+          "json_name": "preferred_generator_mode",
+          "omitempty": true
+        },
+        {
+          "go_name": "JavaScriptRuntime",
+          "json_name": "javascript_runtime",
+          "omitempty": true
+        },
+        {
+          "go_name": "DefaultNamespace",
+          "json_name": "default_namespace",
+          "omitempty": true
+        },
+        {
+          "go_name": "OutputFormat",
+          "json_name": "output_format",
+          "omitempty": true
+        },
+        {
+          "go_name": "CommonDatabaseCommandOptions",
+          "json_name": "common_database_command_options",
+          "omitempty": true
+        },
+        {
+          "go_name": "Values",
+          "json_name": "values",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.commandDiscovery",
+      "fields": [
+        {
+          "go_name": "Name",
+          "json_name": "name"
+        },
+        {
+          "go_name": "Path",
+          "json_name": "path"
+        },
+        {
+          "go_name": "Aliases",
+          "json_name": "aliases",
+          "omitempty": true
+        },
+        {
+          "go_name": "Short",
+          "json_name": "short",
+          "omitempty": true
+        },
+        {
+          "go_name": "Long",
+          "json_name": "long",
+          "omitempty": true
+        },
+        {
+          "go_name": "Usage",
+          "json_name": "usage"
+        },
+        {
+          "go_name": "Examples",
+          "json_name": "examples",
+          "omitempty": true
+        },
+        {
+          "go_name": "LocalFlags",
+          "json_name": "local_flags",
+          "omitempty": true
+        },
+        {
+          "go_name": "InheritedFlags",
+          "json_name": "inherited_flags",
+          "omitempty": true
+        },
+        {
+          "go_name": "Subcommands",
+          "json_name": "subcommands",
+          "omitempty": true
+        },
+        {
+          "go_name": "AgentNotes",
+          "json_name": "agent_notes",
+          "omitempty": true
+        },
+        {
+          "go_name": "Category",
+          "json_name": "category",
+          "omitempty": true
+        },
+        {
+          "go_name": "Commands",
+          "json_name": "commands",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.commandSummary",
+      "fields": [
+        {
+          "go_name": "Name",
+          "json_name": "name"
+        },
+        {
+          "go_name": "Path",
+          "json_name": "path"
+        },
+        {
+          "go_name": "Aliases",
+          "json_name": "aliases",
+          "omitempty": true
+        },
+        {
+          "go_name": "Short",
+          "json_name": "short",
+          "omitempty": true
+        },
+        {
+          "go_name": "Category",
+          "json_name": "category",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.configPaths",
+      "fields": [
+        {
+          "go_name": "User",
+          "json_name": "user"
+        },
+        {
+          "go_name": "Project",
+          "json_name": "project"
+        },
+        {
+          "go_name": "Cache",
+          "json_name": "cache"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.configShowReport",
+      "fields": [
+        {
+          "go_name": "User",
+          "json_name": "user"
+        },
+        {
+          "go_name": "Project",
+          "json_name": "project"
+        },
+        {
+          "go_name": "Cache",
+          "json_name": "cache"
+        },
+        {
+          "go_name": "Merged",
+          "json_name": "merged"
+        },
+        {
+          "go_name": "Paths",
+          "json_name": "paths"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.doctorCheck",
+      "fields": [
+        {
+          "go_name": "Category",
+          "json_name": "category"
+        },
+        {
+          "go_name": "Name",
+          "json_name": "name"
+        },
+        {
+          "go_name": "Status",
+          "json_name": "status"
+        },
+        {
+          "go_name": "Message",
+          "json_name": "message",
+          "omitempty": true
+        },
+        {
+          "go_name": "Details",
+          "json_name": "details",
+          "omitempty": true
+        },
+        {
+          "go_name": "Hint",
+          "json_name": "hint",
+          "omitempty": true
+        },
+        {
+          "go_name": "Blocking",
+          "json_name": "blocking"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.doctorReport",
+      "fields": [
+        {
+          "go_name": "Version",
+          "json_name": "version",
+          "omitempty": true
+        },
+        {
+          "go_name": "Root",
+          "json_name": "root",
+          "omitempty": true
+        },
+        {
+          "go_name": "Checks",
+          "json_name": "checks"
+        },
+        {
+          "go_name": "Summary",
+          "json_name": "summary"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.doctorSummary",
+      "fields": [
+        {
+          "go_name": "Total",
+          "json_name": "total"
+        },
+        {
+          "go_name": "Passed",
+          "json_name": "passed"
+        },
+        {
+          "go_name": "Warnings",
+          "json_name": "warnings"
+        },
+        {
+          "go_name": "Failed",
+          "json_name": "failed"
+        },
+        {
+          "go_name": "Status",
+          "json_name": "status"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.extensionInfo",
+      "fields": [
+        {
+          "go_name": "Name",
+          "json_name": "name"
+        },
+        {
+          "go_name": "AppliedAt",
+          "json_name": "applied_at",
+          "omitempty": true
+        },
+        {
+          "go_name": "Available",
+          "json_name": "available",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.factorySyncReport",
+      "fields": [
+        {
+          "go_name": "Results",
+          "json_name": "results"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.flagDiscovery",
+      "fields": [
+        {
+          "go_name": "Name",
+          "json_name": "name"
+        },
+        {
+          "go_name": "Shorthand",
+          "json_name": "shorthand",
+          "omitempty": true
+        },
+        {
+          "go_name": "Usage",
+          "json_name": "usage",
+          "omitempty": true
+        },
+        {
+          "go_name": "Default",
+          "json_name": "default",
+          "omitempty": true
+        },
+        {
+          "go_name": "Type",
+          "json_name": "type",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.mutationReport",
+      "fields": [
+        {
+          "go_name": "Action",
+          "json_name": "action"
+        },
+        {
+          "go_name": "Resource",
+          "json_name": "resource",
+          "omitempty": true
+        },
+        {
+          "go_name": "DryRun",
+          "json_name": "dry_run",
+          "omitempty": true
+        },
+        {
+          "go_name": "FilesCreated",
+          "json_name": "files_created"
+        },
+        {
+          "go_name": "FilesUpdated",
+          "json_name": "files_updated"
+        },
+        {
+          "go_name": "FilesDeleted",
+          "json_name": "files_deleted",
+          "omitempty": true
+        },
+        {
+          "go_name": "RoutesAdded",
+          "json_name": "routes_added"
+        },
+        {
+          "go_name": "CommandsRun",
+          "json_name": "commands_run"
+        },
+        {
+          "go_name": "Warnings",
+          "json_name": "warnings",
+          "omitempty": true
+        },
+        {
+          "go_name": "Diff",
+          "json_name": "diff",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.projectInfo",
+      "fields": [
+        {
+          "go_name": "Root",
+          "json_name": "root"
+        },
+        {
+          "go_name": "Module",
+          "json_name": "module",
+          "omitempty": true
+        },
+        {
+          "go_name": "GoVersion",
+          "json_name": "go_version",
+          "omitempty": true
+        },
+        {
+          "go_name": "AndurelVersion",
+          "json_name": "andurel_version",
+          "omitempty": true
+        },
+        {
+          "go_name": "ScaffoldConfig",
+          "json_name": "scaffold_config",
+          "omitempty": true
+        },
+        {
+          "go_name": "DatabaseConfig",
+          "json_name": "database_config",
+          "omitempty": true
+        },
+        {
+          "go_name": "Extensions",
+          "json_name": "extensions"
+        },
+        {
+          "go_name": "Tools",
+          "json_name": "tools"
+        },
+        {
+          "go_name": "ConfigPath",
+          "json_name": "config_path",
+          "omitempty": true
+        },
+        {
+          "go_name": "UserConfigPath",
+          "json_name": "user_config_path",
+          "omitempty": true
+        },
+        {
+          "go_name": "UserCacheDirectory",
+          "json_name": "user_cache_directory",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.projectItem",
+      "fields": [
+        {
+          "go_name": "Name",
+          "json_name": "name"
+        },
+        {
+          "go_name": "Path",
+          "json_name": "path"
+        },
+        {
+          "go_name": "Kind",
+          "json_name": "kind",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.routeManifest",
+      "fields": [
+        {
+          "go_name": "Routes",
+          "json_name": "routes"
+        },
+        {
+          "go_name": "Skipped",
+          "json_name": "skipped",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.routeManifestParam",
+      "fields": [
+        {
+          "go_name": "Name",
+          "json_name": "name"
+        },
+        {
+          "go_name": "Type",
+          "json_name": "type"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.routeManifestRoute",
+      "fields": [
+        {
+          "go_name": "Variable",
+          "json_name": "variable"
+        },
+        {
+          "go_name": "Name",
+          "json_name": "name"
+        },
+        {
+          "go_name": "Path",
+          "json_name": "path"
+        },
+        {
+          "go_name": "Constructor",
+          "json_name": "constructor"
+        },
+        {
+          "go_name": "Kind",
+          "json_name": "kind"
+        },
+        {
+          "go_name": "Params",
+          "json_name": "params",
+          "omitempty": true
+        },
+        {
+          "go_name": "SourceFile",
+          "json_name": "source_file"
+        },
+        {
+          "go_name": "Line",
+          "json_name": "line"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.routeManifestSkipped",
+      "fields": [
+        {
+          "go_name": "Variable",
+          "json_name": "variable",
+          "omitempty": true
+        },
+        {
+          "go_name": "Constructor",
+          "json_name": "constructor",
+          "omitempty": true
+        },
+        {
+          "go_name": "SourceFile",
+          "json_name": "source_file"
+        },
+        {
+          "go_name": "Line",
+          "json_name": "line"
+        },
+        {
+          "go_name": "Reason",
+          "json_name": "reason"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.routesJSReport",
+      "fields": [
+        {
+          "go_name": "GeneratedFile",
+          "json_name": "generated_file"
+        },
+        {
+          "go_name": "GeneratedHelpers",
+          "json_name": "generated_helpers"
+        },
+        {
+          "go_name": "SkippedCount",
+          "json_name": "skipped_count"
+        },
+        {
+          "go_name": "Skipped",
+          "json_name": "skipped",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.seedReport",
+      "fields": [
+        {
+          "go_name": "Name",
+          "json_name": "name",
+          "omitempty": true
+        },
+        {
+          "go_name": "Names",
+          "json_name": "names",
+          "omitempty": true
+        },
+        {
+          "go_name": "Output",
+          "json_name": "output",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.skillReport",
+      "fields": [
+        {
+          "go_name": "Name",
+          "json_name": "name"
+        },
+        {
+          "go_name": "Path",
+          "json_name": "path",
+          "omitempty": true
+        },
+        {
+          "go_name": "Body",
+          "json_name": "body",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.toolInfo",
+      "fields": [
+        {
+          "go_name": "Name",
+          "json_name": "name"
+        },
+        {
+          "go_name": "Version",
+          "json_name": "version",
+          "omitempty": true
+        },
+        {
+          "go_name": "Source",
+          "json_name": "source",
+          "omitempty": true
+        },
+        {
+          "go_name": "Path",
+          "json_name": "path",
+          "omitempty": true
+        },
+        {
+          "go_name": "BinaryPath",
+          "json_name": "binary_path",
+          "omitempty": true
+        },
+        {
+          "go_name": "Installed",
+          "json_name": "installed"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli/output.Breadcrumb",
+      "fields": [
+        {
+          "go_name": "Command",
+          "json_name": "cmd"
+        },
+        {
+          "go_name": "Description",
+          "json_name": "description",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli/output.Envelope",
+      "fields": [
+        {
+          "go_name": "OK",
+          "json_name": "ok"
+        },
+        {
+          "go_name": "Data",
+          "json_name": "data",
+          "omitempty": true
+        },
+        {
+          "go_name": "Summary",
+          "json_name": "summary",
+          "omitempty": true
+        },
+        {
+          "go_name": "Breadcrumbs",
+          "json_name": "breadcrumbs",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli/output.ErrorEnvelope",
+      "fields": [
+        {
+          "go_name": "OK",
+          "json_name": "ok"
+        },
+        {
+          "go_name": "Code",
+          "json_name": "code"
+        },
+        {
+          "go_name": "Error",
+          "json_name": "error"
+        },
+        {
+          "go_name": "Hint",
+          "json_name": "hint",
+          "omitempty": true
+        },
+        {
+          "go_name": "ExitCode",
+          "json_name": "exit_code",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/generator.ControllerConfig",
+      "fields": [
+        {
+          "go_name": "ResourceName",
+          "json_name": "resource_name"
+        },
+        {
+          "go_name": "PluralName",
+          "json_name": "plural_name"
+        },
+        {
+          "go_name": "PackageName",
+          "json_name": "package_name"
+        },
+        {
+          "go_name": "ModulePath",
+          "json_name": "module_path"
+        },
+        {
+          "go_name": "Paths",
+          "json_name": "paths"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/generator.ControllerPaths",
+      "fields": [
+        {
+          "go_name": "Controllers",
+          "json_name": "controllers"
+        },
+        {
+          "go_name": "Routes",
+          "json_name": "routes"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/generator.FactorySyncResult",
+      "fields": [
+        {
+          "go_name": "ResourceName",
+          "json_name": "resource_name"
+        },
+        {
+          "go_name": "Path",
+          "json_name": "path"
+        },
+        {
+          "go_name": "Missing",
+          "json_name": "missing"
+        },
+        {
+          "go_name": "Stale",
+          "json_name": "stale"
+        },
+        {
+          "go_name": "Written",
+          "json_name": "written"
+        },
+        {
+          "go_name": "Diff",
+          "json_name": "diff",
+          "omitempty": true
+        },
+        {
+          "go_name": "Messages",
+          "json_name": "messages",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/generator.ModelConfig",
+      "fields": [
+        {
+          "go_name": "TableName",
+          "json_name": "table_name"
+        },
+        {
+          "go_name": "ResourceName",
+          "json_name": "resource_name"
+        },
+        {
+          "go_name": "PackageName",
+          "json_name": "package_name"
+        },
+        {
+          "go_name": "DatabaseType",
+          "json_name": "database_type"
+        },
+        {
+          "go_name": "ModulePath",
+          "json_name": "module_path"
+        },
+        {
+          "go_name": "Paths",
+          "json_name": "paths"
+        },
+        {
+          "go_name": "Generation",
+          "json_name": "generation"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/generator.ModelPaths",
+      "fields": [
+        {
+          "go_name": "Models",
+          "json_name": "models"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/generator.ViewConfig",
+      "fields": [
+        {
+          "go_name": "ResourceName",
+          "json_name": "resource_name"
+        },
+        {
+          "go_name": "PluralName",
+          "json_name": "plural_name"
+        },
+        {
+          "go_name": "ModulePath",
+          "json_name": "module_path"
+        },
+        {
+          "go_name": "Paths",
+          "json_name": "paths"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/generator.ViewPaths",
+      "fields": [
+        {
+          "go_name": "Views",
+          "json_name": "views"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/generator/templates.DatabaseData",
+      "fields": [
+        {
+          "go_name": "Type",
+          "json_name": "type"
+        },
+        {
+          "go_name": "Method",
+          "json_name": "method"
+        },
+        {
+          "go_name": "Driver",
+          "json_name": "driver"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/generator/templates.ProjectData",
+      "fields": [
+        {
+          "go_name": "ModulePath",
+          "json_name": "module_path"
+        },
+        {
+          "go_name": "Name",
+          "json_name": "name"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/generator/templates.ResourceData",
+      "fields": [
+        {
+          "go_name": "Name",
+          "json_name": "name"
+        },
+        {
+          "go_name": "PluralName",
+          "json_name": "plural_name"
+        },
+        {
+          "go_name": "Fields",
+          "json_name": "fields"
+        },
+        {
+          "go_name": "ModulePath",
+          "json_name": "module_path"
+        },
+        {
+          "go_name": "Type",
+          "json_name": "type"
+        },
+        {
+          "go_name": "DatabaseType",
+          "json_name": "database_type"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/generator/templates.TemplateData",
+      "fields": [
+        {
+          "go_name": "Resource",
+          "json_name": "resource"
+        },
+        {
+          "go_name": "Database",
+          "json_name": "database"
+        },
+        {
+          "go_name": "Project",
+          "json_name": "project"
+        },
+        {
+          "go_name": "Custom",
+          "json_name": "custom"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/layout.AndurelLock",
+      "fields": [
+        {
+          "go_name": "Version",
+          "json_name": "version"
+        },
+        {
+          "go_name": "Extensions",
+          "json_name": "extensions",
+          "omitempty": true
+        },
+        {
+          "go_name": "Tools",
+          "json_name": "tools"
+        },
+        {
+          "go_name": "ScaffoldConfig",
+          "json_name": "scaffoldConfig",
+          "omitempty": true
+        },
+        {
+          "go_name": "DatabaseConfig",
+          "json_name": "databaseConfig",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/layout.DatabaseConfig",
+      "fields": [
+        {
+          "go_name": "NullType",
+          "json_name": "nullType"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/layout.Extension",
+      "fields": [
+        {
+          "go_name": "AppliedAt",
+          "json_name": "appliedAt"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/layout.ScaffoldConfig",
+      "fields": [
+        {
+          "go_name": "ProjectName",
+          "json_name": "projectName"
+        },
+        {
+          "go_name": "Database",
+          "json_name": "database"
+        },
+        {
+          "go_name": "Inertia",
+          "json_name": "inertia",
+          "omitempty": true
+        },
+        {
+          "go_name": "JavaScriptRuntime",
+          "json_name": "javascriptRuntime",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/layout.Tool",
+      "fields": [
+        {
+          "go_name": "Version",
+          "json_name": "version",
+          "omitempty": true
+        },
+        {
+          "go_name": "Source",
+          "json_name": "source",
+          "omitempty": true
+        },
+        {
+          "go_name": "Path",
+          "json_name": "path",
+          "omitempty": true
+        },
+        {
+          "go_name": "Download",
+          "json_name": "download",
+          "omitempty": true
+        },
+        {
+          "go_name": "VersionCheck",
+          "json_name": "versionCheck",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/layout.ToolDownload",
+      "fields": [
+        {
+          "go_name": "URLTemplate",
+          "json_name": "urlTemplate"
+        },
+        {
+          "go_name": "Archive",
+          "json_name": "archive",
+          "omitempty": true
+        },
+        {
+          "go_name": "BinaryName",
+          "json_name": "binaryName",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/layout.VersionCheck",
+      "fields": [
+        {
+          "go_name": "Args",
+          "json_name": "args"
+        },
+        {
+          "go_name": "Regexp",
+          "json_name": "regexp",
+          "omitempty": true
+        }
+      ]
+    }
+  ],
+  "success_envelope": {
+    "fields": [
+      {
+        "go_name": "OK",
+        "json_name": "ok"
+      },
+      {
+        "go_name": "Data",
+        "json_name": "data",
+        "omitempty": true
+      },
+      {
+        "go_name": "Summary",
+        "json_name": "summary",
+        "omitempty": true
+      },
+      {
+        "go_name": "Breadcrumbs",
+        "json_name": "breadcrumbs",
+        "omitempty": true
+      }
+    ]
+  },
+  "error_envelope": {
+    "fields": [
+      {
+        "go_name": "OK",
+        "json_name": "ok"
+      },
+      {
+        "go_name": "Code",
+        "json_name": "code"
+      },
+      {
+        "go_name": "Error",
+        "json_name": "error"
+      },
+      {
+        "go_name": "Hint",
+        "json_name": "hint",
+        "omitempty": true
+      },
+      {
+        "go_name": "ExitCode",
+        "json_name": "exit_code",
+        "omitempty": true
+      }
+    ]
+  },
+  "projections": [
+    {
+      "flag": "--count",
+      "shape": "one raw base-10 integer followed by a newline"
+    },
+    {
+      "flag": "--ids-only",
+      "shape": "one raw identifier per line"
+    },
+    {
+      "flag": "--jq",
+      "shape": "the selected data payload value encoded directly as JSON"
+    }
+  ],
+  "errors": [
+    {
+      "code": "ambiguous_input",
+      "exit_code": 8
+    },
+    {
+      "code": "config_error",
+      "exit_code": 7
+    },
+    {
+      "code": "error",
+      "exit_code": 1
+    },
+    {
+      "code": "external_command_failed",
+      "exit_code": 6
+    },
+    {
+      "code": "generation_failed",
+      "exit_code": 5
+    },
+    {
+      "code": "invalid_extension",
+      "exit_code": 1
+    },
+    {
+      "code": "invalid_inertia_adapter",
+      "exit_code": 1
+    },
+    {
+      "code": "invalid_output_mode",
+      "exit_code": 1
+    },
+    {
+      "code": "missing_tool",
+      "exit_code": 3
+    },
+    {
+      "code": "project_not_found",
+      "exit_code": 2
+    },
+    {
+      "code": "unsafe_action_requires_confirmation",
+      "exit_code": 4
+    },
+    {
+      "code": "usage_error",
+      "exit_code": 1
+    }
+  ]
+}

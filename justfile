@@ -10,6 +10,14 @@ alias ta := test-all
 default:
 	@just --list
 
+# Regenerate public API, CLI, and lock contract fixtures
+update-contracts:
+	./scripts/update-contracts.sh
+
+# Verify committed contract fixtures match the source tree
+check-contracts:
+	./scripts/check-contracts.sh
+
 # Build the andurel binary
 build:
 	go build -o dev-andurel main.go
