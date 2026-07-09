@@ -8,8 +8,8 @@ import (
 	layouttemplates "github.com/mbvlabs/andurel/layout/templates"
 )
 
-func TestPhase2UserAndTokenModelTemplates(t *testing.T) {
-	user := readPhase2Template(t, "models_user.tmpl")
+func TestGeneratedUserAndTokenModelTemplates(t *testing.T) {
+	user := readGeneratedApplicationTemplate(t, "models_user.tmpl")
 	for _, want := range []string{
 		"CreatedAt:        current.CreatedAt",
 		"db.NewDelete()",
@@ -29,7 +29,7 @@ func TestPhase2UserAndTokenModelTemplates(t *testing.T) {
 		t.Error("models_user.tmpl still scans a model into the pagination count")
 	}
 
-	token := readPhase2Template(t, "models_token.tmpl")
+	token := readGeneratedApplicationTemplate(t, "models_token.tmpl")
 	if !strings.Contains(token, "Model(&TokenEntity{}).Count(ctx)") {
 		t.Error("models_token.tmpl does not use Bun Count")
 	}
@@ -38,20 +38,20 @@ func TestPhase2UserAndTokenModelTemplates(t *testing.T) {
 	}
 }
 
-func TestPhase2AuthenticationTemplates(t *testing.T) {
-	authConfig := readPhase2Template(t, "config_auth.tmpl")
+func TestGeneratedAuthenticationTemplates(t *testing.T) {
+	authConfig := readGeneratedApplicationTemplate(t, "config_auth.tmpl")
 	if !strings.Contains(authConfig, `env:"PREVIOUS_PEPPERS"`) {
 		t.Error("config_auth.tmpl does not configure PREVIOUS_PEPPERS")
 	}
 
-	identity := readPhase2Template(t, "services_identity.tmpl")
+	identity := readGeneratedApplicationTemplate(t, "services_identity.tmpl")
 	for _, want := range []string{"previousPeppers []string", "tokenSigningKey string", "cfg.App.TokenSigningKey"} {
 		if !strings.Contains(identity, want) {
 			t.Errorf("services_identity.tmpl missing %q", want)
 		}
 	}
 
-	authentication := readPhase2Template(t, "services_authentication.tmpl")
+	authentication := readGeneratedApplicationTemplate(t, "services_authentication.tmpl")
 	for _, want := range []string{
 		"verifyPasswordWithPeppers",
 		"models.HashPassword(data.Password, i.pepper)",
@@ -63,18 +63,18 @@ func TestPhase2AuthenticationTemplates(t *testing.T) {
 		}
 	}
 
-	registration := readPhase2Template(t, "services_registration.tmpl")
+	registration := readGeneratedApplicationTemplate(t, "services_registration.tmpl")
 	if got := strings.Count(registration, "i.tokenSigningKey"); got != 3 {
 		t.Errorf("services_registration.tmpl token signing uses = %d, want 3", got)
 	}
-	reset := readPhase2Template(t, "services_reset_password.tmpl")
+	reset := readGeneratedApplicationTemplate(t, "services_reset_password.tmpl")
 	if got := strings.Count(reset, "i.tokenSigningKey"); got != 3 {
 		t.Errorf("services_reset_password.tmpl token signing uses = %d, want 3", got)
 	}
 }
 
-func TestPhase2RateLimiterAndLifecycleTemplates(t *testing.T) {
-	rateLimiter := readPhase2Template(t, "router_middleware_auth.tmpl")
+func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
+	rateLimiter := readGeneratedApplicationTemplate(t, "router_middleware_auth.tmpl")
 	for _, want := range []string{
 		"MaximumSize:      1000",
 		"ExpiryCreating[string, int32](10 * time.Minute)",
@@ -87,7 +87,7 @@ func TestPhase2RateLimiterAndLifecycleTemplates(t *testing.T) {
 		}
 	}
 
-	mainTemplate := readPhase2Template(t, "cmd_app_main.tmpl")
+	mainTemplate := readGeneratedApplicationTemplate(t, "cmd_app_main.tmpl")
 	for _, want := range []string{
 		`startInBackground(appCtx, "queue processor", p.Start)`,
 		"stopAndWait(ctx, p.Stop, done)",
@@ -105,17 +105,17 @@ func TestPhase2RateLimiterAndLifecycleTemplates(t *testing.T) {
 			t.Errorf("cmd_app_main.tmpl missing %q", want)
 		}
 	}
-	if got := strings.Count(mainTemplate, "p.Stop"); got != 1 {
-		t.Errorf("cmd_app_main.tmpl queue stop references = %d, want 1", got)
+	if got := strings.Count(mainTemplate, "stopAndWait(ctx, p.Stop, done)"); got != 1 {
+		t.Errorf("cmd_app_main.tmpl queue stop wiring occurrences = %d, want 1", got)
 	}
 
-	serverTemplate := readPhase2Template(t, "framework_elements_server_server.tmpl")
+	serverTemplate := readGeneratedApplicationTemplate(t, "framework_elements_server_server.tmpl")
 	if strings.Contains(serverTemplate, "shutdowner.Shutdown") {
 		t.Error("server Start still owns component shutdown")
 	}
 }
 
-func readPhase2Template(t *testing.T, name string) string {
+func readGeneratedApplicationTemplate(t *testing.T, name string) string {
 	t.Helper()
 	content, err := fs.ReadFile(layouttemplates.Files, name)
 	if err != nil {
