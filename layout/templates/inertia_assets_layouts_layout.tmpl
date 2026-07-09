@@ -1,3 +1,7 @@
+<script setup lang="ts">
+import { routes } from '../routes'
+</script>
+
 <template>
   <main class="relative flex min-h-screen flex-col overflow-hidden bg-[#090b0d] text-[#e4dfd2]">
     <div
@@ -6,7 +10,7 @@
     ></div>
     <header class="relative">
       <div class="mx-auto flex w-full max-w-[960px] items-center justify-between px-4 py-3">
-        <a class="inline-flex items-center gap-3 text-sm font-semibold text-[#f2ead8]" href="/">
+        <a class="inline-flex items-center gap-3 text-sm font-semibold text-[#f2ead8]" :href="routes.homePage()">
           <span class="grid size-8 grid-cols-2 gap-1 border border-[#52605c] bg-[#101414] p-1 shadow-sm shadow-black/40">
             <span class="border border-[#8df7a4]"></span>
             <span class="border border-[#52605c]"></span>
@@ -17,8 +21,8 @@
         </a>
         <nav class="flex flex-wrap items-center justify-end gap-3 text-sm">
           <a class="px-2 py-1 text-[#aaa393] transition hover:text-[#f2ead8]" href="https://andurel.com">Documentation</a>
-          <a class="px-2 py-1 text-[#aaa393] transition hover:text-[#f2ead8]" href="/users/sign-in">Log in</a>
-          <a class="px-2 py-1 text-[#aaa393] transition hover:text-[#f2ead8]" href="/users/sign-up">Register</a>
+          <a class="px-2 py-1 text-[#aaa393] transition hover:text-[#f2ead8]" :href="routes.sessionNew()">Log in</a>
+          <a class="px-2 py-1 text-[#aaa393] transition hover:text-[#f2ead8]" :href="routes.registrationNew()">Register</a>
         </nav>
       </div>
     </header>

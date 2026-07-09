@@ -1,5 +1,12 @@
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3'
+import { routes } from '../../routes'
+
+type RouteID = string
+
+function routeID(item: Record<string, unknown>): RouteID {
+  return item.ID as RouteID
+}
 
 defineProps<{
   items: Array<Record<string, unknown>>
@@ -10,7 +17,7 @@ defineProps<{
   <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-slate-100">Projects</h1>
-      <Link href="/projects/new" class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">New Project</Link>
+      <Link :href="routes.projectNew()" class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">New Project</Link>
     </div>
 
     <div class="mt-8 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
@@ -31,9 +38,9 @@ defineProps<{
             <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ item.CreatedAt }}</td>
             <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ item.UpdatedAt }}</td>
             <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-              <Link :href="`/projects/${item.ID}`" class="mr-3 text-cyan-300 hover:text-white">View</Link>
-              <Link :href="`/projects/${item.ID}/edit`" class="mr-3 text-cyan-300 hover:text-white">Edit</Link>
-              <Link :href="`/projects/${item.ID}`" method="delete" as="button" class="text-red-400 hover:text-red-300">Delete</Link>
+              <Link :href="routes.projectShow(routeID(item))" class="mr-3 text-cyan-300 hover:text-white">View</Link>
+              <Link :href="routes.projectEdit(routeID(item))" class="mr-3 text-cyan-300 hover:text-white">Edit</Link>
+              <Link :href="routes.projectDestroy(routeID(item))" method="delete" as="button" class="text-red-400 hover:text-red-300">Delete</Link>
             </td>
           </tr>
         </tbody>

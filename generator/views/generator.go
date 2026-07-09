@@ -487,6 +487,34 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, t
 func (g *Generator) GenerateInertiaViewFiles(view *GeneratedView, templatePrefix, extension string) (map[string]string, error) {
 	service := templates.GetGlobalTemplateService()
 	fileNames := make(map[string]string, 4)
+	customFuncs := template.FuncMap{
+		"HasAction": func(action string) bool {
+			if len(view.Actions) == 0 {
+				return true
+			}
+			return slices.Contains(view.Actions, action)
+		},
+		"InertiaRouteHelper": func(action string) string {
+			return naming.ToLowerCamelCase(view.NamespacePascal + view.ResourceName + naming.ToPascalCase(action))
+		},
+		"InertiaRouteIDType": func() string {
+			switch view.IDType {
+			case "int32", "int64":
+				return "number"
+			default:
+				return "string"
+			}
+		},
+		"InertiaRoutesImportPath": func() string {
+			depth := 2
+			for part := range strings.SplitSeq(view.Namespace, "/") {
+				if part != "" {
+					depth++
+				}
+			}
+			return strings.Repeat("../", depth) + "routes"
+		},
+	}
 
 	defaultComponents := []string{"Index", "Show", "Create", "Edit"}
 	components := defaultComponents
@@ -506,10 +534,14 @@ func (g *Generator) GenerateInertiaViewFiles(view *GeneratedView, templatePrefix
 
 	templateName := templatePrefix + "resource_view.tmpl"
 	for _, componentName := range components {
-		result, err := service.RenderTemplate(templateName, InertiaPageData{
-			GeneratedView: view,
-			ComponentName: componentName,
-		})
+		result, err := service.RenderTemplateWithCustomFunctions(
+			templateName,
+			InertiaPageData{
+				GeneratedView: view,
+				ComponentName: componentName,
+			},
+			customFuncs,
+		)
 		if err != nil {
 			return nil, errors.WrapTemplateError(err, "render inertia view", templateName)
 		}

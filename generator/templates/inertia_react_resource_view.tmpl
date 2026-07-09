@@ -1,7 +1,16 @@
 import { Link, useForm } from '@inertiajs/react'
 import type { FormEvent } from 'react'
 
+import { routes } from '{{ InertiaRoutesImportPath }}'
+
 type Item = Record<string, any>
+{{- if or (eq .ComponentName "Index") (eq .ComponentName "Show") (eq .ComponentName "Edit")}}
+type RouteID = {{ InertiaRouteIDType }}
+
+function routeID(item: Item): RouteID {
+  return item.{{.IDFieldName}} as RouteID
+}
+{{- end}}
 
 {{- if eq .ComponentName "Index"}}
 type IndexProps = {
@@ -15,7 +24,7 @@ export default function {{.ComponentName}}({ items }: IndexProps) {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-slate-100">{{.ResourceName}}s</h1>
-          <Link href="/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/new" className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">New {{.ResourceName}}</Link>
+          <Link href={routes.{{ InertiaRouteHelper "new" }}()} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">New {{.ResourceName}}</Link>
         </div>
 
         <div className="mt-8 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
@@ -35,9 +44,9 @@ export default function {{.ComponentName}}({ items }: IndexProps) {
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{item.{{.Name}}}</td>
 {{- end}}
                   <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                    <Link href={`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}`} className="mr-3 text-cyan-300 hover:text-white">View</Link>
-                    <Link href={`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}/edit`} className="mr-3 text-cyan-300 hover:text-white">Edit</Link>
-                    <Link href={`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}`} method="delete" as="button" className="text-red-400 hover:text-red-300">Delete</Link>
+                    <Link href={routes.{{ InertiaRouteHelper "show" }}(routeID(item))} className="mr-3 text-cyan-300 hover:text-white">View</Link>
+                    <Link href={routes.{{ InertiaRouteHelper "edit" }}(routeID(item))} className="mr-3 text-cyan-300 hover:text-white">Edit</Link>
+                    <Link href={routes.{{ InertiaRouteHelper "destroy" }}(routeID(item))} method="delete" as="button" className="text-red-400 hover:text-red-300">Delete</Link>
                   </td>
                 </tr>
               ))}
@@ -61,8 +70,8 @@ export default function {{.ComponentName}}({ item }: ShowProps) {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-slate-100">{{.ResourceName}} Details</h1>
           <div className="flex gap-3">
-            <Link href={`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}/edit`} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">Edit</Link>
-            <Link href="/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}" className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
+            <Link href={routes.{{ InertiaRouteHelper "edit" }}(routeID(item))} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">Edit</Link>
+            <Link href={routes.{{ InertiaRouteHelper "index" }}()} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
           </div>
         </div>
 
@@ -92,7 +101,7 @@ export default function {{.ComponentName}}() {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    form.post('/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}')
+    form.post(routes.{{ InertiaRouteHelper "create" }}())
   }
 
   return (
@@ -101,7 +110,7 @@ export default function {{.ComponentName}}() {
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-slate-100">New {{.ResourceName}}</h1>
-          <Link href="/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}" className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
+          <Link href={routes.{{ InertiaRouteHelper "index" }}()} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
         </div>
 
         <form onSubmit={submit} className="mt-8 space-y-6 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 p-6 shadow-sm">
@@ -141,7 +150,7 @@ export default function {{.ComponentName}}({ item }: EditProps) {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    form.put(`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}`)
+    form.put(routes.{{ InertiaRouteHelper "update" }}(routeID(item)))
   }
 
   return (
@@ -150,7 +159,7 @@ export default function {{.ComponentName}}({ item }: EditProps) {
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-slate-100">Edit {{.ResourceName}}</h1>
-          <Link href={`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}`} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
+          <Link href={routes.{{ InertiaRouteHelper "show" }}(routeID(item))} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
         </div>
 
         <form onSubmit={submit} className="mt-8 space-y-6 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 p-6 shadow-sm">
@@ -167,7 +176,7 @@ export default function {{.ComponentName}}({ item }: EditProps) {
 {{- end}}
 {{- end}}
           <div className="flex justify-end gap-3">
-            <Link href={`/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName}}/${item.{{.IDFieldName}}}`} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
+            <Link href={routes.{{ InertiaRouteHelper "show" }}(routeID(item))} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
             <button type="submit" disabled={form.processing} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300 disabled:opacity-50">{form.processing ? 'Updating...' : 'Update {{.ResourceName}}'}</button>
           </div>
         </form>

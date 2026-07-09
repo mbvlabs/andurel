@@ -111,7 +111,10 @@ and the default action set excludes new/edit.`,
 						inertiaStr = generatorpkg.ReadInertia()
 					}
 					return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-						return generateControllerWithActionsFunc(name, modelName, actions, inertiaStr, api)
+						if err := generateControllerWithActionsFunc(name, modelName, actions, inertiaStr, api); err != nil {
+							return err
+						}
+						return refreshRoutesTSAfterInertiaGeneration(rootDir, inertiaStr, api)
 					})(cmd, args)
 				},
 			})

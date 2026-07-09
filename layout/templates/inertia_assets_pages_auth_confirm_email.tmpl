@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3'
 import Layout from '../../Layouts/Layout.vue'
+import { routes } from '../../routes'
 
 defineProps<{ errors?: Record<string, string> }>()
 
@@ -17,7 +18,7 @@ const form = useForm({
         <p class="mt-1 text-sm text-[#8f8a7d]">Please enter the 6-digit verification code sent to your email.</p>
       </div>
       <div class="p-6">
-        <form class="space-y-5" @submit.prevent="form.post('/users/confirmation')">
+        <form class="space-y-5" @submit.prevent="form.post(routes.confirmationCreate())">
           <div class="space-y-1">
             <label class="text-sm font-medium text-[#c7c0ad]" for="code">Verification Code</label>
             <input id="code" v-model="form.code" type="text" maxlength="6" class="flex h-9 w-full border border-[#2f3a37] bg-[#090c0d] px-3 py-1 text-center text-sm tracking-[0.3em] text-[#e4dfd2] shadow-inner shadow-black/35 focus:border-[#8df7a4] focus:outline-none focus:ring-2 focus:ring-[#8df7a4]/20" required>

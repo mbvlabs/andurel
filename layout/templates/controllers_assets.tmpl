@@ -279,6 +279,13 @@ func (a Assets) ViteBuild(etx *echo.Context) error {
 	if param == "." || param == "" || strings.HasPrefix(param, "../") {
 		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 	}
+	_, param, ok := strings.Cut(param, "/")
+	if !ok {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	}
+	if param == "." || param == "" || strings.HasPrefix(param, "../") {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	}
 
 	data, err := assets.Files.ReadFile(fmt.Sprintf("dist/%s", param))
 	if err != nil {

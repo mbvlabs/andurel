@@ -149,6 +149,9 @@ func routeJSHelpers(routes []routeManifestRoute) ([]routeJSHelper, error) {
 	helpers := make([]routeJSHelper, 0, len(routes))
 	seen := map[string]routeManifestRoute{}
 	for _, route := range routes {
+		if !shouldGenerateRouteJSHelper(route) {
+			continue
+		}
 		helperName := naming.ToLowerCamelCase(route.Variable)
 		if existing, ok := seen[helperName]; ok {
 			return nil, output.NewError(
@@ -168,6 +171,15 @@ func routeJSHelpers(routes []routeManifestRoute) ([]routeJSHelper, error) {
 		return strings.Compare(a.Name, b.Name)
 	})
 	return helpers, nil
+}
+
+func shouldGenerateRouteJSHelper(route routeManifestRoute) bool {
+	for _, prefix := range []string{"api.", "assets.", "css.", "js.", "vite."} {
+		if strings.HasPrefix(route.Name, prefix) {
+			return false
+		}
+	}
+	return true
 }
 
 func validateRouteJSParams(route routeManifestRoute) error {
