@@ -2562,13 +2562,6 @@ func (a Assets) ViteBuild(etx *echo.Context) error {
 	if param == "." || param == "" || strings.HasPrefix(param, "../") {
 		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 	}
-	_, param, ok := strings.Cut(param, "/")
-	if !ok {
-		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
-	}
-	if param == "." || param == "" || strings.HasPrefix(param, "../") {
-		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
-	}
 
 	data, err := assets.Files.ReadFile(fmt.Sprintf("dist/%s", param))
 	if err != nil {
@@ -11241,8 +11234,8 @@ file -----------rw-r--r-- resources/js/Pages/Auth/ConfirmEmail.vue
 ```
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3'
-import Layout from '../../Layouts/Layout.vue'
-import { routes } from '../../routes'
+import Layout from '@/Layouts/Layout.vue'
+import { routes } from '@/routes'
 
 defineProps<{ errors?: Record<string, string> }>()
 
@@ -11277,8 +11270,8 @@ file -----------rw-r--r-- resources/js/Pages/Auth/Login.vue
 ```
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3'
-import Layout from '../../Layouts/Layout.vue'
-import { routes } from '../../routes'
+import Layout from '@/Layouts/Layout.vue'
+import { routes } from '@/routes'
 
 defineProps<{ errors?: Record<string, string> }>()
 
@@ -11321,8 +11314,8 @@ file -----------rw-r--r-- resources/js/Pages/Auth/Registration.vue
 ```
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3'
-import Layout from '../../Layouts/Layout.vue'
-import { routes } from '../../routes'
+import Layout from '@/Layouts/Layout.vue'
+import { routes } from '@/routes'
 
 defineProps<{ errors?: Record<string, string> }>()
 
@@ -11370,8 +11363,8 @@ file -----------rw-r--r-- resources/js/Pages/Auth/ResetPassword.vue
 ```
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3'
-import Layout from '../../Layouts/Layout.vue'
-import { routes } from '../../routes'
+import Layout from '@/Layouts/Layout.vue'
+import { routes } from '@/routes'
 
 const props = defineProps<{
   token: string
@@ -11417,8 +11410,8 @@ file -----------rw-r--r-- resources/js/Pages/Auth/ResetPasswordRequest.vue
 ```
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3'
-import Layout from '../../Layouts/Layout.vue'
-import { routes } from '../../routes'
+import Layout from '@/Layouts/Layout.vue'
+import { routes } from '@/routes'
 
 defineProps<{ errors?: Record<string, string> }>()
 
@@ -11455,7 +11448,7 @@ dir  d----------rwxr-xr-x resources/js/Pages/Errors
 file -----------rw-r--r-- resources/js/Pages/Errors/BadRequest.vue
 ```
 <script setup lang="ts">
-import Layout from '../../Layouts/Layout.vue'
+import Layout from '@/Layouts/Layout.vue'
 </script>
 
 <template>
@@ -11472,7 +11465,7 @@ import Layout from '../../Layouts/Layout.vue'
 file -----------rw-r--r-- resources/js/Pages/Errors/InternalError.vue
 ```
 <script setup lang="ts">
-import Layout from '../../Layouts/Layout.vue'
+import Layout from '@/Layouts/Layout.vue'
 </script>
 
 <template>
@@ -11489,7 +11482,7 @@ import Layout from '../../Layouts/Layout.vue'
 file -----------rw-r--r-- resources/js/Pages/Errors/NotFound.vue
 ```
 <script setup lang="ts">
-import Layout from '../../Layouts/Layout.vue'
+import Layout from '@/Layouts/Layout.vue'
 </script>
 
 <template>
