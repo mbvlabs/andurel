@@ -2,6 +2,7 @@ import { useForm } from '@inertiajs/react'
 import type { FormEvent } from 'react'
 
 import Layout, { errorTextClass, inputClass, labelClass, panelClass, panelCopyClass, panelTitleClass, primaryButtonClass } from '../../Layouts/Layout'
+import { routes } from '../../routes'
 
 type ConfirmEmailProps = {
   errors?: Record<string, string>
@@ -12,7 +13,7 @@ export default function ConfirmEmail({ errors = {} }: ConfirmEmailProps) {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    form.post('/users/confirmation')
+    form.post(routes.confirmationCreate())
   }
 
   return (

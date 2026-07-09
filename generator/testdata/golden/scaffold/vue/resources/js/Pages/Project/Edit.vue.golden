@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3'
+import { routes } from '../../routes'
+type RouteID = string
+
+function routeID(item: Record<string, unknown>): RouteID {
+  return item.ID as RouteID
+}
 
 const props = defineProps<{
   item: Record<string, unknown>
@@ -11,7 +17,7 @@ const form = useForm({
 })
 
 function submit() {
-  form.put(`/projects/${props.item.ID}`)
+  form.put(routes.projectUpdate(routeID(props.item)))
 }
 </script>
 
@@ -19,7 +25,7 @@ function submit() {
   <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-slate-100">Edit Project</h1>
-      <Link :href="`/projects/${item.ID}`" class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
+      <Link :href="routes.projectShow(routeID(item))" class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
     </div>
 
     <form @submit.prevent="submit" class="mt-8 space-y-6 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 p-6 shadow-sm">
@@ -32,7 +38,7 @@ function submit() {
         <input id="status" type="text" v-model="form.status" class="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
       </div>
       <div class="flex justify-end gap-3">
-        <Link :href="`/projects/${item.ID}`" class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
+        <Link :href="routes.projectShow(routeID(item))" class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
         <button type="submit" :disabled="form.processing" class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300 disabled:opacity-50">{{ form.processing ? 'Updating...' : 'Update Project' }}</button>
       </div>
     </form>

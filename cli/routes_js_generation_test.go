@@ -96,6 +96,34 @@ func TestRenderRoutesJSEscapesStaticPathSegments(t *testing.T) {
 	}
 }
 
+func TestRenderRoutesJSSkipsFrameworkAPIAndAssetRoutes(t *testing.T) {
+	manifest := routeManifest{
+		Routes: []routeManifestRoute{
+			{Variable: "Health", Name: "api.health", Path: "/api/health"},
+			{Variable: "Robots", Name: "assets.robots", Path: "/robots.txt"},
+			{Variable: "Sitemap", Name: "assets.sitemap", Path: "/sitemap.xml"},
+			{Variable: "ViteBuild", Name: "vite.build", Path: "/assets/dist/*"},
+			{Variable: "SessionNew", Name: "users.new_user_session", Path: "/users/sign-in"},
+		},
+	}
+
+	got, count, err := renderRoutesJS(manifest)
+	if err != nil {
+		t.Fatalf("render routes js: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected 1 helper, got %d:\n%s", count, got)
+	}
+	if !strings.Contains(string(got), "sessionNew: () => '/users/sign-in'") {
+		t.Fatalf("expected session route helper, got:\n%s", got)
+	}
+	for _, unwanted := range []string{"health", "robots", "sitemap", "viteBuild"} {
+		if strings.Contains(string(got), unwanted) {
+			t.Fatalf("expected generated routes.ts to omit %s, got:\n%s", unwanted, got)
+		}
+	}
+}
+
 func TestRenderRoutesJSDetectsHelperNameCollision(t *testing.T) {
 	manifest := routeManifest{
 		Routes: []routeManifestRoute{

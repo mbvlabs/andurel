@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3'
+import { routes } from '../../routes'
+type RouteID = string
+
+function routeID(item: Record<string, unknown>): RouteID {
+  return item.ID as RouteID
+}
 
 defineProps<{
   item: Record<string, unknown>
@@ -11,8 +17,8 @@ defineProps<{
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-slate-100">Project Details</h1>
       <div class="flex gap-3">
-        <Link :href="`/projects/${item.ID}/edit`" class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">Edit</Link>
-        <Link href="/projects" class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
+        <Link :href="routes.projectEdit(routeID(item))" class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">Edit</Link>
+        <Link :href="routes.projectIndex()" class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
       </div>
     </div>
 

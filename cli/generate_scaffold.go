@@ -5,6 +5,7 @@ import (
 
 	"github.com/mbvlabs/andurel/cli/output"
 	generatorpkg "github.com/mbvlabs/andurel/generator"
+	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
 )
@@ -106,7 +107,10 @@ with echo.JSON responses. No views are generated.`,
 							return err
 						}
 
-						return gen.GenerateScaffold(resourceName, namespace, tableName, skipFactory, primaryKeyColumn, inertiaStr, api)
+						if err := gen.GenerateScaffold(resourceName, namespace, tableName, skipFactory, primaryKeyColumn, inertiaStr, api); err != nil {
+							return err
+						}
+						return refreshRoutesTSAfterInertiaGeneration(rootDir, inertiaStr, api)
 					})(cmd, args)
 				},
 			})
@@ -122,4 +126,16 @@ with echo.JSON responses. No views are generated.`,
 	cmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
 
 	return cmd
+}
+
+func refreshRoutesTSAfterInertiaGeneration(rootDir, inertia string, isAPI bool) error {
+	if isAPI || !layout.IsSupportedInertiaAdapter(inertia) {
+		return nil
+	}
+	manifest, err := collectRouteManifest(rootDir)
+	if err != nil {
+		return err
+	}
+	_, err = generateRoutesJSFile(rootDir, manifest)
+	return err
 }

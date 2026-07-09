@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"strings"
 
 	"{{.ModuleName}}/assets"
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/server"
+	"{{.ModuleName}}/router/routes"
 )
 
 type viteTags struct {
@@ -67,10 +69,11 @@ window.__vite_plugin_react_preamble_installed__ = true
 	}
 	{{end}}
 	tags := &viteTags{}
+	viteBuildPrefix := strings.TrimSuffix(routes.ViteBuild.Path(), "*")
 	for _, css := range entry.CSS {
-		tags.ViteHead += template.HTML(`<link rel="stylesheet" href="/assets/dist/` + css + `">`)
+		tags.ViteHead += template.HTML(`<link rel="stylesheet" href="` + viteBuildPrefix + css + `">`)
 	}
-	tags.ViteBody = template.HTML(`<script type="module" src="/assets/dist/` + entry.File + `"></script>`)
+	tags.ViteBody = template.HTML(`<script type="module" src="` + viteBuildPrefix + entry.File + `"></script>`)
 
 	return tags, nil
 }

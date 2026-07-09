@@ -2,6 +2,7 @@ import { Link, useForm } from '@inertiajs/react'
 import type { FormEvent } from 'react'
 
 import Layout, { errorTextClass, inputClass, labelClass, linkClass, panelClass, panelCopyClass, panelTitleClass, primaryButtonClass } from '../../Layouts/Layout'
+import { routes } from '../../routes'
 
 type RegistrationProps = {
   errors?: Record<string, string>
@@ -12,7 +13,7 @@ export default function Registration({ errors = {} }: RegistrationProps) {
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    form.post('/users')
+    form.post(routes.registrationCreate())
   }
 
   return (
@@ -41,7 +42,7 @@ export default function Registration({ errors = {} }: RegistrationProps) {
             </div>
             <button type="submit" disabled={form.processing} className={primaryButtonClass}>{form.processing ? 'Loading' : 'Sign Up'}</button>
           </form>
-          <p className="mt-6 text-center text-sm text-[#8f8a7d]">Already have an account? <Link className={linkClass} href="/users/sign-in">Login</Link></p>
+          <p className="mt-6 text-center text-sm text-[#8f8a7d]">Already have an account? <Link className={linkClass} href={routes.sessionNew()}>Login</Link></p>
         </div>
       </section>
     </Layout>
