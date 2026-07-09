@@ -577,13 +577,7 @@ func (g *Generator) GenerateInertiaViewFiles(view *GeneratedView, templatePrefix
 			}
 		},
 		"InertiaRoutesImportPath": func() string {
-			depth := 2
-			for part := range strings.SplitSeq(view.Namespace, "/") {
-				if part != "" {
-					depth++
-				}
-			}
-			return strings.Repeat("../", depth) + "routes"
+			return "@/routes"
 		},
 	}
 

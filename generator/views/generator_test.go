@@ -334,7 +334,7 @@ func TestGenerateInertiaViewFiles_ReactResourceTypesAndInputs(t *testing.T) {
 	index := files["Index.tsx"]
 	for _, want := range []string{
 		"import { Link } from '@inertiajs/react'",
-		"import { routes } from '../../routes'",
+		"import { routes } from '@/routes'",
 		"type Item = {",
 		"ID: RouteID",
 		"Quantity: number",

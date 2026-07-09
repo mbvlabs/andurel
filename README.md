@@ -864,8 +864,8 @@ func (s Sessions) New(etx *echo.Context) error {
 <!-- resources/js/Pages/Auth/Login.vue -->
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3'
-import Layout from '../../Layouts/Layout.vue'
-import { routes } from '../../routes'
+import Layout from '@/Layouts/Layout.vue'
+import { routes } from '@/routes'
 
 const form = useForm({ email: '', password: '' })
 </script>
