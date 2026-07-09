@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://andurel.dev/contracts/lock-schema-v1.schema.json",
+  "title": "Andurel lock schema 1",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "version",
+    "tools"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "extensions": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/extension"
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/tool"
+      }
+    },
+    "scaffoldConfig": {
+      "$ref": "#/$defs/scaffoldConfig"
+    },
+    "databaseConfig": {
+      "$ref": "#/$defs/databaseConfig"
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "extension": {
+      "type": "object",
+      "required": [
+        "appliedAt"
+      ],
+      "properties": {
+        "appliedAt": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "tool": {
+      "type": "object",
+      "required": [
+        "version",
+        "versionCheck"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "download": {
+          "$ref": "#/$defs/download"
+        },
+        "versionCheck": {
+          "$ref": "#/$defs/versionCheck"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "path"
+          ]
+        },
+        {
+          "required": [
+            "download"
+          ]
+        }
+      ],
+      "additionalProperties": true
+    },
+    "download": {
+      "type": "object",
+      "required": [
+        "urlTemplate",
+        "archive",
+        "binaryName",
+        "sha256"
+      ],
+      "properties": {
+        "urlTemplate": {
+          "type": "string",
+          "pattern": "^https://"
+        },
+        "archive": {
+          "enum": [
+            "binary",
+            "tar.bz2",
+            "tar.gz"
+          ]
+        },
+        "binaryName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "additionalProperties": true
+    },
+    "sha256": {
+      "type": "object",
+      "required": [
+        "linux/amd64",
+        "linux/arm64",
+        "darwin/amd64",
+        "darwin/arm64"
+      ],
+      "properties": {
+        "linux/amd64": {
+          "$ref": "#/$defs/digest"
+        },
+        "linux/arm64": {
+          "$ref": "#/$defs/digest"
+        },
+        "darwin/amd64": {
+          "$ref": "#/$defs/digest"
+        },
+        "darwin/arm64": {
+          "$ref": "#/$defs/digest"
+        }
+      },
+      "additionalProperties": false
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "versionCheck": {
+      "type": "object",
+      "required": [
+        "args"
+      ],
+      "properties": {
+        "args": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "regexp": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "scaffoldConfig": {
+      "type": "object",
+      "required": [
+        "projectName",
+        "database"
+      ],
+      "properties": {
+        "projectName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "database": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inertia": {
+          "type": "string"
+        },
+        "javascriptRuntime": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "databaseConfig": {
+      "type": "object",
+      "required": [
+        "nullType"
+      ],
+      "properties": {
+        "nullType": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
