@@ -28,8 +28,7 @@ func RegisterRequestMeta(
 	next echo.HandlerFunc,
 ) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-		if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
-			strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
+		if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
 			return next(c)
 		}
 
@@ -111,13 +110,45 @@ func ValidateSession(
 ) echo.HandlerFunc {
 	return func(c *echo.Context) error {
 		// Skip session validation for static assets and API routes
-		if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
-			strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
+		if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
 			return next(c)
 		}
 
 		return next(c)
 	}
+}
+
+func isAPIPath(path string) bool {
+	return matchesPathPrefix(path, routes.APIPrefix)
+}
+
+func isAssetsPath(path string) bool {
+	return matchesPathPrefix(path, routes.AssetsPrefix)
+}
+
+func matchesPathPrefix(path, prefix string) bool {
+	prefix = strings.TrimSuffix(prefix, "/")
+	if prefix == "" {
+		return false
+	}
+
+	return path == prefix || strings.HasPrefix(path, prefix+"/")
+}
+
+func hasNonEmptyBearerToken(authorization string) bool {
+	parts := strings.Fields(authorization)
+	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && parts[1] != ""
+}
+
+func hasApplicationSessionCookie(request *http.Request) bool {
+	_, err := request.Cookie(config.AppCookieSessionName)
+	return err == nil
+}
+
+func mayBypassCSRF(request *http.Request) bool {
+	return isAPIPath(request.URL.Path) &&
+		hasNonEmptyBearerToken(request.Header.Get("Authorization")) &&
+		!hasApplicationSessionCookie(request)
 }
 
 func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
@@ -148,8 +179,7 @@ func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
-				strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
+			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
 				return next(c)
 			}
 
@@ -197,8 +227,7 @@ func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 func TraceRouteAttributes(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			if strings.Contains(c.Request().URL.Path, routes.AssetsPrefix) ||
-				strings.Contains(c.Request().URL.Path, routes.APIPrefix) {
+			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
 				return next(c)
 			}
 
@@ -249,8 +278,7 @@ func CSRFMiddleware(cfg config.Config, csrfName string) (echo.MiddlewareFunc, er
 
 	csrfConfig := echomw.CSRFConfig{
 		Skipper: func(c *echo.Context) bool {
-			return strings.Contains(c.Request().URL.Path, routes.APIPrefix) ||
-				strings.Contains(c.Request().URL.Path, routes.AssetsPrefix)
+			return mayBypassCSRF(c.Request())
 		},
 		TokenLookup:    tokenLookup,
 		CookiePath:     "/",
@@ -271,9 +299,7 @@ func CSRFMiddleware(cfg config.Config, csrfName string) (echo.MiddlewareFunc, er
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			path := c.Request().URL.Path
-			if strings.Contains(path, routes.APIPrefix) ||
-				strings.Contains(path, routes.AssetsPrefix) {
+			if mayBypassCSRF(c.Request()) {
 				return next(c)
 			}
 

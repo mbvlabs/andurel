@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"maps"
@@ -47,6 +48,10 @@ func Scaffold(
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
 
 	moduleName := projectName
+	secrets, err := generateScaffoldSecrets(rand.Reader)
+	if err != nil {
+		return fmt.Errorf("failed to generate scaffold secrets: %w", err)
+	}
 
 	blueprint := initializeBlueprint(moduleName)
 	templateData := TemplateData{
@@ -55,10 +60,10 @@ func Scaffold(
 		ModuleName:           moduleName,
 		Database:             database,
 		GoVersion:            goVersion,
-		SessionKey:           generateRandomHex(64),
-		SessionEncryptionKey: generateRandomHex(32),
-		TokenSigningKey:      generateRandomHex(32),
-		Pepper:               generateRandomHex(12),
+		SessionKey:           secrets.sessionKey,
+		SessionEncryptionKey: secrets.sessionEncryptionKey,
+		TokenSigningKey:      secrets.tokenSigningKey,
+		Pepper:               secrets.pepper,
 		Extensions:           extensionNames,
 		RunToolVersion:       GetRunToolVersion(),
 		FrameworkVersion:     normalizeFrameworkVersion(version),
@@ -332,10 +337,12 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_factories_token.tmpl":     "models/factories/token.go",
 
 	// Router
-	"router_router.tmpl":                "router/router.go",
-	"router_cookies_cookies.tmpl":       "router/cookies/cookies.go",
-	"router_cookies_flash.tmpl":         "router/cookies/flash.go",
-	"router_middleware_middleware.tmpl": "router/middleware/middleware.go",
+	"router_router.tmpl":                     "router/router.go",
+	"router_router_test.tmpl":                "router/router_test.go",
+	"router_cookies_cookies.tmpl":            "router/cookies/cookies.go",
+	"router_cookies_flash.tmpl":              "router/cookies/flash.go",
+	"router_middleware_middleware.tmpl":      "router/middleware/middleware.go",
+	"router_middleware_middleware_test.tmpl": "router/middleware/middleware_test.go",
 
 	// Routes
 	"router_routes_api.tmpl":    "router/routes/api.go",
@@ -935,7 +942,7 @@ func topologicalSort(extSet map[string]struct{}) ([]string, error) {
 	return result, nil
 }
 
-const goVersion = "1.26.0"
+const goVersion = "1.26.5"
 
 // GoTool represents go tool.
 type GoTool struct {
@@ -1009,10 +1016,47 @@ func initializeGit(targetDir string) error {
 	return cmd.Run()
 }
 
-func generateRandomHex(bytes int) string {
+type scaffoldSecrets struct {
+	sessionKey           string
+	sessionEncryptionKey string
+	tokenSigningKey      string
+	pepper               string
+}
+
+func generateScaffoldSecrets(reader io.Reader) (scaffoldSecrets, error) {
+	var secrets scaffoldSecrets
+	var err error
+
+	secrets.sessionKey, err = generateRandomHex(reader, 64)
+	if err != nil {
+		return scaffoldSecrets{}, fmt.Errorf("generate session key: %w", err)
+	}
+
+	secrets.sessionEncryptionKey, err = generateRandomHex(reader, 32)
+	if err != nil {
+		return scaffoldSecrets{}, fmt.Errorf("generate session encryption key: %w", err)
+	}
+
+	secrets.tokenSigningKey, err = generateRandomHex(reader, 32)
+	if err != nil {
+		return scaffoldSecrets{}, fmt.Errorf("generate token signing key: %w", err)
+	}
+
+	secrets.pepper, err = generateRandomHex(reader, 12)
+	if err != nil {
+		return scaffoldSecrets{}, fmt.Errorf("generate pepper: %w", err)
+	}
+
+	return secrets, nil
+}
+
+func generateRandomHex(reader io.Reader, bytes int) (string, error) {
 	randomBytes := make([]byte, bytes)
-	rand.Read(randomBytes)
-	return hex.EncodeToString(randomBytes)
+	if _, err := io.ReadFull(reader, randomBytes); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(randomBytes), nil
 }
 
 // initializeBlueprint creates a blueprint with default base configuration
