@@ -14,9 +14,15 @@ type PageProps = {
   [key: string]: unknown
 }
 
+type InertiaComponent = ComponentType<Record<string, unknown>>
+
+type PageModule = {
+  default: InertiaComponent
+}
+
 type RootProps = {
-  App: ComponentType<any>
-  props: Record<string, any> & { initialPage?: { props?: PageProps } }
+  App: InertiaComponent
+  props: Record<string, unknown> & { initialPage?: { props?: PageProps } }
 }
 
 function FlashToasts({ initialFlashes }: { initialFlashes?: FlashMessage[] }) {
@@ -88,10 +94,10 @@ function Root({ App, props }: RootProps) {
 
 createInertiaApp({
   resolve: (name: string) => {
-    const pages = import.meta.glob<ComponentType<any>>('./Pages/**/*.tsx', { eager: true, import: 'default' })
-    return pages[`./Pages/${name}.tsx`]
+    const pages = import.meta.glob<PageModule>('./Pages/**/*.tsx', { eager: true })
+    return pages[`./Pages/${name}.tsx`].default
   },
   setup({ el, App, props }) {
-    createRoot(el).render(<Root App={App} props={props} />)
+    createRoot(el).render(<Root App={App as InertiaComponent} props={props as RootProps['props']} />)
   },
 })

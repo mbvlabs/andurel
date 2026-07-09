@@ -309,3 +309,81 @@ func TestGenerateViewFile_IntArrayFieldsUseConverters(t *testing.T) {
 		t.Errorf("Generated view should use fmt.Sprintf for []int32 field, got:\n%s", content)
 	}
 }
+
+func TestGenerateInertiaViewFiles_ReactResourceTypesAndInputs(t *testing.T) {
+	generator := NewGenerator("postgresql")
+	view := &GeneratedView{
+		ResourceName: "Widget",
+		PluralName:   "widgets",
+		ModulePath:   "github.com/example/myapp",
+		IDType:       "uuid.UUID",
+		IDFieldName:  "ID",
+		Fields: []ViewField{
+			{Name: "Name", GoFormType: "string", DisplayName: "Name", InputType: "text", CamelCase: "name"},
+			{Name: "Quantity", GoFormType: "int32", DisplayName: "Quantity", InputType: "number", CamelCase: "quantity"},
+			{Name: "Active", GoFormType: "bool", DisplayName: "Active", InputType: "checkbox", CamelCase: "active"},
+			{Name: "PublishedOn", GoFormType: "time.Time", DisplayName: "Published On", InputType: "date", CamelCase: "publishedOn"},
+		},
+	}
+
+	files, err := generator.GenerateInertiaViewFiles(view, "inertia_react_", ".tsx")
+	if err != nil {
+		t.Fatalf("GenerateInertiaViewFiles returned error: %v", err)
+	}
+
+	index := files["Index.tsx"]
+	for _, want := range []string{
+		"import { Link } from '@inertiajs/react'",
+		"import { routes } from '../../routes'",
+		"type Item = {",
+		"ID: RouteID",
+		"Quantity: number",
+		"Active: boolean",
+		"{item.Active ? 'Yes' : 'No'}",
+	} {
+		if !strings.Contains(index, want) {
+			t.Fatalf("Index.tsx missing %q:\n%s", want, index)
+		}
+	}
+	for _, unwanted := range []string{"useForm", "FormEvent", "Record<string, any>", "<>"} {
+		if strings.Contains(index, unwanted) {
+			t.Fatalf("Index.tsx contains %q:\n%s", unwanted, index)
+		}
+	}
+
+	create := files["Create.tsx"]
+	for _, want := range []string{
+		"import { Link, useForm } from '@inertiajs/react'",
+		"type CreateForm = {",
+		"quantity: number",
+		"active: boolean",
+		"quantity: 0,",
+		"active: false,",
+		"function submit(event: SubmitEvent)",
+		"form.setData('quantity', Number(event.currentTarget.value))",
+	} {
+		if !strings.Contains(create, want) {
+			t.Fatalf("Create.tsx missing %q:\n%s", want, create)
+		}
+	}
+	for _, unwanted := range []string{"type Item", "FormEvent", "Record<string, any>", "<>"} {
+		if strings.Contains(create, unwanted) {
+			t.Fatalf("Create.tsx contains %q:\n%s", unwanted, create)
+		}
+	}
+
+	edit := files["Edit.tsx"]
+	for _, want := range []string{
+		"type EditForm = {",
+		"quantity: Number(item.Quantity ?? 0),",
+		"publishedOn: String(item.PublishedOn ?? '').slice(0, 10),",
+		"form.setData('quantity', Number(event.currentTarget.value))",
+	} {
+		if !strings.Contains(edit, want) {
+			t.Fatalf("Edit.tsx missing %q:\n%s", want, edit)
+		}
+	}
+	if strings.Contains(edit, "FormEvent") || strings.Contains(edit, "<>") {
+		t.Fatalf("Edit.tsx contains deprecated event type or root fragment:\n%s", edit)
+	}
+}

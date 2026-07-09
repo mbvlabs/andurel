@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link, useForm } from '@inertiajs/vue3'
+import { Link{{if InertiaUsesForm .ComponentName}}, useForm{{end}} } from '@inertiajs/vue3'
 import { routes } from '{{ InertiaRoutesImportPath }}'
 
 {{- if or (eq .ComponentName "Index") (eq .ComponentName "Show") (eq .ComponentName "Edit")}}

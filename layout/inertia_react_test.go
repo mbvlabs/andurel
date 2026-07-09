@@ -18,6 +18,8 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileContains(t, projectDir, "resources/js/Layouts/Layout.tsx", "children")
 	assertFileContains(t, projectDir, "resources/js/routes.ts", "sessionCreate: () => '/users/sign-in'")
 	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", "form.post(routes.sessionCreate())")
+	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", "function submit(event: SubmitEvent)")
+	assertFileNotContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", "FormEvent")
 	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Registration.tsx", "form.post(routes.registrationCreate())")
 	assertFileContains(t, projectDir, "resources/js/Pages/Auth/ResetPassword.tsx", "form.put(routes.passwordUpdate())")
 	assertFileContains(t, projectDir, "resources/js/Pages/Auth/ResetPasswordRequest.tsx", "form.post(routes.passwordCreate())")
@@ -32,6 +34,11 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileContains(t, projectDir, "package.json", "@vitejs/plugin-react")
 	assertFileContains(t, projectDir, "vite.config.ts", "resources/js/app.tsx")
 	assertFileContains(t, projectDir, "tsconfig.json", "resources/js/**/*.tsx")
+	assertFileContains(t, projectDir, "tsconfig.json", `"types": ["vite/client"]`)
+	assertFileContains(t, projectDir, "resources/js/app.tsx", "type InertiaComponent = ComponentType<Record<string, unknown>>")
+	assertFileContains(t, projectDir, "resources/js/app.tsx", "type PageModule = {")
+	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "ComponentType<any>")
+	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "Record<string, any>")
 	assertFileContains(t, projectDir, "cmd/app/main.go", "internal/inertia")
 	assertFileContains(t, projectDir, "router/router.go", "inertia.Middleware()")
 	assertFileContains(t, projectDir, "go.mod", "github.com/romsar/gonertia")
@@ -45,6 +52,16 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileMissing(t, projectDir, "views/registration.templ")
 	assertFileMissing(t, projectDir, "views/reset_password.templ")
 	assertFileMissing(t, projectDir, "views/confirm_email.templ")
+}
+
+func TestScaffoldVueInertiaTSConfigIncludesViteClientTypes(t *testing.T) {
+	projectDir := t.TempDir()
+
+	if err := Scaffold(projectDir, "testapp", "postgresql", "test", nil, "vue", ""); err != nil {
+		t.Fatalf("scaffold vue inertia project: %v", err)
+	}
+
+	assertFileContains(t, projectDir, "tsconfig.json", `"types": ["vite/client"]`)
 }
 
 func assertFileContains(t *testing.T, root, relPath, want string) {
@@ -66,5 +83,17 @@ func assertFileMissing(t *testing.T, root, relPath string) {
 		t.Fatalf("%s exists unexpectedly", relPath)
 	} else if !os.IsNotExist(err) {
 		t.Fatalf("stat %s: %v", relPath, err)
+	}
+}
+
+func assertFileNotContains(t *testing.T, root, relPath, unwanted string) {
+	t.Helper()
+
+	content, err := os.ReadFile(filepath.Join(root, relPath))
+	if err != nil {
+		t.Fatalf("read %s: %v", relPath, err)
+	}
+	if strings.Contains(string(content), unwanted) {
+		t.Fatalf("%s contains %q", relPath, unwanted)
 	}
 }

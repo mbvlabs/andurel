@@ -13618,6 +13618,7 @@ file -----------rw-r--r-- tsconfig.json
     "isolatedModules": true,
     "esModuleInterop": true,
     "lib": ["ES2021", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
     "skipLibCheck": true,
     "noEmit": true,
     "paths": {

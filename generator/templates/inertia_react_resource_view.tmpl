@@ -1,14 +1,38 @@
-import { Link, useForm } from '@inertiajs/react'
-import type { FormEvent } from 'react'
+import { Link{{if InertiaUsesForm .ComponentName}}, useForm{{end}} } from '@inertiajs/react'
 
 import { routes } from '{{ InertiaRoutesImportPath }}'
 
-type Item = Record<string, any>
-{{- if or (eq .ComponentName "Index") (eq .ComponentName "Show") (eq .ComponentName "Edit")}}
+{{- if InertiaNeedsItem .ComponentName }}
 type RouteID = {{ InertiaRouteIDType }}
 
+type Item = {
+  {{.IDFieldName}}: RouteID
+{{- range .Fields}}
+  {{.Name}}: {{ ReactFieldType . }}
+{{- end}}
+}
+
 function routeID(item: Item): RouteID {
-  return item.{{.IDFieldName}} as RouteID
+  return item.{{.IDFieldName}}
+}
+{{- end}}
+{{- if eq .ComponentName "Create" }}
+
+type CreateForm = {
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+  {{.CamelCase}}: {{ ReactFieldType . }}
+{{- end}}
+{{- end}}
+}
+{{- else if eq .ComponentName "Edit" }}
+
+type EditForm = {
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+  {{.CamelCase}}: {{ ReactFieldType . }}
+{{- end}}
+{{- end}}
 }
 {{- end}}
 
@@ -19,42 +43,39 @@ type IndexProps = {
 
 export default function {{.ComponentName}}({ items }: IndexProps) {
   return (
-    <>
-
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-100">{{.ResourceName}}s</h1>
-          <Link href={routes.{{ InertiaRouteHelper "new" }}()} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">New {{.ResourceName}}</Link>
-        </div>
-
-        <div className="mt-8 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
-          <table className="min-w-full divide-y divide-cyan-400/20">
-            <thead className="bg-slate-950">
-              <tr>
-{{- range .Fields}}
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-400">{{.DisplayName}}</th>
-{{- end}}
-                <th className="px-6 py-3 text-right text-xs font-medium uppercase text-slate-400">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-cyan-400/20 bg-slate-900">
-              {items.map((item) => (
-                <tr key={item.{{.IDFieldName}}} className="hover:bg-slate-950">
-{{- range .Fields}}
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{item.{{.Name}}}</td>
-{{- end}}
-                  <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                    <Link href={routes.{{ InertiaRouteHelper "show" }}(routeID(item))} className="mr-3 text-cyan-300 hover:text-white">View</Link>
-                    <Link href={routes.{{ InertiaRouteHelper "edit" }}(routeID(item))} className="mr-3 text-cyan-300 hover:text-white">Edit</Link>
-                    <Link href={routes.{{ InertiaRouteHelper "destroy" }}(routeID(item))} method="delete" as="button" className="text-red-400 hover:text-red-300">Delete</Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-100">{{.ResourceName}}s</h1>
+        <Link href={routes.{{ InertiaRouteHelper "new" }}()} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">New {{.ResourceName}}</Link>
       </div>
-    </>
+
+      <div className="mt-8 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
+        <table className="min-w-full divide-y divide-cyan-400/20">
+          <thead className="bg-slate-950">
+            <tr>
+{{- range .Fields}}
+              <th className="px-6 py-3 text-left text-xs font-medium uppercase text-slate-400">{{.DisplayName}}</th>
+{{- end}}
+              <th className="px-6 py-3 text-right text-xs font-medium uppercase text-slate-400">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-cyan-400/20 bg-slate-900">
+            {items.map((item) => (
+              <tr key={item.{{.IDFieldName}}} className="hover:bg-slate-950">
+{{- range .Fields}}
+                <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{ {{- ReactDisplay . "item" -}} }</td>
+{{- end}}
+                <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                  <Link href={routes.{{ InertiaRouteHelper "show" }}(routeID(item))} className="mr-3 text-cyan-300 hover:text-white">View</Link>
+                  <Link href={routes.{{ InertiaRouteHelper "edit" }}(routeID(item))} className="mr-3 text-cyan-300 hover:text-white">Edit</Link>
+                  <Link href={routes.{{ InertiaRouteHelper "destroy" }}(routeID(item))} method="delete" as="button" className="text-red-400 hover:text-red-300">Delete</Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   )
 }
 {{- else if eq .ComponentName "Show"}}
@@ -64,74 +85,68 @@ type ShowProps = {
 
 export default function {{.ComponentName}}({ item }: ShowProps) {
   return (
-    <>
-
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-100">{{.ResourceName}} Details</h1>
-          <div className="flex gap-3">
-            <Link href={routes.{{ InertiaRouteHelper "edit" }}(routeID(item))} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">Edit</Link>
-            <Link href={routes.{{ InertiaRouteHelper "index" }}()} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
-          </div>
-        </div>
-
-        <div className="mt-8 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
-          <dl className="divide-y divide-cyan-400/20">
-{{- range .Fields}}
-            <div className="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-              <dt className="text-sm font-medium text-slate-400">{{.DisplayName}}</dt>
-              <dd className="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{item.{{.Name}}}</dd>
-            </div>
-{{- end}}
-          </dl>
+    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-100">{{.ResourceName}} Details</h1>
+        <div className="flex gap-3">
+          <Link href={routes.{{ InertiaRouteHelper "edit" }}(routeID(item))} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">Edit</Link>
+          <Link href={routes.{{ InertiaRouteHelper "index" }}()} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
         </div>
       </div>
-    </>
+
+      <div className="mt-8 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
+        <dl className="divide-y divide-cyan-400/20">
+{{- range .Fields}}
+          <div className="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+            <dt className="text-sm font-medium text-slate-400">{{.DisplayName}}</dt>
+            <dd className="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{ {{- ReactDisplay . "item" -}} }</dd>
+          </div>
+{{- end}}
+        </dl>
+      </div>
+    </div>
   )
 }
 {{- else if eq .ComponentName "Create"}}
 export default function {{.ComponentName}}() {
-  const form = useForm({
+  const form = useForm<CreateForm>({
 {{- range .Fields}}
 {{- if not .IsSystemField}}
-    {{.CamelCase}}: {{if eq .InputType "checkbox"}}false{{else}}''{{end}},
+    {{.CamelCase}}: {{ ReactCreateValue . }},
 {{- end}}
 {{- end}}
   })
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: SubmitEvent) {
     event.preventDefault()
     form.post(routes.{{ InertiaRouteHelper "create" }}())
   }
 
   return (
-    <>
+    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-100">New {{.ResourceName}}</h1>
+        <Link href={routes.{{ InertiaRouteHelper "index" }}()} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
+      </div>
 
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-100">New {{.ResourceName}}</h1>
-          <Link href={routes.{{ InertiaRouteHelper "index" }}()} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
-        </div>
-
-        <form onSubmit={submit} className="mt-8 space-y-6 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 p-6 shadow-sm">
+      <form onSubmit={(event) => submit(event.nativeEvent as SubmitEvent)} className="mt-8 space-y-6 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 p-6 shadow-sm">
 {{- range .Fields}}
 {{- if not .IsSystemField}}
-          <div>
-            <label htmlFor="{{.CamelCase}}" className="block text-sm font-medium text-slate-200">{{.DisplayName}}</label>
+        <div>
+          <label htmlFor="{{.CamelCase}}" className="block text-sm font-medium text-slate-200">{{.DisplayName}}</label>
 {{- if eq .InputType "checkbox"}}
-            <input id="{{.CamelCase}}" type="checkbox" checked={form.data.{{.CamelCase}} as boolean} onChange={(event) => form.setData('{{.CamelCase}}', event.target.checked)} className="mt-1 rounded border border-cyan-400/25 text-cyan-400 shadow-sm focus:ring-cyan-400/40" />
+          <input id="{{.CamelCase}}" type="checkbox" checked={form.data.{{.CamelCase}}} onChange={(event) => form.setData('{{.CamelCase}}', event.currentTarget.checked)} className="mt-1 rounded border border-cyan-400/25 text-cyan-400 shadow-sm focus:ring-cyan-400/40" />
 {{- else}}
-            <input id="{{.CamelCase}}" type="{{.InputType}}" value={form.data.{{.CamelCase}} as string} onChange={(event) => form.setData('{{.CamelCase}}', event.target.value)} className="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
+          <input id="{{.CamelCase}}" type="{{.InputType}}" value={form.data.{{.CamelCase}}} onChange={(event) => form.setData('{{.CamelCase}}', {{ ReactInputValue . }})} className="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
 {{- end}}
-          </div>
+        </div>
 {{- end}}
 {{- end}}
-          <div className="flex justify-end">
-            <button type="submit" disabled={form.processing} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300 disabled:opacity-50">{form.processing ? 'Creating...' : 'Create {{.ResourceName}}'}</button>
-          </div>
-        </form>
-      </div>
-    </>
+        <div className="flex justify-end">
+          <button type="submit" disabled={form.processing} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300 disabled:opacity-50">{form.processing ? 'Creating...' : 'Create {{.ResourceName}}'}</button>
+        </div>
+      </form>
+    </div>
   )
 }
 {{- else if eq .ComponentName "Edit"}}
@@ -140,48 +155,45 @@ type EditProps = {
 }
 
 export default function {{.ComponentName}}({ item }: EditProps) {
-  const form = useForm({
+  const form = useForm<EditForm>({
 {{- range .Fields}}
 {{- if not .IsSystemField}}
-    {{.CamelCase}}: {{if eq .InputType "checkbox"}}Boolean(item.{{.Name}}){{else}}String(item.{{.Name}} ?? ''){{end}},
+    {{.CamelCase}}: {{ ReactEditValue . }},
 {{- end}}
 {{- end}}
   })
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: SubmitEvent) {
     event.preventDefault()
     form.put(routes.{{ InertiaRouteHelper "update" }}(routeID(item)))
   }
 
   return (
-    <>
+    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-100">Edit {{.ResourceName}}</h1>
+        <Link href={routes.{{ InertiaRouteHelper "show" }}(routeID(item))} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
+      </div>
 
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-100">Edit {{.ResourceName}}</h1>
-          <Link href={routes.{{ InertiaRouteHelper "show" }}(routeID(item))} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
-        </div>
-
-        <form onSubmit={submit} className="mt-8 space-y-6 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 p-6 shadow-sm">
+      <form onSubmit={(event) => submit(event.nativeEvent as SubmitEvent)} className="mt-8 space-y-6 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 p-6 shadow-sm">
 {{- range .Fields}}
 {{- if not .IsSystemField}}
-          <div>
-            <label htmlFor="{{.CamelCase}}" className="block text-sm font-medium text-slate-200">{{.DisplayName}}</label>
+        <div>
+          <label htmlFor="{{.CamelCase}}" className="block text-sm font-medium text-slate-200">{{.DisplayName}}</label>
 {{- if eq .InputType "checkbox"}}
-            <input id="{{.CamelCase}}" type="checkbox" checked={form.data.{{.CamelCase}} as boolean} onChange={(event) => form.setData('{{.CamelCase}}', event.target.checked)} className="mt-1 rounded border border-cyan-400/25 text-cyan-400 shadow-sm focus:ring-cyan-400/40" />
+          <input id="{{.CamelCase}}" type="checkbox" checked={form.data.{{.CamelCase}}} onChange={(event) => form.setData('{{.CamelCase}}', event.currentTarget.checked)} className="mt-1 rounded border border-cyan-400/25 text-cyan-400 shadow-sm focus:ring-cyan-400/40" />
 {{- else}}
-            <input id="{{.CamelCase}}" type="{{.InputType}}" value={form.data.{{.CamelCase}} as string} onChange={(event) => form.setData('{{.CamelCase}}', event.target.value)} className="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
+          <input id="{{.CamelCase}}" type="{{.InputType}}" value={form.data.{{.CamelCase}}} onChange={(event) => form.setData('{{.CamelCase}}', {{ ReactInputValue . }})} className="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
 {{- end}}
-          </div>
+        </div>
 {{- end}}
 {{- end}}
-          <div className="flex justify-end gap-3">
-            <Link href={routes.{{ InertiaRouteHelper "show" }}(routeID(item))} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
-            <button type="submit" disabled={form.processing} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300 disabled:opacity-50">{form.processing ? 'Updating...' : 'Update {{.ResourceName}}'}</button>
-          </div>
-        </form>
-      </div>
-    </>
+        <div className="flex justify-end gap-3">
+          <Link href={routes.{{ InertiaRouteHelper "show" }}(routeID(item))} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
+          <button type="submit" disabled={form.processing} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300 disabled:opacity-50">{form.processing ? 'Updating...' : 'Update {{.ResourceName}}'}</button>
+        </div>
+      </form>
+    </div>
   )
 }
 {{- end}}
