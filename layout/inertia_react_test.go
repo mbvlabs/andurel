@@ -16,9 +16,12 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 
 	assertFileContains(t, projectDir, "resources/js/app.tsx", "@inertiajs/react")
 	assertFileContains(t, projectDir, "resources/js/Layouts/Layout.tsx", "children")
+	assertFileNotContains(t, projectDir, "resources/js/Layouts/Layout.tsx", "export const panelClass")
 	assertFileContains(t, projectDir, "resources/js/routes.ts", "sessionCreate: () => '/users/sign-in'")
 	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", "form.post(routes.sessionCreate())")
 	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", "function submit(event: SubmitEvent)")
+	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", `className="w-full max-w-md border border-[#2f3a37] bg-[#101414]/90 shadow-sm shadow-black/40"`)
+	assertFileNotContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", "panelClass")
 	assertFileNotContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", "FormEvent")
 	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Registration.tsx", "form.post(routes.registrationCreate())")
 	assertFileContains(t, projectDir, "resources/js/Pages/Auth/ResetPassword.tsx", "form.put(routes.passwordUpdate())")
