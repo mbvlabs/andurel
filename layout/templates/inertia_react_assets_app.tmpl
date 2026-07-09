@@ -1,8 +1,8 @@
 import '../../css/base.css'
 
-import { useEffect, useState, type ComponentType } from 'react'
+import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createInertiaApp, router } from '@inertiajs/react'
+import { createInertiaApp, router, type ResolvedComponent } from '@inertiajs/react'
 
 type FlashMessage = {
   Type: string
@@ -14,15 +14,25 @@ type PageProps = {
   [key: string]: unknown
 }
 
-type InertiaComponent = ComponentType<Record<string, unknown>>
-
 type PageModule = {
-  default: InertiaComponent
+  default: ResolvedComponent
 }
 
-type RootProps = {
-  App: InertiaComponent
-  props: Record<string, unknown> & { initialPage?: { props?: PageProps } }
+function isFlashMessage(value: unknown): value is FlashMessage {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const flash = value as Record<string, unknown>
+  return typeof flash.Type === 'string' && typeof flash.Message === 'string'
+}
+
+function pageFlashes(props: PageProps): FlashMessage[] | undefined {
+  if (!Array.isArray(props.flash)) {
+    return undefined
+  }
+
+  return props.flash.filter(isFlashMessage)
 }
 
 function FlashToasts({ initialFlashes }: { initialFlashes?: FlashMessage[] }) {
@@ -48,7 +58,7 @@ function FlashToasts({ initialFlashes }: { initialFlashes?: FlashMessage[] }) {
     pushFlashes(initialFlashes)
 
     const removeListener = router.on('success', (event) => {
-      pushFlashes((event.detail.page.props as PageProps).flash)
+      pushFlashes(pageFlashes(event.detail.page.props))
     })
 
     return () => {
@@ -83,21 +93,17 @@ function FlashToasts({ initialFlashes }: { initialFlashes?: FlashMessage[] }) {
   )
 }
 
-function Root({ App, props }: RootProps) {
-  return (
-    <>
-      <App {...props} />
-      <FlashToasts initialFlashes={props.initialPage?.props?.flash} />
-    </>
-  )
-}
-
-createInertiaApp({
+createInertiaApp<PageProps>({
   resolve: (name: string) => {
     const pages = import.meta.glob<PageModule>('./Pages/**/*.tsx', { eager: true })
     return pages[`./Pages/${name}.tsx`].default
   },
   setup({ el, App, props }) {
-    createRoot(el).render(<Root App={App as InertiaComponent} props={props as RootProps['props']} />)
+    createRoot(el).render(
+      <>
+        <App {...props} />
+        <FlashToasts initialFlashes={pageFlashes(props.initialPage.props)} />
+      </>,
+    )
   },
 })
