@@ -1,0 +1,75 @@
+package services
+
+import (
+	"testing"
+
+	"{{.ModuleName}}/models"
+)
+
+func TestVerifyPasswordWithPeppers(t *testing.T) {
+	const (
+		password      = "correct horse battery staple"
+		currentPepper = "current-pepper"
+		previousPepper = "previous-pepper"
+	)
+
+	tests := []struct {
+		name            string
+		hashPepper      string
+		providedPassword string
+		previousPeppers []string
+		wantValid       bool
+		wantRehash      bool
+	}{
+		{
+			name:             "current pepper",
+			hashPepper:       currentPepper,
+			providedPassword: password,
+			previousPeppers:  []string{previousPepper},
+			wantValid:        true,
+		},
+		{
+			name:             "previous pepper requires rehash",
+			hashPepper:       previousPepper,
+			providedPassword: password,
+			previousPeppers:  []string{"older-pepper", previousPepper},
+			wantValid:        true,
+			wantRehash:       true,
+		},
+		{
+			name:             "invalid after all peppers",
+			hashPepper:       "unknown-pepper",
+			providedPassword: "wrong password",
+			previousPeppers:  []string{"older-pepper", previousPepper},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			hash, err := models.HashPassword(password, test.hashPepper)
+			if err != nil {
+				t.Fatalf("HashPassword: %v", err)
+			}
+			user := models.UserEntity{Password: []byte(hash)}
+
+			valid, needsRehash, err := verifyPasswordWithPeppers(
+				user,
+				test.providedPassword,
+				currentPepper,
+				test.previousPeppers,
+			)
+			if err != nil {
+				t.Fatalf("verifyPasswordWithPeppers: %v", err)
+			}
+			if valid != test.wantValid || needsRehash != test.wantRehash {
+				t.Fatalf(
+					"result = valid %t, rehash %t; want valid %t, rehash %t",
+					valid,
+					needsRehash,
+					test.wantValid,
+					test.wantRehash,
+				)
+			}
+		})
+	}
+}

@@ -241,7 +241,7 @@ var baseStyleTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"views_layout.tmpl":  "views/layout.templ",
 	"views_welcome.tmpl": "views/welcome.templ",
 
-	// Views — Pages
+	// Views - Pages
 	"views_bad_request.tmpl":    "views/bad_request.templ",
 	"views_internal_error.tmpl": "views/internal_error.templ",
 	"views_not_found.tmpl":      "views/not_found.templ",
@@ -288,8 +288,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-1.min.js",
 
 	// Commands
-	"cmd_app_main.tmpl":   "cmd/app/main.go",
-	"cmd_seeds_main.tmpl": "cmd/seeds/main.go",
+	"cmd_app_main.tmpl":      "cmd/app/main.go",
+	"cmd_app_main_test.tmpl": "cmd/app/main_test.go",
+	"cmd_seeds_main.tmpl":    "cmd/seeds/main.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
@@ -370,15 +371,17 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_auth.tmpl": "config/auth.go",
 
 	// Auth - Services
-	"services_service.tmpl":        "services/service.go",
-	"services_identity.tmpl":       "services/identity.go",
-	"services_authentication.tmpl": "services/authentication.go",
-	"services_registration.tmpl":   "services/registration.go",
-	"services_reset_password.tmpl": "services/reset_password.go",
+	"services_service.tmpl":             "services/service.go",
+	"services_identity.tmpl":            "services/identity.go",
+	"services_authentication.tmpl":      "services/authentication.go",
+	"services_authentication_test.tmpl": "services/authentication_test.go",
+	"services_registration.tmpl":        "services/registration.go",
+	"services_reset_password.tmpl":      "services/reset_password.go",
 
 	// Auth - Router
-	"router_routes_users.tmpl":    "router/routes/users.go",
-	"router_middleware_auth.tmpl": "router/middleware/auth.go",
+	"router_routes_users.tmpl":         "router/routes/users.go",
+	"router_middleware_auth.tmpl":      "router/middleware/auth.go",
+	"router_middleware_auth_test.tmpl": "router/middleware/auth_test.go",
 
 	// Auth - Email
 	"email_reset_password.tmpl": "email/reset_password.templ",

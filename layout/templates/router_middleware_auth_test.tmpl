@@ -1,0 +1,54 @@
+package middleware
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"sync"
+	"sync/atomic"
+	"testing"
+
+	"{{.ModuleName}}/internal/routing"
+
+	"github.com/labstack/echo/v5"
+)
+
+func TestIPRateLimiterPermitsExactlyConfiguredLimitAtomically(t *testing.T) {
+	const (
+		limit    = int32(5)
+		requests = 50
+	)
+
+	var handled atomic.Int32
+	limiter := IPRateLimiter(
+		limit,
+		routing.NewSimpleRoute("/rate-limited", "rate_limited", ""),
+	)(func(c *echo.Context) error {
+		handled.Add(1)
+		return c.NoContent(http.StatusNoContent)
+	})
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range requests {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+
+			request := httptest.NewRequest(http.MethodPost, "/", nil)
+			request.RemoteAddr = "192.0.2.1:1234"
+			recorder := httptest.NewRecorder()
+			e := echo.New()
+			ctx := e.NewContext(request, recorder)
+			if err := limiter(ctx); err != nil {
+				t.Errorf("rate-limited request: %v", err)
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	if got := handled.Load(); got != limit {
+		t.Fatalf("handled requests = %d, want exactly %d", got, limit)
+	}
+}

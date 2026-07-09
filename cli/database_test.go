@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -38,6 +39,38 @@ func TestLoadDatabaseConfigAndBuildURL(t *testing.T) {
 	want := "postgres://andurel:secret@127.0.0.1:5432/andurel_test?sslmode=disable"
 	if dbURL != want {
 		t.Fatalf("dbURL = %q, want %q", dbURL, want)
+	}
+}
+
+func TestBuildDatabaseURLSafelyEncodesReservedCredentials(t *testing.T) {
+	t.Setenv("DB_KIND", "postgres")
+	t.Setenv("DB_PORT", "5432")
+	t.Setenv("DB_HOST", "2001:db8::1")
+	t.Setenv("DB_NAME", "app/name?")
+	t.Setenv("DB_USER", "user:name@example")
+	t.Setenv("DB_PASSWORD", "p@ss:/?#[]")
+	t.Setenv("DB_SSL_MODE", "verify-full")
+
+	_, rawURL, err := buildDatabaseURL()
+	if err != nil {
+		t.Fatalf("buildDatabaseURL: %v", err)
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		t.Fatalf("parse database URL: %v", err)
+	}
+	if parsed.User.Username() != "user:name@example" {
+		t.Fatalf("username = %q", parsed.User.Username())
+	}
+	password, ok := parsed.User.Password()
+	if !ok || password != "p@ss:/?#[]" {
+		t.Fatalf("password = %q, present = %t", password, ok)
+	}
+	if parsed.Host != "[2001:db8::1]:5432" || parsed.Path != "/app/name?" {
+		t.Fatalf("unexpected endpoint: host=%q path=%q", parsed.Host, parsed.Path)
+	}
+	if parsed.Query().Get("sslmode") != "verify-full" {
+		t.Fatalf("sslmode = %q", parsed.Query().Get("sslmode"))
 	}
 }
 
@@ -128,7 +161,7 @@ func TestConfirmDestructiveUsesStdin(t *testing.T) {
 
 	os.Stdout = tempInputFile(t, "")
 	os.Stdin = tempInputFile(t, "yes\n")
-	confirmed, err := confirmDestructive("drop", "postgres://example")
+	confirmed, err := confirmDestructive("drop", "example")
 	if err != nil {
 		t.Fatalf("confirmDestructive yes: %v", err)
 	}
@@ -137,7 +170,7 @@ func TestConfirmDestructiveUsesStdin(t *testing.T) {
 	}
 
 	os.Stdin = tempInputFile(t, "n\n")
-	confirmed, err = confirmDestructive("drop", "postgres://example")
+	confirmed, err = confirmDestructive("drop", "example")
 	if err != nil {
 		t.Fatalf("confirmDestructive no: %v", err)
 	}
@@ -146,7 +179,7 @@ func TestConfirmDestructiveUsesStdin(t *testing.T) {
 	}
 
 	if _, err := confirmDestructive("drop", " "); err == nil {
-		t.Fatalf("expected empty database URL error")
+		t.Fatalf("expected empty database name error")
 	}
 }
 
@@ -340,7 +373,7 @@ func TestDatabaseLifecycleWithFakeAdminConnection(t *testing.T) {
 
 	fake.reset()
 	os.Stdin = tempInputFile(t, "n\n")
-	if err := nukeDatabase(false); err != nil {
+	if err := nukeDatabase(false); !errors.Is(err, errDatabaseOperationAborted) {
 		t.Fatalf("nukeDatabase abort: %v", err)
 	}
 	if len(fake.execs) != 0 {
@@ -368,6 +401,61 @@ func TestDatabaseLifecycleWithFakeAdminConnection(t *testing.T) {
 	}
 	if !containsSQL(fake.execs, `DROP DATABASE IF EXISTS "app_db"`) || !containsSQL(fake.execs, `CREATE DATABASE "app_db"`) {
 		t.Fatalf("rebuild execs=%#v", fake.execs)
+	}
+}
+
+func TestDeclinedRebuildDoesNotMutateOrContinue(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/app\n")
+	writeTestFile(t, root, ".env", strings.Join([]string{
+		"DB_KIND=postgres",
+		"DB_PORT=5432",
+		"DB_HOST=localhost",
+		"DB_NAME=app_db",
+		"DB_USER=app_user",
+		"DB_PASSWORD=never-print-this-password",
+		"DB_SSL_MODE=disable",
+		"",
+	}, "\n"))
+	unsetEnvForTest(t, "DB_KIND", "DB_PORT", "DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_SSL_MODE")
+
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() { findGoModRoot = originalFindGoModRoot })
+
+	fake := &fakeAdminConnection{}
+	openAdminConnectionFunc = func() (dbConfig, adminConnection, context.Context, context.CancelFunc, error) {
+		cfg, err := loadDatabaseConfig()
+		ctx, cancel := context.WithCancel(context.Background())
+		return cfg, fake, ctx, cancel, err
+	}
+
+	gooseCalled := false
+	seedCalled := false
+	runGooseFunc = func(...string) error {
+		gooseCalled = true
+		return nil
+	}
+	runSeedFunc = func(*cobra.Command, string, bool) error {
+		seedCalled = true
+		return nil
+	}
+
+	originalStdin := os.Stdin
+	t.Cleanup(func() { os.Stdin = originalStdin })
+	os.Stdin = tempInputFile(t, "no\n")
+	outputText := captureProcessOutput(t, &os.Stdout)
+
+	err := rebuildDatabase(newStructuredTestCommand(&bytes.Buffer{}), false, false, "development")
+	if !errors.Is(err, errDatabaseOperationAborted) {
+		t.Fatalf("rebuildDatabase error = %v", err)
+	}
+	if gooseCalled || seedCalled || len(fake.execs) != 0 {
+		t.Fatalf("declined rebuild mutated state: goose=%t seed=%t sql=%#v", gooseCalled, seedCalled, fake.execs)
+	}
+	if output := outputText(); strings.Contains(output, "never-print-this-password") {
+		t.Fatalf("confirmation exposed database password: %q", output)
 	}
 }
 

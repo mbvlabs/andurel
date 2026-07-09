@@ -82,7 +82,7 @@ func (i Identity) RegisterUser(
 	code, err := models.Token.CreateCode(
 		ctx,
 		tx,
-		i.pepper,
+		i.tokenSigningKey,
 
 		userEmailVerification,
 		time.Now().Add(24*time.Hour),
@@ -170,7 +170,7 @@ func (i Identity) VerifyEmail(
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
 		tx,
-		i.pepper,
+		i.tokenSigningKey,
 
 		userEmailVerification,
 		data.Code,
@@ -186,7 +186,7 @@ func (i Identity) VerifyEmail(
 	}
 
 
-	if !token.IsValid(data.Code, i.pepper) {
+	if !token.IsValid(data.Code, i.tokenSigningKey) {
 
 		_ = tx.Rollback()
 		return models.UserEntity{}, ErrExpiredVerificationCode

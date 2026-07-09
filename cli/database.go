@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -57,6 +59,8 @@ type adminConnection interface {
 var openAdminConnectionFunc = openAdminConnection
 var runGooseFunc = runGoose
 var runSeedFunc = runSeed
+
+var errDatabaseOperationAborted = errors.New("database operation aborted")
 
 func newDatabaseCommand() *cobra.Command {
 	cmd := &cobra.Command{
@@ -534,18 +538,18 @@ func dropDatabase(force bool) error {
 	}
 	loadProjectEnv(rootDir)
 
-	_, dbURL, err := buildDatabaseURL()
+	cfg, err := loadDatabaseConfig()
 	if err != nil {
 		return err
 	}
 
-	confirmed, err := confirmDestructive("drop", dbURL)
+	confirmed, err := confirmDestructive("drop", cfg.Name)
 	if err != nil {
 		return err
 	}
 	if !confirmed {
 		fmt.Fprintln(os.Stdout, "Aborted.")
-		return nil
+		return errDatabaseOperationAborted
 	}
 
 	cfg, conn, ctx, cancel, err := openAdminConnectionFunc()
@@ -592,18 +596,18 @@ func nukeDatabase(force bool) error {
 	}
 	loadProjectEnv(rootDir)
 
-	_, dbURL, err := buildDatabaseURL()
+	cfg, err := loadDatabaseConfig()
 	if err != nil {
 		return err
 	}
 
-	confirmed, err := confirmDestructive("nuke", dbURL)
+	confirmed, err := confirmDestructive("nuke", cfg.Name)
 	if err != nil {
 		return err
 	}
 	if !confirmed {
 		fmt.Fprintln(os.Stdout, "Aborted.")
-		return nil
+		return errDatabaseOperationAborted
 	}
 
 	cfg, conn, ctx, cancel, err := openAdminConnectionFunc()
@@ -674,20 +678,17 @@ func openAdminConnection() (dbConfig, adminConnection, context.Context, context.
 		adminDB = "template1"
 	}
 
-	adminURL := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		cfg.User,
-		cfg.Password,
-		cfg.Host,
-		cfg.Port,
-		adminDB,
-		cfg.SslMode,
-	)
+	adminURL := databaseURL(cfg, adminDB)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	conn, err := pgx.Connect(ctx, adminURL)
 	if err != nil {
 		cancel()
-		return dbConfig{}, nil, nil, nil, err
+		return dbConfig{}, nil, nil, nil, fmt.Errorf(
+			"connect to postgres admin database %q on %s failed",
+			adminDB,
+			net.JoinHostPort(cfg.Host, cfg.Port),
+		)
 	}
 
 	return cfg, conn, ctx, cancel, nil
@@ -728,12 +729,12 @@ func quoteIdentifier(name string) string {
 	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
 
-func confirmDestructive(action string, dbURL string) (bool, error) {
-	if strings.TrimSpace(dbURL) == "" {
-		return false, errors.New("database URL is empty")
+func confirmDestructive(action string, databaseName string) (bool, error) {
+	if strings.TrimSpace(databaseName) == "" {
+		return false, errors.New("database name is empty")
 	}
 
-	fmt.Fprintf(os.Stdout, "Are you sure you want to %s this database: %s y/N ", action, dbURL)
+	fmt.Fprintf(os.Stdout, "Are you sure you want to %s database %q? y/N ", action, databaseName)
 
 	reader := bufio.NewReader(os.Stdin)
 	line, err := reader.ReadString('\n')
@@ -756,15 +757,22 @@ func buildDatabaseURL() (driver, dbString string, err error) {
 		return "", "", err
 	}
 
-	databaseURL := fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
-		cfg.Kind,
-		cfg.User,
-		cfg.Password,
-		cfg.Host,
-		cfg.Port,
-		cfg.Name,
-		cfg.SslMode,
-	)
+	rawURL := databaseURL(cfg, cfg.Name)
 
-	return "postgres", databaseURL, nil
+	return "postgres", rawURL, nil
+}
+
+func databaseURL(cfg dbConfig, databaseName string) string {
+	query := url.Values{}
+	query.Set("sslmode", cfg.SslMode)
+	escapedPath := "/" + url.PathEscape(databaseName)
+
+	return (&url.URL{
+		Scheme:   cfg.Kind,
+		User:     url.UserPassword(cfg.User, cfg.Password),
+		Host:     net.JoinHostPort(cfg.Host, cfg.Port),
+		Path:     "/" + databaseName,
+		RawPath:  escapedPath,
+		RawQuery: query.Encode(),
+	}).String()
 }

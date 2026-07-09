@@ -3,7 +3,8 @@ package config
 import "github.com/caarlos0/env/v10"
 
 type auth struct {
-	Pepper         string `env:"PEPPER"`
+	Pepper          string   `env:"PEPPER"`
+	PreviousPeppers []string `env:"PREVIOUS_PEPPERS" envSeparator:"," envDefault:""`
 }
 
 func newAuthConfig() auth {

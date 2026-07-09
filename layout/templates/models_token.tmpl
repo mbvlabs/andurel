@@ -86,11 +86,11 @@ func (t token) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (Tok
 func (t token) FindByScopeAndHash(
 	ctx context.Context,
 	db storage.Executor,
-	pepper string,
+	secret string,
 	scope string,
 	plainToken string,
 ) (TokenEntity, error) {
-	hash := HashForStorage(plainToken, pepper)
+	hash := HashForStorage(plainToken, secret)
 
 	var entity TokenEntity
 	err := db.NewSelect().
@@ -153,7 +153,7 @@ func (t token) createToken(
 func (t token) CreateCode(
 	ctx context.Context,
 	db storage.Executor,
-	pepper string,
+	secret string,
 	scope string,
 	expiresAt time.Time,
 	metaData json.RawMessage,
@@ -166,7 +166,7 @@ func (t token) CreateCode(
 	if _, err := t.createToken(ctx, db, createTokenData{
 		Scope:     scope,
 		ExpiresAt: expiresAt,
-		Hash:      HashForStorage(tkn, pepper),
+		Hash:      HashForStorage(tkn, secret),
 		MetaData:  metaData,
 	}); err != nil {
 		return "", err
@@ -178,7 +178,7 @@ func (t token) CreateCode(
 func (t token) Create(
 	ctx context.Context,
 	db storage.Executor,
-	pepper string,
+	secret string,
 	scope string,
 	expiresAt time.Time,
 	metaData json.RawMessage,
@@ -191,7 +191,7 @@ func (t token) Create(
 	if _, err := t.createToken(ctx, db, createTokenData{
 		Scope:     scope,
 		ExpiresAt: expiresAt,
-		Hash:      HashForStorage(tkn, pepper),
+		Hash:      HashForStorage(tkn, secret),
 		MetaData:  metaData,
 	}); err != nil {
 		return "", err
@@ -244,9 +244,9 @@ func (t token) Paginate(
 
 	offset := (page - 1) * pageSize
 
-	var totalCount int64
-	if err := db.NewSelect().
-		Model(&TokenEntity{}).Scan(ctx, &totalCount); err != nil {
+	totalCount, err := db.NewSelect().
+		Model(&TokenEntity{}).Count(ctx)
+	if err != nil {
 		return PaginatedTokens{}, err
 	}
 
@@ -259,11 +259,11 @@ func (t token) Paginate(
 		return PaginatedTokens{}, err
 	}
 
-	totalPages := (totalCount + pageSize - 1) / pageSize
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
 
 	return PaginatedTokens{
 		Tokens:     entities,
-		TotalCount: totalCount,
+		TotalCount: int64(totalCount),
 		Page:       page,
 		PageSize:   pageSize,
 		TotalPages: totalPages,

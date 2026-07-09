@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -81,57 +82,85 @@ func main() {
 	}
 }
 
-func startQueueProcessor(lc fx.Lifecycle, p queue.Processor) {
+func startQueueProcessor(lc fx.Lifecycle, appCtx context.Context, p queue.Processor) {
+	var done <-chan struct{}
 	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			go func() {
-				if err := p.Start(ctx); err != nil {
-					slog.Error("queue processor error", "error", err)
-				}
-			}()
+		OnStart: func(context.Context) error {
+			done = startInBackground(appCtx, "queue processor", p.Start)
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			return p.Stop(ctx)
+			return stopAndWait(ctx, p.Stop, done)
 		},
 	})
 }
 
-func startServer(lc fx.Lifecycle, r *router.Router, cfg config.Config, processor queue.Processor) {
+func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg config.Config) {
 	srv := server.New(
-		context.Background(),
+		appCtx,
 		cfg.App.Host,
 		cfg.App.Port,
 		config.Env,
 		r.Handler,
-		[]server.Shutdowner{processor},
+		nil,
 	)
+	var done <-chan struct{}
 
 	lc.Append(fx.Hook{
 		OnStart: func(_ context.Context) error {
 			slog.InfoContext(
-				context.Background(),
+				appCtx,
 				"starting server",
 				"host",
 				cfg.App.Host,
 				"port",
 				cfg.App.Port,
 			)
-			go func() {
-				if err := srv.Start(context.Background(), config.Env); err != nil {
-					slog.Error("server error", "error", err)
-				}
-			}()
+			done = startInBackground(appCtx, "server", func(ctx context.Context) error {
+				return srv.Start(ctx, config.Env)
+			})
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
 			slog.InfoContext(ctx, "initiating graceful shutdown")
-			for _, shutdowner := range srv.Shutdowners {
-				if err := shutdowner.Shutdown(ctx); err != nil {
-					return fmt.Errorf("server: shutdown component %T: %w", shutdowner, err)
+			return stopAndWait(ctx, func(ctx context.Context) error {
+				var shutdownErr error
+				for _, shutdowner := range srv.Shutdowners {
+					if err := shutdowner.Shutdown(ctx); err != nil {
+						shutdownErr = errors.Join(shutdownErr, fmt.Errorf("server: shutdown component %T: %w", shutdowner, err))
+					}
 				}
-			}
-			return nil
+				return shutdownErr
+			}, done)
 		},
 	})
+}
+
+func startInBackground(
+	ctx context.Context,
+	name string,
+	start func(context.Context) error,
+) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if err := start(ctx); err != nil {
+			slog.Error(name+" error", "error", err)
+		}
+	}()
+	return done
+}
+
+func stopAndWait(
+	ctx context.Context,
+	stop func(context.Context) error,
+	done <-chan struct{},
+) error {
+	stopErr := stop(ctx)
+	select {
+	case <-done:
+		return stopErr
+	case <-ctx.Done():
+		return errors.Join(stopErr, ctx.Err())
+	}
 }
