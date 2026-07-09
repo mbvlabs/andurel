@@ -2200,9 +2200,9 @@ var ErrFailedToGetRleaseURL = fmt.Errorf("failed to get release URL")
 
 FUNCTIONS
 
-func DownloadFromURL(name, sourceURL, archiveType, binaryName, destPath string, expectedSHA256 ...string) error
-    DownloadFromURL downloads from URL. Exactly one expected SHA-256 digest is
-    required.
+func DownloadFromURL(name, sourceURL, archiveType, binaryName, destPath string) error
+    DownloadFromURL rejects downloads without integrity metadata. Use
+    DownloadVerifiedFromURL to provide the required SHA-256 digest.
 
 func DownloadFromURLTemplate(
 	name,
@@ -2213,19 +2213,43 @@ func DownloadFromURLTemplate(
 	goos,
 	goarch,
 	destPath string,
-	expectedSHA256 ...string,
 ) error
-    DownloadFromURLTemplate downloads from URL template. Exactly one expected
-    SHA-256 digest is required. The variadic form preserves source compatibility
-    while making calls without integrity metadata fail.
+    DownloadFromURLTemplate rejects downloads without integrity metadata.
+    Use DownloadVerifiedFromURLTemplate to provide the required SHA-256 digest.
 
-func DownloadGoTool(name, module, version, goos, goarch, destPath string, expectedSHA256 ...string) error
-    DownloadGoTool downloads go tool. Exactly one expected SHA-256 digest is
-    required.
+func DownloadGoTool(name, module, version, goos, goarch, destPath string) error
+    DownloadGoTool rejects downloads without integrity metadata. Use
+    DownloadVerifiedGoTool to provide the required SHA-256 digest.
 
-func DownloadTailwindCLI(version, goos, goarch, destPath string, expectedSHA256 ...string) error
-    DownloadTailwindCLI downloads tailwind CLI. Exactly one expected SHA-256
-    digest is required.
+func DownloadTailwindCLI(version, goos, goarch, destPath string) error
+    DownloadTailwindCLI rejects downloads without integrity metadata. Use
+    DownloadVerifiedTailwindCLI to provide the required SHA-256 digest.
+
+func DownloadVerifiedFromURL(name, sourceURL, archiveType, binaryName, destPath, expectedSHA256 string) error
+    DownloadVerifiedFromURL downloads from a URL after verifying the expected
+    SHA-256 digest.
+
+func DownloadVerifiedFromURLTemplate(
+	name,
+	version,
+	urlTemplate,
+	archiveType,
+	binaryName,
+	goos,
+	goarch,
+	destPath,
+	expectedSHA256 string,
+) error
+    DownloadVerifiedFromURLTemplate downloads from a URL template after
+    verifying the expected SHA-256 digest.
+
+func DownloadVerifiedGoTool(name, module, version, goos, goarch, destPath, expectedSHA256 string) error
+    DownloadVerifiedGoTool downloads a Go tool release asset after verifying the
+    expected SHA-256 digest.
+
+func DownloadVerifiedTailwindCLI(version, goos, goarch, destPath, expectedSHA256 string) error
+    DownloadVerifiedTailwindCLI downloads the Tailwind CLI after verifying the
+    expected SHA-256 digest.
 
 func GetPlatform() (string, string)
     GetPlatform returns platform.

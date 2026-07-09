@@ -1,0 +1,4 @@
+# Approved pre-v1 Phase 3 compatibility changes.
+# Keep entries exact so later changes remain visible to apidiff.
+- ./layout.ToolDownload: old is comparable, new is not
+- ./layout/versions.Shadowfax: value changed from "v0.8.3" to "v0.8.4"

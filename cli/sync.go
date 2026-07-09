@@ -180,7 +180,7 @@ func downloadFromLockTool(name string, tool *layout.Tool, goos, goarch, binPath 
 			archive = "binary"
 		}
 
-		return cmds.DownloadFromURLTemplate(
+		return cmds.DownloadVerifiedFromURLTemplate(
 			name,
 			tool.Version,
 			tool.Download.URLTemplate,

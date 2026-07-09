@@ -167,7 +167,7 @@ func TestDownloadFromURLTemplateAndURL(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	binaryDest := filepath.Join(tmpDir, "tool")
-	err := DownloadFromURLTemplate(
+	err := DownloadVerifiedFromURLTemplate(
 		"tool",
 		"v1.2.3",
 		server.URL+"/{{version}}/{{os}}/{{arch}}/tool",
@@ -190,7 +190,7 @@ func TestDownloadFromURLTemplateAndURL(t *testing.T) {
 	archivePath := filepath.Join(tmpDir, "expected.tar.gz")
 	writeTarGz(t, archivePath, "nested/tool-linux-amd64", "tar content")
 	archiveDigest := sha256File(t, archivePath)
-	if err := DownloadFromURL("tool", server.URL+"/archive.tar.gz", "tar.gz", "tool-linux-amd64", tarDest, archiveDigest); err != nil {
+	if err := DownloadVerifiedFromURL("tool", server.URL+"/archive.tar.gz", "tar.gz", "tool-linux-amd64", tarDest, archiveDigest); err != nil {
 		t.Fatalf("DownloadFromURL tar.gz: %v", err)
 	}
 	assertFileContent(t, tarDest, "tar content")
@@ -199,7 +199,7 @@ func TestDownloadFromURLTemplateAndURL(t *testing.T) {
 	zipPath := filepath.Join(tmpDir, "expected.zip")
 	writeZip(t, zipPath, "bin/tool.exe", "zip content")
 	zipDigest := sha256File(t, zipPath)
-	if err := DownloadFromURL("tool", server.URL+"/archive.zip", "zip", "tool.exe", zipDest, zipDigest); err != nil {
+	if err := DownloadVerifiedFromURL("tool", server.URL+"/archive.zip", "zip", "tool.exe", zipDest, zipDigest); err != nil {
 		t.Fatalf("DownloadFromURL zip: %v", err)
 	}
 	assertFileContent(t, zipDest, "zip content")
@@ -207,7 +207,7 @@ func TestDownloadFromURLTemplateAndURL(t *testing.T) {
 	if err := DownloadFromURLTemplate("tool", "v1.0.0", "", "binary", "", "linux", "amd64", filepath.Join(tmpDir, "missing")); err == nil {
 		t.Fatalf("expected missing urlTemplate error")
 	}
-	err = DownloadFromURL("tool", server.URL+"/missing", "binary", "tool", filepath.Join(tmpDir, "missing"), strings.Repeat("0", 64))
+	err = DownloadVerifiedFromURL("tool", server.URL+"/missing", "binary", "tool", filepath.Join(tmpDir, "missing"), strings.Repeat("0", 64))
 	if err == nil || !strings.Contains(err.Error(), "unexpected status code 404") {
 		t.Fatalf("expected status error, got %v", err)
 	}
@@ -233,13 +233,13 @@ func TestDownloadGoToolAndTailwindUseResolvedAssets(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	templDest := filepath.Join(tmpDir, "templ")
-	if err := DownloadGoTool("templ", "github.com/a-h/templ/cmd/templ", "v0.3.0", "linux", "amd64", templDest, strings.Repeat("1", 64)); err != nil {
+	if err := DownloadVerifiedGoTool("templ", "github.com/a-h/templ/cmd/templ", "v0.3.0", "linux", "amd64", templDest, strings.Repeat("1", 64)); err != nil {
 		t.Fatalf("DownloadGoTool templ: %v", err)
 	}
 	assertFileContent(t, templDest, "templ binary")
 
 	tailwindDest := filepath.Join(tmpDir, "tailwindcli")
-	if err := DownloadTailwindCLI("v4.0.0", "darwin", "amd64", tailwindDest, strings.Repeat("2", 64)); err != nil {
+	if err := DownloadVerifiedTailwindCLI("v4.0.0", "darwin", "amd64", tailwindDest, strings.Repeat("2", 64)); err != nil {
 		t.Fatalf("DownloadTailwindCLI: %v", err)
 	}
 	assertFileContent(t, tailwindDest, "plain binary")
@@ -250,7 +250,7 @@ func TestDownloadGoToolAndTailwindUseResolvedAssets(t *testing.T) {
 		t.Fatalf("unexpected downloaded URLs: %#v", downloadedURLs)
 	}
 
-	if err := DownloadGoTool("unknown", "github.com/example/tool", "v1.0.0", "linux", "amd64", filepath.Join(tmpDir, "unknown"), strings.Repeat("3", 64)); err == nil ||
+	if err := DownloadVerifiedGoTool("unknown", "github.com/example/tool", "v1.0.0", "linux", "amd64", filepath.Join(tmpDir, "unknown"), strings.Repeat("3", 64)); err == nil ||
 		!strings.Contains(err.Error(), ErrFailedToGetRleaseURL.Error()) {
 		t.Fatalf("expected release URL error, got %v", err)
 	}
@@ -258,7 +258,7 @@ func TestDownloadGoToolAndTailwindUseResolvedAssets(t *testing.T) {
 	downloadVerifiedFunc = func(name, sourceURL, archiveType, binaryName, destPath, digest string) error {
 		return os.ErrPermission
 	}
-	if err := DownloadTailwindCLI("v4.0.0", "linux", "arm64", filepath.Join(tmpDir, "blocked"), strings.Repeat("4", 64)); err == nil ||
+	if err := DownloadVerifiedTailwindCLI("v4.0.0", "linux", "arm64", filepath.Join(tmpDir, "blocked"), strings.Repeat("4", 64)); err == nil ||
 		!strings.Contains(err.Error(), "failed to download tailwindcli") {
 		t.Fatalf("expected tailwind download error, got %v", err)
 	}

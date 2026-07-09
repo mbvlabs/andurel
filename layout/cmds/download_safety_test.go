@@ -18,13 +18,13 @@ import (
 
 func TestVerifiedDownloadRequiresHTTPSAndDigest(t *testing.T) {
 	dest := filepath.Join(t.TempDir(), "tool")
-	if err := DownloadFromURL("tool", "http://example.com/tool", "binary", "tool", dest, strings.Repeat("0", 64)); err == nil || !strings.Contains(err.Error(), "HTTPS") {
+	if err := DownloadVerifiedFromURL("tool", "http://example.com/tool", "binary", "tool", dest, strings.Repeat("0", 64)); err == nil || !strings.Contains(err.Error(), "HTTPS") {
 		t.Fatalf("HTTP URL error = %v", err)
 	}
 	if err := DownloadFromURL("tool", "https://example.com/tool", "binary", "tool", dest); err == nil || !strings.Contains(err.Error(), "SHA-256") {
 		t.Fatalf("missing digest error = %v", err)
 	}
-	if err := DownloadFromURL("tool", "https://example.com/tool", "binary", "tool", dest, "bad"); err == nil || !strings.Contains(err.Error(), "SHA-256") {
+	if err := DownloadVerifiedFromURL("tool", "https://example.com/tool", "binary", "tool", dest, "bad"); err == nil || !strings.Contains(err.Error(), "SHA-256") {
 		t.Fatalf("invalid digest error = %v", err)
 	}
 
@@ -39,7 +39,7 @@ func TestVerifiedDownloadRequiresHTTPSAndDigest(t *testing.T) {
 	client := secure.Client()
 	client.CheckRedirect = requireHTTPSRedirect
 	useDownloadClient(t, client)
-	if err := DownloadFromURL("tool", secure.URL, "binary", "tool", dest, sha256Hex("binary")); err == nil || !strings.Contains(err.Error(), "redirect must use HTTPS") {
+	if err := DownloadVerifiedFromURL("tool", secure.URL, "binary", "tool", dest, sha256Hex("binary")); err == nil || !strings.Contains(err.Error(), "redirect must use HTTPS") {
 		t.Fatalf("insecure redirect error = %v", err)
 	}
 }
@@ -57,13 +57,13 @@ func TestVerifiedDownloadAtomicallyReplacesOnlyAfterDigestMatch(t *testing.T) {
 	if err := os.WriteFile(dest, []byte("working binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := DownloadFromURL("tool", server.URL, "binary", "tool", dest, strings.Repeat("0", 64)); err == nil || !strings.Contains(err.Error(), "mismatch") {
+	if err := DownloadVerifiedFromURL("tool", server.URL, "binary", "tool", dest, strings.Repeat("0", 64)); err == nil || !strings.Contains(err.Error(), "mismatch") {
 		t.Fatalf("digest mismatch error = %v", err)
 	}
 	assertFileContent(t, dest, "working binary")
 	assertNoDownloadTemps(t, root)
 
-	if err := DownloadFromURL("tool", server.URL, "binary", "tool", dest, sha256Hex(content)); err != nil {
+	if err := DownloadVerifiedFromURL("tool", server.URL, "binary", "tool", dest, sha256Hex(content)); err != nil {
 		t.Fatalf("verified download: %v", err)
 	}
 	assertFileContent(t, dest, content)
@@ -84,7 +84,7 @@ func TestVerifiedDownloadPreservesExistingBinaryOnRequestAndRenameFailures(t *te
 		return nil, errors.New("connection failed")
 	})}
 	t.Cleanup(func() { downloadHTTPClient = newDownloadHTTPClient() })
-	if err := DownloadFromURL("tool", "https://example.com/tool", "binary", "tool", dest, strings.Repeat("1", 64)); err == nil || !strings.Contains(err.Error(), "connection failed") {
+	if err := DownloadVerifiedFromURL("tool", "https://example.com/tool", "binary", "tool", dest, strings.Repeat("1", 64)); err == nil || !strings.Contains(err.Error(), "connection failed") {
 		t.Fatalf("connection error = %v", err)
 	}
 	assertFileContent(t, dest, "working")
@@ -95,7 +95,7 @@ func TestVerifiedDownloadPreservesExistingBinaryOnRequestAndRenameFailures(t *te
 	originalRename := renameFileFunc
 	renameFileFunc = func(string, string) error { return errors.New("rename failed") }
 	t.Cleanup(func() { renameFileFunc = originalRename })
-	if err := DownloadFromURL("tool", "https://example.com/tool", "binary", "tool", dest, sha256Hex(content)); err == nil || !strings.Contains(err.Error(), "rename failed") {
+	if err := DownloadVerifiedFromURL("tool", "https://example.com/tool", "binary", "tool", dest, sha256Hex(content)); err == nil || !strings.Contains(err.Error(), "rename failed") {
 		t.Fatalf("rename error = %v", err)
 	}
 	assertFileContent(t, dest, "working")
@@ -129,13 +129,13 @@ func TestDownloadRequestTimeoutsAndStatus(t *testing.T) {
 	timeoutClient.Timeout = 10 * time.Millisecond
 	useDownloadClient(t, timeoutClient)
 	dest := filepath.Join(t.TempDir(), "tool")
-	if err := DownloadFromURL("tool", server.URL+"/slow", "binary", "tool", dest, strings.Repeat("0", 64)); err == nil || !strings.Contains(err.Error(), "Client.Timeout") {
+	if err := DownloadVerifiedFromURL("tool", server.URL+"/slow", "binary", "tool", dest, strings.Repeat("0", 64)); err == nil || !strings.Contains(err.Error(), "Client.Timeout") {
 		t.Fatalf("total timeout error = %v", err)
 	}
 
 	statusClient := server.Client()
 	useDownloadClient(t, statusClient)
-	if err := DownloadFromURL("tool", server.URL+"/missing", "binary", "tool", dest, strings.Repeat("0", 64)); err == nil || !strings.Contains(err.Error(), "status code 404") {
+	if err := DownloadVerifiedFromURL("tool", server.URL+"/missing", "binary", "tool", dest, strings.Repeat("0", 64)); err == nil || !strings.Contains(err.Error(), "status code 404") {
 		t.Fatalf("status error = %v", err)
 	}
 }
@@ -239,7 +239,7 @@ func TestExtractionFailureCleansTemporaryDataAndPreservesBinary(t *testing.T) {
 	if err := os.WriteFile(dest, []byte("working"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := DownloadFromURL("tool", server.URL, "tar.gz", "tool", dest, sha256Hex(content)); err == nil || !strings.Contains(err.Error(), "extract") {
+	if err := DownloadVerifiedFromURL("tool", server.URL, "tar.gz", "tool", dest, sha256Hex(content)); err == nil || !strings.Contains(err.Error(), "extract") {
 		t.Fatalf("extraction error = %v", err)
 	}
 	assertFileContent(t, dest, "working")
@@ -290,7 +290,7 @@ func TestExtractedBinaryWriteSyncAndCloseFailures(t *testing.T) {
 				return test.file, nil
 			}
 			t.Cleanup(func() { createTempFileFunc = originalCreate })
-			err := DownloadFromURL("tool", server.URL, "tar.gz", "tool", dest, sha256File(t, archivePath))
+			err := DownloadVerifiedFromURL("tool", server.URL, "tar.gz", "tool", dest, sha256File(t, archivePath))
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("error = %v, want substring %q", err, test.want)
 			}

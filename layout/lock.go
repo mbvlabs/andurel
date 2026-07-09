@@ -469,7 +469,7 @@ func downloadToolBinary(name string, tool *Tool, goos, goarch, destPath string) 
 			archive = "binary"
 		}
 
-		return cmds.DownloadFromURLTemplate(
+		return cmds.DownloadVerifiedFromURLTemplate(
 			name,
 			tool.Version,
 			tool.Download.URLTemplate,

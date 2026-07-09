@@ -76,9 +76,8 @@ func requireHTTPSRedirect(request *http.Request, _ []*http.Request) error {
 	return nil
 }
 
-// DownloadFromURLTemplate downloads from URL template.
-// Exactly one expected SHA-256 digest is required. The variadic form preserves
-// source compatibility while making calls without integrity metadata fail.
+// DownloadFromURLTemplate rejects downloads without integrity metadata.
+// Use DownloadVerifiedFromURLTemplate to provide the required SHA-256 digest.
 func DownloadFromURLTemplate(
 	name,
 	version,
@@ -88,7 +87,32 @@ func DownloadFromURLTemplate(
 	goos,
 	goarch,
 	destPath string,
-	expectedSHA256 ...string,
+) error {
+	return DownloadVerifiedFromURLTemplate(
+		name,
+		version,
+		urlTemplate,
+		archiveType,
+		binaryName,
+		goos,
+		goarch,
+		destPath,
+		"",
+	)
+}
+
+// DownloadVerifiedFromURLTemplate downloads from a URL template after
+// verifying the expected SHA-256 digest.
+func DownloadVerifiedFromURLTemplate(
+	name,
+	version,
+	urlTemplate,
+	archiveType,
+	binaryName,
+	goos,
+	goarch,
+	destPath,
+	expectedSHA256 string,
 ) error {
 	if urlTemplate == "" {
 		return fmt.Errorf("download urlTemplate is required for %s", name)
@@ -109,9 +133,15 @@ func DownloadFromURLTemplate(
 	return downloadVerifiedFunc(name, resolvedURL, archiveType, binaryName, destPath, digest)
 }
 
-// DownloadFromURL downloads from URL.
-// Exactly one expected SHA-256 digest is required.
-func DownloadFromURL(name, sourceURL, archiveType, binaryName, destPath string, expectedSHA256 ...string) error {
+// DownloadFromURL rejects downloads without integrity metadata.
+// Use DownloadVerifiedFromURL to provide the required SHA-256 digest.
+func DownloadFromURL(name, sourceURL, archiveType, binaryName, destPath string) error {
+	return DownloadVerifiedFromURL(name, sourceURL, archiveType, binaryName, destPath, "")
+}
+
+// DownloadVerifiedFromURL downloads from a URL after verifying the expected
+// SHA-256 digest.
+func DownloadVerifiedFromURL(name, sourceURL, archiveType, binaryName, destPath, expectedSHA256 string) error {
 	digest, err := requireExpectedDigest(expectedSHA256)
 	if err != nil {
 		return err
@@ -119,11 +149,11 @@ func DownloadFromURL(name, sourceURL, archiveType, binaryName, destPath string, 
 	return downloadVerifiedFunc(name, sourceURL, archiveType, binaryName, destPath, digest)
 }
 
-func requireExpectedDigest(values []string) (string, error) {
-	if len(values) != 1 || !validSHA256(values[0]) {
-		return "", fmt.Errorf("exactly one valid SHA-256 digest is required")
+func requireExpectedDigest(value string) (string, error) {
+	if !validSHA256(value) {
+		return "", fmt.Errorf("a valid SHA-256 digest is required")
 	}
-	return strings.ToLower(values[0]), nil
+	return strings.ToLower(value), nil
 }
 
 func validSHA256(value string) bool {
@@ -296,15 +326,21 @@ func normalizeTailwindArch(goarch string) string {
 	return goarch
 }
 
-// DownloadGoTool downloads go tool.
-// Exactly one expected SHA-256 digest is required.
-func DownloadGoTool(name, module, version, goos, goarch, destPath string, expectedSHA256 ...string) error {
+// DownloadGoTool rejects downloads without integrity metadata.
+// Use DownloadVerifiedGoTool to provide the required SHA-256 digest.
+func DownloadGoTool(name, module, version, goos, goarch, destPath string) error {
+	return DownloadVerifiedGoTool(name, module, version, goos, goarch, destPath, "")
+}
+
+// DownloadVerifiedGoTool downloads a Go tool release asset after verifying the
+// expected SHA-256 digest.
+func DownloadVerifiedGoTool(name, module, version, goos, goarch, destPath, expectedSHA256 string) error {
 	downloader := &ToolDownloader{Name: name, Module: module, Version: version}
 	resolvedURL, archiveType, err := downloader.getReleaseURL(goos, goarch)
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrFailedToGetRleaseURL, err)
 	}
-	return DownloadFromURL(name, resolvedURL, archiveType, name, destPath, expectedSHA256...)
+	return DownloadVerifiedFromURL(name, resolvedURL, archiveType, name, destPath, expectedSHA256)
 }
 
 func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, error) {
@@ -327,16 +363,22 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 	}
 }
 
-// DownloadTailwindCLI downloads tailwind CLI.
-// Exactly one expected SHA-256 digest is required.
-func DownloadTailwindCLI(version, goos, goarch, destPath string, expectedSHA256 ...string) error {
+// DownloadTailwindCLI rejects downloads without integrity metadata.
+// Use DownloadVerifiedTailwindCLI to provide the required SHA-256 digest.
+func DownloadTailwindCLI(version, goos, goarch, destPath string) error {
+	return DownloadVerifiedTailwindCLI(version, goos, goarch, destPath, "")
+}
+
+// DownloadVerifiedTailwindCLI downloads the Tailwind CLI after verifying the
+// expected SHA-256 digest.
+func DownloadVerifiedTailwindCLI(version, goos, goarch, destPath, expectedSHA256 string) error {
 	resolvedURL := fmt.Sprintf(
 		"https://github.com/tailwindlabs/tailwindcss/releases/download/%s/tailwindcss-%s-%s",
 		version,
 		normalizeTailwindOS(goos),
 		normalizeTailwindArch(goarch),
 	)
-	if err := DownloadFromURL("tailwindcli", resolvedURL, "binary", "tailwindcli", destPath, expectedSHA256...); err != nil {
+	if err := DownloadVerifiedFromURL("tailwindcli", resolvedURL, "binary", "tailwindcli", destPath, expectedSHA256); err != nil {
 		return fmt.Errorf("failed to download tailwindcli: %w", err)
 	}
 	return nil
