@@ -260,6 +260,15 @@ func newUpgradeFixtureProject(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	var legacyLock map[string]any
+	if err := json.Unmarshal(lockContent, &legacyLock); err != nil {
+		t.Fatal(err)
+	}
+	delete(legacyLock, "schemaVersion")
+	lockContent, err = json.MarshalIndent(legacyLock, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
 	mustWriteTestFile(t, root, "andurel.lock", append(lockContent, '\n'))
 
 	rendered, err := NewTemplateGenerator(fixtureSourceVersion).RenderFrameworkTemplates(
