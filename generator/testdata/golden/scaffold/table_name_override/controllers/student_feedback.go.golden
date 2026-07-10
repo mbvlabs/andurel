@@ -166,9 +166,13 @@ func (fe FeedbackEntry) Create(etx *echo.Context) error {
 	}
 
 	data := models.CreateFeedbackEntryData{
+
 		StudentName: payload.StudentName,
-		Feedback:    payload.Feedback,
-		Rating:      sql.NullInt32{Int32: payload.Rating, Valid: true},
+
+		Feedback: payload.Feedback,
+
+		Rating: sql.NullInt32{Int32: payload.Rating, Valid: true},
+
 		SubmittedAt: func() sql.NullTime {
 			if payload.SubmittedAt == "" {
 				return sql.NullTime{Valid: false}
@@ -238,10 +242,14 @@ func (fe FeedbackEntry) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateFeedbackEntryData{
-		ID:          feedbackEntryID,
+		ID: feedbackEntryID,
+
 		StudentName: payload.StudentName,
-		Feedback:    payload.Feedback,
-		Rating:      sql.NullInt32{Int32: payload.Rating, Valid: true},
+
+		Feedback: payload.Feedback,
+
+		Rating: sql.NullInt32{Int32: payload.Rating, Valid: true},
+
 		SubmittedAt: func() sql.NullTime {
 			if payload.SubmittedAt == "" {
 				return sql.NullTime{Valid: false}

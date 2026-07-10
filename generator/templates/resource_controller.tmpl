@@ -10,12 +10,16 @@ import (
 {{- $needsUUID := or (not .IDType) (eq .IDType "uuid.UUID")}}
 {{- $needsSQLNull := false}}
 {{- $needsBun := false}}
+{{- $needsJSON := false}}
 {{- range .Fields}}
-{{- if and (not .IsSystemField) (eq .GoFormType "time.Time")}}
+{{- if and (not .IsSystemField) (or (eq .GoFormType "time.Time") (eq .GoType "sql.NullTime") (eq .GoType "bun.NullTime"))}}
 	{{- $needsTime = true}}
 {{- end}}
 {{- if and (not .IsSystemField) (or (eq .GoType "uuid.UUID") (eq .GoType "*uuid.UUID"))}}
 	{{- $needsUUID = true}}
+{{- end}}
+{{- if and (not .IsSystemField) (eq .GoType "json.RawMessage") (or (HasAction "create") (HasAction "update"))}}
+	{{- $needsJSON = true}}
 {{- end}}
 {{- if and (not .IsSystemField) (hasPrefix .GoType "sql.Null")}}
 	{{- $needsSQLNull = true}}
@@ -26,6 +30,9 @@ import (
 {{- end}}
 {{- if $needsTime}}
 	"time"
+{{- end}}
+{{- if $needsJSON}}
+	"encoding/json"
 {{- end}}
 {{- if $needsSQLNull}}
 	"database/sql"
@@ -251,113 +258,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 	data := models.Create{{.ModelName}}Data{
 {{- range .Fields}}
 {{- if not .IsSystemField}}
-		{{- if eq .GoType "*uuid.UUID"}}
-		{{.Name}}:    func() *uuid.UUID {
-			if payload.{{.Name}} == "" {
-				return nil
-			}
-			parsed, err := uuid.Parse(payload.{{.Name}})
-			if err != nil {
-				slog.WarnContext(
-					etx.Request().Context(),
-					"could not parse {{.Name}}, setting to nil UUID pointer",
-					"error",
-					err,
-				)
-				return nil
-			}
-
-			return &parsed
-		}(),
-		{{- else if eq .GoType "uuid.UUID"}}
-		{{.Name}}:    func() uuid.UUID {
-			if payload.{{.Name}} == "" {
-				return uuid.Nil
-			}
-			parsed, err := uuid.Parse(payload.{{.Name}})
-			if err != nil {
-				slog.WarnContext(
-					etx.Request().Context(),
-					"could not parse {{.Name}}, setting to nil UUID",
-					"error",
-					err,
-				)
-				return uuid.Nil
-			}
-
-			return parsed
-		}(),
-		{{- else if eq .GoType "[]byte"}}
-		{{.Name}}:    []byte(payload.{{.Name}}),
-		{{- else if eq .GoType "bool"}}
-		{{.Name}}:    payload.{{.Name}},
-		{{- else if eq .GoType "*time.Time"}}
-		{{.Name}}:    func() *time.Time {
-			if payload.{{.Name}} == "" {
-				return nil
-			}
-			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
-				return &t
-			}
-			return nil
-		}(),
-		{{- else if eq .GoType "sql.NullTime"}}
-		{{.Name}}:    func() sql.NullTime {
-			if payload.{{.Name}} == "" {
-				return sql.NullTime{Valid: false}
-			}
-			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
-				return sql.NullTime{Time: t, Valid: true}
-			}
-			return sql.NullTime{Valid: false}
-		}(),
-		{{- else if eq .GoType "bun.NullTime"}}
-		{{.Name}}:    func() bun.NullTime {
-			if payload.{{.Name}} == "" {
-				return bun.NullTime{Valid: false}
-			}
-			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
-				return bun.NullTime{Time: t, Valid: true}
-			}
-			return bun.NullTime{Valid: false}
-		}(),
-		{{- else if eq .GoType "sql.NullString"}}
-		{{.Name}}:    sql.NullString{String: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "sql.NullBool"}}
-		{{.Name}}:    sql.NullBool{Bool: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "sql.NullInt16"}}
-		{{.Name}}:    sql.NullInt16{Int16: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "sql.NullInt32"}}
-		{{.Name}}:    sql.NullInt32{Int32: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "sql.NullInt64"}}
-		{{.Name}}:    sql.NullInt64{Int64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "sql.NullFloat64"}}
-		{{.Name}}:    sql.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullString"}}
-		{{.Name}}:    bun.NullString{String: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullBool"}}
-		{{.Name}}:    bun.NullBool{Bool: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullInt32"}}
-		{{.Name}}:    bun.NullInt32{Int32: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullInt64"}}
-		{{.Name}}:    bun.NullInt64{Int64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullFloat64"}}
-		{{.Name}}:    bun.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoFormType "time.Time"}}
-		{{.Name}}:    func() time.Time {
-			if payload.{{.Name}} == "" {
-				return time.Time{}
-			}
-			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
-				return t
-			}
-			return time.Time{}
-		}(),
-		{{- else if .IsPointer}}
-		{{.Name}}:    payload.{{.Name}},
-		{{- else}}
-		{{.Name}}:    payload.{{.Name}},
-		{{- end}}
+		{{template "ControllerPayloadAssignment" .}}
 {{- end}}
 {{- end}}
 	}
@@ -478,113 +379,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		{{.IDGoFieldName}}:      {{.ResourceName | ToLowerCamelCase}}ID,
 {{- range .Fields}}
 {{- if not .IsSystemField}}
-		{{- if eq .GoType "*uuid.UUID"}}
-		{{.Name}}:    func() *uuid.UUID {
-			if payload.{{.Name}} == "" {
-				return nil
-			}
-			parsed, err := uuid.Parse(payload.{{.Name}})
-			if err != nil {
-				slog.WarnContext(
-					etx.Request().Context(),
-					"could not parse {{.Name}}, setting to nil UUID pointer",
-					"error",
-					err,
-				)
-				return nil
-			}
-
-			return &parsed
-		}(),
-		{{- else if eq .GoType "uuid.UUID"}}
-		{{.Name}}:    func() uuid.UUID {
-			if payload.{{.Name}} == "" {
-				return uuid.Nil
-			}
-			parsed, err := uuid.Parse(payload.{{.Name}})
-			if err != nil {
-				slog.WarnContext(
-					etx.Request().Context(),
-					"could not parse {{.Name}}, setting to nil UUID",
-					"error",
-					err,
-				)
-				return uuid.Nil
-			}
-
-			return parsed
-		}(),
-		{{- else if eq .GoType "[]byte"}}
-		{{.Name}}:    []byte(payload.{{.Name}}),
-		{{- else if eq .GoType "bool"}}
-		{{.Name}}:    payload.{{.Name}},
-		{{- else if eq .GoType "*time.Time"}}
-		{{.Name}}:    func() *time.Time {
-			if payload.{{.Name}} == "" {
-				return nil
-			}
-			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
-				return &t
-			}
-			return nil
-		}(),
-		{{- else if eq .GoType "sql.NullTime"}}
-		{{.Name}}:    func() sql.NullTime {
-			if payload.{{.Name}} == "" {
-				return sql.NullTime{Valid: false}
-			}
-			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
-				return sql.NullTime{Time: t, Valid: true}
-			}
-			return sql.NullTime{Valid: false}
-		}(),
-		{{- else if eq .GoType "bun.NullTime"}}
-		{{.Name}}:    func() bun.NullTime {
-			if payload.{{.Name}} == "" {
-				return bun.NullTime{Valid: false}
-			}
-			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
-				return bun.NullTime{Time: t, Valid: true}
-			}
-			return bun.NullTime{Valid: false}
-		}(),
-		{{- else if eq .GoType "sql.NullString"}}
-		{{.Name}}:    sql.NullString{String: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "sql.NullBool"}}
-		{{.Name}}:    sql.NullBool{Bool: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "sql.NullInt16"}}
-		{{.Name}}:    sql.NullInt16{Int16: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "sql.NullInt32"}}
-		{{.Name}}:    sql.NullInt32{Int32: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "sql.NullInt64"}}
-		{{.Name}}:    sql.NullInt64{Int64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "sql.NullFloat64"}}
-		{{.Name}}:    sql.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullString"}}
-		{{.Name}}:    bun.NullString{String: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullBool"}}
-		{{.Name}}:    bun.NullBool{Bool: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullInt32"}}
-		{{.Name}}:    bun.NullInt32{Int32: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullInt64"}}
-		{{.Name}}:    bun.NullInt64{Int64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullFloat64"}}
-		{{.Name}}:    bun.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoFormType "time.Time"}}
-		{{.Name}}:    func() time.Time {
-			if payload.{{.Name}} == "" {
-				return time.Time{}
-			}
-			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
-				return t
-			}
-			return time.Time{}
-		}(),
-		{{- else if .IsPointer}}
-		{{.Name}}:    payload.{{.Name}},
-		{{- else}}
-		{{.Name}}:    payload.{{.Name}},
-		{{- end}}
+		{{template "ControllerPayloadAssignment" .}}
 {{- end}}
 {{- end}}
 	}
