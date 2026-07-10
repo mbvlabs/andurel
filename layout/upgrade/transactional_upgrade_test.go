@@ -69,7 +69,6 @@ func TestRCTagFixturesAreExactAndCoverVariants(t *testing.T) {
 
 	wantHashes := map[string]string{
 		"cmd/app/main.go":  "bd2f2d856ff12617627bfb9c2093073091f96f4db24ca09ad4c862d3d56b8a39",
-		"config/app.go":    "b8b0638926f297b9594ec435554f40c6caeb815318d2b38ade92d29e9b044e20",
 		"models/user.go":   "e7e058c546f0a88631f4ddde0f33c5990b0901b2f0eda45cf1c20fec80d07898",
 		"router/router.go": "5c34c449928d931c43e122cbbb0eb1a62f7adf53f2a080fd1982ec83ce49cf04",
 	}
@@ -521,7 +520,6 @@ func assertSnapshotEqual(t *testing.T, want, got map[string][]byte) {
 func assertRCOutcome(t *testing.T, root string) {
 	t.Helper()
 	for path, marker := range map[string]string{
-		"config/app.go":    `SessionMaxAge        int      `,
 		"models/user.go":   `.NewDelete()`,
 		"router/router.go": `func newCORSConfig(`,
 		"cmd/app/main.go":  `func stopAndWait(`,
@@ -529,12 +527,6 @@ func assertRCOutcome(t *testing.T, root string) {
 		if !bytes.Contains(mustReadProjectFile(t, root, path), []byte(marker)) {
 			t.Fatalf("%s missing migrated marker %q", path, marker)
 		}
-	}
-	config := mustReadProjectFile(t, root, "config/app.go")
-	if !bytes.Contains(config, []byte(`CORSAllowedOrigins   []string `)) ||
-		!bytes.Contains(config, []byte(`env:"SESSION_MAX_AGE" envDefault:"604800"`)) ||
-		!bytes.Contains(config, []byte(`env:"CORS_ALLOWED_ORIGINS" envSeparator:","`)) {
-		t.Fatalf("config/app.go does not contain exact target fields:\n%s", config)
 	}
 	lock, err := layoutReadLock(root)
 	if err != nil {

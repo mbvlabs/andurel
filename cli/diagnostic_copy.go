@@ -47,12 +47,12 @@ func copyDiagnosticEntry(src, dst string, active map[string]struct{}) error {
 			return fmt.Errorf("resolve symlink %s: %w", original, resolveErr)
 		}
 		src = resolved
+		if isDiagnosticExcludedPath(src) {
+			return nil
+		}
 		info, err = os.Stat(src)
 		if err != nil {
 			return fmt.Errorf("inspect resolved symlink %s: %w", original, err)
-		}
-		if isDiagnosticExcluded(filepath.Base(src)) {
-			return nil
 		}
 	}
 
@@ -60,6 +60,9 @@ func copyDiagnosticEntry(src, dst string, active map[string]struct{}) error {
 	case info.Mode().IsRegular():
 		if err := copyFile(src, dst, info.Mode()); err != nil {
 			return fmt.Errorf("copy file %s: %w", original, err)
+		}
+		if err := os.Chmod(dst, info.Mode().Perm()); err != nil {
+			return fmt.Errorf("preserve file permissions for %s: %w", original, err)
 		}
 		return nil
 	case info.IsDir():
@@ -76,7 +79,7 @@ func copyDiagnosticEntry(src, dst string, active map[string]struct{}) error {
 		}
 		active[canonical] = struct{}{}
 		defer delete(active, canonical)
-		if err := os.MkdirAll(dst, info.Mode().Perm()); err != nil {
+		if err := os.MkdirAll(dst, 0o700); err != nil {
 			return fmt.Errorf("create directory for %s: %w", original, err)
 		}
 		entries, err := os.ReadDir(src)
@@ -95,6 +98,9 @@ func copyDiagnosticEntry(src, dst string, active map[string]struct{}) error {
 				return err
 			}
 		}
+		if err := os.Chmod(dst, info.Mode().Perm()); err != nil {
+			return fmt.Errorf("preserve directory permissions for %s: %w", original, err)
+		}
 		return nil
 	default:
 		return fmt.Errorf("unsupported special file %s with mode %s", original, info.Mode())
@@ -103,4 +109,18 @@ func copyDiagnosticEntry(src, dst string, active map[string]struct{}) error {
 
 func isDiagnosticExcluded(name string) bool {
 	return name == ".git" || name == "node_modules" || name == ".andurel-cache"
+}
+
+func isDiagnosticExcludedPath(path string) bool {
+	current := filepath.Clean(path)
+	for {
+		if isDiagnosticExcluded(filepath.Base(current)) {
+			return true
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return false
+		}
+		current = parent
+	}
 }

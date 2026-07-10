@@ -61,18 +61,69 @@ func TestDiagnosticCopyDereferencesAbsoluteSymlinkAndSkipsLinkedExclusions(t *te
 	external := t.TempDir()
 	writeTestFile(t, external, "data/value.txt", "value\n")
 	writeTestFile(t, external, "node_modules/private.txt", "excluded\n")
+	writeTestFile(t, external, "node_modules/package/private.txt", "excluded package\n")
+	writeTestFile(t, external, "repository/.git/objects/private.txt", "excluded git data\n")
+	writeTestFile(t, external, ".andurel-cache/generated/private.txt", "excluded cache data\n")
 	if err := os.Symlink(filepath.Join(external, "data"), filepath.Join(project, "data")); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(filepath.Join(external, "node_modules"), filepath.Join(project, "dependencies")); err != nil {
 		t.Fatal(err)
 	}
+	for name, target := range map[string]string{
+		"dependency-package": filepath.Join(external, "node_modules", "package"),
+		"git-objects":        filepath.Join(external, "repository", ".git", "objects"),
+		"generated-cache":    filepath.Join(external, ".andurel-cache", "generated"),
+	} {
+		if err := os.Symlink(target, filepath.Join(project, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := withDiagnosticProjectCopy(project, func(copyRoot string) error {
 		if _, err := os.Stat(filepath.Join(copyRoot, "data", "value.txt")); err != nil {
 			return err
 		}
-		if _, err := os.Stat(filepath.Join(copyRoot, "dependencies")); !os.IsNotExist(err) {
-			t.Fatalf("linked excluded directory stat error = %v, want not exist", err)
+		for _, name := range []string{"dependencies", "dependency-package", "git-objects", "generated-cache"} {
+			if _, err := os.Stat(filepath.Join(copyRoot, name)); !os.IsNotExist(err) {
+				t.Fatalf("linked excluded path %s stat error = %v, want not exist", name, err)
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDiagnosticCopyPreservesDereferencedPermissions(t *testing.T) {
+	project := t.TempDir()
+	external := t.TempDir()
+	writeTestFile(t, external, "shared/value.txt", "value\n")
+	shared := filepath.Join(external, "shared")
+	value := filepath.Join(shared, "value.txt")
+	if err := os.Chmod(shared, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(value, 0o666); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(shared, filepath.Join(project, "shared")); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := withDiagnosticProjectCopy(project, func(copyRoot string) error {
+		copiedShared, err := os.Stat(filepath.Join(copyRoot, "shared"))
+		if err != nil {
+			return err
+		}
+		if got := copiedShared.Mode().Perm(); got != 0o777 {
+			t.Fatalf("copied directory permissions = %o, want 777", got)
+		}
+		copiedValue, err := os.Stat(filepath.Join(copyRoot, "shared", "value.txt"))
+		if err != nil {
+			return err
+		}
+		if got := copiedValue.Mode().Perm(); got != 0o666 {
+			t.Fatalf("copied file permissions = %o, want 666", got)
 		}
 		return nil
 	}); err != nil {
