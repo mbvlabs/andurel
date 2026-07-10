@@ -21,7 +21,7 @@ Join the discord [here](https://discord.gg/TnTBZHvat3)
 
 Andurel v1 supports **Linux** and **macOS** on **amd64** and **arm64**. Windows is not supported. Official releases contain and smoke-test all four operating-system and architecture combinations.
 
-See [release verification](docs/release-verification.md) for archive installation, checksums, SBOMs, keyless signatures, and provenance.
+See [release verification](docs/release-verification.md) for archive installation, checksums, SBOMs, keyless signatures, and provenance. Maintainers must follow the [release procedure](docs/releasing.md) before creating a version tag.
 
 The frozen v1 contracts are documented in the [public Go API policy](docs/contracts/public-api.md), [CLI and structured-output policy](docs/contracts/cli-v1.md), and [lock schema 1 specification](docs/contracts/lock-schema-v1.md). Model generation supports the conservative SQL subset in the [DDL parser contract](docs/ddl-model-generation.md), and upgrades follow the [generated-file ownership policy](docs/generated-files-and-upgrades.md).
 

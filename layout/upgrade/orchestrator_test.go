@@ -2,6 +2,7 @@ package upgrade
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,17 @@ import (
 
 	"github.com/mbvlabs/andurel/layout"
 )
+
+var errPresentationWrite = errors.New("presentation write failed")
+
+type failingPresentationWriter struct {
+	writes int
+}
+
+func (w *failingPresentationWriter) Write(_ []byte) (int, error) {
+	w.writes++
+	return 0, errPresentationWrite
+}
 
 func TestUpgradePresentationRestoresProgressiveHumanOutput(t *testing.T) {
 	t.Parallel()
@@ -160,6 +172,22 @@ func TestUpgradePresentationRemovalAndNoOpBranches(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Fatalf("dry-run presentation missing %q:\n%s", want, got)
 		}
+	}
+}
+
+func TestUpgradePresentationStopsAfterWriterFailure(t *testing.T) {
+	t.Parallel()
+
+	writer := &failingPresentationWriter{}
+	printUpgradeSuccess(writer, &UpgradeReport{
+		FromVersion:   "v1.0.0",
+		ToVersion:     "v1.0.1",
+		ReplacedFiles: []string{"internal/server/server.go"},
+		UpdatedTools:  []string{"templ: v0.3.1020"},
+	})
+
+	if writer.writes != 1 {
+		t.Fatalf("presentation writes after terminal failure = %d, want 1", writer.writes)
 	}
 }
 

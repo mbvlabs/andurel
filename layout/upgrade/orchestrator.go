@@ -183,85 +183,90 @@ func (u *Upgrader) validatePreconditions() error {
 }
 
 func printUpgradeStart(writer io.Writer, fromVersion, toVersion string) {
-	fmt.Fprintf(writer, "Upgrading framework from %s to %s...\n", fromVersion, toVersion)
-	fmt.Fprintln(writer, "Rendering framework templates...")
+	output := newPresentationWriter(writer)
+	output.printf("Upgrading framework from %s to %s...\n", fromVersion, toVersion)
+	output.println("Rendering framework templates...")
 }
 
 func printUpgradeAlreadyCurrent(writer io.Writer, version string, dryRun bool) {
+	output := newPresentationWriter(writer)
 	if dryRun {
-		fmt.Fprintf(writer, "[DRY RUN] Project is already at version %s. No files would be changed.\n", version)
+		output.printf("[DRY RUN] Project is already at version %s. No files would be changed.\n", version)
 		return
 	}
-	fmt.Fprintf(writer, "✓ Project is already at version %s. Nothing to upgrade.\n", version)
+	output.printf("✓ Project is already at version %s. Nothing to upgrade.\n", version)
 }
 
 func printFrameworkDrift(writer io.Writer, report *UpgradeReport, dryRun bool) {
+	output := newPresentationWriter(writer)
 	prefix := ""
 	if dryRun {
 		prefix = "[DRY RUN] "
 	}
-	fmt.Fprintf(writer, "%sProject is already at version %s.\n", prefix, report.ToVersion)
-	fmt.Fprintf(writer, "%sUnexpected changes were found in framework-owned files:\n", prefix)
+	output.printf("%sProject is already at version %s.\n", prefix, report.ToVersion)
+	output.printf("%sUnexpected changes were found in framework-owned files:\n", prefix)
 	for _, path := range report.ReplacedFiles {
-		fmt.Fprintf(writer, "  ! %s\n", path)
+		output.printf("  ! %s\n", path)
 	}
 	for _, path := range report.RemovedFiles {
-		fmt.Fprintf(writer, "  ! %s (obsolete)\n", path)
+		output.printf("  ! %s (obsolete)\n", path)
 	}
 	if report.DirtyWorktree {
-		fmt.Fprintf(writer, "%sCommit or stash your changes before restoring these files.\n", prefix)
+		output.printf("%sCommit or stash your changes before restoring these files.\n", prefix)
 	}
 }
 
 func printUpgradeSuccess(writer io.Writer, report *UpgradeReport) {
+	output := newPresentationWriter(writer)
 	if len(report.ReplacedFiles) > 0 {
-		fmt.Fprintln(writer, "Replacing framework files...")
+		output.println("Replacing framework files...")
 		for _, path := range report.ReplacedFiles {
-			fmt.Fprintf(writer, "  ✓ %s\n", path)
+			output.printf("  ✓ %s\n", path)
 		}
 	}
 	if len(report.RemovedFiles) > 0 {
-		fmt.Fprintln(writer, "Removing obsolete internal package files...")
+		output.println("Removing obsolete internal package files...")
 		for _, path := range report.RemovedFiles {
-			fmt.Fprintf(writer, "  - %s\n", path)
+			output.printf("  - %s\n", path)
 		}
 	}
-	printToolChanges(writer, report, false)
+	printToolChanges(output, report, false)
 
 	lockChanged := report.FromVersion != report.ToVersion || hasToolChanges(report)
 	if lockChanged {
-		fmt.Fprintln(writer, "✓ Updated andurel.lock")
+		output.println("✓ Updated andurel.lock")
 	}
 	if len(report.ReplacedFiles) == 0 && len(report.RemovedFiles) == 0 && !lockChanged {
-		fmt.Fprintln(writer, "✓ Project is already up to date")
+		output.println("✓ Project is already up to date")
 		return
 	}
 }
 
 func printUpgradeDryRun(writer io.Writer, report *UpgradeReport) {
-	fmt.Fprintln(writer, "\n[DRY RUN] No files will be changed.")
+	output := newPresentationWriter(writer)
+	output.println("\n[DRY RUN] No files will be changed.")
 	if report.DirtyWorktree {
-		fmt.Fprintln(writer, "[DRY RUN] Warning: the worktree is dirty; planning only is permitted.")
+		output.println("[DRY RUN] Warning: the worktree is dirty; planning only is permitted.")
 	}
 	if len(report.ReplacedFiles) > 0 {
-		fmt.Fprintln(writer, "\n[DRY RUN] Would replace framework files:")
+		output.println("\n[DRY RUN] Would replace framework files:")
 		for _, path := range report.ReplacedFiles {
-			fmt.Fprintf(writer, "  • %s\n", path)
+			output.printf("  • %s\n", path)
 		}
 	}
 	if len(report.RemovedFiles) > 0 {
-		fmt.Fprintln(writer, "\n[DRY RUN] Would remove obsolete internal package files:")
+		output.println("\n[DRY RUN] Would remove obsolete internal package files:")
 		for _, path := range report.RemovedFiles {
-			fmt.Fprintf(writer, "  - %s\n", path)
+			output.printf("  - %s\n", path)
 		}
 	}
-	printToolChanges(writer, report, true)
+	printToolChanges(output, report, true)
 	if report.FromVersion != report.ToVersion || hasToolChanges(report) {
-		fmt.Fprintln(writer, "\n[DRY RUN] Would update andurel.lock")
+		output.println("\n[DRY RUN] Would update andurel.lock")
 	}
 }
 
-func printToolChanges(writer io.Writer, report *UpgradeReport, dryRun bool) {
+func printToolChanges(output *presentationWriter, report *UpgradeReport, dryRun bool) {
 	if !hasToolChanges(report) {
 		return
 	}
@@ -269,21 +274,48 @@ func printToolChanges(writer io.Writer, report *UpgradeReport, dryRun bool) {
 	if dryRun {
 		label = "\n[DRY RUN] Tool changes:"
 	}
-	fmt.Fprintln(writer, label)
-	printToolGroup(writer, "Added", report.AddedTools)
-	printToolGroup(writer, "Updated", report.UpdatedTools)
-	printToolGroup(writer, "Removed", report.RemovedTools)
-	printToolGroup(writer, "Metadata", report.ToolMetadataChanges)
+	output.println(label)
+	printToolGroup(output, "Added", report.AddedTools)
+	printToolGroup(output, "Updated", report.UpdatedTools)
+	printToolGroup(output, "Removed", report.RemovedTools)
+	printToolGroup(output, "Metadata", report.ToolMetadataChanges)
 }
 
-func printToolGroup(writer io.Writer, label string, values []string) {
+func printToolGroup(output *presentationWriter, label string, values []string) {
 	if len(values) == 0 {
 		return
 	}
-	fmt.Fprintf(writer, "  %s:\n", label)
+	output.printf("  %s:\n", label)
 	for _, value := range values {
-		fmt.Fprintf(writer, "    %s\n", value)
+		output.printf("    %s\n", value)
 	}
+}
+
+// presentationWriter keeps terminal output best-effort. An output failure must
+// never turn a completed filesystem transaction into a failed upgrade.
+type presentationWriter struct {
+	writer io.Writer
+	failed bool
+}
+
+func newPresentationWriter(writer io.Writer) *presentationWriter {
+	return &presentationWriter{writer: writer}
+}
+
+func (w *presentationWriter) printf(format string, args ...any) {
+	if w.failed {
+		return
+	}
+	_, err := fmt.Fprintf(w.writer, format, args...)
+	w.failed = err != nil
+}
+
+func (w *presentationWriter) println(args ...any) {
+	if w.failed {
+		return
+	}
+	_, err := fmt.Fprintln(w.writer, args...)
+	w.failed = err != nil
 }
 
 func hasToolChanges(report *UpgradeReport) bool {

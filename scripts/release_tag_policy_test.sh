@@ -69,12 +69,42 @@ if ! grep -Fq 'GORELEASER_CURRENT_TAG: ${{ github.ref_name }}' "${workflow}"; th
   echo "release workflow does not pin GoReleaser to the triggering tag" >&2
   exit 1
 fi
-for job in validate draft-release publish; do
+for job in tag-identity draft-release publish; do
   block="$(sed -n "/^  ${job}:/,/^  [a-zA-Z0-9-]*:/p" "${workflow}")"
   if [[ "${block}" != *'./scripts/verify-release-tag.sh "${GITHUB_REF_NAME}" "${GITHUB_SHA}"'* ]]; then
     echo "${job} does not invoke the centralized release tag policy" >&2
     exit 1
   fi
 done
+
+readiness_block="$(sed -n '/^  readiness:/,/^  [a-zA-Z0-9-]*:/p' "${workflow}")"
+if [[ "${readiness_block}" != *'uses: ./.github/workflows/release-readiness.yml'* ]]; then
+  echo 'release workflow does not invoke canonical release readiness' >&2
+  exit 1
+fi
+
+preflight_block="$(sed -n '/^  preflight:/,/^  [a-zA-Z0-9-]*:/p' "${workflow}")"
+for dependency in tag-identity readiness; do
+  if [[ "${preflight_block}" != *"- ${dependency}"* ]]; then
+    echo "release artifact preflight does not require ${dependency}" >&2
+    exit 1
+  fi
+done
+
+readiness_workflow="${repo_root}/.github/workflows/release-readiness.yml"
+for trigger in push workflow_call; do
+  if ! grep -Eq "^  ${trigger}:" "${readiness_workflow}"; then
+    echo "canonical release readiness is missing ${trigger}" >&2
+    exit 1
+  fi
+done
+if grep -Eq '^  pull_request:' "${readiness_workflow}"; then
+  echo 'canonical release readiness must not run before merge' >&2
+  exit 1
+fi
+if ! grep -Fq '      - master' "${readiness_workflow}"; then
+  echo 'canonical release readiness does not target master' >&2
+  exit 1
+fi
 
 echo "release tag policy contract passed"
