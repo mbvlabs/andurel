@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -128,6 +129,92 @@ func TestUpgradeCleanAndDirtyWorktreeBehavior(t *testing.T) {
 		t.Fatalf("dirty real upgrade error = %v", err)
 	}
 	assertSnapshotEqual(t, before, snapshotUpgradeTree(t, dirtyRoot))
+}
+
+func TestMatchingFrameworkVersionIsImmediateNoOp(t *testing.T) {
+	root := newUpgradeFixtureProject(t)
+	writeCurrentFixtureLock(t, root)
+	mustWriteTestFile(t, root, "dirty.txt", []byte("preserve me\n"))
+	before := snapshotUpgradeTree(t, root)
+
+	upgrader, err := NewUpgrader(root, UpgradeOptions{TargetVersion: fixtureSourceVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	upgrader.transaction = &transactionRuntime{failureInjector: func(operation, _ string) error {
+		return errors.New("unexpected transaction operation " + operation)
+	}}
+	report, err := upgrader.Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Success || !report.AlreadyCurrent {
+		t.Fatalf("same-version report = %#v", report)
+	}
+	if report.FilesReplaced != 0 || report.FilesRemoved != 0 || len(report.Diffs) != 0 {
+		t.Fatalf("same-version upgrade planned mutations: %#v", report)
+	}
+	assertSnapshotEqual(t, before, snapshotUpgradeTree(t, root))
+}
+
+func TestMatchingFrameworkVersionReportsAndRepairsDrift(t *testing.T) {
+	root := newUpgradeFixtureProject(t)
+	writeCurrentFixtureLock(t, root)
+	path := "internal/hypermedia/core.go"
+	drift := append(mustReadProjectFile(t, root, path), []byte("\nconst UnexpectedDrift = true\n")...)
+	mustWriteTestFile(t, root, path, drift)
+	commitUpgradeTree(t, root, "framework drift")
+	before := snapshotUpgradeTree(t, root)
+
+	verify, err := NewUpgrader(root, UpgradeOptions{TargetVersion: fixtureSourceVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := verify.Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Success || !report.RepairAvailable || report.RepairApplied || report.AlreadyCurrent {
+		t.Fatalf("drift report = %#v", report)
+	}
+	if !slices.Contains(report.ReplacedFiles, path) {
+		t.Fatalf("drifted paths = %v", report.ReplacedFiles)
+	}
+	assertSnapshotEqual(t, before, snapshotUpgradeTree(t, root))
+
+	repair, err := NewUpgrader(root, UpgradeOptions{Repair: true, TargetVersion: fixtureSourceVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err = repair.Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Success || !report.RepairAvailable || !report.RepairApplied {
+		t.Fatalf("repair report = %#v", report)
+	}
+	if bytes.Contains(mustReadProjectFile(t, root, path), []byte("UnexpectedDrift")) {
+		t.Fatal("framework drift was not restored")
+	}
+}
+
+func TestMatchingFrameworkVersionRejectsDirtyRepair(t *testing.T) {
+	root := newUpgradeFixtureProject(t)
+	writeCurrentFixtureLock(t, root)
+	path := "internal/hypermedia/core.go"
+	drift := append(mustReadProjectFile(t, root, path), []byte("\nconst UnexpectedDrift = true\n")...)
+	mustWriteTestFile(t, root, path, drift)
+	before := snapshotUpgradeTree(t, root)
+
+	repair, err := NewUpgrader(root, UpgradeOptions{Repair: true, TargetVersion: fixtureSourceVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := repair.Execute()
+	if err == nil || !strings.Contains(err.Error(), "worktree is dirty") {
+		t.Fatalf("dirty repair report=%#v err=%v", report, err)
+	}
+	assertSnapshotEqual(t, before, snapshotUpgradeTree(t, root))
 }
 
 func TestDryRunIsDeterministicAndByteReadOnlyOnSameInstance(t *testing.T) {
@@ -291,6 +378,18 @@ func newUpgradeFixtureProject(t *testing.T) string {
 	gitRun(t, root, "config", "user.name", "Upgrade Test")
 	commitUpgradeTree(t, root, "fixture")
 	return root
+}
+
+func writeCurrentFixtureLock(t *testing.T, root string) {
+	t.Helper()
+	lock, err := layout.ReadLockFile(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatal(err)
+	}
+	commitUpgradeTree(t, root, "current lock schema")
 }
 
 func commitUpgradeTree(t *testing.T, root, message string) {

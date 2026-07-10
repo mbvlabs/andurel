@@ -78,6 +78,47 @@ func TestUpgradeDryRunPresentationOmitsEmptySections(t *testing.T) {
 	}
 }
 
+func TestUpgradeAlreadyCurrentPresentation(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	printUpgradeAlreadyCurrent(&output, "v1.0.1", false)
+	if got := output.String(); got != "✓ Project is already at version v1.0.1. Nothing to upgrade.\n" {
+		t.Fatalf("already-current presentation = %q", got)
+	}
+
+	output.Reset()
+	printUpgradeAlreadyCurrent(&output, "v1.0.1", true)
+	if got := output.String(); got != "[DRY RUN] Project is already at version v1.0.1. No files would be changed.\n" {
+		t.Fatalf("already-current dry-run presentation = %q", got)
+	}
+}
+
+func TestFrameworkDriftPresentation(t *testing.T) {
+	t.Parallel()
+
+	report := &UpgradeReport{
+		ToVersion:     "v1.0.1",
+		ReplacedFiles: []string{"internal/server/server.go"},
+		RemovedFiles:  []string{"internal/example/obsolete.go"},
+		DirtyWorktree: true,
+	}
+	var output bytes.Buffer
+	printFrameworkDrift(&output, report, false)
+	got := output.String()
+	for _, want := range []string{
+		"Project is already at version v1.0.1.",
+		"Unexpected changes were found in framework-owned files:",
+		"internal/server/server.go",
+		"internal/example/obsolete.go (obsolete)",
+		"Commit or stash your changes before restoring these files.",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("framework drift presentation missing %q:\n%s", want, got)
+		}
+	}
+}
+
 func TestShouldUpdateTool_NoDowngrade(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -530,6 +571,49 @@ func TestSyncToolsToFrameworkVersion_RefreshesMetadataWithoutVersionChange(t *te
 		if strings.HasPrefix(updated, "templ:") {
 			t.Fatalf("metadata-only refresh should not be reported as version update: %v", result.Updated)
 		}
+	}
+}
+
+func TestSyncToolsToFrameworkVersion_RemovesOnlyRedundantDefaultRegexp(t *testing.T) {
+	t.Parallel()
+
+	expected := layout.GetExpectedTools(&layout.ScaffoldConfig{ProjectName: "myapp"})["templ"]
+	upgrader := &Upgrader{
+		lock: &layout.AndurelLock{
+			Version: "v1.0.0",
+			Tools: map[string]*layout.Tool{
+				"templ": {
+					Version:  expected.Version,
+					Source:   expected.Source,
+					Download: expected.Download,
+					VersionCheck: &layout.VersionCheck{
+						Args:   []string{"--version"},
+						Regexp: redundantDefaultVersionCheckRegexp,
+					},
+				},
+			},
+			ScaffoldConfig: &layout.ScaffoldConfig{ProjectName: "myapp"},
+		},
+	}
+
+	result, err := upgrader.syncToolsToFrameworkVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := upgrader.lock.Tools["templ"].VersionCheck.Regexp; got != "" {
+		t.Fatalf("redundant regexp was not removed: %q", got)
+	}
+	if !slices.Contains(result.Metadata, "templ metadata") {
+		t.Fatalf("metadata changes = %v", result.Metadata)
+	}
+
+	const customRegexp = `templ version ([0-9.]+)`
+	upgrader.lock.Tools["templ"].VersionCheck.Regexp = customRegexp
+	if _, err := upgrader.syncToolsToFrameworkVersion(); err != nil {
+		t.Fatal(err)
+	}
+	if got := upgrader.lock.Tools["templ"].VersionCheck.Regexp; got != customRegexp {
+		t.Fatalf("custom regexp changed to %q", got)
 	}
 }
 

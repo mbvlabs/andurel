@@ -2482,6 +2482,7 @@ type ToolSyncResult struct {
 type UpgradeOptions struct {
 	DryRun        bool
 	Auto          bool
+	Repair        bool
 	TargetVersion string
 }
     UpgradeOptions configures upgrade behavior.
@@ -2507,6 +2508,9 @@ type UpgradeReport struct {
 	Conflicts           []string
 	Diffs               []FileDiff
 	DirtyWorktree       bool
+	AlreadyCurrent      bool
+	RepairAvailable     bool
+	RepairApplied       bool
 
 	Success bool
 	Error   error

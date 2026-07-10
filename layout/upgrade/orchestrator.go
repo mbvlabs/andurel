@@ -16,6 +16,7 @@ import (
 type UpgradeOptions struct {
 	DryRun        bool
 	Auto          bool
+	Repair        bool
 	TargetVersion string
 }
 
@@ -52,6 +53,9 @@ type UpgradeReport struct {
 	Conflicts           []string
 	Diffs               []FileDiff
 	DirtyWorktree       bool
+	AlreadyCurrent      bool
+	RepairAvailable     bool
+	RepairApplied       bool
 
 	Success bool
 	Error   error
@@ -91,6 +95,9 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	working := *u
 	working.lock = lock
 	working.sourceLockSchema = sourceSchema
+	if lock.Version == u.opts.TargetVersion && sourceSchema == targetLockSchemaVersion {
+		return working.executeSameVersion()
+	}
 	if err := working.validatePreconditions(); err != nil {
 		report := &UpgradeReport{FromVersion: lock.Version, ToVersion: u.opts.TargetVersion, Error: err}
 		return report, err
@@ -131,6 +138,49 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		report.Error = err
 		return report, err
 	}
+	report.Success = true
+	printUpgradeSuccess(os.Stdout, report)
+	return report, nil
+}
+
+func (u *Upgrader) executeSameVersion() (*UpgradeReport, error) {
+	if u.lock.ScaffoldConfig == nil {
+		err := fmt.Errorf("lock file missing scaffold config - cannot verify framework files")
+		return &UpgradeReport{FromVersion: u.lock.Version, ToVersion: u.opts.TargetVersion, Error: err}, err
+	}
+	clean, err := u.git.IsClean()
+	if err != nil {
+		return &UpgradeReport{}, fmt.Errorf("git validation failed: %w", err)
+	}
+	plan, err := u.buildRepairPlan(!clean)
+	if err != nil {
+		return &UpgradeReport{FromVersion: u.lock.Version, ToVersion: u.opts.TargetVersion, Error: err}, err
+	}
+	report := plan.cloneReport()
+	if len(plan.files) == 0 {
+		report.AlreadyCurrent = true
+		report.Success = true
+		printUpgradeAlreadyCurrent(os.Stdout, u.lock.Version, u.opts.DryRun)
+		return report, nil
+	}
+	report.RepairAvailable = true
+	if !u.opts.Repair || !u.opts.Auto {
+		printFrameworkDrift(os.Stdout, report, u.opts.DryRun)
+	}
+	if u.opts.DryRun || !u.opts.Repair {
+		report.Success = true
+		return report, nil
+	}
+	if !clean {
+		err := fmt.Errorf("worktree is dirty; commit or stash changes before repairing framework files")
+		report.Error = err
+		return report, err
+	}
+	if err := u.applyPlan(plan); err != nil {
+		report.Error = err
+		return report, err
+	}
+	report.RepairApplied = true
 	report.Success = true
 	printUpgradeSuccess(os.Stdout, report)
 	return report, nil
@@ -180,6 +230,32 @@ func readSourceLockSchema(projectRoot string) (int, error) {
 func printUpgradeStart(writer io.Writer, fromVersion, toVersion string) {
 	fmt.Fprintf(writer, "Upgrading framework from %s to %s...\n", fromVersion, toVersion)
 	fmt.Fprintln(writer, "Rendering framework templates...")
+}
+
+func printUpgradeAlreadyCurrent(writer io.Writer, version string, dryRun bool) {
+	if dryRun {
+		fmt.Fprintf(writer, "[DRY RUN] Project is already at version %s. No files would be changed.\n", version)
+		return
+	}
+	fmt.Fprintf(writer, "✓ Project is already at version %s. Nothing to upgrade.\n", version)
+}
+
+func printFrameworkDrift(writer io.Writer, report *UpgradeReport, dryRun bool) {
+	prefix := ""
+	if dryRun {
+		prefix = "[DRY RUN] "
+	}
+	fmt.Fprintf(writer, "%sProject is already at version %s.\n", prefix, report.ToVersion)
+	fmt.Fprintf(writer, "%sUnexpected changes were found in framework-owned files:\n", prefix)
+	for _, path := range report.ReplacedFiles {
+		fmt.Fprintf(writer, "  ! %s\n", path)
+	}
+	for _, path := range report.RemovedFiles {
+		fmt.Fprintf(writer, "  ! %s (obsolete)\n", path)
+	}
+	if report.DirtyWorktree {
+		fmt.Fprintf(writer, "%sCommit or stash your changes before restoring these files.\n", prefix)
+	}
 }
 
 func printUpgradeSuccess(writer io.Writer, report *UpgradeReport) {
@@ -304,6 +380,8 @@ type ToolSyncResult struct {
 	Metadata []string
 }
 
+const redundantDefaultVersionCheckRegexp = `v?([0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)`
+
 // syncToolsToFrameworkVersion synchronizes the lock file's tools with the target framework version
 // This ensures new tools are added, obsolete tools are removed, and existing tools are updated
 func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
@@ -377,10 +455,16 @@ func syncTools(lock *layout.AndurelLock) (*ToolSyncResult, error) {
 			if existingTool.VersionCheck == nil && expectedTool.VersionCheck != nil {
 				existingTool.VersionCheck = expectedTool.VersionCheck
 				metadataChanged = true
-			} else if existingTool.VersionCheck != nil && expectedTool.VersionCheck != nil &&
-				existingTool.VersionCheck.Regexp == "" && expectedTool.VersionCheck.Regexp != "" {
-				existingTool.VersionCheck = expectedTool.VersionCheck
-				metadataChanged = true
+			} else if existingTool.VersionCheck != nil && expectedTool.VersionCheck != nil {
+				switch {
+				case existingTool.VersionCheck.Regexp == redundantDefaultVersionCheckRegexp &&
+					expectedTool.VersionCheck.Regexp == "":
+					existingTool.VersionCheck.Regexp = ""
+					metadataChanged = true
+				case existingTool.VersionCheck.Regexp == "" && expectedTool.VersionCheck.Regexp != "":
+					existingTool.VersionCheck = expectedTool.VersionCheck
+					metadataChanged = true
+				}
 			}
 			if metadataChanged {
 				lock.Tools[toolName] = existingTool

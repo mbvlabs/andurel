@@ -112,41 +112,8 @@ func (u *Upgrader) buildPlan(dirty bool) (*migrationPlan, error) {
 	}
 	lock.SchemaVersion = targetLockSchemaVersion
 
-	rendered, err := u.generator.RenderFrameworkTemplates(
-		u.projectRoot,
-		*u.lock.ScaffoldConfig,
-		u.lock.ExtensionNames(),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("render framework templates: %w", err)
-	}
-	paths := make([]string, 0, len(rendered))
-	for path := range rendered {
-		paths = append(paths, path)
-	}
-	sort.Strings(paths)
-	for _, path := range paths {
-		if recognized, recognitionErr := recognizeWholeFileReplacement(u.projectRoot, path, rendered[path]); recognitionErr != nil {
-			return nil, recognitionErr
-		} else if !recognized {
-			continue
-		}
-		if err := plan.addReplacement(u.projectRoot, path, rendered[path], false); err != nil {
-			return nil, err
-		}
-	}
-
-	obsolete := u.obsoleteManagedInternalFiles()
-	sort.Strings(obsolete)
-	for _, path := range obsolete {
-		if recognized, recognitionErr := recognizeWholeFileDeletion(u.projectRoot, path); recognitionErr != nil {
-			return nil, recognitionErr
-		} else if !recognized {
-			continue
-		}
-		if err := plan.addDeletion(u.projectRoot, path); err != nil {
-			return nil, err
-		}
+	if err := u.addFrameworkChanges(plan); err != nil {
+		return nil, err
 	}
 
 	lock.Version = u.opts.TargetVersion
@@ -158,6 +125,70 @@ func (u *Upgrader) buildPlan(dirty bool) (*migrationPlan, error) {
 		return nil, err
 	}
 
+	if err := finalizePlan(plan); err != nil {
+		return nil, err
+	}
+	return plan, nil
+}
+
+func (u *Upgrader) buildRepairPlan(dirty bool) (*migrationPlan, error) {
+	plan := &migrationPlan{
+		fromVersion:  u.lock.Version,
+		toVersion:    u.opts.TargetVersion,
+		sourceSchema: u.sourceLockSchema,
+		targetSchema: targetLockSchemaVersion,
+		dirty:        dirty,
+	}
+	if err := u.addFrameworkChanges(plan); err != nil {
+		return nil, err
+	}
+	if err := finalizePlan(plan); err != nil {
+		return nil, err
+	}
+	return plan, nil
+}
+
+func (u *Upgrader) addFrameworkChanges(plan *migrationPlan) error {
+	rendered, err := u.generator.RenderFrameworkTemplates(
+		u.projectRoot,
+		*u.lock.ScaffoldConfig,
+		u.lock.ExtensionNames(),
+	)
+	if err != nil {
+		return fmt.Errorf("render framework templates: %w", err)
+	}
+	paths := make([]string, 0, len(rendered))
+	for path := range rendered {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	for _, path := range paths {
+		if recognized, recognitionErr := recognizeWholeFileReplacement(u.projectRoot, path, rendered[path]); recognitionErr != nil {
+			return recognitionErr
+		} else if !recognized {
+			continue
+		}
+		if err := plan.addReplacement(u.projectRoot, path, rendered[path], false); err != nil {
+			return err
+		}
+	}
+
+	obsolete := u.obsoleteManagedInternalFiles()
+	sort.Strings(obsolete)
+	for _, path := range obsolete {
+		if recognized, recognitionErr := recognizeWholeFileDeletion(u.projectRoot, path); recognitionErr != nil {
+			return recognitionErr
+		} else if !recognized {
+			continue
+		}
+		if err := plan.addDeletion(u.projectRoot, path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func finalizePlan(plan *migrationPlan) error {
 	sort.Strings(plan.conflicts)
 	sort.SliceStable(plan.files, func(i, j int) bool {
 		if plan.files[i].isLock != plan.files[j].isLock {
@@ -169,13 +200,13 @@ func (u *Upgrader) buildPlan(dirty bool) (*migrationPlan, error) {
 	for _, file := range plan.files {
 		diff, diffErr := unifiedFileDiff(file)
 		if diffErr != nil {
-			return nil, diffErr
+			return diffErr
 		}
 		if diff != "" {
 			plan.diffs = append(plan.diffs, FileDiff{Path: file.path, Diff: diff})
 		}
 	}
-	return plan, nil
+	return nil
 }
 
 func recognizeWholeFileReplacement(root, path string, target []byte) (bool, error) {

@@ -72,14 +72,16 @@ type Tool struct {
 }
 
 var defaultToolVersionChecks = map[string]VersionCheck{
-	"templ":       {Args: []string{"--version"}, Regexp: `v?([0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)`},
-	"goose":       {Args: []string{"--version"}, Regexp: `v?([0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)`},
-	"mailpit":     {Args: []string{"version", "--no-release-check"}, Regexp: `v?([0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)`},
-	"usql":        {Args: []string{"--version"}, Regexp: `v?([0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)`},
-	"dblab":       {Args: []string{"--version"}, Regexp: `v?([0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)`},
-	"shadowfax":   {Args: []string{"--version"}, Regexp: `v?([0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)`},
-	"tailwindcli": {Args: []string{"--version"}, Regexp: `v?([0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)`},
+	"templ":       {Args: []string{"--version"}},
+	"goose":       {Args: []string{"--version"}},
+	"mailpit":     {Args: []string{"version", "--no-release-check"}},
+	"usql":        {Args: []string{"--version"}},
+	"dblab":       {Args: []string{"--version"}},
+	"shadowfax":   {Args: []string{"--version"}},
+	"tailwindcli": {Args: []string{"--version"}},
 }
+
+const defaultVersionCheckRegexp = `v?([0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)`
 
 var defaultToolVersions = map[string]string{
 	"templ":       versions.Templ,
@@ -428,7 +430,7 @@ func installedToolVersion(binaryPath string, check *VersionCheck) (string, error
 	}
 	expression := check.Regexp
 	if expression == "" {
-		expression = `v?([0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)`
+		expression = defaultVersionCheckRegexp
 	}
 	pattern, err := regexp.Compile(expression)
 	if err != nil {

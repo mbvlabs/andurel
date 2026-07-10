@@ -892,8 +892,7 @@ file -----------rw-r--r-- andurel.lock
       "versionCheck": {
         "args": [
           "--version"
-        ],
-        "regexp": "v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)"
+        ]
       }
     },
     "goose": {
@@ -913,8 +912,7 @@ file -----------rw-r--r-- andurel.lock
       "versionCheck": {
         "args": [
           "--version"
-        ],
-        "regexp": "v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)"
+        ]
       }
     },
     "mailpit": {
@@ -935,8 +933,7 @@ file -----------rw-r--r-- andurel.lock
         "args": [
           "version",
           "--no-release-check"
-        ],
-        "regexp": "v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)"
+        ]
       }
     },
     "shadowfax": {
@@ -956,8 +953,7 @@ file -----------rw-r--r-- andurel.lock
       "versionCheck": {
         "args": [
           "--version"
-        ],
-        "regexp": "v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)"
+        ]
       }
     },
     "tailwindcli": {
@@ -976,8 +972,7 @@ file -----------rw-r--r-- andurel.lock
       "versionCheck": {
         "args": [
           "--version"
-        ],
-        "regexp": "v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)"
+        ]
       }
     },
     "templ": {
@@ -997,8 +992,7 @@ file -----------rw-r--r-- andurel.lock
       "versionCheck": {
         "args": [
           "--version"
-        ],
-        "regexp": "v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)"
+        ]
       }
     },
     "usql": {
@@ -1018,8 +1012,7 @@ file -----------rw-r--r-- andurel.lock
       "versionCheck": {
         "args": [
           "--version"
-        ],
-        "regexp": "v?([0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)"
+        ]
       }
     }
   },
