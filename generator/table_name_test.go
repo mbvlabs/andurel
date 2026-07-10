@@ -44,11 +44,7 @@ func TestBuildModelPath(t *testing.T) {
 }
 
 func TestResolveTableName(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "resolve_table_test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	modelsDir := filepath.Join(tempDir, "models")
 	if err := os.MkdirAll(modelsDir, 0o755); err != nil {
@@ -102,7 +98,6 @@ func TestResolveTableName(t *testing.T) {
 				if err := os.WriteFile(modelPath, []byte(tt.modelContent), 0o644); err != nil {
 					t.Fatalf("Failed to write model file: %v", err)
 				}
-				defer os.Remove(modelPath)
 			}
 
 			got := ResolveTableName(modelsDir, tt.resourceName)
@@ -114,11 +109,7 @@ func TestResolveTableName(t *testing.T) {
 }
 
 func TestResolveTableName_OverrideTakesPrecedence(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "resolve_table_precedence")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	modelsDir := filepath.Join(tempDir, "models")
 	if err := os.MkdirAll(modelsDir, 0o755); err != nil {

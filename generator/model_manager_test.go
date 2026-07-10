@@ -65,7 +65,9 @@ func setupModelManagerTest(t *testing.T) (*ModelManager, func()) {
 	}
 
 	return coord.ModelManager, func() {
-		os.Chdir(originalDir)
+		if err := os.Chdir(originalDir); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
 		cache.ClearFileSystemCache()
 	}
 }

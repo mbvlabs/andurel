@@ -24,7 +24,7 @@ func (p *AlterTableParser) Parse(
 	databaseType string,
 ) (*AlterTableStatement, error) {
 	alterRegex, err := regexp.Compile(
-		`(?is)alter\s+table\s+(?:if\s+exists\s+)?(?:(\w+)\.)?(\w+)\s+(.+)`,
+		`(?is)^alter\s+table\s+(?:if\s+exists\s+)?(?:(\w+)\.)?(\w+)\s+(.+?)\s*;?\s*$`,
 	)
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func (p *AlterTableParser) Parse(
 	matches := alterRegex.FindStringSubmatch(sql)
 
 	if len(matches) < 4 {
-		return nil, fmt.Errorf("invalid ALTER TABLE syntax: %s", sql)
+		return nil, unsupportedStatement(sql, "ALTER TABLE requires one unquoted table name and a supported operation")
 	}
 
 	schemaName := matches[1]
@@ -40,6 +40,11 @@ func (p *AlterTableParser) Parse(
 	operations := strings.TrimSpace(matches[3])
 
 	operationList := p.splitAlterOperations(operations)
+	for _, operation := range operationList {
+		if strings.TrimSpace(operation) == "" {
+			return nil, unsupportedStatement(sql, "ALTER TABLE contains an empty operation")
+		}
+	}
 
 	if len(operationList) == 1 {
 		return p.parseAlterTableSingleOperation(
@@ -94,7 +99,7 @@ func (p *AlterTableParser) parseAlterTableSingleOperation(
 		stmt.AlterOperation = "DROP_CONSTRAINT"
 		return stmt, nil
 	default:
-		return stmt, nil
+		return nil, unsupportedStatement(operation, "ALTER TABLE operation is not supported by model generation")
 	}
 }
 
@@ -135,7 +140,7 @@ func (p *AlterTableParser) parseDropColumn(
 	stmt *AlterTableStatement,
 	operation string,
 ) (*AlterTableStatement, error) {
-	dropColumnRegex, err := regexp.Compile(`(?i)drop\s+column\s+(\w+)`)
+	dropColumnRegex, err := regexp.Compile(`(?i)^drop\s+column\s+(?:if\s+exists\s+)?(\w+)(?:\s+(?:restrict|cascade))?$`)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +163,7 @@ func (p *AlterTableParser) parseAlterColumn(
 	stmt.AlterOperation = "ALTER_COLUMN"
 	stmt.ColumnChanges = make(map[string]any)
 
-	alterColumnRegex, err := regexp.Compile(`(?i)alter\s+column\s+(\w+)\s+(.+)`)
+	alterColumnRegex, err := regexp.Compile(`(?i)^alter\s+column\s+(\w+)\s+(.+)$`)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +179,7 @@ func (p *AlterTableParser) parseAlterColumn(
 
 	switch {
 	case strings.HasPrefix(columnOpLower, "type"):
-		typeRegex, err := regexp.Compile(`(?i)type\s+(.+)`)
+		typeRegex, err := regexp.Compile(`(?i)^type\s+(.+?)(?:\s+using\s+.+)?$`)
 		if err != nil {
 			return nil, err
 		}
@@ -197,6 +202,8 @@ func (p *AlterTableParser) parseAlterColumn(
 		}
 	case strings.HasPrefix(columnOpLower, "drop default"):
 		stmt.ColumnChanges["drop_default"] = true
+	default:
+		return nil, unsupportedStatement(operation, "ALTER COLUMN operation is not supported by model generation")
 	}
 
 	return stmt, nil
@@ -207,7 +214,7 @@ func (p *AlterTableParser) parseRenameColumn(
 	operation string,
 ) (*AlterTableStatement, error) {
 	renameColumnRegex, err := regexp.Compile(
-		`(?i)rename\s+column\s+(\w+)\s+to\s+(\w+)`,
+		`(?i)^rename\s+column\s+(\w+)\s+to\s+(\w+)$`,
 	)
 	if err != nil {
 		return nil, err
@@ -229,7 +236,7 @@ func (p *AlterTableParser) parseRenameTable(
 	stmt *AlterTableStatement,
 	operation string,
 ) (*AlterTableStatement, error) {
-	renameTableRegex, err := regexp.Compile(`(?i)rename\s+to\s+(\w+)`)
+	renameTableRegex, err := regexp.Compile(`(?i)^rename\s+to\s+(\w+)$`)
 	if err != nil {
 		return nil, err
 	}

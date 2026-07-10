@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -171,14 +170,18 @@ func RegisterPersistentFlags(cmd *cobra.Command) {
 	flags.Bool("agent", false, "Emit structured output optimized for agents")
 	flags.Bool("md", false, "Emit Markdown output")
 	flags.Bool("quiet", false, "Suppress non-essential human output")
-	flags.String("jq", "", "Apply a jq expression to structured output")
-	flags.Bool("ids-only", false, "Emit only resource identifiers when supported")
-	flags.Bool("count", false, "Emit only resource counts when supported")
+	flags.String("jq", "", "Select a simple field path from command data and emit JSON directly")
+	flags.Bool("ids-only", false, "Emit one resource identifier per line when supported")
+	flags.Bool("count", false, "Emit one raw resource count when supported")
 	flags.Bool("verbose", false, "Emit verbose output")
 }
 
 // ParseOptions returns output options from command flags.
 func ParseOptions(cmd *cobra.Command) (Options, error) {
+	return parseOptions(cmd, true)
+}
+
+func parseOptions(cmd *cobra.Command, validateProjections bool) (Options, error) {
 	opts := Options{Mode: ModeHuman}
 	if cmd == nil {
 		return opts, nil
@@ -217,7 +220,22 @@ func ParseOptions(cmd *cobra.Command) (Options, error) {
 	opts.IDsOnly, _ = boolFlag(cmd, "ids-only")
 	opts.Count, _ = boolFlag(cmd, "count")
 	opts.Verbose, _ = boolFlag(cmd, "verbose")
-	if opts.JQ != "" && opts.Mode == ModeHuman {
+
+	projections := 0
+	for _, selected := range []bool{opts.JQ != "", opts.IDsOnly, opts.Count} {
+		if selected {
+			projections++
+		}
+	}
+	if validateProjections && projections > 1 {
+		return opts, NewError(
+			CodeOutputMode,
+			"choose only one projection flag: --jq, --ids-only, or --count",
+			ExitUsage,
+			"Run the command again with a single projection flag.",
+		)
+	}
+	if projections > 0 && opts.Mode == ModeHuman {
 		opts.Mode = ModeJSON
 	}
 
@@ -259,17 +277,9 @@ func OK(cmd *cobra.Command, data any, summary string, breadcrumbs ...Breadcrumb)
 		return err
 	}
 
-	renderData := data
-	if opts.JQ != "" {
-		renderData, err = applyJQ(data, opts.JQ)
-		if err != nil {
-			return err
-		}
-	}
-
 	envelope := Envelope{
 		OK:          true,
-		Data:        renderData,
+		Data:        data,
 		Summary:     summary,
 		Breadcrumbs: breadcrumbs,
 	}
@@ -353,6 +363,7 @@ func RenderError(cmd *cobra.Command, err error) error {
 	opts, parseErr := ParseOptions(cmd)
 	if parseErr != nil {
 		err = parseErr
+		opts, _ = parseOptions(cmd, false)
 	}
 
 	envelope := Fail(err)
@@ -377,6 +388,19 @@ func RenderError(cmd *cobra.Command, err error) error {
 }
 
 func renderOK(w io.Writer, opts Options, envelope Envelope) error {
+	switch {
+	case opts.JQ != "":
+		selected, err := applyJQ(envelope.Data, opts.JQ)
+		if err != nil {
+			return err
+		}
+		return writeJSON(w, selected)
+	case opts.IDsOnly:
+		return writeIDs(w, envelope.Data)
+	case opts.Count:
+		return writeCount(w, envelope.Data)
+	}
+
 	switch opts.Mode {
 	case ModeJSON, ModeAgent:
 		return writeJSON(w, envelope)
@@ -395,20 +419,28 @@ func writeJSON(w io.Writer, value any) error {
 
 func applyJQ(data any, expr string) (any, error) {
 	expr = strings.TrimSpace(expr)
+	normalized, err := normalizeJSONValue(data)
+	if err != nil {
+		return nil, NewError(CodeUsage, "command data cannot be projected as JSON", ExitUsage, err.Error())
+	}
 	if expr == "" || expr == "." {
-		return data, nil
+		return normalized, nil
 	}
 	if !strings.HasPrefix(expr, ".") {
 		return nil, NewError(CodeUsage, "only simple jq-style field paths are supported", ExitUsage, "Use an expression like .field or .nested.field.")
 	}
 
-	current := any(map[string]any{"data": data})
+	current := normalized
 	parts := strings.SplitSeq(strings.TrimPrefix(expr, "."), ".")
 	for part := range parts {
 		if part == "" {
 			continue
 		}
-		next, ok := lookupField(current, part)
+		object, ok := current.(map[string]any)
+		if !ok {
+			return nil, NewError(CodeUsage, "jq path not found: "+expr, ExitUsage, "The selected value is not an object with field "+part+".")
+		}
+		next, ok := object[part]
 		if !ok {
 			return nil, NewError(CodeUsage, "jq path not found: "+expr, ExitUsage, "Use andurel commands --json to inspect available fields.")
 		}
@@ -417,41 +449,78 @@ func applyJQ(data any, expr string) (any, error) {
 	return current, nil
 }
 
-func lookupField(value any, name string) (any, bool) {
-	if value == nil {
-		return nil, false
+func normalizeJSONValue(value any) (any, error) {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
 	}
-	if m, ok := value.(map[string]any); ok {
-		v, exists := m[name]
-		return v, exists
+	var normalized any
+	if err := json.Unmarshal(encoded, &normalized); err != nil {
+		return nil, err
 	}
+	return normalized, nil
+}
 
-	rv := reflect.ValueOf(value)
-	for rv.Kind() == reflect.Pointer {
-		if rv.IsNil() {
-			return nil, false
+func writeIDs(w io.Writer, data any) error {
+	items, err := projectionItems(data)
+	if err != nil {
+		return err
+	}
+	for _, item := range items {
+		identifier, ok := projectionIdentifier(item)
+		if !ok {
+			return NewError(CodeUsage, "command data does not contain projectable identifiers", ExitUsage, "Use --jq to select a specific identifier field.")
 		}
-		rv = rv.Elem()
+		if _, err := fmt.Fprintln(w, identifier); err != nil {
+			return err
+		}
 	}
-	if rv.Kind() != reflect.Struct {
-		return nil, false
-	}
+	return nil
+}
 
-	rt := rv.Type()
-	for i := range rv.NumField() {
-		field := rt.Field(i)
-		if !field.IsExported() {
-			continue
-		}
-		jsonName := strings.Split(field.Tag.Get("json"), ",")[0]
-		if jsonName == "" {
-			jsonName = field.Name
-		}
-		if jsonName == name || strings.EqualFold(field.Name, name) {
-			return rv.Field(i).Interface(), true
+func writeCount(w io.Writer, data any) error {
+	items, err := projectionItems(data)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(w, len(items))
+	return err
+}
+
+func projectionItems(data any) ([]any, error) {
+	normalized, err := normalizeJSONValue(data)
+	if err != nil {
+		return nil, NewError(CodeUsage, "command data cannot be projected", ExitUsage, err.Error())
+	}
+	if items, ok := normalized.([]any); ok {
+		return items, nil
+	}
+	object, ok := normalized.(map[string]any)
+	if !ok {
+		return nil, NewError(CodeUsage, "command data is not a projectable collection", ExitUsage, "Use --jq for scalar or object data.")
+	}
+	for _, field := range []string{"routes", "items", "results", "names", "extensions", "tools"} {
+		if items, ok := object[field].([]any); ok {
+			return items, nil
 		}
 	}
-	return nil, false
+	return nil, NewError(CodeUsage, "command data is not a projectable collection", ExitUsage, "Use --jq to select a collection field.")
+}
+
+func projectionIdentifier(value any) (string, bool) {
+	switch value := value.(type) {
+	case string:
+		return value, true
+	case float64:
+		return strconv.FormatFloat(value, 'f', -1, 64), true
+	case map[string]any:
+		for _, field := range []string{"id", "name", "variable", "path"} {
+			if identifier, ok := value[field].(string); ok && identifier != "" {
+				return identifier, true
+			}
+		}
+	}
+	return "", false
 }
 
 func writeMarkdown(w io.Writer, opts Options, envelope Envelope) error {

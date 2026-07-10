@@ -176,7 +176,7 @@ Structured errors use the same contract:
 | `--agent` | Emit structured output for agents and suppress non-essential human progress output |
 | `--md` | Emit Markdown where supported |
 | `--quiet` | Suppress non-essential human output |
-| `--jq '.field.path'` | Apply a built-in simple field-path filter to structured data |
+| `--jq '.field.path'` | Select from the command data payload and emit the selected JSON value directly |
 | `--ids-only` | Emit only resource identifiers where supported |
 | `--count` | Emit only resource counts where supported |
 | `--verbose` | Emit additional diagnostics where supported |
@@ -361,11 +361,12 @@ Lists route metadata extracted from `router/routes/*.go`.
 ```bash
 andurel routes
 andurel routes --json
+andurel routes --jq .routes
 ```
 
 The default output is a table with route variables, route names, actual URL paths, parameters, and source locations. In this command, `path` means the URL path for the route. The Go file where the route variable is declared is reported separately as `source_file` in JSON output.
 
-`andurel routes --json` is the stable machine-readable route manifest. `andurel generate routes` uses this same source of truth to generate Inertia `resources/js/routes.ts` helpers.
+`andurel routes --json` is the stable machine-readable route manifest. `andurel routes --jq .routes` emits the route array directly, without the normal success envelope. `andurel generate routes` uses this same source of truth to generate Inertia `resources/js/routes.ts` helpers.
 
 Example JSON shape:
 

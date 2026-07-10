@@ -166,11 +166,6 @@ func TestAlterTableParserSingleOperationVariants(t *testing.T) {
 			sql:       "ALTER TABLE users ADD CONSTRAINT users_email_key UNIQUE (email)",
 			operation: "ADD_CONSTRAINT",
 		},
-		{
-			name:      "unknown operation",
-			sql:       "ALTER TABLE users ENABLE ROW LEVEL SECURITY",
-			operation: "",
-		},
 	}
 
 	parser := NewDDLParser()
@@ -188,6 +183,14 @@ func TestAlterTableParserSingleOperationVariants(t *testing.T) {
 				tt.check(t, alter)
 			}
 		})
+	}
+
+	if _, err := parser.Parse(
+		"ALTER TABLE users ENABLE ROW LEVEL SECURITY",
+		"003_alter_users.sql",
+		"postgresql",
+	); err == nil || !strings.Contains(err.Error(), "unsupported schema-changing DDL") {
+		t.Fatalf("expected actionable unsupported operation error, got %v", err)
 	}
 }
 

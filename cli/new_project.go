@@ -357,14 +357,14 @@ func rollbackPublishedProjectEntries(stagedProject, destination string, publishe
 	return rollbackErr
 }
 
-func newProjectReport(projectName, basePath string, dryRun bool, diff bool, scaffold func(target string) error) (mutationReport, error) {
+func newProjectReport(projectName, basePath string, dryRun bool, diff bool, scaffold func(target string) error) (report mutationReport, err error) {
 	var targetPath string
 	if dryRun {
 		tempDir, err := os.MkdirTemp("", "andurel-new-dry-run-*")
 		if err != nil {
 			return mutationReport{}, err
 		}
-		defer os.RemoveAll(tempDir)
+		defer func() { err = errors.Join(err, os.RemoveAll(tempDir)) }()
 		targetPath = filepath.Join(tempDir, projectName)
 		if err := scaffold(targetPath); err != nil {
 			return mutationReport{}, err
@@ -384,7 +384,7 @@ func newProjectReport(projectName, basePath string, dryRun bool, diff bool, scaf
 	if err != nil {
 		return mutationReport{}, err
 	}
-	report := buildMutationReport(mutationOptions{
+	report = buildMutationReport(mutationOptions{
 		Action:   "new project",
 		Resource: projectName,
 		DryRun:   dryRun,

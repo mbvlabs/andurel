@@ -98,7 +98,7 @@ func TestFailPreservesTypedErrorFields(t *testing.T) {
 	}
 }
 
-func TestParseOptionsDefaultsJQToJSONAndReadsBooleans(t *testing.T) {
+func TestParseOptionsDefaultsProjectionToJSONAndReadsBooleans(t *testing.T) {
 	cmd := &cobra.Command{Use: "andurel"}
 	RegisterPersistentFlags(cmd)
 	if err := cmd.PersistentFlags().Set("jq", ".data.id"); err != nil {
@@ -106,12 +106,6 @@ func TestParseOptionsDefaultsJQToJSONAndReadsBooleans(t *testing.T) {
 	}
 	if err := cmd.PersistentFlags().Set("quiet", "true"); err != nil {
 		t.Fatalf("set --quiet: %v", err)
-	}
-	if err := cmd.PersistentFlags().Set("ids-only", "true"); err != nil {
-		t.Fatalf("set --ids-only: %v", err)
-	}
-	if err := cmd.PersistentFlags().Set("count", "true"); err != nil {
-		t.Fatalf("set --count: %v", err)
 	}
 	if err := cmd.PersistentFlags().Set("verbose", "true"); err != nil {
 		t.Fatalf("set --verbose: %v", err)
@@ -121,7 +115,7 @@ func TestParseOptionsDefaultsJQToJSONAndReadsBooleans(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseOptions: %v", err)
 	}
-	if opts.Mode != ModeJSON || opts.JQ != ".data.id" || !opts.Quiet || !opts.IDsOnly || !opts.Count || !opts.Verbose {
+	if opts.Mode != ModeJSON || opts.JQ != ".data.id" || !opts.Quiet || opts.IDsOnly || opts.Count || !opts.Verbose {
 		t.Fatalf("unexpected options: %#v", opts)
 	}
 	if !UsesStructuredOutput(opts) || !SuppressesHumanOutput(opts) {
@@ -160,15 +154,15 @@ func TestOKRendersHumanMarkdownQuietAndJQ(t *testing.T) {
 		},
 		{
 			name:  "jq",
-			flags: map[string]string{"jq": ".data.id"},
+			flags: map[string]string{"jq": ".id"},
 			validate: func(t *testing.T, out string) {
 				t.Helper()
-				var envelope Envelope
-				if err := json.Unmarshal([]byte(out), &envelope); err != nil {
+				var selected string
+				if err := json.Unmarshal([]byte(out), &selected); err != nil {
 					t.Fatalf("decode jq output: %v\n%s", err, out)
 				}
-				if envelope.Data != "post" {
-					t.Fatalf("jq envelope data = %#v, want post", envelope.Data)
+				if selected != "post" {
+					t.Fatalf("jq selected value = %#v, want post", selected)
 				}
 			},
 		},
@@ -224,7 +218,7 @@ func TestApplyJQAndLookupField(t *testing.T) {
 		Item: &nested{Name: "invoice", Amount: 42, hidden: "secret"},
 	}
 
-	got, err := applyJQ(data, ".data.item.name")
+	got, err := applyJQ(data, ".item.name")
 	if err != nil {
 		t.Fatalf("applyJQ json tag path: %v", err)
 	}
@@ -232,24 +226,18 @@ func TestApplyJQAndLookupField(t *testing.T) {
 		t.Fatalf("applyJQ json tag path = %#v", got)
 	}
 
-	got, err = applyJQ(data, ".data.item.amount")
+	got, err = applyJQ(data, ".item.Amount")
 	if err != nil {
 		t.Fatalf("applyJQ field name path: %v", err)
 	}
-	if got != 42 {
+	if got != float64(42) {
 		t.Fatalf("applyJQ field name path = %#v", got)
 	}
 
-	if _, ok := lookupField(data.Item, "hidden"); ok {
-		t.Fatalf("lookupField should ignore unexported fields")
-	}
-	if _, ok := lookupField((*nested)(nil), "name"); ok {
-		t.Fatalf("lookupField should reject nil pointers")
-	}
 	if _, err := applyJQ(data, "data.item"); err == nil {
 		t.Fatalf("expected unsupported jq expression error")
 	}
-	if _, err := applyJQ(data, ".data.missing"); err == nil {
+	if _, err := applyJQ(data, ".missing"); err == nil {
 		t.Fatalf("expected missing jq path error")
 	}
 }

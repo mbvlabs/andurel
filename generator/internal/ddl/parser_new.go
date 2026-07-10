@@ -123,6 +123,9 @@ func NewDDLParser() *DDLParser {
 
 // Parse performs the parse operation.
 func (p *DDLParser) Parse(sql, migrationFile string, databaseType string) (Statement, error) {
+	if err := validateDDLStructure(sql); err != nil {
+		return nil, err
+	}
 	// Strip SQL comments before parsing
 	sql = StripComments(sql)
 	sql = strings.TrimSpace(sql)

@@ -234,12 +234,12 @@ func formatGenerateFailure(runErr error, removedFiles []string, cleanupFailures 
 
 	msg.WriteString("\n\nGeneration failed and automatic cleanup ran.")
 	if len(removedFiles) > 0 {
-		msg.WriteString(fmt.Sprintf("\nRemoved %d created file(s):", len(removedFiles)))
+		fmt.Fprintf(&msg, "\nRemoved %d created file(s):", len(removedFiles))
 		msg.WriteString(formatPathList(removedFiles, 12))
 	}
 
 	if len(cleanupFailures) > 0 {
-		msg.WriteString(fmt.Sprintf("\nCould not remove %d file(s):", len(cleanupFailures)))
+		fmt.Fprintf(&msg, "\nCould not remove %d file(s):", len(cleanupFailures))
 		msg.WriteString(formatPathList(cleanupFailures, 12))
 		msg.WriteString("\nPlease remove these files manually.")
 	}
@@ -257,7 +257,7 @@ func formatPathList(paths []string, maxItems int) string {
 	}
 
 	if len(paths) > limit {
-		out.WriteString(fmt.Sprintf("\n  - ... and %d more", len(paths)-limit))
+		fmt.Fprintf(&out, "\n  - ... and %d more", len(paths)-limit)
 	}
 
 	return out.String()

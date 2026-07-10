@@ -146,16 +146,26 @@ func TestValidateTableNameOverride(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			old := os.Stdout
-			r, w, _ := os.Pipe()
+			r, w, pipeErr := os.Pipe()
+			if pipeErr != nil {
+				t.Fatalf("create output pipe: %v", pipeErr)
+			}
 			os.Stdout = w
 
 			err := validator.ValidateTableNameOverride(tt.resourceName, tt.tableOverride)
 
-			w.Close()
+			if closeErr := w.Close(); closeErr != nil {
+				t.Fatalf("close output writer: %v", closeErr)
+			}
 			os.Stdout = old
 
 			var buf bytes.Buffer
-			io.Copy(&buf, r)
+			if _, copyErr := io.Copy(&buf, r); copyErr != nil {
+				t.Fatalf("read warning output: %v", copyErr)
+			}
+			if closeErr := r.Close(); closeErr != nil {
+				t.Fatalf("close output reader: %v", closeErr)
+			}
 			output := buf.String()
 
 			if tt.wantError && err == nil {

@@ -33,7 +33,9 @@ func setupTestProject(t *testing.T) (string, func()) {
 	}
 
 	cleanup := func() {
-		os.Chdir(originalDir)
+		if err := os.Chdir(originalDir); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
 		cache.ClearFileSystemCache()
 	}
 

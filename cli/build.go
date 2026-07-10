@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -224,13 +225,11 @@ func detectGitVersion(rootDir string) (string, error) {
 }
 
 func extractModuleName(rootDir string) (string, error) {
-	f, err := os.Open(filepath.Join(rootDir, "go.mod"))
+	content, err := os.ReadFile(filepath.Join(rootDir, "go.mod"))
 	if err != nil {
 		return "", fmt.Errorf("could not open go.mod: %w", err)
 	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(bytes.NewReader(content))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(line, "module ") {

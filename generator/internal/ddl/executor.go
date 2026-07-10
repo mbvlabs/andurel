@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"strings"
 
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 )
@@ -32,6 +33,9 @@ func ApplyDDL(
 
 	// Log unknown statements
 	if stmt.GetType() == Unknown {
+		if !unknownStatementIsModelNeutral(stmt.GetRaw()) {
+			return unsupportedStatement(stmt.GetRaw(), "the statement may change tables or columns used to generate models")
+		}
 		slog.WarnContext(
 			context.Background(),
 			"Unknown DDL statement type",
@@ -43,7 +47,12 @@ func ApplyDDL(
 
 	// Skip statements we don't process (not errors)
 	switch stmt.GetType() {
-	case CreateEnum, DropEnum, CreateSchema, DropSchema, CreateIndex, DropIndex:
+	case DropEnum, DropSchema:
+		if strings.Contains(strings.ToLower(stmt.GetRaw()), "cascade") {
+			return unsupportedStatement(stmt.GetRaw(), "CASCADE can remove table columns or tables used to generate models")
+		}
+		return nil
+	case CreateEnum, CreateSchema, CreateIndex, DropIndex:
 		return nil
 	}
 

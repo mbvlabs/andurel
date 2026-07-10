@@ -281,39 +281,39 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 		}
 	} else if os.IsNotExist(err) {
 		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf("package %s\n\n", packageName))
+		fmt.Fprintf(&sb, "package %s\n\n", packageName)
 		sb.WriteString("import (\n")
 		if isAPI {
 			sb.WriteString("\t\"errors\"\n")
 			sb.WriteString("\t\"net/http\"\n")
-			sb.WriteString(fmt.Sprintf("\t\"%s/router\"\n", modulePath))
-			sb.WriteString(fmt.Sprintf("\t\"%s/router/routes\"\n", modulePath))
+			fmt.Fprintf(&sb, "\t\"%s/router\"\n", modulePath)
+			fmt.Fprintf(&sb, "\t\"%s/router/routes\"\n", modulePath)
 			sb.WriteString("\n")
 			sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
 		} else if isInertia {
 			sb.WriteString("\t\"errors\"\n")
 			sb.WriteString("\t\"net/http\"\n")
-			sb.WriteString(fmt.Sprintf("\t\"%s/router\"\n", modulePath))
-			sb.WriteString(fmt.Sprintf("\t\"%s/router/routes\"\n", modulePath))
+			fmt.Fprintf(&sb, "\t\"%s/router\"\n", modulePath)
+			fmt.Fprintf(&sb, "\t\"%s/router/routes\"\n", modulePath)
 			sb.WriteString("\n")
-			sb.WriteString(fmt.Sprintf("\t\"%s/internal/inertia\"\n", modulePath))
+			fmt.Fprintf(&sb, "\t\"%s/internal/inertia\"\n", modulePath)
 			sb.WriteString("\n")
 			sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
 		} else {
 			sb.WriteString("\t\"errors\"\n")
 			sb.WriteString("\t\"net/http\"\n")
-			sb.WriteString(fmt.Sprintf("\t\"%s/router\"\n", modulePath))
-			sb.WriteString(fmt.Sprintf("\t\"%s/router/routes\"\n", modulePath))
+			fmt.Fprintf(&sb, "\t\"%s/router\"\n", modulePath)
+			fmt.Fprintf(&sb, "\t\"%s/router/routes\"\n", modulePath)
 			sb.WriteString("\n")
-			sb.WriteString(fmt.Sprintf("\t\"%s/internal/hypermedia\"\n", modulePath))
-			sb.WriteString(fmt.Sprintf("\t\"%s/views\"\n", modulePath))
+			fmt.Fprintf(&sb, "\t\"%s/internal/hypermedia\"\n", modulePath)
+			fmt.Fprintf(&sb, "\t\"%s/views\"\n", modulePath)
 			sb.WriteString("\n")
 			sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
 		}
 		sb.WriteString(")\n\n")
-		sb.WriteString(fmt.Sprintf("type %s struct{}\n\n", controllerName))
-		sb.WriteString(fmt.Sprintf("func New%s() %s {\n", controllerName, controllerName))
-		sb.WriteString(fmt.Sprintf("\treturn %s{}\n", controllerName))
+		fmt.Fprintf(&sb, "type %s struct{}\n\n", controllerName)
+		fmt.Fprintf(&sb, "func New%s() %s {\n", controllerName, controllerName)
+		fmt.Fprintf(&sb, "\treturn %s{}\n", controllerName)
 		sb.WriteString("}\n\n")
 
 		sb.WriteString(customRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName, actions))
@@ -421,7 +421,7 @@ func ensureCustomRegisterRoutes(content, receiverName, namespace, resourceName s
 
 func customRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName string, actions []string) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("func (%s %s) RegisterRoutes(r *router.Router) error {\n", receiverName, controllerName))
+	fmt.Fprintf(&sb, "func (%s %s) RegisterRoutes(r *router.Router) error {\n", receiverName, controllerName)
 	sb.WriteString("\tvar errs []error\n")
 	sb.WriteString("\tvar err error\n\n")
 	for _, action := range actions {
@@ -494,9 +494,9 @@ func generateActionViewFile(name, namespace, tableName, modulePath, ts string, a
 func actionViewComponent(resourceName, namespacePascal, methodName string) string {
 	var sb strings.Builder
 	componentName := namespacePascal + resourceName + methodName
-	sb.WriteString(fmt.Sprintf("templ %s() {\n", componentName))
+	fmt.Fprintf(&sb, "templ %s() {\n", componentName)
 	sb.WriteString("\t<div class=\"p-6\">\n")
-	sb.WriteString(fmt.Sprintf("\t\t<h1 class=\"text-2xl font-semibold\">%s#%s</h1>\n", resourceName, methodName))
+	fmt.Fprintf(&sb, "\t\t<h1 class=\"text-2xl font-semibold\">%s#%s</h1>\n", resourceName, methodName)
 	sb.WriteString("\t\t<p class=\"text-sm text-base-content/60 mt-2\">Content for this action has not been implemented yet.</p>\n")
 	sb.WriteString("\t</div>\n")
 	sb.WriteString("}\n\n")

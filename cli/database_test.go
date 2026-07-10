@@ -494,6 +494,28 @@ func TestDatabaseLifecycleProtectionsAndExecErrors(t *testing.T) {
 	}
 }
 
+func TestCreateDatabaseReturnsConnectionCloseFailure(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/app\n")
+	setDatabaseEnv(t)
+	findGoModRoot = func() (string, error) { return root, nil }
+
+	closeErr := errors.New("close failed")
+	fake := &fakeAdminConnection{closeErr: closeErr}
+	openAdminConnectionFunc = func() (dbConfig, adminConnection, context.Context, context.CancelFunc, error) {
+		ctx, cancel := context.WithCancel(context.Background())
+		return dbConfig{Name: "andurel_test"}, fake, ctx, cancel, nil
+	}
+
+	if err := createDatabase(); !errors.Is(err, closeErr) {
+		t.Fatalf("createDatabase error = %v, want close failure", err)
+	}
+	if !fake.closed {
+		t.Fatal("database connection was not closed")
+	}
+}
+
 func TestRunGooseMissingBinary(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/app\n")
@@ -596,10 +618,11 @@ func newStructuredTestCommand(out *bytes.Buffer) *cobra.Command {
 }
 
 type fakeAdminConnection struct {
-	execs  []string
-	closed bool
-	err    error
-	errOn  string
+	execs    []string
+	closed   bool
+	err      error
+	errOn    string
+	closeErr error
 }
 
 func (f *fakeAdminConnection) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
@@ -612,7 +635,7 @@ func (f *fakeAdminConnection) Exec(ctx context.Context, sql string, arguments ..
 
 func (f *fakeAdminConnection) Close(ctx context.Context) error {
 	f.closed = true
-	return nil
+	return f.closeErr
 }
 
 func (f *fakeAdminConnection) reset() {
@@ -620,6 +643,7 @@ func (f *fakeAdminConnection) reset() {
 	f.closed = false
 	f.err = nil
 	f.errOn = ""
+	f.closeErr = nil
 }
 
 func containsSQL(statements []string, want string) bool {

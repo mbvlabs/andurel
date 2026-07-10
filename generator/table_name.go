@@ -2,6 +2,7 @@ package generator
 
 import (
 	"bufio"
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,13 +13,11 @@ import (
 // ExtractTableNameOverride reads the actual table name from the bun.BaseModel tag
 // in the generated entity struct. e.g.: bun.BaseModel `bun:"table:student_feedback"`
 func ExtractTableNameOverride(modelPath string, resourceName string) (string, bool) {
-	file, err := os.Open(modelPath)
+	content, err := os.ReadFile(modelPath)
 	if err != nil {
 		return "", false
 	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(bytes.NewReader(content))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if !strings.HasPrefix(line, "bun.BaseModel") {

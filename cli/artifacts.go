@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -45,23 +46,6 @@ type fileState struct {
 	Hash    [32]byte
 	Content []byte
 	Mode    os.FileMode
-}
-
-func addDryRunDiffFlags(cmd *cobra.Command) {
-	cmd.Flags().Bool("dry-run", false, "Preview file changes without applying them")
-	cmd.Flags().Bool("diff", false, "Include a text diff preview in structured output")
-}
-
-func dryRunDiffOptions(cmd *cobra.Command) (dryRun bool, diff bool, err error) {
-	dryRun, err = cmd.Flags().GetBool("dry-run")
-	if err != nil {
-		return false, false, err
-	}
-	diff, err = cmd.Flags().GetBool("diff")
-	if err != nil {
-		return false, false, err
-	}
-	return dryRun, diff, nil
 }
 
 func runMutation(cmd *cobra.Command, opts mutationOptions) error {
@@ -109,12 +93,14 @@ func runMutation(cmd *cobra.Command, opts mutationOptions) error {
 	return nil
 }
 
-func runDryMutation(cmd *cobra.Command, outOpts output.Options, opts mutationOptions) error {
+func runDryMutation(cmd *cobra.Command, outOpts output.Options, opts mutationOptions) (err error) {
 	tempParent, err := os.MkdirTemp("", "andurel-dry-run-*")
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tempParent)
+	defer func() {
+		err = errors.Join(err, os.RemoveAll(tempParent))
+	}()
 
 	tempRoot := filepath.Join(tempParent, filepath.Base(opts.RootDir))
 	if err := copyDir(opts.RootDir, tempRoot); err != nil {
@@ -152,15 +138,23 @@ func runDryMutation(cmd *cobra.Command, outOpts output.Options, opts mutationOpt
 	report.DryRun = true
 	report.Warnings = append(report.Warnings, "dry run only; no files were changed")
 	if outOpts.Mode == output.ModeHuman && !outOpts.Quiet {
-		fmt.Fprintf(cmd.OutOrStdout(), "Dry run: %s\n", mutationSummary(report))
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Dry run: %s\n", mutationSummary(report)); err != nil {
+			return err
+		}
 		for _, path := range report.FilesCreated {
-			fmt.Fprintf(cmd.OutOrStdout(), "  create %s\n", path)
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "  create %s\n", path); err != nil {
+				return err
+			}
 		}
 		for _, path := range report.FilesUpdated {
-			fmt.Fprintf(cmd.OutOrStdout(), "  update %s\n", path)
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "  update %s\n", path); err != nil {
+				return err
+			}
 		}
 		for _, path := range report.FilesDeleted {
-			fmt.Fprintf(cmd.OutOrStdout(), "  delete %s\n", path)
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "  delete %s\n", path); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
@@ -317,7 +311,11 @@ func copyFile(src, dst string, mode os.FileMode) (err error) {
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer func() {
+		if closeErr := in.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+	}()
 	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, mode)
 	if err != nil {
 		return err
@@ -368,24 +366,27 @@ func runWithOptionalStdoutSilence(silence bool, run func() error) error {
 		return run()
 	}
 
-	original := os.Stdout
+	originalStdout := os.Stdout
+	originalStderr := os.Stderr
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		return err
 	}
 	os.Stdout = writer
-	done := make(chan struct{})
+	os.Stderr = writer
+	done := make(chan error, 1)
 	go func() {
-		_, _ = io.Copy(io.Discard, reader)
-		close(done)
+		_, copyErr := io.Copy(io.Discard, reader)
+		done <- copyErr
 	}()
 
 	runErr := run()
-	_ = writer.Close()
-	os.Stdout = original
-	<-done
-	_ = reader.Close()
-	return runErr
+	writerCloseErr := writer.Close()
+	os.Stdout = originalStdout
+	os.Stderr = originalStderr
+	copyErr := <-done
+	readerCloseErr := reader.Close()
+	return errors.Join(runErr, writerCloseErr, copyErr, readerCloseErr)
 }
 
 func isTextContent(content []byte) bool {

@@ -189,9 +189,11 @@ func TestDownloadAndExtractionSizeBounds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer opened.Close()
 	if err := extractTarEntry(tar.NewReader(opened), "tool", io.Discard); err == nil || !strings.Contains(err.Error(), "maximum size") {
 		t.Fatalf("binary size error = %v", err)
+	}
+	if err := opened.Close(); err != nil {
+		t.Fatalf("close archive: %v", err)
 	}
 }
 

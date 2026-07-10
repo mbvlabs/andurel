@@ -216,7 +216,7 @@ func (am *ActionManager) buildSlugParamsStruct(typeName, path string) string {
 		}
 		param := seg[1:]
 		fieldName := naming.Capitalize(naming.ToCamelCase(param))
-		fields.WriteString(fmt.Sprintf("\t%s string `slug:\"%s\"`\n", fieldName, param))
+		fmt.Fprintf(&fields, "\t%s string `slug:\"%s\"`\n", fieldName, param)
 	}
 	return fmt.Sprintf("type %s struct {\n%s}", typeName, fields.String())
 }

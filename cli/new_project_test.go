@@ -13,7 +13,7 @@ import (
 func TestNewProjectRejectsExtraPositionalArguments(t *testing.T) {
 	cmd := newProjectCommand("test")
 	err := cmd.Args(cmd, []string{"app", "extra"})
-	assertNewProjectCLIError(t, err, output.CodeUsage)
+	_ = assertNewProjectCLIError(t, err, output.CodeUsage)
 }
 
 func TestValidateNewProjectName(t *testing.T) {
@@ -50,7 +50,7 @@ func TestValidateNewProjectName(t *testing.T) {
 	} {
 		t.Run("invalid_"+name, func(t *testing.T) {
 			err := validateNewProjectName(name)
-			assertNewProjectCLIError(t, err, output.CodeUsage)
+			_ = assertNewProjectCLIError(t, err, output.CodeUsage)
 		})
 	}
 }
@@ -92,7 +92,7 @@ func TestNormalizeNewProjectDestinationBeforeCreation(t *testing.T) {
 	if _, err := normalizeNewProjectDestination(parent, "../escape"); err == nil {
 		t.Fatal("expected traversal name to be rejected")
 	} else {
-		assertNewProjectCLIError(t, err, output.CodeUsage)
+		_ = assertNewProjectCLIError(t, err, output.CodeUsage)
 	}
 }
 
@@ -107,7 +107,7 @@ func TestNormalizeNewProjectDestinationRejectsExistingAndNonEmptyTargets(t *test
 		t.Fatalf("create existing destination: %v", err)
 	}
 	_, err := normalizeNewProjectDestination(parent, "existing")
-	assertNewProjectCLIError(t, err, output.CodeUnsafeAction)
+	_ = assertNewProjectCLIError(t, err, output.CodeUnsafeAction)
 
 	current := filepath.Join(root, "Current.App")
 	if err := os.Mkdir(current, 0o755); err != nil {
@@ -125,14 +125,14 @@ func TestNormalizeNewProjectDestinationRejectsExistingAndNonEmptyTargets(t *test
 		t.Fatalf("write existing file: %v", err)
 	}
 	_, err = normalizeNewProjectDestination(current, ".")
-	assertNewProjectCLIError(t, err, output.CodeUnsafeAction)
+	_ = assertNewProjectCLIError(t, err, output.CodeUnsafeAction)
 
 	hidden := filepath.Join(root, ".hidden")
 	if err := os.Mkdir(hidden, 0o755); err != nil {
 		t.Fatalf("create hidden directory: %v", err)
 	}
 	_, err = normalizeNewProjectDestination(hidden, ".")
-	assertNewProjectCLIError(t, err, output.CodeUsage)
+	_ = assertNewProjectCLIError(t, err, output.CodeUsage)
 }
 
 func TestScaffoldNewProjectPublishesOnlyCompleteProject(t *testing.T) {

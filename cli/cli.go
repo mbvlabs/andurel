@@ -84,25 +84,23 @@ func setStandardHelp(cmd *cobra.Command, commands ...helpCommand) {
 
 func isInAndurelProject() bool {
 	_, err := findGoModRoot()
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 // NewRootCommand creates a new root command.
 func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:           "andurel",
-		Short:         "Andurel - The Go Web development framework",
-		Long:          `Andurel is a comprehensive web development framework for Go,`,
-		Version:       fmt.Sprintf("%s (built: %s)", version, date),
-		SilenceUsage:  true,
-		SilenceErrors: true,
+		Use:               "andurel",
+		Short:             "Andurel - The Go Web development framework",
+		Long:              `Andurel is a comprehensive web development framework for Go,`,
+		Version:           fmt.Sprintf("%s (built: %s)", version, date),
+		SilenceUsage:      true,
+		SilenceErrors:     true,
+		PersistentPreRunE: validateProjectionFlags,
 		Run: func(cmd *cobra.Command, args []string) {
 			printBanner()
 			fmt.Println()
-			cmd.Help()
+			_ = cmd.Help()
 		},
 	}
 
@@ -133,6 +131,9 @@ func NewRootCommand(version, date string) *cobra.Command {
 
 	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
+	if err := configureProjectionContracts(rootCmd); err != nil {
+		panic(err)
+	}
 
 	rootCmd.SetHelpFunc(func(c *cobra.Command, args []string) {
 		if renderStructuredHelpIfNeeded(c) {

@@ -75,16 +75,6 @@ func TestResolveControllerBaseType(t *testing.T) {
 	}
 }
 
-type buildFieldTestCase struct {
-	name       string
-	nullType   string
-	sqlType    string
-	nullable   bool
-	wantGoType string
-	wantForm   string
-	wantPtr    bool
-}
-
 func TestBuildField_NullableTimestamp(t *testing.T) {
 	strategies := []struct {
 		name      string

@@ -56,10 +56,6 @@ func (v *ViewManager) generateView(resourceName, tableName string, namespace str
 	return v.generateViewWithActionsForModel(resourceName, resourceName, tableName, namespace, withController, nil, "")
 }
 
-func (v *ViewManager) generateViewWithActions(resourceName, tableName string, namespace string, withController bool, actions []string, inertia string) error {
-	return v.generateViewWithActionsForModel(resourceName, resourceName, tableName, namespace, withController, actions, inertia)
-}
-
 func (v *ViewManager) generateViewWithActionsForModel(resourceName, modelName, tableName string, namespace string, withController bool, actions []string, inertia string) error {
 	modulePath := v.projectManager.GetModulePath()
 	if modelName == "" {
