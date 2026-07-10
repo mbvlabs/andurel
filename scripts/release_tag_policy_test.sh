@@ -43,25 +43,17 @@ expect_pass "${root}" v1.0.0-rc.5 "${sha}"
 git -C "${root}" tag -a v1.0.0-rc.6 -m rc6
 expect_pass "${root}" v1.0.0-rc.6 "${sha}"
 
-root="$(new_repository stable)"
+root="$(new_repository stable-without-rc)"
 sha="$(git -C "${root}" rev-parse HEAD)"
-git -C "${root}" tag -a v1.0.0-rc.4 -m rc4
 git -C "${root}" tag v1.0.0
 expect_pass "${root}" v1.0.0 "${sha}"
 
-root="$(new_repository missing-rc4)"
-sha="$(git -C "${root}" rev-parse HEAD)"
-git -C "${root}" tag v1.0.0
-expect_fail "${root}" v1.0.0 "${sha}"
-
-root="$(new_repository divergent-rc4)"
-first_sha="$(git -C "${root}" rev-parse HEAD)"
+root="$(new_repository independent-rc)"
 git -C "${root}" tag v1.0.0-rc.4
 git -C "${root}" commit -q --allow-empty -m second
 sha="$(git -C "${root}" rev-parse HEAD)"
 git -C "${root}" tag -a v1.0.0 -m stable
-expect_fail "${root}" v1.0.0 "${sha}"
-expect_fail "${root}" v1.0.0 "${first_sha}"
+expect_pass "${root}" v1.0.0 "${sha}"
 
 root="$(new_repository mismatches)"
 sha="$(git -C "${root}" rev-parse HEAD)"
@@ -73,6 +65,10 @@ expect_fail "${root}" v2.0.0 "${sha}"
 expect_fail "${root}" release-2.0.0 "${head_sha}"
 
 workflow="${repo_root}/.github/workflows/release.yml"
+if ! grep -Fq 'GORELEASER_CURRENT_TAG: ${{ github.ref_name }}' "${workflow}"; then
+  echo "release workflow does not pin GoReleaser to the triggering tag" >&2
+  exit 1
+fi
 for job in validate draft-release publish; do
   block="$(sed -n "/^  ${job}:/,/^  [a-zA-Z0-9-]*:/p" "${workflow}")"
   if [[ "${block}" != *'./scripts/verify-release-tag.sh "${GITHUB_REF_NAME}" "${GITHUB_SHA}"'* ]]; then

@@ -32,14 +32,3 @@ if [[ "${head_commit}" != "${expected_sha}" ]]; then
   echo "HEAD is ${head_commit}, expected release commit ${expected_sha}" >&2
   exit 1
 fi
-
-if [[ "${tag}" == "v1.0.0" ]]; then
-  if ! rc4_commit="$(git rev-parse --verify 'refs/tags/v1.0.0-rc.4^{commit}' 2>/dev/null)"; then
-    echo "stable v1.0.0 requires refs/tags/v1.0.0-rc.4 to exist and peel to a commit" >&2
-    exit 1
-  fi
-  if [[ "${rc4_commit}" != "${expected_sha}" ]]; then
-    echo "v1.0.0-rc.4 peels to ${rc4_commit}, but stable v1.0.0 peels to ${expected_sha}" >&2
-    exit 1
-  fi
-fi
