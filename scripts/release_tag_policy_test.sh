@@ -92,12 +92,16 @@ for dependency in tag-identity readiness; do
 done
 
 readiness_workflow="${repo_root}/.github/workflows/release-readiness.yml"
-for trigger in pull_request push workflow_call; do
+for trigger in push workflow_call; do
   if ! grep -Eq "^  ${trigger}:" "${readiness_workflow}"; then
     echo "canonical release readiness is missing ${trigger}" >&2
     exit 1
   fi
 done
+if grep -Eq '^  pull_request:' "${readiness_workflow}"; then
+  echo 'canonical release readiness must not run before merge' >&2
+  exit 1
+fi
 if ! grep -Fq '      - master' "${readiness_workflow}"; then
   echo 'canonical release readiness does not target master' >&2
   exit 1

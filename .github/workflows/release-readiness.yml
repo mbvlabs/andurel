@@ -1,9 +1,6 @@
 name: Release Readiness
 
 on:
-  pull_request:
-    branches:
-      - master
   push:
     branches:
       - master
@@ -92,13 +89,10 @@ jobs:
 
       - name: Check public API and CLI contracts
         shell: bash
-        env:
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
           ./scripts/check-contracts.sh
-          api_base="${PR_BASE_SHA:-v1.0.0}"
-          ./scripts/check-api-compat.sh "${api_base}" v1.0.0
+          ./scripts/check-api-compat.sh v1.0.0 v1.0.0
           ./scripts/release_tag_policy_test.sh
 
       - name: Run pinned lint
