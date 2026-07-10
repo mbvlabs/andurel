@@ -52,3 +52,5 @@ The following require a schema increment and an explicit lock migration:
 - any change that causes a valid schema 1 lock to be interpreted differently.
 
 Framework migrations and lock-schema migrations are selected and recorded independently. Their version fields are updated only after the corresponding migration succeeds.
+
+Writers always emit the current schema explicitly. A missing `schemaVersion` is not a general schema-1 default; it is accepted only for the recognized RC.1, RC.2, and RC.3 migration path. There is no downgrade path for a future schema. Preserve the original lock and use a newer Andurel CLI when a future schema is encountered.

@@ -150,12 +150,7 @@ func shouldSkipDirectory(root, path, name string) bool {
 	if err != nil {
 		return false
 	}
-	for _, part := range strings.Split(filepath.ToSlash(rel), "/") {
-		if part == "internal" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(strings.Split(filepath.ToSlash(rel), "/"), "internal")
 }
 
 func emitCLIContract() error {
@@ -352,8 +347,7 @@ func strconvUnquote(value string) (string, error) {
 
 func jsonFields(value reflect.Type) []jsonFieldContract {
 	fields := make([]jsonFieldContract, 0, value.NumField())
-	for i := 0; i < value.NumField(); i++ {
-		field := value.Field(i)
+	for field := range value.Fields() {
 		parts := strings.Split(field.Tag.Get("json"), ",")
 		if parts[0] == "" || parts[0] == "-" {
 			continue
