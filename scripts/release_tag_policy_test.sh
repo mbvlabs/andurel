@@ -112,4 +112,13 @@ if ! grep -Fq '      - master' "${readiness_workflow}"; then
   exit 1
 fi
 
+coverage_workflow="${repo_root}/.github/workflows/coverage.yml"
+if grep -Eq '^  release:' "${coverage_workflow}" || \
+  ! grep -Eq '^  workflow_run:' "${coverage_workflow}" || \
+  ! grep -Fq '      - Release' "${coverage_workflow}" || \
+  ! grep -Fq "github.event.workflow_run.conclusion == 'success'" "${coverage_workflow}"; then
+  echo 'coverage workflow must run after a successful Release workflow completion' >&2
+  exit 1
+fi
+
 echo "release tag policy contract passed"
