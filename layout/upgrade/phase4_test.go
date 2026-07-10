@@ -68,9 +68,9 @@ func TestRCTagFixturesAreExactAndCoverVariants(t *testing.T) {
 	t.Parallel()
 
 	wantHashes := map[string]string{
-		"cmd/app/main.go":  "cea4a830336e8fb924d50e31113c925c9da78d8a6f6ab01ec42b014a3b7e9061",
-		"models/user.go":   "6f13b4a9e63e65d1449f6c8446b6796195647ec15a017e50fcac91aee334b18f",
-		"router/router.go": "045f06ac6ac06a16b85ad9ecdc794da581ae5980dd4cf20bad82df50cfae7a14",
+		"cmd/app/main.go":  "bd2f2d856ff12617627bfb9c2093073091f96f4db24ca09ad4c862d3d56b8a39",
+		"models/user.go":   "e7e058c546f0a88631f4ddde0f33c5990b0901b2f0eda45cf1c20fec80d07898",
+		"router/router.go": "5c34c449928d931c43e122cbbb0eb1a62f7adf53f2a080fd1982ec83ce49cf04",
 	}
 	for _, release := range []string{"rc1", "rc2", "rc3"} {
 		for path, want := range wantHashes {

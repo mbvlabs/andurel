@@ -308,5 +308,3 @@ func HashPassword(password, pepper string) (string, error) {
 
 	return encodedHash, nil
 }
-
-

@@ -124,5 +124,3 @@ func startServer(lc fx.Lifecycle, r *router.Router, cfg config.Config, processor
 		},
 	})
 }
-
-
