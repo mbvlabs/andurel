@@ -111,6 +111,11 @@ func existingRouteFileActions(routesPath, resourceName, namespace, pluralName st
 	return actions, nil
 }
 
+// ExistingRouteFileActions returns the resource actions declared in a generated route file.
+func ExistingRouteFileActions(routesPath, resourceName, namespace, pluralName string) ([]string, error) {
+	return existingRouteFileActions(routesPath, resourceName, namespace, pluralName)
+}
+
 func namespacePrefix(namespace string) string {
 	return naming.NamespaceFilePrefix(namespace)
 }
