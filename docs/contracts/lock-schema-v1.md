@@ -51,4 +51,4 @@ The following require a schema increment and a separately designed upgrade path:
 - making previously optional metadata necessary for correct operation;
 - any change that causes a valid schema 1 lock to be interpreted differently.
 
-Writers always emit the current schema explicitly. A missing `schemaVersion` is invalid. Release-candidate locks are not supported upgrade sources. There is no downgrade path for a future schema. Preserve the original lock and use a newer Andurel CLI when a future schema is encountered.
+Writers always emit the current schema explicitly. A missing `schemaVersion` is invalid and cannot be passed to the automated upgrader. Projects created with v1.0.0-rc.2 or v1.0.0-rc.3 require the [manual RC-to-v1 procedure](../upgrade-rc-base-scaffold-prompt.md). There is no downgrade path for a future schema. Preserve the original lock and use a newer Andurel CLI when a future schema is encountered.

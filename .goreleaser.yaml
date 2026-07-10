@@ -33,7 +33,6 @@ archives:
     files:
       - README.md
       - LICENSE
-      - CHANGELOG.md
       - SECURITY.md
 
 checksum:

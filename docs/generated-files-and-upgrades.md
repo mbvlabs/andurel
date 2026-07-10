@@ -18,4 +18,4 @@ The response reports replacements, deletions, tool metadata changes, unified dif
 
 A real upgrade plans and renders the complete result before writing. It validates staged content, creates recoverable backups, replaces files atomically where the filesystem permits, and writes the final lock version last. Any replacement or validation failure rolls every changed file and `andurel.lock` back to their byte-identical originals.
 
-Real upgrades require a clean Git worktree. Re-running a successful upgrade is idempotent. Release-candidate projects and lock files without an explicit `schemaVersion` are not supported upgrade sources.
+Real upgrades require a clean Git worktree. Re-running a successful upgrade is idempotent. The automated upgrader requires an explicit `schemaVersion` and does not accept release-candidate locks. Projects created with v1.0.0-rc.2 or v1.0.0-rc.3 must use the [RC-to-v1 manual upgrade guide](upgrade-rc-base-scaffold-prompt.md).
