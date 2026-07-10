@@ -695,6 +695,13 @@ type ViewPaths struct {
 package controllers // import "github.com/mbvlabs/andurel/generator/controllers"
 
 
+FUNCTIONS
+
+func ExistingRouteFileActions(routesPath, resourceName, namespace, pluralName string) ([]string, error)
+    ExistingRouteFileActions returns the resource actions declared in a
+    generated route file.
+
+
 TYPES
 
 type ActionInjector struct {
@@ -1318,6 +1325,15 @@ func (ts *TemplateService) RenderTemplateWithCustomFunctions(
     RenderTemplateWithCustomFunctions renders a template with custom function
     map
 
+func (ts *TemplateService) RenderTemplateWithCustomFunctionsAndPartials(
+	templateName string,
+	partialNames []string,
+	data any,
+	funcMap template.FuncMap,
+) (string, error)
+    RenderTemplateWithCustomFunctionsAndPartials renders a primary template
+    together with named partial template files.
+
 
 ## github.com/mbvlabs/andurel/generator/views
 package views // import "github.com/mbvlabs/andurel/generator/views"
@@ -1340,18 +1356,19 @@ type Config struct {
     Config controls view generation for a resource.
 
 type GeneratedView struct {
-	ResourceName    string
-	ModelName       string
-	EntityName      string
-	PluralName      string
-	ModelPluralName string
-	Namespace       string
-	NamespacePascal string
-	Fields          []ViewField
-	ModulePath      string
-	IDType          string // "uuid.UUID", "int32", "int64", "string"
-	IDFieldName     string
-	Actions         []string
+	ResourceName     string
+	ModelName        string
+	EntityName       string
+	PluralName       string
+	ModelPluralName  string
+	Namespace        string
+	NamespacePascal  string
+	Fields           []ViewField
+	ModulePath       string
+	IDType           string // "uuid.UUID", "int32", "int64", "string"
+	IDFieldName      string
+	Actions          []string
+	AvailableActions []string
 }
     GeneratedView contains the template data for generated resource views.
 
