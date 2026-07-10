@@ -193,7 +193,9 @@ func (p Projects) Create(etx *echo.Context) error {
 	}
 
 	data := models.CreateProjectData{
-		Title:  payload.Title,
+
+		Title: payload.Title,
+
 		Status: payload.Status,
 	}
 
@@ -255,8 +257,10 @@ func (p Projects) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateProjectData{
-		ID:     projectID,
-		Title:  payload.Title,
+		ID: projectID,
+
+		Title: payload.Title,
+
 		Status: payload.Status,
 	}
 

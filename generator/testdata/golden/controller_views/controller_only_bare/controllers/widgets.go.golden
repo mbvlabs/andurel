@@ -163,9 +163,12 @@ func (w Widgets) Create(etx *echo.Context) error {
 	}
 
 	data := models.CreateWidgetData{
-		Name:     payload.Name,
+
+		Name: payload.Name,
+
 		Quantity: payload.Quantity,
-		Active:   payload.Active,
+
+		Active: payload.Active,
 	}
 
 	widget, err := models.Widget.Create(
@@ -225,10 +228,13 @@ func (w Widgets) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateWidgetData{
-		ID:       widgetID,
-		Name:     payload.Name,
+		ID: widgetID,
+
+		Name: payload.Name,
+
 		Quantity: payload.Quantity,
-		Active:   payload.Active,
+
+		Active: payload.Active,
 	}
 
 	widget, err := models.Widget.Update(

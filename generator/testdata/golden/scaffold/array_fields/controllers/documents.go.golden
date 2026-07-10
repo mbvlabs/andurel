@@ -165,10 +165,15 @@ func (d Documents) Create(etx *echo.Context) error {
 	}
 
 	data := models.CreateDocumentData{
-		Title:       payload.Title,
-		Tags:        payload.Tags,
+
+		Title: payload.Title,
+
+		Tags: payload.Tags,
+
 		PageNumbers: payload.PageNumbers,
-		ViewCount:   payload.ViewCount,
+
+		ViewCount: payload.ViewCount,
+
 		IsPublished: payload.IsPublished,
 	}
 
@@ -231,11 +236,16 @@ func (d Documents) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateDocumentData{
-		ID:          documentID,
-		Title:       payload.Title,
-		Tags:        payload.Tags,
+		ID: documentID,
+
+		Title: payload.Title,
+
+		Tags: payload.Tags,
+
 		PageNumbers: payload.PageNumbers,
-		ViewCount:   payload.ViewCount,
+
+		ViewCount: payload.ViewCount,
+
 		IsPublished: payload.IsPublished,
 	}
 
