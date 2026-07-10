@@ -32,32 +32,24 @@ type plannedFile struct {
 	created bool
 }
 
-type migrationPlan struct {
-	fromVersion         string
-	toVersion           string
-	sourceSchema        int
-	targetSchema        int
-	dirty               bool
-	files               []plannedFile
-	lockMigrations      []string
-	frameworkMigrations []string
-	toolChanges         ToolSyncResult
-	conflicts           []string
-	diffs               []FileDiff
+type upgradePlan struct {
+	fromVersion string
+	toVersion   string
+	dirty       bool
+	files       []plannedFile
+	toolChanges ToolSyncResult
+	diffs       []FileDiff
 }
 
-func (p *migrationPlan) cloneReport() *UpgradeReport {
+func (p *upgradePlan) cloneReport() *UpgradeReport {
 	report := &UpgradeReport{
 		FromVersion:         p.fromVersion,
 		ToVersion:           p.toVersion,
 		DirtyWorktree:       p.dirty,
-		LockMigrations:      slices.Clone(p.lockMigrations),
-		FrameworkMigrations: slices.Clone(p.frameworkMigrations),
 		AddedTools:          slices.Clone(p.toolChanges.Added),
 		RemovedTools:        slices.Clone(p.toolChanges.Removed),
 		UpdatedTools:        slices.Clone(p.toolChanges.Updated),
 		ToolMetadataChanges: slices.Clone(p.toolChanges.Metadata),
-		Conflicts:           slices.Clone(p.conflicts),
 		Diffs:               slices.Clone(p.diffs),
 	}
 	report.ToolsAdded = len(report.AddedTools)
@@ -78,32 +70,15 @@ func (p *migrationPlan) cloneReport() *UpgradeReport {
 	return report
 }
 
-func (u *Upgrader) buildPlan(dirty bool) (*migrationPlan, error) {
+func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 	lock, err := cloneLock(u.lock)
 	if err != nil {
 		return nil, fmt.Errorf("clone lock: %w", err)
 	}
-	plan := &migrationPlan{
-		fromVersion:  u.lock.Version,
-		toVersion:    u.opts.TargetVersion,
-		sourceSchema: u.sourceLockSchema,
-		targetSchema: targetLockSchemaVersion,
-		dirty:        dirty,
-	}
-
-	selected := selectMigrations(MigrationSelector{
-		SourceFrameworkVersion: u.lock.Version,
-		TargetFrameworkVersion: u.opts.TargetVersion,
-		SourceLockSchema:       u.sourceLockSchema,
-		TargetLockSchema:       targetLockSchemaVersion,
-	})
-	for _, migration := range selected {
-		switch migration.Kind {
-		case MigrationKindFramework:
-			plan.frameworkMigrations = append(plan.frameworkMigrations, migration.Name)
-		case MigrationKindLockSchema:
-			plan.lockMigrations = append(plan.lockMigrations, migration.Name)
-		}
+	plan := &upgradePlan{
+		fromVersion: u.lock.Version,
+		toVersion:   u.opts.TargetVersion,
+		dirty:       dirty,
 	}
 
 	toolChanges, err := syncTools(lock)
@@ -113,67 +88,11 @@ func (u *Upgrader) buildPlan(dirty bool) (*migrationPlan, error) {
 	plan.toolChanges = *toolChanges
 	if lock.DatabaseConfig == nil {
 		lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
-		plan.lockMigrations = append(plan.lockMigrations, "add-database-config")
 	}
 	lock.SchemaVersion = targetLockSchemaVersion
 
-	rendered, err := u.generator.RenderFrameworkTemplates(
-		u.projectRoot,
-		*u.lock.ScaffoldConfig,
-		u.lock.ExtensionNames(),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("render framework templates: %w", err)
-	}
-	modulePath, err := resolveModulePath(u.projectRoot)
-	if err != nil {
+	if err := u.addFrameworkChanges(plan); err != nil {
 		return nil, err
-	}
-	paths := make([]string, 0, len(rendered))
-	for path := range rendered {
-		paths = append(paths, path)
-	}
-	sort.Strings(paths)
-	for _, path := range paths {
-		if recognized, recognitionErr := recognizeWholeFileReplacement(u.projectRoot, path, rendered[path], modulePath, u.lock.ScaffoldConfig.ProjectName); recognitionErr != nil {
-			return nil, recognitionErr
-		} else if !recognized {
-			plan.conflicts = append(plan.conflicts, fmt.Sprintf("%s does not match an exact known RC template", path))
-			continue
-		}
-		if err := plan.addReplacement(u.projectRoot, path, rendered[path], false); err != nil {
-			return nil, err
-		}
-	}
-
-	obsolete := u.obsoleteManagedInternalFiles()
-	sort.Strings(obsolete)
-	for _, path := range obsolete {
-		if recognized, recognitionErr := recognizeWholeFileDeletion(u.projectRoot, path, modulePath, u.lock.ScaffoldConfig.ProjectName); recognitionErr != nil {
-			return nil, recognitionErr
-		} else if !recognized {
-			plan.conflicts = append(plan.conflicts, fmt.Sprintf("%s cannot be deleted because it is not an exact known RC template", path))
-			continue
-		}
-		if err := plan.addDeletion(u.projectRoot, path); err != nil {
-			return nil, err
-		}
-	}
-
-	for _, migration := range selected {
-		if migration.Transform == nil {
-			continue
-		}
-		changes, conflicts, transformErr := migration.Transform(u.projectRoot, u.generator, u.lock)
-		if transformErr != nil {
-			return nil, fmt.Errorf("plan %s: %w", migration.Name, transformErr)
-		}
-		plan.conflicts = append(plan.conflicts, conflicts...)
-		for _, change := range changes {
-			if err := plan.addReplacement(u.projectRoot, change.Path, change.Content, false); err != nil {
-				return nil, err
-			}
-		}
 	}
 
 	lock.Version = u.opts.TargetVersion
@@ -185,7 +104,68 @@ func (u *Upgrader) buildPlan(dirty bool) (*migrationPlan, error) {
 		return nil, err
 	}
 
-	sort.Strings(plan.conflicts)
+	if err := finalizePlan(plan); err != nil {
+		return nil, err
+	}
+	return plan, nil
+}
+
+func (u *Upgrader) buildRepairPlan(dirty bool) (*upgradePlan, error) {
+	plan := &upgradePlan{
+		fromVersion: u.lock.Version,
+		toVersion:   u.opts.TargetVersion,
+		dirty:       dirty,
+	}
+	if err := u.addFrameworkChanges(plan); err != nil {
+		return nil, err
+	}
+	if err := finalizePlan(plan); err != nil {
+		return nil, err
+	}
+	return plan, nil
+}
+
+func (u *Upgrader) addFrameworkChanges(plan *upgradePlan) error {
+	rendered, err := u.generator.RenderFrameworkTemplates(
+		u.projectRoot,
+		*u.lock.ScaffoldConfig,
+		u.lock.ExtensionNames(),
+	)
+	if err != nil {
+		return fmt.Errorf("render framework templates: %w", err)
+	}
+	paths := make([]string, 0, len(rendered))
+	for path := range rendered {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	for _, path := range paths {
+		if recognized, recognitionErr := recognizeWholeFileReplacement(u.projectRoot, path, rendered[path]); recognitionErr != nil {
+			return recognitionErr
+		} else if !recognized {
+			continue
+		}
+		if err := plan.addReplacement(u.projectRoot, path, rendered[path], false); err != nil {
+			return err
+		}
+	}
+
+	obsolete := u.obsoleteManagedInternalFiles()
+	sort.Strings(obsolete)
+	for _, path := range obsolete {
+		if recognized, recognitionErr := recognizeWholeFileDeletion(u.projectRoot, path); recognitionErr != nil {
+			return recognitionErr
+		} else if !recognized {
+			continue
+		}
+		if err := plan.addDeletion(u.projectRoot, path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func finalizePlan(plan *upgradePlan) error {
 	sort.SliceStable(plan.files, func(i, j int) bool {
 		if plan.files[i].isLock != plan.files[j].isLock {
 			return !plan.files[i].isLock
@@ -196,19 +176,19 @@ func (u *Upgrader) buildPlan(dirty bool) (*migrationPlan, error) {
 	for _, file := range plan.files {
 		diff, diffErr := unifiedFileDiff(file)
 		if diffErr != nil {
-			return nil, diffErr
+			return diffErr
 		}
 		if diff != "" {
 			plan.diffs = append(plan.diffs, FileDiff{Path: file.path, Diff: diff})
 		}
 	}
-	return plan, nil
+	return nil
 }
 
-func recognizeWholeFileReplacement(root, path string, target []byte, normalizedValues ...string) (bool, error) {
+func recognizeWholeFileReplacement(root, path string, target []byte) (bool, error) {
 	current, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
 	if os.IsNotExist(err) {
-		return true, nil
+		return hasAndurelVersionMarker(target), nil
 	}
 	if err != nil {
 		return false, err
@@ -216,12 +196,10 @@ func recognizeWholeFileReplacement(root, path string, target []byte, normalizedV
 	if bytes.Equal(current, target) {
 		return true, nil
 	}
-	known := knownRCInternalTemplateHashes[path]
-	_, ok := known[normalizedFileHash(current, normalizedValues...)]
-	return ok, nil
+	return hasAndurelVersionMarker(current), nil
 }
 
-func recognizeWholeFileDeletion(root, path string, normalizedValues ...string) (bool, error) {
+func recognizeWholeFileDeletion(root, path string) (bool, error) {
 	current, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
 	if os.IsNotExist(err) {
 		return true, nil
@@ -229,21 +207,25 @@ func recognizeWholeFileDeletion(root, path string, normalizedValues ...string) (
 	if err != nil {
 		return false, err
 	}
-	known := knownRCInternalTemplateHashes[path]
-	_, ok := known[normalizedFileHash(current, normalizedValues...)]
-	return ok, nil
+	return hasAndurelVersionMarker(current), nil
 }
 
-func (p *migrationPlan) addReplacement(root, path string, after []byte, isLock bool) error {
-	for index := range p.files {
-		if p.files[index].path != path {
+func hasAndurelVersionMarker(content []byte) bool {
+	const prefix = "// Code generated by andurel "
+	const suffix = "; DO NOT EDIT."
+
+	for line := range bytes.Lines(content) {
+		line = bytes.TrimSpace(line)
+		if !bytes.HasPrefix(line, []byte(prefix)) || !bytes.HasSuffix(line, []byte(suffix)) {
 			continue
 		}
-		if !bytes.Equal(p.files[index].after, after) || p.files[index].remove {
-			p.conflicts = append(p.conflicts, fmt.Sprintf("%s has competing planned transformations", path))
-		}
-		return nil
+		version := line[len(prefix) : len(line)-len(suffix)]
+		return len(bytes.TrimSpace(version)) > 0
 	}
+	return false
+}
+
+func (p *upgradePlan) addReplacement(root, path string, after []byte, isLock bool) error {
 	fullPath := filepath.Join(root, path)
 	before, err := os.ReadFile(fullPath)
 	created := false
@@ -269,7 +251,7 @@ func (p *migrationPlan) addReplacement(root, path string, after []byte, isLock b
 	return nil
 }
 
-func (p *migrationPlan) addDeletion(root, path string) error {
+func (p *upgradePlan) addDeletion(root, path string) error {
 	fullPath := filepath.Join(root, path)
 	before, err := os.ReadFile(fullPath)
 	if os.IsNotExist(err) {

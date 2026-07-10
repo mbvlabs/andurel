@@ -192,7 +192,7 @@ func TestCommandFlagsContract(t *testing.T) {
 		{path: "database rebuild", flags: []string{"force", "skip-seed", "seed"}},
 		{path: "build", flags: []string{"version"}},
 		{path: "doctor", flags: []string{"verbose"}},
-		{path: "upgrade", flags: []string{"dry-run", "diff"}},
+		{path: "upgrade", flags: []string{"dry-run", "diff", "repair"}},
 	}
 
 	for _, tt := range tests {

@@ -2428,33 +2428,6 @@ func (g *GitAnalyzer) GetModifiedFiles() (map[string]bool, error)
 func (g *GitAnalyzer) IsClean() (bool, error)
     IsClean reports whether clean.
 
-type Migration struct {
-	Order            int
-	Name             string
-	Kind             MigrationKind
-	SourceFramework  string
-	TargetFramework  string
-	SourceLockSchema int
-	TargetLockSchema int
-	Transform        func(string, *TemplateGenerator, *layout.AndurelLock) ([]transformedFile, []string, error)
-}
-    Migration describes one ordered migration registry entry.
-
-type MigrationKind string
-    MigrationKind identifies the independently selected migration dimension.
-
-const (
-	MigrationKindFramework  MigrationKind = "framework"
-	MigrationKindLockSchema MigrationKind = "lock-schema"
-)
-type MigrationSelector struct {
-	SourceFrameworkVersion string
-	TargetFrameworkVersion string
-	SourceLockSchema       int
-	TargetLockSchema       int
-}
-    MigrationSelector keeps framework and lock-schema selection independent.
-
 type TemplateGenerator struct {
 	// Has unexported fields.
 }
@@ -2482,6 +2455,7 @@ type ToolSyncResult struct {
 type UpgradeOptions struct {
 	DryRun        bool
 	Auto          bool
+	Repair        bool
 	TargetVersion string
 }
     UpgradeOptions configures upgrade behavior.
@@ -2502,11 +2476,11 @@ type UpgradeReport struct {
 	ToolMetadataChanges []string
 	ReplacedFiles       []string
 	RemovedFiles        []string
-	LockMigrations      []string
-	FrameworkMigrations []string
-	Conflicts           []string
 	Diffs               []FileDiff
 	DirtyWorktree       bool
+	AlreadyCurrent      bool
+	RepairAvailable     bool
+	RepairApplied       bool
 
 	Success bool
 	Error   error

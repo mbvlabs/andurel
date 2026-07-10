@@ -102,10 +102,7 @@ jobs:
         run: |
           set -euo pipefail
           ./scripts/check-contracts.sh
-          api_baseline=v1.0.0-rc.3
-          if [[ "${GITHUB_REF_NAME}" != "v1.0.0" ]] && git rev-parse --verify 'v1.0.0^{commit}' >/dev/null 2>&1; then
-            api_baseline=v1.0.0
-          fi
+          api_baseline=v1.0.0
           ./scripts/check-api-compat.sh "${api_baseline}" "${api_baseline}"
 
       - name: Run pinned lint

@@ -66,16 +66,12 @@ The core philosophy around resource generation in andurel, is that it should be 
 ### Installation
 
 ```bash
-# Track the latest stable release
 go install github.com/mbvlabs/andurel@latest
-
-# Pin the first stable v1 release explicitly
-go install github.com/mbvlabs/andurel@v1.0.0
 
 andurel --version
 ```
 
-For reproducible automation, prefer an explicit v1 tag. The [RC-to-v1 migration guide](docs/migration-rc-to-v1.md) covers existing release-candidate projects.
+For reproducible automation, prefer an explicit stable v1 tag. Projects created with v1.0.0-rc.2 or v1.0.0-rc.3 require manual reconciliation rather than `andurel upgrade`; follow the [RC-to-v1 manual upgrade guide](docs/upgrade-rc-base-scaffold-prompt.md).
 
 ### Create Your First Project
 
@@ -554,7 +550,9 @@ andurel upgrade (alias: up) [--dry-run]
 
 > Commit or create a branch before upgrading. A real upgrade requires a clean worktree and modifies files in place.
 
-Run `andurel upgrade --dry-run --diff --json` first. Dry runs are read-only. A conflict prevents all writes, and a failed transaction restores every changed file and `andurel.lock`. Normal upgrade ownership is limited to framework-owned files, currently centered on `internal/*`; explicit RC migrations may correct only uniquely recognized RC scaffold defects. See [generated-file ownership and upgrade behavior](docs/generated-files-and-upgrades.md).
+Run `andurel upgrade --dry-run --diff --json` first. Dry runs are read-only, and a failed transaction restores every changed file and `andurel.lock`. Upgrade ownership is limited to framework-owned files, currently centered on `internal/*`. See [generated-file ownership and upgrade behavior](docs/generated-files-and-upgrades.md).
+
+Projects created with v1.0.0-rc.2 or v1.0.0-rc.3 must not use the automated upgrade command. Use the [RC-to-v1 manual upgrade guide](docs/upgrade-rc-base-scaffold-prompt.md) to reconcile the application against the stable scaffold for the currently installed Andurel version while preserving local changes.
 
 ### `andurel doctor` — Project diagnostics
 

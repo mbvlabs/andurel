@@ -56,5 +56,5 @@ jobs:
       - name: Install pinned API diff tool
         run: go install golang.org/x/exp/cmd/apidiff@v0.0.0-20250620022241-b7579e27df2b
 
-      - name: Check compatibility with PR base and RC.3
-        run: ./scripts/check-api-compat.sh "${{ github.event.pull_request.base.sha }}" v1.0.0-rc.3
+      - name: Check compatibility with PR base and v1.0.0
+        run: ./scripts/check-api-compat.sh "${{ github.event.pull_request.base.sha }}" v1.0.0

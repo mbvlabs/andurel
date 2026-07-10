@@ -41,4 +41,4 @@ The `pkg/cache.FileSystemCache` methods and package-level filesystem cache helpe
 
 Run `scripts/update-contracts.sh`, review every change, and commit the regenerated files only for an intentional compatible addition or an approved pre-v1 contract correction. `scripts/check-contracts.sh` fails when source and fixtures drift.
 
-Pull requests and releases run pinned `apidiff` checks against the applicable stable baseline. RC.3 is the pre-v1 audit baseline. After `v1.0.0` is published, the stable v1 tag becomes the release baseline for later v1 changes.
+Pull requests and releases run pinned `apidiff` checks against the stable v1 baseline.

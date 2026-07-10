@@ -1117,6 +1117,11 @@
           "shorthand": "h",
           "type": "bool",
           "default": "false"
+        },
+        {
+          "name": "repair",
+          "type": "bool",
+          "default": "false"
         }
       ]
     },

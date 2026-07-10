@@ -166,6 +166,30 @@ func TestDeriveResourceName(t *testing.T) {
 	}
 }
 
+func TestNamespaceCompatibilityHelpers(t *testing.T) {
+	for _, test := range []struct {
+		input         string
+		wantNamespace string
+		wantName      string
+	}{
+		{input: "Widget", wantName: "Widget"},
+		{input: "admin/Widget", wantNamespace: "admin", wantName: "Widget"},
+		{input: "admin/reports/Widget", wantName: "admin/reports/Widget"},
+	} {
+		namespace, name := NamespaceFromResource(test.input)
+		if namespace != test.wantNamespace || name != test.wantName {
+			t.Fatalf("NamespaceFromResource(%q) = %q, %q", test.input, namespace, name)
+		}
+	}
+
+	if got := NamespacedControllerImportPath("example.com/app", ""); got != "example.com/app/controllers" {
+		t.Fatalf("unnamespaced import path = %q", got)
+	}
+	if got := NamespacedControllerImportPath("example.com/app", "admin"); got != "example.com/app/controllers/admin" {
+		t.Fatalf("namespaced import path = %q", got)
+	}
+}
+
 func TestParseNamespacedResource(t *testing.T) {
 	tests := []struct {
 		name          string

@@ -2,3 +2,13 @@
 # Keep entries exact so later changes remain visible to apidiff.
 - ./layout.ToolDownload: old is comparable, new is not
 - ./layout/versions.Shadowfax: value changed from "v0.8.3" to "v0.8.4"
+
+# Approved removal of the unsupported release-candidate upgrade path.
+- ./layout/upgrade.Migration: removed
+- ./layout/upgrade.MigrationKind: removed
+- ./layout/upgrade.MigrationKindFramework: removed
+- ./layout/upgrade.MigrationKindLockSchema: removed
+- ./layout/upgrade.MigrationSelector: removed
+- ./layout/upgrade.UpgradeReport.Conflicts: removed
+- ./layout/upgrade.UpgradeReport.FrameworkMigrations: removed
+- ./layout/upgrade.UpgradeReport.LockMigrations: removed

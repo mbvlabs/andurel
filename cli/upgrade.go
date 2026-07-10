@@ -1,7 +1,12 @@
 package cli
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
+	"io"
+	"os"
+	"strings"
 
 	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/layout/upgrade"
@@ -24,7 +29,8 @@ This command will:
 Note: This only upgrades framework code. You are responsible for updating
 your application code to work with any API changes in the new version.`,
 		Example: `  andurel upgrade
-  andurel upgrade --dry-run`,
+  andurel upgrade --dry-run
+  andurel upgrade --repair`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runUpgrade(cmd, version)
 		},
@@ -32,6 +38,7 @@ your application code to work with any API changes in the new version.`,
 
 	upgradeCmd.Flags().Bool("dry-run", false, "Show what would be changed without applying")
 	upgradeCmd.Flags().Bool("diff", false, "Include a text diff preview in structured output")
+	upgradeCmd.Flags().Bool("repair", false, "Restore drifted framework-owned files when already on this version")
 
 	return upgradeCmd
 }
@@ -54,15 +61,20 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 	if err != nil {
 		return err
 	}
+	repair := false
+	if cmd.Flags().Lookup("repair") != nil {
+		repair, err = cmd.Flags().GetBool("repair")
+		if err != nil {
+			return err
+		}
+	}
+	structured := output.SuppressesHumanOutput(outOpts)
 
 	opts := upgrade.UpgradeOptions{
 		DryRun:        dryRun,
 		Auto:          false,
+		Repair:        repair && !dryRun && !structured,
 		TargetVersion: targetVersion,
-	}
-
-	if !output.SuppressesHumanOutput(outOpts) {
-		fmt.Printf("Upgrading project to version %s...\n\n", targetVersion)
 	}
 
 	upgrader, err := newUpgraderFunc(projectRoot, opts)
@@ -75,7 +87,7 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		return snapErr
 	}
 	report, err := func() (*upgrade.UpgradeReport, error) {
-		if output.SuppressesHumanOutput(outOpts) {
+		if structured {
 			var report *upgrade.UpgradeReport
 			runErr := runWithOptionalStdoutSilence(true, func() error {
 				var executeErr error
@@ -90,7 +102,7 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		return err
 	}
 
-	if output.SuppressesHumanOutput(outOpts) {
+	if structured {
 		after, err := snapshotFilesForReport(projectRoot)
 		if err != nil {
 			return err
@@ -109,6 +121,12 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 			artifactReport.FilesDeleted = append([]string(nil), report.RemovedFiles...)
 			artifactReport.Warnings = append(artifactReport.Warnings, "dry run only; no files were changed")
 		}
+		if report != nil && report.RepairAvailable {
+			artifactReport.Warnings = append(
+				artifactReport.Warnings,
+				"framework-owned file drift detected; run andurel upgrade --repair interactively to restore it",
+			)
+		}
 		data := map[string]any{
 			"upgrade":   report,
 			"artifacts": artifactReport,
@@ -116,23 +134,62 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		return output.OK(cmd, data, mutationSummary(artifactReport), output.Breadcrumb{Command: "andurel doctor"}, output.Breadcrumb{Command: "git diff"})
 	}
 
+	if report.AlreadyCurrent {
+		return nil
+	}
+	if report.RepairAvailable && !report.RepairApplied {
+		if dryRun {
+			return nil
+		}
+		if report.DirtyWorktree {
+			return fmt.Errorf("worktree is dirty; commit or stash changes before repairing framework files")
+		}
+		confirmed, err := confirmFrameworkRepair()
+		if err != nil {
+			return err
+		}
+		if !confirmed {
+			fmt.Println("No files were changed.")
+			return nil
+		}
+		opts.Repair = true
+		opts.Auto = true
+		upgrader, err = newUpgraderFunc(projectRoot, opts)
+		if err != nil {
+			return fmt.Errorf("failed to initialize framework repair: %w", err)
+		}
+		report, err = upgrader.Execute()
+		if err != nil {
+			return err
+		}
+	}
+
 	if dryRun {
 		return nil
 	}
 
 	if report.Success {
-		fmt.Printf("\n✓ Upgrade complete!\n")
-
+		if report.RepairApplied {
+			fmt.Printf("\n✓ Framework repair complete for version %s\n", targetVersion)
+			printUpgradeSummary(report)
+			fmt.Printf("\nNext steps:\n")
+			fmt.Printf("  1. Review the restored files with 'git diff'\n")
+			fmt.Printf("  2. Test your application\n")
+			fmt.Printf("  3. Commit when ready\n")
+			return nil
+		}
 		// Sync tools if any were added, updated, or removed
 		totalToolChanges := report.ToolsAdded + report.ToolsUpdated + report.ToolsRemoved
 		if totalToolChanges > 0 {
-			fmt.Printf("\nSyncing tools...\n")
+			fmt.Printf("\nSyncing tool binaries...\n")
 			if err := syncBinaries(projectRoot); err != nil {
 				fmt.Printf("⚠ Warning: failed to sync tools: %v\n", err)
 				fmt.Printf("You can manually sync tools by running: andurel tool sync\n")
 			}
 		}
 
+		fmt.Printf("\n✓ Upgrade complete! Project is now at version %s\n", targetVersion)
+		printUpgradeSummary(report)
 		fmt.Printf("\nNext steps:\n")
 		fmt.Printf("  1. Review the changes with 'git diff'\n")
 		fmt.Printf("  2. Update your application code if needed for API changes\n")
@@ -142,4 +199,41 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 	}
 
 	return nil
+}
+
+func confirmFrameworkRepair() (bool, error) {
+	fmt.Print("Restore these framework-owned files? [y/N] ")
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false, err
+	}
+	answer := strings.ToLower(strings.TrimSpace(line))
+	return answer == "y" || answer == "yes", nil
+}
+
+func printUpgradeSummary(report *upgrade.UpgradeReport) {
+	if report.FilesReplaced == 0 && report.FilesRemoved == 0 && report.ToolsAdded == 0 &&
+		report.ToolsUpdated == 0 && report.ToolsRemoved == 0 && len(report.ToolMetadataChanges) == 0 {
+		return
+	}
+	fmt.Printf("\nSummary:\n")
+	if report.FilesReplaced > 0 {
+		fmt.Printf("  • %d framework files replaced\n", report.FilesReplaced)
+	}
+	if report.FilesRemoved > 0 {
+		fmt.Printf("  • %d obsolete internal package files removed\n", report.FilesRemoved)
+	}
+	if report.ToolsAdded > 0 {
+		fmt.Printf("  • %d tools added\n", report.ToolsAdded)
+	}
+	if report.ToolsUpdated > 0 {
+		fmt.Printf("  • %d tools updated\n", report.ToolsUpdated)
+	}
+	if report.ToolsRemoved > 0 {
+		fmt.Printf("  • %d tools removed\n", report.ToolsRemoved)
+	}
+	if len(report.ToolMetadataChanges) > 0 {
+		fmt.Printf("  • %d tool metadata entries updated\n", len(report.ToolMetadataChanges))
+	}
 }

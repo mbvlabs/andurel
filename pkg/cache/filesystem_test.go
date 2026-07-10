@@ -96,6 +96,12 @@ func TestGlobalFileSystemCacheHelpers(t *testing.T) {
 	if existsCalls != 1 {
 		t.Fatalf("expected cached checker result, calls=%d", existsCalls)
 	}
+
+	globalFSCache.entries["expired"] = &Entry{Value: true, ExpiresAt: time.Now().Add(-time.Second)}
+	CleanupExpiredFileSystemEntries()
+	if _, exists := globalFSCache.entries["expired"]; exists {
+		t.Fatal("expected global expired entry to be removed")
+	}
 }
 
 func TestGlobalFileSystemCacheDoesNotCacheErrors(t *testing.T) {
