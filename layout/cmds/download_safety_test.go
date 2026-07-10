@@ -125,15 +125,15 @@ func TestDownloadRequestTimeoutsAndStatus(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	timeoutClient := server.Client()
+	statusClient := server.Client()
+	timeoutClient := *statusClient
 	timeoutClient.Timeout = 10 * time.Millisecond
-	useDownloadClient(t, timeoutClient)
+	useDownloadClient(t, &timeoutClient)
 	dest := filepath.Join(t.TempDir(), "tool")
 	if err := DownloadVerifiedFromURL("tool", server.URL+"/slow", "binary", "tool", dest, strings.Repeat("0", 64)); err == nil || !strings.Contains(err.Error(), "Client.Timeout") {
 		t.Fatalf("total timeout error = %v", err)
 	}
 
-	statusClient := server.Client()
 	useDownloadClient(t, statusClient)
 	if err := DownloadVerifiedFromURL("tool", server.URL+"/missing", "binary", "tool", dest, strings.Repeat("0", 64)); err == nil || !strings.Contains(err.Error(), "status code 404") {
 		t.Fatalf("status error = %v", err)
