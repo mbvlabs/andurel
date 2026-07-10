@@ -22,10 +22,10 @@ func TestDecodeSchema1AndValidateCompleteLock(t *testing.T) {
 	}
 }
 
-func TestDecodeLockSchemaSelectionAndLegacyRCMigration(t *testing.T) {
+func TestDecodeLockSchemaSelectionAndLegacyMigration(t *testing.T) {
 	legacy := validSchema1Lock()
 	legacy.SchemaVersion = 0
-	legacy.Version = "v1.0.0-rc.3"
+	legacy.Version = "v1.0.3"
 	legacy.Tools["templ"].Download, _ = getDefaultToolDownloadForVersion("templ", "v0.3.1020")
 	legacy.Tools["templ"].Download.SHA256 = nil
 	data := mustMarshalLock(t, legacy)
@@ -41,12 +41,12 @@ func TestDecodeLockSchemaSelectionAndLegacyRCMigration(t *testing.T) {
 
 	migrated, err := decodeAndValidateLock(data)
 	if err != nil {
-		t.Fatalf("migrate recognized RC: %v", err)
+		t.Fatalf("migrate legacy lock: %v", err)
 	}
 	if migrated.SchemaVersion != 1 {
 		t.Fatalf("schemaVersion = %d", migrated.SchemaVersion)
 	}
-	if migrated.Version != "v1.0.0-rc.3" {
+	if migrated.Version != "v1.0.3" {
 		t.Fatalf("framework version changed during schema migration: %q", migrated.Version)
 	}
 
@@ -61,14 +61,14 @@ func TestDecodeLockSchemaSelectionAndLegacyRCMigration(t *testing.T) {
 	}
 }
 
-func TestMigrateCompleteLegacyRCLocks(t *testing.T) {
+func TestMigrateCompleteLegacyLocks(t *testing.T) {
 	tests := []struct {
 		frameworkVersion string
 		shadowfaxVersion string
 	}{
-		{frameworkVersion: "v1.0.0-rc.1", shadowfaxVersion: "v0.8.0"},
-		{frameworkVersion: "v1.0.0-rc.2", shadowfaxVersion: "v0.8.3"},
-		{frameworkVersion: "v1.0.0-rc.3", shadowfaxVersion: "v0.8.3"},
+		{frameworkVersion: "v0.9.0", shadowfaxVersion: "v0.8.0"},
+		{frameworkVersion: "v1.0.3", shadowfaxVersion: "v0.8.3"},
+		{frameworkVersion: "v1.1.0", shadowfaxVersion: "v0.8.3"},
 	}
 	for _, test := range tests {
 		t.Run(test.frameworkVersion, func(t *testing.T) {
@@ -122,7 +122,6 @@ func TestDecodeLockRejectsMissingMalformedAndFutureSchemas(t *testing.T) {
 		data string
 		want string
 	}{
-		{name: "unrecognized missing schema", data: `{"version":"v9.9.9","tools":{}}`, want: "not a recognized RC lock"},
 		{name: "schema wrong type", data: `{"schemaVersion":"1","version":"v1.0.0","tools":{}}`, want: "cannot unmarshal"},
 		{name: "schema zero", data: `{"schemaVersion":0,"version":"v1.0.0","tools":{}}`, want: "unsupported"},
 		{name: "future schema", data: `{"schemaVersion":2,"version":"v1.0.0","tools":{}}`, want: "upgrade Andurel"},

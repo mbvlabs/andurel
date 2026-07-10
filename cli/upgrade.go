@@ -61,10 +61,6 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		TargetVersion: targetVersion,
 	}
 
-	if !output.SuppressesHumanOutput(outOpts) {
-		fmt.Printf("Upgrading project to version %s...\n\n", targetVersion)
-	}
-
 	upgrader, err := newUpgraderFunc(projectRoot, opts)
 	if err != nil {
 		return fmt.Errorf("failed to initialize upgrader: %w", err)
@@ -121,18 +117,18 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 	}
 
 	if report.Success {
-		fmt.Printf("\n✓ Upgrade complete!\n")
-
 		// Sync tools if any were added, updated, or removed
 		totalToolChanges := report.ToolsAdded + report.ToolsUpdated + report.ToolsRemoved
 		if totalToolChanges > 0 {
-			fmt.Printf("\nSyncing tools...\n")
+			fmt.Printf("\nSyncing tool binaries...\n")
 			if err := syncBinaries(projectRoot); err != nil {
 				fmt.Printf("⚠ Warning: failed to sync tools: %v\n", err)
 				fmt.Printf("You can manually sync tools by running: andurel tool sync\n")
 			}
 		}
 
+		fmt.Printf("\n✓ Upgrade complete! Project is now at version %s\n", targetVersion)
+		printUpgradeSummary(report)
 		fmt.Printf("\nNext steps:\n")
 		fmt.Printf("  1. Review the changes with 'git diff'\n")
 		fmt.Printf("  2. Update your application code if needed for API changes\n")
@@ -142,4 +138,30 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 	}
 
 	return nil
+}
+
+func printUpgradeSummary(report *upgrade.UpgradeReport) {
+	if report.FilesReplaced == 0 && report.FilesRemoved == 0 && report.ToolsAdded == 0 &&
+		report.ToolsUpdated == 0 && report.ToolsRemoved == 0 && len(report.ToolMetadataChanges) == 0 {
+		return
+	}
+	fmt.Printf("\nSummary:\n")
+	if report.FilesReplaced > 0 {
+		fmt.Printf("  • %d framework files replaced\n", report.FilesReplaced)
+	}
+	if report.FilesRemoved > 0 {
+		fmt.Printf("  • %d obsolete internal package files removed\n", report.FilesRemoved)
+	}
+	if report.ToolsAdded > 0 {
+		fmt.Printf("  • %d tools added\n", report.ToolsAdded)
+	}
+	if report.ToolsUpdated > 0 {
+		fmt.Printf("  • %d tools updated\n", report.ToolsUpdated)
+	}
+	if report.ToolsRemoved > 0 {
+		fmt.Printf("  • %d tools removed\n", report.ToolsRemoved)
+	}
+	if len(report.ToolMetadataChanges) > 0 {
+		fmt.Printf("  • %d tool metadata entries updated\n", len(report.ToolMetadataChanges))
+	}
 }

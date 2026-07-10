@@ -3,6 +3,7 @@ package upgrade
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -102,13 +103,18 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	if err != nil {
 		return &UpgradeReport{}, fmt.Errorf("git validation failed: %w", err)
 	}
+	printUpgradeStart(os.Stdout, lock.Version, u.opts.TargetVersion)
 	plan, err := working.buildPlan(!clean)
 	if err != nil {
 		return &UpgradeReport{FromVersion: lock.Version, ToVersion: u.opts.TargetVersion, Error: err}, err
 	}
 	report := plan.cloneReport()
 	if len(plan.conflicts) > 0 {
-		printUpgradePlan(report, u.opts.DryRun)
+		if u.opts.DryRun {
+			printUpgradeDryRun(os.Stdout, report)
+		} else {
+			printUpgradeConflicts(os.Stdout, report)
+		}
 		if u.opts.DryRun {
 			return report, nil
 		}
@@ -118,7 +124,7 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	}
 	if u.opts.DryRun {
 		report.Success = true
-		printUpgradePlan(report, true)
+		printUpgradeDryRun(os.Stdout, report)
 		return report, nil
 	}
 	if err := working.applyPlan(plan); err != nil {
@@ -126,7 +132,7 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		return report, err
 	}
 	report.Success = true
-	printUpgradePlan(report, false)
+	printUpgradeSuccess(os.Stdout, report)
 	return report, nil
 }
 
@@ -171,35 +177,102 @@ func readSourceLockSchema(projectRoot string) (int, error) {
 	return *header.SchemaVersion, nil
 }
 
-func printUpgradePlan(report *UpgradeReport, dryRun bool) {
+func printUpgradeStart(writer io.Writer, fromVersion, toVersion string) {
+	fmt.Fprintf(writer, "Upgrading framework from %s to %s...\n", fromVersion, toVersion)
+	fmt.Fprintln(writer, "Rendering framework templates...")
+}
+
+func printUpgradeSuccess(writer io.Writer, report *UpgradeReport) {
+	if len(report.ReplacedFiles) > 0 {
+		fmt.Fprintln(writer, "Replacing framework files...")
+		for _, path := range report.ReplacedFiles {
+			fmt.Fprintf(writer, "  ✓ %s\n", path)
+		}
+	}
+	if len(report.RemovedFiles) > 0 {
+		fmt.Fprintln(writer, "Removing obsolete internal package files...")
+		for _, path := range report.RemovedFiles {
+			fmt.Fprintf(writer, "  - %s\n", path)
+		}
+	}
+	printToolChanges(writer, report, false)
+
+	lockChanged := report.FromVersion != report.ToVersion ||
+		len(report.LockMigrations) > 0 || hasToolChanges(report)
+	if lockChanged {
+		fmt.Fprintln(writer, "✓ Updated andurel.lock")
+	}
+	if len(report.ReplacedFiles) == 0 && len(report.RemovedFiles) == 0 && !lockChanged {
+		fmt.Fprintln(writer, "✓ Project is already up to date")
+		return
+	}
+}
+
+func printUpgradeDryRun(writer io.Writer, report *UpgradeReport) {
+	fmt.Fprintln(writer, "\n[DRY RUN] No files will be changed.")
+	if report.DirtyWorktree {
+		fmt.Fprintln(writer, "[DRY RUN] Warning: the worktree is dirty; planning only is permitted.")
+	}
+	if len(report.ReplacedFiles) > 0 {
+		fmt.Fprintln(writer, "\n[DRY RUN] Would replace framework files:")
+		for _, path := range report.ReplacedFiles {
+			fmt.Fprintf(writer, "  • %s\n", path)
+		}
+	}
+	if len(report.RemovedFiles) > 0 {
+		fmt.Fprintln(writer, "\n[DRY RUN] Would remove obsolete internal package files:")
+		for _, path := range report.RemovedFiles {
+			fmt.Fprintf(writer, "  - %s\n", path)
+		}
+	}
+	printToolChanges(writer, report, true)
+	if report.FromVersion != report.ToVersion || len(report.LockMigrations) > 0 || hasToolChanges(report) {
+		fmt.Fprintln(writer, "\n[DRY RUN] Would update andurel.lock")
+	}
+	if len(report.Conflicts) > 0 {
+		fmt.Fprintln(writer, "\n[DRY RUN] Conflicts:")
+		for _, conflict := range report.Conflicts {
+			fmt.Fprintf(writer, "  ! %s\n", conflict)
+		}
+	}
+}
+
+func printUpgradeConflicts(writer io.Writer, report *UpgradeReport) {
+	fmt.Fprintln(writer, "\nUpgrade blocked by conflicts:")
+	for _, conflict := range report.Conflicts {
+		fmt.Fprintf(writer, "  ! %s\n", conflict)
+	}
+	fmt.Fprintln(writer, "No files were changed.")
+}
+
+func printToolChanges(writer io.Writer, report *UpgradeReport, dryRun bool) {
+	if !hasToolChanges(report) {
+		return
+	}
+	label := "Updating managed tool metadata..."
 	if dryRun {
-		fmt.Printf("\n[DRY RUN] dirty worktree: %t\n", report.DirtyWorktree)
-		if report.DirtyWorktree {
-			fmt.Printf("[DRY RUN] WARNING: worktree is dirty; planning only is permitted\n")
-		}
+		label = "\n[DRY RUN] Tool changes:"
 	}
-	printList := func(label string, values []string) {
-		fmt.Printf("%s:\n", label)
-		for _, value := range values {
-			fmt.Printf("  %s\n", value)
-		}
+	fmt.Fprintln(writer, label)
+	printToolGroup(writer, "Added", report.AddedTools)
+	printToolGroup(writer, "Updated", report.UpdatedTools)
+	printToolGroup(writer, "Removed", report.RemovedTools)
+	printToolGroup(writer, "Metadata", report.ToolMetadataChanges)
+}
+
+func printToolGroup(writer io.Writer, label string, values []string) {
+	if len(values) == 0 {
+		return
 	}
-	printList("File replacements", report.ReplacedFiles)
-	printList("File deletions", report.RemovedFiles)
-	printList("Framework migrations", report.FrameworkMigrations)
-	printList("Lock migrations", report.LockMigrations)
-	tools := append(append([]string{}, report.AddedTools...), report.UpdatedTools...)
-	tools = append(tools, report.RemovedTools...)
-	tools = append(tools, report.ToolMetadataChanges...)
-	sort.Strings(tools)
-	printList("Tool metadata changes", tools)
-	printList("Conflicts", report.Conflicts)
-	if dryRun {
-		fmt.Printf("Unified diffs:\n")
-		for _, diff := range report.Diffs {
-			fmt.Print(diff.Diff)
-		}
+	fmt.Fprintf(writer, "  %s:\n", label)
+	for _, value := range values {
+		fmt.Fprintf(writer, "    %s\n", value)
 	}
+}
+
+func hasToolChanges(report *UpgradeReport) bool {
+	return len(report.AddedTools) > 0 || len(report.UpdatedTools) > 0 ||
+		len(report.RemovedTools) > 0 || len(report.ToolMetadataChanges) > 0
 }
 
 func (u *Upgrader) obsoleteManagedInternalFiles() []string {

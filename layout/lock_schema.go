@@ -18,12 +18,6 @@ var requiredChecksumPlatforms = []string{
 	"darwin/arm64",
 }
 
-var recognizedLegacyRCVersions = map[string]struct{}{
-	"v1.0.0-rc.1": {},
-	"v1.0.0-rc.2": {},
-	"v1.0.0-rc.3": {},
-}
-
 var sha256Pattern = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
 
 func isSupportedChecksumPlatform(platform string) bool {
@@ -32,15 +26,14 @@ func isSupportedChecksumPlatform(platform string) bool {
 
 func decodeAndValidateLock(data []byte) (*AndurelLock, error) {
 	var header struct {
-		SchemaVersion *int   `json:"schemaVersion"`
-		Version       string `json:"version"`
+		SchemaVersion *int `json:"schemaVersion"`
 	}
 	if err := json.Unmarshal(data, &header); err != nil {
 		return nil, err
 	}
 
 	if header.SchemaVersion == nil {
-		return migrateLegacyRCLock(data, header.Version)
+		return migrateLegacyLock(data)
 	}
 	if *header.SchemaVersion > currentLockSchemaVersion {
 		return nil, fmt.Errorf(
@@ -62,14 +55,7 @@ func decodeAndValidateLock(data []byte) (*AndurelLock, error) {
 	return &lock, nil
 }
 
-func migrateLegacyRCLock(data []byte, frameworkVersion string) (*AndurelLock, error) {
-	if _, ok := recognizedLegacyRCVersions[frameworkVersion]; !ok {
-		return nil, fmt.Errorf(
-			"andurel.lock is missing schemaVersion and is not a recognized RC lock (version %q)",
-			frameworkVersion,
-		)
-	}
-
+func migrateLegacyLock(data []byte) (*AndurelLock, error) {
 	var candidate AndurelLock
 	if err := json.Unmarshal(data, &candidate); err != nil {
 		return nil, err
@@ -88,7 +74,7 @@ func migrateLegacyRCLock(data []byte, frameworkVersion string) (*AndurelLock, er
 
 	candidate.SchemaVersion = currentLockSchemaVersion
 	if err := validateSchema1Lock(&candidate); err != nil {
-		return nil, fmt.Errorf("recognized RC lock migration failed validation: %w", err)
+		return nil, fmt.Errorf("legacy lock migration failed validation: %w", err)
 	}
 	return &candidate, nil
 }

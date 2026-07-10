@@ -1,6 +1,7 @@
 package upgrade
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +11,72 @@ import (
 
 	"github.com/mbvlabs/andurel/layout"
 )
+
+func TestUpgradePresentationRestoresProgressiveHumanOutput(t *testing.T) {
+	t.Parallel()
+
+	report := &UpgradeReport{
+		FromVersion:         "v1.0.0",
+		ToVersion:           "v1.0.1",
+		FilesReplaced:       2,
+		ReplacedFiles:       []string{"internal/request/context.go", "internal/server/server.go"},
+		ToolsUpdated:        1,
+		UpdatedTools:        []string{"shadowfax: v0.8.4"},
+		ToolMetadataChanges: []string{"templ metadata"},
+	}
+
+	var output bytes.Buffer
+	printUpgradeStart(&output, report.FromVersion, report.ToVersion)
+	printUpgradeSuccess(&output, report)
+	got := output.String()
+	for _, want := range []string{
+		"Upgrading framework from v1.0.0 to v1.0.1...",
+		"Rendering framework templates...",
+		"Replacing framework files...",
+		"✓ internal/request/context.go",
+		"Updating managed tool metadata...",
+		"Updated:",
+		"Metadata:",
+		"✓ Updated andurel.lock",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("upgrade presentation missing %q:\n%s", want, got)
+		}
+	}
+	for _, unwanted := range []string{"File replacements:", "Lock migrations:", "Conflicts:"} {
+		if strings.Contains(got, unwanted) {
+			t.Fatalf("upgrade presentation contains technical section %q:\n%s", unwanted, got)
+		}
+	}
+}
+
+func TestUpgradeDryRunPresentationOmitsEmptySections(t *testing.T) {
+	t.Parallel()
+
+	report := &UpgradeReport{
+		FromVersion:   "v1.0.0",
+		ToVersion:     "v1.0.1",
+		ReplacedFiles: []string{"internal/server/server.go"},
+	}
+	var output bytes.Buffer
+	printUpgradeDryRun(&output, report)
+	got := output.String()
+	for _, want := range []string{
+		"[DRY RUN] No files will be changed.",
+		"Would replace framework files:",
+		"internal/server/server.go",
+		"Would update andurel.lock",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("dry-run presentation missing %q:\n%s", want, got)
+		}
+	}
+	for _, unwanted := range []string{"Tool changes:", "Conflicts:", "Unified diffs:"} {
+		if strings.Contains(got, unwanted) {
+			t.Fatalf("dry-run presentation contains empty section %q:\n%s", unwanted, got)
+		}
+	}
+}
 
 func TestShouldUpdateTool_NoDowngrade(t *testing.T) {
 	tests := []struct {

@@ -38,18 +38,18 @@ expect_fail() {
 
 root="$(new_repository prerelease)"
 sha="$(git -C "${root}" rev-parse HEAD)"
-git -C "${root}" tag v1.0.0-rc.5
-expect_pass "${root}" v1.0.0-rc.5 "${sha}"
-git -C "${root}" tag -a v1.0.0-rc.6 -m rc6
-expect_pass "${root}" v1.0.0-rc.6 "${sha}"
+git -C "${root}" tag v1.1.0-beta.1
+expect_pass "${root}" v1.1.0-beta.1 "${sha}"
+git -C "${root}" tag -a v1.1.0-beta.2 -m beta2
+expect_pass "${root}" v1.1.0-beta.2 "${sha}"
 
-root="$(new_repository stable-without-rc)"
+root="$(new_repository stable-without-prerelease)"
 sha="$(git -C "${root}" rev-parse HEAD)"
 git -C "${root}" tag v1.0.0
 expect_pass "${root}" v1.0.0 "${sha}"
 
-root="$(new_repository independent-rc)"
-git -C "${root}" tag v1.0.0-rc.4
+root="$(new_repository independent-prerelease)"
+git -C "${root}" tag v1.0.0-beta.1
 git -C "${root}" commit -q --allow-empty -m second
 sha="$(git -C "${root}" rev-parse HEAD)"
 git -C "${root}" tag -a v1.0.0 -m stable

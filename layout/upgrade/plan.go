@@ -33,17 +33,16 @@ type plannedFile struct {
 }
 
 type migrationPlan struct {
-	fromVersion         string
-	toVersion           string
-	sourceSchema        int
-	targetSchema        int
-	dirty               bool
-	files               []plannedFile
-	lockMigrations      []string
-	frameworkMigrations []string
-	toolChanges         ToolSyncResult
-	conflicts           []string
-	diffs               []FileDiff
+	fromVersion    string
+	toVersion      string
+	sourceSchema   int
+	targetSchema   int
+	dirty          bool
+	files          []plannedFile
+	lockMigrations []string
+	toolChanges    ToolSyncResult
+	conflicts      []string
+	diffs          []FileDiff
 }
 
 func (p *migrationPlan) cloneReport() *UpgradeReport {
@@ -52,7 +51,6 @@ func (p *migrationPlan) cloneReport() *UpgradeReport {
 		ToVersion:           p.toVersion,
 		DirtyWorktree:       p.dirty,
 		LockMigrations:      slices.Clone(p.lockMigrations),
-		FrameworkMigrations: slices.Clone(p.frameworkMigrations),
 		AddedTools:          slices.Clone(p.toolChanges.Added),
 		RemovedTools:        slices.Clone(p.toolChanges.Removed),
 		UpdatedTools:        slices.Clone(p.toolChanges.Updated),
@@ -98,10 +96,7 @@ func (u *Upgrader) buildPlan(dirty bool) (*migrationPlan, error) {
 		TargetLockSchema:       targetLockSchemaVersion,
 	})
 	for _, migration := range selected {
-		switch migration.Kind {
-		case MigrationKindFramework:
-			plan.frameworkMigrations = append(plan.frameworkMigrations, migration.Name)
-		case MigrationKindLockSchema:
+		if migration.Kind == MigrationKindLockSchema {
 			plan.lockMigrations = append(plan.lockMigrations, migration.Name)
 		}
 	}
@@ -125,20 +120,15 @@ func (u *Upgrader) buildPlan(dirty bool) (*migrationPlan, error) {
 	if err != nil {
 		return nil, fmt.Errorf("render framework templates: %w", err)
 	}
-	modulePath, err := resolveModulePath(u.projectRoot)
-	if err != nil {
-		return nil, err
-	}
 	paths := make([]string, 0, len(rendered))
 	for path := range rendered {
 		paths = append(paths, path)
 	}
 	sort.Strings(paths)
 	for _, path := range paths {
-		if recognized, recognitionErr := recognizeWholeFileReplacement(u.projectRoot, path, rendered[path], modulePath, u.lock.ScaffoldConfig.ProjectName); recognitionErr != nil {
+		if recognized, recognitionErr := recognizeWholeFileReplacement(u.projectRoot, path, rendered[path]); recognitionErr != nil {
 			return nil, recognitionErr
 		} else if !recognized {
-			plan.conflicts = append(plan.conflicts, fmt.Sprintf("%s does not match an exact known RC template", path))
 			continue
 		}
 		if err := plan.addReplacement(u.projectRoot, path, rendered[path], false); err != nil {
@@ -149,30 +139,13 @@ func (u *Upgrader) buildPlan(dirty bool) (*migrationPlan, error) {
 	obsolete := u.obsoleteManagedInternalFiles()
 	sort.Strings(obsolete)
 	for _, path := range obsolete {
-		if recognized, recognitionErr := recognizeWholeFileDeletion(u.projectRoot, path, modulePath, u.lock.ScaffoldConfig.ProjectName); recognitionErr != nil {
+		if recognized, recognitionErr := recognizeWholeFileDeletion(u.projectRoot, path); recognitionErr != nil {
 			return nil, recognitionErr
 		} else if !recognized {
-			plan.conflicts = append(plan.conflicts, fmt.Sprintf("%s cannot be deleted because it is not an exact known RC template", path))
 			continue
 		}
 		if err := plan.addDeletion(u.projectRoot, path); err != nil {
 			return nil, err
-		}
-	}
-
-	for _, migration := range selected {
-		if migration.Transform == nil {
-			continue
-		}
-		changes, conflicts, transformErr := migration.Transform(u.projectRoot, u.generator, u.lock)
-		if transformErr != nil {
-			return nil, fmt.Errorf("plan %s: %w", migration.Name, transformErr)
-		}
-		plan.conflicts = append(plan.conflicts, conflicts...)
-		for _, change := range changes {
-			if err := plan.addReplacement(u.projectRoot, change.Path, change.Content, false); err != nil {
-				return nil, err
-			}
 		}
 	}
 
@@ -205,10 +178,10 @@ func (u *Upgrader) buildPlan(dirty bool) (*migrationPlan, error) {
 	return plan, nil
 }
 
-func recognizeWholeFileReplacement(root, path string, target []byte, normalizedValues ...string) (bool, error) {
+func recognizeWholeFileReplacement(root, path string, target []byte) (bool, error) {
 	current, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
 	if os.IsNotExist(err) {
-		return true, nil
+		return hasAndurelVersionMarker(target), nil
 	}
 	if err != nil {
 		return false, err
@@ -216,12 +189,10 @@ func recognizeWholeFileReplacement(root, path string, target []byte, normalizedV
 	if bytes.Equal(current, target) {
 		return true, nil
 	}
-	known := knownRCInternalTemplateHashes[path]
-	_, ok := known[normalizedFileHash(current, normalizedValues...)]
-	return ok, nil
+	return hasAndurelVersionMarker(current), nil
 }
 
-func recognizeWholeFileDeletion(root, path string, normalizedValues ...string) (bool, error) {
+func recognizeWholeFileDeletion(root, path string) (bool, error) {
 	current, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
 	if os.IsNotExist(err) {
 		return true, nil
@@ -229,9 +200,22 @@ func recognizeWholeFileDeletion(root, path string, normalizedValues ...string) (
 	if err != nil {
 		return false, err
 	}
-	known := knownRCInternalTemplateHashes[path]
-	_, ok := known[normalizedFileHash(current, normalizedValues...)]
-	return ok, nil
+	return hasAndurelVersionMarker(current), nil
+}
+
+func hasAndurelVersionMarker(content []byte) bool {
+	const prefix = "// Code generated by andurel "
+	const suffix = "; DO NOT EDIT."
+
+	for line := range bytes.Lines(content) {
+		line = bytes.TrimSpace(line)
+		if !bytes.HasPrefix(line, []byte(prefix)) || !bytes.HasSuffix(line, []byte(suffix)) {
+			continue
+		}
+		version := line[len(prefix) : len(line)-len(suffix)]
+		return len(bytes.TrimSpace(version)) > 0
+	}
+	return false
 }
 
 func (p *migrationPlan) addReplacement(root, path string, after []byte, isLock bool) error {

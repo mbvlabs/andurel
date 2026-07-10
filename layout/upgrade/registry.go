@@ -42,9 +42,6 @@ type Migration struct {
 
 var migrationRegistry = []Migration{
 	{Order: 10, Name: "lock-schema-legacy-to-1", Kind: MigrationKindLockSchema, SourceLockSchema: 0, TargetLockSchema: 1},
-	{Order: 100, Name: "rc1-project-corrections", Kind: MigrationKindFramework, SourceFramework: "v1.0.0-rc.1", TargetFramework: "v1", Transform: transformRCProject},
-	{Order: 110, Name: "rc2-project-corrections", Kind: MigrationKindFramework, SourceFramework: "v1.0.0-rc.2", TargetFramework: "v1", Transform: transformRCProject},
-	{Order: 120, Name: "rc3-project-corrections", Kind: MigrationKindFramework, SourceFramework: "v1.0.0-rc.3", TargetFramework: "v1", Transform: transformRCProject},
 }
 
 func selectMigrations(selector MigrationSelector) []Migration {
