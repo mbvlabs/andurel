@@ -531,7 +531,7 @@ func loadDatabaseConfig() (dbConfig, error) {
 	}, nil
 }
 
-func dropDatabase(force bool) error {
+func dropDatabase(force bool) (err error) {
 	rootDir, err := findGoModRoot()
 	if err != nil {
 		return err
@@ -548,7 +548,9 @@ func dropDatabase(force bool) error {
 		return err
 	}
 	if !confirmed {
-		fmt.Fprintln(os.Stdout, "Aborted.")
+		if _, err := fmt.Fprintln(os.Stdout, "Aborted."); err != nil {
+			return err
+		}
 		return errDatabaseOperationAborted
 	}
 
@@ -557,7 +559,7 @@ func dropDatabase(force bool) error {
 		return err
 	}
 	defer cancel()
-	defer conn.Close(ctx)
+	defer func() { err = errors.Join(err, conn.Close(ctx)) }()
 
 	if err := dropDatabaseWithConn(ctx, cfg, conn, force); err != nil {
 		return err
@@ -567,7 +569,7 @@ func dropDatabase(force bool) error {
 	return nil
 }
 
-func createDatabase() error {
+func createDatabase() (err error) {
 	rootDir, err := findGoModRoot()
 	if err != nil {
 		return err
@@ -579,7 +581,7 @@ func createDatabase() error {
 		return err
 	}
 	defer cancel()
-	defer conn.Close(ctx)
+	defer func() { err = errors.Join(err, conn.Close(ctx)) }()
 
 	if err := createDatabaseWithConn(ctx, cfg, conn); err != nil {
 		return err
@@ -589,7 +591,7 @@ func createDatabase() error {
 	return nil
 }
 
-func nukeDatabase(force bool) error {
+func nukeDatabase(force bool) (err error) {
 	rootDir, err := findGoModRoot()
 	if err != nil {
 		return err
@@ -606,7 +608,9 @@ func nukeDatabase(force bool) error {
 		return err
 	}
 	if !confirmed {
-		fmt.Fprintln(os.Stdout, "Aborted.")
+		if _, err := fmt.Fprintln(os.Stdout, "Aborted."); err != nil {
+			return err
+		}
 		return errDatabaseOperationAborted
 	}
 
@@ -615,7 +619,7 @@ func nukeDatabase(force bool) error {
 		return err
 	}
 	defer cancel()
-	defer conn.Close(ctx)
+	defer func() { err = errors.Join(err, conn.Close(ctx)) }()
 
 	if err := dropDatabaseWithConn(ctx, cfg, conn, force); err != nil {
 		return err
@@ -734,7 +738,9 @@ func confirmDestructive(action string, databaseName string) (bool, error) {
 		return false, errors.New("database name is empty")
 	}
 
-	fmt.Fprintf(os.Stdout, "Are you sure you want to %s database %q? y/N ", action, databaseName)
+	if _, err := fmt.Fprintf(os.Stdout, "Are you sure you want to %s database %q? y/N ", action, databaseName); err != nil {
+		return false, err
+	}
 
 	reader := bufio.NewReader(os.Stdin)
 	line, err := reader.ReadString('\n')

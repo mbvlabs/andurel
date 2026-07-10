@@ -109,12 +109,16 @@ func (p *Project) setupToolBinaries() error {
 }
 
 // copyFile copies a file from src to dst, preserving permissions
-func copyFile(src, dst string) error {
+func copyFile(src, dst string) (err error) {
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return err
 	}
-	defer srcFile.Close()
+	defer func() {
+		if closeErr := srcFile.Close(); err == nil && closeErr != nil {
+			err = closeErr
+		}
+	}()
 
 	srcInfo, err := srcFile.Stat()
 	if err != nil {
@@ -126,12 +130,10 @@ func copyFile(src, dst string) error {
 		return err
 	}
 
-	defer func() error {
-		if err := dstFile.Close(); err != nil {
-			return err
+	defer func() {
+		if closeErr := dstFile.Close(); err == nil && closeErr != nil {
+			err = closeErr
 		}
-
-		return nil
 	}()
 
 	_, err = io.Copy(dstFile, srcFile)

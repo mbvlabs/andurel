@@ -37,8 +37,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create temp directory: %v", err))
 	}
-	defer os.RemoveAll(tmpDir)
-
 	andurelBinary = filepath.Join(tmpDir, "andurel")
 
 	cmd := exec.Command("go", "build", "-o", andurelBinary, ".")
@@ -67,6 +65,12 @@ func TestMain(m *testing.M) {
 	}
 
 	code := m.Run()
+	if err := os.RemoveAll(tmpDir); err != nil {
+		if _, writeErr := fmt.Fprintf(os.Stderr, "Failed to clean E2E temporary directory: %v\n", err); writeErr != nil {
+			code = 1
+		}
+		code = 1
+	}
 	os.Exit(code)
 }
 

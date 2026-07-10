@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -55,19 +56,19 @@ func runFmt(rootDir string, checkMode, skipTempl, skipGo bool) error {
 	if !skipGo {
 		if err := runGoFmtFunc(rootDir, checkMode); err != nil {
 			hasIssues = true
-			fmt.Fprintf(os.Stderr, "go fmt: %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "go fmt: %v\n", err)
 		}
 
 		if err := runGolinesFunc(rootDir, checkMode); err != nil {
 			hasIssues = true
-			fmt.Fprintf(os.Stderr, "golines: %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "golines: %v\n", err)
 		}
 	}
 
 	if !skipTempl {
 		if err := runTemplFmtFunc(rootDir, checkMode); err != nil {
 			hasIssues = true
-			fmt.Fprintf(os.Stderr, "templ fmt: %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "templ fmt: %v\n", err)
 		}
 	}
 
@@ -114,8 +115,7 @@ func runGoFmt(rootDir string, checkMode bool) error {
 func runGolines(rootDir string, checkMode bool) error {
 	golinesPath, err := exec.LookPath("golines")
 	if err != nil {
-		fmt.Println("golines not found in PATH, skipping")
-		return nil
+		return fmt.Errorf("golines not found in PATH: %w", err)
 	}
 
 	if !checkMode {
@@ -126,26 +126,33 @@ func runGolines(rootDir string, checkMode bool) error {
 		return cmd.Run()
 	}
 
-	cmd := exec.Command(golinesPath, "-m", "100", ".")
-	cmd.Dir = rootDir
-	out, err := cmd.Output()
-	if err != nil {
-		return err
-	}
-
-	originalFiles, err := collectGoFiles(rootDir)
+	files, err := collectGoFiles(rootDir)
 	if err != nil {
 		return fmt.Errorf("collecting Go files: %w", err)
 	}
-
-	for _, f := range originalFiles {
-		relPath, _ := filepath.Rel(rootDir, f)
-		orig, _ := os.ReadFile(f)
-		if !bytes.Contains(out, orig) {
-			fmt.Printf("  %s\n", relPath)
+	dirty := make([]string, 0)
+	for _, file := range files {
+		relPath, err := filepath.Rel(rootDir, file)
+		if err != nil {
+			return err
+		}
+		original, err := os.ReadFile(file)
+		if err != nil {
+			return err
+		}
+		cmd := exec.Command(golinesPath, "-m", "100", relPath)
+		cmd.Dir = rootDir
+		formatted, err := cmd.Output()
+		if err != nil {
+			return fmt.Errorf("golines %s: %w", filepath.ToSlash(relPath), err)
+		}
+		if !bytes.Equal(original, formatted) {
+			dirty = append(dirty, filepath.ToSlash(relPath))
 		}
 	}
-
+	if len(dirty) > 0 {
+		return fmt.Errorf("golines would change: %s", strings.Join(dirty, ", "))
+	}
 	return nil
 }
 
@@ -183,6 +190,40 @@ func runTemplFmt(rootDir string, checkMode bool) error {
 		return err
 	}
 
+	if checkMode {
+		return checkTemplFormatting(rootDir)
+	}
+	return runTemplFormatter(rootDir)
+}
+
+func checkTemplFormatting(rootDir string) error {
+	var changed []string
+	err := withDiagnosticProjectCopy(rootDir, func(tempRoot string) error {
+		before, err := snapshotFilesForReport(tempRoot)
+		if err != nil {
+			return err
+		}
+		if err := runTemplFormatter(tempRoot); err != nil {
+			return err
+		}
+		after, err := snapshotFilesForReport(tempRoot)
+		if err != nil {
+			return err
+		}
+		changed = changedSnapshotPaths(before, after)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if len(changed) > 0 {
+		return fmt.Errorf("templ fmt would change: %s", strings.Join(changed, ", "))
+	}
+	return nil
+}
+
+func runTemplFormatter(rootDir string) error {
+	templBin := filepath.Join(rootDir, "bin", "templ")
 	dirs := []string{"views", "email"}
 	for _, dir := range dirs {
 		dirPath := filepath.Join(rootDir, dir)
@@ -193,7 +234,7 @@ func runTemplFmt(rootDir string, checkMode bool) error {
 		args := []string{"fmt", dir}
 		cmd := exec.Command(templBin, args...)
 		cmd.Dir = rootDir
-		cmd.Stdout = os.Stdout
+		cmd.Stdout = io.Discard
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("templ fmt failed in %s: %w", dir, err)

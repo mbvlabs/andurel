@@ -365,7 +365,7 @@ func ensureRegisterRoutes(content, receiverName, controllerName, namespace, reso
 
 func registerRoutesMethod(receiverName, controllerName, namespace, resourceName string, actions []string) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("func (%s %s) RegisterRoutes(r *router.Router) error {\n", receiverName, controllerName))
+	fmt.Fprintf(&sb, "func (%s %s) RegisterRoutes(r *router.Router) error {\n", receiverName, controllerName)
 	sb.WriteString("\tvar errs []error\n")
 	sb.WriteString("\tvar err error\n\n")
 	for _, action := range actions {

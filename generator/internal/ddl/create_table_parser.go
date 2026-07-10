@@ -24,13 +24,16 @@ func (p *CreateTableParser) Parse(
 ) (*CreateTableStatement, error) {
 	matches := parseCreateTableMatches(sql)
 	if len(matches) < 5 {
-		return nil, fmt.Errorf("invalid CREATE TABLE syntax: %s", sql)
+		return nil, unsupportedStatement(sql, "CREATE TABLE requires one unquoted table name and an explicit column list")
 	}
 
 	ifNotExists := matches[1] != ""
 	schemaName := matches[2]
 	tableName := matches[3]
 	columnDefs := matches[4]
+	if strings.ContainsAny(schemaName+tableName, `"'`) {
+		return nil, unsupportedStatement(sql, "quoted table identifiers are not supported")
+	}
 
 	columns, err := p.parseColumnDefinitions(columnDefs, migrationFile, databaseType)
 	if err != nil {
@@ -59,6 +62,11 @@ func (p *CreateTableParser) parseColumnDefinitions(
 	}
 
 	defs := p.splitColumnDefinitions(columnDefs)
+	if len(defs) == 0 {
+		return nil, unsupportedStatement(columnDefs, "CREATE TABLE must contain at least one column definition")
+	}
+	seenColumns := map[string]struct{}{}
+	primaryKeyDefinitions := 0
 
 	for _, def := range defs {
 		def = strings.TrimSpace(def)
@@ -69,10 +77,20 @@ func (p *CreateTableParser) parseColumnDefinitions(
 		defLower := strings.ToLower(def)
 
 		if strings.HasPrefix(defLower, "primary key") {
-			if pkCols, ok := parsePrimaryKeyColumns(def); ok {
-				for _, col := range pkCols {
-					primaryKeyColumns = append(primaryKeyColumns, strings.TrimSpace(col))
+			primaryKeyDefinitions++
+			if primaryKeyDefinitions > 1 {
+				return nil, unsupportedStatement(def, "multiple table-level PRIMARY KEY definitions are ambiguous")
+			}
+			pkCols, ok := parsePrimaryKeyColumns(def)
+			if !ok || len(pkCols) == 0 {
+				return nil, unsupportedStatement(def, "table-level PRIMARY KEY must name one or more columns")
+			}
+			for _, col := range pkCols {
+				name := strings.TrimSpace(col)
+				if name == "" {
+					return nil, unsupportedStatement(def, "table-level PRIMARY KEY contains an empty column name")
 				}
+				primaryKeyColumns = append(primaryKeyColumns, name)
 			}
 			continue
 		}
@@ -81,22 +99,30 @@ func (p *CreateTableParser) parseColumnDefinitions(
 			// Parse table-level FOREIGN KEY constraint
 			// Format: FOREIGN KEY (column) REFERENCES table(column)
 			// Also handles: CONSTRAINT name FOREIGN KEY (column) REFERENCES table(column)
-			if matches, ok := parseTableLevelForeignKey(def); ok {
-				foreignKeys = append(foreignKeys, struct {
-					column           string
-					referencedTable  string
-					referencedColumn string
-				}{
-					column:           matches[1],
-					referencedTable:  matches[2],
-					referencedColumn: matches[3],
-				})
+			matches, ok := parseTableLevelForeignKey(def)
+			if !ok {
+				return nil, unsupportedStatement(def, "table-level FOREIGN KEY must name one local and one referenced column")
 			}
+			foreignKeys = append(foreignKeys, struct {
+				column           string
+				referencedTable  string
+				referencedColumn string
+			}{
+				column:           matches[1],
+				referencedTable:  matches[2],
+				referencedColumn: matches[3],
+			})
 			continue
 		}
 
-		if strings.HasPrefix(defLower, "constraint") || isTableConstraintDefinition(defLower) {
+		if isTableConstraintDefinition(defLower) {
 			continue
+		}
+		if strings.HasPrefix(defLower, "constraint") {
+			if strings.Contains(defLower, " unique ") || strings.Contains(defLower, " check ") {
+				continue
+			}
+			return nil, unsupportedStatement(def, "only named FOREIGN KEY, UNIQUE, and CHECK table constraints are supported")
 		}
 
 		col, err := p.parseColumnDefinition(def, migrationFile, databaseType)
@@ -109,6 +135,11 @@ func (p *CreateTableParser) parseColumnDefinitions(
 		}
 
 		if col != nil {
+			normalizedName := strings.ToLower(col.Name)
+			if _, exists := seenColumns[normalizedName]; exists {
+				return nil, unsupportedStatement(def, "duplicate column definition for "+col.Name)
+			}
+			seenColumns[normalizedName] = struct{}{}
 			columns = append(columns, col)
 		}
 	}
@@ -147,6 +178,9 @@ func (p *CreateTableParser) parseColumnDefinition(
 	}
 
 	columnName := parts[0]
+	if strings.ContainsAny(columnName, `"'`) {
+		return nil, unsupportedStatement(def, "quoted column identifiers are not supported")
+	}
 
 	constraintKeywords := []string{
 		"not",

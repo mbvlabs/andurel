@@ -732,8 +732,10 @@ func renderTemplate(
 	}()
 
 	if err := tmpl.Execute(tmpFile, data); err != nil {
-		tmpFile.Close()
-		return fmt.Errorf("failed to execute template %s: %w", templateFile, err)
+		return errors.Join(
+			fmt.Errorf("failed to execute template %s: %w", templateFile, err),
+			tmpFile.Close(),
+		)
 	}
 
 	if err := tmpFile.Close(); err != nil {

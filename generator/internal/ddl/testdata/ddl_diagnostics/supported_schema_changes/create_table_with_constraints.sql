@@ -1,0 +1,6 @@
+CREATE TABLE public.accounts (
+    id UUID PRIMARY KEY,
+    email VARCHAR(320) NOT NULL UNIQUE,
+    balance NUMERIC(12,2) DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL
+);

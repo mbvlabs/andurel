@@ -587,10 +587,6 @@ func extractTarGz(archivePath, binaryName, destPath string) error {
 	return extractBinary(archivePath, binaryName, destPath, "tar.gz")
 }
 
-func extractTarBz2(archivePath, binaryName, destPath string) error {
-	return extractBinary(archivePath, binaryName, destPath, "tar.bz2")
-}
-
 func extractZip(archivePath, binaryName, destPath string) error {
 	return extractBinary(archivePath, binaryName, destPath, "zip")
 }

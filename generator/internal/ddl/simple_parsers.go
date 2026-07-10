@@ -1,7 +1,6 @@
 package ddl
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 )
@@ -17,7 +16,7 @@ func NewDropTableParser() *DropTableParser {
 // Parse performs the parse operation.
 func (p *DropTableParser) Parse(sql string) (*DropTableStatement, error) {
 	dropRegex, err := regexp.Compile(
-		`(?i)drop\s+table(?:\s+if\s+exists)?\s+(?:(\w+)\.)?(\w+)`,
+		`(?i)^drop\s+table(?:\s+if\s+exists)?\s+(?:(\w+)\.)?(\w+)\s*;?\s*$`,
 	)
 	if err != nil {
 		return nil, err
@@ -25,7 +24,7 @@ func (p *DropTableParser) Parse(sql string) (*DropTableStatement, error) {
 	matches := dropRegex.FindStringSubmatch(sql)
 
 	if len(matches) < 3 {
-		return nil, fmt.Errorf("invalid DROP TABLE syntax: %s", sql)
+		return nil, unsupportedStatement(sql, "DROP TABLE supports one unquoted table name without CASCADE")
 	}
 
 	schemaName := matches[1]

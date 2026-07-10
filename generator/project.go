@@ -2,6 +2,7 @@ package generator
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -44,13 +45,11 @@ func getCurrentModulePath(fileManager files.Manager) (string, error) {
 		}
 
 		goModPath := filepath.Join(rootDir, "go.mod")
-		file, err := os.Open(goModPath)
+		content, err := os.ReadFile(goModPath)
 		if err != nil {
 			return "", fmt.Errorf("failed to open go.mod: %w", err)
 		}
-		defer file.Close()
-
-		scanner := bufio.NewScanner(file)
+		scanner := bufio.NewScanner(bytes.NewReader(content))
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
 			if strings.HasPrefix(line, "module ") {

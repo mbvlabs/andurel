@@ -312,15 +312,3 @@ func (m *ModelManager) readNullType(rootDir string) string {
 	}
 	return "sql.Null"
 }
-
-func (m *ModelManager) checkExistingModel(resourceName string) {
-	modelFileName := naming.ToSnakeCase(resourceName) + ".go"
-	modelPath := filepath.Join(m.config.Paths.Models, modelFileName)
-
-	if _, err := os.Stat(modelPath); err == nil {
-		fmt.Printf(
-			"Warning: Model file %s already exists for this resource.\n",
-			modelPath,
-		)
-	}
-}

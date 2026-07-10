@@ -2,7 +2,7 @@ package ddl
 
 import (
 	"fmt"
-	"log/slog"
+	"strings"
 
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 )
@@ -80,11 +80,13 @@ func (v *CatalogVisitor) VisitAlterTable(stmt *AlterTableStatement) error {
 		// FIXED: Direct access to stmt.Operations - no conversion needed!
 		return v.applyMultipleOperations(schemaName, stmt.TableName, stmt.Operations)
 	case "ADD_CONSTRAINT", "DROP_CONSTRAINT":
+		operation := strings.ToLower(stmt.Raw)
+		if stmt.AlterOperation == "DROP_CONSTRAINT" || strings.Contains(operation, "primary key") {
+			return unsupportedStatement(stmt.Raw, "constraint operation can change the primary key used by generated models")
+		}
 		return nil
 	default:
-		// Unknown operation, log but don't fail
-		slog.Warn("Unknown ALTER TABLE operation", "operation", stmt.AlterOperation)
-		return nil
+		return unsupportedStatement(stmt.Raw, "ALTER TABLE operation is not supported by model generation")
 	}
 }
 

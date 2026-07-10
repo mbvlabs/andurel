@@ -12,14 +12,12 @@ import (
 func BenchmarkNewCoordinator(b *testing.B) {
 	// Change to a temp directory for benchmarking
 	tmpDir := b.TempDir()
-	originalWd, _ := os.Getwd()
-	defer os.Chdir(originalWd)
-	os.Chdir(tmpDir)
+	benchmarkInDirectory(b, tmpDir)
 
 	// Create minimal required structure
-	os.MkdirAll("database/migrations", 0755)
-	os.MkdirAll("router/routes", 0755)
-	os.WriteFile("go.mod", []byte("module test\n\ngo 1.21\n"), 0644)
+	benchmarkMkdirAll(b, "database/migrations")
+	benchmarkMkdirAll(b, "router/routes")
+	benchmarkWriteFile(b, "go.mod", "module test\n\ngo 1.21\n")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -33,14 +31,12 @@ func BenchmarkNewCoordinator(b *testing.B) {
 // BenchmarkConfigManagerLoad benchmarks config loading
 func BenchmarkConfigManagerLoad(b *testing.B) {
 	tmpDir := b.TempDir()
-	originalWd, _ := os.Getwd()
-	defer os.Chdir(originalWd)
-	os.Chdir(tmpDir)
+	benchmarkInDirectory(b, tmpDir)
 
 	// Create minimal required structure
-	os.MkdirAll("database/migrations", 0755)
-	os.MkdirAll("router/routes", 0755)
-	os.WriteFile("go.mod", []byte("module test\n\ngo 1.21\n"), 0644)
+	benchmarkMkdirAll(b, "database/migrations")
+	benchmarkMkdirAll(b, "router/routes")
+	benchmarkWriteFile(b, "go.mod", "module test\n\ngo 1.21\n")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -68,7 +64,9 @@ func BenchmarkValidateResourceName(b *testing.B) {
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = validator.ValidateResourceName(tc.resourceName)
+				if err := validator.ValidateResourceName(tc.resourceName); err != nil {
+					b.Fatal(err)
+				}
 			}
 		})
 	}
@@ -90,7 +88,9 @@ func BenchmarkValidateTableName(b *testing.B) {
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_ = validator.ValidateTableName(tc.tableName)
+				if err := validator.ValidateTableName(tc.tableName); err != nil {
+					b.Fatal(err)
+				}
 			}
 		})
 	}
@@ -99,14 +99,12 @@ func BenchmarkValidateTableName(b *testing.B) {
 // BenchmarkFindGoModRoot benchmarks finding go.mod root
 func BenchmarkFindGoModRoot(b *testing.B) {
 	tmpDir := b.TempDir()
-	originalWd, _ := os.Getwd()
-	defer os.Chdir(originalWd)
 
 	// Create nested directory structure with go.mod at root
 	nestedPath := filepath.Join(tmpDir, "a", "b", "c", "d")
-	os.MkdirAll(nestedPath, 0755)
-	os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module test\n"), 0644)
-	os.Chdir(nestedPath)
+	benchmarkMkdirAll(b, nestedPath)
+	benchmarkWriteFile(b, filepath.Join(tmpDir, "go.mod"), "module test\n")
+	benchmarkInDirectory(b, nestedPath)
 
 	fm := files.NewUnifiedFileManager()
 
@@ -122,11 +120,9 @@ func BenchmarkFindGoModRoot(b *testing.B) {
 // BenchmarkProjectManagerGetModulePath benchmarks getting module path
 func BenchmarkProjectManagerGetModulePath(b *testing.B) {
 	tmpDir := b.TempDir()
-	originalWd, _ := os.Getwd()
-	defer os.Chdir(originalWd)
-	os.Chdir(tmpDir)
+	benchmarkInDirectory(b, tmpDir)
 
-	os.WriteFile("go.mod", []byte("module github.com/example/test\n\ngo 1.21\n"), 0644)
+	benchmarkWriteFile(b, "go.mod", "module github.com/example/test\n\ngo 1.21\n")
 
 	pm, err := NewProjectManager()
 	if err != nil {
@@ -142,13 +138,11 @@ func BenchmarkProjectManagerGetModulePath(b *testing.B) {
 // BenchmarkMigrationManagerBuildCatalog benchmarks catalog building from migrations
 func BenchmarkMigrationManagerBuildCatalog(b *testing.B) {
 	tmpDir := b.TempDir()
-	originalWd, _ := os.Getwd()
-	defer os.Chdir(originalWd)
-	os.Chdir(tmpDir)
+	benchmarkInDirectory(b, tmpDir)
 
 	// Create migration directory and files
 	migrationDir := "internal/database/migrations"
-	os.MkdirAll(migrationDir, 0755)
+	benchmarkMkdirAll(b, migrationDir)
 
 	// Create a sample migration
 	migrationContent := `-- +goose Up
@@ -162,8 +156,8 @@ CREATE TABLE users (
 -- +goose Down
 DROP TABLE users;
 `
-	os.WriteFile(filepath.Join(migrationDir, "001_create_users.sql"), []byte(migrationContent), 0644)
-	os.WriteFile("go.mod", []byte("module test\n\ngo 1.21\n"), 0644)
+	benchmarkWriteFile(b, filepath.Join(migrationDir, "001_create_users.sql"), migrationContent)
+	benchmarkWriteFile(b, "go.mod", "module test\n\ngo 1.21\n")
 
 	config := &UnifiedConfig{
 		Database: DatabaseConfig{
@@ -190,8 +184,44 @@ func BenchmarkInputValidation(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		// Simulate validation operations
-		_ = validator.ValidateResourceName("User")
-		_ = validator.ValidateTableName("users")
-		_ = validator.ValidateModulePath("github.com/example/test")
+		if err := validator.ValidateResourceName("User"); err != nil {
+			b.Fatal(err)
+		}
+		if err := validator.ValidateTableName("users"); err != nil {
+			b.Fatal(err)
+		}
+		if err := validator.ValidateModulePath("github.com/example/test"); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func benchmarkInDirectory(b *testing.B, directory string) {
+	b.Helper()
+	original, err := os.Getwd()
+	if err != nil {
+		b.Fatal(err)
+	}
+	if err := os.Chdir(directory); err != nil {
+		b.Fatal(err)
+	}
+	b.Cleanup(func() {
+		if err := os.Chdir(original); err != nil {
+			b.Errorf("restore working directory: %v", err)
+		}
+	})
+}
+
+func benchmarkMkdirAll(b *testing.B, path string) {
+	b.Helper()
+	if err := os.MkdirAll(path, 0o755); err != nil {
+		b.Fatal(err)
+	}
+}
+
+func benchmarkWriteFile(b *testing.B, path, content string) {
+	b.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		b.Fatal(err)
 	}
 }

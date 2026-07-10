@@ -348,13 +348,8 @@ func writeTarGz(t *testing.T, path, name, content string) {
 	if err != nil {
 		t.Fatalf("create tar.gz: %v", err)
 	}
-	defer file.Close()
-
 	gzw := gzip.NewWriter(file)
-	defer gzw.Close()
-
 	tw := tar.NewWriter(gzw)
-	defer tw.Close()
 
 	header := &tar.Header{
 		Name: name,
@@ -367,16 +362,22 @@ func writeTarGz(t *testing.T, path, name, content string) {
 	if _, err := tw.Write([]byte(content)); err != nil {
 		t.Fatalf("write tar content: %v", err)
 	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("close tar writer: %v", err)
+	}
+	if err := gzw.Close(); err != nil {
+		t.Fatalf("close gzip writer: %v", err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatalf("close tar.gz: %v", err)
+	}
 }
 
 func writeTarGzResponse(t *testing.T, w http.ResponseWriter, name, content string) {
 	t.Helper()
 
 	gzw := gzip.NewWriter(w)
-	defer gzw.Close()
-
 	tw := tar.NewWriter(gzw)
-	defer tw.Close()
 
 	header := &tar.Header{
 		Name: name,
@@ -389,6 +390,12 @@ func writeTarGzResponse(t *testing.T, w http.ResponseWriter, name, content strin
 	if _, err := tw.Write([]byte(content)); err != nil {
 		t.Fatalf("write response tar content: %v", err)
 	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("close response tar writer: %v", err)
+	}
+	if err := gzw.Close(); err != nil {
+		t.Fatalf("close response gzip writer: %v", err)
+	}
 }
 
 func writeZip(t *testing.T, path, name, content string) {
@@ -398,10 +405,7 @@ func writeZip(t *testing.T, path, name, content string) {
 	if err != nil {
 		t.Fatalf("create zip: %v", err)
 	}
-	defer file.Close()
-
 	zw := zip.NewWriter(file)
-	defer zw.Close()
 
 	writer, err := zw.Create(name)
 	if err != nil {
@@ -410,13 +414,18 @@ func writeZip(t *testing.T, path, name, content string) {
 	if _, err := writer.Write([]byte(content)); err != nil {
 		t.Fatalf("write zip content: %v", err)
 	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("close zip writer: %v", err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatalf("close zip file: %v", err)
+	}
 }
 
 func writeZipResponse(t *testing.T, w http.ResponseWriter, name, content string) {
 	t.Helper()
 
 	zw := zip.NewWriter(w)
-	defer zw.Close()
 
 	writer, err := zw.Create(name)
 	if err != nil {
@@ -424,6 +433,9 @@ func writeZipResponse(t *testing.T, w http.ResponseWriter, name, content string)
 	}
 	if _, err := writer.Write([]byte(content)); err != nil {
 		t.Fatalf("write response zip content: %v", err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("close response zip writer: %v", err)
 	}
 }
 

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -93,7 +94,7 @@ func syncBinaries(projectRoot string) error {
 	return nil
 }
 
-func syncSingleTool(projectRoot, name string, tool *layout.Tool, goos, goarch string) error {
+func syncSingleTool(projectRoot, name string, tool *layout.Tool, goos, goarch string) (err error) {
 	binPath := filepath.Join(projectRoot, "bin", name)
 
 	if _, err := os.Stat(binPath); err == nil {
@@ -116,7 +117,7 @@ func syncSingleTool(projectRoot, name string, tool *layout.Tool, goos, goarch st
 	if err != nil {
 		return err
 	}
-	defer os.Remove(candidatePath)
+	defer func() { err = errors.Join(err, removeIfExists(candidatePath)) }()
 	if err := os.Rename(candidatePath, binPath); err != nil {
 		return fmt.Errorf("failed to atomically replace %s: %w", name, err)
 	}

@@ -159,8 +159,8 @@ func TestFormatterHelpers(t *testing.T) {
 
 	pathDir := t.TempDir()
 	t.Setenv("PATH", pathDir)
-	if err := runGolines(root, true); err != nil {
-		t.Fatalf("missing golines should be skipped: %v", err)
+	if err := runGolines(root, true); err == nil || !strings.Contains(err.Error(), "golines not found") {
+		t.Fatalf("missing golines should fail check mode, got: %v", err)
 	}
 
 	if err := runTemplFmt(root, false); err != nil {
@@ -574,14 +574,18 @@ func TestStandardHelpRendering(t *testing.T) {
 	setStandardHelp(cmd, helpCommand{Use: "sync", Description: "Sync tools"})
 
 	capture := captureProcessOutput(t, &os.Stdout)
-	cmd.Help()
+	if err := cmd.Help(); err != nil {
+		t.Fatalf("render owner help: %v", err)
+	}
 	if got := capture(); !strings.Contains(got, "Long tool help.") || !strings.Contains(got, "sync") {
 		t.Fatalf("owner help missing custom sections:\n%s", got)
 	}
 
 	child := cmd.Commands()[0]
 	capture = captureProcessOutput(t, &os.Stdout)
-	child.Help()
+	if err := child.Help(); err != nil {
+		t.Fatalf("render child help: %v", err)
+	}
 	if got := capture(); !strings.Contains(got, "Child command") {
 		t.Fatalf("child help missing short text:\n%s", got)
 	}

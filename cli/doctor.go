@@ -799,36 +799,41 @@ func checkGoModTidy(rootDir string, verbose bool) checkResult {
 		}
 	}
 
-	goSumOrig, _ := os.ReadFile(goSumPath) // go.sum might not exist, that's ok
-
-	// Ensure we restore original files when function exits
-	defer func() {
-		os.WriteFile(goModPath, goModOrig, 0o644)
-		if goSumOrig != nil {
-			os.WriteFile(goSumPath, goSumOrig, 0o644)
-		}
-	}()
-
-	// Run go mod tidy
-	cmd := exec.Command("go", "mod", "tidy")
-	cmd.Dir = rootDir
-
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-
-	err = cmd.Run()
+	goSumOrig, err := readOptionalFile(goSumPath)
 	if err != nil {
 		return checkResult{
 			name:    "go mod tidy",
 			status:  statusFail,
-			message: fmt.Sprintf("failed to run: %v", err),
-			details: []string{stderr.String()},
+			message: fmt.Sprintf("cannot read go.sum: %v", err),
 		}
 	}
 
-	// Read new content after tidy
-	goModNew, _ := os.ReadFile(goModPath)
-	goSumNew, _ := os.ReadFile(goSumPath)
+	var goModNew, goSumNew []byte
+	err = withDiagnosticProjectCopy(rootDir, func(tempRoot string) error {
+		cmd := exec.Command("go", "mod", "tidy")
+		cmd.Dir = tempRoot
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("go mod tidy failed: %w: %s", err, strings.TrimSpace(stderr.String()))
+		}
+
+		var err error
+		goModNew, err = os.ReadFile(filepath.Join(tempRoot, "go.mod"))
+		if err != nil {
+			return err
+		}
+		goSumNew, err = readOptionalFile(filepath.Join(tempRoot, "go.sum"))
+		return err
+	})
+	if err != nil {
+		return checkResult{
+			name:    "go mod tidy",
+			status:  statusFail,
+			message: "temporary tidy diagnostic failed",
+			details: []string{err.Error()},
+		}
+	}
 
 	// Compare
 	goModChanged := !bytes.Equal(goModOrig, goModNew)
@@ -850,6 +855,14 @@ func checkGoModTidy(rootDir string, verbose bool) checkResult {
 	}
 }
 
+func readOptionalFile(path string) ([]byte, error) {
+	content, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	return content, err
+}
+
 func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	templPath := filepath.Join(rootDir, "bin", "templ")
 	if _, err := os.Stat(templPath); err != nil {
@@ -860,20 +873,45 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 		}
 	}
 
-	cmd := exec.Command(templPath, "generate")
-	cmd.Dir = rootDir
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
+	var changed []string
+	err := withDiagnosticProjectCopy(rootDir, func(tempRoot string) error {
+		before, err := snapshotFilesForReport(tempRoot)
+		if err != nil {
+			return err
+		}
+		cmd := exec.Command(filepath.Join(tempRoot, "bin", "templ"), "generate")
+		cmd.Dir = tempRoot
+		var stdout, stderr bytes.Buffer
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("templ generate failed: %w: %s", err, strings.TrimSpace(stderr.String()))
+		}
+		after, err := snapshotFilesForReport(tempRoot)
+		if err != nil {
+			return err
+		}
+		changed = changedSnapshotPaths(before, after)
+		return nil
+	})
 	if err != nil {
 		return checkResult{
 			name:    "views generate",
 			status:  statusFail,
-			message: "generation failed",
-			details: []string{stderr.String()},
+			message: "temporary generation diagnostic failed",
+			details: []string{err.Error()},
+		}
+	}
+	if len(changed) > 0 {
+		details := []string{"Run 'andurel generate view' and commit the generated output."}
+		if verbose {
+			details = append(details, changed...)
+		}
+		return checkResult{
+			name:    "views generate",
+			status:  statusFail,
+			message: "generated templates are out of date",
+			details: details,
 		}
 	}
 
@@ -882,6 +920,22 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 		status:  statusPass,
 		message: "templates generated successfully",
 	}
+}
+
+func changedSnapshotPaths(before, after fileSnapshot) []string {
+	changed := make([]string, 0)
+	for path, state := range after {
+		if previous, ok := before[path]; !ok || previous.Hash != state.Hash || previous.Mode != state.Mode {
+			changed = append(changed, path)
+		}
+	}
+	for path := range before {
+		if _, ok := after[path]; !ok {
+			changed = append(changed, path)
+		}
+	}
+	sort.Strings(changed)
+	return changed
 }
 
 func codeGenerationChecks(rootDir string, verbose bool) []checkResult {
@@ -902,22 +956,28 @@ func projectUsesInertia(rootDir string) bool {
 }
 
 func checkRoutesTSGenerate(rootDir string, verbose bool) checkResult {
-	manifest, err := collectRouteManifest(rootDir)
-	if err != nil {
-		return checkResult{
-			name:    "routes.ts",
-			status:  statusFail,
-			message: "could not inspect route manifest",
-			details: []string{err.Error()},
+	var expected []byte
+	var helperCount int
+	var skippedCount int
+	err := withDiagnosticProjectCopy(rootDir, func(tempRoot string) error {
+		manifest, err := collectRouteManifest(tempRoot)
+		if err != nil {
+			return err
 		}
-	}
-
-	expected, helperCount, err := renderRoutesJS(manifest)
+		report, err := generateRoutesJSFile(tempRoot, manifest)
+		if err != nil {
+			return err
+		}
+		helperCount = report.GeneratedHelpers
+		skippedCount = report.SkippedCount
+		expected, err = os.ReadFile(filepath.Join(tempRoot, generatedRoutesJSPath))
+		return err
+	})
 	if err != nil {
 		return checkResult{
 			name:    "routes.ts",
 			status:  statusFail,
-			message: "could not render expected route helpers",
+			message: "temporary route generation diagnostic failed",
 			details: []string{err.Error()},
 		}
 	}
@@ -945,8 +1005,8 @@ func checkRoutesTSGenerate(rootDir string, verbose bool) checkResult {
 		details := []string{"Run 'andurel generate routes' to update resources/js/routes.ts."}
 		if verbose {
 			details = append(details, fmt.Sprintf("expected %d bytes, found %d bytes", len(expected), len(actual)))
-			if len(manifest.Skipped) > 0 {
-				details = append(details, fmt.Sprintf("%d route manifest entries were skipped", len(manifest.Skipped)))
+			if skippedCount > 0 {
+				details = append(details, fmt.Sprintf("%d route manifest entries were skipped", skippedCount))
 			}
 		}
 		return checkResult{

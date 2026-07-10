@@ -85,9 +85,7 @@ func setVersion(projectRoot, toolName, version string, checksumArguments ...stri
 		return fmt.Errorf("version cannot be empty\n\nExample: andurel tool set-version %s 1.0.0", toolName)
 	}
 
-	if strings.HasPrefix(version, "v") {
-		version = version[1:]
-	}
+	version = strings.TrimPrefix(version, "v")
 	versionWithV := "v" + version
 	managed, managedToolExists := managedToolByName[toolName]
 	if !managedToolExists {
@@ -166,12 +164,12 @@ func setVersion(projectRoot, toolName, version string, checksumArguments ...stri
 	return nil
 }
 
-func installToolVersionAndLock(projectRoot, toolName string, tool *layout.Tool, lock *layout.AndurelLock, goos, goarch string) error {
+func installToolVersionAndLock(projectRoot, toolName string, tool *layout.Tool, lock *layout.AndurelLock, goos, goarch string) (err error) {
 	stagingDir, err := os.MkdirTemp(projectRoot, ".andurel-lock-*")
 	if err != nil {
 		return fmt.Errorf("failed to create lock staging directory: %w", err)
 	}
-	defer os.RemoveAll(stagingDir)
+	defer func() { err = errors.Join(err, os.RemoveAll(stagingDir)) }()
 	if err := lock.WriteLockFile(stagingDir); err != nil {
 		return fmt.Errorf("failed to stage updated lock file: %w", err)
 	}
@@ -181,7 +179,7 @@ func installToolVersionAndLock(projectRoot, toolName string, tool *layout.Tool, 
 	if err != nil {
 		return err
 	}
-	defer os.Remove(candidatePath)
+	defer func() { err = errors.Join(err, removeIfExists(candidatePath)) }()
 
 	binPath := filepath.Join(projectRoot, "bin", toolName)
 	backup, err := os.CreateTemp(filepath.Dir(binPath), ".andurel-backup-*")
@@ -196,7 +194,7 @@ func installToolVersionAndLock(projectRoot, toolName string, tool *layout.Tool, 
 	if err := os.Remove(backupPath); err != nil {
 		return fmt.Errorf("failed to prepare binary backup path: %w", err)
 	}
-	defer os.Remove(backupPath)
+	defer func() { err = errors.Join(err, removeIfExists(backupPath)) }()
 
 	hadExistingBinary := false
 	if _, err := os.Stat(binPath); err == nil {
@@ -233,6 +231,14 @@ func installToolVersionAndLock(projectRoot, toolName string, tool *layout.Tool, 
 		}
 	}
 	return nil
+}
+
+func removeIfExists(path string) error {
+	err := os.Remove(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	return err
 }
 
 func parseChecksumArguments(arguments []string) (map[string]string, error) {
