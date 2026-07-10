@@ -1,17 +1,18 @@
-# Prompt: align an RC.2 or RC.3 base scaffold with Andurel v1.0.0
+# Prompt: align an RC.2 or RC.3 base scaffold with the installed stable Andurel
 
-Copy the prompt below into a coding agent that is running at the root of the Andurel application to upgrade. The only upgrade target is the stable `v1.0.0` release.
+Copy the prompt below into a coding agent that is running at the root of the Andurel application to upgrade. The target is the exact stable v1 release reported by the currently installed Andurel CLI.
 
 ```text
-You are upgrading an existing Andurel application whose base scaffold was created with either v1.0.0-rc.2 or v1.0.0-rc.3. Bring its base scaffold behavior up to the stable v1.0.0 baseline.
+You are upgrading an existing Andurel application whose base scaffold was created with either v1.0.0-rc.2 or v1.0.0-rc.3. Bring its base scaffold behavior up to the exact stable v1 release reported by the currently installed Andurel CLI.
 
 This is an implementation task. Inspect the application, make the required changes, validate them, and report the result. Do not stop after producing an audit or a plan.
 
 Target selection
 
-- Set `TARGET_VERSION` to exactly `v1.0.0`.
-- Do not substitute a release candidate, `latest`, `master`, or another moving reference.
-- If the stable v1.0.0 CLI or tag is not available yet, stop and report that the target release is unavailable. Do not perform a partial upgrade against a release candidate.
+- Run `andurel --version`, record its full output, and extract the stable semantic version token into `TARGET_VERSION`.
+- Require `TARGET_VERSION` to match `^v1\.[0-9]+\.[0-9]+$`. Reject `dev`, a release candidate, `latest`, `master`, or any other moving or non-version reference.
+- Use the currently installed CLI only when its reported version exactly matches `TARGET_VERSION`. If an isolated binary is needed, install the exact `TARGET_VERSION` tag into a temporary `GOBIN` and verify its version before use.
+- If no stable v1 CLI is currently installed or its exact tag is unavailable, stop and report that a valid target release is unavailable.
 - The recognized source tags are v1.0.0-rc.2 at commit `5d78288` and v1.0.0-rc.3 at commit `70deaaa`.
 
 Non-negotiable rules
@@ -34,7 +35,7 @@ Phase 1: establish provenance and a safe baseline
 1. Inspect `git status --short`, `andurel.lock`, `go.mod`, the enabled extensions, the Inertia adapter, and the JavaScript runtime.
 2. Read `andurel.lock.version` before changing it and record whether the source is rc.2 or rc.3.
 3. Record all existing worktree changes before editing. Do not hide, stash, reset, or delete user changes.
-4. Use an exact target CLI. Prefer an already installed binary only if `andurel --version` confirms the selected target. Otherwise install the exact tag into an isolated temporary `GOBIN`.
+4. Use the installed CLI that supplied `TARGET_VERSION`. If isolation is required, install that exact tag into a temporary `GOBIN`; never resolve a moving reference.
 5. Inspect repository history for every base-scaffold file that differs from the target so generated code can be distinguished from application customization.
 
 Phase 2: create the authoritative comparison scaffold
@@ -82,7 +83,7 @@ Diff the application against the fresh target scaffold. Focus on files that came
 - Functional or security correction: port it while preserving local behavior.
 - Required target configuration or generated metadata: port it.
 - New regression coverage for a ported behavior: skip it.
-- Cosmetic base-scaffold change: preserve the application's intentional design unless the user explicitly wants the v1.0.0 look.
+- Cosmetic base-scaffold change: preserve the application's intentional design unless the user explicitly wants the target scaffold's look.
 - Application customization: preserve it.
 - Feature absent because its extension or adapter is disabled: ignore it.
 
@@ -127,12 +128,12 @@ E. Lock file, tools, Go metadata, and dependencies
 - `andurel.lock` has `schemaVersion: 1`, the selected target framework version, current verified SHA-256 metadata for supported tool platforms, version-check metadata, and the expected tools for the enabled scaffold configuration.
 - Preserve independent custom tool entries unless they conflict with a framework-owned tool name.
 - Synchronize tools with `andurel tool sync` after reviewing the lock diff.
-- Align the `go` directive and direct dependencies with the v1.0.0 scaffold when the application has not intentionally selected a newer compatible version.
+- Align the `go` directive and direct dependencies with the target scaffold when the application has not intentionally selected a newer compatible version.
 - Reconcile dependency changes through normal Go module tooling. Do not copy an unrelated reference `go.sum` wholesale.
 
 F. Production code only
 
-Do not add or adapt the v1.0.0 scaffold's base regression test files. Existing tests may be run when repository instructions permit, but test source files must remain unchanged.
+Do not add or adapt the target scaffold's base regression test files. Existing tests may be run when repository instructions permit, but test source files must remain unchanged.
 
 G. Inertia projects only
 

@@ -556,7 +556,7 @@ andurel upgrade (alias: up) [--dry-run]
 
 Run `andurel upgrade --dry-run --diff --json` first. Dry runs are read-only, and a failed transaction restores every changed file and `andurel.lock`. Upgrade ownership is limited to framework-owned files, currently centered on `internal/*`. See [generated-file ownership and upgrade behavior](docs/generated-files-and-upgrades.md).
 
-Projects created with v1.0.0-rc.2 or v1.0.0-rc.3 must not use the automated upgrade command. Use the [RC-to-v1 manual upgrade guide](docs/upgrade-rc-base-scaffold-prompt.md) to reconcile the application against the stable v1.0.0 scaffold while preserving local changes.
+Projects created with v1.0.0-rc.2 or v1.0.0-rc.3 must not use the automated upgrade command. Use the [RC-to-v1 manual upgrade guide](docs/upgrade-rc-base-scaffold-prompt.md) to reconcile the application against the stable scaffold for the currently installed Andurel version while preserving local changes.
 
 ### `andurel doctor` — Project diagnostics
 
