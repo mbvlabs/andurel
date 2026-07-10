@@ -66,11 +66,7 @@ The core philosophy around resource generation in andurel, is that it should be 
 ### Installation
 
 ```bash
-# Track the latest stable release
 go install github.com/mbvlabs/andurel@latest
-
-# Pin the first stable v1 release explicitly
-go install github.com/mbvlabs/andurel@v1.0.0
 
 andurel --version
 ```
