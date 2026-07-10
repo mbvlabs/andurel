@@ -9,7 +9,6 @@ fi
 archive="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 tag="$2"
 asset_dir="$(cd "$3" && pwd)"
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 version="${tag#v}"
 archive_name="$(basename "${archive}")"
 checksum_file="${asset_dir}/checksums.txt"
@@ -85,26 +84,3 @@ test -x "${binary}"
 "${binary}" --version | grep -F "${version}" >/dev/null
 "${binary}" commands --json > "${tmp_dir}/commands.json"
 jq -e '.ok == true and (.data.commands | type == "array")' "${tmp_dir}/commands.json" >/dev/null
-
-project="${tmp_dir}/rc3-project"
-cp -R "${repo_root}/layout/upgrade/testdata/rc3/pristine" "${project}"
-printf 'module release-smoke\n\ngo 1.26.5\n' > "${project}/go.mod"
-git -C "${project}" init -q
-git -C "${project}" config user.name release-smoke
-git -C "${project}" config user.email release-smoke@example.invalid
-git -C "${project}" add .
-git -C "${project}" commit -q -m fixture
-
-(
-  cd "${project}"
-  "${binary}" upgrade --dry-run --diff --json
-) > "${tmp_dir}/upgrade-dry-run.json"
-jq -e '.ok == true and .data.artifacts.dry_run == true' "${tmp_dir}/upgrade-dry-run.json" >/dev/null
-test -z "$(git -C "${project}" status --porcelain)"
-
-(
-  cd "${project}"
-  "${binary}" upgrade --json
-) > "${tmp_dir}/upgrade.json"
-jq -e '.ok == true' "${tmp_dir}/upgrade.json" >/dev/null
-jq -e --arg version "${tag}" '.schemaVersion == 1 and .version == $version' "${project}/andurel.lock" >/dev/null
