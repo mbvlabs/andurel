@@ -163,7 +163,9 @@ func (c Companies) Create(etx *echo.Context) error {
 	}
 
 	data := models.CreateCompanyData{
-		Name:     payload.Name,
+
+		Name: payload.Name,
+
 		Industry: sql.NullString{String: payload.Industry, Valid: true},
 	}
 
@@ -223,8 +225,10 @@ func (c Companies) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateCompanyData{
-		ID:       companyID,
-		Name:     payload.Name,
+		ID: companyID,
+
+		Name: payload.Name,
+
 		Industry: sql.NullString{String: payload.Industry, Valid: true},
 	}
 

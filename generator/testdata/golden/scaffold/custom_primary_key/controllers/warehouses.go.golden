@@ -162,7 +162,9 @@ func (w Warehouses) Create(etx *echo.Context) error {
 	}
 
 	data := models.CreateWarehouseData{
-		Name:     payload.Name,
+
+		Name: payload.Name,
+
 		Location: sql.NullString{String: payload.Location, Valid: true},
 	}
 
@@ -222,8 +224,10 @@ func (w Warehouses) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateWarehouseData{
-		Slug:     warehouseID,
-		Name:     payload.Name,
+		Slug: warehouseID,
+
+		Name: payload.Name,
+
 		Location: sql.NullString{String: payload.Location, Valid: true},
 	}
 

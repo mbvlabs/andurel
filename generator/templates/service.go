@@ -1,6 +1,7 @@
 package templates
 
 import (
+	"io/fs"
 	"maps"
 	"strings"
 	"text/template"
@@ -139,12 +140,45 @@ func (ts *TemplateService) RenderTemplateWithCustomFunctions(
 	data any,
 	funcMap template.FuncMap,
 ) (string, error) {
+	return ts.renderTemplateWithCustomFunctionsAndPartials(
+		Files,
+		templateName,
+		nil,
+		data,
+		funcMap,
+	)
+}
+
+// RenderTemplateWithCustomFunctionsAndPartials renders a primary template
+// together with named partial template files.
+func (ts *TemplateService) RenderTemplateWithCustomFunctionsAndPartials(
+	templateName string,
+	partialNames []string,
+	data any,
+	funcMap template.FuncMap,
+) (string, error) {
+	return ts.renderTemplateWithCustomFunctionsAndPartials(
+		Files,
+		templateName,
+		partialNames,
+		data,
+		funcMap,
+	)
+}
+
+func (ts *TemplateService) renderTemplateWithCustomFunctionsAndPartials(
+	templateFiles fs.FS,
+	templateName string,
+	partialNames []string,
+	data any,
+	funcMap template.FuncMap,
+) (string, error) {
 	// Merge default functions with custom functions
 	mergedFuncs := make(template.FuncMap)
 	maps.Copy(mergedFuncs, ts.functions)
 	maps.Copy(mergedFuncs, funcMap)
 
-	templateContent, err := Files.ReadFile(templateName)
+	templateContent, err := fs.ReadFile(templateFiles, templateName)
 	if err != nil {
 		return "", errors.WrapTemplateError(err, "get template", templateName)
 	}
@@ -153,9 +187,18 @@ func (ts *TemplateService) RenderTemplateWithCustomFunctions(
 	if err != nil {
 		return "", errors.WrapTemplateError(err, "parse template", templateName)
 	}
+	for _, partialName := range partialNames {
+		partialContent, err := fs.ReadFile(templateFiles, partialName)
+		if err != nil {
+			return "", errors.WrapTemplateError(err, "get partial", partialName)
+		}
+		if _, err := tmpl.Parse(string(partialContent)); err != nil {
+			return "", errors.WrapTemplateError(err, "parse partial", partialName)
+		}
+	}
 
 	var buf strings.Builder
-	if err := tmpl.Execute(&buf, data); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, templateName, data); err != nil {
 		return "", errors.WrapTemplateError(err, "execute template", templateName)
 	}
 

@@ -3,6 +3,7 @@ package templates
 import (
 	"strings"
 	"testing"
+	"testing/fstest"
 	"text/template"
 )
 
@@ -79,6 +80,67 @@ func TestTemplateServiceRenderTemplateWithCustomFunctions(t *testing.T) {
 		!strings.Contains(err.Error(), "operation: get template") {
 		t.Fatalf("expected missing template error, got %v", err)
 	}
+}
+
+func TestTemplateServiceRenderTemplateWithPartials(t *testing.T) {
+	service := NewTemplateService()
+	templateFiles := fstest.MapFS{
+		"primary.tmpl": &fstest.MapFile{Data: []byte(`{{template "Assignment" .}}`)},
+		"partial.tmpl": &fstest.MapFile{Data: []byte(`{{define "Assignment"}}payload.{{.}}{{end}}`)},
+	}
+
+	rendered, err := service.renderTemplateWithCustomFunctionsAndPartials(
+		templateFiles,
+		"primary.tmpl",
+		[]string{"partial.tmpl"},
+		"Name",
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("renderTemplateWithCustomFunctionsAndPartials: %v", err)
+	}
+	if rendered != "payload.Name" {
+		t.Fatalf("rendered = %q, want %q", rendered, "payload.Name")
+	}
+}
+
+func TestTemplateServiceRenderTemplateWithPartialsErrors(t *testing.T) {
+	service := NewTemplateService()
+
+	t.Run("missing partial", func(t *testing.T) {
+		templateFiles := fstest.MapFS{
+			"primary.tmpl": &fstest.MapFile{Data: []byte(`primary`)},
+		}
+		_, err := service.renderTemplateWithCustomFunctionsAndPartials(
+			templateFiles,
+			"primary.tmpl",
+			[]string{"missing.tmpl"},
+			nil,
+			nil,
+		)
+		if err == nil || !strings.Contains(err.Error(), "operation: get partial") ||
+			!strings.Contains(err.Error(), "template_name: missing.tmpl") {
+			t.Fatalf("expected contextual missing partial error, got %v", err)
+		}
+	})
+
+	t.Run("invalid partial", func(t *testing.T) {
+		templateFiles := fstest.MapFS{
+			"primary.tmpl": &fstest.MapFile{Data: []byte(`primary`)},
+			"invalid.tmpl": &fstest.MapFile{Data: []byte(`{{define "broken"}}`)},
+		}
+		_, err := service.renderTemplateWithCustomFunctionsAndPartials(
+			templateFiles,
+			"primary.tmpl",
+			[]string{"invalid.tmpl"},
+			nil,
+			nil,
+		)
+		if err == nil || !strings.Contains(err.Error(), "operation: parse partial") ||
+			!strings.Contains(err.Error(), "template_name: invalid.tmpl") {
+			t.Fatalf("expected contextual invalid partial error, got %v", err)
+		}
+	})
 }
 
 func TestTemplateCacheAndGlobalHelpers(t *testing.T) {
