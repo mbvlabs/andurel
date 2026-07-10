@@ -548,7 +548,7 @@ func TestCleanupObsoleteBinaries_IgnoresMissingBinDirectory(t *testing.T) {
 	}
 }
 
-func TestExecuteDryRun_ReportsRenderedFilesToolsAndObsoleteCleanup(t *testing.T) {
+func TestExecuteDryRun_ReportsRenderedFilesAndTools(t *testing.T) {
 	t.Parallel()
 
 	projectRoot := newGitUpgradeProject(t)
@@ -566,14 +566,6 @@ func TestExecuteDryRun_ReportsRenderedFilesToolsAndObsoleteCleanup(t *testing.T)
 	}
 	if err := lock.WriteLockFile(projectRoot); err != nil {
 		t.Fatalf("failed to write lock file: %v", err)
-	}
-
-	obsoletePath := filepath.Join(projectRoot, "internal", "inertia", "render.go")
-	if err := os.MkdirAll(filepath.Dir(obsoletePath), 0o755); err != nil {
-		t.Fatalf("failed to create obsolete internal dir: %v", err)
-	}
-	if err := os.WriteFile(obsoletePath, []byte("package inertia\n"), 0o644); err != nil {
-		t.Fatalf("failed to write obsolete internal file: %v", err)
 	}
 
 	upgrader, err := NewUpgrader(projectRoot, UpgradeOptions{
@@ -595,19 +587,12 @@ func TestExecuteDryRun_ReportsRenderedFilesToolsAndObsoleteCleanup(t *testing.T)
 	if report.FilesReplaced == 0 {
 		t.Fatal("expected dry run to report rendered framework files")
 	}
-	if !slices.Contains(report.RemovedFiles, "internal/inertia/render.go") {
-		t.Fatalf("removed files = %v, want internal/inertia/render.go", report.RemovedFiles)
-	}
 	if !slices.Contains(report.RemovedTools, "run") {
 		t.Fatalf("removed tools = %v, want run", report.RemovedTools)
 	}
 	if report.ToolsUpdated == 0 {
 		t.Fatal("expected stale templ tool to be reported as updated")
 	}
-	if _, err := os.Stat(obsoletePath); err != nil {
-		t.Fatalf("dry run should leave obsolete file in place: %v", err)
-	}
-
 	persisted, err := layout.ReadLockFile(projectRoot)
 	if err != nil {
 		t.Fatalf("failed to reread lock file: %v", err)

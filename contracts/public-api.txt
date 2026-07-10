@@ -2394,6 +2394,12 @@ package upgrade // import "github.com/mbvlabs/andurel/layout/upgrade"
 
 TYPES
 
+type FileDiff struct {
+	Path string `json:"path"`
+	Diff string `json:"diff"`
+}
+    FileDiff is a deterministic unified diff for one planned path.
+
 type FrameworkTemplate struct {
 	TemplateName string
 	TargetPath   string
@@ -2422,6 +2428,33 @@ func (g *GitAnalyzer) GetModifiedFiles() (map[string]bool, error)
 func (g *GitAnalyzer) IsClean() (bool, error)
     IsClean reports whether clean.
 
+type Migration struct {
+	Order            int
+	Name             string
+	Kind             MigrationKind
+	SourceFramework  string
+	TargetFramework  string
+	SourceLockSchema int
+	TargetLockSchema int
+	Transform        func(string, *TemplateGenerator, *layout.AndurelLock) ([]transformedFile, []string, error)
+}
+    Migration describes one ordered migration registry entry.
+
+type MigrationKind string
+    MigrationKind identifies the independently selected migration dimension.
+
+const (
+	MigrationKindFramework  MigrationKind = "framework"
+	MigrationKindLockSchema MigrationKind = "lock-schema"
+)
+type MigrationSelector struct {
+	SourceFrameworkVersion string
+	TargetFrameworkVersion string
+	SourceLockSchema       int
+	TargetLockSchema       int
+}
+    MigrationSelector keeps framework and lock-schema selection independent.
+
 type TemplateGenerator struct {
 	// Has unexported fields.
 }
@@ -2439,9 +2472,10 @@ func (g *TemplateGenerator) RenderFrameworkTemplates(
     a map of file paths to their rendered content
 
 type ToolSyncResult struct {
-	Added   []string
-	Removed []string
-	Updated []string
+	Added    []string
+	Removed  []string
+	Updated  []string
+	Metadata []string
 }
     ToolSyncResult represents the result of synchronizing tools
 
@@ -2462,11 +2496,17 @@ type UpgradeReport struct {
 	ToolsRemoved int
 	ToolsUpdated int
 
-	AddedTools    []string
-	RemovedTools  []string
-	UpdatedTools  []string
-	ReplacedFiles []string
-	RemovedFiles  []string
+	AddedTools          []string
+	RemovedTools        []string
+	UpdatedTools        []string
+	ToolMetadataChanges []string
+	ReplacedFiles       []string
+	RemovedFiles        []string
+	LockMigrations      []string
+	FrameworkMigrations []string
+	Conflicts           []string
+	Diffs               []FileDiff
+	DirtyWorktree       bool
 
 	Success bool
 	Error   error

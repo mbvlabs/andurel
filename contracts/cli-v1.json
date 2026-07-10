@@ -2187,6 +2187,19 @@
           "omitempty": true
         }
       ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/layout/upgrade.FileDiff",
+      "fields": [
+        {
+          "go_name": "Path",
+          "json_name": "path"
+        },
+        {
+          "go_name": "Diff",
+          "json_name": "diff"
+        }
+      ]
     }
   ],
   "success_envelope": {

@@ -1,9 +1,11 @@
 package upgrade
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/mbvlabs/andurel/layout"
 	"golang.org/x/mod/semver"
@@ -18,11 +20,13 @@ type UpgradeOptions struct {
 
 // Upgrader represents upgrader.
 type Upgrader struct {
-	projectRoot string
-	lock        *layout.AndurelLock
-	git         *GitAnalyzer
-	generator   *TemplateGenerator
-	opts        UpgradeOptions
+	projectRoot      string
+	lock             *layout.AndurelLock
+	git              *GitAnalyzer
+	generator        *TemplateGenerator
+	opts             UpgradeOptions
+	sourceLockSchema int
+	transaction      *transactionRuntime
 }
 
 // UpgradeReport represents upgrade report.
@@ -36,11 +40,17 @@ type UpgradeReport struct {
 	ToolsRemoved int
 	ToolsUpdated int
 
-	AddedTools    []string
-	RemovedTools  []string
-	UpdatedTools  []string
-	ReplacedFiles []string
-	RemovedFiles  []string
+	AddedTools          []string
+	RemovedTools        []string
+	UpdatedTools        []string
+	ToolMetadataChanges []string
+	ReplacedFiles       []string
+	RemovedFiles        []string
+	LockMigrations      []string
+	FrameworkMigrations []string
+	Conflicts           []string
+	Diffs               []FileDiff
+	DirtyWorktree       bool
 
 	Success bool
 	Error   error
@@ -53,229 +63,76 @@ func NewUpgrader(projectRoot string, opts UpgradeOptions) (*Upgrader, error) {
 		return nil, fmt.Errorf("failed to read lock file: %w", err)
 	}
 
+	sourceSchema, err := readSourceLockSchema(projectRoot)
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect lock schema: %w", err)
+	}
 	return &Upgrader{
-		projectRoot: projectRoot,
-		lock:        lock,
-		git:         NewGitAnalyzer(projectRoot),
-		generator:   NewTemplateGenerator(opts.TargetVersion),
-		opts:        opts,
+		projectRoot:      projectRoot,
+		lock:             lock,
+		git:              NewGitAnalyzer(projectRoot),
+		generator:        NewTemplateGenerator(opts.TargetVersion),
+		opts:             opts,
+		sourceLockSchema: sourceSchema,
 	}, nil
 }
 
 // Execute performs the execute operation.
 func (u *Upgrader) Execute() (*UpgradeReport, error) {
-	report := &UpgradeReport{
-		FromVersion:   u.lock.Version,
-		ToVersion:     u.opts.TargetVersion,
-		ReplacedFiles: []string{},
-		RemovedFiles:  []string{},
-		UpdatedTools:  []string{},
+	lock, err := layout.ReadLockFile(u.projectRoot)
+	if err != nil {
+		return &UpgradeReport{}, fmt.Errorf("failed to refresh lock file: %w", err)
 	}
-
-	if err := u.validatePreconditions(); err != nil {
+	sourceSchema, err := readSourceLockSchema(u.projectRoot)
+	if err != nil {
+		return &UpgradeReport{}, err
+	}
+	working := *u
+	working.lock = lock
+	working.sourceLockSchema = sourceSchema
+	if err := working.validatePreconditions(); err != nil {
+		report := &UpgradeReport{FromVersion: lock.Version, ToVersion: u.opts.TargetVersion, Error: err}
+		return report, err
+	}
+	if lock.ScaffoldConfig == nil {
+		err := fmt.Errorf("lock file missing scaffold config - cannot determine original project settings")
+		return &UpgradeReport{FromVersion: lock.Version, ToVersion: u.opts.TargetVersion, Error: err}, err
+	}
+	clean, err := working.git.IsClean()
+	if err != nil {
+		return &UpgradeReport{}, fmt.Errorf("git validation failed: %w", err)
+	}
+	plan, err := working.buildPlan(!clean)
+	if err != nil {
+		return &UpgradeReport{FromVersion: lock.Version, ToVersion: u.opts.TargetVersion, Error: err}, err
+	}
+	report := plan.cloneReport()
+	if len(plan.conflicts) > 0 {
+		printUpgradePlan(report, u.opts.DryRun)
+		if u.opts.DryRun {
+			return report, nil
+		}
+		err := fmt.Errorf("upgrade has %d conflict(s); no files were written", len(plan.conflicts))
 		report.Error = err
 		return report, err
 	}
-
-	if u.lock.ScaffoldConfig == nil {
-		return report, fmt.Errorf(
-			"lock file missing scaffold config - cannot determine original project settings",
-		)
-	}
-
-	fmt.Printf(
-		"Upgrading framework from %s to %s...\n",
-		u.lock.Version,
-		u.opts.TargetVersion,
-	)
-
-	// Render framework templates
-	fmt.Printf("Rendering framework templates...\n")
-	renderedTemplates, err := u.generator.RenderFrameworkTemplates(
-		u.projectRoot,
-		*u.lock.ScaffoldConfig,
-		u.lock.ExtensionNames(),
-	)
-	if err != nil {
-		report.Error = err
-		return report, fmt.Errorf("failed to render framework templates: %w", err)
-	}
-
 	if u.opts.DryRun {
-		fmt.Printf("\n[DRY RUN] Would replace:\n")
-		for path := range renderedTemplates {
-			fmt.Printf("  • %s\n", path)
-			report.ReplacedFiles = append(report.ReplacedFiles, path)
-		}
-		report.FilesReplaced = len(report.ReplacedFiles)
-
-		obsoleteInternalFiles := u.obsoleteManagedInternalFiles()
-		if len(obsoleteInternalFiles) > 0 {
-			fmt.Printf("\n[DRY RUN] Would remove obsolete internal package files:\n")
-			for _, path := range obsoleteInternalFiles {
-				fmt.Printf("  - %s\n", path)
-				report.RemovedFiles = append(report.RemovedFiles, path)
-			}
-		}
-		report.FilesRemoved = len(report.RemovedFiles)
-
-		// Preview tool changes
-		fmt.Printf("\n[DRY RUN] Tool changes:\n")
-		toolSyncPreview, _ := u.syncToolsToFrameworkVersion()
-		if len(toolSyncPreview.Added) > 0 {
-			fmt.Printf("  Would add:\n")
-			for _, tool := range toolSyncPreview.Added {
-				fmt.Printf("    + %s\n", tool)
-			}
-			report.AddedTools = toolSyncPreview.Added
-			report.ToolsAdded = len(toolSyncPreview.Added)
-		}
-		if len(toolSyncPreview.Updated) > 0 {
-			fmt.Printf("  Would update:\n")
-			for _, tool := range toolSyncPreview.Updated {
-				fmt.Printf("    ↑ %s\n", tool)
-			}
-			report.UpdatedTools = toolSyncPreview.Updated
-			report.ToolsUpdated = len(toolSyncPreview.Updated)
-		}
-		if len(toolSyncPreview.Removed) > 0 {
-			fmt.Printf("  Would remove:\n")
-			for _, tool := range toolSyncPreview.Removed {
-				fmt.Printf("    - %s\n", tool)
-			}
-			report.RemovedTools = toolSyncPreview.Removed
-			report.ToolsRemoved = len(toolSyncPreview.Removed)
-		}
-
 		report.Success = true
+		printUpgradePlan(report, true)
 		return report, nil
 	}
-
-	// Replace framework files
-	fmt.Printf("Replacing framework files...\n")
-	for targetPath, content := range renderedTemplates {
-		fullPath := filepath.Join(u.projectRoot, targetPath)
-
-		// Create directory if it doesn't exist
-		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			report.Error = err
-			return report, fmt.Errorf("failed to create directory for %s: %w", targetPath, err)
-		}
-
-		if err := os.WriteFile(fullPath, content, 0o644); err != nil {
-			report.Error = err
-			return report, fmt.Errorf("failed to write %s: %w", targetPath, err)
-		}
-
-		report.FilesReplaced++
-		report.ReplacedFiles = append(report.ReplacedFiles, targetPath)
-		fmt.Printf("  ✓ %s\n", targetPath)
-	}
-
-	obsoleteInternalFiles := u.obsoleteManagedInternalFiles()
-	if len(obsoleteInternalFiles) > 0 {
-		fmt.Printf("Removing obsolete internal package files...\n")
-		for _, targetPath := range obsoleteInternalFiles {
-			fullPath := filepath.Join(u.projectRoot, targetPath)
-			if err := os.Remove(fullPath); err != nil && !os.IsNotExist(err) {
-				report.Error = err
-				return report, fmt.Errorf("failed to remove obsolete internal file %s: %w", targetPath, err)
-			}
-
-			report.FilesRemoved++
-			report.RemovedFiles = append(report.RemovedFiles, targetPath)
-			fmt.Printf("  - %s\n", targetPath)
-		}
-	}
-
-	// Synchronize tools with target version
-	fmt.Printf("Synchronizing tools with framework version...\n")
-	toolSyncResult, err := u.syncToolsToFrameworkVersion()
-	if err != nil {
-		fmt.Printf("⚠ Warning: failed to synchronize tools: %v\n", err)
-	} else {
-		// Report added tools
-		if len(toolSyncResult.Added) > 0 {
-			fmt.Printf("  Added:\n")
-			for _, tool := range toolSyncResult.Added {
-				fmt.Printf("    + %s\n", tool)
-			}
-			report.ToolsAdded = len(toolSyncResult.Added)
-			report.AddedTools = toolSyncResult.Added
-		}
-
-		// Report updated tools
-		if len(toolSyncResult.Updated) > 0 {
-			fmt.Printf("  Updated:\n")
-			for _, tool := range toolSyncResult.Updated {
-				fmt.Printf("    ↑ %s\n", tool)
-			}
-			report.ToolsUpdated = len(toolSyncResult.Updated)
-			report.UpdatedTools = toolSyncResult.Updated
-		}
-
-		// Report removed tools
-		if len(toolSyncResult.Removed) > 0 {
-			fmt.Printf("  Removed:\n")
-			for _, tool := range toolSyncResult.Removed {
-				fmt.Printf("    - %s\n", tool)
-			}
-			report.ToolsRemoved = len(toolSyncResult.Removed)
-			report.RemovedTools = toolSyncResult.Removed
-		}
-
-		// Clean up obsolete binaries
-		if len(toolSyncResult.Removed) > 0 && !u.opts.DryRun {
-			if err := u.cleanupObsoleteBinaries(toolSyncResult.Removed); err != nil {
-				fmt.Printf("⚠ Warning: failed to clean up binaries: %v\n", err)
-			}
-		}
-	}
-
-	// Initialize DatabaseConfig for projects that predate its introduction.
-	if u.lock.DatabaseConfig == nil {
-		u.lock.DatabaseConfig = &layout.DatabaseConfig{
-			NullType: "sql.Null",
-		}
-		fmt.Printf("  ✓ Added database config (nullType: sql.Null) to andurel.lock\n")
-	}
-
-	// Update template version in lock file
-	u.lock.Version = u.opts.TargetVersion
-	if err := u.lock.WriteLockFile(u.projectRoot); err != nil {
+	if err := working.applyPlan(plan); err != nil {
 		report.Error = err
-		return report, fmt.Errorf("failed to update lock file: %w", err)
+		return report, err
 	}
-	fmt.Printf("✓ Updated andurel.lock\n")
-
-	fmt.Printf("\n✓ Upgrade complete! Project is now at version %s\n", u.opts.TargetVersion)
-	fmt.Printf("\nSummary:\n")
-	fmt.Printf("  • %d framework files replaced\n", report.FilesReplaced)
-	if report.FilesRemoved > 0 {
-		fmt.Printf("  • %d obsolete internal package files removed\n", report.FilesRemoved)
-	}
-	if report.ToolsAdded > 0 {
-		fmt.Printf("  • %d tools added\n", report.ToolsAdded)
-	}
-	if report.ToolsUpdated > 0 {
-		fmt.Printf("  • %d tools updated\n", report.ToolsUpdated)
-	}
-	if report.ToolsRemoved > 0 {
-		fmt.Printf("  • %d tools removed\n", report.ToolsRemoved)
-	}
-
 	report.Success = true
+	printUpgradePlan(report, false)
 	return report, nil
 }
 
 func (u *Upgrader) validatePreconditions() error {
 	if _, err := os.Stat(u.projectRoot); os.IsNotExist(err) {
 		return fmt.Errorf("project directory does not exist: %s", u.projectRoot)
-	}
-
-	if _, err := u.git.IsClean(); err != nil {
-		return fmt.Errorf("git validation failed: %w", err)
 	}
 
 	if u.lock == nil {
@@ -286,7 +143,63 @@ func (u *Upgrader) validatePreconditions() error {
 		return fmt.Errorf("lock file missing template version - please manually set it")
 	}
 
+	clean, err := u.git.IsClean()
+	if err != nil {
+		return fmt.Errorf("git validation failed: %w", err)
+	}
+	if !clean && !u.opts.DryRun {
+		return fmt.Errorf("worktree is dirty; commit or stash changes before a real upgrade")
+	}
+
 	return nil
+}
+
+func readSourceLockSchema(projectRoot string) (int, error) {
+	data, err := os.ReadFile(filepath.Join(projectRoot, "andurel.lock"))
+	if err != nil {
+		return 0, err
+	}
+	var header struct {
+		SchemaVersion *int `json:"schemaVersion"`
+	}
+	if err := json.Unmarshal(data, &header); err != nil {
+		return 0, err
+	}
+	if header.SchemaVersion == nil {
+		return 0, nil
+	}
+	return *header.SchemaVersion, nil
+}
+
+func printUpgradePlan(report *UpgradeReport, dryRun bool) {
+	if dryRun {
+		fmt.Printf("\n[DRY RUN] dirty worktree: %t\n", report.DirtyWorktree)
+		if report.DirtyWorktree {
+			fmt.Printf("[DRY RUN] WARNING: worktree is dirty; planning only is permitted\n")
+		}
+	}
+	printList := func(label string, values []string) {
+		fmt.Printf("%s:\n", label)
+		for _, value := range values {
+			fmt.Printf("  %s\n", value)
+		}
+	}
+	printList("File replacements", report.ReplacedFiles)
+	printList("File deletions", report.RemovedFiles)
+	printList("Framework migrations", report.FrameworkMigrations)
+	printList("Lock migrations", report.LockMigrations)
+	tools := append(append([]string{}, report.AddedTools...), report.UpdatedTools...)
+	tools = append(tools, report.RemovedTools...)
+	tools = append(tools, report.ToolMetadataChanges...)
+	sort.Strings(tools)
+	printList("Tool metadata changes", tools)
+	printList("Conflicts", report.Conflicts)
+	if dryRun {
+		fmt.Printf("Unified diffs:\n")
+		for _, diff := range report.Diffs {
+			fmt.Print(diff.Diff)
+		}
+	}
 }
 
 func (u *Upgrader) obsoleteManagedInternalFiles() []string {
@@ -312,39 +225,51 @@ func (u *Upgrader) obsoleteManagedInternalFiles() []string {
 
 // ToolSyncResult represents the result of synchronizing tools
 type ToolSyncResult struct {
-	Added   []string
-	Removed []string
-	Updated []string
+	Added    []string
+	Removed  []string
+	Updated  []string
+	Metadata []string
 }
 
 // syncToolsToFrameworkVersion synchronizes the lock file's tools with the target framework version
 // This ensures new tools are added, obsolete tools are removed, and existing tools are updated
 func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
+	return syncTools(u.lock)
+}
+
+func syncTools(lock *layout.AndurelLock) (*ToolSyncResult, error) {
 	result := &ToolSyncResult{
-		Added:   []string{},
-		Removed: []string{},
-		Updated: []string{},
+		Added:    []string{},
+		Removed:  []string{},
+		Updated:  []string{},
+		Metadata: []string{},
 	}
 
-	if u.lock.Tools == nil {
-		u.lock.Tools = make(map[string]*layout.Tool)
+	if lock.Tools == nil {
+		lock.Tools = make(map[string]*layout.Tool)
 	}
 
-	if existingTool, ok := u.lock.Tools["run"]; ok && existingTool.Path != "" {
-		delete(u.lock.Tools, "run")
+	if existingTool, ok := lock.Tools["run"]; ok && existingTool.Path != "" {
+		delete(lock.Tools, "run")
 		result.Removed = append(result.Removed, "run")
 	}
 
 	// Get expected tools based on the scaffold config
-	expectedTools := layout.GetExpectedTools(u.lock.ScaffoldConfig)
+	expectedTools := layout.GetExpectedTools(lock.ScaffoldConfig)
 
 	// Step 1: Add new tools and update existing ones
-	for toolName, expectedTool := range expectedTools {
-		existingTool, exists := u.lock.Tools[toolName]
+	expectedNames := make([]string, 0, len(expectedTools))
+	for toolName := range expectedTools {
+		expectedNames = append(expectedNames, toolName)
+	}
+	sort.Strings(expectedNames)
+	for _, toolName := range expectedNames {
+		expectedTool := expectedTools[toolName]
+		existingTool, exists := lock.Tools[toolName]
 
 		if !exists {
 			// Tool doesn't exist in lock file - add it
-			u.lock.Tools[toolName] = expectedTool
+			lock.Tools[toolName] = expectedTool
 			result.Added = append(
 				result.Added,
 				fmt.Sprintf("%s (%s)", toolName, getToolVersion(expectedTool)),
@@ -364,7 +289,7 @@ func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
 				existingTool.VersionCheck = expectedTool.VersionCheck
 				result.Updated = append(result.Updated, fmt.Sprintf("%s: %s", toolName, getToolVersion(expectedTool)))
 			}
-			u.lock.Tools[toolName] = existingTool
+			lock.Tools[toolName] = existingTool
 		} else if existingTool.Path == "" {
 			// Keep source metadata aligned even when version does not change.
 			metadataChanged := false
@@ -379,19 +304,29 @@ func (u *Upgrader) syncToolsToFrameworkVersion() (*ToolSyncResult, error) {
 			if existingTool.VersionCheck == nil && expectedTool.VersionCheck != nil {
 				existingTool.VersionCheck = expectedTool.VersionCheck
 				metadataChanged = true
+			} else if existingTool.VersionCheck != nil && expectedTool.VersionCheck != nil &&
+				existingTool.VersionCheck.Regexp == "" && expectedTool.VersionCheck.Regexp != "" {
+				existingTool.VersionCheck = expectedTool.VersionCheck
+				metadataChanged = true
 			}
 			if metadataChanged {
-				u.lock.Tools[toolName] = existingTool
+				lock.Tools[toolName] = existingTool
+				result.Metadata = append(result.Metadata, toolName+" metadata")
 			}
 		}
 	}
 
 	// Step 2: Remove obsolete tools (tools in lock but not in expected)
 	// Only remove framework-managed tools, preserve user-added custom tools
-	for toolName := range u.lock.Tools {
+	existingNames := make([]string, 0, len(lock.Tools))
+	for toolName := range lock.Tools {
+		existingNames = append(existingNames, toolName)
+	}
+	sort.Strings(existingNames)
+	for _, toolName := range existingNames {
 		if _, shouldExist := expectedTools[toolName]; !shouldExist {
-			if isFrameworkManagedTool(toolName, u.lock.Tools[toolName]) {
-				delete(u.lock.Tools, toolName)
+			if isFrameworkManagedTool(toolName, lock.Tools[toolName]) {
+				delete(lock.Tools, toolName)
 				result.Removed = append(result.Removed, toolName)
 			}
 		}
