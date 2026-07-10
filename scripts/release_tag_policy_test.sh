@@ -123,7 +123,7 @@ for requirement in \
   'needs: readiness' \
   'uses: ./.github/workflows/release-artifact-preflight.yml' \
   'checkout_ref: ${{ github.sha }}' \
-  'release_tag: v1.0.0'; do
+  "release_tag: \${{ format('v0.0.0-readiness.{0}', github.run_id) }}"; do
   if [[ "${readiness_preflight_block}" != *"${requirement}"* ]]; then
     echo "canonical release readiness artifact preflight does not enforce ${requirement}" >&2
     exit 1
@@ -133,6 +133,10 @@ done
 artifact_preflight_workflow="${repo_root}/.github/workflows/release-artifact-preflight.yml"
 for requirement in \
   'workflow_call:' \
+  'name: Prepare exact preflight tag' \
+  'git show-ref --verify --quiet "refs/tags/${PREFLIGHT_TAG}"' \
+  'git tag -- "${PREFLIGHT_TAG}" "${head_commit}"' \
+  'tag_commit="$(git rev-list -n 1 "${PREFLIGHT_TAG}")"' \
   'args: release --clean --skip=publish' \
   'linux_amd64 linux_arm64 darwin_amd64 darwin_arm64' \
   'ubuntu-24.04-arm' \

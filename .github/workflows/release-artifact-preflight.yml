@@ -60,6 +60,25 @@ jobs:
       - name: Install pinned Syft
         uses: anchore/sbom-action/download-syft@57aae528053a48a3f6235f2d9461b05fbcb7366d # v0.23.1, Syft v1.42.2
 
+      - name: Prepare exact preflight tag
+        shell: bash
+        env:
+          PREFLIGHT_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          head_commit="$(git rev-parse HEAD^{commit})"
+          if git show-ref --verify --quiet "refs/tags/${PREFLIGHT_TAG}"; then
+            tag_commit="$(git rev-list -n 1 "${PREFLIGHT_TAG}")"
+            if [[ "${tag_commit}" != "${head_commit}" ]]; then
+              echo "Preflight tag ${PREFLIGHT_TAG} points to ${tag_commit}, not ${head_commit}." >&2
+              exit 1
+            fi
+          else
+            git tag -- "${PREFLIGHT_TAG}" "${head_commit}"
+          fi
+
+          test "$(git rev-list -n 1 "${PREFLIGHT_TAG}")" = "${head_commit}"
+
       - name: Check GoReleaser configuration
         uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8 # v7.2.1
         with:
