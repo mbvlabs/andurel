@@ -2,14 +2,14 @@
 
 The normative structural fixture is [`contracts/lock-schema-v1.schema.json`](../../contracts/lock-schema-v1.schema.json). [`contracts/lock-schema-v1.example.json`](../../contracts/lock-schema-v1.example.json) shows the complete download and version-check shape.
 
-`schemaVersion` controls only the structure and interpretation of `andurel.lock`. `version` independently selects framework and project migrations.
+`schemaVersion` controls the structure and interpretation of `andurel.lock`. `version` records the framework version that owns the generated framework files.
 
 ## Decoding order
 
 Readers must follow this order:
 
 1. Decode only `schemaVersion` without decoding the complete lock.
-2. Route a missing value only to the explicit recognized release-candidate migration. An unrecognized missing value is invalid.
+2. Reject a missing value.
 3. Accept schema 1.
 4. Reject a newer schema with an error that tells the user to upgrade the Andurel CLI.
 5. Decode the complete schema 1 value.
@@ -41,7 +41,7 @@ The following may remain schema 1:
 
 ## Changes requiring schema 2
 
-The following require a schema increment and an explicit lock migration:
+The following require a schema increment and a separately designed upgrade path:
 
 - removing or renaming a field;
 - changing a field's JSON type, required status, default, or meaning;
@@ -51,6 +51,4 @@ The following require a schema increment and an explicit lock migration:
 - making previously optional metadata necessary for correct operation;
 - any change that causes a valid schema 1 lock to be interpreted differently.
 
-Framework migrations and lock-schema migrations are selected and recorded independently. Their version fields are updated only after the corresponding migration succeeds.
-
-Writers always emit the current schema explicitly. A missing `schemaVersion` is not a general schema-1 default; it is accepted only for the recognized RC.1, RC.2, and RC.3 migration path. There is no downgrade path for a future schema. Preserve the original lock and use a newer Andurel CLI when a future schema is encountered.
+Writers always emit the current schema explicitly. A missing `schemaVersion` is invalid. Release-candidate locks are not supported upgrade sources. There is no downgrade path for a future schema. Preserve the original lock and use a newer Andurel CLI when a future schema is encountered.

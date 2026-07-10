@@ -10,7 +10,7 @@ All notable changes to Andurel are documented in this file. Andurel follows
 - A frozen public Go API baseline and automated compatibility checks.
 - Stable CLI discovery, structured output, projection, error-code, and exit-code contracts.
 - Lock schema 1 with verified per-platform tool downloads.
-- Transactional framework-owned file upgrades with dry-run, conflict detection, and rollback.
+- Transactional framework-owned file upgrades with dry-run and rollback.
 - Read-only doctor diagnostics, safe DDL parser failures, and deterministic formatter checks.
 - Linux and macOS release archives for amd64 and arm64, SBOMs, signed checksums, provenance, and native installation smoke tests.
 
