@@ -92,11 +92,17 @@ for requirement in \
   fi
 done
 
-preflight_block="$(sed -n '/^  preflight:/,/^  [a-zA-Z0-9-]*:/p' "${workflow}")"
-if [[ "${preflight_block}" != *'needs: tag-identity'* ]]; then
-  echo 'release artifact preflight does not require tag identity and readiness proof' >&2
-  exit 1
-fi
+preflight_block="$(sed -n '/^  artifact-preflight:/,/^  [a-zA-Z0-9-]*:/p' "${workflow}")"
+for requirement in \
+  'needs: tag-identity' \
+  'uses: ./.github/workflows/release-artifact-preflight.yml' \
+  'checkout_ref: ${{ github.sha }}' \
+  'release_tag: ${{ github.ref_name }}'; do
+  if [[ "${preflight_block}" != *"${requirement}"* ]]; then
+    echo "release artifact preflight does not enforce ${requirement}" >&2
+    exit 1
+  fi
+done
 
 readiness_workflow="${repo_root}/.github/workflows/release-readiness.yml"
 if ! grep -Eq '^  push:' "${readiness_workflow}"; then
@@ -111,6 +117,47 @@ if ! grep -Fq '      - master' "${readiness_workflow}"; then
   echo 'canonical release readiness does not target master' >&2
   exit 1
 fi
+
+readiness_preflight_block="$(sed -n '/^  artifact-preflight:/,/^  [a-zA-Z0-9-]*:/p' "${readiness_workflow}")"
+for requirement in \
+  'needs: readiness' \
+  'uses: ./.github/workflows/release-artifact-preflight.yml' \
+  'checkout_ref: ${{ github.sha }}' \
+  "release_tag: \${{ format('v0.0.0-readiness.{0}', github.run_id) }}"; do
+  if [[ "${readiness_preflight_block}" != *"${requirement}"* ]]; then
+    echo "canonical release readiness artifact preflight does not enforce ${requirement}" >&2
+    exit 1
+  fi
+done
+
+artifact_preflight_workflow="${repo_root}/.github/workflows/release-artifact-preflight.yml"
+for requirement in \
+  'workflow_call:' \
+  'args: release --clean --skip=publish' \
+  'linux_amd64 linux_arm64 darwin_amd64 darwin_arm64' \
+  'ubuntu-24.04-arm' \
+  'macos-15-intel' \
+  'macos-15' \
+  './scripts/smoke-release-archive.sh'; do
+  if ! grep -Fq "${requirement}" "${artifact_preflight_workflow}"; then
+    echo "shared release artifact preflight is missing ${requirement}" >&2
+    exit 1
+  fi
+done
+
+test_workflow="${repo_root}/.github/workflows/test.yml"
+for requirement in \
+  'pull_request:' \
+  '      - master' \
+  '  test:' \
+  'go vet ./...' \
+  'go test $(go list ./... | grep -v /e2e)' \
+  'go test ./e2e/... -v -timeout 25m'; do
+  if ! grep -Fq "${requirement}" "${test_workflow}"; then
+    echo "pull request test workflow is missing ${requirement}" >&2
+    exit 1
+  fi
+done
 
 coverage_workflow="${repo_root}/.github/workflows/coverage.yml"
 if grep -Eq '^  release:' "${coverage_workflow}" || \

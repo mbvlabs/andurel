@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if (( $# != 3 )); then
-  echo 'usage: scripts/smoke-release-archive.sh ARCHIVE TAG ASSET_DIRECTORY' >&2
+if (( $# < 3 || $# > 4 )); then
+  echo 'usage: scripts/smoke-release-archive.sh ARCHIVE TAG ASSET_DIRECTORY [SIGNING_IDENTITY]' >&2
   exit 2
 fi
 
@@ -14,7 +14,7 @@ archive_name="$(basename "${archive}")"
 checksum_file="${asset_dir}/checksums.txt"
 sbom_checksum_file="${asset_dir}/sbom-checksums.txt"
 sbom="${asset_dir}/${archive_name}.sbom.json"
-signing_identity="https://github.com/${GITHUB_REPOSITORY:-mbvlabs/andurel}/.github/workflows/release.yml@refs/tags/${tag}"
+signing_identity="${4:-https://github.com/${GITHUB_REPOSITORY:-mbvlabs/andurel}/.github/workflows/release.yml@refs/tags/${tag}}"
 
 case "$(uname -s)" in
   Linux) expected_os=linux ;;

@@ -112,3 +112,16 @@ jobs:
           set -euo pipefail
           git diff --exit-code -- .
           git diff --cached --exit-code -- .
+
+  artifact-preflight:
+    name: Release artifact preflight
+    needs: readiness
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/release-artifact-preflight.yml
+    with:
+      checkout_ref: ${{ github.sha }}
+      release_tag: ${{ format('v0.0.0-readiness.{0}', github.run_id) }}
+      signing_identity: ${{ format('https://github.com/{0}/.github/workflows/release-readiness.yml@{1}', github.repository, github.ref) }}
+      artifact_name: ${{ format('readiness-preflight-assets-{0}', github.sha) }}

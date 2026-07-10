@@ -66,147 +66,22 @@ jobs:
           fi
           echo "Verified Release Readiness run ${run_id}: ${run_url}"
 
-  preflight:
-    name: Build private preflight artifacts
+  artifact-preflight:
+    name: Release artifact preflight
     needs: tag-identity
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
-
-    steps:
-      - name: Check out the validated tag commit
-        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Set up pinned Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          check-latest: false
-          cache: true
-          cache-dependency-path: go.sum
-
-      - name: Install pinned Cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1, Cosign v3.0.5
-
-      - name: Install pinned Syft
-        uses: anchore/sbom-action/download-syft@57aae528053a48a3f6235f2d9461b05fbcb7366d # v0.23.1, Syft v1.42.2
-
-      - name: Check GoReleaser configuration
-        uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8 # v7.2.1
-        with:
-          distribution: goreleaser
-          version: ${{ env.GORELEASER_VERSION }}
-          args: check
-
-      - name: Build without publishing
-        uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8 # v7.2.1
-        with:
-          distribution: goreleaser
-          version: ${{ env.GORELEASER_VERSION }}
-          args: release --clean --skip=publish
-
-      - name: Sign the SBOM checksum manifest
-        shell: bash
-        run: |
-          set -euo pipefail
-          find dist -maxdepth 1 -type f -name '*.sbom.json' -print0 \
-            | sort -z \
-            | xargs -0 sha256sum \
-            | sed 's#  dist/#  #' > dist/sbom-checksums.txt
-          cosign sign-blob \
-            --bundle dist/sbom-checksums.txt.sigstore.json \
-            --yes \
-            dist/sbom-checksums.txt
-
-      - name: Verify the four-artifact matrix
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
-          for target in linux_amd64 linux_arm64 darwin_amd64 darwin_arm64; do
-            archive="dist/andurel_${version}_${target}.tar.gz"
-            test -f "${archive}"
-            test -f "${archive}.sbom.json"
-          done
-          test "$(find dist -maxdepth 1 -type f -name 'andurel_*.tar.gz' | wc -l)" -eq 4
-          test -f dist/checksums.txt
-          test -f dist/checksums.txt.sigstore.json
-          test -f dist/sbom-checksums.txt.sigstore.json
-
-      - name: Confirm packaging did not mutate tracked source
-        shell: bash
-        run: |
-          set -euo pipefail
-          git diff --exit-code -- .
-          git diff --cached --exit-code -- .
-
-      - name: Upload private preflight artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: preflight-release-assets-${{ github.sha }}
-          path: dist/
-          if-no-files-found: error
-          retention-days: 1
-
-  preflight-smoke:
-    name: Preflight smoke ${{ matrix.goos }}/${{ matrix.goarch }}
-    needs: preflight
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - goos: linux
-            goarch: amd64
-            runner: ubuntu-24.04
-          - goos: linux
-            goarch: arm64
-            runner: ubuntu-24.04-arm
-          - goos: darwin
-            goarch: amd64
-            runner: macos-15-intel
-          - goos: darwin
-            goarch: arm64
-            runner: macos-15
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
-    permissions:
-      contents: read
-
-    steps:
-      - name: Check out smoke-test fixtures
-        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-
-      - name: Download private preflight artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: preflight-release-assets-${{ github.sha }}
-          path: dist
-
-      - name: Install pinned Cosign
-        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1, Cosign v3.0.5
-
-      - name: Install and smoke-test archive
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
-          ./scripts/smoke-release-archive.sh \
-            "dist/andurel_${version}_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz" \
-            "${GITHUB_REF_NAME}" \
-            dist
+    uses: ./.github/workflows/release-artifact-preflight.yml
+    with:
+      checkout_ref: ${{ github.sha }}
+      release_tag: ${{ github.ref_name }}
+      signing_identity: ${{ format('https://github.com/{0}/.github/workflows/release.yml@{1}', github.repository, github.ref) }}
+      artifact_name: ${{ format('preflight-release-assets-{0}', github.sha) }}
 
   draft-release:
     name: Create signed private draft
-    needs: preflight-smoke
+    needs: artifact-preflight
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
