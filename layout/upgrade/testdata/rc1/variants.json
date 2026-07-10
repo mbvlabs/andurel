@@ -1,0 +1,14 @@
+{
+  "variants": [
+    {"name":"pristine","files":["andurel.lock","router/router.go","models/user.go","cmd/app/main.go"],"outcome":"success"},
+    {"name":"edited-lock-custom-tool","file":"andurel.lock","edit":"add independent custom tool metadata","outcome":"success-preserved"},
+    {"name":"edited-router-independent-declaration","file":"router/router.go","edit":"append independent user declaration","outcome":"success-preserved"},
+    {"name":"edited-user-independent-declaration","file":"models/user.go","edit":"append independent user declaration","outcome":"success-preserved"},
+    {"name":"edited-application-independent-declaration","file":"cmd/app/main.go","edit":"append independent user declaration","outcome":"success-preserved"},
+    {"name":"unknown-target-edit","files":["router/router.go","models/user.go","cmd/app/main.go"],"edit":"alter a targeted function","outcome":"conflict"},
+    {"name":"missing-target","files":["router/router.go","models/user.go","cmd/app/main.go"],"edit":"remove a targeted function","outcome":"conflict"},
+    {"name":"duplicate-target","files":["router/router.go","models/user.go","cmd/app/main.go"],"edit":"duplicate a targeted function","outcome":"conflict"},
+    {"name":"ambiguous-target","files":["router/router.go","models/user.go","cmd/app/main.go"],"edit":"introduce an unrecognized competing structure","outcome":"conflict"}
+  ]
+}
+

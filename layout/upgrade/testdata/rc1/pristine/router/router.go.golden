@@ -1,0 +1,140 @@
+// Package router provides the application routes and middleware setup.
+package router
+
+import (
+	"encoding/gob"
+	"encoding/hex"
+	"errors"
+	"log/slog"
+	"net/http"
+
+	"testapp/config"
+	"testapp/router/cookies"
+	"testapp/router/middleware"
+	"testapp/telemetry"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/sessions"
+	"github.com/labstack/echo-contrib/v5/session"
+	"github.com/labstack/echo/v5"
+	echomw "github.com/labstack/echo/v5/middleware"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.uber.org/fx"
+)
+
+type Router struct {
+	e       *echo.Echo
+	Handler http.Handler
+}
+
+func New(
+	cfg config.Config,
+	tel *telemetry.Telemetry,
+) (*Router, error) {
+	gob.Register(uuid.UUID{})
+	gob.Register(cookies.FlashMessage{})
+
+	authKey, err := hex.DecodeString(cfg.App.SessionKey)
+	if err != nil {
+		return nil, err
+	}
+	encKey, err := hex.DecodeString(cfg.App.SessionEncryptionKey)
+	if err != nil {
+		return nil, err
+	}
+
+	router := echo.New()
+	defaultHTTPErrorHandler := echo.DefaultHTTPErrorHandler(false)
+	router.HTTPErrorHandler = func(c *echo.Context, err error) {
+		if panicErr, ok := errors.AsType[*echomw.PanicStackError](err); ok {
+			slog.ErrorContext(
+				c.Request().Context(),
+				"http panic recovered",
+				"method", c.Request().Method,
+				"path", c.Request().URL.Path,
+				"error", panicErr.Unwrap(),
+				"stack", string(panicErr.Stack),
+			)
+		} else {
+			slog.ErrorContext(
+				c.Request().Context(),
+				"http handler error",
+				"method", c.Request().Method,
+				"path", c.Request().URL.Path,
+				"error", err,
+			)
+		}
+
+		defaultHTTPErrorHandler(c, err)
+	}
+
+	globalMiddleware, err := SetupGlobalMiddleware(cfg, tel, authKey, encKey, "_csrf")
+	if err != nil {
+		return nil, err
+	}
+
+	router.Use(globalMiddleware...)
+
+	handler := otelhttp.NewHandler(router, "http")
+
+	return &Router{
+		e:       router,
+		Handler: handler,
+	}, nil
+}
+
+func SetupGlobalMiddleware(
+	cfg config.Config,
+	tel *telemetry.Telemetry,
+	authKey []byte,
+	encKey []byte,
+	csrfName string,
+) ([]echo.MiddlewareFunc, error) {
+	csrfMiddleware, err := middleware.CSRFMiddleware(cfg, csrfName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Order matters: middlewares execute in the order listed, with Recover last
+	// to catch panics from all preceding middlewares.
+	middlewares := []echo.MiddlewareFunc{
+		middleware.TraceRouteAttributes(tel),
+		middleware.Logger(tel),
+		session.Middleware(
+			sessions.NewCookieStore(
+				authKey,
+				encKey,
+			),
+		),
+		middleware.ValidateSession,
+		middleware.RegisterRequestMeta,
+		echomw.CORSWithConfig(echomw.CORSConfig{
+			AllowOrigins:     []string{"https://*", "http://*"},
+			AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+			AllowHeaders:     []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+			AllowCredentials: true,
+			MaxAge:           300,
+		}),
+		csrfMiddleware,
+		echomw.Recover(),
+	}
+
+	return middlewares, nil
+}
+
+func (r *Router) AddRoute(route echo.Route) (echo.RouteInfo, error) {
+	return r.e.AddRoute(route)
+}
+
+func (r *Router) AddRouteNotFound(
+	notFoundHandler echo.HandlerFunc,
+) echo.RouteInfo {
+	return r.e.RouteNotFound("/*", notFoundHandler)
+}
+
+var Module = fx.Module(
+	"router",
+	fx.Provide(New),
+)
+
+
