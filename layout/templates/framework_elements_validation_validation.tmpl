@@ -20,6 +20,14 @@ type Error struct {
 	Params  map[string]any `json:"params,omitempty"`
 }
 
+type Rule struct {
+	Code    string         `json:"code"`
+	Message string         `json:"message"`
+	Params  map[string]any `json:"params,omitempty"`
+}
+
+type Rules map[string][]Rule
+
 type ValidationErrors []Error
 
 func (e ValidationErrors) Error() string {
@@ -73,10 +81,13 @@ func Validate(value any) error {
 
 type ValidationBuilder struct {
 	errors ValidationErrors
+	rules  Rules
 }
 
 func NewBuilder() *ValidationBuilder {
-	return &ValidationBuilder{}
+	return &ValidationBuilder{
+		rules: Rules{},
+	}
 }
 
 func (b *ValidationBuilder) Add(field, code, message string) {
@@ -114,6 +125,28 @@ func (b *ValidationBuilder) AddFieldWithParams(
 	b.AddWithParams(field, code, message, params)
 }
 
+func (b *ValidationBuilder) AddRule(field, code, message string) {
+	b.AddRuleWithParams(field, code, message, nil)
+}
+
+func (b *ValidationBuilder) AddRuleWithParams(
+	field string,
+	code string,
+	message string,
+	params map[string]any,
+) {
+	field = normalizeField(field)
+	if b.rules == nil {
+		b.rules = Rules{}
+	}
+
+	b.rules[field] = append(b.rules[field], Rule{
+		Code:    code,
+		Message: message,
+		Params:  copyRuleParams(params),
+	})
+}
+
 func (b *ValidationBuilder) Err() error {
 	if len(b.errors) == 0 {
 		return nil
@@ -124,6 +157,36 @@ func (b *ValidationBuilder) Err() error {
 
 func (b *ValidationBuilder) Errors() ValidationErrors {
 	return b.errors
+}
+
+func (b *ValidationBuilder) Rules() Rules {
+	rules := make(Rules, len(b.rules))
+	for field, fieldRules := range b.rules {
+		fieldRulesCopy := make([]Rule, len(fieldRules))
+		for i, rule := range fieldRules {
+			fieldRulesCopy[i] = Rule{
+				Code:    rule.Code,
+				Message: rule.Message,
+				Params:  copyRuleParams(rule.Params),
+			}
+		}
+		rules[field] = fieldRulesCopy
+	}
+
+	return rules
+}
+
+func copyRuleParams(params map[string]any) map[string]any {
+	if params == nil {
+		return nil
+	}
+
+	paramsCopy := make(map[string]any, len(params))
+	for key, value := range params {
+		paramsCopy[key] = value
+	}
+
+	return paramsCopy
 }
 
 func normalizeField(field string) string {
