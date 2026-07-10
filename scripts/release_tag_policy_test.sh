@@ -77,29 +77,34 @@ for job in tag-identity draft-release publish; do
   fi
 done
 
-readiness_block="$(sed -n '/^  readiness:/,/^  [a-zA-Z0-9-]*:/p' "${workflow}")"
-if [[ "${readiness_block}" != *'uses: ./.github/workflows/release-readiness.yml'* ]]; then
-  echo 'release workflow does not invoke canonical release readiness' >&2
+tag_identity_block="$(sed -n '/^  tag-identity:/,/^  [a-zA-Z0-9-]*:/p' "${workflow}")"
+for requirement in \
+  'actions: read' \
+  'gh run list' \
+  '--workflow release-readiness.yml' \
+  '--branch master' \
+  '--commit "${GITHUB_SHA}"' \
+  '--event push' \
+  '--status success'; do
+  if [[ "${tag_identity_block}" != *"${requirement}"* ]]; then
+    echo "release workflow does not verify ${requirement}" >&2
+    exit 1
+  fi
+done
+
+preflight_block="$(sed -n '/^  preflight:/,/^  [a-zA-Z0-9-]*:/p' "${workflow}")"
+if [[ "${preflight_block}" != *'needs: tag-identity'* ]]; then
+  echo 'release artifact preflight does not require tag identity and readiness proof' >&2
   exit 1
 fi
 
-preflight_block="$(sed -n '/^  preflight:/,/^  [a-zA-Z0-9-]*:/p' "${workflow}")"
-for dependency in tag-identity readiness; do
-  if [[ "${preflight_block}" != *"- ${dependency}"* ]]; then
-    echo "release artifact preflight does not require ${dependency}" >&2
-    exit 1
-  fi
-done
-
 readiness_workflow="${repo_root}/.github/workflows/release-readiness.yml"
-for trigger in push workflow_call; do
-  if ! grep -Eq "^  ${trigger}:" "${readiness_workflow}"; then
-    echo "canonical release readiness is missing ${trigger}" >&2
-    exit 1
-  fi
-done
-if grep -Eq '^  pull_request:' "${readiness_workflow}"; then
-  echo 'canonical release readiness must not run before merge' >&2
+if ! grep -Eq '^  push:' "${readiness_workflow}"; then
+  echo 'canonical release readiness is missing push' >&2
+  exit 1
+fi
+if grep -Eq '^  (pull_request|workflow_call):' "${readiness_workflow}"; then
+  echo 'canonical release readiness must run only after merge' >&2
   exit 1
 fi
 if ! grep -Fq '      - master' "${readiness_workflow}"; then

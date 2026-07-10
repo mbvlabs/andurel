@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
+      actions: read
       contents: read
 
     steps:
@@ -38,17 +39,36 @@ jobs:
         shell: bash
         run: ./scripts/verify-release-tag.sh "${GITHUB_REF_NAME}" "${GITHUB_SHA}"
 
-  readiness:
-    name: Canonical release readiness
-    uses: ./.github/workflows/release-readiness.yml
-    permissions:
-      contents: read
+      - name: Verify post-merge readiness for the tagged commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          record="$(gh run list \
+            --workflow release-readiness.yml \
+            --branch master \
+            --commit "${GITHUB_SHA}" \
+            --event push \
+            --status success \
+            --limit 1 \
+            --json databaseId,headBranch,headSha,event,conclusion,url \
+            --jq '.[] | [.databaseId, .headBranch, .headSha, .event, .conclusion, .url] | @tsv')"
+          if [[ -z "${record}" ]]; then
+            echo "${GITHUB_SHA} has no successful post-merge Release Readiness run on master." >&2
+            exit 1
+          fi
+          IFS=$'\t' read -r run_id run_branch run_sha run_event run_conclusion run_url <<< "${record}"
+          if [[ "${run_branch}" != master || "${run_sha}" != "${GITHUB_SHA}" || \
+            "${run_event}" != push || "${run_conclusion}" != success ]]; then
+            echo "Release Readiness result does not match the tagged master commit: ${record}" >&2
+            exit 1
+          fi
+          echo "Verified Release Readiness run ${run_id}: ${run_url}"
 
   preflight:
     name: Build private preflight artifacts
-    needs:
-      - tag-identity
-      - readiness
+    needs: tag-identity
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
