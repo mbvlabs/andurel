@@ -2,6 +2,7 @@ package upgrade
 
 import (
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
@@ -18,7 +19,7 @@ type transactionRuntime struct {
 	failureInjector failureInjector
 }
 
-func validatePlannedFiles(plan *migrationPlan) error {
+func validatePlannedFiles(root string, plan *migrationPlan) error {
 	for _, file := range plan.files {
 		if file.remove || !strings.HasSuffix(file.path, ".go") {
 			continue
@@ -27,11 +28,16 @@ func validatePlannedFiles(plan *migrationPlan) error {
 			return fmt.Errorf("validate %s: %w", file.path, err)
 		}
 	}
-	return nil
+	if !planChangesPath(plan, "router/router.go") {
+		return nil
+	}
+	return validateRouterConfigContract(
+		func(path string) ([]byte, error) { return effectivePlannedContent(root, plan, path) },
+	)
 }
 
 func (u *Upgrader) applyPlan(plan *migrationPlan) (err error) {
-	if err := validatePlannedFiles(plan); err != nil {
+	if err := validatePlannedFiles(u.projectRoot, plan); err != nil {
 		return err
 	}
 	txnDir, err := os.MkdirTemp(u.projectRoot, ".andurel-upgrade-")
@@ -66,7 +72,7 @@ func (u *Upgrader) applyPlan(plan *migrationPlan) (err error) {
 	if err := u.inject("validation", txnDir); err != nil {
 		return fmt.Errorf("validate staged upgrade: %w", err)
 	}
-	if err := validatePlannedFiles(plan); err != nil {
+	if err := validatePlannedFiles(u.projectRoot, plan); err != nil {
 		return err
 	}
 
@@ -95,6 +101,9 @@ func (u *Upgrader) applyPlan(plan *migrationPlan) (err error) {
 	if err := validateAppliedFiles(u.projectRoot, plan, false); err != nil {
 		return fmt.Errorf("validate applied project files: %w", err)
 	}
+	if err := validateAppliedRouterConfigContract(u.projectRoot, plan); err != nil {
+		return fmt.Errorf("validate applied project files: %w", err)
+	}
 
 	for _, file := range plan.files {
 		if !file.isLock {
@@ -115,6 +124,98 @@ func (u *Upgrader) applyPlan(plan *migrationPlan) (err error) {
 	}
 	if err := os.RemoveAll(txnDir); err != nil {
 		return fmt.Errorf("cleanup upgrade backup: %w", err)
+	}
+	return nil
+}
+
+func effectivePlannedContent(root string, plan *migrationPlan, path string) ([]byte, error) {
+	for _, file := range plan.files {
+		if file.path != path {
+			continue
+		}
+		if file.remove {
+			return nil, os.ErrNotExist
+		}
+		return slices.Clone(file.after), nil
+	}
+	return os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+}
+
+func validateAppliedRouterConfigContract(root string, plan *migrationPlan) error {
+	if !planChangesPath(plan, "router/router.go") {
+		return nil
+	}
+	return validateRouterConfigContract(func(path string) ([]byte, error) {
+		return os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+	})
+}
+
+func planChangesPath(plan *migrationPlan, path string) bool {
+	for _, file := range plan.files {
+		if file.path == path && !file.remove {
+			return true
+		}
+	}
+	return false
+}
+
+func validateRouterConfigContract(read func(string) ([]byte, error)) error {
+	const routerPath = "router/router.go"
+	const configPath = "config/app.go"
+	routerContent, err := read(routerPath)
+	if err != nil {
+		return fmt.Errorf("read %s for config contract: %w", routerPath, err)
+	}
+	router, err := parser.ParseFile(token.NewFileSet(), routerPath, routerContent, parser.AllErrors)
+	if err != nil {
+		return fmt.Errorf("parse %s for config contract: %w", routerPath, err)
+	}
+	required := make(map[string]struct{})
+	ast.Inspect(router, func(node ast.Node) bool {
+		selector, ok := node.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		appSelector, ok := selector.X.(*ast.SelectorExpr)
+		if !ok || appSelector.Sel.Name != "App" {
+			return true
+		}
+		identifier, ok := appSelector.X.(*ast.Ident)
+		if ok && identifier.Name == "cfg" {
+			required[selector.Sel.Name] = struct{}{}
+		}
+		return true
+	})
+	if len(required) == 0 {
+		return nil
+	}
+
+	configContent, err := read(configPath)
+	if err != nil {
+		return fmt.Errorf("%s requires application config, but read %s: %w", routerPath, configPath, err)
+	}
+	configSet := token.NewFileSet()
+	config, err := parser.ParseFile(configSet, configPath, configContent, parser.AllErrors)
+	if err != nil {
+		return fmt.Errorf("parse %s for %s contract: %w", configPath, routerPath, err)
+	}
+	structures := namedStructDeclarations(config, "app")
+	if len(structures) != 1 {
+		return fmt.Errorf("%s requires cfg.App fields, but %s defines %d type app structs", routerPath, configPath, len(structures))
+	}
+	fields, conflict := uniqueNamedFields(structures[0].Fields.List)
+	if conflict != "" {
+		return fmt.Errorf("%s requires cfg.App fields, but %s type app struct is ambiguous: %s", routerPath, configPath, conflict)
+	}
+	names := make([]string, 0, len(required))
+	for name := range required {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	for _, name := range names {
+		if _, exists := fields[name]; !exists {
+			return fmt.Errorf("%s requires cfg.App.%s, but %s does not define app.%s", routerPath, name, configPath, name)
+		}
 	}
 	return nil
 }

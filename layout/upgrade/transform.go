@@ -25,10 +25,19 @@ type rcFileTransform struct {
 	exactLegacyHashes map[string]struct{}
 	replaceFunctions  map[string]map[string]struct{}
 	addFunctions      []string
+	addStructFields   map[string][]string
 	imports           []string
 }
 
 var rcFileTransforms = []rcFileTransform{
+	{
+		path:              "config/app.go",
+		templateName:      "config_app.tmpl",
+		exactLegacyHashes: hashSet("b8b0638926f297b9594ec435554f40c6caeb815318d2b38ade92d29e9b044e20"),
+		addStructFields: map[string][]string{
+			"app": {"SessionMaxAge", "CORSAllowedOrigins"},
+		},
+	},
 	{
 		path: "models/user.go", templateName: "models_user.tmpl",
 		exactLegacyHashes: hashSet("8590ed3233727963de7536023bf93e93722aa04544ee6ba0b24cb2b067746dea"),
@@ -224,11 +233,161 @@ func transformEditedRCFile(current, target []byte, modulePath string, spec rcFil
 	if err != nil {
 		return nil, "", fmt.Errorf("format transformed %s: %w", spec.path, err)
 	}
+	formatted, conflict, err := addRequiredStructFields(formatted, target, spec)
+	if err != nil || conflict != "" {
+		return nil, conflict, err
+	}
 	formatted, err = addRequiredImports(formatted, modulePath, spec.imports)
 	if err != nil {
 		return nil, "", err
 	}
 	return formatted, "", nil
+}
+
+func addRequiredStructFields(current, target []byte, spec rcFileTransform) ([]byte, string, error) {
+	if len(spec.addStructFields) == 0 {
+		return current, "", nil
+	}
+	sourceSet := token.NewFileSet()
+	sourceFile, err := parser.ParseFile(sourceSet, spec.path, current, parser.ParseComments)
+	if err != nil {
+		return nil, "source is not valid Go", nil
+	}
+	targetSet := token.NewFileSet()
+	targetFile, err := parser.ParseFile(targetSet, spec.path, target, parser.ParseComments)
+	if err != nil {
+		return nil, "", fmt.Errorf("parse target %s: %w", spec.path, err)
+	}
+
+	structNames := make([]string, 0, len(spec.addStructFields))
+	for name := range spec.addStructFields {
+		structNames = append(structNames, name)
+	}
+	sort.Strings(structNames)
+	for _, structName := range structNames {
+		sourceStructs := namedStructDeclarations(sourceFile, structName)
+		targetStructs := namedStructDeclarations(targetFile, structName)
+		if len(sourceStructs) != 1 {
+			return nil, fmt.Sprintf("expected exactly one type %s struct declaration, found %d", structName, len(sourceStructs)), nil
+		}
+		if len(targetStructs) != 1 {
+			return nil, "", fmt.Errorf("target template has %d type %s struct declarations", len(targetStructs), structName)
+		}
+
+		sourceFields, conflict := uniqueNamedFields(sourceStructs[0].Fields.List)
+		if conflict != "" {
+			return nil, fmt.Sprintf("type %s struct: %s", structName, conflict), nil
+		}
+		targetFields, targetConflict := uniqueNamedFields(targetStructs[0].Fields.List)
+		if targetConflict != "" {
+			return nil, "", fmt.Errorf("target type %s struct: %s", structName, targetConflict)
+		}
+
+		for _, fieldName := range spec.addStructFields[structName] {
+			targetField, ok := targetFields[fieldName]
+			if !ok {
+				return nil, "", fmt.Errorf("target type %s struct does not define %s", structName, fieldName)
+			}
+			if sourceField, exists := sourceFields[fieldName]; exists {
+				matches, compareErr := structFieldsEqual(sourceSet, sourceField, targetSet, targetField)
+				if compareErr != nil {
+					return nil, "", compareErr
+				}
+				if !matches {
+					return nil, fmt.Sprintf("type %s struct field %s has a conflicting type or tag", structName, fieldName), nil
+				}
+				continue
+			}
+			insertStructFieldInTemplateOrder(sourceStructs[0], targetStructs[0], fieldName, targetField)
+			sourceFields[fieldName] = targetField
+		}
+	}
+
+	var buffer bytes.Buffer
+	if err := format.Node(&buffer, sourceSet, sourceFile); err != nil {
+		return nil, "", fmt.Errorf("format transformed %s: %w", spec.path, err)
+	}
+	return buffer.Bytes(), "", nil
+}
+
+func namedStructDeclarations(file *ast.File, name string) []*ast.StructType {
+	var result []*ast.StructType
+	for _, declaration := range file.Decls {
+		gen, ok := declaration.(*ast.GenDecl)
+		if !ok || gen.Tok != token.TYPE {
+			continue
+		}
+		for _, item := range gen.Specs {
+			typeSpec, ok := item.(*ast.TypeSpec)
+			if !ok || typeSpec.Name.Name != name {
+				continue
+			}
+			if structure, ok := typeSpec.Type.(*ast.StructType); ok {
+				result = append(result, structure)
+			}
+		}
+	}
+	return result
+}
+
+func uniqueNamedFields(fields []*ast.Field) (map[string]*ast.Field, string) {
+	result := make(map[string]*ast.Field)
+	for _, field := range fields {
+		if len(field.Names) == 0 {
+			continue
+		}
+		for _, name := range field.Names {
+			if _, exists := result[name.Name]; exists {
+				return nil, fmt.Sprintf("field %s is defined more than once", name.Name)
+			}
+			result[name.Name] = field
+		}
+	}
+	return result, ""
+}
+
+func structFieldsEqual(sourceSet *token.FileSet, source *ast.Field, targetSet *token.FileSet, target *ast.Field) (bool, error) {
+	if len(source.Names) != 1 || len(target.Names) != 1 || source.Names[0].Name != target.Names[0].Name {
+		return false, nil
+	}
+	var sourceType, targetType bytes.Buffer
+	if err := format.Node(&sourceType, sourceSet, source.Type); err != nil {
+		return false, err
+	}
+	if err := format.Node(&targetType, targetSet, target.Type); err != nil {
+		return false, err
+	}
+	sourceTag, targetTag := "", ""
+	if source.Tag != nil {
+		sourceTag = source.Tag.Value
+	}
+	if target.Tag != nil {
+		targetTag = target.Tag.Value
+	}
+	return sourceType.String() == targetType.String() && sourceTag == targetTag, nil
+}
+
+func insertStructFieldInTemplateOrder(source, target *ast.StructType, name string, field *ast.Field) {
+	targetOrder := make(map[string]int)
+	for index, candidate := range target.Fields.List {
+		for _, candidateName := range candidate.Names {
+			targetOrder[candidateName.Name] = index
+		}
+	}
+	wantedOrder := targetOrder[name]
+	insertAt := len(source.Fields.List)
+	for index, candidate := range source.Fields.List {
+		if len(candidate.Names) != 1 {
+			continue
+		}
+		if order, ok := targetOrder[candidate.Names[0].Name]; ok && order > wantedOrder {
+			insertAt = index
+			break
+		}
+	}
+	source.Fields.List = append(source.Fields.List, nil)
+	copy(source.Fields.List[insertAt+1:], source.Fields.List[insertAt:])
+	source.Fields.List[insertAt] = field
 }
 
 func functionDeclarations(file *ast.File) map[string][]*ast.FuncDecl {

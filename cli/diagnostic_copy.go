@@ -29,36 +29,78 @@ func withDiagnosticProjectCopy(rootDir string, run func(tempRoot string) error) 
 }
 
 func copyDiagnosticProject(src, dst string) error {
-	return filepath.WalkDir(src, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		rel, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-		if rel == "." {
-			return os.MkdirAll(dst, 0o755)
-		}
-		if entry.IsDir() && (entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == ".andurel-cache") {
-			return filepath.SkipDir
-		}
+	return copyDiagnosticEntry(src, dst, make(map[string]struct{}))
+}
 
-		target := filepath.Join(dst, rel)
-		info, err := entry.Info()
+func copyDiagnosticEntry(src, dst string, active map[string]struct{}) error {
+	original := src
+	info, err := os.Lstat(src)
+	if err != nil {
+		return fmt.Errorf("inspect %s: %w", original, err)
+	}
+	if isDiagnosticExcluded(info.Name()) {
+		return nil
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		resolved, resolveErr := filepath.EvalSymlinks(src)
+		if resolveErr != nil {
+			return fmt.Errorf("resolve symlink %s: %w", original, resolveErr)
+		}
+		src = resolved
+		info, err = os.Stat(src)
 		if err != nil {
-			return err
+			return fmt.Errorf("inspect resolved symlink %s: %w", original, err)
 		}
-		if entry.IsDir() {
-			return os.MkdirAll(target, info.Mode().Perm())
+		if isDiagnosticExcluded(filepath.Base(src)) {
+			return nil
 		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			linkTarget, err := os.Readlink(path)
-			if err != nil {
+	}
+
+	switch {
+	case info.Mode().IsRegular():
+		if err := copyFile(src, dst, info.Mode()); err != nil {
+			return fmt.Errorf("copy file %s: %w", original, err)
+		}
+		return nil
+	case info.IsDir():
+		canonical, err := filepath.EvalSymlinks(src)
+		if err != nil {
+			return fmt.Errorf("resolve directory %s: %w", original, err)
+		}
+		canonical, err = filepath.Abs(canonical)
+		if err != nil {
+			return fmt.Errorf("resolve absolute directory %s: %w", original, err)
+		}
+		if _, exists := active[canonical]; exists {
+			return fmt.Errorf("diagnostic copy cycle at %s", original)
+		}
+		active[canonical] = struct{}{}
+		defer delete(active, canonical)
+		if err := os.MkdirAll(dst, info.Mode().Perm()); err != nil {
+			return fmt.Errorf("create directory for %s: %w", original, err)
+		}
+		entries, err := os.ReadDir(src)
+		if err != nil {
+			return fmt.Errorf("read directory %s: %w", original, err)
+		}
+		for _, entry := range entries {
+			if isDiagnosticExcluded(entry.Name()) {
+				continue
+			}
+			if err := copyDiagnosticEntry(
+				filepath.Join(src, entry.Name()),
+				filepath.Join(dst, entry.Name()),
+				active,
+			); err != nil {
 				return err
 			}
-			return os.Symlink(linkTarget, target)
 		}
-		return copyFile(path, target, info.Mode())
-	})
+		return nil
+	default:
+		return fmt.Errorf("unsupported special file %s with mode %s", original, info.Mode())
+	}
+}
+
+func isDiagnosticExcluded(name string) bool {
+	return name == ".git" || name == "node_modules" || name == ".andurel-cache"
 }
