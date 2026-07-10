@@ -173,33 +173,6 @@ var defaultToolDownloads = map[string]ToolDownload{
 	},
 }
 
-var historicalToolDownloads = map[string]map[string]ToolDownload{
-	"shadowfax": {
-		"v0.8.0": {
-			URLTemplate: "https://github.com/mbvlabs/shadowfax/releases/download/{{version}}/shadowfax-{{os}}-{{arch}}",
-			Archive:     "binary",
-			BinaryName:  "shadowfax",
-			SHA256: map[string]string{
-				"linux/amd64":  "4762267734ddc249eae9086ea4b787f931e64514d75a3e2579dc91e7779f3cd1",
-				"linux/arm64":  "b2b0efdd8a311dcf27bd6de48667e8a1ee0b2887831d93d835f3a6eb7dcd9771",
-				"darwin/amd64": "192703912f8e1eb5a2b3f60782cbe47a9492e4afa6c100619c6564d148a72151",
-				"darwin/arm64": "17817e2fec8b1b3db4ef642e478821ecc237c0a77c78e4aed99d37d3597d5cf0",
-			},
-		},
-		"v0.8.3": {
-			URLTemplate: "https://github.com/mbvlabs/shadowfax/releases/download/{{version}}/shadowfax-{{os}}-{{arch}}",
-			Archive:     "binary",
-			BinaryName:  "shadowfax",
-			SHA256: map[string]string{
-				"linux/amd64":  "0d2a184d3d5f3e4d3835680fbf8e2d9a8ebdd3bb717b574a96677c22e5064841",
-				"linux/arm64":  "c23b3af7119c1116cbbdd1d921628e19ebea37c0fb29c52268b3e5e41dca7781",
-				"darwin/amd64": "616a0055540f5fb0049a1af3d4e39ebe0db8d7dfa19ebd3ee1963b50d5c27e9a",
-				"darwin/arm64": "b82828713f664c353b2aaca71e5a04d3ff5baa2b9162f01eeb6a9a82963e0e68",
-			},
-		},
-	},
-}
-
 // NewAndurelLock creates an empty lock file model for a version.
 func NewAndurelLock(version string) *AndurelLock {
 	return &AndurelLock{
@@ -286,23 +259,10 @@ func NewBuiltTool(path, version string) *Tool {
 }
 
 func getDefaultToolDownloadForVersion(name, version string) (*ToolDownload, bool) {
-	if defaultToolVersions[name] == version {
-		return GetDefaultToolDownload(name)
-	}
-	versionsByTool, ok := historicalToolDownloads[name]
-	if !ok {
+	if defaultToolVersions[name] != version {
 		return nil, false
 	}
-	spec, ok := versionsByTool[version]
-	if !ok {
-		return nil, false
-	}
-	return &ToolDownload{
-		URLTemplate: spec.URLTemplate,
-		Archive:     spec.Archive,
-		BinaryName:  spec.BinaryName,
-		SHA256:      cloneStringMap(spec.SHA256),
-	}, true
+	return GetDefaultToolDownload(name)
 }
 
 // AddTool records a managed tool in the lock file.

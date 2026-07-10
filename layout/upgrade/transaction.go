@@ -18,7 +18,7 @@ type transactionRuntime struct {
 	failureInjector failureInjector
 }
 
-func validatePlannedFiles(plan *migrationPlan) error {
+func validatePlannedFiles(plan *upgradePlan) error {
 	for _, file := range plan.files {
 		if file.remove || !strings.HasSuffix(file.path, ".go") {
 			continue
@@ -30,7 +30,7 @@ func validatePlannedFiles(plan *migrationPlan) error {
 	return nil
 }
 
-func (u *Upgrader) applyPlan(plan *migrationPlan) (err error) {
+func (u *Upgrader) applyPlan(plan *upgradePlan) (err error) {
 	if err := validatePlannedFiles(plan); err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (u *Upgrader) applyPlan(plan *migrationPlan) (err error) {
 	return nil
 }
 
-func validateAppliedFiles(root string, plan *migrationPlan, includeLock bool) error {
+func validateAppliedFiles(root string, plan *upgradePlan, includeLock bool) error {
 	for _, file := range plan.files {
 		if file.isLock && !includeLock {
 			continue
@@ -275,7 +275,7 @@ func syncDirectory(path string, inject failureInjector, reportPath string) error
 	return directory.Close()
 }
 
-func rollbackPlan(root string, plan *migrationPlan) error {
+func rollbackPlan(root string, plan *upgradePlan) error {
 	var rollbackErrors []error
 	files := slices.Clone(plan.files)
 	slices.Reverse(files)

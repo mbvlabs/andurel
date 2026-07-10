@@ -2,13 +2,12 @@
 
 ## Supported versions
 
-After v1.0.0 is released, the latest v1 minor release receives security fixes. The final v1 release candidate is supported only until v1.0.0 is available. Older release candidates and nightly builds are unsupported.
+The latest v1 minor release receives security fixes. Release candidates and nightly builds are unsupported.
 
 | Version | Supported |
 | --- | --- |
 | Latest v1.x | Yes |
-| v1.0.0-rc.4 before v1.0.0 | Yes |
-| RC.1 through RC.3 | No |
+| Release candidates | No |
 | Nightly builds | No |
 
 ## Reporting a vulnerability

@@ -33,7 +33,7 @@ func decodeAndValidateLock(data []byte) (*AndurelLock, error) {
 	}
 
 	if header.SchemaVersion == nil {
-		return migrateLegacyLock(data)
+		return nil, fmt.Errorf("andurel.lock schemaVersion is required")
 	}
 	if *header.SchemaVersion > currentLockSchemaVersion {
 		return nil, fmt.Errorf(
@@ -53,37 +53,6 @@ func decodeAndValidateLock(data []byte) (*AndurelLock, error) {
 		return nil, err
 	}
 	return &lock, nil
-}
-
-func migrateLegacyLock(data []byte) (*AndurelLock, error) {
-	var candidate AndurelLock
-	if err := json.Unmarshal(data, &candidate); err != nil {
-		return nil, err
-	}
-
-	for name, tool := range candidate.Tools {
-		if tool == nil || tool.Download == nil {
-			continue
-		}
-		defaultSpec, ok := getDefaultToolDownloadForVersion(name, tool.Version)
-		if !ok || !sameDownloadArtifact(tool.Download, defaultSpec) {
-			continue
-		}
-		tool.Download.SHA256 = cloneStringMap(defaultSpec.SHA256)
-	}
-
-	candidate.SchemaVersion = currentLockSchemaVersion
-	if err := validateSchema1Lock(&candidate); err != nil {
-		return nil, fmt.Errorf("legacy lock migration failed validation: %w", err)
-	}
-	return &candidate, nil
-}
-
-func sameDownloadArtifact(left, right *ToolDownload) bool {
-	return left != nil && right != nil &&
-		left.URLTemplate == right.URLTemplate &&
-		left.Archive == right.Archive &&
-		left.BinaryName == right.BinaryName
 }
 
 func validateSchema1Lock(lock *AndurelLock) error {

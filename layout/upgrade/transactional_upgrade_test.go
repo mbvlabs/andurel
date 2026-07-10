@@ -22,28 +22,6 @@ const (
 	fixtureTargetVersion = "v1.1.0"
 )
 
-func TestLockMigrationSelection(t *testing.T) {
-	t.Parallel()
-
-	migrations := selectMigrations(MigrationSelector{
-		SourceFrameworkVersion: fixtureSourceVersion,
-		TargetFrameworkVersion: fixtureTargetVersion,
-		SourceLockSchema:       0,
-		TargetLockSchema:       targetLockSchemaVersion,
-	})
-	if len(migrations) != 1 || migrations[0].Name != "lock-schema-legacy-to-1" {
-		t.Fatalf("lock migrations = %#v", migrations)
-	}
-	if migrations := selectMigrations(MigrationSelector{
-		SourceFrameworkVersion: fixtureSourceVersion,
-		TargetFrameworkVersion: fixtureTargetVersion,
-		SourceLockSchema:       1,
-		TargetLockSchema:       targetLockSchemaVersion,
-	}); len(migrations) != 0 {
-		t.Fatalf("current schema migrations = %#v", migrations)
-	}
-}
-
 func TestUpgraderRemainsComparable(t *testing.T) {
 	t.Parallel()
 
@@ -133,7 +111,6 @@ func TestUpgradeCleanAndDirtyWorktreeBehavior(t *testing.T) {
 
 func TestMatchingFrameworkVersionIsImmediateNoOp(t *testing.T) {
 	root := newUpgradeFixtureProject(t)
-	writeCurrentFixtureLock(t, root)
 	mustWriteTestFile(t, root, "dirty.txt", []byte("preserve me\n"))
 	before := snapshotUpgradeTree(t, root)
 
@@ -159,7 +136,6 @@ func TestMatchingFrameworkVersionIsImmediateNoOp(t *testing.T) {
 
 func TestMatchingFrameworkVersionReportsAndRepairsDrift(t *testing.T) {
 	root := newUpgradeFixtureProject(t)
-	writeCurrentFixtureLock(t, root)
 	path := "internal/hypermedia/core.go"
 	drift := append(mustReadProjectFile(t, root, path), []byte("\nconst UnexpectedDrift = true\n")...)
 	mustWriteTestFile(t, root, path, drift)
@@ -200,7 +176,6 @@ func TestMatchingFrameworkVersionReportsAndRepairsDrift(t *testing.T) {
 
 func TestMatchingFrameworkVersionRejectsDirtyRepair(t *testing.T) {
 	root := newUpgradeFixtureProject(t)
-	writeCurrentFixtureLock(t, root)
 	path := "internal/hypermedia/core.go"
 	drift := append(mustReadProjectFile(t, root, path), []byte("\nconst UnexpectedDrift = true\n")...)
 	mustWriteTestFile(t, root, path, drift)
@@ -243,7 +218,7 @@ func TestDryRunIsDeterministicAndByteReadOnlyOnSameInstance(t *testing.T) {
 	if !sort.StringsAreSorted(first.ReplacedFiles) || !sort.StringsAreSorted(first.RemovedFiles) {
 		t.Fatalf("report paths are not deterministic: %#v", first)
 	}
-	if len(first.Diffs) == 0 || len(first.LockMigrations) == 0 {
+	if len(first.Diffs) == 0 {
 		t.Fatalf("dry-run report is incomplete: %#v", first)
 	}
 	assertSnapshotEqual(t, before, snapshotUpgradeTree(t, root))
@@ -330,13 +305,56 @@ func TestLockIsReplacedLast(t *testing.T) {
 	}
 }
 
+func TestUpgradePlanDeletionBranches(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := "internal/example/obsolete.go"
+	mustWriteTestFile(t, root, path, []byte("obsolete\n"))
+
+	plan := &upgradePlan{}
+	if err := plan.addDeletion(root, path); err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.files) != 1 || !plan.files[0].remove || string(plan.files[0].before) != "obsolete\n" {
+		t.Fatalf("deletion plan = %#v", plan.files)
+	}
+	if err := plan.addDeletion(root, "internal/example/missing.go"); err != nil {
+		t.Fatalf("missing deletion should be a no-op: %v", err)
+	}
+}
+
+func TestFrameworkRecognitionAndPlanningReturnFilesystemErrors(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := "internal/example"
+	if err := os.MkdirAll(filepath.Join(root, path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := recognizeWholeFileReplacement(root, path, []byte("target")); err == nil {
+		t.Fatal("replacement recognition should reject a directory path")
+	}
+	if _, err := recognizeWholeFileDeletion(root, path); err == nil {
+		t.Fatal("deletion recognition should reject a directory path")
+	}
+	if err := (&upgradePlan{}).addReplacement(root, path, []byte("target"), false); err == nil {
+		t.Fatal("replacement planning should reject a directory path")
+	}
+	if err := (&upgradePlan{}).addDeletion(root, path); err == nil {
+		t.Fatal("deletion planning should reject a directory path")
+	}
+}
+
 func newUpgradeFixtureProject(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	mustWriteTestFile(t, root, "go.mod", []byte("module testapp\n\ngo 1.24.0\n"))
 	lock := &layout.AndurelLock{
-		Version: fixtureSourceVersion,
-		Tools:   map[string]*layout.Tool{},
+		SchemaVersion: targetLockSchemaVersion,
+		Version:       fixtureSourceVersion,
+		Tools:         map[string]*layout.Tool{},
 		ScaffoldConfig: &layout.ScaffoldConfig{
 			ProjectName: "testapp",
 			Database:    "postgresql",
@@ -344,15 +362,6 @@ func newUpgradeFixtureProject(t *testing.T) string {
 		DatabaseConfig: &layout.DatabaseConfig{NullType: "sql.Null"},
 	}
 	lockContent, err := json.MarshalIndent(lock, "", "  ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var legacyLock map[string]any
-	if err := json.Unmarshal(lockContent, &legacyLock); err != nil {
-		t.Fatal(err)
-	}
-	delete(legacyLock, "schemaVersion")
-	lockContent, err = json.MarshalIndent(legacyLock, "", "  ")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -378,18 +387,6 @@ func newUpgradeFixtureProject(t *testing.T) string {
 	gitRun(t, root, "config", "user.name", "Upgrade Test")
 	commitUpgradeTree(t, root, "fixture")
 	return root
-}
-
-func writeCurrentFixtureLock(t *testing.T, root string) {
-	t.Helper()
-	lock, err := layout.ReadLockFile(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := lock.WriteLockFile(root); err != nil {
-		t.Fatal(err)
-	}
-	commitUpgradeTree(t, root, "current lock schema")
 }
 
 func commitUpgradeTree(t *testing.T, root, message string) {
@@ -523,13 +520,5 @@ func assertUpgradeOutcome(t *testing.T, root string) {
 	}
 	if _, ok := lock.Tools["user-tool"]; !ok {
 		t.Fatal("custom lock tool was not preserved")
-	}
-}
-
-func TestMigrationRegistryOrderIsStable(t *testing.T) {
-	for index := 1; index < len(migrationRegistry); index++ {
-		if migrationRegistry[index-1].Order > migrationRegistry[index].Order {
-			t.Fatalf("lock migration registry is not ordered at index %d", index)
-		}
 	}
 }

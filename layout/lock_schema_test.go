@@ -22,34 +22,7 @@ func TestDecodeSchema1AndValidateCompleteLock(t *testing.T) {
 	}
 }
 
-func TestDecodeLockSchemaSelectionAndLegacyMigration(t *testing.T) {
-	legacy := validSchema1Lock()
-	legacy.SchemaVersion = 0
-	legacy.Version = "v1.0.3"
-	legacy.Tools["templ"].Download, _ = getDefaultToolDownloadForVersion("templ", "v0.3.1020")
-	legacy.Tools["templ"].Download.SHA256 = nil
-	data := mustMarshalLock(t, legacy)
-	var object map[string]any
-	if err := json.Unmarshal(data, &object); err != nil {
-		t.Fatal(err)
-	}
-	delete(object, "schemaVersion")
-	data, err := json.Marshal(object)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	migrated, err := decodeAndValidateLock(data)
-	if err != nil {
-		t.Fatalf("migrate legacy lock: %v", err)
-	}
-	if migrated.SchemaVersion != 1 {
-		t.Fatalf("schemaVersion = %d", migrated.SchemaVersion)
-	}
-	if migrated.Version != "v1.0.3" {
-		t.Fatalf("framework version changed during schema migration: %q", migrated.Version)
-	}
-
+func TestDecodeLockSchemaSelectionIsIndependentOfFrameworkVersion(t *testing.T) {
 	schemaOne := validSchema1Lock()
 	schemaOne.Version = "v99.0.0"
 	decoded, err := decodeAndValidateLock(mustMarshalLock(t, schemaOne))
@@ -61,67 +34,13 @@ func TestDecodeLockSchemaSelectionAndLegacyMigration(t *testing.T) {
 	}
 }
 
-func TestMigrateCompleteLegacyLocks(t *testing.T) {
-	tests := []struct {
-		frameworkVersion string
-		shadowfaxVersion string
-	}{
-		{frameworkVersion: "v0.9.0", shadowfaxVersion: "v0.8.0"},
-		{frameworkVersion: "v1.0.3", shadowfaxVersion: "v0.8.3"},
-		{frameworkVersion: "v1.1.0", shadowfaxVersion: "v0.8.3"},
-	}
-	for _, test := range tests {
-		t.Run(test.frameworkVersion, func(t *testing.T) {
-			legacy := NewAndurelLock(test.frameworkVersion)
-			legacy.SchemaVersion = 0
-			legacy.Tools = GetExpectedTools(nil)
-			legacy.Tools["shadowfax"] = NewGoTool(
-				"shadowfax",
-				"github.com/mbvlabs/shadowfax",
-				test.shadowfaxVersion,
-			)
-			for _, tool := range legacy.Tools {
-				tool.Download.SHA256 = nil
-				tool.VersionCheck.Regexp = ""
-			}
-			data := mustMarshalLock(t, legacy)
-			var object map[string]any
-			if err := json.Unmarshal(data, &object); err != nil {
-				t.Fatal(err)
-			}
-			delete(object, "schemaVersion")
-			data, err := json.Marshal(object)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			migrated, err := decodeAndValidateLock(data)
-			if err != nil {
-				t.Fatalf("decodeAndValidateLock: %v", err)
-			}
-			if migrated.Version != test.frameworkVersion || migrated.SchemaVersion != 1 {
-				t.Fatalf("versions changed incorrectly: schema=%d framework=%q", migrated.SchemaVersion, migrated.Version)
-			}
-			if migrated.Tools["shadowfax"].Version != test.shadowfaxVersion {
-				t.Fatalf("shadowfax version changed: %q", migrated.Tools["shadowfax"].Version)
-			}
-			for name, tool := range migrated.Tools {
-				for _, platform := range requiredChecksumPlatforms {
-					if !sha256Pattern.MatchString(tool.Download.SHA256[platform]) {
-						t.Fatalf("%s missing checksum for %s", name, platform)
-					}
-				}
-			}
-		})
-	}
-}
-
 func TestDecodeLockRejectsMissingMalformedAndFutureSchemas(t *testing.T) {
 	tests := []struct {
 		name string
 		data string
 		want string
 	}{
+		{name: "missing schema", data: `{"version":"v1.0.0","tools":{}}`, want: "schemaVersion is required"},
 		{name: "schema wrong type", data: `{"schemaVersion":"1","version":"v1.0.0","tools":{}}`, want: "cannot unmarshal"},
 		{name: "schema zero", data: `{"schemaVersion":0,"version":"v1.0.0","tools":{}}`, want: "unsupported"},
 		{name: "future schema", data: `{"schemaVersion":2,"version":"v1.0.0","tools":{}}`, want: "upgrade Andurel"},
@@ -138,6 +57,10 @@ func TestDecodeLockRejectsMissingMalformedAndFutureSchemas(t *testing.T) {
 }
 
 func TestValidateSchema1RequiredFields(t *testing.T) {
+	if err := validateSchema1Lock(nil); err == nil || !strings.Contains(err.Error(), "lock is required") {
+		t.Fatalf("nil lock error = %v", err)
+	}
+
 	tests := []struct {
 		name   string
 		mutate func(*AndurelLock)
@@ -145,6 +68,7 @@ func TestValidateSchema1RequiredFields(t *testing.T) {
 	}{
 		{name: "version", mutate: func(lock *AndurelLock) { lock.Version = "" }, want: "version is required"},
 		{name: "tools", mutate: func(lock *AndurelLock) { lock.Tools = nil }, want: "tools is required"},
+		{name: "tool name", mutate: func(lock *AndurelLock) { lock.Tools[""] = lock.Tools["templ"] }, want: "tool name is required"},
 		{name: "tool", mutate: func(lock *AndurelLock) { lock.Tools["templ"] = nil }, want: "is required"},
 		{name: "tool version", mutate: func(lock *AndurelLock) { lock.Tools["templ"].Version = "" }, want: ".version is required"},
 		{name: "tool location", mutate: func(lock *AndurelLock) { lock.Tools["templ"].Download = nil }, want: "requires path or download"},
@@ -157,6 +81,8 @@ func TestValidateSchema1RequiredFields(t *testing.T) {
 		{name: "scaffold project", mutate: func(lock *AndurelLock) { lock.ScaffoldConfig.ProjectName = "" }, want: "projectName"},
 		{name: "scaffold database", mutate: func(lock *AndurelLock) { lock.ScaffoldConfig.Database = "" }, want: "scaffoldConfig.database"},
 		{name: "database null type", mutate: func(lock *AndurelLock) { lock.DatabaseConfig.NullType = "" }, want: "databaseConfig.nullType"},
+		{name: "extension name", mutate: func(lock *AndurelLock) { lock.Extensions[""] = lock.Extensions["example"] }, want: "must have appliedAt"},
+		{name: "extension value", mutate: func(lock *AndurelLock) { lock.Extensions["example"] = nil }, want: "must have appliedAt"},
 		{name: "extension applied at", mutate: func(lock *AndurelLock) { lock.Extensions["example"].AppliedAt = "" }, want: "appliedAt"},
 	}
 	for _, test := range tests {
@@ -230,23 +156,6 @@ func TestDefaultToolCatalogCoversEverySupportedPlatform(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestHistoricalToolCatalogCoversEverySupportedPlatform(t *testing.T) {
-	for name, versionsByTool := range historicalToolDownloads {
-		for version := range versionsByTool {
-			download, ok := getDefaultToolDownloadForVersion(name, version)
-			if !ok {
-				t.Fatalf("missing historical catalog release for %s %s", name, version)
-			}
-			for _, platform := range requiredChecksumPlatforms {
-				digest, ok := download.SHA256[platform]
-				if !ok || !sha256Pattern.MatchString(digest) {
-					t.Fatalf("missing historical checksum for %s %s on %s", name, version, platform)
-				}
-			}
-		}
 	}
 }
 

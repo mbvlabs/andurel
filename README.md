@@ -75,7 +75,7 @@ go install github.com/mbvlabs/andurel@v1.0.0
 andurel --version
 ```
 
-For reproducible automation, prefer an explicit v1 tag. The [RC-to-v1 migration guide](docs/migration-rc-to-v1.md) covers existing release-candidate projects.
+For reproducible automation, prefer an explicit stable v1 tag. Release-candidate projects are not supported upgrade sources.
 
 ### Create Your First Project
 
@@ -554,7 +554,7 @@ andurel upgrade (alias: up) [--dry-run]
 
 > Commit or create a branch before upgrading. A real upgrade requires a clean worktree and modifies files in place.
 
-Run `andurel upgrade --dry-run --diff --json` first. Dry runs are read-only. A conflict prevents all writes, and a failed transaction restores every changed file and `andurel.lock`. Normal upgrade ownership is limited to framework-owned files, currently centered on `internal/*`; explicit RC migrations may correct only uniquely recognized RC scaffold defects. See [generated-file ownership and upgrade behavior](docs/generated-files-and-upgrades.md).
+Run `andurel upgrade --dry-run --diff --json` first. Dry runs are read-only, and a failed transaction restores every changed file and `andurel.lock`. Upgrade ownership is limited to framework-owned files, currently centered on `internal/*`. See [generated-file ownership and upgrade behavior](docs/generated-files-and-upgrades.md).
 
 ### `andurel doctor` — Project diagnostics
 

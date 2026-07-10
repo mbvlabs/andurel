@@ -106,6 +106,18 @@ func TestResolveExtensions(t *testing.T) {
 	}
 }
 
+func TestAvailableExtensionNames(t *testing.T) {
+	names, err := AvailableExtensionNames()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"aws-ses", "css-components", "docker"} {
+		if !slices.Contains(names, want) {
+			t.Fatalf("available extensions = %v, missing %q", names, want)
+		}
+	}
+}
+
 func TestResolveExtensions_CircularDependency(t *testing.T) {
 	registerMockExtensions(t,
 		mockExtension{name: "test-cycle-a", dependencies: []string{"test-cycle-b"}},

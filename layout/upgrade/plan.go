@@ -32,30 +32,24 @@ type plannedFile struct {
 	created bool
 }
 
-type migrationPlan struct {
-	fromVersion    string
-	toVersion      string
-	sourceSchema   int
-	targetSchema   int
-	dirty          bool
-	files          []plannedFile
-	lockMigrations []string
-	toolChanges    ToolSyncResult
-	conflicts      []string
-	diffs          []FileDiff
+type upgradePlan struct {
+	fromVersion string
+	toVersion   string
+	dirty       bool
+	files       []plannedFile
+	toolChanges ToolSyncResult
+	diffs       []FileDiff
 }
 
-func (p *migrationPlan) cloneReport() *UpgradeReport {
+func (p *upgradePlan) cloneReport() *UpgradeReport {
 	report := &UpgradeReport{
 		FromVersion:         p.fromVersion,
 		ToVersion:           p.toVersion,
 		DirtyWorktree:       p.dirty,
-		LockMigrations:      slices.Clone(p.lockMigrations),
 		AddedTools:          slices.Clone(p.toolChanges.Added),
 		RemovedTools:        slices.Clone(p.toolChanges.Removed),
 		UpdatedTools:        slices.Clone(p.toolChanges.Updated),
 		ToolMetadataChanges: slices.Clone(p.toolChanges.Metadata),
-		Conflicts:           slices.Clone(p.conflicts),
 		Diffs:               slices.Clone(p.diffs),
 	}
 	report.ToolsAdded = len(report.AddedTools)
@@ -76,29 +70,15 @@ func (p *migrationPlan) cloneReport() *UpgradeReport {
 	return report
 }
 
-func (u *Upgrader) buildPlan(dirty bool) (*migrationPlan, error) {
+func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 	lock, err := cloneLock(u.lock)
 	if err != nil {
 		return nil, fmt.Errorf("clone lock: %w", err)
 	}
-	plan := &migrationPlan{
-		fromVersion:  u.lock.Version,
-		toVersion:    u.opts.TargetVersion,
-		sourceSchema: u.sourceLockSchema,
-		targetSchema: targetLockSchemaVersion,
-		dirty:        dirty,
-	}
-
-	selected := selectMigrations(MigrationSelector{
-		SourceFrameworkVersion: u.lock.Version,
-		TargetFrameworkVersion: u.opts.TargetVersion,
-		SourceLockSchema:       u.sourceLockSchema,
-		TargetLockSchema:       targetLockSchemaVersion,
-	})
-	for _, migration := range selected {
-		if migration.Kind == MigrationKindLockSchema {
-			plan.lockMigrations = append(plan.lockMigrations, migration.Name)
-		}
+	plan := &upgradePlan{
+		fromVersion: u.lock.Version,
+		toVersion:   u.opts.TargetVersion,
+		dirty:       dirty,
 	}
 
 	toolChanges, err := syncTools(lock)
@@ -108,7 +88,6 @@ func (u *Upgrader) buildPlan(dirty bool) (*migrationPlan, error) {
 	plan.toolChanges = *toolChanges
 	if lock.DatabaseConfig == nil {
 		lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
-		plan.lockMigrations = append(plan.lockMigrations, "add-database-config")
 	}
 	lock.SchemaVersion = targetLockSchemaVersion
 
@@ -131,13 +110,11 @@ func (u *Upgrader) buildPlan(dirty bool) (*migrationPlan, error) {
 	return plan, nil
 }
 
-func (u *Upgrader) buildRepairPlan(dirty bool) (*migrationPlan, error) {
-	plan := &migrationPlan{
-		fromVersion:  u.lock.Version,
-		toVersion:    u.opts.TargetVersion,
-		sourceSchema: u.sourceLockSchema,
-		targetSchema: targetLockSchemaVersion,
-		dirty:        dirty,
+func (u *Upgrader) buildRepairPlan(dirty bool) (*upgradePlan, error) {
+	plan := &upgradePlan{
+		fromVersion: u.lock.Version,
+		toVersion:   u.opts.TargetVersion,
+		dirty:       dirty,
 	}
 	if err := u.addFrameworkChanges(plan); err != nil {
 		return nil, err
@@ -148,7 +125,7 @@ func (u *Upgrader) buildRepairPlan(dirty bool) (*migrationPlan, error) {
 	return plan, nil
 }
 
-func (u *Upgrader) addFrameworkChanges(plan *migrationPlan) error {
+func (u *Upgrader) addFrameworkChanges(plan *upgradePlan) error {
 	rendered, err := u.generator.RenderFrameworkTemplates(
 		u.projectRoot,
 		*u.lock.ScaffoldConfig,
@@ -188,8 +165,7 @@ func (u *Upgrader) addFrameworkChanges(plan *migrationPlan) error {
 	return nil
 }
 
-func finalizePlan(plan *migrationPlan) error {
-	sort.Strings(plan.conflicts)
+func finalizePlan(plan *upgradePlan) error {
 	sort.SliceStable(plan.files, func(i, j int) bool {
 		if plan.files[i].isLock != plan.files[j].isLock {
 			return !plan.files[i].isLock
@@ -249,16 +225,7 @@ func hasAndurelVersionMarker(content []byte) bool {
 	return false
 }
 
-func (p *migrationPlan) addReplacement(root, path string, after []byte, isLock bool) error {
-	for index := range p.files {
-		if p.files[index].path != path {
-			continue
-		}
-		if !bytes.Equal(p.files[index].after, after) || p.files[index].remove {
-			p.conflicts = append(p.conflicts, fmt.Sprintf("%s has competing planned transformations", path))
-		}
-		return nil
-	}
+func (p *upgradePlan) addReplacement(root, path string, after []byte, isLock bool) error {
 	fullPath := filepath.Join(root, path)
 	before, err := os.ReadFile(fullPath)
 	created := false
@@ -284,7 +251,7 @@ func (p *migrationPlan) addReplacement(root, path string, after []byte, isLock b
 	return nil
 }
 
-func (p *migrationPlan) addDeletion(root, path string) error {
+func (p *upgradePlan) addDeletion(root, path string) error {
 	fullPath := filepath.Join(root, path)
 	before, err := os.ReadFile(fullPath)
 	if os.IsNotExist(err) {

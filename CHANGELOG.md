@@ -10,7 +10,7 @@ All notable changes to Andurel are documented in this file. Andurel follows
 - A frozen public Go API baseline and automated compatibility checks.
 - Stable CLI discovery, structured output, projection, error-code, and exit-code contracts.
 - Lock schema 1 with verified per-platform tool downloads.
-- Transactional RC.1, RC.2, and RC.3 project upgrades with dry-run, conflict detection, and rollback.
+- Transactional framework-owned file upgrades with dry-run, conflict detection, and rollback.
 - Read-only doctor diagnostics, safe DDL parser failures, and deterministic formatter checks.
 - Linux and macOS release archives for amd64 and arm64, SBOMs, signed checksums, provenance, and native installation smoke tests.
 
@@ -27,15 +27,15 @@ All notable changes to Andurel are documented in this file. Andurel follows
 
 ## v1.0.0-rc.3 - 2026-07-09
 
-Third public release candidate. This remains a migration source for the v1 upgrader and is not a stable compatibility baseline.
+Third public release candidate. Release-candidate projects are not supported upgrade sources for v1.
 
 ## v1.0.0-rc.2 - 2026-07-08
 
-Second public release candidate. This remains a migration source for the v1 upgrader and is not a stable compatibility baseline.
+Second public release candidate. Release-candidate projects are not supported upgrade sources for v1.
 
 ## v1.0.0-rc.1 - 2026-07-06
 
-First public release candidate. This remains a migration source for the v1 upgrader and is not a stable compatibility baseline.
+First public release candidate. Release-candidate projects are not supported upgrade sources for v1.
 
 [Unreleased]: https://github.com/mbvlabs/andurel/compare/v1.0.0-rc.3...HEAD
 [v1.0.0-rc.3]: https://github.com/mbvlabs/andurel/releases/tag/v1.0.0-rc.3

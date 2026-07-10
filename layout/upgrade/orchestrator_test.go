@@ -43,7 +43,7 @@ func TestUpgradePresentationRestoresProgressiveHumanOutput(t *testing.T) {
 			t.Fatalf("upgrade presentation missing %q:\n%s", want, got)
 		}
 	}
-	for _, unwanted := range []string{"File replacements:", "Lock migrations:", "Conflicts:"} {
+	for _, unwanted := range []string{"File replacements:", "Lock migrations:"} {
 		if strings.Contains(got, unwanted) {
 			t.Fatalf("upgrade presentation contains technical section %q:\n%s", unwanted, got)
 		}
@@ -71,7 +71,7 @@ func TestUpgradeDryRunPresentationOmitsEmptySections(t *testing.T) {
 			t.Fatalf("dry-run presentation missing %q:\n%s", want, got)
 		}
 	}
-	for _, unwanted := range []string{"Tool changes:", "Conflicts:", "Unified diffs:"} {
+	for _, unwanted := range []string{"Tool changes:", "Unified diffs:"} {
 		if strings.Contains(got, unwanted) {
 			t.Fatalf("dry-run presentation contains empty section %q:\n%s", unwanted, got)
 		}
@@ -115,6 +115,50 @@ func TestFrameworkDriftPresentation(t *testing.T) {
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("framework drift presentation missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestUpgradePresentationRemovalAndNoOpBranches(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	printUpgradeSuccess(&output, &UpgradeReport{
+		FromVersion: "v1.0.0",
+		ToVersion:   "v1.0.0",
+		RemovedFiles: []string{
+			"internal/example/obsolete.go",
+		},
+	})
+	if got := output.String(); !strings.Contains(got, "Removing obsolete internal package files") ||
+		!strings.Contains(got, "internal/example/obsolete.go") {
+		t.Fatalf("removal presentation = %q", got)
+	}
+
+	output.Reset()
+	printUpgradeSuccess(&output, &UpgradeReport{FromVersion: "v1.0.0", ToVersion: "v1.0.0"})
+	if got := output.String(); !strings.Contains(got, "Project is already up to date") {
+		t.Fatalf("no-op presentation = %q", got)
+	}
+
+	report := &UpgradeReport{
+		FromVersion:   "v1.0.0",
+		ToVersion:     "v1.0.1",
+		DirtyWorktree: true,
+		RemovedFiles:  []string{"internal/example/obsolete.go"},
+		AddedTools:    []string{"templ: v0.3.1020"},
+	}
+	output.Reset()
+	printUpgradeDryRun(&output, report)
+	got := output.String()
+	for _, want := range []string{
+		"worktree is dirty",
+		"Would remove obsolete internal package files",
+		"Added:",
+		"Would update andurel.lock",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("dry-run presentation missing %q:\n%s", want, got)
 		}
 	}
 }
@@ -294,9 +338,9 @@ func TestSyncToolsToFrameworkVersion_PreservesNonFrameworkTools(t *testing.T) {
 		},
 	}
 
-	result, err := upgrader.syncToolsToFrameworkVersion()
+	result, err := syncTools(upgrader.lock)
 	if err != nil {
-		t.Fatalf("syncToolsToFrameworkVersion returned error: %v", err)
+		t.Fatalf("syncTools returned error: %v", err)
 	}
 
 	custom, ok := upgrader.lock.Tools["my-custom-tool"]
@@ -334,9 +378,9 @@ func TestSyncToolsToFrameworkVersion_PrefersHigherExistingVersion(t *testing.T) 
 		},
 	}
 
-	result, err := upgrader.syncToolsToFrameworkVersion()
+	result, err := syncTools(upgrader.lock)
 	if err != nil {
-		t.Fatalf("syncToolsToFrameworkVersion returned error: %v", err)
+		t.Fatalf("syncTools returned error: %v", err)
 	}
 
 	if got := upgrader.lock.Tools["templ"].Version; got != "v99.0.0" {
@@ -361,9 +405,9 @@ func TestSyncToolsToFrameworkVersion_InitializesMissingToolsMap(t *testing.T) {
 		},
 	}
 
-	result, err := upgrader.syncToolsToFrameworkVersion()
+	result, err := syncTools(upgrader.lock)
 	if err != nil {
-		t.Fatalf("syncToolsToFrameworkVersion returned error: %v", err)
+		t.Fatalf("syncTools returned error: %v", err)
 	}
 
 	if upgrader.lock.Tools == nil {
@@ -395,6 +439,24 @@ func TestValidatePreconditions_RejectsMissingProjectDirectory(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "project directory does not exist") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestNewUpgraderRejectsMissingAndSchemaLessLocks(t *testing.T) {
+	t.Parallel()
+
+	if _, err := NewUpgrader(t.TempDir(), UpgradeOptions{TargetVersion: "v1.0.1"}); err == nil ||
+		!strings.Contains(err.Error(), "failed to read lock file") {
+		t.Fatalf("missing lock error = %v", err)
+	}
+
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "andurel.lock"), []byte(`{"version":"v1.0.0","tools":{}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewUpgrader(root, UpgradeOptions{TargetVersion: "v1.0.1"}); err == nil ||
+		!strings.Contains(err.Error(), "schemaVersion is required") {
+		t.Fatalf("schema-less lock error = %v", err)
 	}
 }
 
@@ -467,9 +529,9 @@ func TestSyncToolsToFrameworkVersion_RemovesLegacyRunTool(t *testing.T) {
 		},
 	}
 
-	result, err := upgrader.syncToolsToFrameworkVersion()
+	result, err := syncTools(upgrader.lock)
 	if err != nil {
-		t.Fatalf("syncToolsToFrameworkVersion returned error: %v", err)
+		t.Fatalf("syncTools returned error: %v", err)
 	}
 
 	if _, ok := upgrader.lock.Tools["run"]; ok {
@@ -518,9 +580,9 @@ func TestSyncToolsToFrameworkVersion_UpdatesBuiltToolPathAndVersion(t *testing.T
 	}
 	expected := layout.GetExpectedTools(upgrader.lock.ScaffoldConfig)["templ"]
 
-	result, err := upgrader.syncToolsToFrameworkVersion()
+	result, err := syncTools(upgrader.lock)
 	if err != nil {
-		t.Fatalf("syncToolsToFrameworkVersion returned error: %v", err)
+		t.Fatalf("syncTools returned error: %v", err)
 	}
 
 	templ := upgrader.lock.Tools["templ"]
@@ -552,9 +614,9 @@ func TestSyncToolsToFrameworkVersion_RefreshesMetadataWithoutVersionChange(t *te
 		},
 	}
 
-	result, err := upgrader.syncToolsToFrameworkVersion()
+	result, err := syncTools(upgrader.lock)
 	if err != nil {
-		t.Fatalf("syncToolsToFrameworkVersion returned error: %v", err)
+		t.Fatalf("syncTools returned error: %v", err)
 	}
 
 	templ := upgrader.lock.Tools["templ"]
@@ -596,7 +658,7 @@ func TestSyncToolsToFrameworkVersion_RemovesOnlyRedundantDefaultRegexp(t *testin
 		},
 	}
 
-	result, err := upgrader.syncToolsToFrameworkVersion()
+	result, err := syncTools(upgrader.lock)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -609,7 +671,7 @@ func TestSyncToolsToFrameworkVersion_RemovesOnlyRedundantDefaultRegexp(t *testin
 
 	const customRegexp = `templ version ([0-9.]+)`
 	upgrader.lock.Tools["templ"].VersionCheck.Regexp = customRegexp
-	if _, err := upgrader.syncToolsToFrameworkVersion(); err != nil {
+	if _, err := syncTools(upgrader.lock); err != nil {
 		t.Fatal(err)
 	}
 	if got := upgrader.lock.Tools["templ"].VersionCheck.Regexp; got != customRegexp {
@@ -664,38 +726,6 @@ func TestObsoleteManagedInternalFiles_KeepsConfiguredInertiaFiles(t *testing.T) 
 
 	if obsolete := upgrader.obsoleteManagedInternalFiles(); len(obsolete) != 0 {
 		t.Fatalf("obsolete files = %v, want none", obsolete)
-	}
-}
-
-func TestCleanupObsoleteBinaries_RemovesExistingBinaries(t *testing.T) {
-	t.Parallel()
-
-	projectRoot := t.TempDir()
-	binDir := filepath.Join(projectRoot, "bin")
-	if err := os.MkdirAll(binDir, 0o755); err != nil {
-		t.Fatalf("failed to create bin dir: %v", err)
-	}
-	runPath := filepath.Join(binDir, "run")
-	if err := os.WriteFile(runPath, []byte("binary"), 0o755); err != nil {
-		t.Fatalf("failed to write run binary: %v", err)
-	}
-
-	upgrader := &Upgrader{projectRoot: projectRoot}
-	if err := upgrader.cleanupObsoleteBinaries([]string{"run", "missing"}); err != nil {
-		t.Fatalf("cleanupObsoleteBinaries returned error: %v", err)
-	}
-
-	if _, err := os.Stat(runPath); !os.IsNotExist(err) {
-		t.Fatalf("expected run binary to be removed, stat err = %v", err)
-	}
-}
-
-func TestCleanupObsoleteBinaries_IgnoresMissingBinDirectory(t *testing.T) {
-	t.Parallel()
-
-	upgrader := &Upgrader{projectRoot: t.TempDir()}
-	if err := upgrader.cleanupObsoleteBinaries([]string{"run"}); err != nil {
-		t.Fatalf("cleanupObsoleteBinaries returned error: %v", err)
 	}
 }
 

@@ -264,6 +264,17 @@ func TestDownloadGoToolAndTailwindUseResolvedAssets(t *testing.T) {
 	}
 }
 
+func TestUnverifiedDownloadWrappersRejectMissingDigest(t *testing.T) {
+	if err := DownloadGoTool("templ", "github.com/a-h/templ/cmd/templ", "v0.3.0", "linux", "amd64", filepath.Join(t.TempDir(), "templ")); err == nil ||
+		!strings.Contains(err.Error(), "valid SHA-256 digest is required") {
+		t.Fatalf("DownloadGoTool error = %v", err)
+	}
+	if err := DownloadTailwindCLI("v4.0.0", "linux", "amd64", filepath.Join(t.TempDir(), "tailwindcli")); err == nil ||
+		!strings.Contains(err.Error(), "valid SHA-256 digest is required") {
+		t.Fatalf("DownloadTailwindCLI error = %v", err)
+	}
+}
+
 func TestExtractBinary(t *testing.T) {
 	tmpDir := t.TempDir()
 	source := filepath.Join(tmpDir, "tool.bin")
