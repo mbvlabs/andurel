@@ -12,6 +12,12 @@ import (
 
 type failureInjector func(operation, path string) error
 
+// transactionRuntime holds injectable transaction behavior behind a pointer so
+// Upgrader retains its established comparability contract.
+type transactionRuntime struct {
+	failureInjector failureInjector
+}
+
 func validatePlannedFiles(plan *migrationPlan) error {
 	for _, file := range plan.files {
 		if file.remove || !strings.HasSuffix(file.path, ".go") {
@@ -159,10 +165,10 @@ func (u *Upgrader) applyFile(file plannedFile) error {
 }
 
 func (u *Upgrader) inject(operation, path string) error {
-	if u.failureInjector == nil {
+	if u.transaction == nil || u.transaction.failureInjector == nil {
 		return nil
 	}
-	return u.failureInjector(operation, path)
+	return u.transaction.failureInjector(operation, path)
 }
 
 func writeDurableFile(path string, content []byte, mode os.FileMode, inject failureInjector) error {

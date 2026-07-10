@@ -56,6 +56,14 @@ func TestMigrationRegistrySelectsFrameworkAndSchemaIndependently(t *testing.T) {
 	}
 }
 
+func TestUpgraderRemainsComparable(t *testing.T) {
+	t.Parallel()
+
+	requireComparable[Upgrader]()
+}
+
+func requireComparable[T comparable]() {}
+
 func TestRCTagFixturesAreExactAndCoverVariants(t *testing.T) {
 	t.Parallel()
 
@@ -263,7 +271,7 @@ func TestInjectedFailuresRollBackByteIdentically(t *testing.T) {
 				t.Fatal(err)
 			}
 			seen := 0
-			upgrader.failureInjector = func(got, _ string) error {
+			upgrader.transaction = &transactionRuntime{failureInjector: func(got, _ string) error {
 				if got != operation {
 					return nil
 				}
@@ -272,7 +280,7 @@ func TestInjectedFailuresRollBackByteIdentically(t *testing.T) {
 					return nil
 				}
 				return errors.New("injected " + operation)
-			}
+			}}
 			if _, err := upgrader.Execute(); err == nil {
 				t.Fatalf("expected injected %s failure", operation)
 			}
@@ -288,12 +296,12 @@ func TestLockIsReplacedLast(t *testing.T) {
 		t.Fatal(err)
 	}
 	var writes []string
-	upgrader.failureInjector = func(operation, path string) error {
+	upgrader.transaction = &transactionRuntime{failureInjector: func(operation, path string) error {
 		if operation == "write" {
 			writes = append(writes, path)
 		}
 		return nil
-	}
+	}}
 	if _, err := upgrader.Execute(); err != nil {
 		t.Fatal(err)
 	}

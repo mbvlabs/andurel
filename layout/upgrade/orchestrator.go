@@ -26,7 +26,7 @@ type Upgrader struct {
 	generator        *TemplateGenerator
 	opts             UpgradeOptions
 	sourceLockSchema int
-	failureInjector  failureInjector
+	transaction      *transactionRuntime
 }
 
 // UpgradeReport represents upgrade report.
