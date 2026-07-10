@@ -4,6 +4,8 @@ Andurel v1 supports every exported identifier in every importable package listed
 
 Removing or renaming a listed identifier, narrowing a signature, changing an exported field incompatibly, or otherwise breaking source compatibility requires Andurel v2. Compatible additions remain possible in a v1 minor release. Security and correctness fixes may change behavior when retaining the old behavior would violate a documented guarantee.
 
+The compatibility promise applies to source code compiled against supported v1 packages. It does not freeze undocumented internal packages, generated text formatting, command-line prose, or implementation details. Deprecation may precede a v2 removal, but a deprecated v1 identifier remains supported throughout v1.
+
 ## Common ownership rules
 
 - Callers retain ownership of arguments unless an identifier explicitly documents transfer or retention.
@@ -39,4 +41,4 @@ The `pkg/cache.FileSystemCache` methods and package-level filesystem cache helpe
 
 Run `scripts/update-contracts.sh`, review every change, and commit the regenerated files only for an intentional compatible addition or an approved pre-v1 contract correction. `scripts/check-contracts.sh` fails when source and fixtures drift.
 
-Pull requests also run pinned `apidiff` checks against the pull request base and `v1.0.0-rc.3`. RC.3 is the pre-v1 release baseline. After `v1.0.0` is published, the stable v1 tag replaces RC.3 as the release baseline.
+Pull requests and releases run pinned `apidiff` checks against the applicable stable baseline. RC.3 is the pre-v1 audit baseline. After `v1.0.0` is published, the stable v1 tag becomes the release baseline for later v1 changes.

@@ -2,12 +2,11 @@ version: 2
 
 project_name: andurel
 
-before:
-  hooks:
-    - go mod tidy
-
 builds:
-  - env:
+  - id: andurel
+    main: .
+    binary: andurel
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
@@ -15,33 +14,61 @@ builds:
     goarch:
       - amd64
       - arm64
-    ignore:
-      - goos: linux
-        goarch: arm64
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
     ldflags:
-      - -w -s -X main.version={{ .Version }} -X main.date={{ .Date }}
-    main: .
+      - -buildid=
+      - -w -s -X main.version={{ .Version }} -X main.date={{ .CommitDate }}
 
 archives:
-  - format: binary
-    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+  - id: archives
+    ids:
+      - andurel
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    builds_info:
+      mtime: "{{ .CommitDate }}"
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+      - SECURITY.md
 
 checksum:
-  name_template: "checksums.txt"
+  name_template: checksums.txt
   algorithm: sha256
 
+sboms:
+  - id: archives
+    artifacts: archive
+    documents:
+      - "${artifact}.sbom.json"
+
+signs:
+  - id: checksums
+    cmd: cosign
+    artifacts: checksum
+    signature: "${artifact}.sigstore.json"
+    args:
+      - sign-blob
+      - "--bundle=${signature}"
+      - --yes
+      - "${artifact}"
+
 snapshot:
-  version_template: "nightly-{{ .Now.Format \"20060102\" }}-{{ .ShortCommit }}"
+  version_template: 'nightly-{{ .Now.Format "20060102" }}-{{ .ShortCommit }}'
 
 release:
-  draft: false
+  draft: true
   prerelease: auto
 
 changelog:
   sort: asc
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
-      - "^ci:"
-      - "^chore:"
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'

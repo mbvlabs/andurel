@@ -19,7 +19,11 @@ Join the discord [here](https://discord.gg/TnTBZHvat3)
 
 ## Platform Support
 
-Andurel currently supports **Linux** and **macOS** only. Windows is not supported at this time.
+Andurel v1 supports **Linux** and **macOS** on **amd64** and **arm64**. Windows is not supported. Official releases contain and smoke-test all four operating-system and architecture combinations.
+
+See [release verification](docs/release-verification.md) for archive installation, checksums, SBOMs, keyless signatures, and provenance.
+
+The frozen v1 contracts are documented in the [public Go API policy](docs/contracts/public-api.md), [CLI and structured-output policy](docs/contracts/cli-v1.md), and [lock schema 1 specification](docs/contracts/lock-schema-v1.md). Model generation supports the conservative SQL subset in the [DDL parser contract](docs/ddl-model-generation.md), and upgrades follow the [generated-file ownership policy](docs/generated-files-and-upgrades.md).
 
 If you'd like to help bring Windows support to Andurel, please see [issue #382](https://github.com/mbvlabs/andurel/issues/382) - contributions are welcome!
 
@@ -62,8 +66,16 @@ The core philosophy around resource generation in andurel, is that it should be 
 ### Installation
 
 ```bash
-go install github.com/mbvlabs/andurel@v1.0.0-rc.3
+# Track the latest stable release
+go install github.com/mbvlabs/andurel@latest
+
+# Pin the first stable v1 release explicitly
+go install github.com/mbvlabs/andurel@v1.0.0
+
+andurel --version
 ```
+
+For reproducible automation, prefer an explicit v1 tag. The [RC-to-v1 migration guide](docs/migration-rc-to-v1.md) covers existing release-candidate projects.
 
 ### Create Your First Project
 
@@ -540,7 +552,9 @@ Upgrade framework-managed files and tool versions to the latest.
 andurel upgrade (alias: up) [--dry-run]
 ```
 
-> Commit or create a branch before upgrading — this command modifies files in place.
+> Commit or create a branch before upgrading. A real upgrade requires a clean worktree and modifies files in place.
+
+Run `andurel upgrade --dry-run --diff --json` first. Dry runs are read-only. A conflict prevents all writes, and a failed transaction restores every changed file and `andurel.lock`. Normal upgrade ownership is limited to framework-owned files, currently centered on `internal/*`; explicit RC migrations may correct only uniquely recognized RC scaffold defects. See [generated-file ownership and upgrade behavior](docs/generated-files-and-upgrades.md).
 
 ### `andurel doctor` — Project diagnostics
 
