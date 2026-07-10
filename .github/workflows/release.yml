@@ -76,7 +76,6 @@ jobs:
     with:
       checkout_ref: ${{ github.sha }}
       release_tag: ${{ github.ref_name }}
-      signing_identity: ${{ format('https://github.com/{0}/.github/workflows/release.yml@{1}', github.repository, github.ref) }}
       artifact_name: ${{ format('preflight-release-assets-{0}', github.sha) }}
 
   draft-release:

@@ -103,6 +103,10 @@ for requirement in \
     exit 1
   fi
 done
+if [[ "${preflight_block}" == *'signing_identity:'* ]]; then
+  echo 'release artifact preflight must derive its signing identity internally' >&2
+  exit 1
+fi
 
 readiness_workflow="${repo_root}/.github/workflows/release-readiness.yml"
 if ! grep -Eq '^  push:' "${readiness_workflow}"; then
@@ -129,6 +133,10 @@ for requirement in \
     exit 1
   fi
 done
+if [[ "${readiness_preflight_block}" == *'signing_identity:'* ]]; then
+  echo 'release readiness preflight must derive its signing identity internally' >&2
+  exit 1
+fi
 
 artifact_preflight_workflow="${repo_root}/.github/workflows/release-artifact-preflight.yml"
 for requirement in \
@@ -137,6 +145,7 @@ for requirement in \
   'git show-ref --verify --quiet "refs/tags/${PREFLIGHT_TAG}"' \
   'git tag -- "${PREFLIGHT_TAG}" "${head_commit}"' \
   'tag_commit="$(git rev-list -n 1 "${PREFLIGHT_TAG}")"' \
+  "SIGNING_IDENTITY: \${{ format('https://github.com/{0}/.github/workflows/release-artifact-preflight.yml@{1}', github.repository, github.ref) }}" \
   'args: release --clean --skip=publish' \
   'linux_amd64 linux_arm64 darwin_amd64 darwin_arm64' \
   'ubuntu-24.04-arm' \

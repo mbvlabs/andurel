@@ -123,5 +123,4 @@ jobs:
     with:
       checkout_ref: ${{ github.sha }}
       release_tag: ${{ format('v0.0.0-readiness.{0}', github.run_id) }}
-      signing_identity: ${{ format('https://github.com/{0}/.github/workflows/release-readiness.yml@{1}', github.repository, github.ref) }}
       artifact_name: ${{ format('readiness-preflight-assets-{0}', github.sha) }}

@@ -11,10 +11,6 @@ on:
         description: Semantic version used by GoReleaser and archive smoke tests.
         required: true
         type: string
-      signing_identity:
-        description: Expected Sigstore workflow identity for preflight signatures.
-        required: true
-        type: string
       artifact_name:
         description: Private Actions artifact containing the preflight release assets.
         required: true
@@ -182,7 +178,7 @@ jobs:
         shell: bash
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
-          SIGNING_IDENTITY: ${{ inputs.signing_identity }}
+          SIGNING_IDENTITY: ${{ format('https://github.com/{0}/.github/workflows/release-artifact-preflight.yml@{1}', github.repository, github.ref) }}
         run: |
           set -euo pipefail
           version="${RELEASE_TAG#v}"
