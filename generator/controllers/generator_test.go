@@ -440,7 +440,7 @@ func TestRenderInertiaControllerUsesDataStructAndRawMessagePlaceholder(t *testin
 		"Metadata: string(entity.Metadata),",
 		`"items": newWidgetDataList(widgetsList.Widgets),`,
 		`"item": newWidgetData(widget),`,
-		"Metadata:    json.RawMessage{},",
+		`Metadata:    json.RawMessage("{}"),`,
 	}
 
 	for _, snippet := range expectedSnippets {

@@ -71,14 +71,16 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 	}
 
 	var templateName string
+	var partialNames []string
 	if controller.IsAPI {
 		templateName = "api_resource_controller.tmpl"
 	} else if controller.Type == ResourceController {
 		if layout.IsSupportedInertiaAdapter(inertia) {
-			templateName = "inertia_vue_resource_controller.tmpl"
+			templateName = "inertia_resource_controller.tmpl"
 		} else {
 			templateName = "resource_controller.tmpl"
 		}
+		partialNames = []string{"controller_payload_assignment.tmpl"}
 	} else {
 		templateName = "controller.tmpl"
 	}
@@ -108,11 +110,22 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 	}
 
 	// Use the unified template service with custom functions and original data structure
-	result, err := tr.service.RenderTemplateWithCustomFunctions(
-		templateName,
-		controller,
-		customFuncs,
-	)
+	var result string
+	var err error
+	if len(partialNames) > 0 {
+		result, err = tr.service.RenderTemplateWithCustomFunctionsAndPartials(
+			templateName,
+			partialNames,
+			controller,
+			customFuncs,
+		)
+	} else {
+		result, err = tr.service.RenderTemplateWithCustomFunctions(
+			templateName,
+			controller,
+			customFuncs,
+		)
+	}
 	if err != nil {
 		return "", errors.WrapTemplateError(err, "render controller", templateName)
 	}
