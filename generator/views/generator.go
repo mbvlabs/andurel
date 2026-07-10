@@ -9,6 +9,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/mbvlabs/andurel/generator/controllers"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/types"
@@ -42,18 +43,19 @@ type InertiaPageData struct {
 
 // GeneratedView contains the template data for generated resource views.
 type GeneratedView struct {
-	ResourceName    string
-	ModelName       string
-	EntityName      string
-	PluralName      string
-	ModelPluralName string
-	Namespace       string
-	NamespacePascal string
-	Fields          []ViewField
-	ModulePath      string
-	IDType          string // "uuid.UUID", "int32", "int64", "string"
-	IDFieldName     string
-	Actions         []string
+	ResourceName     string
+	ModelName        string
+	EntityName       string
+	PluralName       string
+	ModelPluralName  string
+	Namespace        string
+	NamespacePascal  string
+	Fields           []ViewField
+	ModulePath       string
+	IDType           string // "uuid.UUID", "int32", "int64", "string"
+	IDFieldName      string
+	Actions          []string
+	AvailableActions []string
 }
 
 // Config controls view generation for a resource.
@@ -551,13 +553,18 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, t
 func (g *Generator) GenerateInertiaViewFiles(view *GeneratedView, templatePrefix, extension string) (map[string]string, error) {
 	service := templates.GetGlobalTemplateService()
 	fileNames := make(map[string]string, 4)
+	hasAction := func(action string) bool {
+		if len(view.Actions) == 0 {
+			return true
+		}
+		availableActions := view.AvailableActions
+		if availableActions == nil {
+			availableActions = view.Actions
+		}
+		return slices.Contains(availableActions, action)
+	}
 	customFuncs := template.FuncMap{
-		"HasAction": func(action string) bool {
-			if len(view.Actions) == 0 {
-				return true
-			}
-			return slices.Contains(view.Actions, action)
-		},
+		"HasAction":        hasAction,
 		"InertiaUsesForm":  inertiaUsesForm,
 		"InertiaNeedsItem": inertiaNeedsItem,
 		"ReactFieldType":   inertiaReactFieldType,
@@ -565,8 +572,21 @@ func (g *Generator) GenerateInertiaViewFiles(view *GeneratedView, templatePrefix
 		"ReactEditValue":   inertiaReactEditValue,
 		"ReactInputValue":  inertiaReactInputValue,
 		"ReactDisplay":     inertiaReactDisplay,
-		"InertiaRouteHelper": func(action string) string {
-			return naming.ToLowerCamelCase(view.NamespacePascal + view.ResourceName + naming.ToPascalCase(action))
+		"InertiaRouteURL": func(action string, args ...string) string {
+			if !hasAction(action) {
+				return "''"
+			}
+			helper := naming.ToLowerCamelCase(view.NamespacePascal + view.ResourceName + naming.ToPascalCase(action))
+			return "routes." + helper + "(" + strings.Join(args, ", ") + ")"
+		},
+		"InertiaComponentUsesRoutes": func(componentName string) bool {
+			actionsByComponent := map[string][]string{
+				"Index":  {"new", "show", "edit", "destroy"},
+				"Show":   {"edit", "index"},
+				"Create": {"create", "index"},
+				"Edit":   {"update", "show"},
+			}
+			return slices.ContainsFunc(actionsByComponent[componentName], hasAction)
 		},
 		"InertiaRouteIDType": func() string {
 			switch view.IDType {
@@ -729,6 +749,14 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 	}
 
 	if isInertia {
+		if len(actions) > 0 {
+			routesPath := filepath.Join("router", "routes", namespacePrefix(namespace)+pluralName+".go")
+			availableActions, err := controllers.ExistingRouteFileActions(routesPath, resourceName, namespace, pluralName)
+			if err != nil {
+				return fmt.Errorf("failed to inspect available Inertia routes: %w", err)
+			}
+			view.AvailableActions = availableActions
+		}
 		return g.generateInertiaViews(view, templatePrefix, resourceName, inertia)
 	}
 

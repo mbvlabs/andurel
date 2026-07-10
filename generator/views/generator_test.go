@@ -387,3 +387,134 @@ func TestGenerateInertiaViewFiles_ReactResourceTypesAndInputs(t *testing.T) {
 		t.Fatalf("Edit.tsx contains deprecated event type or root fragment:\n%s", edit)
 	}
 }
+
+func TestGenerateInertiaViewFiles_PartialActionsUseEmptyRoutes(t *testing.T) {
+	generator := NewGenerator("postgresql")
+
+	tests := []struct {
+		name           string
+		templatePrefix string
+		extension      string
+		indexRoutes    []string
+		indexEmpty     []string
+		showRoutes     []string
+		showEmpty      []string
+	}{
+		{
+			name:           "vue",
+			templatePrefix: "inertia_vue_",
+			extension:      ".vue",
+			indexRoutes:    []string{`:href="routes.widgetShow(routeID(item))"`},
+			indexEmpty:     []string{`:href="''"`},
+			showRoutes:     []string{`:href="routes.widgetIndex()"`},
+			showEmpty:      []string{`:href="''"`},
+		},
+		{
+			name:           "react",
+			templatePrefix: "inertia_react_",
+			extension:      ".tsx",
+			indexRoutes:    []string{`href={routes.widgetShow(routeID(item))}`},
+			indexEmpty:     []string{`href={''}`},
+			showRoutes:     []string{`href={routes.widgetIndex()}`},
+			showEmpty:      []string{`href={''}`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			view := &GeneratedView{
+				ResourceName: "Widget",
+				PluralName:   "widgets",
+				IDType:       "uuid.UUID",
+				IDFieldName:  "ID",
+				Actions:      []string{"index", "show"},
+			}
+
+			files, err := generator.GenerateInertiaViewFiles(view, tt.templatePrefix, tt.extension)
+			if err != nil {
+				t.Fatalf("GenerateInertiaViewFiles returned error: %v", err)
+			}
+
+			assertContainsAll(t, files["Index"+tt.extension], tt.indexRoutes)
+			assertContainsAll(t, files["Index"+tt.extension], tt.indexEmpty)
+			assertContainsAll(t, files["Show"+tt.extension], tt.showRoutes)
+			assertContainsAll(t, files["Show"+tt.extension], tt.showEmpty)
+		})
+	}
+}
+
+func TestGenerateInertiaViewFiles_SingleActionOmitsUnusedRoutesImport(t *testing.T) {
+	generator := NewGenerator("postgresql")
+
+	for _, tt := range []struct {
+		name           string
+		templatePrefix string
+		extension      string
+	}{
+		{name: "vue", templatePrefix: "inertia_vue_", extension: ".vue"},
+		{name: "react", templatePrefix: "inertia_react_", extension: ".tsx"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			view := &GeneratedView{
+				ResourceName: "Widget",
+				PluralName:   "widgets",
+				IDType:       "uuid.UUID",
+				IDFieldName:  "ID",
+				Actions:      []string{"show"},
+			}
+
+			files, err := generator.GenerateInertiaViewFiles(view, tt.templatePrefix, tt.extension)
+			if err != nil {
+				t.Fatalf("GenerateInertiaViewFiles returned error: %v", err)
+			}
+
+			show := files["Show"+tt.extension]
+			if strings.Contains(show, "import { routes }") {
+				t.Fatalf("single Show action contains unused routes import:\n%s", show)
+			}
+			if strings.Contains(show, "routes.widget") {
+				t.Fatalf("single Show action references an unavailable route:\n%s", show)
+			}
+			if strings.Count(show, "''") < 2 {
+				t.Fatalf("single Show action should use empty strings for Edit and Back links:\n%s", show)
+			}
+		})
+	}
+}
+
+func TestGenerateInertiaViewFiles_UsesExistingAvailableActions(t *testing.T) {
+	generator := NewGenerator("postgresql")
+	view := &GeneratedView{
+		ResourceName:     "Widget",
+		PluralName:       "widgets",
+		IDType:           "uuid.UUID",
+		IDFieldName:      "ID",
+		Actions:          []string{"index"},
+		AvailableActions: []string{"index", "show"},
+	}
+
+	files, err := generator.GenerateInertiaViewFiles(view, "inertia_vue_", ".vue")
+	if err != nil {
+		t.Fatalf("GenerateInertiaViewFiles returned error: %v", err)
+	}
+
+	if len(files) != 1 {
+		t.Fatalf("expected only the requested Index page, got %#v", files)
+	}
+	index := files["Index.vue"]
+	if !strings.Contains(index, `:href="routes.widgetShow(routeID(item))"`) {
+		t.Fatalf("Index page should use the existing Show route:\n%s", index)
+	}
+	if strings.Contains(index, "routes.widgetEdit") || strings.Contains(index, "routes.widgetDestroy") {
+		t.Fatalf("Index page references unavailable routes:\n%s", index)
+	}
+}
+
+func assertContainsAll(t *testing.T, content string, values []string) {
+	t.Helper()
+	for _, value := range values {
+		if !strings.Contains(content, value) {
+			t.Fatalf("generated content missing %q:\n%s", value, content)
+		}
+	}
+}

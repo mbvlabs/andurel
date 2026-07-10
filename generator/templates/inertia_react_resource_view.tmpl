@@ -1,6 +1,8 @@
 import { Link{{if InertiaUsesForm .ComponentName}}, useForm{{end}} } from '@inertiajs/react'
 
+{{- if InertiaComponentUsesRoutes .ComponentName}}
 import { routes } from '{{ InertiaRoutesImportPath }}'
+{{- end}}
 
 {{- if InertiaNeedsItem .ComponentName }}
 type RouteID = {{ InertiaRouteIDType }}
@@ -46,7 +48,7 @@ export default function {{.ComponentName}}({ items }: IndexProps) {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-100">{{.ResourceName}}s</h1>
-        <Link href={routes.{{ InertiaRouteHelper "new" }}()} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">New {{.ResourceName}}</Link>
+        <Link href={ {{- InertiaRouteURL "new" -}} } className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">New {{.ResourceName}}</Link>
       </div>
 
       <div className="mt-8 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
@@ -66,9 +68,9 @@ export default function {{.ComponentName}}({ items }: IndexProps) {
                 <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{ {{- ReactDisplay . "item" -}} }</td>
 {{- end}}
                 <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                  <Link href={routes.{{ InertiaRouteHelper "show" }}(routeID(item))} className="mr-3 text-cyan-300 hover:text-white">View</Link>
-                  <Link href={routes.{{ InertiaRouteHelper "edit" }}(routeID(item))} className="mr-3 text-cyan-300 hover:text-white">Edit</Link>
-                  <Link href={routes.{{ InertiaRouteHelper "destroy" }}(routeID(item))} method="delete" as="button" className="text-red-400 hover:text-red-300">Delete</Link>
+                  <Link href={ {{- InertiaRouteURL "show" "routeID(item)" -}} } className="mr-3 text-cyan-300 hover:text-white">View</Link>
+                  <Link href={ {{- InertiaRouteURL "edit" "routeID(item)" -}} } className="mr-3 text-cyan-300 hover:text-white">Edit</Link>
+                  <Link href={ {{- InertiaRouteURL "destroy" "routeID(item)" -}} } method="delete" as="button" className="text-red-400 hover:text-red-300">Delete</Link>
                 </td>
               </tr>
             ))}
@@ -89,8 +91,8 @@ export default function {{.ComponentName}}({ item }: ShowProps) {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-100">{{.ResourceName}} Details</h1>
         <div className="flex gap-3">
-          <Link href={routes.{{ InertiaRouteHelper "edit" }}(routeID(item))} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">Edit</Link>
-          <Link href={routes.{{ InertiaRouteHelper "index" }}()} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
+          <Link href={ {{- InertiaRouteURL "edit" "routeID(item)" -}} } className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">Edit</Link>
+          <Link href={ {{- InertiaRouteURL "index" -}} } className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
         </div>
       </div>
 
@@ -119,14 +121,14 @@ export default function {{.ComponentName}}() {
 
   function submit(event: SubmitEvent) {
     event.preventDefault()
-    form.post(routes.{{ InertiaRouteHelper "create" }}())
+    form.post({{ InertiaRouteURL "create" }})
   }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-100">New {{.ResourceName}}</h1>
-        <Link href={routes.{{ InertiaRouteHelper "index" }}()} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
+        <Link href={ {{- InertiaRouteURL "index" -}} } className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
       </div>
 
       <form onSubmit={(event) => submit(event.nativeEvent as SubmitEvent)} className="mt-8 space-y-6 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 p-6 shadow-sm">
@@ -165,14 +167,14 @@ export default function {{.ComponentName}}({ item }: EditProps) {
 
   function submit(event: SubmitEvent) {
     event.preventDefault()
-    form.put(routes.{{ InertiaRouteHelper "update" }}(routeID(item)))
+    form.put({{ InertiaRouteURL "update" "routeID(item)" }})
   }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-100">Edit {{.ResourceName}}</h1>
-        <Link href={routes.{{ InertiaRouteHelper "show" }}(routeID(item))} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
+        <Link href={ {{- InertiaRouteURL "show" "routeID(item)" -}} } className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
       </div>
 
       <form onSubmit={(event) => submit(event.nativeEvent as SubmitEvent)} className="mt-8 space-y-6 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 p-6 shadow-sm">
@@ -189,7 +191,7 @@ export default function {{.ComponentName}}({ item }: EditProps) {
 {{- end}}
 {{- end}}
         <div className="flex justify-end gap-3">
-          <Link href={routes.{{ InertiaRouteHelper "show" }}(routeID(item))} className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
+          <Link href={ {{- InertiaRouteURL "show" "routeID(item)" -}} } className="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
           <button type="submit" disabled={form.processing} className="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300 disabled:opacity-50">{form.processing ? 'Updating...' : 'Update {{.ResourceName}}'}</button>
         </div>
       </form>
