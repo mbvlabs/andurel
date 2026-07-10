@@ -123,7 +123,7 @@ for requirement in \
   'needs: readiness' \
   'uses: ./.github/workflows/release-artifact-preflight.yml' \
   'checkout_ref: ${{ github.sha }}' \
-  "release_tag: \${{ format('v0.0.0-readiness.{0}', github.run_id) }}"; do
+  'release_tag: v1.0.0'; do
   if [[ "${readiness_preflight_block}" != *"${requirement}"* ]]; then
     echo "canonical release readiness artifact preflight does not enforce ${requirement}" >&2
     exit 1
