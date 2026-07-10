@@ -9488,6 +9488,12 @@ func isMissing(fieldPtr any) bool {
 	case *int64:
 		return field == nil || *field == 0
 
+	case *sql.NullInt32:
+		return field == nil || !field.Valid
+
+	case sql.NullInt32:
+		return !field.Valid
+
 	case *sql.NullInt64:
 		return field == nil || !field.Valid
 
@@ -9515,6 +9521,81 @@ func isMissing(fieldPtr any) bool {
 	}
 
 	return value.IsZero()
+}
+
+func intValue(fieldPtr any) (value int64, present bool, ok bool) {
+	switch field := fieldPtr.(type) {
+	case int:
+		return int64(field), true, true
+
+	case *int:
+		if field == nil {
+			return 0, false, true
+		}
+
+		return int64(*field), true, true
+
+	case int32:
+		return int64(field), true, true
+
+	case *int32:
+		if field == nil {
+			return 0, false, true
+		}
+
+		return int64(*field), true, true
+
+	case int64:
+		return field, true, true
+
+	case *int64:
+		if field == nil {
+			return 0, false, true
+		}
+
+		return *field, true, true
+
+	case sql.NullInt32:
+		if !field.Valid {
+			return 0, false, true
+		}
+
+		return int64(field.Int32), true, true
+
+	case *sql.NullInt32:
+		if field == nil || !field.Valid {
+			return 0, false, true
+		}
+
+		return int64(field.Int32), true, true
+
+	case sql.NullInt64:
+		if !field.Valid {
+			return 0, false, true
+		}
+
+		return field.Int64, true, true
+
+	case *sql.NullInt64:
+		if field == nil || !field.Valid {
+			return 0, false, true
+		}
+
+		return field.Int64, true, true
+
+	default:
+		value, ok := dereferencedValue(fieldPtr)
+		if !ok {
+			return 0, false, false
+		}
+
+		switch value.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			return value.Int(), true, true
+		default:
+			return 0, false, false
+		}
+	}
 }
 
 func stringValue(fieldPtr any) (value string, present bool, ok bool) {
@@ -9699,8 +9780,11 @@ import (
 )
 
 func (b *ValidationBuilder) Required(field string, value any, message ...string) {
+	validationMessage := messageOrDefault("is required", message)
+	b.AddRule(field, "required", validationMessage)
+
 	if isMissing(value) {
-		b.AddField(field, "required", messageOrDefault("is required", message))
+		b.AddField(field, "required", validationMessage)
 	}
 }
 
@@ -9711,6 +9795,10 @@ func (b *ValidationBuilder) RequiredWhen(condition bool, field string, value any
 }
 
 func (b *ValidationBuilder) MinLen(field string, value any, min int, message ...string) {
+	validationMessage := messageOrDefault(fmt.Sprintf("must be at least %d characters", min), message)
+	params := map[string]any{"min": min}
+	b.AddRuleWithParams(field, "min", validationMessage, params)
+
 	str, present, ok := stringValue(value)
 	if !ok || !present {
 		return
@@ -9720,13 +9808,17 @@ func (b *ValidationBuilder) MinLen(field string, value any, min int, message ...
 		b.AddFieldWithParams(
 			field,
 			"min",
-			messageOrDefault(fmt.Sprintf("must be at least %d characters", min), message),
-			map[string]any{"min": min},
+			validationMessage,
+			params,
 		)
 	}
 }
 
 func (b *ValidationBuilder) MaxLen(field string, value any, max int, message ...string) {
+	validationMessage := messageOrDefault(fmt.Sprintf("must be at most %d characters", max), message)
+	params := map[string]any{"max": max}
+	b.AddRuleWithParams(field, "max", validationMessage, params)
+
 	str, present, ok := stringValue(value)
 	if !ok || !present {
 		return
@@ -9736,8 +9828,8 @@ func (b *ValidationBuilder) MaxLen(field string, value any, max int, message ...
 		b.AddFieldWithParams(
 			field,
 			"max",
-			messageOrDefault(fmt.Sprintf("must be at most %d characters", max), message),
-			map[string]any{"max": max},
+			validationMessage,
+			params,
 		)
 	}
 }
@@ -9745,6 +9837,53 @@ func (b *ValidationBuilder) MaxLen(field string, value any, max int, message ...
 func (b *ValidationBuilder) LenBetween(field string, value any, min int, max int, message ...string) {
 	b.MinLen(field, value, min, message...)
 	b.MaxLen(field, value, max, message...)
+}
+
+func (b *ValidationBuilder) RecommendedLenBetween(
+	field string,
+	min int,
+	max int,
+	message ...string,
+) {
+	b.AddRuleWithParams(
+		field,
+		"recommended_length",
+		messageOrDefault(
+			fmt.Sprintf("recommended length is between %d and %d characters", min, max),
+			message,
+		),
+		map[string]any{"min": min, "max": max},
+	)
+}
+
+func (b *ValidationBuilder) MinInt(field string, value any, min int64, message ...string) {
+	validationMessage := messageOrDefault(fmt.Sprintf("must be at least %d", min), message)
+	params := map[string]any{"min": min}
+	b.AddRuleWithParams(field, "min", validationMessage, params)
+
+	integer, present, ok := intValue(value)
+	if !ok || !present {
+		return
+	}
+
+	if integer < min {
+		b.AddFieldWithParams(field, "min", validationMessage, params)
+	}
+}
+
+func (b *ValidationBuilder) MaxInt(field string, value any, max int64, message ...string) {
+	validationMessage := messageOrDefault(fmt.Sprintf("must be at most %d", max), message)
+	params := map[string]any{"max": max}
+	b.AddRuleWithParams(field, "max", validationMessage, params)
+
+	integer, present, ok := intValue(value)
+	if !ok || !present {
+		return
+	}
+
+	if integer > max {
+		b.AddFieldWithParams(field, "max", validationMessage, params)
+	}
 }
 
 func (b *ValidationBuilder) OneOf(field string, value any, allowed ...string) {
@@ -9761,6 +9900,9 @@ func (b *ValidationBuilder) OneOfWithMessage(
 }
 
 func (b *ValidationBuilder) oneOf(field string, value any, message string, allowed ...string) {
+	params := map[string]any{"allowed": allowed}
+	b.AddRuleWithParams(field, "one_of", message, params)
+
 	str, present, ok := stringValue(value)
 	if !ok || !present {
 		return
@@ -9774,18 +9916,21 @@ func (b *ValidationBuilder) oneOf(field string, value any, message string, allow
 		field,
 		"one_of",
 		message,
-		map[string]any{"allowed": allowed},
+		params,
 	)
 }
 
 func (b *ValidationBuilder) URL(field string, value any, message ...string) {
+	validationMessage := messageOrDefault("must be a valid URL", message)
+	b.AddRule(field, "url", validationMessage)
+
 	str, present, ok := stringValue(value)
 	if !ok || !present || strings.TrimSpace(str) == "" {
 		return
 	}
 
 	if !isHTTPURL(str) {
-		b.AddField(field, "url", messageOrDefault("must be a valid URL", message))
+		b.AddField(field, "url", validationMessage)
 	}
 }
 
@@ -9795,6 +9940,10 @@ func (b *ValidationBuilder) RequiredURL(field string, value any, message ...stri
 }
 
 func (b *ValidationBuilder) MinItems(field string, value any, min int, message ...string) {
+	validationMessage := messageOrDefault(fmt.Sprintf("must contain at least %d item(s)", min), message)
+	params := map[string]any{"min": min}
+	b.AddRuleWithParams(field, "min_items", validationMessage, params)
+
 	length, ok := sliceLen(value)
 	if !ok {
 		return
@@ -9804,13 +9953,17 @@ func (b *ValidationBuilder) MinItems(field string, value any, min int, message .
 		b.AddFieldWithParams(
 			field,
 			"min_items",
-			messageOrDefault(fmt.Sprintf("must contain at least %d item(s)", min), message),
-			map[string]any{"min": min},
+			validationMessage,
+			params,
 		)
 	}
 }
 
 func (b *ValidationBuilder) MaxItems(field string, value any, max int, message ...string) {
+	validationMessage := messageOrDefault(fmt.Sprintf("must contain at most %d item(s)", max), message)
+	params := map[string]any{"max": max}
+	b.AddRuleWithParams(field, "max_items", validationMessage, params)
+
 	length, ok := sliceLen(value)
 	if !ok {
 		return
@@ -9820,13 +9973,16 @@ func (b *ValidationBuilder) MaxItems(field string, value any, max int, message .
 		b.AddFieldWithParams(
 			field,
 			"max_items",
-			messageOrDefault(fmt.Sprintf("must contain at most %d item(s)", max), message),
-			map[string]any{"max": max},
+			validationMessage,
+			params,
 		)
 	}
 }
 
 func (b *ValidationBuilder) NoBlankItems(field string, value any, message ...string) {
+	validationMessage := messageOrDefault("is required", message)
+	b.AddRule(field, "no_blank_items", validationMessage)
+
 	slice, ok := dereferencedValue(value)
 	if !ok {
 		return
@@ -9842,7 +9998,7 @@ func (b *ValidationBuilder) NoBlankItems(field string, value any, message ...str
 			b.Add(
 				normalizeField(field)+"["+strconv.Itoa(i)+"]",
 				"required",
-				messageOrDefault("is required", message),
+				validationMessage,
 			)
 		}
 	}
@@ -9855,6 +10011,10 @@ func (b *ValidationBuilder) TimeBeforeOrEqual(
 	endValue any,
 	message ...string,
 ) {
+	validationMessage := messageOrDefault("must be before or equal to the end time", message)
+	params := map[string]any{"other": normalizeField(endField)}
+	b.AddRuleWithParams(startField, "before_or_equal", validationMessage, params)
+
 	start, startOK := timeValue(startValue)
 	end, endOK := timeValue(endValue)
 
@@ -9866,16 +10026,19 @@ func (b *ValidationBuilder) TimeBeforeOrEqual(
 		b.AddFieldWithParams(
 			startField,
 			"before_or_equal",
-			messageOrDefault("must be before or equal to the end time", message),
-			map[string]any{"other": normalizeField(endField)},
+			validationMessage,
+			params,
 		)
 	}
 }
 
 func (b *ValidationBuilder) True(field string, value any, message ...string) {
+	validationMessage := messageOrDefault("must be true", message)
+	b.AddRule(field, "true", validationMessage)
+
 	boolValue, ok := requiredBool(value)
 	if !ok || !boolValue {
-		b.AddField(field, "true", messageOrDefault("must be true", message))
+		b.AddField(field, "true", validationMessage)
 	}
 }
 
@@ -9911,6 +10074,14 @@ type Error struct {
 	Message string         `json:"message"`
 	Params  map[string]any `json:"params,omitempty"`
 }
+
+type Rule struct {
+	Code    string         `json:"code"`
+	Message string         `json:"message"`
+	Params  map[string]any `json:"params,omitempty"`
+}
+
+type Rules map[string][]Rule
 
 type ValidationErrors []Error
 
@@ -9965,10 +10136,13 @@ func Validate(value any) error {
 
 type ValidationBuilder struct {
 	errors ValidationErrors
+	rules  Rules
 }
 
 func NewBuilder() *ValidationBuilder {
-	return &ValidationBuilder{}
+	return &ValidationBuilder{
+		rules: Rules{},
+	}
 }
 
 func (b *ValidationBuilder) Add(field, code, message string) {
@@ -10006,6 +10180,28 @@ func (b *ValidationBuilder) AddFieldWithParams(
 	b.AddWithParams(field, code, message, params)
 }
 
+func (b *ValidationBuilder) AddRule(field, code, message string) {
+	b.AddRuleWithParams(field, code, message, nil)
+}
+
+func (b *ValidationBuilder) AddRuleWithParams(
+	field string,
+	code string,
+	message string,
+	params map[string]any,
+) {
+	field = normalizeField(field)
+	if b.rules == nil {
+		b.rules = Rules{}
+	}
+
+	b.rules[field] = append(b.rules[field], Rule{
+		Code:    code,
+		Message: message,
+		Params:  copyRuleParams(params),
+	})
+}
+
 func (b *ValidationBuilder) Err() error {
 	if len(b.errors) == 0 {
 		return nil
@@ -10016,6 +10212,36 @@ func (b *ValidationBuilder) Err() error {
 
 func (b *ValidationBuilder) Errors() ValidationErrors {
 	return b.errors
+}
+
+func (b *ValidationBuilder) Rules() Rules {
+	rules := make(Rules, len(b.rules))
+	for field, fieldRules := range b.rules {
+		fieldRulesCopy := make([]Rule, len(fieldRules))
+		for i, rule := range fieldRules {
+			fieldRulesCopy[i] = Rule{
+				Code:    rule.Code,
+				Message: rule.Message,
+				Params:  copyRuleParams(rule.Params),
+			}
+		}
+		rules[field] = fieldRulesCopy
+	}
+
+	return rules
+}
+
+func copyRuleParams(params map[string]any) map[string]any {
+	if params == nil {
+		return nil
+	}
+
+	paramsCopy := make(map[string]any, len(params))
+	for key, value := range params {
+		paramsCopy[key] = value
+	}
+
+	return paramsCopy
 }
 
 func normalizeField(field string) string {

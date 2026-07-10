@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/layout"
@@ -68,11 +69,64 @@ func TestGetFrameworkTemplates_IncludesAllExpectedInternalPackages(t *testing.T)
 		"internal/server/server.go",
 		"internal/storage/psql.go",
 		"internal/storage/queue.go",
+		"internal/validation/helpers.go",
+		"internal/validation/rules.go",
+		"internal/validation/validation.go",
 	}
 
 	for _, path := range required {
 		if !slices.Contains(paths, path) {
 			t.Fatalf("expected framework templates to include %s", path)
+		}
+	}
+}
+
+func TestRenderFrameworkTemplates_PreservesValidationRuleAPI(t *testing.T) {
+	t.Parallel()
+
+	projectRoot := t.TempDir()
+	if err := os.WriteFile(
+		filepath.Join(projectRoot, "go.mod"),
+		[]byte("module github.com/example/myapp\n\ngo 1.26.5\n"),
+		0o644,
+	); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+
+	generated, err := NewTemplateGenerator("v1.1.0").RenderFrameworkTemplates(
+		projectRoot,
+		layout.ScaffoldConfig{Database: "postgresql"},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("render framework templates: %v", err)
+	}
+
+	expected := map[string][]string{
+		"internal/validation/validation.go": {
+			"type Rules map[string][]Rule",
+			"func (b *ValidationBuilder) AddRule(",
+			"func (b *ValidationBuilder) Rules() Rules",
+		},
+		"internal/validation/rules.go": {
+			"func (b *ValidationBuilder) RecommendedLenBetween(",
+			"func (b *ValidationBuilder) MinInt(",
+			"func (b *ValidationBuilder) MaxInt(",
+		},
+		"internal/validation/helpers.go": {
+			"case *sql.NullInt32:",
+			"func intValue(",
+		},
+	}
+	for path, snippets := range expected {
+		content, exists := generated[path]
+		if !exists {
+			t.Fatalf("upgrade output missing %s", path)
+		}
+		for _, snippet := range snippets {
+			if !strings.Contains(string(content), snippet) {
+				t.Errorf("upgrade output %s missing %q", path, snippet)
+			}
 		}
 	}
 }
