@@ -53,6 +53,12 @@ func isMissing(fieldPtr any) bool {
 	case *int64:
 		return field == nil || *field == 0
 
+	case *sql.NullInt32:
+		return field == nil || !field.Valid
+
+	case sql.NullInt32:
+		return !field.Valid
+
 	case *sql.NullInt64:
 		return field == nil || !field.Valid
 
@@ -80,6 +86,81 @@ func isMissing(fieldPtr any) bool {
 	}
 
 	return value.IsZero()
+}
+
+func intValue(fieldPtr any) (value int64, present bool, ok bool) {
+	switch field := fieldPtr.(type) {
+	case int:
+		return int64(field), true, true
+
+	case *int:
+		if field == nil {
+			return 0, false, true
+		}
+
+		return int64(*field), true, true
+
+	case int32:
+		return int64(field), true, true
+
+	case *int32:
+		if field == nil {
+			return 0, false, true
+		}
+
+		return int64(*field), true, true
+
+	case int64:
+		return field, true, true
+
+	case *int64:
+		if field == nil {
+			return 0, false, true
+		}
+
+		return *field, true, true
+
+	case sql.NullInt32:
+		if !field.Valid {
+			return 0, false, true
+		}
+
+		return int64(field.Int32), true, true
+
+	case *sql.NullInt32:
+		if field == nil || !field.Valid {
+			return 0, false, true
+		}
+
+		return int64(field.Int32), true, true
+
+	case sql.NullInt64:
+		if !field.Valid {
+			return 0, false, true
+		}
+
+		return field.Int64, true, true
+
+	case *sql.NullInt64:
+		if field == nil || !field.Valid {
+			return 0, false, true
+		}
+
+		return field.Int64, true, true
+
+	default:
+		value, ok := dereferencedValue(fieldPtr)
+		if !ok {
+			return 0, false, false
+		}
+
+		switch value.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			return value.Int(), true, true
+		default:
+			return 0, false, false
+		}
+	}
 }
 
 func stringValue(fieldPtr any) (value string, present bool, ok bool) {
