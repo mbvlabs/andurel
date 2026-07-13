@@ -198,6 +198,11 @@ type fakeGenerator struct {
 	factoriesCalls   []generator.FactorySyncOptions
 	factoryResult    *generator.FactorySyncResult
 	factoriesResult  []*generator.FactorySyncResult
+	modelUpdateCalls []string
+	modelUpdate      *generator.UpdateModelResult
+	modelUpdateErr   error
+	modelApplyCalls  []*generator.UpdateModelResult
+	modelApplyErr    error
 	err              error
 	onGenerateModel  func()
 }
@@ -299,6 +304,19 @@ func (f *fakeGenerator) GenerateScaffold(resourceName, namespace, tableName stri
 		isAPI:       isAPI,
 	})
 	return f.err
+}
+
+func (f *fakeGenerator) UpdateModel(resourceName string) (*generator.UpdateModelResult, error) {
+	f.modelUpdateCalls = append(f.modelUpdateCalls, resourceName)
+	if f.modelUpdateErr != nil {
+		return nil, f.modelUpdateErr
+	}
+	return f.modelUpdate, nil
+}
+
+func (f *fakeGenerator) ApplyModelUpdate(result *generator.UpdateModelResult) error {
+	f.modelApplyCalls = append(f.modelApplyCalls, result)
+	return f.modelApplyErr
 }
 
 func (f *fakeGenerator) SyncFactory(resourceName string, opts generator.FactorySyncOptions) (*generator.FactorySyncResult, error) {

@@ -7,12 +7,10 @@ import (
 	"io"
 	"os"
 	"strings"
-
-	"github.com/mbvlabs/andurel/generator"
 )
 
 func runModelUpdate(resourceName string, autoApply bool, skipFactory bool) error {
-	gen, err := generator.New()
+	gen, err := newGenerator()
 	if err != nil {
 		return err
 	}
