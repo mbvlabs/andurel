@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,7 +24,7 @@ func lookupLatestAndurelVersion(ctx context.Context) (string, error) {
 	return fetchLatestAndurelVersion(ctx, andurelVersionHTTPClient, andurelLatestVersionURL)
 }
 
-func fetchLatestAndurelVersion(ctx context.Context, client *http.Client, endpoint string) (string, error) {
+func fetchLatestAndurelVersion(ctx context.Context, client *http.Client, endpoint string) (version string, err error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return "", fmt.Errorf("create latest version request: %w", err)
@@ -35,7 +36,12 @@ func fetchLatestAndurelVersion(ctx context.Context, client *http.Client, endpoin
 	if err != nil {
 		return "", fmt.Errorf("check latest Andurel version: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if closeErr := response.Body.Close(); closeErr != nil {
+			version = ""
+			err = errors.Join(err, fmt.Errorf("close latest Andurel version response: %w", closeErr))
+		}
+	}()
 
 	if response.StatusCode != http.StatusOK {
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4<<10))
