@@ -45,6 +45,8 @@ const (
 	CodeConfigError = "config_error"
 	// CodeAmbiguousInput identifies user input that cannot be resolved safely.
 	CodeAmbiguousInput = "ambiguous_input"
+	// CodeUpdateRequired identifies an operation that requires a newer Andurel CLI.
+	CodeUpdateRequired = "update_required"
 	// ExitUsage is the exit code for command usage errors.
 	ExitUsage = 1
 	// ExitProject is the exit code for missing project context.
@@ -165,6 +167,7 @@ func ParseOptions(cmd *cobra.Command) (Options, error)
 ## github.com/mbvlabs/andurel/generator
 package generator // import "github.com/mbvlabs/andurel/generator"
 
+Package generator orchestrates model, controller, view, and scaffold generation.
 
 FUNCTIONS
 
@@ -694,6 +697,8 @@ type ViewPaths struct {
 ## github.com/mbvlabs/andurel/generator/controllers
 package controllers // import "github.com/mbvlabs/andurel/generator/controllers"
 
+Package controllers generates controller and route source files from resource
+metadata.
 
 FUNCTIONS
 
@@ -947,6 +952,8 @@ func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController
 ## github.com/mbvlabs/andurel/generator/files
 package files // import "github.com/mbvlabs/andurel/generator/files"
 
+Package files provides filesystem operations for reading and writing generated
+projects.
 
 FUNCTIONS
 
@@ -1067,6 +1074,7 @@ type Writer interface {
 ## github.com/mbvlabs/andurel/generator/models
 package models // import "github.com/mbvlabs/andurel/generator/models"
 
+Package models generates model source files from database schema metadata.
 
 TYPES
 
@@ -1209,6 +1217,7 @@ func (g *Generator) WriteFactoryFile(factory *GeneratedFactory, outputDir string
 ## github.com/mbvlabs/andurel/generator/templates
 package templates // import "github.com/mbvlabs/andurel/generator/templates"
 
+Package templates exposes the embedded templates used by code generators.
 
 VARIABLES
 
@@ -1338,6 +1347,8 @@ func (ts *TemplateService) RenderTemplateWithCustomFunctionsAndPartials(
 ## github.com/mbvlabs/andurel/generator/views
 package views // import "github.com/mbvlabs/andurel/generator/views"
 
+Package views generates server-rendered and Inertia views from resource
+metadata.
 
 TYPES
 
@@ -2400,6 +2411,8 @@ type TemplateData interface {
 ## github.com/mbvlabs/andurel/layout/templates
 package templates // import "github.com/mbvlabs/andurel/layout/templates"
 
+Package templates exposes the embedded templates used to scaffold Andurel
+projects.
 
 VARIABLES
 
@@ -2408,6 +2421,7 @@ var Files embed.FS
 ## github.com/mbvlabs/andurel/layout/upgrade
 package upgrade // import "github.com/mbvlabs/andurel/layout/upgrade"
 
+Package upgrade plans and applies transactional upgrades to generated projects.
 
 TYPES
 
@@ -2519,6 +2533,8 @@ func (u *Upgrader) Execute() (*UpgradeReport, error)
 ## github.com/mbvlabs/andurel/layout/versions
 package versions // import "github.com/mbvlabs/andurel/layout/versions"
 
+Package versions defines default versions for tools installed in generated
+projects.
 
 CONSTANTS
 
@@ -2542,6 +2558,7 @@ const (
 ## github.com/mbvlabs/andurel/pkg/cache
 package cache // import "github.com/mbvlabs/andurel/pkg/cache"
 
+Package cache provides TTL caching for repeated filesystem discovery operations.
 
 FUNCTIONS
 
@@ -2599,6 +2616,7 @@ func (fsc *FileSystemCache) Set(key string, value any)
 ## github.com/mbvlabs/andurel/pkg/constants
 package constants // import "github.com/mbvlabs/andurel/pkg/constants"
 
+Package constants defines shared filesystem permissions used by Andurel.
 
 CONSTANTS
 
@@ -2619,6 +2637,7 @@ const (
 ## github.com/mbvlabs/andurel/pkg/errors
 package errors // import "github.com/mbvlabs/andurel/pkg/errors"
 
+Package errors provides contextual and generator-specific error types.
 
 FUNCTIONS
 
@@ -2813,6 +2832,7 @@ func (e *ValidationError) Unwrap() error
 ## github.com/mbvlabs/andurel/pkg/naming
 package naming // import "github.com/mbvlabs/andurel/pkg/naming"
 
+Package naming transforms resource, identifier, and database names.
 
 FUNCTIONS
 
@@ -2898,6 +2918,8 @@ func ToSnakeCase(s string) string
 ## github.com/mbvlabs/andurel/pkg/testing
 package testing // import "github.com/mbvlabs/andurel/pkg/testing"
 
+Package testing provides helpers for organizing unit, integration, and
+end-to-end tests.
 
 TYPES
 
@@ -2994,6 +3016,7 @@ type UnitTest struct {
 ## github.com/mbvlabs/andurel/skills
 package skills // import "github.com/mbvlabs/andurel/skills"
 
+Package skills exposes the embedded Andurel skill documentation and assets.
 
 VARIABLES
 

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -23,8 +24,9 @@ func newUpgradeCommand(version string) *cobra.Command {
 ⚠️  IMPORTANT: Commit or create a branch before upgrading! This command modifies files in place.
 
 This command will:
-  1. Replace framework-managed files with the latest version
-  2. Update tool versions in andurel.lock
+  1. Verify that the installed Andurel CLI is the latest stable release
+  2. Replace framework-managed files with the latest version
+  3. Update tool versions in andurel.lock
 
 Note: This only upgrades framework code. You are responsible for updating
 your application code to work with any API changes in the new version.`,
@@ -69,6 +71,11 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		}
 	}
 	structured := output.SuppressesHumanOutput(outOpts)
+	if !repair {
+		if err := requireLatestAndurelRelease(cmd.Context(), targetVersion); err != nil {
+			return err
+		}
+	}
 
 	opts := upgrade.UpgradeOptions{
 		DryRun:        dryRun,
@@ -199,6 +206,25 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 	}
 
 	return nil
+}
+
+func requireLatestAndurelRelease(ctx context.Context, currentVersion string) error {
+	current, ok := canonicalAndurelVersion(currentVersion)
+	if !ok {
+		return nil
+	}
+
+	latest, err := lookupLatestAndurelVersionFunc(ctx)
+	if err != nil || !newerAndurelVersion(current, latest) {
+		return nil
+	}
+
+	return output.NewError(
+		output.CodeUpdateRequired,
+		fmt.Sprintf("a newer Andurel CLI is required to upgrade this project (current: %s, latest: %s)", current, latest),
+		output.ExitDependency,
+		fmt.Sprintf("Run '%s', then run 'andurel upgrade' again.", andurelInstallCommand(latest)),
+	)
 }
 
 func confirmFrameworkRepair() (bool, error) {

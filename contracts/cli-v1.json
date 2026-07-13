@@ -2316,6 +2316,10 @@
       "exit_code": 4
     },
     {
+      "code": "update_required",
+      "exit_code": 3
+    },
+    {
       "code": "usage_error",
       "exit_code": 1
     }

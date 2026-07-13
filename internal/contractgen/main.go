@@ -185,6 +185,7 @@ func emitCLIContract() error {
 			{Code: output.CodeExternalCommandFailed, ExitCode: output.ExitExternal},
 			{Code: output.CodeConfigError, ExitCode: output.ExitConfig},
 			{Code: output.CodeAmbiguousInput, ExitCode: output.ExitAmbiguous},
+			{Code: output.CodeUpdateRequired, ExitCode: output.ExitDependency},
 		},
 	}
 	slices.SortFunc(value.Errors, func(a, b errorContract) int { return strings.Compare(a.Code, b.Code) })

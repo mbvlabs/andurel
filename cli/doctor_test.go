@@ -163,6 +163,7 @@ func TestDoctorProjectDetection(t *testing.T) {
 }
 
 func TestRunDoctorStructuredPassAndFail(t *testing.T) {
+	stubLatestAndurelVersion(t, "v1.2.3", nil)
 	root := t.TempDir()
 	writeGoModule(t, root)
 	writeTestFile(t, root, "main.go", "package main\n\nfunc main() {}\n")
@@ -327,6 +328,7 @@ func TestRunWithTimeout(t *testing.T) {
 }
 
 func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
+	stubLatestAndurelVersion(t, "v1.2.3", nil)
 	root := t.TempDir()
 	writeGoModule(t, root)
 	writeTestFile(t, root, "main.go", "package main\n\nfunc main() {}\n")
@@ -368,6 +370,7 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 }
 
 func TestRunDoctorHumanPassWarnAndProjectFailure(t *testing.T) {
+	stubLatestAndurelVersion(t, "v1.2.3", nil)
 	root := t.TempDir()
 	writeGoModule(t, root)
 	writeTestFile(t, root, "main.go", "package main\n\nfunc main() {}\n")
