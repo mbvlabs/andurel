@@ -180,7 +180,8 @@ func ExtractTableNameOverride(modelPath string, resourceName string) (string, bo
     `bun:"table:student_feedback"`
 
 func ReadInertia() string
-    Returns "" when not configured (templ-only mode).
+    ReadInertia reads the configured Inertia adapter from andurel.lock.
+    It returns "" when Inertia is not configured.
 
 func ReadNullType() string
     ReadNullType reads the nullable type strategy from andurel.lock. Defaults to
@@ -1222,6 +1223,8 @@ Package templates exposes the embedded templates used by code generators.
 VARIABLES
 
 var Files embed.FS
+    Files contains the templates used by code generators.
+
 
 FUNCTIONS
 
@@ -2323,6 +2326,8 @@ extensions to the scaffold generation process.
 VARIABLES
 
 var Files embed.FS
+    Files contains the templates provided by scaffold extensions.
+
 
 FUNCTIONS
 
@@ -2417,6 +2422,8 @@ projects.
 VARIABLES
 
 var Files embed.FS
+    Files contains the templates used to scaffold Andurel projects.
+
 
 ## github.com/mbvlabs/andurel/layout/upgrade
 package upgrade // import "github.com/mbvlabs/andurel/layout/upgrade"
@@ -3021,7 +3028,11 @@ Package skills exposes the embedded Andurel skill documentation and assets.
 VARIABLES
 
 var AndurelSkill string
+    AndurelSkill contains the embedded Andurel skill instructions.
+
 var AndurelSkillFS embed.FS
+    AndurelSkillFS contains the embedded Andurel skill files.
+
 
 FUNCTIONS
 
