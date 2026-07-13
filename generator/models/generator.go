@@ -1,3 +1,4 @@
+// Package models generates model source files from database schema metadata.
 package models
 
 import (

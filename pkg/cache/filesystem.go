@@ -1,3 +1,4 @@
+// Package cache provides TTL caching for repeated filesystem discovery operations.
 package cache
 
 import (

@@ -1,3 +1,4 @@
+// Package errors provides contextual and generator-specific error types.
 package errors
 
 import (

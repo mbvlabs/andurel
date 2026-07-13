@@ -1,3 +1,4 @@
+// Andurel scaffolds and manages full-stack Go web applications.
 package main
 
 import (

@@ -1,3 +1,4 @@
+// Package controllers generates controller and route source files from resource metadata.
 package controllers
 
 import (

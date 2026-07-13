@@ -1,3 +1,4 @@
+// Package testing provides helpers for organizing unit, integration, and end-to-end tests.
 package testing
 
 import (

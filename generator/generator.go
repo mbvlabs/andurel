@@ -1,3 +1,4 @@
+// Package generator orchestrates model, controller, view, and scaffold generation.
 package generator
 
 // Generator is the high-level facade for Andurel code generation.

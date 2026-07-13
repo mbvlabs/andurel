@@ -1,3 +1,4 @@
+// Package files provides filesystem operations for reading and writing generated projects.
 package files
 
 import "os"

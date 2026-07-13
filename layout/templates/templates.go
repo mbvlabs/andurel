@@ -1,3 +1,4 @@
+// Package templates exposes the embedded templates used to scaffold Andurel projects.
 package templates
 
 import "embed"

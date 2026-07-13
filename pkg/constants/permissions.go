@@ -1,3 +1,4 @@
+// Package constants defines shared filesystem permissions used by Andurel.
 package constants
 
 import "os"
