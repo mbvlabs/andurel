@@ -1,3 +1,4 @@
+// Package versions defines default versions for tools installed in generated projects.
 package versions
 
 const (

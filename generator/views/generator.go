@@ -1,3 +1,4 @@
+// Package views generates server-rendered and Inertia views from resource metadata.
 package views
 
 import (

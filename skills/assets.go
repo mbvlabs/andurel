@@ -1,3 +1,4 @@
+// Package skills exposes the embedded Andurel skill documentation and assets.
 package skills
 
 import (

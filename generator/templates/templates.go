@@ -1,3 +1,4 @@
+// Package templates exposes the embedded templates used by code generators.
 package templates
 
 import "embed"

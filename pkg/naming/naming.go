@@ -1,3 +1,4 @@
+// Package naming transforms resource, identifier, and database names.
 package naming
 
 import (

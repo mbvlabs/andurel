@@ -1,3 +1,4 @@
+// Package upgrade plans and applies transactional upgrades to generated projects.
 package upgrade
 
 import (
