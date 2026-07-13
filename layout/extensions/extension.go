@@ -12,6 +12,8 @@ import (
 	"github.com/mbvlabs/andurel/layout/blueprint"
 )
 
+// Files contains the templates provided by scaffold extensions.
+//
 //go:embed templates/*/*.tmpl
 var Files embed.FS
 

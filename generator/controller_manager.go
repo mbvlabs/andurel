@@ -259,7 +259,8 @@ func controllerNamespacePrefix(namespace string) string {
 	return naming.NamespaceFilePrefix(namespace)
 }
 
-// Returns "" when not configured (templ-only mode).
+// ReadInertia reads the configured Inertia adapter from andurel.lock.
+// It returns "" when Inertia is not configured.
 func ReadInertia() string {
 	fm := files.NewUnifiedFileManager()
 	rootDir, err := fm.FindGoModRoot()
