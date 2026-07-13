@@ -164,7 +164,9 @@ for requirement in \
   '      - master' \
   '  test:' \
   'go vet ./...' \
-  'go test $(go list ./... | grep -v /e2e)' \
+  './scripts/coverage.sh' \
+  'codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1' \
+  'use_oidc: true' \
   'go test ./e2e/... -v -timeout 25m'; do
   if ! grep -Fq "${requirement}" "${test_workflow}"; then
     echo "pull request test workflow is missing ${requirement}" >&2
@@ -172,12 +174,8 @@ for requirement in \
   fi
 done
 
-coverage_workflow="${repo_root}/.github/workflows/coverage.yml"
-if grep -Eq '^  release:' "${coverage_workflow}" || \
-  ! grep -Eq '^  workflow_run:' "${coverage_workflow}" || \
-  ! grep -Fq '      - Release' "${coverage_workflow}" || \
-  ! grep -Fq "github.event.workflow_run.conclusion == 'success'" "${coverage_workflow}"; then
-  echo 'coverage workflow must run after a successful Release workflow completion' >&2
+if [[ -e "${repo_root}/.github/workflows/coverage.yml" ]]; then
+  echo 'redundant coverage workflow must not exist' >&2
   exit 1
 fi
 

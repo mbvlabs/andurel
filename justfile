@@ -47,9 +47,7 @@ test:
 
 # Run unit tests with coverage
 test-coverage:
-	go test $(go list ./... | grep -v /e2e) -v -race -cover -coverprofile coverage.out -coverpkg ./...
-	go tool cover -func coverage.out -o coverage-summary.out
-	awk '/^total:/ {printf "total coverage: %s\n", $3; found=1} END {exit !found}' coverage-summary.out
+	./scripts/coverage.sh
 
 # Run critical e2e tests only
 test-e2e-critical:

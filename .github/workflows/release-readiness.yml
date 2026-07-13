@@ -21,6 +21,7 @@ jobs:
     timeout-minutes: 90
     permissions:
       contents: read
+      id-token: write
 
     steps:
       - name: Check out the exact commit
@@ -85,13 +86,16 @@ jobs:
         run: govulncheck ./...
 
       - name: Run unit and integration tests with race detection and report coverage
-        shell: bash
-        run: |
-          set -euo pipefail
-          packages="$(go list ./... | grep -v /e2e)"
-          go test ${packages} -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out
-          go tool cover -func=coverage.out -o coverage-summary.out
-          awk '/^total:/ {printf "total statement coverage: %s\n", $3; found=1} END {exit !found}' coverage-summary.out
+        run: ./scripts/coverage.sh
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1 # v7.0.0
+        with:
+          use_oidc: true
+          files: ./coverage.out
+          disable_search: true
+          flags: unit
+          fail_ci_if_error: true
 
       - name: Run full end-to-end and scaffold suite
         run: go test ./e2e/... -v -timeout 55m

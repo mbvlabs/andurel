@@ -34,10 +34,8 @@ jobs:
       - name: Run go vet
         run: go vet ./...
 
-      - name: Run unit tests
-        run: |
-          go test $(go list ./... | grep -v /e2e) -v -race -coverprofile=coverage.txt -covermode=atomic
-          go tool cover -func coverage.txt | awk '/^total:/ {printf "total coverage: %s\n", $3; found=1} END {exit !found}'
+      - name: Run unit tests with canonical coverage
+        run: ./scripts/coverage.sh
 
       - name: Run E2E full test suite
         run: go test ./e2e/... -v -timeout 55m
