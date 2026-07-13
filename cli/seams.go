@@ -11,6 +11,8 @@ type cliGenerator interface {
 	GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string, isAPI bool) error
 	GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string, isAPI bool) error
 	GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string, isAPI bool) error
+	UpdateModel(resourceName string) (*generator.UpdateModelResult, error)
+	ApplyModelUpdate(result *generator.UpdateModelResult) error
 	SyncFactory(resourceName string, opts generator.FactorySyncOptions) (*generator.FactorySyncResult, error)
 	SyncFactories(opts generator.FactorySyncOptions) ([]*generator.FactorySyncResult, error)
 }

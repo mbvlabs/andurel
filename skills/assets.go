@@ -15,7 +15,11 @@ var AndurelSkill string
 
 // WalkAndurelSkillFiles walks andurel skill files.
 func WalkAndurelSkillFiles(fn func(path string, data []byte) error) error {
-	return fs.WalkDir(AndurelSkillFS, "andurel", func(path string, entry fs.DirEntry, err error) error {
+	return walkAndurelSkillFiles(AndurelSkillFS, fn)
+}
+
+func walkAndurelSkillFiles(skillFS fs.FS, fn func(path string, data []byte) error) error {
+	return fs.WalkDir(skillFS, "andurel", func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -23,7 +27,7 @@ func WalkAndurelSkillFiles(fn func(path string, data []byte) error) error {
 			return nil
 		}
 
-		data, err := AndurelSkillFS.ReadFile(path)
+		data, err := fs.ReadFile(skillFS, path)
 		if err != nil {
 			return err
 		}

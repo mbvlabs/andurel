@@ -9,13 +9,18 @@ import (
 	"github.com/mbvlabs/andurel/layout/versions"
 )
 
+var (
+	absolutePath = filepath.Abs
+	newCommand   = exec.Command
+)
+
 // RunGoModTidy runs go mod tidy.
 func RunGoModTidy(targetDir string) error {
-	absTargetDir, err := filepath.Abs(targetDir)
+	absTargetDir, err := absolutePath(targetDir)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
-	cmd := exec.Command("go", "mod", "tidy")
+	cmd := newCommand("go", "mod", "tidy")
 	cmd.Dir = absTargetDir
 
 	return cmd.Run()
@@ -23,11 +28,11 @@ func RunGoModTidy(targetDir string) error {
 
 // RunGoFmt runs go fmt.
 func RunGoFmt(targetDir string) error {
-	absTargetDir, err := filepath.Abs(targetDir)
+	absTargetDir, err := absolutePath(targetDir)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
-	cmd := exec.Command("go", "fmt", "./...")
+	cmd := newCommand("go", "fmt", "./...")
 	cmd.Dir = absTargetDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -39,11 +44,11 @@ func RunGoFmt(targetDir string) error {
 
 // RunGoFmtPath runs go fmt path.
 func RunGoFmtPath(targetDir, path string) error {
-	absTargetDir, err := filepath.Abs(targetDir)
+	absTargetDir, err := absolutePath(targetDir)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
-	cmd := exec.Command("go", "fmt", path)
+	cmd := newCommand("go", "fmt", path)
 	cmd.Dir = absTargetDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -55,24 +60,24 @@ func RunGoFmtPath(targetDir, path string) error {
 
 // RunGolines runs golines.
 func RunGolines(targetDir string) error {
-	absTargetDir, err := filepath.Abs(targetDir)
+	absTargetDir, err := absolutePath(targetDir)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	cmd := exec.Command("golines", "-w", "-m", "100", ".")
+	cmd := newCommand("golines", "-w", "-m", "100", ".")
 	cmd.Dir = absTargetDir
 	return cmd.Run()
 }
 
 // RunTemplGenerate runs templ generate.
 func RunTemplGenerate(targetDir string) error {
-	absTargetDir, err := filepath.Abs(targetDir)
+	absTargetDir, err := absolutePath(targetDir)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	cmd := exec.Command(
+	cmd := newCommand(
 		"go",
 		"run",
 		"github.com/a-h/templ/cmd/templ@"+versions.Templ,
@@ -85,12 +90,12 @@ func RunTemplGenerate(targetDir string) error {
 
 // RunTemplFmt runs templ fmt.
 func RunTemplFmt(targetDir string) error {
-	absTargetDir, err := filepath.Abs(targetDir)
+	absTargetDir, err := absolutePath(targetDir)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	cmd := exec.Command(
+	cmd := newCommand(
 		"go",
 		"run",
 		"github.com/a-h/templ/cmd/templ@"+versions.Templ,
@@ -103,12 +108,12 @@ func RunTemplFmt(targetDir string) error {
 
 // RunGooseFix runs goose fix.
 func RunGooseFix(targetDir string) error {
-	absTargetDir, err := filepath.Abs(targetDir)
+	absTargetDir, err := absolutePath(targetDir)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	cmd := exec.Command(
+	cmd := newCommand(
 		"go",
 		"run",
 		"github.com/pressly/goose/v3/cmd/goose@"+versions.Goose,

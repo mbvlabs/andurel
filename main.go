@@ -9,11 +9,15 @@ import (
 
 	"github.com/mbvlabs/andurel/cli"
 	"github.com/mbvlabs/andurel/cli/output"
+	"github.com/spf13/cobra"
 )
 
 var (
-	version string
-	date    = time.Now().Format("2006-01-02")
+	version        string
+	date           = time.Now().Format("2006-01-02")
+	readBuildInfo  = debug.ReadBuildInfo
+	newRootCommand = cli.NewRootCommand
+	exitProcess    = os.Exit
 )
 
 func getVersion() string {
@@ -21,7 +25,7 @@ func getVersion() string {
 		return version
 	}
 
-	if info, ok := debug.ReadBuildInfo(); ok {
+	if info, ok := readBuildInfo(); ok {
 		if info.Main.Version != "" && info.Main.Version != "(devel)" {
 			return info.Main.Version
 		}
@@ -30,13 +34,18 @@ func getVersion() string {
 	return "v1.3.0"
 }
 
-func main() {
-	ctx := context.Background()
-
-	rootCmd := cli.NewRootCommand(getVersion(), date)
-
+func execute(ctx context.Context, rootCmd *cobra.Command) int {
 	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		_ = output.RenderError(rootCmd, err)
-		os.Exit(output.ExitCode(err))
+		return output.ExitCode(err)
+	}
+	return 0
+}
+
+func main() {
+	ctx := context.Background()
+	rootCmd := newRootCommand(getVersion(), date)
+	if exitCode := execute(ctx, rootCmd); exitCode != 0 {
+		exitProcess(exitCode)
 	}
 }
