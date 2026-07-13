@@ -27,7 +27,7 @@ func getVersion() string {
 		}
 	}
 
-	return "dev"
+	return "v1.3.0"
 }
 
 func main() {
