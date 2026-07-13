@@ -172,7 +172,8 @@ var _ = routes.AdminProductDestroy
 		t.Fatalf("write view: %v", err)
 	}
 	actions, err := existingResourceViewActions(path, "Product", "admin")
-	if err != nil || !reflect.DeepEqual(actions, resourceViewActions) {
+	wantActions := []string{"index", "show", "new", "edit", "create", "update", "destroy"}
+	if err != nil || !reflect.DeepEqual(actions, wantActions) {
 		t.Fatalf("existing view actions = %#v, %v", actions, err)
 	}
 	if _, err := existingResourceViewActions(filepath.Join(t.TempDir(), "missing.templ"), "Product", ""); err == nil {
