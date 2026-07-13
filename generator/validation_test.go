@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -182,5 +183,75 @@ func TestValidateTableNameOverride(t *testing.T) {
 				t.Errorf("ValidateTableNameOverride() unexpected warning output: %s", output)
 			}
 		})
+	}
+}
+
+func TestInputValidatorRemainingValidationBranches(t *testing.T) {
+	validator := NewInputValidator()
+	for _, resource := range []string{"", "user", "User-Account", "9User"} {
+		if err := validator.ValidateResourceName(resource); err == nil {
+			t.Fatalf("resource %q should be rejected", resource)
+		}
+	}
+
+	for _, table := range []string{"", "account", "select", strings.Repeat("a", 64)} {
+		if err := validator.ValidateTableName(table); err == nil {
+			t.Fatalf("table %q should be rejected", table)
+		}
+	}
+
+	for _, path := range []string{"", "../secret", "safe/../../secret", "/absolute/path"} {
+		if err := validator.ValidateFilePath(path); err == nil {
+			t.Fatalf("file path %q should be rejected", path)
+		}
+	}
+	for _, path := range []string{"models/user.go", "router/routes.go", "file.go"} {
+		if err := validator.ValidateFilePath(path); err != nil {
+			t.Fatalf("file path %q should be accepted: %v", path, err)
+		}
+	}
+
+	for _, module := range []string{"", "example.com/my module", "example.com/app@v2"} {
+		if err := validator.ValidateModulePath(module); err == nil {
+			t.Fatalf("module %q should be rejected", module)
+		}
+	}
+	for _, module := range []string{"example.com/app", "github.com/org/project/v2", "local_module"} {
+		if err := validator.ValidateModulePath(module); err != nil {
+			t.Fatalf("module %q should be accepted: %v", module, err)
+		}
+	}
+
+	checks := []struct {
+		resource string
+		table    string
+		module   string
+		want     string
+	}{
+		{resource: "Users", table: "users", module: "example.com/app", want: "resource name validation failed"},
+		{resource: "User", table: "user", module: "example.com/app", want: "table name validation failed"},
+		{resource: "User", table: "users", module: "bad module", want: "module path validation failed"},
+	}
+	for _, check := range checks {
+		err := validator.ValidateAll(check.resource, check.table, check.module)
+		if err == nil || !strings.Contains(err.Error(), check.want) {
+			t.Fatalf("ValidateAll(%q, %q, %q) = %v, want %q", check.resource, check.table, check.module, err, check.want)
+		}
+	}
+	if err := validator.ValidateAll("User", "users", "example.com/app"); err != nil {
+		t.Fatalf("valid inputs failed: %v", err)
+	}
+}
+
+func TestTableOverrideWarningsAreDeduplicatedAndNilSafe(t *testing.T) {
+	validator := &InputValidator{}
+	if !validator.shouldWarnTableOverride("User", "legacy_users") {
+		t.Fatal("first override should warn")
+	}
+	if validator.shouldWarnTableOverride("user", "legacy_users") {
+		t.Fatal("case-insensitive duplicate override should not warn")
+	}
+	if !(*InputValidator)(nil).shouldWarnTableOverride("User", "legacy_users") {
+		t.Fatal("nil validator should conservatively request a warning")
 	}
 }

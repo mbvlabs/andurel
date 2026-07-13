@@ -104,6 +104,55 @@ func TestProjectionFlagsAreMutuallyExclusive(t *testing.T) {
 	}
 }
 
+func TestProjectionCollectionsIdentifiersAndEncodingErrors(t *testing.T) {
+	for _, field := range []string{"routes", "items", "results", "names", "extensions", "tools"} {
+		items, err := projectionItems(map[string]any{field: []any{"one", "two"}})
+		if err != nil || len(items) != 2 {
+			t.Fatalf("projectionItems(%s) = %#v, %v", field, items, err)
+		}
+	}
+	for _, value := range []any{"scalar", 42, map[string]any{"other": []any{"one"}}} {
+		if _, err := projectionItems(value); err == nil {
+			t.Fatalf("expected non-collection %#v to fail", value)
+		}
+	}
+
+	identifiers := []struct {
+		value any
+		want  string
+		ok    bool
+	}{
+		{value: "direct", want: "direct", ok: true},
+		{value: float64(42.5), want: "42.5", ok: true},
+		{value: map[string]any{"id": "id-value"}, want: "id-value", ok: true},
+		{value: map[string]any{"name": "name-value"}, want: "name-value", ok: true},
+		{value: map[string]any{"variable": "variable-value"}, want: "variable-value", ok: true},
+		{value: map[string]any{"path": "/path"}, want: "/path", ok: true},
+		{value: map[string]any{"id": ""}, ok: false},
+		{value: true, ok: false},
+	}
+	for _, test := range identifiers {
+		got, ok := projectionIdentifier(test.value)
+		if got != test.want || ok != test.ok {
+			t.Fatalf("projectionIdentifier(%#v) = %q, %v; want %q, %v", test.value, got, ok, test.want, test.ok)
+		}
+	}
+
+	unsupported := make(chan int)
+	if _, err := normalizeJSONValue(unsupported); err == nil {
+		t.Fatal("expected unsupported JSON value to fail")
+	}
+	if _, err := applyJQ(unsupported, ".value"); err == nil {
+		t.Fatal("expected jq normalization failure")
+	}
+	if _, err := projectionItems(unsupported); err == nil {
+		t.Fatal("expected collection normalization failure")
+	}
+	if err := writeIDs(&bytes.Buffer{}, []any{true}); err == nil {
+		t.Fatal("expected missing identifier error")
+	}
+}
+
 func projectionTestCommand(t *testing.T, out *bytes.Buffer, flag, value string) *cobra.Command {
 	t.Helper()
 	cmd := &cobra.Command{Use: "andurel"}

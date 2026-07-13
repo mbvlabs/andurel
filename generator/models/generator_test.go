@@ -1,6 +1,8 @@
 package models
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -245,5 +247,119 @@ func TestBuildFactoryMetadata(t *testing.T) {
 	}
 	if slices.Contains(factory.ExternalImports, "github.com/google/uuid") {
 		t.Fatalf("int64 ID should not add uuid ID import: %#v", factory.ExternalImports)
+	}
+}
+
+func TestBuildModelPrimaryKeyOverridesAndImports(t *testing.T) {
+	table := tableWithColumns(t, "memberships",
+		catalog.NewColumn("tenant_id", "uuid").SetPrimaryKey(),
+		catalog.NewColumn("owner_id", "uuid").SetForeignKey("users", "id"),
+		catalog.NewColumn("metadata", "jsonb"),
+		catalog.NewColumn("created_at", "timestamp").SetNotNull(),
+		catalog.NewColumn("updated_at", "timestamp").SetNotNull(),
+	)
+	cat := catalog.NewCatalog("public")
+	if err := cat.AddTable("public", table); err != nil {
+		t.Fatalf("add table: %v", err)
+	}
+	g := NewGenerator("postgresql")
+	model, err := g.Build(cat, Config{
+		TableName:        "memberships",
+		ResourceName:     "Membership",
+		PackageName:      "models",
+		ModulePath:       "example.com/app",
+		PrimaryKeyColumn: "tenant_id",
+		NullType:         "pointer",
+	})
+	if err != nil {
+		t.Fatalf("build model: %v", err)
+	}
+	if !model.HasPrimaryKey || model.IDFieldName != "tenant_id" || model.IDGoFieldName != "TenantID" || model.IDType != "uuid.UUID" {
+		t.Fatalf("primary key override was not applied: %#v", model)
+	}
+	if !model.HasCreatedAt || !model.HasUpdatedAt {
+		t.Fatalf("timestamps were not detected: %#v", model)
+	}
+	for _, want := range []string{"encoding/json", "github.com/google/uuid", "example.com/app/internal/storage", "example.com/app/internal/validation"} {
+		if !slices.Contains(model.Imports, want) {
+			t.Fatalf("model imports missing %q: %#v", want, model.Imports)
+		}
+	}
+	if findColumn(table, "missing") != nil {
+		t.Fatal("missing column lookup returned a value")
+	}
+
+	withoutPK, err := g.Build(cat, Config{TableName: "memberships", ResourceName: "Membership", GenerateWithoutPK: true})
+	if err != nil {
+		t.Fatalf("build without primary key: %v", err)
+	}
+	if withoutPK.HasPrimaryKey {
+		t.Fatalf("GenerateWithoutPK selected a primary key: %#v", withoutPK)
+	}
+	if _, err := g.Build(cat, Config{TableName: "missing", ResourceName: "Missing"}); err == nil {
+		t.Fatal("expected missing table error")
+	}
+}
+
+func TestGenerateModelAndFactoryFiles(t *testing.T) {
+	root := t.TempDir()
+	cat := catalog.NewCatalog("public")
+	table := tableWithColumns(t, "products",
+		catalog.NewColumn("id", "uuid").SetPrimaryKey(),
+		catalog.NewColumn("name", "text").SetNotNull(),
+	)
+	if err := cat.AddTable("public", table); err != nil {
+		t.Fatalf("add products table: %v", err)
+	}
+	g := NewGenerator("postgresql")
+	modelPath := filepath.Join(root, "product.go")
+	if err := g.GenerateModel(cat, "Product", "products", modelPath, "example.com/app", "", "sql.Null", "id", false); err != nil {
+		t.Fatalf("generate model: %v", err)
+	}
+	modelContent, err := os.ReadFile(modelPath)
+	if err != nil || !strings.Contains(string(modelContent), "type ProductEntity struct") {
+		t.Fatalf("generated model = %v\n%s", err, modelContent)
+	}
+
+	model, err := g.Build(cat, Config{TableName: "products", ResourceName: "Product", ModulePath: "example.com/app"})
+	if err != nil {
+		t.Fatalf("build factory model: %v", err)
+	}
+	factory, err := g.BuildFactory(cat, Config{TableName: "products", ModulePath: "example.com/app"}, model)
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+	if err := g.WriteFactoryFile(factory, root); err != nil {
+		t.Fatalf("write factory: %v", err)
+	}
+	factoryPath := filepath.Join(root, "models", "factories", "product.go")
+	factoryContent, err := os.ReadFile(factoryPath)
+	if err != nil || !strings.Contains(string(factoryContent), "func BuildProduct") {
+		t.Fatalf("generated factory = %v\n%s", err, factoryContent)
+	}
+}
+
+func TestBuildCatalogFromMigrations(t *testing.T) {
+	directory := t.TempDir()
+	migration := `-- +goose Up
+CREATE TABLE widgets (
+    id UUID PRIMARY KEY,
+    name TEXT NOT NULL
+);
+-- +goose Down
+DROP TABLE widgets;
+`
+	if err := os.WriteFile(filepath.Join(directory, "20260713120000_create_widgets.sql"), []byte(migration), 0o600); err != nil {
+		t.Fatalf("write migration: %v", err)
+	}
+	cat, err := NewGenerator("postgresql").BuildCatalogFromMigrations("widgets", []string{directory})
+	if err != nil {
+		t.Fatalf("build catalog from migrations: %v", err)
+	}
+	if _, err := cat.GetTable("public", "widgets"); err != nil {
+		t.Fatalf("widgets table missing from catalog: %v", err)
+	}
+	if _, err := NewGenerator("postgresql").BuildCatalogFromMigrations("widgets", []string{filepath.Join(directory, "missing")}); err == nil {
+		t.Fatal("expected migration discovery error")
 	}
 }
