@@ -91,3 +91,64 @@ func TestExecute(t *testing.T) {
 		}
 	})
 }
+
+func TestMainRunsRootCommand(t *testing.T) {
+	originalVersion := version
+	originalNewRootCommand := newRootCommand
+	originalExitProcess := exitProcess
+	t.Cleanup(func() {
+		version = originalVersion
+		newRootCommand = originalNewRootCommand
+		exitProcess = originalExitProcess
+	})
+
+	version = "v-test"
+	t.Run("success", func(t *testing.T) {
+		executed := false
+		newRootCommand = func(gotVersion, gotDate string) *cobra.Command {
+			if gotVersion != version {
+				t.Fatalf("root command version = %q, want %q", gotVersion, version)
+			}
+			if gotDate != date {
+				t.Fatalf("root command date = %q, want %q", gotDate, date)
+			}
+			return &cobra.Command{Run: func(*cobra.Command, []string) { executed = true }}
+		}
+		exitCode := -1
+		exitProcess = func(code int) { exitCode = code }
+
+		main()
+
+		if !executed {
+			t.Fatal("root command was not executed")
+		}
+		if exitCode != -1 {
+			t.Fatalf("exit called with code %d", exitCode)
+		}
+	})
+
+	t.Run("error", func(t *testing.T) {
+		expectedErr := output.NewError(output.CodeConfigError, "invalid config", output.ExitConfig, "repair it")
+		var stderr bytes.Buffer
+		newRootCommand = func(string, string) *cobra.Command {
+			cmd := &cobra.Command{
+				SilenceErrors: true,
+				SilenceUsage:  true,
+				RunE:          func(*cobra.Command, []string) error { return expectedErr },
+			}
+			cmd.SetErr(&stderr)
+			return cmd
+		}
+		exitCode := -1
+		exitProcess = func(code int) { exitCode = code }
+
+		main()
+
+		if exitCode != output.ExitConfig {
+			t.Fatalf("exit code = %d, want %d", exitCode, output.ExitConfig)
+		}
+		if !strings.Contains(stderr.String(), "invalid config") {
+			t.Fatalf("stderr missing rendered error: %s", stderr.String())
+		}
+	})
+}

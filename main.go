@@ -13,11 +13,12 @@ import (
 )
 
 var (
-	version string
-	date    = time.Now().Format("2006-01-02")
+	version        string
+	date           = time.Now().Format("2006-01-02")
+	readBuildInfo  = debug.ReadBuildInfo
+	newRootCommand = cli.NewRootCommand
+	exitProcess    = os.Exit
 )
-
-var readBuildInfo = debug.ReadBuildInfo
 
 func getVersion() string {
 	if version != "" {
@@ -43,8 +44,8 @@ func execute(ctx context.Context, rootCmd *cobra.Command) int {
 
 func main() {
 	ctx := context.Background()
-	rootCmd := cli.NewRootCommand(getVersion(), date)
+	rootCmd := newRootCommand(getVersion(), date)
 	if exitCode := execute(ctx, rootCmd); exitCode != 0 {
-		os.Exit(exitCode)
+		exitProcess(exitCode)
 	}
 }
