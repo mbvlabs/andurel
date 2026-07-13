@@ -26,6 +26,7 @@ type checkResult struct {
 	status   checkStatus
 	message  string
 	details  []string
+	hint     string
 }
 
 type checkStatus int
@@ -83,7 +84,7 @@ func newDoctorCommand(currentVersion string) *cobra.Command {
 		Long: `Run comprehensive diagnostic checks to verify your Andurel project health.
 
 This command will check:
-  • Environment (Go version)
+  • Environment (Go version, latest stable Andurel release)
   • Configuration (andurel.lock)
   • Code quality (go vet, go mod tidy)
   • Code generation (templ)`,
@@ -126,6 +127,7 @@ func collectDoctorReport(currentVersion string, verbose bool) (doctorReport, err
 
 	results = append(results, categorizeResults("environment",
 		checkGoVersion(),
+		checkLatestAndurelRelease(currentVersion),
 		checkInAndurelProject(),
 	)...)
 
@@ -205,6 +207,9 @@ func doctorHint(result checkResult) string {
 	if result.status == statusPass {
 		return ""
 	}
+	if result.hint != "" {
+		return result.hint
+	}
 
 	switch result.name {
 	case "Andurel project":
@@ -249,9 +254,13 @@ func runDoctor(currentVersion string, verbose bool) error {
 
 	// Environment checks
 	fmt.Println("\n=== Environment ===")
-	results = append(results, checkGoVersion())
-	results = append(results, checkInAndurelProject())
-	printResults(results[len(results)-2:], verbose)
+	environmentResults := []checkResult{
+		checkGoVersion(),
+		checkLatestAndurelRelease(currentVersion),
+		checkInAndurelProject(),
+	}
+	results = append(results, environmentResults...)
+	printResults(environmentResults, verbose)
 
 	// Get project root directory
 	rootDir, err := findGoModRoot()
@@ -359,6 +368,50 @@ func checkGoVersion() checkResult {
 		name:    "Go version",
 		status:  statusPass,
 		message: versionOutput,
+	}
+}
+
+func checkLatestAndurelRelease(currentVersion string) checkResult {
+	current, ok := canonicalAndurelVersion(currentVersion)
+	if !ok {
+		return checkResult{
+			name:    "Andurel release",
+			status:  statusPass,
+			message: "development build; update check skipped",
+		}
+	}
+
+	latest, err := lookupLatestAndurelVersionFunc(context.Background())
+	if err != nil {
+		return checkResult{
+			name:    "Andurel release",
+			status:  statusWarn,
+			message: "could not check the latest stable release",
+			details: []string{err.Error()},
+			hint:    "Check network connectivity and run andurel doctor again.",
+		}
+	}
+
+	if newerAndurelVersion(current, latest) {
+		return checkResult{
+			name:    "Andurel release",
+			status:  statusWarn,
+			message: fmt.Sprintf("%s is available (current: %s)", latest, current),
+			hint:    fmt.Sprintf("Run '%s', then run 'andurel upgrade'.", andurelInstallCommand(latest)),
+		}
+	}
+	if current != latest {
+		return checkResult{
+			name:    "Andurel release",
+			status:  statusPass,
+			message: fmt.Sprintf("no newer stable release found (current: %s, latest stable: %s)", current, latest),
+		}
+	}
+
+	return checkResult{
+		name:    "Andurel release",
+		status:  statusPass,
+		message: fmt.Sprintf("latest stable release installed (%s)", current),
 	}
 }
 

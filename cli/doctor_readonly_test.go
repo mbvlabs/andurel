@@ -12,6 +12,7 @@ import (
 )
 
 func TestDoctorDiagnosticsUseTemporaryCopiesWithoutMutatingOriginalProject(t *testing.T) {
+	stubLatestAndurelVersion(t, "v1.0.0", nil)
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/doctor\n\ngo 1.26.0\n")
 	writeTestFile(t, root, "go.sum", "original sum\n")

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -147,6 +148,7 @@ func resetCLITestSeams(t *testing.T) {
 	defaultDownloadFromLockTool := downloadFromLockToolFunc
 	defaultInstallToolVersionAndLock := installToolVersionAndLockFunc
 	defaultNewUpgrader := newUpgraderFunc
+	defaultLookupLatestAndurelVersion := lookupLatestAndurelVersionFunc
 	defaultOpenAdminConnection := openAdminConnectionFunc
 	defaultRunGoose := runGooseFunc
 	defaultRunSeed := runSeedFunc
@@ -167,10 +169,23 @@ func resetCLITestSeams(t *testing.T) {
 		downloadFromLockToolFunc = defaultDownloadFromLockTool
 		installToolVersionAndLockFunc = defaultInstallToolVersionAndLock
 		newUpgraderFunc = defaultNewUpgrader
+		lookupLatestAndurelVersionFunc = defaultLookupLatestAndurelVersion
 		openAdminConnectionFunc = defaultOpenAdminConnection
 		runGooseFunc = defaultRunGoose
 		runSeedFunc = defaultRunSeed
 		cache.ClearFileSystemCache()
+	})
+}
+
+func stubLatestAndurelVersion(t *testing.T, version string, err error) {
+	t.Helper()
+
+	original := lookupLatestAndurelVersionFunc
+	lookupLatestAndurelVersionFunc = func(context.Context) (string, error) {
+		return version, err
+	}
+	t.Cleanup(func() {
+		lookupLatestAndurelVersionFunc = original
 	})
 }
 

@@ -38,6 +38,8 @@ const (
 	CodeConfigError = "config_error"
 	// CodeAmbiguousInput identifies user input that cannot be resolved safely.
 	CodeAmbiguousInput = "ambiguous_input"
+	// CodeUpdateRequired identifies an operation that requires a newer Andurel CLI.
+	CodeUpdateRequired = "update_required"
 	// ExitUsage is the exit code for command usage errors.
 	ExitUsage = 1
 	// ExitProject is the exit code for missing project context.

@@ -550,19 +550,23 @@ andurel upgrade (alias: up) [--dry-run]
 
 > Commit or create a branch before upgrading. A real upgrade requires a clean worktree and modifies files in place.
 
+Before changing project files, `andurel upgrade` checks the latest stable Andurel release. If the installed CLI is outdated, it stops and prints the exact `go install github.com/mbvlabs/andurel@VERSION` command to run. Development builds and temporary network failures do not block an upgrade.
+
 Run `andurel upgrade --dry-run --diff --json` first. Dry runs are read-only, and a failed transaction restores every changed file and `andurel.lock`. Upgrade ownership is limited to framework-owned files, currently centered on `internal/*`. See [generated-file ownership and upgrade behavior](docs/generated-files-and-upgrades.md).
 
 Projects created with v1.0.0-rc.2 or v1.0.0-rc.3 must not use the automated upgrade command. Use the [RC-to-v1 manual upgrade guide](docs/upgrade-rc-base-scaffold-prompt.md) to reconcile the application against the stable scaffold for the currently installed Andurel version while preserving local changes.
 
 ### `andurel doctor` — Project diagnostics
 
-Run comprehensive diagnostic checks (Go version, config, code quality, code generation).
+Run comprehensive diagnostic checks (Go version, latest stable Andurel release, config, code quality, code generation).
 
 ```bash
 andurel doctor (alias: doc) [--verbose]
 ```
 
 For Inertia projects, the Code Generation checks also compare `resources/js/routes.ts` against the current `router/routes/*.go` manifest and fail when the file is missing or stale. Run `andurel generate routes` to update it.
+
+If a newer stable CLI release exists, `andurel doctor` reports a nonblocking warning with the exact installation command. If the release lookup is unavailable, doctor warns without failing the project health check.
 
 ### `andurel commands` — Structured command discovery
 

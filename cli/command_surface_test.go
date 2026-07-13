@@ -700,6 +700,7 @@ func TestFrameworkRepairPrompt(t *testing.T) {
 
 func TestRunUpgradeStructuredAndHumanBranches(t *testing.T) {
 	resetCLITestSeams(t)
+	stubLatestAndurelVersion(t, "v2.0.0", nil)
 	root := t.TempDir()
 	writeGoModule(t, root)
 
@@ -767,6 +768,7 @@ func TestRunUpgradeStructuredAndHumanBranches(t *testing.T) {
 
 func TestRunUpgradeErrors(t *testing.T) {
 	resetCLITestSeams(t)
+	stubLatestAndurelVersion(t, "v2.0.0", nil)
 	root := t.TempDir()
 	writeGoModule(t, root)
 
@@ -792,6 +794,44 @@ func TestRunUpgradeErrors(t *testing.T) {
 	}
 	if err := runUpgrade(cmd, "v2.0.0"); err == nil || !strings.Contains(err.Error(), "execute failed") {
 		t.Fatalf("expected execute error, got %v", err)
+	}
+}
+
+func TestRunUpgradeReleaseRequirementAndRepairBypass(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeGoModule(t, root)
+	findGoModRoot = func() (string, error) { return root, nil }
+
+	cmd := &cobra.Command{Use: "upgrade"}
+	cmd.Flags().Bool("dry-run", false, "")
+	cmd.Flags().Bool("diff", false, "")
+	cmd.Flags().Bool("repair", false, "")
+
+	stubLatestAndurelVersion(t, "v2.1.0", nil)
+	initialized := false
+	newUpgraderFunc = func(string, upgrade.UpgradeOptions) (cliUpgrader, error) {
+		initialized = true
+		return fakeUpgrader{report: &upgrade.UpgradeReport{AlreadyCurrent: true}}, nil
+	}
+
+	err := runUpgrade(cmd, "v2.0.0")
+	var cliErr *output.CLIError
+	if !errors.As(err, &cliErr) || cliErr.Code != output.CodeUpdateRequired {
+		t.Fatalf("release requirement error = %v", err)
+	}
+	if initialized {
+		t.Fatal("upgrader initialized before satisfying the CLI release requirement")
+	}
+
+	if err := cmd.Flags().Set("repair", "true"); err != nil {
+		t.Fatalf("set repair: %v", err)
+	}
+	if err := runUpgrade(cmd, "v2.0.0"); err != nil {
+		t.Fatalf("repair should bypass release requirement: %v", err)
+	}
+	if !initialized {
+		t.Fatal("repair did not initialize the upgrader")
 	}
 }
 
