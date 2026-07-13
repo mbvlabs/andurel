@@ -225,6 +225,126 @@ func TestScaffoldNewProjectCurrentDirectoryFailureIsNonMutating(t *testing.T) {
 	assertNoNewProjectStagingDirectories(t, root)
 }
 
+func TestNewProjectRejectsInvalidInertiaConfigurations(t *testing.T) {
+	root := t.TempDir()
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(previous); err != nil {
+			t.Fatalf("restore working directory: %v", err)
+		}
+	})
+
+	for _, test := range []struct {
+		value string
+		want  string
+	}{
+		{value: "svelte", want: "invalid inertia adapter"},
+		{value: "vue/deno", want: "invalid JavaScript runtime"},
+	} {
+		cmd := newProjectCommand("test")
+		if err := cmd.Flags().Set("inertia", test.value); err != nil {
+			t.Fatalf("set inertia flag: %v", err)
+		}
+		err := newProject(cmd, []string{"sample"}, "test", false, false)
+		if err == nil || !strings.Contains(err.Error(), test.want) {
+			t.Fatalf("inertia %q error = %v, want %q", test.value, err, test.want)
+		}
+	}
+}
+
+func TestNewProjectReportDryRunAndExistingTarget(t *testing.T) {
+	root := t.TempDir()
+	report, err := newProjectReport("sample", filepath.Join(root, "unused"), true, true, func(target string) error {
+		if !strings.Contains(target, "andurel-new-dry-run-") {
+			t.Fatalf("dry run target is not temporary: %s", target)
+		}
+		if err := os.MkdirAll(filepath.Join(target, "nested"), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(target, "nested", "file.txt"), []byte("created\n"), 0o644)
+	})
+	if err != nil {
+		t.Fatalf("build dry-run report: %v", err)
+	}
+	if !report.DryRun || report.Action != "new project" || report.Resource != "sample" || len(report.FilesCreated) == 0 {
+		t.Fatalf("unexpected dry-run report: %#v", report)
+	}
+
+	target := filepath.Join(root, "published")
+	report, err = newProjectReport("sample", target, false, false, func(got string) error {
+		if got != target {
+			t.Fatalf("target = %q, want %q", got, target)
+		}
+		if err := os.MkdirAll(got, 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(got, "go.mod"), []byte("module sample\n"), 0o644)
+	})
+	if err != nil {
+		t.Fatalf("build published report: %v", err)
+	}
+	if report.DryRun || len(report.FilesCreated) != 1 || report.FilesCreated[0] != "go.mod" {
+		t.Fatalf("unexpected published report: %#v", report)
+	}
+
+	injected := errors.New("injected report failure")
+	if _, err := newProjectReport("sample", target, false, false, func(string) error { return injected }); !errors.Is(err, injected) {
+		t.Fatalf("expected scaffold error, got %v", err)
+	}
+}
+
+func TestScaffoldNewProjectDetectsPublishRacesAndInvalidSources(t *testing.T) {
+	root := t.TempDir()
+	destination := newProjectDestination{projectName: "sample", path: filepath.Join(root, "sample")}
+	err := scaffoldNewProject(destination, func(target string) error {
+		if err := os.MkdirAll(target, 0o755); err != nil {
+			return err
+		}
+		return os.Mkdir(destination.path, 0o755)
+	})
+	if err == nil || !strings.Contains(err.Error(), "now exists") {
+		t.Fatalf("expected destination race error, got %v", err)
+	}
+	assertNoNewProjectStagingDirectories(t, root)
+
+	staged := filepath.Join(root, "staged")
+	current := filepath.Join(root, "current")
+	if err := os.MkdirAll(staged, 0o755); err != nil {
+		t.Fatalf("create staged directory: %v", err)
+	}
+	if err := os.MkdirAll(current, 0o755); err != nil {
+		t.Fatalf("create current directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(current, "user.txt"), []byte("owned"), 0o644); err != nil {
+		t.Fatalf("write current file: %v", err)
+	}
+	if err := publishStagedProjectContents(staged, current); err == nil || !strings.Contains(err.Error(), "no longer empty") {
+		t.Fatalf("expected non-empty destination error, got %v", err)
+	}
+	if err := publishStagedProjectContents(filepath.Join(root, "missing"), t.TempDir()); err == nil || !strings.Contains(err.Error(), "read staged scaffold") {
+		t.Fatalf("expected missing staged scaffold error, got %v", err)
+	}
+}
+
+func TestNewProjectErrorWrappingPreservesTypedErrors(t *testing.T) {
+	typed := output.NewError(output.CodeUnsafeAction, "unsafe", output.ExitUnsafe, "retry elsewhere")
+	if got := wrapNewProjectScaffoldError(typed); got != typed {
+		t.Fatalf("typed error was replaced: %v", got)
+	}
+
+	pathErr := newProjectPathError("inspect", os.ErrPermission)
+	cliErr := assertNewProjectCLIError(t, pathErr, output.CodeGenerationFailed)
+	if !errors.Is(cliErr, os.ErrPermission) {
+		t.Fatalf("wrapped path error lost cause: %v", cliErr)
+	}
+}
+
 func assertNoNewProjectStagingDirectories(t *testing.T, root string) {
 	t.Helper()
 	entries, err := os.ReadDir(root)

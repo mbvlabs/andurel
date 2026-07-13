@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -202,6 +203,118 @@ func TestDiscoverFactoryResourceNames(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("discoverFactoryResourceNames = %#v, want %#v", got, want)
 	}
+}
+
+func TestSyncFactoriesHandlesMultipleModelsAndCurrentFactories(t *testing.T) {
+	root := t.TempDir()
+	modelsDir := filepath.Join(root, "models")
+	if err := os.MkdirAll(modelsDir, 0o755); err != nil {
+		t.Fatalf("create models directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app\n"), 0o600); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	for _, resource := range []string{"Product", "Account"} {
+		path := filepath.Join(modelsDir, strings.ToLower(resource)+".go")
+		source := strings.ReplaceAll(factorySyncProductModelSource(), "ProductEntity", resource+"Entity")
+		if err := os.WriteFile(path, []byte(source), 0o600); err != nil {
+			t.Fatalf("write %s model: %v", resource, err)
+		}
+	}
+
+	manager := factorySyncTestModelManager(root, modelsDir)
+	results, err := manager.SyncFactories(FactorySyncOptions{Sync: true, Diff: true})
+	if err != nil {
+		t.Fatalf("sync factories: %v", err)
+	}
+	if len(results) != 2 || results[0].ResourceName != "Account" || results[1].ResourceName != "Product" {
+		t.Fatalf("unexpected sorted results: %#v", results)
+	}
+	for _, result := range results {
+		if !result.Missing || !result.Written || !result.HasDrift() || result.Diff == "" {
+			t.Fatalf("unexpected initial sync result: %#v", result)
+		}
+	}
+
+	current, err := manager.SyncFactories(FactorySyncOptions{Check: true, Diff: true})
+	if err != nil {
+		t.Fatalf("check current factories: %v", err)
+	}
+	for _, result := range current {
+		if result.HasDrift() || result.Written || result.Diff != "" {
+			t.Fatalf("current factory reported drift: %#v", result)
+		}
+	}
+
+	if _, err := manager.SyncFactory("Missing", FactorySyncOptions{}); err == nil || !strings.Contains(err.Error(), "read model file") {
+		t.Fatalf("expected missing model error, got %v", err)
+	}
+}
+
+func TestGeneratedModelFromParsedEntityMetadata(t *testing.T) {
+	generated := generatedModelFromParsedEntity("Membership", "memberships", "example.com/app", []parsedField{
+		{Name: "TenantID", TypeStr: "uuid.UUID", BunTag: "tenant_id,pk"},
+		{Name: "OwnerID", TypeStr: "*uuid.UUID", BunTag: "owner_id"},
+		{Name: "Note", TypeStr: "sql.NullString", BunTag: "note"},
+		{Name: "CreatedAt", TypeStr: "time.Time", BunTag: "created_at"},
+		{Name: "UpdatedAt", TypeStr: "time.Time", BunTag: "updated_at"},
+	})
+	if !generated.HasPrimaryKey || generated.IDGoFieldName != "TenantID" || generated.IDType != "uuid.UUID" {
+		t.Fatalf("primary key metadata was not detected: %#v", generated)
+	}
+	if !generated.HasCreatedAt || !generated.HasUpdatedAt {
+		t.Fatalf("timestamp metadata was not detected: %#v", generated)
+	}
+	if !generated.Fields[1].IsForeignKey || !generated.Fields[1].IsNullable || !generated.Fields[2].IsNullable {
+		t.Fatalf("field metadata was not detected: %#v", generated.Fields)
+	}
+
+	withoutPK := generatedModelFromParsedEntity("Log", "logs", "example.com/app", []parsedField{{Name: "Message", TypeStr: "string"}})
+	if withoutPK.HasPrimaryKey || withoutPK.IDGoFieldName != "ID" || withoutPK.IDType != "uuid.UUID" {
+		t.Fatalf("unexpected fallback primary key metadata: %#v", withoutPK)
+	}
+}
+
+func TestFactoryCustomImportRetentionAndDeclarationClassification(t *testing.T) {
+	source := `package factories
+
+import (
+	alias "example.com/alias"
+	. "example.com/dot"
+	_ "example.com/sideeffect"
+	"example.com/version.v2"
+)
+
+const CustomValue = alias.Value
+`
+	custom, imports, err := customFactoryDecls(source, factorySyncGeneratedFactory(), expectedFactoryOptionNames(factorySyncGeneratedFactory()))
+	if err != nil {
+		t.Fatalf("collect custom declarations: %v", err)
+	}
+	if !strings.Contains(custom, "CustomValue") {
+		t.Fatalf("custom declaration was not retained: %q", custom)
+	}
+	for _, want := range []string{"example.com/alias", "example.com/dot", "example.com/sideeffect", "example.com/version.v2"} {
+		if !containsFactorySyncString(imports, want) {
+			t.Fatalf("import %q not retained in %#v", want, imports)
+		}
+	}
+
+	factory := factorySyncGeneratedFactory()
+	parsed, err := parser.ParseFile(token.NewFileSet(), "", "package factories\ntype ProductFactory struct{}\ntype Custom struct{}\n", 0)
+	if err != nil {
+		t.Fatalf("parse declarations: %v", err)
+	}
+	if !isGeneratedFactoryDecl(parsed.Decls[0], factory) || isGeneratedFactoryDecl(parsed.Decls[1], factory) {
+		t.Fatalf("generated declaration classification failed: %#v", parsed.Decls)
+	}
+	if (FactorySyncResult{}).HasDrift() {
+		t.Fatal("empty result should not have drift")
+	}
+}
+
+func containsFactorySyncString(values []string, target string) bool {
+	return slices.Contains(values, target)
 }
 
 func factorySyncGeneratedFactory() *models.GeneratedFactory {

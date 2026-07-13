@@ -123,3 +123,92 @@ func TestGenerateActionViewFiles(t *testing.T) {
 	}
 	assertCLITestFileContains(t, root, filepath.Join("resources", "js", "Pages", "Product", "Show.vue"), "<template>")
 }
+
+func TestGenerateActionControllerFileModesAndAppend(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		inertia string
+		isAPI   bool
+		want    string
+	}{
+		{name: "templ", want: "hypermedia.RenderPage"},
+		{name: "react", inertia: "react", want: "inertia.Page"},
+		{name: "api", isAPI: true, want: "etx.JSON"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			previous, err := os.Getwd()
+			if err != nil {
+				t.Fatalf("get working directory: %v", err)
+			}
+			if err := os.Chdir(root); err != nil {
+				t.Fatalf("change working directory: %v", err)
+			}
+			defer func() {
+				if err := os.Chdir(previous); err != nil {
+					t.Fatalf("restore working directory: %v", err)
+				}
+			}()
+
+			controllerPath := filepath.Join("controllers", "admin", "products.go")
+			if err := generateActionControllerFile("Product", "admin", "products", "products", "example.com/app", controllerPath, []string{"export"}, test.inertia, test.isAPI); err != nil {
+				t.Fatalf("create action controller: %v", err)
+			}
+			content, err := os.ReadFile(controllerPath)
+			if err != nil {
+				t.Fatalf("read action controller: %v", err)
+			}
+			if !strings.Contains(string(content), test.want) || !strings.Contains(string(content), "ProductExport") {
+				t.Fatalf("generated controller missing expected content:\n%s", content)
+			}
+
+			if err := generateActionControllerFile("Product", "admin", "products", "products", "example.com/app", controllerPath, []string{"export", "archive"}, test.inertia, test.isAPI); err != nil {
+				t.Fatalf("append action controller: %v", err)
+			}
+			content, err = os.ReadFile(controllerPath)
+			if err != nil {
+				t.Fatalf("read appended controller: %v", err)
+			}
+			if strings.Count(string(content), "func (p Products) Export") != 1 || !strings.Contains(string(content), "func (p Products) Archive") {
+				t.Fatalf("controller actions were duplicated or omitted:\n%s", content)
+			}
+			if test.isAPI {
+				if _, err := os.Stat("views"); !os.IsNotExist(err) {
+					t.Fatalf("API generation unexpectedly created views: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestReadModulePathBranches(t *testing.T) {
+	root := t.TempDir()
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(previous); err != nil {
+			t.Fatalf("restore working directory: %v", err)
+		}
+	}()
+
+	if _, err := readModulePath(); err == nil || !strings.Contains(err.Error(), "failed to read") {
+		t.Fatalf("expected missing go.mod error, got %v", err)
+	}
+	if err := os.WriteFile("go.mod", []byte("go 1.26\n"), 0o600); err != nil {
+		t.Fatalf("write module-less go.mod: %v", err)
+	}
+	if _, err := readModulePath(); err == nil || !strings.Contains(err.Error(), "module declaration not found") {
+		t.Fatalf("expected missing declaration error, got %v", err)
+	}
+	if err := os.WriteFile("go.mod", []byte("module example.com/app\n\ngo 1.26\n"), 0o600); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	if module, err := readModulePath(); err != nil || module != "example.com/app" {
+		t.Fatalf("readModulePath() = %q, %v", module, err)
+	}
+}

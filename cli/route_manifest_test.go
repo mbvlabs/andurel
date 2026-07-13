@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -165,6 +166,153 @@ func TestRenderRouteManifestHumanIncludesRoutes(t *testing.T) {
 			t.Fatalf("expected output to contain %q, got:\n%s", want, got)
 		}
 	}
+}
+
+func TestRouteManifestCoversConstructorsAndSkipReasons(t *testing.T) {
+	rootDir := t.TempDir()
+	writeRouteManifestTestFile(t, rootDir, "all.go", `package routes
+
+import "example.com/app/internal/routing"
+
+const Root = "/root/"
+const Nested = (Root + "nested")
+const CycleA = CycleB
+const CycleB = CycleA
+
+var UUID = routing.NewRouteWithUUIDID("/:uuid", "uuid", Root)
+var Serial = routing.NewRouteWithSerialID("/:serial", "serial", Root)
+var BigSerial = routing.NewRouteWithBigSerialID("/:big", "big", Root)
+var StringID = routing.NewRouteWithStringID("/:string", "string", Root)
+var Slug = routing.NewRouteWithSlug("/:slug", "slug", Root)
+var Token = routing.NewRouteWithToken("/:token", "token", Root)
+var File = routing.NewRouteWithFile("/:file", "file", Root)
+var Slugs = routing.NewRouteWithSlugs[any]("/:one/:two", "slugs", Nested)
+var TooFew = routing.NewSimpleRoute("/missing")
+var DynamicName = routing.NewSimpleRoute("/name", makeName(), Root)
+var DynamicPrefix = routing.NewSimpleRoute("/prefix", "prefix", CycleA)
+var NotRouting = other.NewSimpleRoute("/ignored", "ignored", Root)
+var NotCall = Root
+`)
+
+	manifest, err := collectRouteManifest(rootDir)
+	if err != nil {
+		t.Fatalf("collect route manifest: %v", err)
+	}
+	if len(manifest.Routes) != 8 {
+		t.Fatalf("expected eight routes, got %#v", manifest.Routes)
+	}
+	if len(manifest.Skipped) != 3 {
+		t.Fatalf("expected three skipped routes, got %#v", manifest.Skipped)
+	}
+
+	wants := map[string]struct {
+		kind      string
+		paramType string
+	}{
+		"UUID":      {kind: "uuid_id", paramType: "uuid"},
+		"Serial":    {kind: "serial_id", paramType: "int32"},
+		"BigSerial": {kind: "bigserial_id", paramType: "int64"},
+		"StringID":  {kind: "string_id", paramType: "string"},
+		"Slug":      {kind: "slug", paramType: "string"},
+		"Token":     {kind: "token", paramType: "string"},
+		"File":      {kind: "file", paramType: "string"},
+		"Slugs":     {kind: "params", paramType: "string"},
+	}
+	for variable, want := range wants {
+		route, ok := findRouteManifestRoute(manifest, variable)
+		if !ok {
+			t.Fatalf("missing route %s in %#v", variable, manifest.Routes)
+		}
+		if route.Kind != want.kind || len(route.Params) == 0 || route.Params[0].Type != want.paramType {
+			t.Fatalf("unexpected route %s: %#v", variable, route)
+		}
+	}
+	for _, skipped := range manifest.Skipped {
+		if skipped.Reason == "" || skipped.Line == 0 || skipped.SourceFile != "router/routes/all.go" {
+			t.Fatalf("incomplete skipped route: %#v", skipped)
+		}
+	}
+}
+
+func TestRouteManifestHelpersAndFilesystemErrors(t *testing.T) {
+	if manifest, err := collectRouteManifest(t.TempDir()); err != nil || len(manifest.Routes) != 0 {
+		t.Fatalf("missing routes directory should be empty: %#v, %v", manifest, err)
+	}
+
+	rootDir := t.TempDir()
+	routesPath := filepath.Join(rootDir, "router", "routes")
+	if err := os.MkdirAll(filepath.Dir(routesPath), 0o755); err != nil {
+		t.Fatalf("create router directory: %v", err)
+	}
+	if err := os.WriteFile(routesPath, []byte("not a directory"), 0o644); err != nil {
+		t.Fatalf("write routes file: %v", err)
+	}
+	if _, err := collectRouteManifest(rootDir); err == nil {
+		t.Fatal("expected routes path read error")
+	}
+
+	invalidDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(invalidDir, "bad.go"), []byte("package routes\nvar"), 0o644); err != nil {
+		t.Fatalf("write invalid route file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(invalidDir, "README.md"), []byte("ignored"), 0o644); err != nil {
+		t.Fatalf("write ignored file: %v", err)
+	}
+	if err := os.Mkdir(filepath.Join(invalidDir, "nested.go"), 0o755); err != nil {
+		t.Fatalf("create ignored directory: %v", err)
+	}
+	if _, err := parseRouteFiles(invalidDir); err == nil || !strings.Contains(err.Error(), "parse route file") {
+		t.Fatalf("expected parse error, got %v", err)
+	}
+
+	paths := map[string]string{
+		"":                     "/",
+		"users":                "/users",
+		" /users//active/?x#y": "/users/active",
+		`\users\active`:        "/users/active",
+	}
+	for input, want := range paths {
+		if got := configureRouteManifestPath(input, ""); got != want {
+			t.Fatalf("configure path %q = %q, want %q", input, got, want)
+		}
+	}
+	joins := []struct{ path, prefix, want string }{
+		{"", "/api", "/api"},
+		{"users", "/api/", "/api/users"},
+		{"/users", "/api/", "/api/users"},
+		{"users", "/api", "/api/users"},
+	}
+	for _, test := range joins {
+		if got := configureRouteManifestPath(test.path, test.prefix); got != test.want {
+			t.Fatalf("configure path %q + %q = %q, want %q", test.prefix, test.path, got, test.want)
+		}
+	}
+
+	if got := routeKind("unknown"); got != "unknown" {
+		t.Fatalf("unknown route kind = %q", got)
+	}
+	if got := formatRouteManifestParams(nil); got != "-" {
+		t.Fatalf("empty params = %q", got)
+	}
+	if got := formatRouteManifestParams([]routeManifestParam{{Name: "id", Type: "uuid"}, {Name: "slug", Type: "string"}}); got != "id:uuid,slug:string" {
+		t.Fatalf("formatted params = %q", got)
+	}
+
+	var output bytes.Buffer
+	if err := renderRouteManifestHuman(&output, routeManifest{}); err != nil || output.String() != "No routes found.\n" {
+		t.Fatalf("empty manifest output = %q, %v", output.String(), err)
+	}
+	if err := renderRouteManifestHuman(routeManifestFailWriter{}, routeManifest{}); !errors.Is(err, errRouteManifestWrite) {
+		t.Fatalf("expected writer error, got %v", err)
+	}
+}
+
+var errRouteManifestWrite = errors.New("route manifest write failed")
+
+type routeManifestFailWriter struct{}
+
+func (routeManifestFailWriter) Write([]byte) (int, error) {
+	return 0, errRouteManifestWrite
 }
 
 func writeRouteManifestTestFile(t *testing.T, rootDir, filename, content string) {

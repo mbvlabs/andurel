@@ -41,3 +41,40 @@ func TestProjectionOutputReturnsWriteFailures(t *testing.T) {
 		}
 	}
 }
+
+func TestEnvelopeWritersReturnFailures(t *testing.T) {
+	wantErr := errors.New("write failed")
+	envelope := Envelope{
+		OK:      true,
+		Summary: "generated",
+		Breadcrumbs: []Breadcrumb{{
+			Command:     "andurel run",
+			Description: "start server",
+		}},
+	}
+	for _, test := range []struct {
+		name string
+		opts Options
+	}{
+		{name: "json", opts: Options{Mode: ModeJSON}},
+		{name: "agent", opts: Options{Mode: ModeAgent}},
+		{name: "markdown", opts: Options{Mode: ModeMarkdown}},
+		{name: "human", opts: Options{Mode: ModeHuman}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if err := renderOK(failingOutputWriter{err: wantErr}, test.opts, envelope); !errors.Is(err, wantErr) {
+				t.Fatalf("renderOK error = %v, want write failure", err)
+			}
+		})
+	}
+
+	cmd := &cobra.Command{Use: "andurel"}
+	RegisterPersistentFlags(cmd)
+	cmd.SetErr(failingOutputWriter{err: wantErr})
+	if err := cmd.PersistentFlags().Set("json", "true"); err != nil {
+		t.Fatalf("set JSON mode: %v", err)
+	}
+	if err := RenderError(cmd, errors.New("failure")); !errors.Is(err, wantErr) {
+		t.Fatalf("RenderError error = %v, want write failure", err)
+	}
+}
