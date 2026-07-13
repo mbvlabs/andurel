@@ -7,9 +7,13 @@ import (
 	"strings"
 )
 
+// AndurelSkillFS contains the embedded Andurel skill files.
+//
 //go:embed andurel
 var AndurelSkillFS embed.FS
 
+// AndurelSkill contains the embedded Andurel skill instructions.
+//
 //go:embed andurel/SKILL.md
 var AndurelSkill string
 
