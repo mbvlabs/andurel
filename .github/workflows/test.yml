@@ -9,6 +9,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
 
     services:
       postgres:
@@ -59,16 +61,17 @@ jobs:
     - name: Run go vet
       run: go vet ./...
 
-    - name: Run tests
-      run: |
-        go test $(go list ./... | grep -v /e2e) -v -race -coverprofile=coverage.txt -covermode=atomic
-        go tool cover -func coverage.txt | awk '/^total:/ {printf "total coverage: %s\n", $3; found=1} END {exit !found}'
+    - name: Run tests with canonical coverage
+      run: ./scripts/coverage.sh
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1 # v7.0.0
       with:
-        file: ./coverage.txt
-        fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage.out
+        disable_search: true
+        flags: unit
+        fail_ci_if_error: true
 
     - name: Run E2E critical tests
       run: go test ./e2e/... -v -timeout 25m

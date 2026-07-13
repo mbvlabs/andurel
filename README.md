@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/mbvlabs/andurel.svg)](https://pkg.go.dev/github.com/mbvlabs/andurel)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mbvlabs/andurel)](https://goreportcard.com/report/github.com/mbvlabs/andurel)
-![Coverage](https://img.shields.io/badge/Coverage-80.5%25-brightgreen)
+[![codecov](https://codecov.io/gh/mbvlabs/andurel/branch/master/graph/badge.svg)](https://app.codecov.io/gh/mbvlabs/andurel)
 
 ---
 
