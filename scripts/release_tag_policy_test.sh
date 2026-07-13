@@ -166,7 +166,7 @@ for requirement in \
   'go vet ./...' \
   './scripts/coverage.sh' \
   'codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1' \
-  'use_oidc: true' \
+  'token: ${{ secrets.CODECOV_TOKEN }}' \
   'go test ./e2e/... -v -timeout 25m'; do
   if ! grep -Fq "${requirement}" "${test_workflow}"; then
     echo "pull request test workflow is missing ${requirement}" >&2

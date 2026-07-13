@@ -21,7 +21,6 @@ jobs:
     timeout-minutes: 90
     permissions:
       contents: read
-      id-token: write
 
     steps:
       - name: Check out the exact commit
@@ -91,7 +90,7 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1 # v7.0.0
         with:
-          use_oidc: true
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.out
           disable_search: true
           flags: unit
