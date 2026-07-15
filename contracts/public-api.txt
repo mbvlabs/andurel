@@ -1478,8 +1478,6 @@ package layout // import "github.com/mbvlabs/andurel/layout"
 Package layout provides functionality to scaffold a new Go web application
 project
 
-CONSTANTS
-
 VARIABLES
 
 var DefaultGoTools = []GoTool{
