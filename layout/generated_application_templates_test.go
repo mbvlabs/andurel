@@ -2,11 +2,45 @@ package layout
 
 import (
 	"io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	layouttemplates "github.com/mbvlabs/andurel/layout/templates"
 )
+
+func TestGeneratedAPIControllerLivesInAPIPackage(t *testing.T) {
+	root := t.TempDir()
+	if err := processTemplatedFiles(root, &TemplateData{ModuleName: "example.com/app"}); err != nil {
+		t.Fatalf("process templates: %v", err)
+	}
+
+	apiController, err := os.ReadFile(filepath.Join(root, "controllers/api/api.go"))
+	if err != nil {
+		t.Fatalf("read API controller: %v", err)
+	}
+	if !strings.HasPrefix(string(apiController), "package api\n") {
+		t.Error("API controller is not in package api")
+	}
+	if _, err := os.Stat(filepath.Join(root, "controllers/api.go")); !os.IsNotExist(err) {
+		t.Error("legacy controllers/api.go was generated")
+	}
+
+	controller, err := os.ReadFile(filepath.Join(root, "controllers/controller.go"))
+	if err != nil {
+		t.Fatalf("read root controller: %v", err)
+	}
+	for _, want := range []string{
+		`"example.com/app/controllers/api"`,
+		"api.NewAPI",
+		"c api.API",
+	} {
+		if !strings.Contains(string(controller), want) {
+			t.Errorf("controllers/controller.go missing %q", want)
+		}
+	}
+}
 
 func TestGeneratedUserAndTokenModelTemplates(t *testing.T) {
 	user := readGeneratedApplicationTemplate(t, "models_user.tmpl")

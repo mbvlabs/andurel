@@ -1752,9 +1752,11 @@ func newTelemetryConfig() telemetry {
 
 dir  d----------rwxr-xr-x controllers
 
-file -----------rw-r--r-- controllers/api.go
+dir  d----------rwxr-xr-x controllers/api
+
+file -----------rw-r--r-- controllers/api/api.go
 ```
-package controllers
+package api
 
 import (
 	"errors"
@@ -2308,6 +2310,7 @@ package controllers
 
 import (
 	"go.uber.org/fx"
+	"testapp/controllers/api"
 	"testapp/router"
 )
 
@@ -2317,7 +2320,7 @@ var constructors = fx.Provide(
 	otherCache,
 	NewPages,
 	NewAssets,
-	NewAPI,
+	api.NewAPI,
 	NewSessions,
 	NewRegistrations,
 	NewConfirmations,
@@ -2333,7 +2336,7 @@ var Module = fx.Module(
 	fx.Invoke(func(r *router.Router, c Assets) error {
 		return c.RegisterRoutes(r)
 	}),
-	fx.Invoke(func(r *router.Router, c API) error {
+	fx.Invoke(func(r *router.Router, c api.API) error {
 		return c.RegisterRoutes(r)
 	}),
 	fx.Invoke(func(r *router.Router, c Sessions) error {

@@ -2,6 +2,7 @@
 package controllers
 
 import (
+	"{{.ModuleName}}/controllers/api"
 	"{{.ModuleName}}/router"
 
 {{- if not .Inertia}}
@@ -22,7 +23,7 @@ var constructors = fx.Provide(
 	otherCache,
 	NewPages,
 	NewAssets,
-	NewAPI,
+	api.NewAPI,
 	NewSessions,
 	NewRegistrations,
 	NewConfirmations,
@@ -38,7 +39,7 @@ var Module = fx.Module(
 	fx.Invoke(func(r *router.Router, c Assets) error {
 		return c.RegisterRoutes(r)
 	}),
-	fx.Invoke(func(r *router.Router, c API) error {
+	fx.Invoke(func(r *router.Router, c api.API) error {
 		return c.RegisterRoutes(r)
 	}),
 	fx.Invoke(func(r *router.Router, c Sessions) error {

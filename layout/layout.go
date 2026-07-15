@@ -308,7 +308,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"clients_email_mailpit.tmpl": "clients/email/mailpit.go",
 
 	// Controllers
-	"controllers_api.tmpl":        "controllers/api.go",
+	"controllers_api.tmpl":        "controllers/api/api.go",
 	"controllers_assets.tmpl":     "controllers/assets.go",
 	"controllers_cache.tmpl":      "controllers/cache.go",
 	"controllers_controller.tmpl": "controllers/controller.go",
