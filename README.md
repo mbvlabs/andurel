@@ -692,7 +692,8 @@ myapp/
 │   └── telemetry.go         # Logging, tracing, metrics
 ├── controllers/
 │   ├── controller.go        # Controller module setup
-│   ├── api.go
+│   ├── api/
+│   │   └── api.go
 │   ├── assets.go
 │   ├── cache.go             # Cache control utilities
 │   ├── confirmations.go
