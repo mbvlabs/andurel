@@ -218,9 +218,10 @@ The embedded agent skill is available from the binary:
 andurel skill show
 andurel skill show --json
 andurel skill install
+andurel skill install --harness claude,pi
 ```
 
-`skill install` writes the Andurel skill into the current project at `.codex/skills/andurel/`, including the framework-specific layer-placement reference.
+In human mode, `skill install` prompts for one or more harnesses. Automation must pass one or more `--harness` values; the flag may be repeated or contain comma-separated values. Each selection receives the complete embedded skill, including the framework-specific layer-placement reference.
 
 ### Mutation previews
 
@@ -604,7 +605,7 @@ andurel config unset KEY [--scope project|user|cache]
 
 Project config is stored at `.andurel/config.json`. User config uses the OS config directory under `andurel/config.json`, and cache config uses the OS cache directory under `andurel/config.json`.
 
-### `andurel skill` — Embedded agent skill
+### `andurel skill` - Embedded agent skill
 
 Shows or installs the Andurel agent skill with CLI recipes, invariants, and framework layer-placement guidance.
 
@@ -612,9 +613,19 @@ Shows or installs the Andurel agent skill with CLI recipes, invariants, and fram
 andurel skill show
 andurel skill show --json
 andurel skill install
+andurel skill install --harness codex,claude
+andurel skill install --harness pi --harness crush
 ```
 
-`andurel skill install` copies the embedded skill into `.codex/skills/andurel/` for the current project.
+Without `--harness`, human mode displays a numbered multi-select prompt with no default. JSON, agent, Markdown, and quiet modes require `--harness` so automation never waits for input.
+
+| Harness | Project path |
+|---|---|
+| Codex | `.codex/skills/andurel/` |
+| Claude | `.claude/skills/andurel/` |
+| Pi | `.pi/skills/andurel/` |
+| OpenCode | `.opencode/skills/andurel/` |
+| Crush | `.crush/skills/andurel/` |
 
 ---
 
