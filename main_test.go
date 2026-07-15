@@ -37,13 +37,13 @@ func TestGetVersionUsesExplicitVersionAndFallback(t *testing.T) {
 		readBuildInfo = func() (*debug.BuildInfo, bool) {
 			return &debug.BuildInfo{Main: debug.Module{Version: buildVersion}}, true
 		}
-		if got := getVersion(); got != "v1.3.0" {
+		if got := getVersion(); got != "dev" {
 			t.Fatalf("getVersion fallback for %q = %q", buildVersion, got)
 		}
 	}
 
 	readBuildInfo = func() (*debug.BuildInfo, bool) { return nil, false }
-	if got := getVersion(); got != "v1.3.0" {
+	if got := getVersion(); got != "dev" {
 		t.Fatalf("getVersion unavailable build info = %q", got)
 	}
 }
