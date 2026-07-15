@@ -52,7 +52,7 @@ creation, run 'andurel tool sync' to download required binaries.`,
 		StringSliceP("extensions", "e", nil, "Extensions to enable (comma-separated list)")
 
 	projectCmd.Flags().
-		String("inertia", "", "Inertia adapter to use (vue, react). Optionally append /npm|pnpm|bun|yarn to specify the JS runtime (default: npm)")
+		String("inertia", "", "Inertia adapter to use (vue, react, svelte). Optionally append /npm|pnpm|bun|yarn to specify the JS runtime (default: npm)")
 	projectCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview project files without creating them")
 	projectCmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
 
@@ -98,7 +98,7 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 
 		if !layout.IsSupportedInertiaAdapter(adapter) {
 			return fmt.Errorf(
-				"invalid inertia adapter: %s - valid options are 'vue', 'react'",
+				"invalid inertia adapter: %s - valid options are 'vue', 'react', 'svelte'",
 				adapter,
 			)
 		}

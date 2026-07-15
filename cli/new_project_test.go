@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/cli/output"
+	"github.com/mbvlabs/andurel/layout"
 )
 
 func TestNewProjectRejectsExtraPositionalArguments(t *testing.T) {
@@ -244,7 +245,7 @@ func TestNewProjectRejectsInvalidInertiaConfigurations(t *testing.T) {
 		value string
 		want  string
 	}{
-		{value: "svelte", want: "invalid inertia adapter"},
+		{value: "angular", want: "invalid inertia adapter"},
 		{value: "vue/deno", want: "invalid JavaScript runtime"},
 	} {
 		cmd := newProjectCommand("test")
@@ -254,6 +255,41 @@ func TestNewProjectRejectsInvalidInertiaConfigurations(t *testing.T) {
 		err := newProject(cmd, []string{"sample"}, "test", false, false)
 		if err == nil || !strings.Contains(err.Error(), test.want) {
 			t.Fatalf("inertia %q error = %v, want %q", test.value, err, test.want)
+		}
+	}
+}
+
+func TestNewProjectAcceptsSvelteRuntimeSuffixes(t *testing.T) {
+	root := t.TempDir()
+	previous, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(previous); err != nil {
+			t.Fatalf("restore working directory: %v", err)
+		}
+	})
+
+	for _, runtime := range []string{"npm", "pnpm", "bun", "yarn"} {
+		projectName := "svelte-" + runtime
+		cmd := newProjectCommand("test")
+		if err := cmd.Flags().Set("inertia", "svelte/"+runtime); err != nil {
+			t.Fatalf("set inertia flag: %v", err)
+		}
+		if err := newProject(cmd, []string{projectName}, "test", false, false); err != nil {
+			t.Fatalf("create %s project: %v", runtime, err)
+		}
+
+		lock, err := layout.ReadLockFile(filepath.Join(root, projectName))
+		if err != nil {
+			t.Fatalf("read %s lock: %v", runtime, err)
+		}
+		if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia != "svelte" || lock.ScaffoldConfig.JavaScriptRuntime != runtime {
+			t.Fatalf("%s scaffold config = %#v", runtime, lock.ScaffoldConfig)
 		}
 	}
 }

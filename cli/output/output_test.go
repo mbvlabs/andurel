@@ -251,7 +251,7 @@ func TestFailClassifiesCommonErrorsAndExitCode(t *testing.T) {
 		{fmt.Errorf("go.mod could not be found"), CodeProjectNotFound, ExitProject},
 		{fmt.Errorf("bin/air not found"), CodeMissingTool, ExitDependency},
 		{fmt.Errorf("unknown extension: queue"), CodeInvalidExtension, ExitUsage},
-		{fmt.Errorf("invalid inertia adapter svelte"), CodeInvalidInertiaAdapter, ExitUsage},
+		{fmt.Errorf("invalid inertia adapter angular"), CodeInvalidInertiaAdapter, ExitUsage},
 		{fmt.Errorf("delete requires --force"), CodeUnsafeAction, ExitUnsafe},
 		{fmt.Errorf("generation failed for model"), CodeGenerationFailed, ExitGeneration},
 		{fmt.Errorf("external command failed"), CodeExternalCommandFailed, ExitExternal},

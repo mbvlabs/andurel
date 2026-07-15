@@ -138,7 +138,7 @@ Do not add or adapt the target scaffold's base regression test files. Existing t
 G. Inertia projects only
 
 - Preserve or generate `resources/js/routes.ts` from the application's actual Go routes.
-- Vue and React auth and error pages use the configured `@/` import alias for layouts and route helpers.
+- Inertia auth and error pages use the configured `@/` import alias for layouts and route helpers.
 - The Vite asset route and `controllers/assets.go` agree on the wildcard path and cache-key segment. Verify both development and built-asset paths conceptually against the target scaffold.
 - Keep the target TypeScript compiler alias configuration.
 - Preserve product-specific components, styling, and page composition.

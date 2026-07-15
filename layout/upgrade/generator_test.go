@@ -134,7 +134,7 @@ func TestRenderFrameworkTemplates_PreservesValidationRuleAPI(t *testing.T) {
 func TestGetFrameworkTemplates_IncludesInertiaInternalPackageWhenConfigured(t *testing.T) {
 	t.Parallel()
 
-	for _, adapter := range []string{"vue", "react"} {
+	for _, adapter := range []string{"vue", "react", "svelte"} {
 		t.Run(adapter, func(t *testing.T) {
 			t.Parallel()
 

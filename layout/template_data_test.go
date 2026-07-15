@@ -61,12 +61,12 @@ func TestTemplateDataBlueprintLifecycle(t *testing.T) {
 }
 
 func TestSupportedAdaptersAndRuntimes(t *testing.T) {
-	for _, adapter := range []string{"vue", "react"} {
+	for _, adapter := range []string{"vue", "react", "svelte"} {
 		if !IsSupportedInertiaAdapter(adapter) {
 			t.Fatalf("expected adapter %q to be supported", adapter)
 		}
 	}
-	for _, adapter := range []string{"", "svelte", "Vue"} {
+	for _, adapter := range []string{"", "angular", "Vue"} {
 		if IsSupportedInertiaAdapter(adapter) {
 			t.Fatalf("expected adapter %q to be unsupported", adapter)
 		}

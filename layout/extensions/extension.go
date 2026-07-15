@@ -36,7 +36,7 @@ type Context struct {
 	ProcessTemplate   ProcessTemplateFunc
 	AddPostStep       func(func(targetDir string) error)
 	NextMigrationTime *time.Time
-	Inertia           string // inertia adapter, e.g. "vue", "react"
+	Inertia           string // inertia adapter, e.g. "vue", "react", "svelte"
 }
 
 // Builder returns the blueprint builder for structured contributions.

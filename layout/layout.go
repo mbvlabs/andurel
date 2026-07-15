@@ -428,6 +428,24 @@ var inertiaReactTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_react_assets_tsconfig.tmpl":                          "tsconfig.json",
 }
 
+var inertiaSvelteTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"inertia_svelte_assets_app.tmpl":                               "resources/js/app.ts",
+	"inertia_svelte_assets_components_flash_toasts.tmpl":           "resources/js/Components/FlashToasts.svelte",
+	"inertia_svelte_assets_layouts_layout.tmpl":                    "resources/js/Layouts/Layout.svelte",
+	"inertia_svelte_assets_pages_auth_confirm_email.tmpl":          "resources/js/Pages/Auth/ConfirmEmail.svelte",
+	"inertia_svelte_assets_pages_auth_login.tmpl":                  "resources/js/Pages/Auth/Login.svelte",
+	"inertia_svelte_assets_pages_auth_registration.tmpl":           "resources/js/Pages/Auth/Registration.svelte",
+	"inertia_svelte_assets_pages_auth_reset_password.tmpl":         "resources/js/Pages/Auth/ResetPassword.svelte",
+	"inertia_svelte_assets_pages_auth_reset_password_request.tmpl": "resources/js/Pages/Auth/ResetPasswordRequest.svelte",
+	"inertia_svelte_assets_pages_errors_bad_request.tmpl":          "resources/js/Pages/Errors/BadRequest.svelte",
+	"inertia_svelte_assets_pages_errors_internal_error.tmpl":       "resources/js/Pages/Errors/InternalError.svelte",
+	"inertia_svelte_assets_pages_errors_not_found.tmpl":            "resources/js/Pages/Errors/NotFound.svelte",
+	"inertia_svelte_assets_vite_config.tmpl":                       "vite.config.ts",
+	"inertia_svelte_assets_package_json.tmpl":                      "package.json",
+	"inertia_svelte_assets_tsconfig.tmpl":                          "tsconfig.json",
+	"inertia_svelte_assets_svelte_config.tmpl":                     "svelte.config.js",
+}
+
 var inertiaSkippedTemplates = map[TmplTarget]bool{
 	"views_confirm_email.tmpl":  true,
 	"views_login.tmpl":          true,
@@ -441,6 +459,8 @@ func inertiaAdapterTemplateMappings(adapter string) map[TmplTarget]TmplTargetPat
 		return inertiaVueTemplateMappings
 	case "react":
 		return inertiaReactTemplateMappings
+	case "svelte":
+		return inertiaSvelteTemplateMappings
 	default:
 		return nil
 	}
@@ -449,6 +469,7 @@ func inertiaAdapterTemplateMappings(adapter string) map[TmplTarget]TmplTargetPat
 func isStaticInertiaAssetTemplate(templateFile TmplTarget) bool {
 	return strings.HasPrefix(string(templateFile), "inertia_assets_") ||
 		strings.HasPrefix(string(templateFile), "inertia_react_assets_") ||
+		strings.HasPrefix(string(templateFile), "inertia_svelte_assets_") ||
 		templateFile == "inertia_framework_root_html.tmpl"
 }
 

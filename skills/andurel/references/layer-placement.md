@@ -14,7 +14,7 @@ Use these rules when changing an Andurel app shaped like this repository.
 | Route names, route paths, URL builders | `router/routes/` |
 | Middleware and request/session plumbing | `router/middleware/`, `router/cookies/`, or `internal/request/` |
 | Public templ pages, view models, schema helpers, templ-specific presentation labels | `views/` |
-| Admin Inertia pages and reusable Vue components | `resources/js/Pages/`, `resources/js/Layouts/`, `resources/js/Components/`, `resources/js/components/ui/` |
+| Admin Inertia pages and reusable frontend components | `resources/js/Pages/`, `resources/js/Layouts/`, `resources/js/Components/`, `resources/js/components/ui/` |
 | Source CSS and theme primitives | `css/` |
 | Compiled/static assets | `assets/` |
 | SQL schema changes | `database/migrations/` |

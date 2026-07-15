@@ -458,7 +458,7 @@ func TestDownloadFromLockToolRejectsMissingAndUnsupportedPlatformDigests(t *test
 
 func TestNewProjectValidatesInertiaAndBuildsReports(t *testing.T) {
 	cmd := newProjectCommand("test")
-	if err := cmd.Flags().Set("inertia", "svelte"); err != nil {
+	if err := cmd.Flags().Set("inertia", "angular"); err != nil {
 		t.Fatalf("set inertia: %v", err)
 	}
 	if err := newProject(cmd, []string{"app"}, "test", true, false); err == nil || !strings.Contains(err.Error(), "invalid inertia adapter") {
