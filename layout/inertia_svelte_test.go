@@ -24,7 +24,7 @@ func TestScaffoldSvelteInertiaAssets(t *testing.T) {
 		"resources/js/routes.ts":                              "sessionCreate: () => '/users/sign-in'",
 		"internal/inertia/render.go":                          "package inertia",
 		"internal/inertia/vite.go":                            `manifest["resources/js/app.ts"]`,
-		"views/root.go.html":                                  `id="app"`,
+		"views/root.go.html":                                  `{{ .inertia }}`,
 		"package.json":                                        `"@inertiajs/svelte": "^2.0.0"`,
 		"svelte.config.js":                                    "vitePreprocess()",
 		"tsconfig.json":                                       `"resources/js/**/*.svelte"`,
