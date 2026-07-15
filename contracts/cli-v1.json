@@ -2143,11 +2143,6 @@
           "omitempty": true
         },
         {
-          "go_name": "InertiaRoot",
-          "json_name": "inertiaRoot",
-          "omitempty": true
-        },
-        {
           "go_name": "JavaScriptRuntime",
           "json_name": "javascriptRuntime",
           "omitempty": true

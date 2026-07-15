@@ -187,9 +187,6 @@
         "inertia": {
           "type": "string"
         },
-        "inertiaRoot": {
-          "type": "string"
-        },
         "javascriptRuntime": {
           "type": "string"
         }

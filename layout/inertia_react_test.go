@@ -51,13 +51,14 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "ComponentType<any>")
 	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "Record<string, any>")
 	assertFileContains(t, projectDir, "cmd/app/main.go", "internal/inertia")
-	assertFileContains(t, projectDir, "cmd/app/main.go", "inertia.Init()")
-	assertFileContains(t, projectDir, "internal/inertia/render.go", `os.ReadFile("andurel.lock")`)
-	assertFileContains(t, projectDir, "internal/inertia/render.go", `json.Unmarshal(lockFile, &lock)`)
-	assertFileContains(t, projectDir, "internal/inertia/render.go", `inertia: decode andurel.lock`)
-	assertFileContains(t, projectDir, "internal/inertia/render.go", `scaffoldConfig.inertiaRoot is required`)
-	assertFileContains(t, projectDir, "internal/inertia/render.go", `os.ReadFile(rootPath)`)
+	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.Init("inertia/root.go.html")`)
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `"testapp/assets"`)
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `func Init(rootPath string, opts ...Option) error`)
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `assets.Files.ReadFile(rootPath)`)
 	assertFileContains(t, projectDir, "internal/inertia/render.go", `gonertia.NewFromBytes(rootHTML, opts...)`)
+	assertFileNotContains(t, projectDir, "internal/inertia/render.go", "andurel.lock")
+	assertFileContains(t, projectDir, "assets/inertia/root.go.html", `{{ .inertia }}`)
+	assertFileMissing(t, projectDir, "views/root.go.html")
 	assertFileContains(t, projectDir, "router/router.go", "inertia.Middleware()")
 	assertFileContains(t, projectDir, "go.mod", "github.com/romsar/gonertia")
 	assertFileMissing(t, projectDir, "resources/js/app.ts")
@@ -75,8 +76,15 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read react lock: %v", err)
 	}
-	if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.InertiaRoot != DefaultInertiaRoot {
-		t.Fatalf("unexpected inertia root: %#v", lock.ScaffoldConfig)
+	if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia != "react" {
+		t.Fatalf("unexpected scaffold config: %#v", lock.ScaffoldConfig)
+	}
+	lockData, err := os.ReadFile(filepath.Join(projectDir, "andurel.lock"))
+	if err != nil {
+		t.Fatalf("read react lock JSON: %v", err)
+	}
+	if strings.Contains(string(lockData), "inertiaRoot") {
+		t.Fatalf("lock contains removed inertiaRoot field:\n%s", lockData)
 	}
 }
 

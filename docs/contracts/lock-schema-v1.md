@@ -28,7 +28,6 @@ A reader must not partially decode a future schema as schema 1. Reading and vali
 - A configured version-check regular expression must compile and is authoritative for extraction.
 - When `versionCheck.regexp` is omitted, readers use the documented generic expression `v?([0-9]+\.[0-9]+\.[0-9]+)`.
 - Unknown optional fields may be ignored. A schema 1 writer must not require an older schema 1 reader to understand an unknown field.
-- Scaffolding and version upgrades set `scaffoldConfig.inertiaRoot` to `views/root.go.html` for Inertia projects unless a custom value already exists. Generated Inertia initialization reads this field at runtime.
 
 ## Compatible schema 1 changes
 

@@ -31,7 +31,7 @@ func getVersion() string {
 		}
 	}
 
-	return "v1.3.0"
+	return "v1.5.1"
 }
 
 func execute(ctx context.Context, rootCmd *cobra.Command) int {
