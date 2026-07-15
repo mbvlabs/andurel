@@ -89,6 +89,9 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 	if lock.DatabaseConfig == nil {
 		lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
 	}
+	if layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) && lock.ScaffoldConfig.InertiaRoot == "" {
+		lock.ScaffoldConfig.InertiaRoot = layout.DefaultInertiaRoot
+	}
 	lock.SchemaVersion = targetLockSchemaVersion
 
 	if err := u.addFrameworkChanges(plan); err != nil {

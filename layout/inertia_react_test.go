@@ -51,6 +51,13 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "ComponentType<any>")
 	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "Record<string, any>")
 	assertFileContains(t, projectDir, "cmd/app/main.go", "internal/inertia")
+	assertFileContains(t, projectDir, "cmd/app/main.go", "inertia.Init()")
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `os.ReadFile("andurel.lock")`)
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `json.Unmarshal(lockFile, &lock)`)
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `inertia: decode andurel.lock`)
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `scaffoldConfig.inertiaRoot is required`)
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `os.ReadFile(rootPath)`)
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `gonertia.NewFromBytes(rootHTML, opts...)`)
 	assertFileContains(t, projectDir, "router/router.go", "inertia.Middleware()")
 	assertFileContains(t, projectDir, "go.mod", "github.com/romsar/gonertia")
 	assertFileMissing(t, projectDir, "resources/js/app.ts")
@@ -63,6 +70,14 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileMissing(t, projectDir, "views/registration.templ")
 	assertFileMissing(t, projectDir, "views/reset_password.templ")
 	assertFileMissing(t, projectDir, "views/confirm_email.templ")
+
+	lock, err := ReadLockFile(projectDir)
+	if err != nil {
+		t.Fatalf("read react lock: %v", err)
+	}
+	if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.InertiaRoot != DefaultInertiaRoot {
+		t.Fatalf("unexpected inertia root: %#v", lock.ScaffoldConfig)
+	}
 }
 
 func TestScaffoldVueInertiaTSConfigIncludesViteClientTypes(t *testing.T) {

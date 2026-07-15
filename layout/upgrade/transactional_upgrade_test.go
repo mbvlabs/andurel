@@ -227,6 +227,53 @@ func TestDryRunIsDeterministicAndByteReadOnlyOnSameInstance(t *testing.T) {
 	}
 }
 
+func TestVersionedInertiaUpgradeAddsAndUsesRoot(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		root string
+		want string
+	}{
+		{name: "default", want: layout.DefaultInertiaRoot},
+		{name: "custom", root: "views/inertia_root.templ", want: "views/inertia_root.templ"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
+				ProjectName: "testapp",
+				Database:    "postgresql",
+				Inertia:     "react",
+				InertiaRoot: test.root,
+			})
+			upgrader, err := NewUpgrader(root, UpgradeOptions{TargetVersion: fixtureTargetVersion})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := upgrader.Execute(); err != nil {
+				t.Fatal(err)
+			}
+
+			lock, err := layout.ReadLockFile(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := lock.ScaffoldConfig.InertiaRoot; got != test.want {
+				t.Fatalf("inertia root = %q, want %q", got, test.want)
+			}
+			renderer := string(mustReadProjectFile(t, root, "internal/inertia/render.go"))
+			for _, snippet := range []string{
+				"func Init(opts ...Option) error",
+				`os.ReadFile("andurel.lock")`,
+				`json.Unmarshal(lockFile, &lock)`,
+				`os.ReadFile(rootPath)`,
+				`gonertia.NewFromBytes(rootHTML, opts...)`,
+			} {
+				if !strings.Contains(renderer, snippet) {
+					t.Fatalf("managed inertia renderer missing %q:\n%s", snippet, renderer)
+				}
+			}
+		})
+	}
+}
+
 func TestVersionedFrameworkFilesUpgradeAtomicallyAndIdempotently(t *testing.T) {
 	root := newUpgradeFixtureProject(t)
 	addCustomToolToLock(t, root)
@@ -349,16 +396,21 @@ func TestFrameworkRecognitionAndPlanningReturnFilesystemErrors(t *testing.T) {
 
 func newUpgradeFixtureProject(t *testing.T) string {
 	t.Helper()
+	return newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
+		ProjectName: "testapp",
+		Database:    "postgresql",
+	})
+}
+
+func newUpgradeFixtureProjectWithConfig(t *testing.T, config layout.ScaffoldConfig) string {
+	t.Helper()
 	root := t.TempDir()
 	mustWriteTestFile(t, root, "go.mod", []byte("module testapp\n\ngo 1.24.0\n"))
 	lock := &layout.AndurelLock{
-		SchemaVersion: targetLockSchemaVersion,
-		Version:       fixtureSourceVersion,
-		Tools:         map[string]*layout.Tool{},
-		ScaffoldConfig: &layout.ScaffoldConfig{
-			ProjectName: "testapp",
-			Database:    "postgresql",
-		},
+		SchemaVersion:  targetLockSchemaVersion,
+		Version:        fixtureSourceVersion,
+		Tools:          map[string]*layout.Tool{},
+		ScaffoldConfig: &config,
 		DatabaseConfig: &layout.DatabaseConfig{NullType: "sql.Null"},
 	}
 	lockContent, err := json.MarshalIndent(lock, "", "  ")
@@ -517,6 +569,9 @@ func assertUpgradeOutcome(t *testing.T, root string) {
 	}
 	if lock.SchemaVersion != targetLockSchemaVersion || lock.Version != fixtureTargetVersion {
 		t.Fatalf("lock versions = schema %d framework %s", lock.SchemaVersion, lock.Version)
+	}
+	if lock.ScaffoldConfig.InertiaRoot != "" {
+		t.Fatalf("non-Inertia upgrade added inertia root %q", lock.ScaffoldConfig.InertiaRoot)
 	}
 	if _, ok := lock.Tools["user-tool"]; !ok {
 		t.Fatal("custom lock tool was not preserved")

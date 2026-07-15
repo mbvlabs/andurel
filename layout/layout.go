@@ -54,6 +54,10 @@ func Scaffold(
 	}
 
 	blueprint := initializeBlueprint(moduleName)
+	inertiaRoot := ""
+	if IsSupportedInertiaAdapter(inertia) {
+		inertiaRoot = DefaultInertiaRoot
+	}
 	templateData := TemplateData{
 		AppName:              projectName,
 		ProjectName:          projectName,
@@ -111,6 +115,7 @@ func Scaffold(
 		ProjectName:       projectName,
 		Database:          database,
 		Inertia:           inertia,
+		InertiaRoot:       inertiaRoot,
 		JavaScriptRuntime: javascriptRuntime,
 	}
 	if err := generateLockFile(targetDir, version, scaffoldConfig, extensionNames); err != nil {
