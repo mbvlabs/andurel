@@ -281,6 +281,110 @@ func TestVersionedInertiaUpgradeEmbedsExistingRoot(t *testing.T) {
 	}
 }
 
+func TestVersionedInertiaUpgradeKeepsEmbeddedRoot(t *testing.T) {
+	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
+		ProjectName: "testapp",
+		Database:    "postgresql",
+		Inertia:     "react",
+	})
+	embeddedRoot := []byte("already embedded\n")
+	mustWriteTestFile(t, root, "assets/inertia/root.go.html", embeddedRoot)
+	commitUpgradeTree(t, root, "embedded inertia root")
+
+	upgrader, err := NewUpgrader(root, UpgradeOptions{TargetVersion: fixtureTargetVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := upgrader.Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(report.ReplacedFiles, "assets/inertia/root.go.html") ||
+		slices.Contains(report.ReplacedFiles, "cmd/app/main.go") {
+		t.Fatalf("upgrade replaced completed Inertia migration: %#v", report.ReplacedFiles)
+	}
+	if got := mustReadProjectFile(t, root, "assets/inertia/root.go.html"); !bytes.Equal(got, embeddedRoot) {
+		t.Fatalf("embedded root changed:\n%s", got)
+	}
+}
+
+func TestVersionedInertiaUpgradeRejectsInvalidEmbeddedPath(t *testing.T) {
+	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
+		ProjectName: "testapp",
+		Database:    "postgresql",
+		Inertia:     "react",
+	})
+	embeddedDir := filepath.Join(root, "assets", "inertia")
+	if err := os.MkdirAll(embeddedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("root.go.html", filepath.Join(embeddedDir, "root.go.html")); err != nil {
+		t.Fatal(err)
+	}
+	commitUpgradeTree(t, root, "invalid embedded root")
+
+	upgrader, err := NewUpgrader(root, UpgradeOptions{TargetVersion: fixtureTargetVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := upgrader.Execute(); err == nil || !strings.Contains(err.Error(), "inspect embedded Inertia root") {
+		t.Fatalf("upgrade error = %v", err)
+	}
+}
+
+func TestVersionedInertiaUpgradeRejectsInvalidMigrationState(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(*testing.T, string)
+		want  string
+	}{
+		{
+			name: "missing legacy root",
+			setup: func(t *testing.T, root string) {
+				mustWriteTestFile(t, root, "cmd/app/main.go", []byte("package main\n\nfunc main() { inertia.Init(\"views/root.go.html\") }\n"))
+			},
+			want: "read existing Inertia root",
+		},
+		{
+			name: "missing application entrypoint",
+			setup: func(t *testing.T, root string) {
+				mustWriteTestFile(t, root, "views/root.go.html", []byte("legacy root\n"))
+			},
+			want: "read Inertia application entrypoint",
+		},
+		{
+			name: "unknown initialization call",
+			setup: func(t *testing.T, root string) {
+				mustWriteTestFile(t, root, "views/root.go.html", []byte("legacy root\n"))
+				mustWriteTestFile(t, root, "cmd/app/main.go", []byte("package main\n\nfunc main() { inertia.Init(\"custom/root.go.html\") }\n"))
+			},
+			want: "legacy initialization call not found",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
+				ProjectName: "testapp",
+				Database:    "postgresql",
+				Inertia:     "react",
+			})
+			test.setup(t, root)
+			commitUpgradeTree(t, root, test.name)
+			before := snapshotUpgradeTree(t, root)
+
+			upgrader, err := NewUpgrader(root, UpgradeOptions{TargetVersion: fixtureTargetVersion})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := upgrader.Execute(); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("upgrade error = %v, want %q", err, test.want)
+			}
+			assertSnapshotEqual(t, before, snapshotUpgradeTree(t, root))
+		})
+	}
+}
+
 func TestVersionedFrameworkFilesUpgradeAtomicallyAndIdempotently(t *testing.T) {
 	root := newUpgradeFixtureProject(t)
 	addCustomToolToLock(t, root)
