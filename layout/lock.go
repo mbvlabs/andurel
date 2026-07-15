@@ -33,11 +33,15 @@ type DatabaseConfig struct {
 	NullType string `json:"nullType"`
 }
 
+// DefaultInertiaRoot is the root template used by Inertia projects.
+const DefaultInertiaRoot = "views/root.go.html"
+
 // ScaffoldConfig records the options used to create a project.
 type ScaffoldConfig struct {
 	ProjectName       string `json:"projectName"`
 	Database          string `json:"database"`
 	Inertia           string `json:"inertia,omitempty"`
+	InertiaRoot       string `json:"inertiaRoot,omitempty"`
 	JavaScriptRuntime string `json:"javascriptRuntime,omitempty"`
 }
 

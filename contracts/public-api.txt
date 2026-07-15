@@ -1478,6 +1478,12 @@ package layout // import "github.com/mbvlabs/andurel/layout"
 Package layout provides functionality to scaffold a new Go web application
 project
 
+CONSTANTS
+
+const DefaultInertiaRoot = "views/root.go.html"
+    DefaultInertiaRoot is the root template used by Inertia projects.
+
+
 VARIABLES
 
 var DefaultGoTools = []GoTool{
@@ -1620,6 +1626,7 @@ type ScaffoldConfig struct {
 	ProjectName       string `json:"projectName"`
 	Database          string `json:"database"`
 	Inertia           string `json:"inertia,omitempty"`
+	InertiaRoot       string `json:"inertiaRoot,omitempty"`
 	JavaScriptRuntime string `json:"javascriptRuntime,omitempty"`
 }
     ScaffoldConfig records the options used to create a project.

@@ -1061,6 +1061,7 @@ file -----------rw-r--r-- andurel.lock
   "scaffoldConfig": {
     "database": "postgresql",
     "inertia": "vue",
+    "inertiaRoot": "views/root.go.html",
     "javascriptRuntime": "npm",
     "projectName": "testapp"
   },
@@ -1772,7 +1773,7 @@ var appVersion string
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	if err := inertia.Init("views/root.go.html"); err != nil {
+	if err := inertia.Init(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize inertia: %s\n", err)
 		os.Exit(1)
 	}
@@ -9687,9 +9688,12 @@ file -----------rw-r--r-- internal/inertia/render.go
 package inertia
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/labstack/echo/v5"
 	gonertia "github.com/romsar/gonertia/v3"
@@ -9704,13 +9708,34 @@ type Option = gonertia.Option
 
 var gInertia *gonertia.Inertia
 
-func Init(rootHTML string, opts ...Option) error {
+func Init(opts ...Option) error {
+	lockFile, err := os.ReadFile("andurel.lock")
+	if err != nil {
+		return fmt.Errorf("inertia: read andurel.lock: %w", err)
+	}
+	var lock struct {
+		ScaffoldConfig struct {
+			InertiaRoot string `json:"inertiaRoot"`
+		} `json:"scaffoldConfig"`
+	}
+	if err := json.Unmarshal(lockFile, &lock); err != nil {
+		return fmt.Errorf("inertia: decode andurel.lock: %w", err)
+	}
+	rootPath := strings.TrimSpace(lock.ScaffoldConfig.InertiaRoot)
+	if rootPath == "" {
+		return errors.New("inertia: scaffoldConfig.inertiaRoot is required in andurel.lock")
+	}
+	rootHTML, err := os.ReadFile(rootPath)
+	if err != nil {
+		return fmt.Errorf("inertia: read root template %q: %w", rootPath, err)
+	}
+
 	tags, err := initVite()
 	if err != nil {
 		return fmt.Errorf("inertia: vite init: %w", err)
 	}
 
-	i, err := gonertia.NewFromFile(rootHTML, opts...)
+	i, err := gonertia.NewFromBytes(rootHTML, opts...)
 	if err != nil {
 		return fmt.Errorf("inertia: create renderer: %v", err)
 	}
