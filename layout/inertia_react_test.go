@@ -55,6 +55,8 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileContains(t, projectDir, "internal/inertia/render.go", `"testapp/assets"`)
 	assertFileContains(t, projectDir, "internal/inertia/render.go", `func Init(rootPath string, opts ...Option) error`)
 	assertFileContains(t, projectDir, "internal/inertia/render.go", `assets.Files.ReadFile(rootPath)`)
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `errors.Is(err, fs.ErrNotExist)`)
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `add it at assets/%s and rebuild`)
 	assertFileContains(t, projectDir, "internal/inertia/render.go", `gonertia.NewFromBytes(rootHTML, opts...)`)
 	assertFileNotContains(t, projectDir, "internal/inertia/render.go", "andurel.lock")
 	assertFileContains(t, projectDir, "assets/inertia/root.go.html", `{{ .inertia }}`)

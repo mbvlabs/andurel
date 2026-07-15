@@ -8319,6 +8319,7 @@ package inertia
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 
 	"github.com/labstack/echo/v5"
@@ -8337,6 +8338,13 @@ var gInertia *gonertia.Inertia
 
 func Init(rootPath string, opts ...Option) error {
 	rootHTML, err := assets.Files.ReadFile(rootPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf(
+			"inertia: embedded root template %q not found; add it at assets/%s and rebuild",
+			rootPath,
+			rootPath,
+		)
+	}
 	if err != nil {
 		return fmt.Errorf("inertia: read embedded root template %q: %w", rootPath, err)
 	}
