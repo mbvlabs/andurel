@@ -826,8 +826,10 @@ myapp/
 │       └── Pages/                 # .vue, .tsx, or .svelte pages
 │           ├── Auth/              # Login, registration, email confirmation, password reset
 │           └── Errors/            # Bad request, not found, internal error
+├── assets/
+│   └── inertia/
+│       └── root.go.html         # Embedded Inertia root HTML shell
 ├── views/
-│   ├── root.go.html             # Inertia root HTML shell
 │   └── welcome.templ            # Server-rendered welcome page
 ├── internal/
 │   └── inertia/
@@ -839,7 +841,7 @@ myapp/
 ├── tsconfig.json
 ```
 
-The auth and default error pages use Inertia, while `controllers/pages.go` keeps the welcome page server-rendered with Templ. `cmd/app/main.go` initializes `internal/inertia`. Run the configured package manager's install command after scaffolding (the `andurel new` output shows the right command based on the configured runtime). Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia resource pages (reads the adapter from `andurel.lock`).
+The auth and default error pages use Inertia, while `controllers/pages.go` keeps the welcome page server-rendered with Templ. `cmd/app/main.go` initializes `internal/inertia` with `inertia/root.go.html`, a path inside the embedded `assets` filesystem. Edit `assets/inertia/root.go.html` to customize the shell; regular Go builds, Docker builds, and `andurel build` include it in the application binary. Run the configured package manager's install command after scaffolding (the `andurel new` output shows the right command based on the configured runtime). Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia resource pages (reads the adapter from `andurel.lock`).
 
 When using `--inertia vue`, `--inertia react`, or `--inertia svelte`, controllers can render Inertia pages alongside Templ.
 

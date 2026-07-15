@@ -778,7 +778,6 @@ file -----------rw-r--r-- andurel.lock
   "scaffoldConfig": {
     "database": "postgresql",
     "inertia": "vue",
-    "inertiaRoot": "views/root.go.html",
     "javascriptRuntime": "npm",
     "projectName": "testapp"
   },
@@ -947,6 +946,26 @@ dir  d----------rwxr-xr-x assets/css
 file -----------rw-r--r-- assets/css/style.css
 ```
 
+```
+
+dir  d----------rwxr-xr-x assets/inertia
+
+file -----------rw-r--r-- assets/inertia/root.go.html
+```
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title inertia>{{ .appName }}</title>
+    {{ .inertiaHead }}
+    {{ .viteHead }}
+</head>
+<body class="bg-slate-950 text-slate-100">
+    {{ .inertia }}
+    {{ .viteBody }}
+</body>
+</html>
 ```
 
 dir  d----------rwxr-xr-x assets/js
@@ -1154,7 +1173,7 @@ var appVersion string
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	if err := inertia.Init(); err != nil {
+	if err := inertia.Init("inertia/root.go.html"); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize inertia: %s\n", err)
 		os.Exit(1)
 	}
@@ -7535,16 +7554,15 @@ file -----------rw-r--r-- internal/inertia/render.go
 package inertia
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/labstack/echo/v5"
 	gonertia "github.com/romsar/gonertia/v3"
 
+	"testapp/assets"
 	"testapp/config"
 	"testapp/internal/request"
 	"testapp/router/cookies"
@@ -7555,26 +7573,17 @@ type Option = gonertia.Option
 
 var gInertia *gonertia.Inertia
 
-func Init(opts ...Option) error {
-	lockFile, err := os.ReadFile("andurel.lock")
+func Init(rootPath string, opts ...Option) error {
+	rootHTML, err := assets.Files.ReadFile(rootPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf(
+			"inertia: embedded root template %q not found; add it at assets/%s and rebuild",
+			rootPath,
+			rootPath,
+		)
+	}
 	if err != nil {
-		return fmt.Errorf("inertia: read andurel.lock: %w", err)
-	}
-	var lock struct {
-		ScaffoldConfig struct {
-			InertiaRoot string `json:"inertiaRoot"`
-		} `json:"scaffoldConfig"`
-	}
-	if err := json.Unmarshal(lockFile, &lock); err != nil {
-		return fmt.Errorf("inertia: decode andurel.lock: %w", err)
-	}
-	rootPath := strings.TrimSpace(lock.ScaffoldConfig.InertiaRoot)
-	if rootPath == "" {
-		return errors.New("inertia: scaffoldConfig.inertiaRoot is required in andurel.lock")
-	}
-	rootHTML, err := os.ReadFile(rootPath)
-	if err != nil {
-		return fmt.Errorf("inertia: read root template %q: %w", rootPath, err)
+		return fmt.Errorf("inertia: read embedded root template %q: %w", rootPath, err)
 	}
 
 	tags, err := initVite()
@@ -15574,24 +15583,6 @@ func NotFound() templ.Component {
 }
 
 var _ = templruntime.GeneratedTemplate
-```
-
-file -----------rw-r--r-- views/root.go.html
-```
-<!DOCTYPE html>
-<html lang="en" class="dark">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title inertia>{{ .appName }}</title>
-    {{ .inertiaHead }}
-    {{ .viteHead }}
-</head>
-<body class="bg-slate-950 text-slate-100">
-    {{ .inertia }}
-    {{ .viteBody }}
-</body>
-</html>
 ```
 
 file -----------rw-r--r-- views/welcome.templ

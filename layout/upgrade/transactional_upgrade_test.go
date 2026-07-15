@@ -227,49 +227,160 @@ func TestDryRunIsDeterministicAndByteReadOnlyOnSameInstance(t *testing.T) {
 	}
 }
 
-func TestVersionedInertiaUpgradeAddsAndUsesRoot(t *testing.T) {
-	for _, test := range []struct {
-		name string
-		root string
-		want string
-	}{
-		{name: "default", want: layout.DefaultInertiaRoot},
-		{name: "custom", root: "views/inertia_root.templ", want: "views/inertia_root.templ"},
+func TestVersionedInertiaUpgradeEmbedsExistingRoot(t *testing.T) {
+	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
+		ProjectName: "testapp",
+		Database:    "postgresql",
+		Inertia:     "react",
+	})
+	legacyRoot := []byte("<!doctype html>\n<title>custom root</title>\n{{ .inertia }}\n")
+	mustWriteTestFile(t, root, "views/root.go.html", legacyRoot)
+	mustWriteTestFile(t, root, "cmd/app/main.go", []byte("package main\n\nfunc main() { inertia.Init(\"views/root.go.html\") }\n"))
+	commitUpgradeTree(t, root, "custom inertia root")
+
+	upgrader, err := NewUpgrader(root, UpgradeOptions{TargetVersion: fixtureTargetVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := upgrader.Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(report.ReplacedFiles, "assets/inertia/root.go.html") ||
+		!slices.Contains(report.ReplacedFiles, "cmd/app/main.go") ||
+		!slices.Contains(report.RemovedFiles, "views/root.go.html") {
+		t.Fatalf("upgrade did not move embedded root: replaced=%#v removed=%#v", report.ReplacedFiles, report.RemovedFiles)
+	}
+	if got := mustReadProjectFile(t, root, "assets/inertia/root.go.html"); !bytes.Equal(got, legacyRoot) {
+		t.Fatalf("embedded root was not preserved:\n%s", got)
+	}
+	mainFile := string(mustReadProjectFile(t, root, "cmd/app/main.go"))
+	if !strings.Contains(mainFile, `inertia.Init("inertia/root.go.html")`) || strings.Contains(mainFile, `inertia.Init("views/root.go.html")`) {
+		t.Fatalf("legacy Inertia initialization was not updated:\n%s", mainFile)
+	}
+	if _, err := os.Stat(filepath.Join(root, "views/root.go.html")); !os.IsNotExist(err) {
+		t.Fatalf("legacy Inertia root still exists: %v", err)
+	}
+	if lockData := mustReadProjectFile(t, root, "andurel.lock"); bytes.Contains(lockData, []byte("inertiaRoot")) {
+		t.Fatalf("upgraded lock contains removed inertiaRoot field:\n%s", lockData)
+	}
+
+	renderer := string(mustReadProjectFile(t, root, "internal/inertia/render.go"))
+	for _, snippet := range []string{
+		`"testapp/assets"`,
+		"func Init(rootPath string, opts ...Option) error",
+		"assets.Files.ReadFile(rootPath)",
+		"gonertia.NewFromBytes(rootHTML, opts...)",
 	} {
+		if !strings.Contains(renderer, snippet) {
+			t.Fatalf("managed inertia renderer missing %q:\n%s", snippet, renderer)
+		}
+	}
+	if strings.Contains(renderer, "andurel.lock") {
+		t.Fatalf("managed inertia renderer still reads andurel.lock:\n%s", renderer)
+	}
+}
+
+func TestVersionedInertiaUpgradeKeepsEmbeddedRoot(t *testing.T) {
+	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
+		ProjectName: "testapp",
+		Database:    "postgresql",
+		Inertia:     "react",
+	})
+	embeddedRoot := []byte("already embedded\n")
+	mustWriteTestFile(t, root, "assets/inertia/root.go.html", embeddedRoot)
+	commitUpgradeTree(t, root, "embedded inertia root")
+
+	upgrader, err := NewUpgrader(root, UpgradeOptions{TargetVersion: fixtureTargetVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := upgrader.Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(report.ReplacedFiles, "assets/inertia/root.go.html") ||
+		slices.Contains(report.ReplacedFiles, "cmd/app/main.go") {
+		t.Fatalf("upgrade replaced completed Inertia migration: %#v", report.ReplacedFiles)
+	}
+	if got := mustReadProjectFile(t, root, "assets/inertia/root.go.html"); !bytes.Equal(got, embeddedRoot) {
+		t.Fatalf("embedded root changed:\n%s", got)
+	}
+}
+
+func TestVersionedInertiaUpgradeRejectsInvalidEmbeddedPath(t *testing.T) {
+	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
+		ProjectName: "testapp",
+		Database:    "postgresql",
+		Inertia:     "react",
+	})
+	embeddedDir := filepath.Join(root, "assets", "inertia")
+	if err := os.MkdirAll(embeddedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("root.go.html", filepath.Join(embeddedDir, "root.go.html")); err != nil {
+		t.Fatal(err)
+	}
+	commitUpgradeTree(t, root, "invalid embedded root")
+
+	upgrader, err := NewUpgrader(root, UpgradeOptions{TargetVersion: fixtureTargetVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := upgrader.Execute(); err == nil || !strings.Contains(err.Error(), "inspect embedded Inertia root") {
+		t.Fatalf("upgrade error = %v", err)
+	}
+}
+
+func TestVersionedInertiaUpgradeRejectsInvalidMigrationState(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(*testing.T, string)
+		want  string
+	}{
+		{
+			name: "missing legacy root",
+			setup: func(t *testing.T, root string) {
+				mustWriteTestFile(t, root, "cmd/app/main.go", []byte("package main\n\nfunc main() { inertia.Init(\"views/root.go.html\") }\n"))
+			},
+			want: "read existing Inertia root",
+		},
+		{
+			name: "missing application entrypoint",
+			setup: func(t *testing.T, root string) {
+				mustWriteTestFile(t, root, "views/root.go.html", []byte("legacy root\n"))
+			},
+			want: "read Inertia application entrypoint",
+		},
+		{
+			name: "unknown initialization call",
+			setup: func(t *testing.T, root string) {
+				mustWriteTestFile(t, root, "views/root.go.html", []byte("legacy root\n"))
+				mustWriteTestFile(t, root, "cmd/app/main.go", []byte("package main\n\nfunc main() { inertia.Init(\"custom/root.go.html\") }\n"))
+			},
+			want: "legacy initialization call not found",
+		},
+	}
+
+	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
 				ProjectName: "testapp",
 				Database:    "postgresql",
 				Inertia:     "react",
-				InertiaRoot: test.root,
 			})
+			test.setup(t, root)
+			commitUpgradeTree(t, root, test.name)
+			before := snapshotUpgradeTree(t, root)
+
 			upgrader, err := NewUpgrader(root, UpgradeOptions{TargetVersion: fixtureTargetVersion})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := upgrader.Execute(); err != nil {
-				t.Fatal(err)
+			if _, err := upgrader.Execute(); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("upgrade error = %v, want %q", err, test.want)
 			}
-
-			lock, err := layout.ReadLockFile(root)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if got := lock.ScaffoldConfig.InertiaRoot; got != test.want {
-				t.Fatalf("inertia root = %q, want %q", got, test.want)
-			}
-			renderer := string(mustReadProjectFile(t, root, "internal/inertia/render.go"))
-			for _, snippet := range []string{
-				"func Init(opts ...Option) error",
-				`os.ReadFile("andurel.lock")`,
-				`json.Unmarshal(lockFile, &lock)`,
-				`os.ReadFile(rootPath)`,
-				`gonertia.NewFromBytes(rootHTML, opts...)`,
-			} {
-				if !strings.Contains(renderer, snippet) {
-					t.Fatalf("managed inertia renderer missing %q:\n%s", snippet, renderer)
-				}
-			}
+			assertSnapshotEqual(t, before, snapshotUpgradeTree(t, root))
 		})
 	}
 }
@@ -570,8 +681,8 @@ func assertUpgradeOutcome(t *testing.T, root string) {
 	if lock.SchemaVersion != targetLockSchemaVersion || lock.Version != fixtureTargetVersion {
 		t.Fatalf("lock versions = schema %d framework %s", lock.SchemaVersion, lock.Version)
 	}
-	if lock.ScaffoldConfig.InertiaRoot != "" {
-		t.Fatalf("non-Inertia upgrade added inertia root %q", lock.ScaffoldConfig.InertiaRoot)
+	if lockData := mustReadProjectFile(t, root, "andurel.lock"); bytes.Contains(lockData, []byte("inertiaRoot")) {
+		t.Fatalf("non-Inertia upgrade added inertiaRoot:\n%s", lockData)
 	}
 	if _, ok := lock.Tools["user-tool"]; !ok {
 		t.Fatal("custom lock tool was not preserved")

@@ -3,16 +3,15 @@
 package inertia
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/labstack/echo/v5"
 	gonertia "github.com/romsar/gonertia/v3"
 
+	"{{.ModuleName}}/assets"
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/request"
 	"{{.ModuleName}}/router/cookies"
@@ -23,26 +22,17 @@ type Option = gonertia.Option
 
 var gInertia *gonertia.Inertia
 
-func Init(opts ...Option) error {
-	lockFile, err := os.ReadFile("andurel.lock")
+func Init(rootPath string, opts ...Option) error {
+	rootHTML, err := assets.Files.ReadFile(rootPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf(
+			"inertia: embedded root template %q not found; add it at assets/%s and rebuild",
+			rootPath,
+			rootPath,
+		)
+	}
 	if err != nil {
-		return fmt.Errorf("inertia: read andurel.lock: %w", err)
-	}
-	var lock struct {
-		ScaffoldConfig struct {
-			InertiaRoot string `json:"inertiaRoot"`
-		} `json:"scaffoldConfig"`
-	}
-	if err := json.Unmarshal(lockFile, &lock); err != nil {
-		return fmt.Errorf("inertia: decode andurel.lock: %w", err)
-	}
-	rootPath := strings.TrimSpace(lock.ScaffoldConfig.InertiaRoot)
-	if rootPath == "" {
-		return errors.New("inertia: scaffoldConfig.inertiaRoot is required in andurel.lock")
-	}
-	rootHTML, err := os.ReadFile(rootPath)
-	if err != nil {
-		return fmt.Errorf("inertia: read root template %q: %w", rootPath, err)
+		return fmt.Errorf("inertia: read embedded root template %q: %w", rootPath, err)
 	}
 
 	tags, err := initVite()

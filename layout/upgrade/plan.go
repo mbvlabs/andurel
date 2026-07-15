@@ -89,11 +89,11 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 	if lock.DatabaseConfig == nil {
 		lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
 	}
-	if layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) && lock.ScaffoldConfig.InertiaRoot == "" {
-		lock.ScaffoldConfig.InertiaRoot = layout.DefaultInertiaRoot
-	}
 	lock.SchemaVersion = targetLockSchemaVersion
 
+	if err := u.addInertiaRootMigration(plan, lock); err != nil {
+		return nil, err
+	}
 	if err := u.addFrameworkChanges(plan); err != nil {
 		return nil, err
 	}
@@ -126,6 +126,49 @@ func (u *Upgrader) buildRepairPlan(dirty bool) (*upgradePlan, error) {
 		return nil, err
 	}
 	return plan, nil
+}
+
+func (u *Upgrader) addInertiaRootMigration(plan *upgradePlan, lock *layout.AndurelLock) error {
+	if !layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
+		return nil
+	}
+
+	const embeddedPath = "assets/inertia/root.go.html"
+	if _, err := os.Stat(filepath.Join(u.projectRoot, embeddedPath)); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect embedded Inertia root: %w", err)
+	}
+
+	const legacyPath = "views/root.go.html"
+	rootHTML, err := os.ReadFile(filepath.Join(u.projectRoot, legacyPath))
+	if err != nil {
+		return fmt.Errorf("read existing Inertia root %s: %w", legacyPath, err)
+	}
+	if err := plan.addReplacement(u.projectRoot, embeddedPath, rootHTML, false); err != nil {
+		return fmt.Errorf("embed existing Inertia root: %w", err)
+	}
+	if err := plan.addDeletion(u.projectRoot, legacyPath); err != nil {
+		return fmt.Errorf("remove existing Inertia root: %w", err)
+	}
+
+	const mainPath = "cmd/app/main.go"
+	mainFile, err := os.ReadFile(filepath.Join(u.projectRoot, mainPath))
+	if err != nil {
+		return fmt.Errorf("read Inertia application entrypoint: %w", err)
+	}
+	updatedMain := bytes.Replace(mainFile,
+		[]byte(`inertia.Init("views/root.go.html")`),
+		[]byte(`inertia.Init("inertia/root.go.html")`),
+		1,
+	)
+	if bytes.Equal(mainFile, updatedMain) {
+		return fmt.Errorf("update Inertia application entrypoint: legacy initialization call not found")
+	}
+	if err := plan.addReplacement(u.projectRoot, mainPath, updatedMain, false); err != nil {
+		return fmt.Errorf("update Inertia application entrypoint: %w", err)
+	}
+	return nil
 }
 
 func (u *Upgrader) addFrameworkChanges(plan *upgradePlan) error {

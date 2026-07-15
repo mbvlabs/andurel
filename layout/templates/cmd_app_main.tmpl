@@ -35,7 +35,7 @@ func main() {
 	defer cancel()
 
 {{- if .Inertia}}
-	if err := inertia.Init(); err != nil {
+	if err := inertia.Init("inertia/root.go.html"); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to initialize inertia: %s\n", err)
 		os.Exit(1)
 	}

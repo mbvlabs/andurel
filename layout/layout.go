@@ -54,10 +54,6 @@ func Scaffold(
 	}
 
 	blueprint := initializeBlueprint(moduleName)
-	inertiaRoot := ""
-	if IsSupportedInertiaAdapter(inertia) {
-		inertiaRoot = DefaultInertiaRoot
-	}
 	templateData := TemplateData{
 		AppName:              projectName,
 		ProjectName:          projectName,
@@ -115,7 +111,6 @@ func Scaffold(
 		ProjectName:       projectName,
 		Database:          database,
 		Inertia:           inertia,
-		InertiaRoot:       inertiaRoot,
 		JavaScriptRuntime: javascriptRuntime,
 	}
 	if err := generateLockFile(targetDir, version, scaffoldConfig, extensionNames); err != nil {
@@ -394,7 +389,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 }
 
 var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"inertia_framework_root_html.tmpl": "views/root.go.html",
+	"inertia_framework_root_html.tmpl": "assets/inertia/root.go.html",
 	"inertia_page_options.tmpl":        "internal/inertia/page_options.go",
 	"inertia_render.tmpl":              "internal/inertia/render.go",
 	"inertia_assets_routes.tmpl":       "resources/js/routes.ts",
