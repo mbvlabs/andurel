@@ -979,6 +979,11 @@
       "use": "install",
       "flags": [
         {
+          "name": "harness",
+          "type": "stringSlice",
+          "default": "[]"
+        },
+        {
           "name": "help",
           "shorthand": "h",
           "type": "bool",
@@ -1712,6 +1717,19 @@
       ]
     },
     {
+      "type": "github.com/mbvlabs/andurel/cli.skillInstallation",
+      "fields": [
+        {
+          "go_name": "Harness",
+          "json_name": "harness"
+        },
+        {
+          "go_name": "Path",
+          "json_name": "path"
+        }
+      ]
+    },
+    {
       "type": "github.com/mbvlabs/andurel/cli.skillReport",
       "fields": [
         {
@@ -1721,6 +1739,11 @@
         {
           "go_name": "Path",
           "json_name": "path",
+          "omitempty": true
+        },
+        {
+          "go_name": "Installations",
+          "json_name": "installations",
           "omitempty": true
         },
         {
@@ -2117,6 +2140,11 @@
         {
           "go_name": "Inertia",
           "json_name": "inertia",
+          "omitempty": true
+        },
+        {
+          "go_name": "InertiaRoot",
+          "json_name": "inertiaRoot",
           "omitempty": true
         },
         {
