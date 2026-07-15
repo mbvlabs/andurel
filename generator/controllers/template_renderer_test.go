@@ -236,7 +236,7 @@ func TestResourceControllerRawMessageImportIsActionAware(t *testing.T) {
 	}
 
 	renderer := NewTemplateRenderer()
-	for _, inertia := range []string{"", "vue", "react"} {
+	for _, inertia := range []string{"", "vue", "react", "svelte"} {
 		controller.Actions = []string{"create"}
 		rendered, err := renderer.RenderControllerFile(controller, inertia)
 		if err != nil {

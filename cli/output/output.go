@@ -344,7 +344,7 @@ func classifyError(err error) *CLIError {
 	case strings.Contains(msg, "unknown extension") || strings.Contains(msg, "invalid extension"):
 		return WrapError(CodeInvalidExtension, err, ExitUsage, "Run andurel extension list --available to inspect available extensions.")
 	case strings.Contains(msg, "invalid inertia adapter"):
-		return WrapError(CodeInvalidInertiaAdapter, err, ExitUsage, "Use vue or react, optionally followed by /npm, /pnpm, /bun, or /yarn.")
+		return WrapError(CodeInvalidInertiaAdapter, err, ExitUsage, "Use vue, react, or svelte, optionally followed by /npm, /pnpm, /bun, or /yarn.")
 	case strings.Contains(msg, "requires --force") || strings.Contains(msg, "use --force") || strings.Contains(msg, "without --force"):
 		return WrapError(CodeUnsafeAction, err, ExitUnsafe, "Re-run with --force after confirming the destructive action is intended.")
 	case strings.Contains(msg, "generation failed") || strings.Contains(msg, "failed to generate"):

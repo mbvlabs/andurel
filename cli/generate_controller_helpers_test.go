@@ -38,12 +38,13 @@ func TestGenerateControllerHelperFunctions(t *testing.T) {
 		actionViewComponent("Product", "Admin", "Export"),
 		actionInertiaViewComponent("react", "Product", "Export"),
 		actionInertiaViewComponent("vue", "Product", "Export"),
+		actionInertiaViewComponent("svelte", "Product", "Export"),
 	} {
 		if !strings.Contains(rendered, "Export") {
 			t.Fatalf("rendered helper missing Export:\n%s", rendered)
 		}
 	}
-	if inertiaActionViewExtension("react") != ".tsx" || inertiaActionViewExtension("vue") != ".vue" {
+	if inertiaActionViewExtension("react") != ".tsx" || inertiaActionViewExtension("vue") != ".vue" || inertiaActionViewExtension("svelte") != ".svelte" {
 		t.Fatalf("unexpected inertia view extensions")
 	}
 	if namespacePrefix("admin/users") != "admin_users_" {
@@ -122,6 +123,12 @@ func TestGenerateActionViewFiles(t *testing.T) {
 		t.Fatalf("generate vue inertia view: %v", err)
 	}
 	assertCLITestFileContains(t, root, filepath.Join("resources", "js", "Pages", "Product", "Show.vue"), "<template>")
+
+	if err := generateActionInertiaViewFile("Product", "admin", "products", []string{"archive"}, "svelte"); err != nil {
+		t.Fatalf("generate svelte inertia view: %v", err)
+	}
+	assertCLITestFileContains(t, root, filepath.Join("resources", "js", "Pages", "Admin", "Product", "Archive.svelte"), "<svelte:head>")
+	assertCLITestFileContains(t, root, filepath.Join("resources", "js", "Pages", "Admin", "Product", "Archive.svelte"), "<title>Product Archive</title>")
 }
 
 func TestGenerateActionControllerFileModesAndAppend(t *testing.T) {
@@ -133,6 +140,7 @@ func TestGenerateActionControllerFileModesAndAppend(t *testing.T) {
 	}{
 		{name: "templ", want: "hypermedia.RenderPage"},
 		{name: "react", inertia: "react", want: "inertia.Page"},
+		{name: "svelte", inertia: "svelte", want: "inertia.Page"},
 		{name: "api", isAPI: true, want: "etx.JSON"},
 	} {
 		t.Run(test.name, func(t *testing.T) {

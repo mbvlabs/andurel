@@ -530,13 +530,29 @@ func generateActionInertiaViewFile(name, namespace, tableName string, actions []
 }
 
 func inertiaActionViewExtension(adapter string) string {
-	if adapter == "react" {
+	switch adapter {
+	case "react":
 		return ".tsx"
+	case "svelte":
+		return ".svelte"
+	default:
+		return ".vue"
 	}
-	return ".vue"
 }
 
 func actionInertiaViewComponent(adapter, resourceName, methodName string) string {
+	if adapter == "svelte" {
+		return fmt.Sprintf(`<svelte:head>
+  <title>%s %s</title>
+</svelte:head>
+
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+  <h1 class="text-2xl font-bold text-gray-900">%s#%s</h1>
+  <p class="mt-2 text-sm text-gray-500">Content for this action has not been implemented yet.</p>
+</div>
+`, resourceName, methodName, resourceName, methodName)
+	}
+
 	if adapter == "react" {
 		return fmt.Sprintf(`import { Head } from '@inertiajs/react'
 

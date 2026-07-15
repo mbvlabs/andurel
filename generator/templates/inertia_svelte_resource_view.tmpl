@@ -1,0 +1,182 @@
+<script lang="ts">
+  import { Link{{if InertiaUsesForm .ComponentName}}, useForm{{end}} } from '@inertiajs/svelte'
+{{- if InertiaComponentUsesRoutes .ComponentName}}
+  import { routes } from '{{ InertiaRoutesImportPath }}'
+{{- end}}
+
+{{- if InertiaNeedsItem .ComponentName }}
+  type RouteID = {{ InertiaRouteIDType }}
+
+  type Item = {
+    {{.IDFieldName}}: RouteID
+{{- range .Fields}}
+    {{.Name}}: {{ ReactFieldType . }}
+{{- end}}
+  }
+
+  function routeID(item: Item): RouteID {
+    return item.{{.IDFieldName}}
+  }
+{{- end}}
+{{- if eq .ComponentName "Create" }}
+
+  type CreateForm = {
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+    {{.CamelCase}}: {{ ReactFieldType . }}
+{{- end}}
+{{- end}}
+  }
+{{- else if eq .ComponentName "Edit" }}
+
+  type EditForm = {
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+    {{.CamelCase}}: {{ ReactFieldType . }}
+{{- end}}
+{{- end}}
+  }
+{{- end}}
+
+{{- if eq .ComponentName "Index"}}
+  let { items }: { items: Item[] } = $props()
+{{- else if eq .ComponentName "Show"}}
+  let { item }: { item: Item } = $props()
+{{- else if eq .ComponentName "Create"}}
+  const form = useForm<CreateForm>({
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+    {{.CamelCase}}: {{ ReactCreateValue . }},
+{{- end}}
+{{- end}}
+  })
+
+  function submit(event: SubmitEvent) {
+    event.preventDefault()
+    $form.post({{ InertiaRouteURL "create" }})
+  }
+{{- else if eq .ComponentName "Edit"}}
+  let { item }: { item: Item } = $props()
+
+  const form = useForm<EditForm>({
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+    {{.CamelCase}}: {{ ReactEditValue . }},
+{{- end}}
+{{- end}}
+  })
+
+  function submit(event: SubmitEvent) {
+    event.preventDefault()
+    $form.put({{ InertiaRouteURL "update" "routeID(item)" }})
+  }
+{{- end}}
+</script>
+
+{{- if eq .ComponentName "Index"}}
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-slate-100">{{.ResourceName}}s</h1>
+    <Link href={ {{- InertiaRouteURL "new" -}} } class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">New {{.ResourceName}}</Link>
+  </div>
+
+  <div class="mt-8 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
+    <table class="min-w-full divide-y divide-cyan-400/20">
+      <thead class="bg-slate-950">
+        <tr>
+{{- range .Fields}}
+          <th class="px-6 py-3 text-left text-xs font-medium uppercase text-slate-400">{{.DisplayName}}</th>
+{{- end}}
+          <th class="px-6 py-3 text-right text-xs font-medium uppercase text-slate-400">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-cyan-400/20 bg-slate-900">
+        {#each items as item (item.{{.IDFieldName}})}
+          <tr class="hover:bg-slate-950">
+{{- range .Fields}}
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{ {{- ReactDisplay . "item" -}} }</td>
+{{- end}}
+            <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+              <Link href={ {{- InertiaRouteURL "show" "routeID(item)" -}} } class="mr-3 text-cyan-300 hover:text-white">View</Link>
+              <Link href={ {{- InertiaRouteURL "edit" "routeID(item)" -}} } class="mr-3 text-cyan-300 hover:text-white">Edit</Link>
+              <Link href={ {{- InertiaRouteURL "destroy" "routeID(item)" -}} } method="delete" as="button" class="text-red-400 hover:text-red-300">Delete</Link>
+            </td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  </div>
+</div>
+{{- else if eq .ComponentName "Show"}}
+<div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-slate-100">{{.ResourceName}} Details</h1>
+    <div class="flex gap-3">
+      <Link href={ {{- InertiaRouteURL "edit" "routeID(item)" -}} } class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">Edit</Link>
+      <Link href={ {{- InertiaRouteURL "index" -}} } class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
+    </div>
+  </div>
+
+  <div class="mt-8 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
+    <dl class="divide-y divide-cyan-400/20">
+{{- range .Fields}}
+      <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
+        <dt class="text-sm font-medium text-slate-400">{{.DisplayName}}</dt>
+        <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{ {{- ReactDisplay . "item" -}} }</dd>
+      </div>
+{{- end}}
+    </dl>
+  </div>
+</div>
+{{- else if eq .ComponentName "Create"}}
+<div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-slate-100">New {{.ResourceName}}</h1>
+    <Link href={ {{- InertiaRouteURL "index" -}} } class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
+  </div>
+
+  <form onsubmit={submit} class="mt-8 space-y-6 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 p-6 shadow-sm">
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+    <div>
+      <label for="{{.CamelCase}}" class="block text-sm font-medium text-slate-200">{{.DisplayName}}</label>
+{{- if eq .InputType "checkbox"}}
+      <input id="{{.CamelCase}}" type="checkbox" bind:checked={$form.{{.CamelCase}}} class="mt-1 rounded border border-cyan-400/25 text-cyan-400 shadow-sm focus:ring-cyan-400/40" />
+{{- else}}
+      <input id="{{.CamelCase}}" type="{{.InputType}}" bind:value={$form.{{.CamelCase}}} class="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
+{{- end}}
+    </div>
+{{- end}}
+{{- end}}
+    <div class="flex justify-end">
+      <button type="submit" disabled={$form.processing} class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300 disabled:opacity-50">{$form.processing ? 'Creating...' : 'Create {{.ResourceName}}'}</button>
+    </div>
+  </form>
+</div>
+{{- else if eq .ComponentName "Edit"}}
+<div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-slate-100">Edit {{.ResourceName}}</h1>
+    <Link href={ {{- InertiaRouteURL "show" "routeID(item)" -}} } class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
+  </div>
+
+  <form onsubmit={submit} class="mt-8 space-y-6 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 p-6 shadow-sm">
+{{- range .Fields}}
+{{- if not .IsSystemField}}
+    <div>
+      <label for="{{.CamelCase}}" class="block text-sm font-medium text-slate-200">{{.DisplayName}}</label>
+{{- if eq .InputType "checkbox"}}
+      <input id="{{.CamelCase}}" type="checkbox" bind:checked={$form.{{.CamelCase}}} class="mt-1 rounded border border-cyan-400/25 text-cyan-400 shadow-sm focus:ring-cyan-400/40" />
+{{- else}}
+      <input id="{{.CamelCase}}" type="{{.InputType}}" bind:value={$form.{{.CamelCase}}} class="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
+{{- end}}
+    </div>
+{{- end}}
+{{- end}}
+    <div class="flex justify-end gap-3">
+      <Link href={ {{- InertiaRouteURL "show" "routeID(item)" -}} } class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
+      <button type="submit" disabled={$form.processing} class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300 disabled:opacity-50">{$form.processing ? 'Updating...' : 'Update {{.ResourceName}}'}</button>
+    </div>
+  </form>
+</div>
+{{- end}}

@@ -141,10 +141,10 @@ func TestInertiaReactAndViewReferenceHelpers(t *testing.T) {
 }
 
 func TestResourceViewActionDiscoveryAndAdapterHelpers(t *testing.T) {
-	if inertiaViewTemplatePrefix("react") != "inertia_react_" || inertiaViewTemplatePrefix("vue") != "inertia_vue_" {
+	if inertiaViewTemplatePrefix("react") != "inertia_react_" || inertiaViewTemplatePrefix("vue") != "inertia_vue_" || inertiaViewTemplatePrefix("svelte") != "inertia_svelte_" {
 		t.Fatal("template prefix selection failed")
 	}
-	if inertiaViewExtension("react") != ".tsx" || inertiaViewExtension("vue") != ".vue" {
+	if inertiaViewExtension("react") != ".tsx" || inertiaViewExtension("vue") != ".vue" || inertiaViewExtension("svelte") != ".svelte" {
 		t.Fatal("view extension selection failed")
 	}
 	if got := namespacePrefix("Admin/API"); got == "" {

@@ -16113,7 +16113,7 @@ templ (w Welcome) Page() {
 						<section class="grid gap-4 md:grid-cols-2 lg:col-span-2">
 							@welcomeCard("Documentation", "Start with the framework guides and learn the conventions that shape an Andurel app.", "https://andurel.com")
 							@welcomeCard("Authentication", "Registration, sessions, email confirmation, and password reset are already wired.", routes.RegistrationNew.URL())
-							@welcomeCard("Templ and Inertia", "Render server-side Templ pages or scaffold Vue and React pages when Inertia is enabled.", routes.HomePage.URL())
+							@welcomeCard("Templ and Inertia", "Render server-side Templ pages or scaffold Inertia pages when Inertia is enabled.", routes.HomePage.URL())
 							@welcomeCard("Command line", "Generate models, factories, controllers, routes, jobs, emails, and views from the CLI.", "https://andurel.com")
 						</section>
 					</section>
@@ -16254,7 +16254,7 @@ func (w Welcome) Page() templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = welcomeCard("Templ and Inertia", "Render server-side Templ pages or scaffold Vue and React pages when Inertia is enabled.", routes.HomePage.URL()).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = welcomeCard("Templ and Inertia", "Render server-side Templ pages or scaffold Inertia pages when Inertia is enabled.", routes.HomePage.URL()).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

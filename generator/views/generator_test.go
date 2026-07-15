@@ -388,6 +388,75 @@ func TestGenerateInertiaViewFiles_ReactResourceTypesAndInputs(t *testing.T) {
 	}
 }
 
+func TestGenerateInertiaViewFiles_SvelteResourceTypesAndInputs(t *testing.T) {
+	generator := NewGenerator("postgresql")
+	view := &GeneratedView{
+		ResourceName: "Widget",
+		PluralName:   "widgets",
+		ModulePath:   "github.com/example/myapp",
+		IDType:       "uuid.UUID",
+		IDFieldName:  "ID",
+		Fields: []ViewField{
+			{Name: "Name", GoFormType: "string", DisplayName: "Name", InputType: "text", CamelCase: "name"},
+			{Name: "Quantity", GoFormType: "int32", DisplayName: "Quantity", InputType: "number", CamelCase: "quantity"},
+			{Name: "Active", GoFormType: "bool", DisplayName: "Active", InputType: "checkbox", CamelCase: "active"},
+			{Name: "PublishedOn", GoFormType: "time.Time", DisplayName: "Published On", InputType: "date", CamelCase: "publishedOn"},
+		},
+	}
+
+	files, err := generator.GenerateInertiaViewFiles(view, "inertia_svelte_", ".svelte")
+	if err != nil {
+		t.Fatalf("GenerateInertiaViewFiles returned error: %v", err)
+	}
+
+	assertContainsAll(t, files["Index.svelte"], []string{
+		"import { Link } from '@inertiajs/svelte'",
+		"type RouteID = string",
+		"type Item = {",
+		"Quantity: number",
+		"Active: boolean",
+		"{item.Active ? 'Yes' : 'No'}",
+	})
+	assertContainsAll(t, files["Create.svelte"], []string{
+		"import { Link, useForm } from '@inertiajs/svelte'",
+		"type CreateForm = {",
+		"quantity: number",
+		"active: boolean",
+		"quantity: 0,",
+		"active: false,",
+		"function submit(event: SubmitEvent)",
+		"$form.post(routes.widgetCreate())",
+		"bind:value={$form.quantity}",
+		"bind:checked={$form.active}",
+	})
+	assertContainsAll(t, files["Edit.svelte"], []string{
+		"type EditForm = {",
+		"quantity: Number(item.Quantity ?? 0),",
+		"publishedOn: String(item.PublishedOn ?? '').slice(0, 10),",
+		"$form.put(routes.widgetUpdate(routeID(item)))",
+	})
+	for name, content := range files {
+		for _, legacy := range []string{"export let", "<slot", "on:submit"} {
+			if strings.Contains(content, legacy) {
+				t.Fatalf("%s contains legacy Svelte syntax %q:\n%s", name, legacy, content)
+			}
+		}
+	}
+
+	numericFiles, err := generator.GenerateInertiaViewFiles(&GeneratedView{
+		ResourceName: "Invoice",
+		PluralName:   "invoices",
+		IDType:       "int64",
+		IDFieldName:  "ID",
+	}, "inertia_svelte_", ".svelte")
+	if err != nil {
+		t.Fatalf("generate numeric Svelte pages: %v", err)
+	}
+	if !strings.Contains(numericFiles["Index.svelte"], "type RouteID = number") {
+		t.Fatalf("numeric Svelte route ID is not typed as number:\n%s", numericFiles["Index.svelte"])
+	}
+}
+
 func TestGenerateInertiaViewFiles_PartialActionsUseEmptyRoutes(t *testing.T) {
 	generator := NewGenerator("postgresql")
 
@@ -413,6 +482,15 @@ func TestGenerateInertiaViewFiles_PartialActionsUseEmptyRoutes(t *testing.T) {
 			name:           "react",
 			templatePrefix: "inertia_react_",
 			extension:      ".tsx",
+			indexRoutes:    []string{`href={routes.widgetShow(routeID(item))}`},
+			indexEmpty:     []string{`href={''}`},
+			showRoutes:     []string{`href={routes.widgetIndex()}`},
+			showEmpty:      []string{`href={''}`},
+		},
+		{
+			name:           "svelte",
+			templatePrefix: "inertia_svelte_",
+			extension:      ".svelte",
 			indexRoutes:    []string{`href={routes.widgetShow(routeID(item))}`},
 			indexEmpty:     []string{`href={''}`},
 			showRoutes:     []string{`href={routes.widgetIndex()}`},
@@ -453,6 +531,7 @@ func TestGenerateInertiaViewFiles_SingleActionOmitsUnusedRoutesImport(t *testing
 	}{
 		{name: "vue", templatePrefix: "inertia_vue_", extension: ".vue"},
 		{name: "react", templatePrefix: "inertia_react_", extension: ".tsx"},
+		{name: "svelte", templatePrefix: "inertia_svelte_", extension: ".svelte"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			view := &GeneratedView{
@@ -507,6 +586,18 @@ func TestGenerateInertiaViewFiles_UsesExistingAvailableActions(t *testing.T) {
 	}
 	if strings.Contains(index, "routes.widgetEdit") || strings.Contains(index, "routes.widgetDestroy") {
 		t.Fatalf("Index page references unavailable routes:\n%s", index)
+	}
+
+	svelteFiles, err := generator.GenerateInertiaViewFiles(view, "inertia_svelte_", ".svelte")
+	if err != nil {
+		t.Fatalf("generate Svelte page with existing actions: %v", err)
+	}
+	svelteIndex := svelteFiles["Index.svelte"]
+	if !strings.Contains(svelteIndex, `href={routes.widgetShow(routeID(item))}`) {
+		t.Fatalf("Svelte Index page should use the existing Show route:\n%s", svelteIndex)
+	}
+	if strings.Contains(svelteIndex, "routes.widgetEdit") || strings.Contains(svelteIndex, "routes.widgetDestroy") {
+		t.Fatalf("Svelte Index page references unavailable routes:\n%s", svelteIndex)
 	}
 }
 

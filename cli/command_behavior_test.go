@@ -600,6 +600,14 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 			wantView:           filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.tsx"),
 			unwantedView:       "views/dashboards_resource.templ",
 		},
+		{
+			name:               "explicit svelte",
+			inertia:            "svelte",
+			wantController:     "example.com/app/internal/inertia",
+			unwantedController: "example.com/app/internal/hypermedia",
+			wantView:           filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.svelte"),
+			unwantedView:       "views/dashboards_resource.templ",
+		},
 	}
 
 	for _, tt := range tests {

@@ -794,6 +794,8 @@ func inertiaViewTemplatePrefix(adapter string) string {
 	switch adapter {
 	case "react":
 		return "inertia_react_"
+	case "svelte":
+		return "inertia_svelte_"
 	default:
 		return "inertia_vue_"
 	}
@@ -803,6 +805,8 @@ func inertiaViewExtension(adapter string) string {
 	switch adapter {
 	case "react":
 		return ".tsx"
+	case "svelte":
+		return ".svelte"
 	default:
 		return ".vue"
 	}

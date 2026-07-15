@@ -36,7 +36,7 @@ func newGenerateRoutesCommand() *cobra.Command {
 		Long: `Generate framework-neutral TypeScript route helpers for Inertia frontends.
 
 The command reads router/routes/*.go as the source of truth and writes
-resources/js/routes.ts for Vue or React Inertia frontends.`,
+resources/js/routes.ts for Vue, React, or Svelte Inertia frontends.`,
 		Example: `  andurel generate routes
   andurel generate routes --json`,
 		Args: cobra.NoArgs,
@@ -78,7 +78,7 @@ func requireInertiaProjectForRoutesJS(rootDir string) error {
 			output.CodeInvalidInertiaAdapter,
 			"andurel generate routes requires an Inertia project",
 			output.ExitUsage,
-			"Create the project with --inertia vue or --inertia react before generating TypeScript route helpers.",
+			"Create the project with --inertia vue, --inertia react, or --inertia svelte before generating TypeScript route helpers.",
 		)
 	}
 	if !layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
@@ -86,7 +86,7 @@ func requireInertiaProjectForRoutesJS(rootDir string) error {
 			output.CodeInvalidInertiaAdapter,
 			fmt.Sprintf("unsupported inertia adapter in andurel.lock: %s", lock.ScaffoldConfig.Inertia),
 			output.ExitUsage,
-			"Use vue or react in scaffoldConfig.inertia before generating TypeScript route helpers.",
+			"Use vue, react, or svelte in scaffoldConfig.inertia before generating TypeScript route helpers.",
 		)
 	}
 	return nil

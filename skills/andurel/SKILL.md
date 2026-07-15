@@ -1,6 +1,6 @@
 ---
 name: andurel
-description: Use this skill for Andurel framework projects when deciding where code belongs, adding or changing resources, controllers, models, services, routes, templ views, Inertia/Vue screens, background jobs, migrations, config, clients, or framework-adjacent internals. Focuses on project structure, layer placement, command discovery, generator workflows, and agent-safe CLI usage.
+description: Use this skill for Andurel framework projects when deciding where code belongs, adding or changing resources, controllers, models, services, routes, templ views, Inertia screens, background jobs, migrations, config, clients, or framework-adjacent internals. Focuses on project structure, layer placement, command discovery, generator workflows, and agent-safe CLI usage.
 ---
 
 # Andurel
@@ -16,7 +16,7 @@ Use this skill when working in an Andurel project or generating Andurel code. It
 - Inspect returned artifact arrays before assuming which files changed.
 - After adding or changing Inertia routes, run `andurel generate routes --json` so frontend pages can import `resources/js/routes.ts`.
 - Follow the repository rules for verification.
-- Prefer the local project pattern over a generic Rails, Echo, Bun, Templ, or Vue convention.
+- Prefer the local project pattern over a generic Rails, Echo, Bun, Templ, or frontend framework convention.
 - Keep controllers as HTTP adapters: parse input, call models or services, map errors, and render a response.
 - Create a service only when there is real application orchestration, not just because code exists.
 
@@ -40,7 +40,7 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 - Put HTTP-specific concerns in `controllers/`, `controllers/admin/`, or `controllers/api/`.
 - Put route names, route paths, and URL builders in `router/routes/`.
 - Put templ rendering helpers and presentation-specific adapters in `views/`.
-- Put admin Inertia pages and reusable Vue components in `resources/js/`.
+- Put admin Inertia pages and reusable frontend components in `resources/js/`.
 - Put River job argument types in `queue/jobs/` and worker implementations or registration in `queue/`.
 - Put provider adapters in `clients/`, email templates/helpers in `email/`, and config/environment loading in `config/`.
 - Put reusable framework-like support that is independent of one resource in `internal/`.
@@ -91,7 +91,7 @@ andurel routes --json
 andurel generate routes --json
 ```
 
-`andurel generate routes` reads `router/routes/*.go` as the source of truth and writes `resources/js/routes.ts`. It only runs when `andurel.lock` has `scaffoldConfig.inertia` set to `vue` or `react`. Import helpers from that file in Vue or React pages instead of hard-coding URLs.
+`andurel generate routes` reads `router/routes/*.go` as the source of truth and writes `resources/js/routes.ts`. It only runs when `andurel.lock` has `scaffoldConfig.inertia` set to `vue`, `react`, or `svelte`. Import helpers from that file in Inertia pages instead of hard-coding URLs.
 
 Check or sync factories:
 
