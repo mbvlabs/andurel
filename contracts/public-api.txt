@@ -171,6 +171,14 @@ package generator // import "github.com/mbvlabs/andurel/generator"
 
 Package generator orchestrates model, controller, view, and scaffold generation.
 
+CONSTANTS
+
+const (
+	ModelModeCRUD       = models.ModelModeCRUD
+	ModelModeReadOnly   = models.ModelModeReadOnly
+	ModelModeCreateOnly = models.ModelModeCreateOnly
+)
+
 FUNCTIONS
 
 func BuildModelPath(modelsDir, resourceName string) string
@@ -394,6 +402,9 @@ type Generator struct {
 func New() (Generator, error)
     New creates a generator with the default project managers.
 
+func (g *Generator) ApplyModelPlan(plan *ModelGenerationPlan) error
+    ApplyModelPlan writes the exact files returned by PlanModel.
+
 func (g *Generator) ApplyModelUpdate(result *UpdateModelResult) error
     ApplyModelUpdate writes a previously computed model update.
 
@@ -418,6 +429,9 @@ func (g *Generator) GenerateControllerWithActionsForModel(resourceName, namespac
 func (g *Generator) GenerateModel(resourceName string, tableNameOverride string, skipFactory bool) error
     GenerateModel generates a model and optional factory for a resource.
 
+func (g *Generator) GenerateModelWithMode(resourceName, tableNameOverride string, skipFactory bool, primaryKeyColumn string, mode ModelMode) error
+    GenerateModelWithMode generates a model using a persisted operation mode.
+
 func (g *Generator) GenerateModelWithPK(resourceName string, tableNameOverride string, skipFactory bool, primaryKeyColumn string) error
     GenerateModelWithPK generates a model using an explicit primary key column.
 
@@ -433,6 +447,9 @@ func (g *Generator) GenerateViewFromModel(resourceName string, withController bo
 
 func (g *Generator) GetModulePath() string
     GetModulePath returns the current project's Go module path.
+
+func (g *Generator) PlanModel(resourceName string, options ModelGenerationOptions) (*ModelGenerationPlan, error)
+    PlanModel computes model generation output without writing files.
 
 func (g *Generator) SetControllerPKResolver(resolver PrimaryKeyResolver)
     SetControllerPKResolver overrides primary key resolution for controller
@@ -499,6 +516,20 @@ type ModelConfig struct {
 }
     ModelConfig configures model.
 
+type ModelGenerationOptions struct {
+	TableNameOverride string
+	SkipFactory       bool
+	PrimaryKeyColumn  string
+	Mode              ModelMode
+}
+    ModelGenerationOptions controls pure model generation planning.
+
+type ModelGenerationPlan struct {
+	ResourceName string
+	Files        []PlannedFile
+}
+    ModelGenerationPlan contains every file produced by model generation.
+
 type ModelManager struct {
 	// Has unexported fields.
 }
@@ -514,6 +545,9 @@ func NewModelManager(
 ) *ModelManager
     NewModelManager creates a new model manager.
 
+func (m *ModelManager) ApplyModelPlan(plan *ModelGenerationPlan) error
+    ApplyModelPlan writes the exact content returned by PlanModel.
+
 func (m *ModelManager) ApplyModelUpdate(result *UpdateModelResult) error
     ApplyModelUpdate writes the updated model and factory file content and runs
     the Go formatter.
@@ -525,6 +559,18 @@ func (m *ModelManager) GenerateModel(
 	primaryKeyColumn string,
 ) error
     GenerateModel generates model files for a resource from project migrations.
+
+func (m *ModelManager) GenerateModelWithMode(
+	resourceName string,
+	tableNameOverride string,
+	skipFactory bool,
+	primaryKeyColumn string,
+	mode models.ModelMode,
+) error
+    GenerateModelWithMode generates model files with a persisted operation mode.
+
+func (m *ModelManager) PlanModel(resourceName string, options ModelGenerationOptions) (*ModelGenerationPlan, error)
+    PlanModel computes every model generation output without writing files.
 
 func (m *ModelManager) SetPrimaryKeyResolver(resolver PrimaryKeyResolver)
     SetPrimaryKeyResolver overrides primary key resolution during model
@@ -540,6 +586,9 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
     UpdateModel inspects the existing model file for resourceName, rebuilds the
     Entity struct from migrations (preserving custom field types), and returns a
     result describing the change without writing anything.
+
+type ModelMode = models.ModelMode
+    ModelMode controls which persistence operations are generated for a model.
 
 type ModelPaths struct {
 	Models string `json:"models"`
@@ -564,6 +613,14 @@ type PathConfig struct {
 	Database    string `yaml:"database"`
 }
     PathConfig contains path configurations
+
+type PlannedFile struct {
+	Path       string
+	OldContent string
+	NewContent string
+	Exists     bool
+}
+    PlannedFile describes one complete file transformation.
 
 type PrimaryKeyInfo struct {
 	ColumnName      string // SQL column name (e.g., "id", "user_id")
