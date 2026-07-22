@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 // TypeOverride lets users map a SQL database type to a custom Go type.
@@ -223,27 +224,12 @@ func normalizeSQLType(sqlType string) string {
 
 // FormatFieldName formats field name.
 func FormatFieldName(dbColumnName string) string {
+	// The conventional primary-key column is the only structural exception.
+	// All other schema vocabulary is converted mechanically.
 	if dbColumnName == "id" {
 		return "ID"
 	}
-
-	parts := strings.Split(dbColumnName, "_")
-
-	var builder strings.Builder
-	builder.Grow(len(dbColumnName))
-
-	for _, part := range parts {
-		if len(part) > 0 && part == "id" {
-			builder.WriteString(strings.ToUpper(part))
-		}
-
-		if len(part) > 0 && part != "id" {
-			builder.WriteString(strings.ToUpper(part[:1]))
-			builder.WriteString(strings.ToLower(part[1:]))
-		}
-	}
-
-	return builder.String()
+	return naming.ToPascalCase(dbColumnName)
 }
 
 // FormatDisplayName formats display name.

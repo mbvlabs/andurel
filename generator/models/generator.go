@@ -12,7 +12,6 @@ import (
 	"text/template"
 
 	"github.com/jinzhu/inflection"
-	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/internal/ddl"
 	"github.com/mbvlabs/andurel/generator/internal/migrations"
@@ -63,7 +62,17 @@ type GeneratedModel struct {
 	ReceiverName        string // s (for the namespace methods)
 	HasCreatedAt        bool
 	HasUpdatedAt        bool
+	Mode                ModelMode
 }
+
+// ModelMode controls which persistence operations are generated for a model.
+type ModelMode string
+
+const (
+	ModelModeCRUD       ModelMode = "crud"
+	ModelModeReadOnly   ModelMode = "read-only"
+	ModelModeCreateOnly ModelMode = "create-only"
+)
 
 // Config controls model generation for a database table.
 type Config struct {
@@ -76,6 +85,7 @@ type Config struct {
 	CustomTypes       []types.TypeOverride
 	PrimaryKeyColumn  string // Override PK column name (empty = auto-detect)
 	GenerateWithoutPK bool   // Force generation without PK handling
+	ModelMode         ModelMode
 }
 
 // BunModelConfig holds configuration for bun model generation
@@ -156,16 +166,14 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		IDFieldName:     config.PrimaryKeyColumn,
 		IDGoFieldName:   "",
 		HasPrimaryKey:   false,
+		Mode:            normalizeModelMode(config.ModelMode),
 	}
 
 	importSet := make(map[string]bool)
 	importSet["context"] = true
-	importSet["errors"] = true
-	importSet["time"] = true
 	importSet["github.com/uptrace/bun"] = true
 	if config.ModulePath != "" {
 		importSet[config.ModulePath+"/internal/storage"] = true
-		importSet[config.ModulePath+"/internal/validation"] = true
 	}
 
 	for _, col := range table.Columns {
@@ -235,6 +243,16 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 
 	if model.HasPrimaryKey && model.IDType == "uuid.UUID" {
 		importSet["github.com/google/uuid"] = true
+	}
+	if model.Mode != ModelModeReadOnly {
+		importSet["errors"] = true
+		if config.ModulePath != "" {
+			importSet[config.ModulePath+"/internal/validation"] = true
+		}
+	}
+	if model.HasPrimaryKey && model.Mode != ModelModeCreateOnly {
+		importSet["errors"] = true
+		importSet["database/sql"] = true
 	}
 
 	stdImports, extImports := groupAndSortImports(importSet)
@@ -355,6 +373,46 @@ func (g *Generator) GenerateModel(
 	primaryKeyColumn string,
 	generateWithoutPK bool,
 ) error {
+	return g.GenerateModelWithMode(cat, resourceName, pluralName, modelPath, modulePath, tableNameOverride, nullType, primaryKeyColumn, generateWithoutPK, ModelModeCRUD)
+}
+
+// GenerateModelWithMode renders and writes a model with a restricted operation surface.
+func (g *Generator) GenerateModelWithMode(
+	cat *catalog.Catalog,
+	resourceName string,
+	pluralName string,
+	modelPath string,
+	modulePath string,
+	tableNameOverride string,
+	nullType string,
+	primaryKeyColumn string,
+	generateWithoutPK bool,
+	mode ModelMode,
+) error {
+	_, modelContent, err := g.PlanModelSource(cat, resourceName, pluralName, modulePath, tableNameOverride, nullType, primaryKeyColumn, generateWithoutPK, mode)
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(modelPath, []byte(modelContent), constants.FilePermissionPrivate); err != nil {
+		return fmt.Errorf("failed to write model file: %w", err)
+	}
+
+	return nil
+}
+
+// PlanModelSource renders formatted model source without writing files.
+func (g *Generator) PlanModelSource(
+	cat *catalog.Catalog,
+	resourceName string,
+	pluralName string,
+	modulePath string,
+	tableNameOverride string,
+	nullType string,
+	primaryKeyColumn string,
+	generateWithoutPK bool,
+	mode ModelMode,
+) (*GeneratedModel, string, error) {
 	tableName := pluralName
 	if tableNameOverride != "" {
 		tableName = tableNameOverride
@@ -369,39 +427,37 @@ func (g *Generator) GenerateModel(
 		NullType:          nullType,
 		PrimaryKeyColumn:  primaryKeyColumn,
 		GenerateWithoutPK: generateWithoutPK,
+		ModelMode:         normalizeModelMode(mode),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to build model: %w", err)
+		return nil, "", fmt.Errorf("failed to build model: %w", err)
 	}
 
 	model.TableNameOverride = tableNameOverride
 	model.TableNameOverridden = tableNameOverride != ""
-	// When table name is overridden, don't pluralize the resource name for function names
-	if tableNameOverride != "" {
-		model.PluralName = resourceName
-	} else {
-		model.PluralName = inflection.Plural(resourceName)
-	}
+	model.PluralName = inflection.Plural(resourceName)
 
 	templateContent, err := templates.Files.ReadFile("model.tmpl")
 	if err != nil {
-		return fmt.Errorf("failed to read model template: %w", err)
+		return nil, "", fmt.Errorf("failed to read model template: %w", err)
 	}
 
 	modelContent, err := g.GenerateModelFile(model, string(templateContent))
 	if err != nil {
-		return fmt.Errorf("failed to render model file: %w", err)
+		return nil, "", fmt.Errorf("failed to render model file: %w", err)
 	}
-
-	if err := os.WriteFile(modelPath, []byte(modelContent), constants.FilePermissionPrivate); err != nil {
-		return fmt.Errorf("failed to write model file: %w", err)
+	formatted, err := format.Source([]byte(modelContent))
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to format model source: %w", err)
 	}
+	return model, string(formatted), nil
+}
 
-	if err := files.FormatGoFile(modelPath); err != nil {
-		return fmt.Errorf("failed to format model file: %w", err)
+func normalizeModelMode(mode ModelMode) ModelMode {
+	if mode == "" {
+		return ModelModeCRUD
 	}
-
-	return nil
+	return mode
 }
 
 // GeneratedFactory represents a factory for a model

@@ -81,6 +81,21 @@ func TestMapSQLTypeToGo_NonNullableTypes(t *testing.T) {
 	}
 }
 
+func TestFormatFieldNameUsesMechanicalSchemaCasing(t *testing.T) {
+	tests := map[string]string{
+		"id":                       "ID",
+		"url":                      "Url",
+		"cidr":                     "Cidr",
+		"server_ssh_credential_id": "ServerSshCredentialId",
+		"wireguard_peer_id":        "WireguardPeerId",
+	}
+	for input, want := range tests {
+		if got := FormatFieldName(input); got != want {
+			t.Fatalf("FormatFieldName(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
 func TestMapSQLTypeToGo_NullableTypes_Pointer(t *testing.T) {
 	tests := []struct {
 		name        string

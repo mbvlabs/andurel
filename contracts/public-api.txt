@@ -1100,6 +1100,7 @@ type Config struct {
 	CustomTypes       []types.TypeOverride
 	PrimaryKeyColumn  string // Override PK column name (empty = auto-detect)
 	GenerateWithoutPK bool   // Force generation without PK handling
+	ModelMode         ModelMode
 }
     Config controls model generation for a database table.
 
@@ -1175,6 +1176,7 @@ type GeneratedModel struct {
 	ReceiverName        string // s (for the namespace methods)
 	HasCreatedAt        bool
 	HasUpdatedAt        bool
+	Mode                ModelMode
 }
     GeneratedModel contains the template data for a generated model file.
 
@@ -1214,12 +1216,48 @@ func (g *Generator) GenerateModel(
 func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string) (string, error)
     GenerateModelFile renders model template data into Go source.
 
+func (g *Generator) GenerateModelWithMode(
+	cat *catalog.Catalog,
+	resourceName string,
+	pluralName string,
+	modelPath string,
+	modulePath string,
+	tableNameOverride string,
+	nullType string,
+	primaryKeyColumn string,
+	generateWithoutPK bool,
+	mode ModelMode,
+) error
+    GenerateModelWithMode renders and writes a model with a restricted operation
+    surface.
+
 func (g *Generator) PlanFactorySource(factory *GeneratedFactory) (string, error)
     PlanFactorySource renders formatted factory source without writing files.
+
+func (g *Generator) PlanModelSource(
+	cat *catalog.Catalog,
+	resourceName string,
+	pluralName string,
+	modulePath string,
+	tableNameOverride string,
+	nullType string,
+	primaryKeyColumn string,
+	generateWithoutPK bool,
+	mode ModelMode,
+) (*GeneratedModel, string, error)
+    PlanModelSource renders formatted model source without writing files.
 
 func (g *Generator) WriteFactoryFile(factory *GeneratedFactory, outputDir string) error
     WriteFactoryFile writes a factory file to disk
 
+type ModelMode string
+    ModelMode controls which persistence operations are generated for a model.
+
+const (
+	ModelModeCRUD       ModelMode = "crud"
+	ModelModeReadOnly   ModelMode = "read-only"
+	ModelModeCreateOnly ModelMode = "create-only"
+)
 
 ## github.com/mbvlabs/andurel/generator/templates
 package templates // import "github.com/mbvlabs/andurel/generator/templates"
@@ -2906,9 +2944,9 @@ func ToKebabCase(s string) string
     ToKebabCase converts a snake_case identifier into kebab-case.
 
 func ToLowerCamelCase(s string) string
-    ToLowerCamelCase converts a PascalCase identifier into camelCase by
-    lowercasing the first character. Examples: "NewUser" -> "newUser",
-    "AdminUser" -> "adminUser", "User" -> "user"
+    ToLowerCamelCase converts a PascalCase identifier into camelCase while
+    preserving word boundaries encoded by a leading uppercase run. Examples:
+    "NewUser" -> "newUser", "SSHCredential" -> "sshCredential".
 
 func ToLowerCamelCaseFromAny(s string) string
     ToLowerCamelCaseFromAny converts snake_case or PascalCase into lower

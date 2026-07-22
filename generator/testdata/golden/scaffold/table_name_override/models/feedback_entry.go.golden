@@ -1,5 +1,7 @@
 package models
 
+// andurel:model-mode crud
+
 import (
 	"context"
 	"database/sql"
@@ -23,16 +25,16 @@ type FeedbackEntryEntity struct {
 	UpdatedAt     time.Time     `bun:"updated_at"`
 }
 
-func (e *FeedbackEntryEntity) Validate() error {
-	return nil
-}
-
 func (fe feedbackEntry) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (FeedbackEntryEntity, error) {
 	var entity FeedbackEntryEntity
-	if err := db.NewSelect().
+	err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return FeedbackEntryEntity{}, ErrNotFound
+		}
 		return FeedbackEntryEntity{}, err
 	}
 
@@ -74,7 +76,6 @@ type UpdateFeedbackEntryData struct {
 	Feedback    string
 	Rating      sql.NullInt32
 	SubmittedAt sql.NullTime
-	UpdatedAt   time.Time
 }
 
 func (fe feedbackEntry) Update(ctx context.Context, db storage.Executor, data UpdateFeedbackEntryData) (FeedbackEntryEntity, error) {
@@ -91,7 +92,7 @@ func (fe feedbackEntry) Update(ctx context.Context, db storage.Executor, data Up
 		return FeedbackEntryEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewUpdate().
+	err := db.NewUpdate().
 		Model(&entity).
 		Column("student_name").
 		Column("feedback").
@@ -100,7 +101,11 @@ func (fe feedbackEntry) Update(ctx context.Context, db storage.Executor, data Up
 		Column("updated_at").
 		WherePK().
 		Returning("*").
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return FeedbackEntryEntity{}, ErrNotFound
+		}
 		return FeedbackEntryEntity{}, err
 	}
 
@@ -108,12 +113,20 @@ func (fe feedbackEntry) Update(ctx context.Context, db storage.Executor, data Up
 }
 
 func (fe feedbackEntry) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	_, err := db.NewDelete().
-		Model((*FeedbackEntryEntity)(nil)).
+	var entity FeedbackEntryEntity
+	err := db.NewDelete().
+		Model(&entity).
 		Where("id = ?", id).
-		Exec(ctx)
+		Returning("*").
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
 
-	return err
+	return nil
 }
 
 func (fe feedbackEntry) All(ctx context.Context, db storage.Executor) ([]FeedbackEntryEntity, error) {
@@ -127,15 +140,15 @@ func (fe feedbackEntry) All(ctx context.Context, db storage.Executor) ([]Feedbac
 	return entities, nil
 }
 
-type PaginatedFeedbackEntry struct {
-	FeedbackEntry []FeedbackEntryEntity
-	TotalCount    int64
-	Page          int64
-	PageSize      int64
-	TotalPages    int64
+type PaginatedFeedbackEntries struct {
+	FeedbackEntries []FeedbackEntryEntity
+	TotalCount      int64
+	Page            int64
+	PageSize        int64
+	TotalPages      int64
 }
 
-func (fe feedbackEntry) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedFeedbackEntry, error) {
+func (fe feedbackEntry) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedFeedbackEntries, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -151,7 +164,7 @@ func (fe feedbackEntry) Paginate(ctx context.Context, db storage.Executor, page,
 	totalCount, err := db.NewSelect().
 		Model(&FeedbackEntryEntity{}).Count(ctx)
 	if err != nil {
-		return PaginatedFeedbackEntry{}, err
+		return PaginatedFeedbackEntries{}, err
 	}
 
 	entities := make([]FeedbackEntryEntity, 0, int(pageSize))
@@ -160,23 +173,23 @@ func (fe feedbackEntry) Paginate(ctx context.Context, db storage.Executor, page,
 		Limit(int(pageSize)).
 		Offset(int(offset)).
 		Scan(ctx); err != nil {
-		return PaginatedFeedbackEntry{}, err
+		return PaginatedFeedbackEntries{}, err
 	}
 
 	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
 
-	return PaginatedFeedbackEntry{
-		FeedbackEntry: entities,
-		TotalCount:    int64(totalCount),
-		Page:          page,
-		PageSize:      pageSize,
-		TotalPages:    totalPages,
+	return PaginatedFeedbackEntries{
+		FeedbackEntries: entities,
+		TotalCount:      int64(totalCount),
+		Page:            page,
+		PageSize:        pageSize,
+		TotalPages:      totalPages,
 	}, nil
 }
 
-func (fe feedbackEntry) Upsert(ctx context.Context, db storage.Executor, data CreateFeedbackEntryData) (FeedbackEntryEntity, error) {
+func (fe feedbackEntry) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, data CreateFeedbackEntryData) (FeedbackEntryEntity, error) {
 	entity := FeedbackEntryEntity{
-		ID:          uuid.New(),
+		ID:          id,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 		StudentName: data.StudentName,

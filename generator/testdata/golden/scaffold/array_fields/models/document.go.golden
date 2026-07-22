@@ -1,7 +1,10 @@
 package models
 
+// andurel:model-mode crud
+
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"testapp/internal/validation"
@@ -23,16 +26,16 @@ type DocumentEntity struct {
 	UpdatedAt     time.Time `bun:"updated_at"`
 }
 
-func (e *DocumentEntity) Validate() error {
-	return nil
-}
-
 func (d document) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (DocumentEntity, error) {
 	var entity DocumentEntity
-	if err := db.NewSelect().
+	err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return DocumentEntity{}, ErrNotFound
+		}
 		return DocumentEntity{}, err
 	}
 
@@ -77,7 +80,6 @@ type UpdateDocumentData struct {
 	PageNumbers []int32
 	ViewCount   int32
 	IsPublished bool
-	UpdatedAt   time.Time
 }
 
 func (d document) Update(ctx context.Context, db storage.Executor, data UpdateDocumentData) (DocumentEntity, error) {
@@ -95,7 +97,7 @@ func (d document) Update(ctx context.Context, db storage.Executor, data UpdateDo
 		return DocumentEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewUpdate().
+	err := db.NewUpdate().
 		Model(&entity).
 		Column("title").
 		Column("tags").
@@ -105,7 +107,11 @@ func (d document) Update(ctx context.Context, db storage.Executor, data UpdateDo
 		Column("updated_at").
 		WherePK().
 		Returning("*").
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return DocumentEntity{}, ErrNotFound
+		}
 		return DocumentEntity{}, err
 	}
 
@@ -113,12 +119,20 @@ func (d document) Update(ctx context.Context, db storage.Executor, data UpdateDo
 }
 
 func (d document) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	_, err := db.NewDelete().
-		Model((*DocumentEntity)(nil)).
+	var entity DocumentEntity
+	err := db.NewDelete().
+		Model(&entity).
 		Where("id = ?", id).
-		Exec(ctx)
+		Returning("*").
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
 
-	return err
+	return nil
 }
 
 func (d document) All(ctx context.Context, db storage.Executor) ([]DocumentEntity, error) {
@@ -179,9 +193,9 @@ func (d document) Paginate(ctx context.Context, db storage.Executor, page, pageS
 	}, nil
 }
 
-func (d document) Upsert(ctx context.Context, db storage.Executor, data CreateDocumentData) (DocumentEntity, error) {
+func (d document) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, data CreateDocumentData) (DocumentEntity, error) {
 	entity := DocumentEntity{
-		ID:          uuid.New(),
+		ID:          id,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 		Title:       data.Title,

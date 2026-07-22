@@ -38,7 +38,7 @@ func TestDetectPrimaryKey(t *testing.T) {
 			),
 			want: PrimaryKeyInfo{
 				ColumnName:  "order_id",
-				GoFieldName: "OrderID",
+				GoFieldName: "OrderId",
 				DataType:    "uuid",
 				GoType:      "uuid.UUID",
 				Found:       true,

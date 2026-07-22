@@ -1,5 +1,7 @@
 package models
 
+// andurel:model-mode {{.Mode}}
+
 import (
 {{- range .StandardImports}}
 	"{{.}}"
@@ -19,17 +21,17 @@ type {{.EntityName}} struct {
 {{- end}}
 }
 
-func (e *{{.EntityName}}) Validate() error {
-	return nil
-}
-
-{{if .HasPrimaryKey}}
+{{if and .HasPrimaryKey (ne .Mode "create-only")}}
 func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
 	var entity {{.EntityName}}
-	if err := db.NewSelect().
+	err := db.NewSelect().
 		Model(&entity).
 		Where("{{.IDFieldName}} = ?", id).
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return {{.EntityName}}{}, ErrNotFound
+		}
 		return {{.EntityName}}{}, err
 	}
 
@@ -37,6 +39,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, db storage
 }
 {{end}}
 
+{{if ne .Mode "read-only"}}
 type Create{{.Name}}Data struct {
 {{- range .Fields}}
 {{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
@@ -84,12 +87,13 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db stora
 
 	return entity, nil
 }
+{{end}}
 
-{{if .HasPrimaryKey}}
+{{if and .HasPrimaryKey (eq .Mode "crud")}}
 type Update{{.Name}}Data struct {
 	{{.IDGoFieldName}} {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}
 {{- range .Fields}}
-{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt")}}
+{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
 	{{.Name}} {{.Type}}
 {{- end}}
 {{- end}}
@@ -112,7 +116,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewUpdate().
+	err := db.NewUpdate().
 		Model(&entity).
 {{- range .Fields}}
 {{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt")}}
@@ -121,7 +125,11 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 {{- end}}
 		WherePK().
 		Returning("*").
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return {{.EntityName}}{}, ErrNotFound
+		}
 		return {{.EntityName}}{}, err
 	}
 
@@ -129,15 +137,24 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 }
 
 func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) error {
-	_, err := db.NewDelete().
-		Model((*{{.EntityName}})(nil)).
+	var entity {{.EntityName}}
+	err := db.NewDelete().
+		Model(&entity).
 		Where("{{.IDFieldName}} = ?", id).
-		Exec(ctx)
+		Returning("*").
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
 
-	return err
+	return nil
 }
 {{end}}
 
+{{if ne .Mode "create-only"}}
 func ({{.ReceiverName}} {{.NamespaceType}}) All(ctx context.Context, db storage.Executor) ([]{{.EntityName}}, error) {
 	var entities []{{.EntityName}}
 	if err := db.NewSelect().
@@ -196,17 +213,12 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db sto
 		TotalPages: totalPages,
 	}, nil
 }
+{{end}}
 
-{{if .HasPrimaryKey}}
-func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db storage.Executor, data Create{{.Name}}Data) ({{.EntityName}}, error) {
+{{if and .HasPrimaryKey (eq .Mode "crud")}}
+func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}, data Create{{.Name}}Data) ({{.EntityName}}, error) {
 	entity := {{.EntityName}}{
-{{- if not .IsAutoIncrementID}}
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
-		{{.IDGoFieldName}}: uuid.New(),
-{{- else}}
-		{{.IDGoFieldName}}: data.{{.IDGoFieldName}},
-{{- end}}
-{{- end}}
+		{{.IDGoFieldName}}: id,
 {{- if .HasCreatedAt}}
 		CreatedAt: time.Now(),
 {{- end}}
