@@ -120,7 +120,7 @@ func (p *CreateTableParser) parseColumnDefinitions(
 			continue
 		}
 
-		if strings.HasPrefix(defLower, "check") ||
+		if strings.HasPrefix(defLower, "check ") || strings.HasPrefix(defLower, "check(") ||
 			(strings.HasPrefix(defLower, "constraint") && strings.Contains(defLower, " check")) {
 			column, values := parseCheckInValues(def)
 			if len(values) > 0 {

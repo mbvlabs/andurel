@@ -479,6 +479,12 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 		}
 	}
 	for _, field := range genModel.Fields {
+		switch {
+		case strings.Contains(field.Type, "sql.Null"):
+			standardImports = append(standardImports, "database/sql")
+		case strings.Contains(field.Type, "bun.Null"):
+			externalImports = append(externalImports, "github.com/uptrace/bun")
+		}
 		if field.Package == "" {
 			continue
 		}

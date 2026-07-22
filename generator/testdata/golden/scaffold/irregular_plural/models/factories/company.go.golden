@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"testapp/internal/storage"
-	"testapp/models"
-
 	"github.com/go-faker/faker/v4"
 	"github.com/google/uuid"
+	"testapp/internal/storage"
+	"testapp/models"
 )
 
 // CompanyFactory wraps models.CompanyEntity for testing
