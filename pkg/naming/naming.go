@@ -58,25 +58,23 @@ func ToCamelCase(s string) string {
 
 	var builder strings.Builder
 	builder.Grow(len(s))
-
-	// First part stays lowercase
-	builder.WriteString(strings.ToLower(parts[0]))
-
-	// Capitalize first letter of remaining parts
-	for i := 1; i < len(parts); i++ {
-		if len(parts[i]) > 0 {
-			builder.WriteString(strings.ToUpper(parts[i][:1]))
-			if len(parts[i]) > 1 {
-				builder.WriteString(strings.ToLower(parts[i][1:]))
-			}
+	for i, part := range parts {
+		if part == "" {
+			continue
 		}
+		if i == 0 {
+			builder.WriteString(strings.ToLower(part))
+			continue
+		}
+		builder.WriteString(pascalNamePart(part))
 	}
 
 	return builder.String()
 }
 
-// ToLowerCamelCase converts a PascalCase identifier into camelCase by lowercasing the first character.
-// Examples: "NewUser" -> "newUser", "AdminUser" -> "adminUser", "User" -> "user"
+// ToLowerCamelCase converts a PascalCase identifier into camelCase while
+// preserving word boundaries encoded by a leading uppercase run.
+// Examples: "NewUser" -> "newUser", "SSHCredential" -> "sshCredential".
 func ToLowerCamelCase(s string) string {
 	if s == "" {
 		return ""
@@ -87,8 +85,19 @@ func ToLowerCamelCase(s string) string {
 		return s
 	}
 
-	// Convert first character to lowercase
-	runes[0] = unicode.ToLower(runes[0])
+	uppercaseEnd := 0
+	for uppercaseEnd < len(runes) && unicode.IsUpper(runes[uppercaseEnd]) {
+		uppercaseEnd++
+	}
+	if uppercaseEnd > 1 && uppercaseEnd < len(runes) && unicode.IsLower(runes[uppercaseEnd]) {
+		uppercaseEnd--
+	}
+	if uppercaseEnd == 0 {
+		uppercaseEnd = 1
+	}
+	for i := 0; i < uppercaseEnd; i++ {
+		runes[i] = unicode.ToLower(runes[i])
+	}
 	return string(runes)
 }
 
@@ -136,17 +145,23 @@ func ToPascalCase(s string) string {
 	var builder strings.Builder
 	builder.Grow(len(s))
 
-	// Capitalize first letter of each part
 	for _, part := range parts {
-		if len(part) > 0 {
-			builder.WriteString(strings.ToUpper(part[:1]))
-			if len(part) > 1 {
-				builder.WriteString(strings.ToLower(part[1:]))
-			}
+		if part != "" {
+			builder.WriteString(pascalNamePart(part))
 		}
 	}
 
 	return builder.String()
+}
+
+func pascalNamePart(part string) string {
+	lower := strings.ToLower(part)
+	runes := []rune(lower)
+	if len(runes) == 0 {
+		return ""
+	}
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
 }
 
 // ParseNamespacedResource splits a resource name into an optional single-level

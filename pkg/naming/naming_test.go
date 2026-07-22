@@ -59,6 +59,8 @@ func TestToCamelCase(t *testing.T) {
 		{name: "empty string", input: "", expected: ""},
 		{name: "already camelCase", input: "adminUsers", expected: "adminusers"},
 		{name: "single char parts", input: "a_b_c", expected: "aBC"},
+		{name: "schema ssh is mechanical", input: "server_ssh_credentials", expected: "serverSshCredentials"},
+		{name: "schema compound is mechanical", input: "wireguard_peers", expected: "wireguardPeers"},
 	}
 
 	for _, tt := range tests {
@@ -84,6 +86,8 @@ func TestToLowerCamelCase(t *testing.T) {
 		{name: "empty string", input: "", expected: ""},
 		{name: "already camelCase", input: "user", expected: "user"},
 		{name: "single char", input: "U", expected: "u"},
+		{name: "leading initialism", input: "SSHCredential", expected: "sshCredential"},
+		{name: "initialism only", input: "URL", expected: "url"},
 	}
 
 	for _, tt := range tests {
@@ -131,6 +135,10 @@ func TestToPascalCase(t *testing.T) {
 		{name: "empty string", input: "", expected: ""},
 		{name: "single char parts", input: "a_b_c", expected: "ABC"},
 		{name: "already lowercase", input: "user", expected: "User"},
+		{name: "schema ssh is mechanical", input: "server_ssh_credentials", expected: "ServerSshCredentials"},
+		{name: "schema compound is mechanical", input: "wireguard_peers", expected: "WireguardPeers"},
+		{name: "schema url is mechanical", input: "url", expected: "Url"},
+		{name: "schema cidr is mechanical", input: "cidr", expected: "Cidr"},
 	}
 
 	for _, tt := range tests {

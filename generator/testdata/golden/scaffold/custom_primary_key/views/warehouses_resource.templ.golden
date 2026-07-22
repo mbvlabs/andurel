@@ -78,10 +78,10 @@ templ (wi WarehouseIndex) Page() {
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 												<div class="flex flex-wrap gap-3 text-sm">
 													
-													<a class="text-slate-300 hover:text-slate-100" href={ routes.WarehouseShow.URL(warehouse.ID) }>View</a>
+											<a class="text-slate-300 hover:text-slate-100" href={ routes.WarehouseShow.URL(warehouse.Slug) }>View</a>
 													
 													
-													<a class="text-slate-300 hover:text-slate-100" href={ routes.WarehouseEdit.URL(warehouse.ID) }>Edit</a>
+											<a class="text-slate-300 hover:text-slate-100" href={ routes.WarehouseEdit.URL(warehouse.Slug) }>Edit</a>
 													
 												</div>
 											</td>
@@ -116,7 +116,7 @@ templ (ws WarehouseShow) Page() {
 						<h1 class="text-2xl font-semibold text-slate-100">Warehouse Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
 							
-							<a href={ routes.WarehouseEdit.URL(ws.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
+							<a href={ routes.WarehouseEdit.URL(ws.Item.Slug) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
 							
 							
 							<a class="text-sm text-slate-300 hover:text-slate-100" href={ hypermedia.ResolveBackURL(ctx, routes.WarehouseIndex.URL()) }>Back to List</a>
@@ -222,7 +222,7 @@ templ (we WarehouseEdit) Page() {
 							<p class="text-sm text-slate-400">Update the details for this warehouse.</p>
 						</div>
 						<div class="p-6 pt-0">
-							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.WarehouseUpdate.URL(we.Item.ID)) }>
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.WarehouseUpdate.URL(we.Item.Slug)) }>
 								<fieldset data-attr:disabled="$_submitting">
 									<div class="space-y-4">
 										
@@ -245,7 +245,7 @@ templ (we WarehouseEdit) Page() {
 								</fieldset>
 							</form>
 							<div role="separator" class="my-6 shrink-0 bg-slate-800 h-px w-full"></div>
-							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.WarehouseDestroy.URL(we.Item.ID)) }>Destroy Warehouse</button>
+							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.WarehouseDestroy.URL(we.Item.Slug)) }>Destroy Warehouse</button>
 							
 						</div>
 					</div>
@@ -254,4 +254,3 @@ templ (we WarehouseEdit) Page() {
 		}
 	}
 }
-

@@ -1,7 +1,10 @@
 package models
 
+// andurel:model-mode crud
+
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"testapp/internal/validation"
@@ -20,16 +23,16 @@ type ProjectEntity struct {
 	UpdatedAt     time.Time `bun:"updated_at"`
 }
 
-func (e *ProjectEntity) Validate() error {
-	return nil
-}
-
 func (p project) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ProjectEntity, error) {
 	var entity ProjectEntity
-	if err := db.NewSelect().
+	err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ProjectEntity{}, ErrNotFound
+		}
 		return ProjectEntity{}, err
 	}
 
@@ -62,10 +65,9 @@ func (p project) Create(ctx context.Context, db storage.Executor, data CreatePro
 }
 
 type UpdateProjectData struct {
-	ID        uuid.UUID
-	Title     string
-	Status    string
-	UpdatedAt time.Time
+	ID     uuid.UUID
+	Title  string
+	Status string
 }
 
 func (p project) Update(ctx context.Context, db storage.Executor, data UpdateProjectData) (ProjectEntity, error) {
@@ -80,14 +82,18 @@ func (p project) Update(ctx context.Context, db storage.Executor, data UpdatePro
 		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewUpdate().
+	err := db.NewUpdate().
 		Model(&entity).
 		Column("title").
 		Column("status").
 		Column("updated_at").
 		WherePK().
 		Returning("*").
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ProjectEntity{}, ErrNotFound
+		}
 		return ProjectEntity{}, err
 	}
 
@@ -95,12 +101,20 @@ func (p project) Update(ctx context.Context, db storage.Executor, data UpdatePro
 }
 
 func (p project) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	_, err := db.NewDelete().
-		Model((*ProjectEntity)(nil)).
+	var entity ProjectEntity
+	err := db.NewDelete().
+		Model(&entity).
 		Where("id = ?", id).
-		Exec(ctx)
+		Returning("*").
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
 
-	return err
+	return nil
 }
 
 func (p project) All(ctx context.Context, db storage.Executor) ([]ProjectEntity, error) {
@@ -161,9 +175,9 @@ func (p project) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 	}, nil
 }
 
-func (p project) Upsert(ctx context.Context, db storage.Executor, data CreateProjectData) (ProjectEntity, error) {
+func (p project) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, data CreateProjectData) (ProjectEntity, error) {
 	entity := ProjectEntity{
-		ID:        uuid.New(),
+		ID:        id,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Title:     data.Title,

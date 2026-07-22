@@ -1,5 +1,7 @@
 package models
 
+// andurel:model-mode crud
+
 import (
 	"context"
 	"database/sql"
@@ -14,8 +16,8 @@ import (
 
 type OrderEntity struct {
 	bun.BaseModel `bun:"table:orders,alias:orders"`
-	OrderID       uuid.UUID    `bun:"order_id,pk,type:uuid"`
-	CustomerID    uuid.UUID    `bun:"customer_id,type:uuid"`
+	OrderId       uuid.UUID    `bun:"order_id,pk,type:uuid"`
+	CustomerId    uuid.UUID    `bun:"customer_id,type:uuid"`
 	Reference     string       `bun:"reference"`
 	TotalCents    int64        `bun:"total_cents"`
 	Status        string       `bun:"status"`
@@ -24,16 +26,16 @@ type OrderEntity struct {
 	UpdatedAt     time.Time    `bun:"updated_at"`
 }
 
-func (e *OrderEntity) Validate() error {
-	return nil
-}
-
 func (o order) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (OrderEntity, error) {
 	var entity OrderEntity
-	if err := db.NewSelect().
+	err := db.NewSelect().
 		Model(&entity).
 		Where("order_id = ?", id).
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return OrderEntity{}, ErrNotFound
+		}
 		return OrderEntity{}, err
 	}
 
@@ -41,7 +43,7 @@ func (o order) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (Ord
 }
 
 type CreateOrderData struct {
-	CustomerID uuid.UUID
+	CustomerId uuid.UUID
 	Reference  string
 	TotalCents int64
 	Status     string
@@ -50,10 +52,10 @@ type CreateOrderData struct {
 
 func (o order) Create(ctx context.Context, db storage.Executor, data CreateOrderData) (OrderEntity, error) {
 	entity := OrderEntity{
-		OrderID:    uuid.New(),
+		OrderId:    uuid.New(),
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
-		CustomerID: data.CustomerID,
+		CustomerId: data.CustomerId,
 		Reference:  data.Reference,
 		TotalCents: data.TotalCents,
 		Status:     data.Status,
@@ -72,20 +74,19 @@ func (o order) Create(ctx context.Context, db storage.Executor, data CreateOrder
 }
 
 type UpdateOrderData struct {
-	OrderID    uuid.UUID
-	CustomerID uuid.UUID
+	OrderId    uuid.UUID
+	CustomerId uuid.UUID
 	Reference  string
 	TotalCents int64
 	Status     string
 	PlacedAt   sql.NullTime
-	UpdatedAt  time.Time
 }
 
 func (o order) Update(ctx context.Context, db storage.Executor, data UpdateOrderData) (OrderEntity, error) {
 	entity := OrderEntity{
-		OrderID:    data.OrderID,
+		OrderId:    data.OrderId,
 		UpdatedAt:  time.Now(),
-		CustomerID: data.CustomerID,
+		CustomerId: data.CustomerId,
 		Reference:  data.Reference,
 		TotalCents: data.TotalCents,
 		Status:     data.Status,
@@ -96,7 +97,7 @@ func (o order) Update(ctx context.Context, db storage.Executor, data UpdateOrder
 		return OrderEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewUpdate().
+	err := db.NewUpdate().
 		Model(&entity).
 		Column("customer_id").
 		Column("reference").
@@ -106,7 +107,11 @@ func (o order) Update(ctx context.Context, db storage.Executor, data UpdateOrder
 		Column("updated_at").
 		WherePK().
 		Returning("*").
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return OrderEntity{}, ErrNotFound
+		}
 		return OrderEntity{}, err
 	}
 
@@ -114,12 +119,20 @@ func (o order) Update(ctx context.Context, db storage.Executor, data UpdateOrder
 }
 
 func (o order) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	_, err := db.NewDelete().
-		Model((*OrderEntity)(nil)).
+	var entity OrderEntity
+	err := db.NewDelete().
+		Model(&entity).
 		Where("order_id = ?", id).
-		Exec(ctx)
+		Returning("*").
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
 
-	return err
+	return nil
 }
 
 func (o order) All(ctx context.Context, db storage.Executor) ([]OrderEntity, error) {
@@ -180,12 +193,12 @@ func (o order) Paginate(ctx context.Context, db storage.Executor, page, pageSize
 	}, nil
 }
 
-func (o order) Upsert(ctx context.Context, db storage.Executor, data CreateOrderData) (OrderEntity, error) {
+func (o order) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, data CreateOrderData) (OrderEntity, error) {
 	entity := OrderEntity{
-		OrderID:    uuid.New(),
+		OrderId:    id,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
-		CustomerID: data.CustomerID,
+		CustomerId: data.CustomerId,
 		Reference:  data.Reference,
 		TotalCents: data.TotalCents,
 		Status:     data.Status,
