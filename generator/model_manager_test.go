@@ -3,9 +3,11 @@ package generator
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/mbvlabs/andurel/generator/models"
 	"github.com/mbvlabs/andurel/pkg/cache"
 )
 
@@ -108,4 +110,146 @@ func TestSetupModelContext(t *testing.T) {
 			t.Errorf("Expected accounts, got %s", ctx.TableName)
 		}
 	})
+}
+
+func TestPlanModelReturnsCompleteFormattedOutputWithoutWriting(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	root, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	writeModelPlanningFixture(t, root)
+	originalRegistry, err := os.ReadFile(filepath.Join(root, "models", "model.go"))
+	if err != nil {
+		t.Fatalf("read original registry: %v", err)
+	}
+	originalWorkingDirectory := root
+	t.Setenv("PATH", "")
+
+	plan, err := manager.PlanModel("ServerSSHCredential", ModelGenerationOptions{PrimaryKeyColumn: "id"})
+	if err != nil {
+		t.Fatalf("plan model: %v", err)
+	}
+
+	wantPaths := []string{
+		filepath.Join(root, "models", "server_ssh_credential.go"),
+		filepath.Join(root, "models", "factories", "server_ssh_credential.go"),
+		filepath.Join(root, "models", "model.go"),
+	}
+	gotPaths := make([]string, 0, len(plan.Files))
+	for _, file := range plan.Files {
+		gotPaths = append(gotPaths, file.Path)
+		if file.NewContent == "" {
+			t.Fatalf("planned file %s has empty content", file.Path)
+		}
+	}
+	for _, want := range wantPaths {
+		if !slices.Contains(gotPaths, want) {
+			t.Fatalf("planned paths %#v do not contain %q", gotPaths, want)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, "models", "server_ssh_credential.go")); !os.IsNotExist(err) {
+		t.Fatalf("planning wrote model file: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "models", "factories")); !os.IsNotExist(err) {
+		t.Fatalf("planning created factory directory: %v", err)
+	}
+	registryAfter, err := os.ReadFile(filepath.Join(root, "models", "model.go"))
+	if err != nil {
+		t.Fatalf("read registry after planning: %v", err)
+	}
+	if string(registryAfter) != string(originalRegistry) {
+		t.Fatalf("planning changed registry\nbefore:\n%s\nafter:\n%s", originalRegistry, registryAfter)
+	}
+	workingDirectoryAfter, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory after planning: %v", err)
+	}
+	if workingDirectoryAfter != originalWorkingDirectory {
+		t.Fatalf("planning changed working directory from %q to %q", originalWorkingDirectory, workingDirectoryAfter)
+	}
+}
+
+func TestGenerateModelAppliesExactlyThePlannedContent(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	root, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	writeModelPlanningFixture(t, root)
+	options := ModelGenerationOptions{PrimaryKeyColumn: "id", Mode: models.ModelModeCRUD}
+	plan, err := manager.PlanModel("ServerSSHCredential", options)
+	if err != nil {
+		t.Fatalf("plan model: %v", err)
+	}
+
+	if err := manager.GenerateModelWithMode("ServerSSHCredential", "", false, "id", models.ModelModeCRUD); err != nil {
+		t.Fatalf("generate model: %v", err)
+	}
+	for _, file := range plan.Files {
+		content, err := os.ReadFile(file.Path)
+		if err != nil {
+			t.Fatalf("read applied file %s: %v", file.Path, err)
+		}
+		if string(content) != file.NewContent {
+			t.Fatalf("applied content differs from plan for %s\nplanned:\n%s\napplied:\n%s", file.Path, file.NewContent, content)
+		}
+	}
+}
+
+func TestPlanModelFailureDoesNotApplyPartialChanges(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	root, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "models", "model.go"), []byte("package models\n\ntype (\n)\n\nvar (\n)\n"), 0o644); err != nil {
+		t.Fatalf("write registry: %v", err)
+	}
+	registryBefore, err := os.ReadFile(filepath.Join(root, "models", "model.go"))
+	if err != nil {
+		t.Fatalf("read registry: %v", err)
+	}
+
+	if _, err := manager.PlanModel("Missing", ModelGenerationOptions{PrimaryKeyColumn: "id"}); err == nil {
+		t.Fatal("expected planning failure for missing migration table")
+	}
+	if _, err := os.Stat(filepath.Join(root, "models", "missing.go")); !os.IsNotExist(err) {
+		t.Fatalf("failed plan wrote model: %v", err)
+	}
+	registryAfter, err := os.ReadFile(filepath.Join(root, "models", "model.go"))
+	if err != nil {
+		t.Fatalf("read registry after failure: %v", err)
+	}
+	if string(registryAfter) != string(registryBefore) {
+		t.Fatalf("failed plan changed registry\nbefore:\n%s\nafter:\n%s", registryBefore, registryAfter)
+	}
+}
+
+func writeModelPlanningFixture(t *testing.T, root string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(root, "models", "model.go"), []byte("package models\n\ntype (\n)\n\nvar (\n)\n"), 0o644); err != nil {
+		t.Fatalf("write registry: %v", err)
+	}
+	migration := `-- +goose Up
+CREATE TABLE server_ssh_credentials (
+    id UUID PRIMARY KEY,
+    url TEXT NOT NULL,
+    cidr TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
+);
+
+-- +goose Down
+DROP TABLE server_ssh_credentials;
+`
+	if err := os.WriteFile(filepath.Join(root, "database", "migrations", "001_create_server_ssh_credentials.sql"), []byte(migration), 0o644); err != nil {
+		t.Fatalf("write migration: %v", err)
+	}
 }

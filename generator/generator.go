@@ -1,6 +1,17 @@
 // Package generator orchestrates model, controller, view, and scaffold generation.
 package generator
 
+import "github.com/mbvlabs/andurel/generator/models"
+
+// ModelMode controls which persistence operations are generated for a model.
+type ModelMode = models.ModelMode
+
+const (
+	ModelModeCRUD       = models.ModelModeCRUD
+	ModelModeReadOnly   = models.ModelModeReadOnly
+	ModelModeCreateOnly = models.ModelModeCreateOnly
+)
+
 // Generator is the high-level facade for Andurel code generation.
 type Generator struct {
 	coordinator Coordinator
@@ -26,6 +37,21 @@ func (g *Generator) GenerateModel(resourceName string, tableNameOverride string,
 // GenerateModelWithPK generates a model using an explicit primary key column.
 func (g *Generator) GenerateModelWithPK(resourceName string, tableNameOverride string, skipFactory bool, primaryKeyColumn string) error {
 	return g.coordinator.ModelManager.GenerateModel(resourceName, tableNameOverride, skipFactory, primaryKeyColumn)
+}
+
+// GenerateModelWithMode generates a model using a persisted operation mode.
+func (g *Generator) GenerateModelWithMode(resourceName, tableNameOverride string, skipFactory bool, primaryKeyColumn string, mode ModelMode) error {
+	return g.coordinator.ModelManager.GenerateModelWithMode(resourceName, tableNameOverride, skipFactory, primaryKeyColumn, mode)
+}
+
+// PlanModel computes model generation output without writing files.
+func (g *Generator) PlanModel(resourceName string, options ModelGenerationOptions) (*ModelGenerationPlan, error) {
+	return g.coordinator.ModelManager.PlanModel(resourceName, options)
+}
+
+// ApplyModelPlan writes the exact files returned by PlanModel.
+func (g *Generator) ApplyModelPlan(plan *ModelGenerationPlan) error {
+	return g.coordinator.ModelManager.ApplyModelPlan(plan)
 }
 
 // GenerateController generates controller and route files for a resource.

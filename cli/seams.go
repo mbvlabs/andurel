@@ -8,6 +8,8 @@ import (
 type cliGenerator interface {
 	GenerateModel(resourceName string, tableNameOverride string, skipFactory bool) error
 	GenerateModelWithPK(resourceName string, tableNameOverride string, skipFactory bool, primaryKeyColumn string) error
+	GenerateModelWithMode(resourceName string, tableNameOverride string, skipFactory bool, primaryKeyColumn string, mode generator.ModelMode) error
+	PlanModel(resourceName string, options generator.ModelGenerationOptions) (*generator.ModelGenerationPlan, error)
 	GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string, isAPI bool) error
 	GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string, isAPI bool) error
 	GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string, isAPI bool) error

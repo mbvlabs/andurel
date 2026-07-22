@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/cli/output"
+	"github.com/mbvlabs/andurel/generator"
+	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/spf13/cobra"
 )
 
@@ -117,14 +119,18 @@ func runDryMutation(cmd *cobra.Command, outOpts output.Options, opts mutationOpt
 		return err
 	}
 	originalFindGoModRoot := findGoModRoot
+	defer func() {
+		findGoModRoot = originalFindGoModRoot
+		_ = os.Chdir(oldWD)
+		cache.ClearFileSystemCache()
+	}()
 	findGoModRoot = func() (string, error) {
 		return tempRoot, nil
 	}
+	cache.ClearFileSystemCache()
 	runErr := runWithOptionalStdoutSilence(output.SuppressesHumanOutput(outOpts), func() error {
 		return opts.Run(tempRoot)
 	})
-	findGoModRoot = originalFindGoModRoot
-	_ = os.Chdir(oldWD)
 	if runErr != nil {
 		return runErr
 	}
@@ -217,6 +223,38 @@ func mutationSummary(report mutationReport) string {
 		return fmt.Sprintf("%s completed with no file changes", report.Action)
 	}
 	return fmt.Sprintf("%s %d files for %s", verb, total, report.Action)
+}
+
+func buildModelPlanMutationReport(rootDir, resourceName string, plan *generator.ModelGenerationPlan, includeDiff bool) mutationReport {
+	before := make(fileSnapshot)
+	after := make(fileSnapshot)
+	if plan != nil {
+		for _, file := range plan.Files {
+			relativePath, err := filepath.Rel(rootDir, file.Path)
+			if err != nil {
+				relativePath = file.Path
+			}
+			relativePath = filepath.ToSlash(relativePath)
+			if file.Exists {
+				before[relativePath] = plannedFileState(file.OldContent)
+			}
+			after[relativePath] = plannedFileState(file.NewContent)
+		}
+	}
+	report := buildMutationReport(mutationOptions{
+		Action:   "generate model",
+		Resource: resourceName,
+		DryRun:   true,
+		Diff:     includeDiff,
+	}, before, after)
+	report.DryRun = true
+	report.Warnings = append(report.Warnings, "dry run only; no files were changed")
+	return report
+}
+
+func plannedFileState(content string) fileState {
+	data := []byte(content)
+	return fileState{Hash: sha256.Sum256(data), Content: data}
 }
 
 func isRoutePath(path string) bool {

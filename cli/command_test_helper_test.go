@@ -192,6 +192,10 @@ func stubLatestAndurelVersion(t *testing.T, version string, err error) {
 type fakeGenerator struct {
 	modelCalls       []modelCall
 	modelWithPKCalls []modelWithPKCall
+	modelModeCalls   []modelModeCall
+	modelPlanCalls   []modelPlanCall
+	modelPlan        *generator.ModelGenerationPlan
+	modelPlanErr     error
 	scaffoldCalls    []scaffoldCall
 	controllerCalls  []controllerCall
 	factoryCalls     []factoryCall
@@ -218,6 +222,19 @@ type modelWithPKCall struct {
 	tableName   string
 	skipFactory bool
 	primaryKey  string
+}
+
+type modelModeCall struct {
+	name        string
+	tableName   string
+	skipFactory bool
+	primaryKey  string
+	mode        generator.ModelMode
+}
+
+type modelPlanCall struct {
+	name    string
+	options generator.ModelGenerationOptions
 }
 
 type scaffoldCall struct {
@@ -265,6 +282,22 @@ func (f *fakeGenerator) GenerateModelWithPK(resourceName string, tableNameOverri
 		primaryKey:  primaryKeyColumn,
 	})
 	return f.err
+}
+
+func (f *fakeGenerator) GenerateModelWithMode(resourceName string, tableNameOverride string, skipFactory bool, primaryKeyColumn string, mode generator.ModelMode) error {
+	f.modelModeCalls = append(f.modelModeCalls, modelModeCall{
+		name:        resourceName,
+		tableName:   tableNameOverride,
+		skipFactory: skipFactory,
+		primaryKey:  primaryKeyColumn,
+		mode:        mode,
+	})
+	return f.err
+}
+
+func (f *fakeGenerator) PlanModel(resourceName string, options generator.ModelGenerationOptions) (*generator.ModelGenerationPlan, error) {
+	f.modelPlanCalls = append(f.modelPlanCalls, modelPlanCall{name: resourceName, options: options})
+	return f.modelPlan, f.modelPlanErr
 }
 
 func (f *fakeGenerator) GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string, isAPI bool) error {
