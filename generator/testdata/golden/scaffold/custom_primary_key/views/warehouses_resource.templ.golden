@@ -78,10 +78,10 @@ templ (wi WarehouseIndex) Page() {
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 												<div class="flex flex-wrap gap-3 text-sm">
 													
-											<a class="text-slate-300 hover:text-slate-100" href={ routes.WarehouseShow.URL(warehouse.Slug) }>View</a>
+													<a class="text-slate-300 hover:text-slate-100" href={ routes.WarehouseShow.URL(warehouse.Slug) }>View</a>
 													
 													
-											<a class="text-slate-300 hover:text-slate-100" href={ routes.WarehouseEdit.URL(warehouse.Slug) }>Edit</a>
+													<a class="text-slate-300 hover:text-slate-100" href={ routes.WarehouseEdit.URL(warehouse.Slug) }>Edit</a>
 													
 												</div>
 											</td>
@@ -254,3 +254,4 @@ templ (we WarehouseEdit) Page() {
 		}
 	}
 }
+
