@@ -1,5 +1,7 @@
 package models
 
+// andurel:model-mode crud
+
 import (
 	"context"
 	"database/sql"
@@ -21,16 +23,16 @@ type CompanyEntity struct {
 	UpdatedAt     time.Time      `bun:"updated_at"`
 }
 
-func (e *CompanyEntity) Validate() error {
-	return nil
-}
-
 func (c company) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (CompanyEntity, error) {
 	var entity CompanyEntity
-	if err := db.NewSelect().
+	err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return CompanyEntity{}, ErrNotFound
+		}
 		return CompanyEntity{}, err
 	}
 
@@ -63,10 +65,9 @@ func (c company) Create(ctx context.Context, db storage.Executor, data CreateCom
 }
 
 type UpdateCompanyData struct {
-	ID        uuid.UUID
-	Name      string
-	Industry  sql.NullString
-	UpdatedAt time.Time
+	ID       uuid.UUID
+	Name     string
+	Industry sql.NullString
 }
 
 func (c company) Update(ctx context.Context, db storage.Executor, data UpdateCompanyData) (CompanyEntity, error) {
@@ -81,14 +82,18 @@ func (c company) Update(ctx context.Context, db storage.Executor, data UpdateCom
 		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewUpdate().
+	err := db.NewUpdate().
 		Model(&entity).
 		Column("name").
 		Column("industry").
 		Column("updated_at").
 		WherePK().
 		Returning("*").
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return CompanyEntity{}, ErrNotFound
+		}
 		return CompanyEntity{}, err
 	}
 
@@ -96,12 +101,20 @@ func (c company) Update(ctx context.Context, db storage.Executor, data UpdateCom
 }
 
 func (c company) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	_, err := db.NewDelete().
-		Model((*CompanyEntity)(nil)).
+	var entity CompanyEntity
+	err := db.NewDelete().
+		Model(&entity).
 		Where("id = ?", id).
-		Exec(ctx)
+		Returning("*").
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
 
-	return err
+	return nil
 }
 
 func (c company) All(ctx context.Context, db storage.Executor) ([]CompanyEntity, error) {
@@ -162,9 +175,9 @@ func (c company) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 	}, nil
 }
 
-func (c company) Upsert(ctx context.Context, db storage.Executor, data CreateCompanyData) (CompanyEntity, error) {
+func (c company) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, data CreateCompanyData) (CompanyEntity, error) {
 	entity := CompanyEntity{
-		ID:        uuid.New(),
+		ID:        id,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Name:      data.Name,

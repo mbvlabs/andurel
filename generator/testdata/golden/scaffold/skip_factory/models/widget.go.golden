@@ -1,7 +1,10 @@
 package models
 
+// andurel:model-mode crud
+
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testapp/internal/storage"
 	"testapp/internal/validation"
@@ -21,16 +24,16 @@ type WidgetEntity struct {
 	UpdatedAt     time.Time `bun:"updated_at"`
 }
 
-func (e *WidgetEntity) Validate() error {
-	return nil
-}
-
 func (w widget) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (WidgetEntity, error) {
 	var entity WidgetEntity
-	if err := db.NewSelect().
+	err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return WidgetEntity{}, ErrNotFound
+		}
 		return WidgetEntity{}, err
 	}
 
@@ -65,11 +68,10 @@ func (w widget) Create(ctx context.Context, db storage.Executor, data CreateWidg
 }
 
 type UpdateWidgetData struct {
-	ID        uuid.UUID
-	Name      string
-	Quantity  int32
-	Active    bool
-	UpdatedAt time.Time
+	ID       uuid.UUID
+	Name     string
+	Quantity int32
+	Active   bool
 }
 
 func (w widget) Update(ctx context.Context, db storage.Executor, data UpdateWidgetData) (WidgetEntity, error) {
@@ -85,7 +87,7 @@ func (w widget) Update(ctx context.Context, db storage.Executor, data UpdateWidg
 		return WidgetEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewUpdate().
+	err := db.NewUpdate().
 		Model(&entity).
 		Column("name").
 		Column("quantity").
@@ -93,7 +95,11 @@ func (w widget) Update(ctx context.Context, db storage.Executor, data UpdateWidg
 		Column("updated_at").
 		WherePK().
 		Returning("*").
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return WidgetEntity{}, ErrNotFound
+		}
 		return WidgetEntity{}, err
 	}
 
@@ -101,12 +107,20 @@ func (w widget) Update(ctx context.Context, db storage.Executor, data UpdateWidg
 }
 
 func (w widget) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	_, err := db.NewDelete().
-		Model((*WidgetEntity)(nil)).
+	var entity WidgetEntity
+	err := db.NewDelete().
+		Model(&entity).
 		Where("id = ?", id).
-		Exec(ctx)
+		Returning("*").
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
 
-	return err
+	return nil
 }
 
 func (w widget) All(ctx context.Context, db storage.Executor) ([]WidgetEntity, error) {
@@ -167,9 +181,9 @@ func (w widget) Paginate(ctx context.Context, db storage.Executor, page, pageSiz
 	}, nil
 }
 
-func (w widget) Upsert(ctx context.Context, db storage.Executor, data CreateWidgetData) (WidgetEntity, error) {
+func (w widget) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, data CreateWidgetData) (WidgetEntity, error) {
 	entity := WidgetEntity{
-		ID:        uuid.New(),
+		ID:        id,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Name:      data.Name,

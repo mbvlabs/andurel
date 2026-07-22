@@ -1,5 +1,7 @@
 package models
 
+// andurel:model-mode crud
+
 import (
 	"context"
 	"database/sql"
@@ -20,16 +22,16 @@ type WarehouseEntity struct {
 	UpdatedAt     time.Time      `bun:"updated_at"`
 }
 
-func (e *WarehouseEntity) Validate() error {
-	return nil
-}
-
 func (w warehouse) Find(ctx context.Context, db storage.Executor, id string) (WarehouseEntity, error) {
 	var entity WarehouseEntity
-	if err := db.NewSelect().
+	err := db.NewSelect().
 		Model(&entity).
 		Where("slug = ?", id).
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return WarehouseEntity{}, ErrNotFound
+		}
 		return WarehouseEntity{}, err
 	}
 
@@ -63,10 +65,9 @@ func (w warehouse) Create(ctx context.Context, db storage.Executor, data CreateW
 }
 
 type UpdateWarehouseData struct {
-	Slug      string
-	Name      string
-	Location  sql.NullString
-	UpdatedAt time.Time
+	Slug     string
+	Name     string
+	Location sql.NullString
 }
 
 func (w warehouse) Update(ctx context.Context, db storage.Executor, data UpdateWarehouseData) (WarehouseEntity, error) {
@@ -81,14 +82,18 @@ func (w warehouse) Update(ctx context.Context, db storage.Executor, data UpdateW
 		return WarehouseEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewUpdate().
+	err := db.NewUpdate().
 		Model(&entity).
 		Column("name").
 		Column("location").
 		Column("updated_at").
 		WherePK().
 		Returning("*").
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return WarehouseEntity{}, ErrNotFound
+		}
 		return WarehouseEntity{}, err
 	}
 
@@ -96,12 +101,20 @@ func (w warehouse) Update(ctx context.Context, db storage.Executor, data UpdateW
 }
 
 func (w warehouse) Destroy(ctx context.Context, db storage.Executor, id string) error {
-	_, err := db.NewDelete().
-		Model((*WarehouseEntity)(nil)).
+	var entity WarehouseEntity
+	err := db.NewDelete().
+		Model(&entity).
 		Where("slug = ?", id).
-		Exec(ctx)
+		Returning("*").
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
 
-	return err
+	return nil
 }
 
 func (w warehouse) All(ctx context.Context, db storage.Executor) ([]WarehouseEntity, error) {
@@ -162,9 +175,9 @@ func (w warehouse) Paginate(ctx context.Context, db storage.Executor, page, page
 	}, nil
 }
 
-func (w warehouse) Upsert(ctx context.Context, db storage.Executor, data CreateWarehouseData) (WarehouseEntity, error) {
+func (w warehouse) Upsert(ctx context.Context, db storage.Executor, id string, data CreateWarehouseData) (WarehouseEntity, error) {
 	entity := WarehouseEntity{
-		Slug:      data.Slug,
+		Slug:      id,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 		Name:      data.Name,

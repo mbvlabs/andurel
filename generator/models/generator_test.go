@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 func TestBuildUUIDImports(t *testing.T) {
@@ -174,6 +175,229 @@ func TestGeneratorFactoryDefaultsAndZeroValues(t *testing.T) {
 	}
 }
 
+func TestGenerateModelUpsertRequiresExplicitPrimaryKey(t *testing.T) {
+	tests := []struct {
+		name       string
+		resource   string
+		tableName  string
+		primaryKey *catalog.Column
+		idType     string
+		receiver   string
+	}{
+		{
+			name:       "uuid primary key",
+			resource:   "Product",
+			tableName:  "products",
+			primaryKey: catalog.NewColumn("id", "uuid").SetPrimaryKey(),
+			idType:     "uuid.UUID",
+			receiver:   "p",
+		},
+		{
+			name:       "serial primary key",
+			resource:   "Event",
+			tableName:  "events",
+			primaryKey: catalog.NewColumn("id", "bigserial").SetPrimaryKey(),
+			idType:     "int64",
+			receiver:   "e",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			cat := catalog.NewCatalog("public")
+			table := tableWithColumns(t, tt.tableName,
+				tt.primaryKey,
+				catalog.NewColumn("name", "text").SetNotNull(),
+			)
+			if err := cat.AddTable("public", table); err != nil {
+				t.Fatalf("add table: %v", err)
+			}
+
+			modelPath := filepath.Join(root, strings.ToLower(tt.resource)+".go")
+			if err := NewGenerator("postgresql").GenerateModel(cat, tt.resource, tt.tableName, modelPath, "example.com/app", "", "sql.Null", "id", false); err != nil {
+				t.Fatalf("generate model: %v", err)
+			}
+			content, err := os.ReadFile(modelPath)
+			if err != nil {
+				t.Fatalf("read generated model: %v", err)
+			}
+			generated := string(content)
+			signature := "func (" + tt.receiver + " " + strings.ToLower(tt.resource) + ") Upsert(ctx context.Context, db storage.Executor, id " + tt.idType + ", data Create" + tt.resource + "Data)"
+			upsertStart := strings.Index(generated, signature)
+			if upsertStart < 0 {
+				t.Fatalf("generated model missing explicit-ID Upsert signature %q:\n%s", signature, generated)
+			}
+			upsert := generated[upsertStart:]
+			if !strings.Contains(upsert, "ID: id,") {
+				t.Fatalf("generated Upsert does not assign the supplied primary key:\n%s", upsert)
+			}
+			if strings.Contains(upsert, "uuid.New()") {
+				t.Fatalf("generated Upsert replaces the supplied primary key:\n%s", upsert)
+			}
+		})
+	}
+}
+
+func TestGenerateModelPaginationPluralizesAcronymResourcesWithTableOverrides(t *testing.T) {
+	tests := map[string]string{
+		"ServerSSHCredential": "ServerSSHCredentials",
+		"WireGuardPeer":       "WireGuardPeers",
+		"WireGuardPeerStatus": "WireGuardPeerStatuses",
+	}
+	for resourceName, pluralName := range tests {
+		t.Run(resourceName, func(t *testing.T) {
+			root := t.TempDir()
+			tableName := "legacy_" + naming.ToSnakeCase(resourceName)
+			cat := catalog.NewCatalog("public")
+			table := tableWithColumns(t, tableName,
+				catalog.NewColumn("id", "uuid").SetPrimaryKey(),
+				catalog.NewColumn("name", "text").SetNotNull(),
+			)
+			if err := cat.AddTable("public", table); err != nil {
+				t.Fatalf("add table: %v", err)
+			}
+
+			modelPath := filepath.Join(root, naming.ToSnakeCase(resourceName)+".go")
+			if err := NewGenerator("postgresql").GenerateModel(cat, resourceName, naming.DeriveTableName(resourceName), modelPath, "example.com/app", tableName, "sql.Null", "id", false); err != nil {
+				t.Fatalf("generate model: %v", err)
+			}
+			content, err := os.ReadFile(modelPath)
+			if err != nil {
+				t.Fatalf("read generated model: %v", err)
+			}
+			generated := string(content)
+			for _, want := range []string{
+				"type Paginated" + pluralName + " struct",
+				pluralName + " []" + resourceName + "Entity",
+				") (Paginated" + pluralName + ", error)",
+			} {
+				if !strings.Contains(generated, want) {
+					t.Fatalf("generated pagination missing %q:\n%s", want, generated)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateModelCRUDUsesRepositoryNotFoundAndTimestampSemantics(t *testing.T) {
+	root := t.TempDir()
+	cat := catalog.NewCatalog("public")
+	table := tableWithColumns(t, "products",
+		catalog.NewColumn("id", "uuid").SetPrimaryKey(),
+		catalog.NewColumn("name", "text").SetNotNull(),
+		catalog.NewColumn("created_at", "timestamptz").SetNotNull(),
+		catalog.NewColumn("updated_at", "timestamptz").SetNotNull(),
+	)
+	if err := cat.AddTable("public", table); err != nil {
+		t.Fatalf("add table: %v", err)
+	}
+
+	modelPath := filepath.Join(root, "product.go")
+	if err := NewGenerator("postgresql").GenerateModel(cat, "Product", "products", modelPath, "example.com/app", "", "sql.Null", "id", false); err != nil {
+		t.Fatalf("generate model: %v", err)
+	}
+	content, err := os.ReadFile(modelPath)
+	if err != nil {
+		t.Fatalf("read generated model: %v", err)
+	}
+	generated := string(content)
+	if count := strings.Count(generated, "if errors.Is(err, sql.ErrNoRows) {"); count != 3 {
+		t.Fatalf("expected Find, Update, and Destroy not-found translation, got %d:\n%s", count, generated)
+	}
+	if count := strings.Count(generated, "return ProductEntity{}, ErrNotFound"); count != 2 {
+		t.Fatalf("expected Find and Update to return ErrNotFound, got %d:\n%s", count, generated)
+	}
+	destroyStart := strings.Index(generated, "func (p product) Destroy(")
+	allStart := strings.Index(generated, "func (p product) All(")
+	if destroyStart < 0 || allStart <= destroyStart {
+		t.Fatalf("could not isolate generated Destroy method:\n%s", generated)
+	}
+	destroy := generated[destroyStart:allStart]
+	if !strings.Contains(destroy, `Returning("*")`) || !strings.Contains(destroy, "Scan(ctx)") {
+		t.Fatalf("Destroy does not use DELETE RETURNING:\n%s", destroy)
+	}
+	if !strings.Contains(destroy, "return ErrNotFound") {
+		t.Fatalf("Destroy does not translate a missing row:\n%s", destroy)
+	}
+
+	updateDataStart := strings.Index(generated, "type UpdateProductData struct {")
+	updateMethodStart := strings.Index(generated, "func (p product) Update(")
+	if updateDataStart < 0 || updateMethodStart <= updateDataStart {
+		t.Fatalf("could not isolate generated UpdateProductData:\n%s", generated)
+	}
+	updateData := generated[updateDataStart:updateMethodStart]
+	if strings.Contains(updateData, "UpdatedAt") {
+		t.Fatalf("UpdateProductData exposes ignored UpdatedAt input:\n%s", updateData)
+	}
+	if !strings.Contains(generated[updateMethodStart:], "UpdatedAt: time.Now(),") {
+		t.Fatalf("Update does not manage UpdatedAt internally:\n%s", generated[updateMethodStart:])
+	}
+}
+
+func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
+	tests := []struct {
+		mode    ModelMode
+		present []string
+		absent  []string
+	}{
+		{
+			mode:    ModelModeCRUD,
+			present: []string{" Find(", " Create(", " Update(", " Destroy(", " All(", " Paginate(", " Upsert("},
+		},
+		{
+			mode:    ModelModeReadOnly,
+			present: []string{" Find(", " All(", " Paginate("},
+			absent:  []string{" Create(", " Update(", " Destroy(", " Upsert(", "type CreateProductData", "type UpdateProductData"},
+		},
+		{
+			mode:    ModelModeCreateOnly,
+			present: []string{" Create(", "type CreateProductData"},
+			absent:  []string{" Find(", " Update(", " Destroy(", " All(", " Paginate(", " Upsert(", "type UpdateProductData"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.mode), func(t *testing.T) {
+			root := t.TempDir()
+			cat := catalog.NewCatalog("public")
+			table := tableWithColumns(t, "products",
+				catalog.NewColumn("id", "uuid").SetPrimaryKey(),
+				catalog.NewColumn("name", "text").SetNotNull(),
+			)
+			if err := cat.AddTable("public", table); err != nil {
+				t.Fatalf("add table: %v", err)
+			}
+
+			modelPath := filepath.Join(root, "product.go")
+			if err := NewGenerator("postgresql").GenerateModelWithMode(cat, "Product", "products", modelPath, "example.com/app", "", "sql.Null", "id", false, tt.mode); err != nil {
+				t.Fatalf("generate model: %v", err)
+			}
+			content, err := os.ReadFile(modelPath)
+			if err != nil {
+				t.Fatalf("read generated model: %v", err)
+			}
+			generated := string(content)
+			if !strings.Contains(generated, "// andurel:model-mode "+string(tt.mode)) {
+				t.Fatalf("generated model does not persist mode %q:\n%s", tt.mode, generated)
+			}
+			if strings.Contains(generated, "func (e *ProductEntity) Validate() error") {
+				t.Fatalf("generated model contains an empty Validate method:\n%s", generated)
+			}
+			for _, want := range tt.present {
+				if !strings.Contains(generated, want) {
+					t.Fatalf("%s model missing %q:\n%s", tt.mode, want, generated)
+				}
+			}
+			for _, unwanted := range tt.absent {
+				if strings.Contains(generated, unwanted) {
+					t.Fatalf("%s model contains %q:\n%s", tt.mode, unwanted, generated)
+				}
+			}
+		})
+	}
+}
+
 func TestGeneratorTemplateRenderingAndImports(t *testing.T) {
 	g := NewGenerator("postgresql")
 	model := &GeneratedModel{Name: "Product", PluralName: "Products", Fields: []GeneratedField{{Name: "Sku", BunTag: "sku,notnull"}}}
@@ -336,7 +560,7 @@ func TestBuildModelPrimaryKeyOverridesAndImports(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build model: %v", err)
 	}
-	if !model.HasPrimaryKey || model.IDFieldName != "tenant_id" || model.IDGoFieldName != "TenantID" || model.IDType != "uuid.UUID" {
+	if !model.HasPrimaryKey || model.IDFieldName != "tenant_id" || model.IDGoFieldName != "TenantId" || model.IDType != "uuid.UUID" {
 		t.Fatalf("primary key override was not applied: %#v", model)
 	}
 	if !model.HasCreatedAt || !model.HasUpdatedAt {

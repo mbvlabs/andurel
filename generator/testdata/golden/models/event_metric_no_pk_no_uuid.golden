@@ -1,5 +1,7 @@
 package models
 
+// andurel:model-mode crud
+
 import (
 	"context"
 	"errors"
@@ -17,10 +19,6 @@ type EventMetricEntity struct {
 	EventCount    int32     `bun:"event_count"`
 	Successful    bool      `bun:"successful"`
 	OccurredAt    time.Time `bun:"occurred_at"`
-}
-
-func (e *EventMetricEntity) Validate() error {
-	return nil
 }
 
 type CreateEventMetricData struct {

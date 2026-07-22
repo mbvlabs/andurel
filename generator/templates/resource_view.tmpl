@@ -55,10 +55,10 @@ templ ({{$indexRecv}} {{.NamespacePascal}}{{.ResourceName}}Index) Page() {
 											{{end}}<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 												<div class="flex flex-wrap gap-3 text-sm">
 													{{if HasAction "show"}}
-													<a class="text-slate-300 hover:text-slate-100" href={ routes.{{$.NamespacePascal}}{{$.ResourceName}}Show.URL({{$.ResourceName | ToLower}}.ID) }>View</a>
+													<a class="text-slate-300 hover:text-slate-100" href={ routes.{{$.NamespacePascal}}{{$.ResourceName}}Show.URL({{$.ResourceName | ToLower}}.{{$.IDFieldName}}) }>View</a>
 													{{end}}
 													{{if HasAction "edit"}}
-													<a class="text-slate-300 hover:text-slate-100" href={ routes.{{$.NamespacePascal}}{{$.ResourceName}}Edit.URL({{$.ResourceName | ToLower}}.ID) }>Edit</a>
+													<a class="text-slate-300 hover:text-slate-100" href={ routes.{{$.NamespacePascal}}{{$.ResourceName}}Edit.URL({{$.ResourceName | ToLower}}.{{$.IDFieldName}}) }>Edit</a>
 													{{end}}
 												</div>
 											</td>
@@ -93,7 +93,7 @@ templ ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) Page() {
 						<h1 class="text-2xl font-semibold text-slate-100">{{.ResourceName}} Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
 							{{if HasAction "edit"}}
-							<a href={ routes.{{.NamespacePascal}}{{.ResourceName}}Edit.URL({{$showRecv}}.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
+							<a href={ routes.{{.NamespacePascal}}{{.ResourceName}}Edit.URL({{$showRecv}}.Item.{{.IDFieldName}}) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
 							{{end}}
 							{{if HasAction "index"}}
 							<a class="text-sm text-slate-300 hover:text-slate-100" href={ hypermedia.ResolveBackURL(ctx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL()) }>Back to List</a>
@@ -202,7 +202,7 @@ templ ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) Page() {
 							<p class="text-sm text-slate-400">Update the details for this {{.ResourceName | ToLower}}.</p>
 						</div>
 						<div class="p-6 pt-0">
-							<form class="space-y-5" data-indicator:_submitting{{if HasAction "update"}} data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.NamespacePascal}}{{.ResourceName}}Update.URL({{$editRecv}}.Item.ID)) }{{end}}>
+							<form class="space-y-5" data-indicator:_submitting{{if HasAction "update"}} data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.{{.NamespacePascal}}{{.ResourceName}}Update.URL({{$editRecv}}.Item.{{.IDFieldName}})) }{{end}}>
 								<fieldset data-attr:disabled="$_submitting">
 									<div class="space-y-4">
 										{{$itemRef := printf "%s.%s" $editRecv "Item"}}{{$itemDisplayRef := ViewDataRef $.NamespacePascal .ResourceName $itemRef (HasNullFields .Fields)}}
@@ -240,7 +240,7 @@ templ ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) Page() {
 								</fieldset>
 							</form>
 							{{if HasAction "destroy"}}<div role="separator" class="my-6 shrink-0 bg-slate-800 h-px w-full"></div>
-							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.{{.NamespacePascal}}{{.ResourceName}}Destroy.URL({{$editRecv}}.Item.ID)) }>Destroy {{.ResourceName}}</button>
+							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.{{.NamespacePascal}}{{.ResourceName}}Destroy.URL({{$editRecv}}.Item.{{.IDFieldName}})) }>Destroy {{.ResourceName}}</button>
 							{{end}}
 						</div>
 					</div>
