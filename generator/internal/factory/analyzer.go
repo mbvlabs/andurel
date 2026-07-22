@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/models"
-	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 // FieldAnalyzer determines appropriate default values for factory fields
@@ -32,14 +31,15 @@ type FactoryFieldInfo struct {
 }
 
 // AnalyzeField returns default value expression and metadata for a field
-func (fa *FieldAnalyzer) AnalyzeField(field models.GeneratedField, tableName string) FactoryFieldInfo {
+func (fa *FieldAnalyzer) AnalyzeField(field models.GeneratedField, modelName string) FactoryFieldInfo {
+	isPrimaryKey := field.IsPrimaryKey || strings.EqualFold(field.Name, "id")
 	info := FactoryFieldInfo{
 		Name:          field.Name,
 		Type:          field.Type,
-		OptionName:    fmt.Sprintf("With%s%s", naming.Capitalize(naming.ToCamelCase(tableName)), field.Name),
-		IsID:          field.Name == "ID",
+		OptionName:    fmt.Sprintf("With%s%s", modelName, field.Name),
+		IsID:          isPrimaryKey,
 		IsTimestamp:   field.Type == "time.Time" || strings.Contains(field.Type, "Time"),
-		IsAutoManaged: field.Name == "ID" || field.Name == "CreatedAt" || field.Name == "UpdatedAt",
+		IsAutoManaged: isPrimaryKey || field.Name == "CreatedAt" || field.Name == "UpdatedAt",
 		IsFK:          field.IsForeignKey,
 	}
 
@@ -51,10 +51,17 @@ func (fa *FieldAnalyzer) AnalyzeField(field models.GeneratedField, tableName str
 }
 
 func (fa *FieldAnalyzer) determineDefault(fieldName, goType string) string {
+	if strings.HasPrefix(goType, "*") {
+		return "nil"
+	}
+	if strings.HasPrefix(goType, "sql.Null") || strings.HasPrefix(goType, "bun.Null") {
+		return fmt.Sprintf("%s{}", goType)
+	}
+
 	// Handle by type first
 	switch goType {
 	case "string":
-		return "faker.Word()"
+		return fa.stringDefault(fieldName)
 	case "int32", "int":
 		return "randomInt(1, 1000, 100)"
 	case "int64":
@@ -68,15 +75,9 @@ func (fa *FieldAnalyzer) determineDefault(fieldName, goType string) string {
 	case "uuid.UUID":
 		return "uuid.New()"
 	case "json.RawMessage":
-		return "json.RawMessage{}"
+		return `json.RawMessage("{}")`
 	case "[]byte":
 		return "[]byte{}"
-	case "*string":
-		return "faker.Word()"
-	case "*time.Time":
-		return "time.Now()"
-	case "*bool":
-		return "randomBool()"
 	}
 
 	// Default fallback
@@ -96,6 +97,8 @@ func (fa *FieldAnalyzer) stringDefault(fieldName string) string {
 		return "faker.Phonenumber()"
 	case lower == "url" || strings.Contains(lower, "url"):
 		return "faker.URL()"
+	case lower == "cidr" || strings.Contains(lower, "cidr"):
+		return `"10.0.0.0/24"`
 	case lower == "description" || strings.HasSuffix(lower, "description"):
 		return "faker.Sentence()"
 	case lower == "title" || strings.HasSuffix(lower, "title"):

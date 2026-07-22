@@ -110,10 +110,24 @@ func runFactorySyncCommand(cmd *cobra.Command, names []string, opts generator.Fa
 	}
 
 	if opts.Check && len(driftedFactories(results)) > 0 {
+		outOpts, parseErr := output.ParseOptions(cmd)
+		if parseErr != nil {
+			return parseErr
+		}
+		checkErr := output.NewError(
+			output.CodeGenerationFailed,
+			fmt.Sprintf("%d factories are stale", len(driftedFactories(results))),
+			output.ExitGeneration,
+			"Run andurel generate factories --sync or andurel generate factory NAME --sync.",
+		)
+		checkErr.Data = factorySyncReport{Results: results}
+		if output.UsesStructuredOutput(outOpts) {
+			return checkErr
+		}
 		if renderErr := renderFactorySyncResults(cmd, results); renderErr != nil {
 			return renderErr
 		}
-		return output.NewError(output.CodeGenerationFailed, fmt.Sprintf("%d factories are stale", len(driftedFactories(results))), output.ExitGeneration, "Run andurel generate factories --sync or andurel generate factory NAME --sync.")
+		return checkErr
 	}
 
 	return renderFactorySyncResults(cmd, results)

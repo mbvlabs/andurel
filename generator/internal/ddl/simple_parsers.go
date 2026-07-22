@@ -3,6 +3,8 @@ package ddl
 import (
 	"regexp"
 	"strings"
+
+	"github.com/mbvlabs/andurel/generator/internal/catalog"
 )
 
 // DropTableParser handles DROP TABLE statements
@@ -133,7 +135,7 @@ func NewCreateEnumParser() *CreateEnumParser {
 
 // Parse performs the parse operation.
 func (p *CreateEnumParser) Parse(sql string) (*CreateEnumStatement, error) {
-	enumRegex, err := regexp.Compile(`(?i)create\s+type\s+(?:(\w+)\.)?(\w+)\s+as\s+enum`)
+	enumRegex, err := regexp.Compile(`(?is)create\s+type\s+(?:(\w+)\.)?(\w+)\s+as\s+enum\s*\((.*)\)`)
 	if err != nil {
 		return nil, err
 	}
@@ -145,11 +147,19 @@ func (p *CreateEnumParser) Parse(sql string) (*CreateEnumStatement, error) {
 		schemaName = matches[1]
 		enumName = matches[2]
 	}
+	values := make([]string, 0)
+	if len(matches) > 3 {
+		valueRegex := regexp.MustCompile(`'((?:''|[^'])*)'`)
+		for _, match := range valueRegex.FindAllStringSubmatch(matches[3], -1) {
+			values = append(values, strings.ReplaceAll(match[1], "''", "'"))
+		}
+	}
 
 	return &CreateEnumStatement{
 		Raw:        sql,
 		SchemaName: schemaName,
 		EnumName:   enumName,
+		EnumDef:    &catalog.Enum{Name: enumName, Values: values},
 	}, nil
 }
 

@@ -3,8 +3,11 @@ package models
 
 import (
 	"fmt"
+	"go/format"
 	"os"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 
@@ -23,20 +26,21 @@ import (
 
 // GeneratedField describes one model field derived from a database column.
 type GeneratedField struct {
-	Name         string
-	Type         string
-	Comment      string
-	Package      string
-	BunTag       string // Full bun struct tag (e.g., `bun:"id,pk,type:uuid"`)
-	IsForeignKey bool
-	IsNullable   bool
-	IsPrimaryKey bool
+	Name          string
+	Type          string
+	Comment       string
+	Package       string
+	BunTag        string // Full bun struct tag (e.g., `bun:"id,pk,type:uuid"`)
+	IsForeignKey  bool
+	IsNullable    bool
+	IsPrimaryKey  bool
+	AllowedValues []string
 }
 
 // GeneratedModel contains the template data for a generated model file.
 type GeneratedModel struct {
 	Name                string
-	PluralName          string // The pluralized form of Name for function names (respects --table-name override)
+	PluralName          string // The pluralized form of the supplied resource name for function names
 	Package             string
 	Fields              []GeneratedField
 	StandardImports     []string
@@ -169,6 +173,11 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		if err != nil {
 			return nil, errors.NewGeneratorError("build field", col.Name, err)
 		}
+		if enum, enumErr := cat.GetEnum(table.Schema, col.DataType); enumErr == nil {
+			field.Type = "string"
+			field.Package = ""
+			field.AllowedValues = append([]string(nil), enum.Values...)
+		}
 
 		if field.Package != "" {
 			importSet[field.Package] = true
@@ -276,13 +285,14 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	bunTag := g.typeMapper.BuildBunTag(col)
 
 	field := GeneratedField{
-		Name:         types.FormatFieldName(col.Name),
-		Type:         goType,
-		Package:      pkg,
-		BunTag:       bunTag,
-		IsForeignKey: col.ForeignKey != nil,
-		IsNullable:   col.IsNullable,
-		IsPrimaryKey: col.IsPrimaryKey,
+		Name:          types.FormatFieldName(col.Name),
+		Type:          goType,
+		Package:       pkg,
+		BunTag:        bunTag,
+		IsForeignKey:  col.ForeignKey != nil,
+		IsNullable:    col.IsNullable,
+		IsPrimaryKey:  col.IsPrimaryKey,
+		AllowedValues: append([]string(nil), col.AllowedValues...),
 	}
 
 	return field, nil
@@ -434,7 +444,7 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 	factoryFields := make([]FactoryField, 0, len(genModel.Fields))
 
 	for _, field := range genModel.Fields {
-		fieldInfo := g.analyzeFactoryField(field, config.TableName)
+		fieldInfo := g.analyzeFactoryField(field, genModel.Name)
 		factoryFields = append(factoryFields, fieldInfo)
 	}
 
@@ -448,8 +458,12 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 
 	// Collect imports - context and fmt are already in the template
 	standardImports := []string{}
-	externalImports := []string{
-		"github.com/go-faker/faker/v4",
+	externalImports := []string{}
+	for _, field := range factoryFields {
+		if strings.Contains(field.DefaultValue, "faker.") {
+			externalImports = append(externalImports, "github.com/go-faker/faker/v4")
+			break
+		}
 	}
 
 	// Only add uuid import if ID type uses UUID
@@ -464,6 +478,20 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 			break
 		}
 	}
+	for _, field := range genModel.Fields {
+		if field.Package == "" {
+			continue
+		}
+		if strings.Contains(strings.Split(field.Package, "/")[0], ".") {
+			externalImports = append(externalImports, field.Package)
+		} else {
+			standardImports = append(standardImports, field.Package)
+		}
+	}
+	sort.Strings(standardImports)
+	standardImports = slices.Compact(standardImports)
+	sort.Strings(externalImports)
+	externalImports = slices.Compact(externalImports)
 
 	// Default IDGoFieldName if not set
 	idGoFieldName := genModel.IDGoFieldName
@@ -492,30 +520,44 @@ func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *
 }
 
 // analyzeFactoryField analyzes a field and returns factory metadata
-func (g *Generator) analyzeFactoryField(field GeneratedField, tableName string) FactoryField {
+func (g *Generator) analyzeFactoryField(field GeneratedField, modelName string) FactoryField {
 	info := FactoryField{
 		Name:          field.Name,
 		ArgumentName:  naming.ToLowerCamelCase(field.Name),
 		Type:          field.Type,
-		OptionName:    fmt.Sprintf("With%s%s", naming.Capitalize(naming.ToCamelCase(tableName)), field.Name),
-		IsID:          field.Name == "ID",
+		OptionName:    fmt.Sprintf("With%s%s", modelName, field.Name),
+		IsID:          field.IsPrimaryKey,
 		IsTimestamp:   field.Type == "time.Time" || strings.Contains(field.Type, "Time"),
-		IsAutoManaged: field.Name == "ID" || field.Name == "CreatedAt" || field.Name == "UpdatedAt",
+		IsAutoManaged: field.IsPrimaryKey || field.Name == "CreatedAt" || field.Name == "UpdatedAt",
 		IsFK:          field.IsForeignKey,
 	}
 
 	// Determine default value
-	info.DefaultValue = g.determineFactoryDefault(field.Name, field.Type)
+	info.DefaultValue = g.determineFactoryDefaultForField(field)
 	info.GoZero = g.getFactoryGoZero(field.Type)
 
 	return info
 }
 
+func (g *Generator) determineFactoryDefaultForField(field GeneratedField) string {
+	if len(field.AllowedValues) > 0 {
+		return strconv.Quote(field.AllowedValues[0])
+	}
+	return g.determineFactoryDefault(field.Name, field.Type)
+}
+
 func (g *Generator) determineFactoryDefault(fieldName, goType string) string {
+	if strings.HasPrefix(goType, "*") {
+		return "nil"
+	}
+	if strings.HasPrefix(goType, "sql.Null") || strings.HasPrefix(goType, "bun.Null") {
+		return fmt.Sprintf("%s{}", goType)
+	}
+
 	// Handle by type first
 	switch goType {
 	case "string":
-		return "faker.Word()"
+		return g.stringFactoryDefault(fieldName)
 	case "int32", "int":
 		return "randomInt(1, 1000, 100)"
 	case "int64":
@@ -529,41 +571,13 @@ func (g *Generator) determineFactoryDefault(fieldName, goType string) string {
 	case "uuid.UUID":
 		return "uuid.UUID{}"
 	case "json.RawMessage":
-		return "json.RawMessage{}"
+		return `json.RawMessage("{}")`
 	case "[]byte":
 		return "[]byte{}"
-	// sql.Null types
-	case "sql.NullString":
-		return "sql.NullString{String: faker.Word(), Valid: true}"
-	case "sql.NullBool":
-		return "sql.NullBool{Bool: randomBool(), Valid: true}"
-	case "sql.NullInt16":
-		return "sql.NullInt16{Int16: randomInt16(1, 1000, 100), Valid: true}"
-	case "sql.NullInt32":
-		return "sql.NullInt32{Int32: randomInt(1, 1000, 100), Valid: true}"
-	case "sql.NullInt64":
-		return "sql.NullInt64{Int64: randomInt64(1, 1000, 100), Valid: true}"
-	case "sql.NullFloat64":
-		return "sql.NullFloat64{Float64: float64(randomInt(1, 1000, 100)), Valid: true}"
-	case "sql.NullTime":
-		return "sql.NullTime{Time: time.Now(), Valid: true}"
-	// bun.Null types
-	case "bun.NullString":
-		return "bun.NullString{String: faker.Word(), Valid: true}"
-	case "bun.NullBool":
-		return "bun.NullBool{Bool: randomBool(), Valid: true}"
-	case "bun.NullInt32":
-		return "bun.NullInt32{Int32: randomInt(1, 1000, 100), Valid: true}"
-	case "bun.NullInt64":
-		return "bun.NullInt64{Int64: randomInt64(1, 1000, 100), Valid: true}"
-	case "bun.NullFloat64":
-		return "bun.NullFloat64{Float64: float64(randomInt(1, 1000, 100)), Valid: true}"
-	case "bun.NullTime":
-		return "bun.NullTime{Time: time.Now(), Valid: true}"
 	}
 
 	// Default fallback
-	return fmt.Sprintf("%s{}", goType)
+	return fmt.Sprintf("*new(%s)", goType)
 }
 
 func (g *Generator) stringFactoryDefault(fieldName string) string {
@@ -579,6 +593,8 @@ func (g *Generator) stringFactoryDefault(fieldName string) string {
 		return "faker.Phonenumber()"
 	case lower == "url" || strings.Contains(lower, "url"):
 		return "faker.URL()"
+	case lower == "cidr" || strings.Contains(lower, "cidr"):
+		return `"10.0.0.0/24"`
 	case lower == "description" || strings.HasSuffix(lower, "description"):
 		return "faker.Sentence()"
 	case lower == "title" || strings.HasSuffix(lower, "title"):
@@ -650,6 +666,10 @@ func (g *Generator) GenerateFactoryFile(factory *GeneratedFactory, templateStr s
 		"toLower": func(s string) string {
 			return strings.ToLower(s)
 		},
+		"plural": inflection.Plural,
+		"lowerCamel": func(s string) string {
+			return naming.ToLowerCamelCase(s)
+		},
 	}
 
 	tmpl, err := template.New("factory").Funcs(funcMap).Parse(templateStr)
@@ -667,16 +687,9 @@ func (g *Generator) GenerateFactoryFile(factory *GeneratedFactory, templateStr s
 
 // WriteFactoryFile writes a factory file to disk
 func (g *Generator) WriteFactoryFile(factory *GeneratedFactory, outputDir string) error {
-	// Read factory template
-	templateContent, err := templates.Files.ReadFile("factory.tmpl")
+	factoryContent, err := g.PlanFactorySource(factory)
 	if err != nil {
-		return fmt.Errorf("failed to read factory template: %w", err)
-	}
-
-	// Generate factory content
-	factoryContent, err := g.GenerateFactoryFile(factory, string(templateContent))
-	if err != nil {
-		return fmt.Errorf("failed to render factory file: %w", err)
+		return err
 	}
 
 	// Determine output path using snake_case for consistency with model files
@@ -693,10 +706,22 @@ func (g *Generator) WriteFactoryFile(factory *GeneratedFactory, outputDir string
 		return fmt.Errorf("failed to write factory file: %w", err)
 	}
 
-	// Format the file
-	if err := files.FormatGoFile(outputPath); err != nil {
-		return fmt.Errorf("failed to format factory file: %w", err)
-	}
-
 	return nil
+}
+
+// PlanFactorySource renders formatted factory source without writing files.
+func (g *Generator) PlanFactorySource(factory *GeneratedFactory) (string, error) {
+	templateContent, err := templates.Files.ReadFile("factory.tmpl")
+	if err != nil {
+		return "", fmt.Errorf("failed to read factory template: %w", err)
+	}
+	factoryContent, err := g.GenerateFactoryFile(factory, string(templateContent))
+	if err != nil {
+		return "", fmt.Errorf("failed to render factory file: %w", err)
+	}
+	formatted, err := format.Source([]byte(factoryContent))
+	if err != nil {
+		return "", fmt.Errorf("failed to format factory source: %w", err)
+	}
+	return string(formatted), nil
 }

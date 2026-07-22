@@ -26,6 +26,7 @@ type Column struct {
 	IsUnique        bool
 	IsAutoIncrement bool
 	ForeignKey      *ForeignKey // nil if not a foreign key
+	AllowedValues   []string
 }
 
 // NewColumn creates a new column.
@@ -65,6 +66,12 @@ func (c *Column) SetAutoIncrement() *Column {
 // SetDefault sets default.
 func (c *Column) SetDefault(defaultValue string) *Column {
 	c.DefaultVal = &defaultValue
+	return c
+}
+
+// SetAllowedValues records values accepted by an enum-like column constraint.
+func (c *Column) SetAllowedValues(values ...string) *Column {
+	c.AllowedValues = append([]string(nil), values...)
 	return c
 }
 
@@ -120,6 +127,7 @@ func (c *Column) Clone() *Column {
 		IsPrimaryKey:    c.IsPrimaryKey,
 		IsUnique:        c.IsUnique,
 		IsAutoIncrement: c.IsAutoIncrement,
+		AllowedValues:   append([]string(nil), c.AllowedValues...),
 	}
 
 	if c.Length != nil {

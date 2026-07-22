@@ -97,17 +97,22 @@ func TestGeneratorFactoryDefaultsAndZeroValues(t *testing.T) {
 	g := NewGenerator("postgresql")
 
 	defaults := map[string]string{
-		"Email:string":             "faker.Word()",
-		"Name:string":              "faker.Word()",
+		"Email:string":             "faker.Email()",
+		"Name:string":              "faker.Name()",
 		"Age:int32":                "randomInt(1, 1000, 100)",
 		"Enabled:bool":             "randomBool()",
 		"CreatedAt:time.Time":      "time.Time{}",
 		"ID:uuid.UUID":             "uuid.UUID{}",
-		"Metadata:json.RawMessage": "json.RawMessage{}",
+		"Metadata:json.RawMessage": `json.RawMessage("{}")`,
 		"Payload:[]byte":           "[]byte{}",
-		"Maybe:sql.NullString":     "sql.NullString{String: faker.Word(), Valid: true}",
-		"Maybe:bun.NullInt64":      "bun.NullInt64{Int64: randomInt64(1, 1000, 100), Valid: true}",
-		"Custom:Money":             "Money{}",
+		"Maybe:sql.NullString":     "sql.NullString{}",
+		"MaybeBool:sql.NullBool":   "sql.NullBool{}",
+		"MaybeInt:sql.NullInt64":   "sql.NullInt64{}",
+		"ArchivedAt:sql.NullTime":  "sql.NullTime{}",
+		"Maybe:bun.NullInt64":      "bun.NullInt64{}",
+		"PublishedAt:bun.NullTime": "bun.NullTime{}",
+		"Optional:*string":         "nil",
+		"Custom:Money":             "*new(Money)",
 	}
 	for key, want := range defaults {
 		parts := strings.Split(key, ":")
@@ -247,6 +252,63 @@ func TestBuildFactoryMetadata(t *testing.T) {
 	}
 	if slices.Contains(factory.ExternalImports, "github.com/google/uuid") {
 		t.Fatalf("int64 ID should not add uuid ID import: %#v", factory.ExternalImports)
+	}
+}
+
+func TestBuildFactoryUsesSuppliedModelAndFieldNames(t *testing.T) {
+	tests := []struct {
+		modelName string
+		tableName string
+		fieldName string
+		want      string
+	}{
+		{modelName: "Application", tableName: "applications", fieldName: "Name", want: "WithApplicationName"},
+		{modelName: "Credential", tableName: "credentials", fieldName: "Provider", want: "WithCredentialProvider"},
+		{modelName: "EnvironmentHealthCheck", tableName: "environment_health_checks", fieldName: "Url", want: "WithEnvironmentHealthCheckUrl"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.modelName, func(t *testing.T) {
+			model := &GeneratedModel{
+				Name:       tt.modelName,
+				EntityName: tt.modelName + "Entity",
+				Fields: []GeneratedField{
+					{Name: tt.fieldName, Type: "string"},
+				},
+			}
+			factory, err := NewGenerator("postgresql").BuildFactory(nil, Config{TableName: tt.tableName}, model)
+			if err != nil {
+				t.Fatalf("build factory: %v", err)
+			}
+			if got := factory.Fields[0].OptionName; got != tt.want {
+				t.Fatalf("option name = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildFactoryUsesSchemaAwareSemanticDefaults(t *testing.T) {
+	model := &GeneratedModel{
+		Name:       "Endpoint",
+		EntityName: "EndpointEntity",
+		Fields: []GeneratedField{
+			{Name: "Url", Type: "string"},
+			{Name: "Cidr", Type: "string"},
+			{Name: "Status", Type: "string", AllowedValues: []string{"pending", "ready"}},
+		},
+	}
+	factory, err := NewGenerator("postgresql").BuildFactory(nil, Config{TableName: "endpoints"}, model)
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+	want := map[string]string{
+		"Url":    "faker.URL()",
+		"Cidr":   `"10.0.0.0/24"`,
+		"Status": `"pending"`,
+	}
+	for _, field := range factory.Fields {
+		if expected := want[field.Name]; expected != "" && field.DefaultValue != expected {
+			t.Fatalf("%s default = %q, want %q", field.Name, field.DefaultValue, expected)
+		}
 	}
 }
 

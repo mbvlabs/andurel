@@ -1,6 +1,7 @@
 package ddl
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -127,11 +128,30 @@ func TestCatalogVisitorErrorsConstraintsAndStubOperations(t *testing.T) {
 		"drop index":    visitor.VisitDropIndex(&DropIndexStatement{}),
 		"create schema": visitor.VisitCreateSchema(&CreateSchemaStatement{}),
 		"drop schema":   visitor.VisitDropSchema(&DropSchemaStatement{}),
-		"create enum":   visitor.VisitCreateEnum(&CreateEnumStatement{}),
 		"drop enum":     visitor.VisitDropEnum(&DropEnumStatement{}),
 	} {
 		if err != nil {
 			t.Fatalf("%s stub returned error: %v", name, err)
 		}
+	}
+	if err := visitor.VisitCreateEnum(&CreateEnumStatement{EnumName: "status", EnumDef: &catalog.Enum{Name: "status", Values: []string{"active"}}}); err != nil {
+		t.Fatalf("create enum: %v", err)
+	}
+}
+
+func TestApplyDDLPersistsEnumsInCreatedSchemas(t *testing.T) {
+	cat := catalog.NewCatalog("public")
+	if err := ApplyDDL(cat, "CREATE SCHEMA tenant", "001_schema.sql", "postgresql"); err != nil {
+		t.Fatalf("create schema: %v", err)
+	}
+	if err := ApplyDDL(cat, "CREATE TYPE tenant.status AS ENUM ('active', 'disabled')", "002_status.sql", "postgresql"); err != nil {
+		t.Fatalf("create enum: %v", err)
+	}
+	enum, err := cat.GetEnum("tenant", "status")
+	if err != nil {
+		t.Fatalf("get enum: %v", err)
+	}
+	if !slices.Equal(enum.Values, []string{"active", "disabled"}) {
+		t.Fatalf("enum values = %#v", enum.Values)
 	}
 }

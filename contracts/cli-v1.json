@@ -1848,6 +1848,11 @@
           "go_name": "ExitCode",
           "json_name": "exit_code",
           "omitempty": true
+        },
+        {
+          "go_name": "Data",
+          "json_name": "data",
+          "omitempty": true
         }
       ]
     },
@@ -2275,6 +2280,11 @@
       {
         "go_name": "ExitCode",
         "json_name": "exit_code",
+        "omitempty": true
+      },
+      {
+        "go_name": "Data",
+        "json_name": "data",
         "omitempty": true
       }
     ]

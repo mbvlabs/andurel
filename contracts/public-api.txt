@@ -102,6 +102,7 @@ type CLIError struct {
 	Hint     string
 	ExitCode int
 	Cause    error
+	Data     any
 }
     CLIError is a typed command error with a stable machine-readable code.
 
@@ -131,6 +132,7 @@ type ErrorEnvelope struct {
 	Error    string `json:"error"`
 	Hint     string `json:"hint,omitempty"`
 	ExitCode int    `json:"exit_code,omitempty"`
+	Data     any    `json:"data,omitempty"`
 }
     ErrorEnvelope wraps failed structured command output.
 
@@ -1136,20 +1138,21 @@ type GeneratedFactory struct {
     GeneratedFactory represents a factory for a model
 
 type GeneratedField struct {
-	Name         string
-	Type         string
-	Comment      string
-	Package      string
-	BunTag       string // Full bun struct tag (e.g., `bun:"id,pk,type:uuid"`)
-	IsForeignKey bool
-	IsNullable   bool
-	IsPrimaryKey bool
+	Name          string
+	Type          string
+	Comment       string
+	Package       string
+	BunTag        string // Full bun struct tag (e.g., `bun:"id,pk,type:uuid"`)
+	IsForeignKey  bool
+	IsNullable    bool
+	IsPrimaryKey  bool
+	AllowedValues []string
 }
     GeneratedField describes one model field derived from a database column.
 
 type GeneratedModel struct {
 	Name                string
-	PluralName          string // The pluralized form of Name for function names (respects --table-name override)
+	PluralName          string // The pluralized form of the supplied resource name for function names
 	Package             string
 	Fields              []GeneratedField
 	StandardImports     []string
@@ -1210,6 +1213,9 @@ func (g *Generator) GenerateModel(
 
 func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string) (string, error)
     GenerateModelFile renders model template data into Go source.
+
+func (g *Generator) PlanFactorySource(factory *GeneratedFactory) (string, error)
+    PlanFactorySource renders formatted factory source without writing files.
 
 func (g *Generator) WriteFactoryFile(factory *GeneratedFactory, outputDir string) error
     WriteFactoryFile writes a factory file to disk
