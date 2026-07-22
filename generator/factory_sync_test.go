@@ -120,6 +120,14 @@ func CustomProductScore() int {
 }
 
 func TestRenderSyncedFactoryFileRetainsGeneratedTypeImportsAndCanonicalFormatting(t *testing.T) {
+	ownerField := models.FactoryField{
+		Name:         "OwnerID",
+		ArgumentName: "ownerID",
+		Type:         "uuid.UUID",
+		DefaultValue: "uuid.UUID{}",
+		OptionName:   "WithProductsOwnerID",
+		IsFK:         true,
+	}
 	factory := &models.GeneratedFactory{
 		ModelName:         "Product",
 		EntityName:        "ProductEntity",
@@ -129,12 +137,14 @@ func TestRenderSyncedFactoryFileRetainsGeneratedTypeImportsAndCanonicalFormattin
 		IsAutoIncrementID: true,
 		Fields: []models.FactoryField{
 			{Name: "ID", Type: "int64", IsAutoManaged: true, IsID: true},
-			{Name: "OwnerID", Type: "uuid.UUID", DefaultValue: "uuid.UUID{}", OptionName: "WithProductsOwnerID", IsFK: true},
+			ownerField,
 			{Name: "ArchivedAt", Type: "sql.NullTime", DefaultValue: "sql.NullTime{}", OptionName: "WithProductsArchivedAt"},
 			{Name: "Payload", Type: "json.RawMessage", DefaultValue: "json.RawMessage{}", OptionName: "WithProductsPayload"},
 			{Name: "ObservedAt", Type: "bun.NullTime", DefaultValue: "bun.NullTime{}", OptionName: "WithProductsObservedAt"},
 			{Name: "Endpoint", Type: "url.URL", DefaultValue: "url.URL{}", OptionName: "WithProductsEndpoint"},
 		},
+		HasForeignKeys:   true,
+		ForeignKeyFields: []models.FactoryField{ownerField},
 	}
 	oldContent := `package factories
 
@@ -415,9 +425,12 @@ type ProductEntity struct {
 		t.Fatalf("read product factory: %v", err)
 	}
 	generated := string(content)
+	normalizedGenerated := strings.Join(strings.Fields(generated), " ")
+	if !strings.Contains(normalizedGenerated, `State: *new(models.ProductState),`) {
+		t.Fatalf("generated factory missing model state default:\n%s", generated)
+	}
 	for _, want := range []string{
 		`"net/url"`,
-		`State: *new(models.ProductState)`,
 		`func WithProductState(value models.ProductState) ProductOption`,
 		`func WithProductEndpoint(value url.URL) ProductOption`,
 	} {
