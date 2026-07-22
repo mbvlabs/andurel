@@ -1,13 +1,13 @@
 package models
 
 type (
-	token struct{}
-	user  struct{}
+	token    struct{}
+	user     struct{}
 	document struct{}
 )
 
 var (
-	Token token
-	User  user
+	Token    token
+	User     user
 	Document document
 )
