@@ -736,6 +736,11 @@
           "default": "false"
         },
         {
+          "name": "mode",
+          "type": "string",
+          "default": "crud"
+        },
+        {
           "name": "primary-key",
           "type": "string",
           "default": ""

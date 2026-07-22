@@ -109,6 +109,58 @@ func TestGenerateModelMapsPrimaryKeyToGenerator(t *testing.T) {
 	}
 }
 
+func TestGenerateModelMapsModeToGenerator(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+
+	result := executeCLITest(t, "generate", "model", "AuditLog", "--mode", "read-only", "--primary-key", "event_id")
+	if result.err != nil {
+		t.Fatalf("generate read-only model failed: %v", result.err)
+	}
+	want := []modelModeCall{{
+		name:       "AuditLog",
+		primaryKey: "event_id",
+		mode:       generator.ModelModeReadOnly,
+	}}
+	if !reflect.DeepEqual(fake.modelModeCalls, want) {
+		t.Fatalf("model mode calls: expected %#v, got %#v", want, fake.modelModeCalls)
+	}
+	if len(fake.modelCalls) != 0 || len(fake.modelWithPKCalls) != 0 {
+		t.Fatalf("mode generation used legacy calls: models=%#v with_pk=%#v", fake.modelCalls, fake.modelWithPKCalls)
+	}
+}
+
+func TestGenerateModelRejectsInvalidMode(t *testing.T) {
+	result := runCLITest(t, "generate", "model", "AuditLog", "--mode", "immutable")
+	if result.err == nil || !strings.Contains(result.err.Error(), "invalid model mode") {
+		t.Fatalf("expected invalid model mode error, got %v", result.err)
+	}
+}
+
+func TestGenerateModelDryRunUsesGenerationPlan(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+	fake.modelPlan = &generator.ModelGenerationPlan{}
+
+	result := executeCLITest(t, "generate", "model", "ServerSSHCredential", "--dry-run", "--json", "--mode", "read-only", "--primary-key", "credential_id")
+	if result.err != nil {
+		t.Fatalf("generate model dry run failed: %v", result.err)
+	}
+	want := []modelPlanCall{{
+		name: "ServerSSHCredential",
+		options: generator.ModelGenerationOptions{
+			PrimaryKeyColumn: "credential_id",
+			Mode:             generator.ModelModeReadOnly,
+		},
+	}}
+	if !reflect.DeepEqual(fake.modelPlanCalls, want) {
+		t.Fatalf("model plan calls: expected %#v, got %#v", want, fake.modelPlanCalls)
+	}
+	if len(fake.modelCalls) != 0 || len(fake.modelWithPKCalls) != 0 || len(fake.modelModeCalls) != 0 {
+		t.Fatalf("dry run invoked writing generation methods: %#v", fake)
+	}
+}
+
 func TestGenerateModelUpdateMapsYesFlag(t *testing.T) {
 	resetCLITestSeams(t)
 	var gotName string

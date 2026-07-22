@@ -2,7 +2,7 @@ package generator
 
 import (
 	"fmt"
-	"os"
+	"go/format"
 	"path/filepath"
 	"strings"
 
@@ -23,6 +23,28 @@ type ModelManager struct {
 	config           *UnifiedConfig
 	pkResolver       PrimaryKeyResolver
 	factoryValidator func(rootDir, factoryPath, content string) error
+}
+
+// ModelGenerationOptions controls pure model generation planning.
+type ModelGenerationOptions struct {
+	TableNameOverride string
+	SkipFactory       bool
+	PrimaryKeyColumn  string
+	Mode              ModelMode
+}
+
+// PlannedFile describes one complete file transformation.
+type PlannedFile struct {
+	Path       string
+	OldContent string
+	NewContent string
+	Exists     bool
+}
+
+// ModelGenerationPlan contains every file produced by model generation.
+type ModelGenerationPlan struct {
+	ResourceName string
+	Files        []PlannedFile
 }
 
 type modelSetupContext struct {
@@ -91,7 +113,11 @@ func (m *ModelManager) setupModelContext(
 	modelFileName.Grow(len(resourceName) + 3)
 	modelFileName.WriteString(naming.ToSnakeCase(resourceName))
 	modelFileName.WriteString(".go")
-	modelPath := filepath.Join(m.config.Paths.Models, modelFileName.String())
+	modelsPath := m.config.Paths.Models
+	if !filepath.IsAbs(modelsPath) {
+		modelsPath = filepath.Join(rootDir, modelsPath)
+	}
+	modelPath := filepath.Join(modelsPath, modelFileName.String())
 
 	return &modelSetupContext{
 		ModulePath:   modulePath,
@@ -110,6 +136,40 @@ func (m *ModelManager) GenerateModel(
 	skipFactory bool,
 	primaryKeyColumn string,
 ) error {
+	return m.GenerateModelWithMode(resourceName, tableNameOverride, skipFactory, primaryKeyColumn, models.ModelModeCRUD)
+}
+
+// GenerateModelWithMode generates model files with a persisted operation mode.
+func (m *ModelManager) GenerateModelWithMode(
+	resourceName string,
+	tableNameOverride string,
+	skipFactory bool,
+	primaryKeyColumn string,
+	mode models.ModelMode,
+) error {
+	plan, err := m.PlanModel(resourceName, ModelGenerationOptions{
+		TableNameOverride: tableNameOverride,
+		SkipFactory:       skipFactory,
+		PrimaryKeyColumn:  primaryKeyColumn,
+		Mode:              mode,
+	})
+	if err != nil {
+		return err
+	}
+	if err := m.ApplyModelPlan(plan); err != nil {
+		return err
+	}
+
+	if !skipFactory {
+		fmt.Printf("✓ Generated factory: models/factories/%s.go\n", naming.ToSnakeCase(resourceName))
+	}
+	fmt.Printf("Successfully generated complete model for %s with database functions\n", resourceName)
+	return nil
+}
+
+// PlanModel computes every model generation output without writing files.
+func (m *ModelManager) PlanModel(resourceName string, options ModelGenerationOptions) (*ModelGenerationPlan, error) {
+	tableNameOverride := options.TableNameOverride
 	tableName := tableNameOverride
 	if tableName == "" {
 		tableName = naming.DeriveTableName(resourceName)
@@ -117,64 +177,132 @@ func (m *ModelManager) GenerateModel(
 
 	if tableNameOverride != "" {
 		if err := m.validator.ValidateTableNameOverride(resourceName, tableNameOverride); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	ctx, err := m.setupModelContext(resourceName, tableName, tableNameOverride != "")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := m.fileManager.ValidateFileNotExists(ctx.ModelPath); err != nil {
-		return err
+		return nil, err
 	}
 
-	cat, err := m.migrationManager.BuildCatalogFromMigrations(ctx.TableName, m.config)
+	planningConfig := *m.config
+	planningConfig.Database = m.config.Database
+	planningConfig.Database.MigrationDirs = append([]string(nil), m.config.Database.MigrationDirs...)
+	for index, migrationDir := range planningConfig.Database.MigrationDirs {
+		if !filepath.IsAbs(migrationDir) {
+			planningConfig.Database.MigrationDirs[index] = filepath.Join(ctx.RootDir, migrationDir)
+		}
+	}
+	cat, err := m.migrationManager.BuildCatalogFromMigrations(ctx.TableName, &planningConfig)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Resolve primary key
 	var pkInfo PrimaryKeyInfo
-	if primaryKeyColumn != "" {
+	if options.PrimaryKeyColumn != "" {
 		pkInfo = PrimaryKeyInfo{
-			ColumnName: primaryKeyColumn,
+			ColumnName: options.PrimaryKeyColumn,
 			Found:      true,
-			IsNamedID:  primaryKeyColumn == "id",
+			IsNamedID:  options.PrimaryKeyColumn == "id",
 		}
 	} else {
 		var err error
 		pkInfo, err = m.resolvePrimaryKey(cat, ctx.TableName)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	nullType := m.readNullType(ctx.RootDir)
-
-	if err := m.modelGenerator.GenerateModel(cat, ctx.ResourceName, ctx.TableName, ctx.ModelPath, ctx.ModulePath, tableNameOverride, nullType, pkInfo.ColumnName, !pkInfo.Found); err != nil {
-		return fmt.Errorf("failed to generate model: %w", err)
+	mode := options.Mode
+	if mode == "" {
+		mode = models.ModelModeCRUD
+	}
+	genModel, modelContent, err := m.modelGenerator.PlanModelSource(cat, ctx.ResourceName, ctx.TableName, ctx.ModulePath, tableNameOverride, nullType, pkInfo.ColumnName, !pkInfo.Found, mode)
+	if err != nil {
+		return nil, fmt.Errorf("plan model source: %w", err)
+	}
+	plan := &ModelGenerationPlan{
+		ResourceName: resourceName,
+		Files: []PlannedFile{{
+			Path:       ctx.ModelPath,
+			NewContent: modelContent,
+		}},
 	}
 
-	if err := m.registerNamespace(ctx.ResourceName); err != nil {
-		return fmt.Errorf("failed to register namespace in models/model.go: %w", err)
-	}
-
-	// Generate factory (unless skipped)
-	if !skipFactory {
-		if err := m.generateFactory(cat, ctx, pkInfo); err != nil {
-			// Log the error but don't fail the entire generation
-			fmt.Printf("Warning: failed to generate factory: %v\n", err)
-		} else {
-			fmt.Printf("✓ Generated factory: models/factories/%s.go\n", strings.ToLower(ctx.ResourceName))
+	registryPath := filepath.Join(filepath.Dir(ctx.ModelPath), "model.go")
+	if m.fileManager.FileExists(registryPath) {
+		registryContent, readErr := m.fileManager.ReadFile(registryPath)
+		if readErr != nil {
+			return nil, fmt.Errorf("read model registry: %w", readErr)
+		}
+		updatedRegistry, formatErr := planNamespaceRegistration(resourceName, registryContent)
+		if formatErr != nil {
+			return nil, fmt.Errorf("plan model registry: %w", formatErr)
+		}
+		if updatedRegistry != registryContent {
+			plan.Files = append(plan.Files, PlannedFile{
+				Path:       registryPath,
+				OldContent: registryContent,
+				NewContent: updatedRegistry,
+				Exists:     true,
+			})
 		}
 	}
 
-	fmt.Printf(
-		"Successfully generated complete model for %s with database functions\n",
-		ctx.ResourceName,
-	)
+	if !options.SkipFactory {
+		genFactory, buildErr := m.modelGenerator.BuildFactory(cat, models.Config{
+			TableName:         ctx.TableName,
+			ResourceName:      ctx.ResourceName,
+			PackageName:       "factories",
+			DatabaseType:      m.config.Database.Type,
+			ModulePath:        ctx.ModulePath,
+			NullType:          nullType,
+			PrimaryKeyColumn:  pkInfo.ColumnName,
+			GenerateWithoutPK: !pkInfo.Found,
+			ModelMode:         mode,
+		}, genModel)
+		if buildErr != nil {
+			return nil, fmt.Errorf("plan factory metadata: %w", buildErr)
+		}
+		factoryContent, renderErr := m.modelGenerator.PlanFactorySource(genFactory)
+		if renderErr != nil {
+			return nil, fmt.Errorf("plan factory source: %w", renderErr)
+		}
+		factoryPath := filepath.Join(filepath.Dir(ctx.ModelPath), "factories", naming.ToSnakeCase(resourceName)+".go")
+		plannedFactory := PlannedFile{Path: factoryPath, NewContent: factoryContent}
+		if m.fileManager.FileExists(factoryPath) {
+			oldFactory, readErr := m.fileManager.ReadFile(factoryPath)
+			if readErr != nil {
+				return nil, fmt.Errorf("read existing factory: %w", readErr)
+			}
+			plannedFactory.Exists = true
+			plannedFactory.OldContent = oldFactory
+		}
+		if !plannedFactory.Exists || plannedFactory.OldContent != plannedFactory.NewContent {
+			plan.Files = append(plan.Files, plannedFactory)
+		}
+	}
+
+	return plan, nil
+}
+
+// ApplyModelPlan writes the exact content returned by PlanModel.
+func (m *ModelManager) ApplyModelPlan(plan *ModelGenerationPlan) error {
+	if plan == nil {
+		return fmt.Errorf("model generation plan is required")
+	}
+	for _, file := range plan.Files {
+		if err := m.fileManager.WriteFile(file.Path, file.NewContent); err != nil {
+			return fmt.Errorf("write planned file %s: %w", file.Path, err)
+		}
+	}
 	return nil
 }
 
@@ -205,82 +333,15 @@ func (m *ModelManager) resolvePrimaryKey(cat *catalog.Catalog, tableName string)
 	return pkInfo, nil
 }
 
-// generateFactory creates a factory file for the model
-func (m *ModelManager) generateFactory(cat *catalog.Catalog, ctx *modelSetupContext, pkInfo PrimaryKeyInfo) error {
-	// Get root directory
-	rootDir, err := m.fileManager.FindGoModRoot()
-	if err != nil {
-		return fmt.Errorf("failed to find go.mod root: %w", err)
-	}
-
-	nullType := m.readNullType(rootDir)
-
-	// Build the model first
-	genModel, err := m.modelGenerator.Build(cat, models.Config{
-		TableName:         ctx.TableName,
-		ResourceName:      ctx.ResourceName,
-		PackageName:       "models",
-		DatabaseType:      m.config.Database.Type,
-		ModulePath:        ctx.ModulePath,
-		NullType:          nullType,
-		PrimaryKeyColumn:  pkInfo.ColumnName,
-		GenerateWithoutPK: !pkInfo.Found,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to build model for factory: %w", err)
-	}
-
-	// Build factory metadata
-	genFactory, err := m.modelGenerator.BuildFactory(cat, models.Config{
-		TableName:         ctx.TableName,
-		ResourceName:      ctx.ResourceName,
-		PackageName:       "factories",
-		DatabaseType:      m.config.Database.Type,
-		ModulePath:        ctx.ModulePath,
-		NullType:          nullType,
-		PrimaryKeyColumn:  pkInfo.ColumnName,
-		GenerateWithoutPK: !pkInfo.Found,
-	}, genModel)
-	if err != nil {
-		return fmt.Errorf("failed to build factory: %w", err)
-	}
-
-	// Write factory file
-	if err := m.modelGenerator.WriteFactoryFile(genFactory, rootDir); err != nil {
-		return fmt.Errorf("failed to write factory: %w", err)
-	}
-
-	return nil
-}
-
-// registerNamespace ensures the project's models/model.go declares the
-// `<type> struct{}` and `<Var> <type>` entries for the new resource so
-// per-resource files (which only define methods on the namespace type)
-// compile.
-func (m *ModelManager) registerNamespace(resourceName string) error {
-	modelGoPath := filepath.Join(m.config.Paths.Models, "model.go")
-
-	src, err := os.ReadFile(modelGoPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-
-	namespaceVar := resourceName
+func planNamespaceRegistration(resourceName, source string) (string, error) {
 	namespaceType := naming.ToLowerCamelCaseFromAny(resourceName)
-	typeEntry := "\t" + namespaceType + " struct{}"
-	varEntry := "\t" + namespaceVar + " " + namespaceType
-
-	updated := ensureLineInBlock(string(src), "type (", typeEntry)
-	updated = ensureLineInBlock(updated, "var (", varEntry)
-
-	if updated == string(src) {
-		return nil
+	updated := ensureLineInBlock(source, "type (", "\t"+namespaceType+" struct{}")
+	updated = ensureLineInBlock(updated, "var (", "\t"+resourceName+" "+namespaceType)
+	formatted, err := format.Source([]byte(updated))
+	if err != nil {
+		return "", err
 	}
-
-	return os.WriteFile(modelGoPath, []byte(updated), 0o644)
+	return string(formatted), nil
 }
 
 // ensureLineInBlock inserts entry as a new line just before the `)` that
