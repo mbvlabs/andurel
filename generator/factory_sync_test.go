@@ -578,7 +578,8 @@ type ProductEntity struct {
 	if err := os.WriteFile(filepath.Join(modelsDir, "product.go"), []byte(modelSource), 0o600); err != nil {
 		t.Fatalf("write product model: %v", err)
 	}
-	migration := `CREATE TYPE product_status AS ENUM ('draft', 'published');
+	migration := `-- +goose Up
+CREATE TYPE product_status AS ENUM ('draft', 'published');
 
 CREATE TABLE products (
 	id BIGSERIAL PRIMARY KEY,
