@@ -113,6 +113,9 @@ func ValidateSession(
 		if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
 			return next(c)
 		}
+		if err := cookies.RecoverInvalidSessions(c); err != nil {
+			return err
+		}
 
 		return next(c)
 	}
@@ -280,8 +283,8 @@ func CSRFMiddleware(cfg config.Config, csrfName string) (echo.MiddlewareFunc, er
 		Skipper: func(c *echo.Context) bool {
 			return mayBypassCSRF(c.Request())
 		},
-		TokenLookup:    tokenLookup,
-		CookiePath:     "/",
+		TokenLookup: tokenLookup,
+		CookiePath:  "/",
 		CookieDomain: func() string {
 			if config.Env == server.ProdEnvironment {
 				return config.Domain
