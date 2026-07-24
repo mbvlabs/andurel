@@ -52,7 +52,7 @@ func ApplyDDL(
 			return unsupportedStatement(stmt.GetRaw(), "CASCADE can remove table columns or tables used to generate models")
 		}
 		return nil
-	case CreateEnum, CreateSchema, CreateIndex, DropIndex:
+	case CreateIndex, DropIndex:
 		return nil
 	}
 

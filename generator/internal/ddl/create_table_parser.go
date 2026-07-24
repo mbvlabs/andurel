@@ -2,6 +2,7 @@ package ddl
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -55,6 +56,10 @@ func (p *CreateTableParser) parseColumnDefinitions(
 ) ([]*catalog.Column, error) {
 	var columns []*catalog.Column
 	var primaryKeyColumns []string
+	var allowedValueConstraints []struct {
+		column string
+		values []string
+	}
 	var foreignKeys []struct {
 		column           string
 		referencedTable  string
@@ -115,6 +120,18 @@ func (p *CreateTableParser) parseColumnDefinitions(
 			continue
 		}
 
+		if strings.HasPrefix(defLower, "check ") || strings.HasPrefix(defLower, "check(") ||
+			(strings.HasPrefix(defLower, "constraint") && strings.Contains(defLower, " check")) {
+			column, values := parseCheckInValues(def)
+			if len(values) > 0 {
+				allowedValueConstraints = append(allowedValueConstraints, struct {
+					column string
+					values []string
+				}{column: column, values: values})
+			}
+			continue
+		}
+
 		if isTableConstraintDefinition(defLower) {
 			continue
 		}
@@ -152,6 +169,20 @@ func (p *CreateTableParser) parseColumnDefinitions(
 					return nil, err
 				}
 			}
+		}
+	}
+
+	for _, constraint := range allowedValueConstraints {
+		matched := false
+		for _, col := range columns {
+			if strings.EqualFold(col.Name, constraint.column) {
+				col.SetAllowedValues(constraint.values...)
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return nil, unsupportedStatement(columnDefs, "CHECK constraint references unknown column "+constraint.column)
 		}
 	}
 
@@ -243,6 +274,9 @@ func (p *CreateTableParser) parseColumnDefinition(
 	if defaultVal, ok := parseDefaultValue(def); ok {
 		col.SetDefault(defaultVal)
 	}
+	if allowedValues := parseInlineCheckValues(def, columnName); len(allowedValues) > 0 {
+		col.SetAllowedValues(allowedValues...)
+	}
 
 	// Parse inline REFERENCES clause:
 	// REFERENCES table(column) or REFERENCES table
@@ -251,6 +285,27 @@ func (p *CreateTableParser) parseColumnDefinition(
 	}
 
 	return col, nil
+}
+
+func parseInlineCheckValues(def, columnName string) []string {
+	checkedColumn, values := parseCheckInValues(def)
+	if !strings.EqualFold(checkedColumn, columnName) {
+		return nil
+	}
+	return values
+}
+
+func parseCheckInValues(def string) (string, []string) {
+	constraint := regexp.MustCompile(`(?i)\bcheck\s*\(\s*(\w+)\s+in\s*\(([^)]*)\)\s*\)`).FindStringSubmatch(def)
+	if len(constraint) != 3 {
+		return "", nil
+	}
+	matches := regexp.MustCompile(`'((?:''|[^'])*)'`).FindAllStringSubmatch(constraint[2], -1)
+	values := make([]string, 0, len(matches))
+	for _, match := range matches {
+		values = append(values, strings.ReplaceAll(match[1], "''", "'"))
+	}
+	return constraint[1], values
 }
 
 func (p *CreateTableParser) parseDataType(

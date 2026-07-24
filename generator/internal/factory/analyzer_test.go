@@ -57,11 +57,13 @@ func TestFieldAnalyzer_DetermineDefaultAndGoZero(t *testing.T) {
 		"bool":            "randomBool()",
 		"time.Time":       "time.Now()",
 		"uuid.UUID":       "uuid.New()",
-		"json.RawMessage": "json.RawMessage{}",
+		"json.RawMessage": `json.RawMessage("{}")`,
 		"[]byte":          "[]byte{}",
-		"*string":         "faker.Word()",
-		"*time.Time":      "time.Now()",
-		"*bool":           "randomBool()",
+		"*string":         "nil",
+		"*time.Time":      "nil",
+		"*bool":           "nil",
+		"sql.NullString":  "sql.NullString{}",
+		"bun.NullTime":    "bun.NullTime{}",
 		"CustomType":      "CustomType{}",
 	}
 	for typ, want := range defaults {
@@ -102,7 +104,7 @@ func TestFieldAnalyzer_AnalyzeField(t *testing.T) {
 	tests := []struct {
 		name         string
 		field        models.GeneratedField
-		tableName    string
+		modelName    string
 		expectedName string
 		expectedType string
 		expectedIsFK bool
@@ -114,7 +116,7 @@ func TestFieldAnalyzer_AnalyzeField(t *testing.T) {
 				Name: "ID",
 				Type: "uuid.UUID",
 			},
-			tableName:    "products",
+			modelName:    "Product",
 			expectedName: "ID",
 			expectedType: "uuid.UUID",
 			expectedIsFK: false,
@@ -127,7 +129,7 @@ func TestFieldAnalyzer_AnalyzeField(t *testing.T) {
 				Type:         "uuid.UUID",
 				IsForeignKey: true,
 			},
-			tableName:    "products",
+			modelName:    "Product",
 			expectedName: "CategoryID",
 			expectedType: "uuid.UUID",
 			expectedIsFK: true,
@@ -139,19 +141,19 @@ func TestFieldAnalyzer_AnalyzeField(t *testing.T) {
 				Name: "Name",
 				Type: "string",
 			},
-			tableName:    "products",
+			modelName:    "Product",
 			expectedName: "Name",
 			expectedType: "string",
 			expectedIsFK: false,
 			expectedIsID: false,
 		},
 		{
-			name: "Snake case table creates CamelCase option name",
+			name: "supplied model name creates option name",
 			field: models.GeneratedField{
 				Name: "TeamID",
 				Type: "uuid.UUID",
 			},
-			tableName:    "team_memberships",
+			modelName:    "TeamMembership",
 			expectedName: "TeamID",
 			expectedType: "uuid.UUID",
 			expectedIsFK: false,
@@ -161,7 +163,7 @@ func TestFieldAnalyzer_AnalyzeField(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := analyzer.AnalyzeField(tt.field, tt.tableName)
+			result := analyzer.AnalyzeField(tt.field, tt.modelName)
 
 			if result.Name != tt.expectedName {
 				t.Errorf("Name = %s, want %s", result.Name, tt.expectedName)
@@ -175,8 +177,8 @@ func TestFieldAnalyzer_AnalyzeField(t *testing.T) {
 			if result.IsID != tt.expectedIsID {
 				t.Errorf("IsID = %v, want %v", result.IsID, tt.expectedIsID)
 			}
-			if tt.tableName == "team_memberships" && result.OptionName != "WithTeamMembershipsTeamID" {
-				t.Errorf("OptionName = %s, want %s", result.OptionName, "WithTeamMembershipsTeamID")
+			if tt.modelName == "TeamMembership" && result.OptionName != "WithTeamMembershipTeamID" {
+				t.Errorf("OptionName = %s, want %s", result.OptionName, "WithTeamMembershipTeamID")
 			}
 		})
 	}

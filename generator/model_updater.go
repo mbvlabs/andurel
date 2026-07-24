@@ -57,6 +57,7 @@ type parsedField struct {
 	TypeStr  string
 	BunTag   string
 	IsCustom bool
+	Packages []string
 }
 
 // UpdateModelResult holds the before/after state for a model update.

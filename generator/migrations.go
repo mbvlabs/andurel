@@ -92,6 +92,10 @@ func collectRelevantNames(
 
 func isRelevantForTable(stmt string, relevantNames map[string]bool) bool {
 	stmtLower := strings.ToLower(stmt)
+	if strings.Contains(stmtLower, "create schema") ||
+		(strings.Contains(stmtLower, "create type") && strings.Contains(stmtLower, " as enum")) {
+		return true
+	}
 
 	var tableName string
 

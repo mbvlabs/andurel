@@ -341,3 +341,16 @@ func (c *Catalog) AddEnum(schemaName string, enum *Enum) error {
 	schema.Enums[enum.Name] = enum
 	return nil
 }
+
+// GetEnum returns an enum from a schema.
+func (c *Catalog) GetEnum(schemaName, name string) (*Enum, error) {
+	schema, err := c.GetSchema(schemaName)
+	if err != nil {
+		return nil, err
+	}
+	enum, ok := schema.Enums[name]
+	if !ok {
+		return nil, fmt.Errorf("enum %s not found in schema %s", name, schema.Name)
+	}
+	return enum, nil
+}

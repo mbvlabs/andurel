@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"testapp/internal/storage"
-	"testapp/models"
-
 	"github.com/go-faker/faker/v4"
 	"github.com/google/uuid"
+	"testapp/internal/storage"
+	"testapp/models"
 )
 
 // CompanyFactory wraps models.CompanyEntity for testing
@@ -25,8 +24,8 @@ type CompanyOption func(*CompanyFactory)
 func BuildCompany(opts ...CompanyOption) models.CompanyEntity {
 	f := &CompanyFactory{
 		CompanyEntity: models.CompanyEntity{
-			Name:     faker.Word(),
-			Industry: sql.NullString{String: faker.Word(), Valid: true},
+			Name:     faker.Name(),
+			Industry: sql.NullString{},
 		},
 	}
 
@@ -57,32 +56,32 @@ func CreateCompany(ctx context.Context, exec storage.Executor, opts ...CompanyOp
 	return entity, nil
 }
 
-// CreateCompanys creates multiple Company records at once
-func CreateCompanys(ctx context.Context, exec storage.Executor, count int, opts ...CompanyOption) ([]models.CompanyEntity, error) {
-	companys := make([]models.CompanyEntity, 0, count)
+// CreateCompanies creates multiple Company records at once
+func CreateCompanies(ctx context.Context, exec storage.Executor, count int, opts ...CompanyOption) ([]models.CompanyEntity, error) {
+	companies := make([]models.CompanyEntity, 0, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		entity, err := CreateCompany(ctx, exec, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create company %d: %w", i+1, err)
 		}
-		companys = append(companys, entity)
+		companies = append(companies, entity)
 	}
 
-	return companys, nil
+	return companies, nil
 }
 
 // Option functions
 
-// WithCompaniesName sets the Name field
-func WithCompaniesName(value string) CompanyOption {
+// WithCompanyName sets the Name field
+func WithCompanyName(value string) CompanyOption {
 	return func(f *CompanyFactory) {
 		f.CompanyEntity.Name = value
 	}
 }
 
-// WithCompaniesIndustry sets the Industry field
-func WithCompaniesIndustry(value sql.NullString) CompanyOption {
+// WithCompanyIndustry sets the Industry field
+func WithCompanyIndustry(value sql.NullString) CompanyOption {
 	return func(f *CompanyFactory) {
 		f.CompanyEntity.Industry = value
 	}

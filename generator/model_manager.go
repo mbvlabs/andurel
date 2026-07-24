@@ -22,6 +22,7 @@ type ModelManager struct {
 	migrationManager *MigrationManager
 	config           *UnifiedConfig
 	pkResolver       PrimaryKeyResolver
+	factoryValidator func(rootDir, factoryPath, content string) error
 }
 
 type modelSetupContext struct {
@@ -50,6 +51,7 @@ func NewModelManager(
 		migrationManager: migrationManager,
 		config:           config,
 		pkResolver:       DefaultPrimaryKeyResolver{},
+		factoryValidator: validatePlannedFactory,
 	}
 }
 
