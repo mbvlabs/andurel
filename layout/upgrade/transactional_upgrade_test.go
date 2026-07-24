@@ -239,7 +239,7 @@ func TestSessionRecoveryManualActionDoesNotPlanRouterMutations(t *testing.T) {
 	}
 	commitUpgradeTree(t, root, "add user-owned router files")
 
-	upgrader, err := NewUpgrader(root, UpgradeOptions{DryRun: true, TargetVersion: "v1.5.3"})
+	upgrader, err := NewUpgrader(root, UpgradeOptions{DryRun: true, TargetVersion: "v1.5.4"})
 	if err != nil {
 		t.Fatal(err)
 	}

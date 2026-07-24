@@ -12,11 +12,12 @@ func TestSessionRecoveryManualActionVersionGate(t *testing.T) {
 		to   string
 		want bool
 	}{
-		{name: "first affected upgrade", from: "v1.5.2", to: "v1.5.3", want: true},
+		{name: "first affected upgrade", from: "v1.5.2", to: "v1.5.4", want: true},
 		{name: "skips directly over release", from: "v1.4.0", to: "v1.6.0", want: true},
-		{name: "already received note", from: "v1.5.3", to: "v1.6.0", want: false},
+		{name: "already received note", from: "v1.5.4", to: "v1.6.0", want: false},
+		{name: "target predates release", from: "v1.5.2", to: "v1.5.3", want: false},
 		{name: "target predates note", from: "v1.5.1", to: "v1.5.2", want: false},
-		{name: "development version", from: "dev", to: "v1.5.3", want: false},
+		{name: "development version", from: "dev", to: "v1.5.4", want: false},
 	}
 
 	for _, test := range tests {
@@ -33,7 +34,7 @@ func TestSessionRecoveryManualActionVersionGate(t *testing.T) {
 			}
 
 			action := actions[0]
-			if action.ID != "session-cookie-recovery-v1.5.3" {
+			if action.ID != "session-cookie-recovery-v1.5.4" {
 				t.Fatalf("manual action ID = %q", action.ID)
 			}
 			for _, want := range []string{

@@ -10,7 +10,7 @@ The Inertia root embedding migration is another narrow boundary. It moves `views
 
 The `router/*` tree is application-owned, so `andurel upgrade` does not install session-cookie decode recovery into an existing project. New projects include the recovery automatically. Existing projects should reconcile only these declarations against a fresh scaffold created with the target Andurel version:
 
-When an upgrade crosses from a version before `v1.5.3` to `v1.5.3` or later, `andurel upgrade` prints this complete migration with the project's module path already rendered. The same manual action is included in dry-run and structured JSON output. Projects starting on `v1.5.3` or later do not receive the note.
+When an upgrade crosses from a version before `v1.5.4` to `v1.5.4` or later, `andurel upgrade` prints this complete migration with the project's module path already rendered. The same manual action is included in dry-run and structured JSON output. Projects starting on `v1.5.4` or later do not receive the note.
 
 1. Add `router/cookies/session.go` from [`router_cookies_session.tmpl`](../layout/templates/router_cookies_session.tmpl), replacing the template module import with the project's module path.
 2. In `router/cookies/cookies.go` and `router/cookies/flash.go`, replace calls to Echo's `session.Get` with the shared `getSession` helper and remove the now-unused Echo session imports.

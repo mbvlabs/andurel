@@ -9,7 +9,7 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-const sessionCookieRecoveryVersion = "v1.5.3"
+const sessionCookieRecoveryVersion = "v1.5.4"
 
 // ManualAction describes an application-owned change that an upgrade cannot
 // apply without risking user code.
@@ -51,7 +51,7 @@ func manualActionsForUpgrade(fromVersion, toVersion, modulePath string) ([]Manua
 	instructions.WriteString("go fix ./...\ngo vet ./...\n```\n")
 
 	return []ManualAction{{
-		ID:           "session-cookie-recovery-v1.5.3",
+		ID:           "session-cookie-recovery-v1.5.4",
 		Title:        "Update application-owned session handling",
 		Instructions: instructions.String(),
 	}}, nil
