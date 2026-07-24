@@ -95,9 +95,9 @@ func TestUpgradePresentationIncludesManualActions(t *testing.T) {
 
 	report := &UpgradeReport{
 		FromVersion: "v1.5.2",
-		ToVersion:   "v1.5.3",
+		ToVersion:   "v1.5.4",
 		ManualActions: []ManualAction{{
-			ID:           "session-cookie-recovery-v1.5.3",
+			ID:           "session-cookie-recovery-v1.5.4",
 			Title:        "Update application-owned session handling",
 			Instructions: "Create router/cookies/session.go with the rendered recovery helper.",
 		}},

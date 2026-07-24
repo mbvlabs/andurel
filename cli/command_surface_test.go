@@ -722,7 +722,7 @@ func TestRunUpgradeStructuredAndHumanBranches(t *testing.T) {
 			RemovedFiles:  []string{"internal/old.go"},
 			ToolsUpdated:  1,
 			ManualActions: []upgrade.ManualAction{{
-				ID:           "session-cookie-recovery-v1.5.3",
+				ID:           "session-cookie-recovery-v1.5.4",
 				Title:        "Update application-owned session handling",
 				Instructions: "Create router/cookies/session.go",
 			}},
@@ -748,7 +748,7 @@ func TestRunUpgradeStructuredAndHumanBranches(t *testing.T) {
 	if !strings.Contains(out.String(), "dry run only") ||
 		!strings.Contains(out.String(), "controllers/controller.go") ||
 		!strings.Contains(out.String(), `"manual_actions"`) ||
-		!strings.Contains(out.String(), "session-cookie-recovery-v1.5.3") {
+		!strings.Contains(out.String(), "session-cookie-recovery-v1.5.4") {
 		t.Fatalf("structured upgrade output missing report data:\n%s", out.String())
 	}
 
