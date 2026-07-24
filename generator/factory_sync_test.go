@@ -387,6 +387,54 @@ func TestSyncFactoryCheckValidatesPlannedOutputBeforeWriting(t *testing.T) {
 	}
 }
 
+func TestValidatePlannedFactoryUsesPlannedContent(t *testing.T) {
+	tests := []struct {
+		name            string
+		existingContent string
+		plannedContent  string
+		wantError       bool
+	}{
+		{
+			name:            "valid planned source replaces invalid existing source",
+			existingContent: "package factories\nfunc broken(",
+			plannedContent:  "package factories\n\nfunc BuildWidget() {}\n",
+		},
+		{
+			name:            "invalid planned source fails validation",
+			existingContent: "package factories\n\nfunc BuildWidget() {}\n",
+			plannedContent:  "package factories\nfunc broken(",
+			wantError:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app\n"), 0o600); err != nil {
+				t.Fatalf("write go.mod: %v", err)
+			}
+			factoryPath := filepath.Join(root, "models", "factories", "widget.go")
+			if err := os.MkdirAll(filepath.Dir(factoryPath), 0o755); err != nil {
+				t.Fatalf("create factories directory: %v", err)
+			}
+			if err := os.WriteFile(factoryPath, []byte(tt.existingContent), 0o600); err != nil {
+				t.Fatalf("write existing factory: %v", err)
+			}
+
+			err := validatePlannedFactory(root, factoryPath, tt.plannedContent)
+			if tt.wantError {
+				if err == nil || !strings.Contains(err.Error(), "go vet ./models/factories") {
+					t.Fatalf("expected go vet validation error, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("validate planned factory: %v", err)
+			}
+		})
+	}
+}
+
 func TestSyncFactoryQualifiesModelTypesAndRetainsTheirImports(t *testing.T) {
 	root := t.TempDir()
 	modelsDir := filepath.Join(root, "models")
@@ -436,6 +484,133 @@ type ProductEntity struct {
 	} {
 		if !strings.Contains(generated, want) {
 			t.Fatalf("generated factory missing %q:\n%s", want, generated)
+		}
+	}
+}
+
+func TestQualifyFactoryFieldTypesHandlesCompoundAndNestedTypes(t *testing.T) {
+	source := []byte(`package models
+
+import (
+	_ "embed"
+	alias "net/url"
+	. "time"
+)
+
+type Local string
+type Container[T any] []T
+type Pair[A, B any] struct {
+	First  A
+	Second B
+}
+`)
+	fields := []parsedField{
+		{Name: "Pointer", TypeStr: "*Local"},
+		{Name: "Slice", TypeStr: "[]Local"},
+		{Name: "Map", TypeStr: "map[Local]alias.URL"},
+		{Name: "Channel", TypeStr: "chan Local"},
+		{Name: "Function", TypeStr: "func(...Local) alias.URL"},
+		{Name: "Parenthesized", TypeStr: "(Local)"},
+		{Name: "Generic", TypeStr: "Container[Local]"},
+		{Name: "GenericPair", TypeStr: "Pair[Local, alias.URL]"},
+		{Name: "Struct", TypeStr: "struct{ Value Local }"},
+		{Name: "Interface", TypeStr: "interface{ Read(Local) alias.URL }"},
+		{Name: "Constraint", TypeStr: "~Local | alias.URL"},
+		{Name: "NestedSelector", TypeStr: "alias.URL.String"},
+	}
+	wantTypes := []string{
+		"*models.Local",
+		"[]models.Local",
+		"map[models.Local]alias.URL",
+		"chan models.Local",
+		"func(...models.Local) alias.URL",
+		"(models.Local)",
+		"models.Container[models.Local]",
+		"models.Pair[models.Local, alias.URL]",
+		"struct{ Value models.Local }",
+		"interface{ Read(models.Local) alias.URL }",
+		"~models.Local | alias.URL",
+		"alias.URL.String",
+	}
+
+	if err := qualifyFactoryFieldTypes(source, fields); err != nil {
+		t.Fatalf("qualify compound factory field types: %v", err)
+	}
+	for i, field := range fields {
+		if field.TypeStr != wantTypes[i] {
+			t.Fatalf("%s type = %q, want %q", field.Name, field.TypeStr, wantTypes[i])
+		}
+		if !slices.Contains(field.Packages, "time") {
+			t.Fatalf("%s did not retain dot import: %#v", field.Name, field.Packages)
+		}
+		if slices.Contains(field.Packages, "embed") {
+			t.Fatalf("%s retained blank import: %#v", field.Name, field.Packages)
+		}
+		usesAlias := strings.Contains(field.TypeStr, "alias.")
+		if slices.Contains(field.Packages, "net/url") != usesAlias {
+			t.Fatalf("%s alias import mismatch: %#v", field.Name, field.Packages)
+		}
+	}
+}
+
+func TestSyncFactoryUsesMigrationAllowedValuesForDefaults(t *testing.T) {
+	root := t.TempDir()
+	modelsDir := filepath.Join(root, "models")
+	migrationsDir := filepath.Join(root, "database", "migrations")
+	for _, directory := range []string{modelsDir, migrationsDir} {
+		if err := os.MkdirAll(directory, 0o755); err != nil {
+			t.Fatalf("create %s: %v", directory, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app\n"), 0o600); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	modelSource := `package models
+
+type ProductStatus string
+
+type ProductEntity struct {
+	ID     int64         ` + "`bun:\"id,pk,autoincrement\"`" + `
+	Status ProductStatus ` + "`bun:\"status,notnull\"`" + `
+	Tier   string        ` + "`bun:\"tier,notnull\"`" + `
+}
+`
+	if err := os.WriteFile(filepath.Join(modelsDir, "product.go"), []byte(modelSource), 0o600); err != nil {
+		t.Fatalf("write product model: %v", err)
+	}
+	migration := `CREATE TYPE product_status AS ENUM ('draft', 'published');
+
+CREATE TABLE products (
+	id BIGSERIAL PRIMARY KEY,
+	status product_status NOT NULL,
+	tier TEXT NOT NULL CHECK (tier IN ('free', 'pro'))
+);
+`
+	if err := os.WriteFile(filepath.Join(migrationsDir, "001_products.sql"), []byte(migration), 0o600); err != nil {
+		t.Fatalf("write products migration: %v", err)
+	}
+
+	manager := factorySyncTestModelManager(root, modelsDir)
+	manager.migrationManager = NewMigrationManager()
+	manager.config.Database.MigrationDirs = []string{migrationsDir}
+	result, err := manager.SyncFactory("Product", FactorySyncOptions{Sync: true})
+	if err != nil {
+		t.Fatalf("sync product factory: %v", err)
+	}
+	if !result.Written {
+		t.Fatal("expected product factory to be written")
+	}
+	content, err := os.ReadFile(filepath.Join(root, "models", "factories", "product.go"))
+	if err != nil {
+		t.Fatalf("read product factory: %v", err)
+	}
+	generated := string(content)
+	for _, want := range []string{
+		`Status: "draft",`,
+		`Tier: "free",`,
+	} {
+		if !strings.Contains(generated, want) {
+			t.Fatalf("generated factory missing migration-derived default %q:\n%s", want, generated)
 		}
 	}
 }
