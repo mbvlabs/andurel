@@ -606,11 +606,12 @@ CREATE TABLE products (
 		t.Fatalf("read product factory: %v", err)
 	}
 	generated := string(content)
+	normalizedGenerated := strings.Join(strings.Fields(generated), " ")
 	for _, want := range []string{
 		`Status: "draft",`,
 		`Tier: "free",`,
 	} {
-		if !strings.Contains(generated, want) {
+		if !strings.Contains(normalizedGenerated, want) {
 			t.Fatalf("generated factory missing migration-derived default %q:\n%s", want, generated)
 		}
 	}
