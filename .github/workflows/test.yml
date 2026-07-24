@@ -36,6 +36,9 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
+    - name: Check public API and CLI contracts
+      run: ./scripts/check-contracts.sh
+
     - name: Install tools
       run: |
         go install github.com/a-h/templ/cmd/templ

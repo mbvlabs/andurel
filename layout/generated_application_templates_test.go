@@ -149,6 +149,56 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	}
 }
 
+func TestGeneratedSessionRecoveryTemplates(t *testing.T) {
+	root := t.TempDir()
+	if err := processTemplatedFiles(root, &TemplateData{ModuleName: "example.com/app"}); err != nil {
+		t.Fatalf("process templates: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "router/cookies/session.go")); err != nil {
+		t.Fatalf("generated shared session loader: %v", err)
+	}
+
+	sessionRecovery := readGeneratedApplicationTemplate(t, "router_cookies_session.tmpl")
+	for _, want := range []string{
+		"func RecoverInvalidSessions",
+		"securecookie.Error",
+		"decodeError.IsDecode()",
+		"decodeError.IsUsage()",
+		"decodeError.IsInternal()",
+		"clear(sess.Values)",
+		"sess.Save(c.Request(), c.Response())",
+		"func getSession",
+	} {
+		if !strings.Contains(sessionRecovery, want) {
+			t.Errorf("router_cookies_session.tmpl missing %q", want)
+		}
+	}
+
+	for _, templateName := range []string{"router_cookies_cookies.tmpl", "router_cookies_flash.tmpl"} {
+		content := readGeneratedApplicationTemplate(t, templateName)
+		if strings.Contains(content, "session.Get(") {
+			t.Errorf("%s bypasses the recoverable session loader", templateName)
+		}
+		if !strings.Contains(content, "getSession(") {
+			t.Errorf("%s does not use the recoverable session loader", templateName)
+		}
+	}
+
+	middleware := readGeneratedApplicationTemplate(t, "router_middleware_middleware.tmpl")
+	if !strings.Contains(middleware, "cookies.RecoverInvalidSessions(c)") {
+		t.Error("router_middleware_middleware.tmpl does not recover invalid session cookies")
+	}
+
+	if got := baseTemplateMappings["router_cookies_session.tmpl"]; got != "router/cookies/session.go" {
+		t.Fatalf("session recovery template target = %q, want router/cookies/session.go", got)
+	}
+
+	goMod := readGeneratedApplicationTemplate(t, "go_mod.tmpl")
+	if !strings.Contains(goMod, "github.com/gorilla/securecookie v1.1.2") {
+		t.Error("go_mod.tmpl does not declare securecookie as a direct dependency")
+	}
+}
+
 func readGeneratedApplicationTemplate(t *testing.T, name string) string {
 	t.Helper()
 	content, err := fs.ReadFile(layouttemplates.Files, name)

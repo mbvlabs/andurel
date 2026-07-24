@@ -227,6 +227,44 @@ func TestDryRunIsDeterministicAndByteReadOnlyOnSameInstance(t *testing.T) {
 	}
 }
 
+func TestSessionRecoveryManualActionDoesNotPlanRouterMutations(t *testing.T) {
+	root := newUpgradeFixtureProject(t)
+	routerFiles := map[string][]byte{
+		"router/cookies/cookies.go":       []byte("package cookies\n\nconst UserOwnedCookies = true\n"),
+		"router/cookies/flash.go":         []byte("package cookies\n\nconst UserOwnedFlashes = true\n"),
+		"router/middleware/middleware.go": []byte("package middleware\n\nconst UserOwnedMiddleware = true\n"),
+	}
+	for path, content := range routerFiles {
+		mustWriteTestFile(t, root, path, content)
+	}
+	commitUpgradeTree(t, root, "add user-owned router files")
+
+	upgrader, err := NewUpgrader(root, UpgradeOptions{DryRun: true, TargetVersion: "v1.5.4"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := upgrader.Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.ManualActions) != 1 {
+		t.Fatalf("manual actions = %#v, want one", report.ManualActions)
+	}
+	if !strings.Contains(report.ManualActions[0].Instructions, `"testapp/config"`) {
+		t.Fatalf("manual action does not use project module:\n%s", report.ManualActions[0].Instructions)
+	}
+	for _, path := range append(slices.Clone(report.ReplacedFiles), report.RemovedFiles...) {
+		if strings.HasPrefix(path, "router/") {
+			t.Fatalf("manual action planned router mutation %q", path)
+		}
+	}
+	for path, want := range routerFiles {
+		if got := mustReadProjectFile(t, root, path); !bytes.Equal(got, want) {
+			t.Fatalf("dry run changed %s:\n%s", path, got)
+		}
+	}
+}
+
 func TestVersionedInertiaUpgradeEmbedsExistingRoot(t *testing.T) {
 	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
 		ProjectName: "testapp",

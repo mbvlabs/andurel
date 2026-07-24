@@ -90,6 +90,46 @@ func TestUpgradeDryRunPresentationOmitsEmptySections(t *testing.T) {
 	}
 }
 
+func TestUpgradePresentationIncludesManualActions(t *testing.T) {
+	t.Parallel()
+
+	report := &UpgradeReport{
+		FromVersion: "v1.5.2",
+		ToVersion:   "v1.5.4",
+		ManualActions: []ManualAction{{
+			ID:           "session-cookie-recovery-v1.5.4",
+			Title:        "Update application-owned session handling",
+			Instructions: "Create router/cookies/session.go with the rendered recovery helper.",
+		}},
+	}
+
+	for _, render := range []struct {
+		name string
+		call func(*bytes.Buffer, *UpgradeReport)
+	}{
+		{name: "upgrade", call: func(output *bytes.Buffer, report *UpgradeReport) {
+			printUpgradeSuccess(output, report)
+		}},
+		{name: "dry run", call: func(output *bytes.Buffer, report *UpgradeReport) {
+			printUpgradeDryRun(output, report)
+		}},
+	} {
+		t.Run(render.name, func(t *testing.T) {
+			var output bytes.Buffer
+			render.call(&output, report)
+			for _, want := range []string{
+				"Manual action required",
+				"Update application-owned session handling",
+				"Create router/cookies/session.go",
+			} {
+				if !strings.Contains(output.String(), want) {
+					t.Fatalf("manual action presentation missing %q:\n%s", want, output.String())
+				}
+			}
+		})
+	}
+}
+
 func TestUpgradeAlreadyCurrentPresentation(t *testing.T) {
 	t.Parallel()
 

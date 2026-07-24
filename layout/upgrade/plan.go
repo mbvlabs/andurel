@@ -33,12 +33,13 @@ type plannedFile struct {
 }
 
 type upgradePlan struct {
-	fromVersion string
-	toVersion   string
-	dirty       bool
-	files       []plannedFile
-	toolChanges ToolSyncResult
-	diffs       []FileDiff
+	fromVersion   string
+	toVersion     string
+	dirty         bool
+	files         []plannedFile
+	toolChanges   ToolSyncResult
+	diffs         []FileDiff
+	manualActions []ManualAction
 }
 
 func (p *upgradePlan) cloneReport() *UpgradeReport {
@@ -51,6 +52,7 @@ func (p *upgradePlan) cloneReport() *UpgradeReport {
 		UpdatedTools:        slices.Clone(p.toolChanges.Updated),
 		ToolMetadataChanges: slices.Clone(p.toolChanges.Metadata),
 		Diffs:               slices.Clone(p.diffs),
+		ManualActions:       slices.Clone(p.manualActions),
 	}
 	report.ToolsAdded = len(report.AddedTools)
 	report.ToolsRemoved = len(report.RemovedTools)
@@ -79,6 +81,20 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 		fromVersion: u.lock.Version,
 		toVersion:   u.opts.TargetVersion,
 		dirty:       dirty,
+	}
+	if crossesVersion(plan.fromVersion, plan.toVersion, sessionCookieRecoveryVersion) {
+		modulePath, err := resolveModulePath(u.projectRoot)
+		if err != nil {
+			return nil, fmt.Errorf("resolve module path for manual actions: %w", err)
+		}
+		plan.manualActions, err = manualActionsForUpgrade(
+			plan.fromVersion,
+			plan.toVersion,
+			modulePath,
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	toolChanges, err := syncTools(lock)

@@ -2233,6 +2233,33 @@
           "json_name": "diff"
         }
       ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/layout/upgrade.ManualAction",
+      "fields": [
+        {
+          "go_name": "ID",
+          "json_name": "id"
+        },
+        {
+          "go_name": "Title",
+          "json_name": "title"
+        },
+        {
+          "go_name": "Instructions",
+          "json_name": "instructions"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/layout/upgrade.UpgradeReport",
+      "fields": [
+        {
+          "go_name": "ManualActions",
+          "json_name": "manual_actions",
+          "omitempty": true
+        }
+      ]
     }
   ],
   "success_envelope": {
