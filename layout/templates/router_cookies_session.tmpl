@@ -1,0 +1,48 @@
+package cookies
+
+import (
+	"errors"
+
+	"{{.ModuleName}}/config"
+
+	"github.com/gorilla/securecookie"
+	"github.com/gorilla/sessions"
+	"github.com/labstack/echo-contrib/v5/session"
+	"github.com/labstack/echo/v5"
+)
+
+const recoveredSessionContextPrefix = "andurel/recovered-session/"
+
+func RecoverInvalidSessions(c *echo.Context) error {
+	for _, name := range []string{config.AppCookieSessionName, flashSession} {
+		sess, err := session.Get(name, c)
+		if err == nil {
+			continue
+		}
+
+		var decodeError securecookie.Error
+		if !errors.As(err, &decodeError) ||
+			!decodeError.IsDecode() ||
+			decodeError.IsUsage() ||
+			decodeError.IsInternal() {
+			return err
+		}
+
+		clear(sess.Values)
+		sess.IsNew = true
+		if err := sess.Save(c.Request(), c.Response()); err != nil {
+			return err
+		}
+		c.Set(recoveredSessionContextPrefix+name, true)
+	}
+
+	return nil
+}
+
+func getSession(name string, c *echo.Context) (*sessions.Session, error) {
+	sess, err := session.Get(name, c)
+	if err != nil && c.Get(recoveredSessionContextPrefix+name) != true {
+		return nil, err
+	}
+	return sess, nil
+}

@@ -7,7 +7,6 @@ import (
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/server"
 
-	"github.com/labstack/echo-contrib/v5/session"
 	"github.com/labstack/echo/v5"
 	"github.com/rs/xid"
 )
@@ -42,7 +41,7 @@ const (
 func AddFlash(
 	c *echo.Context, flashType FlashType, msg string,
 ) error {
-	sess, err := session.Get(flashSession, c)
+	sess, err := getSession(flashSession, c)
 	if err != nil {
 		return err
 	}
@@ -58,7 +57,7 @@ func AddFlash(
 }
 
 func ExtractFlashes(c *echo.Context) ([]FlashMessage, error) {
-	sess, err := session.Get(flashSession, c)
+	sess, err := getSession(flashSession, c)
 	if err != nil {
 		return nil, err
 	}

@@ -1,12 +1,22 @@
 package middleware
 
 import (
+	"encoding/gob"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"{{.ModuleName}}/config"
+	requestmeta "{{.ModuleName}}/internal/request"
+	"{{.ModuleName}}/router/cookies"
+
+	"github.com/gorilla/sessions"
+	echosession "github.com/labstack/echo-contrib/v5/session"
+	"github.com/labstack/echo/v5"
 )
+
+var registerFlashMessageOnce sync.Once
 
 func TestAPIPathBoundary(t *testing.T) {
 	tests := []struct {
@@ -60,3 +70,277 @@ func TestCSRFBypassRequiresBearerWithoutApplicationSession(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateSessionRecoversStaleApplicationCookie(t *testing.T) {
+	oldStore := newTestCookieStore("old-application-session-auth-key")
+	newStore := newTestCookieStore("new-application-session-auth-key")
+	staleCookie := issueSessionCookie(t, oldStore, config.AppCookieSessionName, func(c *echo.Context) error {
+		return cookies.SetReturnTo(c, "/account")
+	})
+
+	request := httptest.NewRequest(http.MethodPost, "/", nil)
+	request.AddCookie(staleCookie)
+	called := false
+	recorder, err := serveSessionRequest(newStore, request, func(c *echo.Context) error {
+		called = true
+		if got := requestmeta.ExtractContext[string](c.Request().Context(), requestmeta.BackURLKey); got != "" {
+			t.Fatalf("recovered return URL = %q, want empty", got)
+		}
+		return c.NoContent(http.StatusNoContent)
+	})
+	if err != nil {
+		t.Fatalf("ValidateSession returned an error: %v", err)
+	}
+	if !called {
+		t.Fatal("downstream handler was not called")
+	}
+
+	replacement := responseCookie(t, recorder, config.AppCookieSessionName)
+	assertEmptySessionCookie(t, newStore, replacement)
+}
+
+func TestValidateSessionRecoversStaleFlashCookie(t *testing.T) {
+	registerFlashMessageOnce.Do(func() {
+		gob.Register(cookies.FlashMessage{})
+	})
+
+	oldStore := newTestCookieStore("old-flash-session-authentication-key")
+	newStore := newTestCookieStore("new-flash-session-authentication-key")
+	staleCookie := issueSessionCookie(t, oldStore, "", func(c *echo.Context) error {
+		return cookies.AddFlash(c, cookies.FlashWarning, "stale warning")
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.AddCookie(staleCookie)
+	recorder, err := serveSessionRequest(newStore, request, func(c *echo.Context) error {
+		flashes := requestmeta.ExtractContext[[]cookies.FlashMessage](
+			c.Request().Context(),
+			requestmeta.SessionFlashesKey,
+		)
+		if len(flashes) != 0 {
+			t.Fatalf("recovered flashes = %v, want none", flashes)
+		}
+		return c.NoContent(http.StatusNoContent)
+	})
+	if err != nil {
+		t.Fatalf("ValidateSession returned an error: %v", err)
+	}
+
+	replacement := responseCookie(t, recorder, staleCookie.Name)
+	assertEmptySessionCookie(t, newStore, replacement)
+}
+
+func TestValidateSessionPreservesValidSessions(t *testing.T) {
+	registerFlashMessageOnce.Do(func() {
+		gob.Register(cookies.FlashMessage{})
+	})
+
+	store := newTestCookieStore("valid-session-authentication-key")
+	appCookie := issueSessionCookie(t, store, config.AppCookieSessionName, func(c *echo.Context) error {
+		return cookies.SetReturnTo(c, "/account")
+	})
+	flashCookie := issueSessionCookie(t, store, "", func(c *echo.Context) error {
+		return cookies.AddFlash(c, cookies.FlashSuccess, "saved")
+	})
+
+	request := httptest.NewRequest(http.MethodPost, "/", nil)
+	request.AddCookie(appCookie)
+	request.AddCookie(flashCookie)
+	recorder, err := serveSessionRequest(store, request, func(c *echo.Context) error {
+		if got := requestmeta.ExtractContext[string](c.Request().Context(), requestmeta.BackURLKey); got != "/account" {
+			t.Fatalf("return URL = %q, want %q", got, "/account")
+		}
+		flashes := requestmeta.ExtractContext[[]cookies.FlashMessage](
+			c.Request().Context(),
+			requestmeta.SessionFlashesKey,
+		)
+		if len(flashes) != 1 || flashes[0].Message != "saved" {
+			t.Fatalf("flashes = %v, want saved flash", flashes)
+		}
+		return c.NoContent(http.StatusNoContent)
+	})
+	if err != nil {
+		t.Fatalf("ValidateSession returned an error: %v", err)
+	}
+	if hasResponseCookie(recorder, config.AppCookieSessionName) {
+		t.Fatal("valid application session was unexpectedly replaced")
+	}
+}
+
+func TestValidateSessionPropagatesNonDecodeErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		middleware echo.MiddlewareFunc
+		request    *http.Request
+	}{
+		{
+			name:    "missing session middleware",
+			request: httptest.NewRequest(http.MethodGet, "/", nil),
+		},
+		{
+			name:       "usage error",
+			middleware: echosession.Middleware(sessions.NewCookieStore()),
+			request: requestWithCookie(&http.Cookie{
+				Name:  config.AppCookieSessionName,
+				Value: "configured-without-codecs",
+			}),
+		},
+		{
+			name:       "internal error",
+			middleware: echosession.Middleware(classifiedErrorStore{}),
+			request:    httptest.NewRequest(http.MethodGet, "/", nil),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			called := false
+			handler := ValidateSession(func(c *echo.Context) error {
+				called = true
+				return nil
+			})
+			if test.middleware != nil {
+				handler = test.middleware(handler)
+			}
+
+			recorder := httptest.NewRecorder()
+			ctx := echo.New().NewContext(test.request, recorder)
+			if err := handler(ctx); err == nil {
+				t.Fatal("expected session validation error")
+			}
+			if called {
+				t.Fatal("downstream handler was called")
+			}
+		})
+	}
+}
+
+func newTestCookieStore(authKey string) *sessions.CookieStore {
+	return sessions.NewCookieStore(
+		[]byte(authKey),
+		[]byte("0123456789abcdef0123456789abcdef"),
+	)
+}
+
+func issueSessionCookie(
+	t *testing.T,
+	store sessions.Store,
+	wantName string,
+	handler echo.HandlerFunc,
+) *http.Cookie {
+	t.Helper()
+
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	recorder := httptest.NewRecorder()
+	ctx := echo.New().NewContext(request, recorder)
+	if err := echosession.Middleware(store)(handler)(ctx); err != nil {
+		t.Fatalf("issue session cookie: %v", err)
+	}
+
+	cookies := recorder.Result().Cookies()
+	if wantName == "" {
+		if len(cookies) != 1 {
+			t.Fatalf("issued cookies = %d, want 1", len(cookies))
+		}
+		return cookies[0]
+	}
+	for _, cookie := range cookies {
+		if cookie.Name == wantName {
+			return cookie
+		}
+	}
+
+	t.Fatalf("response did not contain cookie %q", wantName)
+	return nil
+}
+
+func serveSessionRequest(
+	store sessions.Store,
+	request *http.Request,
+	handler echo.HandlerFunc,
+) (*httptest.ResponseRecorder, error) {
+	recorder := httptest.NewRecorder()
+	ctx := echo.New().NewContext(request, recorder)
+	chain := echosession.Middleware(store)(ValidateSession(RegisterRequestMeta(handler)))
+	return recorder, chain(ctx)
+}
+
+func responseCookie(
+	t *testing.T,
+	recorder *httptest.ResponseRecorder,
+	name string,
+) *http.Cookie {
+	t.Helper()
+
+	for _, cookie := range recorder.Result().Cookies() {
+		if cookie.Name == name {
+			return cookie
+		}
+	}
+
+	t.Fatalf("response did not contain replacement cookie %q", name)
+	return nil
+}
+
+func hasResponseCookie(recorder *httptest.ResponseRecorder, name string) bool {
+	for _, cookie := range recorder.Result().Cookies() {
+		if cookie.Name == name {
+			return true
+		}
+	}
+
+	return false
+}
+
+func assertEmptySessionCookie(
+	t *testing.T,
+	store *sessions.CookieStore,
+	cookie *http.Cookie,
+) {
+	t.Helper()
+
+	request := requestWithCookie(cookie)
+	sess, err := store.New(request, cookie.Name)
+	if err != nil {
+		t.Fatalf("replacement cookie cannot be decoded: %v", err)
+	}
+	if len(sess.Values) != 0 {
+		t.Fatalf("replacement cookie values = %v, want empty", sess.Values)
+	}
+}
+
+func requestWithCookie(cookie *http.Cookie) *http.Request {
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.AddCookie(cookie)
+	return request
+}
+
+type classifiedErrorStore struct{}
+
+func (classifiedErrorStore) Get(*http.Request, string) (*sessions.Session, error) {
+	return nil, internalSessionError{}
+}
+
+func (classifiedErrorStore) New(*http.Request, string) (*sessions.Session, error) {
+	return nil, internalSessionError{}
+}
+
+func (classifiedErrorStore) Save(*http.Request, http.ResponseWriter, *sessions.Session) error {
+	return nil
+}
+
+type internalSessionError struct{}
+
+func (internalSessionError) Error() string    { return "internal session error" }
+func (internalSessionError) IsUsage() bool    { return false }
+func (internalSessionError) IsDecode() bool   { return false }
+func (internalSessionError) IsInternal() bool { return true }
+func (internalSessionError) Cause() error     { return nil }
+
+var _ interface {
+	error
+	IsUsage() bool
+	IsDecode() bool
+	IsInternal() bool
+	Cause() error
+} = internalSessionError{}
