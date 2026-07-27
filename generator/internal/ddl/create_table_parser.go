@@ -122,7 +122,10 @@ func (p *CreateTableParser) parseColumnDefinitions(
 
 		if strings.HasPrefix(defLower, "check ") || strings.HasPrefix(defLower, "check(") ||
 			(strings.HasPrefix(defLower, "constraint") && strings.Contains(defLower, " check")) {
-			column, values := parseCheckInValues(def)
+			column, values, err := parseCheckInValues(def)
+			if err != nil {
+				return nil, fmt.Errorf("parse CHECK constraint: %w", err)
+			}
 			if len(values) > 0 {
 				allowedValueConstraints = append(allowedValueConstraints, struct {
 					column string
@@ -274,7 +277,11 @@ func (p *CreateTableParser) parseColumnDefinition(
 	if defaultVal, ok := parseDefaultValue(def); ok {
 		col.SetDefault(defaultVal)
 	}
-	if allowedValues := parseInlineCheckValues(def, columnName); len(allowedValues) > 0 {
+	allowedValues, err := parseInlineCheckValues(def, columnName)
+	if err != nil {
+		return nil, fmt.Errorf("parse inline CHECK constraint: %w", err)
+	}
+	if len(allowedValues) > 0 {
 		col.SetAllowedValues(allowedValues...)
 	}
 
@@ -287,25 +294,36 @@ func (p *CreateTableParser) parseColumnDefinition(
 	return col, nil
 }
 
-func parseInlineCheckValues(def, columnName string) []string {
-	checkedColumn, values := parseCheckInValues(def)
-	if !strings.EqualFold(checkedColumn, columnName) {
-		return nil
+func parseInlineCheckValues(def, columnName string) ([]string, error) {
+	checkedColumn, values, err := parseCheckInValues(def)
+	if err != nil {
+		return nil, err
 	}
-	return values
+	if !strings.EqualFold(checkedColumn, columnName) {
+		return nil, nil
+	}
+	return values, nil
 }
 
-func parseCheckInValues(def string) (string, []string) {
-	constraint := regexp.MustCompile(`(?i)\bcheck\s*\(\s*(\w+)\s+in\s*\(([^)]*)\)\s*\)`).FindStringSubmatch(def)
-	if len(constraint) != 3 {
-		return "", nil
+func parseCheckInValues(def string) (string, []string, error) {
+	constraintRegex, err := regexp.Compile(`(?i)\bcheck\s*\(\s*(\w+)\s+in\s*\(([^)]*)\)\s*\)`)
+	if err != nil {
+		return "", nil, err
 	}
-	matches := regexp.MustCompile(`'((?:''|[^'])*)'`).FindAllStringSubmatch(constraint[2], -1)
+	constraint := constraintRegex.FindStringSubmatch(def)
+	if len(constraint) != 3 {
+		return "", nil, nil
+	}
+	valueRegex, err := regexp.Compile(`'((?:''|[^'])*)'`)
+	if err != nil {
+		return "", nil, err
+	}
+	matches := valueRegex.FindAllStringSubmatch(constraint[2], -1)
 	values := make([]string, 0, len(matches))
 	for _, match := range matches {
 		values = append(values, strings.ReplaceAll(match[1], "''", "'"))
 	}
-	return constraint[1], values
+	return constraint[1], values, nil
 }
 
 func (p *CreateTableParser) parseDataType(

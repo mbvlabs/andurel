@@ -149,7 +149,10 @@ func (p *CreateEnumParser) Parse(sql string) (*CreateEnumStatement, error) {
 	}
 	values := make([]string, 0)
 	if len(matches) > 3 {
-		valueRegex := regexp.MustCompile(`'((?:''|[^'])*)'`)
+		valueRegex, err := regexp.Compile(`'((?:''|[^'])*)'`)
+		if err != nil {
+			return nil, err
+		}
 		for _, match := range valueRegex.FindAllStringSubmatch(matches[3], -1) {
 			values = append(values, strings.ReplaceAll(match[1], "''", "'"))
 		}

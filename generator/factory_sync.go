@@ -2,6 +2,7 @@ package generator
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/format"
@@ -79,52 +80,49 @@ func (m *ModelManager) SyncFactory(resourceName string, opts FactorySyncOptions)
 }
 
 func validatePlannedFactory(rootDir, factoryPath, content string) error {
-	tempRoot, err := os.MkdirTemp("", "andurel-factory-vet-*")
+	plannedFile, err := os.CreateTemp("", "andurel-planned-factory-*.go")
 	if err != nil {
-		return err
+		return fmt.Errorf("create planned factory file: %w", err)
 	}
-	defer os.RemoveAll(tempRoot)
-
-	if err := filepath.WalkDir(rootDir, func(sourcePath string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		relative, err := filepath.Rel(rootDir, sourcePath)
-		if err != nil {
-			return err
-		}
-		if entry.IsDir() && (entry.Name() == ".git" || entry.Name() == "node_modules") {
-			return filepath.SkipDir
-		}
-		targetPath := filepath.Join(tempRoot, relative)
-		if entry.IsDir() {
-			return os.MkdirAll(targetPath, 0o755)
-		}
-		data, err := os.ReadFile(sourcePath)
-		if err != nil {
-			return err
-		}
-		return os.WriteFile(targetPath, data, 0o600)
-	}); err != nil {
-		return fmt.Errorf("copy project for validation: %w", err)
+	plannedPath := plannedFile.Name()
+	defer os.Remove(plannedPath)
+	if _, err := plannedFile.WriteString(content); err != nil {
+		plannedFile.Close()
+		return fmt.Errorf("write planned factory file: %w", err)
+	}
+	if err := plannedFile.Close(); err != nil {
+		return fmt.Errorf("close planned factory file: %w", err)
 	}
 
-	relativeFactory, err := filepath.Rel(rootDir, factoryPath)
+	absoluteFactoryPath, err := filepath.Abs(factoryPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("resolve factory path: %w", err)
 	}
-	plannedPath := filepath.Join(tempRoot, relativeFactory)
-	if err := os.MkdirAll(filepath.Dir(plannedPath), 0o755); err != nil {
-		return err
-	}
-	if err := os.WriteFile(plannedPath, []byte(content), 0o600); err != nil {
-		return err
+	overlay, err := json.Marshal(struct {
+		Replace map[string]string
+	}{
+		Replace: map[string]string{absoluteFactoryPath: plannedPath},
+	})
+	if err != nil {
+		return fmt.Errorf("encode factory overlay: %w", err)
 	}
 
-	cacheDir := filepath.Join(tempRoot, ".go-cache")
-	command := exec.Command("go", "vet", "./models/factories")
-	command.Dir = tempRoot
-	command.Env = append(os.Environ(), "GOCACHE="+cacheDir)
+	overlayFile, err := os.CreateTemp("", "andurel-factory-overlay-*.json")
+	if err != nil {
+		return fmt.Errorf("create factory overlay file: %w", err)
+	}
+	overlayPath := overlayFile.Name()
+	defer os.Remove(overlayPath)
+	if _, err := overlayFile.Write(overlay); err != nil {
+		overlayFile.Close()
+		return fmt.Errorf("write factory overlay file: %w", err)
+	}
+	if err := overlayFile.Close(); err != nil {
+		return fmt.Errorf("close factory overlay file: %w", err)
+	}
+
+	command := exec.Command("go", "vet", "-overlay", overlayPath, "./models/factories")
+	command.Dir = rootDir
 	output, err := command.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("go vet ./models/factories: %w: %s", err, strings.TrimSpace(string(output)))
