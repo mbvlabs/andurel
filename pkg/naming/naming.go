@@ -58,12 +58,14 @@ func ToCamelCase(s string) string {
 
 	var builder strings.Builder
 	builder.Grow(len(s))
-	for i, part := range parts {
+	wroteFirstPart := false
+	for _, part := range parts {
 		if part == "" {
 			continue
 		}
-		if i == 0 {
+		if !wroteFirstPart {
 			builder.WriteString(strings.ToLower(part))
+			wroteFirstPart = true
 			continue
 		}
 		builder.WriteString(pascalNamePart(part))
@@ -155,11 +157,7 @@ func ToPascalCase(s string) string {
 }
 
 func pascalNamePart(part string) string {
-	lower := strings.ToLower(part)
-	runes := []rune(lower)
-	if len(runes) == 0 {
-		return ""
-	}
+	runes := []rune(strings.ToLower(part))
 	runes[0] = unicode.ToUpper(runes[0])
 	return string(runes)
 }

@@ -61,6 +61,7 @@ func TestToCamelCase(t *testing.T) {
 		{name: "single char parts", input: "a_b_c", expected: "aBC"},
 		{name: "schema ssh is mechanical", input: "server_ssh_credentials", expected: "serverSshCredentials"},
 		{name: "schema compound is mechanical", input: "wireguard_peers", expected: "wireguardPeers"},
+		{name: "repeated separators", input: "__server__ssh_credentials__", expected: "serverSshCredentials"},
 	}
 
 	for _, tt := range tests {
@@ -139,6 +140,7 @@ func TestToPascalCase(t *testing.T) {
 		{name: "schema compound is mechanical", input: "wireguard_peers", expected: "WireguardPeers"},
 		{name: "schema url is mechanical", input: "url", expected: "Url"},
 		{name: "schema cidr is mechanical", input: "cidr", expected: "Cidr"},
+		{name: "repeated separators", input: "__server__ssh_credentials__", expected: "ServerSshCredentials"},
 	}
 
 	for _, tt := range tests {
