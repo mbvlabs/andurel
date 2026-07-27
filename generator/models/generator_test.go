@@ -1,6 +1,9 @@
 package models
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"slices"
@@ -229,7 +232,11 @@ func TestGenerateModelUpsertRequiresExplicitPrimaryKey(t *testing.T) {
 				t.Fatalf("generated model missing explicit-ID Upsert signature %q:\n%s", signature, generated)
 			}
 			upsert := generated[upsertStart:]
-			if !strings.Contains(upsert, "ID: id,") {
+			assignsPrimaryKey, err := functionCompositeLiteralAssignsIdentifier(generated, "Upsert", "entity", "ID", "id")
+			if err != nil {
+				t.Fatalf("parse generated model: %v", err)
+			}
+			if !assignsPrimaryKey {
 				t.Fatalf("generated Upsert does not assign the supplied primary key:\n%s", upsert)
 			}
 			if strings.Contains(upsert, "uuid.New()") {
@@ -237,6 +244,56 @@ func TestGenerateModelUpsertRequiresExplicitPrimaryKey(t *testing.T) {
 			}
 		})
 	}
+}
+
+func functionCompositeLiteralAssignsIdentifier(source, functionName, variableName, fieldName, identifierName string) (bool, error) {
+	file, err := parser.ParseFile(token.NewFileSet(), "", source, 0)
+	if err != nil {
+		return false, err
+	}
+
+	for _, declaration := range file.Decls {
+		function, ok := declaration.(*ast.FuncDecl)
+		if !ok || function.Name.Name != functionName || function.Body == nil {
+			continue
+		}
+
+		assigned := false
+		ast.Inspect(function.Body, func(node ast.Node) bool {
+			assignment, ok := node.(*ast.AssignStmt)
+			if !ok || len(assignment.Lhs) != 1 || len(assignment.Rhs) != 1 {
+				return true
+			}
+
+			variable, ok := assignment.Lhs[0].(*ast.Ident)
+			if !ok || variable.Name != variableName {
+				return true
+			}
+
+			literal, ok := assignment.Rhs[0].(*ast.CompositeLit)
+			if !ok {
+				return true
+			}
+
+			for _, element := range literal.Elts {
+				field, ok := element.(*ast.KeyValueExpr)
+				if !ok {
+					continue
+				}
+				key, keyOK := field.Key.(*ast.Ident)
+				value, valueOK := field.Value.(*ast.Ident)
+				if keyOK && valueOK && key.Name == fieldName && value.Name == identifierName {
+					assigned = true
+					return false
+				}
+			}
+
+			return true
+		})
+		return assigned, nil
+	}
+
+	return false, nil
 }
 
 func TestGenerateModelPaginationPluralizesAcronymResourcesWithTableOverrides(t *testing.T) {
