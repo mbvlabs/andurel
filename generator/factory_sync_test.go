@@ -392,7 +392,7 @@ func TestValidatePlannedFactoryUsesPlannedContent(t *testing.T) {
 		name            string
 		existingContent string
 		plannedContent  string
-		wantError       bool
+		wantError       string
 	}{
 		{
 			name:            "valid planned source replaces invalid existing source",
@@ -403,7 +403,13 @@ func TestValidatePlannedFactoryUsesPlannedContent(t *testing.T) {
 			name:            "invalid planned source fails validation",
 			existingContent: "package factories\n\nfunc BuildWidget() {}\n",
 			plannedContent:  "package factories\nfunc broken(",
-			wantError:       true,
+			wantError:       "parse planned factory",
+		},
+		{
+			name:            "unresolved planned type fails validation",
+			existingContent: "package factories\n\nfunc BuildWidget() {}\n",
+			plannedContent:  "package factories\n\nfunc BuildWidget() MissingType { return MissingType{} }\n",
+			wantError:       "type-check planned factory",
 		},
 	}
 
@@ -422,9 +428,9 @@ func TestValidatePlannedFactoryUsesPlannedContent(t *testing.T) {
 			}
 
 			err := validatePlannedFactory(root, factoryPath, tt.plannedContent)
-			if tt.wantError {
-				if err == nil || !strings.Contains(err.Error(), "parse planned factory") {
-					t.Fatalf("expected planned factory parse error, got %v", err)
+			if tt.wantError != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+					t.Fatalf("expected %q validation error, got %v", tt.wantError, err)
 				}
 				return
 			}
@@ -432,6 +438,42 @@ func TestValidatePlannedFactoryUsesPlannedContent(t *testing.T) {
 				t.Fatalf("validate planned factory: %v", err)
 			}
 		})
+	}
+}
+
+func TestValidatePlannedFactoryLoadsImportsAndExistingFiles(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app\n"), 0o600); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	factoriesDir := filepath.Join(root, "models", "factories")
+	if err := os.MkdirAll(factoriesDir, 0o755); err != nil {
+		t.Fatalf("create factories directory: %v", err)
+	}
+	companionContent := `package factories
+
+import "fmt"
+
+func formatCompanion(value string) string {
+	return fmt.Sprintf("companion: %s", value)
+}
+`
+	if err := os.WriteFile(filepath.Join(factoriesDir, "companion.go"), []byte(companionContent), 0o600); err != nil {
+		t.Fatalf("write companion factory: %v", err)
+	}
+	plannedContent := `package factories
+
+import (
+	"fmt"
+	"unsafe"
+)
+
+func BuildWidget() string {
+	return formatCompanion(fmt.Sprint(unsafe.Sizeof("widget")))
+}
+`
+	if err := validatePlannedFactory(root, filepath.Join(factoriesDir, "widget.go"), plannedContent); err != nil {
+		t.Fatalf("validate planned factory with imports: %v", err)
 	}
 }
 
