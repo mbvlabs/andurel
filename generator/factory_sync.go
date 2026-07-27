@@ -2,14 +2,13 @@ package generator
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/format"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"slices"
@@ -20,6 +19,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/models"
 	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/pmezard/go-difflib/difflib"
+	"golang.org/x/tools/go/packages"
 )
 
 // FactorySyncOptions configures factory sync behavior.
@@ -80,52 +80,105 @@ func (m *ModelManager) SyncFactory(resourceName string, opts FactorySyncOptions)
 }
 
 func validatePlannedFactory(rootDir, factoryPath, content string) error {
-	plannedFile, err := os.CreateTemp("", "andurel-planned-factory-*.go")
-	if err != nil {
-		return fmt.Errorf("create planned factory file: %w", err)
-	}
-	plannedPath := plannedFile.Name()
-	defer os.Remove(plannedPath)
-	if _, err := plannedFile.WriteString(content); err != nil {
-		plannedFile.Close()
-		return fmt.Errorf("write planned factory file: %w", err)
-	}
-	if err := plannedFile.Close(); err != nil {
-		return fmt.Errorf("close planned factory file: %w", err)
-	}
-
 	absoluteFactoryPath, err := filepath.Abs(factoryPath)
 	if err != nil {
 		return fmt.Errorf("resolve factory path: %w", err)
 	}
-	overlay, err := json.Marshal(struct {
-		Replace map[string]string
-	}{
-		Replace: map[string]string{absoluteFactoryPath: plannedPath},
-	})
+
+	fset := token.NewFileSet()
+	plannedFile, err := parser.ParseFile(fset, absoluteFactoryPath, content, parser.AllErrors)
 	if err != nil {
-		return fmt.Errorf("encode factory overlay: %w", err)
+		return fmt.Errorf("parse planned factory: %w", err)
 	}
 
-	overlayFile, err := os.CreateTemp("", "andurel-factory-overlay-*.json")
-	if err != nil {
-		return fmt.Errorf("create factory overlay file: %w", err)
+	syntax := []*ast.File{plannedFile}
+	factoryDir := filepath.Dir(absoluteFactoryPath)
+	entries, err := os.ReadDir(factoryDir)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("read factories directory: %w", err)
 	}
-	overlayPath := overlayFile.Name()
-	defer os.Remove(overlayPath)
-	if _, err := overlayFile.Write(overlay); err != nil {
-		overlayFile.Close()
-		return fmt.Errorf("write factory overlay file: %w", err)
-	}
-	if err := overlayFile.Close(); err != nil {
-		return fmt.Errorf("close factory overlay file: %w", err)
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+			continue
+		}
+		path := filepath.Join(factoryDir, entry.Name())
+		if path == absoluteFactoryPath {
+			continue
+		}
+		file, err := parser.ParseFile(fset, path, nil, parser.AllErrors)
+		if err != nil {
+			return fmt.Errorf("parse existing factory %s: %w", path, err)
+		}
+		syntax = append(syntax, file)
 	}
 
-	command := exec.Command("go", "vet", "-overlay", overlayPath, "./models/factories")
-	command.Dir = rootDir
-	output, err := command.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("go vet ./models/factories: %w: %s", err, strings.TrimSpace(string(output)))
+	importPaths := make([]string, 0)
+	seenImports := make(map[string]bool)
+	for _, file := range syntax {
+		for _, spec := range file.Imports {
+			importPath, err := strconv.Unquote(spec.Path.Value)
+			if err != nil {
+				return fmt.Errorf("parse factory import %s: %w", spec.Path.Value, err)
+			}
+			if !seenImports[importPath] {
+				seenImports[importPath] = true
+				importPaths = append(importPaths, importPath)
+			}
+		}
+	}
+	slices.Sort(importPaths)
+
+	loadedImports := factoryTypeImporter{packages: make(map[string]*types.Package)}
+	if len(importPaths) > 0 {
+		loaded, err := packages.Load(&packages.Config{
+			Dir:  rootDir,
+			Mode: packages.NeedName | packages.NeedTypes | packages.NeedImports | packages.NeedDeps,
+		}, importPaths...)
+		if err != nil {
+			return fmt.Errorf("load factory imports: %w", err)
+		}
+		for _, pkg := range loaded {
+			if err := loadedImports.add(pkg); err != nil {
+				return err
+			}
+		}
+	}
+
+	config := types.Config{Importer: loadedImports}
+	if _, err := config.Check("planned/factories", fset, syntax, nil); err != nil {
+		return fmt.Errorf("type-check planned factory: %w", err)
+	}
+	return nil
+}
+
+type factoryTypeImporter struct {
+	packages map[string]*types.Package
+}
+
+func (i factoryTypeImporter) Import(importPath string) (*types.Package, error) {
+	if importPath == "unsafe" {
+		return types.Unsafe, nil
+	}
+	if pkg := i.packages[importPath]; pkg != nil {
+		return pkg, nil
+	}
+	return nil, fmt.Errorf("factory import %s was not loaded", importPath)
+}
+
+func (i factoryTypeImporter) add(pkg *packages.Package) error {
+	if len(pkg.Errors) > 0 {
+		return fmt.Errorf("load factory import %s: %s", pkg.PkgPath, pkg.Errors[0])
+	}
+	if pkg.Types != nil {
+		i.packages[pkg.PkgPath] = pkg.Types
+	}
+	for _, imported := range pkg.Imports {
+		if _, exists := i.packages[imported.PkgPath]; exists {
+			continue
+		}
+		if err := i.add(imported); err != nil {
+			return err
+		}
 	}
 	return nil
 }

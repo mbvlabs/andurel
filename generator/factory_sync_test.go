@@ -423,8 +423,8 @@ func TestValidatePlannedFactoryUsesPlannedContent(t *testing.T) {
 
 			err := validatePlannedFactory(root, factoryPath, tt.plannedContent)
 			if tt.wantError {
-				if err == nil || !strings.Contains(err.Error(), "go vet ./models/factories") {
-					t.Fatalf("expected go vet validation error, got %v", err)
+				if err == nil || !strings.Contains(err.Error(), "parse planned factory") {
+					t.Fatalf("expected planned factory parse error, got %v", err)
 				}
 				return
 			}
