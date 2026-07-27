@@ -394,40 +394,74 @@ func TestGenerateModelCRUDUsesRepositoryNotFoundAndTimestampSemantics(t *testing
 
 func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 	tests := []struct {
-		mode    ModelMode
-		present []string
-		absent  []string
+		name              string
+		mode              ModelMode
+		wantMode          ModelMode
+		modulePath        string
+		hasPrimaryKey     bool
+		generateWithoutPK bool
+		present           []string
+		absent            []string
 	}{
 		{
-			mode:    ModelModeCRUD,
-			present: []string{" Find(", " Create(", " Update(", " Destroy(", " All(", " Paginate(", " Upsert("},
+			name:          "crud",
+			mode:          ModelModeCRUD,
+			wantMode:      ModelModeCRUD,
+			modulePath:    "example.com/app",
+			hasPrimaryKey: true,
+			present:       []string{" Find(", " Create(", " Update(", " Destroy(", " All(", " Paginate(", " Upsert("},
 		},
 		{
-			mode:    ModelModeReadOnly,
-			present: []string{" Find(", " All(", " Paginate("},
-			absent:  []string{" Create(", " Update(", " Destroy(", " Upsert(", "type CreateProductData", "type UpdateProductData"},
+			name:          "read-only",
+			mode:          ModelModeReadOnly,
+			wantMode:      ModelModeReadOnly,
+			modulePath:    "example.com/app",
+			hasPrimaryKey: true,
+			present:       []string{" Find(", " All(", " Paginate("},
+			absent:        []string{" Create(", " Update(", " Destroy(", " Upsert(", "type CreateProductData", "type UpdateProductData"},
 		},
 		{
-			mode:    ModelModeCreateOnly,
-			present: []string{" Create(", "type CreateProductData"},
-			absent:  []string{" Find(", " Update(", " Destroy(", " All(", " Paginate(", " Upsert(", "type UpdateProductData"},
+			name:          "create-only",
+			mode:          ModelModeCreateOnly,
+			wantMode:      ModelModeCreateOnly,
+			modulePath:    "example.com/app",
+			hasPrimaryKey: true,
+			present:       []string{" Create(", "type CreateProductData"},
+			absent:        []string{" Find(", " Update(", " Destroy(", " All(", " Paginate(", " Upsert(", "type UpdateProductData"},
+		},
+		{
+			name:          "default mode",
+			wantMode:      ModelModeCRUD,
+			modulePath:    "example.com/app",
+			hasPrimaryKey: true,
+			present:       []string{" Find(", " Create(", " Update(", " Destroy(", " All(", " Paginate(", " Upsert("},
+		},
+		{
+			name:              "read-only without primary key",
+			mode:              ModelModeReadOnly,
+			wantMode:          ModelModeReadOnly,
+			modulePath:        "example.com/app",
+			generateWithoutPK: true,
+			present:           []string{" All(", " Paginate("},
+			absent:            []string{" Find(", " Create(", " Update(", " Destroy(", " Upsert(", "type CreateProductData", "type UpdateProductData"},
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(string(tt.mode), func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			root := t.TempDir()
 			cat := catalog.NewCatalog("public")
-			table := tableWithColumns(t, "products",
-				catalog.NewColumn("id", "uuid").SetPrimaryKey(),
-				catalog.NewColumn("name", "text").SetNotNull(),
-			)
+			columns := []*catalog.Column{catalog.NewColumn("name", "text").SetNotNull()}
+			if tt.hasPrimaryKey {
+				columns = append([]*catalog.Column{catalog.NewColumn("id", "uuid").SetPrimaryKey()}, columns...)
+			}
+			table := tableWithColumns(t, "products", columns...)
 			if err := cat.AddTable("public", table); err != nil {
 				t.Fatalf("add table: %v", err)
 			}
 
 			modelPath := filepath.Join(root, "product.go")
-			if err := NewGenerator("postgresql").GenerateModelWithMode(cat, "Product", "products", modelPath, "example.com/app", "", "sql.Null", "id", false, tt.mode); err != nil {
+			if err := NewGenerator("postgresql").GenerateModelWithMode(cat, "Product", "products", modelPath, tt.modulePath, "", "sql.Null", "id", tt.generateWithoutPK, tt.mode); err != nil {
 				t.Fatalf("generate model: %v", err)
 			}
 			content, err := os.ReadFile(modelPath)
@@ -435,8 +469,8 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 				t.Fatalf("read generated model: %v", err)
 			}
 			generated := string(content)
-			if !strings.Contains(generated, "// andurel:model-mode "+string(tt.mode)) {
-				t.Fatalf("generated model does not persist mode %q:\n%s", tt.mode, generated)
+			if !strings.Contains(generated, "// andurel:model-mode "+string(tt.wantMode)) {
+				t.Fatalf("generated model does not persist mode %q:\n%s", tt.wantMode, generated)
 			}
 			if strings.Contains(generated, "func (e *ProductEntity) Validate() error") {
 				t.Fatalf("generated model contains an empty Validate method:\n%s", generated)
@@ -453,6 +487,85 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildModelWithoutModulePathOmitsApplicationImports(t *testing.T) {
+	cat := catalog.NewCatalog("public")
+	table := tableWithColumns(t, "products",
+		catalog.NewColumn("id", "uuid").SetPrimaryKey(),
+		catalog.NewColumn("name", "text").SetNotNull(),
+	)
+	if err := cat.AddTable("public", table); err != nil {
+		t.Fatalf("add table: %v", err)
+	}
+
+	model, err := NewGenerator("postgresql").Build(cat, Config{
+		TableName:        "products",
+		ResourceName:     "Product",
+		PackageName:      "models",
+		DatabaseType:     "postgresql",
+		PrimaryKeyColumn: "id",
+	})
+	if err != nil {
+		t.Fatalf("Build() returned error: %v", err)
+	}
+	if model.Mode != ModelModeCRUD {
+		t.Fatalf("Build() mode = %q, want %q", model.Mode, ModelModeCRUD)
+	}
+	for _, applicationImport := range []string{"/internal/storage", "/internal/validation"} {
+		for _, modelImport := range model.ExternalImports {
+			if strings.HasSuffix(modelImport, applicationImport) {
+				t.Fatalf("Build() imports application package without a module path: %q", modelImport)
+			}
+		}
+	}
+}
+
+func TestGenerateModelWithModeReportsPlanningAndWriteFailures(t *testing.T) {
+	t.Run("planning failure", func(t *testing.T) {
+		err := NewGenerator("postgresql").GenerateModelWithMode(
+			catalog.NewCatalog("public"),
+			"Product",
+			"products",
+			filepath.Join(t.TempDir(), "product.go"),
+			"example.com/app",
+			"",
+			"sql.Null",
+			"id",
+			false,
+			ModelModeCRUD,
+		)
+		if err == nil || !strings.Contains(err.Error(), "failed to build model") {
+			t.Fatalf("GenerateModelWithMode() error = %v, want planning failure", err)
+		}
+	})
+
+	t.Run("write failure", func(t *testing.T) {
+		cat := catalog.NewCatalog("public")
+		table := tableWithColumns(t, "products",
+			catalog.NewColumn("id", "uuid").SetPrimaryKey(),
+			catalog.NewColumn("name", "text").SetNotNull(),
+		)
+		if err := cat.AddTable("public", table); err != nil {
+			t.Fatalf("add table: %v", err)
+		}
+
+		err := NewGenerator("postgresql").GenerateModelWithMode(
+			cat,
+			"Product",
+			"products",
+			filepath.Join(t.TempDir(), "missing", "product.go"),
+			"example.com/app",
+			"",
+			"sql.Null",
+			"id",
+			false,
+			ModelModeCRUD,
+		)
+		if err == nil || !strings.Contains(err.Error(), "failed to write model file") {
+			t.Fatalf("GenerateModelWithMode() error = %v, want write failure", err)
+		}
+	})
 }
 
 func TestGeneratorTemplateRenderingAndImports(t *testing.T) {
