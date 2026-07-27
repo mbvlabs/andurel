@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"testapp/internal/storage"
-	"testapp/models"
-
 	"github.com/go-faker/faker/v4"
 	"github.com/google/uuid"
+	"testapp/internal/storage"
+	"testapp/models"
 )
 
 // WidgetFactory wraps models.WidgetEntity for testing
@@ -24,7 +23,7 @@ type WidgetOption func(*WidgetFactory)
 func BuildWidget(opts ...WidgetOption) models.WidgetEntity {
 	f := &WidgetFactory{
 		WidgetEntity: models.WidgetEntity{
-			Name:     faker.Word(),
+			Name:     faker.Name(),
 			Quantity: randomInt(1, 1000, 100),
 			Active:   randomBool(),
 		},
@@ -62,7 +61,7 @@ func CreateWidget(ctx context.Context, exec storage.Executor, opts ...WidgetOpti
 func CreateWidgets(ctx context.Context, exec storage.Executor, count int, opts ...WidgetOption) ([]models.WidgetEntity, error) {
 	widgets := make([]models.WidgetEntity, 0, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		entity, err := CreateWidget(ctx, exec, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create widget %d: %w", i+1, err)
@@ -75,22 +74,22 @@ func CreateWidgets(ctx context.Context, exec storage.Executor, count int, opts .
 
 // Option functions
 
-// WithWidgetsName sets the Name field
-func WithWidgetsName(value string) WidgetOption {
+// WithWidgetName sets the Name field
+func WithWidgetName(value string) WidgetOption {
 	return func(f *WidgetFactory) {
 		f.WidgetEntity.Name = value
 	}
 }
 
-// WithWidgetsQuantity sets the Quantity field
-func WithWidgetsQuantity(value int32) WidgetOption {
+// WithWidgetQuantity sets the Quantity field
+func WithWidgetQuantity(value int32) WidgetOption {
 	return func(f *WidgetFactory) {
 		f.WidgetEntity.Quantity = value
 	}
 }
 
-// WithWidgetsActive sets the Active field
-func WithWidgetsActive(value bool) WidgetOption {
+// WithWidgetActive sets the Active field
+func WithWidgetActive(value bool) WidgetOption {
 	return func(f *WidgetFactory) {
 		f.WidgetEntity.Active = value
 	}

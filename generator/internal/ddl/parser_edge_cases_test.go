@@ -1,6 +1,7 @@
 package ddl
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -12,12 +13,14 @@ func TestCreateTableParserEdgeCases(t *testing.T) {
 	stmt, err := parser.Parse(`CREATE TABLE IF NOT EXISTS tenant.orders (
 		id UUID,
 		user_id UUID REFERENCES users(id),
-		status VARCHAR(32) NOT NULL DEFAULT 'pending',
+		status VARCHAR(32) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'ready')),
+		phase TEXT NOT NULL,
 		total NUMERIC(12,2) DEFAULT 0,
 		tags TEXT[],
 		metadata JSONB DEFAULT '{"source":"web,api"}',
 		PRIMARY KEY (id),
 		CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(id),
+		CONSTRAINT orders_phase_check CHECK (phase IN ('queued', 'running', 'finished')),
 		CHECK (total >= 0),
 		UNIQUE (status, user_id)
 	)`, "001_orders.sql", "postgresql")
@@ -32,8 +35,8 @@ func TestCreateTableParserEdgeCases(t *testing.T) {
 	if !create.IfNotExists || create.SchemaName != "tenant" || create.TableName != "orders" {
 		t.Fatalf("unexpected table metadata: %#v", create)
 	}
-	if len(create.Columns) != 6 {
-		t.Fatalf("expected 6 columns, got %d", len(create.Columns))
+	if len(create.Columns) != 7 {
+		t.Fatalf("expected 7 columns, got %d", len(create.Columns))
 	}
 
 	byName := map[string]*catalog.Column{}
@@ -48,6 +51,12 @@ func TestCreateTableParserEdgeCases(t *testing.T) {
 	}
 	if byName["status"].Length == nil || *byName["status"].Length != 32 || byName["status"].IsNullable {
 		t.Fatalf("status should be varchar(32) not null: %#v", byName["status"])
+	}
+	if got := byName["status"].AllowedValues; !slices.Equal(got, []string{"pending", "ready"}) {
+		t.Fatalf("status allowed values = %#v", got)
+	}
+	if got := byName["phase"].AllowedValues; !slices.Equal(got, []string{"queued", "running", "finished"}) {
+		t.Fatalf("phase allowed values = %#v", got)
 	}
 	if byName["total"].Precision == nil || *byName["total"].Precision != 12 || byName["total"].Scale == nil || *byName["total"].Scale != 2 {
 		t.Fatalf("total should be numeric(12,2): %#v", byName["total"])
@@ -237,6 +246,9 @@ func TestSimpleParsersAndUnknownStatement(t *testing.T) {
 			case *CreateEnumStatement:
 				if s.EnumName != tt.wantName || s.SchemaName != "tenant" {
 					t.Fatalf("unexpected create enum statement: %#v", s)
+				}
+				if s.EnumDef == nil || !slices.Equal(s.EnumDef.Values, []string{"active", "disabled"}) {
+					t.Fatalf("unexpected enum values: %#v", s.EnumDef)
 				}
 			case *DropEnumStatement:
 				if s.EnumName != tt.wantName || s.SchemaName != "tenant" {

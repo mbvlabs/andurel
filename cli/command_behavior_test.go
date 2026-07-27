@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/generator"
 	"github.com/mbvlabs/andurel/layout"
 )
@@ -471,6 +473,46 @@ func TestGenerateFactoryCommandsMapOptionsAndReportDrift(t *testing.T) {
 	}
 	if len(fake.factoriesCalls) != 1 || !fake.factoriesCalls[0].Check {
 		t.Fatalf("unexpected factories calls: %#v", fake.factoriesCalls)
+	}
+}
+
+func TestGenerateFactoryStructuredCheckReturnsOneFailureEnvelopeWithResults(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+	fake.factoryResult = &generator.FactorySyncResult{
+		ResourceName: "Widget",
+		Path:         "models/factories/widget.go",
+		Stale:        true,
+	}
+
+	result := executeCLITest(t, "generate", "factory", "Widget", "--check", "--json")
+	if result.err == nil {
+		t.Fatal("expected stale factory check to fail")
+	}
+	if result.stdout != "" {
+		t.Fatalf("structured failure wrote a success envelope first:\n%s", result.stdout)
+	}
+
+	var stderr bytes.Buffer
+	result.cmd.SetErr(&stderr)
+	if err := output.RenderError(result.cmd, result.err); err != nil {
+		t.Fatalf("render structured failure: %v", err)
+	}
+
+	var envelope output.ErrorEnvelope
+	if err := json.Unmarshal(stderr.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode structured failure: %v\n%s", err, stderr.String())
+	}
+	if envelope.OK || envelope.Code != output.CodeGenerationFailed {
+		t.Fatalf("unexpected error envelope: %#v", envelope)
+	}
+	report, ok := envelope.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected factory report data, got %#v", envelope.Data)
+	}
+	results, ok := report["results"].([]any)
+	if !ok || len(results) != 1 {
+		t.Fatalf("expected one stale result, got %#v", report["results"])
 	}
 }
 

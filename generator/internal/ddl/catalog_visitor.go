@@ -187,7 +187,14 @@ func (v *CatalogVisitor) VisitDropIndex(stmt *DropIndexStatement) error {
 
 // VisitCreateSchema performs the visit create schema operation.
 func (v *CatalogVisitor) VisitCreateSchema(stmt *CreateSchemaStatement) error {
-	return nil
+	if stmt.SchemaName == "" {
+		return nil
+	}
+	if _, err := v.catalog.GetSchema(stmt.SchemaName); err == nil {
+		return nil
+	}
+	_, err := v.catalog.CreateSchema(stmt.SchemaName)
+	return err
 }
 
 // VisitDropSchema performs the visit drop schema operation.
@@ -197,7 +204,11 @@ func (v *CatalogVisitor) VisitDropSchema(stmt *DropSchemaStatement) error {
 
 // VisitCreateEnum performs the visit create enum operation.
 func (v *CatalogVisitor) VisitCreateEnum(stmt *CreateEnumStatement) error {
-	return nil
+	if stmt.EnumDef == nil {
+		return fmt.Errorf("enum %s has no definition", stmt.EnumName)
+	}
+	stmt.EnumDef.CreatedBy = v.migrationFile
+	return v.catalog.AddEnum(stmt.SchemaName, stmt.EnumDef)
 }
 
 // VisitDropEnum performs the visit drop enum operation.

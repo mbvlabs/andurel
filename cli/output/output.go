@@ -103,6 +103,7 @@ type ErrorEnvelope struct {
 	Error    string `json:"error"`
 	Hint     string `json:"hint,omitempty"`
 	ExitCode int    `json:"exit_code,omitempty"`
+	Data     any    `json:"data,omitempty"`
 }
 
 // CLIError is a typed command error with a stable machine-readable code.
@@ -112,6 +113,7 @@ type CLIError struct {
 	Hint     string
 	ExitCode int
 	Cause    error
+	Data     any
 }
 
 // Error returns the best available human-readable error message.
@@ -311,6 +313,7 @@ func Fail(err error) ErrorEnvelope {
 			Error:    cliErr.Error(),
 			Hint:     cliErr.Hint,
 			ExitCode: exitCode,
+			Data:     cliErr.Data,
 		}
 	}
 

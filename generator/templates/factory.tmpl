@@ -79,19 +79,19 @@ func Create{{.ModelName}}(ctx context.Context, exec storage.Executor, {{range .F
 	return entity, nil
 }
 
-// Create{{.ModelName}}s creates multiple {{.ModelName}} records at once
-func Create{{.ModelName}}s(ctx context.Context, exec storage.Executor, {{range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}count int, opts ...{{.ModelName}}Option) ([]models.{{.EntityName}}, error) {
-	{{.ModelName | toLower}}s := make([]models.{{.EntityName}}, 0, count)
+// Create{{.ModelName | plural}} creates multiple {{.ModelName}} records at once
+func Create{{.ModelName | plural}}(ctx context.Context, exec storage.Executor, {{range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}count int, opts ...{{.ModelName}}Option) ([]models.{{.EntityName}}, error) {
+	{{.ModelName | plural | lowerCamel}} := make([]models.{{.EntityName}}, 0, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		entity, err := Create{{.ModelName}}(ctx, exec, {{range .ForeignKeyFields}}{{.ArgumentName}}, {{end}}opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create {{.ModelName | toLower}} %d: %w", i+1, err)
 		}
-		{{.ModelName | toLower}}s = append({{.ModelName | toLower}}s, entity)
+		{{.ModelName | plural | lowerCamel}} = append({{.ModelName | plural | lowerCamel}}, entity)
 	}
 
-	return {{.ModelName | toLower}}s, nil
+	return {{.ModelName | plural | lowerCamel}}, nil
 }
 {{end}}
 

@@ -2,6 +2,7 @@ package ddl
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -55,6 +56,10 @@ func (p *CreateTableParser) parseColumnDefinitions(
 ) ([]*catalog.Column, error) {
 	var columns []*catalog.Column
 	var primaryKeyColumns []string
+	var allowedValueConstraints []struct {
+		column string
+		values []string
+	}
 	var foreignKeys []struct {
 		column           string
 		referencedTable  string
@@ -115,6 +120,21 @@ func (p *CreateTableParser) parseColumnDefinitions(
 			continue
 		}
 
+		if strings.HasPrefix(defLower, "check ") || strings.HasPrefix(defLower, "check(") ||
+			(strings.HasPrefix(defLower, "constraint") && strings.Contains(defLower, " check")) {
+			column, values, err := parseCheckInValues(def)
+			if err != nil {
+				return nil, fmt.Errorf("parse CHECK constraint: %w", err)
+			}
+			if len(values) > 0 {
+				allowedValueConstraints = append(allowedValueConstraints, struct {
+					column string
+					values []string
+				}{column: column, values: values})
+			}
+			continue
+		}
+
 		if isTableConstraintDefinition(defLower) {
 			continue
 		}
@@ -152,6 +172,20 @@ func (p *CreateTableParser) parseColumnDefinitions(
 					return nil, err
 				}
 			}
+		}
+	}
+
+	for _, constraint := range allowedValueConstraints {
+		matched := false
+		for _, col := range columns {
+			if strings.EqualFold(col.Name, constraint.column) {
+				col.SetAllowedValues(constraint.values...)
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return nil, unsupportedStatement(columnDefs, "CHECK constraint references unknown column "+constraint.column)
 		}
 	}
 
@@ -243,6 +277,13 @@ func (p *CreateTableParser) parseColumnDefinition(
 	if defaultVal, ok := parseDefaultValue(def); ok {
 		col.SetDefault(defaultVal)
 	}
+	allowedValues, err := parseInlineCheckValues(def, columnName)
+	if err != nil {
+		return nil, fmt.Errorf("parse inline CHECK constraint: %w", err)
+	}
+	if len(allowedValues) > 0 {
+		col.SetAllowedValues(allowedValues...)
+	}
 
 	// Parse inline REFERENCES clause:
 	// REFERENCES table(column) or REFERENCES table
@@ -251,6 +292,38 @@ func (p *CreateTableParser) parseColumnDefinition(
 	}
 
 	return col, nil
+}
+
+func parseInlineCheckValues(def, columnName string) ([]string, error) {
+	checkedColumn, values, err := parseCheckInValues(def)
+	if err != nil {
+		return nil, err
+	}
+	if !strings.EqualFold(checkedColumn, columnName) {
+		return nil, nil
+	}
+	return values, nil
+}
+
+func parseCheckInValues(def string) (string, []string, error) {
+	constraintRegex, err := regexp.Compile(`(?i)\bcheck\s*\(\s*(\w+)\s+in\s*\(([^)]*)\)\s*\)`)
+	if err != nil {
+		return "", nil, err
+	}
+	constraint := constraintRegex.FindStringSubmatch(def)
+	if len(constraint) != 3 {
+		return "", nil, nil
+	}
+	valueRegex, err := regexp.Compile(`'((?:''|[^'])*)'`)
+	if err != nil {
+		return "", nil, err
+	}
+	matches := valueRegex.FindAllStringSubmatch(constraint[2], -1)
+	values := make([]string, 0, len(matches))
+	for _, match := range matches {
+		values = append(values, strings.ReplaceAll(match[1], "''", "'"))
+	}
+	return constraint[1], values, nil
 }
 
 func (p *CreateTableParser) parseDataType(
