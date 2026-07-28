@@ -1,5 +1,7 @@
 package models
 
+// andurel:model-mode crud
+
 import (
 	"context"
 	"encoding/json"
@@ -14,33 +16,29 @@ import (
 
 type AuditLogEntity struct {
 	bun.BaseModel `bun:"table:audit_logs,alias:audit_logs"`
-	EventID       uuid.UUID       `bun:"event_id,type:uuid"`
+	EventId       uuid.UUID       `bun:"event_id,type:uuid"`
 	Action        string          `bun:"action"`
 	EntityType    string          `bun:"entity_type"`
-	EntityID      uuid.UUID       `bun:"entity_id,type:uuid"`
+	EntityId      uuid.UUID       `bun:"entity_id,type:uuid"`
 	Payload       json.RawMessage `bun:"payload,type:jsonb"`
 	OccurredAt    time.Time       `bun:"occurred_at"`
 }
 
-func (e *AuditLogEntity) Validate() error {
-	return nil
-}
-
 type CreateAuditLogData struct {
-	EventID    uuid.UUID
+	EventId    uuid.UUID
 	Action     string
 	EntityType string
-	EntityID   uuid.UUID
+	EntityId   uuid.UUID
 	Payload    json.RawMessage
 	OccurredAt time.Time
 }
 
 func (al auditLog) Create(ctx context.Context, db storage.Executor, data CreateAuditLogData) (AuditLogEntity, error) {
 	entity := AuditLogEntity{
-		EventID:    data.EventID,
+		EventId:    data.EventId,
 		Action:     data.Action,
 		EntityType: data.EntityType,
-		EntityID:   data.EntityID,
+		EntityId:   data.EntityId,
 		Payload:    data.Payload,
 		OccurredAt: data.OccurredAt,
 	}
