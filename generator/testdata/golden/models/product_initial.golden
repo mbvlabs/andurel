@@ -1,5 +1,7 @@
 package models
 
+// andurel:model-mode crud
+
 import (
 	"context"
 	"database/sql"
@@ -31,16 +33,16 @@ type ProductEntity struct {
 	UpdatedAt     time.Time       `bun:"updated_at"`
 }
 
-func (e *ProductEntity) Validate() error {
-	return nil
-}
-
 func (p product) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ProductEntity, error) {
 	var entity ProductEntity
-	if err := db.NewSelect().
+	err := db.NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ProductEntity{}, ErrNotFound
+		}
 		return ProductEntity{}, err
 	}
 
@@ -103,7 +105,6 @@ type UpdateProductData struct {
 	Metadata    json.RawMessage
 	Attributes  json.RawMessage
 	LaunchedAt  sql.NullTime
-	UpdatedAt   time.Time
 }
 
 func (p product) Update(ctx context.Context, db storage.Executor, data UpdateProductData) (ProductEntity, error) {
@@ -127,7 +128,7 @@ func (p product) Update(ctx context.Context, db storage.Executor, data UpdatePro
 		return ProductEntity{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewUpdate().
+	err := db.NewUpdate().
 		Model(&entity).
 		Column("sku").
 		Column("name").
@@ -143,7 +144,11 @@ func (p product) Update(ctx context.Context, db storage.Executor, data UpdatePro
 		Column("updated_at").
 		WherePK().
 		Returning("*").
-		Scan(ctx); err != nil {
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ProductEntity{}, ErrNotFound
+		}
 		return ProductEntity{}, err
 	}
 
@@ -151,12 +156,20 @@ func (p product) Update(ctx context.Context, db storage.Executor, data UpdatePro
 }
 
 func (p product) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	_, err := db.NewDelete().
-		Model((*ProductEntity)(nil)).
+	var entity ProductEntity
+	err := db.NewDelete().
+		Model(&entity).
 		Where("id = ?", id).
-		Exec(ctx)
+		Returning("*").
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
 
-	return err
+	return nil
 }
 
 func (p product) All(ctx context.Context, db storage.Executor) ([]ProductEntity, error) {
@@ -217,9 +230,9 @@ func (p product) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 	}, nil
 }
 
-func (p product) Upsert(ctx context.Context, db storage.Executor, data CreateProductData) (ProductEntity, error) {
+func (p product) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, data CreateProductData) (ProductEntity, error) {
 	entity := ProductEntity{
-		ID:          uuid.New(),
+		ID:          id,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 		Sku:         data.Sku,
