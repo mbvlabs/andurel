@@ -172,6 +172,47 @@ func TestPlanModelReturnsCompleteFormattedOutputWithoutWriting(t *testing.T) {
 	}
 }
 
+func TestPlanModelIncludesExistingFactoryContent(t *testing.T) {
+	manager, cleanup := setupModelManagerTest(t)
+	defer cleanup()
+
+	root, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	writeModelPlanningFixture(t, root)
+	factoryDir := filepath.Join(root, "models", "factories")
+	if err := os.MkdirAll(factoryDir, 0o755); err != nil {
+		t.Fatalf("create factory directory: %v", err)
+	}
+	factoryPath := filepath.Join(factoryDir, "server_ssh_credential.go")
+	oldContent := "package factories\n"
+	if err := os.WriteFile(factoryPath, []byte(oldContent), 0o644); err != nil {
+		t.Fatalf("write existing factory: %v", err)
+	}
+
+	plan, err := manager.PlanModel("ServerSSHCredential", ModelGenerationOptions{PrimaryKeyColumn: "id"})
+	if err != nil {
+		t.Fatalf("plan model: %v", err)
+	}
+	for _, file := range plan.Files {
+		if file.Path != factoryPath {
+			continue
+		}
+		if !file.Exists {
+			t.Fatal("existing factory was planned as a new file")
+		}
+		if file.OldContent != oldContent {
+			t.Fatalf("factory old content = %q, want %q", file.OldContent, oldContent)
+		}
+		if file.NewContent == oldContent {
+			t.Fatal("factory plan did not replace stale content")
+		}
+		return
+	}
+	t.Fatalf("plan did not include existing factory %q", factoryPath)
+}
+
 func TestGenerateModelAppliesExactlyThePlannedContent(t *testing.T) {
 	manager, cleanup := setupModelManagerTest(t)
 	defer cleanup()

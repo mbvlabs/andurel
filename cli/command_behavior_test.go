@@ -161,6 +161,49 @@ func TestGenerateModelDryRunUsesGenerationPlan(t *testing.T) {
 	}
 }
 
+func TestGenerateModelDryRunReportsHumanSummary(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+	fake.modelPlan = &generator.ModelGenerationPlan{Files: []generator.PlannedFile{
+		{
+			Path:       "models/model.go",
+			Exists:     true,
+			OldContent: "package models\n",
+			NewContent: "package models\n\nvar Product product\n",
+		},
+		{
+			Path:       "models/product.go",
+			NewContent: "package models\n",
+		},
+	}}
+
+	result := executeCLITest(t, "generate", "model", "Product", "--dry-run")
+	if result.err != nil {
+		t.Fatalf("generate model dry run failed: %v", result.err)
+	}
+	for _, want := range []string{
+		"Dry run: Would change 2 files for generate model",
+		"  create models/product.go",
+		"  update models/model.go",
+	} {
+		if !strings.Contains(result.stdout, want) {
+			t.Fatalf("dry-run output missing %q:\n%s", want, result.stdout)
+		}
+	}
+}
+
+func TestGenerateModelDryRunReturnsPlanningError(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+	wantErr := errors.New("plan model")
+	fake.modelPlanErr = wantErr
+
+	result := executeCLITest(t, "generate", "model", "Product", "--dry-run")
+	if !errors.Is(result.err, wantErr) {
+		t.Fatalf("generate model dry run error = %v, want %v", result.err, wantErr)
+	}
+}
+
 func TestGenerateModelUpdateMapsYesFlag(t *testing.T) {
 	resetCLITestSeams(t)
 	var gotName string
