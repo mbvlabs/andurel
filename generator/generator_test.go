@@ -52,6 +52,18 @@ func TestGenerator_MethodsExist(t *testing.T) {
 			},
 		},
 		{
+			name: "GenerateModelWithMode",
+			fn: func() error {
+				return gen.GenerateModelWithMode("", "", false, "", ModelModeReadOnly)
+			},
+		},
+		{
+			name: "ApplyModelPlan",
+			fn: func() error {
+				return gen.ApplyModelPlan(nil)
+			},
+		},
+		{
 			name: "GenerateController",
 			fn: func() error {
 				return gen.GenerateController("", "", "", "", false)
