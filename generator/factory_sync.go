@@ -63,7 +63,7 @@ func (m *ModelManager) SyncFactory(resourceName string, opts FactorySyncOptions)
 		if rootErr != nil {
 			return nil, fmt.Errorf("find project root for factory validation: %w", rootErr)
 		}
-		if err := m.factoryValidator(rootDir, result.Path, result.newContent); err != nil {
+		if err := m.factoryValidator.validate(rootDir, result.Path, result.newContent); err != nil {
 			return nil, fmt.Errorf("validate planned factory: %w", err)
 		}
 	}
@@ -246,17 +246,21 @@ func (m *ModelManager) factoryModelFromEntity(resourceName string) (*models.Gene
 	if m.migrationManager != nil {
 		if cat, catalogErr := m.migrationManager.BuildCatalogFromMigrations(tableName, m.config); catalogErr == nil {
 			if table, tableErr := cat.GetTable(cat.DefaultSchema, tableName); tableErr == nil {
-				allowedByColumn := make(map[string][]string)
+				allowedByColumn := make(map[string]string)
 				for _, column := range table.Columns {
 					allowed := append([]string(nil), column.AllowedValues...)
 					if enum, enumErr := cat.GetEnum(table.Schema, column.DataType); enumErr == nil {
 						allowed = append([]string(nil), enum.Values...)
 					}
-					allowedByColumn[column.Name] = allowed
+					if len(allowed) > 0 {
+						allowedByColumn[column.Name] = allowed[0]
+					}
 				}
 				for i := range genModel.Fields {
 					columnName, _, _ := strings.Cut(genModel.Fields[i].BunTag, ",")
-					genModel.Fields[i].AllowedValues = append([]string(nil), allowedByColumn[columnName]...)
+					allowedValue, ok := allowedByColumn[columnName]
+					genModel.Fields[i].AllowedValue = allowedValue
+					genModel.Fields[i].HasAllowedValue = ok
 				}
 			}
 		}

@@ -13,6 +13,10 @@ import (
 	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
+type factoryValidationHook struct {
+	validate func(rootDir, factoryPath, content string) error
+}
+
 // ModelManager coordinates model operations.
 type ModelManager struct {
 	validator        *InputValidator
@@ -22,7 +26,7 @@ type ModelManager struct {
 	migrationManager *MigrationManager
 	config           *UnifiedConfig
 	pkResolver       PrimaryKeyResolver
-	factoryValidator func(rootDir, factoryPath, content string) error
+	factoryValidator *factoryValidationHook
 }
 
 // ModelGenerationOptions controls pure model generation planning.
@@ -73,7 +77,7 @@ func NewModelManager(
 		migrationManager: migrationManager,
 		config:           config,
 		pkResolver:       DefaultPrimaryKeyResolver{},
-		factoryValidator: validatePlannedFactory,
+		factoryValidator: &factoryValidationHook{validate: validatePlannedFactory},
 	}
 }
 

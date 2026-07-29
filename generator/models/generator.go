@@ -25,15 +25,16 @@ import (
 
 // GeneratedField describes one model field derived from a database column.
 type GeneratedField struct {
-	Name          string
-	Type          string
-	Comment       string
-	Package       string
-	BunTag        string // Full bun struct tag (e.g., `bun:"id,pk,type:uuid"`)
-	IsForeignKey  bool
-	IsNullable    bool
-	IsPrimaryKey  bool
-	AllowedValues []string
+	Name            string
+	Type            string
+	Comment         string
+	Package         string
+	BunTag          string // Full bun struct tag (e.g., `bun:"id,pk,type:uuid"`)
+	IsForeignKey    bool
+	IsNullable      bool
+	IsPrimaryKey    bool
+	AllowedValue    string
+	HasAllowedValue bool
 }
 
 // GeneratedModel contains the template data for a generated model file.
@@ -184,7 +185,10 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		if enum, enumErr := cat.GetEnum(table.Schema, col.DataType); enumErr == nil {
 			field.Type = "string"
 			field.Package = ""
-			field.AllowedValues = append([]string(nil), enum.Values...)
+			if len(enum.Values) > 0 {
+				field.AllowedValue = enum.Values[0]
+				field.HasAllowedValue = true
+			}
 		}
 
 		if field.Package != "" {
@@ -303,14 +307,19 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 	bunTag := g.typeMapper.BuildBunTag(col)
 
 	field := GeneratedField{
-		Name:          types.FormatFieldName(col.Name),
-		Type:          goType,
-		Package:       pkg,
-		BunTag:        bunTag,
-		IsForeignKey:  col.ForeignKey != nil,
-		IsNullable:    col.IsNullable,
-		IsPrimaryKey:  col.IsPrimaryKey,
-		AllowedValues: append([]string(nil), col.AllowedValues...),
+		Name:            types.FormatFieldName(col.Name),
+		Type:            goType,
+		Package:         pkg,
+		BunTag:          bunTag,
+		IsForeignKey:    col.ForeignKey != nil,
+		IsNullable:      col.IsNullable,
+		IsPrimaryKey:    col.IsPrimaryKey,
+		AllowedValue:    "",
+		HasAllowedValue: false,
+	}
+	if len(col.AllowedValues) > 0 {
+		field.AllowedValue = col.AllowedValues[0]
+		field.HasAllowedValue = true
 	}
 
 	return field, nil
@@ -602,8 +611,8 @@ func (g *Generator) analyzeFactoryField(field GeneratedField, modelName string) 
 }
 
 func (g *Generator) determineFactoryDefaultForField(field GeneratedField) string {
-	if len(field.AllowedValues) > 0 {
-		return strconv.Quote(field.AllowedValues[0])
+	if field.HasAllowedValue {
+		return strconv.Quote(field.AllowedValue)
 	}
 	return g.determineFactoryDefault(field.Name, field.Type)
 }

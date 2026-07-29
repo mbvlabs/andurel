@@ -687,7 +687,7 @@ func TestBuildFactoryUsesSchemaAwareSemanticDefaults(t *testing.T) {
 		Fields: []GeneratedField{
 			{Name: "Url", Type: "string"},
 			{Name: "Cidr", Type: "string"},
-			{Name: "Status", Type: "string", AllowedValues: []string{"pending", "ready"}},
+			{Name: "Status", Type: "string", AllowedValue: "pending", HasAllowedValue: true},
 		},
 	}
 	factory, err := NewGenerator("postgresql").BuildFactory(nil, Config{TableName: "endpoints"}, model)
