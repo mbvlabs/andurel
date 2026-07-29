@@ -1196,15 +1196,16 @@ type GeneratedFactory struct {
     GeneratedFactory represents a factory for a model
 
 type GeneratedField struct {
-	Name          string
-	Type          string
-	Comment       string
-	Package       string
-	BunTag        string // Full bun struct tag (e.g., `bun:"id,pk,type:uuid"`)
-	IsForeignKey  bool
-	IsNullable    bool
-	IsPrimaryKey  bool
-	AllowedValues []string
+	Name            string
+	Type            string
+	Comment         string
+	Package         string
+	BunTag          string // Full bun struct tag (e.g., `bun:"id,pk,type:uuid"`)
+	IsForeignKey    bool
+	IsNullable      bool
+	IsPrimaryKey    bool
+	AllowedValue    string
+	HasAllowedValue bool
 }
     GeneratedField describes one model field derived from a database column.
 

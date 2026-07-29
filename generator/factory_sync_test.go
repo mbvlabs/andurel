@@ -364,7 +364,7 @@ func TestSyncFactoryCheckValidatesPlannedOutputBeforeWriting(t *testing.T) {
 
 	manager := factorySyncTestModelManager(root, modelsDir)
 	validated := false
-	manager.factoryValidator = func(gotRoot, factoryPath, content string) error {
+	manager.factoryValidator = &factoryValidationHook{validate: func(gotRoot, factoryPath, content string) error {
 		validated = true
 		if gotRoot != root || factoryPath != filepath.Join(root, "models", "factories", "product.go") {
 			t.Fatalf("unexpected validation target: root=%q path=%q", gotRoot, factoryPath)
@@ -373,7 +373,7 @@ func TestSyncFactoryCheckValidatesPlannedOutputBeforeWriting(t *testing.T) {
 			t.Fatalf("validator did not receive planned factory content:\n%s", content)
 		}
 		return errors.New("go vet failed")
-	}
+	}}
 
 	_, err := manager.SyncFactory("Product", FactorySyncOptions{Check: true})
 	if err == nil || !strings.Contains(err.Error(), "validate planned factory") {
