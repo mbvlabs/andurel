@@ -18,13 +18,15 @@ import (
 type Pages struct {
 	db         storage.Pool
 	insertOnly queue.InsertOnly
+	renderer   *inertia.Renderer
 }
 
 func NewPages(
 	db storage.Pool,
 	insertOnly queue.InsertOnly,
+	renderer *inertia.Renderer,
 ) Pages {
-	return Pages{db, insertOnly}
+	return Pages{db: db, insertOnly: insertOnly, renderer: renderer}
 }
 
 func (p Pages) RegisterRoutes(r *router.Router) error {
@@ -60,5 +62,5 @@ func (p Pages) Home(etx *echo.Context) error {
 }
 
 func (p Pages) NotFound(etx *echo.Context) error {
-	return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
+	return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
 }

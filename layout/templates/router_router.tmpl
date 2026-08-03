@@ -36,6 +36,9 @@ type Router struct {
 func New(
 	cfg config.Config,
 	tel *telemetry.Telemetry,
+{{- if .Inertia}}
+	renderer *inertia.Renderer,
+{{- end}}
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
@@ -74,7 +77,18 @@ func New(
 		defaultHTTPErrorHandler(c, err)
 	}
 
+{{if .Inertia}}
+	globalMiddleware, err := SetupGlobalMiddleware(
+		cfg,
+		tel,
+		authKey,
+		encKey,
+		"_csrf",
+		renderer,
+	)
+{{- else}}
 	globalMiddleware, err := SetupGlobalMiddleware(cfg, tel, authKey, encKey, "_csrf")
+{{- end}}
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +109,9 @@ func SetupGlobalMiddleware(
 	authKey []byte,
 	encKey []byte,
 	csrfName string,
+{{- if .Inertia}}
+	renderer *inertia.Renderer,
+{{- end}}
 ) ([]echo.MiddlewareFunc, error) {
 	csrfMiddleware, err := middleware.CSRFMiddleware(cfg, csrfName)
 	if err != nil {
@@ -123,7 +140,7 @@ func SetupGlobalMiddleware(
 		middleware.ValidateSession,
 		middleware.RegisterRequestMeta,
 {{- if .Inertia}}
-		inertia.Middleware(),
+		renderer.Middleware(),
 {{- end}}
 		echomw.CORSWithConfig(corsConfig),
 		csrfMiddleware,

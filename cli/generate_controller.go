@@ -255,6 +255,16 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 			return err
 		}
 		contentStr := strings.ReplaceAll(string(content), "(etx echo.Context)", "(etx *echo.Context)")
+		if isInertia {
+			contentStr, err = controllergen.EnsureInertiaRendererDependency(
+				contentStr,
+				controllerName,
+				modulePath,
+			)
+			if err != nil {
+				return err
+			}
+		}
 
 		var additions strings.Builder
 		for _, action := range actions {
@@ -311,9 +321,15 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 			sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
 		}
 		sb.WriteString(")\n\n")
-		fmt.Fprintf(&sb, "type %s struct{}\n\n", controllerName)
-		fmt.Fprintf(&sb, "func New%s() %s {\n", controllerName, controllerName)
-		fmt.Fprintf(&sb, "\treturn %s{}\n", controllerName)
+		if isInertia {
+			fmt.Fprintf(&sb, "type %s struct {\n\trenderer *inertia.Renderer\n}\n\n", controllerName)
+			fmt.Fprintf(&sb, "func New%s(renderer *inertia.Renderer) %s {\n", controllerName, controllerName)
+			fmt.Fprintf(&sb, "\treturn %s{renderer: renderer}\n", controllerName)
+		} else {
+			fmt.Fprintf(&sb, "type %s struct{}\n\n", controllerName)
+			fmt.Fprintf(&sb, "func New%s() %s {\n", controllerName, controllerName)
+			fmt.Fprintf(&sb, "\treturn %s{}\n", controllerName)
+		}
 		sb.WriteString("}\n\n")
 
 		sb.WriteString(customRegisterRoutesMethod(receiverName, controllerName, namespace, resourceName, actions))
@@ -385,10 +401,11 @@ func actionControllerMethodInertia(receiverName, controllerName, namespace, reso
 	if namespace != "" {
 		pageName = naming.NamespaceToPascal(namespace) + "/" + pageName
 	}
-	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn inertia.Page(etx, \"%s\", inertia.Props{})\n}\n\n",
+	return fmt.Sprintf("func (%s %s) %s(etx *echo.Context) error {\n\treturn %s.renderer.Page(etx, \"%s\", inertia.Props{})\n}\n\n",
 		receiverName,
 		controllerName,
 		methodName,
+		receiverName,
 		pageName,
 	)
 }

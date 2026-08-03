@@ -17,10 +17,11 @@ import (
 
 type Confirmations struct {
 	identity services.Identity
+	renderer *inertia.Renderer
 }
 
-func NewConfirmations(identity services.Identity) Confirmations {
-	return Confirmations{identity}
+func NewConfirmations(identity services.Identity, renderer *inertia.Renderer) Confirmations {
+	return Confirmations{identity: identity, renderer: renderer}
 }
 
 func (c Confirmations) RegisterRoutes(r *router.Router) error {
@@ -50,7 +51,7 @@ func (c Confirmations) RegisterRoutes(r *router.Router) error {
 }
 
 func (c Confirmations) New(etx *echo.Context) error {
-	return inertia.Page(etx, "Auth/ConfirmEmail", inertia.Props{})
+	return c.renderer.Page(etx, "Auth/ConfirmEmail", inertia.Props{})
 }
 
 func (c Confirmations) Create(etx *echo.Context) error {
@@ -65,7 +66,7 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return c.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
 	}
 
 	user, err := c.identity.VerifyEmail(
@@ -76,7 +77,7 @@ func (c Confirmations) Create(etx *echo.Context) error {
 	)
 	if err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return inertia.Page(
+			return c.renderer.Page(
 				etx,
 				"Auth/ConfirmEmail",
 				inertia.Props{},
@@ -102,9 +103,9 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		}
 
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+			return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
-		return inertia.Redirect(etx, routes.ConfirmationNew.URL())
+		return c.renderer.Redirect(etx, routes.ConfirmationNew.URL())
 	}
 
 	if err := cookies.CreateAppSession(etx, user); err != nil {
@@ -115,12 +116,12 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Email verified successfully!"); flashErr != nil {
-		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
-	return inertia.Location(etx, routes.HomePage.URL())
+	return c.renderer.Location(etx, routes.HomePage.URL())
 }

@@ -1237,15 +1237,19 @@ import (
 	"syscall"
 	"time"
 
+	"testapp/assets"
 	mailclients "testapp/clients/email"
 	"testapp/config"
 	"testapp/controllers"
 	"testapp/database"
 	"testapp/email"
 	"testapp/internal/inertia"
+	"testapp/internal/request"
 	"testapp/internal/server"
 	"testapp/queue"
 	"testapp/router"
+	"testapp/router/cookies"
+	"testapp/router/routes"
 	"testapp/services"
 	"testapp/telemetry"
 
@@ -1254,16 +1258,34 @@ import (
 
 var appVersion string
 
+func provideInertia() (*inertia.Renderer, error) {
+	return inertia.New(
+		assets.Files,
+		"inertia/root.go.html",
+		config.ProjectName,
+		config.Env,
+		routes.ViteBuild.Path(),
+		inertia.WithSharedProp("appVersion", appVersion),
+		inertia.WithRequestProps(func(ctx context.Context) inertia.Props {
+			flashes := request.ExtractContext[[]cookies.FlashMessage](
+				ctx,
+				request.SessionFlashesKey,
+			)
+			if len(flashes) == 0 {
+				return nil
+			}
+			return inertia.Props{"flash": flashes}
+		}),
+	)
+}
+
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	if err := inertia.Init("inertia/root.go.html"); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to initialize inertia: %s\n", err)
-		os.Exit(1)
-	}
 	app := fx.New(
 		fx.Provide(
 			func() context.Context { return ctx },
+			provideInertia,
 			func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
 				if config.Env == server.ProdEnvironment {
 					log.Fatal("provide real email sender")
@@ -2205,10 +2227,11 @@ import (
 
 type Confirmations struct {
 	identity services.Identity
+	renderer *inertia.Renderer
 }
 
-func NewConfirmations(identity services.Identity) Confirmations {
-	return Confirmations{identity}
+func NewConfirmations(identity services.Identity, renderer *inertia.Renderer) Confirmations {
+	return Confirmations{identity: identity, renderer: renderer}
 }
 
 func (c Confirmations) RegisterRoutes(r *router.Router) error {
@@ -2238,7 +2261,7 @@ func (c Confirmations) RegisterRoutes(r *router.Router) error {
 }
 
 func (c Confirmations) New(etx *echo.Context) error {
-	return inertia.Page(etx, "Auth/ConfirmEmail", inertia.Props{})
+	return c.renderer.Page(etx, "Auth/ConfirmEmail", inertia.Props{})
 }
 
 func (c Confirmations) Create(etx *echo.Context) error {
@@ -2253,7 +2276,7 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return c.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
 	}
 
 	user, err := c.identity.VerifyEmail(
@@ -2264,7 +2287,7 @@ func (c Confirmations) Create(etx *echo.Context) error {
 	)
 	if err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return inertia.Page(
+			return c.renderer.Page(
 				etx,
 				"Auth/ConfirmEmail",
 				inertia.Props{},
@@ -2290,9 +2313,9 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		}
 
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+			return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
-		return inertia.Redirect(etx, routes.ConfirmationNew.URL())
+		return c.renderer.Redirect(etx, routes.ConfirmationNew.URL())
 	}
 
 	if err := cookies.CreateAppSession(etx, user); err != nil {
@@ -2303,14 +2326,14 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Email verified successfully!"); flashErr != nil {
-		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
-	return inertia.Location(etx, routes.HomePage.URL())
+	return c.renderer.Location(etx, routes.HomePage.URL())
 }
 ```
 
@@ -2387,13 +2410,15 @@ import (
 type Pages struct {
 	db         storage.Pool
 	insertOnly queue.InsertOnly
+	renderer   *inertia.Renderer
 }
 
 func NewPages(
 	db storage.Pool,
 	insertOnly queue.InsertOnly,
+	renderer *inertia.Renderer,
 ) Pages {
-	return Pages{db, insertOnly}
+	return Pages{db: db, insertOnly: insertOnly, renderer: renderer}
 }
 
 func (p Pages) RegisterRoutes(r *router.Router) error {
@@ -2429,7 +2454,7 @@ func (p Pages) Home(etx *echo.Context) error {
 }
 
 func (p Pages) NotFound(etx *echo.Context) error {
-	return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
+	return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
 }
 ```
 
@@ -2455,10 +2480,11 @@ import (
 
 type Registrations struct {
 	identity services.Identity
+	renderer *inertia.Renderer
 }
 
-func NewRegistrations(identity services.Identity) Registrations {
-	return Registrations{identity}
+func NewRegistrations(identity services.Identity, renderer *inertia.Renderer) Registrations {
+	return Registrations{identity: identity, renderer: renderer}
 }
 
 func (r Registrations) RegisterRoutes(rtr *router.Router) error {
@@ -2491,7 +2517,7 @@ func (r Registrations) RegisterRoutes(rtr *router.Router) error {
 }
 
 func (r Registrations) New(etx *echo.Context) error {
-	return inertia.Page(etx, "Auth/Registration", inertia.Props{})
+	return r.renderer.Page(etx, "Auth/Registration", inertia.Props{})
 }
 
 func (r Registrations) Create(etx *echo.Context) error {
@@ -2508,7 +2534,7 @@ func (r Registrations) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return r.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
 	}
 
 	if err := r.identity.RegisterUser(
@@ -2520,7 +2546,7 @@ func (r Registrations) Create(etx *echo.Context) error {
 		},
 	); err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return inertia.Page(
+			return r.renderer.Page(
 				etx,
 				"Auth/Registration",
 				inertia.Props{},
@@ -2536,13 +2562,13 @@ func (r Registrations) Create(etx *echo.Context) error {
 		)
 
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, "Failed to register user"); flashErr != nil {
-			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+			return r.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
 
-		return inertia.Redirect(etx, routes.RegistrationNew.URL())
+		return r.renderer.Redirect(etx, routes.RegistrationNew.URL())
 	}
 
-	return inertia.Redirect(etx, routes.ConfirmationNew.URL())
+	return r.renderer.Redirect(etx, routes.ConfirmationNew.URL())
 }
 ```
 
@@ -2567,10 +2593,11 @@ import (
 
 type ResetPasswords struct {
 	identity services.Identity
+	renderer *inertia.Renderer
 }
 
-func NewResetPasswords(identity services.Identity) ResetPasswords {
-	return ResetPasswords{identity}
+func NewResetPasswords(identity services.Identity, renderer *inertia.Renderer) ResetPasswords {
+	return ResetPasswords{identity: identity, renderer: renderer}
 }
 
 func (rp ResetPasswords) RegisterRoutes(r *router.Router) error {
@@ -2620,7 +2647,7 @@ func (rp ResetPasswords) RegisterRoutes(r *router.Router) error {
 }
 
 func (rp ResetPasswords) New(etx *echo.Context) error {
-	return inertia.Page(etx, "Auth/ResetPasswordRequest", inertia.Props{})
+	return rp.renderer.Page(etx, "Auth/ResetPasswordRequest", inertia.Props{})
 }
 
 func (rp ResetPasswords) Create(etx *echo.Context) error {
@@ -2636,7 +2663,7 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return rp.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
 	}
 
 	if err := rp.identity.RequestResetPassword(
@@ -2646,7 +2673,7 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 		},
 	); err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return inertia.Page(
+			return rp.renderer.Page(
 				etx,
 				"Auth/ResetPasswordRequest",
 				inertia.Props{},
@@ -2661,17 +2688,17 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 			err,
 		)
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, "Failed to send password reset code"); flashErr != nil {
-			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+			return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
 
-		return inertia.Redirect(etx, routes.PasswordNew.URL(), http.StatusSeeOther)
+		return rp.renderer.Redirect(etx, routes.PasswordNew.URL(), http.StatusSeeOther)
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "If an account exists with that email, you will receive password reset instructions."); flashErr != nil {
-		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
-	return inertia.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
+	return rp.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
 }
 
 func (rp ResetPasswords) Edit(etx *echo.Context) error {
@@ -2680,12 +2707,12 @@ func (rp ResetPasswords) Edit(etx *echo.Context) error {
 	token := etx.Param("token")
 	if token == "" {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, "Invalid or missing reset token"); flashErr != nil {
-			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+			return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
-		return inertia.Redirect(etx, routes.PasswordNew.URL(), http.StatusSeeOther)
+		return rp.renderer.Redirect(etx, routes.PasswordNew.URL(), http.StatusSeeOther)
 	}
 
-	return inertia.Page(etx, "Auth/ResetPassword", inertia.Props{
+	return rp.renderer.Page(etx, "Auth/ResetPassword", inertia.Props{
 		"token": token,
 	})
 }
@@ -2704,7 +2731,7 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return rp.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
 	}
 
 	if err := rp.identity.ResetPassword(
@@ -2716,7 +2743,7 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 		},
 	); err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return inertia.Page(
+			return rp.renderer.Page(
 				etx,
 				"Auth/ResetPassword",
 				inertia.Props{"token": payload.Token},
@@ -2742,21 +2769,21 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 		}
 
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+			return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
 		redirectPath := routes.PasswordEdit.URL(payload.Token)
 		if payload.Token != "" {
 			redirectPath = routes.PasswordEdit.URL(payload.Token)
 		}
 
-		return inertia.Redirect(etx, redirectPath, http.StatusSeeOther)
+		return rp.renderer.Redirect(etx, redirectPath, http.StatusSeeOther)
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Password reset successfully! Please log in."); flashErr != nil {
-		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
-	return inertia.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
+	return rp.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
 }
 ```
 
@@ -2782,10 +2809,11 @@ import (
 
 type Sessions struct {
 	identity services.Identity
+	renderer *inertia.Renderer
 }
 
-func NewSessions(identity services.Identity) Sessions {
-	return Sessions{identity}
+func NewSessions(identity services.Identity, renderer *inertia.Renderer) Sessions {
+	return Sessions{identity: identity, renderer: renderer}
 }
 
 func (s Sessions) RegisterRoutes(r *router.Router) error {
@@ -2828,7 +2856,7 @@ func (s Sessions) RegisterRoutes(r *router.Router) error {
 }
 
 func (s Sessions) New(etx *echo.Context) error {
-	return inertia.Page(etx, "Auth/Login", inertia.Props{})
+	return s.renderer.Page(etx, "Auth/Login", inertia.Props{})
 }
 
 func (s Sessions) Create(etx *echo.Context) error {
@@ -2844,7 +2872,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
 	}
 
 	user, err := s.identity.AuthenticateUser(
@@ -2856,7 +2884,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 	)
 	if err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return inertia.Page(
+			return s.renderer.Page(
 				etx,
 				"Auth/Login",
 				inertia.Props{},
@@ -2882,10 +2910,10 @@ func (s Sessions) Create(etx *echo.Context) error {
 		}
 
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+			return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
 
-		return inertia.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
+		return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
 	}
 
 	if err := cookies.CreateAppSession(etx, user); err != nil {
@@ -2896,14 +2924,14 @@ func (s Sessions) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Successfully logged in!"); flashErr != nil {
-		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
-	return inertia.Location(etx, routes.HomePage.URL())
+	return s.renderer.Location(etx, routes.HomePage.URL())
 }
 
 func (s Sessions) Destroy(etx *echo.Context) error {
@@ -2914,14 +2942,14 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Successfully logged out!"); flashErr != nil {
-		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
-	return inertia.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
+	return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
 }
 ```
 
@@ -7638,6 +7666,7 @@ file -----------rw-r--r-- internal/inertia/render.go
 package inertia
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -7645,51 +7674,104 @@ import (
 
 	"github.com/labstack/echo/v5"
 	gonertia "github.com/romsar/gonertia/v3"
-
-	"testapp/assets"
-	"testapp/config"
-	"testapp/internal/request"
-	"testapp/router/cookies"
 )
 
 type Props = gonertia.Props
-type Option = gonertia.Option
 
-var gInertia *gonertia.Inertia
+type RequestPropsProvider func(context.Context) Props
 
-func Init(rootPath string, opts ...Option) error {
-	rootHTML, err := assets.Files.ReadFile(rootPath)
+type Option func(*rendererOptions)
+
+type rendererOptions struct {
+	gonertiaOptions       []gonertia.Option
+	sharedProps           Props
+	requestPropsProviders []RequestPropsProvider
+}
+
+type Renderer struct {
+	engine                *gonertia.Inertia
+	requestPropsProviders []RequestPropsProvider
+}
+
+func WithGonertiaOptions(opts ...gonertia.Option) Option {
+	return func(options *rendererOptions) {
+		options.gonertiaOptions = append(options.gonertiaOptions, opts...)
+	}
+}
+
+func WithSharedProp(key string, value any) Option {
+	return func(options *rendererOptions) {
+		if options.sharedProps == nil {
+			options.sharedProps = make(Props)
+		}
+		options.sharedProps[key] = value
+	}
+}
+
+func WithRequestProps(provider RequestPropsProvider) Option {
+	return func(options *rendererOptions) {
+		if provider != nil {
+			options.requestPropsProviders = append(options.requestPropsProviders, provider)
+		}
+	}
+}
+
+func New(
+	assetFS fs.FS,
+	rootPath string,
+	projectName string,
+	environment string,
+	buildPathURL string,
+	options ...Option,
+) (*Renderer, error) {
+	if assetFS == nil {
+		return nil, errors.New("inertia: asset filesystem is nil")
+	}
+
+	rootHTML, err := fs.ReadFile(assetFS, rootPath)
 	if errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf(
+		return nil, fmt.Errorf(
 			"inertia: embedded root template %q not found; add it at assets/%s and rebuild",
 			rootPath,
 			rootPath,
 		)
 	}
 	if err != nil {
-		return fmt.Errorf("inertia: read embedded root template %q: %w", rootPath, err)
+		return nil, fmt.Errorf("inertia: read embedded root template %q: %w", rootPath, err)
 	}
 
-	tags, err := initVite()
+	tags, err := initVite(assetFS, environment, buildPathURL)
 	if err != nil {
-		return fmt.Errorf("inertia: vite init: %w", err)
+		return nil, fmt.Errorf("inertia: vite init: %w", err)
 	}
 
-	i, err := gonertia.NewFromBytes(rootHTML, opts...)
+	rendererOptions := rendererOptions{}
+	for _, option := range options {
+		if option != nil {
+			option(&rendererOptions)
+		}
+	}
+	opts := rendererOptions.gonertiaOptions
+	engine, err := gonertia.NewFromBytes(rootHTML, opts...)
 	if err != nil {
-		return fmt.Errorf("inertia: create renderer: %v", err)
+		return nil, fmt.Errorf("inertia: create renderer: %v", err)
 	}
 
-	i.ShareTemplateData("viteHead", tags.ViteHead)
-	i.ShareTemplateData("viteBody", tags.ViteBody)
-	i.ShareTemplateData("appName", config.ProjectName)
+	engine.ShareTemplateData("viteHead", tags.ViteHead)
+	engine.ShareTemplateData("viteBody", tags.ViteBody)
+	engine.ShareTemplateData("appName", projectName)
+	for key, value := range rendererOptions.sharedProps {
+		engine.ShareProp(key, value)
+	}
 
-	gInertia = i
-	return nil
+	return &Renderer{
+		engine:                engine,
+		requestPropsProviders: rendererOptions.requestPropsProviders,
+	}, nil
 }
 
-func Page(etx *echo.Context, component string, props Props, opts ...PageOption) error {
-	if gInertia == nil {
+func (r *Renderer) Page(etx *echo.Context, component string, props Props, opts ...PageOption) error {
+	if r == nil || r.engine == nil {
 		return errors.New("inertia: not initialized")
 	}
 
@@ -7706,40 +7788,41 @@ func Page(etx *echo.Context, component string, props Props, opts ...PageOption) 
 		)))
 	}
 
-	if flashes := request.ExtractContext[[]cookies.FlashMessage](
-		etx.Request().Context(), request.SessionFlashesKey,
-	); len(flashes) > 0 {
-		if props == nil {
-			props = make(Props)
+	mergedProps := make(Props, len(props))
+	for key, value := range props {
+		mergedProps[key] = value
+	}
+	for _, provider := range r.requestPropsProviders {
+		for key, value := range provider(etx.Request().Context()) {
+			mergedProps[key] = value
 		}
-		props["flash"] = flashes
 	}
 
-	if err := gInertia.Render(etx.Response(), etx.Request(), component, props); err != nil {
+	if err := r.engine.Render(etx.Response(), etx.Request(), component, mergedProps); err != nil {
 		return fmt.Errorf("inertia: render page: %v", err)
 	}
 
 	return nil
 }
 
-func Redirect(etx *echo.Context, url string, status ...int) error {
-	if gInertia == nil {
+func (r *Renderer) Redirect(etx *echo.Context, url string, status ...int) error {
+	if r == nil || r.engine == nil {
 		return errors.New("inertia: not initialized")
 	}
-	gInertia.Redirect(etx.Response(), etx.Request(), url, status...)
+	r.engine.Redirect(etx.Response(), etx.Request(), url, status...)
 	return nil
 }
 
-func Location(etx *echo.Context, url string, status ...int) error {
-	if gInertia == nil {
+func (r *Renderer) Location(etx *echo.Context, url string, status ...int) error {
+	if r == nil || r.engine == nil {
 		return errors.New("inertia: not initialized")
 	}
-	gInertia.Location(etx.Response(), etx.Request(), url, status...)
+	r.engine.Location(etx.Response(), etx.Request(), url, status...)
 	return nil
 }
 
-func Middleware() echo.MiddlewareFunc {
-	if gInertia == nil {
+func (r *Renderer) Middleware() echo.MiddlewareFunc {
+	if r == nil || r.engine == nil {
 		return func(next echo.HandlerFunc) echo.HandlerFunc {
 			return func(c *echo.Context) error {
 				return errors.New("inertia: not initialized")
@@ -7748,8 +7831,139 @@ func Middleware() echo.MiddlewareFunc {
 	}
 
 	return echo.WrapMiddleware(func(next http.Handler) http.Handler {
-		return gInertia.Middleware(next)
+		return r.engine.Middleware(next)
 	})
+}
+```
+
+file -----------rw-r--r-- internal/inertia/render_test.go
+```
+package inertia
+
+import (
+	"context"
+	"encoding/json"
+	"io/fs"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"testing/fstest"
+
+	"github.com/labstack/echo/v5"
+)
+
+type flashContextKey struct{}
+
+func TestRendererPageIncludesRequestProps(t *testing.T) {
+	renderer, err := New(
+		fstest.MapFS{
+			"inertia/root.go.html": &fstest.MapFile{Data: []byte(`<main>{{ .inertia }}</main>`)},
+		},
+		"inertia/root.go.html",
+		"testapp",
+		"testing",
+		"/assets/dist/123/*",
+		WithRequestProps(func(ctx context.Context) Props {
+			flashes, _ := ctx.Value(flashContextKey{}).([]string)
+			if len(flashes) == 0 {
+				return nil
+			}
+			return Props{"flash": flashes}
+		}),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/account", nil)
+	req.Header.Set("X-Inertia", "true")
+	req = req.WithContext(context.WithValue(req.Context(), flashContextKey{}, []string{"saved"}))
+	rec := httptest.NewRecorder()
+	etx := e.NewContext(req, rec)
+
+	if err := renderer.Page(etx, "Account/Show", Props{"name": "Ada"}); err != nil {
+		t.Fatalf("Page: %v", err)
+	}
+
+	var page struct {
+		Props map[string]json.RawMessage `json:"props"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
+		t.Fatalf("decode page: %v", err)
+	}
+	if got := string(page.Props["flash"]); got != `["saved"]` {
+		t.Fatalf("flash prop = %s, want %s", got, `["saved"]`)
+	}
+}
+
+func TestRendererOmitsEmptyRequestProps(t *testing.T) {
+	renderer, err := New(
+		fstest.MapFS{
+			"inertia/root.go.html": &fstest.MapFile{Data: []byte(`<main>{{ .inertia }}</main>`)},
+		},
+		"inertia/root.go.html",
+		"testapp",
+		"testing",
+		"/assets/dist/123/*",
+		WithRequestProps(func(context.Context) Props { return nil }),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/account", nil)
+	req.Header.Set("X-Inertia", "true")
+	rec := httptest.NewRecorder()
+	etx := e.NewContext(req, rec)
+
+	if err := renderer.Page(etx, "Account/Show", nil); err != nil {
+		t.Fatalf("Page: %v", err)
+	}
+
+	var page struct {
+		Props map[string]json.RawMessage `json:"props"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
+		t.Fatalf("decode page: %v", err)
+	}
+	if _, ok := page.Props["flash"]; ok {
+		t.Fatalf("empty flash prop was included: %s", rec.Body.String())
+	}
+}
+
+func TestInitViteUsesInjectedFilesystemAndBuildPath(t *testing.T) {
+	assetFS := fstest.MapFS{
+		"dist/vite/manifest.json": &fstest.MapFile{Data: []byte(`{
+  "resources/js/app.ts": {"file":"app.js","css":["app.css"],"src":"resources/js/app.ts","isEntry":true}
+}`)},
+	}
+
+	tags, err := initVite(assetFS, "production", "/assets/dist/123/*")
+	if err != nil {
+		t.Fatalf("initVite: %v", err)
+	}
+	if !strings.Contains(string(tags.ViteHead), `href="/assets/dist/123/app.css"`) {
+		t.Fatalf("ViteHead = %q", tags.ViteHead)
+	}
+	if !strings.Contains(string(tags.ViteBody), `src="/assets/dist/123/app.js"`) {
+		t.Fatalf("ViteBody = %q", tags.ViteBody)
+	}
+}
+
+func TestRendererReportsMissingRoot(t *testing.T) {
+	_, err := New(fstest.MapFS{}, "inertia/root.go.html", "testapp", "testing", "/assets/dist/123/*")
+	if err == nil {
+		t.Fatal("New returned nil error")
+	}
+	if !strings.Contains(err.Error(), "add it at assets/inertia/root.go.html and rebuild") {
+		t.Fatalf("New error = %q", err)
+	}
+	if !strings.Contains(err.Error(), fs.ErrNotExist.Error()) && !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("New error does not describe a missing file: %q", err)
+	}
 }
 ```
 
@@ -7763,12 +7977,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"strings"
 
-	"testapp/assets"
-	"testapp/config"
 	"testapp/internal/server"
-	"testapp/router/routes"
 )
 
 type viteTags struct {
@@ -7783,8 +7995,8 @@ type viteManifestEntry struct {
 	IsEntry bool     `json:"isEntry"`
 }
 
-func initVite() (*viteTags, error) {
-	if config.Env != server.ProdEnvironment {
+func initVite(assetFS fs.FS, environment string, buildPathURL string) (*viteTags, error) {
+	if environment != server.ProdEnvironment {
 		tags := &viteTags{
 			ViteHead: template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/@vite/client"></script>`),
 		}
@@ -7794,7 +8006,7 @@ func initVite() (*viteTags, error) {
 		return tags, nil
 	}
 
-	data, err := assets.Files.ReadFile("dist/vite/manifest.json")
+	data, err := fs.ReadFile(assetFS, "dist/vite/manifest.json")
 	if err != nil {
 		return nil, fmt.Errorf("vite: read manifest: %w", err)
 	}
@@ -7810,7 +8022,7 @@ func initVite() (*viteTags, error) {
 	}
 
 	tags := &viteTags{}
-	viteBuildPrefix := strings.TrimSuffix(routes.ViteBuild.Path(), "*")
+	viteBuildPrefix := strings.TrimSuffix(buildPathURL, "*")
 	for _, css := range entry.CSS {
 		tags.ViteHead += template.HTML(`<link rel="stylesheet" href="` + viteBuildPrefix + css + `">`)
 	}
@@ -12371,6 +12583,7 @@ type Router struct {
 func New(
 	cfg config.Config,
 	tel *telemetry.Telemetry,
+	renderer *inertia.Renderer,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
@@ -12409,7 +12622,14 @@ func New(
 		defaultHTTPErrorHandler(c, err)
 	}
 
-	globalMiddleware, err := SetupGlobalMiddleware(cfg, tel, authKey, encKey, "_csrf")
+	globalMiddleware, err := SetupGlobalMiddleware(
+		cfg,
+		tel,
+		authKey,
+		encKey,
+		"_csrf",
+		renderer,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -12430,6 +12650,7 @@ func SetupGlobalMiddleware(
 	authKey []byte,
 	encKey []byte,
 	csrfName string,
+	renderer *inertia.Renderer,
 ) ([]echo.MiddlewareFunc, error) {
 	csrfMiddleware, err := middleware.CSRFMiddleware(cfg, csrfName)
 	if err != nil {
@@ -12457,7 +12678,7 @@ func SetupGlobalMiddleware(
 		session.Middleware(sessionStore),
 		middleware.ValidateSession,
 		middleware.RegisterRequestMeta,
-		inertia.Middleware(),
+		renderer.Middleware(),
 		echomw.CORSWithConfig(corsConfig),
 		csrfMiddleware,
 		echomw.Recover(),

@@ -11,6 +11,9 @@ import (
 	"syscall"
 	"time"
 
+{{if .Inertia}}
+	"{{.ModuleName}}/assets"
+{{- end}}
 	mailclients "{{.ModuleName}}/clients/email"
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
@@ -18,10 +21,15 @@ import (
 	"{{.ModuleName}}/email"
 {{- if .Inertia}}
 	"{{.ModuleName}}/internal/inertia"
+	"{{.ModuleName}}/internal/request"
 {{- end}}
 	"{{.ModuleName}}/internal/server"
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router"
+{{- if .Inertia}}
+	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/router/routes"
+{{- end}}
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/telemetry"
 
@@ -30,20 +38,38 @@ import (
 
 var appVersion string
 
+{{- if .Inertia}}
+func provideInertia() (*inertia.Renderer, error) {
+	return inertia.New(
+		assets.Files,
+		"inertia/root.go.html",
+		config.ProjectName,
+		config.Env,
+		routes.ViteBuild.Path(),
+		inertia.WithSharedProp("appVersion", appVersion),
+		inertia.WithRequestProps(func(ctx context.Context) inertia.Props {
+			flashes := request.ExtractContext[[]cookies.FlashMessage](
+				ctx,
+				request.SessionFlashesKey,
+			)
+			if len(flashes) == 0 {
+				return nil
+			}
+			return inertia.Props{"flash": flashes}
+		}),
+	)
+}
+{{- end}}
+
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-
-{{- if .Inertia}}
-	if err := inertia.Init("inertia/root.go.html"); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to initialize inertia: %s\n", err)
-		os.Exit(1)
-	}
-
-{{- end}}
 	app := fx.New(
 		fx.Provide(
 			func() context.Context { return ctx },
+{{- if .Inertia}}
+			provideInertia,
+{{- end}}
 			func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
 				if config.Env == server.ProdEnvironment {
 					log.Fatal("provide real email sender")

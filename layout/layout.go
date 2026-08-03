@@ -393,6 +393,7 @@ var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_framework_root_html.tmpl": "assets/inertia/root.go.html",
 	"inertia_page_options.tmpl":        "internal/inertia/page_options.go",
 	"inertia_render.tmpl":              "internal/inertia/render.go",
+	"inertia_render_test.tmpl":         "internal/inertia/render_test.go",
 	"inertia_assets_routes.tmpl":       "resources/js/routes.ts",
 	"inertia_vite.tmpl":                "internal/inertia/vite.go",
 }

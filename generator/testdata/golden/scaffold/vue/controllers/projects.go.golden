@@ -19,11 +19,12 @@ import (
 )
 
 type Projects struct {
-	db storage.Pool
+	db       storage.Pool
+	renderer *inertia.Renderer
 }
 
-func NewProjects(db storage.Pool) Projects {
-	return Projects{db}
+func NewProjects(db storage.Pool, renderer *inertia.Renderer) Projects {
+	return Projects{db: db, renderer: renderer}
 }
 
 func (p Projects) RegisterRoutes(r *router.Router) error {
@@ -146,10 +147,10 @@ func (p Projects) Index(etx *echo.Context) error {
 		perPage,
 	)
 	if err != nil {
-		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
-	return inertia.Page(etx, "Project/Index", inertia.Props{
+	return p.renderer.Page(etx, "Project/Index", inertia.Props{
 		"items": newProjectDataList(projectsList.Projects),
 	})
 }
@@ -157,21 +158,21 @@ func (p Projects) Index(etx *echo.Context) error {
 func (p Projects) Show(etx *echo.Context) error {
 	projectID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
 	}
 
 	project, err := models.Project.Find(etx.Request().Context(), p.db.Executor(), projectID)
 	if err != nil {
-		return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
+		return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
 
-	return inertia.Page(etx, "Project/Show", inertia.Props{
+	return p.renderer.Page(etx, "Project/Show", inertia.Props{
 		"item": newProjectData(project),
 	})
 }
 
 func (p Projects) New(etx *echo.Context) error {
-	return inertia.Page(etx, "Project/Create", inertia.Props{})
+	return p.renderer.Page(etx, "Project/Create", inertia.Props{})
 }
 
 type CreateProjectFormPayload struct {
@@ -189,7 +190,7 @@ func (p Projects) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
+		return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
 
 	data := models.CreateProjectData{
@@ -208,27 +209,27 @@ func (p Projects) Create(etx *echo.Context) error {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create project: %v", err)); flashErr != nil {
 			return flashErr
 		}
-		return inertia.Redirect(etx, routes.ProjectNew.URL())
+		return p.renderer.Redirect(etx, routes.ProjectNew.URL())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Project created successfully"); flashErr != nil {
-		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
-	return inertia.Redirect(etx, routes.ProjectShow.URL(project.ID))
+	return p.renderer.Redirect(etx, routes.ProjectShow.URL(project.ID))
 }
 
 func (p Projects) Edit(etx *echo.Context) error {
 	projectID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
 	}
 
 	project, err := models.Project.Find(etx.Request().Context(), p.db.Executor(), projectID)
 	if err != nil {
-		return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
+		return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
 
-	return inertia.Page(etx, "Project/Edit", inertia.Props{
+	return p.renderer.Page(etx, "Project/Edit", inertia.Props{
 		"item": newProjectData(project),
 	})
 }
@@ -241,7 +242,7 @@ type UpdateProjectFormPayload struct {
 func (p Projects) Update(etx *echo.Context) error {
 	projectID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
 	}
 
 	var payload UpdateProjectFormPayload
@@ -253,7 +254,7 @@ func (p Projects) Update(etx *echo.Context) error {
 			err,
 		)
 
-		return inertia.Page(etx, "Errors/NotFound", inertia.Props{})
+		return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
 
 	data := models.UpdateProjectData{
@@ -271,36 +272,36 @@ func (p Projects) Update(etx *echo.Context) error {
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update project: %v", err)); flashErr != nil {
-			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+			return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
-		return inertia.Redirect(
+		return p.renderer.Redirect(
 			etx,
 			routes.ProjectEdit.URL(projectID),
 		)
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Project updated successfully"); flashErr != nil {
-		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
-	return inertia.Redirect(etx, routes.ProjectShow.URL(project.ID))
+	return p.renderer.Redirect(etx, routes.ProjectShow.URL(project.ID))
 }
 
 func (p Projects) Destroy(etx *echo.Context) error {
 	projectID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return inertia.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
 	}
 
 	err = models.Project.Destroy(etx.Request().Context(), p.db.Executor(), projectID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete project: %v", err)); flashErr != nil {
-			return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+			return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
-		return inertia.Redirect(etx, routes.ProjectIndex.URL())
+		return p.renderer.Redirect(etx, routes.ProjectIndex.URL())
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Project destroyed successfully"); flashErr != nil {
-		return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
+		return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
-	return inertia.Redirect(etx, routes.ProjectIndex.URL())
+	return p.renderer.Redirect(etx, routes.ProjectIndex.URL())
 }

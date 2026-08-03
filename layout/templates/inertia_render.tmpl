@@ -3,6 +3,7 @@
 package inertia
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -10,51 +11,104 @@ import (
 
 	"github.com/labstack/echo/v5"
 	gonertia "github.com/romsar/gonertia/v3"
-
-	"{{.ModuleName}}/assets"
-	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/internal/request"
-	"{{.ModuleName}}/router/cookies"
 )
 
 type Props = gonertia.Props
-type Option = gonertia.Option
 
-var gInertia *gonertia.Inertia
+type RequestPropsProvider func(context.Context) Props
 
-func Init(rootPath string, opts ...Option) error {
-	rootHTML, err := assets.Files.ReadFile(rootPath)
+type Option func(*rendererOptions)
+
+type rendererOptions struct {
+	gonertiaOptions      []gonertia.Option
+	sharedProps          Props
+	requestPropsProviders []RequestPropsProvider
+}
+
+type Renderer struct {
+	engine                *gonertia.Inertia
+	requestPropsProviders []RequestPropsProvider
+}
+
+func WithGonertiaOptions(opts ...gonertia.Option) Option {
+	return func(options *rendererOptions) {
+		options.gonertiaOptions = append(options.gonertiaOptions, opts...)
+	}
+}
+
+func WithSharedProp(key string, value any) Option {
+	return func(options *rendererOptions) {
+		if options.sharedProps == nil {
+			options.sharedProps = make(Props)
+		}
+		options.sharedProps[key] = value
+	}
+}
+
+func WithRequestProps(provider RequestPropsProvider) Option {
+	return func(options *rendererOptions) {
+		if provider != nil {
+			options.requestPropsProviders = append(options.requestPropsProviders, provider)
+		}
+	}
+}
+
+func New(
+	assetFS fs.FS,
+	rootPath string,
+	projectName string,
+	environment string,
+	buildPathURL string,
+	options ...Option,
+) (*Renderer, error) {
+	if assetFS == nil {
+		return nil, errors.New("inertia: asset filesystem is nil")
+	}
+
+	rootHTML, err := fs.ReadFile(assetFS, rootPath)
 	if errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf(
+		return nil, fmt.Errorf(
 			"inertia: embedded root template %q not found; add it at assets/%s and rebuild",
 			rootPath,
 			rootPath,
 		)
 	}
 	if err != nil {
-		return fmt.Errorf("inertia: read embedded root template %q: %w", rootPath, err)
+		return nil, fmt.Errorf("inertia: read embedded root template %q: %w", rootPath, err)
 	}
 
-	tags, err := initVite()
+	tags, err := initVite(assetFS, environment, buildPathURL)
 	if err != nil {
-		return fmt.Errorf("inertia: vite init: %w", err)
+		return nil, fmt.Errorf("inertia: vite init: %w", err)
 	}
 
-	i, err := gonertia.NewFromBytes(rootHTML, opts...)
+	rendererOptions := rendererOptions{}
+	for _, option := range options {
+		if option != nil {
+			option(&rendererOptions)
+		}
+	}
+	opts := rendererOptions.gonertiaOptions
+	engine, err := gonertia.NewFromBytes(rootHTML, opts...)
 	if err != nil {
-		return fmt.Errorf("inertia: create renderer: %v", err)
+		return nil, fmt.Errorf("inertia: create renderer: %v", err)
 	}
 
-	i.ShareTemplateData("viteHead", tags.ViteHead)
-	i.ShareTemplateData("viteBody", tags.ViteBody)
-	i.ShareTemplateData("appName", config.ProjectName)
+	engine.ShareTemplateData("viteHead", tags.ViteHead)
+	engine.ShareTemplateData("viteBody", tags.ViteBody)
+	engine.ShareTemplateData("appName", projectName)
+	for key, value := range rendererOptions.sharedProps {
+		engine.ShareProp(key, value)
+	}
 
-	gInertia = i
-	return nil
+	return &Renderer{
+		engine:                engine,
+		requestPropsProviders: rendererOptions.requestPropsProviders,
+	}, nil
 }
 
-func Page(etx *echo.Context, component string, props Props, opts ...PageOption) error {
-	if gInertia == nil {
+func (r *Renderer) Page(etx *echo.Context, component string, props Props, opts ...PageOption) error {
+	if r == nil || r.engine == nil {
 		return errors.New("inertia: not initialized")
 	}
 
@@ -71,40 +125,41 @@ func Page(etx *echo.Context, component string, props Props, opts ...PageOption) 
 		)))
 	}
 
-	if flashes := request.ExtractContext[[]cookies.FlashMessage](
-		etx.Request().Context(), request.SessionFlashesKey,
-	); len(flashes) > 0 {
-		if props == nil {
-			props = make(Props)
+	mergedProps := make(Props, len(props))
+	for key, value := range props {
+		mergedProps[key] = value
+	}
+	for _, provider := range r.requestPropsProviders {
+		for key, value := range provider(etx.Request().Context()) {
+			mergedProps[key] = value
 		}
-		props["flash"] = flashes
 	}
 
-	if err := gInertia.Render(etx.Response(), etx.Request(), component, props); err != nil {
+	if err := r.engine.Render(etx.Response(), etx.Request(), component, mergedProps); err != nil {
 		return fmt.Errorf("inertia: render page: %v", err)
 	}
 
 	return nil
 }
 
-func Redirect(etx *echo.Context, url string, status ...int) error {
-	if gInertia == nil {
+func (r *Renderer) Redirect(etx *echo.Context, url string, status ...int) error {
+	if r == nil || r.engine == nil {
 		return errors.New("inertia: not initialized")
 	}
-	gInertia.Redirect(etx.Response(), etx.Request(), url, status...)
+	r.engine.Redirect(etx.Response(), etx.Request(), url, status...)
 	return nil
 }
 
-func Location(etx *echo.Context, url string, status ...int) error {
-	if gInertia == nil {
+func (r *Renderer) Location(etx *echo.Context, url string, status ...int) error {
+	if r == nil || r.engine == nil {
 		return errors.New("inertia: not initialized")
 	}
-	gInertia.Location(etx.Response(), etx.Request(), url, status...)
+	r.engine.Location(etx.Response(), etx.Request(), url, status...)
 	return nil
 }
 
-func Middleware() echo.MiddlewareFunc {
-	if gInertia == nil {
+func (r *Renderer) Middleware() echo.MiddlewareFunc {
+	if r == nil || r.engine == nil {
 		return func(next echo.HandlerFunc) echo.HandlerFunc {
 			return func(c *echo.Context) error {
 				return errors.New("inertia: not initialized")
@@ -113,6 +168,6 @@ func Middleware() echo.MiddlewareFunc {
 	}
 
 	return echo.WrapMiddleware(func(next http.Handler) http.Handler {
-		return gInertia.Middleware(next)
+		return r.engine.Middleware(next)
 	})
 }

@@ -780,6 +780,11 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 
 			assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", tt.wantController)
 			assertCLITestFileNotContains(t, rootDir, "controllers/dashboards.go", tt.unwantedController)
+			if tt.inertia != "" {
+				assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", "renderer *inertia.Renderer")
+				assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", "func NewDashboards(renderer *inertia.Renderer) Dashboards")
+				assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", `return d.renderer.Page(etx, "Dashboard/Overview"`)
+			}
 			assertCLITestFileExists(t, rootDir, tt.wantView)
 			assertCLITestFileMissing(t, rootDir, tt.unwantedView)
 		})
@@ -807,7 +812,8 @@ func TestGenerateControllerSingleCRUDActionVueGeneratesInertiaController(t *test
 	}
 
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/inertia")
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return inertia.Page(etx, "ProjectInquiry/Show"`)
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "renderer *inertia.Renderer")
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return pi.renderer.Page(etx, "ProjectInquiry/Show"`)
 	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/hypermedia")
 	assertCLITestFileExists(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.vue"))
 	assertCLITestFileMissing(t, rootDir, "views/project_inquiries_resource.templ")
@@ -834,7 +840,8 @@ func TestGenerateControllerSingleCRUDActionReactGeneratesInertiaController(t *te
 	}
 
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/inertia")
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return inertia.Page(etx, "ProjectInquiry/Show"`)
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "renderer *inertia.Renderer")
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return pi.renderer.Page(etx, "ProjectInquiry/Show"`)
 	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/hypermedia")
 	assertCLITestFileExists(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.tsx"))
 	assertCLITestFileMissing(t, rootDir, "views/project_inquiries_resource.templ")

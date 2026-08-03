@@ -6,12 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"strings"
 
-	"{{.ModuleName}}/assets"
-	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/server"
-	"{{.ModuleName}}/router/routes"
 )
 
 type viteTags struct {
@@ -26,8 +24,8 @@ type viteManifestEntry struct {
 	IsEntry bool     `json:"isEntry"`
 }
 
-func initVite() (*viteTags, error) {
-	if config.Env != server.ProdEnvironment {
+func initVite(assetFS fs.FS, environment string, buildPathURL string) (*viteTags, error) {
+	if environment != server.ProdEnvironment {
 		tags := &viteTags{
 			ViteHead: template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/@vite/client"></script>`),
 		}
@@ -47,7 +45,7 @@ window.__vite_plugin_react_preamble_installed__ = true
 		return tags, nil
 	}
 
-	data, err := assets.Files.ReadFile("dist/vite/manifest.json")
+	data, err := fs.ReadFile(assetFS, "dist/vite/manifest.json")
 	if err != nil {
 		return nil, fmt.Errorf("vite: read manifest: %w", err)
 	}
@@ -69,7 +67,7 @@ window.__vite_plugin_react_preamble_installed__ = true
 	}
 	{{end}}
 	tags := &viteTags{}
-	viteBuildPrefix := strings.TrimSuffix(routes.ViteBuild.Path(), "*")
+	viteBuildPrefix := strings.TrimSuffix(buildPathURL, "*")
 	for _, css := range entry.CSS {
 		tags.ViteHead += template.HTML(`<link rel="stylesheet" href="` + viteBuildPrefix + css + `">`)
 	}

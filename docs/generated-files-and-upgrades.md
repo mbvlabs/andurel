@@ -19,6 +19,20 @@ When an upgrade crosses from a version before `v1.5.4` to `v1.5.4` or later, `an
 
 Do not replace the whole `router/*` tree. These changes preserve valid sessions, replace only cookies that fail secure-cookie decoding, and continue to return configuration, usage, internal, or save errors.
 
+## Inertia renderer injection migration
+
+Starting with `v1.5.6`, new Inertia scaffolds construct one `*inertia.Renderer` through Fx. The composition root injects the embedded asset filesystem, project name, environment, Vite build route, shared application version, and request-scoped flash props. Router and controller constructors receive that renderer and call its `Page`, `Redirect`, `Location`, and `Middleware` methods.
+
+When an Inertia project upgrades across `v1.5.6`, `andurel upgrade` emits a version-gated manual action with the project's module path rendered into copy-ready imports. The release notes must include the same migration:
+
+1. Replace the pre-Fx `inertia.Init` call in `cmd/app/main.go` with an Fx provider that calls `inertia.New` using `assets.Files`, configuration values, `routes.ViteBuild.Path()`, and `inertia.WithRequestProps` for flash propagation.
+2. Add that provider to `fx.Provide`.
+3. Inject `*inertia.Renderer` into `router.New`, include `renderer.Middleware()` in the existing middleware order, and inject the renderer into every Inertia controller constructor.
+4. Replace package-level `inertia.Page`, `inertia.Redirect`, and `inertia.Location` calls with calls on the controller's renderer field.
+5. Run `gofmt`, `go fix ./...`, and `go vet ./...` after reconciling application-owned code.
+
+Framework-owned `internal/inertia` files update automatically. Andurel does not rewrite application-owned controllers because doing so could overwrite user changes. Projects created at `v1.5.6` or later do not receive this migration note.
+
 ## Planning and preview
 
 Run a structured dry run before applying an upgrade:
