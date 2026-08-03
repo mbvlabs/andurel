@@ -2,6 +2,7 @@ package layout
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -51,17 +52,35 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "ComponentType<any>")
 	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "Record<string, any>")
 	assertFileContains(t, projectDir, "cmd/app/main.go", "internal/inertia")
-	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.Init("inertia/root.go.html")`)
-	assertFileContains(t, projectDir, "internal/inertia/render.go", `"testapp/assets"`)
-	assertFileContains(t, projectDir, "internal/inertia/render.go", `func Init(rootPath string, opts ...Option) error`)
-	assertFileContains(t, projectDir, "internal/inertia/render.go", `assets.Files.ReadFile(rootPath)`)
+	assertFileContains(t, projectDir, "cmd/app/main.go", `func provideInertia() (*inertia.Renderer, error)`)
+	assertFileContains(t, projectDir, "cmd/app/main.go", `fx.Provide(`)
+	assertFileContains(t, projectDir, "cmd/app/main.go", `provideInertia,`)
+	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.WithRequestProps(`)
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `type Renderer struct`)
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `assetFS fs.FS,`)
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `func (r *Renderer) Page(`)
+	assertFileContains(t, projectDir, "internal/inertia/render.go", `fs.ReadFile(assetFS, rootPath)`)
 	assertFileContains(t, projectDir, "internal/inertia/render.go", `errors.Is(err, fs.ErrNotExist)`)
 	assertFileContains(t, projectDir, "internal/inertia/render.go", `add it at assets/%s and rebuild`)
 	assertFileContains(t, projectDir, "internal/inertia/render.go", `gonertia.NewFromBytes(rootHTML, opts...)`)
 	assertFileNotContains(t, projectDir, "internal/inertia/render.go", "andurel.lock")
+	for _, forbiddenImport := range []string{
+		`"testapp/assets"`,
+		`"testapp/config"`,
+		`"testapp/internal/request"`,
+		`"testapp/router/cookies"`,
+		`"testapp/router/routes"`,
+	} {
+		assertFileNotContains(t, projectDir, "internal/inertia/render.go", forbiddenImport)
+		assertFileNotContains(t, projectDir, "internal/inertia/vite.go", forbiddenImport)
+	}
 	assertFileContains(t, projectDir, "assets/inertia/root.go.html", `{{ .inertia }}`)
 	assertFileMissing(t, projectDir, "views/root.go.html")
-	assertFileContains(t, projectDir, "router/router.go", "inertia.Middleware()")
+	assertFileContains(t, projectDir, "internal/inertia/render_test.go", "TestRendererPageIncludesRequestProps")
+	assertFileContains(t, projectDir, "router/router.go", "renderer *inertia.Renderer")
+	assertFileContains(t, projectDir, "router/router.go", "renderer.Middleware()")
+	assertFileContains(t, projectDir, "controllers/sessions.go", "renderer *inertia.Renderer")
+	assertFileContains(t, projectDir, "controllers/sessions.go", `s.renderer.Page(etx, "Auth/Login"`)
 	assertFileContains(t, projectDir, "go.mod", "github.com/romsar/gonertia")
 	assertFileMissing(t, projectDir, "resources/js/app.ts")
 	assertFileMissing(t, projectDir, "resources/js/Pages/Head.tsx")
@@ -73,6 +92,20 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileMissing(t, projectDir, "views/registration.templ")
 	assertFileMissing(t, projectDir, "views/reset_password.templ")
 	assertFileMissing(t, projectDir, "views/confirm_email.templ")
+
+	cmd := exec.Command("go", "test", "./internal/inertia")
+	cmd.Dir = projectDir
+	cmd.Env = append(os.Environ(), "GOWORK=off", "GOCACHE="+filepath.Join(projectDir, ".gocache"))
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated Inertia tests failed: %v\n%s", err, output)
+	}
+
+	cmd = exec.Command("go", "vet", "./...")
+	cmd.Dir = projectDir
+	cmd.Env = append(os.Environ(), "GOWORK=off", "GOCACHE="+filepath.Join(projectDir, ".gocache"))
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated Inertia project failed go vet: %v\n%s", err, output)
+	}
 
 	lock, err := ReadLockFile(projectDir)
 	if err != nil {

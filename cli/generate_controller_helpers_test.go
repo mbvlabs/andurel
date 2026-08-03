@@ -139,8 +139,8 @@ func TestGenerateActionControllerFileModesAndAppend(t *testing.T) {
 		want    string
 	}{
 		{name: "templ", want: "hypermedia.RenderPage"},
-		{name: "react", inertia: "react", want: "inertia.Page"},
-		{name: "svelte", inertia: "svelte", want: "inertia.Page"},
+		{name: "react", inertia: "react", want: "renderer.Page"},
+		{name: "svelte", inertia: "svelte", want: "renderer.Page"},
 		{name: "api", isAPI: true, want: "etx.JSON"},
 	} {
 		t.Run(test.name, func(t *testing.T) {

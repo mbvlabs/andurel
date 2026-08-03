@@ -305,9 +305,9 @@ func TestVersionedInertiaUpgradeEmbedsExistingRoot(t *testing.T) {
 
 	renderer := string(mustReadProjectFile(t, root, "internal/inertia/render.go"))
 	for _, snippet := range []string{
-		`"testapp/assets"`,
-		"func Init(rootPath string, opts ...Option) error",
-		"assets.Files.ReadFile(rootPath)",
+		"type Renderer struct",
+		"assetFS fs.FS",
+		"fs.ReadFile(assetFS, rootPath)",
 		"gonertia.NewFromBytes(rootHTML, opts...)",
 	} {
 		if !strings.Contains(renderer, snippet) {
@@ -316,6 +316,9 @@ func TestVersionedInertiaUpgradeEmbedsExistingRoot(t *testing.T) {
 	}
 	if strings.Contains(renderer, "andurel.lock") {
 		t.Fatalf("managed inertia renderer still reads andurel.lock:\n%s", renderer)
+	}
+	if strings.Contains(renderer, `"testapp/assets"`) {
+		t.Fatalf("managed inertia renderer imports the top-level assets package:\n%s", renderer)
 	}
 }
 

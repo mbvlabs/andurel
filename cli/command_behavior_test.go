@@ -780,9 +780,96 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 
 			assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", tt.wantController)
 			assertCLITestFileNotContains(t, rootDir, "controllers/dashboards.go", tt.unwantedController)
+			if tt.inertia != "" {
+				assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", "renderer *inertia.Renderer")
+				assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", "func NewDashboards(renderer *inertia.Renderer) Dashboards")
+				assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", `return d.renderer.Page(etx, "Dashboard/Overview"`)
+			}
 			assertCLITestFileExists(t, rootDir, tt.wantView)
 			assertCLITestFileMissing(t, rootDir, tt.unwantedView)
 		})
+	}
+}
+
+func TestGenerateControllerCustomInertiaActionPreservesKeyedConstructor(t *testing.T) {
+	resetCLITestSeams(t)
+	rootDir := t.TempDir()
+	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
+	writeCLITestFile(t, rootDir, "controllers/dashboards.go", `package controllers
+
+type Dashboards struct {
+	enabled bool
+}
+
+func NewDashboards(enabled bool) Dashboards {
+	return Dashboards{enabled: enabled}
+}
+`)
+
+	lock := layout.NewAndurelLock("test")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName: "app",
+		Database:    "postgresql",
+		Inertia:     "vue",
+	}
+	if err := lock.WriteLockFile(rootDir); err != nil {
+		t.Fatalf("write andurel.lock: %v", err)
+	}
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(rootDir); err != nil {
+		t.Fatalf("chdir temp project: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	for range 2 {
+		if err := generateControllerWithActions("Dashboard", "", []string{"overview"}, "vue", false); err != nil {
+			t.Fatalf("generate custom Inertia controller action: %v", err)
+		}
+	}
+
+	controllerPath := filepath.Join(rootDir, "controllers", "dashboards.go")
+	content, err := os.ReadFile(controllerPath)
+	if err != nil {
+		t.Fatalf("read generated controller: %v", err)
+	}
+	controller := string(content)
+	normalizedController := strings.Join(strings.Fields(controller), " ")
+	for _, want := range []string{
+		"type Dashboards struct { enabled bool renderer *inertia.Renderer }",
+		"func NewDashboards(enabled bool, renderer *inertia.Renderer) Dashboards",
+		"return Dashboards{enabled: enabled, renderer: renderer}",
+	} {
+		if !strings.Contains(normalizedController, want) {
+			t.Errorf("generated controller missing %q:\n%s", want, controller)
+		}
+	}
+	for _, want := range []string{
+		`"example.com/app/internal/inertia"`,
+		`return d.renderer.Page(etx, "Dashboard/Overview"`,
+	} {
+		if !strings.Contains(controller, want) {
+			t.Errorf("generated controller missing %q:\n%s", want, controller)
+		}
+	}
+	for _, expected := range []struct {
+		snippet string
+		count   int
+	}{
+		{snippet: "renderer *inertia.Renderer", count: 2},
+		{snippet: "func (d Dashboards) Overview", count: 1},
+	} {
+		if count := strings.Count(normalizedController, expected.snippet); count != expected.count {
+			t.Errorf("generated controller contains %q %d times, want %d:\n%s", expected.snippet, count, expected.count, controller)
+		}
+	}
+	if count := strings.Count(controller, `"example.com/app/internal/inertia"`); count != 1 {
+		t.Errorf("generated controller contains the Inertia import %d times, want once:\n%s", count, controller)
 	}
 }
 
@@ -807,7 +894,8 @@ func TestGenerateControllerSingleCRUDActionVueGeneratesInertiaController(t *test
 	}
 
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/inertia")
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return inertia.Page(etx, "ProjectInquiry/Show"`)
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "renderer *inertia.Renderer")
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return pi.renderer.Page(etx, "ProjectInquiry/Show"`)
 	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/hypermedia")
 	assertCLITestFileExists(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.vue"))
 	assertCLITestFileMissing(t, rootDir, "views/project_inquiries_resource.templ")
@@ -834,7 +922,8 @@ func TestGenerateControllerSingleCRUDActionReactGeneratesInertiaController(t *te
 	}
 
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/inertia")
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return inertia.Page(etx, "ProjectInquiry/Show"`)
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "renderer *inertia.Renderer")
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return pi.renderer.Page(etx, "ProjectInquiry/Show"`)
 	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/hypermedia")
 	assertCLITestFileExists(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.tsx"))
 	assertCLITestFileMissing(t, rootDir, "views/project_inquiries_resource.templ")

@@ -1,0 +1,132 @@
+package inertia
+
+import (
+	"context"
+	"encoding/json"
+	"io/fs"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"testing/fstest"
+
+	"github.com/labstack/echo/v5"
+)
+
+type flashContextKey struct{}
+
+func TestRendererPageIncludesRequestProps(t *testing.T) {
+	renderer, err := New(
+		fstest.MapFS{
+			"inertia/root.go.html": &fstest.MapFile{Data: []byte(`<main>{{"{{"}} .inertia {{"}}"}}</main>`)},
+		},
+		"inertia/root.go.html",
+		"testapp",
+		"testing",
+		"/assets/dist/123/*",
+		WithRequestProps(func(ctx context.Context) Props {
+			flashes, _ := ctx.Value(flashContextKey{}).([]string)
+			if len(flashes) == 0 {
+				return nil
+			}
+			return Props{"flash": flashes}
+		}),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/account", nil)
+	req.Header.Set("X-Inertia", "true")
+	req = req.WithContext(context.WithValue(req.Context(), flashContextKey{}, []string{"saved"}))
+	rec := httptest.NewRecorder()
+	etx := e.NewContext(req, rec)
+
+	if err := renderer.Page(etx, "Account/Show", Props{"name": "Ada"}); err != nil {
+		t.Fatalf("Page: %v", err)
+	}
+
+	var page struct {
+		Props map[string]json.RawMessage `json:"props"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
+		t.Fatalf("decode page: %v", err)
+	}
+	if got := string(page.Props["flash"]); got != `["saved"]` {
+		t.Fatalf("flash prop = %s, want %s", got, `["saved"]`)
+	}
+}
+
+func TestRendererOmitsEmptyRequestProps(t *testing.T) {
+	renderer, err := New(
+		fstest.MapFS{
+			"inertia/root.go.html": &fstest.MapFile{Data: []byte(`<main>{{"{{"}} .inertia {{"}}"}}</main>`)},
+		},
+		"inertia/root.go.html",
+		"testapp",
+		"testing",
+		"/assets/dist/123/*",
+		WithRequestProps(func(context.Context) Props { return nil }),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/account", nil)
+	req.Header.Set("X-Inertia", "true")
+	rec := httptest.NewRecorder()
+	etx := e.NewContext(req, rec)
+
+	if err := renderer.Page(etx, "Account/Show", nil); err != nil {
+		t.Fatalf("Page: %v", err)
+	}
+
+	var page struct {
+		Props map[string]json.RawMessage `json:"props"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
+		t.Fatalf("decode page: %v", err)
+	}
+	if _, ok := page.Props["flash"]; ok {
+		t.Fatalf("empty flash prop was included: %s", rec.Body.String())
+	}
+}
+
+func TestInitViteUsesInjectedFilesystemAndBuildPath(t *testing.T) {
+	assetFS := fstest.MapFS{
+		"dist/vite/manifest.json": &fstest.MapFile{Data: []byte(`{
+{{- if or (eq .Inertia "vue") (eq .Inertia "svelte")}}
+  "resources/js/app.ts": {"file":"app.js","css":["app.css"],"src":"resources/js/app.ts","isEntry":true}
+{{- end}}
+{{- if eq .Inertia "react"}}
+  "resources/js/app.tsx": {"file":"app.js","css":["app.css"],"src":"resources/js/app.tsx","isEntry":true}
+{{- end}}
+}`)},
+	}
+
+	tags, err := initVite(assetFS, "production", "/assets/dist/123/*")
+	if err != nil {
+		t.Fatalf("initVite: %v", err)
+	}
+	if !strings.Contains(string(tags.ViteHead), `href="/assets/dist/123/app.css"`) {
+		t.Fatalf("ViteHead = %q", tags.ViteHead)
+	}
+	if !strings.Contains(string(tags.ViteBody), `src="/assets/dist/123/app.js"`) {
+		t.Fatalf("ViteBody = %q", tags.ViteBody)
+	}
+}
+
+func TestRendererReportsMissingRoot(t *testing.T) {
+	_, err := New(fstest.MapFS{}, "inertia/root.go.html", "testapp", "testing", "/assets/dist/123/*")
+	if err == nil {
+		t.Fatal("New returned nil error")
+	}
+	if !strings.Contains(err.Error(), "add it at assets/inertia/root.go.html and rebuild") {
+		t.Fatalf("New error = %q", err)
+	}
+	if !strings.Contains(err.Error(), fs.ErrNotExist.Error()) && !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("New error does not describe a missing file: %q", err)
+	}
+}

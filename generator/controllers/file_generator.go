@@ -170,6 +170,16 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		if err != nil {
 			return fmt.Errorf("failed to merge controller file: %w", err)
 		}
+		if layout.IsSupportedInertiaAdapter(inertia) {
+			controllerContent, err = EnsureInertiaRendererDependency(
+				controllerContent,
+				controller.PluralResourceName,
+				modulePath,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to inject Inertia renderer dependency: %w", err)
+			}
+		}
 		controllerContent = ensureRegisterRoutes(controllerContent, controller.ReceiverName, controller.PluralResourceName, namespace, resourceName, actions)
 	}
 
@@ -300,6 +310,147 @@ func mergeControllerImports(existingFile, generatedFile *ast.File) {
 			Path: &ast.BasicLit{Kind: token.STRING, Value: spec.Path.Value},
 		})
 	}
+}
+
+// EnsureInertiaRendererDependency adds the renderer field and constructor
+// parameter required by instance-based Inertia actions while preserving the
+// controller's existing dependencies.
+func EnsureInertiaRendererDependency(content, controllerName, modulePath string) (string, error) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "controller.go", content, parser.ParseComments)
+	if err != nil {
+		return "", fmt.Errorf("parse controller: %w", err)
+	}
+
+	ensureControllerImport(file, modulePath+"/internal/inertia")
+
+	var controllerStruct *ast.StructType
+	var constructor *ast.FuncDecl
+	for _, decl := range file.Decls {
+		switch typed := decl.(type) {
+		case *ast.GenDecl:
+			if typed.Tok != token.TYPE {
+				continue
+			}
+			for _, spec := range typed.Specs {
+				typeSpec, ok := spec.(*ast.TypeSpec)
+				if !ok || typeSpec.Name.Name != controllerName {
+					continue
+				}
+				controllerStruct, _ = typeSpec.Type.(*ast.StructType)
+			}
+		case *ast.FuncDecl:
+			if typed.Recv == nil && typed.Name.Name == "New"+controllerName {
+				constructor = typed
+			}
+		}
+	}
+	if controllerStruct == nil {
+		return "", fmt.Errorf("controller type %s is not a struct", controllerName)
+	}
+	if constructor == nil {
+		return "", fmt.Errorf("constructor New%s not found", controllerName)
+	}
+
+	if !fieldListHasName(controllerStruct.Fields, "renderer") {
+		controllerStruct.Fields.List = append(controllerStruct.Fields.List, &ast.Field{
+			Names: []*ast.Ident{ast.NewIdent("renderer")},
+			Type: &ast.StarExpr{X: &ast.SelectorExpr{
+				X:   ast.NewIdent("inertia"),
+				Sel: ast.NewIdent("Renderer"),
+			}},
+		})
+	}
+	if !fieldListHasName(constructor.Type.Params, "renderer") {
+		constructor.Type.Params.List = append(constructor.Type.Params.List, &ast.Field{
+			Names: []*ast.Ident{ast.NewIdent("renderer")},
+			Type: &ast.StarExpr{X: &ast.SelectorExpr{
+				X:   ast.NewIdent("inertia"),
+				Sel: ast.NewIdent("Renderer"),
+			}},
+		})
+	}
+
+	constructorUpdated := false
+	ast.Inspect(constructor.Body, func(node ast.Node) bool {
+		composite, ok := node.(*ast.CompositeLit)
+		if !ok || constructorUpdated {
+			return true
+		}
+		ident, ok := composite.Type.(*ast.Ident)
+		if !ok || ident.Name != controllerName {
+			return true
+		}
+		for _, element := range composite.Elts {
+			if keyed, ok := element.(*ast.KeyValueExpr); ok {
+				if key, ok := keyed.Key.(*ast.Ident); ok && key.Name == "renderer" {
+					constructorUpdated = true
+					return false
+				}
+			}
+		}
+		if len(composite.Elts) > 0 {
+			if _, keyed := composite.Elts[0].(*ast.KeyValueExpr); keyed {
+				composite.Elts = append(composite.Elts, &ast.KeyValueExpr{
+					Key:   ast.NewIdent("renderer"),
+					Value: ast.NewIdent("renderer"),
+				})
+				constructorUpdated = true
+				return false
+			}
+		}
+		composite.Elts = append(composite.Elts, ast.NewIdent("renderer"))
+		constructorUpdated = true
+		return false
+	})
+	if !constructorUpdated {
+		return "", fmt.Errorf("constructor New%s does not return %s", controllerName, controllerName)
+	}
+
+	var out strings.Builder
+	if err := format.Node(&out, fset, file); err != nil {
+		return "", fmt.Errorf("format controller: %w", err)
+	}
+	return out.String(), nil
+}
+
+func ensureControllerImport(file *ast.File, importPath string) {
+	quotedPath := fmt.Sprintf("%q", importPath)
+	for _, spec := range file.Imports {
+		if spec.Path.Value == quotedPath {
+			return
+		}
+	}
+
+	var importDecl *ast.GenDecl
+	for _, decl := range file.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if ok && genDecl.Tok == token.IMPORT {
+			importDecl = genDecl
+			break
+		}
+	}
+	if importDecl == nil {
+		importDecl = &ast.GenDecl{Tok: token.IMPORT}
+		file.Decls = append([]ast.Decl{importDecl}, file.Decls...)
+	}
+	importDecl.Specs = append(importDecl.Specs, &ast.ImportSpec{
+		Path: &ast.BasicLit{Kind: token.STRING, Value: quotedPath},
+	})
+}
+
+func fieldListHasName(fields *ast.FieldList, name string) bool {
+	if fields == nil {
+		return false
+	}
+	for _, field := range fields.List {
+		for _, fieldName := range field.Names {
+			if fieldName.Name == name {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func importDecl(decl ast.Decl) bool {
