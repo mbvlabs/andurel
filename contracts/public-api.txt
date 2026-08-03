@@ -762,6 +762,11 @@ metadata.
 
 FUNCTIONS
 
+func EnsureInertiaRendererDependency(content, controllerName, modulePath string) (string, error)
+    EnsureInertiaRendererDependency adds the renderer field and constructor
+    parameter required by instance-based Inertia actions while preserving the
+    controller's existing dependencies.
+
 func ExistingRouteFileActions(routesPath, resourceName, namespace, pluralName string) ([]string, error)
     ExistingRouteFileActions returns the resource actions declared in a
     generated route file.
