@@ -38,29 +38,6 @@ import (
 
 var appVersion string
 
-{{- if .Inertia}}
-func provideInertia() (*inertia.Renderer, error) {
-	return inertia.New(
-		assets.Files,
-		"inertia/root.go.html",
-		config.ProjectName,
-		config.Env,
-		routes.ViteBuild.Path(),
-		inertia.WithSharedProp("appVersion", appVersion),
-		inertia.WithRequestProps(func(ctx context.Context) inertia.Props {
-			flashes := request.ExtractContext[[]cookies.FlashMessage](
-				ctx,
-				request.SessionFlashesKey,
-			)
-			if len(flashes) == 0 {
-				return nil
-			}
-			return inertia.Props{"flash": flashes}
-		}),
-	)
-}
-{{- end}}
-
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -107,6 +84,29 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+{{- if .Inertia}}
+func provideInertia() (*inertia.Renderer, error) {
+	return inertia.New(
+		assets.Files,
+		"inertia/root.go.html",
+		config.ProjectName,
+		config.Env,
+		routes.ViteBuild.Path(),
+		inertia.WithSharedProp("appVersion", appVersion),
+		inertia.WithRequestProps(func(ctx context.Context) inertia.Props {
+			flashes := request.ExtractContext[[]cookies.FlashMessage](
+				ctx,
+				request.SessionFlashesKey,
+			)
+			if len(flashes) == 0 {
+				return nil
+			}
+			return inertia.Props{"flash": flashes}
+		}),
+	)
+}
+{{- end}}
 
 func startQueueProcessor(lc fx.Lifecycle, appCtx context.Context, p queue.Processor) {
 	var done <-chan struct{}
