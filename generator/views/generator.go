@@ -2,6 +2,7 @@
 package views
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/mbvlabs/andurel/emailcompiler"
 	"github.com/mbvlabs/andurel/generator/controllers"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
@@ -905,11 +907,19 @@ func (g *Generator) runCompileTemplates() error {
 	}
 
 	templBin := filepath.Join(rootDir, "bin", "templ")
-	cmd := exec.Command(templBin, "generate")
+	cmd := exec.Command(templBin, "generate", "-path", "./views")
 	cmd.Dir = rootDir
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to run templ generate: %w", err)
+	}
+	if _, err := os.Stat(filepath.Join(rootDir, "css", "email.css")); err == nil {
+		if err := emailcompiler.Compile(context.Background(), emailcompiler.Config{
+			ProjectRoot:  rootDir,
+			TailwindPath: filepath.Join(rootDir, "bin", "tailwindcli"),
+		}); err != nil {
+			return fmt.Errorf("failed to compile email templates: %w", err)
+		}
 	}
 	return nil
 }
