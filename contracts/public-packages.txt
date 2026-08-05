@@ -1,5 +1,6 @@
 github.com/mbvlabs/andurel/cli
 github.com/mbvlabs/andurel/cli/output
+github.com/mbvlabs/andurel/emailcompiler
 github.com/mbvlabs/andurel/generator
 github.com/mbvlabs/andurel/generator/controllers
 github.com/mbvlabs/andurel/generator/files

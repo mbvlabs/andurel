@@ -29,6 +29,7 @@ func TestRootCommandPublicSurface(t *testing.T) {
 		{name: "controllers"},
 		{name: "database", aliases: []string{"d", "db"}},
 		{name: "doctor", aliases: []string{"doc"}},
+		{name: "email"},
 		{name: "extension", aliases: []string{"extensions", "ext", "e"}},
 		{name: "fmt", aliases: []string{"f"}},
 		{name: "generate", aliases: []string{"g"}},

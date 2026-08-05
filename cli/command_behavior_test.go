@@ -1137,8 +1137,8 @@ func TestGenerateViewCallsTemplGenerate(t *testing.T) {
 	if result.err != nil {
 		t.Fatalf("generate view failed: %v", result.err)
 	}
-	if !reflect.DeepEqual(got, []string{"generate"}) {
-		t.Fatalf("templ args: expected [generate], got %v", got)
+	if !reflect.DeepEqual(got, []string{"generate", "-path", "./views"}) {
+		t.Fatalf("templ args: expected [generate -path ./views], got %v", got)
 	}
 }
 
