@@ -8,232 +8,38 @@ templ baseLayout(title, preHeader string) {
 			<meta name="viewport" content="width=device-width"/>
 			<meta name="robots" content="noindex"/>
 			<title>{ title }</title>
-			<style>
-/**
-  * Email CSS optimized for Outlook and other email clients
-  * Following Stripe's email design patterns
-**/
-
-/**
-  * # Root - CSS resets and general styles
-**/
-html,
-body,
-a,
-span,
-div[style*='margin: 16px 0'] {
-  border: 0 !important;
-  margin: 0 !important;
-  outline: 0 !important;
-  padding: 0 !important;
-  text-decoration: none !important;
-}
-
-a,
-span,
-td,
-th {
-  -webkit-font-smoothing: antialiased !important;
-  -moz-osx-font-smoothing: grayscale !important;
-}
-
-/**
-  * # Delink - Override clients which create links
-**/
-span.st-Delink a {
-  color: #414552 !important;
-  text-decoration: none !important;
-}
-
-span.st-Delink.st-Delink--preheader a {
-  color: #ffffff !important;
-  text-decoration: none !important;
-}
-
-span.st-Delink.st-Delink--title a {
-  color: #414552 !important;
-  text-decoration: none !important;
-}
-
-span.st-Delink.st-Delink--footer a {
-  color: #687385 !important;
-  text-decoration: none !important;
-}
-
-/**
-  * # Mobile - Affects emails in clients less than 600px wide
-**/
-@media only screen and (max-width: 600px) {
-  table.st-Wrapper,
-  table.st-Width.st-Width--mobile {
-    min-width: 100% !important;
-    width: 100% !important;
-    border-radius: 0px !important;
-  }
-
-  td.st-Spacer.st-Spacer--gutter {
-    width: 16px !important;
-  }
-
-  td.st-Spacer.st-Spacer--kill {
-    width: 0 !important;
-  }
-
-  td.st-Spacer.st-Spacer--height {
-    height: 0 !important;
-  }
-
-  div.st-Spacer.st-Spacer--kill {
-    height: 0px !important;
-  }
-
-  .st-Mobile--footer {
-    text-align: left !important;
-  }
-
-  td.st-Font.st-Font--title,
-  td.st-Font.st-Font--title span,
-  td.st-Font.st-Font--title a {
-    font-size: 20px !important;
-    line-height: 28px !important;
-    font-weight: 700 !important;
-  }
-
-  td.st-Font.st-Font--header,
-  td.st-Font.st-Font--header span,
-  td.st-Font.st-Font--header a {
-    font-size: 16px !important;
-    line-height: 24px !important;
-  }
-
-  td.st-Font.st-Font--body,
-  td.st-Font.st-Font--body span,
-  td.st-Font.st-Font--body a {
-    font-size: 16px !important;
-    line-height: 24px !important;
-  }
-
-  td.st-Font.st-Font--caption,
-  td.st-Font.st-Font--caption span,
-  td.st-Font.st-Font--caption a {
-    font-size: 12px !important;
-    line-height: 16px !important;
-  }
-
-  table.st-Divider td.st-Spacer.st-Spacer--gutter,
-  tr.st-Divider td.st-Spacer.st-Spacer--gutter {
-    background-color: #e6ebf1;
-  }
-
-  table.st-Button td.st-Button-area,
-  table.st-Button td.st-Button-area a.st-Button-link,
-  table.st-Button td.st-Button-area span.st-Button-internal {
-    height: 44px !important;
-    line-height: 24px !important;
-    font-size: 16px !important;
-  }
-}
-
-@media all {
-  .ExternalClass {
-    width: 100%;
-  }
-
-  .ExternalClass,
-  .ExternalClass p,
-  .ExternalClass span,
-  .ExternalClass font,
-  .ExternalClass td,
-  .ExternalClass div {
-    line-height: 100%;
-  }
-
-  .apple-link a {
-    color: inherit !important;
-    font-family: inherit !important;
-    font-size: inherit !important;
-    font-weight: inherit !important;
-    line-height: inherit !important;
-    text-decoration: none !important;
-  }
-
-  #MessageViewBody a {
-    color: inherit;
-    text-decoration: none;
-    font-size: inherit;
-    font-family: inherit;
-    font-weight: inherit;
-    line-height: inherit;
-  }
-}
-</style>
 		</head>
-		<body class="st-Email" bgcolor="#f6f9fc" style="border: 0; margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; min-width: 100%; width: 100%;" override="fix">
-			<!-- Preheader -->
-			<table class="st-Preheader st-Width st-Width--mobile" border="0" cellpadding="0" cellspacing="0" width="600" style="min-width: 600px;">
+		<body class="m-0 min-w-full bg-[#f6f9fc] p-0 [font-family:Arial,sans-serif] [-webkit-text-size-adjust:100%] [-ms-text-size-adjust:100%]">
+			<div class="hidden max-h-0 max-w-0 overflow-hidden text-[1px] leading-[1px] text-[#f6f9fc] opacity-0 invisible [mso-hide:all]">
+				{ preHeader }
+				&#160;&#8203;&#160;&#8203;&#160;&#8203;&#160;&#8203;&#160;&#8203;
+			</div>
+			<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" class="w-full bg-[#f6f9fc]">
 				<tbody>
 					<tr>
-						<td align="center" height="0" style="border: 0; margin: 0; padding: 0; color: #ffffff; display: none !important; font-size: 1px; line-height: 1px; max-height: 0; max-width: 0; mso-hide: all !important; opacity: 0; overflow: hidden; visibility: hidden;">
-							<span class="st-Delink st-Delink--preheader" style="color: #ffffff; text-decoration: none;">
-								{ preHeader }
-								<!-- Prevents elements showing up in email client preheader text -->
-								&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;
-								&#160;&#160;&#160;&#160;&#160;&#160;
-								&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;
-								&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;
-								&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;
-								&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;
-								&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;
-							</span>
-						</td>
-					</tr>
-				</tbody>
-			</table>
-			<!-- Background -->
-			<table class="st-Background" bgcolor="#f6f9fc" border="0" cellpadding="0" cellspacing="0" width="100%" style="border: 0; margin: 0; padding: 0;">
-				<tbody>
-					<tr>
-						<td class="st-Spacer st-Spacer--kill st-Spacer--height" height="64">
-							<div class="st-Spacer st-Spacer--kill">&#160;</div>
-						</td>
-					</tr>
-					<tr>
-						<td style="border: 0; margin: 0; padding: 0;">
-							<!-- Wrapper -->
-							<table class="st-Wrapper" align="center" bgcolor="#ffffff" border="0" cellpadding="0" cellspacing="0" width="600" style="border-top-left-radius: 16px; border-top-right-radius: 16px; margin: 0 auto; min-width: 600px;">
+						<td align="center" class="px-4 py-10 max-sm:p-0">
+							<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" align="center" class="w-[600px] max-sm:w-full rounded-2xl bg-white max-sm:rounded-none">
 								<tbody>
 									<tr>
-										<td style="border: 0; margin: 0; padding: 0;">
+										<td>
 											{ children... }
 										</td>
 									</tr>
 									<tr>
-										<td style="border: 0; margin: 0; padding: 0;">
-											@footer()
+										<td class="px-12 pt-8 pb-10 max-sm:px-6">
+											<div class="mb-6 h-px bg-[#e6ebf1]"></div>
+											<p class="m-0 [font-family:Arial,sans-serif] text-xs leading-5 text-[#687385]">
+												This email relates to your account.<br/>
+												Powered by <strong>Andurel</strong>
+											</p>
 										</td>
 									</tr>
 								</tbody>
 							</table>
-							<!-- Wrapper -->
 						</td>
 					</tr>
 				</tbody>
 			</table>
-			<!-- /Background -->
 		</body>
 	</html>
 }

@@ -235,7 +235,8 @@ type FrameworkManagedFile struct {
 }
 
 var baseStyleTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"css_base.tmpl": "css/base.css",
+	"css_base.tmpl":  "css/base.css",
+	"css_email.tmpl": "css/email.css",
 
 	// Views
 	"views_layout.tmpl":  "views/layout.templ",
@@ -323,9 +324,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"psql_queue_workers_send_marketing_email.tmpl":     "queue/send_marketing_email.go",
 
 	// Email
-	"email_email.tmpl":       "email/email.go",
-	"email_base_layout.tmpl": "email/base_layout.templ",
-	"email_components.tmpl":  "email/components.templ",
+	"email_email.tmpl":                "email/email.go",
+	"email_base_layout.tmpl":          "email/base_layout.templ",
+	"email_base_layout_templ_go.tmpl": "email/base_layout_templ.go",
 
 	// Models
 	"models_errors.tmpl": "models/errors.go",
@@ -385,8 +386,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_middleware_auth_test.tmpl": "router/middleware/auth_test.go",
 
 	// Auth - Email
-	"email_reset_password.tmpl": "email/reset_password.templ",
-	"email_verify_email.tmpl":   "email/verify_email.templ",
+	"email_reset_password.tmpl":          "email/reset_password.templ",
+	"email_reset_password_templ_go.tmpl": "email/reset_password_templ.go",
+	"email_verify_email.tmpl":            "email/verify_email.templ",
+	"email_verify_email_templ_go.tmpl":   "email/verify_email_templ.go",
 }
 
 var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
