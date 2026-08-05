@@ -3,6 +3,8 @@ module github.com/mbvlabs/andurel
 go 1.26.5
 
 require (
+	github.com/a-h/templ v0.3.1020
+	github.com/fsnotify/fsnotify v1.7.0
 	github.com/jinzhu/inflection v1.0.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/sebdah/goldie/v2 v2.8.0
@@ -28,14 +30,12 @@ require (
 
 require (
 	github.com/a-h/parse v0.0.0-20250122154542-74294addb73e // indirect
-	github.com/a-h/templ v0.3.1020 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cli/browser v1.3.0 // indirect
 	github.com/fatih/color v1.16.0 // indirect
 	github.com/fatih/structtag v1.2.0 // indirect
-	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
