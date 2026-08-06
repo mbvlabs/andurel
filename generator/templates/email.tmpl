@@ -28,14 +28,21 @@ func (e {{.PascalName}}) ToText() (string, error) {
 
 templ (e {{.PascalName}}) render() {
 	@baseLayout("Subject", "Pre-header text") {
-		@spacer("32")
-		@title("Title")
-		@spacer("24")
-		@copy() {
-			<span class="st-Delink" style="color: #414552; text-decoration: none;">
-				Email body content goes here.
-			</span>
-		}
-		@spacer("32")
+		<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" class="w-full">
+			<tbody>
+				<tr>
+					<td class="px-12 pt-12 pb-5 max-sm:px-6 max-sm:pt-8">
+						<h1 class="m-0 [font-family:Arial,sans-serif] text-[30px] leading-[38px] font-bold text-[#172033] max-sm:text-2xl max-sm:leading-8">
+							Title
+						</h1>
+					</td>
+				</tr>
+				<tr>
+					<td class="px-12 pb-6 [font-family:Arial,sans-serif] text-base leading-6 text-[#414552] max-sm:px-6">
+						<p class="m-0">Email body content goes here.</p>
+					</td>
+				</tr>
+			</tbody>
+		</table>
 	}
 }

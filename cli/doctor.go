@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/mbvlabs/andurel/cli/output"
+	"github.com/mbvlabs/andurel/emailcompiler"
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/spf13/cobra"
 )
@@ -932,13 +933,21 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 		if err != nil {
 			return err
 		}
-		cmd := exec.Command(filepath.Join(tempRoot, "bin", "templ"), "generate")
+		cmd := exec.Command(filepath.Join(tempRoot, "bin", "templ"), "generate", "-path", "./views")
 		cmd.Dir = tempRoot
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("templ generate failed: %w: %s", err, strings.TrimSpace(stderr.String()))
+		}
+		if hasEmailCompilerInputs(tempRoot) {
+			if err := emailcompiler.Compile(context.Background(), emailcompiler.Config{
+				ProjectRoot:  tempRoot,
+				TailwindPath: filepath.Join(tempRoot, "bin", "tailwindcli"),
+			}); err != nil {
+				return fmt.Errorf("email compile failed: %w", err)
+			}
 		}
 		after, err := snapshotFilesForReport(tempRoot)
 		if err != nil {

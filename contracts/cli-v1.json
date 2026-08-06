@@ -452,6 +452,30 @@
       ]
     },
     {
+      "path": "andurel email",
+      "use": "email",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel email compile",
+      "use": "compile",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
       "path": "andurel extension",
       "use": "extension",
       "aliases": [

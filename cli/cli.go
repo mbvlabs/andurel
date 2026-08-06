@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -110,6 +111,7 @@ func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd.AddCommand(newGenerateCommand())
 	rootCmd.AddCommand(newFmtCommand())
 	rootCmd.AddCommand(newDatabaseCommand())
+	rootCmd.AddCommand(newEmailCommand())
 
 	rootCmd.AddCommand(newRunAppCommand())
 	rootCmd.AddCommand(newConsoleCommand())
@@ -229,6 +231,16 @@ CSS files. Run this from your project root.`,
 
 			if err := checkBinaries(rootDir); err != nil {
 				return err
+			}
+			watchContext, stopWatching := context.WithCancel(cmd.Context())
+			defer stopWatching()
+			if hasEmailCompilerInputs(rootDir) {
+				if err := compileEmailProject(watchContext, rootDir); err != nil {
+					return err
+				}
+				if err := watchEmailProject(watchContext, rootDir, filepath.Join(rootDir, "bin", "tailwindcli")); err != nil {
+					return err
+				}
 			}
 
 			binPath := filepath.Join(rootDir, "bin", "shadowfax")

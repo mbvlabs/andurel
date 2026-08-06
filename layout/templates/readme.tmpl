@@ -301,6 +301,9 @@ Customize job behavior:
 ### Send Emails
 
 This project includes built-in email functionality with Mailpit for development testing.
+Email templates use Tailwind utilities from `css/email.css`. Andurel compiles
+those utilities to inline, email-compatible styles without changing the authored
+`.templ` files.
 
 **1. Create an email template**
 
@@ -312,11 +315,14 @@ package email
 
 templ WelcomeEmail(userName string) {
     @BaseLayout() {
-        <h1>Welcome, { userName }!</h1>
-        <p>Thank you for joining us.</p>
+        <h1 class="text-[28px] leading-9 font-bold text-[#414552]">Welcome, { userName }!</h1>
+        <p class="text-base leading-6 text-[#414552]">Thank you for joining us.</p>
     }
 }
 ```
+
+`andurel run`, `andurel generate view`, and `andurel build` compile emails
+automatically. Run `andurel email compile` for a standalone compilation pass.
 
 **2. Send the email**
 
@@ -804,9 +810,9 @@ package email
 
 templ OrderConfirmation(orderID string, total string) {
     @BaseLayout() {
-        <h1>Order Confirmed!</h1>
-        <p>Thank you for your order #{orderID}.</p>
-        <p>Total: {total}</p>
+        <h1 class="text-[28px] leading-9 font-bold text-[#414552]">Order Confirmed!</h1>
+        <p class="text-base leading-6 text-[#414552]">Thank you for your order #{orderID}.</p>
+        <p class="text-base leading-6 font-bold text-[#625afa]">Total: {total}</p>
     }
 }
 ```

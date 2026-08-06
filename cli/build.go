@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -25,6 +26,7 @@ func newBuildCommand() *cobra.Command {
 
 This command:
   • Downloads templ and generates views
+  • Compiles Tailwind utilities in email templates
   • Builds Tailwind CSS
   • Builds Vite assets (if Inertia is configured)
   • Downloads Go dependencies
@@ -68,7 +70,7 @@ func buildApp(rootDir string, versionFlag string) error {
 		}
 
 		fmt.Println("Generating templ views...")
-		templCmd := exec.Command(filepath.Join(binDir, "templ"), "generate")
+		templCmd := exec.Command(filepath.Join(binDir, "templ"), "generate", "-path", "./views")
 		templCmd.Dir = rootDir
 		templCmd.Stdout = os.Stdout
 		templCmd.Stderr = os.Stderr
@@ -85,6 +87,11 @@ func buildApp(rootDir string, versionFlag string) error {
 
 	if err := syncSingleToolFunc(rootDir, "tailwindcli", tailwindTool, goos, goarch); err != nil {
 		return fmt.Errorf("failed to sync tailwind CLI: %w", err)
+	}
+	if hasEmailCompilerInputs(rootDir) {
+		if err := compileEmailWithTailwind(context.Background(), rootDir, filepath.Join(binDir, "tailwindcli")); err != nil {
+			return err
+		}
 	}
 
 	fmt.Println("Building tailwind CSS...")

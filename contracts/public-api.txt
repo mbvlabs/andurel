@@ -166,6 +166,31 @@ func ParseOptions(cmd *cobra.Command) (Options, error)
     ParseOptions returns output options from command flags.
 
 
+## github.com/mbvlabs/andurel/emailcompiler
+package emailcompiler // import "github.com/mbvlabs/andurel/emailcompiler"
+
+Package emailcompiler compiles Tailwind-authored Templ email templates into Go
+code that renders email-compatible inline styles.
+
+FUNCTIONS
+
+func Compile(ctx context.Context, cfg Config) error
+    Compile transforms every .templ file below the configured email directory
+    in memory and writes the resulting _templ.go files. Authored templates are
+    never changed.
+
+
+TYPES
+
+type Config struct {
+	ProjectRoot  string
+	EmailDir     string
+	CSSInputPath string
+	TailwindPath string
+}
+    Config controls one email compilation pass.
+
+
 ## github.com/mbvlabs/andurel/generator
 package generator // import "github.com/mbvlabs/andurel/generator"
 
