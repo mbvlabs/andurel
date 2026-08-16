@@ -1,4 +1,9 @@
 import { Link{{if InertiaUsesForm .ComponentName}}, useForm{{end}} } from '@inertiajs/react'
+{{- if eq .ComponentName "Index"}}
+import type { {{InertiaPayloadType}}, {{.ResourceName}}IndexProps } from '{{InertiaPayloadImportPath}}'
+{{- else if or (eq .ComponentName "Show") (eq .ComponentName "Edit")}}
+import type { {{InertiaPayloadType}}, {{.ResourceName}}ItemProps } from '{{InertiaPayloadImportPath}}'
+{{- end}}
 
 {{- if InertiaComponentUsesRoutes .ComponentName}}
 import { routes } from '{{ InertiaRoutesImportPath }}'
@@ -7,15 +12,8 @@ import { routes } from '{{ InertiaRoutesImportPath }}'
 {{- if InertiaNeedsItem .ComponentName }}
 type RouteID = {{ InertiaRouteIDType }}
 
-type Item = {
-  {{.IDFieldName}}: RouteID
-{{- range .Fields}}
-  {{.Name}}: {{ ReactFieldType . }}
-{{- end}}
-}
-
-function routeID(item: Item): RouteID {
-  return item.{{.IDFieldName}}
+function routeID(item: {{InertiaPayloadType}}): RouteID {
+  return item.{{InertiaIDJSONName}}
 }
 {{- end}}
 {{- if eq .ComponentName "Create" }}
@@ -39,11 +37,7 @@ type EditForm = {
 {{- end}}
 
 {{- if eq .ComponentName "Index"}}
-type IndexProps = {
-  items: Item[]
-}
-
-export default function {{.ComponentName}}({ items }: IndexProps) {
+export default function {{.ComponentName}}({ items }: {{.ResourceName}}IndexProps) {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between">
@@ -63,7 +57,7 @@ export default function {{.ComponentName}}({ items }: IndexProps) {
           </thead>
           <tbody className="divide-y divide-cyan-400/20 bg-slate-900">
             {items.map((item) => (
-              <tr key={item.{{.IDFieldName}}} className="hover:bg-slate-950">
+              <tr key={item.{{InertiaIDJSONName}}} className="hover:bg-slate-950">
 {{- range .Fields}}
                 <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{ {{- ReactDisplay . "item" -}} }</td>
 {{- end}}
@@ -81,11 +75,7 @@ export default function {{.ComponentName}}({ items }: IndexProps) {
   )
 }
 {{- else if eq .ComponentName "Show"}}
-type ShowProps = {
-  item: Item
-}
-
-export default function {{.ComponentName}}({ item }: ShowProps) {
+export default function {{.ComponentName}}({ item }: {{.ResourceName}}ItemProps) {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between">
@@ -152,11 +142,7 @@ export default function {{.ComponentName}}() {
   )
 }
 {{- else if eq .ComponentName "Edit"}}
-type EditProps = {
-  item: Item
-}
-
-export default function {{.ComponentName}}({ item }: EditProps) {
+export default function {{.ComponentName}}({ item }: {{.ResourceName}}ItemProps) {
   const form = useForm<EditForm>({
 {{- range .Fields}}
 {{- if not .IsSystemField}}

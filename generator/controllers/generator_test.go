@@ -416,7 +416,7 @@ func TestRenderInertiaControllerUsesDataStructAndRawMessagePlaceholder(t *testin
 		IDGoFieldName:      "ID",
 		HasPrimaryKey:      true,
 		Fields: []GeneratedField{
-			{Name: "ID", GoType: "uuid.UUID", GoFormType: "string", IsSystemField: true},
+			{Name: "ID", GoType: "uuid.UUID", GoFormType: "string", CamelCase: "id", IsSystemField: true},
 			{Name: "Name", GoType: "sql.NullString", GoFormType: "string", CamelCase: "name"},
 			{Name: "Published", GoType: "bun.NullBool", GoFormType: "bool", CamelCase: "published"},
 			{Name: "Metadata", GoType: "json.RawMessage", GoFormType: "string", CamelCase: "metadata"},
@@ -435,11 +435,15 @@ func TestRenderInertiaControllerUsesDataStructAndRawMessagePlaceholder(t *testin
 		"Name string",
 		"Published bool",
 		"Metadata string",
+		`ID uuid.UUID ` + "`json:\"id\"`",
+		`Name string ` + "`json:\"name\"`",
 		"Name: entity.Name.String,",
 		"Published: entity.Published.Bool,",
 		"Metadata: string(entity.Metadata),",
-		`"items": newWidgetDataList(widgetsList.Widgets),`,
-		`"item": newWidgetData(widget),`,
+		"inertia.FromStruct(WidgetIndexProps{",
+		"Items: newWidgetDataList(widgetsList.Widgets),",
+		"inertia.FromStruct(WidgetItemProps{",
+		"Item: newWidgetData(widget),",
 		`Metadata:    json.RawMessage("{}"),`,
 	}
 

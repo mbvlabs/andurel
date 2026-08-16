@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/pmezard/go-difflib/difflib"
 )
 
@@ -113,6 +116,12 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 	if err := u.addInertiaRootMigration(plan, lock); err != nil {
 		return nil, err
 	}
+	if err := u.addInertiaV3ClientMigration(plan, lock); err != nil {
+		return nil, err
+	}
+	if err := u.addNativeInertiaMigration(plan, lock); err != nil {
+		return nil, err
+	}
 	if err := u.addFrameworkChanges(plan); err != nil {
 		return nil, err
 	}
@@ -130,6 +139,246 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 		return nil, err
 	}
 	return plan, nil
+}
+
+func (u *Upgrader) addInertiaV3ClientMigration(plan *upgradePlan, lock *layout.AndurelLock) error {
+	if !layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
+		return nil
+	}
+
+	packagePath := filepath.Join(u.projectRoot, "package.json")
+	packageJSON, err := os.ReadFile(packagePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("read package.json for Inertia v3 migration: %w", err)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(packageJSON, &manifest); err != nil {
+		return fmt.Errorf("parse package.json for Inertia v3 migration: %w", err)
+	}
+	dependencies := jsonObject(manifest, "dependencies")
+	devDependencies := jsonObject(manifest, "devDependencies")
+	adapterPackage := map[string]string{
+		"vue":    "@inertiajs/vue3",
+		"react":  "@inertiajs/react",
+		"svelte": "@inertiajs/svelte",
+	}[lock.ScaffoldConfig.Inertia]
+	currentAdapter, _ := dependencies[adapterPackage].(string)
+	if currentAdapter == "" {
+		return fmt.Errorf("package.json is missing Inertia adapter %s", adapterPackage)
+	}
+
+	dependencies[adapterPackage] = "^3.6.1"
+	devDependencies["@inertiajs/vite"] = "^3.6.1"
+	devDependencies["@types/node"] = "^22.0.0"
+	devDependencies["vite"] = "^7.0.0"
+	switch lock.ScaffoldConfig.Inertia {
+	case "vue":
+		devDependencies["@vitejs/plugin-vue"] = "^6.0.0"
+	case "react":
+		devDependencies["@vitejs/plugin-react"] = "^5.0.0"
+	case "svelte":
+		devDependencies["@sveltejs/vite-plugin-svelte"] = "^6.0.0"
+	}
+	manifest["type"] = "module"
+	scripts := jsonObject(manifest, "scripts")
+	if build, _ := scripts["build"].(string); build == "vite build" {
+		entry := "resources/js/ssr.ts"
+		if lock.ScaffoldConfig.Inertia == "react" {
+			entry = "resources/js/ssr.tsx"
+		}
+		scripts["build"] = "vite build && vite build --ssr " + entry + " --outDir assets/dist/ssr"
+	}
+	updatedPackageJSON, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode migrated package.json: %w", err)
+	}
+	updatedPackageJSON = append(updatedPackageJSON, '\n')
+	if err := plan.addReplacement(u.projectRoot, "package.json", updatedPackageJSON, false); err != nil {
+		return err
+	}
+
+	const vitePath = "vite.config.ts"
+	viteConfig, err := os.ReadFile(filepath.Join(u.projectRoot, vitePath))
+	if err != nil {
+		return fmt.Errorf("read Vite config for Inertia v3 migration: %w", err)
+	}
+	if !bytes.Contains(viteConfig, []byte("@inertiajs/vite")) {
+		viteConfig = bytes.Replace(viteConfig,
+			[]byte("import { defineConfig } from 'vite'\n"),
+			[]byte("import { defineConfig } from 'vite'\nimport inertia from '@inertiajs/vite'\n"),
+			1,
+		)
+		viteConfig = bytes.Replace(viteConfig, []byte("plugins: ["), []byte("plugins: [inertia({ ssr: false }), "), 1)
+		if err := plan.addReplacement(u.projectRoot, vitePath, viteConfig, false); err != nil {
+			return err
+		}
+	}
+
+	ssrTemplate, ssrPath := "inertia_assets_ssr.tmpl", "resources/js/ssr.ts"
+	if lock.ScaffoldConfig.Inertia == "react" {
+		ssrTemplate, ssrPath = "inertia_react_assets_ssr.tmpl", "resources/js/ssr.tsx"
+	} else if lock.ScaffoldConfig.Inertia == "svelte" {
+		ssrTemplate = "inertia_svelte_assets_ssr.tmpl"
+	}
+	if _, err := os.Stat(filepath.Join(u.projectRoot, ssrPath)); os.IsNotExist(err) {
+		entry, readErr := fs.ReadFile(templates.Files, ssrTemplate)
+		if readErr != nil {
+			return fmt.Errorf("read Inertia v3 SSR entry template: %w", readErr)
+		}
+		if err := plan.addReplacement(u.projectRoot, ssrPath, entry, false); err != nil {
+			return err
+		}
+	} else if err != nil {
+		return fmt.Errorf("inspect Inertia SSR entry: %w", err)
+	}
+
+	modulePath, err := resolveModulePath(u.projectRoot)
+	if err != nil {
+		return fmt.Errorf("resolve module path for Inertia router migration: %w", err)
+	}
+	routerPath := "router/router.go"
+	routerFile, err := os.ReadFile(filepath.Join(u.projectRoot, routerPath))
+	if err != nil {
+		return fmt.Errorf("read Inertia router for v3 migration: %w", err)
+	}
+	updatedRouter := bytes.Replace(routerFile,
+		[]byte("\t\tmiddleware.RegisterRequestMeta,\n\t\trenderer.Middleware(),\n"),
+		[]byte("\t\trenderer.Middleware(),\n\t\tmiddleware.RegisterRequestMeta,\n"),
+		1,
+	)
+	routerMigrationNote := ""
+	if !bytes.Contains(updatedRouter, []byte("SetReflashHandler")) {
+		marker := []byte("\t// Order matters:")
+		if bytes.Contains(updatedRouter, marker) {
+			inertiaImport := []byte("\t\"" + modulePath + "/internal/inertia\"\n")
+			requestImport := []byte("\t\"" + modulePath + "/internal/request\"\n")
+			if !bytes.Contains(updatedRouter, requestImport) {
+				updatedRouter = bytes.Replace(updatedRouter, inertiaImport, append(inertiaImport, requestImport...), 1)
+			}
+			setup := []byte("\tif err := renderer.SetReflashHandler(func(etx *echo.Context) error {\n" +
+				"\t\tflashes := request.ExtractContext[[]cookies.FlashMessage](etx.Request().Context(), request.SessionFlashesKey)\n" +
+				"\t\treturn cookies.Reflash(etx, flashes)\n" +
+				"\t}); err != nil {\n\t\treturn nil, err\n\t}\n\n")
+			updatedRouter = bytes.Replace(updatedRouter, marker, append(setup, marker...), 1)
+		} else {
+			routerMigrationNote = " The customized router could not be wired automatically; configure Renderer.SetReflashHandler with cookies.Reflash before serving requests so redirect chains preserve flash data."
+		}
+	}
+	if err := plan.addReplacement(u.projectRoot, routerPath, updatedRouter, false); err != nil {
+		return err
+	}
+
+	flashPath := "router/cookies/flash.go"
+	flashFile, err := os.ReadFile(filepath.Join(u.projectRoot, flashPath))
+	if err != nil {
+		return fmt.Errorf("read flash helpers for Inertia v3 migration: %w", err)
+	}
+	if !bytes.Contains(flashFile, []byte("func Reflash(")) {
+		flashFile = append(flashFile, []byte("\n// Reflash restores flashes consumed by a request that returns a redirect.\n"+
+			"func Reflash(c *echo.Context, flashes []FlashMessage) error {\n"+
+			"\tif len(flashes) == 0 { return nil }\n"+
+			"\tsess, err := getSession(flashSession, c)\n\tif err != nil { return err }\n"+
+			"\tfor _, flash := range flashes { sess.AddFlash(flash, flashSessionName) }\n"+
+			"\treturn sess.Save(c.Request(), c.Response())\n}\n")...)
+		if err := plan.addReplacement(u.projectRoot, flashPath, flashFile, false); err != nil {
+			return err
+		}
+	}
+
+	plan.manualActions = append(plan.manualActions, ManualAction{
+		ID:    "inertia-v3-client-entry",
+		Title: "Review the application-owned Inertia v3 client entry",
+		Instructions: "Andurel upgraded package.json and vite.config.ts and added the SSR entry without overwriting resources/js/app.*. " +
+			"Update that application-owned client entry to hydrate when #app has data-server-rendered=\"true\" and read flash data from page.flash instead of page.props.flash. " +
+			"Compare it with a newly generated application for the selected frontend before enabling INERTIA_SSR_ENABLED." + routerMigrationNote,
+	})
+	return nil
+}
+
+func jsonObject(parent map[string]any, key string) map[string]any {
+	if object, ok := parent[key].(map[string]any); ok {
+		return object
+	}
+	object := make(map[string]any)
+	parent[key] = object
+	return object
+}
+
+func (u *Upgrader) addNativeInertiaMigration(plan *upgradePlan, lock *layout.AndurelLock) error {
+	if !layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
+		return nil
+	}
+
+	const goModPath = "go.mod"
+	goMod, err := os.ReadFile(filepath.Join(u.projectRoot, goModPath))
+	if err != nil {
+		return fmt.Errorf("read go.mod for native Inertia migration: %w", err)
+	}
+	gonertiaRequirement := regexp.MustCompile(`(?m)^\s*github\.com/romsar/gonertia/v3\s+\S+\s*$`)
+	if !gonertiaRequirement.Match(goMod) {
+		return nil
+	}
+
+	andurelRequirementPattern := regexp.MustCompile(`(?m)^\s*github\.com/mbvlabs/andurel\s+\S+\s*$`)
+	updatedGoMod := gonertiaRequirement.ReplaceAll(goMod, nil)
+	updatedGoMod = andurelRequirementPattern.ReplaceAll(updatedGoMod, nil)
+	if err := plan.addReplacement(u.projectRoot, goModPath, updatedGoMod, false); err != nil {
+		return fmt.Errorf("replace Gonertia dependency: %w", err)
+	}
+
+	const rootPath = "internal/inertia/root.templ"
+	if _, err := os.Stat(filepath.Join(u.projectRoot, rootPath)); os.IsNotExist(err) {
+		root, readErr := fs.ReadFile(templates.Files, "inertia_framework_root_templ.tmpl")
+		if readErr != nil {
+			return fmt.Errorf("read native Inertia root template: %w", readErr)
+		}
+		if err := plan.addReplacement(u.projectRoot, rootPath, root, false); err != nil {
+			return fmt.Errorf("add native Inertia root: %w", err)
+		}
+	} else if err != nil {
+		return fmt.Errorf("inspect native Inertia root: %w", err)
+	}
+
+	const mainPath = "cmd/app/main.go"
+	mainFile, err := os.ReadFile(filepath.Join(u.projectRoot, mainPath))
+	if err != nil {
+		return fmt.Errorf("read Inertia application entrypoint: %w", err)
+	}
+	updatedMain := bytes.Replace(mainFile,
+		[]byte("\t\tassets.Files,\n\t\t\"inertia/root.go.html\",\n"),
+		[]byte("\t\tassets.Files,\n"),
+		1,
+	)
+	updatedMain = bytes.Replace(updatedMain,
+		[]byte("inertia.WithRequestProps(func(ctx context.Context) inertia.Props"),
+		[]byte("inertia.WithRequestFlash(func(ctx context.Context) any"),
+		1,
+	)
+	updatedMain = bytes.Replace(updatedMain,
+		[]byte(`return inertia.Props{"flash": flashes}`),
+		[]byte("return flashes"),
+		1,
+	)
+	if !bytes.Equal(mainFile, updatedMain) {
+		if err := plan.addReplacement(u.projectRoot, mainPath, updatedMain, false); err != nil {
+			return fmt.Errorf("update native Inertia provider: %w", err)
+		}
+	}
+
+	plan.manualActions = append(plan.manualActions, ManualAction{
+		ID:    "andurel-owned-inertia-v3",
+		Title: "Finish the native Inertia v3 migration",
+		Instructions: "Andurel removed the generated Gonertia facade and dependency and generated the self-contained internal/inertia protocol package plus internal/inertia/root.templ. " +
+			"Run `andurel template generate`, `go mod tidy`, `gofmt`, `go fix ./...`, and `go vet ./...`. " +
+			"Compare cmd/app/main.go and config/app.go with a newly generated application, add the INERTIA_SSR_* environment keys, and wire NewSSRRuntime plus its Fx lifecycle before enabling INERTIA_SSR_ENABLED; application-owned startup and configuration code is not overwritten automatically. " +
+			"If application-owned code uses WithGonertiaOptions or imports github.com/romsar/gonertia/v3 directly, replace those options with the generated internal/inertia equivalents before verification. " +
+			"Review the retired assets/inertia/root.go.html and carry any application-specific metadata into internal/inertia/root.templ before removing the old file.",
+	})
+
+	return nil
 }
 
 func (u *Upgrader) buildRepairPlan(dirty bool) (*upgradePlan, error) {
@@ -151,6 +400,11 @@ func (u *Upgrader) addInertiaRootMigration(plan *upgradePlan, lock *layout.Andur
 	if !layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
 		return nil
 	}
+	if _, err := os.Stat(filepath.Join(u.projectRoot, "internal/inertia/root.templ")); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect native Inertia root: %w", err)
+	}
 
 	const embeddedPath = "assets/inertia/root.go.html"
 	if _, err := os.Stat(filepath.Join(u.projectRoot, embeddedPath)); err == nil {
@@ -160,6 +414,11 @@ func (u *Upgrader) addInertiaRootMigration(plan *upgradePlan, lock *layout.Andur
 	}
 
 	const legacyPath = "views/root.go.html"
+	if _, err := os.Stat(filepath.Join(u.projectRoot, legacyPath)); os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("inspect existing Inertia root %s: %w", legacyPath, err)
+	}
 	rootHTML, err := os.ReadFile(filepath.Join(u.projectRoot, legacyPath))
 	if err != nil {
 		return fmt.Errorf("read existing Inertia root %s: %w", legacyPath, err)

@@ -1,0 +1,26 @@
+import { createInertiaApp } from '@inertiajs/vue3'
+import createServer from '@inertiajs/vue3/server'
+import { createSSRApp, h, type DefineComponent } from 'vue'
+import { renderToString } from 'vue/server-renderer'
+
+const serverOptions = {
+  host: process.env.INERTIA_SSR_HOST ?? '127.0.0.1',
+  port: Number(process.env.INERTIA_SSR_PORT ?? '13714'),
+}
+
+createServer(page =>
+  createInertiaApp({
+    page,
+    render: renderToString,
+    resolve: (name: string): DefineComponent => {
+      const pages = import.meta.glob<DefineComponent>('./Pages/**/*.vue', { eager: true, import: 'default' })
+      return pages[`./Pages/${name}.vue`]
+    },
+    setup({ App, props, plugin }) {
+      return createSSRApp({
+        render: () => h('div', [h(App, props)]),
+      }).use(plugin)
+    },
+  }),
+  serverOptions,
+)

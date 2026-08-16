@@ -1,19 +1,22 @@
 {
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && vite build --ssr resources/js/ssr.ts --outDir assets/dist/ssr",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@inertiajs/vue3": "^2.0.0",
+    "@inertiajs/vue3": "^3.6.1",
     "vue": "^3.5.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
-    "@vitejs/plugin-vue": "^5.0.0",
+    "@inertiajs/vite": "^3.6.1",
+    "@types/node": "^22.0.0",
+    "@vitejs/plugin-vue": "^6.0.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.5.0",
-    "vite": "^6.0.0"
+    "vite": "^7.0.0"
   }
 }

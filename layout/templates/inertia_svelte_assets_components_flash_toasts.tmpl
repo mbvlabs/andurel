@@ -34,7 +34,7 @@
   $effect(() => {
     pushFlashes(initialFlashes)
     const removeListener = router.on('success', (event) => {
-      pushFlashes(event.detail.page.props.flash)
+      pushFlashes(event.detail.page.flash)
     })
 
     return removeListener

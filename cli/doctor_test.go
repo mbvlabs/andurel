@@ -369,6 +369,58 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 	}
 }
 
+func TestDoctorInertiaV3Compatibility(t *testing.T) {
+	root := t.TempDir()
+	lock := layout.NewAndurelLock("v1.2.3")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "app", Database: "postgresql", Inertia: "react"}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.26.0\n\nrequire github.com/mbvlabs/andurel v1.2.3\n")
+	writeTestFile(t, root, "package.json", `{
+  "dependencies": {"@inertiajs/react": "^3.6.1"},
+  "devDependencies": {"@inertiajs/vite": "^3.6.1"}
+}`)
+	writeTestFile(t, root, "internal/inertia/root.templ", "package inertia\n")
+	writeTestFile(t, root, "internal/inertia/root_templ.go", "package inertia\n")
+
+	if result := checkInertiaV3(root, false); result.status != statusPass {
+		t.Fatalf("compatible Inertia check = %#v", result)
+	}
+
+	writeTestFile(t, root, "go.mod", "module example.com/app\n\nrequire github.com/romsar/gonertia/v3 v3.0.0\n")
+	writeTestFile(t, root, "package.json", `{"dependencies":{"@inertiajs/react":"^2.0.0"}}`)
+	result := checkInertiaV3(root, true)
+	if result.status != statusFail || len(result.details) < 3 {
+		t.Fatalf("legacy Inertia check = %#v", result)
+	}
+	joined := strings.Join(result.details, "\n")
+	for _, want := range []string{"Gonertia", "major version 3", "@inertiajs/vite"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("legacy Inertia details missing %q: %s", want, joined)
+		}
+	}
+}
+
+func TestInertiaDependencyVersionHelpers(t *testing.T) {
+	dependencies := map[string]string{"adapter": "^3.6.1"}
+	devDependencies := map[string]string{"plugin": "~3.0.0"}
+	if got := dependencyVersion(dependencies, devDependencies, "adapter"); got != "^3.6.1" {
+		t.Fatalf("dependencyVersion = %q", got)
+	}
+	if got := dependencyVersion(dependencies, devDependencies, "plugin"); got != "~3.0.0" {
+		t.Fatalf("dependencyVersion dev = %q", got)
+	}
+	for _, version := range []string{"3.0.0", "^3.6.1", ">= 3.1.0", "v3.2.0"} {
+		if !isMajorVersion(version, 3) {
+			t.Fatalf("expected %q to match major 3", version)
+		}
+	}
+	if isMajorVersion("^2.3.0", 3) || isMajorVersion("", 3) {
+		t.Fatal("unexpected major version match")
+	}
+}
+
 func TestRunDoctorHumanPassWarnAndProjectFailure(t *testing.T) {
 	stubLatestAndurelVersion(t, "v1.2.3", nil)
 	root := t.TempDir()

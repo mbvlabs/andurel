@@ -1,7 +1,7 @@
 import '../../css/base.css'
 
-import { createApp, h, defineComponent, ref, watch, type DefineComponent } from 'vue'
-import { createInertiaApp, usePage } from '@inertiajs/vue3'
+import { createApp, createSSRApp, h, defineComponent, onMounted, onUnmounted, ref, type DefineComponent } from 'vue'
+import { createInertiaApp, router } from '@inertiajs/vue3'
 
 type FlashMessage = {
   Type: string
@@ -9,24 +9,33 @@ type FlashMessage = {
 }
 
 const FlashToasts = defineComponent({
-  setup() {
+  props: {
+    initialFlashes: Array,
+  },
+  setup(props) {
     const toasts = ref<Array<FlashMessage & { id: number }>>([])
     let nextId = 0
 
-    watch(
-      () => usePage().props.flash as FlashMessage[] | undefined,
-      (flashes) => {
-        if (!flashes || flashes.length === 0) {return}
-        for (const f of flashes) {
-          const id = nextId++
-          toasts.value.push({ ...f, id })
-          setTimeout(() => {
-            toasts.value = toasts.value.filter(t => t.id !== id)
-          }, 5000)
-        }
-      },
-      { immediate: true, deep: true },
-    )
+    function pushFlashes(flashes: unknown) {
+      if (!Array.isArray(flashes)) {return}
+      for (const value of flashes) {
+        if (!value || typeof value !== 'object') {continue}
+        const flash = value as Record<string, unknown>
+        if (typeof flash.Type !== 'string' || typeof flash.Message !== 'string') {continue}
+        const id = nextId++
+        toasts.value.push({ Type: flash.Type, Message: flash.Message, id })
+        setTimeout(() => {
+          toasts.value = toasts.value.filter(t => t.id !== id)
+        }, 5000)
+      }
+    }
+
+    let removeListener: (() => void) | undefined
+    onMounted(() => {
+      pushFlashes(props.initialFlashes)
+      removeListener = router.on('success', event => pushFlashes(event.detail.page.flash))
+    })
+    onUnmounted(() => removeListener?.())
 
     return () => {
       if (toasts.value.length === 0) {return null}
@@ -48,15 +57,16 @@ const FlashToasts = defineComponent({
 
 createInertiaApp({
   resolve: (name: string): DefineComponent => {
-    const pages = import.meta.glob<DefineComponent>('./Pages/**/*.vue', { eager: true })
+    const pages = import.meta.glob<DefineComponent>('./Pages/**/*.vue', { eager: true, import: 'default' })
     return pages[`./Pages/${name}.vue`]
   },
   setup({ el, App, props, plugin }) {
-    createApp({
+    const createVueApp = el.dataset.serverRendered === 'true' ? createSSRApp : createApp
+    createVueApp({
       render() {
         return h('div', [
           h(App, props),
-          h(FlashToasts),
+          h(FlashToasts, { initialFlashes: props.initialPage.flash as unknown as FlashMessage[] | undefined }),
         ])
       },
     })

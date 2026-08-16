@@ -75,3 +75,19 @@ func ExtractFlashes(c *echo.Context) ([]FlashMessage, error) {
 
 	return flashMessages, nil
 }
+
+// Reflash restores flashes consumed for the current request when Inertia
+// returns a redirect, so the next request can still render them.
+func Reflash(c *echo.Context, flashes []FlashMessage) error {
+	if len(flashes) == 0 {
+		return nil
+	}
+	sess, err := getSession(flashSession, c)
+	if err != nil {
+		return err
+	}
+	for _, flash := range flashes {
+		sess.AddFlash(flash, flashSessionName)
+	}
+	return sess.Save(c.Request(), c.Response())
+}

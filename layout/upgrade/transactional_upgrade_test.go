@@ -20,6 +20,7 @@ import (
 const (
 	fixtureSourceVersion = "v1.0.3"
 	fixtureTargetVersion = "v1.1.0"
+	vNextTargetVersion   = "v1.2.0"
 )
 
 func TestUpgraderRemainsComparable(t *testing.T) {
@@ -305,20 +306,26 @@ func TestVersionedInertiaUpgradeEmbedsExistingRoot(t *testing.T) {
 
 	renderer := string(mustReadProjectFile(t, root, "internal/inertia/render.go"))
 	for _, snippet := range []string{
-		"type Renderer struct",
+		"func New(",
 		"assetFS fs.FS",
-		"fs.ReadFile(assetFS, rootPath)",
-		"gonertia.NewFromBytes(rootHTML, opts...)",
+		"initVite(assetFS, environment, buildPathURL)",
 	} {
 		if !strings.Contains(renderer, snippet) {
 			t.Fatalf("managed inertia renderer missing %q:\n%s", snippet, renderer)
 		}
+	}
+	response := string(mustReadProjectFile(t, root, "internal/inertia/response.go"))
+	if !strings.Contains(response, "type Renderer struct") {
+		t.Fatalf("managed inertia protocol missing Renderer:\n%s", response)
 	}
 	if strings.Contains(renderer, "andurel.lock") {
 		t.Fatalf("managed inertia renderer still reads andurel.lock:\n%s", renderer)
 	}
 	if strings.Contains(renderer, `"testapp/assets"`) {
 		t.Fatalf("managed inertia renderer imports the top-level assets package:\n%s", renderer)
+	}
+	if strings.Contains(renderer, "gonertia") {
+		t.Fatalf("managed inertia renderer still depends on Gonertia:\n%s", renderer)
 	}
 }
 
@@ -380,13 +387,6 @@ func TestVersionedInertiaUpgradeRejectsInvalidMigrationState(t *testing.T) {
 		want  string
 	}{
 		{
-			name: "missing legacy root",
-			setup: func(t *testing.T, root string) {
-				mustWriteTestFile(t, root, "cmd/app/main.go", []byte("package main\n\nfunc main() { inertia.Init(\"views/root.go.html\") }\n"))
-			},
-			want: "read existing Inertia root",
-		},
-		{
 			name: "missing application entrypoint",
 			setup: func(t *testing.T, root string) {
 				mustWriteTestFile(t, root, "views/root.go.html", []byte("legacy root\n"))
@@ -400,6 +400,13 @@ func TestVersionedInertiaUpgradeRejectsInvalidMigrationState(t *testing.T) {
 				mustWriteTestFile(t, root, "cmd/app/main.go", []byte("package main\n\nfunc main() { inertia.Init(\"custom/root.go.html\") }\n"))
 			},
 			want: "legacy initialization call not found",
+		},
+		{
+			name: "absent legacy root leaves entrypoint untouched",
+			setup: func(t *testing.T, root string) {
+				mustWriteTestFile(t, root, "cmd/app/main.go", []byte("package main\n\nfunc main() { inertia.Init(\"views/root.go.html\") }\n"))
+			},
+			want: "",
 		},
 	}
 
@@ -418,11 +425,302 @@ func TestVersionedInertiaUpgradeRejectsInvalidMigrationState(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := upgrader.Execute(); err == nil || !strings.Contains(err.Error(), test.want) {
-				t.Fatalf("upgrade error = %v, want %q", err, test.want)
+			if test.want != "" {
+				if _, err := upgrader.Execute(); err == nil || !strings.Contains(err.Error(), test.want) {
+					t.Fatalf("upgrade error = %v, want %q", err, test.want)
+				}
+				assertSnapshotEqual(t, before, snapshotUpgradeTree(t, root))
+				return
 			}
-			assertSnapshotEqual(t, before, snapshotUpgradeTree(t, root))
+			report, err := upgrader.Execute()
+			if err != nil || !report.Success {
+				t.Fatalf("upgrade: report=%#v err=%v", report, err)
+			}
+			if got := mustReadProjectFile(t, root, "cmd/app/main.go"); !bytes.Contains(got, []byte(`inertia.Init("views/root.go.html")`)) {
+				t.Fatalf("entrypoint referencing an absent legacy root was modified:\n%s", got)
+			}
 		})
+	}
+}
+
+// legacyInertiaMain is the Gonertia-era provideInertia produced by the previous
+// generated cmd/app/main.go template.
+const legacyInertiaMain = `package main
+
+import (
+	"context"
+)
+
+func provideInertia() (*inertia.Renderer, error) {
+	return inertia.New(
+		assets.Files,
+		"inertia/root.go.html",
+		config.ProjectName,
+		config.Env,
+		routes.ViteBuild.Path(),
+		inertia.WithSharedProp("appVersion", appVersion),
+		inertia.WithRequestProps(func(ctx context.Context) inertia.Props {
+			flashes := request.ExtractContext[[]cookies.FlashMessage](
+				ctx,
+				request.SessionFlashesKey,
+			)
+			if len(flashes) == 0 {
+				return nil
+			}
+			return inertia.Props{"flash": flashes}
+		}),
+	)
+}
+`
+
+func writeLegacyInertiaFrontend(t *testing.T, root string) {
+	t.Helper()
+	mustWriteTestFile(t, root, "package.json", []byte(`{
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@inertiajs/react": "^2.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "typescript": "^5.5.0",
+    "vite": "^6.0.0"
+  }
+}
+`))
+	mustWriteTestFile(t, root, "vite.config.ts", []byte(`import { fileURLToPath, URL } from 'node:url'
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+})
+`))
+	mustWriteTestFile(t, root, "router/router.go", []byte(`package router
+
+import (
+	"testapp/internal/inertia"
+	"testapp/router/cookies"
+	"testapp/router/middleware"
+)
+
+func setup(renderer *inertia.Renderer) {
+	// Order matters:
+	middlewares := []string{
+		middleware.RegisterRequestMeta,
+		renderer.Middleware(),
+	}
+	_ = middlewares
+	_ = cookies.FlashMessage{}
+}
+`))
+	mustWriteTestFile(t, root, "router/cookies/flash.go", []byte("package cookies\n\ntype FlashMessage struct{}\n"))
+}
+
+func TestInertiaV3ClientMigrationUpgradesLegacyFrontend(t *testing.T) {
+	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
+		ProjectName: "testapp",
+		Database:    "postgresql",
+		Inertia:     "react",
+	})
+	writeLegacyInertiaFrontend(t, root)
+	commitUpgradeTree(t, root, "legacy inertia frontend")
+
+	upgrader, err := NewUpgrader(root, UpgradeOptions{TargetVersion: fixtureTargetVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := upgrader.Execute()
+	if err != nil || !report.Success {
+		t.Fatalf("upgrade: report=%#v err=%v", report, err)
+	}
+	assertLegacyFrontendMigratedToV3(t, root, report)
+
+	commitUpgradeTree(t, root, "inertia v3 frontend migrated")
+
+	next, err := NewUpgrader(root, UpgradeOptions{TargetVersion: vNextTargetVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := next.Execute()
+	if err != nil || !second.Success {
+		t.Fatalf("idempotent upgrade: report=%#v err=%v", second, err)
+	}
+	for _, path := range []string{
+		"package.json",
+		"vite.config.ts",
+		"resources/js/ssr.tsx",
+		"router/router.go",
+		"router/cookies/flash.go",
+	} {
+		if slices.Contains(second.ReplacedFiles, path) {
+			t.Fatalf("second upgrade re-planned migration file %s", path)
+		}
+	}
+}
+
+func assertLegacyFrontendMigratedToV3(t *testing.T, root string, report *UpgradeReport) {
+	t.Helper()
+	packageJSON := string(mustReadProjectFile(t, root, "package.json"))
+	for _, want := range []string{
+		`"@inertiajs/react": "^3.6.1"`,
+		`"@inertiajs/vite": "^3.6.1"`,
+		`"@types/node": "^22.0.0"`,
+		`"vite": "^7.0.0"`,
+		`"@vitejs/plugin-react": "^5.0.0"`,
+		`"type": "module"`,
+		`"build": "vite build && vite build --ssr resources/js/ssr.tsx --outDir assets/dist/ssr"`,
+	} {
+		if !strings.Contains(packageJSON, want) {
+			t.Fatalf("package.json missing %q:\n%s", want, packageJSON)
+		}
+	}
+	if strings.Contains(packageJSON, `"@inertiajs/react": "^2.0.0"`) {
+		t.Fatalf("package.json still pins the v2 client:\n%s", packageJSON)
+	}
+
+	viteConfig := string(mustReadProjectFile(t, root, "vite.config.ts"))
+	for _, want := range []string{"import inertia from '@inertiajs/vite'", "inertia({ ssr: false })"} {
+		if !strings.Contains(viteConfig, want) {
+			t.Fatalf("vite.config.ts missing %q:\n%s", want, viteConfig)
+		}
+	}
+
+	ssrEntry := string(mustReadProjectFile(t, root, "resources/js/ssr.tsx"))
+	for _, want := range []string{"@inertiajs/react/server", "createServer("} {
+		if !strings.Contains(ssrEntry, want) {
+			t.Fatalf("ssr entry missing %q:\n%s", want, ssrEntry)
+		}
+	}
+
+	routerFile := string(mustReadProjectFile(t, root, "router/router.go"))
+	for _, want := range []string{
+		`"testapp/internal/request"`,
+		"renderer.Middleware(),\n\t\tmiddleware.RegisterRequestMeta,",
+		"renderer.SetReflashHandler(func(etx *echo.Context) error {",
+		"cookies.Reflash(etx, flashes)",
+	} {
+		if !strings.Contains(routerFile, want) {
+			t.Fatalf("router.go missing %q:\n%s", want, routerFile)
+		}
+	}
+
+	if flashFile := string(mustReadProjectFile(t, root, "router/cookies/flash.go")); !strings.Contains(flashFile, "func Reflash(") {
+		t.Fatalf("flash.go missing Reflash helper:\n%s", flashFile)
+	}
+
+	for _, path := range []string{
+		"package.json",
+		"vite.config.ts",
+		"resources/js/ssr.tsx",
+		"router/router.go",
+		"router/cookies/flash.go",
+	} {
+		if !slices.Contains(report.ReplacedFiles, path) {
+			t.Fatalf("v3 client migration did not report %s: %#v", path, report.ReplacedFiles)
+		}
+	}
+
+	for _, action := range report.ManualActions {
+		if action.ID == "inertia-v3-client-entry" {
+			return
+		}
+	}
+	t.Fatalf("manual actions = %#v, want inertia-v3-client-entry", report.ManualActions)
+}
+
+func TestNativeInertiaMigrationReplacesGonertiaDependency(t *testing.T) {
+	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
+		ProjectName: "testapp",
+		Database:    "postgresql",
+		Inertia:     "react",
+	})
+	mustWriteTestFile(t, root, "go.mod", []byte("module testapp\n\ngo 1.24.0\n\nrequire (\n\tgithub.com/romsar/gonertia/v3 v3.0.0\n)\n"))
+	mustWriteTestFile(t, root, "assets/inertia/root.go.html", []byte("embedded legacy root\n"))
+	mustWriteTestFile(t, root, "cmd/app/main.go", []byte(legacyInertiaMain))
+	writeLegacyInertiaFrontend(t, root)
+	commitUpgradeTree(t, root, "gonertia project")
+
+	upgrader, err := NewUpgrader(root, UpgradeOptions{TargetVersion: fixtureTargetVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := upgrader.Execute()
+	if err != nil || !report.Success {
+		t.Fatalf("upgrade: report=%#v err=%v", report, err)
+	}
+
+	goMod := string(mustReadProjectFile(t, root, "go.mod"))
+	if strings.Contains(goMod, "gonertia") {
+		t.Fatalf("go.mod still requires Gonertia:\n%s", goMod)
+	}
+	if strings.Contains(goMod, "github.com/mbvlabs/andurel") {
+		t.Fatalf("go.mod still requires the Andurel module:\n%s", goMod)
+	}
+
+	rootTempl := string(mustReadProjectFile(t, root, "internal/inertia/root.templ"))
+	if !strings.Contains(rootTempl, "templ Root(") {
+		t.Fatalf("native root.templ was not installed:\n%s", rootTempl)
+	}
+
+	mainFile := string(mustReadProjectFile(t, root, "cmd/app/main.go"))
+	if !strings.Contains(mainFile, "inertia.WithRequestFlash(func(ctx context.Context) any") {
+		t.Fatalf("main.go missing WithRequestFlash:\n%s", mainFile)
+	}
+	if !strings.Contains(mainFile, "return flashes") {
+		t.Fatalf("main.go missing flash provider rewrite:\n%s", mainFile)
+	}
+	if strings.Contains(mainFile, "inertia.WithRequestProps") || strings.Contains(mainFile, `"inertia/root.go.html"`) {
+		t.Fatalf("main.go still references the legacy renderer:\n%s", mainFile)
+	}
+
+	for _, path := range []string{"go.mod", "internal/inertia/root.templ", "cmd/app/main.go"} {
+		if !slices.Contains(report.ReplacedFiles, path) {
+			t.Fatalf("native migration did not report %s: %#v", path, report.ReplacedFiles)
+		}
+	}
+	foundManual := false
+	for _, action := range report.ManualActions {
+		if action.ID == "andurel-owned-inertia-v3" {
+			foundManual = true
+		}
+	}
+	if !foundManual {
+		t.Fatalf("manual actions = %#v, want andurel-owned-inertia-v3", report.ManualActions)
+	}
+
+	assertLegacyFrontendMigratedToV3(t, root, report)
+
+	commitUpgradeTree(t, root, "native inertia migrated")
+
+	next, err := NewUpgrader(root, UpgradeOptions{TargetVersion: vNextTargetVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := next.Execute()
+	if err != nil || !second.Success {
+		t.Fatalf("idempotent upgrade: report=%#v err=%v", second, err)
+	}
+	for _, path := range []string{
+		"go.mod",
+		"internal/inertia/root.templ",
+		"cmd/app/main.go",
+		"package.json",
+		"vite.config.ts",
+		"resources/js/ssr.tsx",
+		"router/router.go",
+		"router/cookies/flash.go",
+	} {
+		if slices.Contains(second.ReplacedFiles, path) {
+			t.Fatalf("second upgrade re-planned migration file %s", path)
+		}
 	}
 }
 

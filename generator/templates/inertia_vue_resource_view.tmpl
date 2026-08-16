@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Link{{if InertiaUsesForm .ComponentName}}, useForm{{end}} } from '@inertiajs/vue3'
+import type { {{InertiaPayloadType}}, {{.ResourceName}}IndexProps, {{.ResourceName}}ItemProps } from '{{InertiaPayloadImportPath}}'
 {{- if InertiaComponentUsesRoutes .ComponentName}}
 import { routes } from '{{ InertiaRoutesImportPath }}'
 {{- end}}
@@ -7,26 +8,22 @@ import { routes } from '{{ InertiaRoutesImportPath }}'
 {{- if or (eq .ComponentName "Index") (eq .ComponentName "Show") (eq .ComponentName "Edit")}}
 type RouteID = {{ InertiaRouteIDType }}
 
-function routeID(item: Record<string, unknown>): RouteID {
-  return item.{{.IDFieldName}} as RouteID
+function routeID(item: {{InertiaPayloadType}}): RouteID {
+  return item.{{InertiaIDJSONName}} as RouteID
 }
 {{- end}}
 {{- if eq .ComponentName "Index"}}
 
-defineProps<{
-  items: Array<Record<string, unknown>>
-}>()
+defineProps<{{.ResourceName}}IndexProps>()
 {{- else if eq .ComponentName "Show"}}
 
-defineProps<{
-  item: Record<string, unknown>
-}>()
+defineProps<{{.ResourceName}}ItemProps>()
 {{- else if eq .ComponentName "Create"}}
 
 const form = useForm({
 {{- range .Fields}}
 {{- if not .IsSystemField}}
-  {{.CamelCase}}: '' as {{.GoFormType}},
+  {{.CamelCase}}: {{InertiaCreateValue .}} as {{InertiaFieldType .}},
 {{- end}}
 {{- end}}
 })
@@ -36,14 +33,12 @@ function submit() {
 }
 {{- else if eq .ComponentName "Edit"}}
 
-const props = defineProps<{
-  item: Record<string, unknown>
-}>()
+const props = defineProps<{{.ResourceName}}ItemProps>()
 
 const form = useForm({
 {{- range .Fields}}
 {{- if not .IsSystemField}}
-  {{.CamelCase}}: props.item.{{.Name}} as {{.GoFormType}},
+  {{.CamelCase}}: {{InertiaEditValue . "props.item"}} as {{InertiaFieldType .}},
 {{- end}}
 {{- end}}
 })
@@ -73,9 +68,9 @@ function submit() {
           </tr>
         </thead>
         <tbody class="divide-y divide-cyan-400/20 bg-slate-900">
-          <tr v-for="item in items" :key="item.{{.IDFieldName}}" class="hover:bg-slate-950">
+          <tr v-for="item in items" :key="item.{{InertiaIDJSONName}}" class="hover:bg-slate-950">
 {{- range .Fields}}
-            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ "{{" }} item.{{.Name}} {{ "}}" }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ "{{" }} item.{{.CamelCase}} {{ "}}" }}</td>
 {{- end}}
             <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
               <Link :href="{{ InertiaRouteURL "show" "routeID(item)" }}" class="mr-3 text-cyan-300 hover:text-white">View</Link>
@@ -102,7 +97,7 @@ function submit() {
 {{- range .Fields}}
         <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
           <dt class="text-sm font-medium text-slate-400">{{.DisplayName}}</dt>
-          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ "{{" }} item.{{.Name}} {{ "}}" }}</dd>
+          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ "{{" }} item.{{.CamelCase}} {{ "}}" }}</dd>
         </div>
 {{- end}}
       </dl>

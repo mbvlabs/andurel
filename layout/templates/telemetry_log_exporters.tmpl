@@ -25,7 +25,7 @@ func NewStdoutExporterWithLevel(level slog.Level) *StdoutExporter {
 }
 
 func (s *StdoutExporter) GetSlogHandler(ctx context.Context) (slog.Handler, error) {
-	handler := tint.NewHandler(os.Stdout, &tint.Options{
+	handler := tint.NewTextHandler(os.Stdout, &tint.Options{
 		Level:      s.LogLevel,
 		TimeFormat: "15:04:05",
 		AddSource:  true,

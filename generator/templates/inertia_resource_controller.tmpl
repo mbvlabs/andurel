@@ -167,8 +167,16 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router
 
 type {{.ResourceName}}Data struct {
 {{- range .Fields}}
-	{{.Name}} {{InertiaDataType .}}
+	{{.Name}} {{InertiaDataType .}} `json:"{{.CamelCase}}"`
 {{- end}}
+}
+
+type {{.ResourceName}}IndexProps struct {
+	Items []{{.ResourceName}}Data `json:"items"`
+}
+
+type {{.ResourceName}}ItemProps struct {
+	Item {{.ResourceName}}Data `json:"item"`
 }
 
 func new{{.ResourceName}}Data(entity models.{{.ModelName}}Entity) {{.ResourceName}}Data {
@@ -214,9 +222,13 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
-	return {{.ReceiverName}}.renderer.Page(etx, "{{if .Namespace}}{{.NamespacePascal}}/{{end}}{{.ResourceName}}/Index", inertia.Props{
-		"items": new{{.ResourceName}}DataList({{.ModelPluralName | ToCamelCase}}List.{{.ModelPluralResourceName}}),
-	})
+	return {{.ReceiverName}}.renderer.Page(
+		etx,
+		"{{if .Namespace}}{{.NamespacePascal}}/{{end}}{{.ResourceName}}/Index",
+		inertia.FromStruct({{.ResourceName}}IndexProps{
+			Items: new{{.ResourceName}}DataList({{.ModelPluralName | ToCamelCase}}List.{{.ModelPluralResourceName}}),
+		}),
+	)
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
@@ -248,9 +260,13 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
 
-	return {{.ReceiverName}}.renderer.Page(etx, "{{if .Namespace}}{{.NamespacePascal}}/{{end}}{{.ResourceName}}/Show", inertia.Props{
-		"item": new{{.ResourceName}}Data({{.ResourceName | ToLowerCamelCase}}),
-	})
+	return {{.ReceiverName}}.renderer.Page(
+		etx,
+		"{{if .Namespace}}{{.NamespacePascal}}/{{end}}{{.ResourceName}}/Show",
+		inertia.FromStruct({{.ResourceName}}ItemProps{
+			Item: new{{.ResourceName}}Data({{.ResourceName | ToLowerCamelCase}}),
+		}),
+	)
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) New(etx *echo.Context) error {
@@ -351,9 +367,13 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
 
-	return {{.ReceiverName}}.renderer.Page(etx, "{{if .Namespace}}{{.NamespacePascal}}/{{end}}{{.ResourceName}}/Edit", inertia.Props{
-		"item": new{{.ResourceName}}Data({{.ResourceName | ToLowerCamelCase}}),
-	})
+	return {{.ReceiverName}}.renderer.Page(
+		etx,
+		"{{if .Namespace}}{{.NamespacePascal}}/{{end}}{{.ResourceName}}/Edit",
+		inertia.FromStruct({{.ResourceName}}ItemProps{
+			Item: new{{.ResourceName}}Data({{.ResourceName | ToLowerCamelCase}}),
+		}),
+	)
 }
 
 type Update{{.ResourceName}}FormPayload struct {

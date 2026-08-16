@@ -66,6 +66,9 @@ func main() {
 		router.Module,
 
 		fx.Invoke(startQueueProcessor),
+{{- if .Inertia}}
+		fx.Invoke(startInertiaSSR),
+{{- end}}
 		fx.Invoke(startServer),
 	)
 
@@ -85,15 +88,25 @@ func main() {
 	}
 }
 {{if .Inertia}}
-func provideInertia() (*inertia.Renderer, error) {
-	return inertia.New(
+func provideInertia(cfg config.Config) (*inertia.Renderer, *inertia.SSRRuntime, error) {
+	ssrRuntime, err := inertia.NewSSRRuntime(
+		cfg.App.InertiaSSRBundle,
+		cfg.App.InertiaSSRRuntime,
+		cfg.App.InertiaSSRURL,
+		cfg.App.InertiaSSREnabled,
+		inertia.WithSSRURL(cfg.App.InertiaSSRURL),
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	renderer, err := inertia.New(
 		assets.Files,
-		"inertia/root.go.html",
 		config.ProjectName,
 		config.Env,
 		routes.ViteBuild.Path(),
 		inertia.WithSharedProp("appVersion", appVersion),
-		inertia.WithRequestProps(func(ctx context.Context) inertia.Props {
+		inertia.WithSSRRenderer(ssrRuntime.Renderer()),
+		inertia.WithRequestFlash(func(ctx context.Context) any {
 			flashes := request.ExtractContext[[]cookies.FlashMessage](
 				ctx,
 				request.SessionFlashesKey,
@@ -101,9 +114,19 @@ func provideInertia() (*inertia.Renderer, error) {
 			if len(flashes) == 0 {
 				return nil
 			}
-			return inertia.Props{"flash": flashes}
+			return flashes
 		}),
 	)
+	return renderer, ssrRuntime, err
+}
+{{- end}}
+
+{{if .Inertia}}
+func startInertiaSSR(lc fx.Lifecycle, runtime *inertia.SSRRuntime) {
+	lc.Append(fx.Hook{
+		OnStart: runtime.Start,
+		OnStop:  runtime.Stop,
+	})
 }
 {{- end}}
 
