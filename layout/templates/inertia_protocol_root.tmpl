@@ -14,8 +14,8 @@ import (
 	"github.com/a-h/templ"
 )
 
-// Root constructs the application-owned templ document for an initial visit.
-type Root func(RootData) templ.Component
+// RootFunc is the signature of the application-owned templ document constructor.
+type RootFunc func(RootData) templ.Component
 
 // RootData is passed to the application-owned root document.
 type RootData struct {

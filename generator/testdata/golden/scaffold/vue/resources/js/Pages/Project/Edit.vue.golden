@@ -1,19 +1,18 @@
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3'
+import type { ProjectData, ProjectIndexProps, ProjectItemProps } from '@/types/project'
 import { routes } from '@/routes'
 type RouteID = string
 
-function routeID(item: Record<string, unknown>): RouteID {
-  return item.ID as RouteID
+function routeID(item: ProjectData): RouteID {
+  return item.id as RouteID
 }
 
-const props = defineProps<{
-  item: Record<string, unknown>
-}>()
+const props = defineProps<ProjectItemProps>()
 
 const form = useForm({
-  title: props.item.Title as string,
-  status: props.item.Status as string,
+  title: String(props.item.title ?? '') as string,
+  status: String(props.item.status ?? '') as string,
 })
 
 function submit() {

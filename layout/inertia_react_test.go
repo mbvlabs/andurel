@@ -40,7 +40,7 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileContains(t, projectDir, "package.json", "@vitejs/plugin-react")
 	assertFileContains(t, projectDir, "vite.config.ts", "resources/js/app.tsx")
 	assertFileContains(t, projectDir, "tsconfig.json", "resources/js/**/*.tsx")
-	assertFileContains(t, projectDir, "tsconfig.json", `"types": ["vite/client"]`)
+	assertFileContains(t, projectDir, "tsconfig.json", `"types": ["vite/client", "node"]`)
 	assertFileContains(t, projectDir, "resources/js/app.tsx", "type ResolvedComponent")
 	assertFileContains(t, projectDir, "resources/js/app.tsx", "createInertiaApp<PageProps>({")
 	assertFileContains(t, projectDir, "resources/js/app.tsx", "type PageModule = {")
@@ -140,7 +140,7 @@ func TestScaffoldVueInertiaTSConfigIncludesViteClientTypes(t *testing.T) {
 		t.Fatalf("scaffold vue inertia project: %v", err)
 	}
 
-	assertFileContains(t, projectDir, "tsconfig.json", `"types": ["vite/client"]`)
+	assertFileContains(t, projectDir, "tsconfig.json", `"types": ["vite/client", "node"]`)
 }
 
 func assertFileContains(t *testing.T, root, relPath, want string) {

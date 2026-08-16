@@ -191,11 +191,10 @@ func (u *Upgrader) addInertiaV3ClientMigration(plan *upgradePlan, lock *layout.A
 		}
 		scripts["build"] = "vite build && vite build --ssr " + entry + " --outDir assets/dist/ssr"
 	}
-	updatedPackageJSON, err := json.MarshalIndent(manifest, "", "  ")
+	updatedPackageJSON, err := marshalJSONNoEscape(manifest)
 	if err != nil {
 		return fmt.Errorf("encode migrated package.json: %w", err)
 	}
-	updatedPackageJSON = append(updatedPackageJSON, '\n')
 	if err := plan.addReplacement(u.projectRoot, "package.json", updatedPackageJSON, false); err != nil {
 		return err
 	}
@@ -610,6 +609,19 @@ func marshalLock(lock *layout.AndurelLock) ([]byte, error) {
 		return nil, err
 	}
 	return append(data, '\n'), nil
+}
+
+// marshalJSONNoEscape encodes value as indented JSON without HTML escaping,
+// preserving characters such as && in script values.
+func marshalJSONNoEscape(value any) ([]byte, error) {
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(value); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func unifiedFileDiff(file plannedFile) (string, error) {

@@ -196,7 +196,9 @@ func TestControllerViewGenerationNamespacedInertia(t *testing.T) {
 
 	assertControllerViewGoldenFileMissing(t, filepath.Join("views", "admin_widgets_resource.templ"))
 	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Admin", "Widget", "Show.vue"), "<template>")
-	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), `return w.renderer.Page(etx, "Admin/Widget/Show"`)
+	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), `return w.renderer.Page(`)
+	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), `"Admin/Widget/Show",`)
+	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "inertia.FromStruct(WidgetItemProps{")
 }
 
 func TestControllerViewGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
@@ -238,7 +240,9 @@ func TestControllerViewGenerationGoldensReactInertiaFlagGeneratesReactPages(t *t
 	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Show.tsx"), "export default function Show")
 	assertGeneratedFileContains(t, "controllers/widgets.go", "testapp/internal/inertia")
 	assertGeneratedFileNotContains(t, "controllers/widgets.go", "testapp/internal/hypermedia")
-	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(etx, \"Widget/Index\"")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(")
+	assertGeneratedFileContains(t, "controllers/widgets.go", `"Widget/Index",`)
+	assertGeneratedFileContains(t, "controllers/widgets.go", "inertia.FromStruct(WidgetIndexProps{")
 }
 
 func TestControllerViewGenerationGoldensSingleVueActionGeneratesInertiaController(t *testing.T) {
@@ -252,7 +256,9 @@ func TestControllerViewGenerationGoldensSingleVueActionGeneratesInertiaControlle
 	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Show.vue"), "<template>")
 	assertGeneratedFileContains(t, "controllers/widgets.go", "testapp/internal/inertia")
 	assertGeneratedFileNotContains(t, "controllers/widgets.go", "testapp/internal/hypermedia")
-	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(etx, \"Widget/Show\"")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(")
+	assertGeneratedFileContains(t, "controllers/widgets.go", `"Widget/Show",`)
+	assertGeneratedFileContains(t, "controllers/widgets.go", "inertia.FromStruct(WidgetItemProps{")
 }
 
 func TestControllerViewGenerationGoldensVueActionDoesNotInheritTemplViewActions(t *testing.T) {
@@ -271,7 +277,9 @@ func TestControllerViewGenerationGoldensVueActionDoesNotInheritTemplViewActions(
 	assertGeneratedFileContains(t, "controllers/widgets.go", "testapp/internal/hypermedia")
 	assertGeneratedFileContains(t, "controllers/widgets.go", "testapp/internal/inertia")
 	assertGeneratedFileContains(t, "controllers/widgets.go", "return hypermedia.RenderPage(etx, views.WidgetIndex")
-	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(etx, \"Widget/Show\"")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(")
+	assertGeneratedFileContains(t, "controllers/widgets.go", `"Widget/Show",`)
+	assertGeneratedFileContains(t, "controllers/widgets.go", "inertia.FromStruct(WidgetItemProps{")
 }
 
 func TestControllerViewGenerationGoldensVueActionUpdatesRegisterRoutes(t *testing.T) {
@@ -289,7 +297,9 @@ func TestControllerViewGenerationGoldensVueActionUpdatesRegisterRoutes(t *testin
 	assertGeneratedFileContains(t, "controllers/widgets.go", "Handler: w.Index")
 	assertGeneratedFileContains(t, "controllers/widgets.go", "Handler: w.Show")
 	assertGeneratedFileContains(t, "controllers/widgets.go", "return hypermedia.RenderPage(etx, views.WidgetIndex")
-	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(etx, \"Widget/Show\"")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(")
+	assertGeneratedFileContains(t, "controllers/widgets.go", `"Widget/Show",`)
+	assertGeneratedFileContains(t, "controllers/widgets.go", "inertia.FromStruct(WidgetItemProps{")
 }
 
 func setupControllerViewGoldenProject(t *testing.T, cssComponents bool) Coordinator {

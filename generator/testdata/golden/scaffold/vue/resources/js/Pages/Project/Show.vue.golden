@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3'
+import type { ProjectData, ProjectIndexProps, ProjectItemProps } from '@/types/project'
 import { routes } from '@/routes'
 type RouteID = string
 
-function routeID(item: Record<string, unknown>): RouteID {
-  return item.ID as RouteID
+function routeID(item: ProjectData): RouteID {
+  return item.id as RouteID
 }
 
-defineProps<{
-  item: Record<string, unknown>
-}>()
+defineProps<ProjectItemProps>()
 </script>
 
 <template>
@@ -26,19 +25,19 @@ defineProps<{
       <dl class="divide-y divide-cyan-400/20">
         <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
           <dt class="text-sm font-medium text-slate-400">Title</dt>
-          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.Title }}</dd>
+          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.title }}</dd>
         </div>
         <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
           <dt class="text-sm font-medium text-slate-400">Status</dt>
-          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.Status }}</dd>
+          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.status }}</dd>
         </div>
         <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
           <dt class="text-sm font-medium text-slate-400">Created At</dt>
-          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.CreatedAt }}</dd>
+          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.createdAt }}</dd>
         </div>
         <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
           <dt class="text-sm font-medium text-slate-400">Updated At</dt>
-          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.UpdatedAt }}</dd>
+          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.updatedAt }}</dd>
         </div>
       </dl>
     </div>

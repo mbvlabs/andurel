@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3'
+import type { ProjectData, ProjectIndexProps, ProjectItemProps } from '@/types/project'
 import { routes } from '@/routes'
 type RouteID = string
 
-function routeID(item: Record<string, unknown>): RouteID {
-  return item.ID as RouteID
+function routeID(item: ProjectData): RouteID {
+  return item.id as RouteID
 }
 
-defineProps<{
-  items: Array<Record<string, unknown>>
-}>()
+defineProps<ProjectIndexProps>()
 </script>
 
 <template>
@@ -31,11 +30,11 @@ defineProps<{
           </tr>
         </thead>
         <tbody class="divide-y divide-cyan-400/20 bg-slate-900">
-          <tr v-for="item in items" :key="item.ID" class="hover:bg-slate-950">
-            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ item.Title }}</td>
-            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ item.Status }}</td>
-            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ item.CreatedAt }}</td>
-            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ item.UpdatedAt }}</td>
+          <tr v-for="item in items" :key="item.id" class="hover:bg-slate-950">
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ item.title }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ item.status }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ item.createdAt }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{{ item.updatedAt }}</td>
             <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
               <Link :href="routes.projectShow(routeID(item))" class="mr-3 text-cyan-300 hover:text-white">View</Link>
               <Link :href="routes.projectEdit(routeID(item))" class="mr-3 text-cyan-300 hover:text-white">Edit</Link>

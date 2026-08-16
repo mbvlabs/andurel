@@ -29,7 +29,7 @@ type Option func(*Renderer) error
 
 // Renderer implements the Inertia v3 server protocol for Echo and templ.
 type Renderer struct {
-	root            Root
+	root            RootFunc
 	containerID     string
 	version         string
 	versionProvider VersionProvider

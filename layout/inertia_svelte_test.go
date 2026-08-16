@@ -36,7 +36,7 @@ func TestScaffoldSvelteInertiaAssets(t *testing.T) {
 	assertFileContains(t, projectDir, "package.json", `"type": "module"`)
 	assertFileContains(t, projectDir, "package.json", `"svelte": "^5.0.0"`)
 	assertFileContains(t, projectDir, "package.json", `"@sveltejs/vite-plugin-svelte": "^6.0.0"`)
-	assertFileContains(t, projectDir, "tsconfig.json", `"types": ["vite/client"]`)
+	assertFileContains(t, projectDir, "tsconfig.json", `"types": ["vite/client", "node"]`)
 	assertFileNotContains(t, projectDir, "package.json", "@inertiajs/vue3")
 	assertFileNotContains(t, projectDir, "package.json", "@inertiajs/react")
 	assertFileMissing(t, projectDir, "resources/js/app.tsx")
