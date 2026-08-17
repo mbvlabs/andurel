@@ -3,11 +3,8 @@ package cli
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -23,8 +20,6 @@ import (
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/spf13/cobra"
 )
-
-const defaultSSRURL = "http://127.0.0.1:13714"
 
 type checkResult struct {
 	category string
@@ -234,8 +229,6 @@ func doctorHint(result checkResult) string {
 		return "Run andurel generate view and fix any template generation errors."
 	case "routes.ts":
 		return "Run andurel generate routes and commit the updated resources/js/routes.ts file."
-	case "Inertia v3":
-		return "Run andurel upgrade to migrate the server adapter, templ root, and official Inertia v3 client packages."
 	default:
 		return ""
 	}
@@ -940,7 +933,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 		if err != nil {
 			return err
 		}
-		cmd := exec.Command(filepath.Join(tempRoot, "bin", "templ"), "generate", "-path", ".")
+		cmd := exec.Command(filepath.Join(tempRoot, "bin", "templ"), "generate", "-path", "./views")
 		cmd.Dir = tempRoot
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout
@@ -1012,208 +1005,9 @@ func codeGenerationChecks(rootDir string, verbose bool) []checkResult {
 		checkTemplGenerate(rootDir, verbose),
 	}
 	if projectUsesInertia(rootDir) {
-		results = append(results,
-			checkRoutesTSGenerate(rootDir, verbose),
-			checkInertiaV3(rootDir, verbose),
-		)
+		results = append(results, checkRoutesTSGenerate(rootDir, verbose))
 	}
 	return results
-}
-
-func checkInertiaV3(rootDir string, verbose bool) checkResult {
-	lock, err := layout.ReadLockFile(rootDir)
-	if err != nil || lock.ScaffoldConfig == nil || !layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
-		return checkResult{
-			name:    "Inertia v3",
-			status:  statusWarn,
-			message: "Inertia adapter configuration is unavailable",
-		}
-	}
-
-	var issues []string
-	goMod, err := os.ReadFile(filepath.Join(rootDir, "go.mod"))
-	if err != nil {
-		issues = append(issues, "cannot read go.mod: "+err.Error())
-	} else {
-		module := string(goMod)
-		if strings.Contains(module, "github.com/romsar/gonertia") {
-			issues = append(issues, "go.mod still depends on Gonertia")
-		}
-	}
-
-	packageJSON, err := os.ReadFile(filepath.Join(rootDir, "package.json"))
-	if err != nil {
-		issues = append(issues, "cannot read package.json: "+err.Error())
-	} else {
-		var manifest struct {
-			Dependencies    map[string]string `json:"dependencies"`
-			DevDependencies map[string]string `json:"devDependencies"`
-		}
-		if err := json.Unmarshal(packageJSON, &manifest); err != nil {
-			issues = append(issues, "cannot parse package.json: "+err.Error())
-		} else {
-			adapterPackage := map[string]string{
-				"vue":    "@inertiajs/vue3",
-				"react":  "@inertiajs/react",
-				"svelte": "@inertiajs/svelte",
-			}[lock.ScaffoldConfig.Inertia]
-			if version := dependencyVersion(manifest.Dependencies, manifest.DevDependencies, adapterPackage); !isMajorVersion(version, 3) {
-				issues = append(issues, fmt.Sprintf("%s must use major version 3 (found %q)", adapterPackage, version))
-			}
-			if version := dependencyVersion(manifest.Dependencies, manifest.DevDependencies, "@inertiajs/vite"); !isMajorVersion(version, 3) {
-				issues = append(issues, fmt.Sprintf("@inertiajs/vite must use major version 3 (found %q)", version))
-			}
-		}
-	}
-
-	for _, path := range []string{
-		"internal/inertia/root.templ",
-		"internal/inertia/root_templ.go",
-	} {
-		if _, err := os.Stat(filepath.Join(rootDir, filepath.FromSlash(path))); err != nil {
-			issues = append(issues, path+" is missing")
-		}
-	}
-
-	if projectUsesInertiaSSR(rootDir) {
-		runtimeName := inertiaEnvValue(rootDir, "INERTIA_SSR_RUNTIME", "node")
-		bundlePath := inertiaEnvValue(rootDir, "INERTIA_SSR_BUNDLE", "assets/dist/ssr/ssr.js")
-		runtimeURL := inertiaEnvValue(rootDir, "INERTIA_SSR_URL", defaultSSRURL)
-		nodePath, nodeErr := exec.LookPath(runtimeName)
-		if nodeErr != nil {
-			issues = append(issues, fmt.Sprintf("SSR is used but runtime %q is unavailable", runtimeName))
-		} else {
-			output, versionErr := exec.Command(nodePath, "--version").Output()
-			var major int
-			if versionErr != nil {
-				issues = append(issues, "cannot inspect Node.js version: "+versionErr.Error())
-			} else if _, scanErr := fmt.Sscanf(string(output), "v%d.", &major); scanErr != nil || major < 22 {
-				issues = append(issues, fmt.Sprintf("Inertia SSR requires Node.js 22 or newer (found %q)", strings.TrimSpace(string(output))))
-			}
-		}
-		resolvedBundle := filepath.FromSlash(bundlePath)
-		if !filepath.IsAbs(resolvedBundle) {
-			resolvedBundle = filepath.Join(rootDir, resolvedBundle)
-		}
-		if _, statErr := os.Stat(resolvedBundle); statErr != nil {
-			issues = append(issues, fmt.Sprintf("SSR bundle %s is missing; run the frontend build", bundlePath))
-		}
-		if healthErr := checkSSRRuntimeHealth(runtimeURL); healthErr != nil {
-			issues = append(issues, "SSR runtime health check failed: "+healthErr.Error())
-		}
-	}
-
-	if len(issues) == 0 {
-		return checkResult{
-			name:    "Inertia v3",
-			status:  statusPass,
-			message: "server adapter, templ root, and client packages are compatible",
-		}
-	}
-
-	details := issues
-	if !verbose {
-		details = truncateDetails(issues, 3)
-	}
-	return checkResult{
-		name:    "Inertia v3",
-		status:  statusFail,
-		message: fmt.Sprintf("%d migration issues found", len(issues)),
-		details: details,
-	}
-}
-
-func checkSSRRuntimeHealth(rawURL string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
-	endpoint := strings.TrimSuffix(rawURL, "/") + "/health"
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return fmt.Errorf("cannot configure SSR health check: %w", err)
-	}
-	request.Header.Set("Accept", "application/json")
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return fmt.Errorf("request SSR health: %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("SSR health returned HTTP %d", response.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(response.Body, 64<<10))
-	if err != nil {
-		return fmt.Errorf("read SSR health response: %w", err)
-	}
-	var health struct {
-		Status string `json:"status"`
-	}
-	if err := json.Unmarshal(body, &health); err != nil {
-		return fmt.Errorf("decode SSR health response: %w", err)
-	}
-	if !strings.EqualFold(health.Status, "ok") {
-		return fmt.Errorf("SSR runtime is not healthy")
-	}
-	return nil
-}
-
-func projectUsesInertiaSSR(rootDir string) bool {
-	if strings.EqualFold(inertiaEnvValue(rootDir, "INERTIA_SSR_ENABLED", "false"), "true") {
-		return true
-	}
-	found := false
-	_ = filepath.WalkDir(rootDir, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil || found {
-			return err
-		}
-		if entry.IsDir() {
-			if path != rootDir && (entry.Name() == "vendor" || entry.Name() == "node_modules" || strings.HasPrefix(entry.Name(), ".")) {
-				return fs.SkipDir
-			}
-			return nil
-		}
-		if filepath.Ext(path) != ".go" {
-			return nil
-		}
-		contents, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return nil
-		}
-		found = bytes.Contains(contents, []byte("inertia.WithSSR(")) || bytes.Contains(contents, []byte("inertia.WithSSR()"))
-		return nil
-	})
-	return found
-}
-
-func inertiaEnvValue(rootDir, key, fallback string) string {
-	for _, name := range []string{".env", ".env.example"} {
-		contents, err := os.ReadFile(filepath.Join(rootDir, name))
-		if err != nil {
-			continue
-		}
-		for line := range strings.Lines(string(contents)) {
-			line = strings.TrimSpace(line)
-			if value, ok := strings.CutPrefix(line, key+"="); ok {
-				value = strings.Trim(strings.TrimSpace(value), `"'`)
-				if value != "" {
-					return value
-				}
-			}
-		}
-	}
-	return fallback
-}
-
-func dependencyVersion(dependencies, devDependencies map[string]string, name string) string {
-	if version := dependencies[name]; version != "" {
-		return version
-	}
-	return devDependencies[name]
-}
-
-func isMajorVersion(version string, major int) bool {
-	version = strings.TrimSpace(version)
-	version = strings.TrimLeft(version, "^~<>=v ")
-	return strings.HasPrefix(version, fmt.Sprintf("%d.", major))
 }
 
 func projectUsesInertia(rootDir string) bool {
