@@ -10028,7 +10028,7 @@ func TestInitialDocumentUsesTemplRoot(t *testing.T) {
 	}
 	for _, want := range []string{
 		`<title inertia>testapp</title>`,
-		`<script type="application/json" data-page>`,
+		`<script data-page="app" type="application/json">`,
 		`id="app"`,
 	} {
 		if !strings.Contains(rec.Body.String(), want) {
