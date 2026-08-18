@@ -1,5 +1,10 @@
 <script lang="ts">
   import { Link{{if InertiaUsesForm .ComponentName}}, useForm{{end}} } from '@inertiajs/svelte'
+{{- if eq .ComponentName "Index"}}
+  import type { {{InertiaPayloadType}}, {{.ResourceName}}IndexProps } from '{{InertiaPayloadImportPath}}'
+{{- else if or (eq .ComponentName "Show") (eq .ComponentName "Edit")}}
+  import type { {{InertiaPayloadType}}, {{.ResourceName}}ItemProps } from '{{InertiaPayloadImportPath}}'
+{{- end}}
 {{- if InertiaComponentUsesRoutes .ComponentName}}
   import { routes } from '{{ InertiaRoutesImportPath }}'
 {{- end}}
@@ -7,15 +12,8 @@
 {{- if InertiaNeedsItem .ComponentName }}
   type RouteID = {{ InertiaRouteIDType }}
 
-  type Item = {
-    {{.IDFieldName}}: RouteID
-{{- range .Fields}}
-    {{.Name}}: {{ ReactFieldType . }}
-{{- end}}
-  }
-
-  function routeID(item: Item): RouteID {
-    return item.{{.IDFieldName}}
+  function routeID(item: {{InertiaPayloadType}}): RouteID {
+    return item.{{InertiaIDJSONName}}
   }
 {{- end}}
 {{- if eq .ComponentName "Create" }}
@@ -39,9 +37,9 @@
 {{- end}}
 
 {{- if eq .ComponentName "Index"}}
-  let { items }: { items: Item[] } = $props()
+  let { items }: {{.ResourceName}}IndexProps = $props()
 {{- else if eq .ComponentName "Show"}}
-  let { item }: { item: Item } = $props()
+  let { item }: {{.ResourceName}}ItemProps = $props()
 {{- else if eq .ComponentName "Create"}}
   const form = useForm<CreateForm>({
 {{- range .Fields}}
@@ -56,7 +54,7 @@
     $form.post({{ InertiaRouteURL "create" }})
   }
 {{- else if eq .ComponentName "Edit"}}
-  let { item }: { item: Item } = $props()
+  let { item }: {{.ResourceName}}ItemProps = $props()
 
   const form = useForm<EditForm>({
 {{- range .Fields}}
@@ -91,7 +89,7 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-cyan-400/20 bg-slate-900">
-        {#each items as item (item.{{.IDFieldName}})}
+        {#each items as item (item.{{InertiaIDJSONName}})}
           <tr class="hover:bg-slate-950">
 {{- range .Fields}}
             <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-100">{ {{- ReactDisplay . "item" -}} }</td>

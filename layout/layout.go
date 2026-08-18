@@ -393,16 +393,29 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 }
 
 var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"inertia_framework_root_html.tmpl": "assets/inertia/root.go.html",
-	"inertia_page_options.tmpl":        "internal/inertia/page_options.go",
-	"inertia_render.tmpl":              "internal/inertia/render.go",
-	"inertia_render_test.tmpl":         "internal/inertia/render_test.go",
-	"inertia_assets_routes.tmpl":       "resources/js/routes.ts",
-	"inertia_vite.tmpl":                "internal/inertia/vite.go",
+	"inertia_framework_root_templ.tmpl":    "internal/inertia/root.templ",
+	"inertia_protocol_constants.tmpl":      "internal/inertia/constants.go",
+	"inertia_protocol_errors.tmpl":         "internal/inertia/errors.go",
+	"inertia_protocol_middleware.tmpl":     "internal/inertia/middleware.go",
+	"inertia_protocol_page.tmpl":           "internal/inertia/page.go",
+	"inertia_protocol_props.tmpl":          "internal/inertia/props.go",
+	"inertia_protocol_props_resolver.tmpl": "internal/inertia/props_resolver.go",
+	"inertia_protocol_redirect.tmpl":       "internal/inertia/redirect.go",
+	"inertia_protocol_request.tmpl":        "internal/inertia/request.go",
+	"inertia_protocol_response.tmpl":       "internal/inertia/response.go",
+	"inertia_protocol_root.tmpl":           "internal/inertia/root.go",
+	"inertia_protocol_ssr.tmpl":            "internal/inertia/ssr.go",
+	"inertia_protocol_ssr_http.tmpl":       "internal/inertia/ssr_http.go",
+	"inertia_render.tmpl":                  "internal/inertia/render.go",
+	"inertia_render_test.tmpl":             "internal/inertia/render_test.go",
+	"inertia_ssr_runtime.tmpl":             "internal/inertia/ssr_runtime.go",
+	"inertia_assets_routes.tmpl":           "resources/js/routes.ts",
+	"inertia_vite.tmpl":                    "internal/inertia/vite.go",
 }
 
 var inertiaVueTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_assets_app.tmpl":                               "resources/js/app.ts",
+	"inertia_assets_ssr.tmpl":                               "resources/js/ssr.ts",
 	"inertia_assets_layouts_layout.tmpl":                    "resources/js/Layouts/Layout.vue",
 	"inertia_assets_pages_auth_confirm_email.tmpl":          "resources/js/Pages/Auth/ConfirmEmail.vue",
 	"inertia_assets_pages_auth_login.tmpl":                  "resources/js/Pages/Auth/Login.vue",
@@ -419,6 +432,7 @@ var inertiaVueTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 var inertiaReactTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_react_assets_app.tmpl":                               "resources/js/app.tsx",
+	"inertia_react_assets_ssr.tmpl":                               "resources/js/ssr.tsx",
 	"inertia_react_assets_layouts_layout.tmpl":                    "resources/js/Layouts/Layout.tsx",
 	"inertia_react_assets_pages_auth_confirm_email.tmpl":          "resources/js/Pages/Auth/ConfirmEmail.tsx",
 	"inertia_react_assets_pages_auth_login.tmpl":                  "resources/js/Pages/Auth/Login.tsx",
@@ -435,6 +449,7 @@ var inertiaReactTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 var inertiaSvelteTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_svelte_assets_app.tmpl":                               "resources/js/app.ts",
+	"inertia_svelte_assets_ssr.tmpl":                               "resources/js/ssr.ts",
 	"inertia_svelte_assets_components_flash_toasts.tmpl":           "resources/js/Components/FlashToasts.svelte",
 	"inertia_svelte_assets_layouts_layout.tmpl":                    "resources/js/Layouts/Layout.svelte",
 	"inertia_svelte_assets_pages_auth_confirm_email.tmpl":          "resources/js/Pages/Auth/ConfirmEmail.svelte",
@@ -475,21 +490,21 @@ func isStaticInertiaAssetTemplate(templateFile TmplTarget) bool {
 	return strings.HasPrefix(string(templateFile), "inertia_assets_") ||
 		strings.HasPrefix(string(templateFile), "inertia_react_assets_") ||
 		strings.HasPrefix(string(templateFile), "inertia_svelte_assets_") ||
-		templateFile == "inertia_framework_root_html.tmpl"
+		templateFile == "inertia_framework_root_templ.tmpl"
 }
 
 // GetInternalFrameworkFiles returns the internal package files expected for a project config.
 func GetInternalFrameworkFiles(config *ScaffoldConfig) []FrameworkManagedFile {
 	mappings := make(map[TmplTarget]TmplTargetPath)
 	for templateName, targetPath := range baseTemplateMappings {
-		if strings.HasPrefix(string(targetPath), "internal/") {
+		if isManagedInternalFile(templateName, targetPath) {
 			mappings[templateName] = targetPath
 		}
 	}
 
 	if config != nil && IsSupportedInertiaAdapter(config.Inertia) {
 		for templateName, targetPath := range inertiaSharedTemplateMappings {
-			if strings.HasPrefix(string(targetPath), "internal/") {
+			if isManagedInternalFile(templateName, targetPath) {
 				mappings[templateName] = targetPath
 			}
 		}
@@ -502,17 +517,28 @@ func GetInternalFrameworkFiles(config *ScaffoldConfig) []FrameworkManagedFile {
 func GetAllManagedInternalFrameworkFiles() []FrameworkManagedFile {
 	mappings := make(map[TmplTarget]TmplTargetPath)
 	for templateName, targetPath := range baseTemplateMappings {
-		if strings.HasPrefix(string(targetPath), "internal/") {
+		if isManagedInternalFile(templateName, targetPath) {
 			mappings[templateName] = targetPath
 		}
 	}
 	for templateName, targetPath := range inertiaSharedTemplateMappings {
-		if strings.HasPrefix(string(targetPath), "internal/") {
+		if isManagedInternalFile(templateName, targetPath) {
 			mappings[templateName] = targetPath
 		}
 	}
 
 	return sortedFrameworkManagedFiles(mappings)
+}
+
+// isManagedInternalFile reports whether a template maps to an internal package
+// file that upgrades own. Test files are generated on project creation but are
+// not part of the upgrade-managed surface.
+func isManagedInternalFile(templateName TmplTarget, targetPath TmplTargetPath) bool {
+	if templateName == "inertia_framework_root_templ.tmpl" {
+		return false
+	}
+	return strings.HasPrefix(string(targetPath), "internal/") &&
+		!strings.HasSuffix(string(targetPath), "_test.go")
 }
 
 func sortedFrameworkManagedFiles(mappings map[TmplTarget]TmplTargetPath) []FrameworkManagedFile {

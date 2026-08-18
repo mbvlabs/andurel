@@ -105,7 +105,7 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
 			return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
-		return c.renderer.Redirect(etx, routes.ConfirmationNew.URL())
+		return c.renderer.Redirect(etx, routes.ConfirmationNew.URL(), http.StatusSeeOther)
 	}
 
 	if err := cookies.CreateAppSession(etx, user); err != nil {

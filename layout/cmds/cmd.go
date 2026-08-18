@@ -83,7 +83,7 @@ func RunTemplGenerate(targetDir string) error {
 		"github.com/a-h/templ/cmd/templ@"+versions.Templ,
 		"generate",
 		"-path",
-		"./views",
+		".",
 	)
 	cmd.Dir = absTargetDir
 	return cmd.Run()

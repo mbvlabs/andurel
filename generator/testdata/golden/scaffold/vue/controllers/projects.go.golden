@@ -98,11 +98,19 @@ func (p Projects) RegisterRoutes(r *router.Router) error {
 }
 
 type ProjectData struct {
-	ID        uuid.UUID
-	Title     string
-	Status    string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        uuid.UUID `json:"id"`
+	Title     string    `json:"title"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type ProjectIndexProps struct {
+	Items []ProjectData `json:"items"`
+}
+
+type ProjectItemProps struct {
+	Item ProjectData `json:"item"`
 }
 
 func newProjectData(entity models.ProjectEntity) ProjectData {
@@ -150,9 +158,13 @@ func (p Projects) Index(etx *echo.Context) error {
 		return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
-	return p.renderer.Page(etx, "Project/Index", inertia.Props{
-		"items": newProjectDataList(projectsList.Projects),
-	})
+	return p.renderer.Page(
+		etx,
+		"Project/Index",
+		inertia.FromStruct(ProjectIndexProps{
+			Items: newProjectDataList(projectsList.Projects),
+		}),
+	)
 }
 
 func (p Projects) Show(etx *echo.Context) error {
@@ -166,9 +178,13 @@ func (p Projects) Show(etx *echo.Context) error {
 		return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
 
-	return p.renderer.Page(etx, "Project/Show", inertia.Props{
-		"item": newProjectData(project),
-	})
+	return p.renderer.Page(
+		etx,
+		"Project/Show",
+		inertia.FromStruct(ProjectItemProps{
+			Item: newProjectData(project),
+		}),
+	)
 }
 
 func (p Projects) New(etx *echo.Context) error {
@@ -229,9 +245,13 @@ func (p Projects) Edit(etx *echo.Context) error {
 		return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
 
-	return p.renderer.Page(etx, "Project/Edit", inertia.Props{
-		"item": newProjectData(project),
-	})
+	return p.renderer.Page(
+		etx,
+		"Project/Edit",
+		inertia.FromStruct(ProjectItemProps{
+			Item: newProjectData(project),
+		}),
+	)
 }
 
 type UpdateProjectFormPayload struct {

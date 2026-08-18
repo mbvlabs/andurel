@@ -1513,6 +1513,7 @@ type GeneratedView struct {
 	ModulePath       string
 	IDType           string // "uuid.UUID", "int32", "int64", "string"
 	IDFieldName      string
+	IDJSONName       string
 	Actions          []string
 	AvailableActions []string
 }

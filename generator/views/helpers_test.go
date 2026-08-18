@@ -106,20 +106,20 @@ func TestInertiaReactAndViewReferenceHelpers(t *testing.T) {
 			t.Fatalf("input value = %q, want %q", got, test.inputValue)
 		}
 	}
-	if got := inertiaReactEditValue(fields[0].field); got != "Boolean(item.Active)" {
+	if got := inertiaReactEditValue(fields[0].field); got != "Boolean(item.active)" {
 		t.Fatalf("boolean edit value = %q", got)
 	}
-	if got := inertiaReactEditValue(fields[1].field); got != "Number(item.Count ?? 0)" {
+	if got := inertiaReactEditValue(fields[1].field); got != "Number(item.count ?? 0)" {
 		t.Fatalf("number edit value = %q", got)
 	}
 	date := ViewField{Name: "DueAt", GoFormType: "string", InputType: "date"}
 	if got := inertiaReactEditValue(date); !strings.HasSuffix(got, ".slice(0, 10)") {
 		t.Fatalf("date edit value = %q", got)
 	}
-	if got := inertiaReactDisplay(fields[0].field, "row"); got != "row.Active ? 'Yes' : 'No'" {
+	if got := inertiaReactDisplay(fields[0].field, "row"); got != "row.active ? 'Yes' : 'No'" {
 		t.Fatalf("boolean display = %q", got)
 	}
-	if got := inertiaReactDisplay(fields[2].field, "row"); got != "row.Name" {
+	if got := inertiaReactDisplay(fields[2].field, "row"); got != "row.name" {
 		t.Fatalf("string display = %q", got)
 	}
 

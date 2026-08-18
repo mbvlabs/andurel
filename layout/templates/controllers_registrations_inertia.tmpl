@@ -103,8 +103,8 @@ func (r Registrations) Create(etx *echo.Context) error {
 			return r.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
 
-		return r.renderer.Redirect(etx, routes.RegistrationNew.URL())
+		return r.renderer.Redirect(etx, routes.RegistrationNew.URL(), http.StatusSeeOther)
 	}
 
-	return r.renderer.Redirect(etx, routes.ConfirmationNew.URL())
+	return r.renderer.Redirect(etx, routes.ConfirmationNew.URL(), http.StatusSeeOther)
 }

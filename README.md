@@ -57,7 +57,7 @@ The core philosophy around resource generation in andurel, is that it should be 
 - **[PostgreSQL](https://www.postgresql.org/)** - Powerful open-source database with pgx driver and native UUID support
 - **[Shadowfax](https://github.com/mbvlabs/shadowfax)** - Andurel-specific app runner
 - **[go.uber.org/fx](https://uber-go.github.io/fx/)** - Dependency injection framework
-- **[gonertia](https://github.com/romsar/gonertia)** - Inertia.js Go adapter (optional, `--inertia vue`, `--inertia react`, or `--inertia svelte`; append `/npm`, `/pnpm`, `/bun`, or `/yarn` to set JS runtime)
+- **[Andurel Inertia](./docs/inertia-v3.md)** - Echo-native Inertia.js v3 server adapter with a templ root document (optional, `--inertia vue`, `--inertia react`, or `--inertia svelte`; append `/npm`, `/pnpm`, `/bun`, or `/yarn` to set JS runtime)
 - **[Vue.js](https://vuejs.org/) / [React](https://react.dev/) / [Svelte](https://svelte.dev/)** - JavaScript UI adapters (optional, via Inertia)
 - **[Vite](https://vitejs.dev/)** - Next-generation frontend build tool (optional, via Inertia)
 
@@ -826,14 +826,12 @@ myapp/
 │       └── Pages/                 # .vue, .tsx, or .svelte pages
 │           ├── Auth/              # Login, registration, email confirmation, password reset
 │           └── Errors/            # Bad request, not found, internal error
-├── assets/
-│   └── inertia/
-│       └── root.go.html         # Embedded Inertia root HTML shell
 ├── views/
 │   └── welcome.templ            # Server-rendered welcome page
 ├── internal/
 │   └── inertia/
-│       ├── render.go            # Inertia response helpers
+│       ├── render.go            # Application facade over Andurel Inertia
+│       ├── root.templ           # Application-owned initial document
 │       └── vite.go              # Vite dev/prod manifest resolver
 ├── vite.config.ts
 ├── svelte.config.js            # Svelte projects only
@@ -841,7 +839,7 @@ myapp/
 ├── tsconfig.json
 ```
 
-The auth and default error pages use Inertia, while `controllers/pages.go` keeps the welcome page server-rendered with Templ. `cmd/app/main.go` provides one `*inertia.Renderer` through Fx using `inertia/root.go.html` from the embedded `assets` filesystem, then injects it into the router and Inertia controllers. Edit `assets/inertia/root.go.html` to customize the shell; regular Go builds, Docker builds, and `andurel build` include it in the application binary. Run the configured package manager's install command after scaffolding (the `andurel new` output shows the right command based on the configured runtime). Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia resource pages (reads the adapter from `andurel.lock`).
+The auth and default error pages use Inertia, while `controllers/pages.go` keeps the welcome page server-rendered with Templ. `cmd/app/main.go` provides one `*inertia.Renderer` through Fx, then injects it into the router and Inertia controllers. Edit `internal/inertia/root.templ` to customize the initial document; it safely composes the encoded page script, optional SSR head/body, and Vite assets. Run the configured package manager's install command after scaffolding (the `andurel new` output shows the right command based on the configured runtime). Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia resource pages (reads the adapter from `andurel.lock`).
 
 When using `--inertia vue`, `--inertia react`, or `--inertia svelte`, controllers can render Inertia pages alongside Templ.
 

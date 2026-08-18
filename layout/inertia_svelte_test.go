@@ -24,8 +24,8 @@ func TestScaffoldSvelteInertiaAssets(t *testing.T) {
 		"resources/js/routes.ts":                              "sessionCreate: () => '/users/sign-in'",
 		"internal/inertia/render.go":                          "package inertia",
 		"internal/inertia/vite.go":                            `manifest["resources/js/app.ts"]`,
-		"assets/inertia/root.go.html":                         `{{ .inertia }}`,
-		"package.json":                                        `"@inertiajs/svelte": "^2.0.0"`,
+		"internal/inertia/root.templ":                         `@PageScript(data.ContainerID, data.PageJSON)`,
+		"package.json":                                        `"@inertiajs/svelte": "^3.6.1"`,
 		"svelte.config.js":                                    "vitePreprocess()",
 		"tsconfig.json":                                       `"resources/js/**/*.svelte"`,
 		"vite.config.ts":                                      "input: 'resources/js/app.ts'",
@@ -35,8 +35,8 @@ func TestScaffoldSvelteInertiaAssets(t *testing.T) {
 
 	assertFileContains(t, projectDir, "package.json", `"type": "module"`)
 	assertFileContains(t, projectDir, "package.json", `"svelte": "^5.0.0"`)
-	assertFileContains(t, projectDir, "package.json", `"@sveltejs/vite-plugin-svelte": "^5.0.0"`)
-	assertFileContains(t, projectDir, "tsconfig.json", `"types": ["vite/client"]`)
+	assertFileContains(t, projectDir, "package.json", `"@sveltejs/vite-plugin-svelte": "^6.0.0"`)
+	assertFileContains(t, projectDir, "tsconfig.json", `"types": ["vite/client", "node"]`)
 	assertFileNotContains(t, projectDir, "package.json", "@inertiajs/vue3")
 	assertFileNotContains(t, projectDir, "package.json", "@inertiajs/react")
 	assertFileMissing(t, projectDir, "resources/js/app.tsx")

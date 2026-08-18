@@ -305,14 +305,17 @@ func TestVersionedInertiaUpgradeEmbedsExistingRoot(t *testing.T) {
 
 	renderer := string(mustReadProjectFile(t, root, "internal/inertia/render.go"))
 	for _, snippet := range []string{
-		"type Renderer struct",
+		"func New(",
 		"assetFS fs.FS",
-		"fs.ReadFile(assetFS, rootPath)",
-		"gonertia.NewFromBytes(rootHTML, opts...)",
+		"initVite(assetFS, environment, buildPathURL)",
 	} {
 		if !strings.Contains(renderer, snippet) {
 			t.Fatalf("managed inertia renderer missing %q:\n%s", snippet, renderer)
 		}
+	}
+	response := string(mustReadProjectFile(t, root, "internal/inertia/response.go"))
+	if !strings.Contains(response, "type Renderer struct") {
+		t.Fatalf("managed inertia protocol missing Renderer:\n%s", response)
 	}
 	if strings.Contains(renderer, "andurel.lock") {
 		t.Fatalf("managed inertia renderer still reads andurel.lock:\n%s", renderer)

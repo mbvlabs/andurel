@@ -895,7 +895,9 @@ func TestGenerateControllerSingleCRUDActionVueGeneratesInertiaController(t *test
 
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/inertia")
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "renderer *inertia.Renderer")
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return pi.renderer.Page(etx, "ProjectInquiry/Show"`)
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return pi.renderer.Page(`)
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `"ProjectInquiry/Show",`)
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "inertia.FromStruct(ProjectInquiryItemProps{")
 	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/hypermedia")
 	assertCLITestFileExists(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.vue"))
 	assertCLITestFileMissing(t, rootDir, "views/project_inquiries_resource.templ")
@@ -923,7 +925,9 @@ func TestGenerateControllerSingleCRUDActionReactGeneratesInertiaController(t *te
 
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/inertia")
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "renderer *inertia.Renderer")
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return pi.renderer.Page(etx, "ProjectInquiry/Show"`)
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return pi.renderer.Page(`)
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `"ProjectInquiry/Show",`)
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "inertia.FromStruct(ProjectInquiryItemProps{")
 	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/hypermedia")
 	assertCLITestFileExists(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.tsx"))
 	assertCLITestFileMissing(t, rootDir, "views/project_inquiries_resource.templ")

@@ -13,6 +13,7 @@ import (
 	"{{.ModuleName}}/config"
 {{- if .Inertia}}
 	"{{.ModuleName}}/internal/inertia"
+	"{{.ModuleName}}/internal/request"
 {{- end}}
 	"{{.ModuleName}}/internal/server"
 	"{{.ModuleName}}/router/cookies"
@@ -130,6 +131,14 @@ func SetupGlobalMiddleware(
 	if err != nil {
 		return nil, err
 	}
+	{{- if .Inertia}}
+	if err := renderer.SetReflashHandler(func(etx *echo.Context) error {
+		flashes := request.ExtractContext[[]cookies.FlashMessage](etx.Request().Context(), request.SessionFlashesKey)
+		return cookies.Reflash(etx, flashes)
+	}); err != nil {
+		return nil, err
+	}
+	{{- end}}
 
 	// Order matters: middlewares execute in the order listed, with Recover last
 	// to catch panics from all preceding middlewares.
@@ -138,10 +147,10 @@ func SetupGlobalMiddleware(
 		middleware.Logger(tel),
 		session.Middleware(sessionStore),
 		middleware.ValidateSession,
-		middleware.RegisterRequestMeta,
 {{- if .Inertia}}
 		renderer.Middleware(),
 {{- end}}
+		middleware.RegisterRequestMeta,
 		echomw.CORSWithConfig(corsConfig),
 		csrfMiddleware,
 		echomw.Recover(),

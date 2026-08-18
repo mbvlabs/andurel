@@ -7,6 +7,42 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 )
 
+func TestInertiaTypeScriptDeclarationsUseBackendJSONShape(t *testing.T) {
+	view := &GeneratedView{
+		ResourceName:    "AuditLog",
+		Namespace:       "admin",
+		NamespacePascal: "Admin",
+		IDType:          "uuid.UUID",
+		IDFieldName:     "AuditID",
+		IDJSONName:      "auditId",
+		Fields: []ViewField{
+			{Name: "DisplayName", CamelCase: "displayName", GoType: "string"},
+			{Name: "AttemptCount", CamelCase: "attemptCount", GoType: "int64"},
+			{Name: "Enabled", CamelCase: "enabled", GoType: "bool"},
+			{Name: "CreatedAt", CamelCase: "createdAt", GoType: "time.Time"},
+		},
+	}
+
+	declaration := inertiaTypeScriptDeclarations(view)
+	for _, want := range []string{
+		"export type AdminAuditLogData",
+		"auditId: string",
+		"displayName: string",
+		"attemptCount: number",
+		"enabled: boolean",
+		"createdAt: string",
+		"items: AdminAuditLogData[]",
+		"item: AdminAuditLogData",
+	} {
+		if !strings.Contains(declaration, want) {
+			t.Fatalf("declaration missing %q:\n%s", want, declaration)
+		}
+	}
+	if got, want := inertiaPayloadImportPath(view), "@/types/admin_audit_log"; got != want {
+		t.Fatalf("inertiaPayloadImportPath = %q, want %q", got, want)
+	}
+}
+
 func TestBuildViewField_StringConverter(t *testing.T) {
 	tests := []struct {
 		name                    string
@@ -335,11 +371,9 @@ func TestGenerateInertiaViewFiles_ReactResourceTypesAndInputs(t *testing.T) {
 	for _, want := range []string{
 		"import { Link } from '@inertiajs/react'",
 		"import { routes } from '@/routes'",
-		"type Item = {",
-		"ID: RouteID",
-		"Quantity: number",
-		"Active: boolean",
-		"{item.Active ? 'Yes' : 'No'}",
+		"import type { WidgetData, WidgetIndexProps } from '@/types/widget'",
+		"function routeID(item: WidgetData): RouteID",
+		"{item.active ? 'Yes' : 'No'}",
 	} {
 		if !strings.Contains(index, want) {
 			t.Fatalf("Index.tsx missing %q:\n%s", want, index)
@@ -375,8 +409,8 @@ func TestGenerateInertiaViewFiles_ReactResourceTypesAndInputs(t *testing.T) {
 	edit := files["Edit.tsx"]
 	for _, want := range []string{
 		"type EditForm = {",
-		"quantity: Number(item.Quantity ?? 0),",
-		"publishedOn: String(item.PublishedOn ?? '').slice(0, 10),",
+		"quantity: Number(item.quantity ?? 0),",
+		"publishedOn: String(item.publishedOn ?? '').slice(0, 10),",
 		"form.setData('quantity', Number(event.currentTarget.value))",
 	} {
 		if !strings.Contains(edit, want) {
@@ -385,6 +419,41 @@ func TestGenerateInertiaViewFiles_ReactResourceTypesAndInputs(t *testing.T) {
 	}
 	if strings.Contains(edit, "FormEvent") || strings.Contains(edit, "<>") {
 		t.Fatalf("Edit.tsx contains deprecated event type or root fragment:\n%s", edit)
+	}
+}
+
+func TestGenerateInertiaViewFiles_VueResourceTypesAndInputs(t *testing.T) {
+	generator := NewGenerator("postgresql")
+	view := &GeneratedView{
+		ResourceName: "Widget",
+		PluralName:   "widgets",
+		ModulePath:   "github.com/example/myapp",
+		IDType:       "uuid.UUID",
+		IDFieldName:  "ID",
+		Fields: []ViewField{
+			{Name: "Name", GoFormType: "string", InputType: "text", CamelCase: "name"},
+			{Name: "Quantity", GoFormType: "int32", InputType: "number", CamelCase: "quantity"},
+			{Name: "Active", GoFormType: "bool", InputType: "checkbox", CamelCase: "active"},
+			{Name: "PublishedOn", GoFormType: "time.Time", InputType: "date", CamelCase: "publishedOn"},
+		},
+	}
+
+	files, err := generator.GenerateInertiaViewFiles(view, "inertia_vue_", ".vue")
+	if err != nil {
+		t.Fatalf("GenerateInertiaViewFiles returned error: %v", err)
+	}
+	assertContainsAll(t, files["Create.vue"], []string{
+		"quantity: 0 as number",
+		"active: false as boolean",
+		"publishedOn: '' as string",
+	})
+	assertContainsAll(t, files["Edit.vue"], []string{
+		"quantity: Number(props.item.quantity ?? 0) as number",
+		"active: Boolean(props.item.active) as boolean",
+		"publishedOn: String(props.item.publishedOn ?? '').slice(0, 10) as string",
+	})
+	if strings.Contains(files["Create.vue"], "time.Time") || strings.Contains(files["Edit.vue"], "time.Time") {
+		t.Fatal("Vue resource form leaked a Go time.Time type")
 	}
 }
 
@@ -411,11 +480,10 @@ func TestGenerateInertiaViewFiles_SvelteResourceTypesAndInputs(t *testing.T) {
 
 	assertContainsAll(t, files["Index.svelte"], []string{
 		"import { Link } from '@inertiajs/svelte'",
+		"import type { WidgetData, WidgetIndexProps } from '@/types/widget'",
 		"type RouteID = string",
-		"type Item = {",
-		"Quantity: number",
-		"Active: boolean",
-		"{item.Active ? 'Yes' : 'No'}",
+		"function routeID(item: WidgetData): RouteID",
+		"{item.active ? 'Yes' : 'No'}",
 	})
 	assertContainsAll(t, files["Create.svelte"], []string{
 		"import { Link, useForm } from '@inertiajs/svelte'",
@@ -431,8 +499,8 @@ func TestGenerateInertiaViewFiles_SvelteResourceTypesAndInputs(t *testing.T) {
 	})
 	assertContainsAll(t, files["Edit.svelte"], []string{
 		"type EditForm = {",
-		"quantity: Number(item.Quantity ?? 0),",
-		"publishedOn: String(item.PublishedOn ?? '').slice(0, 10),",
+		"quantity: Number(item.quantity ?? 0),",
+		"publishedOn: String(item.publishedOn ?? '').slice(0, 10),",
 		"$form.put(routes.widgetUpdate(routeID(item)))",
 	})
 	for name, content := range files {

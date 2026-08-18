@@ -66,7 +66,7 @@ func TestRunCommands(t *testing.T) {
 			return RunGoFmtPath(dir, "./models")
 		}},
 		{name: "golines", command: []string{"golines", "-w", "-m", "100", "."}, run: RunGolines},
-		{name: "templ generate", command: []string{"go", "run", "github.com/a-h/templ/cmd/templ@" + versions.Templ, "generate", "-path", "./views"}, run: RunTemplGenerate},
+		{name: "templ generate", command: []string{"go", "run", "github.com/a-h/templ/cmd/templ@" + versions.Templ, "generate", "-path", "."}, run: RunTemplGenerate},
 		{name: "templ fmt", command: []string{"go", "run", "github.com/a-h/templ/cmd/templ@" + versions.Templ, "fmt", "views"}, run: RunTemplFmt},
 		{name: "goose fix", command: []string{"go", "run", "github.com/pressly/goose/v3/cmd/goose@" + versions.Goose, "-dir", "database/migrations", "fix"}, run: RunGooseFix},
 	}
@@ -124,7 +124,7 @@ func TestRunCommandErrors(t *testing.T) {
 			t.Fatal("expected golines failure")
 		}
 
-		expectCommand(t, "go", "run", "github.com/a-h/templ/cmd/templ@"+versions.Templ, "generate", "./views")
+		expectCommand(t, "go", "run", "github.com/a-h/templ/cmd/templ@"+versions.Templ, "generate", "-path", ".")
 		if err := RunTemplGenerate(targetDir); err == nil {
 			t.Fatal("expected templ generate failure")
 		}

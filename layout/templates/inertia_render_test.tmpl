@@ -3,7 +3,6 @@ package inertia
 import (
 	"context"
 	"encoding/json"
-	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,21 +14,18 @@ import (
 
 type flashContextKey struct{}
 
-func TestRendererPageIncludesRequestProps(t *testing.T) {
+func TestRendererPageIncludesRequestFlash(t *testing.T) {
 	renderer, err := New(
-		fstest.MapFS{
-			"inertia/root.go.html": &fstest.MapFile{Data: []byte(`<main>{{"{{"}} .inertia {{"}}"}}</main>`)},
-		},
-		"inertia/root.go.html",
+		fstest.MapFS{},
 		"testapp",
 		"testing",
 		"/assets/dist/123/*",
-		WithRequestProps(func(ctx context.Context) Props {
+		WithRequestFlash(func(ctx context.Context) any {
 			flashes, _ := ctx.Value(flashContextKey{}).([]string)
 			if len(flashes) == 0 {
 				return nil
 			}
-			return Props{"flash": flashes}
+			return flashes
 		}),
 	)
 	if err != nil {
@@ -49,21 +45,22 @@ func TestRendererPageIncludesRequestProps(t *testing.T) {
 
 	var page struct {
 		Props map[string]json.RawMessage `json:"props"`
+		Flash json.RawMessage            `json:"flash"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
 		t.Fatalf("decode page: %v", err)
 	}
-	if got := string(page.Props["flash"]); got != `["saved"]` {
-		t.Fatalf("flash prop = %s, want %s", got, `["saved"]`)
+	if _, ok := page.Props["flash"]; ok {
+		t.Fatalf("flash was emitted as a page prop: %s", rec.Body.String())
+	}
+	if got := string(page.Flash); got != `["saved"]` {
+		t.Fatalf("page flash = %s, want %s", got, `["saved"]`)
 	}
 }
 
 func TestRendererOmitsEmptyRequestProps(t *testing.T) {
 	renderer, err := New(
-		fstest.MapFS{
-			"inertia/root.go.html": &fstest.MapFile{Data: []byte(`<main>{{"{{"}} .inertia {{"}}"}}</main>`)},
-		},
-		"inertia/root.go.html",
+		fstest.MapFS{},
 		"testapp",
 		"testing",
 		"/assets/dist/123/*",
@@ -94,6 +91,31 @@ func TestRendererOmitsEmptyRequestProps(t *testing.T) {
 	}
 }
 
+func TestInitialDocumentUsesTemplRoot(t *testing.T) {
+	renderer, err := New(fstest.MapFS{}, "testapp", "testing", "/assets/dist/123/*")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/account", nil)
+	rec := httptest.NewRecorder()
+	etx := e.NewContext(req, rec)
+
+	if err := renderer.Page(etx, "Account/Show", Props{"name": "Ada"}); err != nil {
+		t.Fatalf("Page: %v", err)
+	}
+	for _, want := range []string{
+		`<title inertia>testapp</title>`,
+		`<script data-page="app" type="application/json">`,
+		`id="app"`,
+	} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("initial document missing %q: %s", want, rec.Body.String())
+		}
+	}
+}
+
 func TestInitViteUsesInjectedFilesystemAndBuildPath(t *testing.T) {
 	assetFS := fstest.MapFS{
 		"dist/vite/manifest.json": &fstest.MapFile{Data: []byte(`{
@@ -115,18 +137,5 @@ func TestInitViteUsesInjectedFilesystemAndBuildPath(t *testing.T) {
 	}
 	if !strings.Contains(string(tags.ViteBody), `src="/assets/dist/123/app.js"`) {
 		t.Fatalf("ViteBody = %q", tags.ViteBody)
-	}
-}
-
-func TestRendererReportsMissingRoot(t *testing.T) {
-	_, err := New(fstest.MapFS{}, "inertia/root.go.html", "testapp", "testing", "/assets/dist/123/*")
-	if err == nil {
-		t.Fatal("New returned nil error")
-	}
-	if !strings.Contains(err.Error(), "add it at assets/inertia/root.go.html and rebuild") {
-		t.Fatalf("New error = %q", err)
-	}
-	if !strings.Contains(err.Error(), fs.ErrNotExist.Error()) && !strings.Contains(err.Error(), "not found") {
-		t.Fatalf("New error does not describe a missing file: %q", err)
 	}
 }

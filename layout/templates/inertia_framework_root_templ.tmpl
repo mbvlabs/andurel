@@ -1,0 +1,29 @@
+package inertia
+
+import (
+	"html/template"
+)
+
+// Root is the application-owned initial Inertia document. Customize it to add
+// metadata, fonts, analytics, or other application-wide document elements.
+templ Root(data RootData, appName string, viteHead template.HTML, viteBody template.HTML) {
+	<!DOCTYPE html>
+	<html lang="en" class="dark">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title inertia>{ appName }</title>
+			@SSRHead(data.SSR)
+			@templ.Raw(string(viteHead))
+		</head>
+		<body class="bg-slate-950 text-slate-100">
+			if data.SSR != nil {
+				@SSRBody(data.SSR)
+			} else {
+				@PageScript(data.ContainerID, data.PageJSON)
+				@AppMount(data.ContainerID)
+			}
+			@templ.Raw(string(viteBody))
+		</body>
+	</html>
+}
