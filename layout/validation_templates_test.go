@@ -14,7 +14,7 @@ import (
 
 func TestGeneratedValidationBehavior(t *testing.T) {
 	projectDir := t.TempDir()
-	validationDir := filepath.Join(projectDir, "internal", "validation")
+	validationDir := filepath.Join(projectDir, "pkg", "validation")
 	if err := os.MkdirAll(validationDir, 0o755); err != nil {
 		t.Fatalf("create validation directory: %v", err)
 	}
@@ -35,7 +35,7 @@ func TestGeneratedValidationBehavior(t *testing.T) {
 		generatedValidationTests,
 	)
 
-	cmd := exec.Command("go", "test", "./internal/validation")
+	cmd := exec.Command("go", "test", "./pkg/validation")
 	cmd.Dir = projectDir
 	cmd.Env = append(os.Environ(), "GOWORK=off", "GOCACHE="+filepath.Join(projectDir, ".gocache"))
 	output, err := cmd.CombinedOutput()

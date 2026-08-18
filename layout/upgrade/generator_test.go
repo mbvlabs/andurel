@@ -69,9 +69,9 @@ func TestGetFrameworkTemplates_IncludesAllExpectedInternalPackages(t *testing.T)
 		"internal/server/server.go",
 		"internal/storage/psql.go",
 		"internal/storage/queue.go",
-		"internal/validation/helpers.go",
-		"internal/validation/rules.go",
-		"internal/validation/validation.go",
+		"pkg/validation/helpers.go",
+		"pkg/validation/rules.go",
+		"pkg/validation/validation.go",
 	}
 
 	for _, path := range required {
@@ -103,17 +103,17 @@ func TestRenderFrameworkTemplates_PreservesValidationRuleAPI(t *testing.T) {
 	}
 
 	expected := map[string][]string{
-		"internal/validation/validation.go": {
+		"pkg/validation/validation.go": {
 			"type Rules map[string][]Rule",
 			"func (b *ValidationBuilder) AddRule(",
 			"func (b *ValidationBuilder) Rules() Rules",
 		},
-		"internal/validation/rules.go": {
+		"pkg/validation/rules.go": {
 			"func (b *ValidationBuilder) RecommendedLenBetween(",
 			"func (b *ValidationBuilder) MinInt(",
 			"func (b *ValidationBuilder) MaxInt(",
 		},
-		"internal/validation/helpers.go": {
+		"pkg/validation/helpers.go": {
 			"case *sql.NullInt32:",
 			"func intValue(",
 		},
