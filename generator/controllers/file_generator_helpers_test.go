@@ -60,7 +60,7 @@ func TestControllerFrontendActionsAndRegistrationHelpers(t *testing.T) {
 	if got := detectControllerFrontend(`import "example.com/internal/inertia"`); got != controllerFrontendInertia {
 		t.Fatalf("inertia frontend = %q", got)
 	}
-	if got := detectControllerFrontend(`import "example.com/internal/hypermedia"`); got != controllerFrontendTempl {
+	if got := detectControllerFrontend(`import "example.com/pkg/hypermedia"`); got != controllerFrontendTempl {
 		t.Fatalf("templ frontend = %q", got)
 	}
 	if got := detectControllerFrontend("package controllers"); got != controllerFrontendUnknown {

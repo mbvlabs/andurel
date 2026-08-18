@@ -7,7 +7,7 @@ package views
 import (
 	"fmt"
 {{ViewDataImports .Fields}}	{{if UsesPackage .Fields "strings"}}"strings"
-	{{end}}	"{{.ModulePath}}/internal/hypermedia"
+	{{end}}	"{{.ModulePath}}/pkg/hypermedia"
 	"{{.ModulePath}}/models"
 )
 {{ViewData .}}
