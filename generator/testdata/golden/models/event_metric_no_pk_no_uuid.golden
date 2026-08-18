@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/example/shop/internal/storage"
-	"github.com/example/shop/internal/validation"
+	"github.com/example/shop/pkg/validation"
 	"github.com/uptrace/bun"
 )
 

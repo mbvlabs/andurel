@@ -251,7 +251,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	if model.Mode != ModelModeReadOnly {
 		importSet["errors"] = true
 		if config.ModulePath != "" {
-			importSet[config.ModulePath+"/internal/validation"] = true
+			importSet[config.ModulePath+"/pkg/validation"] = true
 		}
 	}
 	if model.HasPrimaryKey && model.Mode != ModelModeCreateOnly {

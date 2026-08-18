@@ -278,9 +278,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"framework_elements_hypermedia_helpers.tmpl":     "internal/hypermedia/helpers.go",
 
 	// Validation
-	"framework_elements_validation_validation.tmpl": "internal/validation/validation.go",
-	"framework_elements_validation_rules.tmpl":      "internal/validation/rules.go",
-	"framework_elements_validation_helpers.tmpl":    "internal/validation/helpers.go",
+	"framework_elements_validation_validation.tmpl": "pkg/validation/validation.go",
+	"framework_elements_validation_rules.tmpl":      "pkg/validation/rules.go",
+	"framework_elements_validation_helpers.tmpl":    "pkg/validation/helpers.go",
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
@@ -537,7 +537,7 @@ func isManagedInternalFile(templateName TmplTarget, targetPath TmplTargetPath) b
 	if templateName == "inertia_framework_root_templ.tmpl" {
 		return false
 	}
-	return strings.HasPrefix(string(targetPath), "internal/") &&
+	return (strings.HasPrefix(string(targetPath), "internal/") || strings.HasPrefix(string(targetPath), "pkg/")) &&
 		!strings.HasSuffix(string(targetPath), "_test.go")
 }
 
