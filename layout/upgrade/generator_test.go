@@ -62,8 +62,8 @@ func TestGetFrameworkTemplates_IncludesAllExpectedInternalPackages(t *testing.T)
 	}
 
 	required := []string{
-		"internal/request/context.go",
-		"internal/request/request.go",
+		"pkg/request/context.go",
+		"pkg/request/request.go",
 		"internal/routing/definitions.go",
 		"internal/routing/routes.go",
 		"internal/server/server.go",

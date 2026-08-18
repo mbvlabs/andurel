@@ -70,7 +70,7 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	for _, forbiddenImport := range []string{
 		`"testapp/assets"`,
 		`"testapp/config"`,
-		`"testapp/internal/request"`,
+		`"testapp/pkg/request"`,
 		`"testapp/router/cookies"`,
 		`"testapp/router/routes"`,
 	} {
