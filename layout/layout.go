@@ -261,8 +261,8 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"readme.tmpl":    "README.md",
 
 	// Core files
-	"framework_elements_request_context.tmpl":        "internal/request/context.go",
-	"framework_elements_request_request.tmpl":        "internal/request/request.go",
+	"framework_elements_request_context.tmpl":        "pkg/request/context.go",
+	"framework_elements_request_request.tmpl":        "pkg/request/request.go",
 	"framework_elements_routing_definitions.tmpl":    "internal/routing/definitions.go",
 	"framework_elements_routing_routes.tmpl":         "internal/routing/routes.go",
 	"framework_elements_server_server.tmpl":          "internal/server/server.go",
