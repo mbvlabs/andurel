@@ -31,7 +31,7 @@ func TestUpgradePresentationRestoresProgressiveHumanOutput(t *testing.T) {
 		FromVersion:         "v1.0.0",
 		ToVersion:           "v1.0.1",
 		FilesReplaced:       2,
-		ReplacedFiles:       []string{"pkg/request/context.go", "internal/server/server.go"},
+		ReplacedFiles:       []string{"pkg/request/context.go", "pkg/server/server.go"},
 		ToolsUpdated:        1,
 		UpdatedTools:        []string{"shadowfax: v0.8.4"},
 		ToolMetadataChanges: []string{"templ metadata"},
@@ -68,7 +68,7 @@ func TestUpgradeDryRunPresentationOmitsEmptySections(t *testing.T) {
 	report := &UpgradeReport{
 		FromVersion:   "v1.0.0",
 		ToVersion:     "v1.0.1",
-		ReplacedFiles: []string{"internal/server/server.go"},
+		ReplacedFiles: []string{"pkg/server/server.go"},
 	}
 	var output bytes.Buffer
 	printUpgradeDryRun(&output, report)
@@ -76,7 +76,7 @@ func TestUpgradeDryRunPresentationOmitsEmptySections(t *testing.T) {
 	for _, want := range []string{
 		"[DRY RUN] No files will be changed.",
 		"Would replace framework files:",
-		"internal/server/server.go",
+		"pkg/server/server.go",
 		"Would update andurel.lock",
 	} {
 		if !strings.Contains(got, want) {
@@ -151,7 +151,7 @@ func TestFrameworkDriftPresentation(t *testing.T) {
 
 	report := &UpgradeReport{
 		ToVersion:     "v1.0.1",
-		ReplacedFiles: []string{"internal/server/server.go"},
+		ReplacedFiles: []string{"pkg/server/server.go"},
 		RemovedFiles:  []string{"internal/example/obsolete.go"},
 		DirtyWorktree: true,
 	}
@@ -161,7 +161,7 @@ func TestFrameworkDriftPresentation(t *testing.T) {
 	for _, want := range []string{
 		"Project is already at version v1.0.1.",
 		"Unexpected changes were found in framework-owned files:",
-		"internal/server/server.go",
+		"pkg/server/server.go",
 		"internal/example/obsolete.go (obsolete)",
 		"Commit or stash your changes before restoring these files.",
 	} {
@@ -222,7 +222,7 @@ func TestUpgradePresentationStopsAfterWriterFailure(t *testing.T) {
 	printUpgradeSuccess(writer, &UpgradeReport{
 		FromVersion:   "v1.0.0",
 		ToVersion:     "v1.0.1",
-		ReplacedFiles: []string{"internal/server/server.go"},
+		ReplacedFiles: []string{"pkg/server/server.go"},
 		UpdatedTools:  []string{"templ: v0.3.1020"},
 	})
 

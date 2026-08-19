@@ -94,7 +94,7 @@ A. Process lifecycle and HTTP server
 - `cmd/app/main.go` starts the queue processor and HTTP server with the application context.
 - Background components expose completion, are stopped once, and are awaited during shutdown.
 - Shutdown errors from multiple components are joined instead of losing all but the first.
-- `internal/server/server.go` leaves lifecycle orchestration to the application and uses the hardened server defaults from the target scaffold.
+- `pkg/server/server.go` leaves lifecycle orchestration to the application and uses the hardened server defaults from the target scaffold.
 
 B. Session, CORS, CSRF, request paths, and rate limiting
 
