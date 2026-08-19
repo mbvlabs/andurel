@@ -66,7 +66,7 @@ func TestGetFrameworkTemplates_IncludesAllExpectedInternalPackages(t *testing.T)
 		"pkg/request/request.go",
 		"pkg/routing/definitions.go",
 		"pkg/routing/routes.go",
-		"internal/server/server.go",
+		"pkg/server/server.go",
 		"pkg/storage/psql.go",
 		"pkg/storage/queue.go",
 		"pkg/validation/helpers.go",
