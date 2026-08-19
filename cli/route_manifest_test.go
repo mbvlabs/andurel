@@ -13,7 +13,7 @@ func TestCollectRouteManifestExtractsStaticRoutes(t *testing.T) {
 	rootDir := t.TempDir()
 	writeRouteManifestTestFile(t, rootDir, "users.go", `package routes
 
-import "example.com/app/internal/routing"
+import "example.com/app/pkg/routing"
 
 const UserPrefix = "/users"
 
@@ -31,7 +31,7 @@ var PasswordEdit = routing.NewRouteWithToken(
 `)
 	writeRouteManifestTestFile(t, rootDir, "widgets.go", `package routes
 
-import "example.com/app/internal/routing"
+import "example.com/app/pkg/routing"
 
 const WidgetPrefix = "/widgets"
 
@@ -70,7 +70,7 @@ func TestCollectRouteManifestSupportsConstExpressionsAndGenericParams(t *testing
 	rootDir := t.TempDir()
 	writeRouteManifestTestFile(t, rootDir, "admin_dashboards.go", `package routes
 
-import "example.com/app/internal/routing"
+import "example.com/app/pkg/routing"
 
 const APIPrefix = "/api"
 const AdminPrefix = APIPrefix + "/admin"
@@ -99,7 +99,7 @@ func TestCollectRouteManifestSkipsDynamicRoutes(t *testing.T) {
 
 import (
 	"fmt"
-	"example.com/app/internal/routing"
+	"example.com/app/pkg/routing"
 )
 
 const AssetsPrefix = "/assets"
@@ -172,7 +172,7 @@ func TestRouteManifestCoversConstructorsAndSkipReasons(t *testing.T) {
 	rootDir := t.TempDir()
 	writeRouteManifestTestFile(t, rootDir, "all.go", `package routes
 
-import "example.com/app/internal/routing"
+import "example.com/app/pkg/routing"
 
 const Root = "/root/"
 const Nested = (Root + "nested")

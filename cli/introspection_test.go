@@ -134,7 +134,7 @@ func TestIntrospectionCommands(t *testing.T) {
 	writeTestFile(t, root, "queue/workers.go", "package queue\n")
 	writeRouteManifestTestFile(t, root, "users.go", `package routes
 
-import "example.com/app/internal/routing"
+import "example.com/app/pkg/routing"
 
 const UserPrefix = "/users"
 

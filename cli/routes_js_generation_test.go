@@ -291,7 +291,7 @@ func setupRoutesJSCommandProject(t *testing.T, inertia string) string {
 	}
 	writeRouteManifestTestFile(t, rootDir, "users.go", `package routes
 
-import "example.com/app/internal/routing"
+import "example.com/app/pkg/routing"
 
 const UserPrefix = "/users"
 

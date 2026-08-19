@@ -480,7 +480,7 @@ func TestGenerateControllerInertiaRefreshesRoutesTSForCustomActions(t *testing.T
 		}
 		writeCLITestFile(t, rootDir, "router/routes/widgets.go", `package routes
 
-import "example.com/app/internal/routing"
+import "example.com/app/pkg/routing"
 
 const WidgetPrefix = "/widgets"
 
