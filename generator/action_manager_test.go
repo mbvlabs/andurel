@@ -170,7 +170,7 @@ func (p Products) RegisterRoutes(r *router.Router) error {
 `)
 	writeGeneratorTestFile(t, root, "router/routes/products.go", `package routes
 
-import "example.com/app/internal/routing"
+import "example.com/app/pkg/routing"
 
 const ProductPrefix = "/products"
 `)
