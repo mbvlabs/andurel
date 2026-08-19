@@ -6,7 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"testapp/pkg/storage"
+	"testapp/internal/storage"
 	"testapp/pkg/validation"
 	"time"
 
