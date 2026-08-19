@@ -136,7 +136,7 @@ func TestMatchingFrameworkVersionIsImmediateNoOp(t *testing.T) {
 
 func TestMatchingFrameworkVersionReportsAndRepairsDrift(t *testing.T) {
 	root := newUpgradeFixtureProject(t)
-	path := "internal/hypermedia/core.go"
+	path := "pkg/hypermedia/core.go"
 	drift := append(mustReadProjectFile(t, root, path), []byte("\nconst UnexpectedDrift = true\n")...)
 	mustWriteTestFile(t, root, path, drift)
 	commitUpgradeTree(t, root, "framework drift")
@@ -176,7 +176,7 @@ func TestMatchingFrameworkVersionReportsAndRepairsDrift(t *testing.T) {
 
 func TestMatchingFrameworkVersionRejectsDirtyRepair(t *testing.T) {
 	root := newUpgradeFixtureProject(t)
-	path := "internal/hypermedia/core.go"
+	path := "pkg/hypermedia/core.go"
 	drift := append(mustReadProjectFile(t, root, path), []byte("\nconst UnexpectedDrift = true\n")...)
 	mustWriteTestFile(t, root, path, drift)
 	before := snapshotUpgradeTree(t, root)
@@ -710,7 +710,7 @@ func assertSnapshotEqual(t *testing.T, want, got map[string][]byte) {
 
 func assertUpgradeOutcome(t *testing.T, root string) {
 	t.Helper()
-	frameworkFile := mustReadProjectFile(t, root, "internal/hypermedia/core.go")
+	frameworkFile := mustReadProjectFile(t, root, "pkg/hypermedia/core.go")
 	if !bytes.Contains(frameworkFile, []byte("andurel "+fixtureTargetVersion)) {
 		t.Fatalf("framework file does not contain target version:\n%s", frameworkFile)
 	}

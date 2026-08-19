@@ -10,7 +10,7 @@ import (
 		"net/http"
 	
 	"testapp/models"
-	"testapp/internal/hypermedia"
+	"testapp/pkg/hypermedia"
 	
 	
 	"testapp/router/routes"

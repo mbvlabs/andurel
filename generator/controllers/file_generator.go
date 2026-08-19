@@ -221,7 +221,7 @@ func detectControllerFrontend(content string) controllerFrontend {
 	switch {
 	case strings.Contains(content, "/internal/inertia\""):
 		return controllerFrontendInertia
-	case strings.Contains(content, "/internal/hypermedia\""):
+	case strings.Contains(content, "/pkg/hypermedia\""):
 		return controllerFrontendTempl
 	default:
 		return controllerFrontendUnknown

@@ -115,7 +115,7 @@ func TestScaffoldGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
 
 	assertGeneratedFileContains(t, "views/projects_resource.templ", "type ProjectIndex struct")
 	assertControllerViewGoldenFileMissing(t, filepath.Join("resources", "js", "Pages", "Project", "Index.vue"))
-	assertGeneratedFileContains(t, "controllers/projects.go", "testapp/internal/hypermedia")
+	assertGeneratedFileContains(t, "controllers/projects.go", "testapp/pkg/hypermedia")
 	assertGeneratedFileNotContains(t, "controllers/projects.go", "testapp/internal/inertia")
 }
 

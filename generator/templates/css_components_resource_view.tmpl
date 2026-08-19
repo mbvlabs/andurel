@@ -10,7 +10,7 @@ import (
 	{{end}}{{if or (and (HasAction "new") (HasAction "create")) (and (HasAction "edit") (or (HasAction "update") (HasAction "destroy")))}}	"net/http"
 	{{end}}
 	"{{.ModulePath}}/models"
-	{{if or (and (HasAction "show") (HasAction "index")) (and (HasAction "new") (or (HasAction "create") (HasAction "index"))) (and (HasAction "edit") (or (HasAction "update") (HasAction "index") (HasAction "destroy")))}}"{{.ModulePath}}/internal/hypermedia"
+	{{if or (and (HasAction "show") (HasAction "index")) (and (HasAction "new") (or (HasAction "create") (HasAction "index"))) (and (HasAction "edit") (or (HasAction "update") (HasAction "index") (HasAction "destroy")))}}"{{.ModulePath}}/pkg/hypermedia"
 	{{end}}
 	{{if or (and (HasAction "index") (or (HasAction "new") (HasAction "show") (HasAction "edit"))) (and (HasAction "show") (or (HasAction "edit") (HasAction "index"))) (and (HasAction "new") (or (HasAction "create") (HasAction "index"))) (and (HasAction "edit") (or (HasAction "update") (HasAction "index") (HasAction "destroy")))}}
 	"{{.ModulePath}}/router/routes"
