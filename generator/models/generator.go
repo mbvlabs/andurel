@@ -174,7 +174,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	importSet["context"] = true
 	importSet["github.com/uptrace/bun"] = true
 	if config.ModulePath != "" {
-		importSet[config.ModulePath+"/internal/storage"] = true
+		importSet[config.ModulePath+"/pkg/storage"] = true
 	}
 
 	for _, col := range table.Columns {

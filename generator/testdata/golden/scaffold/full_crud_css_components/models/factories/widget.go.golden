@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-faker/faker/v4"
 	"github.com/google/uuid"
-	"testapp/internal/storage"
 	"testapp/models"
+	"testapp/pkg/storage"
 )
 
 // WidgetFactory wraps models.WidgetEntity for testing
