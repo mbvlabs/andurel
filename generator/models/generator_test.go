@@ -512,7 +512,7 @@ func TestBuildModelWithoutModulePathOmitsApplicationImports(t *testing.T) {
 	if model.Mode != ModelModeCRUD {
 		t.Fatalf("Build() mode = %q, want %q", model.Mode, ModelModeCRUD)
 	}
-	for _, applicationImport := range []string{"/internal/storage", "/pkg/validation"} {
+	for _, applicationImport := range []string{"/pkg/storage", "/pkg/validation"} {
 		for _, modelImport := range model.ExternalImports {
 			if strings.HasSuffix(modelImport, applicationImport) {
 				t.Fatalf("Build() imports application package without a module path: %q", modelImport)
@@ -736,7 +736,7 @@ func TestBuildModelPrimaryKeyOverridesAndImports(t *testing.T) {
 	if !model.HasCreatedAt || !model.HasUpdatedAt {
 		t.Fatalf("timestamps were not detected: %#v", model)
 	}
-	for _, want := range []string{"encoding/json", "github.com/google/uuid", "example.com/app/internal/storage", "example.com/app/pkg/validation"} {
+	for _, want := range []string{"encoding/json", "github.com/google/uuid", "example.com/app/pkg/storage", "example.com/app/pkg/validation"} {
 		if !slices.Contains(model.Imports, want) {
 			t.Fatalf("model imports missing %q: %#v", want, model.Imports)
 		}

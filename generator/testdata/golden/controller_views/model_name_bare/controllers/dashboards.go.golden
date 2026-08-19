@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"testapp/internal/storage"
+	"testapp/pkg/storage"
 	"testapp/models"
 	"testapp/pkg/hypermedia"
 	"testapp/router"
