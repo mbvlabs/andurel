@@ -170,12 +170,6 @@ func Scaffold(
 		}
 	}
 
-	restoreWorkspace, err := enableTestWorkspace(targetDir)
-	if err != nil {
-		return fmt.Errorf("failed to enable test workspace: %w", err)
-	}
-	defer restoreWorkspace()
-
 	for _, step := range postExtensionSteps {
 		if err := step.fn(targetDir); err != nil {
 			return fmt.Errorf("extension %s post-step failed: %w", step.extensionName, err)
@@ -225,53 +219,6 @@ func Scaffold(
 	}
 
 	return nil
-}
-
-func enableTestWorkspace(targetDir string) (func(), error) {
-	workspaceRoot := os.Getenv("ANDUREL_TEST_WORKSPACE_ROOT")
-	if workspaceRoot == "" {
-		return func() {}, nil
-	}
-
-	absWorkspaceRoot, err := filepath.Abs(workspaceRoot)
-	if err != nil {
-		return nil, fmt.Errorf("resolve workspace root: %w", err)
-	}
-
-	moduleNames := []string{
-		"hypermedia",
-		"request",
-		"routing",
-		"server",
-		"storage",
-		"validation",
-	}
-
-	var workspace strings.Builder
-	fmt.Fprintf(&workspace, "go %s\n\nuse (\n\t..\n", goVersion)
-	for _, moduleName := range moduleNames {
-		moduleDir := filepath.ToSlash(filepath.Join(absWorkspaceRoot, "pkg", moduleName))
-		fmt.Fprintf(&workspace, "\t%q\n", moduleDir)
-	}
-	workspace.WriteString(")\n")
-
-	workspacePath := filepath.Join(targetDir, ".git", "andurel-test.go.work")
-	if err := os.WriteFile(workspacePath, []byte(workspace.String()), constants.FilePermissionPublic); err != nil {
-		return nil, fmt.Errorf("write workspace: %w", err)
-	}
-
-	previousWorkspace, hadWorkspace := os.LookupEnv("GOWORK")
-	if err := os.Setenv("GOWORK", workspacePath); err != nil {
-		return nil, fmt.Errorf("set GOWORK: %w", err)
-	}
-
-	return func() {
-		if hadWorkspace {
-			_ = os.Setenv("GOWORK", previousWorkspace)
-			return
-		}
-		_ = os.Unsetenv("GOWORK")
-	}, nil
 }
 
 type (

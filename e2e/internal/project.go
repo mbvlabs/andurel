@@ -1,9 +1,11 @@
 package internal
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -62,7 +64,6 @@ func (p *Project) Scaffold(args ...string) error {
 	env := []string{
 		"ANDUREL_TEST_MODE=true",
 		"ANDUREL_SKIP_TAILWIND=true",
-		"ANDUREL_TEST_WORKSPACE_ROOT=" + p.WorkspaceRoot,
 	}
 
 	baseArgs := []string{"new", p.Name}
@@ -72,8 +73,48 @@ func (p *Project) Scaffold(args ...string) error {
 		return err
 	}
 
+	if err := p.setupWorkspace(); err != nil {
+		return err
+	}
+	if err := RunCommand(p.T, "go", p.Dir, p.workspaceEnv(), "mod", "tidy"); err != nil {
+		return err
+	}
+
 	// Copy shared tools to the project's bin directory
 	return p.setupToolBinaries()
+}
+
+func (p *Project) setupWorkspace() error {
+	moduleNames := []string{
+		"hypermedia",
+		"request",
+		"routing",
+		"server",
+		"storage",
+		"validation",
+	}
+
+	var workspace strings.Builder
+	workspace.WriteString("go 1.26.5\n\nuse (\n\t..\n")
+	for _, moduleName := range moduleNames {
+		moduleDir := filepath.ToSlash(filepath.Join(p.WorkspaceRoot, "pkg", moduleName))
+		fmt.Fprintf(&workspace, "\t%q\n", moduleDir)
+	}
+	workspace.WriteString(")\n")
+
+	if err := os.WriteFile(p.workspacePath(), []byte(workspace.String()), 0o644); err != nil {
+		return fmt.Errorf("write test workspace: %w", err)
+	}
+
+	return nil
+}
+
+func (p *Project) workspacePath() string {
+	return filepath.Join(p.Dir, ".git", "andurel-test.go.work")
+}
+
+func (p *Project) workspaceEnv() []string {
+	return []string{"GOWORK=" + p.workspacePath()}
 }
 
 // setupToolBinaries copies the pre-downloaded tools from the shared bin directory
@@ -170,11 +211,7 @@ func (p *Project) GenerateExpectError(args ...string) error {
 func (p *Project) GoVet() error {
 	p.T.Helper()
 
-	env := []string{
-		"GOWORK=" + filepath.Join(p.Dir, ".git", "andurel-test.go.work"),
-	}
-
-	return RunCommand(p.T, "go", p.Dir, env, "vet", "./...")
+	return RunCommand(p.T, "go", p.Dir, p.workspaceEnv(), "vet", "./...")
 }
 
 // GoBuild performs the go build operation.
