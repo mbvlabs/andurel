@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"strconv"
 	"testapp/models"
-	"testapp/pkg/hypermedia"
-	"testapp/pkg/storage"
 	"testapp/router"
 	"testapp/router/routes"
 	"testapp/views"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 type Dashboards struct {

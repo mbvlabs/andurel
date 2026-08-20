@@ -833,8 +833,8 @@ func TestExecuteDryRun_ReportsRenderedFilesAndTools(t *testing.T) {
 	if !report.Success {
 		t.Fatal("expected dry-run report to be successful")
 	}
-	if report.FilesReplaced == 0 {
-		t.Fatal("expected dry run to report rendered framework files")
+	if report.FilesReplaced != 0 {
+		t.Fatalf("standalone packages must not be reported as rendered framework files: %v", report.ReplacedFiles)
 	}
 	if !slices.Contains(report.RemovedTools, "run") {
 		t.Fatalf("removed tools = %v, want run", report.RemovedTools)

@@ -136,7 +136,7 @@ func TestMatchingFrameworkVersionIsImmediateNoOp(t *testing.T) {
 
 func TestMatchingFrameworkVersionReportsAndRepairsDrift(t *testing.T) {
 	root := newUpgradeFixtureProject(t)
-	path := "pkg/hypermedia/core.go"
+	path := "internal/inertia/constants.go"
 	drift := append(mustReadProjectFile(t, root, path), []byte("\nconst UnexpectedDrift = true\n")...)
 	mustWriteTestFile(t, root, path, drift)
 	commitUpgradeTree(t, root, "framework drift")
@@ -176,7 +176,7 @@ func TestMatchingFrameworkVersionReportsAndRepairsDrift(t *testing.T) {
 
 func TestMatchingFrameworkVersionRejectsDirtyRepair(t *testing.T) {
 	root := newUpgradeFixtureProject(t)
-	path := "pkg/hypermedia/core.go"
+	path := "internal/inertia/constants.go"
 	drift := append(mustReadProjectFile(t, root, path), []byte("\nconst UnexpectedDrift = true\n")...)
 	mustWriteTestFile(t, root, path, drift)
 	before := snapshotUpgradeTree(t, root)
@@ -385,14 +385,18 @@ func TestVersionedInertiaUpgradeRejectsInvalidMigrationState(t *testing.T) {
 		{
 			name: "missing legacy root",
 			setup: func(t *testing.T, root string) {
-				mustWriteTestFile(t, root, "cmd/app/main.go", []byte("package main\n\nfunc main() { inertia.Init(\"views/root.go.html\") }\n"))
+				if err := os.Remove(filepath.Join(root, "views", "root.go.html")); err != nil {
+					t.Fatal(err)
+				}
 			},
 			want: "read existing Inertia root",
 		},
 		{
 			name: "missing application entrypoint",
 			setup: func(t *testing.T, root string) {
-				mustWriteTestFile(t, root, "views/root.go.html", []byte("legacy root\n"))
+				if err := os.Remove(filepath.Join(root, "cmd", "app", "main.go")); err != nil {
+					t.Fatal(err)
+				}
 			},
 			want: "read Inertia application entrypoint",
 		},
@@ -554,6 +558,7 @@ func newUpgradeFixtureProject(t *testing.T) string {
 	return newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
 		ProjectName: "testapp",
 		Database:    "postgresql",
+		Inertia:     "vue",
 	})
 }
 
@@ -573,6 +578,10 @@ func newUpgradeFixtureProjectWithConfig(t *testing.T, config layout.ScaffoldConf
 		t.Fatal(err)
 	}
 	mustWriteTestFile(t, root, "andurel.lock", append(lockContent, '\n'))
+	if config.Inertia != "" {
+		mustWriteTestFile(t, root, "views/root.go.html", []byte("<!doctype html>\n{{ .inertia }}\n"))
+		mustWriteTestFile(t, root, "cmd/app/main.go", []byte("package main\n\nfunc main() { inertia.Init(\"views/root.go.html\") }\n"))
+	}
 
 	rendered, err := NewTemplateGenerator(fixtureSourceVersion).RenderFrameworkTemplates(
 		root,
@@ -710,7 +719,7 @@ func assertSnapshotEqual(t *testing.T, want, got map[string][]byte) {
 
 func assertUpgradeOutcome(t *testing.T, root string) {
 	t.Helper()
-	frameworkFile := mustReadProjectFile(t, root, "pkg/hypermedia/core.go")
+	frameworkFile := mustReadProjectFile(t, root, "internal/inertia/constants.go")
 	if !bytes.Contains(frameworkFile, []byte("andurel "+fixtureTargetVersion)) {
 		t.Fatalf("framework file does not contain target version:\n%s", frameworkFile)
 	}

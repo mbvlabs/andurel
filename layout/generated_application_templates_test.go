@@ -143,7 +143,7 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 		t.Errorf("cmd_app_main.tmpl queue stop wiring occurrences = %d, want 1", got)
 	}
 
-	serverTemplate := readGeneratedApplicationTemplate(t, "framework_elements_server_server.tmpl")
+	serverTemplate := readStandalonePackageFile(t, "server", "server.go")
 	if strings.Contains(serverTemplate, "shutdowner.Shutdown") {
 		t.Error("server Start still owns component shutdown")
 	}
@@ -204,6 +204,15 @@ func readGeneratedApplicationTemplate(t *testing.T, name string) string {
 	content, err := fs.ReadFile(layouttemplates.Files, name)
 	if err != nil {
 		t.Fatalf("read %s: %v", name, err)
+	}
+	return string(content)
+}
+
+func readStandalonePackageFile(t *testing.T, packageName, name string) string {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join("..", "pkg", packageName, name))
+	if err != nil {
+		t.Fatalf("read standalone package file %s/%s: %v", packageName, name, err)
 	}
 	return string(content)
 }

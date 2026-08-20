@@ -10,7 +10,7 @@ import (
 		"net/http"
 	
 	"testapp/models"
-	"testapp/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
 	
 	
 	"testapp/router/routes"

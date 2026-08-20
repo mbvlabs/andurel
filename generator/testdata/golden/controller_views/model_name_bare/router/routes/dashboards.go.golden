@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"testapp/pkg/routing"
+	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
 const DashboardPrefix = "/dashboards"

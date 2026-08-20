@@ -174,7 +174,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	importSet["context"] = true
 	importSet["github.com/uptrace/bun"] = true
 	if config.ModulePath != "" {
-		importSet[config.ModulePath+"/pkg/storage"] = true
+		importSet["github.com/mbvlabs/andurel/pkg/storage"] = true
 	}
 
 	for _, col := range table.Columns {
@@ -251,7 +251,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	if model.Mode != ModelModeReadOnly {
 		importSet["errors"] = true
 		if config.ModulePath != "" {
-			importSet[config.ModulePath+"/pkg/validation"] = true
+			importSet["github.com/mbvlabs/andurel/pkg/validation"] = true
 		}
 	}
 	if model.HasPrimaryKey && model.Mode != ModelModeCreateOnly {

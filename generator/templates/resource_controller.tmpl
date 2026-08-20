@@ -46,8 +46,8 @@ import (
 {{- end}}
 	"github.com/labstack/echo/v5"
 	"{{.ModulePath}}/models"
-	"{{.ModulePath}}/pkg/hypermedia"
-	"{{.ModulePath}}/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/storage"
 	"{{.ModulePath}}/router"
 	"{{.ModulePath}}/router/cookies"
 	"{{.ModulePath}}/router/routes"

@@ -6,11 +6,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"testapp/pkg/storage"
-	"testapp/pkg/validation"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/validation"
 	"github.com/uptrace/bun"
 )
 
