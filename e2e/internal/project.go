@@ -9,46 +9,49 @@ import (
 
 // Project represents project.
 type Project struct {
-	Dir          string
-	Name         string
-	T            *testing.T
-	BinaryPath   string
-	Database     string
-	CSS          string
-	SharedBinDir string
+	Dir           string
+	Name          string
+	T             *testing.T
+	BinaryPath    string
+	Database      string
+	CSS           string
+	SharedBinDir  string
+	WorkspaceRoot string
 }
 
 // NewProject creates a new project.
-func NewProject(t *testing.T, andurelBinary, sharedBinDir string) *Project {
+func NewProject(t *testing.T, andurelBinary, sharedBinDir, workspaceRoot string) *Project {
 	t.Helper()
 
 	tmpDir := t.TempDir()
 	projectName := "testapp"
 
 	return &Project{
-		Dir:          filepath.Join(tmpDir, projectName),
-		Name:         projectName,
-		T:            t,
-		BinaryPath:   andurelBinary,
-		Database:     "",
-		SharedBinDir: sharedBinDir,
+		Dir:           filepath.Join(tmpDir, projectName),
+		Name:          projectName,
+		T:             t,
+		BinaryPath:    andurelBinary,
+		Database:      "",
+		SharedBinDir:  sharedBinDir,
+		WorkspaceRoot: workspaceRoot,
 	}
 }
 
 // NewProjectWithDatabase creates a new project with database.
-func NewProjectWithDatabase(t *testing.T, andurelBinary, sharedBinDir, database string) *Project {
+func NewProjectWithDatabase(t *testing.T, andurelBinary, sharedBinDir, workspaceRoot, database string) *Project {
 	t.Helper()
 
 	tmpDir := t.TempDir()
 	projectName := "testapp"
 
 	return &Project{
-		Dir:          filepath.Join(tmpDir, projectName),
-		Name:         projectName,
-		T:            t,
-		BinaryPath:   andurelBinary,
-		Database:     database,
-		SharedBinDir: sharedBinDir,
+		Dir:           filepath.Join(tmpDir, projectName),
+		Name:          projectName,
+		T:             t,
+		BinaryPath:    andurelBinary,
+		Database:      database,
+		SharedBinDir:  sharedBinDir,
+		WorkspaceRoot: workspaceRoot,
 	}
 }
 
@@ -59,6 +62,7 @@ func (p *Project) Scaffold(args ...string) error {
 	env := []string{
 		"ANDUREL_TEST_MODE=true",
 		"ANDUREL_SKIP_TAILWIND=true",
+		"ANDUREL_TEST_WORKSPACE_ROOT=" + p.WorkspaceRoot,
 	}
 
 	baseArgs := []string{"new", p.Name}
@@ -166,7 +170,11 @@ func (p *Project) GenerateExpectError(args ...string) error {
 func (p *Project) GoVet() error {
 	p.T.Helper()
 
-	return RunCommand(p.T, "go", p.Dir, nil, "vet", "./...")
+	env := []string{
+		"GOWORK=" + filepath.Join(p.Dir, ".git", "andurel-test.go.work"),
+	}
+
+	return RunCommand(p.T, "go", p.Dir, env, "vet", "./...")
 }
 
 // GoBuild performs the go build operation.
