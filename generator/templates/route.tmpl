@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"{{.ModulePath}}/pkg/routing"
+	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
 const {{.NamespacePascal}}{{.ResourceName}}Prefix = "/{{if .Namespace}}{{.Namespace}}/{{end}}{{.PluralName | kebab}}"

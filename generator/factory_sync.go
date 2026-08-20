@@ -531,11 +531,11 @@ func renderSyncedFactoryFile(factory *models.GeneratedFactory, oldContent string
 
 func writeFactoryImports(sb *strings.Builder, factory *models.GeneratedFactory, oldImports []string) {
 	imports := map[string]bool{
-		"context":                           true,
-		"fmt":                               true,
-		factory.ModulePath + "/pkg/storage": true,
-		factory.ModulePath + "/models":      true,
-		"github.com/go-faker/faker/v4":      true,
+		"context":                                true,
+		"fmt":                                    true,
+		"github.com/mbvlabs/andurel/pkg/storage": true,
+		factory.ModulePath + "/models":           true,
+		"github.com/go-faker/faker/v4":           true,
 	}
 	if factory.HasCreatedAt || factory.HasUpdatedAt {
 		imports["time"] = true

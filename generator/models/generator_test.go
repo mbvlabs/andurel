@@ -736,7 +736,7 @@ func TestBuildModelPrimaryKeyOverridesAndImports(t *testing.T) {
 	if !model.HasCreatedAt || !model.HasUpdatedAt {
 		t.Fatalf("timestamps were not detected: %#v", model)
 	}
-	for _, want := range []string{"encoding/json", "github.com/google/uuid", "example.com/app/pkg/storage", "example.com/app/pkg/validation"} {
+	for _, want := range []string{"encoding/json", "github.com/google/uuid", "github.com/mbvlabs/andurel/pkg/storage", "github.com/mbvlabs/andurel/pkg/validation"} {
 		if !slices.Contains(model.Imports, want) {
 			t.Fatalf("model imports missing %q: %#v", want, model.Imports)
 		}

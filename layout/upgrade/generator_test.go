@@ -52,81 +52,12 @@ func TestBuildTemplateData_UsesModulePathInsteadOfProjectName(t *testing.T) {
 	}
 }
 
-func TestGetFrameworkTemplates_IncludesAllExpectedInternalPackages(t *testing.T) {
+func TestGetFrameworkTemplates_ExcludesStandalonePackages(t *testing.T) {
 	t.Parallel()
 
-	templates := GetFrameworkTemplates(&layout.ScaffoldConfig{})
-	paths := make([]string, 0, len(templates))
-	for _, tmpl := range templates {
-		paths = append(paths, tmpl.TargetPath)
-	}
-
-	required := []string{
-		"pkg/request/context.go",
-		"pkg/request/request.go",
-		"pkg/routing/definitions.go",
-		"pkg/routing/routes.go",
-		"pkg/server/server.go",
-		"pkg/storage/psql.go",
-		"pkg/storage/queue.go",
-		"pkg/validation/helpers.go",
-		"pkg/validation/rules.go",
-		"pkg/validation/validation.go",
-	}
-
-	for _, path := range required {
-		if !slices.Contains(paths, path) {
-			t.Fatalf("expected framework templates to include %s", path)
-		}
-	}
-}
-
-func TestRenderFrameworkTemplates_PreservesValidationRuleAPI(t *testing.T) {
-	t.Parallel()
-
-	projectRoot := t.TempDir()
-	if err := os.WriteFile(
-		filepath.Join(projectRoot, "go.mod"),
-		[]byte("module github.com/example/myapp\n\ngo 1.26.5\n"),
-		0o644,
-	); err != nil {
-		t.Fatalf("write go.mod: %v", err)
-	}
-
-	generated, err := NewTemplateGenerator("v1.1.0").RenderFrameworkTemplates(
-		projectRoot,
-		layout.ScaffoldConfig{Database: "postgresql"},
-		nil,
-	)
-	if err != nil {
-		t.Fatalf("render framework templates: %v", err)
-	}
-
-	expected := map[string][]string{
-		"pkg/validation/validation.go": {
-			"type Rules map[string][]Rule",
-			"func (b *ValidationBuilder) AddRule(",
-			"func (b *ValidationBuilder) Rules() Rules",
-		},
-		"pkg/validation/rules.go": {
-			"func (b *ValidationBuilder) RecommendedLenBetween(",
-			"func (b *ValidationBuilder) MinInt(",
-			"func (b *ValidationBuilder) MaxInt(",
-		},
-		"pkg/validation/helpers.go": {
-			"case *sql.NullInt32:",
-			"func intValue(",
-		},
-	}
-	for path, snippets := range expected {
-		content, exists := generated[path]
-		if !exists {
-			t.Fatalf("upgrade output missing %s", path)
-		}
-		for _, snippet := range snippets {
-			if !strings.Contains(string(content), snippet) {
-				t.Errorf("upgrade output %s missing %q", path, snippet)
-			}
+	for _, tmpl := range GetFrameworkTemplates(&layout.ScaffoldConfig{}) {
+		if strings.HasPrefix(tmpl.TargetPath, "pkg/") {
+			t.Fatalf("upgrade templates include standalone package source %s", tmpl.TargetPath)
 		}
 	}
 }

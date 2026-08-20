@@ -7,7 +7,7 @@ package views
 import (
 	"fmt"
 {{ViewDataImports .Fields}}	{{if UsesPackage .Fields "strings"}}"strings"
-	{{end}}	"{{.ModulePath}}/pkg/hypermedia"
+	{{end}}	"github.com/mbvlabs/andurel/pkg/hypermedia"
 	"{{.ModulePath}}/models"
 )
 {{ViewData .}}

@@ -8,8 +8,6 @@ import (
 	"net/http"
 	"strconv"
 	"testapp/models"
-	"testapp/pkg/hypermedia"
-	"testapp/pkg/storage"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
@@ -17,6 +15,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 type Companies struct {

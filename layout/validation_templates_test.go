@@ -1,15 +1,11 @@
 package layout
 
 import (
-	"bytes"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
-	"text/template"
-
-	layouttemplates "github.com/mbvlabs/andurel/layout/templates"
 )
 
 func TestGeneratedValidationBehavior(t *testing.T) {
@@ -19,13 +15,8 @@ func TestGeneratedValidationBehavior(t *testing.T) {
 		t.Fatalf("create validation directory: %v", err)
 	}
 
-	templateFiles := map[string]string{
-		"framework_elements_validation_validation.tmpl": "validation.go",
-		"framework_elements_validation_rules.tmpl":      "rules.go",
-		"framework_elements_validation_helpers.tmpl":    "helpers.go",
-	}
-	for templateName, targetName := range templateFiles {
-		renderValidationTemplate(t, templateName, filepath.Join(validationDir, targetName))
+	for _, name := range []string{"validation.go", "rules.go", "helpers.go"} {
+		copyValidationSource(t, name, filepath.Join(validationDir, name))
 	}
 
 	writeValidationFixtureFile(t, filepath.Join(projectDir, "go.mod"), "module validationfixture\n\ngo 1.26.5\n")
@@ -44,25 +35,15 @@ func TestGeneratedValidationBehavior(t *testing.T) {
 	}
 }
 
-func renderValidationTemplate(t *testing.T, templateName, targetPath string) {
+func copyValidationSource(t *testing.T, name, targetPath string) {
 	t.Helper()
 
-	content, err := layouttemplates.Files.ReadFile(templateName)
+	content, err := os.ReadFile(filepath.Join("..", "pkg", "validation", name))
 	if err != nil {
-		t.Fatalf("read %s: %v", templateName, err)
+		t.Fatalf("read standalone validation source %s: %v", name, err)
 	}
 
-	tmpl, err := template.New(templateName).Parse(string(content))
-	if err != nil {
-		t.Fatalf("parse %s: %v", templateName, err)
-	}
-
-	var rendered bytes.Buffer
-	if err := tmpl.Execute(&rendered, struct{ FrameworkVersion string }{FrameworkVersion: "test"}); err != nil {
-		t.Fatalf("render %s: %v", templateName, err)
-	}
-
-	writeValidationFixtureFile(t, targetPath, rendered.String())
+	writeValidationFixtureFile(t, targetPath, string(content))
 }
 
 func writeValidationFixtureFile(t *testing.T, path, content string) {
@@ -322,9 +303,9 @@ func assertRuleCodes(t *testing.T, rules []Rule, want ...string) {
 `
 
 func TestGeneratedValidationTemplatesExposePublicContract(t *testing.T) {
-	validation := readGeneratedApplicationTemplate(t, "framework_elements_validation_validation.tmpl")
-	rules := readGeneratedApplicationTemplate(t, "framework_elements_validation_rules.tmpl")
-	helpers := readGeneratedApplicationTemplate(t, "framework_elements_validation_helpers.tmpl")
+	validation := readStandalonePackageFile(t, "validation", "validation.go")
+	rules := readStandalonePackageFile(t, "validation", "rules.go")
+	helpers := readStandalonePackageFile(t, "validation", "helpers.go")
 
 	for _, want := range []string{
 		"type Rule struct",

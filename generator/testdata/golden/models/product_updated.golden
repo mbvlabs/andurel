@@ -9,9 +9,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/example/shop/pkg/storage"
-	"github.com/example/shop/pkg/validation"
 	"github.com/google/uuid"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/validation"
 	"github.com/uptrace/bun"
 )
 

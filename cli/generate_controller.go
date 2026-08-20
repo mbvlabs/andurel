@@ -315,7 +315,7 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 			fmt.Fprintf(&sb, "\t\"%s/router\"\n", modulePath)
 			fmt.Fprintf(&sb, "\t\"%s/router/routes\"\n", modulePath)
 			sb.WriteString("\n")
-			fmt.Fprintf(&sb, "\t\"%s/pkg/hypermedia\"\n", modulePath)
+			sb.WriteString("\t\"github.com/mbvlabs/andurel/pkg/hypermedia\"\n")
 			fmt.Fprintf(&sb, "\t\"%s/views\"\n", modulePath)
 			sb.WriteString("\n")
 			sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")

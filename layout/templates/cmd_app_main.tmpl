@@ -21,9 +21,9 @@ import (
 	"{{.ModuleName}}/email"
 {{- if .Inertia}}
 	"{{.ModuleName}}/internal/inertia"
-	"{{.ModuleName}}/pkg/request"
+	"github.com/mbvlabs/andurel/pkg/request"
 {{- end}}
-	"{{.ModuleName}}/pkg/server"
+	"github.com/mbvlabs/andurel/pkg/server"
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router"
 {{- if .Inertia}}

@@ -1,0 +1,13 @@
+go 1.26.5
+
+use (
+	.
+	./pkg/hypermedia
+	./pkg/request
+	./pkg/routing
+	./pkg/server
+	./pkg/storage
+	./pkg/validation
+)
+
+replace github.com/mbvlabs/andurel/pkg/request v0.1.0 => ./pkg/request

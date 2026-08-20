@@ -260,28 +260,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"gitignore.tmpl": ".gitignore",
 	"readme.tmpl":    "README.md",
 
-	// Core files
-	"framework_elements_request_context.tmpl":        "pkg/request/context.go",
-	"framework_elements_request_request.tmpl":        "pkg/request/request.go",
-	"framework_elements_routing_definitions.tmpl":    "pkg/routing/definitions.go",
-	"framework_elements_routing_routes.tmpl":         "pkg/routing/routes.go",
-	"framework_elements_server_server.tmpl":          "pkg/server/server.go",
-	"framework_elements_storage_psql.tmpl":           "pkg/storage/psql.go",
-	"framework_elements_storage_queue.tmpl":          "pkg/storage/queue.go",
-	"framework_elements_hypermedia_signals.tmpl":     "pkg/hypermedia/signals.go",
-	"framework_elements_hypermedia_core.tmpl":        "pkg/hypermedia/core.go",
-	"framework_elements_hypermedia_options.tmpl":     "pkg/hypermedia/options.go",
-	"framework_elements_hypermedia_render.tmpl":      "pkg/hypermedia/render.go",
-	"framework_elements_hypermedia_script.tmpl":      "pkg/hypermedia/script.go",
-	"framework_elements_hypermedia_sse.tmpl":         "pkg/hypermedia/sse.go",
-	"framework_elements_hypermedia_broadcaster.tmpl": "pkg/hypermedia/broadcaster.go",
-	"framework_elements_hypermedia_helpers.tmpl":     "pkg/hypermedia/helpers.go",
-
-	// Validation
-	"framework_elements_validation_validation.tmpl": "pkg/validation/validation.go",
-	"framework_elements_validation_rules.tmpl":      "pkg/validation/rules.go",
-	"framework_elements_validation_helpers.tmpl":    "pkg/validation/helpers.go",
-
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
 	"assets_css_style.tmpl":   "assets/css/style.css",
@@ -679,8 +657,6 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 	blueprintTemplates := []TmplTarget{
 		"config_config.tmpl",
 		"env.tmpl",
-		"framework_elements_request_context.tmpl",
-		"framework_elements_request_request.tmpl",
 		"router_cookies_cookies.tmpl",
 	}
 

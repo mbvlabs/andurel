@@ -716,7 +716,7 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 	}{
 		{
 			name:               "default templ",
-			wantController:     "example.com/app/pkg/hypermedia",
+			wantController:     "github.com/mbvlabs/andurel/pkg/hypermedia",
 			unwantedController: "example.com/app/internal/inertia",
 			wantView:           "views/dashboards_resource.templ",
 			unwantedView:       filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.vue"),
@@ -725,7 +725,7 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 			name:               "explicit vue",
 			inertia:            "vue",
 			wantController:     "example.com/app/internal/inertia",
-			unwantedController: "example.com/app/pkg/hypermedia",
+			unwantedController: "github.com/mbvlabs/andurel/pkg/hypermedia",
 			wantView:           filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.vue"),
 			unwantedView:       "views/dashboards_resource.templ",
 		},
@@ -733,7 +733,7 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 			name:               "explicit react",
 			inertia:            "react",
 			wantController:     "example.com/app/internal/inertia",
-			unwantedController: "example.com/app/pkg/hypermedia",
+			unwantedController: "github.com/mbvlabs/andurel/pkg/hypermedia",
 			wantView:           filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.tsx"),
 			unwantedView:       "views/dashboards_resource.templ",
 		},
@@ -741,7 +741,7 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 			name:               "explicit svelte",
 			inertia:            "svelte",
 			wantController:     "example.com/app/internal/inertia",
-			unwantedController: "example.com/app/pkg/hypermedia",
+			unwantedController: "github.com/mbvlabs/andurel/pkg/hypermedia",
 			wantView:           filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.svelte"),
 			unwantedView:       "views/dashboards_resource.templ",
 		},
@@ -898,7 +898,7 @@ func TestGenerateControllerSingleCRUDActionVueGeneratesInertiaController(t *test
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return pi.renderer.Page(`)
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `"ProjectInquiry/Show",`)
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "inertia.FromStruct(ProjectInquiryItemProps{")
-	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/pkg/hypermedia")
+	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
 	assertCLITestFileExists(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.vue"))
 	assertCLITestFileMissing(t, rootDir, "views/project_inquiries_resource.templ")
 }
@@ -928,7 +928,7 @@ func TestGenerateControllerSingleCRUDActionReactGeneratesInertiaController(t *te
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return pi.renderer.Page(`)
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `"ProjectInquiry/Show",`)
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "inertia.FromStruct(ProjectInquiryItemProps{")
-	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/pkg/hypermedia")
+	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
 	assertCLITestFileExists(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.tsx"))
 	assertCLITestFileMissing(t, rootDir, "views/project_inquiries_resource.templ")
 }
@@ -987,7 +987,7 @@ func TestGenerateControllerSingleCRUDActionInertiaProjectDefaultsToTemplControll
 		t.Fatalf("generate controller: %v", err)
 	}
 
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/pkg/hypermedia")
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "return hypermedia.RenderPage")
 	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/inertia")
 	assertCLITestFileExists(t, rootDir, "views/project_inquiries_resource.templ")
