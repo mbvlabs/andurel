@@ -6,12 +6,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
-
-	"github.com/mbvlabs/andurel/pkg/request"
 )
 
 type pageOptions struct {
@@ -80,14 +77,4 @@ func RenderPage(etx *echo.Context, component templ.Component, opts ...PageOption
 // RenderComponent is identical to RenderPage; use it when naming the templ component improves readability at the call site.
 func RenderComponent(etx *echo.Context, component templ.Component, opts ...PageOption) error {
 	return RenderPage(etx, component, opts...)
-}
-
-// ResolveBackURL returns a safe request-scoped back URL or the fallback when one is unavailable.
-func ResolveBackURL(ctx context.Context, fallback string) string {
-	backURL := strings.TrimSpace(request.ExtractContext[string](ctx, request.BackURLKey))
-	if backURL == "" || !strings.HasPrefix(backURL, "/") || strings.HasPrefix(backURL, "//") {
-		return fallback
-	}
-
-	return backURL
 }

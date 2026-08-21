@@ -15,7 +15,6 @@ github.com/mbvlabs/andurel/layout/templates
 github.com/mbvlabs/andurel/layout/upgrade
 github.com/mbvlabs/andurel/layout/versions
 github.com/mbvlabs/andurel/pkg/hypermedia
-github.com/mbvlabs/andurel/pkg/request
 github.com/mbvlabs/andurel/pkg/routing
 github.com/mbvlabs/andurel/pkg/server
 github.com/mbvlabs/andurel/pkg/storage

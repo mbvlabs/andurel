@@ -103,7 +103,7 @@ templ (ws WidgetShow) Page() {
 							<a href={ routes.WidgetEdit.URL(ws.Item.ID) } class="btn btn-primary">Edit</a>
 							
 							
-							<a class="inline-link text-sm" href={ hypermedia.ResolveBackURL(ctx, routes.WidgetIndex.URL()) }>Back to List</a>
+							<a class="inline-link text-sm" href={ routes.WidgetIndex.URL() }>Back to List</a>
 							
 						</div>
 					</div>
@@ -178,7 +178,7 @@ templ (wn WidgetNew) Page() {
 									<div class="card-footer mt-6 flex-col gap-3">
 										<button type="submit" class="btn btn-primary btn-block">Create Widget</button>
 										
-										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.WidgetIndex.URL()) }>Back to List</a>
+										<a class="btn btn-outline btn-block" href={ routes.WidgetIndex.URL() }>Back to List</a>
 										
 									</div>
 								</fieldset>
@@ -231,7 +231,7 @@ templ (we WidgetEdit) Page() {
 									<div class="card-footer mt-6 flex-col gap-3">
 										<button type="submit" class="btn btn-primary btn-block">Update Widget</button>
 										
-										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.WidgetIndex.URL()) }>Back to List</a>
+										<a class="btn btn-outline btn-block" href={ routes.WidgetIndex.URL() }>Back to List</a>
 										
 									</div>
 								</fieldset>

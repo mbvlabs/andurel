@@ -96,7 +96,7 @@ templ ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) Page() {
 							<a href={ routes.{{.NamespacePascal}}{{.ResourceName}}Edit.URL({{$showRecv}}.Item.{{.IDFieldName}}) } class="btn btn-primary">Edit</a>
 							{{end}}
 							{{if HasAction "index"}}
-							<a class="inline-link text-sm" href={ hypermedia.ResolveBackURL(ctx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL()) }>Back to List</a>
+							<a class="inline-link text-sm" href={ routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL() }>Back to List</a>
 							{{end}}
 						</div>
 					</div>
@@ -166,7 +166,7 @@ templ ({{$newRecv}} {{.NamespacePascal}}{{.ResourceName}}New) Page() {
 									<div class="card-footer mt-6 flex-col gap-3">
 										{{if HasAction "create"}}<button type="submit" class="btn btn-primary btn-block">Create {{.ResourceName}}</button>{{end}}
 										{{if HasAction "index"}}
-										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL()) }>Back to List</a>
+										<a class="btn btn-outline btn-block" href={ routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL() }>Back to List</a>
 										{{end}}
 									</div>
 								</fieldset>
@@ -230,7 +230,7 @@ templ ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) Page() {
 									<div class="card-footer mt-6 flex-col gap-3">
 										{{if HasAction "update"}}<button type="submit" class="btn btn-primary btn-block">Update {{.ResourceName}}</button>{{end}}
 										{{if HasAction "index"}}
-										<a class="btn btn-outline btn-block" href={ hypermedia.ResolveBackURL(ctx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL()) }>Back to List</a>
+										<a class="btn btn-outline btn-block" href={ routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL() }>Back to List</a>
 										{{end}}
 									</div>
 								</fieldset>
