@@ -1228,7 +1228,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mbvlabs/andurel/pkg/request"
 	"github.com/mbvlabs/andurel/pkg/server"
 	"testapp/assets"
 	mailclients "testapp/clients/email"
@@ -1239,7 +1238,7 @@ import (
 	"testapp/internal/inertia"
 	"testapp/queue"
 	"testapp/router"
-	"testapp/router/cookies"
+	"testapp/router/appctx"
 	"testapp/router/routes"
 	"testapp/services"
 	"testapp/telemetry"
@@ -1314,10 +1313,7 @@ func provideInertia(cfg config.Config) (*inertia.Renderer, *inertia.SSRRuntime, 
 		inertia.WithSharedProp("appVersion", appVersion),
 		inertia.WithSSRRenderer(ssrRuntime.Renderer()),
 		inertia.WithRequestFlash(func(ctx context.Context) any {
-			flashes := request.ExtractContext[[]cookies.FlashMessage](
-				ctx,
-				request.SessionFlashesKey,
-			)
+			flashes := appctx.Flashes(ctx)
 			if len(flashes) == 0 {
 				return nil
 			}
@@ -4604,7 +4600,6 @@ require (
 	github.com/lmittmann/tint v1.2.0
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0
-	github.com/mbvlabs/andurel/pkg/request v0.1.0
 	github.com/mbvlabs/andurel/pkg/routing v0.1.0
 	github.com/mbvlabs/andurel/pkg/server v0.1.0
 	github.com/mbvlabs/andurel/pkg/storage v0.1.0
@@ -4661,6 +4656,7 @@ require (
 	github.com/lib/pq v1.12.3 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
+	github.com/mbvlabs/andurel/pkg/request v0.1.0 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.2.0 // indirect
@@ -9343,6 +9339,37 @@ createServer(page =>
 
 dir  d----------rwxr-xr-x router
 
+dir  d----------rwxr-xr-x router/appctx
+
+file -----------rw-r--r-- router/appctx/appctx.go
+```
+// Package appctx provides typed accessors for request-scoped values that
+// travel through the request lifecycle via context.Context.
+package appctx
+
+import (
+	"context"
+
+	"testapp/router/cookies"
+)
+
+type contextKey string
+
+const flashesKey contextKey = "flashes"
+
+// WithFlashes stores flash messages extracted from the session on the
+// request context so views and shared props can render them.
+func WithFlashes(ctx context.Context, flashes []cookies.FlashMessage) context.Context {
+	return context.WithValue(ctx, flashesKey, flashes)
+}
+
+// Flashes returns the flash messages stored on the request context, if any.
+func Flashes(ctx context.Context) []cookies.FlashMessage {
+	flashes, _ := ctx.Value(flashesKey).([]cookies.FlashMessage)
+	return flashes
+}
+```
+
 dir  d----------rwxr-xr-x router/cookies
 
 file -----------rw-r--r-- router/cookies/cookies.go
@@ -9350,16 +9377,12 @@ file -----------rw-r--r-- router/cookies/cookies.go
 package cookies
 
 import (
-	"strings"
-
 	"github.com/google/uuid"
 	"testapp/config"
 	"testapp/models"
 
 	"github.com/labstack/echo/v5"
 )
-
-const ReturnToKey = "return_to"
 
 const (
 	isAuthenticated = "is_authenticated"
@@ -9416,49 +9439,6 @@ func ExtractFromCookieApp(c *echo.Context) App {
 	}
 
 	return app
-}
-
-func SetReturnTo(c *echo.Context, returnTo string) error {
-	sess, err := getSession(config.AppCookieSessionName, c)
-	if err != nil {
-		return err
-	}
-
-	if returnTo == "" {
-		delete(sess.Values, ReturnToKey)
-	} else {
-		sess.Values[ReturnToKey] = returnTo
-	}
-
-	return sess.Save(c.Request(), c.Response())
-}
-
-func GetReturnTo(c *echo.Context) string {
-	sess, err := getSession(config.AppCookieSessionName, c)
-	if err != nil {
-		return ""
-	}
-
-	returnTo, _ := sess.Values[ReturnToKey].(string)
-	return strings.TrimSpace(returnTo)
-}
-
-func ResolveReturnTo(c *echo.Context, fallback string) string {
-	returnTo := GetReturnTo(c)
-	if !isSafeReturnTo(returnTo) {
-		return fallback
-	}
-
-	return returnTo
-}
-
-func isSafeReturnTo(returnTo string) bool {
-	if returnTo == "" {
-		return false
-	}
-
-	return strings.HasPrefix(returnTo, "/") &&
-		!strings.HasPrefix(returnTo, "//")
 }
 ```
 
@@ -9741,13 +9721,12 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
-	"github.com/mbvlabs/andurel/pkg/request"
 	"github.com/mbvlabs/andurel/pkg/server"
 	"testapp/config"
+	"testapp/router/appctx"
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/telemetry"
@@ -9768,73 +9747,12 @@ func RegisterRequestMeta(
 			return next(c)
 		}
 
-		appCookie := cookies.ExtractFromCookieApp(c)
-		appCookie.CurrentPath = c.Request().URL.Path
-
 		flashes, err := cookies.ExtractFlashes(c)
 		if err != nil {
 			slog.Error("Error getting flash messages from session", "error", err)
 		}
 
-		returnTo := cookies.GetReturnTo(c)
-
-		method := c.Request().Method
-		if method == http.MethodGet || method == http.MethodHead {
-			referer := strings.TrimSpace(c.Request().Referer())
-			if referer == "" {
-				if sessErr := cookies.SetReturnTo(c, ""); sessErr != nil {
-					slog.Warn("Error clearing return_to", "error", sessErr)
-				}
-				returnTo = ""
-			} else {
-				refererURL, parseErr := url.Parse(referer)
-				if parseErr != nil {
-					if sessErr := cookies.SetReturnTo(c, ""); sessErr != nil {
-						slog.Warn("Error clearing return_to", "error", sessErr)
-					}
-					returnTo = ""
-				} else if refererURL.Host != "" && !strings.EqualFold(refererURL.Host, c.Request().Host) {
-					if sessErr := cookies.SetReturnTo(c, ""); sessErr != nil {
-						slog.Warn("Error clearing return_to", "error", sessErr)
-					}
-					returnTo = ""
-				} else {
-					newReturnTo := refererURL.EscapedPath()
-					if refererURL.RawQuery != "" {
-						newReturnTo += "?" + refererURL.RawQuery
-					}
-					if newReturnTo == "" {
-						newReturnTo = "/"
-					}
-
-					current := c.Request().URL.Path
-					if c.Request().URL.RawQuery != "" {
-						current += "?" + c.Request().URL.RawQuery
-					}
-
-					if newReturnTo == current ||
-						!strings.HasPrefix(newReturnTo, "/") ||
-						strings.HasPrefix(newReturnTo, "//") {
-						if sessErr := cookies.SetReturnTo(c, ""); sessErr != nil {
-							slog.Warn("Error clearing return_to", "error", sessErr)
-						}
-						returnTo = ""
-					} else {
-						if sessErr := cookies.SetReturnTo(c, newReturnTo); sessErr != nil {
-							slog.Warn("Error setting return_to", "error", sessErr)
-						}
-						returnTo = newReturnTo
-					}
-				}
-			}
-		}
-
-		ctx := request.BuildRequestMeta(c.Request().Context(), map[request.AppContextKey]any{
-			request.SessionCookieKey:  appCookie,
-			request.SessionFlashesKey: flashes,
-			request.BackURLKey:        returnTo,
-		})
-
+		ctx := appctx.WithFlashes(c.Request().Context(), flashes)
 		c.SetRequest(c.Request().WithContext(ctx))
 
 		return next(c)
@@ -10083,8 +10001,8 @@ import (
 	"sync"
 	"testing"
 
-	requestmeta "github.com/mbvlabs/andurel/pkg/request"
 	"testapp/config"
+	"testapp/router/appctx"
 	"testapp/router/cookies"
 
 	"github.com/gorilla/sessions"
@@ -10151,7 +10069,12 @@ func TestValidateSessionRecoversStaleApplicationCookie(t *testing.T) {
 	oldStore := newTestCookieStore("old-application-session-auth-key")
 	newStore := newTestCookieStore("new-application-session-auth-key")
 	staleCookie := issueSessionCookie(t, oldStore, config.AppCookieSessionName, func(c *echo.Context) error {
-		return cookies.SetReturnTo(c, "/account")
+		sess, err := echosession.Get(config.AppCookieSessionName, c)
+		if err != nil {
+			return err
+		}
+		sess.Values["legacy"] = "value"
+		return sess.Save(c.Request(), c.Response())
 	})
 
 	request := httptest.NewRequest(http.MethodPost, "/", nil)
@@ -10159,9 +10082,6 @@ func TestValidateSessionRecoversStaleApplicationCookie(t *testing.T) {
 	called := false
 	recorder, err := serveSessionRequest(newStore, request, func(c *echo.Context) error {
 		called = true
-		if got := requestmeta.ExtractContext[string](c.Request().Context(), requestmeta.BackURLKey); got != "" {
-			t.Fatalf("recovered return URL = %q, want empty", got)
-		}
 		return c.NoContent(http.StatusNoContent)
 	})
 	if err != nil {
@@ -10189,10 +10109,7 @@ func TestValidateSessionRecoversStaleFlashCookie(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	request.AddCookie(staleCookie)
 	recorder, err := serveSessionRequest(newStore, request, func(c *echo.Context) error {
-		flashes := requestmeta.ExtractContext[[]cookies.FlashMessage](
-			c.Request().Context(),
-			requestmeta.SessionFlashesKey,
-		)
+		flashes := appctx.Flashes(c.Request().Context())
 		if len(flashes) != 0 {
 			t.Fatalf("recovered flashes = %v, want none", flashes)
 		}
@@ -10213,7 +10130,12 @@ func TestValidateSessionPreservesValidSessions(t *testing.T) {
 
 	store := newTestCookieStore("valid-session-authentication-key")
 	appCookie := issueSessionCookie(t, store, config.AppCookieSessionName, func(c *echo.Context) error {
-		return cookies.SetReturnTo(c, "/account")
+		sess, err := echosession.Get(config.AppCookieSessionName, c)
+		if err != nil {
+			return err
+		}
+		sess.Values["marker"] = "valid"
+		return sess.Save(c.Request(), c.Response())
 	})
 	flashCookie := issueSessionCookie(t, store, "", func(c *echo.Context) error {
 		return cookies.AddFlash(c, cookies.FlashSuccess, "saved")
@@ -10223,13 +10145,7 @@ func TestValidateSessionPreservesValidSessions(t *testing.T) {
 	request.AddCookie(appCookie)
 	request.AddCookie(flashCookie)
 	recorder, err := serveSessionRequest(store, request, func(c *echo.Context) error {
-		if got := requestmeta.ExtractContext[string](c.Request().Context(), requestmeta.BackURLKey); got != "/account" {
-			t.Fatalf("return URL = %q, want %q", got, "/account")
-		}
-		flashes := requestmeta.ExtractContext[[]cookies.FlashMessage](
-			c.Request().Context(),
-			requestmeta.SessionFlashesKey,
-		)
+		flashes := appctx.Flashes(c.Request().Context())
 		if len(flashes) != 1 || flashes[0].Message != "saved" {
 			t.Fatalf("flashes = %v, want saved flash", flashes)
 		}
@@ -10436,10 +10352,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/mbvlabs/andurel/pkg/request"
 	"github.com/mbvlabs/andurel/pkg/server"
 	"testapp/config"
 	"testapp/internal/inertia"
+	"testapp/router/appctx"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
 	"testapp/telemetry"
@@ -10548,7 +10464,7 @@ func SetupGlobalMiddleware(
 		return nil, err
 	}
 	if err := renderer.SetReflashHandler(func(etx *echo.Context) error {
-		flashes := request.ExtractContext[[]cookies.FlashMessage](etx.Request().Context(), request.SessionFlashesKey)
+		flashes := appctx.Flashes(etx.Request().Context())
 		return cookies.Reflash(etx, flashes)
 	}); err != nil {
 		return nil, err
@@ -13843,10 +13759,10 @@ file -----------rw-r--r-- views/layout.templ
 package views
 
 import (
-	"github.com/mbvlabs/andurel/pkg/request"
-	"testapp/router/cookies"
-	"testapp/router/routes"
 	"time"
+
+	"testapp/router/appctx"
+	"testapp/router/routes"
 )
 
 templ base(headOpts ...HeadDataOption) {
@@ -13879,7 +13795,7 @@ templ base(headOpts ...HeadDataOption) {
 				</div>
 			</footer>
 			<div id="flashContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-				for _, flash := range request.ExtractContext[[]cookies.FlashMessage](ctx, request.SessionFlashesKey) {
+				for _, flash := range appctx.Flashes(ctx) {
 					<div class="border border-[#2f3a37] bg-[#101414] px-4 py-3 text-[#e4dfd2] shadow-lg shadow-black/40">
 						{ flash.Message }
 					</div>
@@ -13903,10 +13819,10 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/mbvlabs/andurel/pkg/request"
-	"testapp/router/cookies"
-	"testapp/router/routes"
 	"time"
+
+	"testapp/router/appctx"
+	"testapp/router/routes"
 )
 
 func base(headOpts ...HeadDataOption) templ.Component {
@@ -14002,7 +13918,7 @@ func base(headOpts ...HeadDataOption) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, flash := range request.ExtractContext[[]cookies.FlashMessage](ctx, request.SessionFlashesKey) {
+		for _, flash := range appctx.Flashes(ctx) {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"border border-[#2f3a37] bg-[#101414] px-4 py-3 text-[#e4dfd2] shadow-lg shadow-black/40\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

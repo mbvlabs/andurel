@@ -1,0 +1,25 @@
+// Package appctx provides typed accessors for request-scoped values that
+// travel through the request lifecycle via context.Context.
+package appctx
+
+import (
+	"context"
+
+	"{{.ModuleName}}/router/cookies"
+)
+
+type contextKey string
+
+const flashesKey contextKey = "flashes"
+
+// WithFlashes stores flash messages extracted from the session on the
+// request context so views and shared props can render them.
+func WithFlashes(ctx context.Context, flashes []cookies.FlashMessage) context.Context {
+	return context.WithValue(ctx, flashesKey, flashes)
+}
+
+// Flashes returns the flash messages stored on the request context, if any.
+func Flashes(ctx context.Context) []cookies.FlashMessage {
+	flashes, _ := ctx.Value(flashesKey).([]cookies.FlashMessage)
+	return flashes
+}

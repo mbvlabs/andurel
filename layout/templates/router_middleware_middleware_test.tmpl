@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"{{.ModuleName}}/config"
-	requestmeta "github.com/mbvlabs/andurel/pkg/request"
+	"{{.ModuleName}}/router/appctx"
 	"{{.ModuleName}}/router/cookies"
 
 	"github.com/gorilla/sessions"
@@ -75,7 +75,12 @@ func TestValidateSessionRecoversStaleApplicationCookie(t *testing.T) {
 	oldStore := newTestCookieStore("old-application-session-auth-key")
 	newStore := newTestCookieStore("new-application-session-auth-key")
 	staleCookie := issueSessionCookie(t, oldStore, config.AppCookieSessionName, func(c *echo.Context) error {
-		return cookies.SetReturnTo(c, "/account")
+		sess, err := echosession.Get(config.AppCookieSessionName, c)
+		if err != nil {
+			return err
+		}
+		sess.Values["legacy"] = "value"
+		return sess.Save(c.Request(), c.Response())
 	})
 
 	request := httptest.NewRequest(http.MethodPost, "/", nil)
@@ -83,9 +88,6 @@ func TestValidateSessionRecoversStaleApplicationCookie(t *testing.T) {
 	called := false
 	recorder, err := serveSessionRequest(newStore, request, func(c *echo.Context) error {
 		called = true
-		if got := requestmeta.ExtractContext[string](c.Request().Context(), requestmeta.BackURLKey); got != "" {
-			t.Fatalf("recovered return URL = %q, want empty", got)
-		}
 		return c.NoContent(http.StatusNoContent)
 	})
 	if err != nil {
@@ -113,10 +115,7 @@ func TestValidateSessionRecoversStaleFlashCookie(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	request.AddCookie(staleCookie)
 	recorder, err := serveSessionRequest(newStore, request, func(c *echo.Context) error {
-		flashes := requestmeta.ExtractContext[[]cookies.FlashMessage](
-			c.Request().Context(),
-			requestmeta.SessionFlashesKey,
-		)
+		flashes := appctx.Flashes(c.Request().Context())
 		if len(flashes) != 0 {
 			t.Fatalf("recovered flashes = %v, want none", flashes)
 		}
@@ -137,7 +136,12 @@ func TestValidateSessionPreservesValidSessions(t *testing.T) {
 
 	store := newTestCookieStore("valid-session-authentication-key")
 	appCookie := issueSessionCookie(t, store, config.AppCookieSessionName, func(c *echo.Context) error {
-		return cookies.SetReturnTo(c, "/account")
+		sess, err := echosession.Get(config.AppCookieSessionName, c)
+		if err != nil {
+			return err
+		}
+		sess.Values["marker"] = "valid"
+		return sess.Save(c.Request(), c.Response())
 	})
 	flashCookie := issueSessionCookie(t, store, "", func(c *echo.Context) error {
 		return cookies.AddFlash(c, cookies.FlashSuccess, "saved")
@@ -147,13 +151,7 @@ func TestValidateSessionPreservesValidSessions(t *testing.T) {
 	request.AddCookie(appCookie)
 	request.AddCookie(flashCookie)
 	recorder, err := serveSessionRequest(store, request, func(c *echo.Context) error {
-		if got := requestmeta.ExtractContext[string](c.Request().Context(), requestmeta.BackURLKey); got != "/account" {
-			t.Fatalf("return URL = %q, want %q", got, "/account")
-		}
-		flashes := requestmeta.ExtractContext[[]cookies.FlashMessage](
-			c.Request().Context(),
-			requestmeta.SessionFlashesKey,
-		)
+		flashes := appctx.Flashes(c.Request().Context())
 		if len(flashes) != 1 || flashes[0].Message != "saved" {
 			t.Fatalf("flashes = %v, want saved flash", flashes)
 		}

@@ -96,7 +96,7 @@ templ ({{$showRecv}} {{.NamespacePascal}}{{.ResourceName}}Show) Page() {
 							<a href={ routes.{{.NamespacePascal}}{{.ResourceName}}Edit.URL({{$showRecv}}.Item.{{.IDFieldName}}) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
 							{{end}}
 							{{if HasAction "index"}}
-							<a class="text-sm text-slate-300 hover:text-slate-100" href={ hypermedia.ResolveBackURL(ctx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL()) }>Back to List</a>
+							<a class="text-sm text-slate-300 hover:text-slate-100" href={ routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL() }>Back to List</a>
 							{{end}}
 						</div>
 					</div>
@@ -168,7 +168,7 @@ templ ({{$newRecv}} {{.NamespacePascal}}{{.ResourceName}}New) Page() {
 									<div class="mt-6 space-y-3">
 										{{if HasAction "create"}}<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded w-full">Create {{.ResourceName}}</button>{{end}}
 										{{if HasAction "index"}}
-										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-cyan-400/25 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-slate-100" href={ hypermedia.ResolveBackURL(ctx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL()) }>Back to List</a>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-cyan-400/25 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-slate-100" href={ routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL() }>Back to List</a>
 										{{end}}
 									</div>
 								</fieldset>
@@ -234,7 +234,7 @@ templ ({{$editRecv}} {{.NamespacePascal}}{{.ResourceName}}Edit) Page() {
 									<div class="mt-6 space-y-3">
 										{{if HasAction "update"}}<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded w-full">Update {{.ResourceName}}</button>{{end}}
 										{{if HasAction "index"}}
-										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-cyan-400/25 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-slate-100" href={ hypermedia.ResolveBackURL(ctx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL()) }>Back to List</a>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-cyan-400/25 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-slate-100" href={ routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL() }>Back to List</a>
 										{{end}}
 									</div>
 								</fieldset>

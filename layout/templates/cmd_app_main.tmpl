@@ -21,13 +21,12 @@ import (
 	"{{.ModuleName}}/email"
 {{- if .Inertia}}
 	"{{.ModuleName}}/internal/inertia"
-	"github.com/mbvlabs/andurel/pkg/request"
 {{- end}}
 	"github.com/mbvlabs/andurel/pkg/server"
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router"
 {{- if .Inertia}}
-	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/router/appctx"
 	"{{.ModuleName}}/router/routes"
 {{- end}}
 	"{{.ModuleName}}/services"
@@ -107,10 +106,7 @@ func provideInertia(cfg config.Config) (*inertia.Renderer, *inertia.SSRRuntime, 
 		inertia.WithSharedProp("appVersion", appVersion),
 		inertia.WithSSRRenderer(ssrRuntime.Renderer()),
 		inertia.WithRequestFlash(func(ctx context.Context) any {
-			flashes := request.ExtractContext[[]cookies.FlashMessage](
-				ctx,
-				request.SessionFlashesKey,
-			)
+			flashes := appctx.Flashes(ctx)
 			if len(flashes) == 0 {
 				return nil
 			}

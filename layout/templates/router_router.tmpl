@@ -13,7 +13,7 @@ import (
 	"{{.ModuleName}}/config"
 {{- if .Inertia}}
 	"{{.ModuleName}}/internal/inertia"
-	"github.com/mbvlabs/andurel/pkg/request"
+	"{{.ModuleName}}/router/appctx"
 {{- end}}
 	"github.com/mbvlabs/andurel/pkg/server"
 	"{{.ModuleName}}/router/cookies"
@@ -133,7 +133,7 @@ func SetupGlobalMiddleware(
 	}
 	{{- if .Inertia}}
 	if err := renderer.SetReflashHandler(func(etx *echo.Context) error {
-		flashes := request.ExtractContext[[]cookies.FlashMessage](etx.Request().Context(), request.SessionFlashesKey)
+		flashes := appctx.Flashes(etx.Request().Context())
 		return cookies.Reflash(etx, flashes)
 	}); err != nil {
 		return nil, err
