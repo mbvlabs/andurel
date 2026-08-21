@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mbvlabs/andurel/internal/cache"
 	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/sebdah/goldie/v2"
 )
 

@@ -20,12 +20,12 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/mbvlabs/andurel/internal/constants"
 	"github.com/mbvlabs/andurel/layout/blueprint"
 	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/mbvlabs/andurel/layout/extensions"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/layout/versions"
-	"github.com/mbvlabs/andurel/pkg/constants"
 )
 
 // Element describes a directory tree node to create during scaffolding.

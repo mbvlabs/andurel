@@ -13,9 +13,9 @@ import (
 
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/internal/constants"
+	"github.com/mbvlabs/andurel/internal/naming"
 	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/pkg/constants"
-	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 // FileGenerator generates file artifacts.

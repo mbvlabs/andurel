@@ -9,8 +9,8 @@ import (
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/models"
+	"github.com/mbvlabs/andurel/internal/naming"
 	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 type factoryValidationHook struct {

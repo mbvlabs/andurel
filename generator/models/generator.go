@@ -18,9 +18,9 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/types"
 	"github.com/mbvlabs/andurel/generator/internal/validation"
 	"github.com/mbvlabs/andurel/generator/templates"
-	"github.com/mbvlabs/andurel/pkg/constants"
-	"github.com/mbvlabs/andurel/pkg/errors"
-	"github.com/mbvlabs/andurel/pkg/naming"
+	"github.com/mbvlabs/andurel/internal/constants"
+	"github.com/mbvlabs/andurel/internal/errors"
+	"github.com/mbvlabs/andurel/internal/naming"
 )
 
 // GeneratedField describes one model field derived from a database column.

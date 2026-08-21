@@ -8,9 +8,9 @@ import (
 	"text/template"
 
 	"github.com/mbvlabs/andurel/generator/templates"
+	"github.com/mbvlabs/andurel/internal/errors"
+	"github.com/mbvlabs/andurel/internal/naming"
 	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/pkg/errors"
-	"github.com/mbvlabs/andurel/pkg/naming"
 )
 
 // TemplateRenderer represents template renderer.

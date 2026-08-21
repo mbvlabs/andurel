@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/mbvlabs/andurel/pkg/cache"
-	"github.com/mbvlabs/andurel/pkg/constants"
+	"github.com/mbvlabs/andurel/internal/cache"
+	"github.com/mbvlabs/andurel/internal/constants"
 )
 
 // UnifiedManager provides centralized file operations with consistent error handling

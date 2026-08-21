@@ -6,7 +6,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/models"
 	"github.com/mbvlabs/andurel/generator/views"
-	"github.com/mbvlabs/andurel/pkg/naming"
+	"github.com/mbvlabs/andurel/internal/naming"
 )
 
 // Coordinator wires the managers that implement high-level generation workflows.

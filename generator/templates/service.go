@@ -8,8 +8,8 @@ import (
 	"unicode"
 
 	"github.com/jinzhu/inflection"
-	"github.com/mbvlabs/andurel/pkg/errors"
-	"github.com/mbvlabs/andurel/pkg/naming"
+	"github.com/mbvlabs/andurel/internal/errors"
+	"github.com/mbvlabs/andurel/internal/naming"
 )
 
 // TemplateData represents the unified data structure for all templates

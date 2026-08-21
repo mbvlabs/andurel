@@ -10,8 +10,8 @@ import (
 	"unicode"
 
 	"github.com/mbvlabs/andurel/cli/output"
+	"github.com/mbvlabs/andurel/internal/naming"
 	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/spf13/cobra"
 )
 
