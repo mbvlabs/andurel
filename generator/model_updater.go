@@ -13,7 +13,7 @@ import (
 
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/models"
-	"github.com/mbvlabs/andurel/pkg/naming"
+	"github.com/mbvlabs/andurel/internal/naming"
 	"github.com/pmezard/go-difflib/difflib"
 )
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/pkg/cache"
+	"github.com/mbvlabs/andurel/internal/cache"
 )
 
 func TestGenerateJobWritesJobWorkerAndRegistration(t *testing.T) {

@@ -9,5 +9,3 @@ use (
 	./pkg/storage
 	./pkg/validation
 )
-
-replace github.com/mbvlabs/andurel/pkg/request v0.1.0 => ./pkg/request

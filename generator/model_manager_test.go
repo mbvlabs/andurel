@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/generator/models"
-	"github.com/mbvlabs/andurel/pkg/cache"
+	"github.com/mbvlabs/andurel/internal/cache"
 )
 
 func TestEnsureLineInBlock(t *testing.T) {

@@ -12,6 +12,7 @@ import (
 
 var (
 	andurelBinary string
+	projectRoot   string
 	sharedBinDir  string
 )
 
@@ -31,7 +32,7 @@ func TestMain(m *testing.M) {
 		panic(fmt.Sprintf("Failed to get working directory: %v", err))
 	}
 
-	projectRoot := filepath.Dir(workDir)
+	projectRoot = filepath.Dir(workDir)
 
 	tmpDir, err := os.MkdirTemp("", "andurel-e2e-*")
 	if err != nil {
@@ -81,6 +82,10 @@ func buildAndurelBinary(t *testing.T) string {
 
 func getSharedBinDir() string {
 	return sharedBinDir
+}
+
+func getProjectRoot() string {
+	return projectRoot
 }
 
 func isCriticalOnly() bool {

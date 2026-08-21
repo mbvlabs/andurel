@@ -18,7 +18,7 @@ The compatibility promise applies to source code compiled against supported v1 p
 
 No exported value is safe for concurrent mutation unless this document or its Go documentation says it is. Read-only use is safe only when no goroutine can mutate the same value or its referenced data.
 
-The `pkg/cache.FileSystemCache` methods and package-level filesystem cache helpers are safe for concurrent calls. Embedded `embed.FS` values are read-only after initialization. Other managers, builders, generators, registries, test suites, lock values, and upgrade values require caller synchronization.
+Embedded `embed.FS` values are read-only after initialization. Other managers, builders, generators, registries, lock values, and upgrade values require caller synchronization.
 
 ## Package mutation summary
 
@@ -32,10 +32,7 @@ The `pkg/cache.FileSystemCache` methods and package-level filesystem cache helpe
 | `layout/extensions` | `Register` mutates the process-wide registry. Registration must finish before concurrent calls to `Get` or `Names`. Extension application mutates the target project. |
 | `layout/templates`, `generator/templates`, `skills` | Embedded files are immutable. Rendering writes only to returned values or explicitly supplied destinations. Skill walking invokes the callback synchronously and does not retain callback data. |
 | `layout/upgrade` | A non-dry-run upgrade mutates the project. Dry-run behavior is read-only. An upgrader is single-use and requires caller synchronization. |
-| `layout/versions`, `pkg/constants`, `pkg/naming` | Constants and conversion helpers have no shared mutation. Returned strings are caller-owned values. |
-| `pkg/cache` | Cache values and package helpers use internal locking. Stored pointer, slice, or map values are not deep-copied, so callers remain responsible for the concurrency of the stored value itself. |
-| `pkg/errors` | Constructors return caller-owned errors and contexts. Fluent context and builder methods mutate their receivers and are not safe for concurrent calls. |
-| `pkg/testing` | Suite registration mutates suite maps, and run methods execute registered callbacks. A suite requires caller synchronization. |
+| `layout/versions` | Constants and conversion helpers have no shared mutation. Returned strings are caller-owned values. |
 
 ## Updating the baseline
 

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mbvlabs/andurel/pkg/naming"
+	"github.com/mbvlabs/andurel/internal/naming"
 )
 
 // ExtractTableNameOverride reads the actual table name from the bun.BaseModel tag

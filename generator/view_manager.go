@@ -8,7 +8,7 @@ import (
 
 	"github.com/mbvlabs/andurel/generator/controllers"
 	"github.com/mbvlabs/andurel/generator/views"
-	"github.com/mbvlabs/andurel/pkg/naming"
+	"github.com/mbvlabs/andurel/internal/naming"
 )
 
 // ViewManager coordinates view operations.

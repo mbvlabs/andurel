@@ -9,7 +9,7 @@ import (
 
 	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/generator/controllers"
-	"github.com/mbvlabs/andurel/pkg/naming"
+	"github.com/mbvlabs/andurel/internal/naming"
 )
 
 // ActionConfig holds the input configuration for action generation.

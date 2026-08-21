@@ -1,54 +1,59 @@
 package internal
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 // Project represents project.
 type Project struct {
-	Dir          string
-	Name         string
-	T            *testing.T
-	BinaryPath   string
-	Database     string
-	CSS          string
-	SharedBinDir string
+	Dir           string
+	Name          string
+	T             *testing.T
+	BinaryPath    string
+	Database      string
+	CSS           string
+	SharedBinDir  string
+	WorkspaceRoot string
 }
 
 // NewProject creates a new project.
-func NewProject(t *testing.T, andurelBinary, sharedBinDir string) *Project {
+func NewProject(t *testing.T, andurelBinary, sharedBinDir, workspaceRoot string) *Project {
 	t.Helper()
 
 	tmpDir := t.TempDir()
 	projectName := "testapp"
 
 	return &Project{
-		Dir:          filepath.Join(tmpDir, projectName),
-		Name:         projectName,
-		T:            t,
-		BinaryPath:   andurelBinary,
-		Database:     "",
-		SharedBinDir: sharedBinDir,
+		Dir:           filepath.Join(tmpDir, projectName),
+		Name:          projectName,
+		T:             t,
+		BinaryPath:    andurelBinary,
+		Database:      "",
+		SharedBinDir:  sharedBinDir,
+		WorkspaceRoot: workspaceRoot,
 	}
 }
 
 // NewProjectWithDatabase creates a new project with database.
-func NewProjectWithDatabase(t *testing.T, andurelBinary, sharedBinDir, database string) *Project {
+func NewProjectWithDatabase(t *testing.T, andurelBinary, sharedBinDir, workspaceRoot, database string) *Project {
 	t.Helper()
 
 	tmpDir := t.TempDir()
 	projectName := "testapp"
 
 	return &Project{
-		Dir:          filepath.Join(tmpDir, projectName),
-		Name:         projectName,
-		T:            t,
-		BinaryPath:   andurelBinary,
-		Database:     database,
-		SharedBinDir: sharedBinDir,
+		Dir:           filepath.Join(tmpDir, projectName),
+		Name:          projectName,
+		T:             t,
+		BinaryPath:    andurelBinary,
+		Database:      database,
+		SharedBinDir:  sharedBinDir,
+		WorkspaceRoot: workspaceRoot,
 	}
 }
 
@@ -68,8 +73,48 @@ func (p *Project) Scaffold(args ...string) error {
 		return err
 	}
 
+	if err := p.setupWorkspace(); err != nil {
+		return err
+	}
+	if err := RunCommand(p.T, "go", p.Dir, p.workspaceEnv(), "mod", "tidy"); err != nil {
+		return err
+	}
+
 	// Copy shared tools to the project's bin directory
 	return p.setupToolBinaries()
+}
+
+func (p *Project) setupWorkspace() error {
+	moduleNames := []string{
+		"hypermedia",
+		"request",
+		"routing",
+		"server",
+		"storage",
+		"validation",
+	}
+
+	var workspace strings.Builder
+	workspace.WriteString("go 1.26.5\n\nuse (\n\t..\n")
+	for _, moduleName := range moduleNames {
+		moduleDir := filepath.ToSlash(filepath.Join(p.WorkspaceRoot, "pkg", moduleName))
+		fmt.Fprintf(&workspace, "\t%q\n", moduleDir)
+	}
+	workspace.WriteString(")\n")
+
+	if err := os.WriteFile(p.workspacePath(), []byte(workspace.String()), 0o644); err != nil {
+		return fmt.Errorf("write test workspace: %w", err)
+	}
+
+	return nil
+}
+
+func (p *Project) workspacePath() string {
+	return filepath.Join(p.Dir, ".git", "andurel-test.go.work")
+}
+
+func (p *Project) workspaceEnv() []string {
+	return []string{"GOWORK=" + p.workspacePath()}
 }
 
 // setupToolBinaries copies the pre-downloaded tools from the shared bin directory
@@ -166,7 +211,7 @@ func (p *Project) GenerateExpectError(args ...string) error {
 func (p *Project) GoVet() error {
 	p.T.Helper()
 
-	return RunCommand(p.T, "go", p.Dir, nil, "vet", "./...")
+	return RunCommand(p.T, "go", p.Dir, p.workspaceEnv(), "vet", "./...")
 }
 
 // GoBuild performs the go build operation.

@@ -13,7 +13,7 @@ import (
 
 	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/generator"
-	"github.com/mbvlabs/andurel/pkg/cache"
+	"github.com/mbvlabs/andurel/internal/cache"
 	"github.com/spf13/cobra"
 )
 

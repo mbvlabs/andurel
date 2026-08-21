@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/pkg/cache"
+	"github.com/mbvlabs/andurel/internal/cache"
 )
 
 func TestUnifiedManagerFileOperations(t *testing.T) {

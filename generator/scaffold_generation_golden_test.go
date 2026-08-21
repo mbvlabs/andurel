@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/mbvlabs/andurel/internal/cache"
+	"github.com/mbvlabs/andurel/internal/naming"
 	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/pkg/cache"
-	"github.com/mbvlabs/andurel/pkg/naming"
 	"github.com/sebdah/goldie/v2"
 )
 

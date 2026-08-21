@@ -10,8 +10,8 @@ import (
 	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/templates"
-	"github.com/mbvlabs/andurel/pkg/constants"
-	"github.com/mbvlabs/andurel/pkg/naming"
+	"github.com/mbvlabs/andurel/internal/constants"
+	"github.com/mbvlabs/andurel/internal/naming"
 	"github.com/spf13/cobra"
 )
 

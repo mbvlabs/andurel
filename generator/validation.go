@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/jinzhu/inflection"
-	"github.com/mbvlabs/andurel/pkg/naming"
+	"github.com/mbvlabs/andurel/internal/naming"
 )
 
 // InputValidator validates resource, table, file, and module names used by generators.

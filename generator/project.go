@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/generator/files"
-	"github.com/mbvlabs/andurel/pkg/cache"
+	"github.com/mbvlabs/andurel/internal/cache"
 )
 
 // ProjectManager coordinates project operations.

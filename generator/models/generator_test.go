@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
-	"github.com/mbvlabs/andurel/pkg/naming"
+	"github.com/mbvlabs/andurel/internal/naming"
 )
 
 func TestBuildUUIDImports(t *testing.T) {

@@ -118,7 +118,7 @@ func TestScaffoldGoldens(t *testing.T) {
 				t.Skip("Skipping non-critical test in critical-only mode")
 			}
 
-			project := internal.NewProject(t, binary, getSharedBinDir())
+			project := internal.NewProject(t, binary, getSharedBinDir(), getProjectRoot())
 
 			var args []string
 
