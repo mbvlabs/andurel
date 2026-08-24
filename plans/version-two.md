@@ -10,7 +10,7 @@ Andurel V2 should:
 
 - use Uber Fx as the standard dependency injection and lifecycle system;
 - move reusable framework functionality into independently versioned Go modules;
-- use GORM as the default model persistence layer;
+- retain Bun as the default model persistence layer and offer sqlc as an opt-in tool for complex queries;
 - retain SQL migrations as the source of truth for the database schema;
 - make Inertia the recommended option for rich user interfaces while continuing to support templ and Datastar;
 - keep application dependencies explicit and testable.
@@ -103,16 +103,19 @@ Standalone packages should accept configuration values rather than reading appli
 
 Configuration should be loaded once during startup, validated before dependent components start, and supplied through Fx. Package-level mutable configuration globals should not be used.
 
-## Storage and GORM
+## Storage and Bun
 
-GORM should replace Bun as the default persistence layer in V2. It better supports the intended MVC workflow and should make ordinary model relationships and CRUD operations faster to develop. Generated model code should use GORM's generic API rather than its legacy untyped query API.
+Bun should remain the default persistence layer in V2. It fits Andurel's application-owned model design, keeps ordinary CRUD concise, and remains explicit when queries become SQL-oriented.
+
+GORM was evaluated against representative Andurel models. Rewriting ordinary user CRUD produced almost no meaningful reduction in code or improvement in DX: validation, error normalization, uniqueness checks, pagination, and explicit update fields remained application concerns. Rewriting a complex reporting model had the same string-heavy projections and joins as Bun. GORM's primary advantages—convention-driven associations and its broader ecosystem—would not offset the migration cost for Andurel's current model architecture.
+
+Bob was also evaluated. Its typed ORM query generation is attractive, but its database-first generated models conflict with Andurel's preference for application-owned business entities. Its SQL query generator addresses complex queries, but overlaps with the narrower and more established role sqlc can provide. Neither alternative demonstrated enough benefit to replace Bun.
 
 The standalone storage module should own shared database infrastructure, including:
 
 - PostgreSQL connection creation through `pgx/v5`;
 - connection pool defaults and overrides;
-- GORM initialization through the PostgreSQL driver backed by `pgx/v5/stdlib`;
-- support for GORM's generic API;
+- Bun initialization through `pgx/v5/stdlib`;
 - access to the underlying `database/sql` pool;
 - transaction helpers;
 - health checks;
@@ -127,9 +130,7 @@ PostgreSQL remains the initial supported database for V2.
 
 SQL migrations remain the canonical database schema history. They should move from `database/migrations/` to a root `migrations/` directory.
 
-GORM `AutoMigrate` must not be used as the production migration strategy. It may be made available for explicitly selected disposable development or test workflows, but it must not compete with SQL migrations as a second source of truth.
-
-The GORM CLI should be evaluated after the core model and migration workflow is established. It should only be adopted where it supports the canonical SQL migration workflow rather than creating a parallel schema definition.
+Bun model tags and query code must not become a parallel schema definition or migration mechanism. Schema changes continue to begin with SQL migrations.
 
 Seed definitions should move to a root `seeds/` package. Seed data remains application-owned, while reusable execution support may come from the storage module.
 
@@ -163,8 +164,9 @@ type Users struct {
 }
 
 type User struct {
-    ID    uuid.UUID `gorm:"type:uuid;primaryKey"`
-    Email string    `gorm:"uniqueIndex;not null"`
+    bun.BaseModel `bun:"table:users,alias:user"`
+    ID            uuid.UUID `bun:"id,pk,type:uuid"`
+    Email         string    `bun:"email"`
 }
 
 func NewUsers(db *storage.DB) Users {
@@ -172,9 +174,11 @@ func NewUsers(db *storage.DB) Users {
 }
 
 func (users Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
-    user, err := gorm.G[User](users.db.GORM()).
-        Where("id = ?", id).
-        First(ctx)
+    var user User
+    err := users.db.Bun().NewSelect().
+        Model(&user).
+        Where("user.id = ?", id).
+        Scan(ctx)
     return user, storage.NormalizeError(err)
 }
 
@@ -188,11 +192,11 @@ The application composition root includes `models.Module`. Controllers and servi
 
 Request cancellation should continue through `context.Context`. The database must not be retrieved from a package global, service locator, or request context.
 
-Transactions should provide both GORM and standard SQL access over the same underlying transaction.
+Transactions should provide both Bun and standard SQL access over the same underlying transaction.
 
 ### Optional sqlc support
 
-sqlc should be opt-in and selected for operations where explicit SQL and generated query types are valuable. It is an escape hatch within the model layer, not a second application-wide persistence mode.
+sqlc should be opt-in and reserved for operations that are materially clearer as standalone SQL, such as complex projections, reporting queries, aggregates, lateral joins, and carefully tuned bulk operations. It is an escape hatch within the model layer, not a second application-wide persistence mode. Most applications and models should never need it.
 
 sqlc queries and generated code should live beneath the models package's `internal` boundary:
 
@@ -206,9 +210,9 @@ models/
     └── generated/
 ```
 
-Only model packages may import the generated sqlc package. Model methods must convert generated rows and parameters to application-owned model types. Controllers and services must not import sqlc-generated packages or expose sqlc-generated types in their APIs.
+Only model packages may import the generated sqlc package. Application-owned model and projection types remain the public API. Where sqlc generates database-shaped rows or parameters, the owning model method performs the conversion locally; that mapping cost is accepted only for the uncommon queries where explicit SQL provides a clear maintenance benefit. Controllers and services must not import sqlc-generated packages or expose sqlc-generated types.
 
-GORM and sqlc should use the same connection pool and transaction boundary. The default shared pool should be a `database/sql` handle backed by `pgx/v5/stdlib`. sqlc may use that standard SQL interface so enabling it does not create a second PostgreSQL pool.
+Bun and sqlc should use the same connection pool and transaction boundary. The default shared pool should be a `database/sql` handle backed by `pgx/v5/stdlib`. sqlc should generate against the standard SQL interface so enabling it does not create a second PostgreSQL pool.
 
 ## User interface direction
 

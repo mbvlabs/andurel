@@ -1,10 +1,10 @@
 package views
 
 import (
-	"github.com/mbvlabs/andurel/pkg/request"
-	"{{.ModuleName}}/router/cookies"
-	"{{.ModuleName}}/router/routes"
 	"time"
+
+	"{{.ModuleName}}/router/appctx"
+	"{{.ModuleName}}/router/routes"
 )
 
 templ base(headOpts ...HeadDataOption) {
@@ -37,7 +37,7 @@ templ base(headOpts ...HeadDataOption) {
 				</div>
 			</footer>
 			<div id="flashContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-				for _, flash := range request.ExtractContext[[]cookies.FlashMessage](ctx, request.SessionFlashesKey) {
+				for _, flash := range appctx.Flashes(ctx) {
 					<div class="border border-[#2f3a37] bg-[#101414] px-4 py-3 text-[#e4dfd2] shadow-lg shadow-black/40">
 						{ flash.Message }
 					</div>

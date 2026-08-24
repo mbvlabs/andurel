@@ -70,7 +70,6 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	for _, forbiddenImport := range []string{
 		`"testapp/assets"`,
 		`"testapp/config"`,
-		`"testapp/pkg/request"`,
 		`"testapp/router/cookies"`,
 		`"testapp/router/routes"`,
 	} {
@@ -90,7 +89,9 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileContains(t, projectDir, "router/cookies/flash.go", "func Reflash(")
 	assertFileContains(t, projectDir, "controllers/sessions.go", "renderer *inertia.Renderer")
 	assertFileContains(t, projectDir, "controllers/sessions.go", `s.renderer.Page(etx, "Auth/Login"`)
-	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/request v0.1.0")
+	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0")
+	assertFileContains(t, projectDir, "router/appctx/appctx.go", "func WithFlashes(")
+	assertFileContains(t, projectDir, "router/middleware/middleware.go", "appctx.WithFlashes(")
 	assertFileNotContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel v")
 	assertFileNotContains(t, projectDir, "go.mod", "github.com/romsar/gonertia")
 	assertFileMissing(t, projectDir, "resources/js/app.ts")

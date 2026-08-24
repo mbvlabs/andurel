@@ -2849,10 +2849,6 @@ func ReplaceURLQuery(
     ReplaceURLQuery replaces the current browser query string without reloading
     the page.
 
-func ResolveBackURL(ctx context.Context, fallback string) string
-    ResolveBackURL returns a safe request-scoped back URL or the fallback when
-    one is unavailable.
-
 func Send(c *echo.Context, eventType EventType, dataLines []string, opts ...SSEEventOption) error
     Send writes one server-sent event to the response and flushes it.
 
@@ -3143,36 +3139,6 @@ func WithSSEEventID(id string) SSEEventOption
 func WithSSERetryDuration(retryDuration time.Duration) SSEEventOption
     WithSSERetryDuration overrides the DefaultSseRetryDuration for one
     server-sent event.
-
-
-## github.com/mbvlabs/andurel/pkg/request
-package request // import "github.com/mbvlabs/andurel/pkg/request"
-
-Package request defines typed context keys and accessors for request-scoped
-values that travel through the request lifecycle.
-
-Package request defines typed context keys and accessors for request-scoped
-values that travel through the request lifecycle (actor, active team, etc.).
-
-FUNCTIONS
-
-func BuildRequestMeta(ctx context.Context, metaData map[AppContextKey]any) context.Context
-func ExtractContext[S any](ctx context.Context, key AppContextKey) S
-func SafeExtractContext[S any](ctx context.Context, key AppContextKey) (S, bool)
-
-TYPES
-
-type AppContextKey string
-
-const (
-	BackURLKey        AppContextKey = "back_url_context"
-	SessionCookieKey  AppContextKey = "session_cookie_context"
-	SessionFlashesKey AppContextKey = "session_flashes_context"
-	ActorKey          AppContextKey = "actor_key_context"
-)
-func (ack AppContextKey) String() string
-
-type CookieKey string
 
 
 ## github.com/mbvlabs/andurel/pkg/routing
