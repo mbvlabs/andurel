@@ -185,7 +185,7 @@ func assertFileNotContains(t *testing.T, root, relPath, unwanted string) {
 func assertNoDirectRequestDependency(t *testing.T, projectDir string) {
 	t.Helper()
 
-	for _, line := range strings.Split(readFileContent(t, projectDir, "go.mod"), "\n") {
+	for line := range strings.SplitSeq(readFileContent(t, projectDir, "go.mod"), "\n") {
 		if strings.Contains(line, "github.com/mbvlabs/andurel/pkg/request") && !strings.Contains(line, "// indirect") {
 			t.Fatalf("go.mod depends on retired pkg/request outside an indirect block: %s", line)
 		}
