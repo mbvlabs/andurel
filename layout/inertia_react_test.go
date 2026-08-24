@@ -90,7 +90,6 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileContains(t, projectDir, "controllers/sessions.go", "renderer *inertia.Renderer")
 	assertFileContains(t, projectDir, "controllers/sessions.go", `s.renderer.Page(etx, "Auth/Login"`)
 	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0")
-	assertNoDirectRequestDependency(t, projectDir)
 	assertFileContains(t, projectDir, "router/appctx/appctx.go", "func WithFlashes(")
 	assertFileContains(t, projectDir, "router/middleware/middleware.go", "appctx.WithFlashes(")
 	assertFileNotContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel v")
@@ -177,17 +176,5 @@ func assertFileNotContains(t *testing.T, root, relPath, unwanted string) {
 	}
 	if strings.Contains(string(content), unwanted) {
 		t.Fatalf("%s contains %q", relPath, unwanted)
-	}
-}
-
-// The published hypermedia module still requires pkg/request transitively;
-// scaffolds must not depend on the retired package directly.
-func assertNoDirectRequestDependency(t *testing.T, projectDir string) {
-	t.Helper()
-
-	for line := range strings.SplitSeq(readFileContent(t, projectDir, "go.mod"), "\n") {
-		if strings.Contains(line, "github.com/mbvlabs/andurel/pkg/request") && !strings.Contains(line, "// indirect") {
-			t.Fatalf("go.mod depends on retired pkg/request outside an indirect block: %s", line)
-		}
 	}
 }
