@@ -57,7 +57,7 @@ The core philosophy around resource generation in andurel, is that it should be 
 - **[PostgreSQL](https://www.postgresql.org/)** - Powerful open-source database with pgx driver and native UUID support
 - **[Shadowfax](https://github.com/mbvlabs/shadowfax)** - Andurel-specific app runner
 - **[go.uber.org/fx](https://uber-go.github.io/fx/)** - Dependency injection framework
-- **[Andurel Inertia](./docs/inertia-v3.md)** - Echo-native Inertia.js v3 server adapter with a templ root document (optional, `--inertia vue`, `--inertia react`, or `--inertia svelte`; append `/npm`, `/pnpm`, `/bun`, or `/yarn` to set JS runtime)
+- **[Andurel Inertia](./docs/inertia-v3.md)** - Echo-native Inertia.js v3 server adapter with a templ root document (optional, `--inertia vue`, `--inertia react`, or `--inertia svelte`; append `/npm`, `/pnpm`, `/bun`, or `/yarn` to set JavaScript package manager)
 - **[Vue.js](https://vuejs.org/) / [React](https://react.dev/) / [Svelte](https://svelte.dev/)** - JavaScript UI adapters (optional, via Inertia)
 - **[Vite](https://vitejs.dev/)** - Next-generation frontend build tool (optional, via Inertia)
 
@@ -86,10 +86,10 @@ andurel new myapp -e docker              # Add Dockerfile for containerization
 andurel new myapp -e aws-ses             # Add AWS SES email integration
 
 # Choose your frontend approach:
-andurel new myapp --inertia vue           # Inertia SPA with Vue 3 + Vite (JS runtime: npm)
-andurel new myapp --inertia react/pnpm    # Inertia SPA with React + Vite (JS runtime: pnpm)
-andurel new myapp --inertia svelte        # Inertia SPA with Svelte 5 + Vite (JS runtime: npm)
-andurel new myapp --inertia vue/bun       # Inertia SPA with Vue 3 + Vite (JS runtime: bun)
+andurel new myapp --inertia vue           # Inertia SPA with Vue 3 + Vite (JS package manager: npm)
+andurel new myapp --inertia react/pnpm    # Inertia SPA with React + Vite (JS package manager: pnpm)
+andurel new myapp --inertia svelte        # Inertia SPA with Svelte 5 + Vite (JS package manager: npm)
+andurel new myapp --inertia vue/bun       # Inertia SPA with Vue 3 + Vite (JS package manager: bun)
 
 # Combine options:
 andurel new myapp --inertia vue -e docker
@@ -105,7 +105,7 @@ cp .env.example .env
 # Note: you need to edit .env with your database details
 
 # Install JS dependencies (only if using an Inertia adapter)
-# andurel new prints the correct package manager command based on the configured runtime (npm/pnpm/bun/yarn)
+# andurel new prints the correct package manager command based on the configured package manager (npm/pnpm/bun/yarn)
 
 # Apply database migrations
 andurel database migrate up
@@ -250,7 +250,7 @@ andurel new (alias: n) [project-name] [flags]
 | Flag | Description |
 |------|-------------|
 | `-e`, `--extensions` | Comma-separated extensions to enable (e.g. `docker,aws-ses,css-components`) |
-| `--inertia` | Frontend adapter: `vue`, `react`, or `svelte`. Optionally append `/npm`, `/pnpm`, `/bun`, or `/yarn` to set JS runtime (default: `npm`). Example: `--inertia vue/pnpm` |
+| `--inertia` | Frontend adapter: `vue`, `react`, or `svelte`. Optionally append `/npm`, `/pnpm`, `/bun`, or `/yarn` to set JavaScript package manager (default: `npm`). Example: `--inertia vue/pnpm` |
 
 ### `andurel generate` — Code generation
 
@@ -477,9 +477,9 @@ Build the application binary and compile all assets for production deployment.
 andurel build [--version]
 ```
 
-Runs Templ generation, minifies Tailwind CSS, installs JavaScript dependencies and builds Vite assets with the runtime stored in `andurel.lock` (if using Inertia), downloads Go dependencies, and compiles a static Linux binary.
+Runs Templ generation, minifies Tailwind CSS, installs JavaScript dependencies and builds Vite assets with the package manager stored in `andurel.lock` (if using Inertia), downloads Go dependencies, and compiles a static Linux binary.
 
-For Inertia projects, `andurel build` reads `scaffoldConfig.javascriptRuntime` from `andurel.lock`. Existing locks without that field default to `npm`.
+For Inertia projects, `andurel build` reads `scaffoldConfig.javascriptPackageManager` from `andurel.lock`. V1 locks migrate the legacy `javascriptRuntime` value as a package manager; missing values default to `npm`. The JavaScript executable used for SSR is recorded separately as `scaffoldConfig.inertiaSSRRuntime`.
 
 | Runtime | Install command used by `andurel build` | Vite build command used by `andurel build` |
 |---------|------------------------------------------|---------------------------------------------|
@@ -826,24 +826,24 @@ myapp/
 │       └── Pages/                 # .vue, .tsx, or .svelte pages
 │           ├── Auth/              # Login, registration, email confirmation, password reset
 │           └── Errors/            # Bad request, not found, internal error
+├── application/
+│   └── metadata.go              # Shared non-sensitive application identity
 ├── views/
+│   ├── root.templ               # Application-owned Inertia document
 │   └── welcome.templ            # Server-rendered welcome page
-├── internal/
-│   └── inertia/
-│       ├── render.go            # Application facade over Andurel Inertia
-│       ├── root.templ           # Application-owned initial document
-│       └── vite.go              # Vite dev/prod manifest resolver
+├── config/
+│   └── inertia.go               # Environment-backed Inertia settings
 ├── vite.config.ts
 ├── svelte.config.js            # Svelte projects only
 ├── package.json
 ├── tsconfig.json
 ```
 
-The auth and default error pages use Inertia, while `controllers/pages.go` keeps the welcome page server-rendered with Templ. `cmd/app/main.go` provides one `*inertia.Renderer` through Fx, then injects it into the router and Inertia controllers. Edit `internal/inertia/root.templ` to customize the initial document; it safely composes the encoded page script, optional SSR head/body, and Vite assets. Run the configured package manager's install command after scaffolding (the `andurel new` output shows the right command based on the configured runtime). Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia resource pages (reads the adapter from `andurel.lock`).
+The auth and default error pages use Inertia, while `controllers/pages.go` keeps the welcome page server-rendered with Templ. Controllers and the router import the reusable Echo/templ implementation directly from `github.com/mbvlabs/andurel/pkg/inertia`. The package supplies Vite integration, protocol behavior, and the SSR runtime. The application owns its compiled templ document at `views/root.templ`; generated `config/inertia.go` constructs the renderer from its environment-backed settings, `application.Metadata`, and `views.Root`, then wires its Fx lifecycle. Run the configured package manager's install command after scaffolding. Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia resource pages.
 
 When using `--inertia vue`, `--inertia react`, or `--inertia svelte`, controllers can render Inertia pages alongside Templ.
 
-You can specify the JS runtime by appending `/npm`, `/pnpm`, `/bun`, or `/yarn` to the adapter name:
+You can specify the JavaScript package manager by appending `/npm`, `/pnpm`, `/bun`, or `/yarn` to the adapter name:
 - `--inertia vue`: uses `npm` (default)
 - `--inertia vue/pnpm`: uses `pnpm`
 - `--inertia react/bun`: uses `bun`
@@ -851,7 +851,9 @@ You can specify the JS runtime by appending `/npm`, `/pnpm`, `/bun`, or `/yarn` 
 - `--inertia svelte`: uses `npm` (default)
 - `--inertia svelte/pnpm`: uses `pnpm`
 
-The runtime is stored in `andurel.lock` as `scaffoldConfig.javascriptRuntime`. `andurel build` uses this value for both dependency installation and Vite asset compilation, so a project created with `--inertia react/pnpm` uses `pnpm`, not `npm`.
+The package manager is stored in `andurel.lock` as `scaffoldConfig.javascriptPackageManager`. `andurel build` uses it for dependency installation and Vite scripts. `scaffoldConfig.inertiaSSRRuntime` independently records the executable used for SSR, so choosing Bun as a package manager does not silently replace Node as the SSR runtime.
+
+SSR is disabled by default. Set `INERTIA_SSR_MODE=managed` for an Fx-managed local Node process or `INERTIA_SSR_MODE=external` to connect to an operator-managed renderer at `INERTIA_SSR_URL`. Both modes retain response-level `inertia.WithSSR()` and bounded fallback to client rendering.
 
 
 ### Real Example: Controller to Vue Component

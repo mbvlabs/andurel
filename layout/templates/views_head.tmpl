@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/url"
 	"strings"
-	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/application"
 	"{{.ModuleName}}/router/routes"
 )
 
@@ -147,11 +147,11 @@ templ head(data HeadData) {
 
 func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 	data := &HeadData{
-		siteName:       config.ProjectName,
-		Title:          config.ProjectName,
+		siteName:       application.ProjectName,
+		Title:          application.ProjectName,
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
-		canonical:      config.BaseURL,
+		canonical:      application.BaseURL,
 		twitterCreator: "@mbvisti",
 		faviconBaseURL: "https://media.andurel.com/favicon",
 		MetaType:       "website",

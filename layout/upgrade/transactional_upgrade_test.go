@@ -134,64 +134,6 @@ func TestMatchingFrameworkVersionIsImmediateNoOp(t *testing.T) {
 	assertSnapshotEqual(t, before, snapshotUpgradeTree(t, root))
 }
 
-func TestMatchingFrameworkVersionReportsAndRepairsDrift(t *testing.T) {
-	root := newUpgradeFixtureProject(t)
-	path := "internal/inertia/constants.go"
-	drift := append(mustReadProjectFile(t, root, path), []byte("\nconst UnexpectedDrift = true\n")...)
-	mustWriteTestFile(t, root, path, drift)
-	commitUpgradeTree(t, root, "framework drift")
-	before := snapshotUpgradeTree(t, root)
-
-	verify, err := NewUpgrader(root, UpgradeOptions{TargetVersion: fixtureSourceVersion})
-	if err != nil {
-		t.Fatal(err)
-	}
-	report, err := verify.Execute()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !report.Success || !report.RepairAvailable || report.RepairApplied || report.AlreadyCurrent {
-		t.Fatalf("drift report = %#v", report)
-	}
-	if !slices.Contains(report.ReplacedFiles, path) {
-		t.Fatalf("drifted paths = %v", report.ReplacedFiles)
-	}
-	assertSnapshotEqual(t, before, snapshotUpgradeTree(t, root))
-
-	repair, err := NewUpgrader(root, UpgradeOptions{Repair: true, TargetVersion: fixtureSourceVersion})
-	if err != nil {
-		t.Fatal(err)
-	}
-	report, err = repair.Execute()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !report.Success || !report.RepairAvailable || !report.RepairApplied {
-		t.Fatalf("repair report = %#v", report)
-	}
-	if bytes.Contains(mustReadProjectFile(t, root, path), []byte("UnexpectedDrift")) {
-		t.Fatal("framework drift was not restored")
-	}
-}
-
-func TestMatchingFrameworkVersionRejectsDirtyRepair(t *testing.T) {
-	root := newUpgradeFixtureProject(t)
-	path := "internal/inertia/constants.go"
-	drift := append(mustReadProjectFile(t, root, path), []byte("\nconst UnexpectedDrift = true\n")...)
-	mustWriteTestFile(t, root, path, drift)
-	before := snapshotUpgradeTree(t, root)
-
-	repair, err := NewUpgrader(root, UpgradeOptions{Repair: true, TargetVersion: fixtureSourceVersion})
-	if err != nil {
-		t.Fatal(err)
-	}
-	report, err := repair.Execute()
-	if err == nil || !strings.Contains(err.Error(), "worktree is dirty") {
-		t.Fatalf("dirty repair report=%#v err=%v", report, err)
-	}
-	assertSnapshotEqual(t, before, snapshotUpgradeTree(t, root))
-}
-
 func TestDryRunIsDeterministicAndByteReadOnlyOnSameInstance(t *testing.T) {
 	root := newUpgradeFixtureProject(t)
 	mustWriteTestFile(t, root, "dirty.txt", []byte("preserve me\n"))
@@ -303,25 +245,9 @@ func TestVersionedInertiaUpgradeEmbedsExistingRoot(t *testing.T) {
 		t.Fatalf("upgraded lock contains removed inertiaRoot field:\n%s", lockData)
 	}
 
-	renderer := string(mustReadProjectFile(t, root, "internal/inertia/render.go"))
-	for _, snippet := range []string{
-		"func New(",
-		"assetFS fs.FS",
-		"initVite(assetFS, environment, buildPathURL)",
-	} {
-		if !strings.Contains(renderer, snippet) {
-			t.Fatalf("managed inertia renderer missing %q:\n%s", snippet, renderer)
-		}
-	}
-	response := string(mustReadProjectFile(t, root, "internal/inertia/response.go"))
-	if !strings.Contains(response, "type Renderer struct") {
-		t.Fatalf("managed inertia protocol missing Renderer:\n%s", response)
-	}
-	if strings.Contains(renderer, "andurel.lock") {
-		t.Fatalf("managed inertia renderer still reads andurel.lock:\n%s", renderer)
-	}
-	if strings.Contains(renderer, `"testapp/assets"`) {
-		t.Fatalf("managed inertia renderer imports the top-level assets package:\n%s", renderer)
+	goMod := string(mustReadProjectFile(t, root, "go.mod"))
+	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/inertia v0.1.0") {
+		t.Fatalf("standalone Inertia dependency was not added:\n%s", goMod)
 	}
 }
 
@@ -719,10 +645,6 @@ func assertSnapshotEqual(t *testing.T, want, got map[string][]byte) {
 
 func assertUpgradeOutcome(t *testing.T, root string) {
 	t.Helper()
-	frameworkFile := mustReadProjectFile(t, root, "internal/inertia/constants.go")
-	if !bytes.Contains(frameworkFile, []byte("andurel "+fixtureTargetVersion)) {
-		t.Fatalf("framework file does not contain target version:\n%s", frameworkFile)
-	}
 	customFile := mustReadProjectFile(t, root, "internal/application/custom.go")
 	if !bytes.Contains(customFile, []byte("UserOwned")) {
 		t.Fatal("user-owned internal file was changed")

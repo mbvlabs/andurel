@@ -22,9 +22,8 @@ func TestScaffoldSvelteInertiaAssets(t *testing.T) {
 		"resources/js/Pages/Errors/InternalError.svelte":      "Something went wrong.",
 		"resources/js/Pages/Errors/NotFound.svelte":           "Not found",
 		"resources/js/routes.ts":                              "sessionCreate: () => '/users/sign-in'",
-		"internal/inertia/render.go":                          "package inertia",
-		"internal/inertia/vite.go":                            `manifest["resources/js/app.ts"]`,
-		"internal/inertia/root.templ":                         `@PageScript(data.ContainerID, data.PageJSON)`,
+		"cmd/app/main.go":                                     `inertia.WithEntryPoint("resources/js/app.ts")`,
+		"views/root.templ":                                    `templ Root(data inertia.RootData)`,
 		"package.json":                                        `"@inertiajs/svelte": "^3.6.1"`,
 		"svelte.config.js":                                    "vitePreprocess()",
 		"tsconfig.json":                                       `"resources/js/**/*.svelte"`,
@@ -47,7 +46,7 @@ func TestScaffoldSvelteInertiaAssets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read svelte lock: %v", err)
 	}
-	if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia != "svelte" || lock.ScaffoldConfig.JavaScriptRuntime != "npm" {
+	if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia != "svelte" || lock.ScaffoldConfig.PackageManager() != "npm" || lock.ScaffoldConfig.SSRRuntime() != "node" {
 		t.Fatalf("unexpected scaffold config: %#v", lock.ScaffoldConfig)
 	}
 }

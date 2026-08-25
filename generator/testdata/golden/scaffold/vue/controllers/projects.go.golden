@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"testapp/internal/inertia"
+	"github.com/mbvlabs/andurel/pkg/inertia"
 	"testapp/models"
 	"testapp/router"
 	"testapp/router/cookies"

@@ -12,12 +12,6 @@ type app struct {
 	CORSAllowedOrigins   []string `env:"CORS_ALLOWED_ORIGINS" envSeparator:","`
 	CSRFStrategy         string   `env:"CSRF_STRATEGY" envDefault:"header_only"`
 	CSRFTrustedOrigins   []string `env:"CSRF_TRUSTED_ORIGINS" envSeparator:","`
-{{- if .Inertia}}
-	InertiaSSREnabled    bool     `env:"INERTIA_SSR_ENABLED" envDefault:"false"`
-	InertiaSSRRuntime    string   `env:"INERTIA_SSR_RUNTIME" envDefault:"node"`
-	InertiaSSRBundle     string   `env:"INERTIA_SSR_BUNDLE" envDefault:"assets/dist/ssr/ssr.js"`
-	InertiaSSRURL        string   `env:"INERTIA_SSR_URL" envDefault:"http://127.0.0.1:13714"`
-{{- end}}
 }
 
 func newAppConfig() app {

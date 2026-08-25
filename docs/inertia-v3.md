@@ -1,10 +1,12 @@
 # Andurel Inertia v3 adapter
 
-Generated applications receive an application-local `internal/inertia` adapter
-that implements the Inertia v3 protocol for Echo and templ. Andurel owns the
-adapter code as layout templates, so generated projects always match the
-generator version and never import a public Andurel package. The browser adapter
-is the official `@inertiajs/*` client.
+Andurel's Echo-native Inertia v3 protocol implementation is independently
+versioned at `github.com/mbvlabs/andurel/pkg/inertia`. Generated controllers and
+the router import that package directly. The package provides Vite integration,
+protocol behavior, and the SSR runtime. The application owns its compiled templ
+document at `views/root.templ`. Generated `config/inertia.go` contains the ENV-backed settings, translates them
+into options, and wires the renderer lifecycle. The browser adapter remains the official
+`@inertiajs/*` client.
 
 This document is the protocol and migration baseline for the adapter. The
 official Inertia v3 protocol and the 3.x Laravel adapter are normative. Gonertia
@@ -63,16 +65,19 @@ History encryption is client metadata only. The adapter emits
 `encryptHistory`, `clearHistory`, and `preserveFragment`; encryption of browser
 history is performed by the official client.
 
-SSR remains an option on a single `Page` call. The protocol package depends on
-an `SSRRenderer` interface and never starts Node itself. The generated
-application facade owns the managed runtime and supplies an HTTP renderer with
-bounded request time and response size. Production falls back to client-side
-rendering; verification can opt into fail-fast behavior.
+SSR remains an option on a single `Page` call. The `inertia` package contains
+the bounded HTTP renderer and optional managed process runtime. `Renderer.Start`
+and `Renderer.Shutdown` expose lifecycle without coupling the package to Fx.
+Production falls back to client-side rendering; verification can opt into
+fail-fast behavior.
 
-The managed runtime is disabled by default. Enabling `INERTIA_SSR_ENABLED`
-requires Node.js 22 or newer and the bundle configured by
-`INERTIA_SSR_BUNDLE` (default `assets/dist/ssr/ssr.js`). The application starts,
-health-checks, monitors, and shuts down that process through its Fx lifecycle.
+Generated configuration also exposes `INERTIA_CONTAINER_ID`,
+`INERTIA_VITE_DEV_URL`, and `INERTIA_PROTOCOL_DEBUG`. SSR mode is selected with
+`INERTIA_SSR_MODE`: `disabled`, `managed`, or `external`. Managed mode requires Node.js 22 or newer and the bundle configured
+by `INERTIA_SSR_BUNDLE` (default `assets/dist/ssr/ssr.js`). The application composition root starts, health-checks, monitors, and shuts
+down that process through the renderer lifecycle. External mode only connects to `INERTIA_SSR_URL`; its operator owns
+the process lifecycle. Request timeout, startup timeout, response-size limit,
+and fail-fast behavior have separate configuration values.
 
 Generated resource payload structs carry JSON tags. Their corresponding
 TypeScript declarations are generated next to application TypeScript types and
@@ -88,7 +93,7 @@ shapes. Database model structs are never passed directly to an Inertia page.
 | `Render` / application `Page` | Adapt | generated `Renderer.Page` |
 | `Redirect`, `Location` | Adapt | Echo-native helpers with v3 fragment rules; empty responses redirect to the request referrer |
 | Generic `net/http` middleware and buffered writer | Replace | Narrow Echo middleware using Echo response state |
-| Static shared props | Keep | `WithShared` / generated `WithSharedProp` |
+| Static shared props | Keep | `WithShared` |
 | Request shared props | Adapt | providers receiving the active Echo context |
 | `Always`, `Optional`, `Defer` | Adapt | composable v3 prop policy values |
 | Top-level partial filtering | Replace | JSON-tag-aware nested dot-path resolver |
@@ -98,10 +103,10 @@ shapes. Database model structs are never passed directly to an Inertia page.
 | Validation context helpers | Adapt | response option and named error-bag handling |
 | Flash provider | Adapt | generated request/session provider and page `flash` |
 | Global `WithSSR` engine option | Replace | per-response `WithSSR()` page option |
-| HTTP SSR gateway | Adapt | `SSRRenderer` plus bounded `HTTPSSRRenderer` |
-| Go `html/template` root | Replace | application-owned templ component |
+| HTTP SSR gateway | Adapt | `SSRRenderer` plus bounded `HTTPRenderer` |
+| Go `html/template` root | Replace | application-owned `views/root.templ` supplied with `WithRoot` |
 | Custom JSON marshaller | Omit | fixed `encoding/json` for protocol safety |
-| Vite helpers | Adapt | application-owned Vite tags and official v3 plugin |
+| Vite helpers | Adapt | package defaults configured by options and the official v3 plugin |
 | Precognition | Intentionally omit | no Andurel validation protocol exists yet |
 
 ## Version and migration policy
@@ -112,8 +117,8 @@ or missing generated templ output as migration diagnostics. Existing custom
 Gonertia options are not translated silently: upgrades call them out for manual
 migration to an Andurel renderer or page option.
 
-The compatibility surface is the generated facade: controller calls to
-`Page`, `Redirect`, `Location`, and `Middleware` remain valid. Application-owned
-controller and page files are not replaced during managed-file upgrades.
+Controllers use the standalone `Renderer` directly for `Page`, `Redirect`,
+`Location`, and `Middleware`. Applications customize the initial document in
+`views/root.templ`; `config/inertia.go` supplies it with `WithRoot`.
 For local diagnostics, `WithProtocolDebug(true)` logs request classification
 and emitted metadata keys without logging prop or session values.

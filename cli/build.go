@@ -110,7 +110,7 @@ func buildApp(rootDir string, versionFlag string) error {
 
 	// 2.5. Vite build for Inertia frontend
 	if lock.ScaffoldConfig != nil && layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
-		installCmd, buildCmd, err := inertiaPackageManagerCommands(lock.ScaffoldConfig.JavaScriptRuntime)
+		installCmd, buildCmd, err := inertiaPackageManagerCommands(lock.ScaffoldConfig.PackageManager())
 		if err != nil {
 			return err
 		}
@@ -215,7 +215,7 @@ func inertiaPackageManagerCommands(runtime string) (shellCommand, shellCommand, 
 			nil
 	default:
 		return shellCommand{}, shellCommand{}, fmt.Errorf(
-			"invalid JavaScript runtime in andurel.lock: %s - valid options are 'npm', 'pnpm', 'bun', 'yarn'",
+			"invalid JavaScript package manager in andurel.lock: %s - valid options are 'npm', 'pnpm', 'bun', 'yarn'",
 			runtime,
 		)
 	}

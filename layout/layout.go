@@ -108,10 +108,14 @@ func Scaffold(
 
 	fmt.Print("Generating andurel.lock file...\n")
 	scaffoldConfig := &ScaffoldConfig{
-		ProjectName:       projectName,
-		Database:          database,
-		Inertia:           inertia,
-		JavaScriptRuntime: javascriptRuntime,
+		ProjectName:              projectName,
+		Database:                 database,
+		Inertia:                  inertia,
+		JavaScriptPackageManager: javascriptRuntime,
+		JavaScriptRuntime:        javascriptRuntime,
+	}
+	if IsSupportedInertiaAdapter(inertia) {
+		scaffoldConfig.InertiaSSRRuntime = "node"
 	}
 	if err := generateLockFile(targetDir, version, scaffoldConfig, extensionNames); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
@@ -260,6 +264,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"gitignore.tmpl": ".gitignore",
 	"readme.tmpl":    "README.md",
 
+	// Application
+	"application_metadata.tmpl": "application/metadata.go",
+
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
 	"assets_css_style.tmpl":   "assets/css/style.css",
@@ -372,24 +379,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 }
 
 var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"inertia_framework_root_templ.tmpl":    "internal/inertia/root.templ",
-	"inertia_protocol_constants.tmpl":      "internal/inertia/constants.go",
-	"inertia_protocol_errors.tmpl":         "internal/inertia/errors.go",
-	"inertia_protocol_middleware.tmpl":     "internal/inertia/middleware.go",
-	"inertia_protocol_page.tmpl":           "internal/inertia/page.go",
-	"inertia_protocol_props.tmpl":          "internal/inertia/props.go",
-	"inertia_protocol_props_resolver.tmpl": "internal/inertia/props_resolver.go",
-	"inertia_protocol_redirect.tmpl":       "internal/inertia/redirect.go",
-	"inertia_protocol_request.tmpl":        "internal/inertia/request.go",
-	"inertia_protocol_response.tmpl":       "internal/inertia/response.go",
-	"inertia_protocol_root.tmpl":           "internal/inertia/root.go",
-	"inertia_protocol_ssr.tmpl":            "internal/inertia/ssr.go",
-	"inertia_protocol_ssr_http.tmpl":       "internal/inertia/ssr_http.go",
-	"inertia_render.tmpl":                  "internal/inertia/render.go",
-	"inertia_render_test.tmpl":             "internal/inertia/render_test.go",
-	"inertia_ssr_runtime.tmpl":             "internal/inertia/ssr_runtime.go",
-	"inertia_assets_routes.tmpl":           "resources/js/routes.ts",
-	"inertia_vite.tmpl":                    "internal/inertia/vite.go",
+	"config_inertia.tmpl":         "config/inertia.go",
+	"inertia_assets_routes.tmpl":  "resources/js/routes.ts",
+	"inertia_framework_root.tmpl": "views/root.templ",
 }
 
 var inertiaVueTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -468,8 +460,7 @@ func inertiaAdapterTemplateMappings(adapter string) map[TmplTarget]TmplTargetPat
 func isStaticInertiaAssetTemplate(templateFile TmplTarget) bool {
 	return strings.HasPrefix(string(templateFile), "inertia_assets_") ||
 		strings.HasPrefix(string(templateFile), "inertia_react_assets_") ||
-		strings.HasPrefix(string(templateFile), "inertia_svelte_assets_") ||
-		templateFile == "inertia_framework_root_templ.tmpl"
+		strings.HasPrefix(string(templateFile), "inertia_svelte_assets_")
 }
 
 // GetInternalFrameworkFiles returns the internal package files expected for a project config.
@@ -512,10 +503,7 @@ func GetAllManagedInternalFrameworkFiles() []FrameworkManagedFile {
 // isManagedInternalFile reports whether a template maps to an internal package
 // file that upgrades own. Test files are generated on project creation but are
 // not part of the upgrade-managed surface.
-func isManagedInternalFile(templateName TmplTarget, targetPath TmplTargetPath) bool {
-	if templateName == "inertia_framework_root_templ.tmpl" {
-		return false
-	}
+func isManagedInternalFile(_ TmplTarget, targetPath TmplTargetPath) bool {
 	return (strings.HasPrefix(string(targetPath), "internal/") || strings.HasPrefix(string(targetPath), "pkg/")) &&
 		!strings.HasSuffix(string(targetPath), "_test.go")
 }

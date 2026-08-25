@@ -1,7 +1,7 @@
 package cookies
 
 import (
-	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/application"
 {{- range .Blueprint.Cookies.Imports.Items}}
 	"{{.}}"
 {{- end}}
@@ -30,7 +30,7 @@ func CreateAppSession(c *echo.Context) error {
 {{- else}}
 func CreateAppSession(c *echo.Context, user models.UserEntity) error {
 {{- end}}
-	sess, err := getSession(config.AppCookieSessionName, c)
+	sess, err := getSession(application.AppCookieSessionName, c)
 	if err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func CreateAppSession(c *echo.Context, user models.UserEntity) error {
 }
 
 func DestroyAppSession(c *echo.Context) error {
-	sess, err := getSession(config.AppCookieSessionName, c)
+	sess, err := getSession(application.AppCookieSessionName, c)
 	if err != nil {
 		return err
 	}
@@ -54,9 +54,9 @@ func DestroyAppSession(c *echo.Context) error {
 
 func ExtractFromCookieApp(c *echo.Context) App {
 {{- if not (len .Blueprint.Cookies.SortedAppFields)}}
-	_, err := getSession(config.AppCookieSessionName, c)
+	_, err := getSession(application.AppCookieSessionName, c)
 {{- else}}
-	sess, err := getSession(config.AppCookieSessionName, c)
+	sess, err := getSession(application.AppCookieSessionName, c)
 {{- end}}
 	if err != nil {
 		return App{}

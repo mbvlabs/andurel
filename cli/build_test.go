@@ -195,7 +195,7 @@ func TestBuildAppReportsErrors(t *testing.T) {
 		writeExecutable(t, projectRoot, filepath.Join("bin", name), "#!/bin/sh\nexit 0\n")
 		return nil
 	}
-	if err := buildApp(root, ""); err == nil || !strings.Contains(err.Error(), "invalid JavaScript runtime") {
+	if err := buildApp(root, ""); err == nil || !strings.Contains(err.Error(), "invalid JavaScript package manager") {
 		t.Fatalf("expected invalid runtime error, got %v", err)
 	}
 }

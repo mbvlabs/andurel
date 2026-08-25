@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/application"
 	"{{.ModuleName}}/router/appctx"
 	"{{.ModuleName}}/router/cookies"
 
@@ -61,7 +61,7 @@ func TestCSRFBypassRequiresBearerWithoutApplicationSession(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, test.path, nil)
 			request.Header.Set("Authorization", test.authorization)
 			if test.sessionCookie {
-				request.AddCookie(&http.Cookie{Name: config.AppCookieSessionName, Value: "session"})
+				request.AddCookie(&http.Cookie{Name: application.AppCookieSessionName, Value: "session"})
 			}
 
 			if got := mayBypassCSRF(request); got != test.want {
@@ -74,8 +74,8 @@ func TestCSRFBypassRequiresBearerWithoutApplicationSession(t *testing.T) {
 func TestValidateSessionRecoversStaleApplicationCookie(t *testing.T) {
 	oldStore := newTestCookieStore("old-application-session-auth-key")
 	newStore := newTestCookieStore("new-application-session-auth-key")
-	staleCookie := issueSessionCookie(t, oldStore, config.AppCookieSessionName, func(c *echo.Context) error {
-		sess, err := echosession.Get(config.AppCookieSessionName, c)
+	staleCookie := issueSessionCookie(t, oldStore, application.AppCookieSessionName, func(c *echo.Context) error {
+		sess, err := echosession.Get(application.AppCookieSessionName, c)
 		if err != nil {
 			return err
 		}
@@ -97,7 +97,7 @@ func TestValidateSessionRecoversStaleApplicationCookie(t *testing.T) {
 		t.Fatal("downstream handler was not called")
 	}
 
-	replacement := responseCookie(t, recorder, config.AppCookieSessionName)
+	replacement := responseCookie(t, recorder, application.AppCookieSessionName)
 	assertEmptySessionCookie(t, newStore, replacement)
 }
 
@@ -135,8 +135,8 @@ func TestValidateSessionPreservesValidSessions(t *testing.T) {
 	})
 
 	store := newTestCookieStore("valid-session-authentication-key")
-	appCookie := issueSessionCookie(t, store, config.AppCookieSessionName, func(c *echo.Context) error {
-		sess, err := echosession.Get(config.AppCookieSessionName, c)
+	appCookie := issueSessionCookie(t, store, application.AppCookieSessionName, func(c *echo.Context) error {
+		sess, err := echosession.Get(application.AppCookieSessionName, c)
 		if err != nil {
 			return err
 		}
@@ -160,7 +160,7 @@ func TestValidateSessionPreservesValidSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateSession returned an error: %v", err)
 	}
-	if hasResponseCookie(recorder, config.AppCookieSessionName) {
+	if hasResponseCookie(recorder, application.AppCookieSessionName) {
 		t.Fatal("valid application session was unexpectedly replaced")
 	}
 }
@@ -179,7 +179,7 @@ func TestValidateSessionPropagatesNonDecodeErrors(t *testing.T) {
 			name:       "usage error",
 			middleware: echosession.Middleware(sessions.NewCookieStore()),
 			request: requestWithCookie(&http.Cookie{
-				Name:  config.AppCookieSessionName,
+				Name:  application.AppCookieSessionName,
 				Value: "configured-without-codecs",
 			}),
 		},

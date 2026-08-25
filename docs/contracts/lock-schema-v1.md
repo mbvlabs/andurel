@@ -15,7 +15,7 @@ Readers must follow this order:
 5. Decode the complete schema 1 value.
 6. Validate all required fields before using or writing any lock data.
 
-A reader must not partially decode a future schema as schema 1. Reading and validation do not mutate the lock file.
+A reader must not partially decode a future schema as schema 1. Reading and validation do not mutate the lock file. In-memory decoding may normalize the legacy `scaffoldConfig.javascriptRuntime` package-manager value into `javascriptPackageManager`; writers preserve the legacy value while the pinned Shadowfax release still consumes it.
 
 ## Schema 1 validation
 
@@ -28,6 +28,9 @@ A reader must not partially decode a future schema as schema 1. Reading and vali
 - A configured version-check regular expression must compile and is authoritative for extraction.
 - When `versionCheck.regexp` is omitted, readers use the documented generic expression `v?([0-9]+\.[0-9]+\.[0-9]+)`.
 - Unknown optional fields may be ignored. A schema 1 writer must not require an older schema 1 reader to understand an unknown field.
+- `scaffoldConfig.javascriptPackageManager` records `npm`, `pnpm`, `bun`, or `yarn`.
+- `scaffoldConfig.inertiaSSRRuntime` independently records the supported SSR executable, currently `node`.
+- Legacy `scaffoldConfig.javascriptRuntime` is interpreted only as a package manager and never as the SSR executable.
 
 ## Compatible schema 1 changes
 

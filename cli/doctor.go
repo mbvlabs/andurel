@@ -5,6 +5,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -141,6 +144,7 @@ func collectDoctorReport(currentVersion string, verbose bool) (doctorReport, err
 		checkLockFile(rootDir),
 		checkAndurelVersion(rootDir, currentVersion),
 		checkToolVersions(rootDir, verbose),
+		checkInertiaSSRConfiguration(rootDir),
 	)...)
 
 	results = append(results, categorizeResults("code_quality",
@@ -221,6 +225,8 @@ func doctorHint(result checkResult) string {
 		return "Use the Andurel version recorded in andurel.lock or run andurel upgrade."
 	case "tool versions":
 		return "Run andurel tool sync to install or update framework tools."
+	case "Inertia SSR":
+		return "Check INERTIA_SSR_MODE, runtime, bundle, and URL configuration."
 	case "go vet":
 		return "Run go vet ./... and fix the reported issues."
 	case "go mod tidy":
@@ -277,6 +283,7 @@ func runDoctor(currentVersion string, verbose bool) error {
 		checkLockFile(rootDir),
 		checkAndurelVersion(rootDir, currentVersion),
 		checkToolVersions(rootDir, verbose),
+		checkInertiaSSRConfiguration(rootDir),
 	}
 	results = append(results, configResults...)
 	printResults(configResults, verbose)
@@ -457,6 +464,94 @@ func checkLockFile(rootDir string) checkResult {
 		status:  statusPass,
 		message: fmt.Sprintf("valid (version: %s, %d tools)", lock.Version, len(lock.Tools)),
 	}
+}
+
+func checkInertiaSSRConfiguration(rootDir string) checkResult {
+	lock, err := layout.ReadLockFile(rootDir)
+	if err != nil || lock.ScaffoldConfig == nil || !layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
+		return checkResult{name: "Inertia SSR", status: statusPass, message: "not configured"}
+	}
+
+	values := readDoctorEnv(filepath.Join(rootDir, ".env.example"))
+	maps.Copy(values, readDoctorEnv(filepath.Join(rootDir, ".env")))
+	mode := strings.ToLower(strings.TrimSpace(values["INERTIA_SSR_MODE"]))
+	if mode == "" && strings.EqualFold(strings.TrimSpace(values["INERTIA_SSR_ENABLED"]), "true") {
+		mode = "managed"
+	}
+	if mode == "" || mode == "disabled" {
+		return checkResult{name: "Inertia SSR", status: statusPass, message: "disabled"}
+	}
+
+	switch mode {
+	case "managed":
+		executable := strings.TrimSpace(values["INERTIA_SSR_RUNTIME"])
+		if executable == "" {
+			executable = lock.ScaffoldConfig.SSRRuntime()
+		}
+		if _, err := exec.LookPath(executable); err != nil {
+			return checkResult{name: "Inertia SSR", status: statusFail, message: fmt.Sprintf("runtime %q not found", executable)}
+		}
+		bundle := strings.TrimSpace(values["INERTIA_SSR_BUNDLE"])
+		if bundle == "" {
+			bundle = "assets/dist/ssr/ssr.js"
+		}
+		if _, err := os.Stat(filepath.Join(rootDir, filepath.FromSlash(bundle))); err != nil {
+			return checkResult{name: "Inertia SSR", status: statusWarn, message: fmt.Sprintf("managed bundle %s is not built", bundle)}
+		}
+		return checkResult{name: "Inertia SSR", status: statusPass, message: fmt.Sprintf("managed by %s", executable)}
+	case "external":
+		rawURL := strings.TrimSpace(values["INERTIA_SSR_URL"])
+		parsed, err := url.Parse(rawURL)
+		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+			return checkResult{name: "Inertia SSR", status: statusFail, message: "external renderer URL is invalid"}
+		}
+		if err := checkSSRHealth(parsed); err != nil {
+			return checkResult{name: "Inertia SSR", status: statusWarn, message: fmt.Sprintf("external renderer is unreachable: %v", err)}
+		}
+		return checkResult{name: "Inertia SSR", status: statusPass, message: fmt.Sprintf("external renderer healthy at %s", parsed.Redacted())}
+	default:
+		return checkResult{name: "Inertia SSR", status: statusFail, message: fmt.Sprintf("unsupported mode %q", mode)}
+	}
+}
+
+func checkSSRHealth(baseURL *url.URL) error {
+	endpoint := *baseURL
+	endpoint.Path = strings.TrimSuffix(endpoint.Path, "/") + "/health"
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
+	if err != nil {
+		return err
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 64<<10))
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return fmt.Errorf("HTTP %d", response.StatusCode)
+	}
+	return nil
+}
+
+func readDoctorEnv(path string) map[string]string {
+	values := make(map[string]string)
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return values
+	}
+	for line := range strings.SplitSeq(strings.ReplaceAll(string(content), "\r\n", "\n"), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if ok {
+			values[strings.TrimSpace(key)] = strings.TrimSpace(value)
+		}
+	}
+	return values
 }
 
 func checkAndurelVersion(rootDir, currentVersion string) checkResult {

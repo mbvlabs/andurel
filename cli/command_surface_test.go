@@ -469,7 +469,7 @@ func TestNewProjectValidatesInertiaAndBuildsReports(t *testing.T) {
 	if err := cmd.Flags().Set("inertia", "vue/deno"); err != nil {
 		t.Fatalf("set inertia runtime: %v", err)
 	}
-	if err := newProject(cmd, []string{"app"}, "test", true, false); err == nil || !strings.Contains(err.Error(), "invalid JavaScript runtime") {
+	if err := newProject(cmd, []string{"app"}, "test", true, false); err == nil || !strings.Contains(err.Error(), "invalid JavaScript package manager") {
 		t.Fatalf("expected invalid runtime, got %v", err)
 	}
 

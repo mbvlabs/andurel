@@ -3,6 +3,7 @@ package layout
 import (
 	"github.com/mbvlabs/andurel/layout/blueprint"
 	"github.com/mbvlabs/andurel/layout/extensions"
+	"github.com/mbvlabs/andurel/layout/versions"
 )
 
 // TemplateData carries the values available to base templates and extension
@@ -48,6 +49,12 @@ func (td *TemplateData) GetInertia() string {
 	}
 
 	return td.Inertia
+}
+
+// InertiaPackageVersion returns the standalone Inertia module version verified
+// with this framework release.
+func (td *TemplateData) InertiaPackageVersion() string {
+	return versions.Inertia
 }
 
 // IsSupportedInertiaAdapter reports whether adapter names a frontend adapter

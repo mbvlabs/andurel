@@ -306,7 +306,7 @@ func generateActionControllerFile(name, namespace, tableName, pluralName, module
 			fmt.Fprintf(&sb, "\t\"%s/router\"\n", modulePath)
 			fmt.Fprintf(&sb, "\t\"%s/router/routes\"\n", modulePath)
 			sb.WriteString("\n")
-			fmt.Fprintf(&sb, "\t\"%s/internal/inertia\"\n", modulePath)
+			sb.WriteString("\t\"github.com/mbvlabs/andurel/pkg/inertia\"\n")
 			sb.WriteString("\n")
 			sb.WriteString("\t\"github.com/labstack/echo/v5\"\n")
 		} else {

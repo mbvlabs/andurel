@@ -747,56 +747,6 @@ func TestSyncToolsToFrameworkVersion_RemovesOnlyRedundantDefaultRegexp(t *testin
 	}
 }
 
-func TestObsoleteManagedInternalFiles_RemovesInertiaWhenNotConfigured(t *testing.T) {
-	projectRoot := t.TempDir()
-	inertiaDir := filepath.Join(projectRoot, "internal", "inertia")
-	if err := os.MkdirAll(inertiaDir, 0o755); err != nil {
-		t.Fatalf("failed to create inertia dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(inertiaDir, "render.go"), []byte("package inertia\n"), 0o644); err != nil {
-		t.Fatalf("failed to write inertia file: %v", err)
-	}
-
-	upgrader := &Upgrader{
-		projectRoot: projectRoot,
-		lock: &layout.AndurelLock{
-			ScaffoldConfig: &layout.ScaffoldConfig{},
-		},
-	}
-
-	obsolete := upgrader.obsoleteManagedInternalFiles()
-	if len(obsolete) != 1 {
-		t.Fatalf("obsolete files = %v, want one file", obsolete)
-	}
-	if obsolete[0] != "internal/inertia/render.go" {
-		t.Fatalf("obsolete file = %q, want internal/inertia/render.go", obsolete[0])
-	}
-}
-
-func TestObsoleteManagedInternalFiles_KeepsConfiguredInertiaFiles(t *testing.T) {
-	t.Parallel()
-
-	projectRoot := t.TempDir()
-	renderPath := filepath.Join(projectRoot, "internal", "inertia", "render.go")
-	if err := os.MkdirAll(filepath.Dir(renderPath), 0o755); err != nil {
-		t.Fatalf("failed to create inertia dir: %v", err)
-	}
-	if err := os.WriteFile(renderPath, []byte("package inertia\n"), 0o644); err != nil {
-		t.Fatalf("failed to write inertia file: %v", err)
-	}
-
-	upgrader := &Upgrader{
-		projectRoot: projectRoot,
-		lock: &layout.AndurelLock{
-			ScaffoldConfig: &layout.ScaffoldConfig{Inertia: "react"},
-		},
-	}
-
-	if obsolete := upgrader.obsoleteManagedInternalFiles(); len(obsolete) != 0 {
-		t.Fatalf("obsolete files = %v, want none", obsolete)
-	}
-}
-
 func TestExecuteDryRun_ReportsRenderedFilesAndTools(t *testing.T) {
 	t.Parallel()
 

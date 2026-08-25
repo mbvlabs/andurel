@@ -1,5 +1,9 @@
 # Andurel-Owned Inertia v3 Package
 
+> Historical plan: the generated-code packaging decision in this document is
+> superseded by `plans/standalone-inertia-and-ssr.md` and the V2 standalone
+> module at `github.com/mbvlabs/andurel/pkg/inertia`.
+
 Build and adopt an Andurel-owned Inertia v3 server adapter that is native to Echo and uses templ for the initial HTML document. Replace Gonertia without changing Inertia into a separate application mode and without changing the existing per-response `WithSSR()` design.
 
 ## Status Key

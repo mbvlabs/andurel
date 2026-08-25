@@ -13,7 +13,7 @@ import (
 {{- end}}
 
 	"{{.ModuleName}}/assets"
-	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/application"
 	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/server"
 	"{{.ModuleName}}/router"
@@ -101,7 +101,7 @@ func (a Assets) RegisterRoutes(r *router.Router) error {
 }
 
 func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
-	if config.Env == server.ProdEnvironment {
+	if application.Environment == server.ProdEnvironment {
 		//nolint:gosec //only needed for browser caching
 		hash := md5.Sum(content)
 		etag := fmt.Sprintf(`"%x-%x"`, hash, len(content))
@@ -134,7 +134,7 @@ func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
 func createRobotsTxt() string {
 	return fmt.Sprintf(
 		"User-agent: *\nAllow: /\nSitemap: %s%s\n",
-		config.BaseURL,
+		application.BaseURL,
 		routes.Sitemap.URL(),
 	)
 }
@@ -196,7 +196,7 @@ type Sitemap struct {
 }
 
 func createSitemap(routes []routing.Route) (string, error) {
-	baseURL := config.BaseURL
+	baseURL := application.BaseURL
 
 	var urls []URL
 
