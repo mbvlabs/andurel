@@ -1,0 +1,8 @@
+// Package database provides embedded application database migrations.
+package database
+
+import "embed"
+
+// Migrations contains the application's SQL migrations.
+//go:embed migrations/*
+var Migrations embed.FS

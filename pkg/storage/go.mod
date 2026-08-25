@@ -3,6 +3,7 @@ module github.com/mbvlabs/andurel/pkg/storage
 go 1.26.5
 
 require (
+	github.com/exaring/otelpgx v0.11.1
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/pressly/goose/v3 v3.27.2
 	github.com/riverqueue/river v0.40.0

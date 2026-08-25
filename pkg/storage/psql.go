@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -45,12 +46,35 @@ type Postgres struct {
 
 var _ Pool = (*Postgres)(nil)
 
-// NewPostgres creates a new database connection using bun.
-func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
+// NewPostgres creates a new database connection using sane defaults and any
+// supplied functional options.
+func NewPostgres(ctx context.Context, options ...Option) (*Postgres, error) {
+	settings := postgresOptions{
+		config: DefaultConfig(),
+		tracer: otelpgx.NewTracer(),
+	}
+	for _, option := range options {
+		if option == nil {
+			continue
+		}
+		if err := option(&settings); err != nil {
+			return nil, fmt.Errorf("storage: configure postgres: %w", err)
+		}
+	}
+
+	databaseURL := settings.configURL
+	if databaseURL == "" {
+		var err error
+		databaseURL, err = settings.config.DatabaseURL()
+		if err != nil {
+			return nil, fmt.Errorf("storage: configure postgres: %w", err)
+		}
+	}
 	config, err := pgx.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("storage: parse database URL: %w", err)
 	}
+	config.Tracer = settings.tracer
 
 	sqldb := stdlib.OpenDB(*config)
 	db := bun.NewDB(sqldb, pgdialect.New())
@@ -164,7 +188,7 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
 	ctx := context.Background()
 	name := fmt.Sprintf("test_%d", time.Now().UnixNano())
 
-	admin, err := NewPostgres(ctx, tc.databaseURL(tc.adminDB))
+	admin, err := NewPostgres(ctx, WithDatabaseURL(tc.databaseURL(tc.adminDB)))
 	if err != nil {
 		t.Fatalf("failed to connect to admin database: %v", err)
 	}
@@ -184,7 +208,7 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
 		_, _ = admin.Conn().ExecContext(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
 	})
 
-	db, err := NewPostgres(ctx, tc.databaseURL(name))
+	db, err := NewPostgres(ctx, WithDatabaseURL(tc.databaseURL(name)))
 	if err != nil {
 		t.Fatalf("failed to connect to test database: %v", err)
 	}

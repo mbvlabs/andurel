@@ -107,6 +107,35 @@ func TestGeneratedAuthenticationTemplates(t *testing.T) {
 	}
 }
 
+func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
+	databaseConfig := readGeneratedApplicationTemplate(t, "config_database.tmpl")
+	for _, want := range []string{
+		`env:"DB_HOST" envDefault:"127.0.0.1"`,
+		"storage.NewPostgres(ctx,",
+		"storage.WithDatabaseName(cfg.DB.Name)",
+		`var DatabaseModule = fx.Module("database", fx.Provide(newDatabase))`,
+	} {
+		if !strings.Contains(databaseConfig, want) {
+			t.Errorf("config_database.tmpl missing %q", want)
+		}
+	}
+
+	mainTemplate := readGeneratedApplicationTemplate(t, "cmd_app_main.tmpl")
+	if !strings.Contains(mainTemplate, "config.DatabaseModule,") {
+		t.Error("cmd_app_main.tmpl does not use config.DatabaseModule")
+	}
+	if strings.Contains(mainTemplate, `"{{.ModuleName}}/database"`) {
+		t.Error("cmd_app_main.tmpl still imports the database connection package")
+	}
+
+	if _, exists := baseTemplateMappings["psql_database.tmpl"]; exists {
+		t.Error("legacy database/database.go template is still mapped")
+	}
+	if got := baseTemplateMappings["database_migrations.tmpl"]; got != "database/migrations.go" {
+		t.Errorf("database migrations template target = %q, want database/migrations.go", got)
+	}
+}
+
 func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	rateLimiter := readGeneratedApplicationTemplate(t, "router_middleware_auth.tmpl")
 	for _, want := range []string{

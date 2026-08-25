@@ -5,7 +5,7 @@ import "go.uber.org/fx"
 
 type Config struct {
 	App       app
-	DB        Database
+	DB        databaseCfg
 	Telemetry telemetry
 {{- if .Inertia}}
 	Inertia inertiaCfg
