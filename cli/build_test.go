@@ -187,16 +187,15 @@ func TestBuildAppReportsErrors(t *testing.T) {
 
 	writeTestFile(t, root, "go.mod", "go 1.26\n")
 	lock := layout.NewAndurelLock("test")
-	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "app", Database: "postgresql", Inertia: "vue", JavaScriptRuntime: "deno"}
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "app", Database: "postgresql", Inertia: "vue", JavaScriptPackageManager: "npm"}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
-	syncSingleToolFunc = func(projectRoot, name string, tool *layout.Tool, goos, goarch string) error {
-		writeExecutable(t, projectRoot, filepath.Join("bin", name), "#!/bin/sh\nexit 0\n")
-		return nil
-	}
+	lockPath := filepath.Join(root, "andurel.lock")
+	lockContent := readBuildTestFile(t, lockPath)
+	writeTestFile(t, root, "andurel.lock", strings.Replace(lockContent, `"npm"`, `"deno"`, 1))
 	if err := buildApp(root, ""); err == nil || !strings.Contains(err.Error(), "invalid JavaScript package manager") {
-		t.Fatalf("expected invalid runtime error, got %v", err)
+		t.Fatalf("expected invalid package manager error, got %v", err)
 	}
 }
 

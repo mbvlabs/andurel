@@ -39,7 +39,7 @@ func TestSessionRecoveryManualActionVersionGate(t *testing.T) {
 			}
 			for _, want := range []string{
 				"Create router/cookies/session.go",
-				`"example.com/acme/config"`,
+				`"example.com/acme/application"`,
 				"cookies.RecoverInvalidSessions(c)",
 				"github.com/gorilla/securecookie v1.1.2",
 				"session.Get",
