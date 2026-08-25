@@ -194,8 +194,8 @@ func TestBuildAppReportsErrors(t *testing.T) {
 	lockPath := filepath.Join(root, "andurel.lock")
 	lockContent := readBuildTestFile(t, lockPath)
 	writeTestFile(t, root, "andurel.lock", strings.Replace(lockContent, `"npm"`, `"deno"`, 1))
-	if err := buildApp(root, ""); err == nil || !strings.Contains(err.Error(), "invalid JavaScript package manager") {
-		t.Fatalf("expected invalid package manager error, got %v", err)
+	if err := buildApp(root, ""); err == nil || !strings.Contains(err.Error(), "scaffoldConfig.javascriptPackageManager is invalid") {
+		t.Fatalf("expected invalid lock package manager error, got %v", err)
 	}
 }
 
