@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"github.com/mbvlabs/andurel/pkg/inertia"
 	"testapp/models"
 	"testapp/router"
 	"testapp/router/cookies"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
