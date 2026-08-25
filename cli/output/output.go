@@ -297,8 +297,7 @@ func Fail(err error) ErrorEnvelope {
 		return ErrorEnvelope{OK: false, Code: CodeError, Error: "unknown error", ExitCode: ExitUsage}
 	}
 
-	var cliErr *CLIError
-	if errors.As(err, &cliErr) {
+	if cliErr, ok := errors.AsType[*CLIError](err); ok {
 		code := cliErr.Code
 		if code == "" {
 			code = CodeError

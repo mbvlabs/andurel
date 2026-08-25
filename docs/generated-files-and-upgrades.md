@@ -4,7 +4,7 @@ Andurel distinguishes framework-owned files from application files. Normal upgra
 
 Factory synchronization is one such narrow boundary. It regenerates the Andurel-owned factory types, `Build<Name>`, `Create<Name>`, `Create<Name>s`, and generated `WithX` option functions. Custom helpers whose names do not collide with generated declarations are preserved.
 
-The historical Inertia root embedding migration is another narrow boundary. It moves `views/root.go.html` to `assets/inertia/root.go.html` and replaces only the exact legacy `inertia.Init("views/root.go.html")` call in `cmd/app/main.go`. The upgrade stops without writing if that call is not present. Current scaffolds instead own a templ initial document at `internal/inertia/root.templ`; it is intentionally excluded from whole-file framework upgrades so application metadata and document customization remain intact.
+The historical Inertia root embedding migration is another narrow boundary. It moves `views/root.go.html` to `assets/inertia/root.go.html` and replaces only the exact legacy `inertia.Init("views/root.go.html")` call in `cmd/app/main.go`. The upgrade stops without writing if that call is not present. Current V2 scaffolds own a compiled templ document at `views/root.templ`; the composition root supplies `views.Root` with `inertia.WithRoot`.
 
 ## Manual session-cookie recovery migration
 
@@ -31,7 +31,12 @@ When an Inertia project upgrades across `v1.5.6`, `andurel upgrade` emits a vers
 4. Replace package-level `inertia.Page`, `inertia.Redirect`, and `inertia.Location` calls with calls on the controller's renderer field.
 5. Run `gofmt`, `go fix ./...`, and `go vet ./...` after reconciling application-owned code.
 
-Framework-owned `internal/inertia` files update automatically. Andurel does not rewrite application-owned controllers because doing so could overwrite user changes. Projects created at `v1.5.6` or later do not receive this migration note.
+The current V2 scaffold imports the complete implementation directly from the
+standalone `github.com/mbvlabs/andurel/pkg/inertia` module. Generated
+`config/inertia.go` owns ENV-backed settings, renderer composition, and Fx
+lifecycle wiring; there is no generated `internal/inertia` package. Controllers remain application-owned and
+are never rewritten. Projects created at `v1.5.6` or
+later do not receive the original renderer-injection migration note.
 
 ## Planning and preview
 

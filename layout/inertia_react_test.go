@@ -51,45 +51,32 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "props={props as")
 	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "ComponentType<any>")
 	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "Record<string, any>")
-	assertFileContains(t, projectDir, "cmd/app/main.go", "internal/inertia")
-	assertFileContains(t, projectDir, "cmd/app/main.go", `func provideInertia(cfg config.Config) (*inertia.Renderer, *inertia.SSRRuntime, error)`)
-	assertFileContains(t, projectDir, "cmd/app/main.go", `fx.Provide(`)
-	assertFileContains(t, projectDir, "cmd/app/main.go", `provideInertia,`)
-	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.WithRequestFlash(`)
-	assertFileContains(t, projectDir, "internal/inertia/response.go", `type Renderer struct`)
-	assertFileContains(t, projectDir, "internal/inertia/render.go", `assetFS fs.FS,`)
-	assertFileContains(t, projectDir, "internal/inertia/render.go", `func New(`)
-	assertFileContains(t, projectDir, "internal/inertia/render.go", `initVite(assetFS, environment, buildPathURL)`)
-	assertFileContains(t, projectDir, "internal/inertia/render.go", `WithRequestProps(`)
-	assertFileContains(t, projectDir, "internal/inertia/render.go", `WithRequestFlash(`)
-	assertFileContains(t, projectDir, "internal/inertia/middleware.go", `func (renderer *Renderer) Middleware()`)
-	assertFileContains(t, projectDir, "internal/inertia/ssr_http.go", `func NewHTTPSSRRenderer(`)
-	assertFileNotContains(t, projectDir, "internal/inertia/render.go", "gonertia")
-	assertFileNotContains(t, projectDir, "internal/inertia/render.go", "andurel.lock")
-	assertFileNotContains(t, projectDir, "internal/inertia/render.go", "github.com/mbvlabs/andurel")
-	for _, forbiddenImport := range []string{
-		`"testapp/assets"`,
-		`"testapp/config"`,
-		`"testapp/router/cookies"`,
-		`"testapp/router/routes"`,
-	} {
-		assertFileNotContains(t, projectDir, "internal/inertia/render.go", forbiddenImport)
-		assertFileNotContains(t, projectDir, "internal/inertia/vite.go", forbiddenImport)
+	assertFileContains(t, projectDir, "cmd/app/main.go", `config.InertiaModule,`)
+	assertFileNotContains(t, projectDir, "cmd/app/main.go", "internal/inertia")
+	assertFileContains(t, projectDir, "config/inertia.go", `func newInertia(lifecycle fx.Lifecycle, cfg Config, metadata application.Metadata) (*inertia.Renderer, error)`)
+	assertFileContains(t, projectDir, "config/inertia.go", `inertia.WithRoot(views.Root)`)
+	assertFileContains(t, projectDir, "config/inertia.go", `inertia.WithEntryPoint("resources/js/app.tsx")`)
+	assertFileContains(t, projectDir, "config/inertia.go", `OnStart: renderer.Start`)
+	assertFileContains(t, projectDir, "config/inertia.go", `env:"INERTIA_SSR_MODE"`)
+	assertFileContains(t, projectDir, "application/metadata.go", `type Metadata struct`)
+	assertFileContains(t, projectDir, "application/metadata.go", `Environment = func() string`)
+	assertFileContains(t, projectDir, "views/root.templ", `templ Root(data inertia.RootData)`)
+	assertFileContains(t, projectDir, "views/root.templ", `@templ.Raw(string(data.ViteHead))`)
+	assertFileContains(t, projectDir, "views/root_templ.go", `func Root(`)
+	for _, removed := range []string{"render.go", "render_test.go", "root.templ", "root_templ.go", "vite.go"} {
+		assertFileMissing(t, projectDir, filepath.Join("internal/inertia", removed))
 	}
-	assertFileContains(t, projectDir, "internal/inertia/root.templ", `@PageScript(data.ContainerID, data.PageJSON)`)
-	assertFileContains(t, projectDir, "internal/inertia/root.templ", `@SSRBody(data.SSR)`)
-	assertFileNotContains(t, projectDir, "internal/inertia/root.templ", "andurelinertia")
-	assertFileContains(t, projectDir, "internal/inertia/root_templ.go", `func Root(`)
 	assertFileMissing(t, projectDir, "assets/inertia/root.go.html")
 	assertFileMissing(t, projectDir, "views/root.go.html")
-	assertFileContains(t, projectDir, "internal/inertia/render_test.go", "TestRendererPageIncludesRequestFlash")
 	assertFileContains(t, projectDir, "router/router.go", "renderer *inertia.Renderer")
 	assertFileContains(t, projectDir, "router/router.go", "renderer.Middleware()")
 	assertFileContains(t, projectDir, "router/router.go", "renderer.SetReflashHandler")
 	assertFileContains(t, projectDir, "router/cookies/flash.go", "func Reflash(")
+	assertFileContains(t, projectDir, "controllers/sessions.go", `"github.com/mbvlabs/andurel/pkg/inertia"`)
 	assertFileContains(t, projectDir, "controllers/sessions.go", "renderer *inertia.Renderer")
 	assertFileContains(t, projectDir, "controllers/sessions.go", `s.renderer.Page(etx, "Auth/Login"`)
 	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0")
+	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/inertia v0.1.0")
 	assertFileContains(t, projectDir, "router/appctx/appctx.go", "func WithFlashes(")
 	assertFileContains(t, projectDir, "router/middleware/middleware.go", "appctx.WithFlashes(")
 	assertFileNotContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel v")
@@ -105,11 +92,21 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileMissing(t, projectDir, "views/reset_password.templ")
 	assertFileMissing(t, projectDir, "views/confirm_email.templ")
 
-	cmd := exec.Command("go", "test", "./internal/inertia")
+	inertiaModule, err := filepath.Abs(filepath.Join("..", "pkg", "inertia"))
+	if err != nil {
+		t.Fatalf("resolve standalone Inertia module: %v", err)
+	}
+	cmd := exec.Command("go", "mod", "edit", "-replace=github.com/mbvlabs/andurel/pkg/inertia="+inertiaModule)
 	cmd.Dir = projectDir
-	cmd.Env = append(os.Environ(), "GOWORK=off", "GOCACHE="+filepath.Join(projectDir, ".gocache"))
+	cmd.Env = append(os.Environ(), "GOWORK=off")
 	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("generated Inertia tests failed: %v\n%s", err, output)
+		t.Fatalf("configure standalone Inertia module: %v\n%s", err, output)
+	}
+	cmd = exec.Command("go", "mod", "tidy")
+	cmd.Dir = projectDir
+	cmd.Env = append(os.Environ(), "GOWORK=off")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("tidy generated Inertia module: %v\n%s", err, output)
 	}
 
 	cmd = exec.Command("go", "vet", "./...")

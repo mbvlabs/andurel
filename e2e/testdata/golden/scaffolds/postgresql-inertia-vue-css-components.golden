@@ -26,10 +26,17 @@ CORS_ALLOWED_ORIGINS=
 CSRF_STRATEGY=header_only
 CSRF_TRUSTED_ORIGINS=
 
-INERTIA_SSR_ENABLED=false
+INERTIA_CONTAINER_ID=app
+INERTIA_VITE_DEV_URL=http://localhost:5173/assets/dist
+INERTIA_PROTOCOL_DEBUG=false
+INERTIA_SSR_MODE=disabled
 INERTIA_SSR_RUNTIME=node
 INERTIA_SSR_BUNDLE=assets/dist/ssr/ssr.js
 INERTIA_SSR_URL=http://127.0.0.1:13714
+INERTIA_SSR_STARTUP_TIMEOUT=10s
+INERTIA_SSR_REQUEST_TIMEOUT=2s
+INERTIA_SSR_MAX_RESPONSE_BYTES=2097152
+INERTIA_SSR_FAIL_FAST=false
 
 PEPPER=<PEPPER>
 PREVIOUS_PEPPERS=
@@ -798,14 +805,16 @@ file -----------rw-r--r-- andurel.lock
   },
   "extensions": {
     "css-components": {
-      "appliedAt": "\u003cAPPLIED_AT\u003e"
+      "appliedAt": "<APPLIED_AT>"
     }
   },
   "scaffoldConfig": {
     "database": "postgresql",
     "inertia": "vue",
     "javascriptRuntime": "npm",
-    "projectName": "testapp"
+    "projectName": "testapp",
+    "javascriptPackageManager": "npm",
+    "inertiaSSRRuntime": "node"
   },
   "schemaVersion": 1,
   "tools": {
@@ -950,7 +959,30 @@ file -----------rw-r--r-- andurel.lock
       }
     }
   },
-  "version": "\u003cANDUREL_VERSION\u003e"
+  "version": "<ANDUREL_VERSION>"
+}
+```
+
+dir  d----------rwxr-xr-x application
+
+file -----------rw-r--r-- application/metadata.go
+```
+// Package application contains shared, non-sensitive application identity.
+package application
+
+// Metadata identifies the running application without exposing subsystem
+// configuration or secrets.
+type Metadata struct {
+	ProjectName string
+	Environment string
+	BaseURL     string
+	Domain      string
+	ServiceName string
+	Version     string
+}
+
+func (metadata Metadata) IsProduction() bool {
+	return metadata.Environment == "production"
 }
 ```
 
@@ -1159,33 +1191,41 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mbvlabs/andurel/pkg/server"
+	"testapp/application"
 	"testapp/assets"
 	mailclients "testapp/clients/email"
 	"testapp/config"
 	"testapp/controllers"
 	"testapp/database"
 	"testapp/email"
-	"testapp/internal/inertia"
 	"testapp/queue"
 	"testapp/router"
-	"testapp/router/appctx"
 	"testapp/router/routes"
 	"testapp/services"
 	"testapp/telemetry"
-
+	"testapp/views"
+	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/server"
 	"go.uber.org/fx"
 )
 
 var appVersion string
 
 func main() {
+	metadata := application.Metadata{
+		ProjectName: config.ProjectName,
+		Environment: config.Env,
+		BaseURL:     config.BaseURL,
+		Domain:      config.Domain,
+		ServiceName: config.ServiceName,
+		Version:     appVersion,
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	app := fx.New(
+		fx.Supply(metadata),
 		fx.Provide(
 			func() context.Context { return ctx },
-			provideInertia,
 			func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
 				if config.Env == server.ProdEnvironment {
 					log.Fatal("provide real email sender")
@@ -1196,6 +1236,7 @@ func main() {
 		),
 
 		config.Module,
+		inertiaModule,
 		database.Module,
 		telemetry.Module,
 		queue.Module,
@@ -1205,7 +1246,6 @@ func main() {
 		router.Module,
 
 		fx.Invoke(startQueueProcessor),
-		fx.Invoke(startInertiaSSR),
 		fx.Invoke(startServer),
 	)
 
@@ -1225,41 +1265,42 @@ func main() {
 	}
 }
 
-func provideInertia(cfg config.Config) (*inertia.Renderer, *inertia.SSRRuntime, error) {
-	ssrRuntime, err := inertia.NewSSRRuntime(
-		cfg.App.InertiaSSRBundle,
-		cfg.App.InertiaSSRRuntime,
-		cfg.App.InertiaSSRURL,
-		cfg.App.InertiaSSREnabled,
-		inertia.WithSSRURL(cfg.App.InertiaSSRURL),
+func newInertia(lifecycle fx.Lifecycle, cfg config.Config, metadata application.Metadata) (*inertia.Renderer, error) {
+	renderer, err := inertia.New(
+		inertia.WithRoot(views.Root),
+		inertia.WithAssetFS(assets.Files),
+		inertia.WithProjectName(metadata.ProjectName),
+		inertia.WithEnvironment(metadata.Environment),
+		inertia.WithBuildPathURL(routes.ViteBuild.Path()),
+		inertia.WithEntryPoint("resources/js/app.ts"),
+		inertia.WithContainerID(cfg.Inertia.ContainerID),
+		inertia.WithViteDevURL(cfg.Inertia.ViteDevURL),
+		inertia.WithProtocolDebug(cfg.Inertia.ProtocolDebug),
+		inertia.WithShared(inertia.Props{"appVersion": metadata.Version}),
+		inertia.WithSSRMode(cfg.Inertia.SSRMode),
+		inertia.WithSSRRuntime(cfg.Inertia.SSRRuntime),
+		inertia.WithSSRBundle(cfg.Inertia.SSRBundle),
+		inertia.WithSSRURL(cfg.Inertia.SSRURL),
+		inertia.WithSSRStartupTimeout(cfg.Inertia.SSRStartupTimeout),
+		inertia.WithSSRRequestTimeout(cfg.Inertia.SSRRequestTimeout),
+		inertia.WithSSRMaxResponseBytes(cfg.Inertia.SSRMaxResponseBytes),
+		inertia.WithSSRFailFast(cfg.Inertia.SSRFailFast),
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	renderer, err := inertia.New(
-		assets.Files,
-		config.ProjectName,
-		config.Env,
-		routes.ViteBuild.Path(),
-		inertia.WithSharedProp("appVersion", appVersion),
-		inertia.WithSSRRenderer(ssrRuntime.Renderer()),
-		inertia.WithRequestFlash(func(ctx context.Context) any {
-			flashes := appctx.Flashes(ctx)
-			if len(flashes) == 0 {
-				return nil
-			}
-			return flashes
-		}),
-	)
-	return renderer, ssrRuntime, err
+
+	lifecycle.Append(fx.Hook{
+		OnStart: renderer.Start,
+		OnStop:  renderer.Shutdown,
+	})
+	return renderer, nil
 }
 
-func startInertiaSSR(lc fx.Lifecycle, runtime *inertia.SSRRuntime) {
-	lc.Append(fx.Hook{
-		OnStart: runtime.Start,
-		OnStop:  runtime.Stop,
-	})
-}
+var inertiaModule = fx.Module(
+	"inertia",
+	fx.Provide(newInertia),
+)
 
 func startQueueProcessor(lc fx.Lifecycle, appCtx context.Context, p queue.Processor) {
 	var done <-chan struct{}
@@ -1493,10 +1534,6 @@ type app struct {
 	CORSAllowedOrigins   []string `env:"CORS_ALLOWED_ORIGINS" envSeparator:","`
 	CSRFStrategy         string   `env:"CSRF_STRATEGY" envDefault:"header_only"`
 	CSRFTrustedOrigins   []string `env:"CSRF_TRUSTED_ORIGINS" envSeparator:","`
-	InertiaSSREnabled    bool     `env:"INERTIA_SSR_ENABLED" envDefault:"false"`
-	InertiaSSRRuntime    string   `env:"INERTIA_SSR_RUNTIME" envDefault:"node"`
-	InertiaSSRBundle     string   `env:"INERTIA_SSR_BUNDLE" envDefault:"assets/dist/ssr/ssr.js"`
-	InertiaSSRURL        string   `env:"INERTIA_SSR_URL" envDefault:"http://127.0.0.1:13714"`
 }
 
 func newAppConfig() app {
@@ -1610,6 +1647,7 @@ type Config struct {
 	App       app
 	DB        Database
 	Telemetry telemetry
+	Inertia   InertiaConfig
 	Email     email
 	Auth      auth
 }
@@ -1619,6 +1657,7 @@ func NewConfig() Config {
 		App:       newAppConfig(),
 		DB:        newDatabaseConfig(),
 		Telemetry: newTelemetryConfig(),
+		Inertia:   newInertiaConfig(),
 		Email:     newEmailConfig(),
 		Auth:      newAuthConfig(),
 	}
@@ -1689,6 +1728,41 @@ func newEmailConfig() email {
 		panic(err)
 	}
 
+	return cfg
+}
+```
+
+file -----------rw-r--r-- config/inertia.go
+```
+package config
+
+import (
+	"time"
+
+	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+// InertiaConfig contains environment-backed Inertia and SSR settings.
+type InertiaConfig struct {
+	ContainerID         string          `env:"INERTIA_CONTAINER_ID" envDefault:"app"`
+	ViteDevURL          string          `env:"INERTIA_VITE_DEV_URL" envDefault:"http://localhost:5173/assets/dist"`
+	ProtocolDebug       bool            `env:"INERTIA_PROTOCOL_DEBUG" envDefault:"false"`
+	SSRMode             inertia.SSRMode `env:"INERTIA_SSR_MODE" envDefault:"disabled"`
+	SSRRuntime          string          `env:"INERTIA_SSR_RUNTIME" envDefault:"node"`
+	SSRBundle           string          `env:"INERTIA_SSR_BUNDLE" envDefault:"assets/dist/ssr/ssr.js"`
+	SSRURL              string          `env:"INERTIA_SSR_URL" envDefault:"http://127.0.0.1:13714"`
+	SSRStartupTimeout   time.Duration   `env:"INERTIA_SSR_STARTUP_TIMEOUT" envDefault:"10s"`
+	SSRRequestTimeout   time.Duration   `env:"INERTIA_SSR_REQUEST_TIMEOUT" envDefault:"2s"`
+	SSRMaxResponseBytes int64           `env:"INERTIA_SSR_MAX_RESPONSE_BYTES" envDefault:"2097152"`
+	SSRFailFast         bool            `env:"INERTIA_SSR_FAIL_FAST" envDefault:"false"`
+}
+
+func newInertiaConfig() InertiaConfig {
+	cfg := InertiaConfig{}
+	if err := env.ParseWithOptions(&cfg, env.Options{RequiredIfNoDef: true}); err != nil {
+		panic(err)
+	}
 	return cfg
 }
 ```
@@ -2157,7 +2231,7 @@ import (
 	"net/http"
 
 	"github.com/mbvlabs/andurel/pkg/validation"
-	"testapp/internal/inertia"
+	"github.com/mbvlabs/andurel/pkg/inertia"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
@@ -2339,7 +2413,7 @@ import (
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
 	"github.com/mbvlabs/andurel/pkg/storage"
-	"testapp/internal/inertia"
+	"github.com/mbvlabs/andurel/pkg/inertia"
 	"testapp/queue"
 	"testapp/router"
 	"testapp/router/routes"
@@ -2409,7 +2483,7 @@ import (
 	"net/http"
 
 	"github.com/mbvlabs/andurel/pkg/validation"
-	"testapp/internal/inertia"
+	"github.com/mbvlabs/andurel/pkg/inertia"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
@@ -2523,7 +2597,7 @@ import (
 	"net/http"
 
 	"github.com/mbvlabs/andurel/pkg/validation"
-	"testapp/internal/inertia"
+	"github.com/mbvlabs/andurel/pkg/inertia"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
@@ -2738,7 +2812,7 @@ import (
 	"net/http"
 
 	"github.com/mbvlabs/andurel/pkg/validation"
-	"testapp/internal/inertia"
+	"github.com/mbvlabs/andurel/pkg/inertia"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
@@ -5993,6 +6067,7 @@ require (
 	github.com/lmittmann/tint v1.2.0
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0
+	github.com/mbvlabs/andurel/pkg/inertia v0.1.0
 	github.com/mbvlabs/andurel/pkg/routing v0.1.0
 	github.com/mbvlabs/andurel/pkg/server v0.1.0
 	github.com/mbvlabs/andurel/pkg/storage v0.1.0
@@ -6417,2617 +6492,6 @@ modernc.org/sqlite v1.53.0 h1:20WG8N9q4ji/dEqGk4uiI0c6OPjSeLTNYGFCc3+7c1M=
 modernc.org/sqlite v1.53.0/go.mod h1:xoEpOIpGrgT48H5iiyt/YXPCZPEzlfmfFwtk8Lklw8s=
 pgregory.net/rapid v1.2.0 h1:keKAYRcjm+e1F0oAuU5F5+YPAWcyxNNRK2wud503Gnk=
 pgregory.net/rapid v1.2.0/go.mod h1:PY5XlDGj0+V1FCq0o192FdRhpKHGTRIWBgqjDBTrq04=
-```
-
-dir  d----------rwxr-xr-x internal
-
-dir  d----------rwxr-xr-x internal/inertia
-
-file -----------rw-r--r-- internal/inertia/constants.go
-```
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-const (
-	HeaderInertia                   = "X-Inertia"
-	HeaderVersion                   = "X-Inertia-Version"
-	HeaderPartialComponent          = "X-Inertia-Partial-Component"
-	HeaderPartialData               = "X-Inertia-Partial-Data"
-	HeaderPartialExcept             = "X-Inertia-Partial-Except"
-	HeaderReset                     = "X-Inertia-Reset"
-	HeaderErrorBag                  = "X-Inertia-Error-Bag"
-	HeaderInfiniteScrollMergeIntent = "X-Inertia-Infinite-Scroll-Merge-Intent"
-	HeaderExceptOnceProps           = "X-Inertia-Except-Once-Props"
-	HeaderLocation                  = "X-Inertia-Location"
-	HeaderRedirect                  = "X-Inertia-Redirect"
-	HeaderPurpose                   = "Purpose"
-
-	PurposePrefetch = "prefetch"
-
-	MergeIntentAppend  = "append"
-	MergeIntentPrepend = "prepend"
-)
-```
-
-file -----------rw-r--r-- internal/inertia/errors.go
-```
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-import "fmt"
-
-// ErrorKind identifies the operation that failed without exposing prop values.
-type ErrorKind string
-
-const (
-	ErrorProtocol ErrorKind = "protocol"
-	ErrorProps    ErrorKind = "props"
-	ErrorRoot     ErrorKind = "root"
-	ErrorSSR      ErrorKind = "ssr"
-)
-
-// Error adds safe request and page context to an Inertia failure.
-type Error struct {
-	Kind      ErrorKind
-	Operation string
-	Component string
-	Method    string
-	URL       string
-	PropPath  string
-	Err       error
-}
-
-func (e *Error) Error() string {
-	s := "inertia " + string(e.Kind)
-	if e.Operation != "" {
-		s += " " + e.Operation
-	}
-	if e.Component != "" {
-		s += " for component " + e.Component
-	}
-	if e.PropPath != "" {
-		s += " at prop " + e.PropPath
-	}
-	if e.Err != nil {
-		s += ": " + e.Err.Error()
-	}
-	return s
-}
-
-func (e *Error) Unwrap() error { return e.Err }
-
-func protocolError(operation, message string) error {
-	return &Error{Kind: ErrorProtocol, Operation: operation, Err: fmt.Errorf("%s", message)}
-}
-```
-
-file -----------rw-r--r-- internal/inertia/middleware.go
-```
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-import (
-	"bytes"
-	"log/slog"
-	"net/http"
-	"strings"
-
-	"github.com/labstack/echo/v5"
-)
-
-// Middleware parses request state and applies v3 version, empty-response, and
-// redirect corrections only to Inertia visits.
-func (renderer *Renderer) Middleware() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(etx *echo.Context) error {
-			state, err := ParseRequest(etx)
-			if err != nil {
-				return err
-			}
-			etx.SetRequest(requestWithState(etx.Request(), state))
-			if renderer.protocolDebug {
-				etx.Logger().Debug("inertia protocol request",
-					slog.String("method", etx.Request().Method),
-					slog.String("url", requestURL(etx)),
-					slog.Bool("inertia", state.Inertia),
-					slog.String("partial_component", state.PartialComponent),
-					slog.Any("only", state.Only),
-					slog.Any("except", state.Except),
-					slog.Any("reset", state.Reset),
-					slog.String("purpose", string(state.Purpose)),
-				)
-			}
-			if !state.Inertia {
-				return next(etx)
-			}
-
-			if etx.Request().Method == http.MethodGet {
-				version, versionErr := renderer.currentVersion(etx)
-				if versionErr != nil {
-					return versionErr
-				}
-				if state.Version != version {
-					return renderer.versionMismatch(etx, version)
-				}
-			}
-
-			original := etx.Response()
-			captured := &captureWriter{ResponseWriter: original}
-			etx.SetResponse(captured)
-			err = next(etx)
-			etx.SetResponse(original)
-			if err != nil {
-				return err
-			}
-			wasRedirect := captured.status >= 300 && captured.status < 400
-			captured.normalize(etx)
-			if renderer.reflash != nil && (wasRedirect || captured.status >= 300 && captured.status < 400) {
-				if err := renderer.reflash(etx); err != nil {
-					return err
-				}
-			}
-			return captured.commit()
-		}
-	}
-}
-
-func (renderer *Renderer) versionMismatch(etx *echo.Context, version string) error {
-	header := etx.Response().Header()
-	header.Del(HeaderInertia)
-	header.Set(HeaderLocation, requestURL(etx))
-	header.Set(HeaderVersion, version)
-	appendVary(header, HeaderInertia)
-	return etx.NoContent(http.StatusConflict)
-}
-
-type captureWriter struct {
-	http.ResponseWriter
-	status int
-	body   bytes.Buffer
-}
-
-func (writer *captureWriter) Unwrap() http.ResponseWriter { return writer.ResponseWriter }
-
-func (writer *captureWriter) WriteHeader(status int) {
-	if writer.status == 0 {
-		writer.status = status
-	}
-}
-
-func (writer *captureWriter) Write(value []byte) (int, error) {
-	if writer.status == 0 {
-		writer.status = http.StatusOK
-	}
-	return writer.body.Write(value)
-}
-
-func (writer *captureWriter) normalize(etx *echo.Context) {
-	if writer.status == 0 {
-		writer.status = http.StatusOK
-	}
-	header := writer.Header()
-	appendVary(header, HeaderInertia)
-
-	if writer.status == http.StatusOK && writer.body.Len() == 0 {
-		location := etx.Request().Referer()
-		if location == "" {
-			location = "/"
-		}
-		header.Set("Location", location)
-		writer.status = http.StatusFound
-	}
-	if writer.status == http.StatusFound && isUnsafeRedirectMethod(etx.Request().Method) {
-		writer.status = http.StatusSeeOther
-	}
-	if writer.status >= 300 && writer.status < 400 && strings.Contains(header.Get("Location"), "#") && requestStateMust(etx).Purpose != PurposePrefetch {
-		location := header.Get("Location")
-		header.Del("Location")
-		header.Del(HeaderInertia)
-		header.Del("Content-Type")
-		header.Set(HeaderRedirect, location)
-		writer.status = http.StatusConflict
-		writer.body.Reset()
-	}
-}
-
-func (writer *captureWriter) commit() error {
-	writer.ResponseWriter.WriteHeader(writer.status)
-	if writer.body.Len() == 0 {
-		return nil
-	}
-	_, err := writer.ResponseWriter.Write(writer.body.Bytes())
-	return err
-}
-
-func requestStateMust(etx *echo.Context) Request {
-	state, _ := requestState(etx)
-	return state
-}
-
-func isUnsafeRedirectMethod(method string) bool {
-	return method == http.MethodPost || method == http.MethodPut || method == http.MethodPatch || method == http.MethodDelete
-}
-```
-
-file -----------rw-r--r-- internal/inertia/page.go
-```
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-// Page is the Inertia v3 page object sent to the browser and SSR runtime.
-type Page struct {
-	Component        string                    `json:"component"`
-	Props            map[string]any            `json:"props"`
-	URL              string                    `json:"url"`
-	Version          string                    `json:"version"`
-	EncryptHistory   bool                      `json:"encryptHistory,omitempty"`
-	ClearHistory     bool                      `json:"clearHistory,omitempty"`
-	PreserveFragment bool                      `json:"preserveFragment,omitempty"`
-	MergeProps       []string                  `json:"mergeProps,omitempty"`
-	PrependProps     []string                  `json:"prependProps,omitempty"`
-	DeepMergeProps   []string                  `json:"deepMergeProps,omitempty"`
-	MatchPropsOn     []string                  `json:"matchPropsOn,omitempty"`
-	ScrollProps      map[string]ScrollMetadata `json:"scrollProps,omitempty"`
-	DeferredProps    map[string][]string       `json:"deferredProps,omitempty"`
-	RescuedProps     []string                  `json:"rescuedProps,omitempty"`
-	SharedProps      []string                  `json:"sharedProps,omitempty"`
-	OnceProps        map[string]OnceMetadata   `json:"onceProps,omitempty"`
-	Flash            any                       `json:"flash,omitempty"`
-}
-
-// OnceMetadata tells the client how to retain a once prop.
-type OnceMetadata struct {
-	Prop      string `json:"prop"`
-	ExpiresAt *int64 `json:"expiresAt"`
-}
-
-// ScrollMetadata describes infinite-scroll pagination for a prop.
-type ScrollMetadata struct {
-	PageName     string `json:"pageName"`
-	PreviousPage any    `json:"previousPage"`
-	NextPage     any    `json:"nextPage"`
-	CurrentPage  any    `json:"currentPage"`
-	Reset        bool   `json:"reset"`
-}
-
-func (metadata ScrollMetadata) GetPageName() string  { return metadata.PageName }
-func (metadata ScrollMetadata) GetPreviousPage() any { return metadata.PreviousPage }
-func (metadata ScrollMetadata) GetNextPage() any     { return metadata.NextPage }
-func (metadata ScrollMetadata) GetCurrentPage() any  { return metadata.CurrentPage }
-```
-
-file -----------rw-r--r-- internal/inertia/props.go
-```
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-import (
-	"fmt"
-	"maps"
-	"reflect"
-	"strings"
-	"time"
-
-	"github.com/labstack/echo/v5"
-)
-
-// Props is the data exposed to an Inertia page. Policy constructors can be
-// freely composed around individual values.
-type Props map[string]any
-
-// Set adds or replaces a prop and returns p for fluent response construction.
-func (p Props) Set(key string, value any) Props {
-	if p != nil {
-		p[key] = value
-	}
-	return p
-}
-
-// FromStruct converts exported JSON fields on a struct into Props. It is
-// intended for generated backend-owned page payloads. Invalid inputs produce
-// empty props; use FromStructChecked when the input is dynamic.
-func FromStruct(value any) Props {
-	props, _ := FromStructChecked(value)
-	return props
-}
-
-// FromStructChecked is the error-returning form of FromStruct.
-func FromStructChecked(value any) (Props, error) {
-	result := make(Props)
-	rv := reflect.ValueOf(value)
-	for rv.IsValid() && rv.Kind() == reflect.Pointer {
-		if rv.IsNil() {
-			return result, nil
-		}
-		rv = rv.Elem()
-	}
-	if !rv.IsValid() || rv.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("inertia: FromStruct requires a struct, got %T", value)
-	}
-	rt := rv.Type()
-	for i := range rt.NumField() {
-		field := rt.Field(i)
-		if field.PkgPath != "" {
-			continue
-		}
-		name, include := jsonFieldName(field)
-		if !include {
-			continue
-		}
-		if field.Anonymous && name == "" {
-			embedded, err := FromStructChecked(rv.Field(i).Interface())
-			if err != nil {
-				return nil, err
-			}
-			maps.Copy(result, embedded)
-			continue
-		}
-		if name == "" {
-			name = field.Name
-		}
-		result[name] = rv.Field(i).Interface()
-	}
-	return result, nil
-}
-
-func jsonFieldName(field reflect.StructField) (string, bool) {
-	tag, exists := field.Tag.Lookup("json")
-	if !exists {
-		return field.Name, true
-	}
-	name := strings.Split(tag, ",")[0]
-	if name == "-" {
-		return "", false
-	}
-	return name, true
-}
-
-// Resolver is a request-scoped lazy prop callback.
-type Resolver func(*echo.Context) (any, error)
-
-// PropResolver may be implemented by application-defined lazy values.
-type PropResolver interface {
-	ResolveInertiaProp(*echo.Context) (any, error)
-}
-
-// Prop is a composable response-boundary policy around a value or resolver.
-type Prop struct {
-	value any
-
-	always   bool
-	optional bool
-	deferred bool
-	group    string
-	rescue   bool
-
-	merge     bool
-	prepend   bool
-	deepMerge bool
-	matchOn   []string
-
-	once       bool
-	onceKey    string
-	expiresAt  *time.Time
-	expiresFor *time.Duration
-	forceFresh bool
-
-	scroll any
-	// scrollWrapper is the nested collection merged by infinite scrolling.
-	scrollWrapper string
-}
-
-func asProp(value any) Prop {
-	if prop, ok := value.(Prop); ok {
-		return prop
-	}
-	return Prop{value: value}
-}
-
-// Always makes a prop survive partial only/except filtering.
-func Always(value any) Prop {
-	prop := asProp(value)
-	prop.always = true
-	prop.optional = false
-	return prop
-}
-
-// Optional omits a prop on full visits and resolves it when explicitly selected.
-func Optional(value any) Prop {
-	prop := asProp(value)
-	prop.optional = true
-	return prop
-}
-
-// DeferredOption configures a deferred prop.
-type DeferredOption func(*Prop)
-
-// InGroup assigns a deferred prop to a client reload group.
-func InGroup(group string) DeferredOption {
-	return func(prop *Prop) {
-		if group != "" {
-			prop.group = group
-		}
-	}
-}
-
-// Rescue marks a deferred resolver failure as recoverable.
-func Rescue() DeferredOption { return func(prop *Prop) { prop.rescue = true } }
-
-// Deferred announces a prop on full visits and resolves it on a selected reload.
-func Deferred(value any, opts ...DeferredOption) Prop {
-	prop := asProp(value)
-	prop.deferred = true
-	prop.optional = true
-	if prop.group == "" {
-		prop.group = "default"
-	}
-	for _, opt := range opts {
-		if opt != nil {
-			opt(&prop)
-		}
-	}
-	return prop
-}
-
-// Merge appends the incoming value to the retained client prop.
-func Merge(value any) Prop {
-	prop := asProp(value)
-	prop.merge = true
-	prop.prepend = false
-	prop.deepMerge = false
-	return prop
-}
-
-// Prepend prepends the incoming value to the retained client prop.
-func Prepend(value any) Prop {
-	prop := asProp(value)
-	prop.merge = true
-	prop.prepend = true
-	prop.deepMerge = false
-	return prop
-}
-
-// DeepMerge recursively merges the incoming value into the retained client prop.
-func DeepMerge(value any) Prop {
-	prop := asProp(value)
-	prop.merge = true
-	prop.deepMerge = true
-	return prop
-}
-
-// MatchOn adds matching paths for a merge prop.
-func MatchOn(value any, paths ...string) Prop {
-	prop := asProp(value)
-	prop.merge = true
-	prop.matchOn = append(prop.matchOn, cleanPaths(paths)...)
-	return prop
-}
-
-// OnceOption configures a once prop.
-type OnceOption func(*Prop)
-
-// OnceKey sets a stable retention key. The prop path is used by default.
-func OnceKey(key string) OnceOption { return func(prop *Prop) { prop.onceKey = key } }
-
-// OnceExpiresAt sets an absolute client retention expiry.
-func OnceExpiresAt(expiry time.Time) OnceOption {
-	return func(prop *Prop) { prop.expiresAt = &expiry }
-}
-
-// OnceFor sets a retention expiry relative to prop evaluation time.
-func OnceFor(duration time.Duration) OnceOption {
-	return func(prop *Prop) {
-		prop.expiresFor = &duration
-	}
-}
-
-// ForceFresh makes the server resolve a once prop even if the client retained it.
-func ForceFresh() OnceOption { return func(prop *Prop) { prop.forceFresh = true } }
-
-// Once retains a resolved prop on the client across subsequent pages.
-func Once(value any, opts ...OnceOption) Prop {
-	prop := asProp(value)
-	prop.once = true
-	for _, opt := range opts {
-		if opt != nil {
-			opt(&prop)
-		}
-	}
-	return prop
-}
-
-// ProvidesScrollMetadata supplies infinite-scroll cursor information.
-type ProvidesScrollMetadata interface {
-	GetPageName() string
-	GetPreviousPage() any
-	GetNextPage() any
-	GetCurrentPage() any
-}
-
-// ScrollMetadataResolver derives metadata from the resolved prop value.
-type ScrollMetadataResolver func(*echo.Context, any) (ScrollMetadata, error)
-
-// Scroll adds infinite-scroll metadata and merge behavior to a prop.
-func Scroll(value, metadata any) Prop {
-	return ScrollAt(value, "data", metadata)
-}
-
-// ScrollAt adds infinite-scroll metadata and merges a nested collection path.
-func ScrollAt(value any, wrapper string, metadata any) Prop {
-	prop := asProp(value)
-	prop.merge = true
-	prop.scroll = metadata
-	prop.scrollWrapper = strings.Trim(strings.TrimSpace(wrapper), ".")
-	return prop
-}
-
-func cleanPaths(paths []string) []string {
-	result := make([]string, 0, len(paths))
-	for _, path := range paths {
-		path = strings.TrimSpace(path)
-		if path != "" {
-			result = append(result, path)
-		}
-	}
-	return result
-}
-```
-
-file -----------rw-r--r-- internal/inertia/props_resolver.go
-```
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-import (
-	"fmt"
-	"maps"
-	"reflect"
-	"slices"
-	"strings"
-	"time"
-
-	"github.com/labstack/echo/v5"
-)
-
-type resolvedPage struct {
-	props          map[string]any
-	merge          []string
-	prepend        []string
-	deepMerge      []string
-	matchOn        []string
-	scroll         map[string]ScrollMetadata
-	deferred       map[string][]string
-	rescued        []string
-	once           map[string]OnceMetadata
-	resolvedShared []string
-}
-
-type propResolver struct {
-	etx       *echo.Context
-	request   Request
-	component string
-	partial   bool
-	result    resolvedPage
-}
-
-func resolvePageProps(etx *echo.Context, request Request, component string, shared, page Props) (resolvedPage, error) {
-	if protectedPropExists(shared, "errors") {
-		return resolvedPage{}, &Error{Kind: ErrorProps, Operation: "merge shared props", Component: component, Method: etx.Request().Method, URL: requestURL(etx), PropPath: "errors", Err: fmt.Errorf("framework prop is protected")}
-	}
-	if protectedPropExists(page, "errors") {
-		return resolvedPage{}, &Error{Kind: ErrorProps, Operation: "merge page props", Component: component, Method: etx.Request().Method, URL: requestURL(etx), PropPath: "errors", Err: fmt.Errorf("framework prop is protected")}
-	}
-
-	combined := make(Props, len(shared)+len(page))
-	maps.Copy(combined, shared)
-	maps.Copy(combined, page)
-	var err error
-	combined, err = unpackDotProps(combined)
-	if err != nil {
-		return resolvedPage{}, &Error{Kind: ErrorProps, Operation: "unpack dotted props", Component: component, Method: etx.Request().Method, URL: requestURL(etx), Err: err}
-	}
-
-	resolver := &propResolver{
-		etx:       etx,
-		request:   request,
-		component: component,
-		partial:   request.IsPartialFor(component),
-		result: resolvedPage{
-			props:          make(map[string]any, len(combined)+1),
-			scroll:         make(map[string]ScrollMetadata),
-			deferred:       make(map[string][]string),
-			once:           make(map[string]OnceMetadata),
-			resolvedShared: sharedTopLevelKeys(shared),
-		},
-	}
-	keys := make([]string, 0, len(combined))
-	for key := range combined {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	for _, key := range keys {
-		value := combined[key]
-		resolved, include, err := resolver.resolveValue(key, value, false)
-		if err != nil {
-			return resolvedPage{}, err
-		}
-		if include {
-			resolver.result.props[key] = resolved
-		}
-	}
-	sortResolvedMetadata(&resolver.result)
-	return resolver.result, nil
-}
-
-func (r *propResolver) resolveValue(path string, value any, inheritedAlways bool) (any, bool, error) {
-	prop, isPolicy := value.(Prop)
-	dynamicallyResolved := false
-	if isPolicy {
-		inheritedAlways = inheritedAlways || prop.always
-		if r.onceRetained(path, prop) {
-			r.recordRetainedOncePolicy(path, prop)
-			return nil, false, nil
-		}
-		if !r.shouldInclude(path, prop, inheritedAlways) {
-			r.recordUnresolvedPolicy(path, prop)
-			return nil, false, nil
-		}
-		resolved, err := evaluateProp(r.etx, prop.value)
-		if err != nil {
-			if prop.deferred && prop.rescue {
-				r.etx.Logger().Error("inertia rescued deferred prop", "component", r.component, "url", requestURL(r.etx), "prop", path, "error", err)
-				r.result.rescued = append(r.result.rescued, path)
-				return nil, false, nil
-			}
-			return nil, false, &Error{
-				Kind:      ErrorProps,
-				Operation: "resolve",
-				Component: r.component,
-				Method:    r.etx.Request().Method,
-				URL:       requestURL(r.etx),
-				PropPath:  path,
-				Err:       err,
-			}
-		}
-		if returnedProp, ok := resolved.(Prop); ok {
-			return r.resolveValue(path, returnedProp, inheritedAlways)
-		}
-		if err := r.recordPolicy(path, prop, resolved); err != nil {
-			return nil, false, err
-		}
-		value = resolved
-		dynamicallyResolved = true
-	}
-
-	if !isPolicy && !r.pathIncluded(path, inheritedAlways) {
-		return nil, false, nil
-	}
-	if !isPolicy {
-		resolved, lazy, err := evaluateLazyProp(r.etx, value)
-		if err != nil {
-			return nil, false, &Error{
-				Kind:      ErrorProps,
-				Operation: "resolve",
-				Component: r.component,
-				Method:    r.etx.Request().Method,
-				URL:       requestURL(r.etx),
-				PropPath:  path,
-				Err:       err,
-			}
-		}
-		if lazy {
-			if returnedProp, ok := resolved.(Prop); ok {
-				return r.resolveValue(path, returnedProp, inheritedAlways)
-			}
-			value = resolved
-			dynamicallyResolved = true
-		}
-	}
-	return r.resolveNested(path, value, inheritedAlways || dynamicallyResolved)
-}
-
-func (r *propResolver) shouldInclude(path string, prop Prop, always bool) bool {
-	if (prop.deferred || prop.optional) && !r.partial {
-		return false
-	}
-	return r.pathIncluded(path, always)
-}
-
-func (r *propResolver) pathIncluded(path string, always bool) bool {
-	if always || !r.partial {
-		return true
-	}
-	if len(r.request.Only) > 0 && !pathMatchesAny(path, r.request.Only) {
-		return false
-	}
-	return !pathExcluded(path, r.request.Except)
-}
-
-func (r *propResolver) resolveNested(path string, value any, always bool) (any, bool, error) {
-	if value == nil {
-		return nil, true, nil
-	}
-	rv := reflect.ValueOf(value)
-	for rv.Kind() == reflect.Interface || rv.Kind() == reflect.Pointer {
-		if rv.IsNil() {
-			return nil, true, nil
-		}
-		rv = rv.Elem()
-	}
-
-	switch rv.Kind() {
-	case reflect.Map:
-		if rv.Type().Key().Kind() != reflect.String {
-			return value, true, nil
-		}
-		result := make(map[string]any, rv.Len())
-		keys := make([]string, 0, rv.Len())
-		iter := rv.MapRange()
-		for iter.Next() {
-			keys = append(keys, iter.Key().String())
-		}
-		slices.Sort(keys)
-		for _, key := range keys {
-			child, include, err := r.resolveValue(joinPath(path, key), rv.MapIndex(reflect.ValueOf(key).Convert(rv.Type().Key())).Interface(), always)
-			if err != nil {
-				return nil, false, err
-			}
-			if include {
-				result[key] = child
-			}
-		}
-		return result, true, nil
-	case reflect.Struct:
-		// Values with custom JSON encoders (notably time.Time) stay opaque.
-		if rv.Type().Implements(reflect.TypeFor[interface{ MarshalJSON() ([]byte, error) }]()) || reflect.PointerTo(rv.Type()).Implements(reflect.TypeFor[interface{ MarshalJSON() ([]byte, error) }]()) {
-			return value, true, nil
-		}
-		result := make(map[string]any, rv.NumField())
-		rt := rv.Type()
-		for i := range rt.NumField() {
-			field := rt.Field(i)
-			if field.PkgPath != "" {
-				continue
-			}
-			name, include := jsonFieldName(field)
-			if !include {
-				continue
-			}
-			if name == "" {
-				name = field.Name
-			}
-			child, childIncluded, err := r.resolveValue(joinPath(path, name), rv.Field(i).Interface(), always)
-			if err != nil {
-				return nil, false, err
-			}
-			if childIncluded {
-				result[name] = child
-			}
-		}
-		return result, true, nil
-	default:
-		return value, true, nil
-	}
-}
-
-func (r *propResolver) announceDeferred(path string, prop Prop) {
-	if !prop.deferred || r.partial {
-		return
-	}
-	group := prop.group
-	if group == "" {
-		group = "default"
-	}
-	r.result.deferred[group] = append(r.result.deferred[group], path)
-}
-
-func (r *propResolver) announceOnce(path string, prop Prop) {
-	if !prop.once || !r.metadataIncluded(path) {
-		return
-	}
-	key := prop.onceKey
-	if key == "" {
-		key = path
-	}
-	metadata := OnceMetadata{Prop: path}
-	expiresAt := prop.expiresAt
-	if prop.expiresFor != nil {
-		expiry := time.Now().Add(*prop.expiresFor)
-		expiresAt = &expiry
-	}
-	if expiresAt != nil {
-		milliseconds := expiresAt.UnixMilli()
-		metadata.ExpiresAt = &milliseconds
-	}
-	r.result.once[key] = metadata
-}
-
-func (r *propResolver) recordUnresolvedPolicy(path string, prop Prop) {
-	r.announceDeferred(path, prop)
-	r.announceOnce(path, prop)
-	r.recordUnresolvedMergePolicy(path, prop)
-}
-
-func (r *propResolver) recordRetainedOncePolicy(path string, prop Prop) {
-	r.announceOnce(path, prop)
-	r.recordUnresolvedMergePolicy(path, prop)
-}
-
-func (r *propResolver) recordUnresolvedMergePolicy(path string, prop Prop) {
-	// Composed category metadata is independent in v3. Deferred props do not
-	// emit scroll metadata before they resolve, but their merge policy remains
-	// announced so the follow-up result is applied consistently.
-	if (prop.deferred || prop.optional) && prop.merge && !resetMatches(path, r.request.Reset) {
-		if prop.scroll != nil {
-			r.recordScrollMerge(path, prop)
-		} else {
-			r.recordMerge(path, prop)
-		}
-	}
-}
-
-func (r *propResolver) onceRetained(path string, prop Prop) bool {
-	if !prop.once || !r.request.Inertia || r.partial || prop.forceFresh {
-		return false
-	}
-	key := prop.onceKey
-	if key == "" {
-		key = path
-	}
-	return slices.Contains(r.request.ExceptOnceProps, key)
-}
-
-func (r *propResolver) recordPolicy(path string, prop Prop, resolved any) error {
-	r.announceOnce(path, prop)
-	if prop.deferred && !r.partial {
-		r.announceDeferred(path, prop)
-	}
-	reset := resetMatches(path, r.request.Reset)
-	if prop.scroll != nil {
-		metadata, err := resolveScrollMetadata(r.etx, prop.scroll, resolved)
-		if err != nil {
-			return &Error{Kind: ErrorProps, Operation: "resolve scroll metadata", Component: r.component, Method: r.etx.Request().Method, URL: requestURL(r.etx), PropPath: path, Err: err}
-		}
-		metadata.Reset = reset
-		r.result.scroll[path] = metadata
-	}
-	if reset {
-		return nil
-	}
-	if prop.scroll != nil {
-		r.recordScrollMerge(path, prop)
-		return nil
-	}
-	if !prop.merge {
-		return nil
-	}
-	r.recordMerge(path, prop)
-	return nil
-}
-
-func (r *propResolver) recordMerge(path string, prop Prop) {
-	if !r.metadataIncluded(path) {
-		return
-	}
-	if prop.deepMerge {
-		r.result.deepMerge = append(r.result.deepMerge, path)
-	} else if prop.prepend || (prop.scroll != nil && r.request.MergeIntent == MergeIntentPrepend) {
-		r.result.prepend = append(r.result.prepend, path)
-	} else {
-		r.result.merge = append(r.result.merge, path)
-	}
-	for _, match := range prop.matchOn {
-		r.result.matchOn = append(r.result.matchOn, joinPath(path, match))
-	}
-}
-
-func (r *propResolver) recordScrollMerge(path string, prop Prop) {
-	if !r.metadataIncluded(path) {
-		return
-	}
-	mergePath := joinPath(path, prop.scrollWrapper)
-	if r.request.MergeIntent == MergeIntentPrepend {
-		r.result.prepend = append(r.result.prepend, mergePath)
-	} else {
-		r.result.merge = append(r.result.merge, mergePath)
-	}
-	for _, match := range prop.matchOn {
-		r.result.matchOn = append(r.result.matchOn, joinPath(mergePath, match))
-	}
-}
-
-func (r *propResolver) metadataIncluded(path string) bool {
-	if !r.partial {
-		return true
-	}
-	if len(r.request.Only) > 0 && !matchesOnly(path, r.request.Only) {
-		return false
-	}
-	return !pathExcluded(path, r.request.Except)
-}
-
-func resolveScrollMetadata(etx *echo.Context, provider, value any) (ScrollMetadata, error) {
-	switch metadata := provider.(type) {
-	case ScrollMetadata:
-		return metadata, nil
-	case *ScrollMetadata:
-		if metadata == nil {
-			return ScrollMetadata{}, fmt.Errorf("nil scroll metadata")
-		}
-		return *metadata, nil
-	case ProvidesScrollMetadata:
-		return ScrollMetadata{
-			PageName:     metadata.GetPageName(),
-			PreviousPage: metadata.GetPreviousPage(),
-			NextPage:     metadata.GetNextPage(),
-			CurrentPage:  metadata.GetCurrentPage(),
-		}, nil
-	case ScrollMetadataResolver:
-		return metadata(etx, value)
-	case func(*echo.Context, any) (ScrollMetadata, error):
-		return metadata(etx, value)
-	case func(any) (ScrollMetadata, error):
-		return metadata(value)
-	case func(any) ScrollMetadata:
-		return metadata(value), nil
-	default:
-		return ScrollMetadata{}, fmt.Errorf("unsupported scroll metadata provider %T", provider)
-	}
-}
-
-func evaluateProp(etx *echo.Context, value any) (any, error) {
-	resolved, _, err := evaluateLazyProp(etx, value)
-	return resolved, err
-}
-
-func evaluateLazyProp(etx *echo.Context, value any) (any, bool, error) {
-	switch resolver := value.(type) {
-	case PropResolver:
-		resolved, err := resolver.ResolveInertiaProp(etx)
-		return resolved, true, err
-	case Resolver:
-		resolved, err := resolver(etx)
-		return resolved, true, err
-	case func(*echo.Context) (any, error):
-		resolved, err := resolver(etx)
-		return resolved, true, err
-	case func(*echo.Context) any:
-		return resolver(etx), true, nil
-	case func() (any, error):
-		resolved, err := resolver()
-		return resolved, true, err
-	case func() any:
-		return resolver(), true, nil
-	default:
-		return value, false, nil
-	}
-}
-
-func pathMatchesAny(path string, selections []string) bool {
-	for _, selection := range selections {
-		if pathRelated(path, selection) {
-			return true
-		}
-	}
-	return false
-}
-
-func matchesOnly(path string, selections []string) bool {
-	for _, selection := range selections {
-		if path == selection || strings.HasPrefix(path, selection+".") {
-			return true
-		}
-	}
-	return false
-}
-
-func explicitlySelected(path string, selections []string) bool {
-	for _, selection := range selections {
-		if selection == path || strings.HasPrefix(selection, path+".") {
-			return true
-		}
-	}
-	return false
-}
-
-func pathExcluded(path string, exclusions []string) bool {
-	for _, exclusion := range exclusions {
-		if exclusion == path || strings.HasPrefix(path, exclusion+".") {
-			return true
-		}
-	}
-	return false
-}
-
-func resetMatches(path string, resets []string) bool {
-	return slices.Contains(resets, path)
-}
-
-func pathRelated(left, right string) bool {
-	return left == right || strings.HasPrefix(left, right+".") || strings.HasPrefix(right, left+".")
-}
-
-func joinPath(parent, child string) string {
-	if parent == "" {
-		return child
-	}
-	if child == "" {
-		return parent
-	}
-	return parent + "." + child
-}
-
-func sortResolvedMetadata(result *resolvedPage) {
-	slices.Sort(result.merge)
-	slices.Sort(result.prepend)
-	slices.Sort(result.deepMerge)
-	slices.Sort(result.matchOn)
-	slices.Sort(result.rescued)
-	slices.Sort(result.resolvedShared)
-	for group := range result.deferred {
-		slices.Sort(result.deferred[group])
-	}
-}
-
-func sharedTopLevelKeys(shared Props) []string {
-	seen := make(map[string]struct{}, len(shared))
-	for key := range shared {
-		top, _, _ := strings.Cut(key, ".")
-		if top != "" {
-			seen[top] = struct{}{}
-		}
-	}
-	keys := make([]string, 0, len(seen))
-	for key := range seen {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
-}
-
-func protectedPropExists(props Props, protected string) bool {
-	for key := range props {
-		if key == protected || strings.HasPrefix(key, protected+".") {
-			return true
-		}
-	}
-	return false
-}
-
-func unpackDotProps(props Props) (Props, error) {
-	result := make(Props, len(props))
-	dotted := make([]string, 0)
-	for key, value := range props {
-		if strings.Contains(key, ".") {
-			dotted = append(dotted, key)
-			continue
-		}
-		result[key] = value
-	}
-	slices.Sort(dotted)
-	for _, path := range dotted {
-		segments := strings.Split(path, ".")
-		current := map[string]any(result)
-		for index, segment := range segments[:len(segments)-1] {
-			next, ok := current[segment].(map[string]any)
-			if !ok {
-				if typed, propsOK := current[segment].(Props); propsOK {
-					next = map[string]any(typed)
-				} else if current[segment] != nil {
-					return nil, fmt.Errorf("dotted prop %q conflicts with non-object path %q", path, strings.Join(segments[:index+1], "."))
-				} else {
-					next = make(map[string]any)
-				}
-				current[segment] = next
-			}
-			current = next
-		}
-		current[segments[len(segments)-1]] = props[path]
-	}
-	return result, nil
-}
-```
-
-file -----------rw-r--r-- internal/inertia/redirect.go
-```
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-import (
-	"fmt"
-	"net/http"
-
-	"github.com/labstack/echo/v5"
-)
-
-// Redirect creates a normal redirect. Middleware upgrades unsafe 302 responses
-// to 303 and converts fragment redirects to the v3 control response.
-func (renderer *Renderer) Redirect(etx *echo.Context, location string, status int) error {
-	if status < 300 || status > 399 {
-		return fmt.Errorf("inertia: redirect status must be 3xx")
-	}
-	return etx.Redirect(status, location)
-}
-
-// Location makes an Inertia visit perform a full browser location visit.
-func (renderer *Renderer) Location(etx *echo.Context, location string) error {
-	request, err := requestState(etx)
-	if err != nil {
-		return err
-	}
-	if !request.Inertia {
-		return etx.Redirect(http.StatusFound, location)
-	}
-	header := etx.Response().Header()
-	header.Del(HeaderInertia)
-	header.Set(HeaderLocation, location)
-	appendVary(header, HeaderInertia)
-	return etx.NoContent(http.StatusConflict)
-}
-
-// FreshRedirect makes an Inertia visit perform a fresh Inertia GET.
-func (renderer *Renderer) FreshRedirect(etx *echo.Context, location string) error {
-	request, err := requestState(etx)
-	if err != nil {
-		return err
-	}
-	if !request.Inertia {
-		return etx.Redirect(http.StatusFound, location)
-	}
-	header := etx.Response().Header()
-	header.Del(HeaderInertia)
-	header.Set(HeaderRedirect, location)
-	appendVary(header, HeaderInertia)
-	return etx.NoContent(http.StatusConflict)
-}
-```
-
-file -----------rw-r--r-- internal/inertia/render.go
-```
-// Package inertia provides application-specific Inertia.js rendering helpers.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-import (
-	"context"
-	"errors"
-	"fmt"
-	"io/fs"
-
-	"github.com/a-h/templ"
-	"github.com/labstack/echo/v5"
-)
-
-// RequestPropsProvider supplies request-scoped shared props.
-type RequestPropsProvider func(context.Context) Props
-
-// RequestFlashProvider supplies the v3 top-level page flash value for each
-// response. It is distinct from shared props and is not emitted as props.flash.
-type RequestFlashProvider func(context.Context) any
-
-// WithSharedProp adds a static shared prop to every page response.
-func WithSharedProp(key string, value any) Option {
-	return func(renderer *Renderer) error {
-		renderer.shared[key] = value
-		return nil
-	}
-}
-
-// WithRequestProps registers a request-scoped shared prop provider.
-func WithRequestProps(provider RequestPropsProvider) Option {
-	return func(renderer *Renderer) error {
-		if provider == nil {
-			return nil
-		}
-		renderer.sharedProviders = append(renderer.sharedProviders, func(etx *echo.Context) (Props, error) {
-			return provider(etx.Request().Context()), nil
-		})
-		return nil
-	}
-}
-
-// WithRequestFlash registers a request-scoped flash provider.
-func WithRequestFlash(provider RequestFlashProvider) Option {
-	return func(renderer *Renderer) error {
-		if provider == nil {
-			return nil
-		}
-		renderer.requestFlash = append(renderer.requestFlash, func(etx *echo.Context) any {
-			return provider(etx.Request().Context())
-		})
-		return nil
-	}
-}
-
-// New creates a reusable Inertia renderer backed by the generated templ root
-// and the Vite build output for the given environment.
-func New(
-	assetFS fs.FS,
-	projectName string,
-	environment string,
-	buildPathURL string,
-	options ...Option,
-) (*Renderer, error) {
-	if assetFS == nil {
-		return nil, errors.New("inertia: asset filesystem is nil")
-	}
-
-	tags, err := initVite(assetFS, environment, buildPathURL)
-	if err != nil {
-		return nil, fmt.Errorf("inertia: vite init: %w", err)
-	}
-
-	renderer := &Renderer{
-		containerID: "app",
-		version:     buildPathURL,
-		shared:      make(Props),
-		root: func(data RootData) templ.Component {
-			return Root(data, projectName, tags.ViteHead, tags.ViteBody)
-		},
-	}
-	for _, option := range options {
-		if option != nil {
-			if err := option(renderer); err != nil {
-				return nil, fmt.Errorf("inertia: create renderer: %w", err)
-			}
-		}
-	}
-	return renderer, nil
-}
-```
-
-file -----------rw-r--r-- internal/inertia/render_test.go
-```
-package inertia
-
-import (
-	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
-	"testing/fstest"
-
-	"github.com/labstack/echo/v5"
-)
-
-type flashContextKey struct{}
-
-func TestRendererPageIncludesRequestFlash(t *testing.T) {
-	renderer, err := New(
-		fstest.MapFS{},
-		"testapp",
-		"testing",
-		"/assets/dist/123/*",
-		WithRequestFlash(func(ctx context.Context) any {
-			flashes, _ := ctx.Value(flashContextKey{}).([]string)
-			if len(flashes) == 0 {
-				return nil
-			}
-			return flashes
-		}),
-	)
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/account", nil)
-	req.Header.Set("X-Inertia", "true")
-	req = req.WithContext(context.WithValue(req.Context(), flashContextKey{}, []string{"saved"}))
-	rec := httptest.NewRecorder()
-	etx := e.NewContext(req, rec)
-
-	if err := renderer.Page(etx, "Account/Show", Props{"name": "Ada"}); err != nil {
-		t.Fatalf("Page: %v", err)
-	}
-
-	var page struct {
-		Props map[string]json.RawMessage `json:"props"`
-		Flash json.RawMessage            `json:"flash"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
-		t.Fatalf("decode page: %v", err)
-	}
-	if _, ok := page.Props["flash"]; ok {
-		t.Fatalf("flash was emitted as a page prop: %s", rec.Body.String())
-	}
-	if got := string(page.Flash); got != `["saved"]` {
-		t.Fatalf("page flash = %s, want %s", got, `["saved"]`)
-	}
-}
-
-func TestRendererOmitsEmptyRequestProps(t *testing.T) {
-	renderer, err := New(
-		fstest.MapFS{},
-		"testapp",
-		"testing",
-		"/assets/dist/123/*",
-		WithRequestProps(func(context.Context) Props { return nil }),
-	)
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/account", nil)
-	req.Header.Set("X-Inertia", "true")
-	rec := httptest.NewRecorder()
-	etx := e.NewContext(req, rec)
-
-	if err := renderer.Page(etx, "Account/Show", nil); err != nil {
-		t.Fatalf("Page: %v", err)
-	}
-
-	var page struct {
-		Props map[string]json.RawMessage `json:"props"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
-		t.Fatalf("decode page: %v", err)
-	}
-	if _, ok := page.Props["flash"]; ok {
-		t.Fatalf("empty flash prop was included: %s", rec.Body.String())
-	}
-}
-
-func TestInitialDocumentUsesTemplRoot(t *testing.T) {
-	renderer, err := New(fstest.MapFS{}, "testapp", "testing", "/assets/dist/123/*")
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/account", nil)
-	rec := httptest.NewRecorder()
-	etx := e.NewContext(req, rec)
-
-	if err := renderer.Page(etx, "Account/Show", Props{"name": "Ada"}); err != nil {
-		t.Fatalf("Page: %v", err)
-	}
-	for _, want := range []string{
-		`<title inertia>testapp</title>`,
-		`<script data-page="app" type="application/json">`,
-		`id="app"`,
-	} {
-		if !strings.Contains(rec.Body.String(), want) {
-			t.Fatalf("initial document missing %q: %s", want, rec.Body.String())
-		}
-	}
-}
-
-func TestInitViteUsesInjectedFilesystemAndBuildPath(t *testing.T) {
-	assetFS := fstest.MapFS{
-		"dist/vite/manifest.json": &fstest.MapFile{Data: []byte(`{
-  "resources/js/app.ts": {"file":"app.js","css":["app.css"],"src":"resources/js/app.ts","isEntry":true}
-}`)},
-	}
-
-	tags, err := initVite(assetFS, "production", "/assets/dist/123/*")
-	if err != nil {
-		t.Fatalf("initVite: %v", err)
-	}
-	if !strings.Contains(string(tags.ViteHead), `href="/assets/dist/123/app.css"`) {
-		t.Fatalf("ViteHead = %q", tags.ViteHead)
-	}
-	if !strings.Contains(string(tags.ViteBody), `src="/assets/dist/123/app.js"`) {
-		t.Fatalf("ViteBody = %q", tags.ViteBody)
-	}
-}
-```
-
-file -----------rw-r--r-- internal/inertia/request.go
-```
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-import (
-	"context"
-	"net/http"
-	"strings"
-
-	"github.com/labstack/echo/v5"
-)
-
-type requestContextKey struct{}
-
-// Request is the normalized Inertia protocol state for an Echo request.
-type Request struct {
-	Inertia          bool
-	Version          string
-	PartialComponent string
-	Only             []string
-	Except           []string
-	Reset            []string
-	ErrorBag         string
-	MergeIntent      string
-	ExceptOnceProps  []string
-	Purpose          string
-}
-
-// ParseRequest parses all Inertia v3 request headers.
-func ParseRequest(etx *echo.Context) (Request, error) {
-	return ParseHTTPRequest(etx.Request())
-}
-
-// ParseHTTPRequest parses all Inertia v3 request headers.
-func ParseHTTPRequest(req *http.Request) (Request, error) {
-	state := Request{
-		Inertia:          strings.EqualFold(strings.TrimSpace(req.Header.Get(HeaderInertia)), "true"),
-		Version:          strings.TrimSpace(req.Header.Get(HeaderVersion)),
-		PartialComponent: strings.TrimSpace(req.Header.Get(HeaderPartialComponent)),
-		Only:             headerList(req.Header.Get(HeaderPartialData)),
-		Except:           headerList(req.Header.Get(HeaderPartialExcept)),
-		Reset:            headerList(req.Header.Get(HeaderReset)),
-		ErrorBag:         strings.TrimSpace(req.Header.Get(HeaderErrorBag)),
-		MergeIntent:      strings.ToLower(strings.TrimSpace(req.Header.Get(HeaderInfiniteScrollMergeIntent))),
-		ExceptOnceProps:  headerList(req.Header.Get(HeaderExceptOnceProps)),
-		Purpose:          strings.ToLower(strings.TrimSpace(req.Header.Get(HeaderPurpose))),
-	}
-	if state.MergeIntent != "" && state.MergeIntent != MergeIntentAppend && state.MergeIntent != MergeIntentPrepend {
-		return Request{}, protocolError("parse request", "invalid infinite-scroll merge intent")
-	}
-	return state, nil
-}
-
-// IsPartialFor reports whether partial selection applies to component.
-func (r Request) IsPartialFor(component string) bool {
-	return r.Inertia && r.PartialComponent != "" && r.PartialComponent == component
-}
-
-// IsPrefetch reports whether the visit is a client prefetch request.
-func (r Request) IsPrefetch() bool { return r.Purpose == PurposePrefetch }
-
-func headerList(raw string) []string {
-	seen := make(map[string]struct{})
-	var values []string
-	for item := range strings.SplitSeq(raw, ",") {
-		item = strings.TrimSpace(item)
-		if item == "" {
-			continue
-		}
-		if _, ok := seen[item]; ok {
-			continue
-		}
-		seen[item] = struct{}{}
-		values = append(values, item)
-	}
-	return values
-}
-
-func requestWithState(req *http.Request, state Request) *http.Request {
-	return req.WithContext(context.WithValue(req.Context(), requestContextKey{}, state))
-}
-
-func requestState(etx *echo.Context) (Request, error) {
-	if state, ok := etx.Request().Context().Value(requestContextKey{}).(Request); ok {
-		return state, nil
-	}
-	return ParseRequest(etx)
-}
-```
-
-file -----------rw-r--r-- internal/inertia/response.go
-```
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"log/slog"
-	"maps"
-	"net/http"
-	"slices"
-	"strings"
-
-	"github.com/labstack/echo/v5"
-)
-
-// SharedProvider supplies request-scoped shared props.
-type SharedProvider func(*echo.Context) (Props, error)
-
-// VersionProvider supplies the current asset version.
-type VersionProvider func(*echo.Context) (string, error)
-
-// ReflashHandler preserves application flash data across redirect responses.
-type ReflashHandler func(*echo.Context) error
-
-// Option configures a Renderer.
-type Option func(*Renderer) error
-
-// Renderer implements the Inertia v3 server protocol for Echo and templ.
-type Renderer struct {
-	root            RootFunc
-	containerID     string
-	version         string
-	versionProvider VersionProvider
-	shared          Props
-	sharedProviders []SharedProvider
-	requestFlash    []func(*echo.Context) any
-	ssr             SSRRenderer
-	ssrFailFast     bool
-	reflash         ReflashHandler
-	protocolDebug   bool
-}
-
-// WithContainerID configures the client application mount element ID.
-func WithContainerID(id string) Option {
-	return func(renderer *Renderer) error {
-		id = strings.TrimSpace(id)
-		if id == "" {
-			return fmt.Errorf("inertia: container ID cannot be empty")
-		}
-		renderer.containerID = id
-		return nil
-	}
-}
-
-// WithVersion configures a fixed asset version.
-func WithVersion(version string) Option {
-	return func(renderer *Renderer) error {
-		renderer.version = version
-		return nil
-	}
-}
-
-// WithVersionProvider configures a request-scoped asset version provider.
-func WithVersionProvider(provider VersionProvider) Option {
-	return func(renderer *Renderer) error {
-		renderer.versionProvider = provider
-		return nil
-	}
-}
-
-// WithShared configures static shared props. Renderer construction copies props.
-func WithShared(props Props) Option {
-	return func(renderer *Renderer) error {
-		maps.Copy(renderer.shared, props)
-		return nil
-	}
-}
-
-// WithSharedProvider adds a deterministic request-scoped shared prop provider.
-func WithSharedProvider(provider SharedProvider) Option {
-	return func(renderer *Renderer) error {
-		if provider == nil {
-			return fmt.Errorf("inertia: shared provider cannot be nil")
-		}
-		renderer.sharedProviders = append(renderer.sharedProviders, provider)
-		return nil
-	}
-}
-
-// WithSSRRenderer configures the SSR gateway used only by pages with WithSSR.
-func WithSSRRenderer(ssr SSRRenderer) Option {
-	return func(renderer *Renderer) error {
-		renderer.ssr = ssr
-		return nil
-	}
-}
-
-// WithSSRFailFast makes per-response SSR failures abort the initial response.
-func WithSSRFailFast(enabled bool) Option {
-	return func(renderer *Renderer) error {
-		renderer.ssrFailFast = enabled
-		return nil
-	}
-}
-
-// WithReflash configures redirect-time flash preservation. The callback runs
-// after an Inertia handler returns a redirect and before the response commits.
-func WithReflash(handler ReflashHandler) Option {
-	return func(renderer *Renderer) error {
-		if handler == nil {
-			return fmt.Errorf("inertia: reflash handler cannot be nil")
-		}
-		renderer.reflash = handler
-		return nil
-	}
-}
-
-// WithProtocolDebug emits request classification and page metadata without
-// logging prop values. It is intended for local protocol diagnostics.
-func WithProtocolDebug(enabled bool) Option {
-	return func(renderer *Renderer) error {
-		renderer.protocolDebug = enabled
-		return nil
-	}
-}
-
-// SetReflashHandler configures flash preservation before the renderer starts
-// serving requests. Generated applications use this at router construction.
-func (renderer *Renderer) SetReflashHandler(handler ReflashHandler) error {
-	if renderer == nil {
-		return fmt.Errorf("inertia: renderer is nil")
-	}
-	if handler == nil {
-		return fmt.Errorf("inertia: reflash handler cannot be nil")
-	}
-	renderer.reflash = handler
-	return nil
-}
-
-type pageOptions struct {
-	status           int
-	ssr              bool
-	validationErrors map[string]string
-	encryptHistory   bool
-	clearHistory     bool
-	preserveFragment bool
-	flash            any
-}
-
-// PageOption configures one page response.
-type PageOption func(*pageOptions) error
-
-// WithSSR opts only this initial document response into SSR.
-func WithSSR() PageOption { return func(options *pageOptions) error { options.ssr = true; return nil } }
-
-// WithStatus sets the page response status.
-func WithStatus(status int) PageOption {
-	return func(options *pageOptions) error {
-		if status < 100 || status > 599 {
-			return fmt.Errorf("inertia: invalid page status %d", status)
-		}
-		options.status = status
-		return nil
-	}
-}
-
-// WithValidationErrors sets the protected errors prop for this response.
-func WithValidationErrors(errors map[string]string) PageOption {
-	return func(options *pageOptions) error {
-		options.validationErrors = errors
-		return nil
-	}
-}
-
-// WithHistoryEncryption controls encrypted browser history metadata.
-func WithHistoryEncryption(enabled bool) PageOption {
-	return func(options *pageOptions) error { options.encryptHistory = enabled; return nil }
-}
-
-// WithHistoryClear clears client history for this response.
-func WithHistoryClear() PageOption {
-	return func(options *pageOptions) error { options.clearHistory = true; return nil }
-}
-
-// WithPreserveFragment preserves the original fragment across a redirect.
-func WithPreserveFragment() PageOption {
-	return func(options *pageOptions) error { options.preserveFragment = true; return nil }
-}
-
-// WithFlash adds v3 flash data to the page field (not props).
-func WithFlash(flash any) PageOption {
-	return func(options *pageOptions) error { options.flash = flash; return nil }
-}
-
-// Page resolves and renders one Inertia page response.
-func (renderer *Renderer) Page(etx *echo.Context, component string, props Props, opts ...PageOption) error {
-	request, err := requestState(etx)
-	if err != nil {
-		return err
-	}
-	options := pageOptions{status: http.StatusOK}
-	for _, opt := range opts {
-		if opt != nil {
-			if err := opt(&options); err != nil {
-				return err
-			}
-		}
-	}
-	shared, err := renderer.sharedProps(etx)
-	if err != nil {
-		return err
-	}
-	resolved, err := resolvePageProps(etx, request, component, shared, props)
-	if err != nil {
-		return err
-	}
-	resolved.props["errors"] = validationErrors(request.ErrorBag, options.validationErrors)
-	resolved.resolvedShared = append(resolved.resolvedShared, "errors")
-	slices.Sort(resolved.resolvedShared)
-	version, err := renderer.currentVersion(etx)
-	if err != nil {
-		return err
-	}
-	if options.flash == nil {
-		for _, provider := range renderer.requestFlash {
-			if options.flash = provider(etx); options.flash != nil {
-				break
-			}
-		}
-	}
-	page := Page{
-		Component:        component,
-		Props:            resolved.props,
-		URL:              requestURL(etx),
-		Version:          version,
-		EncryptHistory:   options.encryptHistory,
-		ClearHistory:     options.clearHistory,
-		PreserveFragment: options.preserveFragment,
-		MergeProps:       resolved.merge,
-		PrependProps:     resolved.prepend,
-		DeepMergeProps:   resolved.deepMerge,
-		MatchPropsOn:     resolved.matchOn,
-		ScrollProps:      emptyNil(resolved.scroll),
-		DeferredProps:    emptyNil(resolved.deferred),
-		RescuedProps:     resolved.rescued,
-		SharedProps:      resolved.resolvedShared,
-		OnceProps:        emptyNil(resolved.once),
-		Flash:            options.flash,
-	}
-	if renderer.protocolDebug {
-		etx.Logger().Debug("inertia protocol page",
-			slog.String("component", component),
-			slog.String("method", etx.Request().Method),
-			slog.String("url", page.URL),
-			slog.Any("prop_keys", sortedPropKeys(page.Props)),
-			slog.Any("merge_props", page.MergeProps),
-			slog.Any("deferred_groups", sortedDeferredGroups(page.DeferredProps)),
-			slog.Int("once_props", len(page.OnceProps)),
-		)
-	}
-	pageJSON, err := marshalPage(page)
-	if err != nil {
-		return &Error{Kind: ErrorProps, Operation: "encode page", Component: component, Method: etx.Request().Method, URL: page.URL, Err: err}
-	}
-	appendVary(etx.Response().Header(), HeaderInertia)
-	if request.Inertia {
-		etx.Response().Header().Set(HeaderInertia, "true")
-		return etx.JSONBlob(options.status, pageJSON)
-	}
-
-	var ssrResponse *SSRResponse
-	if options.ssr {
-		if renderer.ssr == nil {
-			err = fmt.Errorf("SSR requested without a configured renderer")
-		} else {
-			ssrResponse, err = renderer.ssr.Render(etx.Request().Context(), page)
-			if err == nil {
-				err = validateSSRResponse(ssrResponse)
-			}
-		}
-		if err != nil {
-			wrapped := &Error{Kind: ErrorSSR, Operation: "render", Component: component, Method: etx.Request().Method, URL: page.URL, Err: err}
-			if renderer.ssrFailFast {
-				return wrapped
-			}
-			etx.Logger().Error("inertia SSR fallback", slog.String("component", component), slog.String("url", page.URL), slog.Any("error", wrapped))
-			ssrResponse = nil
-		}
-	}
-	root := renderer.root(RootData{Page: page, PageJSON: pageJSON, ContainerID: renderer.containerID, SSR: ssrResponse})
-	if root == nil {
-		return &Error{Kind: ErrorRoot, Operation: "construct", Component: component, Method: etx.Request().Method, URL: page.URL, Err: fmt.Errorf("root returned nil component")}
-	}
-	var document bytes.Buffer
-	if err := root.Render(etx.Request().Context(), &document); err != nil {
-		return &Error{Kind: ErrorRoot, Operation: "render", Component: component, Method: etx.Request().Method, URL: page.URL, Err: err}
-	}
-	return etx.HTMLBlob(options.status, document.Bytes())
-}
-
-func sortedPropKeys(props map[string]any) []string {
-	keys := make([]string, 0, len(props))
-	for key := range props {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
-}
-
-func sortedDeferredGroups(groups map[string][]string) []string {
-	keys := make([]string, 0, len(groups))
-	for key := range groups {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
-}
-
-func (renderer *Renderer) sharedProps(etx *echo.Context) (Props, error) {
-	shared := make(Props, len(renderer.shared))
-	maps.Copy(shared, renderer.shared)
-	for _, provider := range renderer.sharedProviders {
-		provided, err := provider(etx)
-		if err != nil {
-			return nil, &Error{Kind: ErrorProps, Operation: "resolve shared provider", Method: etx.Request().Method, URL: requestURL(etx), Err: err}
-		}
-		maps.Copy(shared, provided)
-	}
-	return shared, nil
-}
-
-func (renderer *Renderer) currentVersion(etx *echo.Context) (string, error) {
-	if renderer.versionProvider == nil {
-		return renderer.version, nil
-	}
-	version, err := renderer.versionProvider(etx)
-	if err != nil {
-		return "", &Error{Kind: ErrorProtocol, Operation: "resolve version", Method: etx.Request().Method, URL: requestURL(etx), Err: err}
-	}
-	return version, nil
-}
-
-func validationErrors(bag string, errors map[string]string) map[string]any {
-	if errors == nil {
-		return map[string]any{}
-	}
-	plain := make(map[string]any, len(errors))
-	for field, message := range errors {
-		plain[field] = message
-	}
-	if bag == "" {
-		return plain
-	}
-	return map[string]any{bag: plain}
-}
-
-func marshalPage(page Page) ([]byte, error) {
-	var buffer bytes.Buffer
-	encoder := json.NewEncoder(&buffer)
-	encoder.SetEscapeHTML(false)
-	if err := encoder.Encode(page); err != nil {
-		return nil, err
-	}
-	return bytes.TrimSuffix(buffer.Bytes(), []byte("\n")), nil
-}
-
-func validateSSRResponse(response *SSRResponse) error {
-	if response == nil {
-		return fmt.Errorf("empty SSR response")
-	}
-	if !strings.Contains(response.Body, `data-server-rendered="true"`) {
-		return fmt.Errorf("SSR body is missing data-server-rendered marker")
-	}
-	if !strings.Contains(response.Body, "data-page=") {
-		return fmt.Errorf("SSR body is missing page script")
-	}
-	return nil
-}
-
-func requestURL(etx *echo.Context) string {
-	request := etx.Request()
-	if request.URL == nil {
-		return "/"
-	}
-	uri := request.URL.RequestURI()
-	if uri == "" {
-		return "/"
-	}
-	return uri
-}
-
-func appendVary(header http.Header, value string) {
-	for _, line := range header.Values("Vary") {
-		for item := range strings.SplitSeq(line, ",") {
-			if strings.EqualFold(strings.TrimSpace(item), value) {
-				return
-			}
-		}
-	}
-	header.Add("Vary", value)
-}
-
-func emptyNil[K comparable, V any](values map[K]V) map[K]V {
-	if len(values) == 0 {
-		return nil
-	}
-	return values
-}
-```
-
-file -----------rw-r--r-- internal/inertia/root.go
-```
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"fmt"
-	"html"
-	"io"
-	"strings"
-
-	"github.com/a-h/templ"
-)
-
-// RootFunc is the signature of the application-owned templ document constructor.
-type RootFunc func(RootData) templ.Component
-
-// RootData is passed to the application-owned root document.
-type RootData struct {
-	Page        Page
-	PageJSON    []byte
-	ContainerID string
-	SSR         *SSRResponse
-}
-
-// PageScript renders v3's non-SSR JSON page script. The JSON is validated and
-// every slash is escaped without HTML-entity encoding the script body.
-func PageScript(containerID string, pageJSON []byte) templ.Component {
-	return templ.ComponentFunc(func(_ context.Context, writer io.Writer) error {
-		escaped, err := pageScriptJSON(pageJSON)
-		if err != nil {
-			return err
-		}
-		if containerID == "" {
-			containerID = "app"
-		}
-		if _, err := io.WriteString(writer, `<script data-page="`+html.EscapeString(containerID)+`" type="application/json">`); err != nil {
-			return err
-		}
-		if _, err := writer.Write(escaped); err != nil {
-			return err
-		}
-		_, err = io.WriteString(writer, `</script>`)
-		return err
-	})
-}
-
-func pageScriptJSON(pageJSON []byte) ([]byte, error) {
-	decoder := json.NewDecoder(bytes.NewReader(pageJSON))
-	decoder.UseNumber()
-	var value any
-	if err := decoder.Decode(&value); err != nil {
-		return nil, fmt.Errorf("inertia: invalid page JSON: %w", err)
-	}
-	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		return nil, fmt.Errorf("inertia: invalid trailing page JSON")
-	}
-	var normalized bytes.Buffer
-	encoder := json.NewEncoder(&normalized)
-	encoder.SetEscapeHTML(false)
-	if err := encoder.Encode(value); err != nil {
-		return nil, fmt.Errorf("inertia: normalize page JSON: %w", err)
-	}
-	result := bytes.TrimSuffix(normalized.Bytes(), []byte("\n"))
-	return bytes.ReplaceAll(result, []byte("/"), []byte(`\/`)), nil
-}
-
-// AppMount renders the empty client-rendering mount element.
-func AppMount(containerID string) templ.Component {
-	return templ.ComponentFunc(func(_ context.Context, writer io.Writer) error {
-		if containerID == "" {
-			containerID = "app"
-		}
-		_, err := io.WriteString(writer, `<div id="`+html.EscapeString(containerID)+`"></div>`)
-		return err
-	})
-}
-
-// SSRHead renders trusted head markup returned by the configured local runtime.
-func SSRHead(response *SSRResponse) templ.Component {
-	return templ.ComponentFunc(func(_ context.Context, writer io.Writer) error {
-		if response == nil {
-			return nil
-		}
-		_, err := io.WriteString(writer, strings.Join(response.Head, "\n"))
-		return err
-	})
-}
-
-// SSRBody renders trusted body markup returned by the configured local runtime.
-// The body replaces both PageScript and AppMount.
-func SSRBody(response *SSRResponse) templ.Component {
-	return templ.ComponentFunc(func(_ context.Context, writer io.Writer) error {
-		if response == nil {
-			return nil
-		}
-		_, err := io.WriteString(writer, response.Body)
-		return err
-	})
-}
-```
-
-file -----------rw-r--r-- internal/inertia/root.templ
-```
-package inertia
-
-import (
-	"html/template"
-)
-
-// Root is the application-owned initial Inertia document. Customize it to add
-// metadata, fonts, analytics, or other application-wide document elements.
-templ Root(data RootData, appName string, viteHead template.HTML, viteBody template.HTML) {
-	<!DOCTYPE html>
-	<html lang="en" class="dark">
-		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title inertia>{ appName }</title>
-			@SSRHead(data.SSR)
-			@templ.Raw(string(viteHead))
-		</head>
-		<body class="bg-slate-950 text-slate-100">
-			if data.SSR != nil {
-				@SSRBody(data.SSR)
-			} else {
-				@PageScript(data.ContainerID, data.PageJSON)
-				@AppMount(data.ContainerID)
-			}
-			@templ.Raw(string(viteBody))
-		</body>
-	</html>
-}
-```
-
-file -----------rw-r--r-- internal/inertia/root_templ.go
-```
-// Code generated by templ - DO NOT EDIT.
-
-// templ: version: v0.3.1020
-package inertia
-
-//lint:file-ignore SA4006 This context is only used if a nested component is present.
-
-import "github.com/a-h/templ"
-import templruntime "github.com/a-h/templ/runtime"
-
-import (
-	"html/template"
-)
-
-// Root is the application-owned initial Inertia document. Customize it to add
-// metadata, fonts, analytics, or other application-wide document elements.
-func Root(data RootData, appName string, viteHead template.HTML, viteBody template.HTML) templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var1 == nil {
-			templ_7745c5c3_Var1 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"dark\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title inertia>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var2 string
-		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(appName)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/inertia/root.templ`, Line: 15, Col: 27}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = SSRHead(data.SSR).Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templ.Raw(string(viteHead)).Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</head><body class=\"bg-slate-950 text-slate-100\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if data.SSR != nil {
-			templ_7745c5c3_Err = SSRBody(data.SSR).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		} else {
-			templ_7745c5c3_Err = PageScript(data.ContainerID, data.PageJSON).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = AppMount(data.ContainerID).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templ.Raw(string(viteBody)).Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</body></html>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
-var _ = templruntime.GeneratedTemplate
-```
-
-file -----------rw-r--r-- internal/inertia/ssr.go
-```
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-import "context"
-
-// SSRRenderer renders a completed page object. It does not own the runtime process.
-type SSRRenderer interface {
-	Render(context.Context, Page) (*SSRResponse, error)
-}
-
-// SSRResponse contains trusted markup from the configured local SSR runtime.
-type SSRResponse struct {
-	Head []string `json:"head"`
-	Body string   `json:"body"`
-}
-```
-
-file -----------rw-r--r-- internal/inertia/ssr_http.go
-```
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	"strings"
-	"time"
-)
-
-const (
-	DefaultSSRURL              = "http://127.0.0.1:13714"
-	DefaultSSRTimeout          = 2 * time.Second
-	DefaultSSRMaxResponseBytes = 2 << 20
-)
-
-var ErrSSRResponseTooLarge = errors.New("inertia: SSR response exceeds configured limit")
-
-// HTTPSSROption configures the bounded HTTP SSR gateway.
-type HTTPSSROption func(*HTTPSSRRenderer) error
-
-// HTTPSSRRenderer implements the official Node SSR HTTP wire contract.
-type HTTPSSRRenderer struct {
-	baseURL         *url.URL
-	client          *http.Client
-	timeout         time.Duration
-	maxResponseSize int64
-}
-
-// NewHTTPSSRRenderer creates an SSR gateway using loopback defaults.
-func NewHTTPSSRRenderer(opts ...HTTPSSROption) (*HTTPSSRRenderer, error) {
-	baseURL, _ := url.Parse(DefaultSSRURL)
-	renderer := &HTTPSSRRenderer{
-		baseURL:         baseURL,
-		client:          &http.Client{},
-		timeout:         DefaultSSRTimeout,
-		maxResponseSize: DefaultSSRMaxResponseBytes,
-	}
-	for _, opt := range opts {
-		if opt != nil {
-			if err := opt(renderer); err != nil {
-				return nil, err
-			}
-		}
-	}
-	return renderer, nil
-}
-
-// WithSSRURL configures the managed runtime base URL.
-func WithSSRURL(rawURL string) HTTPSSROption {
-	return func(renderer *HTTPSSRRenderer) error {
-		parsed, err := url.Parse(strings.TrimSpace(rawURL))
-		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-			return fmt.Errorf("inertia: invalid SSR URL")
-		}
-		parsed.Path = strings.TrimSuffix(strings.TrimSuffix(parsed.Path, "/render"), "/")
-		parsed.RawQuery = ""
-		parsed.Fragment = ""
-		renderer.baseURL = parsed
-		return nil
-	}
-}
-
-// WithSSRHTTPClient configures the transport used by the SSR gateway.
-func WithSSRHTTPClient(client *http.Client) HTTPSSROption {
-	return func(renderer *HTTPSSRRenderer) error {
-		if client == nil {
-			return fmt.Errorf("inertia: SSR HTTP client cannot be nil")
-		}
-		renderer.client = client
-		return nil
-	}
-}
-
-// WithSSRTimeout bounds render, health, and shutdown operations.
-func WithSSRTimeout(timeout time.Duration) HTTPSSROption {
-	return func(renderer *HTTPSSRRenderer) error {
-		if timeout <= 0 {
-			return fmt.Errorf("inertia: SSR timeout must be positive")
-		}
-		renderer.timeout = timeout
-		return nil
-	}
-}
-
-// WithSSRMaxResponseBytes bounds SSR runtime response bodies.
-func WithSSRMaxResponseBytes(size int64) HTTPSSROption {
-	return func(renderer *HTTPSSRRenderer) error {
-		if size <= 0 {
-			return fmt.Errorf("inertia: SSR response limit must be positive")
-		}
-		renderer.maxResponseSize = size
-		return nil
-	}
-}
-
-// Render posts a final v3 page object to /render.
-func (renderer *HTTPSSRRenderer) Render(ctx context.Context, page Page) (*SSRResponse, error) {
-	payload, err := json.Marshal(page)
-	if err != nil {
-		return nil, fmt.Errorf("encode page: %w", err)
-	}
-	request, cancel, err := renderer.request(ctx, http.MethodPost, "/render", bytes.NewReader(payload))
-	if err != nil {
-		return nil, err
-	}
-	defer cancel()
-	request.Header.Set("Content-Type", "application/json")
-
-	response, err := renderer.client.Do(request)
-	if err != nil {
-		return nil, fmt.Errorf("request SSR render: %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, fmt.Errorf("SSR render returned HTTP %d", response.StatusCode)
-	}
-	body, err := readBounded(response.Body, renderer.maxResponseSize)
-	if err != nil {
-		return nil, err
-	}
-	var rendered SSRResponse
-	if err := json.Unmarshal(body, &rendered); err != nil {
-		return nil, fmt.Errorf("decode SSR render response: %w", err)
-	}
-	return &rendered, nil
-}
-
-// Health verifies the managed runtime's /health endpoint.
-func (renderer *HTTPSSRRenderer) Health(ctx context.Context) error {
-	request, cancel, err := renderer.request(ctx, http.MethodGet, "/health", nil)
-	if err != nil {
-		return err
-	}
-	defer cancel()
-	response, err := renderer.client.Do(request)
-	if err != nil {
-		return fmt.Errorf("request SSR health: %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("SSR health returned HTTP %d", response.StatusCode)
-	}
-	body, err := readBounded(response.Body, 64<<10)
-	if err != nil {
-		return err
-	}
-	var health struct {
-		Status string `json:"status"`
-	}
-	if err := json.Unmarshal(body, &health); err != nil {
-		return fmt.Errorf("decode SSR health response: %w", err)
-	}
-	if !strings.EqualFold(health.Status, "ok") {
-		return fmt.Errorf("SSR runtime is not healthy")
-	}
-	return nil
-}
-
-// Shutdown asks the managed runtime to stop through /shutdown.
-func (renderer *HTTPSSRRenderer) Shutdown(ctx context.Context) error {
-	request, cancel, err := renderer.request(ctx, http.MethodPost, "/shutdown", nil)
-	if err != nil {
-		return err
-	}
-	defer cancel()
-	response, err := renderer.client.Do(request)
-	if err != nil {
-		// The official Node runtime exits as it handles /shutdown and may close
-		// the connection before an HTTP response is flushed.
-		if errors.Is(err, io.EOF) {
-			return nil
-		}
-		return fmt.Errorf("request SSR shutdown: %w", err)
-	}
-	defer response.Body.Close()
-	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 64<<10))
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("SSR shutdown returned HTTP %d", response.StatusCode)
-	}
-	return nil
-}
-
-func (renderer *HTTPSSRRenderer) request(ctx context.Context, method, path string, body io.Reader) (*http.Request, context.CancelFunc, error) {
-	bounded, cancel := context.WithTimeout(ctx, renderer.timeout)
-	endpoint := *renderer.baseURL
-	endpoint.Path = strings.TrimSuffix(endpoint.Path, "/") + path
-	request, err := http.NewRequestWithContext(bounded, method, endpoint.String(), body)
-	if err != nil {
-		cancel()
-		return nil, nil, fmt.Errorf("create SSR request: %w", err)
-	}
-	request.Header.Set("Accept", "application/json")
-	return request, cancel, nil
-}
-
-func readBounded(reader io.Reader, limit int64) ([]byte, error) {
-	body, err := io.ReadAll(io.LimitReader(reader, limit+1))
-	if err != nil {
-		return nil, fmt.Errorf("read SSR response: %w", err)
-	}
-	if int64(len(body)) > limit {
-		return nil, ErrSSRResponseTooLarge
-	}
-	return body, nil
-}
-```
-
-file -----------rw-r--r-- internal/inertia/ssr_runtime.go
-```
-// Package inertia provides Inertia.js rendering helpers.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-import (
-	"context"
-	"errors"
-	"fmt"
-	"log/slog"
-	"net/url"
-	"os"
-	"os/exec"
-	"sync"
-	"time"
-)
-
-const defaultSSRStartupTimeout = 10 * time.Second
-
-// SSRRuntime owns the Node process used for production Inertia SSR. The
-// protocol renderer remains per-response; this process is shared by requests
-// that opt in with WithSSR.
-type SSRRuntime struct {
-	bundlePath string
-	executable string
-	runtimeURL *url.URL
-	enabled    bool
-	renderer   *HTTPSSRRenderer
-
-	mu      sync.Mutex
-	command *exec.Cmd
-	done    chan error
-}
-
-func NewSSRRuntime(bundlePath, executable, rawURL string, enabled bool, opts ...HTTPSSROption) (*SSRRuntime, error) {
-	runtimeURL, err := url.Parse(rawURL)
-	if err != nil || runtimeURL.Hostname() == "" {
-		return nil, fmt.Errorf("configure inertia SSR runtime URL %q", rawURL)
-	}
-	rendererOpts := append([]HTTPSSROption{}, opts...)
-	rendererOpts = append(rendererOpts, WithSSRURL(rawURL))
-	renderer, err := NewHTTPSSRRenderer(rendererOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("configure inertia SSR client: %w", err)
-	}
-	return &SSRRuntime{
-		bundlePath: bundlePath,
-		executable: executable,
-		runtimeURL: runtimeURL,
-		enabled:    enabled,
-		renderer:   renderer,
-	}, nil
-}
-
-func (runtime *SSRRuntime) Renderer() SSRRenderer {
-	return runtime.renderer
-}
-
-func (runtime *SSRRuntime) Start(ctx context.Context) error {
-	if runtime == nil || !runtime.enabled {
-		return nil
-	}
-	if _, err := os.Stat(runtime.bundlePath); err != nil {
-		return fmt.Errorf("inertia SSR bundle %q: %w", runtime.bundlePath, err)
-	}
-	nodePath, err := exec.LookPath(runtime.executable)
-	if err != nil {
-		return fmt.Errorf("inertia SSR requires Node.js 22 or newer: %w", err)
-	}
-	versionOutput, err := exec.CommandContext(ctx, nodePath, "--version").Output()
-	if err != nil {
-		return fmt.Errorf("inspect Node.js version: %w", err)
-	}
-	var nodeMajor int
-	if _, err := fmt.Sscanf(string(versionOutput), "v%d.", &nodeMajor); err != nil || nodeMajor < 22 {
-		return fmt.Errorf("inertia SSR requires Node.js 22 or newer (found %q)", versionOutput)
-	}
-
-	runtime.mu.Lock()
-	defer runtime.mu.Unlock()
-	if runtime.command != nil {
-		return errors.New("inertia SSR runtime is already started")
-	}
-
-	command := exec.Command(nodePath, runtime.bundlePath)
-	port := runtime.runtimeURL.Port()
-	if port == "" {
-		port = "13714"
-	}
-	command.Env = append(os.Environ(),
-		"INERTIA_SSR_HOST="+runtime.runtimeURL.Hostname(),
-		"INERTIA_SSR_PORT="+port,
-	)
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
-	done := make(chan error, 1)
-	if err := command.Start(); err != nil {
-		return fmt.Errorf("start inertia SSR runtime: %w", err)
-	}
-	runtime.command = command
-	runtime.done = done
-	go func() {
-		err := command.Wait()
-		done <- err
-		close(done)
-		if err != nil {
-			slog.Error("inertia SSR runtime stopped", "error", err)
-		}
-	}()
-
-	startupCtx, cancel := context.WithTimeout(ctx, defaultSSRStartupTimeout)
-	defer cancel()
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		if err := runtime.renderer.Health(startupCtx); err == nil {
-			return nil
-		}
-		select {
-		case err := <-done:
-			return fmt.Errorf("inertia SSR runtime exited during startup: %w", err)
-		case <-ticker.C:
-		case <-startupCtx.Done():
-			_ = command.Process.Kill()
-			return fmt.Errorf("inertia SSR runtime health check: %w", startupCtx.Err())
-		}
-	}
-}
-
-func (runtime *SSRRuntime) Stop(ctx context.Context) error {
-	if runtime == nil || !runtime.enabled {
-		return nil
-	}
-	runtime.mu.Lock()
-	command := runtime.command
-	done := runtime.done
-	runtime.command = nil
-	runtime.done = nil
-	runtime.mu.Unlock()
-	if command == nil {
-		return nil
-	}
-
-	shutdownErr := runtime.renderer.Shutdown(ctx)
-	select {
-	case waitErr := <-done:
-		if waitErr != nil && shutdownErr == nil {
-			shutdownErr = waitErr
-		}
-		return shutdownErr
-	case <-ctx.Done():
-		killErr := command.Process.Kill()
-		return errors.Join(shutdownErr, ctx.Err(), killErr)
-	}
-}
-```
-
-file -----------rw-r--r-- internal/inertia/vite.go
-```
-// Package inertia provides Inertia.js rendering helpers.
-// Code generated by andurel <ANDUREL_VERSION>; DO NOT EDIT.
-package inertia
-
-import (
-	"encoding/json"
-	"fmt"
-	"html/template"
-	"io/fs"
-	"strings"
-
-	"github.com/mbvlabs/andurel/pkg/server"
-)
-
-type viteTags struct {
-	ViteHead template.HTML
-	ViteBody template.HTML
-}
-
-type viteManifestEntry struct {
-	File    string   `json:"file"`
-	CSS     []string `json:"css"`
-	Src     string   `json:"src"`
-	IsEntry bool     `json:"isEntry"`
-}
-
-func initVite(assetFS fs.FS, environment string, buildPathURL string) (*viteTags, error) {
-	if environment != server.ProdEnvironment {
-		tags := &viteTags{
-			ViteHead: template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/@vite/client"></script>`),
-		}
-
-		tags.ViteBody = template.HTML(`<script type="module" src="http://localhost:5173/assets/dist/resources/js/app.ts"></script>`)
-
-		return tags, nil
-	}
-
-	data, err := fs.ReadFile(assetFS, "dist/vite/manifest.json")
-	if err != nil {
-		return nil, fmt.Errorf("vite: read manifest: %w", err)
-	}
-
-	var manifest map[string]viteManifestEntry
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, fmt.Errorf("vite: parse manifest: %w", err)
-	}
-
-	entry, ok := manifest["resources/js/app.ts"]
-	if !ok {
-		return nil, fmt.Errorf("vite: entry point not found in manifest")
-	}
-
-	tags := &viteTags{}
-	viteBuildPrefix := strings.TrimSuffix(buildPathURL, "*")
-	for _, css := range entry.CSS {
-		tags.ViteHead += template.HTML(`<link rel="stylesheet" href="` + viteBuildPrefix + css + `">`)
-	}
-	tags.ViteBody = template.HTML(`<script type="module" src="` + viteBuildPrefix + entry.File + `"></script>`)
-
-	return tags, nil
-}
 ```
 
 dir  d----------rwxr-xr-x models
@@ -9986,6 +7450,8 @@ file -----------rw-r--r-- package.json
   "scripts": {
     "dev": "vite",
     "build": "vite build && vite build --ssr resources/js/ssr.ts --outDir assets/dist/ssr",
+    "build:client": "vite build",
+    "build:ssr": "vite build --ssr resources/js/ssr.ts --outDir assets/dist/ssr",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -11117,15 +8583,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mbvlabs/andurel/pkg/server"
 	"testapp/config"
 	"testapp/router/appctx"
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/telemetry"
+	"github.com/mbvlabs/andurel/pkg/server"
 
 	"github.com/labstack/echo/v5"
 	echomw "github.com/labstack/echo/v5/middleware"
+	"github.com/mbvlabs/andurel/pkg/inertia"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/semconv/v1.26.0"
@@ -11146,6 +8613,7 @@ func RegisterRequestMeta(
 		}
 
 		ctx := appctx.WithFlashes(c.Request().Context(), flashes)
+		ctx = inertia.ContextWithFlash(ctx, flashes)
 		c.SetRequest(c.Request().WithContext(ctx))
 
 		return next(c)
@@ -11747,7 +9215,7 @@ import (
 
 	"github.com/mbvlabs/andurel/pkg/server"
 	"testapp/config"
-	"testapp/internal/inertia"
+	"github.com/mbvlabs/andurel/pkg/inertia"
 	"testapp/router/appctx"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
@@ -17049,6 +14517,137 @@ func NotFound() templ.Component {
 			return nil
 		})
 		templ_7745c5c3_Err = base().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+var _ = templruntime.GeneratedTemplate
+```
+
+file -----------rw-r--r-- views/root.templ
+```
+package views
+
+import "github.com/mbvlabs/andurel/pkg/inertia"
+
+// Root is the application-owned initial Inertia document. Customize it to add
+// metadata, fonts, analytics, or other application-wide document elements.
+templ Root(data inertia.RootData) {
+	<!DOCTYPE html>
+	<html lang="en" class="dark">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ data.ProjectName }</title>
+			@inertia.SSRHead(data.SSR)
+			@templ.Raw(string(data.ViteHead))
+		</head>
+		<body class="bg-slate-950 text-slate-100">
+			if data.SSR != nil {
+				@inertia.SSRBody(data.SSR)
+			} else {
+				@inertia.PageScript(data.ContainerID, data.PageJSON)
+				@inertia.AppMount(data.ContainerID)
+			}
+			@templ.Raw(string(data.ViteBody))
+		</body>
+	</html>
+}
+```
+
+file -----------rw-r--r-- views/root_templ.go
+```
+// Code generated by templ - DO NOT EDIT.
+
+// templ: version: v0.3.1020
+package views
+
+//lint:file-ignore SA4006 This context is only used if a nested component is present.
+
+import "github.com/a-h/templ"
+import templruntime "github.com/a-h/templ/runtime"
+
+import "github.com/mbvlabs/andurel/pkg/inertia"
+
+// Root is the application-owned initial Inertia document. Customize it to add
+// metadata, fonts, analytics, or other application-wide document elements.
+func Root(data inertia.RootData) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var1 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var1 == nil {
+			templ_7745c5c3_Var1 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"dark\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var2 string
+		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(data.ProjectName)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/root.templ`, Line: 13, Col: 28}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = inertia.SSRHead(data.SSR).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templ.Raw(string(data.ViteHead)).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</head><body class=\"bg-slate-950 text-slate-100\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if data.SSR != nil {
+			templ_7745c5c3_Err = inertia.SSRBody(data.SSR).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = inertia.PageScript(data.ContainerID, data.PageJSON).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = inertia.AppMount(data.ContainerID).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templ.Raw(string(data.ViteBody)).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

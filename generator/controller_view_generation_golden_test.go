@@ -211,7 +211,7 @@ func TestControllerViewGenerationGoldensInertiaProjectDefaultsToTempl(t *testing
 	assertGeneratedFileContains(t, "views/widgets_resource.templ", "type WidgetIndex struct")
 	assertControllerViewGoldenFileMissing(t, filepath.Join("resources", "js", "Pages", "Widget", "Index.vue"))
 	assertGeneratedFileContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
-	assertGeneratedFileNotContains(t, "controllers/widgets.go", "testapp/internal/inertia")
+	assertGeneratedFileNotContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/inertia")
 }
 
 func TestControllerViewGenerationGoldensInertiaFlagStillGeneratesInertia(t *testing.T) {
@@ -224,7 +224,7 @@ func TestControllerViewGenerationGoldensInertiaFlagStillGeneratesInertia(t *test
 	assertControllerViewGoldenFileMissing(t, "views/widgets_resource.templ")
 	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Index.vue"), "<template>")
 	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Show.vue"), "<template>")
-	assertGeneratedFileContains(t, "controllers/widgets.go", "testapp/internal/inertia")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/inertia")
 	assertGeneratedFileNotContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
 }
 
@@ -238,7 +238,7 @@ func TestControllerViewGenerationGoldensReactInertiaFlagGeneratesReactPages(t *t
 	assertControllerViewGoldenFileMissing(t, "views/widgets_resource.templ")
 	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Index.tsx"), "@inertiajs/react")
 	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Show.tsx"), "export default function Show")
-	assertGeneratedFileContains(t, "controllers/widgets.go", "testapp/internal/inertia")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/inertia")
 	assertGeneratedFileNotContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
 	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(")
 	assertGeneratedFileContains(t, "controllers/widgets.go", `"Widget/Index",`)
@@ -254,7 +254,7 @@ func TestControllerViewGenerationGoldensSingleVueActionGeneratesInertiaControlle
 
 	assertControllerViewGoldenFileMissing(t, "views/widgets_resource.templ")
 	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Show.vue"), "<template>")
-	assertGeneratedFileContains(t, "controllers/widgets.go", "testapp/internal/inertia")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/inertia")
 	assertGeneratedFileNotContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
 	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(")
 	assertGeneratedFileContains(t, "controllers/widgets.go", `"Widget/Show",`)
@@ -275,7 +275,7 @@ func TestControllerViewGenerationGoldensVueActionDoesNotInheritTemplViewActions(
 	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Show.vue"), "<template>")
 	assertControllerViewGoldenFileMissing(t, filepath.Join("resources", "js", "Pages", "Widget", "Index.vue"))
 	assertGeneratedFileContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
-	assertGeneratedFileContains(t, "controllers/widgets.go", "testapp/internal/inertia")
+	assertGeneratedFileContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/inertia")
 	assertGeneratedFileContains(t, "controllers/widgets.go", "return hypermedia.RenderPage(etx, views.WidgetIndex")
 	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(")
 	assertGeneratedFileContains(t, "controllers/widgets.go", `"Widget/Show",`)

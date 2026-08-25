@@ -70,8 +70,7 @@ func TestApplyDDLRejectsModelAffectingUnsupportedStatements(t *testing.T) {
 		if err == nil {
 			t.Fatalf("expected %q to fail", sql)
 		}
-		var unsupported *UnsupportedStatementError
-		if !errors.As(err, &unsupported) {
+		if _, ok := errors.AsType[*UnsupportedStatementError](err); !ok {
 			t.Fatalf("expected UnsupportedStatementError for %q, got %T %v", sql, err, err)
 		}
 		if !strings.Contains(err.Error(), "split the migration") {

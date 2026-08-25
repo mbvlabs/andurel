@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"time"
 
-	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/application"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
@@ -26,7 +26,7 @@ func GetMeter(serviceName string) metric.Meter {
 }
 
 func HTTPRequestsTotal() (metric.Int64Counter, error) {
-	counter, err := GetMeter(config.ServiceName).Int64Counter(
+	counter, err := GetMeter(application.ServiceName).Int64Counter(
 		"http_requests_total",
 		metric.WithDescription("Total number of HTTP requests"),
 		metric.WithUnit("1"),
@@ -38,7 +38,7 @@ func HTTPRequestsTotal() (metric.Int64Counter, error) {
 }
 
 func HTTPRequestsInFlight() (metric.Int64UpDownCounter, error) {
-	counter, err := GetMeter(config.ServiceName).Int64UpDownCounter(
+	counter, err := GetMeter(application.ServiceName).Int64UpDownCounter(
 		"http_requests_in_flight",
 		metric.WithDescription("Current number of HTTP requests being served"),
 	)
@@ -49,7 +49,7 @@ func HTTPRequestsInFlight() (metric.Int64UpDownCounter, error) {
 }
 
 func HTTPRequestDuration() (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(config.ServiceName).Float64Histogram(
+	histogram, err := GetMeter(application.ServiceName).Float64Histogram(
 		"http_request_duration_seconds",
 		metric.WithDescription("HTTP request duration in seconds"),
 		metric.WithUnit("s"),
@@ -62,7 +62,7 @@ func HTTPRequestDuration() (metric.Float64Histogram, error) {
 }
 
 func HTTPRequestSize() (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(config.ServiceName).Float64Histogram(
+	histogram, err := GetMeter(application.ServiceName).Float64Histogram(
 		"http_request_size_bytes",
 		metric.WithDescription("HTTP request size in bytes"),
 		metric.WithUnit("By"),
@@ -75,7 +75,7 @@ func HTTPRequestSize() (metric.Float64Histogram, error) {
 }
 
 func HTTPResponseSize() (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(config.ServiceName).Float64Histogram(
+	histogram, err := GetMeter(application.ServiceName).Float64Histogram(
 		"http_response_size_bytes",
 		metric.WithDescription("HTTP response size in bytes"),
 		metric.WithUnit("By"),

@@ -3,7 +3,7 @@ package telemetry
 import (
 	"context"
 
-	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/application"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -12,13 +12,13 @@ import (
 
 // StartSpan starts a new span with the given name using the global tracer.
 func StartSpan(ctx context.Context, spanName string) (context.Context, trace.Span) {
-	tracer := GetTracer(config.ServiceName)
+	tracer := GetTracer(application.ServiceName)
 	return tracer.Start(ctx, spanName)
 }
 
 // StartSpanAttrs starts a new span with the given name and attributes using the global tracer.
 func StartSpanAttrs(ctx context.Context, spanName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
-	tracer := GetTracer(config.ServiceName)
+	tracer := GetTracer(application.ServiceName)
 	ctx, span := tracer.Start(ctx, spanName)
 	span.SetAttributes(attrs...)
 	return ctx, span

@@ -211,6 +211,8 @@ var crudActions = []string{"index", "show", "new", "create", "edit", "update", "
 type controllerFrontend string
 
 const (
+	inertiaModulePath = "github.com/mbvlabs/andurel/pkg/inertia"
+
 	controllerFrontendUnknown controllerFrontend = ""
 	controllerFrontendTempl   controllerFrontend = "templ"
 	controllerFrontendInertia controllerFrontend = "inertia"
@@ -219,7 +221,7 @@ const (
 
 func detectControllerFrontend(content string) controllerFrontend {
 	switch {
-	case strings.Contains(content, "/internal/inertia\""):
+	case strings.Contains(content, "/internal/inertia\"") || strings.Contains(content, "/pkg/inertia\""):
 		return controllerFrontendInertia
 	case strings.Contains(content, "/pkg/hypermedia\""):
 		return controllerFrontendTempl
@@ -322,7 +324,13 @@ func EnsureInertiaRendererDependency(content, controllerName, modulePath string)
 		return "", fmt.Errorf("parse controller: %w", err)
 	}
 
-	ensureControllerImport(file, modulePath+"/internal/inertia")
+	legacyInertiaPath := modulePath + "/internal/inertia"
+	for _, spec := range file.Imports {
+		if strings.Trim(spec.Path.Value, `"`) == legacyInertiaPath {
+			spec.Path.Value = fmt.Sprintf("%q", inertiaModulePath)
+		}
+	}
+	ensureControllerImport(file, inertiaModulePath)
 
 	var controllerStruct *ast.StructType
 	var constructor *ast.FuncDecl

@@ -328,13 +328,13 @@ automatically. Run `andurel email compile` for a standalone compilation pass.
 
 ```go
 import (
-    "{{.ModuleName}}/config"
+    "{{.ModuleName}}/application"
     "{{.ModuleName}}/email"
 )
 
 // Send an email
 data := email.TransactionalData{
-    From:    config.DefaultSenderSignature,
+    From:    application.DefaultSenderSignature,
     To:      []string{"user@example.com"},
     Subject: "Welcome!",
     Body:    WelcomeEmail("John Doe"),
@@ -349,13 +349,13 @@ For better performance, send emails asynchronously:
 
 ```go
 {{if eq .Database "postgres"}}import (
-    "{{.ModuleName}}/config"
+    "{{.ModuleName}}/application"
     "{{.ModuleName}}/queue/jobs"
 )
 
 _, err := insertOnly.Client.Insert(ctx, jobs.SendTransactionalEmailArgs{
     Data: email.TransactionalData{
-        From:    config.DefaultSenderSignature,
+        From:    application.DefaultSenderSignature,
         To:      []string{"user@example.com"},
         Subject: "Welcome!",
         Body:    WelcomeEmail("John Doe"),

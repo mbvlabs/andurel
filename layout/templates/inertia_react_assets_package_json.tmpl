@@ -4,6 +4,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && vite build --ssr resources/js/ssr.tsx --outDir assets/dist/ssr",
+    "build:client": "vite build",
+    "build:ssr": "vite build --ssr resources/js/ssr.tsx --outDir assets/dist/ssr",
     "preview": "vite preview"
   },
   "dependencies": {

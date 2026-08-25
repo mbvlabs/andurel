@@ -11,26 +11,17 @@ import (
 	"syscall"
 	"time"
 
-{{if .Inertia}}
-	"{{.ModuleName}}/assets"
-{{- end}}
+	"{{.ModuleName}}/application"
 	mailclients "{{.ModuleName}}/clients/email"
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/email"
-{{- if .Inertia}}
-	"{{.ModuleName}}/internal/inertia"
-{{- end}}
-	"github.com/mbvlabs/andurel/pkg/server"
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router"
-{{- if .Inertia}}
-	"{{.ModuleName}}/router/appctx"
-	"{{.ModuleName}}/router/routes"
-{{- end}}
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/telemetry"
+	"github.com/mbvlabs/andurel/pkg/server"
 
 	"go.uber.org/fx"
 )
@@ -38,16 +29,15 @@ import (
 var appVersion string
 
 func main() {
+	metadata := application.NewMetadata(appVersion)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	app := fx.New(
+		fx.Supply(metadata),
 		fx.Provide(
 			func() context.Context { return ctx },
-{{- if .Inertia}}
-			provideInertia,
-{{- end}}
 			func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
-				if config.Env == server.ProdEnvironment {
+				if application.Environment == server.ProdEnvironment {
 					log.Fatal("provide real email sender")
 				}
 
@@ -56,6 +46,9 @@ func main() {
 		),
 
 		config.Module,
+{{- if .Inertia}}
+		config.InertiaModule,
+{{- end}}
 		database.Module,
 		telemetry.Module,
 		queue.Module,
@@ -65,9 +58,6 @@ func main() {
 		router.Module,
 
 		fx.Invoke(startQueueProcessor),
-{{- if .Inertia}}
-		fx.Invoke(startInertiaSSR),
-{{- end}}
 		fx.Invoke(startServer),
 	)
 
@@ -86,45 +76,6 @@ func main() {
 		os.Exit(1)
 	}
 }
-{{if .Inertia}}
-func provideInertia(cfg config.Config) (*inertia.Renderer, *inertia.SSRRuntime, error) {
-	ssrRuntime, err := inertia.NewSSRRuntime(
-		cfg.App.InertiaSSRBundle,
-		cfg.App.InertiaSSRRuntime,
-		cfg.App.InertiaSSRURL,
-		cfg.App.InertiaSSREnabled,
-		inertia.WithSSRURL(cfg.App.InertiaSSRURL),
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-	renderer, err := inertia.New(
-		assets.Files,
-		config.ProjectName,
-		config.Env,
-		routes.ViteBuild.Path(),
-		inertia.WithSharedProp("appVersion", appVersion),
-		inertia.WithSSRRenderer(ssrRuntime.Renderer()),
-		inertia.WithRequestFlash(func(ctx context.Context) any {
-			flashes := appctx.Flashes(ctx)
-			if len(flashes) == 0 {
-				return nil
-			}
-			return flashes
-		}),
-	)
-	return renderer, ssrRuntime, err
-}
-{{- end}}
-
-{{if .Inertia}}
-func startInertiaSSR(lc fx.Lifecycle, runtime *inertia.SSRRuntime) {
-	lc.Append(fx.Hook{
-		OnStart: runtime.Start,
-		OnStop:  runtime.Stop,
-	})
-}
-{{- end}}
 
 func startQueueProcessor(lc fx.Lifecycle, appCtx context.Context, p queue.Processor) {
 	var done <-chan struct{}
@@ -144,7 +95,7 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg 
 		appCtx,
 		cfg.App.Host,
 		cfg.App.Port,
-		config.Env,
+		application.Environment,
 		r.Handler,
 		nil,
 	)
@@ -161,7 +112,7 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg 
 				cfg.App.Port,
 			)
 			done = startInBackground(appCtx, "server", func(ctx context.Context) error {
-				return srv.Start(ctx, config.Env)
+				return srv.Start(ctx, application.Environment)
 			})
 			return nil
 		},

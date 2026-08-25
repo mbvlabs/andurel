@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/application"
 	"github.com/mbvlabs/andurel/pkg/server"
 
 	"github.com/labstack/echo/v5"
@@ -20,11 +20,11 @@ type FlashMessage struct {
 
 var (
 	flashSession = func() string {
-		if config.Env == server.ProdEnvironment {
-			return strings.ToLower(config.ProjectName) + "_" + "flash_key"
+		if application.Environment == server.ProdEnvironment {
+			return strings.ToLower(application.ProjectName) + "_" + "flash_key"
 		}
 
-		return strings.ToLower(config.ProjectName) + "_" + "dev_flash_key"
+		return strings.ToLower(application.ProjectName) + "_" + "dev_flash_key"
 	}()
 	flashSessionName = "flash_session"
 )

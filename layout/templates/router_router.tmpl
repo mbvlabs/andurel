@@ -10,9 +10,10 @@ import (
 	"net/http"
 	"strings"
 
+	"{{.ModuleName}}/application"
 	"{{.ModuleName}}/config"
 {{- if .Inertia}}
-	"{{.ModuleName}}/internal/inertia"
+	"github.com/mbvlabs/andurel/pkg/inertia"
 	"{{.ModuleName}}/router/appctx"
 {{- end}}
 	"github.com/mbvlabs/andurel/pkg/server"
@@ -122,12 +123,12 @@ func SetupGlobalMiddleware(
 		authKey,
 		encKey,
 		cfg.App.SessionMaxAge,
-		config.Env == server.ProdEnvironment,
+		application.Environment == server.ProdEnvironment,
 	)
 	if err != nil {
 		return nil, err
 	}
-	corsConfig, err := newCORSConfig(config.BaseURL, cfg.App.CORSAllowedOrigins)
+	corsConfig, err := newCORSConfig(application.BaseURL, cfg.App.CORSAllowedOrigins)
 	if err != nil {
 		return nil, err
 	}

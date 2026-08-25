@@ -11,7 +11,9 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/pmezard/go-difflib/difflib"
+	"golang.org/x/mod/modfile"
 )
 
 const targetLockSchemaVersion = 1
@@ -113,6 +115,9 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 	if err := u.addInertiaRootMigration(plan, lock); err != nil {
 		return nil, err
 	}
+	if err := u.addStandaloneInertiaDependency(plan, lock.ScaffoldConfig); err != nil {
+		return nil, err
+	}
 	if err := u.addFrameworkChanges(plan); err != nil {
 		return nil, err
 	}
@@ -138,6 +143,9 @@ func (u *Upgrader) buildRepairPlan(dirty bool) (*upgradePlan, error) {
 		toVersion:   u.opts.TargetVersion,
 		dirty:       dirty,
 	}
+	if err := u.addStandaloneInertiaDependency(plan, u.lock.ScaffoldConfig); err != nil {
+		return nil, err
+	}
 	if err := u.addFrameworkChanges(plan); err != nil {
 		return nil, err
 	}
@@ -145,6 +153,38 @@ func (u *Upgrader) buildRepairPlan(dirty bool) (*upgradePlan, error) {
 		return nil, err
 	}
 	return plan, nil
+}
+
+func (u *Upgrader) addStandaloneInertiaDependency(plan *upgradePlan, config *layout.ScaffoldConfig) error {
+	if config == nil || !layout.IsSupportedInertiaAdapter(config.Inertia) {
+		return nil
+	}
+	const modulePath = "github.com/mbvlabs/andurel/pkg/inertia"
+	goModPath := filepath.Join(u.projectRoot, "go.mod")
+	content, err := os.ReadFile(goModPath)
+	if err != nil {
+		return fmt.Errorf("read go.mod for standalone Inertia: %w", err)
+	}
+	file, err := modfile.Parse("go.mod", content, nil)
+	if err != nil {
+		return fmt.Errorf("parse go.mod for standalone Inertia: %w", err)
+	}
+	for _, requirement := range file.Require {
+		if requirement.Mod.Path == modulePath && requirement.Mod.Version == versions.Inertia {
+			return nil
+		}
+	}
+	if err := file.AddRequire(modulePath, versions.Inertia); err != nil {
+		return fmt.Errorf("add standalone Inertia dependency: %w", err)
+	}
+	updated, err := file.Format()
+	if err != nil {
+		return fmt.Errorf("format go.mod with standalone Inertia: %w", err)
+	}
+	if err := plan.addReplacement(u.projectRoot, "go.mod", updated, false); err != nil {
+		return fmt.Errorf("plan standalone Inertia dependency: %w", err)
+	}
+	return nil
 }
 
 func (u *Upgrader) addInertiaRootMigration(plan *upgradePlan, lock *layout.AndurelLock) error {
@@ -217,15 +257,26 @@ func (u *Upgrader) addFrameworkChanges(plan *upgradePlan) error {
 
 	obsolete := u.obsoleteManagedInternalFiles()
 	sort.Strings(obsolete)
+	var unrecognized []string
 	for _, path := range obsolete {
 		if recognized, recognitionErr := recognizeWholeFileDeletion(u.projectRoot, path); recognitionErr != nil {
 			return recognitionErr
 		} else if !recognized {
+			unrecognized = append(unrecognized, path)
 			continue
 		}
 		if err := plan.addDeletion(u.projectRoot, path); err != nil {
 			return err
 		}
+	}
+	if len(unrecognized) > 0 {
+		plan.manualActions = append(plan.manualActions, ManualAction{
+			ID:    "reconcile-obsolete-framework-files",
+			Title: "Reconcile modified obsolete framework files",
+			Instructions: "Andurel left these files in place because they no longer carry a generated-file marker:\n\n- " +
+				strings.Join(unrecognized, "\n- ") +
+				"\n\nMove any application behavior into the current facade, then remove the obsolete files to avoid duplicate declarations.",
+		})
 	}
 	return nil
 }

@@ -1,29 +1,27 @@
-package inertia
+package views
 
-import (
-	"html/template"
-)
+import "github.com/mbvlabs/andurel/pkg/inertia"
 
 // Root is the application-owned initial Inertia document. Customize it to add
 // metadata, fonts, analytics, or other application-wide document elements.
-templ Root(data RootData, appName string, viteHead template.HTML, viteBody template.HTML) {
+templ Root(data inertia.RootData) {
 	<!DOCTYPE html>
 	<html lang="en" class="dark">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title inertia>{ appName }</title>
-			@SSRHead(data.SSR)
-			@templ.Raw(string(viteHead))
+			<title>{ data.ProjectName }</title>
+			@inertia.SSRHead(data.SSR)
+			@templ.Raw(string(data.ViteHead))
 		</head>
 		<body class="bg-slate-950 text-slate-100">
 			if data.SSR != nil {
-				@SSRBody(data.SSR)
+				@inertia.SSRBody(data.SSR)
 			} else {
-				@PageScript(data.ContainerID, data.PageJSON)
-				@AppMount(data.ContainerID)
+				@inertia.PageScript(data.ContainerID, data.PageJSON)
+				@inertia.AppMount(data.ContainerID)
 			}
-			@templ.Raw(string(viteBody))
+			@templ.Raw(string(data.ViteBody))
 		</body>
 	</html>
 }

@@ -32,7 +32,9 @@ jobs:
           go install golang.org/x/tools/cmd/goimports
 
       - name: Run go vet
-        run: go vet ./...
+        run: |
+          go vet ./...
+          ./scripts/vet-standalone-modules.sh
 
       - name: Run unit tests with canonical coverage
         run: ./scripts/coverage.sh

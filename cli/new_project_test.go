@@ -246,7 +246,7 @@ func TestNewProjectRejectsInvalidInertiaConfigurations(t *testing.T) {
 		want  string
 	}{
 		{value: "angular", want: "invalid inertia adapter"},
-		{value: "vue/deno", want: "invalid JavaScript runtime"},
+		{value: "vue/deno", want: "invalid JavaScript package manager"},
 	} {
 		cmd := newProjectCommand("test")
 		if err := cmd.Flags().Set("inertia", test.value); err != nil {
@@ -288,7 +288,7 @@ func TestNewProjectAcceptsSvelteRuntimeSuffixes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s lock: %v", runtime, err)
 		}
-		if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia != "svelte" || lock.ScaffoldConfig.JavaScriptRuntime != runtime {
+		if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia != "svelte" || lock.ScaffoldConfig.PackageManager() != runtime {
 			t.Fatalf("%s scaffold config = %#v", runtime, lock.ScaffoldConfig)
 		}
 	}

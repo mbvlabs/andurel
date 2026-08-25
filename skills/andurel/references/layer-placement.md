@@ -113,7 +113,7 @@ Use controllers for:
 - Converting HTTP/admin form input into model data structs.
 - Calling a model or service.
 - Mapping domain/service errors into pages, validation errors, redirects, flash messages, or API responses.
-- Rendering templ pages through `hypermedia` or Inertia pages through `internal/inertia`.
+- Rendering templ pages through `hypermedia` or Inertia pages through `github.com/mbvlabs/andurel/pkg/inertia`.
 - Registering routes in `RegisterRoutes`.
 
 Do not put durable business rules in controllers. If the same rule must apply outside that one HTTP action, move it to a model or service.

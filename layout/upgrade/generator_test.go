@@ -3,7 +3,6 @@ package upgrade
 import (
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
@@ -62,25 +61,12 @@ func TestGetFrameworkTemplates_ExcludesStandalonePackages(t *testing.T) {
 	}
 }
 
-func TestGetFrameworkTemplates_IncludesInertiaInternalPackageWhenConfigured(t *testing.T) {
+func TestGetFrameworkTemplates_ExcludesGeneratedInertiaPackage(t *testing.T) {
 	t.Parallel()
 
-	for _, adapter := range []string{"vue", "react", "svelte"} {
-		t.Run(adapter, func(t *testing.T) {
-			t.Parallel()
-
-			templates := GetFrameworkTemplates(&layout.ScaffoldConfig{Inertia: adapter})
-			paths := make([]string, 0, len(templates))
-			for _, tmpl := range templates {
-				paths = append(paths, tmpl.TargetPath)
-			}
-
-			if !slices.Contains(paths, "internal/inertia/render.go") {
-				t.Fatal("expected inertia render package file when inertia is configured")
-			}
-			if !slices.Contains(paths, "internal/inertia/vite.go") {
-				t.Fatal("expected inertia vite package file when inertia is configured")
-			}
-		})
+	for _, tmpl := range GetFrameworkTemplates(&layout.ScaffoldConfig{Inertia: "vue"}) {
+		if strings.HasPrefix(tmpl.TargetPath, "internal/inertia/") {
+			t.Fatalf("upgrade templates include removed generated Inertia package file %s", tmpl.TargetPath)
+		}
 	}
 }

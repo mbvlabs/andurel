@@ -68,7 +68,9 @@ jobs:
           git diff --exit-code -- .
 
       - name: Run vet
-        run: go vet ./...
+        run: |
+          go vet ./...
+          ./scripts/vet-standalone-modules.sh
 
       - name: Check public API and CLI contracts
         shell: bash

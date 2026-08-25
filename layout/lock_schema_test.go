@@ -22,6 +22,26 @@ func TestDecodeSchema1AndValidateCompleteLock(t *testing.T) {
 	}
 }
 
+func TestDecodeLockMigratesLegacyJavaScriptRuntimeAsPackageManager(t *testing.T) {
+	lock := validSchema1Lock()
+	lock.ScaffoldConfig = &ScaffoldConfig{
+		ProjectName:       "app",
+		Database:          "postgresql",
+		Inertia:           "react",
+		JavaScriptRuntime: "pnpm",
+	}
+	decoded, err := decodeAndValidateLock(mustMarshalLock(t, lock))
+	if err != nil {
+		t.Fatalf("decodeAndValidateLock: %v", err)
+	}
+	if decoded.ScaffoldConfig.PackageManager() != "pnpm" ||
+		decoded.ScaffoldConfig.JavaScriptPackageManager != "pnpm" ||
+		decoded.ScaffoldConfig.JavaScriptRuntime != "pnpm" ||
+		decoded.ScaffoldConfig.SSRRuntime() != "node" {
+		t.Fatalf("legacy scaffold config was not migrated: %#v", decoded.ScaffoldConfig)
+	}
+}
+
 func TestDecodeLockSchemaSelectionIsIndependentOfFrameworkVersion(t *testing.T) {
 	schemaOne := validSchema1Lock()
 	schemaOne.Version = "v99.0.0"

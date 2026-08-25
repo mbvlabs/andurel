@@ -35,10 +35,32 @@ type DatabaseConfig struct {
 
 // ScaffoldConfig records the options used to create a project.
 type ScaffoldConfig struct {
-	ProjectName       string `json:"projectName"`
-	Database          string `json:"database"`
-	Inertia           string `json:"inertia,omitempty"`
-	JavaScriptRuntime string `json:"javascriptRuntime,omitempty"`
+	ProjectName              string `json:"projectName"`
+	Database                 string `json:"database"`
+	Inertia                  string `json:"inertia,omitempty"`
+	JavaScriptPackageManager string `json:"javascriptPackageManager,omitempty"`
+	InertiaSSRRuntime        string `json:"inertiaSSRRuntime,omitempty"`
+	JavaScriptRuntime        string `json:"javascriptRuntime,omitempty"` // Deprecated: use JavaScriptPackageManager.
+}
+
+// PackageManager returns the configured JavaScript package manager. Locks from
+// before V2 used javascriptRuntime for this value.
+func (config *ScaffoldConfig) PackageManager() string {
+	if config == nil {
+		return ""
+	}
+	if config.JavaScriptPackageManager != "" {
+		return config.JavaScriptPackageManager
+	}
+	return config.JavaScriptRuntime
+}
+
+// SSRRuntime returns the JavaScript executable selected for Inertia SSR.
+func (config *ScaffoldConfig) SSRRuntime() string {
+	if config == nil || config.InertiaSSRRuntime == "" {
+		return "node"
+	}
+	return config.InertiaSSRRuntime
 }
 
 // Extension records when an extension was applied.

@@ -1750,12 +1750,21 @@ type GoTool struct {
     GoTool represents go tool.
 
 type ScaffoldConfig struct {
-	ProjectName       string `json:"projectName"`
-	Database          string `json:"database"`
-	Inertia           string `json:"inertia,omitempty"`
-	JavaScriptRuntime string `json:"javascriptRuntime,omitempty"`
+	ProjectName              string `json:"projectName"`
+	Database                 string `json:"database"`
+	Inertia                  string `json:"inertia,omitempty"`
+	JavaScriptPackageManager string `json:"javascriptPackageManager,omitempty"`
+	InertiaSSRRuntime        string `json:"inertiaSSRRuntime,omitempty"`
+	JavaScriptRuntime        string `json:"javascriptRuntime,omitempty"` // Deprecated: use JavaScriptPackageManager.
 }
     ScaffoldConfig records the options used to create a project.
+
+func (config *ScaffoldConfig) PackageManager() string
+    PackageManager returns the configured JavaScript package manager. Locks from
+    before V2 used javascriptRuntime for this value.
+
+func (config *ScaffoldConfig) SSRRuntime() string
+    SSRRuntime returns the JavaScript executable selected for Inertia SSR.
 
 type TemplateData struct {
 	AppName              string
@@ -1794,6 +1803,10 @@ func (td *TemplateData) GetInertia() string
 
 func (td *TemplateData) GetModuleName() string
     GetModuleName returns the module name for the project.
+
+func (td *TemplateData) InertiaPackageVersion() string
+    InertiaPackageVersion returns the standalone Inertia module version verified
+    with this framework release.
 
 func (td *TemplateData) SetBlueprint(bp *blueprint.Blueprint)
     SetBlueprint sets the blueprint for this template data.
@@ -2702,6 +2715,8 @@ const (
 	TailwindCLI = "v4.3.2"
 	// Shadowfax is the default Shadowfax runner version.
 	Shadowfax = "v0.8.4"
+	// Inertia is the standalone Andurel Inertia module version verified with this framework.
+	Inertia = "v0.1.0"
 )
 
 ## github.com/mbvlabs/andurel/pkg/hypermedia
@@ -3139,6 +3154,591 @@ func WithSSEEventID(id string) SSEEventOption
 func WithSSERetryDuration(retryDuration time.Duration) SSEEventOption
     WithSSERetryDuration overrides the DefaultSseRetryDuration for one
     server-sent event.
+
+
+## github.com/mbvlabs/andurel/pkg/inertia
+package inertia // import "github.com/mbvlabs/andurel/pkg/inertia"
+
+Package inertia implements the Inertia v3 protocol for Echo and templ.
+
+Package inertia implements the Inertia v3 protocol for Echo and templ.
+
+Package inertia implements the Inertia v3 protocol for Echo and templ.
+
+Package inertia implements the Inertia v3 protocol for Echo and templ.
+
+Package inertia implements the Inertia v3 protocol for Echo and templ.
+
+Package inertia implements the Inertia v3 protocol for Echo and templ.
+
+Package inertia implements the Inertia v3 protocol for Echo and templ.
+
+Package inertia implements the Inertia v3 protocol for Echo and templ.
+
+Package inertia implements the Inertia v3 protocol for Echo and templ.
+
+Package inertia implements the Inertia v3 protocol for Echo and templ.
+
+Package inertia implements the Inertia v3 protocol for Echo and templ.
+
+CONSTANTS
+
+const (
+	HeaderInertia                   = "X-Inertia"
+	HeaderVersion                   = "X-Inertia-Version"
+	HeaderPartialComponent          = "X-Inertia-Partial-Component"
+	HeaderPartialData               = "X-Inertia-Partial-Data"
+	HeaderPartialExcept             = "X-Inertia-Partial-Except"
+	HeaderReset                     = "X-Inertia-Reset"
+	HeaderErrorBag                  = "X-Inertia-Error-Bag"
+	HeaderInfiniteScrollMergeIntent = "X-Inertia-Infinite-Scroll-Merge-Intent"
+	HeaderExceptOnceProps           = "X-Inertia-Except-Once-Props"
+	HeaderLocation                  = "X-Inertia-Location"
+	HeaderRedirect                  = "X-Inertia-Redirect"
+	HeaderPurpose                   = "Purpose"
+
+	PurposePrefetch = "prefetch"
+
+	MergeIntentAppend  = "append"
+	MergeIntentPrepend = "prepend"
+)
+const (
+	// DefaultSSRURL is the loopback address used by the official Inertia SSR server.
+	DefaultSSRURL = "http://127.0.0.1:13714"
+	// DefaultSSRTimeout bounds render, health, and shutdown HTTP operations.
+	DefaultSSRTimeout = 2 * time.Second
+	// DefaultSSRMaxResponseBytes bounds trusted SSR markup returned by a renderer.
+	DefaultSSRMaxResponseBytes int64 = 2 << 20
+)
+
+VARIABLES
+
+var ErrResponseTooLarge = errors.New("inertia: SSR response exceeds configured limit")
+    ErrResponseTooLarge reports an SSR response that exceeds
+    SSRConfig.MaxResponseBytes.
+
+
+FUNCTIONS
+
+func AppMount(containerID string) templ.Component
+    AppMount renders the empty client-rendering mount element.
+
+func ContextWithFlash(ctx context.Context, flash any) context.Context
+    ContextWithFlash stores application flash data for the default renderer
+    flash provider.
+
+func FlashFromContext(ctx context.Context) any
+    FlashFromContext returns flash data stored by ContextWithFlash.
+
+func PageScript(containerID string, pageJSON []byte) templ.Component
+    PageScript renders v3's non-SSR JSON page script. The JSON is validated and
+    every slash is escaped without HTML-entity encoding the script body.
+
+func SSRBody(response *SSRResponse) templ.Component
+    SSRBody renders trusted body markup returned by the configured local
+    runtime. The body replaces both PageScript and AppMount.
+
+func SSRHead(response *SSRResponse) templ.Component
+    SSRHead renders trusted head markup returned by the configured local
+    runtime.
+
+
+TYPES
+
+type Config struct {
+	ContainerID   string
+	ProtocolDebug bool
+	SSRFailFast   bool
+}
+    Config controls stable renderer behavior. New starts with DefaultConfig and
+    applies functional options supplied by the application.
+
+func DefaultConfig() Config
+    DefaultConfig returns production-safe renderer defaults.
+
+func (config Config) Validate() error
+    Validate verifies renderer configuration.
+
+type DeferredOption func(*Prop)
+    DeferredOption configures a deferred prop.
+
+func InGroup(group string) DeferredOption
+    InGroup assigns a deferred prop to a client reload group.
+
+func Rescue() DeferredOption
+    Rescue marks a deferred resolver failure as recoverable.
+
+type Error struct {
+	Kind      ErrorKind
+	Operation string
+	Component string
+	Method    string
+	URL       string
+	PropPath  string
+	Err       error
+}
+    Error adds safe request and page context to an Inertia failure.
+
+func (e *Error) Error() string
+
+func (e *Error) Unwrap() error
+
+type ErrorKind string
+    ErrorKind identifies the operation that failed without exposing prop values.
+
+const (
+	ErrorProtocol ErrorKind = "protocol"
+	ErrorProps    ErrorKind = "props"
+	ErrorRoot     ErrorKind = "root"
+	ErrorSSR      ErrorKind = "ssr"
+)
+type FlashProvider func(*echo.Context) any
+    FlashProvider supplies the v3 top-level page flash value for each response.
+
+type HTTPRenderer struct {
+	// Has unexported fields.
+}
+    HTTPRenderer implements the official Inertia JavaScript SSR HTTP contract.
+    Head and body markup returned by this renderer must be treated as trusted.
+
+func NewHTTPRenderer(config SSRConfig, options ...HTTPRendererOption) (*HTTPRenderer, error)
+    NewHTTPRenderer creates a bounded SSR HTTP renderer.
+
+func (renderer *HTTPRenderer) Health(ctx context.Context) error
+    Health verifies the renderer's /health endpoint.
+
+func (renderer *HTTPRenderer) Render(ctx context.Context, page Page) (*SSRResponse, error)
+    Render posts a final v3 page object to /render.
+
+func (renderer *HTTPRenderer) Shutdown(ctx context.Context) error
+    Shutdown asks the renderer to stop through /shutdown.
+
+type HTTPRendererOption func(*HTTPRenderer) error
+    HTTPRendererOption configures an HTTPRenderer.
+
+func WithHTTPRendererClient(client *http.Client) HTTPRendererOption
+    WithHTTPRendererClient configures the transport used by an HTTPRenderer.
+
+func WithHTTPRendererMaxResponseBytes(size int64) HTTPRendererOption
+    WithHTTPRendererMaxResponseBytes overrides the maximum SSR response body
+    size.
+
+func WithHTTPRendererTimeout(timeout time.Duration) HTTPRendererOption
+    WithHTTPRendererTimeout overrides the render, health, and shutdown timeout.
+
+func WithHTTPRendererURL(rawURL string) HTTPRendererOption
+    WithHTTPRendererURL overrides the SSR service URL.
+
+type ManagedConfig struct {
+	Enabled        bool
+	BundlePath     string
+	Executable     string
+	StartupTimeout time.Duration
+	MinimumMajor   int
+	HTTP           SSRConfig
+	Logger         *slog.Logger
+	Stdout         io.Writer
+	Stderr         io.Writer
+}
+    ManagedConfig controls a Go-owned JavaScript SSR process.
+
+func DefaultManagedConfig() ManagedConfig
+    DefaultManagedConfig returns production-safe managed-runtime defaults.
+
+func (config ManagedConfig) Validate() error
+    Validate verifies managed runtime configuration.
+
+type ManagedRuntime struct {
+	// Has unexported fields.
+}
+    ManagedRuntime owns one JavaScript process and exposes its HTTP renderer.
+
+func NewManagedRuntime(config ManagedConfig, options ...HTTPRendererOption) (*ManagedRuntime, error)
+    NewManagedRuntime constructs a managed runtime without starting it.
+
+func (runtime *ManagedRuntime) Errors() <-chan error
+    Errors reports unexpected child-process exits. The channel remains valid if
+    the runtime is restarted.
+
+func (runtime *ManagedRuntime) Renderer() SSRRenderer
+    Renderer returns the configured renderer, or nil when the runtime is
+    disabled.
+
+func (runtime *ManagedRuntime) Start(ctx context.Context) error
+    Start starts the configured JavaScript process and waits for health
+    readiness.
+
+func (runtime *ManagedRuntime) Stop(ctx context.Context) error
+    Stop gracefully stops the managed process and kills it when the context
+    ends.
+
+type OnceMetadata struct {
+	Prop      string `json:"prop"`
+	ExpiresAt *int64 `json:"expiresAt"`
+}
+    OnceMetadata tells the client how to retain a once prop.
+
+type OnceOption func(*Prop)
+    OnceOption configures a once prop.
+
+func ForceFresh() OnceOption
+    ForceFresh makes the server resolve a once prop even if the client retained
+    it.
+
+func OnceExpiresAt(expiry time.Time) OnceOption
+    OnceExpiresAt sets an absolute client retention expiry.
+
+func OnceFor(duration time.Duration) OnceOption
+    OnceFor sets a retention expiry relative to prop evaluation time.
+
+func OnceKey(key string) OnceOption
+    OnceKey sets a stable retention key. The prop path is used by default.
+
+type Option func(*Renderer) error
+    Option configures a Renderer.
+
+func WithAssetFS(assetFS fs.FS) Option
+    WithAssetFS supplies the embedded application asset filesystem used for the
+    production Vite manifest.
+
+func WithBuildPathURL(path string) Option
+
+func WithConfig(config Config) Option
+    WithConfig applies stable protocol configuration as one option.
+
+func WithContainerID(id string) Option
+    WithContainerID configures the client application mount element ID.
+
+func WithEntryPoint(entryPoint string) Option
+
+func WithEnvironment(environment string) Option
+
+func WithFlashProvider(provider FlashProvider) Option
+    WithFlashProvider adds a request-scoped top-level flash provider.
+
+func WithProjectName(name string) Option
+
+func WithProtocolDebug(enabled bool) Option
+    WithProtocolDebug emits request classification and page metadata without
+    logging prop values. It is intended for local protocol diagnostics.
+
+func WithReflash(handler ReflashHandler) Option
+    WithReflash configures redirect-time flash preservation. The callback runs
+    after an Inertia handler returns a redirect and before the response commits.
+
+func WithRoot(root RootFunc) Option
+
+func WithSSRBundle(path string) Option
+
+func WithSSRFailFast(enabled bool) Option
+    WithSSRFailFast makes per-response SSR failures abort the initial response.
+
+func WithSSRMaxResponseBytes(size int64) Option
+
+func WithSSRMode(mode SSRMode) Option
+
+func WithSSRRenderer(ssr SSRRenderer) Option
+    WithSSRRenderer configures the SSR gateway used only by pages with WithSSR.
+
+func WithSSRRequestTimeout(timeout time.Duration) Option
+
+func WithSSRRuntime(executable string) Option
+
+func WithSSRStartupTimeout(timeout time.Duration) Option
+
+func WithSSRURL(rawURL string) Option
+
+func WithShared(props Props) Option
+    WithShared configures static shared props. Renderer construction copies
+    props.
+
+func WithSharedProvider(provider SharedProvider) Option
+    WithSharedProvider adds a deterministic request-scoped shared prop provider.
+
+func WithVersion(version string) Option
+    WithVersion configures a fixed asset version.
+
+func WithVersionProvider(provider VersionProvider) Option
+    WithVersionProvider configures a request-scoped asset version provider.
+
+func WithViteDevURL(rawURL string) Option
+
+type Page struct {
+	Component        string                    `json:"component"`
+	Props            map[string]any            `json:"props"`
+	URL              string                    `json:"url"`
+	Version          string                    `json:"version"`
+	EncryptHistory   bool                      `json:"encryptHistory,omitempty"`
+	ClearHistory     bool                      `json:"clearHistory,omitempty"`
+	PreserveFragment bool                      `json:"preserveFragment,omitempty"`
+	MergeProps       []string                  `json:"mergeProps,omitempty"`
+	PrependProps     []string                  `json:"prependProps,omitempty"`
+	DeepMergeProps   []string                  `json:"deepMergeProps,omitempty"`
+	MatchPropsOn     []string                  `json:"matchPropsOn,omitempty"`
+	ScrollProps      map[string]ScrollMetadata `json:"scrollProps,omitempty"`
+	DeferredProps    map[string][]string       `json:"deferredProps,omitempty"`
+	RescuedProps     []string                  `json:"rescuedProps,omitempty"`
+	SharedProps      []string                  `json:"sharedProps,omitempty"`
+	OnceProps        map[string]OnceMetadata   `json:"onceProps,omitempty"`
+	Flash            any                       `json:"flash,omitempty"`
+}
+    Page is the Inertia v3 page object sent to the browser and SSR runtime.
+
+type PageOption func(*pageOptions) error
+    PageOption configures one page response.
+
+func WithFlash(flash any) PageOption
+    WithFlash adds v3 flash data to the page field (not props).
+
+func WithHistoryClear() PageOption
+    WithHistoryClear clears client history for this response.
+
+func WithHistoryEncryption(enabled bool) PageOption
+    WithHistoryEncryption controls encrypted browser history metadata.
+
+func WithPreserveFragment() PageOption
+    WithPreserveFragment preserves the original fragment across a redirect.
+
+func WithSSR() PageOption
+    WithSSR opts only this initial document response into SSR.
+
+func WithStatus(status int) PageOption
+    WithStatus sets the page response status.
+
+func WithValidationErrors(errors map[string]string) PageOption
+    WithValidationErrors sets the protected errors prop for this response.
+
+type Prop struct {
+	// Has unexported fields.
+}
+    Prop is a composable response-boundary policy around a value or resolver.
+
+func Always(value any) Prop
+    Always makes a prop survive partial only/except filtering.
+
+func DeepMerge(value any) Prop
+    DeepMerge recursively merges the incoming value into the retained client
+    prop.
+
+func Deferred(value any, opts ...DeferredOption) Prop
+    Deferred announces a prop on full visits and resolves it on a selected
+    reload.
+
+func MatchOn(value any, paths ...string) Prop
+    MatchOn adds matching paths for a merge prop.
+
+func Merge(value any) Prop
+    Merge appends the incoming value to the retained client prop.
+
+func Once(value any, opts ...OnceOption) Prop
+    Once retains a resolved prop on the client across subsequent pages.
+
+func Optional(value any) Prop
+    Optional omits a prop on full visits and resolves it when explicitly
+    selected.
+
+func Prepend(value any) Prop
+    Prepend prepends the incoming value to the retained client prop.
+
+func Scroll(value, metadata any) Prop
+    Scroll adds infinite-scroll metadata and merge behavior to a prop.
+
+func ScrollAt(value any, wrapper string, metadata any) Prop
+    ScrollAt adds infinite-scroll metadata and merges a nested collection path.
+
+type PropResolver interface {
+	ResolveInertiaProp(*echo.Context) (any, error)
+}
+    PropResolver may be implemented by application-defined lazy values.
+
+type Props map[string]any
+    Props is the data exposed to an Inertia page. Policy constructors can be
+    freely composed around individual values.
+
+func FromStruct(value any) Props
+    FromStruct converts exported JSON fields on a struct into Props. It is
+    intended for generated backend-owned page payloads. Invalid inputs produce
+    empty props; use FromStructChecked when the input is dynamic.
+
+func FromStructChecked(value any) (Props, error)
+    FromStructChecked is the error-returning form of FromStruct.
+
+func (p Props) Set(key string, value any) Props
+    Set adds or replaces a prop and returns p for fluent response construction.
+
+type ProvidesScrollMetadata interface {
+	GetPageName() string
+	GetPreviousPage() any
+	GetNextPage() any
+	GetCurrentPage() any
+}
+    ProvidesScrollMetadata supplies infinite-scroll cursor information.
+
+type ReflashHandler func(*echo.Context) error
+    ReflashHandler preserves application flash data across redirect responses.
+
+type Renderer struct {
+	// Has unexported fields.
+}
+    Renderer implements the Inertia v3 server protocol for Echo and templ.
+
+func New(options ...Option) (*Renderer, error)
+    New constructs a reusable renderer using sane asset, protocol, and SSR
+    defaults. Applications must supply their compiled document with WithRoot.
+
+func (renderer *Renderer) FreshRedirect(etx *echo.Context, location string) error
+    FreshRedirect makes an Inertia visit perform a fresh Inertia GET.
+
+func (renderer *Renderer) Location(etx *echo.Context, location string) error
+    Location makes an Inertia visit perform a full browser location visit.
+
+func (renderer *Renderer) Middleware() echo.MiddlewareFunc
+    Middleware parses request state and applies v3 version, empty-response,
+    and redirect corrections only to Inertia visits.
+
+func (renderer *Renderer) Page(etx *echo.Context, component string, props Props, opts ...PageOption) error
+    Page resolves and renders one Inertia page response.
+
+func (renderer *Renderer) Redirect(etx *echo.Context, location string, status int) error
+    Redirect creates a normal redirect. Middleware upgrades unsafe 302 responses
+    to 303 and converts fragment redirects to the v3 control response.
+
+func (renderer *Renderer) SetReflashHandler(handler ReflashHandler) error
+    SetReflashHandler configures flash preservation before the renderer starts
+    serving requests. Generated applications use this at router construction.
+
+func (renderer *Renderer) Shutdown(ctx context.Context) error
+    Shutdown stops a configured managed SSR process. It is a no-op otherwise.
+
+func (renderer *Renderer) Start(ctx context.Context) error
+    Start starts a configured managed SSR process. It is a no-op for disabled,
+    external, and custom SSR renderers.
+
+type Request struct {
+	Inertia          bool
+	Version          string
+	PartialComponent string
+	Only             []string
+	Except           []string
+	Reset            []string
+	ErrorBag         string
+	MergeIntent      string
+	ExceptOnceProps  []string
+	Purpose          string
+}
+    Request is the normalized Inertia protocol state for an Echo request.
+
+func ParseHTTPRequest(req *http.Request) (Request, error)
+    ParseHTTPRequest parses all Inertia v3 request headers.
+
+func ParseRequest(etx *echo.Context) (Request, error)
+    ParseRequest parses all Inertia v3 request headers.
+
+func (r Request) IsPartialFor(component string) bool
+    IsPartialFor reports whether partial selection applies to component.
+
+func (r Request) IsPrefetch() bool
+    IsPrefetch reports whether the visit is a client prefetch request.
+
+type Resolver func(*echo.Context) (any, error)
+    Resolver is a request-scoped lazy prop callback.
+
+type RootData struct {
+	Page        Page
+	PageJSON    []byte
+	ContainerID string
+	ProjectName string
+	Environment string
+	ViteHead    template.HTML
+	ViteBody    template.HTML
+	SSR         *SSRResponse
+}
+    RootData is passed to the configured root document.
+
+type RootFunc func(RootData) templ.Component
+    RootFunc constructs the application's compiled templ document.
+
+type SSRConfig struct {
+	URL              string
+	Timeout          time.Duration
+	MaxResponseBytes int64
+}
+    SSRConfig controls communication with an Inertia SSR HTTP service.
+
+func DefaultSSRConfig() SSRConfig
+    DefaultSSRConfig returns loopback, timeout, and response-size defaults.
+
+func (config SSRConfig) Validate() error
+    Validate verifies HTTP renderer configuration.
+
+type SSRMode string
+    SSRMode controls whether server-side rendering is disabled, externally
+    hosted, or owned by the Go application.
+
+const (
+	SSRDisabled SSRMode = "disabled"
+	SSRExternal SSRMode = "external"
+	SSRManaged  SSRMode = "managed"
+)
+type SSRRenderer interface {
+	Render(context.Context, Page) (*SSRResponse, error)
+}
+    SSRRenderer renders a completed page object. It does not own the runtime
+    process.
+
+type SSRResponse struct {
+	Head []string `json:"head"`
+	Body string   `json:"body"`
+}
+    SSRResponse contains trusted markup from the configured local SSR runtime.
+
+type SSRTransportError struct {
+	Kind      SSRTransportErrorKind
+	Operation string
+	Status    int
+	Err       error
+}
+    SSRTransportError describes an SSR transport operation failure.
+
+func (err *SSRTransportError) Error() string
+
+func (err *SSRTransportError) Unwrap() error
+
+type SSRTransportErrorKind string
+    SSRTransportErrorKind identifies an SSR transport failure category.
+
+const (
+	SSRTransportFailure SSRTransportErrorKind = "transport"
+	SSRStatusFailure    SSRTransportErrorKind = "status"
+	SSREncodeFailure    SSRTransportErrorKind = "encode"
+	SSRDecodeFailure    SSRTransportErrorKind = "decode"
+	SSRResponseFailure  SSRTransportErrorKind = "response"
+)
+type ScrollMetadata struct {
+	PageName     string `json:"pageName"`
+	PreviousPage any    `json:"previousPage"`
+	NextPage     any    `json:"nextPage"`
+	CurrentPage  any    `json:"currentPage"`
+	Reset        bool   `json:"reset"`
+}
+    ScrollMetadata describes infinite-scroll pagination for a prop.
+
+func (metadata ScrollMetadata) GetCurrentPage() any
+
+func (metadata ScrollMetadata) GetNextPage() any
+
+func (metadata ScrollMetadata) GetPageName() string
+
+func (metadata ScrollMetadata) GetPreviousPage() any
+
+type ScrollMetadataResolver func(*echo.Context, any) (ScrollMetadata, error)
+    ScrollMetadataResolver derives metadata from the resolved prop value.
+
+type SharedProvider func(*echo.Context) (Props, error)
+    SharedProvider supplies request-scoped shared props.
+
+type VersionProvider func(*echo.Context) (string, error)
+    VersionProvider supplies the current asset version.
 
 
 ## github.com/mbvlabs/andurel/pkg/routing

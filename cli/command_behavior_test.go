@@ -717,14 +717,14 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 		{
 			name:               "default templ",
 			wantController:     "github.com/mbvlabs/andurel/pkg/hypermedia",
-			unwantedController: "example.com/app/internal/inertia",
+			unwantedController: "github.com/mbvlabs/andurel/pkg/inertia",
 			wantView:           "views/dashboards_resource.templ",
 			unwantedView:       filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.vue"),
 		},
 		{
 			name:               "explicit vue",
 			inertia:            "vue",
-			wantController:     "example.com/app/internal/inertia",
+			wantController:     "github.com/mbvlabs/andurel/pkg/inertia",
 			unwantedController: "github.com/mbvlabs/andurel/pkg/hypermedia",
 			wantView:           filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.vue"),
 			unwantedView:       "views/dashboards_resource.templ",
@@ -732,7 +732,7 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 		{
 			name:               "explicit react",
 			inertia:            "react",
-			wantController:     "example.com/app/internal/inertia",
+			wantController:     "github.com/mbvlabs/andurel/pkg/inertia",
 			unwantedController: "github.com/mbvlabs/andurel/pkg/hypermedia",
 			wantView:           filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.tsx"),
 			unwantedView:       "views/dashboards_resource.templ",
@@ -740,7 +740,7 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 		{
 			name:               "explicit svelte",
 			inertia:            "svelte",
-			wantController:     "example.com/app/internal/inertia",
+			wantController:     "github.com/mbvlabs/andurel/pkg/inertia",
 			unwantedController: "github.com/mbvlabs/andurel/pkg/hypermedia",
 			wantView:           filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.svelte"),
 			unwantedView:       "views/dashboards_resource.templ",
@@ -850,7 +850,7 @@ func NewDashboards(enabled bool) Dashboards {
 		}
 	}
 	for _, want := range []string{
-		`"example.com/app/internal/inertia"`,
+		`"github.com/mbvlabs/andurel/pkg/inertia"`,
 		`return d.renderer.Page(etx, "Dashboard/Overview"`,
 	} {
 		if !strings.Contains(controller, want) {
@@ -868,7 +868,7 @@ func NewDashboards(enabled bool) Dashboards {
 			t.Errorf("generated controller contains %q %d times, want %d:\n%s", expected.snippet, count, expected.count, controller)
 		}
 	}
-	if count := strings.Count(controller, `"example.com/app/internal/inertia"`); count != 1 {
+	if count := strings.Count(controller, `"github.com/mbvlabs/andurel/pkg/inertia"`); count != 1 {
 		t.Errorf("generated controller contains the Inertia import %d times, want once:\n%s", count, controller)
 	}
 }
@@ -893,7 +893,7 @@ func TestGenerateControllerSingleCRUDActionVueGeneratesInertiaController(t *test
 		t.Fatalf("generate controller: %v", err)
 	}
 
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/inertia")
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "github.com/mbvlabs/andurel/pkg/inertia")
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "renderer *inertia.Renderer")
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return pi.renderer.Page(`)
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `"ProjectInquiry/Show",`)
@@ -923,7 +923,7 @@ func TestGenerateControllerSingleCRUDActionReactGeneratesInertiaController(t *te
 		t.Fatalf("generate controller: %v", err)
 	}
 
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/inertia")
+	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "github.com/mbvlabs/andurel/pkg/inertia")
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "renderer *inertia.Renderer")
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return pi.renderer.Page(`)
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `"ProjectInquiry/Show",`)
@@ -989,7 +989,7 @@ func TestGenerateControllerSingleCRUDActionInertiaProjectDefaultsToTemplControll
 
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
 	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "return hypermedia.RenderPage")
-	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "example.com/app/internal/inertia")
+	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "github.com/mbvlabs/andurel/pkg/inertia")
 	assertCLITestFileExists(t, rootDir, "views/project_inquiries_resource.templ")
 	assertCLITestFileContains(t, rootDir, "views/project_inquiries_resource.templ", "Items []models.ProjectInquiryEntity")
 	assertCLITestFileNotContains(t, rootDir, "views/project_inquiries_resource.templ", "ProjectinquiryEntity")

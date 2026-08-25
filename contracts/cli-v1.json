@@ -2177,6 +2177,16 @@
           "omitempty": true
         },
         {
+          "go_name": "JavaScriptPackageManager",
+          "json_name": "javascriptPackageManager",
+          "omitempty": true
+        },
+        {
+          "go_name": "InertiaSSRRuntime",
+          "json_name": "inertiaSSRRuntime",
+          "omitempty": true
+        },
+        {
           "go_name": "JavaScriptRuntime",
           "json_name": "javascriptRuntime",
           "omitempty": true

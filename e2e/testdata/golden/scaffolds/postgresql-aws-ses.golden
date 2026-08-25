@@ -1207,6 +1207,29 @@ file -----------rw-r--r-- andurel.lock
 }
 ```
 
+dir  d----------rwxr-xr-x application
+
+file -----------rw-r--r-- application/metadata.go
+```
+// Package application contains shared, non-sensitive application identity.
+package application
+
+// Metadata identifies the running application without exposing subsystem
+// configuration or secrets.
+type Metadata struct {
+	ProjectName string
+	Environment string
+	BaseURL     string
+	Domain      string
+	ServiceName string
+	Version     string
+}
+
+func (metadata Metadata) IsProduction() bool {
+	return metadata.Environment == "production"
+}
+```
+
 dir  d----------rwxr-xr-x assets
 
 file -----------rw-r--r-- assets/assets.go
@@ -1748,7 +1771,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mbvlabs/andurel/pkg/server"
+	"testapp/application"
 	mailclients "testapp/clients/email"
 	"testapp/config"
 	"testapp/controllers"
@@ -1758,16 +1781,25 @@ import (
 	"testapp/router"
 	"testapp/services"
 	"testapp/telemetry"
-
+	"github.com/mbvlabs/andurel/pkg/server"
 	"go.uber.org/fx"
 )
 
 var appVersion string
 
 func main() {
+	metadata := application.Metadata{
+		ProjectName: config.ProjectName,
+		Environment: config.Env,
+		BaseURL:     config.BaseURL,
+		Domain:      config.Domain,
+		ServiceName: config.ServiceName,
+		Version:     appVersion,
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	app := fx.New(
+		fx.Supply(metadata),
 		fx.Provide(
 			func() context.Context { return ctx },
 			func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {

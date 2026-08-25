@@ -16,4 +16,6 @@ const (
 	TailwindCLI = "v4.3.2"
 	// Shadowfax is the default Shadowfax runner version.
 	Shadowfax = "v0.8.4"
+	// Inertia is the standalone Andurel Inertia module version verified with this framework.
+	Inertia = "v0.1.0"
 )

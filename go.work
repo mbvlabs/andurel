@@ -3,6 +3,7 @@ go 1.26.5
 use (
 	.
 	./pkg/hypermedia
+	./pkg/inertia
 	./pkg/routing
 	./pkg/server
 	./pkg/storage

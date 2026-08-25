@@ -87,6 +87,7 @@ func (p *Project) Scaffold(args ...string) error {
 func (p *Project) setupWorkspace() error {
 	moduleNames := []string{
 		"hypermedia",
+		"inertia",
 		"routing",
 		"server",
 		"storage",
@@ -99,7 +100,12 @@ func (p *Project) setupWorkspace() error {
 		moduleDir := filepath.ToSlash(filepath.Join(p.WorkspaceRoot, "pkg", moduleName))
 		fmt.Fprintf(&workspace, "\t%q\n", moduleDir)
 	}
-	workspace.WriteString(")\n")
+	workspace.WriteString(")\n\n")
+	fmt.Fprintf(
+		&workspace,
+		"replace github.com/mbvlabs/andurel/pkg/inertia v0.1.0 => %q\n",
+		filepath.ToSlash(filepath.Join(p.WorkspaceRoot, "pkg", "inertia")),
+	)
 
 	if err := os.WriteFile(p.workspacePath(), []byte(workspace.String()), 0o644); err != nil {
 		return fmt.Errorf("write test workspace: %w", err)

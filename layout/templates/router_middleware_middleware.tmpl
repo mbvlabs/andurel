@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"{{.ModuleName}}/application"
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/router/appctx"
 	"github.com/mbvlabs/andurel/pkg/server"
@@ -16,6 +17,9 @@ import (
 	"{{.ModuleName}}/telemetry"
 
 	"github.com/labstack/echo/v5"
+{{- if .Inertia}}
+	"github.com/mbvlabs/andurel/pkg/inertia"
+{{- end}}
 	echomw "github.com/labstack/echo/v5/middleware"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -37,6 +41,9 @@ func RegisterRequestMeta(
 		}
 
 		ctx := appctx.WithFlashes(c.Request().Context(), flashes)
+{{- if .Inertia}}
+		ctx = inertia.ContextWithFlash(ctx, flashes)
+{{- end}}
 		c.SetRequest(c.Request().WithContext(ctx))
 
 		return next(c)
@@ -82,7 +89,7 @@ func hasNonEmptyBearerToken(authorization string) bool {
 }
 
 func hasApplicationSessionCookie(request *http.Request) bool {
-	_, err := request.Cookie(config.AppCookieSessionName)
+	_, err := request.Cookie(application.AppCookieSessionName)
 	return err == nil
 }
 
@@ -112,7 +119,7 @@ func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 			slog.Warn("failed to create http_requests_in_flight metric", "error", err)
 		}
 
-		meter := telemetry.GetMeter(config.ServiceName)
+		meter := telemetry.GetMeter(application.ServiceName)
 		if err := telemetry.SetupRuntimeMetricsInCallback(meter); err != nil {
 			slog.Warn("failed to setup runtime metrics", "error", err)
 		}
@@ -212,7 +219,7 @@ func CSRFMiddleware(cfg config.Config, csrfName string) (echo.MiddlewareFunc, er
 		return nil, errors.New("invalid CSRF strategy")
 	}
 
-	trustedOrigins := []string{config.BaseURL}
+	trustedOrigins := []string{application.BaseURL}
 	if len(cfg.App.CSRFTrustedOrigins) > 0 {
 		trustedOrigins = append(trustedOrigins, cfg.App.CSRFTrustedOrigins...)
 	}
@@ -224,13 +231,13 @@ func CSRFMiddleware(cfg config.Config, csrfName string) (echo.MiddlewareFunc, er
 		TokenLookup: tokenLookup,
 		CookiePath:  "/",
 		CookieDomain: func() string {
-			if config.Env == server.ProdEnvironment {
-				return config.Domain
+			if application.Environment == server.ProdEnvironment {
+				return application.Domain
 			}
 
 			return ""
 		}(),
-		CookieSecure:   config.Env == server.ProdEnvironment,
+		CookieSecure:   application.Environment == server.ProdEnvironment,
 		CookieHTTPOnly: true,
 		CookieSameSite: http.SameSiteStrictMode,
 		TrustedOrigins: trustedOrigins,
