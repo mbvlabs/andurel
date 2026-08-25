@@ -345,13 +345,13 @@ automatically. Run `andurel email compile` for a standalone compilation pass.
 
 ```go
 import (
-    "testapp/config"
+    "testapp/application"
     "testapp/email"
 )
 
 // Send an email
 data := email.TransactionalData{
-    From:    config.DefaultSenderSignature,
+    From:    application.DefaultSenderSignature,
     To:      []string{"user@example.com"},
     Subject: "Welcome!",
     Body:    WelcomeEmail("John Doe"),
@@ -1214,6 +1214,57 @@ file -----------rw-r--r-- application/metadata.go
 // Package application contains shared, non-sensitive application identity.
 package application
 
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/gosimple/slug"
+	"github.com/mbvlabs/andurel/pkg/server"
+)
+
+// Global application metadata with environment-backed defaults.
+var (
+	Environment = func() string {
+		if value := os.Getenv("ENVIRONMENT"); value != "" {
+			return value
+		}
+		return server.DevEnvironment
+	}()
+	ProjectName = func() string {
+		if value := os.Getenv("PROJECT_NAME"); value != "" {
+			return value
+		}
+		return "andurel"
+	}()
+	ServiceName = func() string {
+		if value := os.Getenv("TELEMETRY_SERVICE_NAME"); value != "" {
+			return value
+		}
+		return slug.Make(ProjectName)
+	}()
+	Domain = func() string {
+		if value := os.Getenv("DOMAIN"); value != "" {
+			return value
+		}
+		return "localhost:8080"
+	}()
+	BaseURL = func() string {
+		protocol := os.Getenv("PROTOCOL")
+		if protocol == "" {
+			protocol = "http"
+		}
+		return fmt.Sprintf("%s://%s", protocol, Domain)
+	}()
+	AppCookieSessionName   = "app_sess_" + slug.Make(strings.ToLower(ProjectName)) + "-" + Environment
+	DefaultSenderSignature = func() string {
+		if value := os.Getenv("DEFAULT_SENDER_SIGNATURE"); value != "" {
+			return value
+		}
+		return "noreply@" + Domain
+	}()
+)
+
 // Metadata identifies the running application without exposing subsystem
 // configuration or secrets.
 type Metadata struct {
@@ -1225,8 +1276,19 @@ type Metadata struct {
 	Version     string
 }
 
+func NewMetadata(version string) Metadata {
+	return Metadata{
+		ProjectName: ProjectName,
+		Environment: Environment,
+		BaseURL:     BaseURL,
+		Domain:      Domain,
+		ServiceName: ServiceName,
+		Version:     version,
+	}
+}
+
 func (metadata Metadata) IsProduction() bool {
-	return metadata.Environment == "production"
+	return metadata.Environment == server.ProdEnvironment
 }
 ```
 
@@ -1771,6 +1833,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mbvlabs/andurel/pkg/server"
 	"testapp/application"
 	mailclients "testapp/clients/email"
 	"testapp/config"
@@ -1781,21 +1844,14 @@ import (
 	"testapp/router"
 	"testapp/services"
 	"testapp/telemetry"
-	"github.com/mbvlabs/andurel/pkg/server"
+
 	"go.uber.org/fx"
 )
 
 var appVersion string
 
 func main() {
-	metadata := application.Metadata{
-		ProjectName: config.ProjectName,
-		Environment: config.Env,
-		BaseURL:     config.BaseURL,
-		Domain:      config.Domain,
-		ServiceName: config.ServiceName,
-		Version:     appVersion,
-	}
+	metadata := application.NewMetadata(appVersion)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	app := fx.New(
@@ -1803,7 +1859,7 @@ func main() {
 		fx.Provide(
 			func() context.Context { return ctx },
 			func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
-				if config.Env == server.ProdEnvironment {
+				if application.Environment == server.ProdEnvironment {
 					log.Fatal("provide real email sender")
 				}
 
@@ -1858,7 +1914,7 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg 
 		appCtx,
 		cfg.App.Host,
 		cfg.App.Port,
-		config.Env,
+		application.Environment,
 		r.Handler,
 		nil,
 	)
@@ -1875,7 +1931,7 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg 
 				cfg.App.Port,
 			)
 			done = startInBackground(appCtx, "server", func(ctx context.Context) error {
-				return srv.Start(ctx, config.Env)
+				return srv.Start(ctx, application.Environment)
 			})
 			return nil
 		},
@@ -2144,70 +2200,7 @@ file -----------rw-r--r-- config/config.go
 // Package config provides application-wide configuration settings.
 package config
 
-import (
-	"fmt"
-	"os"
-	"strings"
-
-	"github.com/mbvlabs/andurel/pkg/server"
-
-	"github.com/gosimple/slug"
-
-	"go.uber.org/fx"
-)
-
-// Global application settings that can be used throughout the codebase with defaults.
-var (
-	Env = func() string {
-		if os.Getenv("ENVIRONMENT") != "" {
-			return os.Getenv("ENVIRONMENT")
-		}
-
-		return server.DevEnvironment
-	}()
-	ProjectName = func() string {
-		if os.Getenv("PROJECT_NAME") != "" {
-			return os.Getenv("PROJECT_NAME")
-		}
-
-		return "andurel"
-	}()
-	ServiceName = func() string {
-		if os.Getenv("TELEMETRY_SERVICE_NAME") != "" {
-			return os.Getenv("TELEMETRY_SERVICE_NAME")
-		}
-
-		return slug.Make(ProjectName)
-	}()
-	Domain = func() string {
-		if os.Getenv("DOMAIN") != "" {
-			return os.Getenv("DOMAIN")
-		}
-
-		return "localhost:8080"
-	}()
-	BaseURL = func() string {
-		var protocol string
-
-		if os.Getenv("PROTOCOL") != "" {
-			protocol = os.Getenv("PROTOCOL")
-		} else {
-			protocol = "http"
-		}
-
-		return fmt.Sprintf("%s://%s", protocol, Domain)
-	}()
-	AppCookieSessionName = func() string {
-		return "app_sess_" + slug.Make(strings.ToLower(ProjectName)) + "-" + Env
-	}()
-	DefaultSenderSignature = func() string {
-		if os.Getenv("DEFAULT_SENDER_SIGNATURE") != "" {
-			return os.Getenv("DEFAULT_SENDER_SIGNATURE")
-		}
-
-		return "noreply@" + Domain
-	}()
-)
+import "go.uber.org/fx"
 
 type Config struct {
 	App       app
@@ -2391,8 +2384,8 @@ import (
 
 	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/server"
+	"testapp/application"
 	"testapp/assets"
-	"testapp/config"
 	"testapp/router"
 	"testapp/router/routes"
 
@@ -2465,7 +2458,7 @@ func (a Assets) RegisterRoutes(r *router.Router) error {
 }
 
 func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
-	if config.Env == server.ProdEnvironment {
+	if application.Environment == server.ProdEnvironment {
 		//nolint:gosec //only needed for browser caching
 		hash := md5.Sum(content)
 		etag := fmt.Sprintf(`"%x-%x"`, hash, len(content))
@@ -2498,7 +2491,7 @@ func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
 func createRobotsTxt() string {
 	return fmt.Sprintf(
 		"User-agent: *\nAllow: /\nSitemap: %s%s\n",
-		config.BaseURL,
+		application.BaseURL,
 		routes.Sitemap.URL(),
 	)
 }
@@ -2560,7 +2553,7 @@ type Sitemap struct {
 }
 
 func createSitemap(routes []routing.Route) (string, error) {
-	baseURL := config.BaseURL
+	baseURL := application.BaseURL
 
 	var urls []URL
 
@@ -6829,7 +6822,7 @@ package cookies
 
 import (
 	"github.com/google/uuid"
-	"testapp/config"
+	"testapp/application"
 	"testapp/models"
 
 	"github.com/labstack/echo/v5"
@@ -6849,7 +6842,7 @@ type App struct {
 }
 
 func CreateAppSession(c *echo.Context, user models.UserEntity) error {
-	sess, err := getSession(config.AppCookieSessionName, c)
+	sess, err := getSession(application.AppCookieSessionName, c)
 	if err != nil {
 		return err
 	}
@@ -6862,7 +6855,7 @@ func CreateAppSession(c *echo.Context, user models.UserEntity) error {
 }
 
 func DestroyAppSession(c *echo.Context) error {
-	sess, err := getSession(config.AppCookieSessionName, c)
+	sess, err := getSession(application.AppCookieSessionName, c)
 	if err != nil {
 		return err
 	}
@@ -6872,7 +6865,7 @@ func DestroyAppSession(c *echo.Context) error {
 }
 
 func ExtractFromCookieApp(c *echo.Context) App {
-	sess, err := getSession(config.AppCookieSessionName, c)
+	sess, err := getSession(application.AppCookieSessionName, c)
 	if err != nil {
 		return App{}
 	}
@@ -6902,7 +6895,7 @@ import (
 	"time"
 
 	"github.com/mbvlabs/andurel/pkg/server"
-	"testapp/config"
+	"testapp/application"
 
 	"github.com/labstack/echo/v5"
 	"github.com/rs/xid"
@@ -6917,11 +6910,11 @@ type FlashMessage struct {
 
 var (
 	flashSession = func() string {
-		if config.Env == server.ProdEnvironment {
-			return strings.ToLower(config.ProjectName) + "_" + "flash_key"
+		if application.Environment == server.ProdEnvironment {
+			return strings.ToLower(application.ProjectName) + "_" + "flash_key"
 		}
 
-		return strings.ToLower(config.ProjectName) + "_" + "dev_flash_key"
+		return strings.ToLower(application.ProjectName) + "_" + "dev_flash_key"
 	}()
 	flashSessionName = "flash_session"
 )
@@ -6997,7 +6990,7 @@ package cookies
 import (
 	"errors"
 
-	"testapp/config"
+	"testapp/application"
 
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
@@ -7008,7 +7001,7 @@ import (
 const recoveredSessionContextPrefix = "andurel/recovered-session/"
 
 func RecoverInvalidSessions(c *echo.Context) error {
-	for _, name := range []string{config.AppCookieSessionName, flashSession} {
+	for _, name := range []string{application.AppCookieSessionName, flashSession} {
 		sess, err := session.Get(name, c)
 		if err == nil {
 			continue
@@ -7176,6 +7169,7 @@ import (
 	"time"
 
 	"github.com/mbvlabs/andurel/pkg/server"
+	"testapp/application"
 	"testapp/config"
 	"testapp/router/appctx"
 	"testapp/router/cookies"
@@ -7249,7 +7243,7 @@ func hasNonEmptyBearerToken(authorization string) bool {
 }
 
 func hasApplicationSessionCookie(request *http.Request) bool {
-	_, err := request.Cookie(config.AppCookieSessionName)
+	_, err := request.Cookie(application.AppCookieSessionName)
 	return err == nil
 }
 
@@ -7279,7 +7273,7 @@ func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 			slog.Warn("failed to create http_requests_in_flight metric", "error", err)
 		}
 
-		meter := telemetry.GetMeter(config.ServiceName)
+		meter := telemetry.GetMeter(application.ServiceName)
 		if err := telemetry.SetupRuntimeMetricsInCallback(meter); err != nil {
 			slog.Warn("failed to setup runtime metrics", "error", err)
 		}
@@ -7379,7 +7373,7 @@ func CSRFMiddleware(cfg config.Config, csrfName string) (echo.MiddlewareFunc, er
 		return nil, errors.New("invalid CSRF strategy")
 	}
 
-	trustedOrigins := []string{config.BaseURL}
+	trustedOrigins := []string{application.BaseURL}
 	if len(cfg.App.CSRFTrustedOrigins) > 0 {
 		trustedOrigins = append(trustedOrigins, cfg.App.CSRFTrustedOrigins...)
 	}
@@ -7391,13 +7385,13 @@ func CSRFMiddleware(cfg config.Config, csrfName string) (echo.MiddlewareFunc, er
 		TokenLookup: tokenLookup,
 		CookiePath:  "/",
 		CookieDomain: func() string {
-			if config.Env == server.ProdEnvironment {
-				return config.Domain
+			if application.Environment == server.ProdEnvironment {
+				return application.Domain
 			}
 
 			return ""
 		}(),
-		CookieSecure:   config.Env == server.ProdEnvironment,
+		CookieSecure:   application.Environment == server.ProdEnvironment,
 		CookieHTTPOnly: true,
 		CookieSameSite: http.SameSiteStrictMode,
 		TrustedOrigins: trustedOrigins,
@@ -7452,7 +7446,7 @@ import (
 	"sync"
 	"testing"
 
-	"testapp/config"
+	"testapp/application"
 	"testapp/router/appctx"
 	"testapp/router/cookies"
 
@@ -7506,7 +7500,7 @@ func TestCSRFBypassRequiresBearerWithoutApplicationSession(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, test.path, nil)
 			request.Header.Set("Authorization", test.authorization)
 			if test.sessionCookie {
-				request.AddCookie(&http.Cookie{Name: config.AppCookieSessionName, Value: "session"})
+				request.AddCookie(&http.Cookie{Name: application.AppCookieSessionName, Value: "session"})
 			}
 
 			if got := mayBypassCSRF(request); got != test.want {
@@ -7519,8 +7513,8 @@ func TestCSRFBypassRequiresBearerWithoutApplicationSession(t *testing.T) {
 func TestValidateSessionRecoversStaleApplicationCookie(t *testing.T) {
 	oldStore := newTestCookieStore("old-application-session-auth-key")
 	newStore := newTestCookieStore("new-application-session-auth-key")
-	staleCookie := issueSessionCookie(t, oldStore, config.AppCookieSessionName, func(c *echo.Context) error {
-		sess, err := echosession.Get(config.AppCookieSessionName, c)
+	staleCookie := issueSessionCookie(t, oldStore, application.AppCookieSessionName, func(c *echo.Context) error {
+		sess, err := echosession.Get(application.AppCookieSessionName, c)
 		if err != nil {
 			return err
 		}
@@ -7542,7 +7536,7 @@ func TestValidateSessionRecoversStaleApplicationCookie(t *testing.T) {
 		t.Fatal("downstream handler was not called")
 	}
 
-	replacement := responseCookie(t, recorder, config.AppCookieSessionName)
+	replacement := responseCookie(t, recorder, application.AppCookieSessionName)
 	assertEmptySessionCookie(t, newStore, replacement)
 }
 
@@ -7580,8 +7574,8 @@ func TestValidateSessionPreservesValidSessions(t *testing.T) {
 	})
 
 	store := newTestCookieStore("valid-session-authentication-key")
-	appCookie := issueSessionCookie(t, store, config.AppCookieSessionName, func(c *echo.Context) error {
-		sess, err := echosession.Get(config.AppCookieSessionName, c)
+	appCookie := issueSessionCookie(t, store, application.AppCookieSessionName, func(c *echo.Context) error {
+		sess, err := echosession.Get(application.AppCookieSessionName, c)
 		if err != nil {
 			return err
 		}
@@ -7605,7 +7599,7 @@ func TestValidateSessionPreservesValidSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateSession returned an error: %v", err)
 	}
-	if hasResponseCookie(recorder, config.AppCookieSessionName) {
+	if hasResponseCookie(recorder, application.AppCookieSessionName) {
 		t.Fatal("valid application session was unexpectedly replaced")
 	}
 }
@@ -7624,7 +7618,7 @@ func TestValidateSessionPropagatesNonDecodeErrors(t *testing.T) {
 			name:       "usage error",
 			middleware: echosession.Middleware(sessions.NewCookieStore()),
 			request: requestWithCookie(&http.Cookie{
-				Name:  config.AppCookieSessionName,
+				Name:  application.AppCookieSessionName,
 				Value: "configured-without-codecs",
 			}),
 		},
@@ -7804,6 +7798,7 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/pkg/server"
+	"testapp/application"
 	"testapp/config"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
@@ -7894,12 +7889,12 @@ func SetupGlobalMiddleware(
 		authKey,
 		encKey,
 		cfg.App.SessionMaxAge,
-		config.Env == server.ProdEnvironment,
+		application.Environment == server.ProdEnvironment,
 	)
 	if err != nil {
 		return nil, err
 	}
-	corsConfig, err := newCORSConfig(config.BaseURL, cfg.App.CORSAllowedOrigins)
+	corsConfig, err := newCORSConfig(application.BaseURL, cfg.App.CORSAllowedOrigins)
 	if err != nil {
 		return nil, err
 	}
@@ -8485,7 +8480,7 @@ import (
 
 	"time"
 
-	"testapp/config"
+	"testapp/application"
 	"testapp/email"
 
 	"github.com/mbvlabs/andurel/pkg/validation"
@@ -8593,7 +8588,7 @@ func (i Identity) RegisterUser(
 
 		Data: email.TransactionalData{
 			To:       user.Email,
-			From:     config.DefaultSenderSignature,
+			From:     application.DefaultSenderSignature,
 			Subject:  "Verify Your Email Address",
 			HTMLBody: html,
 			TextBody: text,
@@ -8733,7 +8728,7 @@ import (
 	"fmt"
 	"time"
 
-	"testapp/config"
+	"testapp/application"
 	"testapp/email"
 
 	"github.com/mbvlabs/andurel/pkg/validation"
@@ -8815,7 +8810,7 @@ func (i Identity) RequestResetPassword(
 
 	}
 
-	resetURL := fmt.Sprintf("%s%s", config.BaseURL, routes.PasswordEdit.URL(token))
+	resetURL := fmt.Sprintf("%s%s", application.BaseURL, routes.PasswordEdit.URL(token))
 
 	rpEmail := email.ResetPassword{ResetURL: resetURL}
 
@@ -8837,7 +8832,7 @@ func (i Identity) RequestResetPassword(
 
 		Data: email.TransactionalData{
 			To:       user.Email,
-			From:     config.DefaultSenderSignature,
+			From:     application.DefaultSenderSignature,
 			Subject:  "Reset Your Password",
 			HTMLBody: html,
 			TextBody: text,
@@ -8997,7 +8992,7 @@ package telemetry
 import (
 	"context"
 
-	"testapp/config"
+	"testapp/application"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -9006,13 +9001,13 @@ import (
 
 // StartSpan starts a new span with the given name using the global tracer.
 func StartSpan(ctx context.Context, spanName string) (context.Context, trace.Span) {
-	tracer := GetTracer(config.ServiceName)
+	tracer := GetTracer(application.ServiceName)
 	return tracer.Start(ctx, spanName)
 }
 
 // StartSpanAttrs starts a new span with the given name and attributes using the global tracer.
 func StartSpanAttrs(ctx context.Context, spanName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
-	tracer := GetTracer(config.ServiceName)
+	tracer := GetTracer(application.ServiceName)
 	ctx, span := tracer.Start(ctx, spanName)
 	span.SetAttributes(attrs...)
 	return ctx, span
@@ -9289,7 +9284,7 @@ import (
 	"runtime"
 	"time"
 
-	"testapp/config"
+	"testapp/application"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
@@ -9308,7 +9303,7 @@ func GetMeter(serviceName string) metric.Meter {
 }
 
 func HTTPRequestsTotal() (metric.Int64Counter, error) {
-	counter, err := GetMeter(config.ServiceName).Int64Counter(
+	counter, err := GetMeter(application.ServiceName).Int64Counter(
 		"http_requests_total",
 		metric.WithDescription("Total number of HTTP requests"),
 		metric.WithUnit("1"),
@@ -9320,7 +9315,7 @@ func HTTPRequestsTotal() (metric.Int64Counter, error) {
 }
 
 func HTTPRequestsInFlight() (metric.Int64UpDownCounter, error) {
-	counter, err := GetMeter(config.ServiceName).Int64UpDownCounter(
+	counter, err := GetMeter(application.ServiceName).Int64UpDownCounter(
 		"http_requests_in_flight",
 		metric.WithDescription("Current number of HTTP requests being served"),
 	)
@@ -9331,7 +9326,7 @@ func HTTPRequestsInFlight() (metric.Int64UpDownCounter, error) {
 }
 
 func HTTPRequestDuration() (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(config.ServiceName).Float64Histogram(
+	histogram, err := GetMeter(application.ServiceName).Float64Histogram(
 		"http_request_duration_seconds",
 		metric.WithDescription("HTTP request duration in seconds"),
 		metric.WithUnit("s"),
@@ -9344,7 +9339,7 @@ func HTTPRequestDuration() (metric.Float64Histogram, error) {
 }
 
 func HTTPRequestSize() (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(config.ServiceName).Float64Histogram(
+	histogram, err := GetMeter(application.ServiceName).Float64Histogram(
 		"http_request_size_bytes",
 		metric.WithDescription("HTTP request size in bytes"),
 		metric.WithUnit("By"),
@@ -9357,7 +9352,7 @@ func HTTPRequestSize() (metric.Float64Histogram, error) {
 }
 
 func HTTPResponseSize() (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(config.ServiceName).Float64Histogram(
+	histogram, err := GetMeter(application.ServiceName).Float64Histogram(
 		"http_response_size_bytes",
 		metric.WithDescription("HTTP response size in bytes"),
 		metric.WithUnit("By"),
@@ -10552,7 +10547,7 @@ import (
 	"context"
 	"net/url"
 	"strings"
-	"testapp/config"
+	"testapp/application"
 	"testapp/router/routes"
 )
 
@@ -10695,11 +10690,11 @@ templ head(data HeadData) {
 
 func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 	data := &HeadData{
-		siteName:       config.ProjectName,
-		Title:          config.ProjectName,
+		siteName:       application.ProjectName,
+		Title:          application.ProjectName,
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
-		canonical:      config.BaseURL,
+		canonical:      application.BaseURL,
 		twitterCreator: "@mbvisti",
 		faviconBaseURL: "https://media.andurel.com/favicon",
 		MetaType:       "website",
@@ -10732,7 +10727,7 @@ import (
 	"context"
 	"net/url"
 	"strings"
-	"testapp/config"
+	"testapp/application"
 	"testapp/router/routes"
 )
 
@@ -11247,11 +11242,11 @@ func head(data HeadData) templ.Component {
 
 func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 	data := &HeadData{
-		siteName:       config.ProjectName,
-		Title:          config.ProjectName,
+		siteName:       application.ProjectName,
+		Title:          application.ProjectName,
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
-		canonical:      config.BaseURL,
+		canonical:      application.BaseURL,
 		twitterCreator: "@mbvisti",
 		faviconBaseURL: "https://media.andurel.com/favicon",
 		MetaType:       "website",

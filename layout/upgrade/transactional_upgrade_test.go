@@ -192,7 +192,7 @@ func TestSessionRecoveryManualActionDoesNotPlanRouterMutations(t *testing.T) {
 	if len(report.ManualActions) != 1 {
 		t.Fatalf("manual actions = %#v, want one", report.ManualActions)
 	}
-	if !strings.Contains(report.ManualActions[0].Instructions, `"testapp/config"`) {
+	if !strings.Contains(report.ManualActions[0].Instructions, `"testapp/application"`) {
 		t.Fatalf("manual action does not use project module:\n%s", report.ManualActions[0].Instructions)
 	}
 	for _, path := range append(slices.Clone(report.ReplacedFiles), report.RemovedFiles...) {
@@ -491,7 +491,11 @@ func newUpgradeFixtureProject(t *testing.T) string {
 func newUpgradeFixtureProjectWithConfig(t *testing.T, config layout.ScaffoldConfig) string {
 	t.Helper()
 	root := t.TempDir()
-	mustWriteTestFile(t, root, "go.mod", []byte("module testapp\n\ngo 1.24.0\n"))
+	goMod := "module testapp\n\ngo 1.24.0\n"
+	if layout.IsSupportedInertiaAdapter(config.Inertia) {
+		goMod += "\nrequire github.com/mbvlabs/andurel/pkg/inertia v0.1.0\n"
+	}
+	mustWriteTestFile(t, root, "go.mod", []byte(goMod))
 	lock := &layout.AndurelLock{
 		SchemaVersion:  targetLockSchemaVersion,
 		Version:        fixtureSourceVersion,

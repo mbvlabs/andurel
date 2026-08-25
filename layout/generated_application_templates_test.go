@@ -125,7 +125,7 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	for _, want := range []string{
 		`startInBackground(appCtx, "queue processor", p.Start)`,
 		"stopAndWait(ctx, p.Stop, done)",
-		"srv.Start(ctx, config.Env)",
+		"srv.Start(ctx, application.Environment)",
 		"[]server.Shutdowner{processor}",
 	} {
 		contains := strings.Contains(mainTemplate, want)
