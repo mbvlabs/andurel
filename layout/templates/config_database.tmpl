@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"time"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/mbvlabs/andurel/pkg/storage"
@@ -10,13 +11,22 @@ import (
 
 // databaseCfg contains environment-backed PostgreSQL settings.
 type databaseCfg struct {
-	Port         string `env:"DB_PORT" envDefault:"5432"`
-	Host         string `env:"DB_HOST" envDefault:"127.0.0.1"`
-	Name         string `env:"DB_NAME" envDefault:"andurel"`
-	User         string `env:"DB_USER" envDefault:"postgres"`
-	Password     string `env:"DB_PASSWORD" envDefault:"postgres"`
-	DatabaseKind string `env:"DB_KIND" envDefault:"postgres"`
-	SSLMode      string `env:"DB_SSL_MODE" envDefault:"disable"`
+	Port                     string        `env:"DB_PORT" envDefault:"5432"`
+	Host                     string        `env:"DB_HOST" envDefault:"127.0.0.1"`
+	Name                     string        `env:"DB_NAME" envDefault:"andurel"`
+	User                     string        `env:"DB_USER" envDefault:"postgres"`
+	Password                 string        `env:"DB_PASSWORD" envDefault:"postgres"`
+	DatabaseKind             string        `env:"DB_KIND" envDefault:"postgres"`
+	SSLMode                  string        `env:"DB_SSL_MODE" envDefault:"disable"`
+	ApplicationName          string        `env:"DB_APPLICATION_NAME" envDefault:"andurel"`
+	ConnectTimeout           time.Duration `env:"DB_CONNECT_TIMEOUT" envDefault:"5s"`
+	StatementCacheCapacity   int           `env:"DB_STATEMENT_CACHE_CAPACITY" envDefault:"512"`
+	DescriptionCacheCapacity int           `env:"DB_DESCRIPTION_CACHE_CAPACITY" envDefault:"512"`
+	MaxOpenConnections       int           `env:"DB_MAX_OPEN_CONNECTIONS" envDefault:"25"`
+	MaxIdleConnections       int           `env:"DB_MAX_IDLE_CONNECTIONS" envDefault:"25"`
+	ConnectionMaxLifetime    time.Duration `env:"DB_CONNECTION_MAX_LIFETIME" envDefault:"1h"`
+	ConnectionMaxIdleTime    time.Duration `env:"DB_CONNECTION_MAX_IDLE_TIME" envDefault:"30m"`
+	OpenTelemetry            bool          `env:"DB_OPEN_TELEMETRY" envDefault:"true"`
 }
 
 func newDatabaseConfig() databaseCfg {
@@ -27,16 +37,25 @@ func newDatabaseConfig() databaseCfg {
 	return cfg
 }
 
-func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg Config) (storage.Pool, error) {
-	db, err := storage.NewPostgres(ctx,
-		storage.WithDatabaseKind(cfg.DB.DatabaseKind),
-		storage.WithHost(cfg.DB.Host),
-		storage.WithPort(cfg.DB.Port),
-		storage.WithDatabaseName(cfg.DB.Name),
-		storage.WithUser(cfg.DB.User),
-		storage.WithPassword(cfg.DB.Password),
-		storage.WithSSLMode(cfg.DB.SSLMode),
-	)
+func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg Config) (*storage.Postgres, error) {
+	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
+		DatabaseKind:             cfg.DB.DatabaseKind,
+		Host:                     cfg.DB.Host,
+		Port:                     cfg.DB.Port,
+		Name:                     cfg.DB.Name,
+		User:                     cfg.DB.User,
+		Password:                 cfg.DB.Password,
+		SSLMode:                  cfg.DB.SSLMode,
+		ApplicationName:          cfg.DB.ApplicationName,
+		ConnectTimeout:           cfg.DB.ConnectTimeout,
+		StatementCacheCapacity:   cfg.DB.StatementCacheCapacity,
+		DescriptionCacheCapacity: cfg.DB.DescriptionCacheCapacity,
+		MaxOpenConnections:       cfg.DB.MaxOpenConnections,
+		MaxIdleConnections:       cfg.DB.MaxIdleConnections,
+		ConnectionMaxLifetime:    cfg.DB.ConnectionMaxLifetime,
+		ConnectionMaxIdleTime:    cfg.DB.ConnectionMaxIdleTime,
+		OpenTelemetry:            cfg.DB.OpenTelemetry,
+	}))
 	if err != nil {
 		return nil, err
 	}
@@ -46,4 +65,7 @@ func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg Config) (stora
 }
 
 // DatabaseModule provides the application database pool and manages its lifecycle.
-var DatabaseModule = fx.Module("database", fx.Provide(newDatabase))
+var DatabaseModule = fx.Module(
+	"database",
+	fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Pool)))),
+)

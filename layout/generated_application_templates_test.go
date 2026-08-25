@@ -112,8 +112,9 @@ func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 	for _, want := range []string{
 		`env:"DB_HOST" envDefault:"127.0.0.1"`,
 		"storage.NewPostgres(ctx,",
-		"storage.WithDatabaseName(cfg.DB.Name)",
-		`var DatabaseModule = fx.Module("database", fx.Provide(newDatabase))`,
+		"storage.WithConfig(storage.Config{",
+		"func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg Config) (*storage.Postgres, error)",
+		"fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Pool))))",
 	} {
 		if !strings.Contains(databaseConfig, want) {
 			t.Errorf("config_database.tmpl missing %q", want)

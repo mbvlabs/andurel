@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"strings"
 	"testing"
 	"time"
@@ -50,8 +51,8 @@ var _ Pool = (*Postgres)(nil)
 // supplied functional options.
 func NewPostgres(ctx context.Context, options ...Option) (*Postgres, error) {
 	settings := postgresOptions{
-		config: DefaultConfig(),
-		tracer: otelpgx.NewTracer(),
+		config:            DefaultConfig(),
+		runtimeParameters: make(map[string]string),
 	}
 	for _, option := range options {
 		if option == nil {
@@ -60,6 +61,10 @@ func NewPostgres(ctx context.Context, options ...Option) (*Postgres, error) {
 		if err := option(&settings); err != nil {
 			return nil, fmt.Errorf("storage: configure postgres: %w", err)
 		}
+	}
+
+	if !settings.telemetrySet && settings.config.OpenTelemetry {
+		settings.telemetry = &TelemetryConfig{}
 	}
 
 	databaseURL := settings.configURL
@@ -74,9 +79,58 @@ func NewPostgres(ctx context.Context, options ...Option) (*Postgres, error) {
 	if err != nil {
 		return nil, fmt.Errorf("storage: parse database URL: %w", err)
 	}
-	config.Tracer = settings.tracer
+	if settings.telemetry != nil {
+		config.Tracer = otelpgx.NewTracer(telemetryOptions(*settings.telemetry)...)
+	}
+	connectTimeout := settings.config.ConnectTimeout
+	if settings.connectTimeout != nil {
+		connectTimeout = *settings.connectTimeout
+	}
+	config.ConnectTimeout = connectTimeout
+	applicationName := settings.config.ApplicationName
+	if settings.applicationName != nil {
+		applicationName = *settings.applicationName
+	}
+	if applicationName != "" {
+		config.RuntimeParams["application_name"] = applicationName
+	}
+	config.StatementCacheCapacity = settings.config.StatementCacheCapacity
+	if settings.statementCacheCapacity != nil {
+		config.StatementCacheCapacity = *settings.statementCacheCapacity
+	}
+	config.DescriptionCacheCapacity = settings.config.DescriptionCacheCapacity
+	if settings.descriptionCacheCapacity != nil {
+		config.DescriptionCacheCapacity = *settings.descriptionCacheCapacity
+	}
+	maps.Copy(config.RuntimeParams, settings.runtimeParameters)
+	if settings.tlsConfig != nil {
+		config.TLSConfig = settings.tlsConfig.Clone()
+		for i := range config.Fallbacks {
+			config.Fallbacks[i].TLSConfig = settings.tlsConfig.Clone()
+		}
+	}
 
 	sqldb := stdlib.OpenDB(*config)
+	maxOpenConnections := settings.config.MaxOpenConnections
+	if settings.maxOpenConnections != nil {
+		maxOpenConnections = *settings.maxOpenConnections
+	}
+	sqldb.SetMaxOpenConns(maxOpenConnections)
+	maxIdleConnections := settings.config.MaxIdleConnections
+	if settings.maxIdleConnections != nil {
+		maxIdleConnections = *settings.maxIdleConnections
+	}
+	sqldb.SetMaxIdleConns(maxIdleConnections)
+	connectionMaxLifetime := settings.config.ConnectionMaxLifetime
+	if settings.connectionMaxLifetime != nil {
+		connectionMaxLifetime = *settings.connectionMaxLifetime
+	}
+	sqldb.SetConnMaxLifetime(connectionMaxLifetime)
+	connectionMaxIdleTime := settings.config.ConnectionMaxIdleTime
+	if settings.connectionMaxIdleTime != nil {
+		connectionMaxIdleTime = *settings.connectionMaxIdleTime
+	}
+	sqldb.SetConnMaxIdleTime(connectionMaxIdleTime)
 	db := bun.NewDB(sqldb, pgdialect.New())
 
 	if err := db.PingContext(ctx); err != nil {
