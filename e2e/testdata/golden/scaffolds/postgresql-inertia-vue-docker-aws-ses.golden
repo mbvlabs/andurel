@@ -1931,7 +1931,6 @@ import (
 	mailclients "testapp/clients/email"
 	"testapp/config"
 	"testapp/controllers"
-	"testapp/database"
 	"testapp/email"
 	"testapp/queue"
 	"testapp/router"
@@ -1962,7 +1961,7 @@ func main() {
 
 		config.Module,
 		config.InertiaModule,
-		database.Module,
+		config.DatabaseModule,
 		telemetry.Module,
 		queue.Module,
 		queue.WorkersModule,
@@ -2168,7 +2167,16 @@ func run(args []string) error {
 
 	ctx := context.Background()
 
-	db, err := storage.NewPostgres(ctx, buildDatabaseURL())
+	databaseConfig := storage.DefaultConfig()
+	databaseConfig.DatabaseKind = envOrDefault("DB_KIND", databaseConfig.DatabaseKind)
+	databaseConfig.Host = envOrDefault("DB_HOST", databaseConfig.Host)
+	databaseConfig.Port = envOrDefault("DB_PORT", databaseConfig.Port)
+	databaseConfig.Name = envOrDefault("DB_NAME", databaseConfig.Name)
+	databaseConfig.User = envOrDefault("DB_USER", databaseConfig.User)
+	databaseConfig.Password = envOrDefault("DB_PASSWORD", databaseConfig.Password)
+	databaseConfig.SSLMode = envOrDefault("DB_SSL_MODE", databaseConfig.SSLMode)
+
+	db, err := storage.NewPostgres(ctx, storage.WithConfig(databaseConfig))
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -2191,16 +2199,11 @@ func run(args []string) error {
 	return nil
 }
 
-func buildDatabaseURL() string {
-	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
-		os.Getenv("DB_KIND"),
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_NAME"),
-		os.Getenv("DB_SSL_MODE"),
-	)
+func envOrDefault(name, fallback string) string {
+	if value := os.Getenv(name); value != "" {
+		return value
+	}
+	return fallback
 }
 ```
 
@@ -2298,7 +2301,7 @@ import "go.uber.org/fx"
 
 type Config struct {
 	App       app
-	DB        Database
+	DB        databaseCfg
 	Telemetry telemetry
 	Inertia   inertiaCfg
 	Email     email
@@ -2326,39 +2329,74 @@ file -----------rw-r--r-- config/database.go
 package config
 
 import (
-	"fmt"
+	"context"
+	"time"
 
 	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"go.uber.org/fx"
 )
 
-type Database struct {
-	Port         string `env:"DB_PORT"`
-	Host         string `env:"DB_HOST"`
-	Name         string `env:"DB_NAME"`
-	User         string `env:"DB_USER"`
-	Password     string `env:"DB_PASSWORD"`
-	DatabaseKind string `env:"DB_KIND"`
-	SslMode      string `env:"DB_SSL_MODE"`
+// databaseCfg contains environment-backed PostgreSQL settings.
+type databaseCfg struct {
+	Port                     string        `env:"DB_PORT" envDefault:"5432"`
+	Host                     string        `env:"DB_HOST" envDefault:"127.0.0.1"`
+	Name                     string        `env:"DB_NAME" envDefault:"andurel"`
+	User                     string        `env:"DB_USER" envDefault:"postgres"`
+	Password                 string        `env:"DB_PASSWORD" envDefault:"postgres"`
+	DatabaseKind             string        `env:"DB_KIND" envDefault:"postgres"`
+	SSLMode                  string        `env:"DB_SSL_MODE" envDefault:"disable"`
+	ApplicationName          string        `env:"DB_APPLICATION_NAME" envDefault:"andurel"`
+	ConnectTimeout           time.Duration `env:"DB_CONNECT_TIMEOUT" envDefault:"5s"`
+	StatementCacheCapacity   int           `env:"DB_STATEMENT_CACHE_CAPACITY" envDefault:"512"`
+	DescriptionCacheCapacity int           `env:"DB_DESCRIPTION_CACHE_CAPACITY" envDefault:"512"`
+	MaxOpenConnections       int           `env:"DB_MAX_OPEN_CONNECTIONS" envDefault:"25"`
+	MaxIdleConnections       int           `env:"DB_MAX_IDLE_CONNECTIONS" envDefault:"25"`
+	ConnectionMaxLifetime    time.Duration `env:"DB_CONNECTION_MAX_LIFETIME" envDefault:"1h"`
+	ConnectionMaxIdleTime    time.Duration `env:"DB_CONNECTION_MAX_IDLE_TIME" envDefault:"30m"`
+	OpenTelemetry            bool          `env:"DB_OPEN_TELEMETRY" envDefault:"true"`
 }
 
-func (d Database) GetDatabaseURL() string {
-	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
-		d.DatabaseKind, d.User, d.Password, d.Host, d.Port,
-		d.Name, d.SslMode,
-	)
-}
-
-func newDatabaseConfig() Database {
-	dataCfg := Database{}
-
-	if err := env.ParseWithOptions(&dataCfg, env.Options{
-		RequiredIfNoDef: true,
-	}); err != nil {
+func newDatabaseConfig() databaseCfg {
+	cfg := databaseCfg{}
+	if err := env.ParseWithOptions(&cfg, env.Options{RequiredIfNoDef: true}); err != nil {
 		panic(err)
 	}
-
-	return dataCfg
+	return cfg
 }
+
+func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg Config) (*storage.Postgres, error) {
+	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
+		DatabaseKind:             cfg.DB.DatabaseKind,
+		Host:                     cfg.DB.Host,
+		Port:                     cfg.DB.Port,
+		Name:                     cfg.DB.Name,
+		User:                     cfg.DB.User,
+		Password:                 cfg.DB.Password,
+		SSLMode:                  cfg.DB.SSLMode,
+		ApplicationName:          cfg.DB.ApplicationName,
+		ConnectTimeout:           cfg.DB.ConnectTimeout,
+		StatementCacheCapacity:   cfg.DB.StatementCacheCapacity,
+		DescriptionCacheCapacity: cfg.DB.DescriptionCacheCapacity,
+		MaxOpenConnections:       cfg.DB.MaxOpenConnections,
+		MaxIdleConnections:       cfg.DB.MaxIdleConnections,
+		ConnectionMaxLifetime:    cfg.DB.ConnectionMaxLifetime,
+		ConnectionMaxIdleTime:    cfg.DB.ConnectionMaxIdleTime,
+		OpenTelemetry:            cfg.DB.OpenTelemetry,
+	}))
+	if err != nil {
+		return nil, err
+	}
+
+	lifecycle.Append(fx.Hook{OnStop: func(context.Context) error { return db.Close() }})
+	return db, nil
+}
+
+// DatabaseModule provides the application database pool and manages its lifecycle.
+var DatabaseModule = fx.Module(
+	"database",
+	fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Pool)))),
+)
 ```
 
 file -----------rw-r--r-- config/email.go
@@ -3750,84 +3788,20 @@ img {
 
 dir  d----------rwxr-xr-x database
 
-file -----------rw-r--r-- database/database.go
+dir  d----------rwxr-xr-x database/migrations
+
+file -----------rw-r--r-- database/migrations.go
 ```
-// Package database provides database-specific resources like migrations.
+// Package database provides embedded application database migrations.
 package database
 
-import (
-	"context"
-	"database/sql"
-	"embed"
-	"fmt"
-	"log/slog"
+import "embed"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
-	"testapp/config"
-
-	"github.com/exaring/otelpgx"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/pgdialect"
-
-	"go.uber.org/fx"
-)
-
+// Migrations contains the application's SQL migrations.
+//
 //go:embed migrations/*
 var Migrations embed.FS
-
-type Postgres struct {
-	conn *bun.DB
-}
-
-var _ storage.Pool = (*Postgres)(nil)
-
-func NewPostgres(ctx context.Context, cfg config.Config) (*Postgres, error) {
-	pgxCfg, err := pgx.ParseConfig(cfg.DB.GetDatabaseURL())
-	if err != nil {
-		slog.ErrorContext(ctx, "could not parse database connection string", "error", err)
-		return nil, fmt.Errorf("database: parse database URL: %w", err)
-	}
-
-	pgxCfg.Tracer = otelpgx.NewTracer()
-
-	sqldb := stdlib.OpenDB(*pgxCfg)
-	db := bun.NewDB(sqldb, pgdialect.New())
-
-	if err := db.PingContext(ctx); err != nil {
-		slog.ErrorContext(ctx, "could not ping database", "error", err)
-		db.Close()
-		return nil, fmt.Errorf("database: ping database: %w", err)
-	}
-
-	return &Postgres{conn: db}, nil
-}
-
-func (p *Postgres) Executor() *bun.DB {
-	return p.conn
-}
-
-func (p *Postgres) Conn() *sql.DB {
-	return p.conn.DB
-}
-
-func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {
-	tx, err := p.conn.BeginTx(ctx, opts)
-	if err != nil {
-		return bun.Tx{}, fmt.Errorf("database: begin transaction: %w", err)
-	}
-	return tx, nil
-}
-
-func (p *Postgres) Close() error {
-	return p.conn.Close()
-}
-
-var Module = fx.Module("database", fx.Provide(fx.Annotate(NewPostgres, fx.As(new(storage.Pool)))))
 ```
-
-dir  d----------rwxr-xr-x database/migrations
 
 file -----------rw-r--r-- database/migrations/.gitkeep
 ```
@@ -5295,13 +5269,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.63.0
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/caarlos0/env/v11 v11.4.1
-	github.com/exaring/otelpgx v0.11.1
 	github.com/go-faker/faker/v4 v4.9.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/sessions v1.4.0
 	github.com/gosimple/slug v1.15.0
-	github.com/jackc/pgx/v5 v5.10.0
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo-contrib/v5 v5.0.1
 	github.com/labstack/echo/v5 v5.3.0
@@ -5318,7 +5290,6 @@ require (
 	github.com/riverqueue/river/rivertype v0.40.0
 	github.com/rs/xid v1.6.0
 	github.com/uptrace/bun v1.2.18
-	github.com/uptrace/bun/dialect/pgdialect v1.2.18
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.44.0
@@ -5370,6 +5341,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.10.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/klauspost/compress v1.18.5 // indirect
@@ -5408,6 +5380,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
+	github.com/uptrace/bun/dialect/pgdialect v1.2.18 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
@@ -5508,8 +5481,6 @@ github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkp
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/ebitengine/purego v0.10.0 h1:QIw4xfpWT6GWTzaW5XEKy3HXoqrJGx1ijYHzTF0/ISU=
 github.com/ebitengine/purego v0.10.0/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
-github.com/exaring/otelpgx v0.11.1 h1:pE79fIg/qh/Lpu00kvswFC5dKfqyJJhMJ4Y4N3w5Lj4=
-github.com/exaring/otelpgx v0.11.1/go.mod h1:3OojrUKhhy3lTbYIMBijP3YjMey/jo14eHAW5cXcUdk=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/go-faker/faker/v4 v4.9.0 h1:a4HXLwueuTCtgF93VpUsl8Zd2nG1VH2SgNWDPVEBg5U=
