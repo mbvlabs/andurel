@@ -29,23 +29,22 @@ var (
 	ErrCommitTx   = errors.New("could not commit transaction")
 )
 
-// Executor is the query interface satisfied by *bun.DB, *bun.Tx, *bun.Conn.
+// Executor is the query interface satisfied by *bun.DB, *bun.Tx, and *bun.Conn.
+// It remains available for application-owned model and factory APIs.
 type Executor = bun.IDB
 
-// Pool is the application-wide database handle.
-type Pool interface {
-	Executor() *bun.DB
-	Conn() *sql.DB
-	BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error)
-	Close() error
+// Connection exposes the Bun executor and its underlying database/sql pool.
+type Connection interface {
+	Executor() bun.IDB
+	DB() *sql.DB
 }
 
 // Postgres wraps a bun.DB.
 type Postgres struct {
-	conn *bun.DB
+	bun *bun.DB
 }
 
-var _ Pool = (*Postgres)(nil)
+var _ Connection = (*Postgres)(nil)
 
 // NewPostgres creates a new database connection using sane defaults and any
 // supplied functional options.
@@ -138,27 +137,27 @@ func NewPostgres(ctx context.Context, options ...Option) (*Postgres, error) {
 		return nil, fmt.Errorf("storage: ping database: %w", err)
 	}
 
-	return &Postgres{conn: db}, nil
+	return &Postgres{bun: db}, nil
 }
 
 // Executor returns the Bun query executor.
-func (p *Postgres) Executor() *bun.DB {
-	return p.conn
+func (p *Postgres) Executor() bun.IDB {
+	return p.bun
 }
 
-// Conn returns the underlying sql.DB.
-func (p *Postgres) Conn() *sql.DB {
-	return p.conn.DB
+// DB returns the underlying sql.DB.
+func (p *Postgres) DB() *sql.DB {
+	return p.bun.DB
 }
 
 // Close closes the database connection.
 func (p *Postgres) Close() error {
-	return p.conn.Close()
+	return p.bun.Close()
 }
 
 // BeginTx starts a new transaction. Caller is responsible for Commit or Rollback.
 func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {
-	tx, err := p.conn.BeginTx(ctx, opts)
+	tx, err := p.bun.BeginTx(ctx, opts)
 	if err != nil {
 		return bun.Tx{}, fmt.Errorf("storage: begin transaction: %w", err)
 	}
@@ -229,7 +228,7 @@ func (tc *TestCluster) Close(ctx context.Context) error {
 }
 
 // NewTestDB creates a migrated, isolated database for one test.
-func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir string) Pool {
+func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir string) Connection {
 	t.Helper()
 
 	if migrations == nil {
@@ -250,7 +249,7 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
 		_ = admin.Close()
 	})
 
-	if _, err := admin.Conn().ExecContext(ctx, fmt.Sprintf(`CREATE DATABASE %q`, name)); err != nil {
+	if _, err := admin.DB().ExecContext(ctx, fmt.Sprintf(`CREATE DATABASE %q`, name)); err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 
@@ -259,7 +258,7 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
 		if dropped {
 			return
 		}
-		_, _ = admin.Conn().ExecContext(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
+		_, _ = admin.DB().ExecContext(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
 	})
 
 	db, err := NewPostgres(ctx, WithDatabaseURL(tc.databaseURL(name)))
@@ -269,11 +268,11 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
 
 	t.Cleanup(func() {
 		_ = db.Close()
-		_, _ = admin.Conn().ExecContext(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
+		_, _ = admin.DB().ExecContext(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
 		dropped = true
 	})
 
-	if err := RunMigrations(ctx, db.Conn(), migrations, migrationDir); err != nil {
+	if err := RunMigrations(ctx, db.DB(), migrations, migrationDir); err != nil {
 		t.Fatalf("failed to run migrations: %v", err)
 	}
 
