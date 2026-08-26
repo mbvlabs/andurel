@@ -103,6 +103,12 @@ Standalone packages should accept configuration values rather than reading appli
 
 Configuration should be loaded once during startup, validated before dependent components start, and supplied through Fx. Package-level mutable configuration globals should not be used.
 
+Email infrastructure should be made configurable through the same application-owned pattern used by storage, Inertia, and queue. The email package should expose typed configuration and functional options, while generated application configuration owns environment loading, provider selection, defaults, and Fx wiring. Email implementations should not read environment variables directly.
+
+### Future configuration composition
+
+As a separate future piece of work, consider removing the aggregate `config.Config` type and having Fx constructors receive only the subsystem configuration structs they need. This is explicitly out of scope for the current storage and queue work, which should not broaden into an application-wide configuration injection refactor.
+
 ## Storage and Bun
 
 Bun should remain the default persistence layer in V2. It fits Andurel's application-owned model design, keeps ordinary CRUD concise, and remains explicit when queries become SQL-oriented.
@@ -121,10 +127,22 @@ The standalone storage module should own shared database infrastructure, includi
 - health checks;
 - tracing and logging integration;
 - migration execution primitives;
-- database error normalization;
 - test database support through a dedicated `storagetest` subpackage.
 
 PostgreSQL remains the initial supported database for V2.
+
+The public database boundary should be a small `storage.Connection` interface:
+
+```go
+type Connection interface {
+    Executor() bun.IDB
+    DB() *sql.DB
+}
+```
+
+Constructors should return concrete storage types, while application components accept `storage.Connection`. The PostgreSQL implementation should retain its Bun handle internally, use `pgx/v5/stdlib` to create the underlying `*sql.DB`, and expose that same pool through `DB()`. This lets Bun and infrastructure such as River share one pool without making generated applications responsible for connection setup.
+
+Queue infrastructure should use the same connection boundary. The storage package owns the River client adapters and their functional options. Generated configuration has one `queueCfg`, which is translated into those options. Fx exposes separate `QueueInsertModule` and `QueueProcessorModule` values so the web process can enqueue jobs without starting workers, while `cmd/queue/main.go` runs the processor and owns its lifecycle.
 
 ### Schema and migrations
 
@@ -160,7 +178,7 @@ The model implementation remains in its model file:
 ```go
 // models/user.go
 type Users struct {
-    db *storage.DB
+    db storage.Connection
 }
 
 type User struct {
@@ -169,17 +187,17 @@ type User struct {
     Email         string    `bun:"email"`
 }
 
-func NewUsers(db *storage.DB) Users {
+func NewUsers(db storage.Connection) Users {
     return Users{db: db}
 }
 
 func (users Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
     var user User
-    err := users.db.Bun().NewSelect().
+    err := users.db.Executor().NewSelect().
         Model(&user).
         Where("user.id = ?", id).
         Scan(ctx)
-    return user, storage.NormalizeError(err)
+    return user, err
 }
 
 func (user *User) Validate() error {
