@@ -44,7 +44,7 @@ func (i Identity) RegisterUser(
 		return b.Errors()
 	}
 
-	tx, err := i.db.BeginTx(ctx, nil)
+	tx, err := i.db.Executor().BeginTx(ctx, nil)
 
 	if err != nil {
 
@@ -158,7 +158,7 @@ func (i Identity) VerifyEmail(
 		return models.UserEntity{}, b.Errors()
 	}
 
-	tx, err := i.db.BeginTx(ctx, nil)
+	tx, err := i.db.Executor().BeginTx(ctx, nil)
 
 	if err != nil {
 
