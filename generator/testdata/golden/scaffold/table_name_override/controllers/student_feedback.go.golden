@@ -21,10 +21,10 @@ import (
 )
 
 type FeedbackEntry struct {
-	db storage.Pool
+	db storage.Connection
 }
 
-func NewFeedbackEntry(db storage.Pool) FeedbackEntry {
+func NewFeedbackEntry(db storage.Connection) FeedbackEntry {
 	return FeedbackEntry{db}
 }
 

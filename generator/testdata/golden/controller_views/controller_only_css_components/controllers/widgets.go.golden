@@ -19,10 +19,10 @@ import (
 )
 
 type Widgets struct {
-	db storage.Pool
+	db storage.Connection
 }
 
-func NewWidgets(db storage.Pool) Widgets {
+func NewWidgets(db storage.Connection) Widgets {
 	return Widgets{db}
 }
 

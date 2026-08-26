@@ -19,11 +19,11 @@ import (
 )
 
 type Projects struct {
-	db       storage.Pool
+	db       storage.Connection
 	renderer *inertia.Renderer
 }
 
-func NewProjects(db storage.Pool, renderer *inertia.Renderer) Projects {
+func NewProjects(db storage.Connection, renderer *inertia.Renderer) Projects {
 	return Projects{db: db, renderer: renderer}
 }
 

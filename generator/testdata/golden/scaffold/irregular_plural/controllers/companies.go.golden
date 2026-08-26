@@ -20,10 +20,10 @@ import (
 )
 
 type Companies struct {
-	db storage.Pool
+	db storage.Connection
 }
 
-func NewCompanies(db storage.Pool) Companies {
+func NewCompanies(db storage.Connection) Companies {
 	return Companies{db}
 }
 

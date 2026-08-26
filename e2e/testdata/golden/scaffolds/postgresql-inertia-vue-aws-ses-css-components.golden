@@ -12,6 +12,27 @@ DB_USER=postgres
 DB_PASSWORD=postgres
 DB_SSL_MODE=disable
 
+QUEUE_ADVISORY_LOCK_PREFIX=0
+QUEUE_CANCELLED_JOB_RETENTION_PERIOD=24h
+QUEUE_COMPLETED_JOB_RETENTION_PERIOD=24h
+QUEUE_DISCARDED_JOB_RETENTION_PERIOD=168h
+QUEUE_FETCH_COOLDOWN=100ms
+QUEUE_POLL_INTERVAL=1s
+QUEUE_ID=
+QUEUE_JOB_CLEANER_TIMEOUT=30s
+QUEUE_JOB_STUCK_THRESHOLD=10s
+QUEUE_JOB_TIMEOUT=1m
+QUEUE_MAX_ATTEMPTS=25
+QUEUE_MAX_WORKERS=100
+QUEUE_POLL_ONLY=false
+QUEUE_REINDEXER_INDEX_NAMES=river_job_args_index,river_job_kind,river_job_metadata_index,river_job_pkey,river_job_prioritized_fetching_index,river_job_state_and_finalized_at_index,river_job_unique_idx
+QUEUE_REINDEXER_TIMEOUT=1m
+QUEUE_RESCUE_STUCK_JOBS_AFTER=1h
+QUEUE_SCHEMA=
+QUEUE_SOFT_STOP_TIMEOUT=0s
+QUEUE_SKIP_JOB_KIND_VALIDATION=false
+QUEUE_SKIP_UNKNOWN_JOB_CHECK=false
+
 PROJECT_NAME=testapp
 DOMAIN=localhost:8080
 PROTOCOL=http
@@ -74,7 +95,9 @@ testapp/
 │   ├── migration        # Migration runner
 │   └── shadowfax        # Development server
 ├── cmd/                 # Command entry points
-│   └── app/             # Main web application
+│   ├── app/             # Main web application
+│   ├── queue/           # Background queue processor
+│   └── seeds/           # Database seeding
 ├── clients/             # External service clients
 ├── config/              # Application configuration
 ├── controllers/         # HTTP request handlers
@@ -1863,7 +1886,6 @@ import (
 	"testapp/config"
 	"testapp/controllers"
 	"testapp/email"
-	"testapp/queue"
 	"testapp/router"
 	"testapp/services"
 	"testapp/telemetry"
@@ -1893,14 +1915,12 @@ func main() {
 		config.Module,
 		config.InertiaModule,
 		config.DatabaseModule,
+		config.QueueInsertModule,
 		telemetry.Module,
-		queue.Module,
-		queue.WorkersModule,
 		services.Module,
 		controllers.Module,
 		router.Module,
 
-		fx.Invoke(startQueueProcessor),
 		fx.Invoke(startServer),
 	)
 
@@ -1918,19 +1938,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
-}
-
-func startQueueProcessor(lc fx.Lifecycle, appCtx context.Context, p queue.Processor) {
-	var done <-chan struct{}
-	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			done = startInBackground(appCtx, "queue processor", p.Start)
-			return nil
-		},
-		OnStop: func(ctx context.Context) error {
-			return stopAndWait(ctx, p.Stop, done)
-		},
-	})
 }
 
 func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg config.Config) {
@@ -2049,6 +2056,76 @@ func TestBackgroundLifecycleStopsOnceAndWaitsForExit(t *testing.T) {
 	case <-done:
 	default:
 		t.Fatal("background worker still running after shutdown")
+	}
+}
+```
+
+dir  d----------rwxr-xr-x cmd/queue
+
+file -----------rw-r--r-- cmd/queue/main.go
+```
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/mbvlabs/andurel/pkg/server"
+	"testapp/application"
+	mailclients "testapp/clients/email"
+	"testapp/config"
+	"testapp/email"
+	"testapp/queue"
+	"testapp/telemetry"
+
+	"go.uber.org/fx"
+)
+
+var appVersion string
+
+func main() {
+	metadata := application.NewMetadata(appVersion)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	app := fx.New(
+		fx.Supply(metadata),
+		fx.Provide(
+			func() context.Context { return ctx },
+			func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
+				if application.Environment == server.ProdEnvironment {
+					log.Fatal("provide real email sender")
+				}
+
+				return mailclients.NewMailpit(cfg), mailclients.NewMailpit(cfg)
+			},
+		),
+
+		config.Module,
+		config.DatabaseModule,
+		telemetry.Module,
+		queue.Module,
+		config.QueueProcessorModule,
+	)
+
+	if err := app.Start(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+
+	<-ctx.Done()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := app.Stop(shutdownCtx); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
 	}
 }
 ```
@@ -2233,6 +2310,7 @@ import "go.uber.org/fx"
 type Config struct {
 	App       app
 	DB        databaseCfg
+	Queue     queueCfg
 	Telemetry telemetry
 	Inertia   inertiaCfg
 	Email     email
@@ -2244,6 +2322,7 @@ func NewConfig() Config {
 	return Config{
 		App:       newAppConfig(),
 		DB:        newDatabaseConfig(),
+		Queue:     newQueueConfig(),
 		Telemetry: newTelemetryConfig(),
 		Inertia:   newInertiaConfig(),
 		Email:     newEmailConfig(),
@@ -2326,7 +2405,7 @@ func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg Config) (*stor
 // DatabaseModule provides the application database pool and manages its lifecycle.
 var DatabaseModule = fx.Module(
 	"database",
-	fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Pool)))),
+	fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Connection)))),
 )
 ```
 
@@ -2435,6 +2514,138 @@ var InertiaModule = fx.Module(
 )
 ```
 
+file -----------rw-r--r-- config/queue.go
+```
+package config
+
+import (
+	"context"
+	"log/slog"
+	"time"
+
+	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/riverqueue/river"
+	"go.uber.org/fx"
+)
+
+// queueCfg contains all environment-backed River settings used by the application.
+type queueCfg struct {
+	AdvisoryLockPrefix          int32         `env:"QUEUE_ADVISORY_LOCK_PREFIX" envDefault:"0"`
+	CancelledJobRetentionPeriod time.Duration `env:"QUEUE_CANCELLED_JOB_RETENTION_PERIOD" envDefault:"24h"`
+	CompletedJobRetentionPeriod time.Duration `env:"QUEUE_COMPLETED_JOB_RETENTION_PERIOD" envDefault:"24h"`
+	DiscardedJobRetentionPeriod time.Duration `env:"QUEUE_DISCARDED_JOB_RETENTION_PERIOD" envDefault:"168h"`
+	FetchCooldown               time.Duration `env:"QUEUE_FETCH_COOLDOWN" envDefault:"100ms"`
+	PollInterval                time.Duration `env:"QUEUE_POLL_INTERVAL" envDefault:"1s"`
+	ID                          string        `env:"QUEUE_ID" envDefault:""`
+	JobCleanerTimeout           time.Duration `env:"QUEUE_JOB_CLEANER_TIMEOUT" envDefault:"30s"`
+	JobStuckThreshold           time.Duration `env:"QUEUE_JOB_STUCK_THRESHOLD" envDefault:"10s"`
+	JobTimeout                  time.Duration `env:"QUEUE_JOB_TIMEOUT" envDefault:"1m"`
+	MaxAttempts                 int           `env:"QUEUE_MAX_ATTEMPTS" envDefault:"25"`
+	MaxWorkers                  int           `env:"QUEUE_MAX_WORKERS" envDefault:"100"`
+	PollOnly                    bool          `env:"QUEUE_POLL_ONLY" envDefault:"false"`
+	ReindexerIndexNames         []string      `env:"QUEUE_REINDEXER_INDEX_NAMES" envSeparator:"," envDefault:"river_job_args_index,river_job_kind,river_job_metadata_index,river_job_pkey,river_job_prioritized_fetching_index,river_job_state_and_finalized_at_index,river_job_unique_idx"`
+	ReindexerTimeout            time.Duration `env:"QUEUE_REINDEXER_TIMEOUT" envDefault:"1m"`
+	RescueStuckJobsAfter        time.Duration `env:"QUEUE_RESCUE_STUCK_JOBS_AFTER" envDefault:"1h"`
+	Schema                      string        `env:"QUEUE_SCHEMA" envDefault:""`
+	SoftStopTimeout             time.Duration `env:"QUEUE_SOFT_STOP_TIMEOUT" envDefault:"0s"`
+	SkipJobKindValidation       bool          `env:"QUEUE_SKIP_JOB_KIND_VALIDATION" envDefault:"false"`
+	SkipUnknownJobCheck         bool          `env:"QUEUE_SKIP_UNKNOWN_JOB_CHECK" envDefault:"false"`
+}
+
+func newQueueConfig() queueCfg {
+	cfg := queueCfg{}
+	if err := env.ParseWithOptions(&cfg, env.Options{RequiredIfNoDef: true}); err != nil {
+		panic(err)
+	}
+	return cfg
+}
+
+func (cfg queueCfg) riverConfig() river.Config {
+	return river.Config{
+		AdvisoryLockPrefix:          cfg.AdvisoryLockPrefix,
+		CancelledJobRetentionPeriod: cfg.CancelledJobRetentionPeriod,
+		CompletedJobRetentionPeriod: cfg.CompletedJobRetentionPeriod,
+		DiscardedJobRetentionPeriod: cfg.DiscardedJobRetentionPeriod,
+		FetchCooldown:               cfg.FetchCooldown,
+		FetchPollInterval:           cfg.PollInterval,
+		ID:                          cfg.ID,
+		JobCleanerTimeout:           cfg.JobCleanerTimeout,
+		JobStuckThreshold:           cfg.JobStuckThreshold,
+		JobTimeout:                  cfg.JobTimeout,
+		MaxAttempts:                 cfg.MaxAttempts,
+		PollOnly:                    cfg.PollOnly,
+		ReindexerIndexNames:         cfg.ReindexerIndexNames,
+		ReindexerTimeout:            cfg.ReindexerTimeout,
+		RescueStuckJobsAfter:        cfg.RescueStuckJobsAfter,
+		Schema:                      cfg.Schema,
+		SoftStopTimeout:             cfg.SoftStopTimeout,
+		SkipJobKindValidation:       cfg.SkipJobKindValidation,
+		SkipUnknownJobCheck:         cfg.SkipUnknownJobCheck,
+	}
+}
+
+func newQueueInsert(connection storage.Connection, cfg Config) (*storage.QueueInsert, error) {
+	return storage.NewQueueInsert(connection, storage.WithRiverConfig(cfg.Queue.riverConfig()))
+}
+
+type queueProcessorParams struct {
+	fx.In
+
+	Connection   storage.Connection
+	Config       Config
+	Logger       *slog.Logger
+	Workers      *river.Workers
+	PeriodicJobs []*river.PeriodicJob `group:"periodic_jobs"`
+}
+
+func newQueueProcessor(params queueProcessorParams) (*storage.QueueProcessor, error) {
+	riverConfig := params.Config.Queue.riverConfig()
+	riverConfig.Queues = map[string]river.QueueConfig{
+		river.QueueDefault: {MaxWorkers: params.Config.Queue.MaxWorkers},
+	}
+
+	return storage.NewQueueProcessor(
+		params.Connection,
+		storage.WithRiverConfig(riverConfig),
+		storage.WithRiverWorkers(params.Workers),
+		storage.WithRiverPeriodicJobs(params.PeriodicJobs...),
+		storage.WithRiverLogger(params.Logger),
+	)
+}
+
+func queueProcessorLifecycle(
+	lifecycle fx.Lifecycle,
+	appCtx context.Context,
+	processor *storage.QueueProcessor,
+) {
+	lifecycle.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return processor.Start(appCtx)
+		},
+		OnStop: func(ctx context.Context) error {
+			return processor.Stop(ctx)
+		},
+	})
+}
+
+// QueueInsertModule provides an insert-only queue client and never starts workers.
+var QueueInsertModule = fx.Module(
+	"queue-insert",
+	fx.Provide(fx.Annotate(newQueueInsert, fx.As(new(storage.InsertQueue)))),
+)
+
+// QueueProcessorModule provides the worker client and owns its Fx lifecycle.
+var QueueProcessorModule = fx.Module(
+	"queue-processor",
+	fx.Provide(
+		slog.Default,
+		newQueueProcessor,
+	),
+	fx.Invoke(queueProcessorLifecycle),
+)
+```
+
 file -----------rw-r--r-- config/telemetry.go
 ```
 package config
@@ -2486,10 +2697,10 @@ import (
 )
 
 type API struct {
-	db storage.Pool
+	db storage.Connection
 }
 
-func NewAPI(db storage.Pool) API {
+func NewAPI(db storage.Connection) API {
 	return API{db}
 }
 
@@ -3082,7 +3293,6 @@ import (
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/storage"
-	"testapp/queue"
 	"testapp/router"
 	"testapp/router/routes"
 	"testapp/views"
@@ -3091,14 +3301,14 @@ import (
 )
 
 type Pages struct {
-	db         storage.Pool
-	insertOnly queue.InsertOnly
+	db         storage.Connection
+	insertOnly storage.InsertQueue
 	renderer   *inertia.Renderer
 }
 
 func NewPages(
-	db storage.Pool,
-	insertOnly queue.InsertOnly,
+	db storage.Connection,
+	insertOnly storage.InsertQueue,
 	renderer *inertia.Renderer,
 ) Pages {
 	return Pages{db: db, insertOnly: insertOnly, renderer: renderer}
@@ -6676,11 +6886,9 @@ require (
 	github.com/mbvlabs/andurel/pkg/inertia v0.1.0
 	github.com/mbvlabs/andurel/pkg/routing v0.1.0
 	github.com/mbvlabs/andurel/pkg/server v0.1.0
-	github.com/mbvlabs/andurel/pkg/storage v0.1.0
+	github.com/mbvlabs/andurel/pkg/storage v0.3.0
 	github.com/mbvlabs/andurel/pkg/validation v0.1.0
 	github.com/riverqueue/river v0.40.0
-	github.com/riverqueue/river/riverdriver/riverdatabasesql v0.40.0
-	github.com/riverqueue/river/rivertype v0.40.0
 	github.com/rs/xid v1.6.0
 	github.com/uptrace/bun v1.2.18
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
@@ -6726,6 +6934,7 @@ require (
 	github.com/docker/go-connections v0.7.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
+	github.com/exaring/otelpgx v0.11.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -6759,7 +6968,9 @@ require (
 	github.com/pressly/goose/v3 v3.27.2 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/riverqueue/river/riverdriver v0.40.0 // indirect
+	github.com/riverqueue/river/riverdriver/riverdatabasesql v0.40.0 // indirect
 	github.com/riverqueue/river/rivershared v0.40.0 // indirect
+	github.com/riverqueue/river/rivertype v0.40.0 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.5 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
@@ -6874,6 +7085,8 @@ github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkp
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/ebitengine/purego v0.10.0 h1:QIw4xfpWT6GWTzaW5XEKy3HXoqrJGx1ijYHzTF0/ISU=
 github.com/ebitengine/purego v0.10.0/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
+github.com/exaring/otelpgx v0.11.1 h1:pE79fIg/qh/Lpu00kvswFC5dKfqyJJhMJ4Y4N3w5Lj4=
+github.com/exaring/otelpgx v0.11.1/go.mod h1:3OojrUKhhy3lTbYIMBijP3YjMey/jo14eHAW5cXcUdk=
 github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
 github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
 github.com/go-faker/faker/v4 v4.9.0 h1:a4HXLwueuTCtgF93VpUsl8Zd2nG1VH2SgNWDPVEBg5U=
@@ -6950,8 +7163,8 @@ github.com/mbvlabs/andurel/pkg/routing v0.1.0 h1:G7d3e8/7PL/dgRO/XIiqskK86vz7IoE
 github.com/mbvlabs/andurel/pkg/routing v0.1.0/go.mod h1:fXUraUJ88cKpKeLY2EOg/OHVA2Wacbb7bEH9sVZr8wc=
 github.com/mbvlabs/andurel/pkg/server v0.1.0 h1:pktLJXC8OxSUC8j27CyJ9wFOjNnHymeukHTCVgaiz/s=
 github.com/mbvlabs/andurel/pkg/server v0.1.0/go.mod h1:E0c81l0cR2ki98bjxLJf93GL8scIO1YItuLc+OgZS6c=
-github.com/mbvlabs/andurel/pkg/storage v0.1.0 h1:DWv+Qhvkc0tH7D+PmvBLTmwBkqaKx4PO40Oo/Shn1A4=
-github.com/mbvlabs/andurel/pkg/storage v0.1.0/go.mod h1:kKcloAAtilqEd9CudM1rKtV7X7W0PmHD8A5hfYGp6/M=
+github.com/mbvlabs/andurel/pkg/storage v0.3.0 h1:sUmffeeMI0P1wwLLbJSGVOcbKf/HuuHQ5wU7BsDdXcA=
+github.com/mbvlabs/andurel/pkg/storage v0.3.0/go.mod h1:lUpApuip6YE6YaulZ2WUDekCpFz1RcbpyfDNTdjOSRg=
 github.com/mbvlabs/andurel/pkg/validation v0.1.0 h1:tHGReF01VFBxc4RTwpNA0Vj4RxvWQ6tI6mqXJh84Lak=
 github.com/mbvlabs/andurel/pkg/validation v0.1.0/go.mod h1:1g3f0xGqAK0O8LBWHPX5BRfvf9B4OoU3RqRByKBAlbU=
 github.com/mdelapenya/tlscert v0.2.0 h1:7H81W6Z/4weDvZBNOfQte5GpIMo0lGYEeWbkGp5LJHI=
@@ -8150,141 +8363,19 @@ func (SendTransactionalEmailArgs) Kind() string { return "send_transactional_ema
 
 file -----------rw-r--r-- queue/queue.go
 ```
-// Package queue provides queue-specific resources.
+// Package queue registers application-specific queue workers and periodic jobs.
 package queue
 
-import (
-	"context"
-	"database/sql"
-	"log/slog"
+import "go.uber.org/fx"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
+// PeriodicJobsModule contains application-owned periodic job registrations.
+var PeriodicJobsModule = fx.Module("queue-periodic-jobs")
 
-	"github.com/riverqueue/river"
-	"github.com/riverqueue/river/riverdriver/riverdatabasesql"
-	"github.com/riverqueue/river/rivertype"
-
-	"go.uber.org/fx"
-)
-
-type Processor struct {
-	Client *river.Client[*sql.Tx]
-}
-
-const periodicJobsGroup = `group:"periodic_jobs"`
-
-type ProcessorParams struct {
-	fx.In
-
-	DB           storage.Pool
-	Workers      *river.Workers
-	PeriodicJobs []*river.PeriodicJob `group:"periodic_jobs"`
-}
-
-func (p Processor) Shutdown(ctx context.Context) error {
-	return p.Client.Stop(ctx)
-}
-
-func (p Processor) Start(ctx context.Context) error {
-	return p.Client.Start(ctx)
-}
-
-func (p Processor) Stop(ctx context.Context) error {
-	return p.Client.Stop(ctx)
-}
-
-func NewProcessor(params ProcessorParams) (Processor, error) {
-	riverClient, err := river.NewClient(riverdatabasesql.New(params.DB.Conn()), &river.Config{
-		PeriodicJobs: params.PeriodicJobs,
-		Queues: map[string]river.QueueConfig{
-			river.QueueDefault: {MaxWorkers: 100},
-		},
-		Logger:  slog.Default(),
-		Workers: params.Workers,
-	})
-	if err != nil {
-		return Processor{}, err
-	}
-
-	return Processor{riverClient}, nil
-}
-
-type InsertOnly struct {
-	client *river.Client[*sql.Tx]
-}
-
-// Insert implements storage.InsertQueue.
-func (i *InsertOnly) Insert(
-	ctx context.Context,
-	args river.JobArgs,
-	opts *river.InsertOpts,
-) (*rivertype.JobInsertResult, error) {
-	return i.client.Insert(ctx, args, opts)
-}
-
-// InsertMany implements storage.InsertQueue.
-func (i *InsertOnly) InsertMany(
-	ctx context.Context,
-	params []river.InsertManyParams,
-) ([]*rivertype.JobInsertResult, error) {
-	return i.client.InsertMany(ctx, params)
-}
-
-// InsertManyFast implements storage.InsertQueue.
-func (i *InsertOnly) InsertManyFast(
-	ctx context.Context,
-	params []river.InsertManyParams,
-) (int, error) {
-	return i.client.InsertManyFast(ctx, params)
-}
-
-// InsertManyFastTx implements storage.InsertQueue.
-func (i *InsertOnly) InsertManyFastTx(
-	ctx context.Context,
-	tx *sql.Tx,
-	params []river.InsertManyParams,
-) (int, error) {
-	return i.client.InsertManyFastTx(ctx, tx, params)
-}
-
-// InsertManyTx implements storage.InsertQueue.
-func (i *InsertOnly) InsertManyTx(
-	ctx context.Context,
-	tx *sql.Tx,
-	params []river.InsertManyParams,
-) ([]*rivertype.JobInsertResult, error) {
-	return i.client.InsertManyTx(ctx, tx, params)
-}
-
-// InsertTx implements storage.InsertQueue.
-func (i *InsertOnly) InsertTx(
-	ctx context.Context,
-	tx *sql.Tx,
-	args river.JobArgs,
-	opts *river.InsertOpts,
-) (*rivertype.JobInsertResult, error) {
-	return i.client.InsertTx(ctx, tx, args, opts)
-}
-
-var _ storage.InsertQueue = (*InsertOnly)(nil)
-
-func NewInsertOnly(db storage.Pool, workers *river.Workers) (InsertOnly, error) {
-	riverClient, err := river.NewClient(riverdatabasesql.New(db.Conn()), &river.Config{
-		Workers: workers,
-	})
-	if err != nil {
-		return InsertOnly{}, err
-	}
-
-	return InsertOnly{riverClient}, nil
-}
-
+// Module provides everything needed by the standalone queue processor.
 var Module = fx.Module(
 	"queue",
-	fx.Provide(
-		NewInsertOnly,
-		NewProcessor,
-	),
+	WorkersModule,
+	PeriodicJobsModule,
 )
 ```
 
@@ -10525,18 +10616,17 @@ import (
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"testapp/config"
-	"testapp/queue"
 )
 
 type Identity struct {
-	db              storage.Pool
-	insertOnly      queue.InsertOnly
+	db              storage.Connection
+	insertOnly      storage.InsertQueue
 	pepper          string
 	previousPeppers []string
 	tokenSigningKey string
 }
 
-func NewIdentity(db storage.Pool, insertOnly queue.InsertOnly, cfg config.Config) Identity {
+func NewIdentity(db storage.Connection, insertOnly storage.InsertQueue, cfg config.Config) Identity {
 	previousPeppers := make([]string, 0, len(cfg.Auth.PreviousPeppers))
 	for _, pepper := range cfg.Auth.PreviousPeppers {
 		if pepper = strings.TrimSpace(pepper); pepper != "" && pepper != cfg.Auth.Pepper {
@@ -10601,7 +10691,7 @@ func (i Identity) RegisterUser(
 		return b.Errors()
 	}
 
-	tx, err := i.db.BeginTx(ctx, nil)
+	tx, err := i.db.Executor().BeginTx(ctx, nil)
 
 	if err != nil {
 
@@ -10711,7 +10801,7 @@ func (i Identity) VerifyEmail(
 		return models.UserEntity{}, b.Errors()
 	}
 
-	tx, err := i.db.BeginTx(ctx, nil)
+	tx, err := i.db.Executor().BeginTx(ctx, nil)
 
 	if err != nil {
 
@@ -10847,7 +10937,7 @@ func (i Identity) RequestResetPassword(
 		return b.Errors()
 	}
 
-	tx, err := i.db.BeginTx(ctx, nil)
+	tx, err := i.db.Executor().BeginTx(ctx, nil)
 
 	if err != nil {
 
@@ -10956,7 +11046,7 @@ func (i Identity) ResetPassword(
 		return b.Errors()
 	}
 
-	tx, err := i.db.BeginTx(ctx, nil)
+	tx, err := i.db.Executor().BeginTx(ctx, nil)
 
 	if err != nil {
 
