@@ -1,36 +1,71 @@
 package config
 
 import (
-	"fmt"
+	"context"
+	"time"
 
 	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"go.uber.org/fx"
 )
 
-type Database struct {
-	Port         string `env:"DB_PORT"`
-	Host         string `env:"DB_HOST"`
-	Name         string `env:"DB_NAME"`
-	User         string `env:"DB_USER"`
-	Password     string `env:"DB_PASSWORD"`
-	DatabaseKind string `env:"DB_KIND"`
-	SslMode      string `env:"DB_SSL_MODE"`
+// databaseCfg contains environment-backed PostgreSQL settings.
+type databaseCfg struct {
+	Port                     string        `env:"DB_PORT" envDefault:"5432"`
+	Host                     string        `env:"DB_HOST" envDefault:"127.0.0.1"`
+	Name                     string        `env:"DB_NAME" envDefault:"andurel"`
+	User                     string        `env:"DB_USER" envDefault:"postgres"`
+	Password                 string        `env:"DB_PASSWORD" envDefault:"postgres"`
+	DatabaseKind             string        `env:"DB_KIND" envDefault:"postgres"`
+	SSLMode                  string        `env:"DB_SSL_MODE" envDefault:"disable"`
+	ApplicationName          string        `env:"DB_APPLICATION_NAME" envDefault:"andurel"`
+	ConnectTimeout           time.Duration `env:"DB_CONNECT_TIMEOUT" envDefault:"5s"`
+	StatementCacheCapacity   int           `env:"DB_STATEMENT_CACHE_CAPACITY" envDefault:"512"`
+	DescriptionCacheCapacity int           `env:"DB_DESCRIPTION_CACHE_CAPACITY" envDefault:"512"`
+	MaxOpenConnections       int           `env:"DB_MAX_OPEN_CONNECTIONS" envDefault:"25"`
+	MaxIdleConnections       int           `env:"DB_MAX_IDLE_CONNECTIONS" envDefault:"25"`
+	ConnectionMaxLifetime    time.Duration `env:"DB_CONNECTION_MAX_LIFETIME" envDefault:"1h"`
+	ConnectionMaxIdleTime    time.Duration `env:"DB_CONNECTION_MAX_IDLE_TIME" envDefault:"30m"`
+	OpenTelemetry            bool          `env:"DB_OPEN_TELEMETRY" envDefault:"true"`
 }
 
-func (d Database) GetDatabaseURL() string {
-	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
-		d.DatabaseKind, d.User, d.Password, d.Host, d.Port,
-		d.Name, d.SslMode,
-	)
-}
-
-func newDatabaseConfig() Database {
-	dataCfg := Database{}
-
-	if err := env.ParseWithOptions(&dataCfg, env.Options{
-		RequiredIfNoDef: true,
-	}); err != nil {
+func newDatabaseConfig() databaseCfg {
+	cfg := databaseCfg{}
+	if err := env.ParseWithOptions(&cfg, env.Options{RequiredIfNoDef: true}); err != nil {
 		panic(err)
 	}
-
-	return dataCfg
+	return cfg
 }
+
+func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg Config) (*storage.Postgres, error) {
+	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
+		DatabaseKind:             cfg.DB.DatabaseKind,
+		Host:                     cfg.DB.Host,
+		Port:                     cfg.DB.Port,
+		Name:                     cfg.DB.Name,
+		User:                     cfg.DB.User,
+		Password:                 cfg.DB.Password,
+		SSLMode:                  cfg.DB.SSLMode,
+		ApplicationName:          cfg.DB.ApplicationName,
+		ConnectTimeout:           cfg.DB.ConnectTimeout,
+		StatementCacheCapacity:   cfg.DB.StatementCacheCapacity,
+		DescriptionCacheCapacity: cfg.DB.DescriptionCacheCapacity,
+		MaxOpenConnections:       cfg.DB.MaxOpenConnections,
+		MaxIdleConnections:       cfg.DB.MaxIdleConnections,
+		ConnectionMaxLifetime:    cfg.DB.ConnectionMaxLifetime,
+		ConnectionMaxIdleTime:    cfg.DB.ConnectionMaxIdleTime,
+		OpenTelemetry:            cfg.DB.OpenTelemetry,
+	}))
+	if err != nil {
+		return nil, err
+	}
+
+	lifecycle.Append(fx.Hook{OnStop: func(context.Context) error { return db.Close() }})
+	return db, nil
+}
+
+// DatabaseModule provides the application database pool and manages its lifecycle.
+var DatabaseModule = fx.Module(
+	"database",
+	fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Pool)))),
+)

@@ -102,6 +102,18 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("configure standalone Inertia module: %v\n%s", err, output)
 	}
+
+	storageModule, err := filepath.Abs(filepath.Join("..", "pkg", "storage"))
+	if err != nil {
+		t.Fatalf("resolve standalone storage module: %v", err)
+	}
+	cmd = exec.Command("go", "mod", "edit", "-replace=github.com/mbvlabs/andurel/pkg/storage="+storageModule)
+	cmd.Dir = projectDir
+	cmd.Env = append(os.Environ(), "GOWORK=off")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("configure standalone storage module: %v\n%s", err, output)
+	}
+
 	cmd = exec.Command("go", "mod", "tidy")
 	cmd.Dir = projectDir
 	cmd.Env = append(os.Environ(), "GOWORK=off")

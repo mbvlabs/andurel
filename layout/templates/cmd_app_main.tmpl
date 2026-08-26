@@ -15,7 +15,6 @@ import (
 	mailclients "{{.ModuleName}}/clients/email"
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
-	"{{.ModuleName}}/database"
 	"{{.ModuleName}}/email"
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router"
@@ -49,7 +48,7 @@ func main() {
 {{- if .Inertia}}
 		config.InertiaModule,
 {{- end}}
-		database.Module,
+		config.DatabaseModule,
 		telemetry.Module,
 		queue.Module,
 		queue.WorkersModule,

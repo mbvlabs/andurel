@@ -7,10 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -45,14 +47,90 @@ type Postgres struct {
 
 var _ Pool = (*Postgres)(nil)
 
-// NewPostgres creates a new database connection using bun.
-func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error) {
+// NewPostgres creates a new database connection using sane defaults and any
+// supplied functional options.
+func NewPostgres(ctx context.Context, options ...Option) (*Postgres, error) {
+	settings := postgresOptions{
+		config:            DefaultConfig(),
+		runtimeParameters: make(map[string]string),
+	}
+	for _, option := range options {
+		if option == nil {
+			continue
+		}
+		if err := option(&settings); err != nil {
+			return nil, fmt.Errorf("storage: configure postgres: %w", err)
+		}
+	}
+
+	if !settings.telemetrySet && settings.config.OpenTelemetry {
+		settings.telemetry = &TelemetryConfig{}
+	}
+
+	databaseURL := settings.configURL
+	if databaseURL == "" {
+		var err error
+		databaseURL, err = settings.config.DatabaseURL()
+		if err != nil {
+			return nil, fmt.Errorf("storage: configure postgres: %w", err)
+		}
+	}
 	config, err := pgx.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("storage: parse database URL: %w", err)
 	}
+	if settings.telemetry != nil {
+		config.Tracer = otelpgx.NewTracer(telemetryOptions(*settings.telemetry)...)
+	}
+	connectTimeout := settings.config.ConnectTimeout
+	if settings.connectTimeout != nil {
+		connectTimeout = *settings.connectTimeout
+	}
+	config.ConnectTimeout = connectTimeout
+	applicationName := settings.config.ApplicationName
+	if settings.applicationName != nil {
+		applicationName = *settings.applicationName
+	}
+	if applicationName != "" {
+		config.RuntimeParams["application_name"] = applicationName
+	}
+	config.StatementCacheCapacity = settings.config.StatementCacheCapacity
+	if settings.statementCacheCapacity != nil {
+		config.StatementCacheCapacity = *settings.statementCacheCapacity
+	}
+	config.DescriptionCacheCapacity = settings.config.DescriptionCacheCapacity
+	if settings.descriptionCacheCapacity != nil {
+		config.DescriptionCacheCapacity = *settings.descriptionCacheCapacity
+	}
+	maps.Copy(config.RuntimeParams, settings.runtimeParameters)
+	if settings.tlsConfig != nil {
+		config.TLSConfig = settings.tlsConfig.Clone()
+		for i := range config.Fallbacks {
+			config.Fallbacks[i].TLSConfig = settings.tlsConfig.Clone()
+		}
+	}
 
 	sqldb := stdlib.OpenDB(*config)
+	maxOpenConnections := settings.config.MaxOpenConnections
+	if settings.maxOpenConnections != nil {
+		maxOpenConnections = *settings.maxOpenConnections
+	}
+	sqldb.SetMaxOpenConns(maxOpenConnections)
+	maxIdleConnections := settings.config.MaxIdleConnections
+	if settings.maxIdleConnections != nil {
+		maxIdleConnections = *settings.maxIdleConnections
+	}
+	sqldb.SetMaxIdleConns(maxIdleConnections)
+	connectionMaxLifetime := settings.config.ConnectionMaxLifetime
+	if settings.connectionMaxLifetime != nil {
+		connectionMaxLifetime = *settings.connectionMaxLifetime
+	}
+	sqldb.SetConnMaxLifetime(connectionMaxLifetime)
+	connectionMaxIdleTime := settings.config.ConnectionMaxIdleTime
+	if settings.connectionMaxIdleTime != nil {
+		connectionMaxIdleTime = *settings.connectionMaxIdleTime
+	}
+	sqldb.SetConnMaxIdleTime(connectionMaxIdleTime)
 	db := bun.NewDB(sqldb, pgdialect.New())
 
 	if err := db.PingContext(ctx); err != nil {
@@ -164,7 +242,7 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
 	ctx := context.Background()
 	name := fmt.Sprintf("test_%d", time.Now().UnixNano())
 
-	admin, err := NewPostgres(ctx, tc.databaseURL(tc.adminDB))
+	admin, err := NewPostgres(ctx, WithDatabaseURL(tc.databaseURL(tc.adminDB)))
 	if err != nil {
 		t.Fatalf("failed to connect to admin database: %v", err)
 	}
@@ -184,7 +262,7 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
 		_, _ = admin.Conn().ExecContext(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
 	})
 
-	db, err := NewPostgres(ctx, tc.databaseURL(name))
+	db, err := NewPostgres(ctx, WithDatabaseURL(tc.databaseURL(name)))
 	if err != nil {
 		t.Fatalf("failed to connect to test database: %v", err)
 	}

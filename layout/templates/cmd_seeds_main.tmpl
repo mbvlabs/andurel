@@ -39,7 +39,16 @@ func run(args []string) error {
 
 	ctx := context.Background()
 
-	db, err := storage.NewPostgres(ctx, buildDatabaseURL())
+	databaseConfig := storage.DefaultConfig()
+	databaseConfig.DatabaseKind = envOrDefault("DB_KIND", databaseConfig.DatabaseKind)
+	databaseConfig.Host = envOrDefault("DB_HOST", databaseConfig.Host)
+	databaseConfig.Port = envOrDefault("DB_PORT", databaseConfig.Port)
+	databaseConfig.Name = envOrDefault("DB_NAME", databaseConfig.Name)
+	databaseConfig.User = envOrDefault("DB_USER", databaseConfig.User)
+	databaseConfig.Password = envOrDefault("DB_PASSWORD", databaseConfig.Password)
+	databaseConfig.SSLMode = envOrDefault("DB_SSL_MODE", databaseConfig.SSLMode)
+
+	db, err := storage.NewPostgres(ctx, storage.WithConfig(databaseConfig))
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -62,14 +71,9 @@ func run(args []string) error {
 	return nil
 }
 
-func buildDatabaseURL() string {
-	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
-		os.Getenv("DB_KIND"),
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("DB_HOST"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_NAME"),
-		os.Getenv("DB_SSL_MODE"),
-	)
+func envOrDefault(name, fallback string) string {
+	if value := os.Getenv(name); value != "" {
+		return value
+	}
+	return fallback
 }

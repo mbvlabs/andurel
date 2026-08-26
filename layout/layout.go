@@ -297,8 +297,8 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Database
 	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
+	"database_migrations.tmpl":         "database/migrations.go",
 	"database_seeds_seeds.tmpl":        "database/seeds/seeds.go",
-	"psql_database.tmpl":               "database/database.go",
 
 	// Queue package
 	"psql_queue_queue.tmpl":                            "queue/queue.go",

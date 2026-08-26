@@ -4022,6 +4022,18 @@ implementations.
 Package storage provides abstractions for queue interactions and default
 implementations.
 
+CONSTANTS
+
+const (
+	DefaultDatabaseKind     = "postgres"
+	DefaultDatabaseHost     = "127.0.0.1"
+	DefaultDatabasePort     = "5432"
+	DefaultDatabaseName     = "andurel"
+	DefaultDatabaseUser     = "postgres"
+	DefaultDatabasePassword = "postgres"
+	DefaultDatabaseSSLMode  = "disable"
+)
+
 VARIABLES
 
 var (
@@ -4037,6 +4049,27 @@ func RunMigrations(ctx context.Context, db *sql.DB, migrations fs.FS, migrationD
 
 
 TYPES
+
+type Config struct {
+	DatabaseKind string
+	Host         string
+	Port         string
+	Name         string
+	User         string
+	Password     string
+	SSLMode      string
+}
+    Config contains PostgreSQL connection settings. NewPostgres starts with
+    DefaultConfig and applies any options supplied by the application.
+
+func DefaultConfig() Config
+    DefaultConfig returns development-friendly PostgreSQL defaults.
+
+func (config Config) DatabaseURL() (string, error)
+    DatabaseURL returns the PostgreSQL connection URL represented by config.
+
+func (config Config) Validate() error
+    Validate verifies that all required connection settings are present.
 
 type Executor = bun.IDB
     Executor is the query interface satisfied by *bun.DB, *bun.Tx, *bun.Conn.
@@ -4066,6 +4099,40 @@ type InsertQueue interface {
 	InsertManyFastTx(ctx context.Context, tx *sql.Tx, params []river.InsertManyParams) (int, error)
 }
 
+type Option func(*postgresOptions) error
+    Option configures a PostgreSQL connection.
+
+func WithConfig(config Config) Option
+    WithConfig replaces the default connection settings.
+
+func WithDatabaseKind(kind string) Option
+    WithDatabaseKind sets the URL scheme used for the connection.
+
+func WithDatabaseName(name string) Option
+    WithDatabaseName sets the database name.
+
+func WithDatabaseURL(databaseURL string) Option
+    WithDatabaseURL configures the connection from a PostgreSQL URL.
+
+func WithHost(host string) Option
+    WithHost sets the database host.
+
+func WithPassword(password string) Option
+    WithPassword sets the database password.
+
+func WithPort(port string) Option
+    WithPort sets the database port.
+
+func WithSSLMode(mode string) Option
+    WithSSLMode sets the PostgreSQL SSL mode.
+
+func WithTracer(tracer pgx.QueryTracer) Option
+    WithTracer replaces the default OpenTelemetry pgx tracer. A nil tracer
+    disables database tracing.
+
+func WithUser(user string) Option
+    WithUser sets the database user.
+
 type Pool interface {
 	Executor() *bun.DB
 	Conn() *sql.DB
@@ -4079,8 +4146,9 @@ type Postgres struct {
 }
     Postgres wraps a bun.DB.
 
-func NewPostgres(ctx context.Context, databaseURL string) (*Postgres, error)
-    NewPostgres creates a new database connection using bun.
+func NewPostgres(ctx context.Context, options ...Option) (*Postgres, error)
+    NewPostgres creates a new database connection using sane defaults and any
+    supplied functional options.
 
 func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error)
     BeginTx starts a new transaction. Caller is responsible for Commit or
