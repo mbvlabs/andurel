@@ -12,10 +12,10 @@ import (
 )
 
 type API struct {
-	db storage.Pool
+	db storage.Connection
 }
 
-func NewAPI(db storage.Pool) API {
+func NewAPI(db storage.Connection) API {
 	return API{db}
 }
 

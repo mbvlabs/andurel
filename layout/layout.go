@@ -276,6 +276,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Commands
 	"cmd_app_main.tmpl":      "cmd/app/main.go",
 	"cmd_app_main_test.tmpl": "cmd/app/main_test.go",
+	"cmd_queue_main.tmpl":    "cmd/queue/main.go",
 	"cmd_seeds_main.tmpl":    "cmd/seeds/main.go",
 
 	// Config
@@ -284,6 +285,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_database.tmpl":  "config/database.go",
 	"config_telemetry.tmpl": "config/telemetry.go",
 	"config_email.tmpl":     "config/email.go",
+	"config_queue.tmpl":     "config/queue.go",
 
 	// Clients
 	"clients_email_mailpit.tmpl": "clients/email/mailpit.go",

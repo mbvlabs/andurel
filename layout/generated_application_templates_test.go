@@ -114,7 +114,7 @@ func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 		"storage.NewPostgres(ctx,",
 		"storage.WithConfig(storage.Config{",
 		"func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg Config) (*storage.Postgres, error)",
-		"fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Pool))))",
+		"fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Connection))))",
 	} {
 		if !strings.Contains(databaseConfig, want) {
 			t.Errorf("config_database.tmpl missing %q", want)
@@ -152,25 +152,43 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	}
 
 	mainTemplate := readGeneratedApplicationTemplate(t, "cmd_app_main.tmpl")
-	for _, want := range []string{
-		`startInBackground(appCtx, "queue processor", p.Start)`,
-		"stopAndWait(ctx, p.Stop, done)",
-		"srv.Start(ctx, application.Environment)",
-		"[]server.Shutdowner{processor}",
-	} {
-		contains := strings.Contains(mainTemplate, want)
-		if want == "[]server.Shutdowner{processor}" {
-			if contains {
-				t.Error("cmd_app_main.tmpl gives the server ownership of the queue processor")
-			}
-			continue
-		}
-		if !contains {
-			t.Errorf("cmd_app_main.tmpl missing %q", want)
+	if !strings.Contains(mainTemplate, "srv.Start(ctx, application.Environment)") {
+		t.Error("cmd_app_main.tmpl does not start the server with the application environment")
+	}
+	for _, unwanted := range []string{"startQueueProcessor", "queue.WorkersModule", `"{{.ModuleName}}/queue"`} {
+		if strings.Contains(mainTemplate, unwanted) {
+			t.Errorf("cmd_app_main.tmpl still contains queue processor wiring %q", unwanted)
 		}
 	}
-	if got := strings.Count(mainTemplate, "stopAndWait(ctx, p.Stop, done)"); got != 1 {
-		t.Errorf("cmd_app_main.tmpl queue stop wiring occurrences = %d, want 1", got)
+	if !strings.Contains(mainTemplate, "config.QueueInsertModule,") {
+		t.Error("cmd_app_main.tmpl does not install config.QueueInsertModule")
+	}
+
+	queueMain := readGeneratedApplicationTemplate(t, "cmd_queue_main.tmpl")
+	for _, want := range []string{"queue.Module,", "config.QueueProcessorModule,", "mailclients.NewMailpit(cfg)"} {
+		if !strings.Contains(queueMain, want) {
+			t.Errorf("cmd_queue_main.tmpl missing %q", want)
+		}
+	}
+
+	queueConfig := readGeneratedApplicationTemplate(t, "config_queue.tmpl")
+	if got := strings.Count(queueConfig, "type queueCfg struct"); got != 1 {
+		t.Errorf("config_queue.tmpl queueCfg declarations = %d, want 1", got)
+	}
+	for _, want := range []string{
+		"storage.NewQueueInsert",
+		"new(storage.InsertQueue)",
+		"storage.NewQueueProcessor",
+		"storage.WithRiverConfig",
+		"storage.WithRiverWorkers",
+		"storage.WithRiverPeriodicJobs",
+		"storage.WithRiverLogger",
+		"processor.Start(appCtx)",
+		"processor.Stop(ctx)",
+	} {
+		if !strings.Contains(queueConfig, want) {
+			t.Errorf("config_queue.tmpl missing %q", want)
+		}
 	}
 
 	serverTemplate := readStandalonePackageFile(t, "server", "server.go")

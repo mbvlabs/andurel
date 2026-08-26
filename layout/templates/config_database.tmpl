@@ -67,5 +67,5 @@ func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg Config) (*stor
 // DatabaseModule provides the application database pool and manages its lifecycle.
 var DatabaseModule = fx.Module(
 	"database",
-	fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Pool)))),
+	fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Connection)))),
 )

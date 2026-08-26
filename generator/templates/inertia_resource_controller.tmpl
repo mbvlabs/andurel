@@ -54,11 +54,11 @@ import (
 )
 
 type {{.PluralResourceName}} struct {
-	db       storage.Pool
+	db       storage.Connection
 	renderer *inertia.Renderer
 }
 
-func New{{.PluralResourceName}}(db storage.Pool, renderer *inertia.Renderer) {{.PluralResourceName}} {
+func New{{.PluralResourceName}}(db storage.Connection, renderer *inertia.Renderer) {{.PluralResourceName}} {
 	return {{.PluralResourceName}}{db: db, renderer: renderer}
 }
 

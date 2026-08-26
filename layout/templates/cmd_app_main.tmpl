@@ -16,7 +16,6 @@ import (
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/email"
-	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/telemetry"
@@ -49,14 +48,12 @@ func main() {
 		config.InertiaModule,
 {{- end}}
 		config.DatabaseModule,
+		config.QueueInsertModule,
 		telemetry.Module,
-		queue.Module,
-		queue.WorkersModule,
 		services.Module,
 		controllers.Module,
 		router.Module,
 
-		fx.Invoke(startQueueProcessor),
 		fx.Invoke(startServer),
 	)
 
@@ -74,19 +71,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
-}
-
-func startQueueProcessor(lc fx.Lifecycle, appCtx context.Context, p queue.Processor) {
-	var done <-chan struct{}
-	lc.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			done = startInBackground(appCtx, "queue processor", p.Start)
-			return nil
-		},
-		OnStop: func(ctx context.Context) error {
-			return stopAndWait(ctx, p.Stop, done)
-		},
-	})
 }
 
 func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg config.Config) {

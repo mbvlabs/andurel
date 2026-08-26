@@ -3,20 +3,19 @@ package services
 import (
 	"strings"
 
-	"{{.ModuleName}}/config"
 	"github.com/mbvlabs/andurel/pkg/storage"
-	"{{.ModuleName}}/queue"
+	"{{.ModuleName}}/config"
 )
 
 type Identity struct {
-	db         storage.Pool
-	insertOnly queue.InsertOnly
+	db              storage.Connection
+	insertOnly      storage.InsertQueue
 	pepper          string
 	previousPeppers []string
 	tokenSigningKey string
 }
 
-func NewIdentity(db storage.Pool, insertOnly queue.InsertOnly, cfg config.Config) Identity {
+func NewIdentity(db storage.Connection, insertOnly storage.InsertQueue, cfg config.Config) Identity {
 	previousPeppers := make([]string, 0, len(cfg.Auth.PreviousPeppers))
 	for _, pepper := range cfg.Auth.PreviousPeppers {
 		if pepper = strings.TrimSpace(pepper); pepper != "" && pepper != cfg.Auth.Pepper {

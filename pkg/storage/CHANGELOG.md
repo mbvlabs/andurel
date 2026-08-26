@@ -4,6 +4,14 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+## 0.3.0 - 2026-08-26
+
+### Added
+
+- Concrete insert-only and processor River clients backed by the `database/sql` pool exposed by `Connection`.
+- Functional options for configuring River clients, workers, queues, periodic jobs, middleware, hooks, logging, retry behavior, and lifecycle settings.
+- Start and stop lifecycle methods on the concrete queue processor.
+
 ## 0.2.0 - 2026-08-26
 
 ### Added

@@ -6,6 +6,7 @@ import "go.uber.org/fx"
 type Config struct {
 	App       app
 	DB        databaseCfg
+	Queue     queueCfg
 	Telemetry telemetry
 {{- if .Inertia}}
 	Inertia inertiaCfg
@@ -19,6 +20,7 @@ func NewConfig() Config {
 	return Config{
 		App:       newAppConfig(),
 		DB:        newDatabaseConfig(),
+		Queue:     newQueueConfig(),
 		Telemetry: newTelemetryConfig(),
 {{- if .Inertia}}
 		Inertia:   newInertiaConfig(),

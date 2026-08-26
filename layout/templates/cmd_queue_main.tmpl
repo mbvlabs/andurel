@@ -1,0 +1,64 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/mbvlabs/andurel/pkg/server"
+	"{{.ModuleName}}/application"
+	mailclients "{{.ModuleName}}/clients/email"
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/email"
+	"{{.ModuleName}}/queue"
+	"{{.ModuleName}}/telemetry"
+
+	"go.uber.org/fx"
+)
+
+var appVersion string
+
+func main() {
+	metadata := application.NewMetadata(appVersion)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	app := fx.New(
+		fx.Supply(metadata),
+		fx.Provide(
+			func() context.Context { return ctx },
+			func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
+				if application.Environment == server.ProdEnvironment {
+					log.Fatal("provide real email sender")
+				}
+
+				return mailclients.NewMailpit(cfg), mailclients.NewMailpit(cfg)
+			},
+		),
+
+		config.Module,
+		config.DatabaseModule,
+		telemetry.Module,
+		queue.Module,
+		config.QueueProcessorModule,
+	)
+
+	if err := app.Start(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+
+	<-ctx.Done()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := app.Stop(shutdownCtx); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+}

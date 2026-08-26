@@ -7,7 +7,6 @@ import (
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/storage"
-	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/views"
@@ -16,14 +15,14 @@ import (
 )
 
 type Pages struct {
-	db         storage.Pool
-	insertOnly queue.InsertOnly
+	db         storage.Connection
+	insertOnly storage.InsertQueue
 	renderer   *inertia.Renderer
 }
 
 func NewPages(
-	db storage.Pool,
-	insertOnly queue.InsertOnly,
+	db storage.Connection,
+	insertOnly storage.InsertQueue,
 	renderer *inertia.Renderer,
 ) Pages {
 	return Pages{db: db, insertOnly: insertOnly, renderer: renderer}
