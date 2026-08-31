@@ -336,7 +336,7 @@ func TestRunGooseBuildsCommand(t *testing.T) {
 	}
 	wantPrefix := []string{
 		"-dir",
-		filepath.Join(root, "database", "migrations"),
+		filepath.Join(root, "migrations"),
 		"postgres",
 		"postgres://app_user:secret@localhost:5432/app_db?sslmode=disable",
 		"up-to",
