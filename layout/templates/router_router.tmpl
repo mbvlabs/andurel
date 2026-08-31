@@ -36,7 +36,7 @@ type Router struct {
 }
 
 func New(
-	cfg config.Config,
+	cfg config.AppCfg,
 	tel *telemetry.Telemetry,
 {{- if .Inertia}}
 	renderer *inertia.Renderer,
@@ -45,11 +45,11 @@ func New(
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
 
-	authKey, err := hex.DecodeString(cfg.App.SessionKey)
+	authKey, err := hex.DecodeString(cfg.SessionKey)
 	if err != nil {
 		return nil, err
 	}
-	encKey, err := hex.DecodeString(cfg.App.SessionEncryptionKey)
+	encKey, err := hex.DecodeString(cfg.SessionEncryptionKey)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func New(
 }
 
 func SetupGlobalMiddleware(
-	cfg config.Config,
+	cfg config.AppCfg,
 	tel *telemetry.Telemetry,
 	authKey []byte,
 	encKey []byte,
@@ -115,20 +115,20 @@ func SetupGlobalMiddleware(
 	renderer *inertia.Renderer,
 {{- end}}
 ) ([]echo.MiddlewareFunc, error) {
-	csrfMiddleware, err := middleware.CSRFMiddleware(cfg, csrfName)
+	csrfMiddleware, err := middleware.CSRFMiddleware(cfg.CSRFStrategy, cfg.CSRFTrustedOrigins, csrfName)
 	if err != nil {
 		return nil, err
 	}
 	sessionStore, err := newApplicationSessionStore(
 		authKey,
 		encKey,
-		cfg.App.SessionMaxAge,
+		cfg.SessionMaxAge,
 		application.Environment == server.ProdEnvironment,
 	)
 	if err != nil {
 		return nil, err
 	}
-	corsConfig, err := newCORSConfig(application.BaseURL, cfg.App.CORSAllowedOrigins)
+	corsConfig, err := newCORSConfig(application.BaseURL, cfg.CORSAllowedOrigins)
 	if err != nil {
 		return nil, err
 	}

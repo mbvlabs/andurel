@@ -20,8 +20,14 @@ import (
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/telemetry"
 	"github.com/mbvlabs/andurel/pkg/server"
-
+	"github.com/mbvlabs/andurel/pkg/storage"
 	"go.uber.org/fx"
+{{- if .Inertia}}
+	"{{.ModuleName}}/assets"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/views"
+	"github.com/mbvlabs/andurel/pkg/inertia"
+{{- end}}
 )
 
 var appVersion string
@@ -34,21 +40,21 @@ func main() {
 		fx.Supply(metadata),
 		fx.Provide(
 			func() context.Context { return ctx },
-			func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
+			func(cfg config.EmailCfg) (email.TransactionalSender, email.MarketingSender) {
 				if application.Environment == server.ProdEnvironment {
 					log.Fatal("provide real email sender")
 				}
 
-				return mailclients.NewMailpit(cfg), mailclients.NewMailpit(cfg)
+				return mailclients.NewMailpit(cfg.MailpitHost, cfg.MailpitPort), mailclients.NewMailpit(cfg.MailpitHost, cfg.MailpitPort)
 			},
 		),
 
 		config.Module,
+		databaseModule,
+		queueInsertModule,
 {{- if .Inertia}}
-		config.InertiaModule,
+		inertiaModule,
 {{- end}}
-		config.DatabaseModule,
-		config.QueueInsertModule,
 		telemetry.Module,
 		services.Module,
 		controllers.Module,
@@ -73,11 +79,28 @@ func main() {
 	}
 }
 
-func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg config.Config) {
+var databaseModule = fx.Module(
+	"database",
+	fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Connection)))),
+)
+
+var queueInsertModule = fx.Module(
+	"queue-insert",
+	fx.Provide(fx.Annotate(newQueueInsert, fx.As(new(storage.InsertQueue)))),
+)
+
+{{- if .Inertia}}
+var inertiaModule = fx.Module(
+	"inertia",
+	fx.Provide(newInertia),
+)
+{{- end}}
+
+func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg config.AppCfg) {
 	srv := server.New(
 		appCtx,
-		cfg.App.Host,
-		cfg.App.Port,
+		cfg.Host,
+		cfg.Port,
 		application.Environment,
 		r.Handler,
 		nil,
@@ -90,9 +113,9 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg 
 				appCtx,
 				"starting server",
 				"host",
-				cfg.App.Host,
+				cfg.Host,
 				"port",
-				cfg.App.Port,
+				cfg.Port,
 			)
 			done = startInBackground(appCtx, "server", func(ctx context.Context) error {
 				return srv.Start(ctx, application.Environment)
@@ -113,6 +136,75 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg 
 		},
 	})
 }
+
+func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg config.Database) (*storage.Postgres, error) {
+	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
+		DatabaseKind:             cfg.DatabaseKind,
+		Host:                     cfg.Host,
+		Port:                     cfg.Port,
+		Name:                     cfg.Name,
+		User:                     cfg.User,
+		Password:                 cfg.Password,
+		SSLMode:                  cfg.SSLMode,
+		ApplicationName:          cfg.ApplicationName,
+		ConnectTimeout:           cfg.ConnectTimeout,
+		StatementCacheCapacity:   cfg.StatementCacheCapacity,
+		DescriptionCacheCapacity: cfg.DescriptionCacheCapacity,
+		MaxOpenConnections:       cfg.MaxOpenConnections,
+		MaxIdleConnections:       cfg.MaxIdleConnections,
+		ConnectionMaxLifetime:    cfg.ConnectionMaxLifetime,
+		ConnectionMaxIdleTime:    cfg.ConnectionMaxIdleTime,
+		OpenTelemetry:            cfg.OpenTelemetry,
+	}))
+	if err != nil {
+		return nil, err
+	}
+
+	lifecycle.Append(fx.Hook{OnStop: func(context.Context) error { return db.Close() }})
+	return db, nil
+}
+
+func newQueueInsert(connection storage.Connection, cfg config.QueueCfg) (*storage.QueueInsert, error) {
+	return storage.NewQueueInsert(connection, storage.WithRiverConfig(cfg.RiverConfig()))
+}
+
+{{- if .Inertia}}
+func newInertia(lifecycle fx.Lifecycle, cfg config.InertiaCfg, metadata application.Metadata) (*inertia.Renderer, error) {
+	renderer, err := inertia.New(
+		inertia.WithRoot(views.Root),
+		inertia.WithAssetFS(assets.Files),
+		inertia.WithProjectName(metadata.ProjectName),
+		inertia.WithEnvironment(metadata.Environment),
+		inertia.WithBuildPathURL(routes.ViteBuild.Path()),
+{{- if eq .Inertia "react"}}
+		inertia.WithEntryPoint("resources/js/app.tsx"),
+{{- else}}
+		inertia.WithEntryPoint("resources/js/app.ts"),
+{{- end}}
+		inertia.WithContainerID(cfg.ContainerID),
+		inertia.WithViteDevURL(cfg.ViteDevURL),
+		inertia.WithProtocolDebug(cfg.ProtocolDebug),
+		inertia.WithShared(inertia.Props{"appVersion": metadata.Version}),
+		inertia.WithSSRMode(inertia.SSRMode(cfg.SSRMode)),
+		inertia.WithSSRRuntime(cfg.SSRRuntime),
+		inertia.WithSSRBundle(cfg.SSRBundle),
+		inertia.WithSSRURL(cfg.SSRURL),
+		inertia.WithSSRStartupTimeout(cfg.SSRStartupTimeout),
+		inertia.WithSSRRequestTimeout(cfg.SSRRequestTimeout),
+		inertia.WithSSRMaxResponseBytes(cfg.SSRMaxResponseBytes),
+		inertia.WithSSRFailFast(cfg.SSRFailFast),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	lifecycle.Append(fx.Hook{
+		OnStart: renderer.Start,
+		OnStop:  renderer.Shutdown,
+	})
+	return renderer, nil
+}
+{{- end}}
 
 func startInBackground(
 	ctx context.Context,

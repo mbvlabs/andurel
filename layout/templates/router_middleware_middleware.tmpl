@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"{{.ModuleName}}/application"
-	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/router/appctx"
 	"github.com/mbvlabs/andurel/pkg/server"
 	"{{.ModuleName}}/router/cookies"
@@ -203,8 +202,8 @@ func TraceRouteAttributes(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 	}
 }
 
-func CSRFMiddleware(cfg config.Config, csrfName string) (echo.MiddlewareFunc, error) {
-	strategy := strings.TrimSpace(cfg.App.CSRFStrategy)
+func CSRFMiddleware(csrfStrategy string, csrfTrustedOrigins []string, csrfName string) (echo.MiddlewareFunc, error) {
+	strategy := strings.TrimSpace(csrfStrategy)
 
 	var headerOnly bool
 	var tokenLookup string
@@ -220,8 +219,8 @@ func CSRFMiddleware(cfg config.Config, csrfName string) (echo.MiddlewareFunc, er
 	}
 
 	trustedOrigins := []string{application.BaseURL}
-	if len(cfg.App.CSRFTrustedOrigins) > 0 {
-		trustedOrigins = append(trustedOrigins, cfg.App.CSRFTrustedOrigins...)
+	if len(csrfTrustedOrigins) > 0 {
+		trustedOrigins = append(trustedOrigins, csrfTrustedOrigins...)
 	}
 
 	csrfConfig := echomw.CSRFConfig{

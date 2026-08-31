@@ -33,25 +33,25 @@ type Telemetry struct {
 	config         *telemetryOptions
 }
 
-func New(cfg config.Config) (*Telemetry, error) {
+func New(cfg config.TelemetryCfg) (*Telemetry, error) {
 	ctx := context.Background()
 
 	opts := []Option{
-		WithService(cfg.Telemetry.ServiceName, cfg.Telemetry.ServiceVersion),
-		WithBatchConfig(cfg.Telemetry.BatchSize, cfg.Telemetry.BatchTimeoutMs, 2048),
-		WithTraceSampleRate(cfg.Telemetry.TraceSampleRate),
+		WithService(cfg.ServiceName, cfg.ServiceVersion),
+		WithBatchConfig(cfg.BatchSize, cfg.BatchTimeoutMs, 2048),
+		WithTraceSampleRate(cfg.TraceSampleRate),
 	}
 
 	opts = append(opts, WithLogExporters(NewStdoutExporter()))
 
-	if cfg.Telemetry.OtlpMetricsEndpoint != "" {
+	if cfg.OtlpMetricsEndpoint != "" {
 		opts = append(opts, WithMetricExporters(
-			NewOtlpMetricExporter(cfg.Telemetry.OtlpMetricsEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
+			NewOtlpMetricExporter(cfg.OtlpMetricsEndpoint, parseHeaders(cfg.OtlpHeaders))))
 	}
 
-	if cfg.Telemetry.OtlpTracesEndpoint != "" {
+	if cfg.OtlpTracesEndpoint != "" {
 		opts = append(opts, WithTraceExporters(
-			NewOtlpTraceExporter(cfg.Telemetry.OtlpTracesEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
+			NewOtlpTraceExporter(cfg.OtlpTracesEndpoint, parseHeaders(cfg.OtlpHeaders))))
 	} else {
 		opts = append(opts, WithTraceExporters(NewNoopTraceExporter()))
 	}

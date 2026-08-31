@@ -27,12 +27,12 @@ type AwsSes struct {
 	configurationSet string
 }
 
-func NewAwsSes(cfg appconfig.Config) *AwsSes {
+func NewAwsSes(cfg appconfig.AwsSesCfg) *AwsSes {
 	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
-		awsconfig.WithRegion(cfg.AwsSes.Region),
+		awsconfig.WithRegion(cfg.Region),
 		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			cfg.AwsSes.AccessKeyID,
-			cfg.AwsSes.SecretAccessKey,
+			cfg.AccessKeyID,
+			cfg.SecretAccessKey,
 			"",
 		)),
 	)
@@ -44,7 +44,7 @@ func NewAwsSes(cfg appconfig.Config) *AwsSes {
 
 	return &AwsSes{
 		client:           client,
-		configurationSet: cfg.AwsSes.ConfigurationSet,
+		configurationSet: cfg.ConfigurationSet,
 	}
 }
 

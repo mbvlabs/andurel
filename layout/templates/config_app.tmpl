@@ -2,7 +2,7 @@ package config
 
 import "github.com/caarlos0/env/v11"
 
-type app struct {
+type AppCfg struct {
 	Host                 string   `env:"HOST" envDefault:"localhost"`
 	Port                 string   `env:"PORT" envDefault:"8080"`
 	SessionKey           string   `env:"SESSION_KEY"`
@@ -14,8 +14,8 @@ type app struct {
 	CSRFTrustedOrigins   []string `env:"CSRF_TRUSTED_ORIGINS" envSeparator:","`
 }
 
-func newAppConfig() app {
-	appCfg := app{}
+func NewAppCfg() AppCfg {
+	appCfg := AppCfg{}
 
 	if err := env.ParseWithOptions(&appCfg, env.Options{
 		RequiredIfNoDef: true,
@@ -25,3 +25,10 @@ func newAppConfig() app {
 
 	return appCfg
 }
+
+func (c *AppCfg) WithHost(host string)             { c.Host = host }
+func (c *AppCfg) WithPort(port string)             { c.Port = port }
+func (c *AppCfg) WithSessionMaxAge(age int)        { c.SessionMaxAge = age }
+func (c *AppCfg) WithCORSAllowedOrigins(o []string) { c.CORSAllowedOrigins = o }
+func (c *AppCfg) WithCSRFStrategy(s string)        { c.CSRFStrategy = s }
+func (c *AppCfg) WithCSRFTrustedOrigins(o []string) { c.CSRFTrustedOrigins = o }

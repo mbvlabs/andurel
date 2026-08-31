@@ -1091,8 +1091,8 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 	builder.AddControllerImport(fmt.Sprintf("%s/controllers", moduleName))
 	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))
 
-	builder.AddConfigField("Email", "email")
-	builder.AddConfigField("Auth", "auth")
+	builder.AddConfigField("Email", "EmailCfg")
+	builder.AddConfigField("Auth", "AuthCfg")
 
 	builder.AddWorkerDependency("transactionalSender", "email.TransactionalSender")
 	builder.AddWorkerDependency("marketingSender", "email.MarketingSender")

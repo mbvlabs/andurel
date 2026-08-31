@@ -1,18 +1,16 @@
 package config
 
-import (
-	"github.com/caarlos0/env/v10"
-)
+import "github.com/caarlos0/env/v11"
 
-type awsSes struct {
+type AwsSesCfg struct {
 	Region           string `env:"AWS_REGION" envDefault:"us-east-1"`
 	AccessKeyID      string `env:"AWS_SES_ACCESS_KEY_ID"`
 	SecretAccessKey  string `env:"AWS_SES_SECRET_ACCESS_KEY"`
 	ConfigurationSet string `env:"AWS_SES_CONFIGURATION_SET"`
 }
 
-func newAwsSesConfig() awsSes {
-	cfg := awsSes{}
+func NewAwsSesCfg() AwsSesCfg {
+	cfg := AwsSesCfg{}
 
 	if err := env.ParseWithOptions(&cfg, env.Options{
 		RequiredIfNoDef: true,
@@ -22,3 +20,8 @@ func newAwsSesConfig() awsSes {
 
 	return cfg
 }
+
+func (c *AwsSesCfg) WithRegion(region string)                     { c.Region = region }
+func (c *AwsSesCfg) WithAccessKeyID(id string)                    { c.AccessKeyID = id }
+func (c *AwsSesCfg) WithSecretAccessKey(key string)               { c.SecretAccessKey = key }
+func (c *AwsSesCfg) WithConfigurationSet(set string)              { c.ConfigurationSet = set }

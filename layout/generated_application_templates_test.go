@@ -79,7 +79,7 @@ func TestGeneratedAuthenticationTemplates(t *testing.T) {
 	}
 
 	identity := readGeneratedApplicationTemplate(t, "services_identity.tmpl")
-	for _, want := range []string{"previousPeppers []string", "tokenSigningKey string", "cfg.App.TokenSigningKey"} {
+	for _, want := range []string{"config.AppCfg", "config.AuthCfg", "appCfg.TokenSigningKey", "authCfg.Pepper", "authCfg.PreviousPeppers"} {
 		if !strings.Contains(identity, want) {
 			t.Errorf("services_identity.tmpl missing %q", want)
 		}
@@ -110,11 +110,10 @@ func TestGeneratedAuthenticationTemplates(t *testing.T) {
 func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 	databaseConfig := readGeneratedApplicationTemplate(t, "config_database.tmpl")
 	for _, want := range []string{
-		`env:"DB_HOST" envDefault:"127.0.0.1"`,
-		"storage.NewPostgres(ctx,",
-		"storage.WithConfig(storage.Config{",
-		"func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg Config) (*storage.Postgres, error)",
-		"fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Connection))))",
+		"DefaultDatabaseHost",
+		"DB_PASSWORD",
+		"func NewDatabaseCfg() Database",
+		`env:"DB_HOST"`,
 	} {
 		if !strings.Contains(databaseConfig, want) {
 			t.Errorf("config_database.tmpl missing %q", want)
@@ -122,11 +121,11 @@ func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 	}
 
 	mainTemplate := readGeneratedApplicationTemplate(t, "cmd_app_main.tmpl")
-	if !strings.Contains(mainTemplate, "config.DatabaseModule,") {
-		t.Error("cmd_app_main.tmpl does not use config.DatabaseModule")
+	if !strings.Contains(mainTemplate, "databaseModule") {
+		t.Error("cmd_app_main.tmpl does not use databaseModule")
 	}
-	if strings.Contains(mainTemplate, `"{{.ModuleName}}/database"`) {
-		t.Error("cmd_app_main.tmpl still imports the database connection package")
+	if !strings.Contains(mainTemplate, "func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg config.Database)") {
+		t.Error("cmd_app_main.tmpl does not define newDatabase with config.Database")
 	}
 
 	if _, exists := baseTemplateMappings["psql_database.tmpl"]; exists {
@@ -160,35 +159,26 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 			t.Errorf("cmd_app_main.tmpl still contains queue processor wiring %q", unwanted)
 		}
 	}
-	if !strings.Contains(mainTemplate, "config.QueueInsertModule,") {
-		t.Error("cmd_app_main.tmpl does not install config.QueueInsertModule")
+	if !strings.Contains(mainTemplate, "databaseModule") {
+		t.Error("cmd_app_main.tmpl does not install databaseModule")
+	}
+	if !strings.Contains(mainTemplate, "queueInsertModule") {
+		t.Error("cmd_app_main.tmpl does not install queueInsertModule")
 	}
 
 	queueMain := readGeneratedApplicationTemplate(t, "cmd_queue_main.tmpl")
-	for _, want := range []string{"queue.Module,", "config.QueueProcessorModule,", "mailclients.NewMailpit(cfg)"} {
+	for _, want := range []string{"queue.Module,", "queueProcessorModule,", "mailclients.NewMailpit("} {
 		if !strings.Contains(queueMain, want) {
 			t.Errorf("cmd_queue_main.tmpl missing %q", want)
 		}
 	}
 
 	queueConfig := readGeneratedApplicationTemplate(t, "config_queue.tmpl")
-	if got := strings.Count(queueConfig, "type queueCfg struct"); got != 1 {
-		t.Errorf("config_queue.tmpl queueCfg declarations = %d, want 1", got)
+	if got := strings.Count(queueConfig, "type QueueCfg struct"); got != 1 {
+		t.Errorf("config_queue.tmpl QueueCfg declarations = %d, want 1", got)
 	}
-	for _, want := range []string{
-		"storage.NewQueueInsert",
-		"new(storage.InsertQueue)",
-		"storage.NewQueueProcessor",
-		"storage.WithRiverConfig",
-		"storage.WithRiverWorkers",
-		"storage.WithRiverPeriodicJobs",
-		"storage.WithRiverLogger",
-		"processor.Start(appCtx)",
-		"processor.Stop(ctx)",
-	} {
-		if !strings.Contains(queueConfig, want) {
-			t.Errorf("config_queue.tmpl missing %q", want)
-		}
+	if !strings.Contains(queueConfig, "func (cfg QueueCfg) RiverConfig()") {
+		t.Error("config_queue.tmpl missing RiverConfig method")
 	}
 
 	serverTemplate := readStandalonePackageFile(t, "server", "server.go")

@@ -3,8 +3,8 @@ package services
 import (
 	"strings"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"{{.ModuleName}}/config"
+	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 type Identity struct {
@@ -15,19 +15,19 @@ type Identity struct {
 	tokenSigningKey string
 }
 
-func NewIdentity(db storage.Connection, insertOnly storage.InsertQueue, cfg config.Config) Identity {
-	previousPeppers := make([]string, 0, len(cfg.Auth.PreviousPeppers))
-	for _, pepper := range cfg.Auth.PreviousPeppers {
-		if pepper = strings.TrimSpace(pepper); pepper != "" && pepper != cfg.Auth.Pepper {
-			previousPeppers = append(previousPeppers, pepper)
+func NewIdentity(db storage.Connection, insertOnly storage.InsertQueue, appCfg config.AppCfg, authCfg config.AuthCfg) Identity {
+	validPeppers := make([]string, 0, len(authCfg.PreviousPeppers))
+	for _, p := range authCfg.PreviousPeppers {
+		if p = strings.TrimSpace(p); p != "" && p != authCfg.Pepper {
+			validPeppers = append(validPeppers, p)
 		}
 	}
 
 	return Identity{
 		db:              db,
 		insertOnly:      insertOnly,
-		pepper:          cfg.Auth.Pepper,
-		previousPeppers: previousPeppers,
-		tokenSigningKey: cfg.App.TokenSigningKey,
+		pepper:          authCfg.Pepper,
+		previousPeppers: validPeppers,
+		tokenSigningKey: appCfg.TokenSigningKey,
 	}
 }

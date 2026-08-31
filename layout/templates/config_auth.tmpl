@@ -1,14 +1,14 @@
 package config
 
-import "github.com/caarlos0/env/v10"
+import "github.com/caarlos0/env/v11"
 
-type auth struct {
+type AuthCfg struct {
 	Pepper          string   `env:"PEPPER"`
 	PreviousPeppers []string `env:"PREVIOUS_PEPPERS" envSeparator:"," envDefault:""`
 }
 
-func newAuthConfig() auth {
-	authenticationCfg := auth{}
+func NewAuthCfg() AuthCfg {
+	authenticationCfg := AuthCfg{}
 
 	if err := env.ParseWithOptions(&authenticationCfg, env.Options{
 		RequiredIfNoDef: true,

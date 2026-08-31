@@ -1213,10 +1213,10 @@ type Mailpit struct {
 	port string
 }
 
-func NewMailpit(cfg config.Config) *Mailpit {
+func NewMailpit(host config.MailpitHost, port config.MailpitPort) *Mailpit {
 	return &Mailpit{
-		host: cfg.Email.MailpitHost,
-		port: cfg.Email.MailpitPort,
+		host: string(host),
+		port: string(port),
 	}
 }
 
@@ -1376,13 +1376,15 @@ func main() {
 		fx.Supply(metadata),
 		fx.Provide(
 			func() context.Context { return ctx },
-			func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
+			func(host config.MailpitHost, port config.MailpitPort) (email.TransactionalSender, email.MarketingSender) {
 				if application.Environment == server.ProdEnvironment {
 					log.Fatal("provide real email sender")
 				}
 
-				return mailclients.NewMailpit(cfg), mailclients.NewMailpit(cfg)
+				return mailclients.NewMailpit(host, port), mailclients.NewMailpit(host, port)
 			},
+			config.NewMailpitValues,
+			config.NewAppValues,
 		),
 
 		config.Module,
@@ -1413,11 +1415,11 @@ func main() {
 	}
 }
 
-func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg config.Config) {
+func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, host config.AppHost, port config.AppPort) {
 	srv := server.New(
 		appCtx,
-		cfg.App.Host,
-		cfg.App.Port,
+		string(host),
+		string(port),
 		application.Environment,
 		r.Handler,
 		nil,
@@ -1430,9 +1432,9 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg 
 				appCtx,
 				"starting server",
 				"host",
-				cfg.App.Host,
+				string(host),
 				"port",
-				cfg.App.Port,
+				string(port),
 			)
 			done = startInBackground(appCtx, "server", func(ctx context.Context) error {
 				return srv.Start(ctx, application.Environment)
@@ -1570,13 +1572,14 @@ func main() {
 		fx.Supply(metadata),
 		fx.Provide(
 			func() context.Context { return ctx },
-			func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
+			func(host config.MailpitHost, port config.MailpitPort) (email.TransactionalSender, email.MarketingSender) {
 				if application.Environment == server.ProdEnvironment {
 					log.Fatal("provide real email sender")
 				}
 
-				return mailclients.NewMailpit(cfg), mailclients.NewMailpit(cfg)
+				return mailclients.NewMailpit(host, port), mailclients.NewMailpit(host, port)
 			},
+			config.NewMailpitValues,
 		),
 
 		config.Module,
@@ -1696,7 +1699,7 @@ package config
 
 import "github.com/caarlos0/env/v11"
 
-type app struct {
+type AppCfg struct {
 	Host                 string   `env:"HOST" envDefault:"localhost"`
 	Port                 string   `env:"PORT" envDefault:"8080"`
 	SessionKey           string   `env:"SESSION_KEY"`
@@ -1708,8 +1711,8 @@ type app struct {
 	CSRFTrustedOrigins   []string `env:"CSRF_TRUSTED_ORIGINS" envSeparator:","`
 }
 
-func newAppConfig() app {
-	appCfg := app{}
+func NewAppCfg() AppCfg {
+	appCfg := AppCfg{}
 
 	if err := env.ParseWithOptions(&appCfg, env.Options{
 		RequiredIfNoDef: true,
@@ -1719,6 +1722,28 @@ func newAppConfig() app {
 
 	return appCfg
 }
+
+type AppHost string
+type AppPort string
+type SessionKey string
+type SessionEncKey string
+type SessionMaxAge int
+type CorsOrigins []string
+type CsrfStrategy string
+type CsrfTrustedOrigins []string
+type TokenSigningKey string
+
+func NewAppValues(cfg AppCfg) (AppHost, AppPort, SessionKey, SessionEncKey, SessionMaxAge, CorsOrigins, CsrfStrategy, CsrfTrustedOrigins, TokenSigningKey) {
+	return AppHost(cfg.Host),
+		AppPort(cfg.Port),
+		SessionKey(cfg.SessionKey),
+		SessionEncKey(cfg.SessionEncryptionKey),
+		SessionMaxAge(cfg.SessionMaxAge),
+		CorsOrigins(cfg.CORSAllowedOrigins),
+		CsrfStrategy(cfg.CSRFStrategy),
+		CsrfTrustedOrigins(cfg.CSRFTrustedOrigins),
+		TokenSigningKey(cfg.TokenSigningKey)
+}
 ```
 
 file -----------rw-r--r-- config/auth.go
@@ -1727,13 +1752,13 @@ package config
 
 import "github.com/caarlos0/env/v10"
 
-type auth struct {
+type AuthCfg struct {
 	Pepper          string   `env:"PEPPER"`
 	PreviousPeppers []string `env:"PREVIOUS_PEPPERS" envSeparator:"," envDefault:""`
 }
 
-func newAuthConfig() auth {
-	authenticationCfg := auth{}
+func NewAuthCfg() AuthCfg {
+	authenticationCfg := AuthCfg{}
 
 	if err := env.ParseWithOptions(&authenticationCfg, env.Options{
 		RequiredIfNoDef: true,
@@ -1742,6 +1767,13 @@ func newAuthConfig() auth {
 	}
 
 	return authenticationCfg
+}
+
+type Pepper string
+type PreviousPeppers []string
+
+func NewAuthValues(cfg AuthCfg) (Pepper, PreviousPeppers) {
+	return Pepper(cfg.Pepper), PreviousPeppers(cfg.PreviousPeppers)
 }
 ```
 
@@ -1752,29 +1784,19 @@ package config
 
 import "go.uber.org/fx"
 
-type Config struct {
-	App       app
-	DB        databaseCfg
-	Queue     queueCfg
-	Telemetry telemetry
-	Inertia   inertiaCfg
-	Email     email
-	Auth      auth
-}
-
-func NewConfig() Config {
-	return Config{
-		App:       newAppConfig(),
-		DB:        newDatabaseConfig(),
-		Queue:     newQueueConfig(),
-		Telemetry: newTelemetryConfig(),
-		Inertia:   newInertiaConfig(),
-		Email:     newEmailConfig(),
-		Auth:      newAuthConfig(),
-	}
-}
-
-var Module = fx.Module("config", fx.Provide(NewConfig))
+// Module provides all application configuration values to the dependency container.
+var Module = fx.Module("config",
+	fx.Provide(
+		NewAppCfg,
+		NewDatabaseCfg,
+		NewQueueCfg,
+		NewTelemetryCfg,
+		NewEmailCfg,
+		NewAuthCfg,
+		NewEmailCfg,
+		NewAuthCfg,
+	),
+)
 ```
 
 file -----------rw-r--r-- config/database.go
@@ -1790,7 +1812,6 @@ import (
 	"go.uber.org/fx"
 )
 
-// databaseCfg contains environment-backed PostgreSQL settings.
 type databaseCfg struct {
 	Port                     string        `env:"DB_PORT" envDefault:"5432"`
 	Host                     string        `env:"DB_HOST" envDefault:"127.0.0.1"`
@@ -1810,33 +1831,34 @@ type databaseCfg struct {
 	OpenTelemetry            bool          `env:"DB_OPEN_TELEMETRY" envDefault:"true"`
 }
 
-func newDatabaseConfig() databaseCfg {
-	cfg := databaseCfg{}
-	if err := env.ParseWithOptions(&cfg, env.Options{RequiredIfNoDef: true}); err != nil {
+func NewDatabaseCfg() storage.Config {
+	raw := databaseCfg{}
+	if err := env.ParseWithOptions(&raw, env.Options{RequiredIfNoDef: true}); err != nil {
 		panic(err)
 	}
-	return cfg
+
+	return storage.Config{
+		DatabaseKind:             raw.DatabaseKind,
+		Host:                     raw.Host,
+		Port:                     raw.Port,
+		Name:                     raw.Name,
+		User:                     raw.User,
+		Password:                 raw.Password,
+		SSLMode:                  raw.SSLMode,
+		ApplicationName:          raw.ApplicationName,
+		ConnectTimeout:           raw.ConnectTimeout,
+		StatementCacheCapacity:   raw.StatementCacheCapacity,
+		DescriptionCacheCapacity: raw.DescriptionCacheCapacity,
+		MaxOpenConnections:       raw.MaxOpenConnections,
+		MaxIdleConnections:       raw.MaxIdleConnections,
+		ConnectionMaxLifetime:    raw.ConnectionMaxLifetime,
+		ConnectionMaxIdleTime:    raw.ConnectionMaxIdleTime,
+		OpenTelemetry:            raw.OpenTelemetry,
+	}
 }
 
-func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg Config) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
-		DatabaseKind:             cfg.DB.DatabaseKind,
-		Host:                     cfg.DB.Host,
-		Port:                     cfg.DB.Port,
-		Name:                     cfg.DB.Name,
-		User:                     cfg.DB.User,
-		Password:                 cfg.DB.Password,
-		SSLMode:                  cfg.DB.SSLMode,
-		ApplicationName:          cfg.DB.ApplicationName,
-		ConnectTimeout:           cfg.DB.ConnectTimeout,
-		StatementCacheCapacity:   cfg.DB.StatementCacheCapacity,
-		DescriptionCacheCapacity: cfg.DB.DescriptionCacheCapacity,
-		MaxOpenConnections:       cfg.DB.MaxOpenConnections,
-		MaxIdleConnections:       cfg.DB.MaxIdleConnections,
-		ConnectionMaxLifetime:    cfg.DB.ConnectionMaxLifetime,
-		ConnectionMaxIdleTime:    cfg.DB.ConnectionMaxIdleTime,
-		OpenTelemetry:            cfg.DB.OpenTelemetry,
-	}))
+func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg storage.Config) (*storage.Postgres, error) {
+	db, err := storage.NewPostgres(ctx, storage.WithConfig(cfg))
 	if err != nil {
 		return nil, err
 	}
@@ -1860,13 +1882,13 @@ import (
 	"github.com/caarlos0/env/v11"
 )
 
-type email struct {
+type EmailCfg struct {
 	MailpitHost string `env:"MAILPIT_HOST" envDefault:"0.0.0.0"`
 	MailpitPort string `env:"MAILPIT_PORT" envDefault:"1025"`
 }
 
-func newEmailConfig() email {
-	cfg := email{}
+func NewEmailCfg() EmailCfg {
+	cfg := EmailCfg{}
 
 	if err := env.ParseWithOptions(&cfg, env.Options{
 		RequiredIfNoDef: true,
@@ -1875,6 +1897,13 @@ func newEmailConfig() email {
 	}
 
 	return cfg
+}
+
+type MailpitHost string
+type MailpitPort string
+
+func NewMailpitValues(cfg EmailCfg) (MailpitHost, MailpitPort) {
+	return MailpitHost(cfg.MailpitHost), MailpitPort(cfg.MailpitPort)
 }
 ```
 
@@ -1895,8 +1924,8 @@ import (
 	"go.uber.org/fx"
 )
 
-// inertiaCfg contains environment-backed Inertia and SSR settings.
-type inertiaCfg struct {
+// InertiaCfg contains environment-backed Inertia and SSR settings.
+type InertiaCfg struct {
 	ContainerID         string          `env:"INERTIA_CONTAINER_ID" envDefault:"app"`
 	ViteDevURL          string          `env:"INERTIA_VITE_DEV_URL" envDefault:"http://localhost:5173/assets/dist"`
 	ProtocolDebug       bool            `env:"INERTIA_PROTOCOL_DEBUG" envDefault:"false"`
@@ -1910,15 +1939,15 @@ type inertiaCfg struct {
 	SSRFailFast         bool            `env:"INERTIA_SSR_FAIL_FAST" envDefault:"false"`
 }
 
-func newInertiaConfig() inertiaCfg {
-	cfg := inertiaCfg{}
+func NewInertiaCfg() InertiaCfg {
+	cfg := InertiaCfg{}
 	if err := env.ParseWithOptions(&cfg, env.Options{RequiredIfNoDef: true}); err != nil {
 		panic(err)
 	}
 	return cfg
 }
 
-func newInertia(lifecycle fx.Lifecycle, cfg Config, metadata application.Metadata) (*inertia.Renderer, error) {
+func newInertia(lifecycle fx.Lifecycle, cfg InertiaCfg, metadata application.Metadata) (*inertia.Renderer, error) {
 	renderer, err := inertia.New(
 		inertia.WithRoot(views.Root),
 		inertia.WithAssetFS(assets.Files),
@@ -1926,18 +1955,18 @@ func newInertia(lifecycle fx.Lifecycle, cfg Config, metadata application.Metadat
 		inertia.WithEnvironment(metadata.Environment),
 		inertia.WithBuildPathURL(routes.ViteBuild.Path()),
 		inertia.WithEntryPoint("resources/js/app.ts"),
-		inertia.WithContainerID(cfg.Inertia.ContainerID),
-		inertia.WithViteDevURL(cfg.Inertia.ViteDevURL),
-		inertia.WithProtocolDebug(cfg.Inertia.ProtocolDebug),
+		inertia.WithContainerID(cfg.ContainerID),
+		inertia.WithViteDevURL(cfg.ViteDevURL),
+		inertia.WithProtocolDebug(cfg.ProtocolDebug),
 		inertia.WithShared(inertia.Props{"appVersion": metadata.Version}),
-		inertia.WithSSRMode(cfg.Inertia.SSRMode),
-		inertia.WithSSRRuntime(cfg.Inertia.SSRRuntime),
-		inertia.WithSSRBundle(cfg.Inertia.SSRBundle),
-		inertia.WithSSRURL(cfg.Inertia.SSRURL),
-		inertia.WithSSRStartupTimeout(cfg.Inertia.SSRStartupTimeout),
-		inertia.WithSSRRequestTimeout(cfg.Inertia.SSRRequestTimeout),
-		inertia.WithSSRMaxResponseBytes(cfg.Inertia.SSRMaxResponseBytes),
-		inertia.WithSSRFailFast(cfg.Inertia.SSRFailFast),
+		inertia.WithSSRMode(cfg.SSRMode),
+		inertia.WithSSRRuntime(cfg.SSRRuntime),
+		inertia.WithSSRBundle(cfg.SSRBundle),
+		inertia.WithSSRURL(cfg.SSRURL),
+		inertia.WithSSRStartupTimeout(cfg.SSRStartupTimeout),
+		inertia.WithSSRRequestTimeout(cfg.SSRRequestTimeout),
+		inertia.WithSSRMaxResponseBytes(cfg.SSRMaxResponseBytes),
+		inertia.WithSSRFailFast(cfg.SSRFailFast),
 	)
 	if err != nil {
 		return nil, err
@@ -1972,8 +2001,8 @@ import (
 	"go.uber.org/fx"
 )
 
-// queueCfg contains all environment-backed River settings used by the application.
-type queueCfg struct {
+// QueueCfg contains all environment-backed River settings used by the application.
+type QueueCfg struct {
 	AdvisoryLockPrefix          int32         `env:"QUEUE_ADVISORY_LOCK_PREFIX" envDefault:"0"`
 	CancelledJobRetentionPeriod time.Duration `env:"QUEUE_CANCELLED_JOB_RETENTION_PERIOD" envDefault:"24h"`
 	CompletedJobRetentionPeriod time.Duration `env:"QUEUE_COMPLETED_JOB_RETENTION_PERIOD" envDefault:"24h"`
@@ -1996,15 +2025,15 @@ type queueCfg struct {
 	SkipUnknownJobCheck         bool          `env:"QUEUE_SKIP_UNKNOWN_JOB_CHECK" envDefault:"false"`
 }
 
-func newQueueConfig() queueCfg {
-	cfg := queueCfg{}
+func NewQueueCfg() QueueCfg {
+	cfg := QueueCfg{}
 	if err := env.ParseWithOptions(&cfg, env.Options{RequiredIfNoDef: true}); err != nil {
 		panic(err)
 	}
 	return cfg
 }
 
-func (cfg queueCfg) riverConfig() river.Config {
+func (cfg QueueCfg) riverConfig() river.Config {
 	return river.Config{
 		AdvisoryLockPrefix:          cfg.AdvisoryLockPrefix,
 		CancelledJobRetentionPeriod: cfg.CancelledJobRetentionPeriod,
@@ -2028,24 +2057,24 @@ func (cfg queueCfg) riverConfig() river.Config {
 	}
 }
 
-func newQueueInsert(connection storage.Connection, cfg Config) (*storage.QueueInsert, error) {
-	return storage.NewQueueInsert(connection, storage.WithRiverConfig(cfg.Queue.riverConfig()))
+func newQueueInsert(connection storage.Connection, cfg QueueCfg) (*storage.QueueInsert, error) {
+	return storage.NewQueueInsert(connection, storage.WithRiverConfig(cfg.riverConfig()))
 }
 
 type queueProcessorParams struct {
 	fx.In
 
 	Connection   storage.Connection
-	Config       Config
+	Config       QueueCfg
 	Logger       *slog.Logger
 	Workers      *river.Workers
 	PeriodicJobs []*river.PeriodicJob `group:"periodic_jobs"`
 }
 
 func newQueueProcessor(params queueProcessorParams) (*storage.QueueProcessor, error) {
-	riverConfig := params.Config.Queue.riverConfig()
+	riverConfig := params.Config.riverConfig()
 	riverConfig.Queues = map[string]river.QueueConfig{
-		river.QueueDefault: {MaxWorkers: params.Config.Queue.MaxWorkers},
+		river.QueueDefault: {MaxWorkers: params.Config.MaxWorkers},
 	}
 
 	return storage.NewQueueProcessor(
@@ -2095,7 +2124,7 @@ package config
 
 import "github.com/caarlos0/env/v11"
 
-type telemetry struct {
+type TelemetryCfg struct {
 	ServiceName         string  `env:"TELEMETRY_SERVICE_NAME" envDefault:"testapp"`
 	ServiceVersion      string  `env:"TELEMETRY_SERVICE_VERSION" envDefault:"1.0.0"`
 	OtlpLogsEndpoint    string  `env:"OTLP_LOGS_ENDPOINT" envDefault:""`
@@ -2107,8 +2136,8 @@ type telemetry struct {
 	BatchTimeoutMs      int     `env:"TELEMETRY_BATCH_TIMEOUT_MS" envDefault:"5000"`
 }
 
-func newTelemetryConfig() telemetry {
-	telemetryCfg := telemetry{}
+func NewTelemetryCfg() TelemetryCfg {
+	telemetryCfg := TelemetryCfg{}
 
 	if err := env.ParseWithOptions(&telemetryCfg, env.Options{
 		RequiredIfNoDef: true,
@@ -8722,7 +8751,6 @@ import (
 
 	"github.com/mbvlabs/andurel/pkg/server"
 	"testapp/application"
-	"testapp/config"
 	"testapp/router/appctx"
 	"testapp/router/cookies"
 	"testapp/router/routes"
@@ -8911,8 +8939,8 @@ func TraceRouteAttributes(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 	}
 }
 
-func CSRFMiddleware(cfg config.Config, csrfName string) (echo.MiddlewareFunc, error) {
-	strategy := strings.TrimSpace(cfg.App.CSRFStrategy)
+func CSRFMiddleware(csrfStrategy string, csrfTrustedOrigins []string, csrfName string) (echo.MiddlewareFunc, error) {
+	strategy := strings.TrimSpace(csrfStrategy)
 
 	var headerOnly bool
 	var tokenLookup string
@@ -8928,8 +8956,8 @@ func CSRFMiddleware(cfg config.Config, csrfName string) (echo.MiddlewareFunc, er
 	}
 
 	trustedOrigins := []string{application.BaseURL}
-	if len(cfg.App.CSRFTrustedOrigins) > 0 {
-		trustedOrigins = append(trustedOrigins, cfg.App.CSRFTrustedOrigins...)
+	if len(csrfTrustedOrigins) > 0 {
+		trustedOrigins = append(trustedOrigins, csrfTrustedOrigins...)
 	}
 
 	csrfConfig := echomw.CSRFConfig{
@@ -9375,18 +9403,23 @@ type Router struct {
 }
 
 func New(
-	cfg config.Config,
+	sessionKey config.SessionKey,
+	sessionEncKey config.SessionEncKey,
+	sessionMaxAge config.SessionMaxAge,
+	corsOrigins config.CorsOrigins,
+	csrfStrategy config.CsrfStrategy,
+	csrfTrustedOrigins config.CsrfTrustedOrigins,
 	tel *telemetry.Telemetry,
 	renderer *inertia.Renderer,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
 
-	authKey, err := hex.DecodeString(cfg.App.SessionKey)
+	authKey, err := hex.DecodeString(string(sessionKey))
 	if err != nil {
 		return nil, err
 	}
-	encKey, err := hex.DecodeString(cfg.App.SessionEncryptionKey)
+	encKey, err := hex.DecodeString(string(sessionEncKey))
 	if err != nil {
 		return nil, err
 	}
@@ -9417,7 +9450,10 @@ func New(
 	}
 
 	globalMiddleware, err := SetupGlobalMiddleware(
-		cfg,
+		sessionMaxAge,
+		corsOrigins,
+		csrfStrategy,
+		csrfTrustedOrigins,
 		tel,
 		authKey,
 		encKey,
@@ -9439,27 +9475,30 @@ func New(
 }
 
 func SetupGlobalMiddleware(
-	cfg config.Config,
+	sessionMaxAge config.SessionMaxAge,
+	corsOrigins config.CorsOrigins,
+	csrfStrategy config.CsrfStrategy,
+	csrfTrustedOrigins config.CsrfTrustedOrigins,
 	tel *telemetry.Telemetry,
 	authKey []byte,
 	encKey []byte,
 	csrfName string,
 	renderer *inertia.Renderer,
 ) ([]echo.MiddlewareFunc, error) {
-	csrfMiddleware, err := middleware.CSRFMiddleware(cfg, csrfName)
+	csrfMiddleware, err := middleware.CSRFMiddleware(string(csrfStrategy), []string(csrfTrustedOrigins), csrfName)
 	if err != nil {
 		return nil, err
 	}
 	sessionStore, err := newApplicationSessionStore(
 		authKey,
 		encKey,
-		cfg.App.SessionMaxAge,
+		int(sessionMaxAge),
 		application.Environment == server.ProdEnvironment,
 	)
 	if err != nil {
 		return nil, err
 	}
-	corsConfig, err := newCORSConfig(application.BaseURL, cfg.App.CORSAllowedOrigins)
+	corsConfig, err := newCORSConfig(application.BaseURL, []string(corsOrigins))
 	if err != nil {
 		return nil, err
 	}
@@ -10024,20 +10063,20 @@ type Identity struct {
 	tokenSigningKey string
 }
 
-func NewIdentity(db storage.Connection, insertOnly storage.InsertQueue, cfg config.Config) Identity {
-	previousPeppers := make([]string, 0, len(cfg.Auth.PreviousPeppers))
-	for _, pepper := range cfg.Auth.PreviousPeppers {
-		if pepper = strings.TrimSpace(pepper); pepper != "" && pepper != cfg.Auth.Pepper {
-			previousPeppers = append(previousPeppers, pepper)
+func NewIdentity(db storage.Connection, insertOnly storage.InsertQueue, pepper config.Pepper, previousPeppers config.PreviousPeppers, tokenSigningKey config.TokenSigningKey) Identity {
+	validPeppers := make([]string, 0, len(previousPeppers))
+	for _, p := range previousPeppers {
+		if p = strings.TrimSpace(p); p != "" && p != string(pepper) {
+			validPeppers = append(validPeppers, p)
 		}
 	}
 
 	return Identity{
 		db:              db,
 		insertOnly:      insertOnly,
-		pepper:          cfg.Auth.Pepper,
-		previousPeppers: previousPeppers,
-		tokenSigningKey: cfg.App.TokenSigningKey,
+		pepper:          string(pepper),
+		previousPeppers: validPeppers,
+		tokenSigningKey: string(tokenSigningKey),
 	}
 }
 ```
@@ -11424,25 +11463,25 @@ type Telemetry struct {
 	config         *telemetryOptions
 }
 
-func New(cfg config.Config) (*Telemetry, error) {
+func New(cfg config.TelemetryCfg) (*Telemetry, error) {
 	ctx := context.Background()
 
 	opts := []Option{
-		WithService(cfg.Telemetry.ServiceName, cfg.Telemetry.ServiceVersion),
-		WithBatchConfig(cfg.Telemetry.BatchSize, cfg.Telemetry.BatchTimeoutMs, 2048),
-		WithTraceSampleRate(cfg.Telemetry.TraceSampleRate),
+		WithService(cfg.ServiceName, cfg.ServiceVersion),
+		WithBatchConfig(cfg.BatchSize, cfg.BatchTimeoutMs, 2048),
+		WithTraceSampleRate(cfg.TraceSampleRate),
 	}
 
 	opts = append(opts, WithLogExporters(NewStdoutExporter()))
 
-	if cfg.Telemetry.OtlpMetricsEndpoint != "" {
+	if cfg.OtlpMetricsEndpoint != "" {
 		opts = append(opts, WithMetricExporters(
-			NewOtlpMetricExporter(cfg.Telemetry.OtlpMetricsEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
+			NewOtlpMetricExporter(cfg.OtlpMetricsEndpoint, parseHeaders(cfg.OtlpHeaders))))
 	}
 
-	if cfg.Telemetry.OtlpTracesEndpoint != "" {
+	if cfg.OtlpTracesEndpoint != "" {
 		opts = append(opts, WithTraceExporters(
-			NewOtlpTraceExporter(cfg.Telemetry.OtlpTracesEndpoint, parseHeaders(cfg.Telemetry.OtlpHeaders))))
+			NewOtlpTraceExporter(cfg.OtlpTracesEndpoint, parseHeaders(cfg.OtlpHeaders))))
 	} else {
 		opts = append(opts, WithTraceExporters(NewNoopTraceExporter()))
 	}

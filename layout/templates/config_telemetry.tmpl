@@ -2,7 +2,7 @@ package config
 
 import "github.com/caarlos0/env/v11"
 
-type telemetry struct {
+type TelemetryCfg struct {
 	ServiceName         string  `env:"TELEMETRY_SERVICE_NAME" envDefault:"{{.ProjectName}}"`
 	ServiceVersion      string  `env:"TELEMETRY_SERVICE_VERSION" envDefault:"1.0.0"`
 	OtlpLogsEndpoint    string  `env:"OTLP_LOGS_ENDPOINT" envDefault:""`
@@ -14,8 +14,8 @@ type telemetry struct {
 	BatchTimeoutMs      int     `env:"TELEMETRY_BATCH_TIMEOUT_MS" envDefault:"5000"`
 }
 
-func newTelemetryConfig() telemetry {
-	telemetryCfg := telemetry{}
+func NewTelemetryCfg() TelemetryCfg {
+	telemetryCfg := TelemetryCfg{}
 
 	if err := env.ParseWithOptions(&telemetryCfg, env.Options{
 		RequiredIfNoDef: true,
