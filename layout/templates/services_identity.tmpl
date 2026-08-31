@@ -3,6 +3,8 @@ package services
 import (
 	"strings"
 
+	"{{.ModuleName}}/models"
+
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -23,6 +25,8 @@ type AppIdentityProvider interface {
 
 type Identity struct {
 	db                     storage.Connection
+	users                  models.Users
+	tokens                 models.Tokens
 	insertOnly             storage.InsertQueue
 	pepper                 string
 	previousPeppers        []string
@@ -33,6 +37,8 @@ type Identity struct {
 
 func NewIdentity(
 	db storage.Connection,
+	users models.Users,
+	tokens models.Tokens,
 	insertOnly storage.InsertQueue,
 	appCfg AppIdentityProvider,
 	authCfg AuthProvider,
@@ -46,6 +52,8 @@ func NewIdentity(
 
 	return Identity{
 		db:                     db,
+		users:                  users,
+		tokens:                 tokens,
 		insertOnly:             insertOnly,
 		pepper:                 authCfg.GetPepper(),
 		previousPeppers:        validPeppers,

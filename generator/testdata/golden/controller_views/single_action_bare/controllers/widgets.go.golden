@@ -11,15 +11,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 type Widgets struct {
-	db storage.Connection
+	widgets models.Widgets
 }
 
-func NewWidgets(db storage.Connection) Widgets {
-	return Widgets{db}
+func NewWidgets(widgets models.Widgets) Widgets {
+	return Widgets{ widgets }
 }
 
 func (w Widgets) RegisterRoutes(r *router.Router) error {
@@ -44,7 +43,7 @@ func (w Widgets) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	widget, err := models.Widget.Find(etx.Request().Context(), w.db.Executor(), widgetID)
+	widget, err := w.widgets.Find(etx.Request().Context(), widgetID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}

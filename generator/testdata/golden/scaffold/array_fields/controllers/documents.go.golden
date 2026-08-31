@@ -15,15 +15,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 type Documents struct {
-	db storage.Connection
+	documents models.Documents
 }
 
-func NewDocuments(db storage.Connection) Documents {
-	return Documents{db}
+func NewDocuments(documents models.Documents) Documents {
+	return Documents{ documents }
 }
 
 func (d Documents) RegisterRoutes(r *router.Router) error {
@@ -112,9 +111,8 @@ func (d Documents) Index(etx *echo.Context) error {
 		}
 	}
 
-	documentsList, err := models.Document.Paginate(
+	documentsList, err := d.documents.Paginate(
 		etx.Request().Context(),
-		d.db.Executor(),
 		page,
 		perPage,
 	)
@@ -131,7 +129,7 @@ func (d Documents) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	document, err := models.Document.Find(etx.Request().Context(), d.db.Executor(), documentID)
+	document, err := d.documents.Find(etx.Request().Context(), documentID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -177,9 +175,8 @@ func (d Documents) Create(etx *echo.Context) error {
 		IsPublished: payload.IsPublished,
 	}
 
-	document, err := models.Document.Create(
+	document, err := d.documents.Create(
 		etx.Request().Context(),
-		d.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -201,7 +198,7 @@ func (d Documents) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	document, err := models.Document.Find(etx.Request().Context(), d.db.Executor(), documentID)
+	document, err := d.documents.Find(etx.Request().Context(), documentID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -249,9 +246,8 @@ func (d Documents) Update(etx *echo.Context) error {
 		IsPublished: payload.IsPublished,
 	}
 
-	document, err := models.Document.Update(
+	document, err := d.documents.Update(
 		etx.Request().Context(),
-		d.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -276,7 +272,7 @@ func (d Documents) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = models.Document.Destroy(etx.Request().Context(), d.db.Executor(), documentID)
+	err = d.documents.Destroy(etx.Request().Context(), documentID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete document: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())

@@ -226,7 +226,7 @@ func TestGenerateModelDryRunReportsHumanSummary(t *testing.T) {
 			Path:       "models/model.go",
 			Exists:     true,
 			OldContent: "package models\n",
-			NewContent: "package models\n\nvar Product product\n",
+			NewContent: "package models\n\n\tNewProducts,\n",
 		},
 		{
 			Path:       "models/product.go",
@@ -1338,7 +1338,7 @@ func TestGenerateControllerSingleCRUDActionInertiaProjectDefaultsToTemplControll
 		t,
 		rootDir,
 		"views/project_inquiries_resource.templ",
-		"Items []models.ProjectInquiryEntity",
+		"Items []models.ProjectInquiry",
 	)
 	assertCLITestFileNotContains(
 		t,

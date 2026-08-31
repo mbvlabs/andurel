@@ -14,7 +14,20 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type ProjectEntity struct {
+type Projects struct {
+	db queryDB
+}
+
+func NewProjects(db storage.Connection) Projects {
+	return Projects{db: db}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (projects Projects) WithTx(tx storage.Transaction) Projects {
+	return Projects{db: tx}
+}
+
+type Project struct {
 	bun.BaseModel `bun:"table:projects,alias:projects"`
 	ID            uuid.UUID `bun:"id,pk,type:uuid"`
 	Title         string    `bun:"title"`
@@ -23,17 +36,17 @@ type ProjectEntity struct {
 	UpdatedAt     time.Time `bun:"updated_at"`
 }
 
-func (p project) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ProjectEntity, error) {
-	var entity ProjectEntity
-	err := db.NewSelect().
+func (projects Projects) Find(ctx context.Context, id uuid.UUID) (Project, error) {
+	var entity Project
+	err := projects.db.Executor().NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return ProjectEntity{}, ErrNotFound
+			return Project{}, ErrNotFound
 		}
-		return ProjectEntity{}, err
+		return Project{}, err
 	}
 
 	return entity, nil
@@ -44,8 +57,8 @@ type CreateProjectData struct {
 	Status string
 }
 
-func (p project) Create(ctx context.Context, db storage.Executor, data CreateProjectData) (ProjectEntity, error) {
-	entity := ProjectEntity{
+func (projects Projects) Create(ctx context.Context, data CreateProjectData) (Project, error) {
+	entity := Project{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -54,11 +67,11 @@ func (p project) Create(ctx context.Context, db storage.Executor, data CreatePro
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
+		return Project{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return ProjectEntity{}, err
+	if _, err := projects.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return Project{}, err
 	}
 
 	return entity, nil
@@ -70,8 +83,8 @@ type UpdateProjectData struct {
 	Status string
 }
 
-func (p project) Update(ctx context.Context, db storage.Executor, data UpdateProjectData) (ProjectEntity, error) {
-	entity := ProjectEntity{
+func (projects Projects) Update(ctx context.Context, data UpdateProjectData) (Project, error) {
+	entity := Project{
 		ID:        data.ID,
 		UpdatedAt: time.Now(),
 		Title:     data.Title,
@@ -79,10 +92,10 @@ func (p project) Update(ctx context.Context, db storage.Executor, data UpdatePro
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
+		return Project{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := db.NewUpdate().
+	err := projects.db.Executor().NewUpdate().
 		Model(&entity).
 		Column("title").
 		Column("status").
@@ -92,17 +105,17 @@ func (p project) Update(ctx context.Context, db storage.Executor, data UpdatePro
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return ProjectEntity{}, ErrNotFound
+			return Project{}, ErrNotFound
 		}
-		return ProjectEntity{}, err
+		return Project{}, err
 	}
 
 	return entity, nil
 }
 
-func (p project) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	var entity ProjectEntity
-	err := db.NewDelete().
+func (projects Projects) Destroy(ctx context.Context, id uuid.UUID) error {
+	var entity Project
+	err := projects.db.Executor().NewDelete().
 		Model(&entity).
 		Where("id = ?", id).
 		Returning("*").
@@ -117,9 +130,9 @@ func (p project) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID)
 	return nil
 }
 
-func (p project) All(ctx context.Context, db storage.Executor) ([]ProjectEntity, error) {
-	var entities []ProjectEntity
-	if err := db.NewSelect().
+func (projects Projects) All(ctx context.Context) ([]Project, error) {
+	var entities []Project
+	if err := projects.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -129,14 +142,14 @@ func (p project) All(ctx context.Context, db storage.Executor) ([]ProjectEntity,
 }
 
 type PaginatedProjects struct {
-	Projects   []ProjectEntity
+	Projects   []Project
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func (p project) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedProjects, error) {
+func (projects Projects) Paginate(ctx context.Context, page, pageSize int64) (PaginatedProjects, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -149,14 +162,14 @@ func (p project) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.NewSelect().
-		Model(&ProjectEntity{}).Count(ctx)
+	totalCount, err := projects.db.Executor().NewSelect().
+		Model(&Project{}).Count(ctx)
 	if err != nil {
 		return PaginatedProjects{}, err
 	}
 
-	entities := make([]ProjectEntity, 0, int(pageSize))
-	if err := db.NewSelect().
+	entities := make([]Project, 0, int(pageSize))
+	if err := projects.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
@@ -175,8 +188,8 @@ func (p project) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 	}, nil
 }
 
-func (p project) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, data CreateProjectData) (ProjectEntity, error) {
-	entity := ProjectEntity{
+func (projects Projects) Upsert(ctx context.Context, id uuid.UUID, data CreateProjectData) (Project, error) {
+	entity := Project{
 		ID:        id,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -185,17 +198,17 @@ func (p project) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, 
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return ProjectEntity{}, errors.Join(ErrDomainValidation, err)
+		return Project{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewInsert().
+	if err := projects.db.Executor().NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("title = excluded.title").
 		Set("status = excluded.status").
 		Returning("*").
 		Scan(ctx); err != nil {
-		return ProjectEntity{}, err
+		return Project{}, err
 	}
 
 	return entity, nil

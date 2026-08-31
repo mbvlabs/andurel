@@ -11,23 +11,34 @@ import (
 	"github.com/mbvlabs/andurel/internal/cache"
 )
 
-func TestEnsureLineInBlock(t *testing.T) {
-	src := "package models\n\ntype (\n\tuser struct{}\n\ttoken struct{}\n)\n\nvar (\n\tUser user\n\tToken token\n)\n"
+func TestPlanModelRegistration(t *testing.T) {
+	src := `package models
 
-	got := ensureLineInBlock(src, "type (", "\tserver struct{}")
-	if !strings.Contains(got, "\tserver struct{}\n)") {
-		t.Errorf("expected server struct{} inserted before ); got:\n%s", got)
+import "go.uber.org/fx"
+
+var Module = fx.Module(
+	"models",
+	fx.Provide(
+		NewUsers,
+		NewTokens,
+	),
+)
+`
+
+	got, err := planModelRegistration("Server", src)
+	if err != nil {
+		t.Fatalf("planModelRegistration: %v", err)
+	}
+	if !strings.Contains(got, "NewServers,") {
+		t.Errorf("expected NewServers inserted into fx.Provide; got:\n%s", got)
 	}
 
-	// idempotent
-	again := ensureLineInBlock(got, "type (", "\tserver struct{}")
-	if again != got {
-		t.Errorf("expected idempotent insert, but content changed")
+	again, err := planModelRegistration("Server", got)
+	if err != nil {
+		t.Fatalf("planModelRegistration second call: %v", err)
 	}
-
-	got2 := ensureLineInBlock(got, "var (", "\tServer server")
-	if !strings.Contains(got2, "\tServer server\n)") {
-		t.Errorf("expected Server server inserted into var block; got:\n%s", got2)
+	if strings.Count(again, "NewServers") != 1 {
+		t.Errorf("expected idempotent insert, got:\n%s", again)
 	}
 }
 
@@ -285,7 +296,7 @@ func TestPlanModelFailureDoesNotApplyPartialChanges(t *testing.T) {
 	}
 	if err := os.WriteFile(
 		filepath.Join(root, "models", "model.go"),
-		[]byte("package models\n\ntype (\n)\n\nvar (\n)\n"),
+		[]byte(modelNamespaceFixture),
 		0o644,
 	); err != nil {
 		t.Fatalf("write registry: %v", err)
@@ -321,7 +332,7 @@ func writeModelPlanningFixture(t *testing.T, root string) {
 	t.Helper()
 	if err := os.WriteFile(
 		filepath.Join(root, "models", "model.go"),
-		[]byte("package models\n\ntype (\n)\n\nvar (\n)\n"),
+		[]byte(modelNamespaceFixture),
 		0o644,
 	); err != nil {
 		t.Fatalf("write registry: %v", err)

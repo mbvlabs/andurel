@@ -47,7 +47,6 @@ import (
 	"github.com/labstack/echo/v5"
 	"{{.ModulePath}}/models"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"{{.ModulePath}}/router"
 	"{{.ModulePath}}/router/cookies"
 	"{{.ModulePath}}/router/routes"
@@ -55,11 +54,11 @@ import (
 )
 
 type {{.PluralResourceName}} struct {
-	db storage.Connection
+	{{.ModelServiceName | ToLowerCamelCase}} models.{{.ModelServiceName}}
 }
 
-func New{{.PluralResourceName}}(db storage.Connection) {{.PluralResourceName}} {
-	return {{.PluralResourceName}}{db}
+func New{{.PluralResourceName}}({{.ModelServiceName | ToLowerCamelCase}} models.{{.ModelServiceName}}) {{.PluralResourceName}} {
+	return {{.PluralResourceName}}{ {{.ModelServiceName | ToLowerCamelCase}} }
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router) error {
@@ -181,9 +180,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		}
 	}
 
-	{{.ModelPluralName | ToCamelCase}}List, err := models.{{.ModelName}}.Paginate(
+	{{.ModelPluralName | ToCamelCase}}List, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Paginate(
 		etx.Request().Context(),
-		{{.ReceiverName}}.db.Executor(),
 		page,
 		perPage,
 	)
@@ -191,7 +189,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	return hypermedia.RenderPage(etx, views.{{.NamespacePascal}}{{.ResourceName}}Index{Items: {{.ModelPluralName | ToCamelCase}}List.{{.ModelPluralResourceName}}}.Page())
+	return hypermedia.RenderPage(etx, views.{{.NamespacePascal}}{{.ResourceName}}Index{Items: {{.ModelPluralName | ToCamelCase}}List.{{.ModelServiceName}}}.Page())
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
@@ -218,7 +216,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ModelName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -263,9 +261,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 {{- end}}
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ModelName}}.Create(
+	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Create(
 		etx.Request().Context(),
-		{{.ReceiverName}}.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -319,7 +316,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ModelName}}.Find(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -384,9 +381,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 {{- end}}
 	}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := models.{{.ModelName}}.Update(
+	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Update(
 		etx.Request().Context(),
-		{{.ReceiverName}}.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -443,7 +439,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	}
 {{- end}}
 
-	err = models.{{.ModelName}}.Destroy(etx.Request().Context(), {{.ReceiverName}}.db.Executor(), {{.ResourceName | ToLowerCamelCase}}ID)
+	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())

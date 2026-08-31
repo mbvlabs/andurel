@@ -11,8 +11,8 @@ import (
 
 func changedModelUpdate() *generator.UpdateModelResult {
 	return &generator.UpdateModelResult{
-		OldStruct:         "type WidgetEntity struct {\n\tName string\n}\n",
-		NewStruct:         "type WidgetEntity struct {\n\tName string\n\tCount int64\n}\n",
+		OldStruct:         "type Widget struct {\n\tName string\n}\n",
+		NewStruct:         "type Widget struct {\n\tName string\n\tCount int64\n}\n",
 		ModelPath:         "models/widget.go",
 		HasChanges:        true,
 		OldFactoryContent: "package factories\n\nvar Count = 1\n",

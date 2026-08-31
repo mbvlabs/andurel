@@ -12,7 +12,20 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type EventMetricEntity struct {
+type EventMetrics struct {
+	db queryDB
+}
+
+func NewEventMetrics(db storage.Connection) EventMetrics {
+	return EventMetrics{db: db}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (eventMetrics EventMetrics) WithTx(tx storage.Transaction) EventMetrics {
+	return EventMetrics{db: tx}
+}
+
+type EventMetric struct {
 	bun.BaseModel `bun:"table:event_metrics,alias:event_metrics"`
 	Action        string    `bun:"action"`
 	EntityType    string    `bun:"entity_type"`
@@ -29,8 +42,8 @@ type CreateEventMetricData struct {
 	OccurredAt time.Time
 }
 
-func (em eventMetric) Create(ctx context.Context, db storage.Executor, data CreateEventMetricData) (EventMetricEntity, error) {
-	entity := EventMetricEntity{
+func (eventMetrics EventMetrics) Create(ctx context.Context, data CreateEventMetricData) (EventMetric, error) {
+	entity := EventMetric{
 		Action:     data.Action,
 		EntityType: data.EntityType,
 		EventCount: data.EventCount,
@@ -39,19 +52,19 @@ func (em eventMetric) Create(ctx context.Context, db storage.Executor, data Crea
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return EventMetricEntity{}, errors.Join(ErrDomainValidation, err)
+		return EventMetric{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return EventMetricEntity{}, err
+	if _, err := eventMetrics.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return EventMetric{}, err
 	}
 
 	return entity, nil
 }
 
-func (em eventMetric) All(ctx context.Context, db storage.Executor) ([]EventMetricEntity, error) {
-	var entities []EventMetricEntity
-	if err := db.NewSelect().
+func (eventMetrics EventMetrics) All(ctx context.Context) ([]EventMetric, error) {
+	var entities []EventMetric
+	if err := eventMetrics.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -61,14 +74,14 @@ func (em eventMetric) All(ctx context.Context, db storage.Executor) ([]EventMetr
 }
 
 type PaginatedEventMetrics struct {
-	EventMetrics []EventMetricEntity
+	EventMetrics []EventMetric
 	TotalCount   int64
 	Page         int64
 	PageSize     int64
 	TotalPages   int64
 }
 
-func (em eventMetric) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedEventMetrics, error) {
+func (eventMetrics EventMetrics) Paginate(ctx context.Context, page, pageSize int64) (PaginatedEventMetrics, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -81,14 +94,14 @@ func (em eventMetric) Paginate(ctx context.Context, db storage.Executor, page, p
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.NewSelect().
-		Model(&EventMetricEntity{}).Count(ctx)
+	totalCount, err := eventMetrics.db.Executor().NewSelect().
+		Model(&EventMetric{}).Count(ctx)
 	if err != nil {
 		return PaginatedEventMetrics{}, err
 	}
 
-	entities := make([]EventMetricEntity, 0, int(pageSize))
-	if err := db.NewSelect().
+	entities := make([]EventMetric, 0, int(pageSize))
+	if err := eventMetrics.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).

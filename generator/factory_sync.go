@@ -223,7 +223,7 @@ func (m *ModelManager) discoverFactoryResourceNames() ([]string, error) {
 			return nil, fmt.Errorf("read model file %s: %w", path, err)
 		}
 		for _, name := range entityNames(src) {
-			names = append(names, strings.TrimSuffix(name, "Entity"))
+			names = append(names, name)
 		}
 	}
 	slices.Sort(names)
@@ -239,7 +239,7 @@ func (m *ModelManager) factoryModelFromEntity(
 		return nil, "", fmt.Errorf("read model file: %w", err)
 	}
 
-	entityName := resourceName + "Entity"
+	entityName := resourceName
 	fields, _, _, err := parseEntityStruct(src, entityName)
 	if err != nil {
 		return nil, "", err
@@ -435,7 +435,7 @@ func generatedModelFromParsedEntity(
 	genModel := &models.GeneratedModel{
 		Name:          resourceName,
 		PluralName:    naming.DeriveTableName(resourceName),
-		EntityName:    resourceName + "Entity",
+		EntityName:    resourceName,
 		NamespaceVar:  resourceName,
 		Package:       "models",
 		TableName:     tableName,
@@ -1022,13 +1022,28 @@ func entityNames(src []byte) []string {
 		}
 		for _, spec := range genDecl.Specs {
 			typeSpec, ok := spec.(*ast.TypeSpec)
-			if !ok || !strings.HasSuffix(typeSpec.Name.Name, "Entity") {
+			if !ok || !hasBunBaseModel(typeSpec) {
 				continue
 			}
-			if _, ok := typeSpec.Type.(*ast.StructType); ok {
-				names = append(names, typeSpec.Name.Name)
-			}
+			names = append(names, typeSpec.Name.Name)
 		}
 	}
 	return names
+}
+
+func hasBunBaseModel(typeSpec *ast.TypeSpec) bool {
+	structType, ok := typeSpec.Type.(*ast.StructType)
+	if !ok || structType.Fields == nil {
+		return false
+	}
+	for _, field := range structType.Fields.List {
+		if len(field.Names) != 0 {
+			continue
+		}
+		selector, ok := field.Type.(*ast.SelectorExpr)
+		if ok && selector.Sel != nil && selector.Sel.Name == "BaseModel" {
+			return true
+		}
+	}
+	return false
 }

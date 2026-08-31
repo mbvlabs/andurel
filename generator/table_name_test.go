@@ -52,7 +52,7 @@ func TestResolveTableName(t *testing.T) {
 	}
 
 	bunModel := func(entityName, table string) string {
-		return "package models\n\ntype " + entityName + "Entity struct {\n\tbun.BaseModel `bun:\"table:" + table + "\"`\n\tID string\n}\n"
+		return "package models\n\ntype " + entityName + " struct {\n\tbun.BaseModel `bun:\"table:" + table + "\"`\n\tID string\n}\n"
 	}
 
 	tests := []struct {
@@ -118,7 +118,7 @@ func TestResolveTableName_OverrideTakesPrecedence(t *testing.T) {
 
 	modelContent := `package models
 
-type StudentFeedbackEntity struct {
+type StudentFeedback struct {
 	bun.BaseModel ` + "`" + `bun:"table:student_feedback"` + "`" + `
 	ID string
 }

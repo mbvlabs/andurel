@@ -1241,6 +1241,7 @@ import (
 	"testapp/config"
 	"testapp/controllers"
 	"testapp/email"
+	"testapp/models"
 	"testapp/router"
 	"testapp/services"
 	"testapp/telemetry"
@@ -1281,6 +1282,7 @@ func main() {
 		config.Module,
 		databaseModule,
 		queueInsertModule,
+		models.Module,
 		inertiaModule,
 		telemetry.Module,
 		services.Module,
@@ -5718,9 +5720,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// TokenFactory wraps models.TokenEntity for testing
+// TokenFactory wraps models.Token for testing
 type TokenFactory struct {
-	models.TokenEntity
+	models.Token
 }
 
 // TokenOption is a functional option for configuring a TokenFactory
@@ -5728,9 +5730,9 @@ type TokenOption func(*TokenFactory)
 
 // BuildToken creates an in-memory Token with default test values.
 // Auto-managed fields (ID, timestamps) are left at zero and set by CreateToken.
-func BuildToken(opts ...TokenOption) models.TokenEntity {
+func BuildToken(opts ...TokenOption) models.Token {
 	f := &TokenFactory{
-		TokenEntity: models.TokenEntity{
+		Token: models.Token{
 			Scope:     "default",
 			ExpiresAt: time.Now().Add(1 * time.Hour),
 			Hash:      "test-hash",
@@ -5742,7 +5744,7 @@ func BuildToken(opts ...TokenOption) models.TokenEntity {
 		opt(f)
 	}
 
-	return f.TokenEntity
+	return f.Token
 }
 
 // CreateToken creates and persists a Token to the database.
@@ -5751,10 +5753,10 @@ func CreateToken(
 	ctx context.Context,
 	exec storage.Executor,
 	opts ...TokenOption,
-) (models.TokenEntity, error) {
+) (models.Token, error) {
 	built := BuildToken(opts...)
 
-	entity := models.TokenEntity{
+	entity := models.Token{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -5765,7 +5767,7 @@ func CreateToken(
 	}
 
 	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
-		return models.TokenEntity{}, err
+		return models.Token{}, err
 	}
 
 	return entity, nil
@@ -5777,8 +5779,8 @@ func CreateTokens(
 	exec storage.Executor,
 	count int,
 	opts ...TokenOption,
-) ([]models.TokenEntity, error) {
-	tokens := make([]models.TokenEntity, 0, count)
+) ([]models.Token, error) {
+	tokens := make([]models.Token, 0, count)
 
 	for i := range count {
 		token, err := CreateToken(ctx, exec, opts...)
@@ -5843,9 +5845,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// UserFactory wraps models.UserEntity for testing
+// UserFactory wraps models.User for testing
 type UserFactory struct {
-	models.UserEntity
+	models.User
 }
 
 // UserOption is a functional option for configuring a UserFactory
@@ -5853,9 +5855,9 @@ type UserOption func(*UserFactory)
 
 // BuildUser creates an in-memory User with default test values.
 // Auto-managed fields (ID, timestamps) are left at zero and set by CreateUser.
-func BuildUser(opts ...UserOption) models.UserEntity {
+func BuildUser(opts ...UserOption) models.User {
 	f := &UserFactory{
-		UserEntity: models.UserEntity{
+		User: models.User{
 			Email:            faker.Email(),
 			EmailValidatedAt: sql.NullTime{},
 			Password:         defaultPassword(),
@@ -5867,7 +5869,7 @@ func BuildUser(opts ...UserOption) models.UserEntity {
 		opt(f)
 	}
 
-	return f.UserEntity
+	return f.User
 }
 
 // CreateUser creates and persists a User to the database.
@@ -5876,10 +5878,10 @@ func CreateUser(
 	ctx context.Context,
 	exec storage.Executor,
 	opts ...UserOption,
-) (models.UserEntity, error) {
+) (models.User, error) {
 	built := BuildUser(opts...)
 
-	entity := models.UserEntity{
+	entity := models.User{
 		ID:               uuid.New(),
 		CreatedAt:        time.Now(),
 		UpdatedAt:        time.Now(),
@@ -5890,7 +5892,7 @@ func CreateUser(
 	}
 
 	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
-		return models.UserEntity{}, err
+		return models.User{}, err
 	}
 
 	return entity, nil
@@ -5902,8 +5904,8 @@ func CreateUsers(
 	exec storage.Executor,
 	count int,
 	opts ...UserOption,
-) ([]models.UserEntity, error) {
-	users := make([]models.UserEntity, 0, count)
+) ([]models.User, error) {
+	users := make([]models.User, 0, count)
 
 	for i := range count {
 		user, err := CreateUser(ctx, exec, opts...)
@@ -5955,14 +5957,23 @@ file -----------rw-r--r-- models/model.go
 // Package models contains data models and validation logic.
 package models
 
-type (
-	user  struct{}
-	token struct{}
+import (
+	"github.com/mbvlabs/andurel/pkg/storage"
+
+	"go.uber.org/fx"
 )
 
-var (
-	User  user
-	Token token
+// queryDB is satisfied by storage.Connection and storage.Transaction.
+type queryDB interface {
+	Executor() storage.Executor
+}
+
+var Module = fx.Module(
+	"models",
+	fx.Provide(
+		NewUsers,
+		NewTokens,
+	),
 )
 ```
 
@@ -5996,7 +6007,20 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type TokenEntity struct {
+type Tokens struct {
+	db queryDB
+}
+
+func NewTokens(db storage.Connection) Tokens {
+	return Tokens{db: db}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (tokens Tokens) WithTx(tx storage.Transaction) Tokens {
+	return Tokens{db: tx}
+}
+
+type Token struct {
 	bun.BaseModel `bun:"table:tokens,alias:tokens"`
 	ID            uuid.UUID       `bun:"id,pk,type:uuid"`
 	CreatedAt     time.Time       `bun:"created_at"`
@@ -6007,7 +6031,7 @@ type TokenEntity struct {
 	MetaData      json.RawMessage `bun:"meta_data,type:jsonb"`
 }
 
-func (t TokenEntity) IsValid(token, secret string) bool {
+func (t Token) IsValid(token, secret string) bool {
 	expected := HashForStorage(token, secret)
 
 	isEqual := hmac.Equal([]byte(expected), []byte(t.Hash))
@@ -6046,44 +6070,43 @@ func HashForStorage(plain, secret string) string {
 	return hex.EncodeToString(m.Sum(nil))
 }
 
-func (t token) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (TokenEntity, error) {
-	var entity TokenEntity
-	err := db.NewSelect().
+func (tokens Tokens) Find(ctx context.Context, id uuid.UUID) (Token, error) {
+	var entity Token
+	err := tokens.db.Executor().NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return TokenEntity{}, ErrNotFound
+			return Token{}, ErrNotFound
 		}
 
-		return TokenEntity{}, err
+		return Token{}, err
 	}
 
 	return entity, nil
 }
 
-func (t token) FindByScopeAndHash(
+func (tokens Tokens) FindByScopeAndHash(
 	ctx context.Context,
-	db storage.Executor,
 	secret string,
 	scope string,
 	plainToken string,
-) (TokenEntity, error) {
+) (Token, error) {
 	hash := HashForStorage(plainToken, secret)
 
-	var entity TokenEntity
-	err := db.NewSelect().
+	var entity Token
+	err := tokens.db.Executor().NewSelect().
 		Model(&entity).
 		Where("scope = ?", scope).
 		Where("hash = ?", hash).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return TokenEntity{}, ErrNotFound
+			return Token{}, ErrNotFound
 		}
 
-		return TokenEntity{}, err
+		return Token{}, err
 	}
 
 	return entity, nil
@@ -6096,7 +6119,7 @@ type createTokenData struct {
 	MetaData  json.RawMessage
 }
 
-func (t *TokenEntity) Validate() error {
+func (t *Token) Validate() error {
 	b := validation.NewBuilder()
 	b.Required("scope", t.Scope)
 	b.Required("expires_at", t.ExpiresAt)
@@ -6106,12 +6129,11 @@ func (t *TokenEntity) Validate() error {
 	return b.Err()
 }
 
-func (t token) createToken(
+func (tokens Tokens) createToken(
 	ctx context.Context,
-	db storage.Executor,
 	data createTokenData,
-) (TokenEntity, error) {
-	entity := TokenEntity{
+) (Token, error) {
+	entity := Token{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -6122,19 +6144,18 @@ func (t token) createToken(
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return TokenEntity{}, errors.Join(ErrDomainValidation, err)
+		return Token{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return TokenEntity{}, err
+	if _, err := tokens.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return Token{}, err
 	}
 
 	return entity, nil
 }
 
-func (t token) CreateCode(
+func (tokens Tokens) CreateCode(
 	ctx context.Context,
-	db storage.Executor,
 	secret string,
 	scope string,
 	expiresAt time.Time,
@@ -6157,9 +6178,8 @@ func (t token) CreateCode(
 	return tkn, nil
 }
 
-func (t token) Create(
+func (tokens Tokens) Create(
 	ctx context.Context,
-	db storage.Executor,
 	secret string,
 	scope string,
 	expiresAt time.Time,
@@ -6182,17 +6202,17 @@ func (t token) Create(
 	return tkn, nil
 }
 
-func (t token) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	_, err := db.NewDelete().
-		Model((*TokenEntity)(nil)).
+func (tokens Tokens) Destroy(ctx context.Context, id uuid.UUID) error {
+	_, err := tokens.db.Executor().NewDelete().
+		Model((*Token)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
 	return err
 }
 
-func (t token) All(ctx context.Context, db storage.Executor) ([]TokenEntity, error) {
-	var entities []TokenEntity
-	err := db.NewSelect().
+func (tokens Tokens) All(ctx context.Context) ([]Token, error) {
+	var entities []Token
+	err := tokens.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx)
 	if err != nil {
@@ -6203,16 +6223,15 @@ func (t token) All(ctx context.Context, db storage.Executor) ([]TokenEntity, err
 }
 
 type PaginatedTokens struct {
-	Tokens     []TokenEntity
+	Tokens     []Token
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func (t token) Paginate(
+func (tokens Tokens) Paginate(
 	ctx context.Context,
-	db storage.Executor,
 	page, pageSize int64,
 ) (PaginatedTokens, error) {
 	if page < 1 {
@@ -6227,14 +6246,14 @@ func (t token) Paginate(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.NewSelect().
-		Model(&TokenEntity{}).Count(ctx)
+	totalCount, err := tokens.db.Executor().NewSelect().
+		Model(&Token{}).Count(ctx)
 	if err != nil {
 		return PaginatedTokens{}, err
 	}
 
-	entities := make([]TokenEntity, 0, int(pageSize))
-	if err := db.NewSelect().
+	entities := make([]Token, 0, int(pageSize))
+	if err := tokens.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
@@ -6278,7 +6297,20 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-type UserEntity struct {
+type Users struct {
+	db queryDB
+}
+
+func NewUsers(db storage.Connection) Users {
+	return Users{db: db}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (users Users) WithTx(tx storage.Transaction) Users {
+	return Users{db: tx}
+}
+
+type User struct {
 	bun.BaseModel    `bun:"table:users,alias:user"`
 	ID               uuid.UUID    `bun:"id,pk,type:uuid"`
 	CreatedAt        time.Time    `bun:"created_at"`
@@ -6289,7 +6321,7 @@ type UserEntity struct {
 	IsAdmin          bool         `bun:"is_admin"`
 }
 
-func (u *UserEntity) Validate() error {
+func (u *User) Validate() error {
 	b := validation.NewBuilder()
 	b.Required("email", u.Email)
 	b.MaxLen("email", u.Email, 255)
@@ -6297,11 +6329,11 @@ func (u *UserEntity) Validate() error {
 	return b.Err()
 }
 
-func (u *UserEntity) HasValidatedEmail() bool {
+func (u *User) HasValidatedEmail() bool {
 	return u.EmailValidatedAt.Valid
 }
 
-func (u *UserEntity) ValidPassword(providedPassword, pepper string) (bool, error) {
+func (u *User) ValidPassword(providedPassword, pepper string) (bool, error) {
 	parts := strings.Split(string(u.Password), ":")
 	if len(parts) != 2 {
 		return false, fmt.Errorf("invalid stored password format")
@@ -6329,39 +6361,38 @@ func (u *UserEntity) ValidPassword(providedPassword, pepper string) (bool, error
 	return subtle.ConstantTimeCompare(newHash, expectedHash) == 1, nil
 }
 
-func (u user) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (UserEntity, error) {
-	var entity UserEntity
-	err := db.NewSelect().
+func (users Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
+	var entity User
+	err := users.db.Executor().NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return UserEntity{}, ErrNotFound
+			return User{}, ErrNotFound
 		}
 
-		return UserEntity{}, err
+		return User{}, err
 	}
 
 	return entity, nil
 }
 
-func (u user) FindByEmail(
+func (users Users) FindByEmail(
 	ctx context.Context,
-	db storage.Executor,
 	email string,
-) (UserEntity, error) {
-	var entity UserEntity
-	err := db.NewSelect().
+) (User, error) {
+	var entity User
+	err := users.db.Executor().NewSelect().
 		Model(&entity).
 		Where("email = ?", strings.ToLower(email)).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return UserEntity{}, ErrNotFound
+			return User{}, ErrNotFound
 		}
 
-		return UserEntity{}, err
+		return User{}, err
 	}
 
 	return entity, nil
@@ -6377,18 +6408,17 @@ type CreateUserData struct {
 	PasswordPair PasswordPair
 }
 
-func (u user) Create(
+func (users Users) Create(
 	ctx context.Context,
-	db storage.Executor,
 	pepper string,
 	data CreateUserData,
-) (UserEntity, error) {
+) (User, error) {
 	hashedPassword, err := HashPassword(data.PasswordPair.Password, pepper)
 	if err != nil {
-		return UserEntity{}, err
+		return User{}, err
 	}
 
-	entity := UserEntity{
+	entity := User{
 		ID:               uuid.New(),
 		CreatedAt:        time.Now(),
 		UpdatedAt:        time.Now(),
@@ -6399,12 +6429,12 @@ func (u user) Create(
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return UserEntity{}, errors.Join(ErrDomainValidation, err)
+		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	_, err = db.NewInsert().Model(&entity).Exec(ctx)
+	_, err = users.db.Executor().NewInsert().Model(&entity).Exec(ctx)
 	if err != nil {
-		return UserEntity{}, err
+		return User{}, err
 	}
 
 	return entity, nil
@@ -6418,22 +6448,21 @@ type UpdateUserData struct {
 	IsAdmin          bool
 }
 
-func (u user) Update(
+func (users Users) Update(
 	ctx context.Context,
-	db storage.Executor,
 	data UpdateUserData,
-) (UserEntity, error) {
-	var current UserEntity
-	err := db.NewSelect().
+) (User, error) {
+	var current User
+	err := users.db.Executor().NewSelect().
 		Model(&current).
 		Where("id = ?", data.ID).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return UserEntity{}, ErrNotFound
+			return User{}, ErrNotFound
 		}
 
-		return UserEntity{}, err
+		return User{}, err
 	}
 
 	email := strings.ToLower(data.Email)
@@ -6451,7 +6480,7 @@ func (u user) Update(
 		password = current.Password
 	}
 
-	entity := UserEntity{
+	entity := User{
 		ID:               data.ID,
 		CreatedAt:        current.CreatedAt,
 		UpdatedAt:        time.Now(),
@@ -6462,10 +6491,10 @@ func (u user) Update(
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return UserEntity{}, errors.Join(ErrDomainValidation, err)
+		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err = db.NewUpdate().
+	err = users.db.Executor().NewUpdate().
 		Model(&entity).
 		Column("email").
 		Column("email_validated_at").
@@ -6477,27 +6506,27 @@ func (u user) Update(
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return UserEntity{}, ErrNotFound
+			return User{}, ErrNotFound
 		}
 
-		return UserEntity{}, err
+		return User{}, err
 	}
 
 	return entity, nil
 }
 
-func (u user) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	_, err := db.NewDelete().
-		Model((*UserEntity)(nil)).
+func (users Users) Destroy(ctx context.Context, id uuid.UUID) error {
+	_, err := users.db.Executor().NewDelete().
+		Model((*User)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
 
 	return err
 }
 
-func (u user) All(ctx context.Context, db storage.Executor) ([]UserEntity, error) {
-	var entities []UserEntity
-	err := db.NewSelect().
+func (users Users) All(ctx context.Context) ([]User, error) {
+	var entities []User
+	err := users.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx)
 	if err != nil {
@@ -6508,16 +6537,15 @@ func (u user) All(ctx context.Context, db storage.Executor) ([]UserEntity, error
 }
 
 type PaginatedUsers struct {
-	Users      []UserEntity
+	Users      []User
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func (u user) Paginate(
+func (users Users) Paginate(
 	ctx context.Context,
-	db storage.Executor,
 	page, pageSize int64,
 ) (PaginatedUsers, error) {
 	if page < 1 {
@@ -6532,14 +6560,14 @@ func (u user) Paginate(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.NewSelect().
-		Model(&UserEntity{}).Count(ctx)
+	totalCount, err := users.db.Executor().NewSelect().
+		Model(&User{}).Count(ctx)
 	if err != nil {
 		return PaginatedUsers{}, err
 	}
 
-	entities := make([]UserEntity, 0, int(pageSize))
-	err = db.NewSelect().
+	entities := make([]User, 0, int(pageSize))
+	err = users.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
@@ -7308,7 +7336,7 @@ type App struct {
 	IsAuthenticated bool
 }
 
-func (s *Session) CreateAppSession(c *echo.Context, user models.UserEntity) error {
+func (s *Session) CreateAppSession(c *echo.Context, user models.User) error {
 	sess, err := getSession(s.appSessionName, c)
 	if err != nil {
 		return err
@@ -8954,23 +8982,23 @@ type LoginData struct {
 func (i Identity) AuthenticateUser(
 	ctx context.Context,
 	data LoginData,
-) (models.UserEntity, error) {
+) (models.User, error) {
 	b := validation.NewBuilder()
 	b.Required("email", data.Email)
 	b.Required("password", data.Password)
 	if !b.Errors().Empty() {
-		return models.UserEntity{}, b.Errors()
+		return models.User{}, b.Errors()
 	}
 
-	user, err := models.User.FindByEmail(ctx, i.db.Executor(), data.Email)
+	user, err := i.users.FindByEmail(ctx, data.Email)
 
 	if err != nil {
 
 		if errors.Is(err, models.ErrNotFound) {
-			return models.UserEntity{}, ErrInvalidCredentials
+			return models.User{}, ErrInvalidCredentials
 		}
 
-		return models.UserEntity{}, fmt.Errorf("find user by email: %w", err)
+		return models.User{}, fmt.Errorf("find user by email: %w", err)
 
 	}
 
@@ -8983,22 +9011,22 @@ func (i Identity) AuthenticateUser(
 
 	if err != nil {
 
-		return models.UserEntity{}, fmt.Errorf("validate password: %w", err)
+		return models.User{}, fmt.Errorf("validate password: %w", err)
 
 	}
 
 	if !validPassword {
 
-		return models.UserEntity{}, ErrInvalidCredentials
+		return models.User{}, ErrInvalidCredentials
 	}
 
 	if needsRehash {
 		hashedPassword, err := models.HashPassword(data.Password, i.pepper)
 		if err != nil {
-			return models.UserEntity{}, fmt.Errorf("rehash password with current pepper: %w", err)
+			return models.User{}, fmt.Errorf("rehash password with current pepper: %w", err)
 		}
 
-		user, err = models.User.Update(ctx, i.db.Executor(), models.UpdateUserData{
+		user, err = i.users.Update(ctx, models.UpdateUserData{
 			ID:               user.ID,
 			Email:            user.Email,
 			EmailValidatedAt: user.EmailValidatedAt,
@@ -9006,19 +9034,19 @@ func (i Identity) AuthenticateUser(
 			IsAdmin:          user.IsAdmin,
 		})
 		if err != nil {
-			return models.UserEntity{}, fmt.Errorf("persist password rehash: %w", err)
+			return models.User{}, fmt.Errorf("persist password rehash: %w", err)
 		}
 	}
 
 	if !user.HasValidatedEmail() {
-		return models.UserEntity{}, ErrEmailNotVerified
+		return models.User{}, ErrEmailNotVerified
 	}
 
 	return user, nil
 }
 
 func verifyPasswordWithPeppers(
-	user models.UserEntity,
+	user models.User,
 	providedPassword string,
 	currentPepper string,
 	previousPeppers []string,
@@ -9096,7 +9124,7 @@ func TestVerifyPasswordWithPeppers(t *testing.T) {
 			if err != nil {
 				t.Fatalf("HashPassword: %v", err)
 			}
-			user := models.UserEntity{Password: []byte(hash)}
+			user := models.User{Password: []byte(hash)}
 
 			valid, needsRehash, err := verifyPasswordWithPeppers(
 				user,
@@ -9128,6 +9156,8 @@ package services
 import (
 	"strings"
 
+	"testapp/models"
+
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -9148,6 +9178,8 @@ type AppIdentityProvider interface {
 
 type Identity struct {
 	db                     storage.Connection
+	users                  models.Users
+	tokens                 models.Tokens
 	insertOnly             storage.InsertQueue
 	pepper                 string
 	previousPeppers        []string
@@ -9158,6 +9190,8 @@ type Identity struct {
 
 func NewIdentity(
 	db storage.Connection,
+	users models.Users,
+	tokens models.Tokens,
 	insertOnly storage.InsertQueue,
 	appCfg AppIdentityProvider,
 	authCfg AuthProvider,
@@ -9171,6 +9205,8 @@ func NewIdentity(
 
 	return Identity{
 		db:                     db,
+		users:                  users,
+		tokens:                 tokens,
 		insertOnly:             insertOnly,
 		pepper:                 authCfg.GetPepper(),
 		previousPeppers:        validPeppers,
@@ -9236,7 +9272,10 @@ func (i Identity) RegisterUser(
 
 	}
 
-	user, err := models.User.Create(ctx, tx.Executor(), i.pepper, models.CreateUserData{
+	users := i.users.WithTx(tx)
+	tokens := i.tokens.WithTx(tx)
+
+	user, err := users.Create(ctx, i.pepper, models.CreateUserData{
 
 		Email: data.Email,
 		PasswordPair: models.PasswordPair{
@@ -9261,9 +9300,8 @@ func (i Identity) RegisterUser(
 
 	}
 
-	code, err := models.Token.CreateCode(
+	code, err := tokens.CreateCode(
 		ctx,
-		tx.Executor(),
 		i.tokenSigningKey,
 
 		userEmailVerification,
@@ -9331,24 +9369,26 @@ type VerifyEmailData struct {
 func (i Identity) VerifyEmail(
 	ctx context.Context,
 	data VerifyEmailData,
-) (models.UserEntity, error) {
+) (models.User, error) {
 	b := validation.NewBuilder()
 	b.Required("code", data.Code)
 	if !b.Errors().Empty() {
-		return models.UserEntity{}, b.Errors()
+		return models.User{}, b.Errors()
 	}
 
 	tx, err := i.db.BeginTransaction(ctx, nil)
 
 	if err != nil {
 
-		return models.UserEntity{}, fmt.Errorf("begin email verification transaction: %w", err)
+		return models.User{}, fmt.Errorf("begin email verification transaction: %w", err)
 
 	}
 
-	token, err := models.Token.FindByScopeAndHash(
+	users := i.users.WithTx(tx)
+	tokens := i.tokens.WithTx(tx)
+
+	token, err := tokens.FindByScopeAndHash(
 		ctx,
-		tx.Executor(),
 		i.tokenSigningKey,
 
 		userEmailVerification,
@@ -9358,24 +9398,24 @@ func (i Identity) VerifyEmail(
 		_ = tx.Rollback()
 
 		if errors.Is(err, models.ErrNotFound) {
-			return models.UserEntity{}, ErrInvalidVerificationCode
+			return models.User{}, ErrInvalidVerificationCode
 		}
 
-		return models.UserEntity{}, fmt.Errorf("find email verification token: %w", err)
+		return models.User{}, fmt.Errorf("find email verification token: %w", err)
 
 	}
 
 	if !token.IsValid(data.Code, i.tokenSigningKey) {
 
 		_ = tx.Rollback()
-		return models.UserEntity{}, ErrExpiredVerificationCode
+		return models.User{}, ErrExpiredVerificationCode
 	}
 
 	var meta map[string]string
 	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
 		_ = tx.Rollback()
 
-		return models.UserEntity{}, fmt.Errorf("unmarshal verification token metadata: %v", err)
+		return models.User{}, fmt.Errorf("unmarshal verification token metadata: %v", err)
 
 	}
 
@@ -9383,24 +9423,24 @@ func (i Identity) VerifyEmail(
 	if !ok {
 		_ = tx.Rollback()
 
-		return models.UserEntity{}, errors.New("verification token metadata missing email")
+		return models.User{}, errors.New("verification token metadata missing email")
 
 	}
 
-	user, err := models.User.FindByEmail(ctx, tx.Executor(), emailAddr)
+	user, err := users.FindByEmail(ctx, emailAddr)
 	if err != nil {
 		_ = tx.Rollback()
 
 		if errors.Is(err, models.ErrNotFound) {
-			return models.UserEntity{}, ErrUserNotFound
+			return models.User{}, ErrUserNotFound
 		}
 
-		return models.UserEntity{}, fmt.Errorf("find verification user: %w", err)
+		return models.User{}, fmt.Errorf("find verification user: %w", err)
 
 	}
 
 	now := time.Now()
-	user, err = models.User.Update(ctx, tx.Executor(), models.UpdateUserData{
+	user, err = users.Update(ctx, models.UpdateUserData{
 		ID:               user.ID,
 		Email:            user.Email,
 		EmailValidatedAt: sql.NullTime{Time: now, Valid: true},
@@ -9411,23 +9451,23 @@ func (i Identity) VerifyEmail(
 		_ = tx.Rollback()
 
 		if errors.Is(err, models.ErrNotFound) {
-			return models.UserEntity{}, ErrUserNotFound
+			return models.User{}, ErrUserNotFound
 		}
 
-		return models.UserEntity{}, fmt.Errorf("mark user email verified: %w", err)
+		return models.User{}, fmt.Errorf("mark user email verified: %w", err)
 
 	}
 
-	if err := models.Token.Destroy(ctx, tx.Executor(), token.ID); err != nil {
+	if err := tokens.Destroy(ctx, token.ID); err != nil {
 		_ = tx.Rollback()
 
-		return models.UserEntity{}, fmt.Errorf("destroy email verification token: %w", err)
+		return models.User{}, fmt.Errorf("destroy email verification token: %w", err)
 
 	}
 
 	if err := tx.Commit(); err != nil {
 
-		return models.UserEntity{}, fmt.Errorf("commit email verification transaction: %w", err)
+		return models.User{}, fmt.Errorf("commit email verification transaction: %w", err)
 	}
 
 	return user, nil
@@ -9485,7 +9525,10 @@ func (i Identity) RequestResetPassword(
 
 	}
 
-	user, err := models.User.FindByEmail(ctx, tx.Executor(), data.Email)
+	users := i.users.WithTx(tx)
+	tokens := i.tokens.WithTx(tx)
+
+	user, err := users.FindByEmail(ctx, data.Email)
 	if err != nil {
 		_ = tx.Rollback()
 
@@ -9507,9 +9550,8 @@ func (i Identity) RequestResetPassword(
 
 	}
 
-	token, err := models.Token.Create(
+	token, err := tokens.Create(
 		ctx,
-		tx.Executor(),
 		i.tokenSigningKey,
 
 		userResetPassword,
@@ -9595,9 +9637,11 @@ func (i Identity) ResetPassword(
 
 	}
 
-	token, err := models.Token.FindByScopeAndHash(
+	users := i.users.WithTx(tx)
+	tokens := i.tokens.WithTx(tx)
+
+	token, err := tokens.FindByScopeAndHash(
 		ctx,
-		tx.Executor(),
 		i.tokenSigningKey,
 
 		userResetPassword,
@@ -9636,7 +9680,7 @@ func (i Identity) ResetPassword(
 
 	}
 
-	user, err := models.User.FindByEmail(ctx, tx.Executor(), emailAddr)
+	user, err := users.FindByEmail(ctx, emailAddr)
 	if err != nil {
 		_ = tx.Rollback()
 
@@ -9657,7 +9701,7 @@ func (i Identity) ResetPassword(
 
 	}
 
-	_, err = models.User.Update(ctx, tx.Executor(), models.UpdateUserData{
+	_, err = users.Update(ctx, models.UpdateUserData{
 		ID:               user.ID,
 		Email:            user.Email,
 		EmailValidatedAt: user.EmailValidatedAt,
@@ -9675,7 +9719,7 @@ func (i Identity) ResetPassword(
 
 	}
 
-	if err := models.Token.Destroy(ctx, tx.Executor(), token.ID); err != nil {
+	if err := tokens.Destroy(ctx, token.ID); err != nil {
 		_ = tx.Rollback()
 
 		return fmt.Errorf("destroy password reset token: %w", err)

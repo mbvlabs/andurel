@@ -76,7 +76,7 @@ and the default action set excludes new/edit.`,
 
   andurel generate controller Dashboard --model-name User
 
-      Generates dashboard controller, views, and routes backed by models.User.
+      Generates dashboard controller, views, and routes backed by models.Users.
 
   andurel generate controller Users --api
 

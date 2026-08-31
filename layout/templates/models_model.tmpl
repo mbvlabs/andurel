@@ -1,12 +1,21 @@
 // Package models contains data models and validation logic.
 package models
 
-type (
-	user  struct{}
-	token struct{}
+import (
+	"github.com/mbvlabs/andurel/pkg/storage"
+
+	"go.uber.org/fx"
 )
 
-var (
-	User  user
-	Token token
+// queryDB is satisfied by storage.Connection and storage.Transaction.
+type queryDB interface {
+	Executor() storage.Executor
+}
+
+var Module = fx.Module(
+	"models",
+	fx.Provide(
+		NewUsers,
+		NewTokens,
+	),
 )

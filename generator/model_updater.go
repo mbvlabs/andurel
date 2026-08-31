@@ -141,7 +141,7 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 		return nil, fmt.Errorf("failed to read model file: %w", err)
 	}
 
-	entityName := resourceName + "Entity"
+	entityName := resourceName
 
 	existingFields, structStart, structEnd, err := parseEntityStruct(src, entityName)
 	if err != nil {
