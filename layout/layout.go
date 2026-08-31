@@ -208,6 +208,17 @@ func Scaffold(
 		)
 	}
 
+	fmt.Print("Running sqlc generate...\n")
+	if err := cmds.RunSQLCGenerateOptional(targetDir); err != nil {
+		slog.Error(
+			"failed to run sqlc generate",
+			"error",
+			err,
+			"fix",
+			"run 'andurel generate queries' after sync",
+		)
+	}
+
 	fmt.Print("Running go mod tidy...\n")
 	if err := cmds.RunGoModTidy(targetDir); err != nil {
 		slog.Error(

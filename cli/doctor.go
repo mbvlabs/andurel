@@ -21,6 +21,7 @@ import (
 	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/emailcompiler"
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -1130,6 +1131,81 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	}
 }
 
+func checkSQLCGenerate(rootDir string, verbose bool) checkResult {
+	hasQueries, err := storage.HasSQLCQueryFiles(rootDir)
+	if err != nil {
+		return checkResult{
+			name:    "sqlc generate",
+			status:  statusFail,
+			message: "failed to inspect sqlc query files",
+			details: []string{err.Error()},
+		}
+	}
+	if !hasQueries {
+		return checkResult{
+			name:    "sqlc generate",
+			status:  statusPass,
+			message: "no sqlc queries configured",
+		}
+	}
+
+	sqlcPath := filepath.Join(rootDir, "bin", "sqlc")
+	if _, err := os.Stat(sqlcPath); err != nil {
+		return checkResult{
+			name:    "sqlc generate",
+			status:  statusWarn,
+			message: "sqlc binary not found (skipping check)",
+		}
+	}
+
+	var changed []string
+	err = withDiagnosticProjectCopy(rootDir, func(tempRoot string) error {
+		before, err := snapshotFilesForReport(tempRoot)
+		if err != nil {
+			return err
+		}
+		cmd := exec.Command(filepath.Join(tempRoot, "bin", "sqlc"), "generate")
+		cmd.Dir = tempRoot
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("sqlc generate failed: %w: %s", err, strings.TrimSpace(stderr.String()))
+		}
+		after, err := snapshotFilesForReport(tempRoot)
+		if err != nil {
+			return err
+		}
+		changed = changedSnapshotPaths(before, after)
+		return nil
+	})
+	if err != nil {
+		return checkResult{
+			name:    "sqlc generate",
+			status:  statusFail,
+			message: "temporary sqlc generation diagnostic failed",
+			details: []string{err.Error()},
+		}
+	}
+	if len(changed) > 0 {
+		details := []string{"Run 'andurel generate queries' and commit the generated output."}
+		if verbose {
+			details = append(details, changed...)
+		}
+		return checkResult{
+			name:    "sqlc generate",
+			status:  statusFail,
+			message: "generated sqlc code is out of date",
+			details: details,
+		}
+	}
+
+	return checkResult{
+		name:    "sqlc generate",
+		status:  statusPass,
+		message: "sqlc code generated successfully",
+	}
+}
+
 func changedSnapshotPaths(before, after fileSnapshot) []string {
 	changed := make([]string, 0)
 	for path, state := range after {
@@ -1150,6 +1226,7 @@ func changedSnapshotPaths(before, after fileSnapshot) []string {
 func codeGenerationChecks(rootDir string, verbose bool) []checkResult {
 	results := []checkResult{
 		checkTemplGenerate(rootDir, verbose),
+		checkSQLCGenerate(rootDir, verbose),
 	}
 	if projectUsesInertia(rootDir) {
 		results = append(results, checkRoutesTSGenerate(rootDir, verbose))

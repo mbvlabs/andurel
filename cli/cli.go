@@ -219,8 +219,8 @@ func newRunAppCommand() *cobra.Command {
 		Short:   "Start the development server",
 		Long: `Start the development server (shadowfax) for your Andurel application.
 
-The server auto-reloads on file changes, including Go, Templ, and
-CSS files. Run this from your project root.`,
+The server auto-reloads on file changes, including Go, Templ, CSS, and
+sqlc query files. Run this from your project root.`,
 		Example: `  andurel run`,
 		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -230,6 +230,9 @@ CSS files. Run this from your project root.`,
 			}
 
 			if err := checkBinaries(rootDir); err != nil {
+				return err
+			}
+			if err := generateSQLCIfNeeded(rootDir); err != nil {
 				return err
 			}
 			watchContext, stopWatching := context.WithCancel(cmd.Context())

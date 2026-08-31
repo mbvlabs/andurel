@@ -191,6 +191,60 @@ func TestBuildAppRunsExpectedToolchain(t *testing.T) {
 	}
 }
 
+func TestBuildAppRunsSQLCWhenQueriesExist(t *testing.T) {
+	resetCLITestSeams(t)
+
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.26\n")
+	writeTestFile(t, root, "cmd/app/main.go", "package main\n\nfunc main() {}\n")
+	writeTestFile(
+		t,
+		root,
+		"models/queries/users.sql",
+		"-- name: GetUser :one\nSELECT 1;\n",
+	)
+	lock := layout.NewAndurelLock("test")
+	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")
+	lock.Tools["sqlc"] = validTestTool("sqlc", "v1.31.1")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName: "app",
+		Database:    "postgresql",
+	}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+
+	logPath := filepath.Join(root, "commands.log")
+	fakePath := t.TempDir()
+	writeExecutable(t, fakePath, "go", fakeCommandScript(logPath, "go"))
+	t.Setenv("PATH", fakePath)
+
+	syncSingleToolFunc = func(projectRoot, name string, tool *layout.Tool, goos, goarch string) error {
+		writeExecutable(
+			t,
+			projectRoot,
+			filepath.Join("bin", name),
+			fakeCommandScript(logPath, name),
+		)
+		return nil
+	}
+
+	if err := buildApp(root, ""); err != nil {
+		t.Fatalf("buildApp: %v", err)
+	}
+
+	log := readBuildTestFile(t, logPath)
+	for _, want := range []string{
+		"templ generate",
+		"sqlc generate",
+		"go fmt ./models/internal/queries/...",
+	} {
+		if !strings.Contains(log, want) {
+			t.Fatalf("command log missing %q:\n%s", want, log)
+		}
+	}
+}
+
 func TestBuildAppReportsErrors(t *testing.T) {
 	resetCLITestSeams(t)
 

@@ -237,7 +237,9 @@ models/
 
 Only model packages may import the generated sqlc package. Application-owned model and projection types remain the public API. Where sqlc generates database-shaped rows or parameters, the owning model method performs the conversion locally; that mapping cost is accepted only for the uncommon queries where explicit SQL provides a clear maintenance benefit. Controllers and services must not import sqlc-generated packages or expose sqlc-generated types.
 
-Bun and sqlc should use the same connection pool and transaction boundary. The default shared pool should be a `database/sql` handle backed by `pgx/v5/stdlib`. sqlc generates against the standard SQL interface so it does not create a second PostgreSQL pool. Inside a transaction, pass `tx.Executor()` to Bun model methods and `tx.SQL()` to sqlc-generated queries. Use `andurel generate query` to scaffold SQL files in `models/queries/` and `andurel generate queries` to run sqlc.
+Andurel does not generate sqlc usage inside model Go files. The generator scaffolds SQL query files and runs sqlc codegen; wiring generated queries into model methods, mapping rows to application types, and choosing when to use sqlc instead of Bun remain application-owned decisions.
+
+Bun and sqlc should use the same connection pool and transaction boundary. The default shared pool should be a `database/sql` handle backed by `pgx/v5/stdlib`. sqlc generates against the standard SQL interface so it does not create a second PostgreSQL pool. Inside a transaction, pass `tx.Executor()` to Bun model methods and `tx.SQL()` to sqlc-generated queries. Use `andurel generate query` to scaffold SQL files in `models/queries/` and `andurel generate queries` to run sqlc. `andurel run`, `andurel build`, scaffold, and extension apply regenerate sqlc output when annotated query files exist.
 
 ## User interface direction
 

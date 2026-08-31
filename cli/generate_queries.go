@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 
-	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/spf13/cobra"
 )
@@ -35,11 +34,7 @@ does not affect ordinary projects.`,
 				return nil
 			}
 
-			if err := cmds.RunSQLCGenerate(rootDir); err != nil {
-				return err
-			}
-
-			return cmds.RunGoFmtPath(rootDir, "./models/internal/queries/...")
+			return generateSQLCIfNeeded(rootDir)
 		},
 	}
 }
