@@ -43,20 +43,63 @@ func (v *ViewManager) GenerateView(resourceName, tableName, namespace string) er
 }
 
 // GenerateViewWithControllerActions generates views for selected controller actions.
-func (v *ViewManager) GenerateViewWithControllerActions(resourceName, tableName string, namespace string, actions []string, inertia string) error {
-	return v.GenerateViewWithControllerActionsForModel(resourceName, resourceName, tableName, namespace, actions, inertia)
+func (v *ViewManager) GenerateViewWithControllerActions(
+	resourceName, tableName string,
+	namespace string,
+	actions []string,
+	inertia string,
+) error {
+	return v.GenerateViewWithControllerActionsForModel(
+		resourceName,
+		resourceName,
+		tableName,
+		namespace,
+		actions,
+		inertia,
+	)
 }
 
 // GenerateViewWithControllerActionsForModel generates views when resource and model names differ.
-func (v *ViewManager) GenerateViewWithControllerActionsForModel(resourceName, modelName, tableName string, namespace string, actions []string, inertia string) error {
-	return v.generateViewWithActionsForModel(resourceName, modelName, tableName, namespace, true, actions, inertia)
+func (v *ViewManager) GenerateViewWithControllerActionsForModel(
+	resourceName, modelName, tableName string,
+	namespace string,
+	actions []string,
+	inertia string,
+) error {
+	return v.generateViewWithActionsForModel(
+		resourceName,
+		modelName,
+		tableName,
+		namespace,
+		true,
+		actions,
+		inertia,
+	)
 }
 
-func (v *ViewManager) generateView(resourceName, tableName string, namespace string, withController bool) error {
-	return v.generateViewWithActionsForModel(resourceName, resourceName, tableName, namespace, withController, nil, "")
+func (v *ViewManager) generateView(
+	resourceName, tableName string,
+	namespace string,
+	withController bool,
+) error {
+	return v.generateViewWithActionsForModel(
+		resourceName,
+		resourceName,
+		tableName,
+		namespace,
+		withController,
+		nil,
+		"",
+	)
 }
 
-func (v *ViewManager) generateViewWithActionsForModel(resourceName, modelName, tableName string, namespace string, withController bool, actions []string, inertia string) error {
+func (v *ViewManager) generateViewWithActionsForModel(
+	resourceName, modelName, tableName string,
+	namespace string,
+	withController bool,
+	actions []string,
+	inertia string,
+) error {
 	modulePath := v.projectManager.GetModulePath()
 	if modelName == "" {
 		modelName = resourceName
@@ -102,7 +145,18 @@ func (v *ViewManager) generateViewWithActionsForModel(resourceName, modelName, t
 		return err
 	}
 
-	if err := v.viewGenerator.GenerateViewWithControllerActionsForModel(cat, resourceName, modelName, tableName, modelTableName, modulePath, namespace, withController, actions, inertia); err != nil {
+	if err := v.viewGenerator.GenerateViewWithControllerActionsForModel(
+		cat,
+		resourceName,
+		modelName,
+		tableName,
+		modelTableName,
+		modulePath,
+		namespace,
+		withController,
+		actions,
+		inertia,
+	); err != nil {
 		return fmt.Errorf("failed to generate view: %w", err)
 	}
 
@@ -168,7 +222,15 @@ func (v *ViewManager) GenerateViewFromModel(resourceName string, withController 
 		return err
 	}
 
-	if err := v.viewGenerator.GenerateViewWithController(cat, resourceName, tableName, modulePath, withController, "", ""); err != nil {
+	if err := v.viewGenerator.GenerateViewWithController(
+		cat,
+		resourceName,
+		tableName,
+		modulePath,
+		withController,
+		"",
+		"",
+	); err != nil {
 		return fmt.Errorf("failed to generate view: %w", err)
 	}
 
@@ -178,7 +240,19 @@ func (v *ViewManager) GenerateViewFromModel(resourceName string, withController 
 		nullType := ReadNullType()
 		inertia := ""
 		pkInfo := DetectPrimaryKey(cat, tableName)
-		if err := fileGen.GenerateController(cat, resourceName, "", tableName, controllerType, modulePath, v.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, inertia); err != nil {
+		if err := fileGen.GenerateController(
+			cat,
+			resourceName,
+			"",
+			tableName,
+			controllerType,
+			modulePath,
+			v.config.Database.Type,
+			tableNameOverridden,
+			nullType,
+			pkInfo.ColumnName,
+			inertia,
+		); err != nil {
 			return fmt.Errorf("failed to generate controller: %w", err)
 		}
 		fmt.Printf("Successfully generated resource view for %s with controller\n", resourceName)

@@ -416,10 +416,21 @@ func TestRenderInertiaControllerUsesDataStructAndRawMessagePlaceholder(t *testin
 		IDGoFieldName:      "ID",
 		HasPrimaryKey:      true,
 		Fields: []GeneratedField{
-			{Name: "ID", GoType: "uuid.UUID", GoFormType: "string", CamelCase: "id", IsSystemField: true},
+			{
+				Name:          "ID",
+				GoType:        "uuid.UUID",
+				GoFormType:    "string",
+				CamelCase:     "id",
+				IsSystemField: true,
+			},
 			{Name: "Name", GoType: "sql.NullString", GoFormType: "string", CamelCase: "name"},
 			{Name: "Published", GoType: "bun.NullBool", GoFormType: "bool", CamelCase: "published"},
-			{Name: "Metadata", GoType: "json.RawMessage", GoFormType: "string", CamelCase: "metadata"},
+			{
+				Name:       "Metadata",
+				GoType:     "json.RawMessage",
+				GoFormType: "string",
+				CamelCase:  "metadata",
+			},
 			{Name: "CreatedAt", GoType: "time.Time", GoFormType: "time.Time", IsSystemField: true},
 		},
 	}

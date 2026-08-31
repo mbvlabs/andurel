@@ -57,7 +57,12 @@ func TestWithSSRContactsRendererOnlyForInitialDocument(t *testing.T) {
 		t.Fatalf("initial Page: %v", err)
 	}
 	if ssr.calls != 1 || captured.SSR == nil || !strings.Contains(recorder.Body.String(), "SSR") {
-		t.Fatalf("SSR initial response calls=%d captured=%#v body=%q", ssr.calls, captured.SSR, recorder.Body.String())
+		t.Fatalf(
+			"SSR initial response calls=%d captured=%#v body=%q",
+			ssr.calls,
+			captured.SSR,
+			recorder.Body.String(),
+		)
 	}
 
 	request = httptest.NewRequest(http.MethodGet, "/dashboard", nil)
@@ -88,7 +93,11 @@ func TestSSRFailureFallsBackUnlessFailFast(t *testing.T) {
 		t.Fatalf("fallback Page: %v", err)
 	}
 	if captured.SSR != nil || recorder.Body.String() != "client" {
-		t.Fatalf("SSR failure did not fall back: captured=%#v body=%q", captured.SSR, recorder.Body.String())
+		t.Fatalf(
+			"SSR failure did not fall back: captured=%#v body=%q",
+			captured.SSR,
+			recorder.Body.String(),
+		)
 	}
 
 	renderer, err = New(WithRoot(testRoot(&captured)), WithSSRRenderer(ssr), WithSSRFailFast(true))
@@ -110,7 +119,8 @@ func TestPageScriptEscapesClosingScript(t *testing.T) {
 	if err := component.Render(context.Background(), &output); err != nil {
 		t.Fatalf("Render: %v", err)
 	}
-	if strings.Contains(output.String(), "</script></script>") || !strings.Contains(output.String(), `<\/script>`) {
+	if strings.Contains(output.String(), "</script></script>") ||
+		!strings.Contains(output.String(), `<\/script>`) {
 		t.Fatalf("unsafe page script: %s", output.String())
 	}
 }

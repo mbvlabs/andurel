@@ -16,9 +16,18 @@ import (
 // InsertQueue is the subset of River used to insert jobs.
 type InsertQueue interface {
 	Insert(context.Context, river.JobArgs, *river.InsertOpts) (*rivertype.JobInsertResult, error)
-	InsertTx(context.Context, *sql.Tx, river.JobArgs, *river.InsertOpts) (*rivertype.JobInsertResult, error)
+	InsertTx(
+		context.Context,
+		*sql.Tx,
+		river.JobArgs,
+		*river.InsertOpts,
+	) (*rivertype.JobInsertResult, error)
 	InsertMany(context.Context, []river.InsertManyParams) ([]*rivertype.JobInsertResult, error)
-	InsertManyTx(context.Context, *sql.Tx, []river.InsertManyParams) ([]*rivertype.JobInsertResult, error)
+	InsertManyTx(
+		context.Context,
+		*sql.Tx,
+		[]river.InsertManyParams,
+	) ([]*rivertype.JobInsertResult, error)
 	InsertManyFast(context.Context, []river.InsertManyParams) (int, error)
 	InsertManyFastTx(context.Context, *sql.Tx, []river.InsertManyParams) (int, error)
 }
@@ -168,27 +177,50 @@ func NewQueueInsert(connection Connection, options ...QueueOption) (*QueueInsert
 	return &QueueInsert{client: client}, nil
 }
 
-func (q *QueueInsert) Insert(ctx context.Context, args river.JobArgs, opts *river.InsertOpts) (*rivertype.JobInsertResult, error) {
+func (q *QueueInsert) Insert(
+	ctx context.Context,
+	args river.JobArgs,
+	opts *river.InsertOpts,
+) (*rivertype.JobInsertResult, error) {
 	return q.client.Insert(ctx, args, opts)
 }
 
-func (q *QueueInsert) InsertTx(ctx context.Context, tx *sql.Tx, args river.JobArgs, opts *river.InsertOpts) (*rivertype.JobInsertResult, error) {
+func (q *QueueInsert) InsertTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	args river.JobArgs,
+	opts *river.InsertOpts,
+) (*rivertype.JobInsertResult, error) {
 	return q.client.InsertTx(ctx, tx, args, opts)
 }
 
-func (q *QueueInsert) InsertMany(ctx context.Context, params []river.InsertManyParams) ([]*rivertype.JobInsertResult, error) {
+func (q *QueueInsert) InsertMany(
+	ctx context.Context,
+	params []river.InsertManyParams,
+) ([]*rivertype.JobInsertResult, error) {
 	return q.client.InsertMany(ctx, params)
 }
 
-func (q *QueueInsert) InsertManyTx(ctx context.Context, tx *sql.Tx, params []river.InsertManyParams) ([]*rivertype.JobInsertResult, error) {
+func (q *QueueInsert) InsertManyTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	params []river.InsertManyParams,
+) ([]*rivertype.JobInsertResult, error) {
 	return q.client.InsertManyTx(ctx, tx, params)
 }
 
-func (q *QueueInsert) InsertManyFast(ctx context.Context, params []river.InsertManyParams) (int, error) {
+func (q *QueueInsert) InsertManyFast(
+	ctx context.Context,
+	params []river.InsertManyParams,
+) (int, error) {
 	return q.client.InsertManyFast(ctx, params)
 }
 
-func (q *QueueInsert) InsertManyFastTx(ctx context.Context, tx *sql.Tx, params []river.InsertManyParams) (int, error) {
+func (q *QueueInsert) InsertManyFastTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	params []river.InsertManyParams,
+) (int, error) {
 	return q.client.InsertManyFastTx(ctx, tx, params)
 }
 

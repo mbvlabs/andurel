@@ -7,7 +7,9 @@ import (
 )
 
 // ParseDataType parses SQL data type strings into components
-func ParseDataType(typeStr string) (dataType string, length *int32, precision *int32, scale *int32) {
+func ParseDataType(
+	typeStr string,
+) (dataType string, length *int32, precision *int32, scale *int32) {
 	typeStrLower := strings.ToLower(typeStr)
 
 	if strings.Contains(typeStrLower, "timestamp with time zone") {

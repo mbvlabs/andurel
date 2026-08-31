@@ -18,13 +18,36 @@ import (
 
 func TestVerifiedDownloadRequiresHTTPSAndDigest(t *testing.T) {
 	dest := filepath.Join(t.TempDir(), "tool")
-	if err := DownloadVerifiedFromURL("tool", "http://example.com/tool", "binary", "tool", dest, strings.Repeat("0", 64)); err == nil || !strings.Contains(err.Error(), "HTTPS") {
+	if err := DownloadVerifiedFromURL(
+		"tool",
+		"http://example.com/tool",
+		"binary",
+		"tool",
+		dest,
+		strings.Repeat("0", 64),
+	); err == nil ||
+		!strings.Contains(err.Error(), "HTTPS") {
 		t.Fatalf("HTTP URL error = %v", err)
 	}
-	if err := DownloadFromURL("tool", "https://example.com/tool", "binary", "tool", dest); err == nil || !strings.Contains(err.Error(), "SHA-256") {
+	if err := DownloadFromURL(
+		"tool",
+		"https://example.com/tool",
+		"binary",
+		"tool",
+		dest,
+	); err == nil ||
+		!strings.Contains(err.Error(), "SHA-256") {
 		t.Fatalf("missing digest error = %v", err)
 	}
-	if err := DownloadVerifiedFromURL("tool", "https://example.com/tool", "binary", "tool", dest, "bad"); err == nil || !strings.Contains(err.Error(), "SHA-256") {
+	if err := DownloadVerifiedFromURL(
+		"tool",
+		"https://example.com/tool",
+		"binary",
+		"tool",
+		dest,
+		"bad",
+	); err == nil ||
+		!strings.Contains(err.Error(), "SHA-256") {
 		t.Fatalf("invalid digest error = %v", err)
 	}
 
@@ -39,7 +62,15 @@ func TestVerifiedDownloadRequiresHTTPSAndDigest(t *testing.T) {
 	client := secure.Client()
 	client.CheckRedirect = requireHTTPSRedirect
 	useDownloadClient(t, client)
-	if err := DownloadVerifiedFromURL("tool", secure.URL, "binary", "tool", dest, sha256Hex("binary")); err == nil || !strings.Contains(err.Error(), "redirect must use HTTPS") {
+	if err := DownloadVerifiedFromURL(
+		"tool",
+		secure.URL,
+		"binary",
+		"tool",
+		dest,
+		sha256Hex("binary"),
+	); err == nil ||
+		!strings.Contains(err.Error(), "redirect must use HTTPS") {
 		t.Fatalf("insecure redirect error = %v", err)
 	}
 }
@@ -57,13 +88,28 @@ func TestVerifiedDownloadAtomicallyReplacesOnlyAfterDigestMatch(t *testing.T) {
 	if err := os.WriteFile(dest, []byte("working binary"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := DownloadVerifiedFromURL("tool", server.URL, "binary", "tool", dest, strings.Repeat("0", 64)); err == nil || !strings.Contains(err.Error(), "mismatch") {
+	if err := DownloadVerifiedFromURL(
+		"tool",
+		server.URL,
+		"binary",
+		"tool",
+		dest,
+		strings.Repeat("0", 64),
+	); err == nil ||
+		!strings.Contains(err.Error(), "mismatch") {
 		t.Fatalf("digest mismatch error = %v", err)
 	}
 	assertFileContent(t, dest, "working binary")
 	assertNoDownloadTemps(t, root)
 
-	if err := DownloadVerifiedFromURL("tool", server.URL, "binary", "tool", dest, sha256Hex(content)); err != nil {
+	if err := DownloadVerifiedFromURL(
+		"tool",
+		server.URL,
+		"binary",
+		"tool",
+		dest,
+		sha256Hex(content),
+	); err != nil {
 		t.Fatalf("verified download: %v", err)
 	}
 	assertFileContent(t, dest, content)
@@ -80,11 +126,21 @@ func TestVerifiedDownloadPreservesExistingBinaryOnRequestAndRenameFailures(t *te
 		t.Fatal(err)
 	}
 
-	downloadHTTPClient = &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-		return nil, errors.New("connection failed")
-	})}
+	downloadHTTPClient = &http.Client{
+		Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return nil, errors.New("connection failed")
+		}),
+	}
 	t.Cleanup(func() { downloadHTTPClient = newDownloadHTTPClient() })
-	if err := DownloadVerifiedFromURL("tool", "https://example.com/tool", "binary", "tool", dest, strings.Repeat("1", 64)); err == nil || !strings.Contains(err.Error(), "connection failed") {
+	if err := DownloadVerifiedFromURL(
+		"tool",
+		"https://example.com/tool",
+		"binary",
+		"tool",
+		dest,
+		strings.Repeat("1", 64),
+	); err == nil ||
+		!strings.Contains(err.Error(), "connection failed") {
 		t.Fatalf("connection error = %v", err)
 	}
 	assertFileContent(t, dest, "working")
@@ -95,7 +151,15 @@ func TestVerifiedDownloadPreservesExistingBinaryOnRequestAndRenameFailures(t *te
 	originalRename := renameFileFunc
 	renameFileFunc = func(string, string) error { return errors.New("rename failed") }
 	t.Cleanup(func() { renameFileFunc = originalRename })
-	if err := DownloadVerifiedFromURL("tool", "https://example.com/tool", "binary", "tool", dest, sha256Hex(content)); err == nil || !strings.Contains(err.Error(), "rename failed") {
+	if err := DownloadVerifiedFromURL(
+		"tool",
+		"https://example.com/tool",
+		"binary",
+		"tool",
+		dest,
+		sha256Hex(content),
+	); err == nil ||
+		!strings.Contains(err.Error(), "rename failed") {
 		t.Fatalf("rename error = %v", err)
 	}
 	assertFileContent(t, dest, "working")
@@ -130,12 +194,28 @@ func TestDownloadRequestTimeoutsAndStatus(t *testing.T) {
 	timeoutClient.Timeout = 10 * time.Millisecond
 	useDownloadClient(t, &timeoutClient)
 	dest := filepath.Join(t.TempDir(), "tool")
-	if err := DownloadVerifiedFromURL("tool", server.URL+"/slow", "binary", "tool", dest, strings.Repeat("0", 64)); err == nil || !strings.Contains(err.Error(), "Client.Timeout") {
+	if err := DownloadVerifiedFromURL(
+		"tool",
+		server.URL+"/slow",
+		"binary",
+		"tool",
+		dest,
+		strings.Repeat("0", 64),
+	); err == nil ||
+		!strings.Contains(err.Error(), "Client.Timeout") {
 		t.Fatalf("total timeout error = %v", err)
 	}
 
 	useDownloadClient(t, statusClient)
-	if err := DownloadVerifiedFromURL("tool", server.URL+"/missing", "binary", "tool", dest, strings.Repeat("0", 64)); err == nil || !strings.Contains(err.Error(), "status code 404") {
+	if err := DownloadVerifiedFromURL(
+		"tool",
+		server.URL+"/missing",
+		"binary",
+		"tool",
+		dest,
+		strings.Repeat("0", 64),
+	); err == nil ||
+		!strings.Contains(err.Error(), "status code 404") {
 		t.Fatalf("status error = %v", err)
 	}
 }
@@ -147,13 +227,48 @@ func TestDownloadReadWriteCloseAndSyncFailures(t *testing.T) {
 		file *failingTemporaryFile
 		want string
 	}{
-		{name: "read", body: io.NopCloser(&failingReader{}), file: &failingTemporaryFile{}, want: "read failed"},
-		{name: "partial response", body: io.NopCloser(&partialReader{}), file: &failingTemporaryFile{}, want: "unexpected EOF"},
-		{name: "response close", body: &closeFailingBody{Reader: strings.NewReader("content")}, file: &failingTemporaryFile{}, want: "close response body"},
-		{name: "write", body: io.NopCloser(strings.NewReader("content")), file: &failingTemporaryFile{writeErr: errors.New("write failed")}, want: "write failed"},
-		{name: "partial write", body: io.NopCloser(strings.NewReader("content")), file: &failingTemporaryFile{partialWrite: true}, want: "short write"},
-		{name: "sync", body: io.NopCloser(strings.NewReader("content")), file: &failingTemporaryFile{syncErr: errors.New("sync failed")}, want: "sync failed"},
-		{name: "file close", body: io.NopCloser(strings.NewReader("content")), file: &failingTemporaryFile{closeErr: errors.New("close failed")}, want: "close failed"},
+		{
+			name: "read",
+			body: io.NopCloser(&failingReader{}),
+			file: &failingTemporaryFile{},
+			want: "read failed",
+		},
+		{
+			name: "partial response",
+			body: io.NopCloser(&partialReader{}),
+			file: &failingTemporaryFile{},
+			want: "unexpected EOF",
+		},
+		{
+			name: "response close",
+			body: &closeFailingBody{Reader: strings.NewReader("content")},
+			file: &failingTemporaryFile{},
+			want: "close response body",
+		},
+		{
+			name: "write",
+			body: io.NopCloser(strings.NewReader("content")),
+			file: &failingTemporaryFile{writeErr: errors.New("write failed")},
+			want: "write failed",
+		},
+		{
+			name: "partial write",
+			body: io.NopCloser(strings.NewReader("content")),
+			file: &failingTemporaryFile{partialWrite: true},
+			want: "short write",
+		},
+		{
+			name: "sync",
+			body: io.NopCloser(strings.NewReader("content")),
+			file: &failingTemporaryFile{syncErr: errors.New("sync failed")},
+			want: "sync failed",
+		},
+		{
+			name: "file close",
+			body: io.NopCloser(strings.NewReader("content")),
+			file: &failingTemporaryFile{closeErr: errors.New("close failed")},
+			want: "close failed",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -169,7 +284,13 @@ func TestDownloadReadWriteCloseAndSyncFailures(t *testing.T) {
 
 func TestDownloadAndExtractionSizeBounds(t *testing.T) {
 	var destination bytes.Buffer
-	if _, err := copyBounded(&destination, strings.NewReader("12345"), 4, "archive"); err == nil || !strings.Contains(err.Error(), "maximum size") {
+	if _, err := copyBounded(
+		&destination,
+		strings.NewReader("12345"),
+		4,
+		"archive",
+	); err == nil ||
+		!strings.Contains(err.Error(), "maximum size") {
 		t.Fatalf("archive size error = %v", err)
 	}
 
@@ -179,7 +300,9 @@ func TestDownloadAndExtractionSizeBounds(t *testing.T) {
 		t.Fatal(err)
 	}
 	writer := tar.NewWriter(file)
-	if err := writer.WriteHeader(&tar.Header{Name: "tool", Mode: 0o755, Size: maxBinarySize + 1}); err != nil {
+	if err := writer.WriteHeader(
+		&tar.Header{Name: "tool", Mode: 0o755, Size: maxBinarySize + 1},
+	); err != nil {
 		t.Fatal(err)
 	}
 	if err := file.Close(); err != nil {
@@ -189,7 +312,12 @@ func TestDownloadAndExtractionSizeBounds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := extractTarEntry(tar.NewReader(opened), "tool", io.Discard); err == nil || !strings.Contains(err.Error(), "maximum size") {
+	if err := extractTarEntry(
+		tar.NewReader(opened),
+		"tool",
+		io.Discard,
+	); err == nil ||
+		!strings.Contains(err.Error(), "maximum size") {
 		t.Fatalf("binary size error = %v", err)
 	}
 	if err := opened.Close(); err != nil {
@@ -203,16 +331,40 @@ func TestArchiveRejectsTraversalAmbiguityAndPartialContent(t *testing.T) {
 		entries []tarEntry
 		want    string
 	}{
-		{name: "traversal", entries: []tarEntry{{name: "../tool", content: "bad"}}, want: "unsafe archive path"},
-		{name: "backslash traversal", entries: []tarEntry{{name: `..\tool`, content: "bad"}}, want: "unsafe archive path"},
-		{name: "ambiguous", entries: []tarEntry{{name: "one/tool", content: "one"}, {name: "two/tool", content: "two"}}, want: "multiple files"},
-		{name: "exact name", entries: []tarEntry{{name: "tool-extra", content: "bad"}}, want: "not found"},
+		{
+			name:    "traversal",
+			entries: []tarEntry{{name: "../tool", content: "bad"}},
+			want:    "unsafe archive path",
+		},
+		{
+			name:    "backslash traversal",
+			entries: []tarEntry{{name: `..\tool`, content: "bad"}},
+			want:    "unsafe archive path",
+		},
+		{
+			name: "ambiguous",
+			entries: []tarEntry{
+				{name: "one/tool", content: "one"},
+				{name: "two/tool", content: "two"},
+			},
+			want: "multiple files",
+		},
+		{
+			name:    "exact name",
+			entries: []tarEntry{{name: "tool-extra", content: "bad"}},
+			want:    "not found",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			archive := filepath.Join(t.TempDir(), "archive.tar.gz")
 			writeTarEntries(t, archive, test.entries)
-			if err := extractTarGzTo(archive, "tool", io.Discard); err == nil || !strings.Contains(err.Error(), test.want) {
+			if err := extractTarGzTo(
+				archive,
+				"tool",
+				io.Discard,
+			); err == nil ||
+				!strings.Contains(err.Error(), test.want) {
 				t.Fatalf("error = %v, want substring %q", err, test.want)
 			}
 		})
@@ -224,7 +376,11 @@ func TestArchiveRejectsTraversalAmbiguityAndPartialContent(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, _ = tarWriter.Write([]byte("short"))
-	if err := extractTarEntry(tar.NewReader(bytes.NewReader(truncated.Bytes())), "tool", io.Discard); err == nil {
+	if err := extractTarEntry(
+		tar.NewReader(bytes.NewReader(truncated.Bytes())),
+		"tool",
+		io.Discard,
+	); err == nil {
 		t.Fatalf("expected partial extraction error")
 	}
 }
@@ -241,7 +397,15 @@ func TestExtractionFailureCleansTemporaryDataAndPreservesBinary(t *testing.T) {
 	if err := os.WriteFile(dest, []byte("working"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := DownloadVerifiedFromURL("tool", server.URL, "tar.gz", "tool", dest, sha256Hex(content)); err == nil || !strings.Contains(err.Error(), "extract") {
+	if err := DownloadVerifiedFromURL(
+		"tool",
+		server.URL,
+		"tar.gz",
+		"tool",
+		dest,
+		sha256Hex(content),
+	); err == nil ||
+		!strings.Contains(err.Error(), "extract") {
 		t.Fatalf("extraction error = %v", err)
 	}
 	assertFileContent(t, dest, "working")
@@ -266,9 +430,21 @@ func TestExtractedBinaryWriteSyncAndCloseFailures(t *testing.T) {
 		file *failingTemporaryFile
 		want string
 	}{
-		{name: "write", file: &failingTemporaryFile{writeErr: errors.New("extracted write failed")}, want: "extracted write failed"},
-		{name: "sync", file: &failingTemporaryFile{syncErr: errors.New("extracted sync failed")}, want: "extracted sync failed"},
-		{name: "close", file: &failingTemporaryFile{closeErr: errors.New("extracted close failed")}, want: "extracted close failed"},
+		{
+			name: "write",
+			file: &failingTemporaryFile{writeErr: errors.New("extracted write failed")},
+			want: "extracted write failed",
+		},
+		{
+			name: "sync",
+			file: &failingTemporaryFile{syncErr: errors.New("extracted sync failed")},
+			want: "extracted sync failed",
+		},
+		{
+			name: "close",
+			file: &failingTemporaryFile{closeErr: errors.New("extracted close failed")},
+			want: "extracted close failed",
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -292,7 +468,14 @@ func TestExtractedBinaryWriteSyncAndCloseFailures(t *testing.T) {
 				return test.file, nil
 			}
 			t.Cleanup(func() { createTempFileFunc = originalCreate })
-			err := DownloadVerifiedFromURL("tool", server.URL, "tar.gz", "tool", dest, sha256File(t, archivePath))
+			err := DownloadVerifiedFromURL(
+				"tool",
+				server.URL,
+				"tar.gz",
+				"tool",
+				dest,
+				sha256File(t, archivePath),
+			)
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("error = %v, want substring %q", err, test.want)
 			}
@@ -408,7 +591,9 @@ func writeTarEntries(t *testing.T, archivePath string, entries []tarEntry) {
 	gzipWriter := gzipWriterForTest(t, file)
 	tarWriter := tar.NewWriter(gzipWriter)
 	for _, entry := range entries {
-		if err := tarWriter.WriteHeader(&tar.Header{Name: entry.name, Mode: 0o755, Size: int64(len(entry.content))}); err != nil {
+		if err := tarWriter.WriteHeader(
+			&tar.Header{Name: entry.name, Mode: 0o755, Size: int64(len(entry.content))},
+		); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := io.WriteString(tarWriter, entry.content); err != nil {

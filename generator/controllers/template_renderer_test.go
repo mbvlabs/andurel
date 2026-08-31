@@ -80,7 +80,12 @@ func TestRenderAPIControllerUsesLastNamespaceSegmentAsPackage(t *testing.T) {
 	if !strings.Contains(rendered, "package v1") {
 		t.Fatalf("expected rendered API controller to use package v1:\n%s", rendered)
 	}
-	if _, err := parser.ParseFile(token.NewFileSet(), "controller.go", rendered, parser.ParseComments); err != nil {
+	if _, err := parser.ParseFile(
+		token.NewFileSet(),
+		"controller.go",
+		rendered,
+		parser.ParseComments,
+	); err != nil {
 		t.Fatalf("expected rendered API controller to parse: %v\n%s", err, rendered)
 	}
 }
@@ -147,19 +152,62 @@ func TestResourceControllerPayloadAssignmentsAreShared(t *testing.T) {
 		Actions:                 []string{"create", "update"},
 		Fields: []GeneratedField{
 			{Name: "ID", GoType: "uuid.UUID", GoFormType: "string", IsSystemField: true},
-			{Name: "OwnerID", GoType: "*uuid.UUID", GoFormType: "string", CamelCase: "ownerID", IsPointer: true},
-			{Name: "ExternalID", GoType: "uuid.UUID", GoFormType: "string", CamelCase: "externalID"},
-			{Name: "PublishedOn", GoType: "time.Time", GoFormType: "time.Time", CamelCase: "publishedOn"},
-			{Name: "ExpiresOn", GoType: "*time.Time", GoFormType: "time.Time", CamelCase: "expiresOn", IsPointer: true},
-			{Name: "ReviewedOn", GoType: "sql.NullTime", GoFormType: "time.Time", CamelCase: "reviewedOn"},
-			{Name: "ArchivedOn", GoType: "bun.NullTime", GoFormType: "time.Time", CamelCase: "archivedOn"},
+			{
+				Name:       "OwnerID",
+				GoType:     "*uuid.UUID",
+				GoFormType: "string",
+				CamelCase:  "ownerID",
+				IsPointer:  true,
+			},
+			{
+				Name:       "ExternalID",
+				GoType:     "uuid.UUID",
+				GoFormType: "string",
+				CamelCase:  "externalID",
+			},
+			{
+				Name:       "PublishedOn",
+				GoType:     "time.Time",
+				GoFormType: "time.Time",
+				CamelCase:  "publishedOn",
+			},
+			{
+				Name:       "ExpiresOn",
+				GoType:     "*time.Time",
+				GoFormType: "time.Time",
+				CamelCase:  "expiresOn",
+				IsPointer:  true,
+			},
+			{
+				Name:       "ReviewedOn",
+				GoType:     "sql.NullTime",
+				GoFormType: "time.Time",
+				CamelCase:  "reviewedOn",
+			},
+			{
+				Name:       "ArchivedOn",
+				GoType:     "bun.NullTime",
+				GoFormType: "time.Time",
+				CamelCase:  "archivedOn",
+			},
 			{Name: "Title", GoType: "sql.NullString", GoFormType: "string", CamelCase: "title"},
 			{Name: "Summary", GoType: "bun.NullString", GoFormType: "string", CamelCase: "summary"},
 			{Name: "Payload", GoType: "[]byte", GoFormType: "string", CamelCase: "payload"},
-			{Name: "Metadata", GoType: "json.RawMessage", GoFormType: "string", CamelCase: "metadata"},
+			{
+				Name:       "Metadata",
+				GoType:     "json.RawMessage",
+				GoFormType: "string",
+				CamelCase:  "metadata",
+			},
 			{Name: "Enabled", GoType: "bool", GoFormType: "bool", CamelCase: "enabled"},
 			{Name: "Count", GoType: "int64", GoFormType: "int64", CamelCase: "count"},
-			{Name: "Subtitle", GoType: "*string", GoFormType: "*string", CamelCase: "subtitle", IsPointer: true},
+			{
+				Name:       "Subtitle",
+				GoType:     "*string",
+				GoFormType: "*string",
+				CamelCase:  "subtitle",
+				IsPointer:  true,
+			},
 		},
 	}
 
@@ -188,7 +236,12 @@ func TestResourceControllerPayloadAssignmentsAreShared(t *testing.T) {
 		regularAssignments := controllerDataLiteral(t, regular, marker)
 		inertiaAssignments := controllerDataLiteral(t, vue, marker)
 		if regularAssignments != inertiaAssignments {
-			t.Fatalf("assignments for %q differ\nregular:\n%s\ninertia:\n%s", marker, regularAssignments, inertiaAssignments)
+			t.Fatalf(
+				"assignments for %q differ\nregular:\n%s\ninertia:\n%s",
+				marker,
+				regularAssignments,
+				inertiaAssignments,
+			)
 		}
 	}
 
@@ -206,10 +259,19 @@ func TestResourceControllerPayloadAssignmentsAreShared(t *testing.T) {
 				"json.RawMessage{}",
 			} {
 				if strings.Contains(rendered, invalid) {
-					t.Fatalf("rendered controller contains invalid RawMessage assignment %q\n%s", invalid, rendered)
+					t.Fatalf(
+						"rendered controller contains invalid RawMessage assignment %q\n%s",
+						invalid,
+						rendered,
+					)
 				}
 			}
-			if _, err := parser.ParseFile(token.NewFileSet(), name+"_controller.go", rendered, parser.ParseComments); err != nil {
+			if _, err := parser.ParseFile(
+				token.NewFileSet(),
+				name+"_controller.go",
+				rendered,
+				parser.ParseComments,
+			); err != nil {
 				t.Fatalf("rendered controller does not parse: %v\n%s", err, rendered)
 			}
 		})
@@ -231,7 +293,12 @@ func TestResourceControllerRawMessageImportIsActionAware(t *testing.T) {
 		IDGoFieldName:           "ID",
 		HasPrimaryKey:           true,
 		Fields: []GeneratedField{
-			{Name: "Metadata", GoType: "json.RawMessage", GoFormType: "string", CamelCase: "metadata"},
+			{
+				Name:       "Metadata",
+				GoType:     "json.RawMessage",
+				GoFormType: "string",
+				CamelCase:  "metadata",
+			},
 		},
 	}
 

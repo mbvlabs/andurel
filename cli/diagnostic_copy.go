@@ -17,7 +17,10 @@ func withDiagnosticProjectCopy(rootDir string, run func(tempRoot string) error) 
 	}
 	defer func() {
 		if cleanupErr := removeDiagnosticTempDir(tempParent); cleanupErr != nil {
-			err = errors.Join(err, fmt.Errorf("remove diagnostic temporary directory: %w", cleanupErr))
+			err = errors.Join(
+				err,
+				fmt.Errorf("remove diagnostic temporary directory: %w", cleanupErr),
+			)
 		}
 	}()
 

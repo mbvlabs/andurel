@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	defaultCacheSize  = 50
-	defaultTTL  	  = 15 * time.Minute
+	defaultCacheSize = 50
+	defaultTTL       = 15 * time.Minute
 )
 
 type Cache[T any] struct {

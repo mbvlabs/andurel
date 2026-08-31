@@ -39,7 +39,11 @@ options, and preserves custom helpers with non-conflicting names.`,
 			return runFactorySyncCommand(cmd, []string{args[0]}, opts)
 		},
 	}
-	setAgentMetadata(cmd, "generation", "Syncs one factory from the model Entity. Use --check --json in CI and --sync to write changes.")
+	setAgentMetadata(
+		cmd,
+		"generation",
+		"Syncs one factory from the model Entity. Use --check --json in CI and --sync to write changes.",
+	)
 
 	cmd.Flags().BoolVar(&check, "check", false, "Report factory drift without writing")
 	cmd.Flags().BoolVar(&sync, "sync", false, "Create or update the generated factory")
@@ -68,13 +72,22 @@ names.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !check && !sync {
-				return output.NewError(output.CodeUsage, "generate factories requires --check or --sync", output.ExitUsage, "Run andurel generate factories --check or andurel generate factories --sync.")
+				return output.NewError(
+					output.CodeUsage,
+					"generate factories requires --check or --sync",
+					output.ExitUsage,
+					"Run andurel generate factories --check or andurel generate factories --sync.",
+				)
 			}
 			opts := generator.FactorySyncOptions{Check: check, Sync: sync, Diff: diff}
 			return runFactorySyncCommand(cmd, nil, opts)
 		},
 	}
-	setAgentMetadata(cmd, "generation", "Bulk factory drift command. Use --check --json for CI and --sync to write changes.")
+	setAgentMetadata(
+		cmd,
+		"generation",
+		"Bulk factory drift command. Use --check --json for CI and --sync to write changes.",
+	)
 
 	cmd.Flags().BoolVar(&check, "check", false, "Report factory drift without writing")
 	cmd.Flags().BoolVar(&sync, "sync", false, "Create or update generated factories")
@@ -83,7 +96,11 @@ names.`,
 	return cmd
 }
 
-func runFactorySyncCommand(cmd *cobra.Command, names []string, opts generator.FactorySyncOptions) error {
+func runFactorySyncCommand(
+	cmd *cobra.Command,
+	names []string,
+	opts generator.FactorySyncOptions,
+) error {
 	if err := chdirToProjectRoot(); err != nil {
 		return err
 	}

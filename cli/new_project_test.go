@@ -75,7 +75,9 @@ func TestNormalizeNewProjectDestinationBeforeCreation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve expected parent: %v", err)
 	}
-	if destination.projectName != "App-1" || destination.path != filepath.Join(resolvedParent, "App-1") || destination.currentDirectory {
+	if destination.projectName != "App-1" ||
+		destination.path != filepath.Join(resolvedParent, "App-1") ||
+		destination.currentDirectory {
 		t.Fatalf("unexpected destination: %#v", destination)
 	}
 	if _, err := os.Stat(destination.path); !errors.Is(err, os.ErrNotExist) {
@@ -118,11 +120,16 @@ func TestNormalizeNewProjectDestinationRejectsExistingAndNonEmptyTargets(t *test
 	if err != nil {
 		t.Fatalf("normalize empty current directory: %v", err)
 	}
-	if destination.projectName != "Current.App" || destination.path != current || !destination.currentDirectory {
+	if destination.projectName != "Current.App" || destination.path != current ||
+		!destination.currentDirectory {
 		t.Fatalf("unexpected current-directory destination: %#v", destination)
 	}
 
-	if err := os.WriteFile(filepath.Join(current, "existing.txt"), []byte("user-owned"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(current, "existing.txt"),
+		[]byte("user-owned"),
+		0o644,
+	); err != nil {
 		t.Fatalf("write existing file: %v", err)
 	}
 	_, err = normalizeNewProjectDestination(current, ".")
@@ -147,7 +154,11 @@ func TestScaffoldNewProjectPublishesOnlyCompleteProject(t *testing.T) {
 		if err := os.MkdirAll(target, 0o755); err != nil {
 			return err
 		}
-		if err := os.WriteFile(filepath.Join(target, "partial.txt"), []byte("partial"), 0o644); err != nil {
+		if err := os.WriteFile(
+			filepath.Join(target, "partial.txt"),
+			[]byte("partial"),
+			0o644,
+		); err != nil {
 			return err
 		}
 		return errors.New("injected scaffold failure")
@@ -165,7 +176,10 @@ func TestScaffoldNewProjectPublishesOnlyCompleteProject(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("publish complete scaffold: %v", err)
 	}
-	if info, err := os.Stat(filepath.Join(destination.path, "complete")); err != nil || !info.IsDir() {
+	if info, err := os.Stat(
+		filepath.Join(destination.path, "complete"),
+	); err != nil ||
+		!info.IsDir() {
 		t.Fatalf("complete scaffold was not published: info=%v err=%v", info, err)
 	}
 	assertNoNewProjectStagingDirectories(t, root)
@@ -187,7 +201,11 @@ func TestScaffoldNewProjectCurrentDirectoryFailureIsNonMutating(t *testing.T) {
 		if err := os.MkdirAll(target, 0o755); err != nil {
 			return err
 		}
-		if err := os.WriteFile(filepath.Join(target, "partial.txt"), []byte("partial"), 0o644); err != nil {
+		if err := os.WriteFile(
+			filepath.Join(target, "partial.txt"),
+			[]byte("partial"),
+			0o644,
+		); err != nil {
 			return err
 		}
 		return errors.New("injected scaffold failure")
@@ -288,7 +306,8 @@ func TestNewProjectAcceptsSvelteRuntimeSuffixes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s lock: %v", runtime, err)
 		}
-		if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia != "svelte" || lock.ScaffoldConfig.PackageManager() != runtime {
+		if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia != "svelte" ||
+			lock.ScaffoldConfig.PackageManager() != runtime {
 			t.Fatalf("%s scaffold config = %#v", runtime, lock.ScaffoldConfig)
 		}
 	}
@@ -296,19 +315,30 @@ func TestNewProjectAcceptsSvelteRuntimeSuffixes(t *testing.T) {
 
 func TestNewProjectReportDryRunAndExistingTarget(t *testing.T) {
 	root := t.TempDir()
-	report, err := newProjectReport("sample", filepath.Join(root, "unused"), true, true, func(target string) error {
-		if !strings.Contains(target, "andurel-new-dry-run-") {
-			t.Fatalf("dry run target is not temporary: %s", target)
-		}
-		if err := os.MkdirAll(filepath.Join(target, "nested"), 0o755); err != nil {
-			return err
-		}
-		return os.WriteFile(filepath.Join(target, "nested", "file.txt"), []byte("created\n"), 0o644)
-	})
+	report, err := newProjectReport(
+		"sample",
+		filepath.Join(root, "unused"),
+		true,
+		true,
+		func(target string) error {
+			if !strings.Contains(target, "andurel-new-dry-run-") {
+				t.Fatalf("dry run target is not temporary: %s", target)
+			}
+			if err := os.MkdirAll(filepath.Join(target, "nested"), 0o755); err != nil {
+				return err
+			}
+			return os.WriteFile(
+				filepath.Join(target, "nested", "file.txt"),
+				[]byte("created\n"),
+				0o644,
+			)
+		},
+	)
 	if err != nil {
 		t.Fatalf("build dry-run report: %v", err)
 	}
-	if !report.DryRun || report.Action != "new project" || report.Resource != "sample" || len(report.FilesCreated) == 0 {
+	if !report.DryRun || report.Action != "new project" || report.Resource != "sample" ||
+		len(report.FilesCreated) == 0 {
 		t.Fatalf("unexpected dry-run report: %#v", report)
 	}
 
@@ -330,7 +360,16 @@ func TestNewProjectReportDryRunAndExistingTarget(t *testing.T) {
 	}
 
 	injected := errors.New("injected report failure")
-	if _, err := newProjectReport("sample", target, false, false, func(string) error { return injected }); !errors.Is(err, injected) {
+	if _, err := newProjectReport(
+		"sample",
+		target,
+		false,
+		false,
+		func(string) error { return injected },
+	); !errors.Is(
+		err,
+		injected,
+	) {
 		t.Fatalf("expected scaffold error, got %v", err)
 	}
 }
@@ -360,16 +399,29 @@ func TestScaffoldNewProjectDetectsPublishRacesAndInvalidSources(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(current, "user.txt"), []byte("owned"), 0o644); err != nil {
 		t.Fatalf("write current file: %v", err)
 	}
-	if err := publishStagedProjectContents(staged, current); err == nil || !strings.Contains(err.Error(), "no longer empty") {
+	if err := publishStagedProjectContents(
+		staged,
+		current,
+	); err == nil ||
+		!strings.Contains(err.Error(), "no longer empty") {
 		t.Fatalf("expected non-empty destination error, got %v", err)
 	}
-	if err := publishStagedProjectContents(filepath.Join(root, "missing"), t.TempDir()); err == nil || !strings.Contains(err.Error(), "read staged scaffold") {
+	if err := publishStagedProjectContents(
+		filepath.Join(root, "missing"),
+		t.TempDir(),
+	); err == nil ||
+		!strings.Contains(err.Error(), "read staged scaffold") {
 		t.Fatalf("expected missing staged scaffold error, got %v", err)
 	}
 }
 
 func TestNewProjectErrorWrappingPreservesTypedErrors(t *testing.T) {
-	typed := output.NewError(output.CodeUnsafeAction, "unsafe", output.ExitUnsafe, "retry elsewhere")
+	typed := output.NewError(
+		output.CodeUnsafeAction,
+		"unsafe",
+		output.ExitUnsafe,
+		"retry elsewhere",
+	)
 	if got := wrapNewProjectScaffoldError(typed); got != typed {
 		t.Fatalf("typed error was replaced: %v", got)
 	}

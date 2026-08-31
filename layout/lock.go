@@ -389,7 +389,12 @@ func (l *AndurelLock) Sync(targetDir string, silent bool) error {
 		}
 		if !lockVersionsMatch(tool.Version, actual) {
 			_ = os.Remove(candidatePath)
-			return fmt.Errorf("downloaded %s version %s does not match expected %s", name, actual, tool.Version)
+			return fmt.Errorf(
+				"downloaded %s version %s does not match expected %s",
+				name,
+				actual,
+				tool.Version,
+			)
 		}
 		if err := os.Rename(candidatePath, binPath); err != nil {
 			_ = os.Remove(candidatePath)
@@ -431,7 +436,13 @@ func installedToolVersion(binaryPath string, check *VersionCheck) (string, error
 }
 
 func lockVersionsMatch(expected, actual string) bool {
-	return strings.TrimPrefix(strings.TrimSpace(expected), "v") == strings.TrimPrefix(strings.TrimSpace(actual), "v")
+	return strings.TrimPrefix(
+		strings.TrimSpace(expected),
+		"v",
+	) == strings.TrimPrefix(
+		strings.TrimSpace(actual),
+		"v",
+	)
 }
 
 func downloadToolBinary(name string, tool *Tool, goos, goarch, destPath string) error {
@@ -467,11 +478,15 @@ func downloadToolBinary(name string, tool *Tool, goos, goarch, destPath string) 
 	}
 
 	if tool.Source != "" {
-		return fmt.Errorf("tool source downloads require explicit download metadata and SHA-256 digests")
+		return fmt.Errorf(
+			"tool source downloads require explicit download metadata and SHA-256 digests",
+		)
 	}
 
 	if name == "tailwindcli" {
-		return fmt.Errorf("tailwindcli downloads require explicit download metadata and SHA-256 digests")
+		return fmt.Errorf(
+			"tailwindcli downloads require explicit download metadata and SHA-256 digests",
+		)
 	}
 
 	return fmt.Errorf("tool has no download metadata")

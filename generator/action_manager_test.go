@@ -15,33 +15,63 @@ func TestActionManagerValidateConfig(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "valid lowercase method",
-			config:  ActionConfig{ControllerName: "Webhook", MethodName: "Validate", Path: "/validate", HTTPMethod: "post"},
+			name: "valid lowercase method",
+			config: ActionConfig{
+				ControllerName: "Webhook",
+				MethodName:     "Validate",
+				Path:           "/validate",
+				HTTPMethod:     "post",
+			},
 			wantErr: "",
 		},
 		{
-			name:    "invalid controller case",
-			config:  ActionConfig{ControllerName: "webhook", MethodName: "Validate", Path: "/validate", HTTPMethod: "POST"},
+			name: "invalid controller case",
+			config: ActionConfig{
+				ControllerName: "webhook",
+				MethodName:     "Validate",
+				Path:           "/validate",
+				HTTPMethod:     "POST",
+			},
 			wantErr: "controller name",
 		},
 		{
-			name:    "invalid method case",
-			config:  ActionConfig{ControllerName: "Webhook", MethodName: "validate", Path: "/validate", HTTPMethod: "POST"},
+			name: "invalid method case",
+			config: ActionConfig{
+				ControllerName: "Webhook",
+				MethodName:     "validate",
+				Path:           "/validate",
+				HTTPMethod:     "POST",
+			},
 			wantErr: "method name",
 		},
 		{
-			name:    "invalid path",
-			config:  ActionConfig{ControllerName: "Webhook", MethodName: "Validate", Path: "validate", HTTPMethod: "POST"},
+			name: "invalid path",
+			config: ActionConfig{
+				ControllerName: "Webhook",
+				MethodName:     "Validate",
+				Path:           "validate",
+				HTTPMethod:     "POST",
+			},
 			wantErr: "must start with",
 		},
 		{
-			name:    "invalid HTTP method",
-			config:  ActionConfig{ControllerName: "Webhook", MethodName: "Validate", Path: "/validate", HTTPMethod: "OPTIONS"},
+			name: "invalid HTTP method",
+			config: ActionConfig{
+				ControllerName: "Webhook",
+				MethodName:     "Validate",
+				Path:           "/validate",
+				HTTPMethod:     "OPTIONS",
+			},
 			wantErr: "invalid HTTP method",
 		},
 		{
-			name:    "plural controller name",
-			config:  ActionConfig{ControllerName: "Webhooks", MethodName: "Validate", Path: "/validate", HTTPMethod: "POST"},
+			name: "plural controller name",
+			config: ActionConfig{
+				ControllerName: "Webhooks",
+				MethodName:     "Validate",
+				Path:           "/validate",
+				HTTPMethod:     "POST",
+			},
 			wantErr: "should be singular",
 		},
 	}
@@ -66,7 +96,9 @@ func TestActionManagerHelpers(t *testing.T) {
 	manager := NewActionManager()
 	routesPath := filepath.Join(t.TempDir(), "routes.go")
 
-	if got := manager.detectIDTypeFromRoutes(filepath.Join(t.TempDir(), "missing.go")); got != "uuid.UUID" {
+	if got := manager.detectIDTypeFromRoutes(
+		filepath.Join(t.TempDir(), "missing.go"),
+	); got != "uuid.UUID" {
 		t.Fatalf("missing routes ID type = %q", got)
 	}
 
@@ -77,7 +109,11 @@ func TestActionManagerHelpers(t *testing.T) {
 		"NewRouteWithUUIDID":      "uuid.UUID",
 	}
 	for constructor, want := range tests {
-		if err := os.WriteFile(routesPath, []byte("package routes\nvar _ = routing."+constructor+"\n"), 0o644); err != nil {
+		if err := os.WriteFile(
+			routesPath,
+			[]byte("package routes\nvar _ = routing."+constructor+"\n"),
+			0o644,
+		); err != nil {
 			t.Fatalf("write routes: %v", err)
 		}
 		if got := manager.detectIDTypeFromRoutes(routesPath); got != want {
@@ -85,7 +121,10 @@ func TestActionManagerHelpers(t *testing.T) {
 		}
 	}
 
-	params := manager.buildSlugParamsStruct("ProductReviewParams", "/:product_id/reviews/:review_slug")
+	params := manager.buildSlugParamsStruct(
+		"ProductReviewParams",
+		"/:product_id/reviews/:review_slug",
+	)
 	for _, want := range []string{
 		"type ProductReviewParams struct",
 		"ProductId string `slug:\"product_id\"`",
@@ -116,7 +155,12 @@ func TestActionManagerGenerateActionMissingAndDuplicateFiles(t *testing.T) {
 	root := t.TempDir()
 	withWorkingDir(t, root)
 
-	config := ActionConfig{ControllerName: "Product", MethodName: "Publish", Path: "/publish", HTTPMethod: "POST"}
+	config := ActionConfig{
+		ControllerName: "Product",
+		MethodName:     "Publish",
+		Path:           "/publish",
+		HTTPMethod:     "POST",
+	}
 	err := manager.GenerateAction(config)
 	if err == nil || !strings.Contains(err.Error(), "required file controllers/products.go") {
 		t.Fatalf("expected missing controller error, got %v", err)

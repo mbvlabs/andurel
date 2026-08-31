@@ -17,10 +17,16 @@ func TestDiagnosticCopyDereferencesExternalRelativeSymlinks(t *testing.T) {
 	}
 	writeTestFile(t, shared, "views/page.templ", "package views\n")
 	writeTestFile(t, shared, "settings.txt", "external settings\n")
-	if err := os.Symlink(filepath.Join("..", "shared", "views"), filepath.Join(project, "views")); err != nil {
+	if err := os.Symlink(
+		filepath.Join("..", "shared", "views"),
+		filepath.Join(project, "views"),
+	); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(filepath.Join("..", "shared", "settings.txt"), filepath.Join(project, "settings.txt")); err != nil {
+	if err := os.Symlink(
+		filepath.Join("..", "shared", "settings.txt"),
+		filepath.Join(project, "settings.txt"),
+	); err != nil {
 		t.Fatal(err)
 	}
 
@@ -47,12 +53,20 @@ func TestDiagnosticCopyDereferencesExternalRelativeSymlinks(t *testing.T) {
 		if !bytes.Equal(content, []byte("package views\n")) {
 			t.Fatalf("copied template = %q", content)
 		}
-		return os.WriteFile(filepath.Join(copyRoot, "views", "page.templ"), []byte("changed copy\n"), 0o644)
+		return os.WriteFile(
+			filepath.Join(copyRoot, "views", "page.templ"),
+			[]byte("changed copy\n"),
+			0o644,
+		)
 	}); err != nil {
 		t.Fatal(err)
 	}
 	if after := snapshotAllTestFiles(t, shared); !mapsOfBytesEqual(before, after) {
-		t.Fatalf("diagnostic copy mutation reached shared target\nbefore=%#v\nafter=%#v", before, after)
+		t.Fatalf(
+			"diagnostic copy mutation reached shared target\nbefore=%#v\nafter=%#v",
+			before,
+			after,
+		)
 	}
 }
 
@@ -64,10 +78,16 @@ func TestDiagnosticCopyDereferencesAbsoluteSymlinkAndSkipsLinkedExclusions(t *te
 	writeTestFile(t, external, "node_modules/package/private.txt", "excluded package\n")
 	writeTestFile(t, external, "repository/.git/objects/private.txt", "excluded git data\n")
 	writeTestFile(t, external, ".andurel-cache/generated/private.txt", "excluded cache data\n")
-	if err := os.Symlink(filepath.Join(external, "data"), filepath.Join(project, "data")); err != nil {
+	if err := os.Symlink(
+		filepath.Join(external, "data"),
+		filepath.Join(project, "data"),
+	); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(filepath.Join(external, "node_modules"), filepath.Join(project, "dependencies")); err != nil {
+	if err := os.Symlink(
+		filepath.Join(external, "node_modules"),
+		filepath.Join(project, "dependencies"),
+	); err != nil {
 		t.Fatal(err)
 	}
 	for name, target := range map[string]string{
@@ -139,8 +159,16 @@ func TestTemplFormatCheckInspectsExternalSymlinkContentWithoutMutatingIt(t *test
 		t.Fatal(err)
 	}
 	writeTestFile(t, shared, "page.templ", "package views\n")
-	writeExecutable(t, project, "bin/templ", "#!/bin/sh\nprintf '// formatted copy\\n' >> \"$2/page.templ\"\n")
-	if err := os.Symlink(filepath.Join("..", "shared"), filepath.Join(project, "views")); err != nil {
+	writeExecutable(
+		t,
+		project,
+		"bin/templ",
+		"#!/bin/sh\nprintf '// formatted copy\\n' >> \"$2/page.templ\"\n",
+	)
+	if err := os.Symlink(
+		filepath.Join("..", "shared"),
+		filepath.Join(project, "views"),
+	); err != nil {
 		t.Fatal(err)
 	}
 	before, err := os.ReadFile(filepath.Join(shared, "page.templ"))

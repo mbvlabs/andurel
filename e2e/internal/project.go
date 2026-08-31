@@ -40,7 +40,10 @@ func NewProject(t *testing.T, andurelBinary, sharedBinDir, workspaceRoot string)
 }
 
 // NewProjectWithDatabase creates a new project with database.
-func NewProjectWithDatabase(t *testing.T, andurelBinary, sharedBinDir, workspaceRoot, database string) *Project {
+func NewProjectWithDatabase(
+	t *testing.T,
+	andurelBinary, sharedBinDir, workspaceRoot, database string,
+) *Project {
 	t.Helper()
 
 	tmpDir := t.TempDir()

@@ -31,7 +31,10 @@ type FactoryFieldInfo struct {
 }
 
 // AnalyzeField returns default value expression and metadata for a field
-func (fa *FieldAnalyzer) AnalyzeField(field models.GeneratedField, modelName string) FactoryFieldInfo {
+func (fa *FieldAnalyzer) AnalyzeField(
+	field models.GeneratedField,
+	modelName string,
+) FactoryFieldInfo {
 	isPrimaryKey := field.IsPrimaryKey || strings.EqualFold(field.Name, "id")
 	info := FactoryFieldInfo{
 		Name:          field.Name,

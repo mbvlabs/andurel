@@ -13,23 +13,29 @@ import (
 {{- end}}
 
 	"{{.ModuleName}}/assets"
-	"{{.ModuleName}}/application"
-	"github.com/mbvlabs/andurel/pkg/routing"
-	"github.com/mbvlabs/andurel/pkg/server"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/routes"
+
+	"github.com/mbvlabs/andurel/pkg/routing"
+	"github.com/mbvlabs/andurel/pkg/server"
 
 	"github.com/labstack/echo/v5"
 )
 
 const threeMonthsCache = "7776000"
 
-type Assets struct {
-	cache *Cache[string]
+type AssetsAppProvider interface {
+	GetEnvironment() string
+	GetBaseURL() string
 }
 
-func NewAssets(cache *Cache[string]) Assets {
-	return Assets{cache}
+type Assets struct {
+	cache  *Cache[string]
+	appCfg AssetsAppProvider
+}
+
+func NewAssets(cache *Cache[string], appCfg AssetsAppProvider) Assets {
+	return Assets{cache: cache, appCfg: appCfg}
 }
 
 func (a Assets) RegisterRoutes(r *router.Router) error {
@@ -96,12 +102,13 @@ func (a Assets) RegisterRoutes(r *router.Router) error {
 		errs = append(errs, err)
 	}
 
-{{- end}}
+{{end}}
+
 	return errors.Join(errs...)
 }
 
 func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
-	if application.Environment == server.ProdEnvironment {
+	if a.appCfg.GetEnvironment() == server.ProdEnvironment {
 		//nolint:gosec //only needed for browser caching
 		hash := md5.Sum(content)
 		etag := fmt.Sprintf(`"%x-%x"`, hash, len(content))
@@ -131,10 +138,10 @@ func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
 	return etx
 }
 
-func createRobotsTxt() string {
+func createRobotsTxt(baseURL string) string {
 	return fmt.Sprintf(
 		"User-agent: *\nAllow: /\nSitemap: %s%s\n",
-		application.BaseURL,
+		baseURL,
 		routes.Sitemap.URL(),
 	)
 }
@@ -143,7 +150,7 @@ func (a Assets) Robots(etx *echo.Context) error {
 	cacheKey := "assets:robots"
 
 	robotsTxt, err := a.cache.Get(cacheKey, func() (string, error) {
-		return createRobotsTxt(), nil
+		return createRobotsTxt(a.appCfg.GetBaseURL()), nil
 	})
 	if err != nil {
 		slog.ErrorContext(
@@ -151,7 +158,7 @@ func (a Assets) Robots(etx *echo.Context) error {
 			"failed to get robots.txt from cache",
 			"error", err,
 		)
-		return etx.String(http.StatusOK, createRobotsTxt())
+		return etx.String(http.StatusOK, createRobotsTxt(a.appCfg.GetBaseURL()))
 	}
 
 	return etx.String(http.StatusOK, robotsTxt)
@@ -161,7 +168,7 @@ func (a Assets) Sitemap(etx *echo.Context) error {
 	cacheKey := "assets:sitemap"
 
 	sitemap, err := a.cache.Get(cacheKey, func() (string, error) {
-		return createSitemap([]routing.Route{})
+		return createSitemap(a.appCfg.GetBaseURL(), []routing.Route{})
 	})
 	if err != nil {
 		slog.ErrorContext(
@@ -170,7 +177,7 @@ func (a Assets) Sitemap(etx *echo.Context) error {
 			"error", err,
 		)
 
-		result, err := createSitemap([]routing.Route{})
+		result, err := createSitemap(a.appCfg.GetBaseURL(), []routing.Route{})
 		if err != nil {
 			return err
 		}
@@ -195,9 +202,7 @@ type Sitemap struct {
 	URL     []URL    `xml:"url"`
 }
 
-func createSitemap(routes []routing.Route) (string, error) {
-	baseURL := application.BaseURL
-
+func createSitemap(baseURL string, routes []routing.Route) (string, error) {
 	var urls []URL
 
 	urls = append(urls, URL{
@@ -213,11 +218,11 @@ func createSitemap(routes []routing.Route) (string, error) {
 	}
 
 	xmlBytes, err := xml.MarshalIndent(sitemap, "", "  ")
-    if err != nil {
-    	return "", err
-    }
+	if err != nil {
+		return "", err
+	}
 
-    return xml.Header + string(xmlBytes), nil
+	return xml.Header + string(xmlBytes), nil
 }
 
 func (a Assets) Stylesheet(etx *echo.Context) error {
@@ -257,7 +262,8 @@ func (a Assets) Script(etx *echo.Context) error {
 	return etx.Blob(http.StatusOK, "application/javascript", stylesheet)
 }
 
-{{- if .Inertia}}
+{{if .Inertia}}
+
 func contentTypeByExt(name string) string {
 	switch {
 	case strings.HasSuffix(name, ".js"):
@@ -288,4 +294,5 @@ func (a Assets) ViteBuild(etx *echo.Context) error {
 	etx = a.enableCaching(etx, data)
 	return etx.Blob(http.StatusOK, contentTypeByExt(param), data)
 }
-{{- end}}
+
+{{end}}

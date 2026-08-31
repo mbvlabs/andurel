@@ -40,8 +40,16 @@ func TestPlatformNormalizationHelpers(t *testing.T) {
 		{name: "map unknown", got: mapArch("riscv64"), want: "riscv64"},
 		{name: "capitalize", got: capitalize("linux"), want: "Linux"},
 		{name: "capitalize empty", got: capitalize(""), want: ""},
-		{name: "repo github", got: extractGitHubRepo("github.com/owner/repo/cmd/tool"), want: "owner/repo"},
-		{name: "repo other", got: extractGitHubRepo("example.com/owner/repo"), want: "example.com/owner"},
+		{
+			name: "repo github",
+			got:  extractGitHubRepo("github.com/owner/repo/cmd/tool"),
+			want: "owner/repo",
+		},
+		{
+			name: "repo other",
+			got:  extractGitHubRepo("example.com/owner/repo"),
+			want: "example.com/owner",
+		},
 	}
 
 	for _, tt := range tests {
@@ -64,56 +72,84 @@ func TestToolDownloaderReleaseURLs(t *testing.T) {
 		wantErr     string
 	}{
 		{
-			name:        "templ",
-			downloader:  ToolDownloader{Name: "templ", Module: "github.com/a-h/templ/cmd/templ", Version: "v0.1.0"},
+			name: "templ",
+			downloader: ToolDownloader{
+				Name:    "templ",
+				Module:  "github.com/a-h/templ/cmd/templ",
+				Version: "v0.1.0",
+			},
 			goos:        "linux",
 			goarch:      "amd64",
 			wantURLPart: "templ_Linux_x86_64.tar.gz",
 			wantArchive: "tar.gz",
 		},
 		{
-			name:        "goose",
-			downloader:  ToolDownloader{Name: "goose", Module: "github.com/pressly/goose/v3/cmd/goose", Version: "v3.1.0"},
+			name: "goose",
+			downloader: ToolDownloader{
+				Name:    "goose",
+				Module:  "github.com/pressly/goose/v3/cmd/goose",
+				Version: "v3.1.0",
+			},
 			goos:        "darwin",
 			goarch:      "arm64",
 			wantURLPart: "goose_darwin_arm64",
 			wantArchive: "binary",
 		},
 		{
-			name:        "usql",
-			downloader:  ToolDownloader{Name: "usql", Module: "github.com/xo/usql", Version: "v0.2.0"},
+			name: "usql",
+			downloader: ToolDownloader{
+				Name:    "usql",
+				Module:  "github.com/xo/usql",
+				Version: "v0.2.0",
+			},
 			goos:        "linux",
 			goarch:      "amd64",
 			wantURLPart: "usql-0.2.0-linux-amd64.tar.bz2",
 			wantArchive: "tar.bz2",
 		},
 		{
-			name:        "mailpit",
-			downloader:  ToolDownloader{Name: "mailpit", Module: "github.com/axllent/mailpit", Version: "v1.2.0"},
+			name: "mailpit",
+			downloader: ToolDownloader{
+				Name:    "mailpit",
+				Module:  "github.com/axllent/mailpit",
+				Version: "v1.2.0",
+			},
 			goos:        "linux",
 			goarch:      "arm64",
 			wantURLPart: "mailpit-linux-arm64.tar.gz",
 			wantArchive: "tar.gz",
 		},
 		{
-			name:        "dblab",
-			downloader:  ToolDownloader{Name: "dblab", Module: "github.com/danvergara/dblab", Version: "v0.9.0"},
+			name: "dblab",
+			downloader: ToolDownloader{
+				Name:    "dblab",
+				Module:  "github.com/danvergara/dblab",
+				Version: "v0.9.0",
+			},
 			goos:        "darwin",
 			goarch:      "arm64",
 			wantURLPart: "dblab_0.9.0_darwin_arm64.tar.gz",
 			wantArchive: "tar.gz",
 		},
 		{
-			name:        "shadowfax",
-			downloader:  ToolDownloader{Name: "shadowfax", Module: "github.com/mbvlabs/shadowfax", Version: "v0.1.0"},
+			name: "shadowfax",
+			downloader: ToolDownloader{
+				Name:    "shadowfax",
+				Module:  "github.com/mbvlabs/shadowfax",
+				Version: "v0.1.0",
+			},
 			goos:        "linux",
 			goarch:      "amd64",
 			wantURLPart: "shadowfax-linux-amd64",
 			wantArchive: "binary",
 		},
 		{
-			name:        "unknown",
-			downloader:  ToolDownloader{Name: "unknown", Module: "github.com/example/tool", Version: "v1.0.0"},
+			name: "unknown",
+			downloader: ToolDownloader{
+				Name:    "unknown",
+				Module:  "github.com/example/tool",
+				Version: "v1.0.0",
+			},
 			goos:        "linux",
 			goarch:      "amd64",
 			wantErr:     "unknown tool",
@@ -190,7 +226,14 @@ func TestDownloadFromURLTemplateAndURL(t *testing.T) {
 	archivePath := filepath.Join(tmpDir, "expected.tar.gz")
 	writeTarGz(t, archivePath, "nested/tool-linux-amd64", "tar content")
 	archiveDigest := sha256File(t, archivePath)
-	if err := DownloadVerifiedFromURL("tool", server.URL+"/archive.tar.gz", "tar.gz", "tool-linux-amd64", tarDest, archiveDigest); err != nil {
+	if err := DownloadVerifiedFromURL(
+		"tool",
+		server.URL+"/archive.tar.gz",
+		"tar.gz",
+		"tool-linux-amd64",
+		tarDest,
+		archiveDigest,
+	); err != nil {
 		t.Fatalf("DownloadFromURL tar.gz: %v", err)
 	}
 	assertFileContent(t, tarDest, "tar content")
@@ -199,15 +242,38 @@ func TestDownloadFromURLTemplateAndURL(t *testing.T) {
 	zipPath := filepath.Join(tmpDir, "expected.zip")
 	writeZip(t, zipPath, "bin/tool.exe", "zip content")
 	zipDigest := sha256File(t, zipPath)
-	if err := DownloadVerifiedFromURL("tool", server.URL+"/archive.zip", "zip", "tool.exe", zipDest, zipDigest); err != nil {
+	if err := DownloadVerifiedFromURL(
+		"tool",
+		server.URL+"/archive.zip",
+		"zip",
+		"tool.exe",
+		zipDest,
+		zipDigest,
+	); err != nil {
 		t.Fatalf("DownloadFromURL zip: %v", err)
 	}
 	assertFileContent(t, zipDest, "zip content")
 
-	if err := DownloadFromURLTemplate("tool", "v1.0.0", "", "binary", "", "linux", "amd64", filepath.Join(tmpDir, "missing")); err == nil {
+	if err := DownloadFromURLTemplate(
+		"tool",
+		"v1.0.0",
+		"",
+		"binary",
+		"",
+		"linux",
+		"amd64",
+		filepath.Join(tmpDir, "missing"),
+	); err == nil {
 		t.Fatalf("expected missing urlTemplate error")
 	}
-	err = DownloadVerifiedFromURL("tool", server.URL+"/missing", "binary", "tool", filepath.Join(tmpDir, "missing"), strings.Repeat("0", 64))
+	err = DownloadVerifiedFromURL(
+		"tool",
+		server.URL+"/missing",
+		"binary",
+		"tool",
+		filepath.Join(tmpDir, "missing"),
+		strings.Repeat("0", 64),
+	)
 	if err == nil || !strings.Contains(err.Error(), "unexpected status code 404") {
 		t.Fatalf("expected status error, got %v", err)
 	}
@@ -233,13 +299,27 @@ func TestDownloadGoToolAndTailwindUseResolvedAssets(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	templDest := filepath.Join(tmpDir, "templ")
-	if err := DownloadVerifiedGoTool("templ", "github.com/a-h/templ/cmd/templ", "v0.3.0", "linux", "amd64", templDest, strings.Repeat("1", 64)); err != nil {
+	if err := DownloadVerifiedGoTool(
+		"templ",
+		"github.com/a-h/templ/cmd/templ",
+		"v0.3.0",
+		"linux",
+		"amd64",
+		templDest,
+		strings.Repeat("1", 64),
+	); err != nil {
 		t.Fatalf("DownloadGoTool templ: %v", err)
 	}
 	assertFileContent(t, templDest, "templ binary")
 
 	tailwindDest := filepath.Join(tmpDir, "tailwindcli")
-	if err := DownloadVerifiedTailwindCLI("v4.0.0", "darwin", "amd64", tailwindDest, strings.Repeat("2", 64)); err != nil {
+	if err := DownloadVerifiedTailwindCLI(
+		"v4.0.0",
+		"darwin",
+		"amd64",
+		tailwindDest,
+		strings.Repeat("2", 64),
+	); err != nil {
 		t.Fatalf("DownloadTailwindCLI: %v", err)
 	}
 	assertFileContent(t, tailwindDest, "plain binary")
@@ -250,7 +330,15 @@ func TestDownloadGoToolAndTailwindUseResolvedAssets(t *testing.T) {
 		t.Fatalf("unexpected downloaded URLs: %#v", downloadedURLs)
 	}
 
-	if err := DownloadVerifiedGoTool("unknown", "github.com/example/tool", "v1.0.0", "linux", "amd64", filepath.Join(tmpDir, "unknown"), strings.Repeat("3", 64)); err == nil ||
+	if err := DownloadVerifiedGoTool(
+		"unknown",
+		"github.com/example/tool",
+		"v1.0.0",
+		"linux",
+		"amd64",
+		filepath.Join(tmpDir, "unknown"),
+		strings.Repeat("3", 64),
+	); err == nil ||
 		!strings.Contains(err.Error(), ErrFailedToGetRleaseURL.Error()) {
 		t.Fatalf("expected release URL error, got %v", err)
 	}
@@ -258,18 +346,36 @@ func TestDownloadGoToolAndTailwindUseResolvedAssets(t *testing.T) {
 	downloadVerifiedFunc = func(name, sourceURL, archiveType, binaryName, destPath, digest string) error {
 		return os.ErrPermission
 	}
-	if err := DownloadVerifiedTailwindCLI("v4.0.0", "linux", "arm64", filepath.Join(tmpDir, "blocked"), strings.Repeat("4", 64)); err == nil ||
+	if err := DownloadVerifiedTailwindCLI(
+		"v4.0.0",
+		"linux",
+		"arm64",
+		filepath.Join(tmpDir, "blocked"),
+		strings.Repeat("4", 64),
+	); err == nil ||
 		!strings.Contains(err.Error(), "failed to download tailwindcli") {
 		t.Fatalf("expected tailwind download error, got %v", err)
 	}
 }
 
 func TestUnverifiedDownloadWrappersRejectMissingDigest(t *testing.T) {
-	if err := DownloadGoTool("templ", "github.com/a-h/templ/cmd/templ", "v0.3.0", "linux", "amd64", filepath.Join(t.TempDir(), "templ")); err == nil ||
+	if err := DownloadGoTool(
+		"templ",
+		"github.com/a-h/templ/cmd/templ",
+		"v0.3.0",
+		"linux",
+		"amd64",
+		filepath.Join(t.TempDir(), "templ"),
+	); err == nil ||
 		!strings.Contains(err.Error(), "valid SHA-256 digest is required") {
 		t.Fatalf("DownloadGoTool error = %v", err)
 	}
-	if err := DownloadTailwindCLI("v4.0.0", "linux", "amd64", filepath.Join(t.TempDir(), "tailwindcli")); err == nil ||
+	if err := DownloadTailwindCLI(
+		"v4.0.0",
+		"linux",
+		"amd64",
+		filepath.Join(t.TempDir(), "tailwindcli"),
+	); err == nil ||
 		!strings.Contains(err.Error(), "valid SHA-256 digest is required") {
 		t.Fatalf("DownloadTailwindCLI error = %v", err)
 	}
@@ -333,7 +439,10 @@ func TestDownloadHelpersErrorsAndPlatform(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
-	if err := copyFile(filepath.Join(tmpDir, "missing"), filepath.Join(tmpDir, "dest")); err == nil {
+	if err := copyFile(
+		filepath.Join(tmpDir, "missing"),
+		filepath.Join(tmpDir, "dest"),
+	); err == nil {
 		t.Fatalf("expected copy missing source error")
 	}
 	source := filepath.Join(tmpDir, "source")
@@ -344,10 +453,18 @@ func TestDownloadHelpersErrorsAndPlatform(t *testing.T) {
 		t.Fatalf("expected copy destination error")
 	}
 
-	if err := extractTarGz(filepath.Join(tmpDir, "missing.tar.gz"), "tool", filepath.Join(tmpDir, "tool")); err == nil {
+	if err := extractTarGz(
+		filepath.Join(tmpDir, "missing.tar.gz"),
+		"tool",
+		filepath.Join(tmpDir, "tool"),
+	); err == nil {
 		t.Fatalf("expected missing tar.gz error")
 	}
-	if err := extractZip(filepath.Join(tmpDir, "missing.zip"), "tool", filepath.Join(tmpDir, "tool")); err == nil {
+	if err := extractZip(
+		filepath.Join(tmpDir, "missing.zip"),
+		"tool",
+		filepath.Join(tmpDir, "tool"),
+	); err == nil {
 		t.Fatalf("expected missing zip error")
 	}
 }

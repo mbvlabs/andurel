@@ -32,7 +32,10 @@ func (p *AlterTableParser) Parse(
 	matches := alterRegex.FindStringSubmatch(sql)
 
 	if len(matches) < 4 {
-		return nil, unsupportedStatement(sql, "ALTER TABLE requires one unquoted table name and a supported operation")
+		return nil, unsupportedStatement(
+			sql,
+			"ALTER TABLE requires one unquoted table name and a supported operation",
+		)
 	}
 
 	schemaName := matches[1]
@@ -99,7 +102,10 @@ func (p *AlterTableParser) parseAlterTableSingleOperation(
 		stmt.AlterOperation = "DROP_CONSTRAINT"
 		return stmt, nil
 	default:
-		return nil, unsupportedStatement(operation, "ALTER TABLE operation is not supported by model generation")
+		return nil, unsupportedStatement(
+			operation,
+			"ALTER TABLE operation is not supported by model generation",
+		)
 	}
 }
 
@@ -140,7 +146,9 @@ func (p *AlterTableParser) parseDropColumn(
 	stmt *AlterTableStatement,
 	operation string,
 ) (*AlterTableStatement, error) {
-	dropColumnRegex, err := regexp.Compile(`(?i)^drop\s+column\s+(?:if\s+exists\s+)?(\w+)(?:\s+(?:restrict|cascade))?$`)
+	dropColumnRegex, err := regexp.Compile(
+		`(?i)^drop\s+column\s+(?:if\s+exists\s+)?(\w+)(?:\s+(?:restrict|cascade))?$`,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +211,10 @@ func (p *AlterTableParser) parseAlterColumn(
 	case strings.HasPrefix(columnOpLower, "drop default"):
 		stmt.ColumnChanges["drop_default"] = true
 	default:
-		return nil, unsupportedStatement(operation, "ALTER COLUMN operation is not supported by model generation")
+		return nil, unsupportedStatement(
+			operation,
+			"ALTER COLUMN operation is not supported by model generation",
+		)
 	}
 
 	return stmt, nil

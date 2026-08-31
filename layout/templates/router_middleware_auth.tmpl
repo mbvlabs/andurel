@@ -4,21 +4,24 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/mbvlabs/andurel/pkg/routing"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
+
+	"github.com/mbvlabs/andurel/pkg/routing"
 
 	"github.com/labstack/echo/v5"
 	"github.com/maypok86/otter/v2"
 )
 
-func AuthOnly(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c *echo.Context) error {
-		if cookies.ExtractFromCookieApp(c).IsAuthenticated {
-			return next(c)
-		}
+func AuthOnly(session *cookies.Session) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			if session.ExtractFromCookieApp(c).IsAuthenticated {
+				return next(c)
+			}
 
-		return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
+			return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
+		}
 	}
 }
 

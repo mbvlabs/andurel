@@ -56,7 +56,10 @@ func NewTemplateRenderer() *TemplateRenderer {
 }
 
 // RenderControllerFile performs the render controller file operation.
-func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController, inertia string) (string, error) {
+func (tr *TemplateRenderer) RenderControllerFile(
+	controller *GeneratedController,
+	inertia string,
+) (string, error) {
 	if controller.ModelName == "" {
 		controller.ModelName = controller.ResourceName
 	}
@@ -206,7 +209,10 @@ func inertiaZeroValue(goType string) string {
 	}
 }
 
-func (tr *TemplateRenderer) generateRouteContent(resourceName, namespace, pluralName, idType string, actions []string) (string, error) {
+func (tr *TemplateRenderer) generateRouteContent(
+	resourceName, namespace, pluralName, idType string,
+	actions []string,
+) (string, error) {
 	// Get module path
 	modulePath, err := tr.getModulePath()
 	if err != nil {

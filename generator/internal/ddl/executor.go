@@ -34,7 +34,10 @@ func ApplyDDL(
 	// Log unknown statements
 	if stmt.GetType() == Unknown {
 		if !unknownStatementIsModelNeutral(stmt.GetRaw()) {
-			return unsupportedStatement(stmt.GetRaw(), "the statement may change tables or columns used to generate models")
+			return unsupportedStatement(
+				stmt.GetRaw(),
+				"the statement may change tables or columns used to generate models",
+			)
 		}
 		slog.WarnContext(
 			context.Background(),
@@ -49,7 +52,10 @@ func ApplyDDL(
 	switch stmt.GetType() {
 	case DropEnum, DropSchema:
 		if strings.Contains(strings.ToLower(stmt.GetRaw()), "cascade") {
-			return unsupportedStatement(stmt.GetRaw(), "CASCADE can remove table columns or tables used to generate models")
+			return unsupportedStatement(
+				stmt.GetRaw(),
+				"CASCADE can remove table columns or tables used to generate models",
+			)
 		}
 		return nil
 	case CreateIndex, DropIndex:

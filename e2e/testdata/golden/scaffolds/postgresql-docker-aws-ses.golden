@@ -29,60 +29,22 @@ docker-compose.yml
 
 file -----------rw-r--r-- .env.example
 ```
-ENVIRONMENT=development
-
-DEFAULT_SENDER_SIGNATURE=info@andurel.com
-
 DB_KIND=postgres
-DB_PORT=5432
 DB_HOST=127.0.0.1
+DB_PORT=5432
 DB_NAME=andurel
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_SSL_MODE=disable
 
-QUEUE_ADVISORY_LOCK_PREFIX=0
-QUEUE_CANCELLED_JOB_RETENTION_PERIOD=24h
-QUEUE_COMPLETED_JOB_RETENTION_PERIOD=24h
-QUEUE_DISCARDED_JOB_RETENTION_PERIOD=168h
-QUEUE_FETCH_COOLDOWN=100ms
-QUEUE_POLL_INTERVAL=1s
-QUEUE_ID=
-QUEUE_JOB_CLEANER_TIMEOUT=30s
-QUEUE_JOB_STUCK_THRESHOLD=10s
-QUEUE_JOB_TIMEOUT=1m
-QUEUE_MAX_ATTEMPTS=25
-QUEUE_MAX_WORKERS=100
-QUEUE_POLL_ONLY=false
-QUEUE_REINDEXER_INDEX_NAMES=river_job_args_index,river_job_kind,river_job_metadata_index,river_job_pkey,river_job_prioritized_fetching_index,river_job_state_and_finalized_at_index,river_job_unique_idx
-QUEUE_REINDEXER_TIMEOUT=1m
-QUEUE_RESCUE_STUCK_JOBS_AFTER=1h
-QUEUE_SCHEMA=
-QUEUE_SOFT_STOP_TIMEOUT=0s
-QUEUE_SKIP_JOB_KIND_VALIDATION=false
-QUEUE_SKIP_UNKNOWN_JOB_CHECK=false
-
-PROJECT_NAME=testapp
-DOMAIN=localhost:8080
-PROTOCOL=http
-
-SESSION_KEY=<SESSION_KEY>
-SESSION_ENCRYPTION_KEY=<SESSION_ENCRYPTION_KEY>
-SESSION_MAX_AGE=604800
-
-TOKEN_SIGNING_KEY=<TOKEN_SIGNING_KEY>
-
-CORS_ALLOWED_ORIGINS=
 CSRF_STRATEGY=header_only
 CSRF_TRUSTED_ORIGINS=
 
-PEPPER=<PEPPER>
-PREVIOUS_PEPPERS=
+SESSION_KEY=<SESSION_KEY>
+SESSION_ENCRYPTION_KEY=<SESSION_ENCRYPTION_KEY>
+TOKEN_SIGNING_KEY=<TOKEN_SIGNING_KEY>
 
-AWS_REGION=us-east-1
-AWS_SES_ACCESS_KEY_ID=
-AWS_SES_SECRET_ACCESS_KEY=
-AWS_SES_CONFIGURATION_SET=
+PEPPER=<PEPPER>
 ```
 
 file -----------rw-r--r-- .gitignore
@@ -437,19 +399,19 @@ automatically. Run `andurel email compile` for a standalone compilation pass.
 
 ```go
 import (
-    "testapp/application"
+    "testapp/config"
     "testapp/email"
 )
 
 // Send an email
 data := email.TransactionalData{
-    From:    application.DefaultSenderSignature,
+    From:    appCfg.GetDefaultSenderSignature(),
     To:      []string{"user@example.com"},
     Subject: "Welcome!",
     Body:    WelcomeEmail("John Doe"),
 }
 
-err := email.SendTransactional(ctx, data, sender)
+err := email.SendTransactional(ctx, data, sender, appCfg)
 ```
 
 **3. Background email jobs**
@@ -1307,91 +1269,6 @@ file -----------rw-r--r-- andurel.lock
 }
 ```
 
-dir  d----------rwxr-xr-x application
-
-file -----------rw-r--r-- application/metadata.go
-```
-// Package application contains shared, non-sensitive application identity.
-package application
-
-import (
-	"fmt"
-	"os"
-	"strings"
-
-	"github.com/gosimple/slug"
-	"github.com/mbvlabs/andurel/pkg/server"
-)
-
-// Global application metadata with environment-backed defaults.
-var (
-	Environment = func() string {
-		if value := os.Getenv("ENVIRONMENT"); value != "" {
-			return value
-		}
-		return server.DevEnvironment
-	}()
-	ProjectName = func() string {
-		if value := os.Getenv("PROJECT_NAME"); value != "" {
-			return value
-		}
-		return "andurel"
-	}()
-	ServiceName = func() string {
-		if value := os.Getenv("TELEMETRY_SERVICE_NAME"); value != "" {
-			return value
-		}
-		return slug.Make(ProjectName)
-	}()
-	Domain = func() string {
-		if value := os.Getenv("DOMAIN"); value != "" {
-			return value
-		}
-		return "localhost:8080"
-	}()
-	BaseURL = func() string {
-		protocol := os.Getenv("PROTOCOL")
-		if protocol == "" {
-			protocol = "http"
-		}
-		return fmt.Sprintf("%s://%s", protocol, Domain)
-	}()
-	AppCookieSessionName   = "app_sess_" + slug.Make(strings.ToLower(ProjectName)) + "-" + Environment
-	DefaultSenderSignature = func() string {
-		if value := os.Getenv("DEFAULT_SENDER_SIGNATURE"); value != "" {
-			return value
-		}
-		return "noreply@" + Domain
-	}()
-)
-
-// Metadata identifies the running application without exposing subsystem
-// configuration or secrets.
-type Metadata struct {
-	ProjectName string
-	Environment string
-	BaseURL     string
-	Domain      string
-	ServiceName string
-	Version     string
-}
-
-func NewMetadata(version string) Metadata {
-	return Metadata{
-		ProjectName: ProjectName,
-		Environment: Environment,
-		BaseURL:     BaseURL,
-		Domain:      Domain,
-		ServiceName: ServiceName,
-		Version:     version,
-	}
-}
-
-func (metadata Metadata) IsProduction() bool {
-	return metadata.Environment == server.ProdEnvironment
-}
-```
-
 dir  d----------rwxr-xr-x assets
 
 file -----------rw-r--r-- assets/assets.go
@@ -1454,24 +1331,35 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 
-	appconfig "testapp/config"
 	"testapp/email"
 )
 
 var _ email.TransactionalSender = (*AwsSes)(nil)
 var _ email.MarketingSender = (*AwsSes)(nil)
 
+type SesConfigProvider interface {
+	GetRegion() string
+	GetAccessKeyID() string
+	GetSecretAccessKey() string
+	GetConfigurationSet() string
+}
+
+type EmailConfigProvider interface {
+	GetMailpitHost() string
+	GetMailpitPort() string
+}
+
 type AwsSes struct {
 	client           *sesv2.Client
 	configurationSet string
 }
 
-func NewAwsSes(region appconfig.AwsSesRegion, accessKeyID appconfig.AwsSesAccessKeyID, secretAccessKey appconfig.AwsSesSecretAccessKey, configurationSet appconfig.AwsSesConfigurationSet) *AwsSes {
+func NewAwsSes(cfg SesConfigProvider) *AwsSes {
 	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
-		awsconfig.WithRegion(string(region)),
+		awsconfig.WithRegion(cfg.GetRegion()),
 		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			string(accessKeyID),
-			string(secretAccessKey),
+			cfg.GetAccessKeyID(),
+			cfg.GetSecretAccessKey(),
 			"",
 		)),
 	)
@@ -1483,7 +1371,7 @@ func NewAwsSes(region appconfig.AwsSesRegion, accessKeyID appconfig.AwsSesAccess
 
 	return &AwsSes{
 		client:           client,
-		configurationSet: string(configurationSet),
+		configurationSet: cfg.GetConfigurationSet(),
 	}
 }
 
@@ -1781,7 +1669,6 @@ import (
 	"net/smtp"
 	"strings"
 
-	"testapp/config"
 	"testapp/email"
 )
 
@@ -1793,10 +1680,10 @@ type Mailpit struct {
 	port string
 }
 
-func NewMailpit(host config.MailpitHost, port config.MailpitPort) *Mailpit {
+func NewMailpit(host, port string) *Mailpit {
 	return &Mailpit{
-		host: string(host),
-		port: string(port),
+		host: host,
+		port: port,
 	}
 }
 
@@ -1934,7 +1821,8 @@ import (
 	"time"
 
 	"github.com/mbvlabs/andurel/pkg/server"
-	"testapp/application"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"go.uber.org/fx"
 	mailclients "testapp/clients/email"
 	"testapp/config"
 	"testapp/controllers"
@@ -1942,34 +1830,43 @@ import (
 	"testapp/router"
 	"testapp/services"
 	"testapp/telemetry"
-
-	"go.uber.org/fx"
 )
 
 var appVersion string
 
 func main() {
-	metadata := application.NewMetadata(appVersion)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	app := fx.New(
-		fx.Supply(metadata),
 		fx.Provide(
 			func() context.Context { return ctx },
-			func(host config.MailpitHost, port config.MailpitPort) (email.TransactionalSender, email.MarketingSender) {
-				if application.Environment == server.ProdEnvironment {
+			func(
+				cfg config.EmailCfg,
+				appCfg config.AppCfg,
+			) (email.TransactionalSender, email.MarketingSender) {
+				if appCfg.GetEnvironment() == server.ProdEnvironment {
 					log.Fatal("provide real email sender")
 				}
 
-				return mailclients.NewMailpit(host, port), mailclients.NewMailpit(host, port)
+				return mailclients.NewMailpit(
+						cfg.GetMailpitHost(),
+						cfg.GetMailpitPort(),
+					), mailclients.NewMailpit(
+						cfg.GetMailpitHost(),
+						cfg.GetMailpitPort(),
+					)
 			},
-			config.NewMailpitValues,
-			config.NewAppValues,
+			func(cfg config.AppCfg) router.AppProvider { return cfg },
+			func(cfg config.AppCfg) controllers.ConfigProvider { return cfg },
+			func(cfg config.AppCfg) controllers.AssetsAppProvider { return cfg },
+			func(cfg config.AppCfg) services.AppIdentityProvider { return cfg },
+			func(cfg config.AuthCfg) services.AuthProvider { return cfg },
+			func(cfg config.TelemetryCfg) telemetry.ConfigProvider { return cfg },
 		),
 
 		config.Module,
-		config.DatabaseModule,
-		config.QueueInsertModule,
+		databaseModule,
+		queueInsertModule,
 		telemetry.Module,
 		services.Module,
 		controllers.Module,
@@ -1994,12 +1891,22 @@ func main() {
 	}
 }
 
-func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, host config.AppHost, port config.AppPort) {
+var databaseModule = fx.Module(
+	"database",
+	fx.Provide(fx.Annotate(newDatabase, fx.As(new(storage.Connection)), fx.As(fx.Self()))),
+)
+
+var queueInsertModule = fx.Module(
+	"queue-insert",
+	fx.Provide(fx.Annotate(newQueueInsert, fx.As(new(storage.InsertQueue)))),
+)
+
+func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, appCfg config.AppCfg) {
 	srv := server.New(
 		appCtx,
-		string(host),
-		string(port),
-		application.Environment,
+		appCfg.GetHost(),
+		appCfg.GetPort(),
+		appCfg.GetEnvironment(),
 		r.Handler,
 		nil,
 	)
@@ -2011,12 +1918,12 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, host
 				appCtx,
 				"starting server",
 				"host",
-				string(host),
+				appCfg.GetHost(),
 				"port",
-				string(port),
+				appCfg.GetPort(),
 			)
 			done = startInBackground(appCtx, "server", func(ctx context.Context) error {
-				return srv.Start(ctx, application.Environment)
+				return srv.Start(ctx, appCfg.GetEnvironment())
 			})
 			return nil
 		},
@@ -2026,13 +1933,55 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, host
 				var shutdownErr error
 				for _, shutdowner := range srv.Shutdowners {
 					if err := shutdowner.Shutdown(ctx); err != nil {
-						shutdownErr = errors.Join(shutdownErr, fmt.Errorf("server: shutdown component %T: %w", shutdowner, err))
+						shutdownErr = errors.Join(
+							shutdownErr,
+							fmt.Errorf("server: shutdown component %T: %w", shutdowner, err),
+						)
 					}
 				}
+
 				return shutdownErr
 			}, done)
 		},
 	})
+}
+
+func newDatabase(
+	lifecycle fx.Lifecycle,
+	ctx context.Context,
+	cfg config.Database,
+) (*storage.Postgres, error) {
+	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
+		DatabaseKind:             cfg.GetDatabaseKind(),
+		Host:                     cfg.GetHost(),
+		Port:                     cfg.GetPort(),
+		Name:                     cfg.GetName(),
+		User:                     cfg.GetUser(),
+		Password:                 cfg.GetPassword(),
+		SSLMode:                  cfg.GetSSLMode(),
+		ApplicationName:          cfg.GetApplicationName(),
+		ConnectTimeout:           cfg.GetConnectTimeout(),
+		StatementCacheCapacity:   cfg.GetStatementCacheCapacity(),
+		DescriptionCacheCapacity: cfg.GetDescriptionCacheCapacity(),
+		MaxOpenConnections:       cfg.GetMaxOpenConnections(),
+		MaxIdleConnections:       cfg.GetMaxIdleConnections(),
+		ConnectionMaxLifetime:    cfg.GetConnectionMaxLifetime(),
+		ConnectionMaxIdleTime:    cfg.GetConnectionMaxIdleTime(),
+		OpenTelemetry:            cfg.GetOpenTelemetry(),
+	}))
+	if err != nil {
+		return nil, err
+	}
+
+	lifecycle.Append(fx.Hook{OnStop: func(context.Context) error { return db.Close() }})
+	return db, nil
+}
+
+func newQueueInsert(
+	connection storage.Connection,
+	cfg config.QueueCfg,
+) (*storage.QueueInsert, error) {
+	return storage.NewQueueInsert(connection, storage.WithRiverConfig(cfg.RiverConfig()))
 }
 
 func startInBackground(
@@ -2096,6 +2045,7 @@ func TestBackgroundLifecycleStopsOnceAndWaitsForExit(t *testing.T) {
 		if stopCalls.Add(1) == 1 {
 			close(release)
 		}
+
 		return nil
 	}
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -2124,48 +2074,55 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/mbvlabs/andurel/pkg/server"
-	"testapp/application"
 	mailclients "testapp/clients/email"
 	"testapp/config"
 	"testapp/email"
 	"testapp/queue"
 	"testapp/telemetry"
 
+	"github.com/mbvlabs/andurel/pkg/server"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/riverqueue/river"
 	"go.uber.org/fx"
 )
 
-var appVersion string
-
 func main() {
-	metadata := application.NewMetadata(appVersion)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	app := fx.New(
-		fx.Supply(metadata),
 		fx.Provide(
 			func() context.Context { return ctx },
-			func(host config.MailpitHost, port config.MailpitPort) (email.TransactionalSender, email.MarketingSender) {
-				if application.Environment == server.ProdEnvironment {
+			func(
+				cfg config.EmailCfg,
+				appCfg config.AppCfg,
+			) (email.TransactionalSender, email.MarketingSender) {
+				if appCfg.GetEnvironment() == server.ProdEnvironment {
 					log.Fatal("provide real email sender")
 				}
 
-				return mailclients.NewMailpit(host, port), mailclients.NewMailpit(host, port)
+				return mailclients.NewMailpit(
+						cfg.GetMailpitHost(),
+						cfg.GetMailpitPort(),
+					), mailclients.NewMailpit(
+						cfg.GetMailpitHost(),
+						cfg.GetMailpitPort(),
+					)
 			},
-			config.NewMailpitValues,
+			func(cfg config.TelemetryCfg) telemetry.ConfigProvider { return cfg },
 		),
 
 		config.Module,
-		config.DatabaseModule,
+		databaseModule,
 		telemetry.Module,
 		queue.Module,
-		config.QueueProcessorModule,
+		queueProcessorModule,
 	)
 
 	if err := app.Start(ctx); err != nil {
@@ -2183,6 +2140,91 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+var databaseModule = fx.Module(
+	"database",
+	fx.Provide(fx.Annotate(newDatabase, fx.As(new(storage.Connection)), fx.As(fx.Self()))),
+)
+
+var queueProcessorModule = fx.Module(
+	"queue-processor",
+	fx.Provide(
+		slog.Default,
+		newQueueProcessor,
+	),
+	fx.Invoke(queueProcessorLifecycle),
+)
+
+func newDatabase(
+	lifecycle fx.Lifecycle,
+	ctx context.Context,
+	cfg config.Database,
+) (*storage.Postgres, error) {
+	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
+		DatabaseKind:             cfg.GetDatabaseKind(),
+		Host:                     cfg.GetHost(),
+		Port:                     cfg.GetPort(),
+		Name:                     cfg.GetName(),
+		User:                     cfg.GetUser(),
+		Password:                 cfg.GetPassword(),
+		SSLMode:                  cfg.GetSSLMode(),
+		ApplicationName:          cfg.GetApplicationName(),
+		ConnectTimeout:           cfg.GetConnectTimeout(),
+		StatementCacheCapacity:   cfg.GetStatementCacheCapacity(),
+		DescriptionCacheCapacity: cfg.GetDescriptionCacheCapacity(),
+		MaxOpenConnections:       cfg.GetMaxOpenConnections(),
+		MaxIdleConnections:       cfg.GetMaxIdleConnections(),
+		ConnectionMaxLifetime:    cfg.GetConnectionMaxLifetime(),
+		ConnectionMaxIdleTime:    cfg.GetConnectionMaxIdleTime(),
+		OpenTelemetry:            cfg.GetOpenTelemetry(),
+	}))
+	if err != nil {
+		return nil, err
+	}
+
+	lifecycle.Append(fx.Hook{OnStop: func(context.Context) error { return db.Close() }})
+	return db, nil
+}
+
+type queueProcessorParams struct {
+	fx.In
+
+	Connection   storage.Connection
+	Config       config.QueueCfg
+	Logger       *slog.Logger
+	Workers      *river.Workers
+	PeriodicJobs []*river.PeriodicJob `group:"periodic_jobs"`
+}
+
+func newQueueProcessor(params queueProcessorParams) (*storage.QueueProcessor, error) {
+	riverConfig := params.Config.RiverConfig()
+	riverConfig.Queues = map[string]river.QueueConfig{
+		river.QueueDefault: {MaxWorkers: params.Config.GetMaxWorkers()},
+	}
+
+	return storage.NewQueueProcessor(
+		params.Connection,
+		storage.WithRiverConfig(riverConfig),
+		storage.WithRiverWorkers(params.Workers),
+		storage.WithRiverPeriodicJobs(params.PeriodicJobs...),
+		storage.WithRiverLogger(params.Logger),
+	)
+}
+
+func queueProcessorLifecycle(
+	lifecycle fx.Lifecycle,
+	appCtx context.Context,
+	processor *storage.QueueProcessor,
+) {
+	lifecycle.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return processor.Start(appCtx)
+		},
+		OnStop: func(ctx context.Context) error {
+			return processor.Stop(ctx)
+		},
+	})
+}
 ```
 
 dir  d----------rwxr-xr-x cmd/seeds
@@ -2199,9 +2241,10 @@ import (
 	"os"
 	"strings"
 
+	"testapp/database/seeds"
+
 	"github.com/joho/godotenv"
 	"github.com/mbvlabs/andurel/pkg/storage"
-	"testapp/database/seeds"
 )
 
 func main() {
@@ -2266,6 +2309,7 @@ func envOrDefault(name, fallback string) string {
 	if value := os.Getenv(name); value != "" {
 		return value
 	}
+
 	return fallback
 }
 ```
@@ -2276,84 +2320,176 @@ file -----------rw-r--r-- config/app.go
 ```
 package config
 
-import "github.com/caarlos0/env/v11"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/caarlos0/env/v11"
+	"github.com/gosimple/slug"
+	"github.com/mbvlabs/andurel/pkg/server"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+const (
+	DefaultAppHost       = "localhost"
+	DefaultAppPort       = "8080"
+	DefaultSessionMaxAge = 604800
+	DefaultCSRFStrategy  = "header_only"
+	DefaultEnvironment   = server.DevEnvironment
+	DefaultProjectName   = "testapp"
+	DefaultDomain        = "localhost:8080"
+)
 
 type AppCfg struct {
-	Host                 string   `env:"HOST" envDefault:"localhost"`
-	Port                 string   `env:"PORT" envDefault:"8080"`
-	SessionKey           string   `env:"SESSION_KEY"`
-	SessionEncryptionKey string   `env:"SESSION_ENCRYPTION_KEY"`
-	SessionMaxAge        int      `env:"SESSION_MAX_AGE" envDefault:"604800"`
-	TokenSigningKey      string   `env:"TOKEN_SIGNING_KEY"`
-	CORSAllowedOrigins   []string `env:"CORS_ALLOWED_ORIGINS" envSeparator:","`
-	CSRFStrategy         string   `env:"CSRF_STRATEGY" envDefault:"header_only"`
-	CSRFTrustedOrigins   []string `env:"CSRF_TRUSTED_ORIGINS" envSeparator:","`
+	Environment            string   `env:"ENVIRONMENT"`
+	ProjectName            string   `env:"PROJECT_NAME"`
+	Domain                 string   `env:"DOMAIN"`
+	Protocol               string   `env:"PROTOCOL"`
+	ServiceName            string   `env:"TELEMETRY_SERVICE_NAME"`
+	Host                   string   `env:"HOST"`
+	Port                   string   `env:"PORT"`
+	SessionKey             string   `env:"SESSION_KEY"`
+	SessionEncryptionKey   string   `env:"SESSION_ENCRYPTION_KEY"`
+	SessionMaxAge          int      `env:"SESSION_MAX_AGE"`
+	TokenSigningKey        string   `env:"TOKEN_SIGNING_KEY"`
+	CORSAllowedOrigins     []string `env:"CORS_ALLOWED_ORIGINS"     envSeparator:","`
+	CSRFStrategy           string   `env:"CSRF_STRATEGY"`
+	CSRFTrustedOrigins     []string `env:"CSRF_TRUSTED_ORIGINS"     envSeparator:","`
+	DefaultSenderSignature string   `env:"DEFAULT_SENDER_SIGNATURE"`
 }
 
 func NewAppCfg() AppCfg {
-	appCfg := AppCfg{}
+	appCfg := AppCfg{
+		Environment:   DefaultEnvironment,
+		ProjectName:   DefaultProjectName,
+		Domain:        DefaultDomain,
+		Host:          DefaultAppHost,
+		Port:          DefaultAppPort,
+		SessionMaxAge: DefaultSessionMaxAge,
+		CSRFStrategy:  DefaultCSRFStrategy,
+	}
 
-	if err := env.ParseWithOptions(&appCfg, env.Options{
-		RequiredIfNoDef: true,
-	}); err != nil {
+	if err := env.Parse(&appCfg); err != nil {
+		panic(err)
+	}
+
+	if err := validation.Validate(&appCfg); err != nil {
 		panic(err)
 	}
 
 	return appCfg
 }
 
-type AppHost string
-type AppPort string
-type SessionKey string
-type SessionEncKey string
-type SessionMaxAge int
-type CorsOrigins []string
-type CsrfStrategy string
-type CsrfTrustedOrigins []string
-type TokenSigningKey string
+func (c AppCfg) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("Environment", c.Environment)
+	b.Required("ProjectName", c.ProjectName)
+	b.Required("Domain", c.Domain)
+	b.Required("Host", c.Host)
+	b.Required("Port", c.Port)
+	b.Required("SessionKey", c.SessionKey)
+	b.Required("SessionEncryptionKey", c.SessionEncryptionKey)
+	b.Required("TokenSigningKey", c.TokenSigningKey)
+	b.Required("CSRFStrategy", c.CSRFStrategy)
+	b.MinInt("SessionMaxAge", c.SessionMaxAge, 1)
 
-func NewAppValues(cfg AppCfg) (AppHost, AppPort, SessionKey, SessionEncKey, SessionMaxAge, CorsOrigins, CsrfStrategy, CsrfTrustedOrigins, TokenSigningKey) {
-	return AppHost(cfg.Host),
-		AppPort(cfg.Port),
-		SessionKey(cfg.SessionKey),
-		SessionEncKey(cfg.SessionEncryptionKey),
-		SessionMaxAge(cfg.SessionMaxAge),
-		CorsOrigins(cfg.CORSAllowedOrigins),
-		CsrfStrategy(cfg.CSRFStrategy),
-		CsrfTrustedOrigins(cfg.CSRFTrustedOrigins),
-		TokenSigningKey(cfg.TokenSigningKey)
+	return b.Err()
 }
+
+func (c AppCfg) GetEnvironment() string { return c.Environment }
+
+func (c AppCfg) GetProjectName() string { return c.ProjectName }
+
+func (c AppCfg) GetDomain() string { return c.Domain }
+
+func (c AppCfg) GetBaseURL() string {
+	protocol := c.Protocol
+	if protocol == "" {
+		return fmt.Sprintf("http://%s", c.Domain)
+	}
+
+	return fmt.Sprintf("%s://%s", protocol, c.Domain)
+}
+
+func (c AppCfg) GetServiceName() string {
+	if c.ServiceName != "" {
+		return c.ServiceName
+	}
+
+	return slug.Make(c.ProjectName)
+}
+
+func (c AppCfg) GetAppCookieSessionName() string {
+	return "app_sess_" + slug.Make(strings.ToLower(c.ProjectName)) + "-" + c.Environment
+}
+
+func (c AppCfg) GetDefaultSenderSignature() string {
+	if c.DefaultSenderSignature != "" {
+		return c.DefaultSenderSignature
+	}
+
+	return "noreply@" + c.Domain
+}
+
+func (c AppCfg) GetHost() string { return c.Host }
+
+func (c AppCfg) GetPort() string { return c.Port }
+
+func (c AppCfg) GetSessionKey() string { return c.SessionKey }
+
+func (c AppCfg) GetSessionEncryptionKey() string { return c.SessionEncryptionKey }
+
+func (c AppCfg) GetSessionMaxAge() int { return c.SessionMaxAge }
+
+func (c AppCfg) GetTokenSigningKey() string { return c.TokenSigningKey }
+
+func (c AppCfg) GetCORSAllowedOrigins() []string { return c.CORSAllowedOrigins }
+
+func (c AppCfg) GetCSRFStrategy() string { return c.CSRFStrategy }
+
+func (c AppCfg) GetCSRFTrustedOrigins() []string { return c.CSRFTrustedOrigins }
+
+func (c AppCfg) IsProduction() bool { return c.Environment == server.ProdEnvironment }
 ```
 
 file -----------rw-r--r-- config/auth.go
 ```
 package config
 
-import "github.com/caarlos0/env/v10"
+import (
+	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
 
 type AuthCfg struct {
 	Pepper          string   `env:"PEPPER"`
-	PreviousPeppers []string `env:"PREVIOUS_PEPPERS" envSeparator:"," envDefault:""`
+	PreviousPeppers []string `env:"PREVIOUS_PEPPERS" envSeparator:","`
 }
 
 func NewAuthCfg() AuthCfg {
-	authenticationCfg := AuthCfg{}
+	var authenticationCfg AuthCfg
 
-	if err := env.ParseWithOptions(&authenticationCfg, env.Options{
-		RequiredIfNoDef: true,
-	}); err != nil {
+	if err := env.Parse(&authenticationCfg); err != nil {
+		panic(err)
+	}
+
+	if err := validation.Validate(&authenticationCfg); err != nil {
 		panic(err)
 	}
 
 	return authenticationCfg
 }
 
-type Pepper string
-type PreviousPeppers []string
+func (c AuthCfg) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("Pepper", c.Pepper)
 
-func NewAuthValues(cfg AuthCfg) (Pepper, PreviousPeppers) {
-	return Pepper(cfg.Pepper), PreviousPeppers(cfg.PreviousPeppers)
+	return b.Err()
 }
+
+func (c AuthCfg) GetPepper() string { return c.Pepper }
+
+func (c AuthCfg) GetPreviousPeppers() []string { return c.PreviousPeppers }
 ```
 
 file -----------rw-r--r-- config/aws_ses.go
@@ -2361,39 +2497,51 @@ file -----------rw-r--r-- config/aws_ses.go
 package config
 
 import (
-	"github.com/caarlos0/env/v10"
+	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+const (
+	DefaultAWSSESRegion = "us-east-1"
 )
 
 type AwsSesCfg struct {
-	Region           string `env:"AWS_REGION" envDefault:"us-east-1"`
+	Region           string `env:"AWS_REGION"`
 	AccessKeyID      string `env:"AWS_SES_ACCESS_KEY_ID"`
 	SecretAccessKey  string `env:"AWS_SES_SECRET_ACCESS_KEY"`
 	ConfigurationSet string `env:"AWS_SES_CONFIGURATION_SET"`
 }
 
 func NewAwsSesCfg() AwsSesCfg {
-	cfg := AwsSesCfg{}
+	cfg := AwsSesCfg{
+		Region: DefaultAWSSESRegion,
+	}
 
-	if err := env.ParseWithOptions(&cfg, env.Options{
-		RequiredIfNoDef: true,
-	}); err != nil {
+	if err := env.Parse(&cfg); err != nil {
+		panic(err)
+	}
+
+	if err := validation.Validate(&cfg); err != nil {
 		panic(err)
 	}
 
 	return cfg
 }
 
-type AwsSesRegion string
-type AwsSesAccessKeyID string
-type AwsSesSecretAccessKey string
-type AwsSesConfigurationSet string
+func (c AwsSesCfg) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("Region", c.Region)
 
-func NewAwsSesValues(cfg AwsSesCfg) (AwsSesRegion, AwsSesAccessKeyID, AwsSesSecretAccessKey, AwsSesConfigurationSet) {
-	return AwsSesRegion(cfg.Region),
-		AwsSesAccessKeyID(cfg.AccessKeyID),
-		AwsSesSecretAccessKey(cfg.SecretAccessKey),
-		AwsSesConfigurationSet(cfg.ConfigurationSet)
+	return b.Err()
 }
+
+func (c AwsSesCfg) GetRegion() string { return c.Region }
+
+func (c AwsSesCfg) GetAccessKeyID() string { return c.AccessKeyID }
+
+func (c AwsSesCfg) GetSecretAccessKey() string { return c.SecretAccessKey }
+
+func (c AwsSesCfg) GetConfigurationSet() string { return c.ConfigurationSet }
 ```
 
 file -----------rw-r--r-- config/config.go
@@ -2403,15 +2551,13 @@ package config
 
 import "go.uber.org/fx"
 
-// Module provides all application configuration values to the dependency container.
+// Module provides all application configuration constructors to the dependency container.
 var Module = fx.Module("config",
 	fx.Provide(
 		NewAppCfg,
 		NewDatabaseCfg,
 		NewQueueCfg,
 		NewTelemetryCfg,
-		NewEmailCfg,
-		NewAuthCfg,
 		NewEmailCfg,
 		NewAwsSesCfg,
 		NewAuthCfg,
@@ -2424,107 +2570,148 @@ file -----------rw-r--r-- config/database.go
 package config
 
 import (
-	"context"
 	"time"
 
 	"github.com/caarlos0/env/v11"
-	"github.com/mbvlabs/andurel/pkg/storage"
-	"go.uber.org/fx"
+	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
-type databaseCfg struct {
-	Port                     string        `env:"DB_PORT" envDefault:"5432"`
-	Host                     string        `env:"DB_HOST" envDefault:"127.0.0.1"`
-	Name                     string        `env:"DB_NAME" envDefault:"andurel"`
-	User                     string        `env:"DB_USER" envDefault:"postgres"`
-	Password                 string        `env:"DB_PASSWORD" envDefault:"postgres"`
-	DatabaseKind             string        `env:"DB_KIND" envDefault:"postgres"`
-	SSLMode                  string        `env:"DB_SSL_MODE" envDefault:"disable"`
-	ApplicationName          string        `env:"DB_APPLICATION_NAME" envDefault:"andurel"`
-	ConnectTimeout           time.Duration `env:"DB_CONNECT_TIMEOUT" envDefault:"5s"`
-	StatementCacheCapacity   int           `env:"DB_STATEMENT_CACHE_CAPACITY" envDefault:"512"`
-	DescriptionCacheCapacity int           `env:"DB_DESCRIPTION_CACHE_CAPACITY" envDefault:"512"`
-	MaxOpenConnections       int           `env:"DB_MAX_OPEN_CONNECTIONS" envDefault:"25"`
-	MaxIdleConnections       int           `env:"DB_MAX_IDLE_CONNECTIONS" envDefault:"25"`
-	ConnectionMaxLifetime    time.Duration `env:"DB_CONNECTION_MAX_LIFETIME" envDefault:"1h"`
-	ConnectionMaxIdleTime    time.Duration `env:"DB_CONNECTION_MAX_IDLE_TIME" envDefault:"30m"`
-	OpenTelemetry            bool          `env:"DB_OPEN_TELEMETRY" envDefault:"true"`
+const (
+	DefaultDatabaseKind             = "postgres"
+	DefaultDatabaseHost             = "127.0.0.1"
+	DefaultDatabasePort             = "5432"
+	DefaultDatabaseName             = "andurel"
+	DefaultDatabaseUser             = "postgres"
+	DefaultDatabasePassword         = "postgres"
+	DefaultDatabaseSSLMode          = "disable"
+	DefaultApplicationName          = "andurel"
+	DefaultConnectTimeout           = 5 * time.Second
+	DefaultStatementCacheCapacity   = 512
+	DefaultDescriptionCacheCapacity = 512
+	DefaultMaxOpenConnections       = 25
+	DefaultMaxIdleConnections       = 25
+	DefaultConnectionMaxLifetime    = time.Hour
+	DefaultConnectionMaxIdleTime    = 30 * time.Minute
+)
+
+type Database struct {
+	Host                     string        `env:"DB_HOST"`
+	Port                     string        `env:"DB_PORT"`
+	Name                     string        `env:"DB_NAME"`
+	User                     string        `env:"DB_USER"`
+	Password                 string        `env:"DB_PASSWORD"`
+	DatabaseKind             string        `env:"DB_KIND"`
+	SSLMode                  string        `env:"DB_SSL_MODE"`
+	ApplicationName          string        `env:"DB_APPLICATION_NAME"`
+	ConnectTimeout           time.Duration `env:"DB_CONNECT_TIMEOUT"`
+	StatementCacheCapacity   int           `env:"DB_STATEMENT_CACHE_CAPACITY"`
+	DescriptionCacheCapacity int           `env:"DB_DESCRIPTION_CACHE_CAPACITY"`
+	MaxOpenConnections       int           `env:"DB_MAX_OPEN_CONNECTIONS"`
+	MaxIdleConnections       int           `env:"DB_MAX_IDLE_CONNECTIONS"`
+	ConnectionMaxLifetime    time.Duration `env:"DB_CONNECTION_MAX_LIFETIME"`
+	ConnectionMaxIdleTime    time.Duration `env:"DB_CONNECTION_MAX_IDLE_TIME"`
+	OpenTelemetry            bool          `env:"DB_OPEN_TELEMETRY"`
 }
 
-func NewDatabaseCfg() storage.Config {
-	raw := databaseCfg{}
-	if err := env.ParseWithOptions(&raw, env.Options{RequiredIfNoDef: true}); err != nil {
+func NewDatabaseCfg() Database {
+	cfg := Database{
+		Host:                     DefaultDatabaseHost,
+		Port:                     DefaultDatabasePort,
+		Name:                     DefaultDatabaseName,
+		User:                     DefaultDatabaseUser,
+		Password:                 DefaultDatabasePassword,
+		DatabaseKind:             DefaultDatabaseKind,
+		SSLMode:                  DefaultDatabaseSSLMode,
+		ApplicationName:          DefaultApplicationName,
+		ConnectTimeout:           DefaultConnectTimeout,
+		StatementCacheCapacity:   DefaultStatementCacheCapacity,
+		DescriptionCacheCapacity: DefaultDescriptionCacheCapacity,
+		MaxOpenConnections:       DefaultMaxOpenConnections,
+		MaxIdleConnections:       DefaultMaxIdleConnections,
+		ConnectionMaxLifetime:    DefaultConnectionMaxLifetime,
+		ConnectionMaxIdleTime:    DefaultConnectionMaxIdleTime,
+		OpenTelemetry:            true,
+	}
+
+	if err := env.Parse(&cfg); err != nil {
 		panic(err)
 	}
 
-	return storage.Config{
-		DatabaseKind:             raw.DatabaseKind,
-		Host:                     raw.Host,
-		Port:                     raw.Port,
-		Name:                     raw.Name,
-		User:                     raw.User,
-		Password:                 raw.Password,
-		SSLMode:                  raw.SSLMode,
-		ApplicationName:          raw.ApplicationName,
-		ConnectTimeout:           raw.ConnectTimeout,
-		StatementCacheCapacity:   raw.StatementCacheCapacity,
-		DescriptionCacheCapacity: raw.DescriptionCacheCapacity,
-		MaxOpenConnections:       raw.MaxOpenConnections,
-		MaxIdleConnections:       raw.MaxIdleConnections,
-		ConnectionMaxLifetime:    raw.ConnectionMaxLifetime,
-		ConnectionMaxIdleTime:    raw.ConnectionMaxIdleTime,
-		OpenTelemetry:            raw.OpenTelemetry,
-	}
-}
-
-func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg storage.Config) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, storage.WithConfig(cfg))
-	if err != nil {
-		return nil, err
-	}
-
-	lifecycle.Append(fx.Hook{OnStop: func(context.Context) error { return db.Close() }})
-	return db, nil
-}
-
-// DatabaseModule provides the application database pool and manages its lifecycle.
-var DatabaseModule = fx.Module(
-	"database",
-	fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Connection)))),
-)
-```
-
-file -----------rw-r--r-- config/email.go
-```
-package config
-
-import (
-	"github.com/caarlos0/env/v11"
-)
-
-type EmailCfg struct {
-	MailpitHost string `env:"MAILPIT_HOST" envDefault:"0.0.0.0"`
-	MailpitPort string `env:"MAILPIT_PORT" envDefault:"1025"`
-}
-
-func NewEmailCfg() EmailCfg {
-	cfg := EmailCfg{}
-
-	if err := env.ParseWithOptions(&cfg, env.Options{
-		RequiredIfNoDef: true,
-	}); err != nil {
+	if err := validation.Validate(&cfg); err != nil {
 		panic(err)
 	}
 
 	return cfg
 }
 
-type MailpitHost string
-type MailpitPort string
+func (c Database) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("Host", c.Host)
+	b.Required("Port", c.Port)
+	b.Required("Name", c.Name)
+	b.Required("User", c.User)
+	b.Required("DatabaseKind", c.DatabaseKind)
 
-func NewMailpitValues(cfg EmailCfg) (MailpitHost, MailpitPort) {
-	return MailpitHost(cfg.MailpitHost), MailpitPort(cfg.MailpitPort)
+	return b.Err()
 }
+
+func (c Database) GetDatabaseKind() string { return c.DatabaseKind }
+
+func (c Database) GetHost() string { return c.Host }
+
+func (c Database) GetPort() string { return c.Port }
+
+func (c Database) GetName() string { return c.Name }
+
+func (c Database) GetUser() string { return c.User }
+
+func (c Database) GetPassword() string { return c.Password }
+
+func (c Database) GetSSLMode() string { return c.SSLMode }
+
+func (c Database) GetApplicationName() string { return c.ApplicationName }
+
+func (c Database) GetConnectTimeout() time.Duration { return c.ConnectTimeout }
+
+func (c Database) GetStatementCacheCapacity() int { return c.StatementCacheCapacity }
+
+func (c Database) GetDescriptionCacheCapacity() int { return c.DescriptionCacheCapacity }
+
+func (c Database) GetMaxOpenConnections() int { return c.MaxOpenConnections }
+
+func (c Database) GetMaxIdleConnections() int { return c.MaxIdleConnections }
+
+func (c Database) GetConnectionMaxLifetime() time.Duration { return c.ConnectionMaxLifetime }
+
+func (c Database) GetConnectionMaxIdleTime() time.Duration { return c.ConnectionMaxIdleTime }
+
+func (c Database) GetOpenTelemetry() bool { return c.OpenTelemetry }
+```
+
+file -----------rw-r--r-- config/email.go
+```
+package config
+
+const (
+	DefaultEmailMailpitHost = "0.0.0.0"
+	DefaultEmailMailpitPort = "1025"
+)
+
+type EmailCfg struct {
+	MailpitHost string
+	MailpitPort string
+}
+
+func NewEmailCfg() EmailCfg {
+	return EmailCfg{
+		MailpitHost: DefaultEmailMailpitHost,
+		MailpitPort: DefaultEmailMailpitPort,
+	}
+}
+
+func (c EmailCfg) GetMailpitHost() string { return c.MailpitHost }
+
+func (c EmailCfg) GetMailpitPort() string { return c.MailpitPort }
 ```
 
 file -----------rw-r--r-- config/queue.go
@@ -2532,49 +2719,92 @@ file -----------rw-r--r-- config/queue.go
 package config
 
 import (
-	"context"
-	"log/slog"
 	"time"
 
-	"github.com/caarlos0/env/v11"
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/riverqueue/river"
-	"go.uber.org/fx"
 )
 
-// QueueCfg contains all environment-backed River settings used by the application.
+const (
+	DefaultAdvisoryLockPrefix          int32         = 0
+	DefaultCancelledJobRetentionPeriod               = 24 * time.Hour
+	DefaultCompletedJobRetentionPeriod               = 24 * time.Hour
+	DefaultDiscardedJobRetentionPeriod               = 168 * time.Hour
+	DefaultFetchCooldown                             = 100 * time.Millisecond
+	DefaultPollInterval                              = 1 * time.Second
+	DefaultQueueID                                   = ""
+	DefaultJobCleanerTimeout                         = 30 * time.Second
+	DefaultJobStuckThreshold                         = 10 * time.Second
+	DefaultJobTimeout                                = 1 * time.Minute
+	DefaultMaxAttempts                               = 25
+	DefaultMaxWorkers                                = 100
+	DefaultPollOnly                                  = false
+	DefaultReindexerTimeout                          = 1 * time.Minute
+	DefaultRescueStuckJobsAfter                      = 1 * time.Hour
+	DefaultQueueSchema                               = ""
+	DefaultSoftStopTimeout             time.Duration = 0
+	DefaultSkipJobKindValidation                     = false
+	DefaultSkipUnknownJobCheck                       = false
+)
+
+var DefaultReindexerIndexNames = []string{
+	"river_job_args_index",
+	"river_job_kind",
+	"river_job_metadata_index",
+	"river_job_pkey",
+	"river_job_prioritized_fetching_index",
+	"river_job_state_and_finalized_at_index",
+	"river_job_unique_idx",
+}
+
 type QueueCfg struct {
-	AdvisoryLockPrefix          int32         `env:"QUEUE_ADVISORY_LOCK_PREFIX" envDefault:"0"`
-	CancelledJobRetentionPeriod time.Duration `env:"QUEUE_CANCELLED_JOB_RETENTION_PERIOD" envDefault:"24h"`
-	CompletedJobRetentionPeriod time.Duration `env:"QUEUE_COMPLETED_JOB_RETENTION_PERIOD" envDefault:"24h"`
-	DiscardedJobRetentionPeriod time.Duration `env:"QUEUE_DISCARDED_JOB_RETENTION_PERIOD" envDefault:"168h"`
-	FetchCooldown               time.Duration `env:"QUEUE_FETCH_COOLDOWN" envDefault:"100ms"`
-	PollInterval                time.Duration `env:"QUEUE_POLL_INTERVAL" envDefault:"1s"`
-	ID                          string        `env:"QUEUE_ID" envDefault:""`
-	JobCleanerTimeout           time.Duration `env:"QUEUE_JOB_CLEANER_TIMEOUT" envDefault:"30s"`
-	JobStuckThreshold           time.Duration `env:"QUEUE_JOB_STUCK_THRESHOLD" envDefault:"10s"`
-	JobTimeout                  time.Duration `env:"QUEUE_JOB_TIMEOUT" envDefault:"1m"`
-	MaxAttempts                 int           `env:"QUEUE_MAX_ATTEMPTS" envDefault:"25"`
-	MaxWorkers                  int           `env:"QUEUE_MAX_WORKERS" envDefault:"100"`
-	PollOnly                    bool          `env:"QUEUE_POLL_ONLY" envDefault:"false"`
-	ReindexerIndexNames         []string      `env:"QUEUE_REINDEXER_INDEX_NAMES" envSeparator:"," envDefault:"river_job_args_index,river_job_kind,river_job_metadata_index,river_job_pkey,river_job_prioritized_fetching_index,river_job_state_and_finalized_at_index,river_job_unique_idx"`
-	ReindexerTimeout            time.Duration `env:"QUEUE_REINDEXER_TIMEOUT" envDefault:"1m"`
-	RescueStuckJobsAfter        time.Duration `env:"QUEUE_RESCUE_STUCK_JOBS_AFTER" envDefault:"1h"`
-	Schema                      string        `env:"QUEUE_SCHEMA" envDefault:""`
-	SoftStopTimeout             time.Duration `env:"QUEUE_SOFT_STOP_TIMEOUT" envDefault:"0s"`
-	SkipJobKindValidation       bool          `env:"QUEUE_SKIP_JOB_KIND_VALIDATION" envDefault:"false"`
-	SkipUnknownJobCheck         bool          `env:"QUEUE_SKIP_UNKNOWN_JOB_CHECK" envDefault:"false"`
+	AdvisoryLockPrefix          int32
+	CancelledJobRetentionPeriod time.Duration
+	CompletedJobRetentionPeriod time.Duration
+	DiscardedJobRetentionPeriod time.Duration
+	FetchCooldown               time.Duration
+	PollInterval                time.Duration
+	ID                          string
+	JobCleanerTimeout           time.Duration
+	JobStuckThreshold           time.Duration
+	JobTimeout                  time.Duration
+	MaxAttempts                 int
+	MaxWorkers                  int
+	PollOnly                    bool
+	ReindexerIndexNames         []string
+	ReindexerTimeout            time.Duration
+	RescueStuckJobsAfter        time.Duration
+	Schema                      string
+	SoftStopTimeout             time.Duration
+	SkipJobKindValidation       bool
+	SkipUnknownJobCheck         bool
 }
 
 func NewQueueCfg() QueueCfg {
-	cfg := QueueCfg{}
-	if err := env.ParseWithOptions(&cfg, env.Options{RequiredIfNoDef: true}); err != nil {
-		panic(err)
+	return QueueCfg{
+		AdvisoryLockPrefix:          DefaultAdvisoryLockPrefix,
+		CancelledJobRetentionPeriod: DefaultCancelledJobRetentionPeriod,
+		CompletedJobRetentionPeriod: DefaultCompletedJobRetentionPeriod,
+		DiscardedJobRetentionPeriod: DefaultDiscardedJobRetentionPeriod,
+		FetchCooldown:               DefaultFetchCooldown,
+		PollInterval:                DefaultPollInterval,
+		ID:                          DefaultQueueID,
+		JobCleanerTimeout:           DefaultJobCleanerTimeout,
+		JobStuckThreshold:           DefaultJobStuckThreshold,
+		JobTimeout:                  DefaultJobTimeout,
+		MaxAttempts:                 DefaultMaxAttempts,
+		MaxWorkers:                  DefaultMaxWorkers,
+		PollOnly:                    DefaultPollOnly,
+		ReindexerIndexNames:         DefaultReindexerIndexNames,
+		ReindexerTimeout:            DefaultReindexerTimeout,
+		RescueStuckJobsAfter:        DefaultRescueStuckJobsAfter,
+		Schema:                      DefaultQueueSchema,
+		SoftStopTimeout:             DefaultSoftStopTimeout,
+		SkipJobKindValidation:       DefaultSkipJobKindValidation,
+		SkipUnknownJobCheck:         DefaultSkipUnknownJobCheck,
 	}
-	return cfg
 }
 
-func (cfg QueueCfg) riverConfig() river.Config {
+func (cfg QueueCfg) RiverConfig() river.Config {
 	return river.Config{
 		AdvisoryLockPrefix:          cfg.AdvisoryLockPrefix,
 		CancelledJobRetentionPeriod: cfg.CancelledJobRetentionPeriod,
@@ -2598,96 +2828,93 @@ func (cfg QueueCfg) riverConfig() river.Config {
 	}
 }
 
-func newQueueInsert(connection storage.Connection, cfg QueueCfg) (*storage.QueueInsert, error) {
-	return storage.NewQueueInsert(connection, storage.WithRiverConfig(cfg.riverConfig()))
-}
-
-type queueProcessorParams struct {
-	fx.In
-
-	Connection   storage.Connection
-	Config       QueueCfg
-	Logger       *slog.Logger
-	Workers      *river.Workers
-	PeriodicJobs []*river.PeriodicJob `group:"periodic_jobs"`
-}
-
-func newQueueProcessor(params queueProcessorParams) (*storage.QueueProcessor, error) {
-	riverConfig := params.Config.riverConfig()
-	riverConfig.Queues = map[string]river.QueueConfig{
-		river.QueueDefault: {MaxWorkers: params.Config.MaxWorkers},
-	}
-
-	return storage.NewQueueProcessor(
-		params.Connection,
-		storage.WithRiverConfig(riverConfig),
-		storage.WithRiverWorkers(params.Workers),
-		storage.WithRiverPeriodicJobs(params.PeriodicJobs...),
-		storage.WithRiverLogger(params.Logger),
-	)
-}
-
-func queueProcessorLifecycle(
-	lifecycle fx.Lifecycle,
-	appCtx context.Context,
-	processor *storage.QueueProcessor,
-) {
-	lifecycle.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return processor.Start(appCtx)
-		},
-		OnStop: func(ctx context.Context) error {
-			return processor.Stop(ctx)
-		},
-	})
-}
-
-// QueueInsertModule provides an insert-only queue client and never starts workers.
-var QueueInsertModule = fx.Module(
-	"queue-insert",
-	fx.Provide(fx.Annotate(newQueueInsert, fx.As(new(storage.InsertQueue)))),
-)
-
-// QueueProcessorModule provides the worker client and owns its Fx lifecycle.
-var QueueProcessorModule = fx.Module(
-	"queue-processor",
-	fx.Provide(
-		slog.Default,
-		newQueueProcessor,
-	),
-	fx.Invoke(queueProcessorLifecycle),
-)
+func (c QueueCfg) GetMaxWorkers() int { return c.MaxWorkers }
 ```
 
 file -----------rw-r--r-- config/telemetry.go
 ```
 package config
 
-import "github.com/caarlos0/env/v11"
+import (
+	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+const (
+	DefaultTelemetryServiceName    = "testapp"
+	DefaultTelemetryServiceVersion = "1.0.0"
+	DefaultOtlpLogsEndpoint        = ""
+	DefaultOtlpMetricsEndpoint     = ""
+	DefaultOtlpTracesEndpoint      = ""
+	DefaultOtlpHeaders             = ""
+	DefaultTraceSampleRate         = 1.0
+	DefaultTelemetryBatchSize      = 512
+	DefaultTelemetryBatchTimeoutMs = 5000
+)
 
 type TelemetryCfg struct {
-	ServiceName         string  `env:"TELEMETRY_SERVICE_NAME" envDefault:"testapp"`
-	ServiceVersion      string  `env:"TELEMETRY_SERVICE_VERSION" envDefault:"1.0.0"`
-	OtlpLogsEndpoint    string  `env:"OTLP_LOGS_ENDPOINT" envDefault:""`
-	OtlpMetricsEndpoint string  `env:"OTLP_METRICS_ENDPOINT" envDefault:""`
-	OtlpTracesEndpoint  string  `env:"OTLP_TRACES_ENDPOINT" envDefault:""`
-	OtlpHeaders         string  `env:"OTLP_HEADERS" envDefault:""`
-	TraceSampleRate     float64 `env:"TRACE_SAMPLE_RATE" envDefault:"1.0"`
-	BatchSize           int     `env:"TELEMETRY_BATCH_SIZE" envDefault:"512"`
-	BatchTimeoutMs      int     `env:"TELEMETRY_BATCH_TIMEOUT_MS" envDefault:"5000"`
+	ServiceName         string  `env:"TELEMETRY_SERVICE_NAME"`
+	ServiceVersion      string  `env:"TELEMETRY_SERVICE_VERSION"`
+	OtlpLogsEndpoint    string  `env:"OTLP_LOGS_ENDPOINT"`
+	OtlpMetricsEndpoint string  `env:"OTLP_METRICS_ENDPOINT"`
+	OtlpTracesEndpoint  string  `env:"OTLP_TRACES_ENDPOINT"`
+	OtlpHeaders         string  `env:"OTLP_HEADERS"`
+	TraceSampleRate     float64 `env:"TRACE_SAMPLE_RATE"`
+	BatchSize           int     `env:"TELEMETRY_BATCH_SIZE"`
+	BatchTimeoutMs      int     `env:"TELEMETRY_BATCH_TIMEOUT_MS"`
 }
 
 func NewTelemetryCfg() TelemetryCfg {
-	telemetryCfg := TelemetryCfg{}
+	telemetryCfg := TelemetryCfg{
+		ServiceName:         DefaultTelemetryServiceName,
+		ServiceVersion:      DefaultTelemetryServiceVersion,
+		OtlpLogsEndpoint:    DefaultOtlpLogsEndpoint,
+		OtlpMetricsEndpoint: DefaultOtlpMetricsEndpoint,
+		OtlpTracesEndpoint:  DefaultOtlpTracesEndpoint,
+		OtlpHeaders:         DefaultOtlpHeaders,
+		TraceSampleRate:     DefaultTraceSampleRate,
+		BatchSize:           DefaultTelemetryBatchSize,
+		BatchTimeoutMs:      DefaultTelemetryBatchTimeoutMs,
+	}
 
-	if err := env.ParseWithOptions(&telemetryCfg, env.Options{
-		RequiredIfNoDef: true,
-	}); err != nil {
+	if err := env.Parse(&telemetryCfg); err != nil {
+		panic(err)
+	}
+
+	if err := validation.Validate(&telemetryCfg); err != nil {
 		panic(err)
 	}
 
 	return telemetryCfg
 }
+
+func (c TelemetryCfg) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("ServiceName", c.ServiceName)
+	b.Required("ServiceVersion", c.ServiceVersion)
+	b.MinInt("BatchSize", c.BatchSize, 1)
+	b.MinInt("BatchTimeoutMs", c.BatchTimeoutMs, 1)
+
+	return b.Err()
+}
+
+func (c TelemetryCfg) GetServiceName() string { return c.ServiceName }
+
+func (c TelemetryCfg) GetServiceVersion() string { return c.ServiceVersion }
+
+func (c TelemetryCfg) GetOtlpLogsEndpoint() string { return c.OtlpLogsEndpoint }
+
+func (c TelemetryCfg) GetOtlpMetricsEndpoint() string { return c.OtlpMetricsEndpoint }
+
+func (c TelemetryCfg) GetOtlpTracesEndpoint() string { return c.OtlpTracesEndpoint }
+
+func (c TelemetryCfg) GetOtlpHeaders() string { return c.OtlpHeaders }
+
+func (c TelemetryCfg) GetTraceSampleRate() float64 { return c.TraceSampleRate }
+
+func (c TelemetryCfg) GetBatchSize() int { return c.BatchSize }
+
+func (c TelemetryCfg) GetBatchTimeoutMs() int { return c.BatchTimeoutMs }
 ```
 
 dir  d----------rwxr-xr-x controllers
@@ -2702,9 +2929,10 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"testapp/router"
 	"testapp/router/routes"
+
+	"github.com/mbvlabs/andurel/pkg/storage"
 
 	"github.com/labstack/echo/v5"
 )
@@ -2750,24 +2978,30 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/mbvlabs/andurel/pkg/routing"
-	"github.com/mbvlabs/andurel/pkg/server"
-	"testapp/application"
 	"testapp/assets"
 	"testapp/router"
 	"testapp/router/routes"
+
+	"github.com/mbvlabs/andurel/pkg/routing"
+	"github.com/mbvlabs/andurel/pkg/server"
 
 	"github.com/labstack/echo/v5"
 )
 
 const threeMonthsCache = "7776000"
 
-type Assets struct {
-	cache *Cache[string]
+type AssetsAppProvider interface {
+	GetEnvironment() string
+	GetBaseURL() string
 }
 
-func NewAssets(cache *Cache[string]) Assets {
-	return Assets{cache}
+type Assets struct {
+	cache  *Cache[string]
+	appCfg AssetsAppProvider
+}
+
+func NewAssets(cache *Cache[string], appCfg AssetsAppProvider) Assets {
+	return Assets{cache: cache, appCfg: appCfg}
 }
 
 func (a Assets) RegisterRoutes(r *router.Router) error {
@@ -2822,11 +3056,12 @@ func (a Assets) RegisterRoutes(r *router.Router) error {
 	if err != nil {
 		errs = append(errs, err)
 	}
+
 	return errors.Join(errs...)
 }
 
 func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
-	if application.Environment == server.ProdEnvironment {
+	if a.appCfg.GetEnvironment() == server.ProdEnvironment {
 		//nolint:gosec //only needed for browser caching
 		hash := md5.Sum(content)
 		etag := fmt.Sprintf(`"%x-%x"`, hash, len(content))
@@ -2856,10 +3091,10 @@ func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
 	return etx
 }
 
-func createRobotsTxt() string {
+func createRobotsTxt(baseURL string) string {
 	return fmt.Sprintf(
 		"User-agent: *\nAllow: /\nSitemap: %s%s\n",
-		application.BaseURL,
+		baseURL,
 		routes.Sitemap.URL(),
 	)
 }
@@ -2868,7 +3103,7 @@ func (a Assets) Robots(etx *echo.Context) error {
 	cacheKey := "assets:robots"
 
 	robotsTxt, err := a.cache.Get(cacheKey, func() (string, error) {
-		return createRobotsTxt(), nil
+		return createRobotsTxt(a.appCfg.GetBaseURL()), nil
 	})
 	if err != nil {
 		slog.ErrorContext(
@@ -2876,7 +3111,7 @@ func (a Assets) Robots(etx *echo.Context) error {
 			"failed to get robots.txt from cache",
 			"error", err,
 		)
-		return etx.String(http.StatusOK, createRobotsTxt())
+		return etx.String(http.StatusOK, createRobotsTxt(a.appCfg.GetBaseURL()))
 	}
 
 	return etx.String(http.StatusOK, robotsTxt)
@@ -2886,7 +3121,7 @@ func (a Assets) Sitemap(etx *echo.Context) error {
 	cacheKey := "assets:sitemap"
 
 	sitemap, err := a.cache.Get(cacheKey, func() (string, error) {
-		return createSitemap([]routing.Route{})
+		return createSitemap(a.appCfg.GetBaseURL(), []routing.Route{})
 	})
 	if err != nil {
 		slog.ErrorContext(
@@ -2895,7 +3130,7 @@ func (a Assets) Sitemap(etx *echo.Context) error {
 			"error", err,
 		)
 
-		result, err := createSitemap([]routing.Route{})
+		result, err := createSitemap(a.appCfg.GetBaseURL(), []routing.Route{})
 		if err != nil {
 			return err
 		}
@@ -2920,9 +3155,7 @@ type Sitemap struct {
 	URL     []URL    `xml:"url"`
 }
 
-func createSitemap(routes []routing.Route) (string, error) {
-	baseURL := application.BaseURL
-
+func createSitemap(baseURL string, routes []routing.Route) (string, error) {
 	var urls []URL
 
 	urls = append(urls, URL{
@@ -3081,23 +3314,25 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/validation"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/services"
 	"testapp/views"
 
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/validation"
+
 	"github.com/labstack/echo/v5"
 )
 
 type Confirmations struct {
 	identity services.Identity
+	session  *cookies.Session
 }
 
-func NewConfirmations(identity services.Identity) Confirmations {
-	return Confirmations{identity}
+func NewConfirmations(identity services.Identity, session *cookies.Session) Confirmations {
+	return Confirmations{identity, session}
 }
 
 func (c Confirmations) RegisterRoutes(r *router.Router) error {
@@ -3153,7 +3388,10 @@ func (c Confirmations) Create(etx *echo.Context) error {
 	)
 	if err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return hypermedia.RenderPage(etx, views.ConfirmationForm{Errors: validationErrors}.Page())
+			return hypermedia.RenderPage(
+				etx,
+				views.ConfirmationForm{Errors: validationErrors}.Page(),
+			)
 		}
 
 		slog.ErrorContext(
@@ -3173,13 +3411,14 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			errorMsg = "Failed to verify email"
 		}
 
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
+		if flashErr := c.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
+
 		return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
 	}
 
-	if err := cookies.CreateAppSession(etx, user); err != nil {
+	if err := c.session.CreateAppSession(etx, user); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to create session",
@@ -3190,7 +3429,11 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Email verified successfully!"); flashErr != nil {
+	if flashErr := c.session.AddFlash(
+		etx,
+		cookies.FlashSuccess,
+		"Email verified successfully!",
+	); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
@@ -3208,7 +3451,17 @@ import (
 	"go.uber.org/fx"
 	"testapp/controllers/api"
 	"testapp/router"
+	"testapp/views"
 )
+
+type ConfigProvider interface {
+	GetProjectName() string
+	GetBaseURL() string
+}
+
+func configureViews(cfg ConfigProvider) {
+	views.ConfigureHead(cfg.GetProjectName(), cfg.GetBaseURL())
+}
 
 var pageCache = NewCacheBuilder[templ.Component]().Build
 var otherCache = NewCacheBuilder[string]().WithSize(2).Build
@@ -3228,6 +3481,7 @@ var constructors = fx.Provide(
 var Module = fx.Module(
 	"controllers",
 	constructors,
+	fx.Invoke(configureViews),
 	fx.Invoke(func(r *router.Router, c Pages) error {
 		return c.RegisterRoutes(r)
 	}),
@@ -3260,11 +3514,12 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"testapp/router"
 	"testapp/router/routes"
 	"testapp/views"
+
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/storage"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
@@ -3348,8 +3603,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/validation"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
@@ -3357,15 +3610,19 @@ import (
 	"testapp/services"
 	"testapp/views"
 
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/validation"
+
 	"github.com/labstack/echo/v5"
 )
 
 type Registrations struct {
 	identity services.Identity
+	session  *cookies.Session
 }
 
-func NewRegistrations(identity services.Identity) Registrations {
-	return Registrations{identity}
+func NewRegistrations(identity services.Identity, session *cookies.Session) Registrations {
+	return Registrations{identity, session}
 }
 
 func (r Registrations) RegisterRoutes(rtr *router.Router) error {
@@ -3427,7 +3684,10 @@ func (r Registrations) Create(etx *echo.Context) error {
 		},
 	); err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return hypermedia.RenderPage(etx, views.RegistrationForm{Errors: validationErrors}.Page())
+			return hypermedia.RenderPage(
+				etx,
+				views.RegistrationForm{Errors: validationErrors}.Page(),
+			)
 		}
 
 		slog.ErrorContext(
@@ -3437,7 +3697,11 @@ func (r Registrations) Create(etx *echo.Context) error {
 			err,
 		)
 
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, "Failed to register user"); flashErr != nil {
+		if flashErr := r.session.AddFlash(
+			etx,
+			cookies.FlashError,
+			"Failed to register user",
+		); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 
@@ -3457,23 +3721,25 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/validation"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/services"
 	"testapp/views"
 
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/validation"
+
 	"github.com/labstack/echo/v5"
 )
 
 type ResetPasswords struct {
 	identity services.Identity
+	session  *cookies.Session
 }
 
-func NewResetPasswords(identity services.Identity) ResetPasswords {
-	return ResetPasswords{identity}
+func NewResetPasswords(identity services.Identity, session *cookies.Session) ResetPasswords {
+	return ResetPasswords{identity, session}
 }
 
 func (rp ResetPasswords) RegisterRoutes(r *router.Router) error {
@@ -3549,7 +3815,10 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 		},
 	); err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return hypermedia.RenderPage(etx, views.ResetPasswordRequestForm{Errors: validationErrors}.Page())
+			return hypermedia.RenderPage(
+				etx,
+				views.ResetPasswordRequestForm{Errors: validationErrors}.Page(),
+			)
 		}
 
 		slog.ErrorContext(
@@ -3558,14 +3827,22 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, "Failed to send password reset code"); flashErr != nil {
+		if flashErr := rp.session.AddFlash(
+			etx,
+			cookies.FlashError,
+			"Failed to send password reset code",
+		); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 
 		return etx.Redirect(http.StatusSeeOther, routes.PasswordNew.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "If an account exists with that email, you will receive password reset instructions."); flashErr != nil {
+	if flashErr := rp.session.AddFlash(
+		etx,
+		cookies.FlashSuccess,
+		"If an account exists with that email, you will receive password reset instructions.",
+	); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
@@ -3577,9 +3854,14 @@ func (rp ResetPasswords) Edit(etx *echo.Context) error {
 
 	token := etx.Param("token")
 	if token == "" {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, "Invalid or missing reset token"); flashErr != nil {
+		if flashErr := rp.session.AddFlash(
+			etx,
+			cookies.FlashError,
+			"Invalid or missing reset token",
+		); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
+
 		return etx.Redirect(http.StatusSeeOther, routes.PasswordNew.URL())
 	}
 
@@ -3612,7 +3894,10 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 		},
 	); err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return hypermedia.RenderPage(etx, views.ResetPasswordForm{Token: payload.Token, Errors: validationErrors}.Page())
+			return hypermedia.RenderPage(
+				etx,
+				views.ResetPasswordForm{Token: payload.Token, Errors: validationErrors}.Page(),
+			)
 		}
 
 		slog.ErrorContext(
@@ -3632,7 +3917,7 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 			errorMsg = "Failed to reset password"
 		}
 
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
+		if flashErr := rp.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		redirectPath := routes.PasswordEdit.URL(payload.Token)
@@ -3643,7 +3928,11 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 		return etx.Redirect(http.StatusSeeOther, redirectPath)
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Password reset successfully! Please log in."); flashErr != nil {
+	if flashErr := rp.session.AddFlash(
+		etx,
+		cookies.FlashSuccess,
+		"Password reset successfully! Please log in.",
+	); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
@@ -3660,8 +3949,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/validation"
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
@@ -3669,15 +3956,19 @@ import (
 	"testapp/services"
 	"testapp/views"
 
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/validation"
+
 	"github.com/labstack/echo/v5"
 )
 
 type Sessions struct {
 	identity services.Identity
+	session  *cookies.Session
 }
 
-func NewSessions(identity services.Identity) Sessions {
-	return Sessions{identity}
+func NewSessions(identity services.Identity, session *cookies.Session) Sessions {
+	return Sessions{identity, session}
 }
 
 func (s Sessions) RegisterRoutes(r *router.Router) error {
@@ -3768,14 +4059,14 @@ func (s Sessions) Create(etx *echo.Context) error {
 			errorMsg = "Failed to log in"
 		}
 
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
+		if flashErr := s.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 
 		return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 	}
 
-	if err := cookies.CreateAppSession(etx, user); err != nil {
+	if err := s.session.CreateAppSession(etx, user); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to create session",
@@ -3786,7 +4077,11 @@ func (s Sessions) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Successfully logged in!"); flashErr != nil {
+	if flashErr := s.session.AddFlash(
+		etx,
+		cookies.FlashSuccess,
+		"Successfully logged in!",
+	); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
@@ -3794,7 +4089,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 }
 
 func (s Sessions) Destroy(etx *echo.Context) error {
-	if err := cookies.DestroyAppSession(etx); err != nil {
+	if err := s.session.DestroyAppSession(etx); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to destroy session",
@@ -3804,7 +4099,11 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Successfully logged out!"); flashErr != nil {
+	if flashErr := s.session.AddFlash(
+		etx,
+		cookies.FlashSuccess,
+		"Successfully logged out!",
+	); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
@@ -4437,8 +4736,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"testapp/models/factories"
+
+	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 const Default = "development"
@@ -4881,6 +5181,7 @@ func renderComponent(component templ.Component) (string, error) {
 	if err := component.Render(context.Background(), &buf); err != nil {
 		return "", err
 	}
+
 	return buf.String(), nil
 }
 
@@ -4996,6 +5297,7 @@ func (r ResetPassword) ToHTML() (string, error) {
 	if err := r.render().Render(context.Background(), &buf); err != nil {
 		return "", err
 	}
+
 	return buf.String(), nil
 }
 
@@ -5004,6 +5306,7 @@ func (r ResetPassword) ToText() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return HTMLToText(html)
 }
 
@@ -5090,6 +5393,7 @@ func (r ResetPassword) ToHTML() (string, error) {
 	if err := r.render().Render(context.Background(), &buf); err != nil {
 		return "", err
 	}
+
 	return buf.String(), nil
 }
 
@@ -5098,6 +5402,7 @@ func (r ResetPassword) ToText() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return HTMLToText(html)
 }
 
@@ -5141,7 +5446,7 @@ func (r ResetPassword) render() templ.Component {
 			var templ_7745c5c3_Var3 templ.SafeURL
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(r.ResetURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `email/reset_password.templ`, Line: 58, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `email/reset_password.templ`, Line: 60, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -5154,7 +5459,7 @@ func (r ResetPassword) render() templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(r.ResetURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `email/reset_password.templ`, Line: 70, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `email/reset_password.templ`, Line: 72, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -5197,6 +5502,7 @@ func (v VerifyEmail) ToHTML() (string, error) {
 	if err := v.render().Render(context.Background(), &buf); err != nil {
 		return "", err
 	}
+
 	return buf.String(), nil
 }
 
@@ -5205,6 +5511,7 @@ func (v VerifyEmail) ToText() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return HTMLToText(html)
 }
 
@@ -5288,6 +5595,7 @@ func (v VerifyEmail) ToHTML() (string, error) {
 	if err := v.render().Render(context.Background(), &buf); err != nil {
 		return "", err
 	}
+
 	return buf.String(), nil
 }
 
@@ -5296,6 +5604,7 @@ func (v VerifyEmail) ToText() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return HTMLToText(html)
 }
 
@@ -5339,7 +5648,7 @@ func (v VerifyEmail) render() templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(v.VerificationCode)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `email/verify_email.templ`, Line: 63, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `email/verify_email.templ`, Line: 65, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -5374,7 +5683,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.29
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.28
 	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.63.0
-	github.com/caarlos0/env/v10 v10.0.0
 	github.com/caarlos0/env/v11 v11.4.1
 	github.com/go-faker/faker/v4 v4.9.0
 	github.com/google/uuid v1.6.0
@@ -5553,8 +5861,6 @@ github.com/aws/aws-sdk-go-v2/service/sts v1.44.0 h1:bLZ0PolJ8J+HkJHztcXORUpHXBye
 github.com/aws/aws-sdk-go-v2/service/sts v1.44.0/go.mod h1:9gdl4RrflIdpDb2TlXshWgR1F9TeCkvqDx77Vpr4Z/Q=
 github.com/aws/smithy-go v1.27.3 h1:F3Zb497UhhskkfpJmfkXswyo+t0sh9OTBnIHjogWbVY=
 github.com/aws/smithy-go v1.27.3/go.mod h1:YE2RhdIuDbA5E5bTdciG9KrW3+TiEONeUWCqxX9i1Fc=
-github.com/caarlos0/env/v10 v10.0.0 h1:yIHUBZGsyqCnpTkbjk8asUlx6RFhhEs+h7TOBdgdzXA=
-github.com/caarlos0/env/v10 v10.0.0/go.mod h1:ZfulV76NvVPw3tm591U4SwL3Xx9ldzBP9aGxzeN7G18=
 github.com/caarlos0/env/v11 v11.4.1 h1:fYwH0sWEsBSMPG7t4e/PEfTFzrWrpjyygXyUnWiSwEw=
 github.com/caarlos0/env/v11 v11.4.1/go.mod h1:qupehSf/Y0TUTsxKywqRt/vJjN5nz6vauiYEUUr8P4U=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
@@ -5893,7 +6199,7 @@ var TestPepper = func() string {
 		return os.Getenv("PEPPER")
 	}
 
-	return "<PEPPER>"
+	return "ead7de0b344e7e3981e27236"
 }()
 
 // defaultPassword generates a default password hash for testing
@@ -5902,6 +6208,7 @@ func defaultPassword() []byte {
 	if err != nil {
 		return []byte("3tqjNE7qwBqPvqEGqLxPrMzKFH9YkRJPqQXqN3yVzNE:AAAAAAAAAAAAAAAAAAAAAA")
 	}
+
 	return []byte(hash)
 }
 
@@ -5911,6 +6218,7 @@ func randomInt(min, max int, defaultValue int32) int32 {
 	if err != nil || len(vals) == 0 {
 		return defaultValue
 	}
+
 	return int32(vals[0])
 }
 
@@ -5920,6 +6228,7 @@ func randomInt64(min, max int, defaultValue int64) int64 {
 	if err != nil || len(vals) == 0 {
 		return defaultValue
 	}
+
 	return int64(vals[0])
 }
 
@@ -5929,6 +6238,7 @@ func randomInt16(min, max int, defaultValue int16) int16 {
 	if err != nil || len(vals) == 0 {
 		return defaultValue
 	}
+
 	return int16(vals[0])
 }
 
@@ -5938,6 +6248,7 @@ func randomBool() bool {
 	if err != nil || len(vals) == 0 {
 		return false
 	}
+
 	return vals[0] == 1
 }
 ```
@@ -5952,8 +6263,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"testapp/models"
+
+	"github.com/mbvlabs/andurel/pkg/storage"
 
 	"github.com/google/uuid"
 )
@@ -6075,8 +6387,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"testapp/models"
+
+	"github.com/mbvlabs/andurel/pkg/storage"
 
 	"github.com/go-faker/faker/v4"
 	"github.com/google/uuid"
@@ -6267,6 +6580,7 @@ func GenerateSecureToken() (string, error) {
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
+
 	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b), nil
 }
 
@@ -6287,8 +6601,10 @@ func (t token) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (Tok
 		if errors.Is(err, sql.ErrNoRows) {
 			return TokenEntity{}, ErrNotFound
 		}
+
 		return TokenEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -6311,8 +6627,10 @@ func (t token) FindByScopeAndHash(
 		if errors.Is(err, sql.ErrNoRows) {
 			return TokenEntity{}, ErrNotFound
 		}
+
 		return TokenEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -6425,6 +6743,7 @@ func (t token) All(ctx context.Context, db storage.Executor) ([]TokenEntity, err
 	if err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 
@@ -6565,12 +6884,18 @@ func (u user) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (User
 		if errors.Is(err, sql.ErrNoRows) {
 			return UserEntity{}, ErrNotFound
 		}
+
 		return UserEntity{}, err
 	}
+
 	return entity, nil
 }
 
-func (u user) FindByEmail(ctx context.Context, db storage.Executor, email string) (UserEntity, error) {
+func (u user) FindByEmail(
+	ctx context.Context,
+	db storage.Executor,
+	email string,
+) (UserEntity, error) {
 	var entity UserEntity
 	err := db.NewSelect().
 		Model(&entity).
@@ -6580,8 +6905,10 @@ func (u user) FindByEmail(ctx context.Context, db storage.Executor, email string
 		if errors.Is(err, sql.ErrNoRows) {
 			return UserEntity{}, ErrNotFound
 		}
+
 		return UserEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -6636,7 +6963,11 @@ type UpdateUserData struct {
 	IsAdmin          bool
 }
 
-func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserData) (UserEntity, error) {
+func (u user) Update(
+	ctx context.Context,
+	db storage.Executor,
+	data UpdateUserData,
+) (UserEntity, error) {
 	var current UserEntity
 	err := db.NewSelect().
 		Model(&current).
@@ -6646,6 +6977,7 @@ func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserDa
 		if errors.Is(err, sql.ErrNoRows) {
 			return UserEntity{}, ErrNotFound
 		}
+
 		return UserEntity{}, err
 	}
 
@@ -6692,6 +7024,7 @@ func (u user) Update(ctx context.Context, db storage.Executor, data UpdateUserDa
 		if errors.Is(err, sql.ErrNoRows) {
 			return UserEntity{}, ErrNotFound
 		}
+
 		return UserEntity{}, err
 	}
 
@@ -6880,12 +7213,16 @@ func (w *SendMarketingEmailWorker) Register(workers *river.Workers) error {
 	return river.AddWorkerSafely(workers, w)
 }
 
-func (w *SendMarketingEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendMarketingEmailArgs]) error {
+func (w *SendMarketingEmailWorker) Work(
+	ctx context.Context,
+	job *river.Job[jobs.SendMarketingEmailArgs],
+) error {
 	err := email.SendMarketing(ctx, job.Args.Data, w.sender)
 	if err != nil {
 		if !email.IsRetryable(err) {
 			return river.JobCancel(err)
 		}
+
 		return err
 	}
 
@@ -6911,7 +7248,9 @@ type SendTransactionalEmailWorker struct {
 	sender email.TransactionalSender
 }
 
-func NewSendTransactionalEmailWorker(sender email.TransactionalSender) *SendTransactionalEmailWorker {
+func NewSendTransactionalEmailWorker(
+	sender email.TransactionalSender,
+) *SendTransactionalEmailWorker {
 	return &SendTransactionalEmailWorker{
 		sender: sender,
 	}
@@ -6921,12 +7260,16 @@ func (w *SendTransactionalEmailWorker) Register(workers *river.Workers) error {
 	return river.AddWorkerSafely(workers, w)
 }
 
-func (w *SendTransactionalEmailWorker) Work(ctx context.Context, job *river.Job[jobs.SendTransactionalEmailArgs]) error {
+func (w *SendTransactionalEmailWorker) Work(
+	ctx context.Context,
+	job *river.Job[jobs.SendTransactionalEmailArgs],
+) error {
 	err := email.SendTransactional(ctx, job.Args.Data, w.sender)
 	if err != nil {
 		if !email.IsRetryable(err) {
 			return river.JobCancel(err)
 		}
+
 		return err
 	}
 
@@ -7003,7 +7346,6 @@ package cookies
 
 import (
 	"github.com/google/uuid"
-	"testapp/application"
 	"testapp/models"
 
 	"github.com/labstack/echo/v5"
@@ -7015,6 +7357,21 @@ const (
 	userID          = "user_id"
 )
 
+// Session carries the runtime session cookie names derived from app identity
+// so the cookies package holds no global state. It is constructed once and
+// injected where session/flash cookies are needed.
+type Session struct {
+	appSessionName   string
+	flashSessionName string
+}
+
+func NewSession(appSessionName, projectName, environment string) *Session {
+	return &Session{
+		appSessionName:   appSessionName,
+		flashSessionName: buildFlashSessionName(projectName, environment),
+	}
+}
+
 type App struct {
 	CurrentPath     string
 	UserID          uuid.UUID
@@ -7022,8 +7379,8 @@ type App struct {
 	IsAuthenticated bool
 }
 
-func CreateAppSession(c *echo.Context, user models.UserEntity) error {
-	sess, err := getSession(application.AppCookieSessionName, c)
+func (s *Session) CreateAppSession(c *echo.Context, user models.UserEntity) error {
+	sess, err := getSession(s.appSessionName, c)
 	if err != nil {
 		return err
 	}
@@ -7035,8 +7392,8 @@ func CreateAppSession(c *echo.Context, user models.UserEntity) error {
 	return sess.Save(c.Request(), c.Response())
 }
 
-func DestroyAppSession(c *echo.Context) error {
-	sess, err := getSession(application.AppCookieSessionName, c)
+func (s *Session) DestroyAppSession(c *echo.Context) error {
+	sess, err := getSession(s.appSessionName, c)
 	if err != nil {
 		return err
 	}
@@ -7045,8 +7402,8 @@ func DestroyAppSession(c *echo.Context) error {
 	return sess.Save(c.Request(), c.Response())
 }
 
-func ExtractFromCookieApp(c *echo.Context) App {
-	sess, err := getSession(application.AppCookieSessionName, c)
+func (s *Session) ExtractFromCookieApp(c *echo.Context) App {
+	sess, err := getSession(s.appSessionName, c)
 	if err != nil {
 		return App{}
 	}
@@ -7076,7 +7433,6 @@ import (
 	"time"
 
 	"github.com/mbvlabs/andurel/pkg/server"
-	"testapp/application"
 
 	"github.com/labstack/echo/v5"
 	"github.com/rs/xid"
@@ -7089,16 +7445,15 @@ type FlashMessage struct {
 	Message   string
 }
 
-var (
-	flashSession = func() string {
-		if application.Environment == server.ProdEnvironment {
-			return strings.ToLower(application.ProjectName) + "_" + "flash_key"
-		}
+func buildFlashSessionName(projectName, environment string) string {
+	if environment == server.ProdEnvironment {
+		return strings.ToLower(projectName) + "_" + "flash_key"
+	}
 
-		return strings.ToLower(application.ProjectName) + "_" + "dev_flash_key"
-	}()
-	flashSessionName = "flash_session"
-)
+	return strings.ToLower(projectName) + "_" + "dev_flash_key"
+}
+
+const flashSessionName = "flash_session"
 
 type FlashType string
 
@@ -7109,10 +7464,10 @@ const (
 	FlashInfo    FlashType = "info"
 )
 
-func AddFlash(
+func (s *Session) AddFlash(
 	c *echo.Context, flashType FlashType, msg string,
 ) error {
-	sess, err := getSession(flashSession, c)
+	sess, err := getSession(s.flashSessionName, c)
 	if err != nil {
 		return err
 	}
@@ -7127,8 +7482,8 @@ func AddFlash(
 	return sess.Save(c.Request(), c.Response())
 }
 
-func ExtractFlashes(c *echo.Context) ([]FlashMessage, error) {
-	sess, err := getSession(flashSession, c)
+func (s *Session) ExtractFlashes(c *echo.Context) ([]FlashMessage, error) {
+	sess, err := getSession(s.flashSessionName, c)
 	if err != nil {
 		return nil, err
 	}
@@ -7149,17 +7504,18 @@ func ExtractFlashes(c *echo.Context) ([]FlashMessage, error) {
 
 // Reflash restores flashes consumed for the current request when Inertia
 // returns a redirect, so the next request can still render them.
-func Reflash(c *echo.Context, flashes []FlashMessage) error {
+func (s *Session) Reflash(c *echo.Context, flashes []FlashMessage) error {
 	if len(flashes) == 0 {
 		return nil
 	}
-	sess, err := getSession(flashSession, c)
+	sess, err := getSession(s.flashSessionName, c)
 	if err != nil {
 		return err
 	}
 	for _, flash := range flashes {
 		sess.AddFlash(flash, flashSessionName)
 	}
+
 	return sess.Save(c.Request(), c.Response())
 }
 ```
@@ -7171,8 +7527,6 @@ package cookies
 import (
 	"errors"
 
-	"testapp/application"
-
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/v5/session"
@@ -7181,8 +7535,8 @@ import (
 
 const recoveredSessionContextPrefix = "andurel/recovered-session/"
 
-func RecoverInvalidSessions(c *echo.Context) error {
-	for _, name := range []string{application.AppCookieSessionName, flashSession} {
+func (s *Session) RecoverInvalidSessions(c *echo.Context) error {
+	for _, name := range []string{s.appSessionName, s.flashSessionName} {
 		sess, err := session.Get(name, c)
 		if err == nil {
 			continue
@@ -7212,6 +7566,7 @@ func getSession(name string, c *echo.Context) (*sessions.Session, error) {
 	if err != nil && c.Get(recoveredSessionContextPrefix+name) != true {
 		return nil, err
 	}
+
 	return sess, nil
 }
 ```
@@ -7226,21 +7581,24 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/mbvlabs/andurel/pkg/routing"
 	"testapp/router/cookies"
 	"testapp/router/routes"
+
+	"github.com/mbvlabs/andurel/pkg/routing"
 
 	"github.com/labstack/echo/v5"
 	"github.com/maypok86/otter/v2"
 )
 
-func AuthOnly(next echo.HandlerFunc) echo.HandlerFunc {
-	return func(c *echo.Context) error {
-		if cookies.ExtractFromCookieApp(c).IsAuthenticated {
-			return next(c)
-		}
+func AuthOnly(session *cookies.Session) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			if session.ExtractFromCookieApp(c).IsAuthenticated {
+				return next(c)
+			}
 
-		return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
+			return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
+		}
 	}
 }
 
@@ -7350,7 +7708,6 @@ import (
 	"time"
 
 	"github.com/mbvlabs/andurel/pkg/server"
-	"testapp/application"
 	"testapp/router/appctx"
 	"testapp/router/cookies"
 	"testapp/router/routes"
@@ -7364,39 +7721,39 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func RegisterRequestMeta(
-	next echo.HandlerFunc,
-) echo.HandlerFunc {
-	return func(c *echo.Context) error {
-		if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
+func RegisterRequestMeta(session *cookies.Session) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
+				return next(c)
+			}
+
+			flashes, err := session.ExtractFlashes(c)
+			if err != nil {
+				slog.Error("Error getting flash messages from session", "error", err)
+			}
+
+			ctx := appctx.WithFlashes(c.Request().Context(), flashes)
+			c.SetRequest(c.Request().WithContext(ctx))
+
 			return next(c)
 		}
-
-		flashes, err := cookies.ExtractFlashes(c)
-		if err != nil {
-			slog.Error("Error getting flash messages from session", "error", err)
-		}
-
-		ctx := appctx.WithFlashes(c.Request().Context(), flashes)
-		c.SetRequest(c.Request().WithContext(ctx))
-
-		return next(c)
 	}
 }
 
-func ValidateSession(
-	next echo.HandlerFunc,
-) echo.HandlerFunc {
-	return func(c *echo.Context) error {
-		// Skip session validation for static assets and API routes
-		if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
+func ValidateSession(session *cookies.Session) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			// Skip session validation for static assets and API routes
+			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
+				return next(c)
+			}
+			if err := session.RecoverInvalidSessions(c); err != nil {
+				return err
+			}
+
 			return next(c)
 		}
-		if err := cookies.RecoverInvalidSessions(c); err != nil {
-			return err
-		}
-
-		return next(c)
 	}
 }
 
@@ -7422,15 +7779,15 @@ func hasNonEmptyBearerToken(authorization string) bool {
 	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && parts[1] != ""
 }
 
-func hasApplicationSessionCookie(request *http.Request) bool {
-	_, err := request.Cookie(application.AppCookieSessionName)
+func hasApplicationSessionCookie(request *http.Request, appCookieSessionName string) bool {
+	_, err := request.Cookie(appCookieSessionName)
 	return err == nil
 }
 
-func mayBypassCSRF(request *http.Request) bool {
+func mayBypassCSRF(request *http.Request, appCookieSessionName string) bool {
 	return isAPIPath(request.URL.Path) &&
 		hasNonEmptyBearerToken(request.Header.Get("Authorization")) &&
-		!hasApplicationSessionCookie(request)
+		!hasApplicationSessionCookie(request, appCookieSessionName)
 }
 
 func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
@@ -7440,20 +7797,20 @@ func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 
 	if tel.HasMetrics() {
 		var err error
-		httpRequestsTotal, err = telemetry.HTTPRequestsTotal()
+		httpRequestsTotal, err = telemetry.HTTPRequestsTotal(tel.ServiceName())
 		if err != nil {
 			slog.Warn("failed to create http_requests_total metric", "error", err)
 		}
-		httpDuration, err = telemetry.HTTPRequestDuration()
+		httpDuration, err = telemetry.HTTPRequestDuration(tel.ServiceName())
 		if err != nil {
 			slog.Warn("failed to create http_request_duration metric", "error", err)
 		}
-		httpInFlight, err = telemetry.HTTPRequestsInFlight()
+		httpInFlight, err = telemetry.HTTPRequestsInFlight(tel.ServiceName())
 		if err != nil {
 			slog.Warn("failed to create http_requests_in_flight metric", "error", err)
 		}
 
-		meter := telemetry.GetMeter(application.ServiceName)
+		meter := telemetry.GetMeter(tel.ServiceName())
 		if err := telemetry.SetupRuntimeMetricsInCallback(meter); err != nil {
 			slog.Warn("failed to setup runtime metrics", "error", err)
 		}
@@ -7537,7 +7894,15 @@ func TraceRouteAttributes(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 	}
 }
 
-func CSRFMiddleware(csrfStrategy string, csrfTrustedOrigins []string, csrfName string) (echo.MiddlewareFunc, error) {
+func CSRFMiddleware(
+	csrfStrategy string,
+	csrfTrustedOrigins []string,
+	csrfName string,
+	baseURL string,
+	environment string,
+	domain string,
+	appCookieSessionName string,
+) (echo.MiddlewareFunc, error) {
 	strategy := strings.TrimSpace(csrfStrategy)
 
 	var headerOnly bool
@@ -7553,25 +7918,25 @@ func CSRFMiddleware(csrfStrategy string, csrfTrustedOrigins []string, csrfName s
 		return nil, errors.New("invalid CSRF strategy")
 	}
 
-	trustedOrigins := []string{application.BaseURL}
+	trustedOrigins := []string{baseURL}
 	if len(csrfTrustedOrigins) > 0 {
 		trustedOrigins = append(trustedOrigins, csrfTrustedOrigins...)
 	}
 
 	csrfConfig := echomw.CSRFConfig{
 		Skipper: func(c *echo.Context) bool {
-			return mayBypassCSRF(c.Request())
+			return mayBypassCSRF(c.Request(), appCookieSessionName)
 		},
 		TokenLookup: tokenLookup,
 		CookiePath:  "/",
 		CookieDomain: func() string {
-			if application.Environment == server.ProdEnvironment {
-				return application.Domain
+			if environment == server.ProdEnvironment {
+				return domain
 			}
 
 			return ""
 		}(),
-		CookieSecure:   application.Environment == server.ProdEnvironment,
+		CookieSecure:   environment == server.ProdEnvironment,
 		CookieHTTPOnly: true,
 		CookieSameSite: http.SameSiteStrictMode,
 		TrustedOrigins: trustedOrigins,
@@ -7581,7 +7946,7 @@ func CSRFMiddleware(csrfStrategy string, csrfTrustedOrigins []string, csrfName s
 
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			if mayBypassCSRF(c.Request()) {
+			if mayBypassCSRF(c.Request(), appCookieSessionName) {
 				return next(c)
 			}
 
@@ -7593,15 +7958,21 @@ func CSRFMiddleware(csrfStrategy string, csrfTrustedOrigins []string, csrfName s
 				method != http.MethodOptions && method != http.MethodTrace
 
 			if isUnsafe {
-				secFetchSite := strings.ToLower(strings.TrimSpace(c.Request().Header.Get("Sec-Fetch-Site")))
+				secFetchSite := strings.ToLower(
+					strings.TrimSpace(c.Request().Header.Get("Sec-Fetch-Site")),
+				)
 
 				// In header_only mode, reject requests missing Sec-Fetch-Site
 				if headerOnly && (secFetchSite == "" || secFetchSite == "none") {
-					return echo.NewHTTPError(http.StatusForbidden, "CSRF verification failed: missing Sec-Fetch-Site header")
+					return echo.NewHTTPError(
+						http.StatusForbidden,
+						"CSRF verification failed: missing Sec-Fetch-Site header",
+					)
 				}
 
 				// In legacy mode, log when falling back to form token
-				if !headerOnly && secFetchSite != "same-origin" && secFetchSite != "same-site" && secFetchSite != "cross-site" {
+				if !headerOnly && secFetchSite != "same-origin" && secFetchSite != "same-site" &&
+					secFetchSite != "cross-site" {
 					if c.Request().Header.Get("X-CSRF-Token") == "" && c.FormValue("_csrf") != "" {
 						slog.Warn("CSRF check fell back to legacy token")
 					}
@@ -7626,16 +7997,26 @@ import (
 	"sync"
 	"testing"
 
-	"testapp/application"
 	"testapp/router/appctx"
 	"testapp/router/cookies"
+
+	"github.com/mbvlabs/andurel/pkg/server"
 
 	"github.com/gorilla/sessions"
 	echosession "github.com/labstack/echo-contrib/v5/session"
 	"github.com/labstack/echo/v5"
 )
 
-var registerFlashMessageOnce sync.Once
+const testAppSessionName = "app_sess_andurel-dev"
+
+var (
+	registerFlashMessageOnce sync.Once
+	testSession              = cookies.NewSession(
+		testAppSessionName,
+		"andurel",
+		server.DevEnvironment,
+	)
+)
 
 func TestAPIPathBoundary(t *testing.T) {
 	tests := []struct {
@@ -7669,10 +8050,26 @@ func TestCSRFBypassRequiresBearerWithoutApplicationSession(t *testing.T) {
 		{name: "bearer API request", authorization: "Bearer token", path: "/api/users", want: true},
 		{name: "empty authorization", path: "/api/users", want: false},
 		{name: "empty bearer token", authorization: "Bearer", path: "/api/users", want: false},
-		{name: "malformed bearer header", authorization: "Bearer token extra", path: "/api/users", want: false},
-		{name: "other authorization scheme", authorization: "Basic token", path: "/api/users", want: false},
+		{
+			name:          "malformed bearer header",
+			authorization: "Bearer token extra",
+			path:          "/api/users",
+			want:          false,
+		},
+		{
+			name:          "other authorization scheme",
+			authorization: "Basic token",
+			path:          "/api/users",
+			want:          false,
+		},
 		{name: "non API path", authorization: "Bearer token", path: "/users", want: false},
-		{name: "cookie authenticated API request", authorization: "Bearer token", path: "/api/users", sessionCookie: true, want: false},
+		{
+			name:          "cookie authenticated API request",
+			authorization: "Bearer token",
+			path:          "/api/users",
+			sessionCookie: true,
+			want:          false,
+		},
 	}
 
 	for _, test := range tests {
@@ -7680,10 +8077,10 @@ func TestCSRFBypassRequiresBearerWithoutApplicationSession(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, test.path, nil)
 			request.Header.Set("Authorization", test.authorization)
 			if test.sessionCookie {
-				request.AddCookie(&http.Cookie{Name: application.AppCookieSessionName, Value: "session"})
+				request.AddCookie(&http.Cookie{Name: testAppSessionName, Value: "session"})
 			}
 
-			if got := mayBypassCSRF(request); got != test.want {
+			if got := mayBypassCSRF(request, testAppSessionName); got != test.want {
 				t.Fatalf("mayBypassCSRF() = %t, want %t", got, test.want)
 			}
 		})
@@ -7693,8 +8090,8 @@ func TestCSRFBypassRequiresBearerWithoutApplicationSession(t *testing.T) {
 func TestValidateSessionRecoversStaleApplicationCookie(t *testing.T) {
 	oldStore := newTestCookieStore("old-application-session-auth-key")
 	newStore := newTestCookieStore("new-application-session-auth-key")
-	staleCookie := issueSessionCookie(t, oldStore, application.AppCookieSessionName, func(c *echo.Context) error {
-		sess, err := echosession.Get(application.AppCookieSessionName, c)
+	staleCookie := issueSessionCookie(t, oldStore, testAppSessionName, func(c *echo.Context) error {
+		sess, err := echosession.Get(testAppSessionName, c)
 		if err != nil {
 			return err
 		}
@@ -7716,7 +8113,7 @@ func TestValidateSessionRecoversStaleApplicationCookie(t *testing.T) {
 		t.Fatal("downstream handler was not called")
 	}
 
-	replacement := responseCookie(t, recorder, application.AppCookieSessionName)
+	replacement := responseCookie(t, recorder, testAppSessionName)
 	assertEmptySessionCookie(t, newStore, replacement)
 }
 
@@ -7728,7 +8125,7 @@ func TestValidateSessionRecoversStaleFlashCookie(t *testing.T) {
 	oldStore := newTestCookieStore("old-flash-session-authentication-key")
 	newStore := newTestCookieStore("new-flash-session-authentication-key")
 	staleCookie := issueSessionCookie(t, oldStore, "", func(c *echo.Context) error {
-		return cookies.AddFlash(c, cookies.FlashWarning, "stale warning")
+		return testSession.AddFlash(c, cookies.FlashWarning, "stale warning")
 	})
 
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -7738,6 +8135,7 @@ func TestValidateSessionRecoversStaleFlashCookie(t *testing.T) {
 		if len(flashes) != 0 {
 			t.Fatalf("recovered flashes = %v, want none", flashes)
 		}
+
 		return c.NoContent(http.StatusNoContent)
 	})
 	if err != nil {
@@ -7754,8 +8152,8 @@ func TestValidateSessionPreservesValidSessions(t *testing.T) {
 	})
 
 	store := newTestCookieStore("valid-session-authentication-key")
-	appCookie := issueSessionCookie(t, store, application.AppCookieSessionName, func(c *echo.Context) error {
-		sess, err := echosession.Get(application.AppCookieSessionName, c)
+	appCookie := issueSessionCookie(t, store, testAppSessionName, func(c *echo.Context) error {
+		sess, err := echosession.Get(testAppSessionName, c)
 		if err != nil {
 			return err
 		}
@@ -7763,7 +8161,7 @@ func TestValidateSessionPreservesValidSessions(t *testing.T) {
 		return sess.Save(c.Request(), c.Response())
 	})
 	flashCookie := issueSessionCookie(t, store, "", func(c *echo.Context) error {
-		return cookies.AddFlash(c, cookies.FlashSuccess, "saved")
+		return testSession.AddFlash(c, cookies.FlashSuccess, "saved")
 	})
 
 	request := httptest.NewRequest(http.MethodPost, "/", nil)
@@ -7774,12 +8172,13 @@ func TestValidateSessionPreservesValidSessions(t *testing.T) {
 		if len(flashes) != 1 || flashes[0].Message != "saved" {
 			t.Fatalf("flashes = %v, want saved flash", flashes)
 		}
+
 		return c.NoContent(http.StatusNoContent)
 	})
 	if err != nil {
 		t.Fatalf("ValidateSession returned an error: %v", err)
 	}
-	if hasResponseCookie(recorder, application.AppCookieSessionName) {
+	if hasResponseCookie(recorder, testAppSessionName) {
 		t.Fatal("valid application session was unexpectedly replaced")
 	}
 }
@@ -7798,7 +8197,7 @@ func TestValidateSessionPropagatesNonDecodeErrors(t *testing.T) {
 			name:       "usage error",
 			middleware: echosession.Middleware(sessions.NewCookieStore()),
 			request: requestWithCookie(&http.Cookie{
-				Name:  application.AppCookieSessionName,
+				Name:  testAppSessionName,
 				Value: "configured-without-codecs",
 			}),
 		},
@@ -7812,7 +8211,7 @@ func TestValidateSessionPropagatesNonDecodeErrors(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			called := false
-			handler := ValidateSession(func(c *echo.Context) error {
+			handler := ValidateSession(testSession)(func(c *echo.Context) error {
 				called = true
 				return nil
 			})
@@ -7859,6 +8258,7 @@ func issueSessionCookie(
 		if len(cookies) != 1 {
 			t.Fatalf("issued cookies = %d, want 1", len(cookies))
 		}
+
 		return cookies[0]
 	}
 	for _, cookie := range cookies {
@@ -7878,7 +8278,11 @@ func serveSessionRequest(
 ) (*httptest.ResponseRecorder, error) {
 	recorder := httptest.NewRecorder()
 	ctx := echo.New().NewContext(request, recorder)
-	chain := echosession.Middleware(store)(ValidateSession(RegisterRequestMeta(handler)))
+	chain := echosession.Middleware(
+		store,
+	)(
+		ValidateSession(testSession)(RegisterRequestMeta(testSession)(handler)),
+	)
 	return recorder, chain(ctx)
 }
 
@@ -7948,11 +8352,15 @@ func (classifiedErrorStore) Save(*http.Request, http.ResponseWriter, *sessions.S
 
 type internalSessionError struct{}
 
-func (internalSessionError) Error() string    { return "internal session error" }
-func (internalSessionError) IsUsage() bool    { return false }
-func (internalSessionError) IsDecode() bool   { return false }
+func (internalSessionError) Error() string { return "internal session error" }
+
+func (internalSessionError) IsUsage() bool { return false }
+
+func (internalSessionError) IsDecode() bool { return false }
+
 func (internalSessionError) IsInternal() bool { return true }
-func (internalSessionError) Cause() error     { return nil }
+
+func (internalSessionError) Cause() error { return nil }
 
 var _ interface {
 	error
@@ -7973,13 +8381,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/mbvlabs/andurel/pkg/server"
 	"log/slog"
 	"net/http"
 	"strings"
-
-	"github.com/mbvlabs/andurel/pkg/server"
-	"testapp/application"
-	"testapp/config"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
 	"testapp/telemetry"
@@ -7993,28 +8398,38 @@ import (
 	"go.uber.org/fx"
 )
 
+type AppProvider interface {
+	GetSessionKey() string
+	GetSessionEncryptionKey() string
+	GetCSRFStrategy() string
+	GetCSRFTrustedOrigins() []string
+	GetSessionMaxAge() int
+	GetCORSAllowedOrigins() []string
+	GetBaseURL() string
+	GetEnvironment() string
+	GetDomain() string
+	GetProjectName() string
+	GetAppCookieSessionName() string
+}
+
 type Router struct {
 	e       *echo.Echo
 	Handler http.Handler
 }
 
 func New(
-	sessionKey config.SessionKey,
-	sessionEncKey config.SessionEncKey,
-	sessionMaxAge config.SessionMaxAge,
-	corsOrigins config.CorsOrigins,
-	csrfStrategy config.CsrfStrategy,
-	csrfTrustedOrigins config.CsrfTrustedOrigins,
+	cfg AppProvider,
+	cookieSession *cookies.Session,
 	tel *telemetry.Telemetry,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
 
-	authKey, err := hex.DecodeString(string(sessionKey))
+	authKey, err := hex.DecodeString(cfg.GetSessionKey())
 	if err != nil {
 		return nil, err
 	}
-	encKey, err := hex.DecodeString(string(sessionEncKey))
+	encKey, err := hex.DecodeString(cfg.GetSessionEncryptionKey())
 	if err != nil {
 		return nil, err
 	}
@@ -8044,7 +8459,7 @@ func New(
 		defaultHTTPErrorHandler(c, err)
 	}
 
-	globalMiddleware, err := SetupGlobalMiddleware(sessionMaxAge, corsOrigins, csrfStrategy, csrfTrustedOrigins, tel, authKey, encKey, "_csrf")
+	globalMiddleware, err := SetupGlobalMiddleware(cfg, cookieSession, tel, authKey, encKey, "_csrf")
 	if err != nil {
 		return nil, err
 	}
@@ -8060,29 +8475,35 @@ func New(
 }
 
 func SetupGlobalMiddleware(
-	sessionMaxAge config.SessionMaxAge,
-	corsOrigins config.CorsOrigins,
-	csrfStrategy config.CsrfStrategy,
-	csrfTrustedOrigins config.CsrfTrustedOrigins,
+	cfg AppProvider,
+	cookieSession *cookies.Session,
 	tel *telemetry.Telemetry,
 	authKey []byte,
 	encKey []byte,
 	csrfName string,
 ) ([]echo.MiddlewareFunc, error) {
-	csrfMiddleware, err := middleware.CSRFMiddleware(string(csrfStrategy), []string(csrfTrustedOrigins), csrfName)
+	csrfMiddleware, err := middleware.CSRFMiddleware(
+		cfg.GetCSRFStrategy(),
+		cfg.GetCSRFTrustedOrigins(),
+		csrfName,
+		cfg.GetBaseURL(),
+		cfg.GetEnvironment(),
+		cfg.GetDomain(),
+		cfg.GetAppCookieSessionName(),
+	)
 	if err != nil {
 		return nil, err
 	}
 	sessionStore, err := newApplicationSessionStore(
 		authKey,
 		encKey,
-		int(sessionMaxAge),
-		application.Environment == server.ProdEnvironment,
+		cfg.GetSessionMaxAge(),
+		cfg.GetEnvironment() == server.ProdEnvironment,
 	)
 	if err != nil {
 		return nil, err
 	}
-	corsConfig, err := newCORSConfig(application.BaseURL, []string(corsOrigins))
+	corsConfig, err := newCORSConfig(cfg.GetBaseURL(), cfg.GetCORSAllowedOrigins())
 	if err != nil {
 		return nil, err
 	}
@@ -8093,8 +8514,8 @@ func SetupGlobalMiddleware(
 		middleware.TraceRouteAttributes(tel),
 		middleware.Logger(tel),
 		session.Middleware(sessionStore),
-		middleware.ValidateSession,
-		middleware.RegisterRequestMeta,
+		middleware.ValidateSession(cookieSession),
+		middleware.RegisterRequestMeta(cookieSession),
 		echomw.CORSWithConfig(corsConfig),
 		csrfMiddleware,
 		echomw.Recover(),
@@ -8125,13 +8546,19 @@ func newApplicationSessionStore(
 	return store, nil
 }
 
-func newCORSConfig(applicationOrigin string, additionalOrigins []string) (echomw.CORSConfig, error) {
+func newCORSConfig(
+	applicationOrigin string,
+	additionalOrigins []string,
+) (echomw.CORSConfig, error) {
 	applicationOrigin = strings.TrimSpace(applicationOrigin)
 	if applicationOrigin == "" {
 		return echomw.CORSConfig{}, errors.New("application origin must not be empty")
 	}
 	if strings.Contains(applicationOrigin, "*") {
-		return echomw.CORSConfig{}, fmt.Errorf("credentialed CORS origin %q must not contain a wildcard", applicationOrigin)
+		return echomw.CORSConfig{}, fmt.Errorf(
+			"credentialed CORS origin %q must not contain a wildcard",
+			applicationOrigin,
+		)
 	}
 
 	origins := []string{applicationOrigin}
@@ -8141,7 +8568,10 @@ func newCORSConfig(applicationOrigin string, additionalOrigins []string) (echomw
 			continue
 		}
 		if strings.Contains(origin, "*") {
-			return echomw.CORSConfig{}, fmt.Errorf("credentialed CORS origin %q must not contain a wildcard", origin)
+			return echomw.CORSConfig{}, fmt.Errorf(
+				"credentialed CORS origin %q must not contain a wildcard",
+				origin,
+			)
 		}
 		origins = append(origins, origin)
 	}
@@ -8167,8 +8597,17 @@ func (r *Router) AddRouteNotFound(
 
 var Module = fx.Module(
 	"router",
+	fx.Provide(newSession),
 	fx.Provide(New),
 )
+
+func newSession(cfg AppProvider) *cookies.Session {
+	return cookies.NewSession(
+		cfg.GetAppCookieSessionName(),
+		cfg.GetProjectName(),
+		cfg.GetEnvironment(),
+	)
+}
 ```
 
 file -----------rw-r--r-- router/router_test.go
@@ -8192,13 +8631,20 @@ func TestApplicationSessionStoreOptions(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			store, err := newApplicationSessionStore([]byte("auth-key"), []byte("encryption-key"), 604800, test.secure)
+			store, err := newApplicationSessionStore(
+				[]byte("auth-key"),
+				[]byte("encryption-key"),
+				604800,
+				test.secure,
+			)
 			if err != nil {
 				t.Fatalf("newApplicationSessionStore returned an error: %v", err)
 			}
 
 			options := store.Options
-			if options.Path != "/" || options.MaxAge != 604800 || !options.HttpOnly || options.Secure != test.secure || options.SameSite != http.SameSiteLaxMode {
+			if options.Path != "/" || options.MaxAge != 604800 || !options.HttpOnly ||
+				options.Secure != test.secure ||
+				options.SameSite != http.SameSiteLaxMode {
 				t.Fatalf("unexpected session options: %+v", options)
 			}
 		})
@@ -8206,7 +8652,12 @@ func TestApplicationSessionStoreOptions(t *testing.T) {
 }
 
 func TestApplicationSessionStoreRejectsInvalidLifetime(t *testing.T) {
-	if _, err := newApplicationSessionStore([]byte("auth-key"), []byte("encryption-key"), 0, false); err == nil {
+	if _, err := newApplicationSessionStore(
+		[]byte("auth-key"),
+		[]byte("encryption-key"),
+		0,
+		false,
+	); err == nil {
 		t.Fatal("expected an invalid session lifetime error")
 	}
 }
@@ -8248,7 +8699,11 @@ func TestCredentialedCORSRejectsWildcards(t *testing.T) {
 		additionalOrigins []string
 	}{
 		{name: "wildcard application origin", applicationOrigin: "*"},
-		{name: "wildcard additional origin", applicationOrigin: "https://app.example.com", additionalOrigins: []string{"https://*"}},
+		{
+			name:              "wildcard additional origin",
+			applicationOrigin: "https://app.example.com",
+			additionalOrigins: []string{"https://*"},
+		},
 	}
 
 	for _, test := range tests {
@@ -8432,8 +8887,9 @@ import (
 
 	"fmt"
 
-	"github.com/mbvlabs/andurel/pkg/validation"
 	"testapp/models"
+
+	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 var (
@@ -8624,31 +9080,54 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
-	"testapp/config"
 )
 
-type Identity struct {
-	db              storage.Connection
-	insertOnly      storage.InsertQueue
-	pepper          string
-	previousPeppers []string
-	tokenSigningKey string
+type TokenProvider interface {
+	GetTokenSigningKey() string
 }
 
-func NewIdentity(db storage.Connection, insertOnly storage.InsertQueue, pepper config.Pepper, previousPeppers config.PreviousPeppers, tokenSigningKey config.TokenSigningKey) Identity {
-	validPeppers := make([]string, 0, len(previousPeppers))
-	for _, p := range previousPeppers {
-		if p = strings.TrimSpace(p); p != "" && p != string(pepper) {
+type AuthProvider interface {
+	GetPepper() string
+	GetPreviousPeppers() []string
+}
+
+type AppIdentityProvider interface {
+	TokenProvider
+	GetBaseURL() string
+	GetDefaultSenderSignature() string
+}
+
+type Identity struct {
+	db                     storage.Connection
+	insertOnly             storage.InsertQueue
+	pepper                 string
+	previousPeppers        []string
+	tokenSigningKey        string
+	baseURL                string
+	defaultSenderSignature string
+}
+
+func NewIdentity(
+	db storage.Connection,
+	insertOnly storage.InsertQueue,
+	appCfg AppIdentityProvider,
+	authCfg AuthProvider,
+) Identity {
+	validPeppers := make([]string, 0, len(authCfg.GetPreviousPeppers()))
+	for _, p := range authCfg.GetPreviousPeppers() {
+		if p = strings.TrimSpace(p); p != "" && p != authCfg.GetPepper() {
 			validPeppers = append(validPeppers, p)
 		}
 	}
 
 	return Identity{
-		db:              db,
-		insertOnly:      insertOnly,
-		pepper:          string(pepper),
-		previousPeppers: validPeppers,
-		tokenSigningKey: string(tokenSigningKey),
+		db:                     db,
+		insertOnly:             insertOnly,
+		pepper:                 authCfg.GetPepper(),
+		previousPeppers:        validPeppers,
+		tokenSigningKey:        appCfg.GetTokenSigningKey(),
+		baseURL:                appCfg.GetBaseURL(),
+		defaultSenderSignature: appCfg.GetDefaultSenderSignature(),
 	}
 }
 ```
@@ -8667,11 +9146,11 @@ import (
 
 	"time"
 
-	"testapp/application"
 	"testapp/email"
 
-	"github.com/mbvlabs/andurel/pkg/validation"
 	"testapp/models"
+
+	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"testapp/queue/jobs"
 )
@@ -8775,7 +9254,7 @@ func (i Identity) RegisterUser(
 
 		Data: email.TransactionalData{
 			To:       user.Email,
-			From:     application.DefaultSenderSignature,
+			From:     i.defaultSenderSignature,
 			Subject:  "Verify Your Email Address",
 			HTMLBody: html,
 			TextBody: text,
@@ -8832,6 +9311,7 @@ func (i Identity) VerifyEmail(
 		if errors.Is(err, models.ErrNotFound) {
 			return models.UserEntity{}, ErrInvalidVerificationCode
 		}
+
 		return models.UserEntity{}, fmt.Errorf("find email verification token: %w", err)
 
 	}
@@ -8865,6 +9345,7 @@ func (i Identity) VerifyEmail(
 		if errors.Is(err, models.ErrNotFound) {
 			return models.UserEntity{}, ErrUserNotFound
 		}
+
 		return models.UserEntity{}, fmt.Errorf("find verification user: %w", err)
 
 	}
@@ -8883,6 +9364,7 @@ func (i Identity) VerifyEmail(
 		if errors.Is(err, models.ErrNotFound) {
 			return models.UserEntity{}, ErrUserNotFound
 		}
+
 		return models.UserEntity{}, fmt.Errorf("mark user email verified: %w", err)
 
 	}
@@ -8915,11 +9397,11 @@ import (
 	"fmt"
 	"time"
 
-	"testapp/application"
 	"testapp/email"
 
-	"github.com/mbvlabs/andurel/pkg/validation"
 	"testapp/models"
+
+	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"testapp/queue/jobs"
 	"testapp/router/routes"
@@ -8961,6 +9443,7 @@ func (i Identity) RequestResetPassword(
 		if errors.Is(err, models.ErrNotFound) {
 			return nil
 		}
+
 		return fmt.Errorf("find password reset user: %w", err)
 
 	}
@@ -8997,7 +9480,7 @@ func (i Identity) RequestResetPassword(
 
 	}
 
-	resetURL := fmt.Sprintf("%s%s", application.BaseURL, routes.PasswordEdit.URL(token))
+	resetURL := fmt.Sprintf("%s%s", i.baseURL, routes.PasswordEdit.URL(token))
 
 	rpEmail := email.ResetPassword{ResetURL: resetURL}
 
@@ -9019,7 +9502,7 @@ func (i Identity) RequestResetPassword(
 
 		Data: email.TransactionalData{
 			To:       user.Email,
-			From:     application.DefaultSenderSignature,
+			From:     i.defaultSenderSignature,
 			Subject:  "Reset Your Password",
 			HTMLBody: html,
 			TextBody: text,
@@ -9077,6 +9560,7 @@ func (i Identity) ResetPassword(
 		if errors.Is(err, models.ErrNotFound) {
 			return ErrInvalidResetCode
 		}
+
 		return fmt.Errorf("find password reset token: %w", err)
 
 	}
@@ -9110,6 +9594,7 @@ func (i Identity) ResetPassword(
 		if errors.Is(err, models.ErrNotFound) {
 			return ErrInvalidResetCode
 		}
+
 		return fmt.Errorf("find password reset user: %w", err)
 
 	}
@@ -9136,6 +9621,7 @@ func (i Identity) ResetPassword(
 		if errors.Is(err, models.ErrNotFound) {
 			return ErrInvalidResetCode
 		}
+
 		return fmt.Errorf("update password reset user: %w", err)
 
 	}
@@ -9179,22 +9665,29 @@ package telemetry
 import (
 	"context"
 
-	"testapp/application"
-
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
 // StartSpan starts a new span with the given name using the global tracer.
-func StartSpan(ctx context.Context, spanName string) (context.Context, trace.Span) {
-	tracer := GetTracer(application.ServiceName)
+func StartSpan(
+	ctx context.Context,
+	serviceName string,
+	spanName string,
+) (context.Context, trace.Span) {
+	tracer := GetTracer(serviceName)
 	return tracer.Start(ctx, spanName)
 }
 
 // StartSpanAttrs starts a new span with the given name and attributes using the global tracer.
-func StartSpanAttrs(ctx context.Context, spanName string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
-	tracer := GetTracer(application.ServiceName)
+func StartSpanAttrs(
+	ctx context.Context,
+	serviceName string,
+	spanName string,
+	attrs ...attribute.KeyValue,
+) (context.Context, trace.Span) {
+	tracer := GetTracer(serviceName)
 	ctx, span := tracer.Start(ctx, spanName)
 	span.SetAttributes(attrs...)
 	return ctx, span
@@ -9351,6 +9844,7 @@ func NewOtlpMetricExporter(endpoint string, headers map[string]string) *OtlpHttp
 	if endpoint == "" {
 		return nil
 	}
+
 	return &OtlpHttpMetricExporter{
 		endpoint: endpoint,
 		insecure: false,
@@ -9359,10 +9853,14 @@ func NewOtlpMetricExporter(endpoint string, headers map[string]string) *OtlpHttp
 	}
 }
 
-func NewOtlpMetricExporterInsecure(endpoint string, headers map[string]string) *OtlpHttpMetricExporter {
+func NewOtlpMetricExporterInsecure(
+	endpoint string,
+	headers map[string]string,
+) *OtlpHttpMetricExporter {
 	if endpoint == "" {
 		return nil
 	}
+
 	return &OtlpHttpMetricExporter{
 		endpoint: endpoint,
 		insecure: true,
@@ -9375,7 +9873,10 @@ func (o *OtlpHttpMetricExporter) Name() string {
 	return "otlp-http-metrics"
 }
 
-func (o *OtlpHttpMetricExporter) GetSdkMetricExporter(ctx context.Context, res *resource.Resource) (sdkmetric.Exporter, error) {
+func (o *OtlpHttpMetricExporter) GetSdkMetricExporter(
+	ctx context.Context,
+	res *resource.Resource,
+) (sdkmetric.Exporter, error) {
 	endpoint := strings.TrimPrefix(o.endpoint, "http://")
 	endpoint = strings.TrimPrefix(endpoint, "https://")
 
@@ -9410,6 +9911,7 @@ func (o *OtlpHttpMetricExporter) Shutdown(ctx context.Context) error {
 			return fmt.Errorf("failed to shutdown OTLP HTTP metric exporter: %w", err)
 		}
 	}
+
 	return nil
 }
 
@@ -9449,7 +9951,10 @@ func (n *NoopMetricExporter) Name() string {
 	return "noop-metrics"
 }
 
-func (n *NoopMetricExporter) GetSdkMetricExporter(ctx context.Context, res *resource.Resource) (sdkmetric.Exporter, error) {
+func (n *NoopMetricExporter) GetSdkMetricExporter(
+	ctx context.Context,
+	res *resource.Resource,
+) (sdkmetric.Exporter, error) {
 	return &noopSdkMetricExporter{}, nil
 }
 
@@ -9471,8 +9976,6 @@ import (
 	"runtime"
 	"time"
 
-	"testapp/application"
-
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -9489,8 +9992,8 @@ func GetMeter(serviceName string) metric.Meter {
 	return otel.Meter(serviceName)
 }
 
-func HTTPRequestsTotal() (metric.Int64Counter, error) {
-	counter, err := GetMeter(application.ServiceName).Int64Counter(
+func HTTPRequestsTotal(serviceName string) (metric.Int64Counter, error) {
+	counter, err := GetMeter(serviceName).Int64Counter(
 		"http_requests_total",
 		metric.WithDescription("Total number of HTTP requests"),
 		metric.WithUnit("1"),
@@ -9498,22 +10001,24 @@ func HTTPRequestsTotal() (metric.Int64Counter, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create http_requests_total counter: %w", err)
 	}
+
 	return counter, nil
 }
 
-func HTTPRequestsInFlight() (metric.Int64UpDownCounter, error) {
-	counter, err := GetMeter(application.ServiceName).Int64UpDownCounter(
+func HTTPRequestsInFlight(serviceName string) (metric.Int64UpDownCounter, error) {
+	counter, err := GetMeter(serviceName).Int64UpDownCounter(
 		"http_requests_in_flight",
 		metric.WithDescription("Current number of HTTP requests being served"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create http_requests_in_flight counter: %w", err)
 	}
+
 	return counter, nil
 }
 
-func HTTPRequestDuration() (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(application.ServiceName).Float64Histogram(
+func HTTPRequestDuration(serviceName string) (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(serviceName).Float64Histogram(
 		"http_request_duration_seconds",
 		metric.WithDescription("HTTP request duration in seconds"),
 		metric.WithUnit("s"),
@@ -9522,11 +10027,12 @@ func HTTPRequestDuration() (metric.Float64Histogram, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create http_request_duration_seconds histogram: %w", err)
 	}
+
 	return histogram, nil
 }
 
-func HTTPRequestSize() (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(application.ServiceName).Float64Histogram(
+func HTTPRequestSize(serviceName string) (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(serviceName).Float64Histogram(
 		"http_request_size_bytes",
 		metric.WithDescription("HTTP request size in bytes"),
 		metric.WithUnit("By"),
@@ -9535,11 +10041,12 @@ func HTTPRequestSize() (metric.Float64Histogram, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create http_request_size_bytes histogram: %w", err)
 	}
+
 	return histogram, nil
 }
 
-func HTTPResponseSize() (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(application.ServiceName).Float64Histogram(
+func HTTPResponseSize(serviceName string) (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(serviceName).Float64Histogram(
 		"http_response_size_bytes",
 		metric.WithDescription("HTTP response size in bytes"),
 		metric.WithUnit("By"),
@@ -9548,6 +10055,7 @@ func HTTPResponseSize() (metric.Float64Histogram, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create http_response_size_bytes histogram: %w", err)
 	}
+
 	return histogram, nil
 }
 
@@ -9881,6 +10389,7 @@ func ComputeApproximateRequestSize(r *http.Request) int {
 	if r.ContentLength != -1 {
 		s += int(r.ContentLength)
 	}
+
 	return s
 }
 ```
@@ -10011,8 +10520,6 @@ import (
 	"os"
 	"strings"
 
-	"testapp/config"
-
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
@@ -10026,6 +10533,17 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
+type ConfigProvider interface {
+	GetServiceName() string
+	GetServiceVersion() string
+	GetBatchSize() int
+	GetBatchTimeoutMs() int
+	GetTraceSampleRate() float64
+	GetOtlpMetricsEndpoint() string
+	GetOtlpTracesEndpoint() string
+	GetOtlpHeaders() string
+}
+
 type Telemetry struct {
 	resource       *resource.Resource
 	loggerProvider *sdklog.LoggerProvider
@@ -10035,25 +10553,29 @@ type Telemetry struct {
 	config         *telemetryOptions
 }
 
-func New(cfg config.TelemetryCfg) (*Telemetry, error) {
+func New(cfg ConfigProvider) (*Telemetry, error) {
 	ctx := context.Background()
 
 	opts := []Option{
-		WithService(cfg.ServiceName, cfg.ServiceVersion),
-		WithBatchConfig(cfg.BatchSize, cfg.BatchTimeoutMs, 2048),
-		WithTraceSampleRate(cfg.TraceSampleRate),
+		WithService(cfg.GetServiceName(), cfg.GetServiceVersion()),
+		WithBatchConfig(cfg.GetBatchSize(), cfg.GetBatchTimeoutMs(), 2048),
+		WithTraceSampleRate(cfg.GetTraceSampleRate()),
 	}
 
 	opts = append(opts, WithLogExporters(NewStdoutExporter()))
 
-	if cfg.OtlpMetricsEndpoint != "" {
+	if cfg.GetOtlpMetricsEndpoint() != "" {
 		opts = append(opts, WithMetricExporters(
-			NewOtlpMetricExporter(cfg.OtlpMetricsEndpoint, parseHeaders(cfg.OtlpHeaders))))
+			NewOtlpMetricExporter(
+				cfg.GetOtlpMetricsEndpoint(),
+				parseHeaders(cfg.GetOtlpHeaders()),
+			),
+		))
 	}
 
-	if cfg.OtlpTracesEndpoint != "" {
+	if cfg.GetOtlpTracesEndpoint() != "" {
 		opts = append(opts, WithTraceExporters(
-			NewOtlpTraceExporter(cfg.OtlpTracesEndpoint, parseHeaders(cfg.OtlpHeaders))))
+			NewOtlpTraceExporter(cfg.GetOtlpTracesEndpoint(), parseHeaders(cfg.GetOtlpHeaders()))))
 	} else {
 		opts = append(opts, WithTraceExporters(NewNoopTraceExporter()))
 	}
@@ -10184,7 +10706,7 @@ func (t *Telemetry) initTracing(ctx context.Context) error {
 	for _, exporter := range t.config.traceExporters {
 		exp, err := exporter.GetSpanExporter(ctx, t.resource)
 		if err != nil {
-			return fmt.Errorf("failed to get span exporter from %s: %w", exporter.Name(), err)
+			return fmt.Errorf("failed to get trace exporter from %s: %w", exporter.Name(), err)
 		}
 		exporters = append(exporters, exp)
 		t.shutdownFuncs = append(t.shutdownFuncs, exporter.Shutdown)
@@ -10222,16 +10744,20 @@ func (t *Telemetry) Shutdown(ctx context.Context) error {
 				fmt.Fprintf(os.Stderr, "[telemetry] shutdown error: %v\n", err)
 				return err
 			}
+
 			return nil
 		})
 	}
+
 	return eg.Wait()
 }
 
 func (t *Telemetry) HealthCheck(ctx context.Context) error {
-	if len(t.config.logExporters) == 0 && len(t.config.metricExporters) == 0 && len(t.config.traceExporters) == 0 {
+	if len(t.config.logExporters) == 0 && len(t.config.metricExporters) == 0 &&
+		len(t.config.traceExporters) == 0 {
 		return fmt.Errorf("no exporters configured")
 	}
+
 	return nil
 }
 
@@ -10247,6 +10773,10 @@ func (t *Telemetry) HasLogging() bool {
 	return len(t.config.logExporters) > 0
 }
 
+func (t *Telemetry) ServiceName() string {
+	return t.config.serviceName
+}
+
 type multiHandler struct {
 	handlers []slog.Handler
 }
@@ -10257,6 +10787,7 @@ func (m *multiHandler) Enabled(ctx context.Context, level slog.Level) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -10266,6 +10797,7 @@ func (m *multiHandler) Handle(ctx context.Context, r slog.Record) error {
 			fmt.Fprintf(os.Stderr, "[telemetry] handler error: %v\n", err)
 		}
 	}
+
 	return nil
 }
 
@@ -10274,6 +10806,7 @@ func (m *multiHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	for i, h := range m.handlers {
 		newHandlers[i] = h.WithAttrs(attrs)
 	}
+
 	return &multiHandler{handlers: newHandlers}
 }
 
@@ -10282,6 +10815,7 @@ func (m *multiHandler) WithGroup(name string) slog.Handler {
 	for i, h := range m.handlers {
 		newHandlers[i] = h.WithGroup(name)
 	}
+
 	return &multiHandler{handlers: newHandlers}
 }
 
@@ -10331,6 +10865,7 @@ func NewOtlpTraceExporter(endpoint string, headers map[string]string) *OtlpHttpT
 	if endpoint == "" {
 		return nil
 	}
+
 	return &OtlpHttpTraceExporter{
 		endpoint: endpoint,
 		insecure: false,
@@ -10339,10 +10874,14 @@ func NewOtlpTraceExporter(endpoint string, headers map[string]string) *OtlpHttpT
 	}
 }
 
-func NewOtlpTraceExporterInsecure(endpoint string, headers map[string]string) *OtlpHttpTraceExporter {
+func NewOtlpTraceExporterInsecure(
+	endpoint string,
+	headers map[string]string,
+) *OtlpHttpTraceExporter {
 	if endpoint == "" {
 		return nil
 	}
+
 	return &OtlpHttpTraceExporter{
 		endpoint: endpoint,
 		insecure: true,
@@ -10355,7 +10894,10 @@ func (o *OtlpHttpTraceExporter) Name() string {
 	return "otlp-http-traces"
 }
 
-func (o *OtlpHttpTraceExporter) GetSpanExporter(ctx context.Context, res *resource.Resource) (sdktrace.SpanExporter, error) {
+func (o *OtlpHttpTraceExporter) GetSpanExporter(
+	ctx context.Context,
+	res *resource.Resource,
+) (sdktrace.SpanExporter, error) {
 	endpoint := strings.TrimPrefix(o.endpoint, "http://")
 	endpoint = strings.TrimPrefix(endpoint, "https://")
 
@@ -10390,6 +10932,7 @@ func (o *OtlpHttpTraceExporter) Shutdown(ctx context.Context) error {
 			return fmt.Errorf("failed to shutdown OTLP HTTP trace exporter: %w", err)
 		}
 	}
+
 	return nil
 }
 
@@ -10417,7 +10960,10 @@ func (n *NoopTraceExporter) Name() string {
 	return "noop-traces"
 }
 
-func (n *NoopTraceExporter) GetSpanExporter(ctx context.Context, res *resource.Resource) (sdktrace.SpanExporter, error) {
+func (n *NoopTraceExporter) GetSpanExporter(
+	ctx context.Context,
+	res *resource.Resource,
+) (sdktrace.SpanExporter, error) {
 	return &noopSpanExporter{}, nil
 }
 
@@ -10734,7 +11280,6 @@ import (
 	"context"
 	"net/url"
 	"strings"
-	"testapp/application"
 	"testapp/router/routes"
 )
 
@@ -10769,6 +11314,7 @@ func buildCanonicalURL(base, slug string) string {
 		if base == "" {
 			return slug
 		}
+
 		return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(slug, "/")
 	}
 
@@ -10875,13 +11421,23 @@ templ head(data HeadData) {
 	</head>
 }
 
+var headDefaults struct {
+	projectName string
+	baseURL     string
+}
+
+func ConfigureHead(projectName, baseURL string) {
+	headDefaults.projectName = projectName
+	headDefaults.baseURL = baseURL
+}
+
 func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 	data := &HeadData{
-		siteName:       application.ProjectName,
-		Title:          application.ProjectName,
+		siteName:       headDefaults.projectName,
+		Title:          headDefaults.projectName,
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
-		canonical:      application.BaseURL,
+		canonical:      headDefaults.baseURL,
 		twitterCreator: "@mbvisti",
 		faviconBaseURL: "https://media.andurel.com/favicon",
 		MetaType:       "website",
@@ -10914,7 +11470,6 @@ import (
 	"context"
 	"net/url"
 	"strings"
-	"testapp/application"
 	"testapp/router/routes"
 )
 
@@ -10949,6 +11504,7 @@ func buildCanonicalURL(base, slug string) string {
 		if base == "" {
 			return slug
 		}
+
 		return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(slug, "/")
 	}
 
@@ -11427,13 +11983,23 @@ func head(data HeadData) templ.Component {
 	})
 }
 
+var headDefaults struct {
+	projectName string
+	baseURL     string
+}
+
+func ConfigureHead(projectName, baseURL string) {
+	headDefaults.projectName = projectName
+	headDefaults.baseURL = baseURL
+}
+
 func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 	data := &HeadData{
-		siteName:       application.ProjectName,
-		Title:          application.ProjectName,
+		siteName:       headDefaults.projectName,
+		Title:          headDefaults.projectName,
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
-		canonical:      application.BaseURL,
+		canonical:      headDefaults.baseURL,
 		twitterCreator: "@mbvisti",
 		faviconBaseURL: "https://media.andurel.com/favicon",
 		MetaType:       "website",

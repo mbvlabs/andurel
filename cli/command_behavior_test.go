@@ -33,7 +33,9 @@ func TestNoArgGeneratorCommandsShowHelpWithoutCallingGenerators(t *testing.T) {
 			if result.err != nil {
 				t.Fatalf("expected help without error, got %v", result.err)
 			}
-			if len(fake.modelCalls) != 0 || len(fake.modelWithPKCalls) != 0 || len(fake.scaffoldCalls) != 0 || len(fake.controllerCalls) != 0 {
+			if len(fake.modelCalls) != 0 || len(fake.modelWithPKCalls) != 0 ||
+				len(fake.scaffoldCalls) != 0 ||
+				len(fake.controllerCalls) != 0 {
 				t.Fatalf("expected no generator calls, got %#v", fake)
 			}
 		})
@@ -45,10 +47,22 @@ func TestGenerateCommandsRejectTooManyArgs(t *testing.T) {
 		args    []string
 		message string
 	}{
-		{args: []string{"generate", "model", "Post", "Extra"}, message: "model takes exactly 1 argument"},
-		{args: []string{"generate", "scaffold", "Post", "Extra"}, message: "scaffold takes exactly 1 argument"},
-		{args: []string{"generate", "job", "SendEmail", "Extra"}, message: "job takes exactly 1 argument"},
-		{args: []string{"generate", "email", "WelcomeEmail", "Extra"}, message: "email takes exactly 1 argument"},
+		{
+			args:    []string{"generate", "model", "Post", "Extra"},
+			message: "model takes exactly 1 argument",
+		},
+		{
+			args:    []string{"generate", "scaffold", "Post", "Extra"},
+			message: "scaffold takes exactly 1 argument",
+		},
+		{
+			args:    []string{"generate", "job", "SendEmail", "Extra"},
+			message: "job takes exactly 1 argument",
+		},
+		{
+			args:    []string{"generate", "email", "WelcomeEmail", "Extra"},
+			message: "email takes exactly 1 argument",
+		},
 	}
 
 	for _, tt := range tests {
@@ -68,7 +82,15 @@ func TestGenerateModelMapsFlagsToGenerator(t *testing.T) {
 	resetCLITestSeams(t)
 	fake := installFakeGenerator(t)
 
-	result := executeCLITest(t, "generate", "model", "Widget", "--skip-factory", "--table-name", "inventory_widgets")
+	result := executeCLITest(
+		t,
+		"generate",
+		"model",
+		"Widget",
+		"--skip-factory",
+		"--table-name",
+		"inventory_widgets",
+	)
 	if result.err != nil {
 		t.Fatalf("generate model failed: %v", result.err)
 	}
@@ -90,7 +112,17 @@ func TestGenerateModelMapsPrimaryKeyToGenerator(t *testing.T) {
 	resetCLITestSeams(t)
 	fake := installFakeGenerator(t)
 
-	result := executeCLITest(t, "generate", "model", "Warehouse", "--skip-factory", "--table-name", "warehouses", "--primary-key", "code")
+	result := executeCLITest(
+		t,
+		"generate",
+		"model",
+		"Warehouse",
+		"--skip-factory",
+		"--table-name",
+		"warehouses",
+		"--primary-key",
+		"code",
+	)
 	if result.err != nil {
 		t.Fatalf("generate model failed: %v", result.err)
 	}
@@ -113,7 +145,16 @@ func TestGenerateModelMapsModeToGenerator(t *testing.T) {
 	resetCLITestSeams(t)
 	fake := installFakeGenerator(t)
 
-	result := executeCLITest(t, "generate", "model", "AuditLog", "--mode", "read-only", "--primary-key", "event_id")
+	result := executeCLITest(
+		t,
+		"generate",
+		"model",
+		"AuditLog",
+		"--mode",
+		"read-only",
+		"--primary-key",
+		"event_id",
+	)
 	if result.err != nil {
 		t.Fatalf("generate read-only model failed: %v", result.err)
 	}
@@ -126,7 +167,11 @@ func TestGenerateModelMapsModeToGenerator(t *testing.T) {
 		t.Fatalf("model mode calls: expected %#v, got %#v", want, fake.modelModeCalls)
 	}
 	if len(fake.modelCalls) != 0 || len(fake.modelWithPKCalls) != 0 {
-		t.Fatalf("mode generation used legacy calls: models=%#v with_pk=%#v", fake.modelCalls, fake.modelWithPKCalls)
+		t.Fatalf(
+			"mode generation used legacy calls: models=%#v with_pk=%#v",
+			fake.modelCalls,
+			fake.modelWithPKCalls,
+		)
 	}
 }
 
@@ -142,7 +187,18 @@ func TestGenerateModelDryRunUsesGenerationPlan(t *testing.T) {
 	fake := installFakeGenerator(t)
 	fake.modelPlan = &generator.ModelGenerationPlan{}
 
-	result := executeCLITest(t, "generate", "model", "ServerSSHCredential", "--dry-run", "--json", "--mode", "read-only", "--primary-key", "credential_id")
+	result := executeCLITest(
+		t,
+		"generate",
+		"model",
+		"ServerSSHCredential",
+		"--dry-run",
+		"--json",
+		"--mode",
+		"read-only",
+		"--primary-key",
+		"credential_id",
+	)
 	if result.err != nil {
 		t.Fatalf("generate model dry run failed: %v", result.err)
 	}
@@ -156,7 +212,8 @@ func TestGenerateModelDryRunUsesGenerationPlan(t *testing.T) {
 	if !reflect.DeepEqual(fake.modelPlanCalls, want) {
 		t.Fatalf("model plan calls: expected %#v, got %#v", want, fake.modelPlanCalls)
 	}
-	if len(fake.modelCalls) != 0 || len(fake.modelWithPKCalls) != 0 || len(fake.modelModeCalls) != 0 {
+	if len(fake.modelCalls) != 0 || len(fake.modelWithPKCalls) != 0 ||
+		len(fake.modelModeCalls) != 0 {
 		t.Fatalf("dry run invoked writing generation methods: %#v", fake)
 	}
 }
@@ -219,7 +276,11 @@ func TestGenerateModelUpdateMapsYesFlag(t *testing.T) {
 		t.Fatalf("generate model update failed: %v", result.err)
 	}
 	if gotName != "Widget" || !gotAutoApply {
-		t.Fatalf("expected update Widget autoApply=true, got name=%q autoApply=%v", gotName, gotAutoApply)
+		t.Fatalf(
+			"expected update Widget autoApply=true, got name=%q autoApply=%v",
+			gotName,
+			gotAutoApply,
+		)
 	}
 }
 
@@ -227,7 +288,11 @@ func TestGenerateModelRunsFromProjectRoot(t *testing.T) {
 	resetCLITestSeams(t)
 
 	rootDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(rootDir, "go.mod"), []byte("module example.com/app\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(rootDir, "go.mod"),
+		[]byte("module example.com/app\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	nestedDir := filepath.Join(rootDir, "internal", "feature")
@@ -274,7 +339,18 @@ func TestGenerateScaffoldMapsFlagsToGenerator(t *testing.T) {
 	resetCLITestSeams(t)
 	fake := installFakeGenerator(t)
 
-	result := executeCLITest(t, "generate", "scaffold", "Project", "--skip-factory", "--table-name", "work_projects", "--primary-key", "slug", "--inertia")
+	result := executeCLITest(
+		t,
+		"generate",
+		"scaffold",
+		"Project",
+		"--skip-factory",
+		"--table-name",
+		"work_projects",
+		"--primary-key",
+		"slug",
+		"--inertia",
+	)
 	if result.err != nil {
 		t.Fatalf("generate scaffold failed: %v", result.err)
 	}
@@ -438,7 +514,15 @@ func TestGenerateControllerMapsModelName(t *testing.T) {
 		return nil
 	}
 
-	result := executeCLITest(t, "generate", "controller", "Dashboard", "index", "--model-name", "User")
+	result := executeCLITest(
+		t,
+		"generate",
+		"controller",
+		"Dashboard",
+		"index",
+		"--model-name",
+		"User",
+	)
 	if result.err != nil {
 		t.Fatalf("generate controller failed: %v", result.err)
 	}
@@ -473,7 +557,13 @@ func TestGenerateControllerInertiaRefreshesRoutesTSForCustomActions(t *testing.T
 	}
 	generateControllerWithActionsFunc = func(name, modelName string, actions []string, inertia string, isAPI bool) error {
 		if name != "Widget" || modelName != "" || inertia != "react" || isAPI {
-			t.Fatalf("unexpected controller call: name=%q model=%q inertia=%q api=%v", name, modelName, inertia, isAPI)
+			t.Fatalf(
+				"unexpected controller call: name=%q model=%q inertia=%q api=%v",
+				name,
+				modelName,
+				inertia,
+				isAPI,
+			)
 		}
 		if !reflect.DeepEqual(actions, []string{"export"}) {
 			t.Fatalf("unexpected actions: %#v", actions)
@@ -513,7 +603,12 @@ var WidgetExport = routing.NewSimpleRoute(
 		t.Fatalf("generate controller failed: %v\nstderr:\n%s", err, stderr.String())
 	}
 
-	assertCLITestFileContains(t, rootDir, filepath.Join("resources", "js", "routes.ts"), "widgetExport: () => '/widgets/export'")
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		filepath.Join("resources", "js", "routes.ts"),
+		"widgetExport: () => '/widgets/export'",
+	)
 }
 
 func TestGenerateFactoryCommandsMapOptionsAndReportDrift(t *testing.T) {
@@ -532,7 +627,9 @@ func TestGenerateFactoryCommandsMapOptionsAndReportDrift(t *testing.T) {
 	if len(fake.factoryCalls) != 1 {
 		t.Fatalf("factory calls = %#v", fake.factoryCalls)
 	}
-	if fake.factoryCalls[0].name != "Widget" || !fake.factoryCalls[0].opts.Sync || fake.factoryCalls[0].opts.Check || !fake.factoryCalls[0].opts.Diff {
+	if fake.factoryCalls[0].name != "Widget" || !fake.factoryCalls[0].opts.Sync ||
+		fake.factoryCalls[0].opts.Check ||
+		!fake.factoryCalls[0].opts.Diff {
 		t.Fatalf("unexpected factory call: %#v", fake.factoryCalls[0])
 	}
 	if !strings.Contains(result.stdout, "Synced models/factories/widget.go") {
@@ -550,10 +647,12 @@ func TestGenerateFactoryCommandsMapOptionsAndReportDrift(t *testing.T) {
 	if result.err == nil || !strings.Contains(result.err.Error(), "factories are stale") {
 		t.Fatalf("expected stale factory error, got %v", result.err)
 	}
-	if len(fake.factoryCalls) != 1 || !fake.factoryCalls[0].opts.Check || fake.factoryCalls[0].opts.Sync {
+	if len(fake.factoryCalls) != 1 || !fake.factoryCalls[0].opts.Check ||
+		fake.factoryCalls[0].opts.Sync {
 		t.Fatalf("unexpected check call: %#v", fake.factoryCalls)
 	}
-	if !strings.Contains(result.stdout, "Stale models/factories/widget.go") || !strings.Contains(result.stdout, "--- old") {
+	if !strings.Contains(result.stdout, "Stale models/factories/widget.go") ||
+		!strings.Contains(result.stdout, "--- old") {
 		t.Fatalf("expected stale output with diff, got:\n%s", result.stdout)
 	}
 
@@ -645,13 +744,34 @@ var Module = fx.Module(
 		_ = os.Chdir(originalWD)
 	})
 
-	if err := generateControllerWithActions("Dashboard", "", []string{"overview"}, "", false); err != nil {
+	if err := generateControllerWithActions(
+		"Dashboard",
+		"",
+		[]string{"overview"},
+		"",
+		false,
+	); err != nil {
 		t.Fatalf("generate custom controller action: %v", err)
 	}
 
-	assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", "func (d Dashboards) Overview(etx *echo.Context) error")
-	assertCLITestFileContains(t, rootDir, "views/dashboards_resource.templ", "templ DashboardOverview()")
-	assertCLITestFileContains(t, rootDir, "router/routes/dashboards.go", "var DashboardOverview = routing.NewSimpleRoute")
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"controllers/dashboards.go",
+		"func (d Dashboards) Overview(etx *echo.Context) error",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"views/dashboards_resource.templ",
+		"templ DashboardOverview()",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"router/routes/dashboards.go",
+		"var DashboardOverview = routing.NewSimpleRoute",
+	)
 	assertCLITestFileContains(t, rootDir, "router/routes/dashboards.go", "\"dashboards.overview\"")
 	assertCLITestFileContains(t, rootDir, "controllers/controller.go", "NewDashboards,")
 }
@@ -690,19 +810,70 @@ var Module = fx.Module(
 		_ = os.Chdir(originalWD)
 	})
 
-	if err := generateControllerWithActions("admin/Widget", "", []string{"export"}, "", false); err != nil {
+	if err := generateControllerWithActions(
+		"admin/Widget",
+		"",
+		[]string{"export"},
+		"",
+		false,
+	); err != nil {
 		t.Fatalf("generate namespaced custom controller action: %v", err)
 	}
 
-	assertCLITestFileContains(t, rootDir, filepath.Join("controllers", "admin", "widgets.go"), "package admin")
-	assertCLITestFileContains(t, rootDir, filepath.Join("controllers", "admin", "widgets.go"), "func (w Widgets) Export(etx *echo.Context) error")
-	assertCLITestFileContains(t, rootDir, filepath.Join("controllers", "admin", "widgets.go"), "views.AdminWidgetExport()")
-	assertCLITestFileContains(t, rootDir, filepath.Join("views", "admin_widgets_resource.templ"), "templ AdminWidgetExport()")
-	assertCLITestFileContains(t, rootDir, filepath.Join("router", "routes", "admin_widgets.go"), "const AdminWidgetPrefix =")
-	assertCLITestFileContains(t, rootDir, filepath.Join("router", "routes", "admin_widgets.go"), "var AdminWidgetExport = routing.NewSimpleRoute")
-	assertCLITestFileContains(t, rootDir, filepath.Join("router", "routes", "admin_widgets.go"), `"admin.widgets.export"`)
-	assertCLITestFileContains(t, rootDir, filepath.Join("controllers", "controller.go"), `"example.com/app/controllers/admin"`)
-	assertCLITestFileContains(t, rootDir, filepath.Join("controllers", "controller.go"), "admin.NewWidgets,")
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		filepath.Join("controllers", "admin", "widgets.go"),
+		"package admin",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		filepath.Join("controllers", "admin", "widgets.go"),
+		"func (w Widgets) Export(etx *echo.Context) error",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		filepath.Join("controllers", "admin", "widgets.go"),
+		"views.AdminWidgetExport()",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		filepath.Join("views", "admin_widgets_resource.templ"),
+		"templ AdminWidgetExport()",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		filepath.Join("router", "routes", "admin_widgets.go"),
+		"const AdminWidgetPrefix =",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		filepath.Join("router", "routes", "admin_widgets.go"),
+		"var AdminWidgetExport = routing.NewSimpleRoute",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		filepath.Join("router", "routes", "admin_widgets.go"),
+		`"admin.widgets.export"`,
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		filepath.Join("controllers", "controller.go"),
+		`"example.com/app/controllers/admin"`,
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		filepath.Join("controllers", "controller.go"),
+		"admin.NewWidgets,",
+	)
 }
 
 func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFlag(t *testing.T) {
@@ -719,31 +890,55 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 			wantController:     "github.com/mbvlabs/andurel/pkg/hypermedia",
 			unwantedController: "github.com/mbvlabs/andurel/pkg/inertia",
 			wantView:           "views/dashboards_resource.templ",
-			unwantedView:       filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.vue"),
+			unwantedView: filepath.Join(
+				"resources",
+				"js",
+				"Pages",
+				"Dashboard",
+				"Overview.vue",
+			),
 		},
 		{
 			name:               "explicit vue",
 			inertia:            "vue",
 			wantController:     "github.com/mbvlabs/andurel/pkg/inertia",
 			unwantedController: "github.com/mbvlabs/andurel/pkg/hypermedia",
-			wantView:           filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.vue"),
-			unwantedView:       "views/dashboards_resource.templ",
+			wantView: filepath.Join(
+				"resources",
+				"js",
+				"Pages",
+				"Dashboard",
+				"Overview.vue",
+			),
+			unwantedView: "views/dashboards_resource.templ",
 		},
 		{
 			name:               "explicit react",
 			inertia:            "react",
 			wantController:     "github.com/mbvlabs/andurel/pkg/inertia",
 			unwantedController: "github.com/mbvlabs/andurel/pkg/hypermedia",
-			wantView:           filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.tsx"),
-			unwantedView:       "views/dashboards_resource.templ",
+			wantView: filepath.Join(
+				"resources",
+				"js",
+				"Pages",
+				"Dashboard",
+				"Overview.tsx",
+			),
+			unwantedView: "views/dashboards_resource.templ",
 		},
 		{
 			name:               "explicit svelte",
 			inertia:            "svelte",
 			wantController:     "github.com/mbvlabs/andurel/pkg/inertia",
 			unwantedController: "github.com/mbvlabs/andurel/pkg/hypermedia",
-			wantView:           filepath.Join("resources", "js", "Pages", "Dashboard", "Overview.svelte"),
-			unwantedView:       "views/dashboards_resource.templ",
+			wantView: filepath.Join(
+				"resources",
+				"js",
+				"Pages",
+				"Dashboard",
+				"Overview.svelte",
+			),
+			unwantedView: "views/dashboards_resource.templ",
 		},
 	}
 
@@ -774,16 +969,42 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 				_ = os.Chdir(originalWD)
 			})
 
-			if err := generateControllerWithActions("Dashboard", "", []string{"overview"}, tt.inertia, false); err != nil {
+			if err := generateControllerWithActions(
+				"Dashboard",
+				"",
+				[]string{"overview"},
+				tt.inertia,
+				false,
+			); err != nil {
 				t.Fatalf("generate custom controller action: %v", err)
 			}
 
 			assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", tt.wantController)
-			assertCLITestFileNotContains(t, rootDir, "controllers/dashboards.go", tt.unwantedController)
+			assertCLITestFileNotContains(
+				t,
+				rootDir,
+				"controllers/dashboards.go",
+				tt.unwantedController,
+			)
 			if tt.inertia != "" {
-				assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", "renderer *inertia.Renderer")
-				assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", "func NewDashboards(renderer *inertia.Renderer) Dashboards")
-				assertCLITestFileContains(t, rootDir, "controllers/dashboards.go", `return d.renderer.Page(etx, "Dashboard/Overview"`)
+				assertCLITestFileContains(
+					t,
+					rootDir,
+					"controllers/dashboards.go",
+					"renderer *inertia.Renderer",
+				)
+				assertCLITestFileContains(
+					t,
+					rootDir,
+					"controllers/dashboards.go",
+					"func NewDashboards(renderer *inertia.Renderer) Dashboards",
+				)
+				assertCLITestFileContains(
+					t,
+					rootDir,
+					"controllers/dashboards.go",
+					`return d.renderer.Page(etx, "Dashboard/Overview"`,
+				)
 			}
 			assertCLITestFileExists(t, rootDir, tt.wantView)
 			assertCLITestFileMissing(t, rootDir, tt.unwantedView)
@@ -828,7 +1049,13 @@ func NewDashboards(enabled bool) Dashboards {
 	})
 
 	for range 2 {
-		if err := generateControllerWithActions("Dashboard", "", []string{"overview"}, "vue", false); err != nil {
+		if err := generateControllerWithActions(
+			"Dashboard",
+			"",
+			[]string{"overview"},
+			"vue",
+			false,
+		); err != nil {
 			t.Fatalf("generate custom Inertia controller action: %v", err)
 		}
 	}
@@ -865,11 +1092,21 @@ func NewDashboards(enabled bool) Dashboards {
 		{snippet: "func (d Dashboards) Overview", count: 1},
 	} {
 		if count := strings.Count(normalizedController, expected.snippet); count != expected.count {
-			t.Errorf("generated controller contains %q %d times, want %d:\n%s", expected.snippet, count, expected.count, controller)
+			t.Errorf(
+				"generated controller contains %q %d times, want %d:\n%s",
+				expected.snippet,
+				count,
+				expected.count,
+				controller,
+			)
 		}
 	}
 	if count := strings.Count(controller, `"github.com/mbvlabs/andurel/pkg/inertia"`); count != 1 {
-		t.Errorf("generated controller contains the Inertia import %d times, want once:\n%s", count, controller)
+		t.Errorf(
+			"generated controller contains the Inertia import %d times, want once:\n%s",
+			count,
+			controller,
+		)
 	}
 }
 
@@ -889,17 +1126,57 @@ func TestGenerateControllerSingleCRUDActionVueGeneratesInertiaController(t *test
 		_ = os.Chdir(originalWD)
 	})
 
-	if err := generateControllerWithActions("ProjectInquiry", "", []string{"show"}, "vue", false); err != nil {
+	if err := generateControllerWithActions(
+		"ProjectInquiry",
+		"",
+		[]string{"show"},
+		"vue",
+		false,
+	); err != nil {
 		t.Fatalf("generate controller: %v", err)
 	}
 
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "github.com/mbvlabs/andurel/pkg/inertia")
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "renderer *inertia.Renderer")
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return pi.renderer.Page(`)
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `"ProjectInquiry/Show",`)
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "inertia.FromStruct(ProjectInquiryItemProps{")
-	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
-	assertCLITestFileExists(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.vue"))
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		"github.com/mbvlabs/andurel/pkg/inertia",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		"renderer *inertia.Renderer",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		`return pi.renderer.Page(`,
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		`"ProjectInquiry/Show",`,
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		"inertia.FromStruct(ProjectInquiryItemProps{",
+	)
+	assertCLITestFileNotContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		"github.com/mbvlabs/andurel/pkg/hypermedia",
+	)
+	assertCLITestFileExists(
+		t,
+		rootDir,
+		filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.vue"),
+	)
 	assertCLITestFileMissing(t, rootDir, "views/project_inquiries_resource.templ")
 }
 
@@ -919,17 +1196,57 @@ func TestGenerateControllerSingleCRUDActionReactGeneratesInertiaController(t *te
 		_ = os.Chdir(originalWD)
 	})
 
-	if err := generateControllerWithActions("ProjectInquiry", "", []string{"show"}, "react", false); err != nil {
+	if err := generateControllerWithActions(
+		"ProjectInquiry",
+		"",
+		[]string{"show"},
+		"react",
+		false,
+	); err != nil {
 		t.Fatalf("generate controller: %v", err)
 	}
 
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "github.com/mbvlabs/andurel/pkg/inertia")
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "renderer *inertia.Renderer")
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `return pi.renderer.Page(`)
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", `"ProjectInquiry/Show",`)
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "inertia.FromStruct(ProjectInquiryItemProps{")
-	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
-	assertCLITestFileExists(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.tsx"))
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		"github.com/mbvlabs/andurel/pkg/inertia",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		"renderer *inertia.Renderer",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		`return pi.renderer.Page(`,
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		`"ProjectInquiry/Show",`,
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		"inertia.FromStruct(ProjectInquiryItemProps{",
+	)
+	assertCLITestFileNotContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		"github.com/mbvlabs/andurel/pkg/hypermedia",
+	)
+	assertCLITestFileExists(
+		t,
+		rootDir,
+		filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Show.tsx"),
+	)
 	assertCLITestFileMissing(t, rootDir, "views/project_inquiries_resource.templ")
 }
 
@@ -937,7 +1254,11 @@ func setupProjectInquiryCLITestProject(t *testing.T, rootDir string) {
 	t.Helper()
 
 	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
-	writeCLITestFile(t, rootDir, "database/migrations/000100_create_project_inquiries.sql", `-- +goose Up
+	writeCLITestFile(
+		t,
+		rootDir,
+		"database/migrations/000100_create_project_inquiries.sql",
+		`-- +goose Up
 CREATE TABLE project_inquiries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) NOT NULL,
@@ -948,7 +1269,8 @@ CREATE TABLE project_inquiries (
 
 -- +goose Down
 DROP TABLE project_inquiries;
-`)
+`,
+	)
 	writeCLITestFile(t, rootDir, "models/project_inquiry.go", "package models\n")
 	writeCLITestFile(t, rootDir, "bin/templ", "#!/bin/sh\nexit 0\n")
 	if err := os.Chmod(filepath.Join(rootDir, "bin", "templ"), 0o755); err != nil {
@@ -983,17 +1305,52 @@ func TestGenerateControllerSingleCRUDActionInertiaProjectDefaultsToTemplControll
 		_ = os.Chdir(originalWD)
 	})
 
-	if err := generateControllerWithActions("ProjectInquiry", "", []string{"index"}, "", false); err != nil {
+	if err := generateControllerWithActions(
+		"ProjectInquiry",
+		"",
+		[]string{"index"},
+		"",
+		false,
+	); err != nil {
 		t.Fatalf("generate controller: %v", err)
 	}
 
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
-	assertCLITestFileContains(t, rootDir, "controllers/project_inquiries.go", "return hypermedia.RenderPage")
-	assertCLITestFileNotContains(t, rootDir, "controllers/project_inquiries.go", "github.com/mbvlabs/andurel/pkg/inertia")
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		"github.com/mbvlabs/andurel/pkg/hypermedia",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		"return hypermedia.RenderPage",
+	)
+	assertCLITestFileNotContains(
+		t,
+		rootDir,
+		"controllers/project_inquiries.go",
+		"github.com/mbvlabs/andurel/pkg/inertia",
+	)
 	assertCLITestFileExists(t, rootDir, "views/project_inquiries_resource.templ")
-	assertCLITestFileContains(t, rootDir, "views/project_inquiries_resource.templ", "Items []models.ProjectInquiryEntity")
-	assertCLITestFileNotContains(t, rootDir, "views/project_inquiries_resource.templ", "ProjectinquiryEntity")
-	assertCLITestFileMissing(t, rootDir, filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Index.vue"))
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"views/project_inquiries_resource.templ",
+		"Items []models.ProjectInquiryEntity",
+	)
+	assertCLITestFileNotContains(
+		t,
+		rootDir,
+		"views/project_inquiries_resource.templ",
+		"ProjectinquiryEntity",
+	)
+	assertCLITestFileMissing(
+		t,
+		rootDir,
+		filepath.Join("resources", "js", "Pages", "ProjectInquiry", "Index.vue"),
+	)
 }
 
 func TestGenerateControllerAPIWithNamespaceWritesUnderAPIPath(t *testing.T) {
@@ -1034,12 +1391,41 @@ var Module = fx.Module(
 		t.Fatalf("generate controller: %v", err)
 	}
 
-	assertCLITestFileExists(t, rootDir, filepath.Join("controllers", "api", "v1", "project_inquiries.go"))
-	assertCLITestFileContains(t, rootDir, filepath.Join("controllers", "api", "v1", "project_inquiries.go"), "package v1")
-	assertCLITestFileContains(t, rootDir, filepath.Join("controllers", "api", "v1", "project_inquiries.go"), "routes.ApiV1ProjectInquiryCreate.Path()")
-	assertCLITestFileContains(t, rootDir, filepath.Join("router", "routes", "api_v1_project_inquiries.go"), `const ApiV1ProjectInquiryPrefix = "/api/v1/project-inquiries"`)
-	assertCLITestFileContains(t, rootDir, filepath.Join("router", "routes", "api_v1_project_inquiries.go"), `"api.v1.project_inquiries.create"`)
-	assertCLITestFileContains(t, rootDir, "controllers/controller.go", `"example.com/app/controllers/api/v1"`)
+	assertCLITestFileExists(
+		t,
+		rootDir,
+		filepath.Join("controllers", "api", "v1", "project_inquiries.go"),
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		filepath.Join("controllers", "api", "v1", "project_inquiries.go"),
+		"package v1",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		filepath.Join("controllers", "api", "v1", "project_inquiries.go"),
+		"routes.ApiV1ProjectInquiryCreate.Path()",
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		filepath.Join("router", "routes", "api_v1_project_inquiries.go"),
+		`const ApiV1ProjectInquiryPrefix = "/api/v1/project-inquiries"`,
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		filepath.Join("router", "routes", "api_v1_project_inquiries.go"),
+		`"api.v1.project_inquiries.create"`,
+	)
+	assertCLITestFileContains(
+		t,
+		rootDir,
+		"controllers/controller.go",
+		`"example.com/app/controllers/api/v1"`,
+	)
 	assertCLITestFileContains(t, rootDir, "controllers/controller.go", "v1.NewProjectInquiries")
 	assertCLITestFileMissing(t, rootDir, "views/api_v1_project_inquiries_resource.templ")
 	if strings.Contains(stdout, "with views") {
@@ -1075,7 +1461,12 @@ func TestControllerActionClassification(t *testing.T) {
 	if got := crudControllerActions(actions); !reflect.DeepEqual(got, []string{"index", "show"}) {
 		t.Fatalf("crud actions: expected [index show], got %v", got)
 	}
-	if got := nonCRUDControllerActions(actions); !reflect.DeepEqual(got, []string{"export", "archive"}) {
+	if got := nonCRUDControllerActions(
+		actions,
+	); !reflect.DeepEqual(
+		got,
+		[]string{"export", "archive"},
+	) {
 		t.Fatalf("custom actions: expected [export archive], got %v", got)
 	}
 }
@@ -1163,7 +1554,13 @@ func TestFmtCommandMapsFlags(t *testing.T) {
 		t.Fatalf("fmt failed: %v", result.err)
 	}
 	if gotRoot == "" || !gotCheck || !gotSkipTempl || !gotSkipGo {
-		t.Fatalf("unexpected fmt call root=%q check=%v skipTempl=%v skipGo=%v", gotRoot, gotCheck, gotSkipTempl, gotSkipGo)
+		t.Fatalf(
+			"unexpected fmt call root=%q check=%v skipTempl=%v skipGo=%v",
+			gotRoot,
+			gotCheck,
+			gotSkipTempl,
+			gotSkipGo,
+		)
 	}
 }
 

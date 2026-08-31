@@ -22,7 +22,10 @@ type controllerValidationContext struct {
 	ControllerReturnField string
 }
 
-func newControllerValidationContext(resourceName, tableName, namespace string, config *UnifiedConfig) *controllerValidationContext {
+func newControllerValidationContext(
+	resourceName, tableName, namespace string,
+	config *UnifiedConfig,
+) *controllerValidationContext {
 	pluralResourceName := inflection.Plural(resourceName)
 	controllerFieldName := pluralResourceName
 	controllerVarName := naming.ToCamelCase(naming.ToSnakeCase(pluralResourceName))
@@ -30,10 +33,13 @@ func newControllerValidationContext(resourceName, tableName, namespace string, c
 	controllerReturnField := controllerVarName + ","
 
 	return &controllerValidationContext{
-		ResourceName:          resourceName,
-		TableName:             tableName,
-		ControllerPath:        filepath.Join(config.Paths.Controllers, namespace, tableName+".go"),
-		IndividualRoutePath:   filepath.Join("router/routes", namespacePrefix(namespace)+tableName+".go"),
+		ResourceName:   resourceName,
+		TableName:      tableName,
+		ControllerPath: filepath.Join(config.Paths.Controllers, namespace, tableName+".go"),
+		IndividualRoutePath: filepath.Join(
+			"router/routes",
+			namespacePrefix(namespace)+tableName+".go",
+		),
 		ControllerFilePath:    filepath.Join(config.Paths.Controllers, "controller.go"),
 		ControllerFieldName:   controllerFieldName,
 		ControllerVarName:     controllerVarName,

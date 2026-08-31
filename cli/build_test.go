@@ -92,7 +92,10 @@ func TestExtractModuleNameErrors(t *testing.T) {
 	}
 
 	writeTestFile(t, root, "go.mod", "go 1.26\n")
-	if _, err := extractModuleName(root); err == nil || !strings.Contains(err.Error(), "module directive") {
+	if _, err := extractModuleName(
+		root,
+	); err == nil ||
+		!strings.Contains(err.Error(), "module directive") {
 		t.Fatalf("expected missing module directive error, got %v", err)
 	}
 }
@@ -137,7 +140,12 @@ func TestBuildAppRunsExpectedToolchain(t *testing.T) {
 	writeTestFile(t, root, "cmd/app/main.go", "package main\n\nfunc main() {}\n")
 	lock := layout.NewAndurelLock("test")
 	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")
-	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "app", Database: "postgresql", Inertia: "react", JavaScriptRuntime: "pnpm"}
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName:       "app",
+		Database:          "postgresql",
+		Inertia:           "react",
+		JavaScriptRuntime: "pnpm",
+	}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
@@ -151,7 +159,12 @@ func TestBuildAppRunsExpectedToolchain(t *testing.T) {
 	var synced []string
 	syncSingleToolFunc = func(projectRoot, name string, tool *layout.Tool, goos, goarch string) error {
 		synced = append(synced, name+":"+tool.Version)
-		writeExecutable(t, projectRoot, filepath.Join("bin", name), fakeCommandScript(logPath, name))
+		writeExecutable(
+			t,
+			projectRoot,
+			filepath.Join("bin", name),
+			fakeCommandScript(logPath, name),
+		)
 		return nil
 	}
 
@@ -159,7 +172,8 @@ func TestBuildAppRunsExpectedToolchain(t *testing.T) {
 		t.Fatalf("buildApp: %v", err)
 	}
 
-	if len(synced) != 2 || synced[0] != "templ:v0.3.0" || !strings.HasPrefix(synced[1], "tailwindcli:v") {
+	if len(synced) != 2 || synced[0] != "templ:v0.3.0" ||
+		!strings.HasPrefix(synced[1], "tailwindcli:v") {
 		t.Fatalf("synced tools = %#v", synced)
 	}
 	log := readBuildTestFile(t, logPath)
@@ -181,20 +195,33 @@ func TestBuildAppReportsErrors(t *testing.T) {
 	resetCLITestSeams(t)
 
 	root := t.TempDir()
-	if err := buildApp(root, ""); err == nil || !strings.Contains(err.Error(), "failed to read andurel.lock") {
+	if err := buildApp(
+		root,
+		"",
+	); err == nil ||
+		!strings.Contains(err.Error(), "failed to read andurel.lock") {
 		t.Fatalf("expected missing lock error, got %v", err)
 	}
 
 	writeTestFile(t, root, "go.mod", "go 1.26\n")
 	lock := layout.NewAndurelLock("test")
-	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "app", Database: "postgresql", Inertia: "vue", JavaScriptPackageManager: "npm"}
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName:              "app",
+		Database:                 "postgresql",
+		Inertia:                  "vue",
+		JavaScriptPackageManager: "npm",
+	}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
 	lockPath := filepath.Join(root, "andurel.lock")
 	lockContent := readBuildTestFile(t, lockPath)
 	writeTestFile(t, root, "andurel.lock", strings.Replace(lockContent, `"npm"`, `"deno"`, 1))
-	if err := buildApp(root, ""); err == nil || !strings.Contains(err.Error(), "scaffoldConfig.javascriptPackageManager is invalid") {
+	if err := buildApp(
+		root,
+		"",
+	); err == nil ||
+		!strings.Contains(err.Error(), "scaffoldConfig.javascriptPackageManager is invalid") {
 		t.Fatalf("expected invalid lock package manager error, got %v", err)
 	}
 }

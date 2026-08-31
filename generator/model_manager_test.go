@@ -38,7 +38,11 @@ func setupModelManagerTest(t *testing.T) (*ModelManager, func()) {
 	tmpDir := t.TempDir()
 
 	goModContent := "module test\n\ngo 1.21\n"
-	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goModContent), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(tmpDir, "go.mod"),
+		[]byte(goModContent),
+		0o644,
+	); err != nil {
 		t.Fatalf("Failed to write go.mod: %v", err)
 	}
 
@@ -128,7 +132,10 @@ func TestPlanModelReturnsCompleteFormattedOutputWithoutWriting(t *testing.T) {
 	originalWorkingDirectory := root
 	t.Setenv("PATH", "")
 
-	plan, err := manager.PlanModel("ServerSSHCredential", ModelGenerationOptions{PrimaryKeyColumn: "id"})
+	plan, err := manager.PlanModel(
+		"ServerSSHCredential",
+		ModelGenerationOptions{PrimaryKeyColumn: "id"},
+	)
 	if err != nil {
 		t.Fatalf("plan model: %v", err)
 	}
@@ -150,7 +157,11 @@ func TestPlanModelReturnsCompleteFormattedOutputWithoutWriting(t *testing.T) {
 			t.Fatalf("planned paths %#v do not contain %q", gotPaths, want)
 		}
 	}
-	if _, err := os.Stat(filepath.Join(root, "models", "server_ssh_credential.go")); !os.IsNotExist(err) {
+	if _, err := os.Stat(
+		filepath.Join(root, "models", "server_ssh_credential.go"),
+	); !os.IsNotExist(
+		err,
+	) {
 		t.Fatalf("planning wrote model file: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, "models", "factories")); !os.IsNotExist(err) {
@@ -161,14 +172,22 @@ func TestPlanModelReturnsCompleteFormattedOutputWithoutWriting(t *testing.T) {
 		t.Fatalf("read registry after planning: %v", err)
 	}
 	if string(registryAfter) != string(originalRegistry) {
-		t.Fatalf("planning changed registry\nbefore:\n%s\nafter:\n%s", originalRegistry, registryAfter)
+		t.Fatalf(
+			"planning changed registry\nbefore:\n%s\nafter:\n%s",
+			originalRegistry,
+			registryAfter,
+		)
 	}
 	workingDirectoryAfter, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("get working directory after planning: %v", err)
 	}
 	if workingDirectoryAfter != originalWorkingDirectory {
-		t.Fatalf("planning changed working directory from %q to %q", originalWorkingDirectory, workingDirectoryAfter)
+		t.Fatalf(
+			"planning changed working directory from %q to %q",
+			originalWorkingDirectory,
+			workingDirectoryAfter,
+		)
 	}
 }
 
@@ -191,7 +210,10 @@ func TestPlanModelIncludesExistingFactoryContent(t *testing.T) {
 		t.Fatalf("write existing factory: %v", err)
 	}
 
-	plan, err := manager.PlanModel("ServerSSHCredential", ModelGenerationOptions{PrimaryKeyColumn: "id"})
+	plan, err := manager.PlanModel(
+		"ServerSSHCredential",
+		ModelGenerationOptions{PrimaryKeyColumn: "id"},
+	)
 	if err != nil {
 		t.Fatalf("plan model: %v", err)
 	}
@@ -228,7 +250,13 @@ func TestGenerateModelAppliesExactlyThePlannedContent(t *testing.T) {
 		t.Fatalf("plan model: %v", err)
 	}
 
-	if err := manager.GenerateModelWithMode("ServerSSHCredential", "", false, "id", models.ModelModeCRUD); err != nil {
+	if err := manager.GenerateModelWithMode(
+		"ServerSSHCredential",
+		"",
+		false,
+		"id",
+		models.ModelModeCRUD,
+	); err != nil {
 		t.Fatalf("generate model: %v", err)
 	}
 	for _, file := range plan.Files {
@@ -237,7 +265,12 @@ func TestGenerateModelAppliesExactlyThePlannedContent(t *testing.T) {
 			t.Fatalf("read applied file %s: %v", file.Path, err)
 		}
 		if string(content) != file.NewContent {
-			t.Fatalf("applied content differs from plan for %s\nplanned:\n%s\napplied:\n%s", file.Path, file.NewContent, content)
+			t.Fatalf(
+				"applied content differs from plan for %s\nplanned:\n%s\napplied:\n%s",
+				file.Path,
+				file.NewContent,
+				content,
+			)
 		}
 	}
 }
@@ -250,7 +283,11 @@ func TestPlanModelFailureDoesNotApplyPartialChanges(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get working directory: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "models", "model.go"), []byte("package models\n\ntype (\n)\n\nvar (\n)\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, "models", "model.go"),
+		[]byte("package models\n\ntype (\n)\n\nvar (\n)\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("write registry: %v", err)
 	}
 	registryBefore, err := os.ReadFile(filepath.Join(root, "models", "model.go"))
@@ -258,7 +295,10 @@ func TestPlanModelFailureDoesNotApplyPartialChanges(t *testing.T) {
 		t.Fatalf("read registry: %v", err)
 	}
 
-	if _, err := manager.PlanModel("Missing", ModelGenerationOptions{PrimaryKeyColumn: "id"}); err == nil {
+	if _, err := manager.PlanModel(
+		"Missing",
+		ModelGenerationOptions{PrimaryKeyColumn: "id"},
+	); err == nil {
 		t.Fatal("expected planning failure for missing migration table")
 	}
 	if _, err := os.Stat(filepath.Join(root, "models", "missing.go")); !os.IsNotExist(err) {
@@ -269,13 +309,21 @@ func TestPlanModelFailureDoesNotApplyPartialChanges(t *testing.T) {
 		t.Fatalf("read registry after failure: %v", err)
 	}
 	if string(registryAfter) != string(registryBefore) {
-		t.Fatalf("failed plan changed registry\nbefore:\n%s\nafter:\n%s", registryBefore, registryAfter)
+		t.Fatalf(
+			"failed plan changed registry\nbefore:\n%s\nafter:\n%s",
+			registryBefore,
+			registryAfter,
+		)
 	}
 }
 
 func writeModelPlanningFixture(t *testing.T, root string) {
 	t.Helper()
-	if err := os.WriteFile(filepath.Join(root, "models", "model.go"), []byte("package models\n\ntype (\n)\n\nvar (\n)\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, "models", "model.go"),
+		[]byte("package models\n\ntype (\n)\n\nvar (\n)\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("write registry: %v", err)
 	}
 	migration := `-- +goose Up
@@ -290,7 +338,11 @@ CREATE TABLE server_ssh_credentials (
 -- +goose Down
 DROP TABLE server_ssh_credentials;
 `
-	if err := os.WriteFile(filepath.Join(root, "database", "migrations", "001_create_server_ssh_credentials.sql"), []byte(migration), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, "database", "migrations", "001_create_server_ssh_credentials.sql"),
+		[]byte(migration),
+		0o644,
+	); err != nil {
 		t.Fatalf("write migration: %v", err)
 	}
 }

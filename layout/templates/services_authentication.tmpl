@@ -7,10 +7,9 @@ import (
 
 	"fmt"
 
-
+	"{{.ModuleName}}/models"
 
 	"github.com/mbvlabs/andurel/pkg/validation"
-	"{{.ModuleName}}/models"
 )
 
 var (
@@ -22,7 +21,6 @@ type LoginData struct {
 	Email    string
 	Password string
 }
-
 
 func (i Identity) AuthenticateUser(
 	ctx context.Context,
@@ -46,7 +44,6 @@ func (i Identity) AuthenticateUser(
 		return models.UserEntity{}, fmt.Errorf("find user by email: %w", err)
 
 	}
-
 
 	validPassword, needsRehash, err := verifyPasswordWithPeppers(
 		user,

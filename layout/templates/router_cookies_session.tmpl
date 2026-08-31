@@ -3,8 +3,6 @@ package cookies
 import (
 	"errors"
 
-	"{{.ModuleName}}/application"
-
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/v5/session"
@@ -13,8 +11,8 @@ import (
 
 const recoveredSessionContextPrefix = "andurel/recovered-session/"
 
-func RecoverInvalidSessions(c *echo.Context) error {
-	for _, name := range []string{application.AppCookieSessionName, flashSession} {
+func (s *Session) RecoverInvalidSessions(c *echo.Context) error {
+	for _, name := range []string{s.appSessionName, s.flashSessionName} {
 		sess, err := session.Get(name, c)
 		if err == nil {
 			continue
@@ -44,5 +42,6 @@ func getSession(name string, c *echo.Context) (*sessions.Session, error) {
 	if err != nil && c.Get(recoveredSessionContextPrefix+name) != true {
 		return nil, err
 	}
+
 	return sess, nil
 }

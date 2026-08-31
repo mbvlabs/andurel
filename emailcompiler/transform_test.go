@@ -41,7 +41,12 @@ func TestTransformElementInlinesUtilitiesAndAddsCompatibilityAttributes(t *testi
 		},
 	}
 
-	err := transformElement(sourceFile{relative: "email/message.templ"}, element, stylesheet, newResidualStylesheet())
+	err := transformElement(
+		sourceFile{relative: "email/message.templ"},
+		element,
+		stylesheet,
+		newResidualStylesheet(),
+	)
 	if err != nil {
 		t.Fatalf("transformElement() error = %v", err)
 	}
@@ -82,7 +87,12 @@ func TestTransformElementRemovesFullyCompiledClassAttribute(t *testing.T) {
 		},
 	}
 
-	if err := transformElement(sourceFile{}, element, stylesheet, newResidualStylesheet()); err != nil {
+	if err := transformElement(
+		sourceFile{},
+		element,
+		stylesheet,
+		newResidualStylesheet(),
+	); err != nil {
 		t.Fatalf("transformElement() error = %v", err)
 	}
 	if class := constantAttribute(element, "class"); class != nil {
@@ -132,7 +142,11 @@ templ Message() {
 		emptyStylesheet(),
 		newResidualStylesheet(),
 	)
-	if err == nil || !strings.Contains(err.Error(), `email/message.templ:3:13: invalid Tailwind class "sm:[broken"`) {
+	if err == nil ||
+		!strings.Contains(
+			err.Error(),
+			`email/message.templ:3:13: invalid Tailwind class "sm:[broken"`,
+		) {
 		t.Fatalf("transformTemplate() error = %v", err)
 	}
 }
@@ -152,9 +166,30 @@ func TestAddCompatibilityAttributesByElement(t *testing.T) {
 		want map[string]string
 	}{
 		{tag: "body", want: map[string]string{"bgcolor": "#abcdef"}},
-		{tag: "table", want: map[string]string{"bgcolor": "#abcdef", "width": "600", "align": "right"}},
-		{tag: "td", want: map[string]string{"bgcolor": "#abcdef", "width": "600", "height": "40", "align": "right", "valign": "bottom"}},
-		{tag: "th", want: map[string]string{"bgcolor": "#abcdef", "width": "600", "height": "40", "align": "right", "valign": "bottom"}},
+		{
+			tag:  "table",
+			want: map[string]string{"bgcolor": "#abcdef", "width": "600", "align": "right"},
+		},
+		{
+			tag: "td",
+			want: map[string]string{
+				"bgcolor": "#abcdef",
+				"width":   "600",
+				"height":  "40",
+				"align":   "right",
+				"valign":  "bottom",
+			},
+		},
+		{
+			tag: "th",
+			want: map[string]string{
+				"bgcolor": "#abcdef",
+				"width":   "600",
+				"height":  "40",
+				"align":   "right",
+				"valign":  "bottom",
+			},
+		},
 		{tag: "img", want: map[string]string{"width": "600", "height": "40", "valign": "bottom"}},
 		{tag: "div", want: map[string]string{}},
 	}
@@ -207,8 +242,13 @@ func TestTransformElementCompilesResidualVariants(t *testing.T) {
 	t.Parallel()
 
 	element := &parser.Element{
-		Name:       "a",
-		Attributes: []parser.Attribute{newConstantAttribute("class", "sm:hover:bg-red dark:max-md:focus:bg-red active:bg-red semantic")},
+		Name: "a",
+		Attributes: []parser.Attribute{
+			newConstantAttribute(
+				"class",
+				"sm:hover:bg-red dark:max-md:focus:bg-red active:bg-red semantic",
+			),
+		},
 	}
 	stylesheet := &compiledStylesheet{
 		variables: map[string]string{},
@@ -221,7 +261,10 @@ func TestTransformElementCompilesResidualVariants(t *testing.T) {
 	if err := transformElement(sourceFile{}, element, stylesheet, residual); err != nil {
 		t.Fatalf("transformElement() error = %v", err)
 	}
-	if got, want := constantAttribute(element, "class").Value, "andurel-email-sm-hover-bg-red andurel-email-dark-max-md-focus-bg-red andurel-email-active-bg-red semantic"; got != want {
+	if got, want := constantAttribute(
+		element,
+		"class",
+	).Value, "andurel-email-sm-hover-bg-red andurel-email-dark-max-md-focus-bg-red andurel-email-active-bg-red semantic"; got != want {
 		t.Errorf("class = %q, want %q", got, want)
 	}
 
@@ -280,16 +323,23 @@ func TestResidualStylesheetRejectsUnsupportedVariantsAndClassConflicts(t *testin
 			t.Fatalf("first add() error = %v", err)
 		}
 		_, err := residual.add("hover:bg.red", []string{"hover"}, rule, nil)
-		if err == nil || !strings.Contains(err.Error(), `email class "hover:bg.red" conflicts with "hover:bg/red"`) {
+		if err == nil ||
+			!strings.Contains(
+				err.Error(),
+				`email class "hover:bg.red" conflicts with "hover:bg/red"`,
+			) {
 			t.Fatalf("second add() error = %v", err)
 		}
 	})
 
 	t.Run("unresolved declaration", func(t *testing.T) {
 		residual := newResidualStylesheet()
-		unresolved := utilityRule{declarations: []declaration{{name: "color", value: "var(--missing)"}}}
+		unresolved := utilityRule{
+			declarations: []declaration{{name: "color", value: "var(--missing)"}},
+		}
 		_, err := residual.add("hover:brand", []string{"hover"}, unresolved, nil)
-		if err == nil || !strings.Contains(err.Error(), "resolve color: unresolved CSS variable --missing") {
+		if err == nil ||
+			!strings.Contains(err.Error(), "resolve color: unresolved CSS variable --missing") {
 			t.Fatalf("add() error = %v", err)
 		}
 	})
@@ -343,8 +393,11 @@ func TestTransformElementReportsActionableErrors(t *testing.T) {
 		{
 			name:       "unresolved variable",
 			classValue: "brand",
-			stylesheet: stylesheetWithRule("brand", declaration{name: "color", value: "var(--missing)"}),
-			want:       "email/message.templ:7:11: resolve color: unresolved CSS variable --missing",
+			stylesheet: stylesheetWithRule(
+				"brand",
+				declaration{name: "color", value: "var(--missing)"},
+			),
+			want: "email/message.templ:7:11: resolve color: unresolved CSS variable --missing",
 		},
 	}
 
@@ -360,7 +413,12 @@ func TestTransformElementReportsActionableErrors(t *testing.T) {
 				element.Attributes = append(element.Attributes, style)
 			}
 
-			err := transformElement(sourceFile{relative: "email/message.templ"}, element, test.stylesheet, newResidualStylesheet())
+			err := transformElement(
+				sourceFile{relative: "email/message.templ"},
+				element,
+				test.stylesheet,
+				newResidualStylesheet(),
+			)
 			if err == nil || err.Error() != test.want {
 				t.Fatalf("transformElement() error = %v, want %q", err, test.want)
 			}
@@ -395,7 +453,11 @@ templ Second() {
 		}
 		style, ok := head.Children[len(head.Children)-1].(*parser.RawElement)
 		if !ok {
-			t.Fatalf("template %d last head child = %T, want *parser.RawElement", index, head.Children[len(head.Children)-1])
+			t.Fatalf(
+				"template %d last head child = %T, want *parser.RawElement",
+				index,
+				head.Children[len(head.Children)-1],
+			)
 		}
 		if style.Name != "style" || style.Contents != "\n"+css {
 			t.Errorf("template %d style = %#v", index, style)

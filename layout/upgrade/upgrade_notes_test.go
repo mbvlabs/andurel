@@ -105,7 +105,10 @@ func TestInertiaRendererManualActionVersionGate(t *testing.T) {
 				}
 			}
 			if strings.Contains(action.Instructions, "{{.ModuleName}}") {
-				t.Errorf("manual action contains an unresolved module placeholder:\n%s", action.Instructions)
+				t.Errorf(
+					"manual action contains an unresolved module placeholder:\n%s",
+					action.Instructions,
+				)
 			}
 		})
 	}

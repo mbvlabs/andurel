@@ -12,7 +12,11 @@ import (
 
 func TestWithGenerateCleanupRunsOnlyOnGenerationFailure(t *testing.T) {
 	rootDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(rootDir, "go.mod"), []byte("module test"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(rootDir, "go.mod"),
+		[]byte("module test"),
+		0o644,
+	); err != nil {
 		t.Fatalf("failed to write go.mod: %v", err)
 	}
 
@@ -63,7 +67,11 @@ func TestWithGenerateCleanupRunsOnlyOnGenerationFailure(t *testing.T) {
 func TestCreatedFileTracker_CleanupCreatedFiles(t *testing.T) {
 	rootDir := t.TempDir()
 
-	if err := os.WriteFile(filepath.Join(rootDir, "go.mod"), []byte("module test"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(rootDir, "go.mod"),
+		[]byte("module test"),
+		0o644,
+	); err != nil {
 		t.Fatalf("failed to write go.mod: %v", err)
 	}
 

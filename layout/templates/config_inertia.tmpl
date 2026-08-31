@@ -1,46 +1,131 @@
 package config
 
-import "time"
+import (
+	"io/fs"
+	"time"
 
-// InertiaCfg contains Inertia and SSR settings.
+	"{{.ModuleName}}/assets"
+	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/views"
+	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+const (
+	DefaultInertiaContainerID         = "app"
+	DefaultInertiaViteDevURL          = "http://localhost:5173/assets/dist"
+	DefaultInertiaProtocolDebug       = false
+	DefaultInertiaSSRMode             = "disabled"
+	DefaultInertiaSSRRuntime          = "node"
+	DefaultInertiaSSRBundle           = "assets/dist/ssr/ssr.js"
+	DefaultInertiaSSRURL              = "http://127.0.0.1:13714"
+	DefaultInertiaSSRStartupTimeout   = 10 * time.Second
+	DefaultInertiaSSRRequestTimeout   = 2 * time.Second
+	DefaultInertiaSSRMaxResponseBytes = int64(2097152)
+	DefaultInertiaSSRFailFast         = false
+{{- if eq .Inertia "react"}}
+	DefaultInertiaEntryPoint          = "resources/js/app.tsx"
+{{- else}}
+	DefaultInertiaEntryPoint          = "resources/js/app.ts"
+{{- end}}
+)
+
+var (
+	DefaultInertiaRoot         = views.Root
+	DefaultInertiaAssetFS      = assets.Files
+	DefaultInertiaBuildPathURL = routes.ViteBuild.Path()
+)
+
 type InertiaCfg struct {
-	ContainerID         string
-	ViteDevURL          string
-	ProtocolDebug       bool
-	SSRMode             string
-	SSRRuntime          string
-	SSRBundle           string
-	SSRURL              string
-	SSRStartupTimeout   time.Duration
-	SSRRequestTimeout   time.Duration
-	SSRMaxResponseBytes int64
-	SSRFailFast         bool
+	ContainerID         string `env:"INERTIA_CONTAINER_ID"`
+	ViteDevURL          string `env:"INERTIA_VITE_DEV_URL"`
+	ProtocolDebug       bool   `env:"INERTIA_PROTOCOL_DEBUG"`
+	SSRMode             string `env:"INERTIA_SSR_MODE"`
+	SSRRuntime          string `env:"INERTIA_SSR_RUNTIME"`
+	SSRBundle           string `env:"INERTIA_SSR_BUNDLE"`
+	SSRURL              string `env:"INERTIA_SSR_URL"`
+	SSRStartupTimeout   time.Duration `env:"INERTIA_SSR_STARTUP_TIMEOUT"`
+	SSRRequestTimeout   time.Duration `env:"INERTIA_SSR_REQUEST_TIMEOUT"`
+	SSRMaxResponseBytes int64         `env:"INERTIA_SSR_MAX_RESPONSE_BYTES"`
+	SSRFailFast         bool          `env:"INERTIA_SSR_FAIL_FAST"`
+	Root                inertia.RootFunc
+	AssetFS             fs.FS
+	BuildPathURL        string
+	EntryPoint          string
 }
 
 func NewInertiaCfg() InertiaCfg {
-	return InertiaCfg{
-		ContainerID:         "app",
-		ViteDevURL:          "http://localhost:5173/assets/dist",
-		ProtocolDebug:       false,
-		SSRMode:             "disabled",
-		SSRRuntime:          "node",
-		SSRBundle:           "assets/dist/ssr/ssr.js",
-		SSRURL:              "http://127.0.0.1:13714",
-		SSRStartupTimeout:   10 * time.Second,
-		SSRRequestTimeout:   2 * time.Second,
-		SSRMaxResponseBytes: 2097152,
-		SSRFailFast:         false,
+	inertiaCfg := InertiaCfg{
+		ContainerID:         DefaultInertiaContainerID,
+		ViteDevURL:          DefaultInertiaViteDevURL,
+		ProtocolDebug:       DefaultInertiaProtocolDebug,
+		SSRMode:             DefaultInertiaSSRMode,
+		SSRRuntime:          DefaultInertiaSSRRuntime,
+		SSRBundle:           DefaultInertiaSSRBundle,
+		SSRURL:              DefaultInertiaSSRURL,
+		SSRStartupTimeout:   DefaultInertiaSSRStartupTimeout,
+		SSRRequestTimeout:   DefaultInertiaSSRRequestTimeout,
+		SSRMaxResponseBytes: DefaultInertiaSSRMaxResponseBytes,
+		SSRFailFast:         DefaultInertiaSSRFailFast,
+		Root:                DefaultInertiaRoot,
+		AssetFS:             DefaultInertiaAssetFS,
+		BuildPathURL:        DefaultInertiaBuildPathURL,
+		EntryPoint:          DefaultInertiaEntryPoint,
 	}
+
+	if err := env.Parse(&inertiaCfg); err != nil {
+		panic(err)
+	}
+
+	if err := validation.Validate(&inertiaCfg); err != nil {
+		panic(err)
+	}
+
+	return inertiaCfg
 }
 
-func (c *InertiaCfg) WithContainerID(id string)                       { c.ContainerID = id }
-func (c *InertiaCfg) WithViteDevURL(url string)                       { c.ViteDevURL = url }
-func (c *InertiaCfg) WithProtocolDebug(debug bool)                    { c.ProtocolDebug = debug }
-func (c *InertiaCfg) WithSSRMode(mode string)                         { c.SSRMode = mode }
-func (c *InertiaCfg) WithSSRRuntime(runtime string)                   { c.SSRRuntime = runtime }
-func (c *InertiaCfg) WithSSRBundle(bundle string)                     { c.SSRBundle = bundle }
-func (c *InertiaCfg) WithSSRURL(url string)                           { c.SSRURL = url }
-func (c *InertiaCfg) WithSSRStartupTimeout(timeout time.Duration)     { c.SSRStartupTimeout = timeout }
-func (c *InertiaCfg) WithSSRRequestTimeout(timeout time.Duration)     { c.SSRRequestTimeout = timeout }
-func (c *InertiaCfg) WithSSRMaxResponseBytes(size int64)              { c.SSRMaxResponseBytes = size }
-func (c *InertiaCfg) WithSSRFailFast(fail bool)                       { c.SSRFailFast = fail }
+func (c InertiaCfg) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("ContainerID", c.ContainerID)
+	b.Required("ViteDevURL", c.ViteDevURL)
+	b.Required("SSRMode", c.SSRMode)
+	b.Required("SSRRuntime", c.SSRRuntime)
+	b.Required("SSRBundle", c.SSRBundle)
+	b.Required("SSRURL", c.SSRURL)
+	b.Required("BuildPathURL", c.BuildPathURL)
+	b.Required("EntryPoint", c.EntryPoint)
+	b.MinInt("SSRMaxResponseBytes", c.SSRMaxResponseBytes, 1)
+
+	return b.Err()
+}
+
+func (c InertiaCfg) GetRoot() inertia.RootFunc { return c.Root }
+
+func (c InertiaCfg) GetAssetFS() fs.FS { return c.AssetFS }
+
+func (c InertiaCfg) GetBuildPathURL() string { return c.BuildPathURL }
+
+func (c InertiaCfg) GetEntryPoint() string { return c.EntryPoint }
+
+func (c InertiaCfg) GetContainerID() string { return c.ContainerID }
+
+func (c InertiaCfg) GetViteDevURL() string { return c.ViteDevURL }
+
+func (c InertiaCfg) GetProtocolDebug() bool { return c.ProtocolDebug }
+
+func (c InertiaCfg) GetSSRMode() string { return c.SSRMode }
+
+func (c InertiaCfg) GetSSRRuntime() string { return c.SSRRuntime }
+
+func (c InertiaCfg) GetSSRBundle() string { return c.SSRBundle }
+
+func (c InertiaCfg) GetSSRURL() string { return c.SSRURL }
+
+func (c InertiaCfg) GetSSRStartupTimeout() time.Duration { return c.SSRStartupTimeout }
+
+func (c InertiaCfg) GetSSRRequestTimeout() time.Duration { return c.SSRRequestTimeout }
+
+func (c InertiaCfg) GetSSRMaxResponseBytes() int64 { return c.SSRMaxResponseBytes }
+
+func (c InertiaCfg) GetSSRFailFast() bool { return c.SSRFailFast }

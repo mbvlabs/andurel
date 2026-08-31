@@ -89,7 +89,10 @@ type ManagedRuntime struct {
 }
 
 // NewManagedRuntime constructs a managed runtime without starting it.
-func NewManagedRuntime(config ManagedConfig, options ...HTTPRendererOption) (*ManagedRuntime, error) {
+func NewManagedRuntime(
+	config ManagedConfig,
+	options ...HTTPRendererOption,
+) (*ManagedRuntime, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
@@ -183,7 +186,10 @@ func (runtime *ManagedRuntime) Start(ctx context.Context) error {
 		}
 		select {
 		case waitErr := <-done:
-			return fmt.Errorf("inertia SSR runtime exited during startup: %w", normalizeWaitError(waitErr))
+			return fmt.Errorf(
+				"inertia SSR runtime exited during startup: %w",
+				normalizeWaitError(waitErr),
+			)
 		case <-ticker.C:
 		case <-startupCtx.Done():
 			_ = command.Process.Kill()
@@ -252,10 +258,18 @@ func (runtime *ManagedRuntime) validateVersion(ctx context.Context, executable s
 	}
 	var major int
 	if _, err := fmt.Sscanf(strings.TrimSpace(string(output)), "v%d.", &major); err != nil {
-		return fmt.Errorf("inspect SSR runtime version %q: %w", strings.TrimSpace(string(output)), err)
+		return fmt.Errorf(
+			"inspect SSR runtime version %q: %w",
+			strings.TrimSpace(string(output)),
+			err,
+		)
 	}
 	if major < runtime.config.MinimumMajor {
-		return fmt.Errorf("inertia SSR requires runtime major %d or newer (found %q)", runtime.config.MinimumMajor, strings.TrimSpace(string(output)))
+		return fmt.Errorf(
+			"inertia SSR requires runtime major %d or newer (found %q)",
+			runtime.config.MinimumMajor,
+			strings.TrimSpace(string(output)),
+		)
 	}
 	return nil
 }

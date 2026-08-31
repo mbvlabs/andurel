@@ -238,7 +238,11 @@ CSS files. Run this from your project root.`,
 				if err := compileEmailProject(watchContext, rootDir); err != nil {
 					return err
 				}
-				if err := watchEmailProject(watchContext, rootDir, filepath.Join(rootDir, "bin", "tailwindcli")); err != nil {
+				if err := watchEmailProject(
+					watchContext,
+					rootDir,
+					filepath.Join(rootDir, "bin", "tailwindcli"),
+				); err != nil {
 					return err
 				}
 			}
@@ -299,7 +303,12 @@ func checkBinaries(rootDir string) error {
 
 	binPath := filepath.Join(rootDir, "bin", "shadowfax")
 	if _, err := os.Stat(binPath); err != nil {
-		return output.NewError(output.CodeMissingTool, "bin/shadowfax not found", output.ExitDependency, "Run 'andurel tool sync' to download it.")
+		return output.NewError(
+			output.CodeMissingTool,
+			"bin/shadowfax not found",
+			output.ExitDependency,
+			"Run 'andurel tool sync' to download it.",
+		)
 	}
 
 	return nil

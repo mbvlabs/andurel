@@ -58,6 +58,7 @@ func GenerateSecureToken() (string, error) {
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
+
 	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b), nil
 }
 
@@ -78,8 +79,10 @@ func (t token) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (Tok
 		if errors.Is(err, sql.ErrNoRows) {
 			return TokenEntity{}, ErrNotFound
 		}
+
 		return TokenEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -102,8 +105,10 @@ func (t token) FindByScopeAndHash(
 		if errors.Is(err, sql.ErrNoRows) {
 			return TokenEntity{}, ErrNotFound
 		}
+
 		return TokenEntity{}, err
 	}
+
 	return entity, nil
 }
 
@@ -216,6 +221,7 @@ func (t token) All(ctx context.Context, db storage.Executor) ([]TokenEntity, err
 	if err != nil {
 		return nil, err
 	}
+
 	return entities, nil
 }
 

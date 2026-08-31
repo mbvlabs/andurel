@@ -135,7 +135,12 @@ func TestSkillInstallHarnessFlagSupportsMultipleSelections(t *testing.T) {
 	}
 	for index, harness := range want {
 		if envelope.Data.Installations[index].Harness != harness {
-			t.Fatalf("installation %d = %#v, want harness %q", index, envelope.Data.Installations[index], harness)
+			t.Fatalf(
+				"installation %d = %#v, want harness %q",
+				index,
+				envelope.Data.Installations[index],
+				harness,
+			)
 		}
 		assertInstalledSkill(t, result.rootDir, harnessSkillDirectories[harness])
 	}
@@ -190,7 +195,11 @@ func runSkillCommandTest(t *testing.T, input string, args ...string) skillComman
 	resetCLITestSeams(t)
 
 	rootDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(rootDir, "go.mod"), []byte("module example.com/app\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(rootDir, "go.mod"),
+		[]byte("module example.com/app\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	findGoModRoot = func() (string, error) { return rootDir, nil }
@@ -214,7 +223,9 @@ func runSkillCommandTest(t *testing.T, input string, args ...string) skillComman
 func assertInstalledSkill(t *testing.T, rootDir, directory string) {
 	t.Helper()
 	if err := skills.WalkAndurelSkillFiles(func(path string, expected []byte) error {
-		installed, err := os.ReadFile(filepath.Join(rootDir, filepath.FromSlash(directory), filepath.FromSlash(path)))
+		installed, err := os.ReadFile(
+			filepath.Join(rootDir, filepath.FromSlash(directory), filepath.FromSlash(path)),
+		)
 		if err != nil {
 			return err
 		}

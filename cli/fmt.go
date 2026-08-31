@@ -177,14 +177,17 @@ func collectGoFiles(rootDir string) ([]string, error) {
 }
 
 func skipGoPackageDir(name string) bool {
-	return name == "vendor" || name == "testdata" || strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")
+	return name == "vendor" || name == "testdata" || strings.HasPrefix(name, ".") ||
+		strings.HasPrefix(name, "_")
 }
 
 func runTemplFmt(rootDir string, checkMode bool) error {
 	templBin := filepath.Join(rootDir, "bin", "templ")
 	if _, err := os.Stat(templBin); err != nil {
 		if os.IsNotExist(err) {
-			fmt.Println("templ binary not found at bin/templ, skipping templ fmt\nRun 'andurel tool sync' to download it")
+			fmt.Println(
+				"templ binary not found at bin/templ, skipping templ fmt\nRun 'andurel tool sync' to download it",
+			)
 			return nil
 		}
 		return err

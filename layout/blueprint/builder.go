@@ -262,7 +262,10 @@ func (b *Builder) AddRouteCollection(routes ...string) *Builder {
 // and middleware is optional middleware to apply.
 // If a registration function is currently being built (via StartRouteRegistrationFunction),
 // the registration is added to that function. Otherwise, it's added to the main registrations.
-func (b *Builder) AddRouteRegistration(method, routeVariable, controllerRef string, middleware ...string) *Builder {
+func (b *Builder) AddRouteRegistration(
+	method, routeVariable, controllerRef string,
+	middleware ...string,
+) *Builder {
 	if b == nil || b.bp == nil {
 		return b
 	}
@@ -295,7 +298,10 @@ func (b *Builder) AddRouteRegistration(method, routeVariable, controllerRef stri
 // StartRouteRegistrationFunction begins building a registration function.
 // All subsequent AddRouteRegistration calls will be added to this function
 // until EndRouteRegistrationFunction is called.
-func (b *Builder) StartRouteRegistrationFunction(functionName string, controllerVarName string) *Builder {
+func (b *Builder) StartRouteRegistrationFunction(
+	functionName string,
+	controllerVarName string,
+) *Builder {
 	if b == nil || b.bp == nil {
 		return b
 	}
@@ -674,12 +680,20 @@ func (b *Builder) Merge(other *Blueprint) error {
 		b.AddRouteCollection(collection.Routes...)
 	}
 	for _, registration := range other.Routes.Registrations {
-		b.AddRouteRegistration(registration.Method, registration.RouteVariable, registration.HandlerRef, registration.Middleware...)
+		b.AddRouteRegistration(
+			registration.Method,
+			registration.RouteVariable,
+			registration.HandlerRef,
+			registration.Middleware...)
 	}
 	for _, regFunc := range other.Routes.RegistrationFunctions {
 		b.StartRouteRegistrationFunction(regFunc.FunctionName, regFunc.ControllerVarName)
 		for _, registration := range regFunc.Registrations {
-			b.AddRouteRegistration(registration.Method, registration.RouteVariable, registration.HandlerRef, registration.Middleware...)
+			b.AddRouteRegistration(
+				registration.Method,
+				registration.RouteVariable,
+				registration.HandlerRef,
+				registration.Middleware...)
 		}
 		b.EndRouteRegistrationFunction()
 	}

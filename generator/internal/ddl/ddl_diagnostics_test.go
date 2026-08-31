@@ -24,7 +24,9 @@ func TestDDLDiagnosticFixturesAreDeterministicAndSafe(t *testing.T) {
 		{name: "ambiguous", directory: "ambiguous_schema_changes", wantError: "unsupported schema-changing DDL"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			paths, err := filepath.Glob(filepath.Join("testdata", "ddl_diagnostics", test.directory, "*.sql"))
+			paths, err := filepath.Glob(
+				filepath.Join("testdata", "ddl_diagnostics", test.directory, "*.sql"),
+			)
 			if err != nil {
 				t.Fatalf("glob fixtures: %v", err)
 			}
@@ -48,7 +50,12 @@ func TestDDLDiagnosticFixturesAreDeterministicAndSafe(t *testing.T) {
 					t.Fatalf("fixture %s error = %v", path, firstErr)
 				}
 				if secondErr == nil || secondErr.Error() != firstErr.Error() {
-					t.Fatalf("fixture %s diagnostic is not deterministic: %v then %v", path, firstErr, secondErr)
+					t.Fatalf(
+						"fixture %s diagnostic is not deterministic: %v then %v",
+						path,
+						firstErr,
+						secondErr,
+					)
 				}
 			}
 		})

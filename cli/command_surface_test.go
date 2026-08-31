@@ -29,7 +29,16 @@ func TestDatabaseConnectionToolCommands(t *testing.T) {
 		"DB_SSL_MODE=disable",
 		"",
 	}, "\n"))
-	unsetEnvForTest(t, "DB_KIND", "DB_PORT", "DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_SSL_MODE")
+	unsetEnvForTest(
+		t,
+		"DB_KIND",
+		"DB_PORT",
+		"DB_HOST",
+		"DB_NAME",
+		"DB_USER",
+		"DB_PASSWORD",
+		"DB_SSL_MODE",
+	)
 
 	originalFindGoModRoot := findGoModRoot
 	findGoModRoot = func() (string, error) { return root, nil }
@@ -37,16 +46,27 @@ func TestDatabaseConnectionToolCommands(t *testing.T) {
 		findGoModRoot = originalFindGoModRoot
 	})
 
-	if err := executeStandaloneCommand(newConsoleCommand()); err == nil || !strings.Contains(err.Error(), "usql binary not found") {
+	if err := executeStandaloneCommand(
+		newConsoleCommand(),
+	); err == nil ||
+		!strings.Contains(err.Error(), "usql binary not found") {
 		t.Fatalf("expected missing usql error, got %v", err)
 	}
 	writeExecutable(t, root, "bin/usql", "#!/bin/sh\nprintf '%s\\n' \"$@\" > usql.args\n")
 	if err := executeStandaloneCommand(newConsoleCommand()); err != nil {
 		t.Fatalf("console command: %v", err)
 	}
-	assertTestFileContains(t, root, "usql.args", "postgres://app_user:secret@127.0.0.1:5432/app_db?sslmode=disable")
+	assertTestFileContains(
+		t,
+		root,
+		"usql.args",
+		"postgres://app_user:secret@127.0.0.1:5432/app_db?sslmode=disable",
+	)
 
-	if err := executeStandaloneCommand(newDblabCommand()); err == nil || !strings.Contains(err.Error(), "dblab binary not found") {
+	if err := executeStandaloneCommand(
+		newDblabCommand(),
+	); err == nil ||
+		!strings.Contains(err.Error(), "dblab binary not found") {
 		t.Fatalf("expected missing dblab error, got %v", err)
 	}
 	writeExecutable(t, root, "bin/dblab", "#!/bin/sh\nprintf '%s\\n' \"$@\" > dblab.args\n")
@@ -54,13 +74,27 @@ func TestDatabaseConnectionToolCommands(t *testing.T) {
 		t.Fatalf("dblab command: %v", err)
 	}
 	assertTestFileContains(t, root, "dblab.args", "--url")
-	assertTestFileContains(t, root, "dblab.args", "postgres://app_user:secret@127.0.0.1:5432/app_db?sslmode=disable")
+	assertTestFileContains(
+		t,
+		root,
+		"dblab.args",
+		"postgres://app_user:secret@127.0.0.1:5432/app_db?sslmode=disable",
+	)
 }
 
 func TestDatabaseConnectionToolCommandsReportEnvProblems(t *testing.T) {
 	root := t.TempDir()
 	writeGoModule(t, root)
-	unsetEnvForTest(t, "DB_KIND", "DB_PORT", "DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_SSL_MODE")
+	unsetEnvForTest(
+		t,
+		"DB_KIND",
+		"DB_PORT",
+		"DB_HOST",
+		"DB_NAME",
+		"DB_USER",
+		"DB_PASSWORD",
+		"DB_SSL_MODE",
+	)
 
 	originalFindGoModRoot := findGoModRoot
 	findGoModRoot = func() (string, error) { return root, nil }
@@ -68,12 +102,18 @@ func TestDatabaseConnectionToolCommandsReportEnvProblems(t *testing.T) {
 		findGoModRoot = originalFindGoModRoot
 	})
 
-	if err := executeStandaloneCommand(newConsoleCommand()); err == nil || !strings.Contains(err.Error(), ".env file not found") {
+	if err := executeStandaloneCommand(
+		newConsoleCommand(),
+	); err == nil ||
+		!strings.Contains(err.Error(), ".env file not found") {
 		t.Fatalf("expected missing .env error, got %v", err)
 	}
 
 	writeTestFile(t, root, ".env", "DB_KIND=postgres\n")
-	if err := executeStandaloneCommand(newDblabCommand()); err == nil || !strings.Contains(err.Error(), "error parsing environment variables") {
+	if err := executeStandaloneCommand(
+		newDblabCommand(),
+	); err == nil ||
+		!strings.Contains(err.Error(), "error parsing environment variables") {
 		t.Fatalf("expected env parse error, got %v", err)
 	}
 }
@@ -88,7 +128,10 @@ func TestMailpitCommandRunsDefaultBinary(t *testing.T) {
 		findGoModRoot = originalFindGoModRoot
 	})
 
-	if err := executeStandaloneCommand(newMailpitCommand()); err == nil || !strings.Contains(err.Error(), "mailpit binary not found") {
+	if err := executeStandaloneCommand(
+		newMailpitCommand(),
+	); err == nil ||
+		!strings.Contains(err.Error(), "mailpit binary not found") {
 		t.Fatalf("expected missing mailpit error, got %v", err)
 	}
 
@@ -159,7 +202,11 @@ func TestFormatterHelpers(t *testing.T) {
 
 	pathDir := t.TempDir()
 	t.Setenv("PATH", pathDir)
-	if err := runGolines(root, true); err == nil || !strings.Contains(err.Error(), "golines not found") {
+	if err := runGolines(
+		root,
+		true,
+	); err == nil ||
+		!strings.Contains(err.Error(), "golines not found") {
 		t.Fatalf("missing golines should fail check mode, got: %v", err)
 	}
 
@@ -259,7 +306,14 @@ func TestSyncSingleToolVerifiesVersionBeforeAtomicReplacement(t *testing.T) {
 	}
 
 	tool := validTestTool("tool", "v2.0.0")
-	if err := syncSingleTool(root, "tool", tool, "linux", "amd64"); err == nil || !strings.Contains(err.Error(), "does not match") {
+	if err := syncSingleTool(
+		root,
+		"tool",
+		tool,
+		"linux",
+		"amd64",
+	); err == nil ||
+		!strings.Contains(err.Error(), "does not match") {
 		t.Fatalf("version mismatch error = %v", err)
 	}
 	assertTestFileContains(t, root, "bin/tool", "v1.0.0")
@@ -325,7 +379,12 @@ func TestSetVersionAddsManagedToolsAndRejectsInvalidInput(t *testing.T) {
 	if err := setVersion(root, "tailwindcli", ""); err == nil {
 		t.Fatalf("expected empty version error")
 	}
-	if err := setVersion(root, "unknown-tool", "1.0.0"); err == nil || !strings.Contains(err.Error(), "unknown tool") {
+	if err := setVersion(
+		root,
+		"unknown-tool",
+		"1.0.0",
+	); err == nil ||
+		!strings.Contains(err.Error(), "unknown tool") {
 		t.Fatalf("expected unknown tool error, got %v", err)
 	}
 }
@@ -345,14 +404,25 @@ func TestParseRepeatedChecksumArguments(t *testing.T) {
 		want string
 	}{
 		{name: "missing platform", args: testChecksumArguments()[:3], want: "missing --sha256"},
-		{name: "duplicate", args: append(testChecksumArguments(), testChecksumArguments()[0]), want: "duplicate"},
-		{name: "unsupported", args: []string{"freebsd/amd64=" + strings.Repeat("1", 64)}, want: "unsupported"},
+		{
+			name: "duplicate",
+			args: append(testChecksumArguments(), testChecksumArguments()[0]),
+			want: "duplicate",
+		},
+		{
+			name: "unsupported",
+			args: []string{"freebsd/amd64=" + strings.Repeat("1", 64)},
+			want: "unsupported",
+		},
 		{name: "malformed assignment", args: []string{"linux/amd64"}, want: "expected os/arch"},
 		{name: "malformed digest", args: []string{"linux/amd64=xyz"}, want: "invalid SHA-256"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := parseChecksumArguments(test.args); err == nil || !strings.Contains(err.Error(), test.want) {
+			if _, err := parseChecksumArguments(
+				test.args,
+			); err == nil ||
+				!strings.Contains(err.Error(), test.want) {
 				t.Fatalf("error = %v, want substring %q", err, test.want)
 			}
 		})
@@ -371,7 +441,12 @@ func TestCustomToolVersionRequiresChecksumsBeforeMutation(t *testing.T) {
 		t.Fatal("sync must not run without complete checksums")
 		return nil
 	}
-	if err := setVersion(root, "tailwindcli", "v4.1.0"); err == nil || !strings.Contains(err.Error(), "requires four repeated") {
+	if err := setVersion(
+		root,
+		"tailwindcli",
+		"v4.1.0",
+	); err == nil ||
+		!strings.Contains(err.Error(), "requires four repeated") {
 		t.Fatalf("missing checksum error = %v", err)
 	}
 	persisted, err := layout.ReadLockFile(root)
@@ -448,10 +523,24 @@ func TestSetVersionCommitsLockAndBinaryTogether(t *testing.T) {
 func TestDownloadFromLockToolRejectsMissingAndUnsupportedPlatformDigests(t *testing.T) {
 	tool := validTestTool("tool", "v1.2.3")
 	delete(tool.Download.SHA256, "linux/arm64")
-	if err := downloadFromLockTool("tool", tool, "linux", "arm64", filepath.Join(t.TempDir(), "tool")); err == nil || !strings.Contains(err.Error(), "missing SHA-256") {
+	if err := downloadFromLockTool(
+		"tool",
+		tool,
+		"linux",
+		"arm64",
+		filepath.Join(t.TempDir(), "tool"),
+	); err == nil ||
+		!strings.Contains(err.Error(), "missing SHA-256") {
 		t.Fatalf("missing digest error = %v", err)
 	}
-	if err := downloadFromLockTool("tool", validTestTool("tool", "v1.2.3"), "freebsd", "amd64", filepath.Join(t.TempDir(), "tool")); err == nil || !strings.Contains(err.Error(), "unsupported platform") {
+	if err := downloadFromLockTool(
+		"tool",
+		validTestTool("tool", "v1.2.3"),
+		"freebsd",
+		"amd64",
+		filepath.Join(t.TempDir(), "tool"),
+	); err == nil ||
+		!strings.Contains(err.Error(), "unsupported platform") {
 		t.Fatalf("unsupported platform error = %v", err)
 	}
 }
@@ -461,7 +550,14 @@ func TestNewProjectValidatesInertiaAndBuildsReports(t *testing.T) {
 	if err := cmd.Flags().Set("inertia", "angular"); err != nil {
 		t.Fatalf("set inertia: %v", err)
 	}
-	if err := newProject(cmd, []string{"app"}, "test", true, false); err == nil || !strings.Contains(err.Error(), "invalid inertia adapter") {
+	if err := newProject(
+		cmd,
+		[]string{"app"},
+		"test",
+		true,
+		false,
+	); err == nil ||
+		!strings.Contains(err.Error(), "invalid inertia adapter") {
 		t.Fatalf("expected invalid inertia adapter, got %v", err)
 	}
 
@@ -469,16 +565,29 @@ func TestNewProjectValidatesInertiaAndBuildsReports(t *testing.T) {
 	if err := cmd.Flags().Set("inertia", "vue/deno"); err != nil {
 		t.Fatalf("set inertia runtime: %v", err)
 	}
-	if err := newProject(cmd, []string{"app"}, "test", true, false); err == nil || !strings.Contains(err.Error(), "invalid JavaScript package manager") {
+	if err := newProject(
+		cmd,
+		[]string{"app"},
+		"test",
+		true,
+		false,
+	); err == nil ||
+		!strings.Contains(err.Error(), "invalid JavaScript package manager") {
 		t.Fatalf("expected invalid runtime, got %v", err)
 	}
 
 	root := t.TempDir()
-	report, err := newProjectReport("app", filepath.Join(root, "app"), false, false, func(target string) error {
-		writeTestFile(t, target, "go.mod", "module example.com/app\n")
-		writeTestFile(t, target, "main.go", "package main\n")
-		return nil
-	})
+	report, err := newProjectReport(
+		"app",
+		filepath.Join(root, "app"),
+		false,
+		false,
+		func(target string) error {
+			writeTestFile(t, target, "go.mod", "module example.com/app\n")
+			writeTestFile(t, target, "main.go", "package main\n")
+			return nil
+		},
+	)
 	if err != nil {
 		t.Fatalf("newProjectReport: %v", err)
 	}
@@ -499,7 +608,14 @@ func TestNewProjectValidatesInertiaAndBuildsReports(t *testing.T) {
 		_ = os.Chdir(original)
 	})
 	cmd = newProjectCommand("test")
-	if err := newProject(cmd, []string{"."}, "test", true, false); err == nil || !strings.Contains(err.Error(), "current directory is not empty") {
+	if err := newProject(
+		cmd,
+		[]string{"."},
+		"test",
+		true,
+		false,
+	); err == nil ||
+		!strings.Contains(err.Error(), "current directory is not empty") {
 		t.Fatalf("expected non-empty current directory error, got %v", err)
 	}
 }
@@ -550,7 +666,10 @@ func TestRootHelpAndBinaryChecks(t *testing.T) {
 		t.Fatalf("empty lock should not require binaries: %v", err)
 	}
 	writeTestFile(t, root, "andurel.lock", "{}")
-	if err := checkBinaries(root); err == nil || !strings.Contains(err.Error(), "bin/shadowfax not found") {
+	if err := checkBinaries(
+		root,
+	); err == nil ||
+		!strings.Contains(err.Error(), "bin/shadowfax not found") {
 		t.Fatalf("expected missing shadowfax error, got %v", err)
 	}
 	writeExecutable(t, root, "bin/shadowfax", "#!/bin/sh\nprintf run > shadowfax.args\n")
@@ -577,7 +696,8 @@ func TestStandardHelpRendering(t *testing.T) {
 	if err := cmd.Help(); err != nil {
 		t.Fatalf("render owner help: %v", err)
 	}
-	if got := capture(); !strings.Contains(got, "Long tool help.") || !strings.Contains(got, "sync") {
+	if got := capture(); !strings.Contains(got, "Long tool help.") ||
+		!strings.Contains(got, "sync") {
 		t.Fatalf("owner help missing custom sections:\n%s", got)
 	}
 
@@ -602,7 +722,10 @@ func TestRunTemplAndToolListCommands(t *testing.T) {
 		findGoModRoot = originalFindGoModRoot
 	})
 
-	if err := runTempl("generate"); err == nil || !strings.Contains(err.Error(), "templ binary not found") {
+	if err := runTempl(
+		"generate",
+	); err == nil ||
+		!strings.Contains(err.Error(), "templ binary not found") {
 		t.Fatalf("expected missing templ error, got %v", err)
 	}
 	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nprintf '%s\\n' \"$@\" > templ.args\n")
@@ -793,14 +916,22 @@ func TestRunUpgradeErrors(t *testing.T) {
 	newUpgraderFunc = func(string, upgrade.UpgradeOptions) (cliUpgrader, error) {
 		return nil, errors.New("init failed")
 	}
-	if err := runUpgrade(cmd, "v2.0.0"); err == nil || !strings.Contains(err.Error(), "failed to initialize upgrader") {
+	if err := runUpgrade(
+		cmd,
+		"v2.0.0",
+	); err == nil ||
+		!strings.Contains(err.Error(), "failed to initialize upgrader") {
 		t.Fatalf("expected init error, got %v", err)
 	}
 
 	newUpgraderFunc = func(string, upgrade.UpgradeOptions) (cliUpgrader, error) {
 		return fakeUpgrader{err: errors.New("execute failed")}, nil
 	}
-	if err := runUpgrade(cmd, "v2.0.0"); err == nil || !strings.Contains(err.Error(), "execute failed") {
+	if err := runUpgrade(
+		cmd,
+		"v2.0.0",
+	); err == nil ||
+		!strings.Contains(err.Error(), "execute failed") {
 		t.Fatalf("expected execute error, got %v", err)
 	}
 }
@@ -875,7 +1006,8 @@ func TestExtensionListCommandHumanAndStructured(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("extension list command: %v", err)
 	}
-	if !strings.Contains(out.String(), "Listed extensions") || !strings.Contains(out.String(), "docker") {
+	if !strings.Contains(out.String(), "Listed extensions") ||
+		!strings.Contains(out.String(), "docker") {
 		t.Fatalf("structured extension output missing data:\n%s", out.String())
 	}
 

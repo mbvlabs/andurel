@@ -113,7 +113,10 @@ func NewGenerator(databaseType string) *Generator {
 }
 
 // BuildCatalogFromMigrations builds a catalog from migration files
-func (g *Generator) BuildCatalogFromMigrations(tableName string, migrationDirs []string) (*catalog.Catalog, error) {
+func (g *Generator) BuildCatalogFromMigrations(
+	tableName string,
+	migrationDirs []string,
+) (*catalog.Catalog, error) {
 	allMigrations, err := migrations.DiscoverMigrations(migrationDirs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover migrations: %w", err)
@@ -382,7 +385,18 @@ func (g *Generator) GenerateModel(
 	primaryKeyColumn string,
 	generateWithoutPK bool,
 ) error {
-	return g.GenerateModelWithMode(cat, resourceName, pluralName, modelPath, modulePath, tableNameOverride, nullType, primaryKeyColumn, generateWithoutPK, ModelModeCRUD)
+	return g.GenerateModelWithMode(
+		cat,
+		resourceName,
+		pluralName,
+		modelPath,
+		modulePath,
+		tableNameOverride,
+		nullType,
+		primaryKeyColumn,
+		generateWithoutPK,
+		ModelModeCRUD,
+	)
 }
 
 // GenerateModelWithMode renders and writes a model with a restricted operation surface.
@@ -398,12 +412,26 @@ func (g *Generator) GenerateModelWithMode(
 	generateWithoutPK bool,
 	mode ModelMode,
 ) error {
-	_, modelContent, err := g.PlanModelSource(cat, resourceName, pluralName, modulePath, tableNameOverride, nullType, primaryKeyColumn, generateWithoutPK, mode)
+	_, modelContent, err := g.PlanModelSource(
+		cat,
+		resourceName,
+		pluralName,
+		modulePath,
+		tableNameOverride,
+		nullType,
+		primaryKeyColumn,
+		generateWithoutPK,
+		mode,
+	)
 	if err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(modelPath, []byte(modelContent), constants.FilePermissionPrivate); err != nil {
+	if err := os.WriteFile(
+		modelPath,
+		[]byte(modelContent),
+		constants.FilePermissionPrivate,
+	); err != nil {
 		return fmt.Errorf("failed to write model file: %w", err)
 	}
 
@@ -504,7 +532,11 @@ type FactoryField struct {
 }
 
 // BuildFactory generates factory metadata from a model
-func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *GeneratedModel) (*GeneratedFactory, error) {
+func (g *Generator) BuildFactory(
+	cat *catalog.Catalog,
+	config Config,
+	genModel *GeneratedModel,
+) (*GeneratedFactory, error) {
 	// Import the factory analyzer
 	factoryFields := make([]FactoryField, 0, len(genModel.Fields))
 
@@ -732,7 +764,10 @@ func (g *Generator) getFactoryGoZero(goType string) string {
 }
 
 // GenerateFactoryFile renders a factory file from a template
-func (g *Generator) GenerateFactoryFile(factory *GeneratedFactory, templateStr string) (string, error) {
+func (g *Generator) GenerateFactoryFile(
+	factory *GeneratedFactory,
+	templateStr string,
+) (string, error) {
 	funcMap := template.FuncMap{
 		"toLower": func(s string) string {
 			return strings.ToLower(s)
@@ -773,7 +808,11 @@ func (g *Generator) WriteFactoryFile(factory *GeneratedFactory, outputDir string
 	}
 
 	// Write file
-	if err := os.WriteFile(outputPath, []byte(factoryContent), constants.FilePermissionPrivate); err != nil {
+	if err := os.WriteFile(
+		outputPath,
+		[]byte(factoryContent),
+		constants.FilePermissionPrivate,
+	); err != nil {
 		return fmt.Errorf("failed to write factory file: %w", err)
 	}
 

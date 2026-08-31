@@ -71,7 +71,9 @@ func TestBuildMutationReportSummarizesChangesRoutesAndDiff(t *testing.T) {
 	if strings.Contains(report.Diff, "assets/logo.png") {
 		t.Fatalf("binary file should be omitted from diff:\n%s", report.Diff)
 	}
-	if got, want := mutationSummary(report), "Would change 4 files for generate model"; got != want {
+	if got, want := mutationSummary(
+		report,
+	), "Would change 4 files for generate model"; got != want {
 		t.Fatalf("mutationSummary = %q, want %q", got, want)
 	}
 }
@@ -190,7 +192,10 @@ func TestRunMutationErrorsForMissingRunnerAndRoot(t *testing.T) {
 	if err := runMutation(cmd, mutationOptions{RootDir: t.TempDir()}); err == nil {
 		t.Fatalf("expected missing runner error")
 	}
-	if err := runMutation(cmd, mutationOptions{Run: func(string) error { return nil }}); err == nil {
+	if err := runMutation(
+		cmd,
+		mutationOptions{Run: func(string) error { return nil }},
+	); err == nil {
 		t.Fatalf("expected missing root error")
 	}
 }

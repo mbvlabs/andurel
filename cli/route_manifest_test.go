@@ -60,9 +60,33 @@ var WidgetIndex = routing.NewSimpleRoute(
 		t.Fatalf("expected no skipped routes, got %#v", manifest.Skipped)
 	}
 
-	assertRouteManifestRoute(t, manifest, "SessionCreate", "users.user_session", "/users/sign-in", "simple", nil)
-	assertRouteManifestRoute(t, manifest, "PasswordEdit", "users.edit_user_password", "/users/password/:token/edit", "token", []routeManifestParam{{Name: "token", Type: "string"}})
-	assertRouteManifestRoute(t, manifest, "WidgetShow", "widgets.show", "/widgets/:id", "uuid_id", []routeManifestParam{{Name: "id", Type: "uuid"}})
+	assertRouteManifestRoute(
+		t,
+		manifest,
+		"SessionCreate",
+		"users.user_session",
+		"/users/sign-in",
+		"simple",
+		nil,
+	)
+	assertRouteManifestRoute(
+		t,
+		manifest,
+		"PasswordEdit",
+		"users.edit_user_password",
+		"/users/password/:token/edit",
+		"token",
+		[]routeManifestParam{{Name: "token", Type: "string"}},
+	)
+	assertRouteManifestRoute(
+		t,
+		manifest,
+		"WidgetShow",
+		"widgets.show",
+		"/widgets/:id",
+		"uuid_id",
+		[]routeManifestParam{{Name: "id", Type: "uuid"}},
+	)
 	assertRouteManifestRoute(t, manifest, "WidgetIndex", "widgets.index", "/widgets", "simple", nil)
 }
 
@@ -87,10 +111,18 @@ var DashboardLookup = routing.NewRouteWithParams[DashboardLookupParams](
 		t.Fatalf("collect route manifest: %v", err)
 	}
 
-	assertRouteManifestRoute(t, manifest, "DashboardLookup", "admin.dashboards.lookup", "/api/admin/teams/:team_id/dashboards/:dashboard_id", "params", []routeManifestParam{
-		{Name: "team_id", Type: "string"},
-		{Name: "dashboard_id", Type: "string"},
-	})
+	assertRouteManifestRoute(
+		t,
+		manifest,
+		"DashboardLookup",
+		"admin.dashboards.lookup",
+		"/api/admin/teams/:team_id/dashboards/:dashboard_id",
+		"params",
+		[]routeManifestParam{
+			{Name: "team_id", Type: "string"},
+			{Name: "dashboard_id", Type: "string"},
+		},
+	)
 }
 
 func TestCollectRouteManifestSkipsDynamicRoutes(t *testing.T) {
@@ -223,12 +255,14 @@ var NotCall = Root
 		if !ok {
 			t.Fatalf("missing route %s in %#v", variable, manifest.Routes)
 		}
-		if route.Kind != want.kind || len(route.Params) == 0 || route.Params[0].Type != want.paramType {
+		if route.Kind != want.kind || len(route.Params) == 0 ||
+			route.Params[0].Type != want.paramType {
 			t.Fatalf("unexpected route %s: %#v", variable, route)
 		}
 	}
 	for _, skipped := range manifest.Skipped {
-		if skipped.Reason == "" || skipped.Line == 0 || skipped.SourceFile != "router/routes/all.go" {
+		if skipped.Reason == "" || skipped.Line == 0 ||
+			skipped.SourceFile != "router/routes/all.go" {
 			t.Fatalf("incomplete skipped route: %#v", skipped)
 		}
 	}
@@ -252,16 +286,27 @@ func TestRouteManifestHelpersAndFilesystemErrors(t *testing.T) {
 	}
 
 	invalidDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(invalidDir, "bad.go"), []byte("package routes\nvar"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(invalidDir, "bad.go"),
+		[]byte("package routes\nvar"),
+		0o644,
+	); err != nil {
 		t.Fatalf("write invalid route file: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(invalidDir, "README.md"), []byte("ignored"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(invalidDir, "README.md"),
+		[]byte("ignored"),
+		0o644,
+	); err != nil {
 		t.Fatalf("write ignored file: %v", err)
 	}
 	if err := os.Mkdir(filepath.Join(invalidDir, "nested.go"), 0o755); err != nil {
 		t.Fatalf("create ignored directory: %v", err)
 	}
-	if _, err := parseRouteFiles(invalidDir); err == nil || !strings.Contains(err.Error(), "parse route file") {
+	if _, err := parseRouteFiles(
+		invalidDir,
+	); err == nil ||
+		!strings.Contains(err.Error(), "parse route file") {
 		t.Fatalf("expected parse error, got %v", err)
 	}
 
@@ -294,15 +339,27 @@ func TestRouteManifestHelpersAndFilesystemErrors(t *testing.T) {
 	if got := formatRouteManifestParams(nil); got != "-" {
 		t.Fatalf("empty params = %q", got)
 	}
-	if got := formatRouteManifestParams([]routeManifestParam{{Name: "id", Type: "uuid"}, {Name: "slug", Type: "string"}}); got != "id:uuid,slug:string" {
+	if got := formatRouteManifestParams(
+		[]routeManifestParam{{Name: "id", Type: "uuid"}, {Name: "slug", Type: "string"}},
+	); got != "id:uuid,slug:string" {
 		t.Fatalf("formatted params = %q", got)
 	}
 
 	var output bytes.Buffer
-	if err := renderRouteManifestHuman(&output, routeManifest{}); err != nil || output.String() != "No routes found.\n" {
+	if err := renderRouteManifestHuman(
+		&output,
+		routeManifest{},
+	); err != nil ||
+		output.String() != "No routes found.\n" {
 		t.Fatalf("empty manifest output = %q, %v", output.String(), err)
 	}
-	if err := renderRouteManifestHuman(routeManifestFailWriter{}, routeManifest{}); !errors.Is(err, errRouteManifestWrite) {
+	if err := renderRouteManifestHuman(
+		routeManifestFailWriter{},
+		routeManifest{},
+	); !errors.Is(
+		err,
+		errRouteManifestWrite,
+	) {
 		t.Fatalf("expected writer error, got %v", err)
 	}
 }
@@ -350,7 +407,13 @@ func assertRouteManifestRoute(
 	}
 	for i := range params {
 		if route.Params[i] != params[i] {
-			t.Fatalf("expected param %#v for %s at %d, got %#v", params[i], variable, i, route.Params[i])
+			t.Fatalf(
+				"expected param %#v for %s at %d, got %#v",
+				params[i],
+				variable,
+				i,
+				route.Params[i],
+			)
 		}
 	}
 }

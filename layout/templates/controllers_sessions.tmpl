@@ -5,8 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/validation"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
@@ -14,15 +12,19 @@ import (
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/views"
 
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/validation"
+
 	"github.com/labstack/echo/v5"
 )
 
 type Sessions struct {
 	identity services.Identity
+	session  *cookies.Session
 }
 
-func NewSessions(identity services.Identity) Sessions {
-	return Sessions{identity}
+func NewSessions(identity services.Identity, session *cookies.Session) Sessions {
+	return Sessions{identity, session}
 }
 
 func (s Sessions) RegisterRoutes(r *router.Router) error {
@@ -113,14 +115,14 @@ func (s Sessions) Create(etx *echo.Context) error {
 			errorMsg = "Failed to log in"
 		}
 
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
+		if flashErr := s.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 
 		return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 	}
 
-	if err := cookies.CreateAppSession(etx, user); err != nil {
+	if err := s.session.CreateAppSession(etx, user); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to create session",
@@ -131,7 +133,11 @@ func (s Sessions) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Successfully logged in!"); flashErr != nil {
+	if flashErr := s.session.AddFlash(
+		etx,
+		cookies.FlashSuccess,
+		"Successfully logged in!",
+	); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
@@ -139,7 +145,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 }
 
 func (s Sessions) Destroy(etx *echo.Context) error {
-	if err := cookies.DestroyAppSession(etx); err != nil {
+	if err := s.session.DestroyAppSession(etx); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to destroy session",
@@ -149,7 +155,11 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Successfully logged out!"); flashErr != nil {
+	if flashErr := s.session.AddFlash(
+		etx,
+		cookies.FlashSuccess,
+		"Successfully logged out!",
+	); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 

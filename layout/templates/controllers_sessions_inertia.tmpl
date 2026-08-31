@@ -5,13 +5,14 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/mbvlabs/andurel/pkg/inertia"
-	"github.com/mbvlabs/andurel/pkg/validation"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"github.com/labstack/echo/v5"
 )
@@ -19,10 +20,15 @@ import (
 type Sessions struct {
 	identity services.Identity
 	renderer *inertia.Renderer
+	session  *cookies.Session
 }
 
-func NewSessions(identity services.Identity, renderer *inertia.Renderer) Sessions {
-	return Sessions{identity: identity, renderer: renderer}
+func NewSessions(
+	identity services.Identity,
+	renderer *inertia.Renderer,
+	session *cookies.Session,
+) Sessions {
+	return Sessions{identity: identity, renderer: renderer, session: session}
 }
 
 func (s Sessions) RegisterRoutes(r *router.Router) error {
@@ -118,14 +124,14 @@ func (s Sessions) Create(etx *echo.Context) error {
 			errorMsg = "Failed to log in"
 		}
 
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
+		if flashErr := s.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
 			return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
 
 		return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
 	}
 
-	if err := cookies.CreateAppSession(etx, user); err != nil {
+	if err := s.session.CreateAppSession(etx, user); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to create session",
@@ -136,7 +142,11 @@ func (s Sessions) Create(etx *echo.Context) error {
 		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Successfully logged in!"); flashErr != nil {
+	if flashErr := s.session.AddFlash(
+		etx,
+		cookies.FlashSuccess,
+		"Successfully logged in!",
+	); flashErr != nil {
 		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
@@ -144,7 +154,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 }
 
 func (s Sessions) Destroy(etx *echo.Context) error {
-	if err := cookies.DestroyAppSession(etx); err != nil {
+	if err := s.session.DestroyAppSession(etx); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to destroy session",
@@ -154,7 +164,11 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Successfully logged out!"); flashErr != nil {
+	if flashErr := s.session.AddFlash(
+		etx,
+		cookies.FlashSuccess,
+		"Successfully logged out!",
+	); flashErr != nil {
 		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 	}
 

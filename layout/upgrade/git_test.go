@@ -13,10 +13,18 @@ func TestGitAnalyzerCleanModifiedAndInitialFiles(t *testing.T) {
 	runUpgradeGit(t, root, "init")
 	runUpgradeGit(t, root, "config", "user.email", "test@example.com")
 	runUpgradeGit(t, root, "config", "user.name", "Test User")
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, "go.mod"),
+		[]byte("module example.com/app\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "tracked.txt"), []byte("initial\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, "tracked.txt"),
+		[]byte("initial\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("write tracked: %v", err)
 	}
 	runUpgradeGit(t, root, "add", ".")
@@ -46,7 +54,11 @@ func TestGitAnalyzerCleanModifiedAndInitialFiles(t *testing.T) {
 		t.Fatalf("expected missing initial file to return nil, got %q", string(missing))
 	}
 
-	if err := os.WriteFile(filepath.Join(root, "tracked.txt"), []byte("changed\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, "tracked.txt"),
+		[]byte("changed\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("modify tracked: %v", err)
 	}
 	clean, err = analyzer.IsClean()
@@ -67,10 +79,12 @@ func TestGitAnalyzerCleanModifiedAndInitialFiles(t *testing.T) {
 
 func TestGitAnalyzerErrorsOutsideRepository(t *testing.T) {
 	analyzer := NewGitAnalyzer(t.TempDir())
-	if clean, err := analyzer.IsClean(); err == nil || clean || !strings.Contains(err.Error(), "git") {
+	if clean, err := analyzer.IsClean(); err == nil || clean ||
+		!strings.Contains(err.Error(), "git") {
 		t.Fatalf("expected git status error, clean=%v err=%v", clean, err)
 	}
-	if _, err := analyzer.GetModifiedFiles(); err == nil || !strings.Contains(err.Error(), "failed to get first commit") {
+	if _, err := analyzer.GetModifiedFiles(); err == nil ||
+		!strings.Contains(err.Error(), "failed to get first commit") {
 		t.Fatalf("expected first commit error, got %v", err)
 	}
 }

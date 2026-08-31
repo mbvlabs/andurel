@@ -7,8 +7,6 @@ import (
 	"runtime"
 	"time"
 
-	"{{.ModuleName}}/application"
-
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -25,8 +23,8 @@ func GetMeter(serviceName string) metric.Meter {
 	return otel.Meter(serviceName)
 }
 
-func HTTPRequestsTotal() (metric.Int64Counter, error) {
-	counter, err := GetMeter(application.ServiceName).Int64Counter(
+func HTTPRequestsTotal(serviceName string) (metric.Int64Counter, error) {
+	counter, err := GetMeter(serviceName).Int64Counter(
 		"http_requests_total",
 		metric.WithDescription("Total number of HTTP requests"),
 		metric.WithUnit("1"),
@@ -34,22 +32,24 @@ func HTTPRequestsTotal() (metric.Int64Counter, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create http_requests_total counter: %w", err)
 	}
+
 	return counter, nil
 }
 
-func HTTPRequestsInFlight() (metric.Int64UpDownCounter, error) {
-	counter, err := GetMeter(application.ServiceName).Int64UpDownCounter(
+func HTTPRequestsInFlight(serviceName string) (metric.Int64UpDownCounter, error) {
+	counter, err := GetMeter(serviceName).Int64UpDownCounter(
 		"http_requests_in_flight",
 		metric.WithDescription("Current number of HTTP requests being served"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create http_requests_in_flight counter: %w", err)
 	}
+
 	return counter, nil
 }
 
-func HTTPRequestDuration() (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(application.ServiceName).Float64Histogram(
+func HTTPRequestDuration(serviceName string) (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(serviceName).Float64Histogram(
 		"http_request_duration_seconds",
 		metric.WithDescription("HTTP request duration in seconds"),
 		metric.WithUnit("s"),
@@ -58,11 +58,12 @@ func HTTPRequestDuration() (metric.Float64Histogram, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create http_request_duration_seconds histogram: %w", err)
 	}
+
 	return histogram, nil
 }
 
-func HTTPRequestSize() (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(application.ServiceName).Float64Histogram(
+func HTTPRequestSize(serviceName string) (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(serviceName).Float64Histogram(
 		"http_request_size_bytes",
 		metric.WithDescription("HTTP request size in bytes"),
 		metric.WithUnit("By"),
@@ -71,11 +72,12 @@ func HTTPRequestSize() (metric.Float64Histogram, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create http_request_size_bytes histogram: %w", err)
 	}
+
 	return histogram, nil
 }
 
-func HTTPResponseSize() (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(application.ServiceName).Float64Histogram(
+func HTTPResponseSize(serviceName string) (metric.Float64Histogram, error) {
+	histogram, err := GetMeter(serviceName).Float64Histogram(
 		"http_response_size_bytes",
 		metric.WithDescription("HTTP response size in bytes"),
 		metric.WithUnit("By"),
@@ -84,6 +86,7 @@ func HTTPResponseSize() (metric.Float64Histogram, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create http_response_size_bytes histogram: %w", err)
 	}
+
 	return histogram, nil
 }
 
@@ -417,5 +420,6 @@ func ComputeApproximateRequestSize(r *http.Request) int {
 	if r.ContentLength != -1 {
 		s += int(r.ContentLength)
 	}
+
 	return s
 }

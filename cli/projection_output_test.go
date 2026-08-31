@@ -73,8 +73,13 @@ func TestStructuredMutationSuppressesHumanProgressOnStdoutAndStderr(t *testing.T
 	if result.err != nil {
 		t.Fatalf("structured mutation: %v\nstderr:\n%s", result.err, result.stderr)
 	}
-	if strings.Contains(result.stdout, "human progress") || strings.Contains(result.stderr, "human warning") {
-		t.Fatalf("structured mutation leaked human output\nstdout:\n%s\nstderr:\n%s", result.stdout, result.stderr)
+	if strings.Contains(result.stdout, "human progress") ||
+		strings.Contains(result.stderr, "human warning") {
+		t.Fatalf(
+			"structured mutation leaked human output\nstdout:\n%s\nstderr:\n%s",
+			result.stdout,
+			result.stderr,
+		)
 	}
 	var envelope output.Envelope
 	if err := json.Unmarshal([]byte(result.stdout), &envelope); err != nil || !envelope.OK {

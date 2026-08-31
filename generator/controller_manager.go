@@ -43,7 +43,10 @@ func (c *ControllerManager) SetPrimaryKeyResolver(resolver PrimaryKeyResolver) {
 	c.pkResolver = resolver
 }
 
-func (c *ControllerManager) resolvePK(cat *catalog.Catalog, tableName string) (PrimaryKeyInfo, error) {
+func (c *ControllerManager) resolvePK(
+	cat *catalog.Catalog,
+	tableName string,
+) (PrimaryKeyInfo, error) {
 	pkInfo := DetectPrimaryKey(cat, tableName)
 	if !pkInfo.Found {
 		ok, err := c.pkResolver.ConfirmNoPK(tableName)
@@ -51,7 +54,10 @@ func (c *ControllerManager) resolvePK(cat *catalog.Catalog, tableName string) (P
 			return PrimaryKeyInfo{}, err
 		}
 		if !ok {
-			return PrimaryKeyInfo{}, fmt.Errorf("generation aborted: table %q has no primary key", tableName)
+			return PrimaryKeyInfo{}, fmt.Errorf(
+				"generation aborted: table %q has no primary key",
+				tableName,
+			)
 		}
 		return PrimaryKeyInfo{Found: false}, nil
 	}
@@ -79,7 +85,15 @@ func (c *ControllerManager) GenerateControllerWithActions(
 	actions []string,
 	inertia string,
 ) error {
-	return c.GenerateControllerWithActionsForModel(resourceName, namespace, resourceName, "", actions, inertia, false)
+	return c.GenerateControllerWithActionsForModel(
+		resourceName,
+		namespace,
+		resourceName,
+		"",
+		actions,
+		inertia,
+		false,
+	)
 }
 
 // GenerateControllerWithActionsForModel generates a controller when resource and model names differ.
@@ -147,7 +161,24 @@ func (c *ControllerManager) GenerateControllerWithActionsForModel(
 	nullType := c.readNullType()
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateControllerWithActionsForModel(cat, resourceName, namespace, modelName, tableName, modelTableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, modelTableNameOverridden, nullType, pkInfo.ColumnName, inertia, actions, isAPI); err != nil {
+	if err := fileGen.GenerateControllerWithActionsForModel(
+		cat,
+		resourceName,
+		namespace,
+		modelName,
+		tableName,
+		modelTableName,
+		controllerType,
+		modulePath,
+		c.config.Database.Type,
+		tableNameOverridden,
+		modelTableNameOverridden,
+		nullType,
+		pkInfo.ColumnName,
+		inertia,
+		actions,
+		isAPI,
+	); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -205,7 +236,10 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string) err
 		)
 	}
 
-	viewPath := filepath.Join(c.config.Paths.Views, controllerNamespacePrefix("")+tableName+"_resource.templ")
+	viewPath := filepath.Join(
+		c.config.Paths.Views,
+		controllerNamespacePrefix("")+tableName+"_resource.templ",
+	)
 	if _, err := os.Stat(viewPath); err == nil {
 		return fmt.Errorf("view file %s already exists", viewPath)
 	}
@@ -226,7 +260,19 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string) err
 	inertia := ""
 
 	fileGen := controllers.NewFileGenerator()
-	if err := fileGen.GenerateController(cat, resourceName, "", tableName, controllerType, modulePath, c.config.Database.Type, tableNameOverridden, nullType, pkInfo.ColumnName, inertia); err != nil {
+	if err := fileGen.GenerateController(
+		cat,
+		resourceName,
+		"",
+		tableName,
+		controllerType,
+		modulePath,
+		c.config.Database.Type,
+		tableNameOverridden,
+		nullType,
+		pkInfo.ColumnName,
+		inertia,
+	); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}
 
@@ -249,7 +295,10 @@ func ReadNullType() string {
 	if err != nil {
 		return "sql.Null"
 	}
-	if lock, err := layout.ReadLockFile(rootDir); err == nil && lock.DatabaseConfig != nil && lock.DatabaseConfig.NullType != "" {
+	if lock, err := layout.ReadLockFile(
+		rootDir,
+	); err == nil && lock.DatabaseConfig != nil &&
+		lock.DatabaseConfig.NullType != "" {
 		return lock.DatabaseConfig.NullType
 	}
 	return "sql.Null"
@@ -267,7 +316,10 @@ func ReadInertia() string {
 	if err != nil {
 		return ""
 	}
-	if lock, err := layout.ReadLockFile(rootDir); err == nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia != "" {
+	if lock, err := layout.ReadLockFile(
+		rootDir,
+	); err == nil && lock.ScaffoldConfig != nil &&
+		lock.ScaffoldConfig.Inertia != "" {
 		return lock.ScaffoldConfig.Inertia
 	}
 	return ""

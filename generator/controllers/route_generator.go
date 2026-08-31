@@ -28,23 +28,41 @@ func NewRouteGenerator() *RouteGenerator {
 }
 
 // GenerateRoutes performs the generate routes operation.
-func (rg *RouteGenerator) GenerateRoutes(resourceName, namespace, pluralName, idType string, actions []string) error {
+func (rg *RouteGenerator) GenerateRoutes(
+	resourceName, namespace, pluralName, idType string,
+	actions []string,
+) error {
 	prefixedPluralName := namespacePrefix(namespace) + pluralName
 	routesPath := filepath.Join("router/routes", prefixedPluralName+".go")
 
 	if _, err := os.Stat(routesPath); err == nil {
 		if len(actions) > 0 {
-			existingActions, err := existingRouteFileActions(routesPath, resourceName, namespace, pluralName)
+			existingActions, err := existingRouteFileActions(
+				routesPath,
+				resourceName,
+				namespace,
+				pluralName,
+			)
 			if err != nil {
 				return err
 			}
 			actions = mergeActions(existingActions, actions)
-			routeContent, err := rg.templateRenderer.generateRouteContent(resourceName, namespace, pluralName, idType, actions)
+			routeContent, err := rg.templateRenderer.generateRouteContent(
+				resourceName,
+				namespace,
+				pluralName,
+				idType,
+				actions,
+			)
 			if err != nil {
 				return fmt.Errorf("failed to generate route content: %w", err)
 			}
 
-			if err := os.WriteFile(routesPath, []byte(routeContent), constants.FilePermissionPrivate); err != nil {
+			if err := os.WriteFile(
+				routesPath,
+				[]byte(routeContent),
+				constants.FilePermissionPrivate,
+			); err != nil {
 				return fmt.Errorf("failed to write routes file: %w", err)
 			}
 
@@ -58,7 +76,13 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, namespace, pluralName, id
 		return fmt.Errorf("failed to stat routes file %s: %w", routesPath, err)
 	}
 
-	routeContent, err := rg.templateRenderer.generateRouteContent(resourceName, namespace, pluralName, idType, actions)
+	routeContent, err := rg.templateRenderer.generateRouteContent(
+		resourceName,
+		namespace,
+		pluralName,
+		idType,
+		actions,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to generate route content: %w", err)
 	}
@@ -67,7 +91,11 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, namespace, pluralName, id
 		return err
 	}
 
-	if err := os.WriteFile(routesPath, []byte(routeContent), constants.FilePermissionPrivate); err != nil {
+	if err := os.WriteFile(
+		routesPath,
+		[]byte(routeContent),
+		constants.FilePermissionPrivate,
+	); err != nil {
 		return fmt.Errorf("failed to write routes file: %w", err)
 	}
 
@@ -78,7 +106,9 @@ func (rg *RouteGenerator) GenerateRoutes(resourceName, namespace, pluralName, id
 	return nil
 }
 
-func existingRouteFileActions(routesPath, resourceName, namespace, pluralName string) ([]string, error) {
+func existingRouteFileActions(
+	routesPath, resourceName, namespace, pluralName string,
+) ([]string, error) {
 	content, err := os.ReadFile(routesPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read routes file %s: %w", routesPath, err)
@@ -98,7 +128,9 @@ func existingRouteFileActions(routesPath, resourceName, namespace, pluralName st
 	if namespace != "" {
 		routeNamePrefix = naming.NamespaceRouteName(namespace) + "." + pluralName
 	}
-	routeNamePattern := regexp.MustCompile(fmt.Sprintf(`"%s\.([a-z0-9_]+)"`, regexp.QuoteMeta(routeNamePrefix)))
+	routeNamePattern := regexp.MustCompile(
+		fmt.Sprintf(`"%s\.([a-z0-9_]+)"`, regexp.QuoteMeta(routeNamePrefix)),
+	)
 	for _, match := range routeNamePattern.FindAllStringSubmatch(contentStr, -1) {
 		if len(match) != 2 {
 			continue
@@ -112,7 +144,9 @@ func existingRouteFileActions(routesPath, resourceName, namespace, pluralName st
 }
 
 // ExistingRouteFileActions returns the resource actions declared in a generated route file.
-func ExistingRouteFileActions(routesPath, resourceName, namespace, pluralName string) ([]string, error) {
+func ExistingRouteFileActions(
+	routesPath, resourceName, namespace, pluralName string,
+) ([]string, error) {
 	return existingRouteFileActions(routesPath, resourceName, namespace, pluralName)
 }
 

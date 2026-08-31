@@ -82,15 +82,25 @@ func (v *CatalogVisitor) VisitAlterTable(stmt *AlterTableStatement) error {
 	case "ADD_CONSTRAINT", "DROP_CONSTRAINT":
 		operation := strings.ToLower(stmt.Raw)
 		if stmt.AlterOperation == "DROP_CONSTRAINT" || strings.Contains(operation, "primary key") {
-			return unsupportedStatement(stmt.Raw, "constraint operation can change the primary key used by generated models")
+			return unsupportedStatement(
+				stmt.Raw,
+				"constraint operation can change the primary key used by generated models",
+			)
 		}
 		return nil
 	default:
-		return unsupportedStatement(stmt.Raw, "ALTER TABLE operation is not supported by model generation")
+		return unsupportedStatement(
+			stmt.Raw,
+			"ALTER TABLE operation is not supported by model generation",
+		)
 	}
 }
 
-func (v *CatalogVisitor) applyAlterColumn(table *catalog.Table, columnName string, changes map[string]any) error {
+func (v *CatalogVisitor) applyAlterColumn(
+	table *catalog.Table,
+	columnName string,
+	changes map[string]any,
+) error {
 	column, err := table.GetColumn(columnName)
 	if err != nil {
 		return err
@@ -146,7 +156,10 @@ func (v *CatalogVisitor) applyRenameTable(schemaName, oldName, newName string) e
 	return v.catalog.AddTable(schemaName, newTable)
 }
 
-func (v *CatalogVisitor) applyMultipleOperations(schemaName, tableName string, operations []string) error {
+func (v *CatalogVisitor) applyMultipleOperations(
+	schemaName, tableName string,
+	operations []string,
+) error {
 	parser := NewAlterTableParser()
 
 	for _, operation := range operations {

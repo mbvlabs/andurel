@@ -23,6 +23,7 @@ func NewOtlpMetricExporter(endpoint string, headers map[string]string) *OtlpHttp
 	if endpoint == "" {
 		return nil
 	}
+
 	return &OtlpHttpMetricExporter{
 		endpoint: endpoint,
 		insecure: false,
@@ -31,10 +32,14 @@ func NewOtlpMetricExporter(endpoint string, headers map[string]string) *OtlpHttp
 	}
 }
 
-func NewOtlpMetricExporterInsecure(endpoint string, headers map[string]string) *OtlpHttpMetricExporter {
+func NewOtlpMetricExporterInsecure(
+	endpoint string,
+	headers map[string]string,
+) *OtlpHttpMetricExporter {
 	if endpoint == "" {
 		return nil
 	}
+
 	return &OtlpHttpMetricExporter{
 		endpoint: endpoint,
 		insecure: true,
@@ -47,7 +52,10 @@ func (o *OtlpHttpMetricExporter) Name() string {
 	return "otlp-http-metrics"
 }
 
-func (o *OtlpHttpMetricExporter) GetSdkMetricExporter(ctx context.Context, res *resource.Resource) (sdkmetric.Exporter, error) {
+func (o *OtlpHttpMetricExporter) GetSdkMetricExporter(
+	ctx context.Context,
+	res *resource.Resource,
+) (sdkmetric.Exporter, error) {
 	endpoint := strings.TrimPrefix(o.endpoint, "http://")
 	endpoint = strings.TrimPrefix(endpoint, "https://")
 
@@ -82,6 +90,7 @@ func (o *OtlpHttpMetricExporter) Shutdown(ctx context.Context) error {
 			return fmt.Errorf("failed to shutdown OTLP HTTP metric exporter: %w", err)
 		}
 	}
+
 	return nil
 }
 
@@ -121,7 +130,10 @@ func (n *NoopMetricExporter) Name() string {
 	return "noop-metrics"
 }
 
-func (n *NoopMetricExporter) GetSdkMetricExporter(ctx context.Context, res *resource.Resource) (sdkmetric.Exporter, error) {
+func (n *NoopMetricExporter) GetSdkMetricExporter(
+	ctx context.Context,
+	res *resource.Resource,
+) (sdkmetric.Exporter, error) {
 	return &noopSdkMetricExporter{}, nil
 }
 

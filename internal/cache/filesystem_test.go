@@ -74,7 +74,12 @@ func TestGlobalFileSystemCacheHelpers(t *testing.T) {
 		t.Fatalf("GetModulePath failed on cache hit: %v", err)
 	}
 	if first != second || calls != 1 {
-		t.Fatalf("expected one resolver call and stable value, got %q, %q, calls=%d", first, second, calls)
+		t.Fatalf(
+			"expected one resolver call and stable value, got %q, %q, calls=%d",
+			first,
+			second,
+			calls,
+		)
 	}
 
 	root, err := GetDirectoryRoot("root", func() (string, error) {

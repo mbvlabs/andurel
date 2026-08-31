@@ -165,7 +165,8 @@ func TestGenerateRoutesJSFileCreatesDirectoryAndOverwritesFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate routes: %v", err)
 	}
-	if report.GeneratedFile != generatedRoutesJSPath || report.GeneratedHelpers != 1 || report.SkippedCount != 1 {
+	if report.GeneratedFile != generatedRoutesJSPath || report.GeneratedHelpers != 1 ||
+		report.SkippedCount != 1 {
 		t.Fatalf("unexpected report: %#v", report)
 	}
 
@@ -268,7 +269,11 @@ func setupRoutesJSCommandProject(t *testing.T, inertia string) string {
 	t.Helper()
 
 	rootDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(rootDir, "go.mod"), []byte("module example.com/app\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(rootDir, "go.mod"),
+		[]byte("module example.com/app\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	lock := layout.AndurelLock{

@@ -51,7 +51,11 @@ func (am *ActionManager) GenerateAction(config ActionConfig) error {
 	// Verify target files exist before modifying any
 	for _, path := range []string{controllerPath, routesPath} {
 		if _, err := os.Stat(path); os.IsNotExist(err) {
-			return fmt.Errorf("required file %s does not exist. Generate the controller first: andurel generate controller %s", path, config.ControllerName)
+			return fmt.Errorf(
+				"required file %s does not exist. Generate the controller first: andurel generate controller %s",
+				path,
+				config.ControllerName,
+			)
 		}
 	}
 
@@ -143,12 +147,18 @@ func (am *ActionManager) validateConfig(config ActionConfig) error {
 		return fmt.Errorf("failed to compile PascalCase pattern: %w", err)
 	}
 	if !pascalRegex.MatchString(config.ControllerName) {
-		return fmt.Errorf("controller name '%s' must be PascalCase (e.g. Webhook, Article)", config.ControllerName)
+		return fmt.Errorf(
+			"controller name '%s' must be PascalCase (e.g. Webhook, Article)",
+			config.ControllerName,
+		)
 	}
 
 	// Validate method name is PascalCase
 	if !pascalRegex.MatchString(config.MethodName) {
-		return fmt.Errorf("method name '%s' must be PascalCase (e.g. Validate, ShowBySlug)", config.MethodName)
+		return fmt.Errorf(
+			"method name '%s' must be PascalCase (e.g. Validate, ShowBySlug)",
+			config.MethodName,
+		)
 	}
 
 	// Validate path starts with /
@@ -161,7 +171,10 @@ func (am *ActionManager) validateConfig(config ActionConfig) error {
 		"GET": true, "POST": true, "PUT": true, "DELETE": true, "PATCH": true,
 	}
 	if !validMethods[strings.ToUpper(config.HTTPMethod)] {
-		return fmt.Errorf("invalid HTTP method '%s'. Must be one of: GET, POST, PUT, DELETE, PATCH", config.HTTPMethod)
+		return fmt.Errorf(
+			"invalid HTTP method '%s'. Must be one of: GET, POST, PUT, DELETE, PATCH",
+			config.HTTPMethod,
+		)
 	}
 
 	// Validate controller name is singular
@@ -176,7 +189,11 @@ func (am *ActionManager) validateConfig(config ActionConfig) error {
 	return nil
 }
 
-func (am *ActionManager) checkDuplicates(controllerPath, routesPath string, config ActionConfig, handlerVar string) error {
+func (am *ActionManager) checkDuplicates(
+	controllerPath, routesPath string,
+	config ActionConfig,
+	handlerVar string,
+) error {
 	// Check controller method duplicate
 	controllerContent, err := os.ReadFile(controllerPath)
 	if err != nil {
@@ -194,13 +211,23 @@ func (am *ActionManager) checkDuplicates(controllerPath, routesPath string, conf
 	}
 	varName := fmt.Sprintf("var %s%s ", config.ControllerName, config.MethodName)
 	if strings.Contains(string(routesContent), varName) {
-		return fmt.Errorf("route variable %s%s already exists in %s", config.ControllerName, config.MethodName, routesPath)
+		return fmt.Errorf(
+			"route variable %s%s already exists in %s",
+			config.ControllerName,
+			config.MethodName,
+			routesPath,
+		)
 	}
 
 	// Check route registration duplicate
 	handlerRef := fmt.Sprintf("Handler: %s.%s,", handlerVar, config.MethodName)
 	if strings.Contains(string(controllerContent), handlerRef) {
-		return fmt.Errorf("route registration for %s.%s already exists in %s", handlerVar, config.MethodName, controllerPath)
+		return fmt.Errorf(
+			"route registration for %s.%s already exists in %s",
+			handlerVar,
+			config.MethodName,
+			controllerPath,
+		)
 	}
 
 	return nil

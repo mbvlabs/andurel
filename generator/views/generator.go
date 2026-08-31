@@ -250,7 +250,12 @@ func viewDataLoopAssignment(namespacePascal, resourceName, rowRef string, useDTO
 	if namespacePascal != "" {
 		dtoVar = naming.ToLowerCamelCase(namespacePascal) + resourceName + "Data"
 	}
-	return fmt.Sprintf("{\n\t\t\t\t\t\t\t\t\t{{ %s := new%sData(%s) }}", dtoVar, qualifiedName, rowRef)
+	return fmt.Sprintf(
+		"{\n\t\t\t\t\t\t\t\t\t{{ %s := new%sData(%s) }}",
+		dtoVar,
+		qualifiedName,
+		rowRef,
+	)
 }
 
 func viewDataImports(fields []ViewField) string {
@@ -421,8 +426,18 @@ func inertiaTypeScriptDeclarations(view *GeneratedView) string {
 		fmt.Fprintf(&b, "  %s: %s\n", inertiaJSONFieldName(field), inertiaTypeScriptType(field))
 	}
 	b.WriteString("}\n\n")
-	fmt.Fprintf(&b, "export type %sIndexProps = {\n  items: %s[]\n}\n\n", view.ResourceName, inertiaPayloadTypeName(view))
-	fmt.Fprintf(&b, "export type %sItemProps = {\n  item: %s\n}\n", view.ResourceName, inertiaPayloadTypeName(view))
+	fmt.Fprintf(
+		&b,
+		"export type %sIndexProps = {\n  items: %s[]\n}\n\n",
+		view.ResourceName,
+		inertiaPayloadTypeName(view),
+	)
+	fmt.Fprintf(
+		&b,
+		"export type %sItemProps = {\n  item: %s\n}\n",
+		view.ResourceName,
+		inertiaPayloadTypeName(view),
+	)
 	return b.String()
 }
 
@@ -528,7 +543,11 @@ func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
 }
 
 // GenerateViewFile renders a server-rendered view template.
-func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, templatePrefix string) (string, error) {
+func (g *Generator) GenerateViewFile(
+	view *GeneratedView,
+	withController bool,
+	templatePrefix string,
+) (string, error) {
 	// Custom template functions for view-specific operations
 	customFuncs := template.FuncMap{
 		"HasNullFields":    hasNullFields,
@@ -618,7 +637,10 @@ func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, t
 }
 
 // GenerateInertiaViewFiles renders Inertia page components for a resource.
-func (g *Generator) GenerateInertiaViewFiles(view *GeneratedView, templatePrefix, extension string) (map[string]string, error) {
+func (g *Generator) GenerateInertiaViewFiles(
+	view *GeneratedView,
+	templatePrefix, extension string,
+) (map[string]string, error) {
 	service := templates.GetGlobalTemplateService()
 	fileNames := make(map[string]string, 4)
 	hasAction := func(action string) bool {
@@ -656,7 +678,9 @@ func (g *Generator) GenerateInertiaViewFiles(view *GeneratedView, templatePrefix
 			if !hasAction(action) {
 				return "''"
 			}
-			helper := naming.ToLowerCamelCase(view.NamespacePascal + view.ResourceName + naming.ToPascalCase(action))
+			helper := naming.ToLowerCamelCase(
+				view.NamespacePascal + view.ResourceName + naming.ToPascalCase(action),
+			)
 			return "routes." + helper + "(" + strings.Join(args, ", ") + ")"
 		},
 		"InertiaComponentUsesRoutes": func(componentName string) bool {
@@ -728,7 +752,15 @@ func (g *Generator) GenerateView(
 	modulePath string,
 	namespace string,
 ) error {
-	return g.GenerateViewWithController(cat, resourceName, tableName, modulePath, false, "", namespace)
+	return g.GenerateViewWithController(
+		cat,
+		resourceName,
+		tableName,
+		modulePath,
+		false,
+		"",
+		namespace,
+	)
 }
 
 // GenerateViewWithController renders views and optionally supports controller wiring.
@@ -741,7 +773,16 @@ func (g *Generator) GenerateViewWithController(
 	inertia string,
 	namespace string,
 ) error {
-	return g.GenerateViewWithControllerActions(cat, resourceName, tableName, modulePath, withController, nil, inertia, namespace)
+	return g.GenerateViewWithControllerActions(
+		cat,
+		resourceName,
+		tableName,
+		modulePath,
+		withController,
+		nil,
+		inertia,
+		namespace,
+	)
 }
 
 // GenerateViewWithControllerActions renders views for a selected action set.
@@ -755,7 +796,18 @@ func (g *Generator) GenerateViewWithControllerActions(
 	inertia string,
 	namespace string,
 ) error {
-	return g.GenerateViewWithControllerActionsForModel(cat, resourceName, resourceName, tableName, tableName, modulePath, namespace, withController, actions, inertia)
+	return g.GenerateViewWithControllerActionsForModel(
+		cat,
+		resourceName,
+		resourceName,
+		tableName,
+		tableName,
+		modulePath,
+		namespace,
+		withController,
+		actions,
+		inertia,
+	)
 }
 
 // GenerateViewWithControllerActionsForModel renders action views for a distinct model name.
@@ -830,8 +882,17 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 
 	if isInertia {
 		if len(actions) > 0 {
-			routesPath := filepath.Join("router", "routes", namespacePrefix(namespace)+pluralName+".go")
-			availableActions, err := controllers.ExistingRouteFileActions(routesPath, resourceName, namespace, pluralName)
+			routesPath := filepath.Join(
+				"router",
+				"routes",
+				namespacePrefix(namespace)+pluralName+".go",
+			)
+			availableActions, err := controllers.ExistingRouteFileActions(
+				routesPath,
+				resourceName,
+				namespace,
+				pluralName,
+			)
 			if err != nil {
 				return fmt.Errorf("failed to inspect available Inertia routes: %w", err)
 			}
@@ -853,7 +914,11 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 		return err
 	}
 
-	if err := os.WriteFile(viewPath, []byte(viewContent), constants.FilePermissionPrivate); err != nil {
+	if err := os.WriteFile(
+		viewPath,
+		[]byte(viewContent),
+		constants.FilePermissionPrivate,
+	); err != nil {
 		return fmt.Errorf("failed to write view file: %w", err)
 	}
 
@@ -891,8 +956,15 @@ func inertiaViewExtension(adapter string) string {
 	}
 }
 
-func (g *Generator) generateInertiaViews(view *GeneratedView, templatePrefix, resourceName, adapter string) error {
-	inertiaFiles, err := g.GenerateInertiaViewFiles(view, templatePrefix, inertiaViewExtension(adapter))
+func (g *Generator) generateInertiaViews(
+	view *GeneratedView,
+	templatePrefix, resourceName, adapter string,
+) error {
+	inertiaFiles, err := g.GenerateInertiaViewFiles(
+		view,
+		templatePrefix,
+		inertiaViewExtension(adapter),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to render inertia view files: %w", err)
 	}
@@ -912,7 +984,11 @@ func (g *Generator) generateInertiaViews(view *GeneratedView, templatePrefix, re
 	}
 	for fileName, content := range inertiaFiles {
 		filePath := filepath.Join(pagesDir, fileName)
-		if err := os.WriteFile(filePath, []byte(content), constants.FilePermissionPrivate); err != nil {
+		if err := os.WriteFile(
+			filePath,
+			[]byte(content),
+			constants.FilePermissionPrivate,
+		); err != nil {
 			return fmt.Errorf("failed to write inertia view file %s: %w", fileName, err)
 		}
 	}
@@ -921,12 +997,23 @@ func (g *Generator) generateInertiaViews(view *GeneratedView, templatePrefix, re
 	if err := g.fileManager.EnsureDir(typesDir); err != nil {
 		return err
 	}
-	typesPath := filepath.Join(typesDir, namespacePrefix(view.Namespace)+naming.ToSnakeCase(resourceName)+".ts")
-	if err := os.WriteFile(typesPath, []byte(inertiaTypeScriptDeclarations(view)), constants.FilePermissionPrivate); err != nil {
+	typesPath := filepath.Join(
+		typesDir,
+		namespacePrefix(view.Namespace)+naming.ToSnakeCase(resourceName)+".ts",
+	)
+	if err := os.WriteFile(
+		typesPath,
+		[]byte(inertiaTypeScriptDeclarations(view)),
+		constants.FilePermissionPrivate,
+	); err != nil {
 		return fmt.Errorf("failed to write Inertia payload declaration: %w", err)
 	}
 
-	fmt.Printf("Successfully generated inertia views at %s with payload types at %s\n", pagesDir, typesPath)
+	fmt.Printf(
+		"Successfully generated inertia views at %s with payload types at %s\n",
+		pagesDir,
+		typesPath,
+	)
 	return nil
 }
 

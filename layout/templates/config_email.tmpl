@@ -1,5 +1,10 @@
 package config
 
+const (
+	DefaultEmailMailpitHost = "0.0.0.0"
+	DefaultEmailMailpitPort = "1025"
+)
+
 type EmailCfg struct {
 	MailpitHost string
 	MailpitPort string
@@ -7,10 +12,11 @@ type EmailCfg struct {
 
 func NewEmailCfg() EmailCfg {
 	return EmailCfg{
-		MailpitHost: "0.0.0.0",
-		MailpitPort: "1025",
+		MailpitHost: DefaultEmailMailpitHost,
+		MailpitPort: DefaultEmailMailpitPort,
 	}
 }
 
-func (c *EmailCfg) WithMailpitHost(host string) { c.MailpitHost = host }
-func (c *EmailCfg) WithMailpitPort(port string) { c.MailpitPort = port }
+func (c EmailCfg) GetMailpitHost() string { return c.MailpitHost }
+
+func (c EmailCfg) GetMailpitPort() string { return c.MailpitPort }

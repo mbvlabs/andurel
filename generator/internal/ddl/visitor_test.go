@@ -58,15 +58,60 @@ func TestStatementAccessorsAndAccept(t *testing.T) {
 		wantType  StatementType
 		wantVisit string
 	}{
-		{name: "create table", statement: &CreateTableStatement{Raw: "create table"}, wantType: CreateTable, wantVisit: "create_table"},
-		{name: "alter table", statement: &AlterTableStatement{Raw: "alter table"}, wantType: AlterTable, wantVisit: "alter_table"},
-		{name: "drop table", statement: &DropTableStatement{Raw: "drop table"}, wantType: DropTable, wantVisit: "drop_table"},
-		{name: "create index", statement: &CreateIndexStatement{Raw: "create index"}, wantType: CreateIndex, wantVisit: "create_index"},
-		{name: "drop index", statement: &DropIndexStatement{Raw: "drop index"}, wantType: DropIndex, wantVisit: "drop_index"},
-		{name: "create schema", statement: &CreateSchemaStatement{Raw: "create schema"}, wantType: CreateSchema, wantVisit: "create_schema"},
-		{name: "drop schema", statement: &DropSchemaStatement{Raw: "drop schema"}, wantType: DropSchema, wantVisit: "drop_schema"},
-		{name: "create enum", statement: &CreateEnumStatement{Raw: "create enum"}, wantType: CreateEnum, wantVisit: "create_enum"},
-		{name: "drop enum", statement: &DropEnumStatement{Raw: "drop enum"}, wantType: DropEnum, wantVisit: "drop_enum"},
+		{
+			name:      "create table",
+			statement: &CreateTableStatement{Raw: "create table"},
+			wantType:  CreateTable,
+			wantVisit: "create_table",
+		},
+		{
+			name:      "alter table",
+			statement: &AlterTableStatement{Raw: "alter table"},
+			wantType:  AlterTable,
+			wantVisit: "alter_table",
+		},
+		{
+			name:      "drop table",
+			statement: &DropTableStatement{Raw: "drop table"},
+			wantType:  DropTable,
+			wantVisit: "drop_table",
+		},
+		{
+			name:      "create index",
+			statement: &CreateIndexStatement{Raw: "create index"},
+			wantType:  CreateIndex,
+			wantVisit: "create_index",
+		},
+		{
+			name:      "drop index",
+			statement: &DropIndexStatement{Raw: "drop index"},
+			wantType:  DropIndex,
+			wantVisit: "drop_index",
+		},
+		{
+			name:      "create schema",
+			statement: &CreateSchemaStatement{Raw: "create schema"},
+			wantType:  CreateSchema,
+			wantVisit: "create_schema",
+		},
+		{
+			name:      "drop schema",
+			statement: &DropSchemaStatement{Raw: "drop schema"},
+			wantType:  DropSchema,
+			wantVisit: "drop_schema",
+		},
+		{
+			name:      "create enum",
+			statement: &CreateEnumStatement{Raw: "create enum"},
+			wantType:  CreateEnum,
+			wantVisit: "create_enum",
+		},
+		{
+			name:      "drop enum",
+			statement: &DropEnumStatement{Raw: "drop enum"},
+			wantType:  DropEnum,
+			wantVisit: "drop_enum",
+		},
 	}
 
 	for _, tt := range tests {

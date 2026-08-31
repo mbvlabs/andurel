@@ -6,7 +6,38 @@ import (
 	"github.com/riverqueue/river"
 )
 
-// QueueCfg contains River queue settings used by the application.
+const (
+	DefaultAdvisoryLockPrefix          int32         = 0
+	DefaultCancelledJobRetentionPeriod               = 24 * time.Hour
+	DefaultCompletedJobRetentionPeriod               = 24 * time.Hour
+	DefaultDiscardedJobRetentionPeriod               = 168 * time.Hour
+	DefaultFetchCooldown                             = 100 * time.Millisecond
+	DefaultPollInterval                              = 1 * time.Second
+	DefaultQueueID                                   = ""
+	DefaultJobCleanerTimeout                         = 30 * time.Second
+	DefaultJobStuckThreshold                         = 10 * time.Second
+	DefaultJobTimeout                                = 1 * time.Minute
+	DefaultMaxAttempts                               = 25
+	DefaultMaxWorkers                                = 100
+	DefaultPollOnly                                  = false
+	DefaultReindexerTimeout                          = 1 * time.Minute
+	DefaultRescueStuckJobsAfter                      = 1 * time.Hour
+	DefaultQueueSchema                               = ""
+	DefaultSoftStopTimeout             time.Duration = 0
+	DefaultSkipJobKindValidation                     = false
+	DefaultSkipUnknownJobCheck                       = false
+)
+
+var DefaultReindexerIndexNames = []string{
+	"river_job_args_index",
+	"river_job_kind",
+	"river_job_metadata_index",
+	"river_job_pkey",
+	"river_job_prioritized_fetching_index",
+	"river_job_state_and_finalized_at_index",
+	"river_job_unique_idx",
+}
+
 type QueueCfg struct {
 	AdvisoryLockPrefix          int32
 	CancelledJobRetentionPeriod time.Duration
@@ -32,34 +63,26 @@ type QueueCfg struct {
 
 func NewQueueCfg() QueueCfg {
 	return QueueCfg{
-		AdvisoryLockPrefix:          0,
-		CancelledJobRetentionPeriod: 24 * time.Hour,
-		CompletedJobRetentionPeriod: 24 * time.Hour,
-		DiscardedJobRetentionPeriod: 168 * time.Hour,
-		FetchCooldown:               100 * time.Millisecond,
-		PollInterval:                1 * time.Second,
-		ID:                          "",
-		JobCleanerTimeout:           30 * time.Second,
-		JobStuckThreshold:           10 * time.Second,
-		JobTimeout:                  1 * time.Minute,
-		MaxAttempts:                 25,
-		MaxWorkers:                  100,
-		PollOnly:                    false,
-		ReindexerIndexNames: []string{
-			"river_job_args_index",
-			"river_job_kind",
-			"river_job_metadata_index",
-			"river_job_pkey",
-			"river_job_prioritized_fetching_index",
-			"river_job_state_and_finalized_at_index",
-			"river_job_unique_idx",
-		},
-		ReindexerTimeout:     1 * time.Minute,
-		RescueStuckJobsAfter: 1 * time.Hour,
-		Schema:               "",
-		SoftStopTimeout:      0,
-		SkipJobKindValidation: false,
-		SkipUnknownJobCheck:  false,
+		AdvisoryLockPrefix:          DefaultAdvisoryLockPrefix,
+		CancelledJobRetentionPeriod: DefaultCancelledJobRetentionPeriod,
+		CompletedJobRetentionPeriod: DefaultCompletedJobRetentionPeriod,
+		DiscardedJobRetentionPeriod: DefaultDiscardedJobRetentionPeriod,
+		FetchCooldown:               DefaultFetchCooldown,
+		PollInterval:                DefaultPollInterval,
+		ID:                          DefaultQueueID,
+		JobCleanerTimeout:           DefaultJobCleanerTimeout,
+		JobStuckThreshold:           DefaultJobStuckThreshold,
+		JobTimeout:                  DefaultJobTimeout,
+		MaxAttempts:                 DefaultMaxAttempts,
+		MaxWorkers:                  DefaultMaxWorkers,
+		PollOnly:                    DefaultPollOnly,
+		ReindexerIndexNames:         DefaultReindexerIndexNames,
+		ReindexerTimeout:            DefaultReindexerTimeout,
+		RescueStuckJobsAfter:        DefaultRescueStuckJobsAfter,
+		Schema:                      DefaultQueueSchema,
+		SoftStopTimeout:             DefaultSoftStopTimeout,
+		SkipJobKindValidation:       DefaultSkipJobKindValidation,
+		SkipUnknownJobCheck:         DefaultSkipUnknownJobCheck,
 	}
 }
 
@@ -87,23 +110,4 @@ func (cfg QueueCfg) RiverConfig() river.Config {
 	}
 }
 
-func (c *QueueCfg) WithAdvisoryLockPrefix(prefix int32)          { c.AdvisoryLockPrefix = prefix }
-func (c *QueueCfg) WithCancelledJobRetentionPeriod(d time.Duration) { c.CancelledJobRetentionPeriod = d }
-func (c *QueueCfg) WithCompletedJobRetentionPeriod(d time.Duration) { c.CompletedJobRetentionPeriod = d }
-func (c *QueueCfg) WithDiscardedJobRetentionPeriod(d time.Duration) { c.DiscardedJobRetentionPeriod = d }
-func (c *QueueCfg) WithFetchCooldown(d time.Duration)            { c.FetchCooldown = d }
-func (c *QueueCfg) WithPollInterval(d time.Duration)             { c.PollInterval = d }
-func (c *QueueCfg) WithID(id string)                             { c.ID = id }
-func (c *QueueCfg) WithJobCleanerTimeout(d time.Duration)        { c.JobCleanerTimeout = d }
-func (c *QueueCfg) WithJobStuckThreshold(d time.Duration)        { c.JobStuckThreshold = d }
-func (c *QueueCfg) WithJobTimeout(d time.Duration)               { c.JobTimeout = d }
-func (c *QueueCfg) WithMaxAttempts(n int)                        { c.MaxAttempts = n }
-func (c *QueueCfg) WithMaxWorkers(n int)                         { c.MaxWorkers = n }
-func (c *QueueCfg) WithPollOnly(b bool)                          { c.PollOnly = b }
-func (c *QueueCfg) WithReindexerIndexNames(names []string)       { c.ReindexerIndexNames = names }
-func (c *QueueCfg) WithReindexerTimeout(d time.Duration)         { c.ReindexerTimeout = d }
-func (c *QueueCfg) WithRescueStuckJobsAfter(d time.Duration)     { c.RescueStuckJobsAfter = d }
-func (c *QueueCfg) WithSchema(schema string)                     { c.Schema = schema }
-func (c *QueueCfg) WithSoftStopTimeout(d time.Duration)          { c.SoftStopTimeout = d }
-func (c *QueueCfg) WithSkipJobKindValidation(b bool)             { c.SkipJobKindValidation = b }
-func (c *QueueCfg) WithSkipUnknownJobCheck(b bool)               { c.SkipUnknownJobCheck = b }
+func (c QueueCfg) GetMaxWorkers() int { return c.MaxWorkers }

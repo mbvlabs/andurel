@@ -44,7 +44,9 @@ func TestGenerateControllerHelperFunctions(t *testing.T) {
 			t.Fatalf("rendered helper missing Export:\n%s", rendered)
 		}
 	}
-	if inertiaActionViewExtension("react") != ".tsx" || inertiaActionViewExtension("vue") != ".vue" || inertiaActionViewExtension("svelte") != ".svelte" {
+	if inertiaActionViewExtension("react") != ".tsx" ||
+		inertiaActionViewExtension("vue") != ".vue" ||
+		inertiaActionViewExtension("svelte") != ".svelte" {
 		t.Fatalf("unexpected inertia view extensions")
 	}
 	if namespacePrefix("admin/users") != "admin_users_" {
@@ -97,38 +99,96 @@ func TestGenerateActionViewFiles(t *testing.T) {
 		_ = os.Chdir(original)
 	})
 
-	if err := generateActionViewFile("Product", "admin", "products", "example.com/app", "admin_products", []string{"export"}); err != nil {
+	if err := generateActionViewFile(
+		"Product",
+		"admin",
+		"products",
+		"example.com/app",
+		"admin_products",
+		[]string{"export"},
+	); err != nil {
 		t.Fatalf("generateActionViewFile create: %v", err)
 	}
 	viewPath := filepath.Join(root, "views", "admin_products_resource.templ")
-	assertCLITestFileContains(t, root, filepath.ToSlash(viewPath[len(root)+1:]), "templ AdminProductExport()")
+	assertCLITestFileContains(
+		t,
+		root,
+		filepath.ToSlash(viewPath[len(root)+1:]),
+		"templ AdminProductExport()",
+	)
 
-	if err := generateActionViewFile("Product", "admin", "products", "example.com/app", "admin_products", []string{"export", "archive"}); err != nil {
+	if err := generateActionViewFile(
+		"Product",
+		"admin",
+		"products",
+		"example.com/app",
+		"admin_products",
+		[]string{"export", "archive"},
+	); err != nil {
 		t.Fatalf("generateActionViewFile append: %v", err)
 	}
 	content, err := os.ReadFile(viewPath)
 	if err != nil {
 		t.Fatalf("read view: %v", err)
 	}
-	if strings.Count(string(content), "AdminProductExport") != 1 || !strings.Contains(string(content), "AdminProductArchive") {
+	if strings.Count(string(content), "AdminProductExport") != 1 ||
+		!strings.Contains(string(content), "AdminProductArchive") {
 		t.Fatalf("unexpected appended view content:\n%s", string(content))
 	}
 
-	if err := generateActionInertiaViewFile("Product", "admin", "products", []string{"export"}, "react"); err != nil {
+	if err := generateActionInertiaViewFile(
+		"Product",
+		"admin",
+		"products",
+		[]string{"export"},
+		"react",
+	); err != nil {
 		t.Fatalf("generate react inertia view: %v", err)
 	}
-	assertCLITestFileContains(t, root, filepath.Join("resources", "js", "Pages", "Admin", "Product", "Export.tsx"), "Head title=\"Product Export\"")
+	assertCLITestFileContains(
+		t,
+		root,
+		filepath.Join("resources", "js", "Pages", "Admin", "Product", "Export.tsx"),
+		"Head title=\"Product Export\"",
+	)
 
-	if err := generateActionInertiaViewFile("Product", "", "products", []string{"show"}, "vue"); err != nil {
+	if err := generateActionInertiaViewFile(
+		"Product",
+		"",
+		"products",
+		[]string{"show"},
+		"vue",
+	); err != nil {
 		t.Fatalf("generate vue inertia view: %v", err)
 	}
-	assertCLITestFileContains(t, root, filepath.Join("resources", "js", "Pages", "Product", "Show.vue"), "<template>")
+	assertCLITestFileContains(
+		t,
+		root,
+		filepath.Join("resources", "js", "Pages", "Product", "Show.vue"),
+		"<template>",
+	)
 
-	if err := generateActionInertiaViewFile("Product", "admin", "products", []string{"archive"}, "svelte"); err != nil {
+	if err := generateActionInertiaViewFile(
+		"Product",
+		"admin",
+		"products",
+		[]string{"archive"},
+		"svelte",
+	); err != nil {
 		t.Fatalf("generate svelte inertia view: %v", err)
 	}
-	assertCLITestFileContains(t, root, filepath.Join("resources", "js", "Pages", "Admin", "Product", "Archive.svelte"), "<svelte:head>")
-	assertCLITestFileContains(t, root, filepath.Join("resources", "js", "Pages", "Admin", "Product", "Archive.svelte"), "<title>Product Archive</title>")
+	assertCLITestFileContains(
+		t,
+		root,
+		filepath.Join("resources", "js", "Pages", "Admin", "Product", "Archive.svelte"),
+		"<svelte:head>",
+	)
+	assertCLITestFileContains(
+		t,
+		root,
+		filepath.Join("resources", "js", "Pages", "Admin", "Product", "Archive.svelte"),
+		"<title>Product Archive</title>",
+	)
 }
 
 func TestGenerateActionControllerFileModesAndAppend(t *testing.T) {
@@ -159,25 +219,47 @@ func TestGenerateActionControllerFileModesAndAppend(t *testing.T) {
 			}()
 
 			controllerPath := filepath.Join("controllers", "admin", "products.go")
-			if err := generateActionControllerFile("Product", "admin", "products", "products", "example.com/app", controllerPath, []string{"export"}, test.inertia, test.isAPI); err != nil {
+			if err := generateActionControllerFile(
+				"Product",
+				"admin",
+				"products",
+				"products",
+				"example.com/app",
+				controllerPath,
+				[]string{"export"},
+				test.inertia,
+				test.isAPI,
+			); err != nil {
 				t.Fatalf("create action controller: %v", err)
 			}
 			content, err := os.ReadFile(controllerPath)
 			if err != nil {
 				t.Fatalf("read action controller: %v", err)
 			}
-			if !strings.Contains(string(content), test.want) || !strings.Contains(string(content), "ProductExport") {
+			if !strings.Contains(string(content), test.want) ||
+				!strings.Contains(string(content), "ProductExport") {
 				t.Fatalf("generated controller missing expected content:\n%s", content)
 			}
 
-			if err := generateActionControllerFile("Product", "admin", "products", "products", "example.com/app", controllerPath, []string{"export", "archive"}, test.inertia, test.isAPI); err != nil {
+			if err := generateActionControllerFile(
+				"Product",
+				"admin",
+				"products",
+				"products",
+				"example.com/app",
+				controllerPath,
+				[]string{"export", "archive"},
+				test.inertia,
+				test.isAPI,
+			); err != nil {
 				t.Fatalf("append action controller: %v", err)
 			}
 			content, err = os.ReadFile(controllerPath)
 			if err != nil {
 				t.Fatalf("read appended controller: %v", err)
 			}
-			if strings.Count(string(content), "func (p Products) Export") != 1 || !strings.Contains(string(content), "func (p Products) Archive") {
+			if strings.Count(string(content), "func (p Products) Export") != 1 ||
+				!strings.Contains(string(content), "func (p Products) Archive") {
 				t.Fatalf("controller actions were duplicated or omitted:\n%s", content)
 			}
 			if test.isAPI {
@@ -210,10 +292,15 @@ func TestReadModulePathBranches(t *testing.T) {
 	if err := os.WriteFile("go.mod", []byte("go 1.26\n"), 0o600); err != nil {
 		t.Fatalf("write module-less go.mod: %v", err)
 	}
-	if _, err := readModulePath(); err == nil || !strings.Contains(err.Error(), "module declaration not found") {
+	if _, err := readModulePath(); err == nil ||
+		!strings.Contains(err.Error(), "module declaration not found") {
 		t.Fatalf("expected missing declaration error, got %v", err)
 	}
-	if err := os.WriteFile("go.mod", []byte("module example.com/app\n\ngo 1.26\n"), 0o600); err != nil {
+	if err := os.WriteFile(
+		"go.mod",
+		[]byte("module example.com/app\n\ngo 1.26\n"),
+		0o600,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	if module, err := readModulePath(); err != nil || module != "example.com/app" {

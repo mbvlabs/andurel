@@ -8,18 +8,18 @@ import (
 
 func TestVerifyPasswordWithPeppers(t *testing.T) {
 	const (
-		password      = "correct horse battery staple"
-		currentPepper = "current-pepper"
+		password       = "correct horse battery staple"
+		currentPepper  = "current-pepper"
 		previousPepper = "previous-pepper"
 	)
 
 	tests := []struct {
-		name            string
-		hashPepper      string
+		name             string
+		hashPepper       string
 		providedPassword string
-		previousPeppers []string
-		wantValid       bool
-		wantRehash      bool
+		previousPeppers  []string
+		wantValid        bool
+		wantRehash       bool
 	}{
 		{
 			name:             "current pepper",

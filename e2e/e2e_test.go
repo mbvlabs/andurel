@@ -67,7 +67,11 @@ func TestMain(m *testing.M) {
 
 	code := m.Run()
 	if err := os.RemoveAll(tmpDir); err != nil {
-		if _, writeErr := fmt.Fprintf(os.Stderr, "Failed to clean E2E temporary directory: %v\n", err); writeErr != nil {
+		if _, writeErr := fmt.Fprintf(
+			os.Stderr,
+			"Failed to clean E2E temporary directory: %v\n",
+			err,
+		); writeErr != nil {
 			code = 1
 		}
 		code = 1

@@ -1,27 +1,82 @@
 package config
 
-import "github.com/caarlos0/env/v11"
+import (
+	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+const (
+	DefaultTelemetryServiceName    = "testapp"
+	DefaultTelemetryServiceVersion = "1.0.0"
+	DefaultOtlpLogsEndpoint        = ""
+	DefaultOtlpMetricsEndpoint     = ""
+	DefaultOtlpTracesEndpoint      = ""
+	DefaultOtlpHeaders             = ""
+	DefaultTraceSampleRate         = 1.0
+	DefaultTelemetryBatchSize      = 512
+	DefaultTelemetryBatchTimeoutMs = 5000
+)
 
 type TelemetryCfg struct {
-	ServiceName         string  `env:"TELEMETRY_SERVICE_NAME" envDefault:"{{.ProjectName}}"`
-	ServiceVersion      string  `env:"TELEMETRY_SERVICE_VERSION" envDefault:"1.0.0"`
-	OtlpLogsEndpoint    string  `env:"OTLP_LOGS_ENDPOINT" envDefault:""`
-	OtlpMetricsEndpoint string  `env:"OTLP_METRICS_ENDPOINT" envDefault:""`
-	OtlpTracesEndpoint  string  `env:"OTLP_TRACES_ENDPOINT" envDefault:""`
-	OtlpHeaders         string  `env:"OTLP_HEADERS" envDefault:""`
-	TraceSampleRate     float64 `env:"TRACE_SAMPLE_RATE" envDefault:"1.0"`
-	BatchSize           int     `env:"TELEMETRY_BATCH_SIZE" envDefault:"512"`
-	BatchTimeoutMs      int     `env:"TELEMETRY_BATCH_TIMEOUT_MS" envDefault:"5000"`
+	ServiceName         string  `env:"TELEMETRY_SERVICE_NAME"`
+	ServiceVersion      string  `env:"TELEMETRY_SERVICE_VERSION"`
+	OtlpLogsEndpoint    string  `env:"OTLP_LOGS_ENDPOINT"`
+	OtlpMetricsEndpoint string  `env:"OTLP_METRICS_ENDPOINT"`
+	OtlpTracesEndpoint  string  `env:"OTLP_TRACES_ENDPOINT"`
+	OtlpHeaders         string  `env:"OTLP_HEADERS"`
+	TraceSampleRate     float64 `env:"TRACE_SAMPLE_RATE"`
+	BatchSize           int     `env:"TELEMETRY_BATCH_SIZE"`
+	BatchTimeoutMs      int     `env:"TELEMETRY_BATCH_TIMEOUT_MS"`
 }
 
 func NewTelemetryCfg() TelemetryCfg {
-	telemetryCfg := TelemetryCfg{}
+	telemetryCfg := TelemetryCfg{
+		ServiceName:         DefaultTelemetryServiceName,
+		ServiceVersion:      DefaultTelemetryServiceVersion,
+		OtlpLogsEndpoint:    DefaultOtlpLogsEndpoint,
+		OtlpMetricsEndpoint: DefaultOtlpMetricsEndpoint,
+		OtlpTracesEndpoint:  DefaultOtlpTracesEndpoint,
+		OtlpHeaders:         DefaultOtlpHeaders,
+		TraceSampleRate:     DefaultTraceSampleRate,
+		BatchSize:           DefaultTelemetryBatchSize,
+		BatchTimeoutMs:      DefaultTelemetryBatchTimeoutMs,
+	}
 
-	if err := env.ParseWithOptions(&telemetryCfg, env.Options{
-		RequiredIfNoDef: true,
-	}); err != nil {
+	if err := env.Parse(&telemetryCfg); err != nil {
+		panic(err)
+	}
+
+	if err := validation.Validate(&telemetryCfg); err != nil {
 		panic(err)
 	}
 
 	return telemetryCfg
 }
+
+func (c TelemetryCfg) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("ServiceName", c.ServiceName)
+	b.Required("ServiceVersion", c.ServiceVersion)
+	b.MinInt("BatchSize", c.BatchSize, 1)
+	b.MinInt("BatchTimeoutMs", c.BatchTimeoutMs, 1)
+
+	return b.Err()
+}
+
+func (c TelemetryCfg) GetServiceName() string { return c.ServiceName }
+
+func (c TelemetryCfg) GetServiceVersion() string { return c.ServiceVersion }
+
+func (c TelemetryCfg) GetOtlpLogsEndpoint() string { return c.OtlpLogsEndpoint }
+
+func (c TelemetryCfg) GetOtlpMetricsEndpoint() string { return c.OtlpMetricsEndpoint }
+
+func (c TelemetryCfg) GetOtlpTracesEndpoint() string { return c.OtlpTracesEndpoint }
+
+func (c TelemetryCfg) GetOtlpHeaders() string { return c.OtlpHeaders }
+
+func (c TelemetryCfg) GetTraceSampleRate() float64 { return c.TraceSampleRate }
+
+func (c TelemetryCfg) GetBatchSize() int { return c.BatchSize }
+
+func (c TelemetryCfg) GetBatchTimeoutMs() int { return c.BatchTimeoutMs }

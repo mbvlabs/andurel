@@ -15,7 +15,11 @@ func TestResolveModulePath(t *testing.T) {
 	projectRoot := t.TempDir()
 	goModPath := filepath.Join(projectRoot, "go.mod")
 
-	if err := os.WriteFile(goModPath, []byte("module github.com/example/myapp\n\ngo 1.24.0\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		goModPath,
+		[]byte("module github.com/example/myapp\n\ngo 1.24.0\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("failed to write go.mod: %v", err)
 	}
 
@@ -66,7 +70,10 @@ func TestGetFrameworkTemplates_ExcludesGeneratedInertiaPackage(t *testing.T) {
 
 	for _, tmpl := range GetFrameworkTemplates(&layout.ScaffoldConfig{Inertia: "vue"}) {
 		if strings.HasPrefix(tmpl.TargetPath, "internal/inertia/") {
-			t.Fatalf("upgrade templates include removed generated Inertia package file %s", tmpl.TargetPath)
+			t.Fatalf(
+				"upgrade templates include removed generated Inertia package file %s",
+				tmpl.TargetPath,
+			)
 		}
 	}
 }

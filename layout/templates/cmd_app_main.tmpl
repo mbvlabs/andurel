@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"{{.ModuleName}}/application"
 	mailclients "{{.ModuleName}}/clients/email"
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
@@ -19,34 +18,45 @@ import (
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/telemetry"
+
+{{- if .Inertia}}
+	"github.com/mbvlabs/andurel/pkg/inertia"
+{{- end}}
 	"github.com/mbvlabs/andurel/pkg/server"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"go.uber.org/fx"
-{{- if .Inertia}}
-	"{{.ModuleName}}/assets"
-	"{{.ModuleName}}/router/routes"
-	"{{.ModuleName}}/views"
-	"github.com/mbvlabs/andurel/pkg/inertia"
-{{- end}}
 )
 
 var appVersion string
 
 func main() {
-	metadata := application.NewMetadata(appVersion)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	app := fx.New(
-		fx.Supply(metadata),
 		fx.Provide(
 			func() context.Context { return ctx },
-			func(cfg config.EmailCfg) (email.TransactionalSender, email.MarketingSender) {
-				if application.Environment == server.ProdEnvironment {
+			func(
+				cfg config.EmailCfg,
+				appCfg config.AppCfg,
+			) (email.TransactionalSender, email.MarketingSender) {
+				if appCfg.GetEnvironment() == server.ProdEnvironment {
 					log.Fatal("provide real email sender")
 				}
 
-				return mailclients.NewMailpit(cfg.MailpitHost, cfg.MailpitPort), mailclients.NewMailpit(cfg.MailpitHost, cfg.MailpitPort)
+				return mailclients.NewMailpit(
+						cfg.GetMailpitHost(),
+						cfg.GetMailpitPort(),
+					), mailclients.NewMailpit(
+						cfg.GetMailpitHost(),
+						cfg.GetMailpitPort(),
+					)
 			},
+			func(cfg config.AppCfg) router.AppProvider { return cfg },
+			func(cfg config.AppCfg) controllers.ConfigProvider { return cfg },
+			func(cfg config.AppCfg) controllers.AssetsAppProvider { return cfg },
+			func(cfg config.AppCfg) services.AppIdentityProvider { return cfg },
+			func(cfg config.AuthCfg) services.AuthProvider { return cfg },
+			func(cfg config.TelemetryCfg) telemetry.ConfigProvider { return cfg },
 		),
 
 		config.Module,
@@ -81,7 +91,7 @@ func main() {
 
 var databaseModule = fx.Module(
 	"database",
-	fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Connection)))),
+	fx.Provide(fx.Annotate(newDatabase, fx.As(new(storage.Connection)), fx.As(fx.Self()))),
 )
 
 var queueInsertModule = fx.Module(
@@ -96,12 +106,12 @@ var inertiaModule = fx.Module(
 )
 {{- end}}
 
-func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg config.AppCfg) {
+func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, appCfg config.AppCfg) {
 	srv := server.New(
 		appCtx,
-		cfg.Host,
-		cfg.Port,
-		application.Environment,
+		appCfg.GetHost(),
+		appCfg.GetPort(),
+		appCfg.GetEnvironment(),
 		r.Handler,
 		nil,
 	)
@@ -113,12 +123,12 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg 
 				appCtx,
 				"starting server",
 				"host",
-				cfg.Host,
+				appCfg.GetHost(),
 				"port",
-				cfg.Port,
+				appCfg.GetPort(),
 			)
 			done = startInBackground(appCtx, "server", func(ctx context.Context) error {
-				return srv.Start(ctx, application.Environment)
+				return srv.Start(ctx, appCfg.GetEnvironment())
 			})
 			return nil
 		},
@@ -128,33 +138,41 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, cfg 
 				var shutdownErr error
 				for _, shutdowner := range srv.Shutdowners {
 					if err := shutdowner.Shutdown(ctx); err != nil {
-						shutdownErr = errors.Join(shutdownErr, fmt.Errorf("server: shutdown component %T: %w", shutdowner, err))
+						shutdownErr = errors.Join(
+							shutdownErr,
+							fmt.Errorf("server: shutdown component %T: %w", shutdowner, err),
+						)
 					}
 				}
+
 				return shutdownErr
 			}, done)
 		},
 	})
 }
 
-func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg config.Database) (*storage.Postgres, error) {
+func newDatabase(
+	lifecycle fx.Lifecycle,
+	ctx context.Context,
+	cfg config.Database,
+) (*storage.Postgres, error) {
 	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
-		DatabaseKind:             cfg.DatabaseKind,
-		Host:                     cfg.Host,
-		Port:                     cfg.Port,
-		Name:                     cfg.Name,
-		User:                     cfg.User,
-		Password:                 cfg.Password,
-		SSLMode:                  cfg.SSLMode,
-		ApplicationName:          cfg.ApplicationName,
-		ConnectTimeout:           cfg.ConnectTimeout,
-		StatementCacheCapacity:   cfg.StatementCacheCapacity,
-		DescriptionCacheCapacity: cfg.DescriptionCacheCapacity,
-		MaxOpenConnections:       cfg.MaxOpenConnections,
-		MaxIdleConnections:       cfg.MaxIdleConnections,
-		ConnectionMaxLifetime:    cfg.ConnectionMaxLifetime,
-		ConnectionMaxIdleTime:    cfg.ConnectionMaxIdleTime,
-		OpenTelemetry:            cfg.OpenTelemetry,
+		DatabaseKind:             cfg.GetDatabaseKind(),
+		Host:                     cfg.GetHost(),
+		Port:                     cfg.GetPort(),
+		Name:                     cfg.GetName(),
+		User:                     cfg.GetUser(),
+		Password:                 cfg.GetPassword(),
+		SSLMode:                  cfg.GetSSLMode(),
+		ApplicationName:          cfg.GetApplicationName(),
+		ConnectTimeout:           cfg.GetConnectTimeout(),
+		StatementCacheCapacity:   cfg.GetStatementCacheCapacity(),
+		DescriptionCacheCapacity: cfg.GetDescriptionCacheCapacity(),
+		MaxOpenConnections:       cfg.GetMaxOpenConnections(),
+		MaxIdleConnections:       cfg.GetMaxIdleConnections(),
+		ConnectionMaxLifetime:    cfg.GetConnectionMaxLifetime(),
+		ConnectionMaxIdleTime:    cfg.GetConnectionMaxIdleTime(),
+		OpenTelemetry:            cfg.GetOpenTelemetry(),
 	}))
 	if err != nil {
 		return nil, err
@@ -164,35 +182,39 @@ func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg config.Databas
 	return db, nil
 }
 
-func newQueueInsert(connection storage.Connection, cfg config.QueueCfg) (*storage.QueueInsert, error) {
+func newQueueInsert(
+	connection storage.Connection,
+	cfg config.QueueCfg,
+) (*storage.QueueInsert, error) {
 	return storage.NewQueueInsert(connection, storage.WithRiverConfig(cfg.RiverConfig()))
 }
 
-{{- if .Inertia}}
-func newInertia(lifecycle fx.Lifecycle, cfg config.InertiaCfg, metadata application.Metadata) (*inertia.Renderer, error) {
+{{if .Inertia}}
+
+func newInertia(
+	lifecycle fx.Lifecycle,
+	cfg config.InertiaCfg,
+	appCfg config.AppCfg,
+) (*inertia.Renderer, error) {
 	renderer, err := inertia.New(
-		inertia.WithRoot(views.Root),
-		inertia.WithAssetFS(assets.Files),
-		inertia.WithProjectName(metadata.ProjectName),
-		inertia.WithEnvironment(metadata.Environment),
-		inertia.WithBuildPathURL(routes.ViteBuild.Path()),
-{{- if eq .Inertia "react"}}
-		inertia.WithEntryPoint("resources/js/app.tsx"),
-{{- else}}
-		inertia.WithEntryPoint("resources/js/app.ts"),
-{{- end}}
-		inertia.WithContainerID(cfg.ContainerID),
-		inertia.WithViteDevURL(cfg.ViteDevURL),
-		inertia.WithProtocolDebug(cfg.ProtocolDebug),
-		inertia.WithShared(inertia.Props{"appVersion": metadata.Version}),
-		inertia.WithSSRMode(inertia.SSRMode(cfg.SSRMode)),
-		inertia.WithSSRRuntime(cfg.SSRRuntime),
-		inertia.WithSSRBundle(cfg.SSRBundle),
-		inertia.WithSSRURL(cfg.SSRURL),
-		inertia.WithSSRStartupTimeout(cfg.SSRStartupTimeout),
-		inertia.WithSSRRequestTimeout(cfg.SSRRequestTimeout),
-		inertia.WithSSRMaxResponseBytes(cfg.SSRMaxResponseBytes),
-		inertia.WithSSRFailFast(cfg.SSRFailFast),
+		inertia.WithRoot(cfg.GetRoot()),
+		inertia.WithAssetFS(cfg.GetAssetFS()),
+		inertia.WithProjectName(appCfg.GetProjectName()),
+		inertia.WithEnvironment(appCfg.GetEnvironment()),
+		inertia.WithBuildPathURL(cfg.GetBuildPathURL()),
+		inertia.WithEntryPoint(cfg.GetEntryPoint()),
+		inertia.WithContainerID(cfg.GetContainerID()),
+		inertia.WithViteDevURL(cfg.GetViteDevURL()),
+		inertia.WithProtocolDebug(cfg.GetProtocolDebug()),
+		inertia.WithShared(inertia.Props{"appVersion": appVersion}),
+		inertia.WithSSRMode(inertia.SSRMode(cfg.GetSSRMode())),
+		inertia.WithSSRRuntime(cfg.GetSSRRuntime()),
+		inertia.WithSSRBundle(cfg.GetSSRBundle()),
+		inertia.WithSSRURL(cfg.GetSSRURL()),
+		inertia.WithSSRStartupTimeout(cfg.GetSSRStartupTimeout()),
+		inertia.WithSSRRequestTimeout(cfg.GetSSRRequestTimeout()),
+		inertia.WithSSRMaxResponseBytes(cfg.GetSSRMaxResponseBytes()),
+		inertia.WithSSRFailFast(cfg.GetSSRFailFast()),
 	)
 	if err != nil {
 		return nil, err

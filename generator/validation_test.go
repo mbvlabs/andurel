@@ -228,14 +228,36 @@ func TestInputValidatorRemainingValidationBranches(t *testing.T) {
 		module   string
 		want     string
 	}{
-		{resource: "Users", table: "users", module: "example.com/app", want: "resource name validation failed"},
-		{resource: "User", table: "user", module: "example.com/app", want: "table name validation failed"},
-		{resource: "User", table: "users", module: "bad module", want: "module path validation failed"},
+		{
+			resource: "Users",
+			table:    "users",
+			module:   "example.com/app",
+			want:     "resource name validation failed",
+		},
+		{
+			resource: "User",
+			table:    "user",
+			module:   "example.com/app",
+			want:     "table name validation failed",
+		},
+		{
+			resource: "User",
+			table:    "users",
+			module:   "bad module",
+			want:     "module path validation failed",
+		},
 	}
 	for _, check := range checks {
 		err := validator.ValidateAll(check.resource, check.table, check.module)
 		if err == nil || !strings.Contains(err.Error(), check.want) {
-			t.Fatalf("ValidateAll(%q, %q, %q) = %v, want %q", check.resource, check.table, check.module, err, check.want)
+			t.Fatalf(
+				"ValidateAll(%q, %q, %q) = %v, want %q",
+				check.resource,
+				check.table,
+				check.module,
+				err,
+				check.want,
+			)
 		}
 	}
 	if err := validator.ValidateAll("User", "users", "example.com/app"); err != nil {

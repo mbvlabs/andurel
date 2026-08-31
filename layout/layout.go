@@ -264,9 +264,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"gitignore.tmpl": ".gitignore",
 	"readme.tmpl":    "README.md",
 
-	// Application
-	"application_metadata.tmpl": "application/metadata.go",
-
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
 	"assets_css_style.tmpl":   "assets/css/style.css",
@@ -281,11 +278,12 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
+	"config_auth.tmpl":      "config/auth.go",
 	"config_config.tmpl":    "config/config.go",
 	"config_database.tmpl":  "config/database.go",
-	"config_telemetry.tmpl": "config/telemetry.go",
 	"config_email.tmpl":     "config/email.go",
 	"config_queue.tmpl":     "config/queue.go",
+	"config_telemetry.tmpl": "config/telemetry.go",
 
 	// Clients
 	"clients_email_mailpit.tmpl": "clients/email/mailpit.go",
@@ -356,9 +354,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"controllers_registrations.tmpl":   "controllers/registrations.go",
 	"controllers_reset_passwords.tmpl": "controllers/reset_passwords.go",
 	"controllers_sessions.tmpl":        "controllers/sessions.go",
-
-	// Auth - Config
-	"config_auth.tmpl": "config/auth.go",
 
 	// Auth - Services
 	"services_service.tmpl":             "services/service.go",
@@ -527,7 +522,16 @@ func sortedFrameworkManagedFiles(mappings map[TmplTarget]TmplTargetPath) []Frame
 }
 
 func processTemplatedFiles(targetDir string, data extensions.TemplateData) error {
-	mappings := make(map[TmplTarget]TmplTargetPath, len(baseTemplateMappings)+len(inertiaSharedTemplateMappings)+len(inertiaVueTemplateMappings))
+	mappings := make(
+		map[TmplTarget]TmplTargetPath,
+		len(
+			baseTemplateMappings,
+		)+len(
+			inertiaSharedTemplateMappings,
+		)+len(
+			inertiaVueTemplateMappings,
+		),
+	)
 	maps.Copy(mappings, baseTemplateMappings)
 
 	if td, ok := data.(*TemplateData); ok && IsSupportedInertiaAdapter(td.Inertia) {
@@ -550,27 +554,50 @@ func processTemplatedFiles(targetDir string, data extensions.TemplateData) error
 
 	for templateFile, targetPath := range mappings {
 		if templateFile == "assets_js_datastar.tmpl" {
-			if err := copyFile(targetDir, string(templateFile), string(targetPath), templates.Files); err != nil {
+			if err := copyFile(
+				targetDir,
+				string(templateFile),
+				string(targetPath),
+				templates.Files,
+			); err != nil {
 				return fmt.Errorf("failed to copy file %s: %w", templateFile, err)
 			}
 			continue
 		}
 		if isStaticInertiaAssetTemplate(templateFile) {
-			if err := copyFile(targetDir, string(templateFile), string(targetPath), templates.Files); err != nil {
+			if err := copyFile(
+				targetDir,
+				string(templateFile),
+				string(targetPath),
+				templates.Files,
+			); err != nil {
 				return fmt.Errorf("failed to copy file %s: %w", templateFile, err)
 			}
 			continue
 		}
-		if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+		if err := renderTemplate(
+			targetDir,
+			string(templateFile),
+			string(targetPath),
+			templates.Files,
+			data,
+		); err != nil {
 			return fmt.Errorf("failed to process template %s: %w", templateFile, err)
 		}
 	}
 
 	for templateFile, targetPath := range baseStyleTemplateMappings {
-		if td, ok := data.(*TemplateData); ok && IsSupportedInertiaAdapter(td.Inertia) && inertiaSkippedTemplates[templateFile] {
+		if td, ok := data.(*TemplateData); ok && IsSupportedInertiaAdapter(td.Inertia) &&
+			inertiaSkippedTemplates[templateFile] {
 			continue
 		}
-		if err := renderTemplate(targetDir, string(templateFile), string(targetPath), templates.Files, data); err != nil {
+		if err := renderTemplate(
+			targetDir,
+			string(templateFile),
+			string(targetPath),
+			templates.Files,
+			data,
+		); err != nil {
 			return fmt.Errorf("failed to process style template %s: %w", templateFile, err)
 		}
 	}
@@ -623,7 +650,13 @@ func processMigrations(
 		timestamp := lastTime.Format("20060102150405")
 		targetPath := fmt.Sprintf("database/migrations/%s_%s.sql", timestamp, migration.name)
 
-		if err := renderTemplate(targetDir, migration.template, targetPath, templates.Files, data); err != nil {
+		if err := renderTemplate(
+			targetDir,
+			migration.template,
+			targetPath,
+			templates.Files,
+			data,
+		); err != nil {
 			return time.Time{}, fmt.Errorf(
 				"failed to process migration %s: %w",
 				migration.template,
@@ -662,16 +695,34 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 			return fmt.Errorf("template mapping missing for blueprint template %s", tmplName)
 		}
 
-		if err := renderTemplate(targetDir, string(tmplName), string(targetPath), templates.Files, data); err != nil {
+		if err := renderTemplate(
+			targetDir,
+			string(tmplName),
+			string(targetPath),
+			templates.Files,
+			data,
+		); err != nil {
 			return fmt.Errorf("failed to render blueprint template %s: %w", tmplName, err)
 		}
 	}
 
-	if err := renderTemplate(targetDir, "go_mod.tmpl", "go.mod", templates.Files, data); err != nil {
+	if err := renderTemplate(
+		targetDir,
+		"go_mod.tmpl",
+		"go.mod",
+		templates.Files,
+		data,
+	); err != nil {
 		return fmt.Errorf("failed to render go.mod template: %w", err)
 	}
 
-	if err := renderTemplate(targetDir, "css_base.tmpl", "css/base.css", templates.Files, data); err != nil {
+	if err := renderTemplate(
+		targetDir,
+		"css_base.tmpl",
+		"css/base.css",
+		templates.Files,
+		data,
+	); err != nil {
 		return fmt.Errorf("failed to render css base template: %w", err)
 	}
 
@@ -1027,7 +1078,13 @@ func createGoMod(targetDir string, data *TemplateData) error {
 		return fmt.Errorf("template data is nil")
 	}
 
-	if err := renderTemplate(targetDir, "go_mod.tmpl", "go.mod", templates.Files, data); err != nil {
+	if err := renderTemplate(
+		targetDir,
+		"go_mod.tmpl",
+		"go.mod",
+		templates.Files,
+		data,
+	); err != nil {
 		return fmt.Errorf("failed to render go.mod template: %w", err)
 	}
 
@@ -1130,7 +1187,11 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 	return builder.Blueprint()
 }
 
-func generateLockFile(targetDir, version string, config *ScaffoldConfig, extensions []string) error {
+func generateLockFile(
+	targetDir, version string,
+	config *ScaffoldConfig,
+	extensions []string,
+) error {
 	lock := NewAndurelLock(version)
 	lock.ScaffoldConfig = config
 	lock.DatabaseConfig = &DatabaseConfig{

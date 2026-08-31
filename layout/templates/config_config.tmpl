@@ -10,8 +10,9 @@ var Module = fx.Module("config",
 		NewDatabaseCfg,
 		NewQueueCfg,
 		NewTelemetryCfg,
-		NewEmailCfg,
-		NewAuthCfg,
+{{- if .Inertia}}
+		NewInertiaCfg,
+{{- end}}
 {{- range .Blueprint.Config.SortedFields}}
 		New{{.Name}}Cfg,
 {{- end}}

@@ -29,14 +29,28 @@ var Home = router.NewRoute("/", "home")
 	writeTestFile(t, root, ".git/status-sentinel", "unchanged\n")
 
 	lock := layout.NewAndurelLock("v1.0.0")
-	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "doctor", Database: "postgresql", Inertia: "react"}
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName: "doctor",
+		Database:    "postgresql",
+		Inertia:     "react",
+	}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nprintf 'package views\\n// generated in temporary copy\\n' > views/page_templ.go\n")
+	writeExecutable(
+		t,
+		root,
+		"bin/templ",
+		"#!/bin/sh\nprintf 'package views\\n// generated in temporary copy\\n' > views/page_templ.go\n",
+	)
 
 	fakePath := t.TempDir()
-	writeExecutable(t, fakePath, "go", "#!/bin/sh\nif [ \"$1\" = mod ]; then printf '\\nchanged in copy\\n' >> go.mod; printf '\\nchanged in copy\\n' >> go.sum; fi\n")
+	writeExecutable(
+		t,
+		fakePath,
+		"go",
+		"#!/bin/sh\nif [ \"$1\" = mod ]; then printf '\\nchanged in copy\\n' >> go.mod; printf '\\nchanged in copy\\n' >> go.sum; fi\n",
+	)
 	t.Setenv("PATH", fakePath)
 
 	tempBase := t.TempDir()
@@ -70,7 +84,11 @@ var Home = router.NewRoute("/", "home")
 	}
 	after := snapshotAllTestFiles(t, root)
 	if !reflect.DeepEqual(after, before) {
-		t.Fatalf("doctor diagnostics changed original project\nbefore: %#v\nafter: %#v", before, after)
+		t.Fatalf(
+			"doctor diagnostics changed original project\nbefore: %#v\nafter: %#v",
+			before,
+			after,
+		)
 	}
 	assertDirectoryEmpty(t, tempBase)
 }

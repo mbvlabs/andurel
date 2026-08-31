@@ -33,12 +33,33 @@ type propResolver struct {
 	result    resolvedPage
 }
 
-func resolvePageProps(etx *echo.Context, request Request, component string, shared, page Props) (resolvedPage, error) {
+func resolvePageProps(
+	etx *echo.Context,
+	request Request,
+	component string,
+	shared, page Props,
+) (resolvedPage, error) {
 	if protectedPropExists(shared, "errors") {
-		return resolvedPage{}, &Error{Kind: ErrorProps, Operation: "merge shared props", Component: component, Method: etx.Request().Method, URL: requestURL(etx), PropPath: "errors", Err: fmt.Errorf("framework prop is protected")}
+		return resolvedPage{}, &Error{
+			Kind:      ErrorProps,
+			Operation: "merge shared props",
+			Component: component,
+			Method:    etx.Request().Method,
+			URL:       requestURL(etx),
+			PropPath:  "errors",
+			Err:       fmt.Errorf("framework prop is protected"),
+		}
 	}
 	if protectedPropExists(page, "errors") {
-		return resolvedPage{}, &Error{Kind: ErrorProps, Operation: "merge page props", Component: component, Method: etx.Request().Method, URL: requestURL(etx), PropPath: "errors", Err: fmt.Errorf("framework prop is protected")}
+		return resolvedPage{}, &Error{
+			Kind:      ErrorProps,
+			Operation: "merge page props",
+			Component: component,
+			Method:    etx.Request().Method,
+			URL:       requestURL(etx),
+			PropPath:  "errors",
+			Err:       fmt.Errorf("framework prop is protected"),
+		}
 	}
 
 	combined := make(Props, len(shared)+len(page))
@@ -47,7 +68,14 @@ func resolvePageProps(etx *echo.Context, request Request, component string, shar
 	var err error
 	combined, err = unpackDotProps(combined)
 	if err != nil {
-		return resolvedPage{}, &Error{Kind: ErrorProps, Operation: "unpack dotted props", Component: component, Method: etx.Request().Method, URL: requestURL(etx), Err: err}
+		return resolvedPage{}, &Error{
+			Kind:      ErrorProps,
+			Operation: "unpack dotted props",
+			Component: component,
+			Method:    etx.Request().Method,
+			URL:       requestURL(etx),
+			Err:       err,
+		}
 	}
 
 	resolver := &propResolver{
@@ -82,7 +110,11 @@ func resolvePageProps(etx *echo.Context, request Request, component string, shar
 	return resolver.result, nil
 }
 
-func (r *propResolver) resolveValue(path string, value any, inheritedAlways bool) (any, bool, error) {
+func (r *propResolver) resolveValue(
+	path string,
+	value any,
+	inheritedAlways bool,
+) (any, bool, error) {
 	prop, isPolicy := value.(Prop)
 	dynamicallyResolved := false
 	if isPolicy {
@@ -98,7 +130,8 @@ func (r *propResolver) resolveValue(path string, value any, inheritedAlways bool
 		resolved, err := evaluateProp(r.etx, prop.value)
 		if err != nil {
 			if prop.deferred && prop.rescue {
-				r.etx.Logger().Error("inertia rescued deferred prop", "component", r.component, "url", requestURL(r.etx), "prop", path, "error", err)
+				r.etx.Logger().
+					Error("inertia rescued deferred prop", "component", r.component, "url", requestURL(r.etx), "prop", path, "error", err)
 				r.result.rescued = append(r.result.rescued, path)
 				return nil, false, nil
 			}
@@ -191,7 +224,11 @@ func (r *propResolver) resolveNested(path string, value any, always bool) (any, 
 		}
 		slices.Sort(keys)
 		for _, key := range keys {
-			child, include, err := r.resolveValue(joinPath(path, key), rv.MapIndex(reflect.ValueOf(key).Convert(rv.Type().Key())).Interface(), always)
+			child, include, err := r.resolveValue(
+				joinPath(path, key),
+				rv.MapIndex(reflect.ValueOf(key).Convert(rv.Type().Key())).Interface(),
+				always,
+			)
 			if err != nil {
 				return nil, false, err
 			}
@@ -202,7 +239,9 @@ func (r *propResolver) resolveNested(path string, value any, always bool) (any, 
 		return result, true, nil
 	case reflect.Struct:
 		// Values with custom JSON encoders (notably time.Time) stay opaque.
-		if rv.Type().Implements(reflect.TypeFor[interface{ MarshalJSON() ([]byte, error) }]()) || reflect.PointerTo(rv.Type()).Implements(reflect.TypeFor[interface{ MarshalJSON() ([]byte, error) }]()) {
+		if rv.Type().Implements(reflect.TypeFor[interface{ MarshalJSON() ([]byte, error) }]()) ||
+			reflect.PointerTo(rv.Type()).
+				Implements(reflect.TypeFor[interface{ MarshalJSON() ([]byte, error) }]()) {
 			return value, true, nil
 		}
 		result := make(map[string]any, rv.NumField())
@@ -219,7 +258,11 @@ func (r *propResolver) resolveNested(path string, value any, always bool) (any, 
 			if name == "" {
 				name = field.Name
 			}
-			child, childIncluded, err := r.resolveValue(joinPath(path, name), rv.Field(i).Interface(), always)
+			child, childIncluded, err := r.resolveValue(
+				joinPath(path, name),
+				rv.Field(i).Interface(),
+				always,
+			)
 			if err != nil {
 				return nil, false, err
 			}
@@ -309,7 +352,15 @@ func (r *propResolver) recordPolicy(path string, prop Prop, resolved any) error 
 	if prop.scroll != nil {
 		metadata, err := resolveScrollMetadata(r.etx, prop.scroll, resolved)
 		if err != nil {
-			return &Error{Kind: ErrorProps, Operation: "resolve scroll metadata", Component: r.component, Method: r.etx.Request().Method, URL: requestURL(r.etx), PropPath: path, Err: err}
+			return &Error{
+				Kind:      ErrorProps,
+				Operation: "resolve scroll metadata",
+				Component: r.component,
+				Method:    r.etx.Request().Method,
+				URL:       requestURL(r.etx),
+				PropPath:  path,
+				Err:       err,
+			}
 		}
 		metadata.Reset = reset
 		r.result.scroll[path] = metadata
@@ -537,7 +588,11 @@ func unpackDotProps(props Props) (Props, error) {
 				if typed, propsOK := current[segment].(Props); propsOK {
 					next = map[string]any(typed)
 				} else if current[segment] != nil {
-					return nil, fmt.Errorf("dotted prop %q conflicts with non-object path %q", path, strings.Join(segments[:index+1], "."))
+					return nil, fmt.Errorf(
+						"dotted prop %q conflicts with non-object path %q",
+						path,
+						strings.Join(segments[:index+1], "."),
+					)
 				} else {
 					next = make(map[string]any)
 				}

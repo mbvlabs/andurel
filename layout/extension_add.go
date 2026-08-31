@@ -32,7 +32,9 @@ func LoadProjectContext(rootDir string) (*TemplateData, *AndurelLock, error) {
 	}
 
 	if lock.ScaffoldConfig == nil {
-		return nil, nil, fmt.Errorf("cannot reconstruct project settings: scaffoldConfig missing from andurel.lock")
+		return nil, nil, fmt.Errorf(
+			"cannot reconstruct project settings: scaffoldConfig missing from andurel.lock",
+		)
 	}
 
 	moduleName, goVer, err := parseGoMod(rootDir)
@@ -125,7 +127,11 @@ func ApplyExtension(rootDir, extensionName string) ([]string, error) {
 
 	if _, ok := extensions.Get(extensionName); !ok {
 		available := strings.Join(extensions.Names(), ", ")
-		return nil, fmt.Errorf("unknown extension '%s', available extensions: %s", extensionName, available)
+		return nil, fmt.Errorf(
+			"unknown extension '%s', available extensions: %s",
+			extensionName,
+			available,
+		)
 	}
 
 	existingNames := lock.ExtensionNames()

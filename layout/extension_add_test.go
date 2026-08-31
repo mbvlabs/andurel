@@ -18,7 +18,15 @@ func scaffoldTestProject(t *testing.T, extensions []string) string {
 	tmpDir := t.TempDir()
 	projectDir := filepath.Join(tmpDir, "testapp")
 
-	if err := Scaffold(projectDir, "testapp", "postgresql", "test", extensions, "", ""); err != nil {
+	if err := Scaffold(
+		projectDir,
+		"testapp",
+		"postgresql",
+		"test",
+		extensions,
+		"",
+		"",
+	); err != nil {
 		t.Fatalf("failed to scaffold project: %v", err)
 	}
 
@@ -43,6 +51,17 @@ func fileContains(t *testing.T, dir, path, expected string) {
 	}
 }
 
+func fileNotContains(t *testing.T, dir, path, unexpected string) {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join(dir, path))
+	if err != nil {
+		t.Fatalf("failed to read %s: %v", path, err)
+	}
+	if strings.Contains(string(content), unexpected) {
+		t.Fatalf("expected %s not to contain %q", path, unexpected)
+	}
+}
+
 func readFileContent(t *testing.T, dir, path string) string {
 	t.Helper()
 	content, err := os.ReadFile(filepath.Join(dir, path))
@@ -57,7 +76,11 @@ func readFileContent(t *testing.T, dir, path string) string {
 func TestParseGoMod(t *testing.T) {
 	tmpDir := t.TempDir()
 	goModContent := "module github.com/example/myapp\n\ngo 1.26.0\n"
-	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goModContent), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(tmpDir, "go.mod"),
+		[]byte(goModContent),
+		0o644,
+	); err != nil {
 		t.Fatalf("failed to write go.mod: %v", err)
 	}
 
@@ -76,7 +99,11 @@ func TestParseGoMod(t *testing.T) {
 
 func TestParseGoMod_MissingModule(t *testing.T) {
 	tmpDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("go 1.26.0\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(tmpDir, "go.mod"),
+		[]byte("go 1.26.0\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("failed to write go.mod: %v", err)
 	}
 
@@ -89,7 +116,11 @@ func TestParseGoMod_MissingModule(t *testing.T) {
 func TestParseGoMod_FallbackGoVersion(t *testing.T) {
 	tmpDir := t.TempDir()
 	goModContent := "module github.com/example/myapp\n"
-	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte(goModContent), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(tmpDir, "go.mod"),
+		[]byte(goModContent),
+		0o644,
+	); err != nil {
 		t.Fatalf("failed to write go.mod: %v", err)
 	}
 
@@ -107,7 +138,11 @@ func TestParseGoMod_FallbackGoVersion(t *testing.T) {
 func TestReadSecrets(t *testing.T) {
 	tmpDir := t.TempDir()
 	envContent := "SESSION_KEY=abc123\nSESSION_ENCRYPTION_KEY=def456\nTOKEN_SIGNING_KEY=ghi789\nPEPPER=jkl012\n"
-	if err := os.WriteFile(filepath.Join(tmpDir, ".env.example"), []byte(envContent), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(tmpDir, ".env.example"),
+		[]byte(envContent),
+		0o644,
+	); err != nil {
 		t.Fatalf("failed to write .env.example: %v", err)
 	}
 
@@ -117,7 +152,10 @@ func TestReadSecrets(t *testing.T) {
 		t.Fatalf("expected SESSION_KEY=abc123, got %s", secrets["SESSION_KEY"])
 	}
 	if secrets["SESSION_ENCRYPTION_KEY"] != "def456" {
-		t.Fatalf("expected SESSION_ENCRYPTION_KEY=def456, got %s", secrets["SESSION_ENCRYPTION_KEY"])
+		t.Fatalf(
+			"expected SESSION_ENCRYPTION_KEY=def456, got %s",
+			secrets["SESSION_ENCRYPTION_KEY"],
+		)
 	}
 	if secrets["TOKEN_SIGNING_KEY"] != "ghi789" {
 		t.Fatalf("expected TOKEN_SIGNING_KEY=ghi789, got %s", secrets["TOKEN_SIGNING_KEY"])
@@ -222,15 +260,11 @@ func TestLoadProjectContext_RebuildsBlueprintWithExistingExtensions(t *testing.T
 		t.Fatalf("expected AwsSes in blueprint config fields after re-applying aws-ses")
 	}
 
-	foundAwsRegion := false
-	for _, envVar := range bp.Config.EnvVars {
-		if envVar.Key == "AWS_REGION" {
-			foundAwsRegion = true
-			break
-		}
-	}
-	if !foundAwsRegion {
-		t.Fatalf("expected AWS_REGION in blueprint env vars after re-applying aws-ses")
+	if len(bp.Config.EnvVars) != 0 {
+		t.Fatalf(
+			"expected no blueprint env vars after re-applying aws-ses, got %+v",
+			bp.Config.EnvVars,
+		)
 	}
 }
 
@@ -240,7 +274,11 @@ func TestLoadProjectContext_MissingScaffoldConfig(t *testing.T) {
 	if err := lock.WriteLockFile(tmpDir); err != nil {
 		t.Fatalf("failed to write lock: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "go.mod"), []byte("module test\n\ngo 1.26.0\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(tmpDir, "go.mod"),
+		[]byte("module test\n\ngo 1.26.0\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("failed to write go.mod: %v", err)
 	}
 
@@ -303,8 +341,9 @@ func TestApplyExtension_AwsSes(t *testing.T) {
 	// Verify blueprint was updated: config.go should contain AwsSes field
 	fileContains(t, projectDir, "config/config.go", "AwsSes")
 
-	// Verify .env.example was updated with AWS env vars
-	fileContains(t, projectDir, ".env.example", "AWS_REGION")
+	// Verify AWS SES config was generated with code defaults
+	fileContains(t, projectDir, "config/aws_ses.go", "DefaultAWSSESRegion")
+	fileNotContains(t, projectDir, ".env.example", "AWS_REGION")
 
 	// Verify lock file
 	lock, err := ReadLockFile(projectDir)
@@ -407,8 +446,8 @@ func TestApplyExtension_PreservesExistingExtensions(t *testing.T) {
 	// Verify config.go still has AwsSes (blueprint preserved from existing extension)
 	fileContains(t, projectDir, "config/config.go", "AwsSes")
 
-	// Verify .env.example still has AWS_REGION
-	fileContains(t, projectDir, ".env.example", "AWS_REGION")
+	// Verify .env.example stays secret-only even after aws-ses
+	fileNotContains(t, projectDir, ".env.example", "AWS_REGION")
 
 	// Verify lock file has both extensions
 	lock, err := ReadLockFile(projectDir)
@@ -478,7 +517,8 @@ func TestApplyExtension_GeneratedProject(t *testing.T) {
 	fileExists(t, projectDir, "clients/email/aws_ses.go")
 	fileExists(t, projectDir, "config/aws_ses.go")
 	fileContains(t, projectDir, "config/config.go", "AwsSes")
-	fileContains(t, projectDir, ".env.example", "AWS_REGION")
+	fileContains(t, projectDir, "config/aws_ses.go", "DefaultAWSSESRegion")
+	fileNotContains(t, projectDir, ".env.example", "AWS_REGION")
 
 	lock, err := ReadLockFile(projectDir)
 	if err != nil {

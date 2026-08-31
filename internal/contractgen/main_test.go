@@ -25,7 +25,11 @@ func TestCollectCommandsAndFlags(t *testing.T) {
 		t.Fatalf("hide persistent flag: %v", err)
 	}
 
-	visible := &cobra.Command{Use: "zebra <name>", Aliases: []string{"z"}, Run: func(*cobra.Command, []string) {}}
+	visible := &cobra.Command{
+		Use:     "zebra <name>",
+		Aliases: []string{"z"},
+		Run:     func(*cobra.Command, []string) {},
+	}
 	visible.Flags().BoolP("force", "f", false, "force")
 	hidden := &cobra.Command{Use: "hidden", Hidden: true, Run: func(*cobra.Command, []string) {}}
 	unavailable := &cobra.Command{Use: "unavailable"}
@@ -36,7 +40,8 @@ func TestCollectCommandsAndFlags(t *testing.T) {
 	if len(commands) != 3 {
 		t.Fatalf("expected root and two visible commands, got %#v", commands)
 	}
-	if commands[0].Path != "root" || commands[1].Path != "root alpha" || commands[2].Path != "root zebra" {
+	if commands[0].Path != "root" || commands[1].Path != "root alpha" ||
+		commands[2].Path != "root zebra" {
 		t.Fatalf("commands were not sorted by path: %#v", commands)
 	}
 	if len(commands[2].Aliases) != 1 || commands[2].Aliases[0] != "z" {
@@ -57,7 +62,11 @@ func TestCollectCommandsAndFlags(t *testing.T) {
 	}
 	set := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	set.Int("count", 3, "count")
-	if got := flagsFromSet(set, false); len(got) != 1 || got[0].Name != "count" || got[0].Default != "3" {
+	if got := flagsFromSet(
+		set,
+		false,
+	); len(got) != 1 || got[0].Name != "count" ||
+		got[0].Default != "3" {
 		t.Fatalf("unexpected standalone flags: %#v", got)
 	}
 }
@@ -70,7 +79,8 @@ func TestJSONContractDiscoveryHelpers(t *testing.T) {
 		Plain   string
 	}
 	fields := jsonFields(reflect.TypeFor[sample]())
-	if len(fields) != 2 || fields[0].JSONName != "name" || fields[1].JSONName != "count" || !fields[1].OmitEmpty {
+	if len(fields) != 2 || fields[0].JSONName != "name" || fields[1].JSONName != "count" ||
+		!fields[1].OmitEmpty {
 		t.Fatalf("unexpected reflected JSON fields: %#v", fields)
 	}
 
@@ -109,7 +119,9 @@ type Alias string
 	if len(contracts) != 1 || contracts[0].Type != modulePath+"/models.Payload" {
 		t.Fatalf("unexpected contracts: %#v", contracts)
 	}
-	if got := contracts[0].Fields; len(got) != 2 || got[0].JSONName != "id" || got[1].JSONName != "DisplayName" || !got[1].OmitEmpty {
+	if got := contracts[0].Fields; len(got) != 2 || got[0].JSONName != "id" ||
+		got[1].JSONName != "DisplayName" ||
+		!got[1].OmitEmpty {
 		t.Fatalf("unexpected source fields: %#v", got)
 	}
 
@@ -128,7 +140,8 @@ func TestEmitContractsFromRepository(t *testing.T) {
 		t.Fatalf("emit packages: %v", err)
 	}
 	packages := strings.Fields(packagesOutput)
-	if !containsString(packages, modulePath+"/cli") || !containsString(packages, modulePath+"/layout") {
+	if !containsString(packages, modulePath+"/cli") ||
+		!containsString(packages, modulePath+"/layout") {
 		t.Fatalf("expected public packages in output, got %q", packagesOutput)
 	}
 	for _, name := range packages {
@@ -175,7 +188,11 @@ func TestRepositoryRootAndDirectoryFiltering(t *testing.T) {
 			t.Fatalf("%s should be skipped", name)
 		}
 	}
-	if !shouldSkipDirectory(repoRoot, filepath.Join(repoRoot, "generator", "internal", "ddl"), "ddl") {
+	if !shouldSkipDirectory(
+		repoRoot,
+		filepath.Join(repoRoot, "generator", "internal", "ddl"),
+		"ddl",
+	) {
 		t.Fatal("nested internal directory should be skipped")
 	}
 	if shouldSkipDirectory(repoRoot, filepath.Join(repoRoot, "generator", "models"), "models") {
@@ -187,7 +204,11 @@ func TestRepositoryRootAndDirectoryFiltering(t *testing.T) {
 	if err := os.MkdirAll(nested, 0o755); err != nil {
 		t.Fatalf("create nested directory: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tempRoot, "go.mod"), []byte("module example.com/test\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(tempRoot, "go.mod"),
+		[]byte("module example.com/test\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	withWorkingDir(t, nested, func() {
@@ -199,7 +220,8 @@ func TestRepositoryRootAndDirectoryFiltering(t *testing.T) {
 
 	withoutModule := t.TempDir()
 	withWorkingDir(t, withoutModule, func() {
-		if _, err := repositoryRoot(); err == nil || !strings.Contains(err.Error(), "repository root not found") {
+		if _, err := repositoryRoot(); err == nil ||
+			!strings.Contains(err.Error(), "repository root not found") {
 			t.Fatalf("expected missing root error, got %v", err)
 		}
 	})
@@ -250,11 +272,18 @@ func withWorkingDir(t *testing.T, directory string, fn func()) {
 	fn()
 }
 
-func assertContractFlag(t *testing.T, flags []flagContract, name, shorthand, flagType, defaultValue string, persistent bool) {
+func assertContractFlag(
+	t *testing.T,
+	flags []flagContract,
+	name, shorthand, flagType, defaultValue string,
+	persistent bool,
+) {
 	t.Helper()
 	for _, flag := range flags {
 		if flag.Name == name {
-			if flag.Shorthand != shorthand || flag.Type != flagType || flag.Default != defaultValue || flag.Persistent != persistent {
+			if flag.Shorthand != shorthand || flag.Type != flagType ||
+				flag.Default != defaultValue ||
+				flag.Persistent != persistent {
 				t.Fatalf("unexpected flag %s: %#v", name, flag)
 			}
 			return

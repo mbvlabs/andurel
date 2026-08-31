@@ -148,20 +148,30 @@ func TestMergeAgentConfigsPrecedenceAndCopiesMaps(t *testing.T) {
 	}
 
 	merged := mergeAgentConfigs(user, cache, project)
-	if merged.PreferredGeneratorMode != "safe" || merged.JavaScriptRuntime != "pnpm" || merged.OutputFormat != "agent" {
+	if merged.PreferredGeneratorMode != "safe" || merged.JavaScriptRuntime != "pnpm" ||
+		merged.OutputFormat != "agent" {
 		t.Fatalf("unexpected scalar merge: %#v", merged)
 	}
 	if merged.CommonDatabaseCommandOptions["migrate"] != "status" {
-		t.Fatalf("expected project database option to win, got %#v", merged.CommonDatabaseCommandOptions)
+		t.Fatalf(
+			"expected project database option to win, got %#v",
+			merged.CommonDatabaseCommandOptions,
+		)
 	}
-	if merged.Values["shared"] != "cache" || merged.Values["user"] != "kept" || merged.Values["project"] != "wins" {
+	if merged.Values["shared"] != "cache" || merged.Values["user"] != "kept" ||
+		merged.Values["project"] != "wins" {
 		t.Fatalf("unexpected values merge: %#v", merged.Values)
 	}
 
 	project.Values["project"] = "mutated"
 	project.CommonDatabaseCommandOptions["migrate"] = "down"
-	if merged.Values["project"] != "wins" || merged.CommonDatabaseCommandOptions["migrate"] != "status" {
-		t.Fatalf("merge should copy maps, got %#v / %#v", merged.Values, merged.CommonDatabaseCommandOptions)
+	if merged.Values["project"] != "wins" ||
+		merged.CommonDatabaseCommandOptions["migrate"] != "status" {
+		t.Fatalf(
+			"merge should copy maps, got %#v / %#v",
+			merged.Values,
+			merged.CommonDatabaseCommandOptions,
+		)
 	}
 }
 
@@ -261,10 +271,16 @@ func TestConfigCommandInitSetUnsetAndShow(t *testing.T) {
 		t.Fatalf("custom key was not removed: %#v", cfg.Values)
 	}
 
-	if err := writeAgentConfig(filepath.Join(configHome, "andurel", "config.json"), agentConfig{JavaScriptRuntime: "bun"}); err != nil {
+	if err := writeAgentConfig(
+		filepath.Join(configHome, "andurel", "config.json"),
+		agentConfig{JavaScriptRuntime: "bun"},
+	); err != nil {
 		t.Fatalf("write user config: %v", err)
 	}
-	if err := writeAgentConfig(filepath.Join(cacheHome, "andurel", "config.json"), agentConfig{OutputFormat: "agent"}); err != nil {
+	if err := writeAgentConfig(
+		filepath.Join(cacheHome, "andurel", "config.json"),
+		agentConfig{OutputFormat: "agent"},
+	); err != nil {
 		t.Fatalf("write cache config: %v", err)
 	}
 

@@ -5,7 +5,15 @@ import "testing"
 func TestScaffoldSvelteInertiaAssets(t *testing.T) {
 	projectDir := t.TempDir()
 
-	if err := Scaffold(projectDir, "testapp", "postgresql", "test", nil, "svelte", "npm"); err != nil {
+	if err := Scaffold(
+		projectDir,
+		"testapp",
+		"postgresql",
+		"test",
+		nil,
+		"svelte",
+		"npm",
+	); err != nil {
 		t.Fatalf("scaffold svelte inertia project: %v", err)
 	}
 
@@ -46,7 +54,9 @@ func TestScaffoldSvelteInertiaAssets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read svelte lock: %v", err)
 	}
-	if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia != "svelte" || lock.ScaffoldConfig.PackageManager() != "npm" || lock.ScaffoldConfig.SSRRuntime() != "node" {
+	if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia != "svelte" ||
+		lock.ScaffoldConfig.PackageManager() != "npm" ||
+		lock.ScaffoldConfig.SSRRuntime() != "node" {
 		t.Fatalf("unexpected scaffold config: %#v", lock.ScaffoldConfig)
 	}
 }

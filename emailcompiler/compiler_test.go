@@ -67,11 +67,17 @@ body { margin: 0 !important; }
 			t.Errorf("generated output does not contain %q\n%s", expected, generated)
 		}
 	}
-	if got := readTestFile(t, filepath.Join(root, "email", "message.templ")); got != templateSource {
+	if got := readTestFile(
+		t,
+		filepath.Join(root, "email", "message.templ"),
+	); got != templateSource {
 		t.Errorf("authored template changed:\n%s", got)
 	}
 	input := readTestFile(t, capturedInput)
-	if !strings.Contains(input, `@source inline("bg-red px-4 text-blue text-center unknown-class w-full");`) {
+	if !strings.Contains(
+		input,
+		`@source inline("bg-red px-4 text-blue text-center unknown-class w-full");`,
+	) {
 		t.Errorf("Tailwind input did not contain sorted unique candidates:\n%s", input)
 	}
 	info, err := os.Stat(target)
@@ -94,10 +100,20 @@ templ plain() { <p>Hello</p> }
 	capturedInput := filepath.Join(root, "tailwind-input.css")
 	tailwind := writeFakeTailwind(t, root, "", capturedInput, "")
 
-	if err := Compile(context.Background(), Config{ProjectRoot: root, TailwindPath: tailwind}); err != nil {
+	if err := Compile(
+		context.Background(),
+		Config{ProjectRoot: root, TailwindPath: tailwind},
+	); err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
-	if generated := strings.ReplaceAll(readTestFile(t, filepath.Join(root, "email", "plain_templ.go")), `\"`, `"`); !strings.Contains(generated, "<p>Hello</p>") {
+	if generated := strings.ReplaceAll(
+		readTestFile(t, filepath.Join(root, "email", "plain_templ.go")),
+		`\"`,
+		`"`,
+	); !strings.Contains(
+		generated,
+		"<p>Hello</p>",
+	) {
 		t.Errorf("generated output does not contain plain email markup:\n%s", generated)
 	}
 	if input := readTestFile(t, capturedInput); strings.Contains(input, "@source inline") {
@@ -138,7 +154,8 @@ func TestResolveConfig(t *testing.T) {
 		if err != nil {
 			t.Fatalf("resolveConfig(relative) error = %v", err)
 		}
-		if !filepath.IsAbs(got.EmailDir) || !filepath.IsAbs(got.CSSInputPath) || !filepath.IsAbs(got.TailwindPath) {
+		if !filepath.IsAbs(got.EmailDir) || !filepath.IsAbs(got.CSSInputPath) ||
+			!filepath.IsAbs(got.TailwindPath) {
 			t.Fatalf("relative paths were not made absolute: %#v", got)
 		}
 	})
@@ -303,7 +320,12 @@ templ message() { <div class="p-4"></div> }
 			if err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("Compile() error = %v, want containing %q", err, tc.want)
 			}
-			if _, statErr := os.Stat(filepath.Join(root, "email", "message_templ.go")); !errors.Is(statErr, os.ErrNotExist) {
+			if _, statErr := os.Stat(
+				filepath.Join(root, "email", "message_templ.go"),
+			); !errors.Is(
+				statErr,
+				os.ErrNotExist,
+			) {
 				t.Errorf("generated output exists after failed compilation: %v", statErr)
 			}
 		})
@@ -319,7 +341,8 @@ templ message() { <div class="p-4"></div> }
 	tailwind := writeFakeTailwind(t, root, "", "", "tailwind exploded")
 
 	err := Compile(context.Background(), Config{ProjectRoot: root, TailwindPath: tailwind})
-	if err == nil || !strings.Contains(err.Error(), "compile email Tailwind CSS") || !strings.Contains(err.Error(), "tailwind exploded") {
+	if err == nil || !strings.Contains(err.Error(), "compile email Tailwind CSS") ||
+		!strings.Contains(err.Error(), "tailwind exploded") {
 		t.Fatalf("Compile() error = %v", err)
 	}
 }
@@ -332,7 +355,11 @@ func TestExtractHeadCSS(t *testing.T) {
 		err   bool
 	}{
 		{name: "absent", input: "p { color: red; }"},
-		{name: "extracts and trims", input: "before\n" + headCSSStartMarker + "\n p { color: red; } \n" + headCSSEndMarker + "\nafter", want: "p { color: red; }"},
+		{
+			name:  "extracts and trims",
+			input: "before\n" + headCSSStartMarker + "\n p { color: red; } \n" + headCSSEndMarker + "\nafter",
+			want:  "p { color: red; }",
+		},
 		{name: "missing start", input: headCSSEndMarker, err: true},
 		{name: "missing end", input: headCSSStartMarker, err: true},
 		{name: "wrong order", input: headCSSEndMarker + headCSSStartMarker, err: true},
@@ -408,7 +435,10 @@ func assertNoCompilerTemporaryFiles(t *testing.T, dir string) {
 	}
 	for _, entry := range entries {
 		if strings.HasPrefix(entry.Name(), ".andurel-email-") {
-			t.Errorf("temporary compiler file was not removed: %s", filepath.Join(dir, entry.Name()))
+			t.Errorf(
+				"temporary compiler file was not removed: %s",
+				filepath.Join(dir, entry.Name()),
+			)
 		}
 	}
 }

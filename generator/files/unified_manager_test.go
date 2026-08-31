@@ -118,7 +118,11 @@ func TestFindGoModRoot(t *testing.T) {
 	if err := os.MkdirAll(nested, 0o755); err != nil {
 		t.Fatalf("mkdir nested: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app\n"), 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, "go.mod"),
+		[]byte("module example.com/app\n"),
+		0o600,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 

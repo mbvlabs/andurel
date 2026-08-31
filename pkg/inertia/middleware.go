@@ -56,7 +56,8 @@ func (renderer *Renderer) Middleware() echo.MiddlewareFunc {
 			}
 			wasRedirect := captured.status >= 300 && captured.status < 400
 			captured.normalize(etx)
-			if renderer.reflash != nil && (wasRedirect || captured.status >= 300 && captured.status < 400) {
+			if renderer.reflash != nil &&
+				(wasRedirect || captured.status >= 300 && captured.status < 400) {
 				if err := renderer.reflash(etx); err != nil {
 					return err
 				}
@@ -114,7 +115,9 @@ func (writer *captureWriter) normalize(etx *echo.Context) {
 	if writer.status == http.StatusFound && isUnsafeRedirectMethod(etx.Request().Method) {
 		writer.status = http.StatusSeeOther
 	}
-	if writer.status >= 300 && writer.status < 400 && strings.Contains(header.Get("Location"), "#") && requestStateMust(etx).Purpose != PurposePrefetch {
+	if writer.status >= 300 && writer.status < 400 &&
+		strings.Contains(header.Get("Location"), "#") &&
+		requestStateMust(etx).Purpose != PurposePrefetch {
 		location := header.Get("Location")
 		header.Del("Location")
 		header.Del(HeaderInertia)
@@ -140,5 +143,6 @@ func requestStateMust(etx *echo.Context) Request {
 }
 
 func isUnsafeRedirectMethod(method string) bool {
-	return method == http.MethodPost || method == http.MethodPut || method == http.MethodPatch || method == http.MethodDelete
+	return method == http.MethodPost || method == http.MethodPut || method == http.MethodPatch ||
+		method == http.MethodDelete
 }

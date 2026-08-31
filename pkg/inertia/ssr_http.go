@@ -56,7 +56,8 @@ func NewHTTPRenderer(config SSRConfig, options ...HTTPRendererOption) (*HTTPRend
 func WithHTTPRendererURL(rawURL string) HTTPRendererOption {
 	return func(renderer *HTTPRenderer) error {
 		parsed, err := url.Parse(strings.TrimSpace(rawURL))
-		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		if err != nil || parsed.Host == "" ||
+			(parsed.Scheme != "http" && parsed.Scheme != "https") {
 			return fmt.Errorf("inertia: invalid SSR URL")
 		}
 		parsed.Path = strings.TrimSuffix(strings.TrimSuffix(parsed.Path, "/render"), "/")
@@ -106,7 +107,12 @@ func (renderer *HTTPRenderer) Render(ctx context.Context, page Page) (*SSRRespon
 	if err != nil {
 		return nil, &SSRTransportError{Kind: SSREncodeFailure, Operation: "encode page", Err: err}
 	}
-	request, cancel, err := renderer.request(ctx, http.MethodPost, "/render", bytes.NewReader(payload))
+	request, cancel, err := renderer.request(
+		ctx,
+		http.MethodPost,
+		"/render",
+		bytes.NewReader(payload),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -119,15 +125,28 @@ func (renderer *HTTPRenderer) Render(ctx context.Context, page Page) (*SSRRespon
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, &SSRTransportError{Kind: SSRStatusFailure, Operation: "render", Status: response.StatusCode, Err: fmt.Errorf("unexpected response status")}
+		return nil, &SSRTransportError{
+			Kind:      SSRStatusFailure,
+			Operation: "render",
+			Status:    response.StatusCode,
+			Err:       fmt.Errorf("unexpected response status"),
+		}
 	}
 	body, err := readBounded(response.Body, renderer.maxResponseSize)
 	if err != nil {
-		return nil, &SSRTransportError{Kind: SSRResponseFailure, Operation: "read render response", Err: err}
+		return nil, &SSRTransportError{
+			Kind:      SSRResponseFailure,
+			Operation: "read render response",
+			Err:       err,
+		}
 	}
 	var rendered SSRResponse
 	if err := json.Unmarshal(body, &rendered); err != nil {
-		return nil, &SSRTransportError{Kind: SSRDecodeFailure, Operation: "decode render response", Err: err}
+		return nil, &SSRTransportError{
+			Kind:      SSRDecodeFailure,
+			Operation: "decode render response",
+			Err:       err,
+		}
 	}
 	return &rendered, nil
 }
@@ -145,20 +164,37 @@ func (renderer *HTTPRenderer) Health(ctx context.Context) error {
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return &SSRTransportError{Kind: SSRStatusFailure, Operation: "health", Status: response.StatusCode, Err: fmt.Errorf("unexpected response status")}
+		return &SSRTransportError{
+			Kind:      SSRStatusFailure,
+			Operation: "health",
+			Status:    response.StatusCode,
+			Err:       fmt.Errorf("unexpected response status"),
+		}
 	}
 	body, err := readBounded(response.Body, 64<<10)
 	if err != nil {
-		return &SSRTransportError{Kind: SSRResponseFailure, Operation: "read health response", Err: err}
+		return &SSRTransportError{
+			Kind:      SSRResponseFailure,
+			Operation: "read health response",
+			Err:       err,
+		}
 	}
 	var health struct {
 		Status string `json:"status"`
 	}
 	if err := json.Unmarshal(body, &health); err != nil {
-		return &SSRTransportError{Kind: SSRDecodeFailure, Operation: "decode health response", Err: err}
+		return &SSRTransportError{
+			Kind:      SSRDecodeFailure,
+			Operation: "decode health response",
+			Err:       err,
+		}
 	}
 	if !strings.EqualFold(health.Status, "ok") {
-		return &SSRTransportError{Kind: SSRResponseFailure, Operation: "health", Err: fmt.Errorf("renderer is not healthy")}
+		return &SSRTransportError{
+			Kind:      SSRResponseFailure,
+			Operation: "health",
+			Err:       fmt.Errorf("renderer is not healthy"),
+		}
 	}
 	return nil
 }
@@ -180,19 +216,32 @@ func (renderer *HTTPRenderer) Shutdown(ctx context.Context) error {
 	defer response.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 64<<10))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return &SSRTransportError{Kind: SSRStatusFailure, Operation: "shutdown", Status: response.StatusCode, Err: fmt.Errorf("unexpected response status")}
+		return &SSRTransportError{
+			Kind:      SSRStatusFailure,
+			Operation: "shutdown",
+			Status:    response.StatusCode,
+			Err:       fmt.Errorf("unexpected response status"),
+		}
 	}
 	return nil
 }
 
-func (renderer *HTTPRenderer) request(ctx context.Context, method, path string, body io.Reader) (*http.Request, context.CancelFunc, error) {
+func (renderer *HTTPRenderer) request(
+	ctx context.Context,
+	method, path string,
+	body io.Reader,
+) (*http.Request, context.CancelFunc, error) {
 	bounded, cancel := context.WithTimeout(ctx, renderer.timeout)
 	endpoint := *renderer.baseURL
 	endpoint.Path = strings.TrimSuffix(endpoint.Path, "/") + path
 	request, err := http.NewRequestWithContext(bounded, method, endpoint.String(), body)
 	if err != nil {
 		cancel()
-		return nil, nil, &SSRTransportError{Kind: SSRTransportFailure, Operation: "create request", Err: err}
+		return nil, nil, &SSRTransportError{
+			Kind:      SSRTransportFailure,
+			Operation: "create request",
+			Err:       err,
+		}
 	}
 	request.Header.Set("Accept", "application/json")
 	return request, cancel, nil

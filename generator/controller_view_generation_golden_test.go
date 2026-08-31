@@ -41,12 +41,26 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 				coord := setupControllerViewGoldenProject(t, cssMode.cssComponents)
 
 				if len(scenario.initialActions) > 0 {
-					if err := coord.GenerateControllerWithActions("Widget", "", "", scenario.initialActions, "", false); err != nil {
+					if err := coord.GenerateControllerWithActions(
+						"Widget",
+						"",
+						"",
+						scenario.initialActions,
+						"",
+						false,
+					); err != nil {
 						t.Fatalf("failed to generate initial controller/view: %v", err)
 					}
 				}
 
-				if err := coord.GenerateControllerWithActions("Widget", "", "", scenario.actions, "", false); err != nil {
+				if err := coord.GenerateControllerWithActions(
+					"Widget",
+					"",
+					"",
+					scenario.actions,
+					"",
+					false,
+				); err != nil {
 					t.Fatalf("failed to generate controller/view: %v", err)
 				}
 
@@ -60,7 +74,15 @@ func TestControllerViewGenerationWithModelNameGolden(t *testing.T) {
 	g := goldie.New(t, goldie.WithFixtureDir(controllerViewGenerationGoldenDir(t)))
 	coord := setupControllerViewGoldenProject(t, false)
 
-	if err := coord.GenerateControllerWithActionsForModel("Dashboard", "", "Widget", "", []string{"index", "show"}, "", false); err != nil {
+	if err := coord.GenerateControllerWithActionsForModel(
+		"Dashboard",
+		"",
+		"Widget",
+		"",
+		[]string{"index", "show"},
+		"",
+		false,
+	); err != nil {
 		t.Fatalf("failed to generate controller/view with model name: %v", err)
 	}
 
@@ -74,49 +96,139 @@ func TestControllerViewGenerationWithModelNameGolden(t *testing.T) {
 func TestControllerViewGenerationNamespacedController(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, false)
 
-	if err := coord.GenerateControllerWithActions("Widget", "admin", "", nil, "", false); err != nil {
+	if err := coord.GenerateControllerWithActions(
+		"Widget",
+		"admin",
+		"",
+		nil,
+		"",
+		false,
+	); err != nil {
 		t.Fatalf("failed to generate namespaced controller/view: %v", err)
 	}
 
-	assertGeneratedFileContains(t, filepath.Join("controllers", "controller.go"), `"testapp/controllers/admin"`)
-	assertGeneratedFileContains(t, filepath.Join("controllers", "controller.go"), "admin.NewWidgets,")
-	assertGeneratedFileContains(t, filepath.Join("controllers", "controller.go"), "func(r *router.Router, c admin.Widgets) error")
-	assertGeneratedFileContains(t, filepath.Join("controllers", "controller.go"), "return c.RegisterRoutes(r)")
-	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "func (w Widgets) RegisterRoutes(r *router.Router) error")
-	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "routes.AdminWidgetIndex.Path()")
-	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "routes.AdminWidgetShow.Path()")
-	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "routes.AdminWidgetEdit.Path()")
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "controller.go"),
+		`"testapp/controllers/admin"`,
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "controller.go"),
+		"admin.NewWidgets,",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "controller.go"),
+		"func(r *router.Router, c admin.Widgets) error",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "controller.go"),
+		"return c.RegisterRoutes(r)",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "admin", "widgets.go"),
+		"func (w Widgets) RegisterRoutes(r *router.Router) error",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "admin", "widgets.go"),
+		"routes.AdminWidgetIndex.Path()",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "admin", "widgets.go"),
+		"routes.AdminWidgetShow.Path()",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "admin", "widgets.go"),
+		"routes.AdminWidgetEdit.Path()",
+	)
 }
 
 func TestControllerViewGenerationRootAndNamespacedRegistrations(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, false)
 
-	if err := coord.GenerateControllerWithActions("Widget", "admin", "", nil, "", false); err != nil {
+	if err := coord.GenerateControllerWithActions(
+		"Widget",
+		"admin",
+		"",
+		nil,
+		"",
+		false,
+	); err != nil {
 		t.Fatalf("failed to generate namespaced controller/view: %v", err)
 	}
 	if err := coord.GenerateControllerWithActions("Widget", "", "", nil, "", false); err != nil {
 		t.Fatalf("failed to generate root controller/view: %v", err)
 	}
 
-	assertGeneratedFileContains(t, filepath.Join("controllers", "controller.go"), "\tadmin.NewWidgets,")
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "controller.go"),
+		"\tadmin.NewWidgets,",
+	)
 	assertGeneratedFileContains(t, filepath.Join("controllers", "controller.go"), "\tNewWidgets,")
-	assertGeneratedFileContains(t, filepath.Join("controllers", "controller.go"), "func(r *router.Router, c admin.Widgets) error")
-	assertGeneratedFileContains(t, filepath.Join("controllers", "controller.go"), "func(r *router.Router, c Widgets) error")
-	assertGeneratedFileContains(t, filepath.Join("controllers", "controller.go"), "return c.RegisterRoutes(r)")
-	assertGeneratedFileNotContains(t, filepath.Join("controllers", "controller.go"), "controllers.Widgets")
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "controller.go"),
+		"func(r *router.Router, c admin.Widgets) error",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "controller.go"),
+		"func(r *router.Router, c Widgets) error",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "controller.go"),
+		"return c.RegisterRoutes(r)",
+	)
+	assertGeneratedFileNotContains(
+		t,
+		filepath.Join("controllers", "controller.go"),
+		"controllers.Widgets",
+	)
 }
 
 func TestControllerViewGenerationNamespacedModelName(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, false)
 
-	if err := coord.GenerateControllerWithActionsForModel("Dashboard", "admin", "Widget", "", []string{"index", "show"}, "", false); err != nil {
+	if err := coord.GenerateControllerWithActionsForModel(
+		"Dashboard",
+		"admin",
+		"Widget",
+		"",
+		[]string{"index", "show"},
+		"",
+		false,
+	); err != nil {
 		t.Fatalf("failed to generate namespaced controller/view with model name: %v", err)
 	}
 
-	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "dashboards.go"), "views.AdminDashboardIndex")
-	assertGeneratedFileContains(t, filepath.Join("router", "routes", "admin_dashboards.go"), `"admin.dashboards.index"`)
-	assertGeneratedFileContains(t, filepath.Join("controllers", "controller.go"), "admin.NewDashboards,")
-	assertGeneratedFileContains(t, filepath.Join("views", "admin_dashboards_resource.templ"), "type AdminDashboardIndex struct")
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "admin", "dashboards.go"),
+		"views.AdminDashboardIndex",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("router", "routes", "admin_dashboards.go"),
+		`"admin.dashboards.index"`,
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "controller.go"),
+		"admin.NewDashboards,",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("views", "admin_dashboards_resource.templ"),
+		"type AdminDashboardIndex struct",
+	)
 }
 
 func TestControllerViewGenerationNamespacedNoControllerGo(t *testing.T) {
@@ -172,13 +284,28 @@ func TestControllerViewGenerationNamespacedNoControllerGo(t *testing.T) {
 		t.Fatalf("failed to generate model prerequisite: %v", err)
 	}
 
-	if err := coord.GenerateControllerWithActions("Widget", "admin", "", nil, "", false); err != nil {
+	if err := coord.GenerateControllerWithActions(
+		"Widget",
+		"admin",
+		"",
+		nil,
+		"",
+		false,
+	); err != nil {
 		t.Fatalf("failed to generate namespaced controller/view without controller.go: %v", err)
 	}
 
 	// The controller file and view should still be generated
-	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "package admin")
-	assertGeneratedFileContains(t, filepath.Join("views", "admin_widgets_resource.templ"), "type AdminWidgetIndex struct")
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "admin", "widgets.go"),
+		"package admin",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("views", "admin_widgets_resource.templ"),
+		"type AdminWidgetIndex struct",
+	)
 
 	// controllers/controller.go should NOT exist (was never created, and generation
 	// should not have created it — it only updates, it doesn't create)
@@ -190,56 +317,143 @@ func TestControllerViewGenerationNamespacedNoControllerGo(t *testing.T) {
 func TestControllerViewGenerationNamespacedInertia(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, false)
 
-	if err := coord.GenerateControllerWithActions("Widget", "admin", "", []string{"show"}, "vue", false); err != nil {
+	if err := coord.GenerateControllerWithActions(
+		"Widget",
+		"admin",
+		"",
+		[]string{"show"},
+		"vue",
+		false,
+	); err != nil {
 		t.Fatalf("failed to generate namespaced inertia controller/view: %v", err)
 	}
 
 	assertControllerViewGoldenFileMissing(t, filepath.Join("views", "admin_widgets_resource.templ"))
-	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Admin", "Widget", "Show.vue"), "<template>")
-	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), `return w.renderer.Page(`)
-	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), `"Admin/Widget/Show",`)
-	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "inertia.FromStruct(WidgetItemProps{")
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("resources", "js", "Pages", "Admin", "Widget", "Show.vue"),
+		"<template>",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "admin", "widgets.go"),
+		`return w.renderer.Page(`,
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "admin", "widgets.go"),
+		`"Admin/Widget/Show",`,
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "admin", "widgets.go"),
+		"inertia.FromStruct(WidgetItemProps{",
+	)
 }
 
 func TestControllerViewGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
 	coord := setupControllerViewGoldenProjectWithInertia(t, false, "vue")
 
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index", "show"}, "", false); err != nil {
+	if err := coord.GenerateControllerWithActions(
+		"Widget",
+		"",
+		"",
+		[]string{"index", "show"},
+		"",
+		false,
+	); err != nil {
 		t.Fatalf("failed to generate controller/view: %v", err)
 	}
 
 	assertGeneratedFileContains(t, "views/widgets_resource.templ", "type WidgetIndex struct")
-	assertControllerViewGoldenFileMissing(t, filepath.Join("resources", "js", "Pages", "Widget", "Index.vue"))
-	assertGeneratedFileContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
-	assertGeneratedFileNotContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/inertia")
+	assertControllerViewGoldenFileMissing(
+		t,
+		filepath.Join("resources", "js", "Pages", "Widget", "Index.vue"),
+	)
+	assertGeneratedFileContains(
+		t,
+		"controllers/widgets.go",
+		"github.com/mbvlabs/andurel/pkg/hypermedia",
+	)
+	assertGeneratedFileNotContains(
+		t,
+		"controllers/widgets.go",
+		"github.com/mbvlabs/andurel/pkg/inertia",
+	)
 }
 
 func TestControllerViewGenerationGoldensInertiaFlagStillGeneratesInertia(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, false)
 
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index", "show"}, "vue", false); err != nil {
+	if err := coord.GenerateControllerWithActions(
+		"Widget",
+		"",
+		"",
+		[]string{"index", "show"},
+		"vue",
+		false,
+	); err != nil {
 		t.Fatalf("failed to generate controller/view: %v", err)
 	}
 
 	assertControllerViewGoldenFileMissing(t, "views/widgets_resource.templ")
-	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Index.vue"), "<template>")
-	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Show.vue"), "<template>")
-	assertGeneratedFileContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/inertia")
-	assertGeneratedFileNotContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("resources", "js", "Pages", "Widget", "Index.vue"),
+		"<template>",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("resources", "js", "Pages", "Widget", "Show.vue"),
+		"<template>",
+	)
+	assertGeneratedFileContains(
+		t,
+		"controllers/widgets.go",
+		"github.com/mbvlabs/andurel/pkg/inertia",
+	)
+	assertGeneratedFileNotContains(
+		t,
+		"controllers/widgets.go",
+		"github.com/mbvlabs/andurel/pkg/hypermedia",
+	)
 }
 
 func TestControllerViewGenerationGoldensReactInertiaFlagGeneratesReactPages(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, false)
 
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index", "show"}, "react", false); err != nil {
+	if err := coord.GenerateControllerWithActions(
+		"Widget",
+		"",
+		"",
+		[]string{"index", "show"},
+		"react",
+		false,
+	); err != nil {
 		t.Fatalf("failed to generate controller/view: %v", err)
 	}
 
 	assertControllerViewGoldenFileMissing(t, "views/widgets_resource.templ")
-	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Index.tsx"), "@inertiajs/react")
-	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Show.tsx"), "export default function Show")
-	assertGeneratedFileContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/inertia")
-	assertGeneratedFileNotContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("resources", "js", "Pages", "Widget", "Index.tsx"),
+		"@inertiajs/react",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("resources", "js", "Pages", "Widget", "Show.tsx"),
+		"export default function Show",
+	)
+	assertGeneratedFileContains(
+		t,
+		"controllers/widgets.go",
+		"github.com/mbvlabs/andurel/pkg/inertia",
+	)
+	assertGeneratedFileNotContains(
+		t,
+		"controllers/widgets.go",
+		"github.com/mbvlabs/andurel/pkg/hypermedia",
+	)
 	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(")
 	assertGeneratedFileContains(t, "controllers/widgets.go", `"Widget/Index",`)
 	assertGeneratedFileContains(t, "controllers/widgets.go", "inertia.FromStruct(WidgetIndexProps{")
@@ -248,14 +462,33 @@ func TestControllerViewGenerationGoldensReactInertiaFlagGeneratesReactPages(t *t
 func TestControllerViewGenerationGoldensSingleVueActionGeneratesInertiaController(t *testing.T) {
 	coord := setupControllerViewGoldenProject(t, false)
 
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"show"}, "vue", false); err != nil {
+	if err := coord.GenerateControllerWithActions(
+		"Widget",
+		"",
+		"",
+		[]string{"show"},
+		"vue",
+		false,
+	); err != nil {
 		t.Fatalf("failed to generate controller/view: %v", err)
 	}
 
 	assertControllerViewGoldenFileMissing(t, "views/widgets_resource.templ")
-	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Show.vue"), "<template>")
-	assertGeneratedFileContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/inertia")
-	assertGeneratedFileNotContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("resources", "js", "Pages", "Widget", "Show.vue"),
+		"<template>",
+	)
+	assertGeneratedFileContains(
+		t,
+		"controllers/widgets.go",
+		"github.com/mbvlabs/andurel/pkg/inertia",
+	)
+	assertGeneratedFileNotContains(
+		t,
+		"controllers/widgets.go",
+		"github.com/mbvlabs/andurel/pkg/hypermedia",
+	)
 	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(")
 	assertGeneratedFileContains(t, "controllers/widgets.go", `"Widget/Show",`)
 	assertGeneratedFileContains(t, "controllers/widgets.go", "inertia.FromStruct(WidgetItemProps{")
@@ -264,19 +497,52 @@ func TestControllerViewGenerationGoldensSingleVueActionGeneratesInertiaControlle
 func TestControllerViewGenerationGoldensVueActionDoesNotInheritTemplViewActions(t *testing.T) {
 	coord := setupControllerViewGoldenProjectWithInertia(t, false, "vue")
 
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index"}, "", false); err != nil {
+	if err := coord.GenerateControllerWithActions(
+		"Widget",
+		"",
+		"",
+		[]string{"index"},
+		"",
+		false,
+	); err != nil {
 		t.Fatalf("failed to generate templ controller/view: %v", err)
 	}
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"show"}, "vue", false); err != nil {
+	if err := coord.GenerateControllerWithActions(
+		"Widget",
+		"",
+		"",
+		[]string{"show"},
+		"vue",
+		false,
+	); err != nil {
 		t.Fatalf("failed to generate vue controller/view: %v", err)
 	}
 
 	assertGeneratedFileContains(t, "views/widgets_resource.templ", "type WidgetIndex struct")
-	assertGeneratedFileContains(t, filepath.Join("resources", "js", "Pages", "Widget", "Show.vue"), "<template>")
-	assertControllerViewGoldenFileMissing(t, filepath.Join("resources", "js", "Pages", "Widget", "Index.vue"))
-	assertGeneratedFileContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
-	assertGeneratedFileContains(t, "controllers/widgets.go", "github.com/mbvlabs/andurel/pkg/inertia")
-	assertGeneratedFileContains(t, "controllers/widgets.go", "return hypermedia.RenderPage(etx, views.WidgetIndex")
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("resources", "js", "Pages", "Widget", "Show.vue"),
+		"<template>",
+	)
+	assertControllerViewGoldenFileMissing(
+		t,
+		filepath.Join("resources", "js", "Pages", "Widget", "Index.vue"),
+	)
+	assertGeneratedFileContains(
+		t,
+		"controllers/widgets.go",
+		"github.com/mbvlabs/andurel/pkg/hypermedia",
+	)
+	assertGeneratedFileContains(
+		t,
+		"controllers/widgets.go",
+		"github.com/mbvlabs/andurel/pkg/inertia",
+	)
+	assertGeneratedFileContains(
+		t,
+		"controllers/widgets.go",
+		"return hypermedia.RenderPage(etx, views.WidgetIndex",
+	)
 	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(")
 	assertGeneratedFileContains(t, "controllers/widgets.go", `"Widget/Show",`)
 	assertGeneratedFileContains(t, "controllers/widgets.go", "inertia.FromStruct(WidgetItemProps{")
@@ -285,10 +551,24 @@ func TestControllerViewGenerationGoldensVueActionDoesNotInheritTemplViewActions(
 func TestControllerViewGenerationGoldensVueActionUpdatesRegisterRoutes(t *testing.T) {
 	coord := setupControllerViewGoldenProjectWithInertia(t, false, "vue")
 
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"index"}, "", false); err != nil {
+	if err := coord.GenerateControllerWithActions(
+		"Widget",
+		"",
+		"",
+		[]string{"index"},
+		"",
+		false,
+	); err != nil {
 		t.Fatalf("failed to generate templ controller/view: %v", err)
 	}
-	if err := coord.GenerateControllerWithActions("Widget", "", "", []string{"show"}, "vue", false); err != nil {
+	if err := coord.GenerateControllerWithActions(
+		"Widget",
+		"",
+		"",
+		[]string{"show"},
+		"vue",
+		false,
+	); err != nil {
 		t.Fatalf("failed to generate vue controller/view: %v", err)
 	}
 
@@ -296,7 +576,11 @@ func TestControllerViewGenerationGoldensVueActionUpdatesRegisterRoutes(t *testin
 	assertGeneratedFileContains(t, "controllers/widgets.go", "routes.WidgetShow.Path()")
 	assertGeneratedFileContains(t, "controllers/widgets.go", "Handler: w.Index")
 	assertGeneratedFileContains(t, "controllers/widgets.go", "Handler: w.Show")
-	assertGeneratedFileContains(t, "controllers/widgets.go", "return hypermedia.RenderPage(etx, views.WidgetIndex")
+	assertGeneratedFileContains(
+		t,
+		"controllers/widgets.go",
+		"return hypermedia.RenderPage(etx, views.WidgetIndex",
+	)
 	assertGeneratedFileContains(t, "controllers/widgets.go", "return w.renderer.Page(")
 	assertGeneratedFileContains(t, "controllers/widgets.go", `"Widget/Show",`)
 	assertGeneratedFileContains(t, "controllers/widgets.go", "inertia.FromStruct(WidgetItemProps{")
@@ -306,7 +590,11 @@ func setupControllerViewGoldenProject(t *testing.T, cssComponents bool) Coordina
 	return setupControllerViewGoldenProjectWithInertia(t, cssComponents, "")
 }
 
-func setupControllerViewGoldenProjectWithInertia(t *testing.T, cssComponents bool, inertia string) Coordinator {
+func setupControllerViewGoldenProjectWithInertia(
+	t *testing.T,
+	cssComponents bool,
+	inertia string,
+) Coordinator {
 	t.Helper()
 
 	cache.ClearFileSystemCache()
@@ -330,7 +618,12 @@ func setupControllerViewGoldenProjectWithInertia(t *testing.T, cssComponents boo
 		t.Fatalf("failed to chmod fake templ binary: %v", err)
 	}
 
-	writeControllerViewFixtureFile(t, projectDir, "controllers/controller.go", controllerModuleFixture)
+	writeControllerViewFixtureFile(
+		t,
+		projectDir,
+		"controllers/controller.go",
+		controllerModuleFixture,
+	)
 
 	lock := layout.NewAndurelLock("test")
 	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
@@ -391,7 +684,12 @@ func assertControllerViewArtifacts(t *testing.T, g *goldie.Goldie, fixtureDir st
 	}
 }
 
-func assertControllerViewGoldenPaths(t *testing.T, g *goldie.Goldie, fixtureDir string, paths []string) {
+func assertControllerViewGoldenPaths(
+	t *testing.T,
+	g *goldie.Goldie,
+	fixtureDir string,
+	paths []string,
+) {
 	t.Helper()
 
 	for _, path := range paths {

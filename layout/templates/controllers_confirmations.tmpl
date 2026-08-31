@@ -5,23 +5,25 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/validation"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/views"
 
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/validation"
+
 	"github.com/labstack/echo/v5"
 )
 
 type Confirmations struct {
 	identity services.Identity
+	session  *cookies.Session
 }
 
-func NewConfirmations(identity services.Identity) Confirmations {
-	return Confirmations{identity}
+func NewConfirmations(identity services.Identity, session *cookies.Session) Confirmations {
+	return Confirmations{identity, session}
 }
 
 func (c Confirmations) RegisterRoutes(r *router.Router) error {
@@ -77,7 +79,10 @@ func (c Confirmations) Create(etx *echo.Context) error {
 	)
 	if err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return hypermedia.RenderPage(etx, views.ConfirmationForm{Errors: validationErrors}.Page())
+			return hypermedia.RenderPage(
+				etx,
+				views.ConfirmationForm{Errors: validationErrors}.Page(),
+			)
 		}
 
 		slog.ErrorContext(
@@ -97,13 +102,14 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			errorMsg = "Failed to verify email"
 		}
 
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
+		if flashErr := c.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
+
 		return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
 	}
 
-	if err := cookies.CreateAppSession(etx, user); err != nil {
+	if err := c.session.CreateAppSession(etx, user); err != nil {
 		slog.ErrorContext(
 			etx.Request().Context(),
 			"failed to create session",
@@ -114,7 +120,11 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Email verified successfully!"); flashErr != nil {
+	if flashErr := c.session.AddFlash(
+		etx,
+		cookies.FlashSuccess,
+		"Email verified successfully!",
+	); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 

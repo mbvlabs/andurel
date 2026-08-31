@@ -361,9 +361,16 @@ func TestShouldUpdateTool_BuiltTools(t *testing.T) {
 			result := shouldUpdateTool(existing, expected)
 
 			if result != tt.shouldUpdate {
-				t.Errorf("shouldUpdateTool(path=%s,v=%s -> path=%s,v=%s) = %v, want %v (reason: %s)",
-					tt.existingPath, tt.existingVersion, tt.expectedPath, tt.expectedVersion,
-					result, tt.shouldUpdate, tt.reason)
+				t.Errorf(
+					"shouldUpdateTool(path=%s,v=%s -> path=%s,v=%s) = %v, want %v (reason: %s)",
+					tt.existingPath,
+					tt.existingVersion,
+					tt.expectedPath,
+					tt.expectedVersion,
+					result,
+					tt.shouldUpdate,
+					tt.reason,
+				)
 			}
 		})
 	}
@@ -457,7 +464,10 @@ func TestSyncToolsToFrameworkVersion_PrefersHigherExistingVersion(t *testing.T) 
 
 	for _, updated := range result.Updated {
 		if strings.HasPrefix(updated, "templ:") {
-			t.Fatalf("templ should not be updated when existing version is higher, got update: %s", updated)
+			t.Fatalf(
+				"templ should not be updated when existing version is higher, got update: %s",
+				updated,
+			)
 		}
 	}
 }
@@ -519,7 +529,11 @@ func TestNewUpgraderRejectsMissingAndSchemaLessLocks(t *testing.T) {
 	}
 
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "andurel.lock"), []byte(`{"version":"v1.0.0","tools":{}}`), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, "andurel.lock"),
+		[]byte(`{"version":"v1.0.0","tools":{}}`),
+		0o644,
+	); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := NewUpgrader(root, UpgradeOptions{TargetVersion: "v1.0.1"}); err == nil ||
@@ -618,9 +632,17 @@ func TestIsFrameworkManagedTool_RecognizesOnlyKnownFrameworkTools(t *testing.T) 
 		tool *layout.Tool
 		want bool
 	}{
-		{name: "templ", tool: layout.NewGoTool("templ", "github.com/a-h/templ", "v0.0.1"), want: true},
+		{
+			name: "templ",
+			tool: layout.NewGoTool("templ", "github.com/a-h/templ", "v0.0.1"),
+			want: true,
+		},
 		{name: "tailwindcli", tool: layout.NewBinaryTool("tailwindcli", "v0.0.1"), want: true},
-		{name: "custom", tool: &layout.Tool{Source: "github.com/example/custom", Version: "v1.0.0"}, want: false},
+		{
+			name: "custom",
+			tool: &layout.Tool{Source: "github.com/example/custom", Version: "v1.0.0"},
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -699,7 +721,10 @@ func TestSyncToolsToFrameworkVersion_RefreshesMetadataWithoutVersionChange(t *te
 	}
 	for _, updated := range result.Updated {
 		if strings.HasPrefix(updated, "templ:") {
-			t.Fatalf("metadata-only refresh should not be reported as version update: %v", result.Updated)
+			t.Fatalf(
+				"metadata-only refresh should not be reported as version update: %v",
+				result.Updated,
+			)
 		}
 	}
 }
@@ -755,8 +780,12 @@ func TestExecuteDryRun_ReportsRenderedFilesAndTools(t *testing.T) {
 		SchemaVersion: 1,
 		Version:       "v0.1.0",
 		Tools: map[string]*layout.Tool{
-			"templ": {Version: "v0.0.1", Path: "bin/templ", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}},
-			"run":   layout.NewBuiltTool("cmd/run/main.go", "v0.1.0"),
+			"templ": {
+				Version:      "v0.0.1",
+				Path:         "bin/templ",
+				VersionCheck: &layout.VersionCheck{Args: []string{"--version"}},
+			},
+			"run": layout.NewBuiltTool("cmd/run/main.go", "v0.1.0"),
 		},
 		ScaffoldConfig: &layout.ScaffoldConfig{
 			ProjectName: "myapp",
@@ -784,7 +813,10 @@ func TestExecuteDryRun_ReportsRenderedFilesAndTools(t *testing.T) {
 		t.Fatal("expected dry-run report to be successful")
 	}
 	if report.FilesReplaced != 0 {
-		t.Fatalf("standalone packages must not be reported as rendered framework files: %v", report.ReplacedFiles)
+		t.Fatalf(
+			"standalone packages must not be reported as rendered framework files: %v",
+			report.ReplacedFiles,
+		)
 	}
 	if !slices.Contains(report.RemovedTools, "run") {
 		t.Fatalf("removed tools = %v, want run", report.RemovedTools)

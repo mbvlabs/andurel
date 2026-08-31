@@ -5,13 +5,14 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/mbvlabs/andurel/pkg/inertia"
-	"github.com/mbvlabs/andurel/pkg/validation"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"github.com/labstack/echo/v5"
 )
@@ -19,10 +20,15 @@ import (
 type Registrations struct {
 	identity services.Identity
 	renderer *inertia.Renderer
+	session  *cookies.Session
 }
 
-func NewRegistrations(identity services.Identity, renderer *inertia.Renderer) Registrations {
-	return Registrations{identity: identity, renderer: renderer}
+func NewRegistrations(
+	identity services.Identity,
+	renderer *inertia.Renderer,
+	session *cookies.Session,
+) Registrations {
+	return Registrations{identity: identity, renderer: renderer, session: session}
 }
 
 func (r Registrations) RegisterRoutes(rtr *router.Router) error {
@@ -99,7 +105,11 @@ func (r Registrations) Create(etx *echo.Context) error {
 			err,
 		)
 
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, "Failed to register user"); flashErr != nil {
+		if flashErr := r.session.AddFlash(
+			etx,
+			cookies.FlashError,
+			"Failed to register user",
+		); flashErr != nil {
 			return r.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
 		}
 

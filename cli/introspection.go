@@ -57,7 +57,11 @@ func newProjectInfoCommand() *cobra.Command {
 			return runProjectInfo(cmd)
 		},
 	}
-	setAgentMetadata(projectCmd, "introspection", "Read-only project metadata. Prefer this before generation.")
+	setAgentMetadata(
+		projectCmd,
+		"introspection",
+		"Read-only project metadata. Prefer this before generation.",
+	)
 
 	infoCmd := &cobra.Command{
 		Use:   "info",
@@ -67,7 +71,11 @@ func newProjectInfoCommand() *cobra.Command {
 			return runProjectInfo(cmd)
 		},
 	}
-	setAgentMetadata(infoCmd, "introspection", "Read-only project metadata. Prefer this before generation.")
+	setAgentMetadata(
+		infoCmd,
+		"introspection",
+		"Read-only project metadata. Prefer this before generation.",
+	)
 	projectCmd.AddCommand(infoCmd)
 	return projectCmd
 }
@@ -149,7 +157,11 @@ source_file in structured output.`,
 			return output.OK(cmd, manifest, summary)
 		},
 	}
-	setAgentMetadata(cmd, "introspection", "Read-only route manifest with actual URL paths, route names, params, and source files.")
+	setAgentMetadata(
+		cmd,
+		"introspection",
+		"Read-only route manifest with actual URL paths, route names, params, and source files.",
+	)
 	return cmd
 }
 
@@ -158,7 +170,12 @@ func newModelsCommand() *cobra.Command {
 }
 
 func newMigrationsCommand() *cobra.Command {
-	return readOnlyListCommand("migrations", "List migration files", filepath.Join("database", "migrations"), ".sql")
+	return readOnlyListCommand(
+		"migrations",
+		"List migration files",
+		filepath.Join("database", "migrations"),
+		".sql",
+	)
 }
 
 func newControllersCommand() *cobra.Command {
@@ -304,7 +321,9 @@ func toolInfos(rootDir string, lock *layout.AndurelLock) []toolInfo {
 		} else {
 			info.BinaryPath = filepath.ToSlash(filepath.Join("bin", name))
 		}
-		if _, err := os.Stat(filepath.Join(rootDir, filepath.FromSlash(info.BinaryPath))); err == nil {
+		if _, err := os.Stat(
+			filepath.Join(rootDir, filepath.FromSlash(info.BinaryPath)),
+		); err == nil {
 			info.Installed = true
 		}
 		infos = append(infos, info)

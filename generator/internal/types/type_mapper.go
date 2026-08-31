@@ -113,7 +113,8 @@ func (tm *TypeMapper) wrapNullable(goType string, nullable bool) string {
 	if !nullable {
 		return goType
 	}
-	if strings.HasPrefix(goType, "*") || strings.HasPrefix(goType, "[]") || goType == "json.RawMessage" {
+	if strings.HasPrefix(goType, "*") || strings.HasPrefix(goType, "[]") ||
+		goType == "json.RawMessage" {
 		return goType
 	}
 

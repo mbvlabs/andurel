@@ -88,7 +88,9 @@ func Compile(ctx context.Context, cfg Config) error {
 	retainedCSS := strings.TrimSpace(strings.Join([]string{headCSS, residual.String()}, "\n"))
 	if retainedCSS != "" {
 		if !injectHeadStyles(files, retainedCSS) {
-			return errors.New("retained email styles require a <head> element in the email templates")
+			return errors.New(
+				"retained email styles require a <head> element in the email templates",
+			)
 		}
 	}
 
@@ -195,14 +197,22 @@ func collectClassUses(files []sourceFile) ([]classUse, error) {
 		}
 		walk.ExpressionAttribute = func(attr *parser.ExpressionAttribute) error {
 			if attributeKeyEqual(attr.Key, "class") {
-				return compilerError(file.relative, attr.Range.From, "dynamic class attributes are not supported in email templates; use literal classes")
+				return compilerError(
+					file.relative,
+					attr.Range.From,
+					"dynamic class attributes are not supported in email templates; use literal classes",
+				)
 			}
 			return nil
 		}
 		visitConditionalAttribute := walk.ConditionalAttribute
 		walk.ConditionalAttribute = func(attr *parser.ConditionalAttribute) error {
 			if attributesContainClass(attr.Then) || attributesContainClass(attr.Else) {
-				return compilerError(file.relative, attr.Range.From, "conditional class attributes are not supported in email templates; use literal classes")
+				return compilerError(
+					file.relative,
+					attr.Range.From,
+					"conditional class attributes are not supported in email templates; use literal classes",
+				)
 			}
 			return visitConditionalAttribute(attr)
 		}
@@ -270,7 +280,11 @@ func compileTailwind(ctx context.Context, cfg Config, uses []classUse) (string, 
 		return "", "", fmt.Errorf("write temporary email CSS input: %w", err)
 	}
 	if len(candidates) > 0 {
-		if _, err := fmt.Fprintf(temporaryInput, "\n@source inline(%q);\n", strings.Join(candidates, " ")); err != nil {
+		if _, err := fmt.Fprintf(
+			temporaryInput,
+			"\n@source inline(%q);\n",
+			strings.Join(candidates, " "),
+		); err != nil {
 			_ = temporaryInput.Close()
 			return "", "", fmt.Errorf("write Tailwind email candidates: %w", err)
 		}
@@ -289,12 +303,23 @@ func compileTailwind(ctx context.Context, cfg Config, uses []classUse) (string, 
 	}
 	defer os.Remove(temporaryOutputPath)
 
-	command := exec.CommandContext(ctx, cfg.TailwindPath, "-i", temporaryInputPath, "-o", temporaryOutputPath)
+	command := exec.CommandContext(
+		ctx,
+		cfg.TailwindPath,
+		"-i",
+		temporaryInputPath,
+		"-o",
+		temporaryOutputPath,
+	)
 	command.Dir = cfg.ProjectRoot
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	if err := command.Run(); err != nil {
-		return "", "", fmt.Errorf("compile email Tailwind CSS: %w: %s", err, strings.TrimSpace(stderr.String()))
+		return "", "", fmt.Errorf(
+			"compile email Tailwind CSS: %w: %s",
+			err,
+			strings.TrimSpace(stderr.String()),
+		)
 	}
 
 	output, err := os.ReadFile(temporaryOutputPath)

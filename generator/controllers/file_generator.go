@@ -50,7 +50,24 @@ func (fg *FileGenerator) GenerateController(
 	primaryKeyColumn string,
 	inertia string,
 ) error {
-	return fg.GenerateControllerWithActionsForModel(cat, resourceName, namespace, resourceName, tableName, tableName, controllerType, modulePath, databaseType, tableNameOverridden, tableNameOverridden, nullType, primaryKeyColumn, inertia, nil, false)
+	return fg.GenerateControllerWithActionsForModel(
+		cat,
+		resourceName,
+		namespace,
+		resourceName,
+		tableName,
+		tableName,
+		controllerType,
+		modulePath,
+		databaseType,
+		tableNameOverridden,
+		tableNameOverridden,
+		nullType,
+		primaryKeyColumn,
+		inertia,
+		nil,
+		false,
+	)
 }
 
 // GenerateControllerWithActionsForModel performs the generate controller with actions for model operation.
@@ -166,7 +183,10 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		}
 	}
 	if mergeIntoExistingController {
-		controllerContent, err = mergeControllerSources(existingControllerContent, controllerContent)
+		controllerContent, err = mergeControllerSources(
+			existingControllerContent,
+			controllerContent,
+		)
 		if err != nil {
 			return fmt.Errorf("failed to merge controller file: %w", err)
 		}
@@ -180,14 +200,25 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 				return fmt.Errorf("failed to inject Inertia renderer dependency: %w", err)
 			}
 		}
-		controllerContent = ensureRegisterRoutes(controllerContent, controller.ReceiverName, controller.PluralResourceName, namespace, resourceName, actions)
+		controllerContent = ensureRegisterRoutes(
+			controllerContent,
+			controller.ReceiverName,
+			controller.PluralResourceName,
+			namespace,
+			resourceName,
+			actions,
+		)
 	}
 
 	if err := fg.fileManager.EnsureDir(controllerDir); err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(controllerPath, []byte(controllerContent), constants.FilePermissionPrivate); err != nil {
+	if err := os.WriteFile(
+		controllerPath,
+		[]byte(controllerContent),
+		constants.FilePermissionPrivate,
+	); err != nil {
 		return fmt.Errorf("failed to write controller file: %w", err)
 	}
 
@@ -199,7 +230,13 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		return fmt.Errorf("failed to inject controller: %w", err)
 	}
 
-	if err := fg.routeGenerator.GenerateRoutes(resourceName, namespace, pluralName, controller.IDType, routeActions); err != nil {
+	if err := fg.routeGenerator.GenerateRoutes(
+		resourceName,
+		namespace,
+		pluralName,
+		controller.IDType,
+		routeActions,
+	); err != nil {
 		return fmt.Errorf("failed to generate routes: %w", err)
 	}
 
@@ -232,11 +269,21 @@ func detectControllerFrontend(content string) controllerFrontend {
 
 func mergeControllerSources(existingContent, generatedContent string) (string, error) {
 	fset := token.NewFileSet()
-	existingFile, err := parser.ParseFile(fset, "existing_controller.go", existingContent, parser.ParseComments)
+	existingFile, err := parser.ParseFile(
+		fset,
+		"existing_controller.go",
+		existingContent,
+		parser.ParseComments,
+	)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse existing controller: %w", err)
 	}
-	generatedFile, err := parser.ParseFile(fset, "generated_controller.go", generatedContent, parser.ParseComments)
+	generatedFile, err := parser.ParseFile(
+		fset,
+		"generated_controller.go",
+		generatedContent,
+		parser.ParseComments,
+	)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse generated controller: %w", err)
 	}
@@ -412,7 +459,11 @@ func EnsureInertiaRendererDependency(content, controllerName, modulePath string)
 		return false
 	})
 	if !constructorUpdated {
-		return "", fmt.Errorf("constructor New%s does not return %s", controllerName, controllerName)
+		return "", fmt.Errorf(
+			"constructor New%s does not return %s",
+			controllerName,
+			controllerName,
+		)
 	}
 
 	var out strings.Builder
@@ -492,10 +543,22 @@ func controllerDeclKeys(decl ast.Decl) []string {
 	}
 }
 
-func ensureRegisterRoutes(content, receiverName, controllerName, namespace, resourceName string, actions []string) string {
+func ensureRegisterRoutes(
+	content, receiverName, controllerName, namespace, resourceName string,
+	actions []string,
+) string {
 	if !strings.Contains(content, "RegisterRoutes(r *router.Router)") {
 		return strings.TrimRight(content, "\n") + "\n\n" +
-			strings.TrimRight(registerRoutesMethod(receiverName, controllerName, namespace, resourceName, actions), "\n") + "\n"
+			strings.TrimRight(
+				registerRoutesMethod(
+					receiverName,
+					controllerName,
+					namespace,
+					resourceName,
+					actions,
+				),
+				"\n",
+			) + "\n"
 	}
 
 	var additions strings.Builder
@@ -507,7 +570,12 @@ func ensureRegisterRoutes(content, receiverName, controllerName, namespace, reso
 		if strings.Contains(content, routeRef) {
 			continue
 		}
-		if block := routeRegistrationBlock(receiverName, namespace, resourceName, action); block != "" {
+		if block := routeRegistrationBlock(
+			receiverName,
+			namespace,
+			resourceName,
+			action,
+		); block != "" {
 			additions.WriteString(block)
 		}
 	}
@@ -517,18 +585,42 @@ func ensureRegisterRoutes(content, receiverName, controllerName, namespace, reso
 
 	needle := "\n\treturn errors.Join(errs...)"
 	if strings.Contains(content, needle) {
-		return strings.Replace(content, needle, "\n"+strings.TrimRight(additions.String(), "\n")+needle, 1)
+		return strings.Replace(
+			content,
+			needle,
+			"\n"+strings.TrimRight(additions.String(), "\n")+needle,
+			1,
+		)
 	}
-	return strings.TrimRight(content, "\n") + "\n\n" + strings.TrimRight(additions.String(), "\n") + "\n"
+	return strings.TrimRight(
+		content,
+		"\n",
+	) + "\n\n" + strings.TrimRight(
+		additions.String(),
+		"\n",
+	) + "\n"
 }
 
-func registerRoutesMethod(receiverName, controllerName, namespace, resourceName string, actions []string) string {
+func registerRoutesMethod(
+	receiverName, controllerName, namespace, resourceName string,
+	actions []string,
+) string {
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "func (%s %s) RegisterRoutes(r *router.Router) error {\n", receiverName, controllerName)
+	fmt.Fprintf(
+		&sb,
+		"func (%s %s) RegisterRoutes(r *router.Router) error {\n",
+		receiverName,
+		controllerName,
+	)
 	sb.WriteString("\tvar errs []error\n")
 	sb.WriteString("\tvar err error\n\n")
 	for _, action := range actions {
-		if block := routeRegistrationBlock(receiverName, namespace, resourceName, strings.ToLower(action)); block != "" {
+		if block := routeRegistrationBlock(
+			receiverName,
+			namespace,
+			resourceName,
+			strings.ToLower(action),
+		); block != "" {
 			sb.WriteString(block)
 		}
 	}
@@ -553,7 +645,8 @@ func routeRegistrationBlock(receiverName, namespace, resourceName, action string
 	}
 	routePrefix := naming.NamespaceToPascal(namespace) + resourceName
 
-	return fmt.Sprintf("\t_, err = r.AddRoute(echo.Route{\n\t\tMethod:  %s,\n\t\tPath:    routes.%s%s.Path(),\n\t\tName:    routes.%s%s.Name(),\n\t\tHandler: %s.%s,\n\t})\n\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n",
+	return fmt.Sprintf(
+		"\t_, err = r.AddRoute(echo.Route{\n\t\tMethod:  %s,\n\t\tPath:    routes.%s%s.Path(),\n\t\tName:    routes.%s%s.Name(),\n\t\tHandler: %s.%s,\n\t})\n\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n",
 		httpMethod,
 		routePrefix,
 		methodName,

@@ -22,6 +22,7 @@ func NewOtlpTraceExporter(endpoint string, headers map[string]string) *OtlpHttpT
 	if endpoint == "" {
 		return nil
 	}
+
 	return &OtlpHttpTraceExporter{
 		endpoint: endpoint,
 		insecure: false,
@@ -30,10 +31,14 @@ func NewOtlpTraceExporter(endpoint string, headers map[string]string) *OtlpHttpT
 	}
 }
 
-func NewOtlpTraceExporterInsecure(endpoint string, headers map[string]string) *OtlpHttpTraceExporter {
+func NewOtlpTraceExporterInsecure(
+	endpoint string,
+	headers map[string]string,
+) *OtlpHttpTraceExporter {
 	if endpoint == "" {
 		return nil
 	}
+
 	return &OtlpHttpTraceExporter{
 		endpoint: endpoint,
 		insecure: true,
@@ -46,7 +51,10 @@ func (o *OtlpHttpTraceExporter) Name() string {
 	return "otlp-http-traces"
 }
 
-func (o *OtlpHttpTraceExporter) GetSpanExporter(ctx context.Context, res *resource.Resource) (sdktrace.SpanExporter, error) {
+func (o *OtlpHttpTraceExporter) GetSpanExporter(
+	ctx context.Context,
+	res *resource.Resource,
+) (sdktrace.SpanExporter, error) {
 	endpoint := strings.TrimPrefix(o.endpoint, "http://")
 	endpoint = strings.TrimPrefix(endpoint, "https://")
 
@@ -81,6 +89,7 @@ func (o *OtlpHttpTraceExporter) Shutdown(ctx context.Context) error {
 			return fmt.Errorf("failed to shutdown OTLP HTTP trace exporter: %w", err)
 		}
 	}
+
 	return nil
 }
 
@@ -108,7 +117,10 @@ func (n *NoopTraceExporter) Name() string {
 	return "noop-traces"
 }
 
-func (n *NoopTraceExporter) GetSpanExporter(ctx context.Context, res *resource.Resource) (sdktrace.SpanExporter, error) {
+func (n *NoopTraceExporter) GetSpanExporter(
+	ctx context.Context,
+	res *resource.Resource,
+) (sdktrace.SpanExporter, error) {
 	return &noopSpanExporter{}, nil
 }
 

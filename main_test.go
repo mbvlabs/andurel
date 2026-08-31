@@ -57,7 +57,12 @@ func TestExecute(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
-		expectedErr := output.NewError(output.CodeConfigError, "invalid config", output.ExitConfig, "repair it")
+		expectedErr := output.NewError(
+			output.CodeConfigError,
+			"invalid config",
+			output.ExitConfig,
+			"repair it",
+		)
 		cmd := &cobra.Command{
 			SilenceErrors: true,
 			SilenceUsage:  true,
@@ -128,7 +133,12 @@ func TestMainRunsRootCommand(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
-		expectedErr := output.NewError(output.CodeConfigError, "invalid config", output.ExitConfig, "repair it")
+		expectedErr := output.NewError(
+			output.CodeConfigError,
+			"invalid config",
+			output.ExitConfig,
+			"repair it",
+		)
 		var stderr bytes.Buffer
 		newRootCommand = func(string, string) *cobra.Command {
 			cmd := &cobra.Command{

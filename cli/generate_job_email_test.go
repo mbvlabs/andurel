@@ -61,7 +61,10 @@ func TestGenerateJobDefaultQueueOmitsInsertOpts(t *testing.T) {
 	if strings.Contains(jobContent, "InsertOpts") {
 		t.Fatalf("default queue job should not include InsertOpts\n\n%s", jobContent)
 	}
-	if !strings.Contains(jobContent, "func (SendWelcomeEmailArgs) Kind() string { return \"send_welcome_email\" }") {
+	if !strings.Contains(
+		jobContent,
+		"func (SendWelcomeEmailArgs) Kind() string { return \"send_welcome_email\" }",
+	) {
 		t.Fatalf("job file should include kind\n\n%s", jobContent)
 	}
 }
@@ -96,7 +99,11 @@ func TestGenerateJobWritesQueueWorkerAndModuleRegistration(t *testing.T) {
 		}
 	}
 
-	if _, err := os.Stat(filepath.Join(rootDir, "queue", "workers", "process_payment.go")); !os.IsNotExist(err) {
+	if _, err := os.Stat(
+		filepath.Join(rootDir, "queue", "workers", "process_payment.go"),
+	); !os.IsNotExist(
+		err,
+	) {
 		t.Fatalf("job generation should not write queue/workers/process_payment.go: %v", err)
 	}
 
@@ -148,7 +155,11 @@ func setupGenerateFileTestProject(t *testing.T) string {
 		_ = os.Chdir(originalDir)
 	})
 
-	if err := os.WriteFile(filepath.Join(rootDir, "go.mod"), []byte("module example.com/app\n\ngo 1.26\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(rootDir, "go.mod"),
+		[]byte("module example.com/app\n\ngo 1.26\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	workersPath := filepath.Join(rootDir, "queue", "workers.go")
@@ -181,7 +192,11 @@ func writeGenerateFileTestLock(t *testing.T, rootDir string) {
   }
 }
 `
-	if err := os.WriteFile(filepath.Join(rootDir, "andurel.lock"), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(rootDir, "andurel.lock"),
+		[]byte(content),
+		0o644,
+	); err != nil {
 		t.Fatalf("write andurel.lock: %v", err)
 	}
 }

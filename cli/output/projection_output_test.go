@@ -134,7 +134,14 @@ func TestProjectionCollectionsIdentifiersAndEncodingErrors(t *testing.T) {
 	for _, test := range identifiers {
 		got, ok := projectionIdentifier(test.value)
 		if got != test.want || ok != test.ok {
-			t.Fatalf("projectionIdentifier(%#v) = %q, %v; want %q, %v", test.value, got, ok, test.want, test.ok)
+			t.Fatalf(
+				"projectionIdentifier(%#v) = %q, %v; want %q, %v",
+				test.value,
+				got,
+				ok,
+				test.want,
+				test.ok,
+			)
 		}
 	}
 

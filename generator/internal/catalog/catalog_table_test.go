@@ -45,7 +45,10 @@ func TestCatalogSchemaTableEnumLifecycleAndErrors(t *testing.T) {
 	if _, err := cat.GetTable("", "missing"); err == nil {
 		t.Fatal("expected missing table error")
 	}
-	if tables, err := cat.ListTables(""); err != nil || len(tables) != 1 || tables[0].Name != "users" {
+	if tables, err := cat.ListTables(
+		"",
+	); err != nil || len(tables) != 1 ||
+		tables[0].Name != "users" {
 		t.Fatalf("ListTables = (%v, %v), want one users table", tables, err)
 	}
 
@@ -118,7 +121,11 @@ func TestTableAlterationAndCloneBehavior(t *testing.T) {
 		t.Fatalf("GetColumn email returned error: %v", err)
 	}
 	if modified.CreatedBy != email.CreatedBy {
-		t.Fatalf("ModifyColumn should preserve CreatedBy, got %q want %q", modified.CreatedBy, email.CreatedBy)
+		t.Fatalf(
+			"ModifyColumn should preserve CreatedBy, got %q want %q",
+			modified.CreatedBy,
+			email.CreatedBy,
+		)
 	}
 	if err := table.RenameColumn("email", "contact_email"); err != nil {
 		t.Fatalf("RenameColumn returned error: %v", err)
@@ -133,7 +140,12 @@ func TestTableAlterationAndCloneBehavior(t *testing.T) {
 		t.Fatal("expected missing column on DropColumn")
 	}
 
-	index := &Index{Name: "idx_users_email", Columns: []string{"contact_email"}, IsUnique: true, CreatedBy: "003_index.sql"}
+	index := &Index{
+		Name:      "idx_users_email",
+		Columns:   []string{"contact_email"},
+		IsUnique:  true,
+		CreatedBy: "003_index.sql",
+	}
 	if err := table.AddIndex(index); err != nil {
 		t.Fatalf("AddIndex returned error: %v", err)
 	}
@@ -175,40 +187,69 @@ func TestCatalogAlterTableOperations(t *testing.T) {
 	if err := cat.AlterTable("", "users", TableAlteration{Type: AddColumn}); err == nil {
 		t.Fatal("expected missing add-column definition error")
 	}
-	if err := cat.AlterTable("", "users", TableAlteration{Type: AddColumn, Column: NewColumn("name", "text")}); err != nil {
+	if err := cat.AlterTable(
+		"",
+		"users",
+		TableAlteration{Type: AddColumn, Column: NewColumn("name", "text")},
+	); err != nil {
 		t.Fatalf("AlterTable AddColumn returned error: %v", err)
 	}
 	if err := cat.AlterTable("", "users", TableAlteration{Type: ModifyColumn}); err == nil {
 		t.Fatal("expected missing modify-column definition error")
 	}
-	if err := cat.AlterTable("", "users", TableAlteration{Type: ModifyColumn, Column: NewColumn("name", "varchar").SetLength(255)}); err != nil {
+	if err := cat.AlterTable(
+		"",
+		"users",
+		TableAlteration{Type: ModifyColumn, Column: NewColumn("name", "varchar").SetLength(255)},
+	); err != nil {
 		t.Fatalf("AlterTable ModifyColumn returned error: %v", err)
 	}
 	if err := cat.AlterTable("", "users", TableAlteration{Type: RenameColumn}); err == nil {
 		t.Fatal("expected missing rename-column names error")
 	}
-	if err := cat.AlterTable("", "users", TableAlteration{Type: RenameColumn, OldName: "name", NewName: "display_name"}); err != nil {
+	if err := cat.AlterTable(
+		"",
+		"users",
+		TableAlteration{Type: RenameColumn, OldName: "name", NewName: "display_name"},
+	); err != nil {
 		t.Fatalf("AlterTable RenameColumn returned error: %v", err)
 	}
 	if err := cat.AlterTable("", "users", TableAlteration{Type: AddIndex}); err == nil {
 		t.Fatal("expected missing index definition error")
 	}
-	if err := cat.AlterTable("", "users", TableAlteration{Type: AddIndex, IndexDef: &Index{Name: "idx_users_display_name"}}); err != nil {
+	if err := cat.AlterTable(
+		"",
+		"users",
+		TableAlteration{Type: AddIndex, IndexDef: &Index{Name: "idx_users_display_name"}},
+	); err != nil {
 		t.Fatalf("AlterTable AddIndex returned error: %v", err)
 	}
 	if err := cat.AlterTable("", "users", TableAlteration{Type: DropIndex}); err == nil {
 		t.Fatal("expected missing drop-index name error")
 	}
-	if err := cat.AlterTable("", "users", TableAlteration{Type: DropIndex, IndexName: "idx_users_display_name"}); err != nil {
+	if err := cat.AlterTable(
+		"",
+		"users",
+		TableAlteration{Type: DropIndex, IndexName: "idx_users_display_name"},
+	); err != nil {
 		t.Fatalf("AlterTable DropIndex returned error: %v", err)
 	}
 	if err := cat.AlterTable("", "users", TableAlteration{Type: DropColumn}); err == nil {
 		t.Fatal("expected missing drop-column name error")
 	}
-	if err := cat.AlterTable("", "users", TableAlteration{Type: DropColumn, OldName: "display_name"}); err != nil {
+	if err := cat.AlterTable(
+		"",
+		"users",
+		TableAlteration{Type: DropColumn, OldName: "display_name"},
+	); err != nil {
 		t.Fatalf("AlterTable DropColumn returned error: %v", err)
 	}
-	if err := cat.AlterTable("", "users", TableAlteration{Type: AlterationType(999)}); err == nil || !strings.Contains(err.Error(), "unknown alteration type") {
+	if err := cat.AlterTable(
+		"",
+		"users",
+		TableAlteration{Type: AlterationType(999)},
+	); err == nil ||
+		!strings.Contains(err.Error(), "unknown alteration type") {
 		t.Fatalf("expected unknown alteration type error, got %v", err)
 	}
 }

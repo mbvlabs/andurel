@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 const (
@@ -63,9 +64,56 @@ func NewDatabaseCfg() Database {
 		OpenTelemetry:            true,
 	}
 
-	if err := env.ParseWithOptions(&cfg, env.Options{RequiredIfNoDef: true}); err != nil {
+	if err := env.Parse(&cfg); err != nil {
+		panic(err)
+	}
+
+	if err := validation.Validate(&cfg); err != nil {
 		panic(err)
 	}
 
 	return cfg
 }
+
+func (c Database) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("Host", c.Host)
+	b.Required("Port", c.Port)
+	b.Required("Name", c.Name)
+	b.Required("User", c.User)
+	b.Required("DatabaseKind", c.DatabaseKind)
+
+	return b.Err()
+}
+
+func (c Database) GetDatabaseKind() string { return c.DatabaseKind }
+
+func (c Database) GetHost() string { return c.Host }
+
+func (c Database) GetPort() string { return c.Port }
+
+func (c Database) GetName() string { return c.Name }
+
+func (c Database) GetUser() string { return c.User }
+
+func (c Database) GetPassword() string { return c.Password }
+
+func (c Database) GetSSLMode() string { return c.SSLMode }
+
+func (c Database) GetApplicationName() string { return c.ApplicationName }
+
+func (c Database) GetConnectTimeout() time.Duration { return c.ConnectTimeout }
+
+func (c Database) GetStatementCacheCapacity() int { return c.StatementCacheCapacity }
+
+func (c Database) GetDescriptionCacheCapacity() int { return c.DescriptionCacheCapacity }
+
+func (c Database) GetMaxOpenConnections() int { return c.MaxOpenConnections }
+
+func (c Database) GetMaxIdleConnections() int { return c.MaxIdleConnections }
+
+func (c Database) GetConnectionMaxLifetime() time.Duration { return c.ConnectionMaxLifetime }
+
+func (c Database) GetConnectionMaxIdleTime() time.Duration { return c.ConnectionMaxIdleTime }
+
+func (c Database) GetOpenTelemetry() bool { return c.OpenTelemetry }

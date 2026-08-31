@@ -66,7 +66,12 @@ func TestOKRendersJSONEnvelope(t *testing.T) {
 		t.Fatalf("set --json: %v", err)
 	}
 
-	err := OK(cmd, map[string]string{"id": "post"}, "Generated post", Breadcrumb{Command: "andurel run"})
+	err := OK(
+		cmd,
+		map[string]string{"id": "post"},
+		"Generated post",
+		Breadcrumb{Command: "andurel run"},
+	)
 	if err != nil {
 		t.Fatalf("OK returned error: %v", err)
 	}
@@ -84,7 +89,12 @@ func TestOKRendersJSONEnvelope(t *testing.T) {
 }
 
 func TestFailPreservesTypedErrorFields(t *testing.T) {
-	err := NewError("project_not_found", "not in an Andurel project", ExitProject, "Run this from a project root.")
+	err := NewError(
+		"project_not_found",
+		"not in an Andurel project",
+		ExitProject,
+		"Run this from a project root.",
+	)
 
 	envelope := Fail(err)
 	if envelope.OK {
@@ -115,7 +125,9 @@ func TestParseOptionsDefaultsProjectionToJSONAndReadsBooleans(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseOptions: %v", err)
 	}
-	if opts.Mode != ModeJSON || opts.JQ != ".data.id" || !opts.Quiet || opts.IDsOnly || opts.Count || !opts.Verbose {
+	if opts.Mode != ModeJSON || opts.JQ != ".data.id" || !opts.Quiet || opts.IDsOnly ||
+		opts.Count ||
+		!opts.Verbose {
 		t.Fatalf("unexpected options: %#v", opts)
 	}
 	if !UsesStructuredOutput(opts) || !SuppressesHumanOutput(opts) {
@@ -145,7 +157,11 @@ func TestOKRendersHumanMarkdownQuietAndJQ(t *testing.T) {
 		{
 			name:  "markdown",
 			flags: map[string]string{"md": "true"},
-			want:  []string{"Generated post", "Next steps:", "- `andurel route:list - inspect routes`"},
+			want: []string{
+				"Generated post",
+				"Next steps:",
+				"- `andurel route:list - inspect routes`",
+			},
 		},
 		{
 			name:    "quiet",
@@ -304,7 +320,12 @@ func TestRenderErrorModes(t *testing.T) {
 				}
 			}
 
-			err := NewError(CodeProjectNotFound, "not in an Andurel project", ExitProject, "Run from a project root.")
+			err := NewError(
+				CodeProjectNotFound,
+				"not in an Andurel project",
+				ExitProject,
+				"Run from a project root.",
+			)
 			if renderErr := RenderError(cmd, err); renderErr != nil {
 				t.Fatalf("RenderError: %v", renderErr)
 			}

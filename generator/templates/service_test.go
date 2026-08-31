@@ -86,7 +86,9 @@ func TestTemplateServiceRenderTemplateWithPartials(t *testing.T) {
 	service := NewTemplateService()
 	templateFiles := fstest.MapFS{
 		"primary.tmpl": &fstest.MapFile{Data: []byte(`{{template "Assignment" .}}`)},
-		"partial.tmpl": &fstest.MapFile{Data: []byte(`{{define "Assignment"}}payload.{{.}}{{end}}`)},
+		"partial.tmpl": &fstest.MapFile{
+			Data: []byte(`{{define "Assignment"}}payload.{{.}}{{end}}`),
+		},
 	}
 
 	rendered, err := service.renderTemplateWithCustomFunctionsAndPartials(

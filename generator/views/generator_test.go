@@ -183,7 +183,11 @@ func TestBuildViewField_StringConverter(t *testing.T) {
 			}
 
 			if field.StringConverter != tt.expectedStringConverter {
-				t.Errorf("StringConverter = %q, want %q", field.StringConverter, tt.expectedStringConverter)
+				t.Errorf(
+					"StringConverter = %q, want %q",
+					field.StringConverter,
+					tt.expectedStringConverter,
+				)
 			}
 
 			if field.InputType != tt.expectedInputType {
@@ -211,7 +215,11 @@ func TestBuildViewField_UnknownTypeHasConverter(t *testing.T) {
 	// Default case should use fmt.Sprintf("%v", %s) for safety
 	expectedConverter := `fmt.Sprintf("%v", %s)`
 	if field.StringConverter != expectedConverter {
-		t.Errorf("Unknown type StringConverter = %q, want %q", field.StringConverter, expectedConverter)
+		t.Errorf(
+			"Unknown type StringConverter = %q, want %q",
+			field.StringConverter,
+			expectedConverter,
+		)
 	}
 }
 
@@ -355,10 +363,34 @@ func TestGenerateInertiaViewFiles_ReactResourceTypesAndInputs(t *testing.T) {
 		IDType:       "uuid.UUID",
 		IDFieldName:  "ID",
 		Fields: []ViewField{
-			{Name: "Name", GoFormType: "string", DisplayName: "Name", InputType: "text", CamelCase: "name"},
-			{Name: "Quantity", GoFormType: "int32", DisplayName: "Quantity", InputType: "number", CamelCase: "quantity"},
-			{Name: "Active", GoFormType: "bool", DisplayName: "Active", InputType: "checkbox", CamelCase: "active"},
-			{Name: "PublishedOn", GoFormType: "time.Time", DisplayName: "Published On", InputType: "date", CamelCase: "publishedOn"},
+			{
+				Name:        "Name",
+				GoFormType:  "string",
+				DisplayName: "Name",
+				InputType:   "text",
+				CamelCase:   "name",
+			},
+			{
+				Name:        "Quantity",
+				GoFormType:  "int32",
+				DisplayName: "Quantity",
+				InputType:   "number",
+				CamelCase:   "quantity",
+			},
+			{
+				Name:        "Active",
+				GoFormType:  "bool",
+				DisplayName: "Active",
+				InputType:   "checkbox",
+				CamelCase:   "active",
+			},
+			{
+				Name:        "PublishedOn",
+				GoFormType:  "time.Time",
+				DisplayName: "Published On",
+				InputType:   "date",
+				CamelCase:   "publishedOn",
+			},
 		},
 	}
 
@@ -434,7 +466,12 @@ func TestGenerateInertiaViewFiles_VueResourceTypesAndInputs(t *testing.T) {
 			{Name: "Name", GoFormType: "string", InputType: "text", CamelCase: "name"},
 			{Name: "Quantity", GoFormType: "int32", InputType: "number", CamelCase: "quantity"},
 			{Name: "Active", GoFormType: "bool", InputType: "checkbox", CamelCase: "active"},
-			{Name: "PublishedOn", GoFormType: "time.Time", InputType: "date", CamelCase: "publishedOn"},
+			{
+				Name:       "PublishedOn",
+				GoFormType: "time.Time",
+				InputType:  "date",
+				CamelCase:  "publishedOn",
+			},
 		},
 	}
 
@@ -452,7 +489,8 @@ func TestGenerateInertiaViewFiles_VueResourceTypesAndInputs(t *testing.T) {
 		"active: Boolean(props.item.active) as boolean",
 		"publishedOn: String(props.item.publishedOn ?? '').slice(0, 10) as string",
 	})
-	if strings.Contains(files["Create.vue"], "time.Time") || strings.Contains(files["Edit.vue"], "time.Time") {
+	if strings.Contains(files["Create.vue"], "time.Time") ||
+		strings.Contains(files["Edit.vue"], "time.Time") {
 		t.Fatal("Vue resource form leaked a Go time.Time type")
 	}
 }
@@ -466,10 +504,34 @@ func TestGenerateInertiaViewFiles_SvelteResourceTypesAndInputs(t *testing.T) {
 		IDType:       "uuid.UUID",
 		IDFieldName:  "ID",
 		Fields: []ViewField{
-			{Name: "Name", GoFormType: "string", DisplayName: "Name", InputType: "text", CamelCase: "name"},
-			{Name: "Quantity", GoFormType: "int32", DisplayName: "Quantity", InputType: "number", CamelCase: "quantity"},
-			{Name: "Active", GoFormType: "bool", DisplayName: "Active", InputType: "checkbox", CamelCase: "active"},
-			{Name: "PublishedOn", GoFormType: "time.Time", DisplayName: "Published On", InputType: "date", CamelCase: "publishedOn"},
+			{
+				Name:        "Name",
+				GoFormType:  "string",
+				DisplayName: "Name",
+				InputType:   "text",
+				CamelCase:   "name",
+			},
+			{
+				Name:        "Quantity",
+				GoFormType:  "int32",
+				DisplayName: "Quantity",
+				InputType:   "number",
+				CamelCase:   "quantity",
+			},
+			{
+				Name:        "Active",
+				GoFormType:  "bool",
+				DisplayName: "Active",
+				InputType:   "checkbox",
+				CamelCase:   "active",
+			},
+			{
+				Name:        "PublishedOn",
+				GoFormType:  "time.Time",
+				DisplayName: "Published On",
+				InputType:   "date",
+				CamelCase:   "publishedOn",
+			},
 		},
 	}
 
@@ -521,7 +583,10 @@ func TestGenerateInertiaViewFiles_SvelteResourceTypesAndInputs(t *testing.T) {
 		t.Fatalf("generate numeric Svelte pages: %v", err)
 	}
 	if !strings.Contains(numericFiles["Index.svelte"], "type RouteID = number") {
-		t.Fatalf("numeric Svelte route ID is not typed as number:\n%s", numericFiles["Index.svelte"])
+		t.Fatalf(
+			"numeric Svelte route ID is not typed as number:\n%s",
+			numericFiles["Index.svelte"],
+		)
 	}
 }
 
@@ -623,7 +688,10 @@ func TestGenerateInertiaViewFiles_SingleActionOmitsUnusedRoutesImport(t *testing
 				t.Fatalf("single Show action references an unavailable route:\n%s", show)
 			}
 			if strings.Count(show, "''") < 2 {
-				t.Fatalf("single Show action should use empty strings for Edit and Back links:\n%s", show)
+				t.Fatalf(
+					"single Show action should use empty strings for Edit and Back links:\n%s",
+					show,
+				)
 			}
 		})
 	}
@@ -652,7 +720,8 @@ func TestGenerateInertiaViewFiles_UsesExistingAvailableActions(t *testing.T) {
 	if !strings.Contains(index, `:href="routes.widgetShow(routeID(item))"`) {
 		t.Fatalf("Index page should use the existing Show route:\n%s", index)
 	}
-	if strings.Contains(index, "routes.widgetEdit") || strings.Contains(index, "routes.widgetDestroy") {
+	if strings.Contains(index, "routes.widgetEdit") ||
+		strings.Contains(index, "routes.widgetDestroy") {
 		t.Fatalf("Index page references unavailable routes:\n%s", index)
 	}
 
@@ -664,7 +733,8 @@ func TestGenerateInertiaViewFiles_UsesExistingAvailableActions(t *testing.T) {
 	if !strings.Contains(svelteIndex, `href={routes.widgetShow(routeID(item))}`) {
 		t.Fatalf("Svelte Index page should use the existing Show route:\n%s", svelteIndex)
 	}
-	if strings.Contains(svelteIndex, "routes.widgetEdit") || strings.Contains(svelteIndex, "routes.widgetDestroy") {
+	if strings.Contains(svelteIndex, "routes.widgetEdit") ||
+		strings.Contains(svelteIndex, "routes.widgetDestroy") {
 		t.Fatalf("Svelte Index page references unavailable routes:\n%s", svelteIndex)
 	}
 }

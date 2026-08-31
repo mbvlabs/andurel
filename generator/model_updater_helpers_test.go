@@ -33,7 +33,9 @@ func TestUpdateModelResultDiffsAndStructHelpers(t *testing.T) {
 		t.Fatalf("unexpected factory diff:\n%s", factoryDiff)
 	}
 
-	dropped := dropBaseModelLine("type T struct {\n\tbun.BaseModel `bun:\"table:t\"`\n\n\tName string\n}")
+	dropped := dropBaseModelLine(
+		"type T struct {\n\tbun.BaseModel `bun:\"table:t\"`\n\n\tName string\n}",
+	)
 	if strings.Contains(dropped, "BaseModel") || strings.Contains(dropped, "\n\n\tName") {
 		t.Fatalf("dropBaseModelLine did not remove embedding and blank line:\n%s", dropped)
 	}
@@ -85,11 +87,17 @@ type ProductEntity struct {
 		t.Fatalf("*string should be standard: %#v", fields[2])
 	}
 
-	if _, _, _, err := parseEntityStruct([]byte("package models\nfunc bad("), "ProductEntity"); err == nil ||
+	if _, _, _, err := parseEntityStruct(
+		[]byte("package models\nfunc bad("),
+		"ProductEntity",
+	); err == nil ||
 		!strings.Contains(err.Error(), "failed to parse") {
 		t.Fatalf("expected parse error, got %v", err)
 	}
-	if _, _, _, err := parseEntityStruct([]byte("package models\ntype Other struct{}\n"), "ProductEntity"); err == nil ||
+	if _, _, _, err := parseEntityStruct(
+		[]byte("package models\ntype Other struct{}\n"),
+		"ProductEntity",
+	); err == nil ||
 		!strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected missing entity error, got %v", err)
 	}
@@ -190,7 +198,11 @@ func Create() error {
 		!strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected missing func error, got %v", err)
 	}
-	if _, _, err := findFuncOffsets([]byte("package models\nfunc bad("), "ProductEntity", "Create"); err == nil ||
+	if _, _, err := findFuncOffsets(
+		[]byte("package models\nfunc bad("),
+		"ProductEntity",
+		"Create",
+	); err == nil ||
 		!strings.Contains(err.Error(), "failed to parse") {
 		t.Fatalf("expected func parse error, got %v", err)
 	}
@@ -206,7 +218,10 @@ func Create() error {
 		!strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected non-struct type to be ignored, got %v", err)
 	}
-	if _, _, err := findStructOffsets([]byte("package models\nfunc bad("), "ProductEntity"); err == nil ||
+	if _, _, err := findStructOffsets(
+		[]byte("package models\nfunc bad("),
+		"ProductEntity",
+	); err == nil ||
 		!strings.Contains(err.Error(), "failed to parse") {
 		t.Fatalf("expected struct parse error, got %v", err)
 	}
@@ -240,10 +255,16 @@ func Product() {}
 	if err := manager.ApplyModelUpdate(result); err != nil {
 		t.Fatalf("ApplyModelUpdate: %v", err)
 	}
-	if data, err := os.ReadFile(modelPath); err != nil || !strings.Contains(string(data), "type ProductEntity struct") {
+	if data, err := os.ReadFile(
+		modelPath,
+	); err != nil ||
+		!strings.Contains(string(data), "type ProductEntity struct") {
 		t.Fatalf("model write data=%q err=%v", string(data), err)
 	}
-	if data, err := os.ReadFile(factoryPath); err != nil || !strings.Contains(string(data), "func Product()") {
+	if data, err := os.ReadFile(
+		factoryPath,
+	); err != nil ||
+		!strings.Contains(string(data), "func Product()") {
 		t.Fatalf("factory write data=%q err=%v", string(data), err)
 	}
 }

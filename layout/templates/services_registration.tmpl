@@ -10,11 +10,11 @@ import (
 
 	"time"
 
-	"{{.ModuleName}}/application"
 	"{{.ModuleName}}/email"
 
-	"github.com/mbvlabs/andurel/pkg/validation"
 	"{{.ModuleName}}/models"
+
+	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"{{.ModuleName}}/queue/jobs"
 )
@@ -26,7 +26,6 @@ type RegisterUserData struct {
 	Password        string
 	ConfirmPassword string
 }
-
 
 func (i Identity) RegisterUser(
 	ctx context.Context,
@@ -52,7 +51,6 @@ func (i Identity) RegisterUser(
 
 	}
 
-
 	user, err := models.User.Create(ctx, tx, i.pepper, models.CreateUserData{
 
 		Email: data.Email,
@@ -77,7 +75,6 @@ func (i Identity) RegisterUser(
 		return fmt.Errorf("marshal verification token metadata: %v", err)
 
 	}
-
 
 	code, err := models.Token.CreateCode(
 		ctx,
@@ -117,12 +114,11 @@ func (i Identity) RegisterUser(
 
 	}
 
-
 	_, err = i.insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
 
 		Data: email.TransactionalData{
 			To:       user.Email,
-			From:     application.DefaultSenderSignature,
+			From:     i.defaultSenderSignature,
 			Subject:  "Verify Your Email Address",
 			HTMLBody: html,
 			TextBody: text,
@@ -147,7 +143,6 @@ type VerifyEmailData struct {
 	Code string
 }
 
-
 func (i Identity) VerifyEmail(
 	ctx context.Context,
 	data VerifyEmailData,
@@ -166,7 +161,6 @@ func (i Identity) VerifyEmail(
 
 	}
 
-
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
 		tx,
@@ -181,10 +175,10 @@ func (i Identity) VerifyEmail(
 		if errors.Is(err, models.ErrNotFound) {
 			return models.UserEntity{}, ErrInvalidVerificationCode
 		}
+
 		return models.UserEntity{}, fmt.Errorf("find email verification token: %w", err)
 
 	}
-
 
 	if !token.IsValid(data.Code, i.tokenSigningKey) {
 
@@ -215,6 +209,7 @@ func (i Identity) VerifyEmail(
 		if errors.Is(err, models.ErrNotFound) {
 			return models.UserEntity{}, ErrUserNotFound
 		}
+
 		return models.UserEntity{}, fmt.Errorf("find verification user: %w", err)
 
 	}
@@ -233,6 +228,7 @@ func (i Identity) VerifyEmail(
 		if errors.Is(err, models.ErrNotFound) {
 			return models.UserEntity{}, ErrUserNotFound
 		}
+
 		return models.UserEntity{}, fmt.Errorf("mark user email verified: %w", err)
 
 	}

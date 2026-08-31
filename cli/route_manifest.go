@@ -176,7 +176,11 @@ func routeConstCandidates(files []parsedRouteFile) []routeConstCandidate {
 	return candidates
 }
 
-func collectRoutesFromFile(rootDir string, file parsedRouteFile, consts map[string]string) ([]routeManifestRoute, []routeManifestSkipped) {
+func collectRoutesFromFile(
+	rootDir string,
+	file parsedRouteFile,
+	consts map[string]string,
+) ([]routeManifestRoute, []routeManifestSkipped) {
 	sourceFile := routeManifestSourceFile(rootDir, file.path)
 	routes := []routeManifestRoute{}
 	skipped := []routeManifestSkipped{}
@@ -197,7 +201,13 @@ func collectRoutesFromFile(rootDir string, file parsedRouteFile, consts map[stri
 				if i >= len(valueSpec.Values) {
 					continue
 				}
-				route, skip, ok := routeManifestFromValue(file.fset, sourceFile, name.Name, valueSpec.Values[i], consts)
+				route, skip, ok := routeManifestFromValue(
+					file.fset,
+					sourceFile,
+					name.Name,
+					valueSpec.Values[i],
+					consts,
+				)
 				if !ok {
 					continue
 				}
@@ -242,7 +252,9 @@ func routeManifestFromValue(
 	}
 
 	if len(call.Args) < 3 {
-		return routeManifestRoute{}, skip("route constructor must have path, name, and prefix arguments"), true
+		return routeManifestRoute{}, skip(
+			"route constructor must have path, name, and prefix arguments",
+		), true
 	}
 
 	path, ok := evalRouteStringExpr(call.Args[0], consts)

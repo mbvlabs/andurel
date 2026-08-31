@@ -33,7 +33,11 @@ subcommands below to sync, configure, or run tools.`,
 			return output.OK(cmd, toolInfos(rootDir, lock), "Listed tools")
 		},
 	}
-	setAgentMetadata(cmd, "introspection", "Read-only by default; use subcommands for tool mutations.")
+	setAgentMetadata(
+		cmd,
+		"introspection",
+		"Read-only by default; use subcommands for tool mutations.",
+	)
 
 	cmd.AddCommand(newSyncCommand())
 	cmd.AddCommand(newSetVersionCommand())

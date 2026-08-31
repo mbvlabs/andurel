@@ -3,31 +3,54 @@ package services
 import (
 	"strings"
 
-	"{{.ModuleName}}/config"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
-type Identity struct {
-	db              storage.Connection
-	insertOnly      storage.InsertQueue
-	pepper          string
-	previousPeppers []string
-	tokenSigningKey string
+type TokenProvider interface {
+	GetTokenSigningKey() string
 }
 
-func NewIdentity(db storage.Connection, insertOnly storage.InsertQueue, appCfg config.AppCfg, authCfg config.AuthCfg) Identity {
-	validPeppers := make([]string, 0, len(authCfg.PreviousPeppers))
-	for _, p := range authCfg.PreviousPeppers {
-		if p = strings.TrimSpace(p); p != "" && p != authCfg.Pepper {
+type AuthProvider interface {
+	GetPepper() string
+	GetPreviousPeppers() []string
+}
+
+type AppIdentityProvider interface {
+	TokenProvider
+	GetBaseURL() string
+	GetDefaultSenderSignature() string
+}
+
+type Identity struct {
+	db                     storage.Connection
+	insertOnly             storage.InsertQueue
+	pepper                 string
+	previousPeppers        []string
+	tokenSigningKey        string
+	baseURL                string
+	defaultSenderSignature string
+}
+
+func NewIdentity(
+	db storage.Connection,
+	insertOnly storage.InsertQueue,
+	appCfg AppIdentityProvider,
+	authCfg AuthProvider,
+) Identity {
+	validPeppers := make([]string, 0, len(authCfg.GetPreviousPeppers()))
+	for _, p := range authCfg.GetPreviousPeppers() {
+		if p = strings.TrimSpace(p); p != "" && p != authCfg.GetPepper() {
 			validPeppers = append(validPeppers, p)
 		}
 	}
 
 	return Identity{
-		db:              db,
-		insertOnly:      insertOnly,
-		pepper:          authCfg.Pepper,
-		previousPeppers: validPeppers,
-		tokenSigningKey: appCfg.TokenSigningKey,
+		db:                     db,
+		insertOnly:             insertOnly,
+		pepper:                 authCfg.GetPepper(),
+		previousPeppers:        validPeppers,
+		tokenSigningKey:        appCfg.GetTokenSigningKey(),
+		baseURL:                appCfg.GetBaseURL(),
+		defaultSenderSignature: appCfg.GetDefaultSenderSignature(),
 	}
 }

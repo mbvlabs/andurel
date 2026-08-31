@@ -8,14 +8,14 @@ import (
 type Option func(*telemetryOptions) error
 
 type telemetryOptions struct {
-	serviceName    string
-	serviceVersion string
-	logExporters   []LogExporter
+	serviceName     string
+	serviceVersion  string
+	logExporters    []LogExporter
 	metricExporters []MetricExporter
 	traceExporters  []TraceExporter
-	batchSize      int
-	batchTimeout   time.Duration
-	queueSize      int
+	batchSize       int
+	batchTimeout    time.Duration
+	queueSize       int
 	traceSampleRate float64
 }
 

@@ -40,7 +40,8 @@ your application code to work with any API changes in the new version.`,
 
 	upgradeCmd.Flags().Bool("dry-run", false, "Show what would be changed without applying")
 	upgradeCmd.Flags().Bool("diff", false, "Include a text diff preview in structured output")
-	upgradeCmd.Flags().Bool("repair", false, "Restore drifted framework-owned files when already on this version")
+	upgradeCmd.Flags().
+		Bool("repair", false, "Restore drifted framework-owned files when already on this version")
 
 	return upgradeCmd
 }
@@ -126,7 +127,10 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		if dryRun && report != nil {
 			artifactReport.FilesUpdated = append([]string(nil), report.ReplacedFiles...)
 			artifactReport.FilesDeleted = append([]string(nil), report.RemovedFiles...)
-			artifactReport.Warnings = append(artifactReport.Warnings, "dry run only; no files were changed")
+			artifactReport.Warnings = append(
+				artifactReport.Warnings,
+				"dry run only; no files were changed",
+			)
 		}
 		if report != nil && report.RepairAvailable {
 			artifactReport.Warnings = append(
@@ -138,7 +142,13 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 			"upgrade":   report,
 			"artifacts": artifactReport,
 		}
-		return output.OK(cmd, data, mutationSummary(artifactReport), output.Breadcrumb{Command: "andurel doctor"}, output.Breadcrumb{Command: "git diff"})
+		return output.OK(
+			cmd,
+			data,
+			mutationSummary(artifactReport),
+			output.Breadcrumb{Command: "andurel doctor"},
+			output.Breadcrumb{Command: "git diff"},
+		)
 	}
 
 	if report.AlreadyCurrent {
@@ -149,7 +159,9 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 			return nil
 		}
 		if report.DirtyWorktree {
-			return fmt.Errorf("worktree is dirty; commit or stash changes before repairing framework files")
+			return fmt.Errorf(
+				"worktree is dirty; commit or stash changes before repairing framework files",
+			)
 		}
 		confirmed, err := confirmFrameworkRepair()
 		if err != nil {
@@ -221,7 +233,11 @@ func requireLatestAndurelRelease(ctx context.Context, currentVersion string) err
 
 	return output.NewError(
 		output.CodeUpdateRequired,
-		fmt.Sprintf("a newer Andurel CLI is required to upgrade this project (current: %s, latest: %s)", current, latest),
+		fmt.Sprintf(
+			"a newer Andurel CLI is required to upgrade this project (current: %s, latest: %s)",
+			current,
+			latest,
+		),
 		output.ExitDependency,
 		fmt.Sprintf("Run '%s', then run 'andurel upgrade' again.", andurelInstallCommand(latest)),
 	)

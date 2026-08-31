@@ -48,7 +48,10 @@ func (r FactorySyncResult) HasDrift() bool {
 }
 
 // SyncFactory performs the sync factory operation.
-func (m *ModelManager) SyncFactory(resourceName string, opts FactorySyncOptions) (*FactorySyncResult, error) {
+func (m *ModelManager) SyncFactory(
+	resourceName string,
+	opts FactorySyncOptions,
+) (*FactorySyncResult, error) {
 	genModel, tableName, err := m.factoryModelFromEntity(resourceName)
 	if err != nil {
 		return nil, err
@@ -98,7 +101,8 @@ func validatePlannedFactory(rootDir, factoryPath, content string) error {
 		return fmt.Errorf("read factories directory: %w", err)
 	}
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") ||
+			strings.HasSuffix(entry.Name(), "_test.go") {
 			continue
 		}
 		path := filepath.Join(factoryDir, entry.Name())
@@ -209,7 +213,8 @@ func (m *ModelManager) discoverFactoryResourceNames() ([]string, error) {
 
 	names := make([]string, 0)
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") ||
+			strings.HasSuffix(entry.Name(), "_test.go") {
 			continue
 		}
 		path := filepath.Join(m.config.Paths.Models, entry.Name())
@@ -225,7 +230,9 @@ func (m *ModelManager) discoverFactoryResourceNames() ([]string, error) {
 	return names, nil
 }
 
-func (m *ModelManager) factoryModelFromEntity(resourceName string) (*models.GeneratedModel, string, error) {
+func (m *ModelManager) factoryModelFromEntity(
+	resourceName string,
+) (*models.GeneratedModel, string, error) {
 	modelPath := BuildModelPath(m.config.Paths.Models, resourceName)
 	src, err := os.ReadFile(modelPath)
 	if err != nil {
@@ -242,9 +249,17 @@ func (m *ModelManager) factoryModelFromEntity(resourceName string) (*models.Gene
 	}
 
 	tableName := ResolveTableName(m.config.Paths.Models, resourceName)
-	genModel := generatedModelFromParsedEntity(resourceName, tableName, m.projectManager.GetModulePath(), fields)
+	genModel := generatedModelFromParsedEntity(
+		resourceName,
+		tableName,
+		m.projectManager.GetModulePath(),
+		fields,
+	)
 	if m.migrationManager != nil {
-		if cat, catalogErr := m.migrationManager.BuildCatalogFromMigrations(tableName, m.config); catalogErr == nil {
+		if cat, catalogErr := m.migrationManager.BuildCatalogFromMigrations(
+			tableName,
+			m.config,
+		); catalogErr == nil {
 			if table, tableErr := cat.GetTable(cat.DefaultSchema, tableName); tableErr == nil {
 				allowedByColumn := make(map[string]string)
 				for _, column := range table.Columns {
@@ -312,7 +327,12 @@ func qualifyFactoryFieldTypes(src []byte, fields []parsedField) error {
 	for i := range fields {
 		expr, err := parser.ParseExpr(fields[i].TypeStr)
 		if err != nil {
-			return fmt.Errorf("parse factory field %s type %q: %w", fields[i].Name, fields[i].TypeStr, err)
+			return fmt.Errorf(
+				"parse factory field %s type %q: %w",
+				fields[i].Name,
+				fields[i].TypeStr,
+				err,
+			)
 		}
 		usedImports := make(map[string]bool)
 		expr = qualifyFactoryTypeExpr(expr, localTypes, importAliases, usedImports)
@@ -330,7 +350,12 @@ func qualifyFactoryFieldTypes(src []byte, fields []parsedField) error {
 	return nil
 }
 
-func qualifyFactoryTypeExpr(expr ast.Expr, localTypes map[string]bool, importAliases map[string]string, usedImports map[string]bool) ast.Expr {
+func qualifyFactoryTypeExpr(
+	expr ast.Expr,
+	localTypes map[string]bool,
+	importAliases map[string]string,
+	usedImports map[string]bool,
+) ast.Expr {
 	switch node := expr.(type) {
 	case *ast.Ident:
 		if localTypes[node.Name] {
@@ -365,7 +390,12 @@ func qualifyFactoryTypeExpr(expr ast.Expr, localTypes map[string]bool, importAli
 	case *ast.IndexListExpr:
 		node.X = qualifyFactoryTypeExpr(node.X, localTypes, importAliases, usedImports)
 		for i := range node.Indices {
-			node.Indices[i] = qualifyFactoryTypeExpr(node.Indices[i], localTypes, importAliases, usedImports)
+			node.Indices[i] = qualifyFactoryTypeExpr(
+				node.Indices[i],
+				localTypes,
+				importAliases,
+				usedImports,
+			)
 		}
 	case *ast.StructType:
 		qualifyFactoryFieldList(node.Fields, localTypes, importAliases, usedImports)
@@ -384,7 +414,12 @@ func qualifyFactoryTypeExpr(expr ast.Expr, localTypes map[string]bool, importAli
 	return expr
 }
 
-func qualifyFactoryFieldList(fields *ast.FieldList, localTypes map[string]bool, importAliases map[string]string, usedImports map[string]bool) {
+func qualifyFactoryFieldList(
+	fields *ast.FieldList,
+	localTypes map[string]bool,
+	importAliases map[string]string,
+	usedImports map[string]bool,
+) {
 	if fields == nil {
 		return
 	}
@@ -393,7 +428,10 @@ func qualifyFactoryFieldList(fields *ast.FieldList, localTypes map[string]bool, 
 	}
 }
 
-func generatedModelFromParsedEntity(resourceName, tableName, modulePath string, fields []parsedField) *models.GeneratedModel {
+func generatedModelFromParsedEntity(
+	resourceName, tableName, modulePath string,
+	fields []parsedField,
+) *models.GeneratedModel {
 	genModel := &models.GeneratedModel{
 		Name:          resourceName,
 		PluralName:    naming.DeriveTableName(resourceName),
@@ -412,7 +450,9 @@ func generatedModelFromParsedEntity(resourceName, tableName, modulePath string, 
 			Type:         field.TypeStr,
 			BunTag:       field.BunTag,
 			IsForeignKey: field.Name != "ID" && strings.HasSuffix(field.Name, "ID"),
-			IsNullable:   strings.HasPrefix(field.TypeStr, "*") || strings.HasPrefix(field.TypeStr, "sql.Null") || strings.HasPrefix(field.TypeStr, "bun.Null"),
+			IsNullable: strings.HasPrefix(field.TypeStr, "*") ||
+				strings.HasPrefix(field.TypeStr, "sql.Null") ||
+				strings.HasPrefix(field.TypeStr, "bun.Null"),
 			IsPrimaryKey: field.Name == "ID" || strings.Contains(field.BunTag, "pk"),
 		}
 		if len(field.Packages) > 0 {
@@ -444,13 +484,22 @@ func generatedModelFromParsedEntity(resourceName, tableName, modulePath string, 
 	return genModel
 }
 
-func (m *ModelManager) planFactorySync(resourceName, tableName string, genModel *models.GeneratedModel, opts FactorySyncOptions) (*FactorySyncResult, error) {
+func (m *ModelManager) planFactorySync(
+	resourceName, tableName string,
+	genModel *models.GeneratedModel,
+	opts FactorySyncOptions,
+) (*FactorySyncResult, error) {
 	rootDir, err := m.fileManager.FindGoModRoot()
 	if err != nil {
 		return nil, fmt.Errorf("find project root: %w", err)
 	}
 
-	factoryPath := filepath.Join(rootDir, "models", "factories", naming.ToSnakeCase(resourceName)+".go")
+	factoryPath := filepath.Join(
+		rootDir,
+		"models",
+		"factories",
+		naming.ToSnakeCase(resourceName)+".go",
+	)
 	oldContent := ""
 	missing := false
 	if src, err := os.ReadFile(factoryPath); err == nil {
@@ -529,7 +578,11 @@ func renderSyncedFactoryFile(factory *models.GeneratedFactory, oldContent string
 	return string(formatted), nil
 }
 
-func writeFactoryImports(sb *strings.Builder, factory *models.GeneratedFactory, oldImports []string) {
+func writeFactoryImports(
+	sb *strings.Builder,
+	factory *models.GeneratedFactory,
+	oldImports []string,
+) {
 	imports := map[string]bool{
 		"context":                                true,
 		"fmt":                                    true,
@@ -600,17 +653,29 @@ func writeFactoryImports(sb *strings.Builder, factory *models.GeneratedFactory, 
 
 func isStandardFactoryImport(importPath, modulePath string) bool {
 	firstSegment, _, _ := strings.Cut(importPath, "/")
-	return !strings.Contains(firstSegment, ".") && importPath != modulePath && !strings.HasPrefix(importPath, modulePath+"/")
+	return !strings.Contains(firstSegment, ".") && importPath != modulePath &&
+		!strings.HasPrefix(importPath, modulePath+"/")
 }
 
 func writeFactoryCore(sb *strings.Builder, factory *models.GeneratedFactory) {
-	fmt.Fprintf(sb, "type %sFactory struct {\n\tmodels.%s\n}\n\n", factory.ModelName, factory.EntityName)
+	fmt.Fprintf(
+		sb,
+		"type %sFactory struct {\n\tmodels.%s\n}\n\n",
+		factory.ModelName,
+		factory.EntityName,
+	)
 	fmt.Fprintf(sb, "type %sOption func(*%sFactory)\n\n", factory.ModelName, factory.ModelName)
 
 	fmt.Fprintf(sb, "func Build%s(", factory.ModelName)
 	writeFactoryFKParams(sb, factory)
 	fmt.Fprintf(sb, "opts ...%sOption) models.%s {\n", factory.ModelName, factory.EntityName)
-	fmt.Fprintf(sb, "\tf := &%sFactory{\n\t\t%s: models.%s{\n", factory.ModelName, factory.EntityName, factory.EntityName)
+	fmt.Fprintf(
+		sb,
+		"\tf := &%sFactory{\n\t\t%s: models.%s{\n",
+		factory.ModelName,
+		factory.EntityName,
+		factory.EntityName,
+	)
 	for _, field := range factory.Fields {
 		if field.IsAutoManaged {
 			continue
@@ -631,7 +696,12 @@ func writeFactoryCore(sb *strings.Builder, factory *models.GeneratedFactory) {
 func writeFactoryCreateFunctions(sb *strings.Builder, factory *models.GeneratedFactory) {
 	fmt.Fprintf(sb, "func Create%s(ctx context.Context, exec storage.Executor, ", factory.ModelName)
 	writeFactoryFKParams(sb, factory)
-	fmt.Fprintf(sb, "opts ...%sOption) (models.%s, error) {\n", factory.ModelName, factory.EntityName)
+	fmt.Fprintf(
+		sb,
+		"opts ...%sOption) (models.%s, error) {\n",
+		factory.ModelName,
+		factory.EntityName,
+	)
 	fmt.Fprintf(sb, "\tbuilt := Build%s(", factory.ModelName)
 	writeFactoryFKArgs(sb, factory)
 	sb.WriteString("opts...)\n\n")
@@ -656,14 +726,21 @@ func writeFactoryCreateFunctions(sb *strings.Builder, factory *models.GeneratedF
 		fmt.Fprintf(sb, "\t\t%s: built.%s,\n", field.Name, field.Name)
 	}
 	sb.WriteString("\t}\n\n")
-	sb.WriteString("\tif err := exec.NewInsert().Model(&entity).Returning(\"*\").Scan(ctx); err != nil {\n")
+	sb.WriteString(
+		"\tif err := exec.NewInsert().Model(&entity).Returning(\"*\").Scan(ctx); err != nil {\n",
+	)
 	fmt.Fprintf(sb, "\t\treturn models.%s{}, err\n\t}\n\n", factory.EntityName)
 	sb.WriteString("\treturn entity, nil\n}\n\n")
 
 	pluralModelName := inflection.Plural(factory.ModelName)
 	fmt.Fprintf(sb, "func Create%s(ctx context.Context, exec storage.Executor, ", pluralModelName)
 	writeFactoryFKParams(sb, factory)
-	fmt.Fprintf(sb, "count int, opts ...%sOption) ([]models.%s, error) {\n", factory.ModelName, factory.EntityName)
+	fmt.Fprintf(
+		sb,
+		"count int, opts ...%sOption) ([]models.%s, error) {\n",
+		factory.ModelName,
+		factory.EntityName,
+	)
 	lower := naming.ToLowerCamelCase(pluralModelName)
 	fmt.Fprintf(sb, "\t%s := make([]models.%s, 0, count)\n\n", lower, factory.EntityName)
 	sb.WriteString("\tfor i := range count {\n")
@@ -671,7 +748,11 @@ func writeFactoryCreateFunctions(sb *strings.Builder, factory *models.GeneratedF
 	writeFactoryFKArgs(sb, factory)
 	sb.WriteString("opts...)\n")
 	sb.WriteString("\t\tif err != nil {\n")
-	fmt.Fprintf(sb, "\t\t\treturn nil, fmt.Errorf(\"failed to create %s %%d: %%w\", i+1, err)\n\t\t}\n", strings.ToLower(factory.ModelName))
+	fmt.Fprintf(
+		sb,
+		"\t\t\treturn nil, fmt.Errorf(\"failed to create %s %%d: %%w\", i+1, err)\n\t\t}\n",
+		strings.ToLower(factory.ModelName),
+	)
 	fmt.Fprintf(sb, "\t\t%s = append(%s, entity)\n\t}\n\n", lower, lower)
 	fmt.Fprintf(sb, "\treturn %s, nil\n}\n", lower)
 }
@@ -681,7 +762,13 @@ func writeFactoryOptions(sb *strings.Builder, factory *models.GeneratedFactory) 
 		if field.IsAutoManaged {
 			continue
 		}
-		fmt.Fprintf(sb, "func %s(value %s) %sOption {\n", field.OptionName, field.Type, factory.ModelName)
+		fmt.Fprintf(
+			sb,
+			"func %s(value %s) %sOption {\n",
+			field.OptionName,
+			field.Type,
+			factory.ModelName,
+		)
 		fmt.Fprintf(sb, "\treturn func(f *%sFactory) {\n", factory.ModelName)
 		fmt.Fprintf(sb, "\t\tf.%s.%s = value\n", factory.EntityName, field.Name)
 		sb.WriteString("\t}\n}\n\n")
@@ -711,7 +798,11 @@ func expectedFactoryOptionNames(factory *models.GeneratedFactory) map[string]boo
 	return names
 }
 
-func customFactoryDecls(src string, factory *models.GeneratedFactory, expectedOptions map[string]bool) (string, []string, error) {
+func customFactoryDecls(
+	src string,
+	factory *models.GeneratedFactory,
+	expectedOptions map[string]bool,
+) (string, []string, error) {
 	if src == "" {
 		return "", nil, nil
 	}
@@ -747,7 +838,11 @@ func customFactoryDecls(src string, factory *models.GeneratedFactory, expectedOp
 		custom.WriteString("\n\n")
 		retainedDecls = append(retainedDecls, decl)
 	}
-	return custom.String(), retainedCustomImportPaths(imports, retainedDecls, factoryTypeQualifierNames(factory)), nil
+	return custom.String(), retainedCustomImportPaths(
+		imports,
+		retainedDecls,
+		factoryTypeQualifierNames(factory),
+	), nil
 }
 
 type existingFactoryImport struct {
@@ -766,7 +861,11 @@ func importLocalName(imp *ast.ImportSpec) string {
 	return base
 }
 
-func retainedCustomImportPaths(imports []existingFactoryImport, decls []ast.Decl, generatedTypeNames map[string]bool) []string {
+func retainedCustomImportPaths(
+	imports []existingFactoryImport,
+	decls []ast.Decl,
+	generatedTypeNames map[string]bool,
+) []string {
 	if len(decls) == 0 && len(generatedTypeNames) == 0 {
 		return nil
 	}
@@ -826,7 +925,8 @@ func isExpectedFactoryOptionDecl(decl ast.Decl, expectedOptions map[string]bool)
 
 func isGeneratedFactoryOptionDecl(decl ast.Decl, factory *models.GeneratedFactory) bool {
 	fn, ok := decl.(*ast.FuncDecl)
-	if !ok || fn.Type.Results == nil || len(fn.Type.Results.List) != 1 || fn.Body == nil || len(fn.Body.List) != 1 {
+	if !ok || fn.Type.Results == nil || len(fn.Type.Results.List) != 1 || fn.Body == nil ||
+		len(fn.Body.List) != 1 {
 		return false
 	}
 	resultType, ok := fn.Type.Results.List[0].Type.(*ast.Ident)
@@ -842,7 +942,8 @@ func isGeneratedFactoryOptionDecl(decl ast.Decl, factory *models.GeneratedFactor
 		return false
 	}
 	assignment, ok := closure.Body.List[0].(*ast.AssignStmt)
-	if !ok || assignment.Tok != token.ASSIGN || len(assignment.Lhs) != 1 || len(assignment.Rhs) != 1 {
+	if !ok || assignment.Tok != token.ASSIGN || len(assignment.Lhs) != 1 ||
+		len(assignment.Rhs) != 1 {
 		return false
 	}
 	value, ok := assignment.Rhs[0].(*ast.Ident)
@@ -885,7 +986,8 @@ func isGeneratedFactoryDecl(decl ast.Decl, factory *models.GeneratedFactory) boo
 			if !ok {
 				return false
 			}
-			if typeSpec.Name.Name != factory.ModelName+"Factory" && typeSpec.Name.Name != factory.ModelName+"Option" {
+			if typeSpec.Name.Name != factory.ModelName+"Factory" &&
+				typeSpec.Name.Name != factory.ModelName+"Option" {
 				return false
 			}
 		}

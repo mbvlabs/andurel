@@ -10,37 +10,42 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mbvlabs/andurel/pkg/server"
-	"github.com/mbvlabs/andurel/pkg/storage"
-	"github.com/riverqueue/river"
-	"{{.ModuleName}}/application"
 	mailclients "{{.ModuleName}}/clients/email"
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/email"
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/telemetry"
 
+	"github.com/mbvlabs/andurel/pkg/server"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/riverqueue/river"
 	"go.uber.org/fx"
 )
 
-var appVersion string
-
 func main() {
-	metadata := application.NewMetadata(appVersion)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	app := fx.New(
-		fx.Supply(metadata),
 		fx.Provide(
 			func() context.Context { return ctx },
-			func(cfg config.EmailCfg) (email.TransactionalSender, email.MarketingSender) {
-				if application.Environment == server.ProdEnvironment {
+			func(
+				cfg config.EmailCfg,
+				appCfg config.AppCfg,
+			) (email.TransactionalSender, email.MarketingSender) {
+				if appCfg.GetEnvironment() == server.ProdEnvironment {
 					log.Fatal("provide real email sender")
 				}
 
-				return mailclients.NewMailpit(cfg.MailpitHost, cfg.MailpitPort), mailclients.NewMailpit(cfg.MailpitHost, cfg.MailpitPort)
+				return mailclients.NewMailpit(
+						cfg.GetMailpitHost(),
+						cfg.GetMailpitPort(),
+					), mailclients.NewMailpit(
+						cfg.GetMailpitHost(),
+						cfg.GetMailpitPort(),
+					)
 			},
+			func(cfg config.TelemetryCfg) telemetry.ConfigProvider { return cfg },
 		),
 
 		config.Module,
@@ -68,7 +73,7 @@ func main() {
 
 var databaseModule = fx.Module(
 	"database",
-	fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Connection)))),
+	fx.Provide(fx.Annotate(newDatabase, fx.As(new(storage.Connection)), fx.As(fx.Self()))),
 )
 
 var queueProcessorModule = fx.Module(
@@ -80,24 +85,28 @@ var queueProcessorModule = fx.Module(
 	fx.Invoke(queueProcessorLifecycle),
 )
 
-func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg config.Database) (*storage.Postgres, error) {
+func newDatabase(
+	lifecycle fx.Lifecycle,
+	ctx context.Context,
+	cfg config.Database,
+) (*storage.Postgres, error) {
 	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
-		DatabaseKind:             cfg.DatabaseKind,
-		Host:                     cfg.Host,
-		Port:                     cfg.Port,
-		Name:                     cfg.Name,
-		User:                     cfg.User,
-		Password:                 cfg.Password,
-		SSLMode:                  cfg.SSLMode,
-		ApplicationName:          cfg.ApplicationName,
-		ConnectTimeout:           cfg.ConnectTimeout,
-		StatementCacheCapacity:   cfg.StatementCacheCapacity,
-		DescriptionCacheCapacity: cfg.DescriptionCacheCapacity,
-		MaxOpenConnections:       cfg.MaxOpenConnections,
-		MaxIdleConnections:       cfg.MaxIdleConnections,
-		ConnectionMaxLifetime:    cfg.ConnectionMaxLifetime,
-		ConnectionMaxIdleTime:    cfg.ConnectionMaxIdleTime,
-		OpenTelemetry:            cfg.OpenTelemetry,
+		DatabaseKind:             cfg.GetDatabaseKind(),
+		Host:                     cfg.GetHost(),
+		Port:                     cfg.GetPort(),
+		Name:                     cfg.GetName(),
+		User:                     cfg.GetUser(),
+		Password:                 cfg.GetPassword(),
+		SSLMode:                  cfg.GetSSLMode(),
+		ApplicationName:          cfg.GetApplicationName(),
+		ConnectTimeout:           cfg.GetConnectTimeout(),
+		StatementCacheCapacity:   cfg.GetStatementCacheCapacity(),
+		DescriptionCacheCapacity: cfg.GetDescriptionCacheCapacity(),
+		MaxOpenConnections:       cfg.GetMaxOpenConnections(),
+		MaxIdleConnections:       cfg.GetMaxIdleConnections(),
+		ConnectionMaxLifetime:    cfg.GetConnectionMaxLifetime(),
+		ConnectionMaxIdleTime:    cfg.GetConnectionMaxIdleTime(),
+		OpenTelemetry:            cfg.GetOpenTelemetry(),
 	}))
 	if err != nil {
 		return nil, err
@@ -120,7 +129,7 @@ type queueProcessorParams struct {
 func newQueueProcessor(params queueProcessorParams) (*storage.QueueProcessor, error) {
 	riverConfig := params.Config.RiverConfig()
 	riverConfig.Queues = map[string]river.QueueConfig{
-		river.QueueDefault: {MaxWorkers: params.Config.MaxWorkers},
+		river.QueueDefault: {MaxWorkers: params.Config.GetMaxWorkers()},
 	}
 
 	return storage.NewQueueProcessor(

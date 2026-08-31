@@ -58,7 +58,11 @@ func newSkillCommand() *cobra.Command {
 				return err
 			}
 			if opts.Mode == output.ModeJSON || opts.Mode == output.ModeAgent {
-				return output.OK(cmd, skillReport{Name: "andurel", Body: skills.AndurelSkill}, "Loaded Andurel skill")
+				return output.OK(
+					cmd,
+					skillReport{Name: "andurel", Body: skills.AndurelSkill},
+					"Loaded Andurel skill",
+				)
 			}
 			if opts.Quiet {
 				return nil
@@ -96,7 +100,10 @@ func newSkillCommand() *cobra.Command {
 				if err := installAndurelSkill(filepath.Dir(target)); err != nil {
 					return fmt.Errorf("install Andurel skill for %s: %w", harness.label, err)
 				}
-				installations = append(installations, skillInstallation{Harness: harness.name, Path: target})
+				installations = append(
+					installations,
+					skillInstallation{Harness: harness.name, Path: target},
+				)
 				labels = append(labels, harness.label)
 			}
 
@@ -154,13 +161,19 @@ func promptSkillHarnesses(cmd *cobra.Command) ([]skillHarness, error) {
 	selection, err := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
 	if err != nil {
 		if err == io.EOF {
-			return nil, skillHarnessError("harness selection was cancelled", "Run the command again and select at least one harness.")
+			return nil, skillHarnessError(
+				"harness selection was cancelled",
+				"Run the command again and select at least one harness.",
+			)
 		}
 		return nil, fmt.Errorf("read harness selection: %w", err)
 	}
 	selection = strings.TrimSpace(selection)
 	if selection == "" {
-		return nil, skillHarnessError("select at least one harness", "Enter one or more comma-separated numbers from the list.")
+		return nil, skillHarnessError(
+			"select at least one harness",
+			"Enter one or more comma-separated numbers from the list.",
+		)
 	}
 
 	names := make([]string, 0, len(skillHarnesses))
@@ -183,7 +196,10 @@ func parseSkillHarnessNames(names []string) ([]skillHarness, error) {
 	for _, value := range names {
 		name := strings.ToLower(strings.TrimSpace(value))
 		if name == "" {
-			return nil, skillHarnessError("harness name cannot be empty", "Choose one or more of: "+validSkillHarnessNames()+".")
+			return nil, skillHarnessError(
+				"harness name cannot be empty",
+				"Choose one or more of: "+validSkillHarnessNames()+".",
+			)
 		}
 		if seen[name] {
 			continue
@@ -206,7 +222,10 @@ func parseSkillHarnessNames(names []string) ([]skillHarness, error) {
 		}
 	}
 	if len(selected) == 0 {
-		return nil, skillHarnessError("select at least one harness", "Choose one or more of: "+validSkillHarnessNames()+".")
+		return nil, skillHarnessError(
+			"select at least one harness",
+			"Choose one or more of: "+validSkillHarnessNames()+".",
+		)
 	}
 	return selected, nil
 }
