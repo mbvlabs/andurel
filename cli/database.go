@@ -97,7 +97,7 @@ func newMigrateCommand() *cobra.Command {
 		Short:   "Database migration helpers",
 		Long: `Manage database migrations for the current project using goose.
 
-Migrations live in database/migrations/ as SQL files. Create a new
+Migrations live in migrations/ as SQL files. Create a new
 migration, apply pending ones, rollback, check status, or fix gaps.`,
 		Example: `  andurel database migrate new add_user_role
   andurel database migrate up
@@ -127,7 +127,7 @@ func newDBMigrationNewCommand() *cobra.Command {
 		Use:     "new [name]",
 		Aliases: []string{"n"},
 		Short:   "Create a new SQL migration",
-		Long: `Create a new SQL migration file in database/migrations/.
+		Long: `Create a new SQL migration file in migrations/.
 The name should describe the change, e.g. "create_users_table".`,
 		Args:    cobra.MinimumNArgs(1),
 		Example: "  andurel database migrate new create_users_table",
@@ -242,7 +242,7 @@ func newDBSeedCommand() *cobra.Command {
 		Short:   "Run database seeds",
 		Long: `Run the database seed entrypoint at cmd/seeds.
 
-Edit database/seeds to add reusable named seed sets using model factories.`,
+Edit seeds/ to add reusable named seed sets using model factories.`,
 		Args: cobra.MaximumNArgs(1),
 		Example: `  andurel database seed
   andurel database seed development
@@ -483,7 +483,7 @@ func runGoose(args ...string) error {
 		return err
 	}
 
-	migrationDir := filepath.Join(rootDir, "database", "migrations")
+	migrationDir := filepath.Join(rootDir, "migrations")
 
 	gooseArgs := append([]string{"-dir", migrationDir, driver, dbString}, args...)
 

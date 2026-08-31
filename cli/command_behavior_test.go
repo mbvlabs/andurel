@@ -1257,7 +1257,7 @@ func setupProjectInquiryCLITestProject(t *testing.T, rootDir string) {
 	writeCLITestFile(
 		t,
 		rootDir,
-		"database/migrations/000100_create_project_inquiries.sql",
+		"migrations/000100_create_project_inquiries.sql",
 		`-- +goose Up
 CREATE TABLE project_inquiries (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

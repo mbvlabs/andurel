@@ -259,8 +259,8 @@ func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 	if _, exists := baseTemplateMappings["psql_database.tmpl"]; exists {
 		t.Error("legacy database/database.go template is still mapped")
 	}
-	if got := baseTemplateMappings["database_migrations.tmpl"]; got != "database/migrations.go" {
-		t.Errorf("database migrations template target = %q, want database/migrations.go", got)
+	if got := baseTemplateMappings["database_migrations.tmpl"]; got != "migrations/migrations.go" {
+		t.Errorf("database migrations template target = %q, want migrations/migrations.go", got)
 	}
 }
 

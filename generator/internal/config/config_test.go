@@ -8,7 +8,7 @@ import (
 func TestNewDefaultConfig(t *testing.T) {
 	got := NewDefaultConfig()
 	want := &Config{
-		MigrationDirs: []string{"database/migrations"},
+		MigrationDirs: []string{"migrations"},
 		DatabaseType:  "postgresql",
 		PackageName:   "models",
 		GenerateJSON:  true,

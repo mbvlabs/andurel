@@ -187,7 +187,7 @@ func Scaffold(
 			"error",
 			err,
 			"fix",
-			"run 'andurel tool sync' then 'goose -dir database/migrations fix' after sync",
+			"run 'andurel tool sync' then 'goose -dir migrations fix' after sync",
 		)
 	}
 
@@ -295,10 +295,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"controllers_controller.tmpl": "controllers/controller.go",
 	"controllers_pages.tmpl":      "controllers/pages.go",
 
-	// Database
-	"database_migrations_gitkeep.tmpl": "database/migrations/.gitkeep",
-	"database_migrations.tmpl":         "database/migrations.go",
-	"database_seeds_seeds.tmpl":        "database/seeds/seeds.go",
+	// Migrations and seeds
+	"database_migrations_gitkeep.tmpl": "migrations/.gitkeep",
+	"database_migrations.tmpl":         "migrations/migrations.go",
+	"database_seeds_seeds.tmpl":        "seeds/seeds.go",
 
 	// Queue package
 	"psql_queue_queue.tmpl":                            "queue/queue.go",
@@ -648,7 +648,7 @@ func processMigrations(
 	for _, migration := range migrations {
 		lastTime = baseTime.Add(migration.offset)
 		timestamp := lastTime.Format("20060102150405")
-		targetPath := fmt.Sprintf("database/migrations/%s_%s.sql", timestamp, migration.name)
+		targetPath := fmt.Sprintf("migrations/%s_%s.sql", timestamp, migration.name)
 
 		if err := renderTemplate(
 			targetDir,

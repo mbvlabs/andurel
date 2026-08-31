@@ -102,7 +102,7 @@ func TestRunCommands(t *testing.T) {
 				"run",
 				"github.com/pressly/goose/v3/cmd/goose@" + versions.Goose,
 				"-dir",
-				"database/migrations",
+				"migrations",
 				"fix",
 			},
 			run: RunGooseFix,
@@ -194,7 +194,7 @@ func TestRunCommandErrors(t *testing.T) {
 			"run",
 			"github.com/pressly/goose/v3/cmd/goose@"+versions.Goose,
 			"-dir",
-			"database/migrations",
+			"migrations",
 			"fix",
 		)
 		if err := RunGooseFix(targetDir); err == nil {

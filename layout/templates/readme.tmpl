@@ -22,8 +22,8 @@ A full-stack web application built with [Andurel](https://github.com/mbvlabs/and
 ├── css/                 # Source CSS files (Tailwind wrappers + theme)
 ├── examples/
 │   └── html/            # Copy/paste HTML snippets with Datastar attributes
-├── database/
-│   └── migrations/      # SQL migration files
+├── migrations/          # SQL migration files
+├── seeds/               # Database seed definitions
 ├── email/               # Email templates and sending
 ├── models/              # Data models and business logic
 ├── queue/               # Background job processing
@@ -131,7 +131,7 @@ The Andurel generator creates complete CRUD resources with models, controllers, 
 andurel migration new create_products_table
 ```
 
-Edit the generated migration file in `database/migrations/` to define your table schema:
+Edit the generated migration file in `migrations/` to define your table schema:
 
 ```sql
 -- +goose Up
@@ -529,7 +529,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"{{.ModuleName}}/controllers"
-	"{{.ModuleName}}/database"
+	"{{.ModuleName}}/migrations"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"{{.ModuleName}}/models"
 	"{{.ModuleName}}/models/factories"
@@ -553,7 +553,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestProducts_Create(t *testing.T) {
-	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 	controller := controllers.NewProducts(db)
 
 	// Create test request
@@ -632,7 +632,7 @@ func (b *ProductBuilder) Build() models.CreateProductData {
 
 ```go
 func TestProducts_Show(t *testing.T) {
-	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 
 	// Create test data with default values
 	product := factories.Product().Create(db.Executor())
@@ -654,7 +654,7 @@ func TestProducts_Show(t *testing.T) {
 
 ```go
 func TestFindProduct(t *testing.T) {
-	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 	product := factories.Product().Create(db.Executor())
 
 	found, err := models.FindProduct(context.Background(), db.Executor(), product.ID)
@@ -672,7 +672,7 @@ func TestFindProduct(t *testing.T) {
 
 ```go
 func TestPaginateProducts(t *testing.T) {
-	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 
 	// Create test data
 	for i := 0; i < 25; i++ {
@@ -699,7 +699,7 @@ func TestPaginateProducts(t *testing.T) {
 
 ```go
 func TestCreateOrder(t *testing.T) {
-	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 
 	// Create dependencies
 	user := factories.User().Create(db.Executor())
@@ -743,14 +743,14 @@ go test -v ./...
 The test helper automatically:
 1. Starts a PostgreSQL container with `postgres:17-alpine`
 2. Creates an isolated database for each test
-3. Runs embedded migrations from `database.Migrations`
+3. Runs embedded migrations from `migrations.Migrations`
 4. Cleans up containers when tests complete
 
 **Note**: The first test run will download the PostgreSQL Docker image, which may take a moment.
 
 ### Best Practices
 
-1. **Use per-test databases**: Call `testCluster.NewTestDB(t, database.Migrations, "migrations")` in each test
+1. **Use per-test databases**: Call `testCluster.NewTestDB(t, migrations.Migrations, ".")` in each test
 2. **Use factories**: Create test data with factories instead of manual model creation
 3. **Test isolation**: Each test should be independent and not rely on other tests
 4. **Descriptive names**: Name tests clearly (e.g., `TestProducts_Create_WithInvalidData`)

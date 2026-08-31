@@ -12,7 +12,7 @@ import (
 	"github.com/labstack/echo/v5"
 
 	"{{.ModulePath}}/controllers"
-	"{{.ModulePath}}/database"
+	"{{.ModulePath}}/migrations"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"{{.ModulePath}}/models"
 	"{{.ModulePath}}/models/factories"
@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 }
 
 func Test{{Plural .ResourceName}}_Create(t *testing.T) {
-	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 	controller := controllers.New{{Plural .ResourceName}}(db)
 
 	form := url.Values{}
@@ -80,7 +80,7 @@ func Test{{Plural .ResourceName}}_Create(t *testing.T) {
 }
 
 func Test{{Plural .ResourceName}}_Show(t *testing.T) {
-	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 	controller := controllers.New{{Plural .ResourceName}}(db)
 
 	{{.ResourceName | ToLowerCamelCase}} := factories.{{.ResourceName}}().Create(db.Executor())

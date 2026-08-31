@@ -119,7 +119,7 @@ func RunGooseFix(targetDir string) error {
 		"run",
 		"github.com/pressly/goose/v3/cmd/goose@"+versions.Goose,
 		"-dir",
-		"database/migrations",
+		"migrations",
 		"fix",
 	)
 	cmd.Dir = absTargetDir

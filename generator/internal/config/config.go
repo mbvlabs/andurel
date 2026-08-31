@@ -13,7 +13,7 @@ type Config struct {
 // NewDefaultConfig creates a new default config.
 func NewDefaultConfig() *Config {
 	return &Config{
-		MigrationDirs: []string{"database/migrations"},
+		MigrationDirs: []string{"migrations"},
 		DatabaseType:  "postgresql",
 		PackageName:   "models",
 		GenerateJSON:  true,

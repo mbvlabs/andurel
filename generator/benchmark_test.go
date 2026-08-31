@@ -15,7 +15,7 @@ func BenchmarkNewCoordinator(b *testing.B) {
 	benchmarkInDirectory(b, tmpDir)
 
 	// Create minimal required structure
-	benchmarkMkdirAll(b, "database/migrations")
+	benchmarkMkdirAll(b, "migrations")
 	benchmarkMkdirAll(b, "router/routes")
 	benchmarkWriteFile(b, "go.mod", "module test\n\ngo 1.21\n")
 
@@ -34,7 +34,7 @@ func BenchmarkConfigManagerLoad(b *testing.B) {
 	benchmarkInDirectory(b, tmpDir)
 
 	// Create minimal required structure
-	benchmarkMkdirAll(b, "database/migrations")
+	benchmarkMkdirAll(b, "migrations")
 	benchmarkMkdirAll(b, "router/routes")
 	benchmarkWriteFile(b, "go.mod", "module test\n\ngo 1.21\n")
 
@@ -141,7 +141,7 @@ func BenchmarkMigrationManagerBuildCatalog(b *testing.B) {
 	benchmarkInDirectory(b, tmpDir)
 
 	// Create migration directory and files
-	migrationDir := "internal/database/migrations"
+	migrationDir := "internal/migrations"
 	benchmarkMkdirAll(b, migrationDir)
 
 	// Create a sample migration
