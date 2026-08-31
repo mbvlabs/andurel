@@ -1125,15 +1125,15 @@ file -----------rw-r--r-- andurel.lock
         "archive": "binary",
         "binaryName": "shadowfax",
         "sha256": {
-          "darwin/amd64": "fd8b0008864d504c0b2785ce8d748c3e15435a87ee791bd00d5b6ca87690e6d6",
-          "darwin/arm64": "3cc078faca14b0b1bf013d06d6ab0a37b86dc113477925637ac6d896e088fcac",
-          "linux/amd64": "50a765168bd579f2b8c997658aee6d06aac9462b91276403b9caab7d96d6ff25",
-          "linux/arm64": "f92633ae3cff487c8973d7e289d81f9b78c60e1175758bc9c4676db9255b85b3"
+          "darwin/amd64": "8018221d66ca88980c05ec7a4fbc70b1447b7dffcc8693850615d258758dddcc",
+          "darwin/arm64": "7d361b1a0342c447deb43baa78f34f8764dfe1d420f1e1ebf1481c6b00efed8f",
+          "linux/amd64": "301542f7e1fb26f24cac9bd6288ace41bf96760d50a4ce15ca6623d2aca11e13",
+          "linux/arm64": "e19960c36b49d675be1be8721db42a96ed898f77c99c160659a2e5184d7d274c"
         },
         "urlTemplate": "https://github.com/mbvlabs/shadowfax/releases/download/{{version}}/shadowfax-{{os}}-{{arch}}"
       },
       "source": "github.com/mbvlabs/shadowfax",
-      "version": "v0.8.4",
+      "version": "v0.9.0",
       "versionCheck": {
         "args": [
           "--version"
