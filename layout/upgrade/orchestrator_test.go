@@ -33,7 +33,7 @@ func TestUpgradePresentationRestoresProgressiveHumanOutput(t *testing.T) {
 		FilesReplaced:       2,
 		ReplacedFiles:       []string{"pkg/hypermedia/render.go", "pkg/server/server.go"},
 		ToolsUpdated:        1,
-		UpdatedTools:        []string{"shadowfax: v0.8.4"},
+		UpdatedTools:        []string{"shadowfax: v0.9.0"},
 		ToolMetadataChanges: []string{"templ metadata"},
 	}
 
