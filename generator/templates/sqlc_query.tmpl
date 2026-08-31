@@ -1,0 +1,16 @@
+-- sqlc queries for {{.PascalName}}
+--
+-- Add annotated queries below, then run:
+--   andurel generate queries
+{{if .TableName}}
+-- name: List{{.PascalName}} :many
+SELECT *
+FROM {{.TableName}}
+WHERE 1 = 0;
+{{else}}
+-- Example:
+-- -- name: List{{.PascalName}} :many
+-- SELECT *
+-- FROM your_table
+-- WHERE 1 = 0;
+{{end}}

@@ -32,7 +32,7 @@ func newGenerateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "generate",
 		Aliases: []string{"g"},
-		Short:   "Generate new code (model, factory, controller, scaffold, job, email, routes)",
+		Short:   "Generate new code (model, factory, controller, scaffold, job, email, routes, query, queries)",
 		Long: `Generates new code for your Andurel application. The following
 generators are available:
 
@@ -42,6 +42,8 @@ generators are available:
   factory     Generate or sync a model factory
   factories   Check or sync all model factories
   views       Generate Go code from Templ templates (templ generate)
+  query       Generate a sqlc SQL query file in models/queries
+  queries     Generate Go code from sqlc SQL files
   controller  Generate a controller, views, and routes
   scaffold    Generate a complete resource with model, controller, views, and routes
   job         Generate a background job with a worker
@@ -62,7 +64,9 @@ names, and Admin-prefixed route/view symbols.`,
   andurel generate scaffold admin/Widget
   andurel generate job SendWelcomeEmail
   andurel generate email WelcomeEmail
-  andurel generate routes`,
+  andurel generate routes
+  andurel generate query UserReport
+  andurel generate queries`,
 	}
 	setAgentMetadata(
 		cmd,
@@ -75,6 +79,8 @@ names, and Admin-prefixed route/view symbols.`,
 		newGenerateFactoryCommand(),
 		newGenerateFactoriesCommand(),
 		newGenerateViewsCommand(),
+		newGenerateQueryCommand(),
+		newGenerateQueriesCommand(),
 		newGenerateControllerCommand(),
 		newGenerateScaffoldCommand(),
 		newGenerateJobCommand(),
@@ -98,6 +104,14 @@ names, and Admin-prefixed route/view symbols.`,
 		helpCommand{
 			Use:         "generate view",
 			Description: "generates Go code from Templ templates",
+		},
+		helpCommand{
+			Use:         "generate query NAME",
+			Description: "generates a sqlc SQL query file",
+		},
+		helpCommand{
+			Use:         "generate queries",
+			Description: "generates Go code from sqlc SQL files",
 		},
 		helpCommand{
 			Use:         "generate controller [namespace/]NAME [action ...]",

@@ -4,7 +4,6 @@ package storage
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"io/fs"
 	"maps"
@@ -23,12 +22,6 @@ import (
 	"github.com/uptrace/bun/dialect/pgdialect"
 )
 
-var (
-	ErrBeginTx    = errors.New("could not begin transaction")
-	ErrRollbackTx = errors.New("could not rollback transaction")
-	ErrCommitTx   = errors.New("could not commit transaction")
-)
-
 // Executor is the query interface satisfied by *bun.DB, *bun.Tx, and *bun.Conn.
 // It remains available for application-owned model and factory APIs.
 type Executor = bun.IDB
@@ -37,6 +30,7 @@ type Executor = bun.IDB
 type Connection interface {
 	Executor() bun.IDB
 	DB() *sql.DB
+	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
 }
 
 // Postgres wraps a bun.DB.
@@ -155,14 +149,17 @@ func (p *Postgres) Close() error {
 	return p.bun.Close()
 }
 
-// BeginTx starts a new transaction. Caller is responsible for Commit or Rollback.
-func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error) {
+// BeginTransaction starts a transaction with Bun and database/sql access.
+func (p *Postgres) BeginTransaction(
+	ctx context.Context,
+	opts *sql.TxOptions,
+) (Transaction, error) {
 	tx, err := p.bun.BeginTx(ctx, opts)
 	if err != nil {
-		return bun.Tx{}, fmt.Errorf("storage: begin transaction: %w", err)
+		return nil, fmt.Errorf("storage: begin transaction: %w", err)
 	}
 
-	return tx, nil
+	return bunTransaction{tx: tx}, nil
 }
 
 // TestCluster owns a Postgres test container and can create isolated databases.

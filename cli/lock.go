@@ -23,6 +23,11 @@ type managedTool struct {
 
 var managedTools = []managedTool{
 	{
+		Name:        "sqlc",
+		Version:     versions.Sqlc,
+		Description: "Typed SQL query generator",
+	},
+	{
 		Name:        "templ",
 		Source:      "github.com/a-h/templ/cmd/templ",
 		Version:     versions.Templ,

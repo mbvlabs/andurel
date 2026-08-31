@@ -209,6 +209,7 @@ func TestCommandFlagsContract(t *testing.T) {
 		},
 		{path: "generate job", flags: []string{"queue", "dry-run", "diff"}},
 		{path: "generate email", flags: []string{"dry-run", "diff"}},
+		{path: "generate query", flags: []string{"dry-run", "diff", "table"}},
 		{path: "extension add", flags: []string{"dry-run", "diff"}},
 		{path: "extension list", flags: []string{"available"}},
 		{path: "fmt", flags: []string{"check", "skip-templ", "skip-go"}},

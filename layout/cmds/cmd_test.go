@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -122,6 +123,86 @@ func TestRunCommands(t *testing.T) {
 	}
 }
 
+func TestRunSQLCGenerate(t *testing.T) {
+	t.Run("no queries is no-op", func(t *testing.T) {
+		installCommandHelper(t)
+		targetDir := t.TempDir()
+		if err := RunSQLCGenerate(targetDir); err != nil {
+			t.Fatalf("expected no-op, got %v", err)
+		}
+	})
+
+	t.Run("generates when queries exist", func(t *testing.T) {
+		targetDir := t.TempDir()
+		queriesDir := filepath.Join(targetDir, "models", "queries")
+		if err := os.MkdirAll(queriesDir, 0o755); err != nil {
+			t.Fatalf("mkdir queries: %v", err)
+		}
+		if err := os.WriteFile(
+			filepath.Join(queriesDir, "users.sql"),
+			[]byte("-- name: GetUser :one\nSELECT 1;\n"),
+			0o644,
+		); err != nil {
+			t.Fatalf("write query file: %v", err)
+		}
+		binDir := filepath.Join(targetDir, "bin")
+		if err := os.MkdirAll(binDir, 0o755); err != nil {
+			t.Fatalf("mkdir bin: %v", err)
+		}
+		sqlcPath := filepath.Join(binDir, "sqlc")
+
+		var invoked []string
+		originalCommand := newCommand
+		newCommand = func(name string, args ...string) *exec.Cmd {
+			invoked = append(invoked, strings.Join(append([]string{name}, args...), " "))
+			if name == "go" && len(args) >= 2 && args[0] == "fmt" {
+				return exec.Command("true")
+			}
+			cmd := exec.Command(os.Args[0], "-test.run=TestCommandHelperProcess")
+			cmd.Env = append(os.Environ(),
+				"ANDUREL_COMMAND_HELPER=1",
+				"ANDUREL_COMMAND_ACTUAL="+strings.Join(append([]string{name}, args...), "\x1f"),
+				"ANDUREL_COMMAND_EXPECTED="+strings.Join([]string{sqlcPath, "generate"}, "\x1f"),
+				"ANDUREL_COMMAND_DIR="+targetDir,
+			)
+			return cmd
+		}
+		t.Cleanup(func() { newCommand = originalCommand })
+
+		if err := RunSQLCGenerate(targetDir); err != nil {
+			t.Fatalf("sqlc generate failed: %v", err)
+		}
+		if len(invoked) != 2 {
+			t.Fatalf("invoked commands = %#v, want sqlc generate and go fmt", invoked)
+		}
+		if !strings.HasPrefix(invoked[0], sqlcPath) || !strings.Contains(invoked[0], "generate") {
+			t.Fatalf("first command = %q, want sqlc generate", invoked[0])
+		}
+		if !strings.Contains(invoked[1], "go fmt") {
+			t.Fatalf("second command = %q, want go fmt", invoked[1])
+		}
+	})
+
+	t.Run("optional skips missing binary", func(t *testing.T) {
+		installCommandHelper(t)
+		targetDir := t.TempDir()
+		queriesDir := filepath.Join(targetDir, "models", "queries")
+		if err := os.MkdirAll(queriesDir, 0o755); err != nil {
+			t.Fatalf("mkdir queries: %v", err)
+		}
+		if err := os.WriteFile(
+			filepath.Join(queriesDir, "users.sql"),
+			[]byte("-- name: GetUser :one\nSELECT 1;\n"),
+			0o644,
+		); err != nil {
+			t.Fatalf("write query file: %v", err)
+		}
+		if err := RunSQLCGenerateOptional(targetDir); err != nil {
+			t.Fatalf("expected optional skip, got %v", err)
+		}
+	})
+}
+
 func TestRunCommandErrors(t *testing.T) {
 	t.Run("absolute path", func(t *testing.T) {
 		originalAbsolutePath := absolutePath
@@ -137,6 +218,8 @@ func TestRunCommandErrors(t *testing.T) {
 			RunTemplGenerate,
 			RunTemplFmt,
 			RunGooseFix,
+			RunSQLCGenerate,
+			RunSQLCGenerateOptional,
 		}
 		for _, run := range runners {
 			err := run("project")

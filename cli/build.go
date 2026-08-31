@@ -12,7 +12,9 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -26,6 +28,7 @@ func newBuildCommand() *cobra.Command {
 
 This command:
   • Downloads templ and generates views
+  • Generates sqlc code when models/queries contains SQL files
   • Compiles Tailwind utilities in email templates
   • Builds Tailwind CSS
   • Builds Vite assets (if Inertia is configured)
@@ -77,6 +80,24 @@ func buildApp(rootDir string, versionFlag string) error {
 		templCmd.Stderr = os.Stderr
 		if err := templCmd.Run(); err != nil {
 			return fmt.Errorf("templ generation failed: %w", err)
+		}
+	}
+
+	// 1b. sqlc generate
+	if hasQueries, err := storage.HasSQLCQueryFiles(rootDir); err != nil {
+		return fmt.Errorf("check sqlc queries: %w", err)
+	} else if hasQueries {
+		tool, ok := lock.Tools["sqlc"]
+		if !ok {
+			return fmt.Errorf("sqlc queries found but sqlc is not configured in andurel.lock")
+		}
+		if err := syncSingleToolFunc(rootDir, "sqlc", tool, goos, goarch); err != nil {
+			return fmt.Errorf("failed to sync sqlc: %w", err)
+		}
+
+		fmt.Println("Generating sqlc queries...")
+		if err := cmds.RunSQLCGenerate(rootDir); err != nil {
+			return fmt.Errorf("sqlc generation failed: %w", err)
 		}
 	}
 

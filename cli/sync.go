@@ -25,7 +25,7 @@ func newSyncCommand() *cobra.Command {
 		Long: `Download all tools listed in andurel.lock to bin/. Already-downloaded
 tools at the correct version are skipped.
 
-Managed tools include templ, goose, mailpit, usql, dblab, shadowfax,
+Managed tools include sqlc, templ, goose, mailpit, usql, dblab, shadowfax,
 and tailwindcli. Versions are pinned in andurel.lock.`,
 		Example: `  andurel tool sync`,
 		Args:    cobra.ExactArgs(0),

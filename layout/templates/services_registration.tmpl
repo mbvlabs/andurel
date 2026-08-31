@@ -43,7 +43,7 @@ func (i Identity) RegisterUser(
 		return b.Errors()
 	}
 
-	tx, err := i.db.Executor().BeginTx(ctx, nil)
+	tx, err := i.db.BeginTransaction(ctx, nil)
 
 	if err != nil {
 
@@ -51,7 +51,7 @@ func (i Identity) RegisterUser(
 
 	}
 
-	user, err := models.User.Create(ctx, tx, i.pepper, models.CreateUserData{
+	user, err := models.User.Create(ctx, tx.Executor(), i.pepper, models.CreateUserData{
 
 		Email: data.Email,
 		PasswordPair: models.PasswordPair{
@@ -78,7 +78,7 @@ func (i Identity) RegisterUser(
 
 	code, err := models.Token.CreateCode(
 		ctx,
-		tx,
+		tx.Executor(),
 		i.tokenSigningKey,
 
 		userEmailVerification,
@@ -153,7 +153,7 @@ func (i Identity) VerifyEmail(
 		return models.UserEntity{}, b.Errors()
 	}
 
-	tx, err := i.db.Executor().BeginTx(ctx, nil)
+	tx, err := i.db.BeginTransaction(ctx, nil)
 
 	if err != nil {
 
@@ -163,7 +163,7 @@ func (i Identity) VerifyEmail(
 
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
-		tx,
+		tx.Executor(),
 		i.tokenSigningKey,
 
 		userEmailVerification,
@@ -202,7 +202,7 @@ func (i Identity) VerifyEmail(
 
 	}
 
-	user, err := models.User.FindByEmail(ctx, tx, emailAddr)
+	user, err := models.User.FindByEmail(ctx, tx.Executor(), emailAddr)
 	if err != nil {
 		_ = tx.Rollback()
 
@@ -215,7 +215,7 @@ func (i Identity) VerifyEmail(
 	}
 
 	now := time.Now()
-	user, err = models.User.Update(ctx, tx, models.UpdateUserData{
+	user, err = models.User.Update(ctx, tx.Executor(), models.UpdateUserData{
 		ID:               user.ID,
 		Email:            user.Email,
 		EmailValidatedAt: sql.NullTime{Time: now, Valid: true},
@@ -233,7 +233,7 @@ func (i Identity) VerifyEmail(
 
 	}
 
-	if err := models.Token.Destroy(ctx, tx, token.ID); err != nil {
+	if err := models.Token.Destroy(ctx, tx.Executor(), token.ID); err != nil {
 		_ = tx.Rollback()
 
 		return models.UserEntity{}, fmt.Errorf("destroy email verification token: %w", err)
