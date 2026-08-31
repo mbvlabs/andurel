@@ -1121,10 +1121,10 @@ file -----------rw-r--r-- andurel.lock
         "archive": "binary",
         "binaryName": "shadowfax",
         "sha256": {
-          "darwin/amd64": "a34318091a286fb3313c08079d48672355b4ef3b3443ae83076b7403be28b25f",
-          "darwin/arm64": "4bb964ad15c0a7fe5ba44b4124c451014dcc1cc0f5cc754b2185ef950d245daf",
-          "linux/amd64": "7b0d786c57a367c3f8c275ede1066d53256a6e41178ea2d11d9a172cee837480",
-          "linux/arm64": "c9a39d7710a41d4d5b48e25a5a9f755ff9ef7c491c8a62b80b3413d6bf808b51"
+          "darwin/amd64": "8018221d66ca88980c05ec7a4fbc70b1447b7dffcc8693850615d258758dddcc",
+          "darwin/arm64": "7d361b1a0342c447deb43baa78f34f8764dfe1d420f1e1ebf1481c6b00efed8f",
+          "linux/amd64": "301542f7e1fb26f24cac9bd6288ace41bf96760d50a4ce15ca6623d2aca11e13",
+          "linux/arm64": "e19960c36b49d675be1be8721db42a96ed898f77c99c160659a2e5184d7d274c"
         },
         "urlTemplate": "https://github.com/mbvlabs/shadowfax/releases/download/{{version}}/shadowfax-{{os}}-{{arch}}"
       },
