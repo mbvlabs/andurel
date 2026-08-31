@@ -9,6 +9,7 @@ import (
 
 	"github.com/mbvlabs/andurel/layout/extensions"
 	layouttemplates "github.com/mbvlabs/andurel/layout/templates"
+	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 func TestGeneratedConfigModuleDoesNotDuplicateProviders(t *testing.T) {
@@ -524,6 +525,29 @@ func shouldHaveBlankBeforeReturn(lines []string, i int) bool {
 	}
 
 	return j == i-1
+}
+
+func TestGeneratedSQLCArtifacts(t *testing.T) {
+	root := t.TempDir()
+	data := &TemplateData{ModuleName: "example.com/app"}
+	if err := processTemplatedFiles(root, data); err != nil {
+		t.Fatalf("process templates: %v", err)
+	}
+	if err := storage.WriteSQLCConfig(root); err != nil {
+		t.Fatalf("write sqlc config: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(root, "models/queries/.gitkeep")); err != nil {
+		t.Fatalf("models/queries/.gitkeep: %v", err)
+	}
+
+	written, err := os.ReadFile(filepath.Join(root, "sqlc.yaml"))
+	if err != nil {
+		t.Fatalf("read sqlc.yaml: %v", err)
+	}
+	if string(written) != string(storage.SQLCConfig()) {
+		t.Fatal("sqlc.yaml does not match storage module config")
+	}
 }
 
 func readGeneratedApplicationTemplate(t *testing.T, name string) string {

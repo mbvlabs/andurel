@@ -877,6 +877,25 @@ file -----------rw-r--r-- andurel.lock
         ]
       }
     },
+    "sqlc": {
+      "download": {
+        "archive": "tar.gz",
+        "binaryName": "sqlc",
+        "sha256": {
+          "darwin/amd64": "c5af76772e3785d21663a62697056b383f07629979b1bd25b93872e73dbd519b",
+          "darwin/arm64": "21602158c99eb1f2bae197a66abfb1941d1e9e50b23125bb193349c6b1acc71e",
+          "linux/amd64": "497ae4fcdfa64c5b0c311ffe4c2bd991e43991e82e5367792ed78bc2dca27354",
+          "linux/arm64": "b7cae247740d0c51a1e657479e5b2d21e6fef428f596682a01bc55bf4ab8a23d"
+        },
+        "urlTemplate": "https://github.com/sqlc-dev/sqlc/releases/download/{{version}}/sqlc_{{version_no_v}}_{{os}}_{{arch_x86_64}}.tar.gz"
+      },
+      "version": "v1.31.1",
+      "versionCheck": {
+        "args": [
+          "version"
+        ]
+      }
+    },
     "tailwindcli": {
       "download": {
         "archive": "binary",
@@ -7340,6 +7359,13 @@ var (
 )
 ```
 
+dir  d----------rwxr-xr-x models/queries
+
+file -----------rw-r--r-- models/queries/.gitkeep
+```
+
+```
+
 file -----------rw-r--r-- models/token.go
 ```
 package models
@@ -10595,7 +10621,7 @@ func (i Identity) RegisterUser(
 		return b.Errors()
 	}
 
-	tx, err := i.db.Executor().BeginTx(ctx, nil)
+	tx, err := i.db.BeginTransaction(ctx, nil)
 
 	if err != nil {
 
@@ -10603,7 +10629,7 @@ func (i Identity) RegisterUser(
 
 	}
 
-	user, err := models.User.Create(ctx, tx, i.pepper, models.CreateUserData{
+	user, err := models.User.Create(ctx, tx.Executor(), i.pepper, models.CreateUserData{
 
 		Email: data.Email,
 		PasswordPair: models.PasswordPair{
@@ -10630,7 +10656,7 @@ func (i Identity) RegisterUser(
 
 	code, err := models.Token.CreateCode(
 		ctx,
-		tx,
+		tx.Executor(),
 		i.tokenSigningKey,
 
 		userEmailVerification,
@@ -10705,7 +10731,7 @@ func (i Identity) VerifyEmail(
 		return models.UserEntity{}, b.Errors()
 	}
 
-	tx, err := i.db.Executor().BeginTx(ctx, nil)
+	tx, err := i.db.BeginTransaction(ctx, nil)
 
 	if err != nil {
 
@@ -10715,7 +10741,7 @@ func (i Identity) VerifyEmail(
 
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
-		tx,
+		tx.Executor(),
 		i.tokenSigningKey,
 
 		userEmailVerification,
@@ -10754,7 +10780,7 @@ func (i Identity) VerifyEmail(
 
 	}
 
-	user, err := models.User.FindByEmail(ctx, tx, emailAddr)
+	user, err := models.User.FindByEmail(ctx, tx.Executor(), emailAddr)
 	if err != nil {
 		_ = tx.Rollback()
 
@@ -10767,7 +10793,7 @@ func (i Identity) VerifyEmail(
 	}
 
 	now := time.Now()
-	user, err = models.User.Update(ctx, tx, models.UpdateUserData{
+	user, err = models.User.Update(ctx, tx.Executor(), models.UpdateUserData{
 		ID:               user.ID,
 		Email:            user.Email,
 		EmailValidatedAt: sql.NullTime{Time: now, Valid: true},
@@ -10785,7 +10811,7 @@ func (i Identity) VerifyEmail(
 
 	}
 
-	if err := models.Token.Destroy(ctx, tx, token.ID); err != nil {
+	if err := models.Token.Destroy(ctx, tx.Executor(), token.ID); err != nil {
 		_ = tx.Rollback()
 
 		return models.UserEntity{}, fmt.Errorf("destroy email verification token: %w", err)
@@ -10844,7 +10870,7 @@ func (i Identity) RequestResetPassword(
 		return b.Errors()
 	}
 
-	tx, err := i.db.Executor().BeginTx(ctx, nil)
+	tx, err := i.db.BeginTransaction(ctx, nil)
 
 	if err != nil {
 
@@ -10852,7 +10878,7 @@ func (i Identity) RequestResetPassword(
 
 	}
 
-	user, err := models.User.FindByEmail(ctx, tx, data.Email)
+	user, err := models.User.FindByEmail(ctx, tx.Executor(), data.Email)
 	if err != nil {
 		_ = tx.Rollback()
 
@@ -10876,7 +10902,7 @@ func (i Identity) RequestResetPassword(
 
 	token, err := models.Token.Create(
 		ctx,
-		tx,
+		tx.Executor(),
 		i.tokenSigningKey,
 
 		userResetPassword,
@@ -10954,7 +10980,7 @@ func (i Identity) ResetPassword(
 		return b.Errors()
 	}
 
-	tx, err := i.db.Executor().BeginTx(ctx, nil)
+	tx, err := i.db.BeginTransaction(ctx, nil)
 
 	if err != nil {
 
@@ -10964,7 +10990,7 @@ func (i Identity) ResetPassword(
 
 	token, err := models.Token.FindByScopeAndHash(
 		ctx,
-		tx,
+		tx.Executor(),
 		i.tokenSigningKey,
 
 		userResetPassword,
@@ -11003,7 +11029,7 @@ func (i Identity) ResetPassword(
 
 	}
 
-	user, err := models.User.FindByEmail(ctx, tx, emailAddr)
+	user, err := models.User.FindByEmail(ctx, tx.Executor(), emailAddr)
 	if err != nil {
 		_ = tx.Rollback()
 
@@ -11024,7 +11050,7 @@ func (i Identity) ResetPassword(
 
 	}
 
-	_, err = models.User.Update(ctx, tx, models.UpdateUserData{
+	_, err = models.User.Update(ctx, tx.Executor(), models.UpdateUserData{
 		ID:               user.ID,
 		Email:            user.Email,
 		EmailValidatedAt: user.EmailValidatedAt,
@@ -11042,7 +11068,7 @@ func (i Identity) ResetPassword(
 
 	}
 
-	if err := models.Token.Destroy(ctx, tx, token.ID); err != nil {
+	if err := models.Token.Destroy(ctx, tx.Executor(), token.ID); err != nil {
 		_ = tx.Rollback()
 
 		return fmt.Errorf("destroy password reset token: %w", err)
@@ -11070,6 +11096,22 @@ var Module = fx.Module(
 		NewIdentity,
 	),
 )
+```
+
+file -----------rw-r--r-- sqlc.yaml
+```
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "models/queries"
+    schema: "migrations"
+    gen:
+      go:
+        package: "queries"
+        out: "models/internal/queries"
+        sql_package: "database/sql"
+        emit_interface: true
+        omit_unused_structs: true
 ```
 
 dir  d----------rwxr-xr-x telemetry

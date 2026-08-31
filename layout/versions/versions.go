@@ -16,6 +16,8 @@ const (
 	TailwindCLI = "v4.3.2"
 	// Shadowfax is the default Shadowfax runner version.
 	Shadowfax = "v0.8.4"
+	// Sqlc is the default sqlc tool version.
+	Sqlc = "v1.31.1"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
 	Inertia = "v0.1.0"
 )

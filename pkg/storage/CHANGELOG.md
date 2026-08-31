@@ -4,6 +4,17 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+### Added
+
+- Canonical `sqlc.yaml` embedded in the storage module for always-available sqlc integration.
+- Helpers to write the sqlc config during scaffolding and detect query files in `models/queries/`.
+- `storage.Transaction`, `Connection.BeginTransaction`, and `storage.RunInTransaction` for shared Bun and `database/sql` transaction boundaries.
+
+### Changed
+
+- `Connection` now requires `BeginTransaction`; the concrete `Postgres.BeginTx` helper returning `bun.Tx` was removed.
+- `HasSQLCQueryFiles` ignores `.sql` stubs that do not contain sqlc query annotations.
+
 ## 0.3.0 - 2026-08-26
 
 ### Added

@@ -21,7 +21,8 @@ func TestGenerateCommands(t *testing.T) {
 		{"generate scaffold help", []string{"generate", "scaffold", "--help"}},
 		{"generate job help", []string{"generate", "job", "--help"}},
 		{"generate email help", []string{"generate", "email", "--help"}},
-		{"generate routes help", []string{"generate", "routes", "--help"}},
+		{"generate query help", []string{"generate", "query", "--help"}},
+		{"generate queries help", []string{"generate", "queries", "--help"}},
 		{"fmt help", []string{"fmt", "--help"}},
 	}
 
@@ -66,7 +67,7 @@ func TestGenerateSubCommands(t *testing.T) {
 		t.Fatalf("'generate' command not found: %v", err)
 	}
 
-	expectedSubs := []string{"model", "view", "controller", "scaffold", "job", "email", "routes"}
+	expectedSubs := []string{"model", "view", "query", "queries", "controller", "scaffold", "job", "email", "routes"}
 	subNames := getCommandNames(generateCmd.Commands())
 
 	for _, expectedSub := range expectedSubs {

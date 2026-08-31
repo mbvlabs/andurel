@@ -26,6 +26,7 @@ import (
 	"github.com/mbvlabs/andurel/layout/extensions"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 // Element describes a directory tree node to create during scaffolding.
@@ -98,6 +99,11 @@ func Scaffold(
 	fmt.Print("Processing templated files...\n")
 	if err := processTemplatedFiles(targetDir, &templateData); err != nil {
 		return fmt.Errorf("failed to process templated files: %w", err)
+	}
+
+	fmt.Print("Writing sqlc configuration...\n")
+	if err := storage.WriteSQLCConfig(targetDir); err != nil {
+		return fmt.Errorf("failed to write sqlc config: %w", err)
 	}
 
 	fmt.Print("Processing database migrations...\n")
@@ -322,6 +328,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_factories_factories.tmpl": "models/factories/factories.go",
 	"models_factories_user.tmpl":      "models/factories/user.go",
 	"models_factories_token.tmpl":     "models/factories/token.go",
+	"models_queries_gitkeep.tmpl":     "models/queries/.gitkeep",
 
 	// Router
 	"router_router.tmpl":                     "router/router.go",
@@ -1055,6 +1062,7 @@ func GetExpectedTools(config *ScaffoldConfig) map[string]*Tool {
 		expectedTools[tool.Name] = NewGoTool(tool.Name, sourceRepo, tool.Version)
 	}
 
+	expectedTools["sqlc"] = NewBinaryTool("sqlc", versions.Sqlc)
 	expectedTools["tailwindcli"] = NewBinaryTool("tailwindcli", versions.TailwindCLI)
 
 	return expectedTools
@@ -1203,6 +1211,7 @@ func generateLockFile(
 		lock.AddTool(tool.Name, NewGoTool(tool.Name, sourceRepo, tool.Version))
 	}
 
+	lock.AddTool("sqlc", NewBinaryTool("sqlc", versions.Sqlc))
 	lock.AddTool("tailwindcli", NewBinaryTool("tailwindcli", versions.TailwindCLI))
 
 	for _, ext := range extensions {

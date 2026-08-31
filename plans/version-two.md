@@ -4,13 +4,15 @@ This document describes the initial direction for Andurel V2. It is intended to 
 
 V2 development happens on `master`. V1 remains maintained on `1-5-stable`.
 
+There is no upgrade path from V1 to V2. V2 applications are created with `andurel new`; existing V1 projects stay on `1-5-stable` until they are rebuilt or migrated manually outside Andurel's automated tooling.
+
 ## Core direction
 
 Andurel V2 should:
 
 - use Uber Fx as the standard dependency injection and lifecycle system;
 - move reusable framework functionality into independently versioned Go modules;
-- retain Bun as the default model persistence layer and offer sqlc as an opt-in tool for complex queries;
+- retain Bun as the default model persistence layer and include sqlc for complex queries;
 - retain SQL migrations as the source of truth for the database schema;
 - make Inertia the recommended option for rich user interfaces while continuing to support templ and Datastar;
 - keep application dependencies explicit and testable.
@@ -215,27 +217,27 @@ The application composition root includes `models.Module`. Controllers and servi
 
 Request cancellation should continue through `context.Context`. The database must not be retrieved from a package global, service locator, or request context.
 
-Transactions should provide both Bun and standard SQL access over the same underlying transaction.
+Transactions should provide both Bun and standard SQL access over the same underlying transaction. `storage.Connection` starts them through `BeginTransaction`, which returns a `storage.Transaction` with `Executor()` for Bun model methods and `SQL()` for sqlc (`queries.WithTx(tx.SQL())`), River inserts, or other `database/sql` callers. `storage.RunInTransaction` wraps commit and rollback for multi-step workflows.
 
-### Optional sqlc support
+### sqlc support
 
-sqlc should be opt-in and reserved for operations that are materially clearer as standalone SQL, such as complex projections, reporting queries, aggregates, lateral joins, and carefully tuned bulk operations. It is an escape hatch within the model layer, not a second application-wide persistence mode. Most applications and models should never need it.
+sqlc is always available in generated applications but remains inactive until a project adds SQL files under `models/queries/`. Bun continues to handle ordinary CRUD; sqlc is for operations that are materially clearer as standalone SQL, such as complex projections, reporting queries, aggregates, lateral joins, and carefully tuned bulk operations. It is an escape hatch within the model layer, not a second application-wide persistence mode.
 
-sqlc queries and generated code should live beneath the models package's `internal` boundary:
+The canonical `sqlc.yaml` lives in the standalone storage module and is written to the application root during scaffolding. Query files and generated code use this layout:
 
 ```text
+sqlc.yaml                 # copied from pkg/storage on scaffold
 models/
 ├── models.go
 ├── user.go
-└── internal/sqlc/
-    ├── queries/
-    │   └── users.sql
-    └── generated/
+├── queries/              # hand-written SQL query files
+└── internal/
+    └── queries/          # sqlc-generated Go code
 ```
 
 Only model packages may import the generated sqlc package. Application-owned model and projection types remain the public API. Where sqlc generates database-shaped rows or parameters, the owning model method performs the conversion locally; that mapping cost is accepted only for the uncommon queries where explicit SQL provides a clear maintenance benefit. Controllers and services must not import sqlc-generated packages or expose sqlc-generated types.
 
-Bun and sqlc should use the same connection pool and transaction boundary. The default shared pool should be a `database/sql` handle backed by `pgx/v5/stdlib`. sqlc should generate against the standard SQL interface so enabling it does not create a second PostgreSQL pool.
+Bun and sqlc should use the same connection pool and transaction boundary. The default shared pool should be a `database/sql` handle backed by `pgx/v5/stdlib`. sqlc generates against the standard SQL interface so it does not create a second PostgreSQL pool. Inside a transaction, pass `tx.Executor()` to Bun model methods and `tx.SQL()` to sqlc-generated queries. Use `andurel generate query` to scaffold SQL files in `models/queries/` and `andurel generate queries` to run sqlc.
 
 ## User interface direction
 

@@ -388,6 +388,15 @@ func DownloadVerifiedGoTool(
 func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, error) {
 	repo := extractGitHubRepo(d.Module)
 	switch d.Name {
+	case "sqlc":
+		return fmt.Sprintf(
+			"https://github.com/%s/releases/download/%s/sqlc_%s_%s_%s.tar.gz",
+			repo,
+			d.Version,
+			strings.TrimPrefix(d.Version, "v"),
+			goos,
+			mapArch(goarch),
+		), "tar.gz", nil
 	case "templ":
 		return fmt.Sprintf(
 			"https://github.com/%s/releases/download/%s/templ_%s_%s.tar.gz",
