@@ -17,8 +17,8 @@ Use these rules when changing an Andurel app shaped like this repository.
 | Admin Inertia pages and reusable frontend components | `resources/js/Pages/`, `resources/js/Layouts/`, `resources/js/Components/`, `resources/js/components/ui/` |
 | Source CSS and theme primitives | `css/` |
 | Compiled/static assets | `assets/` |
-| SQL schema changes | `database/migrations/` |
-| Seed data | `database/seeds/` or `cmd/seed/` following the existing pattern |
+| SQL schema changes | `migrations/` |
+| Seed data | `seeds/` or `cmd/seeds/` following the existing pattern |
 | External provider adapters | `clients/` |
 | Email templates and send helpers | `email/` |
 | River job argument types | `queue/jobs/` |

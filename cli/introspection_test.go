@@ -140,7 +140,7 @@ func TestIntrospectionCommands(t *testing.T) {
 	writeTestFile(t, root, "models/user.go", "package models\n")
 	writeTestFile(t, root, "controllers/users.go", "package controllers\n")
 	writeTestFile(t, root, "views/users.templ", "package views\n")
-	writeTestFile(t, root, "database/migrations/0001_init.sql", "-- noop\n")
+	writeTestFile(t, root, "migrations/0001_init.sql", "-- noop\n")
 	writeTestFile(t, root, "queue/jobs/send_email.go", "package jobs\n")
 	writeTestFile(t, root, "queue/workers.go", "package queue\n")
 	writeRouteManifestTestFile(t, root, "users.go", `package routes

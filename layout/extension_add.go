@@ -227,7 +227,7 @@ func ApplyExtension(rootDir, extensionName string) ([]string, error) {
 			"error",
 			err,
 			"fix",
-			"run 'andurel tool sync' then 'goose -dir database/migrations fix' after sync",
+			"run 'andurel tool sync' then 'goose -dir migrations fix' after sync",
 		)
 	}
 

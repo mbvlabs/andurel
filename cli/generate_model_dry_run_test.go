@@ -48,7 +48,7 @@ func TestGenerateModelDryRunReportsFactoryWithoutMutatingProject(t *testing.T) {
 	rootDir := t.TempDir()
 	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26.5\n")
 	writeCLITestFile(t, rootDir, "models/model.go", "package models\n\ntype (\n)\n\nvar (\n)\n")
-	writeCLITestFile(t, rootDir, "database/migrations/000100_create_products.sql", `-- +goose Up
+	writeCLITestFile(t, rootDir, "migrations/000100_create_products.sql", `-- +goose Up
 CREATE TABLE products (
     id UUID PRIMARY KEY,
     name TEXT NOT NULL,

@@ -123,8 +123,8 @@ testapp/
 ├── css/                 # Source CSS files (Tailwind wrappers + theme)
 ├── examples/
 │   └── html/            # Copy/paste HTML snippets with Datastar attributes
-├── database/
-│   └── migrations/      # SQL migration files
+├── migrations/          # SQL migration files
+├── seeds/               # Database seed definitions
 ├── email/               # Email templates and sending
 ├── models/              # Data models and business logic
 ├── queue/               # Background job processing
@@ -232,7 +232,7 @@ The Andurel generator creates complete CRUD resources with models, controllers, 
 andurel migration new create_products_table
 ```
 
-Edit the generated migration file in `database/migrations/` to define your table schema:
+Edit the generated migration file in `migrations/` to define your table schema:
 
 ```sql
 -- +goose Up
@@ -586,7 +586,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"testapp/controllers"
-	"testapp/database"
+	"testapp/migrations"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"testapp/models"
 	"testapp/models/factories"
@@ -610,7 +610,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestProducts_Create(t *testing.T) {
-	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 	controller := controllers.NewProducts(db)
 
 	// Create test request
@@ -689,7 +689,7 @@ func (b *ProductBuilder) Build() models.CreateProductData {
 
 ```go
 func TestProducts_Show(t *testing.T) {
-	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 
 	// Create test data with default values
 	product := factories.Product().Create(db.Executor())
@@ -711,7 +711,7 @@ func TestProducts_Show(t *testing.T) {
 
 ```go
 func TestFindProduct(t *testing.T) {
-	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 	product := factories.Product().Create(db.Executor())
 
 	found, err := models.FindProduct(context.Background(), db.Executor(), product.ID)
@@ -729,7 +729,7 @@ func TestFindProduct(t *testing.T) {
 
 ```go
 func TestPaginateProducts(t *testing.T) {
-	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 
 	// Create test data
 	for i := 0; i < 25; i++ {
@@ -756,7 +756,7 @@ func TestPaginateProducts(t *testing.T) {
 
 ```go
 func TestCreateOrder(t *testing.T) {
-	db := testCluster.NewTestDB(t, database.Migrations, "migrations")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 
 	// Create dependencies
 	user := factories.User().Create(db.Executor())
@@ -800,14 +800,14 @@ go test -v ./...
 The test helper automatically:
 1. Starts a PostgreSQL container with `postgres:17-alpine`
 2. Creates an isolated database for each test
-3. Runs embedded migrations from `database.Migrations`
+3. Runs embedded migrations from `migrations.Migrations`
 4. Cleans up containers when tests complete
 
 **Note**: The first test run will download the PostgreSQL Docker image, which may take a moment.
 
 ### Best Practices
 
-1. **Use per-test databases**: Call `testCluster.NewTestDB(t, database.Migrations, "migrations")` in each test
+1. **Use per-test databases**: Call `testCluster.NewTestDB(t, migrations.Migrations, ".")` in each test
 2. **Use factories**: Create test data with factories instead of manual model creation
 3. **Test isolation**: Each test should be independent and not rely on other tests
 4. **Descriptive names**: Name tests clearly (e.g., `TestProducts_Create_WithInvalidData`)
@@ -2295,7 +2295,7 @@ import (
 	"os"
 	"strings"
 
-	"testapp/database/seeds"
+	"testapp/seeds"
 
 	"github.com/joho/godotenv"
 	"github.com/mbvlabs/andurel/pkg/storage"
@@ -5892,29 +5892,27 @@ file -----------rw-r--r-- css/utilities.css
 }
 ```
 
-dir  d----------rwxr-xr-x database
+dir  d----------rwxr-xr-x migrations
 
-dir  d----------rwxr-xr-x database/migrations
-
-file -----------rw-r--r-- database/migrations.go
+file -----------rw-r--r-- migrations/migrations.go
 ```
-// Package database provides embedded application database migrations.
-package database
+// Package migrations provides embedded application database migrations.
+package migrations
 
 import "embed"
 
 // Migrations contains the application's SQL migrations.
 //
-//go:embed migrations/*
+//go:embed *.sql
 var Migrations embed.FS
 ```
 
-file -----------rw-r--r-- database/migrations/.gitkeep
+file -----------rw-r--r-- migrations/.gitkeep
 ```
 
 ```
 
-file -----------rw-r--r-- database/migrations/00001_create_river_migration_table.sql
+file -----------rw-r--r-- migrations/00001_create_river_migration_table.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -5934,7 +5932,7 @@ DROP TABLE river_migration;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- database/migrations/00002_create_river_job_and_leader_tables.sql
+file -----------rw-r--r-- migrations/00002_create_river_job_and_leader_tables.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -6046,7 +6044,7 @@ DROP TABLE river_leader;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- database/migrations/00003_alter_river_job_tags.sql
+file -----------rw-r--r-- migrations/00003_alter_river_job_tags.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -6063,7 +6061,7 @@ ALTER TABLE river_job
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- database/migrations/00004_alter_river_job_args_metadata_add_queue.sql
+file -----------rw-r--r-- migrations/00004_alter_river_job_args_metadata_add_queue.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -6161,7 +6159,7 @@ ALTER TABLE river_leader
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- database/migrations/00005_add_river_job_unique_key_and_clients.sql
+file -----------rw-r--r-- migrations/00005_add_river_job_unique_key_and_clients.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -6308,7 +6306,7 @@ DROP TABLE river_client;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- database/migrations/00006_add_river_job_unique_states.sql
+file -----------rw-r--r-- migrations/00006_add_river_job_unique_states.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -6374,7 +6372,7 @@ DROP FUNCTION river_job_state_in_bitmask;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- database/migrations/00007_create_users_table.sql
+file -----------rw-r--r-- migrations/00007_create_users_table.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -6399,7 +6397,7 @@ DROP TABLE IF EXISTS users;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- database/migrations/00008_create_tokens_table.sql
+file -----------rw-r--r-- migrations/00008_create_tokens_table.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -6424,9 +6422,9 @@ DROP TABLE IF EXISTS tokens;
 -- +goose StatementEnd
 ```
 
-dir  d----------rwxr-xr-x database/seeds
+dir  d----------rwxr-xr-x seeds
 
-file -----------rw-r--r-- database/seeds/seeds.go
+file -----------rw-r--r-- seeds/seeds.go
 ```
 package seeds
 

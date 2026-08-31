@@ -46,7 +46,7 @@ func setupModelManagerTest(t *testing.T) (*ModelManager, func()) {
 		t.Fatalf("Failed to write go.mod: %v", err)
 	}
 
-	migrationsDir := filepath.Join(tmpDir, "database", "migrations")
+	migrationsDir := filepath.Join(tmpDir, "migrations")
 	if err := os.MkdirAll(migrationsDir, 0o755); err != nil {
 		t.Fatalf("Failed to create migrations directory: %v", err)
 	}
@@ -339,7 +339,7 @@ CREATE TABLE server_ssh_credentials (
 DROP TABLE server_ssh_credentials;
 `
 	if err := os.WriteFile(
-		filepath.Join(root, "database", "migrations", "001_create_server_ssh_credentials.sql"),
+		filepath.Join(root, "migrations", "001_create_server_ssh_credentials.sql"),
 		[]byte(migration),
 		0o644,
 	); err != nil {

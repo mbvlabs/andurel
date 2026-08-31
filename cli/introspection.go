@@ -173,7 +173,7 @@ func newMigrationsCommand() *cobra.Command {
 	return readOnlyListCommand(
 		"migrations",
 		"List migration files",
-		filepath.Join("database", "migrations"),
+		"migrations",
 		".sql",
 	)
 }

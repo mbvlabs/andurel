@@ -295,7 +295,7 @@ func TestRunGooseBuildsCommand(t *testing.T) {
 		"",
 	}, "\n"))
 	writeTestFile(t, root, "bin/goose", "#!/bin/sh\n")
-	writeTestFile(t, root, "database/migrations/0001_init.sql", "-- noop\n")
+	writeTestFile(t, root, "migrations/0001_init.sql", "-- noop\n")
 	unsetEnvForTest(
 		t,
 		"DB_KIND",
@@ -587,7 +587,7 @@ func TestMigrationCommandsCallGoose(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/app\n")
 	writeTestFile(t, root, "bin/goose", "#!/bin/sh\n")
-	writeTestFile(t, root, "database/migrations/0001_init.sql", "-- noop\n")
+	writeTestFile(t, root, "migrations/0001_init.sql", "-- noop\n")
 	setDatabaseEnv(t)
 	findGoModRoot = func() (string, error) { return root, nil }
 	t.Cleanup(func() {

@@ -18,7 +18,7 @@ func setupTestProject(t *testing.T) (string, func()) {
 		t.Fatalf("Failed to write go.mod: %v", err)
 	}
 
-	migrationDir := tmpDir + "/database/migrations"
+	migrationDir := tmpDir + "/migrations"
 	if err := os.MkdirAll(migrationDir, 0o755); err != nil {
 		t.Fatalf("Failed to create database directory: %v", err)
 	}

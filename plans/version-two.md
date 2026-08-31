@@ -29,12 +29,13 @@ Initial package candidates include:
 pkg/
 ├── hypermedia/
 ├── inertia/
-├── request/
 ├── routing/
 ├── server/
 ├── storage/
 └── validation/
 ```
+
+The former `pkg/request` module was not kept. Request-scoped metadata such as flash messages travels through typed helpers in the application-owned `router/appctx` package instead.
 
 Each standalone package should:
 
@@ -71,15 +72,7 @@ Application configuration remains in the generated application's root `config/` 
 
 Each standalone package owns the configuration type, defaults, validation, and construction options needed for that package. The application config package composes those types and decides how values are loaded and overridden.
 
-For example:
-
-```go
-type Config struct {
-    App      AppConfig
-    Database storage.Config
-    Inertia  inertia.Config
-}
-```
+Generated applications expose one Fx provider per subsystem configuration type, such as `config.AppCfg`, `config.Database`, and `config.QueueCfg`, rather than a single aggregate `config.Config` struct.
 
 Configuration should be resolved in a predictable order:
 
@@ -105,10 +98,6 @@ Configuration should be loaded once during startup, validated before dependent c
 
 Email infrastructure should be made configurable through the same application-owned pattern used by storage, Inertia, and queue. The email package should expose typed configuration and functional options, while generated application configuration owns environment loading, provider selection, defaults, and Fx wiring. Email implementations should not read environment variables directly.
 
-### Future configuration composition
-
-As a separate future piece of work, consider removing the aggregate `config.Config` type and having Fx constructors receive only the subsystem configuration structs they need. This is explicitly out of scope for the current storage and queue work, which should not broaden into an application-wide configuration injection refactor.
-
 ## Storage and Bun
 
 Bun should remain the default persistence layer in V2. It fits Andurel's application-owned model design, keeps ordinary CRUD concise, and remains explicit when queries become SQL-oriented.
@@ -127,7 +116,7 @@ The standalone storage module should own shared database infrastructure, includi
 - health checks;
 - tracing and logging integration;
 - migration execution primitives;
-- test database support through a dedicated `storagetest` subpackage.
+- test database support through helpers such as `TestCluster` and `RunMigrations` in the storage module itself, not a separate `storagetest` subpackage.
 
 PostgreSQL remains the initial supported database for V2.
 
@@ -146,11 +135,27 @@ Queue infrastructure should use the same connection boundary. The storage packag
 
 ### Schema and migrations
 
-SQL migrations remain the canonical database schema history. They should move from `database/migrations/` to a root `migrations/` directory.
+SQL migrations remain the canonical database schema history. Generated applications store them in a root `migrations/` directory. The `migrations` package embeds those SQL files for tests and tooling:
+
+```text
+migrations/
+├── migrations.go   // package migrations, //go:embed *.sql
+└── *.sql
+```
 
 Bun model tags and query code must not become a parallel schema definition or migration mechanism. Schema changes continue to begin with SQL migrations.
 
-Seed definitions should move to a root `seeds/` package. Seed data remains application-owned, while reusable execution support may come from the storage module.
+### Seeds and factories
+
+Seed orchestration and model factories remain separate concerns:
+
+```text
+seeds/                  # named seed sets and registry (development, test, ...)
+models/factories/       # per-model builders for tests and seeds
+cmd/seeds/              # CLI entrypoint for andurel database seed
+```
+
+The root `seeds/` package owns environment-specific compositions and the registry consumed by `andurel database seed`. It calls into `models/factories/` but factories do not import seeds. Factories stay beside the models the generator owns so factory sync continues to track model changes. Seeds and factories should not be merged into one package.
 
 ### Models and dependency injection
 

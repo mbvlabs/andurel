@@ -690,7 +690,7 @@ type Pair[A, B any] struct {
 func TestSyncFactoryUsesMigrationAllowedValuesForDefaults(t *testing.T) {
 	root := t.TempDir()
 	modelsDir := filepath.Join(root, "models")
-	migrationsDir := filepath.Join(root, "database", "migrations")
+	migrationsDir := filepath.Join(root, "migrations")
 	for _, directory := range []string{modelsDir, migrationsDir} {
 		if err := os.MkdirAll(directory, 0o755); err != nil {
 			t.Fatalf("create %s: %v", directory, err)

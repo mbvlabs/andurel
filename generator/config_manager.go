@@ -82,7 +82,7 @@ func (cm *ConfigManager) Load() (*UnifiedConfig, error) {
 	config := &UnifiedConfig{
 		Database: DatabaseConfig{
 			Type:          databaseType,
-			MigrationDirs: []string{"database/migrations"},
+			MigrationDirs: []string{"migrations"},
 			DefaultSchema: "public",
 			Driver:        cm.getDatabaseDriver(databaseType),
 			Method:        "Conn",
@@ -92,8 +92,8 @@ func (cm *ConfigManager) Load() (*UnifiedConfig, error) {
 			Controllers: "controllers",
 			Views:       "views",
 			Routes:      "router/routes",
-			Migrations:  "database/migrations",
-			Database:    "database",
+			Migrations:  "migrations",
+			Database:    "",
 		},
 		Templates: TemplateConfig{
 			CacheEnabled: true,
