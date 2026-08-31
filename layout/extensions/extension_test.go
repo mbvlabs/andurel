@@ -59,7 +59,10 @@ func TestRegisterGetAndNames(t *testing.T) {
 	if err := Register(nil); err == nil || !strings.Contains(err.Error(), "cannot be nil") {
 		t.Fatalf("expected nil extension error, got %v", err)
 	}
-	if err := Register(testExtension{}); err == nil || !strings.Contains(err.Error(), "non-empty name") {
+	if err := Register(
+		testExtension{},
+	); err == nil ||
+		!strings.Contains(err.Error(), "non-empty name") {
 		t.Fatalf("expected empty extension name error, got %v", err)
 	}
 
@@ -67,7 +70,9 @@ func TestRegisterGetAndNames(t *testing.T) {
 	if err := Register(ext); err != nil {
 		t.Fatalf("Register failed: %v", err)
 	}
-	if err := Register(testExtension{name: "test-register-extension", deps: []string{"ignored"}}); err != nil {
+	if err := Register(
+		testExtension{name: "test-register-extension", deps: []string{"ignored"}},
+	); err != nil {
 		t.Fatalf("duplicate Register failed: %v", err)
 	}
 
@@ -152,10 +157,14 @@ func TestAwsSesApply(t *testing.T) {
 	if len(bp.Config.Fields) != 1 || bp.Config.Fields[0].Name != "AwsSes" {
 		t.Fatalf("expected AwsSes config field, got %+v", bp.Config.Fields)
 	}
-	if len(bp.Config.EnvVars) != 4 {
-		t.Fatalf("expected AWS SES env vars, got %+v", bp.Config.EnvVars)
+	if len(bp.Config.EnvVars) != 0 {
+		t.Fatalf(
+			"expected no AWS SES env vars in .env.example blueprint, got %+v",
+			bp.Config.EnvVars,
+		)
 	}
-	if len(bp.Main.ServiceProvides) != 1 || !strings.Contains(bp.Main.ServiceProvides[0], "NewAwsSes") {
+	if len(bp.Main.ServiceProvides) != 1 ||
+		!strings.Contains(bp.Main.ServiceProvides[0], "NewAwsSes") {
 		t.Fatalf("expected AWS SES service provider, got %+v", bp.Main.ServiceProvides)
 	}
 	for _, want := range []string{

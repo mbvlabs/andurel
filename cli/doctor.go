@@ -118,7 +118,12 @@ func runDoctorStructured(cmd *cobra.Command, currentVersion string, verbose bool
 		return err
 	}
 	if report.Summary.Status == "fail" {
-		return output.NewError(output.CodeError, doctorSummaryMessage(report), output.ExitUsage, "Inspect the failed doctor checks and address the reported issues.")
+		return output.NewError(
+			output.CodeError,
+			doctorSummaryMessage(report),
+			output.ExitUsage,
+			"Inspect the failed doctor checks and address the reported issues.",
+		)
 	}
 	if err := output.OK(cmd, report, doctorSummaryMessage(report)); err != nil {
 		return err
@@ -405,14 +410,21 @@ func checkLatestAndurelRelease(currentVersion string) checkResult {
 			name:    "Andurel release",
 			status:  statusWarn,
 			message: fmt.Sprintf("%s is available (current: %s)", latest, current),
-			hint:    fmt.Sprintf("Run '%s', then run 'andurel upgrade'.", andurelInstallCommand(latest)),
+			hint: fmt.Sprintf(
+				"Run '%s', then run 'andurel upgrade'.",
+				andurelInstallCommand(latest),
+			),
 		}
 	}
 	if current != latest {
 		return checkResult{
-			name:    "Andurel release",
-			status:  statusPass,
-			message: fmt.Sprintf("no newer stable release found (current: %s, latest stable: %s)", current, latest),
+			name:   "Andurel release",
+			status: statusPass,
+			message: fmt.Sprintf(
+				"no newer stable release found (current: %s, latest stable: %s)",
+				current,
+				latest,
+			),
 		}
 	}
 
@@ -468,7 +480,8 @@ func checkLockFile(rootDir string) checkResult {
 
 func checkInertiaSSRConfiguration(rootDir string) checkResult {
 	lock, err := layout.ReadLockFile(rootDir)
-	if err != nil || lock.ScaffoldConfig == nil || !layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
+	if err != nil || lock.ScaffoldConfig == nil ||
+		!layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
 		return checkResult{name: "Inertia SSR", status: statusPass, message: "not configured"}
 	}
 
@@ -489,28 +502,57 @@ func checkInertiaSSRConfiguration(rootDir string) checkResult {
 			executable = lock.ScaffoldConfig.SSRRuntime()
 		}
 		if _, err := exec.LookPath(executable); err != nil {
-			return checkResult{name: "Inertia SSR", status: statusFail, message: fmt.Sprintf("runtime %q not found", executable)}
+			return checkResult{
+				name:    "Inertia SSR",
+				status:  statusFail,
+				message: fmt.Sprintf("runtime %q not found", executable),
+			}
 		}
 		bundle := strings.TrimSpace(values["INERTIA_SSR_BUNDLE"])
 		if bundle == "" {
 			bundle = "assets/dist/ssr/ssr.js"
 		}
 		if _, err := os.Stat(filepath.Join(rootDir, filepath.FromSlash(bundle))); err != nil {
-			return checkResult{name: "Inertia SSR", status: statusWarn, message: fmt.Sprintf("managed bundle %s is not built", bundle)}
+			return checkResult{
+				name:    "Inertia SSR",
+				status:  statusWarn,
+				message: fmt.Sprintf("managed bundle %s is not built", bundle),
+			}
 		}
-		return checkResult{name: "Inertia SSR", status: statusPass, message: fmt.Sprintf("managed by %s", executable)}
+		return checkResult{
+			name:    "Inertia SSR",
+			status:  statusPass,
+			message: fmt.Sprintf("managed by %s", executable),
+		}
 	case "external":
 		rawURL := strings.TrimSpace(values["INERTIA_SSR_URL"])
 		parsed, err := url.Parse(rawURL)
-		if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-			return checkResult{name: "Inertia SSR", status: statusFail, message: "external renderer URL is invalid"}
+		if err != nil || parsed.Host == "" ||
+			(parsed.Scheme != "http" && parsed.Scheme != "https") {
+			return checkResult{
+				name:    "Inertia SSR",
+				status:  statusFail,
+				message: "external renderer URL is invalid",
+			}
 		}
 		if err := checkSSRHealth(parsed); err != nil {
-			return checkResult{name: "Inertia SSR", status: statusWarn, message: fmt.Sprintf("external renderer is unreachable: %v", err)}
+			return checkResult{
+				name:    "Inertia SSR",
+				status:  statusWarn,
+				message: fmt.Sprintf("external renderer is unreachable: %v", err),
+			}
 		}
-		return checkResult{name: "Inertia SSR", status: statusPass, message: fmt.Sprintf("external renderer healthy at %s", parsed.Redacted())}
+		return checkResult{
+			name:    "Inertia SSR",
+			status:  statusPass,
+			message: fmt.Sprintf("external renderer healthy at %s", parsed.Redacted()),
+		}
 	default:
-		return checkResult{name: "Inertia SSR", status: statusFail, message: fmt.Sprintf("unsupported mode %q", mode)}
+		return checkResult{
+			name:    "Inertia SSR",
+			status:  statusFail,
+			message: fmt.Sprintf("unsupported mode %q", mode),
+		}
 	}
 }
 
@@ -790,7 +832,11 @@ func versionFromCommand(binPath string, vc *layout.VersionCheck, toolName string
 	return versionFromExecutable(fullPath, vc, toolName)
 }
 
-func versionFromExecutable(fullPath string, vc *layout.VersionCheck, toolName string) (string, error) {
+func versionFromExecutable(
+	fullPath string,
+	vc *layout.VersionCheck,
+	toolName string,
+) (string, error) {
 	if vc == nil || len(vc.Args) == 0 {
 		return "", fmt.Errorf(
 			"%s: missing versionCheck in andurel.lock (e.g. \"versionCheck\": {\"args\": [\"version\", \"--flag\"]})",
@@ -844,7 +890,8 @@ func extractVersion(output string) string {
 	lines := strings.SplitSeq(output, "\n")
 	for line := range lines {
 		lower := strings.ToLower(line)
-		if strings.Contains(lower, "update available") || strings.Contains(lower, "new version available") {
+		if strings.Contains(lower, "update available") ||
+			strings.Contains(lower, "new version available") {
 			continue
 		}
 		if version := versionPattern.FindString(line); version != "" {
@@ -1034,7 +1081,11 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("templ generate failed: %w: %s", err, strings.TrimSpace(stderr.String()))
+			return fmt.Errorf(
+				"templ generate failed: %w: %s",
+				err,
+				strings.TrimSpace(stderr.String()),
+			)
 		}
 		if hasEmailCompilerInputs(tempRoot) {
 			if err := emailcompiler.Compile(context.Background(), emailcompiler.Config{
@@ -1082,7 +1133,8 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 func changedSnapshotPaths(before, after fileSnapshot) []string {
 	changed := make([]string, 0)
 	for path, state := range after {
-		if previous, ok := before[path]; !ok || previous.Hash != state.Hash || previous.Mode != state.Mode {
+		if previous, ok := before[path]; !ok || previous.Hash != state.Hash ||
+			previous.Mode != state.Mode {
 			changed = append(changed, path)
 		}
 	}
@@ -1161,9 +1213,15 @@ func checkRoutesTSGenerate(rootDir string, verbose bool) checkResult {
 	if !bytes.Equal(actual, expected) {
 		details := []string{"Run 'andurel generate routes' to update resources/js/routes.ts."}
 		if verbose {
-			details = append(details, fmt.Sprintf("expected %d bytes, found %d bytes", len(expected), len(actual)))
+			details = append(
+				details,
+				fmt.Sprintf("expected %d bytes, found %d bytes", len(expected), len(actual)),
+			)
 			if skippedCount > 0 {
-				details = append(details, fmt.Sprintf("%d route manifest entries were skipped", skippedCount))
+				details = append(
+					details,
+					fmt.Sprintf("%d route manifest entries were skipped", skippedCount),
+				)
 			}
 		}
 		return checkResult{

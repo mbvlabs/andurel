@@ -87,12 +87,22 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 		return working.executeSameVersion()
 	}
 	if err := working.validatePreconditions(); err != nil {
-		report := &UpgradeReport{FromVersion: lock.Version, ToVersion: u.opts.TargetVersion, Error: err}
+		report := &UpgradeReport{
+			FromVersion: lock.Version,
+			ToVersion:   u.opts.TargetVersion,
+			Error:       err,
+		}
 		return report, err
 	}
 	if lock.ScaffoldConfig == nil {
-		err := fmt.Errorf("lock file missing scaffold config - cannot determine original project settings")
-		return &UpgradeReport{FromVersion: lock.Version, ToVersion: u.opts.TargetVersion, Error: err}, err
+		err := fmt.Errorf(
+			"lock file missing scaffold config - cannot determine original project settings",
+		)
+		return &UpgradeReport{
+			FromVersion: lock.Version,
+			ToVersion:   u.opts.TargetVersion,
+			Error:       err,
+		}, err
 	}
 	clean, err := working.git.IsClean()
 	if err != nil {
@@ -101,7 +111,11 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 	printUpgradeStart(os.Stdout, lock.Version, u.opts.TargetVersion)
 	plan, err := working.buildPlan(!clean)
 	if err != nil {
-		return &UpgradeReport{FromVersion: lock.Version, ToVersion: u.opts.TargetVersion, Error: err}, err
+		return &UpgradeReport{
+			FromVersion: lock.Version,
+			ToVersion:   u.opts.TargetVersion,
+			Error:       err,
+		}, err
 	}
 	report := plan.cloneReport()
 	if u.opts.DryRun {
@@ -121,7 +135,11 @@ func (u *Upgrader) Execute() (*UpgradeReport, error) {
 func (u *Upgrader) executeSameVersion() (*UpgradeReport, error) {
 	if u.lock.ScaffoldConfig == nil {
 		err := fmt.Errorf("lock file missing scaffold config - cannot verify framework files")
-		return &UpgradeReport{FromVersion: u.lock.Version, ToVersion: u.opts.TargetVersion, Error: err}, err
+		return &UpgradeReport{
+			FromVersion: u.lock.Version,
+			ToVersion:   u.opts.TargetVersion,
+			Error:       err,
+		}, err
 	}
 	clean, err := u.git.IsClean()
 	if err != nil {
@@ -129,7 +147,11 @@ func (u *Upgrader) executeSameVersion() (*UpgradeReport, error) {
 	}
 	plan, err := u.buildRepairPlan(!clean)
 	if err != nil {
-		return &UpgradeReport{FromVersion: u.lock.Version, ToVersion: u.opts.TargetVersion, Error: err}, err
+		return &UpgradeReport{
+			FromVersion: u.lock.Version,
+			ToVersion:   u.opts.TargetVersion,
+			Error:       err,
+		}, err
 	}
 	report := plan.cloneReport()
 	if len(plan.files) == 0 {
@@ -147,7 +169,9 @@ func (u *Upgrader) executeSameVersion() (*UpgradeReport, error) {
 		return report, nil
 	}
 	if !clean {
-		err := fmt.Errorf("worktree is dirty; commit or stash changes before repairing framework files")
+		err := fmt.Errorf(
+			"worktree is dirty; commit or stash changes before repairing framework files",
+		)
 		report.Error = err
 		return report, err
 	}
@@ -194,7 +218,10 @@ func printUpgradeStart(writer io.Writer, fromVersion, toVersion string) {
 func printUpgradeAlreadyCurrent(writer io.Writer, version string, dryRun bool) {
 	output := newPresentationWriter(writer)
 	if dryRun {
-		output.printf("[DRY RUN] Project is already at version %s. No files would be changed.\n", version)
+		output.printf(
+			"[DRY RUN] Project is already at version %s. No files would be changed.\n",
+			version,
+		)
 		return
 	}
 	output.printf("✓ Project is already at version %s. Nothing to upgrade.\n", version)
@@ -413,14 +440,20 @@ func syncTools(lock *layout.AndurelLock) (*ToolSyncResult, error) {
 				// Update version and path for built tools
 				existingTool.Version = expectedTool.Version
 				existingTool.Path = expectedTool.Path
-				result.Updated = append(result.Updated, fmt.Sprintf("%s: %s", toolName, expectedTool.Version))
+				result.Updated = append(
+					result.Updated,
+					fmt.Sprintf("%s: %s", toolName, expectedTool.Version),
+				)
 			} else {
 				// Update version and source metadata for versioned tools.
 				existingTool.Version = expectedTool.Version
 				existingTool.Source = expectedTool.Source
 				existingTool.Download = expectedTool.Download
 				existingTool.VersionCheck = expectedTool.VersionCheck
-				result.Updated = append(result.Updated, fmt.Sprintf("%s: %s", toolName, expectedTool.Version))
+				result.Updated = append(
+					result.Updated,
+					fmt.Sprintf("%s: %s", toolName, expectedTool.Version),
+				)
 			}
 			lock.Tools[toolName] = existingTool
 		} else if existingTool.Path == "" {

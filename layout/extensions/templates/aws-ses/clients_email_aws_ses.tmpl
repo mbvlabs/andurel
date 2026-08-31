@@ -15,24 +15,35 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 
-	appconfig "{{.ModuleName}}/config"
 	"{{.ModuleName}}/email"
 )
 
 var _ email.TransactionalSender = (*AwsSes)(nil)
 var _ email.MarketingSender = (*AwsSes)(nil)
 
+type SesConfigProvider interface {
+	GetRegion() string
+	GetAccessKeyID() string
+	GetSecretAccessKey() string
+	GetConfigurationSet() string
+}
+
+type EmailConfigProvider interface {
+	GetMailpitHost() string
+	GetMailpitPort() string
+}
+
 type AwsSes struct {
 	client           *sesv2.Client
 	configurationSet string
 }
 
-func NewAwsSes(cfg appconfig.Config) *AwsSes {
+func NewAwsSes(cfg SesConfigProvider) *AwsSes {
 	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
-		awsconfig.WithRegion(cfg.AwsSes.Region),
+		awsconfig.WithRegion(cfg.GetRegion()),
 		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			cfg.AwsSes.AccessKeyID,
-			cfg.AwsSes.SecretAccessKey,
+			cfg.GetAccessKeyID(),
+			cfg.GetSecretAccessKey(),
 			"",
 		)),
 	)
@@ -44,7 +55,7 @@ func NewAwsSes(cfg appconfig.Config) *AwsSes {
 
 	return &AwsSes{
 		client:           client,
-		configurationSet: cfg.AwsSes.ConfigurationSet,
+		configurationSet: cfg.GetConfigurationSet(),
 	}
 }
 

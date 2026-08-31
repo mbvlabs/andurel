@@ -22,12 +22,42 @@ type managedTool struct {
 }
 
 var managedTools = []managedTool{
-	{Name: "templ", Source: "github.com/a-h/templ/cmd/templ", Version: versions.Templ, Description: "Templ templating engine"},
-	{Name: "goose", Source: "github.com/pressly/goose/v3/cmd/goose", Version: versions.Goose, Description: "Database migrations"},
-	{Name: "mailpit", Source: "github.com/axllent/mailpit", Version: versions.Mailpit, Description: "Email testing"},
-	{Name: "usql", Source: "github.com/xo/usql", Version: versions.Usql, Description: "Universal SQL CLI"},
-	{Name: "dblab", Source: "github.com/danvergara/dblab", Version: versions.Dblab, Description: "Database UI"},
-	{Name: "shadowfax", Source: "github.com/mbvlabs/shadowfax", Version: versions.Shadowfax, Description: "Shadowfax dev server"},
+	{
+		Name:        "templ",
+		Source:      "github.com/a-h/templ/cmd/templ",
+		Version:     versions.Templ,
+		Description: "Templ templating engine",
+	},
+	{
+		Name:        "goose",
+		Source:      "github.com/pressly/goose/v3/cmd/goose",
+		Version:     versions.Goose,
+		Description: "Database migrations",
+	},
+	{
+		Name:        "mailpit",
+		Source:      "github.com/axllent/mailpit",
+		Version:     versions.Mailpit,
+		Description: "Email testing",
+	},
+	{
+		Name:        "usql",
+		Source:      "github.com/xo/usql",
+		Version:     versions.Usql,
+		Description: "Universal SQL CLI",
+	},
+	{
+		Name:        "dblab",
+		Source:      "github.com/danvergara/dblab",
+		Version:     versions.Dblab,
+		Description: "Database UI",
+	},
+	{
+		Name:        "shadowfax",
+		Source:      "github.com/mbvlabs/shadowfax",
+		Version:     versions.Shadowfax,
+		Description: "Shadowfax dev server",
+	},
 	{Name: "tailwindcli", Version: versions.TailwindCLI, Description: "Tailwind CSS CLI"},
 }
 
@@ -82,7 +112,10 @@ This updates andurel.lock and syncs the tool binary to bin/.`,
 
 func setVersion(projectRoot, toolName, version string, checksumArguments ...string) error {
 	if version == "" {
-		return fmt.Errorf("version cannot be empty\n\nExample: andurel tool set-version %s 1.0.0", toolName)
+		return fmt.Errorf(
+			"version cannot be empty\n\nExample: andurel tool set-version %s 1.0.0",
+			toolName,
+		)
 	}
 
 	version = strings.TrimPrefix(version, "v")
@@ -156,7 +189,14 @@ func setVersion(projectRoot, toolName, version string, checksumArguments ...stri
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
-	if err := installToolVersionAndLockFunc(projectRoot, toolName, lock.Tools[toolName], lock, runtime.GOOS, runtime.GOARCH); err != nil {
+	if err := installToolVersionAndLockFunc(
+		projectRoot,
+		toolName,
+		lock.Tools[toolName],
+		lock,
+		runtime.GOOS,
+		runtime.GOARCH,
+	); err != nil {
 		return err
 	}
 
@@ -164,7 +204,12 @@ func setVersion(projectRoot, toolName, version string, checksumArguments ...stri
 	return nil
 }
 
-func installToolVersionAndLock(projectRoot, toolName string, tool *layout.Tool, lock *layout.AndurelLock, goos, goarch string) (err error) {
+func installToolVersionAndLock(
+	projectRoot, toolName string,
+	tool *layout.Tool,
+	lock *layout.AndurelLock,
+	goos, goarch string,
+) (err error) {
 	stagingDir, err := os.MkdirTemp(projectRoot, ".andurel-lock-*")
 	if err != nil {
 		return fmt.Errorf("failed to create lock staging directory: %w", err)
@@ -218,12 +263,18 @@ func installToolVersionAndLock(projectRoot, toolName string, tool *layout.Tool, 
 	}
 
 	if err := os.Rename(candidatePath, binPath); err != nil {
-		return errors.Join(fmt.Errorf("failed to atomically replace %s: %w", toolName, err), restoreBinary())
+		return errors.Join(
+			fmt.Errorf("failed to atomically replace %s: %w", toolName, err),
+			restoreBinary(),
+		)
 	}
 	stagedLockPath := filepath.Join(stagingDir, "andurel.lock")
 	lockPath := filepath.Join(projectRoot, "andurel.lock")
 	if err := os.Rename(stagedLockPath, lockPath); err != nil {
-		return errors.Join(fmt.Errorf("failed to atomically update andurel.lock: %w", err), restoreBinary())
+		return errors.Join(
+			fmt.Errorf("failed to atomically update andurel.lock: %w", err),
+			restoreBinary(),
+		)
 	}
 	if hadExistingBinary {
 		if err := os.Remove(backupPath); err != nil {
@@ -255,7 +306,10 @@ func parseChecksumArguments(arguments []string) (map[string]string, error) {
 	for _, argument := range arguments {
 		platform, digest, ok := strings.Cut(argument, "=")
 		if !ok || platform == "" || digest == "" {
-			return nil, fmt.Errorf("invalid --sha256 %q; expected os/arch=64-character-hex", argument)
+			return nil, fmt.Errorf(
+				"invalid --sha256 %q; expected os/arch=64-character-hex",
+				argument,
+			)
 		}
 		if _, ok := required[platform]; !ok {
 			return nil, fmt.Errorf("unsupported --sha256 platform %q", platform)

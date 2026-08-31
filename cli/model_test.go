@@ -150,8 +150,15 @@ func TestRunModelUpdateErrors(t *testing.T) {
 		configure func(*fakeGenerator)
 		want      error
 	}{
-		{name: "generator", configure: func(fake *fakeGenerator) { fake.err = errGeneratorFactory }, want: errGeneratorFactory},
-		{name: "update", configure: func(fake *fakeGenerator) { fake.modelUpdateErr = errors.New("update failed") }},
+		{
+			name:      "generator",
+			configure: func(fake *fakeGenerator) { fake.err = errGeneratorFactory },
+			want:      errGeneratorFactory,
+		},
+		{
+			name:      "update",
+			configure: func(fake *fakeGenerator) { fake.modelUpdateErr = errors.New("update failed") },
+		},
 		{name: "apply", configure: func(fake *fakeGenerator) {
 			fake.modelUpdate = changedModelUpdate()
 			fake.modelApplyErr = errors.New("apply failed")

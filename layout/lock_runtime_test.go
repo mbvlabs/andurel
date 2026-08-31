@@ -43,7 +43,10 @@ func TestInstalledToolVersionAndMatching(t *testing.T) {
 		})
 	}
 
-	if _, err := installedToolVersion(filepath.Join(root, "missing"), &VersionCheck{Args: []string{"--version"}}); err == nil {
+	if _, err := installedToolVersion(
+		filepath.Join(root, "missing"),
+		&VersionCheck{Args: []string{"--version"}},
+	); err == nil {
 		t.Fatal("missing executable should fail")
 	}
 
@@ -83,16 +86,59 @@ func TestDownloadToolBinaryValidationErrors(t *testing.T) {
 		want     string
 	}{
 		{name: "nil tool", toolName: "tool", want: "configuration is nil"},
-		{name: "unsupported platform", toolName: "tool", tool: tool, goos: "plan9", goarch: "amd64", want: "unsupported platform"},
-		{name: "missing digest", toolName: "tool", tool: &Tool{Download: &ToolDownload{URLTemplate: "https://example.com"}}, goos: "linux", goarch: "amd64", want: "missing SHA-256"},
-		{name: "default archive", toolName: "tool", tool: &Tool{Version: "v1.0.0", Download: &ToolDownload{URLTemplate: "http://example.com", SHA256: map[string]string{"linux/amd64": digest}}}, goos: "linux", goarch: "amd64", want: "must use HTTPS"},
-		{name: "source only", toolName: "tool", tool: &Tool{Source: "example.com/tool"}, want: "source downloads require explicit"},
-		{name: "tailwind without metadata", toolName: "tailwindcli", tool: &Tool{}, want: "tailwindcli downloads require explicit"},
+		{
+			name:     "unsupported platform",
+			toolName: "tool",
+			tool:     tool,
+			goos:     "plan9",
+			goarch:   "amd64",
+			want:     "unsupported platform",
+		},
+		{
+			name:     "missing digest",
+			toolName: "tool",
+			tool:     &Tool{Download: &ToolDownload{URLTemplate: "https://example.com"}},
+			goos:     "linux",
+			goarch:   "amd64",
+			want:     "missing SHA-256",
+		},
+		{
+			name:     "default archive",
+			toolName: "tool",
+			tool: &Tool{
+				Version: "v1.0.0",
+				Download: &ToolDownload{
+					URLTemplate: "http://example.com",
+					SHA256:      map[string]string{"linux/amd64": digest},
+				},
+			},
+			goos:   "linux",
+			goarch: "amd64",
+			want:   "must use HTTPS",
+		},
+		{
+			name:     "source only",
+			toolName: "tool",
+			tool:     &Tool{Source: "example.com/tool"},
+			want:     "source downloads require explicit",
+		},
+		{
+			name:     "tailwind without metadata",
+			toolName: "tailwindcli",
+			tool:     &Tool{},
+			want:     "tailwindcli downloads require explicit",
+		},
 		{name: "no metadata", toolName: "tool", tool: &Tool{}, want: "no download metadata"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := downloadToolBinary(test.toolName, test.tool, test.goos, test.goarch, filepath.Join(t.TempDir(), "tool"))
+			err := downloadToolBinary(
+				test.toolName,
+				test.tool,
+				test.goos,
+				test.goarch,
+				filepath.Join(t.TempDir(), "tool"),
+			)
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("error = %v, want %q", err, test.want)
 			}
@@ -135,7 +181,11 @@ func TestLockSyncSkipsCurrentBinaryAndRejectsStaleUndownloadableTool(t *testing.
 		t.Fatalf("missing undownloadable tool error = %v", err)
 	}
 
-	if err := (&AndurelLock{}).Sync(t.TempDir(), true); err == nil || !strings.Contains(err.Error(), "invalid lock file") {
+	if err := (&AndurelLock{}).Sync(
+		t.TempDir(),
+		true,
+	); err == nil ||
+		!strings.Contains(err.Error(), "invalid lock file") {
 		t.Fatalf("invalid lock sync error = %v", err)
 	}
 }
@@ -151,14 +201,23 @@ func TestLockRuntimeValidationAndLookupErrors(t *testing.T) {
 		t.Fatalf("cloneStringMap(nil) = %#v", cloned)
 	}
 
-	if err := (&AndurelLock{}).WriteLockFile(t.TempDir()); err == nil || !strings.Contains(err.Error(), "failed to validate") {
+	if err := (&AndurelLock{}).WriteLockFile(
+		t.TempDir(),
+	); err == nil ||
+		!strings.Contains(err.Error(), "failed to validate") {
 		t.Fatalf("invalid lock write error = %v", err)
 	}
 	valid := NewAndurelLock("v1.0.0")
-	if err := valid.WriteLockFile(filepath.Join(t.TempDir(), "missing")); err == nil || !strings.Contains(err.Error(), "failed to write") {
+	if err := valid.WriteLockFile(
+		filepath.Join(t.TempDir(), "missing"),
+	); err == nil ||
+		!strings.Contains(err.Error(), "failed to write") {
 		t.Fatalf("missing directory write error = %v", err)
 	}
-	if _, err := ReadLockFile(filepath.Join(t.TempDir(), "missing")); err == nil || !strings.Contains(err.Error(), "failed to read") {
+	if _, err := ReadLockFile(
+		filepath.Join(t.TempDir(), "missing"),
+	); err == nil ||
+		!strings.Contains(err.Error(), "failed to read") {
 		t.Fatalf("missing lock read error = %v", err)
 	}
 }

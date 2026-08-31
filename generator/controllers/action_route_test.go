@@ -27,7 +27,14 @@ func TestDetectRouteTypeAndConstructorName(t *testing.T) {
 		{"token", "/invitations/:token", RouteWithToken, "", "", "NewRouteWithToken"},
 		{"file", "/downloads/:file", RouteWithFile, "", "", "NewRouteWithFile"},
 		{"unknown param as id", "/products/:product_id", RouteWithID, "", "", "NewRouteWithUUIDID"},
-		{"multiple ids", "/teams/:team_id/projects/:project_id", RouteWithSlugs, "", "ProjectRouteParams", "NewRouteWithSlugs[ProjectRouteParams]"},
+		{
+			"multiple ids",
+			"/teams/:team_id/projects/:project_id",
+			RouteWithSlugs,
+			"",
+			"ProjectRouteParams",
+			"NewRouteWithSlugs[ProjectRouteParams]",
+		},
 	}
 
 	for _, tt := range tests {
@@ -66,30 +73,59 @@ func (p Products) RegisterRoutes(r any) error {
 	if err := os.WriteFile(controllerPath, []byte(controller), 0o600); err != nil {
 		t.Fatalf("write controller: %v", err)
 	}
-	if err := os.WriteFile(routesPath, []byte("package routes\n\nvar AdminProductPublish = 1\n"), 0o600); err != nil {
+	if err := os.WriteFile(
+		routesPath,
+		[]byte("package routes\n\nvar AdminProductPublish = 1\n"),
+		0o600,
+	); err != nil {
 		t.Fatalf("write routes: %v", err)
 	}
 
-	if err := injector.InjectControllerMethod(filepath.Join(dir, "missing.go"), ActionMethodData{}); err == nil {
+	if err := injector.InjectControllerMethod(
+		filepath.Join(dir, "missing.go"),
+		ActionMethodData{},
+	); err == nil {
 		t.Fatal("expected read error for missing controller")
 	}
-	if err := injector.InjectControllerMethod(controllerPath, ActionMethodData{MethodName: "Publish"}); err == nil || !strings.Contains(err.Error(), "already exists") {
+	if err := injector.InjectControllerMethod(
+		controllerPath,
+		ActionMethodData{MethodName: "Publish"},
+	); err == nil ||
+		!strings.Contains(err.Error(), "already exists") {
 		t.Fatalf("expected duplicate method error, got %v", err)
 	}
 
-	routeData := ActionRouteData{NamespacePascal: "Admin", ResourceName: "Product", MethodName: "Publish"}
-	if err := injector.InjectRouteVariable(filepath.Join(dir, "missing_routes.go"), routeData); err == nil {
+	routeData := ActionRouteData{
+		NamespacePascal: "Admin",
+		ResourceName:    "Product",
+		MethodName:      "Publish",
+	}
+	if err := injector.InjectRouteVariable(
+		filepath.Join(dir, "missing_routes.go"),
+		routeData,
+	); err == nil {
 		t.Fatal("expected read error for missing routes file")
 	}
-	if err := injector.InjectRouteVariable(routesPath, routeData); err == nil || !strings.Contains(err.Error(), "already exists") {
+	if err := injector.InjectRouteVariable(
+		routesPath,
+		routeData,
+	); err == nil ||
+		!strings.Contains(err.Error(), "already exists") {
 		t.Fatalf("expected duplicate route variable error, got %v", err)
 	}
 
 	registrationData := ActionRegistrationData{HandlerVar: "p", MethodName: "Publish"}
-	if err := injector.InjectRouteRegistration(filepath.Join(dir, "missing_controller.go"), registrationData); err == nil {
+	if err := injector.InjectRouteRegistration(
+		filepath.Join(dir, "missing_controller.go"),
+		registrationData,
+	); err == nil {
 		t.Fatal("expected read error for missing controller registration")
 	}
-	if err := injector.InjectRouteRegistration(controllerPath, registrationData); err == nil || !strings.Contains(err.Error(), "already exists") {
+	if err := injector.InjectRouteRegistration(
+		controllerPath,
+		registrationData,
+	); err == nil ||
+		!strings.Contains(err.Error(), "already exists") {
 		t.Fatalf("expected duplicate route registration error, got %v", err)
 	}
 }

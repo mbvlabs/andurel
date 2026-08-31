@@ -18,7 +18,12 @@ import (
 func chdirToProjectRoot() error {
 	rootDir, err := findGoModRoot()
 	if err != nil {
-		return output.WrapError(output.CodeProjectNotFound, err, output.ExitProject, "Run this from a directory containing an Andurel project's go.mod file.")
+		return output.WrapError(
+			output.CodeProjectNotFound,
+			err,
+			output.ExitProject,
+			"Run this from a directory containing an Andurel project's go.mod file.",
+		)
 	}
 	return os.Chdir(rootDir)
 }
@@ -59,7 +64,11 @@ names, and Admin-prefixed route/view symbols.`,
   andurel generate email WelcomeEmail
   andurel generate routes`,
 	}
-	setAgentMetadata(cmd, "generation", "Requires an Andurel project root for generators that inspect or write project files.")
+	setAgentMetadata(
+		cmd,
+		"generation",
+		"Requires an Andurel project root for generators that inspect or write project files.",
+	)
 
 	cmd.AddCommand(
 		newGenerateModelCommand(),
@@ -120,7 +129,9 @@ type createdFileTracker struct {
 	existingFiles map[string]struct{}
 }
 
-func withGenerateCleanup(run func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) error {
+func withGenerateCleanup(
+	run func(cmd *cobra.Command, args []string) error,
+) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		tracker, trackerErr := newCreatedFileTracker()
 
@@ -219,9 +230,18 @@ func snapshotFiles(rootDir string) (map[string]struct{}, error) {
 	return files, nil
 }
 
-func formatGenerateFailure(runErr error, removedFiles []string, cleanupFailures []string, trackerErr error) error {
+func formatGenerateFailure(
+	runErr error,
+	removedFiles []string,
+	cleanupFailures []string,
+	trackerErr error,
+) error {
 	if trackerErr != nil {
-		return fmt.Errorf("%w\n\nUnable to clean up created files automatically: %v", runErr, trackerErr)
+		return fmt.Errorf(
+			"%w\n\nUnable to clean up created files automatically: %v",
+			runErr,
+			trackerErr,
+		)
 	}
 
 	var msg strings.Builder

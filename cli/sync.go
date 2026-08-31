@@ -126,7 +126,11 @@ func syncSingleTool(projectRoot, name string, tool *layout.Tool, goos, goarch st
 	return nil
 }
 
-func prepareToolCandidate(projectRoot, name string, tool *layout.Tool, goos, goarch string) (string, error) {
+func prepareToolCandidate(
+	projectRoot, name string,
+	tool *layout.Tool,
+	goos, goarch string,
+) (string, error) {
 	binPath := filepath.Join(projectRoot, "bin", name)
 	if err := os.MkdirAll(filepath.Dir(binPath), 0o755); err != nil {
 		return "", fmt.Errorf("failed to create bin directory: %w", err)
@@ -155,7 +159,12 @@ func prepareToolCandidate(projectRoot, name string, tool *layout.Tool, goos, goa
 	}
 	if !versionsMatch(tool.Version, actualVersion) {
 		_ = os.Remove(candidatePath)
-		return "", fmt.Errorf("downloaded %s version %s does not match expected %s", name, actualVersion, tool.Version)
+		return "", fmt.Errorf(
+			"downloaded %s version %s does not match expected %s",
+			name,
+			actualVersion,
+			tool.Version,
+		)
 	}
 	return candidatePath, nil
 }

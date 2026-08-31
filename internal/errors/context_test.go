@@ -289,8 +289,16 @@ func TestIsRecoverable(t *testing.T) {
 		{"TimeoutError", errors.New("operation timeout"), true},
 		{"TemporaryError", errors.New("temporary failure"), true},
 		{"ConnectionRefused", errors.New("connection refused"), true},
-		{"NestedRecoverable", WrapError(errors.New("temporary failure"), *NewErrorContext("sync", "tool", "")), true},
-		{"NestedNonRecoverable", WrapError(errors.New("syntax error"), *NewErrorContext("sync", "tool", "")), false},
+		{
+			"NestedRecoverable",
+			WrapError(errors.New("temporary failure"), *NewErrorContext("sync", "tool", "")),
+			true,
+		},
+		{
+			"NestedNonRecoverable",
+			WrapError(errors.New("syntax error"), *NewErrorContext("sync", "tool", "")),
+			false,
+		},
 		{"SyntaxError", errors.New("syntax error"), false},
 		{"ValidationError", errors.New("validation failed"), false},
 	}

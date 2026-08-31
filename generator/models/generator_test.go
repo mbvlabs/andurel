@@ -65,8 +65,16 @@ func TestBuildUUIDImports(t *testing.T) {
 				t.Fatalf("Build() returned error: %v", err)
 			}
 
-			if got := hasImport(model.ExternalImports, "github.com/google/uuid"); got != tt.wantUUID {
-				t.Fatalf("uuid import = %v, want %v; imports: %v", got, tt.wantUUID, model.ExternalImports)
+			if got := hasImport(
+				model.ExternalImports,
+				"github.com/google/uuid",
+			); got != tt.wantUUID {
+				t.Fatalf(
+					"uuid import = %v, want %v; imports: %v",
+					got,
+					tt.wantUUID,
+					model.ExternalImports,
+				)
 			}
 		})
 	}
@@ -218,7 +226,9 @@ func TestGenerateModelUpsertRequiresExplicitPrimaryKey(t *testing.T) {
 			}
 
 			modelPath := filepath.Join(root, strings.ToLower(tt.resource)+".go")
-			if err := NewGenerator("postgresql").GenerateModel(cat, tt.resource, tt.tableName, modelPath, "example.com/app", "", "sql.Null", "id", false); err != nil {
+			if err := NewGenerator(
+				"postgresql",
+			).GenerateModel(cat, tt.resource, tt.tableName, modelPath, "example.com/app", "", "sql.Null", "id", false); err != nil {
 				t.Fatalf("generate model: %v", err)
 			}
 			content, err := os.ReadFile(modelPath)
@@ -226,13 +236,25 @@ func TestGenerateModelUpsertRequiresExplicitPrimaryKey(t *testing.T) {
 				t.Fatalf("read generated model: %v", err)
 			}
 			generated := string(content)
-			signature := "func (" + tt.receiver + " " + strings.ToLower(tt.resource) + ") Upsert(ctx context.Context, db storage.Executor, id " + tt.idType + ", data Create" + tt.resource + "Data)"
+			signature := "func (" + tt.receiver + " " + strings.ToLower(
+				tt.resource,
+			) + ") Upsert(ctx context.Context, db storage.Executor, id " + tt.idType + ", data Create" + tt.resource + "Data)"
 			upsertStart := strings.Index(generated, signature)
 			if upsertStart < 0 {
-				t.Fatalf("generated model missing explicit-ID Upsert signature %q:\n%s", signature, generated)
+				t.Fatalf(
+					"generated model missing explicit-ID Upsert signature %q:\n%s",
+					signature,
+					generated,
+				)
 			}
 			upsert := generated[upsertStart:]
-			assignsPrimaryKey, err := functionCompositeLiteralAssignsIdentifier(generated, "Upsert", "entity", "ID", "id")
+			assignsPrimaryKey, err := functionCompositeLiteralAssignsIdentifier(
+				generated,
+				"Upsert",
+				"entity",
+				"ID",
+				"id",
+			)
 			if err != nil {
 				t.Fatalf("parse generated model: %v", err)
 			}
@@ -246,7 +268,9 @@ func TestGenerateModelUpsertRequiresExplicitPrimaryKey(t *testing.T) {
 	}
 }
 
-func functionCompositeLiteralAssignsIdentifier(source, functionName, variableName, fieldName, identifierName string) (bool, error) {
+func functionCompositeLiteralAssignsIdentifier(
+	source, functionName, variableName, fieldName, identifierName string,
+) (bool, error) {
 	file, err := parser.ParseFile(token.NewFileSet(), "", source, 0)
 	if err != nil {
 		return false, err
@@ -316,7 +340,9 @@ func TestGenerateModelPaginationPluralizesAcronymResourcesWithTableOverrides(t *
 			}
 
 			modelPath := filepath.Join(root, naming.ToSnakeCase(resourceName)+".go")
-			if err := NewGenerator("postgresql").GenerateModel(cat, resourceName, naming.DeriveTableName(resourceName), modelPath, "example.com/app", tableName, "sql.Null", "id", false); err != nil {
+			if err := NewGenerator(
+				"postgresql",
+			).GenerateModel(cat, resourceName, naming.DeriveTableName(resourceName), modelPath, "example.com/app", tableName, "sql.Null", "id", false); err != nil {
 				t.Fatalf("generate model: %v", err)
 			}
 			content, err := os.ReadFile(modelPath)
@@ -351,7 +377,9 @@ func TestGenerateModelCRUDUsesRepositoryNotFoundAndTimestampSemantics(t *testing
 	}
 
 	modelPath := filepath.Join(root, "product.go")
-	if err := NewGenerator("postgresql").GenerateModel(cat, "Product", "products", modelPath, "example.com/app", "", "sql.Null", "id", false); err != nil {
+	if err := NewGenerator(
+		"postgresql",
+	).GenerateModel(cat, "Product", "products", modelPath, "example.com/app", "", "sql.Null", "id", false); err != nil {
 		t.Fatalf("generate model: %v", err)
 	}
 	content, err := os.ReadFile(modelPath)
@@ -360,7 +388,11 @@ func TestGenerateModelCRUDUsesRepositoryNotFoundAndTimestampSemantics(t *testing
 	}
 	generated := string(content)
 	if count := strings.Count(generated, "if errors.Is(err, sql.ErrNoRows) {"); count != 3 {
-		t.Fatalf("expected Find, Update, and Destroy not-found translation, got %d:\n%s", count, generated)
+		t.Fatalf(
+			"expected Find, Update, and Destroy not-found translation, got %d:\n%s",
+			count,
+			generated,
+		)
 	}
 	if count := strings.Count(generated, "return ProductEntity{}, ErrNotFound"); count != 2 {
 		t.Fatalf("expected Find and Update to return ErrNotFound, got %d:\n%s", count, generated)
@@ -409,7 +441,15 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 			wantMode:      ModelModeCRUD,
 			modulePath:    "example.com/app",
 			hasPrimaryKey: true,
-			present:       []string{" Find(", " Create(", " Update(", " Destroy(", " All(", " Paginate(", " Upsert("},
+			present: []string{
+				" Find(",
+				" Create(",
+				" Update(",
+				" Destroy(",
+				" All(",
+				" Paginate(",
+				" Upsert(",
+			},
 		},
 		{
 			name:          "read-only",
@@ -418,7 +458,14 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 			modulePath:    "example.com/app",
 			hasPrimaryKey: true,
 			present:       []string{" Find(", " All(", " Paginate("},
-			absent:        []string{" Create(", " Update(", " Destroy(", " Upsert(", "type CreateProductData", "type UpdateProductData"},
+			absent: []string{
+				" Create(",
+				" Update(",
+				" Destroy(",
+				" Upsert(",
+				"type CreateProductData",
+				"type UpdateProductData",
+			},
 		},
 		{
 			name:          "create-only",
@@ -427,14 +474,30 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 			modulePath:    "example.com/app",
 			hasPrimaryKey: true,
 			present:       []string{" Create(", "type CreateProductData"},
-			absent:        []string{" Find(", " Update(", " Destroy(", " All(", " Paginate(", " Upsert(", "type UpdateProductData"},
+			absent: []string{
+				" Find(",
+				" Update(",
+				" Destroy(",
+				" All(",
+				" Paginate(",
+				" Upsert(",
+				"type UpdateProductData",
+			},
 		},
 		{
 			name:          "default mode",
 			wantMode:      ModelModeCRUD,
 			modulePath:    "example.com/app",
 			hasPrimaryKey: true,
-			present:       []string{" Find(", " Create(", " Update(", " Destroy(", " All(", " Paginate(", " Upsert("},
+			present: []string{
+				" Find(",
+				" Create(",
+				" Update(",
+				" Destroy(",
+				" All(",
+				" Paginate(",
+				" Upsert(",
+			},
 		},
 		{
 			name:              "read-only without primary key",
@@ -443,7 +506,15 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 			modulePath:        "example.com/app",
 			generateWithoutPK: true,
 			present:           []string{" All(", " Paginate("},
-			absent:            []string{" Find(", " Create(", " Update(", " Destroy(", " Upsert(", "type CreateProductData", "type UpdateProductData"},
+			absent: []string{
+				" Find(",
+				" Create(",
+				" Update(",
+				" Destroy(",
+				" Upsert(",
+				"type CreateProductData",
+				"type UpdateProductData",
+			},
 		},
 	}
 
@@ -453,7 +524,9 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 			cat := catalog.NewCatalog("public")
 			columns := []*catalog.Column{catalog.NewColumn("name", "text").SetNotNull()}
 			if tt.hasPrimaryKey {
-				columns = append([]*catalog.Column{catalog.NewColumn("id", "uuid").SetPrimaryKey()}, columns...)
+				columns = append(
+					[]*catalog.Column{catalog.NewColumn("id", "uuid").SetPrimaryKey()},
+					columns...)
 			}
 			table := tableWithColumns(t, "products", columns...)
 			if err := cat.AddTable("public", table); err != nil {
@@ -461,7 +534,9 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 			}
 
 			modelPath := filepath.Join(root, "product.go")
-			if err := NewGenerator("postgresql").GenerateModelWithMode(cat, "Product", "products", modelPath, tt.modulePath, "", "sql.Null", "id", tt.generateWithoutPK, tt.mode); err != nil {
+			if err := NewGenerator(
+				"postgresql",
+			).GenerateModelWithMode(cat, "Product", "products", modelPath, tt.modulePath, "", "sql.Null", "id", tt.generateWithoutPK, tt.mode); err != nil {
 				t.Fatalf("generate model: %v", err)
 			}
 			content, err := os.ReadFile(modelPath)
@@ -515,7 +590,10 @@ func TestBuildModelWithoutModulePathOmitsApplicationImports(t *testing.T) {
 	for _, applicationImport := range []string{"/pkg/storage", "/pkg/validation"} {
 		for _, modelImport := range model.ExternalImports {
 			if strings.HasSuffix(modelImport, applicationImport) {
-				t.Fatalf("Build() imports application package without a module path: %q", modelImport)
+				t.Fatalf(
+					"Build() imports application package without a module path: %q",
+					modelImport,
+				)
 			}
 		}
 	}
@@ -570,18 +648,33 @@ func TestGenerateModelWithModeReportsPlanningAndWriteFailures(t *testing.T) {
 
 func TestGeneratorTemplateRenderingAndImports(t *testing.T) {
 	g := NewGenerator("postgresql")
-	model := &GeneratedModel{Name: "Product", PluralName: "Products", Fields: []GeneratedField{{Name: "Sku", BunTag: "sku,notnull"}}}
-	content, err := g.GenerateModelFile(model, `{{lower .Name}} {{Plural .Name}} {{range .Fields}}{{columnName .BunTag}}{{end}}`)
+	model := &GeneratedModel{
+		Name:       "Product",
+		PluralName: "Products",
+		Fields:     []GeneratedField{{Name: "Sku", BunTag: "sku,notnull"}},
+	}
+	content, err := g.GenerateModelFile(
+		model,
+		`{{lower .Name}} {{Plural .Name}} {{range .Fields}}{{columnName .BunTag}}{{end}}`,
+	)
 	if err != nil {
 		t.Fatalf("GenerateModelFile: %v", err)
 	}
 	if content != "product Products sku" {
 		t.Fatalf("model content = %q", content)
 	}
-	if _, err := g.GenerateModelFile(model, "{{"); err == nil || !strings.Contains(err.Error(), "failed to parse") {
+	if _, err := g.GenerateModelFile(
+		model,
+		"{{",
+	); err == nil ||
+		!strings.Contains(err.Error(), "failed to parse") {
 		t.Fatalf("expected model parse error, got %v", err)
 	}
-	if _, err := g.GenerateModelFile(model, "{{.Missing.Field}}"); err == nil || !strings.Contains(err.Error(), "failed to execute") {
+	if _, err := g.GenerateModelFile(
+		model,
+		"{{.Missing.Field}}",
+	); err == nil ||
+		!strings.Contains(err.Error(), "failed to execute") {
 		t.Fatalf("expected model execute error, got %v", err)
 	}
 
@@ -593,10 +686,18 @@ func TestGeneratorTemplateRenderingAndImports(t *testing.T) {
 	if factoryContent != "product" {
 		t.Fatalf("factory content = %q", factoryContent)
 	}
-	if _, err := g.GenerateFactoryFile(factory, "{{"); err == nil || !strings.Contains(err.Error(), "failed to parse") {
+	if _, err := g.GenerateFactoryFile(
+		factory,
+		"{{",
+	); err == nil ||
+		!strings.Contains(err.Error(), "failed to parse") {
 		t.Fatalf("expected factory parse error, got %v", err)
 	}
-	if _, err := g.GenerateFactoryFile(factory, "{{.Missing.Field}}"); err == nil || !strings.Contains(err.Error(), "failed to execute") {
+	if _, err := g.GenerateFactoryFile(
+		factory,
+		"{{.Missing.Field}}",
+	); err == nil ||
+		!strings.Contains(err.Error(), "failed to execute") {
 		t.Fatalf("expected factory execute error, got %v", err)
 	}
 
@@ -631,11 +732,16 @@ func TestBuildFactoryMetadata(t *testing.T) {
 		},
 	}
 
-	factory, err := g.BuildFactory(catalog.NewCatalog("public"), Config{TableName: "orders", ModulePath: "example.com/app"}, genModel)
+	factory, err := g.BuildFactory(
+		catalog.NewCatalog("public"),
+		Config{TableName: "orders", ModulePath: "example.com/app"},
+		genModel,
+	)
 	if err != nil {
 		t.Fatalf("BuildFactory: %v", err)
 	}
-	if factory.ModelName != "Order" || factory.IDType != "int64" || factory.IDGoFieldName != "OrderID" {
+	if factory.ModelName != "Order" || factory.IDType != "int64" ||
+		factory.IDGoFieldName != "OrderID" {
 		t.Fatalf("unexpected factory identity: %#v", factory)
 	}
 	if !factory.HasForeignKeys || len(factory.ForeignKeyFields) != 1 {
@@ -656,9 +762,24 @@ func TestBuildFactoryUsesSuppliedModelAndFieldNames(t *testing.T) {
 		fieldName string
 		want      string
 	}{
-		{modelName: "Application", tableName: "applications", fieldName: "Name", want: "WithApplicationName"},
-		{modelName: "Credential", tableName: "credentials", fieldName: "Provider", want: "WithCredentialProvider"},
-		{modelName: "EnvironmentHealthCheck", tableName: "environment_health_checks", fieldName: "Url", want: "WithEnvironmentHealthCheckUrl"},
+		{
+			modelName: "Application",
+			tableName: "applications",
+			fieldName: "Name",
+			want:      "WithApplicationName",
+		},
+		{
+			modelName: "Credential",
+			tableName: "credentials",
+			fieldName: "Provider",
+			want:      "WithCredentialProvider",
+		},
+		{
+			modelName: "EnvironmentHealthCheck",
+			tableName: "environment_health_checks",
+			fieldName: "Url",
+			want:      "WithEnvironmentHealthCheckUrl",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.modelName, func(t *testing.T) {
@@ -669,7 +790,9 @@ func TestBuildFactoryUsesSuppliedModelAndFieldNames(t *testing.T) {
 					{Name: tt.fieldName, Type: "string"},
 				},
 			}
-			factory, err := NewGenerator("postgresql").BuildFactory(nil, Config{TableName: tt.tableName}, model)
+			factory, err := NewGenerator(
+				"postgresql",
+			).BuildFactory(nil, Config{TableName: tt.tableName}, model)
 			if err != nil {
 				t.Fatalf("build factory: %v", err)
 			}
@@ -690,7 +813,9 @@ func TestBuildFactoryUsesSchemaAwareSemanticDefaults(t *testing.T) {
 			{Name: "Status", Type: "string", AllowedValue: "pending", HasAllowedValue: true},
 		},
 	}
-	factory, err := NewGenerator("postgresql").BuildFactory(nil, Config{TableName: "endpoints"}, model)
+	factory, err := NewGenerator(
+		"postgresql",
+	).BuildFactory(nil, Config{TableName: "endpoints"}, model)
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -730,7 +855,9 @@ func TestBuildModelPrimaryKeyOverridesAndImports(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build model: %v", err)
 	}
-	if !model.HasPrimaryKey || model.IDFieldName != "tenant_id" || model.IDGoFieldName != "TenantId" || model.IDType != "uuid.UUID" {
+	if !model.HasPrimaryKey || model.IDFieldName != "tenant_id" ||
+		model.IDGoFieldName != "TenantId" ||
+		model.IDType != "uuid.UUID" {
 		t.Fatalf("primary key override was not applied: %#v", model)
 	}
 	if !model.HasCreatedAt || !model.HasUpdatedAt {
@@ -745,7 +872,10 @@ func TestBuildModelPrimaryKeyOverridesAndImports(t *testing.T) {
 		t.Fatal("missing column lookup returned a value")
 	}
 
-	withoutPK, err := g.Build(cat, Config{TableName: "memberships", ResourceName: "Membership", GenerateWithoutPK: true})
+	withoutPK, err := g.Build(
+		cat,
+		Config{TableName: "memberships", ResourceName: "Membership", GenerateWithoutPK: true},
+	)
 	if err != nil {
 		t.Fatalf("build without primary key: %v", err)
 	}
@@ -769,7 +899,17 @@ func TestGenerateModelAndFactoryFiles(t *testing.T) {
 	}
 	g := NewGenerator("postgresql")
 	modelPath := filepath.Join(root, "product.go")
-	if err := g.GenerateModel(cat, "Product", "products", modelPath, "example.com/app", "", "sql.Null", "id", false); err != nil {
+	if err := g.GenerateModel(
+		cat,
+		"Product",
+		"products",
+		modelPath,
+		"example.com/app",
+		"",
+		"sql.Null",
+		"id",
+		false,
+	); err != nil {
 		t.Fatalf("generate model: %v", err)
 	}
 	modelContent, err := os.ReadFile(modelPath)
@@ -777,11 +917,18 @@ func TestGenerateModelAndFactoryFiles(t *testing.T) {
 		t.Fatalf("generated model = %v\n%s", err, modelContent)
 	}
 
-	model, err := g.Build(cat, Config{TableName: "products", ResourceName: "Product", ModulePath: "example.com/app"})
+	model, err := g.Build(
+		cat,
+		Config{TableName: "products", ResourceName: "Product", ModulePath: "example.com/app"},
+	)
 	if err != nil {
 		t.Fatalf("build factory model: %v", err)
 	}
-	factory, err := g.BuildFactory(cat, Config{TableName: "products", ModulePath: "example.com/app"}, model)
+	factory, err := g.BuildFactory(
+		cat,
+		Config{TableName: "products", ModulePath: "example.com/app"},
+		model,
+	)
 	if err != nil {
 		t.Fatalf("build factory: %v", err)
 	}
@@ -805,17 +952,25 @@ CREATE TABLE widgets (
 -- +goose Down
 DROP TABLE widgets;
 `
-	if err := os.WriteFile(filepath.Join(directory, "20260713120000_create_widgets.sql"), []byte(migration), 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(directory, "20260713120000_create_widgets.sql"),
+		[]byte(migration),
+		0o600,
+	); err != nil {
 		t.Fatalf("write migration: %v", err)
 	}
-	cat, err := NewGenerator("postgresql").BuildCatalogFromMigrations("widgets", []string{directory})
+	cat, err := NewGenerator(
+		"postgresql",
+	).BuildCatalogFromMigrations("widgets", []string{directory})
 	if err != nil {
 		t.Fatalf("build catalog from migrations: %v", err)
 	}
 	if _, err := cat.GetTable("public", "widgets"); err != nil {
 		t.Fatalf("widgets table missing from catalog: %v", err)
 	}
-	if _, err := NewGenerator("postgresql").BuildCatalogFromMigrations("widgets", []string{filepath.Join(directory, "missing")}); err == nil {
+	if _, err := NewGenerator(
+		"postgresql",
+	).BuildCatalogFromMigrations("widgets", []string{filepath.Join(directory, "missing")}); err == nil {
 		t.Fatal("expected migration discovery error")
 	}
 }

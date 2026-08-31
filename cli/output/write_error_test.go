@@ -62,7 +62,14 @@ func TestEnvelopeWritersReturnFailures(t *testing.T) {
 		{name: "human", opts: Options{Mode: ModeHuman}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if err := renderOK(failingOutputWriter{err: wantErr}, test.opts, envelope); !errors.Is(err, wantErr) {
+			if err := renderOK(
+				failingOutputWriter{err: wantErr},
+				test.opts,
+				envelope,
+			); !errors.Is(
+				err,
+				wantErr,
+			) {
 				t.Fatalf("renderOK error = %v, want write failure", err)
 			}
 		})

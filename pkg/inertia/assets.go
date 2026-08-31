@@ -34,8 +34,12 @@ func (renderer *Renderer) resolveViteTags() (viteTags, error) {
 	if renderer.environment != "production" {
 		base := strings.TrimRight(renderer.viteDevURL, "/")
 		tags := viteTags{
-			head: `<script type="module" src="` + html.EscapeString(base+"/@vite/client") + `"></script>`,
-			body: `<script type="module" src="` + html.EscapeString(base+"/"+renderer.entryPoint) + `"></script>`,
+			head: `<script type="module" src="` + html.EscapeString(
+				base+"/@vite/client",
+			) + `"></script>`,
+			body: `<script type="module" src="` + html.EscapeString(
+				base+"/"+renderer.entryPoint,
+			) + `"></script>`,
 		}
 		if strings.HasSuffix(renderer.entryPoint, ".tsx") {
 			tags.head += `<script type="module">
@@ -61,7 +65,10 @@ window.__vite_plugin_react_preamble_installed__ = true
 	}
 	entry, ok := manifest[renderer.entryPoint]
 	if !ok {
-		return viteTags{}, fmt.Errorf("inertia: Vite entry point %q not found in manifest", renderer.entryPoint)
+		return viteTags{}, fmt.Errorf(
+			"inertia: Vite entry point %q not found in manifest",
+			renderer.entryPoint,
+		)
 	}
 	prefix := strings.TrimSuffix(renderer.buildPathURL, "*")
 	tags := viteTags{}

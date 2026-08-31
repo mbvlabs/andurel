@@ -8,8 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/joho/godotenv"
 	"{{.ModuleName}}/database/seeds"
+
+	"github.com/joho/godotenv"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -75,5 +76,6 @@ func envOrDefault(name, fallback string) string {
 	if value := os.Getenv(name); value != "" {
 		return value
 	}
+
 	return fallback
 }

@@ -220,12 +220,20 @@ func WithApplicationName(name string) Option {
 
 // WithStatementCacheCapacity sets the prepared statement cache capacity.
 func WithStatementCacheCapacity(capacity int) Option {
-	return cacheCapacityOption("statement", capacity, func(options *postgresOptions) { options.statementCacheCapacity = &capacity })
+	return cacheCapacityOption(
+		"statement",
+		capacity,
+		func(options *postgresOptions) { options.statementCacheCapacity = &capacity },
+	)
 }
 
 // WithDescriptionCacheCapacity sets the query description cache capacity.
 func WithDescriptionCacheCapacity(capacity int) Option {
-	return cacheCapacityOption("description", capacity, func(options *postgresOptions) { options.descriptionCacheCapacity = &capacity })
+	return cacheCapacityOption(
+		"description",
+		capacity,
+		func(options *postgresOptions) { options.descriptionCacheCapacity = &capacity },
+	)
 }
 
 func cacheCapacityOption(name string, capacity int, apply func(*postgresOptions)) Option {
@@ -259,12 +267,20 @@ func WithTLSConfig(config *tls.Config) Option {
 
 // WithMaxOpenConnections sets the database/sql open connection limit.
 func WithMaxOpenConnections(count int) Option {
-	return connectionCountOption("open", count, func(options *postgresOptions) { options.maxOpenConnections = &count })
+	return connectionCountOption(
+		"open",
+		count,
+		func(options *postgresOptions) { options.maxOpenConnections = &count },
+	)
 }
 
 // WithMaxIdleConnections sets the database/sql idle connection limit.
 func WithMaxIdleConnections(count int) Option {
-	return connectionCountOption("idle", count, func(options *postgresOptions) { options.maxIdleConnections = &count })
+	return connectionCountOption(
+		"idle",
+		count,
+		func(options *postgresOptions) { options.maxIdleConnections = &count },
+	)
 }
 
 func connectionCountOption(name string, count int, apply func(*postgresOptions)) Option {
@@ -279,15 +295,27 @@ func connectionCountOption(name string, count int, apply func(*postgresOptions))
 
 // WithConnectionMaxLifetime sets the maximum reusable connection lifetime.
 func WithConnectionMaxLifetime(lifetime time.Duration) Option {
-	return connectionDurationOption("lifetime", lifetime, func(options *postgresOptions) { options.connectionMaxLifetime = &lifetime })
+	return connectionDurationOption(
+		"lifetime",
+		lifetime,
+		func(options *postgresOptions) { options.connectionMaxLifetime = &lifetime },
+	)
 }
 
 // WithConnectionMaxIdleTime sets the maximum time a connection may remain idle.
 func WithConnectionMaxIdleTime(idleTime time.Duration) Option {
-	return connectionDurationOption("idle time", idleTime, func(options *postgresOptions) { options.connectionMaxIdleTime = &idleTime })
+	return connectionDurationOption(
+		"idle time",
+		idleTime,
+		func(options *postgresOptions) { options.connectionMaxIdleTime = &idleTime },
+	)
 }
 
-func connectionDurationOption(name string, duration time.Duration, apply func(*postgresOptions)) Option {
+func connectionDurationOption(
+	name string,
+	duration time.Duration,
+	apply func(*postgresOptions),
+) Option {
 	return func(options *postgresOptions) error {
 		if duration < 0 {
 			return fmt.Errorf("storage: connection maximum %s cannot be negative", name)

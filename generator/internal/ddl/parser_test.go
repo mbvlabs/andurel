@@ -249,7 +249,12 @@ func TestValidatePrimaryKeyDatatype(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validation.ValidatePrimaryKeyDatatype(tc.dataType, tc.databaseType, "test.sql", "id")
+			err := validation.ValidatePrimaryKeyDatatype(
+				tc.dataType,
+				tc.databaseType,
+				"test.sql",
+				"id",
+			)
 			if tc.expectError && err == nil {
 				t.Errorf("Expected error but got none")
 			}
@@ -379,7 +384,11 @@ func TestParseColumnDefinitions_PrimaryKeyValidation(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			parser := NewCreateTableParser()
-			columns, err := parser.parseColumnDefinitions(tc.columnDefs, "test.sql", tc.databaseType)
+			columns, err := parser.parseColumnDefinitions(
+				tc.columnDefs,
+				"test.sql",
+				tc.databaseType,
+			)
 
 			if tc.expectError {
 				if err == nil {

@@ -72,7 +72,11 @@ create, drop, nuke, rebuild, seed, and run migrations.
 
 Use the subcommands below to manage your database.`,
 	}
-	setAgentMetadata(cmd, "database", "Database lifecycle commands. Prefer --json or --agent for automation; destructive commands may prompt unless --force is provided.")
+	setAgentMetadata(
+		cmd,
+		"database",
+		"Database lifecycle commands. Prefer --json or --agent for automation; destructive commands may prompt unless --force is provided.",
+	)
 
 	cmd.AddCommand(
 		newDBSeedCommand(),
@@ -252,7 +256,11 @@ Edit database/seeds to add reusable named seed sets using model factories.`,
 			return runSeed(cmd, name, list)
 		},
 	}
-	setAgentMetadata(cmd, "database", "Runs the v1 seed entrypoint at cmd/seeds. Use --list to discover available named seeds.")
+	setAgentMetadata(
+		cmd,
+		"database",
+		"Runs the v1 seed entrypoint at cmd/seeds. Use --list to discover available named seeds.",
+	)
 
 	cmd.Flags().BoolVar(&list, "list", false, "List available seeds")
 
@@ -351,7 +359,11 @@ database protection for the drop step.`,
 			return rebuildDatabase(cmd, force, skipSeed, seedName)
 		},
 	}
-	setAgentMetadata(cmd, "database", "Drops, recreates, migrates, then runs cmd/seeds. Use --seed to select the seed set.")
+	setAgentMetadata(
+		cmd,
+		"database",
+		"Drops, recreates, migrates, then runs cmd/seeds. Use --seed to select the seed set.",
+	)
 
 	cmd.Flags().
 		BoolVar(&force, "force", false, "Allow dropping system databases like postgres/template1")
@@ -411,7 +423,11 @@ func runSeed(cmd *cobra.Command, name string, list bool) error {
 	}
 
 	if list {
-		return output.OK(cmd, seedReport{Names: lines}, fmt.Sprintf("Found %d seed sets", len(lines)))
+		return output.OK(
+			cmd,
+			seedReport{Names: lines},
+			fmt.Sprintf("Found %d seed sets", len(lines)),
+		)
 	}
 
 	seedName := name
@@ -422,7 +438,10 @@ func runSeed(cmd *cobra.Command, name string, list bool) error {
 		cmd,
 		seedReport{Name: seedName, Output: lines},
 		fmt.Sprintf("Ran %q seed", seedName),
-		output.Breadcrumb{Command: "andurel database seed --list", Description: "List available seed sets"},
+		output.Breadcrumb{
+			Command:     "andurel database seed --list",
+			Description: "List available seed sets",
+		},
 	)
 }
 
@@ -698,12 +717,21 @@ func openAdminConnection() (dbConfig, adminConnection, context.Context, context.
 	return cfg, conn, ctx, cancel, nil
 }
 
-func dropDatabaseWithConn(ctx context.Context, cfg dbConfig, conn adminConnection, force bool) error {
+func dropDatabaseWithConn(
+	ctx context.Context,
+	cfg dbConfig,
+	conn adminConnection,
+	force bool,
+) error {
 	if isSystemDatabase(cfg.Name) && !force {
 		return fmt.Errorf("refusing to drop system database %q without --force", cfg.Name)
 	}
 
-	if _, err := conn.Exec(ctx, "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()", cfg.Name); err != nil {
+	if _, err := conn.Exec(
+		ctx,
+		"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()",
+		cfg.Name,
+	); err != nil {
 		return err
 	}
 
@@ -738,7 +766,12 @@ func confirmDestructive(action string, databaseName string) (bool, error) {
 		return false, errors.New("database name is empty")
 	}
 
-	if _, err := fmt.Fprintf(os.Stdout, "Are you sure you want to %s database %q? y/N ", action, databaseName); err != nil {
+	if _, err := fmt.Fprintf(
+		os.Stdout,
+		"Are you sure you want to %s database %q? y/N ",
+		action,
+		databaseName,
+	); err != nil {
 		return false, err
 	}
 

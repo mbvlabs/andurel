@@ -73,10 +73,26 @@ func TestParseStylesheetErrors(t *testing.T) {
 		want string
 	}{
 		{name: "unterminated prelude", css: ".block", want: "unterminated CSS prelude"},
-		{name: "unterminated block", css: ".block { color: red", want: ".block: unterminated CSS block"},
-		{name: "invalid rule declaration", css: ".block { color }", want: `selector .block: invalid declaration "color"`},
-		{name: "invalid property declaration", css: "@property --size { invalid }", want: `@property --size: invalid declaration "invalid"`},
-		{name: "invalid nested rule", css: "@media screen { .block { invalid } }", want: `selector .block: invalid declaration "invalid"`},
+		{
+			name: "unterminated block",
+			css:  ".block { color: red",
+			want: ".block: unterminated CSS block",
+		},
+		{
+			name: "invalid rule declaration",
+			css:  ".block { color }",
+			want: `selector .block: invalid declaration "color"`,
+		},
+		{
+			name: "invalid property declaration",
+			css:  "@property --size { invalid }",
+			want: `@property --size: invalid declaration "invalid"`,
+		},
+		{
+			name: "invalid nested rule",
+			css:  "@media screen { .block { invalid } }",
+			want: `selector .block: invalid declaration "invalid"`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -196,10 +212,21 @@ func TestTopLevelHelpers(t *testing.T) {
 		t.Errorf("splitCSSTopLevel() = %#v, want %#v", got, want)
 	}
 	escapedQuoteList := `"one\",two",three`
-	if got := splitCSSTopLevel(escapedQuoteList, ','); !reflect.DeepEqual(got, []string{`"one\",two"`, "three"}) {
+	if got := splitCSSTopLevel(
+		escapedQuoteList,
+		',',
+	); !reflect.DeepEqual(
+		got,
+		[]string{`"one\",two"`, "three"},
+	) {
 		t.Errorf("splitCSSTopLevel() escaped quote = %#v", got)
 	}
-	if got := splitCSSList(".one, :is(.two,.three), .four"); !reflect.DeepEqual(got, []string{".one", " :is(.two,.three)", " .four"}) {
+	if got := splitCSSList(
+		".one, :is(.two,.three), .four",
+	); !reflect.DeepEqual(
+		got,
+		[]string{".one", " :is(.two,.three)", " .four"},
+	) {
 		t.Errorf("splitCSSList() = %#v", got)
 	}
 
@@ -217,7 +244,13 @@ func TestTopLevelHelpers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		if got := findTopLevelCharacter(tt.input, tt.target); got != tt.want {
-			t.Errorf("findTopLevelCharacter(%q, %q) = %d, want %d", tt.input, tt.target, got, tt.want)
+			t.Errorf(
+				"findTopLevelCharacter(%q, %q) = %d, want %d",
+				tt.input,
+				tt.target,
+				got,
+				tt.want,
+			)
 		}
 	}
 
@@ -278,7 +311,14 @@ func TestCSSIdentifierHandling(t *testing.T) {
 	for _, tt := range selectors {
 		got, ok := classFromSimpleSelector(tt.input)
 		if got != tt.want || ok != tt.ok {
-			t.Errorf("classFromSimpleSelector(%q) = (%q, %v), want (%q, %v)", tt.input, got, ok, tt.want, tt.ok)
+			t.Errorf(
+				"classFromSimpleSelector(%q) = (%q, %v), want (%q, %v)",
+				tt.input,
+				got,
+				ok,
+				tt.want,
+				tt.ok,
+			)
 		}
 	}
 
@@ -309,10 +349,30 @@ func TestSplitVariants(t *testing.T) {
 		wantError bool
 	}{
 		{name: "base", className: "block", base: "block"},
-		{name: "variants", className: "sm:hover:block", variants: []string{"sm", "hover"}, base: "block"},
-		{name: "arbitrary value", className: `sm:bg-[url("https://example.test/a:b")]`, variants: []string{"sm"}, base: `bg-[url("https://example.test/a:b")]`},
-		{name: "arbitrary variant", className: "[@media(width:600px)]:block", variants: []string{"[@media(width:600px)]"}, base: "block"},
-		{name: "escaped quote", className: `hover:bg-["a\"b:c"]`, variants: []string{"hover"}, base: `bg-["a\"b:c"]`},
+		{
+			name:      "variants",
+			className: "sm:hover:block",
+			variants:  []string{"sm", "hover"},
+			base:      "block",
+		},
+		{
+			name:      "arbitrary value",
+			className: `sm:bg-[url("https://example.test/a:b")]`,
+			variants:  []string{"sm"},
+			base:      `bg-[url("https://example.test/a:b")]`,
+		},
+		{
+			name:      "arbitrary variant",
+			className: "[@media(width:600px)]:block",
+			variants:  []string{"[@media(width:600px)]"},
+			base:      "block",
+		},
+		{
+			name:      "escaped quote",
+			className: `hover:bg-["a\"b:c"]`,
+			variants:  []string{"hover"},
+			base:      `bg-["a\"b:c"]`,
+		},
 		{name: "unclosed bracket", className: "bg-[red", wantError: true},
 		{name: "unclosed paren", className: "supports-(display:grid", wantError: true},
 		{name: "unclosed quote", className: `bg-["red]`, wantError: true},
@@ -328,7 +388,14 @@ func TestSplitVariants(t *testing.T) {
 				return
 			}
 			if err != nil || !reflect.DeepEqual(variants, tt.variants) || base != tt.base {
-				t.Errorf("splitVariants() = (%#v, %q, %v), want (%#v, %q, nil)", variants, base, err, tt.variants, tt.base)
+				t.Errorf(
+					"splitVariants() = (%#v, %q, %v), want (%#v, %q, nil)",
+					variants,
+					base,
+					err,
+					tt.variants,
+					tt.base,
+				)
 			}
 		})
 	}
@@ -353,7 +420,8 @@ func TestResolveDeclarations(t *testing.T) {
 	}
 
 	_, err = resolveDeclarations([]declaration{{name: "color", value: "var(--missing)"}}, nil)
-	if err == nil || !strings.Contains(err.Error(), "resolve color: unresolved CSS variable --missing") {
+	if err == nil ||
+		!strings.Contains(err.Error(), "resolve color: unresolved CSS variable --missing") {
 		t.Errorf("resolveDeclarations() error = %v", err)
 	}
 }
@@ -367,13 +435,37 @@ func TestResolveCSSValue(t *testing.T) {
 		wantError string
 	}{
 		{name: "unchanged", value: "red", want: "red"},
-		{name: "nested variables", value: "var(--a)", variables: map[string]string{"--a": "var(--b)", "--b": "2rem"}, want: "2rem"},
+		{
+			name:      "nested variables",
+			value:     "var(--a)",
+			variables: map[string]string{"--a": "var(--b)", "--b": "2rem"},
+			want:      "2rem",
+		},
 		{name: "fallback", value: "var(--missing, rgb(1, 2, 3))", want: "rgb(1, 2, 3)"},
-		{name: "initial uses fallback", value: "var(--a, blue)", variables: map[string]string{"--a": "initial"}, want: "blue"},
-		{name: "multiple replacements and calc", value: "calc(var(--n) * 2) var(--unit)", variables: map[string]string{"--n": "3px", "--unit": "solid"}, want: "6px solid"},
-		{name: "cycle", value: "var(--a)", variables: map[string]string{"--a": "var(--b)", "--b": "var(--a)"}, wantError: "cyclic CSS variable --a"},
+		{
+			name:      "initial uses fallback",
+			value:     "var(--a, blue)",
+			variables: map[string]string{"--a": "initial"},
+			want:      "blue",
+		},
+		{
+			name:      "multiple replacements and calc",
+			value:     "calc(var(--n) * 2) var(--unit)",
+			variables: map[string]string{"--n": "3px", "--unit": "solid"},
+			want:      "6px solid",
+		},
+		{
+			name:      "cycle",
+			value:     "var(--a)",
+			variables: map[string]string{"--a": "var(--b)", "--b": "var(--a)"},
+			wantError: "cyclic CSS variable --a",
+		},
 		{name: "missing", value: "var(--a)", wantError: "unresolved CSS variable --a"},
-		{name: "missing fallback variable", value: "var(--a, var(--b))", wantError: "unresolved CSS variable --b"},
+		{
+			name:      "missing fallback variable",
+			value:     "var(--a, var(--b))",
+			wantError: "unresolved CSS variable --b",
+		},
 		{name: "unterminated", value: "var(--a", wantError: "unterminated CSS function"},
 	}
 	for _, tt := range tests {

@@ -56,7 +56,10 @@ func configureProjectionContracts(root *cobra.Command) error {
 	for _, contract := range contracts {
 		command, _, err := root.Find(strings.Fields(contract.path))
 		if err != nil || command == nil || command == root {
-			return fmt.Errorf("configure projection contract for %q: command not found", contract.path)
+			return fmt.Errorf(
+				"configure projection contract for %q: command not found",
+				contract.path,
+			)
 		}
 		setProjectionSupport(command, contract.jq, contract.idsOnly, contract.count)
 	}

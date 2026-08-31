@@ -37,7 +37,10 @@ func TestConfigManagerGetConfigLoadsOnce(t *testing.T) {
 	config.Project.ModulePath = "example.com/app"
 
 	if got := cm.GetConfig(); got.Project.ModulePath != "example.com/app" {
-		t.Fatalf("GetConfig should return cached config, got module path %q", got.Project.ModulePath)
+		t.Fatalf(
+			"GetConfig should return cached config, got module path %q",
+			got.Project.ModulePath,
+		)
 	}
 }
 
@@ -76,19 +79,28 @@ func TestConfigValidatorValidate(t *testing.T) {
 			want: "unsupported database type",
 		},
 		{
-			name:   "missing models",
-			config: &UnifiedConfig{Database: DatabaseConfig{Type: "postgresql"}, Paths: PathConfig{Controllers: "controllers", Views: "views"}},
-			want:   "models path cannot be empty",
+			name: "missing models",
+			config: &UnifiedConfig{
+				Database: DatabaseConfig{Type: "postgresql"},
+				Paths:    PathConfig{Controllers: "controllers", Views: "views"},
+			},
+			want: "models path cannot be empty",
 		},
 		{
-			name:   "missing controllers",
-			config: &UnifiedConfig{Database: DatabaseConfig{Type: "postgresql"}, Paths: PathConfig{Models: "models", Views: "views"}},
-			want:   "controllers path cannot be empty",
+			name: "missing controllers",
+			config: &UnifiedConfig{
+				Database: DatabaseConfig{Type: "postgresql"},
+				Paths:    PathConfig{Models: "models", Views: "views"},
+			},
+			want: "controllers path cannot be empty",
 		},
 		{
-			name:   "missing views",
-			config: &UnifiedConfig{Database: DatabaseConfig{Type: "postgresql"}, Paths: PathConfig{Models: "models", Controllers: "controllers"}},
-			want:   "views path cannot be empty",
+			name: "missing views",
+			config: &UnifiedConfig{
+				Database: DatabaseConfig{Type: "postgresql"},
+				Paths:    PathConfig{Models: "models", Controllers: "controllers"},
+			},
+			want: "views path cannot be empty",
 		},
 	}
 
@@ -122,7 +134,8 @@ func TestUnifiedConfigGenerationConfigs(t *testing.T) {
 	}
 
 	model := config.GetModelConfig()
-	if model.PackageName != "models" || model.DatabaseType != "postgresql" || model.Paths.Models != "app/models" {
+	if model.PackageName != "models" || model.DatabaseType != "postgresql" ||
+		model.Paths.Models != "app/models" {
 		t.Fatalf("unexpected model config: %#v", model)
 	}
 	if !model.Generation.GenerateJSON || model.Generation.OutputFormat != "go" {
@@ -133,7 +146,8 @@ func TestUnifiedConfigGenerationConfigs(t *testing.T) {
 	if controller.PackageName != "models" || controller.ModulePath != "example.com/app" {
 		t.Fatalf("unexpected controller config: %#v", controller)
 	}
-	if controller.Paths.Controllers != "app/controllers" || controller.Paths.Routes != "router/routes" {
+	if controller.Paths.Controllers != "app/controllers" ||
+		controller.Paths.Routes != "router/routes" {
 		t.Fatalf("unexpected controller paths: %#v", controller.Paths)
 	}
 

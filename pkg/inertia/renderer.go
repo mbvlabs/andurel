@@ -222,7 +222,12 @@ func WithFlash(flash any) PageOption {
 }
 
 // Page resolves and renders one Inertia page response.
-func (renderer *Renderer) Page(etx *echo.Context, component string, props Props, opts ...PageOption) error {
+func (renderer *Renderer) Page(
+	etx *echo.Context,
+	component string,
+	props Props,
+	opts ...PageOption,
+) error {
 	request, err := requestState(etx)
 	if err != nil {
 		return err
@@ -289,7 +294,14 @@ func (renderer *Renderer) Page(etx *echo.Context, component string, props Props,
 	}
 	pageJSON, err := marshalPage(page)
 	if err != nil {
-		return &Error{Kind: ErrorProps, Operation: "encode page", Component: component, Method: etx.Request().Method, URL: page.URL, Err: err}
+		return &Error{
+			Kind:      ErrorProps,
+			Operation: "encode page",
+			Component: component,
+			Method:    etx.Request().Method,
+			URL:       page.URL,
+			Err:       err,
+		}
 	}
 	appendVary(etx.Response().Header(), HeaderInertia)
 	if request.Inertia {
@@ -308,11 +320,19 @@ func (renderer *Renderer) Page(etx *echo.Context, component string, props Props,
 			}
 		}
 		if err != nil {
-			wrapped := &Error{Kind: ErrorSSR, Operation: "render", Component: component, Method: etx.Request().Method, URL: page.URL, Err: err}
+			wrapped := &Error{
+				Kind:      ErrorSSR,
+				Operation: "render",
+				Component: component,
+				Method:    etx.Request().Method,
+				URL:       page.URL,
+				Err:       err,
+			}
 			if renderer.ssrFailFast {
 				return wrapped
 			}
-			etx.Logger().Error("inertia SSR fallback", slog.String("component", component), slog.String("url", page.URL), slog.Any("error", wrapped))
+			etx.Logger().
+				Error("inertia SSR fallback", slog.String("component", component), slog.String("url", page.URL), slog.Any("error", wrapped))
 			ssrResponse = nil
 		}
 	}
@@ -327,11 +347,25 @@ func (renderer *Renderer) Page(etx *echo.Context, component string, props Props,
 		SSR:         ssrResponse,
 	})
 	if root == nil {
-		return &Error{Kind: ErrorRoot, Operation: "construct", Component: component, Method: etx.Request().Method, URL: page.URL, Err: fmt.Errorf("root returned nil component")}
+		return &Error{
+			Kind:      ErrorRoot,
+			Operation: "construct",
+			Component: component,
+			Method:    etx.Request().Method,
+			URL:       page.URL,
+			Err:       fmt.Errorf("root returned nil component"),
+		}
 	}
 	var document bytes.Buffer
 	if err := root.Render(etx.Request().Context(), &document); err != nil {
-		return &Error{Kind: ErrorRoot, Operation: "render", Component: component, Method: etx.Request().Method, URL: page.URL, Err: err}
+		return &Error{
+			Kind:      ErrorRoot,
+			Operation: "render",
+			Component: component,
+			Method:    etx.Request().Method,
+			URL:       page.URL,
+			Err:       err,
+		}
 	}
 	return etx.HTMLBlob(options.status, document.Bytes())
 }
@@ -360,7 +394,13 @@ func (renderer *Renderer) sharedProps(etx *echo.Context) (Props, error) {
 	for _, provider := range renderer.sharedProviders {
 		provided, err := provider(etx)
 		if err != nil {
-			return nil, &Error{Kind: ErrorProps, Operation: "resolve shared provider", Method: etx.Request().Method, URL: requestURL(etx), Err: err}
+			return nil, &Error{
+				Kind:      ErrorProps,
+				Operation: "resolve shared provider",
+				Method:    etx.Request().Method,
+				URL:       requestURL(etx),
+				Err:       err,
+			}
 		}
 		maps.Copy(shared, provided)
 	}
@@ -373,7 +413,13 @@ func (renderer *Renderer) currentVersion(etx *echo.Context) (string, error) {
 	}
 	version, err := renderer.versionProvider(etx)
 	if err != nil {
-		return "", &Error{Kind: ErrorProtocol, Operation: "resolve version", Method: etx.Request().Method, URL: requestURL(etx), Err: err}
+		return "", &Error{
+			Kind:      ErrorProtocol,
+			Operation: "resolve version",
+			Method:    etx.Request().Method,
+			URL:       requestURL(etx),
+			Err:       err,
+		}
 	}
 	return version, nil
 }

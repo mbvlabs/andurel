@@ -46,22 +46,30 @@ func TestCreateTableParserEdgeCases(t *testing.T) {
 	if !byName["id"].IsPrimaryKey || byName["id"].IsNullable {
 		t.Fatalf("id should be a non-null primary key: %#v", byName["id"])
 	}
-	if byName["user_id"].ForeignKey == nil || byName["user_id"].ForeignKey.ReferencedTable != "users" {
+	if byName["user_id"].ForeignKey == nil ||
+		byName["user_id"].ForeignKey.ReferencedTable != "users" {
 		t.Fatalf("user_id should have users foreign key: %#v", byName["user_id"])
 	}
-	if byName["status"].Length == nil || *byName["status"].Length != 32 || byName["status"].IsNullable {
+	if byName["status"].Length == nil || *byName["status"].Length != 32 ||
+		byName["status"].IsNullable {
 		t.Fatalf("status should be varchar(32) not null: %#v", byName["status"])
 	}
 	if got := byName["status"].AllowedValues; !slices.Equal(got, []string{"pending", "ready"}) {
 		t.Fatalf("status allowed values = %#v", got)
 	}
-	if got := byName["phase"].AllowedValues; !slices.Equal(got, []string{"queued", "running", "finished"}) {
+	if got := byName["phase"].AllowedValues; !slices.Equal(
+		got,
+		[]string{"queued", "running", "finished"},
+	) {
 		t.Fatalf("phase allowed values = %#v", got)
 	}
-	if byName["total"].Precision == nil || *byName["total"].Precision != 12 || byName["total"].Scale == nil || *byName["total"].Scale != 2 {
+	if byName["total"].Precision == nil || *byName["total"].Precision != 12 ||
+		byName["total"].Scale == nil ||
+		*byName["total"].Scale != 2 {
 		t.Fatalf("total should be numeric(12,2): %#v", byName["total"])
 	}
-	if byName["metadata"].DefaultVal == nil || !strings.Contains(*byName["metadata"].DefaultVal, "web,api") {
+	if byName["metadata"].DefaultVal == nil ||
+		!strings.Contains(*byName["metadata"].DefaultVal, "web,api") {
 		t.Fatalf("metadata default with comma should be preserved: %#v", byName["metadata"])
 	}
 }
@@ -247,7 +255,8 @@ func TestSimpleParsersAndUnknownStatement(t *testing.T) {
 				if s.EnumName != tt.wantName || s.SchemaName != "tenant" {
 					t.Fatalf("unexpected create enum statement: %#v", s)
 				}
-				if s.EnumDef == nil || !slices.Equal(s.EnumDef.Values, []string{"active", "disabled"}) {
+				if s.EnumDef == nil ||
+					!slices.Equal(s.EnumDef.Values, []string{"active", "disabled"}) {
 					t.Fatalf("unexpected enum values: %#v", s.EnumDef)
 				}
 			case *DropEnumStatement:

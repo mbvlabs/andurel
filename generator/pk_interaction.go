@@ -32,7 +32,10 @@ type PrimaryKeyResolver interface {
 type DefaultPrimaryKeyResolver struct{}
 
 // ResolveAlternatePK resolves alternate primary key.
-func (DefaultPrimaryKeyResolver) ResolveAlternatePK(info PrimaryKeyInfo, tableName string) (PrimaryKeyInfo, error) {
+func (DefaultPrimaryKeyResolver) ResolveAlternatePK(
+	info PrimaryKeyInfo,
+	tableName string,
+) (PrimaryKeyInfo, error) {
 	fmt.Printf("\nDetected primary key for table %q:\n", tableName)
 	fmt.Printf("  Column: %s (%s)\n", info.ColumnName, info.DataType)
 	fmt.Printf("  Go type: %s\n", info.GoType)
@@ -55,7 +58,9 @@ func (DefaultPrimaryKeyResolver) ResolveAlternatePK(info PrimaryKeyInfo, tableNa
 // ConfirmNoPK performs the confirm no primary key operation.
 func (DefaultPrimaryKeyResolver) ConfirmNoPK(tableName string) (bool, error) {
 	fmt.Printf("\nTable %q has no primary key defined.\n", tableName)
-	fmt.Print("Generate model without primary key? (only Create/All/Paginate will be generated) [y/N]: ")
+	fmt.Print(
+		"Generate model without primary key? (only Create/All/Paginate will be generated) [y/N]: ",
+	)
 
 	reader := bufio.NewReader(os.Stdin)
 	response, err := reader.ReadString('\n')
@@ -71,7 +76,10 @@ func (DefaultPrimaryKeyResolver) ConfirmNoPK(tableName string) (bool, error) {
 type NopPrimaryKeyResolver struct{}
 
 // ResolveAlternatePK resolves alternate primary key.
-func (NopPrimaryKeyResolver) ResolveAlternatePK(info PrimaryKeyInfo, _ string) (PrimaryKeyInfo, error) {
+func (NopPrimaryKeyResolver) ResolveAlternatePK(
+	info PrimaryKeyInfo,
+	_ string,
+) (PrimaryKeyInfo, error) {
 	return info, nil
 }
 

@@ -24,7 +24,11 @@ func lookupLatestAndurelVersion(ctx context.Context) (string, error) {
 	return fetchLatestAndurelVersion(ctx, andurelVersionHTTPClient, andurelLatestVersionURL)
 }
 
-func fetchLatestAndurelVersion(ctx context.Context, client *http.Client, endpoint string) (version string, err error) {
+func fetchLatestAndurelVersion(
+	ctx context.Context,
+	client *http.Client,
+	endpoint string,
+) (version string, err error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return "", fmt.Errorf("create latest version request: %w", err)
@@ -39,13 +43,19 @@ func fetchLatestAndurelVersion(ctx context.Context, client *http.Client, endpoin
 	defer func() {
 		if closeErr := response.Body.Close(); closeErr != nil {
 			version = ""
-			err = errors.Join(err, fmt.Errorf("close latest Andurel version response: %w", closeErr))
+			err = errors.Join(
+				err,
+				fmt.Errorf("close latest Andurel version response: %w", closeErr),
+			)
 		}
 	}()
 
 	if response.StatusCode != http.StatusOK {
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4<<10))
-		return "", fmt.Errorf("check latest Andurel version: unexpected HTTP status %s", response.Status)
+		return "", fmt.Errorf(
+			"check latest Andurel version: unexpected HTTP status %s",
+			response.Status,
+		)
 	}
 
 	var info struct {
@@ -57,7 +67,10 @@ func fetchLatestAndurelVersion(ctx context.Context, client *http.Client, endpoin
 
 	version, ok := canonicalAndurelVersion(info.Version)
 	if !ok {
-		return "", fmt.Errorf("latest Andurel version %q is not valid semantic versioning", info.Version)
+		return "", fmt.Errorf(
+			"latest Andurel version %q is not valid semantic versioning",
+			info.Version,
+		)
 	}
 	if semver.Prerelease(version) != "" {
 		return "", fmt.Errorf("latest Andurel version %q is not a stable release", info.Version)

@@ -1,20 +1,36 @@
 package config
 
-import "github.com/caarlos0/env/v10"
+import (
+	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
 
-type auth struct {
+type AuthCfg struct {
 	Pepper          string   `env:"PEPPER"`
-	PreviousPeppers []string `env:"PREVIOUS_PEPPERS" envSeparator:"," envDefault:""`
+	PreviousPeppers []string `env:"PREVIOUS_PEPPERS" envSeparator:","`
 }
 
-func newAuthConfig() auth {
-	authenticationCfg := auth{}
+func NewAuthCfg() AuthCfg {
+	var authenticationCfg AuthCfg
 
-	if err := env.ParseWithOptions(&authenticationCfg, env.Options{
-		RequiredIfNoDef: true,
-	}); err != nil {
+	if err := env.Parse(&authenticationCfg); err != nil {
+		panic(err)
+	}
+
+	if err := validation.Validate(&authenticationCfg); err != nil {
 		panic(err)
 	}
 
 	return authenticationCfg
 }
+
+func (c AuthCfg) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("Pepper", c.Pepper)
+
+	return b.Err()
+}
+
+func (c AuthCfg) GetPepper() string { return c.Pepper }
+
+func (c AuthCfg) GetPreviousPeppers() []string { return c.PreviousPeppers }

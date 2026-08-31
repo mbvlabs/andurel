@@ -25,7 +25,10 @@ func (p *CreateTableParser) Parse(
 ) (*CreateTableStatement, error) {
 	matches := parseCreateTableMatches(sql)
 	if len(matches) < 5 {
-		return nil, unsupportedStatement(sql, "CREATE TABLE requires one unquoted table name and an explicit column list")
+		return nil, unsupportedStatement(
+			sql,
+			"CREATE TABLE requires one unquoted table name and an explicit column list",
+		)
 	}
 
 	ifNotExists := matches[1] != ""
@@ -68,7 +71,10 @@ func (p *CreateTableParser) parseColumnDefinitions(
 
 	defs := p.splitColumnDefinitions(columnDefs)
 	if len(defs) == 0 {
-		return nil, unsupportedStatement(columnDefs, "CREATE TABLE must contain at least one column definition")
+		return nil, unsupportedStatement(
+			columnDefs,
+			"CREATE TABLE must contain at least one column definition",
+		)
 	}
 	seenColumns := map[string]struct{}{}
 	primaryKeyDefinitions := 0
@@ -84,16 +90,25 @@ func (p *CreateTableParser) parseColumnDefinitions(
 		if strings.HasPrefix(defLower, "primary key") {
 			primaryKeyDefinitions++
 			if primaryKeyDefinitions > 1 {
-				return nil, unsupportedStatement(def, "multiple table-level PRIMARY KEY definitions are ambiguous")
+				return nil, unsupportedStatement(
+					def,
+					"multiple table-level PRIMARY KEY definitions are ambiguous",
+				)
 			}
 			pkCols, ok := parsePrimaryKeyColumns(def)
 			if !ok || len(pkCols) == 0 {
-				return nil, unsupportedStatement(def, "table-level PRIMARY KEY must name one or more columns")
+				return nil, unsupportedStatement(
+					def,
+					"table-level PRIMARY KEY must name one or more columns",
+				)
 			}
 			for _, col := range pkCols {
 				name := strings.TrimSpace(col)
 				if name == "" {
-					return nil, unsupportedStatement(def, "table-level PRIMARY KEY contains an empty column name")
+					return nil, unsupportedStatement(
+						def,
+						"table-level PRIMARY KEY contains an empty column name",
+					)
 				}
 				primaryKeyColumns = append(primaryKeyColumns, name)
 			}
@@ -106,7 +121,10 @@ func (p *CreateTableParser) parseColumnDefinitions(
 			// Also handles: CONSTRAINT name FOREIGN KEY (column) REFERENCES table(column)
 			matches, ok := parseTableLevelForeignKey(def)
 			if !ok {
-				return nil, unsupportedStatement(def, "table-level FOREIGN KEY must name one local and one referenced column")
+				return nil, unsupportedStatement(
+					def,
+					"table-level FOREIGN KEY must name one local and one referenced column",
+				)
 			}
 			foreignKeys = append(foreignKeys, struct {
 				column           string
@@ -142,7 +160,10 @@ func (p *CreateTableParser) parseColumnDefinitions(
 			if strings.Contains(defLower, " unique ") || strings.Contains(defLower, " check ") {
 				continue
 			}
-			return nil, unsupportedStatement(def, "only named FOREIGN KEY, UNIQUE, and CHECK table constraints are supported")
+			return nil, unsupportedStatement(
+				def,
+				"only named FOREIGN KEY, UNIQUE, and CHECK table constraints are supported",
+			)
 		}
 
 		col, err := p.parseColumnDefinition(def, migrationFile, databaseType)
@@ -168,7 +189,12 @@ func (p *CreateTableParser) parseColumnDefinitions(
 		for _, pkCol := range primaryKeyColumns {
 			if col.Name == pkCol {
 				col.SetPrimaryKey()
-				if err := p.validatePrimaryKeyDatatype(col.DataType, databaseType, migrationFile, col.Name); err != nil {
+				if err := p.validatePrimaryKeyDatatype(
+					col.DataType,
+					databaseType,
+					migrationFile,
+					col.Name,
+				); err != nil {
 					return nil, err
 				}
 			}
@@ -185,7 +211,10 @@ func (p *CreateTableParser) parseColumnDefinitions(
 			}
 		}
 		if !matched {
-			return nil, unsupportedStatement(columnDefs, "CHECK constraint references unknown column "+constraint.column)
+			return nil, unsupportedStatement(
+				columnDefs,
+				"CHECK constraint references unknown column "+constraint.column,
+			)
 		}
 	}
 
@@ -265,7 +294,12 @@ func (p *CreateTableParser) parseColumnDefinition(
 
 	if strings.Contains(defLower, "primary key") {
 		col.SetPrimaryKey()
-		if err := p.validatePrimaryKeyDatatype(col.DataType, databaseType, migrationFile, col.Name); err != nil {
+		if err := p.validatePrimaryKeyDatatype(
+			col.DataType,
+			databaseType,
+			migrationFile,
+			col.Name,
+		); err != nil {
 			return nil, err
 		}
 	}

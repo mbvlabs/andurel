@@ -22,10 +22,22 @@ func TestIsEmailCompilerSource(t *testing.T) {
 	}{
 		{name: "email css", path: filepath.Join(root, "css", "email.css"), want: true},
 		{name: "email template", path: filepath.Join(root, "email", "welcome.templ"), want: true},
-		{name: "nested email template", path: filepath.Join(root, "email", "auth", "verify.templ"), want: true},
-		{name: "generated email", path: filepath.Join(root, "email", "welcome_templ.go"), want: false},
+		{
+			name: "nested email template",
+			path: filepath.Join(root, "email", "auth", "verify.templ"),
+			want: true,
+		},
+		{
+			name: "generated email",
+			path: filepath.Join(root, "email", "welcome_templ.go"),
+			want: false,
+		},
 		{name: "web css", path: filepath.Join(root, "css", "base.css"), want: false},
-		{name: "outside template", path: filepath.Join(root, "views", "welcome.templ"), want: false},
+		{
+			name: "outside template",
+			path: filepath.Join(root, "views", "welcome.templ"),
+			want: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -100,7 +112,8 @@ printf '%s\n' '.p-4 { padding: 1rem; }' > "$output"
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		generated, err := os.ReadFile(generatedPath)
-		if err == nil && strings.Contains(string(generated), "padding: 16px;") && strings.Contains(string(generated), "Welcome back") {
+		if err == nil && strings.Contains(string(generated), "padding: 16px;") &&
+			strings.Contains(string(generated), "Welcome back") {
 			return
 		}
 		time.Sleep(25 * time.Millisecond)
@@ -232,10 +245,14 @@ func TestCompileEmailProjectRequiresLockFile(t *testing.T) {
 
 func TestEmailCommandSurface(t *testing.T) {
 	command := newEmailCommand()
-	if command.Use != "email" || len(command.Commands()) != 1 || command.Commands()[0].Use != "compile" {
+	if command.Use != "email" || len(command.Commands()) != 1 ||
+		command.Commands()[0].Use != "compile" {
 		t.Fatalf("email command surface = %q, %#v", command.Use, command.Commands())
 	}
-	if err := command.Commands()[0].Args(command.Commands()[0], []string{"unexpected"}); err == nil {
+	if err := command.Commands()[0].Args(
+		command.Commands()[0],
+		[]string{"unexpected"},
+	); err == nil {
 		t.Fatal("email compile accepted a positional argument")
 	}
 }
@@ -256,7 +273,11 @@ func TestEmailCompileCommandReportsProjectErrors(t *testing.T) {
 		root := t.TempDir()
 		findGoModRoot = func() (string, error) { return root, nil }
 		command := newEmailCompileCommand()
-		if err := command.RunE(command, nil); err == nil || !strings.Contains(err.Error(), "failed to read andurel.lock") {
+		if err := command.RunE(
+			command,
+			nil,
+		); err == nil ||
+			!strings.Contains(err.Error(), "failed to read andurel.lock") {
 			t.Fatalf("RunE error = %v, want project compile failure", err)
 		}
 	})

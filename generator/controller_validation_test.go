@@ -19,10 +19,17 @@ func TestNewControllerValidationContext(t *testing.T) {
 	if ctx.TableName != "company_accounts" {
 		t.Fatalf("TableName = %q", ctx.TableName)
 	}
-	if want := filepath.Join("app/controllers", "admin/api", "company_accounts.go"); ctx.ControllerPath != want {
+	if want := filepath.Join(
+		"app/controllers",
+		"admin/api",
+		"company_accounts.go",
+	); ctx.ControllerPath != want {
 		t.Fatalf("ControllerPath = %q, want %q", ctx.ControllerPath, want)
 	}
-	if want := filepath.Join("router/routes", "admin_api_company_accounts.go"); ctx.IndividualRoutePath != want {
+	if want := filepath.Join(
+		"router/routes",
+		"admin_api_company_accounts.go",
+	); ctx.IndividualRoutePath != want {
 		t.Fatalf("IndividualRoutePath = %q, want %q", ctx.IndividualRoutePath, want)
 	}
 	if ctx.ControllerFieldName != "CompanyAccounts" {
@@ -124,7 +131,12 @@ func TestValidateControllerNotRegistered(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			root := t.TempDir()
 			withWorkingDir(t, root)
-			writeGeneratorTestFile(t, root, "controllers/controller.go", "package controllers\n\n"+tt.body+"\n")
+			writeGeneratorTestFile(
+				t,
+				root,
+				"controllers/controller.go",
+				"package controllers\n\n"+tt.body+"\n",
+			)
 
 			config := &UnifiedConfig{}
 			config.Paths.Controllers = "controllers"

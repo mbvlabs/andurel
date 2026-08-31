@@ -18,7 +18,13 @@ import (
 func TestDoctorBuildReportSummaryHintsAndDetails(t *testing.T) {
 	results := []checkResult{
 		{name: "Go version", category: "environment", status: statusPass, message: "go1.26.4"},
-		{name: "tool versions", category: "configuration", status: statusWarn, message: "1 missing", details: []string{"templ: missing"}},
+		{
+			name:     "tool versions",
+			category: "configuration",
+			status:   statusWarn,
+			message:  "1 missing",
+			details:  []string{"templ: missing"},
+		},
 		{name: "go vet", category: "code_quality", status: statusFail, message: "2 issues"},
 	}
 
@@ -157,7 +163,8 @@ func TestDoctorProjectDetection(t *testing.T) {
 		t.Fatalf("found project check = %#v", found)
 	}
 
-	if version := checkGoVersion(); version.status != statusPass || version.message != runtime.Version() {
+	if version := checkGoVersion(); version.status != statusPass ||
+		version.message != runtime.Version() {
 		t.Fatalf("go version check = %#v", version)
 	}
 }
@@ -233,9 +240,15 @@ func TestDoctorGoVetAndTidyChecks(t *testing.T) {
 		t.Fatalf("expected go mod tidy pass, got %#v", tidy)
 	}
 
-	writeTestFile(t, root, "bad.go", "package main\n\nimport \"fmt\"\n\nfunc bad() { fmt.Printf(\"%d\", \"x\") }\n")
+	writeTestFile(
+		t,
+		root,
+		"bad.go",
+		"package main\n\nimport \"fmt\"\n\nfunc bad() { fmt.Printf(\"%d\", \"x\") }\n",
+	)
 	vet = checkGoVet(root, true)
-	if vet.status != statusFail || !strings.Contains(vet.message, "issues found") || len(vet.details) == 0 {
+	if vet.status != statusFail || !strings.Contains(vet.message, "issues found") ||
+		len(vet.details) == 0 {
 		t.Fatalf("expected go vet failure with details, got %#v", vet)
 	}
 
@@ -279,7 +292,11 @@ func TestDoctorVersionCommandHelpers(t *testing.T) {
 		findGoModRoot = originalFindGoModRoot
 	})
 
-	version, err := getToolVersion("bin/tool", &layout.VersionCheck{Args: []string{"--version"}}, "tool")
+	version, err := getToolVersion(
+		"bin/tool",
+		&layout.VersionCheck{Args: []string{"--version"}},
+		"tool",
+	)
 	if err != nil {
 		t.Fatalf("getToolVersion: %v", err)
 	}
@@ -303,7 +320,11 @@ func TestDoctorVersionCommandHelpers(t *testing.T) {
 		t.Fatalf("expected missing version check error")
 	}
 	writeExecutable(t, root, "bin/empty", "#!/bin/sh\nexit 0\n")
-	if _, err := versionFromCommand("bin/empty", &layout.VersionCheck{Args: []string{"--version"}}, "empty"); err == nil {
+	if _, err := versionFromCommand(
+		"bin/empty",
+		&layout.VersionCheck{Args: []string{"--version"}},
+		"empty",
+	); err == nil {
 		t.Fatalf("expected empty version output error")
 	}
 }
@@ -356,11 +377,19 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 	if projectUsesInertia(root) {
 		t.Fatalf("project without inertia config should not use inertia")
 	}
-	if got := codeGenerationChecks(root, false); len(got) != 1 || got[0].name != "views generate" || got[0].status != statusPass {
+	if got := codeGenerationChecks(
+		root,
+		false,
+	); len(got) != 1 || got[0].name != "views generate" ||
+		got[0].status != statusPass {
 		t.Fatalf("codeGenerationChecks = %#v", got)
 	}
 
-	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "app", Database: "postgresql", Inertia: "react"}
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName: "app",
+		Database:    "postgresql",
+		Inertia:     "react",
+	}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write inertia lock: %v", err)
 	}
@@ -425,9 +454,21 @@ func TestDoctorToolVersionMismatchesAndUnknowns(t *testing.T) {
 	writeExecutable(t, root, "bin/templ", "#!/bin/sh\necho templ v0.1.0\n")
 	writeExecutable(t, root, "bin/goose", "#!/bin/sh\necho no version here\n")
 	lock := layout.NewAndurelLock("v1.2.3")
-	lock.Tools["templ"] = &layout.Tool{Version: "v9.9.9", Path: "bin/templ", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}}
-	lock.Tools["goose"] = &layout.Tool{Version: "v1.0.0", Path: "bin/goose", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}}
-	lock.Tools["mailpit"] = &layout.Tool{Version: "v1.0.0", Path: "bin/mailpit", VersionCheck: &layout.VersionCheck{Args: []string{"--version"}}}
+	lock.Tools["templ"] = &layout.Tool{
+		Version:      "v9.9.9",
+		Path:         "bin/templ",
+		VersionCheck: &layout.VersionCheck{Args: []string{"--version"}},
+	}
+	lock.Tools["goose"] = &layout.Tool{
+		Version:      "v1.0.0",
+		Path:         "bin/goose",
+		VersionCheck: &layout.VersionCheck{Args: []string{"--version"}},
+	}
+	lock.Tools["mailpit"] = &layout.Tool{
+		Version:      "v1.0.0",
+		Path:         "bin/mailpit",
+		VersionCheck: &layout.VersionCheck{Args: []string{"--version"}},
+	}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
@@ -439,7 +480,8 @@ func TestDoctorToolVersionMismatchesAndUnknowns(t *testing.T) {
 	})
 
 	result := checkToolVersions(root, true)
-	if result.status != statusWarn || !strings.Contains(result.message, "1 mismatched, 1 missing, 1 unknown") {
+	if result.status != statusWarn ||
+		!strings.Contains(result.message, "1 mismatched, 1 missing, 1 unknown") {
 		t.Fatalf("unexpected tool version result: %#v", result)
 	}
 	if len(result.details) != 3 {

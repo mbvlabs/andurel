@@ -30,22 +30,55 @@ func New() (Generator, error) {
 }
 
 // GenerateModel generates a model and optional factory for a resource.
-func (g *Generator) GenerateModel(resourceName string, tableNameOverride string, skipFactory bool) error {
-	return g.coordinator.ModelManager.GenerateModel(resourceName, tableNameOverride, skipFactory, "")
+func (g *Generator) GenerateModel(
+	resourceName string,
+	tableNameOverride string,
+	skipFactory bool,
+) error {
+	return g.coordinator.ModelManager.GenerateModel(
+		resourceName,
+		tableNameOverride,
+		skipFactory,
+		"",
+	)
 }
 
 // GenerateModelWithPK generates a model using an explicit primary key column.
-func (g *Generator) GenerateModelWithPK(resourceName string, tableNameOverride string, skipFactory bool, primaryKeyColumn string) error {
-	return g.coordinator.ModelManager.GenerateModel(resourceName, tableNameOverride, skipFactory, primaryKeyColumn)
+func (g *Generator) GenerateModelWithPK(
+	resourceName string,
+	tableNameOverride string,
+	skipFactory bool,
+	primaryKeyColumn string,
+) error {
+	return g.coordinator.ModelManager.GenerateModel(
+		resourceName,
+		tableNameOverride,
+		skipFactory,
+		primaryKeyColumn,
+	)
 }
 
 // GenerateModelWithMode generates a model using a persisted operation mode.
-func (g *Generator) GenerateModelWithMode(resourceName, tableNameOverride string, skipFactory bool, primaryKeyColumn string, mode ModelMode) error {
-	return g.coordinator.ModelManager.GenerateModelWithMode(resourceName, tableNameOverride, skipFactory, primaryKeyColumn, mode)
+func (g *Generator) GenerateModelWithMode(
+	resourceName, tableNameOverride string,
+	skipFactory bool,
+	primaryKeyColumn string,
+	mode ModelMode,
+) error {
+	return g.coordinator.ModelManager.GenerateModelWithMode(
+		resourceName,
+		tableNameOverride,
+		skipFactory,
+		primaryKeyColumn,
+		mode,
+	)
 }
 
 // PlanModel computes model generation output without writing files.
-func (g *Generator) PlanModel(resourceName string, options ModelGenerationOptions) (*ModelGenerationPlan, error) {
+func (g *Generator) PlanModel(
+	resourceName string,
+	options ModelGenerationOptions,
+) (*ModelGenerationPlan, error) {
 	return g.coordinator.ModelManager.PlanModel(resourceName, options)
 }
 
@@ -55,23 +88,66 @@ func (g *Generator) ApplyModelPlan(plan *ModelGenerationPlan) error {
 }
 
 // GenerateController generates controller and route files for a resource.
-func (g *Generator) GenerateController(resourceName, namespace, tableName string, inertia string, isAPI bool) error {
+func (g *Generator) GenerateController(
+	resourceName, namespace, tableName string,
+	inertia string,
+	isAPI bool,
+) error {
 	return g.coordinator.GenerateController(resourceName, namespace, tableName, inertia, isAPI)
 }
 
 // GenerateControllerWithActions generates a controller restricted to the requested actions.
-func (g *Generator) GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string, isAPI bool) error {
-	return g.coordinator.GenerateControllerWithActions(resourceName, namespace, tableName, actions, inertia, isAPI)
+func (g *Generator) GenerateControllerWithActions(
+	resourceName, namespace, tableName string,
+	actions []string,
+	inertia string,
+	isAPI bool,
+) error {
+	return g.coordinator.GenerateControllerWithActions(
+		resourceName,
+		namespace,
+		tableName,
+		actions,
+		inertia,
+		isAPI,
+	)
 }
 
 // GenerateControllerWithActionsForModel generates a controller for a distinct model name.
-func (g *Generator) GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string, isAPI bool) error {
-	return g.coordinator.GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName, actions, inertia, isAPI)
+func (g *Generator) GenerateControllerWithActionsForModel(
+	resourceName, namespace, modelName, tableName string,
+	actions []string,
+	inertia string,
+	isAPI bool,
+) error {
+	return g.coordinator.GenerateControllerWithActionsForModel(
+		resourceName,
+		namespace,
+		modelName,
+		tableName,
+		actions,
+		inertia,
+		isAPI,
+	)
 }
 
 // GenerateScaffold generates model, factory, controller, routes, and views for a resource.
-func (g *Generator) GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string, isAPI bool) error {
-	return g.coordinator.GenerateScaffold(resourceName, namespace, tableName, skipFactory, primaryKeyColumn, inertia, isAPI)
+func (g *Generator) GenerateScaffold(
+	resourceName, namespace, tableName string,
+	skipFactory bool,
+	primaryKeyColumn string,
+	inertia string,
+	isAPI bool,
+) error {
+	return g.coordinator.GenerateScaffold(
+		resourceName,
+		namespace,
+		tableName,
+		skipFactory,
+		primaryKeyColumn,
+		inertia,
+		isAPI,
+	)
 }
 
 // GenerateControllerFromModel generates a controller by reading an existing model.
@@ -115,7 +191,10 @@ func (g *Generator) ApplyModelUpdate(result *UpdateModelResult) error {
 }
 
 // SyncFactory refreshes a factory for one resource.
-func (g *Generator) SyncFactory(resourceName string, opts FactorySyncOptions) (*FactorySyncResult, error) {
+func (g *Generator) SyncFactory(
+	resourceName string,
+	opts FactorySyncOptions,
+) (*FactorySyncResult, error) {
 	return g.coordinator.ModelManager.SyncFactory(resourceName, opts)
 }
 

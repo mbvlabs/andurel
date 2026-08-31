@@ -27,7 +27,9 @@ func (g *GitAnalyzer) IsClean() (bool, error) {
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			if strings.Contains(string(exitErr.Stderr), "not a git repository") {
-				return false, fmt.Errorf("not a git repository: please initialize git first (git init)")
+				return false, fmt.Errorf(
+					"not a git repository: please initialize git first (git init)",
+				)
 			}
 		}
 		return false, fmt.Errorf("failed to check git status: %w", err)
@@ -93,7 +95,8 @@ func (g *GitAnalyzer) GetFileFromInitialCommit(relPath string) ([]byte, error) {
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			stderrStr := string(exitErr.Stderr)
-			if strings.Contains(stderrStr, "does not exist") || strings.Contains(stderrStr, "exists on disk, but not in") {
+			if strings.Contains(stderrStr, "does not exist") ||
+				strings.Contains(stderrStr, "exists on disk, but not in") {
 				return nil, nil
 			}
 		}

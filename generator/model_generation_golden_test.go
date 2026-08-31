@@ -93,8 +93,12 @@ func TestModelGenerationGoldens(t *testing.T) {
 			t.Fatalf("failed to update model: %v", err)
 		}
 
-		if !regexp.MustCompile("Status\\s+ProductStatus\\s+`bun:\"status\"`").MatchString(result.NewFileContent) {
-			t.Fatalf("updated model should preserve custom Status field\n\n%s", result.NewFileContent)
+		if !regexp.MustCompile("Status\\s+ProductStatus\\s+`bun:\"status\"`").
+			MatchString(result.NewFileContent) {
+			t.Fatalf(
+				"updated model should preserve custom Status field\n\n%s",
+				result.NewFileContent,
+			)
 		}
 
 		for _, want := range []string{
@@ -174,7 +178,11 @@ func setupModelGoldenProject(t *testing.T, migrationsFixture string) *ModelManag
 	if err := os.MkdirAll(filepath.Join(projectDir, "models"), 0o755); err != nil {
 		t.Fatalf("failed to create models directory: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(projectDir, "models", "model.go"), []byte(modelNamespaceFixture), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(projectDir, "models", "model.go"),
+		[]byte(modelNamespaceFixture),
+		0o644,
+	); err != nil {
 		t.Fatalf("failed to write models/model.go: %v", err)
 	}
 

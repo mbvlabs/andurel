@@ -230,6 +230,7 @@ func renderComponent(component templ.Component) (string, error) {
 	if err := component.Render(context.Background(), &buf); err != nil {
 		return "", err
 	}
+
 	return buf.String(), nil
 }
 

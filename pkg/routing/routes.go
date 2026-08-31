@@ -77,24 +77,52 @@ func buildPath(path, prefix, name string) string {
 	}
 
 	if prefixEndsWithSlash && pathStartsWithSlash {
-		slog.Warn("unexpected prefix/path configuration. double slash between prefix and path", "route", name, "prefix", prefix, "path", path)
+		slog.Warn(
+			"unexpected prefix/path configuration. double slash between prefix and path",
+			"route",
+			name,
+			"prefix",
+			prefix,
+			"path",
+			path,
+		)
 		return prefix + path[1:]
 	}
 
-	slog.Warn("unexpected prefix/path configuration. missing slash between prefix and path", "route", name, "prefix", prefix, "path", path)
+	slog.Warn(
+		"unexpected prefix/path configuration. missing slash between prefix and path",
+		"route",
+		name,
+		"prefix",
+		prefix,
+		"path",
+		path,
+	)
 	return prefix + "/" + path
 }
 
 func sanitizePath(path, name string) string {
 	// Trim leading/trailing whitespace
 	if trimmed := strings.TrimSpace(path); trimmed != path {
-		slog.Warn("path contains leading/trailing whitespace. trimming", "route", name, "path", path)
+		slog.Warn(
+			"path contains leading/trailing whitespace. trimming",
+			"route",
+			name,
+			"path",
+			path,
+		)
 		path = trimmed
 	}
 
 	// Replace backslashes with forward slashes (Windows-style paths)
 	if strings.Contains(path, "\\") {
-		slog.Warn("path contains backslashes. converting to forward slashes", "route", name, "path", path)
+		slog.Warn(
+			"path contains backslashes. converting to forward slashes",
+			"route",
+			name,
+			"path",
+			path,
+		)
 		path = strings.ReplaceAll(path, "\\", "/")
 	}
 

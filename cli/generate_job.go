@@ -145,7 +145,11 @@ func generateFromTemplate(tmplName, outputPath string, data any) error {
 		return err
 	}
 
-	if err := os.WriteFile(outputPath, []byte(content), constants.FilePermissionPrivate); err != nil {
+	if err := os.WriteFile(
+		outputPath,
+		[]byte(content),
+		constants.FilePermissionPrivate,
+	); err != nil {
 		return err
 	}
 
@@ -182,7 +186,11 @@ func registerWorkerInQueueModule(pascalName string) error {
 		return worker.Register(workers)
 	}),
 `, pascalName)
-		nextContent, changed, err = ensureModuleEntry(contentStr, "var WorkersModule = fx.Module(", invoke)
+		nextContent, changed, err = ensureModuleEntry(
+			contentStr,
+			"var WorkersModule = fx.Module(",
+			invoke,
+		)
 		if err != nil {
 			return err
 		}
@@ -196,7 +204,11 @@ func registerWorkerInQueueModule(pascalName string) error {
 		return nil
 	}
 
-	if err := os.WriteFile(workersGoPath, []byte(contentStr), constants.FilePermissionPrivate); err != nil {
+	if err := os.WriteFile(
+		workersGoPath,
+		[]byte(contentStr),
+		constants.FilePermissionPrivate,
+	); err != nil {
 		return err
 	}
 
@@ -214,16 +226,23 @@ func ensureProviderEntry(content, provideDeclaration, constructorRef string) (st
 
 	provideIdx := strings.Index(content, provideDeclaration)
 	if provideIdx == -1 {
-		return "", false, fmt.Errorf("failed to locate %s in queue/workers.go", strings.TrimSuffix(provideDeclaration, "("))
+		return "", false, fmt.Errorf(
+			"failed to locate %s in queue/workers.go",
+			strings.TrimSuffix(provideDeclaration, "("),
+		)
 	}
 	openIdx := strings.Index(content[provideIdx:], "(")
 	if openIdx == -1 {
-		return "", false, fmt.Errorf("failed to locate worker constructor fx.Provide opening parenthesis")
+		return "", false, fmt.Errorf(
+			"failed to locate worker constructor fx.Provide opening parenthesis",
+		)
 	}
 	openIdx += provideIdx
 	closeIdx := findMatchingParen(content, openIdx)
 	if closeIdx == -1 {
-		return "", false, fmt.Errorf("failed to locate worker constructor fx.Provide closing parenthesis")
+		return "", false, fmt.Errorf(
+			"failed to locate worker constructor fx.Provide closing parenthesis",
+		)
 	}
 
 	return content[:closeIdx] + "\t" + constructorRef + ",\n" + content[closeIdx:], true, nil
@@ -242,7 +261,10 @@ func ensureModuleEntry(content, moduleDeclaration, entry string) (string, bool, 
 
 	moduleIdx := strings.Index(content, moduleDeclaration)
 	if moduleIdx == -1 {
-		return "", false, fmt.Errorf("failed to locate %s in queue/workers.go", strings.TrimSuffix(moduleDeclaration, "("))
+		return "", false, fmt.Errorf(
+			"failed to locate %s in queue/workers.go",
+			strings.TrimSuffix(moduleDeclaration, "("),
+		)
 	}
 	openIdx := strings.Index(content[moduleIdx:], "(")
 	if openIdx == -1 {

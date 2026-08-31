@@ -1,27 +1,132 @@
 package config
 
-import "github.com/caarlos0/env/v11"
+import (
+	"fmt"
+	"strings"
 
-type app struct {
-	Host                 string   `env:"HOST" envDefault:"localhost"`
-	Port                 string   `env:"PORT" envDefault:"8080"`
-	SessionKey           string   `env:"SESSION_KEY"`
-	SessionEncryptionKey string   `env:"SESSION_ENCRYPTION_KEY"`
-	SessionMaxAge        int      `env:"SESSION_MAX_AGE" envDefault:"604800"`
-	TokenSigningKey      string   `env:"TOKEN_SIGNING_KEY"`
-	CORSAllowedOrigins   []string `env:"CORS_ALLOWED_ORIGINS" envSeparator:","`
-	CSRFStrategy         string   `env:"CSRF_STRATEGY" envDefault:"header_only"`
-	CSRFTrustedOrigins   []string `env:"CSRF_TRUSTED_ORIGINS" envSeparator:","`
+	"github.com/caarlos0/env/v11"
+	"github.com/gosimple/slug"
+	"github.com/mbvlabs/andurel/pkg/server"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+const (
+	DefaultAppHost       = "localhost"
+	DefaultAppPort       = "8080"
+	DefaultSessionMaxAge = 604800
+	DefaultCSRFStrategy  = "header_only"
+	DefaultEnvironment   = server.DevEnvironment
+	DefaultProjectName   = "testapp"
+	DefaultDomain        = "localhost:8080"
+)
+
+type AppCfg struct {
+	Environment            string   `env:"ENVIRONMENT"`
+	ProjectName            string   `env:"PROJECT_NAME"`
+	Domain                 string   `env:"DOMAIN"`
+	Protocol               string   `env:"PROTOCOL"`
+	ServiceName            string   `env:"TELEMETRY_SERVICE_NAME"`
+	Host                   string   `env:"HOST"`
+	Port                   string   `env:"PORT"`
+	SessionKey             string   `env:"SESSION_KEY"`
+	SessionEncryptionKey   string   `env:"SESSION_ENCRYPTION_KEY"`
+	SessionMaxAge          int      `env:"SESSION_MAX_AGE"`
+	TokenSigningKey        string   `env:"TOKEN_SIGNING_KEY"`
+	CORSAllowedOrigins     []string `env:"CORS_ALLOWED_ORIGINS"     envSeparator:","`
+	CSRFStrategy           string   `env:"CSRF_STRATEGY"`
+	CSRFTrustedOrigins     []string `env:"CSRF_TRUSTED_ORIGINS"     envSeparator:","`
+	DefaultSenderSignature string   `env:"DEFAULT_SENDER_SIGNATURE"`
 }
 
-func newAppConfig() app {
-	appCfg := app{}
+func NewAppCfg() AppCfg {
+	appCfg := AppCfg{
+		Environment:   DefaultEnvironment,
+		ProjectName:   DefaultProjectName,
+		Domain:        DefaultDomain,
+		Host:          DefaultAppHost,
+		Port:          DefaultAppPort,
+		SessionMaxAge: DefaultSessionMaxAge,
+		CSRFStrategy:  DefaultCSRFStrategy,
+	}
 
-	if err := env.ParseWithOptions(&appCfg, env.Options{
-		RequiredIfNoDef: true,
-	}); err != nil {
+	if err := env.Parse(&appCfg); err != nil {
+		panic(err)
+	}
+
+	if err := validation.Validate(&appCfg); err != nil {
 		panic(err)
 	}
 
 	return appCfg
 }
+
+func (c AppCfg) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("Environment", c.Environment)
+	b.Required("ProjectName", c.ProjectName)
+	b.Required("Domain", c.Domain)
+	b.Required("Host", c.Host)
+	b.Required("Port", c.Port)
+	b.Required("SessionKey", c.SessionKey)
+	b.Required("SessionEncryptionKey", c.SessionEncryptionKey)
+	b.Required("TokenSigningKey", c.TokenSigningKey)
+	b.Required("CSRFStrategy", c.CSRFStrategy)
+	b.MinInt("SessionMaxAge", c.SessionMaxAge, 1)
+
+	return b.Err()
+}
+
+func (c AppCfg) GetEnvironment() string { return c.Environment }
+
+func (c AppCfg) GetProjectName() string { return c.ProjectName }
+
+func (c AppCfg) GetDomain() string { return c.Domain }
+
+func (c AppCfg) GetBaseURL() string {
+	protocol := c.Protocol
+	if protocol == "" {
+		return fmt.Sprintf("http://%s", c.Domain)
+	}
+
+	return fmt.Sprintf("%s://%s", protocol, c.Domain)
+}
+
+func (c AppCfg) GetServiceName() string {
+	if c.ServiceName != "" {
+		return c.ServiceName
+	}
+
+	return slug.Make(c.ProjectName)
+}
+
+func (c AppCfg) GetAppCookieSessionName() string {
+	return "app_sess_" + slug.Make(strings.ToLower(c.ProjectName)) + "-" + c.Environment
+}
+
+func (c AppCfg) GetDefaultSenderSignature() string {
+	if c.DefaultSenderSignature != "" {
+		return c.DefaultSenderSignature
+	}
+
+	return "noreply@" + c.Domain
+}
+
+func (c AppCfg) GetHost() string { return c.Host }
+
+func (c AppCfg) GetPort() string { return c.Port }
+
+func (c AppCfg) GetSessionKey() string { return c.SessionKey }
+
+func (c AppCfg) GetSessionEncryptionKey() string { return c.SessionEncryptionKey }
+
+func (c AppCfg) GetSessionMaxAge() int { return c.SessionMaxAge }
+
+func (c AppCfg) GetTokenSigningKey() string { return c.TokenSigningKey }
+
+func (c AppCfg) GetCORSAllowedOrigins() []string { return c.CORSAllowedOrigins }
+
+func (c AppCfg) GetCSRFStrategy() string { return c.CSRFStrategy }
+
+func (c AppCfg) GetCSRFTrustedOrigins() []string { return c.CSRFTrustedOrigins }
+
+func (c AppCfg) IsProduction() bool { return c.Environment == server.ProdEnvironment }

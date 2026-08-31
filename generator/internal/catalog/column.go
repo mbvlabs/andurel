@@ -163,7 +163,12 @@ func (c *Column) Clone() *Column {
 // ValidatePrimaryKeyDatatype performs the validate primary key datatype operation.
 func (c *Column) ValidatePrimaryKeyDatatype(databaseType, migrationFile string) error {
 	if c.IsPrimaryKey {
-		return validation.ValidatePrimaryKeyDatatype(c.DataType, databaseType, migrationFile, c.Name)
+		return validation.ValidatePrimaryKeyDatatype(
+			c.DataType,
+			databaseType,
+			migrationFile,
+			c.Name,
+		)
 	}
 	return nil
 }

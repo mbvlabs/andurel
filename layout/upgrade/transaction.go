@@ -23,7 +23,12 @@ func validatePlannedFiles(plan *upgradePlan) error {
 		if file.remove || !strings.HasSuffix(file.path, ".go") {
 			continue
 		}
-		if _, err := parser.ParseFile(token.NewFileSet(), file.path, file.after, parser.AllErrors); err != nil {
+		if _, err := parser.ParseFile(
+			token.NewFileSet(),
+			file.path,
+			file.after,
+			parser.AllErrors,
+		); err != nil {
 			return fmt.Errorf("validate %s: %w", file.path, err)
 		}
 	}
@@ -139,7 +144,12 @@ func validateAppliedFiles(root string, plan *upgradePlan, includeLock bool) erro
 			return fmt.Errorf("%s does not match staged content", file.path)
 		}
 		if strings.HasSuffix(file.path, ".go") {
-			if _, err := parser.ParseFile(token.NewFileSet(), file.path, content, parser.AllErrors); err != nil {
+			if _, err := parser.ParseFile(
+				token.NewFileSet(),
+				file.path,
+				content,
+				parser.AllErrors,
+			); err != nil {
 				return fmt.Errorf("parse %s: %w", file.path, err)
 			}
 		}
@@ -208,7 +218,13 @@ func writeDurableFile(path string, content []byte, mode os.FileMode, inject fail
 	return nil
 }
 
-func atomicReplace(path string, content []byte, mode os.FileMode, inject failureInjector, reportPath string) error {
+func atomicReplace(
+	path string,
+	content []byte,
+	mode os.FileMode,
+	inject failureInjector,
+	reportPath string,
+) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -283,7 +299,10 @@ func rollbackPlan(root string, plan *upgradePlan) error {
 		path := filepath.Join(root, filepath.FromSlash(file.path))
 		if file.created {
 			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-				rollbackErrors = append(rollbackErrors, fmt.Errorf("remove created %s: %w", file.path, err))
+				rollbackErrors = append(
+					rollbackErrors,
+					fmt.Errorf("remove created %s: %w", file.path, err),
+				)
 			}
 			continue
 		}

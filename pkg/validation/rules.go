@@ -18,14 +18,22 @@ func (b *ValidationBuilder) Required(field string, value any, message ...string)
 	}
 }
 
-func (b *ValidationBuilder) RequiredWhen(condition bool, field string, value any, message ...string) {
+func (b *ValidationBuilder) RequiredWhen(
+	condition bool,
+	field string,
+	value any,
+	message ...string,
+) {
 	if condition {
 		b.Required(field, value, message...)
 	}
 }
 
 func (b *ValidationBuilder) MinLen(field string, value any, min int, message ...string) {
-	validationMessage := messageOrDefault(fmt.Sprintf("must be at least %d characters", min), message)
+	validationMessage := messageOrDefault(
+		fmt.Sprintf("must be at least %d characters", min),
+		message,
+	)
 	params := map[string]any{"min": min}
 	b.AddRuleWithParams(field, "min", validationMessage, params)
 
@@ -45,7 +53,10 @@ func (b *ValidationBuilder) MinLen(field string, value any, min int, message ...
 }
 
 func (b *ValidationBuilder) MaxLen(field string, value any, max int, message ...string) {
-	validationMessage := messageOrDefault(fmt.Sprintf("must be at most %d characters", max), message)
+	validationMessage := messageOrDefault(
+		fmt.Sprintf("must be at most %d characters", max),
+		message,
+	)
 	params := map[string]any{"max": max}
 	b.AddRuleWithParams(field, "max", validationMessage, params)
 
@@ -64,7 +75,13 @@ func (b *ValidationBuilder) MaxLen(field string, value any, max int, message ...
 	}
 }
 
-func (b *ValidationBuilder) LenBetween(field string, value any, min int, max int, message ...string) {
+func (b *ValidationBuilder) LenBetween(
+	field string,
+	value any,
+	min int,
+	max int,
+	message ...string,
+) {
 	b.MinLen(field, value, min, message...)
 	b.MaxLen(field, value, max, message...)
 }
@@ -170,7 +187,10 @@ func (b *ValidationBuilder) RequiredURL(field string, value any, message ...stri
 }
 
 func (b *ValidationBuilder) MinItems(field string, value any, min int, message ...string) {
-	validationMessage := messageOrDefault(fmt.Sprintf("must contain at least %d item(s)", min), message)
+	validationMessage := messageOrDefault(
+		fmt.Sprintf("must contain at least %d item(s)", min),
+		message,
+	)
 	params := map[string]any{"min": min}
 	b.AddRuleWithParams(field, "min_items", validationMessage, params)
 
@@ -190,7 +210,10 @@ func (b *ValidationBuilder) MinItems(field string, value any, min int, message .
 }
 
 func (b *ValidationBuilder) MaxItems(field string, value any, max int, message ...string) {
-	validationMessage := messageOrDefault(fmt.Sprintf("must contain at most %d item(s)", max), message)
+	validationMessage := messageOrDefault(
+		fmt.Sprintf("must contain at most %d item(s)", max),
+		message,
+	)
 	params := map[string]any{"max": max}
 	b.AddRuleWithParams(field, "max_items", validationMessage, params)
 

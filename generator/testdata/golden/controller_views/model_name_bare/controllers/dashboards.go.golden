@@ -16,10 +16,10 @@ import (
 )
 
 type Dashboards struct {
-	db storage.Pool
+	db storage.Connection
 }
 
-func NewDashboards(db storage.Pool) Dashboards {
+func NewDashboards(db storage.Connection) Dashboards {
 	return Dashboards{db}
 }
 

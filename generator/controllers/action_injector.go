@@ -55,7 +55,10 @@ type ActionRegistrationData struct {
 
 // InjectControllerMethod appends a method stub to the end of the controller file.
 // It checks for duplicate methods before injecting.
-func (ai *ActionInjector) InjectControllerMethod(controllerPath string, data ActionMethodData) error {
+func (ai *ActionInjector) InjectControllerMethod(
+	controllerPath string,
+	data ActionMethodData,
+) error {
 	content, err := os.ReadFile(controllerPath)
 	if err != nil {
 		return fmt.Errorf("failed to read controller file: %w", err)
@@ -98,7 +101,13 @@ func (ai *ActionInjector) InjectRouteVariable(routesPath string, data ActionRout
 	// Check for duplicate route variable
 	varName := fmt.Sprintf("var %s%s%s ", data.NamespacePascal, data.ResourceName, data.MethodName)
 	if strings.Contains(contentStr, varName) {
-		return fmt.Errorf("route variable %s%s%s already exists in %s", data.NamespacePascal, data.ResourceName, data.MethodName, routesPath)
+		return fmt.Errorf(
+			"route variable %s%s%s already exists in %s",
+			data.NamespacePascal,
+			data.ResourceName,
+			data.MethodName,
+			routesPath,
+		)
 	}
 
 	// Render the template
@@ -120,7 +129,10 @@ func (ai *ActionInjector) InjectRouteVariable(routesPath string, data ActionRout
 // InjectRouteRegistration inserts a route registration block before the
 // final error return in the controller RegisterRoutes method.
 // If the return statement is not found, it prints manual instructions.
-func (ai *ActionInjector) InjectRouteRegistration(controllerPath string, data ActionRegistrationData) error {
+func (ai *ActionInjector) InjectRouteRegistration(
+	controllerPath string,
+	data ActionRegistrationData,
+) error {
 	content, err := os.ReadFile(controllerPath)
 	if err != nil {
 		return fmt.Errorf("failed to read controller file: %w", err)
@@ -131,7 +143,12 @@ func (ai *ActionInjector) InjectRouteRegistration(controllerPath string, data Ac
 	// Check for duplicate registration
 	handlerRef := fmt.Sprintf("Handler: %s.%s,", data.HandlerVar, data.MethodName)
 	if strings.Contains(contentStr, handlerRef) {
-		return fmt.Errorf("route registration for %s.%s already exists in %s", data.HandlerVar, data.MethodName, controllerPath)
+		return fmt.Errorf(
+			"route registration for %s.%s already exists in %s",
+			data.HandlerVar,
+			data.MethodName,
+			controllerPath,
+		)
 	}
 
 	if !strings.Contains(contentStr, registerRoutesReturn) {
@@ -145,7 +162,12 @@ func (ai *ActionInjector) InjectRouteRegistration(controllerPath string, data Ac
 		return fmt.Errorf("failed to render action registration template: %w", err)
 	}
 
-	newContent := strings.Replace(contentStr, registerRoutesReturn, rendered+"\n\t"+registerRoutesReturn, 1)
+	newContent := strings.Replace(
+		contentStr,
+		registerRoutesReturn,
+		rendered+"\n\t"+registerRoutesReturn,
+		1,
+	)
 
 	if err := os.WriteFile(controllerPath, []byte(newContent), 0o600); err != nil {
 		return fmt.Errorf("failed to write controller file: %w", err)

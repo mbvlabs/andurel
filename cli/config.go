@@ -44,7 +44,8 @@ func newConfigCommand() *cobra.Command {
 		Long:  "Manage user, project, and cache configuration for agent-friendly Andurel defaults.",
 	}
 	setAgentMetadata(cmd, "config", "Reads and writes non-secret Andurel configuration.")
-	cmd.PersistentFlags().StringVar(&scope, "scope", "project", "Config scope: project, user, or cache")
+	cmd.PersistentFlags().
+		StringVar(&scope, "scope", "project", "Config scope: project, user, or cache")
 
 	cmd.AddCommand(&cobra.Command{
 		Use:   "init",
@@ -59,7 +60,11 @@ func newConfigCommand() *cobra.Command {
 			if err := writeAgentConfig(path, cfg); err != nil {
 				return err
 			}
-			return output.OK(cmd, map[string]string{"path": path, "scope": scope}, "Initialized Andurel config")
+			return output.OK(
+				cmd,
+				map[string]string{"path": path, "scope": scope},
+				"Initialized Andurel config",
+			)
 		},
 	})
 
@@ -93,7 +98,11 @@ func newConfigCommand() *cobra.Command {
 			if err := writeAgentConfig(path, cfg); err != nil {
 				return err
 			}
-			return output.OK(cmd, map[string]string{"scope": scope, "key": args[0], "value": args[1]}, "Updated Andurel config")
+			return output.OK(
+				cmd,
+				map[string]string{"scope": scope, "key": args[0], "value": args[1]},
+				"Updated Andurel config",
+			)
 		},
 	})
 
@@ -114,7 +123,11 @@ func newConfigCommand() *cobra.Command {
 			if err := writeAgentConfig(path, cfg); err != nil {
 				return err
 			}
-			return output.OK(cmd, map[string]string{"scope": scope, "key": args[0]}, "Updated Andurel config")
+			return output.OK(
+				cmd,
+				map[string]string{"scope": scope, "key": args[0]},
+				"Updated Andurel config",
+			)
 		},
 	})
 
@@ -172,7 +185,12 @@ func configPath(scope string) (string, error) {
 	case "cache":
 		return cacheConfigPath()
 	default:
-		return "", output.NewError(output.CodeUsage, "invalid config scope: "+scope, output.ExitUsage, "Use project, user, or cache.")
+		return "", output.NewError(
+			output.CodeUsage,
+			"invalid config scope: "+scope,
+			output.ExitUsage,
+			"Use project, user, or cache.",
+		)
 	}
 }
 
@@ -250,7 +268,10 @@ func writeAgentConfig(path string, cfg agentConfig) error {
 }
 
 func mergeAgentConfigs(configs ...agentConfig) agentConfig {
-	merged := agentConfig{Values: map[string]string{}, CommonDatabaseCommandOptions: map[string]string{}}
+	merged := agentConfig{
+		Values:                       map[string]string{},
+		CommonDatabaseCommandOptions: map[string]string{},
+	}
 	for _, cfg := range configs {
 		if cfg.PreferredGeneratorMode != "" {
 			merged.PreferredGeneratorMode = cfg.PreferredGeneratorMode

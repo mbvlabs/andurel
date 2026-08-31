@@ -40,7 +40,9 @@ email.SendMarketing.`,
 				return cmd.Help()
 			}
 			if len(args) > 1 {
-				return fmt.Errorf("too many arguments: email takes exactly 1 argument (the email name)")
+				return fmt.Errorf(
+					"too many arguments: email takes exactly 1 argument (the email name)",
+				)
 			}
 			name := args[0]
 
@@ -104,7 +106,11 @@ func generateEmailFromTemplate(outputPath string, data emailTemplateData) error 
 		return err
 	}
 
-	if err := os.WriteFile(outputPath, []byte(content), constants.FilePermissionPrivate); err != nil {
+	if err := os.WriteFile(
+		outputPath,
+		[]byte(content),
+		constants.FilePermissionPrivate,
+	); err != nil {
 		return err
 	}
 

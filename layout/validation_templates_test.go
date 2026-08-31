@@ -19,7 +19,11 @@ func TestGeneratedValidationBehavior(t *testing.T) {
 		copyValidationSource(t, name, filepath.Join(validationDir, name))
 	}
 
-	writeValidationFixtureFile(t, filepath.Join(projectDir, "go.mod"), "module validationfixture\n\ngo 1.26.5\n")
+	writeValidationFixtureFile(
+		t,
+		filepath.Join(projectDir, "go.mod"),
+		"module validationfixture\n\ngo 1.26.5\n",
+	)
 	writeValidationFixtureFile(
 		t,
 		filepath.Join(validationDir, "validation_test.go"),

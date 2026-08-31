@@ -40,7 +40,10 @@ func PageScript(containerID string, pageJSON []byte) templ.Component {
 		if containerID == "" {
 			containerID = "app"
 		}
-		if _, err := io.WriteString(writer, `<script data-page="`+html.EscapeString(containerID)+`" type="application/json">`); err != nil {
+		if _, err := io.WriteString(
+			writer,
+			`<script data-page="`+html.EscapeString(containerID)+`" type="application/json">`,
+		); err != nil {
 			return err
 		}
 		if _, err := writer.Write(escaped); err != nil {

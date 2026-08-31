@@ -135,7 +135,11 @@ func TestAgentHelpDiscovery(t *testing.T) {
 func TestGenerateAgentHelpDiscovery(t *testing.T) {
 	result := runCLITest(t, "generate", "--agent", "--help")
 	if result.err != nil {
-		t.Fatalf("generate --agent --help returned error: %v\nstderr:\n%s", result.err, result.stderr)
+		t.Fatalf(
+			"generate --agent --help returned error: %v\nstderr:\n%s",
+			result.err,
+			result.stderr,
+		)
 	}
 
 	var envelope struct {
@@ -177,11 +181,32 @@ func TestCommandFlagsContract(t *testing.T) {
 		flags []string
 	}{
 		{path: "new", flags: []string{"extensions", "inertia", "dry-run", "diff"}},
-		{path: "generate model", flags: []string{"skip-factory", "table-name", "update", "yes", "primary-key", "dry-run", "diff"}},
+		{
+			path: "generate model",
+			flags: []string{
+				"skip-factory",
+				"table-name",
+				"update",
+				"yes",
+				"primary-key",
+				"dry-run",
+				"diff",
+			},
+		},
 		{path: "generate factory", flags: []string{"check", "sync", "diff"}},
 		{path: "generate factories", flags: []string{"check", "sync", "diff"}},
 		{path: "generate controller", flags: []string{"inertia", "model-name", "dry-run", "diff"}},
-		{path: "generate scaffold", flags: []string{"skip-factory", "table-name", "primary-key", "inertia", "dry-run", "diff"}},
+		{
+			path: "generate scaffold",
+			flags: []string{
+				"skip-factory",
+				"table-name",
+				"primary-key",
+				"inertia",
+				"dry-run",
+				"diff",
+			},
+		},
 		{path: "generate job", flags: []string{"queue", "dry-run", "diff"}},
 		{path: "generate email", flags: []string{"dry-run", "diff"}},
 		{path: "extension add", flags: []string{"dry-run", "diff"}},
@@ -246,13 +271,23 @@ func assertCommandSurface(t *testing.T, parent *cobra.Command, expected []comman
 
 	available := availableCommands(parent)
 	if len(available) != len(expected) {
-		t.Fatalf("expected commands %v, got %v", commandContractNames(expected), commandNames(available))
+		t.Fatalf(
+			"expected commands %v, got %v",
+			commandContractNames(expected),
+			commandNames(available),
+		)
 	}
 
 	for i, want := range expected {
 		got := available[i]
 		if got.Name() != want.name {
-			t.Fatalf("command %d: expected %q, got %q; all commands: %v", i, want.name, got.Name(), commandNames(available))
+			t.Fatalf(
+				"command %d: expected %q, got %q; all commands: %v",
+				i,
+				want.name,
+				got.Name(),
+				commandNames(available),
+			)
 		}
 		if !slices.Equal(got.Aliases, want.aliases) {
 			t.Fatalf("%s aliases: expected %v, got %v", want.name, want.aliases, got.Aliases)

@@ -132,11 +132,19 @@ type StudentFeedbackEntity struct {
 	want := "student_feedback"
 
 	if got != want {
-		t.Errorf("ResolveTableName() = %v, want %v (bun tag should override derived 'student_feedbacks')", got, want)
+		t.Errorf(
+			"ResolveTableName() = %v, want %v (bun tag should override derived 'student_feedbacks')",
+			got,
+			want,
+		)
 	}
 
 	derivedName := "student_feedbacks"
 	if got == derivedName {
-		t.Errorf("ResolveTableName() returned derived name %v instead of bun tag value %v", derivedName, want)
+		t.Errorf(
+			"ResolveTableName() returned derived name %v instead of bun tag value %v",
+			derivedName,
+			want,
+		)
 	}
 }

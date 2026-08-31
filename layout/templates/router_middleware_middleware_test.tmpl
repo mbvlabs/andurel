@@ -7,16 +7,26 @@ import (
 	"sync"
 	"testing"
 
-	"{{.ModuleName}}/application"
 	"{{.ModuleName}}/router/appctx"
 	"{{.ModuleName}}/router/cookies"
+
+	"github.com/mbvlabs/andurel/pkg/server"
 
 	"github.com/gorilla/sessions"
 	echosession "github.com/labstack/echo-contrib/v5/session"
 	"github.com/labstack/echo/v5"
 )
 
-var registerFlashMessageOnce sync.Once
+const testAppSessionName = "app_sess_andurel-dev"
+
+var (
+	registerFlashMessageOnce sync.Once
+	testSession              = cookies.NewSession(
+		testAppSessionName,
+		"andurel",
+		server.DevEnvironment,
+	)
+)
 
 func TestAPIPathBoundary(t *testing.T) {
 	tests := []struct {
@@ -50,10 +60,26 @@ func TestCSRFBypassRequiresBearerWithoutApplicationSession(t *testing.T) {
 		{name: "bearer API request", authorization: "Bearer token", path: "/api/users", want: true},
 		{name: "empty authorization", path: "/api/users", want: false},
 		{name: "empty bearer token", authorization: "Bearer", path: "/api/users", want: false},
-		{name: "malformed bearer header", authorization: "Bearer token extra", path: "/api/users", want: false},
-		{name: "other authorization scheme", authorization: "Basic token", path: "/api/users", want: false},
+		{
+			name:          "malformed bearer header",
+			authorization: "Bearer token extra",
+			path:          "/api/users",
+			want:          false,
+		},
+		{
+			name:          "other authorization scheme",
+			authorization: "Basic token",
+			path:          "/api/users",
+			want:          false,
+		},
 		{name: "non API path", authorization: "Bearer token", path: "/users", want: false},
-		{name: "cookie authenticated API request", authorization: "Bearer token", path: "/api/users", sessionCookie: true, want: false},
+		{
+			name:          "cookie authenticated API request",
+			authorization: "Bearer token",
+			path:          "/api/users",
+			sessionCookie: true,
+			want:          false,
+		},
 	}
 
 	for _, test := range tests {
@@ -61,10 +87,10 @@ func TestCSRFBypassRequiresBearerWithoutApplicationSession(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, test.path, nil)
 			request.Header.Set("Authorization", test.authorization)
 			if test.sessionCookie {
-				request.AddCookie(&http.Cookie{Name: application.AppCookieSessionName, Value: "session"})
+				request.AddCookie(&http.Cookie{Name: testAppSessionName, Value: "session"})
 			}
 
-			if got := mayBypassCSRF(request); got != test.want {
+			if got := mayBypassCSRF(request, testAppSessionName); got != test.want {
 				t.Fatalf("mayBypassCSRF() = %t, want %t", got, test.want)
 			}
 		})
@@ -74,8 +100,8 @@ func TestCSRFBypassRequiresBearerWithoutApplicationSession(t *testing.T) {
 func TestValidateSessionRecoversStaleApplicationCookie(t *testing.T) {
 	oldStore := newTestCookieStore("old-application-session-auth-key")
 	newStore := newTestCookieStore("new-application-session-auth-key")
-	staleCookie := issueSessionCookie(t, oldStore, application.AppCookieSessionName, func(c *echo.Context) error {
-		sess, err := echosession.Get(application.AppCookieSessionName, c)
+	staleCookie := issueSessionCookie(t, oldStore, testAppSessionName, func(c *echo.Context) error {
+		sess, err := echosession.Get(testAppSessionName, c)
 		if err != nil {
 			return err
 		}
@@ -97,7 +123,7 @@ func TestValidateSessionRecoversStaleApplicationCookie(t *testing.T) {
 		t.Fatal("downstream handler was not called")
 	}
 
-	replacement := responseCookie(t, recorder, application.AppCookieSessionName)
+	replacement := responseCookie(t, recorder, testAppSessionName)
 	assertEmptySessionCookie(t, newStore, replacement)
 }
 
@@ -109,7 +135,7 @@ func TestValidateSessionRecoversStaleFlashCookie(t *testing.T) {
 	oldStore := newTestCookieStore("old-flash-session-authentication-key")
 	newStore := newTestCookieStore("new-flash-session-authentication-key")
 	staleCookie := issueSessionCookie(t, oldStore, "", func(c *echo.Context) error {
-		return cookies.AddFlash(c, cookies.FlashWarning, "stale warning")
+		return testSession.AddFlash(c, cookies.FlashWarning, "stale warning")
 	})
 
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -119,6 +145,7 @@ func TestValidateSessionRecoversStaleFlashCookie(t *testing.T) {
 		if len(flashes) != 0 {
 			t.Fatalf("recovered flashes = %v, want none", flashes)
 		}
+
 		return c.NoContent(http.StatusNoContent)
 	})
 	if err != nil {
@@ -135,8 +162,8 @@ func TestValidateSessionPreservesValidSessions(t *testing.T) {
 	})
 
 	store := newTestCookieStore("valid-session-authentication-key")
-	appCookie := issueSessionCookie(t, store, application.AppCookieSessionName, func(c *echo.Context) error {
-		sess, err := echosession.Get(application.AppCookieSessionName, c)
+	appCookie := issueSessionCookie(t, store, testAppSessionName, func(c *echo.Context) error {
+		sess, err := echosession.Get(testAppSessionName, c)
 		if err != nil {
 			return err
 		}
@@ -144,7 +171,7 @@ func TestValidateSessionPreservesValidSessions(t *testing.T) {
 		return sess.Save(c.Request(), c.Response())
 	})
 	flashCookie := issueSessionCookie(t, store, "", func(c *echo.Context) error {
-		return cookies.AddFlash(c, cookies.FlashSuccess, "saved")
+		return testSession.AddFlash(c, cookies.FlashSuccess, "saved")
 	})
 
 	request := httptest.NewRequest(http.MethodPost, "/", nil)
@@ -155,12 +182,13 @@ func TestValidateSessionPreservesValidSessions(t *testing.T) {
 		if len(flashes) != 1 || flashes[0].Message != "saved" {
 			t.Fatalf("flashes = %v, want saved flash", flashes)
 		}
+
 		return c.NoContent(http.StatusNoContent)
 	})
 	if err != nil {
 		t.Fatalf("ValidateSession returned an error: %v", err)
 	}
-	if hasResponseCookie(recorder, application.AppCookieSessionName) {
+	if hasResponseCookie(recorder, testAppSessionName) {
 		t.Fatal("valid application session was unexpectedly replaced")
 	}
 }
@@ -179,7 +207,7 @@ func TestValidateSessionPropagatesNonDecodeErrors(t *testing.T) {
 			name:       "usage error",
 			middleware: echosession.Middleware(sessions.NewCookieStore()),
 			request: requestWithCookie(&http.Cookie{
-				Name:  application.AppCookieSessionName,
+				Name:  testAppSessionName,
 				Value: "configured-without-codecs",
 			}),
 		},
@@ -193,7 +221,7 @@ func TestValidateSessionPropagatesNonDecodeErrors(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			called := false
-			handler := ValidateSession(func(c *echo.Context) error {
+			handler := ValidateSession(testSession)(func(c *echo.Context) error {
 				called = true
 				return nil
 			})
@@ -240,6 +268,7 @@ func issueSessionCookie(
 		if len(cookies) != 1 {
 			t.Fatalf("issued cookies = %d, want 1", len(cookies))
 		}
+
 		return cookies[0]
 	}
 	for _, cookie := range cookies {
@@ -259,7 +288,11 @@ func serveSessionRequest(
 ) (*httptest.ResponseRecorder, error) {
 	recorder := httptest.NewRecorder()
 	ctx := echo.New().NewContext(request, recorder)
-	chain := echosession.Middleware(store)(ValidateSession(RegisterRequestMeta(handler)))
+	chain := echosession.Middleware(
+		store,
+	)(
+		ValidateSession(testSession)(RegisterRequestMeta(testSession)(handler)),
+	)
 	return recorder, chain(ctx)
 }
 
@@ -329,11 +362,15 @@ func (classifiedErrorStore) Save(*http.Request, http.ResponseWriter, *sessions.S
 
 type internalSessionError struct{}
 
-func (internalSessionError) Error() string    { return "internal session error" }
-func (internalSessionError) IsUsage() bool    { return false }
-func (internalSessionError) IsDecode() bool   { return false }
+func (internalSessionError) Error() string { return "internal session error" }
+
+func (internalSessionError) IsUsage() bool { return false }
+
+func (internalSessionError) IsDecode() bool { return false }
+
 func (internalSessionError) IsInternal() bool { return true }
-func (internalSessionError) Cause() error     { return nil }
+
+func (internalSessionError) Cause() error { return nil }
 
 var _ interface {
 	error

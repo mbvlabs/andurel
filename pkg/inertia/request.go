@@ -33,18 +33,24 @@ func ParseRequest(etx *echo.Context) (Request, error) {
 // ParseHTTPRequest parses all Inertia v3 request headers.
 func ParseHTTPRequest(req *http.Request) (Request, error) {
 	state := Request{
-		Inertia:          strings.EqualFold(strings.TrimSpace(req.Header.Get(HeaderInertia)), "true"),
+		Inertia: strings.EqualFold(
+			strings.TrimSpace(req.Header.Get(HeaderInertia)),
+			"true",
+		),
 		Version:          strings.TrimSpace(req.Header.Get(HeaderVersion)),
 		PartialComponent: strings.TrimSpace(req.Header.Get(HeaderPartialComponent)),
 		Only:             headerList(req.Header.Get(HeaderPartialData)),
 		Except:           headerList(req.Header.Get(HeaderPartialExcept)),
 		Reset:            headerList(req.Header.Get(HeaderReset)),
 		ErrorBag:         strings.TrimSpace(req.Header.Get(HeaderErrorBag)),
-		MergeIntent:      strings.ToLower(strings.TrimSpace(req.Header.Get(HeaderInfiniteScrollMergeIntent))),
-		ExceptOnceProps:  headerList(req.Header.Get(HeaderExceptOnceProps)),
-		Purpose:          strings.ToLower(strings.TrimSpace(req.Header.Get(HeaderPurpose))),
+		MergeIntent: strings.ToLower(
+			strings.TrimSpace(req.Header.Get(HeaderInfiniteScrollMergeIntent)),
+		),
+		ExceptOnceProps: headerList(req.Header.Get(HeaderExceptOnceProps)),
+		Purpose:         strings.ToLower(strings.TrimSpace(req.Header.Get(HeaderPurpose))),
 	}
-	if state.MergeIntent != "" && state.MergeIntent != MergeIntentAppend && state.MergeIntent != MergeIntentPrepend {
+	if state.MergeIntent != "" && state.MergeIntent != MergeIntentAppend &&
+		state.MergeIntent != MergeIntentPrepend {
 		return Request{}, protocolError("parse request", "invalid infinite-scroll merge intent")
 	}
 	return state, nil

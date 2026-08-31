@@ -4,12 +4,22 @@ package controllers
 import (
 	"{{.ModuleName}}/controllers/api"
 	"{{.ModuleName}}/router"
+	"{{.ModuleName}}/views"
 
 {{- if not .Inertia}}
 	"github.com/a-h/templ"
 {{- end}}
 	"go.uber.org/fx"
 )
+
+type ConfigProvider interface {
+	GetProjectName() string
+	GetBaseURL() string
+}
+
+func configureViews(cfg ConfigProvider) {
+	views.ConfigureHead(cfg.GetProjectName(), cfg.GetBaseURL())
+}
 
 {{- if not .Inertia}}
 var pageCache = NewCacheBuilder[templ.Component]().Build
@@ -33,6 +43,7 @@ var constructors = fx.Provide(
 var Module = fx.Module(
 	"controllers",
 	constructors,
+	fx.Invoke(configureViews),
 	fx.Invoke(func(r *router.Router, c Pages) error {
 		return c.RegisterRoutes(r)
 	}),

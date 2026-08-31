@@ -64,7 +64,11 @@ func executeCLITest(t *testing.T, args ...string) cliTestResult {
 	t.Helper()
 
 	rootDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(rootDir, "go.mod"), []byte("module example.com/app\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(rootDir, "go.mod"),
+		[]byte("module example.com/app\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 
@@ -262,7 +266,11 @@ type controllerCall struct {
 	isAPI     bool
 }
 
-func (f *fakeGenerator) GenerateModel(resourceName string, tableNameOverride string, skipFactory bool) error {
+func (f *fakeGenerator) GenerateModel(
+	resourceName string,
+	tableNameOverride string,
+	skipFactory bool,
+) error {
 	if f.onGenerateModel != nil {
 		f.onGenerateModel()
 	}
@@ -274,7 +282,12 @@ func (f *fakeGenerator) GenerateModel(resourceName string, tableNameOverride str
 	return f.err
 }
 
-func (f *fakeGenerator) GenerateModelWithPK(resourceName string, tableNameOverride string, skipFactory bool, primaryKeyColumn string) error {
+func (f *fakeGenerator) GenerateModelWithPK(
+	resourceName string,
+	tableNameOverride string,
+	skipFactory bool,
+	primaryKeyColumn string,
+) error {
 	f.modelWithPKCalls = append(f.modelWithPKCalls, modelWithPKCall{
 		name:        resourceName,
 		tableName:   tableNameOverride,
@@ -284,7 +297,13 @@ func (f *fakeGenerator) GenerateModelWithPK(resourceName string, tableNameOverri
 	return f.err
 }
 
-func (f *fakeGenerator) GenerateModelWithMode(resourceName string, tableNameOverride string, skipFactory bool, primaryKeyColumn string, mode generator.ModelMode) error {
+func (f *fakeGenerator) GenerateModelWithMode(
+	resourceName string,
+	tableNameOverride string,
+	skipFactory bool,
+	primaryKeyColumn string,
+	mode generator.ModelMode,
+) error {
 	f.modelModeCalls = append(f.modelModeCalls, modelModeCall{
 		name:        resourceName,
 		tableName:   tableNameOverride,
@@ -295,12 +314,20 @@ func (f *fakeGenerator) GenerateModelWithMode(resourceName string, tableNameOver
 	return f.err
 }
 
-func (f *fakeGenerator) PlanModel(resourceName string, options generator.ModelGenerationOptions) (*generator.ModelGenerationPlan, error) {
+func (f *fakeGenerator) PlanModel(
+	resourceName string,
+	options generator.ModelGenerationOptions,
+) (*generator.ModelGenerationPlan, error) {
 	f.modelPlanCalls = append(f.modelPlanCalls, modelPlanCall{name: resourceName, options: options})
 	return f.modelPlan, f.modelPlanErr
 }
 
-func (f *fakeGenerator) GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string, isAPI bool) error {
+func (f *fakeGenerator) GenerateControllerWithActions(
+	resourceName, namespace, tableName string,
+	actions []string,
+	inertia string,
+	isAPI bool,
+) error {
 	f.controllerCalls = append(f.controllerCalls, controllerCall{
 		name:      resourceName,
 		namespace: namespace,
@@ -313,7 +340,12 @@ func (f *fakeGenerator) GenerateControllerWithActions(resourceName, namespace, t
 	return f.err
 }
 
-func (f *fakeGenerator) GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string, isAPI bool) error {
+func (f *fakeGenerator) GenerateControllerWithActionsForModel(
+	resourceName, namespace, modelName, tableName string,
+	actions []string,
+	inertia string,
+	isAPI bool,
+) error {
 	f.controllerCalls = append(f.controllerCalls, controllerCall{
 		name:      resourceName,
 		namespace: namespace,
@@ -326,7 +358,13 @@ func (f *fakeGenerator) GenerateControllerWithActionsForModel(resourceName, name
 	return f.err
 }
 
-func (f *fakeGenerator) GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string, isAPI bool) error {
+func (f *fakeGenerator) GenerateScaffold(
+	resourceName, namespace, tableName string,
+	skipFactory bool,
+	primaryKeyColumn string,
+	inertia string,
+	isAPI bool,
+) error {
 	f.scaffoldCalls = append(f.scaffoldCalls, scaffoldCall{
 		name:        resourceName,
 		namespace:   namespace,
@@ -352,7 +390,10 @@ func (f *fakeGenerator) ApplyModelUpdate(result *generator.UpdateModelResult) er
 	return f.modelApplyErr
 }
 
-func (f *fakeGenerator) SyncFactory(resourceName string, opts generator.FactorySyncOptions) (*generator.FactorySyncResult, error) {
+func (f *fakeGenerator) SyncFactory(
+	resourceName string,
+	opts generator.FactorySyncOptions,
+) (*generator.FactorySyncResult, error) {
 	f.factoryCalls = append(f.factoryCalls, factoryCall{name: resourceName, opts: opts})
 	if f.err != nil {
 		return nil, f.err
@@ -360,10 +401,15 @@ func (f *fakeGenerator) SyncFactory(resourceName string, opts generator.FactoryS
 	if f.factoryResult != nil {
 		return f.factoryResult, nil
 	}
-	return &generator.FactorySyncResult{ResourceName: resourceName, Path: "models/factories/" + resourceName + ".go"}, nil
+	return &generator.FactorySyncResult{
+		ResourceName: resourceName,
+		Path:         "models/factories/" + resourceName + ".go",
+	}, nil
 }
 
-func (f *fakeGenerator) SyncFactories(opts generator.FactorySyncOptions) ([]*generator.FactorySyncResult, error) {
+func (f *fakeGenerator) SyncFactories(
+	opts generator.FactorySyncOptions,
+) ([]*generator.FactorySyncResult, error) {
 	f.factoriesCalls = append(f.factoriesCalls, opts)
 	if f.err != nil {
 		return nil, f.err

@@ -27,6 +27,7 @@ func TestBackgroundLifecycleStopsOnceAndWaitsForExit(t *testing.T) {
 		if stopCalls.Add(1) == 1 {
 			close(release)
 		}
+
 		return nil
 	}
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second)

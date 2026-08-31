@@ -82,7 +82,9 @@ DROP TABLE products;
 	var stdout bytes.Buffer
 	cmd := NewRootCommand("test", "test-date")
 	cmd.SetOut(&stdout)
-	cmd.SetArgs([]string{"generate", "model", "Product", "--dry-run", "--json", "--primary-key", "id"})
+	cmd.SetArgs(
+		[]string{"generate", "model", "Product", "--dry-run", "--json", "--primary-key", "id"},
+	)
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("generate model dry run: %v", err)
 	}
@@ -109,6 +111,10 @@ DROP TABLE products;
 		t.Fatalf("read model registry after dry run: %v", err)
 	}
 	if !bytes.Equal(registryBefore, registryAfter) {
-		t.Fatalf("dry run changed models/model.go\nbefore:\n%s\nafter:\n%s", registryBefore, registryAfter)
+		t.Fatalf(
+			"dry run changed models/model.go\nbefore:\n%s\nafter:\n%s",
+			registryBefore,
+			registryAfter,
+		)
 	}
 }

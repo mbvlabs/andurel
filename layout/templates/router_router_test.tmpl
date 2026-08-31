@@ -17,13 +17,20 @@ func TestApplicationSessionStoreOptions(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			store, err := newApplicationSessionStore([]byte("auth-key"), []byte("encryption-key"), 604800, test.secure)
+			store, err := newApplicationSessionStore(
+				[]byte("auth-key"),
+				[]byte("encryption-key"),
+				604800,
+				test.secure,
+			)
 			if err != nil {
 				t.Fatalf("newApplicationSessionStore returned an error: %v", err)
 			}
 
 			options := store.Options
-			if options.Path != "/" || options.MaxAge != 604800 || !options.HttpOnly || options.Secure != test.secure || options.SameSite != http.SameSiteLaxMode {
+			if options.Path != "/" || options.MaxAge != 604800 || !options.HttpOnly ||
+				options.Secure != test.secure ||
+				options.SameSite != http.SameSiteLaxMode {
 				t.Fatalf("unexpected session options: %+v", options)
 			}
 		})
@@ -31,7 +38,12 @@ func TestApplicationSessionStoreOptions(t *testing.T) {
 }
 
 func TestApplicationSessionStoreRejectsInvalidLifetime(t *testing.T) {
-	if _, err := newApplicationSessionStore([]byte("auth-key"), []byte("encryption-key"), 0, false); err == nil {
+	if _, err := newApplicationSessionStore(
+		[]byte("auth-key"),
+		[]byte("encryption-key"),
+		0,
+		false,
+	); err == nil {
 		t.Fatal("expected an invalid session lifetime error")
 	}
 }
@@ -73,7 +85,11 @@ func TestCredentialedCORSRejectsWildcards(t *testing.T) {
 		additionalOrigins []string
 	}{
 		{name: "wildcard application origin", applicationOrigin: "*"},
-		{name: "wildcard additional origin", applicationOrigin: "https://app.example.com", additionalOrigins: []string{"https://*"}},
+		{
+			name:              "wildcard additional origin",
+			applicationOrigin: "https://app.example.com",
+			additionalOrigins: []string{"https://*"},
+		},
 	}
 
 	for _, test := range tests {

@@ -3,32 +3,18 @@ package config
 
 import "go.uber.org/fx"
 
-type Config struct {
-	App       app
-	DB        databaseCfg
-	Queue     queueCfg
-	Telemetry telemetry
+// Module provides all application configuration constructors to the dependency container.
+var Module = fx.Module("config",
+	fx.Provide(
+		NewAppCfg,
+		NewDatabaseCfg,
+		NewQueueCfg,
+		NewTelemetryCfg,
 {{- if .Inertia}}
-	Inertia inertiaCfg
+		NewInertiaCfg,
 {{- end}}
 {{- range .Blueprint.Config.SortedFields}}
-	{{.Name}} {{.Type}}
+		New{{.Name}}Cfg,
 {{- end}}
-}
-
-func NewConfig() Config {
-	return Config{
-		App:       newAppConfig(),
-		DB:        newDatabaseConfig(),
-		Queue:     newQueueConfig(),
-		Telemetry: newTelemetryConfig(),
-{{- if .Inertia}}
-		Inertia:   newInertiaConfig(),
-{{- end}}
-{{- range .Blueprint.Config.SortedFields}}
-		{{.Name}}: new{{.Name}}Config(),
-{{- end}}
-	}
-}
-
-var Module = fx.Module("config", fx.Provide(NewConfig))
+	),
+)

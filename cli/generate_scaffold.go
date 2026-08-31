@@ -70,7 +70,9 @@ with echo.JSON responses. No views are generated.`,
 				return cmd.Help()
 			}
 			if len(args) > 1 {
-				return fmt.Errorf("too many arguments: scaffold takes exactly 1 argument (the resource name)")
+				return fmt.Errorf(
+					"too many arguments: scaffold takes exactly 1 argument (the resource name)",
+				)
 			}
 			name := args[0]
 			namespace, resourceName, err := naming.ParseNamespacedResource(name)
@@ -93,7 +95,10 @@ with echo.JSON responses. No views are generated.`,
 				DryRun:   dryRun,
 				Diff:     diff,
 				Breadcrumbs: []output.Breadcrumb{
-					{Command: "andurel database migrate up", Description: "Apply migrations before using the resource"},
+					{
+						Command:     "andurel database migrate up",
+						Description: "Apply migrations before using the resource",
+					},
 					{Command: "andurel run", Description: "Start the development server"},
 				},
 				Run: func(rootDir string) error {
@@ -107,7 +112,15 @@ with echo.JSON responses. No views are generated.`,
 							return err
 						}
 
-						if err := gen.GenerateScaffold(resourceName, namespace, tableName, skipFactory, primaryKeyColumn, inertiaStr, api); err != nil {
+						if err := gen.GenerateScaffold(
+							resourceName,
+							namespace,
+							tableName,
+							skipFactory,
+							primaryKeyColumn,
+							inertiaStr,
+							api,
+						); err != nil {
 							return err
 						}
 						return refreshRoutesTSAfterInertiaGeneration(rootDir, inertiaStr, api)
@@ -117,11 +130,14 @@ with echo.JSON responses. No views are generated.`,
 		},
 	}
 
-	cmd.Flags().BoolVar(&skipFactory, "skip-factory", false, "Skip generating a factory for the model")
+	cmd.Flags().
+		BoolVar(&skipFactory, "skip-factory", false, "Skip generating a factory for the model")
 	cmd.Flags().StringVar(&tableName, "table-name", "", "Override the default table name")
-	cmd.Flags().StringVar(&primaryKeyColumn, "primary-key", "", "Specify the primary key column (skips interactive detection)")
+	cmd.Flags().
+		StringVar(&primaryKeyColumn, "primary-key", "", "Specify the primary key column (skips interactive detection)")
 	cmd.Flags().BoolVar(&api, "api", false, "Generate a JSON API controller under controllers/api")
-	cmd.Flags().BoolVar(&inertia, "inertia", false, "Generate Inertia views using the adapter configured in andurel.lock")
+	cmd.Flags().
+		BoolVar(&inertia, "inertia", false, "Generate Inertia views using the adapter configured in andurel.lock")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview file changes without applying")
 	cmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
 

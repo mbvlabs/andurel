@@ -216,12 +216,21 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 	oldParts := string(src[structStart:structEnd])
 	newParts := newEntityStr
 
-	factoryPath := fmt.Sprintf("%s/models/factories/%s.go", rootDir, naming.ToSnakeCase(resourceName))
+	factoryPath := fmt.Sprintf(
+		"%s/models/factories/%s.go",
+		rootDir,
+		naming.ToSnakeCase(resourceName),
+	)
 	var oldFactoryContent, newFactoryContent string
 	if existingSrc, err := os.ReadFile(factoryPath); err == nil {
 		oldFactoryContent = string(existingSrc)
 	}
-	if factoryPlan, factoryErr := m.planFactorySync(resourceName, tableName, newModel, FactorySyncOptions{}); factoryErr == nil {
+	if factoryPlan, factoryErr := m.planFactorySync(
+		resourceName,
+		tableName,
+		newModel,
+		FactorySyncOptions{},
+	); factoryErr == nil {
 		factoryPath = factoryPlan.Path
 		newFactoryContent = factoryPlan.newContent
 	}
@@ -256,7 +265,11 @@ func (m *ModelManager) ApplyModelUpdate(result *UpdateModelResult) error {
 		if err := os.MkdirAll(factoryDir, 0755); err != nil {
 			return fmt.Errorf("failed to create factories directory: %w", err)
 		}
-		if err := os.WriteFile(result.FactoryPath, []byte(result.NewFactoryContent), 0o600); err != nil {
+		if err := os.WriteFile(
+			result.FactoryPath,
+			[]byte(result.NewFactoryContent),
+			0o600,
+		); err != nil {
 			return fmt.Errorf("failed to write factory file: %w", err)
 		}
 		if err := files.FormatGoFile(result.FactoryPath); err != nil {

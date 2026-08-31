@@ -11,7 +11,11 @@ func TestToSnakeCase(t *testing.T) {
 		{name: "single word", input: "User", expected: "user"},
 		{name: "multi word", input: "CompanyAccount", expected: "company_account"},
 		{name: "acronym handling", input: "APIKey", expected: "api_key"},
-		{name: "long phrase", input: "CompanyIntelligenceReport", expected: "company_intelligence_report"},
+		{
+			name:     "long phrase",
+			input:    "CompanyIntelligenceReport",
+			expected: "company_intelligence_report",
+		},
 	}
 
 	for _, tt := range tests {
@@ -32,8 +36,16 @@ func TestDeriveTableName(t *testing.T) {
 	}{
 		{name: "singular", input: "User", expected: "users"},
 		{name: "already plural", input: "CompanyAccounts", expected: "company_accounts"},
-		{name: "complex singular", input: "CompanyIntelligenceReport", expected: "company_intelligence_reports"},
-		{name: "complex plural", input: "CompanyIntelligenceReports", expected: "company_intelligence_reports"},
+		{
+			name:     "complex singular",
+			input:    "CompanyIntelligenceReport",
+			expected: "company_intelligence_reports",
+		},
+		{
+			name:     "complex plural",
+			input:    "CompanyIntelligenceReports",
+			expected: "company_intelligence_reports",
+		},
 	}
 
 	for _, tt := range tests {
@@ -59,9 +71,21 @@ func TestToCamelCase(t *testing.T) {
 		{name: "empty string", input: "", expected: ""},
 		{name: "already camelCase", input: "adminUsers", expected: "adminusers"},
 		{name: "single char parts", input: "a_b_c", expected: "aBC"},
-		{name: "schema ssh is mechanical", input: "server_ssh_credentials", expected: "serverSshCredentials"},
-		{name: "schema compound is mechanical", input: "wireguard_peers", expected: "wireguardPeers"},
-		{name: "repeated separators", input: "__server__ssh_credentials__", expected: "serverSshCredentials"},
+		{
+			name:     "schema ssh is mechanical",
+			input:    "server_ssh_credentials",
+			expected: "serverSshCredentials",
+		},
+		{
+			name:     "schema compound is mechanical",
+			input:    "wireguard_peers",
+			expected: "wireguardPeers",
+		},
+		{
+			name:     "repeated separators",
+			input:    "__server__ssh_credentials__",
+			expected: "serverSshCredentials",
+		},
 	}
 
 	for _, tt := range tests {
@@ -109,7 +133,11 @@ func TestToLowerCamelCaseFromAny(t *testing.T) {
 	}{
 		{name: "snake case", input: "server_provision_steps", expected: "serverProvisionSteps"},
 		{name: "pascal case", input: "ServerProvisionSteps", expected: "serverProvisionSteps"},
-		{name: "already camelCase", input: "serverProvisionSteps", expected: "serverProvisionSteps"},
+		{
+			name:     "already camelCase",
+			input:    "serverProvisionSteps",
+			expected: "serverProvisionSteps",
+		},
 		{name: "empty string", input: "", expected: ""},
 	}
 
@@ -136,11 +164,23 @@ func TestToPascalCase(t *testing.T) {
 		{name: "empty string", input: "", expected: ""},
 		{name: "single char parts", input: "a_b_c", expected: "ABC"},
 		{name: "already lowercase", input: "user", expected: "User"},
-		{name: "schema ssh is mechanical", input: "server_ssh_credentials", expected: "ServerSshCredentials"},
-		{name: "schema compound is mechanical", input: "wireguard_peers", expected: "WireguardPeers"},
+		{
+			name:     "schema ssh is mechanical",
+			input:    "server_ssh_credentials",
+			expected: "ServerSshCredentials",
+		},
+		{
+			name:     "schema compound is mechanical",
+			input:    "wireguard_peers",
+			expected: "WireguardPeers",
+		},
 		{name: "schema url is mechanical", input: "url", expected: "Url"},
 		{name: "schema cidr is mechanical", input: "cidr", expected: "Cidr"},
-		{name: "repeated separators", input: "__server__ssh_credentials__", expected: "ServerSshCredentials"},
+		{
+			name:     "repeated separators",
+			input:    "__server__ssh_credentials__",
+			expected: "ServerSshCredentials",
+		},
 	}
 
 	for _, tt := range tests {
@@ -162,7 +202,11 @@ func TestDeriveResourceName(t *testing.T) {
 		{name: "simple plural", input: "users", expected: "User"},
 		{name: "two word plural", input: "user_roles", expected: "UserRole"},
 		{name: "junction table", input: "users_organizations", expected: "UsersOrganization"},
-		{name: "three word plural", input: "company_intelligence_reports", expected: "CompanyIntelligenceReport"},
+		{
+			name:     "three word plural",
+			input:    "company_intelligence_reports",
+			expected: "CompanyIntelligenceReport",
+		},
 		{name: "already singular", input: "user", expected: "User"},
 	}
 
@@ -192,10 +236,16 @@ func TestNamespaceCompatibilityHelpers(t *testing.T) {
 		}
 	}
 
-	if got := NamespacedControllerImportPath("example.com/app", ""); got != "example.com/app/controllers" {
+	if got := NamespacedControllerImportPath(
+		"example.com/app",
+		"",
+	); got != "example.com/app/controllers" {
 		t.Fatalf("unnamespaced import path = %q", got)
 	}
-	if got := NamespacedControllerImportPath("example.com/app", "admin"); got != "example.com/app/controllers/admin" {
+	if got := NamespacedControllerImportPath(
+		"example.com/app",
+		"admin",
+	); got != "example.com/app/controllers/admin" {
 		t.Fatalf("namespaced import path = %q", got)
 	}
 }
@@ -209,7 +259,12 @@ func TestParseNamespacedResource(t *testing.T) {
 		wantErr       bool
 	}{
 		{name: "plain resource", input: "Widget", wantResource: "Widget"},
-		{name: "single namespace", input: "admin/Widget", wantNamespace: "admin", wantResource: "Widget"},
+		{
+			name:          "single namespace",
+			input:         "admin/Widget",
+			wantNamespace: "admin",
+			wantResource:  "Widget",
+		},
 		{name: "nested namespace", input: "admin/reports/Widget", wantErr: true},
 		{name: "missing resource", input: "admin/", wantErr: true},
 		{name: "missing namespace", input: "/Widget", wantErr: true},
@@ -222,7 +277,11 @@ func TestParseNamespacedResource(t *testing.T) {
 			gotNamespace, gotResource, err := ParseNamespacedResource(tt.input)
 			if tt.wantErr {
 				if err == nil {
-					t.Fatalf("expected error, got namespace=%q resource=%q", gotNamespace, gotResource)
+					t.Fatalf(
+						"expected error, got namespace=%q resource=%q",
+						gotNamespace,
+						gotResource,
+					)
 				}
 				return
 			}

@@ -5,8 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/validation"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
@@ -14,15 +12,19 @@ import (
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/views"
 
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/validation"
+
 	"github.com/labstack/echo/v5"
 )
 
 type Registrations struct {
 	identity services.Identity
+	session  *cookies.Session
 }
 
-func NewRegistrations(identity services.Identity) Registrations {
-	return Registrations{identity}
+func NewRegistrations(identity services.Identity, session *cookies.Session) Registrations {
+	return Registrations{identity, session}
 }
 
 func (r Registrations) RegisterRoutes(rtr *router.Router) error {
@@ -84,7 +86,10 @@ func (r Registrations) Create(etx *echo.Context) error {
 		},
 	); err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return hypermedia.RenderPage(etx, views.RegistrationForm{Errors: validationErrors}.Page())
+			return hypermedia.RenderPage(
+				etx,
+				views.RegistrationForm{Errors: validationErrors}.Page(),
+			)
 		}
 
 		slog.ErrorContext(
@@ -94,7 +99,11 @@ func (r Registrations) Create(etx *echo.Context) error {
 			err,
 		)
 
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, "Failed to register user"); flashErr != nil {
+		if flashErr := r.session.AddFlash(
+			etx,
+			cookies.FlashError,
+			"Failed to register user",
+		); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 

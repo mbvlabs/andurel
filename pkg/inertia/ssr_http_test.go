@@ -10,17 +10,23 @@ import (
 )
 
 func TestHTTPRendererRenderAndHealth(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		writer.Header().Set("Content-Type", "application/json")
-		switch request.URL.Path {
-		case "/health":
-			_, _ = writer.Write([]byte(`{"status":"ok"}`))
-		case "/render":
-			_, _ = writer.Write([]byte(`{"head":["<title>SSR</title>"],"body":"<div data-server-rendered=\"true\" data-page=\"app\"></div>"}`))
-		default:
-			http.NotFound(writer, request)
-		}
-	}))
+	server := httptest.NewServer(
+		http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			writer.Header().Set("Content-Type", "application/json")
+			switch request.URL.Path {
+			case "/health":
+				_, _ = writer.Write([]byte(`{"status":"ok"}`))
+			case "/render":
+				_, _ = writer.Write(
+					[]byte(
+						`{"head":["<title>SSR</title>"],"body":"<div data-server-rendered=\"true\" data-page=\"app\"></div>"}`,
+					),
+				)
+			default:
+				http.NotFound(writer, request)
+			}
+		}),
+	)
 	defer server.Close()
 
 	config := DefaultSSRConfig()
@@ -42,12 +48,14 @@ func TestHTTPRendererRenderAndHealth(t *testing.T) {
 }
 
 func TestHTTPRendererBoundsResponseAndTimeout(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if request.URL.Path == "/slow" {
-			time.Sleep(50 * time.Millisecond)
-		}
-		_, _ = writer.Write(make([]byte, 32))
-	}))
+	server := httptest.NewServer(
+		http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			if request.URL.Path == "/slow" {
+				time.Sleep(50 * time.Millisecond)
+			}
+			_, _ = writer.Write(make([]byte, 32))
+		}),
+	)
 	defer server.Close()
 
 	config := DefaultSSRConfig()

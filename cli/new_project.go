@@ -43,7 +43,12 @@ creation, run 'andurel tool sync' to download required binaries.`,
 				return cmd.Help()
 			}
 			if isInAndurelProject() {
-				return output.NewError(output.CodeUnsafeAction, "cannot create a new project inside an existing Andurel project", output.ExitUnsafe, "Run andurel new from a parent directory outside an existing project.")
+				return output.NewError(
+					output.CodeUnsafeAction,
+					"cannot create a new project inside an existing Andurel project",
+					output.ExitUnsafe,
+					"Run andurel new from a parent directory outside an existing project.",
+				)
 			}
 			return newProject(cmd, args, version, dryRun, diff)
 		},
@@ -54,8 +59,10 @@ creation, run 'andurel tool sync' to download required binaries.`,
 
 	projectCmd.Flags().
 		String("inertia", "", "Inertia adapter to use (vue, react, svelte). Optionally append /npm|pnpm|bun|yarn to specify the package manager (default: npm)")
-	projectCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview project files without creating them")
-	projectCmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
+	projectCmd.Flags().
+		BoolVar(&dryRun, "dry-run", false, "Preview project files without creating them")
+	projectCmd.Flags().
+		BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
 
 	return projectCmd
 }
@@ -116,7 +123,15 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 		return err
 	}
 	scaffold := func(target string) error {
-		return layout.Scaffold(target, projectName, database, version, extensions, adapter, javascriptRuntime)
+		return layout.Scaffold(
+			target,
+			projectName,
+			database,
+			version,
+			extensions,
+			adapter,
+			javascriptRuntime,
+		)
 	}
 	opts, err := output.ParseOptions(cmd)
 	if err != nil {
@@ -124,18 +139,31 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 	}
 	if dryRun || output.SuppressesHumanOutput(opts) {
 		silence := output.SuppressesHumanOutput(opts)
-		report, err := newProjectReport(projectName, destination.path, dryRun, diff, func(target string) error {
-			return runWithOptionalStdoutSilence(silence, func() error {
-				if dryRun {
-					return scaffold(target)
-				}
-				return scaffoldNewProject(destination, scaffold)
-			})
-		})
+		report, err := newProjectReport(
+			projectName,
+			destination.path,
+			dryRun,
+			diff,
+			func(target string) error {
+				return runWithOptionalStdoutSilence(silence, func() error {
+					if dryRun {
+						return scaffold(target)
+					}
+					return scaffoldNewProject(destination, scaffold)
+				})
+			},
+		)
 		if err != nil {
 			return wrapNewProjectScaffoldError(err)
 		}
-		return output.OK(cmd, report, mutationSummary(report), output.Breadcrumb{Command: "andurel tool sync"}, output.Breadcrumb{Command: "andurel database migrate up"}, output.Breadcrumb{Command: "andurel run"})
+		return output.OK(
+			cmd,
+			report,
+			mutationSummary(report),
+			output.Breadcrumb{Command: "andurel tool sync"},
+			output.Breadcrumb{Command: "andurel database migrate up"},
+			output.Breadcrumb{Command: "andurel run"},
+		)
 	}
 
 	if err := scaffoldNewProject(destination, scaffold); err != nil {
@@ -276,7 +304,10 @@ func wrapNewProjectScaffoldError(err error) error {
 	)
 }
 
-func scaffoldNewProject(destination newProjectDestination, scaffold func(string) error) (resultErr error) {
+func scaffoldNewProject(
+	destination newProjectDestination,
+	scaffold func(string) error,
+) (resultErr error) {
 	parent := filepath.Dir(destination.path)
 	stagingRoot, err := os.MkdirTemp(parent, ".andurel-new-*")
 	if err != nil {
@@ -284,7 +315,10 @@ func scaffoldNewProject(destination newProjectDestination, scaffold func(string)
 	}
 	defer func() {
 		if err := os.RemoveAll(stagingRoot); err != nil {
-			resultErr = errors.Join(resultErr, fmt.Errorf("remove scaffold staging directory: %w", err))
+			resultErr = errors.Join(
+				resultErr,
+				fmt.Errorf("remove scaffold staging directory: %w", err),
+			)
 		}
 	}()
 
@@ -357,7 +391,12 @@ func rollbackPublishedProjectEntries(stagedProject, destination string, publishe
 	return rollbackErr
 }
 
-func newProjectReport(projectName, basePath string, dryRun bool, diff bool, scaffold func(target string) error) (report mutationReport, err error) {
+func newProjectReport(
+	projectName, basePath string,
+	dryRun bool,
+	diff bool,
+	scaffold func(target string) error,
+) (report mutationReport, err error) {
 	var targetPath string
 	if dryRun {
 		tempDir, err := os.MkdirTemp("", "andurel-new-dry-run-*")

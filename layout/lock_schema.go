@@ -80,7 +80,8 @@ func validateSchema1Lock(lock *AndurelLock) error {
 	}
 
 	for name, extension := range lock.Extensions {
-		if strings.TrimSpace(name) == "" || extension == nil || strings.TrimSpace(extension.AppliedAt) == "" {
+		if strings.TrimSpace(name) == "" || extension == nil ||
+			strings.TrimSpace(extension.AppliedAt) == "" {
 			return fmt.Errorf("extension %q must have appliedAt", name)
 		}
 	}
@@ -91,10 +92,14 @@ func validateSchema1Lock(lock *AndurelLock) error {
 		if strings.TrimSpace(lock.ScaffoldConfig.Database) == "" {
 			return fmt.Errorf("scaffoldConfig.database is required")
 		}
-		if manager := lock.ScaffoldConfig.PackageManager(); manager != "" && !IsSupportedJavaScriptRuntime(manager) {
+		if manager := lock.ScaffoldConfig.PackageManager(); manager != "" &&
+			!IsSupportedJavaScriptRuntime(manager) {
 			return fmt.Errorf("scaffoldConfig.javascriptPackageManager is invalid")
 		}
-		if runtime := strings.TrimSpace(lock.ScaffoldConfig.InertiaSSRRuntime); runtime != "" && runtime != "node" {
+		if runtime := strings.TrimSpace(
+			lock.ScaffoldConfig.InertiaSSRRuntime,
+		); runtime != "" &&
+			runtime != "node" {
 			return fmt.Errorf("scaffoldConfig.inertiaSSRRuntime is invalid")
 		}
 	}
@@ -168,11 +173,18 @@ func validateSchema1Download(prefix string, download *ToolDownload) error {
 			return fmt.Errorf("%s.download.sha256 is missing %s", prefix, platform)
 		}
 		if !sha256Pattern.MatchString(digest) {
-			return fmt.Errorf("%s.download.sha256[%q] must be a 64-character SHA-256 digest", prefix, platform)
+			return fmt.Errorf(
+				"%s.download.sha256[%q] must be a 64-character SHA-256 digest",
+				prefix,
+				platform,
+			)
 		}
 	}
 	if len(download.SHA256) != len(requiredChecksumPlatforms) {
-		return fmt.Errorf("%s.download.sha256 must contain exactly four supported platforms", prefix)
+		return fmt.Errorf(
+			"%s.download.sha256 must contain exactly four supported platforms",
+			prefix,
+		)
 	}
 	return nil
 }

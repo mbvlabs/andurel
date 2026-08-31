@@ -17,21 +17,81 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 
 	assertFileContains(t, projectDir, "resources/js/app.tsx", "@inertiajs/react")
 	assertFileContains(t, projectDir, "resources/js/Layouts/Layout.tsx", "children")
-	assertFileNotContains(t, projectDir, "resources/js/Layouts/Layout.tsx", "export const panelClass")
-	assertFileContains(t, projectDir, "resources/js/routes.ts", "sessionCreate: () => '/users/sign-in'")
-	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", "import Layout from '@/Layouts/Layout'")
-	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", "import { routes } from '@/routes'")
-	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", "form.post(routes.sessionCreate())")
-	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", "function submit(event: SubmitEvent)")
-	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", `className="w-full max-w-md border border-[#2f3a37] bg-[#101414]/90 shadow-sm shadow-black/40"`)
+	assertFileNotContains(
+		t,
+		projectDir,
+		"resources/js/Layouts/Layout.tsx",
+		"export const panelClass",
+	)
+	assertFileContains(
+		t,
+		projectDir,
+		"resources/js/routes.ts",
+		"sessionCreate: () => '/users/sign-in'",
+	)
+	assertFileContains(
+		t,
+		projectDir,
+		"resources/js/Pages/Auth/Login.tsx",
+		"import Layout from '@/Layouts/Layout'",
+	)
+	assertFileContains(
+		t,
+		projectDir,
+		"resources/js/Pages/Auth/Login.tsx",
+		"import { routes } from '@/routes'",
+	)
+	assertFileContains(
+		t,
+		projectDir,
+		"resources/js/Pages/Auth/Login.tsx",
+		"form.post(routes.sessionCreate())",
+	)
+	assertFileContains(
+		t,
+		projectDir,
+		"resources/js/Pages/Auth/Login.tsx",
+		"function submit(event: SubmitEvent)",
+	)
+	assertFileContains(
+		t,
+		projectDir,
+		"resources/js/Pages/Auth/Login.tsx",
+		`className="w-full max-w-md border border-[#2f3a37] bg-[#101414]/90 shadow-sm shadow-black/40"`,
+	)
 	assertFileNotContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", "panelClass")
 	assertFileNotContains(t, projectDir, "resources/js/Pages/Auth/Login.tsx", "FormEvent")
-	assertFileContains(t, projectDir, "resources/js/Pages/Auth/Registration.tsx", "form.post(routes.registrationCreate())")
-	assertFileContains(t, projectDir, "resources/js/Pages/Auth/ResetPassword.tsx", "form.put(routes.passwordUpdate())")
-	assertFileContains(t, projectDir, "resources/js/Pages/Auth/ResetPasswordRequest.tsx", "form.post(routes.passwordCreate())")
-	assertFileContains(t, projectDir, "resources/js/Pages/Auth/ConfirmEmail.tsx", "form.post(routes.confirmationCreate())")
+	assertFileContains(
+		t,
+		projectDir,
+		"resources/js/Pages/Auth/Registration.tsx",
+		"form.post(routes.registrationCreate())",
+	)
+	assertFileContains(
+		t,
+		projectDir,
+		"resources/js/Pages/Auth/ResetPassword.tsx",
+		"form.put(routes.passwordUpdate())",
+	)
+	assertFileContains(
+		t,
+		projectDir,
+		"resources/js/Pages/Auth/ResetPasswordRequest.tsx",
+		"form.post(routes.passwordCreate())",
+	)
+	assertFileContains(
+		t,
+		projectDir,
+		"resources/js/Pages/Auth/ConfirmEmail.tsx",
+		"form.post(routes.confirmationCreate())",
+	)
 	assertFileContains(t, projectDir, "resources/js/Pages/Errors/BadRequest.tsx", "Bad request")
-	assertFileContains(t, projectDir, "resources/js/Pages/Errors/InternalError.tsx", "Something went wrong.")
+	assertFileContains(
+		t,
+		projectDir,
+		"resources/js/Pages/Errors/InternalError.tsx",
+		"Something went wrong.",
+	)
 	assertFileContains(t, projectDir, "resources/js/Pages/Errors/NotFound.tsx", "Not found")
 	assertFileContains(t, projectDir, "views/bad_request.templ", "templ BadRequest()")
 	assertFileContains(t, projectDir, "views/internal_error.templ", "templ InternalError()")
@@ -51,15 +111,60 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "props={props as")
 	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "ComponentType<any>")
 	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "Record<string, any>")
-	assertFileContains(t, projectDir, "cmd/app/main.go", `config.InertiaModule,`)
+	assertFileContains(t, projectDir, "cmd/app/main.go", `inertiaModule,`)
 	assertFileNotContains(t, projectDir, "cmd/app/main.go", "internal/inertia")
-	assertFileContains(t, projectDir, "config/inertia.go", `func newInertia(lifecycle fx.Lifecycle, cfg Config, metadata application.Metadata) (*inertia.Renderer, error)`)
-	assertFileContains(t, projectDir, "config/inertia.go", `inertia.WithRoot(views.Root)`)
-	assertFileContains(t, projectDir, "config/inertia.go", `inertia.WithEntryPoint("resources/js/app.tsx")`)
-	assertFileContains(t, projectDir, "config/inertia.go", `OnStart: renderer.Start`)
-	assertFileContains(t, projectDir, "config/inertia.go", `env:"INERTIA_SSR_MODE"`)
-	assertFileContains(t, projectDir, "application/metadata.go", `type Metadata struct`)
-	assertFileContains(t, projectDir, "application/metadata.go", `Environment = func() string`)
+	assertFileContains(
+		t,
+		projectDir,
+		"cmd/app/main.go",
+		`func newInertia(lifecycle fx.Lifecycle, cfg config.InertiaCfg, appCfg config.AppCfg) (*inertia.Renderer, error)`,
+	)
+	assertFileContains(t, projectDir, "config/config.go", "NewInertiaCfg,")
+	assertFileContains(t, projectDir, "config/inertia.go", "env.Parse(&inertiaCfg)")
+	assertFileContains(
+		t,
+		projectDir,
+		"config/inertia.go",
+		"func (c InertiaCfg) GetRoot() inertia.RootFunc",
+	)
+	assertFileContains(
+		t,
+		projectDir,
+		"config/inertia.go",
+		"DefaultInertiaBuildPathURL = routes.ViteBuild.Path()",
+	)
+	assertFileContains(
+		t,
+		projectDir,
+		"config/inertia.go",
+		"Root:                DefaultInertiaRoot",
+	)
+	assertFileContains(
+		t,
+		projectDir,
+		"config/inertia.go",
+		"BuildPathURL:        DefaultInertiaBuildPathURL",
+	)
+	assertFileContains(t, projectDir, "config/inertia.go", "return c.Root")
+	assertFileContains(t, projectDir, "config/inertia.go", "return c.EntryPoint")
+	assertFileNotContains(t, projectDir, "config/inertia.go", `env:"-"`)
+	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.WithRoot(cfg.GetRoot())`)
+	assertFileContains(
+		t,
+		projectDir,
+		"cmd/app/main.go",
+		`inertia.WithEntryPoint(cfg.GetEntryPoint())`,
+	)
+	assertFileNotContains(t, projectDir, "cmd/app/main.go", "views.Root")
+	assertFileContains(t, projectDir, "cmd/app/main.go", `OnStart: renderer.Start`)
+	assertFileContains(
+		t,
+		projectDir,
+		"cmd/app/main.go",
+		`inertia.WithProjectName(appCfg.GetProjectName())`,
+	)
+	assertFileMissing(t, projectDir, "application/metadata.go")
+	assertFileContains(t, projectDir, "config/app.go", `func (c AppCfg) GetBaseURL() string`)
 	assertFileContains(t, projectDir, "views/root.templ", `templ Root(data inertia.RootData)`)
 	assertFileContains(t, projectDir, "views/root.templ", `@templ.Raw(string(data.ViteHead))`)
 	assertFileContains(t, projectDir, "views/root_templ.go", `func Root(`)
@@ -71,10 +176,20 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileContains(t, projectDir, "router/router.go", "renderer *inertia.Renderer")
 	assertFileContains(t, projectDir, "router/router.go", "renderer.Middleware()")
 	assertFileContains(t, projectDir, "router/router.go", "renderer.SetReflashHandler")
-	assertFileContains(t, projectDir, "router/cookies/flash.go", "func Reflash(")
-	assertFileContains(t, projectDir, "controllers/sessions.go", `"github.com/mbvlabs/andurel/pkg/inertia"`)
+	assertFileContains(t, projectDir, "router/cookies/flash.go", "func (s *Session) Reflash(")
+	assertFileContains(
+		t,
+		projectDir,
+		"controllers/sessions.go",
+		`"github.com/mbvlabs/andurel/pkg/inertia"`,
+	)
 	assertFileContains(t, projectDir, "controllers/sessions.go", "renderer *inertia.Renderer")
-	assertFileContains(t, projectDir, "controllers/sessions.go", `s.renderer.Page(etx, "Auth/Login"`)
+	assertFileContains(
+		t,
+		projectDir,
+		"controllers/sessions.go",
+		`s.renderer.Page(etx, "Auth/Login"`,
+	)
 	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0")
 	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/inertia v0.1.0")
 	assertFileContains(t, projectDir, "router/appctx/appctx.go", "func WithFlashes(")
@@ -96,7 +211,12 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve standalone Inertia module: %v", err)
 	}
-	cmd := exec.Command("go", "mod", "edit", "-replace=github.com/mbvlabs/andurel/pkg/inertia="+inertiaModule)
+	cmd := exec.Command(
+		"go",
+		"mod",
+		"edit",
+		"-replace=github.com/mbvlabs/andurel/pkg/inertia="+inertiaModule,
+	)
 	cmd.Dir = projectDir
 	cmd.Env = append(os.Environ(), "GOWORK=off")
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -107,7 +227,12 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve standalone storage module: %v", err)
 	}
-	cmd = exec.Command("go", "mod", "edit", "-replace=github.com/mbvlabs/andurel/pkg/storage="+storageModule)
+	cmd = exec.Command(
+		"go",
+		"mod",
+		"edit",
+		"-replace=github.com/mbvlabs/andurel/pkg/storage="+storageModule,
+	)
 	cmd.Dir = projectDir
 	cmd.Env = append(os.Environ(), "GOWORK=off")
 	if output, err := cmd.CombinedOutput(); err != nil {

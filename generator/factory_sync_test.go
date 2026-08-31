@@ -92,7 +92,12 @@ func CustomProductScore() int {
 		t.Fatalf("renderSyncedFactoryFile returned error: %v", err)
 	}
 
-	if _, err := parser.ParseFile(token.NewFileSet(), "product_factory.go", rendered, parser.ParseComments); err != nil {
+	if _, err := parser.ParseFile(
+		token.NewFileSet(),
+		"product_factory.go",
+		rendered,
+		parser.ParseComments,
+	); err != nil {
 		t.Fatalf("rendered factory should parse: %v\n%s", err, rendered)
 	}
 
@@ -100,13 +105,19 @@ func CustomProductScore() int {
 		t.Fatalf("expected one regenerated name option, got %d definitions:\n%s", count, rendered)
 	}
 	if strings.Contains(rendered, `"custom:"`) {
-		t.Fatalf("expected same-name custom option to be replaced by generated option:\n%s", rendered)
+		t.Fatalf(
+			"expected same-name custom option to be replaced by generated option:\n%s",
+			rendered,
+		)
 	}
 	if !strings.Contains(rendered, `"math"`) {
 		t.Fatalf("expected preserved custom import:\n%s", rendered)
 	}
 	if strings.Contains(rendered, `"strings"`) {
-		t.Fatalf("expected import used only by discarded option override to be removed:\n%s", rendered)
+		t.Fatalf(
+			"expected import used only by discarded option override to be removed:\n%s",
+			rendered,
+		)
 	}
 	if !strings.Contains(rendered, "func CustomProductScore() int") {
 		t.Fatalf("expected preserved custom helper:\n%s", rendered)
@@ -138,10 +149,30 @@ func TestRenderSyncedFactoryFileRetainsGeneratedTypeImportsAndCanonicalFormattin
 		Fields: []models.FactoryField{
 			{Name: "ID", Type: "int64", IsAutoManaged: true, IsID: true},
 			ownerField,
-			{Name: "ArchivedAt", Type: "sql.NullTime", DefaultValue: "sql.NullTime{}", OptionName: "WithProductsArchivedAt"},
-			{Name: "Payload", Type: "json.RawMessage", DefaultValue: "json.RawMessage{}", OptionName: "WithProductsPayload"},
-			{Name: "ObservedAt", Type: "bun.NullTime", DefaultValue: "bun.NullTime{}", OptionName: "WithProductsObservedAt"},
-			{Name: "Endpoint", Type: "url.URL", DefaultValue: "url.URL{}", OptionName: "WithProductsEndpoint"},
+			{
+				Name:         "ArchivedAt",
+				Type:         "sql.NullTime",
+				DefaultValue: "sql.NullTime{}",
+				OptionName:   "WithProductsArchivedAt",
+			},
+			{
+				Name:         "Payload",
+				Type:         "json.RawMessage",
+				DefaultValue: "json.RawMessage{}",
+				OptionName:   "WithProductsPayload",
+			},
+			{
+				Name:         "ObservedAt",
+				Type:         "bun.NullTime",
+				DefaultValue: "bun.NullTime{}",
+				OptionName:   "WithProductsObservedAt",
+			},
+			{
+				Name:         "Endpoint",
+				Type:         "url.URL",
+				DefaultValue: "url.URL{}",
+				OptionName:   "WithProductsEndpoint",
+			},
 		},
 		HasForeignKeys:   true,
 		ForeignKeyFields: []models.FactoryField{ownerField},
@@ -191,7 +222,11 @@ func WithProductsEndpoint(value url.URL) ProductOption {
 		t.Fatalf("rerender synced factory: %v", err)
 	}
 	if rerendered != rendered {
-		t.Fatalf("factory synchronization is not byte-stable\nfirst:\n%s\nsecond:\n%s", rendered, rerendered)
+		t.Fatalf(
+			"factory synchronization is not byte-stable\nfirst:\n%s\nsecond:\n%s",
+			rendered,
+			rerendered,
+		)
 	}
 }
 
@@ -261,7 +296,12 @@ func TestRenderSyncedFactoryFileOwnsLegacyAndCorrectedOptionNames(t *testing.T) 
 		IDGoFieldName:     "ID",
 		IsAutoIncrementID: true,
 		Fields: []models.FactoryField{
-			{Name: "Name", Type: "string", DefaultValue: "faker.Name()", OptionName: "WithApplicationName"},
+			{
+				Name:         "Name",
+				Type:         "string",
+				DefaultValue: "faker.Name()",
+				OptionName:   "WithApplicationName",
+			},
 		},
 	}
 	oldContent := `package factories
@@ -292,7 +332,11 @@ func WithApplicationName(value string) ApplicationOption {
 }
 
 func TestCustomFactoryDeclsReturnsParseErrorForInvalidExistingFactory(t *testing.T) {
-	_, _, err := customFactoryDecls("package factories\nfunc broken(", factorySyncGeneratedFactory(), map[string]bool{})
+	_, _, err := customFactoryDecls(
+		"package factories\nfunc broken(",
+		factorySyncGeneratedFactory(),
+		map[string]bool{},
+	)
 	if err == nil {
 		t.Fatal("expected parse error for invalid existing factory")
 	}
@@ -307,10 +351,18 @@ func TestSyncFactoryReportsMissingDiffAndWritesWhenRequested(t *testing.T) {
 	if err := os.MkdirAll(modelsDir, 0o755); err != nil {
 		t.Fatalf("create models dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app\n"), 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, "go.mod"),
+		[]byte("module example.com/app\n"),
+		0o600,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(modelsDir, "product.go"), []byte(factorySyncProductModelSource()), 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(modelsDir, "product.go"),
+		[]byte(factorySyncProductModelSource()),
+		0o600,
+	); err != nil {
 		t.Fatalf("write product model: %v", err)
 	}
 
@@ -329,7 +381,8 @@ func TestSyncFactoryReportsMissingDiffAndWritesWhenRequested(t *testing.T) {
 	if !result.HasDrift() {
 		t.Fatal("missing factory should count as drift")
 	}
-	if !strings.Contains(result.Diff, "+++ updated") || !strings.Contains(result.Diff, "BuildProduct") {
+	if !strings.Contains(result.Diff, "+++ updated") ||
+		!strings.Contains(result.Diff, "BuildProduct") {
 		t.Fatalf("expected unified diff with generated product factory, got:\n%s", result.Diff)
 	}
 
@@ -355,25 +408,36 @@ func TestSyncFactoryCheckValidatesPlannedOutputBeforeWriting(t *testing.T) {
 	if err := os.MkdirAll(modelsDir, 0o755); err != nil {
 		t.Fatalf("create models dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app\n"), 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, "go.mod"),
+		[]byte("module example.com/app\n"),
+		0o600,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(modelsDir, "product.go"), []byte(factorySyncProductModelSource()), 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(modelsDir, "product.go"),
+		[]byte(factorySyncProductModelSource()),
+		0o600,
+	); err != nil {
 		t.Fatalf("write product model: %v", err)
 	}
 
 	manager := factorySyncTestModelManager(root, modelsDir)
 	validated := false
-	manager.factoryValidator = &factoryValidationHook{validate: func(gotRoot, factoryPath, content string) error {
-		validated = true
-		if gotRoot != root || factoryPath != filepath.Join(root, "models", "factories", "product.go") {
-			t.Fatalf("unexpected validation target: root=%q path=%q", gotRoot, factoryPath)
-		}
-		if !strings.Contains(content, "func BuildProduct") {
-			t.Fatalf("validator did not receive planned factory content:\n%s", content)
-		}
-		return errors.New("go vet failed")
-	}}
+	manager.factoryValidator = &factoryValidationHook{
+		validate: func(gotRoot, factoryPath, content string) error {
+			validated = true
+			if gotRoot != root ||
+				factoryPath != filepath.Join(root, "models", "factories", "product.go") {
+				t.Fatalf("unexpected validation target: root=%q path=%q", gotRoot, factoryPath)
+			}
+			if !strings.Contains(content, "func BuildProduct") {
+				t.Fatalf("validator did not receive planned factory content:\n%s", content)
+			}
+			return errors.New("go vet failed")
+		},
+	}
 
 	_, err := manager.SyncFactory("Product", FactorySyncOptions{Check: true})
 	if err == nil || !strings.Contains(err.Error(), "validate planned factory") {
@@ -382,7 +446,11 @@ func TestSyncFactoryCheckValidatesPlannedOutputBeforeWriting(t *testing.T) {
 	if !validated {
 		t.Fatal("planned factory was not validated")
 	}
-	if _, err := os.Stat(filepath.Join(root, "models", "factories", "product.go")); !os.IsNotExist(err) {
+	if _, err := os.Stat(
+		filepath.Join(root, "models", "factories", "product.go"),
+	); !os.IsNotExist(
+		err,
+	) {
 		t.Fatalf("factory check wrote the planned file: %v", err)
 	}
 }
@@ -416,7 +484,11 @@ func TestValidatePlannedFactoryUsesPlannedContent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			root := t.TempDir()
-			if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app\n"), 0o600); err != nil {
+			if err := os.WriteFile(
+				filepath.Join(root, "go.mod"),
+				[]byte("module example.com/app\n"),
+				0o600,
+			); err != nil {
 				t.Fatalf("write go.mod: %v", err)
 			}
 			factoryPath := filepath.Join(root, "models", "factories", "widget.go")
@@ -443,7 +515,11 @@ func TestValidatePlannedFactoryUsesPlannedContent(t *testing.T) {
 
 func TestValidatePlannedFactoryLoadsImportsAndExistingFiles(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app\n"), 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, "go.mod"),
+		[]byte("module example.com/app\n"),
+		0o600,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	factoriesDir := filepath.Join(root, "models", "factories")
@@ -458,7 +534,11 @@ func formatCompanion(value string) string {
 	return fmt.Sprintf("companion: %s", value)
 }
 `
-	if err := os.WriteFile(filepath.Join(factoriesDir, "companion.go"), []byte(companionContent), 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(factoriesDir, "companion.go"),
+		[]byte(companionContent),
+		0o600,
+	); err != nil {
 		t.Fatalf("write companion factory: %v", err)
 	}
 	plannedContent := `package factories
@@ -472,7 +552,11 @@ func BuildWidget() string {
 	return formatCompanion(fmt.Sprint(unsafe.Sizeof("widget")))
 }
 `
-	if err := validatePlannedFactory(root, filepath.Join(factoriesDir, "widget.go"), plannedContent); err != nil {
+	if err := validatePlannedFactory(
+		root,
+		filepath.Join(factoriesDir, "widget.go"),
+		plannedContent,
+	); err != nil {
 		t.Fatalf("validate planned factory with imports: %v", err)
 	}
 }
@@ -483,7 +567,11 @@ func TestSyncFactoryQualifiesModelTypesAndRetainsTheirImports(t *testing.T) {
 	if err := os.MkdirAll(modelsDir, 0o755); err != nil {
 		t.Fatalf("create models dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app\n"), 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, "go.mod"),
+		[]byte("module example.com/app\n"),
+		0o600,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	modelSource := `package models
@@ -498,7 +586,11 @@ type ProductEntity struct {
 	Endpoint url.URL      ` + "`bun:\"endpoint,notnull\"`" + `
 }
 `
-	if err := os.WriteFile(filepath.Join(modelsDir, "product.go"), []byte(modelSource), 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(modelsDir, "product.go"),
+		[]byte(modelSource),
+		0o600,
+	); err != nil {
 		t.Fatalf("write product model: %v", err)
 	}
 
@@ -604,7 +696,11 @@ func TestSyncFactoryUsesMigrationAllowedValuesForDefaults(t *testing.T) {
 			t.Fatalf("create %s: %v", directory, err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app\n"), 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, "go.mod"),
+		[]byte("module example.com/app\n"),
+		0o600,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	modelSource := `package models
@@ -617,7 +713,11 @@ type ProductEntity struct {
 	Tier   string        ` + "`bun:\"tier,notnull\"`" + `
 }
 `
-	if err := os.WriteFile(filepath.Join(modelsDir, "product.go"), []byte(modelSource), 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(modelsDir, "product.go"),
+		[]byte(modelSource),
+		0o600,
+	); err != nil {
 		t.Fatalf("write product model: %v", err)
 	}
 	migration := `-- +goose Up
@@ -629,7 +729,11 @@ CREATE TABLE products (
 	tier TEXT NOT NULL CHECK (tier IN ('free', 'pro'))
 );
 `
-	if err := os.WriteFile(filepath.Join(migrationsDir, "001_products.sql"), []byte(migration), 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(migrationsDir, "001_products.sql"),
+		[]byte(migration),
+		0o600,
+	); err != nil {
 		t.Fatalf("write products migration: %v", err)
 	}
 
@@ -694,12 +798,20 @@ func TestSyncFactoriesHandlesMultipleModelsAndCurrentFactories(t *testing.T) {
 	if err := os.MkdirAll(modelsDir, 0o755); err != nil {
 		t.Fatalf("create models directory: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/app\n"), 0o600); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, "go.mod"),
+		[]byte("module example.com/app\n"),
+		0o600,
+	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
 	for _, resource := range []string{"Product", "Account"} {
 		path := filepath.Join(modelsDir, strings.ToLower(resource)+".go")
-		source := strings.ReplaceAll(factorySyncProductModelSource(), "ProductEntity", resource+"Entity")
+		source := strings.ReplaceAll(
+			factorySyncProductModelSource(),
+			"ProductEntity",
+			resource+"Entity",
+		)
 		if err := os.WriteFile(path, []byte(source), 0o600); err != nil {
 			t.Fatalf("write %s model: %v", resource, err)
 		}
@@ -710,7 +822,8 @@ func TestSyncFactoriesHandlesMultipleModelsAndCurrentFactories(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sync factories: %v", err)
 	}
-	if len(results) != 2 || results[0].ResourceName != "Account" || results[1].ResourceName != "Product" {
+	if len(results) != 2 || results[0].ResourceName != "Account" ||
+		results[1].ResourceName != "Product" {
 		t.Fatalf("unexpected sorted results: %#v", results)
 	}
 	for _, result := range results {
@@ -729,31 +842,48 @@ func TestSyncFactoriesHandlesMultipleModelsAndCurrentFactories(t *testing.T) {
 		}
 	}
 
-	if _, err := manager.SyncFactory("Missing", FactorySyncOptions{}); err == nil || !strings.Contains(err.Error(), "read model file") {
+	if _, err := manager.SyncFactory(
+		"Missing",
+		FactorySyncOptions{},
+	); err == nil ||
+		!strings.Contains(err.Error(), "read model file") {
 		t.Fatalf("expected missing model error, got %v", err)
 	}
 }
 
 func TestGeneratedModelFromParsedEntityMetadata(t *testing.T) {
-	generated := generatedModelFromParsedEntity("Membership", "memberships", "example.com/app", []parsedField{
-		{Name: "TenantID", TypeStr: "uuid.UUID", BunTag: "tenant_id,pk"},
-		{Name: "OwnerID", TypeStr: "*uuid.UUID", BunTag: "owner_id"},
-		{Name: "Note", TypeStr: "sql.NullString", BunTag: "note"},
-		{Name: "CreatedAt", TypeStr: "time.Time", BunTag: "created_at"},
-		{Name: "UpdatedAt", TypeStr: "time.Time", BunTag: "updated_at"},
-	})
-	if !generated.HasPrimaryKey || generated.IDGoFieldName != "TenantID" || generated.IDType != "uuid.UUID" {
+	generated := generatedModelFromParsedEntity(
+		"Membership",
+		"memberships",
+		"example.com/app",
+		[]parsedField{
+			{Name: "TenantID", TypeStr: "uuid.UUID", BunTag: "tenant_id,pk"},
+			{Name: "OwnerID", TypeStr: "*uuid.UUID", BunTag: "owner_id"},
+			{Name: "Note", TypeStr: "sql.NullString", BunTag: "note"},
+			{Name: "CreatedAt", TypeStr: "time.Time", BunTag: "created_at"},
+			{Name: "UpdatedAt", TypeStr: "time.Time", BunTag: "updated_at"},
+		},
+	)
+	if !generated.HasPrimaryKey || generated.IDGoFieldName != "TenantID" ||
+		generated.IDType != "uuid.UUID" {
 		t.Fatalf("primary key metadata was not detected: %#v", generated)
 	}
 	if !generated.HasCreatedAt || !generated.HasUpdatedAt {
 		t.Fatalf("timestamp metadata was not detected: %#v", generated)
 	}
-	if !generated.Fields[1].IsForeignKey || !generated.Fields[1].IsNullable || !generated.Fields[2].IsNullable {
+	if !generated.Fields[1].IsForeignKey || !generated.Fields[1].IsNullable ||
+		!generated.Fields[2].IsNullable {
 		t.Fatalf("field metadata was not detected: %#v", generated.Fields)
 	}
 
-	withoutPK := generatedModelFromParsedEntity("Log", "logs", "example.com/app", []parsedField{{Name: "Message", TypeStr: "string"}})
-	if withoutPK.HasPrimaryKey || withoutPK.IDGoFieldName != "ID" || withoutPK.IDType != "uuid.UUID" {
+	withoutPK := generatedModelFromParsedEntity(
+		"Log",
+		"logs",
+		"example.com/app",
+		[]parsedField{{Name: "Message", TypeStr: "string"}},
+	)
+	if withoutPK.HasPrimaryKey || withoutPK.IDGoFieldName != "ID" ||
+		withoutPK.IDType != "uuid.UUID" {
 		t.Fatalf("unexpected fallback primary key metadata: %#v", withoutPK)
 	}
 }
@@ -770,7 +900,11 @@ import (
 
 const CustomValue = alias.Value
 `
-	custom, imports, err := customFactoryDecls(source, factorySyncGeneratedFactory(), expectedFactoryOptionNames(factorySyncGeneratedFactory()))
+	custom, imports, err := customFactoryDecls(
+		source,
+		factorySyncGeneratedFactory(),
+		expectedFactoryOptionNames(factorySyncGeneratedFactory()),
+	)
 	if err != nil {
 		t.Fatalf("collect custom declarations: %v", err)
 	}
@@ -784,11 +918,17 @@ const CustomValue = alias.Value
 	}
 
 	factory := factorySyncGeneratedFactory()
-	parsed, err := parser.ParseFile(token.NewFileSet(), "", "package factories\ntype ProductFactory struct{}\ntype Custom struct{}\n", 0)
+	parsed, err := parser.ParseFile(
+		token.NewFileSet(),
+		"",
+		"package factories\ntype ProductFactory struct{}\ntype Custom struct{}\n",
+		0,
+	)
 	if err != nil {
 		t.Fatalf("parse declarations: %v", err)
 	}
-	if !isGeneratedFactoryDecl(parsed.Decls[0], factory) || isGeneratedFactoryDecl(parsed.Decls[1], factory) {
+	if !isGeneratedFactoryDecl(parsed.Decls[0], factory) ||
+		isGeneratedFactoryDecl(parsed.Decls[1], factory) {
 		t.Fatalf("generated declaration classification failed: %#v", parsed.Decls)
 	}
 	if (FactorySyncResult{}).HasDrift() {
@@ -809,8 +949,18 @@ func factorySyncGeneratedFactory() *models.GeneratedFactory {
 		IDGoFieldName: "ID",
 		Fields: []models.FactoryField{
 			{Name: "ID", Type: "uuid.UUID", IsAutoManaged: true, IsID: true},
-			{Name: "Name", Type: "string", DefaultValue: "faker.Name()", OptionName: "WithProductsName"},
-			{Name: "Price", Type: "int32", DefaultValue: "randomInt(1, 1000, 100)", OptionName: "WithProductsPrice"},
+			{
+				Name:         "Name",
+				Type:         "string",
+				DefaultValue: "faker.Name()",
+				OptionName:   "WithProductsName",
+			},
+			{
+				Name:         "Price",
+				Type:         "int32",
+				DefaultValue: "randomInt(1, 1000, 100)",
+				OptionName:   "WithProductsPrice",
+			},
 		},
 	}
 }

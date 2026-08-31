@@ -47,7 +47,8 @@ func TestViewDataNullTypeHelpers(t *testing.T) {
 		t.Fatal("null field detection failed")
 	}
 	for _, field := range fields[:7] {
-		if !isNullType(field.GoType) || viewDataValue(field, "entity."+field.Name) == "entity."+field.Name {
+		if !isNullType(field.GoType) ||
+			viewDataValue(field, "entity."+field.Name) == "entity."+field.Name {
 			t.Fatalf("null field was not converted: %#v", field)
 		}
 	}
@@ -65,14 +66,21 @@ func TestViewDataNullTypeHelpers(t *testing.T) {
 		t.Fatalf("plain fields generated imports: %q", got)
 	}
 
-	view := &GeneratedView{NamespacePascal: "Admin", ResourceName: "Product", EntityName: "ProductEntity", Fields: fields[:2]}
+	view := &GeneratedView{
+		NamespacePascal: "Admin",
+		ResourceName:    "Product",
+		EntityName:      "ProductEntity",
+		Fields:          fields[:2],
+	}
 	definition := viewDataDefinition(view)
 	for _, want := range []string{"type AdminProductData struct", "func newAdminProductData", "Name string", "Active bool"} {
 		if !strings.Contains(definition, want) {
 			t.Fatalf("view definition missing %q:\n%s", want, definition)
 		}
 	}
-	if got := viewDataDefinition(&GeneratedView{Fields: []ViewField{{GoType: "string"}}}); got != "" {
+	if got := viewDataDefinition(
+		&GeneratedView{Fields: []ViewField{{GoType: "string"}}},
+	); got != "" {
 		t.Fatalf("plain view generated DTO: %q", got)
 	}
 }
@@ -81,7 +89,8 @@ func TestInertiaReactAndViewReferenceHelpers(t *testing.T) {
 	if !inertiaUsesForm("Create") || !inertiaUsesForm("Edit") || inertiaUsesForm("Show") {
 		t.Fatal("inertia form component classification failed")
 	}
-	if !inertiaNeedsItem("Index") || !inertiaNeedsItem("Show") || !inertiaNeedsItem("Edit") || inertiaNeedsItem("Create") {
+	if !inertiaNeedsItem("Index") || !inertiaNeedsItem("Show") || !inertiaNeedsItem("Edit") ||
+		inertiaNeedsItem("Create") {
 		t.Fatal("inertia item component classification failed")
 	}
 
@@ -91,9 +100,24 @@ func TestInertiaReactAndViewReferenceHelpers(t *testing.T) {
 		createValue string
 		inputValue  string
 	}{
-		{field: ViewField{Name: "Active", GoFormType: "bool"}, fieldType: "boolean", createValue: "false", inputValue: "event.currentTarget.checked"},
-		{field: ViewField{Name: "Count", GoFormType: "int64"}, fieldType: "number", createValue: "0", inputValue: "Number(event.currentTarget.value)"},
-		{field: ViewField{Name: "Name", GoFormType: "string"}, fieldType: "string", createValue: "''", inputValue: "event.currentTarget.value"},
+		{
+			field:       ViewField{Name: "Active", GoFormType: "bool"},
+			fieldType:   "boolean",
+			createValue: "false",
+			inputValue:  "event.currentTarget.checked",
+		},
+		{
+			field:       ViewField{Name: "Count", GoFormType: "int64"},
+			fieldType:   "number",
+			createValue: "0",
+			inputValue:  "Number(event.currentTarget.value)",
+		},
+		{
+			field:       ViewField{Name: "Name", GoFormType: "string"},
+			fieldType:   "string",
+			createValue: "''",
+			inputValue:  "event.currentTarget.value",
+		},
 	}
 	for _, test := range fields {
 		if got := inertiaReactFieldType(test.field); got != test.fieldType {
@@ -126,7 +150,12 @@ func TestInertiaReactAndViewReferenceHelpers(t *testing.T) {
 	if got := viewDataRef("Admin", "Product", "entity", false); got != "entity" {
 		t.Fatalf("plain data ref = %q", got)
 	}
-	if got := viewDataRef("Admin", "Product", "entity", true); got != "newAdminProductData(entity)" {
+	if got := viewDataRef(
+		"Admin",
+		"Product",
+		"entity",
+		true,
+	); got != "newAdminProductData(entity)" {
 		t.Fatalf("DTO data ref = %q", got)
 	}
 	if got := viewDataRowRef("", "Product", "row", true); got != "rowData" {
@@ -141,16 +170,25 @@ func TestInertiaReactAndViewReferenceHelpers(t *testing.T) {
 }
 
 func TestResourceViewActionDiscoveryAndAdapterHelpers(t *testing.T) {
-	if inertiaViewTemplatePrefix("react") != "inertia_react_" || inertiaViewTemplatePrefix("vue") != "inertia_vue_" || inertiaViewTemplatePrefix("svelte") != "inertia_svelte_" {
+	if inertiaViewTemplatePrefix("react") != "inertia_react_" ||
+		inertiaViewTemplatePrefix("vue") != "inertia_vue_" ||
+		inertiaViewTemplatePrefix("svelte") != "inertia_svelte_" {
 		t.Fatal("template prefix selection failed")
 	}
-	if inertiaViewExtension("react") != ".tsx" || inertiaViewExtension("vue") != ".vue" || inertiaViewExtension("svelte") != ".svelte" {
+	if inertiaViewExtension("react") != ".tsx" || inertiaViewExtension("vue") != ".vue" ||
+		inertiaViewExtension("svelte") != ".svelte" {
 		t.Fatal("view extension selection failed")
 	}
 	if got := namespacePrefix("Admin/API"); got == "" {
 		t.Fatal("namespace prefix should not be empty")
 	}
-	if got := mergeResourceViewActions([]string{"Index", "custom"}, []string{"SHOW", "index", "invalid"}); !reflect.DeepEqual(got, []string{"index", "show"}) {
+	if got := mergeResourceViewActions(
+		[]string{"Index", "custom"},
+		[]string{"SHOW", "index", "invalid"},
+	); !reflect.DeepEqual(
+		got,
+		[]string{"index", "show"},
+	) {
 		t.Fatalf("merged view actions = %#v", got)
 	}
 	if got := mergeResourceViewActions([]string{"index"}, nil); got != nil {
@@ -176,7 +214,11 @@ var _ = routes.AdminProductDestroy
 	if err != nil || !reflect.DeepEqual(actions, wantActions) {
 		t.Fatalf("existing view actions = %#v, %v", actions, err)
 	}
-	if _, err := existingResourceViewActions(filepath.Join(t.TempDir(), "missing.templ"), "Product", ""); err == nil {
+	if _, err := existingResourceViewActions(
+		filepath.Join(t.TempDir(), "missing.templ"),
+		"Product",
+		"",
+	); err == nil {
 		t.Fatal("expected missing view error")
 	}
 }

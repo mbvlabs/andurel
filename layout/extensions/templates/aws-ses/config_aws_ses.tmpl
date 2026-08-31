@@ -1,24 +1,48 @@
 package config
 
 import (
-	"github.com/caarlos0/env/v10"
+	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
-type awsSes struct {
-	Region           string `env:"AWS_REGION" envDefault:"us-east-1"`
+const (
+	DefaultAWSSESRegion = "us-east-1"
+)
+
+type AwsSesCfg struct {
+	Region           string `env:"AWS_REGION"`
 	AccessKeyID      string `env:"AWS_SES_ACCESS_KEY_ID"`
 	SecretAccessKey  string `env:"AWS_SES_SECRET_ACCESS_KEY"`
 	ConfigurationSet string `env:"AWS_SES_CONFIGURATION_SET"`
 }
 
-func newAwsSesConfig() awsSes {
-	cfg := awsSes{}
+func NewAwsSesCfg() AwsSesCfg {
+	cfg := AwsSesCfg{
+		Region: DefaultAWSSESRegion,
+	}
 
-	if err := env.ParseWithOptions(&cfg, env.Options{
-		RequiredIfNoDef: true,
-	}); err != nil {
+	if err := env.Parse(&cfg); err != nil {
+		panic(err)
+	}
+
+	if err := validation.Validate(&cfg); err != nil {
 		panic(err)
 	}
 
 	return cfg
 }
+
+func (c AwsSesCfg) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("Region", c.Region)
+
+	return b.Err()
+}
+
+func (c AwsSesCfg) GetRegion() string { return c.Region }
+
+func (c AwsSesCfg) GetAccessKeyID() string { return c.AccessKeyID }
+
+func (c AwsSesCfg) GetSecretAccessKey() string { return c.SecretAccessKey }
+
+func (c AwsSesCfg) GetConfigurationSet() string { return c.ConfigurationSet }

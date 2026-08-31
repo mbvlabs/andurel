@@ -26,7 +26,10 @@ func (p *DropTableParser) Parse(sql string) (*DropTableStatement, error) {
 	matches := dropRegex.FindStringSubmatch(sql)
 
 	if len(matches) < 3 {
-		return nil, unsupportedStatement(sql, "DROP TABLE supports one unquoted table name without CASCADE")
+		return nil, unsupportedStatement(
+			sql,
+			"DROP TABLE supports one unquoted table name without CASCADE",
+		)
 	}
 
 	schemaName := matches[1]
@@ -135,7 +138,9 @@ func NewCreateEnumParser() *CreateEnumParser {
 
 // Parse performs the parse operation.
 func (p *CreateEnumParser) Parse(sql string) (*CreateEnumStatement, error) {
-	enumRegex, err := regexp.Compile(`(?is)create\s+type\s+(?:(\w+)\.)?(\w+)\s+as\s+enum\s*\((.*)\)`)
+	enumRegex, err := regexp.Compile(
+		`(?is)create\s+type\s+(?:(\w+)\.)?(\w+)\s+as\s+enum\s*\((.*)\)`,
+	)
 	if err != nil {
 		return nil, err
 	}

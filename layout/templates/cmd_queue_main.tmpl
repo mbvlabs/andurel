@@ -4,47 +4,55 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/mbvlabs/andurel/pkg/server"
-	"{{.ModuleName}}/application"
 	mailclients "{{.ModuleName}}/clients/email"
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/email"
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/telemetry"
 
+	"github.com/mbvlabs/andurel/pkg/server"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/riverqueue/river"
 	"go.uber.org/fx"
 )
 
-var appVersion string
-
 func main() {
-	metadata := application.NewMetadata(appVersion)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	app := fx.New(
-		fx.Supply(metadata),
 		fx.Provide(
 			func() context.Context { return ctx },
-			func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
-				if application.Environment == server.ProdEnvironment {
+			func(
+				cfg config.EmailCfg,
+				appCfg config.AppCfg,
+			) (email.TransactionalSender, email.MarketingSender) {
+				if appCfg.GetEnvironment() == server.ProdEnvironment {
 					log.Fatal("provide real email sender")
 				}
 
-				return mailclients.NewMailpit(cfg), mailclients.NewMailpit(cfg)
+				return mailclients.NewMailpit(
+						cfg.GetMailpitHost(),
+						cfg.GetMailpitPort(),
+					), mailclients.NewMailpit(
+						cfg.GetMailpitHost(),
+						cfg.GetMailpitPort(),
+					)
 			},
+			func(cfg config.TelemetryCfg) telemetry.ConfigProvider { return cfg },
 		),
 
 		config.Module,
-		config.DatabaseModule,
+		databaseModule,
 		telemetry.Module,
 		queue.Module,
-		config.QueueProcessorModule,
+		queueProcessorModule,
 	)
 
 	if err := app.Start(ctx); err != nil {
@@ -61,4 +69,89 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
+}
+
+var databaseModule = fx.Module(
+	"database",
+	fx.Provide(fx.Annotate(newDatabase, fx.As(new(storage.Connection)), fx.As(fx.Self()))),
+)
+
+var queueProcessorModule = fx.Module(
+	"queue-processor",
+	fx.Provide(
+		slog.Default,
+		newQueueProcessor,
+	),
+	fx.Invoke(queueProcessorLifecycle),
+)
+
+func newDatabase(
+	lifecycle fx.Lifecycle,
+	ctx context.Context,
+	cfg config.Database,
+) (*storage.Postgres, error) {
+	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
+		DatabaseKind:             cfg.GetDatabaseKind(),
+		Host:                     cfg.GetHost(),
+		Port:                     cfg.GetPort(),
+		Name:                     cfg.GetName(),
+		User:                     cfg.GetUser(),
+		Password:                 cfg.GetPassword(),
+		SSLMode:                  cfg.GetSSLMode(),
+		ApplicationName:          cfg.GetApplicationName(),
+		ConnectTimeout:           cfg.GetConnectTimeout(),
+		StatementCacheCapacity:   cfg.GetStatementCacheCapacity(),
+		DescriptionCacheCapacity: cfg.GetDescriptionCacheCapacity(),
+		MaxOpenConnections:       cfg.GetMaxOpenConnections(),
+		MaxIdleConnections:       cfg.GetMaxIdleConnections(),
+		ConnectionMaxLifetime:    cfg.GetConnectionMaxLifetime(),
+		ConnectionMaxIdleTime:    cfg.GetConnectionMaxIdleTime(),
+		OpenTelemetry:            cfg.GetOpenTelemetry(),
+	}))
+	if err != nil {
+		return nil, err
+	}
+
+	lifecycle.Append(fx.Hook{OnStop: func(context.Context) error { return db.Close() }})
+	return db, nil
+}
+
+type queueProcessorParams struct {
+	fx.In
+
+	Connection   storage.Connection
+	Config       config.QueueCfg
+	Logger       *slog.Logger
+	Workers      *river.Workers
+	PeriodicJobs []*river.PeriodicJob `group:"periodic_jobs"`
+}
+
+func newQueueProcessor(params queueProcessorParams) (*storage.QueueProcessor, error) {
+	riverConfig := params.Config.RiverConfig()
+	riverConfig.Queues = map[string]river.QueueConfig{
+		river.QueueDefault: {MaxWorkers: params.Config.GetMaxWorkers()},
+	}
+
+	return storage.NewQueueProcessor(
+		params.Connection,
+		storage.WithRiverConfig(riverConfig),
+		storage.WithRiverWorkers(params.Workers),
+		storage.WithRiverPeriodicJobs(params.PeriodicJobs...),
+		storage.WithRiverLogger(params.Logger),
+	)
+}
+
+func queueProcessorLifecycle(
+	lifecycle fx.Lifecycle,
+	appCtx context.Context,
+	processor *storage.QueueProcessor,
+) {
+	lifecycle.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			return processor.Start(appCtx)
+		},
+		OnStop: func(ctx context.Context) error {
+			return processor.Stop(ctx)
+		},
+	})
 }

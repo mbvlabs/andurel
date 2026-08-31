@@ -4,30 +4,53 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
-	"{{.ModuleName}}/config"
 )
 
-type Identity struct {
-	db              storage.Connection
-	insertOnly      storage.InsertQueue
-	pepper          string
-	previousPeppers []string
-	tokenSigningKey string
+type TokenProvider interface {
+	GetTokenSigningKey() string
 }
 
-func NewIdentity(db storage.Connection, insertOnly storage.InsertQueue, cfg config.Config) Identity {
-	previousPeppers := make([]string, 0, len(cfg.Auth.PreviousPeppers))
-	for _, pepper := range cfg.Auth.PreviousPeppers {
-		if pepper = strings.TrimSpace(pepper); pepper != "" && pepper != cfg.Auth.Pepper {
-			previousPeppers = append(previousPeppers, pepper)
+type AuthProvider interface {
+	GetPepper() string
+	GetPreviousPeppers() []string
+}
+
+type AppIdentityProvider interface {
+	TokenProvider
+	GetBaseURL() string
+	GetDefaultSenderSignature() string
+}
+
+type Identity struct {
+	db                     storage.Connection
+	insertOnly             storage.InsertQueue
+	pepper                 string
+	previousPeppers        []string
+	tokenSigningKey        string
+	baseURL                string
+	defaultSenderSignature string
+}
+
+func NewIdentity(
+	db storage.Connection,
+	insertOnly storage.InsertQueue,
+	appCfg AppIdentityProvider,
+	authCfg AuthProvider,
+) Identity {
+	validPeppers := make([]string, 0, len(authCfg.GetPreviousPeppers()))
+	for _, p := range authCfg.GetPreviousPeppers() {
+		if p = strings.TrimSpace(p); p != "" && p != authCfg.GetPepper() {
+			validPeppers = append(validPeppers, p)
 		}
 	}
 
 	return Identity{
-		db:              db,
-		insertOnly:      insertOnly,
-		pepper:          cfg.Auth.Pepper,
-		previousPeppers: previousPeppers,
-		tokenSigningKey: cfg.App.TokenSigningKey,
+		db:                     db,
+		insertOnly:             insertOnly,
+		pepper:                 authCfg.GetPepper(),
+		previousPeppers:        validPeppers,
+		tokenSigningKey:        appCfg.GetTokenSigningKey(),
+		baseURL:                appCfg.GetBaseURL(),
+		defaultSenderSignature: appCfg.GetDefaultSenderSignature(),
 	}
 }

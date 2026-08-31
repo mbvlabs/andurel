@@ -12,9 +12,12 @@ func TestCatalogVisitorCreateAlterRenameAndDrop(t *testing.T) {
 	cat := catalog.NewCatalog("public")
 	visitor := NewCatalogVisitor(cat, "001_schema.sql", "postgresql")
 	create := &CreateTableStatement{
-		SchemaName:  "tenant",
-		TableName:   "accounts",
-		Columns:     []*catalog.Column{catalog.NewColumn("id", "uuid").SetPrimaryKey(), catalog.NewColumn("name", "text")},
+		SchemaName: "tenant",
+		TableName:  "accounts",
+		Columns: []*catalog.Column{
+			catalog.NewColumn("id", "uuid").SetPrimaryKey(),
+			catalog.NewColumn("name", "text"),
+		},
 		IfNotExists: true,
 	}
 	if err := visitor.VisitCreateTable(create); err != nil {
@@ -52,7 +55,12 @@ func TestCatalogVisitorCreateAlterRenameAndDrop(t *testing.T) {
 		t.Fatalf("alter column: %v", err)
 	}
 	score, err := table.GetColumn("score")
-	if err != nil || score.DataType != "numeric" || score.Precision == nil || *score.Precision != 12 || score.Scale == nil || *score.Scale != 2 || score.IsNullable || score.DefaultVal == nil {
+	if err != nil || score.DataType != "numeric" || score.Precision == nil ||
+		*score.Precision != 12 ||
+		score.Scale == nil ||
+		*score.Scale != 2 ||
+		score.IsNullable ||
+		score.DefaultVal == nil {
 		t.Fatalf("altered score = %#v, %v", score, err)
 	}
 	if score.ModifiedBy != "001_schema.sql" {
@@ -87,7 +95,9 @@ func TestCatalogVisitorCreateAlterRenameAndDrop(t *testing.T) {
 	if _, err := cat.GetTable("tenant", "accounts"); err == nil {
 		t.Fatal("old table remained after rename")
 	}
-	if err := visitor.VisitDropTable(&DropTableStatement{SchemaName: "tenant", TableName: "customers"}); err != nil {
+	if err := visitor.VisitDropTable(
+		&DropTableStatement{SchemaName: "tenant", TableName: "customers"},
+	); err != nil {
 		t.Fatalf("drop table: %v", err)
 	}
 }
@@ -96,10 +106,21 @@ func TestCatalogVisitorErrorsConstraintsAndStubOperations(t *testing.T) {
 	cat := catalog.NewCatalog("public")
 	visitor := NewCatalogVisitor(cat, "002_errors.sql", "postgresql")
 	duplicate := catalog.NewColumn("id", "uuid")
-	if err := visitor.VisitCreateTable(&CreateTableStatement{TableName: "duplicates", Columns: []*catalog.Column{duplicate, duplicate}}); err == nil || !strings.Contains(err.Error(), "failed to add column") {
+	if err := visitor.VisitCreateTable(
+		&CreateTableStatement{
+			TableName: "duplicates",
+			Columns:   []*catalog.Column{duplicate, duplicate},
+		},
+	); err == nil ||
+		!strings.Contains(err.Error(), "failed to add column") {
 		t.Fatalf("expected duplicate column error, got %v", err)
 	}
-	if err := visitor.VisitCreateTable(&CreateTableStatement{TableName: "users", Columns: []*catalog.Column{catalog.NewColumn("id", "uuid")}}); err != nil {
+	if err := visitor.VisitCreateTable(
+		&CreateTableStatement{
+			TableName: "users",
+			Columns:   []*catalog.Column{catalog.NewColumn("id", "uuid")},
+		},
+	); err != nil {
 		t.Fatalf("create users: %v", err)
 	}
 
@@ -116,7 +137,13 @@ func TestCatalogVisitorErrorsConstraintsAndStubOperations(t *testing.T) {
 		}
 	}
 
-	if err := visitor.VisitAlterTable(&AlterTableStatement{TableName: "users", AlterOperation: "ADD_CONSTRAINT", Raw: "ALTER TABLE users ADD UNIQUE (id)"}); err != nil {
+	if err := visitor.VisitAlterTable(
+		&AlterTableStatement{
+			TableName:      "users",
+			AlterOperation: "ADD_CONSTRAINT",
+			Raw:            "ALTER TABLE users ADD UNIQUE (id)",
+		},
+	); err != nil {
 		t.Fatalf("non-primary unique constraint should be ignored: %v", err)
 	}
 	if err := visitor.VisitDropTable(&DropTableStatement{TableName: "missing"}); err == nil {
@@ -134,7 +161,12 @@ func TestCatalogVisitorErrorsConstraintsAndStubOperations(t *testing.T) {
 			t.Fatalf("%s stub returned error: %v", name, err)
 		}
 	}
-	if err := visitor.VisitCreateEnum(&CreateEnumStatement{EnumName: "status", EnumDef: &catalog.Enum{Name: "status", Values: []string{"active"}}}); err != nil {
+	if err := visitor.VisitCreateEnum(
+		&CreateEnumStatement{
+			EnumName: "status",
+			EnumDef:  &catalog.Enum{Name: "status", Values: []string{"active"}},
+		},
+	); err != nil {
 		t.Fatalf("create enum: %v", err)
 	}
 }
@@ -144,7 +176,12 @@ func TestApplyDDLPersistsEnumsInCreatedSchemas(t *testing.T) {
 	if err := ApplyDDL(cat, "CREATE SCHEMA tenant", "001_schema.sql", "postgresql"); err != nil {
 		t.Fatalf("create schema: %v", err)
 	}
-	if err := ApplyDDL(cat, "CREATE TYPE tenant.status AS ENUM ('active', 'disabled')", "002_status.sql", "postgresql"); err != nil {
+	if err := ApplyDDL(
+		cat,
+		"CREATE TYPE tenant.status AS ENUM ('active', 'disabled')",
+		"002_status.sql",
+		"postgresql",
+	); err != nil {
 		t.Fatalf("create enum: %v", err)
 	}
 	enum, err := cat.GetEnum("tenant", "status")

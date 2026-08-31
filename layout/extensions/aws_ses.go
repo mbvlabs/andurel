@@ -18,20 +18,16 @@ func (e AwsSes) Apply(ctx *Context) error {
 
 	builder := ctx.Builder()
 	// Add config field
-	builder.AddConfigField("AwsSes", "awsSes")
+	builder.AddConfigField("AwsSes", "AwsSesCfg")
 
-	// Add env vars
-	builder.AddEnvVar("AWS_REGION", "AwsSes", "us-east-1")
-	builder.AddEnvVar("AWS_SES_ACCESS_KEY_ID", "AwsSes", "")
-	builder.AddEnvVar("AWS_SES_SECRET_ACCESS_KEY", "AwsSes", "")
-	builder.AddEnvVar("AWS_SES_CONFIGURATION_SET", "AwsSes", "")
-
-	builder.AddServiceProvide(`func(cfg config.Config) (email.TransactionalSender, email.MarketingSender) {
-	if config.Env == "production" {
-		return mailclients.NewAwsSes(cfg), mailclients.NewAwsSes(cfg)
+	builder.AddServiceProvide(
+		`func(appCfg config.AppCfg, awsSesCfg mailclients.SesConfigProvider, emailCfg mailclients.EmailConfigProvider) (email.TransactionalSender, email.MarketingSender) {
+	if appCfg.GetEnvironment() == server.ProdEnvironment {
+		return mailclients.NewAwsSes(awsSesCfg), mailclients.NewAwsSes(awsSesCfg)
 	}
-	return mailclients.NewMailpit(cfg), mailclients.NewMailpit(cfg)
-}`)
+	return mailclients.NewMailpit(emailCfg.GetMailpitHost(), emailCfg.GetMailpitPort()), mailclients.NewMailpit(emailCfg.GetMailpitHost(), emailCfg.GetMailpitPort())
+}`,
+	)
 
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("aws-ses: failed to render templates: %w", err)

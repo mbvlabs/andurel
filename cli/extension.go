@@ -25,13 +25,18 @@ extension generates its code files and updates framework-managed files.`,
 			return runExtensionList(cmd, showAvailable)
 		},
 	}
-	setAgentMetadata(extensionCmd, "introspection", "Read-only by default; use extension add for mutations.")
+	setAgentMetadata(
+		extensionCmd,
+		"introspection",
+		"Read-only by default; use extension add for mutations.",
+	)
 
 	extensionCmd.AddCommand(
 		newExtensionAddCommand(),
 		newExtensionListCommand(),
 	)
-	extensionCmd.Flags().BoolVar(&showAvailable, "available", false, "List available built-in extensions")
+	extensionCmd.Flags().
+		BoolVar(&showAvailable, "available", false, "List available built-in extensions")
 
 	return extensionCmd
 }
@@ -73,7 +78,10 @@ files in place.`,
 					"go mod tidy",
 				},
 				Breadcrumbs: []output.Breadcrumb{
-					{Command: "andurel doctor", Description: "Verify project health after applying the extension"},
+					{
+						Command:     "andurel doctor",
+						Description: "Verify project health after applying the extension",
+					},
 				},
 				Run: func(rootDir string) error {
 					applied, err := layout.ApplyExtension(rootDir, extensionName)
@@ -88,7 +96,8 @@ files in place.`,
 			})
 		},
 	}
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview file changes without applying the extension")
+	cmd.Flags().
+		BoolVar(&dryRun, "dry-run", false, "Preview file changes without applying the extension")
 	cmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
 	return cmd
 }
@@ -143,7 +152,9 @@ func runExtensionList(cmd *cobra.Command, showAvailable bool) error {
 	if err != nil {
 		return err
 	}
-	if opts.Mode == output.ModeJSON || opts.Mode == output.ModeAgent || opts.Mode == output.ModeMarkdown || opts.Quiet {
+	if opts.Mode == output.ModeJSON || opts.Mode == output.ModeAgent ||
+		opts.Mode == output.ModeMarkdown ||
+		opts.Quiet {
 		return output.OK(cmd, infos, "Listed extensions")
 	}
 

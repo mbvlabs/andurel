@@ -72,7 +72,11 @@ func TestGenerateSubCommands(t *testing.T) {
 	for _, expectedSub := range expectedSubs {
 		found := slices.Contains(subNames, expectedSub)
 		if !found {
-			t.Errorf("Expected generate subcommand '%s' not found. Available: %v", expectedSub, subNames)
+			t.Errorf(
+				"Expected generate subcommand '%s' not found. Available: %v",
+				expectedSub,
+				subNames,
+			)
 		}
 	}
 }
@@ -90,7 +94,12 @@ func TestGenerateHelpMentionsNamespacedResources(t *testing.T) {
 		{
 			name: "generate",
 			text: generateCmd.Long + "\n" + generateCmd.Example,
-			want: []string{"admin/Widget", "generate controller admin/Widget export", "generate scaffold admin/Widget", "generate routes"},
+			want: []string{
+				"admin/Widget",
+				"generate controller admin/Widget export",
+				"generate scaffold admin/Widget",
+				"generate routes",
+			},
 		},
 		{
 			name: "controller",
@@ -100,7 +109,11 @@ func TestGenerateHelpMentionsNamespacedResources(t *testing.T) {
 		{
 			name: "scaffold",
 			text: scaffoldCmd.Long + "\n" + scaffoldCmd.Example,
-			want: []string{"admin/Widget", "controllers/admin", "views/admin_widgets_resource.templ"},
+			want: []string{
+				"admin/Widget",
+				"controllers/admin",
+				"views/admin_widgets_resource.templ",
+			},
 		},
 	}
 

@@ -52,10 +52,20 @@ type fileState struct {
 
 func runMutation(cmd *cobra.Command, opts mutationOptions) error {
 	if opts.Run == nil {
-		return output.NewError(output.CodeUsage, "mutation runner is not configured", output.ExitUsage, "")
+		return output.NewError(
+			output.CodeUsage,
+			"mutation runner is not configured",
+			output.ExitUsage,
+			"",
+		)
 	}
 	if opts.RootDir == "" {
-		return output.NewError(output.CodeProjectNotFound, "project root is required", output.ExitProject, "")
+		return output.NewError(
+			output.CodeProjectNotFound,
+			"project root is required",
+			output.ExitProject,
+			"",
+		)
 	}
 
 	outOpts, err := output.ParseOptions(cmd)
@@ -144,7 +154,11 @@ func runDryMutation(cmd *cobra.Command, outOpts output.Options, opts mutationOpt
 	report.DryRun = true
 	report.Warnings = append(report.Warnings, "dry run only; no files were changed")
 	if outOpts.Mode == output.ModeHuman && !outOpts.Quiet {
-		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Dry run: %s\n", mutationSummary(report)); err != nil {
+		if _, err := fmt.Fprintf(
+			cmd.OutOrStdout(),
+			"Dry run: %s\n",
+			mutationSummary(report),
+		); err != nil {
 			return err
 		}
 		for _, path := range report.FilesCreated {
@@ -207,7 +221,11 @@ func buildMutationReport(opts mutationOptions, before, after fileSnapshot) mutat
 	sort.Strings(report.FilesDeleted)
 	sort.Strings(report.RoutesAdded)
 	if opts.Diff {
-		report.Diff = buildTextDiff(before, after, append(append([]string{}, report.FilesCreated...), report.FilesUpdated...))
+		report.Diff = buildTextDiff(
+			before,
+			after,
+			append(append([]string{}, report.FilesCreated...), report.FilesUpdated...),
+		)
 	}
 
 	return report
@@ -225,7 +243,11 @@ func mutationSummary(report mutationReport) string {
 	return fmt.Sprintf("%s %d files for %s", verb, total, report.Action)
 }
 
-func buildModelPlanMutationReport(rootDir, resourceName string, plan *generator.ModelGenerationPlan, includeDiff bool) mutationReport {
+func buildModelPlanMutationReport(
+	rootDir, resourceName string,
+	plan *generator.ModelGenerationPlan,
+	includeDiff bool,
+) mutationReport {
 	before := make(fileSnapshot)
 	after := make(fileSnapshot)
 	if plan != nil {

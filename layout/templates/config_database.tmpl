@@ -1,71 +1,119 @@
 package config
 
 import (
-	"context"
 	"time"
 
 	"github.com/caarlos0/env/v11"
-	"github.com/mbvlabs/andurel/pkg/storage"
-	"go.uber.org/fx"
+	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
-// databaseCfg contains environment-backed PostgreSQL settings.
-type databaseCfg struct {
-	Port                     string        `env:"DB_PORT" envDefault:"5432"`
-	Host                     string        `env:"DB_HOST" envDefault:"127.0.0.1"`
-	Name                     string        `env:"DB_NAME" envDefault:"andurel"`
-	User                     string        `env:"DB_USER" envDefault:"postgres"`
-	Password                 string        `env:"DB_PASSWORD" envDefault:"postgres"`
-	DatabaseKind             string        `env:"DB_KIND" envDefault:"postgres"`
-	SSLMode                  string        `env:"DB_SSL_MODE" envDefault:"disable"`
-	ApplicationName          string        `env:"DB_APPLICATION_NAME" envDefault:"andurel"`
-	ConnectTimeout           time.Duration `env:"DB_CONNECT_TIMEOUT" envDefault:"5s"`
-	StatementCacheCapacity   int           `env:"DB_STATEMENT_CACHE_CAPACITY" envDefault:"512"`
-	DescriptionCacheCapacity int           `env:"DB_DESCRIPTION_CACHE_CAPACITY" envDefault:"512"`
-	MaxOpenConnections       int           `env:"DB_MAX_OPEN_CONNECTIONS" envDefault:"25"`
-	MaxIdleConnections       int           `env:"DB_MAX_IDLE_CONNECTIONS" envDefault:"25"`
-	ConnectionMaxLifetime    time.Duration `env:"DB_CONNECTION_MAX_LIFETIME" envDefault:"1h"`
-	ConnectionMaxIdleTime    time.Duration `env:"DB_CONNECTION_MAX_IDLE_TIME" envDefault:"30m"`
-	OpenTelemetry            bool          `env:"DB_OPEN_TELEMETRY" envDefault:"true"`
+const (
+	DefaultDatabaseKind             = "postgres"
+	DefaultDatabaseHost             = "127.0.0.1"
+	DefaultDatabasePort             = "5432"
+	DefaultDatabaseName             = "andurel"
+	DefaultDatabaseUser             = "postgres"
+	DefaultDatabasePassword         = "postgres"
+	DefaultDatabaseSSLMode          = "disable"
+	DefaultApplicationName          = "andurel"
+	DefaultConnectTimeout           = 5 * time.Second
+	DefaultStatementCacheCapacity   = 512
+	DefaultDescriptionCacheCapacity = 512
+	DefaultMaxOpenConnections       = 25
+	DefaultMaxIdleConnections       = 25
+	DefaultConnectionMaxLifetime    = time.Hour
+	DefaultConnectionMaxIdleTime    = 30 * time.Minute
+)
+
+type Database struct {
+	Host                     string        `env:"DB_HOST"`
+	Port                     string        `env:"DB_PORT"`
+	Name                     string        `env:"DB_NAME"`
+	User                     string        `env:"DB_USER"`
+	Password                 string        `env:"DB_PASSWORD"`
+	DatabaseKind             string        `env:"DB_KIND"`
+	SSLMode                  string        `env:"DB_SSL_MODE"`
+	ApplicationName          string        `env:"DB_APPLICATION_NAME"`
+	ConnectTimeout           time.Duration `env:"DB_CONNECT_TIMEOUT"`
+	StatementCacheCapacity   int           `env:"DB_STATEMENT_CACHE_CAPACITY"`
+	DescriptionCacheCapacity int           `env:"DB_DESCRIPTION_CACHE_CAPACITY"`
+	MaxOpenConnections       int           `env:"DB_MAX_OPEN_CONNECTIONS"`
+	MaxIdleConnections       int           `env:"DB_MAX_IDLE_CONNECTIONS"`
+	ConnectionMaxLifetime    time.Duration `env:"DB_CONNECTION_MAX_LIFETIME"`
+	ConnectionMaxIdleTime    time.Duration `env:"DB_CONNECTION_MAX_IDLE_TIME"`
+	OpenTelemetry            bool          `env:"DB_OPEN_TELEMETRY"`
 }
 
-func newDatabaseConfig() databaseCfg {
-	cfg := databaseCfg{}
-	if err := env.ParseWithOptions(&cfg, env.Options{RequiredIfNoDef: true}); err != nil {
+func NewDatabaseCfg() Database {
+	cfg := Database{
+		Host:                     DefaultDatabaseHost,
+		Port:                     DefaultDatabasePort,
+		Name:                     DefaultDatabaseName,
+		User:                     DefaultDatabaseUser,
+		Password:                 DefaultDatabasePassword,
+		DatabaseKind:             DefaultDatabaseKind,
+		SSLMode:                  DefaultDatabaseSSLMode,
+		ApplicationName:          DefaultApplicationName,
+		ConnectTimeout:           DefaultConnectTimeout,
+		StatementCacheCapacity:   DefaultStatementCacheCapacity,
+		DescriptionCacheCapacity: DefaultDescriptionCacheCapacity,
+		MaxOpenConnections:       DefaultMaxOpenConnections,
+		MaxIdleConnections:       DefaultMaxIdleConnections,
+		ConnectionMaxLifetime:    DefaultConnectionMaxLifetime,
+		ConnectionMaxIdleTime:    DefaultConnectionMaxIdleTime,
+		OpenTelemetry:            true,
+	}
+
+	if err := env.Parse(&cfg); err != nil {
 		panic(err)
 	}
+
+	if err := validation.Validate(&cfg); err != nil {
+		panic(err)
+	}
+
 	return cfg
 }
 
-func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg Config) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
-		DatabaseKind:             cfg.DB.DatabaseKind,
-		Host:                     cfg.DB.Host,
-		Port:                     cfg.DB.Port,
-		Name:                     cfg.DB.Name,
-		User:                     cfg.DB.User,
-		Password:                 cfg.DB.Password,
-		SSLMode:                  cfg.DB.SSLMode,
-		ApplicationName:          cfg.DB.ApplicationName,
-		ConnectTimeout:           cfg.DB.ConnectTimeout,
-		StatementCacheCapacity:   cfg.DB.StatementCacheCapacity,
-		DescriptionCacheCapacity: cfg.DB.DescriptionCacheCapacity,
-		MaxOpenConnections:       cfg.DB.MaxOpenConnections,
-		MaxIdleConnections:       cfg.DB.MaxIdleConnections,
-		ConnectionMaxLifetime:    cfg.DB.ConnectionMaxLifetime,
-		ConnectionMaxIdleTime:    cfg.DB.ConnectionMaxIdleTime,
-		OpenTelemetry:            cfg.DB.OpenTelemetry,
-	}))
-	if err != nil {
-		return nil, err
-	}
+func (c Database) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("Host", c.Host)
+	b.Required("Port", c.Port)
+	b.Required("Name", c.Name)
+	b.Required("User", c.User)
+	b.Required("DatabaseKind", c.DatabaseKind)
 
-	lifecycle.Append(fx.Hook{OnStop: func(context.Context) error { return db.Close() }})
-	return db, nil
+	return b.Err()
 }
 
-// DatabaseModule provides the application database pool and manages its lifecycle.
-var DatabaseModule = fx.Module(
-	"database",
-	fx.Provide(fx.Annotate(newDatabase, fx.As(fx.Self(), new(storage.Connection)))),
-)
+func (c Database) GetDatabaseKind() string { return c.DatabaseKind }
+
+func (c Database) GetHost() string { return c.Host }
+
+func (c Database) GetPort() string { return c.Port }
+
+func (c Database) GetName() string { return c.Name }
+
+func (c Database) GetUser() string { return c.User }
+
+func (c Database) GetPassword() string { return c.Password }
+
+func (c Database) GetSSLMode() string { return c.SSLMode }
+
+func (c Database) GetApplicationName() string { return c.ApplicationName }
+
+func (c Database) GetConnectTimeout() time.Duration { return c.ConnectTimeout }
+
+func (c Database) GetStatementCacheCapacity() int { return c.StatementCacheCapacity }
+
+func (c Database) GetDescriptionCacheCapacity() int { return c.DescriptionCacheCapacity }
+
+func (c Database) GetMaxOpenConnections() int { return c.MaxOpenConnections }
+
+func (c Database) GetMaxIdleConnections() int { return c.MaxIdleConnections }
+
+func (c Database) GetConnectionMaxLifetime() time.Duration { return c.ConnectionMaxLifetime }
+
+func (c Database) GetConnectionMaxIdleTime() time.Duration { return c.ConnectionMaxIdleTime }
+
+func (c Database) GetOpenTelemetry() bool { return c.OpenTelemetry }

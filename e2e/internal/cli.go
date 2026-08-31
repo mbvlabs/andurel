@@ -24,13 +24,24 @@ func RunCommand(t *testing.T, cmdName, workDir string, env []string, args ...str
 }
 
 // RunCommandExpectError runs a command that is expected to fail, suppressing failure logs.
-func RunCommandExpectError(t *testing.T, cmdName, workDir string, env []string, args ...string) error {
+func RunCommandExpectError(
+	t *testing.T,
+	cmdName, workDir string,
+	env []string,
+	args ...string,
+) error {
 	t.Helper()
 
 	return runCommandInternal(t, cmdName, workDir, env, false, args...)
 }
 
-func runCommandInternal(t *testing.T, cmdName, workDir string, env []string, logOnError bool, args ...string) error {
+func runCommandInternal(
+	t *testing.T,
+	cmdName, workDir string,
+	env []string,
+	logOnError bool,
+	args ...string,
+) error {
 	t.Helper()
 
 	cmd := exec.Command(cmdName, args...)
@@ -60,7 +71,12 @@ func runCommandInternal(t *testing.T, cmdName, workDir string, env []string, log
 }
 
 // RunCommandOutput runs command output.
-func RunCommandOutput(t *testing.T, cmdName, workDir string, env []string, args ...string) (string, error) {
+func RunCommandOutput(
+	t *testing.T,
+	cmdName, workDir string,
+	env []string,
+	args ...string,
+) (string, error) {
 	t.Helper()
 
 	cmd := exec.Command(cmdName, args...)

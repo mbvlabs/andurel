@@ -188,7 +188,10 @@ func emitCLIContract() error {
 			{Code: output.CodeUpdateRequired, ExitCode: output.ExitDependency},
 		},
 	}
-	slices.SortFunc(value.Errors, func(a, b errorContract) int { return strings.Compare(a.Code, b.Code) })
+	slices.SortFunc(
+		value.Errors,
+		func(a, b errorContract) int { return strings.Compare(a.Code, b.Code) },
+	)
 
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
@@ -205,8 +208,13 @@ func collectCommands(root *cobra.Command) []commandContract {
 			cmd.InitDefaultVersionFlag()
 		}
 
-		flags := append(flagsFromSet(cmd.LocalNonPersistentFlags(), false), flagsFromSet(cmd.PersistentFlags(), true)...)
-		slices.SortFunc(flags, func(a, b flagContract) int { return strings.Compare(a.Name, b.Name) })
+		flags := append(
+			flagsFromSet(cmd.LocalNonPersistentFlags(), false),
+			flagsFromSet(cmd.PersistentFlags(), true)...)
+		slices.SortFunc(
+			flags,
+			func(a, b flagContract) int { return strings.Compare(a.Name, b.Name) },
+		)
 		commands = append(commands, commandContract{
 			Path:    cmd.CommandPath(),
 			Use:     cmd.Use,
@@ -221,13 +229,19 @@ func collectCommands(root *cobra.Command) []commandContract {
 			}
 			children = append(children, child)
 		}
-		slices.SortFunc(children, func(a, b *cobra.Command) int { return strings.Compare(a.Name(), b.Name()) })
+		slices.SortFunc(
+			children,
+			func(a, b *cobra.Command) int { return strings.Compare(a.Name(), b.Name()) },
+		)
 		for _, child := range children {
 			walk(child)
 		}
 	}
 	walk(root)
-	slices.SortFunc(commands, func(a, b commandContract) int { return strings.Compare(a.Path, b.Path) })
+	slices.SortFunc(
+		commands,
+		func(a, b commandContract) int { return strings.Compare(a.Path, b.Path) },
+	)
 	return commands
 }
 
@@ -271,7 +285,8 @@ func collectJSONStructs() ([]jsonStructContract, error) {
 				}
 				return nil
 			}
-			if strings.HasSuffix(entry.Name(), "_test.go") || !strings.HasSuffix(entry.Name(), ".go") {
+			if strings.HasSuffix(entry.Name(), "_test.go") ||
+				!strings.HasSuffix(entry.Name(), ".go") {
 				return nil
 			}
 			return collectFileJSONStructs(root, path, &contracts)
@@ -281,7 +296,10 @@ func collectJSONStructs() ([]jsonStructContract, error) {
 		}
 	}
 
-	slices.SortFunc(contracts, func(a, b jsonStructContract) int { return strings.Compare(a.Type, b.Type) })
+	slices.SortFunc(
+		contracts,
+		func(a, b jsonStructContract) int { return strings.Compare(a.Type, b.Type) },
+	)
 	return contracts, nil
 }
 
@@ -333,7 +351,10 @@ func collectFileJSONStructs(root, path string, contracts *[]jsonStructContract) 
 		if len(fields) == 0 {
 			return true
 		}
-		*contracts = append(*contracts, jsonStructContract{Type: pkg + "." + typeSpec.Name.Name, Fields: fields})
+		*contracts = append(
+			*contracts,
+			jsonStructContract{Type: pkg + "." + typeSpec.Name.Name, Fields: fields},
+		)
 		return true
 	})
 	return nil

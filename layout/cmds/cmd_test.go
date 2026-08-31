@@ -23,7 +23,9 @@ func TestCommandHelperProcess(t *testing.T) {
 	if expectedDir := os.Getenv("ANDUREL_COMMAND_DIR"); expectedDir != "" {
 		actualDir, err := os.Getwd()
 		if err != nil || actualDir != expectedDir {
-			_, _ = os.Stderr.WriteString("working directory = " + actualDir + ", want " + expectedDir)
+			_, _ = os.Stderr.WriteString(
+				"working directory = " + actualDir + ", want " + expectedDir,
+			)
 			os.Exit(2)
 		}
 	}
@@ -62,13 +64,49 @@ func TestRunCommands(t *testing.T) {
 	}{
 		{name: "go mod tidy", command: []string{"go", "mod", "tidy"}, run: RunGoModTidy},
 		{name: "go fmt", command: []string{"go", "fmt", "./..."}, run: RunGoFmt},
-		{name: "go fmt path", command: []string{"go", "fmt", "./models"}, run: func(dir string) error {
-			return RunGoFmtPath(dir, "./models")
-		}},
+		{
+			name:    "go fmt path",
+			command: []string{"go", "fmt", "./models"},
+			run: func(dir string) error {
+				return RunGoFmtPath(dir, "./models")
+			},
+		},
 		{name: "golines", command: []string{"golines", "-w", "-m", "100", "."}, run: RunGolines},
-		{name: "templ generate", command: []string{"go", "run", "github.com/a-h/templ/cmd/templ@" + versions.Templ, "generate", "-path", "."}, run: RunTemplGenerate},
-		{name: "templ fmt", command: []string{"go", "run", "github.com/a-h/templ/cmd/templ@" + versions.Templ, "fmt", "views"}, run: RunTemplFmt},
-		{name: "goose fix", command: []string{"go", "run", "github.com/pressly/goose/v3/cmd/goose@" + versions.Goose, "-dir", "database/migrations", "fix"}, run: RunGooseFix},
+		{
+			name: "templ generate",
+			command: []string{
+				"go",
+				"run",
+				"github.com/a-h/templ/cmd/templ@" + versions.Templ,
+				"generate",
+				"-path",
+				".",
+			},
+			run: RunTemplGenerate,
+		},
+		{
+			name: "templ fmt",
+			command: []string{
+				"go",
+				"run",
+				"github.com/a-h/templ/cmd/templ@" + versions.Templ,
+				"fmt",
+				"views",
+			},
+			run: RunTemplFmt,
+		},
+		{
+			name: "goose fix",
+			command: []string{
+				"go",
+				"run",
+				"github.com/pressly/goose/v3/cmd/goose@" + versions.Goose,
+				"-dir",
+				"database/migrations",
+				"fix",
+			},
+			run: RunGooseFix,
+		},
 	}
 
 	for _, tt := range tests {
@@ -102,7 +140,8 @@ func TestRunCommandErrors(t *testing.T) {
 		}
 		for _, run := range runners {
 			err := run("project")
-			if !errors.Is(err, expectedErr) || !strings.Contains(err.Error(), "failed to get absolute path") {
+			if !errors.Is(err, expectedErr) ||
+				!strings.Contains(err.Error(), "failed to get absolute path") {
 				t.Fatalf("unexpected absolute path error: %v", err)
 			}
 		}
@@ -124,17 +163,40 @@ func TestRunCommandErrors(t *testing.T) {
 			t.Fatal("expected golines failure")
 		}
 
-		expectCommand(t, "go", "run", "github.com/a-h/templ/cmd/templ@"+versions.Templ, "generate", "-path", ".")
+		expectCommand(
+			t,
+			"go",
+			"run",
+			"github.com/a-h/templ/cmd/templ@"+versions.Templ,
+			"generate",
+			"-path",
+			".",
+		)
 		if err := RunTemplGenerate(targetDir); err == nil {
 			t.Fatal("expected templ generate failure")
 		}
 
-		expectCommand(t, "go", "run", "github.com/a-h/templ/cmd/templ@"+versions.Templ, "fmt", "views")
+		expectCommand(
+			t,
+			"go",
+			"run",
+			"github.com/a-h/templ/cmd/templ@"+versions.Templ,
+			"fmt",
+			"views",
+		)
 		if err := RunTemplFmt(targetDir); err == nil {
 			t.Fatal("expected templ fmt failure")
 		}
 
-		expectCommand(t, "go", "run", "github.com/pressly/goose/v3/cmd/goose@"+versions.Goose, "-dir", "database/migrations", "fix")
+		expectCommand(
+			t,
+			"go",
+			"run",
+			"github.com/pressly/goose/v3/cmd/goose@"+versions.Goose,
+			"-dir",
+			"database/migrations",
+			"fix",
+		)
 		if err := RunGooseFix(targetDir); err == nil {
 			t.Fatal("expected goose fix failure")
 		}

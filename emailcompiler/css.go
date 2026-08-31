@@ -473,7 +473,11 @@ func resolveDeclarations(
 	return resolved, nil
 }
 
-func resolveCSSValue(value string, variables map[string]string, stack map[string]bool) (string, error) {
+func resolveCSSValue(
+	value string,
+	variables map[string]string,
+	stack map[string]bool,
+) (string, error) {
 	if stack == nil {
 		stack = make(map[string]bool)
 	}
@@ -544,7 +548,9 @@ func matchingParen(value string, open int) (int, error) {
 	return 0, errorsNew("unterminated CSS function")
 }
 
-var simpleCalcPattern = regexp.MustCompile(`calc\(\s*(-?[0-9]*\.?[0-9]+)([a-zA-Z%]*)\s*([*/])\s*(-?[0-9]*\.?[0-9]+)([a-zA-Z%]*)\s*\)`)
+var simpleCalcPattern = regexp.MustCompile(
+	`calc\(\s*(-?[0-9]*\.?[0-9]+)([a-zA-Z%]*)\s*([*/])\s*(-?[0-9]*\.?[0-9]+)([a-zA-Z%]*)\s*\)`,
+)
 
 func simplifyCalc(value string) string {
 	for {
@@ -576,8 +582,14 @@ func simplifyCalc(value string) string {
 }
 
 var remPattern = regexp.MustCompile(`(-?[0-9]*\.?[0-9]+)rem\b`)
-var oklchPattern = regexp.MustCompile(`oklch\(\s*([0-9]*\.?[0-9]+)%?\s+([0-9]*\.?[0-9]+)\s+([0-9]*\.?[0-9]+)(?:\s*/\s*([0-9]*\.?[0-9]+)%?)?\s*\)`)
-var shortHexPattern = regexp.MustCompile(`(?i)(^|[^#a-z0-9])#([0-9a-f])([0-9a-f])([0-9a-f])([^0-9a-f]|$)`)
+
+var oklchPattern = regexp.MustCompile(
+	`oklch\(\s*([0-9]*\.?[0-9]+)%?\s+([0-9]*\.?[0-9]+)\s+([0-9]*\.?[0-9]+)(?:\s*/\s*([0-9]*\.?[0-9]+)%?)?\s*\)`,
+)
+
+var shortHexPattern = regexp.MustCompile(
+	`(?i)(^|[^#a-z0-9])#([0-9a-f])([0-9a-f])([0-9a-f])([^0-9a-f]|$)`,
+)
 
 func normalizeEmailValue(value string) string {
 	value = remPattern.ReplaceAllStringFunc(value, func(match string) string {
@@ -622,7 +634,13 @@ func oklchToHex(value string) string {
 		if strings.Contains(value, "%") && alpha > 1 {
 			alpha /= 100
 		}
-		return fmt.Sprintf("rgba(%d, %d, %d, %s)", colorByte(r), colorByte(g), colorByte(bl), formatCSSNumber(alpha))
+		return fmt.Sprintf(
+			"rgba(%d, %d, %d, %s)",
+			colorByte(r),
+			colorByte(g),
+			colorByte(bl),
+			formatCSSNumber(alpha),
+		)
 	}
 	return fmt.Sprintf("#%02x%02x%02x", colorByte(r), colorByte(g), colorByte(bl))
 }

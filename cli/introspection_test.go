@@ -14,7 +14,12 @@ import (
 
 func TestReadGoModMetadata(t *testing.T) {
 	root := t.TempDir()
-	writeTestFile(t, root, "go.mod", "module example.com/acme/orders\n\ngo 1.26\nrequire example.com/dep v1.0.0\n")
+	writeTestFile(
+		t,
+		root,
+		"go.mod",
+		"module example.com/acme/orders\n\ngo 1.26\nrequire example.com/dep v1.0.0\n",
+	)
 
 	module, goVersion, err := readGoModMetadata(root)
 	if err != nil {
@@ -59,7 +64,10 @@ func TestExtensionAndToolInfos(t *testing.T) {
 	lock.Extensions["mail"] = &layout.Extension{AppliedAt: "2026-07-08T10:00:00Z"}
 	lock.Extensions["aws"] = nil
 	lock.Tools["templ"] = layout.NewBinaryTool("templ", "v0.3.1")
-	lock.Tools["shadowfax"] = layout.NewBuiltTool(filepath.ToSlash(filepath.Join("cmd", "shadowfax")), "v1.0.0")
+	lock.Tools["shadowfax"] = layout.NewBuiltTool(
+		filepath.ToSlash(filepath.Join("cmd", "shadowfax")),
+		"v1.0.0",
+	)
 
 	extensions := extensionInfos(lock)
 	if !reflect.DeepEqual(extensions, []extensionInfo{
@@ -103,7 +111,8 @@ func TestCollectProjectInfo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("collectProjectInfo: %v", err)
 	}
-	if info.Root != root || info.Module != "example.com/acme/orders" || info.GoVersion != "1.26" || info.AndurelVersion != "v1.2.3" {
+	if info.Root != root || info.Module != "example.com/acme/orders" || info.GoVersion != "1.26" ||
+		info.AndurelVersion != "v1.2.3" {
 		t.Fatalf("unexpected project identity: %#v", info)
 	}
 	if info.ScaffoldConfig == nil || info.ScaffoldConfig.JavaScriptRuntime != "pnpm" {
@@ -118,7 +127,9 @@ func TestCollectProjectInfo(t *testing.T) {
 	if len(info.Tools) != 1 || !info.Tools[0].Installed {
 		t.Fatalf("unexpected tools: %#v", info.Tools)
 	}
-	if info.ConfigPath != filepath.Join(root, ".andurel", "config.json") || info.UserConfigPath == "" || info.UserCacheDirectory == "" {
+	if info.ConfigPath != filepath.Join(root, ".andurel", "config.json") ||
+		info.UserConfigPath == "" ||
+		info.UserCacheDirectory == "" {
 		t.Fatalf("unexpected paths: %#v", info)
 	}
 }

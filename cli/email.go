@@ -52,7 +52,13 @@ func compileEmailProject(ctx context.Context, rootDir string) error {
 	if !ok {
 		tailwindTool = layout.NewBinaryTool("tailwindcli", versions.TailwindCLI)
 	}
-	if err := syncSingleToolFunc(rootDir, "tailwindcli", tailwindTool, runtime.GOOS, runtime.GOARCH); err != nil {
+	if err := syncSingleToolFunc(
+		rootDir,
+		"tailwindcli",
+		tailwindTool,
+		runtime.GOOS,
+		runtime.GOARCH,
+	); err != nil {
 		return fmt.Errorf("failed to sync tailwind CLI: %w", err)
 	}
 

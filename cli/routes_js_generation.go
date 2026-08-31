@@ -59,7 +59,11 @@ resources/js/routes.ts for Vue, React, or Svelte Inertia frontends.`,
 			return output.OK(cmd, report, routesJSReportSummary(report))
 		},
 	}
-	setAgentMetadata(cmd, "generation", "Writes Inertia frontend route helpers to resources/js/routes.ts from the route manifest. Use --json for generated helper and skipped counts.")
+	setAgentMetadata(
+		cmd,
+		"generation",
+		"Writes Inertia frontend route helpers to resources/js/routes.ts from the route manifest. Use --json for generated helper and skipped counts.",
+	)
 	return cmd
 }
 
@@ -84,7 +88,10 @@ func requireInertiaProjectForRoutesJS(rootDir string) error {
 	if !layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
 		return output.NewError(
 			output.CodeInvalidInertiaAdapter,
-			fmt.Sprintf("unsupported inertia adapter in andurel.lock: %s", lock.ScaffoldConfig.Inertia),
+			fmt.Sprintf(
+				"unsupported inertia adapter in andurel.lock: %s",
+				lock.ScaffoldConfig.Inertia,
+			),
 			output.ExitUsage,
 			"Use vue, react, or svelte in scaffoldConfig.inertia before generating TypeScript route helpers.",
 		)
@@ -115,7 +122,11 @@ func generateRoutesJSFile(rootDir string, manifest routeManifest) (routesJSRepor
 }
 
 func routesJSReportSummary(report routesJSReport) string {
-	summary := fmt.Sprintf("Generated %d route helpers to %s", report.GeneratedHelpers, report.GeneratedFile)
+	summary := fmt.Sprintf(
+		"Generated %d route helpers to %s",
+		report.GeneratedHelpers,
+		report.GeneratedFile,
+	)
 	if report.SkippedCount > 0 {
 		summary = fmt.Sprintf("%s (%d skipped)", summary, report.SkippedCount)
 	}
@@ -156,7 +167,13 @@ func routeJSHelpers(routes []routeManifestRoute) ([]routeJSHelper, error) {
 		if existing, ok := seen[helperName]; ok {
 			return nil, output.NewError(
 				output.CodeGenerationFailed,
-				fmt.Sprintf("route helper name collision for %q: %s and %s both map to %s", helperName, existing.Variable, route.Variable, helperName),
+				fmt.Sprintf(
+					"route helper name collision for %q: %s and %s both map to %s",
+					helperName,
+					existing.Variable,
+					route.Variable,
+					helperName,
+				),
 				output.ExitGeneration,
 				"Rename one route variable so generated TypeScript helper names are unique.",
 			)
@@ -188,7 +205,11 @@ func validateRouteJSParams(route routeManifestRoute) error {
 		if !isTypeScriptIdentifier(param.Name) {
 			return output.NewError(
 				output.CodeGenerationFailed,
-				fmt.Sprintf("route %s has parameter %q that cannot be used as a TypeScript identifier", route.Variable, param.Name),
+				fmt.Sprintf(
+					"route %s has parameter %q that cannot be used as a TypeScript identifier",
+					route.Variable,
+					param.Name,
+				),
 				output.ExitGeneration,
 				"Rename the route parameter to a valid identifier before generating TypeScript helpers.",
 			)
@@ -240,7 +261,11 @@ func renderRouteJSTemplatePath(route routeManifestRoute) (string, error) {
 		if _, ok := paramSet[name]; !ok {
 			return "", output.NewError(
 				output.CodeGenerationFailed,
-				fmt.Sprintf("route %s path references parameter %q missing from manifest params", route.Variable, name),
+				fmt.Sprintf(
+					"route %s path references parameter %q missing from manifest params",
+					route.Variable,
+					name,
+				),
 				output.ExitGeneration,
 				"Inspect the route manifest and route path before generating TypeScript helpers.",
 			)

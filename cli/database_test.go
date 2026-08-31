@@ -106,14 +106,23 @@ func TestDatabaseHelpers(t *testing.T) {
 	if got, want := quoteIdentifier(`tenant"one`), `"tenant""one"`; got != want {
 		t.Fatalf("quoteIdentifier = %q, want %q", got, want)
 	}
-	if got := splitNonEmptyLines("\n alpha \n\n beta\n"); !reflect.DeepEqual(got, []string{"alpha", "beta"}) {
+	if got := splitNonEmptyLines(
+		"\n alpha \n\n beta\n",
+	); !reflect.DeepEqual(
+		got,
+		[]string{"alpha", "beta"},
+	) {
 		t.Fatalf("splitNonEmptyLines = %#v", got)
 	}
 }
 
 func TestLoadProjectEnv(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("DB_KIND=postgres\nDB_NAME=from_env\n"), 0o644); err != nil {
+	if err := os.WriteFile(
+		filepath.Join(root, ".env"),
+		[]byte("DB_KIND=postgres\nDB_NAME=from_env\n"),
+		0o644,
+	); err != nil {
 		t.Fatalf("write .env: %v", err)
 	}
 	unsetEnvForTest(t, "DB_KIND", "DB_NAME")
@@ -121,7 +130,11 @@ func TestLoadProjectEnv(t *testing.T) {
 	loadProjectEnv(root)
 
 	if os.Getenv("DB_KIND") != "postgres" || os.Getenv("DB_NAME") != "from_env" {
-		t.Fatalf("expected .env values to load, got kind=%q name=%q", os.Getenv("DB_KIND"), os.Getenv("DB_NAME"))
+		t.Fatalf(
+			"expected .env values to load, got kind=%q name=%q",
+			os.Getenv("DB_KIND"),
+			os.Getenv("DB_NAME"),
+		)
 	}
 }
 
@@ -262,7 +275,8 @@ func TestRunSeedStructuredErrorAndMissingEntrypoint(t *testing.T) {
 		return []byte("boom\n"), errors.New("exit status 1")
 	}
 	err = runSeed(cmd, "", false)
-	if !errors.As(err, &cliErr) || cliErr.Code != output.CodeExternalCommandFailed || !strings.Contains(cliErr.Hint, "boom") {
+	if !errors.As(err, &cliErr) || cliErr.Code != output.CodeExternalCommandFailed ||
+		!strings.Contains(cliErr.Hint, "boom") {
 		t.Fatalf("seed failure error = %#v", err)
 	}
 }
@@ -282,7 +296,16 @@ func TestRunGooseBuildsCommand(t *testing.T) {
 	}, "\n"))
 	writeTestFile(t, root, "bin/goose", "#!/bin/sh\n")
 	writeTestFile(t, root, "database/migrations/0001_init.sql", "-- noop\n")
-	unsetEnvForTest(t, "DB_KIND", "DB_PORT", "DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_SSL_MODE")
+	unsetEnvForTest(
+		t,
+		"DB_KIND",
+		"DB_PORT",
+		"DB_HOST",
+		"DB_NAME",
+		"DB_USER",
+		"DB_PASSWORD",
+		"DB_SSL_MODE",
+	)
 
 	originalFindGoModRoot := findGoModRoot
 	originalRunGooseCommand := runGooseCommand
@@ -338,7 +361,16 @@ func TestDatabaseLifecycleWithFakeAdminConnection(t *testing.T) {
 		"DB_SSL_MODE=disable",
 		"",
 	}, "\n"))
-	unsetEnvForTest(t, "DB_KIND", "DB_PORT", "DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_SSL_MODE")
+	unsetEnvForTest(
+		t,
+		"DB_KIND",
+		"DB_PORT",
+		"DB_HOST",
+		"DB_NAME",
+		"DB_USER",
+		"DB_PASSWORD",
+		"DB_SSL_MODE",
+	)
 
 	originalFindGoModRoot := findGoModRoot
 	findGoModRoot = func() (string, error) { return root, nil }
@@ -367,7 +399,8 @@ func TestDatabaseLifecycleWithFakeAdminConnection(t *testing.T) {
 	if err := dropDatabase(false); err != nil {
 		t.Fatalf("dropDatabase: %v", err)
 	}
-	if !containsSQL(fake.execs, "pg_terminate_backend") || !containsSQL(fake.execs, `DROP DATABASE IF EXISTS "app_db"`) {
+	if !containsSQL(fake.execs, "pg_terminate_backend") ||
+		!containsSQL(fake.execs, `DROP DATABASE IF EXISTS "app_db"`) {
 		t.Fatalf("dropDatabase execs=%#v", fake.execs)
 	}
 
@@ -399,7 +432,8 @@ func TestDatabaseLifecycleWithFakeAdminConnection(t *testing.T) {
 	if !reflect.DeepEqual(gooseArgs, []string{"up"}) || seedName != "development" {
 		t.Fatalf("rebuild orchestration goose=%#v seed=%q", gooseArgs, seedName)
 	}
-	if !containsSQL(fake.execs, `DROP DATABASE IF EXISTS "app_db"`) || !containsSQL(fake.execs, `CREATE DATABASE "app_db"`) {
+	if !containsSQL(fake.execs, `DROP DATABASE IF EXISTS "app_db"`) ||
+		!containsSQL(fake.execs, `CREATE DATABASE "app_db"`) {
 		t.Fatalf("rebuild execs=%#v", fake.execs)
 	}
 }
@@ -418,7 +452,16 @@ func TestDeclinedRebuildDoesNotMutateOrContinue(t *testing.T) {
 		"DB_SSL_MODE=disable",
 		"",
 	}, "\n"))
-	unsetEnvForTest(t, "DB_KIND", "DB_PORT", "DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD", "DB_SSL_MODE")
+	unsetEnvForTest(
+		t,
+		"DB_KIND",
+		"DB_PORT",
+		"DB_HOST",
+		"DB_NAME",
+		"DB_USER",
+		"DB_PASSWORD",
+		"DB_SSL_MODE",
+	)
 
 	originalFindGoModRoot := findGoModRoot
 	findGoModRoot = func() (string, error) { return root, nil }
@@ -452,7 +495,12 @@ func TestDeclinedRebuildDoesNotMutateOrContinue(t *testing.T) {
 		t.Fatalf("rebuildDatabase error = %v", err)
 	}
 	if gooseCalled || seedCalled || len(fake.execs) != 0 {
-		t.Fatalf("declined rebuild mutated state: goose=%t seed=%t sql=%#v", gooseCalled, seedCalled, fake.execs)
+		t.Fatalf(
+			"declined rebuild mutated state: goose=%t seed=%t sql=%#v",
+			gooseCalled,
+			seedCalled,
+			fake.execs,
+		)
 	}
 	if output := outputText(); strings.Contains(output, "never-print-this-password") {
 		t.Fatalf("confirmation exposed database password: %q", output)
@@ -559,13 +607,28 @@ func TestMigrationCommandsCallGoose(t *testing.T) {
 		args []string
 		want []string
 	}{
-		{name: "new", cmd: newDBMigrationNewCommand(), args: []string{"create_users"}, want: []string{"create", "create_users", "sql"}},
+		{
+			name: "new",
+			cmd:  newDBMigrationNewCommand(),
+			args: []string{"create_users"},
+			want: []string{"create", "create_users", "sql"},
+		},
 		{name: "up", cmd: newDBMigrationUpCommand(), want: []string{"up"}},
 		{name: "down", cmd: newDBMigrationDownCommand(), want: []string{"down"}},
 		{name: "fix", cmd: newDBMigrationFixCommand(), want: []string{"fix"}},
 		{name: "reset", cmd: newDBMigrationResetCommand(), want: []string{"reset"}},
-		{name: "up-to", cmd: newDBMigrationUpToCommand(), args: []string{"10"}, want: []string{"up-to", "10"}},
-		{name: "down-to", cmd: newDBMigrationDownToCommand(), args: []string{"9"}, want: []string{"down-to", "9"}},
+		{
+			name: "up-to",
+			cmd:  newDBMigrationUpToCommand(),
+			args: []string{"10"},
+			want: []string{"up-to", "10"},
+		},
+		{
+			name: "down-to",
+			cmd:  newDBMigrationDownToCommand(),
+			args: []string{"9"},
+			want: []string{"down-to", "9"},
+		},
 		{name: "status", cmd: newDBMigrationStatusCommand(), want: []string{"status"}},
 	}
 
@@ -625,7 +688,11 @@ type fakeAdminConnection struct {
 	closeErr error
 }
 
-func (f *fakeAdminConnection) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
+func (f *fakeAdminConnection) Exec(
+	ctx context.Context,
+	sql string,
+	arguments ...any,
+) (pgconn.CommandTag, error) {
 	f.execs = append(f.execs, sql)
 	if f.err != nil && (f.errOn == "" || strings.Contains(sql, f.errOn)) {
 		return pgconn.CommandTag{}, f.err

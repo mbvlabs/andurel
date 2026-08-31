@@ -155,7 +155,10 @@ func (u *Upgrader) buildRepairPlan(dirty bool) (*upgradePlan, error) {
 	return plan, nil
 }
 
-func (u *Upgrader) addStandaloneInertiaDependency(plan *upgradePlan, config *layout.ScaffoldConfig) error {
+func (u *Upgrader) addStandaloneInertiaDependency(
+	plan *upgradePlan,
+	config *layout.ScaffoldConfig,
+) error {
 	if config == nil || !layout.IsSupportedInertiaAdapter(config.Inertia) {
 		return nil
 	}
@@ -222,7 +225,9 @@ func (u *Upgrader) addInertiaRootMigration(plan *upgradePlan, lock *layout.Andur
 		1,
 	)
 	if bytes.Equal(mainFile, updatedMain) {
-		return fmt.Errorf("update Inertia application entrypoint: legacy initialization call not found")
+		return fmt.Errorf(
+			"update Inertia application entrypoint: legacy initialization call not found",
+		)
 	}
 	if err := plan.addReplacement(u.projectRoot, mainPath, updatedMain, false); err != nil {
 		return fmt.Errorf("update Inertia application entrypoint: %w", err)
@@ -245,7 +250,11 @@ func (u *Upgrader) addFrameworkChanges(plan *upgradePlan) error {
 	}
 	sort.Strings(paths)
 	for _, path := range paths {
-		if recognized, recognitionErr := recognizeWholeFileReplacement(u.projectRoot, path, rendered[path]); recognitionErr != nil {
+		if recognized, recognitionErr := recognizeWholeFileReplacement(
+			u.projectRoot,
+			path,
+			rendered[path],
+		); recognitionErr != nil {
 			return recognitionErr
 		} else if !recognized {
 			continue
@@ -259,7 +268,10 @@ func (u *Upgrader) addFrameworkChanges(plan *upgradePlan) error {
 	sort.Strings(obsolete)
 	var unrecognized []string
 	for _, path := range obsolete {
-		if recognized, recognitionErr := recognizeWholeFileDeletion(u.projectRoot, path); recognitionErr != nil {
+		if recognized, recognitionErr := recognizeWholeFileDeletion(
+			u.projectRoot,
+			path,
+		); recognitionErr != nil {
 			return recognitionErr
 		} else if !recognized {
 			unrecognized = append(unrecognized, path)
@@ -274,7 +286,10 @@ func (u *Upgrader) addFrameworkChanges(plan *upgradePlan) error {
 			ID:    "reconcile-obsolete-framework-files",
 			Title: "Reconcile modified obsolete framework files",
 			Instructions: "Andurel left these files in place because they no longer carry a generated-file marker:\n\n- " +
-				strings.Join(unrecognized, "\n- ") +
+				strings.Join(
+					unrecognized,
+					"\n- ",
+				) +
 				"\n\nMove any application behavior into the current facade, then remove the obsolete files to avoid duplicate declarations.",
 		})
 	}
@@ -380,7 +395,10 @@ func (p *upgradePlan) addDeletion(root, path string) error {
 	if err != nil {
 		return fmt.Errorf("stat deletion %s: %w", path, err)
 	}
-	p.files = append(p.files, plannedFile{path: path, before: before, mode: info.Mode().Perm(), remove: true})
+	p.files = append(
+		p.files,
+		plannedFile{path: path, before: before, mode: info.Mode().Perm(), remove: true},
+	)
 	return nil
 }
 

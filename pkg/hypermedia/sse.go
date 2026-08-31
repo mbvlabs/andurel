@@ -79,7 +79,11 @@ func PatchHTML(etx *echo.Context, html string, opts ...PatchElementOption) error
 }
 
 // PatchComponent renders a templ component and sends it as a Datastar/SSE element patch.
-func PatchComponent(etx *echo.Context, component templ.Component, opts ...PatchElementOption) error {
+func PatchComponent(
+	etx *echo.Context,
+	component templ.Component,
+	opts ...PatchElementOption,
+) error {
 	html, err := RenderHTML(etx.Request().Context(), component)
 	if err != nil {
 		return err
@@ -89,7 +93,12 @@ func PatchComponent(etx *echo.Context, component templ.Component, opts ...PatchE
 }
 
 // PatchFragment renders one named templ fragment and sends it as a Datastar/SSE element patch.
-func PatchFragment(etx *echo.Context, component templ.Component, key any, opts ...PatchElementOption) error {
+func PatchFragment(
+	etx *echo.Context,
+	component templ.Component,
+	key any,
+	opts ...PatchElementOption,
+) error {
 	html, err := RenderFragment(etx.Request().Context(), component, key)
 	if err != nil {
 		return err
@@ -99,7 +108,12 @@ func PatchFragment(etx *echo.Context, component templ.Component, key any, opts .
 }
 
 // PatchFragments renders named templ fragments and sends them as a Datastar/SSE element patch.
-func PatchFragments(etx *echo.Context, component templ.Component, keys []any, opts ...PatchElementOption) error {
+func PatchFragments(
+	etx *echo.Context,
+	component templ.Component,
+	keys []any,
+	opts ...PatchElementOption,
+) error {
 	html, err := RenderFragments(etx.Request().Context(), component, keys...)
 	if err != nil {
 		return err

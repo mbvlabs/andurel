@@ -121,12 +121,16 @@ func ensureConstructorRegistration(content, constructorRef string) (string, bool
 	if constructorsIdx != -1 {
 		openIdx := strings.Index(content[constructorsIdx:], "(")
 		if openIdx == -1 {
-			return "", false, fmt.Errorf("failed to locate constructors fx.Provide opening parenthesis")
+			return "", false, fmt.Errorf(
+				"failed to locate constructors fx.Provide opening parenthesis",
+			)
 		}
 		openIdx += constructorsIdx
 		closeIdx := findMatchingParen(content, openIdx)
 		if closeIdx == -1 {
-			return "", false, fmt.Errorf("failed to locate constructors fx.Provide closing parenthesis")
+			return "", false, fmt.Errorf(
+				"failed to locate constructors fx.Provide closing parenthesis",
+			)
 		}
 		return content[:closeIdx] + "\t" + constructorRef + ",\n" + content[closeIdx:], true, nil
 	}
@@ -144,7 +148,9 @@ func hasRegistrationReference(content, ref string) bool {
 func ensureModuleEntry(content, entry string) (string, bool, error) {
 	moduleIdx := strings.Index(content, "var Module = fx.Module(")
 	if moduleIdx == -1 {
-		return "", false, fmt.Errorf("failed to locate controllers fx.Module in controllers/controller.go")
+		return "", false, fmt.Errorf(
+			"failed to locate controllers fx.Module in controllers/controller.go",
+		)
 	}
 	openIdx := strings.Index(content[moduleIdx:], "(")
 	if openIdx == -1 {

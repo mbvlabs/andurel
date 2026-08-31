@@ -41,7 +41,11 @@ func newResidualStylesheet() *residualStylesheet {
 	}
 }
 
-func transformTemplate(file sourceFile, stylesheet *compiledStylesheet, residual *residualStylesheet) error {
+func transformTemplate(
+	file sourceFile,
+	stylesheet *compiledStylesheet,
+	residual *residualStylesheet,
+) error {
 	walk := visitor.New()
 	visitElement := walk.Element
 	walk.Element = func(element *parser.Element) error {
@@ -53,7 +57,12 @@ func transformTemplate(file sourceFile, stylesheet *compiledStylesheet, residual
 	return file.template.Visit(walk)
 }
 
-func transformElement(file sourceFile, element *parser.Element, stylesheet *compiledStylesheet, residual *residualStylesheet) error {
+func transformElement(
+	file sourceFile,
+	element *parser.Element,
+	stylesheet *compiledStylesheet,
+	residual *residualStylesheet,
+) error {
 	classAttribute := constantAttribute(element, "class")
 	if classAttribute == nil {
 		return nil
@@ -98,9 +107,16 @@ func transformElement(file sourceFile, element *parser.Element, stylesheet *comp
 
 	styleAttribute := constantAttribute(element, "style")
 	if styleAttribute != nil {
-		authored, declarationOnly, err := parseDeclarationBlock(styleAttribute.Value, authoredStyleOrder)
+		authored, declarationOnly, err := parseDeclarationBlock(
+			styleAttribute.Value,
+			authoredStyleOrder,
+		)
 		if err != nil || !declarationOnly {
-			return compilerError(file.relative, styleAttribute.ValueRange.From, "invalid static style attribute")
+			return compilerError(
+				file.relative,
+				styleAttribute.ValueRange.From,
+				"invalid static style attribute",
+			)
 		}
 		groups = append(groups, authored)
 	}
@@ -121,7 +137,11 @@ func transformElement(file sourceFile, element *parser.Element, stylesheet *comp
 	return nil
 }
 
-func setClassAttribute(element *parser.Element, classAttribute *parser.ConstantAttribute, classes []string) {
+func setClassAttribute(
+	element *parser.Element,
+	classAttribute *parser.ConstantAttribute,
+	classes []string,
+) {
 	if len(classes) > 0 {
 		classAttribute.Value = strings.Join(classes, " ")
 		return
@@ -221,7 +241,11 @@ func (stylesheet *residualStylesheet) add(
 ) (string, error) {
 	className := safeEmailClass(originalClass)
 	if owner, exists := stylesheet.classOwners[className]; exists && owner != originalClass {
-		return "", fmt.Errorf("email class %q conflicts with %q after compilation", originalClass, owner)
+		return "", fmt.Errorf(
+			"email class %q conflicts with %q after compilation",
+			originalClass,
+			owner,
+		)
 	}
 	stylesheet.classOwners[className] = originalClass
 
@@ -245,12 +269,18 @@ func (stylesheet *residualStylesheet) add(
 			residual.media = append(residual.media, "(prefers-color-scheme: dark)")
 		default:
 			if width, ok := emailBreakpoints[variant]; ok {
-				residual.media = append(residual.media, fmt.Sprintf("screen and (min-width: %dpx)", width))
+				residual.media = append(
+					residual.media,
+					fmt.Sprintf("screen and (min-width: %dpx)", width),
+				)
 				continue
 			}
 			if after, ok := strings.CutPrefix(variant, "max-"); ok {
 				if width, ok := emailBreakpoints[after]; ok {
-					residual.media = append(residual.media, fmt.Sprintf("screen and (max-width: %dpx)", width-1))
+					residual.media = append(
+						residual.media,
+						fmt.Sprintf("screen and (max-width: %dpx)", width-1),
+					)
 					continue
 				}
 			}

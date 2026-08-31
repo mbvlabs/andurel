@@ -294,7 +294,12 @@ func OK(cmd *cobra.Command, data any, summary string, breadcrumbs ...Breadcrumb)
 // Fail converts any error into a structured error envelope.
 func Fail(err error) ErrorEnvelope {
 	if err == nil {
-		return ErrorEnvelope{OK: false, Code: CodeError, Error: "unknown error", ExitCode: ExitUsage}
+		return ErrorEnvelope{
+			OK:       false,
+			Code:     CodeError,
+			Error:    "unknown error",
+			ExitCode: ExitUsage,
+		}
 	}
 
 	if cliErr, ok := errors.AsType[*CLIError](err); ok {
@@ -342,21 +347,61 @@ func classifyError(err error) *CLIError {
 			"Run this from a directory containing an Andurel project's go.mod file.",
 		)
 	case strings.Contains(msg, "bin/") && strings.Contains(msg, "not found"):
-		return WrapError(CodeMissingTool, err, ExitDependency, "Run andurel tool sync to install project tools.")
+		return WrapError(
+			CodeMissingTool,
+			err,
+			ExitDependency,
+			"Run andurel tool sync to install project tools.",
+		)
 	case strings.Contains(msg, "unknown extension") || strings.Contains(msg, "invalid extension"):
-		return WrapError(CodeInvalidExtension, err, ExitUsage, "Run andurel extension list --available to inspect available extensions.")
+		return WrapError(
+			CodeInvalidExtension,
+			err,
+			ExitUsage,
+			"Run andurel extension list --available to inspect available extensions.",
+		)
 	case strings.Contains(msg, "invalid inertia adapter"):
-		return WrapError(CodeInvalidInertiaAdapter, err, ExitUsage, "Use vue, react, or svelte, optionally followed by /npm, /pnpm, /bun, or /yarn.")
+		return WrapError(
+			CodeInvalidInertiaAdapter,
+			err,
+			ExitUsage,
+			"Use vue, react, or svelte, optionally followed by /npm, /pnpm, /bun, or /yarn.",
+		)
 	case strings.Contains(msg, "requires --force") || strings.Contains(msg, "use --force") || strings.Contains(msg, "without --force"):
-		return WrapError(CodeUnsafeAction, err, ExitUnsafe, "Re-run with --force after confirming the destructive action is intended.")
+		return WrapError(
+			CodeUnsafeAction,
+			err,
+			ExitUnsafe,
+			"Re-run with --force after confirming the destructive action is intended.",
+		)
 	case strings.Contains(msg, "generation failed") || strings.Contains(msg, "failed to generate"):
-		return WrapError(CodeGenerationFailed, err, ExitGeneration, "Inspect the error details and generated files, then retry.")
+		return WrapError(
+			CodeGenerationFailed,
+			err,
+			ExitGeneration,
+			"Inspect the error details and generated files, then retry.",
+		)
 	case strings.Contains(msg, "external command") || strings.Contains(msg, "command failed"):
-		return WrapError(CodeExternalCommandFailed, err, ExitExternal, "Inspect the command output and required tools.")
+		return WrapError(
+			CodeExternalCommandFailed,
+			err,
+			ExitExternal,
+			"Inspect the command output and required tools.",
+		)
 	case strings.Contains(msg, "lock file") || strings.Contains(msg, "andurel.lock") || strings.Contains(msg, "config"):
-		return WrapError(CodeConfigError, err, ExitConfig, "Inspect andurel.lock and .andurel/config.json.")
+		return WrapError(
+			CodeConfigError,
+			err,
+			ExitConfig,
+			"Inspect andurel.lock and .andurel/config.json.",
+		)
 	case strings.Contains(msg, "ambiguous"):
-		return WrapError(CodeAmbiguousInput, err, ExitAmbiguous, "Provide a more specific command argument.")
+		return WrapError(
+			CodeAmbiguousInput,
+			err,
+			ExitAmbiguous,
+			"Provide a more specific command argument.",
+		)
 	default:
 		return nil
 	}
@@ -376,7 +421,12 @@ func RenderError(cmd *cobra.Command, err error) error {
 	}
 	if opts.Mode == ModeMarkdown {
 		if envelope.Hint != "" {
-			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "**Error:** %s\n\n%s\n", envelope.Error, envelope.Hint)
+			_, _ = fmt.Fprintf(
+				cmd.ErrOrStderr(),
+				"**Error:** %s\n\n%s\n",
+				envelope.Error,
+				envelope.Hint,
+			)
 			return nil
 		}
 		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "**Error:** %s\n", envelope.Error)
@@ -384,7 +434,12 @@ func RenderError(cmd *cobra.Command, err error) error {
 	}
 
 	if envelope.Hint != "" {
-		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\nHint: %s\n", envelope.Error, envelope.Hint)
+		_, _ = fmt.Fprintf(
+			cmd.ErrOrStderr(),
+			"Error: %s\nHint: %s\n",
+			envelope.Error,
+			envelope.Hint,
+		)
 		return nil
 	}
 	_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", envelope.Error)
@@ -425,13 +480,23 @@ func applyJQ(data any, expr string) (any, error) {
 	expr = strings.TrimSpace(expr)
 	normalized, err := normalizeJSONValue(data)
 	if err != nil {
-		return nil, NewError(CodeUsage, "command data cannot be projected as JSON", ExitUsage, err.Error())
+		return nil, NewError(
+			CodeUsage,
+			"command data cannot be projected as JSON",
+			ExitUsage,
+			err.Error(),
+		)
 	}
 	if expr == "" || expr == "." {
 		return normalized, nil
 	}
 	if !strings.HasPrefix(expr, ".") {
-		return nil, NewError(CodeUsage, "only simple jq-style field paths are supported", ExitUsage, "Use an expression like .field or .nested.field.")
+		return nil, NewError(
+			CodeUsage,
+			"only simple jq-style field paths are supported",
+			ExitUsage,
+			"Use an expression like .field or .nested.field.",
+		)
 	}
 
 	current := normalized
@@ -442,11 +507,21 @@ func applyJQ(data any, expr string) (any, error) {
 		}
 		object, ok := current.(map[string]any)
 		if !ok {
-			return nil, NewError(CodeUsage, "jq path not found: "+expr, ExitUsage, "The selected value is not an object with field "+part+".")
+			return nil, NewError(
+				CodeUsage,
+				"jq path not found: "+expr,
+				ExitUsage,
+				"The selected value is not an object with field "+part+".",
+			)
 		}
 		next, ok := object[part]
 		if !ok {
-			return nil, NewError(CodeUsage, "jq path not found: "+expr, ExitUsage, "Use andurel commands --json to inspect available fields.")
+			return nil, NewError(
+				CodeUsage,
+				"jq path not found: "+expr,
+				ExitUsage,
+				"Use andurel commands --json to inspect available fields.",
+			)
 		}
 		current = next
 	}
@@ -473,7 +548,12 @@ func writeIDs(w io.Writer, data any) error {
 	for _, item := range items {
 		identifier, ok := projectionIdentifier(item)
 		if !ok {
-			return NewError(CodeUsage, "command data does not contain projectable identifiers", ExitUsage, "Use --jq to select a specific identifier field.")
+			return NewError(
+				CodeUsage,
+				"command data does not contain projectable identifiers",
+				ExitUsage,
+				"Use --jq to select a specific identifier field.",
+			)
 		}
 		if _, err := fmt.Fprintln(w, identifier); err != nil {
 			return err
@@ -501,14 +581,24 @@ func projectionItems(data any) ([]any, error) {
 	}
 	object, ok := normalized.(map[string]any)
 	if !ok {
-		return nil, NewError(CodeUsage, "command data is not a projectable collection", ExitUsage, "Use --jq for scalar or object data.")
+		return nil, NewError(
+			CodeUsage,
+			"command data is not a projectable collection",
+			ExitUsage,
+			"Use --jq for scalar or object data.",
+		)
 	}
 	for _, field := range []string{"routes", "items", "results", "names", "extensions", "tools"} {
 		if items, ok := object[field].([]any); ok {
 			return items, nil
 		}
 	}
-	return nil, NewError(CodeUsage, "command data is not a projectable collection", ExitUsage, "Use --jq to select a collection field.")
+	return nil, NewError(
+		CodeUsage,
+		"command data is not a projectable collection",
+		ExitUsage,
+		"Use --jq to select a collection field.",
+	)
 }
 
 func projectionIdentifier(value any) (string, bool) {

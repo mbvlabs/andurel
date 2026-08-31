@@ -96,7 +96,15 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 				t.Fatalf("failed to generate scaffold: %v", err)
 			}
 
-			assertScaffoldArtifacts(t, g, scenario.name, scenario.resourceName, scenario.tableName, scenario.skipFactory, scenario.inertia)
+			assertScaffoldArtifacts(
+				t,
+				g,
+				scenario.name,
+				scenario.resourceName,
+				scenario.tableName,
+				scenario.skipFactory,
+				scenario.inertia,
+			)
 		})
 	}
 }
@@ -114,8 +122,15 @@ func TestScaffoldGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
 	}
 
 	assertGeneratedFileContains(t, "views/projects_resource.templ", "type ProjectIndex struct")
-	assertControllerViewGoldenFileMissing(t, filepath.Join("resources", "js", "Pages", "Project", "Index.vue"))
-	assertGeneratedFileContains(t, "controllers/projects.go", "github.com/mbvlabs/andurel/pkg/hypermedia")
+	assertControllerViewGoldenFileMissing(
+		t,
+		filepath.Join("resources", "js", "Pages", "Project", "Index.vue"),
+	)
+	assertGeneratedFileContains(
+		t,
+		"controllers/projects.go",
+		"github.com/mbvlabs/andurel/pkg/hypermedia",
+	)
 	assertGeneratedFileNotContains(t, "controllers/projects.go", "testapp/internal/inertia")
 }
 
@@ -132,14 +147,39 @@ func TestScaffoldGenerationNamespaced(t *testing.T) {
 	}
 
 	assertGeneratedFileContains(t, filepath.Join("models", "widget.go"), "type WidgetEntity struct")
-	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "package admin")
-	assertGeneratedFileContains(t, filepath.Join("controllers", "admin", "widgets.go"), "views.AdminWidgetIndex")
-	assertGeneratedFileContains(t, filepath.Join("router", "routes", "admin_widgets.go"), `"admin.widgets.index"`)
-	assertGeneratedFileContains(t, filepath.Join("controllers", "controller.go"), `"testapp/controllers/admin"`)
-	assertGeneratedFileContains(t, filepath.Join("views", "admin_widgets_resource.templ"), "type AdminWidgetIndex struct")
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "admin", "widgets.go"),
+		"package admin",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "admin", "widgets.go"),
+		"views.AdminWidgetIndex",
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("router", "routes", "admin_widgets.go"),
+		`"admin.widgets.index"`,
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("controllers", "controller.go"),
+		`"testapp/controllers/admin"`,
+	)
+	assertGeneratedFileContains(
+		t,
+		filepath.Join("views", "admin_widgets_resource.templ"),
+		"type AdminWidgetIndex struct",
+	)
 }
 
-func setupScaffoldGoldenProject(t *testing.T, migrationsFixture string, extensions []string, inertia string) Generator {
+func setupScaffoldGoldenProject(
+	t *testing.T,
+	migrationsFixture string,
+	extensions []string,
+	inertia string,
+) Generator {
 	t.Helper()
 
 	cache.ClearFileSystemCache()
@@ -163,7 +203,12 @@ func setupScaffoldGoldenProject(t *testing.T, migrationsFixture string, extensio
 		t.Fatalf("failed to chmod fake templ binary: %v", err)
 	}
 
-	writeControllerViewFixtureFile(t, projectDir, "controllers/controller.go", controllerModuleFixture)
+	writeControllerViewFixtureFile(
+		t,
+		projectDir,
+		"controllers/controller.go",
+		controllerModuleFixture,
+	)
 
 	lock := layout.NewAndurelLock("test")
 	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
@@ -194,7 +239,13 @@ func setupScaffoldGoldenProject(t *testing.T, migrationsFixture string, extensio
 	return gen
 }
 
-func assertScaffoldArtifacts(t *testing.T, g *goldie.Goldie, fixtureDir, resourceName, tableName string, skipFactory bool, inertia string) {
+func assertScaffoldArtifacts(
+	t *testing.T,
+	g *goldie.Goldie,
+	fixtureDir, resourceName, tableName string,
+	skipFactory bool,
+	inertia string,
+) {
 	t.Helper()
 
 	if tableName == "" {

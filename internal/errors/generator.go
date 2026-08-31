@@ -105,7 +105,13 @@ type ValidationError struct {
 // Error returns the validation failure message.
 func (e *ValidationError) Error() string {
 	if e.Cause != nil {
-		return fmt.Sprintf("validation failed for %s '%s': %s (%v)", e.Field, e.Value, e.Reason, e.Cause)
+		return fmt.Sprintf(
+			"validation failed for %s '%s': %s (%v)",
+			e.Field,
+			e.Value,
+			e.Reason,
+			e.Cause,
+		)
 	}
 	return fmt.Sprintf("validation failed for %s '%s': %s", e.Field, e.Value, e.Reason)
 }

@@ -1,49 +1,92 @@
 package config
 
 import (
-	"context"
-	"log/slog"
 	"time"
 
-	"github.com/caarlos0/env/v11"
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/riverqueue/river"
-	"go.uber.org/fx"
 )
 
-// queueCfg contains all environment-backed River settings used by the application.
-type queueCfg struct {
-	AdvisoryLockPrefix          int32         `env:"QUEUE_ADVISORY_LOCK_PREFIX" envDefault:"0"`
-	CancelledJobRetentionPeriod time.Duration `env:"QUEUE_CANCELLED_JOB_RETENTION_PERIOD" envDefault:"24h"`
-	CompletedJobRetentionPeriod time.Duration `env:"QUEUE_COMPLETED_JOB_RETENTION_PERIOD" envDefault:"24h"`
-	DiscardedJobRetentionPeriod time.Duration `env:"QUEUE_DISCARDED_JOB_RETENTION_PERIOD" envDefault:"168h"`
-	FetchCooldown               time.Duration `env:"QUEUE_FETCH_COOLDOWN" envDefault:"100ms"`
-	PollInterval                time.Duration `env:"QUEUE_POLL_INTERVAL" envDefault:"1s"`
-	ID                          string        `env:"QUEUE_ID" envDefault:""`
-	JobCleanerTimeout           time.Duration `env:"QUEUE_JOB_CLEANER_TIMEOUT" envDefault:"30s"`
-	JobStuckThreshold           time.Duration `env:"QUEUE_JOB_STUCK_THRESHOLD" envDefault:"10s"`
-	JobTimeout                  time.Duration `env:"QUEUE_JOB_TIMEOUT" envDefault:"1m"`
-	MaxAttempts                 int           `env:"QUEUE_MAX_ATTEMPTS" envDefault:"25"`
-	MaxWorkers                  int           `env:"QUEUE_MAX_WORKERS" envDefault:"100"`
-	PollOnly                    bool          `env:"QUEUE_POLL_ONLY" envDefault:"false"`
-	ReindexerIndexNames         []string      `env:"QUEUE_REINDEXER_INDEX_NAMES" envSeparator:"," envDefault:"river_job_args_index,river_job_kind,river_job_metadata_index,river_job_pkey,river_job_prioritized_fetching_index,river_job_state_and_finalized_at_index,river_job_unique_idx"`
-	ReindexerTimeout            time.Duration `env:"QUEUE_REINDEXER_TIMEOUT" envDefault:"1m"`
-	RescueStuckJobsAfter        time.Duration `env:"QUEUE_RESCUE_STUCK_JOBS_AFTER" envDefault:"1h"`
-	Schema                      string        `env:"QUEUE_SCHEMA" envDefault:""`
-	SoftStopTimeout             time.Duration `env:"QUEUE_SOFT_STOP_TIMEOUT" envDefault:"0s"`
-	SkipJobKindValidation       bool          `env:"QUEUE_SKIP_JOB_KIND_VALIDATION" envDefault:"false"`
-	SkipUnknownJobCheck         bool          `env:"QUEUE_SKIP_UNKNOWN_JOB_CHECK" envDefault:"false"`
+const (
+	DefaultAdvisoryLockPrefix          int32         = 0
+	DefaultCancelledJobRetentionPeriod               = 24 * time.Hour
+	DefaultCompletedJobRetentionPeriod               = 24 * time.Hour
+	DefaultDiscardedJobRetentionPeriod               = 168 * time.Hour
+	DefaultFetchCooldown                             = 100 * time.Millisecond
+	DefaultPollInterval                              = 1 * time.Second
+	DefaultQueueID                                   = ""
+	DefaultJobCleanerTimeout                         = 30 * time.Second
+	DefaultJobStuckThreshold                         = 10 * time.Second
+	DefaultJobTimeout                                = 1 * time.Minute
+	DefaultMaxAttempts                               = 25
+	DefaultMaxWorkers                                = 100
+	DefaultPollOnly                                  = false
+	DefaultReindexerTimeout                          = 1 * time.Minute
+	DefaultRescueStuckJobsAfter                      = 1 * time.Hour
+	DefaultQueueSchema                               = ""
+	DefaultSoftStopTimeout             time.Duration = 0
+	DefaultSkipJobKindValidation                     = false
+	DefaultSkipUnknownJobCheck                       = false
+)
+
+var DefaultReindexerIndexNames = []string{
+	"river_job_args_index",
+	"river_job_kind",
+	"river_job_metadata_index",
+	"river_job_pkey",
+	"river_job_prioritized_fetching_index",
+	"river_job_state_and_finalized_at_index",
+	"river_job_unique_idx",
 }
 
-func newQueueConfig() queueCfg {
-	cfg := queueCfg{}
-	if err := env.ParseWithOptions(&cfg, env.Options{RequiredIfNoDef: true}); err != nil {
-		panic(err)
+type QueueCfg struct {
+	AdvisoryLockPrefix          int32
+	CancelledJobRetentionPeriod time.Duration
+	CompletedJobRetentionPeriod time.Duration
+	DiscardedJobRetentionPeriod time.Duration
+	FetchCooldown               time.Duration
+	PollInterval                time.Duration
+	ID                          string
+	JobCleanerTimeout           time.Duration
+	JobStuckThreshold           time.Duration
+	JobTimeout                  time.Duration
+	MaxAttempts                 int
+	MaxWorkers                  int
+	PollOnly                    bool
+	ReindexerIndexNames         []string
+	ReindexerTimeout            time.Duration
+	RescueStuckJobsAfter        time.Duration
+	Schema                      string
+	SoftStopTimeout             time.Duration
+	SkipJobKindValidation       bool
+	SkipUnknownJobCheck         bool
+}
+
+func NewQueueCfg() QueueCfg {
+	return QueueCfg{
+		AdvisoryLockPrefix:          DefaultAdvisoryLockPrefix,
+		CancelledJobRetentionPeriod: DefaultCancelledJobRetentionPeriod,
+		CompletedJobRetentionPeriod: DefaultCompletedJobRetentionPeriod,
+		DiscardedJobRetentionPeriod: DefaultDiscardedJobRetentionPeriod,
+		FetchCooldown:               DefaultFetchCooldown,
+		PollInterval:                DefaultPollInterval,
+		ID:                          DefaultQueueID,
+		JobCleanerTimeout:           DefaultJobCleanerTimeout,
+		JobStuckThreshold:           DefaultJobStuckThreshold,
+		JobTimeout:                  DefaultJobTimeout,
+		MaxAttempts:                 DefaultMaxAttempts,
+		MaxWorkers:                  DefaultMaxWorkers,
+		PollOnly:                    DefaultPollOnly,
+		ReindexerIndexNames:         DefaultReindexerIndexNames,
+		ReindexerTimeout:            DefaultReindexerTimeout,
+		RescueStuckJobsAfter:        DefaultRescueStuckJobsAfter,
+		Schema:                      DefaultQueueSchema,
+		SoftStopTimeout:             DefaultSoftStopTimeout,
+		SkipJobKindValidation:       DefaultSkipJobKindValidation,
+		SkipUnknownJobCheck:         DefaultSkipUnknownJobCheck,
 	}
-	return cfg
 }
 
-func (cfg queueCfg) riverConfig() river.Config {
+func (cfg QueueCfg) RiverConfig() river.Config {
 	return river.Config{
 		AdvisoryLockPrefix:          cfg.AdvisoryLockPrefix,
 		CancelledJobRetentionPeriod: cfg.CancelledJobRetentionPeriod,
@@ -67,62 +110,4 @@ func (cfg queueCfg) riverConfig() river.Config {
 	}
 }
 
-func newQueueInsert(connection storage.Connection, cfg Config) (*storage.QueueInsert, error) {
-	return storage.NewQueueInsert(connection, storage.WithRiverConfig(cfg.Queue.riverConfig()))
-}
-
-type queueProcessorParams struct {
-	fx.In
-
-	Connection   storage.Connection
-	Config       Config
-	Logger       *slog.Logger
-	Workers      *river.Workers
-	PeriodicJobs []*river.PeriodicJob `group:"periodic_jobs"`
-}
-
-func newQueueProcessor(params queueProcessorParams) (*storage.QueueProcessor, error) {
-	riverConfig := params.Config.Queue.riverConfig()
-	riverConfig.Queues = map[string]river.QueueConfig{
-		river.QueueDefault: {MaxWorkers: params.Config.Queue.MaxWorkers},
-	}
-
-	return storage.NewQueueProcessor(
-		params.Connection,
-		storage.WithRiverConfig(riverConfig),
-		storage.WithRiverWorkers(params.Workers),
-		storage.WithRiverPeriodicJobs(params.PeriodicJobs...),
-		storage.WithRiverLogger(params.Logger),
-	)
-}
-
-func queueProcessorLifecycle(
-	lifecycle fx.Lifecycle,
-	appCtx context.Context,
-	processor *storage.QueueProcessor,
-) {
-	lifecycle.Append(fx.Hook{
-		OnStart: func(context.Context) error {
-			return processor.Start(appCtx)
-		},
-		OnStop: func(ctx context.Context) error {
-			return processor.Stop(ctx)
-		},
-	})
-}
-
-// QueueInsertModule provides an insert-only queue client and never starts workers.
-var QueueInsertModule = fx.Module(
-	"queue-insert",
-	fx.Provide(fx.Annotate(newQueueInsert, fx.As(new(storage.InsertQueue)))),
-)
-
-// QueueProcessorModule provides the worker client and owns its Fx lifecycle.
-var QueueProcessorModule = fx.Module(
-	"queue-processor",
-	fx.Provide(
-		slog.Default,
-		newQueueProcessor,
-	),
-	fx.Invoke(queueProcessorLifecycle),
-)
+func (c QueueCfg) GetMaxWorkers() int { return c.MaxWorkers }

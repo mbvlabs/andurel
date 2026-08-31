@@ -150,12 +150,19 @@ func (v *InputValidator) ValidateTableNameOverride(resourceName, tableNameOverri
 
 	if v.shouldWarnTableOverride(resourceName, tableNameOverride) {
 		if tableNameOverride != conventionalTableName {
-			fmt.Printf("⚠️  Using custom table name '%s' instead of conventional '%s'\n", tableNameOverride, conventionalTableName)
+			fmt.Printf(
+				"⚠️  Using custom table name '%s' instead of conventional '%s'\n",
+				tableNameOverride,
+				conventionalTableName,
+			)
 			fmt.Printf("⚠️  Ensure migration creates the '%s' table\n", tableNameOverride)
 		}
 
 		if inflection.Plural(tableNameOverride) != tableNameOverride {
-			fmt.Printf("⚠️  Table name '%s' does not appear to be plural. Convention suggests using plural names.\n", tableNameOverride)
+			fmt.Printf(
+				"⚠️  Table name '%s' does not appear to be plural. Convention suggests using plural names.\n",
+				tableNameOverride,
+			)
 		}
 	}
 

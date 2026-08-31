@@ -44,7 +44,8 @@ This command:
 		},
 	}
 
-	cmd.Flags().StringVar(&versionFlag, "version", "", "Set the application version (injected via ldflags)")
+	cmd.Flags().
+		StringVar(&versionFlag, "version", "", "Set the application version (injected via ldflags)")
 
 	return cmd
 }
@@ -89,7 +90,11 @@ func buildApp(rootDir string, versionFlag string) error {
 		return fmt.Errorf("failed to sync tailwind CLI: %w", err)
 	}
 	if hasEmailCompilerInputs(rootDir) {
-		if err := compileEmailWithTailwind(context.Background(), rootDir, filepath.Join(binDir, "tailwindcli")); err != nil {
+		if err := compileEmailWithTailwind(
+			context.Background(),
+			rootDir,
+			filepath.Join(binDir, "tailwindcli"),
+		); err != nil {
 			return err
 		}
 	}
@@ -110,7 +115,9 @@ func buildApp(rootDir string, versionFlag string) error {
 
 	// 2.5. Vite build for Inertia frontend
 	if lock.ScaffoldConfig != nil && layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
-		installCmd, buildCmd, err := inertiaPackageManagerCommands(lock.ScaffoldConfig.PackageManager())
+		installCmd, buildCmd, err := inertiaPackageManagerCommands(
+			lock.ScaffoldConfig.PackageManager(),
+		)
 		if err != nil {
 			return err
 		}

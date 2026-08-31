@@ -141,7 +141,9 @@ func DownloadFromURL(name, sourceURL, archiveType, binaryName, destPath string) 
 
 // DownloadVerifiedFromURL downloads from a URL after verifying the expected
 // SHA-256 digest.
-func DownloadVerifiedFromURL(name, sourceURL, archiveType, binaryName, destPath, expectedSHA256 string) error {
+func DownloadVerifiedFromURL(
+	name, sourceURL, archiveType, binaryName, destPath, expectedSHA256 string,
+) error {
 	digest, err := requireExpectedDigest(expectedSHA256)
 	if err != nil {
 		return err
@@ -164,7 +166,9 @@ func validSHA256(value string) bool {
 	return err == nil
 }
 
-func downloadVerified(name, sourceURL, archiveType, binaryName, destPath, expectedDigest string) (resultErr error) {
+func downloadVerified(
+	name, sourceURL, archiveType, binaryName, destPath, expectedDigest string,
+) (resultErr error) {
 	parsed, err := url.Parse(sourceURL)
 	if err != nil || parsed.Scheme != "https" || parsed.Host == "" {
 		return fmt.Errorf("download URL for %s must use HTTPS", name)
@@ -187,7 +191,10 @@ func downloadVerified(name, sourceURL, archiveType, binaryName, destPath, expect
 	defer func() {
 		if archivePresent {
 			if err := removeFileFunc(archivePath); err != nil && !os.IsNotExist(err) {
-				resultErr = errors.Join(resultErr, fmt.Errorf("failed to remove temporary archive: %w", err))
+				resultErr = errors.Join(
+					resultErr,
+					fmt.Errorf("failed to remove temporary archive: %w", err),
+				)
 			}
 		}
 	}()
@@ -197,7 +204,12 @@ func downloadVerified(name, sourceURL, archiveType, binaryName, destPath, expect
 		return fmt.Errorf("failed to download %s: %w", name, err)
 	}
 	if actualDigest != expectedDigest {
-		return fmt.Errorf("SHA-256 mismatch for %s: expected %s, got %s", name, expectedDigest, actualDigest)
+		return fmt.Errorf(
+			"SHA-256 mismatch for %s: expected %s, got %s",
+			name,
+			expectedDigest,
+			actualDigest,
+		)
 	}
 
 	if archiveType == "binary" {
@@ -220,19 +232,33 @@ func downloadVerified(name, sourceURL, archiveType, binaryName, destPath, expect
 	defer func() {
 		if extractedPresent {
 			if err := removeFileFunc(extractedPath); err != nil && !os.IsNotExist(err) {
-				resultErr = errors.Join(resultErr, fmt.Errorf("failed to remove temporary binary: %w", err))
+				resultErr = errors.Join(
+					resultErr,
+					fmt.Errorf("failed to remove temporary binary: %w", err),
+				)
 			}
 		}
 	}()
 
-	if err := extractArchiveToFile(archivePath, binaryName, archiveType, extractedFile); err != nil {
+	if err := extractArchiveToFile(
+		archivePath,
+		binaryName,
+		archiveType,
+		extractedFile,
+	); err != nil {
 		return fmt.Errorf("failed to extract %s: %w", name, errors.Join(err, extractedFile.Close()))
 	}
 	if err := extractedFile.Chmod(0o755); err != nil {
-		return fmt.Errorf("failed to set executable permissions: %w", errors.Join(err, extractedFile.Close()))
+		return fmt.Errorf(
+			"failed to set executable permissions: %w",
+			errors.Join(err, extractedFile.Close()),
+		)
 	}
 	if err := extractedFile.Sync(); err != nil {
-		return fmt.Errorf("failed to sync extracted binary: %w", errors.Join(err, extractedFile.Close()))
+		return fmt.Errorf(
+			"failed to sync extracted binary: %w",
+			errors.Join(err, extractedFile.Close()),
+		)
 	}
 	if err := extractedFile.Close(); err != nil {
 		return fmt.Errorf("failed to close extracted binary: %w", err)
@@ -261,10 +287,18 @@ func downloadToTemporaryFile(sourceURL string, file temporaryFile) (string, erro
 		closeErr := response.Body.Close()
 		fileCloseErr := file.Close()
 		if closeErr != nil {
-			return "", fmt.Errorf("unexpected status code %d and failed to close response: %w", response.StatusCode, errors.Join(closeErr, fileCloseErr))
+			return "", fmt.Errorf(
+				"unexpected status code %d and failed to close response: %w",
+				response.StatusCode,
+				errors.Join(closeErr, fileCloseErr),
+			)
 		}
 		if fileCloseErr != nil {
-			return "", fmt.Errorf("unexpected status code %d and failed to close temporary archive: %w", response.StatusCode, fileCloseErr)
+			return "", fmt.Errorf(
+				"unexpected status code %d and failed to close temporary archive: %w",
+				response.StatusCode,
+				fileCloseErr,
+			)
 		}
 		return "", fmt.Errorf("unexpected status code %d for %s", response.StatusCode, sourceURL)
 	}
@@ -276,10 +310,16 @@ func downloadToTemporaryFile(sourceURL string, file temporaryFile) (string, erro
 		return "", errors.Join(copyErr, bodyCloseErr, file.Close())
 	}
 	if bodyCloseErr != nil {
-		return "", fmt.Errorf("failed to close response body: %w", errors.Join(bodyCloseErr, file.Close()))
+		return "", fmt.Errorf(
+			"failed to close response body: %w",
+			errors.Join(bodyCloseErr, file.Close()),
+		)
 	}
 	if err := file.Sync(); err != nil {
-		return "", fmt.Errorf("failed to sync temporary archive: %w", errors.Join(err, file.Close()))
+		return "", fmt.Errorf(
+			"failed to sync temporary archive: %w",
+			errors.Join(err, file.Close()),
+		)
 	}
 	if err := file.Close(); err != nil {
 		return "", fmt.Errorf("failed to close temporary archive: %w", err)
@@ -334,7 +374,9 @@ func DownloadGoTool(name, module, version, goos, goarch, destPath string) error 
 
 // DownloadVerifiedGoTool downloads a Go tool release asset after verifying the
 // expected SHA-256 digest.
-func DownloadVerifiedGoTool(name, module, version, goos, goarch, destPath, expectedSHA256 string) error {
+func DownloadVerifiedGoTool(
+	name, module, version, goos, goarch, destPath, expectedSHA256 string,
+) error {
 	downloader := &ToolDownloader{Name: name, Module: module, Version: version}
 	resolvedURL, archiveType, err := downloader.getReleaseURL(goos, goarch)
 	if err != nil {
@@ -347,17 +389,55 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 	repo := extractGitHubRepo(d.Module)
 	switch d.Name {
 	case "templ":
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/templ_%s_%s.tar.gz", repo, d.Version, capitalize(goos), mapArch(goarch)), "tar.gz", nil
+		return fmt.Sprintf(
+			"https://github.com/%s/releases/download/%s/templ_%s_%s.tar.gz",
+			repo,
+			d.Version,
+			capitalize(goos),
+			mapArch(goarch),
+		), "tar.gz", nil
 	case "goose":
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/goose_%s_%s", repo, d.Version, goos, mapArch(goarch)), "binary", nil
+		return fmt.Sprintf(
+			"https://github.com/%s/releases/download/%s/goose_%s_%s",
+			repo,
+			d.Version,
+			goos,
+			mapArch(goarch),
+		), "binary", nil
 	case "mailpit":
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/mailpit-%s-%s.tar.gz", repo, d.Version, goos, goarch), "tar.gz", nil
+		return fmt.Sprintf(
+			"https://github.com/%s/releases/download/%s/mailpit-%s-%s.tar.gz",
+			repo,
+			d.Version,
+			goos,
+			goarch,
+		), "tar.gz", nil
 	case "usql":
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/usql-%s-%s-%s.tar.bz2", repo, d.Version, strings.TrimPrefix(d.Version, "v"), goos, goarch), "tar.bz2", nil
+		return fmt.Sprintf(
+			"https://github.com/%s/releases/download/%s/usql-%s-%s-%s.tar.bz2",
+			repo,
+			d.Version,
+			strings.TrimPrefix(d.Version, "v"),
+			goos,
+			goarch,
+		), "tar.bz2", nil
 	case "dblab":
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/dblab_%s_%s_%s.tar.gz", repo, d.Version, strings.TrimPrefix(d.Version, "v"), goos, goarch), "tar.gz", nil
+		return fmt.Sprintf(
+			"https://github.com/%s/releases/download/%s/dblab_%s_%s_%s.tar.gz",
+			repo,
+			d.Version,
+			strings.TrimPrefix(d.Version, "v"),
+			goos,
+			goarch,
+		), "tar.gz", nil
 	case "shadowfax":
-		return fmt.Sprintf("https://github.com/%s/releases/download/%s/shadowfax-%s-%s", repo, d.Version, goos, goarch), "binary", nil
+		return fmt.Sprintf(
+			"https://github.com/%s/releases/download/%s/shadowfax-%s-%s",
+			repo,
+			d.Version,
+			goos,
+			goarch,
+		), "binary", nil
 	default:
 		return "", "", fmt.Errorf("unknown tool: %s", d.Name)
 	}
@@ -378,13 +458,23 @@ func DownloadVerifiedTailwindCLI(version, goos, goarch, destPath, expectedSHA256
 		normalizeTailwindOS(goos),
 		normalizeTailwindArch(goarch),
 	)
-	if err := DownloadVerifiedFromURL("tailwindcli", resolvedURL, "binary", "tailwindcli", destPath, expectedSHA256); err != nil {
+	if err := DownloadVerifiedFromURL(
+		"tailwindcli",
+		resolvedURL,
+		"binary",
+		"tailwindcli",
+		destPath,
+		expectedSHA256,
+	); err != nil {
 		return fmt.Errorf("failed to download tailwindcli: %w", err)
 	}
 	return nil
 }
 
-func extractArchiveToFile(archivePath, binaryName, archiveType string, destination io.Writer) error {
+func extractArchiveToFile(
+	archivePath, binaryName, archiveType string,
+	destination io.Writer,
+) error {
 	switch archiveType {
 	case "tar.gz":
 		return extractTarGzTo(archivePath, binaryName, destination)
@@ -467,7 +557,11 @@ func extractTarEntry(reader *tar.Reader, binaryName string, destination io.Write
 			return err
 		}
 		if written != header.Size {
-			return fmt.Errorf("extracted binary is truncated: expected %d bytes, got %d", header.Size, written)
+			return fmt.Errorf(
+				"extracted binary is truncated: expected %d bytes, got %d",
+				header.Size,
+				written,
+			)
 		}
 	}
 	if matches == 0 {
@@ -489,7 +583,10 @@ func extractZipTo(archivePath, binaryName string, destination io.Writer) error {
 		}
 		if file.FileInfo().Mode().IsRegular() && path.Base(cleanName) == binaryName {
 			if match != nil {
-				return errors.Join(fmt.Errorf("archive contains multiple files named %s", binaryName), reader.Close())
+				return errors.Join(
+					fmt.Errorf("archive contains multiple files named %s", binaryName),
+					reader.Close(),
+				)
 			}
 			match = file
 		}
@@ -498,7 +595,10 @@ func extractZipTo(archivePath, binaryName string, destination io.Writer) error {
 		return errors.Join(fmt.Errorf("binary %s not found in zip", binaryName), reader.Close())
 	}
 	if match.UncompressedSize64 > uint64(maxBinarySize) {
-		return errors.Join(fmt.Errorf("extracted binary exceeds maximum size of %d bytes", maxBinarySize), reader.Close())
+		return errors.Join(
+			fmt.Errorf("extracted binary exceeds maximum size of %d bytes", maxBinarySize),
+			reader.Close(),
+		)
 	}
 	entry, err := match.Open()
 	if err != nil {
@@ -511,7 +611,11 @@ func extractZipTo(archivePath, binaryName string, destination io.Writer) error {
 		return copyErr
 	}
 	if written != int64(match.UncompressedSize64) {
-		return fmt.Errorf("extracted binary is truncated: expected %d bytes, got %d", match.UncompressedSize64, written)
+		return fmt.Errorf(
+			"extracted binary is truncated: expected %d bytes, got %d",
+			match.UncompressedSize64,
+			written,
+		)
 	}
 	if entryCloseErr != nil {
 		return fmt.Errorf("failed to close zip entry: %w", entryCloseErr)

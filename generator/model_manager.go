@@ -140,7 +140,13 @@ func (m *ModelManager) GenerateModel(
 	skipFactory bool,
 	primaryKeyColumn string,
 ) error {
-	return m.GenerateModelWithMode(resourceName, tableNameOverride, skipFactory, primaryKeyColumn, models.ModelModeCRUD)
+	return m.GenerateModelWithMode(
+		resourceName,
+		tableNameOverride,
+		skipFactory,
+		primaryKeyColumn,
+		models.ModelModeCRUD,
+	)
 }
 
 // GenerateModelWithMode generates model files with a persisted operation mode.
@@ -165,14 +171,23 @@ func (m *ModelManager) GenerateModelWithMode(
 	}
 
 	if !skipFactory {
-		fmt.Printf("✓ Generated factory: models/factories/%s.go\n", naming.ToSnakeCase(resourceName))
+		fmt.Printf(
+			"✓ Generated factory: models/factories/%s.go\n",
+			naming.ToSnakeCase(resourceName),
+		)
 	}
-	fmt.Printf("Successfully generated complete model for %s with database functions\n", resourceName)
+	fmt.Printf(
+		"Successfully generated complete model for %s with database functions\n",
+		resourceName,
+	)
 	return nil
 }
 
 // PlanModel computes every model generation output without writing files.
-func (m *ModelManager) PlanModel(resourceName string, options ModelGenerationOptions) (*ModelGenerationPlan, error) {
+func (m *ModelManager) PlanModel(
+	resourceName string,
+	options ModelGenerationOptions,
+) (*ModelGenerationPlan, error) {
 	tableNameOverride := options.TableNameOverride
 	tableName := tableNameOverride
 	if tableName == "" {
@@ -180,7 +195,10 @@ func (m *ModelManager) PlanModel(resourceName string, options ModelGenerationOpt
 	}
 
 	if tableNameOverride != "" {
-		if err := m.validator.ValidateTableNameOverride(resourceName, tableNameOverride); err != nil {
+		if err := m.validator.ValidateTableNameOverride(
+			resourceName,
+			tableNameOverride,
+		); err != nil {
 			return nil, err
 		}
 	}
@@ -196,7 +214,9 @@ func (m *ModelManager) PlanModel(resourceName string, options ModelGenerationOpt
 
 	planningConfig := *m.config
 	planningConfig.Database = m.config.Database
-	planningConfig.Database.MigrationDirs = append([]string(nil), m.config.Database.MigrationDirs...)
+	planningConfig.Database.MigrationDirs = append(
+		[]string(nil),
+		m.config.Database.MigrationDirs...)
 	for index, migrationDir := range planningConfig.Database.MigrationDirs {
 		if !filepath.IsAbs(migrationDir) {
 			planningConfig.Database.MigrationDirs[index] = filepath.Join(ctx.RootDir, migrationDir)
@@ -228,7 +248,17 @@ func (m *ModelManager) PlanModel(resourceName string, options ModelGenerationOpt
 	if mode == "" {
 		mode = models.ModelModeCRUD
 	}
-	genModel, modelContent, err := m.modelGenerator.PlanModelSource(cat, ctx.ResourceName, ctx.TableName, ctx.ModulePath, tableNameOverride, nullType, pkInfo.ColumnName, !pkInfo.Found, mode)
+	genModel, modelContent, err := m.modelGenerator.PlanModelSource(
+		cat,
+		ctx.ResourceName,
+		ctx.TableName,
+		ctx.ModulePath,
+		tableNameOverride,
+		nullType,
+		pkInfo.ColumnName,
+		!pkInfo.Found,
+		mode,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("plan model source: %w", err)
 	}
@@ -279,7 +309,11 @@ func (m *ModelManager) PlanModel(resourceName string, options ModelGenerationOpt
 		if renderErr != nil {
 			return nil, fmt.Errorf("plan factory source: %w", renderErr)
 		}
-		factoryPath := filepath.Join(filepath.Dir(ctx.ModelPath), "factories", naming.ToSnakeCase(resourceName)+".go")
+		factoryPath := filepath.Join(
+			filepath.Dir(ctx.ModelPath),
+			"factories",
+			naming.ToSnakeCase(resourceName)+".go",
+		)
 		plannedFactory := PlannedFile{Path: factoryPath, NewContent: factoryContent}
 		if m.fileManager.FileExists(factoryPath) {
 			oldFactory, readErr := m.fileManager.ReadFile(factoryPath)
@@ -312,7 +346,10 @@ func (m *ModelManager) ApplyModelPlan(plan *ModelGenerationPlan) error {
 
 // resolvePrimaryKey inspects the catalog for the table's primary key and
 // interacts with the user if the PK is non-standard or missing.
-func (m *ModelManager) resolvePrimaryKey(cat *catalog.Catalog, tableName string) (PrimaryKeyInfo, error) {
+func (m *ModelManager) resolvePrimaryKey(
+	cat *catalog.Catalog,
+	tableName string,
+) (PrimaryKeyInfo, error) {
 	pkInfo := DetectPrimaryKey(cat, tableName)
 
 	if !pkInfo.Found {
@@ -321,7 +358,10 @@ func (m *ModelManager) resolvePrimaryKey(cat *catalog.Catalog, tableName string)
 			return PrimaryKeyInfo{}, err
 		}
 		if !ok {
-			return PrimaryKeyInfo{}, fmt.Errorf("generation aborted: table %q has no primary key", tableName)
+			return PrimaryKeyInfo{}, fmt.Errorf(
+				"generation aborted: table %q has no primary key",
+				tableName,
+			)
 		}
 		return PrimaryKeyInfo{Found: false}, nil
 	}
@@ -374,7 +414,10 @@ func ensureLineInBlock(src, blockHeader, entry string) string {
 // readNullType reads the nullable type strategy from andurel.lock.
 // Defaults to "sql.Null" when not configured.
 func (m *ModelManager) readNullType(rootDir string) string {
-	if lock, err := layout.ReadLockFile(rootDir); err == nil && lock.DatabaseConfig != nil && lock.DatabaseConfig.NullType != "" {
+	if lock, err := layout.ReadLockFile(
+		rootDir,
+	); err == nil && lock.DatabaseConfig != nil &&
+		lock.DatabaseConfig.NullType != "" {
 		return lock.DatabaseConfig.NullType
 	}
 	return "sql.Null"

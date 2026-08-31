@@ -125,10 +125,20 @@ func TestMapSQLTypeToGo_NullableTypes_Pointer(t *testing.T) {
 				t.Fatalf("MapSQLTypeToGo(%s, true) error = %v", tt.sqlType, err)
 			}
 			if goType != tt.expectedGo {
-				t.Errorf("MapSQLTypeToGo(%s, true) goType = %s, want %s", tt.sqlType, goType, tt.expectedGo)
+				t.Errorf(
+					"MapSQLTypeToGo(%s, true) goType = %s, want %s",
+					tt.sqlType,
+					goType,
+					tt.expectedGo,
+				)
 			}
 			if pkg != tt.expectedPkg {
-				t.Errorf("MapSQLTypeToGo(%s, true) package = %s, want %s", tt.sqlType, pkg, tt.expectedPkg)
+				t.Errorf(
+					"MapSQLTypeToGo(%s, true) package = %s, want %s",
+					tt.sqlType,
+					pkg,
+					tt.expectedPkg,
+				)
 			}
 		})
 	}
@@ -164,10 +174,20 @@ func TestMapSQLTypeToGo_NullableTypes_SqlNull(t *testing.T) {
 				t.Fatalf("MapSQLTypeToGo(%s, true) error = %v", tt.sqlType, err)
 			}
 			if goType != tt.expectedGo {
-				t.Errorf("MapSQLTypeToGo(%s, true) goType = %s, want %s", tt.sqlType, goType, tt.expectedGo)
+				t.Errorf(
+					"MapSQLTypeToGo(%s, true) goType = %s, want %s",
+					tt.sqlType,
+					goType,
+					tt.expectedGo,
+				)
 			}
 			if pkg != tt.expectedPkg {
-				t.Errorf("MapSQLTypeToGo(%s, true) package = %s, want %s", tt.sqlType, pkg, tt.expectedPkg)
+				t.Errorf(
+					"MapSQLTypeToGo(%s, true) package = %s, want %s",
+					tt.sqlType,
+					pkg,
+					tt.expectedPkg,
+				)
 			}
 		})
 	}
@@ -202,10 +222,20 @@ func TestMapSQLTypeToGo_NullableTypes_BunNull(t *testing.T) {
 				t.Fatalf("MapSQLTypeToGo(%s, true) error = %v", tt.sqlType, err)
 			}
 			if goType != tt.expectedGo {
-				t.Errorf("MapSQLTypeToGo(%s, true) goType = %s, want %s", tt.sqlType, goType, tt.expectedGo)
+				t.Errorf(
+					"MapSQLTypeToGo(%s, true) goType = %s, want %s",
+					tt.sqlType,
+					goType,
+					tt.expectedGo,
+				)
 			}
 			if pkg != tt.expectedPkg {
-				t.Errorf("MapSQLTypeToGo(%s, true) package = %s, want %s", tt.sqlType, pkg, tt.expectedPkg)
+				t.Errorf(
+					"MapSQLTypeToGo(%s, true) package = %s, want %s",
+					tt.sqlType,
+					pkg,
+					tt.expectedPkg,
+				)
 			}
 		})
 	}

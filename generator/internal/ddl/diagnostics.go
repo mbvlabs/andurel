@@ -40,7 +40,22 @@ func unknownStatementIsModelNeutral(sql string) bool {
 		return true
 	}
 	switch fields[0] {
-	case "analyze", "begin", "comment", "commit", "delete", "grant", "insert", "release", "reset", "revoke", "rollback", "savepoint", "set", "truncate", "update", "vacuum":
+	case "analyze",
+		"begin",
+		"comment",
+		"commit",
+		"delete",
+		"grant",
+		"insert",
+		"release",
+		"reset",
+		"revoke",
+		"rollback",
+		"savepoint",
+		"set",
+		"truncate",
+		"update",
+		"vacuum":
 		return true
 	case "select":
 		return !strings.Contains(strings.ToLower(sql), "into")
@@ -110,7 +125,10 @@ func validateDDLStructure(sql string) error {
 				continue
 			}
 			if !isSQLSpace(char) {
-				return unsupportedStatement(sql, "multiple top-level SQL statements are structurally ambiguous")
+				return unsupportedStatement(
+					sql,
+					"multiple top-level SQL statements are structurally ambiguous",
+				)
 			}
 			continue
 		}
@@ -130,7 +148,10 @@ func validateDDLStructure(sql string) error {
 		case char == ')':
 			parenDepth--
 			if parenDepth < 0 {
-				return unsupportedStatement(sql, "closing parenthesis has no matching opening parenthesis")
+				return unsupportedStatement(
+					sql,
+					"closing parenthesis has no matching opening parenthesis",
+				)
 			}
 		case char == ';' && parenDepth == 0:
 			statementEnded = true

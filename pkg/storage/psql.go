@@ -258,7 +258,8 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
 		if dropped {
 			return
 		}
-		_, _ = admin.DB().ExecContext(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
+		_, _ = admin.DB().
+			ExecContext(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
 	})
 
 	db, err := NewPostgres(ctx, WithDatabaseURL(tc.databaseURL(name)))
@@ -268,7 +269,8 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
 
 	t.Cleanup(func() {
 		_ = db.Close()
-		_, _ = admin.DB().ExecContext(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
+		_, _ = admin.DB().
+			ExecContext(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
 		dropped = true
 	})
 

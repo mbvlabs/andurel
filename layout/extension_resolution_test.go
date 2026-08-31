@@ -26,10 +26,14 @@ func (m mockExtension) Apply(ctx *extensions.Context) error {
 }
 
 func TestResolveExtensions(t *testing.T) {
-	registerMockExtensions(t,
+	registerMockExtensions(
+		t,
 		mockExtension{name: "test-resolve-logging"},
 		mockExtension{name: "test-resolve-metrics", dependencies: []string{"test-resolve-logging"}},
-		mockExtension{name: "test-resolve-dashboard", dependencies: []string{"test-resolve-logging", "test-resolve-metrics"}},
+		mockExtension{
+			name:         "test-resolve-dashboard",
+			dependencies: []string{"test-resolve-logging", "test-resolve-metrics"},
+		},
 	)
 
 	tests := []struct {
@@ -49,9 +53,13 @@ func TestResolveExtensions(t *testing.T) {
 			expected: []string{"test-resolve-logging", "test-resolve-metrics"},
 		},
 		{
-			name:     "extension with transitive dependencies",
-			input:    []string{"test-resolve-dashboard"},
-			expected: []string{"test-resolve-logging", "test-resolve-metrics", "test-resolve-dashboard"},
+			name:  "extension with transitive dependencies",
+			input: []string{"test-resolve-dashboard"},
+			expected: []string{
+				"test-resolve-logging",
+				"test-resolve-metrics",
+				"test-resolve-dashboard",
+			},
 		},
 		{
 			name:     "multiple extensions preserve dependency order",
@@ -142,12 +150,19 @@ func TestResolveExtensions_SelfDependency(t *testing.T) {
 }
 
 func TestResolveExtensions_ComplexDependencyGraph(t *testing.T) {
-	registerMockExtensions(t,
+	registerMockExtensions(
+		t,
 		mockExtension{name: "test-complex-base"},
 		mockExtension{name: "test-complex-logging", dependencies: []string{"test-complex-base"}},
 		mockExtension{name: "test-complex-database", dependencies: []string{"test-complex-base"}},
-		mockExtension{name: "test-complex-api", dependencies: []string{"test-complex-logging", "test-complex-database"}},
-		mockExtension{name: "test-complex-admin", dependencies: []string{"test-complex-api", "test-complex-logging"}},
+		mockExtension{
+			name:         "test-complex-api",
+			dependencies: []string{"test-complex-logging", "test-complex-database"},
+		},
+		mockExtension{
+			name:         "test-complex-admin",
+			dependencies: []string{"test-complex-api", "test-complex-logging"},
+		},
 	)
 
 	result, err := resolveExtensions([]string{"test-complex-admin"})

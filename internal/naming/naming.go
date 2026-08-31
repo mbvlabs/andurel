@@ -176,14 +176,23 @@ func ParseNamespacedResource(input string) (namespace, resource string, err erro
 	case 2:
 		namespace, resource = parts[0], parts[1]
 		if namespace == "" || resource == "" {
-			return "", "", fmt.Errorf("invalid namespaced resource %q: namespace and resource name are required", input)
+			return "", "", fmt.Errorf(
+				"invalid namespaced resource %q: namespace and resource name are required",
+				input,
+			)
 		}
 		if !IsValidNamespace(namespace) {
-			return "", "", fmt.Errorf("invalid namespace %q: namespace must be a valid Go package name and not a reserved path", namespace)
+			return "", "", fmt.Errorf(
+				"invalid namespace %q: namespace must be a valid Go package name and not a reserved path",
+				namespace,
+			)
 		}
 		return namespace, resource, nil
 	default:
-		return "", "", fmt.Errorf("invalid namespaced resource %q: only single-level namespaces are supported", input)
+		return "", "", fmt.Errorf(
+			"invalid namespaced resource %q: only single-level namespaces are supported",
+			input,
+		)
 	}
 }
 
@@ -205,7 +214,9 @@ func IsValidNamespace(namespace string) bool {
 	if namespace == "" {
 		return true
 	}
-	if namespace == "controllers" || namespace == "routes" || namespace == "router" || namespace == "views" || namespace == "models" {
+	if namespace == "controllers" || namespace == "routes" || namespace == "router" ||
+		namespace == "views" ||
+		namespace == "models" {
 		return false
 	}
 	valid := regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
