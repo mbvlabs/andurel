@@ -1,13 +1,20 @@
 package models
 
-type (
-	token         struct{}
-	user          struct{}
-	feedbackEntry struct{}
+import (
+	"github.com/mbvlabs/andurel/pkg/storage"
+
+	"go.uber.org/fx"
 )
 
-var (
-	Token         token
-	User          user
-	FeedbackEntry feedbackEntry
+type queryDB interface {
+	Executor() storage.Executor
+}
+
+var Module = fx.Module(
+	"models",
+	fx.Provide(
+		NewUsers,
+		NewTokens,
+		NewFeedbackEntries,
+	),
 )

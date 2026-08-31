@@ -15,15 +15,14 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 type Warehouses struct {
-	db storage.Connection
+	warehouses models.Warehouses
 }
 
-func NewWarehouses(db storage.Connection) Warehouses {
-	return Warehouses{db}
+func NewWarehouses(warehouses models.Warehouses) Warehouses {
+	return Warehouses{ warehouses }
 }
 
 func (w Warehouses) RegisterRoutes(r *router.Router) error {
@@ -112,9 +111,8 @@ func (w Warehouses) Index(etx *echo.Context) error {
 		}
 	}
 
-	warehousesList, err := models.Warehouse.Paginate(
+	warehousesList, err := w.warehouses.Paginate(
 		etx.Request().Context(),
-		w.db.Executor(),
 		page,
 		perPage,
 	)
@@ -131,7 +129,7 @@ func (w Warehouses) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	warehouse, err := models.Warehouse.Find(etx.Request().Context(), w.db.Executor(), warehouseID)
+	warehouse, err := w.warehouses.Find(etx.Request().Context(), warehouseID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -168,9 +166,8 @@ func (w Warehouses) Create(etx *echo.Context) error {
 		Location: sql.NullString{String: payload.Location, Valid: true},
 	}
 
-	warehouse, err := models.Warehouse.Create(
+	warehouse, err := w.warehouses.Create(
 		etx.Request().Context(),
-		w.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -192,7 +189,7 @@ func (w Warehouses) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	warehouse, err := models.Warehouse.Find(etx.Request().Context(), w.db.Executor(), warehouseID)
+	warehouse, err := w.warehouses.Find(etx.Request().Context(), warehouseID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -231,9 +228,8 @@ func (w Warehouses) Update(etx *echo.Context) error {
 		Location: sql.NullString{String: payload.Location, Valid: true},
 	}
 
-	warehouse, err := models.Warehouse.Update(
+	warehouse, err := w.warehouses.Update(
 		etx.Request().Context(),
-		w.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -258,7 +254,7 @@ func (w Warehouses) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = models.Warehouse.Destroy(etx.Request().Context(), w.db.Executor(), warehouseID)
+	err = w.warehouses.Destroy(etx.Request().Context(), warehouseID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete warehouse: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())

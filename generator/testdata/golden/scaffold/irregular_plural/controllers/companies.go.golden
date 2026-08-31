@@ -16,15 +16,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 type Companies struct {
-	db storage.Connection
+	companies models.Companies
 }
 
-func NewCompanies(db storage.Connection) Companies {
-	return Companies{db}
+func NewCompanies(companies models.Companies) Companies {
+	return Companies{ companies }
 }
 
 func (c Companies) RegisterRoutes(r *router.Router) error {
@@ -113,9 +112,8 @@ func (c Companies) Index(etx *echo.Context) error {
 		}
 	}
 
-	companiesList, err := models.Company.Paginate(
+	companiesList, err := c.companies.Paginate(
 		etx.Request().Context(),
-		c.db.Executor(),
 		page,
 		perPage,
 	)
@@ -132,7 +130,7 @@ func (c Companies) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	company, err := models.Company.Find(etx.Request().Context(), c.db.Executor(), companyID)
+	company, err := c.companies.Find(etx.Request().Context(), companyID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -169,9 +167,8 @@ func (c Companies) Create(etx *echo.Context) error {
 		Industry: sql.NullString{String: payload.Industry, Valid: true},
 	}
 
-	company, err := models.Company.Create(
+	company, err := c.companies.Create(
 		etx.Request().Context(),
-		c.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -193,7 +190,7 @@ func (c Companies) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	company, err := models.Company.Find(etx.Request().Context(), c.db.Executor(), companyID)
+	company, err := c.companies.Find(etx.Request().Context(), companyID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -232,9 +229,8 @@ func (c Companies) Update(etx *echo.Context) error {
 		Industry: sql.NullString{String: payload.Industry, Valid: true},
 	}
 
-	company, err := models.Company.Update(
+	company, err := c.companies.Update(
 		etx.Request().Context(),
-		c.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -259,7 +255,7 @@ func (c Companies) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = models.Company.Destroy(etx.Request().Context(), c.db.Executor(), companyID)
+	err = c.companies.Destroy(etx.Request().Context(), companyID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete company: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())

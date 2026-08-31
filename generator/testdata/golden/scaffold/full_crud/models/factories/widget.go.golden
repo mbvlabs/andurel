@@ -11,18 +11,18 @@ import (
 	"testapp/models"
 )
 
-// WidgetFactory wraps models.WidgetEntity for testing
+// WidgetFactory wraps models.Widget for testing
 type WidgetFactory struct {
-	models.WidgetEntity
+	models.Widget
 }
 
 type WidgetOption func(*WidgetFactory)
 
 // BuildWidget creates an in-memory Widget with default test values.
 // Auto-managed fields (ID, timestamps) are left at zero and set by CreateWidget.
-func BuildWidget(opts ...WidgetOption) models.WidgetEntity {
+func BuildWidget(opts ...WidgetOption) models.Widget {
 	f := &WidgetFactory{
-		WidgetEntity: models.WidgetEntity{
+		Widget: models.Widget{
 			Name:     faker.Name(),
 			Quantity: randomInt(1, 1000, 100),
 			Active:   randomBool(),
@@ -33,15 +33,15 @@ func BuildWidget(opts ...WidgetOption) models.WidgetEntity {
 		opt(f)
 	}
 
-	return f.WidgetEntity
+	return f.Widget
 }
 
 // CreateWidget creates and persists a Widget to the database.
 // It returns the entity populated with all DB-assigned values via RETURNING *.
-func CreateWidget(ctx context.Context, exec storage.Executor, opts ...WidgetOption) (models.WidgetEntity, error) {
+func CreateWidget(ctx context.Context, exec storage.Executor, opts ...WidgetOption) (models.Widget, error) {
 	built := BuildWidget(opts...)
 
-	entity := models.WidgetEntity{
+	entity := models.Widget{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -51,15 +51,15 @@ func CreateWidget(ctx context.Context, exec storage.Executor, opts ...WidgetOpti
 	}
 
 	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
-		return models.WidgetEntity{}, err
+		return models.Widget{}, err
 	}
 
 	return entity, nil
 }
 
 // CreateWidgets creates multiple Widget records at once
-func CreateWidgets(ctx context.Context, exec storage.Executor, count int, opts ...WidgetOption) ([]models.WidgetEntity, error) {
-	widgets := make([]models.WidgetEntity, 0, count)
+func CreateWidgets(ctx context.Context, exec storage.Executor, count int, opts ...WidgetOption) ([]models.Widget, error) {
+	widgets := make([]models.Widget, 0, count)
 
 	for i := range count {
 		entity, err := CreateWidget(ctx, exec, opts...)
@@ -77,20 +77,20 @@ func CreateWidgets(ctx context.Context, exec storage.Executor, count int, opts .
 // WithWidgetName sets the Name field
 func WithWidgetName(value string) WidgetOption {
 	return func(f *WidgetFactory) {
-		f.WidgetEntity.Name = value
+		f.Widget.Name = value
 	}
 }
 
 // WithWidgetQuantity sets the Quantity field
 func WithWidgetQuantity(value int32) WidgetOption {
 	return func(f *WidgetFactory) {
-		f.WidgetEntity.Quantity = value
+		f.Widget.Quantity = value
 	}
 }
 
 // WithWidgetActive sets the Active field
 func WithWidgetActive(value bool) WidgetOption {
 	return func(f *WidgetFactory) {
-		f.WidgetEntity.Active = value
+		f.Widget.Active = value
 	}
 }

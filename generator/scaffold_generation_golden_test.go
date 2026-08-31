@@ -146,7 +146,7 @@ func TestScaffoldGenerationNamespaced(t *testing.T) {
 		t.Fatalf("failed to generate namespaced scaffold: %v", err)
 	}
 
-	assertGeneratedFileContains(t, filepath.Join("models", "widget.go"), "type WidgetEntity struct")
+	assertGeneratedFileContains(t, filepath.Join("models", "widget.go"), "type Widget struct")
 	assertGeneratedFileContains(
 		t,
 		filepath.Join("controllers", "admin", "widgets.go"),

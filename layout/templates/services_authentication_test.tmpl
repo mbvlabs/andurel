@@ -50,7 +50,7 @@ func TestVerifyPasswordWithPeppers(t *testing.T) {
 			if err != nil {
 				t.Fatalf("HashPassword: %v", err)
 			}
-			user := models.UserEntity{Password: []byte(hash)}
+			user := models.User{Password: []byte(hash)}
 
 			valid, needsRehash, err := verifyPasswordWithPeppers(
 				user,

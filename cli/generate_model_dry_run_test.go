@@ -20,11 +20,11 @@ func TestBuildModelPlanMutationReportUsesPlannedStrings(t *testing.T) {
 			Path:       filepath.Join(root, "models", "model.go"),
 			Exists:     true,
 			OldContent: "package models\n",
-			NewContent: "package models\n\nvar Product product\n",
+			NewContent: "package models\n\n\tNewProducts,\n",
 		},
 		{
 			Path:       filepath.Join(root, "models", "product.go"),
-			NewContent: "package models\n\ntype ProductEntity struct{}\n",
+			NewContent: "package models\n\ntype Product struct{}\n",
 		},
 	}}
 
@@ -35,7 +35,7 @@ func TestBuildModelPlanMutationReportUsesPlannedStrings(t *testing.T) {
 	if !slices.Equal(report.FilesUpdated, []string{"models/model.go"}) {
 		t.Fatalf("updated files = %#v", report.FilesUpdated)
 	}
-	for _, want := range []string{"diff --git a/models/model.go", "+var Product product", "diff --git a/models/product.go", "+type ProductEntity struct{}"} {
+	for _, want := range []string{"diff --git a/models/model.go", "+NewProducts,", "diff --git a/models/product.go", "+type Product struct{}"} {
 		if !strings.Contains(report.Diff, want) {
 			t.Fatalf("planned diff missing %q:\n%s", want, report.Diff)
 		}
@@ -47,7 +47,18 @@ func TestGenerateModelDryRunReportsFactoryWithoutMutatingProject(t *testing.T) {
 
 	rootDir := t.TempDir()
 	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26.5\n")
-	writeCLITestFile(t, rootDir, "models/model.go", "package models\n\ntype (\n)\n\nvar (\n)\n")
+	writeCLITestFile(t, rootDir, "models/model.go", `package models
+
+import "go.uber.org/fx"
+
+var Module = fx.Module(
+	"models",
+	fx.Provide(
+		NewUsers,
+		NewTokens,
+	),
+)
+`)
 	writeCLITestFile(t, rootDir, "migrations/000100_create_products.sql", `-- +goose Up
 CREATE TABLE products (
     id UUID PRIMARY KEY,

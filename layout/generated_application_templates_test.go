@@ -70,29 +70,32 @@ func TestGeneratedAPIControllerLivesInAPIPackage(t *testing.T) {
 func TestGeneratedUserAndTokenModelTemplates(t *testing.T) {
 	user := readGeneratedApplicationTemplate(t, "models_user.tmpl")
 	for _, want := range []string{
+		"type Users struct",
+		"func NewUsers(db storage.Connection) Users",
+		"func (users Users) WithTx(tx storage.Transaction) Users",
 		"CreatedAt:        current.CreatedAt",
-		"db.NewDelete()",
+		"users.db.Executor().NewDelete()",
 		"Column(\"email\")",
 		"Column(\"email_validated_at\")",
 		"Column(\"password\")",
 		"Column(\"is_admin\")",
 		"Column(\"updated_at\")",
 		"Returning(\"*\")",
-		"Model(&UserEntity{}).Count(ctx)",
+		"Model(&User{}).Count(ctx)",
 	} {
 		if !strings.Contains(user, want) {
 			t.Errorf("models_user.tmpl missing %q", want)
 		}
 	}
-	if strings.Contains(user, "Model(&UserEntity{}).Scan(ctx, &totalCount)") {
+	if strings.Contains(user, "Model(&User{}).Scan(ctx, &totalCount)") {
 		t.Error("models_user.tmpl still scans a model into the pagination count")
 	}
 
 	token := readGeneratedApplicationTemplate(t, "models_token.tmpl")
-	if !strings.Contains(token, "Model(&TokenEntity{}).Count(ctx)") {
+	if !strings.Contains(token, "Model(&Token{}).Count(ctx)") {
 		t.Error("models_token.tmpl does not use Bun Count")
 	}
-	if strings.Contains(token, "Model(&TokenEntity{}).Scan(ctx, &totalCount)") {
+	if strings.Contains(token, "Model(&Token{}).Scan(ctx, &totalCount)") {
 		t.Error("models_token.tmpl still scans a model into the pagination count")
 	}
 }
@@ -194,7 +197,7 @@ func TestGeneratedAuthenticationTemplates(t *testing.T) {
 	}
 
 	identity := readGeneratedApplicationTemplate(t, "services_identity.tmpl")
-	for _, want := range []string{"AppIdentityProvider", "TokenProvider", "AuthProvider", "GetTokenSigningKey()", "GetPepper()", "GetPreviousPeppers()", "baseURL", "defaultSenderSignature"} {
+	for _, want := range []string{"AppIdentityProvider", "TokenProvider", "AuthProvider", "GetTokenSigningKey()", "GetPepper()", "GetPreviousPeppers()", "baseURL", "defaultSenderSignature", "users                  models.Users", "tokens                 models.Tokens"} {
 		if !strings.Contains(identity, want) {
 			t.Errorf("services_identity.tmpl missing %q", want)
 		}
@@ -207,7 +210,7 @@ func TestGeneratedAuthenticationTemplates(t *testing.T) {
 	for _, want := range []string{
 		"verifyPasswordWithPeppers",
 		"models.HashPassword(data.Password, i.pepper)",
-		"models.User.Update(ctx, i.db.Executor()",
+		"i.users.Update(ctx, models.UpdateUserData{",
 		"persist password rehash",
 	} {
 		if !strings.Contains(authentication, want) {
@@ -247,6 +250,12 @@ func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 	}
 	if !strings.Contains(mainTemplate, "fx.Annotate(newDatabase, fx.As(new(storage.Connection)), fx.As(fx.Self()))") {
 		t.Error("cmd_app_main.tmpl does not provide *storage.Postgres as storage.Connection")
+	}
+	if !strings.Contains(mainTemplate, `"{{.ModuleName}}/models"`) {
+		t.Error("cmd_app_main.tmpl does not import models")
+	}
+	if !strings.Contains(mainTemplate, "models.Module,") {
+		t.Error("cmd_app_main.tmpl does not include models.Module")
 	}
 	if strings.Contains(mainTemplate, "fx.As(fx.Self(), new(storage.Connection))") {
 		t.Error("cmd_app_main.tmpl maps fx.As targets positionally; Self and Connection must be separate As annotations")

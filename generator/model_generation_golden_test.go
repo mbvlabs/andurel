@@ -70,8 +70,8 @@ func TestModelGenerationGoldens(t *testing.T) {
 		modelContent := string(content)
 		modelContent = strings.Replace(
 			modelContent,
-			"type ProductEntity struct {",
-			"type ProductStatus string\n\nconst (\n\tProductStatusActive   ProductStatus = \"active\"\n\tProductStatusArchived ProductStatus = \"archived\"\n)\n\ntype ProductEntity struct {",
+			"type Product struct {",
+			"type ProductStatus string\n\nconst (\n\tProductStatusActive   ProductStatus = \"active\"\n\tProductStatusArchived ProductStatus = \"archived\"\n)\n\ntype Product struct {",
 			1,
 		)
 		modelContent = strings.Replace(
@@ -237,13 +237,21 @@ func generatorPackageDir(t *testing.T) string {
 
 const modelNamespaceFixture = `package models
 
-type (
-	token struct{}
-	user  struct{}
+import (
+	"github.com/mbvlabs/andurel/pkg/storage"
+
+	"go.uber.org/fx"
 )
 
-var (
-	Token token
-	User  user
+type queryDB interface {
+	Executor() storage.Executor
+}
+
+var Module = fx.Module(
+	"models",
+	fx.Provide(
+		NewUsers,
+		NewTokens,
+	),
 )
 `

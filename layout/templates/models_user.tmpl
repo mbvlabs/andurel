@@ -20,7 +20,20 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-type UserEntity struct {
+type Users struct {
+	db queryDB
+}
+
+func NewUsers(db storage.Connection) Users {
+	return Users{db: db}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (users Users) WithTx(tx storage.Transaction) Users {
+	return Users{db: tx}
+}
+
+type User struct {
 	bun.BaseModel    `bun:"table:users,alias:user"`
 	ID               uuid.UUID    `bun:"id,pk,type:uuid"`
 	CreatedAt        time.Time    `bun:"created_at"`
@@ -31,7 +44,7 @@ type UserEntity struct {
 	IsAdmin          bool         `bun:"is_admin"`
 }
 
-func (u *UserEntity) Validate() error {
+func (u *User) Validate() error {
 	b := validation.NewBuilder()
 	b.Required("email", u.Email)
 	b.MaxLen("email", u.Email, 255)
@@ -39,11 +52,11 @@ func (u *UserEntity) Validate() error {
 	return b.Err()
 }
 
-func (u *UserEntity) HasValidatedEmail() bool {
+func (u *User) HasValidatedEmail() bool {
 	return u.EmailValidatedAt.Valid
 }
 
-func (u *UserEntity) ValidPassword(providedPassword, pepper string) (bool, error) {
+func (u *User) ValidPassword(providedPassword, pepper string) (bool, error) {
 	parts := strings.Split(string(u.Password), ":")
 	if len(parts) != 2 {
 		return false, fmt.Errorf("invalid stored password format")
@@ -71,39 +84,38 @@ func (u *UserEntity) ValidPassword(providedPassword, pepper string) (bool, error
 	return subtle.ConstantTimeCompare(newHash, expectedHash) == 1, nil
 }
 
-func (u user) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (UserEntity, error) {
-	var entity UserEntity
-	err := db.NewSelect().
+func (users Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
+	var entity User
+	err := users.db.Executor().NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return UserEntity{}, ErrNotFound
+			return User{}, ErrNotFound
 		}
 
-		return UserEntity{}, err
+		return User{}, err
 	}
 
 	return entity, nil
 }
 
-func (u user) FindByEmail(
+func (users Users) FindByEmail(
 	ctx context.Context,
-	db storage.Executor,
 	email string,
-) (UserEntity, error) {
-	var entity UserEntity
-	err := db.NewSelect().
+) (User, error) {
+	var entity User
+	err := users.db.Executor().NewSelect().
 		Model(&entity).
 		Where("email = ?", strings.ToLower(email)).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return UserEntity{}, ErrNotFound
+			return User{}, ErrNotFound
 		}
 
-		return UserEntity{}, err
+		return User{}, err
 	}
 
 	return entity, nil
@@ -119,18 +131,17 @@ type CreateUserData struct {
 	PasswordPair PasswordPair
 }
 
-func (u user) Create(
+func (users Users) Create(
 	ctx context.Context,
-	db storage.Executor,
 	pepper string,
 	data CreateUserData,
-) (UserEntity, error) {
+) (User, error) {
 	hashedPassword, err := HashPassword(data.PasswordPair.Password, pepper)
 	if err != nil {
-		return UserEntity{}, err
+		return User{}, err
 	}
 
-	entity := UserEntity{
+	entity := User{
 		ID:               uuid.New(),
 		CreatedAt:        time.Now(),
 		UpdatedAt:        time.Now(),
@@ -141,12 +152,12 @@ func (u user) Create(
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return UserEntity{}, errors.Join(ErrDomainValidation, err)
+		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	_, err = db.NewInsert().Model(&entity).Exec(ctx)
+	_, err = users.db.Executor().NewInsert().Model(&entity).Exec(ctx)
 	if err != nil {
-		return UserEntity{}, err
+		return User{}, err
 	}
 
 	return entity, nil
@@ -160,22 +171,21 @@ type UpdateUserData struct {
 	IsAdmin          bool
 }
 
-func (u user) Update(
+func (users Users) Update(
 	ctx context.Context,
-	db storage.Executor,
 	data UpdateUserData,
-) (UserEntity, error) {
-	var current UserEntity
-	err := db.NewSelect().
+) (User, error) {
+	var current User
+	err := users.db.Executor().NewSelect().
 		Model(&current).
 		Where("id = ?", data.ID).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return UserEntity{}, ErrNotFound
+			return User{}, ErrNotFound
 		}
 
-		return UserEntity{}, err
+		return User{}, err
 	}
 
 	email := strings.ToLower(data.Email)
@@ -193,7 +203,7 @@ func (u user) Update(
 		password = current.Password
 	}
 
-	entity := UserEntity{
+	entity := User{
 		ID:               data.ID,
 		CreatedAt:        current.CreatedAt,
 		UpdatedAt:        time.Now(),
@@ -204,10 +214,10 @@ func (u user) Update(
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return UserEntity{}, errors.Join(ErrDomainValidation, err)
+		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err = db.NewUpdate().
+	err = users.db.Executor().NewUpdate().
 		Model(&entity).
 		Column("email").
 		Column("email_validated_at").
@@ -219,27 +229,27 @@ func (u user) Update(
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return UserEntity{}, ErrNotFound
+			return User{}, ErrNotFound
 		}
 
-		return UserEntity{}, err
+		return User{}, err
 	}
 
 	return entity, nil
 }
 
-func (u user) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	_, err := db.NewDelete().
-		Model((*UserEntity)(nil)).
+func (users Users) Destroy(ctx context.Context, id uuid.UUID) error {
+	_, err := users.db.Executor().NewDelete().
+		Model((*User)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
 
 	return err
 }
 
-func (u user) All(ctx context.Context, db storage.Executor) ([]UserEntity, error) {
-	var entities []UserEntity
-	err := db.NewSelect().
+func (users Users) All(ctx context.Context) ([]User, error) {
+	var entities []User
+	err := users.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx)
 	if err != nil {
@@ -250,16 +260,15 @@ func (u user) All(ctx context.Context, db storage.Executor) ([]UserEntity, error
 }
 
 type PaginatedUsers struct {
-	Users      []UserEntity
+	Users      []User
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func (u user) Paginate(
+func (users Users) Paginate(
 	ctx context.Context,
-	db storage.Executor,
 	page, pageSize int64,
 ) (PaginatedUsers, error) {
 	if page < 1 {
@@ -274,14 +283,14 @@ func (u user) Paginate(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.NewSelect().
-		Model(&UserEntity{}).Count(ctx)
+	totalCount, err := users.db.Executor().NewSelect().
+		Model(&User{}).Count(ctx)
 	if err != nil {
 		return PaginatedUsers{}, err
 	}
 
-	entities := make([]UserEntity, 0, int(pageSize))
-	err = db.NewSelect().
+	entities := make([]User, 0, int(pageSize))
+	err = users.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).

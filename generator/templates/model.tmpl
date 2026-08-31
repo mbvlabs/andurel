@@ -13,6 +13,19 @@ import (
 {{- end}}
 )
 
+type {{.PluralName}} struct {
+	db queryDB
+}
+
+func New{{.PluralName}}(db storage.Connection) {{.PluralName}} {
+	return {{.PluralName}}{db: db}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func ({{.ReceiverName}} {{.PluralName}}) WithTx(tx storage.Transaction) {{.PluralName}} {
+	return {{.PluralName}}{db: tx}
+}
+
 type {{.EntityName}} struct {
 	bun.BaseModel `bun:"table:{{.TableName}},alias:{{.TableName}}"`
 
@@ -22,9 +35,9 @@ type {{.EntityName}} struct {
 }
 
 {{if and .HasPrimaryKey (ne .Mode "create-only")}}
-func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.PluralName}}) Find(ctx context.Context, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
 	var entity {{.EntityName}}
-	err := db.NewSelect().
+	err := {{.ReceiverName}}.db.Executor().NewSelect().
 		Model(&entity).
 		Where("{{.IDFieldName}} = ?", id).
 		Scan(ctx)
@@ -53,7 +66,7 @@ type Create{{.Name}}Data struct {
 {{- end}}
 }
 
-func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db storage.Executor, data Create{{.Name}}Data) ({{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.PluralName}}) Create(ctx context.Context, data Create{{.Name}}Data) ({{.EntityName}}, error) {
 	entity := {{.EntityName}}{
 {{- if .HasPrimaryKey}}
 {{- if not .IsAutoIncrementID}}
@@ -81,7 +94,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, db stora
 		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
+	if _, err := {{.ReceiverName}}.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return {{.EntityName}}{}, err
 	}
 
@@ -99,7 +112,7 @@ type Update{{.Name}}Data struct {
 {{- end}}
 }
 
-func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db storage.Executor, data Update{{.Name}}Data) ({{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.PluralName}}) Update(ctx context.Context, data Update{{.Name}}Data) ({{.EntityName}}, error) {
 	entity := {{.EntityName}}{
 		{{.IDGoFieldName}}: data.{{.IDGoFieldName}},
 {{- if .HasUpdatedAt}}
@@ -116,7 +129,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := db.NewUpdate().
+	err := {{.ReceiverName}}.db.Executor().NewUpdate().
 		Model(&entity).
 {{- range .Fields}}
 {{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt")}}
@@ -136,9 +149,9 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, db stora
 	return entity, nil
 }
 
-func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) error {
+func ({{.ReceiverName}} {{.PluralName}}) Destroy(ctx context.Context, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) error {
 	var entity {{.EntityName}}
-	err := db.NewDelete().
+	err := {{.ReceiverName}}.db.Executor().NewDelete().
 		Model(&entity).
 		Where("{{.IDFieldName}} = ?", id).
 		Returning("*").
@@ -155,9 +168,9 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, db stor
 {{end}}
 
 {{if ne .Mode "create-only"}}
-func ({{.ReceiverName}} {{.NamespaceType}}) All(ctx context.Context, db storage.Executor) ([]{{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.PluralName}}) All(ctx context.Context) ([]{{.EntityName}}, error) {
 	var entities []{{.EntityName}}
-	if err := db.NewSelect().
+	if err := {{.ReceiverName}}.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -174,7 +187,7 @@ type Paginated{{.PluralName}} struct {
 	TotalPages int64
 }
 
-func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (Paginated{{.PluralName}}, error) {
+func ({{.ReceiverName}} {{.PluralName}}) Paginate(ctx context.Context, page, pageSize int64) (Paginated{{.PluralName}}, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -187,15 +200,14 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db sto
 
 	offset := (page - 1) * pageSize
 
-	
-	totalCount, err := db.NewSelect().
+	totalCount, err := {{.ReceiverName}}.db.Executor().NewSelect().
 		Model(&{{.EntityName}}{}).Count(ctx)
 	if err != nil {
 		return Paginated{{.PluralName}}{}, err
 	}
 
 	entities := make([]{{.EntityName}}, 0, int(pageSize))
-	if err := db.NewSelect().
+	if err := {{.ReceiverName}}.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
@@ -216,7 +228,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, db sto
 {{end}}
 
 {{if and .HasPrimaryKey (eq .Mode "crud")}}
-func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db storage.Executor, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}, data Create{{.Name}}Data) ({{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.PluralName}}) Upsert(ctx context.Context, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}, data Create{{.Name}}Data) ({{.EntityName}}, error) {
 	entity := {{.EntityName}}{
 		{{.IDGoFieldName}}: id,
 {{- if .HasCreatedAt}}
@@ -236,7 +248,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, db stora
 		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewInsert().
+	if err := {{.ReceiverName}}.db.Executor().NewInsert().
 		Model(&entity).
 		On("CONFLICT ({{.IDFieldName}}) DO UPDATE").
 {{- range .Fields}}
