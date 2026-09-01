@@ -9,24 +9,17 @@ import (
 	"{{.ModuleName}}/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/storage"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
 )
 
 type Pages struct {
-	db         storage.Connection
-	insertOnly storage.InsertQueue
-	cache      *Cache[templ.Component]
+	cache *Cache[templ.Component]
 }
 
-func NewPages(
-	db storage.Connection,
-	insertOnly storage.InsertQueue,
-	cache *Cache[templ.Component],
-) Pages {
-	return Pages{db, insertOnly, cache}
+func NewPages(cache *Cache[templ.Component]) Pages {
+	return Pages{cache: cache}
 }
 
 func (p Pages) RegisterRoutes(r *router.Router) error {
