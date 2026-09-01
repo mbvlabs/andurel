@@ -23,7 +23,7 @@ func NewCompanies(db storage.Connection) Companies {
 }
 
 // WithTx returns a copy that runs queries inside tx.
-func (companies Companies) WithTx(tx storage.Transaction) Companies {
+func (c Companies) WithTx(tx storage.Transaction) Companies {
 	return Companies{db: tx}
 }
 
@@ -36,9 +36,9 @@ type Company struct {
 	UpdatedAt     time.Time      `bun:"updated_at"`
 }
 
-func (companies Companies) Find(ctx context.Context, id uuid.UUID) (Company, error) {
+func (c Companies) Find(ctx context.Context, id uuid.UUID) (Company, error) {
 	var entity Company
-	err := companies.db.Executor().NewSelect().
+	err := c.db.Executor().NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
 		Scan(ctx)
@@ -57,7 +57,7 @@ type CreateCompanyData struct {
 	Industry sql.NullString
 }
 
-func (companies Companies) Create(ctx context.Context, data CreateCompanyData) (Company, error) {
+func (c Companies) Create(ctx context.Context, data CreateCompanyData) (Company, error) {
 	entity := Company{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
@@ -70,7 +70,7 @@ func (companies Companies) Create(ctx context.Context, data CreateCompanyData) (
 		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := companies.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+	if _, err := c.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return Company{}, err
 	}
 
@@ -83,7 +83,7 @@ type UpdateCompanyData struct {
 	Industry sql.NullString
 }
 
-func (companies Companies) Update(ctx context.Context, data UpdateCompanyData) (Company, error) {
+func (c Companies) Update(ctx context.Context, data UpdateCompanyData) (Company, error) {
 	entity := Company{
 		ID:        data.ID,
 		UpdatedAt: time.Now(),
@@ -95,7 +95,7 @@ func (companies Companies) Update(ctx context.Context, data UpdateCompanyData) (
 		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := companies.db.Executor().NewUpdate().
+	err := c.db.Executor().NewUpdate().
 		Model(&entity).
 		Column("name").
 		Column("industry").
@@ -113,9 +113,9 @@ func (companies Companies) Update(ctx context.Context, data UpdateCompanyData) (
 	return entity, nil
 }
 
-func (companies Companies) Destroy(ctx context.Context, id uuid.UUID) error {
+func (c Companies) Destroy(ctx context.Context, id uuid.UUID) error {
 	var entity Company
-	err := companies.db.Executor().NewDelete().
+	err := c.db.Executor().NewDelete().
 		Model(&entity).
 		Where("id = ?", id).
 		Returning("*").
@@ -130,9 +130,9 @@ func (companies Companies) Destroy(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (companies Companies) All(ctx context.Context) ([]Company, error) {
+func (c Companies) All(ctx context.Context) ([]Company, error) {
 	var entities []Company
-	if err := companies.db.Executor().NewSelect().
+	if err := c.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -149,7 +149,7 @@ type PaginatedCompanies struct {
 	TotalPages int64
 }
 
-func (companies Companies) Paginate(ctx context.Context, page, pageSize int64) (PaginatedCompanies, error) {
+func (c Companies) Paginate(ctx context.Context, page, pageSize int64) (PaginatedCompanies, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -162,14 +162,14 @@ func (companies Companies) Paginate(ctx context.Context, page, pageSize int64) (
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := companies.db.Executor().NewSelect().
+	totalCount, err := c.db.Executor().NewSelect().
 		Model(&Company{}).Count(ctx)
 	if err != nil {
 		return PaginatedCompanies{}, err
 	}
 
 	entities := make([]Company, 0, int(pageSize))
-	if err := companies.db.Executor().NewSelect().
+	if err := c.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
@@ -188,7 +188,7 @@ func (companies Companies) Paginate(ctx context.Context, page, pageSize int64) (
 	}, nil
 }
 
-func (companies Companies) Upsert(ctx context.Context, id uuid.UUID, data CreateCompanyData) (Company, error) {
+func (c Companies) Upsert(ctx context.Context, id uuid.UUID, data CreateCompanyData) (Company, error) {
 	entity := Company{
 		ID:        id,
 		CreatedAt: time.Now(),
@@ -201,7 +201,7 @@ func (companies Companies) Upsert(ctx context.Context, id uuid.UUID, data Create
 		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := companies.db.Executor().NewInsert().
+	if err := c.db.Executor().NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("name = excluded.name").

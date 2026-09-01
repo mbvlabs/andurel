@@ -23,7 +23,7 @@ func NewAuditLogs(db storage.Connection) AuditLogs {
 }
 
 // WithTx returns a copy that runs queries inside tx.
-func (auditLogs AuditLogs) WithTx(tx storage.Transaction) AuditLogs {
+func (al AuditLogs) WithTx(tx storage.Transaction) AuditLogs {
 	return AuditLogs{db: tx}
 }
 
@@ -46,7 +46,7 @@ type CreateAuditLogData struct {
 	OccurredAt time.Time
 }
 
-func (auditLogs AuditLogs) Create(ctx context.Context, data CreateAuditLogData) (AuditLog, error) {
+func (al AuditLogs) Create(ctx context.Context, data CreateAuditLogData) (AuditLog, error) {
 	entity := AuditLog{
 		EventId:    data.EventId,
 		Action:     data.Action,
@@ -60,16 +60,16 @@ func (auditLogs AuditLogs) Create(ctx context.Context, data CreateAuditLogData) 
 		return AuditLog{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := auditLogs.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+	if _, err := al.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return AuditLog{}, err
 	}
 
 	return entity, nil
 }
 
-func (auditLogs AuditLogs) All(ctx context.Context) ([]AuditLog, error) {
+func (al AuditLogs) All(ctx context.Context) ([]AuditLog, error) {
 	var entities []AuditLog
-	if err := auditLogs.db.Executor().NewSelect().
+	if err := al.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ type PaginatedAuditLogs struct {
 	TotalPages int64
 }
 
-func (auditLogs AuditLogs) Paginate(ctx context.Context, page, pageSize int64) (PaginatedAuditLogs, error) {
+func (al AuditLogs) Paginate(ctx context.Context, page, pageSize int64) (PaginatedAuditLogs, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -99,14 +99,14 @@ func (auditLogs AuditLogs) Paginate(ctx context.Context, page, pageSize int64) (
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := auditLogs.db.Executor().NewSelect().
+	totalCount, err := al.db.Executor().NewSelect().
 		Model(&AuditLog{}).Count(ctx)
 	if err != nil {
 		return PaginatedAuditLogs{}, err
 	}
 
 	entities := make([]AuditLog, 0, int(pageSize))
-	if err := auditLogs.db.Executor().NewSelect().
+	if err := al.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).

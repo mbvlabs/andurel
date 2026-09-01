@@ -23,7 +23,7 @@ func NewWidgets(db storage.Connection) Widgets {
 }
 
 // WithTx returns a copy that runs queries inside tx.
-func (widgets Widgets) WithTx(tx storage.Transaction) Widgets {
+func (w Widgets) WithTx(tx storage.Transaction) Widgets {
 	return Widgets{db: tx}
 }
 
@@ -37,9 +37,9 @@ type Widget struct {
 	UpdatedAt     time.Time `bun:"updated_at"`
 }
 
-func (widgets Widgets) Find(ctx context.Context, id uuid.UUID) (Widget, error) {
+func (w Widgets) Find(ctx context.Context, id uuid.UUID) (Widget, error) {
 	var entity Widget
-	err := widgets.db.Executor().NewSelect().
+	err := w.db.Executor().NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
 		Scan(ctx)
@@ -59,7 +59,7 @@ type CreateWidgetData struct {
 	Active   bool
 }
 
-func (widgets Widgets) Create(ctx context.Context, data CreateWidgetData) (Widget, error) {
+func (w Widgets) Create(ctx context.Context, data CreateWidgetData) (Widget, error) {
 	entity := Widget{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
@@ -73,7 +73,7 @@ func (widgets Widgets) Create(ctx context.Context, data CreateWidgetData) (Widge
 		return Widget{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := widgets.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+	if _, err := w.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return Widget{}, err
 	}
 
@@ -87,7 +87,7 @@ type UpdateWidgetData struct {
 	Active   bool
 }
 
-func (widgets Widgets) Update(ctx context.Context, data UpdateWidgetData) (Widget, error) {
+func (w Widgets) Update(ctx context.Context, data UpdateWidgetData) (Widget, error) {
 	entity := Widget{
 		ID:        data.ID,
 		UpdatedAt: time.Now(),
@@ -100,7 +100,7 @@ func (widgets Widgets) Update(ctx context.Context, data UpdateWidgetData) (Widge
 		return Widget{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := widgets.db.Executor().NewUpdate().
+	err := w.db.Executor().NewUpdate().
 		Model(&entity).
 		Column("name").
 		Column("quantity").
@@ -119,9 +119,9 @@ func (widgets Widgets) Update(ctx context.Context, data UpdateWidgetData) (Widge
 	return entity, nil
 }
 
-func (widgets Widgets) Destroy(ctx context.Context, id uuid.UUID) error {
+func (w Widgets) Destroy(ctx context.Context, id uuid.UUID) error {
 	var entity Widget
-	err := widgets.db.Executor().NewDelete().
+	err := w.db.Executor().NewDelete().
 		Model(&entity).
 		Where("id = ?", id).
 		Returning("*").
@@ -136,9 +136,9 @@ func (widgets Widgets) Destroy(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (widgets Widgets) All(ctx context.Context) ([]Widget, error) {
+func (w Widgets) All(ctx context.Context) ([]Widget, error) {
 	var entities []Widget
-	if err := widgets.db.Executor().NewSelect().
+	if err := w.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ type PaginatedWidgets struct {
 	TotalPages int64
 }
 
-func (widgets Widgets) Paginate(ctx context.Context, page, pageSize int64) (PaginatedWidgets, error) {
+func (w Widgets) Paginate(ctx context.Context, page, pageSize int64) (PaginatedWidgets, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -168,14 +168,14 @@ func (widgets Widgets) Paginate(ctx context.Context, page, pageSize int64) (Pagi
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := widgets.db.Executor().NewSelect().
+	totalCount, err := w.db.Executor().NewSelect().
 		Model(&Widget{}).Count(ctx)
 	if err != nil {
 		return PaginatedWidgets{}, err
 	}
 
 	entities := make([]Widget, 0, int(pageSize))
-	if err := widgets.db.Executor().NewSelect().
+	if err := w.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
@@ -194,7 +194,7 @@ func (widgets Widgets) Paginate(ctx context.Context, page, pageSize int64) (Pagi
 	}, nil
 }
 
-func (widgets Widgets) Upsert(ctx context.Context, id uuid.UUID, data CreateWidgetData) (Widget, error) {
+func (w Widgets) Upsert(ctx context.Context, id uuid.UUID, data CreateWidgetData) (Widget, error) {
 	entity := Widget{
 		ID:        id,
 		CreatedAt: time.Now(),
@@ -208,7 +208,7 @@ func (widgets Widgets) Upsert(ctx context.Context, id uuid.UUID, data CreateWidg
 		return Widget{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := widgets.db.Executor().NewInsert().
+	if err := w.db.Executor().NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("name = excluded.name").

@@ -22,7 +22,7 @@ func NewWarehouses(db storage.Connection) Warehouses {
 }
 
 // WithTx returns a copy that runs queries inside tx.
-func (warehouses Warehouses) WithTx(tx storage.Transaction) Warehouses {
+func (w Warehouses) WithTx(tx storage.Transaction) Warehouses {
 	return Warehouses{db: tx}
 }
 
@@ -35,9 +35,9 @@ type Warehouse struct {
 	UpdatedAt     time.Time      `bun:"updated_at"`
 }
 
-func (warehouses Warehouses) Find(ctx context.Context, id string) (Warehouse, error) {
+func (w Warehouses) Find(ctx context.Context, id string) (Warehouse, error) {
 	var entity Warehouse
-	err := warehouses.db.Executor().NewSelect().
+	err := w.db.Executor().NewSelect().
 		Model(&entity).
 		Where("slug = ?", id).
 		Scan(ctx)
@@ -57,7 +57,7 @@ type CreateWarehouseData struct {
 	Slug     string
 }
 
-func (warehouses Warehouses) Create(ctx context.Context, data CreateWarehouseData) (Warehouse, error) {
+func (w Warehouses) Create(ctx context.Context, data CreateWarehouseData) (Warehouse, error) {
 	entity := Warehouse{
 		Slug:      data.Slug,
 		CreatedAt: time.Now(),
@@ -70,7 +70,7 @@ func (warehouses Warehouses) Create(ctx context.Context, data CreateWarehouseDat
 		return Warehouse{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := warehouses.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+	if _, err := w.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return Warehouse{}, err
 	}
 
@@ -83,7 +83,7 @@ type UpdateWarehouseData struct {
 	Location sql.NullString
 }
 
-func (warehouses Warehouses) Update(ctx context.Context, data UpdateWarehouseData) (Warehouse, error) {
+func (w Warehouses) Update(ctx context.Context, data UpdateWarehouseData) (Warehouse, error) {
 	entity := Warehouse{
 		Slug:      data.Slug,
 		UpdatedAt: time.Now(),
@@ -95,7 +95,7 @@ func (warehouses Warehouses) Update(ctx context.Context, data UpdateWarehouseDat
 		return Warehouse{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := warehouses.db.Executor().NewUpdate().
+	err := w.db.Executor().NewUpdate().
 		Model(&entity).
 		Column("name").
 		Column("location").
@@ -113,9 +113,9 @@ func (warehouses Warehouses) Update(ctx context.Context, data UpdateWarehouseDat
 	return entity, nil
 }
 
-func (warehouses Warehouses) Destroy(ctx context.Context, id string) error {
+func (w Warehouses) Destroy(ctx context.Context, id string) error {
 	var entity Warehouse
-	err := warehouses.db.Executor().NewDelete().
+	err := w.db.Executor().NewDelete().
 		Model(&entity).
 		Where("slug = ?", id).
 		Returning("*").
@@ -130,9 +130,9 @@ func (warehouses Warehouses) Destroy(ctx context.Context, id string) error {
 	return nil
 }
 
-func (warehouses Warehouses) All(ctx context.Context) ([]Warehouse, error) {
+func (w Warehouses) All(ctx context.Context) ([]Warehouse, error) {
 	var entities []Warehouse
-	if err := warehouses.db.Executor().NewSelect().
+	if err := w.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -149,7 +149,7 @@ type PaginatedWarehouses struct {
 	TotalPages int64
 }
 
-func (warehouses Warehouses) Paginate(ctx context.Context, page, pageSize int64) (PaginatedWarehouses, error) {
+func (w Warehouses) Paginate(ctx context.Context, page, pageSize int64) (PaginatedWarehouses, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -162,14 +162,14 @@ func (warehouses Warehouses) Paginate(ctx context.Context, page, pageSize int64)
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := warehouses.db.Executor().NewSelect().
+	totalCount, err := w.db.Executor().NewSelect().
 		Model(&Warehouse{}).Count(ctx)
 	if err != nil {
 		return PaginatedWarehouses{}, err
 	}
 
 	entities := make([]Warehouse, 0, int(pageSize))
-	if err := warehouses.db.Executor().NewSelect().
+	if err := w.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
@@ -188,7 +188,7 @@ func (warehouses Warehouses) Paginate(ctx context.Context, page, pageSize int64)
 	}, nil
 }
 
-func (warehouses Warehouses) Upsert(ctx context.Context, id string, data CreateWarehouseData) (Warehouse, error) {
+func (w Warehouses) Upsert(ctx context.Context, id string, data CreateWarehouseData) (Warehouse, error) {
 	entity := Warehouse{
 		Slug:      id,
 		CreatedAt: time.Now(),
@@ -201,7 +201,7 @@ func (warehouses Warehouses) Upsert(ctx context.Context, id string, data CreateW
 		return Warehouse{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := warehouses.db.Executor().NewInsert().
+	if err := w.db.Executor().NewInsert().
 		Model(&entity).
 		On("CONFLICT (slug) DO UPDATE").
 		Set("name = excluded.name").

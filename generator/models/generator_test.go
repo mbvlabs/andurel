@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/internal/naming"
 )
@@ -237,11 +236,9 @@ func TestGenerateModelUpsertRequiresExplicitPrimaryKey(t *testing.T) {
 				t.Fatalf("read generated model: %v", err)
 			}
 			generated := string(content)
-			signature := "func (" + naming.ToLowerCamelCase(
-				inflection.Plural(tt.resource),
-			) + " " + inflection.Plural(
-				tt.resource,
-			) + ") Upsert(ctx context.Context, id " + tt.idType + ", data Create" + tt.resource + "Data)"
+			signature := "func (" + naming.ToReceiverName(tt.resource) + " " +
+				naming.ModelServiceName(tt.resource) + ") Upsert(ctx context.Context, id " +
+				tt.idType + ", data Create" + tt.resource + "Data)"
 			upsertStart := strings.Index(generated, signature)
 			if upsertStart < 0 {
 				t.Fatalf(
@@ -409,6 +406,9 @@ func TestGenerateModelDisambiguatesUnchangedPluralServiceNames(t *testing.T) {
 					model.NamespaceVar,
 					serviceName,
 				)
+			}
+			if model.ReceiverName != naming.ToReceiverName(resourceName) {
+				t.Fatalf("receiver name = %q", model.ReceiverName)
 			}
 			for _, want := range []string{
 				"type " + serviceName + " struct",

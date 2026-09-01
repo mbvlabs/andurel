@@ -23,7 +23,7 @@ func NewDocuments(db storage.Connection) Documents {
 }
 
 // WithTx returns a copy that runs queries inside tx.
-func (documents Documents) WithTx(tx storage.Transaction) Documents {
+func (d Documents) WithTx(tx storage.Transaction) Documents {
 	return Documents{db: tx}
 }
 
@@ -39,9 +39,9 @@ type Document struct {
 	UpdatedAt     time.Time `bun:"updated_at"`
 }
 
-func (documents Documents) Find(ctx context.Context, id uuid.UUID) (Document, error) {
+func (d Documents) Find(ctx context.Context, id uuid.UUID) (Document, error) {
 	var entity Document
-	err := documents.db.Executor().NewSelect().
+	err := d.db.Executor().NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
 		Scan(ctx)
@@ -63,7 +63,7 @@ type CreateDocumentData struct {
 	IsPublished bool
 }
 
-func (documents Documents) Create(ctx context.Context, data CreateDocumentData) (Document, error) {
+func (d Documents) Create(ctx context.Context, data CreateDocumentData) (Document, error) {
 	entity := Document{
 		ID:          uuid.New(),
 		CreatedAt:   time.Now(),
@@ -79,7 +79,7 @@ func (documents Documents) Create(ctx context.Context, data CreateDocumentData) 
 		return Document{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := documents.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+	if _, err := d.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return Document{}, err
 	}
 
@@ -95,7 +95,7 @@ type UpdateDocumentData struct {
 	IsPublished bool
 }
 
-func (documents Documents) Update(ctx context.Context, data UpdateDocumentData) (Document, error) {
+func (d Documents) Update(ctx context.Context, data UpdateDocumentData) (Document, error) {
 	entity := Document{
 		ID:          data.ID,
 		UpdatedAt:   time.Now(),
@@ -110,7 +110,7 @@ func (documents Documents) Update(ctx context.Context, data UpdateDocumentData) 
 		return Document{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := documents.db.Executor().NewUpdate().
+	err := d.db.Executor().NewUpdate().
 		Model(&entity).
 		Column("title").
 		Column("tags").
@@ -131,9 +131,9 @@ func (documents Documents) Update(ctx context.Context, data UpdateDocumentData) 
 	return entity, nil
 }
 
-func (documents Documents) Destroy(ctx context.Context, id uuid.UUID) error {
+func (d Documents) Destroy(ctx context.Context, id uuid.UUID) error {
 	var entity Document
-	err := documents.db.Executor().NewDelete().
+	err := d.db.Executor().NewDelete().
 		Model(&entity).
 		Where("id = ?", id).
 		Returning("*").
@@ -148,9 +148,9 @@ func (documents Documents) Destroy(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (documents Documents) All(ctx context.Context) ([]Document, error) {
+func (d Documents) All(ctx context.Context) ([]Document, error) {
 	var entities []Document
-	if err := documents.db.Executor().NewSelect().
+	if err := d.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -167,7 +167,7 @@ type PaginatedDocuments struct {
 	TotalPages int64
 }
 
-func (documents Documents) Paginate(ctx context.Context, page, pageSize int64) (PaginatedDocuments, error) {
+func (d Documents) Paginate(ctx context.Context, page, pageSize int64) (PaginatedDocuments, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -180,14 +180,14 @@ func (documents Documents) Paginate(ctx context.Context, page, pageSize int64) (
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := documents.db.Executor().NewSelect().
+	totalCount, err := d.db.Executor().NewSelect().
 		Model(&Document{}).Count(ctx)
 	if err != nil {
 		return PaginatedDocuments{}, err
 	}
 
 	entities := make([]Document, 0, int(pageSize))
-	if err := documents.db.Executor().NewSelect().
+	if err := d.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
@@ -206,7 +206,7 @@ func (documents Documents) Paginate(ctx context.Context, page, pageSize int64) (
 	}, nil
 }
 
-func (documents Documents) Upsert(ctx context.Context, id uuid.UUID, data CreateDocumentData) (Document, error) {
+func (d Documents) Upsert(ctx context.Context, id uuid.UUID, data CreateDocumentData) (Document, error) {
 	entity := Document{
 		ID:          id,
 		CreatedAt:   time.Now(),
@@ -222,7 +222,7 @@ func (documents Documents) Upsert(ctx context.Context, id uuid.UUID, data Create
 		return Document{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := documents.db.Executor().NewInsert().
+	if err := d.db.Executor().NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("title = excluded.title").

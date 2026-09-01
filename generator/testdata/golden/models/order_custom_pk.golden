@@ -23,7 +23,7 @@ func NewOrders(db storage.Connection) Orders {
 }
 
 // WithTx returns a copy that runs queries inside tx.
-func (orders Orders) WithTx(tx storage.Transaction) Orders {
+func (o Orders) WithTx(tx storage.Transaction) Orders {
 	return Orders{db: tx}
 }
 
@@ -39,9 +39,9 @@ type Order struct {
 	UpdatedAt     time.Time    `bun:"updated_at"`
 }
 
-func (orders Orders) Find(ctx context.Context, id uuid.UUID) (Order, error) {
+func (o Orders) Find(ctx context.Context, id uuid.UUID) (Order, error) {
 	var entity Order
-	err := orders.db.Executor().NewSelect().
+	err := o.db.Executor().NewSelect().
 		Model(&entity).
 		Where("order_id = ?", id).
 		Scan(ctx)
@@ -63,7 +63,7 @@ type CreateOrderData struct {
 	PlacedAt   sql.NullTime
 }
 
-func (orders Orders) Create(ctx context.Context, data CreateOrderData) (Order, error) {
+func (o Orders) Create(ctx context.Context, data CreateOrderData) (Order, error) {
 	entity := Order{
 		OrderId:    uuid.New(),
 		CreatedAt:  time.Now(),
@@ -79,7 +79,7 @@ func (orders Orders) Create(ctx context.Context, data CreateOrderData) (Order, e
 		return Order{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := orders.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+	if _, err := o.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return Order{}, err
 	}
 
@@ -95,7 +95,7 @@ type UpdateOrderData struct {
 	PlacedAt   sql.NullTime
 }
 
-func (orders Orders) Update(ctx context.Context, data UpdateOrderData) (Order, error) {
+func (o Orders) Update(ctx context.Context, data UpdateOrderData) (Order, error) {
 	entity := Order{
 		OrderId:    data.OrderId,
 		UpdatedAt:  time.Now(),
@@ -110,7 +110,7 @@ func (orders Orders) Update(ctx context.Context, data UpdateOrderData) (Order, e
 		return Order{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := orders.db.Executor().NewUpdate().
+	err := o.db.Executor().NewUpdate().
 		Model(&entity).
 		Column("customer_id").
 		Column("reference").
@@ -131,9 +131,9 @@ func (orders Orders) Update(ctx context.Context, data UpdateOrderData) (Order, e
 	return entity, nil
 }
 
-func (orders Orders) Destroy(ctx context.Context, id uuid.UUID) error {
+func (o Orders) Destroy(ctx context.Context, id uuid.UUID) error {
 	var entity Order
-	err := orders.db.Executor().NewDelete().
+	err := o.db.Executor().NewDelete().
 		Model(&entity).
 		Where("order_id = ?", id).
 		Returning("*").
@@ -148,9 +148,9 @@ func (orders Orders) Destroy(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (orders Orders) All(ctx context.Context) ([]Order, error) {
+func (o Orders) All(ctx context.Context) ([]Order, error) {
 	var entities []Order
-	if err := orders.db.Executor().NewSelect().
+	if err := o.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -167,7 +167,7 @@ type PaginatedOrders struct {
 	TotalPages int64
 }
 
-func (orders Orders) Paginate(ctx context.Context, page, pageSize int64) (PaginatedOrders, error) {
+func (o Orders) Paginate(ctx context.Context, page, pageSize int64) (PaginatedOrders, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -180,14 +180,14 @@ func (orders Orders) Paginate(ctx context.Context, page, pageSize int64) (Pagina
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := orders.db.Executor().NewSelect().
+	totalCount, err := o.db.Executor().NewSelect().
 		Model(&Order{}).Count(ctx)
 	if err != nil {
 		return PaginatedOrders{}, err
 	}
 
 	entities := make([]Order, 0, int(pageSize))
-	if err := orders.db.Executor().NewSelect().
+	if err := o.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
@@ -206,7 +206,7 @@ func (orders Orders) Paginate(ctx context.Context, page, pageSize int64) (Pagina
 	}, nil
 }
 
-func (orders Orders) Upsert(ctx context.Context, id uuid.UUID, data CreateOrderData) (Order, error) {
+func (o Orders) Upsert(ctx context.Context, id uuid.UUID, data CreateOrderData) (Order, error) {
 	entity := Order{
 		OrderId:    id,
 		CreatedAt:  time.Now(),
@@ -222,7 +222,7 @@ func (orders Orders) Upsert(ctx context.Context, id uuid.UUID, data CreateOrderD
 		return Order{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := orders.db.Executor().NewInsert().
+	if err := o.db.Executor().NewInsert().
 		Model(&entity).
 		On("CONFLICT (order_id) DO UPDATE").
 		Set("customer_id = excluded.customer_id").

@@ -60,7 +60,7 @@ type GeneratedModel struct {
 	EntityName          string // User (resource name)
 	NamespaceVar        string // Users (exported service type / constructor base)
 	NamespaceType       string // Users (service type used as method receiver)
-	ReceiverName        string // users (for the service methods)
+	ReceiverName        string // u (short receiver for the service methods)
 	HasCreatedAt        bool
 	HasUpdatedAt        bool
 	Mode                ModelMode
@@ -152,7 +152,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	serviceName := naming.ModelServiceName(config.ResourceName)
 	namespaceVar := serviceName
 	namespaceType := serviceName
-	receiverName := naming.ToLowerCamelCase(serviceName)
+	receiverName := naming.ToReceiverName(config.ResourceName)
 
 	model := &GeneratedModel{
 		Name:            config.ResourceName,

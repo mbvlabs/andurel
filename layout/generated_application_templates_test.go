@@ -72,9 +72,9 @@ func TestGeneratedUserAndTokenModelTemplates(t *testing.T) {
 	for _, want := range []string{
 		"type Users struct",
 		"func NewUsers(db storage.Connection) Users",
-		"func (users Users) WithTx(tx storage.Transaction) Users",
+		"func (u Users) WithTx(tx storage.Transaction) Users",
 		"CreatedAt:        current.CreatedAt",
-		"users.db.Executor().NewDelete()",
+		"u.db.Executor().NewDelete()",
 		"Column(\"email\")",
 		"Column(\"email_validated_at\")",
 		"Column(\"password\")",

@@ -21,7 +21,7 @@ func NewEventMetrics(db storage.Connection) EventMetrics {
 }
 
 // WithTx returns a copy that runs queries inside tx.
-func (eventMetrics EventMetrics) WithTx(tx storage.Transaction) EventMetrics {
+func (em EventMetrics) WithTx(tx storage.Transaction) EventMetrics {
 	return EventMetrics{db: tx}
 }
 
@@ -42,7 +42,7 @@ type CreateEventMetricData struct {
 	OccurredAt time.Time
 }
 
-func (eventMetrics EventMetrics) Create(ctx context.Context, data CreateEventMetricData) (EventMetric, error) {
+func (em EventMetrics) Create(ctx context.Context, data CreateEventMetricData) (EventMetric, error) {
 	entity := EventMetric{
 		Action:     data.Action,
 		EntityType: data.EntityType,
@@ -55,16 +55,16 @@ func (eventMetrics EventMetrics) Create(ctx context.Context, data CreateEventMet
 		return EventMetric{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := eventMetrics.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+	if _, err := em.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
 		return EventMetric{}, err
 	}
 
 	return entity, nil
 }
 
-func (eventMetrics EventMetrics) All(ctx context.Context) ([]EventMetric, error) {
+func (em EventMetrics) All(ctx context.Context) ([]EventMetric, error) {
 	var entities []EventMetric
-	if err := eventMetrics.db.Executor().NewSelect().
+	if err := em.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ type PaginatedEventMetrics struct {
 	TotalPages   int64
 }
 
-func (eventMetrics EventMetrics) Paginate(ctx context.Context, page, pageSize int64) (PaginatedEventMetrics, error) {
+func (em EventMetrics) Paginate(ctx context.Context, page, pageSize int64) (PaginatedEventMetrics, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -94,14 +94,14 @@ func (eventMetrics EventMetrics) Paginate(ctx context.Context, page, pageSize in
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := eventMetrics.db.Executor().NewSelect().
+	totalCount, err := em.db.Executor().NewSelect().
 		Model(&EventMetric{}).Count(ctx)
 	if err != nil {
 		return PaginatedEventMetrics{}, err
 	}
 
 	entities := make([]EventMetric, 0, int(pageSize))
-	if err := eventMetrics.db.Executor().NewSelect().
+	if err := em.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
