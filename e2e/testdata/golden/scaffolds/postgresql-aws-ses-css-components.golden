@@ -6157,7 +6157,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/mbvlabs/andurel/pkg/email v0.1.0 => /home/mbv/Work/andurel/pkg/email
+replace github.com/mbvlabs/andurel/pkg/email v0.1.0 => <WORKSPACE_ROOT>/pkg/email
 ```
 
 file -----------rw-r--r-- go.sum
