@@ -2,8 +2,6 @@
 
 All notable changes to the standalone Andurel storage module are documented here.
 
-## Unreleased
-
 ## 0.4.0 - 2026-09-01
 
 ### Added

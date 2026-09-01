@@ -22,15 +22,15 @@ require (
 	github.com/labstack/echo/v5 v5.3.0
 	github.com/lmittmann/tint v1.2.0
 	github.com/maypok86/otter/v2 v2.3.0
-	github.com/mbvlabs/andurel/pkg/email v0.1.0
-	github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0
+	github.com/mbvlabs/andurel/pkg/email {{.EmailPackageVersion}}
+	github.com/mbvlabs/andurel/pkg/hypermedia {{.HypermediaPackageVersion}}
 {{- if .Inertia}}
 	github.com/mbvlabs/andurel/pkg/inertia {{.InertiaPackageVersion}}
 {{- end}}
-	github.com/mbvlabs/andurel/pkg/routing v0.1.0
-	github.com/mbvlabs/andurel/pkg/server v0.1.0
-	github.com/mbvlabs/andurel/pkg/storage v0.4.0
-	github.com/mbvlabs/andurel/pkg/validation v0.1.0
+	github.com/mbvlabs/andurel/pkg/routing {{.RoutingPackageVersion}}
+	github.com/mbvlabs/andurel/pkg/server {{.ServerPackageVersion}}
+	github.com/mbvlabs/andurel/pkg/storage {{.StoragePackageVersion}}
+	github.com/mbvlabs/andurel/pkg/validation {{.ValidationPackageVersion}}
 	github.com/pressly/goose/v3 v3.27.2
 	github.com/riverqueue/river v0.40.0
 	github.com/riverqueue/river/riverdriver/riverdatabasesql v0.40.0

@@ -18,8 +18,18 @@ const (
 	Shadowfax = "v0.9.0"
 	// Sqlc is the default sqlc tool version.
 	Sqlc = "v1.31.1"
+	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
+	Hypermedia = "v0.2.1"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.1.0"
+	Inertia = "v0.1.1"
 	// Email is the standalone Andurel email module version verified with this framework.
 	Email = "v0.1.0"
+	// Routing is the standalone Andurel routing module version verified with this framework.
+	Routing = "v0.1.1"
+	// Server is the standalone Andurel server module version verified with this framework.
+	Server = "v0.1.0"
+	// Storage is the standalone Andurel storage module version verified with this framework.
+	Storage = "v0.4.0"
+	// Validation is the standalone Andurel validation module version verified with this framework.
+	Validation = "v0.1.1"
 )

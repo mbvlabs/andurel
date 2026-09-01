@@ -51,10 +51,46 @@ func (td *TemplateData) GetInertia() string {
 	return td.Inertia
 }
 
+// EmailPackageVersion returns the standalone email module version verified with
+// this framework release.
+func (td *TemplateData) EmailPackageVersion() string {
+	return versions.Email
+}
+
+// HypermediaPackageVersion returns the standalone hypermedia module version
+// verified with this framework release.
+func (td *TemplateData) HypermediaPackageVersion() string {
+	return versions.Hypermedia
+}
+
 // InertiaPackageVersion returns the standalone Inertia module version verified
 // with this framework release.
 func (td *TemplateData) InertiaPackageVersion() string {
 	return versions.Inertia
+}
+
+// RoutingPackageVersion returns the standalone routing module version verified
+// with this framework release.
+func (td *TemplateData) RoutingPackageVersion() string {
+	return versions.Routing
+}
+
+// ServerPackageVersion returns the standalone server module version verified
+// with this framework release.
+func (td *TemplateData) ServerPackageVersion() string {
+	return versions.Server
+}
+
+// StoragePackageVersion returns the standalone storage module version verified
+// with this framework release.
+func (td *TemplateData) StoragePackageVersion() string {
+	return versions.Storage
+}
+
+// ValidationPackageVersion returns the standalone validation module version
+// verified with this framework release.
+func (td *TemplateData) ValidationPackageVersion() string {
+	return versions.Validation
 }
 
 // IsSupportedInertiaAdapter reports whether adapter names a frontend adapter

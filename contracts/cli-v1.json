@@ -792,6 +792,48 @@
       ]
     },
     {
+      "path": "andurel generate queries",
+      "use": "queries",
+      "aliases": [
+        "q"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel generate query",
+      "use": "query NAME",
+      "flags": [
+        {
+          "name": "diff",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "dry-run",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "table",
+          "type": "string",
+          "default": ""
+        }
+      ]
+    },
+    {
       "path": "andurel generate routes",
       "use": "routes",
       "flags": [
