@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+## 0.4.0 - 2026-09-01
+
 ### Added
 
 - Canonical `sqlc.yaml` embedded in the storage module for always-available sqlc integration.
