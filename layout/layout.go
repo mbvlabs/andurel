@@ -704,6 +704,7 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 
 	blueprintTemplates = append(blueprintTemplates,
 		"cmd_app_main.tmpl",
+		"cmd_queue_main.tmpl",
 		"controllers_controller.tmpl",
 	)
 

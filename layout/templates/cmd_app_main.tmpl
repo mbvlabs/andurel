@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+{{- if not .Blueprint.Main.ServiceProvides}}
 	"log"
+{{- end}}
 	"log/slog"
 	"os"
 	"os/signal"

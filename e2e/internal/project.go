@@ -89,6 +89,7 @@ func (p *Project) Scaffold(args ...string) error {
 
 func (p *Project) setupWorkspace() error {
 	moduleNames := []string{
+		"email",
 		"hypermedia",
 		"inertia",
 		"routing",
@@ -106,12 +107,45 @@ func (p *Project) setupWorkspace() error {
 	workspace.WriteString(")\n\n")
 	fmt.Fprintf(
 		&workspace,
+		"replace github.com/mbvlabs/andurel/pkg/email v0.1.0 => %q\n",
+		filepath.ToSlash(filepath.Join(p.WorkspaceRoot, "pkg", "email")),
+	)
+	fmt.Fprintf(
+		&workspace,
 		"replace github.com/mbvlabs/andurel/pkg/inertia v0.1.0 => %q\n",
 		filepath.ToSlash(filepath.Join(p.WorkspaceRoot, "pkg", "inertia")),
 	)
 
 	if err := os.WriteFile(p.workspacePath(), []byte(workspace.String()), 0o644); err != nil {
 		return fmt.Errorf("write test workspace: %w", err)
+	}
+
+	return p.appendGoModReplace(
+		"github.com/mbvlabs/andurel/pkg/email",
+		"v0.1.0",
+		filepath.Join(p.WorkspaceRoot, "pkg", "email"),
+	)
+}
+
+func (p *Project) appendGoModReplace(modulePath, version, localDir string) error {
+	goModPath := filepath.Join(p.Dir, "go.mod")
+	data, err := os.ReadFile(goModPath)
+	if err != nil {
+		return fmt.Errorf("read go.mod: %w", err)
+	}
+
+	replace := fmt.Sprintf(
+		"\nreplace %s %s => %q\n",
+		modulePath,
+		version,
+		filepath.ToSlash(localDir),
+	)
+	if strings.Contains(string(data), replace) {
+		return nil
+	}
+
+	if err := os.WriteFile(goModPath, append(data, []byte(replace)...), 0o644); err != nil {
+		return fmt.Errorf("write go.mod replace: %w", err)
 	}
 
 	return nil

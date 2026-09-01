@@ -45,6 +45,9 @@ SESSION_ENCRYPTION_KEY=<SESSION_ENCRYPTION_KEY>
 TOKEN_SIGNING_KEY=<TOKEN_SIGNING_KEY>
 
 PEPPER=<PEPPER>
+
+MAILPIT_HOST=0.0.0.0
+MAILPIT_PORT=1025
 ```
 
 file -----------rw-r--r-- .gitignore
@@ -1076,152 +1079,6 @@ file -----------rw-r--r-- assets/js/scripts.js
 import "./datastar_1-0-1.min.js"
 ```
 
-dir  d----------rwxr-xr-x clients
-
-dir  d----------rwxr-xr-x clients/email
-
-file -----------rw-r--r-- clients/email/mailpit.go
-```
-package mailclients
-
-import (
-	"context"
-	"fmt"
-	"net/smtp"
-	"strings"
-
-	"testapp/email"
-)
-
-var _ email.TransactionalSender = (*Mailpit)(nil)
-var _ email.MarketingSender = (*Mailpit)(nil)
-
-type Mailpit struct {
-	host string
-	port string
-}
-
-func NewMailpit(host, port string) *Mailpit {
-	return &Mailpit{
-		host: host,
-		port: port,
-	}
-}
-
-func (m *Mailpit) SendTransactional(ctx context.Context, payload email.TransactionalPayload) error {
-	addr := fmt.Sprintf("%s:%s", m.host, m.port)
-
-	boundary := "boundary-mailpit-client"
-	headers := make(map[string]string)
-	headers["From"] = payload.From
-	headers["To"] = payload.To
-
-	if len(payload.Cc) > 0 {
-		headers["Cc"] = strings.Join(payload.Cc, ", ")
-	}
-
-	if len(payload.Bcc) > 0 {
-		headers["Bcc"] = strings.Join(payload.Bcc, ", ")
-	}
-
-	if payload.ReplyTo != "" {
-		headers["Reply-To"] = payload.ReplyTo
-	}
-
-	headers["Subject"] = payload.Subject
-	headers["MIME-Version"] = "1.0"
-	headers["Content-Type"] = fmt.Sprintf("multipart/alternative; boundary=\"%s\"", boundary)
-
-	var message strings.Builder
-	for k, v := range headers {
-		message.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
-	}
-	message.WriteString("\r\n")
-
-	if payload.TextBody != "" {
-		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
-		message.WriteString("Content-Type: text/plain; charset=\"UTF-8\"\r\n")
-		message.WriteString("\r\n")
-		message.WriteString(payload.TextBody)
-		message.WriteString("\r\n")
-	}
-
-	if payload.HTMLBody != "" {
-		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
-		message.WriteString("Content-Type: text/html; charset=\"UTF-8\"\r\n")
-		message.WriteString("\r\n")
-		message.WriteString(payload.HTMLBody)
-		message.WriteString("\r\n")
-	}
-
-	message.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
-
-	recipients := []string{payload.To}
-	recipients = append(recipients, payload.Cc...)
-	recipients = append(recipients, payload.Bcc...)
-
-	return smtp.SendMail(
-		addr,
-		nil,
-		payload.From,
-		recipients,
-		[]byte(message.String()),
-	)
-}
-
-func (m *Mailpit) SendMarketing(ctx context.Context, payload email.MarketingPayload) error {
-	addr := fmt.Sprintf("%s:%s", m.host, m.port)
-
-	boundary := "boundary-mailpit-client"
-	headers := make(map[string]string)
-	headers["From"] = payload.From
-
-	if len(payload.To) > 0 {
-		headers["To"] = strings.Join(payload.To, ", ")
-	}
-
-	if payload.ReplyTo != "" {
-		headers["Reply-To"] = payload.ReplyTo
-	}
-
-	headers["Subject"] = payload.Subject
-	headers["MIME-Version"] = "1.0"
-	headers["Content-Type"] = fmt.Sprintf("multipart/alternative; boundary=\"%s\"", boundary)
-
-	var message strings.Builder
-	for k, v := range headers {
-		message.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
-	}
-	message.WriteString("\r\n")
-
-	if payload.TextBody != "" {
-		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
-		message.WriteString("Content-Type: text/plain; charset=\"UTF-8\"\r\n")
-		message.WriteString("\r\n")
-		message.WriteString(payload.TextBody)
-		message.WriteString("\r\n")
-	}
-
-	if payload.HTMLBody != "" {
-		message.WriteString(fmt.Sprintf("--%s\r\n", boundary))
-		message.WriteString("Content-Type: text/html; charset=\"UTF-8\"\r\n")
-		message.WriteString("\r\n")
-		message.WriteString(payload.HTMLBody)
-		message.WriteString("\r\n")
-	}
-
-	message.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
-
-	return smtp.SendMail(
-		addr,
-		nil,
-		payload.From,
-		payload.To,
-		[]byte(message.String()),
-	)
-}
-```
-
 dir  d----------rwxr-xr-x cmd
 
 dir  d----------rwxr-xr-x cmd/app
@@ -1241,14 +1098,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/server"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"go.uber.org/fx"
-	mailclients "testapp/clients/email"
 	"testapp/config"
 	"testapp/controllers"
-	"testapp/email"
 	"testapp/models"
 	"testapp/router"
 	"testapp/services"
@@ -1263,22 +1119,6 @@ func main() {
 	app := fx.New(
 		fx.Provide(
 			func() context.Context { return ctx },
-			func(
-				cfg config.EmailCfg,
-				appCfg config.AppCfg,
-			) (email.TransactionalSender, email.MarketingSender) {
-				if appCfg.GetEnvironment() == server.ProdEnvironment {
-					log.Fatal("provide real email sender")
-				}
-
-				return mailclients.NewMailpit(
-						cfg.GetMailpitHost(),
-						cfg.GetMailpitPort(),
-					), mailclients.NewMailpit(
-						cfg.GetMailpitHost(),
-						cfg.GetMailpitPort(),
-					)
-			},
 			func(cfg config.AppCfg) router.AppProvider { return cfg },
 			func(cfg config.AppCfg) controllers.ConfigProvider { return cfg },
 			func(cfg config.AppCfg) controllers.AssetsAppProvider { return cfg },
@@ -1290,6 +1130,7 @@ func main() {
 		config.Module,
 		databaseModule,
 		queueInsertModule,
+		emailModule,
 		models.Module,
 		inertiaModule,
 		telemetry.Module,
@@ -1324,6 +1165,10 @@ var databaseModule = fx.Module(
 var queueInsertModule = fx.Module(
 	"queue-insert",
 	fx.Provide(fx.Annotate(newQueueInsert, fx.As(new(storage.InsertQueue)))),
+)
+var emailModule = fx.Module(
+	"email",
+	fx.Provide(newEmailSenders),
 )
 var inertiaModule = fx.Module(
 	"inertia",
@@ -1411,6 +1256,21 @@ func newQueueInsert(
 	cfg config.QueueCfg,
 ) (*storage.QueueInsert, error) {
 	return storage.NewQueueInsert(connection, storage.WithRiverConfig(cfg.RiverConfig()))
+}
+func newEmailSenders(
+	cfg config.EmailCfg,
+	appCfg config.AppCfg,
+) (email.TransactionalSender, email.MarketingSender) {
+	if appCfg.GetEnvironment() == server.ProdEnvironment {
+		log.Fatal("provide real email sender")
+	}
+
+	client, err := email.NewMailpit(email.WithMailpitConfig(cfg.MailpitConfig()))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return client, client
 }
 
 func newInertia(
@@ -1545,12 +1405,11 @@ import (
 	"syscall"
 	"time"
 
-	mailclients "testapp/clients/email"
 	"testapp/config"
-	"testapp/email"
 	"testapp/queue"
 	"testapp/telemetry"
 
+	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/server"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/riverqueue/river"
@@ -1564,22 +1423,6 @@ func main() {
 	app := fx.New(
 		fx.Provide(
 			func() context.Context { return ctx },
-			func(
-				cfg config.EmailCfg,
-				appCfg config.AppCfg,
-			) (email.TransactionalSender, email.MarketingSender) {
-				if appCfg.GetEnvironment() == server.ProdEnvironment {
-					log.Fatal("provide real email sender")
-				}
-
-				return mailclients.NewMailpit(
-						cfg.GetMailpitHost(),
-						cfg.GetMailpitPort(),
-					), mailclients.NewMailpit(
-						cfg.GetMailpitHost(),
-						cfg.GetMailpitPort(),
-					)
-			},
 			func(cfg config.TelemetryCfg) telemetry.ConfigProvider { return cfg },
 		),
 
@@ -1588,6 +1431,7 @@ func main() {
 		telemetry.Module,
 		queue.Module,
 		queueProcessorModule,
+		emailModule,
 	)
 
 	if err := app.Start(ctx); err != nil {
@@ -1618,6 +1462,10 @@ var queueProcessorModule = fx.Module(
 		newQueueProcessor,
 	),
 	fx.Invoke(queueProcessorLifecycle),
+)
+var emailModule = fx.Module(
+	"email",
+	fx.Provide(newEmailSenders),
 )
 
 func newDatabase(
@@ -1689,6 +1537,21 @@ func queueProcessorLifecycle(
 			return processor.Stop(ctx)
 		},
 	})
+}
+func newEmailSenders(
+	cfg config.EmailCfg,
+	appCfg config.AppCfg,
+) (email.TransactionalSender, email.MarketingSender) {
+	if appCfg.GetEnvironment() == server.ProdEnvironment {
+		log.Fatal("provide real email sender")
+	}
+
+	client, err := email.NewMailpit(email.WithMailpitConfig(cfg.MailpitConfig()))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return client, client
 }
 ```
 
@@ -2105,20 +1968,47 @@ file -----------rw-r--r-- config/email.go
 ```
 package config
 
+import (
+	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
 const (
-	DefaultEmailMailpitHost = "0.0.0.0"
-	DefaultEmailMailpitPort = "1025"
+	DefaultEmailMailpitHost = email.DefaultMailpitHost
+	DefaultEmailMailpitPort = email.DefaultMailpitPort
 )
 
 type EmailCfg struct {
-	MailpitHost string
-	MailpitPort string
+	MailpitHost string `env:"MAILPIT_HOST"`
+	MailpitPort string `env:"MAILPIT_PORT"`
 }
 
 func NewEmailCfg() EmailCfg {
-	return EmailCfg{
+	cfg := EmailCfg{
 		MailpitHost: DefaultEmailMailpitHost,
 		MailpitPort: DefaultEmailMailpitPort,
+	}
+
+	if err := env.Parse(&cfg); err != nil {
+		panic(err)
+	}
+
+	if err := validation.Validate(&cfg); err != nil {
+		panic(err)
+	}
+
+	return cfg
+}
+
+func (c EmailCfg) Validate() error {
+	return c.MailpitConfig().Validate()
+}
+
+func (c EmailCfg) MailpitConfig() email.MailpitConfig {
+	return email.MailpitConfig{
+		Host: c.MailpitHost,
+		Port: c.MailpitPort,
 	}
 }
 
@@ -5372,329 +5262,17 @@ file -----------rw-r--r-- email/email.go
 ```
 package email
 
-import (
-	"bytes"
-	"context"
-	"errors"
-	"strings"
+import pkgemail "github.com/mbvlabs/andurel/pkg/email"
 
-	"github.com/a-h/templ"
-	"golang.org/x/net/html"
-)
-
+// Transformer converts application-owned email templates into HTML and text.
 type Transformer interface {
 	ToHTML() (string, error)
 	ToText() (string, error)
 }
 
-var (
-	ErrUnsubscribeURLRequired = errors.New("marketing emails require unsubscribe URL")
-	ErrMissingRecipient       = errors.New("missing recipient email address")
-	ErrMissingSender          = errors.New("missing sender email address")
-	ErrMissingSubject         = errors.New("missing email subject")
-	ErrMissingHTMLBody        = errors.New("missing email HTML body")
-)
-
-type ValidationError struct {
-	Err error
-}
-
-func (e ValidationError) Error() string {
-	return e.Err.Error()
-}
-
-func (e ValidationError) Unwrap() error {
-	return e.Err
-}
-
-type TemporaryError struct {
-	Err error
-}
-
-func (e TemporaryError) Error() string {
-	return e.Err.Error()
-}
-
-func (e TemporaryError) Unwrap() error {
-	return e.Err
-}
-
-type PermanentError struct {
-	Err error
-}
-
-func (e PermanentError) Error() string {
-	return e.Err.Error()
-}
-
-func (e PermanentError) Unwrap() error {
-	return e.Err
-}
-
-func IsValidationError(err error) bool {
-	var validationErr ValidationError
-	if errors.As(err, &validationErr) {
-		return true
-	}
-
-	return errors.Is(err, ErrUnsubscribeURLRequired) ||
-		errors.Is(err, ErrMissingRecipient) ||
-		errors.Is(err, ErrMissingSender) ||
-		errors.Is(err, ErrMissingSubject) ||
-		errors.Is(err, ErrMissingHTMLBody)
-}
-
-func IsRetryable(err error) bool {
-	var tempErr TemporaryError
-	if errors.As(err, &tempErr) {
-		return true
-	}
-
-	var permErr PermanentError
-	if errors.As(err, &permErr) {
-		return false
-	}
-
-	if IsValidationError(err) {
-		return false
-	}
-
-	return true
-}
-
-type TransactionalData struct {
-	To          string
-	Cc          []string
-	Bcc         []string
-	From        string
-	ReplyTo     string
-	Subject     string
-	HTMLBody    string
-	TextBody    string
-	Attachments []Attachment
-	Metadata    map[string]string
-}
-
-type MarketingData struct {
-	To               []string
-	From             string
-	ReplyTo          string
-	Subject          string
-	HTMLBody         string
-	TextBody         string
-	UnsubscribeURL   string
-	UnsubscribeGroup string
-	Tags             []string
-	Metadata         map[string]string
-	TrackOpens       bool
-	TrackClicks      bool
-}
-
-type Attachment struct {
-	Name        string
-	Content     []byte
-	ContentType string
-	Inline      bool
-}
-
-type TransactionalPayload struct {
-	To          string
-	Cc          []string
-	Bcc         []string
-	From        string
-	ReplyTo     string
-	Subject     string
-	HTMLBody    string
-	TextBody    string
-	Attachments []Attachment
-	Metadata    map[string]string
-}
-
-type MarketingPayload struct {
-	To               []string
-	From             string
-	ReplyTo          string
-	Subject          string
-	HTMLBody         string
-	TextBody         string
-	UnsubscribeURL   string
-	UnsubscribeGroup string
-	Tags             []string
-	Metadata         map[string]string
-	TrackOpens       bool
-	TrackClicks      bool
-}
-
-type TransactionalSender interface {
-	SendTransactional(ctx context.Context, payload TransactionalPayload) error
-}
-
-type MarketingSender interface {
-	SendMarketing(ctx context.Context, payload MarketingPayload) error
-}
-
-func SendTransactional(
-	ctx context.Context,
-	data TransactionalData,
-	sender TransactionalSender,
-) error {
-	if data.To == "" && len(data.Cc) == 0 && len(data.Bcc) == 0 {
-		return ValidationError{Err: ErrMissingRecipient}
-	}
-
-	if data.From == "" {
-		return ValidationError{Err: ErrMissingSender}
-	}
-
-	if data.Subject == "" {
-		return ValidationError{Err: ErrMissingSubject}
-	}
-
-	if data.HTMLBody == "" {
-		return ValidationError{Err: ErrMissingHTMLBody}
-	}
-
-	payload := TransactionalPayload{
-		To:          data.To,
-		Cc:          data.Cc,
-		Bcc:         data.Bcc,
-		From:        data.From,
-		ReplyTo:     data.ReplyTo,
-		Subject:     data.Subject,
-		HTMLBody:    data.HTMLBody,
-		TextBody:    data.TextBody,
-		Attachments: data.Attachments,
-		Metadata:    data.Metadata,
-	}
-
-	return sender.SendTransactional(ctx, payload)
-}
-
-func SendMarketing(ctx context.Context, data MarketingData, sender MarketingSender) error {
-	if data.UnsubscribeURL == "" {
-		return ErrUnsubscribeURLRequired
-	}
-
-	if data.HTMLBody == "" {
-		return ValidationError{Err: ErrMissingHTMLBody}
-	}
-
-	payload := MarketingPayload{
-		To:               data.To,
-		From:             data.From,
-		ReplyTo:          data.ReplyTo,
-		Subject:          data.Subject,
-		HTMLBody:         data.HTMLBody,
-		TextBody:         data.TextBody,
-		UnsubscribeURL:   data.UnsubscribeURL,
-		UnsubscribeGroup: data.UnsubscribeGroup,
-		Tags:             data.Tags,
-		Metadata:         data.Metadata,
-		TrackOpens:       data.TrackOpens,
-		TrackClicks:      data.TrackClicks,
-	}
-
-	return sender.SendMarketing(ctx, payload)
-}
-
-func renderComponent(component templ.Component) (string, error) {
-	var buf bytes.Buffer
-	if err := component.Render(context.Background(), &buf); err != nil {
-		return "", err
-	}
-
-	return buf.String(), nil
-}
-
+// HTMLToText converts rendered HTML email content into a plain-text body.
 func HTMLToText(htmlContent string) (string, error) {
-	doc, err := html.Parse(strings.NewReader(htmlContent))
-	if err != nil {
-		return "", err
-	}
-
-	var result strings.Builder
-	var extract func(*html.Node)
-
-	extract = func(n *html.Node) {
-		if n.Type == html.ElementNode {
-			switch n.Data {
-			case "style", "script", "head":
-				return
-			case "a":
-				var linkText strings.Builder
-				var extractLinkText func(*html.Node)
-				extractLinkText = func(node *html.Node) {
-					if node.Type == html.TextNode {
-						linkText.WriteString(node.Data)
-					}
-					for child := node.FirstChild; child != nil; child = child.NextSibling {
-						extractLinkText(child)
-					}
-				}
-				extractLinkText(n)
-
-				var href string
-				for _, attr := range n.Attr {
-					if attr.Key == "href" {
-						href = attr.Val
-						break
-					}
-				}
-
-				text := strings.TrimSpace(linkText.String())
-				if text != "" {
-					result.WriteString(text)
-				}
-
-				if href != "" && href != text {
-					result.WriteString(" (")
-					result.WriteString(href)
-					result.WriteString(")")
-				}
-				result.WriteString(" ")
-				return
-			}
-		}
-
-		if n.Type == html.TextNode {
-			text := strings.TrimSpace(n.Data)
-			if text != "" {
-				result.WriteString(text)
-				result.WriteString(" ")
-			}
-		}
-
-		if n.Type == html.ElementNode {
-			switch n.Data {
-			case "p", "div", "br", "h1", "h2", "h3", "h4", "h5", "h6":
-				result.WriteString("\n")
-			case "tr", "li":
-				result.WriteString("\n")
-			}
-		}
-
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			extract(c)
-		}
-
-		if n.Type == html.ElementNode {
-			switch n.Data {
-			case "p", "div", "h1", "h2", "h3", "h4", "h5", "h6":
-				result.WriteString("\n")
-			}
-		}
-	}
-
-	extract(doc)
-
-	text := result.String()
-	text = strings.TrimSpace(text)
-
-	for strings.Contains(text, "\n\n\n") {
-		text = strings.ReplaceAll(text, "\n\n\n", "\n\n")
-	}
-
-	return text, nil
+	return pkgemail.HTMLToText(htmlContent)
 }
 ```
 
@@ -6111,6 +5689,7 @@ require (
 	github.com/labstack/echo/v5 v5.3.0
 	github.com/lmittmann/tint v1.2.0
 	github.com/maypok86/otter/v2 v2.3.0
+	github.com/mbvlabs/andurel/pkg/email v0.1.0
 	github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0
 	github.com/mbvlabs/andurel/pkg/inertia v0.1.0
 	github.com/mbvlabs/andurel/pkg/routing v0.1.0
@@ -6131,7 +5710,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0
 	go.uber.org/fx v1.24.0
 	golang.org/x/crypto v0.54.0
-	golang.org/x/net v0.57.0
 	golang.org/x/sync v0.22.0
 )
 
@@ -6215,6 +5793,7 @@ require (
 	go.uber.org/goleak v1.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
+	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
@@ -6224,6 +5803,8 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/mbvlabs/andurel/pkg/email v0.1.0 => /home/mbv/Work/andurel/pkg/email
 ```
 
 file -----------rw-r--r-- go.sum
@@ -8115,7 +7696,7 @@ file -----------rw-r--r-- queue/jobs/send_marketing_email.go
 ```
 package jobs
 
-import "testapp/email"
+import "github.com/mbvlabs/andurel/pkg/email"
 
 type SendMarketingEmailArgs struct {
 	Data email.MarketingData
@@ -8128,7 +7709,7 @@ file -----------rw-r--r-- queue/jobs/send_transactional_email.go
 ```
 package jobs
 
-import "testapp/email"
+import "github.com/mbvlabs/andurel/pkg/email"
 
 type SendTransactionalEmailArgs struct {
 	Data email.TransactionalData
@@ -8162,9 +7743,9 @@ package queue
 import (
 	"context"
 
+	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/riverqueue/river"
 
-	"testapp/email"
 	"testapp/queue/jobs"
 )
 
@@ -8207,9 +7788,9 @@ package queue
 import (
 	"context"
 
+	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/riverqueue/river"
 
-	"testapp/email"
 	"testapp/queue/jobs"
 )
 
@@ -10690,9 +10271,11 @@ import (
 
 	"time"
 
-	"testapp/email"
+	appemail "testapp/email"
 
 	"testapp/models"
+
+	"github.com/mbvlabs/andurel/pkg/email"
 
 	"github.com/mbvlabs/andurel/pkg/validation"
 
@@ -10780,7 +10363,7 @@ func (i Identity) RegisterUser(
 
 	}
 
-	vEmail := email.VerifyEmail{VerificationCode: code}
+	vEmail := appemail.VerifyEmail{VerificationCode: code}
 
 	html, err := vEmail.ToHTML()
 	if err != nil {
@@ -10945,10 +10528,11 @@ import (
 	"fmt"
 	"time"
 
-	"testapp/email"
+	appemail "testapp/email"
 
 	"testapp/models"
 
+	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"testapp/queue/jobs"
@@ -11032,7 +10616,7 @@ func (i Identity) RequestResetPassword(
 
 	resetURL := fmt.Sprintf("%s%s", i.baseURL, routes.PasswordEdit.URL(token))
 
-	rpEmail := email.ResetPassword{ResetURL: resetURL}
+	rpEmail := appemail.ResetPassword{ResetURL: resetURL}
 
 	html, err := rpEmail.ToHTML()
 	if err != nil {
