@@ -5610,6 +5610,8 @@ github.com/mattn/go-isatty v0.0.21 h1:xYae+lCNBP7QuW4PUnNG61ffM4hVIfm+zUzDuSzYLG
 github.com/mattn/go-isatty v0.0.21/go.mod h1:ZXfXG4SQHsB/w3ZeOYbR0PrPwLy+n6xiMrJlRFqopa4=
 github.com/maypok86/otter/v2 v2.3.0 h1:8H8AVVFUSzJwIegKwv1uF5aGitTY+AIrtktg7OcLs8w=
 github.com/maypok86/otter/v2 v2.3.0/go.mod h1:XgIdlpmL6jYz882/CAx1E4C1ukfgDKSaw4mWq59+7l8=
+github.com/mbvlabs/andurel/pkg/email v0.1.0 h1:hdu1/zwSbcZkrdkf3V8ohsPE4N2GDdt8ORV0xl5Iv90=
+github.com/mbvlabs/andurel/pkg/email v0.1.0/go.mod h1:GQoycIfBxTjqjYkystAZHQND450iODAlSrp2MiFSIGE=
 github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0 h1:iC4pe2NK8t767sxI8V1W+OFjpdjE0zEjK8Uu26iuFSQ=
 github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0/go.mod h1:nGB/vBw5rOXBZCsJFiQYV4oSLcmLCdBJCW7vzutmOc8=
 github.com/mbvlabs/andurel/pkg/request v0.1.0 h1:V27UNr56hvynGn6lbHUbMwv5bzK210OP+dZ6T4U7yzo=
