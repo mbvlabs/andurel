@@ -193,6 +193,7 @@ func newQueueInsert(
 }
 
 {{- if not .Blueprint.Main.ServiceProvides}}
+
 func newEmailSenders(
 	cfg config.EmailCfg,
 	appCfg config.AppCfg,

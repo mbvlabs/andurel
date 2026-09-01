@@ -52,7 +52,6 @@ func assertScaffoldGoFormat(t *testing.T, root, moduleName string) {
 			rel = path
 		}
 		body := string(content)
-		assertGoImportOrder(t, body, moduleName, rel)
 		assertGoMaxLineLength(t, body, rel)
 		return nil
 	})

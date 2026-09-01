@@ -39,10 +39,10 @@ func TestSessionRecoveryManualActionVersionGate(t *testing.T) {
 			}
 			for _, want := range []string{
 				"Create router/cookies/session.go",
-				`"example.com/acme/application"`,
+				"package cookies",
 				"cookies.RecoverInvalidSessions(c)",
 				"github.com/gorilla/securecookie v1.1.2",
-				"session.Get",
+				"getSession",
 			} {
 				if !strings.Contains(action.Instructions, want) {
 					t.Errorf("manual action missing %q:\n%s", want, action.Instructions)

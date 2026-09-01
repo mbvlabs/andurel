@@ -35,7 +35,7 @@ func TestBuildModelPlanMutationReportUsesPlannedStrings(t *testing.T) {
 	if !slices.Equal(report.FilesUpdated, []string{"models/model.go"}) {
 		t.Fatalf("updated files = %#v", report.FilesUpdated)
 	}
-	for _, want := range []string{"diff --git a/models/model.go", "+NewProducts,", "diff --git a/models/product.go", "+type Product struct{}"} {
+	for _, want := range []string{"diff --git a/models/model.go", "+\tNewProducts,", "diff --git a/models/product.go", "+type Product struct{}"} {
 		if !strings.Contains(report.Diff, want) {
 			t.Fatalf("planned diff missing %q:\n%s", want, report.Diff)
 		}

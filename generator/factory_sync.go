@@ -829,7 +829,8 @@ func customFactoryDecls(
 		}
 		if isGeneratedFactoryDecl(decl, factory) ||
 			isExpectedFactoryOptionDecl(decl, expectedOptions) ||
-			isGeneratedFactoryOptionDecl(decl, factory) {
+			isGeneratedFactoryOptionDecl(decl, factory) ||
+			isStaleFactoryOptionDecl(decl, factory, expectedOptions) {
 			continue
 		}
 		start := fset.Position(decl.Pos()).Offset
@@ -921,6 +922,23 @@ func factoryTypeQualifierNames(factory *models.GeneratedFactory) map[string]bool
 func isExpectedFactoryOptionDecl(decl ast.Decl, expectedOptions map[string]bool) bool {
 	fn, ok := decl.(*ast.FuncDecl)
 	return ok && expectedOptions[fn.Name.Name]
+}
+
+func isStaleFactoryOptionDecl(
+	decl ast.Decl,
+	factory *models.GeneratedFactory,
+	expectedOptions map[string]bool,
+) bool {
+	fn, ok := decl.(*ast.FuncDecl)
+	if !ok || expectedOptions[fn.Name.Name] {
+		return false
+	}
+	if fn.Type.Results == nil || len(fn.Type.Results.List) != 1 {
+		return false
+	}
+	resultType, ok := fn.Type.Results.List[0].Type.(*ast.Ident)
+	return ok && resultType.Name == factory.ModelName+"Option" &&
+		strings.HasPrefix(fn.Name.Name, "With")
 }
 
 func isGeneratedFactoryOptionDecl(decl ast.Decl, factory *models.GeneratedFactory) bool {

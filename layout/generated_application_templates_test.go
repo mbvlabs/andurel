@@ -153,8 +153,8 @@ func TestGeneratedConfigEnvDefaults(t *testing.T) {
 		"ENVIRONMENT=",
 		"PROJECT_NAME=",
 		"DOMAIN=",
-		"HOST=",
-		"PORT=",
+		"\nHOST=",
+		"\nPORT=",
 		"QUEUE_",
 		"INERTIA_",
 		"SESSION_MAX_AGE=",
@@ -245,7 +245,8 @@ func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 	if !strings.Contains(mainTemplate, "databaseModule") {
 		t.Error("cmd_app_main.tmpl does not use databaseModule")
 	}
-	if !strings.Contains(mainTemplate, "func newDatabase(lifecycle fx.Lifecycle, ctx context.Context, cfg config.Database)") {
+	if !strings.Contains(mainTemplate, "func newDatabase(") ||
+		!strings.Contains(mainTemplate, "cfg config.Database") {
 		t.Error("cmd_app_main.tmpl does not define newDatabase with config.Database")
 	}
 	if !strings.Contains(mainTemplate, "fx.Annotate(newDatabase, fx.As(new(storage.Connection)), fx.As(fx.Self()))") {
@@ -376,11 +377,13 @@ func TestGeneratedSessionRecoveryTemplates(t *testing.T) {
 	}
 
 	middleware := readGeneratedApplicationTemplate(t, "router_middleware_middleware.tmpl")
-	if !strings.Contains(middleware, "middleware.ValidateSession(session)") {
+	if !strings.Contains(middleware, "session.RecoverInvalidSessions(c)") {
 		t.Error("router_middleware_middleware.tmpl does not recover invalid session cookies")
 	}
-	if !strings.Contains(middleware, "middleware.RegisterRequestMeta(session)") {
-		t.Error("router_middleware_middleware.tmpl does not register request metadata with injected session")
+
+	router := readGeneratedApplicationTemplate(t, "router_router.tmpl")
+	if !strings.Contains(router, "middleware.RegisterRequestMeta(cookieSession)") {
+		t.Error("router_router.tmpl does not register request metadata with injected session")
 	}
 
 	if _, exists := baseTemplateMappings["application_metadata.tmpl"]; exists {

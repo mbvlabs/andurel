@@ -207,7 +207,7 @@ func TestSessionRecoveryManualActionDoesNotPlanRouterMutations(t *testing.T) {
 	if len(report.ManualActions) != 1 {
 		t.Fatalf("manual actions = %#v, want one", report.ManualActions)
 	}
-	if !strings.Contains(report.ManualActions[0].Instructions, `"testapp/application"`) {
+	if !strings.Contains(report.ManualActions[0].Instructions, "package cookies") {
 		t.Fatalf(
 			"manual action does not use project module:\n%s",
 			report.ManualActions[0].Instructions,
@@ -288,7 +288,7 @@ func TestVersionedInertiaUpgradeEmbedsExistingRoot(t *testing.T) {
 	}
 
 	goMod := string(mustReadProjectFile(t, root, "go.mod"))
-	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/inertia v0.1.0") {
+	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/inertia v0.1.1") {
 		t.Fatalf("standalone Inertia dependency was not added:\n%s", goMod)
 	}
 }
@@ -553,7 +553,7 @@ func newUpgradeFixtureProjectWithConfig(t *testing.T, config layout.ScaffoldConf
 	root := t.TempDir()
 	goMod := "module testapp\n\ngo 1.24.0\n"
 	if layout.IsSupportedInertiaAdapter(config.Inertia) {
-		goMod += "\nrequire github.com/mbvlabs/andurel/pkg/inertia v0.1.0\n"
+		goMod += "\nrequire github.com/mbvlabs/andurel/pkg/inertia v0.1.1\n"
 	}
 	mustWriteTestFile(t, root, "go.mod", []byte(goMod))
 	lock := &layout.AndurelLock{
