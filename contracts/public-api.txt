@@ -347,22 +347,42 @@ type Coordinator struct {
 func NewCoordinator() (Coordinator, error)
     NewCoordinator creates a new coordinator.
 
-func (c *Coordinator) GenerateController(resourceName, namespace, tableName string, inertia string, isAPI bool) error
+func (c *Coordinator) GenerateController(
+	resourceName, namespace, tableName string,
+	inertia string,
+	isAPI bool,
+) error
     GenerateController coordinates controller and optional view generation
 
 func (c *Coordinator) GenerateControllerFromModel(resourceName string) error
     GenerateControllerFromModel coordinates controller and view generation from
     existing model
 
-func (c *Coordinator) GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string, isAPI bool) error
+func (c *Coordinator) GenerateControllerWithActions(
+	resourceName, namespace, tableName string,
+	actions []string,
+	inertia string,
+	isAPI bool,
+) error
     GenerateControllerWithActions generates a controller and views for selected
     actions.
 
-func (c *Coordinator) GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string, isAPI bool) error
+func (c *Coordinator) GenerateControllerWithActionsForModel(
+	resourceName, namespace, modelName, tableName string,
+	actions []string,
+	inertia string,
+	isAPI bool,
+) error
     GenerateControllerWithActionsForModel generates a controller and views when
     resource and model names differ.
 
-func (c *Coordinator) GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string, isAPI bool) error
+func (c *Coordinator) GenerateScaffold(
+	resourceName, namespace, tableName string,
+	skipFactory bool,
+	primaryKeyColumn string,
+	inertia string,
+	isAPI bool,
+) error
     GenerateScaffold coordinates model, controller, and view generation for a
     complete resource scaffold.
 
@@ -381,7 +401,10 @@ type DefaultPrimaryKeyResolver struct{}
 func (DefaultPrimaryKeyResolver) ConfirmNoPK(tableName string) (bool, error)
     ConfirmNoPK performs the confirm no primary key operation.
 
-func (DefaultPrimaryKeyResolver) ResolveAlternatePK(info PrimaryKeyInfo, tableName string) (PrimaryKeyInfo, error)
+func (DefaultPrimaryKeyResolver) ResolveAlternatePK(
+	info PrimaryKeyInfo,
+	tableName string,
+) (PrimaryKeyInfo, error)
     ResolveAlternatePK resolves alternate primary key.
 
 type FactorySyncOptions struct {
@@ -436,31 +459,65 @@ func (g *Generator) ApplyModelUpdate(result *UpdateModelResult) error
 func (g *Generator) GenerateAction(config ActionConfig) error
     GenerateAction adds an action to an existing controller and route set.
 
-func (g *Generator) GenerateController(resourceName, namespace, tableName string, inertia string, isAPI bool) error
+func (g *Generator) GenerateController(
+	resourceName, namespace, tableName string,
+	inertia string,
+	isAPI bool,
+) error
     GenerateController generates controller and route files for a resource.
 
 func (g *Generator) GenerateControllerFromModel(resourceName string) error
     GenerateControllerFromModel generates a controller by reading an existing
     model.
 
-func (g *Generator) GenerateControllerWithActions(resourceName, namespace, tableName string, actions []string, inertia string, isAPI bool) error
+func (g *Generator) GenerateControllerWithActions(
+	resourceName, namespace, tableName string,
+	actions []string,
+	inertia string,
+	isAPI bool,
+) error
     GenerateControllerWithActions generates a controller restricted to the
     requested actions.
 
-func (g *Generator) GenerateControllerWithActionsForModel(resourceName, namespace, modelName, tableName string, actions []string, inertia string, isAPI bool) error
+func (g *Generator) GenerateControllerWithActionsForModel(
+	resourceName, namespace, modelName, tableName string,
+	actions []string,
+	inertia string,
+	isAPI bool,
+) error
     GenerateControllerWithActionsForModel generates a controller for a distinct
     model name.
 
-func (g *Generator) GenerateModel(resourceName string, tableNameOverride string, skipFactory bool) error
+func (g *Generator) GenerateModel(
+	resourceName string,
+	tableNameOverride string,
+	skipFactory bool,
+) error
     GenerateModel generates a model and optional factory for a resource.
 
-func (g *Generator) GenerateModelWithMode(resourceName, tableNameOverride string, skipFactory bool, primaryKeyColumn string, mode ModelMode) error
+func (g *Generator) GenerateModelWithMode(
+	resourceName, tableNameOverride string,
+	skipFactory bool,
+	primaryKeyColumn string,
+	mode ModelMode,
+) error
     GenerateModelWithMode generates a model using a persisted operation mode.
 
-func (g *Generator) GenerateModelWithPK(resourceName string, tableNameOverride string, skipFactory bool, primaryKeyColumn string) error
+func (g *Generator) GenerateModelWithPK(
+	resourceName string,
+	tableNameOverride string,
+	skipFactory bool,
+	primaryKeyColumn string,
+) error
     GenerateModelWithPK generates a model using an explicit primary key column.
 
-func (g *Generator) GenerateScaffold(resourceName, namespace, tableName string, skipFactory bool, primaryKeyColumn string, inertia string, isAPI bool) error
+func (g *Generator) GenerateScaffold(
+	resourceName, namespace, tableName string,
+	skipFactory bool,
+	primaryKeyColumn string,
+	inertia string,
+	isAPI bool,
+) error
     GenerateScaffold generates model, factory, controller, routes, and views for
     a resource.
 
@@ -473,7 +530,10 @@ func (g *Generator) GenerateViewFromModel(resourceName string, withController bo
 func (g *Generator) GetModulePath() string
     GetModulePath returns the current project's Go module path.
 
-func (g *Generator) PlanModel(resourceName string, options ModelGenerationOptions) (*ModelGenerationPlan, error)
+func (g *Generator) PlanModel(
+	resourceName string,
+	options ModelGenerationOptions,
+) (*ModelGenerationPlan, error)
     PlanModel computes model generation output without writing files.
 
 func (g *Generator) SetControllerPKResolver(resolver PrimaryKeyResolver)
@@ -483,7 +543,10 @@ func (g *Generator) SetControllerPKResolver(resolver PrimaryKeyResolver)
 func (g *Generator) SyncFactories(opts FactorySyncOptions) ([]*FactorySyncResult, error)
     SyncFactories refreshes factories across the project.
 
-func (g *Generator) SyncFactory(resourceName string, opts FactorySyncOptions) (*FactorySyncResult, error)
+func (g *Generator) SyncFactory(
+	resourceName string,
+	opts FactorySyncOptions,
+) (*FactorySyncResult, error)
     SyncFactory refreshes a factory for one resource.
 
 func (g *Generator) UpdateModel(resourceName string) (*UpdateModelResult, error)
@@ -503,6 +566,10 @@ func (v *InputValidator) ValidateAll(resourceName, tableName, modulePath string)
 
 func (v *InputValidator) ValidateFilePath(filePath string) error
     ValidateFilePath rejects unsafe, absolute, or traversal-based paths.
+
+func (v *InputValidator) ValidateModelResourceName(resourceName string) error
+    ValidateModelResourceName checks resource syntax and rejects identifiers
+    reserved by the generated models package.
 
 func (v *InputValidator) ValidateModulePath(modulePath string) error
     ValidateModulePath checks that a Go module path has a usable import shape.
@@ -594,7 +661,10 @@ func (m *ModelManager) GenerateModelWithMode(
 ) error
     GenerateModelWithMode generates model files with a persisted operation mode.
 
-func (m *ModelManager) PlanModel(resourceName string, options ModelGenerationOptions) (*ModelGenerationPlan, error)
+func (m *ModelManager) PlanModel(
+	resourceName string,
+	options ModelGenerationOptions,
+) (*ModelGenerationPlan, error)
     PlanModel computes every model generation output without writing files.
 
 func (m *ModelManager) SetPrimaryKeyResolver(resolver PrimaryKeyResolver)
@@ -604,7 +674,10 @@ func (m *ModelManager) SetPrimaryKeyResolver(resolver PrimaryKeyResolver)
 func (m *ModelManager) SyncFactories(opts FactorySyncOptions) ([]*FactorySyncResult, error)
     SyncFactories performs the sync factories operation.
 
-func (m *ModelManager) SyncFactory(resourceName string, opts FactorySyncOptions) (*FactorySyncResult, error)
+func (m *ModelManager) SyncFactory(
+	resourceName string,
+	opts FactorySyncOptions,
+) (*FactorySyncResult, error)
     SyncFactory performs the sync factory operation.
 
 func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, error)
@@ -626,7 +699,10 @@ type NopPrimaryKeyResolver struct{}
 func (NopPrimaryKeyResolver) ConfirmNoPK(_ string) (bool, error)
     ConfirmNoPK performs the confirm no primary key operation.
 
-func (NopPrimaryKeyResolver) ResolveAlternatePK(info PrimaryKeyInfo, _ string) (PrimaryKeyInfo, error)
+func (NopPrimaryKeyResolver) ResolveAlternatePK(
+	info PrimaryKeyInfo,
+	_ string,
+) (PrimaryKeyInfo, error)
     ResolveAlternatePK resolves alternate primary key.
 
 type PathConfig struct {
@@ -765,11 +841,21 @@ func (v *ViewManager) GenerateView(resourceName, tableName, namespace string) er
 func (v *ViewManager) GenerateViewFromModel(resourceName string, withController bool) error
     GenerateViewFromModel generates views by inspecting an existing model file.
 
-func (v *ViewManager) GenerateViewWithControllerActions(resourceName, tableName string, namespace string, actions []string, inertia string) error
+func (v *ViewManager) GenerateViewWithControllerActions(
+	resourceName, tableName string,
+	namespace string,
+	actions []string,
+	inertia string,
+) error
     GenerateViewWithControllerActions generates views for selected controller
     actions.
 
-func (v *ViewManager) GenerateViewWithControllerActionsForModel(resourceName, modelName, tableName string, namespace string, actions []string, inertia string) error
+func (v *ViewManager) GenerateViewWithControllerActionsForModel(
+	resourceName, modelName, tableName string,
+	namespace string,
+	actions []string,
+	inertia string,
+) error
     GenerateViewWithControllerActionsForModel generates views when resource and
     model names differ.
 
@@ -792,7 +878,9 @@ func EnsureInertiaRendererDependency(content, controllerName, modulePath string)
     parameter required by instance-based Inertia actions while preserving the
     controller's existing dependencies.
 
-func ExistingRouteFileActions(routesPath, resourceName, namespace, pluralName string) ([]string, error)
+func ExistingRouteFileActions(
+	routesPath, resourceName, namespace, pluralName string,
+) ([]string, error)
     ExistingRouteFileActions returns the resource actions declared in a
     generated route file.
 
@@ -808,11 +896,17 @@ type ActionInjector struct {
 func NewActionInjector() *ActionInjector
     NewActionInjector creates a new ActionInjector.
 
-func (ai *ActionInjector) InjectControllerMethod(controllerPath string, data ActionMethodData) error
+func (ai *ActionInjector) InjectControllerMethod(
+	controllerPath string,
+	data ActionMethodData,
+) error
     InjectControllerMethod appends a method stub to the end of the controller
     file. It checks for duplicate methods before injecting.
 
-func (ai *ActionInjector) InjectRouteRegistration(controllerPath string, data ActionRegistrationData) error
+func (ai *ActionInjector) InjectRouteRegistration(
+	controllerPath string,
+	data ActionRegistrationData,
+) error
     InjectRouteRegistration inserts a route registration block before the
     final error return in the controller RegisterRoutes method. If the return
     statement is not found, it prints manual instructions.
@@ -931,6 +1025,8 @@ type GeneratedController struct {
 	ModelPluralName         string
 	PluralResourceName      string // The pluralized form of ResourceName (respects --table-name override)
 	ModelPluralResourceName string
+	ModelServiceName        string
+	ModelCollectionName     string
 	ReceiverName            string // Short receiver name for methods (e.g., "sf" for StudentFeedback)
 	Namespace               string // "admin" (empty if no namespace)
 	NamespacePascal         string // "Admin" (PascalCase for prefixing)
@@ -996,7 +1092,10 @@ type RouteGenerator struct {
 func NewRouteGenerator() *RouteGenerator
     NewRouteGenerator creates a new route generator.
 
-func (rg *RouteGenerator) GenerateRoutes(resourceName, namespace, pluralName, idType string, actions []string) error
+func (rg *RouteGenerator) GenerateRoutes(
+	resourceName, namespace, pluralName, idType string,
+	actions []string,
+) error
     GenerateRoutes performs the generate routes operation.
 
 type RouteType int
@@ -1035,7 +1134,10 @@ type TemplateRenderer struct {
 func NewTemplateRenderer() *TemplateRenderer
     NewTemplateRenderer creates a new template renderer.
 
-func (tr *TemplateRenderer) RenderControllerFile(controller *GeneratedController, inertia string) (string, error)
+func (tr *TemplateRenderer) RenderControllerFile(
+	controller *GeneratedController,
+	inertia string,
+) (string, error)
     RenderControllerFile performs the render controller file operation.
 
 
@@ -1207,7 +1309,7 @@ type FactoryField struct {
 
 type GeneratedFactory struct {
 	ModelName         string
-	EntityName        string // ServerEntity (resource name + "Entity")
+	EntityName        string // User (resource name)
 	NamespaceVar      string // Server (exported, package-scope)
 	Package           string
 	Fields            []FactoryField
@@ -1258,10 +1360,10 @@ type GeneratedModel struct {
 	IDFieldName         string // SQL column name of PK (e.g., "id", "user_id")
 	IDGoFieldName       string // Go struct field name of PK (e.g., "ID", "UserID")
 	HasPrimaryKey       bool   // Whether the table has any primary key
-	EntityName          string // ServerEntity (resource name + "Entity")
-	NamespaceVar        string // Server (exported, package-scope)
-	NamespaceType       string // server (unexported receiver type)
-	ReceiverName        string // s (for the namespace methods)
+	EntityName          string // User (resource name)
+	NamespaceVar        string // Users (exported service type / constructor base)
+	NamespaceType       string // Users (service type used as method receiver)
+	ReceiverName        string // u (short receiver for the service methods)
 	HasCreatedAt        bool
 	HasUpdatedAt        bool
 	Mode                ModelMode
@@ -1279,13 +1381,23 @@ func NewGenerator(databaseType string) *Generator
 func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel, error)
     Build converts catalog metadata and config into a generated model.
 
-func (g *Generator) BuildCatalogFromMigrations(tableName string, migrationDirs []string) (*catalog.Catalog, error)
+func (g *Generator) BuildCatalogFromMigrations(
+	tableName string,
+	migrationDirs []string,
+) (*catalog.Catalog, error)
     BuildCatalogFromMigrations builds a catalog from migration files
 
-func (g *Generator) BuildFactory(cat *catalog.Catalog, config Config, genModel *GeneratedModel) (*GeneratedFactory, error)
+func (g *Generator) BuildFactory(
+	cat *catalog.Catalog,
+	config Config,
+	genModel *GeneratedModel,
+) (*GeneratedFactory, error)
     BuildFactory generates factory metadata from a model
 
-func (g *Generator) GenerateFactoryFile(factory *GeneratedFactory, templateStr string) (string, error)
+func (g *Generator) GenerateFactoryFile(
+	factory *GeneratedFactory,
+	templateStr string,
+) (string, error)
     GenerateFactoryFile renders a factory file from a template
 
 func (g *Generator) GenerateModel(
@@ -1530,7 +1642,10 @@ func NewGenerator(databaseType string) *Generator
 func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, error)
     Build converts catalog metadata and config into generated view data.
 
-func (g *Generator) GenerateInertiaViewFiles(view *GeneratedView, templatePrefix, extension string) (map[string]string, error)
+func (g *Generator) GenerateInertiaViewFiles(
+	view *GeneratedView,
+	templatePrefix, extension string,
+) (map[string]string, error)
     GenerateInertiaViewFiles renders Inertia page components for a resource.
 
 func (g *Generator) GenerateView(
@@ -1542,7 +1657,11 @@ func (g *Generator) GenerateView(
 ) error
     GenerateView renders server-rendered views for a resource.
 
-func (g *Generator) GenerateViewFile(view *GeneratedView, withController bool, templatePrefix string) (string, error)
+func (g *Generator) GenerateViewFile(
+	view *GeneratedView,
+	withController bool,
+	templatePrefix string,
+) (string, error)
     GenerateViewFile renders a server-rendered view template.
 
 func (g *Generator) GenerateViewWithController(
@@ -1635,7 +1754,7 @@ func ApplyExtension(rootDir, extensionName string) ([]string, error)
      4. Re-renders all blueprint-consuming templates (config.go, .env.example,
         main.go, etc.) with the updated blueprint.
      5. Runs post-steps and code generation tools (goose fix, templ generate,
-        go mod tidy).
+        sqlc generate when query files exist, go mod tidy).
      6. Updates and writes andurel.lock.
 
     Returns the names of all newly applied extensions (the requested extension
@@ -1798,18 +1917,42 @@ func (td *TemplateData) Builder() *blueprint.Builder
 func (td *TemplateData) DatabaseDialect() string
     DatabaseDialect returns the configured database, which is always PostgreSQL.
 
+func (td *TemplateData) EmailPackageVersion() string
+    EmailPackageVersion returns the standalone email module version verified
+    with this framework release.
+
 func (td *TemplateData) GetInertia() string
     GetInertia returns the inertia adapter for the project, if any.
 
 func (td *TemplateData) GetModuleName() string
     GetModuleName returns the module name for the project.
 
+func (td *TemplateData) HypermediaPackageVersion() string
+    HypermediaPackageVersion returns the standalone hypermedia module version
+    verified with this framework release.
+
 func (td *TemplateData) InertiaPackageVersion() string
     InertiaPackageVersion returns the standalone Inertia module version verified
     with this framework release.
 
+func (td *TemplateData) RoutingPackageVersion() string
+    RoutingPackageVersion returns the standalone routing module version verified
+    with this framework release.
+
+func (td *TemplateData) ServerPackageVersion() string
+    ServerPackageVersion returns the standalone server module version verified
+    with this framework release.
+
 func (td *TemplateData) SetBlueprint(bp *blueprint.Blueprint)
     SetBlueprint sets the blueprint for this template data.
+
+func (td *TemplateData) StoragePackageVersion() string
+    StoragePackageVersion returns the standalone storage module version verified
+    with this framework release.
+
+func (td *TemplateData) ValidationPackageVersion() string
+    ValidationPackageVersion returns the standalone validation module version
+    verified with this framework release.
 
 type TmplTarget string
     TmplTarget represents tmpl target.
@@ -1997,7 +2140,10 @@ func (b *Builder) AddRouteGroup(groupName string) *Builder
 func (b *Builder) AddRouteImport(importPath string) *Builder
     AddRouteImport adds an import to the routes section.
 
-func (b *Builder) AddRouteRegistration(method, routeVariable, controllerRef string, middleware ...string) *Builder
+func (b *Builder) AddRouteRegistration(
+	method, routeVariable, controllerRef string,
+	middleware ...string,
+) *Builder
     AddRouteRegistration adds a route registration entry for the registrar
     function. The method is the HTTP method constant (e.g., "http.MethodGet"),
     routeVariable is the route variable (e.g., "routes.Health"), controllerRef
@@ -2034,7 +2180,10 @@ func (b *Builder) SetCookiesCreateSessionCode(code string) *Builder
 func (b *Builder) SetCookiesGetSessionCode(code string) *Builder
     SetCookiesGetSessionCode sets the code to execute when getting session data.
 
-func (b *Builder) StartRouteRegistrationFunction(functionName string, controllerVarName string) *Builder
+func (b *Builder) StartRouteRegistrationFunction(
+	functionName string,
+	controllerVarName string,
+) *Builder
     StartRouteRegistrationFunction begins building a registration function.
     All subsequent AddRouteRegistration calls will be added to this function
     until EndRouteRegistrationFunction is called.
@@ -2402,7 +2551,9 @@ func DownloadTailwindCLI(version, goos, goarch, destPath string) error
     DownloadTailwindCLI rejects downloads without integrity metadata. Use
     DownloadVerifiedTailwindCLI to provide the required SHA-256 digest.
 
-func DownloadVerifiedFromURL(name, sourceURL, archiveType, binaryName, destPath, expectedSHA256 string) error
+func DownloadVerifiedFromURL(
+	name, sourceURL, archiveType, binaryName, destPath, expectedSHA256 string,
+) error
     DownloadVerifiedFromURL downloads from a URL after verifying the expected
     SHA-256 digest.
 
@@ -2420,7 +2571,9 @@ func DownloadVerifiedFromURLTemplate(
     DownloadVerifiedFromURLTemplate downloads from a URL template after
     verifying the expected SHA-256 digest.
 
-func DownloadVerifiedGoTool(name, module, version, goos, goarch, destPath, expectedSHA256 string) error
+func DownloadVerifiedGoTool(
+	name, module, version, goos, goarch, destPath, expectedSHA256 string,
+) error
     DownloadVerifiedGoTool downloads a Go tool release asset after verifying the
     expected SHA-256 digest.
 
@@ -2445,6 +2598,13 @@ func RunGolines(targetDir string) error
 
 func RunGooseFix(targetDir string) error
     RunGooseFix runs goose fix.
+
+func RunSQLCGenerate(targetDir string) error
+    RunSQLCGenerate runs sqlc generate when models/queries contains SQL files.
+
+func RunSQLCGenerateOptional(targetDir string) error
+    RunSQLCGenerateOptional runs sqlc generate when queries and bin/sqlc exist.
+    Missing queries or binary are ignored so scaffold flows stay no-op safe.
 
 func RunTemplFmt(targetDir string) error
     RunTemplFmt runs templ fmt.
@@ -2715,9 +2875,194 @@ const (
 	TailwindCLI = "v4.3.2"
 	// Shadowfax is the default Shadowfax runner version.
 	Shadowfax = "v0.9.0"
+	// Sqlc is the default sqlc tool version.
+	Sqlc = "v1.31.1"
+	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
+	Hypermedia = "v0.2.1"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.1.0"
+	Inertia = "v0.1.1"
+	// Email is the standalone Andurel email module version verified with this framework.
+	Email = "v0.1.0"
+	// Routing is the standalone Andurel routing module version verified with this framework.
+	Routing = "v0.1.1"
+	// Server is the standalone Andurel server module version verified with this framework.
+	Server = "v0.1.0"
+	// Storage is the standalone Andurel storage module version verified with this framework.
+	Storage = "v0.4.0"
+	// Validation is the standalone Andurel validation module version verified with this framework.
+	Validation = "v0.1.1"
 )
+
+## github.com/mbvlabs/andurel/pkg/email
+package email // import "github.com/mbvlabs/andurel/pkg/email"
+
+
+CONSTANTS
+
+const (
+	DefaultMailpitHost = "0.0.0.0"
+	DefaultMailpitPort = "1025"
+)
+
+VARIABLES
+
+var (
+	ErrUnsubscribeURLRequired = errors.New("marketing emails require unsubscribe URL")
+	ErrMissingRecipient       = errors.New("missing recipient email address")
+	ErrMissingSender          = errors.New("missing sender email address")
+	ErrMissingSubject         = errors.New("missing email subject")
+	ErrMissingHTMLBody        = errors.New("missing email HTML body")
+)
+
+FUNCTIONS
+
+func HTMLToText(htmlContent string) (string, error)
+func IsRetryable(err error) bool
+func IsValidationError(err error) bool
+func SendMarketing(
+	ctx context.Context,
+	data MarketingData,
+	sender MarketingSender,
+) error
+func SendTransactional(
+	ctx context.Context,
+	data TransactionalData,
+	sender TransactionalSender,
+) error
+
+TYPES
+
+type Attachment struct {
+	Name        string
+	Content     []byte
+	ContentType string
+	Inline      bool
+}
+
+type Mailpit struct {
+	// Has unexported fields.
+}
+    Mailpit sends email through a development Mailpit SMTP server.
+
+func NewMailpit(options ...MailpitOption) (*Mailpit, error)
+    NewMailpit constructs a Mailpit client using package defaults and options.
+
+func (client *Mailpit) SendMarketing(
+	ctx context.Context,
+	payload MarketingPayload,
+) error
+
+func (client *Mailpit) SendTransactional(
+	ctx context.Context,
+	payload TransactionalPayload,
+) error
+
+type MailpitConfig struct {
+	Host string
+	Port string
+}
+    MailpitConfig configures the development Mailpit SMTP client.
+
+func DefaultMailpitConfig() MailpitConfig
+    DefaultMailpitConfig returns development-safe Mailpit defaults.
+
+func (config MailpitConfig) Validate() error
+    Validate verifies Mailpit configuration.
+
+type MailpitOption func(*mailpitOptions) error
+    MailpitOption configures a Mailpit client.
+
+func WithMailpitConfig(config MailpitConfig) MailpitOption
+    WithMailpitConfig applies Mailpit connection settings.
+
+type MarketingData struct {
+	To               []string
+	From             string
+	ReplyTo          string
+	Subject          string
+	HTMLBody         string
+	TextBody         string
+	UnsubscribeURL   string
+	UnsubscribeGroup string
+	Tags             []string
+	Metadata         map[string]string
+	TrackOpens       bool
+	TrackClicks      bool
+}
+
+type MarketingPayload struct {
+	To               []string
+	From             string
+	ReplyTo          string
+	Subject          string
+	HTMLBody         string
+	TextBody         string
+	UnsubscribeURL   string
+	UnsubscribeGroup string
+	Tags             []string
+	Metadata         map[string]string
+	TrackOpens       bool
+	TrackClicks      bool
+}
+
+type MarketingSender interface {
+	SendMarketing(ctx context.Context, payload MarketingPayload) error
+}
+
+type PermanentError struct {
+	Err error
+}
+
+func (err PermanentError) Error() string
+
+func (err PermanentError) Unwrap() error
+
+type TemporaryError struct {
+	Err error
+}
+
+func (err TemporaryError) Error() string
+
+func (err TemporaryError) Unwrap() error
+
+type TransactionalData struct {
+	To          string
+	Cc          []string
+	Bcc         []string
+	From        string
+	ReplyTo     string
+	Subject     string
+	HTMLBody    string
+	TextBody    string
+	Attachments []Attachment
+	Metadata    map[string]string
+}
+
+type TransactionalPayload struct {
+	To          string
+	Cc          []string
+	Bcc         []string
+	From        string
+	ReplyTo     string
+	Subject     string
+	HTMLBody    string
+	TextBody    string
+	Attachments []Attachment
+	Metadata    map[string]string
+}
+
+type TransactionalSender interface {
+	SendTransactional(ctx context.Context, payload TransactionalPayload) error
+}
+
+type ValidationError struct {
+	Err error
+}
+
+func (err ValidationError) Error() string
+
+func (err ValidationError) Unwrap() error
+
 
 ## github.com/mbvlabs/andurel/pkg/hypermedia
 package hypermedia // import "github.com/mbvlabs/andurel/pkg/hypermedia"
@@ -2787,15 +3132,29 @@ func ExecuteScript(c *echo.Context, scriptContents string, opts ...ExecuteScript
 func MergeSignals(c *echo.Context, signals map[string]any) error
     MergeSignals sends signal values as a Datastar/SSE merge-signals event.
 
-func PatchComponent(etx *echo.Context, component templ.Component, opts ...PatchElementOption) error
+func PatchComponent(
+	etx *echo.Context,
+	component templ.Component,
+	opts ...PatchElementOption,
+) error
     PatchComponent renders a templ component and sends it as a Datastar/SSE
     element patch.
 
-func PatchFragment(etx *echo.Context, component templ.Component, key any, opts ...PatchElementOption) error
+func PatchFragment(
+	etx *echo.Context,
+	component templ.Component,
+	key any,
+	opts ...PatchElementOption,
+) error
     PatchFragment renders one named templ fragment and sends it as a
     Datastar/SSE element patch.
 
-func PatchFragments(etx *echo.Context, component templ.Component, keys []any, opts ...PatchElementOption) error
+func PatchFragments(
+	etx *echo.Context,
+	component templ.Component,
+	keys []any,
+	opts ...PatchElementOption,
+) error
     PatchFragments renders named templ fragments and sends them as a
     Datastar/SSE element patch.
 
@@ -3353,7 +3712,10 @@ type ManagedRuntime struct {
 }
     ManagedRuntime owns one JavaScript process and exposes its HTTP renderer.
 
-func NewManagedRuntime(config ManagedConfig, options ...HTTPRendererOption) (*ManagedRuntime, error)
+func NewManagedRuntime(
+	config ManagedConfig,
+	options ...HTTPRendererOption,
+) (*ManagedRuntime, error)
     NewManagedRuntime constructs a managed runtime without starting it.
 
 func (runtime *ManagedRuntime) Errors() <-chan error
@@ -3596,7 +3958,12 @@ func (renderer *Renderer) Middleware() echo.MiddlewareFunc
     Middleware parses request state and applies v3 version, empty-response,
     and redirect corrections only to Inertia visits.
 
-func (renderer *Renderer) Page(etx *echo.Context, component string, props Props, opts ...PageOption) error
+func (renderer *Renderer) Page(
+	etx *echo.Context,
+	component string,
+	props Props,
+	opts ...PageOption,
+) error
     Page resolves and renders one Inertia page response.
 
 func (renderer *Renderer) Redirect(etx *echo.Context, location string, status int) error
@@ -4025,39 +4392,74 @@ implementations.
 CONSTANTS
 
 const (
-	DefaultDatabaseKind     = "postgres"
-	DefaultDatabaseHost     = "127.0.0.1"
-	DefaultDatabasePort     = "5432"
-	DefaultDatabaseName     = "andurel"
-	DefaultDatabaseUser     = "postgres"
-	DefaultDatabasePassword = "postgres"
-	DefaultDatabaseSSLMode  = "disable"
+	DefaultDatabaseKind             = "postgres"
+	DefaultDatabaseHost             = "127.0.0.1"
+	DefaultDatabasePort             = "5432"
+	DefaultDatabaseName             = "andurel"
+	DefaultDatabaseUser             = "postgres"
+	DefaultDatabasePassword         = "postgres"
+	DefaultDatabaseSSLMode          = "disable"
+	DefaultApplicationName          = "andurel"
+	DefaultConnectTimeout           = 5 * time.Second
+	DefaultStatementCacheCapacity   = 512
+	DefaultDescriptionCacheCapacity = 512
+	DefaultMaxOpenConnections       = 25
+	DefaultMaxIdleConnections       = 25
+	DefaultConnectionMaxLifetime    = time.Hour
+	DefaultConnectionMaxIdleTime    = 30 * time.Minute
 )
-
-VARIABLES
-
-var (
-	ErrBeginTx    = errors.New("could not begin transaction")
-	ErrRollbackTx = errors.New("could not rollback transaction")
-	ErrCommitTx   = errors.New("could not commit transaction")
+const (
+	// SQLCConfigFile is the project-root sqlc configuration filename.
+	SQLCConfigFile = "sqlc.yaml"
+	// SQLCQueriesDir holds hand-written SQL query files for sqlc.
+	SQLCQueriesDir = "models/queries"
+	// SQLCGeneratedDir is the sqlc output directory beneath models/internal.
+	SQLCGeneratedDir = "models/internal/queries"
 )
 
 FUNCTIONS
 
+func HasSQLCQueryFiles(projectRoot string) (bool, error)
+    HasSQLCQueryFiles reports whether models/queries contains sqlc query
+    definitions. Files must include at least one sqlc name annotation.
+
+func RunInTransaction(
+	ctx context.Context,
+	conn Connection,
+	opts *sql.TxOptions,
+	fn func(context.Context, Transaction) error,
+) error
+    RunInTransaction runs fn inside a transaction and commits on success.
+
 func RunMigrations(ctx context.Context, db *sql.DB, migrations fs.FS, migrationDir string) error
     RunMigrations applies Goose migrations from an embedded filesystem.
+
+func SQLCConfig() []byte
+    SQLCConfig returns the canonical Andurel sqlc configuration.
+
+func WriteSQLCConfig(dir string) error
+    WriteSQLCConfig writes the canonical sqlc.yaml into dir.
 
 
 TYPES
 
 type Config struct {
-	DatabaseKind string
-	Host         string
-	Port         string
-	Name         string
-	User         string
-	Password     string
-	SSLMode      string
+	DatabaseKind             string
+	Host                     string
+	Port                     string
+	Name                     string
+	User                     string
+	Password                 string
+	SSLMode                  string
+	ApplicationName          string
+	ConnectTimeout           time.Duration
+	StatementCacheCapacity   int
+	DescriptionCacheCapacity int
+	MaxOpenConnections       int
+	MaxIdleConnections       int
+	ConnectionMaxLifetime    time.Duration
+	ConnectionMaxIdleTime    time.Duration
+	OpenTelemetry            bool
 }
     Config contains PostgreSQL connection settings. NewPostgres starts with
     DefaultConfig and applies any options supplied by the application.
@@ -4071,75 +4473,82 @@ func (config Config) DatabaseURL() (string, error)
 func (config Config) Validate() error
     Validate verifies that all required connection settings are present.
 
+type Connection interface {
+	Executor() bun.IDB
+	DB() *sql.DB
+	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
+}
+    Connection exposes the Bun executor and its underlying database/sql pool.
+
 type Executor = bun.IDB
-    Executor is the query interface satisfied by *bun.DB, *bun.Tx, *bun.Conn.
+    Executor is the query interface satisfied by *bun.DB, *bun.Tx, and
+    *bun.Conn. It remains available for application-owned model and factory
+    APIs.
 
 type InsertQueue interface {
-	Insert(
-		ctx context.Context,
-		args river.JobArgs,
-		opts *river.InsertOpts,
-	) (*rivertype.JobInsertResult, error)
+	Insert(context.Context, river.JobArgs, *river.InsertOpts) (*rivertype.JobInsertResult, error)
 	InsertTx(
-		ctx context.Context,
-		tx *sql.Tx,
-		args river.JobArgs,
-		opts *river.InsertOpts,
+		context.Context,
+		*sql.Tx,
+		river.JobArgs,
+		*river.InsertOpts,
 	) (*rivertype.JobInsertResult, error)
-	InsertMany(
-		ctx context.Context,
-		params []river.InsertManyParams,
-	) ([]*rivertype.JobInsertResult, error)
+	InsertMany(context.Context, []river.InsertManyParams) ([]*rivertype.JobInsertResult, error)
 	InsertManyTx(
-		ctx context.Context,
-		tx *sql.Tx,
-		params []river.InsertManyParams,
+		context.Context,
+		*sql.Tx,
+		[]river.InsertManyParams,
 	) ([]*rivertype.JobInsertResult, error)
-	InsertManyFast(ctx context.Context, params []river.InsertManyParams) (int, error)
-	InsertManyFastTx(ctx context.Context, tx *sql.Tx, params []river.InsertManyParams) (int, error)
+	InsertManyFast(context.Context, []river.InsertManyParams) (int, error)
+	InsertManyFastTx(context.Context, *sql.Tx, []river.InsertManyParams) (int, error)
 }
+    InsertQueue is the subset of River used to insert jobs.
 
 type Option func(*postgresOptions) error
     Option configures a PostgreSQL connection.
 
+func WithApplicationName(name string) Option
+    WithApplicationName sets the PostgreSQL application_name runtime parameter.
+
 func WithConfig(config Config) Option
     WithConfig replaces the default connection settings.
 
-func WithDatabaseKind(kind string) Option
-    WithDatabaseKind sets the URL scheme used for the connection.
+func WithConnectTimeout(timeout time.Duration) Option
+    WithConnectTimeout sets the PostgreSQL connection timeout.
 
-func WithDatabaseName(name string) Option
-    WithDatabaseName sets the database name.
+func WithConnectionMaxIdleTime(idleTime time.Duration) Option
+    WithConnectionMaxIdleTime sets the maximum time a connection may remain
+    idle.
+
+func WithConnectionMaxLifetime(lifetime time.Duration) Option
+    WithConnectionMaxLifetime sets the maximum reusable connection lifetime.
 
 func WithDatabaseURL(databaseURL string) Option
     WithDatabaseURL configures the connection from a PostgreSQL URL.
 
-func WithHost(host string) Option
-    WithHost sets the database host.
+func WithDescriptionCacheCapacity(capacity int) Option
+    WithDescriptionCacheCapacity sets the query description cache capacity.
 
-func WithPassword(password string) Option
-    WithPassword sets the database password.
+func WithMaxIdleConnections(count int) Option
+    WithMaxIdleConnections sets the database/sql idle connection limit.
 
-func WithPort(port string) Option
-    WithPort sets the database port.
+func WithMaxOpenConnections(count int) Option
+    WithMaxOpenConnections sets the database/sql open connection limit.
 
-func WithSSLMode(mode string) Option
-    WithSSLMode sets the PostgreSQL SSL mode.
+func WithOpenTelemetry(config TelemetryConfig) Option
+    WithOpenTelemetry configures PostgreSQL tracing and metrics.
 
-func WithTracer(tracer pgx.QueryTracer) Option
-    WithTracer replaces the default OpenTelemetry pgx tracer. A nil tracer
-    disables database tracing.
+func WithRuntimeParameters(parameters map[string]string) Option
+    WithRuntimeParameters merges PostgreSQL runtime parameters.
 
-func WithUser(user string) Option
-    WithUser sets the database user.
+func WithStatementCacheCapacity(capacity int) Option
+    WithStatementCacheCapacity sets the prepared statement cache capacity.
 
-type Pool interface {
-	Executor() *bun.DB
-	Conn() *sql.DB
-	BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error)
-	Close() error
-}
-    Pool is the application-wide database handle.
+func WithTLSConfig(config *tls.Config) Option
+    WithTLSConfig replaces the TLS configuration used by PostgreSQL.
+
+func WithoutOpenTelemetry() Option
+    WithoutOpenTelemetry disables PostgreSQL tracing and metrics.
 
 type Postgres struct {
 	// Has unexported fields.
@@ -4150,18 +4559,155 @@ func NewPostgres(ctx context.Context, options ...Option) (*Postgres, error)
     NewPostgres creates a new database connection using sane defaults and any
     supplied functional options.
 
-func (p *Postgres) BeginTx(ctx context.Context, opts *sql.TxOptions) (bun.Tx, error)
-    BeginTx starts a new transaction. Caller is responsible for Commit or
-    Rollback.
+func (p *Postgres) BeginTransaction(
+	ctx context.Context,
+	opts *sql.TxOptions,
+) (Transaction, error)
+    BeginTransaction starts a transaction with Bun and database/sql access.
 
 func (p *Postgres) Close() error
     Close closes the database connection.
 
-func (p *Postgres) Conn() *sql.DB
-    Conn returns the underlying sql.DB.
+func (p *Postgres) DB() *sql.DB
+    DB returns the underlying sql.DB.
 
-func (p *Postgres) Executor() *bun.DB
+func (p *Postgres) Executor() bun.IDB
     Executor returns the Bun query executor.
+
+type QueueInsert struct {
+	// Has unexported fields.
+}
+    QueueInsert is an independently constructible River job inserter.
+
+func NewQueueInsert(connection Connection, options ...QueueOption) (*QueueInsert, error)
+    NewQueueInsert creates an insert-only queue client using connection's
+    sql.DB.
+
+func (q *QueueInsert) Insert(
+	ctx context.Context,
+	args river.JobArgs,
+	opts *river.InsertOpts,
+) (*rivertype.JobInsertResult, error)
+
+func (q *QueueInsert) InsertMany(
+	ctx context.Context,
+	params []river.InsertManyParams,
+) ([]*rivertype.JobInsertResult, error)
+
+func (q *QueueInsert) InsertManyFast(
+	ctx context.Context,
+	params []river.InsertManyParams,
+) (int, error)
+
+func (q *QueueInsert) InsertManyFastTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	params []river.InsertManyParams,
+) (int, error)
+
+func (q *QueueInsert) InsertManyTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	params []river.InsertManyParams,
+) ([]*rivertype.JobInsertResult, error)
+
+func (q *QueueInsert) InsertTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	args river.JobArgs,
+	opts *river.InsertOpts,
+) (*rivertype.JobInsertResult, error)
+
+type QueueOption func(*river.Config)
+    QueueOption configures the underlying River client.
+
+func WithRiverAdvisoryLockPrefix(prefix int32) QueueOption
+
+func WithRiverCancelledJobRetentionPeriod(period time.Duration) QueueOption
+
+func WithRiverCompletedJobRetentionPeriod(period time.Duration) QueueOption
+
+func WithRiverConfig(config river.Config) QueueOption
+    WithRiverConfig replaces the complete River configuration. Options are
+    applied in order, so field-specific options after this one override it.
+
+func WithRiverDiscardedJobRetentionPeriod(period time.Duration) QueueOption
+
+func WithRiverErrorHandler(handler river.ErrorHandler) QueueOption
+
+func WithRiverFetchCooldown(cooldown time.Duration) QueueOption
+
+func WithRiverFetchPollInterval(interval time.Duration) QueueOption
+
+func WithRiverHooks(hooks ...rivertype.Hook) QueueOption
+
+func WithRiverID(id string) QueueOption
+
+func WithRiverJobCleanerTimeout(timeout time.Duration) QueueOption
+
+func WithRiverJobStuckHandler(handler river.JobStuckHandler) QueueOption
+
+func WithRiverJobStuckThreshold(threshold time.Duration) QueueOption
+
+func WithRiverJobTimeout(timeout time.Duration) QueueOption
+
+func WithRiverLogger(logger *slog.Logger) QueueOption
+
+func WithRiverMaxAttempts(maxAttempts int) QueueOption
+
+func WithRiverMiddleware(middleware ...rivertype.Middleware) QueueOption
+
+func WithRiverPeriodicJobs(jobs ...*river.PeriodicJob) QueueOption
+
+func WithRiverPollOnly(pollOnly bool) QueueOption
+
+func WithRiverQueues(queues map[string]river.QueueConfig) QueueOption
+
+func WithRiverReindexerIndexNames(names ...string) QueueOption
+
+func WithRiverReindexerSchedule(schedule river.PeriodicSchedule) QueueOption
+
+func WithRiverReindexerTimeout(timeout time.Duration) QueueOption
+
+func WithRiverRescueStuckJobsAfter(period time.Duration) QueueOption
+
+func WithRiverRetryPolicy(policy river.ClientRetryPolicy) QueueOption
+
+func WithRiverSchema(schema string) QueueOption
+
+func WithRiverSkipUnknownJobCheck(skip bool) QueueOption
+
+func WithRiverSoftStopTimeout(timeout time.Duration) QueueOption
+
+func WithRiverTestConfig(test river.TestConfig) QueueOption
+
+func WithRiverTestOnly(testOnly bool) QueueOption
+
+func WithRiverWorkers(workers *river.Workers) QueueOption
+
+type QueueProcessor struct {
+	// Has unexported fields.
+}
+    QueueProcessor owns the lifecycle of a River worker client.
+
+func NewQueueProcessor(connection Connection, options ...QueueOption) (*QueueProcessor, error)
+    NewQueueProcessor creates a worker client using connection's sql.DB.
+
+func (q *QueueProcessor) Start(ctx context.Context) error
+    Start starts processing jobs and returns once the processor is ready.
+
+func (q *QueueProcessor) Stop(ctx context.Context) error
+    Stop gracefully stops processing jobs.
+
+type TelemetryConfig struct {
+	TracerProvider         trace.TracerProvider
+	MeterProvider          metric.MeterProvider
+	Attributes             []attribute.KeyValue
+	TrimSQLInSpanName      bool
+	IncludeQueryParameters bool
+}
+    TelemetryConfig configures PostgreSQL OpenTelemetry instrumentation without
+    exposing the underlying database driver.
 
 type TestCluster struct {
 	// Has unexported fields.
@@ -4175,8 +4721,18 @@ func NewTestCluster(ctx context.Context) (*TestCluster, error)
 func (tc *TestCluster) Close(ctx context.Context) error
     Close terminates the Postgres test container.
 
-func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir string) Pool
+func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir string) Connection
     NewTestDB creates a migrated, isolated database for one test.
+
+type Transaction interface {
+	Executor() bun.IDB
+	SQL() *sql.Tx
+	Commit() error
+	Rollback() error
+}
+    Transaction exposes Bun and database/sql access over one PostgreSQL
+    transaction. Use Executor for Bun model methods and SQL for sqlc, River
+    inserts, or other database/sql callers that must share the same boundary.
 
 
 ## github.com/mbvlabs/andurel/pkg/validation
@@ -4253,7 +4809,13 @@ func (b *ValidationBuilder) Err() error
 
 func (b *ValidationBuilder) Errors() ValidationErrors
 
-func (b *ValidationBuilder) LenBetween(field string, value any, min int, max int, message ...string)
+func (b *ValidationBuilder) LenBetween(
+	field string,
+	value any,
+	min int,
+	max int,
+	message ...string,
+)
 
 func (b *ValidationBuilder) MaxInt(field string, value any, max int64, message ...string)
 
@@ -4289,7 +4851,12 @@ func (b *ValidationBuilder) Required(field string, value any, message ...string)
 
 func (b *ValidationBuilder) RequiredURL(field string, value any, message ...string)
 
-func (b *ValidationBuilder) RequiredWhen(condition bool, field string, value any, message ...string)
+func (b *ValidationBuilder) RequiredWhen(
+	condition bool,
+	field string,
+	value any,
+	message ...string,
+)
 
 func (b *ValidationBuilder) Rules() Rules
 

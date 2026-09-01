@@ -2,7 +2,13 @@
 
 All notable changes to the standalone Andurel Inertia module are documented here.
 
-## Unreleased
+## 0.1.1 - 2026-09-01
+
+### Changed
+
+- Reformatted source with golines; no functional changes.
+
+## 0.1.0 - 2026-08-25
 
 ### Added
 
