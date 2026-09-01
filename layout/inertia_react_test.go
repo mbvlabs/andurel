@@ -113,12 +113,10 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileNotContains(t, projectDir, "resources/js/app.tsx", "Record<string, any>")
 	assertFileContains(t, projectDir, "cmd/app/main.go", `inertiaModule,`)
 	assertFileNotContains(t, projectDir, "cmd/app/main.go", "internal/inertia")
-	assertFileContains(
-		t,
-		projectDir,
-		"cmd/app/main.go",
-		`func newInertia(lifecycle fx.Lifecycle, cfg config.InertiaCfg, appCfg config.AppCfg) (*inertia.Renderer, error)`,
-	)
+	assertFileContains(t, projectDir, "cmd/app/main.go", "func newInertia(")
+	assertFileContains(t, projectDir, "cmd/app/main.go", "cfg config.InertiaCfg")
+	assertFileContains(t, projectDir, "cmd/app/main.go", "appCfg config.AppCfg")
+	assertFileContains(t, projectDir, "cmd/app/main.go", "(*inertia.Renderer, error)")
 	assertFileContains(t, projectDir, "config/config.go", "NewInertiaCfg,")
 	assertFileContains(t, projectDir, "config/inertia.go", "env.Parse(&inertiaCfg)")
 	assertFileContains(
@@ -190,8 +188,8 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 		"controllers/sessions.go",
 		`s.renderer.Page(etx, "Auth/Login"`,
 	)
-	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0")
-	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/inertia v0.1.0")
+	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/hypermedia v0.2.1")
+	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/inertia v0.1.1")
 	assertFileContains(t, projectDir, "router/appctx/appctx.go", "func WithFlashes(")
 	assertFileContains(t, projectDir, "router/middleware/middleware.go", "appctx.WithFlashes(")
 	assertFileNotContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel v")

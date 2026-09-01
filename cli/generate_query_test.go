@@ -33,9 +33,20 @@ func TestGenerateSQLCQueryFromTemplate(t *testing.T) {
 			t.Fatalf("missing %q in commented template:\n%s", want, text)
 		}
 	}
-	if strings.Contains(text, "-- name: ListUserReport") {
+	if containsUncommentedSQLCQuery(text, "ListUserReport") {
 		t.Fatal("commented template should not include active sqlc query")
 	}
+}
+
+func containsUncommentedSQLCQuery(text, queryName string) bool {
+	marker := "-- name: " + queryName
+	for line := range strings.SplitSeq(text, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, marker) && !strings.HasPrefix(trimmed, "-- -- name:") {
+			return true
+		}
+	}
+	return false
 }
 
 func TestGenerateSQLCQueryFromTemplateWithTable(t *testing.T) {

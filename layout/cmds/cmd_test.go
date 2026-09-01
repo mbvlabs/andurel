@@ -150,6 +150,9 @@ func TestRunSQLCGenerate(t *testing.T) {
 			t.Fatalf("mkdir bin: %v", err)
 		}
 		sqlcPath := filepath.Join(binDir, "sqlc")
+		if err := os.WriteFile(sqlcPath, []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatalf("write sqlc stub: %v", err)
+		}
 
 		var invoked []string
 		originalCommand := newCommand

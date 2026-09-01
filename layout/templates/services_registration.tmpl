@@ -5,20 +5,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-
 	"fmt"
-
 	"time"
 
 	appemail "{{.ModuleName}}/email"
-
 	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/queue/jobs"
 
 	"github.com/mbvlabs/andurel/pkg/email"
-
 	"github.com/mbvlabs/andurel/pkg/validation"
-
-	"{{.ModuleName}}/queue/jobs"
 )
 
 const userEmailVerification = "user_email_verification"

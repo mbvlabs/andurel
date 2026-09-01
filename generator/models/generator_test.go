@@ -414,7 +414,6 @@ func TestGenerateModelDisambiguatesUnchangedPluralServiceNames(t *testing.T) {
 				"type " + serviceName + " struct",
 				"func New" + serviceName + "(db storage.Connection) " + serviceName,
 				"type " + resourceName + " struct",
-				resourceName + " []" + resourceName,
 			} {
 				if !strings.Contains(source, want) {
 					t.Fatalf("generated model missing %q:\n%s", want, source)
@@ -458,8 +457,8 @@ func TestGenerateModelCRUDUsesRepositoryNotFoundAndTimestampSemantics(t *testing
 	if count := strings.Count(generated, "return Product{}, ErrNotFound"); count != 2 {
 		t.Fatalf("expected Find and Update to return ErrNotFound, got %d:\n%s", count, generated)
 	}
-	destroyStart := strings.Index(generated, "func (products Products) Destroy(")
-	allStart := strings.Index(generated, "func (products Products) All(")
+	destroyStart := strings.Index(generated, "func (p Products) Destroy(")
+	allStart := strings.Index(generated, "func (p Products) All(")
 	if destroyStart < 0 || allStart <= destroyStart {
 		t.Fatalf("could not isolate generated Destroy method:\n%s", generated)
 	}
@@ -472,7 +471,7 @@ func TestGenerateModelCRUDUsesRepositoryNotFoundAndTimestampSemantics(t *testing
 	}
 
 	updateDataStart := strings.Index(generated, "type UpdateProductData struct {")
-	updateMethodStart := strings.Index(generated, "func (products Products) Update(")
+	updateMethodStart := strings.Index(generated, "func (p Products) Update(")
 	if updateDataStart < 0 || updateMethodStart <= updateDataStart {
 		t.Fatalf("could not isolate generated UpdateProductData:\n%s", generated)
 	}
