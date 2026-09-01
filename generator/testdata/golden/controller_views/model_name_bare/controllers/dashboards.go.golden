@@ -19,7 +19,7 @@ type Dashboards struct {
 }
 
 func NewDashboards(widgets models.Widgets) Dashboards {
-	return Dashboards{ widgets }
+	return Dashboards{widgets}
 }
 
 func (d Dashboards) RegisterRoutes(r *router.Router) error {

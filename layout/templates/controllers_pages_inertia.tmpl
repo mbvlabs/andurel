@@ -10,23 +10,16 @@ import (
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
 	"github.com/mbvlabs/andurel/pkg/inertia"
-	"github.com/mbvlabs/andurel/pkg/storage"
 
 	"github.com/labstack/echo/v5"
 )
 
 type Pages struct {
-	db         storage.Connection
-	insertOnly storage.InsertQueue
-	renderer   *inertia.Renderer
+	renderer *inertia.Renderer
 }
 
-func NewPages(
-	db storage.Connection,
-	insertOnly storage.InsertQueue,
-	renderer *inertia.Renderer,
-) Pages {
-	return Pages{db: db, insertOnly: insertOnly, renderer: renderer}
+func NewPages(renderer *inertia.Renderer) Pages {
+	return Pages{renderer: renderer}
 }
 
 func (p Pages) RegisterRoutes(r *router.Router) error {
