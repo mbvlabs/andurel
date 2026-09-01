@@ -2,6 +2,7 @@
 # Keep entries exact so later changes remain visible to apidiff.
 - ./layout.ToolDownload: old is comparable, new is not
 - ./layout/versions.Shadowfax: value changed from "v0.8.3" to "v0.8.4"
+- ./layout/versions.Shadowfax: value changed from "v0.8.4" to "v0.9.0"
 
 # Approved removal of the unsupported release-candidate upgrade path.
 - ./layout/upgrade.Migration: removed
