@@ -2,11 +2,14 @@ package cli
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 type discoverySummary struct {
@@ -18,54 +21,49 @@ type flagSummary struct {
 	Name string `json:"name"`
 }
 
-func TestRootCommandPublicSurface(t *testing.T) {
-	rootCmd := NewRootCommand("test", "test-date")
-
-	expected := []commandContract{
-		{name: "build"},
-		{name: "commands"},
-		{name: "config"},
-		{name: "console", aliases: []string{"c"}},
-		{name: "controllers"},
-		{name: "database", aliases: []string{"d", "db"}},
-		{name: "doctor", aliases: []string{"doc"}},
-		{name: "email"},
-		{name: "extension", aliases: []string{"extensions", "ext", "e"}},
-		{name: "fmt", aliases: []string{"f"}},
-		{name: "generate", aliases: []string{"g"}},
-		{name: "jobs"},
-		{name: "migrations"},
-		{name: "models"},
-		{name: "new", aliases: []string{"n"}},
-		{name: "project"},
-		{name: "routes"},
-		{name: "run", aliases: []string{"r"}},
-		{name: "skill"},
-		{name: "tool", aliases: []string{"tools", "t"}},
-		{name: "upgrade", aliases: []string{"up"}},
-		{name: "views"},
-	}
-
-	assertCommandSurface(t, rootCmd, expected)
+type committedCLIContract struct {
+	SchemaVersion int                        `json:"schema_version"`
+	Commands      []committedCommandContract `json:"commands"`
 }
 
-func TestGenerateCommandPublicSurface(t *testing.T) {
-	rootCmd := NewRootCommand("test", "test-date")
-	generateCmd := mustFindCommand(t, rootCmd, "generate")
+type committedCommandContract struct {
+	Path    string                  `json:"path"`
+	Use     string                  `json:"use"`
+	Aliases []string                `json:"aliases,omitempty"`
+	Flags   []committedFlagContract `json:"flags,omitempty"`
+}
 
-	expected := []commandContract{
-		{name: "controller", aliases: []string{"c"}},
-		{name: "email", aliases: []string{"e"}},
-		{name: "factories"},
-		{name: "factory"},
-		{name: "job", aliases: []string{"j"}},
-		{name: "model", aliases: []string{"m"}},
-		{name: "routes"},
-		{name: "scaffold", aliases: []string{"s"}},
-		{name: "view", aliases: []string{"v"}},
+type committedFlagContract struct {
+	Name       string `json:"name"`
+	Shorthand  string `json:"shorthand,omitempty"`
+	Type       string `json:"type"`
+	Default    string `json:"default"`
+	Persistent bool   `json:"persistent,omitempty"`
+}
+
+func TestCommittedCLIContractMatchesLiveCommandTree(t *testing.T) {
+	rootCmd := NewRootCommand("test", "test-date")
+	committed := loadCommittedCLIContract(t)
+	live := collectLiveCLIContract(rootCmd)
+
+	committedByPath := make(map[string]committedCommandContract, len(committed.Commands))
+	for _, command := range committed.Commands {
+		committedByPath[command.Path] = command
+	}
+	liveByPath := make(map[string]committedCommandContract, len(live))
+	for _, command := range live {
+		liveByPath[command.Path] = command
 	}
 
-	assertCommandSurface(t, generateCmd, expected)
+	committedPaths := sortedKeys(committedByPath)
+	livePaths := sortedKeys(liveByPath)
+	if !slices.Equal(committedPaths, livePaths) {
+		t.Fatalf("command paths differ:\ncommitted: %v\nlive: %v", committedPaths, livePaths)
+	}
+
+	for _, path := range committedPaths {
+		assertCommandContractsEqual(t, path, committedByPath[path], liveByPath[path])
+	}
 }
 
 func TestCommandsJSONDiscovery(t *testing.T) {
@@ -173,65 +171,125 @@ func TestGenerateAgentHelpDiscovery(t *testing.T) {
 	}
 }
 
-func TestCommandFlagsContract(t *testing.T) {
-	rootCmd := NewRootCommand("test", "test-date")
+func loadCommittedCLIContract(t *testing.T) committedCLIContract {
+	t.Helper()
 
-	tests := []struct {
-		path  string
-		flags []string
-	}{
-		{path: "new", flags: []string{"extensions", "inertia", "dry-run", "diff"}},
-		{
-			path: "generate model",
-			flags: []string{
-				"skip-factory",
-				"table-name",
-				"update",
-				"yes",
-				"primary-key",
-				"dry-run",
-				"diff",
-			},
-		},
-		{path: "generate factory", flags: []string{"check", "sync", "diff"}},
-		{path: "generate factories", flags: []string{"check", "sync", "diff"}},
-		{path: "generate controller", flags: []string{"inertia", "model-name", "dry-run", "diff"}},
-		{
-			path: "generate scaffold",
-			flags: []string{
-				"skip-factory",
-				"table-name",
-				"primary-key",
-				"inertia",
-				"dry-run",
-				"diff",
-			},
-		},
-		{path: "generate job", flags: []string{"queue", "dry-run", "diff"}},
-		{path: "generate email", flags: []string{"dry-run", "diff"}},
-		{path: "generate query", flags: []string{"dry-run", "diff", "table"}},
-		{path: "extension add", flags: []string{"dry-run", "diff"}},
-		{path: "extension list", flags: []string{"available"}},
-		{path: "fmt", flags: []string{"check", "skip-templ", "skip-go"}},
-		{path: "database drop", flags: []string{"force"}},
-		{path: "database nuke", flags: []string{"force"}},
-		{path: "database seed", flags: []string{"list"}},
-		{path: "database rebuild", flags: []string{"force", "skip-seed", "seed"}},
-		{path: "build", flags: []string{"version"}},
-		{path: "doctor", flags: []string{"verbose"}},
-		{path: "upgrade", flags: []string{"dry-run", "diff", "repair"}},
+	root, err := filepath.Abs("..")
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "contracts", "cli-v1.json"))
+	if err != nil {
+		t.Fatalf("read committed CLI contract: %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.path, func(t *testing.T) {
-			cmd := mustFindCommand(t, rootCmd, tt.path)
-			for _, flag := range tt.flags {
-				if cmd.Flags().Lookup(flag) == nil {
-					t.Fatalf("%q missing --%s flag", tt.path, flag)
-				}
-			}
+	var contract committedCLIContract
+	if err := json.Unmarshal(data, &contract); err != nil {
+		t.Fatalf("decode committed CLI contract: %v", err)
+	}
+	if contract.SchemaVersion != 1 || len(contract.Commands) == 0 {
+		t.Fatalf("incomplete committed CLI contract: %#v", contract)
+	}
+	return contract
+}
+
+func collectLiveCLIContract(root *cobra.Command) []committedCommandContract {
+	var commands []committedCommandContract
+	var walk func(*cobra.Command)
+	walk = func(cmd *cobra.Command) {
+		cmd.InitDefaultHelpFlag()
+		if cmd == root {
+			cmd.InitDefaultVersionFlag()
+		}
+
+		flags := append(
+			flagsFromSet(cmd.LocalNonPersistentFlags(), false),
+			flagsFromSet(cmd.PersistentFlags(), true)...,
+		)
+		slices.SortFunc(
+			flags,
+			func(a, b committedFlagContract) int { return strings.Compare(a.Name, b.Name) },
+		)
+		commands = append(commands, committedCommandContract{
+			Path:    cmd.CommandPath(),
+			Use:     cmd.Use,
+			Aliases: append([]string(nil), cmd.Aliases...),
+			Flags:   flags,
 		})
+
+		children := make([]*cobra.Command, 0)
+		for _, child := range cmd.Commands() {
+			if child.Hidden || !child.IsAvailableCommand() {
+				continue
+			}
+			children = append(children, child)
+		}
+		slices.SortFunc(
+			children,
+			func(a, b *cobra.Command) int { return strings.Compare(a.Name(), b.Name()) },
+		)
+		for _, child := range children {
+			walk(child)
+		}
 	}
+	walk(root)
+	slices.SortFunc(
+		commands,
+		func(a, b committedCommandContract) int { return strings.Compare(a.Path, b.Path) },
+	)
+	return commands
+}
+
+func flagsFromSet(set *pflag.FlagSet, persistent bool) []committedFlagContract {
+	if set == nil {
+		return nil
+	}
+	var flags []committedFlagContract
+	set.VisitAll(func(flag *pflag.Flag) {
+		if flag.Hidden {
+			return
+		}
+		flags = append(flags, committedFlagContract{
+			Name:       flag.Name,
+			Shorthand:  flag.Shorthand,
+			Type:       flag.Value.Type(),
+			Default:    flag.DefValue,
+			Persistent: persistent,
+		})
+	})
+	return flags
+}
+
+func assertCommandContractsEqual(
+	t *testing.T,
+	path string,
+	committed, live committedCommandContract,
+) {
+	t.Helper()
+
+	if committed.Use != live.Use {
+		t.Fatalf("%s use: committed %q, live %q", path, committed.Use, live.Use)
+	}
+	if !slices.Equal(committed.Aliases, live.Aliases) {
+		t.Fatalf("%s aliases: committed %v, live %v", path, committed.Aliases, live.Aliases)
+	}
+	if len(committed.Flags) != len(live.Flags) {
+		t.Fatalf("%s flags: committed %#v, live %#v", path, committed.Flags, live.Flags)
+	}
+	for i := range committed.Flags {
+		if committed.Flags[i] != live.Flags[i] {
+			t.Fatalf("%s flag %d: committed %#v, live %#v", path, i, committed.Flags[i], live.Flags[i])
+		}
+	}
+}
+
+func sortedKeys[V any](values map[string]V) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	return keys
 }
 
 func discoveryContains(commands []discoverySummary, name, path string) bool {
@@ -250,88 +308,4 @@ func flagDiscoveryContains(flags []flagSummary, name string) bool {
 		}
 	}
 	return false
-}
-
-func TestRootCommandPersistentOutputFlags(t *testing.T) {
-	rootCmd := NewRootCommand("test", "test-date")
-
-	for _, flag := range []string{"json", "agent", "md", "quiet", "jq", "ids-only", "count", "verbose"} {
-		if rootCmd.PersistentFlags().Lookup(flag) == nil {
-			t.Fatalf("root command missing persistent --%s flag", flag)
-		}
-	}
-}
-
-type commandContract struct {
-	name    string
-	aliases []string
-}
-
-func assertCommandSurface(t *testing.T, parent *cobra.Command, expected []commandContract) {
-	t.Helper()
-
-	available := availableCommands(parent)
-	if len(available) != len(expected) {
-		t.Fatalf(
-			"expected commands %v, got %v",
-			commandContractNames(expected),
-			commandNames(available),
-		)
-	}
-
-	for i, want := range expected {
-		got := available[i]
-		if got.Name() != want.name {
-			t.Fatalf(
-				"command %d: expected %q, got %q; all commands: %v",
-				i,
-				want.name,
-				got.Name(),
-				commandNames(available),
-			)
-		}
-		if !slices.Equal(got.Aliases, want.aliases) {
-			t.Fatalf("%s aliases: expected %v, got %v", want.name, want.aliases, got.Aliases)
-		}
-	}
-}
-
-func availableCommands(parent *cobra.Command) []*cobra.Command {
-	out := make([]*cobra.Command, 0)
-	for _, cmd := range parent.Commands() {
-		if !cmd.IsAvailableCommand() || cmd.Hidden {
-			continue
-		}
-		out = append(out, cmd)
-	}
-	return out
-}
-
-func commandNames(commands []*cobra.Command) []string {
-	names := make([]string, 0, len(commands))
-	for _, cmd := range commands {
-		names = append(names, cmd.Name())
-	}
-	return names
-}
-
-func commandContractNames(commands []commandContract) []string {
-	names := make([]string, 0, len(commands))
-	for _, cmd := range commands {
-		names = append(names, cmd.name)
-	}
-	return names
-}
-
-func mustFindCommand(t *testing.T, root *cobra.Command, path string) *cobra.Command {
-	t.Helper()
-	args := strings.Fields(path)
-	cmd, remaining, err := root.Find(args)
-	if err != nil {
-		t.Fatalf("find %q: %v", path, err)
-	}
-	if len(remaining) != 0 {
-		t.Fatalf("find %q left remaining args %v", path, remaining)
-	}
-	return cmd
 }

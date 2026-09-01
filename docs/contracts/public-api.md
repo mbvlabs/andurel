@@ -38,4 +38,4 @@ Embedded `embed.FS` values are read-only after initialization. Other managers, b
 
 Run `scripts/update-contracts.sh`, review every change, and commit the regenerated files only for an intentional compatible addition or an approved pre-v1 contract correction. `scripts/check-contracts.sh` fails when source and fixtures drift.
 
-Pull requests and releases run pinned `apidiff` checks against the stable v1 baseline.
+Pull requests and releases run pinned `apidiff` checks against the stable `v2.0.0` baseline once that tag exists. Until then, API compatibility checks are skipped on `master` while V2 development continues. The full `public-api.txt` snapshot is enforced at the same point.

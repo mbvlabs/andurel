@@ -36,6 +36,8 @@ func configureProjectionContracts(root *cobra.Command) error {
 		{path: "generate factory", jq: true},
 		{path: "generate job", jq: true},
 		{path: "generate model", jq: true},
+		{path: "generate queries", jq: true},
+		{path: "generate query", jq: true},
 		{path: "generate routes", jq: true},
 		{path: "generate scaffold", jq: true},
 		{path: "jobs", jq: true, idsOnly: true, count: true},

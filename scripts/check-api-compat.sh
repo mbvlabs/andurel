@@ -21,8 +21,13 @@ if ! command -v apidiff >/dev/null 2>&1; then
 fi
 
 cd "$repo_root"
+
+if ! git rev-parse --verify "${stable_ref}^{commit}" >/dev/null 2>&1; then
+  echo "Skipping API compatibility check: ${stable_ref} is not available in this repository" >&2
+  exit 0
+fi
+
 git rev-parse --verify "${base_ref}^{commit}" >/dev/null
-git rev-parse --verify "${stable_ref}^{commit}" >/dev/null
 
 if [[ -f "$allowlist" ]]; then
   sed -e '/^[[:space:]]*#/d' -e '/^[[:space:]]*$/d' "$allowlist" > "$allow_patterns"
