@@ -6,7 +6,7 @@ require (
 	github.com/a-h/templ v0.3.1020
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/jinzhu/inflection v1.0.0
-	github.com/mbvlabs/andurel/pkg/storage v0.3.0
+	github.com/mbvlabs/andurel/pkg/storage v0.4.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/sebdah/goldie/v2 v2.8.0
 	github.com/spf13/cobra v1.9.1

@@ -5015,7 +5015,7 @@ require (
 	github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0
 	github.com/mbvlabs/andurel/pkg/routing v0.1.0
 	github.com/mbvlabs/andurel/pkg/server v0.1.0
-	github.com/mbvlabs/andurel/pkg/storage v0.3.0
+	github.com/mbvlabs/andurel/pkg/storage v0.4.0
 	github.com/mbvlabs/andurel/pkg/validation v0.1.0
 	github.com/riverqueue/river v0.40.0
 	github.com/rs/xid v1.6.0
@@ -5288,8 +5288,8 @@ github.com/mbvlabs/andurel/pkg/routing v0.1.0 h1:G7d3e8/7PL/dgRO/XIiqskK86vz7IoE
 github.com/mbvlabs/andurel/pkg/routing v0.1.0/go.mod h1:fXUraUJ88cKpKeLY2EOg/OHVA2Wacbb7bEH9sVZr8wc=
 github.com/mbvlabs/andurel/pkg/server v0.1.0 h1:pktLJXC8OxSUC8j27CyJ9wFOjNnHymeukHTCVgaiz/s=
 github.com/mbvlabs/andurel/pkg/server v0.1.0/go.mod h1:E0c81l0cR2ki98bjxLJf93GL8scIO1YItuLc+OgZS6c=
-github.com/mbvlabs/andurel/pkg/storage v0.3.0 h1:sUmffeeMI0P1wwLLbJSGVOcbKf/HuuHQ5wU7BsDdXcA=
-github.com/mbvlabs/andurel/pkg/storage v0.3.0/go.mod h1:lUpApuip6YE6YaulZ2WUDekCpFz1RcbpyfDNTdjOSRg=
+github.com/mbvlabs/andurel/pkg/storage v0.4.0 h1:Uj/4UXMGjcM1lOiHQb86THH8djKGqgSPTx5e5O3hIjk=
+github.com/mbvlabs/andurel/pkg/storage v0.4.0/go.mod h1:lUpApuip6YE6YaulZ2WUDekCpFz1RcbpyfDNTdjOSRg=
 github.com/mbvlabs/andurel/pkg/validation v0.1.0 h1:tHGReF01VFBxc4RTwpNA0Vj4RxvWQ6tI6mqXJh84Lak=
 github.com/mbvlabs/andurel/pkg/validation v0.1.0/go.mod h1:1g3f0xGqAK0O8LBWHPX5BRfvf9B4OoU3RqRByKBAlbU=
 github.com/mdelapenya/tlscert v0.2.0 h1:7H81W6Z/4weDvZBNOfQte5GpIMo0lGYEeWbkGp5LJHI=
