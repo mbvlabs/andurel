@@ -7326,7 +7326,7 @@ func (tokens Tokens) CreateCode(
 		return "", err
 	}
 
-	if _, err := t.createToken(ctx, db, createTokenData{
+	if _, err := tokens.createToken(ctx, createTokenData{
 		Scope:     scope,
 		ExpiresAt: expiresAt,
 		Hash:      HashForStorage(tkn, secret),
@@ -7350,7 +7350,7 @@ func (tokens Tokens) Create(
 		return "", err
 	}
 
-	if _, err := t.createToken(ctx, db, createTokenData{
+	if _, err := tokens.createToken(ctx, createTokenData{
 		Scope:     scope,
 		ExpiresAt: expiresAt,
 		Hash:      HashForStorage(tkn, secret),

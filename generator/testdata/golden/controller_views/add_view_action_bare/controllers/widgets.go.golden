@@ -18,7 +18,7 @@ type Widgets struct {
 }
 
 func NewWidgets(widgets models.Widgets) Widgets {
-	return Widgets{ widgets }
+	return Widgets{widgets}
 }
 
 func (w Widgets) RegisterRoutes(r *router.Router) error {

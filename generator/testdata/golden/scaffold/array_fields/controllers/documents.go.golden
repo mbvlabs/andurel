@@ -22,7 +22,7 @@ type Documents struct {
 }
 
 func NewDocuments(documents models.Documents) Documents {
-	return Documents{ documents }
+	return Documents{documents}
 }
 
 func (d Documents) RegisterRoutes(r *router.Router) error {

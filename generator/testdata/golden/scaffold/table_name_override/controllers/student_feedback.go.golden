@@ -24,7 +24,7 @@ type FeedbackEntry struct {
 }
 
 func NewFeedbackEntry(feedbackEntries models.FeedbackEntries) FeedbackEntry {
-	return FeedbackEntry{ feedbackEntries }
+	return FeedbackEntry{feedbackEntries}
 }
 
 func (fe FeedbackEntry) RegisterRoutes(r *router.Router) error {

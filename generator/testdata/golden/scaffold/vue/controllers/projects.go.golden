@@ -19,11 +19,11 @@ import (
 
 type Projects struct {
 	projects models.Projects
-	renderer                                 *inertia.Renderer
+	renderer *inertia.Renderer
 }
 
 func NewProjects(projects models.Projects, renderer *inertia.Renderer) Projects {
-	return Projects{ projects: projects, renderer: renderer }
+	return Projects{projects: projects, renderer: renderer}
 }
 
 func (p Projects) RegisterRoutes(r *router.Router) error {
@@ -112,7 +112,7 @@ type ProjectItemProps struct {
 	Item ProjectData `json:"item"`
 }
 
-func newProjectData(entity models.ProjectEntity) ProjectData {
+func newProjectData(entity models.Project) ProjectData {
 	return ProjectData{
 		ID:        entity.ID,
 		Title:     entity.Title,
@@ -122,7 +122,7 @@ func newProjectData(entity models.ProjectEntity) ProjectData {
 	}
 }
 
-func newProjectDataList(entities []models.ProjectEntity) []ProjectData {
+func newProjectDataList(entities []models.Project) []ProjectData {
 	items := make([]ProjectData, 0, len(entities))
 	for _, entity := range entities {
 		items = append(items, newProjectData(entity))

@@ -22,7 +22,7 @@ type Warehouses struct {
 }
 
 func NewWarehouses(warehouses models.Warehouses) Warehouses {
-	return Warehouses{ warehouses }
+	return Warehouses{warehouses}
 }
 
 func (w Warehouses) RegisterRoutes(r *router.Router) error {

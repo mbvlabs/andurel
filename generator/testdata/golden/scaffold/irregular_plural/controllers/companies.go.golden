@@ -23,7 +23,7 @@ type Companies struct {
 }
 
 func NewCompanies(companies models.Companies) Companies {
-	return Companies{ companies }
+	return Companies{companies}
 }
 
 func (c Companies) RegisterRoutes(r *router.Router) error {
