@@ -14,9 +14,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// UserFactory wraps models.UserEntity for testing
+// UserFactory wraps models.User for testing
 type UserFactory struct {
-	models.UserEntity
+	models.User
 }
 
 // UserOption is a functional option for configuring a UserFactory
@@ -24,9 +24,9 @@ type UserOption func(*UserFactory)
 
 // BuildUser creates an in-memory User with default test values.
 // Auto-managed fields (ID, timestamps) are left at zero and set by CreateUser.
-func BuildUser(opts ...UserOption) models.UserEntity {
+func BuildUser(opts ...UserOption) models.User {
 	f := &UserFactory{
-		UserEntity: models.UserEntity{
+		User: models.User{
 			Email:            faker.Email(),
 			EmailValidatedAt: sql.NullTime{},
 			Password:         defaultPassword(),
@@ -38,7 +38,7 @@ func BuildUser(opts ...UserOption) models.UserEntity {
 		opt(f)
 	}
 
-	return f.UserEntity
+	return f.User
 }
 
 // CreateUser creates and persists a User to the database.
@@ -47,10 +47,10 @@ func CreateUser(
 	ctx context.Context,
 	exec storage.Executor,
 	opts ...UserOption,
-) (models.UserEntity, error) {
+) (models.User, error) {
 	built := BuildUser(opts...)
 
-	entity := models.UserEntity{
+	entity := models.User{
 		ID:               uuid.New(),
 		CreatedAt:        time.Now(),
 		UpdatedAt:        time.Now(),
@@ -61,7 +61,7 @@ func CreateUser(
 	}
 
 	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
-		return models.UserEntity{}, err
+		return models.User{}, err
 	}
 
 	return entity, nil
@@ -73,8 +73,8 @@ func CreateUsers(
 	exec storage.Executor,
 	count int,
 	opts ...UserOption,
-) ([]models.UserEntity, error) {
-	users := make([]models.UserEntity, 0, count)
+) ([]models.User, error) {
+	users := make([]models.User, 0, count)
 
 	for i := range count {
 		user, err := CreateUser(ctx, exec, opts...)

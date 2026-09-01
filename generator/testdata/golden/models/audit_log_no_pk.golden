@@ -14,7 +14,20 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type AuditLogEntity struct {
+type AuditLogs struct {
+	db queryDB
+}
+
+func NewAuditLogs(db storage.Connection) AuditLogs {
+	return AuditLogs{db: db}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (al AuditLogs) WithTx(tx storage.Transaction) AuditLogs {
+	return AuditLogs{db: tx}
+}
+
+type AuditLog struct {
 	bun.BaseModel `bun:"table:audit_logs,alias:audit_logs"`
 	EventId       uuid.UUID       `bun:"event_id,type:uuid"`
 	Action        string          `bun:"action"`
@@ -33,8 +46,8 @@ type CreateAuditLogData struct {
 	OccurredAt time.Time
 }
 
-func (al auditLog) Create(ctx context.Context, db storage.Executor, data CreateAuditLogData) (AuditLogEntity, error) {
-	entity := AuditLogEntity{
+func (al AuditLogs) Create(ctx context.Context, data CreateAuditLogData) (AuditLog, error) {
+	entity := AuditLog{
 		EventId:    data.EventId,
 		Action:     data.Action,
 		EntityType: data.EntityType,
@@ -44,19 +57,19 @@ func (al auditLog) Create(ctx context.Context, db storage.Executor, data CreateA
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return AuditLogEntity{}, errors.Join(ErrDomainValidation, err)
+		return AuditLog{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return AuditLogEntity{}, err
+	if _, err := al.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return AuditLog{}, err
 	}
 
 	return entity, nil
 }
 
-func (al auditLog) All(ctx context.Context, db storage.Executor) ([]AuditLogEntity, error) {
-	var entities []AuditLogEntity
-	if err := db.NewSelect().
+func (al AuditLogs) All(ctx context.Context) ([]AuditLog, error) {
+	var entities []AuditLog
+	if err := al.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -66,14 +79,14 @@ func (al auditLog) All(ctx context.Context, db storage.Executor) ([]AuditLogEnti
 }
 
 type PaginatedAuditLogs struct {
-	AuditLogs  []AuditLogEntity
+	AuditLogs  []AuditLog
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func (al auditLog) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedAuditLogs, error) {
+func (al AuditLogs) Paginate(ctx context.Context, page, pageSize int64) (PaginatedAuditLogs, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -86,14 +99,14 @@ func (al auditLog) Paginate(ctx context.Context, db storage.Executor, page, page
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.NewSelect().
-		Model(&AuditLogEntity{}).Count(ctx)
+	totalCount, err := al.db.Executor().NewSelect().
+		Model(&AuditLog{}).Count(ctx)
 	if err != nil {
 		return PaginatedAuditLogs{}, err
 	}
 
-	entities := make([]AuditLogEntity, 0, int(pageSize))
-	if err := db.NewSelect().
+	entities := make([]AuditLog, 0, int(pageSize))
+	if err := al.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).

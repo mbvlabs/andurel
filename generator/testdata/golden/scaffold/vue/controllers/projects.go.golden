@@ -15,16 +15,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/inertia"
-	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 type Projects struct {
-	db       storage.Connection
+	projects models.Projects
 	renderer *inertia.Renderer
 }
 
-func NewProjects(db storage.Connection, renderer *inertia.Renderer) Projects {
-	return Projects{db: db, renderer: renderer}
+func NewProjects(projects models.Projects, renderer *inertia.Renderer) Projects {
+	return Projects{projects: projects, renderer: renderer}
 }
 
 func (p Projects) RegisterRoutes(r *router.Router) error {
@@ -113,7 +112,7 @@ type ProjectItemProps struct {
 	Item ProjectData `json:"item"`
 }
 
-func newProjectData(entity models.ProjectEntity) ProjectData {
+func newProjectData(entity models.Project) ProjectData {
 	return ProjectData{
 		ID:        entity.ID,
 		Title:     entity.Title,
@@ -123,7 +122,7 @@ func newProjectData(entity models.ProjectEntity) ProjectData {
 	}
 }
 
-func newProjectDataList(entities []models.ProjectEntity) []ProjectData {
+func newProjectDataList(entities []models.Project) []ProjectData {
 	items := make([]ProjectData, 0, len(entities))
 	for _, entity := range entities {
 		items = append(items, newProjectData(entity))
@@ -148,9 +147,8 @@ func (p Projects) Index(etx *echo.Context) error {
 		}
 	}
 
-	projectsList, err := models.Project.Paginate(
+	projectsList, err := p.projects.Paginate(
 		etx.Request().Context(),
-		p.db.Executor(),
 		page,
 		perPage,
 	)
@@ -173,7 +171,7 @@ func (p Projects) Show(etx *echo.Context) error {
 		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
 	}
 
-	project, err := models.Project.Find(etx.Request().Context(), p.db.Executor(), projectID)
+	project, err := p.projects.Find(etx.Request().Context(), projectID)
 	if err != nil {
 		return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
@@ -216,9 +214,8 @@ func (p Projects) Create(etx *echo.Context) error {
 		Status: payload.Status,
 	}
 
-	project, err := models.Project.Create(
+	project, err := p.projects.Create(
 		etx.Request().Context(),
-		p.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -240,7 +237,7 @@ func (p Projects) Edit(etx *echo.Context) error {
 		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
 	}
 
-	project, err := models.Project.Find(etx.Request().Context(), p.db.Executor(), projectID)
+	project, err := p.projects.Find(etx.Request().Context(), projectID)
 	if err != nil {
 		return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
 	}
@@ -285,9 +282,8 @@ func (p Projects) Update(etx *echo.Context) error {
 		Status: payload.Status,
 	}
 
-	project, err := models.Project.Update(
+	project, err := p.projects.Update(
 		etx.Request().Context(),
-		p.db.Executor(),
 		data,
 	)
 	if err != nil {
@@ -312,7 +308,7 @@ func (p Projects) Destroy(etx *echo.Context) error {
 		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
 	}
 
-	err = models.Project.Destroy(etx.Request().Context(), p.db.Executor(), projectID)
+	err = p.projects.Destroy(etx.Request().Context(), projectID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete project: %v", err)); flashErr != nil {
 			return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{})

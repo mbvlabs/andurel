@@ -14,7 +14,20 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type CompanyEntity struct {
+type Companies struct {
+	db queryDB
+}
+
+func NewCompanies(db storage.Connection) Companies {
+	return Companies{db: db}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (c Companies) WithTx(tx storage.Transaction) Companies {
+	return Companies{db: tx}
+}
+
+type Company struct {
 	bun.BaseModel `bun:"table:companies,alias:companies"`
 	ID            uuid.UUID      `bun:"id,pk,type:uuid"`
 	Name          string         `bun:"name"`
@@ -23,17 +36,17 @@ type CompanyEntity struct {
 	UpdatedAt     time.Time      `bun:"updated_at"`
 }
 
-func (c company) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (CompanyEntity, error) {
-	var entity CompanyEntity
-	err := db.NewSelect().
+func (c Companies) Find(ctx context.Context, id uuid.UUID) (Company, error) {
+	var entity Company
+	err := c.db.Executor().NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return CompanyEntity{}, ErrNotFound
+			return Company{}, ErrNotFound
 		}
-		return CompanyEntity{}, err
+		return Company{}, err
 	}
 
 	return entity, nil
@@ -44,8 +57,8 @@ type CreateCompanyData struct {
 	Industry sql.NullString
 }
 
-func (c company) Create(ctx context.Context, db storage.Executor, data CreateCompanyData) (CompanyEntity, error) {
-	entity := CompanyEntity{
+func (c Companies) Create(ctx context.Context, data CreateCompanyData) (Company, error) {
+	entity := Company{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -54,11 +67,11 @@ func (c company) Create(ctx context.Context, db storage.Executor, data CreateCom
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
+		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return CompanyEntity{}, err
+	if _, err := c.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return Company{}, err
 	}
 
 	return entity, nil
@@ -70,8 +83,8 @@ type UpdateCompanyData struct {
 	Industry sql.NullString
 }
 
-func (c company) Update(ctx context.Context, db storage.Executor, data UpdateCompanyData) (CompanyEntity, error) {
-	entity := CompanyEntity{
+func (c Companies) Update(ctx context.Context, data UpdateCompanyData) (Company, error) {
+	entity := Company{
 		ID:        data.ID,
 		UpdatedAt: time.Now(),
 		Name:      data.Name,
@@ -79,10 +92,10 @@ func (c company) Update(ctx context.Context, db storage.Executor, data UpdateCom
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
+		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := db.NewUpdate().
+	err := c.db.Executor().NewUpdate().
 		Model(&entity).
 		Column("name").
 		Column("industry").
@@ -92,17 +105,17 @@ func (c company) Update(ctx context.Context, db storage.Executor, data UpdateCom
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return CompanyEntity{}, ErrNotFound
+			return Company{}, ErrNotFound
 		}
-		return CompanyEntity{}, err
+		return Company{}, err
 	}
 
 	return entity, nil
 }
 
-func (c company) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	var entity CompanyEntity
-	err := db.NewDelete().
+func (c Companies) Destroy(ctx context.Context, id uuid.UUID) error {
+	var entity Company
+	err := c.db.Executor().NewDelete().
 		Model(&entity).
 		Where("id = ?", id).
 		Returning("*").
@@ -117,9 +130,9 @@ func (c company) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID)
 	return nil
 }
 
-func (c company) All(ctx context.Context, db storage.Executor) ([]CompanyEntity, error) {
-	var entities []CompanyEntity
-	if err := db.NewSelect().
+func (c Companies) All(ctx context.Context) ([]Company, error) {
+	var entities []Company
+	if err := c.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -129,14 +142,14 @@ func (c company) All(ctx context.Context, db storage.Executor) ([]CompanyEntity,
 }
 
 type PaginatedCompanies struct {
-	Companies  []CompanyEntity
+	Companies  []Company
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func (c company) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedCompanies, error) {
+func (c Companies) Paginate(ctx context.Context, page, pageSize int64) (PaginatedCompanies, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -149,14 +162,14 @@ func (c company) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.NewSelect().
-		Model(&CompanyEntity{}).Count(ctx)
+	totalCount, err := c.db.Executor().NewSelect().
+		Model(&Company{}).Count(ctx)
 	if err != nil {
 		return PaginatedCompanies{}, err
 	}
 
-	entities := make([]CompanyEntity, 0, int(pageSize))
-	if err := db.NewSelect().
+	entities := make([]Company, 0, int(pageSize))
+	if err := c.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
@@ -175,8 +188,8 @@ func (c company) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 	}, nil
 }
 
-func (c company) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, data CreateCompanyData) (CompanyEntity, error) {
-	entity := CompanyEntity{
+func (c Companies) Upsert(ctx context.Context, id uuid.UUID, data CreateCompanyData) (Company, error) {
+	entity := Company{
 		ID:        id,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -185,17 +198,17 @@ func (c company) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, 
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return CompanyEntity{}, errors.Join(ErrDomainValidation, err)
+		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewInsert().
+	if err := c.db.Executor().NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("name = excluded.name").
 		Set("industry = excluded.industry").
 		Returning("*").
 		Scan(ctx); err != nil {
-		return CompanyEntity{}, err
+		return Company{}, err
 	}
 
 	return entity, nil

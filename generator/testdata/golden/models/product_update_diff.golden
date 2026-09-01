@@ -1,7 +1,7 @@
 --- current
 +++ updated
 @@ -1,16 +1,17 @@
- type ProductEntity struct {
+ type Product struct {
 -	ID            uuid.UUID       `bun:"id,pk,type:uuid"`
 -	Sku           string          `bun:"sku"`
 -	Name          string          `bun:"name"`

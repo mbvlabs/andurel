@@ -92,7 +92,7 @@ func (m *ModelManager) setupModelContext(
 ) (*modelSetupContext, error) {
 	modulePath := m.projectManager.GetModulePath()
 
-	if err := m.validator.ValidateResourceName(resourceName); err != nil {
+	if err := m.validator.ValidateModelResourceName(resourceName); err != nil {
 		return nil, err
 	}
 
@@ -276,7 +276,7 @@ func (m *ModelManager) PlanModel(
 		if readErr != nil {
 			return nil, fmt.Errorf("read model registry: %w", readErr)
 		}
-		updatedRegistry, formatErr := planNamespaceRegistration(resourceName, registryContent)
+		updatedRegistry, formatErr := planModelRegistration(resourceName, registryContent)
 		if formatErr != nil {
 			return nil, fmt.Errorf("plan model registry: %w", formatErr)
 		}
@@ -377,10 +377,31 @@ func (m *ModelManager) resolvePrimaryKey(
 	return pkInfo, nil
 }
 
-func planNamespaceRegistration(resourceName, source string) (string, error) {
-	namespaceType := naming.ToLowerCamelCaseFromAny(resourceName)
-	updated := ensureLineInBlock(source, "type (", "\t"+namespaceType+" struct{}")
-	updated = ensureLineInBlock(updated, "var (", "\t"+resourceName+" "+namespaceType)
+func planModelRegistration(resourceName, source string) (string, error) {
+	constructor := "New" + naming.ModelServiceName(resourceName)
+	if strings.Contains(source, constructor+",") || strings.Contains(source, constructor+")") {
+		formatted, err := format.Source([]byte(source))
+		if err != nil {
+			return "", err
+		}
+		return string(formatted), nil
+	}
+
+	provideIdx := strings.Index(source, "fx.Provide(")
+	if provideIdx < 0 {
+		return "", fmt.Errorf("failed to locate fx.Provide in models module")
+	}
+	openIdx := strings.Index(source[provideIdx:], "(")
+	if openIdx < 0 {
+		return "", fmt.Errorf("failed to locate fx.Provide opening parenthesis")
+	}
+	openIdx += provideIdx
+	closeIdx := findMatchingParen(source, openIdx)
+	if closeIdx < 0 {
+		return "", fmt.Errorf("failed to locate fx.Provide closing parenthesis")
+	}
+
+	updated := source[:closeIdx] + "\t" + constructor + ",\n" + source[closeIdx:]
 	formatted, err := format.Source([]byte(updated))
 	if err != nil {
 		return "", err
@@ -388,27 +409,20 @@ func planNamespaceRegistration(resourceName, source string) (string, error) {
 	return string(formatted), nil
 }
 
-// ensureLineInBlock inserts entry as a new line just before the `)` that
-// closes the block opened by blockHeader. If the entry is already present in
-// the file the source is returned unchanged. If the block does not exist a
-// new one is appended.
-func ensureLineInBlock(src, blockHeader, entry string) string {
-	if strings.Contains(src, entry+"\n") {
-		return src
+func findMatchingParen(src string, openIdx int) int {
+	depth := 0
+	for i := openIdx; i < len(src); i++ {
+		switch src[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
 	}
-
-	openIdx := strings.Index(src, blockHeader)
-	if openIdx < 0 {
-		return src + "\n" + blockHeader + "\n" + entry + "\n)\n"
-	}
-
-	closeRel := strings.Index(src[openIdx:], "\n)")
-	if closeRel < 0 {
-		return src
-	}
-	insertAt := openIdx + closeRel + 1
-
-	return src[:insertAt] + entry + "\n" + src[insertAt:]
+	return -1
 }
 
 // readNullType reads the nullable type strategy from andurel.lock.

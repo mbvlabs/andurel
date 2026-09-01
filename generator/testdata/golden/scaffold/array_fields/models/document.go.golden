@@ -14,7 +14,20 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type DocumentEntity struct {
+type Documents struct {
+	db queryDB
+}
+
+func NewDocuments(db storage.Connection) Documents {
+	return Documents{db: db}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (d Documents) WithTx(tx storage.Transaction) Documents {
+	return Documents{db: tx}
+}
+
+type Document struct {
 	bun.BaseModel `bun:"table:documents,alias:documents"`
 	ID            uuid.UUID `bun:"id,pk,type:uuid"`
 	Title         string    `bun:"title"`
@@ -26,17 +39,17 @@ type DocumentEntity struct {
 	UpdatedAt     time.Time `bun:"updated_at"`
 }
 
-func (d document) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (DocumentEntity, error) {
-	var entity DocumentEntity
-	err := db.NewSelect().
+func (d Documents) Find(ctx context.Context, id uuid.UUID) (Document, error) {
+	var entity Document
+	err := d.db.Executor().NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return DocumentEntity{}, ErrNotFound
+			return Document{}, ErrNotFound
 		}
-		return DocumentEntity{}, err
+		return Document{}, err
 	}
 
 	return entity, nil
@@ -50,8 +63,8 @@ type CreateDocumentData struct {
 	IsPublished bool
 }
 
-func (d document) Create(ctx context.Context, db storage.Executor, data CreateDocumentData) (DocumentEntity, error) {
-	entity := DocumentEntity{
+func (d Documents) Create(ctx context.Context, data CreateDocumentData) (Document, error) {
+	entity := Document{
 		ID:          uuid.New(),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -63,11 +76,11 @@ func (d document) Create(ctx context.Context, db storage.Executor, data CreateDo
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return DocumentEntity{}, errors.Join(ErrDomainValidation, err)
+		return Document{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return DocumentEntity{}, err
+	if _, err := d.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return Document{}, err
 	}
 
 	return entity, nil
@@ -82,8 +95,8 @@ type UpdateDocumentData struct {
 	IsPublished bool
 }
 
-func (d document) Update(ctx context.Context, db storage.Executor, data UpdateDocumentData) (DocumentEntity, error) {
-	entity := DocumentEntity{
+func (d Documents) Update(ctx context.Context, data UpdateDocumentData) (Document, error) {
+	entity := Document{
 		ID:          data.ID,
 		UpdatedAt:   time.Now(),
 		Title:       data.Title,
@@ -94,10 +107,10 @@ func (d document) Update(ctx context.Context, db storage.Executor, data UpdateDo
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return DocumentEntity{}, errors.Join(ErrDomainValidation, err)
+		return Document{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := db.NewUpdate().
+	err := d.db.Executor().NewUpdate().
 		Model(&entity).
 		Column("title").
 		Column("tags").
@@ -110,17 +123,17 @@ func (d document) Update(ctx context.Context, db storage.Executor, data UpdateDo
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return DocumentEntity{}, ErrNotFound
+			return Document{}, ErrNotFound
 		}
-		return DocumentEntity{}, err
+		return Document{}, err
 	}
 
 	return entity, nil
 }
 
-func (d document) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	var entity DocumentEntity
-	err := db.NewDelete().
+func (d Documents) Destroy(ctx context.Context, id uuid.UUID) error {
+	var entity Document
+	err := d.db.Executor().NewDelete().
 		Model(&entity).
 		Where("id = ?", id).
 		Returning("*").
@@ -135,9 +148,9 @@ func (d document) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID
 	return nil
 }
 
-func (d document) All(ctx context.Context, db storage.Executor) ([]DocumentEntity, error) {
-	var entities []DocumentEntity
-	if err := db.NewSelect().
+func (d Documents) All(ctx context.Context) ([]Document, error) {
+	var entities []Document
+	if err := d.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -147,14 +160,14 @@ func (d document) All(ctx context.Context, db storage.Executor) ([]DocumentEntit
 }
 
 type PaginatedDocuments struct {
-	Documents  []DocumentEntity
+	Documents  []Document
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func (d document) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedDocuments, error) {
+func (d Documents) Paginate(ctx context.Context, page, pageSize int64) (PaginatedDocuments, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -167,14 +180,14 @@ func (d document) Paginate(ctx context.Context, db storage.Executor, page, pageS
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.NewSelect().
-		Model(&DocumentEntity{}).Count(ctx)
+	totalCount, err := d.db.Executor().NewSelect().
+		Model(&Document{}).Count(ctx)
 	if err != nil {
 		return PaginatedDocuments{}, err
 	}
 
-	entities := make([]DocumentEntity, 0, int(pageSize))
-	if err := db.NewSelect().
+	entities := make([]Document, 0, int(pageSize))
+	if err := d.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
@@ -193,8 +206,8 @@ func (d document) Paginate(ctx context.Context, db storage.Executor, page, pageS
 	}, nil
 }
 
-func (d document) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, data CreateDocumentData) (DocumentEntity, error) {
-	entity := DocumentEntity{
+func (d Documents) Upsert(ctx context.Context, id uuid.UUID, data CreateDocumentData) (Document, error) {
+	entity := Document{
 		ID:          id,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -206,10 +219,10 @@ func (d document) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID,
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return DocumentEntity{}, errors.Join(ErrDomainValidation, err)
+		return Document{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewInsert().
+	if err := d.db.Executor().NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("title = excluded.title").
@@ -219,7 +232,7 @@ func (d document) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID,
 		Set("is_published = excluded.is_published").
 		Returning("*").
 		Scan(ctx); err != nil {
-		return DocumentEntity{}, err
+		return Document{}, err
 	}
 
 	return entity, nil

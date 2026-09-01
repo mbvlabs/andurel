@@ -236,9 +236,9 @@ func TestGenerateModelUpsertRequiresExplicitPrimaryKey(t *testing.T) {
 				t.Fatalf("read generated model: %v", err)
 			}
 			generated := string(content)
-			signature := "func (" + tt.receiver + " " + strings.ToLower(
-				tt.resource,
-			) + ") Upsert(ctx context.Context, db storage.Executor, id " + tt.idType + ", data Create" + tt.resource + "Data)"
+			signature := "func (" + naming.ToReceiverName(tt.resource) + " " +
+				naming.ModelServiceName(tt.resource) + ") Upsert(ctx context.Context, id " +
+				tt.idType + ", data Create" + tt.resource + "Data)"
 			upsertStart := strings.Index(generated, signature)
 			if upsertStart < 0 {
 				t.Fatalf(
@@ -352,11 +352,72 @@ func TestGenerateModelPaginationPluralizesAcronymResourcesWithTableOverrides(t *
 			generated := string(content)
 			for _, want := range []string{
 				"type Paginated" + pluralName + " struct",
-				pluralName + " []" + resourceName + "Entity",
+				pluralName + " []" + resourceName,
 				") (Paginated" + pluralName + ", error)",
 			} {
 				if !strings.Contains(generated, want) {
 					t.Fatalf("generated pagination missing %q:\n%s", want, generated)
+				}
+			}
+		})
+	}
+}
+
+func TestGenerateModelDisambiguatesUnchangedPluralServiceNames(t *testing.T) {
+	tests := map[string]string{
+		"Equipment":       "EquipmentService",
+		"Fish":            "FishService",
+		"CompanyAccounts": "CompanyAccountsService",
+	}
+
+	for resourceName, serviceName := range tests {
+		t.Run(resourceName, func(t *testing.T) {
+			tableName := naming.DeriveTableName(resourceName)
+			cat := catalog.NewCatalog("public")
+			table := tableWithColumns(t, tableName,
+				catalog.NewColumn("id", "uuid").SetPrimaryKey(),
+			)
+			if err := cat.AddTable("public", table); err != nil {
+				t.Fatalf("add table: %v", err)
+			}
+
+			model, source, err := NewGenerator("postgresql").PlanModelSource(
+				cat,
+				resourceName,
+				tableName,
+				"example.com/app",
+				"",
+				"sql.Null",
+				"id",
+				false,
+				ModelModeCRUD,
+			)
+			if err != nil {
+				t.Fatalf("PlanModelSource() returned error: %v", err)
+			}
+
+			if model.EntityName != resourceName {
+				t.Fatalf("entity name = %q, want %q", model.EntityName, resourceName)
+			}
+			if model.NamespaceType != serviceName || model.NamespaceVar != serviceName {
+				t.Fatalf(
+					"service identifiers = (%q, %q), want %q",
+					model.NamespaceType,
+					model.NamespaceVar,
+					serviceName,
+				)
+			}
+			if model.ReceiverName != naming.ToReceiverName(resourceName) {
+				t.Fatalf("receiver name = %q", model.ReceiverName)
+			}
+			for _, want := range []string{
+				"type " + serviceName + " struct",
+				"func New" + serviceName + "(db storage.Connection) " + serviceName,
+				"type " + resourceName + " struct",
+				resourceName + " []" + resourceName,
+			} {
+				if !strings.Contains(source, want) {
+					t.Fatalf("generated model missing %q:\n%s", want, source)
 				}
 			}
 		})
@@ -394,11 +455,11 @@ func TestGenerateModelCRUDUsesRepositoryNotFoundAndTimestampSemantics(t *testing
 			generated,
 		)
 	}
-	if count := strings.Count(generated, "return ProductEntity{}, ErrNotFound"); count != 2 {
+	if count := strings.Count(generated, "return Product{}, ErrNotFound"); count != 2 {
 		t.Fatalf("expected Find and Update to return ErrNotFound, got %d:\n%s", count, generated)
 	}
-	destroyStart := strings.Index(generated, "func (p product) Destroy(")
-	allStart := strings.Index(generated, "func (p product) All(")
+	destroyStart := strings.Index(generated, "func (products Products) Destroy(")
+	allStart := strings.Index(generated, "func (products Products) All(")
 	if destroyStart < 0 || allStart <= destroyStart {
 		t.Fatalf("could not isolate generated Destroy method:\n%s", generated)
 	}
@@ -411,7 +472,7 @@ func TestGenerateModelCRUDUsesRepositoryNotFoundAndTimestampSemantics(t *testing
 	}
 
 	updateDataStart := strings.Index(generated, "type UpdateProductData struct {")
-	updateMethodStart := strings.Index(generated, "func (p product) Update(")
+	updateMethodStart := strings.Index(generated, "func (products Products) Update(")
 	if updateDataStart < 0 || updateMethodStart <= updateDataStart {
 		t.Fatalf("could not isolate generated UpdateProductData:\n%s", generated)
 	}
@@ -547,7 +608,7 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 			if !strings.Contains(generated, "// andurel:model-mode "+string(tt.wantMode)) {
 				t.Fatalf("generated model does not persist mode %q:\n%s", tt.wantMode, generated)
 			}
-			if strings.Contains(generated, "func (e *ProductEntity) Validate() error") {
+			if strings.Contains(generated, "func (e *Product) Validate() error") {
 				t.Fatalf("generated model contains an empty Validate method:\n%s", generated)
 			}
 			for _, want := range tt.present {
@@ -587,7 +648,7 @@ func TestBuildModelWithoutModulePathOmitsApplicationImports(t *testing.T) {
 	if model.Mode != ModelModeCRUD {
 		t.Fatalf("Build() mode = %q, want %q", model.Mode, ModelModeCRUD)
 	}
-	for _, applicationImport := range []string{"/pkg/storage", "/pkg/validation"} {
+	for _, applicationImport := range []string{"/pkg/validation"} {
 		for _, modelImport := range model.ExternalImports {
 			if strings.HasSuffix(modelImport, applicationImport) {
 				t.Fatalf(
@@ -719,7 +780,7 @@ func TestBuildFactoryMetadata(t *testing.T) {
 	g := NewGenerator("postgresql")
 	genModel := &GeneratedModel{
 		Name:          "Order",
-		EntityName:    "OrderEntity",
+		EntityName:    "Order",
 		NamespaceVar:  "Order",
 		IDType:        "int64",
 		IDGoFieldName: "OrderID",
@@ -785,7 +846,7 @@ func TestBuildFactoryUsesSuppliedModelAndFieldNames(t *testing.T) {
 		t.Run(tt.modelName, func(t *testing.T) {
 			model := &GeneratedModel{
 				Name:       tt.modelName,
-				EntityName: tt.modelName + "Entity",
+				EntityName: tt.modelName,
 				Fields: []GeneratedField{
 					{Name: tt.fieldName, Type: "string"},
 				},
@@ -806,7 +867,7 @@ func TestBuildFactoryUsesSuppliedModelAndFieldNames(t *testing.T) {
 func TestBuildFactoryUsesSchemaAwareSemanticDefaults(t *testing.T) {
 	model := &GeneratedModel{
 		Name:       "Endpoint",
-		EntityName: "EndpointEntity",
+		EntityName: "Endpoint",
 		Fields: []GeneratedField{
 			{Name: "Url", Type: "string"},
 			{Name: "Cidr", Type: "string"},
@@ -913,7 +974,7 @@ func TestGenerateModelAndFactoryFiles(t *testing.T) {
 		t.Fatalf("generate model: %v", err)
 	}
 	modelContent, err := os.ReadFile(modelPath)
-	if err != nil || !strings.Contains(string(modelContent), "type ProductEntity struct") {
+	if err != nil || !strings.Contains(string(modelContent), "type Product struct") {
 		t.Fatalf("generated model = %v\n%s", err, modelContent)
 	}
 

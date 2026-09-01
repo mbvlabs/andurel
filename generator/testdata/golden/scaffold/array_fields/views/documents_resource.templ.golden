@@ -19,7 +19,7 @@ import (
 
 
 type DocumentIndex struct {
-	Items []models.DocumentEntity
+	Items []models.Document
 }
 
 func (di DocumentIndex) PageFragment() string {
@@ -89,7 +89,7 @@ templ (di DocumentIndex) Page() {
 
 
 type DocumentShow struct {
-	Item models.DocumentEntity
+	Item models.Document
 }
 
 func (ds DocumentShow) PageFragment() string {
@@ -217,7 +217,7 @@ templ (dn DocumentNew) Page() {
 
 
 type DocumentEdit struct {
-	Item models.DocumentEntity
+	Item models.Document
 }
 
 func (de DocumentEdit) PageFragment() string {

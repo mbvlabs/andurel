@@ -57,10 +57,10 @@ type GeneratedModel struct {
 	IDFieldName         string // SQL column name of PK (e.g., "id", "user_id")
 	IDGoFieldName       string // Go struct field name of PK (e.g., "ID", "UserID")
 	HasPrimaryKey       bool   // Whether the table has any primary key
-	EntityName          string // ServerEntity (resource name + "Entity")
-	NamespaceVar        string // Server (exported, package-scope)
-	NamespaceType       string // server (unexported receiver type)
-	ReceiverName        string // s (for the namespace methods)
+	EntityName          string // User (resource name)
+	NamespaceVar        string // Users (exported service type / constructor base)
+	NamespaceType       string // Users (service type used as method receiver)
+	ReceiverName        string // u (short receiver for the service methods)
 	HasCreatedAt        bool
 	HasUpdatedAt        bool
 	Mode                ModelMode
@@ -147,14 +147,16 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		g.typeMapper.NullType = config.NullType
 	}
 
-	entityName := config.ResourceName + "Entity"
-	namespaceVar := config.ResourceName
-	namespaceType := naming.ToLowerCamelCaseFromAny(config.ResourceName)
+	entityName := config.ResourceName
+	pluralName := inflection.Plural(config.ResourceName)
+	serviceName := naming.ModelServiceName(config.ResourceName)
+	namespaceVar := serviceName
+	namespaceType := serviceName
 	receiverName := naming.ToReceiverName(config.ResourceName)
 
 	model := &GeneratedModel{
 		Name:            config.ResourceName,
-		PluralName:      inflection.Plural(config.ResourceName),
+		PluralName:      pluralName,
 		EntityName:      entityName,
 		NamespaceVar:    namespaceVar,
 		NamespaceType:   namespaceType,
@@ -176,9 +178,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	importSet := make(map[string]bool)
 	importSet["context"] = true
 	importSet["github.com/uptrace/bun"] = true
-	if config.ModulePath != "" {
-		importSet["github.com/mbvlabs/andurel/pkg/storage"] = true
-	}
+	importSet["github.com/mbvlabs/andurel/pkg/storage"] = true
 
 	for _, col := range table.Columns {
 		field, err := g.buildField(col)
@@ -500,7 +500,7 @@ func normalizeModelMode(mode ModelMode) ModelMode {
 // GeneratedFactory represents a factory for a model
 type GeneratedFactory struct {
 	ModelName         string
-	EntityName        string // ServerEntity (resource name + "Entity")
+	EntityName        string // User (resource name)
 	NamespaceVar      string // Server (exported, package-scope)
 	Package           string
 	Fields            []FactoryField

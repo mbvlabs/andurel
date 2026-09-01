@@ -7,6 +7,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/internal/errors"
 	"github.com/mbvlabs/andurel/internal/naming"
@@ -66,8 +67,11 @@ func (tr *TemplateRenderer) RenderControllerFile(
 	if controller.ModelPluralName == "" {
 		controller.ModelPluralName = controller.PluralName
 	}
-	if controller.ModelPluralResourceName == "" {
-		controller.ModelPluralResourceName = controller.PluralResourceName
+	if controller.ModelServiceName == "" {
+		controller.ModelServiceName = naming.ModelServiceName(controller.ModelName)
+	}
+	if controller.ModelCollectionName == "" {
+		controller.ModelCollectionName = inflection.Plural(controller.ModelName)
 	}
 	if controller.Package == "" {
 		controller.Package = naming.ControllerPackageName(controller.Namespace)

@@ -100,10 +100,14 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 	if modelPluralName == "" {
 		modelPluralName = config.PluralName
 	}
+	entityName := config.EntityName
+	if entityName == "" {
+		entityName = modelName
+	}
 	view := &GeneratedView{
 		ResourceName:    config.ResourceName,
 		ModelName:       modelName,
-		EntityName:      config.EntityName,
+		EntityName:      entityName,
 		PluralName:      config.PluralName,
 		ModelPluralName: modelPluralName,
 		Namespace:       config.Namespace,
@@ -867,7 +871,7 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 	view, err := g.Build(cat, Config{
 		ResourceName:    resourceName,
 		ModelName:       modelName,
-		EntityName:      modelName + "Entity",
+		EntityName:      modelName,
 		PluralName:      pluralName,
 		ModelPluralName: modelPluralName,
 		TableName:       tableName,

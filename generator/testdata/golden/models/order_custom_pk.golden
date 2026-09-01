@@ -14,7 +14,20 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type OrderEntity struct {
+type Orders struct {
+	db queryDB
+}
+
+func NewOrders(db storage.Connection) Orders {
+	return Orders{db: db}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (o Orders) WithTx(tx storage.Transaction) Orders {
+	return Orders{db: tx}
+}
+
+type Order struct {
 	bun.BaseModel `bun:"table:orders,alias:orders"`
 	OrderId       uuid.UUID    `bun:"order_id,pk,type:uuid"`
 	CustomerId    uuid.UUID    `bun:"customer_id,type:uuid"`
@@ -26,17 +39,17 @@ type OrderEntity struct {
 	UpdatedAt     time.Time    `bun:"updated_at"`
 }
 
-func (o order) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (OrderEntity, error) {
-	var entity OrderEntity
-	err := db.NewSelect().
+func (o Orders) Find(ctx context.Context, id uuid.UUID) (Order, error) {
+	var entity Order
+	err := o.db.Executor().NewSelect().
 		Model(&entity).
 		Where("order_id = ?", id).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return OrderEntity{}, ErrNotFound
+			return Order{}, ErrNotFound
 		}
-		return OrderEntity{}, err
+		return Order{}, err
 	}
 
 	return entity, nil
@@ -50,8 +63,8 @@ type CreateOrderData struct {
 	PlacedAt   sql.NullTime
 }
 
-func (o order) Create(ctx context.Context, db storage.Executor, data CreateOrderData) (OrderEntity, error) {
-	entity := OrderEntity{
+func (o Orders) Create(ctx context.Context, data CreateOrderData) (Order, error) {
+	entity := Order{
 		OrderId:    uuid.New(),
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
@@ -63,11 +76,11 @@ func (o order) Create(ctx context.Context, db storage.Executor, data CreateOrder
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return OrderEntity{}, errors.Join(ErrDomainValidation, err)
+		return Order{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return OrderEntity{}, err
+	if _, err := o.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return Order{}, err
 	}
 
 	return entity, nil
@@ -82,8 +95,8 @@ type UpdateOrderData struct {
 	PlacedAt   sql.NullTime
 }
 
-func (o order) Update(ctx context.Context, db storage.Executor, data UpdateOrderData) (OrderEntity, error) {
-	entity := OrderEntity{
+func (o Orders) Update(ctx context.Context, data UpdateOrderData) (Order, error) {
+	entity := Order{
 		OrderId:    data.OrderId,
 		UpdatedAt:  time.Now(),
 		CustomerId: data.CustomerId,
@@ -94,10 +107,10 @@ func (o order) Update(ctx context.Context, db storage.Executor, data UpdateOrder
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return OrderEntity{}, errors.Join(ErrDomainValidation, err)
+		return Order{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := db.NewUpdate().
+	err := o.db.Executor().NewUpdate().
 		Model(&entity).
 		Column("customer_id").
 		Column("reference").
@@ -110,17 +123,17 @@ func (o order) Update(ctx context.Context, db storage.Executor, data UpdateOrder
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return OrderEntity{}, ErrNotFound
+			return Order{}, ErrNotFound
 		}
-		return OrderEntity{}, err
+		return Order{}, err
 	}
 
 	return entity, nil
 }
 
-func (o order) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	var entity OrderEntity
-	err := db.NewDelete().
+func (o Orders) Destroy(ctx context.Context, id uuid.UUID) error {
+	var entity Order
+	err := o.db.Executor().NewDelete().
 		Model(&entity).
 		Where("order_id = ?", id).
 		Returning("*").
@@ -135,9 +148,9 @@ func (o order) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) e
 	return nil
 }
 
-func (o order) All(ctx context.Context, db storage.Executor) ([]OrderEntity, error) {
-	var entities []OrderEntity
-	if err := db.NewSelect().
+func (o Orders) All(ctx context.Context) ([]Order, error) {
+	var entities []Order
+	if err := o.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -147,14 +160,14 @@ func (o order) All(ctx context.Context, db storage.Executor) ([]OrderEntity, err
 }
 
 type PaginatedOrders struct {
-	Orders     []OrderEntity
+	Orders     []Order
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func (o order) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedOrders, error) {
+func (o Orders) Paginate(ctx context.Context, page, pageSize int64) (PaginatedOrders, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -167,14 +180,14 @@ func (o order) Paginate(ctx context.Context, db storage.Executor, page, pageSize
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.NewSelect().
-		Model(&OrderEntity{}).Count(ctx)
+	totalCount, err := o.db.Executor().NewSelect().
+		Model(&Order{}).Count(ctx)
 	if err != nil {
 		return PaginatedOrders{}, err
 	}
 
-	entities := make([]OrderEntity, 0, int(pageSize))
-	if err := db.NewSelect().
+	entities := make([]Order, 0, int(pageSize))
+	if err := o.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
@@ -193,8 +206,8 @@ func (o order) Paginate(ctx context.Context, db storage.Executor, page, pageSize
 	}, nil
 }
 
-func (o order) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, data CreateOrderData) (OrderEntity, error) {
-	entity := OrderEntity{
+func (o Orders) Upsert(ctx context.Context, id uuid.UUID, data CreateOrderData) (Order, error) {
+	entity := Order{
 		OrderId:    id,
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
@@ -206,10 +219,10 @@ func (o order) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, da
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return OrderEntity{}, errors.Join(ErrDomainValidation, err)
+		return Order{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewInsert().
+	if err := o.db.Executor().NewInsert().
 		Model(&entity).
 		On("CONFLICT (order_id) DO UPDATE").
 		Set("customer_id = excluded.customer_id").
@@ -219,7 +232,7 @@ func (o order) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, da
 		Set("placed_at = excluded.placed_at").
 		Returning("*").
 		Scan(ctx); err != nil {
-		return OrderEntity{}, err
+		return Order{}, err
 	}
 
 	return entity, nil

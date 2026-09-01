@@ -18,7 +18,7 @@ import (
 
 
 type WidgetIndex struct {
-	Items []models.WidgetEntity
+	Items []models.Widget
 }
 
 func (wi WidgetIndex) PageFragment() string {
@@ -84,7 +84,7 @@ templ (wi WidgetIndex) Page() {
 
 
 type WidgetShow struct {
-	Item models.WidgetEntity
+	Item models.Widget
 }
 
 func (ws WidgetShow) PageFragment() string {
@@ -194,7 +194,7 @@ templ (wn WidgetNew) Page() {
 
 
 type WidgetEdit struct {
-	Item models.WidgetEntity
+	Item models.Widget
 }
 
 func (we WidgetEdit) PageFragment() string {

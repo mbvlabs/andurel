@@ -26,7 +26,7 @@ type FeedbackEntryData struct {
 	UpdatedAt time.Time
 }
 
-func newFeedbackEntryData(entity models.FeedbackEntryEntity) FeedbackEntryData {
+func newFeedbackEntryData(entity models.FeedbackEntry) FeedbackEntryData {
 	return FeedbackEntryData{
 		StudentName: entity.StudentName,
 		Feedback: entity.Feedback,
@@ -39,7 +39,7 @@ func newFeedbackEntryData(entity models.FeedbackEntryEntity) FeedbackEntryData {
 
 
 type FeedbackEntryIndex struct {
-	Items []models.FeedbackEntryEntity
+	Items []models.FeedbackEntry
 }
 
 func (fei FeedbackEntryIndex) PageFragment() string {
@@ -108,7 +108,7 @@ templ (fei FeedbackEntryIndex) Page() {
 
 
 type FeedbackEntryShow struct {
-	Item models.FeedbackEntryEntity
+	Item models.FeedbackEntry
 }
 
 func (fes FeedbackEntryShow) PageFragment() string {
@@ -235,7 +235,7 @@ templ (fen FeedbackEntryNew) Page() {
 
 
 type FeedbackEntryEdit struct {
-	Item models.FeedbackEntryEntity
+	Item models.FeedbackEntry
 }
 
 func (fee FeedbackEntryEdit) PageFragment() string {

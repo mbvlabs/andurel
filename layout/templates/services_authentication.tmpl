@@ -25,23 +25,23 @@ type LoginData struct {
 func (i Identity) AuthenticateUser(
 	ctx context.Context,
 	data LoginData,
-) (models.UserEntity, error) {
+) (models.User, error) {
 	b := validation.NewBuilder()
 	b.Required("email", data.Email)
 	b.Required("password", data.Password)
 	if !b.Errors().Empty() {
-		return models.UserEntity{}, b.Errors()
+		return models.User{}, b.Errors()
 	}
 
-	user, err := models.User.FindByEmail(ctx, i.db.Executor(), data.Email)
+	user, err := i.users.FindByEmail(ctx, data.Email)
 
 	if err != nil {
 
 		if errors.Is(err, models.ErrNotFound) {
-			return models.UserEntity{}, ErrInvalidCredentials
+			return models.User{}, ErrInvalidCredentials
 		}
 
-		return models.UserEntity{}, fmt.Errorf("find user by email: %w", err)
+		return models.User{}, fmt.Errorf("find user by email: %w", err)
 
 	}
 
@@ -54,22 +54,22 @@ func (i Identity) AuthenticateUser(
 
 	if err != nil {
 
-		return models.UserEntity{}, fmt.Errorf("validate password: %w", err)
+		return models.User{}, fmt.Errorf("validate password: %w", err)
 
 	}
 
 	if !validPassword {
 
-		return models.UserEntity{}, ErrInvalidCredentials
+		return models.User{}, ErrInvalidCredentials
 	}
 
 	if needsRehash {
 		hashedPassword, err := models.HashPassword(data.Password, i.pepper)
 		if err != nil {
-			return models.UserEntity{}, fmt.Errorf("rehash password with current pepper: %w", err)
+			return models.User{}, fmt.Errorf("rehash password with current pepper: %w", err)
 		}
 
-		user, err = models.User.Update(ctx, i.db.Executor(), models.UpdateUserData{
+		user, err = i.users.Update(ctx, models.UpdateUserData{
 			ID:               user.ID,
 			Email:            user.Email,
 			EmailValidatedAt: user.EmailValidatedAt,
@@ -77,19 +77,19 @@ func (i Identity) AuthenticateUser(
 			IsAdmin:          user.IsAdmin,
 		})
 		if err != nil {
-			return models.UserEntity{}, fmt.Errorf("persist password rehash: %w", err)
+			return models.User{}, fmt.Errorf("persist password rehash: %w", err)
 		}
 	}
 
 	if !user.HasValidatedEmail() {
-		return models.UserEntity{}, ErrEmailNotVerified
+		return models.User{}, ErrEmailNotVerified
 	}
 
 	return user, nil
 }
 
 func verifyPasswordWithPeppers(
-	user models.UserEntity,
+	user models.User,
 	providedPassword string,
 	currentPepper string,
 	previousPeppers []string,

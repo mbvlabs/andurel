@@ -19,7 +19,20 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type TokenEntity struct {
+type Tokens struct {
+	db queryDB
+}
+
+func NewTokens(db storage.Connection) Tokens {
+	return Tokens{db: db}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (t Tokens) WithTx(tx storage.Transaction) Tokens {
+	return Tokens{db: tx}
+}
+
+type Token struct {
 	bun.BaseModel `bun:"table:tokens,alias:tokens"`
 	ID            uuid.UUID       `bun:"id,pk,type:uuid"`
 	CreatedAt     time.Time       `bun:"created_at"`
@@ -30,7 +43,7 @@ type TokenEntity struct {
 	MetaData      json.RawMessage `bun:"meta_data,type:jsonb"`
 }
 
-func (t TokenEntity) IsValid(token, secret string) bool {
+func (t Token) IsValid(token, secret string) bool {
 	expected := HashForStorage(token, secret)
 
 	isEqual := hmac.Equal([]byte(expected), []byte(t.Hash))
@@ -69,44 +82,43 @@ func HashForStorage(plain, secret string) string {
 	return hex.EncodeToString(m.Sum(nil))
 }
 
-func (t token) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (TokenEntity, error) {
-	var entity TokenEntity
-	err := db.NewSelect().
+func (t Tokens) Find(ctx context.Context, id uuid.UUID) (Token, error) {
+	var entity Token
+	err := t.db.Executor().NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return TokenEntity{}, ErrNotFound
+			return Token{}, ErrNotFound
 		}
 
-		return TokenEntity{}, err
+		return Token{}, err
 	}
 
 	return entity, nil
 }
 
-func (t token) FindByScopeAndHash(
+func (t Tokens) FindByScopeAndHash(
 	ctx context.Context,
-	db storage.Executor,
 	secret string,
 	scope string,
 	plainToken string,
-) (TokenEntity, error) {
+) (Token, error) {
 	hash := HashForStorage(plainToken, secret)
 
-	var entity TokenEntity
-	err := db.NewSelect().
+	var entity Token
+	err := t.db.Executor().NewSelect().
 		Model(&entity).
 		Where("scope = ?", scope).
 		Where("hash = ?", hash).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return TokenEntity{}, ErrNotFound
+			return Token{}, ErrNotFound
 		}
 
-		return TokenEntity{}, err
+		return Token{}, err
 	}
 
 	return entity, nil
@@ -119,7 +131,7 @@ type createTokenData struct {
 	MetaData  json.RawMessage
 }
 
-func (t *TokenEntity) Validate() error {
+func (t *Token) Validate() error {
 	b := validation.NewBuilder()
 	b.Required("scope", t.Scope)
 	b.Required("expires_at", t.ExpiresAt)
@@ -129,12 +141,11 @@ func (t *TokenEntity) Validate() error {
 	return b.Err()
 }
 
-func (t token) createToken(
+func (t Tokens) createToken(
 	ctx context.Context,
-	db storage.Executor,
 	data createTokenData,
-) (TokenEntity, error) {
-	entity := TokenEntity{
+) (Token, error) {
+	entity := Token{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -145,19 +156,18 @@ func (t token) createToken(
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return TokenEntity{}, errors.Join(ErrDomainValidation, err)
+		return Token{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return TokenEntity{}, err
+	if _, err := t.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return Token{}, err
 	}
 
 	return entity, nil
 }
 
-func (t token) CreateCode(
+func (t Tokens) CreateCode(
 	ctx context.Context,
-	db storage.Executor,
 	secret string,
 	scope string,
 	expiresAt time.Time,
@@ -168,7 +178,7 @@ func (t token) CreateCode(
 		return "", err
 	}
 
-	if _, err := t.createToken(ctx, db, createTokenData{
+	if _, err := t.createToken(ctx, createTokenData{
 		Scope:     scope,
 		ExpiresAt: expiresAt,
 		Hash:      HashForStorage(tkn, secret),
@@ -180,9 +190,8 @@ func (t token) CreateCode(
 	return tkn, nil
 }
 
-func (t token) Create(
+func (t Tokens) Create(
 	ctx context.Context,
-	db storage.Executor,
 	secret string,
 	scope string,
 	expiresAt time.Time,
@@ -193,7 +202,7 @@ func (t token) Create(
 		return "", err
 	}
 
-	if _, err := t.createToken(ctx, db, createTokenData{
+	if _, err := t.createToken(ctx, createTokenData{
 		Scope:     scope,
 		ExpiresAt: expiresAt,
 		Hash:      HashForStorage(tkn, secret),
@@ -205,17 +214,17 @@ func (t token) Create(
 	return tkn, nil
 }
 
-func (t token) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	_, err := db.NewDelete().
-		Model((*TokenEntity)(nil)).
+func (t Tokens) Destroy(ctx context.Context, id uuid.UUID) error {
+	_, err := t.db.Executor().NewDelete().
+		Model((*Token)(nil)).
 		Where("id = ?", id).
 		Exec(ctx)
 	return err
 }
 
-func (t token) All(ctx context.Context, db storage.Executor) ([]TokenEntity, error) {
-	var entities []TokenEntity
-	err := db.NewSelect().
+func (t Tokens) All(ctx context.Context) ([]Token, error) {
+	var entities []Token
+	err := t.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx)
 	if err != nil {
@@ -226,16 +235,15 @@ func (t token) All(ctx context.Context, db storage.Executor) ([]TokenEntity, err
 }
 
 type PaginatedTokens struct {
-	Tokens     []TokenEntity
+	Tokens     []Token
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func (t token) Paginate(
+func (t Tokens) Paginate(
 	ctx context.Context,
-	db storage.Executor,
 	page, pageSize int64,
 ) (PaginatedTokens, error) {
 	if page < 1 {
@@ -250,14 +258,14 @@ func (t token) Paginate(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.NewSelect().
-		Model(&TokenEntity{}).Count(ctx)
+	totalCount, err := t.db.Executor().NewSelect().
+		Model(&Token{}).Count(ctx)
 	if err != nil {
 		return PaginatedTokens{}, err
 	}
 
-	entities := make([]TokenEntity, 0, int(pageSize))
-	if err := db.NewSelect().
+	entities := make([]Token, 0, int(pageSize))
+	if err := t.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).

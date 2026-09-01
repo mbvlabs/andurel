@@ -15,7 +15,20 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type ProductEntity struct {
+type Products struct {
+	db queryDB
+}
+
+func NewProducts(db storage.Connection) Products {
+	return Products{db: db}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (p Products) WithTx(tx storage.Transaction) Products {
+	return Products{db: tx}
+}
+
+type Product struct {
 	bun.BaseModel `bun:"table:products,alias:products"`
 
 	ID          uuid.UUID       `bun:"id,pk,type:uuid"`
@@ -35,17 +48,17 @@ type ProductEntity struct {
 	Rating      float64         `bun:"rating"`
 }
 
-func (p product) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (ProductEntity, error) {
-	var entity ProductEntity
-	err := db.NewSelect().
+func (p Products) Find(ctx context.Context, id uuid.UUID) (Product, error) {
+	var entity Product
+	err := p.db.Executor().NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return ProductEntity{}, ErrNotFound
+			return Product{}, ErrNotFound
 		}
-		return ProductEntity{}, err
+		return Product{}, err
 	}
 
 	return entity, nil
@@ -65,8 +78,8 @@ type CreateProductData struct {
 	LaunchedAt  sql.NullTime
 }
 
-func (p product) Create(ctx context.Context, db storage.Executor, data CreateProductData) (ProductEntity, error) {
-	entity := ProductEntity{
+func (p Products) Create(ctx context.Context, data CreateProductData) (Product, error) {
+	entity := Product{
 		ID:          uuid.New(),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -84,11 +97,11 @@ func (p product) Create(ctx context.Context, db storage.Executor, data CreatePro
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return ProductEntity{}, errors.Join(ErrDomainValidation, err)
+		return Product{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return ProductEntity{}, err
+	if _, err := p.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return Product{}, err
 	}
 
 	return entity, nil
@@ -109,8 +122,8 @@ type UpdateProductData struct {
 	LaunchedAt  sql.NullTime
 }
 
-func (p product) Update(ctx context.Context, db storage.Executor, data UpdateProductData) (ProductEntity, error) {
-	entity := ProductEntity{
+func (p Products) Update(ctx context.Context, data UpdateProductData) (Product, error) {
+	entity := Product{
 		ID:          data.ID,
 		UpdatedAt:   time.Now(),
 		Sku:         data.Sku,
@@ -127,10 +140,10 @@ func (p product) Update(ctx context.Context, db storage.Executor, data UpdatePro
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return ProductEntity{}, errors.Join(ErrDomainValidation, err)
+		return Product{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := db.NewUpdate().
+	err := p.db.Executor().NewUpdate().
 		Model(&entity).
 		Column("sku").
 		Column("name").
@@ -149,17 +162,17 @@ func (p product) Update(ctx context.Context, db storage.Executor, data UpdatePro
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return ProductEntity{}, ErrNotFound
+			return Product{}, ErrNotFound
 		}
-		return ProductEntity{}, err
+		return Product{}, err
 	}
 
 	return entity, nil
 }
 
-func (p product) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	var entity ProductEntity
-	err := db.NewDelete().
+func (p Products) Destroy(ctx context.Context, id uuid.UUID) error {
+	var entity Product
+	err := p.db.Executor().NewDelete().
 		Model(&entity).
 		Where("id = ?", id).
 		Returning("*").
@@ -174,9 +187,9 @@ func (p product) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID)
 	return nil
 }
 
-func (p product) All(ctx context.Context, db storage.Executor) ([]ProductEntity, error) {
-	var entities []ProductEntity
-	if err := db.NewSelect().
+func (p Products) All(ctx context.Context) ([]Product, error) {
+	var entities []Product
+	if err := p.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -186,14 +199,14 @@ func (p product) All(ctx context.Context, db storage.Executor) ([]ProductEntity,
 }
 
 type PaginatedProducts struct {
-	Products   []ProductEntity
+	Products   []Product
 	TotalCount int64
 	Page       int64
 	PageSize   int64
 	TotalPages int64
 }
 
-func (p product) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedProducts, error) {
+func (p Products) Paginate(ctx context.Context, page, pageSize int64) (PaginatedProducts, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -206,14 +219,14 @@ func (p product) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.NewSelect().
-		Model(&ProductEntity{}).Count(ctx)
+	totalCount, err := p.db.Executor().NewSelect().
+		Model(&Product{}).Count(ctx)
 	if err != nil {
 		return PaginatedProducts{}, err
 	}
 
-	entities := make([]ProductEntity, 0, int(pageSize))
-	if err := db.NewSelect().
+	entities := make([]Product, 0, int(pageSize))
+	if err := p.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
@@ -232,8 +245,8 @@ func (p product) Paginate(ctx context.Context, db storage.Executor, page, pageSi
 	}, nil
 }
 
-func (p product) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, data CreateProductData) (ProductEntity, error) {
-	entity := ProductEntity{
+func (p Products) Upsert(ctx context.Context, id uuid.UUID, data CreateProductData) (Product, error) {
+	entity := Product{
 		ID:          id,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -251,10 +264,10 @@ func (p product) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, 
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return ProductEntity{}, errors.Join(ErrDomainValidation, err)
+		return Product{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewInsert().
+	if err := p.db.Executor().NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("sku = excluded.sku").
@@ -270,7 +283,7 @@ func (p product) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, 
 		Set("launched_at = excluded.launched_at").
 		Returning("*").
 		Scan(ctx); err != nil {
-		return ProductEntity{}, err
+		return Product{}, err
 	}
 
 	return entity, nil

@@ -11,8 +11,8 @@ import (
 
 func TestUpdateModelResultDiffsAndStructHelpers(t *testing.T) {
 	result := &UpdateModelResult{
-		OldStruct:         "type ProductEntity struct {\n\tbun.BaseModel `bun:\"table:products,alias:products\"`\n\n\tName string `bun:\"name\"`\n}\n",
-		NewStruct:         "type ProductEntity struct {\n\tbun.BaseModel `bun:\"table:products,alias:products\"`\n\n\tName string `bun:\"name\"`\n\tSku string `bun:\"sku\"`\n}\n",
+		OldStruct:         "type Product struct {\n\tbun.BaseModel `bun:\"table:products,alias:products\"`\n\n\tName string `bun:\"name\"`\n}\n",
+		NewStruct:         "type Product struct {\n\tbun.BaseModel `bun:\"table:products,alias:products\"`\n\n\tName string `bun:\"name\"`\n\tSku string `bun:\"sku\"`\n}\n",
 		OldFactoryContent: "package factories\n\nfunc Old() {}\n",
 		NewFactoryContent: "package factories\n\nfunc New() {}\n",
 	}
@@ -40,12 +40,12 @@ func TestUpdateModelResultDiffsAndStructHelpers(t *testing.T) {
 		t.Fatalf("dropBaseModelLine did not remove embedding and blank line:\n%s", dropped)
 	}
 
-	rendered := renderEntityStruct("ProductEntity", "products", []models.GeneratedField{
+	rendered := renderEntityStruct("Product", "products", []models.GeneratedField{
 		{Name: "ID", Type: "uuid.UUID", BunTag: "id,pk,type:uuid"},
 		{Name: "Name", Type: "ProductName", BunTag: "name"},
 	})
 	for _, want := range []string{
-		"type ProductEntity struct",
+		"type Product struct",
 		"bun.BaseModel `bun:\"table:products,alias:products\"`",
 		"ID uuid.UUID `bun:\"id,pk,type:uuid\"`",
 		"Name ProductName `bun:\"name\"`",
@@ -61,7 +61,7 @@ func TestParseEntityStruct(t *testing.T) {
 
 import "github.com/uptrace/bun"
 
-type ProductEntity struct {
+type Product struct {
 	bun.BaseModel ` + "`bun:\"table:products,alias:products\"`" + `
 
 	ID uuid.UUID ` + "`bun:\"id,pk,type:uuid\"`" + `
@@ -70,7 +70,7 @@ type ProductEntity struct {
 }
 `)
 
-	fields, start, end, err := parseEntityStruct(src, "ProductEntity")
+	fields, start, end, err := parseEntityStruct(src, "Product")
 	if err != nil {
 		t.Fatalf("parseEntityStruct: %v", err)
 	}
@@ -89,14 +89,14 @@ type ProductEntity struct {
 
 	if _, _, _, err := parseEntityStruct(
 		[]byte("package models\nfunc bad("),
-		"ProductEntity",
+		"Product",
 	); err == nil ||
 		!strings.Contains(err.Error(), "failed to parse") {
 		t.Fatalf("expected parse error, got %v", err)
 	}
 	if _, _, _, err := parseEntityStruct(
 		[]byte("package models\ntype Other struct{}\n"),
-		"ProductEntity",
+		"Product",
 	); err == nil ||
 		!strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected missing entity error, got %v", err)
@@ -159,17 +159,17 @@ func TestRenderCreateAndUpdateDataStructs(t *testing.T) {
 func TestFindFuncAndStructOffsets(t *testing.T) {
 	src := []byte(`package models
 
-type ProductEntity struct {
+type Product struct {
 	ID string
 }
 
 type Alias string
 
-func (p ProductEntity) Create() error {
+func (p Product) Create() error {
 	return nil
 }
 
-func (p *ProductEntity) Update() error {
+func (p *Product) Update() error {
 	return nil
 }
 
@@ -178,40 +178,40 @@ func Create() error {
 }
 `)
 
-	start, end, err := findFuncOffsets(src, "ProductEntity", "Create")
+	start, end, err := findFuncOffsets(src, "Product", "Create")
 	if err != nil {
 		t.Fatalf("findFuncOffsets Create: %v", err)
 	}
-	if got := string(src[start:end]); !strings.Contains(got, "func (p ProductEntity) Create()") {
+	if got := string(src[start:end]); !strings.Contains(got, "func (p Product) Create()") {
 		t.Fatalf("unexpected Create offsets:\n%s", got)
 	}
 
-	start, end, err = findFuncOffsets(src, "ProductEntity", "Update")
+	start, end, err = findFuncOffsets(src, "Product", "Update")
 	if err != nil {
 		t.Fatalf("findFuncOffsets Update: %v", err)
 	}
-	if got := string(src[start:end]); !strings.Contains(got, "func (p *ProductEntity) Update()") {
+	if got := string(src[start:end]); !strings.Contains(got, "func (p *Product) Update()") {
 		t.Fatalf("unexpected Update offsets:\n%s", got)
 	}
 
-	if _, _, err := findFuncOffsets(src, "ProductEntity", "Delete"); err == nil ||
+	if _, _, err := findFuncOffsets(src, "Product", "Delete"); err == nil ||
 		!strings.Contains(err.Error(), "not found") {
 		t.Fatalf("expected missing func error, got %v", err)
 	}
 	if _, _, err := findFuncOffsets(
 		[]byte("package models\nfunc bad("),
-		"ProductEntity",
+		"Product",
 		"Create",
 	); err == nil ||
 		!strings.Contains(err.Error(), "failed to parse") {
 		t.Fatalf("expected func parse error, got %v", err)
 	}
 
-	start, end, err = findStructOffsets(src, "ProductEntity")
+	start, end, err = findStructOffsets(src, "Product")
 	if err != nil {
 		t.Fatalf("findStructOffsets: %v", err)
 	}
-	if got := string(src[start:end]); !strings.Contains(got, "type ProductEntity struct") {
+	if got := string(src[start:end]); !strings.Contains(got, "type Product struct") {
 		t.Fatalf("unexpected struct offsets:\n%s", got)
 	}
 	if _, _, err := findStructOffsets(src, "Alias"); err == nil ||
@@ -220,7 +220,7 @@ func Create() error {
 	}
 	if _, _, err := findStructOffsets(
 		[]byte("package models\nfunc bad("),
-		"ProductEntity",
+		"Product",
 	); err == nil ||
 		!strings.Contains(err.Error(), "failed to parse") {
 		t.Fatalf("expected struct parse error, got %v", err)
@@ -242,7 +242,7 @@ func TestApplyModelUpdateWritesModelAndFactory(t *testing.T) {
 		ModelPath: modelPath,
 		NewFileContent: `package models
 
-type ProductEntity struct {
+type Product struct {
 	Name string
 }
 `,
@@ -258,7 +258,7 @@ func Product() {}
 	if data, err := os.ReadFile(
 		modelPath,
 	); err != nil ||
-		!strings.Contains(string(data), "type ProductEntity struct") {
+		!strings.Contains(string(data), "type Product struct") {
 		t.Fatalf("model write data=%q err=%v", string(data), err)
 	}
 	if data, err := os.ReadFile(

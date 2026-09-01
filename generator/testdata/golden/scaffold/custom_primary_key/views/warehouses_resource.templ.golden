@@ -24,7 +24,7 @@ type WarehouseData struct {
 	UpdatedAt time.Time
 }
 
-func newWarehouseData(entity models.WarehouseEntity) WarehouseData {
+func newWarehouseData(entity models.Warehouse) WarehouseData {
 	return WarehouseData{
 		Name: entity.Name,
 		Location: func() string { if !entity.Location.Valid { return "" }; return entity.Location.String }(),
@@ -35,7 +35,7 @@ func newWarehouseData(entity models.WarehouseEntity) WarehouseData {
 
 
 type WarehouseIndex struct {
-	Items []models.WarehouseEntity
+	Items []models.Warehouse
 }
 
 func (wi WarehouseIndex) PageFragment() string {
@@ -100,7 +100,7 @@ templ (wi WarehouseIndex) Page() {
 
 
 type WarehouseShow struct {
-	Item models.WarehouseEntity
+	Item models.Warehouse
 }
 
 func (ws WarehouseShow) PageFragment() string {
@@ -204,7 +204,7 @@ templ (wn WarehouseNew) Page() {
 
 
 type WarehouseEdit struct {
-	Item models.WarehouseEntity
+	Item models.Warehouse
 }
 
 func (we WarehouseEdit) PageFragment() string {

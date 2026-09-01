@@ -69,7 +69,7 @@ func TestViewDataNullTypeHelpers(t *testing.T) {
 	view := &GeneratedView{
 		NamespacePascal: "Admin",
 		ResourceName:    "Product",
-		EntityName:      "ProductEntity",
+		EntityName:      "Product",
 		Fields:          fields[:2],
 	}
 	definition := viewDataDefinition(view)

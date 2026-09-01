@@ -15,6 +15,7 @@ import (
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/email"
+	"{{.ModuleName}}/models"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/telemetry"
@@ -62,6 +63,7 @@ func main() {
 		config.Module,
 		databaseModule,
 		queueInsertModule,
+		models.Module,
 {{- if .Inertia}}
 		inertiaModule,
 {{- end}}

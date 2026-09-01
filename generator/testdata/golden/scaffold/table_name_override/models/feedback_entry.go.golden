@@ -14,7 +14,20 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type FeedbackEntryEntity struct {
+type FeedbackEntries struct {
+	db queryDB
+}
+
+func NewFeedbackEntries(db storage.Connection) FeedbackEntries {
+	return FeedbackEntries{db: db}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (fe FeedbackEntries) WithTx(tx storage.Transaction) FeedbackEntries {
+	return FeedbackEntries{db: tx}
+}
+
+type FeedbackEntry struct {
 	bun.BaseModel `bun:"table:student_feedback,alias:student_feedback"`
 	ID            uuid.UUID     `bun:"id,pk,type:uuid"`
 	StudentName   string        `bun:"student_name"`
@@ -25,17 +38,17 @@ type FeedbackEntryEntity struct {
 	UpdatedAt     time.Time     `bun:"updated_at"`
 }
 
-func (fe feedbackEntry) Find(ctx context.Context, db storage.Executor, id uuid.UUID) (FeedbackEntryEntity, error) {
-	var entity FeedbackEntryEntity
-	err := db.NewSelect().
+func (fe FeedbackEntries) Find(ctx context.Context, id uuid.UUID) (FeedbackEntry, error) {
+	var entity FeedbackEntry
+	err := fe.db.Executor().NewSelect().
 		Model(&entity).
 		Where("id = ?", id).
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return FeedbackEntryEntity{}, ErrNotFound
+			return FeedbackEntry{}, ErrNotFound
 		}
-		return FeedbackEntryEntity{}, err
+		return FeedbackEntry{}, err
 	}
 
 	return entity, nil
@@ -48,8 +61,8 @@ type CreateFeedbackEntryData struct {
 	SubmittedAt sql.NullTime
 }
 
-func (fe feedbackEntry) Create(ctx context.Context, db storage.Executor, data CreateFeedbackEntryData) (FeedbackEntryEntity, error) {
-	entity := FeedbackEntryEntity{
+func (fe FeedbackEntries) Create(ctx context.Context, data CreateFeedbackEntryData) (FeedbackEntry, error) {
+	entity := FeedbackEntry{
 		ID:          uuid.New(),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -60,11 +73,11 @@ func (fe feedbackEntry) Create(ctx context.Context, db storage.Executor, data Cr
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return FeedbackEntryEntity{}, errors.Join(ErrDomainValidation, err)
+		return FeedbackEntry{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := db.NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return FeedbackEntryEntity{}, err
+	if _, err := fe.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
+		return FeedbackEntry{}, err
 	}
 
 	return entity, nil
@@ -78,8 +91,8 @@ type UpdateFeedbackEntryData struct {
 	SubmittedAt sql.NullTime
 }
 
-func (fe feedbackEntry) Update(ctx context.Context, db storage.Executor, data UpdateFeedbackEntryData) (FeedbackEntryEntity, error) {
-	entity := FeedbackEntryEntity{
+func (fe FeedbackEntries) Update(ctx context.Context, data UpdateFeedbackEntryData) (FeedbackEntry, error) {
+	entity := FeedbackEntry{
 		ID:          data.ID,
 		UpdatedAt:   time.Now(),
 		StudentName: data.StudentName,
@@ -89,10 +102,10 @@ func (fe feedbackEntry) Update(ctx context.Context, db storage.Executor, data Up
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return FeedbackEntryEntity{}, errors.Join(ErrDomainValidation, err)
+		return FeedbackEntry{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := db.NewUpdate().
+	err := fe.db.Executor().NewUpdate().
 		Model(&entity).
 		Column("student_name").
 		Column("feedback").
@@ -104,17 +117,17 @@ func (fe feedbackEntry) Update(ctx context.Context, db storage.Executor, data Up
 		Scan(ctx)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return FeedbackEntryEntity{}, ErrNotFound
+			return FeedbackEntry{}, ErrNotFound
 		}
-		return FeedbackEntryEntity{}, err
+		return FeedbackEntry{}, err
 	}
 
 	return entity, nil
 }
 
-func (fe feedbackEntry) Destroy(ctx context.Context, db storage.Executor, id uuid.UUID) error {
-	var entity FeedbackEntryEntity
-	err := db.NewDelete().
+func (fe FeedbackEntries) Destroy(ctx context.Context, id uuid.UUID) error {
+	var entity FeedbackEntry
+	err := fe.db.Executor().NewDelete().
 		Model(&entity).
 		Where("id = ?", id).
 		Returning("*").
@@ -129,9 +142,9 @@ func (fe feedbackEntry) Destroy(ctx context.Context, db storage.Executor, id uui
 	return nil
 }
 
-func (fe feedbackEntry) All(ctx context.Context, db storage.Executor) ([]FeedbackEntryEntity, error) {
-	var entities []FeedbackEntryEntity
-	if err := db.NewSelect().
+func (fe FeedbackEntries) All(ctx context.Context) ([]FeedbackEntry, error) {
+	var entities []FeedbackEntry
+	if err := fe.db.Executor().NewSelect().
 		Model(&entities).
 		Scan(ctx); err != nil {
 		return nil, err
@@ -141,14 +154,14 @@ func (fe feedbackEntry) All(ctx context.Context, db storage.Executor) ([]Feedbac
 }
 
 type PaginatedFeedbackEntries struct {
-	FeedbackEntries []FeedbackEntryEntity
+	FeedbackEntries []FeedbackEntry
 	TotalCount      int64
 	Page            int64
 	PageSize        int64
 	TotalPages      int64
 }
 
-func (fe feedbackEntry) Paginate(ctx context.Context, db storage.Executor, page, pageSize int64) (PaginatedFeedbackEntries, error) {
+func (fe FeedbackEntries) Paginate(ctx context.Context, page, pageSize int64) (PaginatedFeedbackEntries, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -161,14 +174,14 @@ func (fe feedbackEntry) Paginate(ctx context.Context, db storage.Executor, page,
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := db.NewSelect().
-		Model(&FeedbackEntryEntity{}).Count(ctx)
+	totalCount, err := fe.db.Executor().NewSelect().
+		Model(&FeedbackEntry{}).Count(ctx)
 	if err != nil {
 		return PaginatedFeedbackEntries{}, err
 	}
 
-	entities := make([]FeedbackEntryEntity, 0, int(pageSize))
-	if err := db.NewSelect().
+	entities := make([]FeedbackEntry, 0, int(pageSize))
+	if err := fe.db.Executor().NewSelect().
 		Model(&entities).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
@@ -187,8 +200,8 @@ func (fe feedbackEntry) Paginate(ctx context.Context, db storage.Executor, page,
 	}, nil
 }
 
-func (fe feedbackEntry) Upsert(ctx context.Context, db storage.Executor, id uuid.UUID, data CreateFeedbackEntryData) (FeedbackEntryEntity, error) {
-	entity := FeedbackEntryEntity{
+func (fe FeedbackEntries) Upsert(ctx context.Context, id uuid.UUID, data CreateFeedbackEntryData) (FeedbackEntry, error) {
+	entity := FeedbackEntry{
 		ID:          id,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -199,10 +212,10 @@ func (fe feedbackEntry) Upsert(ctx context.Context, db storage.Executor, id uuid
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return FeedbackEntryEntity{}, errors.Join(ErrDomainValidation, err)
+		return FeedbackEntry{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := db.NewInsert().
+	if err := fe.db.Executor().NewInsert().
 		Model(&entity).
 		On("CONFLICT (id) DO UPDATE").
 		Set("student_name = excluded.student_name").
@@ -211,7 +224,7 @@ func (fe feedbackEntry) Upsert(ctx context.Context, db storage.Executor, id uuid
 		Set("submitted_at = excluded.submitted_at").
 		Returning("*").
 		Scan(ctx); err != nil {
-		return FeedbackEntryEntity{}, err
+		return FeedbackEntry{}, err
 	}
 
 	return entity, nil

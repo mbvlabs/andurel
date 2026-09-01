@@ -72,13 +72,13 @@ import (
 
 func WithProductsName(value string) ProductOption {
 	return func(f *ProductFactory) {
-		f.ProductEntity.Name = strings.ToUpper(value)
+		f.Product.Name = strings.ToUpper(value)
 	}
 }
 
 func WithProductsPrice(value int16) ProductOption {
 	return func(f *ProductFactory) {
-		f.ProductEntity.Price = int32(value)
+		f.Product.Price = int32(value)
 	}
 }
 
@@ -141,7 +141,7 @@ func TestRenderSyncedFactoryFileRetainsGeneratedTypeImportsAndCanonicalFormattin
 	}
 	factory := &models.GeneratedFactory{
 		ModelName:         "Product",
-		EntityName:        "ProductEntity",
+		EntityName:        "Product",
 		ModulePath:        "example.com/app",
 		IDType:            "int64",
 		IDGoFieldName:     "ID",
@@ -183,7 +183,7 @@ import "net/url"
 
 func WithProductsEndpoint(value url.URL) ProductOption {
 	return func(f *ProductFactory) {
-		f.ProductEntity.Endpoint = value
+		f.Product.Endpoint = value
 	}
 }
 `
@@ -233,7 +233,7 @@ func WithProductsEndpoint(value url.URL) ProductOption {
 func TestRenderSyncedFactoryFileOwnsCorrectAndLegacyPluralHelpers(t *testing.T) {
 	factory := &models.GeneratedFactory{
 		ModelName:         "BackupPolicy",
-		EntityName:        "BackupPolicyEntity",
+		EntityName:        "BackupPolicy",
 		ModulePath:        "example.com/app",
 		IDType:            "int64",
 		IDGoFieldName:     "ID",
@@ -267,7 +267,7 @@ func TestRenderSyncedFactoryFileUsesIrregularModelPlurals(t *testing.T) {
 		t.Run(modelName, func(t *testing.T) {
 			factory := &models.GeneratedFactory{
 				ModelName:         modelName,
-				EntityName:        modelName + "Entity",
+				EntityName:        modelName,
 				ModulePath:        "example.com/app",
 				IDType:            "int64",
 				IDGoFieldName:     "ID",
@@ -290,7 +290,7 @@ func TestRenderSyncedFactoryFileUsesIrregularModelPlurals(t *testing.T) {
 func TestRenderSyncedFactoryFileOwnsLegacyAndCorrectedOptionNames(t *testing.T) {
 	factory := &models.GeneratedFactory{
 		ModelName:         "Application",
-		EntityName:        "ApplicationEntity",
+		EntityName:        "Application",
 		ModulePath:        "example.com/app",
 		IDType:            "int64",
 		IDGoFieldName:     "ID",
@@ -580,7 +580,7 @@ import "net/url"
 
 type ProductState string
 
-type ProductEntity struct {
+type Product struct {
 	ID       int64        ` + "`bun:\"id,pk,autoincrement\"`" + `
 	State    ProductState ` + "`bun:\"state,notnull\"`" + `
 	Endpoint url.URL      ` + "`bun:\"endpoint,notnull\"`" + `
@@ -707,7 +707,7 @@ func TestSyncFactoryUsesMigrationAllowedValuesForDefaults(t *testing.T) {
 
 type ProductStatus string
 
-type ProductEntity struct {
+type Product struct {
 	ID     int64         ` + "`bun:\"id,pk,autoincrement\"`" + `
 	Status ProductStatus ` + "`bun:\"status,notnull\"`" + `
 	Tier   string        ` + "`bun:\"tier,notnull\"`" + `
@@ -766,10 +766,10 @@ CREATE TABLE products (
 func TestDiscoverFactoryResourceNames(t *testing.T) {
 	modelsDir := t.TempDir()
 	files := map[string]string{
-		"product.go":      "package models\ntype ProductEntity struct{}\n",
-		"account.go":      "package models\ntype AccountEntity struct{}\ntype Ignored string\n",
-		"product_test.go": "package models\ntype TestOnlyEntity struct{}\n",
-		"broken.go":       "package models\ntype BrokenEntity struct {",
+		"product.go":      "package models\ntype Product struct {\n\tbun.BaseModel `bun:\"table:products\"`\n}\n",
+		"account.go":      "package models\ntype Account struct {\n\tbun.BaseModel `bun:\"table:accounts\"`\n}\ntype Ignored string\n",
+		"product_test.go": "package models\ntype TestOnly struct {\n\tbun.BaseModel `bun:\"table:tests\"`\n}\n",
+		"broken.go":       "package models\ntype Broken struct {",
 	}
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(modelsDir, name), []byte(content), 0o600); err != nil {
@@ -809,8 +809,8 @@ func TestSyncFactoriesHandlesMultipleModelsAndCurrentFactories(t *testing.T) {
 		path := filepath.Join(modelsDir, strings.ToLower(resource)+".go")
 		source := strings.ReplaceAll(
 			factorySyncProductModelSource(),
-			"ProductEntity",
-			resource+"Entity",
+			"Product",
+			resource,
 		)
 		if err := os.WriteFile(path, []byte(source), 0o600); err != nil {
 			t.Fatalf("write %s model: %v", resource, err)
@@ -943,7 +943,7 @@ func containsFactorySyncString(values []string, target string) bool {
 func factorySyncGeneratedFactory() *models.GeneratedFactory {
 	return &models.GeneratedFactory{
 		ModelName:     "Product",
-		EntityName:    "ProductEntity",
+		EntityName:    "Product",
 		ModulePath:    "example.com/app",
 		IDType:        "uuid.UUID",
 		IDGoFieldName: "ID",
@@ -980,7 +980,8 @@ func factorySyncTestModelManager(root, modelsDir string) *ModelManager {
 func factorySyncProductModelSource() string {
 	return `package models
 
-type ProductEntity struct {
+type Product struct {
+	bun.BaseModel ` + "`bun:\"table:products,alias:products\"`" + `
 	ID        uuid.UUID ` + "`bun:\"id,pk,type:uuid\"`" + `
 	Name      string    ` + "`bun:\"name,notnull\"`" + `
 	Price     int32     ` + "`bun:\"price,notnull\"`" + `

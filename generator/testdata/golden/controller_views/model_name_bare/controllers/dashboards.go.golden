@@ -12,15 +12,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 type Dashboards struct {
-	db storage.Connection
+	widgets models.Widgets
 }
 
-func NewDashboards(db storage.Connection) Dashboards {
-	return Dashboards{db}
+func NewDashboards(widgets models.Widgets) Dashboards {
+	return Dashboards{ widgets }
 }
 
 func (d Dashboards) RegisterRoutes(r *router.Router) error {
@@ -64,9 +63,8 @@ func (d Dashboards) Index(etx *echo.Context) error {
 		}
 	}
 
-	widgetsList, err := models.Widget.Paginate(
+	widgetsList, err := d.widgets.Paginate(
 		etx.Request().Context(),
-		d.db.Executor(),
 		page,
 		perPage,
 	)
@@ -83,7 +81,7 @@ func (d Dashboards) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	dashboard, err := models.Widget.Find(etx.Request().Context(), d.db.Executor(), dashboardID)
+	dashboard, err := d.widgets.Find(etx.Request().Context(), dashboardID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}

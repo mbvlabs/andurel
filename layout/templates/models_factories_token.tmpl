@@ -13,9 +13,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// TokenFactory wraps models.TokenEntity for testing
+// TokenFactory wraps models.Token for testing
 type TokenFactory struct {
-	models.TokenEntity
+	models.Token
 }
 
 // TokenOption is a functional option for configuring a TokenFactory
@@ -23,9 +23,9 @@ type TokenOption func(*TokenFactory)
 
 // BuildToken creates an in-memory Token with default test values.
 // Auto-managed fields (ID, timestamps) are left at zero and set by CreateToken.
-func BuildToken(opts ...TokenOption) models.TokenEntity {
+func BuildToken(opts ...TokenOption) models.Token {
 	f := &TokenFactory{
-		TokenEntity: models.TokenEntity{
+		Token: models.Token{
 			Scope:     "default",
 			ExpiresAt: time.Now().Add(1 * time.Hour),
 			Hash:      "test-hash",
@@ -37,7 +37,7 @@ func BuildToken(opts ...TokenOption) models.TokenEntity {
 		opt(f)
 	}
 
-	return f.TokenEntity
+	return f.Token
 }
 
 // CreateToken creates and persists a Token to the database.
@@ -46,10 +46,10 @@ func CreateToken(
 	ctx context.Context,
 	exec storage.Executor,
 	opts ...TokenOption,
-) (models.TokenEntity, error) {
+) (models.Token, error) {
 	built := BuildToken(opts...)
 
-	entity := models.TokenEntity{
+	entity := models.Token{
 		ID:        uuid.New(),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -60,7 +60,7 @@ func CreateToken(
 	}
 
 	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
-		return models.TokenEntity{}, err
+		return models.Token{}, err
 	}
 
 	return entity, nil
@@ -72,8 +72,8 @@ func CreateTokens(
 	exec storage.Executor,
 	count int,
 	opts ...TokenOption,
-) ([]models.TokenEntity, error) {
-	tokens := make([]models.TokenEntity, 0, count)
+) ([]models.Token, error) {
+	tokens := make([]models.Token, 0, count)
 
 	for i := range count {
 		token, err := CreateToken(ctx, exec, opts...)
