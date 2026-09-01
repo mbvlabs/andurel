@@ -89,6 +89,7 @@ func (p *Project) Scaffold(args ...string) error {
 
 func (p *Project) setupWorkspace() error {
 	moduleNames := []string{
+		"email",
 		"hypermedia",
 		"inertia",
 		"routing",

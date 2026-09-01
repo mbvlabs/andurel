@@ -21,11 +21,17 @@ func (e AwsSes) Apply(ctx *Context) error {
 	builder.AddConfigField("AwsSes", "AwsSesCfg")
 
 	builder.AddServiceProvide(
-		`func(appCfg config.AppCfg, awsSesCfg mailclients.SesConfigProvider, emailCfg mailclients.EmailConfigProvider) (email.TransactionalSender, email.MarketingSender) {
+		`func(appCfg config.AppCfg, awsSesCfg config.AwsSesCfg, emailCfg config.EmailCfg) (email.TransactionalSender, email.MarketingSender) {
 	if appCfg.GetEnvironment() == server.ProdEnvironment {
 		return mailclients.NewAwsSes(awsSesCfg), mailclients.NewAwsSes(awsSesCfg)
 	}
-	return mailclients.NewMailpit(emailCfg.GetMailpitHost(), emailCfg.GetMailpitPort()), mailclients.NewMailpit(emailCfg.GetMailpitHost(), emailCfg.GetMailpitPort())
+
+	client, err := email.NewMailpit(email.WithMailpitConfig(emailCfg.MailpitConfig()))
+	if err != nil {
+		panic(err)
+	}
+
+	return client, client
 }`,
 	)
 

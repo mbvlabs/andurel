@@ -303,11 +303,26 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	if !strings.Contains(mainTemplate, "queueInsertModule") {
 		t.Error("cmd_app_main.tmpl does not install queueInsertModule")
 	}
+	if !strings.Contains(mainTemplate, "emailModule") {
+		t.Error("cmd_app_main.tmpl does not install emailModule")
+	}
 
 	queueMain := readGeneratedApplicationTemplate(t, "cmd_queue_main.tmpl")
-	for _, want := range []string{"queue.Module,", "queueProcessorModule,", "mailclients.NewMailpit("} {
+	for _, want := range []string{"queue.Module,", "queueProcessorModule,", "emailModule"} {
 		if !strings.Contains(queueMain, want) {
 			t.Errorf("cmd_queue_main.tmpl missing %q", want)
+		}
+	}
+
+	emailConfig := readGeneratedApplicationTemplate(t, "config_email.tmpl")
+	for _, want := range []string{
+		`env:"MAILPIT_HOST"`,
+		`env:"MAILPIT_PORT"`,
+		"func (c EmailCfg) MailpitConfig() email.MailpitConfig",
+		"github.com/mbvlabs/andurel/pkg/email",
+	} {
+		if !strings.Contains(emailConfig, want) {
+			t.Errorf("config_email.tmpl missing %q", want)
 		}
 	}
 

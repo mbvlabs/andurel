@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 
-	"{{.ModuleName}}/email"
+	"github.com/mbvlabs/andurel/pkg/email"
 )
 
 var _ email.TransactionalSender = (*AwsSes)(nil)
@@ -26,11 +26,6 @@ type SesConfigProvider interface {
 	GetAccessKeyID() string
 	GetSecretAccessKey() string
 	GetConfigurationSet() string
-}
-
-type EmailConfigProvider interface {
-	GetMailpitHost() string
-	GetMailpitPort() string
 }
 
 type AwsSes struct {

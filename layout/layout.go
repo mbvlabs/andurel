@@ -26,6 +26,7 @@ import (
 	"github.com/mbvlabs/andurel/layout/extensions"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -303,7 +304,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_telemetry.tmpl": "config/telemetry.go",
 
 	// Clients
-	"clients_email_mailpit.tmpl": "clients/email/mailpit.go",
 
 	// Controllers
 	"controllers_api.tmpl":        "controllers/api/api.go",
@@ -704,6 +704,7 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 
 	blueprintTemplates = append(blueprintTemplates,
 		"cmd_app_main.tmpl",
+		"cmd_queue_main.tmpl",
 		"controllers_controller.tmpl",
 	)
 
@@ -1169,6 +1170,9 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 
 	builder.AddConfigField("Email", "EmailCfg")
 	builder.AddConfigField("Auth", "AuthCfg")
+
+	builder.AddEnvVar("MAILPIT_HOST", "MailpitHost", email.DefaultMailpitHost)
+	builder.AddEnvVar("MAILPIT_PORT", "MailpitPort", email.DefaultMailpitPort)
 
 	builder.AddWorkerDependency("transactionalSender", "email.TransactionalSender")
 	builder.AddWorkerDependency("marketingSender", "email.MarketingSender")

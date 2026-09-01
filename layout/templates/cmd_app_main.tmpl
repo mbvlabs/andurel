@@ -4,17 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+{{- if not .Blueprint.Main.ServiceProvides}}
 	"log"
+{{- end}}
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	mailclients "{{.ModuleName}}/clients/email"
 	"{{.ModuleName}}/config"
+{{- if hasExtension .Extensions "aws-ses"}}
+	mailclients "{{.ModuleName}}/clients/email"
+{{- end}}
 	"{{.ModuleName}}/controllers"
-	"{{.ModuleName}}/email"
 	"{{.ModuleName}}/models"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/services"
@@ -23,6 +26,7 @@ import (
 {{- if .Inertia}}
 	"github.com/mbvlabs/andurel/pkg/inertia"
 {{- end}}
+	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/server"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"go.uber.org/fx"
@@ -36,22 +40,9 @@ func main() {
 	app := fx.New(
 		fx.Provide(
 			func() context.Context { return ctx },
-			func(
-				cfg config.EmailCfg,
-				appCfg config.AppCfg,
-			) (email.TransactionalSender, email.MarketingSender) {
-				if appCfg.GetEnvironment() == server.ProdEnvironment {
-					log.Fatal("provide real email sender")
-				}
-
-				return mailclients.NewMailpit(
-						cfg.GetMailpitHost(),
-						cfg.GetMailpitPort(),
-					), mailclients.NewMailpit(
-						cfg.GetMailpitHost(),
-						cfg.GetMailpitPort(),
-					)
-			},
+{{- range .Blueprint.Main.ServiceProvides}}
+			{{.}},
+{{- end}}
 			func(cfg config.AppCfg) router.AppProvider { return cfg },
 			func(cfg config.AppCfg) controllers.ConfigProvider { return cfg },
 			func(cfg config.AppCfg) controllers.AssetsAppProvider { return cfg },
@@ -63,6 +54,9 @@ func main() {
 		config.Module,
 		databaseModule,
 		queueInsertModule,
+{{- if not .Blueprint.Main.ServiceProvides}}
+		emailModule,
+{{- end}}
 		models.Module,
 {{- if .Inertia}}
 		inertiaModule,
@@ -100,6 +94,13 @@ var queueInsertModule = fx.Module(
 	"queue-insert",
 	fx.Provide(fx.Annotate(newQueueInsert, fx.As(new(storage.InsertQueue)))),
 )
+
+{{- if not .Blueprint.Main.ServiceProvides}}
+var emailModule = fx.Module(
+	"email",
+	fx.Provide(newEmailSenders),
+)
+{{- end}}
 
 {{- if .Inertia}}
 var inertiaModule = fx.Module(
@@ -190,6 +191,24 @@ func newQueueInsert(
 ) (*storage.QueueInsert, error) {
 	return storage.NewQueueInsert(connection, storage.WithRiverConfig(cfg.RiverConfig()))
 }
+
+{{- if not .Blueprint.Main.ServiceProvides}}
+func newEmailSenders(
+	cfg config.EmailCfg,
+	appCfg config.AppCfg,
+) (email.TransactionalSender, email.MarketingSender) {
+	if appCfg.GetEnvironment() == server.ProdEnvironment {
+		log.Fatal("provide real email sender")
+	}
+
+	client, err := email.NewMailpit(email.WithMailpitConfig(cfg.MailpitConfig()))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return client, client
+}
+{{- end}}
 
 {{if .Inertia}}
 
