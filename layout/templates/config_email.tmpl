@@ -1,19 +1,46 @@
 package config
 
+import (
+	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
 const (
-	DefaultEmailMailpitHost = "0.0.0.0"
-	DefaultEmailMailpitPort = "1025"
+	DefaultEmailMailpitHost = email.DefaultMailpitHost
+	DefaultEmailMailpitPort = email.DefaultMailpitPort
 )
 
 type EmailCfg struct {
-	MailpitHost string
-	MailpitPort string
+	MailpitHost string `env:"MAILPIT_HOST"`
+	MailpitPort string `env:"MAILPIT_PORT"`
 }
 
 func NewEmailCfg() EmailCfg {
-	return EmailCfg{
+	cfg := EmailCfg{
 		MailpitHost: DefaultEmailMailpitHost,
 		MailpitPort: DefaultEmailMailpitPort,
+	}
+
+	if err := env.Parse(&cfg); err != nil {
+		panic(err)
+	}
+
+	if err := validation.Validate(&cfg); err != nil {
+		panic(err)
+	}
+
+	return cfg
+}
+
+func (c EmailCfg) Validate() error {
+	return c.MailpitConfig().Validate()
+}
+
+func (c EmailCfg) MailpitConfig() email.MailpitConfig {
+	return email.MailpitConfig{
+		Host: c.MailpitHost,
+		Port: c.MailpitPort,
 	}
 }
 

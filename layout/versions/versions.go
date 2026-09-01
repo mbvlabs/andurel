@@ -20,4 +20,6 @@ const (
 	Sqlc = "v1.31.1"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
 	Inertia = "v0.1.0"
+	// Email is the standalone Andurel email module version verified with this framework.
+	Email = "v0.1.0"
 )

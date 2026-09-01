@@ -10,12 +10,14 @@ import (
 	"syscall"
 	"time"
 
-	mailclients "{{.ModuleName}}/clients/email"
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/email"
+{{- if hasExtension .Extensions "aws-ses"}}
+	mailclients "{{.ModuleName}}/clients/email"
+{{- end}}
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/telemetry"
 
+	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/server"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/riverqueue/river"
@@ -29,22 +31,9 @@ func main() {
 	app := fx.New(
 		fx.Provide(
 			func() context.Context { return ctx },
-			func(
-				cfg config.EmailCfg,
-				appCfg config.AppCfg,
-			) (email.TransactionalSender, email.MarketingSender) {
-				if appCfg.GetEnvironment() == server.ProdEnvironment {
-					log.Fatal("provide real email sender")
-				}
-
-				return mailclients.NewMailpit(
-						cfg.GetMailpitHost(),
-						cfg.GetMailpitPort(),
-					), mailclients.NewMailpit(
-						cfg.GetMailpitHost(),
-						cfg.GetMailpitPort(),
-					)
-			},
+{{- range .Blueprint.Main.ServiceProvides}}
+			{{.}},
+{{- end}}
 			func(cfg config.TelemetryCfg) telemetry.ConfigProvider { return cfg },
 		),
 
@@ -53,6 +42,9 @@ func main() {
 		telemetry.Module,
 		queue.Module,
 		queueProcessorModule,
+{{- if not .Blueprint.Main.ServiceProvides}}
+		emailModule,
+{{- end}}
 	)
 
 	if err := app.Start(ctx); err != nil {
@@ -84,6 +76,13 @@ var queueProcessorModule = fx.Module(
 	),
 	fx.Invoke(queueProcessorLifecycle),
 )
+
+{{- if not .Blueprint.Main.ServiceProvides}}
+var emailModule = fx.Module(
+	"email",
+	fx.Provide(newEmailSenders),
+)
+{{- end}}
 
 func newDatabase(
 	lifecycle fx.Lifecycle,
@@ -155,3 +154,21 @@ func queueProcessorLifecycle(
 		},
 	})
 }
+
+{{- if not .Blueprint.Main.ServiceProvides}}
+func newEmailSenders(
+	cfg config.EmailCfg,
+	appCfg config.AppCfg,
+) (email.TransactionalSender, email.MarketingSender) {
+	if appCfg.GetEnvironment() == server.ProdEnvironment {
+		log.Fatal("provide real email sender")
+	}
+
+	client, err := email.NewMailpit(email.WithMailpitConfig(cfg.MailpitConfig()))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return client, client
+}
+{{- end}}

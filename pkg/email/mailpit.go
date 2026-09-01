@@ -1,31 +1,46 @@
-package mailclients
+package email
 
 import (
 	"context"
 	"fmt"
 	"net/smtp"
 	"strings"
-
-	"{{.ModuleName}}/email"
 )
 
-var _ email.TransactionalSender = (*Mailpit)(nil)
-var _ email.MarketingSender = (*Mailpit)(nil)
+var (
+	_ TransactionalSender = (*Mailpit)(nil)
+	_ MarketingSender     = (*Mailpit)(nil)
+)
 
+// Mailpit sends email through a development Mailpit SMTP server.
 type Mailpit struct {
 	host string
 	port string
 }
 
-func NewMailpit(host, port string) *Mailpit {
-	return &Mailpit{
-		host: host,
-		port: port,
+// NewMailpit constructs a Mailpit client using package defaults and options.
+func NewMailpit(options ...MailpitOption) (*Mailpit, error) {
+	settings := mailpitOptions{config: DefaultMailpitConfig()}
+	for _, option := range options {
+		if option == nil {
+			continue
+		}
+		if err := option(&settings); err != nil {
+			return nil, fmt.Errorf("email: create mailpit client: %w", err)
+		}
 	}
+
+	return &Mailpit{
+		host: settings.config.Host,
+		port: settings.config.Port,
+	}, nil
 }
 
-func (m *Mailpit) SendTransactional(ctx context.Context, payload email.TransactionalPayload) error {
-	addr := fmt.Sprintf("%s:%s", m.host, m.port)
+func (client *Mailpit) SendTransactional(
+	ctx context.Context,
+	payload TransactionalPayload,
+) error {
+	addr := fmt.Sprintf("%s:%s", client.host, client.port)
 
 	boundary := "boundary-mailpit-client"
 	headers := make(map[string]string)
@@ -46,11 +61,14 @@ func (m *Mailpit) SendTransactional(ctx context.Context, payload email.Transacti
 
 	headers["Subject"] = payload.Subject
 	headers["MIME-Version"] = "1.0"
-	headers["Content-Type"] = fmt.Sprintf("multipart/alternative; boundary=\"%s\"", boundary)
+	headers["Content-Type"] = fmt.Sprintf(
+		"multipart/alternative; boundary=\"%s\"",
+		boundary,
+	)
 
 	var message strings.Builder
-	for k, v := range headers {
-		message.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
+	for key, value := range headers {
+		message.WriteString(fmt.Sprintf("%s: %s\r\n", key, value))
 	}
 	message.WriteString("\r\n")
 
@@ -85,8 +103,11 @@ func (m *Mailpit) SendTransactional(ctx context.Context, payload email.Transacti
 	)
 }
 
-func (m *Mailpit) SendMarketing(ctx context.Context, payload email.MarketingPayload) error {
-	addr := fmt.Sprintf("%s:%s", m.host, m.port)
+func (client *Mailpit) SendMarketing(
+	ctx context.Context,
+	payload MarketingPayload,
+) error {
+	addr := fmt.Sprintf("%s:%s", client.host, client.port)
 
 	boundary := "boundary-mailpit-client"
 	headers := make(map[string]string)
@@ -102,11 +123,14 @@ func (m *Mailpit) SendMarketing(ctx context.Context, payload email.MarketingPayl
 
 	headers["Subject"] = payload.Subject
 	headers["MIME-Version"] = "1.0"
-	headers["Content-Type"] = fmt.Sprintf("multipart/alternative; boundary=\"%s\"", boundary)
+	headers["Content-Type"] = fmt.Sprintf(
+		"multipart/alternative; boundary=\"%s\"",
+		boundary,
+	)
 
 	var message strings.Builder
-	for k, v := range headers {
-		message.WriteString(fmt.Sprintf("%s: %s\r\n", k, v))
+	for key, value := range headers {
+		message.WriteString(fmt.Sprintf("%s: %s\r\n", key, value))
 	}
 	message.WriteString("\r\n")
 

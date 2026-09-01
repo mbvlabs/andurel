@@ -10,9 +10,11 @@ import (
 
 	"time"
 
-	"{{.ModuleName}}/email"
+	appemail "{{.ModuleName}}/email"
 
 	"{{.ModuleName}}/models"
+
+	"github.com/mbvlabs/andurel/pkg/email"
 
 	"github.com/mbvlabs/andurel/pkg/validation"
 
@@ -100,7 +102,7 @@ func (i Identity) RegisterUser(
 
 	}
 
-	vEmail := email.VerifyEmail{VerificationCode: code}
+	vEmail := appemail.VerifyEmail{VerificationCode: code}
 
 	html, err := vEmail.ToHTML()
 	if err != nil {
