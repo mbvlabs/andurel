@@ -189,7 +189,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
-	return hypermedia.RenderPage(etx, views.{{.NamespacePascal}}{{.ResourceName}}Index{Items: {{.ModelPluralName | ToCamelCase}}List.{{.ModelServiceName}}}.Page())
+	return hypermedia.RenderPage(etx, views.{{.NamespacePascal}}{{.ResourceName}}Index{Items: {{.ModelPluralName | ToCamelCase}}List.{{.ModelCollectionName}}}.Page())
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {

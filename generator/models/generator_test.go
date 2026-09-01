@@ -366,6 +366,64 @@ func TestGenerateModelPaginationPluralizesAcronymResourcesWithTableOverrides(t *
 	}
 }
 
+func TestGenerateModelDisambiguatesUnchangedPluralServiceNames(t *testing.T) {
+	tests := map[string]string{
+		"Equipment":       "EquipmentService",
+		"Fish":            "FishService",
+		"CompanyAccounts": "CompanyAccountsService",
+	}
+
+	for resourceName, serviceName := range tests {
+		t.Run(resourceName, func(t *testing.T) {
+			tableName := naming.DeriveTableName(resourceName)
+			cat := catalog.NewCatalog("public")
+			table := tableWithColumns(t, tableName,
+				catalog.NewColumn("id", "uuid").SetPrimaryKey(),
+			)
+			if err := cat.AddTable("public", table); err != nil {
+				t.Fatalf("add table: %v", err)
+			}
+
+			model, source, err := NewGenerator("postgresql").PlanModelSource(
+				cat,
+				resourceName,
+				tableName,
+				"example.com/app",
+				"",
+				"sql.Null",
+				"id",
+				false,
+				ModelModeCRUD,
+			)
+			if err != nil {
+				t.Fatalf("PlanModelSource() returned error: %v", err)
+			}
+
+			if model.EntityName != resourceName {
+				t.Fatalf("entity name = %q, want %q", model.EntityName, resourceName)
+			}
+			if model.NamespaceType != serviceName || model.NamespaceVar != serviceName {
+				t.Fatalf(
+					"service identifiers = (%q, %q), want %q",
+					model.NamespaceType,
+					model.NamespaceVar,
+					serviceName,
+				)
+			}
+			for _, want := range []string{
+				"type " + serviceName + " struct",
+				"func New" + serviceName + "(db storage.Connection) " + serviceName,
+				"type " + resourceName + " struct",
+				resourceName + " []" + resourceName,
+			} {
+				if !strings.Contains(source, want) {
+					t.Fatalf("generated model missing %q:\n%s", want, source)
+				}
+			}
+		})
+	}
+}
+
 func TestGenerateModelCRUDUsesRepositoryNotFoundAndTimestampSemantics(t *testing.T) {
 	root := t.TempDir()
 	cat := catalog.NewCatalog("public")

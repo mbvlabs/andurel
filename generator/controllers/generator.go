@@ -43,6 +43,7 @@ type GeneratedController struct {
 	PluralResourceName      string // The pluralized form of ResourceName (respects --table-name override)
 	ModelPluralResourceName string
 	ModelServiceName        string
+	ModelCollectionName     string
 	ReceiverName            string // Short receiver name for methods (e.g., "sf" for StudentFeedback)
 	Namespace               string // "admin" (empty if no namespace)
 	NamespacePascal         string // "Admin" (PascalCase for prefixing)
@@ -126,7 +127,8 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 		ModelPluralName:         modelPluralName,
 		PluralResourceName:      pluralResourceName,
 		ModelPluralResourceName: modelPluralResourceName,
-		ModelServiceName:        inflection.Plural(modelName),
+		ModelServiceName:        naming.ModelServiceName(modelName),
+		ModelCollectionName:     inflection.Plural(modelName),
 		ReceiverName:            naming.ToReceiverName(config.ResourceName),
 		Namespace:               config.Namespace,
 		NamespacePascal:         naming.NamespaceToPascal(config.Namespace),

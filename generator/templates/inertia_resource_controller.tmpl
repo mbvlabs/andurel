@@ -224,7 +224,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		etx,
 		"{{if .Namespace}}{{.NamespacePascal}}/{{end}}{{.ResourceName}}/Index",
 		inertia.FromStruct({{.ResourceName}}IndexProps{
-			Items: new{{.ResourceName}}DataList({{.ModelPluralName | ToCamelCase}}List.{{.ModelServiceName}}),
+			Items: new{{.ResourceName}}DataList({{.ModelPluralName | ToCamelCase}}List.{{.ModelCollectionName}}),
 		}),
 	)
 }

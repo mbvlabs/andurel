@@ -75,6 +75,18 @@ func (v *InputValidator) ValidateResourceName(resourceName string) error {
 	return nil
 }
 
+// ValidateModelResourceName checks resource syntax and rejects identifiers
+// reserved by the generated models package.
+func (v *InputValidator) ValidateModelResourceName(resourceName string) error {
+	if err := v.ValidateResourceName(resourceName); err != nil {
+		return err
+	}
+	if resourceName == "Module" {
+		return fmt.Errorf("resource name %q is reserved by the models Fx module", resourceName)
+	}
+	return nil
+}
+
 // ValidateTableName checks that a database table name is plural snake_case.
 func (v *InputValidator) ValidateTableName(tableName string) error {
 	if tableName == "" {

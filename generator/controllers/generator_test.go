@@ -41,6 +41,53 @@ func TestIsNullableType(t *testing.T) {
 	}
 }
 
+func TestBuildDisambiguatesUnchangedPluralModelService(t *testing.T) {
+	cat := catalog.NewCatalog("public")
+	table := catalog.NewTable("public", "equipment")
+	if err := table.AddColumn(catalog.NewColumn("id", "uuid").SetPrimaryKey()); err != nil {
+		t.Fatalf("add column: %v", err)
+	}
+	if err := cat.AddTable("public", table); err != nil {
+		t.Fatalf("add table: %v", err)
+	}
+
+	controller, err := NewGenerator("postgresql").Build(cat, Config{
+		ResourceName:    "Equipment",
+		ModelName:       "Equipment",
+		PluralName:      "equipment",
+		ModelPluralName: "equipment",
+		TableName:       "equipment",
+		ModulePath:      "example.com/app",
+		ControllerType:  ResourceController,
+		Actions:         []string{"index"},
+	})
+	if err != nil {
+		t.Fatalf("Build() returned error: %v", err)
+	}
+	if controller.ModelServiceName != "EquipmentService" {
+		t.Fatalf("model service name = %q", controller.ModelServiceName)
+	}
+	if controller.ModelCollectionName != "Equipment" {
+		t.Fatalf("model collection name = %q", controller.ModelCollectionName)
+	}
+
+	rendered, err := NewTemplateRenderer().RenderControllerFile(controller, "")
+	if err != nil {
+		t.Fatalf("RenderControllerFile() returned error: %v", err)
+	}
+	for _, want := range []string{
+		"equipmentService models.EquipmentService",
+		"equipmentList.Equipment",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("rendered controller missing %q:\n%s", want, rendered)
+		}
+	}
+	if strings.Contains(rendered, "equipmentList.EquipmentService") {
+		t.Fatalf("rendered controller uses service name as collection field:\n%s", rendered)
+	}
+}
+
 func TestResolveControllerBaseType(t *testing.T) {
 	tests := []struct {
 		goType string

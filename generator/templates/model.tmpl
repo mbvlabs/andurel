@@ -13,17 +13,17 @@ import (
 {{- end}}
 )
 
-type {{.PluralName}} struct {
+type {{.NamespaceType}} struct {
 	db queryDB
 }
 
-func New{{.PluralName}}(db storage.Connection) {{.PluralName}} {
-	return {{.PluralName}}{db: db}
+func New{{.NamespaceVar}}(db storage.Connection) {{.NamespaceType}} {
+	return {{.NamespaceType}}{db: db}
 }
 
 // WithTx returns a copy that runs queries inside tx.
-func ({{.ReceiverName}} {{.PluralName}}) WithTx(tx storage.Transaction) {{.PluralName}} {
-	return {{.PluralName}}{db: tx}
+func ({{.ReceiverName}} {{.NamespaceType}}) WithTx(tx storage.Transaction) {{.NamespaceType}} {
+	return {{.NamespaceType}}{db: tx}
 }
 
 type {{.EntityName}} struct {
@@ -35,7 +35,7 @@ type {{.EntityName}} struct {
 }
 
 {{if and .HasPrimaryKey (ne .Mode "create-only")}}
-func ({{.ReceiverName}} {{.PluralName}}) Find(ctx context.Context, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
 	var entity {{.EntityName}}
 	err := {{.ReceiverName}}.db.Executor().NewSelect().
 		Model(&entity).
@@ -66,7 +66,7 @@ type Create{{.Name}}Data struct {
 {{- end}}
 }
 
-func ({{.ReceiverName}} {{.PluralName}}) Create(ctx context.Context, data Create{{.Name}}Data) ({{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, data Create{{.Name}}Data) ({{.EntityName}}, error) {
 	entity := {{.EntityName}}{
 {{- if .HasPrimaryKey}}
 {{- if not .IsAutoIncrementID}}
@@ -112,7 +112,7 @@ type Update{{.Name}}Data struct {
 {{- end}}
 }
 
-func ({{.ReceiverName}} {{.PluralName}}) Update(ctx context.Context, data Update{{.Name}}Data) ({{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, data Update{{.Name}}Data) ({{.EntityName}}, error) {
 	entity := {{.EntityName}}{
 		{{.IDGoFieldName}}: data.{{.IDGoFieldName}},
 {{- if .HasUpdatedAt}}
@@ -149,7 +149,7 @@ func ({{.ReceiverName}} {{.PluralName}}) Update(ctx context.Context, data Update
 	return entity, nil
 }
 
-func ({{.ReceiverName}} {{.PluralName}}) Destroy(ctx context.Context, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) error {
+func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) error {
 	var entity {{.EntityName}}
 	err := {{.ReceiverName}}.db.Executor().NewDelete().
 		Model(&entity).
@@ -168,7 +168,7 @@ func ({{.ReceiverName}} {{.PluralName}}) Destroy(ctx context.Context, id {{if .I
 {{end}}
 
 {{if ne .Mode "create-only"}}
-func ({{.ReceiverName}} {{.PluralName}}) All(ctx context.Context) ([]{{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) All(ctx context.Context) ([]{{.EntityName}}, error) {
 	var entities []{{.EntityName}}
 	if err := {{.ReceiverName}}.db.Executor().NewSelect().
 		Model(&entities).
@@ -187,7 +187,7 @@ type Paginated{{.PluralName}} struct {
 	TotalPages int64
 }
 
-func ({{.ReceiverName}} {{.PluralName}}) Paginate(ctx context.Context, page, pageSize int64) (Paginated{{.PluralName}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, page, pageSize int64) (Paginated{{.PluralName}}, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -228,7 +228,7 @@ func ({{.ReceiverName}} {{.PluralName}}) Paginate(ctx context.Context, page, pag
 {{end}}
 
 {{if and .HasPrimaryKey (eq .Mode "crud")}}
-func ({{.ReceiverName}} {{.PluralName}}) Upsert(ctx context.Context, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}, data Create{{.Name}}Data) ({{.EntityName}}, error) {
+func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}, data Create{{.Name}}Data) ({{.EntityName}}, error) {
 	entity := {{.EntityName}}{
 		{{.IDGoFieldName}}: id,
 {{- if .HasCreatedAt}}

@@ -58,6 +58,24 @@ func TestDeriveTableName(t *testing.T) {
 	}
 }
 
+func TestModelServiceName(t *testing.T) {
+	tests := map[string]string{
+		"User":            "Users",
+		"Person":          "People",
+		"Equipment":       "EquipmentService",
+		"Fish":            "FishService",
+		"CompanyAccounts": "CompanyAccountsService",
+	}
+
+	for resourceName, want := range tests {
+		t.Run(resourceName, func(t *testing.T) {
+			if got := ModelServiceName(resourceName); got != want {
+				t.Fatalf("ModelServiceName(%q) = %q, want %q", resourceName, got, want)
+			}
+		})
+	}
+}
+
 func TestToCamelCase(t *testing.T) {
 	tests := []struct {
 		name     string

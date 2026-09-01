@@ -68,7 +68,10 @@ func (tr *TemplateRenderer) RenderControllerFile(
 		controller.ModelPluralName = controller.PluralName
 	}
 	if controller.ModelServiceName == "" {
-		controller.ModelServiceName = inflection.Plural(controller.ModelName)
+		controller.ModelServiceName = naming.ModelServiceName(controller.ModelName)
+	}
+	if controller.ModelCollectionName == "" {
+		controller.ModelCollectionName = inflection.Plural(controller.ModelName)
 	}
 	if controller.Package == "" {
 		controller.Package = naming.ControllerPackageName(controller.Namespace)

@@ -40,6 +40,14 @@ var Module = fx.Module(
 	if strings.Count(again, "NewServers") != 1 {
 		t.Errorf("expected idempotent insert, got:\n%s", again)
 	}
+
+	got, err = planModelRegistration("Equipment", got)
+	if err != nil {
+		t.Fatalf("planModelRegistration unchanged plural: %v", err)
+	}
+	if !strings.Contains(got, "NewEquipmentService,") {
+		t.Errorf("expected NewEquipmentService inserted into fx.Provide; got:\n%s", got)
+	}
 }
 
 func setupModelManagerTest(t *testing.T) (*ModelManager, func()) {
@@ -97,6 +105,13 @@ func TestSetupModelContext(t *testing.T) {
 		_, err := manager.setupModelContext("", "users", false)
 		if err == nil {
 			t.Error("Expected error for empty resource name")
+		}
+	})
+
+	t.Run("rejects models module identifier", func(t *testing.T) {
+		_, err := manager.setupModelContext("Module", "modules", false)
+		if err == nil {
+			t.Fatal("expected Module resource to be rejected")
 		}
 	})
 

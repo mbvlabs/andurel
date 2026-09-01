@@ -69,6 +69,24 @@ func TestValidateResourceName(t *testing.T) {
 	}
 }
 
+func TestValidateModelResourceName(t *testing.T) {
+	validator := NewInputValidator()
+
+	for _, resource := range []string{"User", "Equipment", "Fish", "CompanyAccounts"} {
+		if err := validator.ValidateModelResourceName(resource); err != nil {
+			t.Fatalf("ValidateModelResourceName(%q) returned error: %v", resource, err)
+		}
+	}
+
+	err := validator.ValidateModelResourceName("Module")
+	if err == nil {
+		t.Fatal("ValidateModelResourceName(\"Module\") succeeded")
+	}
+	if !strings.Contains(err.Error(), "reserved by the models Fx module") {
+		t.Fatalf("ValidateModelResourceName(\"Module\") error = %q", err)
+	}
+}
+
 func TestValidateTableNameOverride(t *testing.T) {
 	validator := NewInputValidator()
 

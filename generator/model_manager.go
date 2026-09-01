@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jinzhu/inflection"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/models"
@@ -93,7 +92,7 @@ func (m *ModelManager) setupModelContext(
 ) (*modelSetupContext, error) {
 	modulePath := m.projectManager.GetModulePath()
 
-	if err := m.validator.ValidateResourceName(resourceName); err != nil {
+	if err := m.validator.ValidateModelResourceName(resourceName); err != nil {
 		return nil, err
 	}
 
@@ -379,7 +378,7 @@ func (m *ModelManager) resolvePrimaryKey(
 }
 
 func planModelRegistration(resourceName, source string) (string, error) {
-	constructor := "New" + inflection.Plural(resourceName)
+	constructor := "New" + naming.ModelServiceName(resourceName)
 	if strings.Contains(source, constructor+",") || strings.Contains(source, constructor+")") {
 		formatted, err := format.Source([]byte(source))
 		if err != nil {

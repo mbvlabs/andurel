@@ -156,7 +156,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		return etx.JSON(http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 	}
 
-	return etx.JSON(http.StatusOK, {{.ModelPluralName | ToCamelCase}}List.{{.ModelServiceName}})
+	return etx.JSON(http.StatusOK, {{.ModelPluralName | ToCamelCase}}List.{{.ModelCollectionName}})
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {

@@ -16,6 +16,17 @@ func DeriveTableName(resourceName string) string {
 	return inflection.Plural(snake)
 }
 
+// ModelServiceName returns the exported service name for a model resource.
+// Plural service names are preferred, but uninflected names need a suffix to
+// avoid colliding with the singular entity in Go's package namespace.
+func ModelServiceName(resourceName string) string {
+	pluralName := inflection.Plural(resourceName)
+	if pluralName == resourceName {
+		return resourceName + "Service"
+	}
+	return pluralName
+}
+
 // ToSnakeCase converts a CamelCase identifier into snake_case.
 func ToSnakeCase(s string) string {
 	if s == "" {

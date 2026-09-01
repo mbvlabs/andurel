@@ -149,9 +149,10 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 
 	entityName := config.ResourceName
 	pluralName := inflection.Plural(config.ResourceName)
-	namespaceVar := pluralName
-	namespaceType := pluralName
-	receiverName := naming.ToLowerCamelCase(pluralName)
+	serviceName := naming.ModelServiceName(config.ResourceName)
+	namespaceVar := serviceName
+	namespaceType := serviceName
+	receiverName := naming.ToLowerCamelCase(serviceName)
 
 	model := &GeneratedModel{
 		Name:            config.ResourceName,
