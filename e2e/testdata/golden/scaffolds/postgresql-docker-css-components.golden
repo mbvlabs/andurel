@@ -5460,11 +5460,11 @@ require (
 	github.com/lmittmann/tint v1.2.0
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/mbvlabs/andurel/pkg/email v0.1.0
-	github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0
-	github.com/mbvlabs/andurel/pkg/routing v0.1.0
+	github.com/mbvlabs/andurel/pkg/hypermedia v0.2.1
+	github.com/mbvlabs/andurel/pkg/routing v0.1.1
 	github.com/mbvlabs/andurel/pkg/server v0.1.0
 	github.com/mbvlabs/andurel/pkg/storage v0.4.0
-	github.com/mbvlabs/andurel/pkg/validation v0.1.0
+	github.com/mbvlabs/andurel/pkg/validation v0.1.1
 	github.com/riverqueue/river v0.40.0
 	github.com/rs/xid v1.6.0
 	github.com/uptrace/bun v1.2.18
@@ -5515,7 +5515,6 @@ require (
 	github.com/lib/pq v1.12.3 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
-	github.com/mbvlabs/andurel/pkg/request v0.1.0 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.2.0 // indirect
@@ -5689,18 +5688,16 @@ github.com/maypok86/otter/v2 v2.3.0 h1:8H8AVVFUSzJwIegKwv1uF5aGitTY+AIrtktg7OcLs
 github.com/maypok86/otter/v2 v2.3.0/go.mod h1:XgIdlpmL6jYz882/CAx1E4C1ukfgDKSaw4mWq59+7l8=
 github.com/mbvlabs/andurel/pkg/email v0.1.0 h1:hdu1/zwSbcZkrdkf3V8ohsPE4N2GDdt8ORV0xl5Iv90=
 github.com/mbvlabs/andurel/pkg/email v0.1.0/go.mod h1:GQoycIfBxTjqjYkystAZHQND450iODAlSrp2MiFSIGE=
-github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0 h1:iC4pe2NK8t767sxI8V1W+OFjpdjE0zEjK8Uu26iuFSQ=
-github.com/mbvlabs/andurel/pkg/hypermedia v0.1.0/go.mod h1:nGB/vBw5rOXBZCsJFiQYV4oSLcmLCdBJCW7vzutmOc8=
-github.com/mbvlabs/andurel/pkg/request v0.1.0 h1:V27UNr56hvynGn6lbHUbMwv5bzK210OP+dZ6T4U7yzo=
-github.com/mbvlabs/andurel/pkg/request v0.1.0/go.mod h1:ZUE74AeuJR9T1UYVfPS/Qvy2ov3MMq0xPQJc6ptj/kQ=
-github.com/mbvlabs/andurel/pkg/routing v0.1.0 h1:G7d3e8/7PL/dgRO/XIiqskK86vz7IoE74iWAGrbtPs0=
-github.com/mbvlabs/andurel/pkg/routing v0.1.0/go.mod h1:fXUraUJ88cKpKeLY2EOg/OHVA2Wacbb7bEH9sVZr8wc=
+github.com/mbvlabs/andurel/pkg/hypermedia v0.2.1 h1:bGtbRLTEdx+U6kEl0YdvRzjI8Zhb0xOfK7ls+/L5r40=
+github.com/mbvlabs/andurel/pkg/hypermedia v0.2.1/go.mod h1:q2tUcXkYnC45npTvnBCUBq8Jry9vPlNY4Zn7aQ98WZU=
+github.com/mbvlabs/andurel/pkg/routing v0.1.1 h1:fpxTAkGmSkN0zs1Iss1kvNkxZ/723p5hAGxJOUJlpI0=
+github.com/mbvlabs/andurel/pkg/routing v0.1.1/go.mod h1:fXUraUJ88cKpKeLY2EOg/OHVA2Wacbb7bEH9sVZr8wc=
 github.com/mbvlabs/andurel/pkg/server v0.1.0 h1:pktLJXC8OxSUC8j27CyJ9wFOjNnHymeukHTCVgaiz/s=
 github.com/mbvlabs/andurel/pkg/server v0.1.0/go.mod h1:E0c81l0cR2ki98bjxLJf93GL8scIO1YItuLc+OgZS6c=
 github.com/mbvlabs/andurel/pkg/storage v0.4.0 h1:Uj/4UXMGjcM1lOiHQb86THH8djKGqgSPTx5e5O3hIjk=
 github.com/mbvlabs/andurel/pkg/storage v0.4.0/go.mod h1:lUpApuip6YE6YaulZ2WUDekCpFz1RcbpyfDNTdjOSRg=
-github.com/mbvlabs/andurel/pkg/validation v0.1.0 h1:tHGReF01VFBxc4RTwpNA0Vj4RxvWQ6tI6mqXJh84Lak=
-github.com/mbvlabs/andurel/pkg/validation v0.1.0/go.mod h1:1g3f0xGqAK0O8LBWHPX5BRfvf9B4OoU3RqRByKBAlbU=
+github.com/mbvlabs/andurel/pkg/validation v0.1.1 h1:g/o2fM3+Sak0wTgs0K+tUPDarm5BrqvBkNTFi3XzPmM=
+github.com/mbvlabs/andurel/pkg/validation v0.1.1/go.mod h1:1g3f0xGqAK0O8LBWHPX5BRfvf9B4OoU3RqRByKBAlbU=
 github.com/mdelapenya/tlscert v0.2.0 h1:7H81W6Z/4weDvZBNOfQte5GpIMo0lGYEeWbkGp5LJHI=
 github.com/mdelapenya/tlscert v0.2.0/go.mod h1:O4njj3ELLnJjGdkN7M/vIVCpZ+Cf0L6muqOG4tLSl8o=
 github.com/mfridman/interpolate v0.0.2 h1:pnuTK7MQIxxFz1Gr+rjSIx9u7qVjf5VOoM/u6BbAxPY=
