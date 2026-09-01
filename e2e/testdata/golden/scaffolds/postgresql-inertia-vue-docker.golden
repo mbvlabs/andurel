@@ -1249,6 +1249,7 @@ func newQueueInsert(
 ) (*storage.QueueInsert, error) {
 	return storage.NewQueueInsert(connection, storage.WithRiverConfig(cfg.RiverConfig()))
 }
+
 func newEmailSenders(
 	cfg config.EmailCfg,
 	appCfg config.AppCfg,
@@ -1530,6 +1531,7 @@ func queueProcessorLifecycle(
 		},
 	})
 }
+
 func newEmailSenders(
 	cfg config.EmailCfg,
 	appCfg config.AppCfg,
@@ -8526,9 +8528,7 @@ package services
 
 import (
 	"context"
-
 	"errors"
-
 	"fmt"
 
 	"testapp/models"
@@ -8793,20 +8793,15 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-
 	"fmt"
-
 	"time"
 
 	appemail "testapp/email"
-
 	"testapp/models"
+	"testapp/queue/jobs"
 
 	"github.com/mbvlabs/andurel/pkg/email"
-
 	"github.com/mbvlabs/andurel/pkg/validation"
-
-	"testapp/queue/jobs"
 )
 
 const userEmailVerification = "user_email_verification"
@@ -9049,21 +9044,18 @@ package services
 
 import (
 	"context"
-
 	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	appemail "testapp/email"
-
 	"testapp/models"
+	"testapp/queue/jobs"
+	"testapp/router/routes"
 
 	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/validation"
-
-	"testapp/queue/jobs"
-	"testapp/router/routes"
 )
 
 const userResetPassword = "user_password_reset"
@@ -10200,16 +10192,13 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
-
-	"go.uber.org/fx"
-
-	"golang.org/x/sync/errgroup"
-
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	"go.uber.org/fx"
+	"golang.org/x/sync/errgroup"
 )
 
 type ConfigProvider interface {
