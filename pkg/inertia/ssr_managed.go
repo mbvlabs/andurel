@@ -15,8 +15,6 @@ import (
 	"time"
 )
 
-const defaultStartupTimeout = 10 * time.Second
-
 // ManagedConfig controls a Go-owned JavaScript SSR process.
 type ManagedConfig struct {
 	Enabled        bool
@@ -28,19 +26,6 @@ type ManagedConfig struct {
 	Logger         *slog.Logger
 	Stdout         io.Writer
 	Stderr         io.Writer
-}
-
-// DefaultManagedConfig returns production-safe managed-runtime defaults.
-func DefaultManagedConfig() ManagedConfig {
-	return ManagedConfig{
-		Executable:     "node",
-		StartupTimeout: defaultStartupTimeout,
-		MinimumMajor:   22,
-		HTTP:           DefaultSSRConfig(),
-		Logger:         slog.Default(),
-		Stdout:         os.Stdout,
-		Stderr:         os.Stderr,
-	}
 }
 
 // Validate verifies managed runtime configuration.
@@ -60,18 +45,15 @@ func (config ManagedConfig) Validate() error {
 	if config.MinimumMajor <= 0 {
 		return fmt.Errorf("inertia: SSR minimum runtime major must be positive")
 	}
-	if config.Logger == nil {
-		return fmt.Errorf("inertia: SSR logger cannot be nil")
-	}
-	if config.Stdout == nil || config.Stderr == nil {
-		return fmt.Errorf("inertia: SSR process output writers cannot be nil")
-	}
 	if err := config.HTTP.Validate(); err != nil {
 		return err
 	}
 	parsed, _ := url.Parse(config.HTTP.URL)
 	if !isLoopbackHost(parsed.Hostname()) {
 		return fmt.Errorf("inertia: managed SSR URL must use a loopback host")
+	}
+	if parsed.Port() == "" {
+		return fmt.Errorf("inertia: managed SSR URL must include a port")
 	}
 	return nil
 }
@@ -155,9 +137,6 @@ func (runtime *ManagedRuntime) Start(ctx context.Context) error {
 	parsed, _ := url.Parse(runtime.config.HTTP.URL)
 	command := exec.Command(executable, runtime.config.BundlePath)
 	port := parsed.Port()
-	if port == "" {
-		port = "13714"
-	}
 	command.Env = append(os.Environ(),
 		"INERTIA_SSR_HOST="+parsed.Hostname(),
 		"INERTIA_SSR_PORT="+port,
@@ -244,7 +223,9 @@ func (runtime *ManagedRuntime) wait(command *exec.Cmd, done chan error) {
 	}
 
 	err := fmt.Errorf("inertia SSR runtime stopped unexpectedly: %w", normalizeWaitError(waitErr))
-	runtime.config.Logger.Error("inertia SSR runtime stopped", "error", err)
+	if runtime.config.Logger != nil {
+		runtime.config.Logger.Error("inertia SSR runtime stopped", "error", err)
+	}
 	select {
 	case runtime.errors <- err:
 	default:

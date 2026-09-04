@@ -18,9 +18,9 @@ type Mailpit struct {
 	port string
 }
 
-// NewMailpit constructs a Mailpit client using package defaults and options.
+// NewMailpit constructs a Mailpit client from the supplied options.
 func NewMailpit(options ...MailpitOption) (*Mailpit, error) {
-	settings := mailpitOptions{config: DefaultMailpitConfig()}
+	var settings mailpitOptions
 	for _, option := range options {
 		if option == nil {
 			continue
@@ -28,6 +28,9 @@ func NewMailpit(options ...MailpitOption) (*Mailpit, error) {
 		if err := option(&settings); err != nil {
 			return nil, fmt.Errorf("email: create mailpit client: %w", err)
 		}
+	}
+	if err := settings.config.Validate(); err != nil {
+		return nil, fmt.Errorf("email: create mailpit client: %w", err)
 	}
 
 	return &Mailpit{

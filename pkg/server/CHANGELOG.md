@@ -2,6 +2,16 @@
 
 All notable changes to the standalone Andurel server module are documented here.
 
+## 0.2.0 - 2026-09-02
+
+### Added
+
+- `WithTimeouts` for idle, read, and write timeouts.
+
+### Removed
+
+- Built-in timeout defaults in `New`. Applications supply timeout values.
+
 ## 0.1.0 - 2026-08-20
 
 ### Added

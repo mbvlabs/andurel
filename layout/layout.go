@@ -26,7 +26,6 @@ import (
 	"github.com/mbvlabs/andurel/layout/extensions"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/layout/versions"
-	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -1171,8 +1170,8 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 	builder.AddConfigField("Email", "EmailCfg")
 	builder.AddConfigField("Auth", "AuthCfg")
 
-	builder.AddEnvVar("MAILPIT_HOST", "MailpitHost", email.DefaultMailpitHost)
-	builder.AddEnvVar("MAILPIT_PORT", "MailpitPort", email.DefaultMailpitPort)
+	builder.AddEnvVar("MAILPIT_HOST", "MailpitHost", "0.0.0.0")
+	builder.AddEnvVar("MAILPIT_PORT", "MailpitPort", "1025")
 
 	builder.AddWorkerDependency("transactionalSender", "email.TransactionalSender")
 	builder.AddWorkerDependency("marketingSender", "email.MarketingSender")

@@ -32,6 +32,14 @@ type ServerOptions struct {
 
 type ServerOption func(*ServerOptions)
 
+func WithTimeouts(idle, read, write time.Duration) ServerOption {
+	return func(options *ServerOptions) {
+		options.IdleTimeout = idle
+		options.ReadTimeout = read
+		options.WriteTimeout = write
+	}
+}
+
 func New(
 	ctx context.Context,
 	host string,
@@ -41,12 +49,7 @@ func New(
 	shutdowners []Shutdowner,
 	options ...ServerOption,
 ) Server {
-	serverOptions := &ServerOptions{
-		IdleTimeout:  120 * time.Second,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 30 * time.Second,
-	}
-	// Apply server options if any
+	serverOptions := &ServerOptions{}
 	for _, option := range options {
 		option(serverOptions)
 	}

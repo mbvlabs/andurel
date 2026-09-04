@@ -3,7 +3,8 @@ package config
 import (
 	"time"
 
-	"github.com/riverqueue/river"
+	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 const (
@@ -39,30 +40,30 @@ var DefaultReindexerIndexNames = []string{
 }
 
 type QueueCfg struct {
-	AdvisoryLockPrefix          int32
-	CancelledJobRetentionPeriod time.Duration
-	CompletedJobRetentionPeriod time.Duration
-	DiscardedJobRetentionPeriod time.Duration
-	FetchCooldown               time.Duration
-	PollInterval                time.Duration
-	ID                          string
-	JobCleanerTimeout           time.Duration
-	JobStuckThreshold           time.Duration
-	JobTimeout                  time.Duration
-	MaxAttempts                 int
-	MaxWorkers                  int
-	PollOnly                    bool
+	AdvisoryLockPrefix          int32         `env:"QUEUE_ADVISORY_LOCK_PREFIX"`
+	CancelledJobRetentionPeriod time.Duration `env:"QUEUE_CANCELLED_JOB_RETENTION_PERIOD"`
+	CompletedJobRetentionPeriod time.Duration `env:"QUEUE_COMPLETED_JOB_RETENTION_PERIOD"`
+	DiscardedJobRetentionPeriod time.Duration `env:"QUEUE_DISCARDED_JOB_RETENTION_PERIOD"`
+	FetchCooldown               time.Duration `env:"QUEUE_FETCH_COOLDOWN"`
+	PollInterval                time.Duration `env:"QUEUE_POLL_INTERVAL"`
+	ID                          string        `env:"QUEUE_ID"`
+	JobCleanerTimeout           time.Duration `env:"QUEUE_JOB_CLEANER_TIMEOUT"`
+	JobStuckThreshold           time.Duration `env:"QUEUE_JOB_STUCK_THRESHOLD"`
+	JobTimeout                  time.Duration `env:"QUEUE_JOB_TIMEOUT"`
+	MaxAttempts                 int           `env:"QUEUE_MAX_ATTEMPTS"`
+	MaxWorkers                  int           `env:"QUEUE_MAX_WORKERS"`
+	PollOnly                    bool          `env:"QUEUE_POLL_ONLY"`
+	ReindexerTimeout            time.Duration `env:"QUEUE_REINDEXER_TIMEOUT"`
+	RescueStuckJobsAfter        time.Duration `env:"QUEUE_RESCUE_STUCK_JOBS_AFTER"`
+	Schema                      string        `env:"QUEUE_SCHEMA"`
+	SoftStopTimeout             time.Duration `env:"QUEUE_SOFT_STOP_TIMEOUT"`
+	SkipJobKindValidation       bool          `env:"QUEUE_SKIP_JOB_KIND_VALIDATION"`
+	SkipUnknownJobCheck         bool          `env:"QUEUE_SKIP_UNKNOWN_JOB_CHECK"`
 	ReindexerIndexNames         []string
-	ReindexerTimeout            time.Duration
-	RescueStuckJobsAfter        time.Duration
-	Schema                      string
-	SoftStopTimeout             time.Duration
-	SkipJobKindValidation       bool
-	SkipUnknownJobCheck         bool
 }
 
 func NewQueueCfg() QueueCfg {
-	return QueueCfg{
+	cfg := QueueCfg{
 		AdvisoryLockPrefix:          DefaultAdvisoryLockPrefix,
 		CancelledJobRetentionPeriod: DefaultCancelledJobRetentionPeriod,
 		CompletedJobRetentionPeriod: DefaultCompletedJobRetentionPeriod,
@@ -84,29 +85,44 @@ func NewQueueCfg() QueueCfg {
 		SkipJobKindValidation:       DefaultSkipJobKindValidation,
 		SkipUnknownJobCheck:         DefaultSkipUnknownJobCheck,
 	}
+
+	if err := env.Parse(&cfg); err != nil {
+		panic(err)
+	}
+
+	if err := cfg.Validate(); err != nil {
+		panic(err)
+	}
+
+	return cfg
 }
 
-func (cfg QueueCfg) RiverConfig() river.Config {
-	return river.Config{
-		AdvisoryLockPrefix:          cfg.AdvisoryLockPrefix,
-		CancelledJobRetentionPeriod: cfg.CancelledJobRetentionPeriod,
-		CompletedJobRetentionPeriod: cfg.CompletedJobRetentionPeriod,
-		DiscardedJobRetentionPeriod: cfg.DiscardedJobRetentionPeriod,
-		FetchCooldown:               cfg.FetchCooldown,
-		FetchPollInterval:           cfg.PollInterval,
-		ID:                          cfg.ID,
-		JobCleanerTimeout:           cfg.JobCleanerTimeout,
-		JobStuckThreshold:           cfg.JobStuckThreshold,
-		JobTimeout:                  cfg.JobTimeout,
-		MaxAttempts:                 cfg.MaxAttempts,
-		PollOnly:                    cfg.PollOnly,
-		ReindexerIndexNames:         cfg.ReindexerIndexNames,
-		ReindexerTimeout:            cfg.ReindexerTimeout,
-		RescueStuckJobsAfter:        cfg.RescueStuckJobsAfter,
-		Schema:                      cfg.Schema,
-		SoftStopTimeout:             cfg.SoftStopTimeout,
-		SkipJobKindValidation:       cfg.SkipJobKindValidation,
-		SkipUnknownJobCheck:         cfg.SkipUnknownJobCheck,
+func (c QueueCfg) Validate() error {
+	return c.QueueConfig().Validate()
+}
+
+func (c QueueCfg) QueueConfig() storage.QueueConfig {
+	return storage.QueueConfig{
+		AdvisoryLockPrefix:          c.AdvisoryLockPrefix,
+		CancelledJobRetentionPeriod: c.CancelledJobRetentionPeriod,
+		CompletedJobRetentionPeriod: c.CompletedJobRetentionPeriod,
+		DiscardedJobRetentionPeriod: c.DiscardedJobRetentionPeriod,
+		FetchCooldown:               c.FetchCooldown,
+		PollInterval:                c.PollInterval,
+		ID:                          c.ID,
+		JobCleanerTimeout:           c.JobCleanerTimeout,
+		JobStuckThreshold:           c.JobStuckThreshold,
+		JobTimeout:                  c.JobTimeout,
+		MaxAttempts:                 c.MaxAttempts,
+		MaxWorkers:                  c.MaxWorkers,
+		PollOnly:                    c.PollOnly,
+		ReindexerIndexNames:         c.ReindexerIndexNames,
+		ReindexerTimeout:            c.ReindexerTimeout,
+		RescueStuckJobsAfter:        c.RescueStuckJobsAfter,
+		Schema:                      c.Schema,
+		SoftStopTimeout:             c.SoftStopTimeout,
+		SkipJobKindValidation:       c.SkipJobKindValidation,
+		SkipUnknownJobCheck:         c.SkipUnknownJobCheck,
 	}
 }
 

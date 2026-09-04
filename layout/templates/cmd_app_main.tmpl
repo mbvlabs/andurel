@@ -117,6 +117,11 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, appC
 		appCfg.GetEnvironment(),
 		r.Handler,
 		nil,
+		server.WithTimeouts(
+			appCfg.GetIdleTimeout(),
+			appCfg.GetReadTimeout(),
+			appCfg.GetWriteTimeout(),
+		),
 	)
 	var done <-chan struct{}
 
@@ -159,24 +164,7 @@ func newDatabase(
 	ctx context.Context,
 	cfg config.Database,
 ) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
-		DatabaseKind:             cfg.GetDatabaseKind(),
-		Host:                     cfg.GetHost(),
-		Port:                     cfg.GetPort(),
-		Name:                     cfg.GetName(),
-		User:                     cfg.GetUser(),
-		Password:                 cfg.GetPassword(),
-		SSLMode:                  cfg.GetSSLMode(),
-		ApplicationName:          cfg.GetApplicationName(),
-		ConnectTimeout:           cfg.GetConnectTimeout(),
-		StatementCacheCapacity:   cfg.GetStatementCacheCapacity(),
-		DescriptionCacheCapacity: cfg.GetDescriptionCacheCapacity(),
-		MaxOpenConnections:       cfg.GetMaxOpenConnections(),
-		MaxIdleConnections:       cfg.GetMaxIdleConnections(),
-		ConnectionMaxLifetime:    cfg.GetConnectionMaxLifetime(),
-		ConnectionMaxIdleTime:    cfg.GetConnectionMaxIdleTime(),
-		OpenTelemetry:            cfg.GetOpenTelemetry(),
-	}))
+	db, err := storage.NewPostgres(ctx, storage.WithConfig(cfg.StorageConfig()))
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +177,7 @@ func newQueueInsert(
 	connection storage.Connection,
 	cfg config.QueueCfg,
 ) (*storage.QueueInsert, error) {
-	return storage.NewQueueInsert(connection, storage.WithRiverConfig(cfg.RiverConfig()))
+	return storage.NewQueueInsert(connection, storage.WithQueueConfig(cfg.QueueConfig()))
 }
 
 {{- if not .Blueprint.Main.ServiceProvides}}
@@ -237,6 +225,7 @@ func newInertia(
 		inertia.WithSSRRequestTimeout(cfg.GetSSRRequestTimeout()),
 		inertia.WithSSRMaxResponseBytes(cfg.GetSSRMaxResponseBytes()),
 		inertia.WithSSRFailFast(cfg.GetSSRFailFast()),
+		inertia.WithSSRMinimumMajor(cfg.GetSSRMinimumMajor()),
 	)
 	if err != nil {
 		return nil, err

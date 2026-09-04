@@ -2,6 +2,17 @@
 
 All notable changes to the standalone Andurel storage module are documented here.
 
+## 0.5.0 - 2026-09-02
+
+### Added
+
+- Typed `QueueConfig` with validation and conversion to River configuration.
+- `WithQueueConfig` for applying application-owned queue settings.
+
+### Removed
+
+- Package-level database default constants and `DefaultConfig`. Applications supply configuration values.
+
 ## 0.4.0 - 2026-09-01
 
 ### Added

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mbvlabs/andurel/layout/versions"
 )
 
 func TestScaffoldReactInertiaAssets(t *testing.T) {
@@ -153,6 +155,13 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 		"cmd/app/main.go",
 		`inertia.WithEntryPoint(cfg.GetEntryPoint())`,
 	)
+	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.WithAssetFS(cfg.GetAssetFS())`)
+	assertFileContains(
+		t,
+		projectDir,
+		"cmd/app/main.go",
+		`inertia.WithBuildPathURL(cfg.GetBuildPathURL())`,
+	)
 	assertFileNotContains(t, projectDir, "cmd/app/main.go", "views.Root")
 	assertFileContains(t, projectDir, "cmd/app/main.go", `OnStart: renderer.Start`)
 	assertFileContains(
@@ -189,7 +198,7 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 		`s.renderer.Page(etx, "Auth/Login"`,
 	)
 	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/hypermedia v0.2.1")
-	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/inertia v0.1.1")
+	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/inertia "+versions.Inertia)
 	assertFileContains(t, projectDir, "router/appctx/appctx.go", "func WithFlashes(")
 	assertFileContains(t, projectDir, "router/middleware/middleware.go", "appctx.WithFlashes(")
 	assertFileNotContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel v")

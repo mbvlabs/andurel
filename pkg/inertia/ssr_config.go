@@ -8,15 +8,6 @@ import (
 	"time"
 )
 
-const (
-	// DefaultSSRURL is the loopback address used by the official Inertia SSR server.
-	DefaultSSRURL = "http://127.0.0.1:13714"
-	// DefaultSSRTimeout bounds render, health, and shutdown HTTP operations.
-	DefaultSSRTimeout = 2 * time.Second
-	// DefaultSSRMaxResponseBytes bounds trusted SSR markup returned by a renderer.
-	DefaultSSRMaxResponseBytes int64 = 2 << 20
-)
-
 // ErrResponseTooLarge reports an SSR response that exceeds SSRConfig.MaxResponseBytes.
 var ErrResponseTooLarge = errors.New("inertia: SSR response exceeds configured limit")
 
@@ -25,15 +16,6 @@ type SSRConfig struct {
 	URL              string
 	Timeout          time.Duration
 	MaxResponseBytes int64
-}
-
-// DefaultSSRConfig returns loopback, timeout, and response-size defaults.
-func DefaultSSRConfig() SSRConfig {
-	return SSRConfig{
-		URL:              DefaultSSRURL,
-		Timeout:          DefaultSSRTimeout,
-		MaxResponseBytes: DefaultSSRMaxResponseBytes,
-	}
 }
 
 // Validate verifies HTTP renderer configuration.

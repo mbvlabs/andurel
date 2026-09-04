@@ -40,11 +40,9 @@ type Postgres struct {
 
 var _ Connection = (*Postgres)(nil)
 
-// NewPostgres creates a new database connection using sane defaults and any
-// supplied functional options.
+// NewPostgres creates a new database connection from the supplied options.
 func NewPostgres(ctx context.Context, options ...Option) (*Postgres, error) {
 	settings := postgresOptions{
-		config:            DefaultConfig(),
 		runtimeParameters: make(map[string]string),
 	}
 	for _, option := range options {

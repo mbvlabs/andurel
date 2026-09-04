@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/caarlos0/env/v11"
+	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
@@ -84,6 +85,27 @@ func (c Database) Validate() error {
 	b.Required("DatabaseKind", c.DatabaseKind)
 
 	return b.Err()
+}
+
+func (c Database) StorageConfig() storage.Config {
+	return storage.Config{
+		Host:                     c.Host,
+		Port:                     c.Port,
+		Name:                     c.Name,
+		User:                     c.User,
+		Password:                 c.Password,
+		DatabaseKind:             c.DatabaseKind,
+		SSLMode:                  c.SSLMode,
+		ApplicationName:          c.ApplicationName,
+		ConnectTimeout:           c.ConnectTimeout,
+		StatementCacheCapacity:   c.StatementCacheCapacity,
+		DescriptionCacheCapacity: c.DescriptionCacheCapacity,
+		MaxOpenConnections:       c.MaxOpenConnections,
+		MaxIdleConnections:       c.MaxIdleConnections,
+		ConnectionMaxLifetime:    c.ConnectionMaxLifetime,
+		ConnectionMaxIdleTime:    c.ConnectionMaxIdleTime,
+		OpenTelemetry:            c.OpenTelemetry,
+	}
 }
 
 func (c Database) GetDatabaseKind() string { return c.DatabaseKind }

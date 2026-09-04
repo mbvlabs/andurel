@@ -15,26 +15,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const (
-	DefaultDatabaseKind             = "postgres"
-	DefaultDatabaseHost             = "127.0.0.1"
-	DefaultDatabasePort             = "5432"
-	DefaultDatabaseName             = "andurel"
-	DefaultDatabaseUser             = "postgres"
-	DefaultDatabasePassword         = "postgres"
-	DefaultDatabaseSSLMode          = "disable"
-	DefaultApplicationName          = "andurel"
-	DefaultConnectTimeout           = 5 * time.Second
-	DefaultStatementCacheCapacity   = 512
-	DefaultDescriptionCacheCapacity = 512
-	DefaultMaxOpenConnections       = 25
-	DefaultMaxIdleConnections       = 25
-	DefaultConnectionMaxLifetime    = time.Hour
-	DefaultConnectionMaxIdleTime    = 30 * time.Minute
-)
-
-// Config contains PostgreSQL connection settings. NewPostgres starts with
-// DefaultConfig and applies any options supplied by the application.
+// Config contains PostgreSQL connection settings. Applications supply values
+// through options such as WithConfig.
 type Config struct {
 	DatabaseKind             string
 	Host                     string
@@ -52,28 +34,6 @@ type Config struct {
 	ConnectionMaxLifetime    time.Duration
 	ConnectionMaxIdleTime    time.Duration
 	OpenTelemetry            bool
-}
-
-// DefaultConfig returns development-friendly PostgreSQL defaults.
-func DefaultConfig() Config {
-	return Config{
-		DatabaseKind:             DefaultDatabaseKind,
-		Host:                     DefaultDatabaseHost,
-		Port:                     DefaultDatabasePort,
-		Name:                     DefaultDatabaseName,
-		User:                     DefaultDatabaseUser,
-		Password:                 DefaultDatabasePassword,
-		SSLMode:                  DefaultDatabaseSSLMode,
-		ApplicationName:          DefaultApplicationName,
-		ConnectTimeout:           DefaultConnectTimeout,
-		StatementCacheCapacity:   DefaultStatementCacheCapacity,
-		DescriptionCacheCapacity: DefaultDescriptionCacheCapacity,
-		MaxOpenConnections:       DefaultMaxOpenConnections,
-		MaxIdleConnections:       DefaultMaxIdleConnections,
-		ConnectionMaxLifetime:    DefaultConnectionMaxLifetime,
-		ConnectionMaxIdleTime:    DefaultConnectionMaxIdleTime,
-		OpenTelemetry:            true,
-	}
 }
 
 // Validate verifies that all required connection settings are present.

@@ -2,6 +2,16 @@
 
 All notable changes to the standalone Andurel email module are documented here.
 
+## 0.2.0 - 2026-09-02
+
+### Removed
+
+- Package-level Mailpit default host, port, and `DefaultMailpitConfig`. Applications supply `MailpitConfig`.
+
+### Changed
+
+- `NewMailpit` requires a valid `MailpitConfig` through `WithMailpitConfig`.
+
 ## 0.1.0 - 2026-09-01
 
 ### Added

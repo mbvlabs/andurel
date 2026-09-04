@@ -157,6 +157,7 @@ func TestGeneratedConfigEnvDefaults(t *testing.T) {
 		"\nPORT=",
 		"QUEUE_",
 		"INERTIA_",
+		"HTTP_",
 		"SESSION_MAX_AGE=",
 		"CORS_",
 		"DEFAULT_SENDER_SIGNATURE=",
@@ -235,6 +236,7 @@ func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 		"DB_PASSWORD",
 		"func NewDatabaseCfg() Database",
 		`env:"DB_HOST"`,
+		"func (c Database) StorageConfig() storage.Config",
 	} {
 		if !strings.Contains(databaseConfig, want) {
 			t.Errorf("config_database.tmpl missing %q", want)
@@ -252,6 +254,9 @@ func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 	if !strings.Contains(mainTemplate, "fx.Annotate(newDatabase, fx.As(new(storage.Connection)), fx.As(fx.Self()))") {
 		t.Error("cmd_app_main.tmpl does not provide *storage.Postgres as storage.Connection")
 	}
+	if !strings.Contains(mainTemplate, "storage.WithConfig(cfg.StorageConfig())") {
+		t.Error("cmd_app_main.tmpl does not apply application storage config")
+	}
 	if !strings.Contains(mainTemplate, `"{{.ModuleName}}/models"`) {
 		t.Error("cmd_app_main.tmpl does not import models")
 	}
@@ -265,6 +270,9 @@ func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 	queueTemplate := readGeneratedApplicationTemplate(t, "cmd_queue_main.tmpl")
 	if !strings.Contains(queueTemplate, "fx.Annotate(newDatabase, fx.As(new(storage.Connection)), fx.As(fx.Self()))") {
 		t.Error("cmd_queue_main.tmpl does not provide *storage.Postgres as storage.Connection")
+	}
+	if !strings.Contains(queueTemplate, "storage.WithQueueConfig(queueConfig)") {
+		t.Error("cmd_queue_main.tmpl does not apply application queue config")
 	}
 
 	if _, exists := baseTemplateMappings["psql_database.tmpl"]; exists {
@@ -292,6 +300,21 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	mainTemplate := readGeneratedApplicationTemplate(t, "cmd_app_main.tmpl")
 	if !strings.Contains(mainTemplate, "srv.Start(ctx, appCfg.GetEnvironment())") {
 		t.Error("cmd_app_main.tmpl does not start the server with the application environment")
+	}
+	if !strings.Contains(mainTemplate, "server.WithTimeouts(") {
+		t.Error("cmd_app_main.tmpl does not apply application HTTP timeouts")
+	}
+	for _, want := range []string{
+		"inertia.WithRoot(cfg.GetRoot())",
+		"inertia.WithAssetFS(cfg.GetAssetFS())",
+		"inertia.WithBuildPathURL(cfg.GetBuildPathURL())",
+		"inertia.WithEntryPoint(cfg.GetEntryPoint())",
+		"inertia.WithViteDevURL(cfg.GetViteDevURL())",
+		"inertia.WithSSRURL(cfg.GetSSRURL())",
+	} {
+		if !strings.Contains(mainTemplate, want) {
+			t.Errorf("cmd_app_main.tmpl missing inertia option %q", want)
+		}
 	}
 	for _, unwanted := range []string{"startQueueProcessor", "queue.WorkersModule", `"{{.ModuleName}}/queue"`} {
 		if strings.Contains(mainTemplate, unwanted) {
@@ -321,23 +344,77 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 		`env:"MAILPIT_PORT"`,
 		"func (c EmailCfg) MailpitConfig() email.MailpitConfig",
 		"github.com/mbvlabs/andurel/pkg/email",
+		`DefaultEmailMailpitHost = "0.0.0.0"`,
 	} {
 		if !strings.Contains(emailConfig, want) {
 			t.Errorf("config_email.tmpl missing %q", want)
 		}
+	}
+	if strings.Contains(emailConfig, "email.DefaultMailpit") {
+		t.Error("config_email.tmpl still uses package Mailpit defaults")
+	}
+
+	inertiaConfig := readGeneratedApplicationTemplate(t, "config_inertia.tmpl")
+	for _, want := range []string{
+		"func (c InertiaCfg) GetRoot() inertia.RootFunc",
+		"DefaultInertiaSSRMode             = string(inertia.SSRDisabled)",
+		"DefaultInertiaSSRMinimumMajor     = 22",
+	} {
+		if !strings.Contains(inertiaConfig, want) {
+			t.Errorf("config_inertia.tmpl missing %q", want)
+		}
+	}
+	if strings.Contains(inertiaConfig, "func (c InertiaCfg) Config()") {
+		t.Error("config_inertia.tmpl should not collapse constructor options into Config()")
 	}
 
 	queueConfig := readGeneratedApplicationTemplate(t, "config_queue.tmpl")
 	if got := strings.Count(queueConfig, "type QueueCfg struct"); got != 1 {
 		t.Errorf("config_queue.tmpl QueueCfg declarations = %d, want 1", got)
 	}
-	if !strings.Contains(queueConfig, "func (cfg QueueCfg) RiverConfig()") {
-		t.Error("config_queue.tmpl missing RiverConfig method")
+	if !strings.Contains(queueConfig, "func (c QueueCfg) QueueConfig()") {
+		t.Error("config_queue.tmpl missing QueueConfig method")
 	}
 
 	serverTemplate := readStandalonePackageFile(t, "server", "server.go")
 	if strings.Contains(serverTemplate, "shutdowner.Shutdown") {
 		t.Error("server Start still owns component shutdown")
+	}
+	if strings.Contains(serverTemplate, "IdleTimeout:  120 * time.Second") {
+		t.Error("server New still owns HTTP timeout defaults")
+	}
+}
+
+func TestStandalonePackagesDoNotOwnConfigDefaults(t *testing.T) {
+	files := []struct {
+		pkg  string
+		name string
+	}{
+		{"storage", "psql_config.go"},
+		{"storage", "psql.go"},
+		{"email", "config.go"},
+		{"email", "mailpit.go"},
+		{"inertia", "config.go"},
+		{"inertia", "ssr_config.go"},
+		{"inertia", "ssr_managed.go"},
+		{"server", "server.go"},
+	}
+	banned := []string{
+		"func DefaultConfig(",
+		"func DefaultMailpitConfig(",
+		"func DefaultSSRConfig(",
+		"func DefaultManagedConfig(",
+		"DefaultMailpitHost",
+		"DefaultSSRURL",
+		"IdleTimeout:  120 * time.Second",
+	}
+	for _, file := range files {
+		content := readStandalonePackageFile(t, file.pkg, file.name)
+		for _, name := range banned {
+			if strings.Contains(content, name) {
+				t.Errorf("%s/%s still owns config default %q", file.pkg, file.name, name)
+			}
+		}
 	}
 }
 

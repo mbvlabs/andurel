@@ -5,19 +5,6 @@ import (
 	"time"
 )
 
-func TestDefaultConfig(t *testing.T) {
-	config := DefaultConfig()
-	if config.DatabaseKind != DefaultDatabaseKind ||
-		config.Host != DefaultDatabaseHost ||
-		config.Port != DefaultDatabasePort ||
-		config.Name != DefaultDatabaseName ||
-		config.User != DefaultDatabaseUser ||
-		config.Password != DefaultDatabasePassword ||
-		config.SSLMode != DefaultDatabaseSSLMode {
-		t.Fatalf("unexpected default config: %#v", config)
-	}
-}
-
 func TestConfigDatabaseURL(t *testing.T) {
 	config := Config{
 		DatabaseKind: "postgres",
@@ -40,8 +27,14 @@ func TestConfigDatabaseURL(t *testing.T) {
 }
 
 func TestConfigDatabaseURLRejectsMissingValues(t *testing.T) {
-	config := DefaultConfig()
-	config.Host = ""
+	config := Config{
+		DatabaseKind: "postgres",
+		Host:         "",
+		Port:         "5432",
+		Name:         "andurel",
+		User:         "postgres",
+		SSLMode:      "disable",
+	}
 	if _, err := config.DatabaseURL(); err == nil {
 		t.Fatal("DatabaseURL accepted an empty host")
 	}

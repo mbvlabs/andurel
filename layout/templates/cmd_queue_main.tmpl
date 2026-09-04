@@ -91,24 +91,7 @@ func newDatabase(
 	ctx context.Context,
 	cfg config.Database,
 ) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
-		DatabaseKind:             cfg.GetDatabaseKind(),
-		Host:                     cfg.GetHost(),
-		Port:                     cfg.GetPort(),
-		Name:                     cfg.GetName(),
-		User:                     cfg.GetUser(),
-		Password:                 cfg.GetPassword(),
-		SSLMode:                  cfg.GetSSLMode(),
-		ApplicationName:          cfg.GetApplicationName(),
-		ConnectTimeout:           cfg.GetConnectTimeout(),
-		StatementCacheCapacity:   cfg.GetStatementCacheCapacity(),
-		DescriptionCacheCapacity: cfg.GetDescriptionCacheCapacity(),
-		MaxOpenConnections:       cfg.GetMaxOpenConnections(),
-		MaxIdleConnections:       cfg.GetMaxIdleConnections(),
-		ConnectionMaxLifetime:    cfg.GetConnectionMaxLifetime(),
-		ConnectionMaxIdleTime:    cfg.GetConnectionMaxIdleTime(),
-		OpenTelemetry:            cfg.GetOpenTelemetry(),
-	}))
+	db, err := storage.NewPostgres(ctx, storage.WithConfig(cfg.StorageConfig()))
 	if err != nil {
 		return nil, err
 	}
@@ -128,17 +111,17 @@ type queueProcessorParams struct {
 }
 
 func newQueueProcessor(params queueProcessorParams) (*storage.QueueProcessor, error) {
-	riverConfig := params.Config.RiverConfig()
-	riverConfig.Queues = map[string]river.QueueConfig{
-		river.QueueDefault: {MaxWorkers: params.Config.GetMaxWorkers()},
-	}
+	queueConfig := params.Config.QueueConfig()
 
 	return storage.NewQueueProcessor(
 		params.Connection,
-		storage.WithRiverConfig(riverConfig),
+		storage.WithQueueConfig(queueConfig),
 		storage.WithRiverWorkers(params.Workers),
 		storage.WithRiverPeriodicJobs(params.PeriodicJobs...),
 		storage.WithRiverLogger(params.Logger),
+		storage.WithRiverQueues(map[string]river.QueueConfig{
+			river.QueueDefault: {MaxWorkers: queueConfig.MaxWorkers},
+		}),
 	)
 }
 

@@ -27,7 +27,7 @@ release-snapshot:
 	goreleaser release --snapshot --clean
 
 move:
-	mv dev-andurel ../
+	mv dev-andurel ~/.local/bin
 
 full:
 	just build
