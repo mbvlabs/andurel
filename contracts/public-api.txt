@@ -3774,8 +3774,6 @@ func WithSSRFailFast(enabled bool) Option
 
 func WithSSRMaxResponseBytes(size int64) Option
 
-func WithSSRMinimumMajor(major int) Option
-
 func WithSSRMode(mode SSRMode) Option
 
 func WithSSRRenderer(ssr SSRRenderer) Option

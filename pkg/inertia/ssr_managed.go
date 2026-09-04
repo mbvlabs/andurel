@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+const defaultSSRMinimumMajor = 22
+
 // ManagedConfig controls a Go-owned JavaScript SSR process.
 type ManagedConfig struct {
 	Enabled        bool
@@ -75,6 +77,9 @@ func NewManagedRuntime(
 	config ManagedConfig,
 	options ...HTTPRendererOption,
 ) (*ManagedRuntime, error) {
+	if config.MinimumMajor <= 0 {
+		config.MinimumMajor = defaultSSRMinimumMajor
+	}
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}

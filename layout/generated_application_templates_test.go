@@ -16,6 +16,12 @@ func TestGeneratedConfigModuleDoesNotDuplicateProviders(t *testing.T) {
 	root := t.TempDir()
 	data := &TemplateData{ModuleName: "example.com/app"}
 	data.SetBlueprint(initializeBlueprint("example.com/app"))
+	if len(data.Blueprint().Config.EnvVars) != 0 {
+		t.Errorf(
+			"initializeBlueprint should not seed defaultable env vars, got %+v",
+			data.Blueprint().Config.EnvVars,
+		)
+	}
 	if err := processTemplatedFiles(root, data); err != nil {
 		t.Fatalf("process templates: %v", err)
 	}
@@ -162,6 +168,7 @@ func TestGeneratedConfigEnvDefaults(t *testing.T) {
 		"CORS_",
 		"DEFAULT_SENDER_SIGNATURE=",
 		"PREVIOUS_PEPPERS=",
+		"MAILPIT_",
 	} {
 		if strings.Contains(envExample, unexpected) {
 			t.Errorf("env.tmpl should not include defaultable %q", unexpected)
@@ -358,7 +365,6 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	for _, want := range []string{
 		"func (c InertiaCfg) GetRoot() inertia.RootFunc",
 		"DefaultInertiaSSRMode             = string(inertia.SSRDisabled)",
-		"DefaultInertiaSSRMinimumMajor     = 22",
 	} {
 		if !strings.Contains(inertiaConfig, want) {
 			t.Errorf("config_inertia.tmpl missing %q", want)
@@ -366,6 +372,12 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	}
 	if strings.Contains(inertiaConfig, "func (c InertiaCfg) Config()") {
 		t.Error("config_inertia.tmpl should not collapse constructor options into Config()")
+	}
+	if strings.Contains(inertiaConfig, "SSRMinimumMajor") {
+		t.Error("config_inertia.tmpl should not expose SSR minimum major")
+	}
+	if strings.Contains(mainTemplate, "WithSSRMinimumMajor") {
+		t.Error("cmd_app_main.tmpl should not pass WithSSRMinimumMajor")
 	}
 
 	queueConfig := readGeneratedApplicationTemplate(t, "config_queue.tmpl")

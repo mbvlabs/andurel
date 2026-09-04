@@ -260,9 +260,9 @@ func TestLoadProjectContext_RebuildsBlueprintWithExistingExtensions(t *testing.T
 		t.Fatalf("expected AwsSes in blueprint config fields after re-applying aws-ses")
 	}
 
-	if len(bp.Config.EnvVars) != 2 {
+	if len(bp.Config.EnvVars) != 0 {
 		t.Fatalf(
-			"expected base mailpit env vars after re-applying aws-ses, got %+v",
+			"expected no defaultable mailpit env vars after re-applying aws-ses, got %+v",
 			bp.Config.EnvVars,
 		)
 	}

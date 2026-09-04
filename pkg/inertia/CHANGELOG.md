@@ -4,10 +4,6 @@ All notable changes to the standalone Andurel Inertia module are documented here
 
 ## 0.2.0 - 2026-09-02
 
-### Added
-
-- `WithSSRMinimumMajor` for the managed SSR runtime version requirement.
-
 ### Changed
 
 - `New` no longer applies package defaults. Applications must supply values through options.

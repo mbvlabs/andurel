@@ -251,10 +251,3 @@ func WithSSRMaxResponseBytes(size int64) Option {
 		return nil
 	}
 }
-
-func WithSSRMinimumMajor(major int) Option {
-	return func(renderer *Renderer) error {
-		renderer.managedConfig.MinimumMajor = major
-		return nil
-	}
-}

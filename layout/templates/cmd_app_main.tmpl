@@ -225,7 +225,6 @@ func newInertia(
 		inertia.WithSSRRequestTimeout(cfg.GetSSRRequestTimeout()),
 		inertia.WithSSRMaxResponseBytes(cfg.GetSSRMaxResponseBytes()),
 		inertia.WithSSRFailFast(cfg.GetSSRFailFast()),
-		inertia.WithSSRMinimumMajor(cfg.GetSSRMinimumMajor()),
 	)
 	if err != nil {
 		return nil, err

@@ -1170,9 +1170,6 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 	builder.AddConfigField("Email", "EmailCfg")
 	builder.AddConfigField("Auth", "AuthCfg")
 
-	builder.AddEnvVar("MAILPIT_HOST", "MailpitHost", "0.0.0.0")
-	builder.AddEnvVar("MAILPIT_PORT", "MailpitPort", "1025")
-
 	builder.AddWorkerDependency("transactionalSender", "email.TransactionalSender")
 	builder.AddWorkerDependency("marketingSender", "email.MarketingSender")
 
