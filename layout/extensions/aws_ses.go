@@ -20,21 +20,6 @@ func (e AwsSes) Apply(ctx *Context) error {
 	// Add config field
 	builder.AddConfigField("AwsSes", "AwsSesCfg")
 
-	builder.AddServiceProvide(
-		`func(appCfg config.AppCfg, awsSesCfg config.AwsSesCfg, emailCfg config.EmailCfg) (email.TransactionalSender, email.MarketingSender) {
-	if appCfg.GetEnvironment() == server.ProdEnvironment {
-		return mailclients.NewAwsSes(awsSesCfg), mailclients.NewAwsSes(awsSesCfg)
-	}
-
-	client, err := email.NewMailpit(email.WithMailpitConfig(emailCfg.MailpitConfig()))
-	if err != nil {
-		panic(err)
-	}
-
-	return client, client
-}`,
-	)
-
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("aws-ses: failed to render templates: %w", err)
 	}

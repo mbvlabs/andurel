@@ -5,23 +5,10 @@ import (
 	"strings"
 )
 
-const (
-	DefaultMailpitHost = "0.0.0.0"
-	DefaultMailpitPort = "1025"
-)
-
-// MailpitConfig configures the development Mailpit SMTP client.
+// MailpitConfig configures a Mailpit SMTP client. Applications supply host and port.
 type MailpitConfig struct {
 	Host string
 	Port string
-}
-
-// DefaultMailpitConfig returns development-safe Mailpit defaults.
-func DefaultMailpitConfig() MailpitConfig {
-	return MailpitConfig{
-		Host: DefaultMailpitHost,
-		Port: DefaultMailpitPort,
-	}
 }
 
 // Validate verifies Mailpit configuration.

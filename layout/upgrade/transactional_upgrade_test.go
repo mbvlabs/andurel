@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/layout/versions"
 )
 
 const (
@@ -288,7 +289,7 @@ func TestVersionedInertiaUpgradeEmbedsExistingRoot(t *testing.T) {
 	}
 
 	goMod := string(mustReadProjectFile(t, root, "go.mod"))
-	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/inertia v0.1.1") {
+	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/inertia "+versions.Inertia) {
 		t.Fatalf("standalone Inertia dependency was not added:\n%s", goMod)
 	}
 }
@@ -553,7 +554,7 @@ func newUpgradeFixtureProjectWithConfig(t *testing.T, config layout.ScaffoldConf
 	root := t.TempDir()
 	goMod := "module testapp\n\ngo 1.24.0\n"
 	if layout.IsSupportedInertiaAdapter(config.Inertia) {
-		goMod += "\nrequire github.com/mbvlabs/andurel/pkg/inertia v0.1.1\n"
+		goMod += "\nrequire github.com/mbvlabs/andurel/pkg/inertia " + versions.Inertia + "\n"
 	}
 	mustWriteTestFile(t, root, "go.mod", []byte(goMod))
 	lock := &layout.AndurelLock{

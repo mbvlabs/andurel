@@ -260,9 +260,9 @@ func TestLoadProjectContext_RebuildsBlueprintWithExistingExtensions(t *testing.T
 		t.Fatalf("expected AwsSes in blueprint config fields after re-applying aws-ses")
 	}
 
-	if len(bp.Config.EnvVars) != 2 {
+	if len(bp.Config.EnvVars) != 0 {
 		t.Fatalf(
-			"expected base mailpit env vars after re-applying aws-ses, got %+v",
+			"expected no defaultable mailpit env vars after re-applying aws-ses, got %+v",
 			bp.Config.EnvVars,
 		)
 	}
@@ -342,7 +342,7 @@ func TestApplyExtension_AwsSes(t *testing.T) {
 	fileContains(t, projectDir, "config/config.go", "AwsSes")
 
 	// Verify AWS SES config was generated with code defaults
-	fileContains(t, projectDir, "config/aws_ses.go", "DefaultAWSSESRegion")
+	fileContains(t, projectDir, "config/aws_ses.go", "NewAwsSesCfg()")
 	fileNotContains(t, projectDir, ".env.example", "AWS_REGION")
 
 	// Verify lock file
@@ -517,7 +517,7 @@ func TestApplyExtension_GeneratedProject(t *testing.T) {
 	fileExists(t, projectDir, "clients/email/aws_ses.go")
 	fileExists(t, projectDir, "config/aws_ses.go")
 	fileContains(t, projectDir, "config/config.go", "AwsSes")
-	fileContains(t, projectDir, "config/aws_ses.go", "DefaultAWSSESRegion")
+	fileContains(t, projectDir, "config/aws_ses.go", "NewAwsSesCfg()")
 	fileNotContains(t, projectDir, ".env.example", "AWS_REGION")
 
 	lock, err := ReadLockFile(projectDir)

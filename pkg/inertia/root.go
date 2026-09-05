@@ -37,9 +37,6 @@ func PageScript(containerID string, pageJSON []byte) templ.Component {
 		if err != nil {
 			return err
 		}
-		if containerID == "" {
-			containerID = "app"
-		}
 		if _, err := io.WriteString(
 			writer,
 			`<script data-page="`+html.EscapeString(containerID)+`" type="application/json">`,
@@ -77,9 +74,6 @@ func pageScriptJSON(pageJSON []byte) ([]byte, error) {
 // AppMount renders the empty client-rendering mount element.
 func AppMount(containerID string) templ.Component {
 	return templ.ComponentFunc(func(_ context.Context, writer io.Writer) error {
-		if containerID == "" {
-			containerID = "app"
-		}
 		_, err := io.WriteString(writer, `<div id="`+html.EscapeString(containerID)+`"></div>`)
 		return err
 	})

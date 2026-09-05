@@ -1,6 +1,8 @@
 package config
 
 import (
+	"slices"
+
 	"github.com/caarlos0/env/v11"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
@@ -10,18 +12,18 @@ type AuthCfg struct {
 	PreviousPeppers []string `env:"PREVIOUS_PEPPERS" envSeparator:","`
 }
 
-func NewAuthCfg() AuthCfg {
+func NewAuthCfg() (AuthCfg, error) {
 	var authenticationCfg AuthCfg
 
 	if err := env.Parse(&authenticationCfg); err != nil {
-		panic(err)
+		return AuthCfg{}, err
 	}
 
 	if err := validation.Validate(&authenticationCfg); err != nil {
-		panic(err)
+		return AuthCfg{}, err
 	}
 
-	return authenticationCfg
+	return authenticationCfg, nil
 }
 
 func (c AuthCfg) Validate() error {
@@ -33,4 +35,4 @@ func (c AuthCfg) Validate() error {
 
 func (c AuthCfg) GetPepper() string { return c.Pepper }
 
-func (c AuthCfg) GetPreviousPeppers() []string { return c.PreviousPeppers }
+func (c AuthCfg) GetPreviousPeppers() []string { return slices.Clone(c.PreviousPeppers) }

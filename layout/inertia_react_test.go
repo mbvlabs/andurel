@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mbvlabs/andurel/layout/versions"
 )
 
 func TestScaffoldReactInertiaAssets(t *testing.T) {
@@ -118,7 +120,12 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileContains(t, projectDir, "cmd/app/main.go", "appCfg config.AppCfg")
 	assertFileContains(t, projectDir, "cmd/app/main.go", "(*inertia.Renderer, error)")
 	assertFileContains(t, projectDir, "config/config.go", "NewInertiaCfg,")
-	assertFileContains(t, projectDir, "config/inertia.go", "env.Parse(&inertiaCfg)")
+	assertFileContains(t, projectDir, "config/config.go", "NewAppCfg,")
+	assertFileContains(t, projectDir, "config/config.go", "var Environment = func() string")
+	assertFileContains(t, projectDir, "config/config.go", "var ProjectName = func() string")
+	assertFileContains(t, projectDir, "config/config.go", `return DefaultProjectName`)
+	assertFileContains(t, projectDir, "config/config.go", `DefaultProjectName = "testapp"`)
+	assertFileContains(t, projectDir, "config/inertia.go", "func NewInertiaCfg() (InertiaCfg, error)")
 	assertFileContains(
 		t,
 		projectDir,
@@ -129,23 +136,22 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 		t,
 		projectDir,
 		"config/inertia.go",
-		"DefaultInertiaBuildPathURL = routes.ViteBuild.Path()",
+		"routes.ViteBuild.Path()",
 	)
 	assertFileContains(
 		t,
 		projectDir,
 		"config/inertia.go",
-		"Root:                DefaultInertiaRoot",
+		"views.Root",
 	)
 	assertFileContains(
 		t,
 		projectDir,
 		"config/inertia.go",
-		"BuildPathURL:        DefaultInertiaBuildPathURL",
+		"string(inertia.SSRDisabled)",
 	)
 	assertFileContains(t, projectDir, "config/inertia.go", "return c.Root")
 	assertFileContains(t, projectDir, "config/inertia.go", "return c.EntryPoint")
-	assertFileNotContains(t, projectDir, "config/inertia.go", `env:"-"`)
 	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.WithRoot(cfg.GetRoot())`)
 	assertFileContains(
 		t,
@@ -153,13 +159,20 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 		"cmd/app/main.go",
 		`inertia.WithEntryPoint(cfg.GetEntryPoint())`,
 	)
+	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.WithAssetFS(cfg.GetAssetFS())`)
+	assertFileContains(
+		t,
+		projectDir,
+		"cmd/app/main.go",
+		`inertia.WithBuildPathURL(cfg.GetBuildPathURL())`,
+	)
 	assertFileNotContains(t, projectDir, "cmd/app/main.go", "views.Root")
 	assertFileContains(t, projectDir, "cmd/app/main.go", `OnStart: renderer.Start`)
 	assertFileContains(
 		t,
 		projectDir,
 		"cmd/app/main.go",
-		`inertia.WithProjectName(appCfg.GetProjectName())`,
+		`inertia.WithProjectName(config.ProjectName())`,
 	)
 	assertFileMissing(t, projectDir, "application/metadata.go")
 	assertFileContains(t, projectDir, "config/app.go", `func (c AppCfg) GetBaseURL() string`)
@@ -189,7 +202,7 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 		`s.renderer.Page(etx, "Auth/Login"`,
 	)
 	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/hypermedia v0.2.1")
-	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/inertia v0.1.1")
+	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/inertia "+versions.Inertia)
 	assertFileContains(t, projectDir, "router/appctx/appctx.go", "func WithFlashes(")
 	assertFileContains(t, projectDir, "router/middleware/middleware.go", "appctx.WithFlashes(")
 	assertFileNotContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel v")
@@ -205,39 +218,20 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileMissing(t, projectDir, "views/reset_password.templ")
 	assertFileMissing(t, projectDir, "views/confirm_email.templ")
 
-	inertiaModule, err := filepath.Abs(filepath.Join("..", "pkg", "inertia"))
-	if err != nil {
-		t.Fatalf("resolve standalone Inertia module: %v", err)
-	}
-	cmd := exec.Command(
-		"go",
-		"mod",
-		"edit",
-		"-replace=github.com/mbvlabs/andurel/pkg/inertia="+inertiaModule,
-	)
-	cmd.Dir = projectDir
-	cmd.Env = append(os.Environ(), "GOWORK=off")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("configure standalone Inertia module: %v\n%s", err, output)
+	for _, pkg := range []string{"email", "hypermedia", "inertia", "routing", "server", "storage", "validation"} {
+		module, err := filepath.Abs(filepath.Join("..", "pkg", pkg))
+		if err != nil {
+			t.Fatalf("resolve standalone %s module: %v", pkg, err)
+		}
+		cmd := exec.Command("go", "mod", "edit", "-replace=github.com/mbvlabs/andurel/pkg/"+pkg+"="+module)
+		cmd.Dir = projectDir
+		cmd.Env = append(os.Environ(), "GOWORK=off")
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("configure standalone %s module: %v\n%s", pkg, err, output)
+		}
 	}
 
-	storageModule, err := filepath.Abs(filepath.Join("..", "pkg", "storage"))
-	if err != nil {
-		t.Fatalf("resolve standalone storage module: %v", err)
-	}
-	cmd = exec.Command(
-		"go",
-		"mod",
-		"edit",
-		"-replace=github.com/mbvlabs/andurel/pkg/storage="+storageModule,
-	)
-	cmd.Dir = projectDir
-	cmd.Env = append(os.Environ(), "GOWORK=off")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("configure standalone storage module: %v\n%s", err, output)
-	}
-
-	cmd = exec.Command("go", "mod", "tidy")
+	cmd := exec.Command("go", "mod", "tidy")
 	cmd.Dir = projectDir
 	cmd.Env = append(os.Environ(), "GOWORK=off")
 	if output, err := cmd.CombinedOutput(); err != nil {

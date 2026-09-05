@@ -29,8 +29,11 @@ func TestHTTPRendererRenderAndHealth(t *testing.T) {
 	)
 	defer server.Close()
 
-	config := DefaultSSRConfig()
-	config.URL = server.URL
+	config := SSRConfig{
+		URL:              server.URL,
+		Timeout:          2 * time.Second,
+		MaxResponseBytes: 2 << 20,
+	}
 	renderer, err := NewHTTPRenderer(config)
 	if err != nil {
 		t.Fatalf("NewHTTPRenderer: %v", err)
@@ -58,9 +61,11 @@ func TestHTTPRendererBoundsResponseAndTimeout(t *testing.T) {
 	)
 	defer server.Close()
 
-	config := DefaultSSRConfig()
-	config.URL = server.URL
-	config.MaxResponseBytes = 8
+	config := SSRConfig{
+		URL:              server.URL,
+		Timeout:          2 * time.Second,
+		MaxResponseBytes: 8,
+	}
 	renderer, err := NewHTTPRenderer(config)
 	if err != nil {
 		t.Fatalf("NewHTTPRenderer: %v", err)

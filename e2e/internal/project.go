@@ -107,7 +107,7 @@ func (p *Project) setupWorkspace() error {
 	workspace.WriteString(")\n\n")
 	fmt.Fprintf(
 		&workspace,
-		"replace github.com/mbvlabs/andurel/pkg/inertia v0.1.0 => %q\n",
+		"replace github.com/mbvlabs/andurel/pkg/inertia => %q\n",
 		filepath.ToSlash(filepath.Join(p.WorkspaceRoot, "pkg", "inertia")),
 	)
 

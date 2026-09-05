@@ -30,9 +30,7 @@ func TestIPRateLimiterPermitsExactlyConfiguredLimitAtomically(t *testing.T) {
 	start := make(chan struct{})
 	var wg sync.WaitGroup
 	for range requests {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
 
 			request := httptest.NewRequest(http.MethodPost, "/", nil)
@@ -43,7 +41,7 @@ func TestIPRateLimiterPermitsExactlyConfiguredLimitAtomically(t *testing.T) {
 			if err := limiter(ctx); err != nil {
 				t.Errorf("rate-limited request: %v", err)
 			}
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()

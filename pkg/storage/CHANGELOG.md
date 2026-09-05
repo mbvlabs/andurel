@@ -2,6 +2,36 @@
 
 All notable changes to the standalone Andurel storage module are documented here.
 
+## 0.6.0 - 2026-09-05
+
+### Added
+
+- `DefaultConfig` for operational PostgreSQL defaults without application credentials.
+- `DefaultQueueConfig`, application-owned `QueueConfig.Queues`, and `QueueConfig.Clone`.
+
+### Changed
+
+- `NewPostgres` takes `Config` directly. Remaining options override individual connection settings.
+- `NewPostgres` preserves pgx URL settings unless explicitly overridden and selects a compatible query execution mode when a cache is disabled.
+- `Config.Validate` rejects unsupported database kinds and SSL modes.
+- `NewQueueInsert` and `NewQueueProcessor` take `QueueConfig` and validate it before applying River options.
+- Queue validation follows River defaults, the infinite-duration sentinel, queue limits, and timing constraints.
+
+### Removed
+
+- `WithConfig` and `WithQueueConfig`.
+
+## 0.5.0 - 2026-09-02
+
+### Added
+
+- Typed `QueueConfig` with validation and conversion to River configuration.
+- `WithQueueConfig` for applying application-owned queue settings.
+
+### Removed
+
+- Package-level database default constants and `DefaultConfig`. Applications supply configuration values.
+
 ## 0.4.0 - 2026-09-01
 
 ### Added

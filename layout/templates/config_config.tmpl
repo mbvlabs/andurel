@@ -1,7 +1,32 @@
 // Package config provides application-wide configuration settings.
 package config
 
-import "go.uber.org/fx"
+import (
+	"os"
+
+	"go.uber.org/fx"
+)
+
+const (
+	DefaultEnvironment = "development"
+	DefaultProjectName = "{{.ProjectName}}"
+)
+
+var Environment = func() string {
+	if env := os.Getenv("ENVIRONMENT"); env != "" {
+		return env
+	}
+
+	return DefaultEnvironment
+}
+
+var ProjectName = func() string {
+	if projectName := os.Getenv("PROJECT_NAME"); projectName != "" {
+		return projectName
+	}
+
+	return DefaultProjectName
+}
 
 // Module provides all application configuration constructors to the dependency container.
 var Module = fx.Module("config",
@@ -10,6 +35,7 @@ var Module = fx.Module("config",
 		NewDatabaseCfg,
 		NewQueueCfg,
 		NewTelemetryCfg,
+		NewEmailSenders,
 {{- if .Inertia}}
 		NewInertiaCfg,
 {{- end}}

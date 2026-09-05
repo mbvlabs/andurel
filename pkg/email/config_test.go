@@ -2,12 +2,6 @@ package email
 
 import "testing"
 
-func TestDefaultMailpitConfigValidate(t *testing.T) {
-	if err := DefaultMailpitConfig().Validate(); err != nil {
-		t.Fatalf("DefaultMailpitConfig().Validate() = %v, want nil", err)
-	}
-}
-
 func TestMailpitConfigValidateRequiresHostAndPort(t *testing.T) {
 	tests := []MailpitConfig{
 		{Host: "", Port: "1025"},
@@ -18,24 +12,17 @@ func TestMailpitConfigValidateRequiresHostAndPort(t *testing.T) {
 		if err := config.Validate(); err == nil {
 			t.Fatalf("Validate() = nil, want error for %#v", config)
 		}
-	}
-}
-
-func TestNewMailpitUsesDefaults(t *testing.T) {
-	client, err := NewMailpit()
-	if err != nil {
-		t.Fatalf("NewMailpit() = %v, want nil error", err)
-	}
-	if client == nil {
-		t.Fatal("NewMailpit() returned nil client")
+		if _, err := NewMailpit(config); err == nil {
+			t.Fatalf("NewMailpit() = nil error, want error for %#v", config)
+		}
 	}
 }
 
 func TestNewMailpitAppliesConfig(t *testing.T) {
-	client, err := NewMailpit(WithMailpitConfig(MailpitConfig{
+	client, err := NewMailpit(MailpitConfig{
 		Host: "mailpit.test",
 		Port: "2525",
-	}))
+	})
 	if err != nil {
 		t.Fatalf("NewMailpit() = %v, want nil error", err)
 	}

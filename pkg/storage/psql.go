@@ -40,11 +40,10 @@ type Postgres struct {
 
 var _ Connection = (*Postgres)(nil)
 
-// NewPostgres creates a new database connection using sane defaults and any
-// supplied functional options.
-func NewPostgres(ctx context.Context, options ...Option) (*Postgres, error) {
+// NewPostgres creates a new database connection from the supplied configuration.
+func NewPostgres(ctx context.Context, config Config, options ...Option) (*Postgres, error) {
 	settings := postgresOptions{
-		config:            DefaultConfig(),
+		config:            config,
 		runtimeParameters: make(map[string]string),
 	}
 	for _, option := range options {
@@ -59,6 +58,27 @@ func NewPostgres(ctx context.Context, options ...Option) (*Postgres, error) {
 	if !settings.telemetrySet && settings.config.OpenTelemetry {
 		settings.telemetry = &TelemetryConfig{}
 	}
+	if settings.connectTimeout != nil {
+		settings.config.ConnectTimeout = *settings.connectTimeout
+	}
+	if settings.statementCacheCapacity != nil {
+		settings.config.StatementCacheCapacity = *settings.statementCacheCapacity
+	}
+	if settings.descriptionCacheCapacity != nil {
+		settings.config.DescriptionCacheCapacity = *settings.descriptionCacheCapacity
+	}
+	if settings.maxOpenConnections != nil {
+		settings.config.MaxOpenConnections = *settings.maxOpenConnections
+	}
+	if settings.maxIdleConnections != nil {
+		settings.config.MaxIdleConnections = *settings.maxIdleConnections
+	}
+	if settings.connectionMaxLifetime != nil {
+		settings.config.ConnectionMaxLifetime = *settings.connectionMaxLifetime
+	}
+	if settings.connectionMaxIdleTime != nil {
+		settings.config.ConnectionMaxIdleTime = *settings.connectionMaxIdleTime
+	}
 
 	databaseURL := settings.configURL
 	if databaseURL == "" {
@@ -68,42 +88,50 @@ func NewPostgres(ctx context.Context, options ...Option) (*Postgres, error) {
 			return nil, fmt.Errorf("storage: configure postgres: %w", err)
 		}
 	}
-	config, err := pgx.ParseConfig(databaseURL)
+	pgxConfig, err := pgx.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("storage: parse database URL: %w", err)
 	}
 	if settings.telemetry != nil {
-		config.Tracer = otelpgx.NewTracer(telemetryOptions(*settings.telemetry)...)
+		pgxConfig.Tracer = otelpgx.NewTracer(telemetryOptions(*settings.telemetry)...)
 	}
-	connectTimeout := settings.config.ConnectTimeout
+	// URL settings retain pgx's parsed defaults and URL query parameters.
+	// Explicit field options take precedence for either configuration source.
+	if settings.configURL == "" {
+		pgxConfig.ConnectTimeout = settings.config.ConnectTimeout
+		pgxConfig.StatementCacheCapacity = settings.config.StatementCacheCapacity
+		pgxConfig.DescriptionCacheCapacity = settings.config.DescriptionCacheCapacity
+		if settings.config.ApplicationName != "" {
+			pgxConfig.RuntimeParams["application_name"] = settings.config.ApplicationName
+		}
+	}
 	if settings.connectTimeout != nil {
-		connectTimeout = *settings.connectTimeout
+		pgxConfig.ConnectTimeout = *settings.connectTimeout
 	}
-	config.ConnectTimeout = connectTimeout
-	applicationName := settings.config.ApplicationName
 	if settings.applicationName != nil {
-		applicationName = *settings.applicationName
+		pgxConfig.RuntimeParams["application_name"] = *settings.applicationName
 	}
-	if applicationName != "" {
-		config.RuntimeParams["application_name"] = applicationName
-	}
-	config.StatementCacheCapacity = settings.config.StatementCacheCapacity
 	if settings.statementCacheCapacity != nil {
-		config.StatementCacheCapacity = *settings.statementCacheCapacity
+		pgxConfig.StatementCacheCapacity = *settings.statementCacheCapacity
 	}
-	config.DescriptionCacheCapacity = settings.config.DescriptionCacheCapacity
 	if settings.descriptionCacheCapacity != nil {
-		config.DescriptionCacheCapacity = *settings.descriptionCacheCapacity
+		pgxConfig.DescriptionCacheCapacity = *settings.descriptionCacheCapacity
 	}
-	maps.Copy(config.RuntimeParams, settings.runtimeParameters)
+	if pgxConfig.StatementCacheCapacity == 0 && pgxConfig.DefaultQueryExecMode == pgx.QueryExecModeCacheStatement {
+		pgxConfig.DefaultQueryExecMode = pgx.QueryExecModeExec
+	}
+	if pgxConfig.DescriptionCacheCapacity == 0 && pgxConfig.DefaultQueryExecMode == pgx.QueryExecModeCacheDescribe {
+		pgxConfig.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
+	}
+	maps.Copy(pgxConfig.RuntimeParams, settings.runtimeParameters)
 	if settings.tlsConfig != nil {
-		config.TLSConfig = settings.tlsConfig.Clone()
-		for i := range config.Fallbacks {
-			config.Fallbacks[i].TLSConfig = settings.tlsConfig.Clone()
+		pgxConfig.TLSConfig = settings.tlsConfig.Clone()
+		for i := range pgxConfig.Fallbacks {
+			pgxConfig.Fallbacks[i].TLSConfig = settings.tlsConfig.Clone()
 		}
 	}
 
-	sqldb := stdlib.OpenDB(*config)
+	sqldb := stdlib.OpenDB(*pgxConfig)
 	maxOpenConnections := settings.config.MaxOpenConnections
 	if settings.maxOpenConnections != nil {
 		maxOpenConnections = *settings.maxOpenConnections
@@ -238,7 +266,7 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
 	ctx := context.Background()
 	name := fmt.Sprintf("test_%d", time.Now().UnixNano())
 
-	admin, err := NewPostgres(ctx, WithDatabaseURL(tc.databaseURL(tc.adminDB)))
+	admin, err := NewPostgres(ctx, DefaultConfig(), WithDatabaseURL(tc.databaseURL(tc.adminDB)))
 	if err != nil {
 		t.Fatalf("failed to connect to admin database: %v", err)
 	}
@@ -259,7 +287,7 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
 			ExecContext(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
 	})
 
-	db, err := NewPostgres(ctx, WithDatabaseURL(tc.databaseURL(name)))
+	db, err := NewPostgres(ctx, DefaultConfig(), WithDatabaseURL(tc.databaseURL(name)))
 	if err != nil {
 		t.Fatalf("failed to connect to test database: %v", err)
 	}

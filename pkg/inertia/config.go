@@ -20,20 +20,19 @@ const (
 	SSRManaged  SSRMode = "managed"
 )
 
-// Config controls stable renderer behavior. New starts with DefaultConfig and
-// applies functional options supplied by the application.
+// Config controls stable renderer behavior.
 type Config struct {
 	ContainerID   string
 	ProtocolDebug bool
 	SSRFailFast   bool
 }
 
-// DefaultConfig returns production-safe renderer defaults.
+// DefaultConfig returns the renderer's protocol defaults.
 func DefaultConfig() Config {
 	return Config{ContainerID: "app"}
 }
 
-// Validate verifies renderer configuration.
+// Validate verifies required renderer configuration.
 func (config Config) Validate() error {
 	if strings.TrimSpace(config.ContainerID) == "" {
 		return fmt.Errorf("inertia: container ID cannot be empty")
@@ -41,26 +40,23 @@ func (config Config) Validate() error {
 	return nil
 }
 
-// New constructs a reusable renderer using sane asset, protocol, and SSR
-// defaults. Applications must supply their compiled document with WithRoot.
+// New constructs a reusable renderer. Applications must supply their compiled
+// document with WithRoot and any other settings they need.
 func New(options ...Option) (*Renderer, error) {
 	config := DefaultConfig()
-	managed := DefaultManagedConfig()
 	renderer := &Renderer{
-		containerID: config.ContainerID,
-		shared:      make(Props),
-		requestFlash: []func(*echo.Context) any{
-			func(etx *echo.Context) any { return FlashFromContext(etx.Request().Context()) },
-		},
+		containerID:   config.ContainerID,
 		protocolDebug: config.ProtocolDebug,
 		ssrFailFast:   config.SSRFailFast,
-		projectName:   "Andurel",
-		environment:   "development",
+		managedConfig: DefaultManagedConfig(),
+		ssrMode:       SSRDisabled,
 		buildPathURL:  "/assets/dist/vite/*",
 		entryPoint:    "resources/js/app.ts",
 		viteDevURL:    "http://localhost:5173/assets/dist",
-		ssrMode:       SSRDisabled,
-		managedConfig: managed,
+		shared:        make(Props),
+		requestFlash: []func(*echo.Context) any{
+			func(etx *echo.Context) any { return FlashFromContext(etx.Request().Context()) },
+		},
 	}
 	for _, option := range options {
 		if option == nil {
@@ -104,7 +100,7 @@ func (renderer *Renderer) configureSSR() error {
 		return nil
 	}
 	switch renderer.ssrMode {
-	case SSRDisabled:
+	case "", SSRDisabled:
 		return nil
 	case SSRExternal:
 		httpRenderer, err := NewHTTPRenderer(renderer.managedConfig.HTTP)
@@ -124,19 +120,6 @@ func (renderer *Renderer) configureSSR() error {
 		return nil
 	default:
 		return fmt.Errorf("inertia: unsupported SSR mode %q", renderer.ssrMode)
-	}
-}
-
-// WithConfig applies stable protocol configuration as one option.
-func WithConfig(config Config) Option {
-	return func(renderer *Renderer) error {
-		if err := config.Validate(); err != nil {
-			return err
-		}
-		renderer.containerID = strings.TrimSpace(config.ContainerID)
-		renderer.protocolDebug = config.ProtocolDebug
-		renderer.ssrFailFast = config.SSRFailFast
-		return nil
 	}
 }
 

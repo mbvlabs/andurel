@@ -2880,15 +2880,15 @@ const (
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
 	Hypermedia = "v0.2.1"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.1.1"
+	Inertia = "v0.2.0"
 	// Email is the standalone Andurel email module version verified with this framework.
-	Email = "v0.1.0"
+	Email = "v0.2.0"
 	// Routing is the standalone Andurel routing module version verified with this framework.
 	Routing = "v0.1.1"
 	// Server is the standalone Andurel server module version verified with this framework.
-	Server = "v0.1.0"
+	Server = "v0.2.0"
 	// Storage is the standalone Andurel storage module version verified with this framework.
-	Storage = "v0.4.0"
+	Storage = "v0.5.0"
 	// Validation is the standalone Andurel validation module version verified with this framework.
 	Validation = "v0.1.1"
 )
@@ -2896,13 +2896,6 @@ const (
 ## github.com/mbvlabs/andurel/pkg/email
 package email // import "github.com/mbvlabs/andurel/pkg/email"
 
-
-CONSTANTS
-
-const (
-	DefaultMailpitHost = "0.0.0.0"
-	DefaultMailpitPort = "1025"
-)
 
 VARIABLES
 
@@ -2944,8 +2937,8 @@ type Mailpit struct {
 }
     Mailpit sends email through a development Mailpit SMTP server.
 
-func NewMailpit(options ...MailpitOption) (*Mailpit, error)
-    NewMailpit constructs a Mailpit client using package defaults and options.
+func NewMailpit(config MailpitConfig) (*Mailpit, error)
+    NewMailpit constructs a Mailpit client from the supplied configuration.
 
 func (client *Mailpit) SendMarketing(
 	ctx context.Context,
@@ -2961,19 +2954,11 @@ type MailpitConfig struct {
 	Host string
 	Port string
 }
-    MailpitConfig configures the development Mailpit SMTP client.
-
-func DefaultMailpitConfig() MailpitConfig
-    DefaultMailpitConfig returns development-safe Mailpit defaults.
+    MailpitConfig configures a Mailpit SMTP client. Applications supply host and
+    port.
 
 func (config MailpitConfig) Validate() error
     Validate verifies Mailpit configuration.
-
-type MailpitOption func(*mailpitOptions) error
-    MailpitOption configures a Mailpit client.
-
-func WithMailpitConfig(config MailpitConfig) MailpitOption
-    WithMailpitConfig applies Mailpit connection settings.
 
 type MarketingData struct {
 	To               []string
@@ -3561,14 +3546,6 @@ const (
 	MergeIntentAppend  = "append"
 	MergeIntentPrepend = "prepend"
 )
-const (
-	// DefaultSSRURL is the loopback address used by the official Inertia SSR server.
-	DefaultSSRURL = "http://127.0.0.1:13714"
-	// DefaultSSRTimeout bounds render, health, and shutdown HTTP operations.
-	DefaultSSRTimeout = 2 * time.Second
-	// DefaultSSRMaxResponseBytes bounds trusted SSR markup returned by a renderer.
-	DefaultSSRMaxResponseBytes int64 = 2 << 20
-)
 
 VARIABLES
 
@@ -3609,14 +3586,13 @@ type Config struct {
 	ProtocolDebug bool
 	SSRFailFast   bool
 }
-    Config controls stable renderer behavior. New starts with DefaultConfig and
-    applies functional options supplied by the application.
+    Config controls stable renderer behavior.
 
 func DefaultConfig() Config
-    DefaultConfig returns production-safe renderer defaults.
+    DefaultConfig returns the renderer's protocol defaults.
 
 func (config Config) Validate() error
-    Validate verifies renderer configuration.
+    Validate verifies required renderer configuration.
 
 type DeferredOption func(*Prop)
     DeferredOption configures a deferred prop.
@@ -3702,7 +3678,8 @@ type ManagedConfig struct {
     ManagedConfig controls a Go-owned JavaScript SSR process.
 
 func DefaultManagedConfig() ManagedConfig
-    DefaultManagedConfig returns production-safe managed-runtime defaults.
+    DefaultManagedConfig returns defaults for an optional managed SSR process.
+    Applications provide the compiled bundle path before enabling the runtime.
 
 func (config ManagedConfig) Validate() error
     Validate verifies managed runtime configuration.
@@ -3764,9 +3741,6 @@ func WithAssetFS(assetFS fs.FS) Option
     production Vite manifest.
 
 func WithBuildPathURL(path string) Option
-
-func WithConfig(config Config) Option
-    WithConfig applies stable protocol configuration as one option.
 
 func WithContainerID(id string) Option
     WithContainerID configures the client application mount element ID.
@@ -3945,8 +3919,8 @@ type Renderer struct {
     Renderer implements the Inertia v3 server protocol for Echo and templ.
 
 func New(options ...Option) (*Renderer, error)
-    New constructs a reusable renderer using sane asset, protocol, and SSR
-    defaults. Applications must supply their compiled document with WithRoot.
+    New constructs a reusable renderer. Applications must supply their compiled
+    document with WithRoot and any other settings they need.
 
 func (renderer *Renderer) FreshRedirect(etx *echo.Context, location string) error
     FreshRedirect makes an Inertia visit perform a fresh Inertia GET.
@@ -4033,7 +4007,7 @@ type SSRConfig struct {
     SSRConfig controls communication with an Inertia SSR HTTP service.
 
 func DefaultSSRConfig() SSRConfig
-    DefaultSSRConfig returns loopback, timeout, and response-size defaults.
+    DefaultSSRConfig returns bounded HTTP settings for a local SSR service.
 
 func (config SSRConfig) Validate() error
     Validate verifies HTTP renderer configuration.
@@ -4369,11 +4343,19 @@ func (s *Server) Start(
 
 type ServerOption func(*ServerOptions)
 
+func WithTimeouts(idle, read, write time.Duration) ServerOption
+
 type ServerOptions struct {
 	IdleTimeout  time.Duration
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 }
+
+func DefaultConfig() ServerOptions
+    DefaultConfig returns bounded HTTP timeouts suitable for ordinary requests.
+
+func (config ServerOptions) Validate() error
+    Validate checks HTTP timeout values. Zero explicitly disables a timeout.
 
 type Shutdowner interface {
 	Shutdown(ctx context.Context) error
@@ -4391,23 +4373,6 @@ implementations.
 
 CONSTANTS
 
-const (
-	DefaultDatabaseKind             = "postgres"
-	DefaultDatabaseHost             = "127.0.0.1"
-	DefaultDatabasePort             = "5432"
-	DefaultDatabaseName             = "andurel"
-	DefaultDatabaseUser             = "postgres"
-	DefaultDatabasePassword         = "postgres"
-	DefaultDatabaseSSLMode          = "disable"
-	DefaultApplicationName          = "andurel"
-	DefaultConnectTimeout           = 5 * time.Second
-	DefaultStatementCacheCapacity   = 512
-	DefaultDescriptionCacheCapacity = 512
-	DefaultMaxOpenConnections       = 25
-	DefaultMaxIdleConnections       = 25
-	DefaultConnectionMaxLifetime    = time.Hour
-	DefaultConnectionMaxIdleTime    = 30 * time.Minute
-)
 const (
 	// SQLCConfigFile is the project-root sqlc configuration filename.
 	SQLCConfigFile = "sqlc.yaml"
@@ -4461,11 +4426,12 @@ type Config struct {
 	ConnectionMaxIdleTime    time.Duration
 	OpenTelemetry            bool
 }
-    Config contains PostgreSQL connection settings. NewPostgres starts with
-    DefaultConfig and applies any options supplied by the application.
+    Config contains PostgreSQL connection settings. Applications supply database
+    identity and credentials and may override DefaultConfig's operational
+    defaults.
 
 func DefaultConfig() Config
-    DefaultConfig returns development-friendly PostgreSQL defaults.
+    DefaultConfig returns operational defaults without application credentials.
 
 func (config Config) DatabaseURL() (string, error)
     DatabaseURL returns the PostgreSQL connection URL represented by config.
@@ -4510,9 +4476,6 @@ type Option func(*postgresOptions) error
 func WithApplicationName(name string) Option
     WithApplicationName sets the PostgreSQL application_name runtime parameter.
 
-func WithConfig(config Config) Option
-    WithConfig replaces the default connection settings.
-
 func WithConnectTimeout(timeout time.Duration) Option
     WithConnectTimeout sets the PostgreSQL connection timeout.
 
@@ -4555,9 +4518,9 @@ type Postgres struct {
 }
     Postgres wraps a bun.DB.
 
-func NewPostgres(ctx context.Context, options ...Option) (*Postgres, error)
-    NewPostgres creates a new database connection using sane defaults and any
-    supplied functional options.
+func NewPostgres(ctx context.Context, config Config, options ...Option) (*Postgres, error)
+    NewPostgres creates a new database connection from the supplied
+    configuration.
 
 func (p *Postgres) BeginTransaction(
 	ctx context.Context,
@@ -4574,12 +4537,51 @@ func (p *Postgres) DB() *sql.DB
 func (p *Postgres) Executor() bun.IDB
     Executor returns the Bun query executor.
 
+type QueueConfig struct {
+	AdvisoryLockPrefix          int32
+	CancelledJobRetentionPeriod time.Duration
+	CompletedJobRetentionPeriod time.Duration
+	DiscardedJobRetentionPeriod time.Duration
+	FetchCooldown               time.Duration
+	PollInterval                time.Duration
+	ID                          string
+	JobCleanerTimeout           time.Duration
+	JobStuckThreshold           time.Duration
+	JobTimeout                  time.Duration
+	MaxAttempts                 int
+	MaxWorkers                  int
+	Queues                      map[string]river.QueueConfig
+	PollOnly                    bool
+	ReindexerIndexNames         []string
+	ReindexerTimeout            time.Duration
+	RescueStuckJobsAfter        time.Duration
+	Schema                      string
+	SoftStopTimeout             time.Duration
+	SkipJobKindValidation       bool
+	SkipUnknownJobCheck         bool
+}
+    QueueConfig contains River client settings and application queue
+    definitions.
+
+func DefaultQueueConfig() QueueConfig
+    DefaultQueueConfig returns operational defaults and no processor queues.
+    Applications choose their queue names and concurrency in Queues.
+
+func (config QueueConfig) Clone() QueueConfig
+    Clone returns a configuration with independently mutable collections.
+
+func (config QueueConfig) RiverConfig() river.Config
+    RiverConfig returns the River client configuration represented by config.
+
+func (config QueueConfig) Validate() error
+    Validate verifies queue configuration.
+
 type QueueInsert struct {
 	// Has unexported fields.
 }
     QueueInsert is an independently constructible River job inserter.
 
-func NewQueueInsert(connection Connection, options ...QueueOption) (*QueueInsert, error)
+func NewQueueInsert(connection Connection, config QueueConfig, options ...QueueOption) (*QueueInsert, error)
     NewQueueInsert creates an insert-only queue client using connection's
     sql.DB.
 
@@ -4690,7 +4692,7 @@ type QueueProcessor struct {
 }
     QueueProcessor owns the lifecycle of a River worker client.
 
-func NewQueueProcessor(connection Connection, options ...QueueOption) (*QueueProcessor, error)
+func NewQueueProcessor(connection Connection, config QueueConfig, options ...QueueOption) (*QueueProcessor, error)
     NewQueueProcessor creates a worker client using connection's sql.DB.
 
 func (q *QueueProcessor) Start(ctx context.Context) error

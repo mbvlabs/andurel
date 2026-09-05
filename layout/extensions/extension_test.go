@@ -163,9 +163,8 @@ func TestAwsSesApply(t *testing.T) {
 			bp.Config.EnvVars,
 		)
 	}
-	if len(bp.Main.ServiceProvides) != 1 ||
-		!strings.Contains(bp.Main.ServiceProvides[0], "NewAwsSes") {
-		t.Fatalf("expected AWS SES service provider, got %+v", bp.Main.ServiceProvides)
+	if len(bp.Main.ServiceProvides) != 0 {
+		t.Fatalf("email selection belongs in application config, got %+v", bp.Main.ServiceProvides)
 	}
 	for _, want := range []string{
 		"templates/aws-ses/clients_email_aws_ses.tmpl=>clients/email/aws_ses.go",

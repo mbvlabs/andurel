@@ -26,7 +26,6 @@ import (
 	"github.com/mbvlabs/andurel/layout/extensions"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/layout/versions"
-	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -698,6 +697,7 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 	// Templates to re-render after extensions have been applied
 	blueprintTemplates := []TmplTarget{
 		"config_config.tmpl",
+		"config_email.tmpl",
 		"env.tmpl",
 		"router_cookies_cookies.tmpl",
 	}
@@ -1170,9 +1170,6 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 
 	builder.AddConfigField("Email", "EmailCfg")
 	builder.AddConfigField("Auth", "AuthCfg")
-
-	builder.AddEnvVar("MAILPIT_HOST", "MailpitHost", email.DefaultMailpitHost)
-	builder.AddEnvVar("MAILPIT_PORT", "MailpitPort", email.DefaultMailpitPort)
 
 	builder.AddWorkerDependency("transactionalSender", "email.TransactionalSender")
 	builder.AddWorkerDependency("marketingSender", "email.MarketingSender")

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"slices"
 	"time"
 )
 
@@ -32,6 +33,27 @@ type ServerOptions struct {
 
 type ServerOption func(*ServerOptions)
 
+// DefaultConfig returns bounded HTTP timeouts suitable for ordinary requests.
+func DefaultConfig() ServerOptions {
+	return ServerOptions{IdleTimeout: 120 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 30 * time.Second}
+}
+
+// Validate checks HTTP timeout values. Zero explicitly disables a timeout.
+func (config ServerOptions) Validate() error {
+	if config.IdleTimeout < 0 || config.ReadTimeout < 0 || config.WriteTimeout < 0 {
+		return fmt.Errorf("server: HTTP timeouts cannot be negative")
+	}
+	return nil
+}
+
+func WithTimeouts(idle, read, write time.Duration) ServerOption {
+	return func(options *ServerOptions) {
+		options.IdleTimeout = idle
+		options.ReadTimeout = read
+		options.WriteTimeout = write
+	}
+}
+
 func New(
 	ctx context.Context,
 	host string,
@@ -41,14 +63,11 @@ func New(
 	shutdowners []Shutdowner,
 	options ...ServerOption,
 ) Server {
-	serverOptions := &ServerOptions{
-		IdleTimeout:  120 * time.Second,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 30 * time.Second,
-	}
-	// Apply server options if any
+	serverOptions := DefaultConfig()
 	for _, option := range options {
-		option(serverOptions)
+		if option != nil {
+			option(&serverOptions)
+		}
 	}
 
 	srv := &http.Server{
@@ -62,7 +81,7 @@ func New(
 
 	server := Server{
 		srv:         srv,
-		Shutdowners: shutdowners,
+		Shutdowners: slices.Clone(shutdowners),
 	}
 
 	server.Shutdowners = append(server.Shutdowners, srv)

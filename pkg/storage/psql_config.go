@@ -6,6 +6,7 @@ import (
 	"maps"
 	"net"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -15,26 +16,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const (
-	DefaultDatabaseKind             = "postgres"
-	DefaultDatabaseHost             = "127.0.0.1"
-	DefaultDatabasePort             = "5432"
-	DefaultDatabaseName             = "andurel"
-	DefaultDatabaseUser             = "postgres"
-	DefaultDatabasePassword         = "postgres"
-	DefaultDatabaseSSLMode          = "disable"
-	DefaultApplicationName          = "andurel"
-	DefaultConnectTimeout           = 5 * time.Second
-	DefaultStatementCacheCapacity   = 512
-	DefaultDescriptionCacheCapacity = 512
-	DefaultMaxOpenConnections       = 25
-	DefaultMaxIdleConnections       = 25
-	DefaultConnectionMaxLifetime    = time.Hour
-	DefaultConnectionMaxIdleTime    = 30 * time.Minute
-)
-
-// Config contains PostgreSQL connection settings. NewPostgres starts with
-// DefaultConfig and applies any options supplied by the application.
+// Config contains PostgreSQL connection settings. Applications supply database
+// identity and credentials and may override DefaultConfig's operational defaults.
 type Config struct {
 	DatabaseKind             string
 	Host                     string
@@ -54,25 +37,14 @@ type Config struct {
 	OpenTelemetry            bool
 }
 
-// DefaultConfig returns development-friendly PostgreSQL defaults.
+// DefaultConfig returns operational defaults without application credentials.
 func DefaultConfig() Config {
 	return Config{
-		DatabaseKind:             DefaultDatabaseKind,
-		Host:                     DefaultDatabaseHost,
-		Port:                     DefaultDatabasePort,
-		Name:                     DefaultDatabaseName,
-		User:                     DefaultDatabaseUser,
-		Password:                 DefaultDatabasePassword,
-		SSLMode:                  DefaultDatabaseSSLMode,
-		ApplicationName:          DefaultApplicationName,
-		ConnectTimeout:           DefaultConnectTimeout,
-		StatementCacheCapacity:   DefaultStatementCacheCapacity,
-		DescriptionCacheCapacity: DefaultDescriptionCacheCapacity,
-		MaxOpenConnections:       DefaultMaxOpenConnections,
-		MaxIdleConnections:       DefaultMaxIdleConnections,
-		ConnectionMaxLifetime:    DefaultConnectionMaxLifetime,
-		ConnectionMaxIdleTime:    DefaultConnectionMaxIdleTime,
-		OpenTelemetry:            true,
+		DatabaseKind: "postgres", Host: "127.0.0.1", Port: "5432", SSLMode: "prefer",
+		ConnectTimeout:         5 * time.Second,
+		StatementCacheCapacity: 512, DescriptionCacheCapacity: 512,
+		MaxOpenConnections: 25, MaxIdleConnections: 25,
+		ConnectionMaxLifetime: time.Hour, ConnectionMaxIdleTime: 30 * time.Minute,
 	}
 }
 
@@ -99,6 +71,16 @@ func (config Config) Validate() error {
 		if value < 0 {
 			return fmt.Errorf("storage: %s cannot be negative", name)
 		}
+	}
+	switch config.DatabaseKind {
+	case "postgres", "postgresql":
+	default:
+		return fmt.Errorf("storage: unsupported database kind %q", config.DatabaseKind)
+	}
+	switch config.SSLMode {
+	case "disable", "allow", "prefer", "require", "verify-ca", "verify-full":
+	default:
+		return fmt.Errorf("storage: unsupported SSL mode %q", config.SSLMode)
 	}
 	for name, value := range map[string]time.Duration{
 		"connect timeout":              config.ConnectTimeout,
@@ -158,18 +140,6 @@ type postgresOptions struct {
 	connectionMaxIdleTime    *time.Duration
 }
 
-// WithConfig replaces the default connection settings.
-func WithConfig(config Config) Option {
-	return func(options *postgresOptions) error {
-		if err := config.Validate(); err != nil {
-			return err
-		}
-		options.config = config
-		options.configURL = ""
-		return nil
-	}
-}
-
 // WithDatabaseURL configures the connection from a PostgreSQL URL.
 func WithDatabaseURL(databaseURL string) Option {
 	return func(options *postgresOptions) error {
@@ -183,8 +153,11 @@ func WithDatabaseURL(databaseURL string) Option {
 
 // WithOpenTelemetry configures PostgreSQL tracing and metrics.
 func WithOpenTelemetry(config TelemetryConfig) Option {
+	config.Attributes = slices.Clone(config.Attributes)
 	return func(options *postgresOptions) error {
-		options.telemetry = &config
+		copy := config
+		copy.Attributes = slices.Clone(config.Attributes)
+		options.telemetry = &copy
 		options.telemetrySet = true
 		return nil
 	}
@@ -248,6 +221,7 @@ func cacheCapacityOption(name string, capacity int, apply func(*postgresOptions)
 
 // WithRuntimeParameters merges PostgreSQL runtime parameters.
 func WithRuntimeParameters(parameters map[string]string) Option {
+	parameters = maps.Clone(parameters)
 	return func(options *postgresOptions) error {
 		maps.Copy(options.runtimeParameters, parameters)
 		return nil

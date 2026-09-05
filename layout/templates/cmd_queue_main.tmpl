@@ -3,9 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-{{- if not .Blueprint.Main.ServiceProvides}}
-	"log"
-{{- end}}
 	"log/slog"
 	"os"
 	"os/signal"
@@ -13,29 +10,30 @@ import (
 	"time"
 
 	"{{.ModuleName}}/config"
-{{- if hasExtension .Extensions "aws-ses"}}
-	mailclients "{{.ModuleName}}/clients/email"
-{{- end}}
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/telemetry"
 
-	"github.com/mbvlabs/andurel/pkg/email"
-	"github.com/mbvlabs/andurel/pkg/server"
+	"github.com/joho/godotenv"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/riverqueue/river"
 	"go.uber.org/fx"
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	app := fx.New(
 		fx.Provide(
 			func() context.Context { return ctx },
-{{- range .Blueprint.Main.ServiceProvides}}
+			{{- range .Blueprint.Main.ServiceProvides}}
 			{{.}},
-{{- end}}
+			{{- end}}
 			func(cfg config.TelemetryCfg) telemetry.ConfigProvider { return cfg },
 		),
 
@@ -44,9 +42,6 @@ func main() {
 		telemetry.Module,
 		queue.Module,
 		queueProcessorModule,
-{{- if not .Blueprint.Main.ServiceProvides}}
-		emailModule,
-{{- end}}
 	)
 
 	if err := app.Start(ctx); err != nil {
@@ -73,42 +68,18 @@ var databaseModule = fx.Module(
 var queueProcessorModule = fx.Module(
 	"queue-processor",
 	fx.Provide(
-		slog.Default,
+		func(_ *telemetry.Telemetry) *slog.Logger { return slog.Default() },
 		newQueueProcessor,
 	),
 	fx.Invoke(queueProcessorLifecycle),
 )
 
-{{- if not .Blueprint.Main.ServiceProvides}}
-var emailModule = fx.Module(
-	"email",
-	fx.Provide(newEmailSenders),
-)
-{{- end}}
-
 func newDatabase(
 	lifecycle fx.Lifecycle,
 	ctx context.Context,
-	cfg config.Database,
+	cfg storage.Config,
 ) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
-		DatabaseKind:             cfg.GetDatabaseKind(),
-		Host:                     cfg.GetHost(),
-		Port:                     cfg.GetPort(),
-		Name:                     cfg.GetName(),
-		User:                     cfg.GetUser(),
-		Password:                 cfg.GetPassword(),
-		SSLMode:                  cfg.GetSSLMode(),
-		ApplicationName:          cfg.GetApplicationName(),
-		ConnectTimeout:           cfg.GetConnectTimeout(),
-		StatementCacheCapacity:   cfg.GetStatementCacheCapacity(),
-		DescriptionCacheCapacity: cfg.GetDescriptionCacheCapacity(),
-		MaxOpenConnections:       cfg.GetMaxOpenConnections(),
-		MaxIdleConnections:       cfg.GetMaxIdleConnections(),
-		ConnectionMaxLifetime:    cfg.GetConnectionMaxLifetime(),
-		ConnectionMaxIdleTime:    cfg.GetConnectionMaxIdleTime(),
-		OpenTelemetry:            cfg.GetOpenTelemetry(),
-	}))
+	db, err := storage.NewPostgres(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -121,21 +92,16 @@ type queueProcessorParams struct {
 	fx.In
 
 	Connection   storage.Connection
-	Config       config.QueueCfg
+	Config       storage.QueueConfig
 	Logger       *slog.Logger
 	Workers      *river.Workers
 	PeriodicJobs []*river.PeriodicJob `group:"periodic_jobs"`
 }
 
 func newQueueProcessor(params queueProcessorParams) (*storage.QueueProcessor, error) {
-	riverConfig := params.Config.RiverConfig()
-	riverConfig.Queues = map[string]river.QueueConfig{
-		river.QueueDefault: {MaxWorkers: params.Config.GetMaxWorkers()},
-	}
-
 	return storage.NewQueueProcessor(
 		params.Connection,
-		storage.WithRiverConfig(riverConfig),
+		params.Config,
 		storage.WithRiverWorkers(params.Workers),
 		storage.WithRiverPeriodicJobs(params.PeriodicJobs...),
 		storage.WithRiverLogger(params.Logger),
@@ -156,22 +122,3 @@ func queueProcessorLifecycle(
 		},
 	})
 }
-
-{{- if not .Blueprint.Main.ServiceProvides}}
-
-func newEmailSenders(
-	cfg config.EmailCfg,
-	appCfg config.AppCfg,
-) (email.TransactionalSender, email.MarketingSender) {
-	if appCfg.GetEnvironment() == server.ProdEnvironment {
-		log.Fatal("provide real email sender")
-	}
-
-	client, err := email.NewMailpit(email.WithMailpitConfig(cfg.MailpitConfig()))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return client, client
-}
-{{- end}}

@@ -33,17 +33,20 @@ type AwsSes struct {
 	configurationSet string
 }
 
-func NewAwsSes(cfg SesConfigProvider) *AwsSes {
-	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(),
+func NewAwsSes(ctx context.Context, cfg SesConfigProvider) (*AwsSes, error) {
+	options := []func(*awsconfig.LoadOptions) error{
 		awsconfig.WithRegion(cfg.GetRegion()),
-		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+	}
+	if cfg.GetAccessKeyID() != "" || cfg.GetSecretAccessKey() != "" {
+		options = append(options, awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			cfg.GetAccessKeyID(),
 			cfg.GetSecretAccessKey(),
 			"",
-		)),
-	)
+		)))
+	}
+	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, options...)
 	if err != nil {
-		panic(fmt.Sprintf("failed to load AWS SES config: %v", err))
+		return nil, fmt.Errorf("failed to load AWS SES config: %w", err)
 	}
 
 	client := sesv2.NewFromConfig(awsCfg)
@@ -51,7 +54,7 @@ func NewAwsSes(cfg SesConfigProvider) *AwsSes {
 	return &AwsSes{
 		client:           client,
 		configurationSet: cfg.GetConfigurationSet(),
-	}
+	}, nil
 }
 
 func (a *AwsSes) SendTransactional(ctx context.Context, payload email.TransactionalPayload) error {
@@ -95,8 +98,8 @@ func (a *AwsSes) SendTransactional(ctx context.Context, payload email.Transactio
 
 	// Build send request
 	input := &sesv2.SendEmailInput{
-		Destination: destination,
-		Content:     content,
+		Destination:      destination,
+		Content:          content,
 		FromEmailAddress: aws.String(payload.From),
 	}
 
