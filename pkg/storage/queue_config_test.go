@@ -61,13 +61,45 @@ func TestQueueConfigRiverConfig(t *testing.T) {
 	}
 }
 
-func TestWithQueueConfig(t *testing.T) {
-	config := validQueueConfig()
-	config.MaxAttempts = 3
-	config.ID = "insert"
-	var riverConfig river.Config
-	WithQueueConfig(config)(&riverConfig)
-	if riverConfig.MaxAttempts != 3 || riverConfig.ID != "insert" {
-		t.Fatalf("WithQueueConfig did not apply settings: %#v", riverConfig)
+func TestQueueConfigCollectionsAreIsolated(t *testing.T) {
+	config := DefaultQueueConfig()
+	config.Queues = map[string]river.QueueConfig{"email": {MaxWorkers: 5}}
+	cloned := config.Clone()
+	config.Queues["email"] = river.QueueConfig{MaxWorkers: 10}
+	config.ReindexerIndexNames[0] = "changed"
+	if cloned.Queues["email"].MaxWorkers != 5 {
+		t.Fatalf("Clone retained mutable queue definitions: %#v", cloned.Queues)
+	}
+	if cloned.ReindexerIndexNames[0] != "river_job_args_index" {
+		t.Fatalf("Clone retained mutable indexes: %#v", cloned.ReindexerIndexNames)
+	}
+
+	first := cloned.RiverConfig()
+	first.Queues["email"] = river.QueueConfig{MaxWorkers: 20}
+	first.ReindexerIndexNames[0] = "changed again"
+	second := cloned.RiverConfig()
+	if second.Queues["email"].MaxWorkers != 5 {
+		t.Fatalf("RiverConfig retained mutable queue definitions: %#v", second.Queues)
+	}
+	if second.ReindexerIndexNames[0] != "river_job_args_index" {
+		t.Fatalf("RiverConfig retained mutable indexes: %#v", second.ReindexerIndexNames)
+	}
+	if DefaultQueueConfig().ReindexerIndexNames[0] != "river_job_args_index" {
+		t.Fatal("mutating configuration changed defaults")
+	}
+}
+
+func TestQueueConfigRejectsInvalidQueueDefinitions(t *testing.T) {
+	for name, queues := range map[string]map[string]river.QueueConfig{
+		"invalid name": {"EMAIL": {MaxWorkers: 5}},
+		"no workers":   {"email": {MaxWorkers: 0}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			config := DefaultQueueConfig()
+			config.Queues = queues
+			if err := config.Validate(); err == nil {
+				t.Fatalf("Validate accepted invalid queue definitions: %#v", queues)
+			}
+		})
 	}
 }

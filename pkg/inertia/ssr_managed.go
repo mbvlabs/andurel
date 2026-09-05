@@ -30,6 +30,15 @@ type ManagedConfig struct {
 	Stderr         io.Writer
 }
 
+// DefaultManagedConfig returns defaults for an optional managed SSR process.
+// Applications provide the compiled bundle path before enabling the runtime.
+func DefaultManagedConfig() ManagedConfig {
+	return ManagedConfig{
+		Executable: "node", StartupTimeout: 10 * time.Second, MinimumMajor: defaultSSRMinimumMajor,
+		HTTP: DefaultSSRConfig(), Logger: slog.Default(), Stdout: os.Stdout, Stderr: os.Stderr,
+	}
+}
+
 // Validate verifies managed runtime configuration.
 func (config ManagedConfig) Validate() error {
 	if !config.Enabled {
@@ -77,7 +86,7 @@ func NewManagedRuntime(
 	config ManagedConfig,
 	options ...HTTPRendererOption,
 ) (*ManagedRuntime, error) {
-	if config.MinimumMajor <= 0 {
+	if config.MinimumMajor == 0 {
 		config.MinimumMajor = defaultSSRMinimumMajor
 	}
 	if err := config.Validate(); err != nil {

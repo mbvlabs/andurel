@@ -18,18 +18,18 @@ update-contracts:
 check-contracts:
 	./scripts/check-contracts.sh
 
-# Build the andurel binary
-build:
-	go build -o dev-andurel main.go
-
 # Build a local snapshot using GoReleaser (requires goreleaser installed)
 release-snapshot:
 	goreleaser release --snapshot --clean
 
+# Build the andurel binary
+build:
+	go build -o dev-andurel main.go
+
 move:
 	mv dev-andurel ~/.local/bin
 
-full:
+bmo:
 	just build
 	just move
 

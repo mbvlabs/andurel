@@ -21,15 +21,15 @@ const (
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
 	Hypermedia = "v0.2.1"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.2.0"
+	Inertia = "v0.3.0"
 	// Email is the standalone Andurel email module version verified with this framework.
-	Email = "v0.2.0"
+	Email = "v0.3.0"
 	// Routing is the standalone Andurel routing module version verified with this framework.
 	Routing = "v0.1.1"
 	// Server is the standalone Andurel server module version verified with this framework.
-	Server = "v0.2.0"
+	Server = "v0.3.0"
 	// Storage is the standalone Andurel storage module version verified with this framework.
-	Storage = "v0.5.0"
+	Storage = "v0.6.0"
 	// Validation is the standalone Andurel validation module version verified with this framework.
 	Validation = "v0.1.1"
 )

@@ -20,12 +20,16 @@ const (
 	SSRManaged  SSRMode = "managed"
 )
 
-// Config controls stable renderer behavior. Applications supply values; this
-// type does not define defaults.
+// Config controls stable renderer behavior.
 type Config struct {
 	ContainerID   string
 	ProtocolDebug bool
 	SSRFailFast   bool
+}
+
+// DefaultConfig returns the renderer's protocol defaults.
+func DefaultConfig() Config {
+	return Config{ContainerID: "app"}
 }
 
 // Validate verifies required renderer configuration.
@@ -39,8 +43,17 @@ func (config Config) Validate() error {
 // New constructs a reusable renderer. Applications must supply their compiled
 // document with WithRoot and any other settings they need.
 func New(options ...Option) (*Renderer, error) {
+	config := DefaultConfig()
 	renderer := &Renderer{
-		shared: make(Props),
+		containerID:   config.ContainerID,
+		protocolDebug: config.ProtocolDebug,
+		ssrFailFast:   config.SSRFailFast,
+		managedConfig: DefaultManagedConfig(),
+		ssrMode:       SSRDisabled,
+		buildPathURL:  "/assets/dist/vite/*",
+		entryPoint:    "resources/js/app.ts",
+		viteDevURL:    "http://localhost:5173/assets/dist",
+		shared:        make(Props),
 		requestFlash: []func(*echo.Context) any{
 			func(etx *echo.Context) any { return FlashFromContext(etx.Request().Context()) },
 		},
@@ -107,19 +120,6 @@ func (renderer *Renderer) configureSSR() error {
 		return nil
 	default:
 		return fmt.Errorf("inertia: unsupported SSR mode %q", renderer.ssrMode)
-	}
-}
-
-// WithConfig applies stable protocol configuration as one option.
-func WithConfig(config Config) Option {
-	return func(renderer *Renderer) error {
-		if err := config.Validate(); err != nil {
-			return err
-		}
-		renderer.containerID = strings.TrimSpace(config.ContainerID)
-		renderer.protocolDebug = config.ProtocolDebug
-		renderer.ssrFailFast = config.SSRFailFast
-		return nil
 	}
 }
 

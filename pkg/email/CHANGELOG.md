@@ -2,6 +2,16 @@
 
 All notable changes to the standalone Andurel email module are documented here.
 
+## 0.3.0 - 2026-09-05
+
+### Changed
+
+- `NewMailpit` accepts `MailpitConfig` directly instead of option functions.
+
+### Removed
+
+- `MailpitOption` and `WithMailpitConfig`.
+
 ## 0.2.0 - 2026-09-02
 
 ### Removed

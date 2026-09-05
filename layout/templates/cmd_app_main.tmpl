@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-{{- if not .Blueprint.Main.ServiceProvides}}
-	"log"
-{{- end}}
 	"log/slog"
 	"os"
 	"os/signal"
@@ -14,19 +11,16 @@ import (
 	"time"
 
 	"{{.ModuleName}}/config"
-{{- if hasExtension .Extensions "aws-ses"}}
-	mailclients "{{.ModuleName}}/clients/email"
-{{- end}}
 	"{{.ModuleName}}/controllers"
 	"{{.ModuleName}}/models"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/telemetry"
 
-{{- if .Inertia}}
+	{{- if .Inertia}}
 	"github.com/mbvlabs/andurel/pkg/inertia"
-{{- end}}
-	"github.com/mbvlabs/andurel/pkg/email"
+	{{- end}}
+	"github.com/joho/godotenv"
 	"github.com/mbvlabs/andurel/pkg/server"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"go.uber.org/fx"
@@ -35,14 +29,19 @@ import (
 var appVersion string
 
 func main() {
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	app := fx.New(
 		fx.Provide(
 			func() context.Context { return ctx },
-{{- range .Blueprint.Main.ServiceProvides}}
+			{{- range .Blueprint.Main.ServiceProvides}}
 			{{.}},
-{{- end}}
+			{{- end}}
 			func(cfg config.AppCfg) router.AppProvider { return cfg },
 			func(cfg config.AppCfg) controllers.ConfigProvider { return cfg },
 			func(cfg config.AppCfg) controllers.AssetsAppProvider { return cfg },
@@ -54,13 +53,10 @@ func main() {
 		config.Module,
 		databaseModule,
 		queueInsertModule,
-{{- if not .Blueprint.Main.ServiceProvides}}
-		emailModule,
-{{- end}}
 		models.Module,
-{{- if .Inertia}}
+		{{- if .Inertia}}
 		inertiaModule,
-{{- end}}
+		{{- end}}
 		telemetry.Module,
 		services.Module,
 		controllers.Module,
@@ -95,18 +91,12 @@ var queueInsertModule = fx.Module(
 	fx.Provide(fx.Annotate(newQueueInsert, fx.As(new(storage.InsertQueue)))),
 )
 
-{{- if not .Blueprint.Main.ServiceProvides}}
-var emailModule = fx.Module(
-	"email",
-	fx.Provide(newEmailSenders),
-)
-{{- end}}
-
 {{- if .Inertia}}
 var inertiaModule = fx.Module(
 	"inertia",
 	fx.Provide(newInertia),
 )
+
 {{- end}}
 
 func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, appCfg config.AppCfg) {
@@ -162,9 +152,9 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, appC
 func newDatabase(
 	lifecycle fx.Lifecycle,
 	ctx context.Context,
-	cfg config.Database,
+	cfg storage.Config,
 ) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, storage.WithConfig(cfg.StorageConfig()))
+	db, err := storage.NewPostgres(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -175,42 +165,23 @@ func newDatabase(
 
 func newQueueInsert(
 	connection storage.Connection,
-	cfg config.QueueCfg,
+	cfg storage.QueueConfig,
 ) (*storage.QueueInsert, error) {
-	return storage.NewQueueInsert(connection, storage.WithQueueConfig(cfg.QueueConfig()))
+	cfg.Queues = nil
+	return storage.NewQueueInsert(connection, cfg)
 }
-
-{{- if not .Blueprint.Main.ServiceProvides}}
-
-func newEmailSenders(
-	cfg config.EmailCfg,
-	appCfg config.AppCfg,
-) (email.TransactionalSender, email.MarketingSender) {
-	if appCfg.GetEnvironment() == server.ProdEnvironment {
-		log.Fatal("provide real email sender")
-	}
-
-	client, err := email.NewMailpit(email.WithMailpitConfig(cfg.MailpitConfig()))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return client, client
-}
-{{- end}}
 
 {{if .Inertia}}
 
 func newInertia(
 	lifecycle fx.Lifecycle,
 	cfg config.InertiaCfg,
-	appCfg config.AppCfg,
 ) (*inertia.Renderer, error) {
 	renderer, err := inertia.New(
 		inertia.WithRoot(cfg.GetRoot()),
 		inertia.WithAssetFS(cfg.GetAssetFS()),
-		inertia.WithProjectName(appCfg.GetProjectName()),
-		inertia.WithEnvironment(appCfg.GetEnvironment()),
+		inertia.WithProjectName(config.ProjectName()),
+		inertia.WithEnvironment(config.Environment()),
 		inertia.WithBuildPathURL(cfg.GetBuildPathURL()),
 		inertia.WithEntryPoint(cfg.GetEntryPoint()),
 		inertia.WithContainerID(cfg.GetContainerID()),
@@ -236,6 +207,7 @@ func newInertia(
 	})
 	return renderer, nil
 }
+
 {{- end}}
 
 func startInBackground(

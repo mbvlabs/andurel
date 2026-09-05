@@ -16,25 +16,29 @@ type AwsSesCfg struct {
 	ConfigurationSet string `env:"AWS_SES_CONFIGURATION_SET"`
 }
 
-func NewAwsSesCfg() AwsSesCfg {
+func NewAwsSesCfg() (AwsSesCfg, error) {
 	cfg := AwsSesCfg{
 		Region: DefaultAWSSESRegion,
 	}
 
 	if err := env.Parse(&cfg); err != nil {
-		panic(err)
+		return AwsSesCfg{}, err
 	}
 
 	if err := validation.Validate(&cfg); err != nil {
-		panic(err)
+		return AwsSesCfg{}, err
 	}
 
-	return cfg
+	return cfg, nil
 }
 
 func (c AwsSesCfg) Validate() error {
 	b := validation.NewBuilder()
 	b.Required("Region", c.Region)
+	if c.AccessKeyID != "" || c.SecretAccessKey != "" {
+		b.Required("AccessKeyID", c.AccessKeyID)
+		b.Required("SecretAccessKey", c.SecretAccessKey)
+	}
 
 	return b.Err()
 }

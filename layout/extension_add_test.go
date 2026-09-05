@@ -342,7 +342,7 @@ func TestApplyExtension_AwsSes(t *testing.T) {
 	fileContains(t, projectDir, "config/config.go", "AwsSes")
 
 	// Verify AWS SES config was generated with code defaults
-	fileContains(t, projectDir, "config/aws_ses.go", "DefaultAWSSESRegion")
+	fileContains(t, projectDir, "config/aws_ses.go", "NewAwsSesCfg()")
 	fileNotContains(t, projectDir, ".env.example", "AWS_REGION")
 
 	// Verify lock file
@@ -517,7 +517,7 @@ func TestApplyExtension_GeneratedProject(t *testing.T) {
 	fileExists(t, projectDir, "clients/email/aws_ses.go")
 	fileExists(t, projectDir, "config/aws_ses.go")
 	fileContains(t, projectDir, "config/config.go", "AwsSes")
-	fileContains(t, projectDir, "config/aws_ses.go", "DefaultAWSSESRegion")
+	fileContains(t, projectDir, "config/aws_ses.go", "NewAwsSesCfg()")
 	fileNotContains(t, projectDir, ".env.example", "AWS_REGION")
 
 	lock, err := ReadLockFile(projectDir)

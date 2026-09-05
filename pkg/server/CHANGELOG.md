@@ -2,6 +2,18 @@
 
 All notable changes to the standalone Andurel server module are documented here.
 
+## 0.3.0 - 2026-09-05
+
+### Added
+
+- `DefaultConfig` for bounded HTTP timeouts.
+- `ServerOptions.Validate`. Zero disables a timeout; negative values are rejected.
+
+### Changed
+
+- `New` applies `DefaultConfig` when timeouts are omitted.
+- `New` copies supplied shutdown hooks before appending the HTTP server.
+
 ## 0.2.0 - 2026-09-02
 
 ### Added

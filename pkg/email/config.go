@@ -5,8 +5,7 @@ import (
 	"strings"
 )
 
-// MailpitConfig configures a Mailpit SMTP client. Applications supply values;
-// this type does not define defaults.
+// MailpitConfig configures a Mailpit SMTP client. Applications supply host and port.
 type MailpitConfig struct {
 	Host string
 	Port string

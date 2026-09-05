@@ -4,12 +4,13 @@ import (
 	"context"
 	"log/slog"
 
+	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type LogExporter interface {
 	Name() string
-	GetSlogHandler(ctx context.Context) (slog.Handler, error)
+	GetSlogHandler(ctx context.Context, res *resource.Resource) (slog.Handler, error)
 	Shutdown(ctx context.Context) error
 }
 

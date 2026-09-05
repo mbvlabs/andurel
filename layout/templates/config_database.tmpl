@@ -5,7 +5,6 @@ import (
 
 	"github.com/caarlos0/env/v11"
 	"github.com/mbvlabs/andurel/pkg/storage"
-	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 const (
@@ -24,6 +23,7 @@ const (
 	DefaultMaxIdleConnections       = 25
 	DefaultConnectionMaxLifetime    = time.Hour
 	DefaultConnectionMaxIdleTime    = 30 * time.Minute
+	DefaultOpenTelemetry            = true
 )
 
 type Database struct {
@@ -45,7 +45,7 @@ type Database struct {
 	OpenTelemetry            bool          `env:"DB_OPEN_TELEMETRY"`
 }
 
-func NewDatabaseCfg() Database {
+func NewDatabaseCfg() (storage.Config, error) {
 	cfg := Database{
 		Host:                     DefaultDatabaseHost,
 		Port:                     DefaultDatabasePort,
@@ -62,80 +62,31 @@ func NewDatabaseCfg() Database {
 		MaxIdleConnections:       DefaultMaxIdleConnections,
 		ConnectionMaxLifetime:    DefaultConnectionMaxLifetime,
 		ConnectionMaxIdleTime:    DefaultConnectionMaxIdleTime,
-		OpenTelemetry:            true,
+		OpenTelemetry:            DefaultOpenTelemetry,
 	}
 
 	if err := env.Parse(&cfg); err != nil {
-		panic(err)
+		return storage.Config{}, err
 	}
 
-	if err := validation.Validate(&cfg); err != nil {
-		panic(err)
+	storageCfg := storage.Config{
+		Host:                     cfg.Host,
+		Port:                     cfg.Port,
+		Name:                     cfg.Name,
+		User:                     cfg.User,
+		Password:                 cfg.Password,
+		DatabaseKind:             cfg.DatabaseKind,
+		SSLMode:                  cfg.SSLMode,
+		ApplicationName:          cfg.ApplicationName,
+		ConnectTimeout:           cfg.ConnectTimeout,
+		StatementCacheCapacity:   cfg.StatementCacheCapacity,
+		DescriptionCacheCapacity: cfg.DescriptionCacheCapacity,
+		MaxOpenConnections:       cfg.MaxOpenConnections,
+		MaxIdleConnections:       cfg.MaxIdleConnections,
+		ConnectionMaxLifetime:    cfg.ConnectionMaxLifetime,
+		ConnectionMaxIdleTime:    cfg.ConnectionMaxIdleTime,
+		OpenTelemetry:            cfg.OpenTelemetry,
 	}
 
-	return cfg
+	return storageCfg, storageCfg.Validate()
 }
-
-func (c Database) Validate() error {
-	b := validation.NewBuilder()
-	b.Required("Host", c.Host)
-	b.Required("Port", c.Port)
-	b.Required("Name", c.Name)
-	b.Required("User", c.User)
-	b.Required("DatabaseKind", c.DatabaseKind)
-
-	return b.Err()
-}
-
-func (c Database) StorageConfig() storage.Config {
-	return storage.Config{
-		Host:                     c.Host,
-		Port:                     c.Port,
-		Name:                     c.Name,
-		User:                     c.User,
-		Password:                 c.Password,
-		DatabaseKind:             c.DatabaseKind,
-		SSLMode:                  c.SSLMode,
-		ApplicationName:          c.ApplicationName,
-		ConnectTimeout:           c.ConnectTimeout,
-		StatementCacheCapacity:   c.StatementCacheCapacity,
-		DescriptionCacheCapacity: c.DescriptionCacheCapacity,
-		MaxOpenConnections:       c.MaxOpenConnections,
-		MaxIdleConnections:       c.MaxIdleConnections,
-		ConnectionMaxLifetime:    c.ConnectionMaxLifetime,
-		ConnectionMaxIdleTime:    c.ConnectionMaxIdleTime,
-		OpenTelemetry:            c.OpenTelemetry,
-	}
-}
-
-func (c Database) GetDatabaseKind() string { return c.DatabaseKind }
-
-func (c Database) GetHost() string { return c.Host }
-
-func (c Database) GetPort() string { return c.Port }
-
-func (c Database) GetName() string { return c.Name }
-
-func (c Database) GetUser() string { return c.User }
-
-func (c Database) GetPassword() string { return c.Password }
-
-func (c Database) GetSSLMode() string { return c.SSLMode }
-
-func (c Database) GetApplicationName() string { return c.ApplicationName }
-
-func (c Database) GetConnectTimeout() time.Duration { return c.ConnectTimeout }
-
-func (c Database) GetStatementCacheCapacity() int { return c.StatementCacheCapacity }
-
-func (c Database) GetDescriptionCacheCapacity() int { return c.DescriptionCacheCapacity }
-
-func (c Database) GetMaxOpenConnections() int { return c.MaxOpenConnections }
-
-func (c Database) GetMaxIdleConnections() int { return c.MaxIdleConnections }
-
-func (c Database) GetConnectionMaxLifetime() time.Duration { return c.ConnectionMaxLifetime }
-
-func (c Database) GetConnectionMaxIdleTime() time.Duration { return c.ConnectionMaxIdleTime }
-
-func (c Database) GetOpenTelemetry() bool { return c.OpenTelemetry }

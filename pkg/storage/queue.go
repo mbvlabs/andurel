@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/riverqueue/river"
@@ -38,7 +40,17 @@ type QueueOption func(*river.Config)
 // WithRiverConfig replaces the complete River configuration. Options are
 // applied in order, so field-specific options after this one override it.
 func WithRiverConfig(config river.Config) QueueOption {
-	return func(target *river.Config) { *target = config }
+	config = cloneRiverConfig(config)
+	return func(target *river.Config) { *target = cloneRiverConfig(config) }
+}
+
+func cloneRiverConfig(config river.Config) river.Config {
+	config.Queues = maps.Clone(config.Queues)
+	config.ReindexerIndexNames = slices.Clone(config.ReindexerIndexNames)
+	config.Hooks = slices.Clone(config.Hooks)
+	config.Middleware = slices.Clone(config.Middleware)
+	config.PeriodicJobs = slices.Clone(config.PeriodicJobs)
+	return config
 }
 
 func WithRiverAdvisoryLockPrefix(prefix int32) QueueOption {
@@ -90,7 +102,8 @@ func WithRiverJobTimeout(timeout time.Duration) QueueOption {
 }
 
 func WithRiverHooks(hooks ...rivertype.Hook) QueueOption {
-	return func(config *river.Config) { config.Hooks = hooks }
+	hooks = slices.Clone(hooks)
+	return func(config *river.Config) { config.Hooks = slices.Clone(hooks) }
 }
 
 func WithRiverLogger(logger *slog.Logger) QueueOption {
@@ -102,11 +115,13 @@ func WithRiverMaxAttempts(maxAttempts int) QueueOption {
 }
 
 func WithRiverMiddleware(middleware ...rivertype.Middleware) QueueOption {
-	return func(config *river.Config) { config.Middleware = middleware }
+	middleware = slices.Clone(middleware)
+	return func(config *river.Config) { config.Middleware = slices.Clone(middleware) }
 }
 
 func WithRiverPeriodicJobs(jobs ...*river.PeriodicJob) QueueOption {
-	return func(config *river.Config) { config.PeriodicJobs = jobs }
+	jobs = slices.Clone(jobs)
+	return func(config *river.Config) { config.PeriodicJobs = slices.Clone(jobs) }
 }
 
 func WithRiverPollOnly(pollOnly bool) QueueOption {
@@ -114,7 +129,8 @@ func WithRiverPollOnly(pollOnly bool) QueueOption {
 }
 
 func WithRiverQueues(queues map[string]river.QueueConfig) QueueOption {
-	return func(config *river.Config) { config.Queues = queues }
+	queues = maps.Clone(queues)
+	return func(config *river.Config) { config.Queues = maps.Clone(queues) }
 }
 
 func WithRiverReindexerSchedule(schedule river.PeriodicSchedule) QueueOption {
@@ -122,7 +138,8 @@ func WithRiverReindexerSchedule(schedule river.PeriodicSchedule) QueueOption {
 }
 
 func WithRiverReindexerIndexNames(names ...string) QueueOption {
-	return func(config *river.Config) { config.ReindexerIndexNames = names }
+	names = slices.Clone(names)
+	return func(config *river.Config) { config.ReindexerIndexNames = slices.Clone(names) }
 }
 
 func WithRiverReindexerTimeout(timeout time.Duration) QueueOption {
@@ -169,8 +186,8 @@ type QueueInsert struct {
 var _ InsertQueue = (*QueueInsert)(nil)
 
 // NewQueueInsert creates an insert-only queue client using connection's sql.DB.
-func NewQueueInsert(connection Connection, options ...QueueOption) (*QueueInsert, error) {
-	client, err := newQueueClient(connection, options...)
+func NewQueueInsert(connection Connection, config QueueConfig, options ...QueueOption) (*QueueInsert, error) {
+	client, err := newQueueClient(connection, config, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -230,8 +247,8 @@ type QueueProcessor struct {
 }
 
 // NewQueueProcessor creates a worker client using connection's sql.DB.
-func NewQueueProcessor(connection Connection, options ...QueueOption) (*QueueProcessor, error) {
-	client, err := newQueueClient(connection, options...)
+func NewQueueProcessor(connection Connection, config QueueConfig, options ...QueueOption) (*QueueProcessor, error) {
+	client, err := newQueueClient(connection, config, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -248,7 +265,7 @@ func (q *QueueProcessor) Stop(ctx context.Context) error {
 	return q.client.Stop(ctx)
 }
 
-func newQueueClient(connection Connection, options ...QueueOption) (*river.Client[*sql.Tx], error) {
+func newQueueClient(connection Connection, config QueueConfig, options ...QueueOption) (*river.Client[*sql.Tx], error) {
 	if connection == nil {
 		return nil, fmt.Errorf("storage: queue connection is required")
 	}
@@ -257,13 +274,17 @@ func newQueueClient(connection Connection, options ...QueueOption) (*river.Clien
 		return nil, fmt.Errorf("storage: queue connection returned a nil DB")
 	}
 
-	config := river.Config{}
+	config = config.Clone()
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+	riverConfig := config.RiverConfig()
 	for _, option := range options {
 		if option != nil {
-			option(&config)
+			option(&riverConfig)
 		}
 	}
-	client, err := river.NewClient(riverdatabasesql.New(db), &config)
+	client, err := river.NewClient(riverdatabasesql.New(db), &riverConfig)
 	if err != nil {
 		return nil, fmt.Errorf("storage: create queue client: %w", err)
 	}

@@ -1,10 +1,13 @@
 package config
 
 import (
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/riverqueue/river"
 )
 
 const (
@@ -60,9 +63,10 @@ type QueueCfg struct {
 	SkipJobKindValidation       bool          `env:"QUEUE_SKIP_JOB_KIND_VALIDATION"`
 	SkipUnknownJobCheck         bool          `env:"QUEUE_SKIP_UNKNOWN_JOB_CHECK"`
 	ReindexerIndexNames         []string
+	Queues                      map[string]river.QueueConfig
 }
 
-func NewQueueCfg() QueueCfg {
+func NewQueueCfg() (storage.QueueConfig, error) {
 	cfg := QueueCfg{
 		AdvisoryLockPrefix:          DefaultAdvisoryLockPrefix,
 		CancelledJobRetentionPeriod: DefaultCancelledJobRetentionPeriod,
@@ -77,7 +81,7 @@ func NewQueueCfg() QueueCfg {
 		MaxAttempts:                 DefaultMaxAttempts,
 		MaxWorkers:                  DefaultMaxWorkers,
 		PollOnly:                    DefaultPollOnly,
-		ReindexerIndexNames:         DefaultReindexerIndexNames,
+		ReindexerIndexNames:         slices.Clone(DefaultReindexerIndexNames),
 		ReindexerTimeout:            DefaultReindexerTimeout,
 		RescueStuckJobsAfter:        DefaultRescueStuckJobsAfter,
 		Schema:                      DefaultQueueSchema,
@@ -87,43 +91,37 @@ func NewQueueCfg() QueueCfg {
 	}
 
 	if err := env.Parse(&cfg); err != nil {
-		panic(err)
+		return storage.QueueConfig{}, err
 	}
 
-	if err := cfg.Validate(); err != nil {
-		panic(err)
+	// Configure additional named queues here.
+	cfg.Queues = map[string]river.QueueConfig{
+		river.QueueDefault: {MaxWorkers: cfg.MaxWorkers},
 	}
 
-	return cfg
-}
-
-func (c QueueCfg) Validate() error {
-	return c.QueueConfig().Validate()
-}
-
-func (c QueueCfg) QueueConfig() storage.QueueConfig {
-	return storage.QueueConfig{
-		AdvisoryLockPrefix:          c.AdvisoryLockPrefix,
-		CancelledJobRetentionPeriod: c.CancelledJobRetentionPeriod,
-		CompletedJobRetentionPeriod: c.CompletedJobRetentionPeriod,
-		DiscardedJobRetentionPeriod: c.DiscardedJobRetentionPeriod,
-		FetchCooldown:               c.FetchCooldown,
-		PollInterval:                c.PollInterval,
-		ID:                          c.ID,
-		JobCleanerTimeout:           c.JobCleanerTimeout,
-		JobStuckThreshold:           c.JobStuckThreshold,
-		JobTimeout:                  c.JobTimeout,
-		MaxAttempts:                 c.MaxAttempts,
-		MaxWorkers:                  c.MaxWorkers,
-		PollOnly:                    c.PollOnly,
-		ReindexerIndexNames:         c.ReindexerIndexNames,
-		ReindexerTimeout:            c.ReindexerTimeout,
-		RescueStuckJobsAfter:        c.RescueStuckJobsAfter,
-		Schema:                      c.Schema,
-		SoftStopTimeout:             c.SoftStopTimeout,
-		SkipJobKindValidation:       c.SkipJobKindValidation,
-		SkipUnknownJobCheck:         c.SkipUnknownJobCheck,
+	queueCfg := storage.QueueConfig{
+		AdvisoryLockPrefix:          cfg.AdvisoryLockPrefix,
+		CancelledJobRetentionPeriod: cfg.CancelledJobRetentionPeriod,
+		CompletedJobRetentionPeriod: cfg.CompletedJobRetentionPeriod,
+		DiscardedJobRetentionPeriod: cfg.DiscardedJobRetentionPeriod,
+		FetchCooldown:               cfg.FetchCooldown,
+		PollInterval:                cfg.PollInterval,
+		ID:                          cfg.ID,
+		JobCleanerTimeout:           cfg.JobCleanerTimeout,
+		JobStuckThreshold:           cfg.JobStuckThreshold,
+		JobTimeout:                  cfg.JobTimeout,
+		MaxAttempts:                 cfg.MaxAttempts,
+		MaxWorkers:                  cfg.MaxWorkers,
+		PollOnly:                    cfg.PollOnly,
+		ReindexerIndexNames:         slices.Clone(cfg.ReindexerIndexNames),
+		Queues:                      maps.Clone(cfg.Queues),
+		ReindexerTimeout:            cfg.ReindexerTimeout,
+		RescueStuckJobsAfter:        cfg.RescueStuckJobsAfter,
+		Schema:                      cfg.Schema,
+		SoftStopTimeout:             cfg.SoftStopTimeout,
+		SkipJobKindValidation:       cfg.SkipJobKindValidation,
+		SkipUnknownJobCheck:         cfg.SkipUnknownJobCheck,
 	}
-}
 
-func (c QueueCfg) GetMaxWorkers() int { return c.MaxWorkers }
+	return queueCfg, queueCfg.Validate()
+}

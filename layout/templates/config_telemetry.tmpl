@@ -1,12 +1,15 @@
 package config
 
 import (
+	"fmt"
+	"math"
+
 	"github.com/caarlos0/env/v11"
+	"github.com/gosimple/slug"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 const (
-	DefaultTelemetryServiceName    = "testapp"
 	DefaultTelemetryServiceVersion = "1.0.0"
 	DefaultOtlpLogsEndpoint        = ""
 	DefaultOtlpMetricsEndpoint     = ""
@@ -29,9 +32,9 @@ type TelemetryCfg struct {
 	BatchTimeoutMs      int     `env:"TELEMETRY_BATCH_TIMEOUT_MS"`
 }
 
-func NewTelemetryCfg() TelemetryCfg {
+func NewTelemetryCfg() (TelemetryCfg, error) {
 	telemetryCfg := TelemetryCfg{
-		ServiceName:         DefaultTelemetryServiceName,
+		ServiceName:         slug.Make(ProjectName()),
 		ServiceVersion:      DefaultTelemetryServiceVersion,
 		OtlpLogsEndpoint:    DefaultOtlpLogsEndpoint,
 		OtlpMetricsEndpoint: DefaultOtlpMetricsEndpoint,
@@ -43,14 +46,14 @@ func NewTelemetryCfg() TelemetryCfg {
 	}
 
 	if err := env.Parse(&telemetryCfg); err != nil {
-		panic(err)
+		return TelemetryCfg{}, err
 	}
 
 	if err := validation.Validate(&telemetryCfg); err != nil {
-		panic(err)
+		return TelemetryCfg{}, err
 	}
 
-	return telemetryCfg
+	return telemetryCfg, nil
 }
 
 func (c TelemetryCfg) Validate() error {
@@ -60,7 +63,14 @@ func (c TelemetryCfg) Validate() error {
 	b.MinInt("BatchSize", c.BatchSize, 1)
 	b.MinInt("BatchTimeoutMs", c.BatchTimeoutMs, 1)
 
-	return b.Err()
+	if err := b.Err(); err != nil {
+		return err
+	}
+	if math.IsNaN(c.TraceSampleRate) || c.TraceSampleRate < 0 || c.TraceSampleRate > 1 {
+		return fmt.Errorf("config: TRACE_SAMPLE_RATE must be between 0 and 1")
+	}
+
+	return nil
 }
 
 func (c TelemetryCfg) GetServiceName() string { return c.ServiceName }

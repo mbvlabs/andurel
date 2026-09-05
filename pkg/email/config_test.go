@@ -12,20 +12,17 @@ func TestMailpitConfigValidateRequiresHostAndPort(t *testing.T) {
 		if err := config.Validate(); err == nil {
 			t.Fatalf("Validate() = nil, want error for %#v", config)
 		}
-	}
-}
-
-func TestNewMailpitRequiresConfig(t *testing.T) {
-	if _, err := NewMailpit(); err == nil {
-		t.Fatal("NewMailpit() = nil error, want configuration error")
+		if _, err := NewMailpit(config); err == nil {
+			t.Fatalf("NewMailpit() = nil error, want error for %#v", config)
+		}
 	}
 }
 
 func TestNewMailpitAppliesConfig(t *testing.T) {
-	client, err := NewMailpit(WithMailpitConfig(MailpitConfig{
+	client, err := NewMailpit(MailpitConfig{
 		Host: "mailpit.test",
 		Port: "2525",
-	}))
+	})
 	if err != nil {
 		t.Fatalf("NewMailpit() = %v, want nil error", err)
 	}

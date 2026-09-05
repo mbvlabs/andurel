@@ -18,6 +18,11 @@ type SSRConfig struct {
 	MaxResponseBytes int64
 }
 
+// DefaultSSRConfig returns bounded HTTP settings for a local SSR service.
+func DefaultSSRConfig() SSRConfig {
+	return SSRConfig{URL: "http://127.0.0.1:13714", Timeout: 2 * time.Second, MaxResponseBytes: 2 << 20}
+}
+
 // Validate verifies HTTP renderer configuration.
 func (config SSRConfig) Validate() error {
 	parsed, err := url.Parse(strings.TrimSpace(config.URL))

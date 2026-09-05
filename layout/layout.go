@@ -697,6 +697,7 @@ func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) 
 	// Templates to re-render after extensions have been applied
 	blueprintTemplates := []TmplTarget{
 		"config_config.tmpl",
+		"config_email.tmpl",
 		"env.tmpl",
 		"router_cookies_cookies.tmpl",
 	}
