@@ -26,10 +26,11 @@ import (
 // It remains available for application-owned model and factory APIs.
 type Executor = bun.IDB
 
-// Connection exposes the Bun executor and its underlying database/sql pool.
+// Connection exposes the Bun executor, its underlying database/sql pool, and runtime health.
 type Connection interface {
 	Executor() bun.IDB
 	DB() *sql.DB
+	Health(ctx context.Context) error
 	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
 }
 
@@ -152,14 +153,14 @@ func NewPostgres(ctx context.Context, config Config, options ...Option) (*Postgr
 		connectionMaxIdleTime = *settings.connectionMaxIdleTime
 	}
 	sqldb.SetConnMaxIdleTime(connectionMaxIdleTime)
-	db := bun.NewDB(sqldb, pgdialect.New())
+	db := &Postgres{bun: bun.NewDB(sqldb, pgdialect.New())}
 
-	if err := db.PingContext(ctx); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("storage: ping database: %w", err)
+	if err := db.Health(ctx); err != nil {
+		_ = db.Close()
+		return nil, err
 	}
 
-	return &Postgres{bun: db}, nil
+	return db, nil
 }
 
 // Executor returns the Bun query executor.
@@ -170,6 +171,15 @@ func (p *Postgres) Executor() bun.IDB {
 // DB returns the underlying sql.DB.
 func (p *Postgres) DB() *sql.DB {
 	return p.bun.DB
+}
+
+// Health verifies that the database is reachable at runtime.
+func (p *Postgres) Health(ctx context.Context) error {
+	if err := p.bun.PingContext(ctx); err != nil {
+		return fmt.Errorf("storage: ping database: %w", err)
+	}
+
+	return nil
 }
 
 // Close closes the database connection.

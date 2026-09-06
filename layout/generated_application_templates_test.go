@@ -66,6 +66,16 @@ func TestGeneratedAPIControllerLivesInAPIPackage(t *testing.T) {
 	if !strings.HasPrefix(string(apiController), "package api\n") {
 		t.Error("API controller is not in package api")
 	}
+	for _, want := range []string{
+		"db storage.Connection",
+		"func NewAPI(db storage.Connection) API",
+		"a.db.Health(etx.Request().Context())",
+		"http.StatusServiceUnavailable",
+	} {
+		if !strings.Contains(string(apiController), want) {
+			t.Errorf("controllers/api/api.go missing %q", want)
+		}
+	}
 	if _, err := os.Stat(filepath.Join(root, "controllers/api.go")); !os.IsNotExist(err) {
 		t.Error("legacy controllers/api.go was generated")
 	}

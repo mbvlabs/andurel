@@ -2,6 +2,12 @@
 
 All notable changes to the standalone Andurel storage module are documented here.
 
+## Unreleased
+
+### Added
+
+- `Connection.Health` and `Postgres.Health` for runtime database reachability checks.
+
 ## 0.6.0 - 2026-09-05
 
 ### Added

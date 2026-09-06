@@ -15,6 +15,9 @@ type stubConnection struct {
 
 func (s stubConnection) Executor() bun.IDB { return nil }
 func (s stubConnection) DB() *sql.DB       { return nil }
+func (s stubConnection) Health(context.Context) error {
+	return nil
+}
 func (s stubConnection) BeginTransaction(
 	ctx context.Context,
 	opts *sql.TxOptions,
