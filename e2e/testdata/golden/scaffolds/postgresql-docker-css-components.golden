@@ -15890,3 +15890,4 @@ func consoleLine(label string, value string) templ.Component {
 
 var _ = templruntime.GeneratedTemplate
 ```
+
