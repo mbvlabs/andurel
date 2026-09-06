@@ -236,6 +236,7 @@ func (t *Telemetry) Shutdown(ctx context.Context) error {
 	for _, shutdown := range slices.Backward(t.shutdownFuncs) {
 		shutdownErr = errors.Join(shutdownErr, shutdown(ctx))
 	}
+
 	return shutdownErr
 }
 

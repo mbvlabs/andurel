@@ -2856,18 +2856,24 @@ type Inertia struct {
 func NewInertia() (Inertia, error) {
 	env := newEnvironment()
 	cfg := Inertia{
-		ContainerID:         env.String("INERTIA_CONTAINER_ID", DefaultInertiaContainerID),
-		ViteDevURL:          env.String("INERTIA_VITE_DEV_URL", DefaultInertiaViteDevURL),
-		ProtocolDebug:       env.Bool("INERTIA_PROTOCOL_DEBUG", DefaultInertiaProtocolDebug),
-		SSRMode:             inertia.SSRMode(env.String("INERTIA_SSR_MODE", string(DefaultInertiaSSRMode))),
-		SSRRuntime:          env.String("INERTIA_SSR_RUNTIME", DefaultInertiaSSRRuntime),
-		SSRBundle:           env.String("INERTIA_SSR_BUNDLE", DefaultInertiaSSRBundle),
-		SSRURL:              env.String("INERTIA_SSR_URL", DefaultInertiaSSRURL),
-		SSRStartupTimeout:   env.Duration("INERTIA_SSR_STARTUP_TIMEOUT", DefaultInertiaSSRStartupTimeout),
-		SSRRequestTimeout:   env.Duration("INERTIA_SSR_REQUEST_TIMEOUT", DefaultInertiaSSRRequestTimeout),
-		SSRMaxResponseBytes: env.Int64("INERTIA_SSR_MAX_RESPONSE_BYTES", DefaultInertiaSSRMaxResponseBytes),
-		SSRFailFast:         env.Bool("INERTIA_SSR_FAIL_FAST", DefaultInertiaSSRFailFast),
-		EntryPoint:          env.String("INERTIA_ENTRY_POINT", DefaultInertiaEntryPoint),
+		ContainerID:   env.String("INERTIA_CONTAINER_ID", DefaultInertiaContainerID),
+		ViteDevURL:    env.String("INERTIA_VITE_DEV_URL", DefaultInertiaViteDevURL),
+		ProtocolDebug: env.Bool("INERTIA_PROTOCOL_DEBUG", DefaultInertiaProtocolDebug),
+		SSRMode: inertia.SSRMode(env.String(
+			"INERTIA_SSR_MODE",
+			string(DefaultInertiaSSRMode),
+		)),
+		SSRRuntime:        env.String("INERTIA_SSR_RUNTIME", DefaultInertiaSSRRuntime),
+		SSRBundle:         env.String("INERTIA_SSR_BUNDLE", DefaultInertiaSSRBundle),
+		SSRURL:            env.String("INERTIA_SSR_URL", DefaultInertiaSSRURL),
+		SSRStartupTimeout: env.Duration("INERTIA_SSR_STARTUP_TIMEOUT", DefaultInertiaSSRStartupTimeout),
+		SSRRequestTimeout: env.Duration("INERTIA_SSR_REQUEST_TIMEOUT", DefaultInertiaSSRRequestTimeout),
+		SSRMaxResponseBytes: env.Int64(
+			"INERTIA_SSR_MAX_RESPONSE_BYTES",
+			DefaultInertiaSSRMaxResponseBytes,
+		),
+		SSRFailFast: env.Bool("INERTIA_SSR_FAIL_FAST", DefaultInertiaSSRFailFast),
+		EntryPoint:  env.String("INERTIA_ENTRY_POINT", DefaultInertiaEntryPoint),
 	}
 
 	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
@@ -11648,7 +11654,10 @@ func NewStdoutExporterWithLevel(level slog.Level) *StdoutExporter {
 	}
 }
 
-func (s *StdoutExporter) GetSlogHandler(ctx context.Context, res *resource.Resource) (slog.Handler, error) {
+func (s *StdoutExporter) GetSlogHandler(
+	ctx context.Context,
+	res *resource.Resource,
+) (slog.Handler, error) {
 	handler := tint.NewTextHandler(os.Stdout, &tint.Options{
 		Level:      s.LogLevel,
 		TimeFormat: "15:04:05",
@@ -11676,7 +11685,12 @@ type OtlpHttpLogExporter struct {
 	provider     *sdklog.LoggerProvider
 }
 
-func NewOtlpLogExporter(endpoint string, headers map[string]string, batchSize int, batchTimeout time.Duration) *OtlpHttpLogExporter {
+func NewOtlpLogExporter(
+	endpoint string,
+	headers map[string]string,
+	batchSize int,
+	batchTimeout time.Duration,
+) *OtlpHttpLogExporter {
 	return &OtlpHttpLogExporter{
 		endpoint:     endpoint,
 		headers:      headers,
@@ -11687,11 +11701,15 @@ func NewOtlpLogExporter(endpoint string, headers map[string]string, batchSize in
 
 func (o *OtlpHttpLogExporter) Name() string { return "otlp-http-logs" }
 
-func (o *OtlpHttpLogExporter) GetSlogHandler(ctx context.Context, res *resource.Resource) (slog.Handler, error) {
+func (o *OtlpHttpLogExporter) GetSlogHandler(
+	ctx context.Context,
+	res *resource.Resource,
+) (slog.Handler, error) {
 	opts := []otlploghttp.Option{otlploghttp.WithHeaders(o.headers)}
 	if strings.Contains(o.endpoint, "://") {
 		endpointURL, err := url.Parse(o.endpoint)
-		if err != nil || endpointURL.Host == "" || (endpointURL.Scheme != "http" && endpointURL.Scheme != "https") {
+		if err != nil || endpointURL.Host == "" ||
+			(endpointURL.Scheme != "http" && endpointURL.Scheme != "https") {
 			return nil, fmt.Errorf("invalid OTLP HTTP log endpoint %q", o.endpoint)
 		}
 		opts = append(opts, otlploghttp.WithEndpointURL(o.endpoint))
@@ -11720,6 +11738,7 @@ func (o *OtlpHttpLogExporter) Shutdown(ctx context.Context) error {
 	if o.provider == nil {
 		return nil
 	}
+
 	return o.provider.Shutdown(ctx)
 }
 
@@ -12718,6 +12737,7 @@ func (t *Telemetry) Shutdown(ctx context.Context) error {
 	for _, shutdown := range slices.Backward(t.shutdownFuncs) {
 		shutdownErr = errors.Join(shutdownErr, shutdown(ctx))
 	}
+
 	return shutdownErr
 }
 
@@ -16316,4 +16336,3 @@ export default defineConfig({
   },
 })
 ```
-

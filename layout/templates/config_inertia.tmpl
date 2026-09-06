@@ -49,13 +49,19 @@ func NewInertia() (Inertia, error) {
 		ContainerID:         env.String("INERTIA_CONTAINER_ID", DefaultInertiaContainerID),
 		ViteDevURL:          env.String("INERTIA_VITE_DEV_URL", DefaultInertiaViteDevURL),
 		ProtocolDebug:       env.Bool("INERTIA_PROTOCOL_DEBUG", DefaultInertiaProtocolDebug),
-		SSRMode:             inertia.SSRMode(env.String("INERTIA_SSR_MODE", string(DefaultInertiaSSRMode))),
+		SSRMode: inertia.SSRMode(env.String(
+			"INERTIA_SSR_MODE",
+			string(DefaultInertiaSSRMode),
+		)),
 		SSRRuntime:          env.String("INERTIA_SSR_RUNTIME", DefaultInertiaSSRRuntime),
 		SSRBundle:           env.String("INERTIA_SSR_BUNDLE", DefaultInertiaSSRBundle),
 		SSRURL:              env.String("INERTIA_SSR_URL", DefaultInertiaSSRURL),
 		SSRStartupTimeout:   env.Duration("INERTIA_SSR_STARTUP_TIMEOUT", DefaultInertiaSSRStartupTimeout),
 		SSRRequestTimeout:   env.Duration("INERTIA_SSR_REQUEST_TIMEOUT", DefaultInertiaSSRRequestTimeout),
-		SSRMaxResponseBytes: env.Int64("INERTIA_SSR_MAX_RESPONSE_BYTES", DefaultInertiaSSRMaxResponseBytes),
+		SSRMaxResponseBytes: env.Int64(
+			"INERTIA_SSR_MAX_RESPONSE_BYTES",
+			DefaultInertiaSSRMaxResponseBytes,
+		),
 		SSRFailFast:         env.Bool("INERTIA_SSR_FAIL_FAST", DefaultInertiaSSRFailFast),
 		EntryPoint:          env.String("INERTIA_ENTRY_POINT", DefaultInertiaEntryPoint),
 	}
