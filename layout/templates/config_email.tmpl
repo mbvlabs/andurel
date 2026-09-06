@@ -7,9 +7,8 @@ import (
 	{{- if hasExtension .Extensions "aws-ses"}}
 	mailclients "{{.ModuleName}}/clients/email"
 	{{- end}}
-	"github.com/caarlos0/env/v11"
+
 	"github.com/mbvlabs/andurel/pkg/email"
-	"github.com/mbvlabs/andurel/pkg/server"
 )
 
 const (
@@ -18,62 +17,67 @@ const (
 	DefaultEmailMailpitPort = "1025"
 )
 
-type EmailCfg struct {
-	Provider    string `env:"EMAIL_PROVIDER"`
-	MailpitHost string `env:"MAILPIT_HOST"`
-	MailpitPort string `env:"MAILPIT_PORT"`
+type emailConfig struct {
+	provider    string
+	mailpitHost string
+	mailpitPort string
 }
 
-func NewEmailCfg() (EmailCfg, error) {
-	cfg := EmailCfg{
-		Provider:    DefaultEmailProvider,
-		MailpitHost: DefaultEmailMailpitHost,
-		MailpitPort: DefaultEmailMailpitPort,
+func (c *Config) setupEmail() error {
+	cfg := emailConfig{
+		provider:    envOr("EMAIL_PROVIDER", DefaultEmailProvider),
+		mailpitHost: envOr("MAILPIT_HOST", DefaultEmailMailpitHost),
+		mailpitPort: envOr("MAILPIT_PORT", DefaultEmailMailpitPort),
 	}
-	if Environment() == server.ProdEnvironment {
+	if c.IsProduction() {
 		{{- if hasExtension .Extensions "aws-ses"}}
-		cfg.Provider = "aws-ses"
+		cfg.provider = "aws-ses"
 		{{- else}}
-		cfg.Provider = ""
+		cfg.provider = ""
 		{{- end}}
 	}
-
-	if err := env.Parse(&cfg); err != nil {
-		return EmailCfg{}, err
+	if err := cfg.validate(); err != nil {
+		return err
 	}
+	c.email = cfg
 
-	return cfg, cfg.Validate()
+	return nil
 }
 
-func (c EmailCfg) Validate() error {
-	switch c.Provider {
+func (c emailConfig) validate() error {
+	switch c.provider {
 	case "mailpit":
-		return email.MailpitConfig{Host: c.MailpitHost, Port: c.MailpitPort}.Validate()
+		return email.MailpitConfig{Host: c.mailpitHost, Port: c.mailpitPort}.Validate()
 		{{- if hasExtension .Extensions "aws-ses"}}
 	case "aws-ses":
 		return nil
 		{{- end}}
 	default:
-		return fmt.Errorf("config: choose an installed email provider in config/email.go (got %q)", c.Provider)
+		return fmt.Errorf(
+			"config: choose an installed email provider in config/email.go (got %q)",
+			c.provider,
+		)
 	}
 }
 
-func NewEmailSenders(
+func (c *Config) EmailProvider() string { return c.email.provider }
+
+func (c *Config) MailpitHost() string { return c.email.mailpitHost }
+
+func (c *Config) MailpitPort() string { return c.email.mailpitPort }
+
+func (c *Config) EmailSenders(
 	{{- if hasExtension .Extensions "aws-ses"}}
 	ctx context.Context,
 	{{- else}}
 	_ context.Context,
 	{{- end}}
-	cfg EmailCfg,
-	{{- if hasExtension .Extensions "aws-ses"}}
-	awsCfg AwsSesCfg,
-	{{- end}}
 ) (email.TransactionalSender, email.MarketingSender, error) {
-	switch cfg.Provider {
+	switch c.email.provider {
 	case "mailpit":
 		client, err := email.NewMailpit(email.MailpitConfig{
-			Host: cfg.MailpitHost,
-			Port: cfg.MailpitPort,
+			Host: c.email.mailpitHost,
+			Port: c.email.mailpitPort,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("config: create Mailpit client: %w", err)
@@ -82,7 +86,7 @@ func NewEmailSenders(
 		return client, client, nil
 		{{- if hasExtension .Extensions "aws-ses"}}
 	case "aws-ses":
-		client, err := mailclients.NewAwsSes(ctx, awsCfg)
+		client, err := mailclients.NewAwsSes(ctx, c)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -90,6 +94,9 @@ func NewEmailSenders(
 		return client, client, nil
 		{{- end}}
 	default:
-		return nil, nil, fmt.Errorf("config: unsupported email provider %q; configure an email provider in config/email.go", cfg.Provider)
+		return nil, nil, fmt.Errorf(
+			"config: unsupported email provider %q; configure an email provider in config/email.go",
+			c.email.provider,
+		)
 	}
 }

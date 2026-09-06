@@ -336,7 +336,7 @@ import (
 
 // Send an email
 data := email.TransactionalData{
-    From:    appCfg.GetDefaultSenderSignature(),
+    From:    appCfg.DefaultSenderSignature(),
     To:      []string{"user@example.com"},
     Subject: "Welcome!",
     Body:    WelcomeEmail("John Doe"),
@@ -357,7 +357,7 @@ For better performance, send emails asynchronously:
 
 _, err := insertOnly.Client.Insert(ctx, jobs.SendTransactionalEmailArgs{
     Data: email.TransactionalData{
-        From:    appCfg.GetDefaultSenderSignature(),
+        From:    appCfg.DefaultSenderSignature(),
         To:      []string{"user@example.com"},
         Subject: "Welcome!",
         Body:    WelcomeEmail("John Doe"),

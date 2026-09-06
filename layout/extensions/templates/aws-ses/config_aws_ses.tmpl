@@ -1,7 +1,6 @@
 package config
 
 import (
-	"github.com/caarlos0/env/v11"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
@@ -9,44 +8,43 @@ const (
 	DefaultAWSSESRegion = "us-east-1"
 )
 
-type AwsSesCfg struct {
-	Region           string `env:"AWS_REGION"`
-	AccessKeyID      string `env:"AWS_SES_ACCESS_KEY_ID"`
-	SecretAccessKey  string `env:"AWS_SES_SECRET_ACCESS_KEY"`
-	ConfigurationSet string `env:"AWS_SES_CONFIGURATION_SET"`
+type awsSesConfig struct {
+	region           string
+	accessKeyID      string
+	secretAccessKey  string
+	configurationSet string
 }
 
-func NewAwsSesCfg() (AwsSesCfg, error) {
-	cfg := AwsSesCfg{
-		Region: DefaultAWSSESRegion,
+func (c *Config) setupAwsSes() error {
+	cfg := awsSesConfig{
+		region:           envOr("AWS_REGION", DefaultAWSSESRegion),
+		accessKeyID:      envOr("AWS_SES_ACCESS_KEY_ID", ""),
+		secretAccessKey:  envOr("AWS_SES_SECRET_ACCESS_KEY", ""),
+		configurationSet: envOr("AWS_SES_CONFIGURATION_SET", ""),
 	}
-
-	if err := env.Parse(&cfg); err != nil {
-		return AwsSesCfg{}, err
+	if err := cfg.validate(); err != nil {
+		return err
 	}
+	c.awsSes = cfg
 
-	if err := validation.Validate(&cfg); err != nil {
-		return AwsSesCfg{}, err
-	}
-
-	return cfg, nil
+	return nil
 }
 
-func (c AwsSesCfg) Validate() error {
+func (c awsSesConfig) validate() error {
 	b := validation.NewBuilder()
-	b.Required("Region", c.Region)
-	if c.AccessKeyID != "" || c.SecretAccessKey != "" {
-		b.Required("AccessKeyID", c.AccessKeyID)
-		b.Required("SecretAccessKey", c.SecretAccessKey)
+	b.Required("Region", c.region)
+	if c.accessKeyID != "" || c.secretAccessKey != "" {
+		b.Required("AccessKeyID", c.accessKeyID)
+		b.Required("SecretAccessKey", c.secretAccessKey)
 	}
 
 	return b.Err()
 }
 
-func (c AwsSesCfg) GetRegion() string { return c.Region }
+func (c *Config) Region() string { return c.awsSes.region }
 
-func (c AwsSesCfg) GetAccessKeyID() string { return c.AccessKeyID }
+func (c *Config) AccessKeyID() string { return c.awsSes.accessKeyID }
 
-func (c AwsSesCfg) GetSecretAccessKey() string { return c.SecretAccessKey }
+func (c *Config) SecretAccessKey() string { return c.awsSes.secretAccessKey }
 
-func (c AwsSesCfg) GetConfigurationSet() string { return c.ConfigurationSet }
+func (c *Config) ConfigurationSet() string { return c.awsSes.configurationSet }

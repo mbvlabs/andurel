@@ -3,36 +3,36 @@ package config
 import (
 	"slices"
 
-	"github.com/caarlos0/env/v11"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
-type AuthCfg struct {
-	Pepper          string   `env:"PEPPER"`
-	PreviousPeppers []string `env:"PREVIOUS_PEPPERS" envSeparator:","`
+type authConfig struct {
+	pepper          string
+	previousPeppers []string
 }
 
-func NewAuthCfg() (AuthCfg, error) {
-	var authenticationCfg AuthCfg
-
-	if err := env.Parse(&authenticationCfg); err != nil {
-		return AuthCfg{}, err
+func (c *Config) setupAuth() error {
+	cfg := authConfig{
+		pepper:          envOr("PEPPER", ""),
+		previousPeppers: envSlice("PREVIOUS_PEPPERS", nil),
 	}
-
-	if err := validation.Validate(&authenticationCfg); err != nil {
-		return AuthCfg{}, err
+	if err := cfg.validate(); err != nil {
+		return err
 	}
+	c.auth = cfg
 
-	return authenticationCfg, nil
+	return nil
 }
 
-func (c AuthCfg) Validate() error {
+func (c authConfig) validate() error {
 	b := validation.NewBuilder()
-	b.Required("Pepper", c.Pepper)
+	b.Required("Pepper", c.pepper)
 
 	return b.Err()
 }
 
-func (c AuthCfg) GetPepper() string { return c.Pepper }
+func (c *Config) Pepper() string { return c.auth.pepper }
 
-func (c AuthCfg) GetPreviousPeppers() []string { return slices.Clone(c.PreviousPeppers) }
+func (c *Config) PreviousPeppers() []string {
+	return slices.Clone(c.auth.previousPeppers)
+}

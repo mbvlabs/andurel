@@ -17,10 +17,10 @@ import (
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/telemetry"
 
+	"github.com/joho/godotenv"
 	{{- if .Inertia}}
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	{{- end}}
-	"github.com/joho/godotenv"
 	"github.com/mbvlabs/andurel/pkg/server"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"go.uber.org/fx"
@@ -42,12 +42,12 @@ func main() {
 			{{- range .Blueprint.Main.ServiceProvides}}
 			{{.}},
 			{{- end}}
-			func(cfg config.AppCfg) router.AppProvider { return cfg },
-			func(cfg config.AppCfg) controllers.ConfigProvider { return cfg },
-			func(cfg config.AppCfg) controllers.AssetsAppProvider { return cfg },
-			func(cfg config.AppCfg) services.AppIdentityProvider { return cfg },
-			func(cfg config.AuthCfg) services.AuthProvider { return cfg },
-			func(cfg config.TelemetryCfg) telemetry.ConfigProvider { return cfg },
+			func(cfg *config.Config) router.AppProvider { return cfg },
+			func(cfg *config.Config) controllers.ConfigProvider { return cfg },
+			func(cfg *config.Config) controllers.AssetsAppProvider { return cfg },
+			func(cfg *config.Config) services.AppIdentityProvider { return cfg },
+			func(cfg *config.Config) services.AuthProvider { return cfg },
+			func(cfg *config.Config) telemetry.ConfigProvider { return cfg },
 		),
 
 		config.Module,
@@ -99,18 +99,23 @@ var inertiaModule = fx.Module(
 
 {{- end}}
 
-func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, appCfg config.AppCfg) {
+func startServer(
+	lc fx.Lifecycle,
+	appCtx context.Context,
+	r *router.Router,
+	cfg *config.Config,
+) {
 	srv := server.New(
 		appCtx,
-		appCfg.GetHost(),
-		appCfg.GetPort(),
-		appCfg.GetEnvironment(),
+		cfg.Host(),
+		cfg.Port(),
+		cfg.Env(),
 		r.Handler,
 		nil,
 		server.WithTimeouts(
-			appCfg.GetIdleTimeout(),
-			appCfg.GetReadTimeout(),
-			appCfg.GetWriteTimeout(),
+			cfg.IdleTimeout(),
+			cfg.ReadTimeout(),
+			cfg.WriteTimeout(),
 		),
 	)
 	var done <-chan struct{}
@@ -121,12 +126,12 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, appC
 				appCtx,
 				"starting server",
 				"host",
-				appCfg.GetHost(),
+				cfg.Host(),
 				"port",
-				appCfg.GetPort(),
+				cfg.Port(),
 			)
 			done = startInBackground(appCtx, "server", func(ctx context.Context) error {
-				return srv.Start(ctx, appCfg.GetEnvironment())
+				return srv.Start(ctx, cfg.Env())
 			})
 			return nil
 		},
@@ -152,9 +157,9 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, appC
 func newDatabase(
 	lifecycle fx.Lifecycle,
 	ctx context.Context,
-	cfg storage.Config,
+	cfg *config.Config,
 ) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, cfg)
+	db, err := storage.NewPostgres(ctx, cfg.Database())
 	if err != nil {
 		return nil, err
 	}
@@ -165,37 +170,38 @@ func newDatabase(
 
 func newQueueInsert(
 	connection storage.Connection,
-	cfg storage.QueueConfig,
+	cfg *config.Config,
 ) (*storage.QueueInsert, error) {
-	cfg.Queues = nil
-	return storage.NewQueueInsert(connection, cfg)
+	queueCfg := cfg.Queue()
+	queueCfg.Queues = nil
+	return storage.NewQueueInsert(connection, queueCfg)
 }
 
 {{if .Inertia}}
 
 func newInertia(
 	lifecycle fx.Lifecycle,
-	cfg config.InertiaCfg,
+	cfg *config.Config,
 ) (*inertia.Renderer, error) {
 	renderer, err := inertia.New(
-		inertia.WithRoot(cfg.GetRoot()),
-		inertia.WithAssetFS(cfg.GetAssetFS()),
-		inertia.WithProjectName(config.ProjectName()),
-		inertia.WithEnvironment(config.Environment()),
-		inertia.WithBuildPathURL(cfg.GetBuildPathURL()),
-		inertia.WithEntryPoint(cfg.GetEntryPoint()),
-		inertia.WithContainerID(cfg.GetContainerID()),
-		inertia.WithViteDevURL(cfg.GetViteDevURL()),
-		inertia.WithProtocolDebug(cfg.GetProtocolDebug()),
+		inertia.WithRoot(cfg.Root()),
+		inertia.WithAssetFS(cfg.AssetFS()),
+		inertia.WithProjectName(cfg.ProjectName()),
+		inertia.WithEnvironment(cfg.Env()),
+		inertia.WithBuildPathURL(cfg.BuildPathURL()),
+		inertia.WithEntryPoint(cfg.EntryPoint()),
+		inertia.WithContainerID(cfg.ContainerID()),
+		inertia.WithViteDevURL(cfg.ViteDevURL()),
+		inertia.WithProtocolDebug(cfg.ProtocolDebug()),
 		inertia.WithShared(inertia.Props{"appVersion": appVersion}),
-		inertia.WithSSRMode(inertia.SSRMode(cfg.GetSSRMode())),
-		inertia.WithSSRRuntime(cfg.GetSSRRuntime()),
-		inertia.WithSSRBundle(cfg.GetSSRBundle()),
-		inertia.WithSSRURL(cfg.GetSSRURL()),
-		inertia.WithSSRStartupTimeout(cfg.GetSSRStartupTimeout()),
-		inertia.WithSSRRequestTimeout(cfg.GetSSRRequestTimeout()),
-		inertia.WithSSRMaxResponseBytes(cfg.GetSSRMaxResponseBytes()),
-		inertia.WithSSRFailFast(cfg.GetSSRFailFast()),
+		inertia.WithSSRMode(inertia.SSRMode(cfg.SSRMode())),
+		inertia.WithSSRRuntime(cfg.SSRRuntime()),
+		inertia.WithSSRBundle(cfg.SSRBundle()),
+		inertia.WithSSRURL(cfg.SSRURL()),
+		inertia.WithSSRStartupTimeout(cfg.SSRStartupTimeout()),
+		inertia.WithSSRRequestTimeout(cfg.SSRRequestTimeout()),
+		inertia.WithSSRMaxResponseBytes(cfg.SSRMaxResponseBytes()),
+		inertia.WithSSRFailFast(cfg.SSRFailFast()),
 	)
 	if err != nil {
 		return nil, err

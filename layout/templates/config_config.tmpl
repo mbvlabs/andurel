@@ -2,8 +2,10 @@
 package config
 
 import (
-	"os"
+	"context"
+	"fmt"
 
+	"github.com/mbvlabs/andurel/pkg/email"
 	"go.uber.org/fx"
 )
 
@@ -12,35 +14,74 @@ const (
 	DefaultProjectName = "{{.ProjectName}}"
 )
 
-var Environment = func() string {
-	if env := os.Getenv("ENVIRONMENT"); env != "" {
-		return env
-	}
-
-	return DefaultEnvironment
+type Config struct {
+	app       appConfig
+	database  databaseConfig
+	queue     queueConfig
+	telemetry telemetryConfig
+	email     emailConfig
+	auth      authConfig
+{{- if .Inertia}}
+	inertia   inertiaConfig
+{{- end}}
+{{- if hasExtension .Extensions "aws-ses"}}
+	awsSes    awsSesConfig
+{{- end}}
 }
 
-var ProjectName = func() string {
-	if projectName := os.Getenv("PROJECT_NAME"); projectName != "" {
-		return projectName
-	}
-
-	return DefaultProjectName
+func Environment() string {
+	return envOr("ENVIRONMENT", DefaultEnvironment)
 }
 
-// Module provides all application configuration constructors to the dependency container.
+func ProjectName() string {
+	return envOr("PROJECT_NAME", DefaultProjectName)
+}
+
+func New() (*Config, error) {
+	c := &Config{}
+	if err := c.setupApp(); err != nil {
+		return nil, fmt.Errorf("config: app: %w", err)
+	}
+	if err := c.setupDatabase(); err != nil {
+		return nil, fmt.Errorf("config: database: %w", err)
+	}
+	if err := c.setupQueue(); err != nil {
+		return nil, fmt.Errorf("config: queue: %w", err)
+	}
+	if err := c.setupTelemetry(); err != nil {
+		return nil, fmt.Errorf("config: telemetry: %w", err)
+	}
+	if err := c.setupEmail(); err != nil {
+		return nil, fmt.Errorf("config: email: %w", err)
+	}
+	if err := c.setupAuth(); err != nil {
+		return nil, fmt.Errorf("config: auth: %w", err)
+	}
+{{- if hasExtension .Extensions "aws-ses"}}
+	if err := c.setupAwsSes(); err != nil {
+		return nil, fmt.Errorf("config: aws-ses: %w", err)
+	}
+{{- end}}
+{{- if .Inertia}}
+	if err := c.setupInertia(); err != nil {
+		return nil, fmt.Errorf("config: inertia: %w", err)
+	}
+{{- end}}
+
+	return c, nil
+}
+
+func provideEmailSenders(
+	ctx context.Context,
+	c *Config,
+) (email.TransactionalSender, email.MarketingSender, error) {
+	return c.EmailSenders(ctx)
+}
+
+// Module provides application configuration to the dependency container.
 var Module = fx.Module("config",
 	fx.Provide(
-		NewAppCfg,
-		NewDatabaseCfg,
-		NewQueueCfg,
-		NewTelemetryCfg,
-		NewEmailSenders,
-{{- if .Inertia}}
-		NewInertiaCfg,
-{{- end}}
-{{- range .Blueprint.Config.SortedFields}}
-		New{{.Name}}Cfg,
-{{- end}}
+		New,
+		provideEmailSenders,
 	),
 )

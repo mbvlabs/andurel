@@ -22,10 +22,10 @@ var _ email.TransactionalSender = (*AwsSes)(nil)
 var _ email.MarketingSender = (*AwsSes)(nil)
 
 type SesConfigProvider interface {
-	GetRegion() string
-	GetAccessKeyID() string
-	GetSecretAccessKey() string
-	GetConfigurationSet() string
+	Region() string
+	AccessKeyID() string
+	SecretAccessKey() string
+	ConfigurationSet() string
 }
 
 type AwsSes struct {
@@ -35,12 +35,12 @@ type AwsSes struct {
 
 func NewAwsSes(ctx context.Context, cfg SesConfigProvider) (*AwsSes, error) {
 	options := []func(*awsconfig.LoadOptions) error{
-		awsconfig.WithRegion(cfg.GetRegion()),
+		awsconfig.WithRegion(cfg.Region()),
 	}
-	if cfg.GetAccessKeyID() != "" || cfg.GetSecretAccessKey() != "" {
+	if cfg.AccessKeyID() != "" || cfg.SecretAccessKey() != "" {
 		options = append(options, awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			cfg.GetAccessKeyID(),
-			cfg.GetSecretAccessKey(),
+			cfg.AccessKeyID(),
+			cfg.SecretAccessKey(),
 			"",
 		)))
 	}
@@ -53,7 +53,7 @@ func NewAwsSes(ctx context.Context, cfg SesConfigProvider) (*AwsSes, error) {
 
 	return &AwsSes{
 		client:           client,
-		configurationSet: cfg.GetConfigurationSet(),
+		configurationSet: cfg.ConfigurationSet(),
 	}, nil
 }
 

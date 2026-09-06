@@ -32,17 +32,17 @@ import (
 )
 
 type AppProvider interface {
-	GetSessionKey() string
-	GetSessionEncryptionKey() string
-	GetCSRFStrategy() string
-	GetCSRFTrustedOrigins() []string
-	GetSessionMaxAge() int
-	GetCORSAllowedOrigins() []string
-	GetBaseURL() string
-	GetEnvironment() string
-	GetDomain() string
-	GetProjectName() string
-	GetAppCookieSessionName() string
+	SessionKey() string
+	SessionEncryptionKey() string
+	CSRFStrategy() string
+	CSRFTrustedOrigins() []string
+	SessionMaxAge() int
+	CORSAllowedOrigins() []string
+	BaseURL() string
+	Env() string
+	Domain() string
+	ProjectName() string
+	AppCookieSessionName() string
 }
 
 type Router struct {
@@ -61,11 +61,11 @@ func New(
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
 
-	authKey, err := hex.DecodeString(cfg.GetSessionKey())
+	authKey, err := hex.DecodeString(cfg.SessionKey())
 	if err != nil {
 		return nil, err
 	}
-	encKey, err := hex.DecodeString(cfg.GetSessionEncryptionKey())
+	encKey, err := hex.DecodeString(cfg.SessionEncryptionKey())
 	if err != nil {
 		return nil, err
 	}
@@ -134,13 +134,13 @@ func SetupGlobalMiddleware(
 {{- end}}
 ) ([]echo.MiddlewareFunc, error) {
 	csrfMiddleware, err := middleware.CSRFMiddleware(
-		cfg.GetCSRFStrategy(),
-		cfg.GetCSRFTrustedOrigins(),
+		cfg.CSRFStrategy(),
+		cfg.CSRFTrustedOrigins(),
 		csrfName,
-		cfg.GetBaseURL(),
-		cfg.GetEnvironment(),
-		cfg.GetDomain(),
-		cfg.GetAppCookieSessionName(),
+		cfg.BaseURL(),
+		cfg.Env(),
+		cfg.Domain(),
+		cfg.AppCookieSessionName(),
 	)
 	if err != nil {
 		return nil, err
@@ -148,13 +148,13 @@ func SetupGlobalMiddleware(
 	sessionStore, err := newApplicationSessionStore(
 		authKey,
 		encKey,
-		cfg.GetSessionMaxAge(),
-		cfg.GetEnvironment() == server.ProdEnvironment,
+		cfg.SessionMaxAge(),
+		cfg.Env() == server.ProdEnvironment,
 	)
 	if err != nil {
 		return nil, err
 	}
-	corsConfig, err := newCORSConfig(cfg.GetBaseURL(), cfg.GetCORSAllowedOrigins())
+	corsConfig, err := newCORSConfig(cfg.BaseURL(), cfg.CORSAllowedOrigins())
 	if err != nil {
 		return nil, err
 	}
@@ -265,8 +265,8 @@ var Module = fx.Module(
 
 func newSession(cfg AppProvider) *cookies.Session {
 	return cookies.NewSession(
-		cfg.GetAppCookieSessionName(),
-		cfg.GetProjectName(),
-		cfg.GetEnvironment(),
+		cfg.AppCookieSessionName(),
+		cfg.ProjectName(),
+		cfg.Env(),
 	)
 }

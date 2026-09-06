@@ -116,66 +116,65 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileContains(t, projectDir, "cmd/app/main.go", `inertiaModule,`)
 	assertFileNotContains(t, projectDir, "cmd/app/main.go", "internal/inertia")
 	assertFileContains(t, projectDir, "cmd/app/main.go", "func newInertia(")
-	assertFileContains(t, projectDir, "cmd/app/main.go", "cfg config.InertiaCfg")
-	assertFileContains(t, projectDir, "cmd/app/main.go", "appCfg config.AppCfg")
+	assertFileContains(t, projectDir, "cmd/app/main.go", "cfg *config.Config")
 	assertFileContains(t, projectDir, "cmd/app/main.go", "(*inertia.Renderer, error)")
-	assertFileContains(t, projectDir, "config/config.go", "NewInertiaCfg,")
-	assertFileContains(t, projectDir, "config/config.go", "NewAppCfg,")
-	assertFileContains(t, projectDir, "config/config.go", "var Environment = func() string")
-	assertFileContains(t, projectDir, "config/config.go", "var ProjectName = func() string")
-	assertFileContains(t, projectDir, "config/config.go", `return DefaultProjectName`)
+	assertFileContains(t, projectDir, "config/config.go", "func New() (*Config, error)")
+	assertFileNotContains(t, projectDir, "config/config.go", "func provide(")
+	assertFileNotContains(t, projectDir, "config/config.go", "InertiaResources")
+	assertFileContains(t, projectDir, "config/config.go", "func Environment() string")
+	assertFileContains(t, projectDir, "config/config.go", "func ProjectName() string")
 	assertFileContains(t, projectDir, "config/config.go", `DefaultProjectName = "testapp"`)
-	assertFileContains(t, projectDir, "config/inertia.go", "func NewInertiaCfg() (InertiaCfg, error)")
+	assertFileContains(t, projectDir, "config/helper.go", "func envOr[T envType]")
 	assertFileContains(
 		t,
 		projectDir,
 		"config/inertia.go",
-		"func (c InertiaCfg) GetRoot() inertia.RootFunc",
+		"func (c *Config) setupInertia() error",
 	)
 	assertFileContains(
 		t,
 		projectDir,
 		"config/inertia.go",
-		"routes.ViteBuild.Path()",
+		"func (c *Config) Root() inertia.RootFunc",
 	)
-	assertFileContains(
-		t,
-		projectDir,
-		"config/inertia.go",
-		"views.Root",
-	)
+	assertFileContains(t, projectDir, "config/inertia.go", "views.Root")
+	assertFileContains(t, projectDir, "config/inertia.go", "assets.Files")
+	assertFileContains(t, projectDir, "config/inertia.go", "routes.ViteBuild.Path()")
 	assertFileContains(
 		t,
 		projectDir,
 		"config/inertia.go",
 		"string(inertia.SSRDisabled)",
 	)
-	assertFileContains(t, projectDir, "config/inertia.go", "return c.Root")
-	assertFileContains(t, projectDir, "config/inertia.go", "return c.EntryPoint")
-	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.WithRoot(cfg.GetRoot())`)
+	assertFileContains(t, projectDir, "config/inertia.go", "return c.inertia.root")
+	assertFileContains(t, projectDir, "config/inertia.go", "return c.inertia.entryPoint")
+	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.WithRoot(cfg.Root())`)
 	assertFileContains(
 		t,
 		projectDir,
 		"cmd/app/main.go",
-		`inertia.WithEntryPoint(cfg.GetEntryPoint())`,
+		`inertia.WithEntryPoint(cfg.EntryPoint())`,
 	)
-	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.WithAssetFS(cfg.GetAssetFS())`)
+	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.WithAssetFS(cfg.AssetFS())`)
 	assertFileContains(
 		t,
 		projectDir,
 		"cmd/app/main.go",
-		`inertia.WithBuildPathURL(cfg.GetBuildPathURL())`,
+		`inertia.WithBuildPathURL(cfg.BuildPathURL())`,
 	)
 	assertFileNotContains(t, projectDir, "cmd/app/main.go", "views.Root")
+	assertFileNotContains(t, projectDir, "cmd/app/main.go", "assets.Files")
+	assertFileNotContains(t, projectDir, "cmd/app/main.go", "routes.ViteBuild.Path()")
+	assertFileNotContains(t, projectDir, "cmd/app/main.go", "InertiaResources")
 	assertFileContains(t, projectDir, "cmd/app/main.go", `OnStart: renderer.Start`)
 	assertFileContains(
 		t,
 		projectDir,
 		"cmd/app/main.go",
-		`inertia.WithProjectName(config.ProjectName())`,
+		`inertia.WithProjectName(cfg.ProjectName())`,
 	)
 	assertFileMissing(t, projectDir, "application/metadata.go")
-	assertFileContains(t, projectDir, "config/app.go", `func (c AppCfg) GetBaseURL() string`)
+	assertFileContains(t, projectDir, "config/app.go", `func (c *Config) BaseURL() string`)
 	assertFileContains(t, projectDir, "views/root.templ", `templ Root(data inertia.RootData)`)
 	assertFileContains(t, projectDir, "views/root.templ", `@templ.Raw(string(data.ViteHead))`)
 	assertFileContains(t, projectDir, "views/root_templ.go", `func Root(`)

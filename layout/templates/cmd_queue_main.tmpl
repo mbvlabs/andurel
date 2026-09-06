@@ -34,7 +34,7 @@ func main() {
 			{{- range .Blueprint.Main.ServiceProvides}}
 			{{.}},
 			{{- end}}
-			func(cfg config.TelemetryCfg) telemetry.ConfigProvider { return cfg },
+			func(cfg *config.Config) telemetry.ConfigProvider { return cfg },
 		),
 
 		config.Module,
@@ -77,9 +77,9 @@ var queueProcessorModule = fx.Module(
 func newDatabase(
 	lifecycle fx.Lifecycle,
 	ctx context.Context,
-	cfg storage.Config,
+	cfg *config.Config,
 ) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, cfg)
+	db, err := storage.NewPostgres(ctx, cfg.Database())
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ type queueProcessorParams struct {
 	fx.In
 
 	Connection   storage.Connection
-	Config       storage.QueueConfig
+	Config       *config.Config
 	Logger       *slog.Logger
 	Workers      *river.Workers
 	PeriodicJobs []*river.PeriodicJob `group:"periodic_jobs"`
@@ -101,7 +101,7 @@ type queueProcessorParams struct {
 func newQueueProcessor(params queueProcessorParams) (*storage.QueueProcessor, error) {
 	return storage.NewQueueProcessor(
 		params.Connection,
-		params.Config,
+		params.Config.Queue(),
 		storage.WithRiverWorkers(params.Workers),
 		storage.WithRiverPeriodicJobs(params.PeriodicJobs...),
 		storage.WithRiverLogger(params.Logger),

@@ -1,0 +1,106 @@
+package config
+
+import (
+	"fmt"
+	"os"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+)
+
+type envType interface {
+	string | int | int32 | int64 | bool | float64 | time.Duration | []string
+}
+
+func envOr[T envType](key string, def T) T {
+	if slice, ok := any(def).([]string); ok {
+		return any(envSlice(key, slice)).(T)
+	}
+
+	value, ok := os.LookupEnv(key)
+	if !ok || value == "" {
+		return def
+	}
+
+	parsed, err := parseEnv[T](value)
+	if err != nil {
+		return def
+	}
+
+	return parsed
+}
+
+func parseEnv[T envType](value string) (T, error) {
+	var zero T
+	switch any(zero).(type) {
+	case string:
+		return any(value).(T), nil
+	case int:
+		n, err := strconv.Atoi(value)
+		if err != nil {
+			return zero, err
+		}
+
+		return any(n).(T), nil
+	case int32:
+		n, err := strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			return zero, err
+		}
+
+		return any(int32(n)).(T), nil
+	case int64:
+		n, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return zero, err
+		}
+
+		return any(n).(T), nil
+	case bool:
+		b, err := strconv.ParseBool(value)
+		if err != nil {
+			return zero, err
+		}
+
+		return any(b).(T), nil
+	case float64:
+		f, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return zero, err
+		}
+
+		return any(f).(T), nil
+	case time.Duration:
+		d, err := time.ParseDuration(value)
+		if err != nil {
+			return zero, err
+		}
+
+		return any(d).(T), nil
+	default:
+		return zero, fmt.Errorf("config: unsupported env type")
+	}
+}
+
+func envSlice(key string, def []string) []string {
+	value, ok := os.LookupEnv(key)
+	if !ok || value == "" {
+		return slices.Clone(def)
+	}
+
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		out = append(out, part)
+	}
+	if len(out) == 0 {
+		return slices.Clone(def)
+	}
+
+	return out
+}

@@ -13,12 +13,12 @@ import (
 )
 
 type ConfigProvider interface {
-	GetProjectName() string
-	GetBaseURL() string
+	ProjectName() string
+	BaseURL() string
 }
 
 func configureViews(cfg ConfigProvider) {
-	views.ConfigureHead(cfg.GetProjectName(), cfg.GetBaseURL())
+	views.ConfigureHead(cfg.ProjectName(), cfg.BaseURL())
 }
 
 {{- if not .Inertia}}

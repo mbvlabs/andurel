@@ -9,18 +9,18 @@ import (
 )
 
 type TokenProvider interface {
-	GetTokenSigningKey() string
+	TokenSigningKey() string
 }
 
 type AuthProvider interface {
-	GetPepper() string
-	GetPreviousPeppers() []string
+	Pepper() string
+	PreviousPeppers() []string
 }
 
 type AppIdentityProvider interface {
 	TokenProvider
-	GetBaseURL() string
-	GetDefaultSenderSignature() string
+	BaseURL() string
+	DefaultSenderSignature() string
 }
 
 type Identity struct {
@@ -43,9 +43,9 @@ func NewIdentity(
 	appCfg AppIdentityProvider,
 	authCfg AuthProvider,
 ) Identity {
-	validPeppers := make([]string, 0, len(authCfg.GetPreviousPeppers()))
-	for _, p := range authCfg.GetPreviousPeppers() {
-		if p = strings.TrimSpace(p); p != "" && p != authCfg.GetPepper() {
+	validPeppers := make([]string, 0, len(authCfg.PreviousPeppers()))
+	for _, p := range authCfg.PreviousPeppers() {
+		if p = strings.TrimSpace(p); p != "" && p != authCfg.Pepper() {
 			validPeppers = append(validPeppers, p)
 		}
 	}
@@ -55,10 +55,10 @@ func NewIdentity(
 		users:                  users,
 		tokens:                 tokens,
 		insertOnly:             insertOnly,
-		pepper:                 authCfg.GetPepper(),
+		pepper:                 authCfg.Pepper(),
 		previousPeppers:        validPeppers,
-		tokenSigningKey:        appCfg.GetTokenSigningKey(),
-		baseURL:                appCfg.GetBaseURL(),
-		defaultSenderSignature: appCfg.GetDefaultSenderSignature(),
+		tokenSigningKey:        appCfg.TokenSigningKey(),
+		baseURL:                appCfg.BaseURL(),
+		defaultSenderSignature: appCfg.DefaultSenderSignature(),
 	}
 }
