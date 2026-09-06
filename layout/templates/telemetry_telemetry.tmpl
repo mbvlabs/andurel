@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"{{.ModuleName}}/config"
+
 	"go.opentelemetry.io/otel"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -20,18 +22,6 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.uber.org/fx"
 )
-
-type ConfigProvider interface {
-	ServiceName() string
-	ServiceVersion() string
-	BatchSize() int
-	BatchTimeoutMs() int
-	TraceSampleRate() float64
-	OtlpLogsEndpoint() string
-	OtlpMetricsEndpoint() string
-	OtlpTracesEndpoint() string
-	OtlpHeaders() string
-}
 
 type Telemetry struct {
 	resource       *resource.Resource
@@ -42,38 +32,38 @@ type Telemetry struct {
 	config         *telemetryOptions
 }
 
-func New(cfg ConfigProvider) (*Telemetry, error) {
+func New(cfg config.Telemetry) (*Telemetry, error) {
 	ctx := context.Background()
 
 	opts := []Option{
-		WithService(cfg.ServiceName(), cfg.ServiceVersion()),
-		WithBatchConfig(cfg.BatchSize(), cfg.BatchTimeoutMs(), 2048),
-		WithTraceSampleRate(cfg.TraceSampleRate()),
+		WithService(cfg.ServiceName, cfg.ServiceVersion),
+		WithBatchConfig(cfg.BatchSize, cfg.BatchTimeoutMs, 2048),
+		WithTraceSampleRate(cfg.TraceSampleRate),
 	}
 
 	logExporters := []LogExporter{NewStdoutExporter()}
-	if cfg.OtlpLogsEndpoint() != "" {
+	if cfg.OtlpLogsEndpoint != "" {
 		logExporters = append(logExporters, NewOtlpLogExporter(
-			cfg.OtlpLogsEndpoint(),
-			parseHeaders(cfg.OtlpHeaders()),
-			cfg.BatchSize(),
-			time.Duration(cfg.BatchTimeoutMs())*time.Millisecond,
+			cfg.OtlpLogsEndpoint,
+			parseHeaders(cfg.OtlpHeaders),
+			cfg.BatchSize,
+			time.Duration(cfg.BatchTimeoutMs)*time.Millisecond,
 		))
 	}
 	opts = append(opts, WithLogExporters(logExporters...))
 
-	if cfg.OtlpMetricsEndpoint() != "" {
+	if cfg.OtlpMetricsEndpoint != "" {
 		opts = append(opts, WithMetricExporters(
 			NewOtlpMetricExporter(
-				cfg.OtlpMetricsEndpoint(),
-				parseHeaders(cfg.OtlpHeaders()),
+				cfg.OtlpMetricsEndpoint,
+				parseHeaders(cfg.OtlpHeaders),
 			),
 		))
 	}
 
-	if cfg.OtlpTracesEndpoint() != "" {
+	if cfg.OtlpTracesEndpoint != "" {
 		opts = append(opts, WithTraceExporters(
-			NewOtlpTraceExporter(cfg.OtlpTracesEndpoint(), parseHeaders(cfg.OtlpHeaders()))))
+			NewOtlpTraceExporter(cfg.OtlpTracesEndpoint, parseHeaders(cfg.OtlpHeaders))))
 	} else {
 		opts = append(opts, WithTraceExporters(NewNoopTraceExporter()))
 	}

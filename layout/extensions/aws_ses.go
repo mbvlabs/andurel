@@ -15,10 +15,7 @@ func (e AwsSes) Apply(ctx *Context) error {
 	if ctx == nil || ctx.Data == nil {
 		return fmt.Errorf("aws-ses: context or data is nil")
 	}
-
-	builder := ctx.Builder()
-	// Add config field
-	builder.AddConfigField("AwsSes", "AwsSesCfg")
+	_ = ctx.Builder()
 
 	if err := e.renderTemplates(ctx); err != nil {
 		return fmt.Errorf("aws-ses: failed to render templates: %w", err)

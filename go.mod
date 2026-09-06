@@ -102,7 +102,6 @@ require (
 require (
 	github.com/a-h/parse v0.0.0-20250122154542-74294addb73e // indirect
 	github.com/andybalholm/brotli v1.2.1 // indirect
-	github.com/caarlos0/env/v11 v11.3.1
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cli/browser v1.3.0 // indirect
 	github.com/fatih/color v1.16.0 // indirect

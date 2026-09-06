@@ -35,12 +35,18 @@ func TestGeneratedConfigModuleDoesNotDuplicateProviders(t *testing.T) {
 		t.Fatalf("read config module: %v", err)
 	}
 	content := string(configModule)
-	for _, provider := range []string{"New", "provideEmailSenders"} {
+	for _, provider := range []string{
+		"NewApp,", "NewHTTP,", "NewSession,", "NewAuth,", "NewDatabase,",
+		"NewQueueInsert,", "NewQueueWorker,", "NewTelemetry,", "NewMail,",
+		"NewMailTransport,",
+	} {
 		if got := strings.Count(content, provider); got < 1 {
 			t.Errorf("config/config.go missing %s", provider)
 		}
 	}
 	if strings.Contains(content, "NewInertiaCfg") ||
+		strings.Contains(content, "provideEmailSenders") ||
+		strings.Contains(content, "func New()") ||
 		strings.Contains(content, "func provide(") ||
 		strings.Contains(content, "InertiaResources") {
 		t.Error("non-inertia config module should not provide inertia constructors")
@@ -115,39 +121,33 @@ func TestGeneratedUserAndTokenModelTemplates(t *testing.T) {
 func TestGeneratedConfigEnvDefaults(t *testing.T) {
 	appConfig := readGeneratedApplicationTemplate(t, "config_app.tmpl")
 	for _, want := range []string{
-		"func (c *Config) setupApp() error",
-		"func (c appConfig) validate() error",
-		`envOr("SESSION_KEY", "")`,
-		"DefaultAppHost",
-		"DefaultIdleTimeout",
-		"func (c *Config) Env() string",
-		"func (c *Config) BaseURL() string",
+		"type App struct",
+		"func NewApp() (App, error)",
+		`env.String("ENVIRONMENT", DefaultEnvironment)`,
+		`env.String("PROJECT_NAME", DefaultProjectName)`,
+		"BaseURL     string",
+		"func (c App) IsProduction() bool",
 	} {
 		if !strings.Contains(appConfig, want) {
 			t.Errorf("config_app.tmpl missing %q", want)
 		}
 	}
-	if strings.Contains(appConfig, "func (c *Config) Domain() string      { return c.app.domain }\nfunc (c *Config) BaseURL()") {
-		t.Error("config_app.tmpl should separate accessors with blank lines instead of packing them")
-	}
 	if strings.Contains(appConfig, `env:"ENVIRONMENT"`) || strings.Contains(appConfig, `env:"PROJECT_NAME"`) {
-		t.Error("appConfig should not own ENVIRONMENT or PROJECT_NAME via struct tags")
-	}
-	if !strings.Contains(appConfig, `envOr("ENVIRONMENT", DefaultEnvironment)`) {
-		t.Error("config_app.tmpl should read environment with envOr")
+		t.Error("App should not read environment via struct tags")
 	}
 
 	configModule := readGeneratedApplicationTemplate(t, "config_config.tmpl")
 	for _, want := range []string{
-		"func New() (*Config, error)",
-		"provideEmailSenders,",
-		"func Environment() string {",
-		"func ProjectName() string {",
-		`envOr("ENVIRONMENT", DefaultEnvironment)`,
-		`envOr("PROJECT_NAME", DefaultProjectName)`,
-		`DefaultProjectName = "{{.ProjectName}}"`,
 		"fx.Provide(",
-		"New,",
+		"NewApp,",
+		"NewHTTP,",
+		"NewSession,",
+		"NewDatabase,",
+		"NewQueueInsert,",
+		"NewQueueWorker,",
+		"NewTelemetry,",
+		"NewMail,",
+		"NewMailTransport,",
 	} {
 		if !strings.Contains(configModule, want) {
 			t.Errorf("config_config.tmpl missing %q", want)
@@ -156,20 +156,25 @@ func TestGeneratedConfigEnvDefaults(t *testing.T) {
 
 	helper := readGeneratedApplicationTemplate(t, "config_helper.tmpl")
 	for _, want := range []string{
-		"func envOr[T envType]",
-		"func envSlice(key string, def []string)",
-		"return any(envSlice(key, slice)).(T)",
+		"type environment struct",
+		"func LoadEnvironment(filenames ...string) error",
+		"func (e *environment) String(",
+		"func (e *environment) RequiredString(",
+		"func (e *environment) Int(",
+		"func (e *environment) Duration(",
+		"func (e *environment) Strings(",
+		"func (e *environment) Err() error",
 	} {
 		if !strings.Contains(helper, want) {
 			t.Errorf("config_helper.tmpl missing %q", want)
 		}
 	}
-	for _, unwanted := range []string{"Source", "IdentityCfg", "Overrides", "NewAppCfg", "caarlos0/env"} {
+	for _, unwanted := range []string{"type Config struct", "NewDatabaseOnly", "provideEmailSenders", "caarlos0/env"} {
 		if strings.Contains(configModule, unwanted) || strings.Contains(appConfig, unwanted) {
 			t.Errorf("application configuration must resolve identity once; found %q", unwanted)
 		}
 	}
-	for _, unwanted := range []string{"envDefault:", "RequiredIfNoDef", `env:"SESSION_KEY,required"`, "panic("} {
+	for _, unwanted := range []string{"envDefault:", "RequiredIfNoDef", `env:"SESSION_KEY,required"`, "panic(", "SESSION_KEY"} {
 		if strings.Contains(appConfig, unwanted) {
 			t.Errorf("application configuration must return validation errors; found %q", unwanted)
 		}
@@ -212,10 +217,10 @@ func TestGeneratedConfigEnvDefaults(t *testing.T) {
 	}
 
 	databaseConfig := readGeneratedApplicationTemplate(t, "config_database.tmpl")
-	if !strings.Contains(databaseConfig, "return c.database.cfg") {
-		t.Error("config_database.tmpl must store and return storage.Config")
+	if !strings.Contains(databaseConfig, "func NewDatabase() (storage.Config, error)") {
+		t.Error("config_database.tmpl must return storage.Config directly")
 	}
-	if !strings.Contains(databaseConfig, "if err := cfg.Validate(); err != nil") {
+	if !strings.Contains(databaseConfig, "errors.Join(env.Err(), cfg.Validate())") {
 		t.Error("config_database.tmpl must return storage.Config and delegate to package validation")
 	}
 	if !strings.Contains(appConfig, "validation.NewBuilder()") {
@@ -223,31 +228,31 @@ func TestGeneratedConfigEnvDefaults(t *testing.T) {
 	}
 
 	authConfig := readGeneratedApplicationTemplate(t, "config_auth.tmpl")
-	if !strings.Contains(authConfig, `envOr("PEPPER", "")`) {
+	if !strings.Contains(authConfig, `env.RequiredString("PEPPER")`) {
 		t.Error("config_auth.tmpl does not configure PEPPER")
 	}
 	if strings.Contains(authConfig, `env:"PEPPER,required"`) {
 		t.Error("config_auth.tmpl should not mark PEPPER required via env tags")
 	}
-	if !strings.Contains(authConfig, "func (c authConfig) validate() error") {
-		t.Error("config_auth.tmpl missing validate")
+	if !strings.Contains(authConfig, "func NewAuth() (Auth, error)") {
+		t.Error("config_auth.tmpl missing its independent constructor")
 	}
 }
 
 func TestGeneratedAuthenticationTemplates(t *testing.T) {
 	authConfig := readGeneratedApplicationTemplate(t, "config_auth.tmpl")
-	if !strings.Contains(authConfig, `envSlice("PREVIOUS_PEPPERS", nil)`) {
+	if !strings.Contains(authConfig, `env.Strings("PREVIOUS_PEPPERS", nil)`) {
 		t.Error("config_auth.tmpl does not configure PREVIOUS_PEPPERS")
 	}
 
 	identity := readGeneratedApplicationTemplate(t, "services_identity.tmpl")
-	for _, want := range []string{"AppIdentityProvider", "TokenProvider", "AuthProvider", "TokenSigningKey()", "Pepper()", "PreviousPeppers()", "baseURL", "defaultSenderSignature", "users                  models.Users", "tokens                 models.Tokens"} {
+	for _, want := range []string{"config.App", "config.Auth", "config.Mail", "authCfg.TokenSigningKey", "authCfg.Pepper", "authCfg.PreviousPeppers", "baseURL", "defaultSenderSignature", "users                  models.Users", "tokens                 models.Tokens"} {
 		if !strings.Contains(identity, want) {
 			t.Errorf("services_identity.tmpl missing %q", want)
 		}
 	}
-	if strings.Contains(identity, `"{{.ModuleName}}/config"`) || strings.Contains(identity, "config.AppCfg") {
-		t.Error("services_identity.tmpl should not import config; it should take local interfaces")
+	if strings.Contains(identity, "AppIdentityProvider") || strings.Contains(identity, "AuthProvider") {
+		t.Error("services_identity.tmpl should consume the application's typed config values")
 	}
 
 	authentication := readGeneratedApplicationTemplate(t, "services_authentication.tmpl")
@@ -275,12 +280,12 @@ func TestGeneratedAuthenticationTemplates(t *testing.T) {
 func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 	databaseConfig := readGeneratedApplicationTemplate(t, "config_database.tmpl")
 	for _, want := range []string{
-		"if err := cfg.Validate(); err != nil",
+		"errors.Join(env.Err(), cfg.Validate())",
 		"DB_PASSWORD",
-		"func (c *Config) setupDatabase() error",
-		`envOr("DB_HOST", DefaultDatabaseHost)`,
+		"func NewDatabase() (storage.Config, error)",
+		`env.String("DB_HOST", DefaultDatabaseHost)`,
 		"DefaultDatabaseHost",
-		"func (c *Config) Database() storage.Config",
+		"storage.DefaultConfig()",
 	} {
 		if !strings.Contains(databaseConfig, want) {
 			t.Errorf("config_database.tmpl missing %q", want)
@@ -296,13 +301,13 @@ func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 	}
 	wiring := readGeneratedApplicationTemplate(t, "cmd_app_main.tmpl")
 	if !strings.Contains(wiring, "func newDatabase(") ||
-		!strings.Contains(wiring, "cfg *config.Config") {
-		t.Error("command wiring does not define newDatabase with *config.Config")
+		!strings.Contains(wiring, "cfg storage.Config") {
+		t.Error("command wiring does not define newDatabase with storage.Config")
 	}
 	if !strings.Contains(wiring, "fx.As(new(storage.Connection)), fx.As(fx.Self())") {
 		t.Error("command wiring does not provide *storage.Postgres as storage.Connection")
 	}
-	if !strings.Contains(wiring, "storage.NewPostgres(ctx, cfg.Database())") {
+	if !strings.Contains(wiring, "storage.NewPostgres(ctx, cfg)") {
 		t.Error("command wiring does not apply application storage config")
 	}
 	if !strings.Contains(mainTemplate, `"{{.ModuleName}}/models"`) {
@@ -320,10 +325,17 @@ func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 	}
 
 	queueTemplate := readGeneratedApplicationTemplate(t, "cmd_queue_main.tmpl")
+	if !strings.Contains(queueTemplate, "config.Module,") {
+		t.Error("queue workers need the full config module and email senders")
+	}
+	seedsTemplate := readGeneratedApplicationTemplate(t, "cmd_seeds_main.tmpl")
+	if !strings.Contains(seedsTemplate, "config.NewDatabase()") {
+		t.Error("seeds must initialize database configuration directly")
+	}
 	if !strings.Contains(queueTemplate, "databaseModule") {
 		t.Error("cmd_queue_main.tmpl does not use the database module")
 	}
-	if !strings.Contains(wiring, "storage.NewQueueInsert(connection, queueCfg)") {
+	if !strings.Contains(wiring, "storage.NewQueueInsert(connection, cfg.Config)") {
 		t.Error("command wiring does not apply application queue config")
 	}
 	if strings.Contains(queueTemplate, "WithConfig(") || strings.Contains(queueTemplate, "WithQueueConfig(") ||
@@ -354,7 +366,7 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	}
 
 	mainTemplate := readGeneratedApplicationTemplate(t, "cmd_app_main.tmpl")
-	if !strings.Contains(mainTemplate, "srv.Start(ctx, cfg.Env())") {
+	if !strings.Contains(mainTemplate, "srv.Start(ctx, appCfg.Environment)") {
 		t.Error("cmd_app_main.tmpl does not start the server with the application environment")
 	}
 	if !strings.Contains(mainTemplate, "server.WithTimeouts(") {
@@ -362,12 +374,12 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	}
 	wiring := readGeneratedApplicationTemplate(t, "cmd_app_main.tmpl")
 	for _, want := range []string{
-		"inertia.WithRoot(cfg.Root())",
-		"inertia.WithAssetFS(cfg.AssetFS())",
-		"inertia.WithBuildPathURL(cfg.BuildPathURL())",
-		"inertia.WithEntryPoint(cfg.EntryPoint())",
-		"inertia.WithViteDevURL(cfg.ViteDevURL())",
-		"inertia.WithSSRURL(cfg.SSRURL())",
+		"inertia.WithRoot(views.Root)",
+		"inertia.WithAssetFS(assets.Files)",
+		"inertia.WithBuildPathURL(routes.ViteBuild.Path())",
+		"inertia.WithEntryPoint(cfg.EntryPoint)",
+		"inertia.WithViteDevURL(cfg.ViteDevURL)",
+		"inertia.WithSSRURL(cfg.SSRURL)",
 	} {
 		if !strings.Contains(wiring, want) {
 			t.Errorf("command wiring missing inertia option %q", want)
@@ -384,8 +396,8 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	if !strings.Contains(mainTemplate, "queueInsertModule") {
 		t.Error("cmd_app_main.tmpl does not install the queue insertion module")
 	}
-	if strings.Contains(mainTemplate, "emailModule") || strings.Contains(mainTemplate, "newEmailSenders") {
-		t.Error("cmd_app_main.tmpl should take email senders from config.Module")
+	if !strings.Contains(mainTemplate, "newEmailSenders") {
+		t.Error("cmd_app_main.tmpl should construct email senders in the composition root")
 	}
 
 	queueMain := readGeneratedApplicationTemplate(t, "cmd_queue_main.tmpl")
@@ -394,45 +406,42 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 			t.Errorf("cmd_queue_main.tmpl missing %q", want)
 		}
 	}
-	if strings.Contains(queueMain, "emailModule") || strings.Contains(queueMain, "newEmailSenders") {
-		t.Error("cmd_queue_main.tmpl should take email senders from config.Module")
+	if !strings.Contains(queueMain, "newEmailSenders") {
+		t.Error("cmd_queue_main.tmpl should construct email senders in the composition root")
 	}
 
 	emailConfig := readGeneratedApplicationTemplate(t, "config_email.tmpl")
 	for _, want := range []string{
-		`envOr("MAILPIT_HOST", DefaultEmailMailpitHost)`,
-		`envOr("MAILPIT_PORT", DefaultEmailMailpitPort)`,
+		`env.String("MAILPIT_HOST", DefaultMailpitHost)`,
+		`env.String("MAILPIT_PORT", DefaultMailpitPort)`,
 		"github.com/mbvlabs/andurel/pkg/email",
-		"DefaultEmailMailpitHost",
-		`envOr("EMAIL_PROVIDER", DefaultEmailProvider)`,
-		"func (c *Config) EmailSenders(",
-		"email.NewMailpit(email.MailpitConfig{",
-		"if c.IsProduction()",
+		"DefaultMailpitHost",
+		`env.String("EMAIL_PROVIDER", string(defaultDriver))`,
+		"func NewMail(app App) (Mail, error)",
+		"func NewMailTransport(app App) (MailTransport, error)",
+		"if !app.IsProduction()",
 	} {
 		if !strings.Contains(emailConfig, want) {
 			t.Errorf("config_email.tmpl missing %q", want)
 		}
 	}
-	if strings.Contains(emailConfig, "GetMailpitHost") || strings.Contains(emailConfig, "GetProvider()") {
-		t.Error("config_email.tmpl should construct senders itself instead of exposing provider getters")
+	if strings.Contains(emailConfig, "EmailSenders") || strings.Contains(emailConfig, "NewMailpit") {
+		t.Error("config_email.tmpl should describe mail without constructing clients")
 	}
 	inertiaConfig := readGeneratedApplicationTemplate(t, "config_inertia.tmpl")
 	for _, want := range []string{
-		"func (c *Config) Root() inertia.RootFunc",
-		"func (c *Config) setupInertia() error",
-		"views.Root",
-		"assets.Files",
-		"routes.ViteBuild.Path()",
+		"type Inertia struct",
+		"func NewInertia() (Inertia, error)",
+		"SSRMode             inertia.SSRMode",
 	} {
 		if !strings.Contains(inertiaConfig, want) {
 			t.Errorf("config_inertia.tmpl missing %q", want)
 		}
 	}
-	if strings.Contains(inertiaConfig, "func (c inertiaConfig) Config()") {
-		t.Error("config_inertia.tmpl should not collapse constructor options into Config()")
-	}
-	if strings.Contains(inertiaConfig, "InertiaResources") {
-		t.Error("config_inertia.tmpl should not invent an InertiaResources type")
+	for _, unwanted := range []string{"views.Root", "assets.Files", "routes.ViteBuild.Path()", "fs.FS"} {
+		if strings.Contains(inertiaConfig, unwanted) {
+			t.Errorf("config_inertia.tmpl should not contain runtime resource %q", unwanted)
+		}
 	}
 	if strings.Contains(inertiaConfig, "SSRMinimumMajor") {
 		t.Error("config_inertia.tmpl should not expose SSR minimum major")
@@ -442,14 +451,15 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	}
 
 	queueConfig := readGeneratedApplicationTemplate(t, "config_queue.tmpl")
-	if got := strings.Count(queueConfig, "type queueConfig "); got != 1 {
-		t.Errorf("config_queue.tmpl queueConfig declarations = %d, want 1", got)
-	}
-	if !strings.Contains(queueConfig, "func (c *Config) Queue() storage.QueueConfig") {
-		t.Error("config_queue.tmpl should return storage.QueueConfig")
-	}
-	if strings.Contains(queueConfig, "func (c QueueCfg) QueueConfig()") {
-		t.Error("config_queue.tmpl should not expose a QueueConfig converter")
+	for _, want := range []string{
+		"type QueueInsert struct",
+		"type QueueWorker struct",
+		"func NewQueueInsert() (QueueInsert, error)",
+		"func NewQueueWorker(insert QueueInsert) (QueueWorker, error)",
+	} {
+		if !strings.Contains(queueConfig, want) {
+			t.Errorf("config_queue.tmpl missing %q", want)
+		}
 	}
 
 	serverTemplate := readStandalonePackageFile(t, "server", "server.go")

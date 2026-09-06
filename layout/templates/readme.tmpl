@@ -330,19 +330,26 @@ automatically. Run `andurel email compile` for a standalone compilation pass.
 
 ```go
 import (
+	"context"
+
     "{{.ModuleName}}/config"
     "{{.ModuleName}}/email"
 )
 
-// Send an email
-data := email.TransactionalData{
-    From:    appCfg.DefaultSenderSignature(),
-    To:      []string{"user@example.com"},
-    Subject: "Welcome!",
-    Body:    WelcomeEmail("John Doe"),
-}
+func sendWelcome(
+    ctx context.Context,
+    sender email.TransactionalSender,
+    mailCfg config.Mail,
+) error {
+    data := email.TransactionalData{
+        From:    mailCfg.DefaultSenderSignature,
+        To:      []string{"user@example.com"},
+        Subject: "Welcome!",
+        Body:    WelcomeEmail("John Doe"),
+    }
 
-err := email.SendTransactional(ctx, data, sender, appCfg)
+    return email.SendTransactional(ctx, data, sender)
+}
 ```
 
 **3. Background email jobs**
@@ -357,7 +364,7 @@ For better performance, send emails asynchronously:
 
 _, err := insertOnly.Client.Insert(ctx, jobs.SendTransactionalEmailArgs{
     Data: email.TransactionalData{
-        From:    appCfg.DefaultSenderSignature(),
+        From:    mailCfg.DefaultSenderSignature,
         To:      []string{"user@example.com"},
         Subject: "Welcome!",
         Body:    WelcomeEmail("John Doe"),

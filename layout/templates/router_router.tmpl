@@ -3,7 +3,6 @@ package router
 
 import (
 	"encoding/gob"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +12,7 @@ import (
 {{- if .Inertia}}
 	"{{.ModuleName}}/router/appctx"
 {{- end}}
+	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/telemetry"
@@ -20,8 +20,6 @@ import (
 {{- if .Inertia}}
 	"github.com/mbvlabs/andurel/pkg/inertia"
 {{- end}}
-	"github.com/mbvlabs/andurel/pkg/server"
-
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/v5/session"
@@ -31,27 +29,15 @@ import (
 	"go.uber.org/fx"
 )
 
-type AppProvider interface {
-	SessionKey() string
-	SessionEncryptionKey() string
-	CSRFStrategy() string
-	CSRFTrustedOrigins() []string
-	SessionMaxAge() int
-	CORSAllowedOrigins() []string
-	BaseURL() string
-	Env() string
-	Domain() string
-	ProjectName() string
-	AppCookieSessionName() string
-}
-
 type Router struct {
 	e       *echo.Echo
 	Handler http.Handler
 }
 
 func New(
-	cfg AppProvider,
+	appCfg config.App,
+	httpCfg config.HTTP,
+	sessionCfg config.Session,
 	cookieSession *cookies.Session,
 	tel *telemetry.Telemetry,
 {{- if .Inertia}}
@@ -60,15 +46,6 @@ func New(
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
-
-	authKey, err := hex.DecodeString(cfg.SessionKey())
-	if err != nil {
-		return nil, err
-	}
-	encKey, err := hex.DecodeString(cfg.SessionEncryptionKey())
-	if err != nil {
-		return nil, err
-	}
 
 	router := echo.New()
 	defaultHTTPErrorHandler := echo.DefaultHTTPErrorHandler(false)
@@ -97,16 +74,23 @@ func New(
 
 {{if .Inertia}}
 	globalMiddleware, err := SetupGlobalMiddleware(
-		cfg,
+		appCfg,
+		httpCfg,
+		sessionCfg,
 		cookieSession,
 		tel,
-		authKey,
-		encKey,
 		"_csrf",
 		renderer,
 	)
 {{- else}}
-	globalMiddleware, err := SetupGlobalMiddleware(cfg, cookieSession, tel, authKey, encKey, "_csrf")
+	globalMiddleware, err := SetupGlobalMiddleware(
+		appCfg,
+		httpCfg,
+		sessionCfg,
+		cookieSession,
+		tel,
+		"_csrf",
+	)
 {{- end}}
 	if err != nil {
 		return nil, err
@@ -123,38 +107,38 @@ func New(
 }
 
 func SetupGlobalMiddleware(
-	cfg AppProvider,
+	appCfg config.App,
+	httpCfg config.HTTP,
+	sessionCfg config.Session,
 	cookieSession *cookies.Session,
 	tel *telemetry.Telemetry,
-	authKey []byte,
-	encKey []byte,
 	csrfName string,
 {{- if .Inertia}}
 	renderer *inertia.Renderer,
 {{- end}}
 ) ([]echo.MiddlewareFunc, error) {
 	csrfMiddleware, err := middleware.CSRFMiddleware(
-		cfg.CSRFStrategy(),
-		cfg.CSRFTrustedOrigins(),
+		httpCfg.CSRFStrategy,
+		httpCfg.CSRFTrustedOrigins,
 		csrfName,
-		cfg.BaseURL(),
-		cfg.Env(),
-		cfg.Domain(),
-		cfg.AppCookieSessionName(),
+		appCfg.BaseURL,
+		appCfg.Environment,
+		appCfg.Domain,
+		sessionCfg.Name,
 	)
 	if err != nil {
 		return nil, err
 	}
 	sessionStore, err := newApplicationSessionStore(
-		authKey,
-		encKey,
-		cfg.SessionMaxAge(),
-		cfg.Env() == server.ProdEnvironment,
+		sessionCfg.AuthenticationKey,
+		sessionCfg.EncryptionKey,
+		sessionCfg.MaxAge,
+		appCfg.IsProduction(),
 	)
 	if err != nil {
 		return nil, err
 	}
-	corsConfig, err := newCORSConfig(cfg.BaseURL(), cfg.CORSAllowedOrigins())
+	corsConfig, err := newCORSConfig(appCfg.BaseURL, httpCfg.CORSAllowedOrigins)
 	if err != nil {
 		return nil, err
 	}
@@ -263,10 +247,10 @@ var Module = fx.Module(
 	fx.Provide(New),
 )
 
-func newSession(cfg AppProvider) *cookies.Session {
+func newSession(appCfg config.App, sessionCfg config.Session) *cookies.Session {
 	return cookies.NewSession(
-		cfg.AppCookieSessionName(),
-		cfg.ProjectName(),
-		cfg.Env(),
+		sessionCfg.Name,
+		appCfg.ProjectName,
+		appCfg.Environment,
 	)
 }

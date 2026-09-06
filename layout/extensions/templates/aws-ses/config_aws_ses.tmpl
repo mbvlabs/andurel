@@ -1,50 +1,33 @@
 package config
 
 import (
+	"errors"
+
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
-const (
-	DefaultAWSSESRegion = "us-east-1"
-)
+const DefaultAWSSESRegion = "us-east-1"
 
-type awsSesConfig struct {
-	region           string
-	accessKeyID      string
-	secretAccessKey  string
-	configurationSet string
+type AWSSES struct {
+	Region           string
+	AccessKeyID      string
+	SecretAccessKey  string
+	ConfigurationSet string
 }
 
-func (c *Config) setupAwsSes() error {
-	cfg := awsSesConfig{
-		region:           envOr("AWS_REGION", DefaultAWSSESRegion),
-		accessKeyID:      envOr("AWS_SES_ACCESS_KEY_ID", ""),
-		secretAccessKey:  envOr("AWS_SES_SECRET_ACCESS_KEY", ""),
-		configurationSet: envOr("AWS_SES_CONFIGURATION_SET", ""),
+func loadAWSSES(env *environment) (AWSSES, error) {
+	cfg := AWSSES{
+		Region:           env.String("AWS_REGION", DefaultAWSSESRegion),
+		AccessKeyID:      env.String("AWS_SES_ACCESS_KEY_ID", ""),
+		SecretAccessKey:  env.String("AWS_SES_SECRET_ACCESS_KEY", ""),
+		ConfigurationSet: env.String("AWS_SES_CONFIGURATION_SET", ""),
 	}
-	if err := cfg.validate(); err != nil {
-		return err
-	}
-	c.awsSes = cfg
-
-	return nil
-}
-
-func (c awsSesConfig) validate() error {
 	b := validation.NewBuilder()
-	b.Required("Region", c.region)
-	if c.accessKeyID != "" || c.secretAccessKey != "" {
-		b.Required("AccessKeyID", c.accessKeyID)
-		b.Required("SecretAccessKey", c.secretAccessKey)
+	b.Required("Region", cfg.Region)
+	if cfg.AccessKeyID != "" || cfg.SecretAccessKey != "" {
+		b.Required("AccessKeyID", cfg.AccessKeyID)
+		b.Required("SecretAccessKey", cfg.SecretAccessKey)
 	}
 
-	return b.Err()
+	return cfg, errors.Join(env.Err(), b.Err())
 }
-
-func (c *Config) Region() string { return c.awsSes.region }
-
-func (c *Config) AccessKeyID() string { return c.awsSes.accessKeyID }
-
-func (c *Config) SecretAccessKey() string { return c.awsSes.secretAccessKey }
-
-func (c *Config) ConfigurationSet() string { return c.awsSes.configurationSet }

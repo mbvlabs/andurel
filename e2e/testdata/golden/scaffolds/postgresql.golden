@@ -16,9 +16,6 @@ SESSION_ENCRYPTION_KEY=<SESSION_ENCRYPTION_KEY>
 TOKEN_SIGNING_KEY=<TOKEN_SIGNING_KEY>
 
 PEPPER=<PEPPER>
-
-MAILPIT_HOST=0.0.0.0
-MAILPIT_PORT=1025
 ```
 
 file -----------rw-r--r-- .gitignore
@@ -333,19 +330,26 @@ automatically. Run `andurel email compile` for a standalone compilation pass.
 
 ```go
 import (
+	"context"
+
     "testapp/config"
     "testapp/email"
 )
 
-// Send an email
-data := email.TransactionalData{
-    From:    appCfg.GetDefaultSenderSignature(),
-    To:      []string{"user@example.com"},
-    Subject: "Welcome!",
-    Body:    WelcomeEmail("John Doe"),
-}
+func sendWelcome(
+    ctx context.Context,
+    sender email.TransactionalSender,
+    mailCfg config.Mail,
+) error {
+    data := email.TransactionalData{
+        From:    mailCfg.DefaultSenderSignature,
+        To:      []string{"user@example.com"},
+        Subject: "Welcome!",
+        Body:    WelcomeEmail("John Doe"),
+    }
 
-err := email.SendTransactional(ctx, data, sender, appCfg)
+    return email.SendTransactional(ctx, data, sender)
+}
 ```
 
 **3. Background email jobs**
@@ -776,6 +780,8 @@ file -----------rw-r--r-- andurel.lock
   },
   "scaffoldConfig": {
     "database": "postgresql",
+    "javascriptPackageManager": "npm",
+    "javascriptRuntime": "npm",
     "projectName": "testapp"
   },
   "schemaVersion": 1,
@@ -793,7 +799,7 @@ file -----------rw-r--r-- andurel.lock
         "urlTemplate": "https://github.com/danvergara/dblab/releases/download/{{version}}/dblab_{{version_no_v}}_{{os}}_{{arch}}.tar.gz"
       },
       "source": "github.com/danvergara/dblab",
-      "version": "v0.40.2",
+      "version": "\u003cANDUREL_VERSION\u003e",
       "versionCheck": {
         "args": [
           "--version"
@@ -813,7 +819,7 @@ file -----------rw-r--r-- andurel.lock
         "urlTemplate": "https://github.com/pressly/goose/releases/download/{{version}}/goose_{{os}}_{{arch_x86_64}}"
       },
       "source": "github.com/pressly/goose",
-      "version": "v3.27.1",
+      "version": "\u003cANDUREL_VERSION\u003e",
       "versionCheck": {
         "args": [
           "--version"
@@ -833,7 +839,7 @@ file -----------rw-r--r-- andurel.lock
         "urlTemplate": "https://github.com/axllent/mailpit/releases/download/{{version}}/mailpit-{{os}}-{{arch}}.tar.gz"
       },
       "source": "github.com/axllent/mailpit",
-      "version": "v1.30.2",
+      "version": "\u003cANDUREL_VERSION\u003e",
       "versionCheck": {
         "args": [
           "version",
@@ -854,7 +860,7 @@ file -----------rw-r--r-- andurel.lock
         "urlTemplate": "https://github.com/mbvlabs/shadowfax/releases/download/{{version}}/shadowfax-{{os}}-{{arch}}"
       },
       "source": "github.com/mbvlabs/shadowfax",
-      "version": "v0.9.0",
+      "version": "\u003cANDUREL_VERSION\u003e",
       "versionCheck": {
         "args": [
           "--version"
@@ -873,7 +879,7 @@ file -----------rw-r--r-- andurel.lock
         },
         "urlTemplate": "https://github.com/sqlc-dev/sqlc/releases/download/{{version}}/sqlc_{{version_no_v}}_{{os}}_{{arch_x86_64}}.tar.gz"
       },
-      "version": "v1.31.1",
+      "version": "\u003cANDUREL_VERSION\u003e",
       "versionCheck": {
         "args": [
           "version"
@@ -892,7 +898,7 @@ file -----------rw-r--r-- andurel.lock
         },
         "urlTemplate": "https://github.com/tailwindlabs/tailwindcss/releases/download/{{version}}/tailwindcss-{{os_tailwind}}-{{arch_tailwind}}"
       },
-      "version": "v4.3.2",
+      "version": "\u003cANDUREL_VERSION\u003e",
       "versionCheck": {
         "args": [
           "--version"
@@ -912,7 +918,7 @@ file -----------rw-r--r-- andurel.lock
         "urlTemplate": "https://github.com/a-h/templ/releases/download/{{version}}/templ_{{os_capitalized}}_{{arch_x86_64}}.tar.gz"
       },
       "source": "github.com/a-h/templ",
-      "version": "v0.3.1020",
+      "version": "\u003cANDUREL_VERSION\u003e",
       "versionCheck": {
         "args": [
           "--version"
@@ -932,7 +938,7 @@ file -----------rw-r--r-- andurel.lock
         "urlTemplate": "https://github.com/xo/usql/releases/download/{{version}}/usql-{{version_no_v}}-{{os}}-{{arch}}.tar.bz2"
       },
       "source": "github.com/xo/usql",
-      "version": "v0.21.4",
+      "version": "\u003cANDUREL_VERSION\u003e",
       "versionCheck": {
         "args": [
           "--version"
@@ -995,45 +1001,43 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
-
-	"github.com/mbvlabs/andurel/pkg/email"
-	"github.com/mbvlabs/andurel/pkg/server"
-	"github.com/mbvlabs/andurel/pkg/storage"
-	"go.uber.org/fx"
 	"testapp/config"
 	"testapp/controllers"
 	"testapp/models"
 	"testapp/router"
 	"testapp/services"
 	"testapp/telemetry"
+	"time"
+
+	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/server"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"go.uber.org/fx"
 )
 
 var appVersion string
 
 func main() {
+	if err := config.LoadEnvironment(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	app := fx.New(
 		fx.Provide(
 			func() context.Context { return ctx },
-			func(cfg config.AppCfg) router.AppProvider { return cfg },
-			func(cfg config.AppCfg) controllers.ConfigProvider { return cfg },
-			func(cfg config.AppCfg) controllers.AssetsAppProvider { return cfg },
-			func(cfg config.AppCfg) services.AppIdentityProvider { return cfg },
-			func(cfg config.AuthCfg) services.AuthProvider { return cfg },
-			func(cfg config.TelemetryCfg) telemetry.ConfigProvider { return cfg },
+			newEmailSenders,
 		),
 
 		config.Module,
 		databaseModule,
 		queueInsertModule,
-		emailModule,
 		models.Module,
 		telemetry.Module,
 		services.Module,
@@ -1068,19 +1072,26 @@ var queueInsertModule = fx.Module(
 	"queue-insert",
 	fx.Provide(fx.Annotate(newQueueInsert, fx.As(new(storage.InsertQueue)))),
 )
-var emailModule = fx.Module(
-	"email",
-	fx.Provide(newEmailSenders),
-)
 
-func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, appCfg config.AppCfg) {
+func startServer(
+	lc fx.Lifecycle,
+	appCtx context.Context,
+	r *router.Router,
+	appCfg config.App,
+	httpCfg config.HTTP,
+) {
 	srv := server.New(
 		appCtx,
-		appCfg.GetHost(),
-		appCfg.GetPort(),
-		appCfg.GetEnvironment(),
+		httpCfg.Host,
+		httpCfg.Port,
+		appCfg.Environment,
 		r.Handler,
 		nil,
+		server.WithTimeouts(
+			httpCfg.IdleTimeout,
+			httpCfg.ReadTimeout,
+			httpCfg.WriteTimeout,
+		),
 	)
 	var done <-chan struct{}
 
@@ -1090,12 +1101,12 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, appC
 				appCtx,
 				"starting server",
 				"host",
-				appCfg.GetHost(),
+				httpCfg.Host,
 				"port",
-				appCfg.GetPort(),
+				httpCfg.Port,
 			)
 			done = startInBackground(appCtx, "server", func(ctx context.Context) error {
-				return srv.Start(ctx, appCfg.GetEnvironment())
+				return srv.Start(ctx, appCfg.Environment)
 			})
 			return nil
 		},
@@ -1121,26 +1132,9 @@ func startServer(lc fx.Lifecycle, appCtx context.Context, r *router.Router, appC
 func newDatabase(
 	lifecycle fx.Lifecycle,
 	ctx context.Context,
-	cfg config.Database,
+	cfg storage.Config,
 ) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
-		DatabaseKind:             cfg.GetDatabaseKind(),
-		Host:                     cfg.GetHost(),
-		Port:                     cfg.GetPort(),
-		Name:                     cfg.GetName(),
-		User:                     cfg.GetUser(),
-		Password:                 cfg.GetPassword(),
-		SSLMode:                  cfg.GetSSLMode(),
-		ApplicationName:          cfg.GetApplicationName(),
-		ConnectTimeout:           cfg.GetConnectTimeout(),
-		StatementCacheCapacity:   cfg.GetStatementCacheCapacity(),
-		DescriptionCacheCapacity: cfg.GetDescriptionCacheCapacity(),
-		MaxOpenConnections:       cfg.GetMaxOpenConnections(),
-		MaxIdleConnections:       cfg.GetMaxIdleConnections(),
-		ConnectionMaxLifetime:    cfg.GetConnectionMaxLifetime(),
-		ConnectionMaxIdleTime:    cfg.GetConnectionMaxIdleTime(),
-		OpenTelemetry:            cfg.GetOpenTelemetry(),
-	}))
+	db, err := storage.NewPostgres(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -1151,25 +1145,26 @@ func newDatabase(
 
 func newQueueInsert(
 	connection storage.Connection,
-	cfg config.QueueCfg,
+	cfg config.QueueInsert,
 ) (*storage.QueueInsert, error) {
-	return storage.NewQueueInsert(connection, storage.WithRiverConfig(cfg.RiverConfig()))
+	return storage.NewQueueInsert(connection, cfg.Config)
 }
 
 func newEmailSenders(
-	cfg config.EmailCfg,
-	appCfg config.AppCfg,
-) (email.TransactionalSender, email.MarketingSender) {
-	if appCfg.GetEnvironment() == server.ProdEnvironment {
-		log.Fatal("provide real email sender")
-	}
+	ctx context.Context,
+	cfg config.MailTransport,
+) (email.TransactionalSender, email.MarketingSender, error) {
+	switch cfg.Driver {
+	case config.MailpitDriver:
+		client, err := email.NewMailpit(cfg.Mailpit)
+		if err != nil {
+			return nil, nil, fmt.Errorf("create Mailpit client: %w", err)
+		}
 
-	client, err := email.NewMailpit(email.WithMailpitConfig(cfg.MailpitConfig()))
-	if err != nil {
-		log.Fatal(err)
+		return client, client, nil
+	default:
+		return nil, nil, fmt.Errorf("unsupported email provider %q", cfg.Driver)
 	}
-
-	return client, client
 }
 
 func startInBackground(
@@ -1214,8 +1209,7 @@ import (
 )
 
 func TestBackgroundLifecycleStopsOnceAndWaitsForExit(t *testing.T) {
-	appCtx, cancelApp := context.WithCancel(context.Background())
-	defer cancelApp()
+	appCtx := t.Context()
 	started := make(chan struct{})
 	release := make(chan struct{})
 	done := startInBackground(appCtx, "test worker", func(ctx context.Context) error {
@@ -1261,7 +1255,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -1273,20 +1266,24 @@ import (
 	"testapp/telemetry"
 
 	"github.com/mbvlabs/andurel/pkg/email"
-	"github.com/mbvlabs/andurel/pkg/server"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/riverqueue/river"
 	"go.uber.org/fx"
 )
 
 func main() {
+	if err := config.LoadEnvironment(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	app := fx.New(
 		fx.Provide(
 			func() context.Context { return ctx },
-			func(cfg config.TelemetryCfg) telemetry.ConfigProvider { return cfg },
+			newEmailSenders,
 		),
 
 		config.Module,
@@ -1294,7 +1291,6 @@ func main() {
 		telemetry.Module,
 		queue.Module,
 		queueProcessorModule,
-		emailModule,
 	)
 
 	if err := app.Start(ctx); err != nil {
@@ -1321,39 +1317,18 @@ var databaseModule = fx.Module(
 var queueProcessorModule = fx.Module(
 	"queue-processor",
 	fx.Provide(
-		slog.Default,
+		func(_ *telemetry.Telemetry) *slog.Logger { return slog.Default() },
 		newQueueProcessor,
 	),
 	fx.Invoke(queueProcessorLifecycle),
-)
-var emailModule = fx.Module(
-	"email",
-	fx.Provide(newEmailSenders),
 )
 
 func newDatabase(
 	lifecycle fx.Lifecycle,
 	ctx context.Context,
-	cfg config.Database,
+	cfg storage.Config,
 ) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, storage.WithConfig(storage.Config{
-		DatabaseKind:             cfg.GetDatabaseKind(),
-		Host:                     cfg.GetHost(),
-		Port:                     cfg.GetPort(),
-		Name:                     cfg.GetName(),
-		User:                     cfg.GetUser(),
-		Password:                 cfg.GetPassword(),
-		SSLMode:                  cfg.GetSSLMode(),
-		ApplicationName:          cfg.GetApplicationName(),
-		ConnectTimeout:           cfg.GetConnectTimeout(),
-		StatementCacheCapacity:   cfg.GetStatementCacheCapacity(),
-		DescriptionCacheCapacity: cfg.GetDescriptionCacheCapacity(),
-		MaxOpenConnections:       cfg.GetMaxOpenConnections(),
-		MaxIdleConnections:       cfg.GetMaxIdleConnections(),
-		ConnectionMaxLifetime:    cfg.GetConnectionMaxLifetime(),
-		ConnectionMaxIdleTime:    cfg.GetConnectionMaxIdleTime(),
-		OpenTelemetry:            cfg.GetOpenTelemetry(),
-	}))
+	db, err := storage.NewPostgres(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -1366,25 +1341,37 @@ type queueProcessorParams struct {
 	fx.In
 
 	Connection   storage.Connection
-	Config       config.QueueCfg
+	Config       config.QueueWorker
 	Logger       *slog.Logger
 	Workers      *river.Workers
 	PeriodicJobs []*river.PeriodicJob `group:"periodic_jobs"`
 }
 
 func newQueueProcessor(params queueProcessorParams) (*storage.QueueProcessor, error) {
-	riverConfig := params.Config.RiverConfig()
-	riverConfig.Queues = map[string]river.QueueConfig{
-		river.QueueDefault: {MaxWorkers: params.Config.GetMaxWorkers()},
-	}
-
 	return storage.NewQueueProcessor(
 		params.Connection,
-		storage.WithRiverConfig(riverConfig),
+		params.Config.Config,
 		storage.WithRiverWorkers(params.Workers),
 		storage.WithRiverPeriodicJobs(params.PeriodicJobs...),
 		storage.WithRiverLogger(params.Logger),
 	)
+}
+
+func newEmailSenders(
+	ctx context.Context,
+	cfg config.MailTransport,
+) (email.TransactionalSender, email.MarketingSender, error) {
+	switch cfg.Driver {
+	case config.MailpitDriver:
+		client, err := email.NewMailpit(cfg.Mailpit)
+		if err != nil {
+			return nil, nil, fmt.Errorf("create Mailpit client: %w", err)
+		}
+
+		return client, client, nil
+	default:
+		return nil, nil, fmt.Errorf("unsupported email provider %q", cfg.Driver)
+	}
 }
 
 func queueProcessorLifecycle(
@@ -1400,22 +1387,6 @@ func queueProcessorLifecycle(
 			return processor.Stop(ctx)
 		},
 	})
-}
-
-func newEmailSenders(
-	cfg config.EmailCfg,
-	appCfg config.AppCfg,
-) (email.TransactionalSender, email.MarketingSender) {
-	if appCfg.GetEnvironment() == server.ProdEnvironment {
-		log.Fatal("provide real email sender")
-	}
-
-	client, err := email.NewMailpit(email.WithMailpitConfig(cfg.MailpitConfig()))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return client, client
 }
 ```
 
@@ -1433,9 +1404,9 @@ import (
 	"os"
 	"strings"
 
+	"testapp/config"
 	"testapp/seeds"
 
-	"github.com/joho/godotenv"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -1461,20 +1432,17 @@ func run(args []string) error {
 		return fmt.Errorf("expected at most one seed name, got %d", flags.NArg())
 	}
 
-	godotenv.Load()
+	if err := config.LoadEnvironment(); err != nil {
+		return err
+	}
 
 	ctx := context.Background()
 
-	databaseConfig := storage.DefaultConfig()
-	databaseConfig.DatabaseKind = envOrDefault("DB_KIND", databaseConfig.DatabaseKind)
-	databaseConfig.Host = envOrDefault("DB_HOST", databaseConfig.Host)
-	databaseConfig.Port = envOrDefault("DB_PORT", databaseConfig.Port)
-	databaseConfig.Name = envOrDefault("DB_NAME", databaseConfig.Name)
-	databaseConfig.User = envOrDefault("DB_USER", databaseConfig.User)
-	databaseConfig.Password = envOrDefault("DB_PASSWORD", databaseConfig.Password)
-	databaseConfig.SSLMode = envOrDefault("DB_SSL_MODE", databaseConfig.SSLMode)
-
-	db, err := storage.NewPostgres(ctx, storage.WithConfig(databaseConfig))
+	cfg, err := config.NewDatabase()
+	if err != nil {
+		return err
+	}
+	db, err := storage.NewPostgres(ctx, cfg)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -1496,14 +1464,6 @@ func run(args []string) error {
 	fmt.Println("Seeding complete!")
 	return nil
 }
-
-func envOrDefault(name, fallback string) string {
-	if value := os.Getenv(name); value != "" {
-		return value
-	}
-
-	return fallback
-}
 ```
 
 dir  d----------rwxr-xr-x config
@@ -1513,135 +1473,75 @@ file -----------rw-r--r-- config/app.go
 package config
 
 import (
+	"errors"
 	"fmt"
 	"strings"
+	"net/url"
 
-	"github.com/caarlos0/env/v11"
-	"github.com/gosimple/slug"
-	"github.com/mbvlabs/andurel/pkg/server"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 const (
-	DefaultAppHost       = "localhost"
-	DefaultAppPort       = "8080"
-	DefaultSessionMaxAge = 604800
-	DefaultCSRFStrategy  = "header_only"
-	DefaultEnvironment   = server.DevEnvironment
-	DefaultProjectName   = "testapp"
-	DefaultDomain        = "localhost:8080"
+	DefaultEnvironment = "development"
+	DefaultProjectName = "testapp"
+	DefaultDomain      = "localhost:8080"
 )
 
-type AppCfg struct {
-	Environment            string   `env:"ENVIRONMENT"`
-	ProjectName            string   `env:"PROJECT_NAME"`
-	Domain                 string   `env:"DOMAIN"`
-	Protocol               string   `env:"PROTOCOL"`
-	ServiceName            string   `env:"TELEMETRY_SERVICE_NAME"`
-	Host                   string   `env:"HOST"`
-	Port                   string   `env:"PORT"`
-	SessionKey             string   `env:"SESSION_KEY"`
-	SessionEncryptionKey   string   `env:"SESSION_ENCRYPTION_KEY"`
-	SessionMaxAge          int      `env:"SESSION_MAX_AGE"`
-	TokenSigningKey        string   `env:"TOKEN_SIGNING_KEY"`
-	CORSAllowedOrigins     []string `env:"CORS_ALLOWED_ORIGINS"     envSeparator:","`
-	CSRFStrategy           string   `env:"CSRF_STRATEGY"`
-	CSRFTrustedOrigins     []string `env:"CSRF_TRUSTED_ORIGINS"     envSeparator:","`
-	DefaultSenderSignature string   `env:"DEFAULT_SENDER_SIGNATURE"`
+// App contains process-independent application identity and URL settings.
+type App struct {
+	Environment string
+	ProjectName string
+	Domain      string
+	Protocol    string
+	BaseURL     string
 }
 
-func NewAppCfg() AppCfg {
-	appCfg := AppCfg{
-		Environment:   DefaultEnvironment,
-		ProjectName:   DefaultProjectName,
-		Domain:        DefaultDomain,
-		Host:          DefaultAppHost,
-		Port:          DefaultAppPort,
-		SessionMaxAge: DefaultSessionMaxAge,
-		CSRFStrategy:  DefaultCSRFStrategy,
+func NewApp() (App, error) {
+	env := newEnvironment()
+	cfg := App{
+		Environment: env.String("ENVIRONMENT", DefaultEnvironment),
+		ProjectName: env.String("PROJECT_NAME", DefaultProjectName),
+		Domain:      env.String("DOMAIN", DefaultDomain),
+		Protocol:    env.String("PROTOCOL", ""),
+	}
+	cfg.BaseURL = cfg.baseURL()
+
+	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
+		return App{}, fmt.Errorf("config: app: %w", err)
 	}
 
-	if err := env.Parse(&appCfg); err != nil {
-		panic(err)
-	}
-
-	if err := validation.Validate(&appCfg); err != nil {
-		panic(err)
-	}
-
-	return appCfg
+	return cfg, nil
 }
 
-func (c AppCfg) Validate() error {
+func (c App) validate() error {
 	b := validation.NewBuilder()
 	b.Required("Environment", c.Environment)
 	b.Required("ProjectName", c.ProjectName)
 	b.Required("Domain", c.Domain)
-	b.Required("Host", c.Host)
-	b.Required("Port", c.Port)
-	b.Required("SessionKey", c.SessionKey)
-	b.Required("SessionEncryptionKey", c.SessionEncryptionKey)
-	b.Required("TokenSigningKey", c.TokenSigningKey)
-	b.Required("CSRFStrategy", c.CSRFStrategy)
-	b.MinInt("SessionMaxAge", c.SessionMaxAge, 1)
+	if err := b.Err(); err != nil {
+		return err
+	}
+	parsed, err := url.Parse(c.BaseURL)
+	if err != nil || parsed.Host == "" ||
+		(parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return fmt.Errorf("application base URL must be an HTTP or HTTPS URL")
+	}
 
-	return b.Err()
+	return nil
 }
 
-func (c AppCfg) GetEnvironment() string { return c.Environment }
-
-func (c AppCfg) GetProjectName() string { return c.ProjectName }
-
-func (c AppCfg) GetDomain() string { return c.Domain }
-
-func (c AppCfg) GetBaseURL() string {
+func (c App) baseURL() string {
 	protocol := c.Protocol
 	if protocol == "" {
-		return fmt.Sprintf("http://%s", c.Domain)
+		protocol = "http"
 	}
 
 	return fmt.Sprintf("%s://%s", protocol, c.Domain)
 }
 
-func (c AppCfg) GetServiceName() string {
-	if c.ServiceName != "" {
-		return c.ServiceName
-	}
-
-	return slug.Make(c.ProjectName)
+func (c App) IsProduction() bool {
+	return c.Environment == "production"
 }
-
-func (c AppCfg) GetAppCookieSessionName() string {
-	return "app_sess_" + slug.Make(strings.ToLower(c.ProjectName)) + "-" + c.Environment
-}
-
-func (c AppCfg) GetDefaultSenderSignature() string {
-	if c.DefaultSenderSignature != "" {
-		return c.DefaultSenderSignature
-	}
-
-	return "noreply@" + c.Domain
-}
-
-func (c AppCfg) GetHost() string { return c.Host }
-
-func (c AppCfg) GetPort() string { return c.Port }
-
-func (c AppCfg) GetSessionKey() string { return c.SessionKey }
-
-func (c AppCfg) GetSessionEncryptionKey() string { return c.SessionEncryptionKey }
-
-func (c AppCfg) GetSessionMaxAge() int { return c.SessionMaxAge }
-
-func (c AppCfg) GetTokenSigningKey() string { return c.TokenSigningKey }
-
-func (c AppCfg) GetCORSAllowedOrigins() []string { return c.CORSAllowedOrigins }
-
-func (c AppCfg) GetCSRFStrategy() string { return c.CSRFStrategy }
-
-func (c AppCfg) GetCSRFTrustedOrigins() []string { return c.CSRFTrustedOrigins }
-
-func (c AppCfg) IsProduction() bool { return c.Environment == server.ProdEnvironment }
 ```
 
 file -----------rw-r--r-- config/auth.go
@@ -1649,57 +1549,57 @@ file -----------rw-r--r-- config/auth.go
 package config
 
 import (
-	"github.com/caarlos0/env/v11"
-	"github.com/mbvlabs/andurel/pkg/validation"
+	"fmt"
+	"slices"
 )
 
-type AuthCfg struct {
-	Pepper          string   `env:"PEPPER"`
-	PreviousPeppers []string `env:"PREVIOUS_PEPPERS" envSeparator:","`
+type Auth struct {
+	TokenSigningKey string
+	Pepper          string
+	PreviousPeppers []string
 }
 
-func NewAuthCfg() AuthCfg {
-	var authenticationCfg AuthCfg
-
-	if err := env.Parse(&authenticationCfg); err != nil {
-		panic(err)
+func NewAuth() (Auth, error) {
+	env := newEnvironment()
+	cfg := Auth{
+		TokenSigningKey: env.RequiredString("TOKEN_SIGNING_KEY"),
+		Pepper:          env.RequiredString("PEPPER"),
+		PreviousPeppers: env.Strings("PREVIOUS_PEPPERS", nil),
+	}
+	if err := env.Err(); err != nil {
+		return Auth{}, fmt.Errorf("config: auth: %w", err)
 	}
 
-	if err := validation.Validate(&authenticationCfg); err != nil {
-		panic(err)
-	}
-
-	return authenticationCfg
+	return cfg, nil
 }
 
-func (c AuthCfg) Validate() error {
-	b := validation.NewBuilder()
-	b.Required("Pepper", c.Pepper)
-
-	return b.Err()
+func (c Auth) Clone() Auth {
+	c.PreviousPeppers = slices.Clone(c.PreviousPeppers)
+	return c
 }
-
-func (c AuthCfg) GetPepper() string { return c.Pepper }
-
-func (c AuthCfg) GetPreviousPeppers() []string { return c.PreviousPeppers }
 ```
 
 file -----------rw-r--r-- config/config.go
 ```
-// Package config provides application-wide configuration settings.
+// Package config loads, validates, and provides application configuration.
 package config
 
 import "go.uber.org/fx"
 
-// Module provides all application configuration constructors to the dependency container.
+// Module registers independent configuration constructors. Fx evaluates only
+// the constructors required by the active application graph.
 var Module = fx.Module("config",
 	fx.Provide(
-		NewAppCfg,
-		NewDatabaseCfg,
-		NewQueueCfg,
-		NewTelemetryCfg,
-		NewEmailCfg,
-		NewAuthCfg,
+		NewApp,
+		NewHTTP,
+		NewSession,
+		NewAuth,
+		NewDatabase,
+		NewQueueInsert,
+		NewQueueWorker,
+		NewTelemetry,
+		NewMail,
+		NewMailTransport,
 	),
 )
 ```
@@ -1709,122 +1609,61 @@ file -----------rw-r--r-- config/database.go
 package config
 
 import (
-	"time"
+	"errors"
+	"fmt"
 
-	"github.com/caarlos0/env/v11"
-	"github.com/mbvlabs/andurel/pkg/validation"
+	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 const (
-	DefaultDatabaseKind             = "postgres"
-	DefaultDatabaseHost             = "127.0.0.1"
-	DefaultDatabasePort             = "5432"
-	DefaultDatabaseName             = "andurel"
-	DefaultDatabaseUser             = "postgres"
-	DefaultDatabasePassword         = "postgres"
-	DefaultDatabaseSSLMode          = "disable"
-	DefaultApplicationName          = "andurel"
-	DefaultConnectTimeout           = 5 * time.Second
-	DefaultStatementCacheCapacity   = 512
-	DefaultDescriptionCacheCapacity = 512
-	DefaultMaxOpenConnections       = 25
-	DefaultMaxIdleConnections       = 25
-	DefaultConnectionMaxLifetime    = time.Hour
-	DefaultConnectionMaxIdleTime    = 30 * time.Minute
+	DefaultDatabaseKind            = "postgres"
+	DefaultDatabaseHost            = "127.0.0.1"
+	DefaultDatabasePort            = "5432"
+	DefaultDatabaseName            = "andurel"
+	DefaultDatabaseUser            = "postgres"
+	DefaultDatabasePassword        = "postgres"
+	DefaultDatabaseSSLMode         = "disable"
+	DefaultDatabaseApplicationName = "andurel"
 )
 
-type Database struct {
-	Host                     string        `env:"DB_HOST"`
-	Port                     string        `env:"DB_PORT"`
-	Name                     string        `env:"DB_NAME"`
-	User                     string        `env:"DB_USER"`
-	Password                 string        `env:"DB_PASSWORD"`
-	DatabaseKind             string        `env:"DB_KIND"`
-	SSLMode                  string        `env:"DB_SSL_MODE"`
-	ApplicationName          string        `env:"DB_APPLICATION_NAME"`
-	ConnectTimeout           time.Duration `env:"DB_CONNECT_TIMEOUT"`
-	StatementCacheCapacity   int           `env:"DB_STATEMENT_CACHE_CAPACITY"`
-	DescriptionCacheCapacity int           `env:"DB_DESCRIPTION_CACHE_CAPACITY"`
-	MaxOpenConnections       int           `env:"DB_MAX_OPEN_CONNECTIONS"`
-	MaxIdleConnections       int           `env:"DB_MAX_IDLE_CONNECTIONS"`
-	ConnectionMaxLifetime    time.Duration `env:"DB_CONNECTION_MAX_LIFETIME"`
-	ConnectionMaxIdleTime    time.Duration `env:"DB_CONNECTION_MAX_IDLE_TIME"`
-	OpenTelemetry            bool          `env:"DB_OPEN_TELEMETRY"`
-}
+func NewDatabase() (storage.Config, error) {
+	env := newEnvironment()
+	cfg := storage.DefaultConfig()
+	cfg.DatabaseKind = env.String("DB_KIND", DefaultDatabaseKind)
+	cfg.Host = env.String("DB_HOST", DefaultDatabaseHost)
+	cfg.Port = env.String("DB_PORT", DefaultDatabasePort)
+	cfg.Name = env.String("DB_NAME", DefaultDatabaseName)
+	cfg.User = env.String("DB_USER", DefaultDatabaseUser)
+	cfg.Password = env.String("DB_PASSWORD", DefaultDatabasePassword)
+	cfg.SSLMode = env.String("DB_SSL_MODE", DefaultDatabaseSSLMode)
+	cfg.ApplicationName = env.String("DB_APPLICATION_NAME", DefaultDatabaseApplicationName)
+	cfg.ConnectTimeout = env.Duration("DB_CONNECT_TIMEOUT", cfg.ConnectTimeout)
+	cfg.StatementCacheCapacity = env.Int(
+		"DB_STATEMENT_CACHE_CAPACITY",
+		cfg.StatementCacheCapacity,
+	)
+	cfg.DescriptionCacheCapacity = env.Int(
+		"DB_DESCRIPTION_CACHE_CAPACITY",
+		cfg.DescriptionCacheCapacity,
+	)
+	cfg.MaxOpenConnections = env.Int("DB_MAX_OPEN_CONNECTIONS", cfg.MaxOpenConnections)
+	cfg.MaxIdleConnections = env.Int("DB_MAX_IDLE_CONNECTIONS", cfg.MaxIdleConnections)
+	cfg.ConnectionMaxLifetime = env.Duration(
+		"DB_CONNECTION_MAX_LIFETIME",
+		cfg.ConnectionMaxLifetime,
+	)
+	cfg.ConnectionMaxIdleTime = env.Duration(
+		"DB_CONNECTION_MAX_IDLE_TIME",
+		cfg.ConnectionMaxIdleTime,
+	)
+	cfg.OpenTelemetry = env.Bool("DB_OPEN_TELEMETRY", true)
 
-func NewDatabaseCfg() Database {
-	cfg := Database{
-		Host:                     DefaultDatabaseHost,
-		Port:                     DefaultDatabasePort,
-		Name:                     DefaultDatabaseName,
-		User:                     DefaultDatabaseUser,
-		Password:                 DefaultDatabasePassword,
-		DatabaseKind:             DefaultDatabaseKind,
-		SSLMode:                  DefaultDatabaseSSLMode,
-		ApplicationName:          DefaultApplicationName,
-		ConnectTimeout:           DefaultConnectTimeout,
-		StatementCacheCapacity:   DefaultStatementCacheCapacity,
-		DescriptionCacheCapacity: DefaultDescriptionCacheCapacity,
-		MaxOpenConnections:       DefaultMaxOpenConnections,
-		MaxIdleConnections:       DefaultMaxIdleConnections,
-		ConnectionMaxLifetime:    DefaultConnectionMaxLifetime,
-		ConnectionMaxIdleTime:    DefaultConnectionMaxIdleTime,
-		OpenTelemetry:            true,
+	if err := errors.Join(env.Err(), cfg.Validate()); err != nil {
+		return storage.Config{}, fmt.Errorf("config: database: %w", err)
 	}
 
-	if err := env.Parse(&cfg); err != nil {
-		panic(err)
-	}
-
-	if err := validation.Validate(&cfg); err != nil {
-		panic(err)
-	}
-
-	return cfg
+	return cfg, nil
 }
-
-func (c Database) Validate() error {
-	b := validation.NewBuilder()
-	b.Required("Host", c.Host)
-	b.Required("Port", c.Port)
-	b.Required("Name", c.Name)
-	b.Required("User", c.User)
-	b.Required("DatabaseKind", c.DatabaseKind)
-
-	return b.Err()
-}
-
-func (c Database) GetDatabaseKind() string { return c.DatabaseKind }
-
-func (c Database) GetHost() string { return c.Host }
-
-func (c Database) GetPort() string { return c.Port }
-
-func (c Database) GetName() string { return c.Name }
-
-func (c Database) GetUser() string { return c.User }
-
-func (c Database) GetPassword() string { return c.Password }
-
-func (c Database) GetSSLMode() string { return c.SSLMode }
-
-func (c Database) GetApplicationName() string { return c.ApplicationName }
-
-func (c Database) GetConnectTimeout() time.Duration { return c.ConnectTimeout }
-
-func (c Database) GetStatementCacheCapacity() int { return c.StatementCacheCapacity }
-
-func (c Database) GetDescriptionCacheCapacity() int { return c.DescriptionCacheCapacity }
-
-func (c Database) GetMaxOpenConnections() int { return c.MaxOpenConnections }
-
-func (c Database) GetMaxIdleConnections() int { return c.MaxIdleConnections }
-
-func (c Database) GetConnectionMaxLifetime() time.Duration { return c.ConnectionMaxLifetime }
-
-func (c Database) GetConnectionMaxIdleTime() time.Duration { return c.ConnectionMaxIdleTime }
-
-func (c Database) GetOpenTelemetry() bool { return c.OpenTelemetry }
 ```
 
 file -----------rw-r--r-- config/email.go
@@ -1832,52 +1671,336 @@ file -----------rw-r--r-- config/email.go
 package config
 
 import (
-	"github.com/caarlos0/env/v11"
+	"errors"
+	"fmt"
+
 	"github.com/mbvlabs/andurel/pkg/email"
+)
+
+type MailDriver string
+
+const (
+	MailpitDriver MailDriver = "mailpit"
+
+	DefaultMailpitHost = "0.0.0.0"
+	DefaultMailpitPort = "1025"
+)
+
+type Mail struct {
+	DefaultSenderSignature string
+}
+
+type MailTransport struct {
+	Driver  MailDriver
+	Mailpit email.MailpitConfig
+}
+
+func NewMail(app App) (Mail, error) {
+	env := newEnvironment()
+	cfg := Mail{
+		DefaultSenderSignature: env.String("DEFAULT_SENDER_SIGNATURE", "noreply@"+app.Domain),
+	}
+	if strings.TrimSpace(cfg.DefaultSenderSignature) == "" {
+		return Mail{}, fmt.Errorf("config: mail: DEFAULT_SENDER_SIGNATURE must not be empty")
+	}
+
+	return cfg, nil
+}
+
+func NewMailTransport(app App) (MailTransport, error) {
+	env := newEnvironment()
+	defaultDriver := MailDriver("")
+	if !app.IsProduction() {
+		defaultDriver = MailpitDriver
+	}
+	cfg := MailTransport{
+		Driver: MailDriver(env.String("EMAIL_PROVIDER", string(defaultDriver))),
+	}
+	var driverErr error
+	switch cfg.Driver {
+	case MailpitDriver:
+		cfg.Mailpit = email.MailpitConfig{
+			Host: env.String("MAILPIT_HOST", DefaultMailpitHost),
+			Port: env.String("MAILPIT_PORT", DefaultMailpitPort),
+		}
+		driverErr = cfg.Mailpit.Validate()
+	default:
+		driverErr = fmt.Errorf(
+			"choose an installed EMAIL_PROVIDER in config/email.go (got %q)",
+			cfg.Driver,
+		)
+	}
+
+	if err := errors.Join(env.Err(), driverErr); err != nil {
+		return MailTransport{}, fmt.Errorf("config: mail transport: %w", err)
+	}
+
+	return cfg, nil
+}
+```
+
+file -----------rw-r--r-- config/helper.go
+```
+package config
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/joho/godotenv"
+)
+
+type environment struct {
+	lookup func(string) (string, bool)
+	errs   []error
+}
+
+func newEnvironment() *environment {
+	return newEnvironmentWithLookup(os.LookupEnv)
+}
+
+func newEnvironmentWithLookup(lookup func(string) (string, bool)) *environment {
+	return &environment{lookup: lookup}
+}
+
+// LoadEnvironment loads a dotenv file before configuration constructors run.
+// A missing default .env file is allowed because deployed applications commonly
+// receive their environment directly from the operating system.
+func LoadEnvironment(filenames ...string) error {
+	err := godotenv.Load(filenames...)
+	if err == nil || (len(filenames) == 0 && os.IsNotExist(err)) {
+		return nil
+	}
+
+	return fmt.Errorf("config: load environment: %w", err)
+}
+
+func (e *environment) String(key, fallback string) string {
+	value, ok := e.lookup(key)
+	if !ok {
+		return fallback
+	}
+
+	return value
+}
+
+func (e *environment) RequiredString(key string) string {
+	value, ok := e.lookup(key)
+	if !ok || strings.TrimSpace(value) == "" {
+		e.errs = append(e.errs, fmt.Errorf("%s is required", key))
+	}
+
+	return value
+}
+
+func (e *environment) Int(key string, fallback int) int {
+	value, ok := e.lookup(key)
+	if !ok {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		e.add(key, "integer", value, err)
+		return fallback
+	}
+
+	return parsed
+}
+
+func (e *environment) Int32(key string, fallback int32) int32 {
+	value, ok := e.lookup(key)
+	if !ok {
+		return fallback
+	}
+	parsed, err := strconv.ParseInt(value, 10, 32)
+	if err != nil {
+		e.add(key, "32-bit integer", value, err)
+		return fallback
+	}
+
+	return int32(parsed)
+}
+
+func (e *environment) Int64(key string, fallback int64) int64 {
+	value, ok := e.lookup(key)
+	if !ok {
+		return fallback
+	}
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		e.add(key, "64-bit integer", value, err)
+		return fallback
+	}
+
+	return parsed
+}
+
+func (e *environment) Bool(key string, fallback bool) bool {
+	value, ok := e.lookup(key)
+	if !ok {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		e.add(key, "boolean", value, err)
+		return fallback
+	}
+
+	return parsed
+}
+
+func (e *environment) Float64(key string, fallback float64) float64 {
+	value, ok := e.lookup(key)
+	if !ok {
+		return fallback
+	}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		e.add(key, "number", value, err)
+		return fallback
+	}
+
+	return parsed
+}
+
+func (e *environment) Duration(key string, fallback time.Duration) time.Duration {
+	value, ok := e.lookup(key)
+	if !ok {
+		return fallback
+	}
+	parsed, err := time.ParseDuration(value)
+	if err != nil {
+		e.add(key, "duration", value, err)
+		return fallback
+	}
+
+	return parsed
+}
+
+func (e *environment) Strings(key string, fallback []string) []string {
+	value, ok := e.lookup(key)
+	if !ok {
+		return slices.Clone(fallback)
+	}
+	if value == "" {
+		return []string{}
+	}
+
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+
+	return out
+}
+
+func (e *environment) Err() error {
+	return errors.Join(e.errs...)
+}
+
+func (e *environment) add(key, expected, value string, err error) {
+	e.errs = append(e.errs, fmt.Errorf(
+		"%s must be a valid %s (got %q): %w",
+		key,
+		expected,
+		value,
+		err,
+	))
+}
+```
+
+file -----------rw-r--r-- config/http.go
+```
+package config
+
+import (
+	"errors"
+	"fmt"
+	"slices"
+	"strconv"
+	"time"
+
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 const (
-	DefaultEmailMailpitHost = email.DefaultMailpitHost
-	DefaultEmailMailpitPort = email.DefaultMailpitPort
+	DefaultHTTPHost         = "localhost"
+	DefaultHTTPPort         = "8080"
+	DefaultCSRFStrategy     = "header_only"
+	DefaultHTTPIdleTimeout  = 120 * time.Second
+	DefaultHTTPReadTimeout  = 10 * time.Second
+	DefaultHTTPWriteTimeout = 30 * time.Second
 )
 
-type EmailCfg struct {
-	MailpitHost string `env:"MAILPIT_HOST"`
-	MailpitPort string `env:"MAILPIT_PORT"`
+type HTTP struct {
+	Host               string
+	Port               string
+	CORSAllowedOrigins []string
+	CSRFStrategy       string
+	CSRFTrustedOrigins []string
+	IdleTimeout        time.Duration
+	ReadTimeout        time.Duration
+	WriteTimeout       time.Duration
 }
 
-func NewEmailCfg() EmailCfg {
-	cfg := EmailCfg{
-		MailpitHost: DefaultEmailMailpitHost,
-		MailpitPort: DefaultEmailMailpitPort,
+func NewHTTP() (HTTP, error) {
+	env := newEnvironment()
+	cfg := HTTP{
+		Host:               env.String("HOST", DefaultHTTPHost),
+		Port:               env.String("PORT", DefaultHTTPPort),
+		CORSAllowedOrigins: env.Strings("CORS_ALLOWED_ORIGINS", nil),
+		CSRFStrategy:       env.String("CSRF_STRATEGY", DefaultCSRFStrategy),
+		CSRFTrustedOrigins: env.Strings("CSRF_TRUSTED_ORIGINS", nil),
+		IdleTimeout:        env.Duration("HTTP_IDLE_TIMEOUT", DefaultHTTPIdleTimeout),
+		ReadTimeout:        env.Duration("HTTP_READ_TIMEOUT", DefaultHTTPReadTimeout),
+		WriteTimeout:       env.Duration("HTTP_WRITE_TIMEOUT", DefaultHTTPWriteTimeout),
 	}
 
-	if err := env.Parse(&cfg); err != nil {
-		panic(err)
+	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
+		return HTTP{}, fmt.Errorf("config: http: %w", err)
 	}
 
-	if err := validation.Validate(&cfg); err != nil {
-		panic(err)
-	}
-
-	return cfg
+	return cfg, nil
 }
 
-func (c EmailCfg) Validate() error {
-	return c.MailpitConfig().Validate()
-}
-
-func (c EmailCfg) MailpitConfig() email.MailpitConfig {
-	return email.MailpitConfig{
-		Host: c.MailpitHost,
-		Port: c.MailpitPort,
+func (c HTTP) validate() error {
+	b := validation.NewBuilder()
+	b.Required("Host", c.Host)
+	b.Required("Port", c.Port)
+	b.Required("CSRFStrategy", c.CSRFStrategy)
+	b.MinInt("IdleTimeout", int64(c.IdleTimeout), 0)
+	b.MinInt("ReadTimeout", int64(c.ReadTimeout), 0)
+	b.MinInt("WriteTimeout", int64(c.WriteTimeout), 0)
+	if err := b.Err(); err != nil {
+		return err
 	}
+	port, err := strconv.Atoi(c.Port)
+	if err != nil || port < 1 || port > 65535 {
+		return fmt.Errorf("PORT must be between 1 and 65535")
+	}
+	switch c.CSRFStrategy {
+	case "header_only", "header_or_legacy_token":
+	default:
+		return fmt.Errorf("unsupported CSRF_STRATEGY %q", c.CSRFStrategy)
+	}
+
+	return nil
 }
 
-func (c EmailCfg) GetMailpitHost() string { return c.MailpitHost }
-
-func (c EmailCfg) GetMailpitPort() string { return c.MailpitPort }
+func (c HTTP) Clone() HTTP {
+	c.CORSAllowedOrigins = slices.Clone(c.CORSAllowedOrigins)
+	c.CSRFTrustedOrigins = slices.Clone(c.CSRFTrustedOrigins)
+	return c
+}
 ```
 
 file -----------rw-r--r-- config/queue.go
@@ -1885,116 +2008,135 @@ file -----------rw-r--r-- config/queue.go
 package config
 
 import (
-	"time"
+	"errors"
+	"fmt"
 
+	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/riverqueue/river"
 )
 
-const (
-	DefaultAdvisoryLockPrefix          int32         = 0
-	DefaultCancelledJobRetentionPeriod               = 24 * time.Hour
-	DefaultCompletedJobRetentionPeriod               = 24 * time.Hour
-	DefaultDiscardedJobRetentionPeriod               = 168 * time.Hour
-	DefaultFetchCooldown                             = 100 * time.Millisecond
-	DefaultPollInterval                              = 1 * time.Second
-	DefaultQueueID                                   = ""
-	DefaultJobCleanerTimeout                         = 30 * time.Second
-	DefaultJobStuckThreshold                         = 10 * time.Second
-	DefaultJobTimeout                                = 1 * time.Minute
-	DefaultMaxAttempts                               = 25
-	DefaultMaxWorkers                                = 100
-	DefaultPollOnly                                  = false
-	DefaultReindexerTimeout                          = 1 * time.Minute
-	DefaultRescueStuckJobsAfter                      = 1 * time.Hour
-	DefaultQueueSchema                               = ""
-	DefaultSoftStopTimeout             time.Duration = 0
-	DefaultSkipJobKindValidation                     = false
-	DefaultSkipUnknownJobCheck                       = false
+type QueueInsert struct {
+	Config storage.QueueConfig
+}
+
+type QueueWorker struct {
+	Config storage.QueueConfig
+}
+
+func NewQueueInsert() (QueueInsert, error) {
+	env := newEnvironment()
+	cfg := storage.DefaultQueueConfig()
+	cfg.MaxAttempts = env.Int("QUEUE_MAX_ATTEMPTS", cfg.MaxAttempts)
+	cfg.Schema = env.String("QUEUE_SCHEMA", cfg.Schema)
+	cfg.Queues = nil
+	if err := errors.Join(env.Err(), cfg.Validate()); err != nil {
+		return QueueInsert{}, fmt.Errorf("config: queue insert: %w", err)
+	}
+
+	return QueueInsert{Config: cfg}, nil
+}
+
+func NewQueueWorker(insert QueueInsert) (QueueWorker, error) {
+	env := newEnvironment()
+	cfg := insert.Config.Clone()
+	maxWorkers := env.Int("QUEUE_MAX_WORKERS", cfg.MaxWorkers)
+	cfg.AdvisoryLockPrefix = env.Int32("QUEUE_ADVISORY_LOCK_PREFIX", cfg.AdvisoryLockPrefix)
+	cfg.CancelledJobRetentionPeriod = env.Duration(
+		"QUEUE_CANCELLED_JOB_RETENTION_PERIOD",
+		cfg.CancelledJobRetentionPeriod,
+	)
+	cfg.CompletedJobRetentionPeriod = env.Duration(
+		"QUEUE_COMPLETED_JOB_RETENTION_PERIOD",
+		cfg.CompletedJobRetentionPeriod,
+	)
+	cfg.DiscardedJobRetentionPeriod = env.Duration(
+		"QUEUE_DISCARDED_JOB_RETENTION_PERIOD",
+		cfg.DiscardedJobRetentionPeriod,
+	)
+	cfg.FetchCooldown = env.Duration("QUEUE_FETCH_COOLDOWN", cfg.FetchCooldown)
+	cfg.PollInterval = env.Duration("QUEUE_POLL_INTERVAL", cfg.PollInterval)
+	cfg.ID = env.String("QUEUE_ID", cfg.ID)
+	cfg.JobCleanerTimeout = env.Duration("QUEUE_JOB_CLEANER_TIMEOUT", cfg.JobCleanerTimeout)
+	cfg.JobStuckThreshold = env.Duration("QUEUE_JOB_STUCK_THRESHOLD", cfg.JobStuckThreshold)
+	cfg.JobTimeout = env.Duration("QUEUE_JOB_TIMEOUT", cfg.JobTimeout)
+	cfg.PollOnly = env.Bool("QUEUE_POLL_ONLY", cfg.PollOnly)
+	cfg.ReindexerTimeout = env.Duration("QUEUE_REINDEXER_TIMEOUT", cfg.ReindexerTimeout)
+	cfg.RescueStuckJobsAfter = env.Duration(
+		"QUEUE_RESCUE_STUCK_JOBS_AFTER",
+		cfg.RescueStuckJobsAfter,
+	)
+	cfg.SoftStopTimeout = env.Duration("QUEUE_SOFT_STOP_TIMEOUT", cfg.SoftStopTimeout)
+	cfg.SkipJobKindValidation = env.Bool(
+		"QUEUE_SKIP_JOB_KIND_VALIDATION",
+		cfg.SkipJobKindValidation,
+	)
+	cfg.SkipUnknownJobCheck = env.Bool(
+		"QUEUE_SKIP_UNKNOWN_JOB_CHECK",
+		cfg.SkipUnknownJobCheck,
+	)
+	cfg.MaxWorkers = maxWorkers
+	cfg.Queues = map[string]river.QueueConfig{
+		river.QueueDefault: {MaxWorkers: maxWorkers},
+	}
+	if err := errors.Join(env.Err(), cfg.Validate()); err != nil {
+		return QueueWorker{}, fmt.Errorf("config: queue worker: %w", err)
+	}
+
+	return QueueWorker{Config: cfg}, nil
+}
+```
+
+file -----------rw-r--r-- config/session.go
+```
+package config
+
+import (
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/gosimple/slug"
 )
 
-var DefaultReindexerIndexNames = []string{
-	"river_job_args_index",
-	"river_job_kind",
-	"river_job_metadata_index",
-	"river_job_pkey",
-	"river_job_prioritized_fetching_index",
-	"river_job_state_and_finalized_at_index",
-	"river_job_unique_idx",
+const DefaultSessionMaxAge = 604800
+
+type Session struct {
+	Name              string
+	AuthenticationKey []byte
+	EncryptionKey     []byte
+	MaxAge            int
 }
 
-type QueueCfg struct {
-	AdvisoryLockPrefix          int32
-	CancelledJobRetentionPeriod time.Duration
-	CompletedJobRetentionPeriod time.Duration
-	DiscardedJobRetentionPeriod time.Duration
-	FetchCooldown               time.Duration
-	PollInterval                time.Duration
-	ID                          string
-	JobCleanerTimeout           time.Duration
-	JobStuckThreshold           time.Duration
-	JobTimeout                  time.Duration
-	MaxAttempts                 int
-	MaxWorkers                  int
-	PollOnly                    bool
-	ReindexerIndexNames         []string
-	ReindexerTimeout            time.Duration
-	RescueStuckJobsAfter        time.Duration
-	Schema                      string
-	SoftStopTimeout             time.Duration
-	SkipJobKindValidation       bool
-	SkipUnknownJobCheck         bool
-}
-
-func NewQueueCfg() QueueCfg {
-	return QueueCfg{
-		AdvisoryLockPrefix:          DefaultAdvisoryLockPrefix,
-		CancelledJobRetentionPeriod: DefaultCancelledJobRetentionPeriod,
-		CompletedJobRetentionPeriod: DefaultCompletedJobRetentionPeriod,
-		DiscardedJobRetentionPeriod: DefaultDiscardedJobRetentionPeriod,
-		FetchCooldown:               DefaultFetchCooldown,
-		PollInterval:                DefaultPollInterval,
-		ID:                          DefaultQueueID,
-		JobCleanerTimeout:           DefaultJobCleanerTimeout,
-		JobStuckThreshold:           DefaultJobStuckThreshold,
-		JobTimeout:                  DefaultJobTimeout,
-		MaxAttempts:                 DefaultMaxAttempts,
-		MaxWorkers:                  DefaultMaxWorkers,
-		PollOnly:                    DefaultPollOnly,
-		ReindexerIndexNames:         DefaultReindexerIndexNames,
-		ReindexerTimeout:            DefaultReindexerTimeout,
-		RescueStuckJobsAfter:        DefaultRescueStuckJobsAfter,
-		Schema:                      DefaultQueueSchema,
-		SoftStopTimeout:             DefaultSoftStopTimeout,
-		SkipJobKindValidation:       DefaultSkipJobKindValidation,
-		SkipUnknownJobCheck:         DefaultSkipUnknownJobCheck,
+func NewSession(app App) (Session, error) {
+	env := newEnvironment()
+	authenticationKey := env.RequiredString("SESSION_KEY")
+	encryptionKey := env.RequiredString("SESSION_ENCRYPTION_KEY")
+	cfg := Session{
+		Name:   "app_sess_" + slug.Make(strings.ToLower(app.ProjectName)) + "-" + app.Environment,
+		MaxAge: env.Int("SESSION_MAX_AGE", DefaultSessionMaxAge),
 	}
-}
-
-func (cfg QueueCfg) RiverConfig() river.Config {
-	return river.Config{
-		AdvisoryLockPrefix:          cfg.AdvisoryLockPrefix,
-		CancelledJobRetentionPeriod: cfg.CancelledJobRetentionPeriod,
-		CompletedJobRetentionPeriod: cfg.CompletedJobRetentionPeriod,
-		DiscardedJobRetentionPeriod: cfg.DiscardedJobRetentionPeriod,
-		FetchCooldown:               cfg.FetchCooldown,
-		FetchPollInterval:           cfg.PollInterval,
-		ID:                          cfg.ID,
-		JobCleanerTimeout:           cfg.JobCleanerTimeout,
-		JobStuckThreshold:           cfg.JobStuckThreshold,
-		JobTimeout:                  cfg.JobTimeout,
-		MaxAttempts:                 cfg.MaxAttempts,
-		PollOnly:                    cfg.PollOnly,
-		ReindexerIndexNames:         cfg.ReindexerIndexNames,
-		ReindexerTimeout:            cfg.ReindexerTimeout,
-		RescueStuckJobsAfter:        cfg.RescueStuckJobsAfter,
-		Schema:                      cfg.Schema,
-		SoftStopTimeout:             cfg.SoftStopTimeout,
-		SkipJobKindValidation:       cfg.SkipJobKindValidation,
-		SkipUnknownJobCheck:         cfg.SkipUnknownJobCheck,
+	var errs []error
+	if value, err := hex.DecodeString(authenticationKey); err != nil {
+		errs = append(errs, fmt.Errorf("SESSION_KEY must be hexadecimal: %w", err))
+	} else {
+		cfg.AuthenticationKey = value
 	}
-}
+	if value, err := hex.DecodeString(encryptionKey); err != nil {
+		errs = append(errs, fmt.Errorf("SESSION_ENCRYPTION_KEY must be hexadecimal: %w", err))
+	} else {
+		cfg.EncryptionKey = value
+	}
+	if cfg.MaxAge < 1 {
+		errs = append(errs, fmt.Errorf("SESSION_MAX_AGE must be greater than zero"))
+	}
+	errs = append(errs, env.Err())
+	if err := errors.Join(errs...); err != nil {
+		return Session{}, fmt.Errorf("config: session: %w", err)
+	}
 
-func (c QueueCfg) GetMaxWorkers() int { return c.MaxWorkers }
+	return cfg, nil
+}
 ```
 
 file -----------rw-r--r-- config/telemetry.go
@@ -2002,85 +2144,69 @@ file -----------rw-r--r-- config/telemetry.go
 package config
 
 import (
-	"github.com/caarlos0/env/v11"
+	"errors"
+	"fmt"
+	"math"
+
+	"github.com/gosimple/slug"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 const (
-	DefaultTelemetryServiceName    = "testapp"
 	DefaultTelemetryServiceVersion = "1.0.0"
-	DefaultOtlpLogsEndpoint        = ""
-	DefaultOtlpMetricsEndpoint     = ""
-	DefaultOtlpTracesEndpoint      = ""
-	DefaultOtlpHeaders             = ""
 	DefaultTraceSampleRate         = 1.0
 	DefaultTelemetryBatchSize      = 512
 	DefaultTelemetryBatchTimeoutMs = 5000
 )
 
-type TelemetryCfg struct {
-	ServiceName         string  `env:"TELEMETRY_SERVICE_NAME"`
-	ServiceVersion      string  `env:"TELEMETRY_SERVICE_VERSION"`
-	OtlpLogsEndpoint    string  `env:"OTLP_LOGS_ENDPOINT"`
-	OtlpMetricsEndpoint string  `env:"OTLP_METRICS_ENDPOINT"`
-	OtlpTracesEndpoint  string  `env:"OTLP_TRACES_ENDPOINT"`
-	OtlpHeaders         string  `env:"OTLP_HEADERS"`
-	TraceSampleRate     float64 `env:"TRACE_SAMPLE_RATE"`
-	BatchSize           int     `env:"TELEMETRY_BATCH_SIZE"`
-	BatchTimeoutMs      int     `env:"TELEMETRY_BATCH_TIMEOUT_MS"`
+type Telemetry struct {
+	ServiceName         string
+	ServiceVersion      string
+	OtlpLogsEndpoint    string
+	OtlpMetricsEndpoint string
+	OtlpTracesEndpoint  string
+	OtlpHeaders         string
+	TraceSampleRate     float64
+	BatchSize           int
+	BatchTimeoutMs      int
 }
 
-func NewTelemetryCfg() TelemetryCfg {
-	telemetryCfg := TelemetryCfg{
-		ServiceName:         DefaultTelemetryServiceName,
-		ServiceVersion:      DefaultTelemetryServiceVersion,
-		OtlpLogsEndpoint:    DefaultOtlpLogsEndpoint,
-		OtlpMetricsEndpoint: DefaultOtlpMetricsEndpoint,
-		OtlpTracesEndpoint:  DefaultOtlpTracesEndpoint,
-		OtlpHeaders:         DefaultOtlpHeaders,
-		TraceSampleRate:     DefaultTraceSampleRate,
-		BatchSize:           DefaultTelemetryBatchSize,
-		BatchTimeoutMs:      DefaultTelemetryBatchTimeoutMs,
+func NewTelemetry(app App) (Telemetry, error) {
+	env := newEnvironment()
+	cfg := Telemetry{
+		ServiceName:         env.String("TELEMETRY_SERVICE_NAME", slug.Make(app.ProjectName)),
+		ServiceVersion:      env.String("TELEMETRY_SERVICE_VERSION", DefaultTelemetryServiceVersion),
+		OtlpLogsEndpoint:    env.String("OTLP_LOGS_ENDPOINT", ""),
+		OtlpMetricsEndpoint: env.String("OTLP_METRICS_ENDPOINT", ""),
+		OtlpTracesEndpoint:  env.String("OTLP_TRACES_ENDPOINT", ""),
+		OtlpHeaders:         env.String("OTLP_HEADERS", ""),
+		TraceSampleRate:     env.Float64("TRACE_SAMPLE_RATE", DefaultTraceSampleRate),
+		BatchSize:           env.Int("TELEMETRY_BATCH_SIZE", DefaultTelemetryBatchSize),
+		BatchTimeoutMs:      env.Int("TELEMETRY_BATCH_TIMEOUT_MS", DefaultTelemetryBatchTimeoutMs),
 	}
 
-	if err := env.Parse(&telemetryCfg); err != nil {
-		panic(err)
+	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
+		return Telemetry{}, fmt.Errorf("config: telemetry: %w", err)
 	}
 
-	if err := validation.Validate(&telemetryCfg); err != nil {
-		panic(err)
-	}
-
-	return telemetryCfg
+	return cfg, nil
 }
 
-func (c TelemetryCfg) Validate() error {
+func (c Telemetry) validate() error {
 	b := validation.NewBuilder()
 	b.Required("ServiceName", c.ServiceName)
 	b.Required("ServiceVersion", c.ServiceVersion)
-	b.MinInt("BatchSize", c.BatchSize, 1)
-	b.MinInt("BatchTimeoutMs", c.BatchTimeoutMs, 1)
+	b.MinInt("BatchSize", int64(c.BatchSize), 1)
+	b.MinInt("BatchTimeoutMs", int64(c.BatchTimeoutMs), 1)
+	if err := b.Err(); err != nil {
+		return err
+	}
+	if math.IsNaN(c.TraceSampleRate) || c.TraceSampleRate < 0 || c.TraceSampleRate > 1 {
+		return fmt.Errorf("TRACE_SAMPLE_RATE must be between 0 and 1")
+	}
 
-	return b.Err()
+	return nil
 }
-
-func (c TelemetryCfg) GetServiceName() string { return c.ServiceName }
-
-func (c TelemetryCfg) GetServiceVersion() string { return c.ServiceVersion }
-
-func (c TelemetryCfg) GetOtlpLogsEndpoint() string { return c.OtlpLogsEndpoint }
-
-func (c TelemetryCfg) GetOtlpMetricsEndpoint() string { return c.OtlpMetricsEndpoint }
-
-func (c TelemetryCfg) GetOtlpTracesEndpoint() string { return c.OtlpTracesEndpoint }
-
-func (c TelemetryCfg) GetOtlpHeaders() string { return c.OtlpHeaders }
-
-func (c TelemetryCfg) GetTraceSampleRate() float64 { return c.TraceSampleRate }
-
-func (c TelemetryCfg) GetBatchSize() int { return c.BatchSize }
-
-func (c TelemetryCfg) GetBatchTimeoutMs() int { return c.BatchTimeoutMs }
 ```
 
 dir  d----------rwxr-xr-x controllers
@@ -2141,28 +2267,22 @@ import (
 	"net/http"
 
 	"testapp/assets"
+	"testapp/config"
 	"testapp/router"
 	"testapp/router/routes"
 
-	"github.com/mbvlabs/andurel/pkg/routing"
-	"github.com/mbvlabs/andurel/pkg/server"
-
 	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
 const threeMonthsCache = "7776000"
 
-type AssetsAppProvider interface {
-	GetEnvironment() string
-	GetBaseURL() string
-}
-
 type Assets struct {
 	cache  *Cache[string]
-	appCfg AssetsAppProvider
+	appCfg config.App
 }
 
-func NewAssets(cache *Cache[string], appCfg AssetsAppProvider) Assets {
+func NewAssets(cache *Cache[string], appCfg config.App) Assets {
 	return Assets{cache: cache, appCfg: appCfg}
 }
 
@@ -2223,7 +2343,7 @@ func (a Assets) RegisterRoutes(r *router.Router) error {
 }
 
 func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
-	if a.appCfg.GetEnvironment() == server.ProdEnvironment {
+	if a.appCfg.IsProduction() {
 		//nolint:gosec //only needed for browser caching
 		hash := md5.Sum(content)
 		etag := fmt.Sprintf(`"%x-%x"`, hash, len(content))
@@ -2265,7 +2385,7 @@ func (a Assets) Robots(etx *echo.Context) error {
 	cacheKey := "assets:robots"
 
 	robotsTxt, err := a.cache.Get(cacheKey, func() (string, error) {
-		return createRobotsTxt(a.appCfg.GetBaseURL()), nil
+		return createRobotsTxt(a.appCfg.BaseURL), nil
 	})
 	if err != nil {
 		slog.ErrorContext(
@@ -2273,7 +2393,7 @@ func (a Assets) Robots(etx *echo.Context) error {
 			"failed to get robots.txt from cache",
 			"error", err,
 		)
-		return etx.String(http.StatusOK, createRobotsTxt(a.appCfg.GetBaseURL()))
+		return etx.String(http.StatusOK, createRobotsTxt(a.appCfg.BaseURL))
 	}
 
 	return etx.String(http.StatusOK, robotsTxt)
@@ -2283,7 +2403,7 @@ func (a Assets) Sitemap(etx *echo.Context) error {
 	cacheKey := "assets:sitemap"
 
 	sitemap, err := a.cache.Get(cacheKey, func() (string, error) {
-		return createSitemap(a.appCfg.GetBaseURL(), []routing.Route{})
+		return createSitemap(a.appCfg.BaseURL, []routing.Route{})
 	})
 	if err != nil {
 		slog.ErrorContext(
@@ -2292,7 +2412,7 @@ func (a Assets) Sitemap(etx *echo.Context) error {
 			"error", err,
 		)
 
-		result, err := createSitemap(a.appCfg.GetBaseURL(), []routing.Route{})
+		result, err := createSitemap(a.appCfg.BaseURL, []routing.Route{})
 		if err != nil {
 			return err
 		}
@@ -2611,18 +2731,14 @@ package controllers
 import (
 	"github.com/a-h/templ"
 	"go.uber.org/fx"
+	"testapp/config"
 	"testapp/controllers/api"
 	"testapp/router"
 	"testapp/views"
 )
 
-type ConfigProvider interface {
-	GetProjectName() string
-	GetBaseURL() string
-}
-
-func configureViews(cfg ConfigProvider) {
-	views.ConfigureHead(cfg.GetProjectName(), cfg.GetBaseURL())
+func configureViews(cfg config.App) {
+	views.ConfigureHead(cfg.ProjectName, cfg.BaseURL)
 }
 
 var pageCache = NewCacheBuilder[templ.Component]().Build
@@ -3402,7 +3518,7 @@ file -----------rw-r--r-- email/base_layout_templ.go
 ```
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.1020
+// templ: version: v0.3.1001
 package email
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -3586,7 +3702,7 @@ file -----------rw-r--r-- email/reset_password_templ.go
 ```
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.1020
+// templ: version: v0.3.1001
 package email
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -3788,7 +3904,7 @@ file -----------rw-r--r-- email/verify_email_templ.go
 ```
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.1020
+// templ: version: v0.3.1001
 package email
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -3896,7 +4012,6 @@ go 1.26.5
 
 require (
 	github.com/a-h/templ v0.3.1020
-	github.com/caarlos0/env/v11 v11.4.1
 	github.com/go-faker/faker/v4 v4.9.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/securecookie v1.1.2
@@ -3907,17 +4022,19 @@ require (
 	github.com/labstack/echo/v5 v5.3.0
 	github.com/lmittmann/tint v1.2.0
 	github.com/maypok86/otter/v2 v2.3.0
-	github.com/mbvlabs/andurel/pkg/email v0.1.0
+	github.com/mbvlabs/andurel/pkg/email v0.3.0
 	github.com/mbvlabs/andurel/pkg/hypermedia v0.2.1
 	github.com/mbvlabs/andurel/pkg/routing v0.1.1
-	github.com/mbvlabs/andurel/pkg/server v0.1.0
-	github.com/mbvlabs/andurel/pkg/storage v0.4.0
+	github.com/mbvlabs/andurel/pkg/server v0.3.0
+	github.com/mbvlabs/andurel/pkg/storage v0.6.0
 	github.com/mbvlabs/andurel/pkg/validation v0.1.1
 	github.com/riverqueue/river v0.40.0
 	github.com/rs/xid v1.6.0
 	github.com/uptrace/bun v1.2.18
+	go.opentelemetry.io/contrib/bridges/otelslog v0.19.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.opentelemetry.io/otel v1.44.0
+	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.20.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.44.0
 	go.opentelemetry.io/otel/metric v1.44.0
@@ -3927,7 +4044,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0
 	go.uber.org/fx v1.24.0
 	golang.org/x/crypto v0.54.0
-	golang.org/x/sync v0.22.0
 )
 
 require (
@@ -4010,6 +4126,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
@@ -4033,8 +4150,6 @@ github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERo
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/a-h/templ v0.3.1020 h1:ypAT/L5ySWEnZ6Zft/5yfoWXYYkhFNvEFOeeqecg4tw=
 github.com/a-h/templ v0.3.1020/go.mod h1:A2DlK61v+K+NRoGnhmYbNYVmtYHcFO5/AisMvBdDxTM=
-github.com/caarlos0/env/v11 v11.4.1 h1:fYwH0sWEsBSMPG7t4e/PEfTFzrWrpjyygXyUnWiSwEw=
-github.com/caarlos0/env/v11 v11.4.1/go.mod h1:qupehSf/Y0TUTsxKywqRt/vJjN5nz6vauiYEUUr8P4U=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=
@@ -4134,16 +4249,16 @@ github.com/mattn/go-isatty v0.0.21 h1:xYae+lCNBP7QuW4PUnNG61ffM4hVIfm+zUzDuSzYLG
 github.com/mattn/go-isatty v0.0.21/go.mod h1:ZXfXG4SQHsB/w3ZeOYbR0PrPwLy+n6xiMrJlRFqopa4=
 github.com/maypok86/otter/v2 v2.3.0 h1:8H8AVVFUSzJwIegKwv1uF5aGitTY+AIrtktg7OcLs8w=
 github.com/maypok86/otter/v2 v2.3.0/go.mod h1:XgIdlpmL6jYz882/CAx1E4C1ukfgDKSaw4mWq59+7l8=
-github.com/mbvlabs/andurel/pkg/email v0.1.0 h1:hdu1/zwSbcZkrdkf3V8ohsPE4N2GDdt8ORV0xl5Iv90=
-github.com/mbvlabs/andurel/pkg/email v0.1.0/go.mod h1:GQoycIfBxTjqjYkystAZHQND450iODAlSrp2MiFSIGE=
+github.com/mbvlabs/andurel/pkg/email v0.3.0 h1:L2RNvsbPVMir5VMgXrzWKm/P3n8HdZOFbs2k1JDOPvc=
+github.com/mbvlabs/andurel/pkg/email v0.3.0/go.mod h1:GQoycIfBxTjqjYkystAZHQND450iODAlSrp2MiFSIGE=
 github.com/mbvlabs/andurel/pkg/hypermedia v0.2.1 h1:bGtbRLTEdx+U6kEl0YdvRzjI8Zhb0xOfK7ls+/L5r40=
 github.com/mbvlabs/andurel/pkg/hypermedia v0.2.1/go.mod h1:q2tUcXkYnC45npTvnBCUBq8Jry9vPlNY4Zn7aQ98WZU=
 github.com/mbvlabs/andurel/pkg/routing v0.1.1 h1:fpxTAkGmSkN0zs1Iss1kvNkxZ/723p5hAGxJOUJlpI0=
 github.com/mbvlabs/andurel/pkg/routing v0.1.1/go.mod h1:fXUraUJ88cKpKeLY2EOg/OHVA2Wacbb7bEH9sVZr8wc=
-github.com/mbvlabs/andurel/pkg/server v0.1.0 h1:pktLJXC8OxSUC8j27CyJ9wFOjNnHymeukHTCVgaiz/s=
-github.com/mbvlabs/andurel/pkg/server v0.1.0/go.mod h1:E0c81l0cR2ki98bjxLJf93GL8scIO1YItuLc+OgZS6c=
-github.com/mbvlabs/andurel/pkg/storage v0.4.0 h1:Uj/4UXMGjcM1lOiHQb86THH8djKGqgSPTx5e5O3hIjk=
-github.com/mbvlabs/andurel/pkg/storage v0.4.0/go.mod h1:lUpApuip6YE6YaulZ2WUDekCpFz1RcbpyfDNTdjOSRg=
+github.com/mbvlabs/andurel/pkg/server v0.3.0 h1:0Q626pdDsL7Zydag1Co0qWtZRJAUlhjVY6079dbjVSY=
+github.com/mbvlabs/andurel/pkg/server v0.3.0/go.mod h1:E0c81l0cR2ki98bjxLJf93GL8scIO1YItuLc+OgZS6c=
+github.com/mbvlabs/andurel/pkg/storage v0.6.0 h1:4UAlWyLThsf3Lpsg6d08deLLtVN4fkndPhg/lVn+RiM=
+github.com/mbvlabs/andurel/pkg/storage v0.6.0/go.mod h1:lUpApuip6YE6YaulZ2WUDekCpFz1RcbpyfDNTdjOSRg=
 github.com/mbvlabs/andurel/pkg/validation v0.1.1 h1:g/o2fM3+Sak0wTgs0K+tUPDarm5BrqvBkNTFi3XzPmM=
 github.com/mbvlabs/andurel/pkg/validation v0.1.1/go.mod h1:1g3f0xGqAK0O8LBWHPX5BRfvf9B4OoU3RqRByKBAlbU=
 github.com/mdelapenya/tlscert v0.2.0 h1:7H81W6Z/4weDvZBNOfQte5GpIMo0lGYEeWbkGp5LJHI=
@@ -4250,10 +4365,14 @@ github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
+go.opentelemetry.io/contrib/bridges/otelslog v0.19.0 h1:5RgvxieNq9tS3ewrV1vnODvbHPfKUIJcYtF9Cvz+6aQ=
+go.opentelemetry.io/contrib/bridges/otelslog v0.19.0/go.mod h1:iTBIdNwx/xmUhfgJs6+84S4dIK059811cO1eUBjKcHY=
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0 h1:8tvICD4vSTOOsNrsI4Ljf6C+6UKvpTEH5XY3JMoyPoo=
 go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0/go.mod h1:z9+yiacE0IHRqM4qFfkbt/JYlmYXgss8GY/jXoNuPJI=
 go.opentelemetry.io/otel v1.44.0 h1:JjwHmHpA4iZ3wBxluu2fbbE7j4kqlE8jXyAyPXH7HqU=
 go.opentelemetry.io/otel v1.44.0/go.mod h1:BMgjTHL9WPRlRjL2oZCBTL4whCGtXch2H4BhOPIAyYc=
+go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.20.0 h1:owlhcJ3QO3X0YTDTCcDZ4V+6aVDkWbNmBoQ5NUp7Oww=
+go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.20.0/go.mod h1:MP4eemTiI9zC8fgg+DYynhYDYf3ba72S376TvP+Ye0Q=
 go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.44.0 h1:RuynHbfU8JUEw7DyONgkVYg2SVtsoF28y0LGIr69jgA=
 go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.44.0/go.mod h1:qZF+/lBs71APw8mlnEZcqZHMzqrYrsFiJOv83lX1OGo=
 go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.44.0 h1:4YsVu3B8+3qtWYYrsUYgn0OG78pN0rnNPRGX4SbokQI=
@@ -4270,6 +4389,8 @@ go.opentelemetry.io/otel/sdk v1.44.0 h1:nHYwb9lK+fJPU/dnT6s7W7Z8itMWyqrnVfbheVYr
 go.opentelemetry.io/otel/sdk v1.44.0/go.mod h1:Osuydd3Se74nqjAKxid74N5eC+jfEqfTegHRnq58oK0=
 go.opentelemetry.io/otel/sdk/log v0.20.0 h1:vM3xI7TQgKPiSghe6urZtAkyFY7SodrSpC83CffDFuY=
 go.opentelemetry.io/otel/sdk/log v0.20.0/go.mod h1:Knej2nmsTUzN79T2eeXdRsjjPcoxoq2pUyUHz9TFyyU=
+go.opentelemetry.io/otel/sdk/log/logtest v0.20.0 h1:OqdRZ1guyzamK3M6LlRsmGqRrjkHWw6WZOKKli5ELpg=
+go.opentelemetry.io/otel/sdk/log/logtest v0.20.0/go.mod h1:PuMIlm7zAt7c3z8zfOI5ox4iT1Z87We+PF6YoINux/M=
 go.opentelemetry.io/otel/sdk/metric v1.44.0 h1:3LlKgI+VjbVsjNRFZJZAJ30WjXC5VkNRks6si09iEfI=
 go.opentelemetry.io/otel/sdk/metric v1.44.0/go.mod h1:5B5pMARnXxKhltooO4xUuCBorl65a4EpnTalObqOigA=
 go.opentelemetry.io/otel/trace v1.44.0 h1:jxF5CsGYCe74MCRx2X4g7WsY/VBKRqqpNvXlX/6gtIk=
@@ -4341,7 +4462,7 @@ file -----------rw-r--r-- migrations/.gitkeep
 
 ```
 
-file -----------rw-r--r-- migrations/00001_create_river_migration_table.sql
+file -----------rw-r--r-- migrations/20250101000000_create_river_migration_table.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -4361,7 +4482,7 @@ DROP TABLE river_migration;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- migrations/00002_create_river_job_and_leader_tables.sql
+file -----------rw-r--r-- migrations/20250101000001_create_river_job_and_leader_tables.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -4473,7 +4594,7 @@ DROP TABLE river_leader;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- migrations/00003_alter_river_job_tags.sql
+file -----------rw-r--r-- migrations/20250101000002_alter_river_job_tags.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -4490,7 +4611,7 @@ ALTER TABLE river_job
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- migrations/00004_alter_river_job_args_metadata_add_queue.sql
+file -----------rw-r--r-- migrations/20250101000003_alter_river_job_args_metadata_add_queue.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -4588,7 +4709,7 @@ ALTER TABLE river_leader
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- migrations/00005_add_river_job_unique_key_and_clients.sql
+file -----------rw-r--r-- migrations/20250101000004_add_river_job_unique_key_and_clients.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -4735,7 +4856,7 @@ DROP TABLE river_client;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- migrations/00006_add_river_job_unique_states.sql
+file -----------rw-r--r-- migrations/20250101000005_add_river_job_unique_states.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -4801,7 +4922,7 @@ DROP FUNCTION river_job_state_in_bitmask;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- migrations/00007_create_users_table.sql
+file -----------rw-r--r-- migrations/20250101000006_create_users_table.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -4826,7 +4947,7 @@ DROP TABLE IF EXISTS users;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- migrations/00008_create_tokens_table.sql
+file -----------rw-r--r-- migrations/20250101000007_create_tokens_table.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -6406,9 +6527,7 @@ func TestIPRateLimiterPermitsExactlyConfiguredLimitAtomically(t *testing.T) {
 	start := make(chan struct{})
 	var wg sync.WaitGroup
 	for range requests {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			<-start
 
 			request := httptest.NewRequest(http.MethodPost, "/", nil)
@@ -6419,7 +6538,7 @@ func TestIPRateLimiterPermitsExactlyConfiguredLimitAtomically(t *testing.T) {
 			if err := limiter(ctx); err != nil {
 				t.Errorf("rate-limited request: %v", err)
 			}
-		}()
+		})
 	}
 	close(start)
 	wg.Wait()
@@ -7113,17 +7232,8 @@ package router
 
 import (
 	"encoding/gob"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/mbvlabs/andurel/pkg/server"
-	"log/slog"
-	"net/http"
-	"strings"
-	"testapp/router/cookies"
-	"testapp/router/middleware"
-	"testapp/telemetry"
-
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/v5/session"
@@ -7131,21 +7241,14 @@ import (
 	echomw "github.com/labstack/echo/v5/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.uber.org/fx"
+	"log/slog"
+	"net/http"
+	"strings"
+	"testapp/config"
+	"testapp/router/cookies"
+	"testapp/router/middleware"
+	"testapp/telemetry"
 )
-
-type AppProvider interface {
-	GetSessionKey() string
-	GetSessionEncryptionKey() string
-	GetCSRFStrategy() string
-	GetCSRFTrustedOrigins() []string
-	GetSessionMaxAge() int
-	GetCORSAllowedOrigins() []string
-	GetBaseURL() string
-	GetEnvironment() string
-	GetDomain() string
-	GetProjectName() string
-	GetAppCookieSessionName() string
-}
 
 type Router struct {
 	e       *echo.Echo
@@ -7153,21 +7256,14 @@ type Router struct {
 }
 
 func New(
-	cfg AppProvider,
+	appCfg config.App,
+	httpCfg config.HTTP,
+	sessionCfg config.Session,
 	cookieSession *cookies.Session,
 	tel *telemetry.Telemetry,
 ) (*Router, error) {
 	gob.Register(uuid.UUID{})
 	gob.Register(cookies.FlashMessage{})
-
-	authKey, err := hex.DecodeString(cfg.GetSessionKey())
-	if err != nil {
-		return nil, err
-	}
-	encKey, err := hex.DecodeString(cfg.GetSessionEncryptionKey())
-	if err != nil {
-		return nil, err
-	}
 
 	router := echo.New()
 	defaultHTTPErrorHandler := echo.DefaultHTTPErrorHandler(false)
@@ -7194,7 +7290,14 @@ func New(
 		defaultHTTPErrorHandler(c, err)
 	}
 
-	globalMiddleware, err := SetupGlobalMiddleware(cfg, cookieSession, tel, authKey, encKey, "_csrf")
+	globalMiddleware, err := SetupGlobalMiddleware(
+		appCfg,
+		httpCfg,
+		sessionCfg,
+		cookieSession,
+		tel,
+		"_csrf",
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -7210,35 +7313,35 @@ func New(
 }
 
 func SetupGlobalMiddleware(
-	cfg AppProvider,
+	appCfg config.App,
+	httpCfg config.HTTP,
+	sessionCfg config.Session,
 	cookieSession *cookies.Session,
 	tel *telemetry.Telemetry,
-	authKey []byte,
-	encKey []byte,
 	csrfName string,
 ) ([]echo.MiddlewareFunc, error) {
 	csrfMiddleware, err := middleware.CSRFMiddleware(
-		cfg.GetCSRFStrategy(),
-		cfg.GetCSRFTrustedOrigins(),
+		httpCfg.CSRFStrategy,
+		httpCfg.CSRFTrustedOrigins,
 		csrfName,
-		cfg.GetBaseURL(),
-		cfg.GetEnvironment(),
-		cfg.GetDomain(),
-		cfg.GetAppCookieSessionName(),
+		appCfg.BaseURL,
+		appCfg.Environment,
+		appCfg.Domain,
+		sessionCfg.Name,
 	)
 	if err != nil {
 		return nil, err
 	}
 	sessionStore, err := newApplicationSessionStore(
-		authKey,
-		encKey,
-		cfg.GetSessionMaxAge(),
-		cfg.GetEnvironment() == server.ProdEnvironment,
+		sessionCfg.AuthenticationKey,
+		sessionCfg.EncryptionKey,
+		sessionCfg.MaxAge,
+		appCfg.IsProduction(),
 	)
 	if err != nil {
 		return nil, err
 	}
-	corsConfig, err := newCORSConfig(cfg.GetBaseURL(), cfg.GetCORSAllowedOrigins())
+	corsConfig, err := newCORSConfig(appCfg.BaseURL, httpCfg.CORSAllowedOrigins)
 	if err != nil {
 		return nil, err
 	}
@@ -7336,11 +7439,11 @@ var Module = fx.Module(
 	fx.Provide(New),
 )
 
-func newSession(cfg AppProvider) *cookies.Session {
+func newSession(appCfg config.App, sessionCfg config.Session) *cookies.Session {
 	return cookies.NewSession(
-		cfg.GetAppCookieSessionName(),
-		cfg.GetProjectName(),
-		cfg.GetEnvironment(),
+		sessionCfg.Name,
+		appCfg.ProjectName,
+		appCfg.Environment,
 	)
 }
 ```
@@ -7906,25 +8009,11 @@ package services
 import (
 	"strings"
 
+	"testapp/config"
 	"testapp/models"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
-
-type TokenProvider interface {
-	GetTokenSigningKey() string
-}
-
-type AuthProvider interface {
-	GetPepper() string
-	GetPreviousPeppers() []string
-}
-
-type AppIdentityProvider interface {
-	TokenProvider
-	GetBaseURL() string
-	GetDefaultSenderSignature() string
-}
 
 type Identity struct {
 	db                     storage.Connection
@@ -7943,12 +8032,13 @@ func NewIdentity(
 	users models.Users,
 	tokens models.Tokens,
 	insertOnly storage.InsertQueue,
-	appCfg AppIdentityProvider,
-	authCfg AuthProvider,
+	appCfg config.App,
+	authCfg config.Auth,
+	mailCfg config.Mail,
 ) Identity {
-	validPeppers := make([]string, 0, len(authCfg.GetPreviousPeppers()))
-	for _, p := range authCfg.GetPreviousPeppers() {
-		if p = strings.TrimSpace(p); p != "" && p != authCfg.GetPepper() {
+	validPeppers := make([]string, 0, len(authCfg.PreviousPeppers))
+	for _, p := range authCfg.PreviousPeppers {
+		if p = strings.TrimSpace(p); p != "" && p != authCfg.Pepper {
 			validPeppers = append(validPeppers, p)
 		}
 	}
@@ -7958,11 +8048,11 @@ func NewIdentity(
 		users:                  users,
 		tokens:                 tokens,
 		insertOnly:             insertOnly,
-		pepper:                 authCfg.GetPepper(),
+		pepper:                 authCfg.Pepper,
 		previousPeppers:        validPeppers,
-		tokenSigningKey:        appCfg.GetTokenSigningKey(),
-		baseURL:                appCfg.GetBaseURL(),
-		defaultSenderSignature: appCfg.GetDefaultSenderSignature(),
+		tokenSigningKey:        authCfg.TokenSigningKey,
+		baseURL:                appCfg.BaseURL,
+		defaultSenderSignature: mailCfg.DefaultSenderSignature,
 	}
 }
 ```
@@ -8567,10 +8657,18 @@ package telemetry
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/lmittmann/tint"
+	"go.opentelemetry.io/contrib/bridges/otelslog"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
+	"go.opentelemetry.io/otel/sdk/resource"
 )
 
 type StdoutExporter struct {
@@ -8589,7 +8687,7 @@ func NewStdoutExporterWithLevel(level slog.Level) *StdoutExporter {
 	}
 }
 
-func (s *StdoutExporter) GetSlogHandler(ctx context.Context) (slog.Handler, error) {
+func (s *StdoutExporter) GetSlogHandler(ctx context.Context, res *resource.Resource) (slog.Handler, error) {
 	handler := tint.NewTextHandler(os.Stdout, &tint.Options{
 		Level:      s.LogLevel,
 		TimeFormat: "15:04:05",
@@ -8608,6 +8706,63 @@ func (s *StdoutExporter) Shutdown(ctx context.Context) error {
 }
 
 var _ LogExporter = (*StdoutExporter)(nil)
+
+type OtlpHttpLogExporter struct {
+	endpoint     string
+	headers      map[string]string
+	batchSize    int
+	batchTimeout time.Duration
+	provider     *sdklog.LoggerProvider
+}
+
+func NewOtlpLogExporter(endpoint string, headers map[string]string, batchSize int, batchTimeout time.Duration) *OtlpHttpLogExporter {
+	return &OtlpHttpLogExporter{
+		endpoint:     endpoint,
+		headers:      headers,
+		batchSize:    batchSize,
+		batchTimeout: batchTimeout,
+	}
+}
+
+func (o *OtlpHttpLogExporter) Name() string { return "otlp-http-logs" }
+
+func (o *OtlpHttpLogExporter) GetSlogHandler(ctx context.Context, res *resource.Resource) (slog.Handler, error) {
+	opts := []otlploghttp.Option{otlploghttp.WithHeaders(o.headers)}
+	if strings.Contains(o.endpoint, "://") {
+		endpointURL, err := url.Parse(o.endpoint)
+		if err != nil || endpointURL.Host == "" || (endpointURL.Scheme != "http" && endpointURL.Scheme != "https") {
+			return nil, fmt.Errorf("invalid OTLP HTTP log endpoint %q", o.endpoint)
+		}
+		opts = append(opts, otlploghttp.WithEndpointURL(o.endpoint))
+		if endpointURL.Path == "" || endpointURL.Path == "/" {
+			opts = append(opts, otlploghttp.WithURLPath("/v1/logs"))
+		}
+	} else {
+		opts = append(opts, otlploghttp.WithEndpoint(o.endpoint))
+	}
+	exporter, err := otlploghttp.New(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("create OTLP HTTP log exporter: %w", err)
+	}
+	processor := sdklog.NewBatchProcessor(exporter,
+		sdklog.WithExportMaxBatchSize(o.batchSize),
+		sdklog.WithExportInterval(o.batchTimeout),
+	)
+	o.provider = sdklog.NewLoggerProvider(
+		sdklog.WithResource(res),
+		sdklog.WithProcessor(processor),
+	)
+	return otelslog.NewHandler("application", otelslog.WithLoggerProvider(o.provider)), nil
+}
+
+func (o *OtlpHttpLogExporter) Shutdown(ctx context.Context) error {
+	if o.provider == nil {
+		return nil
+	}
+	return o.provider.Shutdown(ctx)
+}
+
+var _ LogExporter = (*OtlpHttpLogExporter)(nil)
 ```
 
 file -----------rw-r--r-- telemetry/logger.go
@@ -8618,12 +8773,13 @@ import (
 	"context"
 	"log/slog"
 
+	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type LogExporter interface {
 	Name() string
-	GetSlogHandler(ctx context.Context) (slog.Handler, error)
+	GetSlogHandler(ctx context.Context, res *resource.Resource) (slog.Handler, error)
 	Shutdown(ctx context.Context) error
 }
 
@@ -9369,10 +9525,15 @@ package telemetry
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
+	"time"
+
+	"testapp/config"
 
 	"go.opentelemetry.io/otel"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
@@ -9381,19 +9542,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.uber.org/fx"
-	"golang.org/x/sync/errgroup"
 )
-
-type ConfigProvider interface {
-	GetServiceName() string
-	GetServiceVersion() string
-	GetBatchSize() int
-	GetBatchTimeoutMs() int
-	GetTraceSampleRate() float64
-	GetOtlpMetricsEndpoint() string
-	GetOtlpTracesEndpoint() string
-	GetOtlpHeaders() string
-}
 
 type Telemetry struct {
 	resource       *resource.Resource
@@ -9404,29 +9553,38 @@ type Telemetry struct {
 	config         *telemetryOptions
 }
 
-func New(cfg ConfigProvider) (*Telemetry, error) {
+func New(cfg config.Telemetry) (*Telemetry, error) {
 	ctx := context.Background()
 
 	opts := []Option{
-		WithService(cfg.GetServiceName(), cfg.GetServiceVersion()),
-		WithBatchConfig(cfg.GetBatchSize(), cfg.GetBatchTimeoutMs(), 2048),
-		WithTraceSampleRate(cfg.GetTraceSampleRate()),
+		WithService(cfg.ServiceName, cfg.ServiceVersion),
+		WithBatchConfig(cfg.BatchSize, cfg.BatchTimeoutMs, 2048),
+		WithTraceSampleRate(cfg.TraceSampleRate),
 	}
 
-	opts = append(opts, WithLogExporters(NewStdoutExporter()))
+	logExporters := []LogExporter{NewStdoutExporter()}
+	if cfg.OtlpLogsEndpoint != "" {
+		logExporters = append(logExporters, NewOtlpLogExporter(
+			cfg.OtlpLogsEndpoint,
+			parseHeaders(cfg.OtlpHeaders),
+			cfg.BatchSize,
+			time.Duration(cfg.BatchTimeoutMs)*time.Millisecond,
+		))
+	}
+	opts = append(opts, WithLogExporters(logExporters...))
 
-	if cfg.GetOtlpMetricsEndpoint() != "" {
+	if cfg.OtlpMetricsEndpoint != "" {
 		opts = append(opts, WithMetricExporters(
 			NewOtlpMetricExporter(
-				cfg.GetOtlpMetricsEndpoint(),
-				parseHeaders(cfg.GetOtlpHeaders()),
+				cfg.OtlpMetricsEndpoint,
+				parseHeaders(cfg.OtlpHeaders),
 			),
 		))
 	}
 
-	if cfg.GetOtlpTracesEndpoint() != "" {
+	if cfg.OtlpTracesEndpoint != "" {
 		opts = append(opts, WithTraceExporters(
-			NewOtlpTraceExporter(cfg.GetOtlpTracesEndpoint(), parseHeaders(cfg.GetOtlpHeaders()))))
+			NewOtlpTraceExporter(cfg.OtlpTracesEndpoint, parseHeaders(cfg.OtlpHeaders))))
 	} else {
 		opts = append(opts, WithTraceExporters(NewNoopTraceExporter()))
 	}
@@ -9468,6 +9626,7 @@ func newWithOpts(ctx context.Context, opts ...Option) (*Telemetry, error) {
 	}
 
 	if err := t.initLogging(ctx); err != nil {
+		_ = t.Shutdown(ctx)
 		return nil, fmt.Errorf("failed to initialize logging: %w", err)
 	}
 
@@ -9491,7 +9650,7 @@ func (t *Telemetry) initLogging(ctx context.Context) error {
 
 	handlers := make([]slog.Handler, 0, len(t.config.logExporters))
 	for _, exporter := range t.config.logExporters {
-		handler, err := exporter.GetSlogHandler(ctx)
+		handler, err := exporter.GetSlogHandler(ctx, t.resource)
 		if err != nil {
 			return fmt.Errorf("failed to get slog handler from %s: %w", exporter.Name(), err)
 		}
@@ -9518,6 +9677,7 @@ func (t *Telemetry) initMetrics(ctx context.Context) error {
 		return nil
 	}
 
+	cleanupStart := len(t.shutdownFuncs)
 	exporters := make([]sdkmetric.Exporter, 0, len(t.config.metricExporters))
 	for _, exporter := range t.config.metricExporters {
 		exp, err := exporter.GetSdkMetricExporter(ctx, t.resource)
@@ -9542,6 +9702,8 @@ func (t *Telemetry) initMetrics(ctx context.Context) error {
 	meterProvider := sdkmetric.NewMeterProvider(opts...)
 
 	t.meterProvider = meterProvider
+	// The provider owns its readers and exporters after construction.
+	t.shutdownFuncs = t.shutdownFuncs[:cleanupStart]
 	t.shutdownFuncs = append(t.shutdownFuncs, meterProvider.Shutdown)
 	otel.SetMeterProvider(meterProvider)
 
@@ -9553,6 +9715,7 @@ func (t *Telemetry) initTracing(ctx context.Context) error {
 		return nil
 	}
 
+	cleanupStart := len(t.shutdownFuncs)
 	exporters := make([]sdktrace.SpanExporter, 0, len(t.config.traceExporters))
 	for _, exporter := range t.config.traceExporters {
 		exp, err := exporter.GetSpanExporter(ctx, t.resource)
@@ -9580,6 +9743,8 @@ func (t *Telemetry) initTracing(ctx context.Context) error {
 	tracerProvider := sdktrace.NewTracerProvider(opts...)
 
 	t.tracerProvider = tracerProvider
+	// The provider owns its processors and exporters after construction.
+	t.shutdownFuncs = t.shutdownFuncs[:cleanupStart]
 	t.shutdownFuncs = append(t.shutdownFuncs, tracerProvider.Shutdown)
 	otel.SetTracerProvider(tracerProvider)
 
@@ -9587,20 +9752,12 @@ func (t *Telemetry) initTracing(ctx context.Context) error {
 }
 
 func (t *Telemetry) Shutdown(ctx context.Context) error {
-	eg := errgroup.Group{}
-	for _, fn := range t.shutdownFuncs {
-		fn := fn
-		eg.Go(func() error {
-			if err := fn(ctx); err != nil {
-				fmt.Fprintf(os.Stderr, "[telemetry] shutdown error: %v\n", err)
-				return err
-			}
-
-			return nil
-		})
+	var shutdownErr error
+	// Flush logging last so shutdown diagnostics can still be exported.
+	for _, shutdown := range slices.Backward(t.shutdownFuncs) {
+		shutdownErr = errors.Join(shutdownErr, shutdown(ctx))
 	}
-
-	return eg.Wait()
+	return shutdownErr
 }
 
 func (t *Telemetry) HealthCheck(ctx context.Context) error {
@@ -9687,7 +9844,12 @@ func parseHeaders(headersStr string) map[string]string {
 	return headers
 }
 
-var Module = fx.Module("telemetry", fx.Provide(New))
+var Module = fx.Module("telemetry",
+	fx.Provide(New),
+	fx.Invoke(func(lifecycle fx.Lifecycle, tel *Telemetry) {
+		lifecycle.Append(fx.Hook{OnStop: tel.Shutdown})
+	}),
+)
 ```
 
 file -----------rw-r--r-- telemetry/trace_exporters.go
@@ -9872,7 +10034,7 @@ file -----------rw-r--r-- views/bad_request_templ.go
 ```
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.1020
+// templ: version: v0.3.1001
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -9992,7 +10154,7 @@ file -----------rw-r--r-- views/confirm_email_templ.go
 ```
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.1020
+// templ: version: v0.3.1001
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -10069,11 +10231,11 @@ func (cf ConfirmationForm) Page() templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
-				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(hypermedia.DataAction(http.MethodPost, routes.ConfirmationCreate.URL()))
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(hypermedia.DataAction(http.MethodPost, routes.ConfirmationCreate.URL()))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/confirm_email.templ`, Line: 33, Col: 146}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -10309,7 +10471,7 @@ file -----------rw-r--r-- views/head_templ.go
 ```
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.1020
+// templ: version: v0.3.1001
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -10438,11 +10600,11 @@ func head(data HeadData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var2 string
-			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.twitterCreator)
+			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(data.twitterCreator)
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 99, Col: 61}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -10482,11 +10644,11 @@ func head(data HeadData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var5 string
-		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.MetaType)
+		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(data.MetaType)
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 105, Col: 50}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -10495,11 +10657,11 @@ func head(data HeadData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var6 string
-		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Title)
+		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(data.Title)
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 106, Col: 48}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -10508,11 +10670,11 @@ func head(data HeadData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Description)
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(data.Description)
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 107, Col: 60}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -10521,11 +10683,11 @@ func head(data HeadData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.canonicalURL)
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(data.canonicalURL)
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 108, Col: 53}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -10534,11 +10696,11 @@ func head(data HeadData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var9 string
-		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.siteName)
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(data.siteName)
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 109, Col: 55}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -10547,11 +10709,11 @@ func head(data HeadData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var10 string
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Title)
+		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(data.Title)
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 111, Col: 49}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -10560,11 +10722,11 @@ func head(data HeadData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var11 string
-		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Description)
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(data.Description)
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 112, Col: 61}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -10578,11 +10740,11 @@ func head(data HeadData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var12 string
-			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Image)
+			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(data.Image)
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 114, Col: 50}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -10591,11 +10753,11 @@ func head(data HeadData) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var13 string
-			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Image)
+			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(data.Image)
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 115, Col: 49}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -10609,11 +10771,11 @@ func head(data HeadData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var14 string
-				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.ImageAlt)
+				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(data.ImageAlt)
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 117, Col: 57}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -10635,11 +10797,11 @@ func head(data HeadData) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var15 string
-					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue(extraMeta.Name)
+					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(extraMeta.Name)
 					if templ_7745c5c3_Err != nil {
 						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 124, Col: 27}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -10654,11 +10816,11 @@ func head(data HeadData) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var16 string
-					templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue(extraMeta.Property)
+					templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(extraMeta.Property)
 					if templ_7745c5c3_Err != nil {
 						return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 127, Col: 35}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -10672,11 +10834,11 @@ func head(data HeadData) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var17 string
-				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue(extraMeta.Content)
+				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(extraMeta.Content)
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 129, Col: 32}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -10691,11 +10853,11 @@ func head(data HeadData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var18 string
-		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.Description)
+		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(data.Description)
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 133, Col: 53}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -10818,11 +10980,11 @@ func head(data HeadData) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var27 string
-		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(data.scriptSrc)
+		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(data.scriptSrc)
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/head.templ`, Line: 144, Col: 30}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -10890,7 +11052,7 @@ file -----------rw-r--r-- views/internal_error_templ.go
 ```
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.1020
+// templ: version: v0.3.1001
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -11004,7 +11166,7 @@ file -----------rw-r--r-- views/layout_templ.go
 ```
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.1020
+// templ: version: v0.3.1001
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -11217,7 +11379,7 @@ file -----------rw-r--r-- views/login_templ.go
 ```
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.1020
+// templ: version: v0.3.1001
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -11294,11 +11456,11 @@ func (lf LoginForm) Page() templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
-				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(hypermedia.DataAction(http.MethodPost, routes.SessionCreate.URL()))
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(hypermedia.DataAction(http.MethodPost, routes.SessionCreate.URL()))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/login.templ`, Line: 33, Col: 141}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -11418,7 +11580,7 @@ file -----------rw-r--r-- views/not_found_templ.go
 ```
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.1020
+// templ: version: v0.3.1001
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -11555,7 +11717,7 @@ file -----------rw-r--r-- views/registration_templ.go
 ```
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.1020
+// templ: version: v0.3.1001
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -11632,11 +11794,11 @@ func (rf RegistrationForm) Page() templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
-				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()))
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(hypermedia.DataAction(http.MethodPost, routes.RegistrationCreate.URL()))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/registration.templ`, Line: 33, Col: 146}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -11868,7 +12030,7 @@ file -----------rw-r--r-- views/reset_password_templ.go
 ```
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.1020
+// templ: version: v0.3.1001
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -11945,11 +12107,11 @@ func (rprf ResetPasswordRequestForm) Page() templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var4 string
-				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(hypermedia.DataAction(http.MethodPost, routes.PasswordCreate.URL()))
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(hypermedia.DataAction(http.MethodPost, routes.PasswordCreate.URL()))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/reset_password.templ`, Line: 33, Col: 142}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -12072,11 +12234,11 @@ func (rpf ResetPasswordForm) Page() templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var10 string
-				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(hypermedia.DataAction(http.MethodPut, routes.PasswordUpdate.URL()))
+				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(hypermedia.DataAction(http.MethodPut, routes.PasswordUpdate.URL()))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/reset_password.templ`, Line: 83, Col: 141}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -12085,11 +12247,11 @@ func (rpf ResetPasswordForm) Page() templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var11 string
-				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(rpf.Token)
+				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(rpf.Token)
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/reset_password.templ`, Line: 85, Col: 78}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -12264,7 +12426,7 @@ file -----------rw-r--r-- views/welcome_templ.go
 ```
 // Code generated by templ - DO NOT EDIT.
 
-// templ: version: v0.3.1020
+// templ: version: v0.3.1001
 package views
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
@@ -12523,4 +12685,3 @@ func consoleLine(label string, value string) templ.Component {
 
 var _ = templruntime.GeneratedTemplate
 ```
-

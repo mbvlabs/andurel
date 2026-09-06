@@ -10,14 +10,26 @@ import (
 	"syscall"
 	"time"
 
+{{- if .Inertia}}
+	"{{.ModuleName}}/assets"
+{{- end}}
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/controllers"
+{{- if hasExtension .Extensions "aws-ses"}}
+	mailclients "{{.ModuleName}}/clients/email"
+{{- end}}
 	"{{.ModuleName}}/models"
 	"{{.ModuleName}}/router"
+{{- if .Inertia}}
+	"{{.ModuleName}}/router/routes"
+{{- end}}
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/telemetry"
+{{- if .Inertia}}
+	"{{.ModuleName}}/views"
+{{- end}}
 
-	"github.com/joho/godotenv"
+	"github.com/mbvlabs/andurel/pkg/email"
 	{{- if .Inertia}}
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	{{- end}}
@@ -29,7 +41,7 @@ import (
 var appVersion string
 
 func main() {
-	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+	if err := config.LoadEnvironment(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -42,12 +54,7 @@ func main() {
 			{{- range .Blueprint.Main.ServiceProvides}}
 			{{.}},
 			{{- end}}
-			func(cfg *config.Config) router.AppProvider { return cfg },
-			func(cfg *config.Config) controllers.ConfigProvider { return cfg },
-			func(cfg *config.Config) controllers.AssetsAppProvider { return cfg },
-			func(cfg *config.Config) services.AppIdentityProvider { return cfg },
-			func(cfg *config.Config) services.AuthProvider { return cfg },
-			func(cfg *config.Config) telemetry.ConfigProvider { return cfg },
+			newEmailSenders,
 		),
 
 		config.Module,
@@ -103,19 +110,20 @@ func startServer(
 	lc fx.Lifecycle,
 	appCtx context.Context,
 	r *router.Router,
-	cfg *config.Config,
+	appCfg config.App,
+	httpCfg config.HTTP,
 ) {
 	srv := server.New(
 		appCtx,
-		cfg.Host(),
-		cfg.Port(),
-		cfg.Env(),
+		httpCfg.Host,
+		httpCfg.Port,
+		appCfg.Environment,
 		r.Handler,
 		nil,
 		server.WithTimeouts(
-			cfg.IdleTimeout(),
-			cfg.ReadTimeout(),
-			cfg.WriteTimeout(),
+			httpCfg.IdleTimeout,
+			httpCfg.ReadTimeout,
+			httpCfg.WriteTimeout,
 		),
 	)
 	var done <-chan struct{}
@@ -126,12 +134,12 @@ func startServer(
 				appCtx,
 				"starting server",
 				"host",
-				cfg.Host(),
+				httpCfg.Host,
 				"port",
-				cfg.Port(),
+				httpCfg.Port,
 			)
 			done = startInBackground(appCtx, "server", func(ctx context.Context) error {
-				return srv.Start(ctx, cfg.Env())
+				return srv.Start(ctx, appCfg.Environment)
 			})
 			return nil
 		},
@@ -157,9 +165,9 @@ func startServer(
 func newDatabase(
 	lifecycle fx.Lifecycle,
 	ctx context.Context,
-	cfg *config.Config,
+	cfg storage.Config,
 ) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, cfg.Database())
+	db, err := storage.NewPostgres(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -170,38 +178,37 @@ func newDatabase(
 
 func newQueueInsert(
 	connection storage.Connection,
-	cfg *config.Config,
+	cfg config.QueueInsert,
 ) (*storage.QueueInsert, error) {
-	queueCfg := cfg.Queue()
-	queueCfg.Queues = nil
-	return storage.NewQueueInsert(connection, queueCfg)
+	return storage.NewQueueInsert(connection, cfg.Config)
 }
 
 {{if .Inertia}}
 
 func newInertia(
 	lifecycle fx.Lifecycle,
-	cfg *config.Config,
+	appCfg config.App,
+	cfg config.Inertia,
 ) (*inertia.Renderer, error) {
 	renderer, err := inertia.New(
-		inertia.WithRoot(cfg.Root()),
-		inertia.WithAssetFS(cfg.AssetFS()),
-		inertia.WithProjectName(cfg.ProjectName()),
-		inertia.WithEnvironment(cfg.Env()),
-		inertia.WithBuildPathURL(cfg.BuildPathURL()),
-		inertia.WithEntryPoint(cfg.EntryPoint()),
-		inertia.WithContainerID(cfg.ContainerID()),
-		inertia.WithViteDevURL(cfg.ViteDevURL()),
-		inertia.WithProtocolDebug(cfg.ProtocolDebug()),
+		inertia.WithRoot(views.Root),
+		inertia.WithAssetFS(assets.Files),
+		inertia.WithProjectName(appCfg.ProjectName),
+		inertia.WithEnvironment(appCfg.Environment),
+		inertia.WithBuildPathURL(routes.ViteBuild.Path()),
+		inertia.WithEntryPoint(cfg.EntryPoint),
+		inertia.WithContainerID(cfg.ContainerID),
+		inertia.WithViteDevURL(cfg.ViteDevURL),
+		inertia.WithProtocolDebug(cfg.ProtocolDebug),
 		inertia.WithShared(inertia.Props{"appVersion": appVersion}),
-		inertia.WithSSRMode(inertia.SSRMode(cfg.SSRMode())),
-		inertia.WithSSRRuntime(cfg.SSRRuntime()),
-		inertia.WithSSRBundle(cfg.SSRBundle()),
-		inertia.WithSSRURL(cfg.SSRURL()),
-		inertia.WithSSRStartupTimeout(cfg.SSRStartupTimeout()),
-		inertia.WithSSRRequestTimeout(cfg.SSRRequestTimeout()),
-		inertia.WithSSRMaxResponseBytes(cfg.SSRMaxResponseBytes()),
-		inertia.WithSSRFailFast(cfg.SSRFailFast()),
+		inertia.WithSSRMode(cfg.SSRMode),
+		inertia.WithSSRRuntime(cfg.SSRRuntime),
+		inertia.WithSSRBundle(cfg.SSRBundle),
+		inertia.WithSSRURL(cfg.SSRURL),
+		inertia.WithSSRStartupTimeout(cfg.SSRStartupTimeout),
+		inertia.WithSSRRequestTimeout(cfg.SSRRequestTimeout),
+		inertia.WithSSRMaxResponseBytes(cfg.SSRMaxResponseBytes),
+		inertia.WithSSRFailFast(cfg.SSRFailFast),
 	)
 	if err != nil {
 		return nil, err
@@ -215,6 +222,32 @@ func newInertia(
 }
 
 {{- end}}
+
+func newEmailSenders(
+	ctx context.Context,
+	cfg config.MailTransport,
+) (email.TransactionalSender, email.MarketingSender, error) {
+	switch cfg.Driver {
+	case config.MailpitDriver:
+		client, err := email.NewMailpit(cfg.Mailpit)
+		if err != nil {
+			return nil, nil, fmt.Errorf("create Mailpit client: %w", err)
+		}
+
+		return client, client, nil
+{{- if hasExtension .Extensions "aws-ses"}}
+	case config.AWSSESDriver:
+		client, err := mailclients.NewAwsSes(ctx, cfg.AWSSES)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return client, client, nil
+{{- end}}
+	default:
+		return nil, nil, fmt.Errorf("unsupported email provider %q", cfg.Driver)
+	}
+}
 
 func startInBackground(
 	ctx context.Context,

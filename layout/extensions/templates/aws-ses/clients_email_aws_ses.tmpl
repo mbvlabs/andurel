@@ -9,6 +9,8 @@ import (
 	"net/textproto"
 	"strings"
 
+	"{{.ModuleName}}/config"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -21,26 +23,19 @@ import (
 var _ email.TransactionalSender = (*AwsSes)(nil)
 var _ email.MarketingSender = (*AwsSes)(nil)
 
-type SesConfigProvider interface {
-	Region() string
-	AccessKeyID() string
-	SecretAccessKey() string
-	ConfigurationSet() string
-}
-
 type AwsSes struct {
 	client           *sesv2.Client
 	configurationSet string
 }
 
-func NewAwsSes(ctx context.Context, cfg SesConfigProvider) (*AwsSes, error) {
+func NewAwsSes(ctx context.Context, cfg config.AWSSES) (*AwsSes, error) {
 	options := []func(*awsconfig.LoadOptions) error{
-		awsconfig.WithRegion(cfg.Region()),
+		awsconfig.WithRegion(cfg.Region),
 	}
-	if cfg.AccessKeyID() != "" || cfg.SecretAccessKey() != "" {
+	if cfg.AccessKeyID != "" || cfg.SecretAccessKey != "" {
 		options = append(options, awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			cfg.AccessKeyID(),
-			cfg.SecretAccessKey(),
+			cfg.AccessKeyID,
+			cfg.SecretAccessKey,
 			"",
 		)))
 	}
@@ -53,7 +48,7 @@ func NewAwsSes(ctx context.Context, cfg SesConfigProvider) (*AwsSes, error) {
 
 	return &AwsSes{
 		client:           client,
-		configurationSet: cfg.ConfigurationSet(),
+		configurationSet: cfg.ConfigurationSet,
 	}, nil
 }
 

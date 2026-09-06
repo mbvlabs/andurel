@@ -3,25 +3,11 @@ package services
 import (
 	"strings"
 
+	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/models"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
-
-type TokenProvider interface {
-	TokenSigningKey() string
-}
-
-type AuthProvider interface {
-	Pepper() string
-	PreviousPeppers() []string
-}
-
-type AppIdentityProvider interface {
-	TokenProvider
-	BaseURL() string
-	DefaultSenderSignature() string
-}
 
 type Identity struct {
 	db                     storage.Connection
@@ -40,12 +26,13 @@ func NewIdentity(
 	users models.Users,
 	tokens models.Tokens,
 	insertOnly storage.InsertQueue,
-	appCfg AppIdentityProvider,
-	authCfg AuthProvider,
+	appCfg config.App,
+	authCfg config.Auth,
+	mailCfg config.Mail,
 ) Identity {
-	validPeppers := make([]string, 0, len(authCfg.PreviousPeppers()))
-	for _, p := range authCfg.PreviousPeppers() {
-		if p = strings.TrimSpace(p); p != "" && p != authCfg.Pepper() {
+	validPeppers := make([]string, 0, len(authCfg.PreviousPeppers))
+	for _, p := range authCfg.PreviousPeppers {
+		if p = strings.TrimSpace(p); p != "" && p != authCfg.Pepper {
 			validPeppers = append(validPeppers, p)
 		}
 	}
@@ -55,10 +42,10 @@ func NewIdentity(
 		users:                  users,
 		tokens:                 tokens,
 		insertOnly:             insertOnly,
-		pepper:                 authCfg.Pepper(),
+		pepper:                 authCfg.Pepper,
 		previousPeppers:        validPeppers,
-		tokenSigningKey:        appCfg.TokenSigningKey(),
-		baseURL:                appCfg.BaseURL(),
-		defaultSenderSignature: appCfg.DefaultSenderSignature(),
+		tokenSigningKey:        authCfg.TokenSigningKey,
+		baseURL:                appCfg.BaseURL,
+		defaultSenderSignature: mailCfg.DefaultSenderSignature,
 	}
 }

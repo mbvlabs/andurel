@@ -11,7 +11,6 @@ import (
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/seeds"
 
-	"github.com/joho/godotenv"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -37,17 +36,17 @@ func run(args []string) error {
 		return fmt.Errorf("expected at most one seed name, got %d", flags.NArg())
 	}
 
-	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+	if err := config.LoadEnvironment(); err != nil {
 		return err
 	}
 
 	ctx := context.Background()
 
-	cfg, err := config.New()
+	cfg, err := config.NewDatabase()
 	if err != nil {
 		return err
 	}
-	db, err := storage.NewPostgres(ctx, cfg.Database())
+	db, err := storage.NewPostgres(ctx, cfg)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}

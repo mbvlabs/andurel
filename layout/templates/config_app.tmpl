@@ -1,168 +1,71 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
-	"slices"
-	"strconv"
-	"strings"
-	"time"
 
-	"github.com/gosimple/slug"
-	"github.com/mbvlabs/andurel/pkg/server"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 const (
-	DefaultAppHost       = "localhost"
-	DefaultAppPort       = "8080"
-	DefaultSessionMaxAge = 604800
-	DefaultCSRFStrategy  = "header_only"
-	DefaultDomain        = "localhost:8080"
-	DefaultIdleTimeout   = 120 * time.Second
-	DefaultReadTimeout   = 10 * time.Second
-	DefaultWriteTimeout  = 30 * time.Second
+	DefaultEnvironment = "development"
+	DefaultProjectName = "{{.ProjectName}}"
+	DefaultDomain      = "localhost:8080"
 )
 
-type appConfig struct {
-	env                    string
-	projectName            string
-	domain                 string
-	protocol               string
-	host                   string
-	port                   string
-	sessionKey             string
-	sessionEncryptionKey   string
-	sessionMaxAge          int
-	tokenSigningKey        string
-	corsAllowedOrigins     []string
-	csrfStrategy           string
-	csrfTrustedOrigins     []string
-	defaultSenderSignature string
-	idleTimeout            time.Duration
-	readTimeout            time.Duration
-	writeTimeout           time.Duration
+// App contains process-independent application identity and URL settings.
+type App struct {
+	Environment string
+	ProjectName string
+	Domain      string
+	Protocol    string
+	BaseURL     string
 }
 
-func (c *Config) setupApp() error {
-	cfg := appConfig{
-		env:                    envOr("ENVIRONMENT", DefaultEnvironment),
-		projectName:            envOr("PROJECT_NAME", DefaultProjectName),
-		domain:                 envOr("DOMAIN", DefaultDomain),
-		protocol:               envOr("PROTOCOL", ""),
-		host:                   envOr("HOST", DefaultAppHost),
-		port:                   envOr("PORT", DefaultAppPort),
-		sessionKey:             envOr("SESSION_KEY", ""),
-		sessionEncryptionKey:   envOr("SESSION_ENCRYPTION_KEY", ""),
-		sessionMaxAge:          envOr("SESSION_MAX_AGE", DefaultSessionMaxAge),
-		tokenSigningKey:        envOr("TOKEN_SIGNING_KEY", ""),
-		corsAllowedOrigins:     envSlice("CORS_ALLOWED_ORIGINS", nil),
-		csrfStrategy:           envOr("CSRF_STRATEGY", DefaultCSRFStrategy),
-		csrfTrustedOrigins:     envSlice("CSRF_TRUSTED_ORIGINS", nil),
-		defaultSenderSignature: envOr("DEFAULT_SENDER_SIGNATURE", ""),
-		idleTimeout:            envOr("HTTP_IDLE_TIMEOUT", DefaultIdleTimeout),
-		readTimeout:            envOr("HTTP_READ_TIMEOUT", DefaultReadTimeout),
-		writeTimeout:           envOr("HTTP_WRITE_TIMEOUT", DefaultWriteTimeout),
+func NewApp() (App, error) {
+	env := newEnvironment()
+	cfg := App{
+		Environment: env.String("ENVIRONMENT", DefaultEnvironment),
+		ProjectName: env.String("PROJECT_NAME", DefaultProjectName),
+		Domain:      env.String("DOMAIN", DefaultDomain),
+		Protocol:    env.String("PROTOCOL", ""),
 	}
-	if err := cfg.validate(); err != nil {
-		return err
-	}
-	c.app = cfg
+	cfg.BaseURL = cfg.baseURL()
 
-	return nil
+	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
+		return App{}, fmt.Errorf("config: app: %w", err)
+	}
+
+	return cfg, nil
 }
 
-func (c appConfig) validate() error {
+func (c App) validate() error {
 	b := validation.NewBuilder()
-	b.Required("Domain", c.domain)
-	b.Required("Host", c.host)
-	b.Required("Port", c.port)
-	b.Required("SessionKey", c.sessionKey)
-	b.Required("SessionEncryptionKey", c.sessionEncryptionKey)
-	b.Required("TokenSigningKey", c.tokenSigningKey)
-	b.Required("CSRFStrategy", c.csrfStrategy)
-	b.MinInt("IdleTimeout", int64(c.idleTimeout), 0)
-	b.MinInt("ReadTimeout", int64(c.readTimeout), 0)
-	b.MinInt("WriteTimeout", int64(c.writeTimeout), 0)
-	b.MinInt("SessionMaxAge", int64(c.sessionMaxAge), 1)
-
+	b.Required("Environment", c.Environment)
+	b.Required("ProjectName", c.ProjectName)
+	b.Required("Domain", c.Domain)
 	if err := b.Err(); err != nil {
 		return err
 	}
-	port, err := strconv.Atoi(c.port)
-	if err != nil || port < 1 || port > 65535 {
-		return fmt.Errorf("config: PORT must be between 1 and 65535")
-	}
-	baseURL, err := url.Parse(c.baseURL())
-	if err != nil || baseURL.Host == "" ||
-		(baseURL.Scheme != "http" && baseURL.Scheme != "https") {
-		return fmt.Errorf("config: application base URL must be an HTTP or HTTPS URL")
-	}
-	switch c.csrfStrategy {
-	case "header_only", "header_or_legacy_token":
-	default:
-		return fmt.Errorf("config: unsupported CSRF_STRATEGY %q", c.csrfStrategy)
+	parsed, err := url.Parse(c.BaseURL)
+	if err != nil || parsed.Host == "" ||
+		(parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return fmt.Errorf("application base URL must be an HTTP or HTTPS URL")
 	}
 
 	return nil
 }
 
-func (c appConfig) baseURL() string {
-	if c.protocol == "" {
-		return fmt.Sprintf("http://%s", c.domain)
+func (c App) baseURL() string {
+	protocol := c.Protocol
+	if protocol == "" {
+		protocol = "http"
 	}
 
-	return fmt.Sprintf("%s://%s", c.protocol, c.domain)
+	return fmt.Sprintf("%s://%s", protocol, c.Domain)
 }
 
-func (c *Config) Env() string { return c.app.env }
-
-func (c *Config) ProjectName() string { return c.app.projectName }
-
-func (c *Config) Domain() string { return c.app.domain }
-
-func (c *Config) BaseURL() string { return c.app.baseURL() }
-
-func (c *Config) Host() string { return c.app.host }
-
-func (c *Config) Port() string { return c.app.port }
-
-func (c *Config) SessionKey() string { return c.app.sessionKey }
-
-func (c *Config) SessionEncryptionKey() string { return c.app.sessionEncryptionKey }
-
-func (c *Config) SessionMaxAge() int { return c.app.sessionMaxAge }
-
-func (c *Config) TokenSigningKey() string { return c.app.tokenSigningKey }
-
-func (c *Config) CORSAllowedOrigins() []string {
-	return slices.Clone(c.app.corsAllowedOrigins)
-}
-
-func (c *Config) CSRFStrategy() string { return c.app.csrfStrategy }
-
-func (c *Config) CSRFTrustedOrigins() []string {
-	return slices.Clone(c.app.csrfTrustedOrigins)
-}
-
-func (c *Config) DefaultSenderSignature() string {
-	if c.app.defaultSenderSignature != "" {
-		return c.app.defaultSenderSignature
-	}
-
-	return "noreply@" + c.app.domain
-}
-
-func (c *Config) IdleTimeout() time.Duration { return c.app.idleTimeout }
-
-func (c *Config) ReadTimeout() time.Duration { return c.app.readTimeout }
-
-func (c *Config) WriteTimeout() time.Duration { return c.app.writeTimeout }
-
-func (c *Config) AppCookieSessionName() string {
-	return "app_sess_" + slug.Make(strings.ToLower(c.app.projectName)) + "-" + c.app.env
-}
-
-func (c *Config) IsProduction() bool {
-	return c.app.env == server.ProdEnvironment
+func (c App) IsProduction() bool {
+	return c.Environment == "production"
 }

@@ -10,17 +10,20 @@ import (
 	"time"
 
 	"{{.ModuleName}}/config"
+{{- if hasExtension .Extensions "aws-ses"}}
+	mailclients "{{.ModuleName}}/clients/email"
+{{- end}}
 	"{{.ModuleName}}/queue"
 	"{{.ModuleName}}/telemetry"
 
-	"github.com/joho/godotenv"
+	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/riverqueue/river"
 	"go.uber.org/fx"
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+	if err := config.LoadEnvironment(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -34,7 +37,7 @@ func main() {
 			{{- range .Blueprint.Main.ServiceProvides}}
 			{{.}},
 			{{- end}}
-			func(cfg *config.Config) telemetry.ConfigProvider { return cfg },
+			newEmailSenders,
 		),
 
 		config.Module,
@@ -77,9 +80,9 @@ var queueProcessorModule = fx.Module(
 func newDatabase(
 	lifecycle fx.Lifecycle,
 	ctx context.Context,
-	cfg *config.Config,
+	cfg storage.Config,
 ) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, cfg.Database())
+	db, err := storage.NewPostgres(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +95,7 @@ type queueProcessorParams struct {
 	fx.In
 
 	Connection   storage.Connection
-	Config       *config.Config
+	Config       config.QueueWorker
 	Logger       *slog.Logger
 	Workers      *river.Workers
 	PeriodicJobs []*river.PeriodicJob `group:"periodic_jobs"`
@@ -101,11 +104,37 @@ type queueProcessorParams struct {
 func newQueueProcessor(params queueProcessorParams) (*storage.QueueProcessor, error) {
 	return storage.NewQueueProcessor(
 		params.Connection,
-		params.Config.Queue(),
+		params.Config.Config,
 		storage.WithRiverWorkers(params.Workers),
 		storage.WithRiverPeriodicJobs(params.PeriodicJobs...),
 		storage.WithRiverLogger(params.Logger),
 	)
+}
+
+func newEmailSenders(
+	ctx context.Context,
+	cfg config.MailTransport,
+) (email.TransactionalSender, email.MarketingSender, error) {
+	switch cfg.Driver {
+	case config.MailpitDriver:
+		client, err := email.NewMailpit(cfg.Mailpit)
+		if err != nil {
+			return nil, nil, fmt.Errorf("create Mailpit client: %w", err)
+		}
+
+		return client, client, nil
+{{- if hasExtension .Extensions "aws-ses"}}
+	case config.AWSSESDriver:
+		client, err := mailclients.NewAwsSes(ctx, cfg.AWSSES)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return client, client, nil
+{{- end}}
+	default:
+		return nil, nil, fmt.Errorf("unsupported email provider %q", cfg.Driver)
+	}
 }
 
 func queueProcessorLifecycle(

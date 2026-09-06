@@ -1,13 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
-	"io/fs"
 	"time"
-
-	"{{.ModuleName}}/assets"
-	"{{.ModuleName}}/router/routes"
-	"{{.ModuleName}}/views"
 
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/validation"
@@ -17,7 +13,7 @@ const (
 	DefaultInertiaContainerID         = "app"
 	DefaultInertiaViteDevURL          = "http://localhost:5173/assets/dist"
 	DefaultInertiaProtocolDebug       = false
-	DefaultInertiaSSRMode             = string(inertia.SSRDisabled)
+	DefaultInertiaSSRMode             = inertia.SSRDisabled
 	DefaultInertiaSSRRuntime          = "node"
 	DefaultInertiaSSRBundle           = "assets/dist/ssr/ssr.js"
 	DefaultInertiaSSRURL              = "http://127.0.0.1:13714"
@@ -32,77 +28,59 @@ const (
 {{- end}}
 )
 
-type inertiaConfig struct {
-	containerID         string
-	viteDevURL          string
-	protocolDebug       bool
-	ssrMode             string
-	ssrRuntime          string
-	ssrBundle           string
-	ssrURL              string
-	ssrStartupTimeout   time.Duration
-	ssrRequestTimeout   time.Duration
-	ssrMaxResponseBytes int64
-	ssrFailFast         bool
-	root                inertia.RootFunc
-	assetFS             fs.FS
-	buildPathURL        string
-	entryPoint          string
+type Inertia struct {
+	ContainerID         string
+	ViteDevURL          string
+	ProtocolDebug       bool
+	SSRMode             inertia.SSRMode
+	SSRRuntime          string
+	SSRBundle           string
+	SSRURL              string
+	SSRStartupTimeout   time.Duration
+	SSRRequestTimeout   time.Duration
+	SSRMaxResponseBytes int64
+	SSRFailFast         bool
+	EntryPoint          string
 }
 
-func (c *Config) setupInertia() error {
-	cfg := inertiaConfig{
-		containerID:         envOr("INERTIA_CONTAINER_ID", DefaultInertiaContainerID),
-		viteDevURL:          envOr("INERTIA_VITE_DEV_URL", DefaultInertiaViteDevURL),
-		protocolDebug:       envOr("INERTIA_PROTOCOL_DEBUG", DefaultInertiaProtocolDebug),
-		ssrMode:             envOr("INERTIA_SSR_MODE", DefaultInertiaSSRMode),
-		ssrRuntime:          envOr("INERTIA_SSR_RUNTIME", DefaultInertiaSSRRuntime),
-		ssrBundle:           envOr("INERTIA_SSR_BUNDLE", DefaultInertiaSSRBundle),
-		ssrURL:              envOr("INERTIA_SSR_URL", DefaultInertiaSSRURL),
-		ssrStartupTimeout: envOr(
-			"INERTIA_SSR_STARTUP_TIMEOUT",
-			DefaultInertiaSSRStartupTimeout,
-		),
-		ssrRequestTimeout: envOr(
-			"INERTIA_SSR_REQUEST_TIMEOUT",
-			DefaultInertiaSSRRequestTimeout,
-		),
-		ssrMaxResponseBytes: envOr(
-			"INERTIA_SSR_MAX_RESPONSE_BYTES",
-			DefaultInertiaSSRMaxResponseBytes,
-		),
-		ssrFailFast:         envOr("INERTIA_SSR_FAIL_FAST", DefaultInertiaSSRFailFast),
-		root:                views.Root,
-		assetFS:             assets.Files,
-		buildPathURL:        routes.ViteBuild.Path(),
-		entryPoint:          envOr("INERTIA_ENTRY_POINT", DefaultInertiaEntryPoint),
+func NewInertia() (Inertia, error) {
+	env := newEnvironment()
+	cfg := Inertia{
+		ContainerID:         env.String("INERTIA_CONTAINER_ID", DefaultInertiaContainerID),
+		ViteDevURL:          env.String("INERTIA_VITE_DEV_URL", DefaultInertiaViteDevURL),
+		ProtocolDebug:       env.Bool("INERTIA_PROTOCOL_DEBUG", DefaultInertiaProtocolDebug),
+		SSRMode:             inertia.SSRMode(env.String("INERTIA_SSR_MODE", string(DefaultInertiaSSRMode))),
+		SSRRuntime:          env.String("INERTIA_SSR_RUNTIME", DefaultInertiaSSRRuntime),
+		SSRBundle:           env.String("INERTIA_SSR_BUNDLE", DefaultInertiaSSRBundle),
+		SSRURL:              env.String("INERTIA_SSR_URL", DefaultInertiaSSRURL),
+		SSRStartupTimeout:   env.Duration("INERTIA_SSR_STARTUP_TIMEOUT", DefaultInertiaSSRStartupTimeout),
+		SSRRequestTimeout:   env.Duration("INERTIA_SSR_REQUEST_TIMEOUT", DefaultInertiaSSRRequestTimeout),
+		SSRMaxResponseBytes: env.Int64("INERTIA_SSR_MAX_RESPONSE_BYTES", DefaultInertiaSSRMaxResponseBytes),
+		SSRFailFast:         env.Bool("INERTIA_SSR_FAIL_FAST", DefaultInertiaSSRFailFast),
+		EntryPoint:          env.String("INERTIA_ENTRY_POINT", DefaultInertiaEntryPoint),
 	}
-	if err := cfg.validate(); err != nil {
-		return err
-	}
-	c.inertia = cfg
 
-	return nil
+	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
+		return Inertia{}, fmt.Errorf("config: inertia: %w", err)
+	}
+
+	return cfg, nil
 }
 
-func (c inertiaConfig) validate() error {
+func (c Inertia) validate() error {
 	b := validation.NewBuilder()
-	b.Required("ContainerID", c.containerID)
-	b.Required("ViteDevURL", c.viteDevURL)
-	b.Required("EntryPoint", c.entryPoint)
-	b.Required("BuildPathURL", c.buildPathURL)
+	b.Required("ContainerID", c.ContainerID)
+	b.Required("ViteDevURL", c.ViteDevURL)
+	b.Required("EntryPoint", c.EntryPoint)
 	if err := b.Err(); err != nil {
 		return err
 	}
-	if c.root == nil || c.assetFS == nil {
-		return fmt.Errorf("config: Inertia root and assets are required")
-	}
 	http := inertia.SSRConfig{
-		URL:              c.ssrURL,
-		Timeout:          c.ssrRequestTimeout,
-		MaxResponseBytes: c.ssrMaxResponseBytes,
+		URL:              c.SSRURL,
+		Timeout:          c.SSRRequestTimeout,
+		MaxResponseBytes: c.SSRMaxResponseBytes,
 	}
-	switch inertia.SSRMode(c.ssrMode) {
+	switch c.SSRMode {
 	case inertia.SSRDisabled:
 		return nil
 	case inertia.SSRExternal:
@@ -110,48 +88,12 @@ func (c inertiaConfig) validate() error {
 	case inertia.SSRManaged:
 		managed := inertia.DefaultManagedConfig()
 		managed.Enabled = true
-		managed.Executable = c.ssrRuntime
-		managed.BundlePath = c.ssrBundle
-		managed.StartupTimeout = c.ssrStartupTimeout
+		managed.Executable = c.SSRRuntime
+		managed.BundlePath = c.SSRBundle
+		managed.StartupTimeout = c.SSRStartupTimeout
 		managed.HTTP = http
 		return managed.Validate()
 	default:
-		return fmt.Errorf("config: unsupported INERTIA_SSR_MODE %q", c.ssrMode)
+		return fmt.Errorf("unsupported INERTIA_SSR_MODE %q", c.SSRMode)
 	}
 }
-
-func (c *Config) Root() inertia.RootFunc { return c.inertia.root }
-
-func (c *Config) AssetFS() fs.FS { return c.inertia.assetFS }
-
-func (c *Config) BuildPathURL() string { return c.inertia.buildPathURL }
-
-func (c *Config) EntryPoint() string { return c.inertia.entryPoint }
-
-func (c *Config) ContainerID() string { return c.inertia.containerID }
-
-func (c *Config) ViteDevURL() string { return c.inertia.viteDevURL }
-
-func (c *Config) ProtocolDebug() bool { return c.inertia.protocolDebug }
-
-func (c *Config) SSRMode() string { return c.inertia.ssrMode }
-
-func (c *Config) SSRRuntime() string { return c.inertia.ssrRuntime }
-
-func (c *Config) SSRBundle() string { return c.inertia.ssrBundle }
-
-func (c *Config) SSRURL() string { return c.inertia.ssrURL }
-
-func (c *Config) SSRStartupTimeout() time.Duration {
-	return c.inertia.ssrStartupTimeout
-}
-
-func (c *Config) SSRRequestTimeout() time.Duration {
-	return c.inertia.ssrRequestTimeout
-}
-
-func (c *Config) SSRMaxResponseBytes() int64 {
-	return c.inertia.ssrMaxResponseBytes
-}
-
-func (c *Config) SSRFailFast() bool { return c.inertia.ssrFailFast }

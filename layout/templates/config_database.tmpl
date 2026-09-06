@@ -1,79 +1,58 @@
 package config
 
 import (
-	"time"
+	"errors"
+	"fmt"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 const (
-	DefaultDatabaseKind             = "postgres"
-	DefaultDatabaseHost             = "127.0.0.1"
-	DefaultDatabasePort             = "5432"
-	DefaultDatabaseName             = "andurel"
-	DefaultDatabaseUser             = "postgres"
-	DefaultDatabasePassword         = "postgres"
-	DefaultDatabaseSSLMode          = "disable"
-	DefaultApplicationName          = "andurel"
-	DefaultConnectTimeout           = 5 * time.Second
-	DefaultStatementCacheCapacity   = 512
-	DefaultDescriptionCacheCapacity = 512
-	DefaultMaxOpenConnections       = 25
-	DefaultMaxIdleConnections       = 25
-	DefaultConnectionMaxLifetime    = time.Hour
-	DefaultConnectionMaxIdleTime    = 30 * time.Minute
-	DefaultOpenTelemetry            = true
+	DefaultDatabaseKind           = "postgres"
+	DefaultDatabaseHost           = "127.0.0.1"
+	DefaultDatabasePort           = "5432"
+	DefaultDatabaseName           = "andurel"
+	DefaultDatabaseUser           = "postgres"
+	DefaultDatabasePassword       = "postgres"
+	DefaultDatabaseSSLMode        = "disable"
+	DefaultDatabaseApplicationName = "andurel"
 )
 
-type databaseConfig struct {
-	cfg storage.Config
-}
+func NewDatabase() (storage.Config, error) {
+	env := newEnvironment()
+	cfg := storage.DefaultConfig()
+	cfg.DatabaseKind = env.String("DB_KIND", DefaultDatabaseKind)
+	cfg.Host = env.String("DB_HOST", DefaultDatabaseHost)
+	cfg.Port = env.String("DB_PORT", DefaultDatabasePort)
+	cfg.Name = env.String("DB_NAME", DefaultDatabaseName)
+	cfg.User = env.String("DB_USER", DefaultDatabaseUser)
+	cfg.Password = env.String("DB_PASSWORD", DefaultDatabasePassword)
+	cfg.SSLMode = env.String("DB_SSL_MODE", DefaultDatabaseSSLMode)
+	cfg.ApplicationName = env.String("DB_APPLICATION_NAME", DefaultDatabaseApplicationName)
+	cfg.ConnectTimeout = env.Duration("DB_CONNECT_TIMEOUT", cfg.ConnectTimeout)
+	cfg.StatementCacheCapacity = env.Int(
+		"DB_STATEMENT_CACHE_CAPACITY",
+		cfg.StatementCacheCapacity,
+	)
+	cfg.DescriptionCacheCapacity = env.Int(
+		"DB_DESCRIPTION_CACHE_CAPACITY",
+		cfg.DescriptionCacheCapacity,
+	)
+	cfg.MaxOpenConnections = env.Int("DB_MAX_OPEN_CONNECTIONS", cfg.MaxOpenConnections)
+	cfg.MaxIdleConnections = env.Int("DB_MAX_IDLE_CONNECTIONS", cfg.MaxIdleConnections)
+	cfg.ConnectionMaxLifetime = env.Duration(
+		"DB_CONNECTION_MAX_LIFETIME",
+		cfg.ConnectionMaxLifetime,
+	)
+	cfg.ConnectionMaxIdleTime = env.Duration(
+		"DB_CONNECTION_MAX_IDLE_TIME",
+		cfg.ConnectionMaxIdleTime,
+	)
+	cfg.OpenTelemetry = env.Bool("DB_OPEN_TELEMETRY", true)
 
-func (c *Config) setupDatabase() error {
-	cfg := storage.Config{
-		Host:                     envOr("DB_HOST", DefaultDatabaseHost),
-		Port:                     envOr("DB_PORT", DefaultDatabasePort),
-		Name:                     envOr("DB_NAME", DefaultDatabaseName),
-		User:                     envOr("DB_USER", DefaultDatabaseUser),
-		Password:                 envOr("DB_PASSWORD", DefaultDatabasePassword),
-		DatabaseKind:             envOr("DB_KIND", DefaultDatabaseKind),
-		SSLMode:                  envOr("DB_SSL_MODE", DefaultDatabaseSSLMode),
-		ApplicationName:          envOr("DB_APPLICATION_NAME", DefaultApplicationName),
-		ConnectTimeout:           envOr("DB_CONNECT_TIMEOUT", DefaultConnectTimeout),
-		StatementCacheCapacity: envOr(
-			"DB_STATEMENT_CACHE_CAPACITY",
-			DefaultStatementCacheCapacity,
-		),
-		DescriptionCacheCapacity: envOr(
-			"DB_DESCRIPTION_CACHE_CAPACITY",
-			DefaultDescriptionCacheCapacity,
-		),
-		MaxOpenConnections: envOr(
-			"DB_MAX_OPEN_CONNECTIONS",
-			DefaultMaxOpenConnections,
-		),
-		MaxIdleConnections: envOr(
-			"DB_MAX_IDLE_CONNECTIONS",
-			DefaultMaxIdleConnections,
-		),
-		ConnectionMaxLifetime: envOr(
-			"DB_CONNECTION_MAX_LIFETIME",
-			DefaultConnectionMaxLifetime,
-		),
-		ConnectionMaxIdleTime: envOr(
-			"DB_CONNECTION_MAX_IDLE_TIME",
-			DefaultConnectionMaxIdleTime,
-		),
-		OpenTelemetry:         envOr("DB_OPEN_TELEMETRY", DefaultOpenTelemetry),
+	if err := errors.Join(env.Err(), cfg.Validate()); err != nil {
+		return storage.Config{}, fmt.Errorf("config: database: %w", err)
 	}
-	if err := cfg.Validate(); err != nil {
-		return err
-	}
-	c.database = databaseConfig{cfg: cfg}
 
-	return nil
-}
-
-func (c *Config) Database() storage.Config {
-	return c.database.cfg
+	return cfg, nil
 }

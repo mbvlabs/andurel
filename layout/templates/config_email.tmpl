@@ -1,102 +1,85 @@
 package config
 
 import (
-	"context"
+	"errors"
 	"fmt"
-
-	{{- if hasExtension .Extensions "aws-ses"}}
-	mailclients "{{.ModuleName}}/clients/email"
-	{{- end}}
+	"strings"
 
 	"github.com/mbvlabs/andurel/pkg/email"
 )
 
+type MailDriver string
+
 const (
-	DefaultEmailProvider    = "mailpit"
-	DefaultEmailMailpitHost = "0.0.0.0"
-	DefaultEmailMailpitPort = "1025"
+	MailpitDriver MailDriver = "mailpit"
+{{- if hasExtension .Extensions "aws-ses"}}
+	AWSSESDriver  MailDriver = "aws-ses"
+{{- end}}
+
+	DefaultMailpitHost = "0.0.0.0"
+	DefaultMailpitPort = "1025"
 )
 
-type emailConfig struct {
-	provider    string
-	mailpitHost string
-	mailpitPort string
+type Mail struct {
+	DefaultSenderSignature string
 }
 
-func (c *Config) setupEmail() error {
-	cfg := emailConfig{
-		provider:    envOr("EMAIL_PROVIDER", DefaultEmailProvider),
-		mailpitHost: envOr("MAILPIT_HOST", DefaultEmailMailpitHost),
-		mailpitPort: envOr("MAILPIT_PORT", DefaultEmailMailpitPort),
-	}
-	if c.IsProduction() {
-		{{- if hasExtension .Extensions "aws-ses"}}
-		cfg.provider = "aws-ses"
-		{{- else}}
-		cfg.provider = ""
-		{{- end}}
-	}
-	if err := cfg.validate(); err != nil {
-		return err
-	}
-	c.email = cfg
-
-	return nil
+type MailTransport struct {
+	Driver  MailDriver
+	Mailpit                email.MailpitConfig
+{{- if hasExtension .Extensions "aws-ses"}}
+	AWSSES                 AWSSES
+{{- end}}
 }
 
-func (c emailConfig) validate() error {
-	switch c.provider {
-	case "mailpit":
-		return email.MailpitConfig{Host: c.mailpitHost, Port: c.mailpitPort}.Validate()
-		{{- if hasExtension .Extensions "aws-ses"}}
-	case "aws-ses":
-		return nil
-		{{- end}}
+func NewMail(app App) (Mail, error) {
+	env := newEnvironment()
+	cfg := Mail{
+		DefaultSenderSignature: env.String("DEFAULT_SENDER_SIGNATURE", "noreply@"+app.Domain),
+	}
+	if strings.TrimSpace(cfg.DefaultSenderSignature) == "" {
+		return Mail{}, fmt.Errorf("config: mail: DEFAULT_SENDER_SIGNATURE must not be empty")
+	}
+
+	return cfg, nil
+}
+
+func NewMailTransport(app App) (MailTransport, error) {
+	env := newEnvironment()
+	defaultDriver := MailDriver("")
+	if !app.IsProduction() {
+		defaultDriver = MailpitDriver
+	}
+{{- if hasExtension .Extensions "aws-ses"}}
+	if app.IsProduction() {
+		defaultDriver = AWSSESDriver
+	}
+{{- end}}
+	cfg := MailTransport{
+		Driver: MailDriver(env.String("EMAIL_PROVIDER", string(defaultDriver))),
+	}
+	var driverErr error
+	switch cfg.Driver {
+	case MailpitDriver:
+		cfg.Mailpit = email.MailpitConfig{
+			Host: env.String("MAILPIT_HOST", DefaultMailpitHost),
+			Port: env.String("MAILPIT_PORT", DefaultMailpitPort),
+		}
+		driverErr = cfg.Mailpit.Validate()
+{{- if hasExtension .Extensions "aws-ses"}}
+	case AWSSESDriver:
+		cfg.AWSSES, driverErr = loadAWSSES(env)
+{{- end}}
 	default:
-		return fmt.Errorf(
-			"config: choose an installed email provider in config/email.go (got %q)",
-			c.provider,
+		driverErr = fmt.Errorf(
+			"choose an installed EMAIL_PROVIDER in config/email.go (got %q)",
+			cfg.Driver,
 		)
 	}
-}
 
-func (c *Config) EmailProvider() string { return c.email.provider }
-
-func (c *Config) MailpitHost() string { return c.email.mailpitHost }
-
-func (c *Config) MailpitPort() string { return c.email.mailpitPort }
-
-func (c *Config) EmailSenders(
-	{{- if hasExtension .Extensions "aws-ses"}}
-	ctx context.Context,
-	{{- else}}
-	_ context.Context,
-	{{- end}}
-) (email.TransactionalSender, email.MarketingSender, error) {
-	switch c.email.provider {
-	case "mailpit":
-		client, err := email.NewMailpit(email.MailpitConfig{
-			Host: c.email.mailpitHost,
-			Port: c.email.mailpitPort,
-		})
-		if err != nil {
-			return nil, nil, fmt.Errorf("config: create Mailpit client: %w", err)
-		}
-
-		return client, client, nil
-		{{- if hasExtension .Extensions "aws-ses"}}
-	case "aws-ses":
-		client, err := mailclients.NewAwsSes(ctx, c)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		return client, client, nil
-		{{- end}}
-	default:
-		return nil, nil, fmt.Errorf(
-			"config: unsupported email provider %q; configure an email provider in config/email.go",
-			c.email.provider,
-		)
+	if err := errors.Join(env.Err(), driverErr); err != nil {
+		return MailTransport{}, fmt.Errorf("config: mail transport: %w", err)
 	}
+
+	return cfg, nil
 }

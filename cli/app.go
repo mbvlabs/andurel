@@ -1,24 +1,24 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 
-	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 )
 
 type database struct {
-	Port         string `env:"DB_PORT"`
-	Host         string `env:"DB_HOST"`
-	Name         string `env:"DB_NAME"`
-	User         string `env:"DB_USER"`
-	Password     string `env:"DB_PASSWORD"`
-	DatabaseKind string `env:"DB_KIND"`
-	SslMode      string `env:"DB_SSL_MODE"`
+	Port         string
+	Host         string
+	Name         string
+	User         string
+	Password     string
+	DatabaseKind string
+	SslMode      string
 }
 
 // GetDatabaseURL returns database URL.
@@ -27,6 +27,31 @@ func (d database) GetDatabaseURL() string {
 		d.DatabaseKind, d.User, d.Password, d.Host, d.Port,
 		d.Name, d.SslMode,
 	)
+}
+
+func databaseFromEnvironment() (database, error) {
+	var errs []error
+	required := func(key string) string {
+		value, ok := os.LookupEnv(key)
+		if !ok || value == "" {
+			errs = append(errs, fmt.Errorf("%s is required", key))
+		}
+		return value
+	}
+	cfg := database{
+		Port:         required("DB_PORT"),
+		Host:         required("DB_HOST"),
+		Name:         required("DB_NAME"),
+		User:         required("DB_USER"),
+		Password:     required("DB_PASSWORD"),
+		DatabaseKind: required("DB_KIND"),
+		SslMode:      required("DB_SSL_MODE"),
+	}
+	if err := errors.Join(errs...); err != nil {
+		return database{}, fmt.Errorf("error parsing environment variables: %w", err)
+	}
+
+	return cfg, nil
 }
 
 func newConsoleCommand() *cobra.Command {
@@ -62,12 +87,9 @@ DB_SSL_MODE from your .env file and connects via usql.`,
 				fmt.Fprintf(os.Stderr, "Warning: could not load .env file: %v\n", err)
 			}
 
-			dataCfg := database{}
-
-			if err := env.ParseWithOptions(&dataCfg, env.Options{
-				RequiredIfNoDef: true,
-			}); err != nil {
-				return fmt.Errorf("error parsing environment variables: %w", err)
+			dataCfg, err := databaseFromEnvironment()
+			if err != nil {
+				return err
 			}
 
 			usqlPath := filepath.Join(rootDir, "bin", "usql")
@@ -126,12 +148,9 @@ DB_SSL_MODE from your .env file.`,
 				fmt.Fprintf(os.Stderr, "Warning: could not load .env file: %v\n", err)
 			}
 
-			dataCfg := database{}
-
-			if err := env.ParseWithOptions(&dataCfg, env.Options{
-				RequiredIfNoDef: true,
-			}); err != nil {
-				return fmt.Errorf("error parsing environment variables: %w", err)
+			dataCfg, err := databaseFromEnvironment()
+			if err != nil {
+				return err
 			}
 
 			dblabPath := filepath.Join(rootDir, "bin", "dblab")

@@ -300,7 +300,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_database.tmpl":  "config/database.go",
 	"config_email.tmpl":     "config/email.go",
 	"config_helper.tmpl":    "config/helper.go",
+	"config_http.tmpl":      "config/http.go",
 	"config_queue.tmpl":     "config/queue.go",
+	"config_session.tmpl":   "config/session.go",
 	"config_telemetry.tmpl": "config/telemetry.go",
 
 	// Clients
@@ -1168,9 +1170,6 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 
 	builder.AddControllerImport(fmt.Sprintf("%s/controllers", moduleName))
 	builder.AddControllerImport(fmt.Sprintf("%s/config", moduleName))
-
-	builder.AddConfigField("Email", "EmailCfg")
-	builder.AddConfigField("Auth", "AuthCfg")
 
 	builder.AddWorkerDependency("transactionalSender", "email.TransactionalSender")
 	builder.AddWorkerDependency("marketingSender", "email.MarketingSender")

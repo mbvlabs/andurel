@@ -154,8 +154,8 @@ func TestAwsSesApply(t *testing.T) {
 	if bp == nil {
 		t.Fatal("expected blueprint contributions")
 	}
-	if len(bp.Config.Fields) != 1 || bp.Config.Fields[0].Name != "AwsSes" {
-		t.Fatalf("expected AwsSes config field, got %+v", bp.Config.Fields)
+	if len(bp.Config.Fields) != 0 {
+		t.Fatalf("expected typed configuration to stay template-owned, got %+v", bp.Config.Fields)
 	}
 	if len(bp.Config.EnvVars) != 0 {
 		t.Fatalf(

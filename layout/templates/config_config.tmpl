@@ -1,87 +1,24 @@
-// Package config provides application-wide configuration settings.
+// Package config loads, validates, and provides application configuration.
 package config
 
-import (
-	"context"
-	"fmt"
+import "go.uber.org/fx"
 
-	"github.com/mbvlabs/andurel/pkg/email"
-	"go.uber.org/fx"
-)
-
-const (
-	DefaultEnvironment = "development"
-	DefaultProjectName = "{{.ProjectName}}"
-)
-
-type Config struct {
-	app       appConfig
-	database  databaseConfig
-	queue     queueConfig
-	telemetry telemetryConfig
-	email     emailConfig
-	auth      authConfig
-{{- if .Inertia}}
-	inertia   inertiaConfig
-{{- end}}
-{{- if hasExtension .Extensions "aws-ses"}}
-	awsSes    awsSesConfig
-{{- end}}
-}
-
-func Environment() string {
-	return envOr("ENVIRONMENT", DefaultEnvironment)
-}
-
-func ProjectName() string {
-	return envOr("PROJECT_NAME", DefaultProjectName)
-}
-
-func New() (*Config, error) {
-	c := &Config{}
-	if err := c.setupApp(); err != nil {
-		return nil, fmt.Errorf("config: app: %w", err)
-	}
-	if err := c.setupDatabase(); err != nil {
-		return nil, fmt.Errorf("config: database: %w", err)
-	}
-	if err := c.setupQueue(); err != nil {
-		return nil, fmt.Errorf("config: queue: %w", err)
-	}
-	if err := c.setupTelemetry(); err != nil {
-		return nil, fmt.Errorf("config: telemetry: %w", err)
-	}
-	if err := c.setupEmail(); err != nil {
-		return nil, fmt.Errorf("config: email: %w", err)
-	}
-	if err := c.setupAuth(); err != nil {
-		return nil, fmt.Errorf("config: auth: %w", err)
-	}
-{{- if hasExtension .Extensions "aws-ses"}}
-	if err := c.setupAwsSes(); err != nil {
-		return nil, fmt.Errorf("config: aws-ses: %w", err)
-	}
-{{- end}}
-{{- if .Inertia}}
-	if err := c.setupInertia(); err != nil {
-		return nil, fmt.Errorf("config: inertia: %w", err)
-	}
-{{- end}}
-
-	return c, nil
-}
-
-func provideEmailSenders(
-	ctx context.Context,
-	c *Config,
-) (email.TransactionalSender, email.MarketingSender, error) {
-	return c.EmailSenders(ctx)
-}
-
-// Module provides application configuration to the dependency container.
+// Module registers independent configuration constructors. Fx evaluates only
+// the constructors required by the active application graph.
 var Module = fx.Module("config",
 	fx.Provide(
-		New,
-		provideEmailSenders,
+		NewApp,
+		NewHTTP,
+		NewSession,
+		NewAuth,
+		NewDatabase,
+		NewQueueInsert,
+		NewQueueWorker,
+		NewTelemetry,
+		NewMail,
+		NewMailTransport,
+{{- if .Inertia}}
+		NewInertia,
+{{- end}}
 	),
 )
