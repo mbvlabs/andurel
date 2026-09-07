@@ -100,6 +100,7 @@ func (am *ActionManager) GenerateAction(config ActionConfig) error {
 		Path:            config.Path,
 		PluralName:      pluralName,
 		LowerMethodName: strings.ToLower(config.MethodName),
+		IsInertia:       am.detectIsInertiaFromRoutes(routesPath),
 	}
 	if err := am.injector.InjectRouteVariable(routesPath, routeData); err != nil {
 		return fmt.Errorf("failed to inject route variable: %w", err)
@@ -138,6 +139,14 @@ func (am *ActionManager) detectIDTypeFromRoutes(routesPath string) string {
 	default:
 		return "uuid.UUID"
 	}
+}
+
+func (am *ActionManager) detectIsInertiaFromRoutes(routesPath string) bool {
+	content, err := os.ReadFile(routesPath)
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(content), "InertiaRoute")
 }
 
 func (am *ActionManager) validateConfig(config ActionConfig) error {

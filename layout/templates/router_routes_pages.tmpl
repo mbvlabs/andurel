@@ -8,4 +8,7 @@ var HomePage = routing.NewSimpleRoute(
 	"/",
 	"pages.home",
 	"",
+{{- if .Inertia}}
+	routing.InertiaRoute(),
+{{- end}}
 )

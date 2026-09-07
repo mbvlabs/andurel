@@ -216,6 +216,7 @@ func inertiaZeroValue(goType string) string {
 func (tr *TemplateRenderer) generateRouteContent(
 	resourceName, namespace, pluralName, idType string,
 	actions []string,
+	isInertia bool,
 ) (string, error) {
 	// Get module path
 	modulePath, err := tr.getModulePath()
@@ -234,6 +235,7 @@ func (tr *TemplateRenderer) generateRouteContent(
 		IDType          string
 		Actions         []string
 		CustomActions   []customRouteAction
+		IsInertia       bool
 	}{
 		ResourceName:    resourceName,
 		Namespace:       namespace,
@@ -244,6 +246,7 @@ func (tr *TemplateRenderer) generateRouteContent(
 		IDType:          idType,
 		Actions:         actions,
 		CustomActions:   customRouteActions(actions),
+		IsInertia:       isInertia,
 	}
 
 	customFuncs := template.FuncMap{

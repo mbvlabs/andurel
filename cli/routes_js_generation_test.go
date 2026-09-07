@@ -16,31 +16,36 @@ func TestRenderRoutesJSGeneratesDeterministicHelpers(t *testing.T) {
 	manifest := routeManifest{
 		Routes: []routeManifestRoute{
 			{
-				Variable: "WidgetShow",
-				Path:     "/widgets/:id",
-				Params:   []routeManifestParam{{Name: "id", Type: "uuid"}},
+				Variable:  "WidgetShow",
+				Path:      "/widgets/:id",
+				IsInertia: true,
+				Params:    []routeManifestParam{{Name: "id", Type: "uuid"}},
 			},
 			{
-				Variable: "SessionCreate",
-				Path:     "/users/sign-in",
+				Variable:  "SessionCreate",
+				Path:      "/users/sign-in",
+				IsInertia: true,
 			},
 			{
-				Variable: "DashboardLookup",
-				Path:     "/admin/teams/:team_id/dashboards/:dashboard_id",
+				Variable:  "DashboardLookup",
+				Path:      "/admin/teams/:team_id/dashboards/:dashboard_id",
+				IsInertia: true,
 				Params: []routeManifestParam{
 					{Name: "team_id", Type: "int32"},
 					{Name: "dashboard_id", Type: "int64"},
 				},
 			},
 			{
-				Variable: "PasswordEdit",
-				Path:     "/users/password/:token/edit",
-				Params:   []routeManifestParam{{Name: "token", Type: "string"}},
+				Variable:  "PasswordEdit",
+				Path:      "/users/password/:token/edit",
+				IsInertia: true,
+				Params:    []routeManifestParam{{Name: "token", Type: "string"}},
 			},
 			{
-				Variable: "ArticleShow",
-				Path:     "/articles/:slug",
-				Params:   []routeManifestParam{{Name: "slug", Type: "unknown"}},
+				Variable:  "ArticleShow",
+				Path:      "/articles/:slug",
+				IsInertia: true,
+				Params:    []routeManifestParam{{Name: "slug", Type: "unknown"}},
 			},
 		},
 	}
@@ -70,13 +75,15 @@ func TestRenderRoutesJSEscapesStaticPathSegments(t *testing.T) {
 	manifest := routeManifest{
 		Routes: []routeManifestRoute{
 			{
-				Variable: "AssetShow",
-				Path:     "/assets/it's-$${fine}/:name/`raw`",
-				Params:   []routeManifestParam{{Name: "name", Type: "string"}},
+				Variable:  "AssetShow",
+				Path:      "/assets/it's-$${fine}/:name/`raw`",
+				IsInertia: true,
+				Params:    []routeManifestParam{{Name: "name", Type: "string"}},
 			},
 			{
-				Variable: "QuoteShow",
-				Path:     "/quotes/it's-ok",
+				Variable:  "QuoteShow",
+				Path:      "/quotes/it's-ok",
+				IsInertia: true,
 			},
 		},
 	}
@@ -96,14 +103,19 @@ func TestRenderRoutesJSEscapesStaticPathSegments(t *testing.T) {
 	}
 }
 
-func TestRenderRoutesJSSkipsFrameworkAPIAndAssetRoutes(t *testing.T) {
+func TestRenderRoutesJSSkipsRoutesWithoutIsInertia(t *testing.T) {
 	manifest := routeManifest{
 		Routes: []routeManifestRoute{
 			{Variable: "Health", Name: "api.health", Path: "/api/health"},
 			{Variable: "Robots", Name: "assets.robots", Path: "/robots.txt"},
 			{Variable: "Sitemap", Name: "assets.sitemap", Path: "/sitemap.xml"},
 			{Variable: "ViteBuild", Name: "vite.build", Path: "/assets/dist/*"},
-			{Variable: "SessionNew", Name: "users.new_user_session", Path: "/users/sign-in"},
+			{
+				Variable:  "SessionNew",
+				Name:      "users.new_user_session",
+				Path:      "/users/sign-in",
+				IsInertia: true,
+			},
 		},
 	}
 
@@ -127,8 +139,8 @@ func TestRenderRoutesJSSkipsFrameworkAPIAndAssetRoutes(t *testing.T) {
 func TestRenderRoutesJSDetectsHelperNameCollision(t *testing.T) {
 	manifest := routeManifest{
 		Routes: []routeManifestRoute{
-			{Variable: "SessionCreate", Path: "/session"},
-			{Variable: "sessionCreate", Path: "/session/new"},
+			{Variable: "SessionCreate", Path: "/session", IsInertia: true},
+			{Variable: "sessionCreate", Path: "/session/new", IsInertia: true},
 		},
 	}
 
@@ -152,8 +164,9 @@ func TestGenerateRoutesJSFileCreatesDirectoryAndOverwritesFile(t *testing.T) {
 	}
 	manifest := routeManifest{
 		Routes: []routeManifestRoute{{
-			Variable: "SessionCreate",
-			Path:     "/users/sign-in",
+			Variable:  "SessionCreate",
+			Path:      "/users/sign-in",
+			IsInertia: true,
 		}},
 		Skipped: []routeManifestSkipped{{
 			Variable: "DynamicRoute",
@@ -304,6 +317,7 @@ var SessionCreate = routing.NewSimpleRoute(
 	"/sign-in",
 	"users.user_session",
 	UserPrefix,
+	routing.InertiaRoute(),
 )
 `)
 	return rootDir

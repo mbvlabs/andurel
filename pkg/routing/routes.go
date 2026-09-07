@@ -15,6 +15,30 @@ type routeOptions struct {
 	query []string
 }
 
+type routeConfig struct {
+	isInertia bool
+}
+
+func applyRouteSetupOptions(opts []RouteSetupOption) routeConfig {
+	var cfg routeConfig
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&cfg)
+		}
+	}
+	return cfg
+}
+
+func newRoute(path, name, prefix string, opts ...RouteSetupOption) Route {
+	cfg := applyRouteSetupOptions(opts)
+	return Route{
+		name:      name,
+		path:      path,
+		prefix:    prefix,
+		isInertia: cfg.isInertia,
+	}
+}
+
 // QueryParam appends a query parameter to a generated route URL.
 func QueryParam(key string, value string) RouteOption {
 	return func(opts *routeOptions) {
@@ -177,16 +201,17 @@ func sanitizePath(path, name string) string {
 }
 
 type Route struct {
-	name   string
-	path   string
-	prefix string
+	name      string
+	path      string
+	prefix    string
+	isInertia bool
 }
 
 var _ SimpleRoute = (*Route)(nil)
 
 // NewSimpleRoute creates a base route that takes no parameters
-func NewSimpleRoute(path, name, prefix string) Route {
-	return Route{name, path, prefix}
+func NewSimpleRoute(path, name, prefix string, opts ...RouteSetupOption) Route {
+	return newRoute(path, name, prefix, opts...)
 }
 
 func (r Route) URL(opts ...RouteOption) string {
@@ -205,13 +230,19 @@ func (r Route) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
+// IsInertia reports whether this route should be included in generated
+// Inertia TypeScript route helpers.
+func (r Route) IsInertia() bool {
+	return r.isInertia
+}
+
 type RouteWithUUIDID Route
 
 var _ UUIDIDRoute = (*RouteWithUUIDID)(nil)
 
 // NewRouteWithUUIDID creates an id route that takes a uuid as a parameter
-func NewRouteWithUUIDID(path, name, prefix string) RouteWithUUIDID {
-	return RouteWithUUIDID{name, path, prefix}
+func NewRouteWithUUIDID(path, name, prefix string, opts ...RouteSetupOption) RouteWithUUIDID {
+	return RouteWithUUIDID(newRoute(path, name, prefix, opts...))
 }
 
 func (r RouteWithUUIDID) Name() string {
@@ -235,13 +266,17 @@ func (r RouteWithUUIDID) GetParam() string {
 	return "id"
 }
 
+func (r RouteWithUUIDID) IsInertia() bool {
+	return r.isInertia
+}
+
 type RouteWithSerialID Route
 
 var _ SerialIDRoute = (*RouteWithSerialID)(nil)
 
 // NewRouteWithSerialID creates an id route that takes an int32 as a parameter
-func NewRouteWithSerialID(path, name, prefix string) RouteWithSerialID {
-	return RouteWithSerialID{name, path, prefix}
+func NewRouteWithSerialID(path, name, prefix string, opts ...RouteSetupOption) RouteWithSerialID {
+	return RouteWithSerialID(newRoute(path, name, prefix, opts...))
 }
 
 func (r RouteWithSerialID) Name() string {
@@ -265,13 +300,20 @@ func (r RouteWithSerialID) GetParam() string {
 	return "id"
 }
 
+func (r RouteWithSerialID) IsInertia() bool {
+	return r.isInertia
+}
+
 type RouteWithBigSerialID Route
 
 var _ BigSerialIDRoute = (*RouteWithBigSerialID)(nil)
 
 // NewRouteWithBigSerialID creates an id route that takes an int64 as a parameter
-func NewRouteWithBigSerialID(path, name, prefix string) RouteWithBigSerialID {
-	return RouteWithBigSerialID{name, path, prefix}
+func NewRouteWithBigSerialID(
+	path, name, prefix string,
+	opts ...RouteSetupOption,
+) RouteWithBigSerialID {
+	return RouteWithBigSerialID(newRoute(path, name, prefix, opts...))
 }
 
 func (r RouteWithBigSerialID) Name() string {
@@ -295,13 +337,17 @@ func (r RouteWithBigSerialID) GetParam() string {
 	return "id"
 }
 
+func (r RouteWithBigSerialID) IsInertia() bool {
+	return r.isInertia
+}
+
 type RouteWithStringID Route
 
 var _ StringIDRoute = (*RouteWithStringID)(nil)
 
 // NewRouteWithStringID creates an id route that takes a string as a parameter
-func NewRouteWithStringID(path, name, prefix string) RouteWithStringID {
-	return RouteWithStringID{name, path, prefix}
+func NewRouteWithStringID(path, name, prefix string, opts ...RouteSetupOption) RouteWithStringID {
+	return RouteWithStringID(newRoute(path, name, prefix, opts...))
 }
 
 func (r RouteWithStringID) Name() string {
@@ -325,12 +371,16 @@ func (r RouteWithStringID) GetParam() string {
 	return "id"
 }
 
+func (r RouteWithStringID) IsInertia() bool {
+	return r.isInertia
+}
+
 type RouteWithSlug Route
 
 var _ ParamRoute = (*RouteWithSlug)(nil)
 
-func NewRouteWithSlug(path, name, prefix string) RouteWithSlug {
-	return RouteWithSlug{name, path, prefix}
+func NewRouteWithSlug(path, name, prefix string, opts ...RouteSetupOption) RouteWithSlug {
+	return RouteWithSlug(newRoute(path, name, prefix, opts...))
 }
 
 func (r RouteWithSlug) Name() string {
@@ -354,12 +404,16 @@ func (r RouteWithSlug) GetParam() string {
 	return "slug"
 }
 
+func (r RouteWithSlug) IsInertia() bool {
+	return r.isInertia
+}
+
 type RouteWithToken Route
 
 var _ ParamRoute = (*RouteWithToken)(nil)
 
-func NewRouteWithToken(path, name, prefix string) RouteWithToken {
-	return RouteWithToken{name, path, prefix}
+func NewRouteWithToken(path, name, prefix string, opts ...RouteSetupOption) RouteWithToken {
+	return RouteWithToken(newRoute(path, name, prefix, opts...))
 }
 
 func (r RouteWithToken) Name() string {
@@ -383,12 +437,16 @@ func (r RouteWithToken) GetParam() string {
 	return "token"
 }
 
+func (r RouteWithToken) IsInertia() bool {
+	return r.isInertia
+}
+
 type RouteWithFile Route
 
 var _ ParamRoute = (*RouteWithFile)(nil)
 
-func NewRouteWithFile(path, name, prefix string) RouteWithFile {
-	return RouteWithFile{name, path, prefix}
+func NewRouteWithFile(path, name, prefix string, opts ...RouteSetupOption) RouteWithFile {
+	return RouteWithFile(newRoute(path, name, prefix, opts...))
 }
 
 func (r RouteWithFile) Name() string {
@@ -412,10 +470,17 @@ func (r RouteWithFile) GetParam() string {
 	return "file"
 }
 
+func (r RouteWithFile) IsInertia() bool {
+	return r.isInertia
+}
+
 type RouteWithParams[Params any] Route
 
-func NewRouteWithParams[Params any](path, name, prefix string) RouteWithParams[Params] {
-	return RouteWithParams[Params]{name, path, prefix}
+func NewRouteWithParams[Params any](
+	path, name, prefix string,
+	opts ...RouteSetupOption,
+) RouteWithParams[Params] {
+	return RouteWithParams[Params](newRoute(path, name, prefix, opts...))
 }
 
 var _ ParamsRoute[any] = (*RouteWithParams[any])(nil)
@@ -459,4 +524,8 @@ func (r RouteWithParams[Params]) URL(params Params, opts ...RouteOption) string 
 
 func (r RouteWithParams[Params]) FullURL(base string, params Params, opts ...RouteOption) string {
 	return base + r.URL(params, opts...)
+}
+
+func (r RouteWithParams[Params]) IsInertia() bool {
+	return r.isInertia
 }

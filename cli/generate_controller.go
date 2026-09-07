@@ -228,6 +228,7 @@ func generateControllerWithActions(
 			pluralName,
 			"uuid.UUID",
 			customActions,
+			layout.IsSupportedInertiaAdapter(inertia),
 		); err != nil {
 			return err
 		}

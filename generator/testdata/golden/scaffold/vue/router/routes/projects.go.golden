@@ -10,34 +10,41 @@ var ProjectIndex = routing.NewSimpleRoute(
 	"",
 	"projects.index",
 	ProjectPrefix,
+	routing.InertiaRoute(),
 )
 var ProjectShow = routing.NewRouteWithUUIDID(
 	"/:id",
 	"projects.show",
 	ProjectPrefix,
+	routing.InertiaRoute(),
 )
 var ProjectNew = routing.NewSimpleRoute(
 	"/new",
 	"projects.new",
 	ProjectPrefix,
+	routing.InertiaRoute(),
 )
 var ProjectCreate = routing.NewSimpleRoute(
 	"",
 	"projects.create",
 	ProjectPrefix,
+	routing.InertiaRoute(),
 )
 var ProjectEdit = routing.NewRouteWithUUIDID(
 	"/:id/edit",
 	"projects.edit",
 	ProjectPrefix,
+	routing.InertiaRoute(),
 )
 var ProjectUpdate = routing.NewRouteWithUUIDID(
 	"/:id",
 	"projects.update",
 	ProjectPrefix,
+	routing.InertiaRoute(),
 )
 var ProjectDestroy = routing.NewRouteWithUUIDID(
 	"/:id",
 	"projects.destroy",
 	ProjectPrefix,
+	routing.InertiaRoute(),
 )

@@ -191,12 +191,7 @@ func routeJSHelpers(routes []routeManifestRoute) ([]routeJSHelper, error) {
 }
 
 func shouldGenerateRouteJSHelper(route routeManifestRoute) bool {
-	for _, prefix := range []string{"api.", "assets.", "css.", "js.", "vite."} {
-		if strings.HasPrefix(route.Name, prefix) {
-			return false
-		}
-	}
-	return true
+	return route.IsInertia
 }
 
 func validateRouteJSParams(route routeManifestRoute) error {

@@ -236,6 +236,7 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		pluralName,
 		controller.IDType,
 		routeActions,
+		layout.IsSupportedInertiaAdapter(inertia),
 	); err != nil {
 		return fmt.Errorf("failed to generate routes: %w", err)
 	}

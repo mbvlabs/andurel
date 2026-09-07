@@ -30,6 +30,8 @@ func TestScaffoldSvelteInertiaAssets(t *testing.T) {
 		"resources/js/Pages/Errors/InternalError.svelte":      "Something went wrong.",
 		"resources/js/Pages/Errors/NotFound.svelte":           "Not found",
 		"resources/js/routes.ts":                              "sessionCreate: () => '/users/sign-in'",
+		"router/routes/pages.go":                              "routing.InertiaRoute()",
+		"router/routes/users.go":                              "routing.InertiaRoute()",
 		"config/inertia.go":                                   `DefaultInertiaEntryPoint          = "resources/js/app.ts"`,
 		"views/root.templ":                                    `templ Root(data inertia.RootData)`,
 		"package.json":                                        `"@inertiajs/svelte": "^3.6.1"`,
