@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -310,6 +311,37 @@ func TestApplyExtension_Docker(t *testing.T) {
 	}
 	if _, exists := lock.Extensions["docker"]; !exists {
 		t.Fatalf("expected docker in lock extensions")
+	}
+}
+
+func TestApplyExtension_FormattingFailureIsNonFatal(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping scaffold test in short mode")
+	}
+	projectDir := scaffoldTestProject(t, nil)
+
+	originalRunGoFmt := runExtensionGoFmt
+	runExtensionGoFmt = func(string) error {
+		return errors.New("formatting failed")
+	}
+	t.Cleanup(func() {
+		runExtensionGoFmt = originalRunGoFmt
+	})
+
+	applied, err := ApplyExtension(projectDir, "docker")
+	if err != nil {
+		t.Fatalf("ApplyExtension failed: %v", err)
+	}
+	if len(applied) != 1 || applied[0] != "docker" {
+		t.Fatalf("expected [docker], got %v", applied)
+	}
+
+	lock, err := ReadLockFile(projectDir)
+	if err != nil {
+		t.Fatalf("failed to read lock: %v", err)
+	}
+	if _, exists := lock.Extensions["docker"]; !exists {
+		t.Fatal("expected formatting failure not to prevent the lock-file update")
 	}
 }
 

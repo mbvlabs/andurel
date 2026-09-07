@@ -15,6 +15,8 @@ import (
 	"github.com/mbvlabs/andurel/layout/extensions"
 )
 
+var runExtensionGoFmt = cmds.RunGoFmt
+
 // LoadProjectContext reconstructs TemplateData and AndurelLock from an existing
 // project on disk. It reads the lock file for scaffold configuration, parses
 // go.mod for the module path and Go version, and reads secrets from .env.example
@@ -265,7 +267,7 @@ func ApplyExtension(rootDir, extensionName string) ([]string, error) {
 	}
 
 	fmt.Print("Running go fmt...\n")
-	if err := cmds.RunGoFmt(rootDir); err != nil {
+	if err := runExtensionGoFmt(rootDir); err != nil {
 		slog.Error(
 			"failed to run go fmt",
 			"error",
