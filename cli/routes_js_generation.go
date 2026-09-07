@@ -68,9 +68,14 @@ resources/js/routes.ts for Vue, React, or Svelte Inertia frontends.`,
 }
 
 func requireInertiaProjectForRoutesJS(rootDir string) error {
+	_, err := configuredInertiaAdapter(rootDir)
+	return err
+}
+
+func configuredInertiaAdapter(rootDir string) (string, error) {
 	lock, err := layout.ReadLockFile(rootDir)
 	if err != nil {
-		return output.WrapError(
+		return "", output.WrapError(
 			output.CodeConfigError,
 			err,
 			output.ExitConfig,
@@ -78,25 +83,25 @@ func requireInertiaProjectForRoutesJS(rootDir string) error {
 		)
 	}
 	if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia == "" {
-		return output.NewError(
+		return "", output.NewError(
 			output.CodeInvalidInertiaAdapter,
-			"andurel generate routes requires an Inertia project",
+			"this operation requires an Inertia project",
 			output.ExitUsage,
-			"Create the project with --inertia vue, --inertia react, or --inertia svelte before generating TypeScript route helpers.",
+			"Create the project with --inertia vue, --inertia react, or --inertia svelte before generating Inertia artifacts.",
 		)
 	}
 	if !layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
-		return output.NewError(
+		return "", output.NewError(
 			output.CodeInvalidInertiaAdapter,
 			fmt.Sprintf(
 				"unsupported inertia adapter in andurel.lock: %s",
 				lock.ScaffoldConfig.Inertia,
 			),
 			output.ExitUsage,
-			"Use vue, react, or svelte in scaffoldConfig.inertia before generating TypeScript route helpers.",
+			"Use vue, react, or svelte in scaffoldConfig.inertia before generating Inertia artifacts.",
 		)
 	}
-	return nil
+	return lock.ScaffoldConfig.Inertia, nil
 }
 
 func generateRoutesJSFile(rootDir string, manifest routeManifest) (routesJSReport, error) {

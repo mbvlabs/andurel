@@ -26,7 +26,11 @@ func newProjectCommand(version string) *cobra.Command {
 
 Generates the full project structure including controllers, models, views,
 database migrations, router, services, and configuration files. After
-creation, run 'andurel tool sync' to download required binaries.`,
+creation, run 'andurel tool sync' to download required binaries.
+
+Projects use Templ by default. Pass --inertia with vue, react, or svelte for a
+rich frontend. Every scaffold includes optional sqlc support for complex SQL;
+it stays inactive until an annotated query is added to models/queries.`,
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) <= 1 {
 				return nil
@@ -63,6 +67,11 @@ creation, run 'andurel tool sync' to download required binaries.`,
 		BoolVar(&dryRun, "dry-run", false, "Preview project files without creating them")
 	projectCmd.Flags().
 		BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
+	setAgentMetadata(
+		projectCmd,
+		"generation",
+		"Creates a Templ project by default. Use --inertia vue|react|svelte, optionally followed by /npm|pnpm|bun|yarn. sqlc support is scaffolded but remains inactive until annotated query files are added.",
+	)
 
 	return projectCmd
 }
@@ -156,13 +165,42 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 		if err != nil {
 			return wrapNewProjectScaffoldError(err)
 		}
+		if dryRun {
+			report.Warnings = append(report.Warnings, "dry run only; no project was created")
+			return output.OK(cmd, report, mutationSummary(report))
+		}
+		breadcrumbs := []output.Breadcrumb{
+			{
+				Command:     "andurel tool sync",
+				Description: "Download project tools from inside the new project",
+			},
+			{
+				Command:     "cp .env.example .env",
+				Description: "Create the local environment file inside the new project",
+			},
+		}
+		if layout.IsSupportedInertiaAdapter(adapter) {
+			breadcrumbs = append(breadcrumbs, output.Breadcrumb{
+				Command:     javascriptRuntime + " install",
+				Description: "Install Inertia frontend dependencies inside the new project",
+			})
+		}
+		breadcrumbs = append(
+			breadcrumbs,
+			output.Breadcrumb{
+				Command:     "andurel database migrate up",
+				Description: "Apply database migrations inside the new project",
+			},
+			output.Breadcrumb{
+				Command:     "andurel run",
+				Description: "Start the development server inside the new project",
+			},
+		)
 		return output.OK(
 			cmd,
 			report,
 			mutationSummary(report),
-			output.Breadcrumb{Command: "andurel tool sync"},
-			output.Breadcrumb{Command: "andurel database migrate up"},
-			output.Breadcrumb{Command: "andurel run"},
+			breadcrumbs...,
 		)
 	}
 

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/mbvlabs/andurel/cli/output"
+	"github.com/mbvlabs/andurel/generator"
 	"github.com/mbvlabs/andurel/generator/templates"
 	"github.com/mbvlabs/andurel/internal/constants"
 	"github.com/mbvlabs/andurel/internal/naming"
@@ -84,11 +85,36 @@ models/internal/queries.`,
 	cmd.Flags().StringVar(&table, "table", "", "Existing table name for a starter annotated query")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview file changes without applying")
 	cmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
+	setAgentMetadata(
+		cmd,
+		"generation",
+		"Creates application-owned SQL in models/queries. Use sqlc for complex queries and keep generated models/internal/queries types behind the owning model package.",
+	)
 
 	return cmd
 }
 
 func generateSQLCQuery(name, table string) error {
+	validator := generator.NewInputValidator()
+	if err := validator.ValidateResourceName(name); err != nil {
+		return output.WrapError(
+			output.CodeUsage,
+			fmt.Errorf("invalid query name: %w", err),
+			output.ExitUsage,
+			"Use a PascalCase query group name such as UserReport.",
+		)
+	}
+	if table != "" {
+		if err := validator.ValidateTableNameOverride(name, table); err != nil {
+			return output.WrapError(
+				output.CodeUsage,
+				fmt.Errorf("invalid query table: %w", err),
+				output.ExitUsage,
+				"Use an existing snake_case SQL table identifier such as users.",
+			)
+		}
+	}
+
 	snakeName := naming.ToSnakeCase(name)
 	pascalName := naming.ToPascalCase(snakeName)
 	queryPath := filepath.Join(storage.SQLCQueriesDir, snakeName+".sql")

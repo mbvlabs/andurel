@@ -88,3 +88,18 @@ func TestGenerateSQLCQueryFromTemplateRejectsExistingFile(t *testing.T) {
 		t.Fatal("expected error for existing file")
 	}
 }
+
+func TestGenerateSQLCQueryRejectsUnsafeNamesAndTables(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		table string
+	}{
+		{name: "../escape"},
+		{name: "userReport"},
+		{name: "UserReport", table: "users; DROP TABLE users"},
+	} {
+		if err := generateSQLCQuery(test.name, test.table); err == nil {
+			t.Fatalf("generateSQLCQuery(%q, %q) should reject unsafe input", test.name, test.table)
+		}
+	}
+}

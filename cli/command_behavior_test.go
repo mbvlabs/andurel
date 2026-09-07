@@ -78,6 +78,37 @@ func TestGenerateCommandsRejectTooManyArgs(t *testing.T) {
 	}
 }
 
+func TestInertiaGenerationRequiresConfiguredProjectAndRejectsAPI(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/app\n")
+	lock := layout.NewAndurelLock("test")
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+
+	resetCLITestSeams(t)
+	findGoModRoot = func() (string, error) { return root, nil }
+
+	for _, arguments := range [][]string{
+		{"Product", "--inertia"},
+		{"Product", "--inertia", "--api"},
+	} {
+		cmd := newGenerateControllerCommand()
+		cmd.SetArgs(arguments)
+		err := cmd.Execute()
+		if err == nil {
+			t.Fatalf("controller %v should fail", arguments)
+		}
+		envelope := output.Fail(err)
+		if len(arguments) == 2 && envelope.Code != output.CodeInvalidInertiaAdapter {
+			t.Fatalf("controller %v error = %#v", arguments, envelope)
+		}
+		if len(arguments) == 3 && envelope.Code != output.CodeUsage {
+			t.Fatalf("controller %v error = %#v", arguments, envelope)
+		}
+	}
+}
+
 func TestGenerateModelMapsFlagsToGenerator(t *testing.T) {
 	resetCLITestSeams(t)
 	fake := installFakeGenerator(t)

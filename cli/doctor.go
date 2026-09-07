@@ -92,7 +92,7 @@ This command will check:
   • Environment (Go version, latest stable Andurel release)
   • Configuration (andurel.lock)
   • Code quality (go vet, go mod tidy)
-  • Code generation (templ)`,
+  • Code generation (templ, sqlc, and Inertia route helpers when configured)`,
 		Example: `  andurel doctor
   andurel doctor --verbose`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -109,6 +109,11 @@ This command will check:
 	}
 
 	doctorCmd.Flags().Bool("verbose", false, "Emit verbose diagnostic output")
+	setAgentMetadata(
+		doctorCmd,
+		"diagnostics",
+		"Read-only project checks include templ, active sqlc queries, and Inertia route helper drift. Use --json for actionable check hints.",
+	)
 
 	return doctorCmd
 }
@@ -239,6 +244,8 @@ func doctorHint(result checkResult) string {
 		return "Run go mod tidy and commit the resulting go.mod or go.sum changes."
 	case "views generate":
 		return "Run andurel generate view and fix any template generation errors."
+	case "sqlc generate":
+		return "Run andurel generate queries and commit the updated models/internal/queries output."
 	case "routes.ts":
 		return "Run andurel generate routes and commit the updated resources/js/routes.ts file."
 	default:
