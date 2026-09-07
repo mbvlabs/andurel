@@ -2,7 +2,7 @@
 
 All notable changes to the standalone Andurel hypermedia module are documented here.
 
-## Unreleased
+## 0.2.2 - 2026-09-07
 
 ### Changed
 
