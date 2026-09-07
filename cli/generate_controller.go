@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/cli/output"
-	generatorpkg "github.com/mbvlabs/andurel/generator"
 	controllergen "github.com/mbvlabs/andurel/generator/controllers"
 	"github.com/mbvlabs/andurel/generator/files"
 	"github.com/mbvlabs/andurel/internal/constants"
@@ -55,7 +54,10 @@ route names, and use Admin-prefixed route and view symbols.
 Use --api to generate a JSON API controller instead. The controller is placed
 under controllers/api and returns echo.JSON responses. No views are generated.
 When --api is provided, any namespace segment in the name is nested under api,
-and the default action set excludes new/edit.`,
+and the default action set excludes new/edit.
+
+Use --inertia to generate pages for the adapter recorded in andurel.lock. The
+flag requires an Inertia project and cannot be combined with --api.`,
 		Example: `  andurel generate controller CreditCard
 
       Generates the standard CRUD resource controller, views, and routes.
@@ -81,7 +83,11 @@ and the default action set excludes new/edit.`,
   andurel generate controller Users --api
 
       Generates a JSON API controller at controllers/api/users.go with
-      JSON responses for all CRUD actions. No views are generated.`,
+      JSON responses for all CRUD actions. No views are generated.
+
+  andurel generate controller admin/Widget --inertia
+
+      Generates an Inertia resource using the adapter from andurel.lock.`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
@@ -93,6 +99,21 @@ and the default action set excludes new/edit.`,
 			rootDir, err := findGoModRoot()
 			if err != nil {
 				return err
+			}
+			if api && inertia {
+				return output.NewError(
+					output.CodeUsage,
+					"--api and --inertia cannot be used together",
+					output.ExitUsage,
+					"Choose --api for JSON responses or --inertia for frontend pages.",
+				)
+			}
+			inertiaAdapter := ""
+			if inertia {
+				inertiaAdapter, err = configuredInertiaAdapter(rootDir)
+				if err != nil {
+					return err
+				}
 			}
 
 			return runMutation(cmd, mutationOptions{
@@ -109,21 +130,17 @@ and the default action set excludes new/edit.`,
 					{Command: "andurel doctor", Description: "Verify project health"},
 				},
 				Run: func(rootDir string) error {
-					inertiaStr := ""
-					if inertia {
-						inertiaStr = generatorpkg.ReadInertia()
-					}
 					return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
 						if err := generateControllerWithActionsFunc(
 							name,
 							modelName,
 							actions,
-							inertiaStr,
+							inertiaAdapter,
 							api,
 						); err != nil {
 							return err
 						}
-						return refreshRoutesTSAfterInertiaGeneration(rootDir, inertiaStr, api)
+						return refreshRoutesTSAfterInertiaGeneration(rootDir, inertiaAdapter, api)
 					})(cmd, args)
 				},
 			})
@@ -137,6 +154,11 @@ and the default action set excludes new/edit.`,
 		StringVar(&modelName, "model-name", "", "Use a different model name for model-backed controller generation")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview file changes without applying")
 	cmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
+	setAgentMetadata(
+		cmd,
+		"generation",
+		"Defaults to Templ. Pass --inertia only when project info reports a supported scaffold_config.inertia adapter; --api and --inertia are mutually exclusive.",
+	)
 
 	return cmd
 }

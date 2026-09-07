@@ -14,6 +14,8 @@ Use this skill when working in an Andurel project or generating Andurel code. It
 - Use `--json` or `--jq` when extracting data.
 - Use `--dry-run --json` before mutating commands when intent is uncertain.
 - Inspect returned artifact arrays before assuming which files changed.
+- Treat `andurel project info --json` as the source of truth for the configured Inertia adapter and JavaScript package manager.
+- Use sqlc only for queries that are materially clearer as SQL; Bun remains the default persistence layer for ordinary CRUD.
 - After adding or changing Inertia routes, run `andurel generate routes --json` so frontend pages can import `resources/js/routes.ts`.
 - Follow the repository rules for verification.
 - Prefer the local project pattern over a generic Rails, Echo, Bun, Templ, or frontend framework convention.
@@ -93,6 +95,27 @@ andurel generate routes --json
 
 `andurel generate routes` reads `router/routes/*.go` as the source of truth and writes `resources/js/routes.ts`. It only runs when `andurel.lock` has `scaffoldConfig.inertia` set to `vue`, `react`, or `svelte`. Import helpers from that file in Inertia pages instead of hard-coding URLs.
 
+Generate an Inertia resource:
+
+```bash
+andurel project info --jq .scaffold_config.inertia
+andurel generate scaffold Product --inertia --dry-run --json
+andurel generate scaffold Product --inertia --json
+```
+
+Controller and scaffold generation defaults to Templ even in an Inertia project. Pass `--inertia` explicitly when the generated views should be frontend pages. Do not combine `--inertia` with `--api`; choose either Inertia pages or JSON responses.
+
+Add a complex sqlc query:
+
+```bash
+andurel generate query UserReport --table users --dry-run --json
+andurel generate query UserReport --table users --json
+# Edit models/queries/user_report.sql, then generate typed code.
+andurel generate queries --json
+```
+
+sqlc is scaffolded in every new project but stays inactive until `models/queries/` contains a `-- name:` annotation. Keep hand-written SQL in `models/queries/` and generated code in `models/internal/queries/`. Only the owning `models` package should import that internal package or translate its database-shaped types into application-owned types. Use the existing `storage.Connection.DB()` pool, and inside shared transactions use `queries.WithTx(tx.SQL())`.
+
 Check or sync factories:
 
 ```bash
@@ -132,6 +155,8 @@ andurel doctor --json
 
 In Inertia projects, `doctor` checks whether `resources/js/routes.ts` matches the current `router/routes/*.go` manifest. If the `routes.ts` check fails, run `andurel generate routes --json`.
 
+When annotated sqlc queries exist, `doctor` also checks generated code for drift. If the `sqlc generate` check fails, run `andurel generate queries --json`.
+
 ## Validation
 
-Use the repository's allowed validation commands and project guidance. In this repo, do not run `go test`, `go build`, or `npm run`; use `go vet`, `go fix`, and `gofmt`.
+Follow the target repository's `AGENTS.md` and local validation guidance. Do not assume that a command is permitted merely because it is common in another Andurel project.

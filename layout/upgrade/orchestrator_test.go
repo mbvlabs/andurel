@@ -773,13 +773,7 @@ func TestSyncToolsToFrameworkVersion_RefreshesStaleDownloadURLTemplate(t *testin
 			expected.Download.URLTemplate,
 		)
 	}
-	found := false
-	for _, entry := range result.Metadata {
-		if entry == "sqlc metadata" {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(result.Metadata, "sqlc metadata")
 	if !found {
 		t.Fatalf("expected sqlc metadata refresh, got %v", result.Metadata)
 	}

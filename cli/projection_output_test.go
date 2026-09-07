@@ -59,6 +59,27 @@ func TestOrdinaryJSONAndAgentOutputRetainStableEnvelopes(t *testing.T) {
 	}
 }
 
+func TestGenerateQueriesAgentNoOpReturnsMutationEnvelope(t *testing.T) {
+	result := runCLITest(t, "generate", "queries", "--agent")
+	if result.err != nil {
+		t.Fatalf("generate queries --agent: %v\nstderr:\n%s", result.err, result.stderr)
+	}
+	var envelope struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Action   string   `json:"action"`
+			Warnings []string `json:"warnings"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(result.stdout), &envelope); err != nil {
+		t.Fatalf("decode generate queries envelope: %v\n%s", err, result.stdout)
+	}
+	if !envelope.OK || envelope.Data.Action != "generate queries" ||
+		len(envelope.Data.Warnings) != 1 {
+		t.Fatalf("unexpected generate queries envelope: %#v", envelope)
+	}
+}
+
 func TestStructuredMutationSuppressesHumanProgressOnStdoutAndStderr(t *testing.T) {
 	resetCLITestSeams(t)
 	fake := &fakeGenerator{

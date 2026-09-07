@@ -2,7 +2,7 @@
 
 All notable changes to the standalone Andurel routing module are documented here.
 
-## Unreleased
+## 0.2.0 - 2026-09-07
 
 ### Added
 

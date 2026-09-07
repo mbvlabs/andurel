@@ -2,7 +2,7 @@
 
 All notable changes to the standalone Andurel validation module are documented here.
 
-## Unreleased
+## 0.1.2 - 2026-09-07
 
 ### Changed
 

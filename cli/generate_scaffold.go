@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/mbvlabs/andurel/cli/output"
-	generatorpkg "github.com/mbvlabs/andurel/generator"
 	"github.com/mbvlabs/andurel/internal/naming"
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/spf13/cobra"
@@ -41,7 +40,10 @@ edit, update, destroy.
 
 Use --api to generate a JSON API controller instead of views. The
 scaffold creates the model and an API controller under controllers/api
-with echo.JSON responses. No views are generated.`,
+with echo.JSON responses. No views are generated.
+
+Use --inertia to generate pages for the adapter recorded in andurel.lock. The
+flag requires an Inertia project and cannot be combined with --api.`,
 		Example: `  andurel generate scaffold Post
 
       Generates a full Post resource with model, CRUD controller, views, and routes.
@@ -63,7 +65,11 @@ with echo.JSON responses. No views are generated.`,
 
   andurel generate scaffold User --table-name=people_data
 
-      Generates a User resource from the people_data table.`,
+      Generates a User resource from the people_data table.
+
+  andurel generate scaffold admin/Widget --inertia
+
+      Generates an Inertia resource using the adapter from andurel.lock.`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
@@ -87,6 +93,21 @@ with echo.JSON responses. No views are generated.`,
 			if err != nil {
 				return err
 			}
+			if api && inertia {
+				return output.NewError(
+					output.CodeUsage,
+					"--api and --inertia cannot be used together",
+					output.ExitUsage,
+					"Choose --api for JSON responses or --inertia for frontend pages.",
+				)
+			}
+			inertiaAdapter := ""
+			if inertia {
+				inertiaAdapter, err = configuredInertiaAdapter(rootDir)
+				if err != nil {
+					return err
+				}
+			}
 
 			return runMutation(cmd, mutationOptions{
 				Action:   "generate scaffold",
@@ -102,10 +123,6 @@ with echo.JSON responses. No views are generated.`,
 					{Command: "andurel run", Description: "Start the development server"},
 				},
 				Run: func(rootDir string) error {
-					inertiaStr := ""
-					if inertia {
-						inertiaStr = generatorpkg.ReadInertia()
-					}
 					return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
 						gen, err := newGenerator()
 						if err != nil {
@@ -118,12 +135,12 @@ with echo.JSON responses. No views are generated.`,
 							tableName,
 							skipFactory,
 							primaryKeyColumn,
-							inertiaStr,
+							inertiaAdapter,
 							api,
 						); err != nil {
 							return err
 						}
-						return refreshRoutesTSAfterInertiaGeneration(rootDir, inertiaStr, api)
+						return refreshRoutesTSAfterInertiaGeneration(rootDir, inertiaAdapter, api)
 					})(cmd, args)
 				},
 			})
@@ -140,6 +157,11 @@ with echo.JSON responses. No views are generated.`,
 		BoolVar(&inertia, "inertia", false, "Generate Inertia views using the adapter configured in andurel.lock")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview file changes without applying")
 	cmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
+	setAgentMetadata(
+		cmd,
+		"generation",
+		"Defaults to Templ. Pass --inertia only when project info reports a supported scaffold_config.inertia adapter; --api and --inertia are mutually exclusive.",
+	)
 
 	return cmd
 }

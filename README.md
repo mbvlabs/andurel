@@ -212,6 +212,8 @@ andurel views --json
 andurel jobs --json
 ```
 
+`andurel project info --json` reports the Inertia adapter and JavaScript package manager from `andurel.lock`. sqlc is always scaffolded but only active when `models/queries/` contains an annotated query; use `andurel generate queries --json` for a structured generation report.
+
 The embedded agent skill is available from the binary:
 
 ```bash
@@ -266,6 +268,8 @@ andurel generate scaffold (alias: s) NAME [flags]
 andurel generate job (alias: j) NAME [flags]
 andurel generate email (alias: e) NAME
 andurel generate routes
+andurel generate query NAME [flags]
+andurel generate queries
 ```
 
 **`generate model`** — Creates a model from a database migration, or updates an existing one. Fields, types, and timestamps are read from the migration automatically. When `--update` is applied, Andurel also syncs the matching factory unless `--skip-factory` is passed.
@@ -286,7 +290,7 @@ andurel generate routes
 
 Factory sync treats generated factory declarations as owned by Andurel. In practice, `Build<Name>`, `Create<Name>`, `Create<Name>s`, the factory types, and generated `WithX` option functions are regenerated from the current model entity. Custom helpers are preserved when they use names that do not collide with those generated declarations.
 
-**`generate controller`** — Creates a controller for a resource. With no actions, it generates the full standard CRUD controller, views, and routes. With one or more standard CRUD actions (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it generates only those resource actions; partial CRUD views are self-contained and only link to companion actions that are also present. Generated resource/controller views default to Templ in every project; pass `--inertia` to generate Inertia pages (uses the adapter from `andurel.lock`).
+**`generate controller`** — Creates a controller for a resource. With no actions, it generates the full standard CRUD controller, views, and routes. With one or more standard CRUD actions (`index`, `show`, `new`, `create`, `edit`, `update`, `destroy`), it generates only those resource actions; partial CRUD views are self-contained and only link to companion actions that are also present. Generated resource/controller views default to Templ in every project; pass `--inertia` to generate Inertia pages (uses the adapter from `andurel.lock`). `--inertia` requires a configured Inertia project and cannot be combined with `--api`.
 
 Non-CRUD actions create standalone/custom controller actions. They add empty controller methods, matching Templ components by default or Inertia pages with `--inertia`, and conventional `GET` routes:
 
@@ -333,7 +337,22 @@ When `--api` is set, any namespace segment is nested under `api`, and the defaul
 
 **`generate view`** — Generates Go code from `.templ` template files (runs `templ generate`).
 
-**`generate scaffold`** — Convenience command that runs `generate model` + `generate controller` with full CRUD actions (index, show, new, create, edit, update, destroy). By default generates Templ views, including in projects created with Inertia; pass `--inertia` for Inertia views (reads the adapter from `andurel.lock`).
+**`generate query`** — Creates an application-owned sqlc SQL file under `models/queries/`. Pass `--table` to include an active starter query for an existing table; without it, the file contains commented examples.
+
+```bash
+andurel generate query UserReport --table users --dry-run --json
+andurel generate query UserReport --table users --json
+```
+
+**`generate queries`** — Runs the project-managed sqlc binary and formats generated Go code under `models/internal/queries/`. The command is a no-op when there are no SQL files containing a `-- name:` annotation, and structured modes still return a mutation report describing the skip.
+
+```bash
+andurel generate queries --json
+```
+
+sqlc is available in every newly scaffolded project but remains inactive until an annotated query is added. Bun remains the default for ordinary CRUD. Use sqlc for complex projections, reports, aggregates, bulk operations, or tuned SQL. Only the owning `models` package should import `models/internal/queries`; controllers and services should consume application-owned model types instead of sqlc-generated rows or parameters.
+
+**`generate scaffold`** — Convenience command that runs `generate model` + `generate controller` with full CRUD actions (index, show, new, create, edit, update, destroy). By default generates Templ views, including in projects created with Inertia; pass `--inertia` for Inertia views (reads the adapter from `andurel.lock`). `--inertia` requires a configured Inertia project and cannot be combined with `--api`.
 
 | Flag | Description |
 |------|-------------|

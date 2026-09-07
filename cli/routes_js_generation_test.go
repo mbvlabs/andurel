@@ -208,6 +208,40 @@ func TestGenerateRoutesCommandRequiresInertiaProject(t *testing.T) {
 	}
 }
 
+func TestConfiguredInertiaAdapterRejectsMissingAndInvalidConfiguration(t *testing.T) {
+	root := t.TempDir()
+	lock := layout.NewAndurelLock("test")
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+	if _, err := configuredInertiaAdapter(root); err == nil {
+		t.Fatal("expected missing Inertia adapter to fail")
+	} else if envelope := output.Fail(err); envelope.Code != output.CodeInvalidInertiaAdapter {
+		t.Fatalf("missing adapter error = %#v", envelope)
+	}
+
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName: "app",
+		Database:    "postgresql",
+		Inertia:     "angular",
+	}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write invalid lock: %v", err)
+	}
+	if _, err := configuredInertiaAdapter(root); err == nil {
+		t.Fatal("expected invalid Inertia adapter to fail")
+	}
+
+	lock.ScaffoldConfig.Inertia = "svelte"
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write valid lock: %v", err)
+	}
+	adapter, err := configuredInertiaAdapter(root)
+	if err != nil || adapter != "svelte" {
+		t.Fatalf("configured adapter = %q, %v", adapter, err)
+	}
+}
+
 func TestGenerateRoutesCommandAllowsInertiaProject(t *testing.T) {
 	rootDir := setupRoutesJSCommandProject(t, "vue")
 

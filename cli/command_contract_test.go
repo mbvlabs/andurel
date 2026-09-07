@@ -171,6 +171,26 @@ func TestGenerateAgentHelpDiscovery(t *testing.T) {
 	}
 }
 
+func TestNewInertiaAndSQLCCommandsExposeAgentNotes(t *testing.T) {
+	for _, path := range []string{
+		"new",
+		"generate controller",
+		"generate scaffold",
+		"generate query",
+		"generate queries",
+	} {
+		root := NewRootCommand("test", "test-date")
+		cmd, _, err := root.Find(strings.Fields(path))
+		if err != nil {
+			t.Fatalf("find %s: %v", path, err)
+		}
+		if cmd.Annotations[agentCategoryAnnotation] == "" ||
+			cmd.Annotations[agentNotesAnnotation] == "" {
+			t.Fatalf("%s is missing agent discovery metadata", path)
+		}
+	}
+}
+
 func loadCommittedCLIContract(t *testing.T) committedCLIContract {
 	t.Helper()
 
