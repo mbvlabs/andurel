@@ -112,6 +112,8 @@ github.com/mattn/go-isatty v0.0.21 h1:xYae+lCNBP7QuW4PUnNG61ffM4hVIfm+zUzDuSzYLG
 github.com/mattn/go-isatty v0.0.21/go.mod h1:ZXfXG4SQHsB/w3ZeOYbR0PrPwLy+n6xiMrJlRFqopa4=
 github.com/mbvlabs/andurel/pkg/storage v0.4.0 h1:Uj/4UXMGjcM1lOiHQb86THH8djKGqgSPTx5e5O3hIjk=
 github.com/mbvlabs/andurel/pkg/storage v0.4.0/go.mod h1:lUpApuip6YE6YaulZ2WUDekCpFz1RcbpyfDNTdjOSRg=
+github.com/mbvlabs/andurel/pkg/storage v0.7.0 h1:0uFqVYKRRdPUU8vN9CbN0ctBNijRkYSShHQIg4fQ8G8=
+github.com/mbvlabs/andurel/pkg/storage v0.7.0/go.mod h1:OwGWHN5obBCUrEZYI6yXlWQpHTMSuqxLcT/8UaVv6o0=
 github.com/mdelapenya/tlscert v0.2.0 h1:7H81W6Z/4weDvZBNOfQte5GpIMo0lGYEeWbkGp5LJHI=
 github.com/mdelapenya/tlscert v0.2.0/go.mod h1:O4njj3ELLnJjGdkN7M/vIVCpZ+Cf0L6muqOG4tLSl8o=
 github.com/mfridman/interpolate v0.0.2 h1:pnuTK7MQIxxFz1Gr+rjSIx9u7qVjf5VOoM/u6BbAxPY=

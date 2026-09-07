@@ -19,17 +19,17 @@ const (
 	// Sqlc is the default sqlc tool version.
 	Sqlc = "v1.31.1"
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
-	Hypermedia = "v0.2.1"
+	Hypermedia = "v0.2.2"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.3.0"
+	Inertia = "v0.3.1"
 	// Email is the standalone Andurel email module version verified with this framework.
-	Email = "v0.3.0"
+	Email = "v0.3.1"
 	// Routing is the standalone Andurel routing module version verified with this framework.
-	Routing = "v0.1.1"
+	Routing = "v0.2.0"
 	// Server is the standalone Andurel server module version verified with this framework.
-	Server = "v0.3.0"
+	Server = "v0.3.1"
 	// Storage is the standalone Andurel storage module version verified with this framework.
-	Storage = "v0.6.0"
+	Storage = "v0.7.0"
 	// Validation is the standalone Andurel validation module version verified with this framework.
-	Validation = "v0.1.1"
+	Validation = "v0.1.2"
 )
