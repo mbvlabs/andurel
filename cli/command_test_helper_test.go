@@ -61,6 +61,15 @@ func runCLITest(t *testing.T, args ...string) cliTestResult {
 }
 
 func executeCLITest(t *testing.T, args ...string) cliTestResult {
+	return executeConfiguredCLITest(t, "", args...)
+}
+
+func executeInertiaCLITest(t *testing.T, adapter string, args ...string) cliTestResult {
+	t.Helper()
+	return executeConfiguredCLITest(t, adapter, args...)
+}
+
+func executeConfiguredCLITest(t *testing.T, inertiaAdapter string, args ...string) cliTestResult {
 	t.Helper()
 
 	rootDir := t.TempDir()
@@ -70,6 +79,17 @@ func executeCLITest(t *testing.T, args ...string) cliTestResult {
 		0o644,
 	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
+	}
+	if inertiaAdapter != "" {
+		lock := layout.NewAndurelLock("test")
+		lock.ScaffoldConfig = &layout.ScaffoldConfig{
+			ProjectName: "app",
+			Database:    "postgresql",
+			Inertia:     inertiaAdapter,
+		}
+		if err := lock.WriteLockFile(rootDir); err != nil {
+			t.Fatalf("write andurel.lock: %v", err)
+		}
 	}
 
 	originalWD, err := os.Getwd()

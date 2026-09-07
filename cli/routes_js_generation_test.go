@@ -220,7 +220,11 @@ func TestConfiguredInertiaAdapterRejectsMissingAndInvalidConfiguration(t *testin
 		t.Fatalf("missing adapter error = %#v", envelope)
 	}
 
-	lock.ScaffoldConfig = &layout.ScaffoldConfig{Inertia: "angular"}
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName: "app",
+		Database:    "postgresql",
+		Inertia:     "angular",
+	}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write invalid lock: %v", err)
 	}

@@ -370,8 +370,9 @@ func TestGenerateScaffoldMapsFlagsToGenerator(t *testing.T) {
 	resetCLITestSeams(t)
 	fake := installFakeGenerator(t)
 
-	result := executeCLITest(
+	result := executeInertiaCLITest(
 		t,
+		"vue",
 		"generate",
 		"scaffold",
 		"Project",
@@ -392,7 +393,7 @@ func TestGenerateScaffoldMapsFlagsToGenerator(t *testing.T) {
 		tableName:   "work_projects",
 		skipFactory: true,
 		primaryKey:  "slug",
-		inertia:     "",
+		inertia:     "vue",
 	}}
 	if !reflect.DeepEqual(fake.scaffoldCalls, want) {
 		t.Fatalf("scaffold calls: expected %#v, got %#v", want, fake.scaffoldCalls)
@@ -462,7 +463,16 @@ func TestGenerateControllerMapsActionsAndVue(t *testing.T) {
 		return nil
 	}
 
-	result := executeCLITest(t, "generate", "controller", "Widget", "index", "export", "--inertia")
+	result := executeInertiaCLITest(
+		t,
+		"vue",
+		"generate",
+		"controller",
+		"Widget",
+		"index",
+		"export",
+		"--inertia",
+	)
 	if result.err != nil {
 		t.Fatalf("generate controller failed: %v", result.err)
 	}
@@ -471,7 +481,7 @@ func TestGenerateControllerMapsActionsAndVue(t *testing.T) {
 		name:      "Widget",
 		modelName: "",
 		actions:   []string{"index", "export"},
-		inertia:   "",
+		inertia:   "vue",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("controller call: expected %#v, got %#v", want, got)
@@ -609,6 +619,7 @@ var WidgetExport = routing.NewSimpleRoute(
 	"/export",
 	"widgets.export",
 	WidgetPrefix,
+	routing.InertiaRoute(),
 )
 `)
 		return nil
