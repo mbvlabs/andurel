@@ -946,7 +946,7 @@ file -----------rw-r--r-- andurel.lock
         "urlTemplate": "https://github.com/mbvlabs/shadowfax/releases/download/{{version}}/shadowfax-{{os}}-{{arch}}"
       },
       "source": "github.com/mbvlabs/shadowfax",
-      "version": "v0.9.0",
+      "version": "v0.9.1",
       "versionCheck": {
         "args": [
           "--version"
@@ -1246,7 +1246,6 @@ func newQueueInsert(
 }
 
 func newInertia(
-	lifecycle fx.Lifecycle,
 	appCfg config.App,
 	cfg config.Inertia,
 ) (*inertia.Renderer, error) {
@@ -1261,7 +1260,6 @@ func newInertia(
 		inertia.WithViteDevURL(cfg.ViteDevURL),
 		inertia.WithProtocolDebug(cfg.ProtocolDebug),
 		inertia.WithShared(inertia.Props{"appVersion": appVersion}),
-		inertia.WithSSRMode(cfg.SSRMode),
 		inertia.WithSSRRuntime(cfg.SSRRuntime),
 		inertia.WithSSRBundle(cfg.SSRBundle),
 		inertia.WithSSRURL(cfg.SSRURL),
@@ -1274,10 +1272,6 @@ func newInertia(
 		return nil, err
 	}
 
-	lifecycle.Append(fx.Hook{
-		OnStart: renderer.Start,
-		OnStop:  renderer.Shutdown,
-	})
 	return renderer, nil
 }
 
@@ -1594,6 +1588,68 @@ func run(args []string) error {
 
 	fmt.Println("Seeding complete!")
 	return nil
+}
+```
+
+dir  d----------rwxr-xr-x cmd/ssr
+
+file -----------rw-r--r-- cmd/ssr/main.go
+```
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"testapp/config"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+func main() {
+	if err := config.LoadEnvironment(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	cfg, err := config.NewInertia()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "inertia config: %v\n", err)
+		os.Exit(1)
+	}
+
+	runtime, err := inertia.NewManagedRuntime(cfg.ManagedSSRConfig())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "inertia SSR runtime: %v\n", err)
+		os.Exit(1)
+	}
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	if err := runtime.Start(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "start inertia SSR: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("Inertia SSR listening on %s\n", cfg.SSRURL)
+
+	select {
+	case <-ctx.Done():
+	case err := <-runtime.Errors():
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		cancel()
+	}
+
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelShutdown()
+	if err := runtime.Stop(shutdownCtx); err != nil {
+		fmt.Fprintf(os.Stderr, "stop inertia SSR: %v\n", err)
+		os.Exit(1)
+	}
 }
 ```
 
@@ -2152,7 +2208,6 @@ const (
 	DefaultInertiaContainerID         = "app"
 	DefaultInertiaViteDevURL          = "http://localhost:5173/assets/dist"
 	DefaultInertiaProtocolDebug       = false
-	DefaultInertiaSSRMode             = inertia.SSRDisabled
 	DefaultInertiaSSRRuntime          = "node"
 	DefaultInertiaSSRBundle           = "assets/dist/ssr/ssr.js"
 	DefaultInertiaSSRURL              = "http://127.0.0.1:13714"
@@ -2167,7 +2222,6 @@ type Inertia struct {
 	ContainerID         string
 	ViteDevURL          string
 	ProtocolDebug       bool
-	SSRMode             inertia.SSRMode
 	SSRRuntime          string
 	SSRBundle           string
 	SSRURL              string
@@ -2184,15 +2238,17 @@ func NewInertia() (Inertia, error) {
 		ContainerID:   env.String("INERTIA_CONTAINER_ID", DefaultInertiaContainerID),
 		ViteDevURL:    env.String("INERTIA_VITE_DEV_URL", DefaultInertiaViteDevURL),
 		ProtocolDebug: env.Bool("INERTIA_PROTOCOL_DEBUG", DefaultInertiaProtocolDebug),
-		SSRMode: inertia.SSRMode(env.String(
-			"INERTIA_SSR_MODE",
-			string(DefaultInertiaSSRMode),
-		)),
-		SSRRuntime:        env.String("INERTIA_SSR_RUNTIME", DefaultInertiaSSRRuntime),
-		SSRBundle:         env.String("INERTIA_SSR_BUNDLE", DefaultInertiaSSRBundle),
-		SSRURL:            env.String("INERTIA_SSR_URL", DefaultInertiaSSRURL),
-		SSRStartupTimeout: env.Duration("INERTIA_SSR_STARTUP_TIMEOUT", DefaultInertiaSSRStartupTimeout),
-		SSRRequestTimeout: env.Duration("INERTIA_SSR_REQUEST_TIMEOUT", DefaultInertiaSSRRequestTimeout),
+		SSRRuntime:    env.String("INERTIA_SSR_RUNTIME", DefaultInertiaSSRRuntime),
+		SSRBundle:     env.String("INERTIA_SSR_BUNDLE", DefaultInertiaSSRBundle),
+		SSRURL:        env.String("INERTIA_SSR_URL", DefaultInertiaSSRURL),
+		SSRStartupTimeout: env.Duration(
+			"INERTIA_SSR_STARTUP_TIMEOUT",
+			DefaultInertiaSSRStartupTimeout,
+		),
+		SSRRequestTimeout: env.Duration(
+			"INERTIA_SSR_REQUEST_TIMEOUT",
+			DefaultInertiaSSRRequestTimeout,
+		),
 		SSRMaxResponseBytes: env.Int64(
 			"INERTIA_SSR_MAX_RESPONSE_BYTES",
 			DefaultInertiaSSRMaxResponseBytes,
@@ -2213,30 +2269,41 @@ func (c Inertia) validate() error {
 	b.Required("ContainerID", c.ContainerID)
 	b.Required("ViteDevURL", c.ViteDevURL)
 	b.Required("EntryPoint", c.EntryPoint)
+	b.Required("SSRRuntime", c.SSRRuntime)
+	b.Required("SSRBundle", c.SSRBundle)
 	if err := b.Err(); err != nil {
 		return err
 	}
+
 	http := inertia.SSRConfig{
 		URL:              c.SSRURL,
 		Timeout:          c.SSRRequestTimeout,
 		MaxResponseBytes: c.SSRMaxResponseBytes,
 	}
-	switch c.SSRMode {
-	case inertia.SSRDisabled:
-		return nil
-	case inertia.SSRExternal:
-		return http.Validate()
-	case inertia.SSRManaged:
-		managed := inertia.DefaultManagedConfig()
-		managed.Enabled = true
-		managed.Executable = c.SSRRuntime
-		managed.BundlePath = c.SSRBundle
-		managed.StartupTimeout = c.SSRStartupTimeout
-		managed.HTTP = http
-		return managed.Validate()
-	default:
-		return fmt.Errorf("unsupported INERTIA_SSR_MODE %q", c.SSRMode)
+	if err := http.Validate(); err != nil {
+		return err
 	}
+	if c.SSRStartupTimeout <= 0 {
+		return fmt.Errorf("SSRStartupTimeout must be positive")
+	}
+
+	return nil
+}
+
+// ManagedSSRConfig returns settings for cmd/ssr to start the Node process.
+func (c Inertia) ManagedSSRConfig() inertia.ManagedConfig {
+	managed := inertia.DefaultManagedConfig()
+	managed.Enabled = true
+	managed.Executable = c.SSRRuntime
+	managed.BundlePath = c.SSRBundle
+	managed.StartupTimeout = c.SSRStartupTimeout
+	managed.HTTP = inertia.SSRConfig{
+		URL:              c.SSRURL,
+		Timeout:          c.SSRRequestTimeout,
+		MaxResponseBytes: c.SSRMaxResponseBytes,
+	}
+
+	return managed
 }
 ```
 
@@ -4321,13 +4388,13 @@ require (
 	github.com/labstack/echo/v5 v5.3.0
 	github.com/lmittmann/tint v1.2.0
 	github.com/maypok86/otter/v2 v2.3.0
-	github.com/mbvlabs/andurel/pkg/email v0.3.0
-	github.com/mbvlabs/andurel/pkg/hypermedia v0.2.1
-	github.com/mbvlabs/andurel/pkg/inertia v0.3.0
-	github.com/mbvlabs/andurel/pkg/routing v0.1.1
-	github.com/mbvlabs/andurel/pkg/server v0.3.0
-	github.com/mbvlabs/andurel/pkg/storage v0.6.0
-	github.com/mbvlabs/andurel/pkg/validation v0.1.1
+	github.com/mbvlabs/andurel/pkg/email v0.3.1
+	github.com/mbvlabs/andurel/pkg/hypermedia v0.2.2
+	github.com/mbvlabs/andurel/pkg/inertia v0.3.1
+	github.com/mbvlabs/andurel/pkg/routing v0.2.0
+	github.com/mbvlabs/andurel/pkg/server v0.3.1
+	github.com/mbvlabs/andurel/pkg/storage v0.7.0
+	github.com/mbvlabs/andurel/pkg/validation v0.1.2
 	github.com/riverqueue/river v0.40.0
 	github.com/rs/xid v1.6.0
 	github.com/uptrace/bun v1.2.18
@@ -4549,20 +4616,20 @@ github.com/mattn/go-isatty v0.0.21 h1:xYae+lCNBP7QuW4PUnNG61ffM4hVIfm+zUzDuSzYLG
 github.com/mattn/go-isatty v0.0.21/go.mod h1:ZXfXG4SQHsB/w3ZeOYbR0PrPwLy+n6xiMrJlRFqopa4=
 github.com/maypok86/otter/v2 v2.3.0 h1:8H8AVVFUSzJwIegKwv1uF5aGitTY+AIrtktg7OcLs8w=
 github.com/maypok86/otter/v2 v2.3.0/go.mod h1:XgIdlpmL6jYz882/CAx1E4C1ukfgDKSaw4mWq59+7l8=
-github.com/mbvlabs/andurel/pkg/email v0.3.0 h1:L2RNvsbPVMir5VMgXrzWKm/P3n8HdZOFbs2k1JDOPvc=
-github.com/mbvlabs/andurel/pkg/email v0.3.0/go.mod h1:GQoycIfBxTjqjYkystAZHQND450iODAlSrp2MiFSIGE=
-github.com/mbvlabs/andurel/pkg/hypermedia v0.2.1 h1:bGtbRLTEdx+U6kEl0YdvRzjI8Zhb0xOfK7ls+/L5r40=
-github.com/mbvlabs/andurel/pkg/hypermedia v0.2.1/go.mod h1:q2tUcXkYnC45npTvnBCUBq8Jry9vPlNY4Zn7aQ98WZU=
-github.com/mbvlabs/andurel/pkg/inertia v0.3.0 h1:z4jlhmQjT7pSEWuP4Z6JjVpABRJtpl7D8qVjNM7xTKU=
-github.com/mbvlabs/andurel/pkg/inertia v0.3.0/go.mod h1:GDa7/lAHMCIGKU0lRGQeWz5Ss0X8dWxHVNXEkdSZHNM=
-github.com/mbvlabs/andurel/pkg/routing v0.1.1 h1:fpxTAkGmSkN0zs1Iss1kvNkxZ/723p5hAGxJOUJlpI0=
-github.com/mbvlabs/andurel/pkg/routing v0.1.1/go.mod h1:fXUraUJ88cKpKeLY2EOg/OHVA2Wacbb7bEH9sVZr8wc=
-github.com/mbvlabs/andurel/pkg/server v0.3.0 h1:0Q626pdDsL7Zydag1Co0qWtZRJAUlhjVY6079dbjVSY=
-github.com/mbvlabs/andurel/pkg/server v0.3.0/go.mod h1:E0c81l0cR2ki98bjxLJf93GL8scIO1YItuLc+OgZS6c=
-github.com/mbvlabs/andurel/pkg/storage v0.6.0 h1:4UAlWyLThsf3Lpsg6d08deLLtVN4fkndPhg/lVn+RiM=
-github.com/mbvlabs/andurel/pkg/storage v0.6.0/go.mod h1:lUpApuip6YE6YaulZ2WUDekCpFz1RcbpyfDNTdjOSRg=
-github.com/mbvlabs/andurel/pkg/validation v0.1.1 h1:g/o2fM3+Sak0wTgs0K+tUPDarm5BrqvBkNTFi3XzPmM=
-github.com/mbvlabs/andurel/pkg/validation v0.1.1/go.mod h1:1g3f0xGqAK0O8LBWHPX5BRfvf9B4OoU3RqRByKBAlbU=
+github.com/mbvlabs/andurel/pkg/email v0.3.1 h1:lgA6kqmajsCDJ/oNGnh1JIbCDqiB0I8RpVCGBgIKCcQ=
+github.com/mbvlabs/andurel/pkg/email v0.3.1/go.mod h1:cc9+f5IS6oF4+Z7HNqbZUGoaHxj0+f6Q5DamteGBkhk=
+github.com/mbvlabs/andurel/pkg/hypermedia v0.2.2 h1:gR3gHf9ko/nPqIeo6/LnyPQ8Ak7sPFFuWvtc0gomlZY=
+github.com/mbvlabs/andurel/pkg/hypermedia v0.2.2/go.mod h1:hoKFPLIvqNXrPiwv7uqCsWqjHsMpdejjTqIdwIqQmtI=
+github.com/mbvlabs/andurel/pkg/inertia v0.3.1 h1:JFCdEcQ08ETw92CX1nMZ1u4IbKbkQMWJmpmigk6xViM=
+github.com/mbvlabs/andurel/pkg/inertia v0.3.1/go.mod h1:U19PMo0gVfr+ocdBEQcgTEBuSU93adHA4MfAhExShmo=
+github.com/mbvlabs/andurel/pkg/routing v0.2.0 h1:gswispKJzqhXAi4OqAuVWkPywelBFwfeR2BgT5lcV4g=
+github.com/mbvlabs/andurel/pkg/routing v0.2.0/go.mod h1:FamhJJfZnLzah8dqngVnJoNhTCazEXSycvwnZXz/Ynw=
+github.com/mbvlabs/andurel/pkg/server v0.3.1 h1:tRLMBt8D0c1nY6zn+9m4L0WEz3Y/wDCGV9k0KXQyFGc=
+github.com/mbvlabs/andurel/pkg/server v0.3.1/go.mod h1:/MiGMF99yD0FPDqbGkK+iH2BqbozNn5GehIlXAoydfI=
+github.com/mbvlabs/andurel/pkg/storage v0.7.0 h1:0uFqVYKRRdPUU8vN9CbN0ctBNijRkYSShHQIg4fQ8G8=
+github.com/mbvlabs/andurel/pkg/storage v0.7.0/go.mod h1:OwGWHN5obBCUrEZYI6yXlWQpHTMSuqxLcT/8UaVv6o0=
+github.com/mbvlabs/andurel/pkg/validation v0.1.2 h1:3+ISoRz21328586MzG0UgCum42w5WMx9F1d2ad3fYgg=
+github.com/mbvlabs/andurel/pkg/validation v0.1.2/go.mod h1:VLUw9fB6Jgz2/5NyhzftteAgi1qin7F3F9YTBiyeFnw=
 github.com/mdelapenya/tlscert v0.2.0 h1:7H81W6Z/4weDvZBNOfQte5GpIMo0lGYEeWbkGp5LJHI=
 github.com/mdelapenya/tlscert v0.2.0/go.mod h1:O4njj3ELLnJjGdkN7M/vIVCpZ+Cf0L6muqOG4tLSl8o=
 github.com/mfridman/interpolate v0.0.2 h1:pnuTK7MQIxxFz1Gr+rjSIx9u7qVjf5VOoM/u6BbAxPY=

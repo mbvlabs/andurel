@@ -49,7 +49,6 @@ type Renderer struct {
 	requestFlash    []func(*echo.Context) any
 	ssr             SSRRenderer
 	customSSR       bool
-	ssrMode         SSRMode
 	managedConfig   ManagedConfig
 	runtime         *ManagedRuntime
 	ssrFailFast     bool

@@ -10,6 +10,7 @@ import (
 
 	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/internal/cache"
+	"github.com/mbvlabs/andurel/layout"
 	"github.com/spf13/cobra"
 )
 
@@ -220,7 +221,9 @@ func newRunAppCommand() *cobra.Command {
 		Long: `Start the development server (shadowfax) for your Andurel application.
 
 The server auto-reloads on file changes, including Go, Templ, CSS, and
-sqlc query files. Run this from your project root.`,
+sqlc query files. For Inertia projects, shadowfax also runs Vite and the
+project's cmd/ssr process (Laravel-style Node owner). Run this from your
+project root.`,
 		Example: `  andurel run`,
 		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -251,8 +254,12 @@ sqlc query files. Run this from your project root.`,
 			}
 
 			binPath := filepath.Join(rootDir, "bin", "shadowfax")
+			shadowfaxArgs, err := shadowfaxRunArgs(rootDir)
+			if err != nil {
+				return err
+			}
 
-			runCmd := exec.Command(binPath)
+			runCmd := exec.Command(binPath, shadowfaxArgs...)
 			runCmd.Stdout = os.Stdout
 			runCmd.Stderr = os.Stderr
 			runCmd.Stdin = os.Stdin
@@ -263,6 +270,31 @@ sqlc query files. Run this from your project root.`,
 	}
 
 	return cmd
+}
+
+// shadowfaxRunArgs builds the explicit CLI contract passed to Shadowfax.
+// Inertia identity and package manager come from andurel.lock. Shadowfax
+// starts the project's cmd/ssr process; Node settings come from app config.
+func shadowfaxRunArgs(rootDir string) ([]string, error) {
+	lock, err := layout.ReadLockFile(rootDir)
+	if err != nil {
+		// Missing or incomplete lock: run Shadowfax without Inertia flags.
+		return nil, nil
+	}
+	if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia == "" {
+		return nil, nil
+	}
+
+	packageManager := lock.ScaffoldConfig.PackageManager()
+	if packageManager == "" {
+		packageManager = "npm"
+	}
+	return []string{
+		"--inertia",
+		"--js-package-manager", packageManager,
+		"--ssr-url", "http://127.0.0.1:13714",
+		"--ssr-bundle", "assets/dist/ssr/ssr.js",
+	}, nil
 }
 
 var findGoModRoot = func() (string, error) {

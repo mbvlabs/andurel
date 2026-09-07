@@ -66,18 +66,17 @@ History encryption is client metadata only. The adapter emits
 history is performed by the official client.
 
 SSR remains an option on a single `Page` call. The `inertia` package contains
-the bounded HTTP renderer and optional managed process runtime. `Renderer.Start`
-and `Renderer.Shutdown` expose lifecycle without coupling the package to Fx.
-Production falls back to client-side rendering; verification can opt into
-fail-fast behavior.
+the bounded HTTP renderer and an optional managed process runtime used by the
+scaffold's `cmd/ssr` entrypoint (Laravel-style). `cmd/app` is always an HTTP
+client; `Renderer.Start` / `Renderer.Shutdown` are no-ops unless a custom
+runtime is attached. Production falls back to client-side rendering;
+verification can opt into fail-fast behavior.
 
-Generated configuration also exposes `INERTIA_CONTAINER_ID`,
-`INERTIA_VITE_DEV_URL`, and `INERTIA_PROTOCOL_DEBUG`. SSR mode is selected with
-`INERTIA_SSR_MODE`: `disabled`, `managed`, or `external`. Managed mode requires Node.js 22 or newer and the bundle configured
-by `INERTIA_SSR_BUNDLE` (default `assets/dist/ssr/ssr.js`). The application composition root starts, health-checks, monitors, and shuts
-down that process through the renderer lifecycle. External mode only connects to `INERTIA_SSR_URL`; its operator owns
-the process lifecycle. Request timeout, startup timeout, response-size limit,
-and fail-fast behavior have separate configuration values.
+Under `andurel run`, Shadowfax builds and supervises `cmd/ssr`, which starts
+Node from `config/inertia.go` (`ManagedSSRConfig()`). In production, run
+`cmd/ssr` (or an equivalent) under your process manager. Per-response
+`inertia.WithSSR()` opts a page into SSR. Request timeout, startup timeout,
+response-size limit, and fail-fast behavior have separate configuration values.
 
 Generated resource payload structs carry JSON tags. Their corresponding
 TypeScript declarations are generated next to application TypeScript types and

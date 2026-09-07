@@ -149,7 +149,7 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 		t,
 		projectDir,
 		"config/inertia.go",
-		"SSRMode             inertia.SSRMode",
+		"ManagedSSRConfig()",
 	)
 	assertFileNotContains(t, projectDir, "config/inertia.go", "views.Root")
 	assertFileNotContains(t, projectDir, "config/inertia.go", "assets.Files")
@@ -158,8 +158,13 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 		t,
 		projectDir,
 		"config/inertia.go",
-		"inertia.SSRDisabled",
+		"DefaultInertiaSSRRuntime",
 	)
+	assertFileContains(t, projectDir, "cmd/ssr/main.go", "NewManagedRuntime")
+	assertFileContains(t, projectDir, "cmd/ssr/main.go", "ManagedSSRConfig()")
+	assertFileNotContains(t, projectDir, "cmd/app/main.go", "OnStart: renderer.Start")
+	assertFileNotContains(t, projectDir, "cmd/app/main.go", "WithAppManagedSSR")
+	assertFileNotContains(t, projectDir, "cmd/app/main.go", "WithSSRMode")
 	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.WithRoot(views.Root)`)
 	assertFileContains(
 		t,
@@ -175,7 +180,6 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 		`inertia.WithBuildPathURL(routes.ViteBuild.Path())`,
 	)
 	assertFileNotContains(t, projectDir, "cmd/app/main.go", "InertiaResources")
-	assertFileContains(t, projectDir, "cmd/app/main.go", `OnStart: renderer.Start`)
 	assertFileContains(
 		t,
 		projectDir,
@@ -209,7 +213,7 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 		"controllers/sessions.go",
 		`s.renderer.Page(etx, "Auth/Login"`,
 	)
-	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/hypermedia v0.2.1")
+	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/hypermedia v0.2.2")
 	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/inertia "+versions.Inertia)
 	assertFileContains(t, projectDir, "router/appctx/appctx.go", "func WithFlashes(")
 	assertFileContains(t, projectDir, "router/middleware/middleware.go", "appctx.WithFlashes(")

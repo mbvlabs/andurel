@@ -10,16 +10,6 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-// SSRMode controls whether server-side rendering is disabled, externally
-// hosted, or owned by the Go application.
-type SSRMode string
-
-const (
-	SSRDisabled SSRMode = "disabled"
-	SSRExternal SSRMode = "external"
-	SSRManaged  SSRMode = "managed"
-)
-
 // Config controls stable renderer behavior.
 type Config struct {
 	ContainerID   string
@@ -49,7 +39,6 @@ func New(options ...Option) (*Renderer, error) {
 		protocolDebug: config.ProtocolDebug,
 		ssrFailFast:   config.SSRFailFast,
 		managedConfig: DefaultManagedConfig(),
-		ssrMode:       SSRDisabled,
 		buildPathURL:  "/assets/dist/vite/*",
 		entryPoint:    "resources/js/app.ts",
 		viteDevURL:    "http://localhost:5173/assets/dist",
@@ -78,8 +67,9 @@ func New(options ...Option) (*Renderer, error) {
 	return renderer, nil
 }
 
-// Start starts a configured managed SSR process. It is a no-op for disabled,
-// external, and custom SSR renderers.
+// Start is retained for lifecycle hooks. The HTTP app does not own the Node
+// SSR process; use cmd/ssr (or an operator) for that. This method is a no-op
+// unless a custom managed runtime was attached.
 func (renderer *Renderer) Start(ctx context.Context) error {
 	if renderer == nil || renderer.runtime == nil {
 		return nil
@@ -87,7 +77,8 @@ func (renderer *Renderer) Start(ctx context.Context) error {
 	return renderer.runtime.Start(ctx)
 }
 
-// Shutdown stops a configured managed SSR process. It is a no-op otherwise.
+// Shutdown stops an attached managed SSR runtime. It is a no-op for the
+// default HTTP-client configuration used by cmd/app.
 func (renderer *Renderer) Shutdown(ctx context.Context) error {
 	if renderer == nil || renderer.runtime == nil {
 		return nil
@@ -99,28 +90,12 @@ func (renderer *Renderer) configureSSR() error {
 	if renderer.customSSR {
 		return nil
 	}
-	switch renderer.ssrMode {
-	case "", SSRDisabled:
-		return nil
-	case SSRExternal:
-		httpRenderer, err := NewHTTPRenderer(renderer.managedConfig.HTTP)
-		if err != nil {
-			return err
-		}
-		renderer.ssr = httpRenderer
-		return nil
-	case SSRManaged:
-		renderer.managedConfig.Enabled = true
-		runtime, err := NewManagedRuntime(renderer.managedConfig)
-		if err != nil {
-			return err
-		}
-		renderer.runtime = runtime
-		renderer.ssr = runtime.Renderer()
-		return nil
-	default:
-		return fmt.Errorf("inertia: unsupported SSR mode %q", renderer.ssrMode)
+	httpRenderer, err := NewHTTPRenderer(renderer.managedConfig.HTTP)
+	if err != nil {
+		return err
 	}
+	renderer.ssr = httpRenderer
+	return nil
 }
 
 // WithAssetFS supplies the embedded application asset filesystem used for the
@@ -192,20 +167,6 @@ func WithRoot(root RootFunc) Option {
 			return fmt.Errorf("inertia: root constructor cannot be nil")
 		}
 		renderer.root = root
-		return nil
-	}
-}
-
-func WithSSRMode(mode SSRMode) Option {
-	return func(renderer *Renderer) error {
-		switch mode {
-		case "", SSRDisabled:
-			renderer.ssrMode = SSRDisabled
-		case SSRExternal, SSRManaged:
-			renderer.ssrMode = mode
-		default:
-			return fmt.Errorf("inertia: unsupported SSR mode %q", mode)
-		}
 		return nil
 	}
 }

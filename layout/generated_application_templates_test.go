@@ -442,7 +442,7 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	for _, want := range []string{
 		"type Inertia struct",
 		"func NewInertia() (Inertia, error)",
-		"SSRMode             inertia.SSRMode",
+		"ManagedSSRConfig()",
 	} {
 		if !strings.Contains(inertiaConfig, want) {
 			t.Errorf("config_inertia.tmpl missing %q", want)

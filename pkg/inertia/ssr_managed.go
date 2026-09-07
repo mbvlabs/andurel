@@ -17,7 +17,8 @@ import (
 
 const defaultSSRMinimumMajor = 22
 
-// ManagedConfig controls a Go-owned JavaScript SSR process.
+// ManagedConfig controls a JavaScript SSR process owned by cmd/ssr (or an
+// equivalent operator entrypoint), not by the HTTP application process.
 type ManagedConfig struct {
 	Enabled        bool
 	BundlePath     string
