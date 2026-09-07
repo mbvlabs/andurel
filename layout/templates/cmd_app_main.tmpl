@@ -186,7 +186,6 @@ func newQueueInsert(
 {{if .Inertia}}
 
 func newInertia(
-	lifecycle fx.Lifecycle,
 	appCfg config.App,
 	cfg config.Inertia,
 ) (*inertia.Renderer, error) {
@@ -201,7 +200,6 @@ func newInertia(
 		inertia.WithViteDevURL(cfg.ViteDevURL),
 		inertia.WithProtocolDebug(cfg.ProtocolDebug),
 		inertia.WithShared(inertia.Props{"appVersion": appVersion}),
-		inertia.WithSSRMode(cfg.SSRMode),
 		inertia.WithSSRRuntime(cfg.SSRRuntime),
 		inertia.WithSSRBundle(cfg.SSRBundle),
 		inertia.WithSSRURL(cfg.SSRURL),
@@ -214,10 +212,6 @@ func newInertia(
 		return nil, err
 	}
 
-	lifecycle.Append(fx.Hook{
-		OnStart: renderer.Start,
-		OnStop:  renderer.Shutdown,
-	})
 	return renderer, nil
 }
 

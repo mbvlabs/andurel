@@ -13,7 +13,6 @@ const (
 	DefaultInertiaContainerID         = "app"
 	DefaultInertiaViteDevURL          = "http://localhost:5173/assets/dist"
 	DefaultInertiaProtocolDebug       = false
-	DefaultInertiaSSRMode             = inertia.SSRDisabled
 	DefaultInertiaSSRRuntime          = "node"
 	DefaultInertiaSSRBundle           = "assets/dist/ssr/ssr.js"
 	DefaultInertiaSSRURL              = "http://127.0.0.1:13714"
@@ -32,7 +31,6 @@ type Inertia struct {
 	ContainerID         string
 	ViteDevURL          string
 	ProtocolDebug       bool
-	SSRMode             inertia.SSRMode
 	SSRRuntime          string
 	SSRBundle           string
 	SSRURL              string
@@ -46,24 +44,26 @@ type Inertia struct {
 func NewInertia() (Inertia, error) {
 	env := newEnvironment()
 	cfg := Inertia{
-		ContainerID:         env.String("INERTIA_CONTAINER_ID", DefaultInertiaContainerID),
-		ViteDevURL:          env.String("INERTIA_VITE_DEV_URL", DefaultInertiaViteDevURL),
-		ProtocolDebug:       env.Bool("INERTIA_PROTOCOL_DEBUG", DefaultInertiaProtocolDebug),
-		SSRMode: inertia.SSRMode(env.String(
-			"INERTIA_SSR_MODE",
-			string(DefaultInertiaSSRMode),
-		)),
-		SSRRuntime:          env.String("INERTIA_SSR_RUNTIME", DefaultInertiaSSRRuntime),
-		SSRBundle:           env.String("INERTIA_SSR_BUNDLE", DefaultInertiaSSRBundle),
-		SSRURL:              env.String("INERTIA_SSR_URL", DefaultInertiaSSRURL),
-		SSRStartupTimeout:   env.Duration("INERTIA_SSR_STARTUP_TIMEOUT", DefaultInertiaSSRStartupTimeout),
-		SSRRequestTimeout:   env.Duration("INERTIA_SSR_REQUEST_TIMEOUT", DefaultInertiaSSRRequestTimeout),
+		ContainerID:   env.String("INERTIA_CONTAINER_ID", DefaultInertiaContainerID),
+		ViteDevURL:    env.String("INERTIA_VITE_DEV_URL", DefaultInertiaViteDevURL),
+		ProtocolDebug: env.Bool("INERTIA_PROTOCOL_DEBUG", DefaultInertiaProtocolDebug),
+		SSRRuntime:    env.String("INERTIA_SSR_RUNTIME", DefaultInertiaSSRRuntime),
+		SSRBundle:     env.String("INERTIA_SSR_BUNDLE", DefaultInertiaSSRBundle),
+		SSRURL:        env.String("INERTIA_SSR_URL", DefaultInertiaSSRURL),
+		SSRStartupTimeout: env.Duration(
+			"INERTIA_SSR_STARTUP_TIMEOUT",
+			DefaultInertiaSSRStartupTimeout,
+		),
+		SSRRequestTimeout: env.Duration(
+			"INERTIA_SSR_REQUEST_TIMEOUT",
+			DefaultInertiaSSRRequestTimeout,
+		),
 		SSRMaxResponseBytes: env.Int64(
 			"INERTIA_SSR_MAX_RESPONSE_BYTES",
 			DefaultInertiaSSRMaxResponseBytes,
 		),
-		SSRFailFast:         env.Bool("INERTIA_SSR_FAIL_FAST", DefaultInertiaSSRFailFast),
-		EntryPoint:          env.String("INERTIA_ENTRY_POINT", DefaultInertiaEntryPoint),
+		SSRFailFast: env.Bool("INERTIA_SSR_FAIL_FAST", DefaultInertiaSSRFailFast),
+		EntryPoint:  env.String("INERTIA_ENTRY_POINT", DefaultInertiaEntryPoint),
 	}
 
 	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
@@ -78,28 +78,39 @@ func (c Inertia) validate() error {
 	b.Required("ContainerID", c.ContainerID)
 	b.Required("ViteDevURL", c.ViteDevURL)
 	b.Required("EntryPoint", c.EntryPoint)
+	b.Required("SSRRuntime", c.SSRRuntime)
+	b.Required("SSRBundle", c.SSRBundle)
 	if err := b.Err(); err != nil {
 		return err
 	}
+
 	http := inertia.SSRConfig{
 		URL:              c.SSRURL,
 		Timeout:          c.SSRRequestTimeout,
 		MaxResponseBytes: c.SSRMaxResponseBytes,
 	}
-	switch c.SSRMode {
-	case inertia.SSRDisabled:
-		return nil
-	case inertia.SSRExternal:
-		return http.Validate()
-	case inertia.SSRManaged:
-		managed := inertia.DefaultManagedConfig()
-		managed.Enabled = true
-		managed.Executable = c.SSRRuntime
-		managed.BundlePath = c.SSRBundle
-		managed.StartupTimeout = c.SSRStartupTimeout
-		managed.HTTP = http
-		return managed.Validate()
-	default:
-		return fmt.Errorf("unsupported INERTIA_SSR_MODE %q", c.SSRMode)
+	if err := http.Validate(); err != nil {
+		return err
 	}
+	if c.SSRStartupTimeout <= 0 {
+		return fmt.Errorf("SSRStartupTimeout must be positive")
+	}
+
+	return nil
+}
+
+// ManagedSSRConfig returns settings for cmd/ssr to start the Node process.
+func (c Inertia) ManagedSSRConfig() inertia.ManagedConfig {
+	managed := inertia.DefaultManagedConfig()
+	managed.Enabled = true
+	managed.Executable = c.SSRRuntime
+	managed.BundlePath = c.SSRBundle
+	managed.StartupTimeout = c.SSRStartupTimeout
+	managed.HTTP = inertia.SSRConfig{
+		URL:              c.SSRURL,
+		Timeout:          c.SSRRequestTimeout,
+		MaxResponseBytes: c.SSRMaxResponseBytes,
+	}
+
+	return managed
 }

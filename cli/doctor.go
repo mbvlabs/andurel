@@ -237,7 +237,7 @@ func doctorHint(result checkResult) string {
 	case "tool versions":
 		return "Run andurel tool sync to install or update framework tools."
 	case "Inertia SSR":
-		return "Check INERTIA_SSR_MODE, runtime, bundle, and URL configuration."
+		return "Check cmd/ssr, INERTIA_SSR_URL, runtime, and bundle configuration."
 	case "go vet":
 		return "Run go vet ./... and fix the reported issues."
 	case "go mod tidy":
@@ -495,72 +495,64 @@ func checkInertiaSSRConfiguration(rootDir string) checkResult {
 
 	values := readDoctorEnv(filepath.Join(rootDir, ".env.example"))
 	maps.Copy(values, readDoctorEnv(filepath.Join(rootDir, ".env")))
-	mode := strings.ToLower(strings.TrimSpace(values["INERTIA_SSR_MODE"]))
-	if mode == "" && strings.EqualFold(strings.TrimSpace(values["INERTIA_SSR_ENABLED"]), "true") {
-		mode = "managed"
-	}
-	if mode == "" || mode == "disabled" {
-		return checkResult{name: "Inertia SSR", status: statusPass, message: "disabled"}
-	}
 
-	switch mode {
-	case "managed":
-		executable := strings.TrimSpace(values["INERTIA_SSR_RUNTIME"])
-		if executable == "" {
-			executable = lock.ScaffoldConfig.SSRRuntime()
-		}
-		if _, err := exec.LookPath(executable); err != nil {
-			return checkResult{
-				name:    "Inertia SSR",
-				status:  statusFail,
-				message: fmt.Sprintf("runtime %q not found", executable),
-			}
-		}
-		bundle := strings.TrimSpace(values["INERTIA_SSR_BUNDLE"])
-		if bundle == "" {
-			bundle = "assets/dist/ssr/ssr.js"
-		}
-		if _, err := os.Stat(filepath.Join(rootDir, filepath.FromSlash(bundle))); err != nil {
-			return checkResult{
-				name:    "Inertia SSR",
-				status:  statusWarn,
-				message: fmt.Sprintf("managed bundle %s is not built", bundle),
-			}
-		}
-		return checkResult{
-			name:    "Inertia SSR",
-			status:  statusPass,
-			message: fmt.Sprintf("managed by %s", executable),
-		}
-	case "external":
-		rawURL := strings.TrimSpace(values["INERTIA_SSR_URL"])
-		parsed, err := url.Parse(rawURL)
-		if err != nil || parsed.Host == "" ||
-			(parsed.Scheme != "http" && parsed.Scheme != "https") {
-			return checkResult{
-				name:    "Inertia SSR",
-				status:  statusFail,
-				message: "external renderer URL is invalid",
-			}
-		}
-		if err := checkSSRHealth(parsed); err != nil {
-			return checkResult{
-				name:    "Inertia SSR",
-				status:  statusWarn,
-				message: fmt.Sprintf("external renderer is unreachable: %v", err),
-			}
-		}
-		return checkResult{
-			name:    "Inertia SSR",
-			status:  statusPass,
-			message: fmt.Sprintf("external renderer healthy at %s", parsed.Redacted()),
-		}
-	default:
+	if _, err := os.Stat(filepath.Join(rootDir, "cmd", "ssr", "main.go")); err != nil {
 		return checkResult{
 			name:    "Inertia SSR",
 			status:  statusFail,
-			message: fmt.Sprintf("unsupported mode %q", mode),
+			message: "cmd/ssr/main.go missing (Inertia SSR entrypoint)",
 		}
+	}
+
+	rawURL := strings.TrimSpace(values["INERTIA_SSR_URL"])
+	if rawURL == "" {
+		rawURL = "http://127.0.0.1:13714"
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Host == "" ||
+		(parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return checkResult{
+			name:    "Inertia SSR",
+			status:  statusFail,
+			message: "SSR renderer URL is invalid",
+		}
+	}
+
+	executable := strings.TrimSpace(values["INERTIA_SSR_RUNTIME"])
+	if executable == "" {
+		executable = lock.ScaffoldConfig.SSRRuntime()
+	}
+	if _, err := exec.LookPath(executable); err != nil {
+		return checkResult{
+			name:    "Inertia SSR",
+			status:  statusFail,
+			message: fmt.Sprintf("runtime %q not found", executable),
+		}
+	}
+
+	bundle := strings.TrimSpace(values["INERTIA_SSR_BUNDLE"])
+	if bundle == "" {
+		bundle = "assets/dist/ssr/ssr.js"
+	}
+	if _, err := os.Stat(filepath.Join(rootDir, filepath.FromSlash(bundle))); err != nil {
+		return checkResult{
+			name:    "Inertia SSR",
+			status:  statusWarn,
+			message: fmt.Sprintf("SSR bundle %s is not built (cmd/ssr needs it)", bundle),
+		}
+	}
+
+	if err := checkSSRHealth(parsed); err != nil {
+		return checkResult{
+			name:    "Inertia SSR",
+			status:  statusWarn,
+			message: fmt.Sprintf("cmd/ssr renderer unreachable at %s: %v", parsed.Redacted(), err),
+		}
+	}
+	return checkResult{
+		name:    "Inertia SSR",
+		status:  statusPass,
+		message: fmt.Sprintf("cmd/ssr ready; renderer healthy at %s", parsed.Redacted()),
 	}
 }
 

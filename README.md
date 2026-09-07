@@ -519,6 +519,11 @@ Starts the development server with live reload (powered by Shadowfax).
 andurel run (alias: r)
 ```
 
+For Inertia projects, `andurel run` passes an explicit flag contract to Shadowfax
+(`--inertia`, package manager, SSR URL/bundle). Shadowfax starts Vite and the
+project's `cmd/ssr` process (Laravel-style Node owner). The HTTP app (`cmd/app`)
+is always an SSR HTTP client; pages opt in with `inertia.WithSSR()`.
+
 ### `andurel console` — Database console
 
 Opens an interactive database console (usql) using connection details from `.env`.
@@ -711,8 +716,10 @@ myapp/
 │   └── email/
 │       └── mailpit.go       # Mailpit email client
 ├── cmd/
-│   └── app/
-│       └── main.go          # Application entry point with fx wiring
+│   ├── app/
+│   │   └── main.go          # Application entry point with fx wiring
+│   └── ssr/
+│       └── main.go          # Inertia SSR Node process owner
 ├── config/
 │   ├── config.go            # Main config aggregator
 │   ├── app.go               # Sessions, tokens, security
@@ -852,13 +859,16 @@ myapp/
 │   └── welcome.templ            # Server-rendered welcome page
 ├── config/
 │   └── inertia.go               # Environment-backed Inertia settings
+├── cmd/
+│   └── ssr/
+│       └── main.go              # Starts Node SSR from ManagedSSRConfig
 ├── vite.config.ts
 ├── svelte.config.js            # Svelte projects only
 ├── package.json
 ├── tsconfig.json
 ```
 
-The auth and default error pages use Inertia, while `controllers/pages.go` keeps the welcome page server-rendered with Templ. Controllers and the router import the reusable Echo/templ implementation directly from `github.com/mbvlabs/andurel/pkg/inertia`. The package supplies Vite integration, protocol behavior, and the SSR runtime. The application owns its compiled templ document at `views/root.templ`; generated `config/inertia.go` constructs the renderer from its environment-backed settings, `application.Metadata`, and `views.Root`, then wires its Fx lifecycle. Run the configured package manager's install command after scaffolding. Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia resource pages.
+The auth and default error pages use Inertia, while `controllers/pages.go` keeps the welcome page server-rendered with Templ. Controllers and the router import the reusable Echo/templ implementation directly from `github.com/mbvlabs/andurel/pkg/inertia`. The package supplies Vite integration, protocol behavior, and an optional managed SSR runtime used by `cmd/ssr`. The HTTP app owns its compiled templ document at `views/root.templ`; generated `config/inertia.go` supplies environment-backed settings, and `cmd/app` constructs an HTTP-client renderer with `views.Root`. Run the configured package manager's install command after scaffolding. Later resource/controller generation still defaults to Templ; pass `--inertia` to `andurel generate controller` or `andurel generate scaffold` for Inertia resource pages.
 
 When using `--inertia vue`, `--inertia react`, or `--inertia svelte`, controllers can render Inertia pages alongside Templ.
 
@@ -872,7 +882,7 @@ You can specify the JavaScript package manager by appending `/npm`, `/pnpm`, `/b
 
 The package manager is stored in `andurel.lock` as `scaffoldConfig.javascriptPackageManager`. `andurel build` uses it for dependency installation and Vite scripts. `scaffoldConfig.inertiaSSRRuntime` independently records the executable used for SSR, so choosing Bun as a package manager does not silently replace Node as the SSR runtime.
 
-SSR is disabled by default. Set `INERTIA_SSR_MODE=managed` for an Fx-managed local Node process or `INERTIA_SSR_MODE=external` to connect to an operator-managed renderer at `INERTIA_SSR_URL`. Both modes retain response-level `inertia.WithSSR()` and bounded fallback to client rendering.
+SSR uses per-response `inertia.WithSSR()`. Node process ownership belongs to `cmd/ssr` (started by Shadowfax under `andurel run`, or by a process manager in production). The HTTP app only calls `INERTIA_SSR_URL` and keeps bounded fallback to client rendering.
 
 
 ### Real Example: Controller to Vue Component

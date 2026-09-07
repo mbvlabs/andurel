@@ -397,6 +397,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_inertia.tmpl":         "config/inertia.go",
+	"cmd_ssr_main.tmpl":           "cmd/ssr/main.go",
 	"inertia_assets_routes.tmpl":  "resources/js/routes.ts",
 	"inertia_framework_root.tmpl": "views/root.templ",
 }

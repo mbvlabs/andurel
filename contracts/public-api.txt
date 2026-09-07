@@ -943,6 +943,7 @@ type ActionRouteData struct {
 	Path            string
 	PluralName      string
 	LowerMethodName string
+	IsInertia       bool
 }
     ActionRouteData holds data for rendering the action_route.tmpl template.
 
@@ -1095,6 +1096,7 @@ func NewRouteGenerator() *RouteGenerator
 func (rg *RouteGenerator) GenerateRoutes(
 	resourceName, namespace, pluralName, idType string,
 	actions []string,
+	isInertia bool,
 ) error
     GenerateRoutes performs the generate routes operation.
 
@@ -1754,7 +1756,7 @@ func ApplyExtension(rootDir, extensionName string) ([]string, error)
      4. Re-renders all blueprint-consuming templates (config.go, .env.example,
         main.go, etc.) with the updated blueprint.
      5. Runs post-steps and code generation tools (goose fix, templ generate,
-        sqlc generate when query files exist, go mod tidy).
+        sqlc generate when query files exist, go mod tidy, go fmt).
      6. Updates and writes andurel.lock.
 
     Returns the names of all newly applied extensions (the requested extension
@@ -2878,19 +2880,19 @@ const (
 	// Sqlc is the default sqlc tool version.
 	Sqlc = "v1.31.1"
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
-	Hypermedia = "v0.2.1"
+	Hypermedia = "v0.2.2"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.2.0"
+	Inertia = "v0.3.1"
 	// Email is the standalone Andurel email module version verified with this framework.
-	Email = "v0.2.0"
+	Email = "v0.3.1"
 	// Routing is the standalone Andurel routing module version verified with this framework.
-	Routing = "v0.1.1"
+	Routing = "v0.2.0"
 	// Server is the standalone Andurel server module version verified with this framework.
-	Server = "v0.2.0"
+	Server = "v0.3.1"
 	// Storage is the standalone Andurel storage module version verified with this framework.
-	Storage = "v0.5.0"
+	Storage = "v0.7.0"
 	// Validation is the standalone Andurel validation module version verified with this framework.
-	Validation = "v0.1.1"
+	Validation = "v0.1.2"
 )
 
 ## github.com/mbvlabs/andurel/pkg/email
@@ -3675,7 +3677,8 @@ type ManagedConfig struct {
 	Stdout         io.Writer
 	Stderr         io.Writer
 }
-    ManagedConfig controls a Go-owned JavaScript SSR process.
+    ManagedConfig controls a JavaScript SSR process owned by cmd/ssr (or an
+    equivalent operator entrypoint), not by the HTTP application process.
 
 func DefaultManagedConfig() ManagedConfig
     DefaultManagedConfig returns defaults for an optional managed SSR process.
@@ -3770,8 +3773,6 @@ func WithSSRFailFast(enabled bool) Option
     WithSSRFailFast makes per-response SSR failures abort the initial response.
 
 func WithSSRMaxResponseBytes(size int64) Option
-
-func WithSSRMode(mode SSRMode) Option
 
 func WithSSRRenderer(ssr SSRRenderer) Option
     WithSSRRenderer configures the SSR gateway used only by pages with WithSSR.
@@ -3949,11 +3950,13 @@ func (renderer *Renderer) SetReflashHandler(handler ReflashHandler) error
     serving requests. Generated applications use this at router construction.
 
 func (renderer *Renderer) Shutdown(ctx context.Context) error
-    Shutdown stops a configured managed SSR process. It is a no-op otherwise.
+    Shutdown stops an attached managed SSR runtime. It is a no-op for the
+    default HTTP-client configuration used by cmd/app.
 
 func (renderer *Renderer) Start(ctx context.Context) error
-    Start starts a configured managed SSR process. It is a no-op for disabled,
-    external, and custom SSR renderers.
+    Start is retained for lifecycle hooks. The HTTP app does not own the Node
+    SSR process; use cmd/ssr (or an operator) for that. This method is a no-op
+    unless a custom managed runtime was attached.
 
 type Request struct {
 	Inertia          bool
@@ -4012,15 +4015,6 @@ func DefaultSSRConfig() SSRConfig
 func (config SSRConfig) Validate() error
     Validate verifies HTTP renderer configuration.
 
-type SSRMode string
-    SSRMode controls whether server-side rendering is disabled, externally
-    hosted, or owned by the Go application.
-
-const (
-	SSRDisabled SSRMode = "disabled"
-	SSRExternal SSRMode = "external"
-	SSRManaged  SSRMode = "managed"
-)
 type SSRRenderer interface {
 	Render(context.Context, Page) (*SSRResponse, error)
 }
@@ -4137,10 +4131,14 @@ type Route struct {
 	// Has unexported fields.
 }
 
-func NewSimpleRoute(path, name, prefix string) Route
+func NewSimpleRoute(path, name, prefix string, opts ...RouteSetupOption) Route
     NewSimpleRoute creates a base route that takes no parameters
 
 func (r Route) FullURL(base string, opts ...RouteOption) string
+
+func (r Route) IsInertia() bool
+    IsInertia reports whether this route should be included in generated Inertia
+    TypeScript route helpers.
 
 func (r Route) Name() string
 
@@ -4154,15 +4152,27 @@ type RouteOption func(*routeOptions)
 func QueryParam(key string, value string) RouteOption
     QueryParam appends a query parameter to a generated route URL.
 
+type RouteSetupOption func(*routeConfig)
+    RouteSetupOption configures route construction options.
+
+func InertiaRoute() RouteSetupOption
+    InertiaRoute marks a route for inclusion in generated Inertia TypeScript
+    route helpers (resources/js/routes.ts).
+
 type RouteWithBigSerialID Route
 
-func NewRouteWithBigSerialID(path, name, prefix string) RouteWithBigSerialID
+func NewRouteWithBigSerialID(
+	path, name, prefix string,
+	opts ...RouteSetupOption,
+) RouteWithBigSerialID
     NewRouteWithBigSerialID creates an id route that takes an int64 as a
     parameter
 
 func (r RouteWithBigSerialID) FullURL(base string, id int64, opts ...RouteOption) string
 
 func (r RouteWithBigSerialID) GetParam() string
+
+func (r RouteWithBigSerialID) IsInertia() bool
 
 func (r RouteWithBigSerialID) Name() string
 
@@ -4172,11 +4182,13 @@ func (r RouteWithBigSerialID) URL(id int64, opts ...RouteOption) string
 
 type RouteWithFile Route
 
-func NewRouteWithFile(path, name, prefix string) RouteWithFile
+func NewRouteWithFile(path, name, prefix string, opts ...RouteSetupOption) RouteWithFile
 
 func (r RouteWithFile) FullURL(base string, file string, opts ...RouteOption) string
 
 func (r RouteWithFile) GetParam() string
+
+func (r RouteWithFile) IsInertia() bool
 
 func (r RouteWithFile) Name() string
 
@@ -4186,9 +4198,14 @@ func (r RouteWithFile) URL(file string, opts ...RouteOption) string
 
 type RouteWithParams[Params any] Route
 
-func NewRouteWithParams[Params any](path, name, prefix string) RouteWithParams[Params]
+func NewRouteWithParams[Params any](
+	path, name, prefix string,
+	opts ...RouteSetupOption,
+) RouteWithParams[Params]
 
 func (r RouteWithParams[Params]) FullURL(base string, params Params, opts ...RouteOption) string
+
+func (r RouteWithParams[Params]) IsInertia() bool
 
 func (r RouteWithParams[Params]) Name() string
 
@@ -4198,12 +4215,14 @@ func (r RouteWithParams[Params]) URL(params Params, opts ...RouteOption) string
 
 type RouteWithSerialID Route
 
-func NewRouteWithSerialID(path, name, prefix string) RouteWithSerialID
+func NewRouteWithSerialID(path, name, prefix string, opts ...RouteSetupOption) RouteWithSerialID
     NewRouteWithSerialID creates an id route that takes an int32 as a parameter
 
 func (r RouteWithSerialID) FullURL(base string, id int32, opts ...RouteOption) string
 
 func (r RouteWithSerialID) GetParam() string
+
+func (r RouteWithSerialID) IsInertia() bool
 
 func (r RouteWithSerialID) Name() string
 
@@ -4213,11 +4232,13 @@ func (r RouteWithSerialID) URL(id int32, opts ...RouteOption) string
 
 type RouteWithSlug Route
 
-func NewRouteWithSlug(path, name, prefix string) RouteWithSlug
+func NewRouteWithSlug(path, name, prefix string, opts ...RouteSetupOption) RouteWithSlug
 
 func (r RouteWithSlug) FullURL(base string, slug string, opts ...RouteOption) string
 
 func (r RouteWithSlug) GetParam() string
+
+func (r RouteWithSlug) IsInertia() bool
 
 func (r RouteWithSlug) Name() string
 
@@ -4227,12 +4248,14 @@ func (r RouteWithSlug) URL(slug string, opts ...RouteOption) string
 
 type RouteWithStringID Route
 
-func NewRouteWithStringID(path, name, prefix string) RouteWithStringID
+func NewRouteWithStringID(path, name, prefix string, opts ...RouteSetupOption) RouteWithStringID
     NewRouteWithStringID creates an id route that takes a string as a parameter
 
 func (r RouteWithStringID) FullURL(base string, id string, opts ...RouteOption) string
 
 func (r RouteWithStringID) GetParam() string
+
+func (r RouteWithStringID) IsInertia() bool
 
 func (r RouteWithStringID) Name() string
 
@@ -4242,11 +4265,13 @@ func (r RouteWithStringID) URL(id string, opts ...RouteOption) string
 
 type RouteWithToken Route
 
-func NewRouteWithToken(path, name, prefix string) RouteWithToken
+func NewRouteWithToken(path, name, prefix string, opts ...RouteSetupOption) RouteWithToken
 
 func (r RouteWithToken) FullURL(base string, token string, opts ...RouteOption) string
 
 func (r RouteWithToken) GetParam() string
+
+func (r RouteWithToken) IsInertia() bool
 
 func (r RouteWithToken) Name() string
 
@@ -4256,12 +4281,14 @@ func (r RouteWithToken) URL(token string, opts ...RouteOption) string
 
 type RouteWithUUIDID Route
 
-func NewRouteWithUUIDID(path, name, prefix string) RouteWithUUIDID
+func NewRouteWithUUIDID(path, name, prefix string, opts ...RouteSetupOption) RouteWithUUIDID
     NewRouteWithUUIDID creates an id route that takes a uuid as a parameter
 
 func (r RouteWithUUIDID) FullURL(base string, id uuid.UUID, opts ...RouteOption) string
 
 func (r RouteWithUUIDID) GetParam() string
+
+func (r RouteWithUUIDID) IsInertia() bool
 
 func (r RouteWithUUIDID) Name() string
 
@@ -4445,8 +4472,8 @@ type Connection interface {
 	Health(ctx context.Context) error
 	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
 }
-    Connection exposes the Bun executor, its underlying database/sql pool, and
-    runtime health.
+    Connection exposes the Bun executor, its underlying database/sql pool,
+    and runtime health.
 
 type Executor = bun.IDB
     Executor is the query interface satisfied by *bun.DB, *bun.Tx, and
