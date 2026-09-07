@@ -105,7 +105,7 @@ func LoadProjectContext(rootDir string) (*TemplateData, *AndurelLock, error) {
 //  4. Re-renders all blueprint-consuming templates (config.go, .env.example,
 //     main.go, etc.) with the updated blueprint.
 //  5. Runs post-steps and code generation tools (goose fix, templ generate,
-//     sqlc generate when query files exist, go mod tidy).
+//     sqlc generate when query files exist, go mod tidy, go fmt).
 //  6. Updates and writes andurel.lock.
 //
 // Returns the names of all newly applied extensions (the requested extension
@@ -261,6 +261,15 @@ func ApplyExtension(rootDir, extensionName string) ([]string, error) {
 			err,
 			"fix",
 			"run 'go mod tidy' after sync",
+		)
+	}
+
+	fmt.Print("Running go fmt...\n")
+	if err := cmds.RunGoFmt(rootDir); err != nil {
+		slog.Error(
+			"failed to run go fmt",
+			"error",
+			err,
 		)
 	}
 
