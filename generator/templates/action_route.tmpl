@@ -4,4 +4,7 @@
 	"{{.Path}}",
 	"{{.PluralName}}.{{.LowerMethodName}}",
 	{{.NamespacePascal}}{{.ResourceName}}Prefix,
+{{- if .IsInertia }}
+	routing.InertiaRoute(),
+{{- end }}
 )

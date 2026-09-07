@@ -31,6 +31,7 @@ func NewRouteGenerator() *RouteGenerator {
 func (rg *RouteGenerator) GenerateRoutes(
 	resourceName, namespace, pluralName, idType string,
 	actions []string,
+	isInertia bool,
 ) error {
 	prefixedPluralName := namespacePrefix(namespace) + pluralName
 	routesPath := filepath.Join("router/routes", prefixedPluralName+".go")
@@ -47,12 +48,16 @@ func (rg *RouteGenerator) GenerateRoutes(
 				return err
 			}
 			actions = mergeActions(existingActions, actions)
+			if !isInertia {
+				isInertia = routeFileIncludesInertia(routesPath)
+			}
 			routeContent, err := rg.templateRenderer.generateRouteContent(
 				resourceName,
 				namespace,
 				pluralName,
 				idType,
 				actions,
+				isInertia,
 			)
 			if err != nil {
 				return fmt.Errorf("failed to generate route content: %w", err)
@@ -82,6 +87,7 @@ func (rg *RouteGenerator) GenerateRoutes(
 		pluralName,
 		idType,
 		actions,
+		isInertia,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to generate route content: %w", err)
@@ -141,6 +147,14 @@ func existingRouteFileActions(
 		}
 	}
 	return actions, nil
+}
+
+func routeFileIncludesInertia(routesPath string) bool {
+	content, err := os.ReadFile(routesPath)
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(content), "InertiaRoute")
 }
 
 // ExistingRouteFileActions returns the resource actions declared in a generated route file.

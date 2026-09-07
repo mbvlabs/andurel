@@ -21,6 +21,7 @@ var SessionCreate = routing.NewSimpleRoute(
 	"/sign-in",
 	"users.user_session",
 	UserPrefix,
+	routing.InertiaRoute(),
 )
 
 var PasswordEdit = routing.NewRouteWithToken(
@@ -39,6 +40,7 @@ var WidgetShow = routing.NewRouteWithUUIDID(
 	"/:id",
 	"widgets.show",
 	WidgetPrefix,
+	routing.InertiaRoute(),
 )
 
 var WidgetIndex = routing.NewSimpleRoute(
@@ -68,6 +70,7 @@ var WidgetIndex = routing.NewSimpleRoute(
 		"/users/sign-in",
 		"simple",
 		nil,
+		true,
 	)
 	assertRouteManifestRoute(
 		t,
@@ -77,6 +80,7 @@ var WidgetIndex = routing.NewSimpleRoute(
 		"/users/password/:token/edit",
 		"token",
 		[]routeManifestParam{{Name: "token", Type: "string"}},
+		false,
 	)
 	assertRouteManifestRoute(
 		t,
@@ -86,8 +90,18 @@ var WidgetIndex = routing.NewSimpleRoute(
 		"/widgets/:id",
 		"uuid_id",
 		[]routeManifestParam{{Name: "id", Type: "uuid"}},
+		true,
 	)
-	assertRouteManifestRoute(t, manifest, "WidgetIndex", "widgets.index", "/widgets", "simple", nil)
+	assertRouteManifestRoute(
+		t,
+		manifest,
+		"WidgetIndex",
+		"widgets.index",
+		"/widgets",
+		"simple",
+		nil,
+		false,
+	)
 }
 
 func TestCollectRouteManifestSupportsConstExpressionsAndGenericParams(t *testing.T) {
@@ -122,6 +136,7 @@ var DashboardLookup = routing.NewRouteWithParams[DashboardLookupParams](
 			{Name: "team_id", Type: "string"},
 			{Name: "dashboard_id", Type: "string"},
 		},
+		false,
 	)
 }
 
@@ -222,6 +237,7 @@ var Slugs = routing.NewRouteWithSlugs[any]("/:one/:two", "slugs", Nested)
 var TooFew = routing.NewSimpleRoute("/missing")
 var DynamicName = routing.NewSimpleRoute("/name", makeName(), Root)
 var DynamicPrefix = routing.NewSimpleRoute("/prefix", "prefix", CycleA)
+var BadOption = routing.NewSimpleRoute("/opt", "opt", Root, other.Option())
 var NotRouting = other.NewSimpleRoute("/ignored", "ignored", Root)
 var NotCall = Root
 `)
@@ -233,8 +249,8 @@ var NotCall = Root
 	if len(manifest.Routes) != 8 {
 		t.Fatalf("expected eight routes, got %#v", manifest.Routes)
 	}
-	if len(manifest.Skipped) != 3 {
-		t.Fatalf("expected three skipped routes, got %#v", manifest.Skipped)
+	if len(manifest.Skipped) != 4 {
+		t.Fatalf("expected four skipped routes, got %#v", manifest.Skipped)
 	}
 
 	wants := map[string]struct {
@@ -392,6 +408,7 @@ func assertRouteManifestRoute(
 	path string,
 	kind string,
 	params []routeManifestParam,
+	isInertia bool,
 ) {
 	t.Helper()
 
@@ -399,7 +416,8 @@ func assertRouteManifestRoute(
 	if !ok {
 		t.Fatalf("expected route %s in %#v", variable, manifest.Routes)
 	}
-	if route.Name != name || route.Path != path || route.Kind != kind {
+	if route.Name != name || route.Path != path || route.Kind != kind ||
+		route.IsInertia != isInertia {
 		t.Fatalf("unexpected route %s: %#v", variable, route)
 	}
 	if len(route.Params) != len(params) {

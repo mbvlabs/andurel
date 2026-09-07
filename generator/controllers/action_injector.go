@@ -41,6 +41,7 @@ type ActionRouteData struct {
 	Path            string
 	PluralName      string
 	LowerMethodName string
+	IsInertia       bool
 }
 
 // ActionRegistrationData holds data for rendering the action_registration.tmpl template.

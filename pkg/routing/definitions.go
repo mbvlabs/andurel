@@ -6,6 +6,17 @@ import "github.com/google/uuid"
 // RouteOption customizes URL generation.
 type RouteOption func(*routeOptions)
 
+// RouteSetupOption configures route construction options.
+type RouteSetupOption func(*routeConfig)
+
+// InertiaRoute marks a route for inclusion in generated Inertia
+// TypeScript route helpers (resources/js/routes.ts).
+func InertiaRoute() RouteSetupOption {
+	return func(cfg *routeConfig) {
+		cfg.isInertia = true
+	}
+}
+
 // Route represents routes with no URL parameters
 type SimpleRoute interface {
 	Name() string

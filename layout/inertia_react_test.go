@@ -34,6 +34,18 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileContains(
 		t,
 		projectDir,
+		"router/routes/pages.go",
+		"routing.InertiaRoute()",
+	)
+	assertFileContains(
+		t,
+		projectDir,
+		"router/routes/users.go",
+		"routing.InertiaRoute()",
+	)
+	assertFileContains(
+		t,
+		projectDir,
 		"resources/js/Pages/Auth/Login.tsx",
 		"import Layout from '@/Layouts/Layout'",
 	)

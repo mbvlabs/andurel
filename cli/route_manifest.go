@@ -25,6 +25,7 @@ type routeManifestRoute struct {
 	Path        string               `json:"path"`
 	Constructor string               `json:"constructor"`
 	Kind        string               `json:"kind"`
+	IsInertia   bool                 `json:"is_inertia"`
 	Params      []routeManifestParam `json:"params,omitempty"`
 	SourceFile  string               `json:"source_file"`
 	Line        int                  `json:"line"`
@@ -270,6 +271,11 @@ func routeManifestFromValue(
 		return routeManifestRoute{}, skip("route prefix is not a static string expression"), true
 	}
 
+	isInertia, errReason := evalRouteSetupOptions(call.Args[3:])
+	if errReason != "" {
+		return routeManifestRoute{}, skip(errReason), true
+	}
+
 	routePath := configureRouteManifestPath(path, prefix)
 	return routeManifestRoute{
 		Variable:    variable,
@@ -277,10 +283,36 @@ func routeManifestFromValue(
 		Path:        routePath,
 		Constructor: constructor,
 		Kind:        routeKind(constructor),
+		IsInertia:   isInertia,
 		Params:      routeParams(routePath, constructor),
 		SourceFile:  sourceFile,
 		Line:        line,
 	}, nil, true
+}
+
+func evalRouteSetupOptions(args []ast.Expr) (bool, string) {
+	isInertia := false
+	for _, arg := range args {
+		if isInertiaRouteOption(arg) {
+			isInertia = true
+			continue
+		}
+		return false, "unsupported route setup option"
+	}
+	return isInertia, ""
+}
+
+func isInertiaRouteOption(expr ast.Expr) bool {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok || len(call.Args) != 0 {
+		return false
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	ident, ok := sel.X.(*ast.Ident)
+	return ok && ident.Name == "routing" && sel.Sel.Name == "InertiaRoute"
 }
 
 func routeConstructorName(expr ast.Expr) (string, bool) {

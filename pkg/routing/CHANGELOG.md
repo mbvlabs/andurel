@@ -4,9 +4,16 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+### Added
+
+- `InertiaRoute` route setup option (default false) and `IsInertia()` accessor to opt
+  routes into generated Inertia TypeScript helpers via `resources/js/routes.ts`.
+
 ### Changed
 
 - Minimum supported Go version is now 1.27.0.
+- Route constructors accept optional `RouteSetupOption` arguments after path, name,
+  and prefix.
 
 ## 0.1.1 - 2026-09-01
 
