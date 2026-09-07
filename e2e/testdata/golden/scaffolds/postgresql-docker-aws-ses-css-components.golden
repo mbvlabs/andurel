@@ -59,7 +59,7 @@ testapp.db
 
 file -----------rw-r--r-- Dockerfile
 ```
-ARG GO_VERSION=1.26.5
+ARG GO_VERSION=1.27.0
 FROM debian:bookworm-slim AS css-builder
 
 WORKDIR /usr/src/app
@@ -6237,7 +6237,7 @@ file -----------rw-r--r-- go.mod
 ```
 module testapp
 
-go 1.26.5
+go 1.27.0
 
 require (
 	github.com/a-h/templ v0.3.1020

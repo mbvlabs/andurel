@@ -2,6 +2,13 @@
 
 All notable changes to the standalone Andurel validation module are documented here.
 
+## Unreleased
+
+### Changed
+
+- Minimum supported Go version is now 1.27.0.
+- Adopted Go 1.27 standard-library simplifications for reflected types and map copying.
+
 ## 0.1.1 - 2026-09-01
 
 ### Changed

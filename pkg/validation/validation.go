@@ -4,7 +4,10 @@
 // details, codes, and parameters.
 package validation
 
-import "errors"
+import (
+	"errors"
+	"maps"
+)
 
 const UnknownField = "unknown"
 
@@ -181,9 +184,7 @@ func copyRuleParams(params map[string]any) map[string]any {
 	}
 
 	paramsCopy := make(map[string]any, len(params))
-	for key, value := range params {
-		paramsCopy[key] = value
-	}
+	maps.Copy(paramsCopy, params)
 
 	return paramsCopy
 }

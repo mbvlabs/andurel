@@ -8,6 +8,10 @@ All notable changes to the standalone Andurel storage module are documented here
 
 - `Connection.Health` and `Postgres.Health` for runtime database reachability checks.
 
+### Changed
+
+- Minimum supported Go version is now 1.27.0.
+
 ## 0.6.0 - 2026-09-05
 
 ### Added

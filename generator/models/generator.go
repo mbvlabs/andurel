@@ -624,6 +624,7 @@ func (g *Generator) BuildFactory(
 
 // analyzeFactoryField analyzes a field and returns factory metadata
 func (g *Generator) analyzeFactoryField(field GeneratedField, modelName string) FactoryField {
+	// Determine the generated factory defaults alongside the field metadata.
 	info := FactoryField{
 		Name:          field.Name,
 		ArgumentName:  naming.ToLowerCamelCase(field.Name),
@@ -633,11 +634,9 @@ func (g *Generator) analyzeFactoryField(field GeneratedField, modelName string) 
 		IsTimestamp:   field.Type == "time.Time" || strings.Contains(field.Type, "Time"),
 		IsAutoManaged: field.IsPrimaryKey || field.Name == "CreatedAt" || field.Name == "UpdatedAt",
 		IsFK:          field.IsForeignKey,
+		DefaultValue:  g.determineFactoryDefaultForField(field),
+		GoZero:        g.getFactoryGoZero(field.Type),
 	}
-
-	// Determine default value
-	info.DefaultValue = g.determineFactoryDefaultForField(field)
-	info.GoZero = g.getFactoryGoZero(field.Type)
 
 	return info
 }
