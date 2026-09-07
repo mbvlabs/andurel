@@ -273,7 +273,9 @@ func compileTailwind(ctx context.Context, cfg Config, uses []classUse) (string, 
 		return "", "", fmt.Errorf("create temporary email CSS input: %w", err)
 	}
 	temporaryInputPath := temporaryInput.Name()
-	defer os.Remove(temporaryInputPath)
+	defer func() {
+		_ = os.Remove(temporaryInputPath)
+	}()
 
 	if _, err := temporaryInput.Write(input); err != nil {
 		_ = temporaryInput.Close()
@@ -301,7 +303,9 @@ func compileTailwind(ctx context.Context, cfg Config, uses []classUse) (string, 
 	if err := temporaryOutput.Close(); err != nil {
 		return "", "", fmt.Errorf("close temporary Tailwind output: %w", err)
 	}
-	defer os.Remove(temporaryOutputPath)
+	defer func() {
+		_ = os.Remove(temporaryOutputPath)
+	}()
 
 	command := exec.CommandContext(
 		ctx,

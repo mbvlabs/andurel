@@ -222,9 +222,7 @@ func (m *ModelManager) discoverFactoryResourceNames() ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read model file %s: %w", path, err)
 		}
-		for _, name := range entityNames(src) {
-			names = append(names, name)
-		}
+		names = append(names, entityNames(src)...)
 	}
 	slices.Sort(names)
 	return names, nil

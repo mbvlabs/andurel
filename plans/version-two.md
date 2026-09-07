@@ -10,6 +10,7 @@ There is no upgrade path from V1 to V2. V2 applications are created with `andure
 
 Andurel V2 should:
 
+- use Go 1.27 as its minimum supported Go version;
 - use Uber Fx as the standard dependency injection and lifecycle system;
 - move reusable framework functionality into independently versioned Go modules;
 - retain Bun as the default model persistence layer and include sqlc for complex queries;

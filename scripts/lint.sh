@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly expected_version="2.12.2"
+readonly expected_version="2.13.2"
 readonly repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 installed_version="$(golangci-lint version 2>&1)"

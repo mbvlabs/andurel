@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -50,6 +53,24 @@ func TestDoctorBuildReportSummaryHintsAndDetails(t *testing.T) {
 	results[1].details[0] = "mutated"
 	if report.Checks[1].Details[0] != "templ: missing" {
 		t.Fatalf("doctorCheck details should be copied, got %#v", report.Checks[1].Details)
+	}
+}
+
+func TestCheckSSRHealth(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/health" {
+			t.Errorf("request path = %q, want /health", request.URL.Path)
+		}
+		response.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(server.Close)
+
+	baseURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse server URL: %v", err)
+	}
+	if err := checkSSRHealth(baseURL); err != nil {
+		t.Fatalf("checkSSRHealth failed: %v", err)
 	}
 }
 

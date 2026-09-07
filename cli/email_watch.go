@@ -48,7 +48,9 @@ func addEmailWatchDirectories(watcher *fsnotify.Watcher, root string) error {
 }
 
 func runEmailWatcher(ctx context.Context, watcher *fsnotify.Watcher, rootDir, tailwindPath string) {
-	defer watcher.Close()
+	defer func() {
+		_ = watcher.Close()
+	}()
 	debounce := time.NewTimer(time.Hour)
 	if !debounce.Stop() {
 		<-debounce.C

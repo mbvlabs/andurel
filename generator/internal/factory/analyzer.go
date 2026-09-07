@@ -36,6 +36,7 @@ func (fa *FieldAnalyzer) AnalyzeField(
 	modelName string,
 ) FactoryFieldInfo {
 	isPrimaryKey := field.IsPrimaryKey || strings.EqualFold(field.Name, "id")
+	// Determine the generated factory defaults alongside the field metadata.
 	info := FactoryFieldInfo{
 		Name:          field.Name,
 		Type:          field.Type,
@@ -44,11 +45,9 @@ func (fa *FieldAnalyzer) AnalyzeField(
 		IsTimestamp:   field.Type == "time.Time" || strings.Contains(field.Type, "Time"),
 		IsAutoManaged: isPrimaryKey || field.Name == "CreatedAt" || field.Name == "UpdatedAt",
 		IsFK:          field.IsForeignKey,
+		DefaultValue:  fa.determineDefault(field.Name, field.Type),
+		GoZero:        fa.getGoZero(field.Type),
 	}
-
-	// Determine default value
-	info.DefaultValue = fa.determineDefault(field.Name, field.Type)
-	info.GoZero = fa.getGoZero(field.Type)
 
 	return info
 }

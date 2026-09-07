@@ -570,7 +570,9 @@ func checkSSRHealth(baseURL *url.URL) error {
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
+	defer func() {
+		_ = response.Body.Close()
+	}()
 	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 64<<10))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return fmt.Errorf("HTTP %d", response.StatusCode)
