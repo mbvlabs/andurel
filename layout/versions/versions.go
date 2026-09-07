@@ -15,7 +15,7 @@ const (
 	// TailwindCLI is the default Tailwind CSS CLI version.
 	TailwindCLI = "v4.3.2"
 	// Shadowfax is the default Shadowfax runner version.
-	Shadowfax = "v0.9.0"
+	Shadowfax = "v0.9.1"
 	// Sqlc is the default sqlc tool version.
 	Sqlc = "v1.31.1"
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
