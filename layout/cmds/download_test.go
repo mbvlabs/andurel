@@ -72,6 +72,18 @@ func TestToolDownloaderReleaseURLs(t *testing.T) {
 		wantErr     string
 	}{
 		{
+			name: "sqlc",
+			downloader: ToolDownloader{
+				Name:    "sqlc",
+				Module:  "github.com/sqlc-dev/sqlc",
+				Version: "v1.31.1",
+			},
+			goos:        "linux",
+			goarch:      "amd64",
+			wantURLPart: "sqlc_1.31.1_linux_amd64.tar.gz",
+			wantArchive: "tar.gz",
+		},
+		{
 			name: "templ",
 			downloader: ToolDownloader{
 				Name:    "templ",

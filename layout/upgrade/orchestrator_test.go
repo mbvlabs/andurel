@@ -729,6 +729,62 @@ func TestSyncToolsToFrameworkVersion_RefreshesMetadataWithoutVersionChange(t *te
 	}
 }
 
+func TestSyncToolsToFrameworkVersion_RefreshesStaleDownloadURLTemplate(t *testing.T) {
+	t.Parallel()
+
+	expected := layout.GetExpectedTools(&layout.ScaffoldConfig{ProjectName: "myapp"})["sqlc"]
+	if expected.Download == nil {
+		t.Fatal("expected sqlc download metadata")
+	}
+
+	staleDownload := &layout.ToolDownload{
+		URLTemplate: "https://github.com/sqlc-dev/sqlc/releases/download/{{version}}/sqlc_{{version_no_v}}_{{os}}_{{arch_x86_64}}.tar.gz",
+		Archive:     expected.Download.Archive,
+		BinaryName:  expected.Download.BinaryName,
+		SHA256:      expected.Download.SHA256,
+	}
+	upgrader := &Upgrader{
+		lock: &layout.AndurelLock{
+			Version: "v0.1.0",
+			Tools: map[string]*layout.Tool{
+				"sqlc": {
+					Version:      expected.Version,
+					Download:     staleDownload,
+					VersionCheck: expected.VersionCheck,
+				},
+			},
+			ScaffoldConfig: &layout.ScaffoldConfig{ProjectName: "myapp"},
+		},
+	}
+
+	result, err := syncTools(upgrader.lock)
+	if err != nil {
+		t.Fatalf("syncTools returned error: %v", err)
+	}
+
+	sqlc := upgrader.lock.Tools["sqlc"]
+	if sqlc.Download == nil {
+		t.Fatal("expected sqlc download metadata")
+	}
+	if sqlc.Download.URLTemplate != expected.Download.URLTemplate {
+		t.Fatalf(
+			"sqlc urlTemplate = %q, want %q",
+			sqlc.Download.URLTemplate,
+			expected.Download.URLTemplate,
+		)
+	}
+	found := false
+	for _, entry := range result.Metadata {
+		if entry == "sqlc metadata" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected sqlc metadata refresh, got %v", result.Metadata)
+	}
+}
+
 func TestSyncToolsToFrameworkVersion_RemovesOnlyRedundantDefaultRegexp(t *testing.T) {
 	t.Parallel()
 

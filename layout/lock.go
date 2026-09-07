@@ -119,7 +119,7 @@ var defaultToolVersions = map[string]string{
 
 var defaultToolDownloads = map[string]ToolDownload{
 	"sqlc": {
-		URLTemplate: "https://github.com/sqlc-dev/sqlc/releases/download/{{version}}/sqlc_{{version_no_v}}_{{os}}_{{arch_x86_64}}.tar.gz",
+		URLTemplate: "https://github.com/sqlc-dev/sqlc/releases/download/{{version}}/sqlc_{{version_no_v}}_{{os}}_{{arch}}.tar.gz",
 		Archive:     "tar.gz",
 		BinaryName:  "sqlc",
 		SHA256: map[string]string{

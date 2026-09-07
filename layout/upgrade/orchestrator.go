@@ -463,7 +463,11 @@ func syncTools(lock *layout.AndurelLock) (*ToolSyncResult, error) {
 				existingTool.Source = expectedTool.Source
 				metadataChanged = true
 			}
-			if existingTool.Download == nil && expectedTool.Download != nil {
+			if expectedTool.Download != nil &&
+				(existingTool.Download == nil ||
+					existingTool.Download.URLTemplate != expectedTool.Download.URLTemplate ||
+					existingTool.Download.Archive != expectedTool.Download.Archive ||
+					existingTool.Download.BinaryName != expectedTool.Download.BinaryName) {
 				existingTool.Download = expectedTool.Download
 				metadataChanged = true
 			}

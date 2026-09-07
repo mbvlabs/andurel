@@ -389,13 +389,14 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 	repo := extractGitHubRepo(d.Module)
 	switch d.Name {
 	case "sqlc":
+		// sqlc release assets use Go arch names (amd64/arm64), not x86_64.
 		return fmt.Sprintf(
 			"https://github.com/%s/releases/download/%s/sqlc_%s_%s_%s.tar.gz",
 			repo,
 			d.Version,
 			strings.TrimPrefix(d.Version, "v"),
 			goos,
-			mapArch(goarch),
+			goarch,
 		), "tar.gz", nil
 	case "templ":
 		return fmt.Sprintf(
