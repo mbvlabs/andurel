@@ -4984,7 +4984,7 @@ require (
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/mbvlabs/andurel/pkg/email v0.3.1
 	github.com/mbvlabs/andurel/pkg/hypermedia v0.2.2
-	github.com/mbvlabs/andurel/pkg/inertia v0.3.1
+	github.com/mbvlabs/andurel/pkg/inertia v0.4.0
 	github.com/mbvlabs/andurel/pkg/routing v0.2.0
 	github.com/mbvlabs/andurel/pkg/server v0.3.1
 	github.com/mbvlabs/andurel/pkg/storage v0.7.0
@@ -5255,8 +5255,8 @@ github.com/mbvlabs/andurel/pkg/email v0.3.1 h1:lgA6kqmajsCDJ/oNGnh1JIbCDqiB0I8Rp
 github.com/mbvlabs/andurel/pkg/email v0.3.1/go.mod h1:cc9+f5IS6oF4+Z7HNqbZUGoaHxj0+f6Q5DamteGBkhk=
 github.com/mbvlabs/andurel/pkg/hypermedia v0.2.2 h1:gR3gHf9ko/nPqIeo6/LnyPQ8Ak7sPFFuWvtc0gomlZY=
 github.com/mbvlabs/andurel/pkg/hypermedia v0.2.2/go.mod h1:hoKFPLIvqNXrPiwv7uqCsWqjHsMpdejjTqIdwIqQmtI=
-github.com/mbvlabs/andurel/pkg/inertia v0.3.1 h1:JFCdEcQ08ETw92CX1nMZ1u4IbKbkQMWJmpmigk6xViM=
-github.com/mbvlabs/andurel/pkg/inertia v0.3.1/go.mod h1:U19PMo0gVfr+ocdBEQcgTEBuSU93adHA4MfAhExShmo=
+github.com/mbvlabs/andurel/pkg/inertia v0.4.0 h1:Ro3qAWt8OWs1YHKs1tYUOT+JwedvaA2bZJ0dqounVFU=
+github.com/mbvlabs/andurel/pkg/inertia v0.4.0/go.mod h1:U19PMo0gVfr+ocdBEQcgTEBuSU93adHA4MfAhExShmo=
 github.com/mbvlabs/andurel/pkg/routing v0.2.0 h1:gswispKJzqhXAi4OqAuVWkPywelBFwfeR2BgT5lcV4g=
 github.com/mbvlabs/andurel/pkg/routing v0.2.0/go.mod h1:FamhJJfZnLzah8dqngVnJoNhTCazEXSycvwnZXz/Ynw=
 github.com/mbvlabs/andurel/pkg/server v0.3.1 h1:tRLMBt8D0c1nY6zn+9m4L0WEz3Y/wDCGV9k0KXQyFGc=
@@ -5466,7 +5466,7 @@ file -----------rw-r--r-- migrations/.gitkeep
 
 ```
 
-file -----------rw-r--r-- migrations/00001_create_river_migration_table.sql
+file -----------rw-r--r-- migrations/20250101000000_create_river_migration_table.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -5486,7 +5486,7 @@ DROP TABLE river_migration;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- migrations/00002_create_river_job_and_leader_tables.sql
+file -----------rw-r--r-- migrations/20250101000001_create_river_job_and_leader_tables.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -5598,7 +5598,7 @@ DROP TABLE river_leader;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- migrations/00003_alter_river_job_tags.sql
+file -----------rw-r--r-- migrations/20250101000002_alter_river_job_tags.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -5615,7 +5615,7 @@ ALTER TABLE river_job
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- migrations/00004_alter_river_job_args_metadata_add_queue.sql
+file -----------rw-r--r-- migrations/20250101000003_alter_river_job_args_metadata_add_queue.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -5713,7 +5713,7 @@ ALTER TABLE river_leader
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- migrations/00005_add_river_job_unique_key_and_clients.sql
+file -----------rw-r--r-- migrations/20250101000004_add_river_job_unique_key_and_clients.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -5860,7 +5860,7 @@ DROP TABLE river_client;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- migrations/00006_add_river_job_unique_states.sql
+file -----------rw-r--r-- migrations/20250101000005_add_river_job_unique_states.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -5926,7 +5926,7 @@ DROP FUNCTION river_job_state_in_bitmask;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- migrations/00007_create_users_table.sql
+file -----------rw-r--r-- migrations/20250101000006_create_users_table.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
@@ -5951,7 +5951,7 @@ DROP TABLE IF EXISTS users;
 -- +goose StatementEnd
 ```
 
-file -----------rw-r--r-- migrations/00008_create_tokens_table.sql
+file -----------rw-r--r-- migrations/20250101000007_create_tokens_table.sql
 ```
 -- +goose Up
 -- +goose StatementBegin
