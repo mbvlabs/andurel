@@ -4982,7 +4982,7 @@ require (
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/mbvlabs/andurel/pkg/email v0.3.1
 	github.com/mbvlabs/andurel/pkg/hypermedia v0.2.2
-	github.com/mbvlabs/andurel/pkg/inertia v0.4.0
+	github.com/mbvlabs/andurel/pkg/inertia v0.4.1
 	github.com/mbvlabs/andurel/pkg/routing v0.2.0
 	github.com/mbvlabs/andurel/pkg/server v0.3.1
 	github.com/mbvlabs/andurel/pkg/storage v0.7.0
@@ -5253,8 +5253,8 @@ github.com/mbvlabs/andurel/pkg/email v0.3.1 h1:lgA6kqmajsCDJ/oNGnh1JIbCDqiB0I8Rp
 github.com/mbvlabs/andurel/pkg/email v0.3.1/go.mod h1:cc9+f5IS6oF4+Z7HNqbZUGoaHxj0+f6Q5DamteGBkhk=
 github.com/mbvlabs/andurel/pkg/hypermedia v0.2.2 h1:gR3gHf9ko/nPqIeo6/LnyPQ8Ak7sPFFuWvtc0gomlZY=
 github.com/mbvlabs/andurel/pkg/hypermedia v0.2.2/go.mod h1:hoKFPLIvqNXrPiwv7uqCsWqjHsMpdejjTqIdwIqQmtI=
-github.com/mbvlabs/andurel/pkg/inertia v0.4.0 h1:Ro3qAWt8OWs1YHKs1tYUOT+JwedvaA2bZJ0dqounVFU=
-github.com/mbvlabs/andurel/pkg/inertia v0.4.0/go.mod h1:U19PMo0gVfr+ocdBEQcgTEBuSU93adHA4MfAhExShmo=
+github.com/mbvlabs/andurel/pkg/inertia v0.4.1 h1:QZhxHGP8irZ1MWJc+MudbZALHjsoB3gllxto1aDU00M=
+github.com/mbvlabs/andurel/pkg/inertia v0.4.1/go.mod h1:U19PMo0gVfr+ocdBEQcgTEBuSU93adHA4MfAhExShmo=
 github.com/mbvlabs/andurel/pkg/routing v0.2.0 h1:gswispKJzqhXAi4OqAuVWkPywelBFwfeR2BgT5lcV4g=
 github.com/mbvlabs/andurel/pkg/routing v0.2.0/go.mod h1:FamhJJfZnLzah8dqngVnJoNhTCazEXSycvwnZXz/Ynw=
 github.com/mbvlabs/andurel/pkg/server v0.3.1 h1:tRLMBt8D0c1nY6zn+9m4L0WEz3Y/wDCGV9k0KXQyFGc=
@@ -7511,15 +7511,42 @@ file -----------rw-r--r-- resources/js/app.ts
 ```
 import '../../css/base.css'
 
-import { createApp, createSSRApp, h, defineComponent, onMounted, onUnmounted, ref, type DefineComponent } from 'vue'
-import { createInertiaApp, router } from '@inertiajs/vue3'
+import { createApp, createSSRApp, type DefineComponent } from 'vue'
+import { createInertiaApp } from '@inertiajs/vue3'
+
+import { renderAppTree } from '@/components/flash-toasts'
+
+createInertiaApp({
+  resolve: (name: string): DefineComponent => {
+    const pages = import.meta.glob<DefineComponent>('./Pages/**/*.vue', { eager: true, import: 'default' })
+    return pages[`./Pages/${name}.vue`]
+  },
+  setup({ el, App, props, plugin }) {
+    const createVueApp = el.dataset.serverRendered === 'true' ? createSSRApp : createApp
+    createVueApp({
+      render() {
+        return renderAppTree(App, props)
+      },
+    })
+      .use(plugin)
+      .mount(el)
+  },
+})
+```
+
+dir  d----------rwxr-xr-x resources/js/components
+
+file -----------rw-r--r-- resources/js/components/flash-toasts.ts
+```
+import { defineComponent, h, onMounted, onUnmounted, ref, type Component } from 'vue'
+import { router } from '@inertiajs/vue3'
 
 type FlashMessage = {
   Type: string
   Message: string
 }
 
-const FlashToasts = defineComponent({
+export const FlashToasts = defineComponent({
   props: {
     initialFlashes: Array,
   },
@@ -7566,25 +7593,15 @@ const FlashToasts = defineComponent({
   },
 })
 
-createInertiaApp({
-  resolve: (name: string): DefineComponent => {
-    const pages = import.meta.glob<DefineComponent>('./Pages/**/*.vue', { eager: true, import: 'default' })
-    return pages[`./Pages/${name}.vue`]
-  },
-  setup({ el, App, props, plugin }) {
-    const createVueApp = el.dataset.serverRendered === 'true' ? createSSRApp : createApp
-    createVueApp({
-      render() {
-        return h('div', [
-          h(App, props),
-          h(FlashToasts, { initialFlashes: props.initialPage.flash as unknown as FlashMessage[] | undefined }),
-        ])
-      },
-    })
-      .use(plugin)
-      .mount(el)
-  },
-})
+export function renderAppTree<T extends { initialPage: { flash?: unknown } }>(
+  App: Component,
+  props: T,
+) {
+  return h('div', [
+    h(App, props),
+    h(FlashToasts, { initialFlashes: props.initialPage.flash as FlashMessage[] | undefined }),
+  ])
+}
 ```
 
 file -----------rw-r--r-- resources/js/routes.ts
@@ -7611,8 +7628,10 @@ file -----------rw-r--r-- resources/js/ssr.ts
 ```
 import { createInertiaApp } from '@inertiajs/vue3'
 import createServer from '@inertiajs/vue3/server'
-import { createSSRApp, h, type DefineComponent } from 'vue'
+import { createSSRApp, type DefineComponent } from 'vue'
 import { renderToString } from 'vue/server-renderer'
+
+import { renderAppTree } from '@/components/flash-toasts'
 
 const serverOptions = {
   host: process.env.INERTIA_SSR_HOST ?? '127.0.0.1',
@@ -7629,7 +7648,7 @@ createServer(page =>
     },
     setup({ App, props, plugin }) {
       return createSSRApp({
-        render: () => h('div', [h(App, props)]),
+        render: () => renderAppTree(App, props),
       }).use(plugin)
     },
   }),
