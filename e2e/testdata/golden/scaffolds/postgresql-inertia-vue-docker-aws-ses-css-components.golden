@@ -1863,7 +1863,7 @@ func newInertia(
 	appCfg config.App,
 	cfg config.Inertia,
 ) (*inertia.Renderer, error) {
-	renderer, err := inertia.New(
+	renderer, err := inertia.NewRenderer(
 		inertia.WithRoot(views.Root),
 		inertia.WithAssetFS(assets.Files),
 		inertia.WithProjectName(appCfg.ProjectName),
