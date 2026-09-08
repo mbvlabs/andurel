@@ -1,59 +1,9 @@
 import '../../css/base.css'
 
-import { createApp, createSSRApp, h, defineComponent, onMounted, onUnmounted, ref, type DefineComponent } from 'vue'
-import { createInertiaApp, router } from '@inertiajs/vue3'
+import { createApp, createSSRApp, type DefineComponent } from 'vue'
+import { createInertiaApp } from '@inertiajs/vue3'
 
-type FlashMessage = {
-  Type: string
-  Message: string
-}
-
-const FlashToasts = defineComponent({
-  props: {
-    initialFlashes: Array,
-  },
-  setup(props) {
-    const toasts = ref<Array<FlashMessage & { id: number }>>([])
-    let nextId = 0
-
-    function pushFlashes(flashes: unknown) {
-      if (!Array.isArray(flashes)) {return}
-      for (const value of flashes) {
-        if (!value || typeof value !== 'object') {continue}
-        const flash = value as Record<string, unknown>
-        if (typeof flash.Type !== 'string' || typeof flash.Message !== 'string') {continue}
-        const id = nextId++
-        toasts.value.push({ Type: flash.Type, Message: flash.Message, id })
-        setTimeout(() => {
-          toasts.value = toasts.value.filter(t => t.id !== id)
-        }, 5000)
-      }
-    }
-
-    let removeListener: (() => void) | undefined
-    onMounted(() => {
-      pushFlashes(props.initialFlashes)
-      removeListener = router.on('success', event => pushFlashes(event.detail.page.flash))
-    })
-    onUnmounted(() => removeListener?.())
-
-    return () => {
-      if (toasts.value.length === 0) {return null}
-      const items = toasts.value.map(t => {
-        const colorClass = t.Type === 'success'
-          ? 'border-[#8df7a4] text-[#8df7a4]'
-          : t.Type === 'error'
-            ? 'border-[#ff875f] text-[#ff875f]'
-            : 'border-[#ff6b1a] text-[#e4dfd2]'
-        return h('div', {
-          key: t.id,
-          class: `${colorClass} mb-2 border bg-[#101414] px-4 py-3 shadow-lg shadow-black/40 transition-opacity duration-300`,
-        }, t.Message)
-      })
-      return h('div', { class: 'fixed bottom-4 right-4 z-50' }, items)
-    }
-  },
-})
+import { renderAppTree } from '@/components/flash-toasts'
 
 createInertiaApp({
   resolve: (name: string): DefineComponent => {
@@ -64,10 +14,7 @@ createInertiaApp({
     const createVueApp = el.dataset.serverRendered === 'true' ? createSSRApp : createApp
     createVueApp({
       render() {
-        return h('div', [
-          h(App, props),
-          h(FlashToasts, { initialFlashes: props.initialPage.flash as unknown as FlashMessage[] | undefined }),
-        ])
+        return renderAppTree(App, props)
       },
     })
       .use(plugin)

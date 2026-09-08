@@ -18,7 +18,9 @@ func TestScaffoldSvelteInertiaAssets(t *testing.T) {
 	}
 
 	for path, want := range map[string]string{
-		"resources/js/app.ts":                                 "mount(App, { target: el, props })",
+		"resources/js/app.ts":                                 "mount(AppTree, { target: el, props: treeProps })",
+		"resources/js/ssr.ts":                                 "return render(AppTree, { props: { ...props, App } })",
+		"resources/js/Components/AppTree.svelte":              "<FlashToasts initialFlashes={initialPage?.flash} />",
 		"resources/js/Components/FlashToasts.svelte":          "$effect(() =>",
 		"resources/js/Layouts/Layout.svelte":                  "{@render children()}",
 		"resources/js/Pages/Auth/ConfirmEmail.svelte":         "$form.post(routes.confirmationCreate())",
@@ -48,6 +50,14 @@ func TestScaffoldSvelteInertiaAssets(t *testing.T) {
 	assertFileContains(t, projectDir, "tsconfig.json", `"types": ["vite/client", "node"]`)
 	assertFileNotContains(t, projectDir, "package.json", "@inertiajs/vue3")
 	assertFileNotContains(t, projectDir, "package.json", "@inertiajs/react")
+	assertFileContains(
+		t,
+		projectDir,
+		"resources/js/app.ts",
+		"hydrate(AppTree, { target: el, props: treeProps })",
+	)
+	assertFileNotContains(t, projectDir, "resources/js/app.ts", "document.body")
+	assertFileNotContains(t, projectDir, "resources/js/ssr.ts", "return render(App, { props })")
 	assertFileMissing(t, projectDir, "resources/js/app.tsx")
 	assertFileMissing(t, projectDir, "resources/js/Pages/Auth/Login.vue")
 	assertFileMissing(t, projectDir, "resources/js/Pages/Auth/Login.tsx")
