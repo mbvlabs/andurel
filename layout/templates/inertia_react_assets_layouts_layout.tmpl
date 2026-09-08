@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { routes } from '../routes'
+import { routes } from '@/routes'
 
 type LayoutProps = {
   children: ReactNode
