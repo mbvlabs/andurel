@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.4.1 - 2026-09-08
+
 ### Changed
 
 - Public init is `NewRenderer` + `NewSSRRuntime` on `Renderer` and `SSRRuntime`.
