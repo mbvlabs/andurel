@@ -873,9 +873,7 @@ file -----------rw-r--r-- andurel.lock
   "scaffoldConfig": {
     "database": "postgresql",
     "inertia": "vue",
-    "inertiaSSRRuntime": "node",
     "javascriptPackageManager": "npm",
-    "javascriptRuntime": "npm",
     "projectName": "testapp"
   },
   "schemaVersion": 1,
@@ -1257,23 +1255,22 @@ func newInertia(
 	appCfg config.App,
 	cfg config.Inertia,
 ) (*inertia.Renderer, error) {
-	renderer, err := inertia.New(
+	renderer, err := inertia.NewRenderer(
+		cfg.ContainerID,
+		routes.ViteBuild.Path(),
+		cfg.EntryPoint,
+		cfg.ViteDevURL,
+		inertia.SSRClientConfig{
+			URL:              cfg.SSRURL,
+			Timeout:          cfg.SSRRequestTimeout,
+			MaxResponseBytes: cfg.SSRMaxResponseBytes,
+		},
 		inertia.WithRoot(views.Root),
 		inertia.WithAssetFS(assets.Files),
 		inertia.WithProjectName(appCfg.ProjectName),
 		inertia.WithEnvironment(appCfg.Environment),
-		inertia.WithBuildPathURL(routes.ViteBuild.Path()),
-		inertia.WithEntryPoint(cfg.EntryPoint),
-		inertia.WithContainerID(cfg.ContainerID),
-		inertia.WithViteDevURL(cfg.ViteDevURL),
 		inertia.WithProtocolDebug(cfg.ProtocolDebug),
 		inertia.WithShared(inertia.Props{"appVersion": appVersion}),
-		inertia.WithSSRRuntime(cfg.SSRRuntime),
-		inertia.WithSSRBundle(cfg.SSRBundle),
-		inertia.WithSSRURL(cfg.SSRURL),
-		inertia.WithSSRStartupTimeout(cfg.SSRStartupTimeout),
-		inertia.WithSSRRequestTimeout(cfg.SSRRequestTimeout),
-		inertia.WithSSRMaxResponseBytes(cfg.SSRMaxResponseBytes),
 		inertia.WithSSRFailFast(cfg.SSRFailFast),
 	)
 	if err != nil {
@@ -1630,7 +1627,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	runtime, err := inertia.NewManagedRuntime(cfg.ManagedSSRConfig())
+	runtime, err := inertia.NewSSRRuntime(cfg.SSRConfig())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "inertia SSR runtime: %v\n", err)
 		os.Exit(1)
@@ -2222,6 +2219,7 @@ const (
 	DefaultInertiaSSRStartupTimeout   = 10 * time.Second
 	DefaultInertiaSSRRequestTimeout   = 2 * time.Second
 	DefaultInertiaSSRMaxResponseBytes = int64(2097152)
+	DefaultInertiaSSRMinimumMajor     = 22
 	DefaultInertiaSSRFailFast         = false
 	DefaultInertiaEntryPoint          = "resources/js/app.ts"
 )
@@ -2236,6 +2234,7 @@ type Inertia struct {
 	SSRStartupTimeout   time.Duration
 	SSRRequestTimeout   time.Duration
 	SSRMaxResponseBytes int64
+	SSRMinimumMajor     int
 	SSRFailFast         bool
 	EntryPoint          string
 }
@@ -2261,8 +2260,9 @@ func NewInertia() (Inertia, error) {
 			"INERTIA_SSR_MAX_RESPONSE_BYTES",
 			DefaultInertiaSSRMaxResponseBytes,
 		),
-		SSRFailFast: env.Bool("INERTIA_SSR_FAIL_FAST", DefaultInertiaSSRFailFast),
-		EntryPoint:  env.String("INERTIA_ENTRY_POINT", DefaultInertiaEntryPoint),
+		SSRMinimumMajor: env.Int("INERTIA_SSR_MINIMUM_MAJOR", DefaultInertiaSSRMinimumMajor),
+		SSRFailFast:     env.Bool("INERTIA_SSR_FAIL_FAST", DefaultInertiaSSRFailFast),
+		EntryPoint:      env.String("INERTIA_ENTRY_POINT", DefaultInertiaEntryPoint),
 	}
 
 	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
@@ -2283,7 +2283,7 @@ func (c Inertia) validate() error {
 		return err
 	}
 
-	http := inertia.SSRConfig{
+	http := inertia.SSRClientConfig{
 		URL:              c.SSRURL,
 		Timeout:          c.SSRRequestTimeout,
 		MaxResponseBytes: c.SSRMaxResponseBytes,
@@ -2294,24 +2294,27 @@ func (c Inertia) validate() error {
 	if c.SSRStartupTimeout <= 0 {
 		return fmt.Errorf("SSRStartupTimeout must be positive")
 	}
+	if c.SSRMinimumMajor <= 0 {
+		return fmt.Errorf("SSRMinimumMajor must be positive")
+	}
 
 	return nil
 }
 
-// ManagedSSRConfig returns settings for cmd/ssr to start the Node process.
-func (c Inertia) ManagedSSRConfig() inertia.ManagedConfig {
-	managed := inertia.DefaultManagedConfig()
-	managed.Enabled = true
-	managed.Executable = c.SSRRuntime
-	managed.BundlePath = c.SSRBundle
-	managed.StartupTimeout = c.SSRStartupTimeout
-	managed.HTTP = inertia.SSRConfig{
-		URL:              c.SSRURL,
-		Timeout:          c.SSRRequestTimeout,
-		MaxResponseBytes: c.SSRMaxResponseBytes,
+// SSRConfig returns settings for cmd/ssr to start the Node process.
+func (c Inertia) SSRConfig() inertia.SSRConfig {
+	return inertia.SSRConfig{
+		Enabled:        true,
+		Executable:     c.SSRRuntime,
+		BundlePath:     c.SSRBundle,
+		StartupTimeout: c.SSRStartupTimeout,
+		MinimumMajor:   c.SSRMinimumMajor,
+		HTTP: inertia.SSRClientConfig{
+			URL:              c.SSRURL,
+			Timeout:          c.SSRRequestTimeout,
+			MaxResponseBytes: c.SSRMaxResponseBytes,
+		},
 	}
-
-	return managed
 }
 ```
 
@@ -3012,7 +3015,7 @@ func (c Confirmations) RegisterRoutes(r *router.Router) error {
 }
 
 func (c Confirmations) New(etx *echo.Context) error {
-	return c.renderer.Page(etx, "Auth/ConfirmEmail", inertia.Props{})
+	return c.renderer.Page(etx, "Auth/ConfirmEmail", inertia.Props{}).Render()
 }
 
 func (c Confirmations) Create(etx *echo.Context) error {
@@ -3027,7 +3030,7 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return c.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return c.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
 	user, err := c.identity.VerifyEmail(
@@ -3042,8 +3045,7 @@ func (c Confirmations) Create(etx *echo.Context) error {
 				etx,
 				"Auth/ConfirmEmail",
 				inertia.Props{},
-				inertia.WithValidationErrors(validationErrors.ToMap()),
-			)
+			).ValidationErrors(validationErrors.ToMap()).Render()
 		}
 
 		slog.ErrorContext(
@@ -3064,7 +3066,7 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		}
 
 		if flashErr := c.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+			return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		}
 
 		return c.renderer.Redirect(etx, routes.ConfirmationNew.URL(), http.StatusSeeOther)
@@ -3078,7 +3080,7 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	if flashErr := c.session.AddFlash(
@@ -3086,7 +3088,7 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		cookies.FlashSuccess,
 		"Email verified successfully!",
 	); flashErr != nil {
-		return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	return c.renderer.Location(etx, routes.HomePage.URL())
@@ -3210,7 +3212,7 @@ func (p Pages) Home(etx *echo.Context) error {
 }
 
 func (p Pages) NotFound(etx *echo.Context) error {
-	return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
+	return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
 }
 ```
 
@@ -3279,7 +3281,7 @@ func (r Registrations) RegisterRoutes(rtr *router.Router) error {
 }
 
 func (r Registrations) New(etx *echo.Context) error {
-	return r.renderer.Page(etx, "Auth/Registration", inertia.Props{})
+	return r.renderer.Page(etx, "Auth/Registration", inertia.Props{}).Render()
 }
 
 func (r Registrations) Create(etx *echo.Context) error {
@@ -3296,7 +3298,7 @@ func (r Registrations) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return r.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return r.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
 	if err := r.identity.RegisterUser(
@@ -3312,8 +3314,7 @@ func (r Registrations) Create(etx *echo.Context) error {
 				etx,
 				"Auth/Registration",
 				inertia.Props{},
-				inertia.WithValidationErrors(validationErrors.ToMap()),
-			)
+			).ValidationErrors(validationErrors.ToMap()).Render()
 		}
 
 		slog.ErrorContext(
@@ -3328,7 +3329,7 @@ func (r Registrations) Create(etx *echo.Context) error {
 			cookies.FlashError,
 			"Failed to register user",
 		); flashErr != nil {
-			return r.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+			return r.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		}
 
 		return r.renderer.Redirect(etx, routes.RegistrationNew.URL(), http.StatusSeeOther)
@@ -3419,7 +3420,7 @@ func (rp ResetPasswords) RegisterRoutes(r *router.Router) error {
 }
 
 func (rp ResetPasswords) New(etx *echo.Context) error {
-	return rp.renderer.Page(etx, "Auth/ResetPasswordRequest", inertia.Props{})
+	return rp.renderer.Page(etx, "Auth/ResetPasswordRequest", inertia.Props{}).Render()
 }
 
 func (rp ResetPasswords) Create(etx *echo.Context) error {
@@ -3435,7 +3436,7 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return rp.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return rp.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
 	if err := rp.identity.RequestResetPassword(
@@ -3449,8 +3450,7 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 				etx,
 				"Auth/ResetPasswordRequest",
 				inertia.Props{},
-				inertia.WithValidationErrors(validationErrors.ToMap()),
-			)
+			).ValidationErrors(validationErrors.ToMap()).Render()
 		}
 
 		slog.ErrorContext(
@@ -3464,7 +3464,7 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 			cookies.FlashError,
 			"Failed to send password reset code",
 		); flashErr != nil {
-			return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+			return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		}
 
 		return rp.renderer.Redirect(etx, routes.PasswordNew.URL(), http.StatusSeeOther)
@@ -3475,7 +3475,7 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 		cookies.FlashSuccess,
 		"If an account exists with that email, you will receive password reset instructions.",
 	); flashErr != nil {
-		return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	return rp.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
@@ -3491,7 +3491,7 @@ func (rp ResetPasswords) Edit(etx *echo.Context) error {
 			cookies.FlashError,
 			"Invalid or missing reset token",
 		); flashErr != nil {
-			return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+			return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		}
 
 		return rp.renderer.Redirect(etx, routes.PasswordNew.URL(), http.StatusSeeOther)
@@ -3499,7 +3499,7 @@ func (rp ResetPasswords) Edit(etx *echo.Context) error {
 
 	return rp.renderer.Page(etx, "Auth/ResetPassword", inertia.Props{
 		"token": token,
-	})
+	}).Render()
 }
 
 func (rp ResetPasswords) Update(etx *echo.Context) error {
@@ -3516,7 +3516,7 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return rp.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return rp.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
 	if err := rp.identity.ResetPassword(
@@ -3532,8 +3532,7 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 				etx,
 				"Auth/ResetPassword",
 				inertia.Props{"token": payload.Token},
-				inertia.WithValidationErrors(validationErrors.ToMap()),
-			)
+			).ValidationErrors(validationErrors.ToMap()).Render()
 		}
 
 		slog.ErrorContext(
@@ -3554,7 +3553,7 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 		}
 
 		if flashErr := rp.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+			return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		}
 		redirectPath := routes.PasswordEdit.URL(payload.Token)
 		if payload.Token != "" {
@@ -3569,7 +3568,7 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 		cookies.FlashSuccess,
 		"Password reset successfully! Please log in.",
 	); flashErr != nil {
-		return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return rp.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	return rp.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
@@ -3651,7 +3650,7 @@ func (s Sessions) RegisterRoutes(r *router.Router) error {
 }
 
 func (s Sessions) New(etx *echo.Context) error {
-	return s.renderer.Page(etx, "Auth/Login", inertia.Props{})
+	return s.renderer.Page(etx, "Auth/Login", inertia.Props{}).Render()
 }
 
 func (s Sessions) Create(etx *echo.Context) error {
@@ -3667,7 +3666,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return s.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
 	user, err := s.identity.AuthenticateUser(
@@ -3683,8 +3682,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 				etx,
 				"Auth/Login",
 				inertia.Props{},
-				inertia.WithValidationErrors(validationErrors.ToMap()),
-			)
+			).ValidationErrors(validationErrors.ToMap()).Render()
 		}
 
 		slog.ErrorContext(
@@ -3705,7 +3703,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 		}
 
 		if flashErr := s.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+			return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		}
 
 		return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
@@ -3719,7 +3717,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	if flashErr := s.session.AddFlash(
@@ -3727,7 +3725,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 		cookies.FlashSuccess,
 		"Successfully logged in!",
 	); flashErr != nil {
-		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	return s.renderer.Location(etx, routes.HomePage.URL())
@@ -3741,7 +3739,7 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	if flashErr := s.session.AddFlash(
@@ -3749,7 +3747,7 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 		cookies.FlashSuccess,
 		"Successfully logged out!",
 	); flashErr != nil {
-		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)

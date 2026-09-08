@@ -1875,7 +1875,6 @@ type ScaffoldConfig struct {
 	Database                 string `json:"database"`
 	Inertia                  string `json:"inertia,omitempty"`
 	JavaScriptPackageManager string `json:"javascriptPackageManager,omitempty"`
-	InertiaSSRRuntime        string `json:"inertiaSSRRuntime,omitempty"`
 	JavaScriptRuntime        string `json:"javascriptRuntime,omitempty"` // Deprecated: use JavaScriptPackageManager.
 }
     ScaffoldConfig records the options used to create a project.
@@ -1883,9 +1882,6 @@ type ScaffoldConfig struct {
 func (config *ScaffoldConfig) PackageManager() string
     PackageManager returns the configured JavaScript package manager. Locks from
     before V2 used javascriptRuntime for this value.
-
-func (config *ScaffoldConfig) SSRRuntime() string
-    SSRRuntime returns the JavaScript executable selected for Inertia SSR.
 
 type TemplateData struct {
 	AppName              string
@@ -2876,13 +2872,13 @@ const (
 	// TailwindCLI is the default Tailwind CSS CLI version.
 	TailwindCLI = "v4.3.2"
 	// Shadowfax is the default Shadowfax runner version.
-	Shadowfax = "v0.9.0"
+	Shadowfax = "v0.9.1"
 	// Sqlc is the default sqlc tool version.
 	Sqlc = "v1.31.1"
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
 	Hypermedia = "v0.2.2"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.3.1"
+	Inertia = "v0.4.0"
 	// Email is the standalone Andurel email module version verified with this framework.
 	Email = "v0.3.1"
 	// Routing is the standalone Andurel routing module version verified with this framework.
@@ -3553,7 +3549,7 @@ VARIABLES
 
 var ErrResponseTooLarge = errors.New("inertia: SSR response exceeds configured limit")
     ErrResponseTooLarge reports an SSR response that exceeds
-    SSRConfig.MaxResponseBytes.
+    SSRClientConfig.MaxResponseBytes.
 
 
 FUNCTIONS
@@ -3582,19 +3578,6 @@ func SSRHead(response *SSRResponse) templ.Component
 
 
 TYPES
-
-type Config struct {
-	ContainerID   string
-	ProtocolDebug bool
-	SSRFailFast   bool
-}
-    Config controls stable renderer behavior.
-
-func DefaultConfig() Config
-    DefaultConfig returns the renderer's protocol defaults.
-
-func (config Config) Validate() error
-    Validate verifies required renderer configuration.
 
 type DeferredOption func(*Prop)
     DeferredOption configures a deferred prop.
@@ -3638,7 +3621,7 @@ type HTTPRenderer struct {
     HTTPRenderer implements the official Inertia JavaScript SSR HTTP contract.
     Head and body markup returned by this renderer must be treated as trusted.
 
-func NewHTTPRenderer(config SSRConfig, options ...HTTPRendererOption) (*HTTPRenderer, error)
+func NewHTTPRenderer(config SSRClientConfig, options ...HTTPRendererOption) (*HTTPRenderer, error)
     NewHTTPRenderer creates a bounded SSR HTTP renderer.
 
 func (renderer *HTTPRenderer) Health(ctx context.Context) error
@@ -3665,54 +3648,6 @@ func WithHTTPRendererTimeout(timeout time.Duration) HTTPRendererOption
 
 func WithHTTPRendererURL(rawURL string) HTTPRendererOption
     WithHTTPRendererURL overrides the SSR service URL.
-
-type ManagedConfig struct {
-	Enabled        bool
-	BundlePath     string
-	Executable     string
-	StartupTimeout time.Duration
-	MinimumMajor   int
-	HTTP           SSRConfig
-	Logger         *slog.Logger
-	Stdout         io.Writer
-	Stderr         io.Writer
-}
-    ManagedConfig controls a JavaScript SSR process owned by cmd/ssr (or an
-    equivalent operator entrypoint), not by the HTTP application process.
-
-func DefaultManagedConfig() ManagedConfig
-    DefaultManagedConfig returns defaults for an optional managed SSR process.
-    Applications provide the compiled bundle path before enabling the runtime.
-
-func (config ManagedConfig) Validate() error
-    Validate verifies managed runtime configuration.
-
-type ManagedRuntime struct {
-	// Has unexported fields.
-}
-    ManagedRuntime owns one JavaScript process and exposes its HTTP renderer.
-
-func NewManagedRuntime(
-	config ManagedConfig,
-	options ...HTTPRendererOption,
-) (*ManagedRuntime, error)
-    NewManagedRuntime constructs a managed runtime without starting it.
-
-func (runtime *ManagedRuntime) Errors() <-chan error
-    Errors reports unexpected child-process exits. The channel remains valid if
-    the runtime is restarted.
-
-func (runtime *ManagedRuntime) Renderer() SSRRenderer
-    Renderer returns the configured renderer, or nil when the runtime is
-    disabled.
-
-func (runtime *ManagedRuntime) Start(ctx context.Context) error
-    Start starts the configured JavaScript process and waits for health
-    readiness.
-
-func (runtime *ManagedRuntime) Stop(ctx context.Context) error
-    Stop gracefully stops the managed process and kills it when the context
-    ends.
 
 type OnceMetadata struct {
 	Prop      string `json:"prop"`
@@ -3743,13 +3678,6 @@ func WithAssetFS(assetFS fs.FS) Option
     WithAssetFS supplies the embedded application asset filesystem used for the
     production Vite manifest.
 
-func WithBuildPathURL(path string) Option
-
-func WithContainerID(id string) Option
-    WithContainerID configures the client application mount element ID.
-
-func WithEntryPoint(entryPoint string) Option
-
 func WithEnvironment(environment string) Option
 
 func WithFlashProvider(provider FlashProvider) Option
@@ -3767,23 +3695,11 @@ func WithReflash(handler ReflashHandler) Option
 
 func WithRoot(root RootFunc) Option
 
-func WithSSRBundle(path string) Option
-
 func WithSSRFailFast(enabled bool) Option
     WithSSRFailFast makes per-response SSR failures abort the initial response.
 
-func WithSSRMaxResponseBytes(size int64) Option
-
 func WithSSRRenderer(ssr SSRRenderer) Option
     WithSSRRenderer configures the SSR gateway used only by pages with WithSSR.
-
-func WithSSRRequestTimeout(timeout time.Duration) Option
-
-func WithSSRRuntime(executable string) Option
-
-func WithSSRStartupTimeout(timeout time.Duration) Option
-
-func WithSSRURL(rawURL string) Option
 
 func WithShared(props Props) Option
     WithShared configures static shared props. Renderer construction copies
@@ -3797,8 +3713,6 @@ func WithVersion(version string) Option
 
 func WithVersionProvider(provider VersionProvider) Option
     WithVersionProvider configures a request-scoped asset version provider.
-
-func WithViteDevURL(rawURL string) Option
 
 type Page struct {
 	Component        string                    `json:"component"`
@@ -3821,29 +3735,34 @@ type Page struct {
 }
     Page is the Inertia v3 page object sent to the browser and SSR runtime.
 
-type PageOption func(*pageOptions) error
-    PageOption configures one page response.
+type PageBuilder struct {
+	// Has unexported fields.
+}
+    PageBuilder configures and renders a single Inertia page response.
 
-func WithFlash(flash any) PageOption
-    WithFlash adds v3 flash data to the page field (not props).
+func (p *PageBuilder) Flash(flash any) *PageBuilder
+    Flash adds v3 flash data to the page field (not props).
 
-func WithHistoryClear() PageOption
-    WithHistoryClear clears client history for this response.
+func (p *PageBuilder) HistoryClear() *PageBuilder
+    HistoryClear clears client history for this response.
 
-func WithHistoryEncryption(enabled bool) PageOption
-    WithHistoryEncryption controls encrypted browser history metadata.
+func (p *PageBuilder) HistoryEncryption(enabled bool) *PageBuilder
+    HistoryEncryption controls encrypted browser history metadata.
 
-func WithPreserveFragment() PageOption
-    WithPreserveFragment preserves the original fragment across a redirect.
+func (p *PageBuilder) PreserveFragment() *PageBuilder
+    PreserveFragment preserves the original fragment across a redirect.
 
-func WithSSR() PageOption
-    WithSSR opts only this initial document response into SSR.
+func (p *PageBuilder) Render() error
+    Render resolves and renders the Inertia page response.
 
-func WithStatus(status int) PageOption
-    WithStatus sets the page response status.
+func (p *PageBuilder) SSR() *PageBuilder
+    SSR opts this initial document response into server-side rendering.
 
-func WithValidationErrors(errors map[string]string) PageOption
-    WithValidationErrors sets the protected errors prop for this response.
+func (p *PageBuilder) Status(status int) *PageBuilder
+    Status sets the page response HTTP status code.
+
+func (p *PageBuilder) ValidationErrors(errors map[string]string) *PageBuilder
+    ValidationErrors sets the protected errors prop for this response.
 
 type Prop struct {
 	// Has unexported fields.
@@ -3919,9 +3838,21 @@ type Renderer struct {
 }
     Renderer implements the Inertia v3 server protocol for Echo and templ.
 
-func New(options ...Option) (*Renderer, error)
-    New constructs a reusable renderer. Applications must supply their compiled
-    document with WithRoot and any other settings they need.
+func NewRenderer(
+	containerID string,
+	buildPathURL string,
+	entryPoint string,
+	viteDevURL string,
+	ssrConfig SSRClientConfig,
+	options ...Option,
+) (*Renderer, error)
+    NewRenderer constructs the Inertia protocol renderer used by cmd/app.
+
+    It always serves the Inertia protocol (CSR by default). Pages that pass
+    WithSSR() call the configured SSR HTTP endpoint. Node process ownership
+    belongs to NewSSRRuntime / cmd/ssr. Required Inertia protocol settings are
+    positional arguments; optional behavior is configured with options such as
+    WithRoot, WithAssetFS, and WithEnvironment.
 
 func (renderer *Renderer) FreshRedirect(etx *echo.Context, location string) error
     FreshRedirect makes an Inertia visit perform a fresh Inertia GET.
@@ -3937,9 +3868,8 @@ func (renderer *Renderer) Page(
 	etx *echo.Context,
 	component string,
 	props Props,
-	opts ...PageOption,
-) error
-    Page resolves and renders one Inertia page response.
+) *PageBuilder
+    Page starts building one Inertia page response.
 
 func (renderer *Renderer) Redirect(etx *echo.Context, location string, status int) error
     Redirect creates a normal redirect. Middleware upgrades unsafe 302 responses
@@ -3948,15 +3878,6 @@ func (renderer *Renderer) Redirect(etx *echo.Context, location string, status in
 func (renderer *Renderer) SetReflashHandler(handler ReflashHandler) error
     SetReflashHandler configures flash preservation before the renderer starts
     serving requests. Generated applications use this at router construction.
-
-func (renderer *Renderer) Shutdown(ctx context.Context) error
-    Shutdown stops an attached managed SSR runtime. It is a no-op for the
-    default HTTP-client configuration used by cmd/app.
-
-func (renderer *Renderer) Start(ctx context.Context) error
-    Start is retained for lifecycle hooks. The HTTP app does not own the Node
-    SSR process; use cmd/ssr (or an operator) for that. This method is a no-op
-    unless a custom managed runtime was attached.
 
 type Request struct {
 	Inertia          bool
@@ -4002,18 +3923,32 @@ type RootData struct {
 type RootFunc func(RootData) templ.Component
     RootFunc constructs the application's compiled templ document.
 
-type SSRConfig struct {
+type SSRClientConfig struct {
 	URL              string
 	Timeout          time.Duration
 	MaxResponseBytes int64
 }
-    SSRConfig controls communication with an Inertia SSR HTTP service.
+    SSRClientConfig controls communication with an Inertia SSR HTTP service.
 
-func DefaultSSRConfig() SSRConfig
-    DefaultSSRConfig returns bounded HTTP settings for a local SSR service.
+func (config SSRClientConfig) Validate() error
+    Validate verifies HTTP renderer configuration.
+
+type SSRConfig struct {
+	Enabled        bool
+	BundlePath     string
+	Executable     string
+	StartupTimeout time.Duration
+	MinimumMajor   int
+	HTTP           SSRClientConfig
+	Logger         *slog.Logger
+	Stdout         io.Writer
+	Stderr         io.Writer
+}
+    SSRConfig controls a JavaScript SSR process owned by cmd/ssr (or an
+    equivalent operator entrypoint), not by the HTTP application process.
 
 func (config SSRConfig) Validate() error
-    Validate verifies HTTP renderer configuration.
+    Validate verifies SSR runtime configuration.
 
 type SSRRenderer interface {
 	Render(context.Context, Page) (*SSRResponse, error)
@@ -4026,6 +3961,36 @@ type SSRResponse struct {
 	Body string   `json:"body"`
 }
     SSRResponse contains trusted markup from the configured local SSR runtime.
+
+type SSRRuntime struct {
+	// Has unexported fields.
+}
+    SSRRuntime owns one JavaScript process and exposes its HTTP renderer.
+
+func NewSSRRuntime(
+	config SSRConfig,
+	options ...HTTPRendererOption,
+) (*SSRRuntime, error)
+    NewSSRRuntime constructs an SSR runtime without starting it. The
+    configuration is authoritative: every field must be supplied by the caller
+    except Logger, Stdout, and Stderr, which default to slog.Default, os.Stdout,
+    and os.Stderr.
+
+func (runtime *SSRRuntime) Errors() <-chan error
+    Errors reports unexpected child-process exits. The channel remains valid if
+    the runtime is restarted.
+
+func (runtime *SSRRuntime) Renderer() SSRRenderer
+    Renderer returns the configured renderer, or nil when the runtime is
+    disabled.
+
+func (runtime *SSRRuntime) Start(ctx context.Context) error
+    Start starts the configured JavaScript process and waits for health
+    readiness.
+
+func (runtime *SSRRuntime) Stop(ctx context.Context) error
+    Stop gracefully stops the managed process and kills it when the context
+    ends.
 
 type SSRTransportError struct {
 	Kind      SSRTransportErrorKind

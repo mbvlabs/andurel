@@ -190,12 +190,9 @@
         "javascriptPackageManager": {
           "type": "string"
         },
-        "inertiaSSRRuntime": {
-          "type": "string"
-        },
         "javascriptRuntime": {
           "type": "string",
-          "description": "Deprecated V1 package-manager field"
+          "description": "Deprecated V1 package-manager field; readers migrate it to javascriptPackageManager"
         }
       },
       "additionalProperties": true

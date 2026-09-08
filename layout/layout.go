@@ -118,10 +118,6 @@ func Scaffold(
 		Database:                 database,
 		Inertia:                  inertia,
 		JavaScriptPackageManager: javascriptRuntime,
-		JavaScriptRuntime:        javascriptRuntime,
-	}
-	if IsSupportedInertiaAdapter(inertia) {
-		scaffoldConfig.InertiaSSRRuntime = "node"
 	}
 	if err := generateLockFile(targetDir, version, scaffoldConfig, extensionNames); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)

@@ -58,7 +58,7 @@ func TestScaffoldSvelteInertiaAssets(t *testing.T) {
 	}
 	if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia != "svelte" ||
 		lock.ScaffoldConfig.PackageManager() != "npm" ||
-		lock.ScaffoldConfig.SSRRuntime() != "node" {
+		lock.ScaffoldConfig.JavaScriptRuntime != "" {
 		t.Fatalf("unexpected scaffold config: %#v", lock.ScaffoldConfig)
 	}
 }

@@ -33,42 +33,44 @@ type RootData struct {
 // every slash is escaped without HTML-entity encoding the script body.
 func PageScript(containerID string, pageJSON []byte) templ.Component {
 	return templ.ComponentFunc(func(_ context.Context, writer io.Writer) error {
-		escaped, err := pageScriptJSON(pageJSON)
-		if err != nil {
-			return err
+		decoder := json.NewDecoder(bytes.NewReader(pageJSON))
+		decoder.UseNumber()
+		var value any
+		if err := decoder.Decode(&value); err != nil {
+			return fmt.Errorf("inertia: invalid page JSON: %w", err)
 		}
+
+		if err := decoder.Decode(&struct{}{}); err != io.EOF {
+			return fmt.Errorf("inertia: invalid trailing page JSON")
+		}
+
+		var normalized bytes.Buffer
+		encoder := json.NewEncoder(&normalized)
+		encoder.SetEscapeHTML(false)
+		if err := encoder.Encode(value); err != nil {
+			return fmt.Errorf("inertia: normalize page JSON: %w", err)
+		}
+
+		escaped := bytes.ReplaceAll(
+			bytes.TrimSuffix(normalized.Bytes(), []byte("\n")),
+			[]byte("/"),
+			[]byte(`\/`),
+		)
+
 		if _, err := io.WriteString(
 			writer,
 			`<script data-page="`+html.EscapeString(containerID)+`" type="application/json">`,
 		); err != nil {
 			return err
 		}
+
 		if _, err := writer.Write(escaped); err != nil {
 			return err
 		}
-		_, err = io.WriteString(writer, `</script>`)
+
+		_, err := io.WriteString(writer, `</script>`)
 		return err
 	})
-}
-
-func pageScriptJSON(pageJSON []byte) ([]byte, error) {
-	decoder := json.NewDecoder(bytes.NewReader(pageJSON))
-	decoder.UseNumber()
-	var value any
-	if err := decoder.Decode(&value); err != nil {
-		return nil, fmt.Errorf("inertia: invalid page JSON: %w", err)
-	}
-	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		return nil, fmt.Errorf("inertia: invalid trailing page JSON")
-	}
-	var normalized bytes.Buffer
-	encoder := json.NewEncoder(&normalized)
-	encoder.SetEscapeHTML(false)
-	if err := encoder.Encode(value); err != nil {
-		return nil, fmt.Errorf("inertia: normalize page JSON: %w", err)
-	}
-	result := bytes.TrimSuffix(normalized.Bytes(), []byte("\n"))
-	return bytes.ReplaceAll(result, []byte("/"), []byte(`\/`)), nil
 }
 
 // AppMount renders the empty client-rendering mount element.
@@ -85,6 +87,7 @@ func SSRHead(response *SSRResponse) templ.Component {
 		if response == nil {
 			return nil
 		}
+
 		_, err := io.WriteString(writer, strings.Join(response.Head, "\n"))
 		return err
 	})
@@ -97,6 +100,7 @@ func SSRBody(response *SSRResponse) templ.Component {
 		if response == nil {
 			return nil
 		}
+
 		_, err := io.WriteString(writer, response.Body)
 		return err
 	})

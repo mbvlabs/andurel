@@ -384,12 +384,14 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	}
 	wiring := readGeneratedApplicationTemplate(t, "cmd_app_main.tmpl")
 	for _, want := range []string{
+		"cfg.ContainerID,",
+		"routes.ViteBuild.Path(),",
+		"cfg.EntryPoint,",
+		"cfg.ViteDevURL,",
+		"inertia.SSRClientConfig{",
+		"cfg.SSRURL,",
 		"inertia.WithRoot(views.Root)",
 		"inertia.WithAssetFS(assets.Files)",
-		"inertia.WithBuildPathURL(routes.ViteBuild.Path())",
-		"inertia.WithEntryPoint(cfg.EntryPoint)",
-		"inertia.WithViteDevURL(cfg.ViteDevURL)",
-		"inertia.WithSSRURL(cfg.SSRURL)",
 	} {
 		if !strings.Contains(wiring, want) {
 			t.Errorf("command wiring missing inertia option %q", want)
@@ -442,7 +444,7 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	for _, want := range []string{
 		"type Inertia struct",
 		"func NewInertia() (Inertia, error)",
-		"ManagedSSRConfig()",
+		"SSRConfig()",
 	} {
 		if !strings.Contains(inertiaConfig, want) {
 			t.Errorf("config_inertia.tmpl missing %q", want)
@@ -453,8 +455,8 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 			t.Errorf("config_inertia.tmpl should not contain runtime resource %q", unwanted)
 		}
 	}
-	if strings.Contains(inertiaConfig, "SSRMinimumMajor") {
-		t.Error("config_inertia.tmpl should not expose SSR minimum major")
+	if !strings.Contains(inertiaConfig, "SSRMinimumMajor") {
+		t.Error("config_inertia.tmpl should expose SSR minimum major")
 	}
 	if strings.Contains(mainTemplate, "WithSSRMinimumMajor") {
 		t.Error("cmd_app_main.tmpl should not pass WithSSRMinimumMajor")
@@ -489,7 +491,7 @@ func TestStandalonePackagesOwnDefaultsWithoutReadingEnvironment(t *testing.T) {
 		{"email", "mailpit.go"},
 		{"inertia", "config.go"},
 		{"inertia", "ssr_config.go"},
-		{"inertia", "ssr_managed.go"},
+		{"inertia", "ssr_runtime.go"},
 		{"server", "server.go"},
 	}
 	for _, file := range files {
@@ -502,7 +504,7 @@ func TestStandalonePackagesOwnDefaultsWithoutReadingEnvironment(t *testing.T) {
 	}
 	for _, defaults := range []struct{ pkg, name, declaration string }{
 		{"storage", "psql_config.go", "func DefaultConfig("},
-		{"inertia", "config.go", "func DefaultConfig("},
+		{"inertia", "config.go", "func NewRenderer("},
 		{"server", "server.go", "func DefaultConfig("},
 	} {
 		if !strings.Contains(readStandalonePackageFile(t, defaults.pkg, defaults.name), defaults.declaration) {

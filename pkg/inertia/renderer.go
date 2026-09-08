@@ -49,23 +49,10 @@ type Renderer struct {
 	requestFlash    []func(*echo.Context) any
 	ssr             SSRRenderer
 	customSSR       bool
-	managedConfig   ManagedConfig
-	runtime         *ManagedRuntime
+	ssrConfig       SSRClientConfig
 	ssrFailFast     bool
 	reflash         ReflashHandler
 	protocolDebug   bool
-}
-
-// WithContainerID configures the client application mount element ID.
-func WithContainerID(id string) Option {
-	return func(renderer *Renderer) error {
-		id = strings.TrimSpace(id)
-		if id == "" {
-			return fmt.Errorf("inertia: container ID cannot be empty")
-		}
-		renderer.containerID = id
-		return nil
-	}
 }
 
 // WithVersion configures a fixed asset version.
@@ -98,6 +85,7 @@ func WithSharedProvider(provider SharedProvider) Option {
 		if provider == nil {
 			return fmt.Errorf("inertia: shared provider cannot be nil")
 		}
+
 		renderer.sharedProviders = append(renderer.sharedProviders, provider)
 		return nil
 	}
@@ -109,6 +97,7 @@ func WithFlashProvider(provider FlashProvider) Option {
 		if provider == nil {
 			return fmt.Errorf("inertia: flash provider cannot be nil")
 		}
+
 		renderer.requestFlash = append(renderer.requestFlash, provider)
 		return nil
 	}
@@ -138,6 +127,7 @@ func WithReflash(handler ReflashHandler) Option {
 		if handler == nil {
 			return fmt.Errorf("inertia: reflash handler cannot be nil")
 		}
+
 		renderer.reflash = handler
 		return nil
 	}
@@ -158,14 +148,21 @@ func (renderer *Renderer) SetReflashHandler(handler ReflashHandler) error {
 	if renderer == nil {
 		return fmt.Errorf("inertia: renderer is nil")
 	}
+
 	if handler == nil {
 		return fmt.Errorf("inertia: reflash handler cannot be nil")
 	}
+
 	renderer.reflash = handler
 	return nil
 }
 
-type pageOptions struct {
+// PageBuilder configures and renders a single Inertia page response.
+type PageBuilder struct {
+	renderer         *Renderer
+	etx              *echo.Context
+	component        string
+	props            Props
 	status           int
 	ssr              bool
 	validationErrors map[string]string
@@ -175,100 +172,119 @@ type pageOptions struct {
 	flash            any
 }
 
-// PageOption configures one page response.
-type PageOption func(*pageOptions) error
+// SSR opts this initial document response into server-side rendering.
+func (p *PageBuilder) SSR() *PageBuilder { p.ssr = true; return p }
 
-// WithSSR opts only this initial document response into SSR.
-func WithSSR() PageOption { return func(options *pageOptions) error { options.ssr = true; return nil } }
-
-// WithStatus sets the page response status.
-func WithStatus(status int) PageOption {
-	return func(options *pageOptions) error {
-		if status < 100 || status > 599 {
-			return fmt.Errorf("inertia: invalid page status %d", status)
-		}
-		options.status = status
-		return nil
-	}
+// Status sets the page response HTTP status code.
+func (p *PageBuilder) Status(status int) *PageBuilder {
+	p.status = status
+	return p
 }
 
-// WithValidationErrors sets the protected errors prop for this response.
-func WithValidationErrors(errors map[string]string) PageOption {
-	return func(options *pageOptions) error {
-		options.validationErrors = errors
-		return nil
-	}
+// ValidationErrors sets the protected errors prop for this response.
+func (p *PageBuilder) ValidationErrors(errors map[string]string) *PageBuilder {
+	p.validationErrors = errors
+	return p
 }
 
-// WithHistoryEncryption controls encrypted browser history metadata.
-func WithHistoryEncryption(enabled bool) PageOption {
-	return func(options *pageOptions) error { options.encryptHistory = enabled; return nil }
+// HistoryEncryption controls encrypted browser history metadata.
+func (p *PageBuilder) HistoryEncryption(enabled bool) *PageBuilder {
+	p.encryptHistory = enabled
+	return p
 }
 
-// WithHistoryClear clears client history for this response.
-func WithHistoryClear() PageOption {
-	return func(options *pageOptions) error { options.clearHistory = true; return nil }
-}
+// HistoryClear clears client history for this response.
+func (p *PageBuilder) HistoryClear() *PageBuilder { p.clearHistory = true; return p }
 
-// WithPreserveFragment preserves the original fragment across a redirect.
-func WithPreserveFragment() PageOption {
-	return func(options *pageOptions) error { options.preserveFragment = true; return nil }
-}
+// PreserveFragment preserves the original fragment across a redirect.
+func (p *PageBuilder) PreserveFragment() *PageBuilder { p.preserveFragment = true; return p }
 
-// WithFlash adds v3 flash data to the page field (not props).
-func WithFlash(flash any) PageOption {
-	return func(options *pageOptions) error { options.flash = flash; return nil }
-}
+// Flash adds v3 flash data to the page field (not props).
+func (p *PageBuilder) Flash(flash any) *PageBuilder { p.flash = flash; return p }
 
-// Page resolves and renders one Inertia page response.
+// Page starts building one Inertia page response.
 func (renderer *Renderer) Page(
 	etx *echo.Context,
 	component string,
 	props Props,
-	opts ...PageOption,
-) error {
+) *PageBuilder {
+	return &PageBuilder{
+		renderer:  renderer,
+		etx:       etx,
+		component: component,
+		props:     props,
+		status:    http.StatusOK,
+	}
+}
+
+// Render resolves and renders the Inertia page response.
+func (p *PageBuilder) Render() error {
+	renderer := p.renderer
+	etx := p.etx
+	component := p.component
 	request, err := requestState(etx)
 	if err != nil {
 		return err
 	}
-	options := pageOptions{status: http.StatusOK}
-	for _, opt := range opts {
-		if opt != nil {
-			if err := opt(&options); err != nil {
-				return err
+
+	shared := make(Props, len(renderer.shared))
+	maps.Copy(shared, renderer.shared)
+	for _, provider := range renderer.sharedProviders {
+		provided, err := provider(etx)
+		if err != nil {
+			return &Error{
+				Kind:      ErrorProps,
+				Operation: "resolve shared provider",
+				Method:    etx.Request().Method,
+				URL:       requestURL(etx),
+				Err:       err,
 			}
 		}
+		maps.Copy(shared, provided)
 	}
-	shared, err := renderer.sharedProps(etx)
+
+	resolved, err := resolvePageProps(etx, request, component, shared, p.props)
 	if err != nil {
 		return err
 	}
-	resolved, err := resolvePageProps(etx, request, component, shared, props)
-	if err != nil {
-		return err
+
+	errorsProp := map[string]any{}
+	if p.validationErrors != nil {
+		plain := make(map[string]any, len(p.validationErrors))
+		for field, message := range p.validationErrors {
+			plain[field] = message
+		}
+		if request.ErrorBag == "" {
+			errorsProp = plain
+		} else {
+			errorsProp = map[string]any{request.ErrorBag: plain}
+		}
 	}
-	resolved.props["errors"] = validationErrors(request.ErrorBag, options.validationErrors)
+	resolved.props["errors"] = errorsProp
 	resolved.resolvedShared = append(resolved.resolvedShared, "errors")
 	slices.Sort(resolved.resolvedShared)
+
 	version, err := renderer.currentVersion(etx)
 	if err != nil {
 		return err
 	}
-	if options.flash == nil {
+
+	if p.flash == nil {
 		for _, provider := range renderer.requestFlash {
-			if options.flash = provider(etx); options.flash != nil {
+			if p.flash = provider(etx); p.flash != nil {
 				break
 			}
 		}
 	}
+
 	page := Page{
 		Component:        component,
 		Props:            resolved.props,
 		URL:              requestURL(etx),
 		Version:          version,
-		EncryptHistory:   options.encryptHistory,
-		ClearHistory:     options.clearHistory,
-		PreserveFragment: options.preserveFragment,
+		EncryptHistory:   p.encryptHistory,
+		ClearHistory:     p.clearHistory,
+		PreserveFragment: p.preserveFragment,
 		MergeProps:       resolved.merge,
 		PrependProps:     resolved.prepend,
 		DeepMergeProps:   resolved.deepMerge,
@@ -278,21 +294,35 @@ func (renderer *Renderer) Page(
 		RescuedProps:     resolved.rescued,
 		SharedProps:      resolved.resolvedShared,
 		OnceProps:        emptyNil(resolved.once),
-		Flash:            options.flash,
+		Flash:            p.flash,
 	}
+
 	if renderer.protocolDebug {
+		propKeys := make([]string, 0, len(page.Props))
+		for key := range page.Props {
+			propKeys = append(propKeys, key)
+		}
+		slices.Sort(propKeys)
+		deferredGroups := make([]string, 0, len(page.DeferredProps))
+		for key := range page.DeferredProps {
+			deferredGroups = append(deferredGroups, key)
+		}
+		slices.Sort(deferredGroups)
 		etx.Logger().Debug("inertia protocol page",
 			slog.String("component", component),
 			slog.String("method", etx.Request().Method),
 			slog.String("url", page.URL),
-			slog.Any("prop_keys", sortedPropKeys(page.Props)),
+			slog.Any("prop_keys", propKeys),
 			slog.Any("merge_props", page.MergeProps),
-			slog.Any("deferred_groups", sortedDeferredGroups(page.DeferredProps)),
+			slog.Any("deferred_groups", deferredGroups),
 			slog.Int("once_props", len(page.OnceProps)),
 		)
 	}
-	pageJSON, err := marshalPage(page)
-	if err != nil {
+
+	var pageBuffer bytes.Buffer
+	encoder := json.NewEncoder(&pageBuffer)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(page); err != nil {
 		return &Error{
 			Kind:      ErrorProps,
 			Operation: "encode page",
@@ -302,20 +332,30 @@ func (renderer *Renderer) Page(
 			Err:       err,
 		}
 	}
+	pageJSON := bytes.TrimSuffix(pageBuffer.Bytes(), []byte("\n"))
+
 	appendVary(etx.Response().Header(), HeaderInertia)
+
 	if request.Inertia {
 		etx.Response().Header().Set(HeaderInertia, "true")
-		return etx.JSONBlob(options.status, pageJSON)
+		return etx.JSONBlob(p.status, pageJSON)
 	}
 
 	var ssrResponse *SSRResponse
-	if options.ssr {
+	if p.ssr {
 		if renderer.ssr == nil {
 			err = fmt.Errorf("SSR requested without a configured renderer")
 		} else {
 			ssrResponse, err = renderer.ssr.Render(etx.Request().Context(), page)
 			if err == nil {
-				err = validateSSRResponse(ssrResponse)
+				switch {
+				case ssrResponse == nil:
+					err = fmt.Errorf("empty SSR response")
+				case !strings.Contains(ssrResponse.Body, `data-server-rendered="true"`):
+					err = fmt.Errorf("SSR body is missing data-server-rendered marker")
+				case !strings.Contains(ssrResponse.Body, "data-page="):
+					err = fmt.Errorf("SSR body is missing page script")
+				}
 			}
 		}
 		if err != nil {
@@ -335,6 +375,7 @@ func (renderer *Renderer) Page(
 			ssrResponse = nil
 		}
 	}
+
 	root := renderer.root(RootData{
 		Page:        page,
 		PageJSON:    pageJSON,
@@ -355,6 +396,7 @@ func (renderer *Renderer) Page(
 			Err:       fmt.Errorf("root returned nil component"),
 		}
 	}
+
 	var document bytes.Buffer
 	if err := root.Render(etx.Request().Context(), &document); err != nil {
 		return &Error{
@@ -366,50 +408,15 @@ func (renderer *Renderer) Page(
 			Err:       err,
 		}
 	}
-	return etx.HTMLBlob(options.status, document.Bytes())
-}
 
-func sortedPropKeys(props map[string]any) []string {
-	keys := make([]string, 0, len(props))
-	for key := range props {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
-}
-
-func sortedDeferredGroups(groups map[string][]string) []string {
-	keys := make([]string, 0, len(groups))
-	for key := range groups {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
-}
-
-func (renderer *Renderer) sharedProps(etx *echo.Context) (Props, error) {
-	shared := make(Props, len(renderer.shared))
-	maps.Copy(shared, renderer.shared)
-	for _, provider := range renderer.sharedProviders {
-		provided, err := provider(etx)
-		if err != nil {
-			return nil, &Error{
-				Kind:      ErrorProps,
-				Operation: "resolve shared provider",
-				Method:    etx.Request().Method,
-				URL:       requestURL(etx),
-				Err:       err,
-			}
-		}
-		maps.Copy(shared, provided)
-	}
-	return shared, nil
+	return etx.HTMLBlob(p.status, document.Bytes())
 }
 
 func (renderer *Renderer) currentVersion(etx *echo.Context) (string, error) {
 	if renderer.versionProvider == nil {
 		return renderer.version, nil
 	}
+
 	version, err := renderer.versionProvider(etx)
 	if err != nil {
 		return "", &Error{
@@ -420,44 +427,8 @@ func (renderer *Renderer) currentVersion(etx *echo.Context) (string, error) {
 			Err:       err,
 		}
 	}
+
 	return version, nil
-}
-
-func validationErrors(bag string, errors map[string]string) map[string]any {
-	if errors == nil {
-		return map[string]any{}
-	}
-	plain := make(map[string]any, len(errors))
-	for field, message := range errors {
-		plain[field] = message
-	}
-	if bag == "" {
-		return plain
-	}
-	return map[string]any{bag: plain}
-}
-
-func marshalPage(page Page) ([]byte, error) {
-	var buffer bytes.Buffer
-	encoder := json.NewEncoder(&buffer)
-	encoder.SetEscapeHTML(false)
-	if err := encoder.Encode(page); err != nil {
-		return nil, err
-	}
-	return bytes.TrimSuffix(buffer.Bytes(), []byte("\n")), nil
-}
-
-func validateSSRResponse(response *SSRResponse) error {
-	if response == nil {
-		return fmt.Errorf("empty SSR response")
-	}
-	if !strings.Contains(response.Body, `data-server-rendered="true"`) {
-		return fmt.Errorf("SSR body is missing data-server-rendered marker")
-	}
-	if !strings.Contains(response.Body, "data-page=") {
-		return fmt.Errorf("SSR body is missing page script")
-	}
-	return nil
 }
 
 func requestURL(etx *echo.Context) string {
@@ -465,6 +436,7 @@ func requestURL(etx *echo.Context) string {
 	if request.URL == nil {
 		return "/"
 	}
+
 	uri := request.URL.RequestURI()
 	if uri == "" {
 		return "/"

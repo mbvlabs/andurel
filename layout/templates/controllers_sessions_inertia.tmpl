@@ -71,7 +71,7 @@ func (s Sessions) RegisterRoutes(r *router.Router) error {
 }
 
 func (s Sessions) New(etx *echo.Context) error {
-	return s.renderer.Page(etx, "Auth/Login", inertia.Props{})
+	return s.renderer.Page(etx, "Auth/Login", inertia.Props{}).Render()
 }
 
 func (s Sessions) Create(etx *echo.Context) error {
@@ -87,7 +87,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return s.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
 	user, err := s.identity.AuthenticateUser(
@@ -99,12 +99,11 @@ func (s Sessions) Create(etx *echo.Context) error {
 	)
 	if err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return s.renderer.Page(
-				etx,
-				"Auth/Login",
-				inertia.Props{},
-				inertia.WithValidationErrors(validationErrors.ToMap()),
-			)
+		return s.renderer.Page(
+			etx,
+			"Auth/Login",
+			inertia.Props{},
+		).ValidationErrors(validationErrors.ToMap()).Render()
 		}
 
 		slog.ErrorContext(
@@ -125,7 +124,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 		}
 
 		if flashErr := s.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+			return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		}
 
 		return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
@@ -139,7 +138,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	if flashErr := s.session.AddFlash(
@@ -147,7 +146,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 		cookies.FlashSuccess,
 		"Successfully logged in!",
 	); flashErr != nil {
-		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	return s.renderer.Location(etx, routes.HomePage.URL())
@@ -161,7 +160,7 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	if flashErr := s.session.AddFlash(
@@ -169,7 +168,7 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 		cookies.FlashSuccess,
 		"Successfully logged out!",
 	); flashErr != nil {
-		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return s.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)

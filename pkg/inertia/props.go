@@ -39,34 +39,43 @@ func FromStructChecked(value any) (Props, error) {
 		if rv.IsNil() {
 			return result, nil
 		}
+
 		rv = rv.Elem()
 	}
+
 	if !rv.IsValid() || rv.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("inertia: FromStruct requires a struct, got %T", value)
 	}
+
 	rt := rv.Type()
 	for i := range rt.NumField() {
 		field := rt.Field(i)
 		if field.PkgPath != "" {
 			continue
 		}
+
 		name, include := jsonFieldName(field)
 		if !include {
 			continue
 		}
+
 		if field.Anonymous && name == "" {
 			embedded, err := FromStructChecked(rv.Field(i).Interface())
 			if err != nil {
 				return nil, err
 			}
+
 			maps.Copy(result, embedded)
 			continue
 		}
+
 		if name == "" {
 			name = field.Name
 		}
+
 		result[name] = rv.Field(i).Interface()
 	}
+
 	return result, nil
 }
 
@@ -161,11 +170,13 @@ func Deferred(value any, opts ...DeferredOption) Prop {
 	if prop.group == "" {
 		prop.group = "default"
 	}
+
 	for _, opt := range opts {
 		if opt != nil {
 			opt(&prop)
 		}
 	}
+
 	return prop
 }
 
@@ -199,7 +210,12 @@ func DeepMerge(value any) Prop {
 func MatchOn(value any, paths ...string) Prop {
 	prop := asProp(value)
 	prop.merge = true
-	prop.matchOn = append(prop.matchOn, cleanPaths(paths)...)
+	for _, path := range paths {
+		path = strings.TrimSpace(path)
+		if path != "" {
+			prop.matchOn = append(prop.matchOn, path)
+		}
+	}
 	return prop
 }
 
@@ -259,15 +275,4 @@ func ScrollAt(value any, wrapper string, metadata any) Prop {
 	prop.scroll = metadata
 	prop.scrollWrapper = strings.Trim(strings.TrimSpace(wrapper), ".")
 	return prop
-}
-
-func cleanPaths(paths []string) []string {
-	result := make([]string, 0, len(paths))
-	for _, path := range paths {
-		path = strings.TrimSpace(path)
-		if path != "" {
-			result = append(result, path)
-		}
-	}
-	return result
 }

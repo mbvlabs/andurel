@@ -29,7 +29,7 @@ func TestHTTPRendererRenderAndHealth(t *testing.T) {
 	)
 	defer server.Close()
 
-	config := SSRConfig{
+	config := SSRClientConfig{
 		URL:              server.URL,
 		Timeout:          2 * time.Second,
 		MaxResponseBytes: 2 << 20,
@@ -61,7 +61,7 @@ func TestHTTPRendererBoundsResponseAndTimeout(t *testing.T) {
 	)
 	defer server.Close()
 
-	config := SSRConfig{
+	config := SSRClientConfig{
 		URL:              server.URL,
 		Timeout:          2 * time.Second,
 		MaxResponseBytes: 8,

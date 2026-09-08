@@ -217,7 +217,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		perPage,
 	)
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	return {{.ReceiverName}}.renderer.Page(
@@ -226,36 +226,36 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 		inertia.FromStruct({{.ResourceName}}IndexProps{
 			Items: new{{.ResourceName}}DataList({{.ModelPluralName | ToCamelCase}}List.{{.ModelCollectionName}}),
 		}),
-	)
+	).Render()
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 {{- else if eq .IDType "int64"}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := strconv.ParseInt(etx.Param("id"), 10, 64)
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 {{- else if eq .IDType "int32"}}
 	parsed, err := strconv.ParseInt(etx.Param("id"), 10, 32)
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 	{{.ResourceName | ToLowerCamelCase}}ID := int32(parsed)
 {{- else if eq .IDType "string"}}
 	{{.ResourceName | ToLowerCamelCase}}ID := etx.Param("id")
 	if {{.ResourceName | ToLowerCamelCase}}ID == "" {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 {{- end}}
 
 	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
 	}
 
 	return {{.ReceiverName}}.renderer.Page(
@@ -264,11 +264,11 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 		inertia.FromStruct({{.ResourceName}}ItemProps{
 			Item: new{{.ResourceName}}Data({{.ResourceName | ToLowerCamelCase}}),
 		}),
-	)
+	).Render()
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) New(etx *echo.Context) error {
-	return {{.ReceiverName}}.renderer.Page(etx, "{{if .Namespace}}{{.NamespacePascal}}/{{end}}{{.ResourceName}}/Create", inertia.Props{})
+	return {{.ReceiverName}}.renderer.Page(etx, "{{if .Namespace}}{{.NamespacePascal}}/{{end}}{{.ResourceName}}/Create", inertia.Props{}).Render()
 }
 
 type Create{{.ResourceName}}FormPayload struct {
@@ -293,7 +293,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 			err,
 		)
 
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
 	}
 
 	data := models.Create{{.ModelName}}Data{
@@ -315,12 +315,12 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		{{- if HasAction "new"}}
 		return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}New.URL())
 		{{- else}}
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		{{- end}}
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	{{- if HasAction "show"}}
@@ -339,29 +339,29 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 {{- else if eq .IDType "int64"}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := strconv.ParseInt(etx.Param("id"), 10, 64)
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 {{- else if eq .IDType "int32"}}
 	parsed, err := strconv.ParseInt(etx.Param("id"), 10, 32)
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 	{{.ResourceName | ToLowerCamelCase}}ID := int32(parsed)
 {{- else if eq .IDType "string"}}
 	{{.ResourceName | ToLowerCamelCase}}ID := etx.Param("id")
 	if {{.ResourceName | ToLowerCamelCase}}ID == "" {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 {{- end}}
 
 	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
 	}
 
 	return {{.ReceiverName}}.renderer.Page(
@@ -370,7 +370,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 		inertia.FromStruct({{.ResourceName}}ItemProps{
 			Item: new{{.ResourceName}}Data({{.ResourceName | ToLowerCamelCase}}),
 		}),
-	)
+	).Render()
 }
 
 type Update{{.ResourceName}}FormPayload struct {
@@ -389,23 +389,23 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 {{- else if eq .IDType "int64"}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := strconv.ParseInt(etx.Param("id"), 10, 64)
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 {{- else if eq .IDType "int32"}}
 	parsed, err := strconv.ParseInt(etx.Param("id"), 10, 32)
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 	{{.ResourceName | ToLowerCamelCase}}ID := int32(parsed)
 {{- else if eq .IDType "string"}}
 	{{.ResourceName | ToLowerCamelCase}}ID := etx.Param("id")
 	if {{.ResourceName | ToLowerCamelCase}}ID == "" {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 {{- end}}
 
@@ -418,7 +418,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 			err,
 		)
 
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
 	}
 
 	data := models.Update{{.ModelName}}Data{
@@ -436,7 +436,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
-			return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+			return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		}
 		{{- if HasAction "edit"}}
 		return {{.ReceiverName}}.renderer.Redirect(
@@ -444,12 +444,12 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 			routes.{{.NamespacePascal}}{{.ResourceName}}Edit.URL({{.ResourceName | ToLowerCamelCase}}ID),
 		)
 		{{- else}}
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		{{- end}}
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} updated successfully"); flashErr != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	{{- if HasAction "show"}}
@@ -468,40 +468,40 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 {{- else if eq .IDType "int64"}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := strconv.ParseInt(etx.Param("id"), 10, 64)
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 {{- else if eq .IDType "int32"}}
 	parsed, err := strconv.ParseInt(etx.Param("id"), 10, 32)
 	if err != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 	{{.ResourceName | ToLowerCamelCase}}ID := int32(parsed)
 {{- else if eq .IDType "string"}}
 	{{.ResourceName | ToLowerCamelCase}}ID := etx.Param("id")
 	if {{.ResourceName | ToLowerCamelCase}}ID == "" {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 {{- end}}
 
 	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
-			return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+			return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		}
 		{{- if HasAction "index"}}
 		return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
 		{{- else}}
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		{{- end}}
 	}
 
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
-		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	{{- if HasAction "index"}}

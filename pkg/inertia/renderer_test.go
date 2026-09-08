@@ -8,10 +8,30 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
 )
+
+func testSSRConfig() SSRClientConfig {
+	return SSRClientConfig{
+		URL:              "http://127.0.0.1:13714",
+		Timeout:          2 * time.Second,
+		MaxResponseBytes: 2 << 20,
+	}
+}
+
+func newTestRenderer(options ...Option) (*Renderer, error) {
+	return NewRenderer(
+		"app",
+		"/assets/dist/vite/*",
+		"resources/js/app.ts",
+		"http://localhost:5173/assets/dist",
+		testSSRConfig(),
+		options...,
+	)
+}
 
 type fakeSSRRenderer struct {
 	calls    int
@@ -44,16 +64,16 @@ func TestWithSSRContactsRendererOnlyForInitialDocument(t *testing.T) {
 		Head: []string{"<title>SSR</title>"},
 		Body: `<div data-server-rendered="true" data-page="app">SSR</div>`,
 	}}
-	renderer, err := New(WithContainerID("app"), WithRoot(testRoot(&captured)), WithSSRRenderer(ssr))
+	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)), WithSSRRenderer(ssr))
 	if err != nil {
-		t.Fatalf("New: %v", err)
+		t.Fatalf("NewRenderer: %v", err)
 	}
 
 	e := echo.New()
 	request := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
 	recorder := httptest.NewRecorder()
 	etx := e.NewContext(request, recorder)
-	if err := renderer.Page(etx, "Dashboard", Props{"name": "Ada"}, WithSSR()); err != nil {
+	if err := renderer.Page(etx, "Dashboard", Props{"name": "Ada"}).SSR().Render(); err != nil {
 		t.Fatalf("initial Page: %v", err)
 	}
 	if ssr.calls != 1 || captured.SSR == nil || !strings.Contains(recorder.Body.String(), "SSR") {
@@ -69,7 +89,7 @@ func TestWithSSRContactsRendererOnlyForInitialDocument(t *testing.T) {
 	request.Header.Set(HeaderInertia, "true")
 	recorder = httptest.NewRecorder()
 	etx = e.NewContext(request, recorder)
-	if err := renderer.Page(etx, "Dashboard", nil, WithSSR()); err != nil {
+	if err := renderer.Page(etx, "Dashboard", nil).SSR().Render(); err != nil {
 		t.Fatalf("Inertia Page: %v", err)
 	}
 	if ssr.calls != 1 {
@@ -81,15 +101,15 @@ func TestSSRFailureFallsBackUnlessFailFast(t *testing.T) {
 	var captured RootData
 	ssrErr := errors.New("renderer unavailable")
 	ssr := &fakeSSRRenderer{err: ssrErr}
-	renderer, err := New(WithContainerID("app"), WithRoot(testRoot(&captured)), WithSSRRenderer(ssr))
+	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)), WithSSRRenderer(ssr))
 	if err != nil {
-		t.Fatalf("New: %v", err)
+		t.Fatalf("NewRenderer: %v", err)
 	}
 
 	e := echo.New()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	recorder := httptest.NewRecorder()
-	if err := renderer.Page(e.NewContext(request, recorder), "Home", nil, WithSSR()); err != nil {
+	if err := renderer.Page(e.NewContext(request, recorder), "Home", nil).SSR().Render(); err != nil {
 		t.Fatalf("fallback Page: %v", err)
 	}
 	if captured.SSR != nil || recorder.Body.String() != "client" {
@@ -100,18 +120,17 @@ func TestSSRFailureFallsBackUnlessFailFast(t *testing.T) {
 		)
 	}
 
-	renderer, err = New(
-		WithContainerID("app"),
+	renderer, err = newTestRenderer(
 		WithRoot(testRoot(&captured)),
 		WithSSRRenderer(ssr),
 		WithSSRFailFast(true),
 	)
 	if err != nil {
-		t.Fatalf("New fail-fast: %v", err)
+		t.Fatalf("NewRenderer fail-fast: %v", err)
 	}
 	request = httptest.NewRequest(http.MethodGet, "/", nil)
 	recorder = httptest.NewRecorder()
-	err = renderer.Page(e.NewContext(request, recorder), "Home", nil, WithSSR())
+	err = renderer.Page(e.NewContext(request, recorder), "Home", nil).SSR().Render()
 	var inertiaErr *Error
 	if !errors.As(err, &inertiaErr) || inertiaErr.Kind != ErrorSSR {
 		t.Fatalf("fail-fast error = %#v", err)
