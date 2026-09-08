@@ -61,7 +61,7 @@ func (r Registrations) RegisterRoutes(rtr *router.Router) error {
 }
 
 func (r Registrations) New(etx *echo.Context) error {
-	return r.renderer.Page(etx, "Auth/Registration", inertia.Props{})
+	return r.renderer.Page(etx, "Auth/Registration", inertia.Props{}).Render()
 }
 
 func (r Registrations) Create(etx *echo.Context) error {
@@ -78,7 +78,7 @@ func (r Registrations) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		return r.renderer.Page(etx, "Errors/BadRequest", inertia.Props{})
+		return r.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
 	if err := r.identity.RegisterUser(
@@ -90,12 +90,11 @@ func (r Registrations) Create(etx *echo.Context) error {
 		},
 	); err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return r.renderer.Page(
-				etx,
-				"Auth/Registration",
-				inertia.Props{},
-				inertia.WithValidationErrors(validationErrors.ToMap()),
-			)
+		return r.renderer.Page(
+			etx,
+			"Auth/Registration",
+			inertia.Props{},
+		).ValidationErrors(validationErrors.ToMap()).Render()
 		}
 
 		slog.ErrorContext(
@@ -110,7 +109,7 @@ func (r Registrations) Create(etx *echo.Context) error {
 			cookies.FlashError,
 			"Failed to register user",
 		); flashErr != nil {
-			return r.renderer.Page(etx, "Errors/InternalError", inertia.Props{})
+			return r.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		}
 
 		return r.renderer.Redirect(etx, routes.RegistrationNew.URL(), http.StatusSeeOther)

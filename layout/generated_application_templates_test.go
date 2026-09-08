@@ -384,12 +384,14 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	}
 	wiring := readGeneratedApplicationTemplate(t, "cmd_app_main.tmpl")
 	for _, want := range []string{
+		"cfg.ContainerID,",
+		"routes.ViteBuild.Path(),",
+		"cfg.EntryPoint,",
+		"cfg.ViteDevURL,",
+		"inertia.SSRClientConfig{",
+		"cfg.SSRURL,",
 		"inertia.WithRoot(views.Root)",
 		"inertia.WithAssetFS(assets.Files)",
-		"inertia.WithBuildPathURL(routes.ViteBuild.Path())",
-		"inertia.WithEntryPoint(cfg.EntryPoint)",
-		"inertia.WithViteDevURL(cfg.ViteDevURL)",
-		"inertia.WithSSRURL(cfg.SSRURL)",
 	} {
 		if !strings.Contains(wiring, want) {
 			t.Errorf("command wiring missing inertia option %q", want)
@@ -453,8 +455,8 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 			t.Errorf("config_inertia.tmpl should not contain runtime resource %q", unwanted)
 		}
 	}
-	if strings.Contains(inertiaConfig, "SSRMinimumMajor") {
-		t.Error("config_inertia.tmpl should not expose SSR minimum major")
+	if !strings.Contains(inertiaConfig, "SSRMinimumMajor") {
+		t.Error("config_inertia.tmpl should expose SSR minimum major")
 	}
 	if strings.Contains(mainTemplate, "WithSSRMinimumMajor") {
 		t.Error("cmd_app_main.tmpl should not pass WithSSRMinimumMajor")

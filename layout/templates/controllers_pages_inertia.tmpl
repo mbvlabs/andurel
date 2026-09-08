@@ -55,5 +55,5 @@ func (p Pages) Home(etx *echo.Context) error {
 }
 
 func (p Pages) NotFound(etx *echo.Context) error {
-	return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{})
+	return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
 }

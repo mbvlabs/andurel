@@ -6,7 +6,6 @@ import (
 	"html"
 	"io/fs"
 	"strings"
-	"time"
 
 	"github.com/labstack/echo/v5"
 )
@@ -25,18 +24,27 @@ type viteManifestEntry struct {
 //
 // It always serves the Inertia protocol (CSR by default). Pages that pass
 // WithSSR() call the configured SSR HTTP endpoint. Node process ownership
-// belongs to NewSSRRuntime / cmd/ssr.
-func NewRenderer(options ...Option) (*Renderer, error) {
+// belongs to NewSSRRuntime / cmd/ssr. Required Inertia protocol settings are
+// positional arguments; optional behavior is configured with options such as
+// WithRoot, WithAssetFS, and WithEnvironment.
+func NewRenderer(
+	containerID string,
+	buildPathURL string,
+	entryPoint string,
+	viteDevURL string,
+	ssrConfig SSRClientConfig,
+	options ...Option,
+) (*Renderer, error) {
+	if strings.TrimSpace(containerID) == "" {
+		return nil, fmt.Errorf("inertia: container ID cannot be empty")
+	}
 	renderer := &Renderer{
-		containerID: "app",
-		ssrConfig: SSRClientConfig{
-			URL:              "http://127.0.0.1:13714",
-			Timeout:          2 * time.Second,
-			MaxResponseBytes: 2 << 20,
-		},
-		buildPathURL: "/assets/dist/vite/*",
-		entryPoint:   "resources/js/app.ts",
-		viteDevURL:   "http://localhost:5173/assets/dist",
+		containerID:  strings.TrimSpace(containerID),
+		buildPathURL: strings.TrimSpace(buildPathURL),
+		version:      strings.TrimSpace(buildPathURL),
+		entryPoint:   strings.TrimSpace(entryPoint),
+		viteDevURL:   strings.TrimRight(strings.TrimSpace(viteDevURL), "/"),
+		ssrConfig:    ssrConfig,
 		shared:       make(Props),
 		requestFlash: []func(*echo.Context) any{
 			func(etx *echo.Context) any { return FlashFromContext(etx.Request().Context()) },
@@ -49,9 +57,6 @@ func NewRenderer(options ...Option) (*Renderer, error) {
 		if err := option(renderer); err != nil {
 			return nil, fmt.Errorf("inertia: create renderer: %w", err)
 		}
-	}
-	if strings.TrimSpace(renderer.containerID) == "" {
-		return nil, fmt.Errorf("inertia: container ID cannot be empty")
 	}
 	if renderer.root == nil {
 		return nil, fmt.Errorf("inertia: root constructor cannot be nil")
@@ -147,64 +152,12 @@ func WithEnvironment(environment string) Option {
 	}
 }
 
-func WithBuildPathURL(path string) Option {
-	return func(renderer *Renderer) error {
-		if strings.TrimSpace(path) == "" {
-			return fmt.Errorf("inertia: Vite build path URL cannot be empty")
-		}
-		renderer.buildPathURL = strings.TrimSpace(path)
-		renderer.version = renderer.buildPathURL
-		return nil
-	}
-}
-
-func WithEntryPoint(entryPoint string) Option {
-	return func(renderer *Renderer) error {
-		if strings.TrimSpace(entryPoint) == "" {
-			return fmt.Errorf("inertia: Vite entry point cannot be empty")
-		}
-		renderer.entryPoint = strings.TrimSpace(entryPoint)
-		return nil
-	}
-}
-
-func WithViteDevURL(rawURL string) Option {
-	return func(renderer *Renderer) error {
-		if strings.TrimSpace(rawURL) == "" {
-			return fmt.Errorf("inertia: Vite development URL cannot be empty")
-		}
-		renderer.viteDevURL = strings.TrimRight(strings.TrimSpace(rawURL), "/")
-		return nil
-	}
-}
-
 func WithRoot(root RootFunc) Option {
 	return func(renderer *Renderer) error {
 		if root == nil {
 			return fmt.Errorf("inertia: root constructor cannot be nil")
 		}
 		renderer.root = root
-		return nil
-	}
-}
-
-func WithSSRURL(rawURL string) Option {
-	return func(renderer *Renderer) error {
-		renderer.ssrConfig.URL = rawURL
-		return nil
-	}
-}
-
-func WithSSRRequestTimeout(timeout time.Duration) Option {
-	return func(renderer *Renderer) error {
-		renderer.ssrConfig.Timeout = timeout
-		return nil
-	}
-}
-
-func WithSSRMaxResponseBytes(size int64) Option {
-	return func(renderer *Renderer) error {
-		renderer.ssrConfig.MaxResponseBytes = size
 		return nil
 	}
 }

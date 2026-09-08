@@ -168,20 +168,20 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileNotContains(t, projectDir, "cmd/app/main.go", "WithSSRRuntime")
 	assertFileNotContains(t, projectDir, "cmd/app/main.go", "WithSSRBundle")
 	assertFileNotContains(t, projectDir, "cmd/app/main.go", "WithSSRStartupTimeout")
-	assertFileContains(t, projectDir, "cmd/app/main.go", "WithSSRURL")
+	assertFileContains(t, projectDir, "cmd/app/main.go", "cfg.SSRURL,")
 	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.WithRoot(views.Root)`)
 	assertFileContains(
 		t,
 		projectDir,
 		"cmd/app/main.go",
-		`inertia.WithEntryPoint(cfg.EntryPoint)`,
+		`cfg.EntryPoint,`,
 	)
 	assertFileContains(t, projectDir, "cmd/app/main.go", `inertia.WithAssetFS(assets.Files)`)
 	assertFileContains(
 		t,
 		projectDir,
 		"cmd/app/main.go",
-		`inertia.WithBuildPathURL(routes.ViteBuild.Path())`,
+		`routes.ViteBuild.Path(),`,
 	)
 	assertFileNotContains(t, projectDir, "cmd/app/main.go", "InertiaResources")
 	assertFileContains(

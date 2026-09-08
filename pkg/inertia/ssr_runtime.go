@@ -15,8 +15,6 @@ import (
 	"time"
 )
 
-const ssrMinimumMajor = 22
-
 // SSRConfig controls a JavaScript SSR process owned by cmd/ssr (or an
 // equivalent operator entrypoint), not by the HTTP application process.
 type SSRConfig struct {
@@ -74,29 +72,13 @@ type SSRRuntime struct {
 }
 
 // NewSSRRuntime constructs an SSR runtime without starting it.
-// Zero-value fields receive package defaults before validation.
+// The configuration is authoritative: every field must be supplied by the
+// caller except Logger, Stdout, and Stderr, which default to slog.Default,
+// os.Stdout, and os.Stderr.
 func NewSSRRuntime(
 	config SSRConfig,
 	options ...HTTPRendererOption,
 ) (*SSRRuntime, error) {
-	if strings.TrimSpace(config.Executable) == "" {
-		config.Executable = "node"
-	}
-	if config.StartupTimeout <= 0 {
-		config.StartupTimeout = 10 * time.Second
-	}
-	if config.MinimumMajor == 0 {
-		config.MinimumMajor = ssrMinimumMajor
-	}
-	if strings.TrimSpace(config.HTTP.URL) == "" {
-		config.HTTP.URL = "http://127.0.0.1:13714"
-	}
-	if config.HTTP.Timeout <= 0 {
-		config.HTTP.Timeout = 2 * time.Second
-	}
-	if config.HTTP.MaxResponseBytes <= 0 {
-		config.HTTP.MaxResponseBytes = 2 << 20
-	}
 	if config.Logger == nil {
 		config.Logger = slog.Default()
 	}

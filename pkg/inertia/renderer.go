@@ -55,18 +55,6 @@ type Renderer struct {
 	protocolDebug   bool
 }
 
-// WithContainerID configures the client application mount element ID.
-func WithContainerID(id string) Option {
-	return func(renderer *Renderer) error {
-		id = strings.TrimSpace(id)
-		if id == "" {
-			return fmt.Errorf("inertia: container ID cannot be empty")
-		}
-		renderer.containerID = id
-		return nil
-	}
-}
-
 // WithVersion configures a fixed asset version.
 func WithVersion(version string) Option {
 	return func(renderer *Renderer) error {
@@ -164,7 +152,12 @@ func (renderer *Renderer) SetReflashHandler(handler ReflashHandler) error {
 	return nil
 }
 
-type pageOptions struct {
+// PageBuilder configures and renders a single Inertia page response.
+type PageBuilder struct {
+	renderer         *Renderer
+	etx              *echo.Context
+	component        string
+	props            Props
 	status           int
 	ssr              bool
 	validationErrors map[string]string
@@ -174,69 +167,59 @@ type pageOptions struct {
 	flash            any
 }
 
-// PageOption configures one page response.
-type PageOption func(*pageOptions) error
+// SSR opts this initial document response into server-side rendering.
+func (p *PageBuilder) SSR() *PageBuilder { p.ssr = true; return p }
 
-// WithSSR opts only this initial document response into SSR.
-func WithSSR() PageOption { return func(options *pageOptions) error { options.ssr = true; return nil } }
-
-// WithStatus sets the page response status.
-func WithStatus(status int) PageOption {
-	return func(options *pageOptions) error {
-		if status < 100 || status > 599 {
-			return fmt.Errorf("inertia: invalid page status %d", status)
-		}
-		options.status = status
-		return nil
-	}
+// Status sets the page response HTTP status code.
+func (p *PageBuilder) Status(status int) *PageBuilder {
+	p.status = status
+	return p
 }
 
-// WithValidationErrors sets the protected errors prop for this response.
-func WithValidationErrors(errors map[string]string) PageOption {
-	return func(options *pageOptions) error {
-		options.validationErrors = errors
-		return nil
-	}
+// ValidationErrors sets the protected errors prop for this response.
+func (p *PageBuilder) ValidationErrors(errors map[string]string) *PageBuilder {
+	p.validationErrors = errors
+	return p
 }
 
-// WithHistoryEncryption controls encrypted browser history metadata.
-func WithHistoryEncryption(enabled bool) PageOption {
-	return func(options *pageOptions) error { options.encryptHistory = enabled; return nil }
+// HistoryEncryption controls encrypted browser history metadata.
+func (p *PageBuilder) HistoryEncryption(enabled bool) *PageBuilder {
+	p.encryptHistory = enabled
+	return p
 }
 
-// WithHistoryClear clears client history for this response.
-func WithHistoryClear() PageOption {
-	return func(options *pageOptions) error { options.clearHistory = true; return nil }
-}
+// HistoryClear clears client history for this response.
+func (p *PageBuilder) HistoryClear() *PageBuilder { p.clearHistory = true; return p }
 
-// WithPreserveFragment preserves the original fragment across a redirect.
-func WithPreserveFragment() PageOption {
-	return func(options *pageOptions) error { options.preserveFragment = true; return nil }
-}
+// PreserveFragment preserves the original fragment across a redirect.
+func (p *PageBuilder) PreserveFragment() *PageBuilder { p.preserveFragment = true; return p }
 
-// WithFlash adds v3 flash data to the page field (not props).
-func WithFlash(flash any) PageOption {
-	return func(options *pageOptions) error { options.flash = flash; return nil }
-}
+// Flash adds v3 flash data to the page field (not props).
+func (p *PageBuilder) Flash(flash any) *PageBuilder { p.flash = flash; return p }
 
-// Page resolves and renders one Inertia page response.
+// Page starts building one Inertia page response.
 func (renderer *Renderer) Page(
 	etx *echo.Context,
 	component string,
 	props Props,
-	opts ...PageOption,
-) error {
+) *PageBuilder {
+	return &PageBuilder{
+		renderer:  renderer,
+		etx:       etx,
+		component: component,
+		props:     props,
+		status:    http.StatusOK,
+	}
+}
+
+// Render resolves and renders the Inertia page response.
+func (p *PageBuilder) Render() error {
+	renderer := p.renderer
+	etx := p.etx
+	component := p.component
 	request, err := requestState(etx)
 	if err != nil {
 		return err
-	}
-	options := pageOptions{status: http.StatusOK}
-	for _, opt := range opts {
-		if opt != nil {
-			if err := opt(&options); err != nil {
-				return err
-			}
-		}
 	}
 	shared := make(Props, len(renderer.shared))
 	maps.Copy(shared, renderer.shared)
@@ -253,14 +236,14 @@ func (renderer *Renderer) Page(
 		}
 		maps.Copy(shared, provided)
 	}
-	resolved, err := resolvePageProps(etx, request, component, shared, props)
+	resolved, err := resolvePageProps(etx, request, component, shared, p.props)
 	if err != nil {
 		return err
 	}
 	errorsProp := map[string]any{}
-	if options.validationErrors != nil {
-		plain := make(map[string]any, len(options.validationErrors))
-		for field, message := range options.validationErrors {
+	if p.validationErrors != nil {
+		plain := make(map[string]any, len(p.validationErrors))
+		for field, message := range p.validationErrors {
 			plain[field] = message
 		}
 		if request.ErrorBag == "" {
@@ -276,9 +259,9 @@ func (renderer *Renderer) Page(
 	if err != nil {
 		return err
 	}
-	if options.flash == nil {
+	if p.flash == nil {
 		for _, provider := range renderer.requestFlash {
-			if options.flash = provider(etx); options.flash != nil {
+			if p.flash = provider(etx); p.flash != nil {
 				break
 			}
 		}
@@ -288,9 +271,9 @@ func (renderer *Renderer) Page(
 		Props:            resolved.props,
 		URL:              requestURL(etx),
 		Version:          version,
-		EncryptHistory:   options.encryptHistory,
-		ClearHistory:     options.clearHistory,
-		PreserveFragment: options.preserveFragment,
+		EncryptHistory:   p.encryptHistory,
+		ClearHistory:     p.clearHistory,
+		PreserveFragment: p.preserveFragment,
 		MergeProps:       resolved.merge,
 		PrependProps:     resolved.prepend,
 		DeepMergeProps:   resolved.deepMerge,
@@ -300,7 +283,7 @@ func (renderer *Renderer) Page(
 		RescuedProps:     resolved.rescued,
 		SharedProps:      resolved.resolvedShared,
 		OnceProps:        emptyNil(resolved.once),
-		Flash:            options.flash,
+		Flash:            p.flash,
 	}
 	if renderer.protocolDebug {
 		propKeys := make([]string, 0, len(page.Props))
@@ -340,11 +323,11 @@ func (renderer *Renderer) Page(
 	appendVary(etx.Response().Header(), HeaderInertia)
 	if request.Inertia {
 		etx.Response().Header().Set(HeaderInertia, "true")
-		return etx.JSONBlob(options.status, pageJSON)
+		return etx.JSONBlob(p.status, pageJSON)
 	}
 
 	var ssrResponse *SSRResponse
-	if options.ssr {
+	if p.ssr {
 		if renderer.ssr == nil {
 			err = fmt.Errorf("SSR requested without a configured renderer")
 		} else {
@@ -408,7 +391,7 @@ func (renderer *Renderer) Page(
 			Err:       err,
 		}
 	}
-	return etx.HTMLBlob(options.status, document.Bytes())
+	return etx.HTMLBlob(p.status, document.Bytes())
 }
 
 func (renderer *Renderer) currentVersion(etx *echo.Context) (string, error) {

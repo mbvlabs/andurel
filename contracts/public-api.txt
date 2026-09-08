@@ -3678,13 +3678,6 @@ func WithAssetFS(assetFS fs.FS) Option
     WithAssetFS supplies the embedded application asset filesystem used for the
     production Vite manifest.
 
-func WithBuildPathURL(path string) Option
-
-func WithContainerID(id string) Option
-    WithContainerID configures the client application mount element ID.
-
-func WithEntryPoint(entryPoint string) Option
-
 func WithEnvironment(environment string) Option
 
 func WithFlashProvider(provider FlashProvider) Option
@@ -3705,14 +3698,8 @@ func WithRoot(root RootFunc) Option
 func WithSSRFailFast(enabled bool) Option
     WithSSRFailFast makes per-response SSR failures abort the initial response.
 
-func WithSSRMaxResponseBytes(size int64) Option
-
 func WithSSRRenderer(ssr SSRRenderer) Option
     WithSSRRenderer configures the SSR gateway used only by pages with WithSSR.
-
-func WithSSRRequestTimeout(timeout time.Duration) Option
-
-func WithSSRURL(rawURL string) Option
 
 func WithShared(props Props) Option
     WithShared configures static shared props. Renderer construction copies
@@ -3726,8 +3713,6 @@ func WithVersion(version string) Option
 
 func WithVersionProvider(provider VersionProvider) Option
     WithVersionProvider configures a request-scoped asset version provider.
-
-func WithViteDevURL(rawURL string) Option
 
 type Page struct {
 	Component        string                    `json:"component"`
@@ -3750,29 +3735,34 @@ type Page struct {
 }
     Page is the Inertia v3 page object sent to the browser and SSR runtime.
 
-type PageOption func(*pageOptions) error
-    PageOption configures one page response.
+type PageBuilder struct {
+	// Has unexported fields.
+}
+    PageBuilder configures and renders a single Inertia page response.
 
-func WithFlash(flash any) PageOption
-    WithFlash adds v3 flash data to the page field (not props).
+func (p *PageBuilder) Flash(flash any) *PageBuilder
+    Flash adds v3 flash data to the page field (not props).
 
-func WithHistoryClear() PageOption
-    WithHistoryClear clears client history for this response.
+func (p *PageBuilder) HistoryClear() *PageBuilder
+    HistoryClear clears client history for this response.
 
-func WithHistoryEncryption(enabled bool) PageOption
-    WithHistoryEncryption controls encrypted browser history metadata.
+func (p *PageBuilder) HistoryEncryption(enabled bool) *PageBuilder
+    HistoryEncryption controls encrypted browser history metadata.
 
-func WithPreserveFragment() PageOption
-    WithPreserveFragment preserves the original fragment across a redirect.
+func (p *PageBuilder) PreserveFragment() *PageBuilder
+    PreserveFragment preserves the original fragment across a redirect.
 
-func WithSSR() PageOption
-    WithSSR opts only this initial document response into SSR.
+func (p *PageBuilder) Render() error
+    Render resolves and renders the Inertia page response.
 
-func WithStatus(status int) PageOption
-    WithStatus sets the page response status.
+func (p *PageBuilder) SSR() *PageBuilder
+    SSR opts this initial document response into server-side rendering.
 
-func WithValidationErrors(errors map[string]string) PageOption
-    WithValidationErrors sets the protected errors prop for this response.
+func (p *PageBuilder) Status(status int) *PageBuilder
+    Status sets the page response HTTP status code.
+
+func (p *PageBuilder) ValidationErrors(errors map[string]string) *PageBuilder
+    ValidationErrors sets the protected errors prop for this response.
 
 type Prop struct {
 	// Has unexported fields.
@@ -3848,12 +3838,21 @@ type Renderer struct {
 }
     Renderer implements the Inertia v3 server protocol for Echo and templ.
 
-func NewRenderer(options ...Option) (*Renderer, error)
+func NewRenderer(
+	containerID string,
+	buildPathURL string,
+	entryPoint string,
+	viteDevURL string,
+	ssrConfig SSRClientConfig,
+	options ...Option,
+) (*Renderer, error)
     NewRenderer constructs the Inertia protocol renderer used by cmd/app.
 
     It always serves the Inertia protocol (CSR by default). Pages that pass
     WithSSR() call the configured SSR HTTP endpoint. Node process ownership
-    belongs to NewSSRRuntime / cmd/ssr.
+    belongs to NewSSRRuntime / cmd/ssr. Required Inertia protocol settings are
+    positional arguments; optional behavior is configured with options such as
+    WithRoot, WithAssetFS, and WithEnvironment.
 
 func (renderer *Renderer) FreshRedirect(etx *echo.Context, location string) error
     FreshRedirect makes an Inertia visit perform a fresh Inertia GET.
@@ -3869,9 +3868,8 @@ func (renderer *Renderer) Page(
 	etx *echo.Context,
 	component string,
 	props Props,
-	opts ...PageOption,
-) error
-    Page resolves and renders one Inertia page response.
+) *PageBuilder
+    Page starts building one Inertia page response.
 
 func (renderer *Renderer) Redirect(etx *echo.Context, location string, status int) error
     Redirect creates a normal redirect. Middleware upgrades unsafe 302 responses
@@ -3973,8 +3971,10 @@ func NewSSRRuntime(
 	config SSRConfig,
 	options ...HTTPRendererOption,
 ) (*SSRRuntime, error)
-    NewSSRRuntime constructs an SSR runtime without starting it. Zero-value
-    fields receive package defaults before validation.
+    NewSSRRuntime constructs an SSR runtime without starting it. The
+    configuration is authoritative: every field must be supplied by the caller
+    except Logger, Stdout, and Stderr, which default to slog.Default, os.Stdout,
+    and os.Stderr.
 
 func (runtime *SSRRuntime) Errors() <-chan error
     Errors reports unexpected child-process exits. The channel remains valid if

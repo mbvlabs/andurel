@@ -5,11 +5,7 @@ import "testing"
 func TestNewRendererWiresHTTPClientOnly(t *testing.T) {
 	t.Parallel()
 
-	renderer, err := NewRenderer(
-		WithContainerID("app"),
-		WithRoot(testRoot(nil)),
-		WithSSRURL("http://127.0.0.1:13714"),
-	)
+	renderer, err := newTestRenderer(WithRoot(testRoot(nil)))
 	if err != nil {
 		t.Fatal(err)
 	}

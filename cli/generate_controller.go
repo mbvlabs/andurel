@@ -579,7 +579,7 @@ func actionControllerMethodInertia(
 		pageName = naming.NamespaceToPascal(namespace) + "/" + pageName
 	}
 	return fmt.Sprintf(
-		"func (%s %s) %s(etx *echo.Context) error {\n\treturn %s.renderer.Page(etx, \"%s\", inertia.Props{})\n}\n\n",
+		"func (%s %s) %s(etx *echo.Context) error {\n\treturn %s.renderer.Page(etx, \"%s\", inertia.Props{}).Render()\n}\n\n",
 		receiverName,
 		controllerName,
 		methodName,

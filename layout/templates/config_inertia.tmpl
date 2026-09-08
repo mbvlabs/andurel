@@ -19,6 +19,7 @@ const (
 	DefaultInertiaSSRStartupTimeout   = 10 * time.Second
 	DefaultInertiaSSRRequestTimeout   = 2 * time.Second
 	DefaultInertiaSSRMaxResponseBytes = int64(2097152)
+	DefaultInertiaSSRMinimumMajor     = 22
 	DefaultInertiaSSRFailFast         = false
 {{- if eq .Inertia "react"}}
 	DefaultInertiaEntryPoint          = "resources/js/app.tsx"
@@ -37,6 +38,7 @@ type Inertia struct {
 	SSRStartupTimeout   time.Duration
 	SSRRequestTimeout   time.Duration
 	SSRMaxResponseBytes int64
+	SSRMinimumMajor     int
 	SSRFailFast         bool
 	EntryPoint          string
 }
@@ -62,8 +64,9 @@ func NewInertia() (Inertia, error) {
 			"INERTIA_SSR_MAX_RESPONSE_BYTES",
 			DefaultInertiaSSRMaxResponseBytes,
 		),
-		SSRFailFast: env.Bool("INERTIA_SSR_FAIL_FAST", DefaultInertiaSSRFailFast),
-		EntryPoint:  env.String("INERTIA_ENTRY_POINT", DefaultInertiaEntryPoint),
+		SSRMinimumMajor: env.Int("INERTIA_SSR_MINIMUM_MAJOR", DefaultInertiaSSRMinimumMajor),
+		SSRFailFast:     env.Bool("INERTIA_SSR_FAIL_FAST", DefaultInertiaSSRFailFast),
+		EntryPoint:      env.String("INERTIA_ENTRY_POINT", DefaultInertiaEntryPoint),
 	}
 
 	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
@@ -95,6 +98,9 @@ func (c Inertia) validate() error {
 	if c.SSRStartupTimeout <= 0 {
 		return fmt.Errorf("SSRStartupTimeout must be positive")
 	}
+	if c.SSRMinimumMajor <= 0 {
+		return fmt.Errorf("SSRMinimumMajor must be positive")
+	}
 
 	return nil
 }
@@ -106,6 +112,7 @@ func (c Inertia) SSRConfig() inertia.SSRConfig {
 		Executable:     c.SSRRuntime,
 		BundlePath:     c.SSRBundle,
 		StartupTimeout: c.SSRStartupTimeout,
+		MinimumMajor:   c.SSRMinimumMajor,
 		HTTP: inertia.SSRClientConfig{
 			URL:              c.SSRURL,
 			Timeout:          c.SSRRequestTimeout,
