@@ -199,7 +199,12 @@ func DeepMerge(value any) Prop {
 func MatchOn(value any, paths ...string) Prop {
 	prop := asProp(value)
 	prop.merge = true
-	prop.matchOn = append(prop.matchOn, cleanPaths(paths)...)
+	for _, path := range paths {
+		path = strings.TrimSpace(path)
+		if path != "" {
+			prop.matchOn = append(prop.matchOn, path)
+		}
+	}
 	return prop
 }
 
@@ -259,15 +264,4 @@ func ScrollAt(value any, wrapper string, metadata any) Prop {
 	prop.scroll = metadata
 	prop.scrollWrapper = strings.Trim(strings.TrimSpace(wrapper), ".")
 	return prop
-}
-
-func cleanPaths(paths []string) []string {
-	result := make([]string, 0, len(paths))
-	for _, path := range paths {
-		path = strings.TrimSpace(path)
-		if path != "" {
-			result = append(result, path)
-		}
-	}
-	return result
 }

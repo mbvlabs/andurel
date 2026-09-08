@@ -39,7 +39,6 @@ type ScaffoldConfig struct {
 	Database                 string `json:"database"`
 	Inertia                  string `json:"inertia,omitempty"`
 	JavaScriptPackageManager string `json:"javascriptPackageManager,omitempty"`
-	InertiaSSRRuntime        string `json:"inertiaSSRRuntime,omitempty"`
 	JavaScriptRuntime        string `json:"javascriptRuntime,omitempty"` // Deprecated: use JavaScriptPackageManager.
 }
 
@@ -53,14 +52,6 @@ func (config *ScaffoldConfig) PackageManager() string {
 		return config.JavaScriptPackageManager
 	}
 	return config.JavaScriptRuntime
-}
-
-// SSRRuntime returns the JavaScript executable selected for Inertia SSR.
-func (config *ScaffoldConfig) SSRRuntime() string {
-	if config == nil || config.InertiaSSRRuntime == "" {
-		return "node"
-	}
-	return config.InertiaSSRRuntime
 }
 
 // Extension records when an extension was applied.

@@ -1,8 +1,9 @@
 package inertia
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
+	"html"
 	"io/fs"
 	"strings"
 	"time"
@@ -10,39 +11,33 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-// Config controls stable renderer behavior.
-type Config struct {
-	ContainerID   string
-	ProtocolDebug bool
-	SSRFailFast   bool
+type viteTags struct {
+	head string
+	body string
 }
 
-// DefaultConfig returns the renderer's protocol defaults.
-func DefaultConfig() Config {
-	return Config{ContainerID: "app"}
+type viteManifestEntry struct {
+	File string   `json:"file"`
+	CSS  []string `json:"css"`
 }
 
-// Validate verifies required renderer configuration.
-func (config Config) Validate() error {
-	if strings.TrimSpace(config.ContainerID) == "" {
-		return fmt.Errorf("inertia: container ID cannot be empty")
-	}
-	return nil
-}
-
-// New constructs a reusable renderer. Applications must supply their compiled
-// document with WithRoot and any other settings they need.
-func New(options ...Option) (*Renderer, error) {
-	config := DefaultConfig()
+// NewRenderer constructs the Inertia protocol renderer used by cmd/app.
+//
+// It always serves the Inertia protocol (CSR by default). Pages that pass
+// WithSSR() call the configured SSR HTTP endpoint. Node process ownership
+// belongs to NewSSRRuntime / cmd/ssr.
+func NewRenderer(options ...Option) (*Renderer, error) {
 	renderer := &Renderer{
-		containerID:   config.ContainerID,
-		protocolDebug: config.ProtocolDebug,
-		ssrFailFast:   config.SSRFailFast,
-		managedConfig: DefaultManagedConfig(),
-		buildPathURL:  "/assets/dist/vite/*",
-		entryPoint:    "resources/js/app.ts",
-		viteDevURL:    "http://localhost:5173/assets/dist",
-		shared:        make(Props),
+		containerID: "app",
+		ssrConfig: SSRClientConfig{
+			URL:              "http://127.0.0.1:13714",
+			Timeout:          2 * time.Second,
+			MaxResponseBytes: 2 << 20,
+		},
+		buildPathURL: "/assets/dist/vite/*",
+		entryPoint:   "resources/js/app.ts",
+		viteDevURL:   "http://localhost:5173/assets/dist",
+		shared:       make(Props),
 		requestFlash: []func(*echo.Context) any{
 			func(etx *echo.Context) any { return FlashFromContext(etx.Request().Context()) },
 		},
@@ -58,44 +53,66 @@ func New(options ...Option) (*Renderer, error) {
 	if strings.TrimSpace(renderer.containerID) == "" {
 		return nil, fmt.Errorf("inertia: container ID cannot be empty")
 	}
-	if err := renderer.configureRoot(); err != nil {
-		return nil, err
+	if renderer.root == nil {
+		return nil, fmt.Errorf("inertia: root constructor cannot be nil")
 	}
-	if err := renderer.configureSSR(); err != nil {
-		return nil, err
+
+	if renderer.environment != "production" {
+		base := strings.TrimRight(renderer.viteDevURL, "/")
+		tags := viteTags{
+			head: `<script type="module" src="` + html.EscapeString(
+				base+"/@vite/client",
+			) + `"></script>`,
+			body: `<script type="module" src="` + html.EscapeString(
+				base+"/"+renderer.entryPoint,
+			) + `"></script>`,
+		}
+		if strings.HasSuffix(renderer.entryPoint, ".tsx") {
+			tags.head += `<script type="module">
+import RefreshRuntime from "` + html.EscapeString(base+"/@react-refresh") + `"
+RefreshRuntime.injectIntoGlobalHook(window)
+window.$RefreshReg$ = () => {}
+window.$RefreshSig$ = () => (type) => type
+window.__vite_plugin_react_preamble_installed__ = true
+</script>`
+		}
+		renderer.viteTags = tags
+	} else {
+		if renderer.assetFS == nil {
+			return nil, fmt.Errorf("inertia: production assets require an asset filesystem")
+		}
+		data, err := fs.ReadFile(renderer.assetFS, "dist/vite/manifest.json")
+		if err != nil {
+			return nil, fmt.Errorf("inertia: read Vite manifest: %w", err)
+		}
+		var manifest map[string]viteManifestEntry
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			return nil, fmt.Errorf("inertia: parse Vite manifest: %w", err)
+		}
+		entry, ok := manifest[renderer.entryPoint]
+		if !ok {
+			return nil, fmt.Errorf(
+				"inertia: Vite entry point %q not found in manifest",
+				renderer.entryPoint,
+			)
+		}
+		prefix := strings.TrimSuffix(renderer.buildPathURL, "*")
+		tags := viteTags{}
+		for _, stylesheet := range entry.CSS {
+			tags.head += `<link rel="stylesheet" href="` + html.EscapeString(prefix+stylesheet) + `">`
+		}
+		tags.body = `<script type="module" src="` + html.EscapeString(prefix+entry.File) + `"></script>`
+		renderer.viteTags = tags
+	}
+
+	if !renderer.customSSR {
+		httpRenderer, err := NewHTTPRenderer(renderer.ssrConfig)
+		if err != nil {
+			return nil, err
+		}
+		renderer.ssr = httpRenderer
 	}
 	return renderer, nil
-}
-
-// Start is retained for lifecycle hooks. The HTTP app does not own the Node
-// SSR process; use cmd/ssr (or an operator) for that. This method is a no-op
-// unless a custom managed runtime was attached.
-func (renderer *Renderer) Start(ctx context.Context) error {
-	if renderer == nil || renderer.runtime == nil {
-		return nil
-	}
-	return renderer.runtime.Start(ctx)
-}
-
-// Shutdown stops an attached managed SSR runtime. It is a no-op for the
-// default HTTP-client configuration used by cmd/app.
-func (renderer *Renderer) Shutdown(ctx context.Context) error {
-	if renderer == nil || renderer.runtime == nil {
-		return nil
-	}
-	return renderer.runtime.Stop(ctx)
-}
-
-func (renderer *Renderer) configureSSR() error {
-	if renderer.customSSR {
-		return nil
-	}
-	httpRenderer, err := NewHTTPRenderer(renderer.managedConfig.HTTP)
-	if err != nil {
-		return err
-	}
-	renderer.ssr = httpRenderer
-	return nil
 }
 
 // WithAssetFS supplies the embedded application asset filesystem used for the
@@ -173,42 +190,21 @@ func WithRoot(root RootFunc) Option {
 
 func WithSSRURL(rawURL string) Option {
 	return func(renderer *Renderer) error {
-		renderer.managedConfig.HTTP.URL = rawURL
-		return nil
-	}
-}
-
-func WithSSRRuntime(executable string) Option {
-	return func(renderer *Renderer) error {
-		renderer.managedConfig.Executable = executable
-		return nil
-	}
-}
-
-func WithSSRBundle(path string) Option {
-	return func(renderer *Renderer) error {
-		renderer.managedConfig.BundlePath = path
+		renderer.ssrConfig.URL = rawURL
 		return nil
 	}
 }
 
 func WithSSRRequestTimeout(timeout time.Duration) Option {
 	return func(renderer *Renderer) error {
-		renderer.managedConfig.HTTP.Timeout = timeout
-		return nil
-	}
-}
-
-func WithSSRStartupTimeout(timeout time.Duration) Option {
-	return func(renderer *Renderer) error {
-		renderer.managedConfig.StartupTimeout = timeout
+		renderer.ssrConfig.Timeout = timeout
 		return nil
 	}
 }
 
 func WithSSRMaxResponseBytes(size int64) Option {
 	return func(renderer *Renderer) error {
-		renderer.managedConfig.HTTP.MaxResponseBytes = size
+		renderer.ssrConfig.MaxResponseBytes = size
 		return nil
 	}
 }

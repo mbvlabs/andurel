@@ -42,7 +42,12 @@ func (renderer *Renderer) Middleware() echo.MiddlewareFunc {
 					return versionErr
 				}
 				if state.Version != version {
-					return renderer.versionMismatch(etx, version)
+					header := etx.Response().Header()
+					header.Del(HeaderInertia)
+					header.Set(HeaderLocation, requestURL(etx))
+					header.Set(HeaderVersion, version)
+					appendVary(header, HeaderInertia)
+					return etx.NoContent(http.StatusConflict)
 				}
 			}
 
@@ -65,15 +70,6 @@ func (renderer *Renderer) Middleware() echo.MiddlewareFunc {
 			return captured.commit()
 		}
 	}
-}
-
-func (renderer *Renderer) versionMismatch(etx *echo.Context, version string) error {
-	header := etx.Response().Header()
-	header.Del(HeaderInertia)
-	header.Set(HeaderLocation, requestURL(etx))
-	header.Set(HeaderVersion, version)
-	appendVary(header, HeaderInertia)
-	return etx.NoContent(http.StatusConflict)
 }
 
 type captureWriter struct {
@@ -116,15 +112,17 @@ func (writer *captureWriter) normalize(etx *echo.Context) {
 		writer.status = http.StatusSeeOther
 	}
 	if writer.status >= 300 && writer.status < 400 &&
-		strings.Contains(header.Get("Location"), "#") &&
-		requestStateMust(etx).Purpose != PurposePrefetch {
-		location := header.Get("Location")
-		header.Del("Location")
-		header.Del(HeaderInertia)
-		header.Del("Content-Type")
-		header.Set(HeaderRedirect, location)
-		writer.status = http.StatusConflict
-		writer.body.Reset()
+		strings.Contains(header.Get("Location"), "#") {
+		state, _ := requestState(etx)
+		if state.Purpose != PurposePrefetch {
+			location := header.Get("Location")
+			header.Del("Location")
+			header.Del(HeaderInertia)
+			header.Del("Content-Type")
+			header.Set(HeaderRedirect, location)
+			writer.status = http.StatusConflict
+			writer.body.Reset()
+		}
 	}
 }
 
@@ -135,11 +133,6 @@ func (writer *captureWriter) commit() error {
 	}
 	_, err := writer.ResponseWriter.Write(writer.body.Bytes())
 	return err
-}
-
-func requestStateMust(etx *echo.Context) Request {
-	state, _ := requestState(etx)
-	return state
 }
 
 func isUnsafeRedirectMethod(method string) bool {

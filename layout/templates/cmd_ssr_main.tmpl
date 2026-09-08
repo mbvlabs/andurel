@@ -25,7 +25,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	runtime, err := inertia.NewManagedRuntime(cfg.ManagedSSRConfig())
+	runtime, err := inertia.NewSSRRuntime(cfg.SSRConfig())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "inertia SSR runtime: %v\n", err)
 		os.Exit(1)

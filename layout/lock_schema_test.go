@@ -36,8 +36,7 @@ func TestDecodeLockMigratesLegacyJavaScriptRuntimeAsPackageManager(t *testing.T)
 	}
 	if decoded.ScaffoldConfig.PackageManager() != "pnpm" ||
 		decoded.ScaffoldConfig.JavaScriptPackageManager != "pnpm" ||
-		decoded.ScaffoldConfig.JavaScriptRuntime != "pnpm" ||
-		decoded.ScaffoldConfig.SSRRuntime() != "node" {
+		decoded.ScaffoldConfig.JavaScriptRuntime != "pnpm" {
 		t.Fatalf("legacy scaffold config was not migrated: %#v", decoded.ScaffoldConfig)
 	}
 }

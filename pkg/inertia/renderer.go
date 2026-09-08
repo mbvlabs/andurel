@@ -49,8 +49,7 @@ type Renderer struct {
 	requestFlash    []func(*echo.Context) any
 	ssr             SSRRenderer
 	customSSR       bool
-	managedConfig   ManagedConfig
-	runtime         *ManagedRuntime
+	ssrConfig       SSRClientConfig
 	ssrFailFast     bool
 	reflash         ReflashHandler
 	protocolDebug   bool
@@ -239,15 +238,38 @@ func (renderer *Renderer) Page(
 			}
 		}
 	}
-	shared, err := renderer.sharedProps(etx)
-	if err != nil {
-		return err
+	shared := make(Props, len(renderer.shared))
+	maps.Copy(shared, renderer.shared)
+	for _, provider := range renderer.sharedProviders {
+		provided, err := provider(etx)
+		if err != nil {
+			return &Error{
+				Kind:      ErrorProps,
+				Operation: "resolve shared provider",
+				Method:    etx.Request().Method,
+				URL:       requestURL(etx),
+				Err:       err,
+			}
+		}
+		maps.Copy(shared, provided)
 	}
 	resolved, err := resolvePageProps(etx, request, component, shared, props)
 	if err != nil {
 		return err
 	}
-	resolved.props["errors"] = validationErrors(request.ErrorBag, options.validationErrors)
+	errorsProp := map[string]any{}
+	if options.validationErrors != nil {
+		plain := make(map[string]any, len(options.validationErrors))
+		for field, message := range options.validationErrors {
+			plain[field] = message
+		}
+		if request.ErrorBag == "" {
+			errorsProp = plain
+		} else {
+			errorsProp = map[string]any{request.ErrorBag: plain}
+		}
+	}
+	resolved.props["errors"] = errorsProp
 	resolved.resolvedShared = append(resolved.resolvedShared, "errors")
 	slices.Sort(resolved.resolvedShared)
 	version, err := renderer.currentVersion(etx)
@@ -281,18 +303,30 @@ func (renderer *Renderer) Page(
 		Flash:            options.flash,
 	}
 	if renderer.protocolDebug {
+		propKeys := make([]string, 0, len(page.Props))
+		for key := range page.Props {
+			propKeys = append(propKeys, key)
+		}
+		slices.Sort(propKeys)
+		deferredGroups := make([]string, 0, len(page.DeferredProps))
+		for key := range page.DeferredProps {
+			deferredGroups = append(deferredGroups, key)
+		}
+		slices.Sort(deferredGroups)
 		etx.Logger().Debug("inertia protocol page",
 			slog.String("component", component),
 			slog.String("method", etx.Request().Method),
 			slog.String("url", page.URL),
-			slog.Any("prop_keys", sortedPropKeys(page.Props)),
+			slog.Any("prop_keys", propKeys),
 			slog.Any("merge_props", page.MergeProps),
-			slog.Any("deferred_groups", sortedDeferredGroups(page.DeferredProps)),
+			slog.Any("deferred_groups", deferredGroups),
 			slog.Int("once_props", len(page.OnceProps)),
 		)
 	}
-	pageJSON, err := marshalPage(page)
-	if err != nil {
+	var pageBuffer bytes.Buffer
+	encoder := json.NewEncoder(&pageBuffer)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(page); err != nil {
 		return &Error{
 			Kind:      ErrorProps,
 			Operation: "encode page",
@@ -302,6 +336,7 @@ func (renderer *Renderer) Page(
 			Err:       err,
 		}
 	}
+	pageJSON := bytes.TrimSuffix(pageBuffer.Bytes(), []byte("\n"))
 	appendVary(etx.Response().Header(), HeaderInertia)
 	if request.Inertia {
 		etx.Response().Header().Set(HeaderInertia, "true")
@@ -315,7 +350,14 @@ func (renderer *Renderer) Page(
 		} else {
 			ssrResponse, err = renderer.ssr.Render(etx.Request().Context(), page)
 			if err == nil {
-				err = validateSSRResponse(ssrResponse)
+				switch {
+				case ssrResponse == nil:
+					err = fmt.Errorf("empty SSR response")
+				case !strings.Contains(ssrResponse.Body, `data-server-rendered="true"`):
+					err = fmt.Errorf("SSR body is missing data-server-rendered marker")
+				case !strings.Contains(ssrResponse.Body, "data-page="):
+					err = fmt.Errorf("SSR body is missing page script")
+				}
 			}
 		}
 		if err != nil {
@@ -369,43 +411,6 @@ func (renderer *Renderer) Page(
 	return etx.HTMLBlob(options.status, document.Bytes())
 }
 
-func sortedPropKeys(props map[string]any) []string {
-	keys := make([]string, 0, len(props))
-	for key := range props {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
-}
-
-func sortedDeferredGroups(groups map[string][]string) []string {
-	keys := make([]string, 0, len(groups))
-	for key := range groups {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
-}
-
-func (renderer *Renderer) sharedProps(etx *echo.Context) (Props, error) {
-	shared := make(Props, len(renderer.shared))
-	maps.Copy(shared, renderer.shared)
-	for _, provider := range renderer.sharedProviders {
-		provided, err := provider(etx)
-		if err != nil {
-			return nil, &Error{
-				Kind:      ErrorProps,
-				Operation: "resolve shared provider",
-				Method:    etx.Request().Method,
-				URL:       requestURL(etx),
-				Err:       err,
-			}
-		}
-		maps.Copy(shared, provided)
-	}
-	return shared, nil
-}
-
 func (renderer *Renderer) currentVersion(etx *echo.Context) (string, error) {
 	if renderer.versionProvider == nil {
 		return renderer.version, nil
@@ -421,43 +426,6 @@ func (renderer *Renderer) currentVersion(etx *echo.Context) (string, error) {
 		}
 	}
 	return version, nil
-}
-
-func validationErrors(bag string, errors map[string]string) map[string]any {
-	if errors == nil {
-		return map[string]any{}
-	}
-	plain := make(map[string]any, len(errors))
-	for field, message := range errors {
-		plain[field] = message
-	}
-	if bag == "" {
-		return plain
-	}
-	return map[string]any{bag: plain}
-}
-
-func marshalPage(page Page) ([]byte, error) {
-	var buffer bytes.Buffer
-	encoder := json.NewEncoder(&buffer)
-	encoder.SetEscapeHTML(false)
-	if err := encoder.Encode(page); err != nil {
-		return nil, err
-	}
-	return bytes.TrimSuffix(buffer.Bytes(), []byte("\n")), nil
-}
-
-func validateSSRResponse(response *SSRResponse) error {
-	if response == nil {
-		return fmt.Errorf("empty SSR response")
-	}
-	if !strings.Contains(response.Body, `data-server-rendered="true"`) {
-		return fmt.Errorf("SSR body is missing data-server-rendered marker")
-	}
-	if !strings.Contains(response.Body, "data-page=") {
-		return fmt.Errorf("SSR body is missing page script")
-	}
-	return nil
 }
 
 func requestURL(etx *echo.Context) string {

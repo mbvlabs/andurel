@@ -498,7 +498,7 @@ andurel build [--version]
 
 Runs Templ generation, minifies Tailwind CSS, installs JavaScript dependencies and builds Vite assets with the package manager stored in `andurel.lock` (if using Inertia), downloads Go dependencies, and compiles a static Linux binary.
 
-For Inertia projects, `andurel build` reads `scaffoldConfig.javascriptPackageManager` from `andurel.lock`. V1 locks migrate the legacy `javascriptRuntime` value as a package manager; missing values default to `npm`. The JavaScript executable used for SSR is recorded separately as `scaffoldConfig.inertiaSSRRuntime`.
+For Inertia projects, `andurel build` reads `scaffoldConfig.javascriptPackageManager` from `andurel.lock`. V1 locks migrate the legacy `javascriptRuntime` value as a package manager; missing values default to `npm`. The Node executable used by `cmd/ssr` comes from app config (`INERTIA_SSR_RUNTIME`), not the lock.
 
 | Runtime | Install command used by `andurel build` | Vite build command used by `andurel build` |
 |---------|------------------------------------------|---------------------------------------------|
@@ -861,7 +861,7 @@ myapp/
 │   └── inertia.go               # Environment-backed Inertia settings
 ├── cmd/
 │   └── ssr/
-│       └── main.go              # Starts Node SSR from ManagedSSRConfig
+│       └── main.go              # Starts Node SSR from SSRConfig
 ├── vite.config.ts
 ├── svelte.config.js            # Svelte projects only
 ├── package.json
@@ -880,7 +880,7 @@ You can specify the JavaScript package manager by appending `/npm`, `/pnpm`, `/b
 - `--inertia svelte`: uses `npm` (default)
 - `--inertia svelte/pnpm`: uses `pnpm`
 
-The package manager is stored in `andurel.lock` as `scaffoldConfig.javascriptPackageManager`. `andurel build` uses it for dependency installation and Vite scripts. `scaffoldConfig.inertiaSSRRuntime` independently records the executable used for SSR, so choosing Bun as a package manager does not silently replace Node as the SSR runtime.
+The package manager is stored in `andurel.lock` as `scaffoldConfig.javascriptPackageManager`. `andurel build` uses it for dependency installation and Vite scripts. The SSR Node executable is configured separately in `config/inertia.go` (`INERTIA_SSR_RUNTIME`) so choosing Bun as a package manager does not silently replace Node as the SSR runtime.
 
 SSR uses per-response `inertia.WithSSR()`. Node process ownership belongs to `cmd/ssr` (started by Shadowfax under `andurel run`, or by a process manager in production). The HTTP app only calls `INERTIA_SSR_URL` and keeps bounded fallback to client rendering.
 

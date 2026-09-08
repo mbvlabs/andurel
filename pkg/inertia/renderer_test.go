@@ -44,9 +44,9 @@ func TestWithSSRContactsRendererOnlyForInitialDocument(t *testing.T) {
 		Head: []string{"<title>SSR</title>"},
 		Body: `<div data-server-rendered="true" data-page="app">SSR</div>`,
 	}}
-	renderer, err := New(WithContainerID("app"), WithRoot(testRoot(&captured)), WithSSRRenderer(ssr))
+	renderer, err := NewRenderer(WithContainerID("app"), WithRoot(testRoot(&captured)), WithSSRRenderer(ssr))
 	if err != nil {
-		t.Fatalf("New: %v", err)
+		t.Fatalf("NewRenderer: %v", err)
 	}
 
 	e := echo.New()
@@ -81,9 +81,9 @@ func TestSSRFailureFallsBackUnlessFailFast(t *testing.T) {
 	var captured RootData
 	ssrErr := errors.New("renderer unavailable")
 	ssr := &fakeSSRRenderer{err: ssrErr}
-	renderer, err := New(WithContainerID("app"), WithRoot(testRoot(&captured)), WithSSRRenderer(ssr))
+	renderer, err := NewRenderer(WithContainerID("app"), WithRoot(testRoot(&captured)), WithSSRRenderer(ssr))
 	if err != nil {
-		t.Fatalf("New: %v", err)
+		t.Fatalf("NewRenderer: %v", err)
 	}
 
 	e := echo.New()
@@ -100,14 +100,14 @@ func TestSSRFailureFallsBackUnlessFailFast(t *testing.T) {
 		)
 	}
 
-	renderer, err = New(
+	renderer, err = NewRenderer(
 		WithContainerID("app"),
 		WithRoot(testRoot(&captured)),
 		WithSSRRenderer(ssr),
 		WithSSRFailFast(true),
 	)
 	if err != nil {
-		t.Fatalf("New fail-fast: %v", err)
+		t.Fatalf("NewRenderer fail-fast: %v", err)
 	}
 	request = httptest.NewRequest(http.MethodGet, "/", nil)
 	recorder = httptest.NewRecorder()

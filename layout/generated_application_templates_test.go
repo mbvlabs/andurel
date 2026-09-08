@@ -442,7 +442,7 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	for _, want := range []string{
 		"type Inertia struct",
 		"func NewInertia() (Inertia, error)",
-		"ManagedSSRConfig()",
+		"SSRConfig()",
 	} {
 		if !strings.Contains(inertiaConfig, want) {
 			t.Errorf("config_inertia.tmpl missing %q", want)
@@ -489,7 +489,7 @@ func TestStandalonePackagesOwnDefaultsWithoutReadingEnvironment(t *testing.T) {
 		{"email", "mailpit.go"},
 		{"inertia", "config.go"},
 		{"inertia", "ssr_config.go"},
-		{"inertia", "ssr_managed.go"},
+		{"inertia", "ssr_runtime.go"},
 		{"server", "server.go"},
 	}
 	for _, file := range files {
@@ -502,7 +502,7 @@ func TestStandalonePackagesOwnDefaultsWithoutReadingEnvironment(t *testing.T) {
 	}
 	for _, defaults := range []struct{ pkg, name, declaration string }{
 		{"storage", "psql_config.go", "func DefaultConfig("},
-		{"inertia", "config.go", "func DefaultConfig("},
+		{"inertia", "config.go", "func NewRenderer("},
 		{"server", "server.go", "func DefaultConfig("},
 	} {
 		if !strings.Contains(readStandalonePackageFile(t, defaults.pkg, defaults.name), defaults.declaration) {

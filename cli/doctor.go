@@ -520,7 +520,7 @@ func checkInertiaSSRConfiguration(rootDir string) checkResult {
 
 	executable := strings.TrimSpace(values["INERTIA_SSR_RUNTIME"])
 	if executable == "" {
-		executable = lock.ScaffoldConfig.SSRRuntime()
+		executable = "node"
 	}
 	if _, err := exec.LookPath(executable); err != nil {
 		return checkResult{

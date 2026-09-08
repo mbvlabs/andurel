@@ -8,23 +8,18 @@ import (
 	"time"
 )
 
-// ErrResponseTooLarge reports an SSR response that exceeds SSRConfig.MaxResponseBytes.
+// ErrResponseTooLarge reports an SSR response that exceeds SSRClientConfig.MaxResponseBytes.
 var ErrResponseTooLarge = errors.New("inertia: SSR response exceeds configured limit")
 
-// SSRConfig controls communication with an Inertia SSR HTTP service.
-type SSRConfig struct {
+// SSRClientConfig controls communication with an Inertia SSR HTTP service.
+type SSRClientConfig struct {
 	URL              string
 	Timeout          time.Duration
 	MaxResponseBytes int64
 }
 
-// DefaultSSRConfig returns bounded HTTP settings for a local SSR service.
-func DefaultSSRConfig() SSRConfig {
-	return SSRConfig{URL: "http://127.0.0.1:13714", Timeout: 2 * time.Second, MaxResponseBytes: 2 << 20}
-}
-
 // Validate verifies HTTP renderer configuration.
-func (config SSRConfig) Validate() error {
+func (config SSRClientConfig) Validate() error {
 	parsed, err := url.Parse(strings.TrimSpace(config.URL))
 	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return fmt.Errorf("inertia: invalid SSR URL")

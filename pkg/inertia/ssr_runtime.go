@@ -15,33 +15,24 @@ import (
 	"time"
 )
 
-const defaultSSRMinimumMajor = 22
+const ssrMinimumMajor = 22
 
-// ManagedConfig controls a JavaScript SSR process owned by cmd/ssr (or an
+// SSRConfig controls a JavaScript SSR process owned by cmd/ssr (or an
 // equivalent operator entrypoint), not by the HTTP application process.
-type ManagedConfig struct {
+type SSRConfig struct {
 	Enabled        bool
 	BundlePath     string
 	Executable     string
 	StartupTimeout time.Duration
 	MinimumMajor   int
-	HTTP           SSRConfig
+	HTTP           SSRClientConfig
 	Logger         *slog.Logger
 	Stdout         io.Writer
 	Stderr         io.Writer
 }
 
-// DefaultManagedConfig returns defaults for an optional managed SSR process.
-// Applications provide the compiled bundle path before enabling the runtime.
-func DefaultManagedConfig() ManagedConfig {
-	return ManagedConfig{
-		Executable: "node", StartupTimeout: 10 * time.Second, MinimumMajor: defaultSSRMinimumMajor,
-		HTTP: DefaultSSRConfig(), Logger: slog.Default(), Stdout: os.Stdout, Stderr: os.Stderr,
-	}
-}
-
-// Validate verifies managed runtime configuration.
-func (config ManagedConfig) Validate() error {
+// Validate verifies SSR runtime configuration.
+func (config SSRConfig) Validate() error {
 	if !config.Enabled {
 		return nil
 	}
@@ -62,17 +53,17 @@ func (config ManagedConfig) Validate() error {
 	}
 	parsed, _ := url.Parse(config.HTTP.URL)
 	if !isLoopbackHost(parsed.Hostname()) {
-		return fmt.Errorf("inertia: managed SSR URL must use a loopback host")
+		return fmt.Errorf("inertia: SSR URL must use a loopback host")
 	}
 	if parsed.Port() == "" {
-		return fmt.Errorf("inertia: managed SSR URL must include a port")
+		return fmt.Errorf("inertia: SSR URL must include a port")
 	}
 	return nil
 }
 
-// ManagedRuntime owns one JavaScript process and exposes its HTTP renderer.
-type ManagedRuntime struct {
-	config   ManagedConfig
+// SSRRuntime owns one JavaScript process and exposes its HTTP renderer.
+type SSRRuntime struct {
+	config   SSRConfig
 	renderer *HTTPRenderer
 	errors   chan error
 
@@ -82,18 +73,43 @@ type ManagedRuntime struct {
 	stopping bool
 }
 
-// NewManagedRuntime constructs a managed runtime without starting it.
-func NewManagedRuntime(
-	config ManagedConfig,
+// NewSSRRuntime constructs an SSR runtime without starting it.
+// Zero-value fields receive package defaults before validation.
+func NewSSRRuntime(
+	config SSRConfig,
 	options ...HTTPRendererOption,
-) (*ManagedRuntime, error) {
+) (*SSRRuntime, error) {
+	if strings.TrimSpace(config.Executable) == "" {
+		config.Executable = "node"
+	}
+	if config.StartupTimeout <= 0 {
+		config.StartupTimeout = 10 * time.Second
+	}
 	if config.MinimumMajor == 0 {
-		config.MinimumMajor = defaultSSRMinimumMajor
+		config.MinimumMajor = ssrMinimumMajor
+	}
+	if strings.TrimSpace(config.HTTP.URL) == "" {
+		config.HTTP.URL = "http://127.0.0.1:13714"
+	}
+	if config.HTTP.Timeout <= 0 {
+		config.HTTP.Timeout = 2 * time.Second
+	}
+	if config.HTTP.MaxResponseBytes <= 0 {
+		config.HTTP.MaxResponseBytes = 2 << 20
+	}
+	if config.Logger == nil {
+		config.Logger = slog.Default()
+	}
+	if config.Stdout == nil {
+		config.Stdout = os.Stdout
+	}
+	if config.Stderr == nil {
+		config.Stderr = os.Stderr
 	}
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
-	runtime := &ManagedRuntime{
+	runtime := &SSRRuntime{
 		config: config,
 		errors: make(chan error, 1),
 	}
@@ -105,14 +121,14 @@ func NewManagedRuntime(
 		return nil, err
 	}
 	if !isLoopbackHost(renderer.baseURL.Hostname()) {
-		return nil, fmt.Errorf("inertia: managed SSR URL must use a loopback host")
+		return nil, fmt.Errorf("inertia: SSR URL must use a loopback host")
 	}
 	runtime.renderer = renderer
 	return runtime, nil
 }
 
 // Renderer returns the configured renderer, or nil when the runtime is disabled.
-func (runtime *ManagedRuntime) Renderer() SSRRenderer {
+func (runtime *SSRRuntime) Renderer() SSRRenderer {
 	if runtime == nil || !runtime.config.Enabled {
 		return nil
 	}
@@ -121,7 +137,7 @@ func (runtime *ManagedRuntime) Renderer() SSRRenderer {
 
 // Errors reports unexpected child-process exits. The channel remains valid if
 // the runtime is restarted.
-func (runtime *ManagedRuntime) Errors() <-chan error {
+func (runtime *SSRRuntime) Errors() <-chan error {
 	if runtime == nil {
 		return nil
 	}
@@ -129,7 +145,7 @@ func (runtime *ManagedRuntime) Errors() <-chan error {
 }
 
 // Start starts the configured JavaScript process and waits for health readiness.
-func (runtime *ManagedRuntime) Start(ctx context.Context) error {
+func (runtime *SSRRuntime) Start(ctx context.Context) error {
 	if runtime == nil || !runtime.config.Enabled {
 		return nil
 	}
@@ -140,8 +156,24 @@ func (runtime *ManagedRuntime) Start(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("inertia SSR runtime %q: %w", runtime.config.Executable, err)
 	}
-	if err := runtime.validateVersion(ctx, executable); err != nil {
-		return err
+	output, err := exec.CommandContext(ctx, executable, "--version").Output()
+	if err != nil {
+		return fmt.Errorf("inspect SSR runtime version: %w", err)
+	}
+	var major int
+	if _, err := fmt.Sscanf(strings.TrimSpace(string(output)), "v%d.", &major); err != nil {
+		return fmt.Errorf(
+			"inspect SSR runtime version %q: %w",
+			strings.TrimSpace(string(output)),
+			err,
+		)
+	}
+	if major < runtime.config.MinimumMajor {
+		return fmt.Errorf(
+			"inertia SSR requires runtime major %d or newer (found %q)",
+			runtime.config.MinimumMajor,
+			strings.TrimSpace(string(output)),
+		)
 	}
 
 	runtime.mu.Lock()
@@ -168,7 +200,32 @@ func (runtime *ManagedRuntime) Start(ctx context.Context) error {
 	runtime.stopping = false
 	runtime.mu.Unlock()
 
-	go runtime.wait(command, done)
+	go func() {
+		waitErr := command.Wait()
+		done <- waitErr
+		close(done)
+
+		runtime.mu.Lock()
+		expected := runtime.stopping
+		if runtime.command == command {
+			runtime.command = nil
+			runtime.done = nil
+			runtime.stopping = false
+		}
+		runtime.mu.Unlock()
+		if expected {
+			return
+		}
+
+		err := fmt.Errorf("inertia SSR runtime stopped unexpectedly: %w", normalizeWaitError(waitErr))
+		if runtime.config.Logger != nil {
+			runtime.config.Logger.Error("inertia SSR runtime stopped", "error", err)
+		}
+		select {
+		case runtime.errors <- err:
+		default:
+		}
+	}()
 
 	startupCtx, cancel := context.WithTimeout(ctx, runtime.config.StartupTimeout)
 	defer cancel()
@@ -193,7 +250,7 @@ func (runtime *ManagedRuntime) Start(ctx context.Context) error {
 }
 
 // Stop gracefully stops the managed process and kills it when the context ends.
-func (runtime *ManagedRuntime) Stop(ctx context.Context) error {
+func (runtime *SSRRuntime) Stop(ctx context.Context) error {
 	if runtime == nil || !runtime.config.Enabled {
 		return nil
 	}
@@ -218,56 +275,6 @@ func (runtime *ManagedRuntime) Stop(ctx context.Context) error {
 		killErr := command.Process.Kill()
 		return errors.Join(shutdownErr, ctx.Err(), killErr)
 	}
-}
-
-func (runtime *ManagedRuntime) wait(command *exec.Cmd, done chan error) {
-	waitErr := command.Wait()
-	done <- waitErr
-	close(done)
-
-	runtime.mu.Lock()
-	expected := runtime.stopping
-	if runtime.command == command {
-		runtime.command = nil
-		runtime.done = nil
-		runtime.stopping = false
-	}
-	runtime.mu.Unlock()
-	if expected {
-		return
-	}
-
-	err := fmt.Errorf("inertia SSR runtime stopped unexpectedly: %w", normalizeWaitError(waitErr))
-	if runtime.config.Logger != nil {
-		runtime.config.Logger.Error("inertia SSR runtime stopped", "error", err)
-	}
-	select {
-	case runtime.errors <- err:
-	default:
-	}
-}
-
-func (runtime *ManagedRuntime) validateVersion(ctx context.Context, executable string) error {
-	output, err := exec.CommandContext(ctx, executable, "--version").Output()
-	if err != nil {
-		return fmt.Errorf("inspect SSR runtime version: %w", err)
-	}
-	var major int
-	if _, err := fmt.Sscanf(strings.TrimSpace(string(output)), "v%d.", &major); err != nil {
-		return fmt.Errorf(
-			"inspect SSR runtime version %q: %w",
-			strings.TrimSpace(string(output)),
-			err,
-		)
-	}
-	if major < runtime.config.MinimumMajor {
-		return fmt.Errorf(
-			"inertia SSR requires runtime major %d or newer (found %q)",
-			runtime.config.MinimumMajor,
-			strings.TrimSpace(string(output)),
-		)
-	}
-	return nil
 }
 
 func isLoopbackHost(host string) bool {

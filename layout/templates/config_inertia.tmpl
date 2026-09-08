@@ -84,7 +84,7 @@ func (c Inertia) validate() error {
 		return err
 	}
 
-	http := inertia.SSRConfig{
+	http := inertia.SSRClientConfig{
 		URL:              c.SSRURL,
 		Timeout:          c.SSRRequestTimeout,
 		MaxResponseBytes: c.SSRMaxResponseBytes,
@@ -99,18 +99,17 @@ func (c Inertia) validate() error {
 	return nil
 }
 
-// ManagedSSRConfig returns settings for cmd/ssr to start the Node process.
-func (c Inertia) ManagedSSRConfig() inertia.ManagedConfig {
-	managed := inertia.DefaultManagedConfig()
-	managed.Enabled = true
-	managed.Executable = c.SSRRuntime
-	managed.BundlePath = c.SSRBundle
-	managed.StartupTimeout = c.SSRStartupTimeout
-	managed.HTTP = inertia.SSRConfig{
-		URL:              c.SSRURL,
-		Timeout:          c.SSRRequestTimeout,
-		MaxResponseBytes: c.SSRMaxResponseBytes,
+// SSRConfig returns settings for cmd/ssr to start the Node process.
+func (c Inertia) SSRConfig() inertia.SSRConfig {
+	return inertia.SSRConfig{
+		Enabled:        true,
+		Executable:     c.SSRRuntime,
+		BundlePath:     c.SSRBundle,
+		StartupTimeout: c.SSRStartupTimeout,
+		HTTP: inertia.SSRClientConfig{
+			URL:              c.SSRURL,
+			Timeout:          c.SSRRequestTimeout,
+			MaxResponseBytes: c.SSRMaxResponseBytes,
+		},
 	}
-
-	return managed
 }

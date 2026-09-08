@@ -26,7 +26,7 @@ type HTTPRenderer struct {
 }
 
 // NewHTTPRenderer creates a bounded SSR HTTP renderer.
-func NewHTTPRenderer(config SSRConfig, options ...HTTPRendererOption) (*HTTPRenderer, error) {
+func NewHTTPRenderer(config SSRClientConfig, options ...HTTPRendererOption) (*HTTPRenderer, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}

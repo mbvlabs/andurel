@@ -127,7 +127,7 @@ func (r *propResolver) resolveValue(
 			r.recordUnresolvedPolicy(path, prop)
 			return nil, false, nil
 		}
-		resolved, err := evaluateProp(r.etx, prop.value)
+		resolved, _, err := evaluateLazyProp(r.etx, prop.value)
 		if err != nil {
 			if prop.deferred && prop.rescue {
 				r.etx.Logger().
@@ -449,11 +449,6 @@ func resolveScrollMetadata(etx *echo.Context, provider, value any) (ScrollMetada
 	}
 }
 
-func evaluateProp(etx *echo.Context, value any) (any, error) {
-	resolved, _, err := evaluateLazyProp(etx, value)
-	return resolved, err
-}
-
 func evaluateLazyProp(etx *echo.Context, value any) (any, bool, error) {
 	switch resolver := value.(type) {
 	case PropResolver:
@@ -489,15 +484,6 @@ func pathMatchesAny(path string, selections []string) bool {
 func matchesOnly(path string, selections []string) bool {
 	for _, selection := range selections {
 		if path == selection || strings.HasPrefix(path, selection+".") {
-			return true
-		}
-	}
-	return false
-}
-
-func explicitlySelected(path string, selections []string) bool {
-	for _, selection := range selections {
-		if selection == path || strings.HasPrefix(selection, path+".") {
 			return true
 		}
 	}

@@ -189,7 +189,7 @@ func newInertia(
 	appCfg config.App,
 	cfg config.Inertia,
 ) (*inertia.Renderer, error) {
-	renderer, err := inertia.New(
+	renderer, err := inertia.NewRenderer(
 		inertia.WithRoot(views.Root),
 		inertia.WithAssetFS(assets.Files),
 		inertia.WithProjectName(appCfg.ProjectName),
@@ -200,10 +200,7 @@ func newInertia(
 		inertia.WithViteDevURL(cfg.ViteDevURL),
 		inertia.WithProtocolDebug(cfg.ProtocolDebug),
 		inertia.WithShared(inertia.Props{"appVersion": appVersion}),
-		inertia.WithSSRRuntime(cfg.SSRRuntime),
-		inertia.WithSSRBundle(cfg.SSRBundle),
 		inertia.WithSSRURL(cfg.SSRURL),
-		inertia.WithSSRStartupTimeout(cfg.SSRStartupTimeout),
 		inertia.WithSSRRequestTimeout(cfg.SSRRequestTimeout),
 		inertia.WithSSRMaxResponseBytes(cfg.SSRMaxResponseBytes),
 		inertia.WithSSRFailFast(cfg.SSRFailFast),

@@ -1136,9 +1136,7 @@ file -----------rw-r--r-- andurel.lock
   "scaffoldConfig": {
     "database": "postgresql",
     "inertia": "vue",
-    "inertiaSSRRuntime": "node",
     "javascriptPackageManager": "npm",
-    "javascriptRuntime": "npm",
     "projectName": "testapp"
   },
   "schemaVersion": 1,
@@ -1876,10 +1874,7 @@ func newInertia(
 		inertia.WithViteDevURL(cfg.ViteDevURL),
 		inertia.WithProtocolDebug(cfg.ProtocolDebug),
 		inertia.WithShared(inertia.Props{"appVersion": appVersion}),
-		inertia.WithSSRRuntime(cfg.SSRRuntime),
-		inertia.WithSSRBundle(cfg.SSRBundle),
 		inertia.WithSSRURL(cfg.SSRURL),
-		inertia.WithSSRStartupTimeout(cfg.SSRStartupTimeout),
 		inertia.WithSSRRequestTimeout(cfg.SSRRequestTimeout),
 		inertia.WithSSRMaxResponseBytes(cfg.SSRMaxResponseBytes),
 		inertia.WithSSRFailFast(cfg.SSRFailFast),
@@ -2253,7 +2248,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	runtime, err := inertia.NewManagedRuntime(cfg.ManagedSSRConfig())
+	runtime, err := inertia.NewSSRRuntime(cfg.SSRConfig())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "inertia SSR runtime: %v\n", err)
 		os.Exit(1)
@@ -2950,7 +2945,7 @@ func (c Inertia) validate() error {
 		return err
 	}
 
-	http := inertia.SSRConfig{
+	http := inertia.SSRClientConfig{
 		URL:              c.SSRURL,
 		Timeout:          c.SSRRequestTimeout,
 		MaxResponseBytes: c.SSRMaxResponseBytes,
@@ -2965,20 +2960,19 @@ func (c Inertia) validate() error {
 	return nil
 }
 
-// ManagedSSRConfig returns settings for cmd/ssr to start the Node process.
-func (c Inertia) ManagedSSRConfig() inertia.ManagedConfig {
-	managed := inertia.DefaultManagedConfig()
-	managed.Enabled = true
-	managed.Executable = c.SSRRuntime
-	managed.BundlePath = c.SSRBundle
-	managed.StartupTimeout = c.SSRStartupTimeout
-	managed.HTTP = inertia.SSRConfig{
-		URL:              c.SSRURL,
-		Timeout:          c.SSRRequestTimeout,
-		MaxResponseBytes: c.SSRMaxResponseBytes,
+// SSRConfig returns settings for cmd/ssr to start the Node process.
+func (c Inertia) SSRConfig() inertia.SSRConfig {
+	return inertia.SSRConfig{
+		Enabled:        true,
+		Executable:     c.SSRRuntime,
+		BundlePath:     c.SSRBundle,
+		StartupTimeout: c.SSRStartupTimeout,
+		HTTP: inertia.SSRClientConfig{
+			URL:              c.SSRURL,
+			Timeout:          c.SSRRequestTimeout,
+			MaxResponseBytes: c.SSRMaxResponseBytes,
+		},
 	}
-
-	return managed
 }
 ```
 

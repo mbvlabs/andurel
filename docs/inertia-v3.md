@@ -67,16 +67,16 @@ history is performed by the official client.
 
 SSR remains an option on a single `Page` call. The `inertia` package contains
 the bounded HTTP renderer and an optional managed process runtime used by the
-scaffold's `cmd/ssr` entrypoint (Laravel-style). `cmd/app` is always an HTTP
-client; `Renderer.Start` / `Renderer.Shutdown` are no-ops unless a custom
-runtime is attached. Production falls back to client-side rendering;
-verification can opt into fail-fast behavior.
+scaffold's `cmd/ssr` entrypoint (Laravel-style). `cmd/app` constructs a
+renderer with `NewRenderer` (HTTP client for optional SSR); `NewSSRRuntime`
+owns Node. Production falls back to client-side rendering; verification can
+opt into fail-fast behavior.
 
 Under `andurel run`, Shadowfax builds and supervises `cmd/ssr`, which starts
-Node from `config/inertia.go` (`ManagedSSRConfig()`). In production, run
+Node from `config/inertia.go` (`SSRConfig()`). In production, run
 `cmd/ssr` (or an equivalent) under your process manager. Per-response
-`inertia.WithSSR()` opts a page into SSR. Request timeout, startup timeout,
-response-size limit, and fail-fast behavior have separate configuration values.
+`inertia.WithSSR()` opts a page into SSR. Request timeout, response-size
+limit, and fail-fast behavior have separate configuration values.
 
 Generated resource payload structs carry JSON tags. Their corresponding
 TypeScript declarations are generated next to application TypeScript types and
