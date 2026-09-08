@@ -401,6 +401,7 @@ var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
 var inertiaVueTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_assets_app.tmpl":                               "resources/js/app.ts",
 	"inertia_assets_ssr.tmpl":                               "resources/js/ssr.ts",
+	"inertia_assets_components_flash_toasts.tmpl":           "resources/js/components/flash-toasts.ts",
 	"inertia_assets_layouts_layout.tmpl":                    "resources/js/Layouts/Layout.vue",
 	"inertia_assets_pages_auth_confirm_email.tmpl":          "resources/js/Pages/Auth/ConfirmEmail.vue",
 	"inertia_assets_pages_auth_login.tmpl":                  "resources/js/Pages/Auth/Login.vue",
@@ -418,6 +419,7 @@ var inertiaVueTemplateMappings = map[TmplTarget]TmplTargetPath{
 var inertiaReactTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_react_assets_app.tmpl":                               "resources/js/app.tsx",
 	"inertia_react_assets_ssr.tmpl":                               "resources/js/ssr.tsx",
+	"inertia_react_assets_components_flash_toasts.tmpl":           "resources/js/components/flash-toasts.tsx",
 	"inertia_react_assets_layouts_layout.tmpl":                    "resources/js/Layouts/Layout.tsx",
 	"inertia_react_assets_pages_auth_confirm_email.tmpl":          "resources/js/Pages/Auth/ConfirmEmail.tsx",
 	"inertia_react_assets_pages_auth_login.tmpl":                  "resources/js/Pages/Auth/Login.tsx",
@@ -435,6 +437,7 @@ var inertiaReactTemplateMappings = map[TmplTarget]TmplTargetPath{
 var inertiaSvelteTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_svelte_assets_app.tmpl":                               "resources/js/app.ts",
 	"inertia_svelte_assets_ssr.tmpl":                               "resources/js/ssr.ts",
+	"inertia_svelte_assets_components_app_tree.tmpl":               "resources/js/Components/AppTree.svelte",
 	"inertia_svelte_assets_components_flash_toasts.tmpl":           "resources/js/Components/FlashToasts.svelte",
 	"inertia_svelte_assets_layouts_layout.tmpl":                    "resources/js/Layouts/Layout.svelte",
 	"inertia_svelte_assets_pages_auth_confirm_email.tmpl":          "resources/js/Pages/Auth/ConfirmEmail.svelte",

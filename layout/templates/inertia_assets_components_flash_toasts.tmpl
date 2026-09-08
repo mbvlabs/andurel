@@ -1,0 +1,64 @@
+import { defineComponent, h, onMounted, onUnmounted, ref, type Component } from 'vue'
+import { router } from '@inertiajs/vue3'
+
+type FlashMessage = {
+  Type: string
+  Message: string
+}
+
+export const FlashToasts = defineComponent({
+  props: {
+    initialFlashes: Array,
+  },
+  setup(props) {
+    const toasts = ref<Array<FlashMessage & { id: number }>>([])
+    let nextId = 0
+
+    function pushFlashes(flashes: unknown) {
+      if (!Array.isArray(flashes)) {return}
+      for (const value of flashes) {
+        if (!value || typeof value !== 'object') {continue}
+        const flash = value as Record<string, unknown>
+        if (typeof flash.Type !== 'string' || typeof flash.Message !== 'string') {continue}
+        const id = nextId++
+        toasts.value.push({ Type: flash.Type, Message: flash.Message, id })
+        setTimeout(() => {
+          toasts.value = toasts.value.filter(t => t.id !== id)
+        }, 5000)
+      }
+    }
+
+    let removeListener: (() => void) | undefined
+    onMounted(() => {
+      pushFlashes(props.initialFlashes)
+      removeListener = router.on('success', event => pushFlashes(event.detail.page.flash))
+    })
+    onUnmounted(() => removeListener?.())
+
+    return () => {
+      if (toasts.value.length === 0) {return null}
+      const items = toasts.value.map(t => {
+        const colorClass = t.Type === 'success'
+          ? 'border-[#8df7a4] text-[#8df7a4]'
+          : t.Type === 'error'
+            ? 'border-[#ff875f] text-[#ff875f]'
+            : 'border-[#ff6b1a] text-[#e4dfd2]'
+        return h('div', {
+          key: t.id,
+          class: `${colorClass} mb-2 border bg-[#101414] px-4 py-3 shadow-lg shadow-black/40 transition-opacity duration-300`,
+        }, t.Message)
+      })
+      return h('div', { class: 'fixed bottom-4 right-4 z-50' }, items)
+    }
+  },
+})
+
+export function renderAppTree<T extends { initialPage: { flash?: unknown } }>(
+  App: Component,
+  props: T,
+) {
+  return h('div', [
+    h(App, props),
+    h(FlashToasts, { initialFlashes: props.initialPage.flash as FlashMessage[] | undefined }),
+  ])
+}
