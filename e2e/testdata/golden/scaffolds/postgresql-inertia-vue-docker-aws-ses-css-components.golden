@@ -8747,7 +8747,7 @@ dir  d----------rwxr-xr-x resources/js/Layouts
 file -----------rw-r--r-- resources/js/Layouts/Layout.vue
 ```
 <script setup lang="ts">
-import { routes } from '../routes'
+import { routes } from '@/routes'
 </script>
 
 <template>
