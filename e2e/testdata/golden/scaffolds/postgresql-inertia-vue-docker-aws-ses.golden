@@ -5061,7 +5061,7 @@ require (
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/mbvlabs/andurel/pkg/email v0.3.1
 	github.com/mbvlabs/andurel/pkg/hypermedia v0.2.2
-	github.com/mbvlabs/andurel/pkg/inertia v0.3.1
+	github.com/mbvlabs/andurel/pkg/inertia v0.4.0
 	github.com/mbvlabs/andurel/pkg/routing v0.2.0
 	github.com/mbvlabs/andurel/pkg/server v0.3.1
 	github.com/mbvlabs/andurel/pkg/storage v0.7.0
@@ -5332,8 +5332,8 @@ github.com/mbvlabs/andurel/pkg/email v0.3.1 h1:lgA6kqmajsCDJ/oNGnh1JIbCDqiB0I8Rp
 github.com/mbvlabs/andurel/pkg/email v0.3.1/go.mod h1:cc9+f5IS6oF4+Z7HNqbZUGoaHxj0+f6Q5DamteGBkhk=
 github.com/mbvlabs/andurel/pkg/hypermedia v0.2.2 h1:gR3gHf9ko/nPqIeo6/LnyPQ8Ak7sPFFuWvtc0gomlZY=
 github.com/mbvlabs/andurel/pkg/hypermedia v0.2.2/go.mod h1:hoKFPLIvqNXrPiwv7uqCsWqjHsMpdejjTqIdwIqQmtI=
-github.com/mbvlabs/andurel/pkg/inertia v0.3.1 h1:JFCdEcQ08ETw92CX1nMZ1u4IbKbkQMWJmpmigk6xViM=
-github.com/mbvlabs/andurel/pkg/inertia v0.3.1/go.mod h1:U19PMo0gVfr+ocdBEQcgTEBuSU93adHA4MfAhExShmo=
+github.com/mbvlabs/andurel/pkg/inertia v0.4.0 h1:Ro3qAWt8OWs1YHKs1tYUOT+JwedvaA2bZJ0dqounVFU=
+github.com/mbvlabs/andurel/pkg/inertia v0.4.0/go.mod h1:U19PMo0gVfr+ocdBEQcgTEBuSU93adHA4MfAhExShmo=
 github.com/mbvlabs/andurel/pkg/routing v0.2.0 h1:gswispKJzqhXAi4OqAuVWkPywelBFwfeR2BgT5lcV4g=
 github.com/mbvlabs/andurel/pkg/routing v0.2.0/go.mod h1:FamhJJfZnLzah8dqngVnJoNhTCazEXSycvwnZXz/Ynw=
 github.com/mbvlabs/andurel/pkg/server v0.3.1 h1:tRLMBt8D0c1nY6zn+9m4L0WEz3Y/wDCGV9k0KXQyFGc=
