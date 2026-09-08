@@ -39,29 +39,35 @@ func PageScript(containerID string, pageJSON []byte) templ.Component {
 		if err := decoder.Decode(&value); err != nil {
 			return fmt.Errorf("inertia: invalid page JSON: %w", err)
 		}
+
 		if err := decoder.Decode(&struct{}{}); err != io.EOF {
 			return fmt.Errorf("inertia: invalid trailing page JSON")
 		}
+
 		var normalized bytes.Buffer
 		encoder := json.NewEncoder(&normalized)
 		encoder.SetEscapeHTML(false)
 		if err := encoder.Encode(value); err != nil {
 			return fmt.Errorf("inertia: normalize page JSON: %w", err)
 		}
+
 		escaped := bytes.ReplaceAll(
 			bytes.TrimSuffix(normalized.Bytes(), []byte("\n")),
 			[]byte("/"),
 			[]byte(`\/`),
 		)
+
 		if _, err := io.WriteString(
 			writer,
 			`<script data-page="`+html.EscapeString(containerID)+`" type="application/json">`,
 		); err != nil {
 			return err
 		}
+
 		if _, err := writer.Write(escaped); err != nil {
 			return err
 		}
+
 		_, err := io.WriteString(writer, `</script>`)
 		return err
 	})
@@ -81,6 +87,7 @@ func SSRHead(response *SSRResponse) templ.Component {
 		if response == nil {
 			return nil
 		}
+
 		_, err := io.WriteString(writer, strings.Join(response.Head, "\n"))
 		return err
 	})
@@ -93,6 +100,7 @@ func SSRBody(response *SSRResponse) templ.Component {
 		if response == nil {
 			return nil
 		}
+
 		_, err := io.WriteString(writer, response.Body)
 		return err
 	})

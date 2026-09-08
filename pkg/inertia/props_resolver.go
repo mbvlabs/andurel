@@ -50,6 +50,7 @@ func resolvePageProps(
 			Err:       fmt.Errorf("framework prop is protected"),
 		}
 	}
+
 	if protectedPropExists(page, "errors") {
 		return resolvedPage{}, &Error{
 			Kind:      ErrorProps,
@@ -65,6 +66,7 @@ func resolvePageProps(
 	combined := make(Props, len(shared)+len(page))
 	maps.Copy(combined, shared)
 	maps.Copy(combined, page)
+
 	var err error
 	combined, err = unpackDotProps(combined)
 	if err != nil {
@@ -91,21 +93,25 @@ func resolvePageProps(
 			resolvedShared: sharedTopLevelKeys(shared),
 		},
 	}
+
 	keys := make([]string, 0, len(combined))
 	for key := range combined {
 		keys = append(keys, key)
 	}
 	slices.Sort(keys)
+
 	for _, key := range keys {
 		value := combined[key]
 		resolved, include, err := resolver.resolveValue(key, value, false)
 		if err != nil {
 			return resolvedPage{}, err
 		}
+
 		if include {
 			resolver.result.props[key] = resolved
 		}
 	}
+
 	sortResolvedMetadata(&resolver.result)
 	return resolver.result, nil
 }
@@ -117,16 +123,19 @@ func (r *propResolver) resolveValue(
 ) (any, bool, error) {
 	prop, isPolicy := value.(Prop)
 	dynamicallyResolved := false
+
 	if isPolicy {
 		inheritedAlways = inheritedAlways || prop.always
 		if r.onceRetained(path, prop) {
 			r.recordRetainedOncePolicy(path, prop)
 			return nil, false, nil
 		}
+
 		if !r.shouldInclude(path, prop, inheritedAlways) {
 			r.recordUnresolvedPolicy(path, prop)
 			return nil, false, nil
 		}
+
 		resolved, _, err := evaluateLazyProp(r.etx, prop.value)
 		if err != nil {
 			if prop.deferred && prop.rescue {
@@ -135,6 +144,7 @@ func (r *propResolver) resolveValue(
 				r.result.rescued = append(r.result.rescued, path)
 				return nil, false, nil
 			}
+
 			return nil, false, &Error{
 				Kind:      ErrorProps,
 				Operation: "resolve",
@@ -145,12 +155,15 @@ func (r *propResolver) resolveValue(
 				Err:       err,
 			}
 		}
+
 		if returnedProp, ok := resolved.(Prop); ok {
 			return r.resolveValue(path, returnedProp, inheritedAlways)
 		}
+
 		if err := r.recordPolicy(path, prop, resolved); err != nil {
 			return nil, false, err
 		}
+
 		value = resolved
 		dynamicallyResolved = true
 	}
@@ -158,6 +171,7 @@ func (r *propResolver) resolveValue(
 	if !isPolicy && !r.pathIncluded(path, inheritedAlways) {
 		return nil, false, nil
 	}
+
 	if !isPolicy {
 		resolved, lazy, err := evaluateLazyProp(r.etx, value)
 		if err != nil {
@@ -171,14 +185,17 @@ func (r *propResolver) resolveValue(
 				Err:       err,
 			}
 		}
+
 		if lazy {
 			if returnedProp, ok := resolved.(Prop); ok {
 				return r.resolveValue(path, returnedProp, inheritedAlways)
 			}
+
 			value = resolved
 			dynamicallyResolved = true
 		}
 	}
+
 	return r.resolveNested(path, value, inheritedAlways || dynamicallyResolved)
 }
 
@@ -186,6 +203,7 @@ func (r *propResolver) shouldInclude(path string, prop Prop, always bool) bool {
 	if (prop.deferred || prop.optional) && !r.partial {
 		return false
 	}
+
 	return r.pathIncluded(path, always)
 }
 
@@ -193,9 +211,11 @@ func (r *propResolver) pathIncluded(path string, always bool) bool {
 	if always || !r.partial {
 		return true
 	}
+
 	if len(r.request.Only) > 0 && !pathMatchesAny(path, r.request.Only) {
 		return false
 	}
+
 	return !pathExcluded(path, r.request.Except)
 }
 
@@ -203,11 +223,13 @@ func (r *propResolver) resolveNested(path string, value any, always bool) (any, 
 	if value == nil {
 		return nil, true, nil
 	}
+
 	rv := reflect.ValueOf(value)
 	for rv.Kind() == reflect.Interface || rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			return nil, true, nil
 		}
+
 		rv = rv.Elem()
 	}
 
@@ -216,6 +238,7 @@ func (r *propResolver) resolveNested(path string, value any, always bool) (any, 
 		if rv.Type().Key().Kind() != reflect.String {
 			return value, true, nil
 		}
+
 		result := make(map[string]any, rv.Len())
 		keys := make([]string, 0, rv.Len())
 		iter := rv.MapRange()
@@ -223,6 +246,7 @@ func (r *propResolver) resolveNested(path string, value any, always bool) (any, 
 			keys = append(keys, iter.Key().String())
 		}
 		slices.Sort(keys)
+
 		for _, key := range keys {
 			child, include, err := r.resolveValue(
 				joinPath(path, key),
@@ -232,10 +256,12 @@ func (r *propResolver) resolveNested(path string, value any, always bool) (any, 
 			if err != nil {
 				return nil, false, err
 			}
+
 			if include {
 				result[key] = child
 			}
 		}
+
 		return result, true, nil
 	case reflect.Struct:
 		// Values with custom JSON encoders (notably time.Time) stay opaque.
@@ -244,6 +270,7 @@ func (r *propResolver) resolveNested(path string, value any, always bool) (any, 
 				Implements(reflect.TypeFor[interface{ MarshalJSON() ([]byte, error) }]()) {
 			return value, true, nil
 		}
+
 		result := make(map[string]any, rv.NumField())
 		rt := rv.Type()
 		for i := range rt.NumField() {
@@ -251,13 +278,16 @@ func (r *propResolver) resolveNested(path string, value any, always bool) (any, 
 			if field.PkgPath != "" {
 				continue
 			}
+
 			name, include := jsonFieldName(field)
 			if !include {
 				continue
 			}
+
 			if name == "" {
 				name = field.Name
 			}
+
 			child, childIncluded, err := r.resolveValue(
 				joinPath(path, name),
 				rv.Field(i).Interface(),
@@ -266,10 +296,12 @@ func (r *propResolver) resolveNested(path string, value any, always bool) (any, 
 			if err != nil {
 				return nil, false, err
 			}
+
 			if childIncluded {
 				result[name] = child
 			}
 		}
+
 		return result, true, nil
 	default:
 		return value, true, nil
@@ -280,10 +312,12 @@ func (r *propResolver) announceDeferred(path string, prop Prop) {
 	if !prop.deferred || r.partial {
 		return
 	}
+
 	group := prop.group
 	if group == "" {
 		group = "default"
 	}
+
 	r.result.deferred[group] = append(r.result.deferred[group], path)
 }
 
@@ -291,20 +325,24 @@ func (r *propResolver) announceOnce(path string, prop Prop) {
 	if !prop.once || !r.metadataIncluded(path) {
 		return
 	}
+
 	key := prop.onceKey
 	if key == "" {
 		key = path
 	}
+
 	metadata := OnceMetadata{Prop: path}
 	expiresAt := prop.expiresAt
 	if prop.expiresFor != nil {
 		expiry := time.Now().Add(*prop.expiresFor)
 		expiresAt = &expiry
 	}
+
 	if expiresAt != nil {
 		milliseconds := expiresAt.UnixMilli()
 		metadata.ExpiresAt = &milliseconds
 	}
+
 	r.result.once[key] = metadata
 }
 
@@ -336,18 +374,22 @@ func (r *propResolver) onceRetained(path string, prop Prop) bool {
 	if !prop.once || !r.request.Inertia || r.partial || prop.forceFresh {
 		return false
 	}
+
 	key := prop.onceKey
 	if key == "" {
 		key = path
 	}
+
 	return slices.Contains(r.request.ExceptOnceProps, key)
 }
 
 func (r *propResolver) recordPolicy(path string, prop Prop, resolved any) error {
 	r.announceOnce(path, prop)
+
 	if prop.deferred && !r.partial {
 		r.announceDeferred(path, prop)
 	}
+
 	reset := resetMatches(path, r.request.Reset)
 	if prop.scroll != nil {
 		metadata, err := resolveScrollMetadata(r.etx, prop.scroll, resolved)
@@ -362,19 +404,24 @@ func (r *propResolver) recordPolicy(path string, prop Prop, resolved any) error 
 				Err:       err,
 			}
 		}
+
 		metadata.Reset = reset
 		r.result.scroll[path] = metadata
 	}
+
 	if reset {
 		return nil
 	}
+
 	if prop.scroll != nil {
 		r.recordScrollMerge(path, prop)
 		return nil
 	}
+
 	if !prop.merge {
 		return nil
 	}
+
 	r.recordMerge(path, prop)
 	return nil
 }
@@ -383,6 +430,7 @@ func (r *propResolver) recordMerge(path string, prop Prop) {
 	if !r.metadataIncluded(path) {
 		return
 	}
+
 	if prop.deepMerge {
 		r.result.deepMerge = append(r.result.deepMerge, path)
 	} else if prop.prepend || (prop.scroll != nil && r.request.MergeIntent == MergeIntentPrepend) {
@@ -390,6 +438,7 @@ func (r *propResolver) recordMerge(path string, prop Prop) {
 	} else {
 		r.result.merge = append(r.result.merge, path)
 	}
+
 	for _, match := range prop.matchOn {
 		r.result.matchOn = append(r.result.matchOn, joinPath(path, match))
 	}
@@ -399,12 +448,14 @@ func (r *propResolver) recordScrollMerge(path string, prop Prop) {
 	if !r.metadataIncluded(path) {
 		return
 	}
+
 	mergePath := joinPath(path, prop.scrollWrapper)
 	if r.request.MergeIntent == MergeIntentPrepend {
 		r.result.prepend = append(r.result.prepend, mergePath)
 	} else {
 		r.result.merge = append(r.result.merge, mergePath)
 	}
+
 	for _, match := range prop.matchOn {
 		r.result.matchOn = append(r.result.matchOn, joinPath(mergePath, match))
 	}
@@ -414,9 +465,11 @@ func (r *propResolver) metadataIncluded(path string) bool {
 	if !r.partial {
 		return true
 	}
+
 	if len(r.request.Only) > 0 && !matchesOnly(path, r.request.Only) {
 		return false
 	}
+
 	return !pathExcluded(path, r.request.Except)
 }
 
@@ -428,6 +481,7 @@ func resolveScrollMetadata(etx *echo.Context, provider, value any) (ScrollMetada
 		if metadata == nil {
 			return ScrollMetadata{}, fmt.Errorf("nil scroll metadata")
 		}
+
 		return *metadata, nil
 	case ProvidesScrollMetadata:
 		return ScrollMetadata{
@@ -478,6 +532,7 @@ func pathMatchesAny(path string, selections []string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -487,6 +542,7 @@ func matchesOnly(path string, selections []string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -496,6 +552,7 @@ func pathExcluded(path string, exclusions []string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -511,9 +568,11 @@ func joinPath(parent, child string) string {
 	if parent == "" {
 		return child
 	}
+
 	if child == "" {
 		return parent
 	}
+
 	return parent + "." + child
 }
 
@@ -524,6 +583,7 @@ func sortResolvedMetadata(result *resolvedPage) {
 	slices.Sort(result.matchOn)
 	slices.Sort(result.rescued)
 	slices.Sort(result.resolvedShared)
+
 	for group := range result.deferred {
 		slices.Sort(result.deferred[group])
 	}
@@ -537,10 +597,12 @@ func sharedTopLevelKeys(shared Props) []string {
 			seen[top] = struct{}{}
 		}
 	}
+
 	keys := make([]string, 0, len(seen))
 	for key := range seen {
 		keys = append(keys, key)
 	}
+
 	slices.Sort(keys)
 	return keys
 }
@@ -551,6 +613,7 @@ func protectedPropExists(props Props, protected string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -562,9 +625,12 @@ func unpackDotProps(props Props) (Props, error) {
 			dotted = append(dotted, key)
 			continue
 		}
+
 		result[key] = value
 	}
+
 	slices.Sort(dotted)
+
 	for _, path := range dotted {
 		segments := strings.Split(path, ".")
 		current := map[string]any(result)
@@ -582,11 +648,15 @@ func unpackDotProps(props Props) (Props, error) {
 				} else {
 					next = make(map[string]any)
 				}
+
 				current[segment] = next
 			}
+
 			current = next
 		}
+
 		current[segments[len(segments)-1]] = props[path]
 	}
+
 	return result, nil
 }

@@ -85,6 +85,7 @@ func WithSharedProvider(provider SharedProvider) Option {
 		if provider == nil {
 			return fmt.Errorf("inertia: shared provider cannot be nil")
 		}
+
 		renderer.sharedProviders = append(renderer.sharedProviders, provider)
 		return nil
 	}
@@ -96,6 +97,7 @@ func WithFlashProvider(provider FlashProvider) Option {
 		if provider == nil {
 			return fmt.Errorf("inertia: flash provider cannot be nil")
 		}
+
 		renderer.requestFlash = append(renderer.requestFlash, provider)
 		return nil
 	}
@@ -125,6 +127,7 @@ func WithReflash(handler ReflashHandler) Option {
 		if handler == nil {
 			return fmt.Errorf("inertia: reflash handler cannot be nil")
 		}
+
 		renderer.reflash = handler
 		return nil
 	}
@@ -145,9 +148,11 @@ func (renderer *Renderer) SetReflashHandler(handler ReflashHandler) error {
 	if renderer == nil {
 		return fmt.Errorf("inertia: renderer is nil")
 	}
+
 	if handler == nil {
 		return fmt.Errorf("inertia: reflash handler cannot be nil")
 	}
+
 	renderer.reflash = handler
 	return nil
 }
@@ -221,6 +226,7 @@ func (p *PageBuilder) Render() error {
 	if err != nil {
 		return err
 	}
+
 	shared := make(Props, len(renderer.shared))
 	maps.Copy(shared, renderer.shared)
 	for _, provider := range renderer.sharedProviders {
@@ -236,10 +242,12 @@ func (p *PageBuilder) Render() error {
 		}
 		maps.Copy(shared, provided)
 	}
+
 	resolved, err := resolvePageProps(etx, request, component, shared, p.props)
 	if err != nil {
 		return err
 	}
+
 	errorsProp := map[string]any{}
 	if p.validationErrors != nil {
 		plain := make(map[string]any, len(p.validationErrors))
@@ -255,10 +263,12 @@ func (p *PageBuilder) Render() error {
 	resolved.props["errors"] = errorsProp
 	resolved.resolvedShared = append(resolved.resolvedShared, "errors")
 	slices.Sort(resolved.resolvedShared)
+
 	version, err := renderer.currentVersion(etx)
 	if err != nil {
 		return err
 	}
+
 	if p.flash == nil {
 		for _, provider := range renderer.requestFlash {
 			if p.flash = provider(etx); p.flash != nil {
@@ -266,6 +276,7 @@ func (p *PageBuilder) Render() error {
 			}
 		}
 	}
+
 	page := Page{
 		Component:        component,
 		Props:            resolved.props,
@@ -285,6 +296,7 @@ func (p *PageBuilder) Render() error {
 		OnceProps:        emptyNil(resolved.once),
 		Flash:            p.flash,
 	}
+
 	if renderer.protocolDebug {
 		propKeys := make([]string, 0, len(page.Props))
 		for key := range page.Props {
@@ -306,6 +318,7 @@ func (p *PageBuilder) Render() error {
 			slog.Int("once_props", len(page.OnceProps)),
 		)
 	}
+
 	var pageBuffer bytes.Buffer
 	encoder := json.NewEncoder(&pageBuffer)
 	encoder.SetEscapeHTML(false)
@@ -320,7 +333,9 @@ func (p *PageBuilder) Render() error {
 		}
 	}
 	pageJSON := bytes.TrimSuffix(pageBuffer.Bytes(), []byte("\n"))
+
 	appendVary(etx.Response().Header(), HeaderInertia)
+
 	if request.Inertia {
 		etx.Response().Header().Set(HeaderInertia, "true")
 		return etx.JSONBlob(p.status, pageJSON)
@@ -360,6 +375,7 @@ func (p *PageBuilder) Render() error {
 			ssrResponse = nil
 		}
 	}
+
 	root := renderer.root(RootData{
 		Page:        page,
 		PageJSON:    pageJSON,
@@ -380,6 +396,7 @@ func (p *PageBuilder) Render() error {
 			Err:       fmt.Errorf("root returned nil component"),
 		}
 	}
+
 	var document bytes.Buffer
 	if err := root.Render(etx.Request().Context(), &document); err != nil {
 		return &Error{
@@ -391,6 +408,7 @@ func (p *PageBuilder) Render() error {
 			Err:       err,
 		}
 	}
+
 	return etx.HTMLBlob(p.status, document.Bytes())
 }
 
@@ -398,6 +416,7 @@ func (renderer *Renderer) currentVersion(etx *echo.Context) (string, error) {
 	if renderer.versionProvider == nil {
 		return renderer.version, nil
 	}
+
 	version, err := renderer.versionProvider(etx)
 	if err != nil {
 		return "", &Error{
@@ -408,6 +427,7 @@ func (renderer *Renderer) currentVersion(etx *echo.Context) (string, error) {
 			Err:       err,
 		}
 	}
+
 	return version, nil
 }
 
@@ -416,6 +436,7 @@ func requestURL(etx *echo.Context) string {
 	if request.URL == nil {
 		return "/"
 	}
+
 	uri := request.URL.RequestURI()
 	if uri == "" {
 		return "/"

@@ -38,6 +38,7 @@ func NewRenderer(
 	if strings.TrimSpace(containerID) == "" {
 		return nil, fmt.Errorf("inertia: container ID cannot be empty")
 	}
+
 	renderer := &Renderer{
 		containerID:  strings.TrimSpace(containerID),
 		buildPathURL: strings.TrimSpace(buildPathURL),
@@ -86,14 +87,17 @@ window.__vite_plugin_react_preamble_installed__ = true
 		if renderer.assetFS == nil {
 			return nil, fmt.Errorf("inertia: production assets require an asset filesystem")
 		}
+
 		data, err := fs.ReadFile(renderer.assetFS, "dist/vite/manifest.json")
 		if err != nil {
 			return nil, fmt.Errorf("inertia: read Vite manifest: %w", err)
 		}
+
 		var manifest map[string]viteManifestEntry
 		if err := json.Unmarshal(data, &manifest); err != nil {
 			return nil, fmt.Errorf("inertia: parse Vite manifest: %w", err)
 		}
+
 		entry, ok := manifest[renderer.entryPoint]
 		if !ok {
 			return nil, fmt.Errorf(
@@ -101,12 +105,18 @@ window.__vite_plugin_react_preamble_installed__ = true
 				renderer.entryPoint,
 			)
 		}
+
 		prefix := strings.TrimSuffix(renderer.buildPathURL, "*")
 		tags := viteTags{}
 		for _, stylesheet := range entry.CSS {
-			tags.head += `<link rel="stylesheet" href="` + html.EscapeString(prefix+stylesheet) + `">`
+			tags.head += `<link rel="stylesheet" href="` + html.EscapeString(
+				prefix+stylesheet,
+			) + `">`
 		}
-		tags.body = `<script type="module" src="` + html.EscapeString(prefix+entry.File) + `"></script>`
+
+		tags.body = `<script type="module" src="` + html.EscapeString(
+			prefix+entry.File,
+		) + `"></script>`
 		renderer.viteTags = tags
 	}
 
@@ -115,6 +125,7 @@ window.__vite_plugin_react_preamble_installed__ = true
 		if err != nil {
 			return nil, err
 		}
+
 		renderer.ssr = httpRenderer
 	}
 	return renderer, nil
@@ -127,7 +138,9 @@ func WithAssetFS(assetFS fs.FS) Option {
 		if assetFS == nil {
 			return fmt.Errorf("inertia: asset filesystem is nil")
 		}
+
 		renderer.assetFS = assetFS
+
 		return nil
 	}
 }
@@ -137,7 +150,9 @@ func WithProjectName(name string) Option {
 		if strings.TrimSpace(name) == "" {
 			return fmt.Errorf("inertia: project name cannot be empty")
 		}
+
 		renderer.projectName = strings.TrimSpace(name)
+
 		return nil
 	}
 }
@@ -147,7 +162,9 @@ func WithEnvironment(environment string) Option {
 		if strings.TrimSpace(environment) == "" {
 			return fmt.Errorf("inertia: environment cannot be empty")
 		}
+
 		renderer.environment = strings.TrimSpace(environment)
+
 		return nil
 	}
 }
@@ -157,7 +174,9 @@ func WithRoot(root RootFunc) Option {
 		if root == nil {
 			return fmt.Errorf("inertia: root constructor cannot be nil")
 		}
+
 		renderer.root = root
+
 		return nil
 	}
 }

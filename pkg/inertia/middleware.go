@@ -19,6 +19,7 @@ func (renderer *Renderer) Middleware() echo.MiddlewareFunc {
 			if err != nil {
 				return err
 			}
+
 			etx.SetRequest(requestWithState(etx.Request(), state))
 			if renderer.protocolDebug {
 				etx.Logger().Debug("inertia protocol request",
@@ -41,6 +42,7 @@ func (renderer *Renderer) Middleware() echo.MiddlewareFunc {
 				if versionErr != nil {
 					return versionErr
 				}
+
 				if state.Version != version {
 					header := etx.Response().Header()
 					header.Del(HeaderInertia)
@@ -59,6 +61,7 @@ func (renderer *Renderer) Middleware() echo.MiddlewareFunc {
 			if err != nil {
 				return err
 			}
+
 			wasRedirect := captured.status >= 300 && captured.status < 400
 			captured.normalize(etx)
 			if renderer.reflash != nil &&
@@ -90,6 +93,7 @@ func (writer *captureWriter) Write(value []byte) (int, error) {
 	if writer.status == 0 {
 		writer.status = http.StatusOK
 	}
+
 	return writer.body.Write(value)
 }
 
@@ -111,6 +115,7 @@ func (writer *captureWriter) normalize(etx *echo.Context) {
 	if writer.status == http.StatusFound && isUnsafeRedirectMethod(etx.Request().Method) {
 		writer.status = http.StatusSeeOther
 	}
+
 	if writer.status >= 300 && writer.status < 400 &&
 		strings.Contains(header.Get("Location"), "#") {
 		state, _ := requestState(etx)

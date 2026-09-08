@@ -49,6 +49,7 @@ func NewHTTPRenderer(config SSRClientConfig, options ...HTTPRendererOption) (*HT
 			return nil, err
 		}
 	}
+
 	return renderer, nil
 }
 
@@ -60,10 +61,12 @@ func WithHTTPRendererURL(rawURL string) HTTPRendererOption {
 			(parsed.Scheme != "http" && parsed.Scheme != "https") {
 			return fmt.Errorf("inertia: invalid SSR URL")
 		}
+
 		parsed.Path = strings.TrimSuffix(strings.TrimSuffix(parsed.Path, "/render"), "/")
 		parsed.RawQuery = ""
 		parsed.Fragment = ""
 		renderer.baseURL = parsed
+
 		return nil
 	}
 }
@@ -74,7 +77,9 @@ func WithHTTPRendererTimeout(timeout time.Duration) HTTPRendererOption {
 		if timeout <= 0 {
 			return fmt.Errorf("inertia: SSR timeout must be positive")
 		}
+
 		renderer.timeout = timeout
+
 		return nil
 	}
 }
@@ -85,7 +90,9 @@ func WithHTTPRendererMaxResponseBytes(size int64) HTTPRendererOption {
 		if size <= 0 {
 			return fmt.Errorf("inertia: SSR response limit must be positive")
 		}
+
 		renderer.maxResponseSize = size
+
 		return nil
 	}
 }
@@ -96,7 +103,9 @@ func WithHTTPRendererClient(client *http.Client) HTTPRendererOption {
 		if client == nil {
 			return fmt.Errorf("inertia: SSR HTTP client cannot be nil")
 		}
+
 		renderer.client = client
+
 		return nil
 	}
 }
@@ -107,6 +116,7 @@ func (renderer *HTTPRenderer) Render(ctx context.Context, page Page) (*SSRRespon
 	if err != nil {
 		return nil, &SSRTransportError{Kind: SSREncodeFailure, Operation: "encode page", Err: err}
 	}
+
 	request, cancel, err := renderer.request(
 		ctx,
 		http.MethodPost,
@@ -117,6 +127,7 @@ func (renderer *HTTPRenderer) Render(ctx context.Context, page Page) (*SSRRespon
 		return nil, err
 	}
 	defer cancel()
+
 	request.Header.Set("Content-Type", "application/json")
 
 	response, err := renderer.client.Do(request)
@@ -124,6 +135,7 @@ func (renderer *HTTPRenderer) Render(ctx context.Context, page Page) (*SSRRespon
 		return nil, &SSRTransportError{Kind: SSRTransportFailure, Operation: "render", Err: err}
 	}
 	defer response.Body.Close()
+
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, &SSRTransportError{
 			Kind:      SSRStatusFailure,
@@ -132,6 +144,7 @@ func (renderer *HTTPRenderer) Render(ctx context.Context, page Page) (*SSRRespon
 			Err:       fmt.Errorf("unexpected response status"),
 		}
 	}
+
 	body, err := readBounded(response.Body, renderer.maxResponseSize)
 	if err != nil {
 		return nil, &SSRTransportError{
@@ -140,6 +153,7 @@ func (renderer *HTTPRenderer) Render(ctx context.Context, page Page) (*SSRRespon
 			Err:       err,
 		}
 	}
+
 	var rendered SSRResponse
 	if err := json.Unmarshal(body, &rendered); err != nil {
 		return nil, &SSRTransportError{
@@ -148,6 +162,7 @@ func (renderer *HTTPRenderer) Render(ctx context.Context, page Page) (*SSRRespon
 			Err:       err,
 		}
 	}
+
 	return &rendered, nil
 }
 
@@ -158,11 +173,13 @@ func (renderer *HTTPRenderer) Health(ctx context.Context) error {
 		return err
 	}
 	defer cancel()
+
 	response, err := renderer.client.Do(request)
 	if err != nil {
 		return &SSRTransportError{Kind: SSRTransportFailure, Operation: "health", Err: err}
 	}
 	defer response.Body.Close()
+
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return &SSRTransportError{
 			Kind:      SSRStatusFailure,
@@ -171,6 +188,7 @@ func (renderer *HTTPRenderer) Health(ctx context.Context) error {
 			Err:       fmt.Errorf("unexpected response status"),
 		}
 	}
+
 	body, err := readBounded(response.Body, 64<<10)
 	if err != nil {
 		return &SSRTransportError{
@@ -179,9 +197,11 @@ func (renderer *HTTPRenderer) Health(ctx context.Context) error {
 			Err:       err,
 		}
 	}
+
 	var health struct {
 		Status string `json:"status"`
 	}
+
 	if err := json.Unmarshal(body, &health); err != nil {
 		return &SSRTransportError{
 			Kind:      SSRDecodeFailure,
@@ -189,6 +209,7 @@ func (renderer *HTTPRenderer) Health(ctx context.Context) error {
 			Err:       err,
 		}
 	}
+
 	if !strings.EqualFold(health.Status, "ok") {
 		return &SSRTransportError{
 			Kind:      SSRResponseFailure,
@@ -196,6 +217,7 @@ func (renderer *HTTPRenderer) Health(ctx context.Context) error {
 			Err:       fmt.Errorf("renderer is not healthy"),
 		}
 	}
+
 	return nil
 }
 
@@ -206,6 +228,7 @@ func (renderer *HTTPRenderer) Shutdown(ctx context.Context) error {
 		return err
 	}
 	defer cancel()
+
 	response, err := renderer.client.Do(request)
 	if err != nil {
 		if errors.Is(err, io.EOF) {
@@ -214,6 +237,7 @@ func (renderer *HTTPRenderer) Shutdown(ctx context.Context) error {
 		return &SSRTransportError{Kind: SSRTransportFailure, Operation: "shutdown", Err: err}
 	}
 	defer response.Body.Close()
+
 	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 64<<10))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return &SSRTransportError{
@@ -223,6 +247,7 @@ func (renderer *HTTPRenderer) Shutdown(ctx context.Context) error {
 			Err:       fmt.Errorf("unexpected response status"),
 		}
 	}
+
 	return nil
 }
 
@@ -234,6 +259,7 @@ func (renderer *HTTPRenderer) request(
 	bounded, cancel := context.WithTimeout(ctx, renderer.timeout)
 	endpoint := *renderer.baseURL
 	endpoint.Path = strings.TrimSuffix(endpoint.Path, "/") + path
+
 	request, err := http.NewRequestWithContext(bounded, method, endpoint.String(), body)
 	if err != nil {
 		cancel()
@@ -243,7 +269,9 @@ func (renderer *HTTPRenderer) request(
 			Err:       err,
 		}
 	}
+
 	request.Header.Set("Accept", "application/json")
+
 	return request, cancel, nil
 }
 
@@ -252,8 +280,10 @@ func readBounded(reader io.Reader, limit int64) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read SSR response: %w", err)
 	}
+
 	if int64(len(body)) > limit {
 		return nil, ErrResponseTooLarge
 	}
+
 	return body, nil
 }

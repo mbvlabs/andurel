@@ -15,5 +15,6 @@ func FlashFromContext(ctx context.Context) any {
 	if ctx == nil {
 		return nil
 	}
+
 	return ctx.Value(flashContextKey{})
 }

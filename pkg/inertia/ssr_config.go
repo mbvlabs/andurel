@@ -24,12 +24,15 @@ func (config SSRClientConfig) Validate() error {
 	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return fmt.Errorf("inertia: invalid SSR URL")
 	}
+
 	if config.Timeout <= 0 {
 		return fmt.Errorf("inertia: SSR timeout must be positive")
 	}
+
 	if config.MaxResponseBytes <= 0 {
 		return fmt.Errorf("inertia: SSR response limit must be positive")
 	}
+
 	return nil
 }
 
@@ -56,9 +59,11 @@ func (err *SSRTransportError) Error() string {
 	if err == nil {
 		return "<nil>"
 	}
+
 	if err.Status != 0 {
 		return fmt.Sprintf("inertia SSR %s: HTTP %d: %v", err.Operation, err.Status, err.Err)
 	}
+
 	return fmt.Sprintf("inertia SSR %s: %v", err.Operation, err.Err)
 }
 
@@ -66,5 +71,6 @@ func (err *SSRTransportError) Unwrap() error {
 	if err == nil {
 		return nil
 	}
+
 	return err.Err
 }
