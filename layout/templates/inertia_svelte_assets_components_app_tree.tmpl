@@ -1,0 +1,8 @@
+<script lang="ts">
+  import FlashToasts from './FlashToasts.svelte'
+
+  let { App, initialPage, ...rest } = $props()
+</script>
+
+<App {initialPage} {...rest} />
+<FlashToasts initialFlashes={initialPage?.flash} />

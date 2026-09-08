@@ -2,6 +2,8 @@ import { createInertiaApp, type ResolvedComponent } from '@inertiajs/svelte'
 import createServer from '@inertiajs/svelte/server'
 import { render } from 'svelte/server'
 
+import AppTree from '@/Components/AppTree.svelte'
+
 const serverOptions = {
   host: process.env.INERTIA_SSR_HOST ?? '127.0.0.1',
   port: Number(process.env.INERTIA_SSR_PORT ?? '13714'),
@@ -15,7 +17,7 @@ createServer(page =>
       return pages[`./Pages/${name}.svelte`]
     },
     setup({ App, props }) {
-      return render(App, { props })
+      return render(AppTree, { props: { ...props, App } })
     },
   }),
   serverOptions,
