@@ -14,6 +14,7 @@ import (
 	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/pmezard/go-difflib/difflib"
 	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/semver"
 )
 
 const targetLockSchemaVersion = 1
@@ -115,7 +116,7 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 	if err := u.addInertiaRootMigration(plan, lock); err != nil {
 		return nil, err
 	}
-	if err := u.addStandaloneInertiaDependency(plan, lock.ScaffoldConfig); err != nil {
+	if err := u.addVerifiedPackageDependencies(plan, lock.ScaffoldConfig); err != nil {
 		return nil, err
 	}
 	if err := u.addFrameworkChanges(plan); err != nil {
@@ -143,7 +144,7 @@ func (u *Upgrader) buildRepairPlan(dirty bool) (*upgradePlan, error) {
 		toVersion:   u.opts.TargetVersion,
 		dirty:       dirty,
 	}
-	if err := u.addStandaloneInertiaDependency(plan, u.lock.ScaffoldConfig); err != nil {
+	if err := u.addVerifiedPackageDependencies(plan, u.lock.ScaffoldConfig); err != nil {
 		return nil, err
 	}
 	if err := u.addFrameworkChanges(plan); err != nil {
@@ -155,39 +156,74 @@ func (u *Upgrader) buildRepairPlan(dirty bool) (*upgradePlan, error) {
 	return plan, nil
 }
 
-func (u *Upgrader) addStandaloneInertiaDependency(
+func (u *Upgrader) addVerifiedPackageDependencies(
 	plan *upgradePlan,
 	config *layout.ScaffoldConfig,
 ) error {
-	if config == nil || !layout.IsSupportedInertiaAdapter(config.Inertia) {
-		return nil
-	}
-	const modulePath = "github.com/mbvlabs/andurel/pkg/inertia"
 	goModPath := filepath.Join(u.projectRoot, "go.mod")
 	content, err := os.ReadFile(goModPath)
 	if err != nil {
-		return fmt.Errorf("read go.mod for standalone Inertia: %w", err)
+		return fmt.Errorf("read go.mod for verified packages: %w", err)
 	}
 	file, err := modfile.Parse("go.mod", content, nil)
 	if err != nil {
-		return fmt.Errorf("parse go.mod for standalone Inertia: %w", err)
+		return fmt.Errorf("parse go.mod for verified packages: %w", err)
 	}
+
+	currentByPath := make(map[string]string)
 	for _, requirement := range file.Require {
-		if requirement.Mod.Path == modulePath && requirement.Mod.Version == versions.Inertia {
-			return nil
+		if requirement == nil {
+			continue
+		}
+		currentByPath[requirement.Mod.Path] = requirement.Mod.Version
+	}
+
+	pins := make(map[string]string)
+	if config != nil && layout.IsSupportedInertiaAdapter(config.Inertia) {
+		inertiaPath := versions.PkgPrefix + "inertia"
+		current, ok := currentByPath[inertiaPath]
+		if !ok || shouldUpgradePackage(current, versions.Inertia) {
+			pins[inertiaPath] = versions.Inertia
 		}
 	}
-	if err := file.AddRequire(modulePath, versions.Inertia); err != nil {
-		return fmt.Errorf("add standalone Inertia dependency: %w", err)
+	for path, current := range currentByPath {
+		verified, ok := versions.PackageVersion(path)
+		if !ok {
+			continue
+		}
+		if shouldUpgradePackage(current, verified) {
+			pins[path] = verified
+		}
+	}
+	if len(pins) == 0 {
+		return nil
+	}
+
+	paths := make([]string, 0, len(pins))
+	for path := range pins {
+		paths = append(paths, path)
+	}
+	slices.Sort(paths)
+	for _, path := range paths {
+		if err := file.AddRequire(path, pins[path]); err != nil {
+			return fmt.Errorf("pin %s to %s: %w", path, pins[path], err)
+		}
 	}
 	updated, err := file.Format()
 	if err != nil {
-		return fmt.Errorf("format go.mod with standalone Inertia: %w", err)
+		return fmt.Errorf("format go.mod with verified packages: %w", err)
 	}
 	if err := plan.addReplacement(u.projectRoot, "go.mod", updated, false); err != nil {
-		return fmt.Errorf("plan standalone Inertia dependency: %w", err)
+		return fmt.Errorf("plan verified package dependencies: %w", err)
 	}
 	return nil
+}
+
+func shouldUpgradePackage(existing, expected string) bool {
+	if existing == expected {
+		return false
+	}
+	return semver.Compare(expected, existing) > 0
 }
 
 func (u *Upgrader) addInertiaRootMigration(plan *upgradePlan, lock *layout.AndurelLock) error {

@@ -173,6 +173,8 @@ func resetCLITestSeams(t *testing.T) {
 	defaultInstallToolVersionAndLock := installToolVersionAndLockFunc
 	defaultNewUpgrader := newUpgraderFunc
 	defaultLookupLatestAndurelVersion := lookupLatestAndurelVersionFunc
+	defaultLookupLatestModuleVersion := lookupLatestModuleVersionFunc
+	defaultApplyAndurelPackageUpdates := applyAndurelPackageUpdatesFunc
 	defaultOpenAdminConnection := openAdminConnectionFunc
 	defaultRunGoose := runGooseFunc
 	defaultRunSeed := runSeedFunc
@@ -194,6 +196,8 @@ func resetCLITestSeams(t *testing.T) {
 		installToolVersionAndLockFunc = defaultInstallToolVersionAndLock
 		newUpgraderFunc = defaultNewUpgrader
 		lookupLatestAndurelVersionFunc = defaultLookupLatestAndurelVersion
+		lookupLatestModuleVersionFunc = defaultLookupLatestModuleVersion
+		applyAndurelPackageUpdatesFunc = defaultApplyAndurelPackageUpdates
 		openAdminConnectionFunc = defaultOpenAdminConnection
 		runGooseFunc = defaultRunGoose
 		runSeedFunc = defaultRunSeed

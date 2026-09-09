@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/mbvlabs/andurel/cli/output"
@@ -27,9 +28,12 @@ This command will:
   1. Verify that the installed Andurel CLI is the latest stable release
   2. Replace framework-managed files with the latest version
   3. Update tool versions in andurel.lock
+  4. Pin required github.com/mbvlabs/andurel/pkg/* modules in go.mod to the
+     versions verified with this CLI (never downgrades a newer pin)
 
-Note: This only upgrades framework code. You are responsible for updating
-your application code to work with any API changes in the new version.`,
+You are responsible for updating application code to work with any API
+changes. After go.mod changes, run go mod tidy. To take the latest published
+package versions without a framework upgrade, use andurel packages update.`,
 		Example: `  andurel upgrade
   andurel upgrade --dry-run
   andurel upgrade --repair`,
@@ -116,13 +120,11 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 			return err
 		}
 		artifactReport := buildMutationReport(mutationOptions{
-			Action:   "upgrade",
-			Resource: targetVersion,
-			DryRun:   dryRun,
-			Diff:     diff,
-			CommandsRun: []string{
-				"andurel tool sync",
-			},
+			Action:      "upgrade",
+			Resource:    targetVersion,
+			DryRun:      dryRun,
+			Diff:        diff,
+			CommandsRun: upgradeCommandsRun(report),
 		}, before, after)
 		if dryRun && report != nil {
 			artifactReport.FilesUpdated = append([]string(nil), report.ReplacedFiles...)
@@ -211,13 +213,28 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		printUpgradeSummary(report)
 		fmt.Printf("\nNext steps:\n")
 		fmt.Printf("  1. Review the changes with 'git diff'\n")
-		fmt.Printf("  2. Update your application code if needed for API changes\n")
-		fmt.Printf("  3. Test your application\n")
-		fmt.Printf("  4. Commit when ready\n")
+		step := 2
+		if slices.Contains(report.ReplacedFiles, "go.mod") {
+			fmt.Printf("  %d. Run 'go mod tidy' to refresh go.sum\n", step)
+			step++
+		}
+		fmt.Printf("  %d. Update your application code if needed for API changes\n", step)
+		step++
+		fmt.Printf("  %d. Test your application\n", step)
+		step++
+		fmt.Printf("  %d. Commit when ready\n", step)
 		return nil
 	}
 
 	return nil
+}
+
+func upgradeCommandsRun(report *upgrade.UpgradeReport) []string {
+	commands := []string{"andurel tool sync"}
+	if report != nil && slices.Contains(report.ReplacedFiles, "go.mod") {
+		commands = append(commands, "go mod tidy")
+	}
+	return commands
 }
 
 func requireLatestAndurelRelease(ctx context.Context, currentVersion string) error {

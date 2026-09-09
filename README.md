@@ -235,6 +235,7 @@ andurel generate scaffold Product --dry-run --json
 andurel generate controller Dashboard overview --dry-run --json
 andurel extension add docker --dry-run --json
 andurel upgrade --dry-run --json
+andurel packages update --dry-run --json
 ```
 
 Add `--diff` with structured output when you need a text diff preview. Structured mutation reports include created, updated, and deleted files, route additions, commands run, warnings, and breadcrumbs.
@@ -578,9 +579,21 @@ andurel upgrade (alias: up) [--dry-run]
 
 Before changing project files, `andurel upgrade` checks the latest stable Andurel release. If the installed CLI is outdated, it stops and prints the exact `go install github.com/mbvlabs/andurel@VERSION` command to run. Development builds and temporary network failures do not block an upgrade.
 
-Run `andurel upgrade --dry-run --diff --json` first. Dry runs are read-only, and a failed transaction restores every changed file and `andurel.lock`. Upgrade ownership is limited to framework-owned files, currently centered on `internal/*`. See [generated-file ownership and upgrade behavior](docs/generated-files-and-upgrades.md).
+Run `andurel upgrade --dry-run --diff --json` first. Dry runs are read-only, and a failed transaction restores every changed file and `andurel.lock`. Upgrade ownership is limited to framework-owned files, currently centered on `internal/*`, plus verified `github.com/mbvlabs/andurel/pkg/*` pins already required in `go.mod` (Inertia is also added when the project uses an Inertia adapter). See [generated-file ownership and upgrade behavior](docs/generated-files-and-upgrades.md). To take the latest published package versions without a framework upgrade, use `andurel packages update`.
 
 Projects created with v1.0.0-rc.2 or v1.0.0-rc.3 must not use the automated upgrade command. Use the [RC-to-v1 manual upgrade guide](docs/upgrade-rc-base-scaffold-prompt.md) to reconcile the application against the stable scaffold for the currently installed Andurel version while preserving local changes.
+
+### `andurel packages` — Andurel package versions
+
+List or update standalone Andurel modules already required in the project's `go.mod` (`github.com/mbvlabs/andurel/pkg/*`). Latest versions are read from `proxy.golang.org`. Packages with a `replace` directive are reported and left unchanged. This does not upgrade framework-owned files. `andurel upgrade` pins required packages to the versions verified with the installed CLI.
+
+```bash
+andurel packages (aliases: package, pkg)
+andurel packages list (alias: ls)
+andurel packages update (alias: up) [--dry-run] [packages...]
+```
+
+`andurel packages update` runs `go get` and `go mod tidy` for outdated packages. Pass package names (`storage`, `email`, ...) or full module paths to limit the update.
 
 ### `andurel doctor` — Project diagnostics
 
@@ -690,6 +703,9 @@ Without `--harness`, human mode displays a numbered multi-select prompt with no 
 | `andurel extension add` | `a` |
 | `andurel extension list` | `ls` |
 | `andurel upgrade` | `up` |
+| `andurel packages` | `pkg`, `package` |
+| `andurel packages list` | `ls` |
+| `andurel packages update` | `up` |
 | `andurel doctor` | `doc` |
 | `andurel commands` | none |
 | `andurel project info` | none |

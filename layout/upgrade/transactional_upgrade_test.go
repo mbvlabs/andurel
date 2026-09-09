@@ -328,6 +328,40 @@ func TestVersionedInertiaUpgradeKeepsEmbeddedRoot(t *testing.T) {
 	}
 }
 
+func TestUpgradePinsVerifiedPackageVersions(t *testing.T) {
+	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
+		ProjectName: "testapp",
+		Database:    "postgresql",
+		Inertia:     "react",
+	})
+	mustWriteTestFile(t, root, "go.mod", []byte(`module testapp
+
+go 1.26.0
+
+require github.com/mbvlabs/andurel/pkg/storage v0.6.0
+`))
+	commitUpgradeTree(t, root, "old package pins")
+
+	upgrader, err := NewUpgrader(root, UpgradeOptions{TargetVersion: fixtureTargetVersion})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := upgrader.Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(report.ReplacedFiles, "go.mod") {
+		t.Fatalf("upgrade did not replace go.mod: %#v", report.ReplacedFiles)
+	}
+	goMod := string(mustReadProjectFile(t, root, "go.mod"))
+	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/storage "+versions.Storage) {
+		t.Fatalf("storage was not pinned:\n%s", goMod)
+	}
+	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/inertia "+versions.Inertia) {
+		t.Fatalf("Inertia was not added:\n%s", goMod)
+	}
+}
+
 func TestVersionedInertiaUpgradeRejectsInvalidEmbeddedPath(t *testing.T) {
 	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
 		ProjectName: "testapp",
