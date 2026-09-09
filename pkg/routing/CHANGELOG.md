@@ -2,6 +2,12 @@
 
 All notable changes to the standalone Andurel routing module are documented here.
 
+## Unreleased
+
+### Changed
+
+- Minimum supported Go version is now 1.26.0.
+
 ## 0.2.0 - 2026-09-07
 
 ### Added

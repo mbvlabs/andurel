@@ -1039,7 +1039,7 @@ func topologicalSort(extSet map[string]struct{}) ([]string, error) {
 	return result, nil
 }
 
-const goVersion = "1.27.0"
+const goVersion = "1.26.0"
 
 // GoTool represents go tool.
 type GoTool struct {

@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Changed
+
+- Minimum supported Go version is now 1.26.0.
+
 ## 0.4.1 - 2026-09-08
 
 ### Changed
