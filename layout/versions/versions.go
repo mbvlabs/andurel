@@ -32,4 +32,24 @@ const (
 	Storage = "v0.7.1"
 	// Validation is the standalone Andurel validation module version verified with this framework.
 	Validation = "v0.1.3"
+
+	// PkgPrefix is the module path prefix for standalone Andurel packages.
+	PkgPrefix = "github.com/mbvlabs/andurel/pkg/"
 )
+
+var verifiedPackageVersions = map[string]string{
+	PkgPrefix + "email":      Email,
+	PkgPrefix + "hypermedia": Hypermedia,
+	PkgPrefix + "inertia":    Inertia,
+	PkgPrefix + "routing":    Routing,
+	PkgPrefix + "server":     Server,
+	PkgPrefix + "storage":    Storage,
+	PkgPrefix + "validation": Validation,
+}
+
+// PackageVersion returns the version of a standalone Andurel package verified
+// with this framework release.
+func PackageVersion(modulePath string) (string, bool) {
+	version, ok := verifiedPackageVersions[modulePath]
+	return version, ok
+}

@@ -983,6 +983,57 @@
       ]
     },
     {
+      "path": "andurel packages",
+      "use": "packages",
+      "aliases": [
+        "package",
+        "pkg"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel packages list",
+      "use": "list",
+      "aliases": [
+        "ls"
+      ],
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
+      "path": "andurel packages update",
+      "use": "update [packages...]",
+      "aliases": [
+        "up"
+      ],
+      "flags": [
+        {
+          "name": "dry-run",
+          "type": "bool",
+          "default": "false"
+        },
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
       "path": "andurel project",
       "use": "project",
       "flags": [
@@ -1574,6 +1625,60 @@
         {
           "go_name": "Diff",
           "json_name": "diff",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.packageUpdateReport",
+      "fields": [
+        {
+          "go_name": "Action",
+          "json_name": "action"
+        },
+        {
+          "go_name": "DryRun",
+          "json_name": "dry_run",
+          "omitempty": true
+        },
+        {
+          "go_name": "Packages",
+          "json_name": "packages"
+        },
+        {
+          "go_name": "CommandsRun",
+          "json_name": "commands_run",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.packageVersion",
+      "fields": [
+        {
+          "go_name": "Name",
+          "json_name": "name"
+        },
+        {
+          "go_name": "Path",
+          "json_name": "path"
+        },
+        {
+          "go_name": "Current",
+          "json_name": "current"
+        },
+        {
+          "go_name": "Latest",
+          "json_name": "latest",
+          "omitempty": true
+        },
+        {
+          "go_name": "Status",
+          "json_name": "status"
+        },
+        {
+          "go_name": "Replace",
+          "json_name": "replace",
           "omitempty": true
         }
       ]

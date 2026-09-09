@@ -1,6 +1,6 @@
 # Generated files and upgrade behavior
 
-Andurel distinguishes framework-owned files from application files. Normal upgrades own framework internals, currently centered on `internal/*`. Controllers, models, views, jobs, routes, migrations, application entrypoints, configuration, and other application code remain user-owned unless a command explicitly documents a narrower generated declaration boundary.
+Andurel distinguishes framework-owned files from application files. Normal upgrades own framework internals, currently centered on `internal/*`. Controllers, models, views, jobs, routes, migrations, application entrypoints, configuration, and other application code remain user-owned unless a command explicitly documents a narrower generated declaration boundary. `andurel upgrade` also pins required `github.com/mbvlabs/andurel/pkg/*` modules in `go.mod` to the versions verified with that CLI. It does not downgrade a newer pin. `andurel packages update` still chases the latest published package versions independently of a framework upgrade.
 
 V2 is not an upgrade from V1. Projects on `1-5-stable` continue to use V1's upgrade behavior. V2 projects on `master` are created fresh with `andurel new`; there is no automated V1-to-V2 migration path.
 
