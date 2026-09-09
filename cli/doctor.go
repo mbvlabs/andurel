@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -237,7 +238,7 @@ func doctorHint(result checkResult) string {
 	case "tool versions":
 		return "Run andurel tool sync to install or update framework tools."
 	case "Inertia SSR":
-		return "Check cmd/ssr, INERTIA_SSR_URL, runtime, and bundle configuration."
+		return "Check cmd/ssr, INERTIA_SSR_LISTEN, INERTIA_SSR_URL, runtime, and bundle configuration."
 	case "go vet":
 		return "Run go vet ./... and fix the reported issues."
 	case "go mod tidy":
@@ -508,13 +509,25 @@ func checkInertiaSSRConfiguration(rootDir string) checkResult {
 	if rawURL == "" {
 		rawURL = "http://127.0.0.1:13714"
 	}
-	parsed, err := url.Parse(rawURL)
-	if err != nil || parsed.Host == "" ||
-		(parsed.Scheme != "http" && parsed.Scheme != "https") {
+	if parsedURL, err := url.Parse(rawURL); err != nil || parsedURL.Host == "" ||
+		(parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 		return checkResult{
 			name:    "Inertia SSR",
 			status:  statusFail,
 			message: "SSR renderer URL is invalid",
+		}
+	}
+
+	rawListen := strings.TrimSpace(values["INERTIA_SSR_LISTEN"])
+	if rawListen == "" {
+		rawListen = "http://127.0.0.1:13714"
+	}
+	healthURL, err := doctorSSRListenHealthURL(rawListen)
+	if err != nil {
+		return checkResult{
+			name:    "Inertia SSR",
+			status:  statusFail,
+			message: err.Error(),
 		}
 	}
 
@@ -542,18 +555,48 @@ func checkInertiaSSRConfiguration(rootDir string) checkResult {
 		}
 	}
 
-	if err := checkSSRHealth(parsed); err != nil {
+	if err := checkSSRHealth(healthURL); err != nil {
 		return checkResult{
 			name:    "Inertia SSR",
 			status:  statusWarn,
-			message: fmt.Sprintf("cmd/ssr renderer unreachable at %s: %v", parsed.Redacted(), err),
+			message: fmt.Sprintf("cmd/ssr renderer unreachable at %s: %v", healthURL.Redacted(), err),
 		}
 	}
 	return checkResult{
 		name:    "Inertia SSR",
 		status:  statusPass,
-		message: fmt.Sprintf("cmd/ssr ready; renderer healthy at %s", parsed.Redacted()),
+		message: fmt.Sprintf("cmd/ssr ready; renderer healthy at %s", healthURL.Redacted()),
 	}
+}
+
+// doctorSSRListenHealthURL rewrites unspecified bind hosts to the same-family
+// loopback so doctor can probe Node on this machine. Keep in sync with
+// pkg/inertia parseSSRListen.
+func doctorSSRListenHealthURL(raw string) (*url.URL, error) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Host == "" || parsed.Scheme != "http" {
+		return nil, fmt.Errorf("SSR listen URL is invalid")
+	}
+
+	host := parsed.Hostname()
+	port := parsed.Port()
+	if port == "" {
+		return nil, fmt.Errorf("SSR listen URL must include a port")
+	}
+	if !strings.EqualFold(host, "localhost") && net.ParseIP(host) == nil {
+		return nil, fmt.Errorf(
+			"SSR listen URL must bind an IP address or localhost, not a service hostname",
+		)
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsUnspecified() {
+		if ip.To4() != nil {
+			host = "127.0.0.1"
+		} else {
+			host = "::1"
+		}
+	}
+
+	return url.Parse("http://" + net.JoinHostPort(host, port))
 }
 
 func checkSSRHealth(baseURL *url.URL) error {

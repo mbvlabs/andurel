@@ -877,7 +877,7 @@ myapp/
 │   └── inertia.go               # Environment-backed Inertia settings
 ├── cmd/
 │   └── ssr/
-│       └── main.go              # Starts Node SSR from SSRConfig
+│       └── main.go              # Starts Node SSR from INERTIA_SSR_LISTEN
 ├── vite.config.ts
 ├── svelte.config.js            # Svelte projects only
 ├── package.json
@@ -898,7 +898,7 @@ You can specify the JavaScript package manager by appending `/npm`, `/pnpm`, `/b
 
 The package manager is stored in `andurel.lock` as `scaffoldConfig.javascriptPackageManager`. `andurel build` uses it for dependency installation and Vite scripts. The SSR Node executable is configured separately in `config/inertia.go` (`INERTIA_SSR_RUNTIME`) so choosing Bun as a package manager does not silently replace Node as the SSR runtime.
 
-SSR uses per-response `inertia.WithSSR()`. Node process ownership belongs to `cmd/ssr` (started by Shadowfax under `andurel run`, or by a process manager in production). The HTTP app only calls `INERTIA_SSR_URL` and keeps bounded fallback to client rendering.
+SSR uses per-response `inertia.WithSSR()`. Node process ownership belongs to `cmd/ssr` (started by Shadowfax under `andurel run`, or by a process manager in production). `cmd/ssr` binds Node using `INERTIA_SSR_LISTEN` (IP or localhost; `0.0.0.0` is allowed). The HTTP app only calls `INERTIA_SSR_URL` (any http(s) host, including service DNS) and keeps bounded fallback to client rendering.
 
 
 ### Real Example: Controller to Vue Component

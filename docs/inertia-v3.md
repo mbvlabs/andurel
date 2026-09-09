@@ -4,8 +4,9 @@ Andurel's Echo-native Inertia v3 protocol implementation is independently
 versioned at `github.com/mbvlabs/andurel/pkg/inertia`. Generated controllers and
 the router import that package directly. The package provides Vite integration,
 protocol behavior, and the SSR runtime. The application owns its compiled templ
-document at `views/root.templ`. Generated `config/inertia.go` contains the ENV-backed settings, translates them
-into options, and wires the renderer lifecycle. The browser adapter remains the official
+document at `views/root.templ`. Generated `config/inertia.go` contains the ENV-backed settings.
+`cmd/ssr` loads those fields and passes them into `NewSSRRuntime`; `cmd/app` passes
+the client URL, timeout, and max response bytes into `NewRenderer`. The browser adapter remains the official
 `@inertiajs/*` client.
 
 This document is the protocol and migration baseline for the adapter. The
@@ -73,7 +74,9 @@ owns Node. Production falls back to client-side rendering; verification can
 opt into fail-fast behavior.
 
 Under `andurel run`, Shadowfax builds and supervises `cmd/ssr`, which starts
-Node from `config/inertia.go` (`SSRConfig()`). In production, run
+Node from `INERTIA_SSR_LISTEN` (bind address; IP or localhost, including
+`0.0.0.0`). `cmd/app` only uses `INERTIA_SSR_URL` (where it POSTs `/render`;
+any http(s) host, including a sibling-container DNS name). In production, run
 `cmd/ssr` (or an equivalent) under your process manager. Per-response
 `inertia.WithSSR()` opts a page into SSR. Request timeout, response-size
 limit, and fail-fast behavior have separate configuration values.

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v5"
 )
@@ -33,26 +34,28 @@ type Option func(*Renderer) error
 
 // Renderer implements the Inertia v3 server protocol for Echo and templ.
 type Renderer struct {
-	root            RootFunc
-	containerID     string
-	assetFS         fs.FS
-	projectName     string
-	environment     string
-	buildPathURL    string
-	entryPoint      string
-	viteDevURL      string
-	viteTags        viteTags
-	version         string
-	versionProvider VersionProvider
-	shared          Props
-	sharedProviders []SharedProvider
-	requestFlash    []func(*echo.Context) any
-	ssr             SSRRenderer
-	customSSR       bool
-	ssrConfig       SSRClientConfig
-	ssrFailFast     bool
-	reflash         ReflashHandler
-	protocolDebug   bool
+	root                RootFunc
+	containerID         string
+	assetFS             fs.FS
+	projectName         string
+	environment         string
+	buildPathURL        string
+	entryPoint          string
+	viteDevURL          string
+	viteTags            viteTags
+	version             string
+	versionProvider     VersionProvider
+	shared              Props
+	sharedProviders     []SharedProvider
+	requestFlash        []func(*echo.Context) any
+	ssr                 SSRRenderer
+	customSSR           bool
+	ssrURL              string
+	ssrTimeout          time.Duration
+	ssrMaxResponseBytes int64
+	ssrFailFast         bool
+	reflash             ReflashHandler
+	protocolDebug       bool
 }
 
 // WithVersion configures a fixed asset version.

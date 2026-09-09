@@ -21,7 +21,7 @@ const (
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
 	Hypermedia = "v0.2.3"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.4.2"
+	Inertia = "v0.5.0"
 	// Email is the standalone Andurel email module version verified with this framework.
 	Email = "v0.3.2"
 	// Routing is the standalone Andurel routing module version verified with this framework.

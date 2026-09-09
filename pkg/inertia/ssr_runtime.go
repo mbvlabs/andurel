@@ -5,133 +5,152 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
-	"net"
-	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 )
 
-// SSRConfig controls a JavaScript SSR process owned by cmd/ssr (or an
-// equivalent operator entrypoint), not by the HTTP application process.
-type SSRConfig struct {
-	Enabled        bool
-	BundlePath     string
-	Executable     string
-	StartupTimeout time.Duration
-	MinimumMajor   int
-	HTTP           SSRClientConfig
-	Logger         *slog.Logger
-	Stdout         io.Writer
-	Stderr         io.Writer
+const ssrHealthMaxResponseBytes = 64 << 10
+
+// SSRRuntimeOption configures optional SSR process I/O.
+type SSRRuntimeOption func(*SSRRuntime) error
+
+// SSRRuntime owns one JavaScript process. Its HTTP client is only used for
+// /health and /shutdown on the listen address, never for application /render.
+type SSRRuntime struct {
+	executable     string
+	bundlePath     string
+	listenHost     string
+	listenPort     string
+	startupTimeout time.Duration
+	minimumMajor   int
+	bundleFS       fs.FS
+	logger         *slog.Logger
+	stdout         io.Writer
+	stderr         io.Writer
+	renderer       *HTTPRenderer
+	errors         chan error
+
+	mu            sync.Mutex
+	command       *exec.Cmd
+	done          chan error
+	stopping      bool
+	bundleCleanup func()
 }
 
-// Validate verifies SSR runtime configuration.
-func (config SSRConfig) Validate() error {
-	if !config.Enabled {
+// WithSSRLogger sets the logger used when the child process exits unexpectedly.
+func WithSSRLogger(logger *slog.Logger) SSRRuntimeOption {
+	return func(runtime *SSRRuntime) error {
+		if logger == nil {
+			return fmt.Errorf("inertia: SSR logger cannot be nil")
+		}
+
+		runtime.logger = logger
 		return nil
 	}
-
-	if strings.TrimSpace(config.BundlePath) == "" {
-		return fmt.Errorf("inertia: SSR bundle path cannot be empty")
-	}
-
-	if strings.TrimSpace(config.Executable) == "" {
-		return fmt.Errorf("inertia: SSR executable cannot be empty")
-	}
-
-	if config.StartupTimeout <= 0 {
-		return fmt.Errorf("inertia: SSR startup timeout must be positive")
-	}
-
-	if config.MinimumMajor <= 0 {
-		return fmt.Errorf("inertia: SSR minimum runtime major must be positive")
-	}
-
-	if err := config.HTTP.Validate(); err != nil {
-		return err
-	}
-
-	parsed, _ := url.Parse(config.HTTP.URL)
-	if !isLoopbackHost(parsed.Hostname()) {
-		return fmt.Errorf("inertia: SSR URL must use a loopback host")
-	}
-
-	if parsed.Port() == "" {
-		return fmt.Errorf("inertia: SSR URL must include a port")
-	}
-
-	return nil
 }
 
-// SSRRuntime owns one JavaScript process and exposes its HTTP renderer.
-type SSRRuntime struct {
-	config   SSRConfig
-	renderer *HTTPRenderer
-	errors   chan error
+// WithSSRStdout sets the child process stdout. Defaults to os.Stdout.
+func WithSSRStdout(stdout io.Writer) SSRRuntimeOption {
+	return func(runtime *SSRRuntime) error {
+		if stdout == nil {
+			return fmt.Errorf("inertia: SSR stdout cannot be nil")
+		}
 
-	mu       sync.Mutex
-	command  *exec.Cmd
-	done     chan error
-	stopping bool
+		runtime.stdout = stdout
+		return nil
+	}
+}
+
+// WithSSRStderr sets the child process stderr. Defaults to os.Stderr.
+func WithSSRStderr(stderr io.Writer) SSRRuntimeOption {
+	return func(runtime *SSRRuntime) error {
+		if stderr == nil {
+			return fmt.Errorf("inertia: SSR stderr cannot be nil")
+		}
+
+		runtime.stderr = stderr
+		return nil
+	}
 }
 
 // NewSSRRuntime constructs an SSR runtime without starting it.
-// The configuration is authoritative: every field must be supplied by the
-// caller except Logger, Stdout, and Stderr, which default to slog.Default,
-// os.Stdout, and os.Stderr.
+// listenURL is where Node binds (INERTIA_SSR_LISTEN), not the app client URL.
+// bundleFS is optional; nil means disk only. Generated cmd/ssr passes assets.Files.
 func NewSSRRuntime(
-	config SSRConfig,
-	options ...HTTPRendererOption,
+	executable string,
+	bundlePath string,
+	listenURL string,
+	startupTimeout time.Duration,
+	minimumMajor int,
+	healthTimeout time.Duration,
+	bundleFS fs.FS,
+	options ...SSRRuntimeOption,
 ) (*SSRRuntime, error) {
-	if config.Logger == nil {
-		config.Logger = slog.Default()
+	if strings.TrimSpace(executable) == "" {
+		return nil, fmt.Errorf("inertia: SSR executable cannot be empty")
 	}
 
-	if config.Stdout == nil {
-		config.Stdout = os.Stdout
+	if strings.TrimSpace(bundlePath) == "" {
+		return nil, fmt.Errorf("inertia: SSR bundle path cannot be empty")
 	}
 
-	if config.Stderr == nil {
-		config.Stderr = os.Stderr
+	if startupTimeout <= 0 {
+		return nil, fmt.Errorf("inertia: SSR startup timeout must be positive")
 	}
 
-	if err := config.Validate(); err != nil {
-		return nil, err
+	if minimumMajor <= 0 {
+		return nil, fmt.Errorf("inertia: SSR minimum runtime major must be positive")
 	}
 
-	runtime := &SSRRuntime{
-		config: config,
-		errors: make(chan error, 1),
+	if healthTimeout <= 0 {
+		return nil, fmt.Errorf("inertia: SSR timeout must be positive")
 	}
 
-	if !config.Enabled {
-		return runtime, nil
-	}
-
-	renderer, err := NewHTTPRenderer(config.HTTP, options...)
+	listen, err := parseSSRListen(listenURL)
 	if err != nil {
 		return nil, err
 	}
 
-	if !isLoopbackHost(renderer.baseURL.Hostname()) {
-		return nil, fmt.Errorf("inertia: SSR URL must use a loopback host")
+	renderer, err := NewHTTPRenderer(
+		listen.healthURL,
+		healthTimeout,
+		ssrHealthMaxResponseBytes,
+	)
+	if err != nil {
+		return nil, err
 	}
 
-	runtime.renderer = renderer
+	runtime := &SSRRuntime{
+		executable:     strings.TrimSpace(executable),
+		bundlePath:     strings.TrimSpace(bundlePath),
+		listenHost:     listen.host,
+		listenPort:     listen.port,
+		startupTimeout: startupTimeout,
+		minimumMajor:   minimumMajor,
+		bundleFS:       bundleFS,
+		logger:         slog.Default(),
+		stdout:         os.Stdout,
+		stderr:         os.Stderr,
+		renderer:       renderer,
+		errors:         make(chan error, 1),
+	}
+
+	for _, option := range options {
+		if option == nil {
+			continue
+		}
+		if err := option(runtime); err != nil {
+			return nil, err
+		}
+	}
+
 	return runtime, nil
-}
-
-// Renderer returns the configured renderer, or nil when the runtime is disabled.
-func (runtime *SSRRuntime) Renderer() SSRRenderer {
-	if runtime == nil || !runtime.config.Enabled {
-		return nil
-	}
-
-	return runtime.renderer
 }
 
 // Errors reports unexpected child-process exits. The channel remains valid if
@@ -145,18 +164,27 @@ func (runtime *SSRRuntime) Errors() <-chan error {
 }
 
 // Start starts the configured JavaScript process and waits for health readiness.
-func (runtime *SSRRuntime) Start(ctx context.Context) error {
-	if runtime == nil || !runtime.config.Enabled {
+func (runtime *SSRRuntime) Start(ctx context.Context) (err error) {
+	if runtime == nil {
 		return nil
 	}
 
-	if _, err := os.Stat(runtime.config.BundlePath); err != nil {
-		return fmt.Errorf("inertia SSR bundle %q: %w", runtime.config.BundlePath, err)
-	}
-
-	executable, err := exec.LookPath(runtime.config.Executable)
+	bundlePath, cleanup, err := resolveSSRBundle(runtime.bundlePath, runtime.bundleFS)
 	if err != nil {
-		return fmt.Errorf("inertia SSR runtime %q: %w", runtime.config.Executable, err)
+		return err
+	}
+	defer func() {
+		if err != nil && cleanup != nil {
+			runtime.mu.Lock()
+			runtime.bundleCleanup = nil
+			runtime.mu.Unlock()
+			cleanup()
+		}
+	}()
+
+	executable, err := exec.LookPath(runtime.executable)
+	if err != nil {
+		return fmt.Errorf("inertia SSR runtime %q: %w", runtime.executable, err)
 	}
 
 	output, err := exec.CommandContext(ctx, executable, "--version").Output()
@@ -173,10 +201,10 @@ func (runtime *SSRRuntime) Start(ctx context.Context) error {
 		)
 	}
 
-	if major < runtime.config.MinimumMajor {
+	if major < runtime.minimumMajor {
 		return fmt.Errorf(
 			"inertia SSR requires runtime major %d or newer (found %q)",
-			runtime.config.MinimumMajor,
+			runtime.minimumMajor,
 			strings.TrimSpace(string(output)),
 		)
 	}
@@ -187,15 +215,13 @@ func (runtime *SSRRuntime) Start(ctx context.Context) error {
 		return fmt.Errorf("inertia SSR runtime is already started")
 	}
 
-	parsed, _ := url.Parse(runtime.config.HTTP.URL)
-	command := exec.Command(executable, runtime.config.BundlePath)
-	port := parsed.Port()
+	command := exec.Command(executable, bundlePath)
 	command.Env = append(os.Environ(),
-		"INERTIA_SSR_HOST="+parsed.Hostname(),
-		"INERTIA_SSR_PORT="+port,
+		"INERTIA_SSR_HOST="+runtime.listenHost,
+		"INERTIA_SSR_PORT="+runtime.listenPort,
 	)
-	command.Stdout = runtime.config.Stdout
-	command.Stderr = runtime.config.Stderr
+	command.Stdout = runtime.stdout
+	command.Stderr = runtime.stderr
 
 	done := make(chan error, 1)
 	if err := command.Start(); err != nil {
@@ -206,6 +232,7 @@ func (runtime *SSRRuntime) Start(ctx context.Context) error {
 	runtime.command = command
 	runtime.done = done
 	runtime.stopping = false
+	runtime.bundleCleanup = cleanup
 	runtime.mu.Unlock()
 
 	go func() {
@@ -227,8 +254,8 @@ func (runtime *SSRRuntime) Start(ctx context.Context) error {
 		}
 
 		err := fmt.Errorf("inertia SSR runtime stopped unexpectedly: %w", normalizeWaitError(waitErr))
-		if runtime.config.Logger != nil {
-			runtime.config.Logger.Error("inertia SSR runtime stopped", "error", err)
+		if runtime.logger != nil {
+			runtime.logger.Error("inertia SSR runtime stopped", "error", err)
 		}
 
 		select {
@@ -237,7 +264,7 @@ func (runtime *SSRRuntime) Start(ctx context.Context) error {
 		}
 	}()
 
-	startupCtx, cancel := context.WithTimeout(ctx, runtime.config.StartupTimeout)
+	startupCtx, cancel := context.WithTimeout(ctx, runtime.startupTimeout)
 	defer cancel()
 
 	ticker := time.NewTicker(100 * time.Millisecond)
@@ -245,6 +272,7 @@ func (runtime *SSRRuntime) Start(ctx context.Context) error {
 
 	for {
 		if err := runtime.renderer.Health(startupCtx); err == nil {
+			cleanup = nil
 			return nil
 		}
 
@@ -264,9 +292,10 @@ func (runtime *SSRRuntime) Start(ctx context.Context) error {
 
 // Stop gracefully stops the managed process and kills it when the context ends.
 func (runtime *SSRRuntime) Stop(ctx context.Context) error {
-	if runtime == nil || !runtime.config.Enabled {
+	if runtime == nil {
 		return nil
 	}
+	defer runtime.removeExtractedBundle()
 
 	runtime.mu.Lock()
 	command := runtime.command
@@ -293,13 +322,50 @@ func (runtime *SSRRuntime) Stop(ctx context.Context) error {
 	}
 }
 
-func isLoopbackHost(host string) bool {
-	if strings.EqualFold(host, "localhost") {
-		return true
+func (runtime *SSRRuntime) removeExtractedBundle() {
+	runtime.mu.Lock()
+	cleanup := runtime.bundleCleanup
+	runtime.bundleCleanup = nil
+	runtime.mu.Unlock()
+	if cleanup != nil {
+		cleanup()
+	}
+}
+
+func resolveSSRBundle(bundlePath string, bundleFS fs.FS) (string, func(), error) {
+	if _, err := os.Stat(bundlePath); err == nil {
+		return bundlePath, nil, nil
+	} else if bundleFS == nil {
+		return "", nil, fmt.Errorf("inertia SSR bundle %q: %w", bundlePath, err)
 	}
 
-	ip := net.ParseIP(host)
-	return ip != nil && ip.IsLoopback()
+	embedPath := embedPathForBundle(bundlePath)
+	data, err := fs.ReadFile(bundleFS, embedPath)
+	if err != nil {
+		return "", nil, fmt.Errorf("inertia SSR bundle %q: %w", bundlePath, err)
+	}
+
+	dir, err := os.MkdirTemp("", "inertia-ssr-")
+	if err != nil {
+		return "", nil, fmt.Errorf("inertia SSR bundle %q: %w", bundlePath, err)
+	}
+
+	cleanup := func() { _ = os.RemoveAll(dir) }
+	dest := filepath.Join(dir, filepath.Base(bundlePath))
+	if err := os.WriteFile(dest, data, 0o644); err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("inertia SSR bundle %q: %w", bundlePath, err)
+	}
+
+	if mapData, mapErr := fs.ReadFile(bundleFS, embedPath+".map"); mapErr == nil {
+		_ = os.WriteFile(dest+".map", mapData, 0o644)
+	}
+
+	return dest, cleanup, nil
+}
+
+func embedPathForBundle(bundle string) string {
+	return strings.TrimPrefix(filepath.ToSlash(bundle), "assets/")
 }
 
 func normalizeWaitError(err error) error {

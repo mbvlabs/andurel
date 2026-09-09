@@ -388,13 +388,34 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 		"routes.ViteBuild.Path(),",
 		"cfg.EntryPoint,",
 		"cfg.ViteDevURL,",
-		"inertia.SSRClientConfig{",
 		"cfg.SSRURL,",
+		"cfg.SSRRequestTimeout,",
+		"cfg.SSRMaxResponseBytes,",
 		"inertia.WithRoot(views.Root)",
 		"inertia.WithAssetFS(assets.Files)",
 	} {
 		if !strings.Contains(wiring, want) {
 			t.Errorf("command wiring missing inertia option %q", want)
+		}
+	}
+	if strings.Contains(wiring, "inertia.SSRClientConfig{") {
+		t.Error("cmd_app_main.tmpl should pass SSR client settings as arguments")
+	}
+
+	ssrMain := readGeneratedApplicationTemplate(t, "cmd_ssr_main.tmpl")
+	for _, want := range []string{
+		`"{{.ModuleName}}/assets"`,
+		"cfg.SSRListen",
+		"assets.Files",
+		"NewSSRRuntime(",
+	} {
+		if !strings.Contains(ssrMain, want) {
+			t.Errorf("cmd_ssr_main.tmpl missing %q", want)
+		}
+	}
+	for _, unwanted := range []string{"SSRConfig()", "cfg.SSRURL"} {
+		if strings.Contains(ssrMain, unwanted) {
+			t.Errorf("cmd_ssr_main.tmpl should not contain %q", unwanted)
 		}
 	}
 	for _, unwanted := range []string{"startQueueProcessor", "queue.WorkersModule", `"{{.ModuleName}}/queue"`} {
@@ -444,10 +465,24 @@ func TestGeneratedRateLimiterAndLifecycleTemplates(t *testing.T) {
 	for _, want := range []string{
 		"type Inertia struct",
 		"func NewInertia() (Inertia, error)",
-		"SSRConfig()",
+		"SSRListen",
+		"INERTIA_SSR_LISTEN",
+		"ValidateSSRListen",
+		"ValidateSSRClient",
 	} {
 		if !strings.Contains(inertiaConfig, want) {
 			t.Errorf("config_inertia.tmpl missing %q", want)
+		}
+	}
+	for _, unwanted := range []string{
+		"SSRConfig()",
+		"SSRClientConfig",
+		"SSRBindHost",
+		"SSRHealthURL",
+		"parseSSRListen",
+	} {
+		if strings.Contains(inertiaConfig, unwanted) {
+			t.Errorf("config_inertia.tmpl should not contain %q", unwanted)
 		}
 	}
 	for _, unwanted := range []string{"views.Root", "assets.Files", "routes.ViteBuild.Path()", "fs.FS"} {

@@ -29,12 +29,7 @@ func TestHTTPRendererRenderAndHealth(t *testing.T) {
 	)
 	defer server.Close()
 
-	config := SSRClientConfig{
-		URL:              server.URL,
-		Timeout:          2 * time.Second,
-		MaxResponseBytes: 2 << 20,
-	}
-	renderer, err := NewHTTPRenderer(config)
+	renderer, err := NewHTTPRenderer(server.URL, 2*time.Second, 2<<20)
 	if err != nil {
 		t.Fatalf("NewHTTPRenderer: %v", err)
 	}
@@ -61,12 +56,7 @@ func TestHTTPRendererBoundsResponseAndTimeout(t *testing.T) {
 	)
 	defer server.Close()
 
-	config := SSRClientConfig{
-		URL:              server.URL,
-		Timeout:          2 * time.Second,
-		MaxResponseBytes: 8,
-	}
-	renderer, err := NewHTTPRenderer(config)
+	renderer, err := NewHTTPRenderer(server.URL, 2*time.Second, 8)
 	if err != nil {
 		t.Fatalf("NewHTTPRenderer: %v", err)
 	}
@@ -75,8 +65,7 @@ func TestHTTPRendererBoundsResponseAndTimeout(t *testing.T) {
 		t.Fatalf("oversized response error = %v", err)
 	}
 
-	config.Timeout = time.Millisecond
-	renderer, err = NewHTTPRenderer(config)
+	renderer, err = NewHTTPRenderer(server.URL, time.Millisecond, 8)
 	if err != nil {
 		t.Fatalf("NewHTTPRenderer timeout: %v", err)
 	}

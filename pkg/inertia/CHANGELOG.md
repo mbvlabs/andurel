@@ -1,5 +1,32 @@
 ## Unreleased
 
+## 0.5.0 - 2026-09-09
+
+### Added
+
+- `ValidateSSRListen` and `ValidateSSRClient` for listen vs client URL rules.
+- `WithSSRLogger`, `WithSSRStdout`, and `WithSSRStderr` on `NewSSRRuntime`.
+- Optional `fs.FS` bundle fallback on `NewSSRRuntime` for CNB images that embed
+  `assets/dist/ssr/ssr.js` but do not keep it on disk.
+
+### Changed
+
+- Split Node bind from the Go render client: `NewSSRRuntime` takes a listen URL
+  (`INERTIA_SSR_LISTEN`; IP or localhost, including `0.0.0.0` / `::`).
+  `NewRenderer` / `NewHTTPRenderer` take the client URL (`INERTIA_SSR_URL`; any
+  http(s) host, including service DNS).
+- `NewSSRRuntime` takes positional process arguments instead of `SSRConfig`.
+- `NewRenderer` and `NewHTTPRenderer` take `ssrURL`, timeout, and max response
+  bytes as arguments instead of `SSRClientConfig`.
+- Health and shutdown probe loopback on the listen port when the bind host is
+  unspecified. They do not probe `0.0.0.0`, `::`, or `INERTIA_SSR_URL`.
+
+### Removed
+
+- `SSRConfig`, `SSRConfig.Validate`, and `SSRClientConfig`.
+- `SSRRuntime.Renderer`.
+- The runtime `Enabled` flag. Omit `Start` to leave the process unstarted.
+
 ## 0.4.2 - 2026-09-09
 
 ### Changed
