@@ -8,7 +8,7 @@ require (
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jinzhu/inflection v1.0.0
 	github.com/joho/godotenv v1.5.1
-	github.com/mbvlabs/andurel/pkg/storage v0.7.0
+	github.com/mbvlabs/andurel/pkg/storage v0.7.1
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/sebdah/goldie/v2 v2.8.0
 	github.com/spf13/cobra v1.9.1
@@ -118,8 +118,6 @@ require (
 	golang.org/x/text v0.39.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/mbvlabs/andurel/pkg/storage => ./pkg/storage
 
 tool (
 	github.com/a-h/templ/cmd/templ
