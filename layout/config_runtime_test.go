@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	layouttemplates "github.com/mbvlabs/andurel/layout/templates"
@@ -27,7 +28,8 @@ func TestGeneratedConfigRuntime(t *testing.T) {
 		}
 	}
 
-	module := fmt.Sprintf(`module testapp
+	var module strings.Builder
+	module.WriteString(fmt.Sprintf(`module testapp
 
 go %s
 
@@ -36,19 +38,19 @@ require (
 	github.com/joho/godotenv v1.5.1
 	go.uber.org/fx v1.24.0
 )
-`, goVersion)
+`, goVersion))
 	for _, name := range []string{"email", "server", "storage", "validation"} {
 		path, err := filepath.Abs(filepath.Join("..", "pkg", name))
 		if err != nil {
 			t.Fatal(err)
 		}
-		module += fmt.Sprintf(
+		module.WriteString(fmt.Sprintf(
 			"\nrequire github.com/mbvlabs/andurel/pkg/%s v0.0.0\n"+
 				"replace github.com/mbvlabs/andurel/pkg/%s => %q\n",
 			name, name, filepath.ToSlash(path),
-		)
+		))
 	}
-	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(module), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(module.String()), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	probe, err := filepath.Abs(filepath.Join("testdata", "configruntime", "main.go"))

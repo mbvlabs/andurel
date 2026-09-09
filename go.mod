@@ -1,6 +1,6 @@
 module github.com/mbvlabs/andurel
 
-go 1.27.0
+go 1.26.0
 
 require (
 	github.com/a-h/templ v0.3.1020
@@ -118,6 +118,8 @@ require (
 	golang.org/x/text v0.39.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/mbvlabs/andurel/pkg/storage => ./pkg/storage
 
 tool (
 	github.com/a-h/templ/cmd/templ

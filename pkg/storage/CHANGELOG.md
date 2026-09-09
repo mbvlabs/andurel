@@ -2,6 +2,12 @@
 
 All notable changes to the standalone Andurel storage module are documented here.
 
+## Unreleased
+
+### Changed
+
+- Minimum supported Go version is now 1.26.0.
+
 ## 0.7.0 - 2026-09-07
 
 ### Added

@@ -2,6 +2,12 @@
 
 All notable changes to the standalone Andurel email module are documented here.
 
+## Unreleased
+
+### Changed
+
+- Minimum supported Go version is now 1.26.0.
+
 ## 0.3.1 - 2026-09-07
 
 ### Changed

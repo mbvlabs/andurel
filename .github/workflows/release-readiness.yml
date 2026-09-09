@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  GO_VERSION: '1.27.0'
+  GO_VERSION: '1.26.0'
   GOLANGCI_LINT_VERSION: 'v2.13.2'
   GOVULNCHECK_VERSION: 'v1.3.0'
   APIDIFF_VERSION: 'v0.0.0-20250620022241-b7579e27df2b'

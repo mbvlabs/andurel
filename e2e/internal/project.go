@@ -99,7 +99,7 @@ func (p *Project) setupWorkspace() error {
 	}
 
 	var workspace strings.Builder
-	workspace.WriteString("go 1.27.0\n\nuse (\n\t..\n")
+	workspace.WriteString("go 1.26.0\n\nuse (\n\t..\n")
 	for _, moduleName := range moduleNames {
 		moduleDir := filepath.ToSlash(filepath.Join(p.WorkspaceRoot, "pkg", moduleName))
 		fmt.Fprintf(&workspace, "\t%q\n", moduleDir)
