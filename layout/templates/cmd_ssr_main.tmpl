@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"{{.ModuleName}}/assets"
 	"{{.ModuleName}}/config"
 
 	"github.com/mbvlabs/andurel/pkg/inertia"
@@ -25,7 +26,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	runtime, err := inertia.NewSSRRuntime(cfg.SSRConfig())
+	runtime, err := inertia.NewSSRRuntime(
+		cfg.SSRRuntime,
+		cfg.SSRBundle,
+		cfg.SSRListen,
+		cfg.SSRStartupTimeout,
+		cfg.SSRMinimumMajor,
+		cfg.SSRRequestTimeout,
+		assets.Files,
+	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "inertia SSR runtime: %v\n", err)
 		os.Exit(1)
@@ -38,7 +47,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "start inertia SSR: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("Inertia SSR listening on %s\n", cfg.SSRURL)
+	fmt.Printf("Inertia SSR listening on %s\n", cfg.SSRListen)
 
 	select {
 	case <-ctx.Done():

@@ -14,21 +14,20 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func testSSRConfig() SSRClientConfig {
-	return SSRClientConfig{
-		URL:              "http://127.0.0.1:13714",
-		Timeout:          2 * time.Second,
-		MaxResponseBytes: 2 << 20,
-	}
+func testSSRClient() (string, time.Duration, int64) {
+	return "http://127.0.0.1:13714", 2 * time.Second, 2 << 20
 }
 
 func newTestRenderer(options ...Option) (*Renderer, error) {
+	ssrURL, timeout, maxBytes := testSSRClient()
 	return NewRenderer(
 		"app",
 		"/assets/dist/vite/*",
 		"resources/js/app.ts",
 		"http://localhost:5173/assets/dist",
-		testSSRConfig(),
+		ssrURL,
+		timeout,
+		maxBytes,
 		options...,
 	)
 }

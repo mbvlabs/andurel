@@ -12,15 +12,16 @@ import (
 const (
 	DefaultInertiaContainerID         = "app"
 	DefaultInertiaViteDevURL          = "http://localhost:5173/assets/dist"
-	DefaultInertiaProtocolDebug       = false
+	DefaultInertiaProtocolDebug       = true
 	DefaultInertiaSSRRuntime          = "node"
 	DefaultInertiaSSRBundle           = "assets/dist/ssr/ssr.js"
+	DefaultInertiaSSRListen           = "http://127.0.0.1:13714"
 	DefaultInertiaSSRURL              = "http://127.0.0.1:13714"
 	DefaultInertiaSSRStartupTimeout   = 10 * time.Second
 	DefaultInertiaSSRRequestTimeout   = 2 * time.Second
 	DefaultInertiaSSRMaxResponseBytes = int64(2097152)
 	DefaultInertiaSSRMinimumMajor     = 22
-	DefaultInertiaSSRFailFast         = false
+	DefaultInertiaSSRFailFast         = true
 {{- if eq .Inertia "react"}}
 	DefaultInertiaEntryPoint          = "resources/js/app.tsx"
 {{- else}}
@@ -34,6 +35,7 @@ type Inertia struct {
 	ProtocolDebug       bool
 	SSRRuntime          string
 	SSRBundle           string
+	SSRListen           string
 	SSRURL              string
 	SSRStartupTimeout   time.Duration
 	SSRRequestTimeout   time.Duration
@@ -51,6 +53,7 @@ func NewInertia() (Inertia, error) {
 		ProtocolDebug: env.Bool("INERTIA_PROTOCOL_DEBUG", DefaultInertiaProtocolDebug),
 		SSRRuntime:    env.String("INERTIA_SSR_RUNTIME", DefaultInertiaSSRRuntime),
 		SSRBundle:     env.String("INERTIA_SSR_BUNDLE", DefaultInertiaSSRBundle),
+		SSRListen:     env.String("INERTIA_SSR_LISTEN", DefaultInertiaSSRListen),
 		SSRURL:        env.String("INERTIA_SSR_URL", DefaultInertiaSSRURL),
 		SSRStartupTimeout: env.Duration(
 			"INERTIA_SSR_STARTUP_TIMEOUT",
@@ -83,16 +86,19 @@ func (c Inertia) validate() error {
 	b.Required("EntryPoint", c.EntryPoint)
 	b.Required("SSRRuntime", c.SSRRuntime)
 	b.Required("SSRBundle", c.SSRBundle)
+	b.Required("SSRListen", c.SSRListen)
 	if err := b.Err(); err != nil {
 		return err
 	}
 
-	http := inertia.SSRClientConfig{
-		URL:              c.SSRURL,
-		Timeout:          c.SSRRequestTimeout,
-		MaxResponseBytes: c.SSRMaxResponseBytes,
+	if err := inertia.ValidateSSRListen(c.SSRListen); err != nil {
+		return err
 	}
-	if err := http.Validate(); err != nil {
+	if err := inertia.ValidateSSRClient(
+		c.SSRURL,
+		c.SSRRequestTimeout,
+		c.SSRMaxResponseBytes,
+	); err != nil {
 		return err
 	}
 	if c.SSRStartupTimeout <= 0 {
@@ -103,20 +109,4 @@ func (c Inertia) validate() error {
 	}
 
 	return nil
-}
-
-// SSRConfig returns settings for cmd/ssr to start the Node process.
-func (c Inertia) SSRConfig() inertia.SSRConfig {
-	return inertia.SSRConfig{
-		Enabled:        true,
-		Executable:     c.SSRRuntime,
-		BundlePath:     c.SSRBundle,
-		StartupTimeout: c.SSRStartupTimeout,
-		MinimumMajor:   c.SSRMinimumMajor,
-		HTTP: inertia.SSRClientConfig{
-			URL:              c.SSRURL,
-			Timeout:          c.SSRRequestTimeout,
-			MaxResponseBytes: c.SSRMaxResponseBytes,
-		},
-	}
 }

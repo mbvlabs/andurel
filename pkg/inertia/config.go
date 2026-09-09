@@ -6,6 +6,7 @@ import (
 	"html"
 	"io/fs"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v5"
 )
@@ -26,13 +27,16 @@ type viteManifestEntry struct {
 // WithSSR() call the configured SSR HTTP endpoint. Node process ownership
 // belongs to NewSSRRuntime / cmd/ssr. Required Inertia protocol settings are
 // positional arguments; optional behavior is configured with options such as
-// WithRoot, WithAssetFS, and WithEnvironment.
+// WithRoot, WithAssetFS, and WithEnvironment. ssrURL is the client URL
+// (INERTIA_SSR_URL) and may be any http(s) host.
 func NewRenderer(
 	containerID string,
 	buildPathURL string,
 	entryPoint string,
 	viteDevURL string,
-	ssrConfig SSRClientConfig,
+	ssrURL string,
+	ssrTimeout time.Duration,
+	ssrMaxResponseBytes int64,
 	options ...Option,
 ) (*Renderer, error) {
 	if strings.TrimSpace(containerID) == "" {
@@ -40,13 +44,15 @@ func NewRenderer(
 	}
 
 	renderer := &Renderer{
-		containerID:  strings.TrimSpace(containerID),
-		buildPathURL: strings.TrimSpace(buildPathURL),
-		version:      strings.TrimSpace(buildPathURL),
-		entryPoint:   strings.TrimSpace(entryPoint),
-		viteDevURL:   strings.TrimRight(strings.TrimSpace(viteDevURL), "/"),
-		ssrConfig:    ssrConfig,
-		shared:       make(Props),
+		containerID:         strings.TrimSpace(containerID),
+		buildPathURL:        strings.TrimSpace(buildPathURL),
+		version:             strings.TrimSpace(buildPathURL),
+		entryPoint:          strings.TrimSpace(entryPoint),
+		viteDevURL:          strings.TrimRight(strings.TrimSpace(viteDevURL), "/"),
+		ssrURL:              strings.TrimSpace(ssrURL),
+		ssrTimeout:          ssrTimeout,
+		ssrMaxResponseBytes: ssrMaxResponseBytes,
+		shared:              make(Props),
 		requestFlash: []func(*echo.Context) any{
 			func(etx *echo.Context) any { return FlashFromContext(etx.Request().Context()) },
 		},
@@ -121,7 +127,11 @@ window.__vite_plugin_react_preamble_installed__ = true
 	}
 
 	if !renderer.customSSR {
-		httpRenderer, err := NewHTTPRenderer(renderer.ssrConfig)
+		httpRenderer, err := NewHTTPRenderer(
+			renderer.ssrURL,
+			renderer.ssrTimeout,
+			renderer.ssrMaxResponseBytes,
+		)
 		if err != nil {
 			return nil, err
 		}

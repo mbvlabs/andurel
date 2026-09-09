@@ -26,11 +26,17 @@ type HTTPRenderer struct {
 }
 
 // NewHTTPRenderer creates a bounded SSR HTTP renderer.
-func NewHTTPRenderer(config SSRClientConfig, options ...HTTPRendererOption) (*HTTPRenderer, error) {
-	if err := config.Validate(); err != nil {
+// ssrURL is where cmd/app POSTs /render and may be any http(s) host.
+func NewHTTPRenderer(
+	ssrURL string,
+	timeout time.Duration,
+	maxResponseBytes int64,
+	options ...HTTPRendererOption,
+) (*HTTPRenderer, error) {
+	if err := ValidateSSRClient(ssrURL, timeout, maxResponseBytes); err != nil {
 		return nil, err
 	}
-	baseURL, _ := url.Parse(strings.TrimSpace(config.URL))
+	baseURL, _ := url.Parse(strings.TrimSpace(ssrURL))
 	baseURL.Path = strings.TrimSuffix(strings.TrimSuffix(baseURL.Path, "/render"), "/")
 	baseURL.RawQuery = ""
 	baseURL.Fragment = ""
@@ -38,8 +44,8 @@ func NewHTTPRenderer(config SSRClientConfig, options ...HTTPRendererOption) (*HT
 	renderer := &HTTPRenderer{
 		baseURL:         baseURL,
 		client:          &http.Client{},
-		timeout:         config.Timeout,
-		maxResponseSize: config.MaxResponseBytes,
+		timeout:         timeout,
+		maxResponseSize: maxResponseBytes,
 	}
 	for _, option := range options {
 		if option == nil {
