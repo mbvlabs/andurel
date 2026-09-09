@@ -254,7 +254,7 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 		"controllers/sessions.go",
 		`s.renderer.Page(etx, "Auth/Login"`,
 	)
-	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/hypermedia v0.2.2")
+	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/hypermedia "+versions.Hypermedia)
 	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/inertia "+versions.Inertia)
 	assertFileContains(t, projectDir, "router/appctx/appctx.go", "func WithFlashes(")
 	assertFileContains(t, projectDir, "router/middleware/middleware.go", "appctx.WithFlashes(")
