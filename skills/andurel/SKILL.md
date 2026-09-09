@@ -157,6 +157,16 @@ In Inertia projects, `doctor` checks whether `resources/js/routes.ts` matches th
 
 When annotated sqlc queries exist, `doctor` also checks generated code for drift. If the `sqlc generate` check fails, run `andurel generate queries --json`.
 
+Update standalone Andurel packages in `go.mod` (`github.com/mbvlabs/andurel/pkg/*`):
+
+```bash
+andurel packages --json
+andurel packages update --dry-run --json
+andurel packages update --json
+```
+
+This updates required package versions to the latest published releases. It does not change framework-owned files. `andurel upgrade` pins required packages to the versions verified with the installed CLI.
+
 ## Validation
 
 Follow the target repository's `AGENTS.md` and local validation guidance. Do not assume that a command is permitted merely because it is common in another Andurel project.

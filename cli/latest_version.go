@@ -10,18 +10,30 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 )
-
-const andurelLatestVersionURL = "https://proxy.golang.org/github.com/mbvlabs/andurel/@latest"
 
 var (
 	andurelVersionHTTPClient       = &http.Client{Timeout: 3 * time.Second}
 	lookupLatestAndurelVersionFunc = lookupLatestAndurelVersion
+	lookupLatestModuleVersionFunc  = lookupLatestModuleVersion
 )
 
 func lookupLatestAndurelVersion(ctx context.Context) (string, error) {
-	return fetchLatestAndurelVersion(ctx, andurelVersionHTTPClient, andurelLatestVersionURL)
+	return lookupLatestModuleVersion(ctx, "github.com/mbvlabs/andurel")
+}
+
+func lookupLatestModuleVersion(ctx context.Context, modulePath string) (string, error) {
+	escaped, err := module.EscapePath(modulePath)
+	if err != nil {
+		return "", fmt.Errorf("encode module path %q: %w", modulePath, err)
+	}
+	return fetchLatestAndurelVersion(
+		ctx,
+		andurelVersionHTTPClient,
+		"https://proxy.golang.org/"+escaped+"/@latest",
+	)
 }
 
 func fetchLatestAndurelVersion(
@@ -38,14 +50,14 @@ func fetchLatestAndurelVersion(
 
 	response, err := client.Do(request)
 	if err != nil {
-		return "", fmt.Errorf("check latest Andurel version: %w", err)
+		return "", fmt.Errorf("check latest module version: %w", err)
 	}
 	defer func() {
 		if closeErr := response.Body.Close(); closeErr != nil {
 			version = ""
 			err = errors.Join(
 				err,
-				fmt.Errorf("close latest Andurel version response: %w", closeErr),
+				fmt.Errorf("close latest module version response: %w", closeErr),
 			)
 		}
 	}()
@@ -53,7 +65,7 @@ func fetchLatestAndurelVersion(
 	if response.StatusCode != http.StatusOK {
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 4<<10))
 		return "", fmt.Errorf(
-			"check latest Andurel version: unexpected HTTP status %s",
+			"check latest module version: unexpected HTTP status %s",
 			response.Status,
 		)
 	}
@@ -62,18 +74,18 @@ func fetchLatestAndurelVersion(
 		Version string `json:"Version"`
 	}
 	if err := json.NewDecoder(io.LimitReader(response.Body, 64<<10)).Decode(&info); err != nil {
-		return "", fmt.Errorf("decode latest Andurel version: %w", err)
+		return "", fmt.Errorf("decode latest module version: %w", err)
 	}
 
 	version, ok := canonicalAndurelVersion(info.Version)
 	if !ok {
 		return "", fmt.Errorf(
-			"latest Andurel version %q is not valid semantic versioning",
+			"latest module version %q is not valid semantic versioning",
 			info.Version,
 		)
 	}
 	if semver.Prerelease(version) != "" {
-		return "", fmt.Errorf("latest Andurel version %q is not a stable release", info.Version)
+		return "", fmt.Errorf("latest module version %q is not a stable release", info.Version)
 	}
 
 	return version, nil

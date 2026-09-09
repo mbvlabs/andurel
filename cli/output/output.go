@@ -588,7 +588,7 @@ func projectionItems(data any) ([]any, error) {
 			"Use --jq for scalar or object data.",
 		)
 	}
-	for _, field := range []string{"routes", "items", "results", "names", "extensions", "tools"} {
+	for _, field := range []string{"routes", "items", "results", "names", "extensions", "tools", "packages"} {
 		if items, ok := object[field].([]any); ok {
 			return items, nil
 		}

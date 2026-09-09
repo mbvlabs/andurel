@@ -105,7 +105,7 @@ func TestProjectionFlagsAreMutuallyExclusive(t *testing.T) {
 }
 
 func TestProjectionCollectionsIdentifiersAndEncodingErrors(t *testing.T) {
-	for _, field := range []string{"routes", "items", "results", "names", "extensions", "tools"} {
+	for _, field := range []string{"routes", "items", "results", "names", "extensions", "tools", "packages"} {
 		items, err := projectionItems(map[string]any{field: []any{"one", "two"}})
 		if err != nil || len(items) != 2 {
 			t.Fatalf("projectionItems(%s) = %#v, %v", field, items, err)
