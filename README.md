@@ -1,6 +1,6 @@
 <img width="2256" height="408" alt="andurel-wordmark-dark" src="https://github.com/user-attachments/assets/fe351b07-15e8-41e1-9be1-23feb894acf5" />
 
-# Andurel — Space-grade Go framework for humans and agents
+# Andurel, Space-grade Go framework for humans and agents
 
 [![Go Version](https://img.shields.io/badge/go-1.26.0%2B-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
