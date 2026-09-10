@@ -32,7 +32,9 @@ file -----------rw-r--r-- README.md
 ```
 # testapp
 
-A full-stack web application built with [Andurel](https://github.com/mbvlabs/andurel), a Rails-like web framework for Go that prioritizes development speed.
+A Go application built with [Andurel](https://github.com/mbvlabs/andurel), a space-grade framework for humans and agents.
+
+Inspired by Ruby on Rails, Andurel is now its own thing: generated Go you own, explicit wiring, and an agent-ready CLI.
 
 ## Project Structure
 
@@ -154,7 +156,7 @@ andurel migration fix
 
 ### Generate a New Resource
 
-The Andurel generator creates complete CRUD resources with models, controllers, views, and routes.
+Andurel generates models, factories, controllers, routes, and pages that belong to the application.
 
 **Prerequisites**: You need a database table first. Create a migration:
 
@@ -206,7 +208,7 @@ The generator also:
 - Creates Bun-backed model methods for CRUD operations
 - Creates a complete CRUD interface at `/products`
 
-**Custom table names**: If your table doesn't follow Rails naming conventions (model `Product` → table `products`):
+**Custom table names**: If your table doesn't follow the default naming (model `Product` → table `products`):
 
 ```bash
 # Map Product model to a custom table name
@@ -453,7 +455,7 @@ Application sessions use `HttpOnly` cookies with `SameSite=Lax` and `Path=/`. Pr
 
 CORS allows credentials and trusts only the configured application origin (`PROTOCOL` + `DOMAIN`) by default. `CORS_ALLOWED_ORIGINS` accepts a comma-separated list of additional exact origins. Wildcard origins are rejected when the application starts.
 
-CSRF protection uses Fetch Metadata to align with Rails behavior. Unsafe API requests bypass CSRF only when they carry a non-empty Bearer token and do not carry the application session cookie. Cookie-authenticated unsafe requests remain protected on every path.
+CSRF protection uses Fetch Metadata. Unsafe API requests bypass CSRF only when they carry a non-empty Bearer token and do not carry the application session cookie. Cookie-authenticated unsafe requests remain protected on every path.
 
 **Strategies** (`CSRF_STRATEGY`):
 - `header_only` (default): Unsafe requests must include the `Sec-Fetch-Site` header. Requests missing this header are rejected with `403`.
