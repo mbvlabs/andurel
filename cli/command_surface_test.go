@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,6 +14,7 @@ import (
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/mbvlabs/andurel/layout/upgrade"
+	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/spf13/cobra"
 )
 
@@ -357,6 +359,10 @@ func TestSetVersionAddsManagedToolsAndRejectsInvalidInput(t *testing.T) {
 	}
 
 	var synced []string
+	resolveToolChecksumsFunc = func(string, string) (map[string]string, error) {
+		t.Fatal("explicit checksums must not resolve remotely")
+		return nil, nil
+	}
 	installToolVersionAndLockFunc = func(projectRoot, name string, tool *layout.Tool, lock *layout.AndurelLock, goos, goarch string) error {
 		synced = append(synced, name+":"+tool.Version)
 		return lock.WriteLockFile(projectRoot)
@@ -429,7 +435,7 @@ func TestParseRepeatedChecksumArguments(t *testing.T) {
 	}
 }
 
-func TestCustomToolVersionRequiresChecksumsBeforeMutation(t *testing.T) {
+func TestCustomToolVersionResolvesChecksumsBeforeMutation(t *testing.T) {
 	resetCLITestSeams(t)
 	root := t.TempDir()
 	writeGoModule(t, root)
@@ -437,8 +443,61 @@ func TestCustomToolVersionRequiresChecksumsBeforeMutation(t *testing.T) {
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatal(err)
 	}
+
+	resolved := map[string]string{
+		"linux/amd64":  strings.Repeat("a", 64),
+		"linux/arm64":  strings.Repeat("b", 64),
+		"darwin/amd64": strings.Repeat("c", 64),
+		"darwin/arm64": strings.Repeat("d", 64),
+	}
+	var resolveCalls int
+	resolveToolChecksumsFunc = func(version, urlTemplate string) (map[string]string, error) {
+		resolveCalls++
+		if version != "v4.1.0" || urlTemplate == "" {
+			t.Fatalf("unexpected resolve args: %s %s", version, urlTemplate)
+		}
+		copied := make(map[string]string, len(resolved))
+		maps.Copy(copied, resolved)
+		return copied, nil
+	}
+	installToolVersionAndLockFunc = func(projectRoot, name string, tool *layout.Tool, lock *layout.AndurelLock, goos, goarch string) error {
+		if tool.Download == nil {
+			t.Fatal("expected download metadata")
+		}
+		if tool.Download.SHA256["linux/amd64"] != resolved["linux/amd64"] {
+			t.Fatalf("resolved checksums not applied: %#v", tool.Download.SHA256)
+		}
+		return lock.WriteLockFile(projectRoot)
+	}
+
+	if err := setVersion(root, "tailwindcli", "v4.1.0"); err != nil {
+		t.Fatalf("setVersion: %v", err)
+	}
+	if resolveCalls != 1 {
+		t.Fatalf("resolveCalls = %d", resolveCalls)
+	}
+	persisted, err := layout.ReadLockFile(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if persisted.Tools["tailwindcli"].Download.SHA256["darwin/arm64"] != resolved["darwin/arm64"] {
+		t.Fatalf("persisted checksums = %#v", persisted.Tools["tailwindcli"].Download.SHA256)
+	}
+}
+
+func TestCustomToolVersionLeavesLockUnchangedWhenResolveFails(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeGoModule(t, root)
+	lock := layout.NewAndurelLock("test")
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatal(err)
+	}
+	resolveToolChecksumsFunc = func(string, string) (map[string]string, error) {
+		return nil, errors.New("network down")
+	}
 	installToolVersionAndLockFunc = func(string, string, *layout.Tool, *layout.AndurelLock, string, string) error {
-		t.Fatal("sync must not run without complete checksums")
+		t.Fatal("sync must not run when digest resolution fails")
 		return nil
 	}
 	if err := setVersion(
@@ -446,15 +505,53 @@ func TestCustomToolVersionRequiresChecksumsBeforeMutation(t *testing.T) {
 		"tailwindcli",
 		"v4.1.0",
 	); err == nil ||
-		!strings.Contains(err.Error(), "requires four repeated") {
-		t.Fatalf("missing checksum error = %v", err)
+		!strings.Contains(err.Error(), "failed to resolve SHA-256") {
+		t.Fatalf("resolve error = %v", err)
 	}
 	persisted, err := layout.ReadLockFile(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(persisted.Tools) != 0 {
-		t.Fatalf("lock mutated after checksum failure: %#v", persisted.Tools)
+		t.Fatalf("lock mutated after resolve failure: %#v", persisted.Tools)
+	}
+}
+
+func TestCatalogToolVersionStillResolvesChecksums(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeGoModule(t, root)
+	lock := layout.NewAndurelLock("test")
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatal(err)
+	}
+	resolved := map[string]string{
+		"linux/amd64":  strings.Repeat("a", 64),
+		"linux/arm64":  strings.Repeat("b", 64),
+		"darwin/amd64": strings.Repeat("c", 64),
+		"darwin/arm64": strings.Repeat("d", 64),
+	}
+	var resolveCalls int
+	resolveToolChecksumsFunc = func(version, urlTemplate string) (map[string]string, error) {
+		resolveCalls++
+		if version != versions.TailwindCLI || urlTemplate == "" {
+			t.Fatalf("unexpected resolve args: %s %s", version, urlTemplate)
+		}
+		copied := make(map[string]string, len(resolved))
+		maps.Copy(copied, resolved)
+		return copied, nil
+	}
+	installToolVersionAndLockFunc = func(projectRoot, name string, tool *layout.Tool, lock *layout.AndurelLock, goos, goarch string) error {
+		if tool.Download.SHA256["linux/amd64"] != resolved["linux/amd64"] {
+			t.Fatalf("resolved checksums not applied: %#v", tool.Download.SHA256)
+		}
+		return lock.WriteLockFile(projectRoot)
+	}
+	if err := setVersion(root, "tailwindcli", versions.TailwindCLI); err != nil {
+		t.Fatalf("setVersion: %v", err)
+	}
+	if resolveCalls != 1 {
+		t.Fatalf("resolveCalls = %d", resolveCalls)
 	}
 }
 
