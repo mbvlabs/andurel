@@ -16418,7 +16418,7 @@ import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  plugins: [vue(), inertia({ ssr: false }), tailwindcss()],
+  plugins: [vue(), inertia({ ssr: { entry: 'resources/js/ssr.ts' } }), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./resources/js', import.meta.url)),

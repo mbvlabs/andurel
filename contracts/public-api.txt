@@ -2582,6 +2582,12 @@ func DownloadVerifiedTailwindCLI(version, goos, goarch, destPath, expectedSHA256
 func GetPlatform() (string, string)
     GetPlatform returns platform.
 
+func ResolveURLTemplateChecksums(version, urlTemplate string) (map[string]string, error)
+    ResolveURLTemplateChecksums returns SHA-256 digests for every supported
+    platform of a versioned download URL template. It prefers a checksums.txt,
+    sha256sums.txt, or SHA256SUMS file next to the artifacts, then GitHub
+    release asset digests, and hashes any remaining artifacts over HTTPS.
+
 func RunGoFmt(targetDir string) error
     RunGoFmt runs go fmt.
 

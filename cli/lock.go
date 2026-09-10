@@ -85,6 +85,10 @@ func newSetVersionCommand() *cobra.Command {
 The tool entry in andurel.lock controls where binaries are downloaded from.
 The version should be specified WITHOUT the "v" prefix.
 
+Andurel resolves SHA-256 digests for the requested version automatically from
+the tool's GitHub release checksums, or by hashing the published artifacts,
+and records them in andurel.lock. Pass --sha256 only to pin known digests.
+
 Examples:
   andurel tool set-version templ 0.3.977
   andurel tool set-version tailwindcli 4.1.18
@@ -110,7 +114,7 @@ This updates andurel.lock and syncs the tool binary to bin/.`,
 		&checksumArguments,
 		"sha256",
 		nil,
-		"SHA-256 digest as os/arch=hex; repeat for all four supported platforms",
+		"optional SHA-256 digest as os/arch=hex; omit to resolve digests for the requested version",
 	)
 	return cmd
 }
@@ -138,22 +142,33 @@ func setVersion(projectRoot, toolName, version string, checksumArguments ...stri
 	if err != nil {
 		return err
 	}
-	if len(checksums) == 0 {
-		catalogVersion := managed.Version
-		if catalogVersion == "" || versionWithV != catalogVersion {
-			return fmt.Errorf(
-				"custom version %s for %s requires four repeated --sha256 os/arch=hex arguments",
-				versionWithV,
-				toolName,
-			)
-		}
-	} else {
-		download.SHA256 = checksums
-	}
 
 	lockPath := filepath.Join(projectRoot, "andurel.lock")
 	if _, err := os.Stat(lockPath); err != nil {
 		return fmt.Errorf("andurel.lock not found. Are you in an andurel project?")
+	}
+
+	if len(checksums) > 0 {
+		download.SHA256 = checksums
+	} else {
+		fmt.Printf("Resolving SHA-256 digests for %s %s...\n", toolName, versionWithV)
+		resolved, resolveErr := resolveToolChecksumsFunc(versionWithV, download.URLTemplate)
+		if resolveErr != nil {
+			return fmt.Errorf(
+				"failed to resolve SHA-256 digests for %s %s: %w\n\nYou can supply known digests with repeated --sha256 os/arch=hex arguments",
+				toolName,
+				versionWithV,
+				resolveErr,
+			)
+		}
+		if !hasCompleteChecksums(resolved) {
+			return fmt.Errorf(
+				"resolved SHA-256 digests for %s %s are incomplete\n\nYou can supply known digests with repeated --sha256 os/arch=hex arguments",
+				toolName,
+				versionWithV,
+			)
+		}
+		download.SHA256 = resolved
 	}
 
 	lock, err := layout.ReadLockFile(projectRoot)
@@ -295,6 +310,23 @@ func removeIfExists(path string) error {
 		return nil
 	}
 	return err
+}
+
+func hasCompleteChecksums(checksums map[string]string) bool {
+	if len(checksums) != 4 {
+		return false
+	}
+	for _, platform := range []string{
+		"linux/amd64",
+		"linux/arm64",
+		"darwin/amd64",
+		"darwin/arm64",
+	} {
+		if len(checksums[platform]) != 64 {
+			return false
+		}
+	}
+	return true
 }
 
 func parseChecksumArguments(arguments []string) (map[string]string, error) {

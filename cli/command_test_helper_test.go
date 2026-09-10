@@ -171,6 +171,7 @@ func resetCLITestSeams(t *testing.T) {
 	defaultSyncSingleTool := syncSingleToolFunc
 	defaultDownloadFromLockTool := downloadFromLockToolFunc
 	defaultInstallToolVersionAndLock := installToolVersionAndLockFunc
+	defaultResolveToolChecksums := resolveToolChecksumsFunc
 	defaultNewUpgrader := newUpgraderFunc
 	defaultLookupLatestAndurelVersion := lookupLatestAndurelVersionFunc
 	defaultLookupLatestModuleVersion := lookupLatestModuleVersionFunc
@@ -194,6 +195,7 @@ func resetCLITestSeams(t *testing.T) {
 		syncSingleToolFunc = defaultSyncSingleTool
 		downloadFromLockToolFunc = defaultDownloadFromLockTool
 		installToolVersionAndLockFunc = defaultInstallToolVersionAndLock
+		resolveToolChecksumsFunc = defaultResolveToolChecksums
 		newUpgraderFunc = defaultNewUpgrader
 		lookupLatestAndurelVersionFunc = defaultLookupLatestAndurelVersion
 		lookupLatestModuleVersionFunc = defaultLookupLatestModuleVersion

@@ -95,28 +95,34 @@ ci:
 	@just test-e2e-critical
 	@echo "\n✅ All CI checks passed!"
 
+# Install formatter/codegen tools used by golden updates (same as CI)
+install-dev-tools:
+	go install github.com/a-h/templ/cmd/templ
+	go install github.com/segmentio/golines
+	go install golang.org/x/tools/cmd/goimports
+
 # Update scaffold golden files
-update-golden:
+update-golden: install-dev-tools
 	go clean -testcache
 	go test ./e2e -run TestScaffoldGoldens -v -timeout 30m -update -clean
 
 # Update golden files for generator model tests
-update-golden-generator-models:
+update-golden-generator-models: install-dev-tools
 	go clean -testcache
 	go test ./generator -run TestModelGenerationGoldens -v -update
 
 # Update golden files for generator controller/view tests
-update-golden-generator-controller-views:
+update-golden-generator-controller-views: install-dev-tools
 	go clean -testcache
 	go test ./generator -run TestControllerViewGenerationGoldens -v -update
 
 # Update golden files for generator scaffold tests
-update-golden-generator-scaffold:
+update-golden-generator-scaffold: install-dev-tools
 	go clean -testcache
 	go test ./generator -run TestScaffoldGenerationGoldens -v -update
 
 # Update all golden files
-update-golden-all:
+update-golden-all: install-dev-tools
 	go clean -testcache
 	go test ./generator -run TestModelGenerationGoldens -v -update
 	go test ./generator -run TestControllerViewGenerationGoldens -v -update
