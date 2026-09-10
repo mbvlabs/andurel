@@ -10,11 +10,9 @@
 
 ---
 
-**Andurel is a space-grade Go framework for humans and agents.**
-
 Everything you and your agent(s) need to build robust and performant applications that will scale to the far-side of the moon.
 
-Inspired by Ruby on Rails, Andurel is now its own thing: one-time generation that writes Go you own, explicit wiring, and an agent-ready CLI. No hidden runtime owning your models.
+Inspired by Ruby on Rails, Andurel is the fullstack framework for the agentic era: one-time generation that writes Go you own, explicit wiring, and an agent-ready CLI.
 
 Join the discord [here](https://discord.gg/TnTBZHvat3)
 
