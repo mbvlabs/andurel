@@ -222,9 +222,9 @@ func newRunAppCommand() *cobra.Command {
 		Long: `Start the development server (shadowfax) for your Andurel application.
 
 The server auto-reloads on file changes, including Go, Templ, CSS, and
-sqlc query files. For Inertia projects, shadowfax also runs Vite and the
-project's cmd/ssr process (Laravel-style Node owner). Run this from your
-project root.`,
+sqlc query files. For Inertia projects, shadowfax also runs the Vite
+dev server. Development SSR is served by Vite's /__inertia_ssr endpoint.
+cmd/ssr is the production Node owner. Run this from your project root.`,
 		Example: `  andurel run`,
 		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -274,8 +274,8 @@ project root.`,
 }
 
 // shadowfaxRunArgs builds the explicit CLI contract passed to Shadowfax.
-// Inertia identity and package manager come from andurel.lock. Shadowfax
-// starts the project's cmd/ssr process; Node settings come from app config.
+// Inertia identity and package manager come from andurel.lock. Development
+// SSR is owned by Vite; cmd/ssr settings stay in app config for production.
 func shadowfaxRunArgs(rootDir string) ([]string, error) {
 	lock, err := layout.ReadLockFile(rootDir)
 	if err != nil {
@@ -293,8 +293,6 @@ func shadowfaxRunArgs(rootDir string) ([]string, error) {
 	return []string{
 		"--inertia",
 		"--js-package-manager", packageManager,
-		"--ssr-url", "http://127.0.0.1:13714",
-		"--ssr-bundle", "assets/dist/ssr/ssr.js",
 	}, nil
 }
 
