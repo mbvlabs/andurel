@@ -43,6 +43,12 @@ func TestScaffoldSvelteInertiaAssets(t *testing.T) {
 	} {
 		assertFileContains(t, projectDir, path, want)
 	}
+	assertFileContains(
+		t,
+		projectDir,
+		"vite.config.ts",
+		"inertia({ ssr: { entry: 'resources/js/ssr.ts' } })",
+	)
 
 	assertFileContains(t, projectDir, "package.json", `"type": "module"`)
 	assertFileContains(t, projectDir, "package.json", `"svelte": "^5.0.0"`)

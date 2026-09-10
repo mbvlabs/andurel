@@ -24,11 +24,13 @@ type viteManifestEntry struct {
 // NewRenderer constructs the Inertia protocol renderer used by cmd/app.
 //
 // It always serves the Inertia protocol (CSR by default). Pages that pass
-// WithSSR() call the configured SSR HTTP endpoint. Node process ownership
-// belongs to NewSSRRuntime / cmd/ssr. Required Inertia protocol settings are
-// positional arguments; optional behavior is configured with options such as
-// WithRoot, WithAssetFS, and WithEnvironment. ssrURL is the client URL
-// (INERTIA_SSR_URL) and may be any http(s) host.
+// WithSSR() call the configured SSR HTTP endpoint. In development, that is
+// Vite's /__inertia_ssr endpoint derived from ViteDevURL. In other
+// environments, cmd/app posts to INERTIA_SSR_URL /render. Node process
+// ownership belongs to NewSSRRuntime / cmd/ssr in production. Required Inertia
+// protocol settings are positional arguments; optional behavior is configured
+// with options such as WithRoot, WithAssetFS, and WithEnvironment. ssrURL is
+// the client URL (INERTIA_SSR_URL) and may be any http(s) host.
 func NewRenderer(
 	containerID string,
 	buildPathURL string,
@@ -127,16 +129,27 @@ window.__vite_plugin_react_preamble_installed__ = true
 	}
 
 	if !renderer.customSSR {
-		httpRenderer, err := NewHTTPRenderer(
-			renderer.ssrURL,
-			renderer.ssrTimeout,
-			renderer.ssrMaxResponseBytes,
-		)
-		if err != nil {
-			return nil, err
+		if useViteDevSSR(renderer.environment, renderer.viteDevURL) {
+			viteRenderer, err := NewViteSSRRenderer(
+				renderer.viteDevURL,
+				renderer.ssrTimeout,
+				renderer.ssrMaxResponseBytes,
+			)
+			if err != nil {
+				return nil, err
+			}
+			renderer.ssr = viteRenderer
+		} else {
+			httpRenderer, err := NewHTTPRenderer(
+				renderer.ssrURL,
+				renderer.ssrTimeout,
+				renderer.ssrMaxResponseBytes,
+			)
+			if err != nil {
+				return nil, err
+			}
+			renderer.ssr = httpRenderer
 		}
-
-		renderer.ssr = httpRenderer
 	}
 	return renderer, nil
 }

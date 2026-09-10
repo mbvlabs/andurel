@@ -113,6 +113,12 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileContains(t, projectDir, "views/welcome.templ", "type Welcome struct{}")
 	assertFileContains(t, projectDir, "package.json", "@vitejs/plugin-react")
 	assertFileContains(t, projectDir, "vite.config.ts", "resources/js/app.tsx")
+	assertFileContains(
+		t,
+		projectDir,
+		"vite.config.ts",
+		"inertia({ ssr: { entry: 'resources/js/ssr.tsx' } })",
+	)
 	assertFileContains(t, projectDir, "tsconfig.json", "resources/js/**/*.tsx")
 	assertFileContains(t, projectDir, "tsconfig.json", `"types": ["vite/client", "node"]`)
 	assertFileContains(t, projectDir, "resources/js/app.tsx", "type ResolvedComponent")
@@ -342,6 +348,12 @@ func TestScaffoldVueInertiaTSConfigIncludesViteClientTypes(t *testing.T) {
 	}
 
 	assertFileContains(t, projectDir, "tsconfig.json", `"types": ["vite/client", "node"]`)
+	assertFileContains(
+		t,
+		projectDir,
+		"vite.config.ts",
+		"inertia({ ssr: { entry: 'resources/js/ssr.ts' } })",
+	)
 	assertFileContains(t, projectDir, "resources/js/app.ts", "renderAppTree(App, props)")
 	assertFileContains(t, projectDir, "resources/js/ssr.ts", "renderAppTree(App, props)")
 	assertFileContains(
