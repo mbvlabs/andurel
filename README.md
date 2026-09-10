@@ -1,6 +1,4 @@
-<p align="center">
-  <img width="400" height="300" alt="andurel-logo" src="https://github.com/user-attachments/assets/8261d514-c070-44c0-a96a-4132045855fc" />
-</p>
+<img width="2256" height="408" alt="andurel-wordmark-dark" src="https://github.com/user-attachments/assets/fe351b07-15e8-41e1-9be1-23feb894acf5" />
 
 # Andurel - Rails-like Web Framework for Go
 
