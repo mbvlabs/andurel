@@ -21,8 +21,8 @@ func newProjectCommand(version string) *cobra.Command {
 	projectCmd := &cobra.Command{
 		Use:     "new [project-name]",
 		Aliases: []string{"n"},
-		Short:   "Create a new Andurel project",
-		Long: `Scaffold a complete Andurel project with the given name.
+		Short:   "Stand up a new Andurel project",
+		Long: `Stand up a complete Andurel project with the given name.
 
 Generates the full project structure including controllers, models, views,
 database migrations, router, services, and configuration files. After

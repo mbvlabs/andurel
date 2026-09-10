@@ -92,9 +92,11 @@ func isInAndurelProject() bool {
 // NewRootCommand creates a new root command.
 func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:               "andurel",
-		Short:             "Andurel - The Go Web development framework",
-		Long:              `Andurel is a comprehensive web development framework for Go,`,
+		Use:   "andurel",
+		Short: "Space-grade Go framework for humans and agents",
+		Long: `Andurel is a space-grade Go framework for humans and agents.
+
+Everything you and your agent(s) need to build robust and performant applications that will scale to the far-side of the moon.`,
 		Version:           fmt.Sprintf("%s (built: %s)", version, date),
 		SilenceUsage:      true,
 		SilenceErrors:     true,
@@ -196,7 +198,7 @@ func NewRootCommand(version, date string) *cobra.Command {
 			fmt.Println()
 			fmt.Println("You must specify a command:")
 			fmt.Println()
-			fmt.Printf("  %-14s %s\n", "new", "Create a new Andurel project")
+			fmt.Printf("  %-14s %s\n", "new", "Stand up a new Andurel project")
 			fmt.Println()
 			fmt.Println("All commands can be run with -h (or --help) for more information.")
 			fmt.Println()

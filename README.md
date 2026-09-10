@@ -2,7 +2,7 @@
   <img width="400" height="300" alt="andurel-logo" src="https://github.com/user-attachments/assets/8261d514-c070-44c0-a96a-4132045855fc" />
 </p>
 
-# Andurel - Rails-like Web Framework for Go
+# Andurel — Space-grade Go framework for humans and agents
 
 [![Go Version](https://img.shields.io/badge/go-1.26.0%2B-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -12,8 +12,11 @@
 
 ---
 
-**Andurel is a comprehensive web development framework for Go.
-It prioritizes development speed.** Inspired by Ruby on Rails, it uses just enough conventions to let you build full-stack web applications incredibly fast.
+**Andurel is a space-grade Go framework for humans and agents.**
+
+Everything you and your agent(s) need to build robust and performant applications that will scale to the far-side of the moon.
+
+Inspired by Ruby on Rails, Andurel is now its own thing: one-time generation that writes Go you own, explicit wiring, and an agent-ready CLI. No hidden runtime owning your models.
 
 Join the discord [here](https://discord.gg/TnTBZHvat3)
 
@@ -31,19 +34,20 @@ If you'd like to help bring Windows support to Andurel, please see [issue #382](
 
 ## Why Andurel?
 
-Development speed is everything. Andurel eliminates boilerplate and lets you focus on building features:
+Andurel is built for humans and agents on the same pad:
 
-- **Instant Scaffolding** - Generate complete CRUD resources with one command
-- **Live Reload** - Hot reloading for Go, templates, and CSS with `andurel run` powered by [Shadowfax](https://github.com/mbvlabs/shadowfax)
-- **Type Safety Everywhere** - Bun for SQL, Templ and typed Inertia adapters for HTML, Go for logic
-- **Batteries Included** — Echo, Datastar, background jobs, sessions, CSRF protection, telemetry, email support, authentication, optional extensions (docker, aws-ses, css-components)
-- **Dependency Injection** — Declarative application wiring with `go.uber.org/fx`
-- **Two Frontend Options** — Server-rendered HTML with **Templ + Datastar** for hypermedia interactivity, or **Inertia SPA with Vue 3, React, or Svelte 5 + Vite** for a reactive single-page app
-- **Production Build** — One command (`andurel build`) to compile everything: Templ, Tailwind CSS, Vite assets, and Go binary
-- **Just enough Convention** - Convention over configuration is great to a certain point. Andurel provides just enough sensible defaults that just work and get out of your way.
-- **PostgreSQL-Backed** - Built on PostgreSQL with River job queues, pgx driver, and UUID support
+- **Airframe** — Generated models, factories, controllers, routes, and pages that belong to the application
+- **GNC** — Fx for dependency injection and lifecycle. Explicit wiring, not a hidden runtime
+- **Propellant** — PostgreSQL with Bun for ordinary persistence and sqlc for the queries that matter
+- **Payload** — Inertia v3 with React, Vue, or Svelte. Same Go backend, official Inertia adapters, optional SSR. Templ + Datastar remains available for hypermedia pages
+- **Range ops** — River jobs, email, and queues on the same stack that serves the request path
+- **Ground support** — Agent-ready CLI, JSON discovery, and AGENTS.md so machines can operate the project without a second stack
+- **Live reload** — `andurel run` with [Shadowfax](https://github.com/mbvlabs/shadowfax) for Go, templates, CSS, and Vite
+- **Production build** — `andurel build` compiles Templ, Tailwind CSS, Vite assets, and the Go binary
 
-The core philosophy around resource generation in andurel, is that it should be a one-time operation that creates everything you need for a fully functional CRUD interface. After that, you can modify and extend the generated code as needed but it's yours to manage going forward.
+**Humans.** One-time generation. The scaffold writes Go and Inertia pages you can read, edit, and ship. After that, the code is yours.
+
+**Agents.** An agent-ready CLI with JSON discovery, plus AGENTS.md in the project. Machines get the same pad as humans, without inventing a second stack.
 
 ## Core Technologies
 
@@ -63,7 +67,7 @@ The core philosophy around resource generation in andurel, is that it should be 
 
 ## Quick Start
 
-### Installation
+### Install the CLI
 
 ```bash
 go install github.com/mbvlabs/andurel@latest
@@ -73,7 +77,11 @@ andurel --version
 
 For reproducible automation, prefer an explicit stable v1 tag. Projects created with v1.0.0-rc.2 or v1.0.0-rc.3 require manual reconciliation rather than `andurel upgrade`; follow the [RC-to-v1 manual upgrade guide](docs/upgrade-rc-base-scaffold-prompt.md).
 
-### Create Your First Project
+### Stand up a vehicle
+
+```bash
+andurel new orbit --inertia react
+```
 
 Andurel gives you choices when creating a new project:
 
@@ -98,6 +106,9 @@ cd myapp
 
 # Sync tools
 andurel tool sync
+
+# Arm the agents
+andurel skill install
 
 # Configure environment
 cp .env.example .env
@@ -1061,7 +1072,7 @@ Andurel is built on top of excellent open-source projects:
 
 ## Acknowledgments
 
-Inspired by Ruby on Rails and its philosophy that developer happiness and productivity matter. Built for developers who want to move fast without sacrificing type safety or code quality.
+Inspired by Ruby on Rails and its philosophy that developer happiness and productivity matter. Andurel is now its own thing: generated Go you own, explicit wiring, and an agent-ready CLI for humans and machines.
 
 ---
 

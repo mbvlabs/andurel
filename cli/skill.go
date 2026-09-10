@@ -43,8 +43,8 @@ var skillHarnesses = []skillHarness{
 func newSkillCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "skill",
-		Short: "Show or install the embedded Andurel agent skill",
-		Long:  "Show or install the embedded Andurel agent skill with command recipes and invariants.",
+		Short: "Arm agents with the embedded Andurel skill",
+		Long:  "Show or install the embedded Andurel skill so agents can operate the project.",
 	}
 	setAgentMetadata(cmd, "skill", "Provides the embedded Andurel agent skill.")
 
