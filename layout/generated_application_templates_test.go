@@ -320,6 +320,18 @@ func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 	if !strings.Contains(wiring, "storage.NewPostgres(ctx, cfg)") {
 		t.Error("command wiring does not apply application storage config")
 	}
+	if !strings.Contains(wiring, "func newTelemetry(") {
+		t.Error("command wiring does not define newTelemetry")
+	}
+	if !strings.Contains(wiring, "telemetry.New(ctx, cfg.ServiceName, cfg.ServiceVersion, opts...)") {
+		t.Error("command wiring does not construct pkg/telemetry with positional New")
+	}
+	if !strings.Contains(wiring, "storage.WithOpenTelemetry") {
+		t.Error("command wiring does not pass the tracer provider into Postgres")
+	}
+	if strings.Contains(wiring, "otel.SetTracerProvider") || strings.Contains(wiring, "slog.SetDefault") {
+		t.Error("command wiring must not set process-wide telemetry globals")
+	}
 	if !strings.Contains(mainTemplate, `"{{.ModuleName}}/models"`) {
 		t.Error("cmd_app_main.tmpl does not import models")
 	}
@@ -344,6 +356,9 @@ func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 	}
 	if !strings.Contains(queueTemplate, "databaseModule") {
 		t.Error("cmd_queue_main.tmpl does not use the database module")
+	}
+	if !strings.Contains(queueTemplate, "func newTelemetry(") {
+		t.Error("cmd_queue_main.tmpl does not define newTelemetry")
 	}
 	if !strings.Contains(wiring, "storage.NewQueueInsert(connection, cfg.Config)") {
 		t.Error("command wiring does not apply application queue config")
@@ -528,6 +543,8 @@ func TestStandalonePackagesOwnDefaultsWithoutReadingEnvironment(t *testing.T) {
 		{"inertia", "ssr_config.go"},
 		{"inertia", "ssr_runtime.go"},
 		{"server", "server.go"},
+		{"telemetry", "telemetry.go"},
+		{"telemetry", "options.go"},
 	}
 	for _, file := range files {
 		content := readStandalonePackageFile(t, file.pkg, file.name)
@@ -541,6 +558,7 @@ func TestStandalonePackagesOwnDefaultsWithoutReadingEnvironment(t *testing.T) {
 		{"storage", "psql_config.go", "func DefaultConfig("},
 		{"inertia", "config.go", "func NewRenderer("},
 		{"server", "server.go", "func DefaultConfig("},
+		{"telemetry", "telemetry.go", "func New("},
 	} {
 		if !strings.Contains(readStandalonePackageFile(t, defaults.pkg, defaults.name), defaults.declaration) {
 			t.Errorf("%s/%s does not provide operational defaults", defaults.pkg, defaults.name)
@@ -618,6 +636,9 @@ func TestGeneratedSessionRecoveryTemplates(t *testing.T) {
 	goMod := readGeneratedApplicationTemplate(t, "go_mod.tmpl")
 	if !strings.Contains(goMod, "github.com/gorilla/securecookie v1.1.2") {
 		t.Error("go_mod.tmpl does not declare securecookie as a direct dependency")
+	}
+	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/telemetry {{.TelemetryPackageVersion}}") {
+		t.Error("go_mod.tmpl does not require the standalone telemetry module")
 	}
 }
 

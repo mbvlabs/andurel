@@ -30,6 +30,8 @@ const (
 	Server = "v0.3.2"
 	// Storage is the standalone Andurel storage module version verified with this framework.
 	Storage = "v0.7.1"
+	// Telemetry is the standalone Andurel telemetry module version verified with this framework.
+	Telemetry = "v0.1.0"
 	// Validation is the standalone Andurel validation module version verified with this framework.
 	Validation = "v0.1.3"
 
@@ -44,6 +46,7 @@ var verifiedPackageVersions = map[string]string{
 	PkgPrefix + "routing":    Routing,
 	PkgPrefix + "server":     Server,
 	PkgPrefix + "storage":    Storage,
+	PkgPrefix + "telemetry":  Telemetry,
 	PkgPrefix + "validation": Validation,
 }
 

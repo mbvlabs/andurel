@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"errors"
-	"log/slog"
 	"net/http"
 
 	"{{.ModuleName}}/router"
@@ -13,6 +12,7 @@ import (
 	"{{.ModuleName}}/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"github.com/labstack/echo/v5"
@@ -71,14 +71,17 @@ func (s Sessions) New(etx *echo.Context) error {
 }
 
 func (s Sessions) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "sessions.create")
+	defer span.End()
+
 	var payload struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse login form payload",
 			"error",
 			err,
@@ -87,7 +90,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 	}
 
 	user, err := s.identity.AuthenticateUser(
-		etx.Request().Context(),
+		ctx,
 		services.LoginData{
 			Email:    payload.Email,
 			Password: payload.Password,
@@ -98,8 +101,8 @@ func (s Sessions) Create(etx *echo.Context) error {
 			return hypermedia.RenderPage(etx, views.LoginForm{Errors: validationErrors}.Page())
 		}
 
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to authenticate user",
 			"error",
 			err,
@@ -123,8 +126,8 @@ func (s Sessions) Create(etx *echo.Context) error {
 	}
 
 	if err := s.session.CreateAppSession(etx, user); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to create session",
 			"error",
 			err,
@@ -145,9 +148,12 @@ func (s Sessions) Create(etx *echo.Context) error {
 }
 
 func (s Sessions) Destroy(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "sessions.destroy")
+	defer span.End()
+
 	if err := s.session.DestroyAppSession(etx); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to destroy session",
 			"error",
 			err,

@@ -95,6 +95,7 @@ func (p *Project) setupWorkspace() error {
 		"routing",
 		"server",
 		"storage",
+		"telemetry",
 		"validation",
 	}
 

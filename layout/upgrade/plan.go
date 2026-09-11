@@ -87,7 +87,8 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 	}
 	includeInertiaMigration := layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia)
 	if crossesVersion(plan.fromVersion, plan.toVersion, sessionCookieRecoveryVersion) ||
-		(includeInertiaMigration && crossesVersion(plan.fromVersion, plan.toVersion, inertiaRendererInjectionVersion)) {
+		(includeInertiaMigration && crossesVersion(plan.fromVersion, plan.toVersion, inertiaRendererInjectionVersion)) ||
+		crossesVersion(plan.fromVersion, plan.toVersion, telemetryPackageVersion) {
 		modulePath, err := resolveModulePath(u.projectRoot)
 		if err != nil {
 			return nil, fmt.Errorf("resolve module path for manual actions: %w", err)
@@ -185,6 +186,11 @@ func (u *Upgrader) addVerifiedPackageDependencies(
 		if !ok || shouldUpgradePackage(current, versions.Inertia) {
 			pins[inertiaPath] = versions.Inertia
 		}
+	}
+	telemetryPath := versions.PkgPrefix + "telemetry"
+	current, ok := currentByPath[telemetryPath]
+	if !ok || shouldUpgradePackage(current, versions.Telemetry) {
+		pins[telemetryPath] = versions.Telemetry
 	}
 	for path, current := range currentByPath {
 		verified, ok := versions.PackageVersion(path)

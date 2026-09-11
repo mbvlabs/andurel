@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"testapp/models"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 type Warehouses struct {
@@ -147,10 +147,13 @@ type CreateWarehouseFormPayload struct {
 }
 
 func (w Warehouses) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "warehouses.create")
+	defer span.End()
+
 	var payload CreateWarehouseFormPayload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse CreateWarehouseFormPayload",
 			"error",
 			err,
@@ -167,7 +170,7 @@ func (w Warehouses) Create(etx *echo.Context) error {
 	}
 
 	warehouse, err := w.warehouses.Create(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {
@@ -203,6 +206,9 @@ type UpdateWarehouseFormPayload struct {
 }
 
 func (w Warehouses) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "warehouses.update")
+	defer span.End()
+
 	warehouseID := etx.Param("id")
 	if warehouseID == "" {
 		return hypermedia.RenderPage(etx, views.BadRequest())
@@ -210,8 +216,8 @@ func (w Warehouses) Update(etx *echo.Context) error {
 
 	var payload UpdateWarehouseFormPayload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse UpdateWarehouseFormPayload",
 			"error",
 			err,
@@ -229,7 +235,7 @@ func (w Warehouses) Update(etx *echo.Context) error {
 	}
 
 	warehouse, err := w.warehouses.Update(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {

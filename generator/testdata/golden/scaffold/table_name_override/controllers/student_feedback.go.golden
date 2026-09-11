@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"testapp/models"
@@ -17,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 type FeedbackEntry struct {
@@ -151,10 +151,13 @@ type CreateFeedbackEntryFormPayload struct {
 }
 
 func (fe FeedbackEntry) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "feedbackentry.create")
+	defer span.End()
+
 	var payload CreateFeedbackEntryFormPayload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse CreateFeedbackEntryFormPayload",
 			"error",
 			err,
@@ -183,7 +186,7 @@ func (fe FeedbackEntry) Create(etx *echo.Context) error {
 	}
 
 	feedbackEntry, err := fe.feedbackEntries.Create(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {
@@ -221,6 +224,9 @@ type UpdateFeedbackEntryFormPayload struct {
 }
 
 func (fe FeedbackEntry) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "feedbackentry.update")
+	defer span.End()
+
 	feedbackEntryID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.BadRequest())
@@ -228,8 +234,8 @@ func (fe FeedbackEntry) Update(etx *echo.Context) error {
 
 	var payload UpdateFeedbackEntryFormPayload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse UpdateFeedbackEntryFormPayload",
 			"error",
 			err,
@@ -259,7 +265,7 @@ func (fe FeedbackEntry) Update(etx *echo.Context) error {
 	}
 
 	feedbackEntry, err := fe.feedbackEntries.Update(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {

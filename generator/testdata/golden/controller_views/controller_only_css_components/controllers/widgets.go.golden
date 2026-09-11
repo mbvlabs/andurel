@@ -3,7 +3,6 @@ package controllers
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"testapp/models"
@@ -15,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 type Widgets struct {
@@ -148,10 +148,13 @@ type CreateWidgetFormPayload struct {
 }
 
 func (w Widgets) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "widgets.create")
+	defer span.End()
+
 	var payload CreateWidgetFormPayload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse CreateWidgetFormPayload",
 			"error",
 			err,
@@ -170,7 +173,7 @@ func (w Widgets) Create(etx *echo.Context) error {
 	}
 
 	widget, err := w.widgets.Create(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {
@@ -207,6 +210,9 @@ type UpdateWidgetFormPayload struct {
 }
 
 func (w Widgets) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "widgets.update")
+	defer span.End()
+
 	widgetID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.BadRequest())
@@ -214,8 +220,8 @@ func (w Widgets) Update(etx *echo.Context) error {
 
 	var payload UpdateWidgetFormPayload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse UpdateWidgetFormPayload",
 			"error",
 			err,
@@ -235,7 +241,7 @@ func (w Widgets) Update(etx *echo.Context) error {
 	}
 
 	widget, err := w.widgets.Update(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {

@@ -40,6 +40,21 @@ lifecycle wiring; there is no generated `internal/inertia` package. Controllers 
 are never rewritten. Projects created at `v1.5.6` or
 later do not receive the original renderer-injection migration note.
 
+## Standalone telemetry package migration
+
+Starting with `v2.0.0`, new scaffolds construct `*telemetry.Telemetry` from `github.com/mbvlabs/andurel/pkg/telemetry`. Generated `config/telemetry.go` still loads env values. Composition roots unpack those fields into positional `telemetry.New` plus `With*` options. Fx injects the provider into HTTP (`otelhttp`) and Postgres (`otelpgx`) instrumentation. Application code uses `telemetry.Error`, `Start`, and `Set` instead of a copied `telemetry/` package or `slog.*Context`. Controllers call `telemetry.From(etx, name)` then pass the returned `context.Context` to `Set` / `Error`. Services call `telemetry.Start(ctx, name, …)`.
+
+When an upgrade crosses from a version before `v2.0.0` to `v2.0.0` or later, `andurel upgrade` emits a version-gated manual action. The same migration belongs in the release notes:
+
+1. Delete the copied application `telemetry/` directory.
+2. Pin `github.com/mbvlabs/andurel/pkg/telemetry` in `go.mod` to the version verified with that CLI.
+3. Keep `config.Telemetry` as env-backed values. In `cmd/app/main.go` and `cmd/queue/main.go`, replace `telemetry.Module` with a `newTelemetry` provider that calls `telemetry.New` and registers `Shutdown` on the Fx lifecycle.
+4. Inject `*telemetry.Telemetry` into `newDatabase` with `storage.WithOpenTelemetry`, wrap the HTTP handler with `telemetry.WrapHandler` and the explicit tracer provider, and attach the handle on request and queue contexts with `tel.Context`.
+5. Replace `slog.ErrorContext` / `slog.InfoContext` / `slog.WarnContext` with `telemetry.Error` / `telemetry.Info` / `telemetry.Warn`. Controllers use `telemetry.From(etx, name)` then pass `ctx`. Services use `telemetry.Start`. Do not call `otel.SetTracerProvider` or `slog.SetDefault`.
+6. Run `gofmt`, `go fix ./...`, and `go vet ./...` after reconciling application-owned code.
+
+Projects created at `v2.0.0` or later do not receive the note.
+
 ## Planning and preview
 
 Run a structured dry run before applying an upgrade:

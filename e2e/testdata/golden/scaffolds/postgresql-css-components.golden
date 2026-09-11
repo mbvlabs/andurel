@@ -2896,8 +2896,8 @@ package controllers
 
 import (
 	"errors"
-	"log/slog"
 	"net/http"
+	"strings"
 
 	"testapp/router"
 	"testapp/router/cookies"
@@ -2907,6 +2907,7 @@ import (
 	"testapp/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"github.com/labstack/echo/v5"
@@ -2955,6 +2956,36 @@ func (r Registrations) New(etx *echo.Context) error {
 }
 
 func (r Registrations) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "user.registration")
+	defer span.End()
+
+	outcome := "success"
+	var (
+		email  string
+		userID any
+		cause  error
+	)
+	defer func() {
+		args := []any{"registration.outcome", outcome}
+		if email != "" {
+			args = append(args, "user.email", email)
+			if _, domain, found := strings.Cut(email, "@"); found && domain != "" {
+				args = append(args, "user.email_domain", domain)
+			}
+		}
+		if userID != nil {
+			args = append(args, "user.id", userID)
+		}
+		if cause != nil {
+			args = append(args, "error", cause)
+			if outcome == "error" {
+				_ = telemetry.Fail(ctx, cause)
+			}
+		}
+		telemetry.Set(ctx, args...)
+		telemetry.Info(ctx, "user.registration", args...)
+	}()
+
 	var payload struct {
 		Email           string `json:"email"`
 		Password        string `json:"password"`
@@ -2962,36 +2993,33 @@ func (r Registrations) Create(etx *echo.Context) error {
 	}
 
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
-			"could not parse signup form payload",
-			"error",
-			err,
-		)
+		outcome = "bind_error"
+		cause = err
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	if err := r.identity.RegisterUser(
-		etx.Request().Context(),
+	email = payload.Email
+
+	user, err := r.identity.RegisterUser(
+		ctx,
 		services.RegisterUserData{
 			Email:           payload.Email,
 			Password:        payload.Password,
 			ConfirmPassword: payload.ConfirmPassword,
 		},
-	); err != nil {
+	)
+	if err != nil {
 		if validationErrors, ok := validation.As(err); ok {
+			outcome = "validation_error"
+			cause = err
 			return hypermedia.RenderPage(
 				etx,
 				views.RegistrationForm{Errors: validationErrors}.Page(),
 			)
 		}
 
-		slog.ErrorContext(
-			etx.Request().Context(),
-			"failed to register user",
-			"error",
-			err,
-		)
+		outcome = "error"
+		cause = err
 
 		if flashErr := r.session.AddFlash(
 			etx,
@@ -3004,6 +3032,7 @@ func (r Registrations) Create(etx *echo.Context) error {
 		return etx.Redirect(http.StatusSeeOther, routes.RegistrationNew.URL())
 	}
 
+	userID = user.ID
 	return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
 }
 ```
@@ -9561,6 +9590,7 @@ import (
 	"testapp/queue/jobs"
 
 	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
@@ -9575,7 +9605,7 @@ type RegisterUserData struct {
 func (i Identity) RegisterUser(
 	ctx context.Context,
 	data RegisterUserData,
-) error {
+) (models.User, error) {
 	b := validation.NewBuilder()
 	b.Required("email", data.Email)
 	b.Required("password", data.Password)
@@ -9585,14 +9615,14 @@ func (i Identity) RegisterUser(
 		b.Add("confirmPassword", "mismatch", "Passwords do not match")
 	}
 	if !b.Errors().Empty() {
-		return b.Errors()
+		return models.User{}, b.Errors()
 	}
 
 	tx, err := i.db.BeginTransaction(ctx, nil)
 
 	if err != nil {
 
-		return fmt.Errorf("begin registration transaction: %w", err)
+		return models.User{}, fmt.Errorf("begin registration transaction: %w", err)
 
 	}
 
@@ -9609,9 +9639,7 @@ func (i Identity) RegisterUser(
 	})
 	if err != nil {
 		_ = tx.Rollback()
-
-		return fmt.Errorf("create user: %w", err)
-
+		return models.User{}, fmt.Errorf("create user: %w", err)
 	}
 
 	meta, err := json.Marshal(map[string]string{
@@ -9620,7 +9648,7 @@ func (i Identity) RegisterUser(
 	if err != nil {
 		_ = tx.Rollback()
 
-		return fmt.Errorf("marshal verification token metadata: %v", err)
+		return models.User{}, fmt.Errorf("marshal verification token metadata: %v", err)
 
 	}
 
@@ -9635,13 +9663,13 @@ func (i Identity) RegisterUser(
 	if err != nil {
 		_ = tx.Rollback()
 
-		return fmt.Errorf("create verification token: %w", err)
+		return models.User{}, fmt.Errorf("create verification token: %w", err)
 
 	}
 
 	if err := tx.Commit(); err != nil {
 
-		return fmt.Errorf("commit registration transaction: %w", err)
+		return models.User{}, fmt.Errorf("commit registration transaction: %w", err)
 
 	}
 
@@ -9650,14 +9678,14 @@ func (i Identity) RegisterUser(
 	html, err := vEmail.ToHTML()
 	if err != nil {
 
-		return fmt.Errorf("render verification email html: %v", err)
+		return models.User{}, fmt.Errorf("render verification email html: %v", err)
 
 	}
 
 	text, err := vEmail.ToText()
 	if err != nil {
 
-		return fmt.Errorf("render verification email text: %v", err)
+		return models.User{}, fmt.Errorf("render verification email text: %v", err)
 
 	}
 
@@ -9673,10 +9701,11 @@ func (i Identity) RegisterUser(
 	}, nil)
 
 	if err != nil {
-		return fmt.Errorf("queue verification email: %v", err)
+		return user, fmt.Errorf("queue verification email: %v", err)
 	}
 
-	return nil
+	telemetry.Set(ctx, "user.id", user.ID, "registration.email_queued", true)
+	return user, nil
 
 }
 
