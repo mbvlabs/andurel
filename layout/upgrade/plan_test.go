@@ -57,6 +57,9 @@ require (
 	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/inertia "+versions.Inertia) {
 		t.Fatalf("missing Inertia dependency was not added:\n%s", goMod)
 	}
+	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/telemetry "+versions.Telemetry) {
+		t.Fatalf("missing telemetry dependency was not added:\n%s", goMod)
+	}
 	if strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/routing") {
 		t.Fatalf("unrequired package was added:\n%s", goMod)
 	}
@@ -88,6 +91,9 @@ require github.com/mbvlabs/andurel/pkg/storage v0.6.0
 	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/storage "+versions.Storage) {
 		t.Fatalf("storage was not pinned:\n%s", goMod)
 	}
+	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/telemetry "+versions.Telemetry) {
+		t.Fatalf("missing telemetry dependency was not added:\n%s", goMod)
+	}
 }
 
 func TestAddVerifiedPackageDependenciesNoopsWhenCurrent(t *testing.T) {
@@ -95,8 +101,9 @@ func TestAddVerifiedPackageDependenciesNoopsWhenCurrent(t *testing.T) {
 
 	root := t.TempDir()
 	mustWriteTestFile(t, root, "go.mod", []byte(
-		"module testapp\n\ngo 1.26.0\n\nrequire github.com/mbvlabs/andurel/pkg/storage "+
-			versions.Storage+"\n",
+		"module testapp\n\ngo 1.26.0\n\nrequire (\n\tgithub.com/mbvlabs/andurel/pkg/storage "+
+			versions.Storage+"\n\tgithub.com/mbvlabs/andurel/pkg/telemetry "+
+			versions.Telemetry+"\n)\n",
 	))
 
 	plan := &upgradePlan{}

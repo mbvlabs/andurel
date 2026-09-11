@@ -3,7 +3,6 @@ package controllers
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"testapp/models"
@@ -15,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 type Projects struct {
@@ -195,10 +195,13 @@ type CreateProjectFormPayload struct {
 }
 
 func (p Projects) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "projects.create")
+	defer span.End()
+
 	var payload CreateProjectFormPayload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse CreateProjectFormPayload",
 			"error",
 			err,
@@ -215,7 +218,7 @@ func (p Projects) Create(etx *echo.Context) error {
 	}
 
 	project, err := p.projects.Create(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {
@@ -257,6 +260,9 @@ type UpdateProjectFormPayload struct {
 }
 
 func (p Projects) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "projects.update")
+	defer span.End()
+
 	projectID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
@@ -264,8 +270,8 @@ func (p Projects) Update(etx *echo.Context) error {
 
 	var payload UpdateProjectFormPayload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse UpdateProjectFormPayload",
 			"error",
 			err,
@@ -283,7 +289,7 @@ func (p Projects) Update(etx *echo.Context) error {
 	}
 
 	project, err := p.projects.Update(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {

@@ -354,17 +354,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_routes_assets.tmpl": "router/routes/assets.go",
 	"router_routes_pages.tmpl":  "router/routes/pages.go",
 
-	// Telemetry
-	"telemetry_telemetry.tmpl":        "telemetry/telemetry.go",
-	"telemetry_options.tmpl":          "telemetry/options.go",
-	"telemetry_logger.tmpl":           "telemetry/logger.go",
-	"telemetry_log_exporters.tmpl":    "telemetry/log_exporters.go",
-	"telemetry_metrics.tmpl":          "telemetry/metrics.go",
-	"telemetry_metric_exporters.tmpl": "telemetry/metric_exporters.go",
-	"telemetry_tracer.tmpl":           "telemetry/tracer.go",
-	"telemetry_trace_exporters.tmpl":  "telemetry/trace_exporters.go",
-	"telemetry_helpers.tmpl":          "telemetry/helpers.go",
-
 	// Auth - Controllers
 	"controllers_confirmations.tmpl":   "controllers/confirmations.go",
 	"controllers_registrations.tmpl":   "controllers/registrations.go",

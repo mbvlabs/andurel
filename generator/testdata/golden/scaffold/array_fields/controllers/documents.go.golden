@@ -3,7 +3,6 @@ package controllers
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"testapp/models"
@@ -15,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 type Documents struct {
@@ -150,10 +150,13 @@ type CreateDocumentFormPayload struct {
 }
 
 func (d Documents) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "documents.create")
+	defer span.End()
+
 	var payload CreateDocumentFormPayload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse CreateDocumentFormPayload",
 			"error",
 			err,
@@ -176,7 +179,7 @@ func (d Documents) Create(etx *echo.Context) error {
 	}
 
 	document, err := d.documents.Create(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {
@@ -215,6 +218,9 @@ type UpdateDocumentFormPayload struct {
 }
 
 func (d Documents) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "documents.update")
+	defer span.End()
+
 	documentID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.BadRequest())
@@ -222,8 +228,8 @@ func (d Documents) Update(etx *echo.Context) error {
 
 	var payload UpdateDocumentFormPayload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse UpdateDocumentFormPayload",
 			"error",
 			err,
@@ -247,7 +253,7 @@ func (d Documents) Update(etx *echo.Context) error {
 	}
 
 	document, err := d.documents.Update(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {

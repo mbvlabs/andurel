@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 
 	"github.com/gosimple/slug"
@@ -14,6 +15,7 @@ const (
 	DefaultTraceSampleRate         = 1.0
 	DefaultTelemetryBatchSize      = 512
 	DefaultTelemetryBatchTimeoutMs = 5000
+	DefaultLogLevel                = "INFO"
 )
 
 type Telemetry struct {
@@ -26,6 +28,7 @@ type Telemetry struct {
 	TraceSampleRate     float64
 	BatchSize           int
 	BatchTimeoutMs      int
+	LogLevel            slog.Level
 }
 
 func NewTelemetry(app App) (Telemetry, error) {
@@ -40,9 +43,14 @@ func NewTelemetry(app App) (Telemetry, error) {
 		TraceSampleRate:     env.Float64("TRACE_SAMPLE_RATE", DefaultTraceSampleRate),
 		BatchSize:           env.Int("TELEMETRY_BATCH_SIZE", DefaultTelemetryBatchSize),
 		BatchTimeoutMs:      env.Int("TELEMETRY_BATCH_TIMEOUT_MS", DefaultTelemetryBatchTimeoutMs),
+		LogLevel:            slog.LevelInfo,
+	}
+	var logLevelErr error
+	if err := cfg.LogLevel.UnmarshalText([]byte(env.String("LOG_LEVEL", DefaultLogLevel))); err != nil {
+		logLevelErr = fmt.Errorf("LOG_LEVEL: %w", err)
 	}
 
-	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
+	if err := errors.Join(env.Err(), logLevelErr, cfg.validate()); err != nil {
 		return Telemetry{}, fmt.Errorf("config: telemetry: %w", err)
 	}
 

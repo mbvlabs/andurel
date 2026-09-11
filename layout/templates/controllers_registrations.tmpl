@@ -2,8 +2,8 @@ package controllers
 
 import (
 	"errors"
-	"log/slog"
 	"net/http"
+	"strings"
 
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
@@ -13,6 +13,7 @@ import (
 	"{{.ModuleName}}/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"github.com/labstack/echo/v5"
@@ -61,6 +62,36 @@ func (r Registrations) New(etx *echo.Context) error {
 }
 
 func (r Registrations) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "user.registration")
+	defer span.End()
+
+	outcome := "success"
+	var (
+		email  string
+		userID any
+		cause  error
+	)
+	defer func() {
+		args := []any{"registration.outcome", outcome}
+		if email != "" {
+			args = append(args, "user.email", email)
+			if _, domain, found := strings.Cut(email, "@"); found && domain != "" {
+				args = append(args, "user.email_domain", domain)
+			}
+		}
+		if userID != nil {
+			args = append(args, "user.id", userID)
+		}
+		if cause != nil {
+			args = append(args, "error", cause)
+			if outcome == "error" {
+				_ = telemetry.Fail(ctx, cause)
+			}
+		}
+		telemetry.Set(ctx, args...)
+		telemetry.Info(ctx, "user.registration", args...)
+	}()
+
 	var payload struct {
 		Email           string `json:"email"`
 		Password        string `json:"password"`
@@ -68,36 +99,33 @@ func (r Registrations) Create(etx *echo.Context) error {
 	}
 
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
-			"could not parse signup form payload",
-			"error",
-			err,
-		)
+		outcome = "bind_error"
+		cause = err
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	if err := r.identity.RegisterUser(
-		etx.Request().Context(),
+	email = payload.Email
+
+	user, err := r.identity.RegisterUser(
+		ctx,
 		services.RegisterUserData{
 			Email:           payload.Email,
 			Password:        payload.Password,
 			ConfirmPassword: payload.ConfirmPassword,
 		},
-	); err != nil {
+	)
+	if err != nil {
 		if validationErrors, ok := validation.As(err); ok {
+			outcome = "validation_error"
+			cause = err
 			return hypermedia.RenderPage(
 				etx,
 				views.RegistrationForm{Errors: validationErrors}.Page(),
 			)
 		}
 
-		slog.ErrorContext(
-			etx.Request().Context(),
-			"failed to register user",
-			"error",
-			err,
-		)
+		outcome = "error"
+		cause = err
 
 		if flashErr := r.session.AddFlash(
 			etx,
@@ -110,5 +138,6 @@ func (r Registrations) Create(etx *echo.Context) error {
 		return etx.Redirect(http.StatusSeeOther, routes.RegistrationNew.URL())
 	}
 
+	userID = user.ID
 	return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
 }

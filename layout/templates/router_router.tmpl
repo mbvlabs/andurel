@@ -5,7 +5,6 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strings"
 
@@ -15,7 +14,6 @@ import (
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
-	"{{.ModuleName}}/telemetry"
 
 {{- if .Inertia}}
 	"github.com/mbvlabs/andurel/pkg/inertia"
@@ -25,7 +23,7 @@ import (
 	"github.com/labstack/echo-contrib/v5/session"
 	"github.com/labstack/echo/v5"
 	echomw "github.com/labstack/echo/v5/middleware"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"go.uber.org/fx"
 )
 
@@ -51,7 +49,7 @@ func New(
 	defaultHTTPErrorHandler := echo.DefaultHTTPErrorHandler(false)
 	router.HTTPErrorHandler = func(c *echo.Context, err error) {
 		if panicErr, ok := errors.AsType[*echomw.PanicStackError](err); ok {
-			slog.ErrorContext(
+			telemetry.Error(
 				c.Request().Context(),
 				"http panic recovered",
 				"method", c.Request().Method,
@@ -60,7 +58,7 @@ func New(
 				"stack", string(panicErr.Stack),
 			)
 		} else {
-			slog.ErrorContext(
+			telemetry.Error(
 				c.Request().Context(),
 				"http handler error",
 				"method", c.Request().Method,
@@ -98,7 +96,7 @@ func New(
 
 	router.Use(globalMiddleware...)
 
-	handler := otelhttp.NewHandler(router, "http")
+	handler := telemetry.WrapHandler("http", router, tel.TracerProvider())
 
 	return &Router{
 		e:       router,
@@ -154,7 +152,8 @@ func SetupGlobalMiddleware(
 	// Order matters: middlewares execute in the order listed, with Recover last
 	// to catch panics from all preceding middlewares.
 	middlewares := []echo.MiddlewareFunc{
-		middleware.TraceRouteAttributes(tel),
+		middleware.Telemetry(tel),
+		middleware.TraceRouteAttributes(),
 		middleware.Logger(tel),
 		session.Middleware(sessionStore),
 		middleware.ValidateSession(cookieSession),

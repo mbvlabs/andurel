@@ -12,9 +12,6 @@ import (
 {{- if or $hasCreate (or $hasUpdate $hasDestroy)}}
 	"fmt"
 {{- end}}
-{{- if or $hasCreate (or $hasUpdate $hasDestroy)}}
-	"log/slog"
-{{- end}}
 	"net/http"
 {{- if or $hasIndex (and $hasIDAction (or (eq .IDType "int64") (eq .IDType "int32")))}}
 	"strconv"
@@ -51,6 +48,9 @@ import (
 	"github.com/google/uuid"
 {{- end}}
 	"github.com/labstack/echo/v5"
+{{- if or $hasCreate (or $hasUpdate $hasDestroy)}}
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+{{- end}}
 	"{{.ModulePath}}/models"
 	"{{.ModulePath}}/router"
 	"{{.ModulePath}}/router/routes"
@@ -204,10 +204,13 @@ type Create{{.ResourceName}}Payload struct {
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "{{.PluralResourceName | ToLower}}.create")
+	defer span.End()
+
 	var payload Create{{.ResourceName}}Payload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse Create{{.ResourceName}}Payload",
 			"error",
 			err,
@@ -226,8 +229,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 			}
 			parsed, err := uuid.Parse(payload.{{.Name}})
 			if err != nil {
-				slog.WarnContext(
-					etx.Request().Context(),
+				telemetry.Warn(
+					ctx,
 					"could not parse {{.Name}}, setting to nil UUID pointer",
 					"error",
 					err,
@@ -244,8 +247,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 			}
 			parsed, err := uuid.Parse(payload.{{.Name}})
 			if err != nil {
-				slog.WarnContext(
-					etx.Request().Context(),
+				telemetry.Warn(
+					ctx,
 					"could not parse {{.Name}}, setting to nil UUID",
 					"error",
 					err,
@@ -331,12 +334,12 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 	}
 
 	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Create(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to create {{.ResourceName | ToLowerCamelCase}}",
 			"error",
 			err,
@@ -361,6 +364,9 @@ type Update{{.ResourceName}}Payload struct {
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "{{.PluralResourceName | ToLower}}.update")
+	defer span.End()
+
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
@@ -386,8 +392,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 
 	var payload Update{{.ResourceName}}Payload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse Update{{.ResourceName}}Payload",
 			"error",
 			err,
@@ -407,8 +413,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 			}
 			parsed, err := uuid.Parse(payload.{{.Name}})
 			if err != nil {
-				slog.WarnContext(
-					etx.Request().Context(),
+				telemetry.Warn(
+					ctx,
 					"could not parse {{.Name}}, setting to nil UUID pointer",
 					"error",
 					err,
@@ -425,8 +431,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 			}
 			parsed, err := uuid.Parse(payload.{{.Name}})
 			if err != nil {
-				slog.WarnContext(
-					etx.Request().Context(),
+				telemetry.Warn(
+					ctx,
 					"could not parse {{.Name}}, setting to nil UUID",
 					"error",
 					err,
@@ -512,12 +518,12 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	}
 
 	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Update(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to update {{.ResourceName | ToLowerCamelCase}}",
 			"error",
 			err,
@@ -530,6 +536,9 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "{{.PluralResourceName | ToLower}}.destroy")
+	defer span.End()
+
 {{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
@@ -553,10 +562,10 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	}
 {{- end}}
 
-	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
+	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(ctx, {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to delete {{.ResourceName | ToLowerCamelCase}}",
 			"error",
 			err,

@@ -6,12 +6,14 @@ import (
 
 	"github.com/mbvlabs/andurel/layout"
 	layouttemplates "github.com/mbvlabs/andurel/layout/templates"
+	"github.com/mbvlabs/andurel/layout/versions"
 	"golang.org/x/mod/semver"
 )
 
 const (
 	sessionCookieRecoveryVersion    = "v1.5.4"
 	inertiaRendererInjectionVersion = "v1.5.6"
+	telemetryPackageVersion         = "v2.0.0"
 )
 
 // ManualAction describes an application-owned change that an upgrade cannot
@@ -109,6 +111,83 @@ func manualActionsForUpgrade(
 		actions = append(actions, ManualAction{
 			ID:           "inertia-renderer-injection-v1.5.6",
 			Title:        "Inject the Inertia renderer through Fx",
+			Instructions: instructions.String(),
+		})
+	}
+
+	if crossesVersion(fromVersion, toVersion, telemetryPackageVersion) {
+		var instructions strings.Builder
+		instructions.WriteString(
+			"Generated application telemetry/ is replaced by the standalone github.com/mbvlabs/andurel/pkg/telemetry module. Composition roots, routers, and controllers are application-owned, so Andurel does not rewrite them automatically.\n\n",
+		)
+		instructions.WriteString(
+			"1. Delete the copied telemetry/ package from the application.\n\n",
+		)
+		instructions.WriteString("2. Add this direct requirement to go.mod:\n\n```go\n")
+		fmt.Fprintf(
+			&instructions,
+			"github.com/mbvlabs/andurel/pkg/telemetry %s\n",
+			versions.Telemetry,
+		)
+		instructions.WriteString("```\n\n")
+		instructions.WriteString(
+			"3. Keep config.Telemetry as env-backed values. In cmd/app/main.go and cmd/queue/main.go, remove telemetry.Module and provide *telemetry.Telemetry with positional New plus With* options:\n\n```go\n",
+		)
+		instructions.WriteString(`func newTelemetry(
+	lifecycle fx.Lifecycle,
+	ctx context.Context,
+	appCfg config.App,
+	cfg config.Telemetry,
+) (*telemetry.Telemetry, error) {
+	opts := []telemetry.Option{
+		telemetry.WithTraceSampleRate(cfg.TraceSampleRate),
+		telemetry.WithBatchConfig(
+			cfg.BatchSize,
+			time.Duration(cfg.BatchTimeoutMs)*time.Millisecond,
+			2048,
+		),
+		telemetry.WithLogLevel(cfg.LogLevel),
+	}
+	if !appCfg.IsProduction() {
+		opts = append(opts, telemetry.WithConsole())
+	}
+	headers := telemetry.ParseHeaders(cfg.OtlpHeaders)
+	if cfg.OtlpLogsEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPLogs(cfg.OtlpLogsEndpoint, headers))
+	}
+	if cfg.OtlpTracesEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPTraces(cfg.OtlpTracesEndpoint, headers))
+	}
+	if cfg.OtlpMetricsEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPMetrics(cfg.OtlpMetricsEndpoint, headers))
+	}
+	tel, err := telemetry.New(ctx, cfg.ServiceName, cfg.ServiceVersion, opts...)
+	if err != nil {
+		return nil, err
+	}
+	lifecycle.Append(fx.Hook{OnStop: tel.Shutdown})
+	return tel, nil
+}
+`)
+		instructions.WriteString("```\n\n")
+		instructions.WriteString(
+			"4. Inject tel *telemetry.Telemetry into newDatabase and pass storage.WithOpenTelemetry(storage.TelemetryConfig{TracerProvider: tel.TracerProvider(), MeterProvider: tel.MeterProvider()}).\n\n",
+		)
+		instructions.WriteString(
+			"5. In router.New, wrap the Echo handler with telemetry.WrapHandler(\"http\", router, tel.TracerProvider()) and attach the handle on each request with middleware.Telemetry(tel). Queue workers should start from tel.Context(ctx).\n\n",
+		)
+		instructions.WriteString(
+			"6. Replace slog.ErrorContext / slog.InfoContext / slog.WarnContext calls in application code with telemetry.Error / telemetry.Info / telemetry.Warn. Controllers use telemetry.From(etx, name) then pass ctx. Services use telemetry.Start. Do not call otel.SetTracerProvider or slog.SetDefault.\n\n",
+		)
+		instructions.WriteString("7. Format and verify the migration:\n\n```text\n")
+		instructions.WriteString(
+			"gofmt -w cmd/app/main.go cmd/queue/main.go router/router.go router/middleware/middleware.go\n",
+		)
+		instructions.WriteString("go fix ./...\ngo vet ./...\n```\n")
+
+		actions = append(actions, ManualAction{
+			ID:           "telemetry-package-v2.0.0",
+			Title:        "Migrate generated telemetry onto pkg/telemetry",
 			Instructions: instructions.String(),
 		})
 	}

@@ -3,7 +3,6 @@ package middleware
 
 import (
 	"errors"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -12,17 +11,13 @@ import (
 	"github.com/mbvlabs/andurel/pkg/server"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
-	"{{.ModuleName}}/telemetry"
 
 	"github.com/labstack/echo/v5"
 {{- if .Inertia}}
 	"github.com/mbvlabs/andurel/pkg/inertia"
 {{- end}}
 	echomw "github.com/labstack/echo/v5/middleware"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/semconv/v1.26.0"
-	"go.opentelemetry.io/otel/trace"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 func RegisterRequestMeta(session *cookies.Session) echo.MiddlewareFunc {
@@ -33,15 +28,15 @@ func RegisterRequestMeta(session *cookies.Session) echo.MiddlewareFunc {
 			}
 
 			flashes, err := session.ExtractFlashes(c)
-		if err != nil {
-			slog.Error("Error getting flash messages from session", "error", err)
-		}
+			if err != nil {
+				telemetry.Error(c.Request().Context(), "Error getting flash messages from session", "error", err)
+			}
 
-		ctx := appctx.WithFlashes(c.Request().Context(), flashes)
+			ctx := appctx.WithFlashes(c.Request().Context(), flashes)
 {{- if .Inertia}}
-		ctx = inertia.ContextWithFlash(ctx, flashes)
+			ctx = inertia.ContextWithFlash(ctx, flashes)
 {{- end}}
-		c.SetRequest(c.Request().WithContext(ctx))
+			c.SetRequest(c.Request().WithContext(ctx))
 
 			return next(c)
 		}
@@ -97,32 +92,16 @@ func mayBypassCSRF(request *http.Request, appCookieSessionName string) bool {
 		!hasApplicationSessionCookie(request, appCookieSessionName)
 }
 
-func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
-	var httpRequestsTotal metric.Int64Counter
-	var httpDuration metric.Float64Histogram
-	var httpInFlight metric.Int64UpDownCounter
-
-	if tel.HasMetrics() {
-		var err error
-		httpRequestsTotal, err = telemetry.HTTPRequestsTotal(tel.ServiceName())
-		if err != nil {
-			slog.Warn("failed to create http_requests_total metric", "error", err)
-		}
-		httpDuration, err = telemetry.HTTPRequestDuration(tel.ServiceName())
-		if err != nil {
-			slog.Warn("failed to create http_request_duration metric", "error", err)
-		}
-		httpInFlight, err = telemetry.HTTPRequestsInFlight(tel.ServiceName())
-		if err != nil {
-			slog.Warn("failed to create http_requests_in_flight metric", "error", err)
-		}
-
-		meter := telemetry.GetMeter(tel.ServiceName())
-		if err := telemetry.SetupRuntimeMetricsInCallback(meter); err != nil {
-			slog.Warn("failed to setup runtime metrics", "error", err)
+func Telemetry(tel *telemetry.Telemetry) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			c.SetRequest(c.Request().WithContext(tel.Context(c.Request().Context())))
+			return next(c)
 		}
 	}
+}
 
+func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
 			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
@@ -132,9 +111,9 @@ func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 			ctx := c.Request().Context()
 			start := time.Now()
 
-			if tel.HasMetrics() && httpInFlight != nil {
-				httpInFlight.Add(ctx, 1)
-				defer httpInFlight.Add(ctx, -1)
+			if tel.HasMetrics() {
+				telemetry.AddHTTPInFlight(ctx, tel, 1)
+				defer telemetry.AddHTTPInFlight(ctx, tel, -1)
 			}
 
 			err := next(c)
@@ -146,17 +125,8 @@ func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 				statusCode = resp.Status
 			}
 
-			if tel.HasMetrics() && httpRequestsTotal != nil && httpDuration != nil {
-				attrs := []attribute.KeyValue{
-					attribute.String("method", c.Request().Method),
-					attribute.String("route", route),
-					attribute.Int("status_code", statusCode),
-				}
-				httpRequestsTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
-				httpDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
-			}
-
-			slog.InfoContext(ctx, "HTTP request completed",
+			telemetry.RecordHTTPRequest(ctx, tel, c.Request().Method, route, statusCode, duration)
+			telemetry.Info(ctx, "HTTP request completed",
 				"method", c.Request().Method,
 				"path", c.Request().URL.Path,
 				"status", statusCode,
@@ -170,7 +140,7 @@ func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 	}
 }
 
-func TraceRouteAttributes(tel *telemetry.Telemetry) echo.MiddlewareFunc {
+func TraceRouteAttributes() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
 			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
@@ -178,23 +148,10 @@ func TraceRouteAttributes(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 			}
 
 			err := next(c)
-			if !tel.HasTracing() {
-				return err
-			}
-
 			routeInfo := c.RouteInfo()
-			if routeInfo.Path == "" {
-				return err
+			if routeInfo.Path != "" {
+				telemetry.SetHTTPRoute(c.Request().Context(), routeInfo.Path)
 			}
-
-			span := trace.SpanFromContext(c.Request().Context())
-			if !span.SpanContext().IsValid() {
-				return err
-			}
-
-			span.SetAttributes(
-				semconv.HTTPRoute(routeInfo.Path),
-			)
 
 			return err
 		}
@@ -281,7 +238,7 @@ func CSRFMiddleware(
 				if !headerOnly && secFetchSite != "same-origin" && secFetchSite != "same-site" &&
 					secFetchSite != "cross-site" {
 					if c.Request().Header.Get("X-CSRF-Token") == "" && c.FormValue("_csrf") != "" {
-						slog.Warn("CSRF check fell back to legacy token")
+						telemetry.Warn(c.Request().Context(), "CSRF check fell back to legacy token")
 					}
 				}
 			}
