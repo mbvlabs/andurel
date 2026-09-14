@@ -11,18 +11,13 @@ WHERE email = $1
 LIMIT 1;
 
 -- name: ListUsers :many
+-- @order id
 SELECT *
 FROM users;
 
 -- name: CountUsers :one
 SELECT count(*)
 FROM users;
-
--- name: ListUsersPaginated :many
-SELECT *
-FROM users
-LIMIT sqlc.arg('page_size')::int
-OFFSET sqlc.arg('page_offset')::int;
 
 -- name: CreateUser :one
 INSERT INTO users (

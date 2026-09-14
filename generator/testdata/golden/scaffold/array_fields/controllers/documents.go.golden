@@ -13,6 +13,7 @@ import (
 	"testapp/views"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
 )
@@ -129,7 +130,7 @@ func (d Documents) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	document, err := d.documents.Find(etx.Request().Context(), documentID)
+	document, err := d.documents.Find(etx.Request().Context(), pgtype.UUID{Bytes: documentID, Valid: true})
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -189,7 +190,7 @@ func (d Documents) Create(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Document created successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID.Bytes))
 }
 
 func (d Documents) Edit(etx *echo.Context) error {
@@ -198,7 +199,7 @@ func (d Documents) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	document, err := d.documents.Find(etx.Request().Context(), documentID)
+	document, err := d.documents.Find(etx.Request().Context(), pgtype.UUID{Bytes: documentID, Valid: true})
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -233,7 +234,7 @@ func (d Documents) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateDocumentData{
-		ID: documentID,
+		ID: pgtype.UUID{Bytes: documentID, Valid: true},
 
 		Title: payload.Title,
 
@@ -263,7 +264,7 @@ func (d Documents) Update(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Document updated successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID.Bytes))
 }
 
 func (d Documents) Destroy(etx *echo.Context) error {
@@ -272,7 +273,7 @@ func (d Documents) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = d.documents.Destroy(etx.Request().Context(), documentID)
+	err = d.documents.Destroy(etx.Request().Context(), pgtype.UUID{Bytes: documentID, Valid: true})
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete document: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())

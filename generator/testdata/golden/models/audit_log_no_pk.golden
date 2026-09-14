@@ -1,49 +1,47 @@
 package models
 
 // andurel:model-mode crud
+// andurel:table audit_logs
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/example/shop/models/internal/queries"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
-	"github.com/uptrace/bun"
 )
 
 type AuditLogs struct {
-	db queryDB
+	queries *queries.Queries
 }
 
 func NewAuditLogs(db storage.Connection) AuditLogs {
-	return AuditLogs{db: db}
+	return AuditLogs{queries: queries.New(db)}
 }
 
 // WithTx returns a copy that runs queries inside tx.
 func (al AuditLogs) WithTx(tx storage.Transaction) AuditLogs {
-	return AuditLogs{db: tx}
+	return AuditLogs{queries: queries.New(tx)}
 }
 
 type AuditLog struct {
-	bun.BaseModel `bun:"table:audit_logs,alias:audit_logs"`
-	EventId       uuid.UUID       `bun:"event_id,type:uuid"`
-	Action        string          `bun:"action"`
-	EntityType    string          `bun:"entity_type"`
-	EntityId      uuid.UUID       `bun:"entity_id,type:uuid"`
-	Payload       json.RawMessage `bun:"payload,type:jsonb"`
-	OccurredAt    time.Time       `bun:"occurred_at"`
+	EventId    pgtype.UUID        `andurel:"event_id"`
+	Action     string             `andurel:"action"`
+	EntityType string             `andurel:"entity_type"`
+	EntityId   pgtype.UUID        `andurel:"entity_id"`
+	Payload    []byte             `andurel:"payload"`
+	OccurredAt pgtype.Timestamptz `andurel:"occurred_at"`
 }
 
 type CreateAuditLogData struct {
-	EventId    uuid.UUID
+	EventId    pgtype.UUID
 	Action     string
 	EntityType string
-	EntityId   uuid.UUID
-	Payload    json.RawMessage
-	OccurredAt time.Time
+	EntityId   pgtype.UUID
+	Payload    []byte
+	OccurredAt pgtype.Timestamptz
 }
 
 func (al AuditLogs) Create(ctx context.Context, data CreateAuditLogData) (AuditLog, error) {
@@ -60,22 +58,18 @@ func (al AuditLogs) Create(ctx context.Context, data CreateAuditLogData) (AuditL
 		return AuditLog{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := al.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return AuditLog{}, err
-	}
-
-	return entity, nil
+	return al.queries.CreateAuditLog[AuditLog](ctx, queries.CreateAuditLogParams{
+		EventId:    entity.EventId,
+		Action:     entity.Action,
+		EntityType: entity.EntityType,
+		EntityId:   entity.EntityId,
+		Payload:    entity.Payload,
+		OccurredAt: entity.OccurredAt,
+	})
 }
 
 func (al AuditLogs) All(ctx context.Context) ([]AuditLog, error) {
-	var entities []AuditLog
-	if err := al.db.Executor().NewSelect().
-		Model(&entities).
-		Scan(ctx); err != nil {
-		return nil, err
-	}
-
-	return entities, nil
+	return al.queries.ListAuditLogs[AuditLog](ctx).All()
 }
 
 type PaginatedAuditLogs struct {
@@ -99,18 +93,16 @@ func (al AuditLogs) Paginate(ctx context.Context, page, pageSize int64) (Paginat
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := al.db.Executor().NewSelect().
-		Model(&AuditLog{}).Count(ctx)
+	totalCount, err := al.queries.CountAuditLogs(ctx)
 	if err != nil {
 		return PaginatedAuditLogs{}, err
 	}
 
-	entities := make([]AuditLog, 0, int(pageSize))
-	if err := al.db.Executor().NewSelect().
-		Model(&entities).
-		Limit(int(pageSize)).
-		Offset(int(offset)).
-		Scan(ctx); err != nil {
+	entities, err := al.queries.ListAuditLogs[AuditLog](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
 		return PaginatedAuditLogs{}, err
 	}
 

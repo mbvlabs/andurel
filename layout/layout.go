@@ -26,7 +26,6 @@ import (
 	"github.com/mbvlabs/andurel/layout/extensions"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/layout/versions"
-	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 // Element describes a directory tree node to create during scaffolding.
@@ -99,11 +98,6 @@ func Scaffold(
 	fmt.Print("Processing templated files...\n")
 	if err := processTemplatedFiles(targetDir, &templateData); err != nil {
 		return fmt.Errorf("failed to process templated files: %w", err)
-	}
-
-	fmt.Print("Writing narsilc configuration...\n")
-	if err := storage.WriteNarsilcConfig(targetDir); err != nil {
-		return fmt.Errorf("failed to write narsilc config: %w", err)
 	}
 
 	fmt.Print("Processing database migrations...\n")

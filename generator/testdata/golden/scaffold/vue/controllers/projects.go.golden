@@ -10,9 +10,9 @@ import (
 	"testapp/router"
 	"testapp/router/cookies"
 	"testapp/router/routes"
-	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 )
@@ -97,11 +97,11 @@ func (p Projects) RegisterRoutes(r *router.Router) error {
 }
 
 type ProjectData struct {
-	ID        uuid.UUID `json:"id"`
-	Title     string    `json:"title"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID        pgtype.UUID        `json:"id"`
+	Title     string             `json:"title"`
+	Status    string             `json:"status"`
+	CreatedAt pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type ProjectIndexProps struct {
@@ -171,7 +171,7 @@ func (p Projects) Show(etx *echo.Context) error {
 		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
-	project, err := p.projects.Find(etx.Request().Context(), projectID)
+	project, err := p.projects.Find(etx.Request().Context(), pgtype.UUID{Bytes: projectID, Valid: true})
 	if err != nil {
 		return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
 	}
@@ -228,7 +228,7 @@ func (p Projects) Create(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Project created successfully"); flashErr != nil {
 		return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
-	return p.renderer.Redirect(etx, routes.ProjectShow.URL(project.ID))
+	return p.renderer.Redirect(etx, routes.ProjectShow.URL(project.ID.Bytes))
 }
 
 func (p Projects) Edit(etx *echo.Context) error {
@@ -237,7 +237,7 @@ func (p Projects) Edit(etx *echo.Context) error {
 		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
-	project, err := p.projects.Find(etx.Request().Context(), projectID)
+	project, err := p.projects.Find(etx.Request().Context(), pgtype.UUID{Bytes: projectID, Valid: true})
 	if err != nil {
 		return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
 	}
@@ -275,7 +275,7 @@ func (p Projects) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateProjectData{
-		ID: projectID,
+		ID: pgtype.UUID{Bytes: projectID, Valid: true},
 
 		Title: payload.Title,
 
@@ -299,7 +299,7 @@ func (p Projects) Update(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Project updated successfully"); flashErr != nil {
 		return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
-	return p.renderer.Redirect(etx, routes.ProjectShow.URL(project.ID))
+	return p.renderer.Redirect(etx, routes.ProjectShow.URL(project.ID.Bytes))
 }
 
 func (p Projects) Destroy(etx *echo.Context) error {
@@ -308,7 +308,7 @@ func (p Projects) Destroy(etx *echo.Context) error {
 		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
-	err = p.projects.Destroy(etx.Request().Context(), projectID)
+	err = p.projects.Destroy(etx.Request().Context(), pgtype.UUID{Bytes: projectID, Valid: true})
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete project: %v", err)); flashErr != nil {
 			return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()

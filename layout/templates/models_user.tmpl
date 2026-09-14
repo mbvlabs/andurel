@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
-	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -20,6 +19,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -38,13 +38,13 @@ func (u Users) WithTx(tx storage.Transaction) Users {
 }
 
 type User struct {
-	ID               uuid.UUID    `andurel:"id"`
-	CreatedAt        time.Time    `andurel:"created_at"`
-	UpdatedAt        time.Time    `andurel:"updated_at"`
-	Email            string       `andurel:"email"`
-	EmailValidatedAt sql.NullTime `andurel:"email_validated_at"`
-	Password         []byte       `andurel:"password"`
-	IsAdmin          bool         `andurel:"is_admin"`
+	ID               pgtype.UUID        `andurel:"id"`
+	CreatedAt        pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `andurel:"updated_at"`
+	Email            string             `andurel:"email"`
+	EmailValidatedAt pgtype.Timestamptz `andurel:"email_validated_at"`
+	Password         []byte             `andurel:"password"`
+	IsAdmin          bool               `andurel:"is_admin"`
 }
 
 func (u *User) Validate() error {
@@ -87,7 +87,7 @@ func (u *User) ValidPassword(providedPassword, pepper string) (bool, error) {
 	return subtle.ConstantTimeCompare(newHash, expectedHash) == 1, nil
 }
 
-func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
+func (u Users) Find(ctx context.Context, id pgtype.UUID) (User, error) {
 	entity, err := u.queries.GetUser[User](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -137,11 +137,11 @@ func (u Users) Create(
 	}
 
 	entity := User{
-		ID:               uuid.New(),
-		CreatedAt:        time.Now(),
-		UpdatedAt:        time.Now(),
+		ID:               pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Email:            strings.ToLower(data.Email),
-		EmailValidatedAt: sql.NullTime{},
+		EmailValidatedAt: pgtype.Timestamptz{},
 		Password:         []byte(hashedPassword),
 		IsAdmin:          false,
 	}
@@ -150,10 +150,6 @@ func (u Users) Create(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	return u.Insert(ctx, entity)
-}
-
-func (u Users) Insert(ctx context.Context, entity User) (User, error) {
 	return u.queries.CreateUser[User](ctx, queries.CreateUserParams{
 		ID:               entity.ID,
 		CreatedAt:        entity.CreatedAt,
@@ -166,9 +162,9 @@ func (u Users) Insert(ctx context.Context, entity User) (User, error) {
 }
 
 type UpdateUserData struct {
-	ID               uuid.UUID
+	ID               pgtype.UUID
 	Email            string
-	EmailValidatedAt sql.NullTime
+	EmailValidatedAt pgtype.Timestamptz
 	Password         []byte
 	IsAdmin          bool
 }
@@ -200,7 +196,7 @@ func (u Users) Update(
 	entity := User{
 		ID:               data.ID,
 		CreatedAt:        current.CreatedAt,
-		UpdatedAt:        time.Now(),
+		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Email:            email,
 		EmailValidatedAt: emailValidatedAt,
 		Password:         password,
@@ -230,12 +226,12 @@ func (u Users) Update(
 	return row, nil
 }
 
-func (u Users) Destroy(ctx context.Context, id uuid.UUID) error {
+func (u Users) Destroy(ctx context.Context, id pgtype.UUID) error {
 	return u.queries.DeleteUser(ctx, id)
 }
 
 func (u Users) All(ctx context.Context) ([]User, error) {
-	return u.queries.ListUsers[User](ctx)
+	return u.queries.ListUsers[User](ctx).All()
 }
 
 type PaginatedUsers struct {
@@ -267,10 +263,10 @@ func (u Users) Paginate(
 		return PaginatedUsers{}, err
 	}
 
-	entities, err := u.queries.ListUsersPaginated[User](ctx, queries.ListUsersPaginatedParams{
-		PageSize:   int32(pageSize),
-		PageOffset: int32(offset),
-	})
+	entities, err := u.queries.ListUsers[User](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
 	if err != nil {
 		return PaginatedUsers{}, err
 	}

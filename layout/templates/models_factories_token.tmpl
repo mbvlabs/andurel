@@ -2,15 +2,16 @@ package factories
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/models/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // TokenFactory wraps models.Token for testing
@@ -27,9 +28,9 @@ func BuildToken(opts ...TokenOption) models.Token {
 	f := &TokenFactory{
 		Token: models.Token{
 			Scope:     "default",
-			ExpiresAt: time.Now().Add(1 * time.Hour),
+			ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(1 * time.Hour), Valid: true},
 			Hash:      "test-hash",
-			MetaData:  json.RawMessage("{}"),
+			MetaData:  []byte("{}"),
 		},
 	}
 
@@ -49,17 +50,15 @@ func CreateToken(
 ) (models.Token, error) {
 	built := BuildToken(opts...)
 
-	entity := models.Token{
-		ID:        uuid.New(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	return queries.New(db).CreateToken[models.Token](ctx, queries.CreateTokenParams{
+		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Scope:     built.Scope,
 		ExpiresAt: built.ExpiresAt,
 		Hash:      built.Hash,
 		MetaData:  built.MetaData,
-	}
-
-	return models.NewTokens(db).Insert(ctx, entity)
+	})
 }
 
 // CreateTokens creates multiple Token records at once
@@ -92,12 +91,12 @@ func WithScope(scope string) TokenOption {
 // WithExpiresAt sets the expiration time for the token
 func WithExpiresAt(t time.Time) TokenOption {
 	return func(f *TokenFactory) {
-		f.ExpiresAt = t
+		f.ExpiresAt = pgtype.Timestamptz{Time: t, Valid: true}
 	}
 }
 
 // WithMetaData sets the metadata for the token
-func WithMetaData(data json.RawMessage) TokenOption {
+func WithMetaData(data []byte) TokenOption {
 	return func(f *TokenFactory) {
 		f.MetaData = data
 	}

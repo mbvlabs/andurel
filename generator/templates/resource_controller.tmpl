@@ -7,15 +7,19 @@ import (
 	"net/http"
 	"strconv"
 {{- $needsTime := false}}
-{{- $needsUUID := or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- $needsUUID := or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 {{- $needsSQLNull := false}}
 {{- $needsJSON := false}}
+{{- $needsPG := eq .IDType "pgtype.UUID"}}
 {{- range .Fields}}
 {{- if and (not .IsSystemField) (or (eq .GoFormType "time.Time") (eq .GoType "sql.NullTime"))}}
 	{{- $needsTime = true}}
 {{- end}}
 {{- if and (not .IsSystemField) (or (eq .GoType "uuid.UUID") (eq .GoType "*uuid.UUID"))}}
 	{{- $needsUUID = true}}
+{{- end}}
+{{- if and (not .IsSystemField) (hasPrefix .GoType "pgtype.")}}
+	{{- $needsPG = true}}
 {{- end}}
 {{- if and (not .IsSystemField) (eq .GoType "json.RawMessage") (or (HasAction "create") (HasAction "update"))}}
 	{{- $needsJSON = true}}
@@ -36,6 +40,9 @@ import (
 
 {{- if $needsUUID}}
 	"github.com/google/uuid"
+{{- end}}
+{{- if $needsPG}}
+	"github.com/jackc/pgx/v5/pgtype"
 {{- end}}
 	"github.com/labstack/echo/v5"
 	"{{.ModulePath}}/models"
@@ -186,7 +193,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- if or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.BadRequest())
@@ -209,7 +216,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -274,7 +281,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 	}
 
 	{{- if HasAction "show"}}
-	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
+	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}{{if eq .IDType "pgtype.UUID"}}.Bytes{{end}}))
 	{{- else}}
 	_ = {{.ResourceName | ToLowerCamelCase}}
 	{{- if HasAction "index"}}
@@ -286,7 +293,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- if or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.BadRequest())
@@ -309,7 +316,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -330,7 +337,7 @@ type Update{{.ResourceName}}FormPayload struct {
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error {
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- if or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.BadRequest())
@@ -366,7 +373,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	}
 
 	data := models.Update{{.ModelName}}Data{
-		{{.IDGoFieldName}}:      {{.ResourceName | ToLowerCamelCase}}ID,
+		{{.IDGoFieldName}}:      {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}},
 {{- range .Fields}}
 {{- if not .IsSystemField}}
 		{{template "ControllerPayloadAssignment" .}}
@@ -397,7 +404,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	}
 
 	{{- if HasAction "show"}}
-	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
+	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}{{if eq .IDType "pgtype.UUID"}}.Bytes{{end}}))
 	{{- else}}
 	_ = {{.ResourceName | ToLowerCamelCase}}
 	{{- if HasAction "index"}}
@@ -409,7 +416,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) error {
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- if or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.BadRequest())
@@ -432,7 +439,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	}
 {{- end}}
 
-	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
+	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(etx.Request().Context(), {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())

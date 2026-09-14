@@ -43,6 +43,20 @@ var standardGoTypes = map[string]bool{
 	"sql.NullInt64":   true,
 	"sql.NullFloat64": true,
 	"sql.NullTime":    true,
+	// pgx/v5 pgtype types
+	"pgtype.UUID":        true,
+	"pgtype.Text":        true,
+	"pgtype.Bool":        true,
+	"pgtype.Int2":        true,
+	"pgtype.Int4":        true,
+	"pgtype.Int8":        true,
+	"pgtype.Float4":      true,
+	"pgtype.Float8":      true,
+	"pgtype.Numeric":     true,
+	"pgtype.Date":        true,
+	"pgtype.Time":        true,
+	"pgtype.Timestamp":   true,
+	"pgtype.Timestamptz": true,
 }
 
 type parsedField struct {
@@ -346,7 +360,8 @@ func renderCreateDataStruct(resourceName string, model *models.GeneratedModel) s
 		}
 		fmt.Fprintf(&sb, "\t%s %s\n", f.Name, f.Type)
 	}
-	if !model.IsAutoIncrementID && model.IDType != "" && model.IDType != "uuid.UUID" {
+	if !model.IsAutoIncrementID && model.IDType != "" &&
+		model.IDType != "uuid.UUID" && model.IDType != "pgtype.UUID" {
 		fmt.Fprintf(&sb, "\t%s %s\n", idGoField, model.IDType)
 	}
 	sb.WriteString("}")

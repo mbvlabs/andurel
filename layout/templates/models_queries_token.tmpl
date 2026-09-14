@@ -12,18 +12,13 @@ WHERE scope = $1
 LIMIT 1;
 
 -- name: ListTokens :many
+-- @order id
 SELECT *
 FROM tokens;
 
 -- name: CountTokens :one
 SELECT count(*)
 FROM tokens;
-
--- name: ListTokensPaginated :many
-SELECT *
-FROM tokens
-LIMIT sqlc.arg('page_size')::int
-OFFSET sqlc.arg('page_offset')::int;
 
 -- name: CreateToken :one
 INSERT INTO tokens (

@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +10,8 @@ import (
 	appemail "{{.ModuleName}}/email"
 	"{{.ModuleName}}/models"
 	"{{.ModuleName}}/queue/jobs"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/validation"
@@ -219,7 +220,7 @@ func (i Identity) VerifyEmail(
 	user, err = users.Update(ctx, models.UpdateUserData{
 		ID:               user.ID,
 		Email:            user.Email,
-		EmailValidatedAt: sql.NullTime{Time: now, Valid: true},
+		EmailValidatedAt: pgtype.Timestamptz{Time: now, Valid: true},
 		Password:         user.Password,
 		IsAdmin:          user.IsAdmin,
 	})

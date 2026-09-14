@@ -74,10 +74,10 @@ func TestModelGenerationGoldens(t *testing.T) {
 			"type ProductStatus string\n\nconst (\n\tProductStatusActive   ProductStatus = \"active\"\n\tProductStatusArchived ProductStatus = \"archived\"\n)\n\ntype Product struct {",
 			1,
 		)
-		modelContent = strings.Replace(
+modelContent = strings.Replace(
 			modelContent,
-			"ID            uuid.UUID       `andurel:\"id\"`",
-			"ID            uuid.UUID       `andurel:\"id\"`\n\tStatus        ProductStatus `andurel:\"status\"`",
+			"ID          pgtype.UUID        `andurel:\"id\"`",
+			"ID          pgtype.UUID        `andurel:\"id\"`\n\tStatus        ProductStatus `andurel:\"status\"`",
 			1,
 		)
 		if err := os.WriteFile(modelPath, []byte(modelContent), 0o600); err != nil {

@@ -173,6 +173,26 @@ func resolveViewBaseType(goType string) string {
 		return "float64"
 	case "sql.NullTime":
 		return "time.Time"
+	case "pgtype.Text":
+		return "string"
+	case "pgtype.Bool":
+		return "bool"
+	case "pgtype.Int2":
+		return "int16"
+	case "pgtype.Int4":
+		return "int32"
+	case "pgtype.Int8":
+		return "int64"
+	case "pgtype.Float4":
+		return "float32"
+	case "pgtype.Float8":
+		return "float64"
+	case "pgtype.Numeric":
+		return "string"
+	case "pgtype.UUID":
+		return "uuid.UUID"
+	case "pgtype.Date", "pgtype.Time", "pgtype.Timestamp", "pgtype.Timestamptz":
+		return "time.Time"
 	}
 	return strings.TrimPrefix(goType, "*")
 }
@@ -187,7 +207,7 @@ func hasNullFields(fields []ViewField) bool {
 }
 
 func isNullType(goType string) bool {
-	return strings.HasPrefix(goType, "sql.Null")
+	return strings.HasPrefix(goType, "sql.Null") || strings.HasPrefix(goType, "pgtype.")
 }
 
 func usesViewDataType(fields []ViewField, goType string) bool {
@@ -222,6 +242,26 @@ func viewDataValue(field ViewField, source string) string {
 		return "func() float64 { if !" + source + ".Valid { return 0 }; return " + source + ".Float64 }()"
 	case "sql.NullTime":
 		return "func() time.Time { if !" + source + ".Valid { return time.Time{} }; return " + source + ".Time }()"
+	case "pgtype.Text":
+		return "func() string { if !" + source + ".Valid { return \"\" }; return " + source + ".String }()"
+	case "pgtype.Bool":
+		return "func() bool { if !" + source + ".Valid { return false }; return " + source + ".Bool }()"
+	case "pgtype.Int2":
+		return "func() int16 { if !" + source + ".Valid { return 0 }; return " + source + ".Int16 }()"
+	case "pgtype.Int4":
+		return "func() int32 { if !" + source + ".Valid { return 0 }; return " + source + ".Int32 }()"
+	case "pgtype.Int8":
+		return "func() int64 { if !" + source + ".Valid { return 0 }; return " + source + ".Int64 }()"
+	case "pgtype.Float4":
+		return "func() float32 { if !" + source + ".Valid { return 0 }; return " + source + ".Float32 }()"
+	case "pgtype.Float8":
+		return "func() float64 { if !" + source + ".Valid { return 0 }; return " + source + ".Float64 }()"
+	case "pgtype.Timestamp", "pgtype.Timestamptz", "pgtype.Date", "pgtype.Time":
+		return "func() time.Time { if !" + source + ".Valid { return time.Time{} }; return " + source + ".Time }()"
+	case "pgtype.UUID":
+		return source + ".Bytes"
+	case "pgtype.Numeric":
+		return "func() string { if !" + source + ".Valid { return \"\" }; return " + source + ".String() }()"
 	default:
 		return source
 	}

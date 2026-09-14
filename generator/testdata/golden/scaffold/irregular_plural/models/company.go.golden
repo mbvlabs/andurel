@@ -1,49 +1,46 @@
 package models
 
 // andurel:model-mode crud
+// andurel:table companies
 
 import (
 	"context"
-	"database/sql"
 	"errors"
+	"testapp/models/internal/queries"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
-	"github.com/uptrace/bun"
 )
 
 type Companies struct {
-	db queryDB
+	queries *queries.Queries
 }
 
 func NewCompanies(db storage.Connection) Companies {
-	return Companies{db: db}
+	return Companies{queries: queries.New(db)}
 }
 
 // WithTx returns a copy that runs queries inside tx.
 func (c Companies) WithTx(tx storage.Transaction) Companies {
-	return Companies{db: tx}
+	return Companies{queries: queries.New(tx)}
 }
 
 type Company struct {
-	bun.BaseModel `bun:"table:companies,alias:companies"`
-	ID            uuid.UUID      `bun:"id,pk,type:uuid"`
-	Name          string         `bun:"name"`
-	Industry      sql.NullString `bun:"industry"`
-	CreatedAt     time.Time      `bun:"created_at"`
-	UpdatedAt     time.Time      `bun:"updated_at"`
+	ID        pgtype.UUID        `andurel:"id"`
+	Name      string             `andurel:"name"`
+	Industry  pgtype.Text        `andurel:"industry"`
+	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
 }
 
-func (c Companies) Find(ctx context.Context, id uuid.UUID) (Company, error) {
-	var entity Company
-	err := c.db.Executor().NewSelect().
-		Model(&entity).
-		Where("id = ?", id).
-		Scan(ctx)
+func (c Companies) Find(ctx context.Context, id pgtype.UUID) (Company, error) {
+	entity, err := c.queries.GetCompany[Company](ctx, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Company{}, ErrNotFound
 		}
 		return Company{}, err
@@ -54,14 +51,14 @@ func (c Companies) Find(ctx context.Context, id uuid.UUID) (Company, error) {
 
 type CreateCompanyData struct {
 	Name     string
-	Industry sql.NullString
+	Industry pgtype.Text
 }
 
 func (c Companies) Create(ctx context.Context, data CreateCompanyData) (Company, error) {
 	entity := Company{
-		ID:        uuid.New(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Name:      data.Name,
 		Industry:  data.Industry,
 	}
@@ -70,23 +67,25 @@ func (c Companies) Create(ctx context.Context, data CreateCompanyData) (Company,
 		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := c.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return Company{}, err
-	}
-
-	return entity, nil
+	return c.queries.CreateCompany[Company](ctx, queries.CreateCompanyParams{
+		ID:        entity.ID,
+		Name:      entity.Name,
+		Industry:  entity.Industry,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	})
 }
 
 type UpdateCompanyData struct {
-	ID       uuid.UUID
+	ID       pgtype.UUID
 	Name     string
-	Industry sql.NullString
+	Industry pgtype.Text
 }
 
 func (c Companies) Update(ctx context.Context, data UpdateCompanyData) (Company, error) {
 	entity := Company{
 		ID:        data.ID,
-		UpdatedAt: time.Now(),
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Name:      data.Name,
 		Industry:  data.Industry,
 	}
@@ -95,35 +94,24 @@ func (c Companies) Update(ctx context.Context, data UpdateCompanyData) (Company,
 		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := c.db.Executor().NewUpdate().
-		Model(&entity).
-		Column("name").
-		Column("industry").
-		Column("updated_at").
-		WherePK().
-		Returning("*").
-		Scan(ctx)
+	row, err := c.queries.UpdateCompany[Company](ctx, queries.UpdateCompanyParams{
+		ID:        entity.ID,
+		Name:      entity.Name,
+		Industry:  entity.Industry,
+		UpdatedAt: entity.UpdatedAt,
+	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Company{}, ErrNotFound
 		}
 		return Company{}, err
 	}
 
-	return entity, nil
+	return row, nil
 }
 
-func (c Companies) Destroy(ctx context.Context, id uuid.UUID) error {
-	var entity Company
-	err := c.db.Executor().NewDelete().
-		Model(&entity).
-		Where("id = ?", id).
-		Returning("*").
-		Scan(ctx)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrNotFound
-		}
+func (c Companies) Destroy(ctx context.Context, id pgtype.UUID) error {
+	if err := c.queries.DeleteCompany(ctx, id); err != nil {
 		return err
 	}
 
@@ -131,14 +119,7 @@ func (c Companies) Destroy(ctx context.Context, id uuid.UUID) error {
 }
 
 func (c Companies) All(ctx context.Context) ([]Company, error) {
-	var entities []Company
-	if err := c.db.Executor().NewSelect().
-		Model(&entities).
-		Scan(ctx); err != nil {
-		return nil, err
-	}
-
-	return entities, nil
+	return c.queries.ListCompanies[Company](ctx).All()
 }
 
 type PaginatedCompanies struct {
@@ -162,18 +143,16 @@ func (c Companies) Paginate(ctx context.Context, page, pageSize int64) (Paginate
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := c.db.Executor().NewSelect().
-		Model(&Company{}).Count(ctx)
+	totalCount, err := c.queries.CountCompanies(ctx)
 	if err != nil {
 		return PaginatedCompanies{}, err
 	}
 
-	entities := make([]Company, 0, int(pageSize))
-	if err := c.db.Executor().NewSelect().
-		Model(&entities).
-		Limit(int(pageSize)).
-		Offset(int(offset)).
-		Scan(ctx); err != nil {
+	entities, err := c.queries.ListCompanies[Company](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
 		return PaginatedCompanies{}, err
 	}
 
@@ -188,11 +167,11 @@ func (c Companies) Paginate(ctx context.Context, page, pageSize int64) (Paginate
 	}, nil
 }
 
-func (c Companies) Upsert(ctx context.Context, id uuid.UUID, data CreateCompanyData) (Company, error) {
+func (c Companies) Upsert(ctx context.Context, id pgtype.UUID, data CreateCompanyData) (Company, error) {
 	entity := Company{
 		ID:        id,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Name:      data.Name,
 		Industry:  data.Industry,
 	}
@@ -201,15 +180,11 @@ func (c Companies) Upsert(ctx context.Context, id uuid.UUID, data CreateCompanyD
 		return Company{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := c.db.Executor().NewInsert().
-		Model(&entity).
-		On("CONFLICT (id) DO UPDATE").
-		Set("name = excluded.name").
-		Set("industry = excluded.industry").
-		Returning("*").
-		Scan(ctx); err != nil {
-		return Company{}, err
-	}
-
-	return entity, nil
+	return c.queries.UpsertCompany[Company](ctx, queries.UpsertCompanyParams{
+		ID:        entity.ID,
+		Name:      entity.Name,
+		Industry:  entity.Industry,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	})
 }

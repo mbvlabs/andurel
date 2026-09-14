@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,6 +13,7 @@ import (
 	"testapp/views"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
 )
@@ -130,7 +130,7 @@ func (c Companies) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	company, err := c.companies.Find(etx.Request().Context(), companyID)
+	company, err := c.companies.Find(etx.Request().Context(), pgtype.UUID{Bytes: companyID, Valid: true})
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -164,7 +164,7 @@ func (c Companies) Create(etx *echo.Context) error {
 
 		Name: payload.Name,
 
-		Industry: sql.NullString{String: payload.Industry, Valid: true},
+		Industry: pgtype.Text{String: payload.Industry, Valid: true},
 	}
 
 	company, err := c.companies.Create(
@@ -181,7 +181,7 @@ func (c Companies) Create(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Company created successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-	return etx.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID.Bytes))
 }
 
 func (c Companies) Edit(etx *echo.Context) error {
@@ -190,7 +190,7 @@ func (c Companies) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	company, err := c.companies.Find(etx.Request().Context(), companyID)
+	company, err := c.companies.Find(etx.Request().Context(), pgtype.UUID{Bytes: companyID, Valid: true})
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -222,11 +222,11 @@ func (c Companies) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateCompanyData{
-		ID: companyID,
+		ID: pgtype.UUID{Bytes: companyID, Valid: true},
 
 		Name: payload.Name,
 
-		Industry: sql.NullString{String: payload.Industry, Valid: true},
+		Industry: pgtype.Text{String: payload.Industry, Valid: true},
 	}
 
 	company, err := c.companies.Update(
@@ -246,7 +246,7 @@ func (c Companies) Update(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Company updated successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-	return etx.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID.Bytes))
 }
 
 func (c Companies) Destroy(etx *echo.Context) error {
@@ -255,7 +255,7 @@ func (c Companies) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = c.companies.Destroy(etx.Request().Context(), companyID)
+	err = c.companies.Destroy(etx.Request().Context(), pgtype.UUID{Bytes: companyID, Valid: true})
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete company: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())

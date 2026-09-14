@@ -2,16 +2,17 @@ package factories
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
 	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/models/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 
 	"github.com/go-faker/faker/v4"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // UserFactory wraps models.User for testing
@@ -28,7 +29,7 @@ func BuildUser(opts ...UserOption) models.User {
 	f := &UserFactory{
 		User: models.User{
 			Email:            faker.Email(),
-			EmailValidatedAt: sql.NullTime{},
+			EmailValidatedAt: pgtype.Timestamptz{},
 			Password:         defaultPassword(),
 			IsAdmin:          false,
 		},
@@ -50,17 +51,15 @@ func CreateUser(
 ) (models.User, error) {
 	built := BuildUser(opts...)
 
-	entity := models.User{
-		ID:               uuid.New(),
-		CreatedAt:        time.Now(),
-		UpdatedAt:        time.Now(),
+	return queries.New(db).CreateUser[models.User](ctx, queries.CreateUserParams{
+		ID:               pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Email:            built.Email,
 		EmailValidatedAt: built.EmailValidatedAt,
 		Password:         built.Password,
 		IsAdmin:          built.IsAdmin,
-	}
-
-	return models.NewUsers(db).Insert(ctx, entity)
+	})
 }
 
 // CreateUsers creates multiple User records at once
@@ -100,7 +99,7 @@ func WithIsAdmin(isAdmin bool) UserOption {
 // WithEmailValidatedAt sets the email validation timestamp
 func WithEmailValidatedAt(t time.Time) UserOption {
 	return func(f *UserFactory) {
-		f.EmailValidatedAt = sql.NullTime{Time: t, Valid: true}
+		f.EmailValidatedAt = pgtype.Timestamptz{Time: t, Valid: true}
 	}
 }
 

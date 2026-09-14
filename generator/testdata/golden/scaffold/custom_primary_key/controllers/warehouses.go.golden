@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +12,7 @@ import (
 	"testapp/router/routes"
 	"testapp/views"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
 )
@@ -163,7 +163,7 @@ func (w Warehouses) Create(etx *echo.Context) error {
 
 		Name: payload.Name,
 
-		Location: sql.NullString{String: payload.Location, Valid: true},
+		Location: pgtype.Text{String: payload.Location, Valid: true},
 	}
 
 	warehouse, err := w.warehouses.Create(
@@ -225,7 +225,7 @@ func (w Warehouses) Update(etx *echo.Context) error {
 
 		Name: payload.Name,
 
-		Location: sql.NullString{String: payload.Location, Valid: true},
+		Location: pgtype.Text{String: payload.Location, Valid: true},
 	}
 
 	warehouse, err := w.warehouses.Update(

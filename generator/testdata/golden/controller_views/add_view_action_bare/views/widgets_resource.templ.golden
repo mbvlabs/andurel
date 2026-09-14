@@ -6,6 +6,7 @@ package views
 
 import (
 	"fmt"
+	"time"
 	
 	"testapp/models"
 	
@@ -13,6 +14,24 @@ import (
 	"testapp/router/routes"
 	
 )
+
+type WidgetData struct {
+	Name string
+	Quantity int32
+	Active bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func newWidgetData(entity models.Widget) WidgetData {
+	return WidgetData{
+		Name: entity.Name,
+		Quantity: entity.Quantity,
+		Active: entity.Active,
+		CreatedAt: func() time.Time { if !entity.CreatedAt.Valid { return time.Time{} }; return entity.CreatedAt.Time }(),
+		UpdatedAt: func() time.Time { if !entity.UpdatedAt.Valid { return time.Time{} }; return entity.UpdatedAt.Time }(),
+	}
+}
 
 
 
@@ -34,7 +53,7 @@ templ (ws WidgetShow) Page() {
 						<h1 class="text-2xl font-semibold text-slate-100">Widget Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
 							
-							<a href={ routes.WidgetEdit.URL(ws.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
+							<a href={ routes.WidgetEdit.URL(ws.Item.ID.Bytes) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
 							
 							
 						</div>
@@ -45,23 +64,23 @@ templ (ws WidgetShow) Page() {
 								
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Name</label>
-									<p class="text-sm text-slate-100">{ ws.Item.Name }</p>
+									<p class="text-sm text-slate-100">{ newWidgetData(ws.Item).Name }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Quantity</label>
-									<p class="text-sm text-slate-100">{ fmt.Sprintf("%d", ws.Item.Quantity) }</p>
+									<p class="text-sm text-slate-100">{ fmt.Sprintf("%d", newWidgetData(ws.Item).Quantity) }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Active</label>
-									<p class="text-sm text-slate-100">{ fmt.Sprintf("%t", ws.Item.Active) }</p>
+									<p class="text-sm text-slate-100">{ fmt.Sprintf("%t", newWidgetData(ws.Item).Active) }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
-									<p class="text-sm text-slate-100">{ ws.Item.CreatedAt.String() }</p>
+									<p class="text-sm text-slate-100">{ newWidgetData(ws.Item).CreatedAt.String() }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
-									<p class="text-sm text-slate-100">{ ws.Item.UpdatedAt.String() }</p>
+									<p class="text-sm text-slate-100">{ newWidgetData(ws.Item).UpdatedAt.String() }</p>
 								</div>
 								
 							</div>
@@ -102,14 +121,14 @@ templ (we WidgetEdit) Page() {
 										
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
-											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="name" value={ we.Item.Name } />
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="name" value={ newWidgetData(we.Item).Name } />
 										</div>
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="quantity">Quantity</label>
-											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="quantity" value={ fmt.Sprintf("%d", we.Item.Quantity) } />
+											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="quantity" value={ fmt.Sprintf("%d", newWidgetData(we.Item).Quantity) } />
 										</div>
 										<div class="flex items-center gap-2">
-											<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-cyan-400/25 bg-slate-950 accent-cyan-400 transition focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="active" if we.Item.Active { checked } />
+											<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-cyan-400/25 bg-slate-950 accent-cyan-400 transition focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="active" if newWidgetData(we.Item).Active { checked } />
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="active">Active</label>
 										</div>
 										

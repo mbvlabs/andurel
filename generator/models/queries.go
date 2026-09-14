@@ -21,13 +21,11 @@ func (g *Generator) PlanQuerySource(model *GeneratedModel) (string, error) {
 
 	if model.Mode != ModelModeCreateOnly {
 		fmt.Fprintf(&b, "\n-- name: List%s :many\n", model.PluralName)
+		fmt.Fprintf(&b, "-- @order %s\n", listOrderColumn(model))
 		fmt.Fprintf(&b, "SELECT *\nFROM %s;\n", model.TableName)
 
 		fmt.Fprintf(&b, "\n-- name: Count%s :one\n", model.PluralName)
 		fmt.Fprintf(&b, "SELECT count(*)\nFROM %s;\n", model.TableName)
-
-		fmt.Fprintf(&b, "\n-- name: List%sPaginated :many\n", model.PluralName)
-		fmt.Fprintf(&b, "SELECT *\nFROM %s\nLIMIT sqlc.arg('page_size')::int\nOFFSET sqlc.arg('page_offset')::int;\n", model.TableName)
 	}
 
 	if model.Mode != ModelModeReadOnly {
@@ -74,6 +72,23 @@ func (g *Generator) PlanQuerySource(model *GeneratedModel) (string, error) {
 	}
 
 	return b.String(), nil
+}
+
+// listOrderColumn picks a stable column for narsilc query-builder @order.
+// Builders require @filter or @order; Limit/Offset alone is not enough.
+func listOrderColumn(model *GeneratedModel) string {
+	if model.HasPrimaryKey && model.IDFieldName != "" {
+		return model.IDFieldName
+	}
+	for _, field := range model.Fields {
+		if field.ColumnName == "created_at" {
+			return field.ColumnName
+		}
+	}
+	if len(model.Fields) > 0 {
+		return model.Fields[0].ColumnName
+	}
+	return "id"
 }
 
 func insertFields(model *GeneratedModel) []GeneratedField {

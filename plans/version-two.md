@@ -211,10 +211,10 @@ Transactions share one `storage.Connection` / `storage.Transaction` boundary. `B
 
 ### narsilc
 
-narsilc is the only persistence compiler. Scaffolding writes `narsilc.yaml` from the storage module today; an upcoming narsilc release will read `andurel.lock` instead. Query files and generated code use this layout:
+narsilc is the only persistence compiler. Since narsilc v0.3.0, scaffolding does not write a `narsilc.yaml`; narsilc reads the project's `andurel.lock` (schema, queries, output package, `sql_package: pgx/v5`, and `row_mapping: andurel`). Query files and generated code use this layout:
 
 ```text
-narsilc.yaml              # copied from pkg/storage on scaffold
+andurel.lock            # narsilc reads config from the project lock file
 models/
 ├── models.go
 ├── user.go

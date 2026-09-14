@@ -42,10 +42,10 @@ var sqlNullTypeMap = map[string]string{
 	"time.Time": "sql.NullTime",
 }
 
-// MapSQLTypeToGo returns the Go type for a SQL column. Nullable columns are
-// wrapped according to tm.NullType ("pointer" → *string, "sql.Null" →
-// sql.NullString). The second return value is the import path required for
-// the type, or "" if it is a builtin.
+// MapSQLTypeToGo returns the Go type for a SQL column, matching the types
+// narsilc generates for pgx/v5 so model structs can be assigned to query
+// parameters directly. The second return value is the import path required
+// for the type, or "" if it is a builtin.
 func (tm *TypeMapper) MapSQLTypeToGo(
 	sqlType string,
 	nullable bool,
@@ -58,20 +58,15 @@ func (tm *TypeMapper) MapSQLTypeToGo(
 		}
 	}
 
-	base, pkg := tm.basePostgresType(normalized)
-	if base == "" {
-		return "any", "", nil
-	}
-
-	return tm.wrapNullable(base, nullable), pkg, nil
+	goType, pkg := tm.postgresType(normalized, nullable)
+	return goType, pkg, nil
 }
 
 func (tm *TypeMapper) wrapNullable(goType string, nullable bool) string {
 	if !nullable {
 		return goType
 	}
-	if strings.HasPrefix(goType, "*") || strings.HasPrefix(goType, "[]") ||
-		goType == "json.RawMessage" {
+	if strings.HasPrefix(goType, "*") || strings.HasPrefix(goType, "[]") {
 		return goType
 	}
 
@@ -85,50 +80,81 @@ func (tm *TypeMapper) wrapNullable(goType string, nullable bool) string {
 	return "*" + goType
 }
 
-func (tm *TypeMapper) basePostgresType(
+func (tm *TypeMapper) postgresType(
 	normalized string,
+	nullable bool,
 ) (goType, packageName string) {
+	pgtypePkg := "github.com/jackc/pgx/v5/pgtype"
+
 	switch normalized {
 	case "uuid":
-		return "uuid.UUID", "github.com/google/uuid"
+		return "pgtype.UUID", pgtypePkg
+	case "timestamptz", "timestamp with time zone":
+		return "pgtype.Timestamptz", pgtypePkg
+	case "timestamp", "timestamp without time zone":
+		return "pgtype.Timestamp", pgtypePkg
+	case "date":
+		return "pgtype.Date", pgtypePkg
+	case "time", "time without time zone":
+		return "pgtype.Time", pgtypePkg
 	case "varchar", "text", "char",
-		"xml", "tsvector", "tsquery",
-		"inet", "cidr", "macaddr", "macaddr8",
-		"point", "lseg", "box", "path", "polygon", "circle",
-		"int4range", "int8range", "numrange",
-		"tsrange", "tstzrange", "daterange",
-		"money", "bit", "varbit",
-		"interval":
+		"xml", "tsvector", "tsquery", "name":
+		if nullable {
+			return "pgtype.Text", pgtypePkg
+		}
 		return "string", ""
-	case "bytea":
-		return "[]byte", ""
 	case "boolean":
+		if nullable {
+			return "pgtype.Bool", pgtypePkg
+		}
 		return "bool", ""
 	case "smallint":
+		if nullable {
+			return "pgtype.Int2", pgtypePkg
+		}
 		return "int16", ""
 	case "integer":
+		if nullable {
+			return "pgtype.Int4", pgtypePkg
+		}
 		return "int32", ""
 	case "bigint":
+		if nullable {
+			return "pgtype.Int8", pgtypePkg
+		}
 		return "int64", ""
 	case "real":
+		if nullable {
+			return "pgtype.Float4", pgtypePkg
+		}
 		return "float32", ""
 	case "double precision":
+		if nullable {
+			return "pgtype.Float8", pgtypePkg
+		}
 		return "float64", ""
-	case "decimal", "numeric":
-		return "float64", ""
-	case "timestamp", "timestamp without time zone",
-		"timestamptz", "timestamp with time zone",
-		"date", "time", "timetz":
-		return "time.Time", "time"
-	case "json", "jsonb":
-		return "json.RawMessage", "encoding/json"
+	case "decimal", "numeric", "money":
+		return "pgtype.Numeric", pgtypePkg
+	case "bytea", "json", "jsonb":
+		return "[]byte", ""
+	case "inet":
+		// match narsilc pgx/v5. Other network types stay on string.
+		if nullable {
+			return "*netip.Addr", "net/netip"
+		}
+		return "netip.Addr", "net/netip"
 	case "_integer":
 		return "[]int32", ""
 	case "_text":
 		return "[]string", ""
 	}
 
-	return "", ""
+	// Types without a pgx/v5-narsilc mapping keep a string fallback so
+	// generated models remain compilable for exotic columns.
+	if nullable {
+		return "*string", ""
+	}
+	return "string", ""
 }
 
 func normalizeSQLType(sqlType string) string {

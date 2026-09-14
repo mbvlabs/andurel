@@ -9,7 +9,6 @@ import (
 
 	"github.com/mbvlabs/andurel/layout/extensions"
 	layouttemplates "github.com/mbvlabs/andurel/layout/templates"
-	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 func TestGeneratedConfigModuleDoesNotDuplicateProviders(t *testing.T) {
@@ -118,6 +117,9 @@ func TestGeneratedUserAndTokenModelTemplates(t *testing.T) {
 			t.Errorf("models_user.tmpl missing %q", want)
 		}
 	}
+	if strings.Contains(user, "func (u Users) Insert(") {
+		t.Error("models_user.tmpl must not expose Users.Insert")
+	}
 	if strings.Contains(user, "Model(&User{}).Scan(ctx, &totalCount)") {
 		t.Error("models_user.tmpl still scans a model into the pagination count")
 	}
@@ -131,6 +133,9 @@ func TestGeneratedUserAndTokenModelTemplates(t *testing.T) {
 	}
 	if !strings.Contains(token, "t.queries.CountTokens(ctx)") {
 		t.Error("models_token.tmpl does not use narsilc CountTokens")
+	}
+	if strings.Contains(token, "func (t Tokens) Insert(") {
+		t.Error("models_token.tmpl must not expose Tokens.Insert")
 	}
 	if strings.Contains(token, "Model(&Token{}).Scan(ctx, &totalCount)") {
 		t.Error("models_token.tmpl still scans a model into the pagination count")
@@ -793,23 +798,12 @@ func TestGeneratedNarsilcArtifacts(t *testing.T) {
 	if err := processTemplatedFiles(root, data); err != nil {
 		t.Fatalf("process templates: %v", err)
 	}
-	if err := storage.WriteNarsilcConfig(root); err != nil {
-		t.Fatalf("write narsilc config: %v", err)
-	}
 
 	if _, err := os.Stat(filepath.Join(root, "models/queries/user.sql")); err != nil {
 		t.Fatalf("models/queries/user.sql: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, "models/queries/token.sql")); err != nil {
 		t.Fatalf("models/queries/token.sql: %v", err)
-	}
-
-	written, err := os.ReadFile(filepath.Join(root, storage.NarsilcConfigFile))
-	if err != nil {
-		t.Fatalf("read narsilc.yaml: %v", err)
-	}
-	if string(written) != string(storage.NarsilcConfig()) {
-		t.Fatal("narsilc.yaml does not match storage module config")
 	}
 }
 

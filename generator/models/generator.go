@@ -64,6 +64,8 @@ type GeneratedModel struct {
 	ReceiverName        string // u (short receiver for the service methods)
 	HasCreatedAt        bool
 	HasUpdatedAt        bool
+	CreatedAtGoType     string // Go type of the created_at column (e.g., "pgtype.Timestamptz")
+	UpdatedAtGoType     string // Go type of the updated_at column (e.g., "pgtype.Timestamptz")
 	Mode                ModelMode
 }
 
@@ -210,10 +212,16 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 
 		if col.Name == "created_at" {
 			model.HasCreatedAt = true
+			model.CreatedAtGoType = field.Type
 		}
 		if col.Name == "updated_at" {
 			model.HasUpdatedAt = true
+			model.UpdatedAtGoType = field.Type
 		}
+	}
+
+	if model.HasCreatedAt || model.HasUpdatedAt {
+		importSet["time"] = true
 	}
 
 	// Three-pass PK detection:
@@ -251,7 +259,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		}
 	}
 
-	if model.HasPrimaryKey && model.IDType == "uuid.UUID" {
+	if model.HasPrimaryKey && (model.IDType == "uuid.UUID" || model.IDType == "pgtype.UUID") {
 		importSet["github.com/google/uuid"] = true
 	}
 	if model.Mode != ModelModeReadOnly {
@@ -517,6 +525,8 @@ type GeneratedFactory struct {
 	IsAutoIncrementID bool           // True for serial/bigserial
 	HasCreatedAt      bool
 	HasUpdatedAt      bool
+	CreatedAtGoType   string // Go type of the created_at column (e.g., "pgtype.Timestamptz")
+	UpdatedAtGoType   string // Go type of the updated_at column (e.g., "pgtype.Timestamptz")
 }
 
 // FactoryField represents a field in a factory
@@ -566,7 +576,7 @@ func (g *Generator) BuildFactory(
 	}
 
 	// Only add uuid import if ID type uses UUID
-	if genModel.IDType == "uuid.UUID" || genModel.IDType == "" {
+	if genModel.IDType == "uuid.UUID" || genModel.IDType == "pgtype.UUID" || genModel.IDType == "" {
 		externalImports = append(externalImports, "github.com/google/uuid")
 	}
 
@@ -619,6 +629,8 @@ func (g *Generator) BuildFactory(
 		IsAutoIncrementID: genModel.IsAutoIncrementID,
 		HasCreatedAt:      genModel.HasCreatedAt,
 		HasUpdatedAt:      genModel.HasUpdatedAt,
+		CreatedAtGoType:   genModel.CreatedAtGoType,
+		UpdatedAtGoType:   genModel.UpdatedAtGoType,
 	}, nil
 }
 
@@ -653,6 +665,9 @@ func (g *Generator) determineFactoryDefault(fieldName, goType string) string {
 		return "nil"
 	}
 	if strings.HasPrefix(goType, "sql.Null") {
+		return fmt.Sprintf("%s{}", goType)
+	}
+	if strings.HasPrefix(goType, "pgtype.") {
 		return fmt.Sprintf("%s{}", goType)
 	}
 

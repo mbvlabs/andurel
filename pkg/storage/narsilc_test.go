@@ -3,42 +3,8 @@ package storage
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
-
-func TestNarsilcConfigContainsExpectedPaths(t *testing.T) {
-	config := string(NarsilcConfig())
-	for _, want := range []string{
-		"models/queries",
-		"models/internal/queries",
-		`sql_package: "pgx/v5"`,
-		"row_mapping: andurel",
-	} {
-		if !strings.Contains(config, want) {
-			t.Fatalf("narsilc config missing %q\n%s", want, config)
-		}
-	}
-	if strings.Contains(config, "emit_interface") {
-		t.Fatal("narsilc config must not emit an interface")
-	}
-}
-
-func TestWriteNarsilcConfig(t *testing.T) {
-	root := t.TempDir()
-
-	if err := WriteNarsilcConfig(root); err != nil {
-		t.Fatalf("WriteNarsilcConfig: %v", err)
-	}
-
-	written, err := os.ReadFile(filepath.Join(root, NarsilcConfigFile))
-	if err != nil {
-		t.Fatalf("read written config: %v", err)
-	}
-	if string(written) != string(NarsilcConfig()) {
-		t.Fatal("written narsilc config does not match storage module config")
-	}
-}
 
 func TestHasQueryFiles(t *testing.T) {
 	root := t.TempDir()

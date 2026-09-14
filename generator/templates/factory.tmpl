@@ -51,28 +51,18 @@ func Build{{.ModelName}}({{- range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}
 func Create{{.ModelName}}(ctx context.Context, db storage.Connection, {{range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}opts ...{{.ModelName}}Option) (models.{{.EntityName}}, error) {
 	built := Build{{.ModelName}}({{range .ForeignKeyFields}}{{.ArgumentName}}, {{end}}opts...)
 
-	entity := models.{{.EntityName}}{
+	return models.New{{.NamespaceVar}}(db).Create(ctx, models.Create{{.ModelName}}Data{
 {{- if and (not .IsAutoIncrementID) .IDGoFieldName}}
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
-		{{.IDGoFieldName}}: uuid.New(),
-{{- else}}
+{{- if and .IDType (ne .IDType "uuid.UUID") (ne .IDType "pgtype.UUID")}}
 		{{.IDGoFieldName}}: built.{{.IDGoFieldName}},
 {{- end}}
-{{- end}}
-{{- if .HasCreatedAt}}
-		CreatedAt: time.Now(),
-{{- end}}
-{{- if .HasUpdatedAt}}
-		UpdatedAt: time.Now(),
 {{- end}}
 {{- range .Fields}}
 {{- if not .IsAutoManaged}}
 		{{.Name}}: built.{{.Name}},
 {{- end}}
 {{- end}}
-	}
-
-	return models.New{{.NamespaceVar}}(db).Insert(ctx, entity)
+	})
 }
 
 // Create{{.ModelName | plural}} creates multiple {{.ModelName}} records at once

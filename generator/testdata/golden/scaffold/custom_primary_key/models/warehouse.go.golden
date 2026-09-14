@@ -1,48 +1,45 @@
 package models
 
 // andurel:model-mode crud
+// andurel:table warehouses
 
 import (
 	"context"
-	"database/sql"
 	"errors"
+	"testapp/models/internal/queries"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
-	"github.com/uptrace/bun"
 )
 
 type Warehouses struct {
-	db queryDB
+	queries *queries.Queries
 }
 
 func NewWarehouses(db storage.Connection) Warehouses {
-	return Warehouses{db: db}
+	return Warehouses{queries: queries.New(db)}
 }
 
 // WithTx returns a copy that runs queries inside tx.
 func (w Warehouses) WithTx(tx storage.Transaction) Warehouses {
-	return Warehouses{db: tx}
+	return Warehouses{queries: queries.New(tx)}
 }
 
 type Warehouse struct {
-	bun.BaseModel `bun:"table:warehouses,alias:warehouses"`
-	Slug          string         `bun:"slug,pk"`
-	Name          string         `bun:"name"`
-	Location      sql.NullString `bun:"location"`
-	CreatedAt     time.Time      `bun:"created_at"`
-	UpdatedAt     time.Time      `bun:"updated_at"`
+	Slug      string             `andurel:"slug"`
+	Name      string             `andurel:"name"`
+	Location  pgtype.Text        `andurel:"location"`
+	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
 }
 
 func (w Warehouses) Find(ctx context.Context, id string) (Warehouse, error) {
-	var entity Warehouse
-	err := w.db.Executor().NewSelect().
-		Model(&entity).
-		Where("slug = ?", id).
-		Scan(ctx)
+	entity, err := w.queries.GetWarehouse[Warehouse](ctx, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Warehouse{}, ErrNotFound
 		}
 		return Warehouse{}, err
@@ -53,15 +50,15 @@ func (w Warehouses) Find(ctx context.Context, id string) (Warehouse, error) {
 
 type CreateWarehouseData struct {
 	Name     string
-	Location sql.NullString
+	Location pgtype.Text
 	Slug     string
 }
 
 func (w Warehouses) Create(ctx context.Context, data CreateWarehouseData) (Warehouse, error) {
 	entity := Warehouse{
 		Slug:      data.Slug,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Name:      data.Name,
 		Location:  data.Location,
 	}
@@ -70,23 +67,25 @@ func (w Warehouses) Create(ctx context.Context, data CreateWarehouseData) (Wareh
 		return Warehouse{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := w.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return Warehouse{}, err
-	}
-
-	return entity, nil
+	return w.queries.CreateWarehouse[Warehouse](ctx, queries.CreateWarehouseParams{
+		Slug:      entity.Slug,
+		Name:      entity.Name,
+		Location:  entity.Location,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	})
 }
 
 type UpdateWarehouseData struct {
 	Slug     string
 	Name     string
-	Location sql.NullString
+	Location pgtype.Text
 }
 
 func (w Warehouses) Update(ctx context.Context, data UpdateWarehouseData) (Warehouse, error) {
 	entity := Warehouse{
 		Slug:      data.Slug,
-		UpdatedAt: time.Now(),
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Name:      data.Name,
 		Location:  data.Location,
 	}
@@ -95,35 +94,24 @@ func (w Warehouses) Update(ctx context.Context, data UpdateWarehouseData) (Wareh
 		return Warehouse{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := w.db.Executor().NewUpdate().
-		Model(&entity).
-		Column("name").
-		Column("location").
-		Column("updated_at").
-		WherePK().
-		Returning("*").
-		Scan(ctx)
+	row, err := w.queries.UpdateWarehouse[Warehouse](ctx, queries.UpdateWarehouseParams{
+		Slug:      entity.Slug,
+		Name:      entity.Name,
+		Location:  entity.Location,
+		UpdatedAt: entity.UpdatedAt,
+	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Warehouse{}, ErrNotFound
 		}
 		return Warehouse{}, err
 	}
 
-	return entity, nil
+	return row, nil
 }
 
 func (w Warehouses) Destroy(ctx context.Context, id string) error {
-	var entity Warehouse
-	err := w.db.Executor().NewDelete().
-		Model(&entity).
-		Where("slug = ?", id).
-		Returning("*").
-		Scan(ctx)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrNotFound
-		}
+	if err := w.queries.DeleteWarehouse(ctx, id); err != nil {
 		return err
 	}
 
@@ -131,14 +119,7 @@ func (w Warehouses) Destroy(ctx context.Context, id string) error {
 }
 
 func (w Warehouses) All(ctx context.Context) ([]Warehouse, error) {
-	var entities []Warehouse
-	if err := w.db.Executor().NewSelect().
-		Model(&entities).
-		Scan(ctx); err != nil {
-		return nil, err
-	}
-
-	return entities, nil
+	return w.queries.ListWarehouses[Warehouse](ctx).All()
 }
 
 type PaginatedWarehouses struct {
@@ -162,18 +143,16 @@ func (w Warehouses) Paginate(ctx context.Context, page, pageSize int64) (Paginat
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := w.db.Executor().NewSelect().
-		Model(&Warehouse{}).Count(ctx)
+	totalCount, err := w.queries.CountWarehouses(ctx)
 	if err != nil {
 		return PaginatedWarehouses{}, err
 	}
 
-	entities := make([]Warehouse, 0, int(pageSize))
-	if err := w.db.Executor().NewSelect().
-		Model(&entities).
-		Limit(int(pageSize)).
-		Offset(int(offset)).
-		Scan(ctx); err != nil {
+	entities, err := w.queries.ListWarehouses[Warehouse](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
 		return PaginatedWarehouses{}, err
 	}
 
@@ -191,8 +170,8 @@ func (w Warehouses) Paginate(ctx context.Context, page, pageSize int64) (Paginat
 func (w Warehouses) Upsert(ctx context.Context, id string, data CreateWarehouseData) (Warehouse, error) {
 	entity := Warehouse{
 		Slug:      id,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Name:      data.Name,
 		Location:  data.Location,
 	}
@@ -201,15 +180,11 @@ func (w Warehouses) Upsert(ctx context.Context, id string, data CreateWarehouseD
 		return Warehouse{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := w.db.Executor().NewInsert().
-		Model(&entity).
-		On("CONFLICT (slug) DO UPDATE").
-		Set("name = excluded.name").
-		Set("location = excluded.location").
-		Returning("*").
-		Scan(ctx); err != nil {
-		return Warehouse{}, err
-	}
-
-	return entity, nil
+	return w.queries.UpsertWarehouse[Warehouse](ctx, queries.UpsertWarehouseParams{
+		Slug:      entity.Slug,
+		Name:      entity.Name,
+		Location:  entity.Location,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	})
 }

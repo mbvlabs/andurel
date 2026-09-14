@@ -13,6 +13,7 @@ import (
 	"testapp/views"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
 )
@@ -129,7 +130,7 @@ func (w Widgets) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	widget, err := w.widgets.Find(etx.Request().Context(), widgetID)
+	widget, err := w.widgets.Find(etx.Request().Context(), pgtype.UUID{Bytes: widgetID, Valid: true})
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -183,7 +184,7 @@ func (w Widgets) Create(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Widget created successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-	return etx.Redirect(http.StatusSeeOther, routes.WidgetShow.URL(widget.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.WidgetShow.URL(widget.ID.Bytes))
 }
 
 func (w Widgets) Edit(etx *echo.Context) error {
@@ -192,7 +193,7 @@ func (w Widgets) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	widget, err := w.widgets.Find(etx.Request().Context(), widgetID)
+	widget, err := w.widgets.Find(etx.Request().Context(), pgtype.UUID{Bytes: widgetID, Valid: true})
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -225,7 +226,7 @@ func (w Widgets) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateWidgetData{
-		ID: widgetID,
+		ID: pgtype.UUID{Bytes: widgetID, Valid: true},
 
 		Name: payload.Name,
 
@@ -251,7 +252,7 @@ func (w Widgets) Update(etx *echo.Context) error {
 	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Widget updated successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-	return etx.Redirect(http.StatusSeeOther, routes.WidgetShow.URL(widget.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.WidgetShow.URL(widget.ID.Bytes))
 }
 
 func (w Widgets) Destroy(etx *echo.Context) error {
@@ -260,7 +261,7 @@ func (w Widgets) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = w.widgets.Destroy(etx.Request().Context(), widgetID)
+	err = w.widgets.Destroy(etx.Request().Context(), pgtype.UUID{Bytes: widgetID, Valid: true})
 	if err != nil {
 		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete widget: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())

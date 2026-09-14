@@ -1,37 +1,37 @@
 package models
 
 // andurel:model-mode crud
+// andurel:table event_metrics
 
 import (
 	"context"
 	"errors"
-	"time"
 
+	"github.com/example/shop/models/internal/queries"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
-	"github.com/uptrace/bun"
 )
 
 type EventMetrics struct {
-	db queryDB
+	queries *queries.Queries
 }
 
 func NewEventMetrics(db storage.Connection) EventMetrics {
-	return EventMetrics{db: db}
+	return EventMetrics{queries: queries.New(db)}
 }
 
 // WithTx returns a copy that runs queries inside tx.
 func (em EventMetrics) WithTx(tx storage.Transaction) EventMetrics {
-	return EventMetrics{db: tx}
+	return EventMetrics{queries: queries.New(tx)}
 }
 
 type EventMetric struct {
-	bun.BaseModel `bun:"table:event_metrics,alias:event_metrics"`
-	Action        string    `bun:"action"`
-	EntityType    string    `bun:"entity_type"`
-	EventCount    int32     `bun:"event_count"`
-	Successful    bool      `bun:"successful"`
-	OccurredAt    time.Time `bun:"occurred_at"`
+	Action     string             `andurel:"action"`
+	EntityType string             `andurel:"entity_type"`
+	EventCount int32              `andurel:"event_count"`
+	Successful bool               `andurel:"successful"`
+	OccurredAt pgtype.Timestamptz `andurel:"occurred_at"`
 }
 
 type CreateEventMetricData struct {
@@ -39,7 +39,7 @@ type CreateEventMetricData struct {
 	EntityType string
 	EventCount int32
 	Successful bool
-	OccurredAt time.Time
+	OccurredAt pgtype.Timestamptz
 }
 
 func (em EventMetrics) Create(ctx context.Context, data CreateEventMetricData) (EventMetric, error) {
@@ -55,22 +55,17 @@ func (em EventMetrics) Create(ctx context.Context, data CreateEventMetricData) (
 		return EventMetric{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := em.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return EventMetric{}, err
-	}
-
-	return entity, nil
+	return em.queries.CreateEventMetric[EventMetric](ctx, queries.CreateEventMetricParams{
+		Action:     entity.Action,
+		EntityType: entity.EntityType,
+		EventCount: entity.EventCount,
+		Successful: entity.Successful,
+		OccurredAt: entity.OccurredAt,
+	})
 }
 
 func (em EventMetrics) All(ctx context.Context) ([]EventMetric, error) {
-	var entities []EventMetric
-	if err := em.db.Executor().NewSelect().
-		Model(&entities).
-		Scan(ctx); err != nil {
-		return nil, err
-	}
-
-	return entities, nil
+	return em.queries.ListEventMetrics[EventMetric](ctx).All()
 }
 
 type PaginatedEventMetrics struct {
@@ -94,18 +89,16 @@ func (em EventMetrics) Paginate(ctx context.Context, page, pageSize int64) (Pagi
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := em.db.Executor().NewSelect().
-		Model(&EventMetric{}).Count(ctx)
+	totalCount, err := em.queries.CountEventMetrics(ctx)
 	if err != nil {
 		return PaginatedEventMetrics{}, err
 	}
 
-	entities := make([]EventMetric, 0, int(pageSize))
-	if err := em.db.Executor().NewSelect().
-		Model(&entities).
-		Limit(int(pageSize)).
-		Offset(int(offset)).
-		Scan(ctx); err != nil {
+	entities, err := em.queries.ListEventMetrics[EventMetric](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
 		return PaginatedEventMetrics{}, err
 	}
 

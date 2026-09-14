@@ -55,7 +55,7 @@ type Create{{.Name}}Data struct {
 {{- end}}
 {{- end}}
 {{- if not .IsAutoIncrementID}}
-{{- if and .IDType (ne .IDType "uuid.UUID")}}
+{{- if and .IDType (ne .IDType "uuid.UUID") (ne .IDType "pgtype.UUID")}}
 	{{.IDGoFieldName}} {{.IDType}}
 {{- end}}
 {{- end}}
@@ -65,18 +65,18 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, data Cre
 	entity := {{.EntityName}}{
 {{- if .HasPrimaryKey}}
 {{- if not .IsAutoIncrementID}}
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
-		{{.IDGoFieldName}}: uuid.New(),
+{{- if or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
+		{{.IDGoFieldName}}: pgtype.UUID{Bytes: uuid.New(), Valid: true},
 {{- else}}
 		{{.IDGoFieldName}}: data.{{.IDGoFieldName}},
 {{- end}}
 {{- end}}
 {{- end}}
 {{- if .HasCreatedAt}}
-		CreatedAt: time.Now(),
+		CreatedAt: {{if .CreatedAtGoType}}{{.CreatedAtGoType}}{Time: time.Now(), Valid: true}{{else}}time.Now(){{end}},
 {{- end}}
 {{- if .HasUpdatedAt}}
-		UpdatedAt: time.Now(),
+		UpdatedAt: {{if .UpdatedAtGoType}}{{.UpdatedAtGoType}}{Time: time.Now(), Valid: true}{{else}}time.Now(){{end}},
 {{- end}}
 {{- range .Fields}}
 {{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
@@ -89,10 +89,6 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, data Cre
 		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	return {{.ReceiverName}}.Insert(ctx, entity)
-}
-
-func ({{.ReceiverName}} {{.NamespaceType}}) Insert(ctx context.Context, entity {{.EntityName}}) ({{.EntityName}}, error) {
 	return {{.ReceiverName}}.queries.Create{{.EntityName}}[{{.EntityName}}](ctx, queries.Create{{.EntityName}}Params{
 {{- range .Fields}}
 {{- if and .IsPrimaryKey $.IsAutoIncrementID}}
@@ -118,7 +114,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, data Upd
 	entity := {{.EntityName}}{
 		{{.IDGoFieldName}}: data.{{.IDGoFieldName}},
 {{- if .HasUpdatedAt}}
-		UpdatedAt: time.Now(),
+		UpdatedAt: {{if .UpdatedAtGoType}}{{.UpdatedAtGoType}}{Time: time.Now(), Valid: true}{{else}}time.Now(){{end}},
 {{- end}}
 {{- range .Fields}}
 {{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
@@ -160,7 +156,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, id {{if
 
 {{if ne .Mode "create-only"}}
 func ({{.ReceiverName}} {{.NamespaceType}}) All(ctx context.Context) ([]{{.EntityName}}, error) {
-	return {{.ReceiverName}}.queries.List{{.PluralName}}[{{.EntityName}}](ctx)
+	return {{.ReceiverName}}.queries.List{{.PluralName}}[{{.EntityName}}](ctx).All()
 }
 
 type Paginated{{.PluralName}} struct {
@@ -189,10 +185,10 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, page, 
 		return Paginated{{.PluralName}}{}, err
 	}
 
-	entities, err := {{.ReceiverName}}.queries.List{{.PluralName}}Paginated[{{.EntityName}}](ctx, queries.List{{.PluralName}}PaginatedParams{
-		PageSize:   int32(pageSize),
-		PageOffset: int32(offset),
-	})
+	entities, err := {{.ReceiverName}}.queries.List{{.PluralName}}[{{.EntityName}}](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
 	if err != nil {
 		return Paginated{{.PluralName}}{}, err
 	}
@@ -214,10 +210,10 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, id {{if 
 	entity := {{.EntityName}}{
 		{{.IDGoFieldName}}: id,
 {{- if .HasCreatedAt}}
-		CreatedAt: time.Now(),
+		CreatedAt: {{if .CreatedAtGoType}}{{.CreatedAtGoType}}{Time: time.Now(), Valid: true}{{else}}time.Now(){{end}},
 {{- end}}
 {{- if .HasUpdatedAt}}
-		UpdatedAt: time.Now(),
+		UpdatedAt: {{if .UpdatedAtGoType}}{{.UpdatedAtGoType}}{Time: time.Now(), Valid: true}{{else}}time.Now(){{end}},
 {{- end}}
 {{- range .Fields}}
 {{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}

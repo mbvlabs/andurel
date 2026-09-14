@@ -6,11 +6,30 @@ package views
 
 import (
 	"fmt"
+	"time"
 	
 	"testapp/models"
 	
 	
 )
+
+type WidgetData struct {
+	Name string
+	Quantity int32
+	Active bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func newWidgetData(entity models.Widget) WidgetData {
+	return WidgetData{
+		Name: entity.Name,
+		Quantity: entity.Quantity,
+		Active: entity.Active,
+		CreatedAt: func() time.Time { if !entity.CreatedAt.Valid { return time.Time{} }; return entity.CreatedAt.Time }(),
+		UpdatedAt: func() time.Time { if !entity.UpdatedAt.Valid { return time.Time{} }; return entity.UpdatedAt.Time }(),
+	}
+}
 
 
 
@@ -41,23 +60,23 @@ templ (ws WidgetShow) Page() {
 								
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Name</label>
-									<p class="text-sm text-slate-100">{ ws.Item.Name }</p>
+									<p class="text-sm text-slate-100">{ newWidgetData(ws.Item).Name }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Quantity</label>
-									<p class="text-sm text-slate-100">{ fmt.Sprintf("%d", ws.Item.Quantity) }</p>
+									<p class="text-sm text-slate-100">{ fmt.Sprintf("%d", newWidgetData(ws.Item).Quantity) }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Active</label>
-									<p class="text-sm text-slate-100">{ fmt.Sprintf("%t", ws.Item.Active) }</p>
+									<p class="text-sm text-slate-100">{ fmt.Sprintf("%t", newWidgetData(ws.Item).Active) }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
-									<p class="text-sm text-slate-100">{ ws.Item.CreatedAt.String() }</p>
+									<p class="text-sm text-slate-100">{ newWidgetData(ws.Item).CreatedAt.String() }</p>
 								</div>
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
-									<p class="text-sm text-slate-100">{ ws.Item.UpdatedAt.String() }</p>
+									<p class="text-sm text-slate-100">{ newWidgetData(ws.Item).UpdatedAt.String() }</p>
 								</div>
 								
 							</div>

@@ -610,7 +610,8 @@ func writeFactoryImports(
 			imports["github.com/google/uuid"] = true
 		}
 	}
-	if !factory.IsAutoIncrementID && (factory.IDType == "" || factory.IDType == "uuid.UUID") {
+	if !factory.IsAutoIncrementID &&
+		(factory.IDType == "" || factory.IDType == "uuid.UUID" || factory.IDType == "pgtype.UUID") {
 		imports["github.com/google/uuid"] = true
 	}
 	for _, oldImport := range oldImports {
@@ -699,19 +700,11 @@ func writeFactoryCreateFunctions(sb *strings.Builder, factory *models.GeneratedF
 	fmt.Fprintf(sb, "\tbuilt := Build%s(", factory.ModelName)
 	writeFactoryFKArgs(sb, factory)
 	sb.WriteString("opts...)\n\n")
-	fmt.Fprintf(sb, "\tentity := models.%s{\n", factory.EntityName)
+	fmt.Fprintf(sb, "\treturn models.New%s(db).Create(ctx, models.Create%sData{\n", factory.NamespaceVar, factory.ModelName)
 	if !factory.IsAutoIncrementID && factory.IDGoFieldName != "" {
-		if factory.IDType == "" || factory.IDType == "uuid.UUID" {
-			fmt.Fprintf(sb, "\t\t%s: uuid.New(),\n", factory.IDGoFieldName)
-		} else {
+		if factory.IDType != "" && factory.IDType != "uuid.UUID" && factory.IDType != "pgtype.UUID" {
 			fmt.Fprintf(sb, "\t\t%s: built.%s,\n", factory.IDGoFieldName, factory.IDGoFieldName)
 		}
-	}
-	if factory.HasCreatedAt {
-		sb.WriteString("\t\tCreatedAt: time.Now(),\n")
-	}
-	if factory.HasUpdatedAt {
-		sb.WriteString("\t\tUpdatedAt: time.Now(),\n")
 	}
 	for _, field := range factory.Fields {
 		if field.IsAutoManaged {
@@ -719,12 +712,7 @@ func writeFactoryCreateFunctions(sb *strings.Builder, factory *models.GeneratedF
 		}
 		fmt.Fprintf(sb, "\t\t%s: built.%s,\n", field.Name, field.Name)
 	}
-	sb.WriteString("\t}\n\n")
-	fmt.Fprintf(
-		sb,
-		"\treturn models.New%s(db).Insert(ctx, entity)\n}\n\n",
-		factory.NamespaceVar,
-	)
+	sb.WriteString("\t})\n}\n\n")
 
 	pluralModelName := inflection.Plural(factory.ModelName)
 	fmt.Fprintf(sb, "func Create%s(ctx context.Context, db storage.Connection, ", pluralModelName)
@@ -1022,10 +1010,27 @@ func factoryUnifiedDiff(oldContent, newContent string) (string, error) {
 
 func entityNames(src []byte) []string {
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "", src, 0)
+	file, err := parser.ParseFile(fset, "", src, parser.ParseComments)
 	if err != nil {
 		return nil
 	}
+
+	hasTableMarker := false
+	for _, group := range file.Comments {
+		for _, comment := range group.List {
+			if strings.Contains(comment.Text, "andurel:table") {
+				hasTableMarker = true
+				break
+			}
+		}
+		if hasTableMarker {
+			break
+		}
+	}
+	if !hasTableMarker {
+		return nil
+	}
+
 	var names []string
 	for _, decl := range file.Decls {
 		genDecl, ok := decl.(*ast.GenDecl)
@@ -1034,7 +1039,7 @@ func entityNames(src []byte) []string {
 		}
 		for _, spec := range genDecl.Specs {
 			typeSpec, ok := spec.(*ast.TypeSpec)
-			if !ok || !hasBunBaseModel(typeSpec) {
+			if !ok || !isEntityStruct(typeSpec) {
 				continue
 			}
 			names = append(names, typeSpec.Name.Name)
@@ -1043,17 +1048,13 @@ func entityNames(src []byte) []string {
 	return names
 }
 
-func hasBunBaseModel(typeSpec *ast.TypeSpec) bool {
+func isEntityStruct(typeSpec *ast.TypeSpec) bool {
 	structType, ok := typeSpec.Type.(*ast.StructType)
 	if !ok || structType.Fields == nil {
 		return false
 	}
 	for _, field := range structType.Fields.List {
-		if len(field.Names) != 0 {
-			continue
-		}
-		selector, ok := field.Type.(*ast.SelectorExpr)
-		if ok && selector.Sel != nil && selector.Sel.Name == "BaseModel" {
+		if len(field.Names) != 0 && field.Tag != nil {
 			return true
 		}
 	}
