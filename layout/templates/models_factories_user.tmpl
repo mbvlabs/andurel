@@ -2,16 +2,17 @@ package factories
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
+	"uuid"
 
 	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/models/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 
 	"github.com/go-faker/faker/v4"
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // UserFactory wraps models.User for testing
@@ -28,7 +29,7 @@ func BuildUser(opts ...UserOption) models.User {
 	f := &UserFactory{
 		User: models.User{
 			Email:            faker.Email(),
-			EmailValidatedAt: sql.NullTime{},
+			EmailValidatedAt: pgtype.Timestamptz{},
 			Password:         defaultPassword(),
 			IsAdmin:          false,
 		},
@@ -45,39 +46,33 @@ func BuildUser(opts ...UserOption) models.User {
 // It returns the entity populated with all DB-assigned values via RETURNING *.
 func CreateUser(
 	ctx context.Context,
-	exec storage.Executor,
+	db storage.Connection,
 	opts ...UserOption,
 ) (models.User, error) {
 	built := BuildUser(opts...)
 
-	entity := models.User{
-		ID:               uuid.New(),
-		CreatedAt:        time.Now(),
-		UpdatedAt:        time.Now(),
+	return queries.New(db).CreateUser[models.User](ctx, queries.CreateUserParams{
+		ID:               pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Email:            built.Email,
 		EmailValidatedAt: built.EmailValidatedAt,
 		Password:         built.Password,
 		IsAdmin:          built.IsAdmin,
-	}
-
-	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
-		return models.User{}, err
-	}
-
-	return entity, nil
+	})
 }
 
 // CreateUsers creates multiple User records at once
 func CreateUsers(
 	ctx context.Context,
-	exec storage.Executor,
+	db storage.Connection,
 	count int,
 	opts ...UserOption,
 ) ([]models.User, error) {
 	users := make([]models.User, 0, count)
 
 	for i := range count {
-		user, err := CreateUser(ctx, exec, opts...)
+		user, err := CreateUser(ctx, db, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create user %d: %w", i+1, err)
 		}
@@ -104,7 +99,7 @@ func WithIsAdmin(isAdmin bool) UserOption {
 // WithEmailValidatedAt sets the email validation timestamp
 func WithEmailValidatedAt(t time.Time) UserOption {
 	return func(f *UserFactory) {
-		f.EmailValidatedAt = sql.NullTime{Time: t, Valid: true}
+		f.EmailValidatedAt = pgtype.Timestamptz{Time: t, Valid: true}
 	}
 }
 

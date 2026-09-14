@@ -74,10 +74,10 @@ func TestModelGenerationGoldens(t *testing.T) {
 			"type ProductStatus string\n\nconst (\n\tProductStatusActive   ProductStatus = \"active\"\n\tProductStatusArchived ProductStatus = \"archived\"\n)\n\ntype Product struct {",
 			1,
 		)
-		modelContent = strings.Replace(
+modelContent = strings.Replace(
 			modelContent,
-			"bun.BaseModel `bun:\"table:products,alias:products\"`",
-			"bun.BaseModel `bun:\"table:products,alias:products\"`\n\tStatus        ProductStatus `bun:\"status\"`",
+			"ID          pgtype.UUID        `andurel:\"id\"`",
+			"ID          pgtype.UUID        `andurel:\"id\"`\n\tStatus        ProductStatus `andurel:\"status\"`",
 			1,
 		)
 		if err := os.WriteFile(modelPath, []byte(modelContent), 0o600); err != nil {
@@ -93,7 +93,7 @@ func TestModelGenerationGoldens(t *testing.T) {
 			t.Fatalf("failed to update model: %v", err)
 		}
 
-		if !regexp.MustCompile("Status\\s+ProductStatus\\s+`bun:\"status\"`").
+		if !regexp.MustCompile("Status\\s+ProductStatus\\s+`andurel:\"status\"`").
 			MatchString(result.NewFileContent) {
 			t.Fatalf(
 				"updated model should preserve custom Status field\n\n%s",
@@ -169,7 +169,7 @@ func setupModelGoldenProject(t *testing.T, migrationsFixture string) *ModelManag
 
 	if err := os.WriteFile(
 		filepath.Join(projectDir, "go.mod"),
-		[]byte("module github.com/example/shop\n\ngo 1.26\n"),
+		[]byte("module github.com/example/shop\n\ngo 1.27.1\n"),
 		0o644,
 	); err != nil {
 		t.Fatalf("failed to write go.mod: %v", err)
@@ -238,14 +238,8 @@ func generatorPackageDir(t *testing.T) string {
 const modelNamespaceFixture = `package models
 
 import (
-	"github.com/mbvlabs/andurel/pkg/storage"
-
 	"go.uber.org/fx"
 )
-
-type queryDB interface {
-	Executor() storage.Executor
-}
 
 var Module = fx.Module(
 	"models",

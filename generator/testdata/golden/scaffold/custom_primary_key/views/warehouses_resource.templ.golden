@@ -28,8 +28,8 @@ func newWarehouseData(entity models.Warehouse) WarehouseData {
 	return WarehouseData{
 		Name: entity.Name,
 		Location: func() string { if !entity.Location.Valid { return "" }; return entity.Location.String }(),
-		CreatedAt: entity.CreatedAt,
-		UpdatedAt: entity.UpdatedAt,
+		CreatedAt: func() time.Time { if !entity.CreatedAt.Valid { return time.Time{} }; return entity.CreatedAt.Time }(),
+		UpdatedAt: func() time.Time { if !entity.UpdatedAt.Valid { return time.Time{} }; return entity.UpdatedAt.Time }(),
 	}
 }
 

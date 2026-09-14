@@ -23,9 +23,9 @@ type managedTool struct {
 
 var managedTools = []managedTool{
 	{
-		Name:        "sqlc",
-		Version:     versions.Sqlc,
-		Description: "Typed SQL query generator",
+		Name:        "narsilc",
+		Version:     versions.Narsilc,
+		Description: "Typed SQL compiler with caller-owned result structs",
 	},
 	{
 		Name:        "templ",

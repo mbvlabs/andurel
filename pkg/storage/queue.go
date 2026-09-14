@@ -3,15 +3,15 @@ package storage
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
 	"maps"
 	"slices"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/riverqueue/river"
-	"github.com/riverqueue/river/riverdriver/riverdatabasesql"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/river/rivertype"
 )
 
@@ -20,18 +20,18 @@ type InsertQueue interface {
 	Insert(context.Context, river.JobArgs, *river.InsertOpts) (*rivertype.JobInsertResult, error)
 	InsertTx(
 		context.Context,
-		*sql.Tx,
+		Transaction,
 		river.JobArgs,
 		*river.InsertOpts,
 	) (*rivertype.JobInsertResult, error)
 	InsertMany(context.Context, []river.InsertManyParams) ([]*rivertype.JobInsertResult, error)
 	InsertManyTx(
 		context.Context,
-		*sql.Tx,
+		Transaction,
 		[]river.InsertManyParams,
 	) ([]*rivertype.JobInsertResult, error)
 	InsertManyFast(context.Context, []river.InsertManyParams) (int, error)
-	InsertManyFastTx(context.Context, *sql.Tx, []river.InsertManyParams) (int, error)
+	InsertManyFastTx(context.Context, Transaction, []river.InsertManyParams) (int, error)
 }
 
 // QueueOption configures the underlying River client.
@@ -180,12 +180,12 @@ func WithRiverWorkers(workers *river.Workers) QueueOption {
 
 // QueueInsert is an independently constructible River job inserter.
 type QueueInsert struct {
-	client *river.Client[*sql.Tx]
+	client *river.Client[pgx.Tx]
 }
 
 var _ InsertQueue = (*QueueInsert)(nil)
 
-// NewQueueInsert creates an insert-only queue client using connection's sql.DB.
+// NewQueueInsert creates an insert-only queue client using connection.
 func NewQueueInsert(connection Connection, config QueueConfig, options ...QueueOption) (*QueueInsert, error) {
 	client, err := newQueueClient(connection, config, options...)
 	if err != nil {
@@ -204,11 +204,15 @@ func (q *QueueInsert) Insert(
 
 func (q *QueueInsert) InsertTx(
 	ctx context.Context,
-	tx *sql.Tx,
+	tx Transaction,
 	args river.JobArgs,
 	opts *river.InsertOpts,
 ) (*rivertype.JobInsertResult, error) {
-	return q.client.InsertTx(ctx, tx, args, opts)
+	pgxTx, err := pgxTxFrom(tx)
+	if err != nil {
+		return nil, err
+	}
+	return q.client.InsertTx(ctx, pgxTx, args, opts)
 }
 
 func (q *QueueInsert) InsertMany(
@@ -220,10 +224,14 @@ func (q *QueueInsert) InsertMany(
 
 func (q *QueueInsert) InsertManyTx(
 	ctx context.Context,
-	tx *sql.Tx,
+	tx Transaction,
 	params []river.InsertManyParams,
 ) ([]*rivertype.JobInsertResult, error) {
-	return q.client.InsertManyTx(ctx, tx, params)
+	pgxTx, err := pgxTxFrom(tx)
+	if err != nil {
+		return nil, err
+	}
+	return q.client.InsertManyTx(ctx, pgxTx, params)
 }
 
 func (q *QueueInsert) InsertManyFast(
@@ -235,18 +243,22 @@ func (q *QueueInsert) InsertManyFast(
 
 func (q *QueueInsert) InsertManyFastTx(
 	ctx context.Context,
-	tx *sql.Tx,
+	tx Transaction,
 	params []river.InsertManyParams,
 ) (int, error) {
-	return q.client.InsertManyFastTx(ctx, tx, params)
+	pgxTx, err := pgxTxFrom(tx)
+	if err != nil {
+		return 0, err
+	}
+	return q.client.InsertManyFastTx(ctx, pgxTx, params)
 }
 
 // QueueProcessor owns the lifecycle of a River worker client.
 type QueueProcessor struct {
-	client *river.Client[*sql.Tx]
+	client *river.Client[pgx.Tx]
 }
 
-// NewQueueProcessor creates a worker client using connection's sql.DB.
+// NewQueueProcessor creates a worker client using connection.
 func NewQueueProcessor(connection Connection, config QueueConfig, options ...QueueOption) (*QueueProcessor, error) {
 	client, err := newQueueClient(connection, config, options...)
 	if err != nil {
@@ -265,13 +277,13 @@ func (q *QueueProcessor) Stop(ctx context.Context) error {
 	return q.client.Stop(ctx)
 }
 
-func newQueueClient(connection Connection, config QueueConfig, options ...QueueOption) (*river.Client[*sql.Tx], error) {
+func newQueueClient(connection Connection, config QueueConfig, options ...QueueOption) (*river.Client[pgx.Tx], error) {
 	if connection == nil {
 		return nil, fmt.Errorf("storage: queue connection is required")
 	}
-	db := connection.DB()
-	if db == nil {
-		return nil, fmt.Errorf("storage: queue connection returned a nil DB")
+	pool, err := poolFrom(connection)
+	if err != nil {
+		return nil, err
 	}
 
 	config = config.Clone()
@@ -284,7 +296,7 @@ func newQueueClient(connection Connection, config QueueConfig, options ...QueueO
 			option(&riverConfig)
 		}
 	}
-	client, err := river.NewClient(riverdatabasesql.New(db), &riverConfig)
+	client, err := river.NewClient(riverpgxv5.New(pool), &riverConfig)
 	if err != nil {
 		return nil, fmt.Errorf("storage: create queue client: %w", err)
 	}

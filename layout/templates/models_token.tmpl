@@ -1,53 +1,55 @@
 package models
 
+// andurel:table tokens
+
 import (
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/base32"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"time"
+	"uuid"
+
+	"{{.ModuleName}}/models/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
-	"github.com/google/uuid"
-	"github.com/uptrace/bun"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Tokens struct {
-	db queryDB
+	queries *queries.Queries
 }
 
 func NewTokens(db storage.Connection) Tokens {
-	return Tokens{db: db}
+	return Tokens{queries: queries.New(db)}
 }
 
 // WithTx returns a copy that runs queries inside tx.
 func (t Tokens) WithTx(tx storage.Transaction) Tokens {
-	return Tokens{db: tx}
+	return Tokens{queries: queries.New(tx)}
 }
 
 type Token struct {
-	bun.BaseModel `bun:"table:tokens,alias:tokens"`
-	ID            uuid.UUID       `bun:"id,pk,type:uuid"`
-	CreatedAt     time.Time       `bun:"created_at"`
-	UpdatedAt     time.Time       `bun:"updated_at"`
-	Scope         string          `bun:"scope"`
-	ExpiresAt     time.Time       `bun:"expires_at"`
-	Hash          string          `bun:"hash"`
-	MetaData      json.RawMessage `bun:"meta_data,type:jsonb"`
+	ID        pgtype.UUID        `andurel:"id"`
+	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
+	Scope     string             `andurel:"scope"`
+	ExpiresAt pgtype.Timestamptz `andurel:"expires_at"`
+	Hash      string             `andurel:"hash"`
+	MetaData  []byte             `andurel:"meta_data"`
 }
 
 func (t Token) IsValid(token, secret string) bool {
 	expected := HashForStorage(token, secret)
 
 	isEqual := hmac.Equal([]byte(expected), []byte(t.Hash))
-	isNotExpired := time.Now().Before(t.ExpiresAt)
+	isNotExpired := time.Now().Before(t.ExpiresAt.Time)
 
 	return isEqual && isNotExpired
 }
@@ -82,14 +84,10 @@ func HashForStorage(plain, secret string) string {
 	return hex.EncodeToString(m.Sum(nil))
 }
 
-func (t Tokens) Find(ctx context.Context, id uuid.UUID) (Token, error) {
-	var entity Token
-	err := t.db.Executor().NewSelect().
-		Model(&entity).
-		Where("id = ?", id).
-		Scan(ctx)
+func (t Tokens) Find(ctx context.Context, id pgtype.UUID) (Token, error) {
+	entity, err := t.queries.GetToken[Token](ctx, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Token{}, ErrNotFound
 		}
 
@@ -107,14 +105,12 @@ func (t Tokens) FindByScopeAndHash(
 ) (Token, error) {
 	hash := HashForStorage(plainToken, secret)
 
-	var entity Token
-	err := t.db.Executor().NewSelect().
-		Model(&entity).
-		Where("scope = ?", scope).
-		Where("hash = ?", hash).
-		Scan(ctx)
+	entity, err := t.queries.GetTokenByScopeAndHash[Token](ctx, queries.GetTokenByScopeAndHashParams{
+		Scope: scope,
+		Hash:  hash,
+	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Token{}, ErrNotFound
 		}
 
@@ -128,7 +124,7 @@ type createTokenData struct {
 	Scope     string
 	ExpiresAt time.Time
 	Hash      string
-	MetaData  json.RawMessage
+	MetaData  []byte
 }
 
 func (t *Token) Validate() error {
@@ -146,11 +142,11 @@ func (t Tokens) createToken(
 	data createTokenData,
 ) (Token, error) {
 	entity := Token{
-		ID:        uuid.New(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Scope:     data.Scope,
-		ExpiresAt: data.ExpiresAt,
+		ExpiresAt: pgtype.Timestamptz{Time: data.ExpiresAt, Valid: true},
 		Hash:      data.Hash,
 		MetaData:  data.MetaData,
 	}
@@ -159,11 +155,15 @@ func (t Tokens) createToken(
 		return Token{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := t.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return Token{}, err
-	}
-
-	return entity, nil
+	return t.queries.CreateToken[Token](ctx, queries.CreateTokenParams{
+		ID:        entity.ID,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+		Scope:     entity.Scope,
+		ExpiresAt: entity.ExpiresAt,
+		Hash:      entity.Hash,
+		MetaData:  entity.MetaData,
+	})
 }
 
 func (t Tokens) CreateCode(
@@ -171,7 +171,7 @@ func (t Tokens) CreateCode(
 	secret string,
 	scope string,
 	expiresAt time.Time,
-	metaData json.RawMessage,
+	metaData []byte,
 ) (string, error) {
 	tkn, err := GenerateCode(6)
 	if err != nil {
@@ -195,7 +195,7 @@ func (t Tokens) Create(
 	secret string,
 	scope string,
 	expiresAt time.Time,
-	metaData json.RawMessage,
+	metaData []byte,
 ) (string, error) {
 	tkn, err := GenerateSecureToken()
 	if err != nil {
@@ -214,24 +214,12 @@ func (t Tokens) Create(
 	return tkn, nil
 }
 
-func (t Tokens) Destroy(ctx context.Context, id uuid.UUID) error {
-	_, err := t.db.Executor().NewDelete().
-		Model((*Token)(nil)).
-		Where("id = ?", id).
-		Exec(ctx)
-	return err
+func (t Tokens) Destroy(ctx context.Context, id pgtype.UUID) error {
+	return t.queries.DeleteToken(ctx, id)
 }
 
 func (t Tokens) All(ctx context.Context) ([]Token, error) {
-	var entities []Token
-	err := t.db.Executor().NewSelect().
-		Model(&entities).
-		Scan(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return entities, nil
+	return t.queries.ListTokens[Token](ctx).All()
 }
 
 type PaginatedTokens struct {
@@ -258,18 +246,16 @@ func (t Tokens) Paginate(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := t.db.Executor().NewSelect().
-		Model(&Token{}).Count(ctx)
+	totalCount, err := t.queries.CountTokens(ctx)
 	if err != nil {
 		return PaginatedTokens{}, err
 	}
 
-	entities := make([]Token, 0, int(pageSize))
-	if err := t.db.Executor().NewSelect().
-		Model(&entities).
-		Limit(int(pageSize)).
-		Offset(int(offset)).
-		Scan(ctx); err != nil {
+	entities, err := t.queries.ListTokens[Token](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
 		return PaginatedTokens{}, err
 	}
 

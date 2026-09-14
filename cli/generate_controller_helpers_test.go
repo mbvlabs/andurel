@@ -289,7 +289,7 @@ func TestReadModulePathBranches(t *testing.T) {
 	if _, err := readModulePath(); err == nil || !strings.Contains(err.Error(), "failed to read") {
 		t.Fatalf("expected missing go.mod error, got %v", err)
 	}
-	if err := os.WriteFile("go.mod", []byte("go 1.26\n"), 0o600); err != nil {
+	if err := os.WriteFile("go.mod", []byte("go 1.27.1\n"), 0o600); err != nil {
 		t.Fatalf("write module-less go.mod: %v", err)
 	}
 	if _, err := readModulePath(); err == nil ||
@@ -298,7 +298,7 @@ func TestReadModulePathBranches(t *testing.T) {
 	}
 	if err := os.WriteFile(
 		"go.mod",
-		[]byte("module example.com/app\n\ngo 1.26\n"),
+		[]byte("module example.com/app\n\ngo 1.27.1\n"),
 		0o600,
 	); err != nil {
 		t.Fatalf("write go.mod: %v", err)

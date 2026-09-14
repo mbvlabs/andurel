@@ -186,12 +186,12 @@ func TestResourceControllerPayloadAssignmentsAreShared(t *testing.T) {
 			},
 			{
 				Name:       "ArchivedOn",
-				GoType:     "bun.NullTime",
+				GoType:     "sql.NullTime",
 				GoFormType: "time.Time",
 				CamelCase:  "archivedOn",
 			},
 			{Name: "Title", GoType: "sql.NullString", GoFormType: "string", CamelCase: "title"},
-			{Name: "Summary", GoType: "bun.NullString", GoFormType: "string", CamelCase: "summary"},
+			{Name: "Summary", GoType: "sql.NullString", GoFormType: "string", CamelCase: "summary"},
 			{Name: "Payload", GoType: "[]byte", GoFormType: "string", CamelCase: "payload"},
 			{
 				Name:       "Metadata",

@@ -29,7 +29,8 @@ type GeneratedField struct {
 	Type            string
 	Comment         string
 	Package         string
-	BunTag          string // Full bun struct tag (e.g., `bun:"id,pk,type:uuid"`)
+	ColumnName      string // SQL column name (e.g., "id")
+	BunTag          string // Deprecated alias of ColumnName for existing updater code
 	IsForeignKey    bool
 	IsNullable      bool
 	IsPrimaryKey    bool
@@ -63,6 +64,8 @@ type GeneratedModel struct {
 	ReceiverName        string // u (short receiver for the service methods)
 	HasCreatedAt        bool
 	HasUpdatedAt        bool
+	CreatedAtGoType     string // Go type of the created_at column (e.g., "pgtype.Timestamptz")
+	UpdatedAtGoType     string // Go type of the updated_at column (e.g., "pgtype.Timestamptz")
 	Mode                ModelMode
 }
 
@@ -177,8 +180,10 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 
 	importSet := make(map[string]bool)
 	importSet["context"] = true
-	importSet["github.com/uptrace/bun"] = true
 	importSet["github.com/mbvlabs/andurel/pkg/storage"] = true
+	if config.ModulePath != "" {
+		importSet[config.ModulePath+"/models/internal/queries"] = true
+	}
 
 	for _, col := range table.Columns {
 		field, err := g.buildField(col)
@@ -207,10 +212,16 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 
 		if col.Name == "created_at" {
 			model.HasCreatedAt = true
+			model.CreatedAtGoType = field.Type
 		}
 		if col.Name == "updated_at" {
 			model.HasUpdatedAt = true
+			model.UpdatedAtGoType = field.Type
 		}
+	}
+
+	if model.HasCreatedAt || model.HasUpdatedAt {
+		importSet["time"] = true
 	}
 
 	// Three-pass PK detection:
@@ -248,8 +259,8 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 		}
 	}
 
-	if model.HasPrimaryKey && model.IDType == "uuid.UUID" {
-		importSet["github.com/google/uuid"] = true
+	if model.HasPrimaryKey && (model.IDType == "uuid.UUID" || model.IDType == "pgtype.UUID") {
+		importSet["uuid"] = true
 	}
 	if model.Mode != ModelModeReadOnly {
 		importSet["errors"] = true
@@ -259,7 +270,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	}
 	if model.HasPrimaryKey && model.Mode != ModelModeCreateOnly {
 		importSet["errors"] = true
-		importSet["database/sql"] = true
+		importSet["github.com/jackc/pgx/v5"] = true
 	}
 
 	stdImports, extImports := groupAndSortImports(importSet)
@@ -307,13 +318,12 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		return GeneratedField{}, err
 	}
 
-	bunTag := g.typeMapper.BuildBunTag(col)
-
 	field := GeneratedField{
 		Name:            types.FormatFieldName(col.Name),
 		Type:            goType,
 		Package:         pkg,
-		BunTag:          bunTag,
+		ColumnName:      col.Name,
+		BunTag:          col.Name,
 		IsForeignKey:    col.ForeignKey != nil,
 		IsNullable:      col.IsNullable,
 		IsPrimaryKey:    col.IsPrimaryKey,
@@ -334,7 +344,7 @@ func (g *Generator) addModelTypeImports(goType string) map[string]bool {
 		importSet["time"] = true
 	}
 	if strings.Contains(goType, "uuid.UUID") {
-		importSet["github.com/google/uuid"] = true
+		importSet["uuid"] = true
 	}
 	if strings.HasPrefix(goType, "sql.Null") {
 		importSet["database/sql"] = true
@@ -352,11 +362,11 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 			return strings.ToLower(s)
 		},
 		"Plural": inflection.Plural,
-		"columnName": func(bunTag string) string {
-			if before, _, ok := strings.Cut(bunTag, ","); ok {
+		"columnName": func(tag string) string {
+			if before, _, ok := strings.Cut(tag, ","); ok {
 				return before
 			}
-			return bunTag
+			return tag
 		},
 	}
 
@@ -515,6 +525,8 @@ type GeneratedFactory struct {
 	IsAutoIncrementID bool           // True for serial/bigserial
 	HasCreatedAt      bool
 	HasUpdatedAt      bool
+	CreatedAtGoType   string // Go type of the created_at column (e.g., "pgtype.Timestamptz")
+	UpdatedAtGoType   string // Go type of the updated_at column (e.g., "pgtype.Timestamptz")
 }
 
 // FactoryField represents a field in a factory
@@ -553,7 +565,9 @@ func (g *Generator) BuildFactory(
 		}
 	}
 
-	// Collect imports - context and fmt are already in the template
+	// Collect imports used by emitted factory fields. Auto-managed ID and
+	// timestamp fields are omitted from Build/Create, so they must not pull
+	// uuid/time into the file.
 	standardImports := []string{}
 	externalImports := []string{}
 	for _, field := range factoryFields {
@@ -563,24 +577,26 @@ func (g *Generator) BuildFactory(
 		}
 	}
 
-	// Only add uuid import if ID type uses UUID
-	if genModel.IDType == "uuid.UUID" || genModel.IDType == "" {
-		externalImports = append(externalImports, "github.com/google/uuid")
-	}
-
-	// Add time import if needed
+	autoManaged := make(map[string]bool, len(factoryFields))
 	for _, field := range factoryFields {
-		if field.IsTimestamp {
+		if field.IsAutoManaged {
+			autoManaged[field.Name] = true
+			continue
+		}
+		if strings.Contains(field.Type, "uuid.") || strings.Contains(field.DefaultValue, "uuid.") {
+			standardImports = append(standardImports, "uuid")
+		}
+		if strings.Contains(field.Type, "time.") || strings.Contains(field.DefaultValue, "time.") {
 			standardImports = append(standardImports, "time")
-			break
 		}
 	}
 	for _, field := range genModel.Fields {
+		if autoManaged[field.Name] {
+			continue
+		}
 		switch {
 		case strings.Contains(field.Type, "sql.Null"):
 			standardImports = append(standardImports, "database/sql")
-		case strings.Contains(field.Type, "bun.Null"):
-			externalImports = append(externalImports, "github.com/uptrace/bun")
 		}
 		if field.Package == "" {
 			continue
@@ -619,6 +635,8 @@ func (g *Generator) BuildFactory(
 		IsAutoIncrementID: genModel.IsAutoIncrementID,
 		HasCreatedAt:      genModel.HasCreatedAt,
 		HasUpdatedAt:      genModel.HasUpdatedAt,
+		CreatedAtGoType:   genModel.CreatedAtGoType,
+		UpdatedAtGoType:   genModel.UpdatedAtGoType,
 	}, nil
 }
 
@@ -652,7 +670,10 @@ func (g *Generator) determineFactoryDefault(fieldName, goType string) string {
 	if strings.HasPrefix(goType, "*") {
 		return "nil"
 	}
-	if strings.HasPrefix(goType, "sql.Null") || strings.HasPrefix(goType, "bun.Null") {
+	if strings.HasPrefix(goType, "sql.Null") {
+		return fmt.Sprintf("%s{}", goType)
+	}
+	if strings.HasPrefix(goType, "pgtype.") {
 		return fmt.Sprintf("%s{}", goType)
 	}
 
@@ -747,12 +768,9 @@ func (g *Generator) getFactoryGoZero(goType string) string {
 		return "nil"
 	case "[]byte":
 		return "nil"
-	// sql.Null and bun.Null zero values use their empty struct literal
+	// sql.Null zero values use their empty struct literal
 	case "sql.NullString", "sql.NullBool", "sql.NullInt16", "sql.NullInt32",
 		"sql.NullInt64", "sql.NullFloat64", "sql.NullTime":
-		return fmt.Sprintf("%s{}", goType)
-	case "bun.NullString", "bun.NullBool", "bun.NullInt32", "bun.NullInt64",
-		"bun.NullFloat64", "bun.NullTime":
 		return fmt.Sprintf("%s{}", goType)
 	default:
 		if strings.HasPrefix(goType, "[]") {

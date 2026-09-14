@@ -2,7 +2,7 @@
 
 # Andurel, Space-grade Go framework for humans and agents
 
-[![Go Version](https://img.shields.io/badge/go-1.26.0%2B-blue.svg)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/go-1.27.1%2B-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/mbvlabs/andurel.svg)](https://pkg.go.dev/github.com/mbvlabs/andurel)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mbvlabs/andurel)](https://goreportcard.com/report/github.com/mbvlabs/andurel)
@@ -34,7 +34,7 @@ Andurel is built for humans and agents on the same pad:
 
 - **Airframe** — Generated models, factories, controllers, routes, and pages that belong to the application
 - **GNC** — Fx for dependency injection and lifecycle. Explicit wiring, not a hidden runtime
-- **Propellant** — PostgreSQL with Bun for ordinary persistence and sqlc for the queries that matter
+- **Propellant** — PostgreSQL with narsilc-generated queries into application-owned model structs
 - **Payload** — Inertia v3 with React, Vue, or Svelte. Same Go backend, official Inertia adapters, optional SSR. Templ + Datastar remains available for hypermedia pages
 - **Range ops** — River jobs, email, and queues on the same stack that serves the request path
 - **Ground support** — Agent-ready CLI, JSON discovery, and AGENTS.md so machines can operate the project without a second stack
@@ -49,7 +49,7 @@ Andurel is built for humans and agents on the same pad:
 
 - **[Echo](https://echo.labstack.com/)** - High-performance HTTP framework
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS tooling
-- **[Bun](https://bun.uptrace.dev/)** - Type-safe SQL ORM and query builder
+- **[narsilc](https://github.com/mbvlabs/narsilc)** - Typed SQL compiler with caller-owned result structs
 - **[Templ](https://templ.guide/)** - Type-safe HTML templates
 - **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity
 - **[River](https://riverqueue.com/)** - PostgreSQL-backed background jobs and workflows
@@ -219,7 +219,7 @@ andurel views --json
 andurel jobs --json
 ```
 
-`andurel project info --json` reports the Inertia adapter and JavaScript package manager from `andurel.lock`. sqlc is always scaffolded but only active when `models/queries/` contains an annotated query; use `andurel generate queries --json` for a structured generation report.
+`andurel project info --json` reports the Inertia adapter and JavaScript package manager from `andurel.lock`. Models persist through narsilc-generated queries; use `andurel generate queries --json` to regenerate typed query code.
 
 The embedded agent skill is available from the binary:
 
@@ -345,20 +345,20 @@ When `--api` is set, any namespace segment is nested under `api`, and the defaul
 
 **`generate view`** — Generates Go code from `.templ` template files (runs `templ generate`).
 
-**`generate query`** — Creates an application-owned sqlc SQL file under `models/queries/`. Pass `--table` to include an active starter query for an existing table; without it, the file contains commented examples.
+**`generate query`** — Creates an application-owned narsilc SQL file under `models/queries/`. Pass `--table` to include an active starter query for an existing table; without it, the file contains commented examples.
 
 ```bash
 andurel generate query UserReport --table users --dry-run --json
 andurel generate query UserReport --table users --json
 ```
 
-**`generate queries`** — Runs the project-managed sqlc binary and formats generated Go code under `models/internal/queries/`. The command is a no-op when there are no SQL files containing a `-- name:` annotation, and structured modes still return a mutation report describing the skip.
+**`generate queries`** — Runs the project-managed narsilc binary and formats generated Go code under `models/internal/queries/`. The command is a no-op when there are no SQL files containing a `-- name:` annotation, and structured modes still return a mutation report describing the skip.
 
 ```bash
 andurel generate queries --json
 ```
 
-sqlc is available in every newly scaffolded project but remains inactive until an annotated query is added. Bun remains the default for ordinary CRUD. Use sqlc for complex projections, reports, aggregates, bulk operations, or tuned SQL. Only the owning `models` package should import `models/internal/queries`; controllers and services should consume application-owned model types instead of sqlc-generated rows or parameters.
+Every scaffolded model writes SQL under `models/queries/` and persists through narsilc-generated methods. Only the owning `models` package should import `models/internal/queries`; controllers and services should consume application-owned model types instead of generated rows or parameters.
 
 **`generate scaffold`** — Convenience command that runs `generate model` + `generate controller` with full CRUD actions (index, show, new, create, edit, update, destroy). By default generates Templ views, including in projects created with Inertia; pass `--inertia` for Inertia views (reads the adapter from `andurel.lock`). `--inertia` requires a configured Inertia project and cannot be combined with `--api`.
 
@@ -973,8 +973,8 @@ func (w Widgets) Index(etx *echo.Context) error {
     }
     perPage := int64(25)
 
-    widgets, err := models.Widget.Paginate(
-        etx.Request().Context(), w.db.Executor(), page, perPage,
+    widgets, err := models.NewWidgets(w.db).Paginate(
+        etx.Request().Context(), page, perPage,
     )
     if err != nil {
         return inertia.Page(etx, "Errors/InternalError", inertia.Props{})
@@ -1047,7 +1047,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 Andurel is built on top of excellent open-source projects:
 
 - **[Echo](https://echo.labstack.com/)** - High-performance HTTP router and framework
-- **[Bun](https://bun.uptrace.dev/)** - Type-safe SQL ORM and query builder
+- **[narsilc](https://github.com/mbvlabs/narsilc)** - Typed SQL compiler with caller-owned result structs
 - **[Templ](https://templ.guide/)** - Type-safe Go templates
 - **[Datastar](https://data-star.dev/)** - Hypermedia-driven frontend interactivity (RC6)
 - **[River](https://riverqueue.com/)** - Fast PostgreSQL-backed job queue and workflows

@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,8 +11,9 @@ import (
 	"testapp/router/routes"
 	"testapp/views"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
@@ -21,10 +21,11 @@ import (
 
 type FeedbackEntry struct {
 	feedbackEntries models.FeedbackEntries
+	session         *cookies.Session
 }
 
-func NewFeedbackEntry(feedbackEntries models.FeedbackEntries) FeedbackEntry {
-	return FeedbackEntry{feedbackEntries}
+func NewFeedbackEntry(feedbackEntries models.FeedbackEntries, session *cookies.Session) FeedbackEntry {
+	return FeedbackEntry{feedbackEntries: feedbackEntries, session: session}
 }
 
 func (fe FeedbackEntry) RegisterRoutes(r *router.Router) error {
@@ -131,7 +132,7 @@ func (fe FeedbackEntry) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	feedbackEntry, err := fe.feedbackEntries.Find(etx.Request().Context(), feedbackEntryID)
+	feedbackEntry, err := fe.feedbackEntries.Find(etx.Request().Context(), pgtype.UUID{Bytes: feedbackEntryID, Valid: true})
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -172,16 +173,16 @@ func (fe FeedbackEntry) Create(etx *echo.Context) error {
 
 		Feedback: payload.Feedback,
 
-		Rating: sql.NullInt32{Int32: payload.Rating, Valid: true},
+		Rating: pgtype.Int4{Int32: payload.Rating, Valid: true},
 
-		SubmittedAt: func() sql.NullTime {
+		SubmittedAt: func() pgtype.Timestamptz {
 			if payload.SubmittedAt == "" {
-				return sql.NullTime{Valid: false}
+				return pgtype.Timestamptz{}
 			}
 			if t, err := time.Parse("2006-01-02", payload.SubmittedAt); err == nil {
-				return sql.NullTime{Time: t, Valid: true}
+				return pgtype.Timestamptz{Time: t, Valid: true}
 			}
-			return sql.NullTime{Valid: false}
+			return pgtype.Timestamptz{}
 		}(),
 	}
 
@@ -190,16 +191,16 @@ func (fe FeedbackEntry) Create(etx *echo.Context) error {
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create feedbackEntry: %v", err)); flashErr != nil {
+		if flashErr := fe.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create feedbackEntry: %v", err)); flashErr != nil {
 			return flashErr
 		}
 		return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryNew.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "FeedbackEntry created successfully"); flashErr != nil {
+	if flashErr := fe.session.AddFlash(etx, cookies.FlashSuccess, "FeedbackEntry created successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryShow.URL(feedbackEntry.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryShow.URL(feedbackEntry.ID.Bytes))
 }
 
 func (fe FeedbackEntry) Edit(etx *echo.Context) error {
@@ -208,7 +209,7 @@ func (fe FeedbackEntry) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	feedbackEntry, err := fe.feedbackEntries.Find(etx.Request().Context(), feedbackEntryID)
+	feedbackEntry, err := fe.feedbackEntries.Find(etx.Request().Context(), pgtype.UUID{Bytes: feedbackEntryID, Valid: true})
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -245,22 +246,22 @@ func (fe FeedbackEntry) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateFeedbackEntryData{
-		ID: feedbackEntryID,
+		ID: pgtype.UUID{Bytes: feedbackEntryID, Valid: true},
 
 		StudentName: payload.StudentName,
 
 		Feedback: payload.Feedback,
 
-		Rating: sql.NullInt32{Int32: payload.Rating, Valid: true},
+		Rating: pgtype.Int4{Int32: payload.Rating, Valid: true},
 
-		SubmittedAt: func() sql.NullTime {
+		SubmittedAt: func() pgtype.Timestamptz {
 			if payload.SubmittedAt == "" {
-				return sql.NullTime{Valid: false}
+				return pgtype.Timestamptz{}
 			}
 			if t, err := time.Parse("2006-01-02", payload.SubmittedAt); err == nil {
-				return sql.NullTime{Time: t, Valid: true}
+				return pgtype.Timestamptz{Time: t, Valid: true}
 			}
-			return sql.NullTime{Valid: false}
+			return pgtype.Timestamptz{}
 		}(),
 	}
 
@@ -269,7 +270,7 @@ func (fe FeedbackEntry) Update(etx *echo.Context) error {
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update feedbackEntry: %v", err)); flashErr != nil {
+		if flashErr := fe.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update feedbackEntry: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(
@@ -278,10 +279,10 @@ func (fe FeedbackEntry) Update(etx *echo.Context) error {
 		)
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "FeedbackEntry updated successfully"); flashErr != nil {
+	if flashErr := fe.session.AddFlash(etx, cookies.FlashSuccess, "FeedbackEntry updated successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryShow.URL(feedbackEntry.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryShow.URL(feedbackEntry.ID.Bytes))
 }
 
 func (fe FeedbackEntry) Destroy(etx *echo.Context) error {
@@ -290,15 +291,15 @@ func (fe FeedbackEntry) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = fe.feedbackEntries.Destroy(etx.Request().Context(), feedbackEntryID)
+	err = fe.feedbackEntries.Destroy(etx.Request().Context(), pgtype.UUID{Bytes: feedbackEntryID, Valid: true})
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete feedbackEntry: %v", err)); flashErr != nil {
+		if flashErr := fe.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete feedbackEntry: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryIndex.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "FeedbackEntry destroyed successfully"); flashErr != nil {
+	if flashErr := fe.session.AddFlash(etx, cookies.FlashSuccess, "FeedbackEntry destroyed successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryIndex.URL())

@@ -42,8 +42,8 @@ generators are available:
   factory     Generate or sync a model factory
   factories   Check or sync all model factories
   views       Generate Go code from Templ templates (templ generate)
-  query       Generate a sqlc SQL query file in models/queries
-  queries     Generate Go code from sqlc SQL files
+  query       Generate a narsilc SQL query file in models/queries
+  queries     Generate Go code from narsilc SQL files
   controller  Generate a controller, views, and routes
   scaffold    Generate a complete resource with model, controller, views, and routes
   job         Generate a background job with a worker
@@ -107,11 +107,11 @@ names, and Admin-prefixed route/view symbols.`,
 		},
 		helpCommand{
 			Use:         "generate query NAME",
-			Description: "generates a sqlc SQL query file",
+			Description: "generates a narsilc SQL query file",
 		},
 		helpCommand{
 			Use:         "generate queries",
-			Description: "generates Go code from sqlc SQL files",
+			Description: "generates Go code from narsilc SQL files",
 		},
 		helpCommand{
 			Use:         "generate controller [namespace/]NAME [action ...]",

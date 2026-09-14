@@ -46,7 +46,7 @@ func TestGenerateModelDryRunReportsFactoryWithoutMutatingProject(t *testing.T) {
 	resetCLITestSeams(t)
 
 	rootDir := t.TempDir()
-	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26.5\n")
+	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 	writeCLITestFile(t, rootDir, "models/model.go", `package models
 
 import "go.uber.org/fx"

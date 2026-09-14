@@ -179,9 +179,9 @@ func TestResolveURLTemplateChecksumsFromSha256sums(t *testing.T) {
 
 func TestGitHubReleaseDigestHelpers(t *testing.T) {
 	apiURL, ok := githubReleaseAPIURL(
-		"https://github.com/sqlc-dev/sqlc/releases/download/v1.31.1/sqlc_1.31.1_linux_amd64.tar.gz",
+		"https://github.com/mbvlabs/narsilc/releases/download/v0.1.0/narsilc_0.1.0_linux_amd64.tar.gz",
 	)
-	if !ok || apiURL != "https://api.github.com/repos/sqlc-dev/sqlc/releases/tags/v1.31.1" {
+	if !ok || apiURL != "https://api.github.com/repos/mbvlabs/narsilc/releases/tags/v0.1.0" {
 		t.Fatalf("api URL = %q, ok=%t", apiURL, ok)
 	}
 	if _, ok := githubReleaseAPIURL("https://example.invalid/v1.0.0/tool"); ok {

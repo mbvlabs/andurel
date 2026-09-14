@@ -1,30 +1,31 @@
 package {{or .Package "controllers"}}
 
 import (
+{{- $needsSession := or (HasAction "create") (or (HasAction "update") (HasAction "destroy"))}}
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 {{- $needsTime := false}}
-{{- $needsUUID := or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- $needsUUID := or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 {{- $needsSQLNull := false}}
-{{- $needsBun := false}}
 {{- $needsJSON := false}}
+{{- $needsPG := eq .IDType "pgtype.UUID"}}
 {{- range .Fields}}
-{{- if or (eq .GoFormType "time.Time") (eq .GoType "sql.NullTime") (eq .GoType "bun.NullTime")}}
+{{- if or (eq .GoFormType "time.Time") (eq .GoType "sql.NullTime")}}
 	{{- $needsTime = true}}
 {{- end}}
 {{- if and (not .IsSystemField) (or (eq .GoType "uuid.UUID") (eq .GoType "*uuid.UUID"))}}
 	{{- $needsUUID = true}}
+{{- end}}
+{{- if and (not .IsSystemField) (hasPrefix .GoType "pgtype.")}}
+	{{- $needsPG = true}}
 {{- end}}
 {{- if and (not .IsSystemField) (eq .GoType "json.RawMessage") (or (HasAction "create") (HasAction "update"))}}
 	{{- $needsJSON = true}}
 {{- end}}
 {{- if and (not .IsSystemField) (hasPrefix .GoType "sql.Null")}}
 	{{- $needsSQLNull = true}}
-{{- end}}
-{{- if and (not .IsSystemField) (hasPrefix .GoType "bun.Null")}}
-	{{- $needsBun = true}}
 {{- end}}
 {{- end}}
 {{- if $needsTime}}
@@ -36,29 +37,34 @@ import (
 {{- if $needsSQLNull}}
 	"database/sql"
 {{- end}}
-{{- if $needsBun}}
-	"github.com/uptrace/bun"
+{{- if $needsUUID}}
+	"uuid"
 {{- end}}
 
-{{- if $needsUUID}}
-	"github.com/google/uuid"
+{{- if $needsPG}}
+	"github.com/jackc/pgx/v5/pgtype"
 {{- end}}
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"{{.ModulePath}}/models"
 	"{{.ModulePath}}/router"
+{{- if $needsSession}}
 	"{{.ModulePath}}/router/cookies"
+{{- end}}
 	"{{.ModulePath}}/router/routes"
 )
 
 type {{.PluralResourceName}} struct {
 	{{.ModelServiceName | ToLowerCamelCase}} models.{{.ModelServiceName}}
 	renderer                                 *inertia.Renderer
+{{- if $needsSession}}
+	session                                  *cookies.Session
+{{- end}}
 }
 
-func New{{.PluralResourceName}}({{.ModelServiceName | ToLowerCamelCase}} models.{{.ModelServiceName}}, renderer *inertia.Renderer) {{.PluralResourceName}} {
-	return {{.PluralResourceName}}{ {{.ModelServiceName | ToLowerCamelCase}}: {{.ModelServiceName | ToLowerCamelCase}}, renderer: renderer }
+func New{{.PluralResourceName}}({{.ModelServiceName | ToLowerCamelCase}} models.{{.ModelServiceName}}, renderer *inertia.Renderer{{- if $needsSession}}, session *cookies.Session{{- end}}) {{.PluralResourceName}} {
+	return {{.PluralResourceName}}{ {{.ModelServiceName | ToLowerCamelCase}}: {{.ModelServiceName | ToLowerCamelCase}}, renderer: renderer{{- if $needsSession}}, session: session{{- end}} }
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router) error {
@@ -230,7 +236,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- if or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
@@ -253,7 +259,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
 	if err != nil {
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
 	}
@@ -312,26 +318,26 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+		if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return flashErr
 		}
 		{{- if HasAction "new"}}
-		return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}New.URL())
+		return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}New.URL(), http.StatusSeeOther)
 		{{- else}}
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		{{- end}}
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
+	if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	{{- if HasAction "show"}}
-	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
+	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}{{if eq .IDType "pgtype.UUID"}}.Bytes{{end}}), http.StatusSeeOther)
 	{{- else}}
 	_ = {{.ResourceName | ToLowerCamelCase}}
 	{{- if HasAction "index"}}
-	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
+	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL(), http.StatusSeeOther)
 	{{- else}}
 	return etx.NoContent(201)
 	{{- end}}
@@ -339,7 +345,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- if or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
@@ -362,7 +368,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
 	if err != nil {
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
 	}
@@ -392,7 +398,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	ctx, span := telemetry.From(etx, "{{.PluralResourceName | ToLower}}.update")
 	defer span.End()
 
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- if or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
@@ -428,7 +434,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	}
 
 	data := models.Update{{.ModelName}}Data{
-		{{.IDGoFieldName}}:      {{.ResourceName | ToLowerCamelCase}}ID,
+		{{.IDGoFieldName}}:      {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}},
 {{- range .Fields}}
 {{- if not .IsSystemField}}
 		{{template "ControllerPayloadAssignment" .}}
@@ -441,29 +447,30 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+		if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		}
 		{{- if HasAction "edit"}}
 		return {{.ReceiverName}}.renderer.Redirect(
 			etx,
 			routes.{{.NamespacePascal}}{{.ResourceName}}Edit.URL({{.ResourceName | ToLowerCamelCase}}ID),
+			http.StatusSeeOther,
 		)
 		{{- else}}
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		{{- end}}
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} updated successfully"); flashErr != nil {
+	if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} updated successfully"); flashErr != nil {
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	{{- if HasAction "show"}}
-	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
+	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}{{if eq .IDType "pgtype.UUID"}}.Bytes{{end}}), http.StatusSeeOther)
 	{{- else}}
 	_ = {{.ResourceName | ToLowerCamelCase}}
 	{{- if HasAction "index"}}
-	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
+	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL(), http.StatusSeeOther)
 	{{- else}}
 	return etx.NoContent(200)
 	{{- end}}
@@ -471,7 +478,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) error {
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- if or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
@@ -494,24 +501,24 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	}
 {{- end}}
 
-	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
+	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(etx.Request().Context(), {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+		if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		}
 		{{- if HasAction "index"}}
-		return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
+		return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL(), http.StatusSeeOther)
 		{{- else}}
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		{{- end}}
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
+	if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	{{- if HasAction "index"}}
-	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
+	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL(), http.StatusSeeOther)
 	{{- else}}
 	return etx.NoContent(200)
 	{{- end}}

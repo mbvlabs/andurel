@@ -10,8 +10,8 @@ import (
 	"github.com/mbvlabs/andurel/internal/naming"
 )
 
-// ExtractTableNameOverride reads the actual table name from the bun.BaseModel tag
-// in the generated entity struct. e.g.: bun.BaseModel `bun:"table:student_feedback"`
+// ExtractTableNameOverride reads the table name from the andurel:table
+// comment on a generated model file.
 func ExtractTableNameOverride(modelPath string, resourceName string) (string, bool) {
 	content, err := os.ReadFile(modelPath)
 	if err != nil {
@@ -20,19 +20,12 @@ func ExtractTableNameOverride(modelPath string, resourceName string) (string, bo
 	scanner := bufio.NewScanner(bytes.NewReader(content))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if !strings.HasPrefix(line, "bun.BaseModel") {
-			continue
+		if after, ok := strings.CutPrefix(line, "// andurel:table "); ok {
+			table := strings.TrimSpace(after)
+			if table != "" {
+				return table, true
+			}
 		}
-		_, after, ok := strings.Cut(line, `bun:"table:`)
-		if !ok {
-			break
-		}
-		rest := after
-		end := strings.IndexAny(rest, `",`)
-		if end == -1 {
-			break
-		}
-		return rest[:end], true
 	}
 
 	return "", false

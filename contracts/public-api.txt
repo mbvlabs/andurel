@@ -220,7 +220,7 @@ func ReadInertia() string
 
 func ReadNullType() string
     ReadNullType reads the nullable type strategy from andurel.lock. Defaults to
-    "sql.Null" when not configured.
+    "pgtype.Null" when not configured.
 
 func ResolveTableName(modelsDir, resourceName string) string
     ResolveTableName resolves table name.
@@ -1816,7 +1816,8 @@ type AndurelLock struct {
     AndurelLock is the serialized project lock file for tools and extensions.
 
 func NewAndurelLock(version string) *AndurelLock
-    NewAndurelLock creates an empty lock file model for a version.
+    NewAndurelLock creates a lock file model for a version with default
+    databaseConfig (postgresql + pgtype.Null).
 
 func (l *AndurelLock) AddExtension(name, appliedAt string)
     AddExtension records an applied extension in the lock file.
@@ -1827,6 +1828,9 @@ func (l *AndurelLock) AddTool(name string, tool *Tool)
 func (l *AndurelLock) ExtensionNames() []string
     ExtensionNames returns the names of all applied extensions in sorted order.
 
+func (l *AndurelLock) DatabaseEngine() string
+    DatabaseEngine returns the configured SQL engine after legacy migration.
+
 func (l *AndurelLock) Sync(targetDir string, silent bool) error
     Sync downloads missing managed tools and rewrites the lock file.
 
@@ -1834,9 +1838,19 @@ func (l *AndurelLock) WriteLockFile(targetDir string) error
     WriteLockFile writes andurel.lock into the target directory.
 
 type DatabaseConfig struct {
+	Engine   string `json:"engine"`
 	NullType string `json:"nullType"`
 }
-    DatabaseConfig records database generation settings.
+    DatabaseConfig records database engine and generation settings.
+
+const (
+	// NullTypePGType is the default nullable strategy for pgx/v5 (pgtype.*).
+	NullTypePGType = "pgtype.Null"
+	// NullTypePointer emits *T for nullable columns instead of pgtype wrappers.
+	NullTypePointer = "pointer"
+	// DatabaseEnginePostgreSQL is the only supported SQL engine.
+	DatabaseEnginePostgreSQL = "postgresql"
+)
 
 type Element struct {
 	RootDir string
@@ -1871,8 +1885,10 @@ type GoTool struct {
     GoTool represents go tool.
 
 type ScaffoldConfig struct {
-	ProjectName              string `json:"projectName"`
-	Database                 string `json:"database"`
+	ProjectName string `json:"projectName"`
+	// Database is deprecated; engine lives on DatabaseConfig. Kept for reading
+	// older locks before migrateLegacyDatabaseConfig runs.
+	Database                 string `json:"database,omitempty"`
 	Inertia                  string `json:"inertia,omitempty"`
 	JavaScriptPackageManager string `json:"javascriptPackageManager,omitempty"`
 	JavaScriptRuntime        string `json:"javascriptRuntime,omitempty"` // Deprecated: use JavaScriptPackageManager.

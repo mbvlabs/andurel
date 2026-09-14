@@ -5,6 +5,7 @@ import (
 
 	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/generator"
+	"github.com/mbvlabs/andurel/internal/naming"
 	"github.com/spf13/cobra"
 )
 
@@ -120,23 +121,32 @@ update also syncs the matching factory unless --skip-factory is passed.`,
 							return err
 						}
 						if mode != generator.ModelModeCRUD {
-							return gen.GenerateModelWithMode(
+							if err := gen.GenerateModelWithMode(
 								name,
 								tableName,
 								skipFactory,
 								primaryKeyColumn,
 								mode,
-							)
-						}
-						if primaryKeyColumn != "" {
-							return gen.GenerateModelWithPK(
+							); err != nil {
+								return err
+							}
+						} else if primaryKeyColumn != "" {
+							if err := gen.GenerateModelWithPK(
 								name,
 								tableName,
 								skipFactory,
 								primaryKeyColumn,
-							)
+							); err != nil {
+								return err
+							}
+						} else if err := gen.GenerateModel(name, tableName, skipFactory); err != nil {
+							return err
 						}
-						return gen.GenerateModel(name, tableName, skipFactory)
+						if err := generateNarsilcIfNeeded(rootDir); err != nil {
+							return err
+						}
+						printGeneratedModel(name, skipFactory)
+						return nil
 					})(cmd, args)
 				},
 			})
@@ -204,5 +214,18 @@ func runModelGenerationDryRun(
 		report,
 		mutationSummary(report),
 		output.Breadcrumb{Command: "andurel doctor", Description: "Verify generated model health"},
+	)
+}
+
+func printGeneratedModel(resourceName string, skipFactory bool) {
+	snake := naming.ToSnakeCase(resourceName)
+	fmt.Printf("✓ Generated SQL: models/queries/%s.sql\n", snake)
+	fmt.Printf("✓ Generated typed queries: models/internal/queries\n")
+	if !skipFactory {
+		fmt.Printf("✓ Generated factory: models/factories/%s.go\n", snake)
+	}
+	fmt.Printf(
+		"Successfully generated complete model for %s with database functions\n",
+		resourceName,
 	)
 }

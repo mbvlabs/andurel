@@ -224,7 +224,7 @@ func newRunAppCommand() *cobra.Command {
 		Long: `Start the development server (shadowfax) for your Andurel application.
 
 The server auto-reloads on file changes, including Go, Templ, CSS, and
-sqlc query files. For Inertia projects, shadowfax also runs the Vite
+narsilc query files. For Inertia projects, shadowfax also runs the Vite
 dev server. Development SSR is served by Vite's /__inertia_ssr endpoint.
 cmd/ssr is the production Node owner. Run this from your project root.`,
 		Example: `  andurel run`,
@@ -238,7 +238,7 @@ cmd/ssr is the production Node owner. Run this from your project root.`,
 			if err := checkBinaries(rootDir); err != nil {
 				return err
 			}
-			if err := generateSQLCIfNeeded(rootDir); err != nil {
+			if err := generateNarsilcIfNeeded(rootDir); err != nil {
 				return err
 			}
 			watchContext, stopWatching := context.WithCancel(cmd.Context())

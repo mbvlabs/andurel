@@ -11,8 +11,8 @@ import (
 
 func TestUpdateModelResultDiffsAndStructHelpers(t *testing.T) {
 	result := &UpdateModelResult{
-		OldStruct:         "type Product struct {\n\tbun.BaseModel `bun:\"table:products,alias:products\"`\n\n\tName string `bun:\"name\"`\n}\n",
-		NewStruct:         "type Product struct {\n\tbun.BaseModel `bun:\"table:products,alias:products\"`\n\n\tName string `bun:\"name\"`\n\tSku string `bun:\"sku\"`\n}\n",
+		OldStruct:         "type Product struct {\n\tName string `andurel:\"name\"`\n}\n",
+		NewStruct:         "type Product struct {\n\tName string `andurel:\"name\"`\n\tSku string `andurel:\"sku\"`\n}\n",
 		OldFactoryContent: "package factories\n\nfunc Old() {}\n",
 		NewFactoryContent: "package factories\n\nfunc New() {}\n",
 	}
@@ -21,7 +21,7 @@ func TestUpdateModelResultDiffsAndStructHelpers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Diff: %v", err)
 	}
-	if strings.Contains(diff, "bun.BaseModel") || !strings.Contains(diff, "+\tSku string") {
+	if !strings.Contains(diff, "+\tSku string") {
 		t.Fatalf("unexpected model diff:\n%s", diff)
 	}
 
@@ -33,22 +33,14 @@ func TestUpdateModelResultDiffsAndStructHelpers(t *testing.T) {
 		t.Fatalf("unexpected factory diff:\n%s", factoryDiff)
 	}
 
-	dropped := dropBaseModelLine(
-		"type T struct {\n\tbun.BaseModel `bun:\"table:t\"`\n\n\tName string\n}",
-	)
-	if strings.Contains(dropped, "BaseModel") || strings.Contains(dropped, "\n\n\tName") {
-		t.Fatalf("dropBaseModelLine did not remove embedding and blank line:\n%s", dropped)
-	}
-
 	rendered := renderEntityStruct("Product", "products", []models.GeneratedField{
-		{Name: "ID", Type: "uuid.UUID", BunTag: "id,pk,type:uuid"},
-		{Name: "Name", Type: "ProductName", BunTag: "name"},
+		{Name: "ID", Type: "uuid.UUID", ColumnName: "id"},
+		{Name: "Name", Type: "ProductName", ColumnName: "name"},
 	})
 	for _, want := range []string{
 		"type Product struct",
-		"bun.BaseModel `bun:\"table:products,alias:products\"`",
-		"ID uuid.UUID `bun:\"id,pk,type:uuid\"`",
-		"Name ProductName `bun:\"name\"`",
+		"ID uuid.UUID `andurel:\"id\"`",
+		"Name ProductName `andurel:\"name\"`",
 	} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("rendered struct missing %q:\n%s", want, rendered)
@@ -59,14 +51,12 @@ func TestUpdateModelResultDiffsAndStructHelpers(t *testing.T) {
 func TestParseEntityStruct(t *testing.T) {
 	src := []byte(`package models
 
-import "github.com/uptrace/bun"
+// andurel:table products
 
 type Product struct {
-	bun.BaseModel ` + "`bun:\"table:products,alias:products\"`" + `
-
-	ID uuid.UUID ` + "`bun:\"id,pk,type:uuid\"`" + `
-	Name ProductName ` + "`bun:\"name\"`" + `
-	Notes *string ` + "`bun:\"notes\"`" + `
+	ID uuid.UUID ` + "`andurel:\"id\"`" + `
+	Name ProductName ` + "`andurel:\"name\"`" + `
+	Notes *string ` + "`andurel:\"notes\"`" + `
 }
 `)
 

@@ -20,7 +20,7 @@
 		{{- else if eq .GoType "uuid.UUID"}}
 		{{.Name}}:    func() uuid.UUID {
 			if payload.{{.Name}} == "" {
-				return uuid.Nil
+				return uuid.Nil()
 			}
 			parsed, err := uuid.Parse(payload.{{.Name}})
 			if err != nil {
@@ -30,7 +30,7 @@
 					"error",
 					err,
 				)
-				return uuid.Nil
+				return uuid.Nil()
 			}
 
 			return parsed
@@ -61,16 +61,6 @@
 			}
 			return sql.NullTime{Valid: false}
 		}(),
-		{{- else if eq .GoType "bun.NullTime"}}
-		{{.Name}}:    func() bun.NullTime {
-			if payload.{{.Name}} == "" {
-				return bun.NullTime{Valid: false}
-			}
-			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
-				return bun.NullTime{Time: t, Valid: true}
-			}
-			return bun.NullTime{Valid: false}
-		}(),
 		{{- else if eq .GoType "sql.NullString"}}
 		{{.Name}}:    sql.NullString{String: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullBool"}}
@@ -83,16 +73,68 @@
 		{{.Name}}:    sql.NullInt64{Int64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullFloat64"}}
 		{{.Name}}:    sql.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullString"}}
-		{{.Name}}:    bun.NullString{String: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullBool"}}
-		{{.Name}}:    bun.NullBool{Bool: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullInt32"}}
-		{{.Name}}:    bun.NullInt32{Int32: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullInt64"}}
-		{{.Name}}:    bun.NullInt64{Int64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullFloat64"}}
-		{{.Name}}:    bun.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.UUID"}}
+		{{.Name}}:    func() pgtype.UUID {
+			if payload.{{.Name}} == "" {
+				return pgtype.UUID{}
+			}
+			parsed, err := uuid.Parse(payload.{{.Name}})
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse {{.Name}}, setting to invalid pgtype.UUID",
+					"error",
+					err,
+				)
+				return pgtype.UUID{}
+			}
+
+			return pgtype.UUID{Bytes: parsed, Valid: true}
+		}(),
+		{{- else if eq .GoType "pgtype.Text"}}
+		{{.Name}}:    pgtype.Text{String: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Bool"}}
+		{{.Name}}:    pgtype.Bool{Bool: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Int2"}}
+		{{.Name}}:    pgtype.Int2{Int16: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Int4"}}
+		{{.Name}}:    pgtype.Int4{Int32: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Int8"}}
+		{{.Name}}:    pgtype.Int8{Int64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Float4"}}
+		{{.Name}}:    pgtype.Float4{Float32: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Float8"}}
+		{{.Name}}:    pgtype.Float8{Float64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Timestamptz"}}
+		{{.Name}}:    func() pgtype.Timestamptz {
+			if payload.{{.Name}} == "" {
+				return pgtype.Timestamptz{}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return pgtype.Timestamptz{Time: t, Valid: true}
+			}
+			return pgtype.Timestamptz{}
+		}(),
+		{{- else if eq .GoType "pgtype.Timestamp"}}
+		{{.Name}}:    func() pgtype.Timestamp {
+			if payload.{{.Name}} == "" {
+				return pgtype.Timestamp{}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return pgtype.Timestamp{Time: t, Valid: true}
+			}
+			return pgtype.Timestamp{}
+		}(),
+		{{- else if eq .GoType "pgtype.Date"}}
+		{{.Name}}:    func() pgtype.Date {
+			if payload.{{.Name}} == "" {
+				return pgtype.Date{}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return pgtype.Date{Time: t, Valid: true}
+			}
+			return pgtype.Date{}
+		}(),
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {

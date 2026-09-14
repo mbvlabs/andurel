@@ -9,14 +9,14 @@ import (
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
-func TestGenerateSQLCQueryFromTemplate(t *testing.T) {
+func TestGenerateQueryFromTemplate(t *testing.T) {
 	root := t.TempDir()
-	queryPath := filepath.Join(root, storage.SQLCQueriesDir, "user_report.sql")
+	queryPath := filepath.Join(root, storage.QueriesDir, "user_report.sql")
 
-	if err := generateSQLCQueryFromTemplate(queryPath, sqlcQueryTemplateData{
+	if err := generateQueryFromTemplate(queryPath, queryTemplateData{
 		PascalName: "UserReport",
 	}); err != nil {
-		t.Fatalf("generate sqlc query: %v", err)
+		t.Fatalf("generate narsilc query: %v", err)
 	}
 
 	content, err := os.ReadFile(queryPath)
@@ -33,12 +33,12 @@ func TestGenerateSQLCQueryFromTemplate(t *testing.T) {
 			t.Fatalf("missing %q in commented template:\n%s", want, text)
 		}
 	}
-	if containsUncommentedSQLCQuery(text, "ListUserReport") {
-		t.Fatal("commented template should not include active sqlc query")
+	if containsUncommentedQuery(text, "ListUserReport") {
+		t.Fatal("commented template should not include active narsilc query")
 	}
 }
 
-func containsUncommentedSQLCQuery(text, queryName string) bool {
+func containsUncommentedQuery(text, queryName string) bool {
 	marker := "-- name: " + queryName
 	for line := range strings.SplitSeq(text, "\n") {
 		trimmed := strings.TrimSpace(line)
@@ -49,15 +49,15 @@ func containsUncommentedSQLCQuery(text, queryName string) bool {
 	return false
 }
 
-func TestGenerateSQLCQueryFromTemplateWithTable(t *testing.T) {
+func TestGenerateQueryFromTemplateWithTable(t *testing.T) {
 	root := t.TempDir()
-	queryPath := filepath.Join(root, storage.SQLCQueriesDir, "user_report.sql")
+	queryPath := filepath.Join(root, storage.QueriesDir, "user_report.sql")
 
-	if err := generateSQLCQueryFromTemplate(queryPath, sqlcQueryTemplateData{
+	if err := generateQueryFromTemplate(queryPath, queryTemplateData{
 		PascalName: "UserReport",
 		TableName:  "users",
 	}); err != nil {
-		t.Fatalf("generate sqlc query with table: %v", err)
+		t.Fatalf("generate narsilc query with table: %v", err)
 	}
 
 	content, err := os.ReadFile(queryPath)
@@ -72,9 +72,9 @@ func TestGenerateSQLCQueryFromTemplateWithTable(t *testing.T) {
 	}
 }
 
-func TestGenerateSQLCQueryFromTemplateRejectsExistingFile(t *testing.T) {
+func TestGenerateQueryFromTemplateRejectsExistingFile(t *testing.T) {
 	root := t.TempDir()
-	queryPath := filepath.Join(root, storage.SQLCQueriesDir, "user_report.sql")
+	queryPath := filepath.Join(root, storage.QueriesDir, "user_report.sql")
 	if err := os.MkdirAll(filepath.Dir(queryPath), 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -82,14 +82,14 @@ func TestGenerateSQLCQueryFromTemplateRejectsExistingFile(t *testing.T) {
 		t.Fatalf("write existing: %v", err)
 	}
 
-	if err := generateSQLCQueryFromTemplate(queryPath, sqlcQueryTemplateData{
+	if err := generateQueryFromTemplate(queryPath, queryTemplateData{
 		PascalName: "UserReport",
 	}); err == nil {
 		t.Fatal("expected error for existing file")
 	}
 }
 
-func TestGenerateSQLCQueryRejectsUnsafeNamesAndTables(t *testing.T) {
+func TestGenerateQueryFileRejectsUnsafeNamesAndTables(t *testing.T) {
 	for _, test := range []struct {
 		name  string
 		table string
@@ -98,8 +98,8 @@ func TestGenerateSQLCQueryRejectsUnsafeNamesAndTables(t *testing.T) {
 		{name: "userReport"},
 		{name: "UserReport", table: "users; DROP TABLE users"},
 	} {
-		if err := generateSQLCQuery(test.name, test.table); err == nil {
-			t.Fatalf("generateSQLCQuery(%q, %q) should reject unsafe input", test.name, test.table)
+		if err := generateQueryFile(test.name, test.table); err == nil {
+			t.Fatalf("generateQueryFile(%q, %q) should reject unsafe input", test.name, test.table)
 		}
 	}
 }

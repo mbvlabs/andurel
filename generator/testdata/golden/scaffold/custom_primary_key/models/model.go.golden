@@ -1,14 +1,8 @@
 package models
 
 import (
-	"github.com/mbvlabs/andurel/pkg/storage"
-
 	"go.uber.org/fx"
 )
-
-type queryDB interface {
-	Executor() storage.Executor
-}
 
 var Module = fx.Module(
 	"models",

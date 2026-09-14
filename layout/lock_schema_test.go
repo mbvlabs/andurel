@@ -26,7 +26,6 @@ func TestDecodeLockMigratesLegacyJavaScriptRuntimeAsPackageManager(t *testing.T)
 	lock := validSchema1Lock()
 	lock.ScaffoldConfig = &ScaffoldConfig{
 		ProjectName:       "app",
-		Database:          "postgresql",
 		Inertia:           "react",
 		JavaScriptRuntime: "pnpm",
 	}
@@ -38,6 +37,28 @@ func TestDecodeLockMigratesLegacyJavaScriptRuntimeAsPackageManager(t *testing.T)
 		decoded.ScaffoldConfig.JavaScriptPackageManager != "pnpm" ||
 		decoded.ScaffoldConfig.JavaScriptRuntime != "pnpm" {
 		t.Fatalf("legacy scaffold config was not migrated: %#v", decoded.ScaffoldConfig)
+	}
+}
+
+func TestDecodeLockMigratesLegacyDatabaseEngineAndNullType(t *testing.T) {
+	lock := validSchema1Lock()
+	lock.ScaffoldConfig = &ScaffoldConfig{
+		ProjectName: "app",
+		Database:    "postgresql",
+	}
+	lock.DatabaseConfig = &DatabaseConfig{NullType: "bun.Null"}
+	decoded, err := decodeAndValidateLock(mustMarshalLock(t, lock))
+	if err != nil {
+		t.Fatalf("decodeAndValidateLock: %v", err)
+	}
+	if decoded.ScaffoldConfig.Database != "" {
+		t.Fatalf("legacy scaffoldConfig.database was not cleared: %#v", decoded.ScaffoldConfig)
+	}
+	if decoded.DatabaseConfig.Engine != DatabaseEnginePostgreSQL {
+		t.Fatalf("engine not migrated: %#v", decoded.DatabaseConfig)
+	}
+	if decoded.DatabaseConfig.NullType != NullTypePGType {
+		t.Fatalf("nullType not migrated: %#v", decoded.DatabaseConfig)
 	}
 }
 
@@ -170,9 +191,9 @@ func TestValidateSchema1RequiredFields(t *testing.T) {
 			want:   "projectName",
 		},
 		{
-			name:   "scaffold database",
-			mutate: func(lock *AndurelLock) { lock.ScaffoldConfig.Database = "" },
-			want:   "scaffoldConfig.database",
+			name:   "database engine",
+			mutate: func(lock *AndurelLock) { lock.DatabaseConfig.Engine = "" },
+			want:   "databaseConfig.engine",
 		},
 		{
 			name:   "database null type",
@@ -315,8 +336,8 @@ func validSchema1Lock() *AndurelLock {
 				},
 			},
 		},
-		ScaffoldConfig: &ScaffoldConfig{ProjectName: "app", Database: "postgresql"},
-		DatabaseConfig: &DatabaseConfig{NullType: "sql.Null"},
+		ScaffoldConfig: &ScaffoldConfig{ProjectName: "app"},
+		DatabaseConfig: &DatabaseConfig{Engine: DatabaseEnginePostgreSQL, NullType: NullTypePGType},
 	}
 }
 

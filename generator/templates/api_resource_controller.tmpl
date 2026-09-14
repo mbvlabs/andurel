@@ -17,9 +17,9 @@ import (
 	"strconv"
 {{- end}}
 {{- $needsTime := false}}
-{{- $needsUUID := and $hasIDAction (or (not .IDType) (eq .IDType "uuid.UUID"))}}
+{{- $needsUUID := and $hasIDAction (or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID"))}}
 {{- $needsSQLNull := false}}
-{{- $needsBun := false}}
+{{- $needsPG := eq .IDType "pgtype.UUID"}}
 {{- range .Fields}}
 {{- if and $hasWrite (not .IsSystemField) (eq .GoFormType "time.Time")}}
 	{{- $needsTime = true}}
@@ -27,11 +27,11 @@ import (
 {{- if and $hasWrite (not .IsSystemField) (or (eq .GoType "uuid.UUID") (eq .GoType "*uuid.UUID"))}}
 	{{- $needsUUID = true}}
 {{- end}}
+{{- if and $hasWrite (not .IsSystemField) (hasPrefix .GoType "pgtype.")}}
+	{{- $needsPG = true}}
+{{- end}}
 {{- if and $hasWrite (not .IsSystemField) (hasPrefix .GoType "sql.Null")}}
 	{{- $needsSQLNull = true}}
-{{- end}}
-{{- if and $hasWrite (not .IsSystemField) (hasPrefix .GoType "bun.Null")}}
-	{{- $needsBun = true}}
 {{- end}}
 {{- end}}
 {{- if $needsTime}}
@@ -40,12 +40,12 @@ import (
 {{- if $needsSQLNull}}
 	"database/sql"
 {{- end}}
-{{- if $needsBun}}
-	"github.com/uptrace/bun"
+{{- if $needsUUID}}
+	"uuid"
 {{- end}}
 
-{{- if $needsUUID}}
-	"github.com/google/uuid"
+{{- if $needsPG}}
+	"github.com/jackc/pgx/v5/pgtype"
 {{- end}}
 	"github.com/labstack/echo/v5"
 {{- if or $hasCreate (or $hasUpdate $hasDestroy)}}
@@ -160,7 +160,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Index(etx *echo.Context) error 
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- if or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return etx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid id"})
@@ -183,7 +183,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
+	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
 	if err != nil {
 		return etx.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
 	}
@@ -243,7 +243,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		{{- else if eq .GoType "uuid.UUID"}}
 		{{.Name}}:    func() uuid.UUID {
 			if payload.{{.Name}} == "" {
-				return uuid.Nil
+				return uuid.Nil()
 			}
 			parsed, err := uuid.Parse(payload.{{.Name}})
 			if err != nil {
@@ -253,7 +253,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 					"error",
 					err,
 				)
-				return uuid.Nil
+				return uuid.Nil()
 			}
 
 			return parsed
@@ -282,16 +282,6 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 			}
 			return sql.NullTime{Valid: false}
 		}(),
-		{{- else if eq .GoType "bun.NullTime"}}
-		{{.Name}}:    func() bun.NullTime {
-			if payload.{{.Name}} == "" {
-				return bun.NullTime{Valid: false}
-			}
-			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
-				return bun.NullTime{Time: t, Valid: true}
-			}
-			return bun.NullTime{Valid: false}
-		}(),
 		{{- else if eq .GoType "sql.NullString"}}
 		{{.Name}}:    sql.NullString{String: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullBool"}}
@@ -304,16 +294,68 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		{{.Name}}:    sql.NullInt64{Int64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullFloat64"}}
 		{{.Name}}:    sql.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullString"}}
-		{{.Name}}:    bun.NullString{String: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullBool"}}
-		{{.Name}}:    bun.NullBool{Bool: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullInt32"}}
-		{{.Name}}:    bun.NullInt32{Int32: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullInt64"}}
-		{{.Name}}:    bun.NullInt64{Int64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullFloat64"}}
-		{{.Name}}:    bun.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.UUID"}}
+		{{.Name}}:    func() pgtype.UUID {
+			if payload.{{.Name}} == "" {
+				return pgtype.UUID{}
+			}
+			parsed, err := uuid.Parse(payload.{{.Name}})
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse {{.Name}}, setting to invalid pgtype.UUID",
+					"error",
+					err,
+				)
+				return pgtype.UUID{}
+			}
+
+			return pgtype.UUID{Bytes: parsed, Valid: true}
+		}(),
+		{{- else if eq .GoType "pgtype.Text"}}
+		{{.Name}}:    pgtype.Text{String: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Bool"}}
+		{{.Name}}:    pgtype.Bool{Bool: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Int2"}}
+		{{.Name}}:    pgtype.Int2{Int16: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Int4"}}
+		{{.Name}}:    pgtype.Int4{Int32: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Int8"}}
+		{{.Name}}:    pgtype.Int8{Int64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Float4"}}
+		{{.Name}}:    pgtype.Float4{Float32: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Float8"}}
+		{{.Name}}:    pgtype.Float8{Float64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Timestamptz"}}
+		{{.Name}}:    func() pgtype.Timestamptz {
+			if payload.{{.Name}} == "" {
+				return pgtype.Timestamptz{}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return pgtype.Timestamptz{Time: t, Valid: true}
+			}
+			return pgtype.Timestamptz{}
+		}(),
+		{{- else if eq .GoType "pgtype.Timestamp"}}
+		{{.Name}}:    func() pgtype.Timestamp {
+			if payload.{{.Name}} == "" {
+				return pgtype.Timestamp{}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return pgtype.Timestamp{Time: t, Valid: true}
+			}
+			return pgtype.Timestamp{}
+		}(),
+		{{- else if eq .GoType "pgtype.Date"}}
+		{{.Name}}:    func() pgtype.Date {
+			if payload.{{.Name}} == "" {
+				return pgtype.Date{}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return pgtype.Date{Time: t, Valid: true}
+			}
+			return pgtype.Date{}
+		}(),
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {
@@ -367,7 +409,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	ctx, span := telemetry.From(etx, "{{.PluralResourceName | ToLower}}.update")
 	defer span.End()
 
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- if or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return etx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid id"})
@@ -403,7 +445,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	}
 
 	data := models.Update{{.ModelName}}Data{
-		{{.IDGoFieldName}}:      {{.ResourceName | ToLowerCamelCase}}ID,
+		{{.IDGoFieldName}}:      {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}},
 {{- range .Fields}}
 {{- if not .IsSystemField}}
 		{{- if eq .GoType "*uuid.UUID"}}
@@ -427,7 +469,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		{{- else if eq .GoType "uuid.UUID"}}
 		{{.Name}}:    func() uuid.UUID {
 			if payload.{{.Name}} == "" {
-				return uuid.Nil
+				return uuid.Nil()
 			}
 			parsed, err := uuid.Parse(payload.{{.Name}})
 			if err != nil {
@@ -437,7 +479,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 					"error",
 					err,
 				)
-				return uuid.Nil
+				return uuid.Nil()
 			}
 
 			return parsed
@@ -466,16 +508,6 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 			}
 			return sql.NullTime{Valid: false}
 		}(),
-		{{- else if eq .GoType "bun.NullTime"}}
-		{{.Name}}:    func() bun.NullTime {
-			if payload.{{.Name}} == "" {
-				return bun.NullTime{Valid: false}
-			}
-			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
-				return bun.NullTime{Time: t, Valid: true}
-			}
-			return bun.NullTime{Valid: false}
-		}(),
 		{{- else if eq .GoType "sql.NullString"}}
 		{{.Name}}:    sql.NullString{String: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullBool"}}
@@ -488,16 +520,68 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		{{.Name}}:    sql.NullInt64{Int64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullFloat64"}}
 		{{.Name}}:    sql.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullString"}}
-		{{.Name}}:    bun.NullString{String: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullBool"}}
-		{{.Name}}:    bun.NullBool{Bool: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullInt32"}}
-		{{.Name}}:    bun.NullInt32{Int32: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullInt64"}}
-		{{.Name}}:    bun.NullInt64{Int64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "bun.NullFloat64"}}
-		{{.Name}}:    bun.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.UUID"}}
+		{{.Name}}:    func() pgtype.UUID {
+			if payload.{{.Name}} == "" {
+				return pgtype.UUID{}
+			}
+			parsed, err := uuid.Parse(payload.{{.Name}})
+			if err != nil {
+				slog.WarnContext(
+					etx.Request().Context(),
+					"could not parse {{.Name}}, setting to invalid pgtype.UUID",
+					"error",
+					err,
+				)
+				return pgtype.UUID{}
+			}
+
+			return pgtype.UUID{Bytes: parsed, Valid: true}
+		}(),
+		{{- else if eq .GoType "pgtype.Text"}}
+		{{.Name}}:    pgtype.Text{String: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Bool"}}
+		{{.Name}}:    pgtype.Bool{Bool: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Int2"}}
+		{{.Name}}:    pgtype.Int2{Int16: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Int4"}}
+		{{.Name}}:    pgtype.Int4{Int32: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Int8"}}
+		{{.Name}}:    pgtype.Int8{Int64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Float4"}}
+		{{.Name}}:    pgtype.Float4{Float32: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Float8"}}
+		{{.Name}}:    pgtype.Float8{Float64: payload.{{.Name}}, Valid: true},
+		{{- else if eq .GoType "pgtype.Timestamptz"}}
+		{{.Name}}:    func() pgtype.Timestamptz {
+			if payload.{{.Name}} == "" {
+				return pgtype.Timestamptz{}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return pgtype.Timestamptz{Time: t, Valid: true}
+			}
+			return pgtype.Timestamptz{}
+		}(),
+		{{- else if eq .GoType "pgtype.Timestamp"}}
+		{{.Name}}:    func() pgtype.Timestamp {
+			if payload.{{.Name}} == "" {
+				return pgtype.Timestamp{}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return pgtype.Timestamp{Time: t, Valid: true}
+			}
+			return pgtype.Timestamp{}
+		}(),
+		{{- else if eq .GoType "pgtype.Date"}}
+		{{.Name}}:    func() pgtype.Date {
+			if payload.{{.Name}} == "" {
+				return pgtype.Date{}
+			}
+			if t, err := time.Parse("2006-01-02", payload.{{.Name}}); err == nil {
+				return pgtype.Date{Time: t, Valid: true}
+			}
+			return pgtype.Date{}
+		}(),
 		{{- else if eq .GoFormType "time.Time"}}
 		{{.Name}}:    func() time.Time {
 			if payload.{{.Name}} == "" {
@@ -539,7 +623,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	ctx, span := telemetry.From(etx, "{{.PluralResourceName | ToLower}}.destroy")
 	defer span.End()
 
-{{- if or (not .IDType) (eq .IDType "uuid.UUID")}}
+{{- if or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return etx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid id"})
@@ -562,7 +646,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	}
 {{- end}}
 
-	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(ctx, {{.ResourceName | ToLowerCamelCase}}ID)
+	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(ctx, {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
 	if err != nil {
 		telemetry.Error(
 			ctx,

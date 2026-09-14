@@ -472,7 +472,7 @@ CSRF protection uses Fetch Metadata. Unsafe API requests bypass CSRF only when t
 ## Development Tips
 
 1. **Live Reload**: Use `andurel run` during development for automatic reloading
-2. **Type Safety**: Let Bun models and Templ catch errors at compile time
+2. **Type Safety**: Let narsilc-backed models and Templ catch errors at compile time
 3. **Database Console**: Use `andurel app console` for quick database queries
 4. **Hot Reload**: Changes to Go, Templ, or CSS automatically trigger rebuilds
 5. **Tailwind**: Use Tailwind's utility classes in your Templ templates
@@ -566,7 +566,7 @@ func TestProducts_Create(t *testing.T) {
 	}
 
 	// Assert database state
-	products, err := models.AllProducts(c.Request().Context(), db.Executor())
+	products, err := models.NewProducts(db).All(c.Request().Context())
 	if err != nil {
 		t.Fatalf("failed to query products: %v", err)
 	}
@@ -632,13 +632,21 @@ func TestProducts_Show(t *testing.T) {
 	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 
 	// Create test data with default values
-	product := factories.Product().Create(db.Executor())
+	product, err := factories.CreateProduct(context.Background(), db)
+	if err != nil {
+		t.Fatalf("create product: %v", err)
+	}
 
 	// Or customize specific fields
-	premiumProduct := factories.Product().
-		WithName("Premium Product").
-		WithPrice("99.99").
-		Create(db.Executor())
+	premiumProduct, err := factories.CreateProduct(
+		context.Background(),
+		db,
+		factories.WithProductsName("Premium Product"),
+		factories.WithProductsPrice("99.99"),
+	)
+	if err != nil {
+		t.Fatalf("create premium product: %v", err)
+	}
 
 	// Test your controller with the created data
 	// ...
@@ -652,9 +660,12 @@ func TestProducts_Show(t *testing.T) {
 ```go
 func TestFindProduct(t *testing.T) {
 	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-	product := factories.Product().Create(db.Executor())
+	product, err := factories.CreateProduct(context.Background(), db)
+	if err != nil {
+		t.Fatalf("create product: %v", err)
+	}
 
-	found, err := models.FindProduct(context.Background(), db.Executor(), product.ID)
+	found, err := models.NewProducts(db).Find(context.Background(), product.ID)
 	if err != nil {
 		t.Fatalf("FindProduct failed: %v", err)
 	}
@@ -673,11 +684,13 @@ func TestPaginateProducts(t *testing.T) {
 
 	// Create test data
 	for i := 0; i < 25; i++ {
-		factories.Product().Create(db.Executor())
+		if _, err := factories.CreateProduct(context.Background(), db); err != nil {
+			t.Fatalf("create product: %v", err)
+		}
 	}
 
 	// Test pagination
-	result, err := models.PaginateProducts(context.Background(), db.Executor(), 1, 10)
+	result, err := models.NewProducts(db).Paginate(context.Background(), 1, 10)
 	if err != nil {
 		t.Fatalf("PaginateProducts failed: %v", err)
 	}
@@ -699,14 +712,25 @@ func TestCreateOrder(t *testing.T) {
 	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 
 	// Create dependencies
-	user := factories.User().Create(db.Executor())
-	product := factories.Product().Create(db.Executor())
+	user, err := factories.CreateUser(context.Background(), db)
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	product, err := factories.CreateProduct(context.Background(), db)
+	if err != nil {
+		t.Fatalf("create product: %v", err)
+	}
 
 	// Test order creation
-	order := factories.Order().
-		WithUserID(user.ID).
-		WithProductID(product.ID).
-		Create(db.Executor())
+	order, err := factories.CreateOrder(
+		context.Background(),
+		db,
+		factories.WithOrdersUserID(user.ID),
+		factories.WithOrdersProductID(product.ID),
+	)
+	if err != nil {
+		t.Fatalf("create order: %v", err)
+	}
 
 	if order.UserID != user.ID {
 		t.Errorf("order user_id mismatch")
@@ -752,7 +776,7 @@ The test helper automatically:
 3. **Test isolation**: Each test should be independent and not rely on other tests
 4. **Descriptive names**: Name tests clearly (e.g., `TestProducts_Create_WithInvalidData`)
 5. **Assert clearly**: Check both success cases and expected database state
-6. **Don't test frameworks**: Focus on your business logic, not Echo or Bun behavior
+6. **Don't test frameworks**: Focus on your business logic, not Echo or narsilc behavior
 
 ## Extensions
 
@@ -1043,7 +1067,8 @@ file -----------rw-r--r-- andurel.lock
 ```
 {
   "databaseConfig": {
-    "nullType": "sql.Null"
+    "engine": "postgresql",
+    "nullType": "pgtype.Null"
   },
   "extensions": {
     "aws-ses": {
@@ -1051,7 +1076,6 @@ file -----------rw-r--r-- andurel.lock
     }
   },
   "scaffoldConfig": {
-    "database": "postgresql",
     "inertia": "vue",
     "javascriptPackageManager": "npm",
     "projectName": "testapp"
@@ -1119,6 +1143,25 @@ file -----------rw-r--r-- andurel.lock
         ]
       }
     },
+    "narsilc": {
+      "download": {
+        "archive": "tar.gz",
+        "binaryName": "narsilc",
+        "sha256": {
+          "darwin/amd64": "53c24c8d751940c89057307ac8a0c56d89c60ca8425cc3ad23cfdae6d7a1caad",
+          "darwin/arm64": "a18f4d625a2e2926682b47902f4455537745cdd0bf8527370c84c1f9f2cd8203",
+          "linux/amd64": "63e8f36fef232727e0ecdf6508718c314bb019751f70142cb42d81a9db79676c",
+          "linux/arm64": "886e56e2460cdfcd91c46423aba1b37b4183cb34f5244a94d913a9e9409e57a4"
+        },
+        "urlTemplate": "https://github.com/mbvlabs/narsilc/releases/download/{{version}}/narsilc_{{version_no_v}}_{{os}}_{{arch}}.tar.gz"
+      },
+      "version": "v0.4.2",
+      "versionCheck": {
+        "args": [
+          "version"
+        ]
+      }
+    },
     "shadowfax": {
       "download": {
         "archive": "binary",
@@ -1136,25 +1179,6 @@ file -----------rw-r--r-- andurel.lock
       "versionCheck": {
         "args": [
           "--version"
-        ]
-      }
-    },
-    "sqlc": {
-      "download": {
-        "archive": "tar.gz",
-        "binaryName": "sqlc",
-        "sha256": {
-          "darwin/amd64": "c5af76772e3785d21663a62697056b383f07629979b1bd25b93872e73dbd519b",
-          "darwin/arm64": "21602158c99eb1f2bae197a66abfb1941d1e9e50b23125bb193349c6b1acc71e",
-          "linux/amd64": "497ae4fcdfa64c5b0c311ffe4c2bd991e43991e82e5367792ed78bc2dca27354",
-          "linux/arm64": "b7cae247740d0c51a1e657479e5b2d21e6fef428f596682a01bc55bf4ab8a23d"
-        },
-        "urlTemplate": "https://github.com/sqlc-dev/sqlc/releases/download/{{version}}/sqlc_{{version_no_v}}_{{os}}_{{arch}}.tar.gz"
-      },
-      "version": "v1.31.1",
-      "versionCheck": {
-        "args": [
-          "version"
         ]
       }
     },
@@ -2125,7 +2149,7 @@ func run(args []string) error {
 	}
 
 	fmt.Printf("Seeding database with %q...\n", seedName)
-	if err := seeds.Run(ctx, db.Executor(), seedName); err != nil {
+	if err := seeds.Run(ctx, db, seedName); err != nil {
 		return err
 	}
 
@@ -4990,7 +5014,7 @@ file -----------rw-r--r-- go.mod
 ```
 module testapp
 
-go 1.26.0
+go 1.27.1
 
 require (
 	github.com/a-h/templ v0.3.1020
@@ -4999,10 +5023,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.28
 	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.63.0
 	github.com/go-faker/faker/v4 v4.9.0
-	github.com/google/uuid v1.6.0
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/sessions v1.4.0
 	github.com/gosimple/slug v1.15.0
+	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo-contrib/v5 v5.0.1
 	github.com/labstack/echo/v5 v5.3.0
@@ -5015,9 +5039,9 @@ require (
 	github.com/mbvlabs/andurel/pkg/server v0.3.2
 	github.com/mbvlabs/andurel/pkg/storage v0.7.1
 	github.com/mbvlabs/andurel/pkg/validation v0.1.3
+	github.com/mbvlabs/narsilc v0.4.2
 	github.com/riverqueue/river v0.40.0
 	github.com/rs/xid v1.6.0
-	github.com/uptrace/bun v1.2.18
 	go.opentelemetry.io/contrib/bridges/otelslog v0.19.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
 	go.opentelemetry.io/otel v1.44.0
@@ -5030,7 +5054,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.44.0
 	go.opentelemetry.io/otel/trace v1.44.0
 	go.uber.org/fx v1.24.0
-	golang.org/x/crypto v0.54.0
+	golang.org/x/crypto v0.55.0
 )
 
 require (
@@ -5066,11 +5090,11 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/pgx/v5 v5.10.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/klauspost/compress v1.18.5 // indirect
@@ -5110,6 +5134,7 @@ require (
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
+	github.com/uptrace/bun v1.2.18 // indirect
 	github.com/uptrace/bun/dialect/pgdialect v1.2.18 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
@@ -5123,15 +5148,15 @@ require (
 	go.uber.org/goleak v1.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
-	golang.org/x/net v0.57.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
-	google.golang.org/grpc v1.81.1 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
+	google.golang.org/grpc v1.83.2 // indirect
+	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 ```
@@ -5247,8 +5272,8 @@ github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsI
 github.com/jackc/pgpassfile v1.0.0/go.mod h1:CEx0iS5ambNFdcRtxPj5JhEz+xB6uRky5eyVu/W2HEg=
 github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 h1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=
 github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761/go.mod h1:5TJZWKEWniPve33vlWYSoGYefn3gLQRzjfDlhSJ9ZKM=
-github.com/jackc/pgx/v5 v5.10.0 h1:VhSvgU2jSli8o3AqIEOTJr7rZwAEUVo4E4XhR94Zfr0=
-github.com/jackc/pgx/v5 v5.10.0/go.mod h1:mal1tBGAFfLHvZzaYh77YS/eC6IX9OWbRV1QIIM0Jn4=
+github.com/jackc/pgx/v5 v5.11.0 h1:IzBBtyK9AHqf98cctWFifYSci2hgQR/cd56wB4p+ogg=
+github.com/jackc/pgx/v5 v5.11.0/go.mod h1:mal1tBGAFfLHvZzaYh77YS/eC6IX9OWbRV1QIIM0Jn4=
 github.com/jackc/puddle/v2 v2.2.2 h1:PR8nw+E/1w0GLuRFSmiioY6UooMp6KJv0/61nB7icHo=
 github.com/jackc/puddle/v2 v2.2.2/go.mod h1:vriiEXHvEE654aYKXXjOvZM39qJ0q+azkZFrfEOc3H4=
 github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=
@@ -5291,6 +5316,8 @@ github.com/mbvlabs/andurel/pkg/storage v0.7.1 h1:vrkDPlptqT8GuYw5m9F+QJgBHzlvnnf
 github.com/mbvlabs/andurel/pkg/storage v0.7.1/go.mod h1:gE8KCsditzFi3EpnVuUBOf/2tcRWuIa1jGjNj0jTeUo=
 github.com/mbvlabs/andurel/pkg/validation v0.1.3 h1:u3g71TB09ZUE5TwAKCRJ6vfU6dEfgQAnTZXz7MjCeZU=
 github.com/mbvlabs/andurel/pkg/validation v0.1.3/go.mod h1:ZITp0yTHhd9ZaMMaHcixS/GoDuJHqvDkpe2A/gKnTbw=
+github.com/mbvlabs/narsilc v0.4.2 h1:xpzfISiJLOCPPdHg+gw/auCphlAb3RGghDIgg3OHlfs=
+github.com/mbvlabs/narsilc v0.4.2/go.mod h1:m1aJoad2Nvt/2F84PWcVpLCP8x4KfbPcBC35+adzNAE=
 github.com/mdelapenya/tlscert v0.2.0 h1:7H81W6Z/4weDvZBNOfQte5GpIMo0lGYEeWbkGp5LJHI=
 github.com/mdelapenya/tlscert v0.2.0/go.mod h1:O4njj3ELLnJjGdkN7M/vIVCpZ+Cf0L6muqOG4tLSl8o=
 github.com/mfridman/interpolate v0.0.2 h1:pnuTK7MQIxxFz1Gr+rjSIx9u7qVjf5VOoM/u6BbAxPY=
@@ -5437,12 +5464,12 @@ go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=
 go.uber.org/multierr v1.11.0/go.mod h1:20+QtiLqy0Nd6FdQB9TLXag12DsQkrbs3htMFfDN80Y=
 go.uber.org/zap v1.26.0 h1:sI7k6L95XOKS281NhVKOFCUNIvv9e0w4BF8N3u+tCRo=
 go.uber.org/zap v1.26.0/go.mod h1:dtElttAiwGvoJ/vj4IwHBS/gXsEu/pZ50mUIRWuG0so=
-golang.org/x/crypto v0.54.0 h1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=
-golang.org/x/crypto v0.54.0/go.mod h1:KWL8ny2AZdGR2cWmzeHrp2azQPGogOv+HeQaVEXC2dk=
-golang.org/x/net v0.57.0 h1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=
-golang.org/x/net v0.57.0/go.mod h1:KpXc8iv+r3XplLAG/f7Jsf9RPszJzdR0f58q9vGOuEU=
-golang.org/x/sync v0.22.0 h1:SZjpbeLmrCk4xhRSZFNZW5gFUeCeFgjekvI/+gfScek=
-golang.org/x/sync v0.22.0/go.mod h1:9xrNwdLfx4jkKbNva9FpL6vEN7evnE43NNNJQ2LF3+0=
+golang.org/x/crypto v0.55.0 h1:+KWHjbgOaAQ66dh/YlkZKHlz9ZUlq61AFirAR9ntP8M=
+golang.org/x/crypto v0.55.0/go.mod h1:uq0V9dE/fzQuJtbnL+2EhWOE63vo164FY8xqEnV9xis=
+golang.org/x/net v0.58.0 h1:ynWG7rqYi4ccpTEuPZ2QGWHktVEM9DMCj9yzDE0Q7To=
+golang.org/x/net v0.58.0/go.mod h1:YwCddHnFlT7eLQqVprV19OnhLGtc5xOKgE0RyqgfWAU=
+golang.org/x/sync v0.23.0 h1:KameEIfc1IkluZyXWLn39Wd4tURc6GbCiISGiZm2bQk=
+golang.org/x/sync v0.23.0/go.mod h1:sUUOizhqBxiL6pEWpqNLUiaJn1ShEbZ6BBqskPbjZm0=
 golang.org/x/sys v0.0.0-20190916202348-b4ddaad3f8a3/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20201204225414-ed752295db88/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20210616094352-59db8d763f22/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
@@ -5450,8 +5477,8 @@ golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=
 golang.org/x/sys v0.47.0/go.mod h1:4GL1E5IUh+htKOUEOaiffhrAeqysfVGipDYzABqnCmw=
 golang.org/x/term v0.45.0 h1:NwWyBmoJCbfTHpxrWoZ9C6/VxOf7ic219I8xZZFdrf0=
 golang.org/x/term v0.45.0/go.mod h1:9aqxs0blBcrm/n0L9QW0aRVD+ktan8ssZromtqJC43w=
-golang.org/x/text v0.40.0 h1:Ub2Z6/xjgF1WrYQz2nuITOEegKFtiIy+rieRJ5lHZKs=
-golang.org/x/text v0.40.0/go.mod h1:hpnzDAfGV753zIKo+wk3u1bVKCGPbrnF7+7LBF/UHVY=
+golang.org/x/text v0.41.0 h1:vz/seA0lnX87Othu2f/0L24RcgrXD9/YFTSuGjj3rH8=
+golang.org/x/text v0.41.0/go.mod h1:jvf1O8ajNzZqhSrQBPbutR/EB83Cc0CFrezNQIwbb5M=
 golang.org/x/time v0.15.0 h1:bbrp8t3bGUeFOx08pvsMYRTCVSMk89u4tKbNOZbp88U=
 golang.org/x/time v0.15.0/go.mod h1:Y4YMaQmXwGQZoFaVFk4YpCt4FLQMYKZe9oeV/f4MSno=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
@@ -5461,10 +5488,10 @@ google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa h1:
 google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa/go.mod h1:q4lMZS6kskjT5HvCPrnnypcDPVJqT/f4nfxmkE7gryY=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa h1:mZHHdPZl0dbGHCflZgAq/Q468DWVFcU2whhB2KAo8fk=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa/go.mod h1:4Hqkh8ycfw05ld/3BWL7rJOSfebL2Q+DVDeRgYgxUU8=
-google.golang.org/grpc v1.81.1 h1:VnnIIZ88UzOOKLukQi+ImGz8O1Wdp8nAGGnvOfEIWQQ=
-google.golang.org/grpc v1.81.1/go.mod h1:xGH9GfzOyMTGIOXBJmXt+BX/V0kcdQbdcuwQ/zNw42I=
-google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
-google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
+google.golang.org/grpc v1.83.2 h1:EManeRomTObA0BU7I8vXgg/78uE5MJ9M8B39EX2WscU=
+google.golang.org/grpc v1.83.2/go.mod h1:YPI1hK3kDked6iHvgX3tR0y+nX/qpMFKhPgFsokw1S8=
+google.golang.org/protobuf v1.36.12 h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=
+google.golang.org/protobuf v1.36.12/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk=
 gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c/go.mod h1:JHkPIbrfpd72SG/EVd6muEfDQjcINNoR0C8j2r3qZ4Q=
@@ -6112,15 +6139,16 @@ package factories
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
+	"uuid"
 
 	"testapp/models"
+	"testapp/models/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // TokenFactory wraps models.Token for testing
@@ -6137,9 +6165,9 @@ func BuildToken(opts ...TokenOption) models.Token {
 	f := &TokenFactory{
 		Token: models.Token{
 			Scope:     "default",
-			ExpiresAt: time.Now().Add(1 * time.Hour),
+			ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(1 * time.Hour), Valid: true},
 			Hash:      "test-hash",
-			MetaData:  json.RawMessage("{}"),
+			MetaData:  []byte("{}"),
 		},
 	}
 
@@ -6154,39 +6182,33 @@ func BuildToken(opts ...TokenOption) models.Token {
 // It returns the entity populated with all DB-assigned values via RETURNING *.
 func CreateToken(
 	ctx context.Context,
-	exec storage.Executor,
+	db storage.Connection,
 	opts ...TokenOption,
 ) (models.Token, error) {
 	built := BuildToken(opts...)
 
-	entity := models.Token{
-		ID:        uuid.New(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	return queries.New(db).CreateToken[models.Token](ctx, queries.CreateTokenParams{
+		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Scope:     built.Scope,
 		ExpiresAt: built.ExpiresAt,
 		Hash:      built.Hash,
 		MetaData:  built.MetaData,
-	}
-
-	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
-		return models.Token{}, err
-	}
-
-	return entity, nil
+	})
 }
 
 // CreateTokens creates multiple Token records at once
 func CreateTokens(
 	ctx context.Context,
-	exec storage.Executor,
+	db storage.Connection,
 	count int,
 	opts ...TokenOption,
 ) ([]models.Token, error) {
 	tokens := make([]models.Token, 0, count)
 
 	for i := range count {
-		token, err := CreateToken(ctx, exec, opts...)
+		token, err := CreateToken(ctx, db, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create token %d: %w", i+1, err)
 		}
@@ -6206,12 +6228,12 @@ func WithScope(scope string) TokenOption {
 // WithExpiresAt sets the expiration time for the token
 func WithExpiresAt(t time.Time) TokenOption {
 	return func(f *TokenFactory) {
-		f.ExpiresAt = t
+		f.ExpiresAt = pgtype.Timestamptz{Time: t, Valid: true}
 	}
 }
 
 // WithMetaData sets the metadata for the token
-func WithMetaData(data json.RawMessage) TokenOption {
+func WithMetaData(data []byte) TokenOption {
 	return func(f *TokenFactory) {
 		f.MetaData = data
 	}
@@ -6236,16 +6258,17 @@ package factories
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
+	"uuid"
 
 	"testapp/models"
+	"testapp/models/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 
 	"github.com/go-faker/faker/v4"
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // UserFactory wraps models.User for testing
@@ -6262,7 +6285,7 @@ func BuildUser(opts ...UserOption) models.User {
 	f := &UserFactory{
 		User: models.User{
 			Email:            faker.Email(),
-			EmailValidatedAt: sql.NullTime{},
+			EmailValidatedAt: pgtype.Timestamptz{},
 			Password:         defaultPassword(),
 			IsAdmin:          false,
 		},
@@ -6279,39 +6302,33 @@ func BuildUser(opts ...UserOption) models.User {
 // It returns the entity populated with all DB-assigned values via RETURNING *.
 func CreateUser(
 	ctx context.Context,
-	exec storage.Executor,
+	db storage.Connection,
 	opts ...UserOption,
 ) (models.User, error) {
 	built := BuildUser(opts...)
 
-	entity := models.User{
-		ID:               uuid.New(),
-		CreatedAt:        time.Now(),
-		UpdatedAt:        time.Now(),
+	return queries.New(db).CreateUser[models.User](ctx, queries.CreateUserParams{
+		ID:               pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Email:            built.Email,
 		EmailValidatedAt: built.EmailValidatedAt,
 		Password:         built.Password,
 		IsAdmin:          built.IsAdmin,
-	}
-
-	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
-		return models.User{}, err
-	}
-
-	return entity, nil
+	})
 }
 
 // CreateUsers creates multiple User records at once
 func CreateUsers(
 	ctx context.Context,
-	exec storage.Executor,
+	db storage.Connection,
 	count int,
 	opts ...UserOption,
 ) ([]models.User, error) {
 	users := make([]models.User, 0, count)
 
 	for i := range count {
-		user, err := CreateUser(ctx, exec, opts...)
+		user, err := CreateUser(ctx, db, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create user %d: %w", i+1, err)
 		}
@@ -6338,7 +6355,7 @@ func WithIsAdmin(isAdmin bool) UserOption {
 // WithEmailValidatedAt sets the email validation timestamp
 func WithEmailValidatedAt(t time.Time) UserOption {
 	return func(f *UserFactory) {
-		f.EmailValidatedAt = sql.NullTime{Time: t, Valid: true}
+		f.EmailValidatedAt = pgtype.Timestamptz{Time: t, Valid: true}
 	}
 }
 
@@ -6355,21 +6372,491 @@ func WithPassword(password []byte) UserOption {
 }
 ```
 
+dir  d----------rwxr-xr-x models/internal
+
+dir  d----------rwxr-xr-x models/internal/queries
+
+file -----------rw-r--r-- models/internal/queries/db.go
+```
+// Code generated by narsilc. DO NOT EDIT.
+
+package queries
+
+import (
+	"context"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+)
+
+type DBTX interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+	QueryRow(context.Context, string, ...any) pgx.Row
+}
+
+func New(db DBTX) *Queries {
+	return &Queries{db: db}
+}
+
+type Queries struct {
+	db DBTX
+}
+
+func (q *Queries) WithTx(tx pgx.Tx) *Queries {
+	return &Queries{
+		db: tx,
+	}
+}
+```
+
+file -----------rw-r--r-- models/internal/queries/token.sql.go
+```
+// Code generated by narsilc. DO NOT EDIT.
+// source: token.sql
+
+package queries
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/mbvlabs/narsilc"
+)
+
+const countTokens = `-- name: CountTokens :one
+SELECT count(*)
+FROM tokens
+`
+
+func (q *Queries) CountTokens(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countTokens)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const createToken = `-- name: CreateToken :one
+INSERT INTO tokens (
+	id,
+	created_at,
+	updated_at,
+	scope,
+	expires_at,
+	hash,
+	meta_data
+) VALUES (
+	$1, $2, $3, $4, $5, $6, $7
+)
+RETURNING id, created_at, updated_at, scope, expires_at, hash, meta_data
+`
+
+type CreateTokenParams struct {
+	ID        pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Scope     string
+	ExpiresAt pgtype.Timestamptz
+	Hash      string
+	MetaData  []byte
+}
+
+func (q *Queries) CreateToken[T any](ctx context.Context, arg CreateTokenParams) (T, error) {
+	row := q.db.QueryRow(ctx, createToken,
+		arg.ID,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+		arg.Scope,
+		arg.ExpiresAt,
+		arg.Hash,
+		arg.MetaData,
+	)
+	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
+}
+
+const deleteToken = `-- name: DeleteToken :exec
+DELETE FROM tokens
+WHERE id = $1
+`
+
+func (q *Queries) DeleteToken(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteToken, id)
+	return err
+}
+
+const getToken = `-- name: GetToken :one
+SELECT id, created_at, updated_at, scope, expires_at, hash, meta_data
+FROM tokens
+WHERE id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetToken[T any](ctx context.Context, id pgtype.UUID) (T, error) {
+	row := q.db.QueryRow(ctx, getToken, id)
+	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
+}
+
+const getTokenByScopeAndHash = `-- name: GetTokenByScopeAndHash :one
+SELECT id, created_at, updated_at, scope, expires_at, hash, meta_data
+FROM tokens
+WHERE scope = $1
+	AND hash = $2
+LIMIT 1
+`
+
+type GetTokenByScopeAndHashParams struct {
+	Scope string
+	Hash  string
+}
+
+func (q *Queries) GetTokenByScopeAndHash[T any](ctx context.Context, arg GetTokenByScopeAndHashParams) (T, error) {
+	row := q.db.QueryRow(ctx, getTokenByScopeAndHash, arg.Scope, arg.Hash)
+	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
+}
+
+const listTokens = `-- name: ListTokens :many
+SELECT id, created_at, updated_at, scope, expires_at, hash, meta_data
+FROM tokens
+`
+
+func (q *Queries) ListTokens[T any](ctx context.Context) *ListTokensBuilder[T] {
+	return &ListTokensBuilder[T]{
+		q:        q,
+		ctx:      ctx,
+		args:     []any{},
+		hasWhere: false,
+		dollar:   true,
+	}
+}
+
+type ListTokensBuilder[T any] struct {
+	q        *Queries
+	ctx      context.Context
+	args     []any
+	conds    []string
+	order    string
+	limit    *int32
+	offset   *int32
+	hasWhere bool
+	dollar   bool
+}
+
+func (b *ListTokensBuilder[T]) OrderByIDAsc() *ListTokensBuilder[T] {
+	b.order = `id ASC`
+	return b
+}
+
+func (b *ListTokensBuilder[T]) OrderByIDDesc() *ListTokensBuilder[T] {
+	b.order = `id DESC`
+	return b
+}
+
+func (b *ListTokensBuilder[T]) Limit(n int32) *ListTokensBuilder[T] {
+	b.limit = &n
+	return b
+}
+
+func (b *ListTokensBuilder[T]) Offset(n int32) *ListTokensBuilder[T] {
+	b.offset = &n
+	return b
+}
+
+func (b *ListTokensBuilder[T]) build() string {
+	query := listTokens
+	if len(b.conds) > 0 {
+		if b.hasWhere {
+			query += " AND " + strings.Join(b.conds, " AND ")
+		} else {
+			query += " WHERE " + strings.Join(b.conds, " AND ")
+		}
+	}
+	if b.order != "" {
+		query += " ORDER BY " + b.order
+	}
+	if b.limit != nil {
+		b.args = append(b.args, *b.limit)
+		if b.dollar {
+			query += fmt.Sprintf(" LIMIT $%d", len(b.args))
+		} else {
+			query += " LIMIT ?"
+		}
+	}
+	if b.offset != nil {
+		b.args = append(b.args, *b.offset)
+		if b.dollar {
+			query += fmt.Sprintf(" OFFSET $%d", len(b.args))
+		} else {
+			query += " OFFSET ?"
+		}
+	}
+	return query
+}
+
+func (b *ListTokensBuilder[T]) All() ([]T, error) {
+	query := b.build()
+	rows, err := b.q.db.Query(b.ctx, query, b.args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []T
+	for rows.Next() {
+		item, err := narsilc.Scan[T](rows, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+```
+
+file -----------rw-r--r-- models/internal/queries/user.sql.go
+```
+// Code generated by narsilc. DO NOT EDIT.
+// source: user.sql
+
+package queries
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/mbvlabs/narsilc"
+)
+
+const countUsers = `-- name: CountUsers :one
+SELECT count(*)
+FROM users
+`
+
+func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countUsers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (
+	id,
+	created_at,
+	updated_at,
+	email,
+	email_validated_at,
+	password,
+	is_admin
+) VALUES (
+	$1, $2, $3, $4, $5, $6, $7
+)
+RETURNING id, created_at, updated_at, email, email_validated_at, password, is_admin
+`
+
+type CreateUserParams struct {
+	ID               pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	Email            string
+	EmailValidatedAt pgtype.Timestamptz
+	Password         []byte
+	IsAdmin          bool
+}
+
+func (q *Queries) CreateUser[T any](ctx context.Context, arg CreateUserParams) (T, error) {
+	row := q.db.QueryRow(ctx, createUser,
+		arg.ID,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+		arg.Email,
+		arg.EmailValidatedAt,
+		arg.Password,
+		arg.IsAdmin,
+	)
+	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+}
+
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM users
+WHERE id = $1
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteUser, id)
+	return err
+}
+
+const getUser = `-- name: GetUser :one
+SELECT id, created_at, updated_at, email, email_validated_at, password, is_admin
+FROM users
+WHERE id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetUser[T any](ctx context.Context, id pgtype.UUID) (T, error) {
+	row := q.db.QueryRow(ctx, getUser, id)
+	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, created_at, updated_at, email, email_validated_at, password, is_admin
+FROM users
+WHERE email = $1
+LIMIT 1
+`
+
+func (q *Queries) GetUserByEmail[T any](ctx context.Context, email string) (T, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+}
+
+const listUsers = `-- name: ListUsers :many
+SELECT id, created_at, updated_at, email, email_validated_at, password, is_admin
+FROM users
+`
+
+func (q *Queries) ListUsers[T any](ctx context.Context) *ListUsersBuilder[T] {
+	return &ListUsersBuilder[T]{
+		q:        q,
+		ctx:      ctx,
+		args:     []any{},
+		hasWhere: false,
+		dollar:   true,
+	}
+}
+
+type ListUsersBuilder[T any] struct {
+	q        *Queries
+	ctx      context.Context
+	args     []any
+	conds    []string
+	order    string
+	limit    *int32
+	offset   *int32
+	hasWhere bool
+	dollar   bool
+}
+
+func (b *ListUsersBuilder[T]) OrderByIDAsc() *ListUsersBuilder[T] {
+	b.order = `id ASC`
+	return b
+}
+
+func (b *ListUsersBuilder[T]) OrderByIDDesc() *ListUsersBuilder[T] {
+	b.order = `id DESC`
+	return b
+}
+
+func (b *ListUsersBuilder[T]) Limit(n int32) *ListUsersBuilder[T] {
+	b.limit = &n
+	return b
+}
+
+func (b *ListUsersBuilder[T]) Offset(n int32) *ListUsersBuilder[T] {
+	b.offset = &n
+	return b
+}
+
+func (b *ListUsersBuilder[T]) build() string {
+	query := listUsers
+	if len(b.conds) > 0 {
+		if b.hasWhere {
+			query += " AND " + strings.Join(b.conds, " AND ")
+		} else {
+			query += " WHERE " + strings.Join(b.conds, " AND ")
+		}
+	}
+	if b.order != "" {
+		query += " ORDER BY " + b.order
+	}
+	if b.limit != nil {
+		b.args = append(b.args, *b.limit)
+		if b.dollar {
+			query += fmt.Sprintf(" LIMIT $%d", len(b.args))
+		} else {
+			query += " LIMIT ?"
+		}
+	}
+	if b.offset != nil {
+		b.args = append(b.args, *b.offset)
+		if b.dollar {
+			query += fmt.Sprintf(" OFFSET $%d", len(b.args))
+		} else {
+			query += " OFFSET ?"
+		}
+	}
+	return query
+}
+
+func (b *ListUsersBuilder[T]) All() ([]T, error) {
+	query := b.build()
+	rows, err := b.q.db.Query(b.ctx, query, b.args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []T
+	for rows.Next() {
+		item, err := narsilc.Scan[T](rows, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateUser = `-- name: UpdateUser :one
+UPDATE users
+SET
+	email = $2,
+	email_validated_at = $3,
+	password = $4,
+	is_admin = $5,
+	updated_at = $6
+WHERE id = $1
+RETURNING id, created_at, updated_at, email, email_validated_at, password, is_admin
+`
+
+type UpdateUserParams struct {
+	ID               pgtype.UUID
+	Email            string
+	EmailValidatedAt pgtype.Timestamptz
+	Password         []byte
+	IsAdmin          bool
+	UpdatedAt        pgtype.Timestamptz
+}
+
+func (q *Queries) UpdateUser[T any](ctx context.Context, arg UpdateUserParams) (T, error) {
+	row := q.db.QueryRow(ctx, updateUser,
+		arg.ID,
+		arg.Email,
+		arg.EmailValidatedAt,
+		arg.Password,
+		arg.IsAdmin,
+		arg.UpdatedAt,
+	)
+	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+}
+```
+
 file -----------rw-r--r-- models/model.go
 ```
 // Package models contains data models and validation logic.
 package models
 
 import (
-	"github.com/mbvlabs/andurel/pkg/storage"
-
 	"go.uber.org/fx"
 )
-
-// queryDB is satisfied by storage.Connection and storage.Transaction.
-type queryDB interface {
-	Executor() storage.Executor
-}
 
 var Module = fx.Module(
 	"models",
@@ -6382,63 +6869,156 @@ var Module = fx.Module(
 
 dir  d----------rwxr-xr-x models/queries
 
-file -----------rw-r--r-- models/queries/.gitkeep
+file -----------rw-r--r-- models/queries/token.sql
+```
+-- name: GetToken :one
+SELECT *
+FROM tokens
+WHERE id = $1
+LIMIT 1;
+
+-- name: GetTokenByScopeAndHash :one
+SELECT *
+FROM tokens
+WHERE scope = $1
+	AND hash = $2
+LIMIT 1;
+
+-- name: ListTokens :many
+-- @order id
+SELECT *
+FROM tokens;
+
+-- name: CountTokens :one
+SELECT count(*)
+FROM tokens;
+
+-- name: CreateToken :one
+INSERT INTO tokens (
+	id,
+	created_at,
+	updated_at,
+	scope,
+	expires_at,
+	hash,
+	meta_data
+) VALUES (
+	$1, $2, $3, $4, $5, $6, $7
+)
+RETURNING *;
+
+-- name: DeleteToken :exec
+DELETE FROM tokens
+WHERE id = $1;
 ```
 
+file -----------rw-r--r-- models/queries/user.sql
+```
+-- name: GetUser :one
+SELECT *
+FROM users
+WHERE id = $1
+LIMIT 1;
+
+-- name: GetUserByEmail :one
+SELECT *
+FROM users
+WHERE email = $1
+LIMIT 1;
+
+-- name: ListUsers :many
+-- @order id
+SELECT *
+FROM users;
+
+-- name: CountUsers :one
+SELECT count(*)
+FROM users;
+
+-- name: CreateUser :one
+INSERT INTO users (
+	id,
+	created_at,
+	updated_at,
+	email,
+	email_validated_at,
+	password,
+	is_admin
+) VALUES (
+	$1, $2, $3, $4, $5, $6, $7
+)
+RETURNING *;
+
+-- name: UpdateUser :one
+UPDATE users
+SET
+	email = $2,
+	email_validated_at = $3,
+	password = $4,
+	is_admin = $5,
+	updated_at = $6
+WHERE id = $1
+RETURNING *;
+
+-- name: DeleteUser :exec
+DELETE FROM users
+WHERE id = $1;
 ```
 
 file -----------rw-r--r-- models/token.go
 ```
 package models
 
+// andurel:table tokens
+
 import (
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/base32"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"time"
+	"uuid"
+
+	"testapp/models/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
-	"github.com/google/uuid"
-	"github.com/uptrace/bun"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Tokens struct {
-	db queryDB
+	queries *queries.Queries
 }
 
 func NewTokens(db storage.Connection) Tokens {
-	return Tokens{db: db}
+	return Tokens{queries: queries.New(db)}
 }
 
 // WithTx returns a copy that runs queries inside tx.
 func (t Tokens) WithTx(tx storage.Transaction) Tokens {
-	return Tokens{db: tx}
+	return Tokens{queries: queries.New(tx)}
 }
 
 type Token struct {
-	bun.BaseModel `bun:"table:tokens,alias:tokens"`
-	ID            uuid.UUID       `bun:"id,pk,type:uuid"`
-	CreatedAt     time.Time       `bun:"created_at"`
-	UpdatedAt     time.Time       `bun:"updated_at"`
-	Scope         string          `bun:"scope"`
-	ExpiresAt     time.Time       `bun:"expires_at"`
-	Hash          string          `bun:"hash"`
-	MetaData      json.RawMessage `bun:"meta_data,type:jsonb"`
+	ID        pgtype.UUID        `andurel:"id"`
+	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
+	Scope     string             `andurel:"scope"`
+	ExpiresAt pgtype.Timestamptz `andurel:"expires_at"`
+	Hash      string             `andurel:"hash"`
+	MetaData  []byte             `andurel:"meta_data"`
 }
 
 func (t Token) IsValid(token, secret string) bool {
 	expected := HashForStorage(token, secret)
 
 	isEqual := hmac.Equal([]byte(expected), []byte(t.Hash))
-	isNotExpired := time.Now().Before(t.ExpiresAt)
+	isNotExpired := time.Now().Before(t.ExpiresAt.Time)
 
 	return isEqual && isNotExpired
 }
@@ -6473,14 +7053,10 @@ func HashForStorage(plain, secret string) string {
 	return hex.EncodeToString(m.Sum(nil))
 }
 
-func (t Tokens) Find(ctx context.Context, id uuid.UUID) (Token, error) {
-	var entity Token
-	err := t.db.Executor().NewSelect().
-		Model(&entity).
-		Where("id = ?", id).
-		Scan(ctx)
+func (t Tokens) Find(ctx context.Context, id pgtype.UUID) (Token, error) {
+	entity, err := t.queries.GetToken[Token](ctx, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Token{}, ErrNotFound
 		}
 
@@ -6498,14 +7074,12 @@ func (t Tokens) FindByScopeAndHash(
 ) (Token, error) {
 	hash := HashForStorage(plainToken, secret)
 
-	var entity Token
-	err := t.db.Executor().NewSelect().
-		Model(&entity).
-		Where("scope = ?", scope).
-		Where("hash = ?", hash).
-		Scan(ctx)
+	entity, err := t.queries.GetTokenByScopeAndHash[Token](ctx, queries.GetTokenByScopeAndHashParams{
+		Scope: scope,
+		Hash:  hash,
+	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Token{}, ErrNotFound
 		}
 
@@ -6519,7 +7093,7 @@ type createTokenData struct {
 	Scope     string
 	ExpiresAt time.Time
 	Hash      string
-	MetaData  json.RawMessage
+	MetaData  []byte
 }
 
 func (t *Token) Validate() error {
@@ -6537,11 +7111,11 @@ func (t Tokens) createToken(
 	data createTokenData,
 ) (Token, error) {
 	entity := Token{
-		ID:        uuid.New(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Scope:     data.Scope,
-		ExpiresAt: data.ExpiresAt,
+		ExpiresAt: pgtype.Timestamptz{Time: data.ExpiresAt, Valid: true},
 		Hash:      data.Hash,
 		MetaData:  data.MetaData,
 	}
@@ -6550,11 +7124,15 @@ func (t Tokens) createToken(
 		return Token{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := t.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return Token{}, err
-	}
-
-	return entity, nil
+	return t.queries.CreateToken[Token](ctx, queries.CreateTokenParams{
+		ID:        entity.ID,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+		Scope:     entity.Scope,
+		ExpiresAt: entity.ExpiresAt,
+		Hash:      entity.Hash,
+		MetaData:  entity.MetaData,
+	})
 }
 
 func (t Tokens) CreateCode(
@@ -6562,7 +7140,7 @@ func (t Tokens) CreateCode(
 	secret string,
 	scope string,
 	expiresAt time.Time,
-	metaData json.RawMessage,
+	metaData []byte,
 ) (string, error) {
 	tkn, err := GenerateCode(6)
 	if err != nil {
@@ -6586,7 +7164,7 @@ func (t Tokens) Create(
 	secret string,
 	scope string,
 	expiresAt time.Time,
-	metaData json.RawMessage,
+	metaData []byte,
 ) (string, error) {
 	tkn, err := GenerateSecureToken()
 	if err != nil {
@@ -6605,24 +7183,12 @@ func (t Tokens) Create(
 	return tkn, nil
 }
 
-func (t Tokens) Destroy(ctx context.Context, id uuid.UUID) error {
-	_, err := t.db.Executor().NewDelete().
-		Model((*Token)(nil)).
-		Where("id = ?", id).
-		Exec(ctx)
-	return err
+func (t Tokens) Destroy(ctx context.Context, id pgtype.UUID) error {
+	return t.queries.DeleteToken(ctx, id)
 }
 
 func (t Tokens) All(ctx context.Context) ([]Token, error) {
-	var entities []Token
-	err := t.db.Executor().NewSelect().
-		Model(&entities).
-		Scan(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return entities, nil
+	return t.queries.ListTokens[Token](ctx).All()
 }
 
 type PaginatedTokens struct {
@@ -6649,18 +7215,16 @@ func (t Tokens) Paginate(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := t.db.Executor().NewSelect().
-		Model(&Token{}).Count(ctx)
+	totalCount, err := t.queries.CountTokens(ctx)
 	if err != nil {
 		return PaginatedTokens{}, err
 	}
 
-	entities := make([]Token, 0, int(pageSize))
-	if err := t.db.Executor().NewSelect().
-		Model(&entities).
-		Limit(int(pageSize)).
-		Offset(int(offset)).
-		Scan(ctx); err != nil {
+	entities, err := t.queries.ListTokens[Token](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
 		return PaginatedTokens{}, err
 	}
 
@@ -6680,48 +7244,51 @@ file -----------rw-r--r-- models/user.go
 ```
 package models
 
+// andurel:table users
+
 import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
-	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
+	"uuid"
+
+	"testapp/models/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
-	"github.com/google/uuid"
-	"github.com/uptrace/bun"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"golang.org/x/crypto/argon2"
 )
 
 type Users struct {
-	db queryDB
+	queries *queries.Queries
 }
 
 func NewUsers(db storage.Connection) Users {
-	return Users{db: db}
+	return Users{queries: queries.New(db)}
 }
 
 // WithTx returns a copy that runs queries inside tx.
 func (u Users) WithTx(tx storage.Transaction) Users {
-	return Users{db: tx}
+	return Users{queries: queries.New(tx)}
 }
 
 type User struct {
-	bun.BaseModel    `bun:"table:users,alias:user"`
-	ID               uuid.UUID    `bun:"id,pk,type:uuid"`
-	CreatedAt        time.Time    `bun:"created_at"`
-	UpdatedAt        time.Time    `bun:"updated_at"`
-	Email            string       `bun:"email"`
-	EmailValidatedAt sql.NullTime `bun:"email_validated_at"`
-	Password         []byte       `bun:"password"`
-	IsAdmin          bool         `bun:"is_admin"`
+	ID               pgtype.UUID        `andurel:"id"`
+	CreatedAt        pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `andurel:"updated_at"`
+	Email            string             `andurel:"email"`
+	EmailValidatedAt pgtype.Timestamptz `andurel:"email_validated_at"`
+	Password         []byte             `andurel:"password"`
+	IsAdmin          bool               `andurel:"is_admin"`
 }
 
 func (u *User) Validate() error {
@@ -6764,14 +7331,10 @@ func (u *User) ValidPassword(providedPassword, pepper string) (bool, error) {
 	return subtle.ConstantTimeCompare(newHash, expectedHash) == 1, nil
 }
 
-func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
-	var entity User
-	err := u.db.Executor().NewSelect().
-		Model(&entity).
-		Where("id = ?", id).
-		Scan(ctx)
+func (u Users) Find(ctx context.Context, id pgtype.UUID) (User, error) {
+	entity, err := u.queries.GetUser[User](ctx, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return User{}, ErrNotFound
 		}
 
@@ -6785,13 +7348,9 @@ func (u Users) FindByEmail(
 	ctx context.Context,
 	email string,
 ) (User, error) {
-	var entity User
-	err := u.db.Executor().NewSelect().
-		Model(&entity).
-		Where("email = ?", strings.ToLower(email)).
-		Scan(ctx)
+	entity, err := u.queries.GetUserByEmail[User](ctx, strings.ToLower(email))
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return User{}, ErrNotFound
 		}
 
@@ -6822,11 +7381,11 @@ func (u Users) Create(
 	}
 
 	entity := User{
-		ID:               uuid.New(),
-		CreatedAt:        time.Now(),
-		UpdatedAt:        time.Now(),
+		ID:               pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Email:            strings.ToLower(data.Email),
-		EmailValidatedAt: sql.NullTime{},
+		EmailValidatedAt: pgtype.Timestamptz{},
 		Password:         []byte(hashedPassword),
 		IsAdmin:          false,
 	}
@@ -6835,18 +7394,21 @@ func (u Users) Create(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	_, err = u.db.Executor().NewInsert().Model(&entity).Exec(ctx)
-	if err != nil {
-		return User{}, err
-	}
-
-	return entity, nil
+	return u.queries.CreateUser[User](ctx, queries.CreateUserParams{
+		ID:               entity.ID,
+		CreatedAt:        entity.CreatedAt,
+		UpdatedAt:        entity.UpdatedAt,
+		Email:            entity.Email,
+		EmailValidatedAt: entity.EmailValidatedAt,
+		Password:         entity.Password,
+		IsAdmin:          entity.IsAdmin,
+	})
 }
 
 type UpdateUserData struct {
-	ID               uuid.UUID
+	ID               pgtype.UUID
 	Email            string
-	EmailValidatedAt sql.NullTime
+	EmailValidatedAt pgtype.Timestamptz
 	Password         []byte
 	IsAdmin          bool
 }
@@ -6855,16 +7417,8 @@ func (u Users) Update(
 	ctx context.Context,
 	data UpdateUserData,
 ) (User, error) {
-	var current User
-	err := u.db.Executor().NewSelect().
-		Model(&current).
-		Where("id = ?", data.ID).
-		Scan(ctx)
+	current, err := u.Find(ctx, data.ID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return User{}, ErrNotFound
-		}
-
 		return User{}, err
 	}
 
@@ -6886,7 +7440,7 @@ func (u Users) Update(
 	entity := User{
 		ID:               data.ID,
 		CreatedAt:        current.CreatedAt,
-		UpdatedAt:        time.Now(),
+		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Email:            email,
 		EmailValidatedAt: emailValidatedAt,
 		Password:         password,
@@ -6897,46 +7451,31 @@ func (u Users) Update(
 		return User{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err = u.db.Executor().NewUpdate().
-		Model(&entity).
-		Column("email").
-		Column("email_validated_at").
-		Column("password").
-		Column("is_admin").
-		Column("updated_at").
-		WherePK().
-		Returning("*").
-		Scan(ctx)
+	row, err := u.queries.UpdateUser[User](ctx, queries.UpdateUserParams{
+		ID:               entity.ID,
+		Email:            entity.Email,
+		EmailValidatedAt: entity.EmailValidatedAt,
+		Password:         entity.Password,
+		IsAdmin:          entity.IsAdmin,
+		UpdatedAt:        entity.UpdatedAt,
+	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return User{}, ErrNotFound
 		}
 
 		return User{}, err
 	}
 
-	return entity, nil
+	return row, nil
 }
 
-func (u Users) Destroy(ctx context.Context, id uuid.UUID) error {
-	_, err := u.db.Executor().NewDelete().
-		Model((*User)(nil)).
-		Where("id = ?", id).
-		Exec(ctx)
-
-	return err
+func (u Users) Destroy(ctx context.Context, id pgtype.UUID) error {
+	return u.queries.DeleteUser(ctx, id)
 }
 
 func (u Users) All(ctx context.Context) ([]User, error) {
-	var entities []User
-	err := u.db.Executor().NewSelect().
-		Model(&entities).
-		Scan(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return entities, nil
+	return u.queries.ListUsers[User](ctx).All()
 }
 
 type PaginatedUsers struct {
@@ -6963,18 +7502,15 @@ func (u Users) Paginate(
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := u.db.Executor().NewSelect().
-		Model(&User{}).Count(ctx)
+	totalCount, err := u.queries.CountUsers(ctx)
 	if err != nil {
 		return PaginatedUsers{}, err
 	}
 
-	entities := make([]User, 0, int(pageSize))
-	err = u.db.Executor().NewSelect().
-		Model(&entities).
-		Limit(int(pageSize)).
-		Offset(int(offset)).
-		Scan(ctx)
+	entities, err := u.queries.ListUsers[User](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
 	if err != nil {
 		return PaginatedUsers{}, err
 	}
@@ -7724,8 +8260,8 @@ file -----------rw-r--r-- router/cookies/cookies.go
 package cookies
 
 import (
-	"github.com/google/uuid"
 	"testapp/models"
+	"uuid"
 
 	"github.com/labstack/echo/v5"
 )
@@ -8759,7 +9295,6 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/v5/session"
 	"github.com/labstack/echo/v5"
@@ -8775,6 +9310,7 @@ import (
 	"testapp/router/cookies"
 	"testapp/router/middleware"
 	"testapp/telemetry"
+	"uuid"
 )
 
 type Router struct {
@@ -9285,7 +9821,7 @@ import (
 
 const Default = "development"
 
-type Runner func(context.Context, storage.Executor) error
+type Runner func(context.Context, storage.Connection) error
 
 var Registry = map[string]Runner{
 	"default":     Development,
@@ -9302,7 +9838,7 @@ func Names() []string {
 	return names
 }
 
-func Run(ctx context.Context, exec storage.Executor, name string) error {
+func Run(ctx context.Context, db storage.Connection, name string) error {
 	if name == "" {
 		name = Default
 	}
@@ -9312,11 +9848,11 @@ func Run(ctx context.Context, exec storage.Executor, name string) error {
 		return fmt.Errorf("unknown seed %q (available: %s)", name, strings.Join(Names(), ", "))
 	}
 
-	return runner(ctx, exec)
+	return runner(ctx, db)
 }
 
-func Development(ctx context.Context, exec storage.Executor) error {
-	admin, err := factories.CreateUser(ctx, exec,
+func Development(ctx context.Context, db storage.Connection) error {
+	admin, err := factories.CreateUser(ctx, db,
 		factories.WithEmail("admin@example.com"),
 		factories.WithIsAdmin(true),
 		factories.WithValidatedEmail(),
@@ -9326,7 +9862,7 @@ func Development(ctx context.Context, exec storage.Executor) error {
 	}
 	fmt.Printf("Created admin user: %s\n", admin.Email)
 
-	user, err := factories.CreateUser(ctx, exec,
+	user, err := factories.CreateUser(ctx, db,
 		factories.WithEmail("user@example.com"),
 		factories.WithValidatedEmail(),
 	)
@@ -9338,7 +9874,7 @@ func Development(ctx context.Context, exec storage.Executor) error {
 	// Add more seeds here using factories:
 	//
 	// // Create 10 additional users with random emails
-	// users, err := factories.CreateUsers(ctx, exec, 10)
+	// users, err := factories.CreateUsers(ctx, db, 10)
 	// if err != nil {
 	// 	return fmt.Errorf("failed to create users: %w", err)
 	// }
@@ -9347,8 +9883,8 @@ func Development(ctx context.Context, exec storage.Executor) error {
 	return nil
 }
 
-func Test(ctx context.Context, exec storage.Executor) error {
-	_, err := factories.CreateUser(ctx, exec,
+func Test(ctx context.Context, db storage.Connection) error {
+	_, err := factories.CreateUser(ctx, db,
 		factories.WithEmail("test@example.com"),
 		factories.WithValidatedEmail(),
 	)
@@ -9617,7 +10153,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9626,6 +10161,8 @@ import (
 	appemail "testapp/email"
 	"testapp/models"
 	"testapp/queue/jobs"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
@@ -9656,7 +10193,7 @@ func (i Identity) RegisterUser(
 		return models.User{}, b.Errors()
 	}
 
-	tx, err := i.db.BeginTransaction(ctx, nil)
+	tx, err := i.db.BeginTransaction(ctx)
 
 	if err != nil {
 
@@ -9676,7 +10213,8 @@ func (i Identity) RegisterUser(
 		},
 	})
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
+
 		return models.User{}, fmt.Errorf("create user: %w", err)
 	}
 
@@ -9684,7 +10222,7 @@ func (i Identity) RegisterUser(
 		"email": user.Email,
 	})
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return models.User{}, fmt.Errorf("marshal verification token metadata: %v", err)
 
@@ -9699,13 +10237,13 @@ func (i Identity) RegisterUser(
 		meta,
 	)
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return models.User{}, fmt.Errorf("create verification token: %w", err)
 
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 
 		return models.User{}, fmt.Errorf("commit registration transaction: %w", err)
 
@@ -9767,7 +10305,7 @@ func (i Identity) VerifyEmail(
 		return models.User{}, b.Errors()
 	}
 
-	tx, err := i.db.BeginTransaction(ctx, nil)
+	tx, err := i.db.BeginTransaction(ctx)
 
 	if err != nil {
 
@@ -9786,7 +10324,7 @@ func (i Identity) VerifyEmail(
 		data.Code,
 	)
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
 			return models.User{}, ErrInvalidVerificationCode
@@ -9798,13 +10336,13 @@ func (i Identity) VerifyEmail(
 
 	if !token.IsValid(data.Code, i.tokenSigningKey) {
 
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 		return models.User{}, ErrExpiredVerificationCode
 	}
 
 	var meta map[string]string
 	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return models.User{}, fmt.Errorf("unmarshal verification token metadata: %v", err)
 
@@ -9812,7 +10350,7 @@ func (i Identity) VerifyEmail(
 
 	emailAddr, ok := meta["email"]
 	if !ok {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return models.User{}, errors.New("verification token metadata missing email")
 
@@ -9820,7 +10358,7 @@ func (i Identity) VerifyEmail(
 
 	user, err := users.FindByEmail(ctx, emailAddr)
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
 			return models.User{}, ErrUserNotFound
@@ -9834,12 +10372,12 @@ func (i Identity) VerifyEmail(
 	user, err = users.Update(ctx, models.UpdateUserData{
 		ID:               user.ID,
 		Email:            user.Email,
-		EmailValidatedAt: sql.NullTime{Time: now, Valid: true},
+		EmailValidatedAt: pgtype.Timestamptz{Time: now, Valid: true},
 		Password:         user.Password,
 		IsAdmin:          user.IsAdmin,
 	})
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
 			return models.User{}, ErrUserNotFound
@@ -9850,13 +10388,13 @@ func (i Identity) VerifyEmail(
 	}
 
 	if err := tokens.Destroy(ctx, token.ID); err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return models.User{}, fmt.Errorf("destroy email verification token: %w", err)
 
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 
 		return models.User{}, fmt.Errorf("commit email verification transaction: %w", err)
 	}
@@ -9906,7 +10444,7 @@ func (i Identity) RequestResetPassword(
 		return b.Errors()
 	}
 
-	tx, err := i.db.BeginTransaction(ctx, nil)
+	tx, err := i.db.BeginTransaction(ctx)
 
 	if err != nil {
 
@@ -9919,7 +10457,7 @@ func (i Identity) RequestResetPassword(
 
 	user, err := users.FindByEmail(ctx, data.Email)
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
 			return nil
@@ -9933,7 +10471,7 @@ func (i Identity) RequestResetPassword(
 		"email": user.Email,
 	})
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return fmt.Errorf("marshal password reset token metadata: %v", err)
 
@@ -9948,13 +10486,13 @@ func (i Identity) RequestResetPassword(
 		meta,
 	)
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return fmt.Errorf("create password reset token: %w", err)
 
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 
 		return fmt.Errorf("commit password reset request transaction: %w", err)
 
@@ -10018,7 +10556,7 @@ func (i Identity) ResetPassword(
 		return b.Errors()
 	}
 
-	tx, err := i.db.BeginTransaction(ctx, nil)
+	tx, err := i.db.BeginTransaction(ctx)
 
 	if err != nil {
 
@@ -10037,7 +10575,7 @@ func (i Identity) ResetPassword(
 		data.Token,
 	)
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
 			return ErrInvalidResetCode
@@ -10049,13 +10587,13 @@ func (i Identity) ResetPassword(
 
 	if !token.IsValid(data.Token, i.tokenSigningKey) {
 
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 		return ErrExpiredResetCode
 	}
 
 	var meta map[string]string
 	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return fmt.Errorf("unmarshal password reset token metadata: %v", err)
 
@@ -10063,7 +10601,7 @@ func (i Identity) ResetPassword(
 
 	emailAddr, ok := meta["email"]
 	if !ok {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return errors.New("password reset token metadata missing email")
 
@@ -10071,7 +10609,7 @@ func (i Identity) ResetPassword(
 
 	user, err := users.FindByEmail(ctx, emailAddr)
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
 			return ErrInvalidResetCode
@@ -10084,7 +10622,7 @@ func (i Identity) ResetPassword(
 	hashedPassword, err := models.HashPassword(data.Password, i.pepper)
 
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return fmt.Errorf("hash reset password: %w", err)
 
@@ -10098,7 +10636,7 @@ func (i Identity) ResetPassword(
 		IsAdmin:          user.IsAdmin,
 	})
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
 			return ErrInvalidResetCode
@@ -10109,13 +10647,13 @@ func (i Identity) ResetPassword(
 	}
 
 	if err := tokens.Destroy(ctx, token.ID); err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return fmt.Errorf("destroy password reset token: %w", err)
 
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit password reset transaction: %w", err)
 	}
 
@@ -10136,22 +10674,6 @@ var Module = fx.Module(
 		NewIdentity,
 	),
 )
-```
-
-file -----------rw-r--r-- sqlc.yaml
-```
-version: "2"
-sql:
-  - engine: "postgresql"
-    queries: "models/queries"
-    schema: "migrations"
-    gen:
-      go:
-        package: "queries"
-        out: "models/internal/queries"
-        sql_package: "database/sql"
-        emit_interface: true
-        omit_unused_structs: true
 ```
 
 dir  d----------rwxr-xr-x telemetry

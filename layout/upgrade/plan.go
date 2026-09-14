@@ -110,7 +110,23 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 	}
 	plan.toolChanges = *toolChanges
 	if lock.DatabaseConfig == nil {
-		lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
+		lock.DatabaseConfig = &layout.DatabaseConfig{}
+	}
+	if strings.TrimSpace(lock.DatabaseConfig.Engine) == "" &&
+		lock.ScaffoldConfig != nil &&
+		strings.TrimSpace(lock.ScaffoldConfig.Database) != "" {
+		lock.DatabaseConfig.Engine = lock.ScaffoldConfig.Database
+	}
+	if strings.TrimSpace(lock.DatabaseConfig.Engine) == "" {
+		lock.DatabaseConfig.Engine = layout.DatabaseEnginePostgreSQL
+	}
+	if strings.TrimSpace(lock.DatabaseConfig.NullType) == "" ||
+		lock.DatabaseConfig.NullType == "sql.Null" ||
+		lock.DatabaseConfig.NullType == "bun.Null" {
+		lock.DatabaseConfig.NullType = layout.NullTypePGType
+	}
+	if lock.ScaffoldConfig != nil {
+		lock.ScaffoldConfig.Database = ""
 	}
 	lock.SchemaVersion = targetLockSchemaVersion
 

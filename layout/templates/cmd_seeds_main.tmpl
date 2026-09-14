@@ -61,7 +61,7 @@ func run(args []string) error {
 	}
 
 	fmt.Printf("Seeding database with %q...\n", seedName)
-	if err := seeds.Run(ctx, db.Executor(), seedName); err != nil {
+	if err := seeds.Run(ctx, db, seedName); err != nil {
 		return err
 	}
 

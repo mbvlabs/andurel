@@ -10,8 +10,9 @@ import (
 	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/views"
+	"uuid"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
@@ -19,10 +20,11 @@ import (
 
 type Documents struct {
 	documents models.Documents
+	session   *cookies.Session
 }
 
-func NewDocuments(documents models.Documents) Documents {
-	return Documents{documents}
+func NewDocuments(documents models.Documents, session *cookies.Session) Documents {
+	return Documents{documents: documents, session: session}
 }
 
 func (d Documents) RegisterRoutes(r *router.Router) error {
@@ -129,7 +131,7 @@ func (d Documents) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	document, err := d.documents.Find(etx.Request().Context(), documentID)
+	document, err := d.documents.Find(etx.Request().Context(), pgtype.UUID{Bytes: documentID, Valid: true})
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -183,16 +185,16 @@ func (d Documents) Create(etx *echo.Context) error {
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create document: %v", err)); flashErr != nil {
+		if flashErr := d.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create document: %v", err)); flashErr != nil {
 			return flashErr
 		}
 		return etx.Redirect(http.StatusSeeOther, routes.DocumentNew.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Document created successfully"); flashErr != nil {
+	if flashErr := d.session.AddFlash(etx, cookies.FlashSuccess, "Document created successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID.Bytes))
 }
 
 func (d Documents) Edit(etx *echo.Context) error {
@@ -201,7 +203,7 @@ func (d Documents) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	document, err := d.documents.Find(etx.Request().Context(), documentID)
+	document, err := d.documents.Find(etx.Request().Context(), pgtype.UUID{Bytes: documentID, Valid: true})
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -239,7 +241,7 @@ func (d Documents) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateDocumentData{
-		ID: documentID,
+		ID: pgtype.UUID{Bytes: documentID, Valid: true},
 
 		Title: payload.Title,
 
@@ -257,7 +259,7 @@ func (d Documents) Update(etx *echo.Context) error {
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update document: %v", err)); flashErr != nil {
+		if flashErr := d.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update document: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(
@@ -266,10 +268,10 @@ func (d Documents) Update(etx *echo.Context) error {
 		)
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Document updated successfully"); flashErr != nil {
+	if flashErr := d.session.AddFlash(etx, cookies.FlashSuccess, "Document updated successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
-	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID))
+	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID.Bytes))
 }
 
 func (d Documents) Destroy(etx *echo.Context) error {
@@ -278,15 +280,15 @@ func (d Documents) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = d.documents.Destroy(etx.Request().Context(), documentID)
+	err = d.documents.Destroy(etx.Request().Context(), pgtype.UUID{Bytes: documentID, Valid: true})
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete document: %v", err)); flashErr != nil {
+		if flashErr := d.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete document: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(http.StatusSeeOther, routes.DocumentIndex.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Document destroyed successfully"); flashErr != nil {
+	if flashErr := d.session.AddFlash(etx, cookies.FlashSuccess, "Document destroyed successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 	return etx.Redirect(http.StatusSeeOther, routes.DocumentIndex.URL())
