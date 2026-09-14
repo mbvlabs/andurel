@@ -51,7 +51,7 @@ func TestViewDataNullTypeHelpers(t *testing.T) {
 	}
 
 	imports := viewDataImports(fields)
-	for _, want := range []string{`"encoding/json"`, `"time"`, `"github.com/google/uuid"`} {
+	for _, want := range []string{`"encoding/json"`, `"time"`, `"uuid"`} {
 		if !strings.Contains(imports, want) {
 			t.Fatalf("view data imports missing %q: %q", want, imports)
 		}

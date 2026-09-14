@@ -43,10 +43,10 @@ import (
 {{- if $needsSQLNull}}
 	"database/sql"
 {{- end}}
-
 {{- if $needsUUID}}
-	"github.com/google/uuid"
+	"uuid"
 {{- end}}
+
 {{- if $needsPG}}
 	"github.com/jackc/pgx/v5/pgtype"
 {{- end}}
@@ -240,7 +240,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		{{- else if eq .GoType "uuid.UUID"}}
 		{{.Name}}:    func() uuid.UUID {
 			if payload.{{.Name}} == "" {
-				return uuid.Nil
+				return uuid.Nil()
 			}
 			parsed, err := uuid.Parse(payload.{{.Name}})
 			if err != nil {
@@ -250,7 +250,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 					"error",
 					err,
 				)
-				return uuid.Nil
+				return uuid.Nil()
 			}
 
 			return parsed
@@ -463,7 +463,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		{{- else if eq .GoType "uuid.UUID"}}
 		{{.Name}}:    func() uuid.UUID {
 			if payload.{{.Name}} == "" {
-				return uuid.Nil
+				return uuid.Nil()
 			}
 			parsed, err := uuid.Parse(payload.{{.Name}})
 			if err != nil {
@@ -473,7 +473,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 					"error",
 					err,
 				)
-				return uuid.Nil
+				return uuid.Nil()
 			}
 
 			return parsed

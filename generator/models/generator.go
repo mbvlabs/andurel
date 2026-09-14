@@ -260,7 +260,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	}
 
 	if model.HasPrimaryKey && (model.IDType == "uuid.UUID" || model.IDType == "pgtype.UUID") {
-		importSet["github.com/google/uuid"] = true
+		importSet["uuid"] = true
 	}
 	if model.Mode != ModelModeReadOnly {
 		importSet["errors"] = true
@@ -344,7 +344,7 @@ func (g *Generator) addModelTypeImports(goType string) map[string]bool {
 		importSet["time"] = true
 	}
 	if strings.Contains(goType, "uuid.UUID") {
-		importSet["github.com/google/uuid"] = true
+		importSet["uuid"] = true
 	}
 	if strings.HasPrefix(goType, "sql.Null") {
 		importSet["database/sql"] = true
@@ -584,7 +584,7 @@ func (g *Generator) BuildFactory(
 			continue
 		}
 		if strings.Contains(field.Type, "uuid.") || strings.Contains(field.DefaultValue, "uuid.") {
-			externalImports = append(externalImports, "github.com/google/uuid")
+			standardImports = append(standardImports, "uuid")
 		}
 		if strings.Contains(field.Type, "time.") || strings.Contains(field.DefaultValue, "time.") {
 			standardImports = append(standardImports, "time")

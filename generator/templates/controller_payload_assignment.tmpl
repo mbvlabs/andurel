@@ -20,7 +20,7 @@
 		{{- else if eq .GoType "uuid.UUID"}}
 		{{.Name}}:    func() uuid.UUID {
 			if payload.{{.Name}} == "" {
-				return uuid.Nil
+				return uuid.Nil()
 			}
 			parsed, err := uuid.Parse(payload.{{.Name}})
 			if err != nil {
@@ -30,7 +30,7 @@
 					"error",
 					err,
 				)
-				return uuid.Nil
+				return uuid.Nil()
 			}
 
 			return parsed

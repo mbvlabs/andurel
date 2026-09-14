@@ -315,7 +315,7 @@ func viewDataImports(fields []ViewField) string {
 		b.WriteString("\t\"time\"\n")
 	}
 	if usesViewDataType(fields, "uuid.UUID") {
-		b.WriteString("\t\"github.com/google/uuid\"\n")
+		b.WriteString("\t\"uuid\"\n")
 	}
 	return b.String()
 }

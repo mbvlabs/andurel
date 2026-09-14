@@ -117,20 +117,20 @@ func TestBuildViewField_StringConverter(t *testing.T) {
 			expectedInputType:       "checkbox",
 		},
 		{
-			name:                    "time.Time uses String method",
+			name:                    "pgtype.Timestamp uses String method",
 			columnName:              "created_at",
 			dataType:                "timestamp",
 			isNullable:              false,
-			expectedGoType:          "time.Time",
+			expectedGoType:          "pgtype.Timestamp",
 			expectedStringConverter: "%s.String()",
 			expectedInputType:       "date",
 		},
 		{
-			name:                    "uuid.UUID uses String method",
+			name:                    "pgtype.UUID uses String method",
 			columnName:              "user_id",
 			dataType:                "uuid",
 			isNullable:              false,
-			expectedGoType:          "uuid.UUID",
+			expectedGoType:          "pgtype.UUID",
 			expectedStringConverter: "%s.String()",
 			expectedInputType:       "text",
 		},
@@ -197,10 +197,9 @@ func TestBuildViewField_StringConverter(t *testing.T) {
 	}
 }
 
-func TestBuildViewField_UnknownTypeHasConverter(t *testing.T) {
+func TestBuildViewField_UnknownTypeFallsBackToString(t *testing.T) {
 	generator := NewGenerator("postgresql")
 
-	// Create a column with an unknown type that will fall through to default
 	col := &catalog.Column{
 		Name:       "unknown_field",
 		DataType:   "some_unknown_type",
@@ -212,13 +211,13 @@ func TestBuildViewField_UnknownTypeHasConverter(t *testing.T) {
 		t.Fatalf("buildViewField returned error: %v", err)
 	}
 
-	// Default case should use fmt.Sprintf("%v", %s) for safety
-	expectedConverter := `fmt.Sprintf("%v", %s)`
-	if field.StringConverter != expectedConverter {
+	if field.GoType != "string" {
+		t.Errorf("unknown SQL type GoType = %q, want %q", field.GoType, "string")
+	}
+	if field.StringConverter != "" {
 		t.Errorf(
-			"Unknown type StringConverter = %q, want %q",
+			"unknown SQL type StringConverter = %q, want empty",
 			field.StringConverter,
-			expectedConverter,
 		)
 	}
 }

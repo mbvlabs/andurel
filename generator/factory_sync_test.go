@@ -195,7 +195,7 @@ func WithProductsEndpoint(value url.URL) ProductOption {
 	for _, want := range []string{
 		`"database/sql"`,
 		`"encoding/json"`,
-		`"github.com/google/uuid"`,
+		`"uuid"`,
 		`"net/url"`,
 	} {
 		if !strings.Contains(rendered, want) {

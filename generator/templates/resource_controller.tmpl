@@ -37,10 +37,10 @@ import (
 {{- if $needsSQLNull}}
 	"database/sql"
 {{- end}}
-
 {{- if $needsUUID}}
-	"github.com/google/uuid"
+	"uuid"
 {{- end}}
+
 {{- if $needsPG}}
 	"github.com/jackc/pgx/v5/pgtype"
 {{- end}}

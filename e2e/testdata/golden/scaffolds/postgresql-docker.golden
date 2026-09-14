@@ -4131,7 +4131,6 @@ go 1.27.1
 require (
 	github.com/a-h/templ v0.3.1020
 	github.com/go-faker/faker/v4 v4.9.0
-	github.com/google/uuid v1.6.0
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/sessions v1.4.0
 	github.com/gosimple/slug v1.15.0
@@ -4187,6 +4186,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -5205,13 +5205,13 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"uuid"
 
 	"testapp/models"
 	"testapp/models/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -5324,6 +5324,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"uuid"
 
 	"testapp/models"
 	"testapp/models/internal/queries"
@@ -5331,7 +5332,6 @@ import (
 	"github.com/mbvlabs/andurel/pkg/storage"
 
 	"github.com/go-faker/faker/v4"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -6044,13 +6044,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"time"
+	"uuid"
 
 	"testapp/models/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -6319,13 +6319,13 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"uuid"
 
 	"testapp/models/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -6831,7 +6831,7 @@ file -----------rw-r--r-- router/cookies/cookies.go
 package cookies
 
 import (
-	"github.com/google/uuid"
+	"uuid"
 	"testapp/models"
 
 	"github.com/labstack/echo/v5"
@@ -7864,20 +7864,22 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
+	"log/slog"
+	"net/http"
+	"strings"
+	"uuid"
+
+	"testapp/config"
+	"testapp/router/cookies"
+	"testapp/router/middleware"
+	"testapp/telemetry"
+
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/v5/session"
 	"github.com/labstack/echo/v5"
 	echomw "github.com/labstack/echo/v5/middleware"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.uber.org/fx"
-	"log/slog"
-	"net/http"
-	"strings"
-	"testapp/config"
-	"testapp/router/cookies"
-	"testapp/router/middleware"
-	"testapp/telemetry"
 )
 
 type Router struct {
@@ -13314,4 +13316,3 @@ func consoleLine(label string, value string) templ.Component {
 
 var _ = templruntime.GeneratedTemplate
 ```
-

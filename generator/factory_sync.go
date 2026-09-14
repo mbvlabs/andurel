@@ -607,7 +607,7 @@ func writeFactoryImports(
 			imports["encoding/json"] = true
 		}
 		if strings.Contains(field.Type, "uuid.") || strings.Contains(field.DefaultValue, "uuid.") {
-			imports["github.com/google/uuid"] = true
+			imports["uuid"] = true
 		}
 	}
 	for _, oldImport := range oldImports {

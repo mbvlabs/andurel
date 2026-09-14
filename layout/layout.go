@@ -1163,7 +1163,7 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 	builder.AddWorkerDependency("marketingSender", "email.MarketingSender")
 
 	// Auth cookies configuration
-	builder.AddCookiesImport("github.com/google/uuid")
+	builder.AddCookiesImport("uuid")
 	builder.AddCookiesImport(fmt.Sprintf("%s/models", moduleName))
 
 	builder.AddCookiesConstant("isAuthenticated", "is_authenticated")

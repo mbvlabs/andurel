@@ -25,6 +25,9 @@ func TestIsNullableType(t *testing.T) {
 		{"sql.NullInt64", true},
 		{"sql.NullFloat64", true},
 		{"sql.NullTime", true},
+		{"pgtype.Text", true},
+		{"pgtype.Timestamp", true},
+		{"pgtype.UUID", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.goType, func(t *testing.T) {
@@ -106,6 +109,11 @@ func TestResolveControllerBaseType(t *testing.T) {
 		{"string", "string"},
 		{"time.Time", "time.Time"},
 		{"int32", "int32"},
+		{"pgtype.Text", "string"},
+		{"pgtype.Bool", "bool"},
+		{"pgtype.Int4", "int32"},
+		{"pgtype.Timestamp", "time.Time"},
+		{"pgtype.UUID", "uuid.UUID"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.goType, func(t *testing.T) {
@@ -117,47 +125,29 @@ func TestResolveControllerBaseType(t *testing.T) {
 }
 
 func TestBuildField_NullableTimestamp(t *testing.T) {
-	strategies := []struct {
-		name      string
-		nullType  string
-		goType    string
-		formType  string
-		isPointer bool
-	}{
-		{"pointer", "pointer", "*time.Time", "time.Time", true},
-		{"sql.Null", "sql.Null", "sql.NullTime", "time.Time", true},
-		{"sql.Null", "sql.Null", "sql.NullTime", "time.Time", true},
+	gen := NewGenerator("postgresql")
+	col := &catalog.Column{
+		Name:       "started_at",
+		DataType:   "timestamp",
+		IsNullable: true,
 	}
 
-	for _, s := range strategies {
-		t.Run(s.name, func(t *testing.T) {
-			gen := NewGenerator("postgresql")
-			gen.SetNullType(s.nullType)
+	field, err := gen.buildField(col)
+	if err != nil {
+		t.Fatalf("buildField failed: %v", err)
+	}
 
-			col := &catalog.Column{
-				Name:       "started_at",
-				DataType:   "timestamp",
-				IsNullable: true,
-			}
-
-			field, err := gen.buildField(col)
-			if err != nil {
-				t.Fatalf("buildField failed: %v", err)
-			}
-
-			if field.GoType != s.goType {
-				t.Errorf("GoType = %q, want %q", field.GoType, s.goType)
-			}
-			if field.GoFormType != s.formType {
-				t.Errorf("GoFormType = %q, want %q", field.GoFormType, s.formType)
-			}
-			if field.IsPointer != s.isPointer {
-				t.Errorf("IsPointer = %v, want %v", field.IsPointer, s.isPointer)
-			}
-			if field.IsSystemField {
-				t.Error("IsSystemField should be false for user-defined column")
-			}
-		})
+	if field.GoType != "pgtype.Timestamp" {
+		t.Errorf("GoType = %q, want %q", field.GoType, "pgtype.Timestamp")
+	}
+	if field.GoFormType != "time.Time" {
+		t.Errorf("GoFormType = %q, want %q", field.GoFormType, "time.Time")
+	}
+	if !field.IsPointer {
+		t.Error("IsPointer should be true for pgtype timestamp")
+	}
+	if field.IsSystemField {
+		t.Error("IsSystemField should be false for user-defined column")
 	}
 }
 
@@ -174,182 +164,110 @@ func TestBuildField_NonNullableTimestamp(t *testing.T) {
 		t.Fatalf("buildField failed: %v", err)
 	}
 
-	if field.GoType != "time.Time" {
-		t.Errorf("GoType = %q, want %q", field.GoType, "time.Time")
+	if field.GoType != "pgtype.Timestamp" {
+		t.Errorf("GoType = %q, want %q", field.GoType, "pgtype.Timestamp")
 	}
 	if field.GoFormType != "time.Time" {
 		t.Errorf("GoFormType = %q, want %q", field.GoFormType, "time.Time")
 	}
-	if field.IsPointer {
-		t.Error("IsPointer should be false for non-nullable column")
+	if !field.IsPointer {
+		t.Error("IsPointer should be true because pgtype.Timestamp carries Valid")
 	}
 }
 
 func TestBuildField_NullableString(t *testing.T) {
-	strategies := []struct {
-		name      string
-		nullType  string
-		goType    string
-		formType  string
-		isPointer bool
-	}{
-		{"pointer", "pointer", "*string", "*string", true},
-		{"sql.Null", "sql.Null", "sql.NullString", "string", true},
-		{"sql.Null", "sql.Null", "sql.NullString", "string", true},
+	gen := NewGenerator("postgresql")
+	col := &catalog.Column{
+		Name:       "description",
+		DataType:   "varchar",
+		IsNullable: true,
 	}
 
-	for _, s := range strategies {
-		t.Run(s.name, func(t *testing.T) {
-			gen := NewGenerator("postgresql")
-			gen.SetNullType(s.nullType)
+	field, err := gen.buildField(col)
+	if err != nil {
+		t.Fatalf("buildField failed: %v", err)
+	}
 
-			col := &catalog.Column{
-				Name:       "description",
-				DataType:   "varchar",
-				IsNullable: true,
-			}
-
-			field, err := gen.buildField(col)
-			if err != nil {
-				t.Fatalf("buildField failed: %v", err)
-			}
-
-			if field.GoType != s.goType {
-				t.Errorf("GoType = %q, want %q", field.GoType, s.goType)
-			}
-			if field.GoFormType != s.formType {
-				t.Errorf("GoFormType = %q, want %q", field.GoFormType, s.formType)
-			}
-			if field.IsPointer != s.isPointer {
-				t.Errorf("IsPointer = %v, want %v", field.IsPointer, s.isPointer)
-			}
-		})
+	if field.GoType != "pgtype.Text" {
+		t.Errorf("GoType = %q, want %q", field.GoType, "pgtype.Text")
+	}
+	if field.GoFormType != "string" {
+		t.Errorf("GoFormType = %q, want %q", field.GoFormType, "string")
+	}
+	if !field.IsPointer {
+		t.Error("IsPointer should be true for pgtype.Text")
 	}
 }
 
 func TestBuildField_NullableInt32(t *testing.T) {
-	strategies := []struct {
-		name      string
-		nullType  string
-		goType    string
-		formType  string
-		isPointer bool
-	}{
-		{"pointer", "pointer", "*int32", "int32", true},
-		{"sql.Null", "sql.Null", "sql.NullInt32", "int32", true},
-		{"sql.Null", "sql.Null", "sql.NullInt32", "int32", true},
+	gen := NewGenerator("postgresql")
+	col := &catalog.Column{
+		Name:       "quantity",
+		DataType:   "integer",
+		IsNullable: true,
 	}
 
-	for _, s := range strategies {
-		t.Run(s.name, func(t *testing.T) {
-			gen := NewGenerator("postgresql")
-			gen.SetNullType(s.nullType)
+	field, err := gen.buildField(col)
+	if err != nil {
+		t.Fatalf("buildField failed: %v", err)
+	}
 
-			col := &catalog.Column{
-				Name:       "quantity",
-				DataType:   "integer",
-				IsNullable: true,
-			}
-
-			field, err := gen.buildField(col)
-			if err != nil {
-				t.Fatalf("buildField failed: %v", err)
-			}
-
-			if field.GoType != s.goType {
-				t.Errorf("GoType = %q, want %q", field.GoType, s.goType)
-			}
-			if field.GoFormType != s.formType {
-				t.Errorf("GoFormType = %q, want %q", field.GoFormType, s.formType)
-			}
-			if field.IsPointer != s.isPointer {
-				t.Errorf("IsPointer = %v, want %v", field.IsPointer, s.isPointer)
-			}
-		})
+	if field.GoType != "pgtype.Int4" {
+		t.Errorf("GoType = %q, want %q", field.GoType, "pgtype.Int4")
+	}
+	if field.GoFormType != "int32" {
+		t.Errorf("GoFormType = %q, want %q", field.GoFormType, "int32")
+	}
+	if !field.IsPointer {
+		t.Error("IsPointer should be true for pgtype.Int4")
 	}
 }
 
 func TestBuildField_NullableBool(t *testing.T) {
-	strategies := []struct {
-		name      string
-		nullType  string
-		goType    string
-		formType  string
-		isPointer bool
-	}{
-		{"pointer", "pointer", "*bool", "bool", true},
-		{"sql.Null", "sql.Null", "sql.NullBool", "bool", true},
-		{"sql.Null", "sql.Null", "sql.NullBool", "bool", true},
+	gen := NewGenerator("postgresql")
+	col := &catalog.Column{
+		Name:       "published",
+		DataType:   "boolean",
+		IsNullable: true,
 	}
 
-	for _, s := range strategies {
-		t.Run(s.name, func(t *testing.T) {
-			gen := NewGenerator("postgresql")
-			gen.SetNullType(s.nullType)
+	field, err := gen.buildField(col)
+	if err != nil {
+		t.Fatalf("buildField failed: %v", err)
+	}
 
-			col := &catalog.Column{
-				Name:       "published",
-				DataType:   "boolean",
-				IsNullable: true,
-			}
-
-			field, err := gen.buildField(col)
-			if err != nil {
-				t.Fatalf("buildField failed: %v", err)
-			}
-
-			if field.GoType != s.goType {
-				t.Errorf("GoType = %q, want %q", field.GoType, s.goType)
-			}
-			if field.GoFormType != s.formType {
-				t.Errorf("GoFormType = %q, want %q", field.GoFormType, s.formType)
-			}
-			if field.IsPointer != s.isPointer {
-				t.Errorf("IsPointer = %v, want %v", field.IsPointer, s.isPointer)
-			}
-		})
+	if field.GoType != "pgtype.Bool" {
+		t.Errorf("GoType = %q, want %q", field.GoType, "pgtype.Bool")
+	}
+	if field.GoFormType != "bool" {
+		t.Errorf("GoFormType = %q, want %q", field.GoFormType, "bool")
+	}
+	if !field.IsPointer {
+		t.Error("IsPointer should be true for pgtype.Bool")
 	}
 }
 
 func TestBuildField_NullableFloat64(t *testing.T) {
-	strategies := []struct {
-		name      string
-		nullType  string
-		goType    string
-		formType  string
-		isPointer bool
-	}{
-		{"pointer", "pointer", "*float64", "float64", true},
-		{"sql.Null", "sql.Null", "sql.NullFloat64", "float64", true},
-		{"sql.Null", "sql.Null", "sql.NullFloat64", "float64", true},
+	gen := NewGenerator("postgresql")
+	col := &catalog.Column{
+		Name:       "price",
+		DataType:   "double precision",
+		IsNullable: true,
 	}
 
-	for _, s := range strategies {
-		t.Run(s.name, func(t *testing.T) {
-			gen := NewGenerator("postgresql")
-			gen.SetNullType(s.nullType)
+	field, err := gen.buildField(col)
+	if err != nil {
+		t.Fatalf("buildField failed: %v", err)
+	}
 
-			col := &catalog.Column{
-				Name:       "price",
-				DataType:   "double precision",
-				IsNullable: true,
-			}
-
-			field, err := gen.buildField(col)
-			if err != nil {
-				t.Fatalf("buildField failed: %v", err)
-			}
-
-			if field.GoType != s.goType {
-				t.Errorf("GoType = %q, want %q", field.GoType, s.goType)
-			}
-			if field.GoFormType != s.formType {
-				t.Errorf("GoFormType = %q, want %q", field.GoFormType, s.formType)
-			}
-			if field.IsPointer != s.isPointer {
-				t.Errorf("IsPointer = %v, want %v", field.IsPointer, s.isPointer)
-			}
-		})
+	if field.GoType != "pgtype.Float8" {
+		t.Errorf("GoType = %q, want %q", field.GoType, "pgtype.Float8")
+	}
+	if field.GoFormType != "float64" {
+		t.Errorf("GoFormType = %q, want %q", field.GoFormType, "float64")
+	}
+	if !field.IsPointer {
+		t.Error("IsPointer should be true for pgtype.Float8")
 	}
 }
 

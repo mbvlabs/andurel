@@ -1,7 +1,7 @@
 // Package routing provides abstractions for working with routes.
 package routing
 
-import "github.com/google/uuid"
+import "uuid"
 
 // RouteOption customizes URL generation.
 type RouteOption func(*routeOptions)
