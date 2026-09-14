@@ -121,8 +121,7 @@ func TestGeneratorFactoryDefaultsAndZeroValues(t *testing.T) {
 		"MaybeBool:sql.NullBool":   "sql.NullBool{}",
 		"MaybeInt:sql.NullInt64":   "sql.NullInt64{}",
 		"ArchivedAt:sql.NullTime":  "sql.NullTime{}",
-		"Maybe:bun.NullInt64":      "bun.NullInt64{}",
-		"PublishedAt:bun.NullTime": "bun.NullTime{}",
+		"PublishedAt:sql.NullTime": "sql.NullTime{}",
 		"Optional:*string":         "nil",
 		"Custom:Money":             "*new(Money)",
 	}
@@ -176,7 +175,7 @@ func TestGeneratorFactoryDefaultsAndZeroValues(t *testing.T) {
 		"[]byte":          "nil",
 		"[]string":        "nil",
 		"sql.NullString":  "sql.NullString{}",
-		"bun.NullTime":    "bun.NullTime{}",
+		"sql.NullTime":    "sql.NullTime{}",
 		"Money":           "Money{}",
 	}
 	for typ, want := range zeros {
@@ -447,9 +446,9 @@ func TestGenerateModelCRUDUsesRepositoryNotFoundAndTimestampSemantics(t *testing
 		t.Fatalf("read generated model: %v", err)
 	}
 	generated := string(content)
-	if count := strings.Count(generated, "if errors.Is(err, sql.ErrNoRows) {"); count != 3 {
+	if count := strings.Count(generated, "if errors.Is(err, pgx.ErrNoRows) {"); count != 2 {
 		t.Fatalf(
-			"expected Find, Update, and Destroy not-found translation, got %d:\n%s",
+			"expected Find and Update not-found translation, got %d:\n%s",
 			count,
 			generated,
 		)

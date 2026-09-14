@@ -120,23 +120,28 @@ update also syncs the matching factory unless --skip-factory is passed.`,
 							return err
 						}
 						if mode != generator.ModelModeCRUD {
-							return gen.GenerateModelWithMode(
+							if err := gen.GenerateModelWithMode(
 								name,
 								tableName,
 								skipFactory,
 								primaryKeyColumn,
 								mode,
-							)
-						}
-						if primaryKeyColumn != "" {
-							return gen.GenerateModelWithPK(
+							); err != nil {
+								return err
+							}
+						} else if primaryKeyColumn != "" {
+							if err := gen.GenerateModelWithPK(
 								name,
 								tableName,
 								skipFactory,
 								primaryKeyColumn,
-							)
+							); err != nil {
+								return err
+							}
+						} else if err := gen.GenerateModel(name, tableName, skipFactory); err != nil {
+							return err
 						}
-						return gen.GenerateModel(name, tableName, skipFactory)
+						return generateNarsilcIfNeeded(rootDir)
 					})(cmd, args)
 				},
 			})

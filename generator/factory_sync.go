@@ -449,8 +449,7 @@ func generatedModelFromParsedEntity(
 			BunTag:       field.BunTag,
 			IsForeignKey: field.Name != "ID" && strings.HasSuffix(field.Name, "ID"),
 			IsNullable: strings.HasPrefix(field.TypeStr, "*") ||
-				strings.HasPrefix(field.TypeStr, "sql.Null") ||
-				strings.HasPrefix(field.TypeStr, "bun.Null"),
+				strings.HasPrefix(field.TypeStr, "sql.Null"),
 			IsPrimaryKey: field.Name == "ID" || strings.Contains(field.BunTag, "pk"),
 		}
 		if len(field.Packages) > 0 {
@@ -604,9 +603,6 @@ func writeFactoryImports(
 		if strings.Contains(field.Type, "sql.") {
 			imports["database/sql"] = true
 		}
-		if strings.Contains(field.Type, "bun.") {
-			imports["github.com/uptrace/bun"] = true
-		}
 		if strings.Contains(field.Type, "json.") {
 			imports["encoding/json"] = true
 		}
@@ -692,7 +688,7 @@ func writeFactoryCore(sb *strings.Builder, factory *models.GeneratedFactory) {
 }
 
 func writeFactoryCreateFunctions(sb *strings.Builder, factory *models.GeneratedFactory) {
-	fmt.Fprintf(sb, "func Create%s(ctx context.Context, exec storage.Executor, ", factory.ModelName)
+	fmt.Fprintf(sb, "func Create%s(ctx context.Context, db storage.Connection, ", factory.ModelName)
 	writeFactoryFKParams(sb, factory)
 	fmt.Fprintf(
 		sb,
@@ -724,14 +720,14 @@ func writeFactoryCreateFunctions(sb *strings.Builder, factory *models.GeneratedF
 		fmt.Fprintf(sb, "\t\t%s: built.%s,\n", field.Name, field.Name)
 	}
 	sb.WriteString("\t}\n\n")
-	sb.WriteString(
-		"\tif err := exec.NewInsert().Model(&entity).Returning(\"*\").Scan(ctx); err != nil {\n",
+	fmt.Fprintf(
+		sb,
+		"\treturn models.New%s(db).Insert(ctx, entity)\n}\n\n",
+		factory.NamespaceVar,
 	)
-	fmt.Fprintf(sb, "\t\treturn models.%s{}, err\n\t}\n\n", factory.EntityName)
-	sb.WriteString("\treturn entity, nil\n}\n\n")
 
 	pluralModelName := inflection.Plural(factory.ModelName)
-	fmt.Fprintf(sb, "func Create%s(ctx context.Context, exec storage.Executor, ", pluralModelName)
+	fmt.Fprintf(sb, "func Create%s(ctx context.Context, db storage.Connection, ", pluralModelName)
 	writeFactoryFKParams(sb, factory)
 	fmt.Fprintf(
 		sb,
@@ -742,7 +738,7 @@ func writeFactoryCreateFunctions(sb *strings.Builder, factory *models.GeneratedF
 	lower := naming.ToLowerCamelCase(pluralModelName)
 	fmt.Fprintf(sb, "\t%s := make([]models.%s, 0, count)\n\n", lower, factory.EntityName)
 	sb.WriteString("\tfor i := range count {\n")
-	fmt.Fprintf(sb, "\t\tentity, err := Create%s(ctx, exec, ", factory.ModelName)
+	fmt.Fprintf(sb, "\t\tentity, err := Create%s(ctx, db, ", factory.ModelName)
 	writeFactoryFKArgs(sb, factory)
 	sb.WriteString("opts...)\n")
 	sb.WriteString("\t\tif err != nil {\n")

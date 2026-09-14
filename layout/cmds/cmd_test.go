@@ -123,11 +123,11 @@ func TestRunCommands(t *testing.T) {
 	}
 }
 
-func TestRunSQLCGenerate(t *testing.T) {
+func TestRunNarsilcGenerate(t *testing.T) {
 	t.Run("no queries is no-op", func(t *testing.T) {
 		installCommandHelper(t)
 		targetDir := t.TempDir()
-		if err := RunSQLCGenerate(targetDir); err != nil {
+		if err := RunNarsilcGenerate(targetDir); err != nil {
 			t.Fatalf("expected no-op, got %v", err)
 		}
 	})
@@ -149,9 +149,9 @@ func TestRunSQLCGenerate(t *testing.T) {
 		if err := os.MkdirAll(binDir, 0o755); err != nil {
 			t.Fatalf("mkdir bin: %v", err)
 		}
-		sqlcPath := filepath.Join(binDir, "sqlc")
-		if err := os.WriteFile(sqlcPath, []byte("#!/bin/sh\n"), 0o755); err != nil {
-			t.Fatalf("write sqlc stub: %v", err)
+		narsilcPath := filepath.Join(binDir, "narsilc")
+		if err := os.WriteFile(narsilcPath, []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatalf("write narsilc stub: %v", err)
 		}
 
 		var invoked []string
@@ -165,29 +165,28 @@ func TestRunSQLCGenerate(t *testing.T) {
 			cmd.Env = append(os.Environ(),
 				"ANDUREL_COMMAND_HELPER=1",
 				"ANDUREL_COMMAND_ACTUAL="+strings.Join(append([]string{name}, args...), "\x1f"),
-				"ANDUREL_COMMAND_EXPECTED="+strings.Join([]string{sqlcPath, "generate"}, "\x1f"),
+				"ANDUREL_COMMAND_EXPECTED="+strings.Join([]string{narsilcPath, "generate"}, "\x1f"),
 				"ANDUREL_COMMAND_DIR="+targetDir,
 			)
 			return cmd
 		}
 		t.Cleanup(func() { newCommand = originalCommand })
 
-		if err := RunSQLCGenerate(targetDir); err != nil {
-			t.Fatalf("sqlc generate failed: %v", err)
+		if err := RunNarsilcGenerate(targetDir); err != nil {
+			t.Fatalf("narsilc generate failed: %v", err)
 		}
 		if len(invoked) != 2 {
-			t.Fatalf("invoked commands = %#v, want sqlc generate and go fmt", invoked)
+			t.Fatalf("invoked commands = %#v, want narsilc generate and go fmt", invoked)
 		}
-		if !strings.HasPrefix(invoked[0], sqlcPath) || !strings.Contains(invoked[0], "generate") {
-			t.Fatalf("first command = %q, want sqlc generate", invoked[0])
+		if !strings.HasPrefix(invoked[0], narsilcPath) || !strings.Contains(invoked[0], "generate") {
+			t.Fatalf("first command = %q, want narsilc generate", invoked[0])
 		}
 		if !strings.Contains(invoked[1], "go fmt") {
 			t.Fatalf("second command = %q, want go fmt", invoked[1])
 		}
 	})
 
-	t.Run("optional skips missing binary", func(t *testing.T) {
-		installCommandHelper(t)
+	t.Run("falls back to go run when binary is missing", func(t *testing.T) {
 		targetDir := t.TempDir()
 		queriesDir := filepath.Join(targetDir, "models", "queries")
 		if err := os.MkdirAll(queriesDir, 0o755); err != nil {
@@ -200,8 +199,39 @@ func TestRunSQLCGenerate(t *testing.T) {
 		); err != nil {
 			t.Fatalf("write query file: %v", err)
 		}
-		if err := RunSQLCGenerateOptional(targetDir); err != nil {
-			t.Fatalf("expected optional skip, got %v", err)
+
+		var invoked []string
+		originalCommand := newCommand
+		newCommand = func(name string, args ...string) *exec.Cmd {
+			invoked = append(invoked, strings.Join(append([]string{name}, args...), " "))
+			if name == "go" && len(args) >= 2 && args[0] == "fmt" {
+				return exec.Command("true")
+			}
+			cmd := exec.Command(os.Args[0], "-test.run=TestCommandHelperProcess")
+			cmd.Env = append(os.Environ(),
+				"ANDUREL_COMMAND_HELPER=1",
+				"ANDUREL_COMMAND_ACTUAL="+strings.Join(append([]string{name}, args...), "\x1f"),
+				"ANDUREL_COMMAND_EXPECTED="+strings.Join([]string{
+					"go",
+					"run",
+					"github.com/mbvlabs/narsilc/cmd/narsilc@" + versions.NarsilcModule,
+					"generate",
+				}, "\x1f"),
+				"ANDUREL_COMMAND_DIR="+targetDir,
+			)
+			return cmd
+		}
+		t.Cleanup(func() { newCommand = originalCommand })
+
+		if err := RunNarsilcGenerate(targetDir); err != nil {
+			t.Fatalf("narsilc generate fallback failed: %v", err)
+		}
+		if len(invoked) != 2 {
+			t.Fatalf("invoked commands = %#v, want go run narsilc and go fmt", invoked)
+		}
+		if !strings.Contains(invoked[0], "github.com/mbvlabs/narsilc/cmd/narsilc@") ||
+			!strings.Contains(invoked[0], "generate") {
+			t.Fatalf("first command = %q, want go run narsilc generate", invoked[0])
 		}
 	})
 }
@@ -221,8 +251,8 @@ func TestRunCommandErrors(t *testing.T) {
 			RunTemplGenerate,
 			RunTemplFmt,
 			RunGooseFix,
-			RunSQLCGenerate,
-			RunSQLCGenerateOptional,
+			RunNarsilcGenerate,
+			RunNarsilcGenerateOptional,
 		}
 		for _, run := range runners {
 			err := run("project")

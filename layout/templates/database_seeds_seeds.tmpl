@@ -13,7 +13,7 @@ import (
 
 const Default = "development"
 
-type Runner func(context.Context, storage.Executor) error
+type Runner func(context.Context, storage.Connection) error
 
 var Registry = map[string]Runner{
 	"default":     Development,
@@ -30,7 +30,7 @@ func Names() []string {
 	return names
 }
 
-func Run(ctx context.Context, exec storage.Executor, name string) error {
+func Run(ctx context.Context, db storage.Connection, name string) error {
 	if name == "" {
 		name = Default
 	}
@@ -40,11 +40,11 @@ func Run(ctx context.Context, exec storage.Executor, name string) error {
 		return fmt.Errorf("unknown seed %q (available: %s)", name, strings.Join(Names(), ", "))
 	}
 
-	return runner(ctx, exec)
+	return runner(ctx, db)
 }
 
-func Development(ctx context.Context, exec storage.Executor) error {
-	admin, err := factories.CreateUser(ctx, exec,
+func Development(ctx context.Context, db storage.Connection) error {
+	admin, err := factories.CreateUser(ctx, db,
 		factories.WithEmail("admin@example.com"),
 		factories.WithIsAdmin(true),
 		factories.WithValidatedEmail(),
@@ -54,7 +54,7 @@ func Development(ctx context.Context, exec storage.Executor) error {
 	}
 	fmt.Printf("Created admin user: %s\n", admin.Email)
 
-	user, err := factories.CreateUser(ctx, exec,
+	user, err := factories.CreateUser(ctx, db,
 		factories.WithEmail("user@example.com"),
 		factories.WithValidatedEmail(),
 	)
@@ -66,7 +66,7 @@ func Development(ctx context.Context, exec storage.Executor) error {
 	// Add more seeds here using factories:
 	//
 	// // Create 10 additional users with random emails
-	// users, err := factories.CreateUsers(ctx, exec, 10)
+	// users, err := factories.CreateUsers(ctx, db, 10)
 	// if err != nil {
 	// 	return fmt.Errorf("failed to create users: %w", err)
 	// }
@@ -75,8 +75,8 @@ func Development(ctx context.Context, exec storage.Executor) error {
 	return nil
 }
 
-func Test(ctx context.Context, exec storage.Executor) error {
-	_, err := factories.CreateUser(ctx, exec,
+func Test(ctx context.Context, db storage.Connection) error {
+	_, err := factories.CreateUser(ctx, db,
 		factories.WithEmail("test@example.com"),
 		factories.WithValidatedEmail(),
 	)

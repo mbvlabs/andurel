@@ -3,7 +3,6 @@ package types
 import (
 	"strings"
 
-	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/internal/naming"
 )
 
@@ -19,7 +18,7 @@ type TypeOverride struct {
 // TypeMapper represents type mapper.
 type TypeMapper struct {
 	DatabaseType string
-	NullType     string // "pointer", "sql.Null", or "bun.Null"
+	NullType     string // "pointer" or "sql.Null"
 	Overrides    []TypeOverride
 }
 
@@ -43,20 +42,10 @@ var sqlNullTypeMap = map[string]string{
 	"time.Time": "sql.NullTime",
 }
 
-// bunNullTypeMap maps base Go types to their bun null equivalent.
-var bunNullTypeMap = map[string]string{
-	"string":    "bun.NullString",
-	"bool":      "bun.NullBool",
-	"int32":     "bun.NullInt32",
-	"int64":     "bun.NullInt64",
-	"float64":   "bun.NullFloat64",
-	"time.Time": "bun.NullTime",
-}
-
 // MapSQLTypeToGo returns the Go type for a SQL column. Nullable columns are
 // wrapped according to tm.NullType ("pointer" → *string, "sql.Null" →
-// sql.NullString, "bun.Null" → bun.NullString). The second return value is
-// the import path required for the type, or "" if it is a builtin.
+// sql.NullString). The second return value is the import path required for
+// the type, or "" if it is a builtin.
 func (tm *TypeMapper) MapSQLTypeToGo(
 	sqlType string,
 	nullable bool,
@@ -77,38 +66,6 @@ func (tm *TypeMapper) MapSQLTypeToGo(
 	return tm.wrapNullable(base, nullable), pkg, nil
 }
 
-// BuildBunTag returns the value of the `bun:"..."` struct tag for a column.
-// Only emits attributes that affect query/marshaling behavior — column name,
-// primary-key marker, and a `type:` hint where bun's default mapping would
-// otherwise be wrong (notably uuid columns). DDL-only attributes
-// (notnull/nullzero/default/unique/autoincrement) are intentionally omitted
-// because andurel does not use bun for schema management.
-func (tm *TypeMapper) BuildBunTag(col *catalog.Column) string {
-	parts := []string{col.Name}
-
-	if col.IsPrimaryKey {
-		parts = append(parts, "pk")
-	}
-
-	normalized := normalizeSQLType(col.DataType)
-	switch normalized {
-	case "uuid":
-		parts = append(parts, "type:uuid")
-	case "json", "jsonb":
-		parts = append(parts, "type:"+normalized)
-	}
-
-	if col.IsAutoIncrement {
-		parts = append(parts, "autoincrement")
-	}
-
-	if strings.HasSuffix(col.DataType, "[]") {
-		parts = append(parts, "array")
-	}
-
-	return strings.Join(parts, ",")
-}
-
 func (tm *TypeMapper) wrapNullable(goType string, nullable bool) string {
 	if !nullable {
 		return goType
@@ -121,10 +78,6 @@ func (tm *TypeMapper) wrapNullable(goType string, nullable bool) string {
 	switch tm.NullType {
 	case "sql.Null":
 		if nt, ok := sqlNullTypeMap[goType]; ok {
-			return nt
-		}
-	case "bun.Null":
-		if nt, ok := bunNullTypeMap[goType]; ok {
 			return nt
 		}
 	}

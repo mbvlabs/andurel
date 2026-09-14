@@ -44,7 +44,7 @@ func BuildToken(opts ...TokenOption) models.Token {
 // It returns the entity populated with all DB-assigned values via RETURNING *.
 func CreateToken(
 	ctx context.Context,
-	exec storage.Executor,
+	db storage.Connection,
 	opts ...TokenOption,
 ) (models.Token, error) {
 	built := BuildToken(opts...)
@@ -59,24 +59,20 @@ func CreateToken(
 		MetaData:  built.MetaData,
 	}
 
-	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
-		return models.Token{}, err
-	}
-
-	return entity, nil
+	return models.NewTokens(db).Insert(ctx, entity)
 }
 
 // CreateTokens creates multiple Token records at once
 func CreateTokens(
 	ctx context.Context,
-	exec storage.Executor,
+	db storage.Connection,
 	count int,
 	opts ...TokenOption,
 ) ([]models.Token, error) {
 	tokens := make([]models.Token, 0, count)
 
 	for i := range count {
-		token, err := CreateToken(ctx, exec, opts...)
+		token, err := CreateToken(ctx, db, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create token %d: %w", i+1, err)
 		}

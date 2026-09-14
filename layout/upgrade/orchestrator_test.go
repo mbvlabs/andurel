@@ -732,9 +732,9 @@ func TestSyncToolsToFrameworkVersion_RefreshesMetadataWithoutVersionChange(t *te
 func TestSyncToolsToFrameworkVersion_RefreshesStaleDownloadURLTemplate(t *testing.T) {
 	t.Parallel()
 
-	expected := layout.GetExpectedTools(&layout.ScaffoldConfig{ProjectName: "myapp"})["sqlc"]
+	expected := layout.GetExpectedTools(&layout.ScaffoldConfig{ProjectName: "myapp"})["narsilc"]
 	if expected.Download == nil {
-		t.Fatal("expected sqlc download metadata")
+		t.Fatal("expected narsilc download metadata")
 	}
 
 	staleDownload := &layout.ToolDownload{
@@ -747,7 +747,7 @@ func TestSyncToolsToFrameworkVersion_RefreshesStaleDownloadURLTemplate(t *testin
 		lock: &layout.AndurelLock{
 			Version: "v0.1.0",
 			Tools: map[string]*layout.Tool{
-				"sqlc": {
+				"narsilc": {
 					Version:      expected.Version,
 					Download:     staleDownload,
 					VersionCheck: expected.VersionCheck,
@@ -762,20 +762,20 @@ func TestSyncToolsToFrameworkVersion_RefreshesStaleDownloadURLTemplate(t *testin
 		t.Fatalf("syncTools returned error: %v", err)
 	}
 
-	sqlc := upgrader.lock.Tools["sqlc"]
-	if sqlc.Download == nil {
-		t.Fatal("expected sqlc download metadata")
+	narsilc := upgrader.lock.Tools["narsilc"]
+	if narsilc.Download == nil {
+		t.Fatal("expected narsilc download metadata")
 	}
-	if sqlc.Download.URLTemplate != expected.Download.URLTemplate {
+	if narsilc.Download.URLTemplate != expected.Download.URLTemplate {
 		t.Fatalf(
-			"sqlc urlTemplate = %q, want %q",
-			sqlc.Download.URLTemplate,
+			"narsilc urlTemplate = %q, want %q",
+			narsilc.Download.URLTemplate,
 			expected.Download.URLTemplate,
 		)
 	}
-	found := slices.Contains(result.Metadata, "sqlc metadata")
+	found := slices.Contains(result.Metadata, "narsilc metadata")
 	if !found {
-		t.Fatalf("expected sqlc metadata refresh, got %v", result.Metadata)
+		t.Fatalf("expected narsilc metadata refresh, got %v", result.Metadata)
 	}
 }
 

@@ -25,12 +25,6 @@ func TestIsNullableType(t *testing.T) {
 		{"sql.NullInt64", true},
 		{"sql.NullFloat64", true},
 		{"sql.NullTime", true},
-		{"bun.NullString", true},
-		{"bun.NullBool", true},
-		{"bun.NullInt32", true},
-		{"bun.NullInt64", true},
-		{"bun.NullFloat64", true},
-		{"bun.NullTime", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.goType, func(t *testing.T) {
@@ -94,18 +88,18 @@ func TestResolveControllerBaseType(t *testing.T) {
 		want   string
 	}{
 		{"sql.NullString", "string"},
-		{"bun.NullString", "string"},
+		{"sql.NullString", "string"},
 		{"sql.NullBool", "bool"},
-		{"bun.NullBool", "bool"},
+		{"sql.NullBool", "bool"},
 		{"sql.NullInt16", "int16"},
 		{"sql.NullInt32", "int32"},
-		{"bun.NullInt32", "int32"},
+		{"sql.NullInt32", "int32"},
 		{"sql.NullInt64", "int64"},
-		{"bun.NullInt64", "int64"},
+		{"sql.NullInt64", "int64"},
 		{"sql.NullFloat64", "float64"},
-		{"bun.NullFloat64", "float64"},
+		{"sql.NullFloat64", "float64"},
 		{"sql.NullTime", "time.Time"},
-		{"bun.NullTime", "time.Time"},
+		{"sql.NullTime", "time.Time"},
 		{"*string", "string"},
 		{"*int32", "int32"},
 		{"*time.Time", "time.Time"},
@@ -132,7 +126,7 @@ func TestBuildField_NullableTimestamp(t *testing.T) {
 	}{
 		{"pointer", "pointer", "*time.Time", "time.Time", true},
 		{"sql.Null", "sql.Null", "sql.NullTime", "time.Time", true},
-		{"bun.Null", "bun.Null", "bun.NullTime", "time.Time", true},
+		{"sql.Null", "sql.Null", "sql.NullTime", "time.Time", true},
 	}
 
 	for _, s := range strategies {
@@ -201,7 +195,7 @@ func TestBuildField_NullableString(t *testing.T) {
 	}{
 		{"pointer", "pointer", "*string", "*string", true},
 		{"sql.Null", "sql.Null", "sql.NullString", "string", true},
-		{"bun.Null", "bun.Null", "bun.NullString", "string", true},
+		{"sql.Null", "sql.Null", "sql.NullString", "string", true},
 	}
 
 	for _, s := range strategies {
@@ -243,7 +237,7 @@ func TestBuildField_NullableInt32(t *testing.T) {
 	}{
 		{"pointer", "pointer", "*int32", "int32", true},
 		{"sql.Null", "sql.Null", "sql.NullInt32", "int32", true},
-		{"bun.Null", "bun.Null", "bun.NullInt32", "int32", true},
+		{"sql.Null", "sql.Null", "sql.NullInt32", "int32", true},
 	}
 
 	for _, s := range strategies {
@@ -285,7 +279,7 @@ func TestBuildField_NullableBool(t *testing.T) {
 	}{
 		{"pointer", "pointer", "*bool", "bool", true},
 		{"sql.Null", "sql.Null", "sql.NullBool", "bool", true},
-		{"bun.Null", "bun.Null", "bun.NullBool", "bool", true},
+		{"sql.Null", "sql.Null", "sql.NullBool", "bool", true},
 	}
 
 	for _, s := range strategies {
@@ -327,7 +321,7 @@ func TestBuildField_NullableFloat64(t *testing.T) {
 	}{
 		{"pointer", "pointer", "*float64", "float64", true},
 		{"sql.Null", "sql.Null", "sql.NullFloat64", "float64", true},
-		{"bun.Null", "bun.Null", "bun.NullFloat64", "float64", true},
+		{"sql.Null", "sql.Null", "sql.NullFloat64", "float64", true},
 	}
 
 	for _, s := range strategies {
@@ -392,11 +386,6 @@ func TestSetNullType(t *testing.T) {
 		t.Errorf("default NullType = %q, want %q", gen.typeMapper.NullType, "sql.Null")
 	}
 
-	gen.SetNullType("bun.Null")
-	if gen.typeMapper.NullType != "bun.Null" {
-		t.Errorf("after SetNullType NullType = %q, want %q", gen.typeMapper.NullType, "bun.Null")
-	}
-
 	gen.SetNullType("pointer")
 	if gen.typeMapper.NullType != "pointer" {
 		t.Errorf("after SetNullType NullType = %q, want %q", gen.typeMapper.NullType, "pointer")
@@ -418,7 +407,7 @@ func TestInertiaDataTypeAndValue(t *testing.T) {
 		},
 		{
 			name:      "bun null bool",
-			field:     GeneratedField{Name: "Published", GoType: "bun.NullBool"},
+			field:     GeneratedField{Name: "Published", GoType: "sql.NullBool"},
 			wantType:  "bool",
 			wantValue: "entity.Published.Bool",
 		},
@@ -471,7 +460,7 @@ func TestRenderInertiaControllerUsesDataStructAndRawMessagePlaceholder(t *testin
 				IsSystemField: true,
 			},
 			{Name: "Name", GoType: "sql.NullString", GoFormType: "string", CamelCase: "name"},
-			{Name: "Published", GoType: "bun.NullBool", GoFormType: "bool", CamelCase: "published"},
+			{Name: "Published", GoType: "sql.NullBool", GoFormType: "bool", CamelCase: "published"},
 			{
 				Name:       "Metadata",
 				GoType:     "json.RawMessage",

@@ -262,12 +262,27 @@ func (m *ModelManager) PlanModel(
 	if err != nil {
 		return nil, fmt.Errorf("plan model source: %w", err)
 	}
+	queryContent, queryErr := m.modelGenerator.PlanQuerySource(genModel)
+	if queryErr != nil {
+		return nil, fmt.Errorf("plan query source: %w", queryErr)
+	}
+	queryPath := filepath.Join(
+		filepath.Dir(ctx.ModelPath),
+		"queries",
+		naming.ToSnakeCase(resourceName)+".sql",
+	)
 	plan := &ModelGenerationPlan{
 		ResourceName: resourceName,
-		Files: []PlannedFile{{
-			Path:       ctx.ModelPath,
-			NewContent: modelContent,
-		}},
+		Files: []PlannedFile{
+			{
+				Path:       ctx.ModelPath,
+				NewContent: modelContent,
+			},
+			{
+				Path:       queryPath,
+				NewContent: queryContent,
+			},
+		},
 	}
 
 	registryPath := filepath.Join(filepath.Dir(ctx.ModelPath), "model.go")

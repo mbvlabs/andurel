@@ -9,10 +9,9 @@ import (
 {{- $needsTime := false}}
 {{- $needsUUID := or (not .IDType) (eq .IDType "uuid.UUID")}}
 {{- $needsSQLNull := false}}
-{{- $needsBun := false}}
 {{- $needsJSON := false}}
 {{- range .Fields}}
-{{- if and (not .IsSystemField) (or (eq .GoFormType "time.Time") (eq .GoType "sql.NullTime") (eq .GoType "bun.NullTime"))}}
+{{- if and (not .IsSystemField) (or (eq .GoFormType "time.Time") (eq .GoType "sql.NullTime"))}}
 	{{- $needsTime = true}}
 {{- end}}
 {{- if and (not .IsSystemField) (or (eq .GoType "uuid.UUID") (eq .GoType "*uuid.UUID"))}}
@@ -24,9 +23,6 @@ import (
 {{- if and (not .IsSystemField) (hasPrefix .GoType "sql.Null")}}
 	{{- $needsSQLNull = true}}
 {{- end}}
-{{- if and (not .IsSystemField) (hasPrefix .GoType "bun.Null")}}
-	{{- $needsBun = true}}
-{{- end}}
 {{- end}}
 {{- if $needsTime}}
 	"time"
@@ -36,9 +32,6 @@ import (
 {{- end}}
 {{- if $needsSQLNull}}
 	"database/sql"
-{{- end}}
-{{- if $needsBun}}
-	"github.com/uptrace/bun"
 {{- end}}
 
 {{- if $needsUUID}}

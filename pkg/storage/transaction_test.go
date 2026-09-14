@@ -2,47 +2,56 @@ package storage
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"testing"
 
-	"github.com/uptrace/bun"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type stubConnection struct {
-	begin func(context.Context, *sql.TxOptions) (Transaction, error)
+	begin func(context.Context) (Transaction, error)
 }
 
-func (s stubConnection) Executor() bun.IDB { return nil }
-func (s stubConnection) DB() *sql.DB       { return nil }
-func (s stubConnection) Health(context.Context) error {
+func (stubConnection) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
+	return pgconn.CommandTag{}, errors.New("not implemented")
+}
+func (stubConnection) Query(context.Context, string, ...any) (pgx.Rows, error) {
+	return nil, errors.New("not implemented")
+}
+func (stubConnection) QueryRow(context.Context, string, ...any) pgx.Row {
 	return nil
 }
-func (s stubConnection) BeginTransaction(
-	ctx context.Context,
-	opts *sql.TxOptions,
-) (Transaction, error) {
-	return s.begin(ctx, opts)
+func (stubConnection) Health(context.Context) error { return nil }
+func (s stubConnection) BeginTransaction(ctx context.Context) (Transaction, error) {
+	return s.begin(ctx)
 }
 
 type stubTransaction struct {
-	commit   func() error
-	rollback func() error
+	commit   func(context.Context) error
+	rollback func(context.Context) error
 }
 
-func (s stubTransaction) Executor() bun.IDB { return nil }
-func (s stubTransaction) SQL() *sql.Tx      { return nil }
-func (s stubTransaction) Commit() error {
+func (stubTransaction) Exec(context.Context, string, ...any) (pgconn.CommandTag, error) {
+	return pgconn.CommandTag{}, errors.New("not implemented")
+}
+func (stubTransaction) Query(context.Context, string, ...any) (pgx.Rows, error) {
+	return nil, errors.New("not implemented")
+}
+func (stubTransaction) QueryRow(context.Context, string, ...any) pgx.Row {
+	return nil
+}
+func (s stubTransaction) Commit(ctx context.Context) error {
 	if s.commit == nil {
 		return nil
 	}
-	return s.commit()
+	return s.commit(ctx)
 }
-func (s stubTransaction) Rollback() error {
+func (s stubTransaction) Rollback(ctx context.Context) error {
 	if s.rollback == nil {
 		return nil
 	}
-	return s.rollback()
+	return s.rollback(ctx)
 }
 
 func TestRunInTransactionCommitsOnSuccess(t *testing.T) {
@@ -50,13 +59,13 @@ func TestRunInTransactionCommitsOnSuccess(t *testing.T) {
 	rolledBack := false
 
 	conn := stubConnection{
-		begin: func(context.Context, *sql.TxOptions) (Transaction, error) {
+		begin: func(context.Context) (Transaction, error) {
 			return stubTransaction{
-				commit: func() error {
+				commit: func(context.Context) error {
 					committed = true
 					return nil
 				},
-				rollback: func() error {
+				rollback: func(context.Context) error {
 					rolledBack = true
 					return nil
 				},
@@ -64,7 +73,7 @@ func TestRunInTransactionCommitsOnSuccess(t *testing.T) {
 		},
 	}
 
-	if err := RunInTransaction(context.Background(), conn, nil, func(context.Context, Transaction) error {
+	if err := RunInTransaction(context.Background(), conn, func(context.Context, Transaction) error {
 		return nil
 	}); err != nil {
 		t.Fatalf("RunInTransaction: %v", err)
@@ -82,13 +91,13 @@ func TestRunInTransactionRollsBackOnError(t *testing.T) {
 	rolledBack := false
 
 	conn := stubConnection{
-		begin: func(context.Context, *sql.TxOptions) (Transaction, error) {
+		begin: func(context.Context) (Transaction, error) {
 			return stubTransaction{
-				commit: func() error {
+				commit: func(context.Context) error {
 					committed = true
 					return nil
 				},
-				rollback: func() error {
+				rollback: func(context.Context) error {
 					rolledBack = true
 					return nil
 				},
@@ -96,7 +105,7 @@ func TestRunInTransactionRollsBackOnError(t *testing.T) {
 		},
 	}
 
-	err := RunInTransaction(context.Background(), conn, nil, func(context.Context, Transaction) error {
+	err := RunInTransaction(context.Background(), conn, func(context.Context, Transaction) error {
 		return errors.New("boom")
 	})
 	if err == nil {

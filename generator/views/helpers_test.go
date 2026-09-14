@@ -11,18 +11,12 @@ import (
 func TestViewDataNullTypeHelpers(t *testing.T) {
 	types := map[string]string{
 		"sql.NullString":  "string",
-		"bun.NullString":  "string",
 		"sql.NullBool":    "bool",
-		"bun.NullBool":    "bool",
 		"sql.NullInt16":   "int16",
 		"sql.NullInt32":   "int32",
-		"bun.NullInt32":   "int32",
 		"sql.NullInt64":   "int64",
-		"bun.NullInt64":   "int64",
 		"sql.NullFloat64": "float64",
-		"bun.NullFloat64": "float64",
 		"sql.NullTime":    "time.Time",
-		"bun.NullTime":    "time.Time",
 		"*uuid.UUID":      "uuid.UUID",
 		"string":          "string",
 	}
@@ -34,11 +28,11 @@ func TestViewDataNullTypeHelpers(t *testing.T) {
 
 	fields := []ViewField{
 		{Name: "Name", GoType: "sql.NullString"},
-		{Name: "Active", GoType: "bun.NullBool"},
+		{Name: "Active", GoType: "sql.NullBool"},
 		{Name: "Small", GoType: "sql.NullInt16"},
-		{Name: "Count", GoType: "bun.NullInt32"},
+		{Name: "Count", GoType: "sql.NullInt32"},
 		{Name: "Total", GoType: "sql.NullInt64"},
-		{Name: "Score", GoType: "bun.NullFloat64"},
+		{Name: "Score", GoType: "sql.NullFloat64"},
 		{Name: "When", GoType: "sql.NullTime"},
 		{Name: "Raw", GoType: "json.RawMessage"},
 		{Name: "ID", GoType: "uuid.UUID"},

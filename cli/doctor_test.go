@@ -403,7 +403,7 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 		false,
 	); len(got) != 2 ||
 		got[0].name != "views generate" || got[0].status != statusPass ||
-		got[1].name != "sqlc generate" || got[1].status != statusPass {
+		got[1].name != "narsilc generate" || got[1].status != statusPass {
 		t.Fatalf("codeGenerationChecks = %#v", got)
 	}
 

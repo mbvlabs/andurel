@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type sqlcQueryTemplateData struct {
+type queryTemplateData struct {
 	PascalName string
 	TableName  string
 }
@@ -28,11 +28,11 @@ func newGenerateQueryCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "query NAME",
-		Short: "Generate a new sqlc query file",
-		Long: `Generates a new sqlc SQL query file in models/queries.
+		Short: "Generate a new narsilc query file",
+		Long: `Generates a new narsilc SQL query file in models/queries.
 
 Pass the query group name in CamelCase, for example UserReport. The file is
-created at models/queries/user_report.sql with sqlc annotation examples.
+created at models/queries/user_report.sql with narsilc annotation examples.
 
 Use --table to scaffold an initial annotated query against an existing table.
 After editing the SQL, run andurel generate queries to produce Go code in
@@ -70,12 +70,12 @@ models/internal/queries.`,
 				Breadcrumbs: []output.Breadcrumb{
 					{
 						Command:     "andurel generate queries",
-						Description: "Generate Go code from sqlc SQL files",
+						Description: "Generate Go code from narsilc SQL files",
 					},
 				},
 				Run: func(rootDir string) error {
 					return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
-						return generateSQLCQuery(name, table)
+						return generateQueryFile(name, table)
 					})(cmd, args)
 				},
 			})
@@ -88,13 +88,13 @@ models/internal/queries.`,
 	setAgentMetadata(
 		cmd,
 		"generation",
-		"Creates application-owned SQL in models/queries. Use sqlc for complex queries and keep generated models/internal/queries types behind the owning model package.",
+		"Creates application-owned SQL in models/queries. Keep generated models/internal/queries types behind the owning model package.",
 	)
 
 	return cmd
 }
 
-func generateSQLCQuery(name, table string) error {
+func generateQueryFile(name, table string) error {
 	validator := generator.NewInputValidator()
 	if err := validator.ValidateResourceName(name); err != nil {
 		return output.WrapError(
@@ -117,25 +117,25 @@ func generateSQLCQuery(name, table string) error {
 
 	snakeName := naming.ToSnakeCase(name)
 	pascalName := naming.ToPascalCase(snakeName)
-	queryPath := filepath.Join(storage.SQLCQueriesDir, snakeName+".sql")
+	queryPath := filepath.Join(storage.QueriesDir, snakeName+".sql")
 
-	if err := generateSQLCQueryFromTemplate(queryPath, sqlcQueryTemplateData{
+	if err := generateQueryFromTemplate(queryPath, queryTemplateData{
 		PascalName: pascalName,
 		TableName:  table,
 	}); err != nil {
-		return fmt.Errorf("generate sqlc query file: %w", err)
+		return fmt.Errorf("generate narsilc query file: %w", err)
 	}
 
-	fmt.Printf("Successfully generated sqlc query file %s\n", queryPath)
+	fmt.Printf("Successfully generated narsilc query file %s\n", queryPath)
 	return nil
 }
 
-func generateSQLCQueryFromTemplate(outputPath string, data sqlcQueryTemplateData) error {
+func generateQueryFromTemplate(outputPath string, data queryTemplateData) error {
 	if _, err := os.Stat(outputPath); err == nil {
 		return fmt.Errorf("file %s already exists", outputPath)
 	}
 
-	content, err := templates.RenderTemplateUsingGlobal("sqlc_query.tmpl", data)
+	content, err := templates.RenderTemplateUsingGlobal("narsilc_query.tmpl", data)
 	if err != nil {
 		return err
 	}

@@ -29,7 +29,8 @@ type GeneratedField struct {
 	Type            string
 	Comment         string
 	Package         string
-	BunTag          string // Full bun struct tag (e.g., `bun:"id,pk,type:uuid"`)
+	ColumnName      string // SQL column name (e.g., "id")
+	BunTag          string // Deprecated alias of ColumnName for existing updater code
 	IsForeignKey    bool
 	IsNullable      bool
 	IsPrimaryKey    bool
@@ -177,8 +178,10 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 
 	importSet := make(map[string]bool)
 	importSet["context"] = true
-	importSet["github.com/uptrace/bun"] = true
 	importSet["github.com/mbvlabs/andurel/pkg/storage"] = true
+	if config.ModulePath != "" {
+		importSet[config.ModulePath+"/models/internal/queries"] = true
+	}
 
 	for _, col := range table.Columns {
 		field, err := g.buildField(col)
@@ -259,7 +262,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedModel,
 	}
 	if model.HasPrimaryKey && model.Mode != ModelModeCreateOnly {
 		importSet["errors"] = true
-		importSet["database/sql"] = true
+		importSet["github.com/jackc/pgx/v5"] = true
 	}
 
 	stdImports, extImports := groupAndSortImports(importSet)
@@ -307,13 +310,12 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		return GeneratedField{}, err
 	}
 
-	bunTag := g.typeMapper.BuildBunTag(col)
-
 	field := GeneratedField{
 		Name:            types.FormatFieldName(col.Name),
 		Type:            goType,
 		Package:         pkg,
-		BunTag:          bunTag,
+		ColumnName:      col.Name,
+		BunTag:          col.Name,
 		IsForeignKey:    col.ForeignKey != nil,
 		IsNullable:      col.IsNullable,
 		IsPrimaryKey:    col.IsPrimaryKey,
@@ -352,11 +354,11 @@ func (g *Generator) GenerateModelFile(model *GeneratedModel, templateStr string)
 			return strings.ToLower(s)
 		},
 		"Plural": inflection.Plural,
-		"columnName": func(bunTag string) string {
-			if before, _, ok := strings.Cut(bunTag, ","); ok {
+		"columnName": func(tag string) string {
+			if before, _, ok := strings.Cut(tag, ","); ok {
 				return before
 			}
-			return bunTag
+			return tag
 		},
 	}
 
@@ -579,8 +581,6 @@ func (g *Generator) BuildFactory(
 		switch {
 		case strings.Contains(field.Type, "sql.Null"):
 			standardImports = append(standardImports, "database/sql")
-		case strings.Contains(field.Type, "bun.Null"):
-			externalImports = append(externalImports, "github.com/uptrace/bun")
 		}
 		if field.Package == "" {
 			continue
@@ -652,7 +652,7 @@ func (g *Generator) determineFactoryDefault(fieldName, goType string) string {
 	if strings.HasPrefix(goType, "*") {
 		return "nil"
 	}
-	if strings.HasPrefix(goType, "sql.Null") || strings.HasPrefix(goType, "bun.Null") {
+	if strings.HasPrefix(goType, "sql.Null") {
 		return fmt.Sprintf("%s{}", goType)
 	}
 
@@ -747,12 +747,9 @@ func (g *Generator) getFactoryGoZero(goType string) string {
 		return "nil"
 	case "[]byte":
 		return "nil"
-	// sql.Null and bun.Null zero values use their empty struct literal
+	// sql.Null zero values use their empty struct literal
 	case "sql.NullString", "sql.NullBool", "sql.NullInt16", "sql.NullInt32",
 		"sql.NullInt64", "sql.NullFloat64", "sql.NullTime":
-		return fmt.Sprintf("%s{}", goType)
-	case "bun.NullString", "bun.NullBool", "bun.NullInt32", "bun.NullInt64",
-		"bun.NullFloat64", "bun.NullTime":
 		return fmt.Sprintf("%s{}", goType)
 	default:
 		if strings.HasPrefix(goType, "[]") {

@@ -76,8 +76,8 @@ func TestModelGenerationGoldens(t *testing.T) {
 		)
 		modelContent = strings.Replace(
 			modelContent,
-			"bun.BaseModel `bun:\"table:products,alias:products\"`",
-			"bun.BaseModel `bun:\"table:products,alias:products\"`\n\tStatus        ProductStatus `bun:\"status\"`",
+			"ID            uuid.UUID       `andurel:\"id\"`",
+			"ID            uuid.UUID       `andurel:\"id\"`\n\tStatus        ProductStatus `andurel:\"status\"`",
 			1,
 		)
 		if err := os.WriteFile(modelPath, []byte(modelContent), 0o600); err != nil {
@@ -93,7 +93,7 @@ func TestModelGenerationGoldens(t *testing.T) {
 			t.Fatalf("failed to update model: %v", err)
 		}
 
-		if !regexp.MustCompile("Status\\s+ProductStatus\\s+`bun:\"status\"`").
+		if !regexp.MustCompile("Status\\s+ProductStatus\\s+`andurel:\"status\"`").
 			MatchString(result.NewFileContent) {
 			t.Fatalf(
 				"updated model should preserve custom Status field\n\n%s",
@@ -238,14 +238,8 @@ func generatorPackageDir(t *testing.T) string {
 const modelNamespaceFixture = `package models
 
 import (
-	"github.com/mbvlabs/andurel/pkg/storage"
-
 	"go.uber.org/fx"
 )
-
-type queryDB interface {
-	Executor() storage.Executor
-}
 
 var Module = fx.Module(
 	"models",

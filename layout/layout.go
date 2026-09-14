@@ -101,9 +101,9 @@ func Scaffold(
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
-	fmt.Print("Writing sqlc configuration...\n")
-	if err := storage.WriteSQLCConfig(targetDir); err != nil {
-		return fmt.Errorf("failed to write sqlc config: %w", err)
+	fmt.Print("Writing narsilc configuration...\n")
+	if err := storage.WriteNarsilcConfig(targetDir); err != nil {
+		return fmt.Errorf("failed to write narsilc config: %w", err)
 	}
 
 	fmt.Print("Processing database migrations...\n")
@@ -204,15 +204,9 @@ func Scaffold(
 		)
 	}
 
-	fmt.Print("Running sqlc generate...\n")
-	if err := cmds.RunSQLCGenerateOptional(targetDir); err != nil {
-		slog.Error(
-			"failed to run sqlc generate",
-			"error",
-			err,
-			"fix",
-			"run 'andurel generate queries' after sync",
-		)
+	fmt.Print("Running narsilc generate...\n")
+	if err := cmds.RunNarsilcGenerate(targetDir); err != nil {
+		return fmt.Errorf("failed to run narsilc generate: %w", err)
 	}
 
 	fmt.Print("Running go mod tidy...\n")
@@ -337,7 +331,8 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_factories_factories.tmpl": "models/factories/factories.go",
 	"models_factories_user.tmpl":      "models/factories/user.go",
 	"models_factories_token.tmpl":     "models/factories/token.go",
-	"models_queries_gitkeep.tmpl":     "models/queries/.gitkeep",
+	"models_queries_user.tmpl":        "models/queries/user.sql",
+	"models_queries_token.tmpl":       "models/queries/token.sql",
 
 	// Router
 	"router_router.tmpl":                     "router/router.go",
@@ -1039,7 +1034,7 @@ func topologicalSort(extSet map[string]struct{}) ([]string, error) {
 	return result, nil
 }
 
-const goVersion = "1.26.0"
+const goVersion = "1.27.0"
 
 // GoTool represents go tool.
 type GoTool struct {
@@ -1077,7 +1072,7 @@ func GetExpectedTools(config *ScaffoldConfig) map[string]*Tool {
 		expectedTools[tool.Name] = NewGoTool(tool.Name, sourceRepo, tool.Version)
 	}
 
-	expectedTools["sqlc"] = NewBinaryTool("sqlc", versions.Sqlc)
+	expectedTools["narsilc"] = NewBinaryTool("narsilc", versions.Narsilc)
 	expectedTools["tailwindcli"] = NewBinaryTool("tailwindcli", versions.TailwindCLI)
 
 	return expectedTools
@@ -1223,7 +1218,7 @@ func generateLockFile(
 		lock.AddTool(tool.Name, NewGoTool(tool.Name, sourceRepo, tool.Version))
 	}
 
-	lock.AddTool("sqlc", NewBinaryTool("sqlc", versions.Sqlc))
+	lock.AddTool("narsilc", NewBinaryTool("narsilc", versions.Narsilc))
 	lock.AddTool("tailwindcli", NewBinaryTool("tailwindcli", versions.TailwindCLI))
 
 	for _, ext := range extensions {

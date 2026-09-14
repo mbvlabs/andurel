@@ -1,6 +1,7 @@
 package models
 
 // andurel:model-mode {{.Mode}}
+// andurel:table {{.TableName}}
 
 import (
 {{- range .StandardImports}}
@@ -14,35 +15,29 @@ import (
 )
 
 type {{.NamespaceType}} struct {
-	db queryDB
+	queries *queries.Queries
 }
 
 func New{{.NamespaceVar}}(db storage.Connection) {{.NamespaceType}} {
-	return {{.NamespaceType}}{db: db}
+	return {{.NamespaceType}}{queries: queries.New(db)}
 }
 
 // WithTx returns a copy that runs queries inside tx.
 func ({{.ReceiverName}} {{.NamespaceType}}) WithTx(tx storage.Transaction) {{.NamespaceType}} {
-	return {{.NamespaceType}}{db: tx}
+	return {{.NamespaceType}}{queries: queries.New(tx)}
 }
 
 type {{.EntityName}} struct {
-	bun.BaseModel `bun:"table:{{.TableName}},alias:{{.TableName}}"`
-
 {{- range .Fields}}
-	{{.Name}} {{.Type}} `bun:"{{.BunTag}}"`
+	{{.Name}} {{.Type}} `andurel:"{{.ColumnName}}"`
 {{- end}}
 }
 
 {{if and .HasPrimaryKey (ne .Mode "create-only")}}
 func ({{.ReceiverName}} {{.NamespaceType}}) Find(ctx context.Context, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) ({{.EntityName}}, error) {
-	var entity {{.EntityName}}
-	err := {{.ReceiverName}}.db.Executor().NewSelect().
-		Model(&entity).
-		Where("{{.IDFieldName}} = ?", id).
-		Scan(ctx)
+	entity, err := {{.ReceiverName}}.queries.Get{{.EntityName}}[{{.EntityName}}](ctx, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return {{.EntityName}}{}, ErrNotFound
 		}
 		return {{.EntityName}}{}, err
@@ -94,11 +89,18 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, data Cre
 		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := {{.ReceiverName}}.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return {{.EntityName}}{}, err
-	}
+	return {{.ReceiverName}}.Insert(ctx, entity)
+}
 
-	return entity, nil
+func ({{.ReceiverName}} {{.NamespaceType}}) Insert(ctx context.Context, entity {{.EntityName}}) ({{.EntityName}}, error) {
+	return {{.ReceiverName}}.queries.Create{{.EntityName}}[{{.EntityName}}](ctx, queries.Create{{.EntityName}}Params{
+{{- range .Fields}}
+{{- if and .IsPrimaryKey $.IsAutoIncrementID}}
+{{- else}}
+		{{.Name}}: entity.{{.Name}},
+{{- end}}
+{{- end}}
+	})
 }
 {{end}}
 
@@ -129,37 +131,26 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Update(ctx context.Context, data Upd
 		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := {{.ReceiverName}}.db.Executor().NewUpdate().
-		Model(&entity).
+	row, err := {{.ReceiverName}}.queries.Update{{.EntityName}}[{{.EntityName}}](ctx, queries.Update{{.EntityName}}Params{
+		{{.IDGoFieldName}}: entity.{{.IDGoFieldName}},
 {{- range .Fields}}
 {{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt")}}
-		Column("{{columnName .BunTag}}").
+		{{.Name}}: entity.{{.Name}},
 {{- end}}
 {{- end}}
-		WherePK().
-		Returning("*").
-		Scan(ctx)
+	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return {{.EntityName}}{}, ErrNotFound
 		}
 		return {{.EntityName}}{}, err
 	}
 
-	return entity, nil
+	return row, nil
 }
 
 func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, id {{if .IDType}}{{.IDType}}{{else}}uuid.UUID{{end}}) error {
-	var entity {{.EntityName}}
-	err := {{.ReceiverName}}.db.Executor().NewDelete().
-		Model(&entity).
-		Where("{{.IDFieldName}} = ?", id).
-		Returning("*").
-		Scan(ctx)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrNotFound
-		}
+	if err := {{.ReceiverName}}.queries.Delete{{.EntityName}}(ctx, id); err != nil {
 		return err
 	}
 
@@ -169,14 +160,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Destroy(ctx context.Context, id {{if
 
 {{if ne .Mode "create-only"}}
 func ({{.ReceiverName}} {{.NamespaceType}}) All(ctx context.Context) ([]{{.EntityName}}, error) {
-	var entities []{{.EntityName}}
-	if err := {{.ReceiverName}}.db.Executor().NewSelect().
-		Model(&entities).
-		Scan(ctx); err != nil {
-		return nil, err
-	}
-
-	return entities, nil
+	return {{.ReceiverName}}.queries.List{{.PluralName}}[{{.EntityName}}](ctx)
 }
 
 type Paginated{{.PluralName}} struct {
@@ -200,18 +184,16 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Paginate(ctx context.Context, page, 
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := {{.ReceiverName}}.db.Executor().NewSelect().
-		Model(&{{.EntityName}}{}).Count(ctx)
+	totalCount, err := {{.ReceiverName}}.queries.Count{{.PluralName}}(ctx)
 	if err != nil {
 		return Paginated{{.PluralName}}{}, err
 	}
 
-	entities := make([]{{.EntityName}}, 0, int(pageSize))
-	if err := {{.ReceiverName}}.db.Executor().NewSelect().
-		Model(&entities).
-		Limit(int(pageSize)).
-		Offset(int(offset)).
-		Scan(ctx); err != nil {
+	entities, err := {{.ReceiverName}}.queries.List{{.PluralName}}Paginated[{{.EntityName}}](ctx, queries.List{{.PluralName}}PaginatedParams{
+		PageSize:   int32(pageSize),
+		PageOffset: int32(offset),
+	})
+	if err != nil {
 		return Paginated{{.PluralName}}{}, err
 	}
 
@@ -248,19 +230,10 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Upsert(ctx context.Context, id {{if 
 		return {{.EntityName}}{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := {{.ReceiverName}}.db.Executor().NewInsert().
-		Model(&entity).
-		On("CONFLICT ({{.IDFieldName}}) DO UPDATE").
+	return {{.ReceiverName}}.queries.Upsert{{.EntityName}}[{{.EntityName}}](ctx, queries.Upsert{{.EntityName}}Params{
 {{- range .Fields}}
-{{- if and (not .IsPrimaryKey) (ne .Name "CreatedAt") (ne .Name "UpdatedAt")}}
-		Set("{{columnName .BunTag}} = excluded.{{columnName .BunTag}}").
+		{{.Name}}: entity.{{.Name}},
 {{- end}}
-{{- end}}
-		Returning("*").
-		Scan(ctx); err != nil {
-		return {{.EntityName}}{}, err
-	}
-
-	return entity, nil
+	})
 }
 {{end}}

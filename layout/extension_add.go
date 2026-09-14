@@ -107,7 +107,7 @@ func LoadProjectContext(rootDir string) (*TemplateData, *AndurelLock, error) {
 //  4. Re-renders all blueprint-consuming templates (config.go, .env.example,
 //     main.go, etc.) with the updated blueprint.
 //  5. Runs post-steps and code generation tools (goose fix, templ generate,
-//     sqlc generate when query files exist, go mod tidy, go fmt).
+//     narsilc generate when query files exist, go mod tidy, go fmt).
 //  6. Updates and writes andurel.lock.
 //
 // Returns the names of all newly applied extensions (the requested extension
@@ -244,15 +244,9 @@ func ApplyExtension(rootDir, extensionName string) ([]string, error) {
 		)
 	}
 
-	fmt.Print("Running sqlc generate...\n")
-	if err := cmds.RunSQLCGenerateOptional(rootDir); err != nil {
-		slog.Error(
-			"failed to run sqlc generate",
-			"error",
-			err,
-			"fix",
-			"run 'andurel generate queries' after sync",
-		)
+	fmt.Print("Running narsilc generate...\n")
+	if err := cmds.RunNarsilcGenerate(rootDir); err != nil {
+		return nil, fmt.Errorf("failed to run narsilc generate: %w", err)
 	}
 
 	fmt.Print("Running go mod tidy...\n")

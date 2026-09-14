@@ -56,7 +56,7 @@ func (fa *FieldAnalyzer) determineDefault(fieldName, goType string) string {
 	if strings.HasPrefix(goType, "*") {
 		return "nil"
 	}
-	if strings.HasPrefix(goType, "sql.Null") || strings.HasPrefix(goType, "bun.Null") {
+	if strings.HasPrefix(goType, "sql.Null") {
 		return fmt.Sprintf("%s{}", goType)
 	}
 

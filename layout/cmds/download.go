@@ -388,10 +388,9 @@ func DownloadVerifiedGoTool(
 func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, error) {
 	repo := extractGitHubRepo(d.Module)
 	switch d.Name {
-	case "sqlc":
-		// sqlc release assets use Go arch names (amd64/arm64), not x86_64.
+	case "narsilc":
 		return fmt.Sprintf(
-			"https://github.com/%s/releases/download/%s/sqlc_%s_%s_%s.tar.gz",
+			"https://github.com/%s/releases/download/%s/narsilc_%s_%s_%s.tar.gz",
 			repo,
 			d.Version,
 			strings.TrimPrefix(d.Version, "v"),

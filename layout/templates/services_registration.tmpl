@@ -40,7 +40,7 @@ func (i Identity) RegisterUser(
 		return b.Errors()
 	}
 
-	tx, err := i.db.BeginTransaction(ctx, nil)
+	tx, err := i.db.BeginTransaction(ctx)
 
 	if err != nil {
 
@@ -60,7 +60,7 @@ func (i Identity) RegisterUser(
 		},
 	})
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return fmt.Errorf("create user: %w", err)
 
@@ -70,7 +70,7 @@ func (i Identity) RegisterUser(
 		"email": user.Email,
 	})
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return fmt.Errorf("marshal verification token metadata: %v", err)
 
@@ -85,13 +85,13 @@ func (i Identity) RegisterUser(
 		meta,
 	)
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return fmt.Errorf("create verification token: %w", err)
 
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 
 		return fmt.Errorf("commit registration transaction: %w", err)
 
@@ -152,7 +152,7 @@ func (i Identity) VerifyEmail(
 		return models.User{}, b.Errors()
 	}
 
-	tx, err := i.db.BeginTransaction(ctx, nil)
+	tx, err := i.db.BeginTransaction(ctx)
 
 	if err != nil {
 
@@ -171,7 +171,7 @@ func (i Identity) VerifyEmail(
 		data.Code,
 	)
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
 			return models.User{}, ErrInvalidVerificationCode
@@ -183,13 +183,13 @@ func (i Identity) VerifyEmail(
 
 	if !token.IsValid(data.Code, i.tokenSigningKey) {
 
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 		return models.User{}, ErrExpiredVerificationCode
 	}
 
 	var meta map[string]string
 	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return models.User{}, fmt.Errorf("unmarshal verification token metadata: %v", err)
 
@@ -197,7 +197,7 @@ func (i Identity) VerifyEmail(
 
 	emailAddr, ok := meta["email"]
 	if !ok {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return models.User{}, errors.New("verification token metadata missing email")
 
@@ -205,7 +205,7 @@ func (i Identity) VerifyEmail(
 
 	user, err := users.FindByEmail(ctx, emailAddr)
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
 			return models.User{}, ErrUserNotFound
@@ -224,7 +224,7 @@ func (i Identity) VerifyEmail(
 		IsAdmin:          user.IsAdmin,
 	})
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
 			return models.User{}, ErrUserNotFound
@@ -235,13 +235,13 @@ func (i Identity) VerifyEmail(
 	}
 
 	if err := tokens.Destroy(ctx, token.ID); err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return models.User{}, fmt.Errorf("destroy email verification token: %w", err)
 
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 
 		return models.User{}, fmt.Errorf("commit email verification transaction: %w", err)
 	}

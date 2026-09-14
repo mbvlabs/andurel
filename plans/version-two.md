@@ -10,10 +10,10 @@ There is no upgrade path from V1 to V2. V2 applications are created with `andure
 
 Andurel V2 should:
 
-- use Go 1.26 as its minimum supported Go version;
+- use Go 1.27 as its minimum supported Go version;
 - use Uber Fx as the standard dependency injection and lifecycle system;
 - move reusable framework functionality into independently versioned Go modules;
-- retain Bun as the default model persistence layer and include sqlc for complex queries;
+- persist models through narsilc-generated queries into application-owned structs;
 - retain SQL migrations as the source of truth for the database schema;
 - make Inertia the recommended option for rich user interfaces while continuing to support templ and Datastar;
 - keep application dependencies explicit and testable.
@@ -101,19 +101,14 @@ Configuration should be loaded once during startup, validated before dependent c
 
 Email infrastructure should be made configurable through the same application-owned pattern used by storage, Inertia, and queue. The email package should expose typed configuration and functional options, while generated application configuration owns environment loading, provider selection, defaults, and Fx wiring. Email implementations should not read environment variables directly.
 
-## Storage and Bun
+## Storage and narsilc
 
-Bun should remain the default persistence layer in V2. It fits Andurel's application-owned model design, keeps ordinary CRUD concise, and remains explicit when queries become SQL-oriented.
-
-GORM was evaluated against representative Andurel models. Rewriting ordinary user CRUD produced almost no meaningful reduction in code or improvement in DX: validation, error normalization, uniqueness checks, pagination, and explicit update fields remained application concerns. Rewriting a complex reporting model had the same string-heavy projections and joins as Bun. GORM's primary advantages—convention-driven associations and its broader ecosystem—would not offset the migration cost for Andurel's current model architecture.
-
-Bob was also evaluated. Its typed ORM query generation is attractive, but its database-first generated models conflict with Andurel's preference for application-owned business entities. Its SQL query generator addresses complex queries, but overlaps with the narrower and more established role sqlc can provide. Neither alternative demonstrated enough benefit to replace Bun.
+V2 persists through narsilc only. There is no Bun default and no sqlc escape hatch. Application-owned model structs carry `andurel:"column"` tags; narsilc generic methods scan into those structs.
 
 The standalone storage module should own shared database infrastructure, including:
 
 - PostgreSQL connection creation through `pgx/v5`;
 - connection pool defaults and overrides;
-- Bun initialization through `pgx/v5/stdlib`;
 - access to the underlying `database/sql` pool;
 - transaction helpers;
 - health checks;
@@ -127,12 +122,12 @@ The public database boundary should be a small `storage.Connection` interface:
 
 ```go
 type Connection interface {
-    Executor() bun.IDB
-    DB() *sql.DB
+    Health(ctx context.Context) error
+    BeginTransaction(ctx context.Context) (Transaction, error)
 }
 ```
 
-Constructors should return concrete storage types, while application components accept `storage.Connection`. The PostgreSQL implementation should retain its Bun handle internally, use `pgx/v5/stdlib` to create the underlying `*sql.DB`, and expose that same pool through `DB()`. This lets Bun and infrastructure such as River share one pool without making generated applications responsible for connection setup.
+Constructors should return concrete storage types, while application components accept `storage.Connection`. The PostgreSQL implementation wraps a `pgx/v5` pool. Models construct narsilc clients with `queries.New(db)` because `Connection` implements pgx DBTX. River uses `riverpgxv5` on that same pool.
 
 Queue infrastructure should use the same connection boundary. The storage package owns the River client adapters and their functional options. Generated configuration has one `queueCfg`, which is translated into those options. Fx exposes separate `QueueInsertModule` and `QueueProcessorModule` values so the web process can enqueue jobs without starting workers, while `cmd/queue/main.go` runs the processor and owns its lifecycle.
 
@@ -146,7 +141,7 @@ migrations/
 └── *.sql
 ```
 
-Bun model tags and query code must not become a parallel schema definition or migration mechanism. Schema changes continue to begin with SQL migrations.
+Model tags and generated query code must not become a parallel schema definition or migration mechanism. Schema changes continue to begin with SQL migrations.
 
 ### Seeds and factories
 
@@ -186,26 +181,20 @@ The model implementation remains in its model file:
 ```go
 // models/user.go
 type Users struct {
-    db storage.Connection
+    queries *queries.Queries
 }
 
 type User struct {
-    bun.BaseModel `bun:"table:users,alias:user"`
-    ID            uuid.UUID `bun:"id,pk,type:uuid"`
-    Email         string    `bun:"email"`
+    ID    uuid.UUID `andurel:"id"`
+    Email string    `andurel:"email"`
 }
 
 func NewUsers(db storage.Connection) Users {
-    return Users{db: db}
+    return Users{queries: queries.New(db)}
 }
 
 func (users Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
-    var user User
-    err := users.db.Executor().NewSelect().
-        Model(&user).
-        Where("user.id = ?", id).
-        Scan(ctx)
-    return user, err
+    return users.queries.GetUser[User](ctx, id)
 }
 
 func (user *User) Validate() error {
@@ -218,29 +207,25 @@ The application composition root includes `models.Module`. Controllers and servi
 
 Request cancellation should continue through `context.Context`. The database must not be retrieved from a package global, service locator, or request context.
 
-Transactions should provide both Bun and standard SQL access over the same underlying transaction. `storage.Connection` starts them through `BeginTransaction`, which returns a `storage.Transaction` with `Executor()` for Bun model methods and `SQL()` for sqlc (`queries.WithTx(tx.SQL())`), River inserts, or other `database/sql` callers. `storage.RunInTransaction` wraps commit and rollback for multi-step workflows.
+Transactions share one `storage.Connection` / `storage.Transaction` boundary. `BeginTransaction` returns a `storage.Transaction` that narsilc accepts with `queries.New(tx)` and that River inserts can share. `storage.RunInTransaction` wraps commit and rollback for multi-step workflows.
 
-### sqlc support
+### narsilc
 
-sqlc is always available in generated applications but remains inactive until a project adds SQL files under `models/queries/`. Bun continues to handle ordinary CRUD; sqlc is for operations that are materially clearer as standalone SQL, such as complex projections, reporting queries, aggregates, lateral joins, and carefully tuned bulk operations. It is an escape hatch within the model layer, not a second application-wide persistence mode.
-
-The canonical `sqlc.yaml` lives in the standalone storage module and is written to the application root during scaffolding. Query files and generated code use this layout:
+narsilc is the only persistence compiler. Scaffolding writes `narsilc.yaml` from the storage module today; an upcoming narsilc release will read `andurel.lock` instead. Query files and generated code use this layout:
 
 ```text
-sqlc.yaml                 # copied from pkg/storage on scaffold
+narsilc.yaml              # copied from pkg/storage on scaffold
 models/
 ├── models.go
 ├── user.go
 ├── queries/              # hand-written SQL query files
 └── internal/
-    └── queries/          # sqlc-generated Go code
+    └── queries/          # narsilc-generated Go code
 ```
 
-Only model packages may import the generated sqlc package. Application-owned model and projection types remain the public API. Where sqlc generates database-shaped rows or parameters, the owning model method performs the conversion locally; that mapping cost is accepted only for the uncommon queries where explicit SQL provides a clear maintenance benefit. Controllers and services must not import sqlc-generated packages or expose sqlc-generated types.
+Only model packages may import the generated queries package. Application-owned model and projection types remain the public API. Controllers and services must not import generated packages or expose generated types.
 
-Andurel does not generate sqlc usage inside model Go files. The generator scaffolds SQL query files and runs sqlc codegen; wiring generated queries into model methods, mapping rows to application types, and choosing when to use sqlc instead of Bun remain application-owned decisions.
-
-Bun and sqlc should use the same connection pool and transaction boundary. The default shared pool should be a `database/sql` handle backed by `pgx/v5/stdlib`. sqlc generates against the standard SQL interface so it does not create a second PostgreSQL pool. Inside a transaction, pass `tx.Executor()` to Bun model methods and `tx.SQL()` to sqlc-generated queries. Use `andurel generate query` to scaffold SQL files in `models/queries/` and `andurel generate queries` to run sqlc. `andurel run`, `andurel build`, scaffold, and extension apply regenerate sqlc output when annotated query files exist.
+The generator writes SQL query files for each model and runs narsilc after `andurel generate model`. Use `andurel generate query` for additional query groups and `andurel generate queries` to regenerate typed code. `andurel run`, `andurel build`, scaffold, and extension apply regenerate narsilc output when annotated query files exist.
 
 ## User interface direction
 

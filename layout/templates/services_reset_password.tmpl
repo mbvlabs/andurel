@@ -37,7 +37,7 @@ func (i Identity) RequestResetPassword(
 		return b.Errors()
 	}
 
-	tx, err := i.db.BeginTransaction(ctx, nil)
+	tx, err := i.db.BeginTransaction(ctx)
 
 	if err != nil {
 
@@ -50,7 +50,7 @@ func (i Identity) RequestResetPassword(
 
 	user, err := users.FindByEmail(ctx, data.Email)
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
 			return nil
@@ -64,7 +64,7 @@ func (i Identity) RequestResetPassword(
 		"email": user.Email,
 	})
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return fmt.Errorf("marshal password reset token metadata: %v", err)
 
@@ -79,13 +79,13 @@ func (i Identity) RequestResetPassword(
 		meta,
 	)
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return fmt.Errorf("create password reset token: %w", err)
 
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 
 		return fmt.Errorf("commit password reset request transaction: %w", err)
 
@@ -149,7 +149,7 @@ func (i Identity) ResetPassword(
 		return b.Errors()
 	}
 
-	tx, err := i.db.BeginTransaction(ctx, nil)
+	tx, err := i.db.BeginTransaction(ctx)
 
 	if err != nil {
 
@@ -168,7 +168,7 @@ func (i Identity) ResetPassword(
 		data.Token,
 	)
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
 			return ErrInvalidResetCode
@@ -180,13 +180,13 @@ func (i Identity) ResetPassword(
 
 	if !token.IsValid(data.Token, i.tokenSigningKey) {
 
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 		return ErrExpiredResetCode
 	}
 
 	var meta map[string]string
 	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return fmt.Errorf("unmarshal password reset token metadata: %v", err)
 
@@ -194,7 +194,7 @@ func (i Identity) ResetPassword(
 
 	emailAddr, ok := meta["email"]
 	if !ok {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return errors.New("password reset token metadata missing email")
 
@@ -202,7 +202,7 @@ func (i Identity) ResetPassword(
 
 	user, err := users.FindByEmail(ctx, emailAddr)
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
 			return ErrInvalidResetCode
@@ -215,7 +215,7 @@ func (i Identity) ResetPassword(
 	hashedPassword, err := models.HashPassword(data.Password, i.pepper)
 
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return fmt.Errorf("hash reset password: %w", err)
 
@@ -229,7 +229,7 @@ func (i Identity) ResetPassword(
 		IsAdmin:          user.IsAdmin,
 	})
 	if err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
 			return ErrInvalidResetCode
@@ -240,13 +240,13 @@ func (i Identity) ResetPassword(
 	}
 
 	if err := tokens.Destroy(ctx, token.ID); err != nil {
-		_ = tx.Rollback()
+		_ = tx.Rollback(ctx)
 
 		return fmt.Errorf("destroy password reset token: %w", err)
 
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit password reset transaction: %w", err)
 	}
 

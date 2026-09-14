@@ -191,7 +191,7 @@ func TestBuildAppRunsExpectedToolchain(t *testing.T) {
 	}
 }
 
-func TestBuildAppRunsSQLCWhenQueriesExist(t *testing.T) {
+func TestBuildAppRunsNarsilcWhenQueriesExist(t *testing.T) {
 	resetCLITestSeams(t)
 
 	root := t.TempDir()
@@ -205,7 +205,7 @@ func TestBuildAppRunsSQLCWhenQueriesExist(t *testing.T) {
 	)
 	lock := layout.NewAndurelLock("test")
 	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")
-	lock.Tools["sqlc"] = validTestTool("sqlc", "v1.31.1")
+	lock.Tools["narsilc"] = validTestTool("narsilc", "v0.1.0")
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "app",
 		Database:    "postgresql",
@@ -236,7 +236,7 @@ func TestBuildAppRunsSQLCWhenQueriesExist(t *testing.T) {
 	log := readBuildTestFile(t, logPath)
 	for _, want := range []string{
 		"templ generate",
-		"sqlc generate",
+		"narsilc generate",
 		"go fmt ./models/internal/queries/...",
 	} {
 		if !strings.Contains(log, want) {

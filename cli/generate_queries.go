@@ -12,12 +12,11 @@ func newGenerateQueriesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "queries",
 		Aliases: []string{"q"},
-		Short:   "Generate Go code from sqlc SQL queries",
-		Long: `Run sqlc generate for SQL files in models/queries.
+		Short:   "Generate Go code from narsilc SQL queries",
+		Long: `Run narsilc generate for SQL files in models/queries.
 
 Generated code is written to models/internal/queries. This command is a
-no-op when models/queries contains no .sql files with a -- name: annotation,
-so unused sqlc support does not affect ordinary projects.`,
+no-op when models/queries contains no .sql files with a -- name: annotation.`,
 		Example: `  andurel generate queries`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -26,18 +25,18 @@ so unused sqlc support does not affect ordinary projects.`,
 				return err
 			}
 
-			hasQueries, err := storage.HasSQLCQueryFiles(rootDir)
+			hasQueries, err := storage.HasQueryFiles(rootDir)
 			if err != nil {
-				return fmt.Errorf("check sqlc queries: %w", err)
+				return fmt.Errorf("check narsilc queries: %w", err)
 			}
 			commandsRun := []string{}
 			warnings := []string{}
 			if hasQueries {
-				commandsRun = append(commandsRun, "sqlc generate", "go fmt ./models/internal/queries/...")
+				commandsRun = append(commandsRun, "narsilc generate", "go fmt ./models/internal/queries/...")
 			} else {
 				warnings = append(
 					warnings,
-					"no annotated sqlc query files found in models/queries; generation was skipped",
+					"no annotated narsilc query files found in models/queries; generation was skipped",
 				)
 			}
 
@@ -47,14 +46,14 @@ so unused sqlc support does not affect ordinary projects.`,
 				CommandsRun: commandsRun,
 				Warnings:    warnings,
 				Breadcrumbs: []output.Breadcrumb{
-					{Command: "andurel doctor --json", Description: "Check generated sqlc code for drift"},
+					{Command: "andurel doctor --json", Description: "Check generated narsilc code for drift"},
 				},
 				Run: func(rootDir string) error {
 					if !hasQueries {
-						fmt.Println("No annotated sqlc query files found in models/queries; skipping generation.")
+						fmt.Println("No annotated narsilc query files found in models/queries; skipping generation.")
 						return nil
 					}
-					return generateSQLCIfNeeded(rootDir)
+					return generateNarsilcIfNeeded(rootDir)
 				},
 			})
 		},
@@ -62,7 +61,7 @@ so unused sqlc support does not affect ordinary projects.`,
 	setAgentMetadata(
 		cmd,
 		"generation",
-		"Runs only when models/queries contains a sqlc -- name: annotation. Returns a mutation report in structured modes.",
+		"Runs only when models/queries contains a narsilc -- name: annotation. Returns a mutation report in structured modes.",
 	)
 	return cmd
 }

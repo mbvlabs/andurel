@@ -43,13 +43,6 @@ var standardGoTypes = map[string]bool{
 	"sql.NullInt64":   true,
 	"sql.NullFloat64": true,
 	"sql.NullTime":    true,
-	// bun.Null types
-	"bun.NullString":  true,
-	"bun.NullBool":    true,
-	"bun.NullInt32":   true,
-	"bun.NullInt64":   true,
-	"bun.NullFloat64": true,
-	"bun.NullTime":    true,
 }
 
 type parsedField struct {
@@ -76,13 +69,11 @@ type UpdateModelResult struct {
 }
 
 // Diff returns a unified diff of the struct definitions and method bodies
-// (Entity, CreateData, UpdateData, Create, Update, Upsert). bun.BaseModel
-// lines are excluded — their alignment changes with field widths and is not
-// schema content.
+// (Entity, CreateData, UpdateData, Create, Update, Upsert).
 func (r *UpdateModelResult) Diff() (string, error) {
 	d := difflib.UnifiedDiff{
-		A:        difflib.SplitLines(dropBaseModelLine(r.OldStruct)),
-		B:        difflib.SplitLines(dropBaseModelLine(r.NewStruct)),
+		A:        difflib.SplitLines(r.OldStruct),
+		B:        difflib.SplitLines(r.NewStruct),
 		FromFile: "current",
 		ToFile:   "updated",
 		Context:  2,
@@ -100,27 +91,6 @@ func (r *UpdateModelResult) FactoryDiff() (string, error) {
 		Context:  2,
 	}
 	return difflib.GetUnifiedDiffString(d)
-}
-
-// dropBaseModelLine removes the bun.BaseModel embedding line (and any blank
-// line immediately following it) from a struct string before diffing.
-func dropBaseModelLine(structStr string) string {
-	lines := strings.Split(structStr, "\n")
-	out := make([]string, 0, len(lines))
-	skipNext := false
-	for _, line := range lines {
-		if strings.Contains(line, "bun.BaseModel") {
-			skipNext = true
-			continue
-		}
-		if skipNext && strings.TrimSpace(line) == "" {
-			skipNext = false
-			continue
-		}
-		skipNext = false
-		out = append(out, line)
-	}
-	return strings.Join(out, "\n")
 }
 
 // UpdateModel inspects the existing model file for resourceName, rebuilds the
@@ -311,7 +281,6 @@ func parseEntityStruct(src []byte, entityName string) ([]parsedField, int, int, 
 			var fields []parsedField
 			for _, field := range structType.Fields.List {
 				if len(field.Names) == 0 {
-					// Embedded field (bun.BaseModel), skip.
 					continue
 				}
 				fieldName := field.Names[0].Name
@@ -323,7 +292,10 @@ func parseEntityStruct(src []byte, entityName string) ([]parsedField, int, int, 
 				if field.Tag != nil {
 					// field.Tag.Value is the raw string literal including backticks.
 					raw := strings.Trim(field.Tag.Value, "`")
-					bunTag = reflect.StructTag(raw).Get("bun")
+					bunTag = reflect.StructTag(raw).Get("andurel")
+					if bunTag == "" {
+						bunTag = reflect.StructTag(raw).Get("bun")
+					}
 				}
 
 				fields = append(fields, parsedField{
@@ -345,10 +317,16 @@ func parseEntityStruct(src []byte, entityName string) ([]parsedField, int, int, 
 func renderEntityStruct(entityName, tableName string, fields []models.GeneratedField) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "type %s struct {\n", entityName)
-	fmt.Fprintf(&sb, "\tbun.BaseModel `bun:\"table:%s,alias:%s\"`\n", tableName, tableName)
-	sb.WriteString("\n")
 	for _, f := range fields {
-		fmt.Fprintf(&sb, "\t%s %s `bun:\"%s\"`\n", f.Name, f.Type, f.BunTag)
+		column := f.ColumnName
+		if column == "" {
+			if before, _, ok := strings.Cut(f.BunTag, ","); ok {
+				column = before
+			} else {
+				column = f.BunTag
+			}
+		}
+		fmt.Fprintf(&sb, "\t%s %s `andurel:\"%s\"`\n", f.Name, f.Type, column)
 	}
 	sb.WriteString("}")
 	return sb.String()

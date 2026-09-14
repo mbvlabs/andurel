@@ -61,7 +61,7 @@ func Test{{Plural .ResourceName}}_Create(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusSeeOther, rec.Code)
 	}
 
-	{{.PluralName | ToCamelCase}}, err := models.All{{Plural .ResourceName}}(c.Request().Context(), db.Executor())
+	{{.PluralName | ToCamelCase}}, err := models.New{{Plural .ResourceName}}(db).All(c.Request().Context())
 	if err != nil {
 		t.Fatalf("failed to query {{.PluralName | ToLower}}: %v", err)
 	}
@@ -83,7 +83,10 @@ func Test{{Plural .ResourceName}}_Show(t *testing.T) {
 	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 	controller := controllers.New{{Plural .ResourceName}}(db)
 
-	{{.ResourceName | ToLowerCamelCase}} := factories.{{.ResourceName}}().Create(db.Executor())
+	{{.ResourceName | ToLowerCamelCase}}, err := factories.Create{{.ResourceName}}(context.Background(), db)
+	if err != nil {
+		t.Fatalf("create {{.ResourceName | ToLower}}: %v", err)
+	}
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -91,7 +94,7 @@ func Test{{Plural .ResourceName}}_Show(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.SetPathValues(echo.PathValues{{`{{`}}Name: "id", Value: {{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}.String(){{`}}`}})
 
-	err := controller.Show(c)
+	err = controller.Show(c)
 	if err != nil {
 		t.Fatalf("Show failed: %v", err)
 	}
