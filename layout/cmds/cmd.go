@@ -72,44 +72,54 @@ func RunGolines(targetDir string) error {
 	return cmd.Run()
 }
 
-// RunSQLCGenerate runs sqlc generate when models/queries contains SQL files.
-func RunSQLCGenerate(targetDir string) error {
-	return runSQLCGenerate(targetDir, false)
+// RunNarsilcGenerate runs narsilc generate when models/queries contains SQL files.
+// If bin/narsilc is not installed yet, it falls back to
+// go run github.com/mbvlabs/narsilc/cmd/narsilc@<version> so scaffold can
+// emit models/internal/queries. go mod tidy runs before go fmt because
+// rewriting go.mod from the scaffold template leaves the module untidy.
+func RunNarsilcGenerate(targetDir string) error {
+	return runNarsilcGenerate(targetDir)
 }
 
-// RunSQLCGenerateOptional runs sqlc generate when queries and bin/sqlc exist.
-// Missing queries or binary are ignored so scaffold flows stay no-op safe.
-func RunSQLCGenerateOptional(targetDir string) error {
-	return runSQLCGenerate(targetDir, true)
+// RunNarsilcGenerateOptional runs narsilc generate when annotated query files exist.
+func RunNarsilcGenerateOptional(targetDir string) error {
+	return runNarsilcGenerate(targetDir)
 }
 
-func runSQLCGenerate(targetDir string, skipMissingBinary bool) error {
+func runNarsilcGenerate(targetDir string) error {
 	absTargetDir, err := absolutePath(targetDir)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	hasQueries, err := storage.HasSQLCQueryFiles(absTargetDir)
+	hasQueries, err := storage.HasQueryFiles(absTargetDir)
 	if err != nil {
-		return fmt.Errorf("check sqlc queries: %w", err)
+		return fmt.Errorf("check narsilc queries: %w", err)
 	}
 	if !hasQueries {
 		return nil
 	}
 
-	sqlcBin := filepath.Join(absTargetDir, "bin", "sqlc")
-	if _, err := os.Stat(sqlcBin); err != nil {
-		if skipMissingBinary {
-			return nil
-		}
-		return fmt.Errorf("sqlc binary not found at %s: run 'andurel tool sync'", sqlcBin)
+	narsilcBin := filepath.Join(absTargetDir, "bin", "narsilc")
+	var cmd *exec.Cmd
+	if _, err := os.Stat(narsilcBin); err == nil {
+		cmd = newCommand(narsilcBin, "generate")
+	} else {
+		cmd = newCommand(
+			"go",
+			"run",
+			"github.com/mbvlabs/narsilc/cmd/narsilc@"+versions.NarsilcModule,
+			"generate",
+		)
 	}
-
-	cmd := newCommand(sqlcBin, "generate")
 	cmd.Dir = absTargetDir
 	output, runErr := cmd.CombinedOutput()
 	if runErr != nil {
-		return fmt.Errorf("sqlc generate failed: %w\nOutput: %s", runErr, string(output))
+		return fmt.Errorf("narsilc generate failed: %w\nOutput: %s", runErr, string(output))
+	}
+
+	if err := RunGoModTidy(absTargetDir); err != nil {
+		return fmt.Errorf("go mod tidy after narsilc generate: %w", err)
 	}
 
 	return RunGoFmtPath(absTargetDir, "./models/internal/queries/...")

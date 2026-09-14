@@ -149,7 +149,7 @@ func (m *ModelManager) GenerateModel(
 	)
 }
 
-// GenerateModelWithMode generates model files with a persisted operation mode.
+// GenerateModelWithMode generates model files with a restricted operation mode.
 func (m *ModelManager) GenerateModelWithMode(
 	resourceName string,
 	tableNameOverride string,
@@ -166,21 +166,7 @@ func (m *ModelManager) GenerateModelWithMode(
 	if err != nil {
 		return err
 	}
-	if err := m.ApplyModelPlan(plan); err != nil {
-		return err
-	}
-
-	if !skipFactory {
-		fmt.Printf(
-			"✓ Generated factory: models/factories/%s.go\n",
-			naming.ToSnakeCase(resourceName),
-		)
-	}
-	fmt.Printf(
-		"Successfully generated complete model for %s with database functions\n",
-		resourceName,
-	)
-	return nil
+	return m.ApplyModelPlan(plan)
 }
 
 // PlanModel computes every model generation output without writing files.
@@ -262,12 +248,27 @@ func (m *ModelManager) PlanModel(
 	if err != nil {
 		return nil, fmt.Errorf("plan model source: %w", err)
 	}
+	queryContent, queryErr := m.modelGenerator.PlanQuerySource(genModel)
+	if queryErr != nil {
+		return nil, fmt.Errorf("plan query source: %w", queryErr)
+	}
+	queryPath := filepath.Join(
+		filepath.Dir(ctx.ModelPath),
+		"queries",
+		naming.ToSnakeCase(resourceName)+".sql",
+	)
 	plan := &ModelGenerationPlan{
 		ResourceName: resourceName,
-		Files: []PlannedFile{{
-			Path:       ctx.ModelPath,
-			NewContent: modelContent,
-		}},
+		Files: []PlannedFile{
+			{
+				Path:       ctx.ModelPath,
+				NewContent: modelContent,
+			},
+			{
+				Path:       queryPath,
+				NewContent: queryContent,
+			},
+		},
 	}
 
 	registryPath := filepath.Join(filepath.Dir(ctx.ModelPath), "model.go")
@@ -426,7 +427,7 @@ func findMatchingParen(src string, openIdx int) int {
 }
 
 // readNullType reads the nullable type strategy from andurel.lock.
-// Defaults to "sql.Null" when not configured.
+// Defaults to pgtype.Null when not configured.
 func (m *ModelManager) readNullType(rootDir string) string {
 	if lock, err := layout.ReadLockFile(
 		rootDir,
@@ -434,5 +435,5 @@ func (m *ModelManager) readNullType(rootDir string) string {
 		lock.DatabaseConfig.NullType != "" {
 		return lock.DatabaseConfig.NullType
 	}
-	return "sql.Null"
+	return layout.NullTypePGType
 }

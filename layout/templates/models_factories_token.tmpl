@@ -2,15 +2,16 @@ package factories
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
+	"uuid"
 
 	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/models/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // TokenFactory wraps models.Token for testing
@@ -27,9 +28,9 @@ func BuildToken(opts ...TokenOption) models.Token {
 	f := &TokenFactory{
 		Token: models.Token{
 			Scope:     "default",
-			ExpiresAt: time.Now().Add(1 * time.Hour),
+			ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(1 * time.Hour), Valid: true},
 			Hash:      "test-hash",
-			MetaData:  json.RawMessage("{}"),
+			MetaData:  []byte("{}"),
 		},
 	}
 
@@ -44,39 +45,33 @@ func BuildToken(opts ...TokenOption) models.Token {
 // It returns the entity populated with all DB-assigned values via RETURNING *.
 func CreateToken(
 	ctx context.Context,
-	exec storage.Executor,
+	db storage.Connection,
 	opts ...TokenOption,
 ) (models.Token, error) {
 	built := BuildToken(opts...)
 
-	entity := models.Token{
-		ID:        uuid.New(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	return queries.New(db).CreateToken[models.Token](ctx, queries.CreateTokenParams{
+		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Scope:     built.Scope,
 		ExpiresAt: built.ExpiresAt,
 		Hash:      built.Hash,
 		MetaData:  built.MetaData,
-	}
-
-	if err := exec.NewInsert().Model(&entity).Returning("*").Scan(ctx); err != nil {
-		return models.Token{}, err
-	}
-
-	return entity, nil
+	})
 }
 
 // CreateTokens creates multiple Token records at once
 func CreateTokens(
 	ctx context.Context,
-	exec storage.Executor,
+	db storage.Connection,
 	count int,
 	opts ...TokenOption,
 ) ([]models.Token, error) {
 	tokens := make([]models.Token, 0, count)
 
 	for i := range count {
-		token, err := CreateToken(ctx, exec, opts...)
+		token, err := CreateToken(ctx, db, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create token %d: %w", i+1, err)
 		}
@@ -96,12 +91,12 @@ func WithScope(scope string) TokenOption {
 // WithExpiresAt sets the expiration time for the token
 func WithExpiresAt(t time.Time) TokenOption {
 	return func(f *TokenFactory) {
-		f.ExpiresAt = t
+		f.ExpiresAt = pgtype.Timestamptz{Time: t, Valid: true}
 	}
 }
 
 // WithMetaData sets the metadata for the token
-func WithMetaData(data json.RawMessage) TokenOption {
+func WithMetaData(data []byte) TokenOption {
 	return func(f *TokenFactory) {
 		f.MetaData = data
 	}

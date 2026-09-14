@@ -74,7 +74,7 @@ func TestInertiaPackageManagerCommandsRejectsUnsupportedRuntime(t *testing.T) {
 
 func TestExtractModuleName(t *testing.T) {
 	root := t.TempDir()
-	writeTestFile(t, root, "go.mod", "module github.com/acme/orders\n\ngo 1.26\n")
+	writeTestFile(t, root, "go.mod", "module github.com/acme/orders\n\ngo 1.27.1\n")
 
 	name, err := extractModuleName(root)
 	if err != nil {
@@ -91,7 +91,7 @@ func TestExtractModuleNameErrors(t *testing.T) {
 		t.Fatalf("expected missing go.mod error")
 	}
 
-	writeTestFile(t, root, "go.mod", "go 1.26\n")
+	writeTestFile(t, root, "go.mod", "go 1.27.1\n")
 	if _, err := extractModuleName(
 		root,
 	); err == nil ||
@@ -136,13 +136,12 @@ func TestBuildAppRunsExpectedToolchain(t *testing.T) {
 	resetCLITestSeams(t)
 
 	root := t.TempDir()
-	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.26\n")
+	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 	writeTestFile(t, root, "cmd/app/main.go", "package main\n\nfunc main() {}\n")
 	lock := layout.NewAndurelLock("test")
 	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName:       "app",
-		Database:          "postgresql",
 		Inertia:           "react",
 		JavaScriptRuntime: "pnpm",
 	}
@@ -191,11 +190,11 @@ func TestBuildAppRunsExpectedToolchain(t *testing.T) {
 	}
 }
 
-func TestBuildAppRunsSQLCWhenQueriesExist(t *testing.T) {
+func TestBuildAppRunsNarsilcWhenQueriesExist(t *testing.T) {
 	resetCLITestSeams(t)
 
 	root := t.TempDir()
-	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.26\n")
+	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 	writeTestFile(t, root, "cmd/app/main.go", "package main\n\nfunc main() {}\n")
 	writeTestFile(
 		t,
@@ -205,10 +204,9 @@ func TestBuildAppRunsSQLCWhenQueriesExist(t *testing.T) {
 	)
 	lock := layout.NewAndurelLock("test")
 	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")
-	lock.Tools["sqlc"] = validTestTool("sqlc", "v1.31.1")
+	lock.Tools["narsilc"] = validTestTool("narsilc", "v0.1.0")
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "app",
-		Database:    "postgresql",
 	}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
@@ -236,7 +234,7 @@ func TestBuildAppRunsSQLCWhenQueriesExist(t *testing.T) {
 	log := readBuildTestFile(t, logPath)
 	for _, want := range []string{
 		"templ generate",
-		"sqlc generate",
+		"narsilc generate",
 		"go fmt ./models/internal/queries/...",
 	} {
 		if !strings.Contains(log, want) {
@@ -257,11 +255,10 @@ func TestBuildAppReportsErrors(t *testing.T) {
 		t.Fatalf("expected missing lock error, got %v", err)
 	}
 
-	writeTestFile(t, root, "go.mod", "go 1.26\n")
+	writeTestFile(t, root, "go.mod", "go 1.27.1\n")
 	lock := layout.NewAndurelLock("test")
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName:              "app",
-		Database:                 "postgresql",
 		Inertia:                  "vue",
 		JavaScriptPackageManager: "npm",
 	}

@@ -18,14 +18,14 @@ func TestReadGoModMetadata(t *testing.T) {
 		t,
 		root,
 		"go.mod",
-		"module example.com/acme/orders\n\ngo 1.26\nrequire example.com/dep v1.0.0\n",
+		"module example.com/acme/orders\n\ngo 1.27.1\nrequire example.com/dep v1.0.0\n",
 	)
 
 	module, goVersion, err := readGoModMetadata(root)
 	if err != nil {
 		t.Fatalf("readGoModMetadata: %v", err)
 	}
-	if module != "example.com/acme/orders" || goVersion != "1.26" {
+	if module != "example.com/acme/orders" || goVersion != "1.27.1" {
 		t.Fatalf("metadata = module %q go %q", module, goVersion)
 	}
 }
@@ -91,7 +91,7 @@ func TestExtensionAndToolInfos(t *testing.T) {
 
 func TestCollectProjectInfo(t *testing.T) {
 	root := t.TempDir()
-	writeTestFile(t, root, "go.mod", "module example.com/acme/orders\n\ngo 1.26\n")
+	writeTestFile(t, root, "go.mod", "module example.com/acme/orders\n\ngo 1.27.1\n")
 	writeTestFile(t, root, "bin/goose", "#!/bin/sh\n")
 	lock := layout.NewAndurelLock("v1.2.3")
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
@@ -100,7 +100,7 @@ func TestCollectProjectInfo(t *testing.T) {
 		Inertia:           "react",
 		JavaScriptRuntime: "pnpm",
 	}
-	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
+	lock.DatabaseConfig = &layout.DatabaseConfig{Engine: layout.DatabaseEnginePostgreSQL, NullType: layout.NullTypePGType}
 	lock.Tools["goose"] = validTestTool("goose", "v3.0.0")
 	lock.Extensions["docker"] = &layout.Extension{AppliedAt: "2026-07-08T10:00:00Z"}
 	if err := lock.WriteLockFile(root); err != nil {
@@ -111,14 +111,16 @@ func TestCollectProjectInfo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("collectProjectInfo: %v", err)
 	}
-	if info.Root != root || info.Module != "example.com/acme/orders" || info.GoVersion != "1.26" ||
+	if info.Root != root || info.Module != "example.com/acme/orders" || info.GoVersion != "1.27.1" ||
 		info.AndurelVersion != "v1.2.3" {
 		t.Fatalf("unexpected project identity: %#v", info)
 	}
 	if info.ScaffoldConfig == nil || info.ScaffoldConfig.JavaScriptRuntime != "pnpm" {
 		t.Fatalf("missing scaffold config: %#v", info.ScaffoldConfig)
 	}
-	if info.DatabaseConfig == nil || info.DatabaseConfig.NullType != "sql.Null" {
+	if info.DatabaseConfig == nil ||
+		info.DatabaseConfig.Engine != layout.DatabaseEnginePostgreSQL ||
+		info.DatabaseConfig.NullType != layout.NullTypePGType {
 		t.Fatalf("missing database config: %#v", info.DatabaseConfig)
 	}
 	if len(info.Extensions) != 1 || info.Extensions[0].Name != "docker" {
@@ -136,7 +138,7 @@ func TestCollectProjectInfo(t *testing.T) {
 
 func TestIntrospectionCommands(t *testing.T) {
 	root := t.TempDir()
-	writeTestFile(t, root, "go.mod", "module example.com/acme/orders\n\ngo 1.26\n")
+	writeTestFile(t, root, "go.mod", "module example.com/acme/orders\n\ngo 1.27.1\n")
 	writeTestFile(t, root, "models/user.go", "package models\n")
 	writeTestFile(t, root, "controllers/users.go", "package controllers\n")
 	writeTestFile(t, root, "views/users.templ", "package views\n")

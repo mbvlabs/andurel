@@ -1,6 +1,6 @@
 module github.com/mbvlabs/andurel
 
-go 1.26.0
+go 1.27.1
 
 require (
 	github.com/a-h/templ v0.3.1020
@@ -78,6 +78,7 @@ require (
 	github.com/riverqueue/river v0.40.0 // indirect
 	github.com/riverqueue/river/riverdriver v0.40.0 // indirect
 	github.com/riverqueue/river/riverdriver/riverdatabasesql v0.40.0 // indirect
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.40.0 // indirect
 	github.com/riverqueue/river/rivershared v0.40.0 // indirect
 	github.com/riverqueue/river/rivertype v0.40.0 // indirect
 	github.com/segmentio/golines v0.13.0 // indirect

@@ -93,7 +93,7 @@ This command will check:
   • Environment (Go version, latest stable Andurel release)
   • Configuration (andurel.lock)
   • Code quality (go vet, go mod tidy)
-  • Code generation (templ, sqlc, and Inertia route helpers when configured)`,
+  • Code generation (templ, narsilc, and Inertia route helpers when configured)`,
 		Example: `  andurel doctor
   andurel doctor --verbose`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -113,7 +113,7 @@ This command will check:
 	setAgentMetadata(
 		doctorCmd,
 		"diagnostics",
-		"Read-only project checks include templ, active sqlc queries, and Inertia route helper drift. Use --json for actionable check hints.",
+		"Read-only project checks include templ, active narsilc queries, and Inertia route helper drift. Use --json for actionable check hints.",
 	)
 
 	return doctorCmd
@@ -245,7 +245,7 @@ func doctorHint(result checkResult) string {
 		return "Run go mod tidy and commit the resulting go.mod or go.sum changes."
 	case "views generate":
 		return "Run andurel generate view and fix any template generation errors."
-	case "sqlc generate":
+	case "narsilc generate":
 		return "Run andurel generate queries and commit the updated models/internal/queries output."
 	case "routes.ts":
 		return "Run andurel generate routes and commit the updated resources/js/routes.ts file."
@@ -1175,30 +1175,30 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	}
 }
 
-func checkSQLCGenerate(rootDir string, verbose bool) checkResult {
-	hasQueries, err := storage.HasSQLCQueryFiles(rootDir)
+func checkNarsilcGenerate(rootDir string, verbose bool) checkResult {
+	hasQueries, err := storage.HasQueryFiles(rootDir)
 	if err != nil {
 		return checkResult{
-			name:    "sqlc generate",
+			name:    "narsilc generate",
 			status:  statusFail,
-			message: "failed to inspect sqlc query files",
+			message: "failed to inspect narsilc query files",
 			details: []string{err.Error()},
 		}
 	}
 	if !hasQueries {
 		return checkResult{
-			name:    "sqlc generate",
+			name:    "narsilc generate",
 			status:  statusPass,
-			message: "no sqlc queries configured",
+			message: "no narsilc queries configured",
 		}
 	}
 
-	sqlcPath := filepath.Join(rootDir, "bin", "sqlc")
-	if _, err := os.Stat(sqlcPath); err != nil {
+	narsilcPath := filepath.Join(rootDir, "bin", "narsilc")
+	if _, err := os.Stat(narsilcPath); err != nil {
 		return checkResult{
-			name:    "sqlc generate",
+			name:    "narsilc generate",
 			status:  statusWarn,
-			message: "sqlc binary not found (skipping check)",
+			message: "narsilc binary not found (skipping check)",
 		}
 	}
 
@@ -1208,12 +1208,12 @@ func checkSQLCGenerate(rootDir string, verbose bool) checkResult {
 		if err != nil {
 			return err
 		}
-		cmd := exec.Command(filepath.Join(tempRoot, "bin", "sqlc"), "generate")
+		cmd := exec.Command(filepath.Join(tempRoot, "bin", "narsilc"), "generate")
 		cmd.Dir = tempRoot
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("sqlc generate failed: %w: %s", err, strings.TrimSpace(stderr.String()))
+			return fmt.Errorf("narsilc generate failed: %w: %s", err, strings.TrimSpace(stderr.String()))
 		}
 		after, err := snapshotFilesForReport(tempRoot)
 		if err != nil {
@@ -1224,9 +1224,9 @@ func checkSQLCGenerate(rootDir string, verbose bool) checkResult {
 	})
 	if err != nil {
 		return checkResult{
-			name:    "sqlc generate",
+			name:    "narsilc generate",
 			status:  statusFail,
-			message: "temporary sqlc generation diagnostic failed",
+			message: "temporary narsilc generation diagnostic failed",
 			details: []string{err.Error()},
 		}
 	}
@@ -1236,17 +1236,17 @@ func checkSQLCGenerate(rootDir string, verbose bool) checkResult {
 			details = append(details, changed...)
 		}
 		return checkResult{
-			name:    "sqlc generate",
+			name:    "narsilc generate",
 			status:  statusFail,
-			message: "generated sqlc code is out of date",
+			message: "generated narsilc code is out of date",
 			details: details,
 		}
 	}
 
 	return checkResult{
-		name:    "sqlc generate",
+		name:    "narsilc generate",
 		status:  statusPass,
-		message: "sqlc code generated successfully",
+		message: "narsilc code generated successfully",
 	}
 }
 
@@ -1270,7 +1270,7 @@ func changedSnapshotPaths(before, after fileSnapshot) []string {
 func codeGenerationChecks(rootDir string, verbose bool) []checkResult {
 	results := []checkResult{
 		checkTemplGenerate(rootDir, verbose),
-		checkSQLCGenerate(rootDir, verbose),
+		checkNarsilcGenerate(rootDir, verbose),
 	}
 	if projectUsesInertia(rootDir) {
 		results = append(results, checkRoutesTSGenerate(rootDir, verbose))

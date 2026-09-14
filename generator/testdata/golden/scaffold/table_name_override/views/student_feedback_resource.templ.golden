@@ -32,8 +32,8 @@ func newFeedbackEntryData(entity models.FeedbackEntry) FeedbackEntryData {
 		Feedback: entity.Feedback,
 		Rating: func() int32 { if !entity.Rating.Valid { return 0 }; return entity.Rating.Int32 }(),
 		SubmittedAt: func() time.Time { if !entity.SubmittedAt.Valid { return time.Time{} }; return entity.SubmittedAt.Time }(),
-		CreatedAt: entity.CreatedAt,
-		UpdatedAt: entity.UpdatedAt,
+		CreatedAt: func() time.Time { if !entity.CreatedAt.Valid { return time.Time{} }; return entity.CreatedAt.Time }(),
+		UpdatedAt: func() time.Time { if !entity.UpdatedAt.Valid { return time.Time{} }; return entity.UpdatedAt.Time }(),
 	}
 }
 
@@ -86,10 +86,10 @@ templ (fei FeedbackEntryIndex) Page() {
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 												<div class="flex flex-wrap gap-3 text-sm">
 													
-													<a class="text-slate-300 hover:text-slate-100" href={ routes.FeedbackEntryShow.URL(feedbackentry.ID) }>View</a>
+													<a class="text-slate-300 hover:text-slate-100" href={ routes.FeedbackEntryShow.URL(feedbackentry.ID.Bytes) }>View</a>
 													
 													
-													<a class="text-slate-300 hover:text-slate-100" href={ routes.FeedbackEntryEdit.URL(feedbackentry.ID) }>Edit</a>
+													<a class="text-slate-300 hover:text-slate-100" href={ routes.FeedbackEntryEdit.URL(feedbackentry.ID.Bytes) }>Edit</a>
 													
 												</div>
 											</td>
@@ -124,7 +124,7 @@ templ (fes FeedbackEntryShow) Page() {
 						<h1 class="text-2xl font-semibold text-slate-100">FeedbackEntry Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
 							
-							<a href={ routes.FeedbackEntryEdit.URL(fes.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
+							<a href={ routes.FeedbackEntryEdit.URL(fes.Item.ID.Bytes) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
 							
 							
 							<a class="text-sm text-slate-300 hover:text-slate-100" href={ routes.FeedbackEntryIndex.URL() }>Back to List</a>
@@ -253,7 +253,7 @@ templ (fee FeedbackEntryEdit) Page() {
 							<p class="text-sm text-slate-400">Update the details for this feedbackentry.</p>
 						</div>
 						<div class="p-6 pt-0">
-							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.FeedbackEntryUpdate.URL(fee.Item.ID)) }>
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.FeedbackEntryUpdate.URL(fee.Item.ID.Bytes)) }>
 								<fieldset data-attr:disabled="$_submitting">
 									<div class="space-y-4">
 										
@@ -291,7 +291,7 @@ templ (fee FeedbackEntryEdit) Page() {
 								</fieldset>
 							</form>
 							<div role="separator" class="my-6 shrink-0 bg-slate-800 h-px w-full"></div>
-							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.FeedbackEntryDestroy.URL(fee.Item.ID)) }>Destroy FeedbackEntry</button>
+							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.FeedbackEntryDestroy.URL(fee.Item.ID.Bytes)) }>Destroy FeedbackEntry</button>
 							
 						</div>
 					</div>

@@ -93,6 +93,12 @@ func (td *TemplateData) ValidationPackageVersion() string {
 	return versions.Validation
 }
 
+// NarsilcPackageVersion returns the narsilc module version required by
+// generated query code.
+func (td *TemplateData) NarsilcPackageVersion() string {
+	return versions.NarsilcModule
+}
+
 // IsSupportedInertiaAdapter reports whether adapter names a frontend adapter
 // Andurel knows how to scaffold.
 func IsSupportedInertiaAdapter(adapter string) bool {

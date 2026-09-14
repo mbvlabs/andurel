@@ -63,7 +63,7 @@ func TestFieldAnalyzer_DetermineDefaultAndGoZero(t *testing.T) {
 		"*time.Time":      "nil",
 		"*bool":           "nil",
 		"sql.NullString":  "sql.NullString{}",
-		"bun.NullTime":    "bun.NullTime{}",
+		"sql.NullTime":    "sql.NullTime{}",
 		"CustomType":      "CustomType{}",
 	}
 	for typ, want := range defaults {

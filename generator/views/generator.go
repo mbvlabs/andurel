@@ -159,19 +159,39 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedView, 
 // the underlying scalar type for view rendering purposes.
 func resolveViewBaseType(goType string) string {
 	switch goType {
-	case "sql.NullString", "bun.NullString":
+	case "sql.NullString":
 		return "string"
-	case "sql.NullBool", "bun.NullBool":
+	case "sql.NullBool":
 		return "bool"
 	case "sql.NullInt16":
 		return "int16"
-	case "sql.NullInt32", "bun.NullInt32":
+	case "sql.NullInt32":
 		return "int32"
-	case "sql.NullInt64", "bun.NullInt64":
+	case "sql.NullInt64":
 		return "int64"
-	case "sql.NullFloat64", "bun.NullFloat64":
+	case "sql.NullFloat64":
 		return "float64"
-	case "sql.NullTime", "bun.NullTime":
+	case "sql.NullTime":
+		return "time.Time"
+	case "pgtype.Text":
+		return "string"
+	case "pgtype.Bool":
+		return "bool"
+	case "pgtype.Int2":
+		return "int16"
+	case "pgtype.Int4":
+		return "int32"
+	case "pgtype.Int8":
+		return "int64"
+	case "pgtype.Float4":
+		return "float32"
+	case "pgtype.Float8":
+		return "float64"
+	case "pgtype.Numeric":
+		return "string"
+	case "pgtype.UUID":
+		return "uuid.UUID"
+	case "pgtype.Date", "pgtype.Time", "pgtype.Timestamp", "pgtype.Timestamptz":
 		return "time.Time"
 	}
 	return strings.TrimPrefix(goType, "*")
@@ -187,7 +207,7 @@ func hasNullFields(fields []ViewField) bool {
 }
 
 func isNullType(goType string) bool {
-	return strings.HasPrefix(goType, "sql.Null") || strings.HasPrefix(goType, "bun.Null")
+	return strings.HasPrefix(goType, "sql.Null") || strings.HasPrefix(goType, "pgtype.")
 }
 
 func usesViewDataType(fields []ViewField, goType string) bool {
@@ -208,20 +228,40 @@ func viewDataType(field ViewField) string {
 
 func viewDataValue(field ViewField, source string) string {
 	switch field.GoType {
-	case "sql.NullString", "bun.NullString":
+	case "sql.NullString":
 		return "func() string { if !" + source + ".Valid { return \"\" }; return " + source + ".String }()"
-	case "sql.NullBool", "bun.NullBool":
+	case "sql.NullBool":
 		return "func() bool { if !" + source + ".Valid { return false }; return " + source + ".Bool }()"
 	case "sql.NullInt16":
 		return "func() int16 { if !" + source + ".Valid { return 0 }; return " + source + ".Int16 }()"
-	case "sql.NullInt32", "bun.NullInt32":
+	case "sql.NullInt32":
 		return "func() int32 { if !" + source + ".Valid { return 0 }; return " + source + ".Int32 }()"
-	case "sql.NullInt64", "bun.NullInt64":
+	case "sql.NullInt64":
 		return "func() int64 { if !" + source + ".Valid { return 0 }; return " + source + ".Int64 }()"
-	case "sql.NullFloat64", "bun.NullFloat64":
+	case "sql.NullFloat64":
 		return "func() float64 { if !" + source + ".Valid { return 0 }; return " + source + ".Float64 }()"
-	case "sql.NullTime", "bun.NullTime":
+	case "sql.NullTime":
 		return "func() time.Time { if !" + source + ".Valid { return time.Time{} }; return " + source + ".Time }()"
+	case "pgtype.Text":
+		return "func() string { if !" + source + ".Valid { return \"\" }; return " + source + ".String }()"
+	case "pgtype.Bool":
+		return "func() bool { if !" + source + ".Valid { return false }; return " + source + ".Bool }()"
+	case "pgtype.Int2":
+		return "func() int16 { if !" + source + ".Valid { return 0 }; return " + source + ".Int16 }()"
+	case "pgtype.Int4":
+		return "func() int32 { if !" + source + ".Valid { return 0 }; return " + source + ".Int32 }()"
+	case "pgtype.Int8":
+		return "func() int64 { if !" + source + ".Valid { return 0 }; return " + source + ".Int64 }()"
+	case "pgtype.Float4":
+		return "func() float32 { if !" + source + ".Valid { return 0 }; return " + source + ".Float32 }()"
+	case "pgtype.Float8":
+		return "func() float64 { if !" + source + ".Valid { return 0 }; return " + source + ".Float64 }()"
+	case "pgtype.Timestamp", "pgtype.Timestamptz", "pgtype.Date", "pgtype.Time":
+		return "func() time.Time { if !" + source + ".Valid { return time.Time{} }; return " + source + ".Time }()"
+	case "pgtype.UUID":
+		return source + ".Bytes"
+	case "pgtype.Numeric":
+		return "func() string { if !" + source + ".Valid { return \"\" }; return " + source + ".String() }()"
 	default:
 		return source
 	}
@@ -275,7 +315,7 @@ func viewDataImports(fields []ViewField) string {
 		b.WriteString("\t\"time\"\n")
 	}
 	if usesViewDataType(fields, "uuid.UUID") {
-		b.WriteString("\t\"github.com/google/uuid\"\n")
+		b.WriteString("\t\"uuid\"\n")
 	}
 	return b.String()
 }

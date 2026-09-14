@@ -47,8 +47,8 @@ func getScaffoldConfigs() []ScaffoldConfig {
 
 func isCriticalScaffoldConfig(database, inertia string, extensions []string) bool {
 	criticalConfigs := map[string]bool{
-		"postgresql":                               true,
-		"postgresql-inertia-vue":                   true,
+		"postgresql":             true,
+		"postgresql-inertia-vue": true,
 		"postgresql-docker-aws-ses-css-components": true,
 	}
 

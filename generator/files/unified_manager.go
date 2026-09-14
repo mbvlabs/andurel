@@ -126,21 +126,23 @@ var (
 func FormatGoFile(path string) error {
 	// First run goimports to fix imports
 	cmd := exec.Command("goimports", "-w", path)
-	if err := cmd.Run(); err != nil {
+	if out, err := cmd.CombinedOutput(); err != nil {
 		return &FileOperationError{
 			Operation: "goimports",
 			Path:      path,
 			Err:       err,
+			Output:    string(out),
 		}
 	}
 
 	// Then run go fmt to format
 	cmd = exec.Command("go", "fmt", path)
-	if err := cmd.Run(); err != nil {
+	if out, err := cmd.CombinedOutput(); err != nil {
 		return &FileOperationError{
 			Operation: "go_fmt",
 			Path:      path,
 			Err:       err,
+			Output:    string(out),
 		}
 	}
 

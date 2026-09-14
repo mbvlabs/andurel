@@ -9,7 +9,6 @@ import (
 
 	"github.com/mbvlabs/andurel/layout/extensions"
 	layouttemplates "github.com/mbvlabs/andurel/layout/templates"
-	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 func TestGeneratedConfigModuleDoesNotDuplicateProviders(t *testing.T) {
@@ -101,27 +100,42 @@ func TestGeneratedUserAndTokenModelTemplates(t *testing.T) {
 		"type Users struct",
 		"func NewUsers(db storage.Connection) Users",
 		"func (u Users) WithTx(tx storage.Transaction) Users",
+		"queries.New(db)",
+		"queries.New(tx)",
 		"CreatedAt:        current.CreatedAt",
-		"u.db.Executor().NewDelete()",
-		"Column(\"email\")",
-		"Column(\"email_validated_at\")",
-		"Column(\"password\")",
-		"Column(\"is_admin\")",
-		"Column(\"updated_at\")",
-		"Returning(\"*\")",
-		"Model(&User{}).Count(ctx)",
+		"u.queries.DeleteUser(ctx, id)",
+		"u.queries.CreateUser[User]",
+		"u.queries.UpdateUser[User]",
+		"u.queries.CountUsers(ctx)",
+		"andurel:\"email\"",
+		"andurel:\"email_validated_at\"",
+		"andurel:\"password\"",
+		"andurel:\"is_admin\"",
+		"andurel:\"updated_at\"",
 	} {
 		if !strings.Contains(user, want) {
 			t.Errorf("models_user.tmpl missing %q", want)
 		}
 	}
+	if strings.Contains(user, "func (u Users) Insert(") {
+		t.Error("models_user.tmpl must not expose Users.Insert")
+	}
 	if strings.Contains(user, "Model(&User{}).Scan(ctx, &totalCount)") {
 		t.Error("models_user.tmpl still scans a model into the pagination count")
 	}
+	if strings.Contains(user, "db.DB()") || strings.Contains(user, "tx.SQL()") {
+		t.Error("models_user.tmpl should pass storage.Connection and storage.Transaction to narsilc")
+	}
 
 	token := readGeneratedApplicationTemplate(t, "models_token.tmpl")
-	if !strings.Contains(token, "Model(&Token{}).Count(ctx)") {
-		t.Error("models_token.tmpl does not use Bun Count")
+	if !strings.Contains(token, "queries.New(db)") || !strings.Contains(token, "queries.New(tx)") {
+		t.Error("models_token.tmpl does not construct narsilc clients from storage.Connection/Transaction")
+	}
+	if !strings.Contains(token, "t.queries.CountTokens(ctx)") {
+		t.Error("models_token.tmpl does not use narsilc CountTokens")
+	}
+	if strings.Contains(token, "func (t Tokens) Insert(") {
+		t.Error("models_token.tmpl must not expose Tokens.Insert")
 	}
 	if strings.Contains(token, "Model(&Token{}).Scan(ctx, &totalCount)") {
 		t.Error("models_token.tmpl still scans a model into the pagination count")
@@ -619,6 +633,9 @@ func TestGeneratedSessionRecoveryTemplates(t *testing.T) {
 	if !strings.Contains(goMod, "github.com/gorilla/securecookie v1.1.2") {
 		t.Error("go_mod.tmpl does not declare securecookie as a direct dependency")
 	}
+	if !strings.Contains(goMod, "github.com/mbvlabs/narsilc ") {
+		t.Error("go_mod.tmpl does not declare narsilc as a direct dependency")
+	}
 }
 
 func TestGeneratedGoTemplatesSeparateFunctions(t *testing.T) {
@@ -673,12 +690,26 @@ func TestGeneratedInertiaScaffoldGoFilesSeparateFunctions(t *testing.T) {
 	assertScaffoldGoSpacing(t, root)
 }
 
+func isNarsilcQueryGo(rel string) bool {
+	return strings.Contains(filepath.ToSlash(rel), "models/internal/queries")
+}
+
 func assertScaffoldGoSpacing(t *testing.T, root string) {
 	t.Helper()
 
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			rel = path
+		}
+		if isNarsilcQueryGo(rel) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if entry.IsDir() || !strings.HasSuffix(path, ".go") {
 			return nil
@@ -692,10 +723,6 @@ func assertScaffoldGoSpacing(t *testing.T, root string) {
 			return err
 		}
 
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			rel = path
-		}
 		assertGoFunctionSpacing(t, string(content), rel)
 		assertReturnAfterBranchSpacing(t, string(content), rel)
 		return nil
@@ -775,26 +802,18 @@ func shouldHaveBlankBeforeReturn(lines []string, i int) bool {
 	return j == i-1
 }
 
-func TestGeneratedSQLCArtifacts(t *testing.T) {
+func TestGeneratedNarsilcArtifacts(t *testing.T) {
 	root := t.TempDir()
 	data := &TemplateData{ModuleName: "example.com/app"}
 	if err := processTemplatedFiles(root, data); err != nil {
 		t.Fatalf("process templates: %v", err)
 	}
-	if err := storage.WriteSQLCConfig(root); err != nil {
-		t.Fatalf("write sqlc config: %v", err)
-	}
 
-	if _, err := os.Stat(filepath.Join(root, "models/queries/.gitkeep")); err != nil {
-		t.Fatalf("models/queries/.gitkeep: %v", err)
+	if _, err := os.Stat(filepath.Join(root, "models/queries/user.sql")); err != nil {
+		t.Fatalf("models/queries/user.sql: %v", err)
 	}
-
-	written, err := os.ReadFile(filepath.Join(root, "sqlc.yaml"))
-	if err != nil {
-		t.Fatalf("read sqlc.yaml: %v", err)
-	}
-	if string(written) != string(storage.SQLCConfig()) {
-		t.Fatal("sqlc.yaml does not match storage module config")
+	if _, err := os.Stat(filepath.Join(root, "models/queries/token.sql")); err != nil {
+		t.Fatalf("models/queries/token.sql: %v", err)
 	}
 }
 

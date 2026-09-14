@@ -2297,6 +2297,10 @@
       "type": "github.com/mbvlabs/andurel/layout.DatabaseConfig",
       "fields": [
         {
+          "go_name": "Engine",
+          "json_name": "engine"
+        },
+        {
           "go_name": "NullType",
           "json_name": "nullType"
         }
@@ -2320,7 +2324,8 @@
         },
         {
           "go_name": "Database",
-          "json_name": "database"
+          "json_name": "database",
+          "omitempty": true
         },
         {
           "go_name": "Inertia",

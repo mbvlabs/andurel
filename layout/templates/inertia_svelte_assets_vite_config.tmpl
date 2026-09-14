@@ -5,7 +5,7 @@ import { defineConfig } from 'vite'
 import inertia from '@inertiajs/vite'
 
 export default defineConfig({
-  plugins: [svelte(), inertia({ ssr: false }), tailwindcss()],
+  plugins: [svelte(), inertia({ ssr: { entry: 'resources/js/ssr.ts' } }), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./resources/js', import.meta.url)),

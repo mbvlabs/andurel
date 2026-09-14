@@ -1,51 +1,47 @@
 package models
 
-// andurel:model-mode crud
+// andurel:table student_feedback
 
 import (
 	"context"
-	"database/sql"
 	"errors"
+	"testapp/models/internal/queries"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
-	"github.com/uptrace/bun"
 )
 
 type FeedbackEntries struct {
-	db queryDB
+	queries *queries.Queries
 }
 
 func NewFeedbackEntries(db storage.Connection) FeedbackEntries {
-	return FeedbackEntries{db: db}
+	return FeedbackEntries{queries: queries.New(db)}
 }
 
 // WithTx returns a copy that runs queries inside tx.
 func (fe FeedbackEntries) WithTx(tx storage.Transaction) FeedbackEntries {
-	return FeedbackEntries{db: tx}
+	return FeedbackEntries{queries: queries.New(tx)}
 }
 
 type FeedbackEntry struct {
-	bun.BaseModel `bun:"table:student_feedback,alias:student_feedback"`
-	ID            uuid.UUID     `bun:"id,pk,type:uuid"`
-	StudentName   string        `bun:"student_name"`
-	Feedback      string        `bun:"feedback"`
-	Rating        sql.NullInt32 `bun:"rating"`
-	SubmittedAt   sql.NullTime  `bun:"submitted_at"`
-	CreatedAt     time.Time     `bun:"created_at"`
-	UpdatedAt     time.Time     `bun:"updated_at"`
+	ID          pgtype.UUID        `andurel:"id"`
+	StudentName string             `andurel:"student_name"`
+	Feedback    string             `andurel:"feedback"`
+	Rating      pgtype.Int4        `andurel:"rating"`
+	SubmittedAt pgtype.Timestamptz `andurel:"submitted_at"`
+	CreatedAt   pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `andurel:"updated_at"`
 }
 
-func (fe FeedbackEntries) Find(ctx context.Context, id uuid.UUID) (FeedbackEntry, error) {
-	var entity FeedbackEntry
-	err := fe.db.Executor().NewSelect().
-		Model(&entity).
-		Where("id = ?", id).
-		Scan(ctx)
+func (fe FeedbackEntries) Find(ctx context.Context, id pgtype.UUID) (FeedbackEntry, error) {
+	entity, err := fe.queries.GetFeedbackEntry[FeedbackEntry](ctx, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return FeedbackEntry{}, ErrNotFound
 		}
 		return FeedbackEntry{}, err
@@ -57,15 +53,15 @@ func (fe FeedbackEntries) Find(ctx context.Context, id uuid.UUID) (FeedbackEntry
 type CreateFeedbackEntryData struct {
 	StudentName string
 	Feedback    string
-	Rating      sql.NullInt32
-	SubmittedAt sql.NullTime
+	Rating      pgtype.Int4
+	SubmittedAt pgtype.Timestamptz
 }
 
 func (fe FeedbackEntries) Create(ctx context.Context, data CreateFeedbackEntryData) (FeedbackEntry, error) {
 	entity := FeedbackEntry{
-		ID:          uuid.New(),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:          pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		StudentName: data.StudentName,
 		Feedback:    data.Feedback,
 		Rating:      data.Rating,
@@ -76,25 +72,29 @@ func (fe FeedbackEntries) Create(ctx context.Context, data CreateFeedbackEntryDa
 		return FeedbackEntry{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := fe.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return FeedbackEntry{}, err
-	}
-
-	return entity, nil
+	return fe.queries.CreateFeedbackEntry[FeedbackEntry](ctx, queries.CreateFeedbackEntryParams{
+		ID:          entity.ID,
+		StudentName: entity.StudentName,
+		Feedback:    entity.Feedback,
+		Rating:      entity.Rating,
+		SubmittedAt: entity.SubmittedAt,
+		CreatedAt:   entity.CreatedAt,
+		UpdatedAt:   entity.UpdatedAt,
+	})
 }
 
 type UpdateFeedbackEntryData struct {
-	ID          uuid.UUID
+	ID          pgtype.UUID
 	StudentName string
 	Feedback    string
-	Rating      sql.NullInt32
-	SubmittedAt sql.NullTime
+	Rating      pgtype.Int4
+	SubmittedAt pgtype.Timestamptz
 }
 
 func (fe FeedbackEntries) Update(ctx context.Context, data UpdateFeedbackEntryData) (FeedbackEntry, error) {
 	entity := FeedbackEntry{
 		ID:          data.ID,
-		UpdatedAt:   time.Now(),
+		UpdatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		StudentName: data.StudentName,
 		Feedback:    data.Feedback,
 		Rating:      data.Rating,
@@ -105,37 +105,26 @@ func (fe FeedbackEntries) Update(ctx context.Context, data UpdateFeedbackEntryDa
 		return FeedbackEntry{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := fe.db.Executor().NewUpdate().
-		Model(&entity).
-		Column("student_name").
-		Column("feedback").
-		Column("rating").
-		Column("submitted_at").
-		Column("updated_at").
-		WherePK().
-		Returning("*").
-		Scan(ctx)
+	row, err := fe.queries.UpdateFeedbackEntry[FeedbackEntry](ctx, queries.UpdateFeedbackEntryParams{
+		ID:          entity.ID,
+		StudentName: entity.StudentName,
+		Feedback:    entity.Feedback,
+		Rating:      entity.Rating,
+		SubmittedAt: entity.SubmittedAt,
+		UpdatedAt:   entity.UpdatedAt,
+	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return FeedbackEntry{}, ErrNotFound
 		}
 		return FeedbackEntry{}, err
 	}
 
-	return entity, nil
+	return row, nil
 }
 
-func (fe FeedbackEntries) Destroy(ctx context.Context, id uuid.UUID) error {
-	var entity FeedbackEntry
-	err := fe.db.Executor().NewDelete().
-		Model(&entity).
-		Where("id = ?", id).
-		Returning("*").
-		Scan(ctx)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrNotFound
-		}
+func (fe FeedbackEntries) Destroy(ctx context.Context, id pgtype.UUID) error {
+	if err := fe.queries.DeleteFeedbackEntry(ctx, id); err != nil {
 		return err
 	}
 
@@ -143,14 +132,7 @@ func (fe FeedbackEntries) Destroy(ctx context.Context, id uuid.UUID) error {
 }
 
 func (fe FeedbackEntries) All(ctx context.Context) ([]FeedbackEntry, error) {
-	var entities []FeedbackEntry
-	if err := fe.db.Executor().NewSelect().
-		Model(&entities).
-		Scan(ctx); err != nil {
-		return nil, err
-	}
-
-	return entities, nil
+	return fe.queries.ListFeedbackEntries[FeedbackEntry](ctx).All()
 }
 
 type PaginatedFeedbackEntries struct {
@@ -174,18 +156,16 @@ func (fe FeedbackEntries) Paginate(ctx context.Context, page, pageSize int64) (P
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := fe.db.Executor().NewSelect().
-		Model(&FeedbackEntry{}).Count(ctx)
+	totalCount, err := fe.queries.CountFeedbackEntries(ctx)
 	if err != nil {
 		return PaginatedFeedbackEntries{}, err
 	}
 
-	entities := make([]FeedbackEntry, 0, int(pageSize))
-	if err := fe.db.Executor().NewSelect().
-		Model(&entities).
-		Limit(int(pageSize)).
-		Offset(int(offset)).
-		Scan(ctx); err != nil {
+	entities, err := fe.queries.ListFeedbackEntries[FeedbackEntry](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
 		return PaginatedFeedbackEntries{}, err
 	}
 
@@ -200,11 +180,11 @@ func (fe FeedbackEntries) Paginate(ctx context.Context, page, pageSize int64) (P
 	}, nil
 }
 
-func (fe FeedbackEntries) Upsert(ctx context.Context, id uuid.UUID, data CreateFeedbackEntryData) (FeedbackEntry, error) {
+func (fe FeedbackEntries) Upsert(ctx context.Context, id pgtype.UUID, data CreateFeedbackEntryData) (FeedbackEntry, error) {
 	entity := FeedbackEntry{
 		ID:          id,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		StudentName: data.StudentName,
 		Feedback:    data.Feedback,
 		Rating:      data.Rating,
@@ -215,17 +195,13 @@ func (fe FeedbackEntries) Upsert(ctx context.Context, id uuid.UUID, data CreateF
 		return FeedbackEntry{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := fe.db.Executor().NewInsert().
-		Model(&entity).
-		On("CONFLICT (id) DO UPDATE").
-		Set("student_name = excluded.student_name").
-		Set("feedback = excluded.feedback").
-		Set("rating = excluded.rating").
-		Set("submitted_at = excluded.submitted_at").
-		Returning("*").
-		Scan(ctx); err != nil {
-		return FeedbackEntry{}, err
-	}
-
-	return entity, nil
+	return fe.queries.UpsertFeedbackEntry[FeedbackEntry](ctx, queries.UpsertFeedbackEntryParams{
+		ID:          entity.ID,
+		StudentName: entity.StudentName,
+		Feedback:    entity.Feedback,
+		Rating:      entity.Rating,
+		SubmittedAt: entity.SubmittedAt,
+		CreatedAt:   entity.CreatedAt,
+		UpdatedAt:   entity.UpdatedAt,
+	})
 }

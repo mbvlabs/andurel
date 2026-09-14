@@ -239,7 +239,7 @@ func WithTLSConfig(config *tls.Config) Option {
 	}
 }
 
-// WithMaxOpenConnections sets the database/sql open connection limit.
+// WithMaxOpenConnections sets the pgx pool MaxConns limit.
 func WithMaxOpenConnections(count int) Option {
 	return connectionCountOption(
 		"open",
@@ -248,7 +248,9 @@ func WithMaxOpenConnections(count int) Option {
 	)
 }
 
-// WithMaxIdleConnections sets the database/sql idle connection limit.
+// WithMaxIdleConnections is retained for configuration compatibility.
+// pgxpool has no max-idle analog; prefer MaxOpenConnections and
+// ConnectionMaxIdleTime.
 func WithMaxIdleConnections(count int) Option {
 	return connectionCountOption(
 		"idle",

@@ -28,18 +28,38 @@ type AndurelLock struct {
 	DatabaseConfig *DatabaseConfig       `json:"databaseConfig,omitempty"`
 }
 
-// DatabaseConfig records database generation settings.
+const (
+	// NullTypePGType is the default nullable strategy for pgx/v5 (pgtype.*).
+	NullTypePGType = "pgtype.Null"
+	// NullTypePointer emits *T for nullable columns instead of pgtype wrappers.
+	NullTypePointer = "pointer"
+	// DatabaseEnginePostgreSQL is the only supported SQL engine.
+	DatabaseEnginePostgreSQL = "postgresql"
+)
+
+// DatabaseConfig records database engine and generation settings.
 type DatabaseConfig struct {
+	Engine   string `json:"engine"`
 	NullType string `json:"nullType"`
 }
 
 // ScaffoldConfig records the options used to create a project.
 type ScaffoldConfig struct {
-	ProjectName              string `json:"projectName"`
-	Database                 string `json:"database"`
+	ProjectName string `json:"projectName"`
+	// Database is deprecated; engine lives on DatabaseConfig. Kept for reading
+	// older locks before migrateLegacyDatabaseConfig runs.
+	Database                 string `json:"database,omitempty"`
 	Inertia                  string `json:"inertia,omitempty"`
 	JavaScriptPackageManager string `json:"javascriptPackageManager,omitempty"`
 	JavaScriptRuntime        string `json:"javascriptRuntime,omitempty"` // Deprecated: use JavaScriptPackageManager.
+}
+
+// DatabaseEngine returns the configured SQL engine after legacy migration.
+func (l *AndurelLock) DatabaseEngine() string {
+	if l == nil || l.DatabaseConfig == nil {
+		return ""
+	}
+	return l.DatabaseConfig.Engine
 }
 
 // PackageManager returns the configured JavaScript package manager. Locks from
@@ -85,7 +105,7 @@ type Tool struct {
 }
 
 var defaultToolVersionChecks = map[string]VersionCheck{
-	"sqlc":        {Args: []string{"version"}},
+	"narsilc":     {Args: []string{"version"}},
 	"templ":       {Args: []string{"--version"}},
 	"goose":       {Args: []string{"--version"}},
 	"mailpit":     {Args: []string{"version", "--no-release-check"}},
@@ -98,7 +118,7 @@ var defaultToolVersionChecks = map[string]VersionCheck{
 const defaultVersionCheckRegexp = `v?([0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)`
 
 var defaultToolVersions = map[string]string{
-	"sqlc":        versions.Sqlc,
+	"narsilc":     versions.Narsilc,
 	"templ":       versions.Templ,
 	"goose":       versions.Goose,
 	"mailpit":     versions.Mailpit,
@@ -109,15 +129,15 @@ var defaultToolVersions = map[string]string{
 }
 
 var defaultToolDownloads = map[string]ToolDownload{
-	"sqlc": {
-		URLTemplate: "https://github.com/sqlc-dev/sqlc/releases/download/{{version}}/sqlc_{{version_no_v}}_{{os}}_{{arch}}.tar.gz",
+	"narsilc": {
+		URLTemplate: "https://github.com/mbvlabs/narsilc/releases/download/{{version}}/narsilc_{{version_no_v}}_{{os}}_{{arch}}.tar.gz",
 		Archive:     "tar.gz",
-		BinaryName:  "sqlc",
+		BinaryName:  "narsilc",
 		SHA256: map[string]string{
-			"linux/amd64":  "497ae4fcdfa64c5b0c311ffe4c2bd991e43991e82e5367792ed78bc2dca27354",
-			"linux/arm64":  "b7cae247740d0c51a1e657479e5b2d21e6fef428f596682a01bc55bf4ab8a23d",
-			"darwin/amd64": "c5af76772e3785d21663a62697056b383f07629979b1bd25b93872e73dbd519b",
-			"darwin/arm64": "21602158c99eb1f2bae197a66abfb1941d1e9e50b23125bb193349c6b1acc71e",
+			"linux/amd64":  "63e8f36fef232727e0ecdf6508718c314bb019751f70142cb42d81a9db79676c",
+			"linux/arm64":  "886e56e2460cdfcd91c46423aba1b37b4183cb34f5244a94d913a9e9409e57a4",
+			"darwin/amd64": "53c24c8d751940c89057307ac8a0c56d89c60ca8425cc3ad23cfdae6d7a1caad",
+			"darwin/arm64": "a18f4d625a2e2926682b47902f4455537745cdd0bf8527370c84c1f9f2cd8203",
 		},
 	},
 	"templ": {
@@ -180,10 +200,10 @@ var defaultToolDownloads = map[string]ToolDownload{
 		Archive:     "binary",
 		BinaryName:  "shadowfax",
 		SHA256: map[string]string{
-			"linux/amd64":  "301542f7e1fb26f24cac9bd6288ace41bf96760d50a4ce15ca6623d2aca11e13",
-			"linux/arm64":  "e19960c36b49d675be1be8721db42a96ed898f77c99c160659a2e5184d7d274c",
-			"darwin/amd64": "8018221d66ca88980c05ec7a4fbc70b1447b7dffcc8693850615d258758dddcc",
-			"darwin/arm64": "7d361b1a0342c447deb43baa78f34f8764dfe1d420f1e1ebf1481c6b00efed8f",
+			"linux/amd64":  "7ffb8291f1a6f9e5a96512fffa9ac70728bbc9b5ce95b265ae29c260fae697b2",
+			"linux/arm64":  "e806576a2c5fc9e1b2f483f6af340510ba1473e01c280db32bf58b4c08401d85",
+			"darwin/amd64": "7fe481a0c27d2ba8dc87100bba7250c3e4f387da8f7c05d6f47771fc575ae27b",
+			"darwin/arm64": "3ef255984de97893c8e0a6fb2975212656eb02c2ce0df46f0416be732d49041d",
 		},
 	},
 	"tailwindcli": {
@@ -199,13 +219,18 @@ var defaultToolDownloads = map[string]ToolDownload{
 	},
 }
 
-// NewAndurelLock creates an empty lock file model for a version.
+// NewAndurelLock creates a lock file model for a version with default
+// databaseConfig (postgresql + pgtype.Null).
 func NewAndurelLock(version string) *AndurelLock {
 	return &AndurelLock{
 		SchemaVersion: 1,
 		Version:       version,
 		Extensions:    make(map[string]*Extension),
 		Tools:         make(map[string]*Tool),
+		DatabaseConfig: &DatabaseConfig{
+			Engine:   DatabaseEnginePostgreSQL,
+			NullType: NullTypePGType,
+		},
 	}
 }
 

@@ -84,7 +84,6 @@ func executeConfiguredCLITest(t *testing.T, inertiaAdapter string, args ...strin
 		lock := layout.NewAndurelLock("test")
 		lock.ScaffoldConfig = &layout.ScaffoldConfig{
 			ProjectName: "app",
-			Database:    "postgresql",
 			Inertia:     inertiaAdapter,
 		}
 		if err := lock.WriteLockFile(rootDir); err != nil {
@@ -169,8 +168,10 @@ func resetCLITestSeams(t *testing.T) {
 	defaultRemoveDiagnosticTempDir := removeDiagnosticTempDir
 	defaultGenerateController := generateControllerWithActionsFunc
 	defaultSyncSingleTool := syncSingleToolFunc
+	defaultEnsureTool := ensureToolFunc
 	defaultDownloadFromLockTool := downloadFromLockToolFunc
 	defaultInstallToolVersionAndLock := installToolVersionAndLockFunc
+	defaultResolveToolChecksums := resolveToolChecksumsFunc
 	defaultNewUpgrader := newUpgraderFunc
 	defaultLookupLatestAndurelVersion := lookupLatestAndurelVersionFunc
 	defaultLookupLatestModuleVersion := lookupLatestModuleVersionFunc
@@ -192,8 +193,10 @@ func resetCLITestSeams(t *testing.T) {
 		removeDiagnosticTempDir = defaultRemoveDiagnosticTempDir
 		generateControllerWithActionsFunc = defaultGenerateController
 		syncSingleToolFunc = defaultSyncSingleTool
+		ensureToolFunc = defaultEnsureTool
 		downloadFromLockToolFunc = defaultDownloadFromLockTool
 		installToolVersionAndLockFunc = defaultInstallToolVersionAndLock
+		resolveToolChecksumsFunc = defaultResolveToolChecksums
 		newUpgraderFunc = defaultNewUpgrader
 		lookupLatestAndurelVersionFunc = defaultLookupLatestAndurelVersion
 		lookupLatestModuleVersionFunc = defaultLookupLatestModuleVersion

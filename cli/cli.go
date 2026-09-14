@@ -92,9 +92,11 @@ func isInAndurelProject() bool {
 // NewRootCommand creates a new root command.
 func NewRootCommand(version, date string) *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:               "andurel",
-		Short:             "Andurel - The Go Web development framework",
-		Long:              `Andurel is a comprehensive web development framework for Go,`,
+		Use:   "andurel",
+		Short: "Space-grade Go framework for humans and agents",
+		Long: `Andurel is a space-grade Go framework for humans and agents.
+
+Everything you and your agent(s) need to build robust and performant applications that will scale to the far-side of the moon.`,
 		Version:           fmt.Sprintf("%s (built: %s)", version, date),
 		SilenceUsage:      true,
 		SilenceErrors:     true,
@@ -196,7 +198,7 @@ func NewRootCommand(version, date string) *cobra.Command {
 			fmt.Println()
 			fmt.Println("You must specify a command:")
 			fmt.Println()
-			fmt.Printf("  %-14s %s\n", "new", "Create a new Andurel project")
+			fmt.Printf("  %-14s %s\n", "new", "Stand up a new Andurel project")
 			fmt.Println()
 			fmt.Println("All commands can be run with -h (or --help) for more information.")
 			fmt.Println()
@@ -222,9 +224,9 @@ func newRunAppCommand() *cobra.Command {
 		Long: `Start the development server (shadowfax) for your Andurel application.
 
 The server auto-reloads on file changes, including Go, Templ, CSS, and
-sqlc query files. For Inertia projects, shadowfax also runs Vite and the
-project's cmd/ssr process (Laravel-style Node owner). Run this from your
-project root.`,
+narsilc query files. For Inertia projects, shadowfax also runs the Vite
+dev server. Development SSR is served by Vite's /__inertia_ssr endpoint.
+cmd/ssr is the production Node owner. Run this from your project root.`,
 		Example: `  andurel run`,
 		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -236,7 +238,7 @@ project root.`,
 			if err := checkBinaries(rootDir); err != nil {
 				return err
 			}
-			if err := generateSQLCIfNeeded(rootDir); err != nil {
+			if err := generateNarsilcIfNeeded(rootDir); err != nil {
 				return err
 			}
 			watchContext, stopWatching := context.WithCancel(cmd.Context())
@@ -274,8 +276,8 @@ project root.`,
 }
 
 // shadowfaxRunArgs builds the explicit CLI contract passed to Shadowfax.
-// Inertia identity and package manager come from andurel.lock. Shadowfax
-// starts the project's cmd/ssr process; Node settings come from app config.
+// Inertia identity and package manager come from andurel.lock. Development
+// SSR is owned by Vite; cmd/ssr settings stay in app config for production.
 func shadowfaxRunArgs(rootDir string) ([]string, error) {
 	lock, err := layout.ReadLockFile(rootDir)
 	if err != nil {
@@ -293,8 +295,6 @@ func shadowfaxRunArgs(rootDir string) ([]string, error) {
 	return []string{
 		"--inertia",
 		"--js-package-manager", packageManager,
-		"--ssr-url", "http://127.0.0.1:13714",
-		"--ssr-bundle", "assets/dist/ssr/ssr.js",
 	}, nil
 }
 

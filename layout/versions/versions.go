@@ -15,9 +15,11 @@ const (
 	// TailwindCLI is the default Tailwind CSS CLI version.
 	TailwindCLI = "v4.3.2"
 	// Shadowfax is the default Shadowfax runner version.
-	Shadowfax = "v0.9.1"
-	// Sqlc is the default sqlc tool version.
-	Sqlc = "v1.31.1"
+	Shadowfax = "v0.10.0"
+	// Narsilc is the default narsilc tool version.
+	Narsilc = "v0.4.2"
+	// NarsilcModule is the Go module version required by generated query code.
+	NarsilcModule = "v0.4.2"
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
 	Hypermedia = "v0.2.3"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.

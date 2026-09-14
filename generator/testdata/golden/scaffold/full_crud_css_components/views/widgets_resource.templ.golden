@@ -6,6 +6,7 @@ package views
 
 import (
 	"fmt"
+	"time"
 		"net/http"
 	
 	"testapp/models"
@@ -15,6 +16,24 @@ import (
 	"testapp/router/routes"
 	
 )
+
+type WidgetData struct {
+	Name string
+	Quantity int32
+	Active bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func newWidgetData(entity models.Widget) WidgetData {
+	return WidgetData{
+		Name: entity.Name,
+		Quantity: entity.Quantity,
+		Active: entity.Active,
+		CreatedAt: func() time.Time { if !entity.CreatedAt.Valid { return time.Time{} }; return entity.CreatedAt.Time }(),
+		UpdatedAt: func() time.Time { if !entity.UpdatedAt.Valid { return time.Time{} }; return entity.UpdatedAt.Time }(),
+	}
+}
 
 
 type WidgetIndex struct {
@@ -53,19 +72,20 @@ templ (wi WidgetIndex) Page() {
 								</thead>
 								<tbody>
 									for _, widget := range wi.Items {
+									{{ widgetData := newWidgetData(widget) }}
 										<tr>
-											<td>{ widget.Name }</td>
-											<td>{ fmt.Sprintf("%d", widget.Quantity) }</td>
-											<td>{ fmt.Sprintf("%t", widget.Active) }</td>
-											<td>{ widget.CreatedAt.String() }</td>
-											<td>{ widget.UpdatedAt.String() }</td>
+											<td>{ widgetData.Name }</td>
+											<td>{ fmt.Sprintf("%d", widgetData.Quantity) }</td>
+											<td>{ fmt.Sprintf("%t", widgetData.Active) }</td>
+											<td>{ widgetData.CreatedAt.String() }</td>
+											<td>{ widgetData.UpdatedAt.String() }</td>
 											<td>
 												<div class="flex flex-wrap gap-3 text-sm">
 													
-													<a class="inline-link" href={ routes.WidgetShow.URL(widget.ID) }>View</a>
+													<a class="inline-link" href={ routes.WidgetShow.URL(widget.ID.Bytes) }>View</a>
 													
 													
-													<a class="inline-link" href={ routes.WidgetEdit.URL(widget.ID) }>Edit</a>
+													<a class="inline-link" href={ routes.WidgetEdit.URL(widget.ID.Bytes) }>Edit</a>
 													
 												</div>
 											</td>
@@ -100,7 +120,7 @@ templ (ws WidgetShow) Page() {
 						<h1 class="text-2xl font-semibold tracking-normal text-base-content">Widget Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
 							
-							<a href={ routes.WidgetEdit.URL(ws.Item.ID) } class="btn btn-primary">Edit</a>
+							<a href={ routes.WidgetEdit.URL(ws.Item.ID.Bytes) } class="btn btn-primary">Edit</a>
 							
 							
 							<a class="inline-link text-sm" href={ routes.WidgetIndex.URL() }>Back to List</a>
@@ -113,23 +133,23 @@ templ (ws WidgetShow) Page() {
 								
 								<div class="field">
 									<label class="field-label">Name</label>
-									<p class="text-sm text-base-content">{ ws.Item.Name }</p>
+									<p class="text-sm text-base-content">{ newWidgetData(ws.Item).Name }</p>
 								</div>
 								<div class="field">
 									<label class="field-label">Quantity</label>
-									<p class="text-sm text-base-content">{ fmt.Sprintf("%d", ws.Item.Quantity) }</p>
+									<p class="text-sm text-base-content">{ fmt.Sprintf("%d", newWidgetData(ws.Item).Quantity) }</p>
 								</div>
 								<div class="field">
 									<label class="field-label">Active</label>
-									<p class="text-sm text-base-content">{ fmt.Sprintf("%t", ws.Item.Active) }</p>
+									<p class="text-sm text-base-content">{ fmt.Sprintf("%t", newWidgetData(ws.Item).Active) }</p>
 								</div>
 								<div class="field">
 									<label class="field-label">Created At</label>
-									<p class="text-sm text-base-content">{ ws.Item.CreatedAt.String() }</p>
+									<p class="text-sm text-base-content">{ newWidgetData(ws.Item).CreatedAt.String() }</p>
 								</div>
 								<div class="field">
 									<label class="field-label">Updated At</label>
-									<p class="text-sm text-base-content">{ ws.Item.UpdatedAt.String() }</p>
+									<p class="text-sm text-base-content">{ newWidgetData(ws.Item).UpdatedAt.String() }</p>
 								</div>
 								
 							</div>
@@ -212,19 +232,19 @@ templ (we WidgetEdit) Page() {
 							<p class="card-description">Update the details for this widget.</p>
 						</div>
 						<div class="card-content">
-							<form class="form" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.WidgetUpdate.URL(we.Item.ID)) }>
+							<form class="form" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.WidgetUpdate.URL(we.Item.ID.Bytes)) }>
 								<fieldset class="fieldset" data-attr:disabled="$_submitting">
 									
 									<div class="field">
 										<label class="field-label" for="name">Name</label>
-										<input type="text" class="input" data-bind="name" value={ we.Item.Name } />
+										<input type="text" class="input" data-bind="name" value={ newWidgetData(we.Item).Name } />
 									</div>
 									<div class="field">
 										<label class="field-label" for="quantity">Quantity</label>
-										<input type="number" class="input" data-bind="quantity" value={ fmt.Sprintf("%d", we.Item.Quantity) } />
+										<input type="number" class="input" data-bind="quantity" value={ fmt.Sprintf("%d", newWidgetData(we.Item).Quantity) } />
 									</div>
 									<div class="radio-row">
-										<input type="checkbox" class="checkbox" data-bind="active" if we.Item.Active { checked } />
+										<input type="checkbox" class="checkbox" data-bind="active" if newWidgetData(we.Item).Active { checked } />
 										<label class="field-label" for="active">Active</label>
 									</div>
 									
@@ -237,7 +257,7 @@ templ (we WidgetEdit) Page() {
 								</fieldset>
 							</form>
 							<div class="separator my-6"></div>
-							<button type="button" class="btn btn-destructive btn-block" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.WidgetDestroy.URL(we.Item.ID)) }>Destroy Widget</button>
+							<button type="button" class="btn btn-destructive btn-block" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.WidgetDestroy.URL(we.Item.ID.Bytes)) }>Destroy Widget</button>
 							
 						</div>
 					</div>

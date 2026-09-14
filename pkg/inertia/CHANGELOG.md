@@ -1,5 +1,14 @@
 ## Unreleased
 
+### Changed
+
+- Minimum supported Go version is now 1.27.1.
+
+### Added
+
+- In `development`, `NewRenderer` posts SSR requests to the Vite origin's
+  `/__inertia_ssr` endpoint (from `ViteDevURL`) instead of `{SSRURL}/render`.
+
 ## 0.5.0 - 2026-09-09
 
 ### Added

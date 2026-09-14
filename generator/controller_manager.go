@@ -282,18 +282,18 @@ func (c *ControllerManager) GenerateControllerFromModel(resourceName string) err
 }
 
 // readNullType reads the nullable type strategy from andurel.lock.
-// Defaults to "sql.Null" when not configured.
+// Defaults to "pgtype.Null" when not configured.
 func (c *ControllerManager) readNullType() string {
 	return ReadNullType()
 }
 
 // ReadNullType reads the nullable type strategy from andurel.lock.
-// Defaults to "sql.Null" when not configured.
+// Defaults to pgtype.Null when not configured.
 func ReadNullType() string {
 	fm := files.NewUnifiedFileManager()
 	rootDir, err := fm.FindGoModRoot()
 	if err != nil {
-		return "sql.Null"
+		return layout.NullTypePGType
 	}
 	if lock, err := layout.ReadLockFile(
 		rootDir,
@@ -301,7 +301,7 @@ func ReadNullType() string {
 		lock.DatabaseConfig.NullType != "" {
 		return lock.DatabaseConfig.NullType
 	}
-	return "sql.Null"
+	return layout.NullTypePGType
 }
 
 func controllerNamespacePrefix(namespace string) string {

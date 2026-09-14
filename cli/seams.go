@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/mbvlabs/andurel/generator"
+	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/mbvlabs/andurel/layout/upgrade"
 )
 
@@ -68,9 +69,11 @@ var runGolinesFunc = runGolines
 var runTemplFmtFunc = runTemplFmt
 var generateControllerWithActionsFunc = generateControllerWithActions
 var syncSingleToolFunc = syncSingleTool
+var ensureToolFunc = ensureToolInstalled
 var downloadFromLockToolFunc = downloadFromLockTool
 
 var installToolVersionAndLockFunc = installToolVersionAndLock
+var resolveToolChecksumsFunc = cmds.ResolveURLTemplateChecksums
 
 type cliUpgrader interface {
 	Execute() (*upgrade.UpgradeReport, error)

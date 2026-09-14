@@ -6,11 +6,30 @@ package views
 
 import (
 	"fmt"
+	"time"
 	
 	"testapp/models"
 	
 	
 )
+
+type WidgetData struct {
+	Name string
+	Quantity int32
+	Active bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func newWidgetData(entity models.Widget) WidgetData {
+	return WidgetData{
+		Name: entity.Name,
+		Quantity: entity.Quantity,
+		Active: entity.Active,
+		CreatedAt: func() time.Time { if !entity.CreatedAt.Valid { return time.Time{} }; return entity.CreatedAt.Time }(),
+		UpdatedAt: func() time.Time { if !entity.UpdatedAt.Valid { return time.Time{} }; return entity.UpdatedAt.Time }(),
+	}
+}
 
 
 
@@ -41,23 +60,23 @@ templ (ws WidgetShow) Page() {
 								
 								<div class="field">
 									<label class="field-label">Name</label>
-									<p class="text-sm text-base-content">{ ws.Item.Name }</p>
+									<p class="text-sm text-base-content">{ newWidgetData(ws.Item).Name }</p>
 								</div>
 								<div class="field">
 									<label class="field-label">Quantity</label>
-									<p class="text-sm text-base-content">{ fmt.Sprintf("%d", ws.Item.Quantity) }</p>
+									<p class="text-sm text-base-content">{ fmt.Sprintf("%d", newWidgetData(ws.Item).Quantity) }</p>
 								</div>
 								<div class="field">
 									<label class="field-label">Active</label>
-									<p class="text-sm text-base-content">{ fmt.Sprintf("%t", ws.Item.Active) }</p>
+									<p class="text-sm text-base-content">{ fmt.Sprintf("%t", newWidgetData(ws.Item).Active) }</p>
 								</div>
 								<div class="field">
 									<label class="field-label">Created At</label>
-									<p class="text-sm text-base-content">{ ws.Item.CreatedAt.String() }</p>
+									<p class="text-sm text-base-content">{ newWidgetData(ws.Item).CreatedAt.String() }</p>
 								</div>
 								<div class="field">
 									<label class="field-label">Updated At</label>
-									<p class="text-sm text-base-content">{ ws.Item.UpdatedAt.String() }</p>
+									<p class="text-sm text-base-content">{ newWidgetData(ws.Item).UpdatedAt.String() }</p>
 								</div>
 								
 							</div>

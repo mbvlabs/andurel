@@ -21,15 +21,15 @@ func newProjectCommand(version string) *cobra.Command {
 	projectCmd := &cobra.Command{
 		Use:     "new [project-name]",
 		Aliases: []string{"n"},
-		Short:   "Create a new Andurel project",
-		Long: `Scaffold a complete Andurel project with the given name.
+		Short:   "Stand up a new Andurel project",
+		Long: `Stand up a complete Andurel project with the given name.
 
 Generates the full project structure including controllers, models, views,
 database migrations, router, services, and configuration files. After
 creation, run 'andurel tool sync' to download required binaries.
 
 Projects use Templ by default. Pass --inertia with vue, react, or svelte for a
-rich frontend. Every scaffold includes optional sqlc support for complex SQL;
+rich frontend. Persistence uses narsilc-generated queries;
 it stays inactive until an annotated query is added to models/queries.`,
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) <= 1 {
@@ -70,7 +70,7 @@ it stays inactive until an annotated query is added to models/queries.`,
 	setAgentMetadata(
 		projectCmd,
 		"generation",
-		"Creates a Templ project by default. Use --inertia vue|react|svelte, optionally followed by /npm|pnpm|bun|yarn. sqlc support is scaffolded but remains inactive until annotated query files are added.",
+		"Creates a Templ project by default. Use --inertia vue|react|svelte, optionally followed by /npm|pnpm|bun|yarn. Models persist through narsilc-generated queries.",
 	)
 
 	return projectCmd

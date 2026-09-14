@@ -196,7 +196,7 @@ func setupScaffoldGoldenProject(
 		}
 	})
 
-	writeControllerViewFixtureFile(t, projectDir, "go.mod", "module testapp\n\ngo 1.26\n")
+	writeControllerViewFixtureFile(t, projectDir, "go.mod", "module testapp\n\ngo 1.27.1\n")
 	writeControllerViewFixtureFile(t, projectDir, "models/model.go", modelNamespaceFixture)
 	writeControllerViewFixtureFile(t, projectDir, "bin/templ", "#!/bin/sh\nexit 0\n")
 	if err := os.Chmod(filepath.Join(projectDir, "bin", "templ"), 0o755); err != nil {
@@ -211,10 +211,9 @@ func setupScaffoldGoldenProject(
 	)
 
 	lock := layout.NewAndurelLock("test")
-	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
+	lock.DatabaseConfig = &layout.DatabaseConfig{Engine: layout.DatabaseEnginePostgreSQL, NullType: layout.NullTypePGType}
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "testapp",
-		Database:    "postgresql",
 		Inertia:     inertia,
 	}
 	for _, ext := range extensions {

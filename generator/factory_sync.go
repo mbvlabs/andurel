@@ -449,8 +449,7 @@ func generatedModelFromParsedEntity(
 			BunTag:       field.BunTag,
 			IsForeignKey: field.Name != "ID" && strings.HasSuffix(field.Name, "ID"),
 			IsNullable: strings.HasPrefix(field.TypeStr, "*") ||
-				strings.HasPrefix(field.TypeStr, "sql.Null") ||
-				strings.HasPrefix(field.TypeStr, "bun.Null"),
+				strings.HasPrefix(field.TypeStr, "sql.Null"),
 			IsPrimaryKey: field.Name == "ID" || strings.Contains(field.BunTag, "pk"),
 		}
 		if len(field.Packages) > 0 {
@@ -588,9 +587,6 @@ func writeFactoryImports(
 		factory.ModulePath + "/models":           true,
 		"github.com/go-faker/faker/v4":           true,
 	}
-	if factory.HasCreatedAt || factory.HasUpdatedAt {
-		imports["time"] = true
-	}
 	for _, importPath := range factory.StandardImports {
 		imports[importPath] = true
 	}
@@ -598,24 +594,21 @@ func writeFactoryImports(
 		imports[importPath] = true
 	}
 	for _, field := range factory.Fields {
-		if strings.Contains(field.Type, "time.Time") || strings.Contains(field.Type, "NullTime") {
+		if field.IsAutoManaged {
+			continue
+		}
+		if strings.Contains(field.Type, "time.") || strings.Contains(field.DefaultValue, "time.") {
 			imports["time"] = true
 		}
 		if strings.Contains(field.Type, "sql.") {
 			imports["database/sql"] = true
 		}
-		if strings.Contains(field.Type, "bun.") {
-			imports["github.com/uptrace/bun"] = true
-		}
 		if strings.Contains(field.Type, "json.") {
 			imports["encoding/json"] = true
 		}
-		if strings.Contains(field.Type, "uuid.") {
-			imports["github.com/google/uuid"] = true
+		if strings.Contains(field.Type, "uuid.") || strings.Contains(field.DefaultValue, "uuid.") {
+			imports["uuid"] = true
 		}
-	}
-	if !factory.IsAutoIncrementID && (factory.IDType == "" || factory.IDType == "uuid.UUID") {
-		imports["github.com/google/uuid"] = true
 	}
 	for _, oldImport := range oldImports {
 		imports[oldImport] = true
@@ -692,7 +685,7 @@ func writeFactoryCore(sb *strings.Builder, factory *models.GeneratedFactory) {
 }
 
 func writeFactoryCreateFunctions(sb *strings.Builder, factory *models.GeneratedFactory) {
-	fmt.Fprintf(sb, "func Create%s(ctx context.Context, exec storage.Executor, ", factory.ModelName)
+	fmt.Fprintf(sb, "func Create%s(ctx context.Context, db storage.Connection, ", factory.ModelName)
 	writeFactoryFKParams(sb, factory)
 	fmt.Fprintf(
 		sb,
@@ -703,19 +696,11 @@ func writeFactoryCreateFunctions(sb *strings.Builder, factory *models.GeneratedF
 	fmt.Fprintf(sb, "\tbuilt := Build%s(", factory.ModelName)
 	writeFactoryFKArgs(sb, factory)
 	sb.WriteString("opts...)\n\n")
-	fmt.Fprintf(sb, "\tentity := models.%s{\n", factory.EntityName)
+	fmt.Fprintf(sb, "\treturn models.New%s(db).Create(ctx, models.Create%sData{\n", factory.NamespaceVar, factory.ModelName)
 	if !factory.IsAutoIncrementID && factory.IDGoFieldName != "" {
-		if factory.IDType == "" || factory.IDType == "uuid.UUID" {
-			fmt.Fprintf(sb, "\t\t%s: uuid.New(),\n", factory.IDGoFieldName)
-		} else {
+		if factory.IDType != "" && factory.IDType != "uuid.UUID" && factory.IDType != "pgtype.UUID" {
 			fmt.Fprintf(sb, "\t\t%s: built.%s,\n", factory.IDGoFieldName, factory.IDGoFieldName)
 		}
-	}
-	if factory.HasCreatedAt {
-		sb.WriteString("\t\tCreatedAt: time.Now(),\n")
-	}
-	if factory.HasUpdatedAt {
-		sb.WriteString("\t\tUpdatedAt: time.Now(),\n")
 	}
 	for _, field := range factory.Fields {
 		if field.IsAutoManaged {
@@ -723,15 +708,10 @@ func writeFactoryCreateFunctions(sb *strings.Builder, factory *models.GeneratedF
 		}
 		fmt.Fprintf(sb, "\t\t%s: built.%s,\n", field.Name, field.Name)
 	}
-	sb.WriteString("\t}\n\n")
-	sb.WriteString(
-		"\tif err := exec.NewInsert().Model(&entity).Returning(\"*\").Scan(ctx); err != nil {\n",
-	)
-	fmt.Fprintf(sb, "\t\treturn models.%s{}, err\n\t}\n\n", factory.EntityName)
-	sb.WriteString("\treturn entity, nil\n}\n\n")
+	sb.WriteString("\t})\n}\n\n")
 
 	pluralModelName := inflection.Plural(factory.ModelName)
-	fmt.Fprintf(sb, "func Create%s(ctx context.Context, exec storage.Executor, ", pluralModelName)
+	fmt.Fprintf(sb, "func Create%s(ctx context.Context, db storage.Connection, ", pluralModelName)
 	writeFactoryFKParams(sb, factory)
 	fmt.Fprintf(
 		sb,
@@ -742,7 +722,7 @@ func writeFactoryCreateFunctions(sb *strings.Builder, factory *models.GeneratedF
 	lower := naming.ToLowerCamelCase(pluralModelName)
 	fmt.Fprintf(sb, "\t%s := make([]models.%s, 0, count)\n\n", lower, factory.EntityName)
 	sb.WriteString("\tfor i := range count {\n")
-	fmt.Fprintf(sb, "\t\tentity, err := Create%s(ctx, exec, ", factory.ModelName)
+	fmt.Fprintf(sb, "\t\tentity, err := Create%s(ctx, db, ", factory.ModelName)
 	writeFactoryFKArgs(sb, factory)
 	sb.WriteString("opts...)\n")
 	sb.WriteString("\t\tif err != nil {\n")
@@ -1026,10 +1006,27 @@ func factoryUnifiedDiff(oldContent, newContent string) (string, error) {
 
 func entityNames(src []byte) []string {
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "", src, 0)
+	file, err := parser.ParseFile(fset, "", src, parser.ParseComments)
 	if err != nil {
 		return nil
 	}
+
+	hasTableMarker := false
+	for _, group := range file.Comments {
+		for _, comment := range group.List {
+			if strings.Contains(comment.Text, "andurel:table") {
+				hasTableMarker = true
+				break
+			}
+		}
+		if hasTableMarker {
+			break
+		}
+	}
+	if !hasTableMarker {
+		return nil
+	}
+
 	var names []string
 	for _, decl := range file.Decls {
 		genDecl, ok := decl.(*ast.GenDecl)
@@ -1038,7 +1035,7 @@ func entityNames(src []byte) []string {
 		}
 		for _, spec := range genDecl.Specs {
 			typeSpec, ok := spec.(*ast.TypeSpec)
-			if !ok || !hasBunBaseModel(typeSpec) {
+			if !ok || !isEntityStruct(typeSpec) {
 				continue
 			}
 			names = append(names, typeSpec.Name.Name)
@@ -1047,17 +1044,13 @@ func entityNames(src []byte) []string {
 	return names
 }
 
-func hasBunBaseModel(typeSpec *ast.TypeSpec) bool {
+func isEntityStruct(typeSpec *ast.TypeSpec) bool {
 	structType, ok := typeSpec.Type.(*ast.StructType)
 	if !ok || structType.Fields == nil {
 		return false
 	}
 	for _, field := range structType.Fields.List {
-		if len(field.Names) != 0 {
-			continue
-		}
-		selector, ok := field.Type.(*ast.SelectorExpr)
-		if ok && selector.Sel != nil && selector.Sel.Name == "BaseModel" {
+		if len(field.Names) != 0 && field.Tag != nil {
 			return true
 		}
 	}

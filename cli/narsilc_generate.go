@@ -10,10 +10,10 @@ import (
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
-func generateSQLCIfNeeded(rootDir string) error {
-	hasQueries, err := storage.HasSQLCQueryFiles(rootDir)
+func generateNarsilcIfNeeded(rootDir string) error {
+	hasQueries, err := storage.HasQueryFiles(rootDir)
 	if err != nil {
-		return fmt.Errorf("check sqlc queries: %w", err)
+		return fmt.Errorf("check narsilc queries: %w", err)
 	}
 	if !hasQueries {
 		return nil
@@ -29,19 +29,19 @@ func generateSQLCIfNeeded(rootDir string) error {
 		)
 	}
 
-	tool, ok := lock.Tools["sqlc"]
+	tool, ok := lock.Tools["narsilc"]
 	if !ok {
 		return output.NewError(
 			output.CodeConfigError,
-			"sqlc is not configured in andurel.lock",
+			"narsilc is not configured in andurel.lock",
 			output.ExitConfig,
-			"Restore the generated sqlc tool entry in andurel.lock, then run andurel tool sync.",
+			"Restore the generated narsilc tool entry in andurel.lock, then run andurel tool sync.",
 		)
 	}
 
-	if err := syncSingleToolFunc(rootDir, "sqlc", tool, runtime.GOOS, runtime.GOARCH); err != nil {
-		return fmt.Errorf("sync sqlc: %w", err)
+	if err := ensureToolFunc(rootDir, "narsilc", tool, runtime.GOOS, runtime.GOARCH); err != nil {
+		return fmt.Errorf("sync narsilc: %w", err)
 	}
 
-	return cmds.RunSQLCGenerate(rootDir)
+	return cmds.RunNarsilcGenerate(rootDir)
 }

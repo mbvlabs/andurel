@@ -141,19 +141,19 @@ func (tr *TemplateRenderer) RenderControllerFile(
 
 func inertiaDataType(field GeneratedField) string {
 	switch field.GoType {
-	case "sql.NullString", "bun.NullString", "json.RawMessage", "*json.RawMessage", "[]byte":
+	case "sql.NullString", "json.RawMessage", "*json.RawMessage", "[]byte":
 		return "string"
-	case "sql.NullBool", "bun.NullBool":
+	case "sql.NullBool":
 		return "bool"
 	case "sql.NullInt16":
 		return "int16"
-	case "sql.NullInt32", "bun.NullInt32":
+	case "sql.NullInt32":
 		return "int32"
-	case "sql.NullInt64", "bun.NullInt64":
+	case "sql.NullInt64":
 		return "int64"
-	case "sql.NullFloat64", "bun.NullFloat64":
+	case "sql.NullFloat64":
 		return "float64"
-	case "sql.NullTime", "bun.NullTime":
+	case "sql.NullTime":
 		return "time.Time"
 	}
 
@@ -166,19 +166,19 @@ func inertiaDataType(field GeneratedField) string {
 
 func inertiaDataValue(field GeneratedField, source string) string {
 	switch field.GoType {
-	case "sql.NullString", "bun.NullString":
+	case "sql.NullString":
 		return source + ".String"
-	case "sql.NullBool", "bun.NullBool":
+	case "sql.NullBool":
 		return source + ".Bool"
 	case "sql.NullInt16":
 		return source + ".Int16"
-	case "sql.NullInt32", "bun.NullInt32":
+	case "sql.NullInt32":
 		return source + ".Int32"
-	case "sql.NullInt64", "bun.NullInt64":
+	case "sql.NullInt64":
 		return source + ".Int64"
-	case "sql.NullFloat64", "bun.NullFloat64":
+	case "sql.NullFloat64":
 		return source + ".Float64"
-	case "sql.NullTime", "bun.NullTime":
+	case "sql.NullTime":
 		return source + ".Time"
 	case "json.RawMessage":
 		return "string(" + source + ")"
