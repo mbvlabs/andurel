@@ -17,9 +17,9 @@ const (
 	// Shadowfax is the default Shadowfax runner version.
 	Shadowfax = "v0.10.0"
 	// Narsilc is the default narsilc tool version.
-	Narsilc = "v0.4.0"
+	Narsilc = "v0.4.2"
 	// NarsilcModule is the Go module version required by generated query code.
-	NarsilcModule = "v0.4.0"
+	NarsilcModule = "v0.4.2"
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
 	Hypermedia = "v0.2.3"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.

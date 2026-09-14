@@ -13,7 +13,7 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ### Removed
 
-- Embedded `narsilc.yaml` and its `NarsilcConfig` / `WriteNarsilcConfig` / `NarsilcConfigFile` helpers. narsilc v0.3.0+ reads configuration from `andurel.lock` instead (Andurel pins narsilc v0.4.0 for pgx query builders).
+- Embedded `narsilc.yaml` and its `NarsilcConfig` / `WriteNarsilcConfig` / `NarsilcConfigFile` helpers. narsilc v0.3.0+ reads configuration from `andurel.lock` instead (Andurel pins narsilc v0.4.2 for pgx query builders).
 - Bun executor surface (`Executor`, `bun.IDB` wrapping). Persistence goes through narsilc.
 - Public `DB()` / `SQL()` accessors and the `database/sql` query surface on `Connection`.
 - Embedded `sqlc.yaml` and sqlc helper names.
