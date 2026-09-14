@@ -8989,8 +8989,8 @@ file -----------rw-r--r-- router/cookies/cookies.go
 package cookies
 
 import (
-	"uuid"
 	"testapp/models"
+	"uuid"
 
 	"github.com/labstack/echo/v5"
 )
@@ -10024,17 +10024,6 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"log/slog"
-	"net/http"
-	"strings"
-	"uuid"
-
-	"testapp/config"
-	"testapp/router/appctx"
-	"testapp/router/cookies"
-	"testapp/router/middleware"
-	"testapp/telemetry"
-
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/v5/session"
 	"github.com/labstack/echo/v5"
@@ -10042,6 +10031,15 @@ import (
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.uber.org/fx"
+	"log/slog"
+	"net/http"
+	"strings"
+	"testapp/config"
+	"testapp/router/appctx"
+	"testapp/router/cookies"
+	"testapp/router/middleware"
+	"testapp/telemetry"
+	"uuid"
 )
 
 type Router struct {
@@ -16175,3 +16173,4 @@ export default defineConfig({
   },
 })
 ```
+
