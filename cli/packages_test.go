@@ -15,7 +15,7 @@ import (
 
 const testAndurelPackagesGoMod = `module example.com/app
 
-go 1.26.0
+go 1.27.1
 
 require (
 	github.com/mbvlabs/andurel/pkg/email v0.3.1
@@ -183,7 +183,7 @@ func TestPackagesUpdateSelectedName(t *testing.T) {
 		"go.mod",
 		`module example.com/app
 
-go 1.26.0
+go 1.27.1
 
 require (
 	github.com/mbvlabs/andurel/pkg/email v0.3.1

@@ -1,52 +1,48 @@
 package models
 
-// andurel:model-mode crud
+// andurel:table documents
 
 import (
 	"context"
-	"database/sql"
 	"errors"
+	"testapp/models/internal/queries"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
-	"github.com/uptrace/bun"
 )
 
 type Documents struct {
-	db queryDB
+	queries *queries.Queries
 }
 
 func NewDocuments(db storage.Connection) Documents {
-	return Documents{db: db}
+	return Documents{queries: queries.New(db)}
 }
 
 // WithTx returns a copy that runs queries inside tx.
 func (d Documents) WithTx(tx storage.Transaction) Documents {
-	return Documents{db: tx}
+	return Documents{queries: queries.New(tx)}
 }
 
 type Document struct {
-	bun.BaseModel `bun:"table:documents,alias:documents"`
-	ID            uuid.UUID `bun:"id,pk,type:uuid"`
-	Title         string    `bun:"title"`
-	Tags          []string  `bun:"tags,array"`
-	PageNumbers   []int32   `bun:"page_numbers,array"`
-	ViewCount     int32     `bun:"view_count"`
-	IsPublished   bool      `bun:"is_published"`
-	CreatedAt     time.Time `bun:"created_at"`
-	UpdatedAt     time.Time `bun:"updated_at"`
+	ID          pgtype.UUID        `andurel:"id"`
+	Title       string             `andurel:"title"`
+	Tags        []string           `andurel:"tags"`
+	PageNumbers []int32            `andurel:"page_numbers"`
+	ViewCount   int32              `andurel:"view_count"`
+	IsPublished bool               `andurel:"is_published"`
+	CreatedAt   pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `andurel:"updated_at"`
 }
 
-func (d Documents) Find(ctx context.Context, id uuid.UUID) (Document, error) {
-	var entity Document
-	err := d.db.Executor().NewSelect().
-		Model(&entity).
-		Where("id = ?", id).
-		Scan(ctx)
+func (d Documents) Find(ctx context.Context, id pgtype.UUID) (Document, error) {
+	entity, err := d.queries.GetDocument[Document](ctx, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Document{}, ErrNotFound
 		}
 		return Document{}, err
@@ -65,9 +61,9 @@ type CreateDocumentData struct {
 
 func (d Documents) Create(ctx context.Context, data CreateDocumentData) (Document, error) {
 	entity := Document{
-		ID:          uuid.New(),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:          pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Title:       data.Title,
 		Tags:        data.Tags,
 		PageNumbers: data.PageNumbers,
@@ -79,15 +75,20 @@ func (d Documents) Create(ctx context.Context, data CreateDocumentData) (Documen
 		return Document{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := d.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return Document{}, err
-	}
-
-	return entity, nil
+	return d.queries.CreateDocument[Document](ctx, queries.CreateDocumentParams{
+		ID:          entity.ID,
+		Title:       entity.Title,
+		Tags:        entity.Tags,
+		PageNumbers: entity.PageNumbers,
+		ViewCount:   entity.ViewCount,
+		IsPublished: entity.IsPublished,
+		CreatedAt:   entity.CreatedAt,
+		UpdatedAt:   entity.UpdatedAt,
+	})
 }
 
 type UpdateDocumentData struct {
-	ID          uuid.UUID
+	ID          pgtype.UUID
 	Title       string
 	Tags        []string
 	PageNumbers []int32
@@ -98,7 +99,7 @@ type UpdateDocumentData struct {
 func (d Documents) Update(ctx context.Context, data UpdateDocumentData) (Document, error) {
 	entity := Document{
 		ID:          data.ID,
-		UpdatedAt:   time.Now(),
+		UpdatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Title:       data.Title,
 		Tags:        data.Tags,
 		PageNumbers: data.PageNumbers,
@@ -110,38 +111,27 @@ func (d Documents) Update(ctx context.Context, data UpdateDocumentData) (Documen
 		return Document{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := d.db.Executor().NewUpdate().
-		Model(&entity).
-		Column("title").
-		Column("tags").
-		Column("page_numbers").
-		Column("view_count").
-		Column("is_published").
-		Column("updated_at").
-		WherePK().
-		Returning("*").
-		Scan(ctx)
+	row, err := d.queries.UpdateDocument[Document](ctx, queries.UpdateDocumentParams{
+		ID:          entity.ID,
+		Title:       entity.Title,
+		Tags:        entity.Tags,
+		PageNumbers: entity.PageNumbers,
+		ViewCount:   entity.ViewCount,
+		IsPublished: entity.IsPublished,
+		UpdatedAt:   entity.UpdatedAt,
+	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Document{}, ErrNotFound
 		}
 		return Document{}, err
 	}
 
-	return entity, nil
+	return row, nil
 }
 
-func (d Documents) Destroy(ctx context.Context, id uuid.UUID) error {
-	var entity Document
-	err := d.db.Executor().NewDelete().
-		Model(&entity).
-		Where("id = ?", id).
-		Returning("*").
-		Scan(ctx)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrNotFound
-		}
+func (d Documents) Destroy(ctx context.Context, id pgtype.UUID) error {
+	if err := d.queries.DeleteDocument(ctx, id); err != nil {
 		return err
 	}
 
@@ -149,14 +139,7 @@ func (d Documents) Destroy(ctx context.Context, id uuid.UUID) error {
 }
 
 func (d Documents) All(ctx context.Context) ([]Document, error) {
-	var entities []Document
-	if err := d.db.Executor().NewSelect().
-		Model(&entities).
-		Scan(ctx); err != nil {
-		return nil, err
-	}
-
-	return entities, nil
+	return d.queries.ListDocuments[Document](ctx).All()
 }
 
 type PaginatedDocuments struct {
@@ -180,18 +163,16 @@ func (d Documents) Paginate(ctx context.Context, page, pageSize int64) (Paginate
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := d.db.Executor().NewSelect().
-		Model(&Document{}).Count(ctx)
+	totalCount, err := d.queries.CountDocuments(ctx)
 	if err != nil {
 		return PaginatedDocuments{}, err
 	}
 
-	entities := make([]Document, 0, int(pageSize))
-	if err := d.db.Executor().NewSelect().
-		Model(&entities).
-		Limit(int(pageSize)).
-		Offset(int(offset)).
-		Scan(ctx); err != nil {
+	entities, err := d.queries.ListDocuments[Document](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
 		return PaginatedDocuments{}, err
 	}
 
@@ -206,11 +187,11 @@ func (d Documents) Paginate(ctx context.Context, page, pageSize int64) (Paginate
 	}, nil
 }
 
-func (d Documents) Upsert(ctx context.Context, id uuid.UUID, data CreateDocumentData) (Document, error) {
+func (d Documents) Upsert(ctx context.Context, id pgtype.UUID, data CreateDocumentData) (Document, error) {
 	entity := Document{
 		ID:          id,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Title:       data.Title,
 		Tags:        data.Tags,
 		PageNumbers: data.PageNumbers,
@@ -222,18 +203,14 @@ func (d Documents) Upsert(ctx context.Context, id uuid.UUID, data CreateDocument
 		return Document{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := d.db.Executor().NewInsert().
-		Model(&entity).
-		On("CONFLICT (id) DO UPDATE").
-		Set("title = excluded.title").
-		Set("tags = excluded.tags").
-		Set("page_numbers = excluded.page_numbers").
-		Set("view_count = excluded.view_count").
-		Set("is_published = excluded.is_published").
-		Returning("*").
-		Scan(ctx); err != nil {
-		return Document{}, err
-	}
-
-	return entity, nil
+	return d.queries.UpsertDocument[Document](ctx, queries.UpsertDocumentParams{
+		ID:          entity.ID,
+		Title:       entity.Title,
+		Tags:        entity.Tags,
+		PageNumbers: entity.PageNumbers,
+		ViewCount:   entity.ViewCount,
+		IsPublished: entity.IsPublished,
+		CreatedAt:   entity.CreatedAt,
+		UpdatedAt:   entity.UpdatedAt,
+	})
 }

@@ -8,8 +8,9 @@ import (
 	"testapp/router"
 	"testapp/router/routes"
 	"testapp/views"
+	"uuid"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
 )
@@ -81,7 +82,7 @@ func (d Dashboards) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	dashboard, err := d.widgets.Find(etx.Request().Context(), dashboardID)
+	dashboard, err := d.widgets.Find(etx.Request().Context(), pgtype.UUID{Bytes: dashboardID, Valid: true})
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}

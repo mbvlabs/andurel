@@ -1,52 +1,48 @@
 package models
 
-// andurel:model-mode crud
+// andurel:table orders
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
+	"github.com/example/shop/models/internal/queries"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
-	"github.com/uptrace/bun"
 )
 
 type Orders struct {
-	db queryDB
+	queries *queries.Queries
 }
 
 func NewOrders(db storage.Connection) Orders {
-	return Orders{db: db}
+	return Orders{queries: queries.New(db)}
 }
 
 // WithTx returns a copy that runs queries inside tx.
 func (o Orders) WithTx(tx storage.Transaction) Orders {
-	return Orders{db: tx}
+	return Orders{queries: queries.New(tx)}
 }
 
 type Order struct {
-	bun.BaseModel `bun:"table:orders,alias:orders"`
-	OrderId       uuid.UUID    `bun:"order_id,pk,type:uuid"`
-	CustomerId    uuid.UUID    `bun:"customer_id,type:uuid"`
-	Reference     string       `bun:"reference"`
-	TotalCents    int64        `bun:"total_cents"`
-	Status        string       `bun:"status"`
-	PlacedAt      sql.NullTime `bun:"placed_at"`
-	CreatedAt     time.Time    `bun:"created_at"`
-	UpdatedAt     time.Time    `bun:"updated_at"`
+	OrderId    pgtype.UUID        `andurel:"order_id"`
+	CustomerId pgtype.UUID        `andurel:"customer_id"`
+	Reference  string             `andurel:"reference"`
+	TotalCents int64              `andurel:"total_cents"`
+	Status     string             `andurel:"status"`
+	PlacedAt   pgtype.Timestamptz `andurel:"placed_at"`
+	CreatedAt  pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `andurel:"updated_at"`
 }
 
-func (o Orders) Find(ctx context.Context, id uuid.UUID) (Order, error) {
-	var entity Order
-	err := o.db.Executor().NewSelect().
-		Model(&entity).
-		Where("order_id = ?", id).
-		Scan(ctx)
+func (o Orders) Find(ctx context.Context, id pgtype.UUID) (Order, error) {
+	entity, err := o.queries.GetOrder[Order](ctx, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Order{}, ErrNotFound
 		}
 		return Order{}, err
@@ -56,18 +52,18 @@ func (o Orders) Find(ctx context.Context, id uuid.UUID) (Order, error) {
 }
 
 type CreateOrderData struct {
-	CustomerId uuid.UUID
+	CustomerId pgtype.UUID
 	Reference  string
 	TotalCents int64
 	Status     string
-	PlacedAt   sql.NullTime
+	PlacedAt   pgtype.Timestamptz
 }
 
 func (o Orders) Create(ctx context.Context, data CreateOrderData) (Order, error) {
 	entity := Order{
-		OrderId:    uuid.New(),
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		OrderId:    pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt:  pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:  pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		CustomerId: data.CustomerId,
 		Reference:  data.Reference,
 		TotalCents: data.TotalCents,
@@ -79,26 +75,31 @@ func (o Orders) Create(ctx context.Context, data CreateOrderData) (Order, error)
 		return Order{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := o.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return Order{}, err
-	}
-
-	return entity, nil
+	return o.queries.CreateOrder[Order](ctx, queries.CreateOrderParams{
+		OrderId:    entity.OrderId,
+		CustomerId: entity.CustomerId,
+		Reference:  entity.Reference,
+		TotalCents: entity.TotalCents,
+		Status:     entity.Status,
+		PlacedAt:   entity.PlacedAt,
+		CreatedAt:  entity.CreatedAt,
+		UpdatedAt:  entity.UpdatedAt,
+	})
 }
 
 type UpdateOrderData struct {
-	OrderId    uuid.UUID
-	CustomerId uuid.UUID
+	OrderId    pgtype.UUID
+	CustomerId pgtype.UUID
 	Reference  string
 	TotalCents int64
 	Status     string
-	PlacedAt   sql.NullTime
+	PlacedAt   pgtype.Timestamptz
 }
 
 func (o Orders) Update(ctx context.Context, data UpdateOrderData) (Order, error) {
 	entity := Order{
 		OrderId:    data.OrderId,
-		UpdatedAt:  time.Now(),
+		UpdatedAt:  pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		CustomerId: data.CustomerId,
 		Reference:  data.Reference,
 		TotalCents: data.TotalCents,
@@ -110,38 +111,27 @@ func (o Orders) Update(ctx context.Context, data UpdateOrderData) (Order, error)
 		return Order{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := o.db.Executor().NewUpdate().
-		Model(&entity).
-		Column("customer_id").
-		Column("reference").
-		Column("total_cents").
-		Column("status").
-		Column("placed_at").
-		Column("updated_at").
-		WherePK().
-		Returning("*").
-		Scan(ctx)
+	row, err := o.queries.UpdateOrder[Order](ctx, queries.UpdateOrderParams{
+		OrderId:    entity.OrderId,
+		CustomerId: entity.CustomerId,
+		Reference:  entity.Reference,
+		TotalCents: entity.TotalCents,
+		Status:     entity.Status,
+		PlacedAt:   entity.PlacedAt,
+		UpdatedAt:  entity.UpdatedAt,
+	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Order{}, ErrNotFound
 		}
 		return Order{}, err
 	}
 
-	return entity, nil
+	return row, nil
 }
 
-func (o Orders) Destroy(ctx context.Context, id uuid.UUID) error {
-	var entity Order
-	err := o.db.Executor().NewDelete().
-		Model(&entity).
-		Where("order_id = ?", id).
-		Returning("*").
-		Scan(ctx)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrNotFound
-		}
+func (o Orders) Destroy(ctx context.Context, id pgtype.UUID) error {
+	if err := o.queries.DeleteOrder(ctx, id); err != nil {
 		return err
 	}
 
@@ -149,14 +139,7 @@ func (o Orders) Destroy(ctx context.Context, id uuid.UUID) error {
 }
 
 func (o Orders) All(ctx context.Context) ([]Order, error) {
-	var entities []Order
-	if err := o.db.Executor().NewSelect().
-		Model(&entities).
-		Scan(ctx); err != nil {
-		return nil, err
-	}
-
-	return entities, nil
+	return o.queries.ListOrders[Order](ctx).All()
 }
 
 type PaginatedOrders struct {
@@ -180,18 +163,16 @@ func (o Orders) Paginate(ctx context.Context, page, pageSize int64) (PaginatedOr
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := o.db.Executor().NewSelect().
-		Model(&Order{}).Count(ctx)
+	totalCount, err := o.queries.CountOrders(ctx)
 	if err != nil {
 		return PaginatedOrders{}, err
 	}
 
-	entities := make([]Order, 0, int(pageSize))
-	if err := o.db.Executor().NewSelect().
-		Model(&entities).
-		Limit(int(pageSize)).
-		Offset(int(offset)).
-		Scan(ctx); err != nil {
+	entities, err := o.queries.ListOrders[Order](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
 		return PaginatedOrders{}, err
 	}
 
@@ -206,11 +187,11 @@ func (o Orders) Paginate(ctx context.Context, page, pageSize int64) (PaginatedOr
 	}, nil
 }
 
-func (o Orders) Upsert(ctx context.Context, id uuid.UUID, data CreateOrderData) (Order, error) {
+func (o Orders) Upsert(ctx context.Context, id pgtype.UUID, data CreateOrderData) (Order, error) {
 	entity := Order{
 		OrderId:    id,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		CreatedAt:  pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:  pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		CustomerId: data.CustomerId,
 		Reference:  data.Reference,
 		TotalCents: data.TotalCents,
@@ -222,18 +203,14 @@ func (o Orders) Upsert(ctx context.Context, id uuid.UUID, data CreateOrderData) 
 		return Order{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := o.db.Executor().NewInsert().
-		Model(&entity).
-		On("CONFLICT (order_id) DO UPDATE").
-		Set("customer_id = excluded.customer_id").
-		Set("reference = excluded.reference").
-		Set("total_cents = excluded.total_cents").
-		Set("status = excluded.status").
-		Set("placed_at = excluded.placed_at").
-		Returning("*").
-		Scan(ctx); err != nil {
-		return Order{}, err
-	}
-
-	return entity, nil
+	return o.queries.UpsertOrder[Order](ctx, queries.UpsertOrderParams{
+		OrderId:    entity.OrderId,
+		CustomerId: entity.CustomerId,
+		Reference:  entity.Reference,
+		TotalCents: entity.TotalCents,
+		Status:     entity.Status,
+		PlacedAt:   entity.PlacedAt,
+		CreatedAt:  entity.CreatedAt,
+		UpdatedAt:  entity.UpdatedAt,
+	})
 }

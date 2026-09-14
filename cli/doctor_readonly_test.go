@@ -14,7 +14,7 @@ import (
 func TestDoctorDiagnosticsUseTemporaryCopiesWithoutMutatingOriginalProject(t *testing.T) {
 	stubLatestAndurelVersion(t, "v1.0.0", nil)
 	root := t.TempDir()
-	writeTestFile(t, root, "go.mod", "module example.com/doctor\n\ngo 1.26.0\n")
+	writeTestFile(t, root, "go.mod", "module example.com/doctor\n\ngo 1.27.1\n")
 	writeTestFile(t, root, "go.sum", "original sum\n")
 	writeTestFile(t, root, "main.go", "package main\n\nfunc main() {}\n")
 	writeTestFile(t, root, "views/page.templ", "package views\n")
@@ -31,7 +31,6 @@ var Home = router.NewRoute("/", "home")
 	lock := layout.NewAndurelLock("v1.0.0")
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "doctor",
-		Database:    "postgresql",
 		Inertia:     "react",
 	}
 	if err := lock.WriteLockFile(root); err != nil {

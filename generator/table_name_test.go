@@ -51,8 +51,8 @@ func TestResolveTableName(t *testing.T) {
 		t.Fatalf("Failed to create models dir: %v", err)
 	}
 
-	bunModel := func(entityName, table string) string {
-		return "package models\n\ntype " + entityName + " struct {\n\tbun.BaseModel `bun:\"table:" + table + "\"`\n\tID string\n}\n"
+	andurelModel := func(entityName, table string) string {
+		return "package models\n\n// andurel:table " + table + "\n\ntype " + entityName + " struct {\n\tID string `andurel:\"id\"`\n}\n"
 	}
 
 	tests := []struct {
@@ -71,21 +71,21 @@ func TestResolveTableName(t *testing.T) {
 		{
 			name:         "model with conventional table - uses derived name",
 			resourceName: "Product",
-			modelContent: bunModel("Product", "products"),
+			modelContent: andurelModel("Product", "products"),
 			createModel:  true,
 			wantTable:    "products",
 		},
 		{
-			name:         "model with non-conventional table - uses bun tag",
+			name:         "model with non-conventional table - uses andurel table comment",
 			resourceName: "StudentFeedback",
-			modelContent: bunModel("StudentFeedback", "student_feedback"),
+			modelContent: andurelModel("StudentFeedback", "student_feedback"),
 			createModel:  true,
 			wantTable:    "student_feedback",
 		},
 		{
 			name:         "compound name with non-conventional table",
 			resourceName: "UserRole",
-			modelContent: bunModel("UserRole", "user_role"),
+			modelContent: andurelModel("UserRole", "user_role"),
 			createModel:  true,
 			wantTable:    "user_role",
 		},
@@ -118,9 +118,10 @@ func TestResolveTableName_OverrideTakesPrecedence(t *testing.T) {
 
 	modelContent := `package models
 
+// andurel:table student_feedback
+
 type StudentFeedback struct {
-	bun.BaseModel ` + "`" + `bun:"table:student_feedback"` + "`" + `
-	ID string
+	ID string ` + "`andurel:\"id\"`" + `
 }
 `
 	modelPath := BuildModelPath(modelsDir, "StudentFeedback")
@@ -133,7 +134,7 @@ type StudentFeedback struct {
 
 	if got != want {
 		t.Errorf(
-			"ResolveTableName() = %v, want %v (bun tag should override derived 'student_feedbacks')",
+			"ResolveTableName() = %v, want %v (table comment should override derived 'student_feedbacks')",
 			got,
 			want,
 		)
@@ -142,7 +143,7 @@ type StudentFeedback struct {
 	derivedName := "student_feedbacks"
 	if got == derivedName {
 		t.Errorf(
-			"ResolveTableName() returned derived name %v instead of bun tag value %v",
+			"ResolveTableName() returned derived name %v instead of table comment value %v",
 			derivedName,
 			want,
 		)

@@ -163,8 +163,8 @@ func TestRenderSyncedFactoryFileRetainsGeneratedTypeImportsAndCanonicalFormattin
 			},
 			{
 				Name:         "ObservedAt",
-				Type:         "bun.NullTime",
-				DefaultValue: "bun.NullTime{}",
+				Type:         "sql.NullTime",
+				DefaultValue: "sql.NullTime{}",
 				OptionName:   "WithProductsObservedAt",
 			},
 			{
@@ -195,8 +195,7 @@ func WithProductsEndpoint(value url.URL) ProductOption {
 	for _, want := range []string{
 		`"database/sql"`,
 		`"encoding/json"`,
-		`"github.com/google/uuid"`,
-		`"github.com/uptrace/bun"`,
+		`"uuid"`,
 		`"net/url"`,
 	} {
 		if !strings.Contains(rendered, want) {
@@ -766,9 +765,9 @@ CREATE TABLE products (
 func TestDiscoverFactoryResourceNames(t *testing.T) {
 	modelsDir := t.TempDir()
 	files := map[string]string{
-		"product.go":      "package models\ntype Product struct {\n\tbun.BaseModel `bun:\"table:products\"`\n}\n",
-		"account.go":      "package models\ntype Account struct {\n\tbun.BaseModel `bun:\"table:accounts\"`\n}\ntype Ignored string\n",
-		"product_test.go": "package models\ntype TestOnly struct {\n\tbun.BaseModel `bun:\"table:tests\"`\n}\n",
+		"product.go":      "package models\n\n// andurel:table products\n\ntype Product struct {\n\tID string `andurel:\"id\"`\n}\n",
+		"account.go":      "package models\n\n// andurel:table accounts\n\ntype Account struct {\n\tID string `andurel:\"id\"`\n}\ntype Ignored string\n",
+		"product_test.go": "package models\n\n// andurel:table tests\n\ntype TestOnly struct {\n\tID string `andurel:\"id\"`\n}\n",
 		"broken.go":       "package models\ntype Broken struct {",
 	}
 	for name, content := range files {
@@ -980,12 +979,13 @@ func factorySyncTestModelManager(root, modelsDir string) *ModelManager {
 func factorySyncProductModelSource() string {
 	return `package models
 
+// andurel:table products
+
 type Product struct {
-	bun.BaseModel ` + "`bun:\"table:products,alias:products\"`" + `
-	ID        uuid.UUID ` + "`bun:\"id,pk,type:uuid\"`" + `
-	Name      string    ` + "`bun:\"name,notnull\"`" + `
-	Price     int32     ` + "`bun:\"price,notnull\"`" + `
-	CreatedAt time.Time ` + "`bun:\"created_at,notnull\"`" + `
+	ID        uuid.UUID ` + "`andurel:\"id\"`" + `
+	Name      string    ` + "`andurel:\"name\"`" + `
+	Price     int32     ` + "`andurel:\"price\"`" + `
+	CreatedAt time.Time ` + "`andurel:\"created_at\"`" + `
 }
 `
 }

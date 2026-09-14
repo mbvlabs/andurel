@@ -26,7 +26,6 @@ import (
 	"github.com/mbvlabs/andurel/layout/extensions"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/layout/versions"
-	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 // Element describes a directory tree node to create during scaffolding.
@@ -101,11 +100,6 @@ func Scaffold(
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
-	fmt.Print("Writing sqlc configuration...\n")
-	if err := storage.WriteSQLCConfig(targetDir); err != nil {
-		return fmt.Errorf("failed to write sqlc config: %w", err)
-	}
-
 	fmt.Print("Processing database migrations...\n")
 	nextMigrationTime, err := processMigrations(targetDir, &templateData)
 	if err != nil {
@@ -115,11 +109,10 @@ func Scaffold(
 	fmt.Print("Generating andurel.lock file...\n")
 	scaffoldConfig := &ScaffoldConfig{
 		ProjectName:              projectName,
-		Database:                 database,
 		Inertia:                  inertia,
 		JavaScriptPackageManager: javascriptRuntime,
 	}
-	if err := generateLockFile(targetDir, version, scaffoldConfig, extensionNames); err != nil {
+	if err := generateLockFile(targetDir, version, scaffoldConfig, database, extensionNames); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
@@ -204,15 +197,9 @@ func Scaffold(
 		)
 	}
 
-	fmt.Print("Running sqlc generate...\n")
-	if err := cmds.RunSQLCGenerateOptional(targetDir); err != nil {
-		slog.Error(
-			"failed to run sqlc generate",
-			"error",
-			err,
-			"fix",
-			"run 'andurel generate queries' after sync",
-		)
+	fmt.Print("Running narsilc generate...\n")
+	if err := cmds.RunNarsilcGenerate(targetDir); err != nil {
+		return fmt.Errorf("failed to run narsilc generate: %w", err)
 	}
 
 	fmt.Print("Running go mod tidy...\n")
@@ -337,7 +324,8 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_factories_factories.tmpl": "models/factories/factories.go",
 	"models_factories_user.tmpl":      "models/factories/user.go",
 	"models_factories_token.tmpl":     "models/factories/token.go",
-	"models_queries_gitkeep.tmpl":     "models/queries/.gitkeep",
+	"models_queries_user.tmpl":        "models/queries/user.sql",
+	"models_queries_token.tmpl":       "models/queries/token.sql",
 
 	// Router
 	"router_router.tmpl":                     "router/router.go",
@@ -1039,7 +1027,7 @@ func topologicalSort(extSet map[string]struct{}) ([]string, error) {
 	return result, nil
 }
 
-const goVersion = "1.26.0"
+const goVersion = "1.27.1"
 
 // GoTool represents go tool.
 type GoTool struct {
@@ -1077,7 +1065,7 @@ func GetExpectedTools(config *ScaffoldConfig) map[string]*Tool {
 		expectedTools[tool.Name] = NewGoTool(tool.Name, sourceRepo, tool.Version)
 	}
 
-	expectedTools["sqlc"] = NewBinaryTool("sqlc", versions.Sqlc)
+	expectedTools["narsilc"] = NewBinaryTool("narsilc", versions.Narsilc)
 	expectedTools["tailwindcli"] = NewBinaryTool("tailwindcli", versions.TailwindCLI)
 
 	return expectedTools
@@ -1175,7 +1163,7 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 	builder.AddWorkerDependency("marketingSender", "email.MarketingSender")
 
 	// Auth cookies configuration
-	builder.AddCookiesImport("github.com/google/uuid")
+	builder.AddCookiesImport("uuid")
 	builder.AddCookiesImport(fmt.Sprintf("%s/models", moduleName))
 
 	builder.AddCookiesConstant("isAuthenticated", "is_authenticated")
@@ -1210,12 +1198,14 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 func generateLockFile(
 	targetDir, version string,
 	config *ScaffoldConfig,
+	databaseEngine string,
 	extensions []string,
 ) error {
 	lock := NewAndurelLock(version)
 	lock.ScaffoldConfig = config
 	lock.DatabaseConfig = &DatabaseConfig{
-		NullType: "sql.Null",
+		Engine:   databaseEngine,
+		NullType: NullTypePGType,
 	}
 
 	for _, tool := range DefaultGoTools {
@@ -1223,7 +1213,7 @@ func generateLockFile(
 		lock.AddTool(tool.Name, NewGoTool(tool.Name, sourceRepo, tool.Version))
 	}
 
-	lock.AddTool("sqlc", NewBinaryTool("sqlc", versions.Sqlc))
+	lock.AddTool("narsilc", NewBinaryTool("narsilc", versions.Narsilc))
 	lock.AddTool("tailwindcli", NewBinaryTool("tailwindcli", versions.TailwindCLI))
 
 	for _, ext := range extensions {

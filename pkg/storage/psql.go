@@ -3,40 +3,40 @@ package storage
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"io/fs"
 	"maps"
+	"math"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"github.com/uptrace/bun"
-	"github.com/uptrace/bun/dialect/pgdialect"
 )
 
-// Executor is the query interface satisfied by *bun.DB, *bun.Tx, and *bun.Conn.
-// It remains available for application-owned model and factory APIs.
-type Executor = bun.IDB
-
-// Connection exposes the Bun executor, its underlying database/sql pool, and runtime health.
+// Connection is the application database handle. Constructors and
+// collaborators take this type rather than a driver-specific pool.
+// Query methods match pgx DBTX so narsilc-generated clients can accept
+// Connection directly: queries.New(db).
 type Connection interface {
-	Executor() bun.IDB
-	DB() *sql.DB
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 	Health(ctx context.Context) error
-	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
+	BeginTransaction(ctx context.Context) (Transaction, error)
 }
 
-// Postgres wraps a bun.DB.
+// Postgres wraps a pgx/v5 pool.
 type Postgres struct {
-	bun *bun.DB
+	pool *pgxpool.Pool
 }
 
 var _ Connection = (*Postgres)(nil)
@@ -89,10 +89,28 @@ func NewPostgres(ctx context.Context, config Config, options ...Option) (*Postgr
 			return nil, fmt.Errorf("storage: configure postgres: %w", err)
 		}
 	}
-	pgxConfig, err := pgx.ParseConfig(databaseURL)
+	poolConfig, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("storage: parse database URL: %w", err)
 	}
+	applyPoolConfig(poolConfig, settings)
+
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		return nil, fmt.Errorf("storage: connect to postgres: %w", err)
+	}
+	db := &Postgres{pool: pool}
+
+	if err := db.Health(ctx); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+
+	return db, nil
+}
+
+func applyPoolConfig(poolConfig *pgxpool.Config, settings postgresOptions) {
+	pgxConfig := poolConfig.ConnConfig
 	if settings.telemetry != nil {
 		pgxConfig.Tracer = otelpgx.NewTracer(telemetryOptions(*settings.telemetry)...)
 	}
@@ -132,72 +150,82 @@ func NewPostgres(ctx context.Context, config Config, options ...Option) (*Postgr
 		}
 	}
 
-	sqldb := stdlib.OpenDB(*pgxConfig)
 	maxOpenConnections := settings.config.MaxOpenConnections
 	if settings.maxOpenConnections != nil {
 		maxOpenConnections = *settings.maxOpenConnections
 	}
-	sqldb.SetMaxOpenConns(maxOpenConnections)
-	maxIdleConnections := settings.config.MaxIdleConnections
-	if settings.maxIdleConnections != nil {
-		maxIdleConnections = *settings.maxIdleConnections
+	if maxConns := int32MaxConns(maxOpenConnections); maxConns > 0 {
+		poolConfig.MaxConns = maxConns
 	}
-	sqldb.SetMaxIdleConns(maxIdleConnections)
+
 	connectionMaxLifetime := settings.config.ConnectionMaxLifetime
 	if settings.connectionMaxLifetime != nil {
 		connectionMaxLifetime = *settings.connectionMaxLifetime
 	}
-	sqldb.SetConnMaxLifetime(connectionMaxLifetime)
+	poolConfig.MaxConnLifetime = connectionMaxLifetime
+
 	connectionMaxIdleTime := settings.config.ConnectionMaxIdleTime
 	if settings.connectionMaxIdleTime != nil {
 		connectionMaxIdleTime = *settings.connectionMaxIdleTime
 	}
-	sqldb.SetConnMaxIdleTime(connectionMaxIdleTime)
-	db := &Postgres{bun: bun.NewDB(sqldb, pgdialect.New())}
+	poolConfig.MaxConnIdleTime = connectionMaxIdleTime
+}
 
-	if err := db.Health(ctx); err != nil {
-		_ = db.Close()
-		return nil, err
+func int32MaxConns(count int) int32 {
+	if count <= 0 {
+		return 0
 	}
-
-	return db, nil
+	if count > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int32(count)
 }
 
-// Executor returns the Bun query executor.
-func (p *Postgres) Executor() bun.IDB {
-	return p.bun
+// Pool returns the wrapped pgx pool.
+func (p *Postgres) Pool() *pgxpool.Pool {
+	return p.pool
 }
 
-// DB returns the underlying sql.DB.
-func (p *Postgres) DB() *sql.DB {
-	return p.bun.DB
+func (p *Postgres) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
+	return p.pool.Exec(ctx, sql, arguments...)
+}
+
+func (p *Postgres) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
+	return p.pool.Query(ctx, sql, args...)
+}
+
+func (p *Postgres) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
+	return p.pool.QueryRow(ctx, sql, args...)
 }
 
 // Health verifies that the database is reachable at runtime.
 func (p *Postgres) Health(ctx context.Context) error {
-	if err := p.bun.PingContext(ctx); err != nil {
+	if p == nil || p.pool == nil {
+		return fmt.Errorf("storage: ping database: pool is not configured")
+	}
+	if err := p.pool.Ping(ctx); err != nil {
 		return fmt.Errorf("storage: ping database: %w", err)
 	}
 
 	return nil
 }
 
-// Close closes the database connection.
+// Close closes the underlying pgx pool.
 func (p *Postgres) Close() error {
-	return p.bun.Close()
+	if p.pool != nil {
+		p.pool.Close()
+	}
+	return nil
 }
 
-// BeginTransaction starts a transaction with Bun and database/sql access.
-func (p *Postgres) BeginTransaction(
-	ctx context.Context,
-	opts *sql.TxOptions,
-) (Transaction, error) {
-	tx, err := p.bun.BeginTx(ctx, opts)
+// BeginTransaction starts a transaction on the shared pool.
+func (p *Postgres) BeginTransaction(ctx context.Context) (Transaction, error) {
+	tx, err := p.pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("storage: begin transaction: %w", err)
 	}
 
-	return bunTransaction{tx: tx}, nil
+	return pgxTransaction{tx: tx}, nil
 }
 
 // TestCluster owns a Postgres test container and can create isolated databases.
@@ -284,7 +312,7 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
 		_ = admin.Close()
 	})
 
-	if _, err := admin.DB().ExecContext(ctx, fmt.Sprintf(`CREATE DATABASE %q`, name)); err != nil {
+	if _, err := admin.Exec(ctx, fmt.Sprintf(`CREATE DATABASE %q`, name)); err != nil {
 		t.Fatalf("failed to create test database: %v", err)
 	}
 
@@ -293,8 +321,7 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
 		if dropped {
 			return
 		}
-		_, _ = admin.DB().
-			ExecContext(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
+		_, _ = admin.Exec(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
 	})
 
 	db, err := NewPostgres(ctx, DefaultConfig(), WithDatabaseURL(tc.databaseURL(name)))
@@ -304,12 +331,11 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
 
 	t.Cleanup(func() {
 		_ = db.Close()
-		_, _ = admin.DB().
-			ExecContext(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
+		_, _ = admin.Exec(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
 		dropped = true
 	})
 
-	if err := RunMigrations(ctx, db.DB(), migrations, migrationDir); err != nil {
+	if err := RunMigrations(ctx, db, migrations, migrationDir); err != nil {
 		t.Fatalf("failed to run migrations: %v", err)
 	}
 
@@ -328,7 +354,14 @@ func (tc *TestCluster) databaseURL(name string) string {
 }
 
 // RunMigrations applies Goose migrations from an embedded filesystem.
-func RunMigrations(ctx context.Context, db *sql.DB, migrations fs.FS, migrationDir string) error {
+// Goose still requires database/sql, so this opens a short-lived stdlib
+// adapter over the same pgx pool.
+func RunMigrations(ctx context.Context, conn Connection, migrations fs.FS, migrationDir string) error {
+	pool, err := poolFrom(conn)
+	if err != nil {
+		return err
+	}
+
 	entries, err := fs.ReadDir(migrations, migrationDir)
 	if err != nil {
 		return fmt.Errorf("storage: read migrations: %w", err)
@@ -350,6 +383,9 @@ func RunMigrations(ctx context.Context, db *sql.DB, migrations fs.FS, migrationD
 		return fmt.Errorf("storage: open migrations: %w", err)
 	}
 
+	db := stdlib.OpenDBFromPool(pool)
+	defer db.Close()
+
 	provider, err := goose.NewProvider(goose.DialectPostgres, db, migrationFS)
 	if err != nil {
 		return fmt.Errorf("storage: create migration provider: %w", err)
@@ -360,4 +396,20 @@ func RunMigrations(ctx context.Context, db *sql.DB, migrations fs.FS, migrationD
 	}
 
 	return nil
+}
+
+type poolProvider interface {
+	Pool() *pgxpool.Pool
+}
+
+func poolFrom(conn Connection) (*pgxpool.Pool, error) {
+	provider, ok := conn.(poolProvider)
+	if !ok {
+		return nil, fmt.Errorf("storage: connection does not expose a PostgreSQL pool")
+	}
+	pool := provider.Pool()
+	if pool == nil {
+		return nil, fmt.Errorf("storage: connection returned a nil pool")
+	}
+	return pool, nil
 }

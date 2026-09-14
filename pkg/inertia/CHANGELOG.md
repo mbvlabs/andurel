@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Changed
+
+- Minimum supported Go version is now 1.27.1.
+
 ### Added
 
 - In `development`, `NewRenderer` posts SSR requests to the Vite origin's

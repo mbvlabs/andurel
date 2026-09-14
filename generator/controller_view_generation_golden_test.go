@@ -246,7 +246,7 @@ func TestControllerViewGenerationNamespacedNoControllerGo(t *testing.T) {
 	cache.ClearFileSystemCache()
 	t.Cleanup(cache.ClearFileSystemCache)
 
-	writeControllerViewFixtureFile(t, projectDir, "go.mod", "module testapp\n\ngo 1.26\n")
+	writeControllerViewFixtureFile(t, projectDir, "go.mod", "module testapp\n\ngo 1.27.1\n")
 	writeControllerViewFixtureFile(t, projectDir, "models/model.go", modelNamespaceFixture)
 	writeControllerViewFixtureFile(t, projectDir, "bin/templ", "#!/bin/sh\nexit 0\n")
 	if err := os.Chmod(filepath.Join(projectDir, "bin", "templ"), 0o755); err != nil {
@@ -257,10 +257,9 @@ func TestControllerViewGenerationNamespacedNoControllerGo(t *testing.T) {
 	// this should be a non-fatal fallback, not an error.
 
 	lock := layout.NewAndurelLock("test")
-	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
+	lock.DatabaseConfig = &layout.DatabaseConfig{Engine: layout.DatabaseEnginePostgreSQL, NullType: layout.NullTypePGType}
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "testapp",
-		Database:    "postgresql",
 	}
 	if err := lock.WriteLockFile(projectDir); err != nil {
 		t.Fatalf("failed to write andurel.lock: %v", err)
@@ -611,7 +610,7 @@ func setupControllerViewGoldenProjectWithInertia(
 		}
 	})
 
-	writeControllerViewFixtureFile(t, projectDir, "go.mod", "module testapp\n\ngo 1.26\n")
+	writeControllerViewFixtureFile(t, projectDir, "go.mod", "module testapp\n\ngo 1.27.1\n")
 	writeControllerViewFixtureFile(t, projectDir, "models/model.go", modelNamespaceFixture)
 	writeControllerViewFixtureFile(t, projectDir, "bin/templ", "#!/bin/sh\nexit 0\n")
 	if err := os.Chmod(filepath.Join(projectDir, "bin", "templ"), 0o755); err != nil {
@@ -626,10 +625,9 @@ func setupControllerViewGoldenProjectWithInertia(
 	)
 
 	lock := layout.NewAndurelLock("test")
-	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
+	lock.DatabaseConfig = &layout.DatabaseConfig{Engine: layout.DatabaseEnginePostgreSQL, NullType: layout.NullTypePGType}
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "testapp",
-		Database:    "postgresql",
 		Inertia:     inertia,
 	}
 	if cssComponents {

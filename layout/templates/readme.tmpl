@@ -484,7 +484,7 @@ CSRF protection uses Fetch Metadata. Unsafe API requests bypass CSRF only when t
 ## Development Tips
 
 1. **Live Reload**: Use `andurel run` during development for automatic reloading
-2. **Type Safety**: Let Bun models and Templ catch errors at compile time
+2. **Type Safety**: Let narsilc-backed models and Templ catch errors at compile time
 3. **Database Console**: Use `andurel app console` for quick database queries
 4. **Hot Reload**: Changes to Go, Templ, or CSS automatically trigger rebuilds
 5. **Tailwind**: Use Tailwind's utility classes in your Templ templates
@@ -578,7 +578,7 @@ func TestProducts_Create(t *testing.T) {
 	}
 
 	// Assert database state
-	products, err := models.AllProducts(c.Request().Context(), db.Executor())
+	products, err := models.NewProducts(db).All(c.Request().Context())
 	if err != nil {
 		t.Fatalf("failed to query products: %v", err)
 	}
@@ -644,13 +644,21 @@ func TestProducts_Show(t *testing.T) {
 	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 
 	// Create test data with default values
-	product := factories.Product().Create(db.Executor())
+	product, err := factories.CreateProduct(context.Background(), db)
+	if err != nil {
+		t.Fatalf("create product: %v", err)
+	}
 
 	// Or customize specific fields
-	premiumProduct := factories.Product().
-		WithName("Premium Product").
-		WithPrice("99.99").
-		Create(db.Executor())
+	premiumProduct, err := factories.CreateProduct(
+		context.Background(),
+		db,
+		factories.WithProductsName("Premium Product"),
+		factories.WithProductsPrice("99.99"),
+	)
+	if err != nil {
+		t.Fatalf("create premium product: %v", err)
+	}
 
 	// Test your controller with the created data
 	// ...
@@ -664,9 +672,12 @@ func TestProducts_Show(t *testing.T) {
 ```go
 func TestFindProduct(t *testing.T) {
 	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-	product := factories.Product().Create(db.Executor())
+	product, err := factories.CreateProduct(context.Background(), db)
+	if err != nil {
+		t.Fatalf("create product: %v", err)
+	}
 
-	found, err := models.FindProduct(context.Background(), db.Executor(), product.ID)
+	found, err := models.NewProducts(db).Find(context.Background(), product.ID)
 	if err != nil {
 		t.Fatalf("FindProduct failed: %v", err)
 	}
@@ -685,11 +696,13 @@ func TestPaginateProducts(t *testing.T) {
 
 	// Create test data
 	for i := 0; i < 25; i++ {
-		factories.Product().Create(db.Executor())
+		if _, err := factories.CreateProduct(context.Background(), db); err != nil {
+			t.Fatalf("create product: %v", err)
+		}
 	}
 
 	// Test pagination
-	result, err := models.PaginateProducts(context.Background(), db.Executor(), 1, 10)
+	result, err := models.NewProducts(db).Paginate(context.Background(), 1, 10)
 	if err != nil {
 		t.Fatalf("PaginateProducts failed: %v", err)
 	}
@@ -711,14 +724,25 @@ func TestCreateOrder(t *testing.T) {
 	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 
 	// Create dependencies
-	user := factories.User().Create(db.Executor())
-	product := factories.Product().Create(db.Executor())
+	user, err := factories.CreateUser(context.Background(), db)
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	product, err := factories.CreateProduct(context.Background(), db)
+	if err != nil {
+		t.Fatalf("create product: %v", err)
+	}
 
 	// Test order creation
-	order := factories.Order().
-		WithUserID(user.ID).
-		WithProductID(product.ID).
-		Create(db.Executor())
+	order, err := factories.CreateOrder(
+		context.Background(),
+		db,
+		factories.WithOrdersUserID(user.ID),
+		factories.WithOrdersProductID(product.ID),
+	)
+	if err != nil {
+		t.Fatalf("create order: %v", err)
+	}
 
 	if order.UserID != user.ID {
 		t.Errorf("order user_id mismatch")
@@ -764,7 +788,7 @@ The test helper automatically:
 3. **Test isolation**: Each test should be independent and not rely on other tests
 4. **Descriptive names**: Name tests clearly (e.g., `TestProducts_Create_WithInvalidData`)
 5. **Assert clearly**: Check both success cases and expected database state
-6. **Don't test frameworks**: Focus on your business logic, not Echo or Bun behavior
+6. **Don't test frameworks**: Focus on your business logic, not Echo or narsilc behavior
 {{if .Extensions}}
 ## Extensions
 

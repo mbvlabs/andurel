@@ -4,6 +4,12 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+### Changed
+
+- Minimum supported Go version is now 1.27.1.
+- UUID route helpers now use the standard library `uuid` package instead of
+  `github.com/google/uuid`.
+
 ## 0.2.1 - 2026-09-09
 
 ### Changed

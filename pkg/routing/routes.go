@@ -7,8 +7,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 type routeOptions struct {

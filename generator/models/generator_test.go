@@ -34,7 +34,7 @@ func TestBuildUUIDImports(t *testing.T) {
 				catalog.NewColumn("event_id", "uuid").SetNotNull(),
 				catalog.NewColumn("action", "text").SetNotNull(),
 			),
-			wantUUID: true,
+			wantUUID: false,
 		},
 		{
 			name: "uuid primary key",
@@ -66,14 +66,14 @@ func TestBuildUUIDImports(t *testing.T) {
 			}
 
 			if got := hasImport(
-				model.ExternalImports,
-				"github.com/google/uuid",
+				model.StandardImports,
+				"uuid",
 			); got != tt.wantUUID {
 				t.Fatalf(
 					"uuid import = %v, want %v; imports: %v",
 					got,
 					tt.wantUUID,
-					model.ExternalImports,
+					model.StandardImports,
 				)
 			}
 		})
@@ -121,8 +121,7 @@ func TestGeneratorFactoryDefaultsAndZeroValues(t *testing.T) {
 		"MaybeBool:sql.NullBool":   "sql.NullBool{}",
 		"MaybeInt:sql.NullInt64":   "sql.NullInt64{}",
 		"ArchivedAt:sql.NullTime":  "sql.NullTime{}",
-		"Maybe:bun.NullInt64":      "bun.NullInt64{}",
-		"PublishedAt:bun.NullTime": "bun.NullTime{}",
+		"PublishedAt:sql.NullTime": "sql.NullTime{}",
 		"Optional:*string":         "nil",
 		"Custom:Money":             "*new(Money)",
 	}
@@ -176,7 +175,7 @@ func TestGeneratorFactoryDefaultsAndZeroValues(t *testing.T) {
 		"[]byte":          "nil",
 		"[]string":        "nil",
 		"sql.NullString":  "sql.NullString{}",
-		"bun.NullTime":    "bun.NullTime{}",
+		"sql.NullTime":    "sql.NullTime{}",
 		"Money":           "Money{}",
 	}
 	for typ, want := range zeros {
@@ -200,7 +199,7 @@ func TestGenerateModelUpsertRequiresExplicitPrimaryKey(t *testing.T) {
 			resource:   "Product",
 			tableName:  "products",
 			primaryKey: catalog.NewColumn("id", "uuid").SetPrimaryKey(),
-			idType:     "uuid.UUID",
+			idType:     "pgtype.UUID",
 			receiver:   "p",
 		},
 		{
@@ -447,9 +446,9 @@ func TestGenerateModelCRUDUsesRepositoryNotFoundAndTimestampSemantics(t *testing
 		t.Fatalf("read generated model: %v", err)
 	}
 	generated := string(content)
-	if count := strings.Count(generated, "if errors.Is(err, sql.ErrNoRows) {"); count != 3 {
+	if count := strings.Count(generated, "if errors.Is(err, pgx.ErrNoRows) {"); count != 2 {
 		t.Fatalf(
-			"expected Find, Update, and Destroy not-found translation, got %d:\n%s",
+			"expected Find and Update not-found translation, got %d:\n%s",
 			count,
 			generated,
 		)
@@ -463,11 +462,8 @@ func TestGenerateModelCRUDUsesRepositoryNotFoundAndTimestampSemantics(t *testing
 		t.Fatalf("could not isolate generated Destroy method:\n%s", generated)
 	}
 	destroy := generated[destroyStart:allStart]
-	if !strings.Contains(destroy, `Returning("*")`) || !strings.Contains(destroy, "Scan(ctx)") {
-		t.Fatalf("Destroy does not use DELETE RETURNING:\n%s", destroy)
-	}
-	if !strings.Contains(destroy, "return ErrNotFound") {
-		t.Fatalf("Destroy does not translate a missing row:\n%s", destroy)
+	if !strings.Contains(destroy, "DeleteProduct(ctx, id)") {
+		t.Fatalf("Destroy does not call narsilc DeleteProduct:\n%s", destroy)
 	}
 
 	updateDataStart := strings.Index(generated, "type UpdateProductData struct {")
@@ -479,16 +475,15 @@ func TestGenerateModelCRUDUsesRepositoryNotFoundAndTimestampSemantics(t *testing
 	if strings.Contains(updateData, "UpdatedAt") {
 		t.Fatalf("UpdateProductData exposes ignored UpdatedAt input:\n%s", updateData)
 	}
-	if !strings.Contains(generated[updateMethodStart:], "UpdatedAt: time.Now(),") {
+	if !strings.Contains(generated[updateMethodStart:], "time.Now()") {
 		t.Fatalf("Update does not manage UpdatedAt internally:\n%s", generated[updateMethodStart:])
 	}
 }
 
-func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
+func TestGenerateModelModesRestrictGeneratedOperations(t *testing.T) {
 	tests := []struct {
 		name              string
 		mode              ModelMode
-		wantMode          ModelMode
 		modulePath        string
 		hasPrimaryKey     bool
 		generateWithoutPK bool
@@ -498,7 +493,6 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 		{
 			name:          "crud",
 			mode:          ModelModeCRUD,
-			wantMode:      ModelModeCRUD,
 			modulePath:    "example.com/app",
 			hasPrimaryKey: true,
 			present: []string{
@@ -514,7 +508,6 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 		{
 			name:          "read-only",
 			mode:          ModelModeReadOnly,
-			wantMode:      ModelModeReadOnly,
 			modulePath:    "example.com/app",
 			hasPrimaryKey: true,
 			present:       []string{" Find(", " All(", " Paginate("},
@@ -530,7 +523,6 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 		{
 			name:          "create-only",
 			mode:          ModelModeCreateOnly,
-			wantMode:      ModelModeCreateOnly,
 			modulePath:    "example.com/app",
 			hasPrimaryKey: true,
 			present:       []string{" Create(", "type CreateProductData"},
@@ -546,7 +538,6 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 		},
 		{
 			name:          "default mode",
-			wantMode:      ModelModeCRUD,
 			modulePath:    "example.com/app",
 			hasPrimaryKey: true,
 			present: []string{
@@ -562,7 +553,6 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 		{
 			name:              "read-only without primary key",
 			mode:              ModelModeReadOnly,
-			wantMode:          ModelModeReadOnly,
 			modulePath:        "example.com/app",
 			generateWithoutPK: true,
 			present:           []string{" All(", " Paginate("},
@@ -604,8 +594,8 @@ func TestGenerateModelModesPersistAndRestrictGeneratedOperations(t *testing.T) {
 				t.Fatalf("read generated model: %v", err)
 			}
 			generated := string(content)
-			if !strings.Contains(generated, "// andurel:model-mode "+string(tt.wantMode)) {
-				t.Fatalf("generated model does not persist mode %q:\n%s", tt.wantMode, generated)
+			if strings.Contains(generated, "// andurel:model-mode") {
+				t.Fatalf("generated model should not persist model-mode:\n%s", generated)
 			}
 			if strings.Contains(generated, "func (e *Product) Validate() error") {
 				t.Fatalf("generated model contains an empty Validate method:\n%s", generated)
@@ -762,15 +752,15 @@ func TestGeneratorTemplateRenderingAndImports(t *testing.T) {
 	}
 
 	std, ext := groupAndSortImports(map[string]bool{
-		"time":                   true,
-		"context":                true,
-		"github.com/google/uuid": true,
-		"example.com/app":        true,
+		"time":            true,
+		"context":         true,
+		"uuid":            true,
+		"example.com/app": true,
 	})
-	if !slices.Equal(std, []string{"context", "time"}) {
+	if !slices.Equal(std, []string{"context", "time", "uuid"}) {
 		t.Fatalf("std imports = %#v", std)
 	}
-	if !slices.Equal(ext, []string{"example.com/app", "github.com/google/uuid"}) {
+	if !slices.Equal(ext, []string{"example.com/app"}) {
 		t.Fatalf("external imports = %#v", ext)
 	}
 }
@@ -807,11 +797,11 @@ func TestBuildFactoryMetadata(t *testing.T) {
 	if !factory.HasForeignKeys || len(factory.ForeignKeyFields) != 1 {
 		t.Fatalf("expected FK metadata, got %#v", factory.ForeignKeyFields)
 	}
-	if !slices.Contains(factory.StandardImports, "time") {
-		t.Fatalf("expected time import, got %#v", factory.StandardImports)
+	if slices.Contains(factory.StandardImports, "time") {
+		t.Fatalf("auto-managed timestamps should not add time import: %#v", factory.StandardImports)
 	}
-	if slices.Contains(factory.ExternalImports, "github.com/google/uuid") {
-		t.Fatalf("int64 ID should not add uuid ID import: %#v", factory.ExternalImports)
+	if !slices.Contains(factory.StandardImports, "uuid") {
+		t.Fatalf("uuid FK should add uuid import: %#v", factory.StandardImports)
 	}
 }
 
@@ -917,13 +907,13 @@ func TestBuildModelPrimaryKeyOverridesAndImports(t *testing.T) {
 	}
 	if !model.HasPrimaryKey || model.IDFieldName != "tenant_id" ||
 		model.IDGoFieldName != "TenantId" ||
-		model.IDType != "uuid.UUID" {
+		model.IDType != "pgtype.UUID" {
 		t.Fatalf("primary key override was not applied: %#v", model)
 	}
 	if !model.HasCreatedAt || !model.HasUpdatedAt {
 		t.Fatalf("timestamps were not detected: %#v", model)
 	}
-	for _, want := range []string{"encoding/json", "github.com/google/uuid", "github.com/mbvlabs/andurel/pkg/storage", "github.com/mbvlabs/andurel/pkg/validation"} {
+	for _, want := range []string{"uuid", "github.com/jackc/pgx/v5/pgtype", "github.com/mbvlabs/andurel/pkg/storage", "github.com/mbvlabs/andurel/pkg/validation"} {
 		if !slices.Contains(model.Imports, want) {
 			t.Fatalf("model imports missing %q: %#v", want, model.Imports)
 		}

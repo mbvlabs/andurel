@@ -76,7 +76,7 @@ func readFileContent(t *testing.T, dir, path string) string {
 
 func TestParseGoMod(t *testing.T) {
 	tmpDir := t.TempDir()
-	goModContent := "module github.com/example/myapp\n\ngo 1.26.0\n"
+	goModContent := "module github.com/example/myapp\n\ngo 1.27.1\n"
 	if err := os.WriteFile(
 		filepath.Join(tmpDir, "go.mod"),
 		[]byte(goModContent),
@@ -93,8 +93,8 @@ func TestParseGoMod(t *testing.T) {
 	if module != "github.com/example/myapp" {
 		t.Fatalf("expected module github.com/example/myapp, got %s", module)
 	}
-	if goVer != "1.26.0" {
-		t.Fatalf("expected go version 1.26.0, got %s", goVer)
+	if goVer != "1.27.1" {
+		t.Fatalf("expected go version 1.27.1, got %s", goVer)
 	}
 }
 
@@ -102,7 +102,7 @@ func TestParseGoMod_MissingModule(t *testing.T) {
 	tmpDir := t.TempDir()
 	if err := os.WriteFile(
 		filepath.Join(tmpDir, "go.mod"),
-		[]byte("go 1.26.0\n"),
+		[]byte("go 1.27.1\n"),
 		0o644,
 	); err != nil {
 		t.Fatalf("failed to write go.mod: %v", err)
@@ -270,7 +270,7 @@ func TestLoadProjectContext_MissingScaffoldConfig(t *testing.T) {
 	}
 	if err := os.WriteFile(
 		filepath.Join(tmpDir, "go.mod"),
-		[]byte("module test\n\ngo 1.26.0\n"),
+		[]byte("module test\n\ngo 1.27.1\n"),
 		0o644,
 	); err != nil {
 		t.Fatalf("failed to write go.mod: %v", err)

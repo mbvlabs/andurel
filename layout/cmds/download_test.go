@@ -72,15 +72,15 @@ func TestToolDownloaderReleaseURLs(t *testing.T) {
 		wantErr     string
 	}{
 		{
-			name: "sqlc",
+			name: "narsilc",
 			downloader: ToolDownloader{
-				Name:    "sqlc",
-				Module:  "github.com/sqlc-dev/sqlc",
-				Version: "v1.31.1",
+				Name:    "narsilc",
+				Module:  "github.com/mbvlabs/narsilc",
+				Version: "v0.1.0",
 			},
 			goos:        "linux",
 			goarch:      "amd64",
-			wantURLPart: "sqlc_1.31.1_linux_amd64.tar.gz",
+			wantURLPart: "narsilc_0.1.0_linux_amd64.tar.gz",
 			wantArchive: "tar.gz",
 		},
 		{

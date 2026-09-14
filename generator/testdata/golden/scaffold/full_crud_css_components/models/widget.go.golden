@@ -1,50 +1,46 @@
 package models
 
-// andurel:model-mode crud
+// andurel:table widgets
 
 import (
 	"context"
-	"database/sql"
 	"errors"
+	"testapp/models/internal/queries"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
-	"github.com/uptrace/bun"
 )
 
 type Widgets struct {
-	db queryDB
+	queries *queries.Queries
 }
 
 func NewWidgets(db storage.Connection) Widgets {
-	return Widgets{db: db}
+	return Widgets{queries: queries.New(db)}
 }
 
 // WithTx returns a copy that runs queries inside tx.
 func (w Widgets) WithTx(tx storage.Transaction) Widgets {
-	return Widgets{db: tx}
+	return Widgets{queries: queries.New(tx)}
 }
 
 type Widget struct {
-	bun.BaseModel `bun:"table:widgets,alias:widgets"`
-	ID            uuid.UUID `bun:"id,pk,type:uuid"`
-	Name          string    `bun:"name"`
-	Quantity      int32     `bun:"quantity"`
-	Active        bool      `bun:"active"`
-	CreatedAt     time.Time `bun:"created_at"`
-	UpdatedAt     time.Time `bun:"updated_at"`
+	ID        pgtype.UUID        `andurel:"id"`
+	Name      string             `andurel:"name"`
+	Quantity  int32              `andurel:"quantity"`
+	Active    bool               `andurel:"active"`
+	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
 }
 
-func (w Widgets) Find(ctx context.Context, id uuid.UUID) (Widget, error) {
-	var entity Widget
-	err := w.db.Executor().NewSelect().
-		Model(&entity).
-		Where("id = ?", id).
-		Scan(ctx)
+func (w Widgets) Find(ctx context.Context, id pgtype.UUID) (Widget, error) {
+	entity, err := w.queries.GetWidget[Widget](ctx, id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Widget{}, ErrNotFound
 		}
 		return Widget{}, err
@@ -61,9 +57,9 @@ type CreateWidgetData struct {
 
 func (w Widgets) Create(ctx context.Context, data CreateWidgetData) (Widget, error) {
 	entity := Widget{
-		ID:        uuid.New(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Name:      data.Name,
 		Quantity:  data.Quantity,
 		Active:    data.Active,
@@ -73,15 +69,18 @@ func (w Widgets) Create(ctx context.Context, data CreateWidgetData) (Widget, err
 		return Widget{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if _, err := w.db.Executor().NewInsert().Model(&entity).Exec(ctx); err != nil {
-		return Widget{}, err
-	}
-
-	return entity, nil
+	return w.queries.CreateWidget[Widget](ctx, queries.CreateWidgetParams{
+		ID:        entity.ID,
+		Name:      entity.Name,
+		Quantity:  entity.Quantity,
+		Active:    entity.Active,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	})
 }
 
 type UpdateWidgetData struct {
-	ID       uuid.UUID
+	ID       pgtype.UUID
 	Name     string
 	Quantity int32
 	Active   bool
@@ -90,7 +89,7 @@ type UpdateWidgetData struct {
 func (w Widgets) Update(ctx context.Context, data UpdateWidgetData) (Widget, error) {
 	entity := Widget{
 		ID:        data.ID,
-		UpdatedAt: time.Now(),
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Name:      data.Name,
 		Quantity:  data.Quantity,
 		Active:    data.Active,
@@ -100,36 +99,25 @@ func (w Widgets) Update(ctx context.Context, data UpdateWidgetData) (Widget, err
 		return Widget{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	err := w.db.Executor().NewUpdate().
-		Model(&entity).
-		Column("name").
-		Column("quantity").
-		Column("active").
-		Column("updated_at").
-		WherePK().
-		Returning("*").
-		Scan(ctx)
+	row, err := w.queries.UpdateWidget[Widget](ctx, queries.UpdateWidgetParams{
+		ID:        entity.ID,
+		Name:      entity.Name,
+		Quantity:  entity.Quantity,
+		Active:    entity.Active,
+		UpdatedAt: entity.UpdatedAt,
+	})
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return Widget{}, ErrNotFound
 		}
 		return Widget{}, err
 	}
 
-	return entity, nil
+	return row, nil
 }
 
-func (w Widgets) Destroy(ctx context.Context, id uuid.UUID) error {
-	var entity Widget
-	err := w.db.Executor().NewDelete().
-		Model(&entity).
-		Where("id = ?", id).
-		Returning("*").
-		Scan(ctx)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrNotFound
-		}
+func (w Widgets) Destroy(ctx context.Context, id pgtype.UUID) error {
+	if err := w.queries.DeleteWidget(ctx, id); err != nil {
 		return err
 	}
 
@@ -137,14 +125,7 @@ func (w Widgets) Destroy(ctx context.Context, id uuid.UUID) error {
 }
 
 func (w Widgets) All(ctx context.Context) ([]Widget, error) {
-	var entities []Widget
-	if err := w.db.Executor().NewSelect().
-		Model(&entities).
-		Scan(ctx); err != nil {
-		return nil, err
-	}
-
-	return entities, nil
+	return w.queries.ListWidgets[Widget](ctx).All()
 }
 
 type PaginatedWidgets struct {
@@ -168,18 +149,16 @@ func (w Widgets) Paginate(ctx context.Context, page, pageSize int64) (PaginatedW
 
 	offset := (page - 1) * pageSize
 
-	totalCount, err := w.db.Executor().NewSelect().
-		Model(&Widget{}).Count(ctx)
+	totalCount, err := w.queries.CountWidgets(ctx)
 	if err != nil {
 		return PaginatedWidgets{}, err
 	}
 
-	entities := make([]Widget, 0, int(pageSize))
-	if err := w.db.Executor().NewSelect().
-		Model(&entities).
-		Limit(int(pageSize)).
-		Offset(int(offset)).
-		Scan(ctx); err != nil {
+	entities, err := w.queries.ListWidgets[Widget](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
 		return PaginatedWidgets{}, err
 	}
 
@@ -194,11 +173,11 @@ func (w Widgets) Paginate(ctx context.Context, page, pageSize int64) (PaginatedW
 	}, nil
 }
 
-func (w Widgets) Upsert(ctx context.Context, id uuid.UUID, data CreateWidgetData) (Widget, error) {
+func (w Widgets) Upsert(ctx context.Context, id pgtype.UUID, data CreateWidgetData) (Widget, error) {
 	entity := Widget{
 		ID:        id,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Name:      data.Name,
 		Quantity:  data.Quantity,
 		Active:    data.Active,
@@ -208,16 +187,12 @@ func (w Widgets) Upsert(ctx context.Context, id uuid.UUID, data CreateWidgetData
 		return Widget{}, errors.Join(ErrDomainValidation, err)
 	}
 
-	if err := w.db.Executor().NewInsert().
-		Model(&entity).
-		On("CONFLICT (id) DO UPDATE").
-		Set("name = excluded.name").
-		Set("quantity = excluded.quantity").
-		Set("active = excluded.active").
-		Returning("*").
-		Scan(ctx); err != nil {
-		return Widget{}, err
-	}
-
-	return entity, nil
+	return w.queries.UpsertWidget[Widget](ctx, queries.UpsertWidgetParams{
+		ID:        entity.ID,
+		Name:      entity.Name,
+		Quantity:  entity.Quantity,
+		Active:    entity.Active,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	})
 }

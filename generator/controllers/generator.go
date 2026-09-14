@@ -215,30 +215,51 @@ func isNullableType(goType string) bool {
 	}
 	switch goType {
 	case "sql.NullString", "sql.NullBool", "sql.NullInt16", "sql.NullInt32",
-		"sql.NullInt64", "sql.NullFloat64", "sql.NullTime",
-		"bun.NullString", "bun.NullBool", "bun.NullInt32", "bun.NullInt64",
-		"bun.NullFloat64", "bun.NullTime":
+		"sql.NullInt64", "sql.NullFloat64", "sql.NullTime":
+		return true
+	case "pgtype.Text", "pgtype.Bool", "pgtype.Int2", "pgtype.Int4", "pgtype.Int8",
+		"pgtype.Float4", "pgtype.Float8", "pgtype.Numeric", "pgtype.Date",
+		"pgtype.Time", "pgtype.Timestamp", "pgtype.Timestamptz":
 		return true
 	}
 	return false
 }
 
-// resolveControllerBaseType strips null-type wrappers and pointer prefixes.
+// resolveControllerBaseType strips null-type wrappers, pgtype wrappers and
+// pointer prefixes to find the underlying scalar type.
 func resolveControllerBaseType(goType string) string {
 	switch goType {
-	case "sql.NullString", "bun.NullString":
+	case "sql.NullString":
 		return "string"
-	case "sql.NullBool", "bun.NullBool":
+	case "sql.NullBool":
 		return "bool"
 	case "sql.NullInt16":
 		return "int16"
-	case "sql.NullInt32", "bun.NullInt32":
+	case "sql.NullInt32":
 		return "int32"
-	case "sql.NullInt64", "bun.NullInt64":
+	case "sql.NullInt64":
 		return "int64"
-	case "sql.NullFloat64", "bun.NullFloat64":
+	case "sql.NullFloat64":
 		return "float64"
-	case "sql.NullTime", "bun.NullTime":
+	case "sql.NullTime":
+		return "time.Time"
+	case "pgtype.Text", "pgtype.Numeric":
+		return "string"
+	case "pgtype.Bool":
+		return "bool"
+	case "pgtype.Int2":
+		return "int16"
+	case "pgtype.Int4":
+		return "int32"
+	case "pgtype.Int8":
+		return "int64"
+	case "pgtype.Float4":
+		return "float32"
+	case "pgtype.Float8":
+		return "float64"
+	case "pgtype.UUID":
+		return "uuid.UUID"
+	case "pgtype.Timestamptz", "pgtype.Timestamp", "pgtype.Date", "pgtype.Time":
 		return "time.Time"
 	}
 	return strings.TrimPrefix(goType, "*")
@@ -285,8 +306,10 @@ func (g *Generator) buildField(col *catalog.Column) (GeneratedField, error) {
 		field.GoFormType = "[]string"
 	case "[]int32":
 		field.GoFormType = "[]int32"
+	case "string":
+		field.GoFormType = "string"
 	default:
-		if strings.HasPrefix(goType, "sql.Null") || strings.HasPrefix(goType, "bun.Null") {
+		if strings.HasPrefix(goType, "sql.Null") {
 			field.GoFormType = "string"
 		} else if isNullableType(goType) {
 			field.GoFormType = goType

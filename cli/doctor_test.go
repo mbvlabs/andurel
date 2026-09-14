@@ -403,13 +403,12 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 		false,
 	); len(got) != 2 ||
 		got[0].name != "views generate" || got[0].status != statusPass ||
-		got[1].name != "sqlc generate" || got[1].status != statusPass {
+		got[1].name != "narsilc generate" || got[1].status != statusPass {
 		t.Fatalf("codeGenerationChecks = %#v", got)
 	}
 
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "app",
-		Database:    "postgresql",
 		Inertia:     "react",
 	}
 	if err := lock.WriteLockFile(root); err != nil {
@@ -513,7 +512,7 @@ func TestDoctorToolVersionMismatchesAndUnknowns(t *testing.T) {
 
 func writeGoModule(t *testing.T, root string) {
 	t.Helper()
-	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.26.0\n")
+	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 }
 
 func writeExecutable(t *testing.T, root, rel, content string) {
