@@ -158,7 +158,7 @@ func TestRunNarsilcGenerate(t *testing.T) {
 		originalCommand := newCommand
 		newCommand = func(name string, args ...string) *exec.Cmd {
 			invoked = append(invoked, strings.Join(append([]string{name}, args...), " "))
-			if name == "go" && len(args) >= 2 && args[0] == "fmt" {
+			if name == "go" && len(args) >= 1 && (args[0] == "fmt" || args[0] == "mod") {
 				return exec.Command("true")
 			}
 			cmd := exec.Command(os.Args[0], "-test.run=TestCommandHelperProcess")
@@ -175,14 +175,20 @@ func TestRunNarsilcGenerate(t *testing.T) {
 		if err := RunNarsilcGenerate(targetDir); err != nil {
 			t.Fatalf("narsilc generate failed: %v", err)
 		}
-		if len(invoked) != 2 {
-			t.Fatalf("invoked commands = %#v, want narsilc generate and go fmt", invoked)
+		if len(invoked) != 3 {
+			t.Fatalf(
+				"invoked commands = %#v, want narsilc generate, go mod tidy, and go fmt",
+				invoked,
+			)
 		}
 		if !strings.HasPrefix(invoked[0], narsilcPath) || !strings.Contains(invoked[0], "generate") {
 			t.Fatalf("first command = %q, want narsilc generate", invoked[0])
 		}
-		if !strings.Contains(invoked[1], "go fmt") {
-			t.Fatalf("second command = %q, want go fmt", invoked[1])
+		if !strings.Contains(invoked[1], "go mod tidy") {
+			t.Fatalf("second command = %q, want go mod tidy", invoked[1])
+		}
+		if !strings.Contains(invoked[2], "go fmt") {
+			t.Fatalf("third command = %q, want go fmt", invoked[2])
 		}
 	})
 
@@ -204,7 +210,7 @@ func TestRunNarsilcGenerate(t *testing.T) {
 		originalCommand := newCommand
 		newCommand = func(name string, args ...string) *exec.Cmd {
 			invoked = append(invoked, strings.Join(append([]string{name}, args...), " "))
-			if name == "go" && len(args) >= 2 && args[0] == "fmt" {
+			if name == "go" && len(args) >= 1 && (args[0] == "fmt" || args[0] == "mod") {
 				return exec.Command("true")
 			}
 			cmd := exec.Command(os.Args[0], "-test.run=TestCommandHelperProcess")
@@ -226,8 +232,11 @@ func TestRunNarsilcGenerate(t *testing.T) {
 		if err := RunNarsilcGenerate(targetDir); err != nil {
 			t.Fatalf("narsilc generate fallback failed: %v", err)
 		}
-		if len(invoked) != 2 {
-			t.Fatalf("invoked commands = %#v, want go run narsilc and go fmt", invoked)
+		if len(invoked) != 3 {
+			t.Fatalf(
+				"invoked commands = %#v, want go run narsilc, go mod tidy, and go fmt",
+				invoked,
+			)
 		}
 		if !strings.Contains(invoked[0], "github.com/mbvlabs/narsilc/cmd/narsilc@") ||
 			!strings.Contains(invoked[0], "generate") {

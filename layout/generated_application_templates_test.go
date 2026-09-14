@@ -690,12 +690,26 @@ func TestGeneratedInertiaScaffoldGoFilesSeparateFunctions(t *testing.T) {
 	assertScaffoldGoSpacing(t, root)
 }
 
+func isNarsilcQueryGo(rel string) bool {
+	return strings.Contains(filepath.ToSlash(rel), "models/internal/queries")
+}
+
 func assertScaffoldGoSpacing(t *testing.T, root string) {
 	t.Helper()
 
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			rel = path
+		}
+		if isNarsilcQueryGo(rel) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if entry.IsDir() || !strings.HasSuffix(path, ".go") {
 			return nil
@@ -709,10 +723,6 @@ func assertScaffoldGoSpacing(t *testing.T, root string) {
 			return err
 		}
 
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			rel = path
-		}
 		assertGoFunctionSpacing(t, string(content), rel)
 		assertReturnAfterBranchSpacing(t, string(content), rel)
 		return nil

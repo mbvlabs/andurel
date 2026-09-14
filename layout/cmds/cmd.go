@@ -75,7 +75,8 @@ func RunGolines(targetDir string) error {
 // RunNarsilcGenerate runs narsilc generate when models/queries contains SQL files.
 // If bin/narsilc is not installed yet, it falls back to
 // go run github.com/mbvlabs/narsilc/cmd/narsilc@<version> so scaffold can
-// emit models/internal/queries before go mod tidy.
+// emit models/internal/queries. go mod tidy runs before go fmt because
+// rewriting go.mod from the scaffold template leaves the module untidy.
 func RunNarsilcGenerate(targetDir string) error {
 	return runNarsilcGenerate(targetDir)
 }
@@ -115,6 +116,10 @@ func runNarsilcGenerate(targetDir string) error {
 	output, runErr := cmd.CombinedOutput()
 	if runErr != nil {
 		return fmt.Errorf("narsilc generate failed: %w\nOutput: %s", runErr, string(output))
+	}
+
+	if err := RunGoModTidy(absTargetDir); err != nil {
+		return fmt.Errorf("go mod tidy after narsilc generate: %w", err)
 	}
 
 	return RunGoFmtPath(absTargetDir, "./models/internal/queries/...")

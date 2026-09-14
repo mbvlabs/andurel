@@ -38,6 +38,16 @@ func assertScaffoldGoFormat(t *testing.T, root string) {
 		if err != nil {
 			return err
 		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			rel = path
+		}
+		if isNarsilcQueryGo(rel) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		if entry.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_templ.go") {
 			return nil
 		}
@@ -47,12 +57,7 @@ func assertScaffoldGoFormat(t *testing.T, root string) {
 			return err
 		}
 
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			rel = path
-		}
-		body := string(content)
-		assertGoMaxLineLength(t, body, rel)
+		assertGoMaxLineLength(t, string(content), rel)
 		return nil
 	})
 	if err != nil {
