@@ -19,10 +19,11 @@ import (
 
 type Warehouses struct {
 	warehouses models.Warehouses
+	session    *cookies.Session
 }
 
-func NewWarehouses(warehouses models.Warehouses) Warehouses {
-	return Warehouses{warehouses}
+func NewWarehouses(warehouses models.Warehouses, session *cookies.Session) Warehouses {
+	return Warehouses{warehouses: warehouses, session: session}
 }
 
 func (w Warehouses) RegisterRoutes(r *router.Router) error {
@@ -171,13 +172,13 @@ func (w Warehouses) Create(etx *echo.Context) error {
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create warehouse: %v", err)); flashErr != nil {
+		if flashErr := w.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create warehouse: %v", err)); flashErr != nil {
 			return flashErr
 		}
 		return etx.Redirect(http.StatusSeeOther, routes.WarehouseNew.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Warehouse created successfully"); flashErr != nil {
+	if flashErr := w.session.AddFlash(etx, cookies.FlashSuccess, "Warehouse created successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 	return etx.Redirect(http.StatusSeeOther, routes.WarehouseShow.URL(warehouse.Slug))
@@ -233,7 +234,7 @@ func (w Warehouses) Update(etx *echo.Context) error {
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update warehouse: %v", err)); flashErr != nil {
+		if flashErr := w.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update warehouse: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(
@@ -242,7 +243,7 @@ func (w Warehouses) Update(etx *echo.Context) error {
 		)
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Warehouse updated successfully"); flashErr != nil {
+	if flashErr := w.session.AddFlash(etx, cookies.FlashSuccess, "Warehouse updated successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 	return etx.Redirect(http.StatusSeeOther, routes.WarehouseShow.URL(warehouse.Slug))
@@ -256,13 +257,13 @@ func (w Warehouses) Destroy(etx *echo.Context) error {
 
 	err = w.warehouses.Destroy(etx.Request().Context(), warehouseID)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete warehouse: %v", err)); flashErr != nil {
+		if flashErr := w.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete warehouse: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(http.StatusSeeOther, routes.WarehouseIndex.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Warehouse destroyed successfully"); flashErr != nil {
+	if flashErr := w.session.AddFlash(etx, cookies.FlashSuccess, "Warehouse destroyed successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 	return etx.Redirect(http.StatusSeeOther, routes.WarehouseIndex.URL())

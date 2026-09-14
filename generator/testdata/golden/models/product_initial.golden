@@ -1,6 +1,5 @@
 package models
 
-// andurel:model-mode crud
 // andurel:table products
 
 import (

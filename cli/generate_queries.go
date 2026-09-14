@@ -53,7 +53,11 @@ no-op when models/queries contains no .sql files with a -- name: annotation.`,
 						fmt.Println("No annotated narsilc query files found in models/queries; skipping generation.")
 						return nil
 					}
-					return generateNarsilcIfNeeded(rootDir)
+					if err := generateNarsilcIfNeeded(rootDir); err != nil {
+						return err
+					}
+					fmt.Println("✓ Generated typed queries: models/internal/queries")
+					return nil
 				},
 			})
 		},

@@ -587,9 +587,6 @@ func writeFactoryImports(
 		factory.ModulePath + "/models":           true,
 		"github.com/go-faker/faker/v4":           true,
 	}
-	if factory.HasCreatedAt || factory.HasUpdatedAt {
-		imports["time"] = true
-	}
 	for _, importPath := range factory.StandardImports {
 		imports[importPath] = true
 	}
@@ -597,7 +594,10 @@ func writeFactoryImports(
 		imports[importPath] = true
 	}
 	for _, field := range factory.Fields {
-		if strings.Contains(field.Type, "time.Time") || strings.Contains(field.Type, "NullTime") {
+		if field.IsAutoManaged {
+			continue
+		}
+		if strings.Contains(field.Type, "time.") || strings.Contains(field.DefaultValue, "time.") {
 			imports["time"] = true
 		}
 		if strings.Contains(field.Type, "sql.") {
@@ -606,13 +606,9 @@ func writeFactoryImports(
 		if strings.Contains(field.Type, "json.") {
 			imports["encoding/json"] = true
 		}
-		if strings.Contains(field.Type, "uuid.") {
+		if strings.Contains(field.Type, "uuid.") || strings.Contains(field.DefaultValue, "uuid.") {
 			imports["github.com/google/uuid"] = true
 		}
-	}
-	if !factory.IsAutoIncrementID &&
-		(factory.IDType == "" || factory.IDType == "uuid.UUID" || factory.IDType == "pgtype.UUID") {
-		imports["github.com/google/uuid"] = true
 	}
 	for _, oldImport := range oldImports {
 		imports[oldImport] = true

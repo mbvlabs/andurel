@@ -39,7 +39,7 @@ func generateNarsilcIfNeeded(rootDir string) error {
 		)
 	}
 
-	if err := syncSingleToolFunc(rootDir, "narsilc", tool, runtime.GOOS, runtime.GOARCH); err != nil {
+	if err := ensureToolFunc(rootDir, "narsilc", tool, runtime.GOOS, runtime.GOARCH); err != nil {
 		return fmt.Errorf("sync narsilc: %w", err)
 	}
 

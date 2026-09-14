@@ -20,10 +20,11 @@ import (
 
 type Widgets struct {
 	widgets models.Widgets
+	session *cookies.Session
 }
 
-func NewWidgets(widgets models.Widgets) Widgets {
-	return Widgets{widgets}
+func NewWidgets(widgets models.Widgets, session *cookies.Session) Widgets {
+	return Widgets{widgets: widgets, session: session}
 }
 
 func (w Widgets) RegisterRoutes(r *router.Router) error {
@@ -175,13 +176,13 @@ func (w Widgets) Create(etx *echo.Context) error {
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create widget: %v", err)); flashErr != nil {
+		if flashErr := w.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create widget: %v", err)); flashErr != nil {
 			return flashErr
 		}
 		return etx.Redirect(http.StatusSeeOther, routes.WidgetNew.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Widget created successfully"); flashErr != nil {
+	if flashErr := w.session.AddFlash(etx, cookies.FlashSuccess, "Widget created successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 	return etx.Redirect(http.StatusSeeOther, routes.WidgetShow.URL(widget.ID.Bytes))
@@ -240,7 +241,7 @@ func (w Widgets) Update(etx *echo.Context) error {
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update widget: %v", err)); flashErr != nil {
+		if flashErr := w.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update widget: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(
@@ -249,7 +250,7 @@ func (w Widgets) Update(etx *echo.Context) error {
 		)
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Widget updated successfully"); flashErr != nil {
+	if flashErr := w.session.AddFlash(etx, cookies.FlashSuccess, "Widget updated successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 	return etx.Redirect(http.StatusSeeOther, routes.WidgetShow.URL(widget.ID.Bytes))
@@ -263,13 +264,13 @@ func (w Widgets) Destroy(etx *echo.Context) error {
 
 	err = w.widgets.Destroy(etx.Request().Context(), pgtype.UUID{Bytes: widgetID, Valid: true})
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete widget: %v", err)); flashErr != nil {
+		if flashErr := w.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete widget: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		return etx.Redirect(http.StatusSeeOther, routes.WidgetIndex.URL())
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "Widget destroyed successfully"); flashErr != nil {
+	if flashErr := w.session.AddFlash(etx, cookies.FlashSuccess, "Widget destroyed successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 	return etx.Redirect(http.StatusSeeOther, routes.WidgetIndex.URL())

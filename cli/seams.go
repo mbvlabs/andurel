@@ -69,6 +69,7 @@ var runGolinesFunc = runGolines
 var runTemplFmtFunc = runTemplFmt
 var generateControllerWithActionsFunc = generateControllerWithActions
 var syncSingleToolFunc = syncSingleTool
+var ensureToolFunc = ensureToolInstalled
 var downloadFromLockToolFunc = downloadFromLockTool
 
 var installToolVersionAndLockFunc = installToolVersionAndLock

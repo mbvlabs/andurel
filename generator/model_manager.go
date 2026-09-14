@@ -149,7 +149,7 @@ func (m *ModelManager) GenerateModel(
 	)
 }
 
-// GenerateModelWithMode generates model files with a persisted operation mode.
+// GenerateModelWithMode generates model files with a restricted operation mode.
 func (m *ModelManager) GenerateModelWithMode(
 	resourceName string,
 	tableNameOverride string,
@@ -166,21 +166,7 @@ func (m *ModelManager) GenerateModelWithMode(
 	if err != nil {
 		return err
 	}
-	if err := m.ApplyModelPlan(plan); err != nil {
-		return err
-	}
-
-	if !skipFactory {
-		fmt.Printf(
-			"✓ Generated factory: models/factories/%s.go\n",
-			naming.ToSnakeCase(resourceName),
-		)
-	}
-	fmt.Printf(
-		"Successfully generated complete model for %s with database functions\n",
-		resourceName,
-	)
-	return nil
+	return m.ApplyModelPlan(plan)
 }
 
 // PlanModel computes every model generation output without writing files.

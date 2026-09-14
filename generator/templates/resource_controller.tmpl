@@ -48,17 +48,27 @@ import (
 	"{{.ModulePath}}/models"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
 	"{{.ModulePath}}/router"
+{{- if or (HasAction "create") (or (HasAction "update") (HasAction "destroy"))}}
 	"{{.ModulePath}}/router/cookies"
+{{- end}}
 	"{{.ModulePath}}/router/routes"
 	"{{.ModulePath}}/views"
 )
 
+{{- $needsSession := or (HasAction "create") (or (HasAction "update") (HasAction "destroy"))}}
 type {{.PluralResourceName}} struct {
 	{{.ModelServiceName | ToLowerCamelCase}} models.{{.ModelServiceName}}
+{{- if $needsSession}}
+	session                                  *cookies.Session
+{{- end}}
 }
 
-func New{{.PluralResourceName}}({{.ModelServiceName | ToLowerCamelCase}} models.{{.ModelServiceName}}) {{.PluralResourceName}} {
+func New{{.PluralResourceName}}({{.ModelServiceName | ToLowerCamelCase}} models.{{.ModelServiceName}}{{- if $needsSession}}, session *cookies.Session{{- end}}) {{.PluralResourceName}} {
+{{- if $needsSession}}
+	return {{.PluralResourceName}}{ {{.ModelServiceName | ToLowerCamelCase}}: {{.ModelServiceName | ToLowerCamelCase}}, session: session }
+{{- else}}
 	return {{.PluralResourceName}}{ {{.ModelServiceName | ToLowerCamelCase}} }
+{{- end}}
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router) error {
@@ -266,7 +276,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+		if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return flashErr
 		}
 		{{- if HasAction "new"}}
@@ -276,7 +286,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		{{- end}}
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
+	if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
@@ -386,7 +396,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+		if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		{{- if HasAction "edit"}}
@@ -399,7 +409,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		{{- end}}
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} updated successfully"); flashErr != nil {
+	if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} updated successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 
@@ -441,7 +451,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 
 	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(etx.Request().Context(), {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+		if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return hypermedia.RenderPage(etx, views.InternalError())
 		}
 		{{- if HasAction "index"}}
@@ -451,7 +461,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 		{{- end}}
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
+	if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
 		return hypermedia.RenderPage(etx, views.InternalError())
 	}
 

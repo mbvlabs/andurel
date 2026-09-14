@@ -168,6 +168,7 @@ func resetCLITestSeams(t *testing.T) {
 	defaultRemoveDiagnosticTempDir := removeDiagnosticTempDir
 	defaultGenerateController := generateControllerWithActionsFunc
 	defaultSyncSingleTool := syncSingleToolFunc
+	defaultEnsureTool := ensureToolFunc
 	defaultDownloadFromLockTool := downloadFromLockToolFunc
 	defaultInstallToolVersionAndLock := installToolVersionAndLockFunc
 	defaultResolveToolChecksums := resolveToolChecksumsFunc
@@ -192,6 +193,7 @@ func resetCLITestSeams(t *testing.T) {
 		removeDiagnosticTempDir = defaultRemoveDiagnosticTempDir
 		generateControllerWithActionsFunc = defaultGenerateController
 		syncSingleToolFunc = defaultSyncSingleTool
+		ensureToolFunc = defaultEnsureTool
 		downloadFromLockToolFunc = defaultDownloadFromLockTool
 		installToolVersionAndLockFunc = defaultInstallToolVersionAndLock
 		resolveToolChecksumsFunc = defaultResolveToolChecksums

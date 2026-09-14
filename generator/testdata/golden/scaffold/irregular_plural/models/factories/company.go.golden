@@ -3,10 +3,8 @@ package factories
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/go-faker/faker/v4"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"testapp/models"

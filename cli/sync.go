@@ -94,25 +94,43 @@ func syncBinaries(projectRoot string) error {
 	return nil
 }
 
-func syncSingleTool(projectRoot, name string, tool *layout.Tool, goos, goarch string) (err error) {
+func syncSingleTool(projectRoot, name string, tool *layout.Tool, goos, goarch string) error {
+	return installTool(projectRoot, name, tool, goos, goarch, true)
+}
+
+func ensureToolInstalled(projectRoot, name string, tool *layout.Tool, goos, goarch string) error {
+	return installTool(projectRoot, name, tool, goos, goarch, false)
+}
+
+func installTool(
+	projectRoot, name string,
+	tool *layout.Tool,
+	goos, goarch string,
+	report bool,
+) (err error) {
 	binPath := filepath.Join(projectRoot, "bin", name)
 
 	if _, err := os.Stat(binPath); err == nil {
 		actualVersion, verr := getToolVersionForSync(name, tool.VersionCheck)
 		if verr == nil && versionsMatch(tool.Version, actualVersion) {
-			fmt.Printf("✓ %s (%s) - up to date\n", name, tool.Version)
+			if report {
+				fmt.Printf("✓ %s (%s) - up to date\n", name, tool.Version)
+			}
 			return nil
 		}
 
-		if verr != nil {
-			fmt.Printf("⟳ %s: version unknown, re-downloading %s\n", name, tool.Version)
-		} else {
-			fmt.Printf("⟳ %s: updating %s → %s\n", name, actualVersion, tool.Version)
+		if report {
+			if verr != nil {
+				fmt.Printf("⟳ %s: version unknown, re-downloading %s\n", name, tool.Version)
+			} else {
+				fmt.Printf("⟳ %s: updating %s → %s\n", name, actualVersion, tool.Version)
+			}
 		}
-
 	}
 
-	fmt.Printf("⬇ Downloading %s %s for %s/%s...\n", name, tool.Version, goos, goarch)
+	if report {
+		fmt.Printf("⬇ Downloading %s %s for %s/%s...\n", name, tool.Version, goos, goarch)
+	}
 	candidatePath, err := prepareToolCandidate(projectRoot, name, tool, goos, goarch)
 	if err != nil {
 		return err
@@ -121,7 +139,9 @@ func syncSingleTool(projectRoot, name string, tool *layout.Tool, goos, goarch st
 	if err := os.Rename(candidatePath, binPath); err != nil {
 		return fmt.Errorf("failed to atomically replace %s: %w", name, err)
 	}
-	fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, tool.Version)
+	if report {
+		fmt.Printf("✓ %s (%s) - downloaded successfully\n", name, tool.Version)
+	}
 
 	return nil
 }

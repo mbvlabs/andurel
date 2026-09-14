@@ -1,6 +1,7 @@
 package {{or .Package "controllers"}}
 
 import (
+{{- $needsSession := or (HasAction "create") (or (HasAction "update") (HasAction "destroy"))}}
 	"errors"
 	"fmt"
 	"log/slog"
@@ -48,17 +49,22 @@ import (
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"{{.ModulePath}}/models"
 	"{{.ModulePath}}/router"
+{{- if $needsSession}}
 	"{{.ModulePath}}/router/cookies"
+{{- end}}
 	"{{.ModulePath}}/router/routes"
 )
 
 type {{.PluralResourceName}} struct {
 	{{.ModelServiceName | ToLowerCamelCase}} models.{{.ModelServiceName}}
 	renderer                                 *inertia.Renderer
+{{- if $needsSession}}
+	session                                  *cookies.Session
+{{- end}}
 }
 
-func New{{.PluralResourceName}}({{.ModelServiceName | ToLowerCamelCase}} models.{{.ModelServiceName}}, renderer *inertia.Renderer) {{.PluralResourceName}} {
-	return {{.PluralResourceName}}{ {{.ModelServiceName | ToLowerCamelCase}}: {{.ModelServiceName | ToLowerCamelCase}}, renderer: renderer }
+func New{{.PluralResourceName}}({{.ModelServiceName | ToLowerCamelCase}} models.{{.ModelServiceName}}, renderer *inertia.Renderer{{- if $needsSession}}, session *cookies.Session{{- end}}) {{.PluralResourceName}} {
+	return {{.PluralResourceName}}{ {{.ModelServiceName | ToLowerCamelCase}}: {{.ModelServiceName | ToLowerCamelCase}}, renderer: renderer{{- if $needsSession}}, session: session{{- end}} }
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router) error {
@@ -309,26 +315,26 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+		if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return flashErr
 		}
 		{{- if HasAction "new"}}
-		return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}New.URL())
+		return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}New.URL(), http.StatusSeeOther)
 		{{- else}}
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		{{- end}}
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
+	if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} created successfully"); flashErr != nil {
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	{{- if HasAction "show"}}
-	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}{{if eq .IDType "pgtype.UUID"}}.Bytes{{end}}))
+	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}{{if eq .IDType "pgtype.UUID"}}.Bytes{{end}}), http.StatusSeeOther)
 	{{- else}}
 	_ = {{.ResourceName | ToLowerCamelCase}}
 	{{- if HasAction "index"}}
-	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
+	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL(), http.StatusSeeOther)
 	{{- else}}
 	return etx.NoContent(201)
 	{{- end}}
@@ -435,29 +441,30 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		data,
 	)
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+		if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		}
 		{{- if HasAction "edit"}}
 		return {{.ReceiverName}}.renderer.Redirect(
 			etx,
 			routes.{{.NamespacePascal}}{{.ResourceName}}Edit.URL({{.ResourceName | ToLowerCamelCase}}ID),
+			http.StatusSeeOther,
 		)
 		{{- else}}
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		{{- end}}
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} updated successfully"); flashErr != nil {
+	if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} updated successfully"); flashErr != nil {
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	{{- if HasAction "show"}}
-	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}{{if eq .IDType "pgtype.UUID"}}.Bytes{{end}}))
+	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}{{if eq .IDType "pgtype.UUID"}}.Bytes{{end}}), http.StatusSeeOther)
 	{{- else}}
 	_ = {{.ResourceName | ToLowerCamelCase}}
 	{{- if HasAction "index"}}
-	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
+	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL(), http.StatusSeeOther)
 	{{- else}}
 	return etx.NoContent(200)
 	{{- end}}
@@ -490,22 +497,22 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 
 	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(etx.Request().Context(), {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
 	if err != nil {
-		if flashErr := cookies.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
+		if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err)); flashErr != nil {
 			return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		}
 		{{- if HasAction "index"}}
-		return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
+		return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL(), http.StatusSeeOther)
 		{{- else}}
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 		{{- end}}
 	}
 
-	if flashErr := cookies.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
+	if flashErr := {{.ReceiverName}}.session.AddFlash(etx, cookies.FlashSuccess, "{{.ResourceName}} destroyed successfully"); flashErr != nil {
 		return {{.ReceiverName}}.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
 	}
 
 	{{- if HasAction "index"}}
-	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL())
+	return {{.ReceiverName}}.renderer.Redirect(etx, routes.{{.NamespacePascal}}{{.ResourceName}}Index.URL(), http.StatusSeeOther)
 	{{- else}}
 	return etx.NoContent(200)
 	{{- end}}

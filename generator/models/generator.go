@@ -565,7 +565,9 @@ func (g *Generator) BuildFactory(
 		}
 	}
 
-	// Collect imports - context and fmt are already in the template
+	// Collect imports used by emitted factory fields. Auto-managed ID and
+	// timestamp fields are omitted from Build/Create, so they must not pull
+	// uuid/time into the file.
 	standardImports := []string{}
 	externalImports := []string{}
 	for _, field := range factoryFields {
@@ -575,19 +577,23 @@ func (g *Generator) BuildFactory(
 		}
 	}
 
-	// Only add uuid import if ID type uses UUID
-	if genModel.IDType == "uuid.UUID" || genModel.IDType == "pgtype.UUID" || genModel.IDType == "" {
-		externalImports = append(externalImports, "github.com/google/uuid")
-	}
-
-	// Add time import if needed
+	autoManaged := make(map[string]bool, len(factoryFields))
 	for _, field := range factoryFields {
-		if field.IsTimestamp {
+		if field.IsAutoManaged {
+			autoManaged[field.Name] = true
+			continue
+		}
+		if strings.Contains(field.Type, "uuid.") || strings.Contains(field.DefaultValue, "uuid.") {
+			externalImports = append(externalImports, "github.com/google/uuid")
+		}
+		if strings.Contains(field.Type, "time.") || strings.Contains(field.DefaultValue, "time.") {
 			standardImports = append(standardImports, "time")
-			break
 		}
 	}
 	for _, field := range genModel.Fields {
+		if autoManaged[field.Name] {
+			continue
+		}
 		switch {
 		case strings.Contains(field.Type, "sql.Null"):
 			standardImports = append(standardImports, "database/sql")

@@ -1231,10 +1231,10 @@ file -----------rw-r--r-- andurel.lock
         "archive": "tar.gz",
         "binaryName": "narsilc",
         "sha256": {
-          "darwin/amd64": "19838964cef4346e983b9bbf3d4841699fde0f06b67f101f2b9ddecc307073ea",
-          "darwin/arm64": "f30d955776c6574690866f8492fd068dd4df5db4fd4a83fc66f0ca726b248490",
-          "linux/amd64": "3ad94abd461ac919e40d34af25abb9ba5773e3c7694cab5d98cc7d9c0e9001ff",
-          "linux/arm64": "2d06555325144a156584b9e54ce4d6379878901aa0fa1945b9b7f3f819690696"
+          "darwin/amd64": "53c24c8d751940c89057307ac8a0c56d89c60ca8425cc3ad23cfdae6d7a1caad",
+          "darwin/arm64": "a18f4d625a2e2926682b47902f4455537745cdd0bf8527370c84c1f9f2cd8203",
+          "linux/amd64": "63e8f36fef232727e0ecdf6508718c314bb019751f70142cb42d81a9db79676c",
+          "linux/arm64": "886e56e2460cdfcd91c46423aba1b37b4183cb34f5244a94d913a9e9409e57a4"
         },
         "urlTemplate": "https://github.com/mbvlabs/narsilc/releases/download/{{version}}/narsilc_{{version_no_v}}_{{os}}_{{arch}}.tar.gz"
       },
