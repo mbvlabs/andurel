@@ -2,7 +2,7 @@
 
 # Andurel, Space-grade Go framework for humans and agents
 
-[![Go Version](https://img.shields.io/badge/go-1.26.0%2B-blue.svg)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/go-1.27.1%2B-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/mbvlabs/andurel.svg)](https://pkg.go.dev/github.com/mbvlabs/andurel)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mbvlabs/andurel)](https://goreportcard.com/report/github.com/mbvlabs/andurel)

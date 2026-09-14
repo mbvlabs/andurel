@@ -28,18 +28,38 @@ type AndurelLock struct {
 	DatabaseConfig *DatabaseConfig       `json:"databaseConfig,omitempty"`
 }
 
-// DatabaseConfig records database generation settings.
+const (
+	// NullTypePGType is the default nullable strategy for pgx/v5 (pgtype.*).
+	NullTypePGType = "pgtype.Null"
+	// NullTypePointer emits *T for nullable columns instead of pgtype wrappers.
+	NullTypePointer = "pointer"
+	// DatabaseEnginePostgreSQL is the only supported SQL engine.
+	DatabaseEnginePostgreSQL = "postgresql"
+)
+
+// DatabaseConfig records database engine and generation settings.
 type DatabaseConfig struct {
+	Engine   string `json:"engine"`
 	NullType string `json:"nullType"`
 }
 
 // ScaffoldConfig records the options used to create a project.
 type ScaffoldConfig struct {
-	ProjectName              string `json:"projectName"`
-	Database                 string `json:"database"`
+	ProjectName string `json:"projectName"`
+	// Database is deprecated; engine lives on DatabaseConfig. Kept for reading
+	// older locks before migrateLegacyDatabaseConfig runs.
+	Database                 string `json:"database,omitempty"`
 	Inertia                  string `json:"inertia,omitempty"`
 	JavaScriptPackageManager string `json:"javascriptPackageManager,omitempty"`
 	JavaScriptRuntime        string `json:"javascriptRuntime,omitempty"` // Deprecated: use JavaScriptPackageManager.
+}
+
+// DatabaseEngine returns the configured SQL engine after legacy migration.
+func (l *AndurelLock) DatabaseEngine() string {
+	if l == nil || l.DatabaseConfig == nil {
+		return ""
+	}
+	return l.DatabaseConfig.Engine
 }
 
 // PackageManager returns the configured JavaScript package manager. Locks from
@@ -199,13 +219,18 @@ var defaultToolDownloads = map[string]ToolDownload{
 	},
 }
 
-// NewAndurelLock creates an empty lock file model for a version.
+// NewAndurelLock creates a lock file model for a version with default
+// databaseConfig (postgresql + pgtype.Null).
 func NewAndurelLock(version string) *AndurelLock {
 	return &AndurelLock{
 		SchemaVersion: 1,
 		Version:       version,
 		Extensions:    make(map[string]*Extension),
 		Tools:         make(map[string]*Tool),
+		DatabaseConfig: &DatabaseConfig{
+			Engine:   DatabaseEnginePostgreSQL,
+			NullType: NullTypePGType,
+		},
 	}
 }
 

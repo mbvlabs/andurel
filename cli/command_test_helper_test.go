@@ -84,7 +84,6 @@ func executeConfiguredCLITest(t *testing.T, inertiaAdapter string, args ...strin
 		lock := layout.NewAndurelLock("test")
 		lock.ScaffoldConfig = &layout.ScaffoldConfig{
 			ProjectName: "app",
-			Database:    "postgresql",
 			Inertia:     inertiaAdapter,
 		}
 		if err := lock.WriteLockFile(rootDir); err != nil {

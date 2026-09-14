@@ -802,10 +802,10 @@ file -----------rw-r--r-- andurel.lock
 ```
 {
   "databaseConfig": {
-    "nullType": "sql.Null"
+    "engine": "postgresql",
+    "nullType": "pgtype.Null"
   },
   "scaffoldConfig": {
-    "database": "postgresql",
     "inertia": "vue",
     "javascriptPackageManager": "npm",
     "projectName": "testapp"
@@ -4311,7 +4311,7 @@ file -----------rw-r--r-- go.mod
 ```
 module testapp
 
-go 1.27.0
+go 1.27.1
 
 require (
 	github.com/a-h/templ v0.3.1020

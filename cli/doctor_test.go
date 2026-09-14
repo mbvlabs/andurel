@@ -409,7 +409,6 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "app",
-		Database:    "postgresql",
 		Inertia:     "react",
 	}
 	if err := lock.WriteLockFile(root); err != nil {
@@ -513,7 +512,7 @@ func TestDoctorToolVersionMismatchesAndUnknowns(t *testing.T) {
 
 func writeGoModule(t *testing.T, root string) {
 	t.Helper()
-	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.26.0\n")
+	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 }
 
 func writeExecutable(t *testing.T, root, rel, content string) {

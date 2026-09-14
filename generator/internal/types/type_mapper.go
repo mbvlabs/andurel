@@ -18,7 +18,7 @@ type TypeOverride struct {
 // TypeMapper represents type mapper.
 type TypeMapper struct {
 	DatabaseType string
-	NullType     string // "pointer" or "sql.Null"
+	NullType     string // "pointer" or "pgtype.Null"
 	Overrides    []TypeOverride
 }
 
@@ -26,7 +26,7 @@ type TypeMapper struct {
 func NewTypeMapper(databaseType string) *TypeMapper {
 	return &TypeMapper{
 		DatabaseType: databaseType,
-		NullType:     "sql.Null",
+		NullType:     "pgtype.Null",
 		Overrides:    make([]TypeOverride, 0),
 	}
 }
@@ -71,6 +71,9 @@ func (tm *TypeMapper) wrapNullable(goType string, nullable bool) string {
 	}
 
 	switch tm.NullType {
+	case "pgtype.Null":
+		// Overrides fall through to pointers; postgresType emits pgtype for
+		// nullable columns on the default mapping path.
 	case "sql.Null":
 		if nt, ok := sqlNullTypeMap[goType]; ok {
 			return nt

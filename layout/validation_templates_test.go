@@ -22,7 +22,7 @@ func TestGeneratedValidationBehavior(t *testing.T) {
 	writeValidationFixtureFile(
 		t,
 		filepath.Join(projectDir, "go.mod"),
-		"module validationfixture\n\ngo 1.26.0\n",
+		"module validationfixture\n\ngo 1.27.1\n",
 	)
 	writeValidationFixtureFile(
 		t,

@@ -6,6 +6,7 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ### Changed
 
+- Minimum supported Go version is now 1.27.1.
 - `Postgres` wraps a `pgx/v5` pool. `Connection` and `Transaction` implement pgx DBTX so narsilc clients take them directly (`queries.New(db)`, `queries.New(tx)`). River uses `riverpgxv5`. Goose still opens a short-lived `database/sql` adapter inside `RunMigrations`.
 - `BeginTransaction` no longer takes `*sql.TxOptions`. `Commit`/`Rollback` take a context. Queue `InsertTx` helpers take `Transaction`.
 - `WithMaxOpenConnections` maps to pgxpool `MaxConns`. `WithMaxIdleConnections` is retained for compatibility and is not applied to the pool.

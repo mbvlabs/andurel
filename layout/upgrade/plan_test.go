@@ -28,7 +28,7 @@ func TestAddVerifiedPackageDependenciesPinsRequiredModules(t *testing.T) {
 	root := t.TempDir()
 	mustWriteTestFile(t, root, "go.mod", []byte(`module testapp
 
-go 1.26.0
+go 1.27.1
 
 require (
 	github.com/mbvlabs/andurel/pkg/email v0.9.0
@@ -68,7 +68,7 @@ func TestAddVerifiedPackageDependenciesSkipsNonInertiaProjects(t *testing.T) {
 	root := t.TempDir()
 	mustWriteTestFile(t, root, "go.mod", []byte(`module testapp
 
-go 1.26.0
+go 1.27.1
 
 require github.com/mbvlabs/andurel/pkg/storage v0.6.0
 `))
@@ -95,7 +95,7 @@ func TestAddVerifiedPackageDependenciesNoopsWhenCurrent(t *testing.T) {
 
 	root := t.TempDir()
 	mustWriteTestFile(t, root, "go.mod", []byte(
-		"module testapp\n\ngo 1.26.0\n\nrequire github.com/mbvlabs/andurel/pkg/storage "+
+		"module testapp\n\ngo 1.27.1\n\nrequire github.com/mbvlabs/andurel/pkg/storage "+
 			versions.Storage+"\n",
 	))
 

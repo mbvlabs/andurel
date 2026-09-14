@@ -441,7 +441,7 @@ func findMatchingParen(src string, openIdx int) int {
 }
 
 // readNullType reads the nullable type strategy from andurel.lock.
-// Defaults to "sql.Null" when not configured.
+// Defaults to pgtype.Null when not configured.
 func (m *ModelManager) readNullType(rootDir string) string {
 	if lock, err := layout.ReadLockFile(
 		rootDir,
@@ -449,5 +449,5 @@ func (m *ModelManager) readNullType(rootDir string) string {
 		lock.DatabaseConfig.NullType != "" {
 		return lock.DatabaseConfig.NullType
 	}
-	return "sql.Null"
+	return layout.NullTypePGType
 }

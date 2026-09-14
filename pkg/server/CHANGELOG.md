@@ -4,6 +4,10 @@ All notable changes to the standalone Andurel server module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Minimum supported Go version is now 1.27.1.
+
 ## 0.3.2 - 2026-09-09
 
 ### Changed

@@ -157,7 +157,7 @@ func setupGenerateFileTestProject(t *testing.T) string {
 
 	if err := os.WriteFile(
 		filepath.Join(rootDir, "go.mod"),
-		[]byte("module example.com/app\n\ngo 1.26\n"),
+		[]byte("module example.com/app\n\ngo 1.27.1\n"),
 		0o644,
 	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
@@ -187,8 +187,11 @@ func writeGenerateFileTestLock(t *testing.T, rootDir string) {
   "version": "test",
   "tools": {},
   "scaffoldConfig": {
-    "projectName": "app",
-    "database": "postgresql"
+    "projectName": "app"
+  },
+  "databaseConfig": {
+    "engine": "postgresql",
+    "nullType": "pgtype.Null"
   }
 }
 `

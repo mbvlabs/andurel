@@ -169,7 +169,7 @@ func setupModelGoldenProject(t *testing.T, migrationsFixture string) *ModelManag
 
 	if err := os.WriteFile(
 		filepath.Join(projectDir, "go.mod"),
-		[]byte("module github.com/example/shop\n\ngo 1.26\n"),
+		[]byte("module github.com/example/shop\n\ngo 1.27.1\n"),
 		0o644,
 	); err != nil {
 		t.Fatalf("failed to write go.mod: %v", err)

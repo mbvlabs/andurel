@@ -408,7 +408,6 @@ func TestSyncToolsToFrameworkVersion_PreservesNonFrameworkTools(t *testing.T) {
 			},
 			ScaffoldConfig: &layout.ScaffoldConfig{
 				ProjectName: "myapp",
-				Database:    "postgres",
 			},
 		},
 	}
@@ -448,7 +447,6 @@ func TestSyncToolsToFrameworkVersion_PrefersHigherExistingVersion(t *testing.T) 
 			},
 			ScaffoldConfig: &layout.ScaffoldConfig{
 				ProjectName: "myapp",
-				Database:    "postgres",
 			},
 		},
 	}
@@ -478,7 +476,6 @@ func TestSyncToolsToFrameworkVersion_InitializesMissingToolsMap(t *testing.T) {
 			Version: "v0.1.0",
 			ScaffoldConfig: &layout.ScaffoldConfig{
 				ProjectName: "myapp",
-				Database:    "postgres",
 			},
 		},
 	}
@@ -839,7 +836,10 @@ func TestExecuteDryRun_ReportsRenderedFilesAndTools(t *testing.T) {
 		},
 		ScaffoldConfig: &layout.ScaffoldConfig{
 			ProjectName: "myapp",
-			Database:    "postgres",
+		},
+		DatabaseConfig: &layout.DatabaseConfig{
+			Engine:   layout.DatabaseEnginePostgreSQL,
+			NullType: layout.NullTypePGType,
 		},
 	}
 	if err := lock.WriteLockFile(projectRoot); err != nil {
@@ -891,6 +891,10 @@ func TestExecuteDryRun_ReturnsScaffoldConfigError(t *testing.T) {
 		SchemaVersion: 1,
 		Version:       "v0.1.0",
 		Tools:         map[string]*layout.Tool{},
+		DatabaseConfig: &layout.DatabaseConfig{
+			Engine:   layout.DatabaseEnginePostgreSQL,
+			NullType: layout.NullTypePGType,
+		},
 	}
 	if err := lock.WriteLockFile(projectRoot); err != nil {
 		t.Fatalf("failed to write lock file: %v", err)

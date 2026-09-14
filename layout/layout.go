@@ -109,11 +109,10 @@ func Scaffold(
 	fmt.Print("Generating andurel.lock file...\n")
 	scaffoldConfig := &ScaffoldConfig{
 		ProjectName:              projectName,
-		Database:                 database,
 		Inertia:                  inertia,
 		JavaScriptPackageManager: javascriptRuntime,
 	}
-	if err := generateLockFile(targetDir, version, scaffoldConfig, extensionNames); err != nil {
+	if err := generateLockFile(targetDir, version, scaffoldConfig, database, extensionNames); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
@@ -1028,7 +1027,7 @@ func topologicalSort(extSet map[string]struct{}) ([]string, error) {
 	return result, nil
 }
 
-const goVersion = "1.27.0"
+const goVersion = "1.27.1"
 
 // GoTool represents go tool.
 type GoTool struct {
@@ -1199,12 +1198,14 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 func generateLockFile(
 	targetDir, version string,
 	config *ScaffoldConfig,
+	databaseEngine string,
 	extensions []string,
 ) error {
 	lock := NewAndurelLock(version)
 	lock.ScaffoldConfig = config
 	lock.DatabaseConfig = &DatabaseConfig{
-		NullType: "sql.Null",
+		Engine:   databaseEngine,
+		NullType: NullTypePGType,
 	}
 
 	for _, tool := range DefaultGoTools {

@@ -581,12 +581,11 @@ func TestGenerateControllerMapsModelName(t *testing.T) {
 func TestGenerateControllerInertiaRefreshesRoutesTSForCustomActions(t *testing.T) {
 	resetCLITestSeams(t)
 	rootDir := t.TempDir()
-	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
+	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 
 	lock := layout.NewAndurelLock("test")
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "app",
-		Database:    "postgresql",
 		Inertia:     "react",
 	}
 	if err := lock.WriteLockFile(rootDir); err != nil {
@@ -755,7 +754,7 @@ func TestGenerateFactoryStructuredCheckReturnsOneFailureEnvelopeWithResults(t *t
 func TestGenerateControllerCustomActionCreatesRouteWithoutModel(t *testing.T) {
 	resetCLITestSeams(t)
 	rootDir := t.TempDir()
-	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
+	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 	writeCLITestFile(t, rootDir, "controllers/controller.go", `package controllers
 
 import (
@@ -821,7 +820,7 @@ var Module = fx.Module(
 func TestGenerateControllerNamespacedCustomActionCreatesNamespacedArtifacts(t *testing.T) {
 	resetCLITestSeams(t)
 	rootDir := t.TempDir()
-	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
+	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 	writeCLITestFile(t, rootDir, "controllers/controller.go", `package controllers
 
 import (
@@ -988,12 +987,11 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 		t.Run(tt.name, func(t *testing.T) {
 			resetCLITestSeams(t)
 			rootDir := t.TempDir()
-			writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
+			writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 
 			lock := layout.NewAndurelLock("test")
 			lock.ScaffoldConfig = &layout.ScaffoldConfig{
 				ProjectName: "app",
-				Database:    "postgresql",
 				Inertia:     "vue",
 			}
 			if err := lock.WriteLockFile(rootDir); err != nil {
@@ -1057,7 +1055,7 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 func TestGenerateControllerCustomInertiaActionPreservesKeyedConstructor(t *testing.T) {
 	resetCLITestSeams(t)
 	rootDir := t.TempDir()
-	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
+	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 	writeCLITestFile(t, rootDir, "controllers/dashboards.go", `package controllers
 
 type Dashboards struct {
@@ -1072,7 +1070,6 @@ func NewDashboards(enabled bool) Dashboards {
 	lock := layout.NewAndurelLock("test")
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "app",
-		Database:    "postgresql",
 		Inertia:     "vue",
 	}
 	if err := lock.WriteLockFile(rootDir); err != nil {
@@ -1295,7 +1292,7 @@ func TestGenerateControllerSingleCRUDActionReactGeneratesInertiaController(t *te
 func setupProjectInquiryCLITestProject(t *testing.T, rootDir string) {
 	t.Helper()
 
-	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
+	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 	writeCLITestFile(
 		t,
 		rootDir,
@@ -1320,10 +1317,9 @@ DROP TABLE project_inquiries;
 	}
 
 	lock := layout.NewAndurelLock("test")
-	lock.DatabaseConfig = &layout.DatabaseConfig{NullType: "sql.Null"}
+	lock.DatabaseConfig = &layout.DatabaseConfig{Engine: layout.DatabaseEnginePostgreSQL, NullType: layout.NullTypePGType}
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "app",
-		Database:    "postgresql",
 		Inertia:     "vue",
 	}
 	if err := lock.WriteLockFile(rootDir); err != nil {
@@ -1478,7 +1474,7 @@ var Module = fx.Module(
 func TestGenerateControllerRejectsModelNameForCustomOnly(t *testing.T) {
 	resetCLITestSeams(t)
 	rootDir := t.TempDir()
-	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.26\n")
+	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 
 	originalWD, err := os.Getwd()
 	if err != nil {

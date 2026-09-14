@@ -229,7 +229,6 @@ func TestSessionRecoveryManualActionDoesNotPlanRouterMutations(t *testing.T) {
 func TestVersionedInertiaUpgradeEmbedsExistingRoot(t *testing.T) {
 	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
 		ProjectName: "testapp",
-		Database:    "postgresql",
 		Inertia:     "react",
 	})
 	legacyRoot := []byte("<!doctype html>\n<title>custom root</title>\n{{ .inertia }}\n")
@@ -297,7 +296,6 @@ func TestVersionedInertiaUpgradeEmbedsExistingRoot(t *testing.T) {
 func TestVersionedInertiaUpgradeKeepsEmbeddedRoot(t *testing.T) {
 	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
 		ProjectName: "testapp",
-		Database:    "postgresql",
 		Inertia:     "react",
 	})
 	embeddedRoot := []byte("already embedded\n")
@@ -331,12 +329,11 @@ func TestVersionedInertiaUpgradeKeepsEmbeddedRoot(t *testing.T) {
 func TestUpgradePinsVerifiedPackageVersions(t *testing.T) {
 	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
 		ProjectName: "testapp",
-		Database:    "postgresql",
 		Inertia:     "react",
 	})
 	mustWriteTestFile(t, root, "go.mod", []byte(`module testapp
 
-go 1.26.0
+go 1.27.1
 
 require github.com/mbvlabs/andurel/pkg/storage v0.6.0
 `))
@@ -365,7 +362,6 @@ require github.com/mbvlabs/andurel/pkg/storage v0.6.0
 func TestVersionedInertiaUpgradeRejectsInvalidEmbeddedPath(t *testing.T) {
 	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
 		ProjectName: "testapp",
-		Database:    "postgresql",
 		Inertia:     "react",
 	})
 	embeddedDir := filepath.Join(root, "assets", "inertia")
@@ -432,7 +428,6 @@ func TestVersionedInertiaUpgradeRejectsInvalidMigrationState(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
 				ProjectName: "testapp",
-				Database:    "postgresql",
 				Inertia:     "react",
 			})
 			test.setup(t, root)
@@ -578,7 +573,6 @@ func newUpgradeFixtureProject(t *testing.T) string {
 	t.Helper()
 	return newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
 		ProjectName: "testapp",
-		Database:    "postgresql",
 		Inertia:     "vue",
 	})
 }
@@ -596,7 +590,7 @@ func newUpgradeFixtureProjectWithConfig(t *testing.T, config layout.ScaffoldConf
 		Version:        fixtureSourceVersion,
 		Tools:          map[string]*layout.Tool{},
 		ScaffoldConfig: &config,
-		DatabaseConfig: &layout.DatabaseConfig{NullType: "sql.Null"},
+		DatabaseConfig: &layout.DatabaseConfig{Engine: layout.DatabaseEnginePostgreSQL, NullType: layout.NullTypePGType},
 	}
 	lockContent, err := json.MarshalIndent(lock, "", "  ")
 	if err != nil {

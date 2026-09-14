@@ -59,7 +59,7 @@ testapp.db
 
 file -----------rw-r--r-- Dockerfile
 ```
-ARG GO_VERSION=1.27.0
+ARG GO_VERSION=1.27.1
 FROM debian:bookworm-slim AS css-builder
 
 WORKDIR /usr/src/app
@@ -1141,7 +1141,8 @@ file -----------rw-r--r-- andurel.lock
 ```
 {
   "databaseConfig": {
-    "nullType": "sql.Null"
+    "engine": "postgresql",
+    "nullType": "pgtype.Null"
   },
   "extensions": {
     "aws-ses": {
@@ -1152,7 +1153,6 @@ file -----------rw-r--r-- andurel.lock
     }
   },
   "scaffoldConfig": {
-    "database": "postgresql",
     "projectName": "testapp"
   },
   "schemaVersion": 1,
@@ -4793,7 +4793,7 @@ file -----------rw-r--r-- go.mod
 ```
 module testapp
 
-go 1.27.0
+go 1.27.1
 
 require (
 	github.com/a-h/templ v0.3.1020

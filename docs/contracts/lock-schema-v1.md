@@ -15,7 +15,7 @@ Readers must follow this order:
 5. Decode the complete schema 1 value.
 6. Validate all required fields before using or writing any lock data.
 
-A reader must not partially decode a future schema as schema 1. Reading and validation do not mutate the lock file. In-memory decoding may normalize the legacy `scaffoldConfig.javascriptRuntime` package-manager value into `javascriptPackageManager`. New writers emit only `javascriptPackageManager`.
+A reader must not partially decode a future schema as schema 1. Reading and validation do not mutate the lock file. In-memory decoding may normalize the legacy `scaffoldConfig.javascriptRuntime` package-manager value into `javascriptPackageManager`, move legacy `scaffoldConfig.database` onto `databaseConfig.engine`, and rewrite deprecated `nullType` values (`sql.Null`, `bun.Null`) to `pgtype.Null`. New writers emit only `javascriptPackageManager`, `databaseConfig.engine`, and `pgtype.Null` or `pointer` for `nullType`.
 
 ## Schema 1 validation
 
@@ -31,6 +31,9 @@ A reader must not partially decode a future schema as schema 1. Reading and vali
 - `scaffoldConfig.javascriptPackageManager` records `npm`, `pnpm`, `bun`, or `yarn`.
 - Legacy `scaffoldConfig.javascriptRuntime` is interpreted only as a package manager and never as an SSR executable.
 - The SSR Node executable is not recorded in the lock; `cmd/ssr` reads it from app config (`INERTIA_SSR_RUNTIME`).
+- `databaseConfig.engine` is required and must be `postgresql` (or legacy alias `postgres`).
+- `databaseConfig.nullType` is required and must be `pgtype.Null` or `pointer`.
+- Legacy `scaffoldConfig.database` is accepted only for migration into `databaseConfig.engine`.
 
 ## Compatible schema 1 changes
 

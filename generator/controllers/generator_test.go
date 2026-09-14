@@ -382,8 +382,8 @@ func TestBuildField_SystemFields(t *testing.T) {
 func TestSetNullType(t *testing.T) {
 	gen := NewGenerator("postgresql")
 
-	if gen.typeMapper.NullType != "sql.Null" {
-		t.Errorf("default NullType = %q, want %q", gen.typeMapper.NullType, "sql.Null")
+	if gen.typeMapper.NullType != "pgtype.Null" {
+		t.Errorf("default NullType = %q, want %q", gen.typeMapper.NullType, "pgtype.Null")
 	}
 
 	gen.SetNullType("pointer")

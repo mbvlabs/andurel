@@ -222,7 +222,6 @@ func TestConfiguredInertiaAdapterRejectsMissingAndInvalidConfiguration(t *testin
 
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "app",
-		Database:    "postgresql",
 		Inertia:     "angular",
 	}
 	if err := lock.WriteLockFile(root); err != nil {
@@ -329,8 +328,11 @@ func setupRoutesJSCommandProject(t *testing.T, inertia string) string {
 		Tools:         map[string]*layout.Tool{},
 		ScaffoldConfig: &layout.ScaffoldConfig{
 			ProjectName: "app",
-			Database:    "postgres",
 			Inertia:     inertia,
+		},
+		DatabaseConfig: &layout.DatabaseConfig{
+			Engine:   layout.DatabaseEnginePostgreSQL,
+			NullType: layout.NullTypePGType,
 		},
 	}
 	lockData, err := json.MarshalIndent(lock, "", "  ")

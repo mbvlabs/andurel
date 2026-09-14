@@ -50,6 +50,7 @@ func decodeAndValidateLock(data []byte) (*AndurelLock, error) {
 		return nil, err
 	}
 	migrateLegacyScaffoldConfig(lock.ScaffoldConfig)
+	migrateLegacyDatabaseConfig(&lock)
 	if err := validateSchema1Lock(&lock); err != nil {
 		return nil, err
 	}
@@ -89,16 +90,29 @@ func validateSchema1Lock(lock *AndurelLock) error {
 		if strings.TrimSpace(lock.ScaffoldConfig.ProjectName) == "" {
 			return fmt.Errorf("scaffoldConfig.projectName is required")
 		}
-		if strings.TrimSpace(lock.ScaffoldConfig.Database) == "" {
-			return fmt.Errorf("scaffoldConfig.database is required")
-		}
 		if manager := lock.ScaffoldConfig.PackageManager(); manager != "" &&
 			!IsSupportedJavaScriptRuntime(manager) {
 			return fmt.Errorf("scaffoldConfig.javascriptPackageManager is invalid")
 		}
 	}
-	if lock.DatabaseConfig != nil && strings.TrimSpace(lock.DatabaseConfig.NullType) == "" {
+	if lock.DatabaseConfig == nil {
+		return fmt.Errorf("databaseConfig is required")
+	}
+	if strings.TrimSpace(lock.DatabaseConfig.Engine) == "" {
+		return fmt.Errorf("databaseConfig.engine is required")
+	}
+	switch lock.DatabaseConfig.Engine {
+	case DatabaseEnginePostgreSQL, "postgres":
+	default:
+		return fmt.Errorf("databaseConfig.engine %q is not supported", lock.DatabaseConfig.Engine)
+	}
+	if strings.TrimSpace(lock.DatabaseConfig.NullType) == "" {
 		return fmt.Errorf("databaseConfig.nullType is required")
+	}
+	switch lock.DatabaseConfig.NullType {
+	case NullTypePGType, NullTypePointer:
+	default:
+		return fmt.Errorf("databaseConfig.nullType %q is not supported", lock.DatabaseConfig.NullType)
 	}
 	return nil
 }
@@ -108,6 +122,29 @@ func migrateLegacyScaffoldConfig(config *ScaffoldConfig) {
 		return
 	}
 	config.JavaScriptPackageManager = config.JavaScriptRuntime
+}
+
+// migrateLegacyDatabaseConfig moves scaffoldConfig.database onto
+// databaseConfig.engine and rewrites deprecated nullType values.
+func migrateLegacyDatabaseConfig(lock *AndurelLock) {
+	if lock == nil {
+		return
+	}
+	if lock.DatabaseConfig == nil {
+		lock.DatabaseConfig = &DatabaseConfig{}
+	}
+	if strings.TrimSpace(lock.DatabaseConfig.Engine) == "" &&
+		lock.ScaffoldConfig != nil &&
+		strings.TrimSpace(lock.ScaffoldConfig.Database) != "" {
+		lock.DatabaseConfig.Engine = lock.ScaffoldConfig.Database
+	}
+	switch lock.DatabaseConfig.NullType {
+	case "sql.Null", "bun.Null":
+		lock.DatabaseConfig.NullType = NullTypePGType
+	}
+	if lock.ScaffoldConfig != nil {
+		lock.ScaffoldConfig.Database = ""
+	}
 }
 
 func validateSchema1Tool(name string, tool *Tool) error {
