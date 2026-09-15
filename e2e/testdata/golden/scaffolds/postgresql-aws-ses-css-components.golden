@@ -67,8 +67,6 @@ testapp/
 │   ├── routes/          # Route definitions
 │   ├── cookies/         # Session helpers
 │   └── middleware/      # Custom middleware
-├── pkg/
-│ 	└──telemetry/        # Observability (logs, traces, metrics)
 ├── views/               # Templ templates
 ├── .env.example         # Example environment configuration
 └── go.mod               # Go dependencies
@@ -443,6 +441,7 @@ CSRF_TRUSTED_ORIGINS=
 # Telemetry (optional)
 TELEMETRY_SERVICE_NAME=testapp
 TELEMETRY_SERVICE_VERSION=1.0.0
+LOG_LEVEL=INFO
 OTLP_LOGS_ENDPOINT=
 OTLP_METRICS_ENDPOINT=
 OTLP_TRACES_ENDPOINT=
@@ -1647,7 +1646,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -1657,12 +1655,12 @@ import (
 	"testapp/models"
 	"testapp/router"
 	"testapp/services"
-	"testapp/telemetry"
 	"time"
 
 	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/server"
 	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"go.uber.org/fx"
 )
 
@@ -1680,13 +1678,13 @@ func main() {
 		fx.Provide(
 			func() context.Context { return ctx },
 			newEmailSenders,
+			newTelemetry,
 		),
 
 		config.Module,
 		databaseModule,
 		queueInsertModule,
 		models.Module,
-		telemetry.Module,
 		services.Module,
 		controllers.Module,
 		router.Module,
@@ -1726,7 +1724,9 @@ func startServer(
 	r *router.Router,
 	appCfg config.App,
 	httpCfg config.HTTP,
+	tel *telemetry.Telemetry,
 ) {
+	appCtx = tel.Context(appCtx)
 	srv := server.New(
 		appCtx,
 		httpCfg.Host,
@@ -1744,7 +1744,7 @@ func startServer(
 
 	lc.Append(fx.Hook{
 		OnStart: func(_ context.Context) error {
-			slog.InfoContext(
+			telemetry.Info(
 				appCtx,
 				"starting server",
 				"host",
@@ -1758,7 +1758,7 @@ func startServer(
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			slog.InfoContext(ctx, "initiating graceful shutdown")
+			telemetry.Info(ctx, "initiating graceful shutdown")
 			return stopAndWait(ctx, func(ctx context.Context) error {
 				var shutdownErr error
 				for _, shutdowner := range srv.Shutdowners {
@@ -1780,8 +1780,16 @@ func newDatabase(
 	lifecycle fx.Lifecycle,
 	ctx context.Context,
 	cfg storage.Config,
+	tel *telemetry.Telemetry,
 ) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, cfg)
+	opts := []storage.Option{}
+	if tel != nil {
+		opts = append(opts, storage.WithOpenTelemetry(storage.TelemetryConfig{
+			TracerProvider: tel.TracerProvider(),
+			MeterProvider:  tel.MeterProvider(),
+		}))
+	}
+	db, err := storage.NewPostgres(ctx, cfg, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1795,6 +1803,42 @@ func newQueueInsert(
 	cfg config.QueueInsert,
 ) (*storage.QueueInsert, error) {
 	return storage.NewQueueInsert(connection, cfg.Config)
+}
+
+func newTelemetry(
+	lifecycle fx.Lifecycle,
+	ctx context.Context,
+	appCfg config.App,
+	cfg config.Telemetry,
+) (*telemetry.Telemetry, error) {
+	opts := []telemetry.Option{
+		telemetry.WithTraceSampleRate(cfg.TraceSampleRate),
+		telemetry.WithBatchConfig(
+			cfg.BatchSize,
+			time.Duration(cfg.BatchTimeoutMs)*time.Millisecond,
+			2048,
+		),
+		telemetry.WithLogLevel(cfg.LogLevel),
+	}
+	if !appCfg.IsProduction() {
+		opts = append(opts, telemetry.WithConsole())
+	}
+	headers := telemetry.ParseHeaders(cfg.OtlpHeaders)
+	if cfg.OtlpLogsEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPLogs(cfg.OtlpLogsEndpoint, headers))
+	}
+	if cfg.OtlpTracesEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPTraces(cfg.OtlpTracesEndpoint, headers))
+	}
+	if cfg.OtlpMetricsEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPMetrics(cfg.OtlpMetricsEndpoint, headers))
+	}
+	tel, err := telemetry.New(ctx, cfg.ServiceName, cfg.ServiceVersion, opts...)
+	if err != nil {
+		return nil, err
+	}
+	lifecycle.Append(fx.Hook{OnStop: tel.Shutdown})
+	return tel, nil
 }
 
 func newEmailSenders(
@@ -1830,7 +1874,7 @@ func startInBackground(
 	go func() {
 		defer close(done)
 		if err := start(ctx); err != nil {
-			slog.Error(name+" error", "error", err)
+			telemetry.Error(ctx, name+" error", "error", err)
 		}
 	}()
 	return done
@@ -1918,10 +1962,10 @@ import (
 	mailclients "testapp/clients/email"
 	"testapp/config"
 	"testapp/queue"
-	"testapp/telemetry"
 
 	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/riverqueue/river"
 	"go.uber.org/fx"
 )
@@ -1939,11 +1983,11 @@ func main() {
 		fx.Provide(
 			func() context.Context { return ctx },
 			newEmailSenders,
+			newTelemetry,
 		),
 
 		config.Module,
 		databaseModule,
-		telemetry.Module,
 		queue.Module,
 		queueProcessorModule,
 	)
@@ -1972,7 +2016,7 @@ var databaseModule = fx.Module(
 var queueProcessorModule = fx.Module(
 	"queue-processor",
 	fx.Provide(
-		func(_ *telemetry.Telemetry) *slog.Logger { return slog.Default() },
+		func(tel *telemetry.Telemetry) *slog.Logger { return tel.Logger() },
 		newQueueProcessor,
 	),
 	fx.Invoke(queueProcessorLifecycle),
@@ -1982,8 +2026,16 @@ func newDatabase(
 	lifecycle fx.Lifecycle,
 	ctx context.Context,
 	cfg storage.Config,
+	tel *telemetry.Telemetry,
 ) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, cfg)
+	opts := []storage.Option{}
+	if tel != nil {
+		opts = append(opts, storage.WithOpenTelemetry(storage.TelemetryConfig{
+			TracerProvider: tel.TracerProvider(),
+			MeterProvider:  tel.MeterProvider(),
+		}))
+	}
+	db, err := storage.NewPostgres(ctx, cfg, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2010,6 +2062,42 @@ func newQueueProcessor(params queueProcessorParams) (*storage.QueueProcessor, er
 		storage.WithRiverPeriodicJobs(params.PeriodicJobs...),
 		storage.WithRiverLogger(params.Logger),
 	)
+}
+
+func newTelemetry(
+	lifecycle fx.Lifecycle,
+	ctx context.Context,
+	appCfg config.App,
+	cfg config.Telemetry,
+) (*telemetry.Telemetry, error) {
+	opts := []telemetry.Option{
+		telemetry.WithTraceSampleRate(cfg.TraceSampleRate),
+		telemetry.WithBatchConfig(
+			cfg.BatchSize,
+			time.Duration(cfg.BatchTimeoutMs)*time.Millisecond,
+			2048,
+		),
+		telemetry.WithLogLevel(cfg.LogLevel),
+	}
+	if !appCfg.IsProduction() {
+		opts = append(opts, telemetry.WithConsole())
+	}
+	headers := telemetry.ParseHeaders(cfg.OtlpHeaders)
+	if cfg.OtlpLogsEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPLogs(cfg.OtlpLogsEndpoint, headers))
+	}
+	if cfg.OtlpTracesEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPTraces(cfg.OtlpTracesEndpoint, headers))
+	}
+	if cfg.OtlpMetricsEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPMetrics(cfg.OtlpMetricsEndpoint, headers))
+	}
+	tel, err := telemetry.New(ctx, cfg.ServiceName, cfg.ServiceVersion, opts...)
+	if err != nil {
+		return nil, err
+	}
+	lifecycle.Append(fx.Hook{OnStop: tel.Shutdown})
+	return tel, nil
 }
 
 func newEmailSenders(
@@ -2040,7 +2128,9 @@ func queueProcessorLifecycle(
 	lifecycle fx.Lifecycle,
 	appCtx context.Context,
 	processor *storage.QueueProcessor,
+	tel *telemetry.Telemetry,
 ) {
+	appCtx = tel.Context(appCtx)
 	lifecycle.Append(fx.Hook{
 		OnStart: func(context.Context) error {
 			return processor.Start(appCtx)
@@ -2852,6 +2942,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 
 	"github.com/gosimple/slug"
@@ -2863,6 +2954,7 @@ const (
 	DefaultTraceSampleRate         = 1.0
 	DefaultTelemetryBatchSize      = 512
 	DefaultTelemetryBatchTimeoutMs = 5000
+	DefaultLogLevel                = "INFO"
 )
 
 type Telemetry struct {
@@ -2875,6 +2967,7 @@ type Telemetry struct {
 	TraceSampleRate     float64
 	BatchSize           int
 	BatchTimeoutMs      int
+	LogLevel            slog.Level
 }
 
 func NewTelemetry(app App) (Telemetry, error) {
@@ -2889,9 +2982,14 @@ func NewTelemetry(app App) (Telemetry, error) {
 		TraceSampleRate:     env.Float64("TRACE_SAMPLE_RATE", DefaultTraceSampleRate),
 		BatchSize:           env.Int("TELEMETRY_BATCH_SIZE", DefaultTelemetryBatchSize),
 		BatchTimeoutMs:      env.Int("TELEMETRY_BATCH_TIMEOUT_MS", DefaultTelemetryBatchTimeoutMs),
+		LogLevel:            slog.LevelInfo,
+	}
+	var logLevelErr error
+	if err := cfg.LogLevel.UnmarshalText([]byte(env.String("LOG_LEVEL", DefaultLogLevel))); err != nil {
+		logLevelErr = fmt.Errorf("LOG_LEVEL: %w", err)
 	}
 
-	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
+	if err := errors.Join(env.Err(), logLevelErr, cfg.validate()); err != nil {
 		return Telemetry{}, fmt.Errorf("config: telemetry: %w", err)
 	}
 
@@ -2979,7 +3077,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	"testapp/assets"
@@ -2989,6 +3086,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/routing"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 const threeMonthsCache = "7776000"
@@ -3098,14 +3196,17 @@ func createRobotsTxt(baseURL string) string {
 }
 
 func (a Assets) Robots(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "assets.robots")
+	defer span.End()
+
 	cacheKey := "assets:robots"
 
 	robotsTxt, err := a.cache.Get(cacheKey, func() (string, error) {
 		return createRobotsTxt(a.appCfg.BaseURL), nil
 	})
 	if err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to get robots.txt from cache",
 			"error", err,
 		)
@@ -3116,14 +3217,17 @@ func (a Assets) Robots(etx *echo.Context) error {
 }
 
 func (a Assets) Sitemap(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "assets.sitemap")
+	defer span.End()
+
 	cacheKey := "assets:sitemap"
 
 	sitemap, err := a.cache.Get(cacheKey, func() (string, error) {
 		return createSitemap(a.appCfg.BaseURL, []routing.Route{})
 	})
 	if err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to get sitemap from cache",
 			"error", err,
 		)
@@ -3309,7 +3413,6 @@ package controllers
 
 import (
 	"errors"
-	"log/slog"
 	"net/http"
 
 	"testapp/router"
@@ -3319,6 +3422,7 @@ import (
 	"testapp/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"github.com/labstack/echo/v5"
@@ -3364,13 +3468,16 @@ func (c Confirmations) New(etx *echo.Context) error {
 }
 
 func (c Confirmations) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "confirmations.create")
+	defer span.End()
+
 	var payload struct {
 		Code string `json:"code"`
 	}
 
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse verification form payload",
 			"error",
 			err,
@@ -3379,7 +3486,7 @@ func (c Confirmations) Create(etx *echo.Context) error {
 	}
 
 	user, err := c.identity.VerifyEmail(
-		etx.Request().Context(),
+		ctx,
 		services.VerifyEmailData{
 			Code: payload.Code,
 		},
@@ -3392,8 +3499,8 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			)
 		}
 
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to verify email",
 			"error",
 			err,
@@ -3417,8 +3524,8 @@ func (c Confirmations) Create(etx *echo.Context) error {
 	}
 
 	if err := c.session.CreateAppSession(etx, user); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to create session",
 			"error",
 			err,
@@ -3734,7 +3841,6 @@ package controllers
 
 import (
 	"errors"
-	"log/slog"
 	"net/http"
 
 	"testapp/router"
@@ -3744,6 +3850,7 @@ import (
 	"testapp/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"github.com/labstack/echo/v5"
@@ -3809,13 +3916,16 @@ func (rp ResetPasswords) New(etx *echo.Context) error {
 }
 
 func (rp ResetPasswords) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "reset_passwords.create")
+	defer span.End()
+
 	var payload struct {
 		Email string `json:"email"`
 	}
 
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse password reset request payload",
 			"error",
 			err,
@@ -3825,7 +3935,7 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 	}
 
 	if err := rp.identity.RequestResetPassword(
-		etx.Request().Context(),
+		ctx,
 		services.RequestResetPasswordData{
 			Email: payload.Email,
 		},
@@ -3837,8 +3947,8 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 			)
 		}
 
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to request password reset",
 			"error",
 			err,
@@ -3885,6 +3995,9 @@ func (rp ResetPasswords) Edit(etx *echo.Context) error {
 }
 
 func (rp ResetPasswords) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "reset_passwords.update")
+	defer span.End()
+
 	var payload struct {
 		Token           string `json:"resetPasswordToken"`
 		Password        string `json:"password"`
@@ -3892,8 +4005,8 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 	}
 
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse password reset payload",
 			"error",
 			err,
@@ -3902,7 +4015,7 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 	}
 
 	if err := rp.identity.ResetPassword(
-		etx.Request().Context(),
+		ctx,
 		services.ResetPasswordData{
 			Token:           payload.Token,
 			Password:        payload.Password,
@@ -3916,8 +4029,8 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 			)
 		}
 
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to reset password",
 			"error",
 			err,
@@ -3962,7 +4075,6 @@ package controllers
 
 import (
 	"errors"
-	"log/slog"
 	"net/http"
 
 	"testapp/router"
@@ -3973,6 +4085,7 @@ import (
 	"testapp/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"github.com/labstack/echo/v5"
@@ -4031,14 +4144,17 @@ func (s Sessions) New(etx *echo.Context) error {
 }
 
 func (s Sessions) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "sessions.create")
+	defer span.End()
+
 	var payload struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse login form payload",
 			"error",
 			err,
@@ -4047,7 +4163,7 @@ func (s Sessions) Create(etx *echo.Context) error {
 	}
 
 	user, err := s.identity.AuthenticateUser(
-		etx.Request().Context(),
+		ctx,
 		services.LoginData{
 			Email:    payload.Email,
 			Password: payload.Password,
@@ -4058,8 +4174,8 @@ func (s Sessions) Create(etx *echo.Context) error {
 			return hypermedia.RenderPage(etx, views.LoginForm{Errors: validationErrors}.Page())
 		}
 
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to authenticate user",
 			"error",
 			err,
@@ -4083,8 +4199,8 @@ func (s Sessions) Create(etx *echo.Context) error {
 	}
 
 	if err := s.session.CreateAppSession(etx, user); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to create session",
 			"error",
 			err,
@@ -4105,9 +4221,12 @@ func (s Sessions) Create(etx *echo.Context) error {
 }
 
 func (s Sessions) Destroy(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "sessions.destroy")
+	defer span.End()
+
 	if err := s.session.DestroyAppSession(etx); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to destroy session",
 			"error",
 			err,
@@ -6231,28 +6350,17 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo-contrib/v5 v5.0.1
 	github.com/labstack/echo/v5 v5.3.0
-	github.com/lmittmann/tint v1.2.0
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/mbvlabs/andurel/pkg/email v0.3.2
 	github.com/mbvlabs/andurel/pkg/hypermedia v0.2.3
 	github.com/mbvlabs/andurel/pkg/routing v0.2.1
 	github.com/mbvlabs/andurel/pkg/server v0.3.2
 	github.com/mbvlabs/andurel/pkg/storage v0.8.0
+	github.com/mbvlabs/andurel/pkg/telemetry v0.1.0
 	github.com/mbvlabs/andurel/pkg/validation v0.1.3
 	github.com/mbvlabs/narsilc v0.4.2
 	github.com/riverqueue/river v0.40.0
 	github.com/rs/xid v1.6.0
-	go.opentelemetry.io/contrib/bridges/otelslog v0.19.0
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
-	go.opentelemetry.io/otel v1.44.0
-	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.20.0
-	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.44.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.44.0
-	go.opentelemetry.io/otel/metric v1.44.0
-	go.opentelemetry.io/otel/sdk v1.44.0
-	go.opentelemetry.io/otel/sdk/log v0.20.0
-	go.opentelemetry.io/otel/sdk/metric v1.44.0
-	go.opentelemetry.io/otel/trace v1.44.0
 	go.uber.org/fx v1.24.0
 	golang.org/x/crypto v0.55.0
 )
@@ -6280,23 +6388,23 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.7.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/exaring/otelpgx v0.11.1 // indirect
-	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/go-logr/logr v1.4.3 // indirect
+	github.com/felixge/httpsnoop v1.1.0 // indirect
+	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/klauspost/compress v1.18.5 // indirect
+	github.com/lmittmann/tint v1.2.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
@@ -6311,7 +6419,6 @@ require (
 	github.com/moby/term v0.5.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/pressly/goose/v3 v3.27.2 // indirect
 	github.com/riverqueue/river/riverdriver v0.40.0 // indirect
@@ -6321,7 +6428,7 @@ require (
 	github.com/sethvargo/go-retry v0.3.0 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.5 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
-	github.com/stretchr/testify v1.11.1 // indirect
+	github.com/stretchr/testify v1.12.1 // indirect
 	github.com/testcontainers/testcontainers-go v0.43.0 // indirect
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0 // indirect
 	github.com/tidwall/gjson v1.19.0 // indirect
@@ -6333,23 +6440,35 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.44.0 // indirect
-	go.opentelemetry.io/otel/log v0.20.0 // indirect
-	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
+	go.opentelemetry.io/contrib/bridges/otelslog v0.20.1 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.71.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/runtime v0.71.0 // indirect
+	go.opentelemetry.io/otel v1.46.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.22.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.46.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.46.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.46.0 // indirect
+	go.opentelemetry.io/otel/log v0.22.0 // indirect
+	go.opentelemetry.io/otel/metric v1.46.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.46.0 // indirect
+	go.opentelemetry.io/otel/sdk/log v0.22.0 // indirect
+	go.opentelemetry.io/otel/sdk/metric v1.46.0 // indirect
+	go.opentelemetry.io/otel/trace v1.46.0 // indirect
+	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
 	go.uber.org/dig v1.19.0 // indirect
 	go.uber.org/goleak v1.3.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260819154853-08b0e4226688 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260819154853-08b0e4226688 // indirect
 	google.golang.org/grpc v1.83.2 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 ```
 
@@ -6414,8 +6533,6 @@ github.com/cpuguy83/dockercfg v0.3.2/go.mod h1:sugsbF4//dDlL/i+S+rtpIWp+5h0BHJHf
 github.com/creack/pty v1.1.24 h1:bJrF4RRfyJnbTJqzRLHzcGaZK1NeM5kTC9jGgovnR1s=
 github.com/creack/pty v1.1.24/go.mod h1:08sCNb52WyoAwi2QDyzUCTgcvVFhUzewun7wtTfvcwE=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
-github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/distribution/reference v0.6.0 h1:0IXCQ5g4/QMHHkarYzh5l+u8T3t73zM5QvfrDyIgxBk=
 github.com/distribution/reference v0.6.0/go.mod h1:BbU0aIcezP1/5jX/8MP0YiH4SdvB5Y4f/wlDRiLyi3E=
 github.com/docker/go-connections v0.7.0 h1:6SsRfJddP22WMrCkj19x9WKjEDTB+ahsdiGYf0mN39c=
@@ -6428,13 +6545,13 @@ github.com/ebitengine/purego v0.10.0 h1:QIw4xfpWT6GWTzaW5XEKy3HXoqrJGx1ijYHzTF0/
 github.com/ebitengine/purego v0.10.0/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/exaring/otelpgx v0.11.1 h1:pE79fIg/qh/Lpu00kvswFC5dKfqyJJhMJ4Y4N3w5Lj4=
 github.com/exaring/otelpgx v0.11.1/go.mod h1:3OojrUKhhy3lTbYIMBijP3YjMey/jo14eHAW5cXcUdk=
-github.com/felixge/httpsnoop v1.0.4 h1:NFTV2Zj1bL4mc9sqWACXbQFVBBg2W3GPvqp8/ESS2Wg=
-github.com/felixge/httpsnoop v1.0.4/go.mod h1:m8KPJKqk1gH5J9DgRY2ASl2lWCfGKXixSwevea8zH2U=
+github.com/felixge/httpsnoop v1.1.0 h1:3YtUj32ZZkqZtt3sZZsClsymw/QDuVfpNhoA31zeORc=
+github.com/felixge/httpsnoop v1.1.0/go.mod h1:Zqxgdd+1Rkcz8euOqdr7lqgCRJztwr5hp9vDSi5UZCE=
 github.com/go-faker/faker/v4 v4.9.0 h1:a4HXLwueuTCtgF93VpUsl8Zd2nG1VH2SgNWDPVEBg5U=
 github.com/go-faker/faker/v4 v4.9.0/go.mod h1:u1dIRP5neLB6kTzgyVjdBOV5R1uP7BdxkcWk7tiKQXk=
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
-github.com/go-logr/logr v1.4.3 h1:CjnDlHq8ikf6E492q6eKboGOC0T8CDaOvkHCIg8idEI=
-github.com/go-logr/logr v1.4.3/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
+github.com/go-logr/logr v1.4.4 h1:tG4xh9yMsRCAiodLVTxyrkzSZ9+o0L1Kg/+cPVcbP/8=
+github.com/go-logr/logr v1.4.4/go.mod h1:9T104GzyrTigFIr8wt5mBrctHMim0Nb2HLGrmQ40KvY=
 github.com/go-logr/stdr v1.2.2 h1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=
 github.com/go-logr/stdr v1.2.2/go.mod h1:mMo/vtBO5dYbehREoey6XUKy/eSumjCCveDpRre4VKE=
 github.com/go-ole/go-ole v1.2.6 h1:/Fpf6oFPoeFik9ty7siob0G6Ke8QvQEuVcuChpwXzpY=
@@ -6456,8 +6573,8 @@ github.com/gosimple/slug v1.15.0 h1:wRZHsRrRcs6b0XnxMUBM6WK1U1Vg5B0R7VkIf1Xzobo=
 github.com/gosimple/slug v1.15.0/go.mod h1:UiRaFH+GEilHstLUmcBgWcI42viBN7mAb818JrYOeFQ=
 github.com/gosimple/unidecode v1.0.1 h1:hZzFTMMqSswvf0LBJZCZgThIZrpDHFXux9KeGmn6T/o=
 github.com/gosimple/unidecode v1.0.1/go.mod h1:CP0Cr1Y1kogOtx0bJblKzsVWrqYaqfNOnHzpgWw4Awc=
-github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 h1:5VipnvEpbqr2gA2VbM+nYVbkIF28c5ZQfqCBQ5g2xfk=
-github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0/go.mod h1:Hyl3n6Twe1hvtd9XUXDec4pTvgMSEixRuQKPTMH2bNs=
+github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 h1:/Tnpcb2E0Pz/tN9s3bfEY2Q8ePCEX9iuS+cneUwncnw=
+github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0/go.mod h1:zOBXOsUaBSjKgmH4OGzV1esUpR3oUSCPYVd2cUBjKYY=
 github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438 h1:Dj0L5fhJ9F82ZJyVOmBx6msDp/kfd1t9GRfny/mfJA0=
 github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438/go.mod h1:a/s9Lp5W7n/DD0VrVoyJ00FbP2ytTPDVOivvn2bMlds=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=
@@ -6472,10 +6589,6 @@ github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
 github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
 github.com/klauspost/compress v1.18.5 h1:/h1gH5Ce+VWNLSWqPzOVn6XBO+vJbCNGvjoaGBFW2IE=
 github.com/klauspost/compress v1.18.5/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
-github.com/kr/pretty v0.3.1 h1:flRD4NNwYAUpkphVc1HcthR4KEIFJ65n8Mw5qdRn3LE=
-github.com/kr/pretty v0.3.1/go.mod h1:hoEshYVHaxMs3cyo3Yncou5ZscifuDolrwPKZanG3xk=
-github.com/kr/text v0.2.0 h1:5Nx0Ya0ZqY2ygV366QzturHI13Jq95ApcVaJBhpS+AY=
-github.com/kr/text v0.2.0/go.mod h1:eLer722TekiGuMkidMxC/pM04lWEeraHUUmBw8l2grE=
 github.com/labstack/echo-contrib/v5 v5.0.1 h1:Z23m8p1F9Doax+pa8ek8ll5d6wvzCbvrAn25ZWmSgrE=
 github.com/labstack/echo-contrib/v5 v5.0.1/go.mod h1:ajrqEwSloW0vQSTfJ4j9u4tHoS+dg4umCDPxuTvChZs=
 github.com/labstack/echo/v5 v5.3.0 h1:KT74Mprk053PQEHwSZdeCDIz1BigTZOZhavMD0c9Fjs=
@@ -6502,6 +6615,8 @@ github.com/mbvlabs/andurel/pkg/server v0.3.2 h1:XnW6Q/uOOs4MAYf0eQ4dDCnx18mbz1nW
 github.com/mbvlabs/andurel/pkg/server v0.3.2/go.mod h1:8LgcYQCnIQ6U8qy5Ar13UJZAOACZGucgjHbviLpzpLY=
 github.com/mbvlabs/andurel/pkg/storage v0.8.0 h1:I0wG5hnl6dDZeXDG0GjFQ88pNyz4+Th9qq8uWq2mbio=
 github.com/mbvlabs/andurel/pkg/storage v0.8.0/go.mod h1:DJ/uVEbn1kQZChOaPPl2SR9c1O6FajDy22UhGcKGrTw=
+github.com/mbvlabs/andurel/pkg/telemetry v0.1.0 h1:SZCIaTP3Ow5CwA3KBg5w632nCbOXg1sEimy4K02YxZ0=
+github.com/mbvlabs/andurel/pkg/telemetry v0.1.0/go.mod h1:Wc0aGyImPmymQUvs5D0aVJJG2tTibwSBwfIFKvGNPSE=
 github.com/mbvlabs/andurel/pkg/validation v0.1.3 h1:u3g71TB09ZUE5TwAKCRJ6vfU6dEfgQAnTZXz7MjCeZU=
 github.com/mbvlabs/andurel/pkg/validation v0.1.3/go.mod h1:ZITp0yTHhd9ZaMMaHcixS/GoDuJHqvDkpe2A/gKnTbw=
 github.com/mbvlabs/narsilc v0.4.2 h1:xpzfISiJLOCPPdHg+gw/auCphlAb3RGghDIgg3OHlfs=
@@ -6534,7 +6649,6 @@ github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=
 github.com/opencontainers/image-spec v1.1.1/go.mod h1:qpqAh3Dmcf36wStyyWU+kCeDgrGnAve2nCC8+7h8Q0M=
-github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 h1:o4JXh1EVt9k/+g42oCprj/FisM4qX9L3sZB3upGN2ZU=
 github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55/go.mod h1:OmDBASR4679mdNQnz2pUhc2G8CO2JrUAVFDRBDP/hJE=
@@ -6554,8 +6668,6 @@ github.com/riverqueue/river/rivertype v0.40.0 h1:6sFLhs0OtkxDZ/iyZIUqaQJb/G1krnb
 github.com/riverqueue/river/rivertype v0.40.0/go.mod h1:D1Ad+EaZiaXbQbJcJcfeicXJMBKno0n6UcfKI5Q7DIQ=
 github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=
 github.com/robfig/cron/v3 v3.0.1/go.mod h1:eQICP3HwyT7UooqI/z+Ov+PtYAWygg1TEWWzGIFLtro=
-github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=
-github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
 github.com/rs/xid v1.6.0 h1:fV591PaemRlL6JfRxGDEPl69wICngIQ3shQtzfy2gxU=
 github.com/rs/xid v1.6.0/go.mod h1:7XoLgs4eV+QndskICGsho+ADou8ySMSjJKDIan90Nz0=
 github.com/sethvargo/go-retry v0.3.0 h1:EEt31A35QhrcRZtrYFDTBg91cqZVnFL2navjDrah2SE=
@@ -6569,8 +6681,8 @@ github.com/stretchr/objx v0.5.3 h1:jmXUvGomnU1o3W/V5h2VEradbpJDwGrzugQQvL0POH4=
 github.com/stretchr/objx v0.5.3/go.mod h1:rDQraq+vQZU7Fde9LOZLr8Tax6zZvy4kuNKF+QYS+U0=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
-github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
-github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
+github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
+github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
 github.com/testcontainers/testcontainers-go v0.43.0 h1:oEQx5MW2DGd9z3AeEQfB2lPM0eLs7ztyaGRu75bFo5A=
 github.com/testcontainers/testcontainers-go v0.43.0/go.mod h1:+VxkT2NQnKOZPKi6praMuMKYHYyOGXr0XSBSlSMCzFo=
 github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0 h1:ShNOFYAF4lKHvdIG258hi69bSxC88uXnxJkJvNs/IVs=
@@ -6596,38 +6708,40 @@ github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
-go.opentelemetry.io/contrib/bridges/otelslog v0.19.0 h1:5RgvxieNq9tS3ewrV1vnODvbHPfKUIJcYtF9Cvz+6aQ=
-go.opentelemetry.io/contrib/bridges/otelslog v0.19.0/go.mod h1:iTBIdNwx/xmUhfgJs6+84S4dIK059811cO1eUBjKcHY=
-go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0 h1:8tvICD4vSTOOsNrsI4Ljf6C+6UKvpTEH5XY3JMoyPoo=
-go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0/go.mod h1:z9+yiacE0IHRqM4qFfkbt/JYlmYXgss8GY/jXoNuPJI=
-go.opentelemetry.io/otel v1.44.0 h1:JjwHmHpA4iZ3wBxluu2fbbE7j4kqlE8jXyAyPXH7HqU=
-go.opentelemetry.io/otel v1.44.0/go.mod h1:BMgjTHL9WPRlRjL2oZCBTL4whCGtXch2H4BhOPIAyYc=
-go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.20.0 h1:owlhcJ3QO3X0YTDTCcDZ4V+6aVDkWbNmBoQ5NUp7Oww=
-go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.20.0/go.mod h1:MP4eemTiI9zC8fgg+DYynhYDYf3ba72S376TvP+Ye0Q=
-go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.44.0 h1:RuynHbfU8JUEw7DyONgkVYg2SVtsoF28y0LGIr69jgA=
-go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.44.0/go.mod h1:qZF+/lBs71APw8mlnEZcqZHMzqrYrsFiJOv83lX1OGo=
-go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.44.0 h1:4YsVu3B8+3qtWYYrsUYgn0OG78pN0rnNPRGX4SbokQI=
-go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.44.0/go.mod h1:+wnlSn0mD1ADVMe3v9Z/WIaiz6q6gL2J/ejaAmdmv80=
-go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.44.0 h1:lgh3PiVrRUWMLOVSkQicxzZll5NjF1r+AtsX1XRIHw0=
-go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.44.0/go.mod h1:5Cnhth3m/AgOeTgE3ex12pPmiu/gGtZit03kSzx9X7s=
-go.opentelemetry.io/otel/log v0.20.0 h1:/5i0vuHxCLWUfChWG41K9wkM0jafruPw9NU1/RCJirs=
-go.opentelemetry.io/otel/log v0.20.0/go.mod h1:wOcMcjsZpG8x7Bak7IhSi/lg8wscV2C1VdrKCLPlt0E=
-go.opentelemetry.io/otel/metric v1.44.0 h1:1w0gILTcHdr3YI+ixLyjemwrVnsMURbTZFrSYCdDdmc=
-go.opentelemetry.io/otel/metric v1.44.0/go.mod h1:8O7hanEPBNgEMmybD3s2VBKcgWOCsA6tzHBPODAiquo=
-go.opentelemetry.io/otel/metric/x v0.66.0 h1:YkCrx1zLOChi9ZcZ6euupOcsgzbVlec7D/xoEU1+cTA=
-go.opentelemetry.io/otel/metric/x v0.66.0/go.mod h1:d1+BDj9t96do0/1LoU1ayfCv79ZgNE41qbhBvnMOBZk=
-go.opentelemetry.io/otel/sdk v1.44.0 h1:nHYwb9lK+fJPU/dnT6s7W7Z8itMWyqrnVfbheVYrZ58=
-go.opentelemetry.io/otel/sdk v1.44.0/go.mod h1:Osuydd3Se74nqjAKxid74N5eC+jfEqfTegHRnq58oK0=
-go.opentelemetry.io/otel/sdk/log v0.20.0 h1:vM3xI7TQgKPiSghe6urZtAkyFY7SodrSpC83CffDFuY=
-go.opentelemetry.io/otel/sdk/log v0.20.0/go.mod h1:Knej2nmsTUzN79T2eeXdRsjjPcoxoq2pUyUHz9TFyyU=
-go.opentelemetry.io/otel/sdk/log/logtest v0.20.0 h1:OqdRZ1guyzamK3M6LlRsmGqRrjkHWw6WZOKKli5ELpg=
-go.opentelemetry.io/otel/sdk/log/logtest v0.20.0/go.mod h1:PuMIlm7zAt7c3z8zfOI5ox4iT1Z87We+PF6YoINux/M=
-go.opentelemetry.io/otel/sdk/metric v1.44.0 h1:3LlKgI+VjbVsjNRFZJZAJ30WjXC5VkNRks6si09iEfI=
-go.opentelemetry.io/otel/sdk/metric v1.44.0/go.mod h1:5B5pMARnXxKhltooO4xUuCBorl65a4EpnTalObqOigA=
-go.opentelemetry.io/otel/trace v1.44.0 h1:jxF5CsGYCe74MCRx2X4g7WsY/VBKRqqpNvXlX/6gtIk=
-go.opentelemetry.io/otel/trace v1.44.0/go.mod h1:oLl1jrMQAVo6v3GAggN+1VH9VIz9iUSvW53sW1Q8PIE=
-go.opentelemetry.io/proto/otlp v1.10.0 h1:IQRWgT5srOCYfiWnpqUYz9CVmbO8bFmKcwYxpuCSL2g=
-go.opentelemetry.io/proto/otlp v1.10.0/go.mod h1:/CV4QoCR/S9yaPj8utp3lvQPoqMtxXdzn7ozvvozVqk=
+go.opentelemetry.io/contrib/bridges/otelslog v0.20.1 h1:5sHc4ToTFjfSZCtGAAM6jPunICAmJX73htv372T4ipc=
+go.opentelemetry.io/contrib/bridges/otelslog v0.20.1/go.mod h1:oa6kgvyz/3GYW04dohd0++xJIH4xdQY8PAbpeCMaM8M=
+go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.71.0 h1:3g7B90UzBltIDKq1/5mrTGxTnOFDV0ICOhLoxiZ8jlg=
+go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.71.0/go.mod h1:Ef8SuTh59BT7+ofpDxN9z+yOlc4t2GjLmKDgYNJL/NU=
+go.opentelemetry.io/contrib/instrumentation/runtime v0.71.0 h1:v4KkRLVvE1cWqTJDfZZkTCG+Z4aolsa6RVos0FX7vqE=
+go.opentelemetry.io/contrib/instrumentation/runtime v0.71.0/go.mod h1:g/xbuPC0XbgwMdKuyF5sKOUUEsorSkN6APydyFP/H9E=
+go.opentelemetry.io/otel v1.46.0 h1:FHt5/CDyVxi/8IM1CH7VE/rRgq3kLHa2mSTVMO8AWyc=
+go.opentelemetry.io/otel v1.46.0/go.mod h1:Gj3SEScelsNC45tp4nSxRYlS+f5iez7W8XPMCt905kE=
+go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.22.0 h1:lYk7RmxdLK865qLwibroNGldHa1U7SWKYYvNjlK7PIo=
+go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.22.0/go.mod h1:6GvlND0H0xdUJanOtIAn0xfwLkauh1tmsYEEVSMDdqY=
+go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.46.0 h1:AP23h/mFgb/lc7tdck1Kfn9qxsM8TAeNPCU5C3pzaps=
+go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.46.0/go.mod h1:K4EqCe1b4kGk5WR690ntg9LaBfsPoV32FwthbyoptuA=
+go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.46.0 h1:OFnwLJr+pF3iHrlGSzbxyuo6/6HyBlnlN1CWEJmBVcw=
+go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.46.0/go.mod h1:716wFneO0ov19A2beH5hjfh9AK5z/VWNAtDijp1Y0/g=
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.46.0 h1:KrC1YrQeSt46ITMWAbgQx1M1eV1/1TKzttrBzymPmss=
+go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.46.0/go.mod h1:zDSEzoEqsOrgBeGvH66KRgxh90VonFyJqBHA0Pk3+rM=
+go.opentelemetry.io/otel/log v0.22.0 h1:5DBNnfvaJ6CVdkJ+Jle8Tzs50aSSv49TXGj9XRsEYw0=
+go.opentelemetry.io/otel/log v0.22.0/go.mod h1:gzOt/R67vF2GniAqWu8Qv0SXy89f71muHcrkz76PCdc=
+go.opentelemetry.io/otel/metric v1.46.0 h1:yBnkXvgV7AXFILZc5K6IZe/CBFF3OS7BJ8ov6/lj0K8=
+go.opentelemetry.io/otel/metric v1.46.0/go.mod h1:iPmdWqifKUdzziPkvvzIJXITl56fQx2mGM/DHLB3/2o=
+go.opentelemetry.io/otel/metric/x v0.68.0 h1:TA/cBT23D3MnxYPwHL7YFOdYGdx0A0v+s7Mzotpd1dU=
+go.opentelemetry.io/otel/metric/x v0.68.0/go.mod h1:agudOmvWhwUTjgibWDzxD2PoWYnpw5Ht5jISYOD2Hd4=
+go.opentelemetry.io/otel/sdk v1.46.0 h1:h5CNQQjEbuQXY/JfZtgt3i7HVFV3aHPO2OAwO2eTYPI=
+go.opentelemetry.io/otel/sdk v1.46.0/go.mod h1:GAERFXFt5SYCEB+YiKUbMBeza6UaDH7GmGOZEfh2gSM=
+go.opentelemetry.io/otel/sdk/log v0.22.0 h1:PRL+s6P63XT4E/bheEflopPUpVxuvANqZwtt89yhoGk=
+go.opentelemetry.io/otel/sdk/log v0.22.0/go.mod h1:JNp0sBELrjCTcu5W3GzABVypeU6vDJjBS+X0JISuz+g=
+go.opentelemetry.io/otel/sdk/log/logtest v0.22.0 h1:infPnfNrhCNgOUZRs3gWUg8vhoBUHihq02gwK05gzlg=
+go.opentelemetry.io/otel/sdk/log/logtest v0.22.0/go.mod h1:gkQZA3z15Bv3KU9vigBTi8dFechSozRP7v94X4VZv+s=
+go.opentelemetry.io/otel/sdk/metric v1.46.0 h1:0piZ26EG4RBfebb2jhDH6ERCYHoVWduc3kLgPCwSnSE=
+go.opentelemetry.io/otel/sdk/metric v1.46.0/go.mod h1:I1PbKrdVc8Qu8HYVDNtqVIwLwjNrhsV/uFuxfwg8mO4=
+go.opentelemetry.io/otel/trace v1.46.0 h1:OULy7ccdJnZtJ0UDYFOIGaCmiWzJ8Vi2G/Rsu60qs1c=
+go.opentelemetry.io/otel/trace v1.46.0/go.mod h1:J7GAXweO77XSFkB/rmAqk9D6ihszhFjLU+d9WuUxDLI=
+go.opentelemetry.io/proto/otlp v1.11.0 h1:5rrYs0Ykyj50sdU/JU0x8etU+LubXWb+gED6TbEdMIk=
+go.opentelemetry.io/proto/otlp v1.11.0/go.mod h1:SmVizdCOAm3XBtG1g1NnOdhW6jtddT72hLMhv8VwA8E=
 go.uber.org/dig v1.19.0 h1:BACLhebsYdpQ7IROQ1AGPjrXcP5dF80U3gKoFzbaq/4=
 go.uber.org/dig v1.19.0/go.mod h1:Us0rSJiThwCv2GteUN0Q7OKvU7n5J4dxZ9JKUXozFdE=
 go.uber.org/fx v1.24.0 h1:wE8mruvpg2kiiL1Vqd0CC+tr0/24XIB10Iwp2lLWzkg=
@@ -6638,6 +6752,8 @@ go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=
 go.uber.org/multierr v1.11.0/go.mod h1:20+QtiLqy0Nd6FdQB9TLXag12DsQkrbs3htMFfDN80Y=
 go.uber.org/zap v1.26.0 h1:sI7k6L95XOKS281NhVKOFCUNIvv9e0w4BF8N3u+tCRo=
 go.uber.org/zap v1.26.0/go.mod h1:dtElttAiwGvoJ/vj4IwHBS/gXsEu/pZ50mUIRWuG0so=
+go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=
+go.yaml.in/yaml/v3 v3.0.5/go.mod h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg=
 golang.org/x/crypto v0.55.0 h1:+KWHjbgOaAQ66dh/YlkZKHlz9ZUlq61AFirAR9ntP8M=
 golang.org/x/crypto v0.55.0/go.mod h1:uq0V9dE/fzQuJtbnL+2EhWOE63vo164FY8xqEnV9xis=
 golang.org/x/net v0.58.0 h1:ynWG7rqYi4ccpTEuPZ2QGWHktVEM9DMCj9yzDE0Q7To=
@@ -6658,17 +6774,15 @@ golang.org/x/time v0.15.0/go.mod h1:Y4YMaQmXwGQZoFaVFk4YpCt4FLQMYKZe9oeV/f4MSno=
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 gonum.org/v1/gonum v0.17.0 h1:VbpOemQlsSMrYmn7T2OUvQ4dqxQXU+ouZFQsZOx50z4=
 gonum.org/v1/gonum v0.17.0/go.mod h1:El3tOrEuMpv2UdMrbNlKEh9vd86bmQ6vqIcDwxEOc1E=
-google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa h1:Kjn0N0tCrDgiAFW+lGO4JZ3ck44CehvJQMAwj9QF0G8=
-google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa/go.mod h1:q4lMZS6kskjT5HvCPrnnypcDPVJqT/f4nfxmkE7gryY=
-google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa h1:mZHHdPZl0dbGHCflZgAq/Q468DWVFcU2whhB2KAo8fk=
-google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa/go.mod h1:4Hqkh8ycfw05ld/3BWL7rJOSfebL2Q+DVDeRgYgxUU8=
+google.golang.org/genproto/googleapis/api v0.0.0-20260819154853-08b0e4226688 h1:ax2KzoSRIZU/M0cIxri3pKxy99vniH1PVxWC6si/eZI=
+google.golang.org/genproto/googleapis/api v0.0.0-20260819154853-08b0e4226688/go.mod h1:1RJ9BQGyNdZwkGc1eTqkErfRZ6RJyYPHZo73BZ1vQqI=
+google.golang.org/genproto/googleapis/rpc v0.0.0-20260819154853-08b0e4226688 h1:cYNAzI2sUwhmCcoj9TxvihSrqsxt6uIkj3rDRhSDmW4=
+google.golang.org/genproto/googleapis/rpc v0.0.0-20260819154853-08b0e4226688/go.mod h1:DjtHYE8FKJLivXcBEjGwndXfIC23G0VpXiXKqG179uA=
 google.golang.org/grpc v1.83.2 h1:EManeRomTObA0BU7I8vXgg/78uE5MJ9M8B39EX2WscU=
 google.golang.org/grpc v1.83.2/go.mod h1:YPI1hK3kDked6iHvgX3tR0y+nX/qpMFKhPgFsokw1S8=
 google.golang.org/protobuf v1.36.12 h1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=
 google.golang.org/protobuf v1.36.12/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
-gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk=
-gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c/go.mod h1:JHkPIbrfpd72SG/EVd6muEfDQjcINNoR0C8j2r3qZ4Q=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
@@ -8834,6 +8948,7 @@ import (
 	"context"
 
 	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/riverqueue/river"
 
 	"testapp/queue/jobs"
@@ -8860,15 +8975,20 @@ func (w *SendTransactionalEmailWorker) Work(
 	ctx context.Context,
 	job *river.Job[jobs.SendTransactionalEmailArgs],
 ) error {
+	ctx, span := telemetry.Start(ctx, "queue.send_transactional_email", "email.to", job.Args.Data.To)
+	defer span.End()
+
 	err := email.SendTransactional(ctx, job.Args.Data, w.sender)
 	if err != nil {
+		telemetry.Error(ctx, "send transactional email failed", "error", err)
 		if !email.IsRetryable(err) {
-			return river.JobCancel(err)
+			return river.JobCancel(telemetry.Fail(ctx, err))
 		}
 
-		return err
+		return telemetry.Fail(ctx, err)
 	}
 
+	telemetry.Info(ctx, "transactional email sent")
 	return nil
 }
 ```
@@ -9298,7 +9418,6 @@ package middleware
 
 import (
 	"errors"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -9307,14 +9426,10 @@ import (
 	"testapp/router/appctx"
 	"testapp/router/cookies"
 	"testapp/router/routes"
-	"testapp/telemetry"
 
 	"github.com/labstack/echo/v5"
 	echomw "github.com/labstack/echo/v5/middleware"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/semconv/v1.26.0"
-	"go.opentelemetry.io/otel/trace"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 func RegisterRequestMeta(session *cookies.Session) echo.MiddlewareFunc {
@@ -9326,7 +9441,7 @@ func RegisterRequestMeta(session *cookies.Session) echo.MiddlewareFunc {
 
 			flashes, err := session.ExtractFlashes(c)
 			if err != nil {
-				slog.Error("Error getting flash messages from session", "error", err)
+				telemetry.Error(c.Request().Context(), "Error getting flash messages from session", "error", err)
 			}
 
 			ctx := appctx.WithFlashes(c.Request().Context(), flashes)
@@ -9386,32 +9501,16 @@ func mayBypassCSRF(request *http.Request, appCookieSessionName string) bool {
 		!hasApplicationSessionCookie(request, appCookieSessionName)
 }
 
-func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
-	var httpRequestsTotal metric.Int64Counter
-	var httpDuration metric.Float64Histogram
-	var httpInFlight metric.Int64UpDownCounter
-
-	if tel.HasMetrics() {
-		var err error
-		httpRequestsTotal, err = telemetry.HTTPRequestsTotal(tel.ServiceName())
-		if err != nil {
-			slog.Warn("failed to create http_requests_total metric", "error", err)
-		}
-		httpDuration, err = telemetry.HTTPRequestDuration(tel.ServiceName())
-		if err != nil {
-			slog.Warn("failed to create http_request_duration metric", "error", err)
-		}
-		httpInFlight, err = telemetry.HTTPRequestsInFlight(tel.ServiceName())
-		if err != nil {
-			slog.Warn("failed to create http_requests_in_flight metric", "error", err)
-		}
-
-		meter := telemetry.GetMeter(tel.ServiceName())
-		if err := telemetry.SetupRuntimeMetricsInCallback(meter); err != nil {
-			slog.Warn("failed to setup runtime metrics", "error", err)
+func Telemetry(tel *telemetry.Telemetry) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			c.SetRequest(c.Request().WithContext(tel.Context(c.Request().Context())))
+			return next(c)
 		}
 	}
+}
 
+func Logger() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
 			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
@@ -9421,31 +9520,15 @@ func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 			ctx := c.Request().Context()
 			start := time.Now()
 
-			if tel.HasMetrics() && httpInFlight != nil {
-				httpInFlight.Add(ctx, 1)
-				defer httpInFlight.Add(ctx, -1)
-			}
-
 			err := next(c)
 			duration := time.Since(start)
-			route := c.Path()
 
 			statusCode := 0
 			if resp, unwrapErr := echo.UnwrapResponse(c.Response()); unwrapErr == nil {
 				statusCode = resp.Status
 			}
 
-			if tel.HasMetrics() && httpRequestsTotal != nil && httpDuration != nil {
-				attrs := []attribute.KeyValue{
-					attribute.String("method", c.Request().Method),
-					attribute.String("route", route),
-					attribute.Int("status_code", statusCode),
-				}
-				httpRequestsTotal.Add(ctx, 1, metric.WithAttributes(attrs...))
-				httpDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
-			}
-
-			slog.InfoContext(ctx, "HTTP request completed",
+			telemetry.Info(ctx, "HTTP request completed",
 				"method", c.Request().Method,
 				"path", c.Request().URL.Path,
 				"status", statusCode,
@@ -9459,31 +9542,14 @@ func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 	}
 }
 
-func TraceRouteAttributes(tel *telemetry.Telemetry) echo.MiddlewareFunc {
+func TraceRouteAttributes() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
-				return next(c)
-			}
-
 			err := next(c)
-			if !tel.HasTracing() {
-				return err
-			}
-
 			routeInfo := c.RouteInfo()
-			if routeInfo.Path == "" {
-				return err
+			if routeInfo.Path != "" {
+				telemetry.SetHTTPRoute(c.Request().Context(), routeInfo.Path)
 			}
-
-			span := trace.SpanFromContext(c.Request().Context())
-			if !span.SpanContext().IsValid() {
-				return err
-			}
-
-			span.SetAttributes(
-				semconv.HTTPRoute(routeInfo.Path),
-			)
 
 			return err
 		}
@@ -9570,7 +9636,7 @@ func CSRFMiddleware(
 				if !headerOnly && secFetchSite != "same-origin" && secFetchSite != "same-site" &&
 					secFetchSite != "cross-site" {
 					if c.Request().Header.Get("X-CSRF-Token") == "" && c.FormValue("_csrf") != "" {
-						slog.Warn("CSRF check fell back to legacy token")
+						telemetry.Warn(c.Request().Context(), "CSRF check fell back to legacy token")
 					}
 				}
 			}
@@ -9980,15 +10046,13 @@ import (
 	"github.com/labstack/echo-contrib/v5/session"
 	"github.com/labstack/echo/v5"
 	echomw "github.com/labstack/echo/v5/middleware"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"go.uber.org/fx"
-	"log/slog"
 	"net/http"
 	"strings"
 	"testapp/config"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
-	"testapp/telemetry"
 	"uuid"
 )
 
@@ -10011,7 +10075,7 @@ func New(
 	defaultHTTPErrorHandler := echo.DefaultHTTPErrorHandler(false)
 	router.HTTPErrorHandler = func(c *echo.Context, err error) {
 		if panicErr, ok := errors.AsType[*echomw.PanicStackError](err); ok {
-			slog.ErrorContext(
+			telemetry.Error(
 				c.Request().Context(),
 				"http panic recovered",
 				"method", c.Request().Method,
@@ -10020,7 +10084,7 @@ func New(
 				"stack", string(panicErr.Stack),
 			)
 		} else {
-			slog.ErrorContext(
+			telemetry.Error(
 				c.Request().Context(),
 				"http handler error",
 				"method", c.Request().Method,
@@ -10046,7 +10110,7 @@ func New(
 
 	router.Use(globalMiddleware...)
 
-	handler := otelhttp.NewHandler(router, "http")
+	handler := telemetry.WrapHandler("http", router, tel)
 
 	return &Router{
 		e:       router,
@@ -10091,8 +10155,9 @@ func SetupGlobalMiddleware(
 	// Order matters: middlewares execute in the order listed, with Recover last
 	// to catch panics from all preceding middlewares.
 	middlewares := []echo.MiddlewareFunc{
-		middleware.TraceRouteAttributes(tel),
-		middleware.Logger(tel),
+		middleware.Telemetry(tel),
+		middleware.TraceRouteAttributes(),
+		middleware.Logger(),
 		session.Middleware(sessionStore),
 		middleware.ValidateSession(cookieSession),
 		middleware.RegisterRequestMeta(cookieSession),
@@ -11326,1431 +11391,6 @@ var Module = fx.Module(
 		NewIdentity,
 	),
 )
-```
-
-dir  d----------rwxr-xr-x telemetry
-
-file -----------rw-r--r-- telemetry/helpers.go
-```
-package telemetry
-
-import (
-	"context"
-
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
-)
-
-// StartSpan starts a new span with the given name using the global tracer.
-func StartSpan(
-	ctx context.Context,
-	serviceName string,
-	spanName string,
-) (context.Context, trace.Span) {
-	tracer := GetTracer(serviceName)
-	return tracer.Start(ctx, spanName)
-}
-
-// StartSpanAttrs starts a new span with the given name and attributes using the global tracer.
-func StartSpanAttrs(
-	ctx context.Context,
-	serviceName string,
-	spanName string,
-	attrs ...attribute.KeyValue,
-) (context.Context, trace.Span) {
-	tracer := GetTracer(serviceName)
-	ctx, span := tracer.Start(ctx, spanName)
-	span.SetAttributes(attrs...)
-	return ctx, span
-}
-
-// RecErr records an error in the given span and sets its status to error.
-func RecErr(span trace.Span, err error) {
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-	}
-}
-
-// AddEvent adds an event with the given name and attributes to the span.
-func AddEvent(span trace.Span, name string, attrs ...attribute.KeyValue) {
-	span.AddEvent(name, trace.WithAttributes(attrs...))
-}
-```
-
-file -----------rw-r--r-- telemetry/log_exporters.go
-```
-package telemetry
-
-import (
-	"context"
-	"fmt"
-	"log/slog"
-	"net/url"
-	"os"
-	"strings"
-	"time"
-
-	"github.com/lmittmann/tint"
-	"go.opentelemetry.io/contrib/bridges/otelslog"
-	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
-	sdklog "go.opentelemetry.io/otel/sdk/log"
-	"go.opentelemetry.io/otel/sdk/resource"
-)
-
-type StdoutExporter struct {
-	LogLevel slog.Level
-}
-
-func NewStdoutExporter() *StdoutExporter {
-	return &StdoutExporter{
-		LogLevel: slog.LevelInfo,
-	}
-}
-
-func NewStdoutExporterWithLevel(level slog.Level) *StdoutExporter {
-	return &StdoutExporter{
-		LogLevel: level,
-	}
-}
-
-func (s *StdoutExporter) GetSlogHandler(
-	ctx context.Context,
-	res *resource.Resource,
-) (slog.Handler, error) {
-	handler := tint.NewTextHandler(os.Stdout, &tint.Options{
-		Level:      s.LogLevel,
-		TimeFormat: "15:04:05",
-		AddSource:  true,
-	})
-
-	return handler, nil
-}
-
-func (s *StdoutExporter) Name() string {
-	return "stdout"
-}
-
-func (s *StdoutExporter) Shutdown(ctx context.Context) error {
-	return nil
-}
-
-var _ LogExporter = (*StdoutExporter)(nil)
-
-type OtlpHttpLogExporter struct {
-	endpoint     string
-	headers      map[string]string
-	batchSize    int
-	batchTimeout time.Duration
-	provider     *sdklog.LoggerProvider
-}
-
-func NewOtlpLogExporter(
-	endpoint string,
-	headers map[string]string,
-	batchSize int,
-	batchTimeout time.Duration,
-) *OtlpHttpLogExporter {
-	return &OtlpHttpLogExporter{
-		endpoint:     endpoint,
-		headers:      headers,
-		batchSize:    batchSize,
-		batchTimeout: batchTimeout,
-	}
-}
-
-func (o *OtlpHttpLogExporter) Name() string { return "otlp-http-logs" }
-
-func (o *OtlpHttpLogExporter) GetSlogHandler(
-	ctx context.Context,
-	res *resource.Resource,
-) (slog.Handler, error) {
-	opts := []otlploghttp.Option{otlploghttp.WithHeaders(o.headers)}
-	if strings.Contains(o.endpoint, "://") {
-		endpointURL, err := url.Parse(o.endpoint)
-		if err != nil || endpointURL.Host == "" ||
-			(endpointURL.Scheme != "http" && endpointURL.Scheme != "https") {
-			return nil, fmt.Errorf("invalid OTLP HTTP log endpoint %q", o.endpoint)
-		}
-		opts = append(opts, otlploghttp.WithEndpointURL(o.endpoint))
-		if endpointURL.Path == "" || endpointURL.Path == "/" {
-			opts = append(opts, otlploghttp.WithURLPath("/v1/logs"))
-		}
-	} else {
-		opts = append(opts, otlploghttp.WithEndpoint(o.endpoint))
-	}
-	exporter, err := otlploghttp.New(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("create OTLP HTTP log exporter: %w", err)
-	}
-	processor := sdklog.NewBatchProcessor(exporter,
-		sdklog.WithExportMaxBatchSize(o.batchSize),
-		sdklog.WithExportInterval(o.batchTimeout),
-	)
-	o.provider = sdklog.NewLoggerProvider(
-		sdklog.WithResource(res),
-		sdklog.WithProcessor(processor),
-	)
-	return otelslog.NewHandler("application", otelslog.WithLoggerProvider(o.provider)), nil
-}
-
-func (o *OtlpHttpLogExporter) Shutdown(ctx context.Context) error {
-	if o.provider == nil {
-		return nil
-	}
-
-	return o.provider.Shutdown(ctx)
-}
-
-var _ LogExporter = (*OtlpHttpLogExporter)(nil)
-```
-
-file -----------rw-r--r-- telemetry/logger.go
-```
-package telemetry
-
-import (
-	"context"
-	"log/slog"
-
-	"go.opentelemetry.io/otel/sdk/resource"
-	"go.opentelemetry.io/otel/trace"
-)
-
-type LogExporter interface {
-	Name() string
-	GetSlogHandler(ctx context.Context, res *resource.Resource) (slog.Handler, error)
-	Shutdown(ctx context.Context) error
-}
-
-type traceLogHandler struct {
-	handler slog.Handler
-}
-
-func (h *traceLogHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	return h.handler.Enabled(ctx, level)
-}
-
-func (h *traceLogHandler) Handle(ctx context.Context, record slog.Record) error {
-	traceAttrs := traceAttrsFromContext(ctx)
-	for _, attr := range traceAttrs {
-		record.AddAttrs(attr)
-	}
-
-	return h.handler.Handle(ctx, record)
-}
-
-func (h *traceLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &traceLogHandler{
-		handler: h.handler.WithAttrs(attrs),
-	}
-}
-
-func (h *traceLogHandler) WithGroup(name string) slog.Handler {
-	return &traceLogHandler{
-		handler: h.handler.WithGroup(name),
-	}
-}
-
-func traceAttrsFromContext(ctx context.Context) []slog.Attr {
-	var attrs []slog.Attr
-
-	spanCtx := trace.SpanContextFromContext(ctx)
-	if spanCtx.IsValid() {
-		attrs = append(attrs,
-			slog.String("trace_id", spanCtx.TraceID().String()),
-			slog.String("span_id", spanCtx.SpanID().String()),
-		)
-	}
-
-	return attrs
-}
-```
-
-file -----------rw-r--r-- telemetry/metric_exporters.go
-```
-package telemetry
-
-import (
-	"context"
-	"crypto/tls"
-	"fmt"
-	"strings"
-
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/metric/metricdata"
-	"go.opentelemetry.io/otel/sdk/resource"
-)
-
-type OtlpHttpMetricExporter struct {
-	endpoint string
-	insecure bool
-	headers  map[string]string
-	exporter sdkmetric.Exporter
-}
-
-func NewOtlpMetricExporter(endpoint string, headers map[string]string) *OtlpHttpMetricExporter {
-	if endpoint == "" {
-		return nil
-	}
-
-	return &OtlpHttpMetricExporter{
-		endpoint: endpoint,
-		insecure: false,
-		headers:  headers,
-		exporter: nil,
-	}
-}
-
-func NewOtlpMetricExporterInsecure(
-	endpoint string,
-	headers map[string]string,
-) *OtlpHttpMetricExporter {
-	if endpoint == "" {
-		return nil
-	}
-
-	return &OtlpHttpMetricExporter{
-		endpoint: endpoint,
-		insecure: true,
-		headers:  headers,
-		exporter: nil,
-	}
-}
-
-func (o *OtlpHttpMetricExporter) Name() string {
-	return "otlp-http-metrics"
-}
-
-func (o *OtlpHttpMetricExporter) GetSdkMetricExporter(
-	ctx context.Context,
-	res *resource.Resource,
-) (sdkmetric.Exporter, error) {
-	endpoint := strings.TrimPrefix(o.endpoint, "http://")
-	endpoint = strings.TrimPrefix(endpoint, "https://")
-
-	opts := []otlpmetrichttp.Option{
-		otlpmetrichttp.WithEndpoint(endpoint),
-	}
-
-	if o.insecure {
-		opts = append(opts, otlpmetrichttp.WithInsecure())
-	} else {
-		opts = append(opts, otlpmetrichttp.WithTLSClientConfig(&tls.Config{
-			MinVersion: tls.VersionTLS12,
-		}))
-	}
-
-	if len(o.headers) > 0 {
-		opts = append(opts, otlpmetrichttp.WithHeaders(o.headers))
-	}
-
-	exporter, err := otlpmetrichttp.New(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create OTLP HTTP metric exporter: %w", err)
-	}
-
-	o.exporter = exporter
-	return exporter, nil
-}
-
-func (o *OtlpHttpMetricExporter) Shutdown(ctx context.Context) error {
-	if o.exporter != nil {
-		if err := o.exporter.Shutdown(ctx); err != nil {
-			return fmt.Errorf("failed to shutdown OTLP HTTP metric exporter: %w", err)
-		}
-	}
-
-	return nil
-}
-
-var _ MetricExporter = (*OtlpHttpMetricExporter)(nil)
-
-type noopSdkMetricExporter struct{}
-
-func (n *noopSdkMetricExporter) Aggregation(sdkmetric.InstrumentKind) sdkmetric.Aggregation {
-	return nil
-}
-
-func (n *noopSdkMetricExporter) Export(context.Context, *metricdata.ResourceMetrics) error {
-	return nil
-}
-
-func (n *noopSdkMetricExporter) ForceFlush(context.Context) error {
-	return nil
-}
-
-func (n *noopSdkMetricExporter) Shutdown(context.Context) error {
-	return nil
-}
-
-func (n *noopSdkMetricExporter) Temporality(sdkmetric.InstrumentKind) metricdata.Temporality {
-	return 0
-}
-
-var _ sdkmetric.Exporter = (*noopSdkMetricExporter)(nil)
-
-type NoopMetricExporter struct{}
-
-func NewNoopMetricExporter() *NoopMetricExporter {
-	return &NoopMetricExporter{}
-}
-
-func (n *NoopMetricExporter) Name() string {
-	return "noop-metrics"
-}
-
-func (n *NoopMetricExporter) GetSdkMetricExporter(
-	ctx context.Context,
-	res *resource.Resource,
-) (sdkmetric.Exporter, error) {
-	return &noopSdkMetricExporter{}, nil
-}
-
-func (n *NoopMetricExporter) Shutdown(ctx context.Context) error {
-	return nil
-}
-
-var _ MetricExporter = (*NoopMetricExporter)(nil)
-```
-
-file -----------rw-r--r-- telemetry/metrics.go
-```
-package telemetry
-
-import (
-	"context"
-	"fmt"
-	"net/http"
-	"runtime"
-	"time"
-
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/metric"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/resource"
-)
-
-type MetricExporter interface {
-	Name() string
-	GetSdkMetricExporter(ctx context.Context, res *resource.Resource) (sdkmetric.Exporter, error)
-	Shutdown(ctx context.Context) error
-}
-
-func GetMeter(serviceName string) metric.Meter {
-	return otel.Meter(serviceName)
-}
-
-func HTTPRequestsTotal(serviceName string) (metric.Int64Counter, error) {
-	counter, err := GetMeter(serviceName).Int64Counter(
-		"http_requests_total",
-		metric.WithDescription("Total number of HTTP requests"),
-		metric.WithUnit("1"),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create http_requests_total counter: %w", err)
-	}
-
-	return counter, nil
-}
-
-func HTTPRequestsInFlight(serviceName string) (metric.Int64UpDownCounter, error) {
-	counter, err := GetMeter(serviceName).Int64UpDownCounter(
-		"http_requests_in_flight",
-		metric.WithDescription("Current number of HTTP requests being served"),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create http_requests_in_flight counter: %w", err)
-	}
-
-	return counter, nil
-}
-
-func HTTPRequestDuration(serviceName string) (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(serviceName).Float64Histogram(
-		"http_request_duration_seconds",
-		metric.WithDescription("HTTP request duration in seconds"),
-		metric.WithUnit("s"),
-		metric.WithExplicitBucketBoundaries(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create http_request_duration_seconds histogram: %w", err)
-	}
-
-	return histogram, nil
-}
-
-func HTTPRequestSize(serviceName string) (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(serviceName).Float64Histogram(
-		"http_request_size_bytes",
-		metric.WithDescription("HTTP request size in bytes"),
-		metric.WithUnit("By"),
-		metric.WithExplicitBucketBoundaries(1024, 2048, 5120, 10240, 102400, 512000, 1048576, 2621440, 5242880, 10485760),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create http_request_size_bytes histogram: %w", err)
-	}
-
-	return histogram, nil
-}
-
-func HTTPResponseSize(serviceName string) (metric.Float64Histogram, error) {
-	histogram, err := GetMeter(serviceName).Float64Histogram(
-		"http_response_size_bytes",
-		metric.WithDescription("HTTP response size in bytes"),
-		metric.WithUnit("By"),
-		metric.WithExplicitBucketBoundaries(1024, 2048, 5120, 10240, 102400, 512000, 1048576, 2621440, 5242880, 10485760),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create http_response_size_bytes histogram: %w", err)
-	}
-
-	return histogram, nil
-}
-
-func SetupRuntimeMetricsInCallback(meter metric.Meter) error {
-	_, err := meter.Int64ObservableGauge(
-		"go_goroutines",
-		metric.WithDescription("Number of goroutines that currently exist"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				o.Observe(int64(runtime.NumGoroutine()))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_goroutines gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableGauge(
-		"go_memstats_alloc_bytes",
-		metric.WithDescription("Number of bytes allocated and still in use"),
-		metric.WithUnit("bytes"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				o.Observe(int64(m.Alloc))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_memstats_alloc_bytes gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableGauge(
-		"go_memstats_heap_alloc_bytes",
-		metric.WithDescription("Number of heap bytes allocated and still in use"),
-		metric.WithUnit("bytes"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				o.Observe(int64(m.HeapAlloc))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_memstats_heap_alloc_bytes gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableGauge(
-		"go_memstats_heap_sys_bytes",
-		metric.WithDescription("Number of heap bytes obtained from system"),
-		metric.WithUnit("bytes"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				o.Observe(int64(m.HeapSys))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_memstats_heap_sys_bytes gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableGauge(
-		"go_memstats_heap_idle_bytes",
-		metric.WithDescription("Number of heap bytes waiting to be used"),
-		metric.WithUnit("bytes"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				o.Observe(int64(m.HeapIdle))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_memstats_heap_idle_bytes gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableGauge(
-		"go_memstats_heap_inuse_bytes",
-		metric.WithDescription("Number of heap bytes that are in use"),
-		metric.WithUnit("bytes"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				o.Observe(int64(m.HeapInuse))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_memstats_heap_inuse_bytes gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableGauge(
-		"go_memstats_heap_released_bytes",
-		metric.WithDescription("Number of heap bytes released to OS"),
-		metric.WithUnit("bytes"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				o.Observe(int64(m.HeapReleased))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_memstats_heap_released_bytes gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableGauge(
-		"go_memstats_sys_bytes",
-		metric.WithDescription("Number of bytes obtained from system"),
-		metric.WithUnit("bytes"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				o.Observe(int64(m.Sys))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_memstats_sys_bytes gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableCounter(
-		"go_memstats_mallocs_total",
-		metric.WithDescription("Total number of mallocs"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				o.Observe(int64(m.Mallocs))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_memstats_mallocs_total counter: %w", err)
-	}
-
-	_, err = meter.Int64ObservableCounter(
-		"go_memstats_frees_total",
-		metric.WithDescription("Total number of frees"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				o.Observe(int64(m.Frees))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_memstats_frees_total counter: %w", err)
-	}
-
-	_, err = meter.Int64ObservableGauge(
-		"go_memstats_heap_objects",
-		metric.WithDescription("Number of allocated objects"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				o.Observe(int64(m.HeapObjects))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_memstats_heap_objects gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableGauge(
-		"go_memstats_next_gc_bytes",
-		metric.WithDescription("Number of heap bytes when next garbage collection will take place"),
-		metric.WithUnit("bytes"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				o.Observe(int64(m.NextGC))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_memstats_next_gc_bytes gauge: %w", err)
-	}
-
-	_, err = meter.Float64ObservableGauge(
-		"go_memstats_last_gc_time_seconds",
-		metric.WithDescription("Number of seconds since 1970 of last garbage collection"),
-		metric.WithUnit("s"),
-		metric.WithFloat64Callback(
-			func(ctx context.Context, o metric.Float64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				o.Observe(float64(m.LastGC) / 1e9)
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_memstats_last_gc_time_seconds gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableGauge(
-		"go_memstats_gc_sys_bytes",
-		metric.WithDescription("Number of bytes used for garbage collection system metadata"),
-		metric.WithUnit("bytes"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				o.Observe(int64(m.GCSys))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_memstats_gc_sys_bytes gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableGauge(
-		"go_threads",
-		metric.WithDescription("Number of OS threads created"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				o.Observe(int64(runtime.GOMAXPROCS(0)))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_threads gauge: %w", err)
-	}
-
-	var previousNumGC uint32
-	var totalPauseNs uint64
-
-	_, err = meter.Float64ObservableGauge(
-		"go_gc_duration_seconds_sum",
-		metric.WithDescription("Total pause duration of garbage collection cycles"),
-		metric.WithUnit("s"),
-		metric.WithFloat64Callback(
-			func(ctx context.Context, o metric.Float64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-
-				if m.NumGC > previousNumGC {
-					for i := previousNumGC; i < m.NumGC; i++ {
-						idx := i % uint32(len(m.PauseNs))
-						totalPauseNs += m.PauseNs[idx]
-					}
-					previousNumGC = m.NumGC
-				}
-
-				o.Observe(float64(totalPauseNs) / 1e9)
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_gc_duration_seconds_sum gauge: %w", err)
-	}
-
-	_, err = meter.Int64ObservableGauge(
-		"go_gc_duration_seconds_count",
-		metric.WithDescription("Number of garbage collection cycles"),
-		metric.WithInt64Callback(
-			func(ctx context.Context, o metric.Int64Observer) error {
-				var m runtime.MemStats
-				runtime.ReadMemStats(&m)
-				o.Observe(int64(m.NumGC))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create go_gc_duration_seconds_count gauge: %w", err)
-	}
-
-	startTime := time.Now()
-	_, err = meter.Float64ObservableGauge(
-		"process_start_time_seconds",
-		metric.WithDescription("Start time of the process since unix epoch in seconds"),
-		metric.WithUnit("s"),
-		metric.WithFloat64Callback(
-			func(ctx context.Context, o metric.Float64Observer) error {
-				o.Observe(float64(startTime.Unix()))
-				return nil
-			},
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create process_start_time_seconds gauge: %w", err)
-	}
-
-	return nil
-}
-
-func ComputeApproximateRequestSize(r *http.Request) int {
-	s := 0
-	if r.URL != nil {
-		s = len(r.URL.Path)
-	}
-
-	s += len(r.Method)
-	s += len(r.Proto)
-	for name, values := range r.Header {
-		s += len(name)
-		for _, value := range values {
-			s += len(value)
-		}
-	}
-	s += len(r.Host)
-
-	if r.ContentLength != -1 {
-		s += int(r.ContentLength)
-	}
-
-	return s
-}
-```
-
-file -----------rw-r--r-- telemetry/options.go
-```
-package telemetry
-
-import (
-	"fmt"
-	"time"
-)
-
-type Option func(*telemetryOptions) error
-
-type telemetryOptions struct {
-	serviceName     string
-	serviceVersion  string
-	logExporters    []LogExporter
-	metricExporters []MetricExporter
-	traceExporters  []TraceExporter
-	batchSize       int
-	batchTimeout    time.Duration
-	queueSize       int
-	traceSampleRate float64
-}
-
-func defaultConfig() *telemetryOptions {
-	return &telemetryOptions{
-		serviceName:     "unknown-service",
-		serviceVersion:  "0.0.0",
-		batchSize:       512,
-		batchTimeout:    5 * time.Second,
-		queueSize:       2048,
-		traceSampleRate: 1.0,
-	}
-}
-
-func WithService(name, version string) Option {
-	return func(c *telemetryOptions) error {
-		if name == "" {
-			return fmt.Errorf("service name cannot be empty")
-		}
-		if version == "" {
-			return fmt.Errorf("service version cannot be empty")
-		}
-		c.serviceName = name
-		c.serviceVersion = version
-		return nil
-	}
-}
-
-func WithLogExporters(exporters ...LogExporter) Option {
-	return func(c *telemetryOptions) error {
-		for i, exp := range exporters {
-			if exp == nil {
-				return fmt.Errorf("log exporter at index %d is nil", i)
-			}
-		}
-		c.logExporters = exporters
-		return nil
-	}
-}
-
-func WithMetricExporters(exporters ...MetricExporter) Option {
-	return func(c *telemetryOptions) error {
-		for i, exp := range exporters {
-			if exp == nil {
-				return fmt.Errorf("metric exporter at index %d is nil", i)
-			}
-		}
-		c.metricExporters = exporters
-		return nil
-	}
-}
-
-func WithTraceExporters(exporters ...TraceExporter) Option {
-	return func(c *telemetryOptions) error {
-		for i, exp := range exporters {
-			if exp == nil {
-				return fmt.Errorf("trace exporter at index %d is nil", i)
-			}
-		}
-		c.traceExporters = exporters
-		return nil
-	}
-}
-
-func WithBatchConfig(size int, timeoutMs int, queueSize int) Option {
-	return func(c *telemetryOptions) error {
-		if size <= 0 {
-			return fmt.Errorf("batch size must be positive, got %d", size)
-		}
-		if timeoutMs <= 0 {
-			return fmt.Errorf("batch timeout must be positive, got %d", timeoutMs)
-		}
-		if queueSize <= 0 {
-			return fmt.Errorf("queue size must be positive, got %d", queueSize)
-		}
-		c.batchSize = size
-		c.batchTimeout = time.Duration(timeoutMs) * time.Millisecond
-		c.queueSize = queueSize
-		return nil
-	}
-}
-
-func WithTraceSampleRate(rate float64) Option {
-	return func(c *telemetryOptions) error {
-		if rate < 0.0 || rate > 1.0 {
-			return fmt.Errorf("trace sample rate must be between 0.0 and 1.0, got %f", rate)
-		}
-		c.traceSampleRate = rate
-		return nil
-	}
-}
-```
-
-file -----------rw-r--r-- telemetry/telemetry.go
-```
-// Package telemetry is a thin wrapper around OpenTelemetry to configure
-// logging, metrics, and tracing for the application.
-package telemetry
-
-import (
-	"context"
-	"errors"
-	"fmt"
-	"log/slog"
-	"os"
-	"slices"
-	"strings"
-	"time"
-
-	"testapp/config"
-
-	"go.opentelemetry.io/otel"
-	sdklog "go.opentelemetry.io/otel/sdk/log"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
-	"go.uber.org/fx"
-)
-
-type Telemetry struct {
-	resource       *resource.Resource
-	loggerProvider *sdklog.LoggerProvider
-	meterProvider  *sdkmetric.MeterProvider
-	tracerProvider *sdktrace.TracerProvider
-	shutdownFuncs  []func(context.Context) error
-	config         *telemetryOptions
-}
-
-func New(cfg config.Telemetry) (*Telemetry, error) {
-	ctx := context.Background()
-
-	opts := []Option{
-		WithService(cfg.ServiceName, cfg.ServiceVersion),
-		WithBatchConfig(cfg.BatchSize, cfg.BatchTimeoutMs, 2048),
-		WithTraceSampleRate(cfg.TraceSampleRate),
-	}
-
-	logExporters := []LogExporter{NewStdoutExporter()}
-	if cfg.OtlpLogsEndpoint != "" {
-		logExporters = append(logExporters, NewOtlpLogExporter(
-			cfg.OtlpLogsEndpoint,
-			parseHeaders(cfg.OtlpHeaders),
-			cfg.BatchSize,
-			time.Duration(cfg.BatchTimeoutMs)*time.Millisecond,
-		))
-	}
-	opts = append(opts, WithLogExporters(logExporters...))
-
-	if cfg.OtlpMetricsEndpoint != "" {
-		opts = append(opts, WithMetricExporters(
-			NewOtlpMetricExporter(
-				cfg.OtlpMetricsEndpoint,
-				parseHeaders(cfg.OtlpHeaders),
-			),
-		))
-	}
-
-	if cfg.OtlpTracesEndpoint != "" {
-		opts = append(opts, WithTraceExporters(
-			NewOtlpTraceExporter(cfg.OtlpTracesEndpoint, parseHeaders(cfg.OtlpHeaders))))
-	} else {
-		opts = append(opts, WithTraceExporters(NewNoopTraceExporter()))
-	}
-
-	tel, err := newWithOpts(ctx, opts...)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := tel.HealthCheck(ctx); err != nil {
-		slog.Warn("telemetry health check failed", "error", err)
-	}
-
-	return tel, nil
-}
-
-func newWithOpts(ctx context.Context, opts ...Option) (*Telemetry, error) {
-	cfg := defaultConfig()
-	for _, opt := range opts {
-		if err := opt(cfg); err != nil {
-			return nil, fmt.Errorf("failed to apply option: %w", err)
-		}
-	}
-
-	res, err := resource.New(ctx,
-		resource.WithAttributes(
-			semconv.ServiceNameKey.String(cfg.serviceName),
-			semconv.ServiceVersionKey.String(cfg.serviceVersion),
-		),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create resource: %w", err)
-	}
-
-	t := &Telemetry{
-		resource:      res,
-		shutdownFuncs: make([]func(context.Context) error, 0),
-		config:        cfg,
-	}
-
-	if err := t.initLogging(ctx); err != nil {
-		_ = t.Shutdown(ctx)
-		return nil, fmt.Errorf("failed to initialize logging: %w", err)
-	}
-
-	if err := t.initMetrics(ctx); err != nil {
-		_ = t.Shutdown(ctx)
-		return nil, fmt.Errorf("failed to initialize metrics: %w", err)
-	}
-
-	if err := t.initTracing(ctx); err != nil {
-		_ = t.Shutdown(ctx)
-		return nil, fmt.Errorf("failed to initialize tracing: %w", err)
-	}
-
-	return t, nil
-}
-
-func (t *Telemetry) initLogging(ctx context.Context) error {
-	if len(t.config.logExporters) == 0 {
-		return nil
-	}
-
-	handlers := make([]slog.Handler, 0, len(t.config.logExporters))
-	for _, exporter := range t.config.logExporters {
-		handler, err := exporter.GetSlogHandler(ctx, t.resource)
-		if err != nil {
-			return fmt.Errorf("failed to get slog handler from %s: %w", exporter.Name(), err)
-		}
-		handlers = append(handlers, handler)
-		t.shutdownFuncs = append(t.shutdownFuncs, exporter.Shutdown)
-	}
-
-	var finalHandler slog.Handler
-	if len(handlers) == 1 {
-		finalHandler = handlers[0]
-	} else {
-		finalHandler = &multiHandler{handlers: handlers}
-	}
-
-	wrappedHandler := &traceLogHandler{handler: finalHandler}
-	logger := slog.New(wrappedHandler)
-	slog.SetDefault(logger)
-
-	return nil
-}
-
-func (t *Telemetry) initMetrics(ctx context.Context) error {
-	if len(t.config.metricExporters) == 0 {
-		return nil
-	}
-
-	cleanupStart := len(t.shutdownFuncs)
-	exporters := make([]sdkmetric.Exporter, 0, len(t.config.metricExporters))
-	for _, exporter := range t.config.metricExporters {
-		exp, err := exporter.GetSdkMetricExporter(ctx, t.resource)
-		if err != nil {
-			return fmt.Errorf("failed to get metric exporter from %s: %w", exporter.Name(), err)
-		}
-		exporters = append(exporters, exp)
-		t.shutdownFuncs = append(t.shutdownFuncs, exporter.Shutdown)
-	}
-
-	opts := []sdkmetric.Option{
-		sdkmetric.WithResource(t.resource),
-	}
-
-	for _, exp := range exporters {
-		reader := sdkmetric.NewPeriodicReader(exp,
-			sdkmetric.WithInterval(t.config.batchTimeout),
-		)
-		opts = append(opts, sdkmetric.WithReader(reader))
-	}
-
-	meterProvider := sdkmetric.NewMeterProvider(opts...)
-
-	t.meterProvider = meterProvider
-	// The provider owns its readers and exporters after construction.
-	t.shutdownFuncs = t.shutdownFuncs[:cleanupStart]
-	t.shutdownFuncs = append(t.shutdownFuncs, meterProvider.Shutdown)
-	otel.SetMeterProvider(meterProvider)
-
-	return nil
-}
-
-func (t *Telemetry) initTracing(ctx context.Context) error {
-	if len(t.config.traceExporters) == 0 {
-		return nil
-	}
-
-	cleanupStart := len(t.shutdownFuncs)
-	exporters := make([]sdktrace.SpanExporter, 0, len(t.config.traceExporters))
-	for _, exporter := range t.config.traceExporters {
-		exp, err := exporter.GetSpanExporter(ctx, t.resource)
-		if err != nil {
-			return fmt.Errorf("failed to get trace exporter from %s: %w", exporter.Name(), err)
-		}
-		exporters = append(exporters, exp)
-		t.shutdownFuncs = append(t.shutdownFuncs, exporter.Shutdown)
-	}
-
-	opts := []sdktrace.TracerProviderOption{
-		sdktrace.WithResource(t.resource),
-		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(t.config.traceSampleRate)),
-	}
-
-	for _, exp := range exporters {
-		processor := sdktrace.NewBatchSpanProcessor(exp,
-			sdktrace.WithMaxQueueSize(t.config.queueSize),
-			sdktrace.WithMaxExportBatchSize(t.config.batchSize),
-			sdktrace.WithBatchTimeout(t.config.batchTimeout),
-		)
-		opts = append(opts, sdktrace.WithSpanProcessor(processor))
-	}
-
-	tracerProvider := sdktrace.NewTracerProvider(opts...)
-
-	t.tracerProvider = tracerProvider
-	// The provider owns its processors and exporters after construction.
-	t.shutdownFuncs = t.shutdownFuncs[:cleanupStart]
-	t.shutdownFuncs = append(t.shutdownFuncs, tracerProvider.Shutdown)
-	otel.SetTracerProvider(tracerProvider)
-
-	return nil
-}
-
-func (t *Telemetry) Shutdown(ctx context.Context) error {
-	var shutdownErr error
-	// Flush logging last so shutdown diagnostics can still be exported.
-	for _, shutdown := range slices.Backward(t.shutdownFuncs) {
-		shutdownErr = errors.Join(shutdownErr, shutdown(ctx))
-	}
-
-	return shutdownErr
-}
-
-func (t *Telemetry) HealthCheck(ctx context.Context) error {
-	if len(t.config.logExporters) == 0 && len(t.config.metricExporters) == 0 &&
-		len(t.config.traceExporters) == 0 {
-		return fmt.Errorf("no exporters configured")
-	}
-
-	return nil
-}
-
-func (t *Telemetry) HasMetrics() bool {
-	return t.meterProvider != nil
-}
-
-func (t *Telemetry) HasTracing() bool {
-	return t.tracerProvider != nil
-}
-
-func (t *Telemetry) HasLogging() bool {
-	return len(t.config.logExporters) > 0
-}
-
-func (t *Telemetry) ServiceName() string {
-	return t.config.serviceName
-}
-
-type multiHandler struct {
-	handlers []slog.Handler
-}
-
-func (m *multiHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	for _, h := range m.handlers {
-		if h.Enabled(ctx, level) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func (m *multiHandler) Handle(ctx context.Context, r slog.Record) error {
-	for _, h := range m.handlers {
-		if err := h.Handle(ctx, r); err != nil {
-			fmt.Fprintf(os.Stderr, "[telemetry] handler error: %v\n", err)
-		}
-	}
-
-	return nil
-}
-
-func (m *multiHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	newHandlers := make([]slog.Handler, len(m.handlers))
-	for i, h := range m.handlers {
-		newHandlers[i] = h.WithAttrs(attrs)
-	}
-
-	return &multiHandler{handlers: newHandlers}
-}
-
-func (m *multiHandler) WithGroup(name string) slog.Handler {
-	newHandlers := make([]slog.Handler, len(m.handlers))
-	for i, h := range m.handlers {
-		newHandlers[i] = h.WithGroup(name)
-	}
-
-	return &multiHandler{handlers: newHandlers}
-}
-
-func parseHeaders(headersStr string) map[string]string {
-	headers := make(map[string]string)
-	if headersStr == "" {
-		return headers
-	}
-
-	pairs := strings.SplitSeq(headersStr, ",")
-	for pair := range pairs {
-		kv := strings.SplitN(pair, "=", 2)
-		if len(kv) == 2 {
-			headers[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
-		}
-	}
-
-	return headers
-}
-
-var Module = fx.Module("telemetry",
-	fx.Provide(New),
-	fx.Invoke(func(lifecycle fx.Lifecycle, tel *Telemetry) {
-		lifecycle.Append(fx.Hook{OnStop: tel.Shutdown})
-	}),
-)
-```
-
-file -----------rw-r--r-- telemetry/trace_exporters.go
-```
-package telemetry
-
-import (
-	"context"
-	"crypto/tls"
-	"fmt"
-	"strings"
-
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-)
-
-type OtlpHttpTraceExporter struct {
-	endpoint string
-	insecure bool
-	headers  map[string]string
-	exporter sdktrace.SpanExporter
-}
-
-func NewOtlpTraceExporter(endpoint string, headers map[string]string) *OtlpHttpTraceExporter {
-	if endpoint == "" {
-		return nil
-	}
-
-	return &OtlpHttpTraceExporter{
-		endpoint: endpoint,
-		insecure: false,
-		headers:  headers,
-		exporter: nil,
-	}
-}
-
-func NewOtlpTraceExporterInsecure(
-	endpoint string,
-	headers map[string]string,
-) *OtlpHttpTraceExporter {
-	if endpoint == "" {
-		return nil
-	}
-
-	return &OtlpHttpTraceExporter{
-		endpoint: endpoint,
-		insecure: true,
-		headers:  headers,
-		exporter: nil,
-	}
-}
-
-func (o *OtlpHttpTraceExporter) Name() string {
-	return "otlp-http-traces"
-}
-
-func (o *OtlpHttpTraceExporter) GetSpanExporter(
-	ctx context.Context,
-	res *resource.Resource,
-) (sdktrace.SpanExporter, error) {
-	endpoint := strings.TrimPrefix(o.endpoint, "http://")
-	endpoint = strings.TrimPrefix(endpoint, "https://")
-
-	opts := []otlptracehttp.Option{
-		otlptracehttp.WithEndpoint(endpoint),
-	}
-
-	if o.insecure {
-		opts = append(opts, otlptracehttp.WithInsecure())
-	} else {
-		opts = append(opts, otlptracehttp.WithTLSClientConfig(&tls.Config{
-			MinVersion: tls.VersionTLS12,
-		}))
-	}
-
-	if len(o.headers) > 0 {
-		opts = append(opts, otlptracehttp.WithHeaders(o.headers))
-	}
-
-	exporter, err := otlptracehttp.New(ctx, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create OTLP HTTP trace exporter: %w", err)
-	}
-
-	o.exporter = exporter
-	return exporter, nil
-}
-
-func (o *OtlpHttpTraceExporter) Shutdown(ctx context.Context) error {
-	if o.exporter != nil {
-		if err := o.exporter.Shutdown(ctx); err != nil {
-			return fmt.Errorf("failed to shutdown OTLP HTTP trace exporter: %w", err)
-		}
-	}
-
-	return nil
-}
-
-var _ TraceExporter = (*OtlpHttpTraceExporter)(nil)
-
-type noopSpanExporter struct{}
-
-func (e *noopSpanExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
-	return nil
-}
-
-func (e *noopSpanExporter) Shutdown(ctx context.Context) error {
-	return nil
-}
-
-var _ sdktrace.SpanExporter = (*noopSpanExporter)(nil)
-
-type NoopTraceExporter struct{}
-
-func NewNoopTraceExporter() *NoopTraceExporter {
-	return &NoopTraceExporter{}
-}
-
-func (n *NoopTraceExporter) Name() string {
-	return "noop-traces"
-}
-
-func (n *NoopTraceExporter) GetSpanExporter(
-	ctx context.Context,
-	res *resource.Resource,
-) (sdktrace.SpanExporter, error) {
-	return &noopSpanExporter{}, nil
-}
-
-func (n *NoopTraceExporter) Shutdown(ctx context.Context) error {
-	return nil
-}
-
-var _ TraceExporter = (*NoopTraceExporter)(nil)
-```
-
-file -----------rw-r--r-- telemetry/tracer.go
-```
-package telemetry
-
-import (
-	"context"
-
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/trace"
-)
-
-type TraceExporter interface {
-	Name() string
-	GetSpanExporter(ctx context.Context, res *resource.Resource) (sdktrace.SpanExporter, error)
-	Shutdown(ctx context.Context) error
-}
-
-func GetTracer(serviceName string) trace.Tracer {
-	return otel.Tracer(serviceName)
-}
 ```
 
 dir  d----------rwxr-xr-x views
