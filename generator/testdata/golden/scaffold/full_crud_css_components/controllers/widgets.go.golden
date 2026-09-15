@@ -214,7 +214,6 @@ type UpdateWidgetFormPayload struct {
 func (w Widgets) Update(etx *echo.Context) error {
 	ctx, span := telemetry.From(etx, "widgets.update")
 	defer span.End()
-
 	widgetID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.BadRequest())

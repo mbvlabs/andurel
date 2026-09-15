@@ -210,9 +210,8 @@ func BuildModelPath(modelsDir, resourceName string) string
     BuildModelPath performs build model path.
 
 func ExtractTableNameOverride(modelPath string, resourceName string) (string, bool)
-    ExtractTableNameOverride reads the actual table name from the
-    bun.BaseModel tag in the generated entity struct. e.g.: bun.BaseModel
-    `bun:"table:student_feedback"`
+    ExtractTableNameOverride reads the table name from the andurel:table comment
+    on a generated model file.
 
 func ReadInertia() string
     ReadInertia reads the configured Inertia adapter from andurel.lock.
@@ -220,7 +219,7 @@ func ReadInertia() string
 
 func ReadNullType() string
     ReadNullType reads the nullable type strategy from andurel.lock. Defaults to
-    "pgtype.Null" when not configured.
+    pgtype.Null when not configured.
 
 func ResolveTableName(modelsDir, resourceName string) string
     ResolveTableName resolves table name.
@@ -659,7 +658,8 @@ func (m *ModelManager) GenerateModelWithMode(
 	primaryKeyColumn string,
 	mode models.ModelMode,
 ) error
-    GenerateModelWithMode generates model files with a persisted operation mode.
+    GenerateModelWithMode generates model files with a restricted operation
+    mode.
 
 func (m *ModelManager) PlanModel(
 	resourceName string,
@@ -806,9 +806,7 @@ type UpdateModelResult struct {
 
 func (r *UpdateModelResult) Diff() (string, error)
     Diff returns a unified diff of the struct definitions and method bodies
-    (Entity, CreateData, UpdateData, Create, Update, Upsert). bun.BaseModel
-    lines are excluded - their alignment changes with field widths and is not
-    schema content.
+    (Entity, CreateData, UpdateData, Create, Update, Upsert).
 
 func (r *UpdateModelResult) FactoryDiff() (string, error)
     FactoryDiff returns a unified diff of the old vs new factory file content.
@@ -1326,6 +1324,8 @@ type GeneratedFactory struct {
 	IsAutoIncrementID bool           // True for serial/bigserial
 	HasCreatedAt      bool
 	HasUpdatedAt      bool
+	CreatedAtGoType   string // Go type of the created_at column (e.g., "pgtype.Timestamptz")
+	UpdatedAtGoType   string // Go type of the updated_at column (e.g., "pgtype.Timestamptz")
 }
     GeneratedFactory represents a factory for a model
 
@@ -1334,7 +1334,8 @@ type GeneratedField struct {
 	Type            string
 	Comment         string
 	Package         string
-	BunTag          string // Full bun struct tag (e.g., `bun:"id,pk,type:uuid"`)
+	ColumnName      string // SQL column name (e.g., "id")
+	BunTag          string // Deprecated alias of ColumnName for existing updater code
 	IsForeignKey    bool
 	IsNullable      bool
 	IsPrimaryKey    bool
@@ -1368,6 +1369,8 @@ type GeneratedModel struct {
 	ReceiverName        string // u (short receiver for the service methods)
 	HasCreatedAt        bool
 	HasUpdatedAt        bool
+	CreatedAtGoType     string // Go type of the created_at column (e.g., "pgtype.Timestamptz")
+	UpdatedAtGoType     string // Go type of the updated_at column (e.g., "pgtype.Timestamptz")
 	Mode                ModelMode
 }
     GeneratedModel contains the template data for a generated model file.
@@ -1448,6 +1451,9 @@ func (g *Generator) PlanModelSource(
 	mode ModelMode,
 ) (*GeneratedModel, string, error)
     PlanModelSource renders formatted model source without writing files.
+
+func (g *Generator) PlanQuerySource(model *GeneratedModel) (string, error)
+    PlanQuerySource renders the narsilc SQL file for a generated model.
 
 func (g *Generator) WriteFactoryFile(factory *GeneratedFactory, outputDir string) error
     WriteFactoryFile writes a factory file to disk
@@ -1732,6 +1738,17 @@ package layout // import "github.com/mbvlabs/andurel/layout"
 Package layout provides functionality to scaffold a new Go web application
 project
 
+CONSTANTS
+
+const (
+	// NullTypePGType is the default nullable strategy for pgx/v5 (pgtype.*).
+	NullTypePGType = "pgtype.Null"
+	// NullTypePointer emits *T for nullable columns instead of pgtype wrappers.
+	NullTypePointer = "pointer"
+	// DatabaseEnginePostgreSQL is the only supported SQL engine.
+	DatabaseEnginePostgreSQL = "postgresql"
+)
+
 VARIABLES
 
 var DefaultGoTools = []GoTool{
@@ -1756,7 +1773,7 @@ func ApplyExtension(rootDir, extensionName string) ([]string, error)
      4. Re-renders all blueprint-consuming templates (config.go, .env.example,
         main.go, etc.) with the updated blueprint.
      5. Runs post-steps and code generation tools (goose fix, templ generate,
-        sqlc generate when query files exist, go mod tidy, go fmt).
+        narsilc generate when query files exist, go mod tidy, go fmt).
      6. Updates and writes andurel.lock.
 
     Returns the names of all newly applied extensions (the requested extension
@@ -1825,11 +1842,11 @@ func (l *AndurelLock) AddExtension(name, appliedAt string)
 func (l *AndurelLock) AddTool(name string, tool *Tool)
     AddTool records a managed tool in the lock file.
 
-func (l *AndurelLock) ExtensionNames() []string
-    ExtensionNames returns the names of all applied extensions in sorted order.
-
 func (l *AndurelLock) DatabaseEngine() string
     DatabaseEngine returns the configured SQL engine after legacy migration.
+
+func (l *AndurelLock) ExtensionNames() []string
+    ExtensionNames returns the names of all applied extensions in sorted order.
 
 func (l *AndurelLock) Sync(targetDir string, silent bool) error
     Sync downloads missing managed tools and rewrites the lock file.
@@ -1842,15 +1859,6 @@ type DatabaseConfig struct {
 	NullType string `json:"nullType"`
 }
     DatabaseConfig records database engine and generation settings.
-
-const (
-	// NullTypePGType is the default nullable strategy for pgx/v5 (pgtype.*).
-	NullTypePGType = "pgtype.Null"
-	// NullTypePointer emits *T for nullable columns instead of pgtype wrappers.
-	NullTypePointer = "pointer"
-	// DatabaseEnginePostgreSQL is the only supported SQL engine.
-	DatabaseEnginePostgreSQL = "postgresql"
-)
 
 type Element struct {
 	RootDir string
@@ -1949,6 +1957,10 @@ func (td *TemplateData) InertiaPackageVersion() string
     InertiaPackageVersion returns the standalone Inertia module version verified
     with this framework release.
 
+func (td *TemplateData) NarsilcPackageVersion() string
+    NarsilcPackageVersion returns the narsilc module version required by
+    generated query code.
+
 func (td *TemplateData) RoutingPackageVersion() string
     RoutingPackageVersion returns the standalone routing module version verified
     with this framework release.
@@ -1963,6 +1975,10 @@ func (td *TemplateData) SetBlueprint(bp *blueprint.Blueprint)
 func (td *TemplateData) StoragePackageVersion() string
     StoragePackageVersion returns the standalone storage module version verified
     with this framework release.
+
+func (td *TemplateData) TelemetryPackageVersion() string
+    TelemetryPackageVersion returns the standalone telemetry module version
+    verified with this framework release.
 
 func (td *TemplateData) ValidationPackageVersion() string
     ValidationPackageVersion returns the standalone validation module version
@@ -2619,12 +2635,16 @@ func RunGolines(targetDir string) error
 func RunGooseFix(targetDir string) error
     RunGooseFix runs goose fix.
 
-func RunSQLCGenerate(targetDir string) error
-    RunSQLCGenerate runs sqlc generate when models/queries contains SQL files.
+func RunNarsilcGenerate(targetDir string) error
+    RunNarsilcGenerate runs narsilc generate when models/queries contains
+    SQL files. If bin/narsilc is not installed yet, it falls back to go run
+    github.com/mbvlabs/narsilc/cmd/narsilc@<version> so scaffold can emit
+    models/internal/queries. go mod tidy runs before go fmt because rewriting
+    go.mod from the scaffold template leaves the module untidy.
 
-func RunSQLCGenerateOptional(targetDir string) error
-    RunSQLCGenerateOptional runs sqlc generate when queries and bin/sqlc exist.
-    Missing queries or binary are ignored so scaffold flows stay no-op safe.
+func RunNarsilcGenerateOptional(targetDir string) error
+    RunNarsilcGenerateOptional runs narsilc generate when annotated query files
+    exist.
 
 func RunTemplFmt(targetDir string) error
     RunTemplFmt runs templ fmt.
@@ -2895,12 +2915,14 @@ const (
 	TailwindCLI = "v4.3.2"
 	// Shadowfax is the default Shadowfax runner version.
 	Shadowfax = "v0.10.0"
-	// Sqlc is the default sqlc tool version.
-	Sqlc = "v1.31.1"
+	// Narsilc is the default narsilc tool version.
+	Narsilc = "v0.4.2"
+	// NarsilcModule is the Go module version required by generated query code.
+	NarsilcModule = "v0.4.2"
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
 	Hypermedia = "v0.2.3"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.4.2"
+	Inertia = "v0.5.0"
 	// Email is the standalone Andurel email module version verified with this framework.
 	Email = "v0.3.2"
 	// Routing is the standalone Andurel routing module version verified with this framework.
@@ -2909,9 +2931,21 @@ const (
 	Server = "v0.3.2"
 	// Storage is the standalone Andurel storage module version verified with this framework.
 	Storage = "v0.8.0"
+	// Telemetry is the standalone Andurel telemetry module version verified with this framework.
+	Telemetry = "v0.1.0"
 	// Validation is the standalone Andurel validation module version verified with this framework.
 	Validation = "v0.1.3"
+
+	// PkgPrefix is the module path prefix for standalone Andurel packages.
+	PkgPrefix = "github.com/mbvlabs/andurel/pkg/"
 )
+
+FUNCTIONS
+
+func PackageVersion(modulePath string) (string, bool)
+    PackageVersion returns the version of a standalone Andurel package verified
+    with this framework release.
+
 
 ## github.com/mbvlabs/andurel/pkg/email
 package email // import "github.com/mbvlabs/andurel/pkg/email"
@@ -3570,8 +3604,8 @@ const (
 VARIABLES
 
 var ErrResponseTooLarge = errors.New("inertia: SSR response exceeds configured limit")
-    ErrResponseTooLarge reports an SSR response that exceeds
-    SSRClientConfig.MaxResponseBytes.
+    ErrResponseTooLarge reports an SSR response that exceeds the configured
+    limit.
 
 
 FUNCTIONS
@@ -3597,6 +3631,14 @@ func SSRBody(response *SSRResponse) templ.Component
 func SSRHead(response *SSRResponse) templ.Component
     SSRHead renders trusted head markup returned by the configured local
     runtime.
+
+func ValidateSSRClient(ssrURL string, timeout time.Duration, maxResponseBytes int64) error
+    ValidateSSRClient verifies the HTTP client used by cmd/app to POST /render.
+    The URL may be any http(s) host, including a service DNS name.
+
+func ValidateSSRListen(listenURL string) error
+    ValidateSSRListen verifies the URL Node binds. Host must be an IP or
+    localhost; service hostnames cannot be bound.
 
 
 TYPES
@@ -3643,8 +3685,14 @@ type HTTPRenderer struct {
     HTTPRenderer implements the official Inertia JavaScript SSR HTTP contract.
     Head and body markup returned by this renderer must be treated as trusted.
 
-func NewHTTPRenderer(config SSRClientConfig, options ...HTTPRendererOption) (*HTTPRenderer, error)
-    NewHTTPRenderer creates a bounded SSR HTTP renderer.
+func NewHTTPRenderer(
+	ssrURL string,
+	timeout time.Duration,
+	maxResponseBytes int64,
+	options ...HTTPRendererOption,
+) (*HTTPRenderer, error)
+    NewHTTPRenderer creates a bounded SSR HTTP renderer. ssrURL is where cmd/app
+    POSTs /render and may be any http(s) host.
 
 func (renderer *HTTPRenderer) Health(ctx context.Context) error
     Health verifies the renderer's /health endpoint.
@@ -3865,16 +3913,21 @@ func NewRenderer(
 	buildPathURL string,
 	entryPoint string,
 	viteDevURL string,
-	ssrConfig SSRClientConfig,
+	ssrURL string,
+	ssrTimeout time.Duration,
+	ssrMaxResponseBytes int64,
 	options ...Option,
 ) (*Renderer, error)
     NewRenderer constructs the Inertia protocol renderer used by cmd/app.
 
-    It always serves the Inertia protocol (CSR by default). Pages that pass
-    WithSSR() call the configured SSR HTTP endpoint. Node process ownership
-    belongs to NewSSRRuntime / cmd/ssr. Required Inertia protocol settings are
-    positional arguments; optional behavior is configured with options such as
-    WithRoot, WithAssetFS, and WithEnvironment.
+    It always serves the Inertia protocol (CSR by default). Pages that
+    pass WithSSR() call the configured SSR HTTP endpoint. In development,
+    that is Vite's /__inertia_ssr endpoint derived from ViteDevURL. In other
+    environments, cmd/app posts to INERTIA_SSR_URL /render. Node process
+    ownership belongs to NewSSRRuntime / cmd/ssr in production. Required Inertia
+    protocol settings are positional arguments; optional behavior is configured
+    with options such as WithRoot, WithAssetFS, and WithEnvironment. ssrURL is
+    the client URL (INERTIA_SSR_URL) and may be any http(s) host.
 
 func (renderer *Renderer) FreshRedirect(etx *echo.Context, location string) error
     FreshRedirect makes an Inertia visit perform a fresh Inertia GET.
@@ -3945,33 +3998,6 @@ type RootData struct {
 type RootFunc func(RootData) templ.Component
     RootFunc constructs the application's compiled templ document.
 
-type SSRClientConfig struct {
-	URL              string
-	Timeout          time.Duration
-	MaxResponseBytes int64
-}
-    SSRClientConfig controls communication with an Inertia SSR HTTP service.
-
-func (config SSRClientConfig) Validate() error
-    Validate verifies HTTP renderer configuration.
-
-type SSRConfig struct {
-	Enabled        bool
-	BundlePath     string
-	Executable     string
-	StartupTimeout time.Duration
-	MinimumMajor   int
-	HTTP           SSRClientConfig
-	Logger         *slog.Logger
-	Stdout         io.Writer
-	Stderr         io.Writer
-}
-    SSRConfig controls a JavaScript SSR process owned by cmd/ssr (or an
-    equivalent operator entrypoint), not by the HTTP application process.
-
-func (config SSRConfig) Validate() error
-    Validate verifies SSR runtime configuration.
-
 type SSRRenderer interface {
 	Render(context.Context, Page) (*SSRResponse, error)
 }
@@ -3987,32 +4013,47 @@ type SSRResponse struct {
 type SSRRuntime struct {
 	// Has unexported fields.
 }
-    SSRRuntime owns one JavaScript process and exposes its HTTP renderer.
+    SSRRuntime owns one JavaScript process. Its HTTP client is only used for
+    /health and /shutdown on the listen address, never for application /render.
 
 func NewSSRRuntime(
-	config SSRConfig,
-	options ...HTTPRendererOption,
+	executable string,
+	bundlePath string,
+	listenURL string,
+	startupTimeout time.Duration,
+	minimumMajor int,
+	healthTimeout time.Duration,
+	bundleFS fs.FS,
+	options ...SSRRuntimeOption,
 ) (*SSRRuntime, error)
-    NewSSRRuntime constructs an SSR runtime without starting it. The
-    configuration is authoritative: every field must be supplied by the caller
-    except Logger, Stdout, and Stderr, which default to slog.Default, os.Stdout,
-    and os.Stderr.
+    NewSSRRuntime constructs an SSR runtime without starting it. listenURL is
+    where Node binds (INERTIA_SSR_LISTEN), not the app client URL. bundleFS is
+    optional; nil means disk only. Generated cmd/ssr passes assets.Files.
 
 func (runtime *SSRRuntime) Errors() <-chan error
     Errors reports unexpected child-process exits. The channel remains valid if
     the runtime is restarted.
 
-func (runtime *SSRRuntime) Renderer() SSRRenderer
-    Renderer returns the configured renderer, or nil when the runtime is
-    disabled.
-
-func (runtime *SSRRuntime) Start(ctx context.Context) error
+func (runtime *SSRRuntime) Start(ctx context.Context) (err error)
     Start starts the configured JavaScript process and waits for health
     readiness.
 
 func (runtime *SSRRuntime) Stop(ctx context.Context) error
     Stop gracefully stops the managed process and kills it when the context
     ends.
+
+type SSRRuntimeOption func(*SSRRuntime) error
+    SSRRuntimeOption configures optional SSR process I/O.
+
+func WithSSRLogger(logger *slog.Logger) SSRRuntimeOption
+    WithSSRLogger sets the logger used when the child process exits
+    unexpectedly.
+
+func WithSSRStderr(stderr io.Writer) SSRRuntimeOption
+    WithSSRStderr sets the child process stderr. Defaults to os.Stderr.
+
+func WithSSRStdout(stdout io.Writer) SSRRuntimeOption
+    WithSSRStdout sets the child process stdout. Defaults to os.Stdout.
 
 type SSRTransportError struct {
 	Kind      SSRTransportErrorKind
@@ -4061,6 +4102,23 @@ type SharedProvider func(*echo.Context) (Props, error)
 
 type VersionProvider func(*echo.Context) (string, error)
     VersionProvider supplies the current asset version.
+
+type ViteSSRRenderer struct {
+	// Has unexported fields.
+}
+    ViteSSRRenderer posts page JSON to the @inertiajs/vite development endpoint.
+
+func NewViteSSRRenderer(
+	viteDevURL string,
+	timeout time.Duration,
+	maxResponseBytes int64,
+) (*ViteSSRRenderer, error)
+    NewViteSSRRenderer creates a renderer that POSTs to Vite origin +
+    /__inertia_ssr. viteDevURL may include a path prefix such as /assets/dist;
+    that path is stripped.
+
+func (renderer *ViteSSRRenderer) Render(ctx context.Context, page Page) (*SSRResponse, error)
+    Render posts a final v3 page object to Vite's /__inertia_ssr endpoint.
 
 
 ## github.com/mbvlabs/andurel/pkg/routing
@@ -4388,36 +4446,29 @@ implementations.
 CONSTANTS
 
 const (
-	// SQLCConfigFile is the project-root sqlc configuration filename.
-	SQLCConfigFile = "sqlc.yaml"
-	// SQLCQueriesDir holds hand-written SQL query files for sqlc.
-	SQLCQueriesDir = "models/queries"
-	// SQLCGeneratedDir is the sqlc output directory beneath models/internal.
-	SQLCGeneratedDir = "models/internal/queries"
+	// QueriesDir holds hand-written SQL query files for narsilc.
+	QueriesDir = "models/queries"
+	// GeneratedQueriesDir is the narsilc output directory beneath models/internal.
+	GeneratedQueriesDir = "models/internal/queries"
 )
 
 FUNCTIONS
 
-func HasSQLCQueryFiles(projectRoot string) (bool, error)
-    HasSQLCQueryFiles reports whether models/queries contains sqlc query
-    definitions. Files must include at least one sqlc name annotation.
+func HasQueryFiles(projectRoot string) (bool, error)
+    HasQueryFiles reports whether models/queries contains narsilc query
+    definitions. Files must include at least one active -- name: annotation.
 
 func RunInTransaction(
 	ctx context.Context,
 	conn Connection,
-	opts *sql.TxOptions,
 	fn func(context.Context, Transaction) error,
 ) error
     RunInTransaction runs fn inside a transaction and commits on success.
 
-func RunMigrations(ctx context.Context, db *sql.DB, migrations fs.FS, migrationDir string) error
-    RunMigrations applies Goose migrations from an embedded filesystem.
-
-func SQLCConfig() []byte
-    SQLCConfig returns the canonical Andurel sqlc configuration.
-
-func WriteSQLCConfig(dir string) error
-    WriteSQLCConfig writes the canonical sqlc.yaml into dir.
+func RunMigrations(ctx context.Context, conn Connection, migrations fs.FS, migrationDir string) error
+    RunMigrations applies Goose migrations from an embedded filesystem. Goose
+    still requires database/sql, so this opens a short-lived stdlib adapter over
+    the same pgx pool.
 
 
 TYPES
@@ -4454,35 +4505,33 @@ func (config Config) Validate() error
     Validate verifies that all required connection settings are present.
 
 type Connection interface {
-	Executor() bun.IDB
-	DB() *sql.DB
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 	Health(ctx context.Context) error
-	BeginTransaction(ctx context.Context, opts *sql.TxOptions) (Transaction, error)
+	BeginTransaction(ctx context.Context) (Transaction, error)
 }
-    Connection exposes the Bun executor, its underlying database/sql pool,
-    and runtime health.
-
-type Executor = bun.IDB
-    Executor is the query interface satisfied by *bun.DB, *bun.Tx, and
-    *bun.Conn. It remains available for application-owned model and factory
-    APIs.
+    Connection is the application database handle. Constructors and
+    collaborators take this type rather than a driver-specific pool. Query
+    methods match pgx DBTX so narsilc-generated clients can accept Connection
+    directly: queries.New(db).
 
 type InsertQueue interface {
 	Insert(context.Context, river.JobArgs, *river.InsertOpts) (*rivertype.JobInsertResult, error)
 	InsertTx(
 		context.Context,
-		*sql.Tx,
+		Transaction,
 		river.JobArgs,
 		*river.InsertOpts,
 	) (*rivertype.JobInsertResult, error)
 	InsertMany(context.Context, []river.InsertManyParams) ([]*rivertype.JobInsertResult, error)
 	InsertManyTx(
 		context.Context,
-		*sql.Tx,
+		Transaction,
 		[]river.InsertManyParams,
 	) ([]*rivertype.JobInsertResult, error)
 	InsertManyFast(context.Context, []river.InsertManyParams) (int, error)
-	InsertManyFastTx(context.Context, *sql.Tx, []river.InsertManyParams) (int, error)
+	InsertManyFastTx(context.Context, Transaction, []river.InsertManyParams) (int, error)
 }
     InsertQueue is the subset of River used to insert jobs.
 
@@ -4509,10 +4558,11 @@ func WithDescriptionCacheCapacity(capacity int) Option
     WithDescriptionCacheCapacity sets the query description cache capacity.
 
 func WithMaxIdleConnections(count int) Option
-    WithMaxIdleConnections sets the database/sql idle connection limit.
+    WithMaxIdleConnections is retained for configuration compatibility. pgxpool
+    has no max-idle analog; prefer MaxOpenConnections and ConnectionMaxIdleTime.
 
 func WithMaxOpenConnections(count int) Option
-    WithMaxOpenConnections sets the database/sql open connection limit.
+    WithMaxOpenConnections sets the pgx pool MaxConns limit.
 
 func WithOpenTelemetry(config TelemetryConfig) Option
     WithOpenTelemetry configures PostgreSQL tracing and metrics.
@@ -4532,29 +4582,29 @@ func WithoutOpenTelemetry() Option
 type Postgres struct {
 	// Has unexported fields.
 }
-    Postgres wraps a bun.DB.
+    Postgres wraps a pgx/v5 pool.
 
 func NewPostgres(ctx context.Context, config Config, options ...Option) (*Postgres, error)
     NewPostgres creates a new database connection from the supplied
     configuration.
 
-func (p *Postgres) BeginTransaction(
-	ctx context.Context,
-	opts *sql.TxOptions,
-) (Transaction, error)
-    BeginTransaction starts a transaction with Bun and database/sql access.
+func (p *Postgres) BeginTransaction(ctx context.Context) (Transaction, error)
+    BeginTransaction starts a transaction on the shared pool.
 
 func (p *Postgres) Close() error
-    Close closes the database connection.
+    Close closes the underlying pgx pool.
 
-func (p *Postgres) DB() *sql.DB
-    DB returns the underlying sql.DB.
-
-func (p *Postgres) Executor() bun.IDB
-    Executor returns the Bun query executor.
+func (p *Postgres) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 
 func (p *Postgres) Health(ctx context.Context) error
     Health verifies that the database is reachable at runtime.
+
+func (p *Postgres) Pool() *pgxpool.Pool
+    Pool returns the wrapped pgx pool.
+
+func (p *Postgres) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+
+func (p *Postgres) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 
 type QueueConfig struct {
 	AdvisoryLockPrefix          int32
@@ -4601,8 +4651,7 @@ type QueueInsert struct {
     QueueInsert is an independently constructible River job inserter.
 
 func NewQueueInsert(connection Connection, config QueueConfig, options ...QueueOption) (*QueueInsert, error)
-    NewQueueInsert creates an insert-only queue client using connection's
-    sql.DB.
+    NewQueueInsert creates an insert-only queue client using connection.
 
 func (q *QueueInsert) Insert(
 	ctx context.Context,
@@ -4622,19 +4671,19 @@ func (q *QueueInsert) InsertManyFast(
 
 func (q *QueueInsert) InsertManyFastTx(
 	ctx context.Context,
-	tx *sql.Tx,
+	tx Transaction,
 	params []river.InsertManyParams,
 ) (int, error)
 
 func (q *QueueInsert) InsertManyTx(
 	ctx context.Context,
-	tx *sql.Tx,
+	tx Transaction,
 	params []river.InsertManyParams,
 ) ([]*rivertype.JobInsertResult, error)
 
 func (q *QueueInsert) InsertTx(
 	ctx context.Context,
-	tx *sql.Tx,
+	tx Transaction,
 	args river.JobArgs,
 	opts *river.InsertOpts,
 ) (*rivertype.JobInsertResult, error)
@@ -4712,7 +4761,7 @@ type QueueProcessor struct {
     QueueProcessor owns the lifecycle of a River worker client.
 
 func NewQueueProcessor(connection Connection, config QueueConfig, options ...QueueOption) (*QueueProcessor, error)
-    NewQueueProcessor creates a worker client using connection's sql.DB.
+    NewQueueProcessor creates a worker client using connection.
 
 func (q *QueueProcessor) Start(ctx context.Context) error
     Start starts processing jobs and returns once the processor is ready.
@@ -4746,14 +4795,148 @@ func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir st
     NewTestDB creates a migrated, isolated database for one test.
 
 type Transaction interface {
-	Executor() bun.IDB
-	SQL() *sql.Tx
-	Commit() error
-	Rollback() error
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Commit(ctx context.Context) error
+	Rollback(ctx context.Context) error
 }
-    Transaction exposes Bun and database/sql access over one PostgreSQL
-    transaction. Use Executor for Bun model methods and SQL for sqlc, River
-    inserts, or other database/sql callers that must share the same boundary.
+    Transaction is one PostgreSQL transaction on a Connection. narsilc clients
+    accept it directly: queries.New(tx). River inserts that must share the
+    boundary use InsertTx with this same value.
+
+
+## github.com/mbvlabs/andurel/pkg/telemetry
+package telemetry // import "github.com/mbvlabs/andurel/pkg/telemetry"
+
+
+FUNCTIONS
+
+func AddHTTPInFlight(ctx context.Context, tel *Telemetry, delta int64)
+    AddHTTPInFlight increments the in-flight HTTP request counter.
+
+func Debug(ctx context.Context, msg string, args ...any)
+    Debug logs at debug level.
+
+func Error(ctx context.Context, msg string, args ...any)
+    Error logs at error level.
+
+func Fail(ctx context.Context, err error) error
+    Fail records err on the current span and returns err.
+
+func Info(ctx context.Context, msg string, args ...any)
+    Info logs at info level.
+
+func ParseHeaders(headersStr string) map[string]string
+    ParseHeaders parses comma-separated k=v pairs from OTLP_HEADERS.
+
+func RecordHTTPRequest(
+	ctx context.Context,
+	tel *Telemetry,
+	method string,
+	route string,
+	status int,
+	duration time.Duration,
+)
+    RecordHTTPRequest records HTTP metrics when metrics are enabled.
+
+func Set(ctx context.Context, args ...any)
+    Set adds slog-shaped attributes to the current span on ctx.
+
+func SetHTTPRoute(ctx context.Context, route string)
+    SetHTTPRoute sets the HTTP route attribute on the current span.
+
+func Warn(ctx context.Context, msg string, args ...any)
+    Warn logs at warn level.
+
+func WrapHandler(name string, h http.Handler, tp trace.TracerProvider) http.Handler
+    WrapHandler instruments h with otelhttp using the supplied tracer provider.
+
+
+TYPES
+
+type HTTPContext interface {
+	Request() *http.Request
+	SetRequest(*http.Request)
+}
+    HTTPContext is implemented by *echo.Context. From writes the child span
+    context back onto the request so later Set/Info/Error calls see it.
+
+type Option func(*options) error
+    Option configures telemetry exporters and sampling.
+
+func WithBatchConfig(size int, timeout time.Duration, queueSize int) Option
+    WithBatchConfig sets OTLP batch size, export timeout, and queue size.
+
+func WithConsole() Option
+    WithConsole writes pretty logs and completed-span lines to stdout.
+
+func WithLogLevel(level slog.Level) Option
+    WithLogLevel sets the minimum severity for console and OTLP logs.
+
+func WithOTLPLogs(endpoint string, headers map[string]string) Option
+    WithOTLPLogs exports logs to an OTLP HTTP endpoint.
+
+func WithOTLPMetrics(endpoint string, headers map[string]string) Option
+    WithOTLPMetrics exports metrics to an OTLP HTTP endpoint.
+
+func WithOTLPTraces(endpoint string, headers map[string]string) Option
+    WithOTLPTraces exports traces to an OTLP HTTP endpoint.
+
+func WithTraceSampleRate(rate float64) Option
+    WithTraceSampleRate sets the trace ID ratio sampler. Rate must be in [0, 1].
+
+type Span struct {
+	// Has unexported fields.
+}
+    Span is the handle returned by Start. End finishes it; add data with Set.
+
+func From(c HTTPContext, name string) (context.Context, Span)
+    From starts a named span from an HTTPContext (*echo.Context) and writes the
+    child context back onto the request. Add attributes with Set.
+
+func Start(ctx context.Context, name string, args ...any) (context.Context, Span)
+    Start starts a span named name with slog-shaped attributes.
+
+func (s Span) End()
+    End finishes the span.
+
+type Telemetry struct {
+	// Has unexported fields.
+}
+    Telemetry owns log, trace, and metric providers for one process.
+
+func New(ctx context.Context, serviceName, serviceVersion string, opts ...Option) (*Telemetry, error)
+    New constructs telemetry for serviceName and serviceVersion.
+
+func (t *Telemetry) Context(ctx context.Context) context.Context
+    Context attaches t to ctx so Start, Set, Fail, and log helpers can find it.
+
+func (t *Telemetry) HasLogging() bool
+    HasLogging reports whether a log handler is configured.
+
+func (t *Telemetry) HasMetrics() bool
+    HasMetrics reports whether an OTLP metrics exporter is configured.
+
+func (t *Telemetry) HasTracing() bool
+    HasTracing reports whether a tracer provider is configured.
+
+func (t *Telemetry) Logger() *slog.Logger
+    Logger returns a slog logger that writes through this telemetry pipeline.
+
+func (t *Telemetry) MeterProvider() metric.MeterProvider
+    MeterProvider returns the SDK meter provider, or nil when metrics are
+    disabled.
+
+func (t *Telemetry) ServiceName() string
+    ServiceName returns the service name passed to New.
+
+func (t *Telemetry) Shutdown(ctx context.Context) error
+    Shutdown flushes and closes exporters.
+
+func (t *Telemetry) TracerProvider() trace.TracerProvider
+    TracerProvider returns the SDK tracer provider. It is never the process
+    default.
 
 
 ## github.com/mbvlabs/andurel/pkg/validation

@@ -227,7 +227,6 @@ type UpdateFeedbackEntryFormPayload struct {
 func (fe FeedbackEntry) Update(etx *echo.Context) error {
 	ctx, span := telemetry.From(etx, "feedbackentry.update")
 	defer span.End()
-
 	feedbackEntryID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.BadRequest())

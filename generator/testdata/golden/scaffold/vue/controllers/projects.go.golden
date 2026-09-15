@@ -263,7 +263,6 @@ type UpdateProjectFormPayload struct {
 func (p Projects) Update(etx *echo.Context) error {
 	ctx, span := telemetry.From(etx, "projects.update")
 	defer span.End()
-
 	projectID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()

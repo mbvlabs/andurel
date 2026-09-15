@@ -222,7 +222,6 @@ type UpdateDocumentFormPayload struct {
 func (d Documents) Update(etx *echo.Context) error {
 	ctx, span := telemetry.From(etx, "documents.update")
 	defer span.End()
-
 	documentID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.BadRequest())

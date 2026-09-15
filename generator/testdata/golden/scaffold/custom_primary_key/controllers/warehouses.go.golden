@@ -209,7 +209,6 @@ type UpdateWarehouseFormPayload struct {
 func (w Warehouses) Update(etx *echo.Context) error {
 	ctx, span := telemetry.From(etx, "warehouses.update")
 	defer span.End()
-
 	warehouseID := etx.Param("id")
 	if warehouseID == "" {
 		return hypermedia.RenderPage(etx, views.BadRequest())

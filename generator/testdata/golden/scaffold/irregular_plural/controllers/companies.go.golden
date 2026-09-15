@@ -210,7 +210,6 @@ type UpdateCompanyFormPayload struct {
 func (c Companies) Update(etx *echo.Context) error {
 	ctx, span := telemetry.From(etx, "companies.update")
 	defer span.End()
-
 	companyID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.BadRequest())
