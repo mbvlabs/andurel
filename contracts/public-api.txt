@@ -4812,9 +4812,6 @@ package telemetry // import "github.com/mbvlabs/andurel/pkg/telemetry"
 
 FUNCTIONS
 
-func AddHTTPInFlight(ctx context.Context, tel *Telemetry, delta int64)
-    AddHTTPInFlight increments the in-flight HTTP request counter.
-
 func Debug(ctx context.Context, msg string, args ...any)
     Debug logs at debug level.
 
@@ -4830,27 +4827,20 @@ func Info(ctx context.Context, msg string, args ...any)
 func ParseHeaders(headersStr string) map[string]string
     ParseHeaders parses comma-separated k=v pairs from OTLP_HEADERS.
 
-func RecordHTTPRequest(
-	ctx context.Context,
-	tel *Telemetry,
-	method string,
-	route string,
-	status int,
-	duration time.Duration,
-)
-    RecordHTTPRequest records HTTP metrics when metrics are enabled.
-
 func Set(ctx context.Context, args ...any)
     Set adds slog-shaped attributes to the current span on ctx.
 
 func SetHTTPRoute(ctx context.Context, route string)
-    SetHTTPRoute sets the HTTP route attribute on the current span.
+    SetHTTPRoute sets http.route on the current span and on otelhttp metric
+    labels.
 
 func Warn(ctx context.Context, msg string, args ...any)
     Warn logs at warn level.
 
-func WrapHandler(name string, h http.Handler, tp trace.TracerProvider) http.Handler
-    WrapHandler instruments h with otelhttp using the supplied tracer provider.
+func WrapHandler(name string, h http.Handler, tel *Telemetry) http.Handler
+    WrapHandler instruments h with otelhttp using this process's tracer and
+    meter providers. HTTP server metrics come from otelhttp, not a parallel
+    Andurel API.
 
 
 TYPES
