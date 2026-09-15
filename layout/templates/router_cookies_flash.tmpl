@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gosimple/slug"
 	"github.com/mbvlabs/andurel/pkg/server"
 
 	"github.com/labstack/echo/v5"
@@ -18,11 +19,12 @@ type FlashMessage struct {
 }
 
 func buildFlashSessionName(projectName, environment string) string {
+	base := slug.Make(strings.ToLower(projectName))
 	if environment == server.ProdEnvironment {
-		return strings.ToLower(projectName) + "_" + "flash_key"
+		return base + "_flash_key"
 	}
 
-	return strings.ToLower(projectName) + "_" + "dev_flash_key"
+	return base + "_dev_flash_key"
 }
 
 const flashSessionName = "flash_session"
