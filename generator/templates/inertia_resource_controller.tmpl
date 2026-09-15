@@ -4,7 +4,6 @@ import (
 {{- $needsSession := or (HasAction "create") (or (HasAction "update") (HasAction "destroy"))}}
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strconv"
 {{- $needsTime := false}}
@@ -47,6 +46,7 @@ import (
 {{- end}}
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"{{.ModulePath}}/models"
 	"{{.ModulePath}}/router"
 {{- if $needsSession}}
@@ -290,10 +290,13 @@ type Create{{.ResourceName}}FormPayload struct {
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "{{.PluralResourceName | ToLower}}.create")
+	defer span.End()
+
 	var payload Create{{.ResourceName}}FormPayload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse Create{{.ResourceName}}FormPayload",
 			"error",
 			err,
@@ -311,7 +314,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 	}
 
 	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Create(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {
@@ -392,6 +395,9 @@ type Update{{.ResourceName}}FormPayload struct {
 }
 
 func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "{{.PluralResourceName | ToLower}}.update")
+	defer span.End()
+
 {{- if or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 	{{.ResourceName | ToLowerCamelCase}}ID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
@@ -417,8 +423,8 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 
 	var payload Update{{.ResourceName}}FormPayload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse Update{{.ResourceName}}FormPayload",
 			"error",
 			err,
@@ -437,7 +443,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	}
 
 	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Update(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {

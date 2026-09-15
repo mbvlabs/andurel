@@ -35,8 +35,6 @@ Inspired by Ruby on Rails, Andurel is now its own thing: generated Go you own, e
 │   ├── routes/          # Route definitions
 │   ├── cookies/         # Session helpers
 │   └── middleware/      # Custom middleware
-├── pkg/
-│ 	└──telemetry/        # Observability (logs, traces, metrics)
 ├── views/               # Templ templates
 ├── .env.example         # Example environment configuration
 └── go.mod               # Go dependencies
@@ -455,6 +453,7 @@ CSRF_TRUSTED_ORIGINS=
 # Telemetry (optional)
 TELEMETRY_SERVICE_NAME={{.AppName}}
 TELEMETRY_SERVICE_VERSION=1.0.0
+LOG_LEVEL=INFO
 OTLP_LOGS_ENDPOINT=
 OTLP_METRICS_ENDPOINT=
 OTLP_TRACES_ENDPOINT=

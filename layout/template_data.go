@@ -87,6 +87,12 @@ func (td *TemplateData) StoragePackageVersion() string {
 	return versions.Storage
 }
 
+// TelemetryPackageVersion returns the standalone telemetry module version
+// verified with this framework release.
+func (td *TemplateData) TelemetryPackageVersion() string {
+	return versions.Telemetry
+}
+
 // ValidationPackageVersion returns the standalone validation module version
 // verified with this framework release.
 func (td *TemplateData) ValidationPackageVersion() string {

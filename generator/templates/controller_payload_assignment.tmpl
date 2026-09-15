@@ -6,8 +6,8 @@
 			}
 			parsed, err := uuid.Parse(payload.{{.Name}})
 			if err != nil {
-				slog.WarnContext(
-					etx.Request().Context(),
+				telemetry.Warn(
+					ctx,
 					"could not parse {{.Name}}, setting to nil UUID pointer",
 					"error",
 					err,
@@ -24,8 +24,8 @@
 			}
 			parsed, err := uuid.Parse(payload.{{.Name}})
 			if err != nil {
-				slog.WarnContext(
-					etx.Request().Context(),
+				telemetry.Warn(
+					ctx,
 					"could not parse {{.Name}}, setting to nil UUID",
 					"error",
 					err,

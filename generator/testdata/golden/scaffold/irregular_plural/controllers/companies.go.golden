@@ -3,7 +3,6 @@ package controllers
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"testapp/models"
@@ -16,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 type Companies struct {
@@ -149,10 +149,13 @@ type CreateCompanyFormPayload struct {
 }
 
 func (c Companies) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "companies.create")
+	defer span.End()
+
 	var payload CreateCompanyFormPayload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse CreateCompanyFormPayload",
 			"error",
 			err,
@@ -169,7 +172,7 @@ func (c Companies) Create(etx *echo.Context) error {
 	}
 
 	company, err := c.companies.Create(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {
@@ -205,6 +208,8 @@ type UpdateCompanyFormPayload struct {
 }
 
 func (c Companies) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "companies.update")
+	defer span.End()
 	companyID, err := uuid.Parse(etx.Param("id"))
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.BadRequest())
@@ -212,8 +217,8 @@ func (c Companies) Update(etx *echo.Context) error {
 
 	var payload UpdateCompanyFormPayload
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse UpdateCompanyFormPayload",
 			"error",
 			err,
@@ -231,7 +236,7 @@ func (c Companies) Update(etx *echo.Context) error {
 	}
 
 	company, err := c.companies.Update(
-		etx.Request().Context(),
+		ctx,
 		data,
 	)
 	if err != nil {

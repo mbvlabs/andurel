@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 {{- if .Inertia}}
 	"path"
@@ -18,6 +17,7 @@ import (
 	"{{.ModuleName}}/router/routes"
 
 	"github.com/mbvlabs/andurel/pkg/routing"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/labstack/echo/v5"
 )
 
@@ -141,14 +141,17 @@ func createRobotsTxt(baseURL string) string {
 }
 
 func (a Assets) Robots(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "assets.robots")
+	defer span.End()
+
 	cacheKey := "assets:robots"
 
 	robotsTxt, err := a.cache.Get(cacheKey, func() (string, error) {
 		return createRobotsTxt(a.appCfg.BaseURL), nil
 	})
 	if err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to get robots.txt from cache",
 			"error", err,
 		)
@@ -159,14 +162,17 @@ func (a Assets) Robots(etx *echo.Context) error {
 }
 
 func (a Assets) Sitemap(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "assets.sitemap")
+	defer span.End()
+
 	cacheKey := "assets:sitemap"
 
 	sitemap, err := a.cache.Get(cacheKey, func() (string, error) {
 		return createSitemap(a.appCfg.BaseURL, []routing.Route{})
 	})
 	if err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to get sitemap from cache",
 			"error", err,
 		)

@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"errors"
-	"log/slog"
 	"net/http"
 
 	"{{.ModuleName}}/router"
@@ -12,6 +11,7 @@ import (
 	"{{.ModuleName}}/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"github.com/labstack/echo/v5"
@@ -57,13 +57,16 @@ func (c Confirmations) New(etx *echo.Context) error {
 }
 
 func (c Confirmations) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "confirmations.create")
+	defer span.End()
+
 	var payload struct {
 		Code string `json:"code"`
 	}
 
 	if err := etx.Bind(&payload); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"could not parse verification form payload",
 			"error",
 			err,
@@ -72,7 +75,7 @@ func (c Confirmations) Create(etx *echo.Context) error {
 	}
 
 	user, err := c.identity.VerifyEmail(
-		etx.Request().Context(),
+		ctx,
 		services.VerifyEmailData{
 			Code: payload.Code,
 		},
@@ -85,8 +88,8 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			)
 		}
 
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to verify email",
 			"error",
 			err,
@@ -110,8 +113,8 @@ func (c Confirmations) Create(etx *echo.Context) error {
 	}
 
 	if err := c.session.CreateAppSession(etx, user); err != nil {
-		slog.ErrorContext(
-			etx.Request().Context(),
+		telemetry.Error(
+			ctx,
 			"failed to create session",
 			"error",
 			err,

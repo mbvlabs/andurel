@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
@@ -28,7 +29,7 @@ type RegisterUserData struct {
 func (i Identity) RegisterUser(
 	ctx context.Context,
 	data RegisterUserData,
-) error {
+) (models.User, error) {
 	b := validation.NewBuilder()
 	b.Required("email", data.Email)
 	b.Required("password", data.Password)
@@ -38,14 +39,14 @@ func (i Identity) RegisterUser(
 		b.Add("confirmPassword", "mismatch", "Passwords do not match")
 	}
 	if !b.Errors().Empty() {
-		return b.Errors()
+		return models.User{}, b.Errors()
 	}
 
 	tx, err := i.db.BeginTransaction(ctx)
 
 	if err != nil {
 
-		return fmt.Errorf("begin registration transaction: %w", err)
+		return models.User{}, fmt.Errorf("begin registration transaction: %w", err)
 
 	}
 
@@ -63,8 +64,7 @@ func (i Identity) RegisterUser(
 	if err != nil {
 		_ = tx.Rollback(ctx)
 
-		return fmt.Errorf("create user: %w", err)
-
+		return models.User{}, fmt.Errorf("create user: %w", err)
 	}
 
 	meta, err := json.Marshal(map[string]string{
@@ -73,7 +73,7 @@ func (i Identity) RegisterUser(
 	if err != nil {
 		_ = tx.Rollback(ctx)
 
-		return fmt.Errorf("marshal verification token metadata: %v", err)
+		return models.User{}, fmt.Errorf("marshal verification token metadata: %v", err)
 
 	}
 
@@ -88,13 +88,13 @@ func (i Identity) RegisterUser(
 	if err != nil {
 		_ = tx.Rollback(ctx)
 
-		return fmt.Errorf("create verification token: %w", err)
+		return models.User{}, fmt.Errorf("create verification token: %w", err)
 
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 
-		return fmt.Errorf("commit registration transaction: %w", err)
+		return models.User{}, fmt.Errorf("commit registration transaction: %w", err)
 
 	}
 
@@ -103,14 +103,14 @@ func (i Identity) RegisterUser(
 	html, err := vEmail.ToHTML()
 	if err != nil {
 
-		return fmt.Errorf("render verification email html: %v", err)
+		return models.User{}, fmt.Errorf("render verification email html: %v", err)
 
 	}
 
 	text, err := vEmail.ToText()
 	if err != nil {
 
-		return fmt.Errorf("render verification email text: %v", err)
+		return models.User{}, fmt.Errorf("render verification email text: %v", err)
 
 	}
 
@@ -126,10 +126,11 @@ func (i Identity) RegisterUser(
 	}, nil)
 
 	if err != nil {
-		return fmt.Errorf("queue verification email: %v", err)
+		return user, fmt.Errorf("queue verification email: %v", err)
 	}
 
-	return nil
+	telemetry.Set(ctx, "user.id", user.ID, "registration.email_queued", true)
+	return user, nil
 
 }
 

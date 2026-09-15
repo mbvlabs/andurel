@@ -24,7 +24,7 @@ release-snapshot:
 
 # Build the andurel binary
 build:
-	go build -o dev-andurel main.go
+	go build -ldflags "-X main.version=$(git rev-parse HEAD)" -o dev-andurel main.go
 
 move:
 	mv dev-andurel ~/.local/bin

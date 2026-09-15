@@ -831,16 +831,6 @@ myapp/
 │   ├── authentication.go
 │   ├── registration.go
 │   └── reset_password.go
-├── telemetry/
-│   ├── telemetry.go
-│   ├── options.go
-│   ├── logger.go
-│   ├── log_exporters.go
-│   ├── metrics.go
-│   ├── metric_exporters.go
-│   ├── tracer.go
-│   ├── trace_exporters.go
-│   └── helpers.go
 ├── views/                    # Templ templates
 │   ├── layout.templ
 │   ├── head.templ

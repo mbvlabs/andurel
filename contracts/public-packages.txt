@@ -20,5 +20,6 @@ github.com/mbvlabs/andurel/pkg/inertia
 github.com/mbvlabs/andurel/pkg/routing
 github.com/mbvlabs/andurel/pkg/server
 github.com/mbvlabs/andurel/pkg/storage
+github.com/mbvlabs/andurel/pkg/telemetry
 github.com/mbvlabs/andurel/pkg/validation
 github.com/mbvlabs/andurel/skills

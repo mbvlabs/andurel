@@ -8,5 +8,6 @@ use (
 	./pkg/routing
 	./pkg/server
 	./pkg/storage
+	./pkg/telemetry
 	./pkg/validation
 )

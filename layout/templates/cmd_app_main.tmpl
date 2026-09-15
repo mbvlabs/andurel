@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -24,7 +23,6 @@ import (
 	"{{.ModuleName}}/router/routes"
 {{- end}}
 	"{{.ModuleName}}/services"
-	"{{.ModuleName}}/telemetry"
 {{- if .Inertia}}
 	"{{.ModuleName}}/views"
 {{- end}}
@@ -35,6 +33,7 @@ import (
 	{{- end}}
 	"github.com/mbvlabs/andurel/pkg/server"
 	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"go.uber.org/fx"
 )
 
@@ -55,6 +54,7 @@ func main() {
 			{{.}},
 			{{- end}}
 			newEmailSenders,
+			newTelemetry,
 		),
 
 		config.Module,
@@ -64,7 +64,6 @@ func main() {
 		{{- if .Inertia}}
 		inertiaModule,
 		{{- end}}
-		telemetry.Module,
 		services.Module,
 		controllers.Module,
 		router.Module,
@@ -112,7 +111,9 @@ func startServer(
 	r *router.Router,
 	appCfg config.App,
 	httpCfg config.HTTP,
+	tel *telemetry.Telemetry,
 ) {
+	appCtx = tel.Context(appCtx)
 	srv := server.New(
 		appCtx,
 		httpCfg.Host,
@@ -130,7 +131,7 @@ func startServer(
 
 	lc.Append(fx.Hook{
 		OnStart: func(_ context.Context) error {
-			slog.InfoContext(
+			telemetry.Info(
 				appCtx,
 				"starting server",
 				"host",
@@ -144,7 +145,7 @@ func startServer(
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			slog.InfoContext(ctx, "initiating graceful shutdown")
+			telemetry.Info(ctx, "initiating graceful shutdown")
 			return stopAndWait(ctx, func(ctx context.Context) error {
 				var shutdownErr error
 				for _, shutdowner := range srv.Shutdowners {
@@ -166,8 +167,16 @@ func newDatabase(
 	lifecycle fx.Lifecycle,
 	ctx context.Context,
 	cfg storage.Config,
+	tel *telemetry.Telemetry,
 ) (*storage.Postgres, error) {
-	db, err := storage.NewPostgres(ctx, cfg)
+	opts := []storage.Option{}
+	if tel != nil {
+		opts = append(opts, storage.WithOpenTelemetry(storage.TelemetryConfig{
+			TracerProvider: tel.TracerProvider(),
+			MeterProvider:  tel.MeterProvider(),
+		}))
+	}
+	db, err := storage.NewPostgres(ctx, cfg, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -181,6 +190,42 @@ func newQueueInsert(
 	cfg config.QueueInsert,
 ) (*storage.QueueInsert, error) {
 	return storage.NewQueueInsert(connection, cfg.Config)
+}
+
+func newTelemetry(
+	lifecycle fx.Lifecycle,
+	ctx context.Context,
+	appCfg config.App,
+	cfg config.Telemetry,
+) (*telemetry.Telemetry, error) {
+	opts := []telemetry.Option{
+		telemetry.WithTraceSampleRate(cfg.TraceSampleRate),
+		telemetry.WithBatchConfig(
+			cfg.BatchSize,
+			time.Duration(cfg.BatchTimeoutMs)*time.Millisecond,
+			2048,
+		),
+		telemetry.WithLogLevel(cfg.LogLevel),
+	}
+	if !appCfg.IsProduction() {
+		opts = append(opts, telemetry.WithConsole())
+	}
+	headers := telemetry.ParseHeaders(cfg.OtlpHeaders)
+	if cfg.OtlpLogsEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPLogs(cfg.OtlpLogsEndpoint, headers))
+	}
+	if cfg.OtlpTracesEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPTraces(cfg.OtlpTracesEndpoint, headers))
+	}
+	if cfg.OtlpMetricsEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPMetrics(cfg.OtlpMetricsEndpoint, headers))
+	}
+	tel, err := telemetry.New(ctx, cfg.ServiceName, cfg.ServiceVersion, opts...)
+	if err != nil {
+		return nil, err
+	}
+	lifecycle.Append(fx.Hook{OnStop: tel.Shutdown})
+	return tel, nil
 }
 
 {{if .Inertia}}
@@ -249,7 +294,7 @@ func startInBackground(
 	go func() {
 		defer close(done)
 		if err := start(ctx); err != nil {
-			slog.Error(name+" error", "error", err)
+			telemetry.Error(ctx, name+" error", "error", err)
 		}
 	}()
 	return done
