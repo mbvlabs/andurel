@@ -96,7 +96,7 @@ func New(
 
 	router.Use(globalMiddleware...)
 
-	handler := telemetry.WrapHandler("http", router, tel.TracerProvider())
+	handler := telemetry.WrapHandler("http", router, tel)
 
 	return &Router{
 		e:       router,
@@ -154,7 +154,7 @@ func SetupGlobalMiddleware(
 	middlewares := []echo.MiddlewareFunc{
 		middleware.Telemetry(tel),
 		middleware.TraceRouteAttributes(),
-		middleware.Logger(tel),
+		middleware.Logger(),
 		session.Middleware(sessionStore),
 		middleware.ValidateSession(cookieSession),
 {{- if .Inertia}}

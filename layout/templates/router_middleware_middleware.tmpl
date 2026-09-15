@@ -101,7 +101,7 @@ func Telemetry(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 	}
 }
 
-func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
+func Logger() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
 			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
@@ -111,21 +111,14 @@ func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 			ctx := c.Request().Context()
 			start := time.Now()
 
-			if tel.HasMetrics() {
-				telemetry.AddHTTPInFlight(ctx, tel, 1)
-				defer telemetry.AddHTTPInFlight(ctx, tel, -1)
-			}
-
 			err := next(c)
 			duration := time.Since(start)
-			route := c.Path()
 
 			statusCode := 0
 			if resp, unwrapErr := echo.UnwrapResponse(c.Response()); unwrapErr == nil {
 				statusCode = resp.Status
 			}
 
-			telemetry.RecordHTTPRequest(ctx, tel, c.Request().Method, route, statusCode, duration)
 			telemetry.Info(ctx, "HTTP request completed",
 				"method", c.Request().Method,
 				"path", c.Request().URL.Path,
@@ -143,10 +136,6 @@ func Logger(tel *telemetry.Telemetry) echo.MiddlewareFunc {
 func TraceRouteAttributes() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
-				return next(c)
-			}
-
 			err := next(c)
 			routeInfo := c.RouteInfo()
 			if routeInfo.Path != "" {

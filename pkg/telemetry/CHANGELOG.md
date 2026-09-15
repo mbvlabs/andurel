@@ -6,6 +6,8 @@ All notable changes to the standalone Andurel telemetry module are documented he
 
 ### Changed
 
+- `WrapHandler` takes `*Telemetry` and passes both tracer and meter providers into otelhttp. HTTP server metrics come from otelhttp (`http.server.request.duration` and request/response body sizes). Removed `RecordHTTPRequest`, `AddHTTPInFlight`, and the custom Prometheus-style HTTP instruments.
+- `SetHTTPRoute` also labels otelhttp metrics with `http.route`.
 - Console `span complete` lines log at debug, so they stay off at the default info level.
 - One data API: slog-shaped kv on `Start`, `Set`, and `Info` / `Error` / `Warn` / `Debug`. Removed `Handle`, `Span.String` / `Int` / `Bool` / `Fail`, and the `*Context` log names.
 - `Start`, `Set`, `Fail`, and log helpers take `context.Context`. Controllers enter with `From(*echo.Context, name)`, which starts the named span and writes the child context back onto the request. Add attributes with `Set`.

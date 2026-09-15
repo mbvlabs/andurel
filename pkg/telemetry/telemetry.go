@@ -32,10 +32,6 @@ type Telemetry struct {
 	tracerProvider *sdktrace.TracerProvider
 	tracer         trace.Tracer
 	shutdownFuncs  []func(context.Context) error
-
-	httpRequestsTotal metric.Int64Counter
-	httpDuration      metric.Float64Histogram
-	httpInFlight      metric.Int64UpDownCounter
 }
 
 // New constructs telemetry for serviceName and serviceVersion.
@@ -173,36 +169,6 @@ func (t *Telemetry) initMetrics(ctx context.Context, cfg *options) error {
 
 	if err := runtime.Start(runtime.WithMeterProvider(t.meterProvider)); err != nil {
 		return fmt.Errorf("telemetry: start runtime metrics: %w", err)
-	}
-	return t.initHTTPMetrics()
-}
-
-func (t *Telemetry) initHTTPMetrics() error {
-	meter := t.meterProvider.Meter(t.serviceName)
-	var err error
-	t.httpRequestsTotal, err = meter.Int64Counter(
-		"http_requests_total",
-		metric.WithDescription("Total number of HTTP requests"),
-		metric.WithUnit("1"),
-	)
-	if err != nil {
-		return fmt.Errorf("telemetry: create http_requests_total: %w", err)
-	}
-	t.httpDuration, err = meter.Float64Histogram(
-		"http_request_duration_seconds",
-		metric.WithDescription("HTTP request duration in seconds"),
-		metric.WithUnit("s"),
-		metric.WithExplicitBucketBoundaries(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10),
-	)
-	if err != nil {
-		return fmt.Errorf("telemetry: create http_request_duration_seconds: %w", err)
-	}
-	t.httpInFlight, err = meter.Int64UpDownCounter(
-		"http_requests_in_flight",
-		metric.WithDescription("Current number of HTTP requests being served"),
-	)
-	if err != nil {
-		return fmt.Errorf("telemetry: create http_requests_in_flight: %w", err)
 	}
 	return nil
 }

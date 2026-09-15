@@ -174,7 +174,7 @@ func manualActionsForUpgrade(
 			"4. Inject tel *telemetry.Telemetry into newDatabase and pass storage.WithOpenTelemetry(storage.TelemetryConfig{TracerProvider: tel.TracerProvider(), MeterProvider: tel.MeterProvider()}).\n\n",
 		)
 		instructions.WriteString(
-			"5. In router.New, wrap the Echo handler with telemetry.WrapHandler(\"http\", router, tel.TracerProvider()) and attach the handle on each request with middleware.Telemetry(tel). Queue workers should start from tel.Context(ctx).\n\n",
+			"5. In router.New, wrap the Echo handler with telemetry.WrapHandler(\"http\", router, tel) and attach the handle on each request with middleware.Telemetry(tel). Queue workers should start from tel.Context(ctx).\n\n",
 		)
 		instructions.WriteString(
 			"6. Replace slog.ErrorContext / slog.InfoContext / slog.WarnContext calls in application code with telemetry.Error / telemetry.Info / telemetry.Warn. Controllers use telemetry.From(etx, name) then pass ctx. Services use telemetry.Start. Do not call otel.SetTracerProvider or slog.SetDefault.\n\n",

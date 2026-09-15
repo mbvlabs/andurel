@@ -49,7 +49,7 @@ When an upgrade crosses from a version before `v2.0.0` to `v2.0.0` or later, `an
 1. Delete the copied application `telemetry/` directory.
 2. Pin `github.com/mbvlabs/andurel/pkg/telemetry` in `go.mod` to the version verified with that CLI.
 3. Keep `config.Telemetry` as env-backed values. In `cmd/app/main.go` and `cmd/queue/main.go`, replace `telemetry.Module` with a `newTelemetry` provider that calls `telemetry.New` and registers `Shutdown` on the Fx lifecycle.
-4. Inject `*telemetry.Telemetry` into `newDatabase` with `storage.WithOpenTelemetry`, wrap the HTTP handler with `telemetry.WrapHandler` and the explicit tracer provider, and attach the handle on request and queue contexts with `tel.Context`.
+4. Inject `*telemetry.Telemetry` into `newDatabase` with `storage.WithOpenTelemetry`, wrap the HTTP handler with `telemetry.WrapHandler("http", router, tel)`, and attach the handle on request and queue contexts with `tel.Context`.
 5. Replace `slog.ErrorContext` / `slog.InfoContext` / `slog.WarnContext` with `telemetry.Error` / `telemetry.Info` / `telemetry.Warn`. Controllers use `telemetry.From(etx, name)` then pass `ctx`. Services use `telemetry.Start`. Do not call `otel.SetTracerProvider` or `slog.SetDefault`.
 6. Run `gofmt`, `go fix ./...`, and `go vet ./...` after reconciling application-owned code.
 
