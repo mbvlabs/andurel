@@ -4767,7 +4767,7 @@ require (
 	github.com/mbvlabs/andurel/pkg/hypermedia v0.2.3
 	github.com/mbvlabs/andurel/pkg/routing v0.2.1
 	github.com/mbvlabs/andurel/pkg/server v0.3.2
-	github.com/mbvlabs/andurel/pkg/storage v0.7.1
+	github.com/mbvlabs/andurel/pkg/storage v0.8.0
 	github.com/mbvlabs/andurel/pkg/validation v0.1.3
 	github.com/mbvlabs/narsilc v0.4.2
 	github.com/riverqueue/river v0.40.0
@@ -4826,9 +4826,7 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
-	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/klauspost/compress v1.18.5 // indirect
-	github.com/lib/pq v1.12.3 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
@@ -4846,9 +4844,8 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/pressly/goose/v3 v3.27.2 // indirect
-	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/riverqueue/river/riverdriver v0.40.0 // indirect
-	github.com/riverqueue/river/riverdriver/riverdatabasesql v0.40.0 // indirect
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.40.0 // indirect
 	github.com/riverqueue/river/rivershared v0.40.0 // indirect
 	github.com/riverqueue/river/rivertype v0.40.0 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect
@@ -4863,12 +4860,7 @@ require (
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
-	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
-	github.com/uptrace/bun v1.2.18 // indirect
-	github.com/uptrace/bun/dialect/pgdialect v1.2.18 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
-	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.44.0 // indirect
@@ -5006,8 +4998,6 @@ github.com/jackc/pgx/v5 v5.11.0 h1:IzBBtyK9AHqf98cctWFifYSci2hgQR/cd56wB4p+ogg=
 github.com/jackc/pgx/v5 v5.11.0/go.mod h1:mal1tBGAFfLHvZzaYh77YS/eC6IX9OWbRV1QIIM0Jn4=
 github.com/jackc/puddle/v2 v2.2.2 h1:PR8nw+E/1w0GLuRFSmiioY6UooMp6KJv0/61nB7icHo=
 github.com/jackc/puddle/v2 v2.2.2/go.mod h1:vriiEXHvEE654aYKXXjOvZM39qJ0q+azkZFrfEOc3H4=
-github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=
-github.com/jinzhu/inflection v1.0.0/go.mod h1:h+uFLlag+Qp1Va5pdKtLDYj+kHp5pxUVkryuEj+Srlc=
 github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
 github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
 github.com/klauspost/compress v1.18.5 h1:/h1gH5Ce+VWNLSWqPzOVn6XBO+vJbCNGvjoaGBFW2IE=
@@ -5040,8 +5030,8 @@ github.com/mbvlabs/andurel/pkg/routing v0.2.1 h1:zftsatUrJ+6HObGTSi5dPpkaqa0NIaE
 github.com/mbvlabs/andurel/pkg/routing v0.2.1/go.mod h1:g0KpCFpevH9O5S+CiNz4WUIFrzhrSE9KrYKtwt1TjeY=
 github.com/mbvlabs/andurel/pkg/server v0.3.2 h1:XnW6Q/uOOs4MAYf0eQ4dDCnx18mbz1nWNGDmbqgzHps=
 github.com/mbvlabs/andurel/pkg/server v0.3.2/go.mod h1:8LgcYQCnIQ6U8qy5Ar13UJZAOACZGucgjHbviLpzpLY=
-github.com/mbvlabs/andurel/pkg/storage v0.7.1 h1:vrkDPlptqT8GuYw5m9F+QJgBHzlvnnfLh2pVWjd+Pao=
-github.com/mbvlabs/andurel/pkg/storage v0.7.1/go.mod h1:gE8KCsditzFi3EpnVuUBOf/2tcRWuIa1jGjNj0jTeUo=
+github.com/mbvlabs/andurel/pkg/storage v0.8.0 h1:I0wG5hnl6dDZeXDG0GjFQ88pNyz4+Th9qq8uWq2mbio=
+github.com/mbvlabs/andurel/pkg/storage v0.8.0/go.mod h1:DJ/uVEbn1kQZChOaPPl2SR9c1O6FajDy22UhGcKGrTw=
 github.com/mbvlabs/andurel/pkg/validation v0.1.3 h1:u3g71TB09ZUE5TwAKCRJ6vfU6dEfgQAnTZXz7MjCeZU=
 github.com/mbvlabs/andurel/pkg/validation v0.1.3/go.mod h1:ZITp0yTHhd9ZaMMaHcixS/GoDuJHqvDkpe2A/gKnTbw=
 github.com/mbvlabs/narsilc v0.4.2 h1:xpzfISiJLOCPPdHg+gw/auCphlAb3RGghDIgg3OHlfs=
@@ -5080,16 +5070,12 @@ github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 h1:o4JXh1EVt
 github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55/go.mod h1:OmDBASR4679mdNQnz2pUhc2G8CO2JrUAVFDRBDP/hJE=
 github.com/pressly/goose/v3 v3.27.2 h1:FjKNzcmMdGrQlSIu5alMSmakQtJFBgtw+A0bb1p/LC8=
 github.com/pressly/goose/v3 v3.27.2/go.mod h1:qWW+/8dkVtJYjJrbIpwD5xxnEJTUKvxkQ9JKQp9LaIM=
-github.com/puzpuzpuz/xsync/v3 v3.5.1 h1:GJYJZwO6IdxN/IKbneznS6yPkVC+c3zyY/j19c++5Fg=
-github.com/puzpuzpuz/xsync/v3 v3.5.1/go.mod h1:VjzYrABPabuM4KyBh1Ftq6u8nhwY5tBPKP9jpmh0nnA=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/riverqueue/river v0.40.0 h1:4dynKqqU1P22iPmwWDfDj/YZXnuUTZysXXF3wNHekNw=
 github.com/riverqueue/river v0.40.0/go.mod h1:auvB4kHqM97tnshEQxzy2E7aFvJFhl010NB6N29DXXc=
 github.com/riverqueue/river/riverdriver v0.40.0 h1:QjBHHh+kaxgUgK9tPumrfx7W14vhAHLIt+0dK40ikI8=
 github.com/riverqueue/river/riverdriver v0.40.0/go.mod h1:7wEqxsqvtjGk3hBKGKK3IvdnULlPZltpAfkbMr9M2VY=
-github.com/riverqueue/river/riverdriver/riverdatabasesql v0.40.0 h1:EtKlKjaKzkNckyGrFnrpK5mcc7+xnp7Z3IV9XVRf+7E=
-github.com/riverqueue/river/riverdriver/riverdatabasesql v0.40.0/go.mod h1:Si7twoX1cou3msM9G6rYCKelaSHLqTgJ65H/m3Zi8rk=
 github.com/riverqueue/river/riverdriver/riverpgxv5 v0.40.0 h1:WbzXgGukvOqYpsORX4rr03sPZfasjoMckLr4On+Je+4=
 github.com/riverqueue/river/riverdriver/riverpgxv5 v0.40.0/go.mod h1:HtgFIcn/eJ9O3f371S1cSb0ttS7xJMMkkTD/K6gQKQg=
 github.com/riverqueue/river/rivershared v0.40.0 h1:6ZX1Ok94Nkcx/WpHPhexpfdkRB1BqRWFEWrbDszg+JY=
@@ -5134,18 +5120,8 @@ github.com/tklauser/go-sysconf v0.3.16 h1:frioLaCQSsF5Cy1jgRBrzr6t502KIIwQ0MArYI
 github.com/tklauser/go-sysconf v0.3.16/go.mod h1:/qNL9xxDhc7tx3HSRsLWNnuzbVfh3e7gh/BmM179nYI=
 github.com/tklauser/numcpus v0.11.0 h1:nSTwhKH5e1dMNsCdVBukSZrURJRoHbSEQjdEbY+9RXw=
 github.com/tklauser/numcpus v0.11.0/go.mod h1:z+LwcLq54uWZTX0u/bGobaV34u6V7KNlTZejzM6/3MQ=
-github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc h1:9lRDQMhESg+zvGYmW5DyG0UqvY96Bu5QYsTLvCHdrgo=
-github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc/go.mod h1:bciPuU6GHm1iF1pBvUfxfsH0Wmnc2VbpgvbI9ZWuIRs=
-github.com/uptrace/bun v1.2.18 h1:3HnRcMfS6OBPMG1eSOzlbFJ/X/AyMEJb7rMxE6VQvDU=
-github.com/uptrace/bun v1.2.18/go.mod h1:wNltaKJk4JtOt4SG5I5zmA7v0/Mzjh1+/S906Rayd3Y=
-github.com/uptrace/bun/dialect/pgdialect v1.2.18 h1:IZ6nM2+OYrL8lkEAy7UkSEZvoa3vluTAUlZfPtlRB2k=
-github.com/uptrace/bun/dialect/pgdialect v1.2.18/go.mod h1:Tqdf4QP1okrGYpXfodXvCOK6Ob1OOTwSaoAzCgBB3IU=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
-github.com/vmihailenco/msgpack/v5 v5.4.1 h1:cQriyiUvjTwOHg8QZaPihLWeRAAVoCpE00IUPn0Bjt8=
-github.com/vmihailenco/msgpack/v5 v5.4.1/go.mod h1:GaZTsDaehaPpQVyxrf5mtQlH+pc21PIudVV/E3rRQok=
-github.com/vmihailenco/tagparser/v2 v2.0.0 h1:y09buUbR+b5aycVFQs/g70pqKVZNBmxwAhO7/IwNM9g=
-github.com/vmihailenco/tagparser/v2 v2.0.0/go.mod h1:Wri+At7QHww0WTrCBeu4J6bNtoV6mEfg5OIWRZA9qds=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
