@@ -331,7 +331,7 @@ func TestGeneratedDatabaseTemplatesUseStandaloneStorage(t *testing.T) {
 	if !strings.Contains(wiring, "fx.As(new(storage.Connection)), fx.As(fx.Self())") {
 		t.Error("command wiring does not provide *storage.Postgres as storage.Connection")
 	}
-	if !strings.Contains(wiring, "storage.NewPostgres(ctx, cfg)") {
+	if !strings.Contains(wiring, "storage.NewPostgres(ctx, cfg, opts...)") {
 		t.Error("command wiring does not apply application storage config")
 	}
 	if !strings.Contains(wiring, "func newTelemetry(") {

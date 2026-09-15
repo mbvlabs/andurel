@@ -29,7 +29,12 @@ func RegisterRequestMeta(session *cookies.Session) echo.MiddlewareFunc {
 
 			flashes, err := session.ExtractFlashes(c)
 			if err != nil {
-				telemetry.Error(c.Request().Context(), "Error getting flash messages from session", "error", err)
+				telemetry.Error(
+					c.Request().Context(),
+					"Error getting flash messages from session",
+					"error",
+					err,
+				)
 			}
 
 			ctx := appctx.WithFlashes(c.Request().Context(), flashes)

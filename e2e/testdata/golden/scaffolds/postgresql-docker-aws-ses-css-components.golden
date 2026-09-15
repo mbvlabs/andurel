@@ -3062,7 +3062,8 @@ func NewTelemetry(app App) (Telemetry, error) {
 		LogLevel:            slog.LevelInfo,
 	}
 	var logLevelErr error
-	if err := cfg.LogLevel.UnmarshalText([]byte(env.String("LOG_LEVEL", DefaultLogLevel))); err != nil {
+	logLevel := env.String("LOG_LEVEL", DefaultLogLevel)
+	if err := cfg.LogLevel.UnmarshalText([]byte(logLevel)); err != nil {
 		logLevelErr = fmt.Errorf("LOG_LEVEL: %w", err)
 	}
 
@@ -9518,7 +9519,12 @@ func RegisterRequestMeta(session *cookies.Session) echo.MiddlewareFunc {
 
 			flashes, err := session.ExtractFlashes(c)
 			if err != nil {
-				telemetry.Error(c.Request().Context(), "Error getting flash messages from session", "error", err)
+				telemetry.Error(
+					c.Request().Context(),
+					"Error getting flash messages from session",
+					"error",
+					err,
+				)
 			}
 
 			ctx := appctx.WithFlashes(c.Request().Context(), flashes)
