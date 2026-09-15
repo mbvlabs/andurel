@@ -29,7 +29,7 @@ func TestGeneratedConfigRuntime(t *testing.T) {
 	}
 
 	var module strings.Builder
-	module.WriteString(fmt.Sprintf(`module testapp
+	if _, err := fmt.Fprintf(&module, `module testapp
 
 go %s
 
@@ -38,17 +38,22 @@ require (
 	github.com/joho/godotenv v1.5.1
 	go.uber.org/fx v1.24.0
 )
-`, goVersion))
+`, goVersion); err != nil {
+		t.Fatal(err)
+	}
 	for _, name := range []string{"email", "server", "storage", "validation"} {
 		path, err := filepath.Abs(filepath.Join("..", "pkg", name))
 		if err != nil {
 			t.Fatal(err)
 		}
-		module.WriteString(fmt.Sprintf(
+		if _, err := fmt.Fprintf(
+			&module,
 			"\nrequire github.com/mbvlabs/andurel/pkg/%s v0.0.0\n"+
 				"replace github.com/mbvlabs/andurel/pkg/%s => %q\n",
 			name, name, filepath.ToSlash(path),
-		))
+		); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte(module.String()), 0o644); err != nil {
 		t.Fatal(err)

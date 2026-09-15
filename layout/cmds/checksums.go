@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -146,7 +147,7 @@ func loadGitHubReleaseDigests(assetURL string) map[string]string {
 	if err != nil {
 		return nil
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
 		return nil
 	}
@@ -283,10 +284,14 @@ func hashHTTPS(sourceURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer body.Close()
 	hash := sha256.New()
-	if _, err := copyBounded(hash, body, maxArchiveSize, "archive"); err != nil {
-		return "", err
+	_, copyErr := copyBounded(hash, body, maxArchiveSize, "archive")
+	closeErr := body.Close()
+	if copyErr != nil {
+		return "", errors.Join(copyErr, closeErr)
+	}
+	if closeErr != nil {
+		return "", fmt.Errorf("failed to close archive: %w", closeErr)
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
@@ -296,10 +301,14 @@ func readHTTPS(sourceURL string, limit int64, description string) ([]byte, error
 	if err != nil {
 		return nil, err
 	}
-	defer body.Close()
 	var buf bytes.Buffer
-	if _, err := copyBounded(&buf, body, limit, description); err != nil {
-		return nil, err
+	_, copyErr := copyBounded(&buf, body, limit, description)
+	closeErr := body.Close()
+	if copyErr != nil {
+		return nil, errors.Join(copyErr, closeErr)
+	}
+	if closeErr != nil {
+		return nil, fmt.Errorf("failed to close %s: %w", description, closeErr)
 	}
 	return buf.Bytes(), nil
 }
