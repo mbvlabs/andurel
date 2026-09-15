@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/layout/versions"
 )
 
 var errPresentationWrite = errors.New("presentation write failed")
@@ -924,7 +925,8 @@ func newGitUpgradeProject(t *testing.T) string {
 	t.Helper()
 
 	projectRoot := t.TempDir()
-	goMod := "module github.com/example/myapp\n\ngo 1.24.0\n"
+	goMod := "module github.com/example/myapp\n\ngo 1.24.0\n\nrequire github.com/mbvlabs/andurel/pkg/telemetry " +
+		versions.Telemetry + "\n"
 	if err := os.WriteFile(filepath.Join(projectRoot, "go.mod"), []byte(goMod), 0o644); err != nil {
 		t.Fatalf("failed to write go.mod: %v", err)
 	}

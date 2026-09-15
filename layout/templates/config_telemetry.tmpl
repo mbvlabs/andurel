@@ -46,7 +46,8 @@ func NewTelemetry(app App) (Telemetry, error) {
 		LogLevel:            slog.LevelInfo,
 	}
 	var logLevelErr error
-	if err := cfg.LogLevel.UnmarshalText([]byte(env.String("LOG_LEVEL", DefaultLogLevel))); err != nil {
+	logLevel := env.String("LOG_LEVEL", DefaultLogLevel)
+	if err := cfg.LogLevel.UnmarshalText([]byte(logLevel)); err != nil {
 		logLevelErr = fmt.Errorf("LOG_LEVEL: %w", err)
 	}
 

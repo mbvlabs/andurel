@@ -357,6 +357,9 @@ require github.com/mbvlabs/andurel/pkg/storage v0.6.0
 	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/inertia "+versions.Inertia) {
 		t.Fatalf("Inertia was not added:\n%s", goMod)
 	}
+	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/telemetry "+versions.Telemetry) {
+		t.Fatalf("telemetry was not added:\n%s", goMod)
+	}
 }
 
 func TestVersionedInertiaUpgradeRejectsInvalidEmbeddedPath(t *testing.T) {
@@ -580,10 +583,11 @@ func newUpgradeFixtureProject(t *testing.T) string {
 func newUpgradeFixtureProjectWithConfig(t *testing.T, config layout.ScaffoldConfig) string {
 	t.Helper()
 	root := t.TempDir()
-	goMod := "module testapp\n\ngo 1.24.0\n"
+	goMod := "module testapp\n\ngo 1.24.0\n\nrequire (\n"
 	if layout.IsSupportedInertiaAdapter(config.Inertia) {
-		goMod += "\nrequire github.com/mbvlabs/andurel/pkg/inertia " + versions.Inertia + "\n"
+		goMod += "\tgithub.com/mbvlabs/andurel/pkg/inertia " + versions.Inertia + "\n"
 	}
+	goMod += "\tgithub.com/mbvlabs/andurel/pkg/telemetry " + versions.Telemetry + "\n)\n"
 	mustWriteTestFile(t, root, "go.mod", []byte(goMod))
 	lock := &layout.AndurelLock{
 		SchemaVersion:  targetLockSchemaVersion,
