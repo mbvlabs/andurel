@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3'
-import type { ProjectData, ProjectIndexProps, ProjectItemProps } from '@/types/project'
+import type { ProjectData, ProjectItemProps, UpdateProjectFormPayload } from '@/types/payloads'
 import { routes } from '@/routes'
 type RouteID = string
 
@@ -10,7 +10,7 @@ function routeID(item: ProjectData): RouteID {
 
 const props = defineProps<ProjectItemProps>()
 
-const form = useForm({
+const form = useForm<UpdateProjectFormPayload>({
   title: String(props.item.title ?? '') as string,
   status: String(props.item.status ?? '') as string,
 })
