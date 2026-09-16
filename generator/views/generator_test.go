@@ -7,7 +7,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 )
 
-func TestInertiaTypeScriptDeclarationsUseBackendJSONShape(t *testing.T) {
+func TestInertiaPayloadImportPathIsSharedPayloadsFile(t *testing.T) {
 	view := &GeneratedView{
 		ResourceName:    "AuditLog",
 		Namespace:       "admin",
@@ -15,31 +15,19 @@ func TestInertiaTypeScriptDeclarationsUseBackendJSONShape(t *testing.T) {
 		IDType:          "uuid.UUID",
 		IDFieldName:     "AuditID",
 		IDJSONName:      "auditId",
-		Fields: []ViewField{
-			{Name: "DisplayName", CamelCase: "displayName", GoType: "string"},
-			{Name: "AttemptCount", CamelCase: "attemptCount", GoType: "int64"},
-			{Name: "Enabled", CamelCase: "enabled", GoType: "bool"},
-			{Name: "CreatedAt", CamelCase: "createdAt", GoType: "time.Time"},
-		},
 	}
 
-	declaration := inertiaTypeScriptDeclarations(view)
-	for _, want := range []string{
-		"export type AdminAuditLogData",
-		"auditId: string",
-		"displayName: string",
-		"attemptCount: number",
-		"enabled: boolean",
-		"createdAt: string",
-		"items: AdminAuditLogData[]",
-		"item: AdminAuditLogData",
-	} {
-		if !strings.Contains(declaration, want) {
-			t.Fatalf("declaration missing %q:\n%s", want, declaration)
-		}
-	}
-	if got, want := inertiaPayloadImportPath(view), "@/types/admin_audit_log"; got != want {
+	if got, want := inertiaPayloadImportPath(view), "@/types/payloads"; got != want {
 		t.Fatalf("inertiaPayloadImportPath = %q, want %q", got, want)
+	}
+	if got, want := inertiaPayloadTypeName(view), "AuditLogData"; got != want {
+		t.Fatalf("inertiaPayloadTypeName = %q, want %q", got, want)
+	}
+	if got, want := inertiaCreateFormPayloadType(view), "CreateAuditLogFormPayload"; got != want {
+		t.Fatalf("inertiaCreateFormPayloadType = %q, want %q", got, want)
+	}
+	if got, want := inertiaUpdateFormPayloadType(view), "UpdateAuditLogFormPayload"; got != want {
+		t.Fatalf("inertiaUpdateFormPayloadType = %q, want %q", got, want)
 	}
 }
 
@@ -402,7 +390,7 @@ func TestGenerateInertiaViewFiles_ReactResourceTypesAndInputs(t *testing.T) {
 	for _, want := range []string{
 		"import { Link } from '@inertiajs/react'",
 		"import { routes } from '@/routes'",
-		"import type { WidgetData, WidgetIndexProps } from '@/types/widget'",
+		"import type { WidgetData, WidgetIndexProps } from '@/types/payloads'",
 		"function routeID(item: WidgetData): RouteID",
 		"{item.active ? 'Yes' : 'No'}",
 	} {
@@ -419,9 +407,8 @@ func TestGenerateInertiaViewFiles_ReactResourceTypesAndInputs(t *testing.T) {
 	create := files["Create.tsx"]
 	for _, want := range []string{
 		"import { Link, useForm } from '@inertiajs/react'",
-		"type CreateForm = {",
-		"quantity: number",
-		"active: boolean",
+		"import type { CreateWidgetFormPayload } from '@/types/payloads'",
+		"useForm<CreateWidgetFormPayload>({",
 		"quantity: 0,",
 		"active: false,",
 		"function submit(event: SubmitEvent)",
@@ -431,7 +418,13 @@ func TestGenerateInertiaViewFiles_ReactResourceTypesAndInputs(t *testing.T) {
 			t.Fatalf("Create.tsx missing %q:\n%s", want, create)
 		}
 	}
-	for _, unwanted := range []string{"type Item", "FormEvent", "Record<string, any>", "<>"} {
+	for _, unwanted := range []string{
+		"type CreateForm",
+		"type Item",
+		"FormEvent",
+		"Record<string, any>",
+		"<>",
+	} {
 		if strings.Contains(create, unwanted) {
 			t.Fatalf("Create.tsx contains %q:\n%s", unwanted, create)
 		}
@@ -439,7 +432,8 @@ func TestGenerateInertiaViewFiles_ReactResourceTypesAndInputs(t *testing.T) {
 
 	edit := files["Edit.tsx"]
 	for _, want := range []string{
-		"type EditForm = {",
+		"import type { WidgetData, WidgetItemProps, UpdateWidgetFormPayload } from '@/types/payloads'",
+		"useForm<UpdateWidgetFormPayload>({",
 		"quantity: Number(item.quantity ?? 0),",
 		"publishedOn: String(item.publishedOn ?? '').slice(0, 10),",
 		"form.setData('quantity', Number(event.currentTarget.value))",
@@ -448,8 +442,10 @@ func TestGenerateInertiaViewFiles_ReactResourceTypesAndInputs(t *testing.T) {
 			t.Fatalf("Edit.tsx missing %q:\n%s", want, edit)
 		}
 	}
-	if strings.Contains(edit, "FormEvent") || strings.Contains(edit, "<>") {
-		t.Fatalf("Edit.tsx contains deprecated event type or root fragment:\n%s", edit)
+	if strings.Contains(edit, "type EditForm") ||
+		strings.Contains(edit, "FormEvent") ||
+		strings.Contains(edit, "<>") {
+		t.Fatalf("Edit.tsx contains deprecated event type, local form alias, or root fragment:\n%s", edit)
 	}
 }
 
@@ -479,11 +475,19 @@ func TestGenerateInertiaViewFiles_VueResourceTypesAndInputs(t *testing.T) {
 		t.Fatalf("GenerateInertiaViewFiles returned error: %v", err)
 	}
 	assertContainsAll(t, files["Create.vue"], []string{
+		"import type { CreateWidgetFormPayload } from '@/types/payloads'",
+		"useForm<CreateWidgetFormPayload>({",
 		"quantity: 0 as number",
 		"active: false as boolean",
 		"publishedOn: '' as string",
 	})
+	if strings.Contains(files["Create.vue"], "IndexProps") ||
+		strings.Contains(files["Create.vue"], "ItemProps") {
+		t.Fatal("Vue Create page imported unused Index/Item payload types")
+	}
 	assertContainsAll(t, files["Edit.vue"], []string{
+		"import type { WidgetData, WidgetItemProps, UpdateWidgetFormPayload } from '@/types/payloads'",
+		"useForm<UpdateWidgetFormPayload>({",
 		"quantity: Number(props.item.quantity ?? 0) as number",
 		"active: Boolean(props.item.active) as boolean",
 		"publishedOn: String(props.item.publishedOn ?? '').slice(0, 10) as string",
@@ -541,16 +545,15 @@ func TestGenerateInertiaViewFiles_SvelteResourceTypesAndInputs(t *testing.T) {
 
 	assertContainsAll(t, files["Index.svelte"], []string{
 		"import { Link } from '@inertiajs/svelte'",
-		"import type { WidgetData, WidgetIndexProps } from '@/types/widget'",
+		"import type { WidgetData, WidgetIndexProps } from '@/types/payloads'",
 		"type RouteID = string",
 		"function routeID(item: WidgetData): RouteID",
 		"{item.active ? 'Yes' : 'No'}",
 	})
 	assertContainsAll(t, files["Create.svelte"], []string{
 		"import { Link, useForm } from '@inertiajs/svelte'",
-		"type CreateForm = {",
-		"quantity: number",
-		"active: boolean",
+		"import type { CreateWidgetFormPayload } from '@/types/payloads'",
+		"useForm<CreateWidgetFormPayload>({",
 		"quantity: 0,",
 		"active: false,",
 		"function submit(event: SubmitEvent)",
@@ -558,12 +561,19 @@ func TestGenerateInertiaViewFiles_SvelteResourceTypesAndInputs(t *testing.T) {
 		"bind:value={$form.quantity}",
 		"bind:checked={$form.active}",
 	})
+	if strings.Contains(files["Create.svelte"], "type CreateForm") {
+		t.Fatalf("Create.svelte still declares a local CreateForm:\n%s", files["Create.svelte"])
+	}
 	assertContainsAll(t, files["Edit.svelte"], []string{
-		"type EditForm = {",
+		"import type { WidgetData, WidgetItemProps, UpdateWidgetFormPayload } from '@/types/payloads'",
+		"useForm<UpdateWidgetFormPayload>({",
 		"quantity: Number(item.quantity ?? 0),",
 		"publishedOn: String(item.publishedOn ?? '').slice(0, 10),",
 		"$form.put(routes.widgetUpdate(routeID(item)))",
 	})
+	if strings.Contains(files["Edit.svelte"], "type EditForm") {
+		t.Fatalf("Edit.svelte still declares a local EditForm:\n%s", files["Edit.svelte"])
+	}
 	for name, content := range files {
 		for _, legacy := range []string{"export let", "<slot", "on:submit"} {
 			if strings.Contains(content, legacy) {

@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { Link{{if InertiaUsesForm .ComponentName}}, useForm{{end}} } from '@inertiajs/vue3'
-import type { {{InertiaPayloadType}}, {{.ResourceName}}IndexProps, {{.ResourceName}}ItemProps } from '{{InertiaPayloadImportPath}}'
+{{- if eq .ComponentName "Index"}}
+import type { {{InertiaPayloadType}}, {{.ResourceName}}IndexProps } from '{{InertiaPayloadImportPath}}'
+{{- else if eq .ComponentName "Show"}}
+import type { {{InertiaPayloadType}}, {{.ResourceName}}ItemProps } from '{{InertiaPayloadImportPath}}'
+{{- else if eq .ComponentName "Create"}}
+import type { {{InertiaCreateFormPayload}} } from '{{InertiaPayloadImportPath}}'
+{{- else if eq .ComponentName "Edit"}}
+import type { {{InertiaPayloadType}}, {{.ResourceName}}ItemProps, {{InertiaUpdateFormPayload}} } from '{{InertiaPayloadImportPath}}'
+{{- end}}
 {{- if InertiaComponentUsesRoutes .ComponentName}}
 import { routes } from '{{ InertiaRoutesImportPath }}'
 {{- end}}
@@ -20,7 +28,7 @@ defineProps<{{.ResourceName}}IndexProps>()
 defineProps<{{.ResourceName}}ItemProps>()
 {{- else if eq .ComponentName "Create"}}
 
-const form = useForm({
+const form = useForm<{{InertiaCreateFormPayload}}>({
 {{- range .Fields}}
 {{- if not .IsSystemField}}
   {{.CamelCase}}: {{InertiaCreateValue .}} as {{InertiaFieldType .}},
@@ -35,7 +43,7 @@ function submit() {
 
 const props = defineProps<{{.ResourceName}}ItemProps>()
 
-const form = useForm({
+const form = useForm<{{InertiaUpdateFormPayload}}>({
 {{- range .Fields}}
 {{- if not .IsSystemField}}
   {{.CamelCase}}: {{InertiaEditValue . "props.item"}} as {{InertiaFieldType .}},

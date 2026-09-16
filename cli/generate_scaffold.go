@@ -140,7 +140,7 @@ flag requires an Inertia project and cannot be combined with --api.`,
 						); err != nil {
 							return err
 						}
-						return refreshRoutesTSAfterInertiaGeneration(rootDir, inertiaAdapter, api)
+						return refreshInertiaGeneratedTypeScript(rootDir, inertiaAdapter, api)
 					})(cmd, args)
 				},
 			})
@@ -164,6 +164,13 @@ flag requires an Inertia project and cannot be combined with --api.`,
 	)
 
 	return cmd
+}
+
+func refreshInertiaGeneratedTypeScript(rootDir, inertia string, isAPI bool) error {
+	if err := refreshRoutesTSAfterInertiaGeneration(rootDir, inertia, isAPI); err != nil {
+		return err
+	}
+	return refreshPayloadsTSAfterInertiaGeneration(rootDir, inertia, isAPI)
 }
 
 func refreshRoutesTSAfterInertiaGeneration(rootDir, inertia string, isAPI bool) error {

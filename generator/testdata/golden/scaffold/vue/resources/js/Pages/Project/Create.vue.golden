@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3'
-import type { ProjectData, ProjectIndexProps, ProjectItemProps } from '@/types/project'
+import type { CreateProjectFormPayload } from '@/types/payloads'
 import { routes } from '@/routes'
 
-const form = useForm({
+const form = useForm<CreateProjectFormPayload>({
   title: '' as string,
   status: '' as string,
 })

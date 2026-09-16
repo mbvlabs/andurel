@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3'
-import type { ProjectData, ProjectIndexProps, ProjectItemProps } from '@/types/project'
+import type { ProjectData, ProjectItemProps } from '@/types/payloads'
 import { routes } from '@/routes'
 type RouteID = string
 

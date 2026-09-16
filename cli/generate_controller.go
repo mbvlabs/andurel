@@ -140,7 +140,7 @@ flag requires an Inertia project and cannot be combined with --api.`,
 						); err != nil {
 							return err
 						}
-						return refreshRoutesTSAfterInertiaGeneration(rootDir, inertiaAdapter, api)
+						return refreshInertiaGeneratedTypeScript(rootDir, inertiaAdapter, api)
 					})(cmd, args)
 				},
 			})
