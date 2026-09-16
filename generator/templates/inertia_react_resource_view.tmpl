@@ -1,8 +1,12 @@
 import { Link{{if InertiaUsesForm .ComponentName}}, useForm{{end}} } from '@inertiajs/react'
 {{- if eq .ComponentName "Index"}}
 import type { {{InertiaPayloadType}}, {{.ResourceName}}IndexProps } from '{{InertiaPayloadImportPath}}'
-{{- else if or (eq .ComponentName "Show") (eq .ComponentName "Edit")}}
+{{- else if eq .ComponentName "Show"}}
 import type { {{InertiaPayloadType}}, {{.ResourceName}}ItemProps } from '{{InertiaPayloadImportPath}}'
+{{- else if eq .ComponentName "Create"}}
+import type { {{InertiaCreateFormPayload}} } from '{{InertiaPayloadImportPath}}'
+{{- else if eq .ComponentName "Edit"}}
+import type { {{InertiaPayloadType}}, {{.ResourceName}}ItemProps, {{InertiaUpdateFormPayload}} } from '{{InertiaPayloadImportPath}}'
 {{- end}}
 
 {{- if InertiaComponentUsesRoutes .ComponentName}}
@@ -14,25 +18,6 @@ type RouteID = {{ InertiaRouteIDType }}
 
 function routeID(item: {{InertiaPayloadType}}): RouteID {
   return item.{{InertiaIDJSONName}}
-}
-{{- end}}
-{{- if eq .ComponentName "Create" }}
-
-type CreateForm = {
-{{- range .Fields}}
-{{- if not .IsSystemField}}
-  {{.CamelCase}}: {{ ReactFieldType . }}
-{{- end}}
-{{- end}}
-}
-{{- else if eq .ComponentName "Edit" }}
-
-type EditForm = {
-{{- range .Fields}}
-{{- if not .IsSystemField}}
-  {{.CamelCase}}: {{ ReactFieldType . }}
-{{- end}}
-{{- end}}
 }
 {{- end}}
 
@@ -101,7 +86,7 @@ export default function {{.ComponentName}}({ item }: {{.ResourceName}}ItemProps)
 }
 {{- else if eq .ComponentName "Create"}}
 export default function {{.ComponentName}}() {
-  const form = useForm<CreateForm>({
+  const form = useForm<{{InertiaCreateFormPayload}}>({
 {{- range .Fields}}
 {{- if not .IsSystemField}}
     {{.CamelCase}}: {{ ReactCreateValue . }},
@@ -143,7 +128,7 @@ export default function {{.ComponentName}}() {
 }
 {{- else if eq .ComponentName "Edit"}}
 export default function {{.ComponentName}}({ item }: {{.ResourceName}}ItemProps) {
-  const form = useForm<EditForm>({
+  const form = useForm<{{InertiaUpdateFormPayload}}>({
 {{- range .Fields}}
 {{- if not .IsSystemField}}
     {{.CamelCase}}: {{ ReactEditValue . }},

@@ -792,6 +792,18 @@
       ]
     },
     {
+      "path": "andurel generate payloads",
+      "use": "payloads",
+      "flags": [
+        {
+          "name": "help",
+          "shorthand": "h",
+          "type": "bool",
+          "default": "false"
+        }
+      ]
+    },
+    {
       "path": "andurel generate queries",
       "use": "queries",
       "aliases": [
@@ -1679,6 +1691,50 @@
         {
           "go_name": "Replace",
           "json_name": "replace",
+          "omitempty": true
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.payloadSkipped",
+      "fields": [
+        {
+          "go_name": "Name",
+          "json_name": "name",
+          "omitempty": true
+        },
+        {
+          "go_name": "SourceFile",
+          "json_name": "source_file"
+        },
+        {
+          "go_name": "Line",
+          "json_name": "line"
+        },
+        {
+          "go_name": "Reason",
+          "json_name": "reason"
+        }
+      ]
+    },
+    {
+      "type": "github.com/mbvlabs/andurel/cli.payloadsReport",
+      "fields": [
+        {
+          "go_name": "GeneratedFile",
+          "json_name": "generated_file"
+        },
+        {
+          "go_name": "TypeCount",
+          "json_name": "type_count"
+        },
+        {
+          "go_name": "SkippedCount",
+          "json_name": "skipped_count"
+        },
+        {
+          "go_name": "Skipped",
+          "json_name": "skipped",
           "omitempty": true
         }
       ]

@@ -276,6 +276,7 @@ andurel generate scaffold (alias: s) NAME [flags]
 andurel generate job (alias: j) NAME [flags]
 andurel generate email (alias: e) NAME
 andurel generate routes
+andurel generate payloads
 andurel generate query NAME [flags]
 andurel generate queries
 ```
@@ -390,6 +391,15 @@ export const routes = {
 ```
 
 Use this after adding or changing routes for an Inertia project so Inertia pages can import route helpers instead of hard-coding URL strings. Non-Inertia projects receive a structured `invalid_inertia_adapter` error. `--json` reports the generated file, helper count, skipped count, and any skipped manifest entries.
+
+**`generate payloads`** — Generates TypeScript types from backend-owned Inertia payload structs.
+
+```bash
+andurel generate payloads
+andurel generate payloads --json
+```
+
+The command is always visible in CLI discovery, but only runs in projects whose `andurel.lock` has `scaffoldConfig.inertia` set to `vue`, `react`, or `svelte`. It scans `controllers/**/*.go` for `inertia.FromStruct` page payloads and named `etx.Bind` form payloads, then writes `resources/js/types/payloads.ts`. Run it after editing those controller structs so frontend pages stay in sync. `generate controller --inertia` and `generate scaffold --inertia` refresh the same file. Non-Inertia projects receive a structured `invalid_inertia_adapter` error. `--json` reports the generated file, type count, skipped count, and any skipped entries.
 
 ### `andurel routes` — Route manifest
 
@@ -610,7 +620,7 @@ Run comprehensive diagnostic checks (Go version, latest stable Andurel release, 
 andurel doctor (alias: doc) [--verbose]
 ```
 
-For Inertia projects, the Code Generation checks also compare `resources/js/routes.ts` against the current `router/routes/*.go` manifest and fail when the file is missing or stale. Run `andurel generate routes` to update it.
+For Inertia projects, the Code Generation checks also compare `resources/js/routes.ts` against the current `router/routes/*.go` manifest and `resources/js/types/payloads.ts` against controller payload structs, and fail when either file is missing or stale. Run `andurel generate routes` or `andurel generate payloads` to update them.
 
 If a newer stable CLI release exists, `andurel doctor` reports a nonblocking warning with the exact installation command. If the release lookup is unavailable, doctor warns without failing the project health check.
 
@@ -688,6 +698,7 @@ Without `--harness`, human mode displays a numbered multi-select prompt with no 
 | `andurel generate job` | `j` |
 | `andurel generate email` | `e` |
 | `andurel generate routes` | none |
+| `andurel generate payloads` | none |
 | `andurel fmt` | `f` |
 | `andurel database` | `d`, `db` |
 | `andurel database create` | `crt` |
@@ -902,7 +913,7 @@ SSR uses per-response `inertia.WithSSR()`. Node process ownership belongs to `cm
 
 Here's how an auth controller renders a Vue component via Inertia, from route definition to rendered page.
 
-Use `andurel routes --json` when frontend tooling needs the same route metadata. The JSON manifest keeps `router/routes/*.go` as the source of truth while exposing URL paths, route names, params, and source locations to external generators. Use `andurel generate routes` to write those URLs as TypeScript helpers in `resources/js/routes.ts`.
+Use `andurel routes --json` when frontend tooling needs the same route metadata. The JSON manifest keeps `router/routes/*.go` as the source of truth while exposing URL paths, route names, params, and source locations to external generators. Use `andurel generate routes` to write those URLs as TypeScript helpers in `resources/js/routes.ts`. Use `andurel generate payloads` after editing controller `FromStruct` or Bind structs so pages can import types from `resources/js/types/payloads.ts`.
 
 #### Route Definition
 

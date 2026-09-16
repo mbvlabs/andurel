@@ -17,6 +17,7 @@ Use this skill when working in an Andurel project or generating Andurel code. It
 - Treat `andurel project info --json` as the source of truth for the configured Inertia adapter and JavaScript package manager.
 - Persist through narsilc-generated queries. Keep generated `models/internal/queries` types behind the owning model package.
 - After adding or changing Inertia routes, run `andurel generate routes --json` so frontend pages can import `resources/js/routes.ts`.
+- After adding or changing Inertia controller payload or Bind structs, run `andurel generate payloads --json` so frontend pages can import `resources/js/types/payloads.ts`.
 - Follow the repository rules for verification.
 - Prefer the local project pattern over a generic Rails, Echo, Bun, Templ, or frontend framework convention.
 - Keep controllers as HTTP adapters: parse input, call models or services, map errors, and render a response.
@@ -95,6 +96,14 @@ andurel generate routes --json
 
 `andurel generate routes` reads `router/routes/*.go` as the source of truth and writes `resources/js/routes.ts`. It only runs when `andurel.lock` has `scaffoldConfig.inertia` set to `vue`, `react`, or `svelte`. Import helpers from that file in Inertia pages instead of hard-coding URLs.
 
+Generate Inertia payload types:
+
+```bash
+andurel generate payloads --json
+```
+
+`andurel generate payloads` scans controller `inertia.FromStruct` and named Bind structs and writes `resources/js/types/payloads.ts`. Import page and form types from that file instead of hand-written or catalog-derived TypeScript. Run it after editing those Go structs. `generate controller --inertia` and `generate scaffold --inertia` refresh the same file.
+
 Generate an Inertia resource:
 
 ```bash
@@ -153,7 +162,7 @@ Check project health:
 andurel doctor --json
 ```
 
-In Inertia projects, `doctor` checks whether `resources/js/routes.ts` matches the current `router/routes/*.go` manifest. If the `routes.ts` check fails, run `andurel generate routes --json`.
+In Inertia projects, `doctor` checks whether `resources/js/routes.ts` matches the current `router/routes/*.go` manifest and whether `resources/js/types/payloads.ts` matches controller payload structs. If the `routes.ts` check fails, run `andurel generate routes --json`. If the `payloads.ts` check fails, run `andurel generate payloads --json`. Doctor does not delete leftover per-resource files under `resources/js/types/`.
 
 When annotated narsilc queries exist, `doctor` also checks generated code for drift. If the `narsilc generate` check fails, run `andurel generate queries --json`.
 

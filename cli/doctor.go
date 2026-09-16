@@ -93,7 +93,7 @@ This command will check:
   • Environment (Go version, latest stable Andurel release)
   • Configuration (andurel.lock)
   • Code quality (go vet, go mod tidy)
-  • Code generation (templ, narsilc, and Inertia route helpers when configured)`,
+  • Code generation (templ, narsilc, and Inertia route helpers and payload types when configured)`,
 		Example: `  andurel doctor
   andurel doctor --verbose`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -113,7 +113,7 @@ This command will check:
 	setAgentMetadata(
 		doctorCmd,
 		"diagnostics",
-		"Read-only project checks include templ, active narsilc queries, and Inertia route helper drift. Use --json for actionable check hints.",
+		"Read-only project checks include templ, active narsilc queries, and Inertia route helper and payload type drift. Use --json for actionable check hints.",
 	)
 
 	return doctorCmd
@@ -249,6 +249,8 @@ func doctorHint(result checkResult) string {
 		return "Run andurel generate queries and commit the updated models/internal/queries output."
 	case "routes.ts":
 		return "Run andurel generate routes and commit the updated resources/js/routes.ts file."
+	case "payloads.ts":
+		return "Run andurel generate payloads and commit the updated resources/js/types/payloads.ts file."
 	default:
 		return ""
 	}
@@ -1274,6 +1276,7 @@ func codeGenerationChecks(rootDir string, verbose bool) []checkResult {
 	}
 	if projectUsesInertia(rootDir) {
 		results = append(results, checkRoutesTSGenerate(rootDir, verbose))
+		results = append(results, checkPayloadsTSGenerate(rootDir, verbose))
 	}
 	return results
 }
@@ -1357,5 +1360,76 @@ func checkRoutesTSGenerate(rootDir string, verbose bool) checkResult {
 		name:    "routes.ts",
 		status:  statusPass,
 		message: fmt.Sprintf("matches route manifest (%d helpers)", helperCount),
+	}
+}
+
+func checkPayloadsTSGenerate(rootDir string, verbose bool) checkResult {
+	var expected []byte
+	var typeCount int
+	var skippedCount int
+	err := withDiagnosticProjectCopy(rootDir, func(tempRoot string) error {
+		report, err := generatePayloadsFile(tempRoot)
+		if err != nil {
+			return err
+		}
+		typeCount = report.TypeCount
+		skippedCount = report.SkippedCount
+		expected, err = os.ReadFile(filepath.Join(tempRoot, generatedPayloadsTSPath))
+		return err
+	})
+	if err != nil {
+		return checkResult{
+			name:    "payloads.ts",
+			status:  statusFail,
+			message: "temporary payload generation diagnostic failed",
+			details: []string{err.Error()},
+		}
+	}
+
+	target := filepath.Join(rootDir, generatedPayloadsTSPath)
+	actual, err := os.ReadFile(target)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return checkResult{
+				name:    "payloads.ts",
+				status:  statusFail,
+				message: "resources/js/types/payloads.ts is missing",
+				details: []string{"Run 'andurel generate payloads' to create it."},
+			}
+		}
+		return checkResult{
+			name:    "payloads.ts",
+			status:  statusFail,
+			message: "could not read resources/js/types/payloads.ts",
+			details: []string{err.Error()},
+		}
+	}
+
+	if !bytes.Equal(actual, expected) {
+		details := []string{"Run 'andurel generate payloads' to update resources/js/types/payloads.ts."}
+		if verbose {
+			details = append(
+				details,
+				fmt.Sprintf("expected %d bytes, found %d bytes", len(expected), len(actual)),
+			)
+			if skippedCount > 0 {
+				details = append(
+					details,
+					fmt.Sprintf("%d payload entries were skipped", skippedCount),
+				)
+			}
+		}
+		return checkResult{
+			name:    "payloads.ts",
+			status:  statusFail,
+			message: "resources/js/types/payloads.ts is out of date",
+			details: details,
+		}
+	}
+
+	return checkResult{
+		name:    "payloads.ts",
+		status:  statusPass,
+		message: fmt.Sprintf("matches controller payloads (%d types)", typeCount),
 	}
 }
