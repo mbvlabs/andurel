@@ -28,6 +28,34 @@ testapp.db
 .andurel-upgrade-state.json
 ```
 
+file -----------rw-r--r-- AGENTS.md
+```
+# Agent notes for testapp
+
+This is an Andurel application. Use the `andurel` CLI instead of inventing file paths, URLs, or generator names.
+
+## Discovery
+
+```bash
+andurel commands --json
+andurel inspect project --json
+andurel doctor --json
+```
+
+## Common commands
+
+```bash
+andurel generate scaffold <Name> --dry-run --json
+andurel generate migration <name>
+andurel db migrate up
+andurel sync queries --json
+andurel inspect routes --json
+andurel run
+```
+
+Never invent frontend URLs in Inertia apps: import `resources/js/routes.ts` after `andurel sync routes --json`.
+```
+
 file -----------rw-r--r-- README.md
 ```
 # testapp
@@ -95,7 +123,7 @@ testapp/
 
 3. **Run migrations**
    ```bash
-   andurel migration up
+   andurel db migrate up
    ```
 
 4. **Start the development server**
@@ -120,7 +148,7 @@ This orchestrates Air (Go), Templ watch, and Tailwind CSS compilation.
 
 ```bash
 # Open interactive database console
-andurel app console
+andurel db console
 ```
 
 Provides a SQL console connected to your database for ad-hoc queries and exploration.
@@ -129,26 +157,52 @@ Provides a SQL console connected to your database for ad-hoc queries and explora
 
 ```bash
 # Create a new migration
-andurel migration new create_users_table
+andurel generate migration create_users_table
 
 # Run all pending migrations
-andurel migration up
+andurel db migrate up
 
 # Rollback last migration
-andurel migration down
+andurel db migrate down
 
 # Rollback to specific version
-andurel migration down-to [version]
+andurel db migrate down-to [version]
 
 # Apply up to specific version
-andurel migration up-to [version]
+andurel db migrate up-to [version]
 
 # Reset database (rollback all, then reapply)
-andurel migration reset
+andurel db migrate reset
 
 # Fix migration version gaps
-andurel migration fix
+andurel db migrate fix
 ```
+
+### Create, refresh, and inspect
+
+```bash
+# Create application-owned files
+andurel generate migration create_users_table
+andurel generate model User
+andurel generate scaffold Product
+
+# Refresh derived files
+andurel sync queries --json
+andurel sync views
+andurel sync routes --json
+andurel sync payloads --json
+
+# Inspect project shape
+andurel inspect project --json
+andurel inspect routes --json
+andurel inspect models --json
+
+# Discover commands
+andurel commands --json
+andurel commands --check
+```
+
+`andurel sync` refreshes generated app files. `andurel tool sync` downloads pinned binaries.
 
 ## How-To Guides
 
@@ -160,7 +214,7 @@ Andurel generates models, factories, controllers, routes, and pages that belong 
 
 ```bash
 # 1. Create a migration for your table
-andurel migration new create_products_table
+andurel generate migration create_products_table
 ```
 
 Edit the generated migration file in `migrations/` to define your table schema:
@@ -183,7 +237,7 @@ DROP TABLE products;
 Apply the migration:
 
 ```bash
-andurel migration up
+andurel db migrate up
 ```
 
 **Generate the resource**:
@@ -323,8 +377,8 @@ templ WelcomeEmail(userName string) {
 }
 ```
 
-`andurel run`, `andurel generate view`, and `andurel build` compile emails
-automatically. Run `andurel email compile` for a standalone compilation pass.
+`andurel run`, `andurel sync views`, and `andurel build` compile emails
+automatically. Run `andurel sync email` for a standalone compilation pass.
 
 **2. Send the email**
 
@@ -370,13 +424,13 @@ When modifying your database schema:
 
 ```bash
 # 1. Create a migration
-andurel migration new add_email_to_users
+andurel generate migration add_email_to_users
 
 # 2. Edit the migration file
 # Add your ALTER TABLE statements
 
 # 3. Apply the migration
-andurel migration up
+andurel db migrate up
 
 # 4. Refresh affected models
 andurel g model User --refresh
@@ -472,7 +526,7 @@ CSRF protection uses Fetch Metadata. Unsafe API requests bypass CSRF only when t
 
 1. **Live Reload**: Use `andurel run` during development for automatic reloading
 2. **Type Safety**: Let narsilc-backed models and Templ catch errors at compile time
-3. **Database Console**: Use `andurel app console` for quick database queries
+3. **Database Console**: Use `andurel db console` for quick database queries
 4. **Hot Reload**: Changes to Go, Templ, or CSS automatically trigger rebuilds
 5. **Tailwind**: Use Tailwind's utility classes in your Templ templates
 
@@ -486,13 +540,13 @@ andurel run
 andurel g resource Product
 
 # Add a migration
-andurel migration new add_field_to_products
+andurel generate migration add_field_to_products
 
 # Run migrations
-andurel migration up
+andurel db migrate up
 
 # Access database console
-andurel app console
+andurel db console
 
 # Run tests
 go test ./...
@@ -3570,7 +3624,6 @@ dir  d----------rwxr-xr-x css
 file -----------rw-r--r-- css/base.css
 ```
 @import "tailwindcss";
-
 
 html {
 	scroll-behavior: smooth;
