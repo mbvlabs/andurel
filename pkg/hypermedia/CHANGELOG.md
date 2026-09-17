@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel hypermedia module are documented h
 
 ## Unreleased
 
+## 0.2.4 - 2026-09-17
+
 ### Changed
 
 - Minimum supported Go version is now 1.27.1.
