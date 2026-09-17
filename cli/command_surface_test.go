@@ -787,26 +787,31 @@ func TestStandardHelpRendering(t *testing.T) {
 		Long:  "Long tool help.",
 	}
 	cmd.Flags().Bool("local", false, "local flag")
-	cmd.AddCommand(&cobra.Command{Use: "child", Short: "Child command"})
+	cmd.AddCommand(&cobra.Command{
+		Use:   "child",
+		Short: "Child command",
+		Run:   func(*cobra.Command, []string) {},
+	})
 	root.AddCommand(cmd)
 	setStandardHelp(cmd, helpCommand{Use: "sync", Description: "Sync tools"})
 
-	capture := captureProcessOutput(t, &os.Stdout)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
 	if err := cmd.Help(); err != nil {
 		t.Fatalf("render owner help: %v", err)
 	}
-	if got := capture(); !strings.Contains(got, "Tool summary") ||
+	if got := out.String(); !strings.Contains(got, "Tool summary") ||
 		!strings.Contains(got, "Commands:") ||
 		!strings.Contains(got, "child") {
 		t.Fatalf("owner help missing group sections:\n%s", got)
 	}
 
+	out.Reset()
 	child := cmd.Commands()[0]
-	capture = captureProcessOutput(t, &os.Stdout)
 	if err := child.Help(); err != nil {
 		t.Fatalf("render child help: %v", err)
 	}
-	if got := capture(); !strings.Contains(got, "Child command") {
+	if got := out.String(); !strings.Contains(got, "Child command") {
 		t.Fatalf("child help missing short text:\n%s", got)
 	}
 }
