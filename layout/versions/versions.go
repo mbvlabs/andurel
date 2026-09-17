@@ -15,7 +15,7 @@ const (
 	// TailwindCLI is the default Tailwind CSS CLI version.
 	TailwindCLI = "v4.3.2"
 	// Shadowfax is the default Shadowfax runner version.
-	Shadowfax = "v0.10.0"
+	Shadowfax = "v0.11.1"
 	// Narsilc is the default narsilc tool version.
 	Narsilc = "v0.4.2"
 	// NarsilcModule is the Go module version required by generated query code.
