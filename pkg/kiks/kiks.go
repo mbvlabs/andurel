@@ -205,6 +205,10 @@ func New(keys Keys, defs ...Definition) (*Jar, error) {
 		byType:    make(map[reflect.Type]Definition, len(defs)),
 	}
 
+	gob.Register(FlashMessage{})
+	gob.Register([]FlashMessage{})
+	gob.Register(sessionBlob{})
+
 	var sessionCount int
 	names := make(map[string]struct{}, len(defs))
 	for _, definition := range defs {
@@ -224,6 +228,7 @@ func New(keys Keys, defs ...Definition) (*Jar, error) {
 			return nil, fmt.Errorf("kiks: duplicate cookie type %s", key)
 		}
 		jar.byType[key] = definition
+		gob.Register(definition.zeroValue())
 		if definition.kind() == kindSession {
 			sessionCount++
 			jar.sessionDef = definition

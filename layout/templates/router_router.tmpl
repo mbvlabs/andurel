@@ -201,7 +201,6 @@ func newJar(
 	}
 	return kiks.New(
 		keys,
-		kiks.CookieStore(),
 		cookies.Definitions(sessionCfg.Name, appCfg.IsProduction(), sessionCfg.MaxAge)...,
 	)
 }

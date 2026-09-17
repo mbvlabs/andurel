@@ -280,9 +280,6 @@ func (jar *Jar) persist(
 	if emptyValue && len(outgoingFlashes) == 0 {
 		if requestBag.sessionDirty || requestBag.deleted[definition.typeKey()] {
 			http.SetCookie(writer, expireCookie(definition.cookieName(), opts))
-			if !jar.cookieDrv && requestBag.sessionID != "" {
-				_ = jar.store.Destroy(request.Context(), requestBag.sessionID)
-			}
 		}
 		return
 	}
@@ -300,25 +297,7 @@ func (jar *Jar) persist(
 		return
 	}
 
-	if jar.cookieDrv {
-		raw, err := jar.encrypted.Encode(definition.cookieName(), encoded)
-		if err != nil {
-			return
-		}
-		http.SetCookie(writer, newCookie(definition.cookieName(), raw, opts))
-		return
-	}
-
-	sessionID := requestBag.sessionID
-	if sessionID == "" {
-		sessionID = newSessionID()
-		requestBag.sessionID = sessionID
-	}
-	maxAge := durationSeconds(opts.maxAge)
-	if err := jar.store.Save(request.Context(), sessionID, encoded, maxAge); err != nil {
-		return
-	}
-	raw, err := jar.signed.Encode(definition.cookieName(), sessionID)
+	raw, err := jar.encrypted.Encode(definition.cookieName(), encoded)
 	if err != nil {
 		return
 	}

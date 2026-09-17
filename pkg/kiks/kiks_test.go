@@ -1,20 +1,12 @@
 package kiks
 
 import (
-	"context"
-	"encoding/gob"
 	"net/http"
 	"net/http/httptest"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/labstack/echo/v5"
 )
-
-func init() {
-	gob.Register(testApp{})
-}
 
 type testApp struct {
 	UserID          string
@@ -29,7 +21,7 @@ func testKeys() Keys {
 }
 
 func TestCookieDriverRoundTrip(t *testing.T) {
-	jar, err := New(testKeys(), CookieStore(), Session[testApp]("app", HTTPOnly(), MaxAge(60)))
+	jar, err := New(testKeys(), Session[testApp]("app", HTTPOnly(), MaxAge(60)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +82,7 @@ func TestCookieDriverRoundTrip(t *testing.T) {
 }
 
 func TestSameRequestFlashIsVisible(t *testing.T) {
-	jar, err := New(testKeys(), CookieStore(), Session[testApp]("app"))
+	jar, err := New(testKeys(), Session[testApp]("app"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +102,7 @@ func TestSameRequestFlashIsVisible(t *testing.T) {
 }
 
 func TestCorruptSessionIsRecovered(t *testing.T) {
-	jar, err := New(testKeys(), CookieStore(), Session[testApp]("app"))
+	jar, err := New(testKeys(), Session[testApp]("app"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,43 +125,8 @@ func TestCorruptSessionIsRecovered(t *testing.T) {
 	}
 }
 
-func TestSQLStoreRoundTrip(t *testing.T) {
-	store := NewSQLStore(&memorySQL{rows: map[string][]byte{}})
-	jar, err := New(testKeys(), store, Session[testApp]("app", MaxAge(60)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/", nil)
-	ctx := echo.New().NewContext(request, recorder)
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
-		Set(c.Request().Context(), testApp{UserID: "db", IsAuthenticated: true})
-		return c.Redirect(http.StatusSeeOther, "/")
-	})(ctx); err != nil {
-		t.Fatal(err)
-	}
-	cookies := recorder.Result().Cookies()
-	if len(cookies) != 1 {
-		t.Fatalf("cookies = %d, want 1", len(cookies))
-	}
-
-	follow := httptest.NewRequest(http.MethodGet, "/", nil)
-	follow.AddCookie(cookies[0])
-	followRecorder := httptest.NewRecorder()
-	followCtx := echo.New().NewContext(follow, followRecorder)
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
-		got := Get[testApp](c.Request().Context())
-		if got.UserID != "db" || !got.IsAuthenticated {
-			t.Fatalf("sql session = %+v", got)
-		}
-		return c.NoContent(http.StatusOK)
-	})(followCtx); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestSkipPrefixes(t *testing.T) {
-	jar, err := New(testKeys(), CookieStore(), Session[testApp]("app"))
+	jar, err := New(testKeys(), Session[testApp]("app"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +144,7 @@ func TestSkipPrefixes(t *testing.T) {
 }
 
 func TestClientRedirectPersistsFlashes(t *testing.T) {
-	jar, err := New(testKeys(), CookieStore(), Session[testApp]("app", MaxAge(60)))
+	jar, err := New(testKeys(), Session[testApp]("app", MaxAge(60)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,7 +183,6 @@ func TestNamedEncryptedCookie(t *testing.T) {
 	type Theme string
 	jar, err := New(
 		testKeys(),
-		CookieStore(),
 		Session[testApp]("app"),
 		Encrypted[Theme]("theme", HTTPOnly()),
 	)
@@ -265,50 +221,3 @@ func TestNamedEncryptedCookie(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-
-type memorySQL struct {
-	mu   sync.Mutex
-	rows map[string][]byte
-}
-
-func (db *memorySQL) Exec(_ context.Context, query string, args ...any) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	if len(args) == 1 {
-		delete(db.rows, args[0].(string))
-		return nil
-	}
-	id := args[0].(string)
-	payload := args[1].([]byte)
-	db.rows[id] = payload
-	_ = query
-	if len(args) > 2 {
-		_ = args[2].(time.Time)
-	}
-	return nil
-}
-
-func (db *memorySQL) QueryRow(_ context.Context, _ string, args ...any) Row {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	id := args[0].(string)
-	payload, ok := db.rows[id]
-	return memoryRow{payload: payload, ok: ok}
-}
-
-type memoryRow struct {
-	payload []byte
-	ok      bool
-}
-
-func (row memoryRow) Scan(dest ...any) error {
-	if !row.ok {
-		return errNoRows{}
-	}
-	*(dest[0].(*[]byte)) = row.payload
-	return nil
-}
-
-type errNoRows struct{}
-
-func (errNoRows) Error() string { return "no rows in result set" }

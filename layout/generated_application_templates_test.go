@@ -634,11 +634,14 @@ func TestGeneratedKiksSessionTemplates(t *testing.T) {
 		"jar.EchoMiddleware",
 		"kiks.SkipPrefixes",
 		"func newJar(",
-		"kiks.CookieStore()",
+		"kiks.New(",
 	} {
 		if !strings.Contains(router, want) {
 			t.Errorf("router_router.tmpl missing %q", want)
 		}
+	}
+	if strings.Contains(router, "kiks.CookieStore()") {
+		t.Error("router_router.tmpl still wires kiks.CookieStore()")
 	}
 	if strings.Contains(router, "kiks.NewSQLStore") {
 		t.Error("router_router.tmpl still wires the database session driver")

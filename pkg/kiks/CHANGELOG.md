@@ -4,6 +4,13 @@ All notable changes to the standalone Andurel kiks module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- `New` takes only keys and definitions; session values always live in an
+  encrypted cookie. The SQL/`SessionStore` API is gone.
+- `New` registers each cookie value type (and session envelope types) with
+  `gob` when the jar is constructed. No package `init` registration.
+
 ## 0.1.0 - 2026-09-17
 
 ### Added
