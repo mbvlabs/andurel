@@ -5,36 +5,36 @@ import (
 	"testing"
 )
 
-func TestInertiaClientAndSSRSetupShareFlashToasts(t *testing.T) {
+func TestInertiaClientAndSSRSetupRenderAppOnly(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
 		adapter string
 		app     string
 		ssr     string
-		shared  string
-		snippet string
+		want    string
+		unwant  string
 	}{
 		{
 			adapter: "react",
 			app:     "inertia_react_assets_app.tmpl",
 			ssr:     "inertia_react_assets_ssr.tmpl",
-			shared:  "FlashToasts",
-			snippet: "<FlashToasts initialFlashes={pageFlashes(props.initialPage.flash)} />",
+			want:    "<App {...props} />",
+			unwant:  "FlashToasts",
 		},
 		{
 			adapter: "vue",
 			app:     "inertia_assets_app.tmpl",
 			ssr:     "inertia_assets_ssr.tmpl",
-			shared:  "renderAppTree",
-			snippet: "renderAppTree(App, props)",
+			want:    "h(App, props)",
+			unwant:  "renderAppTree",
 		},
 		{
 			adapter: "svelte",
 			app:     "inertia_svelte_assets_app.tmpl",
 			ssr:     "inertia_svelte_assets_ssr.tmpl",
-			shared:  "AppTree",
-			snippet: "AppTree",
+			want:    "mount(App, { target: el, props })",
+			unwant:  "AppTree",
 		},
 	}
 
@@ -45,63 +45,44 @@ func TestInertiaClientAndSSRSetupShareFlashToasts(t *testing.T) {
 			app := readGeneratedApplicationTemplate(t, tc.app)
 			ssr := readGeneratedApplicationTemplate(t, tc.ssr)
 
-			if !strings.Contains(app, tc.shared) {
-				t.Errorf("%s does not reference %q", tc.app, tc.shared)
+			if !strings.Contains(app, tc.want) {
+				t.Errorf("%s does not contain %q", tc.app, tc.want)
 			}
-			if !strings.Contains(ssr, tc.shared) {
-				t.Errorf("%s does not reference %q", tc.ssr, tc.shared)
+			if strings.Contains(app, tc.unwant) {
+				t.Errorf("%s still references %q", tc.app, tc.unwant)
 			}
-			if !strings.Contains(app, tc.snippet) {
-				t.Errorf("%s does not contain shared tree %q", tc.app, tc.snippet)
+			if strings.Contains(ssr, tc.unwant) {
+				t.Errorf("%s still references %q", tc.ssr, tc.unwant)
 			}
-			if !strings.Contains(ssr, tc.snippet) {
-				t.Errorf("%s does not contain shared tree %q", tc.ssr, tc.snippet)
+			if strings.Contains(app, "flash-toasts") || strings.Contains(ssr, "flash-toasts") {
+				t.Errorf("%s still imports flash-toasts UI", tc.adapter)
 			}
-
-			assertSSRSetupDoesNotRenderAppOnly(t, tc.adapter, ssr)
 		})
 	}
 }
 
-func TestInertiaSharedFlashToastModulesExist(t *testing.T) {
+func TestInertiaFlashToastModulesAreRemoved(t *testing.T) {
 	t.Parallel()
 
-	files := map[string]string{
-		"inertia_react_assets_components_flash_toasts.tmpl":  "export function FlashToasts",
-		"inertia_assets_components_flash_toasts.tmpl":        "export function renderAppTree",
-		"inertia_svelte_assets_components_app_tree.tmpl":     "FlashToasts",
-		"inertia_svelte_assets_components_flash_toasts.tmpl": "$effect(() =>",
-	}
-	for name, want := range files {
-		content := readGeneratedApplicationTemplate(t, name)
-		if !strings.Contains(content, want) {
-			t.Errorf("%s does not contain %q", name, want)
+	for _, name := range []string{
+		"inertia_react_assets_components_flash_toasts.tmpl",
+		"inertia_assets_components_flash_toasts.tmpl",
+		"inertia_svelte_assets_components_app_tree.tmpl",
+		"inertia_svelte_assets_components_flash_toasts.tmpl",
+		"views_components_toast.tmpl",
+		"css_toasts.tmpl",
+	} {
+		if _, exists := baseStyleTemplateMappings[TmplTarget(name)]; exists {
+			t.Errorf("%s is still mapped in baseStyleTemplateMappings", name)
 		}
-	}
-
-	vueTree := readGeneratedApplicationTemplate(t, "inertia_assets_components_flash_toasts.tmpl")
-	if !strings.Contains(vueTree, "h(App, props)") || !strings.Contains(vueTree, "h(FlashToasts,") {
-		t.Error("vue renderAppTree must render App and FlashToasts as siblings")
-	}
-
-	svelteTree := readGeneratedApplicationTemplate(t, "inertia_svelte_assets_components_app_tree.tmpl")
-	if !strings.Contains(svelteTree, "<App {initialPage} {...rest} />") ||
-		!strings.Contains(svelteTree, "<FlashToasts") {
-		t.Error("svelte AppTree must render App and FlashToasts as siblings")
-	}
-}
-
-func assertSSRSetupDoesNotRenderAppOnly(t *testing.T, adapter, ssr string) {
-	t.Helper()
-
-	appOnly := []string{
-		"setup: ({ App, props }) => <App {...props} />",
-		"h('div', [h(App, props)])",
-		"return render(App, { props })",
-	}
-	for _, pattern := range appOnly {
-		if strings.Contains(ssr, pattern) {
-			t.Errorf("%s SSR setup renders only App (%q)", adapter, pattern)
+		if _, exists := inertiaVueTemplateMappings[TmplTarget(name)]; exists {
+			t.Errorf("%s is still mapped for vue", name)
+		}
+		if _, exists := inertiaReactTemplateMappings[TmplTarget(name)]; exists {
+			t.Errorf("%s is still mapped for react", name)
+		}
+		if _, exists := inertiaSvelteTemplateMappings[TmplTarget(name)]; exists {
+			t.Errorf("%s is still mapped for svelte", name)
 		}
 	}
 }

@@ -4,9 +4,6 @@ import (
 	"time"
 
 	"{{.ModuleName}}/router/routes"
-	"{{.ModuleName}}/views/components"
-
-	"github.com/mbvlabs/andurel/pkg/kiks"
 )
 
 templ base(headOpts ...HeadDataOption) {
@@ -38,11 +35,6 @@ templ base(headOpts ...HeadDataOption) {
 					&copy; { time.Now().Format("2006") } andurel.
 				</div>
 			</footer>
-			<div class="toast-stack">
-				for _, flash := range kiks.Flashes(ctx) {
-					@components.ToastMessage(flash)
-				}
-			</div>
 		</body>
 	</html>
 }

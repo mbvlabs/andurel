@@ -611,8 +611,8 @@ func TestGeneratedKiksSessionTemplates(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "router/cookies/session.go")); err == nil {
 		t.Fatal("generated gorilla session helper should be removed")
 	}
-	if _, err := os.Stat(filepath.Join(root, "views/components/toast.templ")); err != nil {
-		t.Fatalf("generated toast component: %v", err)
+	if _, err := os.Stat(filepath.Join(root, "views/components/toast.templ")); err == nil {
+		t.Fatal("generated toast component should be removed")
 	}
 
 	cookies := readGeneratedApplicationTemplate(t, "router_cookies_cookies.tmpl")
@@ -662,16 +662,21 @@ func TestGeneratedKiksSessionTemplates(t *testing.T) {
 	if strings.Contains(cookies, "func init(") {
 		t.Error("router_cookies_cookies.tmpl still uses init")
 	}
-	if _, exists := baseStyleTemplateMappings["css_toasts.tmpl"]; !exists {
-		t.Error("toast CSS template is not mapped")
+	if _, exists := baseStyleTemplateMappings["css_toasts.tmpl"]; exists {
+		t.Error("toast CSS template is still mapped")
 	}
-	if _, exists := baseStyleTemplateMappings["views_components_toast.tmpl"]; !exists {
-		t.Error("toast component template is not mapped")
+	if _, exists := baseStyleTemplateMappings["views_components_toast.tmpl"]; exists {
+		t.Error("toast component template is still mapped")
 	}
 
-	toast := readGeneratedApplicationTemplate(t, "views_components_toast.tmpl")
-	if !strings.Contains(toast, "kiks.FlashMessage") {
-		t.Error("views_components_toast.tmpl does not use kiks.FlashMessage")
+	layout := readGeneratedApplicationTemplate(t, "views_layout.tmpl")
+	if strings.Contains(layout, "toast-stack") || strings.Contains(layout, "ToastMessage") {
+		t.Error("views_layout.tmpl still renders toast UI")
+	}
+
+	cssBase := readGeneratedApplicationTemplate(t, "css_base.tmpl")
+	if strings.Contains(cssBase, "toasts.css") {
+		t.Error("css_base.tmpl still imports toast CSS")
 	}
 
 	goMod := readGeneratedApplicationTemplate(t, "go_mod.tmpl")

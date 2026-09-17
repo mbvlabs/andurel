@@ -3,8 +3,6 @@ import '../../css/base.css'
 import { createInertiaApp, type ResolvedComponent } from '@inertiajs/svelte'
 import { hydrate, mount } from 'svelte'
 
-import AppTree from '@/Components/AppTree.svelte'
-
 createInertiaApp({
   resolve: (name: string) => {
     const pages = import.meta.glob<ResolvedComponent>('./Pages/**/*.svelte', { eager: true })
@@ -13,11 +11,10 @@ createInertiaApp({
   setup({ el, App, props }) {
     if (!el) return
 
-    const treeProps = { ...props, App }
     if (el.dataset.serverRendered === 'true') {
-      hydrate(AppTree, { target: el, props: treeProps })
+      hydrate(App, { target: el, props })
     } else {
-      mount(AppTree, { target: el, props: treeProps })
+      mount(App, { target: el, props })
     }
   },
 })

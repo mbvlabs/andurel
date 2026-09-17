@@ -126,37 +126,20 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileContains(t, projectDir, "resources/js/app.tsx", "type PageModule = {")
 	assertFileContains(t, projectDir, "resources/js/app.tsx", "default: ResolvedComponent")
 	assertFileContains(t, projectDir, "resources/js/app.tsx", "<App {...props} />")
-	assertFileContains(
+	assertFileNotContains(
 		t,
 		projectDir,
 		"resources/js/app.tsx",
-		"import { FlashToasts, pageFlashes } from '@/components/flash-toasts'",
-	)
-	assertFileContains(
-		t,
-		projectDir,
-		"resources/js/app.tsx",
-		"<FlashToasts initialFlashes={pageFlashes(props.initialPage.flash)} />",
-	)
-	assertFileContains(
-		t,
-		projectDir,
-		"resources/js/ssr.tsx",
-		"import { FlashToasts, pageFlashes } from '@/components/flash-toasts'",
-	)
-	assertFileContains(
-		t,
-		projectDir,
-		"resources/js/ssr.tsx",
-		"<FlashToasts initialFlashes={pageFlashes(props.initialPage.flash)} />",
-	)
-	assertFileContains(
-		t,
-		projectDir,
-		"resources/js/components/flash-toasts.tsx",
-		"export function FlashToasts",
+		"flash-toasts",
 	)
 	assertFileNotContains(
+		t,
+		projectDir,
+		"resources/js/ssr.tsx",
+		"flash-toasts",
+	)
+	assertFileMissing(t, projectDir, "resources/js/components/flash-toasts.tsx")
+	assertFileContains(
 		t,
 		projectDir,
 		"resources/js/ssr.tsx",
@@ -355,28 +338,13 @@ func TestScaffoldVueInertiaTSConfigIncludesViteClientTypes(t *testing.T) {
 		"vite.config.ts",
 		"inertia({ ssr: { entry: 'resources/js/ssr.ts' } })",
 	)
-	assertFileContains(t, projectDir, "resources/js/app.ts", "renderAppTree(App, props)")
-	assertFileContains(t, projectDir, "resources/js/ssr.ts", "renderAppTree(App, props)")
-	assertFileContains(
-		t,
-		projectDir,
-		"resources/js/app.ts",
-		"import { renderAppTree } from '@/components/flash-toasts'",
-	)
-	assertFileContains(
-		t,
-		projectDir,
-		"resources/js/ssr.ts",
-		"import { renderAppTree } from '@/components/flash-toasts'",
-	)
-	assertFileContains(
-		t,
-		projectDir,
-		"resources/js/components/flash-toasts.ts",
-		"export function renderAppTree",
-	)
-	assertFileContains(t, projectDir, "resources/js/components/flash-toasts.ts", "h(FlashToasts,")
-	assertFileNotContains(t, projectDir, "resources/js/ssr.ts", "h('div', [h(App, props)])")
+	assertFileContains(t, projectDir, "resources/js/app.ts", "h(App, props)")
+	assertFileContains(t, projectDir, "resources/js/ssr.ts", "h(App, props)")
+	assertFileNotContains(t, projectDir, "resources/js/app.ts", "renderAppTree")
+	assertFileNotContains(t, projectDir, "resources/js/ssr.ts", "renderAppTree")
+	assertFileNotContains(t, projectDir, "resources/js/app.ts", "flash-toasts")
+	assertFileNotContains(t, projectDir, "resources/js/ssr.ts", "flash-toasts")
+	assertFileMissing(t, projectDir, "resources/js/components/flash-toasts.ts")
 }
 
 func assertFileContains(t *testing.T, root, relPath, want string) {
