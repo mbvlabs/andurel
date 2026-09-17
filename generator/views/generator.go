@@ -533,22 +533,6 @@ func (g *Generator) buildViewField(col *catalog.Column) (ViewField, error) {
 	return field, nil
 }
 
-func (g *Generator) templatePrefix(lock *layout.AndurelLock) string {
-	hasCssComponents := false
-
-	if lock != nil {
-		if _, ok := lock.Extensions["css-components"]; ok {
-			hasCssComponents = true
-		}
-	}
-
-	if hasCssComponents {
-		return "css_components_"
-	}
-
-	return ""
-}
-
 // GenerateViewFile renders a server-rendered view template.
 func (g *Generator) GenerateViewFile(
 	view *GeneratedView,
@@ -862,17 +846,7 @@ func (g *Generator) GenerateViewWithControllerActionsForModel(
 		renderActions = mergeResourceViewActions(existingActions, actions)
 	}
 
-	// Read lock file to determine extensions and view layer.
 	templatePrefix := ""
-	var lock *layout.AndurelLock
-	if rootDir, err := g.fileManager.FindGoModRoot(); err == nil {
-		if projectLock, err := layout.ReadLockFile(rootDir); err == nil {
-			lock = projectLock
-			templatePrefix = g.templatePrefix(lock)
-		}
-	}
-
-	// Override inertia mode from parameter if explicitly set
 	if isInertia {
 		templatePrefix = inertiaViewTemplatePrefix(inertia)
 	}

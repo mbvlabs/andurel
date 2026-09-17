@@ -98,6 +98,42 @@ func TestCommandsJSONDiscovery(t *testing.T) {
 	}
 }
 
+func TestCommandsCatalogAndCheck(t *testing.T) {
+	jsonResult := runCLITest(t, "commands", "--json")
+	if jsonResult.err != nil {
+		t.Fatalf("commands --json returned error: %v\nstderr:\n%s", jsonResult.err, jsonResult.stderr)
+	}
+	var envelope struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Catalog []struct {
+				Path      string   `json:"path"`
+				Summary   string   `json:"summary"`
+				WhenToUse []string `json:"when_to_use"`
+			} `json:"catalog"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(jsonResult.stdout), &envelope); err != nil {
+		t.Fatalf("decode catalog: %v\nstdout:\n%s", err, jsonResult.stdout)
+	}
+	if !envelope.OK || len(envelope.Data.Catalog) == 0 {
+		t.Fatalf("expected catalog records: %#v", envelope.Data)
+	}
+
+	markdownResult := runCLITest(t, "commands", "--markdown")
+	if markdownResult.err != nil {
+		t.Fatalf("commands --markdown returned error: %v\nstderr:\n%s", markdownResult.err, markdownResult.stderr)
+	}
+	if !strings.Contains(markdownResult.stdout, "| Route | Summary |") {
+		t.Fatalf("expected markdown table:\n%s", markdownResult.stdout)
+	}
+
+	checkResult := runCLITest(t, "commands", "--check", "--json")
+	if checkResult.err != nil {
+		t.Fatalf("commands --check --json returned error: %v\nstderr:\n%s\nstdout:\n%s", checkResult.err, checkResult.stderr, checkResult.stdout)
+	}
+}
+
 func TestAgentHelpDiscovery(t *testing.T) {
 	result := runCLITest(t, "--agent", "--help")
 	if result.err != nil {
@@ -160,7 +196,7 @@ func TestGenerateAgentHelpDiscovery(t *testing.T) {
 	if envelope.Data.Name != "generate" || envelope.Data.Path != "andurel generate" {
 		t.Fatalf("unexpected generate help data: %#v", envelope.Data)
 	}
-	if envelope.Data.Category != "generation" || envelope.Data.AgentNotes == "" {
+	if envelope.Data.Category != "generate" || envelope.Data.AgentNotes == "" {
 		t.Fatalf("expected generate agent metadata: %#v", envelope.Data)
 	}
 	if !flagDiscoveryContains(envelope.Data.InheritedFlags, "json") {
@@ -177,7 +213,7 @@ func TestNewInertiaAndSQLCCommandsExposeAgentNotes(t *testing.T) {
 		"generate controller",
 		"generate scaffold",
 		"generate query",
-		"generate queries",
+		"generate migration",
 	} {
 		root := NewRootCommand("test", "test-date")
 		cmd, _, err := root.Find(strings.Fields(path))
@@ -198,7 +234,7 @@ func loadCommittedCLIContract(t *testing.T) committedCLIContract {
 	if err != nil {
 		t.Fatalf("resolve repository root: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(root, "contracts", "cli-v1.json"))
+	data, err := os.ReadFile(filepath.Join(root, "contracts", "cli-v2.json"))
 	if err != nil {
 		t.Fatalf("read committed CLI contract: %v", err)
 	}
@@ -207,7 +243,7 @@ func loadCommittedCLIContract(t *testing.T) committedCLIContract {
 	if err := json.Unmarshal(data, &contract); err != nil {
 		t.Fatalf("decode committed CLI contract: %v", err)
 	}
-	if contract.SchemaVersion != 1 || len(contract.Commands) == 0 {
+	if contract.SchemaVersion != 2 || len(contract.Commands) == 0 {
 		t.Fatalf("incomplete committed CLI contract: %#v", contract)
 	}
 	return contract

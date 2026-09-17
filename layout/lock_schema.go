@@ -80,12 +80,6 @@ func validateSchema1Lock(lock *AndurelLock) error {
 		}
 	}
 
-	for name, extension := range lock.Extensions {
-		if strings.TrimSpace(name) == "" || extension == nil ||
-			strings.TrimSpace(extension.AppliedAt) == "" {
-			return fmt.Errorf("extension %q must have appliedAt", name)
-		}
-	}
 	if lock.ScaffoldConfig != nil {
 		if strings.TrimSpace(lock.ScaffoldConfig.ProjectName) == "" {
 			return fmt.Errorf("scaffoldConfig.projectName is required")

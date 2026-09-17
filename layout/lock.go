@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"slices"
 	"strings"
 	"time"
 
@@ -18,14 +17,13 @@ import (
 	"github.com/mbvlabs/andurel/layout/versions"
 )
 
-// AndurelLock is the serialized project lock file for tools and extensions.
+// AndurelLock is the serialized project lock file for tools.
 type AndurelLock struct {
-	SchemaVersion  int                   `json:"schemaVersion"`
-	Version        string                `json:"version"`
-	Extensions     map[string]*Extension `json:"extensions,omitempty"`
-	Tools          map[string]*Tool      `json:"tools"`
-	ScaffoldConfig *ScaffoldConfig       `json:"scaffoldConfig,omitempty"`
-	DatabaseConfig *DatabaseConfig       `json:"databaseConfig,omitempty"`
+	SchemaVersion  int              `json:"schemaVersion"`
+	Version        string           `json:"version"`
+	Tools          map[string]*Tool `json:"tools"`
+	ScaffoldConfig *ScaffoldConfig  `json:"scaffoldConfig,omitempty"`
+	DatabaseConfig *DatabaseConfig  `json:"databaseConfig,omitempty"`
 }
 
 const (
@@ -72,11 +70,6 @@ func (config *ScaffoldConfig) PackageManager() string {
 		return config.JavaScriptPackageManager
 	}
 	return config.JavaScriptRuntime
-}
-
-// Extension records when an extension was applied.
-type Extension struct {
-	AppliedAt string `json:"appliedAt"`
 }
 
 // ToolDownload describes how to download a managed tool binary.
@@ -225,7 +218,6 @@ func NewAndurelLock(version string) *AndurelLock {
 	return &AndurelLock{
 		SchemaVersion: 1,
 		Version:       version,
-		Extensions:    make(map[string]*Extension),
 		Tools:         make(map[string]*Tool),
 		DatabaseConfig: &DatabaseConfig{
 			Engine:   DatabaseEnginePostgreSQL,
@@ -319,23 +311,6 @@ func getDefaultToolDownloadForVersion(name, version string) (*ToolDownload, bool
 // AddTool records a managed tool in the lock file.
 func (l *AndurelLock) AddTool(name string, tool *Tool) {
 	l.Tools[name] = tool
-}
-
-// AddExtension records an applied extension in the lock file.
-func (l *AndurelLock) AddExtension(name, appliedAt string) {
-	l.Extensions[name] = &Extension{
-		AppliedAt: appliedAt,
-	}
-}
-
-// ExtensionNames returns the names of all applied extensions in sorted order.
-func (l *AndurelLock) ExtensionNames() []string {
-	names := make([]string, 0, len(l.Extensions))
-	for name := range l.Extensions {
-		names = append(names, name)
-	}
-	slices.Sort(names)
-	return names
 }
 
 // WriteLockFile writes andurel.lock into the target directory.

@@ -162,7 +162,7 @@ func emitCLIContract() error {
 	}
 
 	value := contract{
-		SchemaVersion: 1,
+		SchemaVersion: 2,
 		Commands:      commands,
 		JSONStructs:   jsonStructs,
 		Success:       wireContract{Fields: jsonFields(reflect.TypeFor[output.Envelope]())},
@@ -178,7 +178,6 @@ func emitCLIContract() error {
 			{Code: output.CodeOutputMode, ExitCode: output.ExitUsage},
 			{Code: output.CodeProjectNotFound, ExitCode: output.ExitProject},
 			{Code: output.CodeMissingTool, ExitCode: output.ExitDependency},
-			{Code: output.CodeInvalidExtension, ExitCode: output.ExitUsage},
 			{Code: output.CodeInvalidInertiaAdapter, ExitCode: output.ExitUsage},
 			{Code: output.CodeUnsafeAction, ExitCode: output.ExitUnsafe},
 			{Code: output.CodeGenerationFailed, ExitCode: output.ExitGeneration},

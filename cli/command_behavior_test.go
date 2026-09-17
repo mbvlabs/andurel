@@ -661,7 +661,7 @@ func TestGenerateFactoryCommandsMapOptionsAndReportDrift(t *testing.T) {
 		Written:      true,
 	}
 
-	result := executeCLITest(t, "generate", "factory", "Widget", "--sync", "--diff")
+	result := executeCLITest(t, "sync", "factory", "Widget", "--sync", "--diff")
 	if result.err != nil {
 		t.Fatalf("generate factory sync failed: %v", result.err)
 	}
@@ -684,7 +684,7 @@ func TestGenerateFactoryCommandsMapOptionsAndReportDrift(t *testing.T) {
 		Stale:        true,
 		Diff:         "--- old\n+++ new\n",
 	}
-	result = executeCLITest(t, "generate", "factory", "Widget", "--check", "--diff")
+	result = executeCLITest(t, "sync", "factory", "Widget", "--check", "--diff")
 	if result.err == nil || !strings.Contains(result.err.Error(), "factories are stale") {
 		t.Fatalf("expected stale factory error, got %v", result.err)
 	}
@@ -702,7 +702,7 @@ func TestGenerateFactoryCommandsMapOptionsAndReportDrift(t *testing.T) {
 		Path:         "models/factories/order.go",
 		Missing:      true,
 	}}
-	result = executeCLITest(t, "generate", "factories", "--check")
+	result = executeCLITest(t, "sync", "factories", "--check")
 	if result.err == nil || !strings.Contains(result.err.Error(), "factories are stale") {
 		t.Fatalf("expected bulk stale factory error, got %v", result.err)
 	}
@@ -720,7 +720,7 @@ func TestGenerateFactoryStructuredCheckReturnsOneFailureEnvelopeWithResults(t *t
 		Stale:        true,
 	}
 
-	result := executeCLITest(t, "generate", "factory", "Widget", "--check", "--json")
+	result := executeCLITest(t, "sync", "factory", "Widget", "--check", "--json")
 	if result.err == nil {
 		t.Fatal("expected stale factory check to fail")
 	}
@@ -1566,7 +1566,7 @@ func TestGenerateViewCallsTemplGenerate(t *testing.T) {
 		return nil
 	}
 
-	result := executeCLITest(t, "generate", "view")
+	result := executeCLITest(t, "sync", "views")
 	if result.err != nil {
 		t.Fatalf("generate view failed: %v", result.err)
 	}

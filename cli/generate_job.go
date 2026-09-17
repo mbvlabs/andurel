@@ -77,7 +77,7 @@ when inserting the job.`,
 				DryRun:   dryRun,
 				Diff:     diff,
 				Breadcrumbs: []output.Breadcrumb{
-					{Command: "andurel jobs --json", Description: "Inspect generated jobs"},
+					{Command: "andurel inspect jobs --json", Description: "Inspect generated jobs"},
 					{Command: "andurel doctor", Description: "Verify project health"},
 				},
 				Run: func(rootDir string) error {

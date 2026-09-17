@@ -195,7 +195,7 @@ func TestGenerateRoutesJSFileCreatesDirectoryAndOverwritesFile(t *testing.T) {
 func TestGenerateRoutesCommandRequiresInertiaProject(t *testing.T) {
 	rootDir := setupRoutesJSCommandProject(t, "")
 
-	result := runRoutesJSCommandInProject(t, rootDir, "generate", "routes", "--json")
+	result := runRoutesJSCommandInProject(t, rootDir, "sync", "routes", "--json")
 	if result.err == nil {
 		t.Fatal("expected generate routes to reject non-Inertia project")
 	}
@@ -244,7 +244,7 @@ func TestConfiguredInertiaAdapterRejectsMissingAndInvalidConfiguration(t *testin
 func TestGenerateRoutesCommandAllowsInertiaProject(t *testing.T) {
 	rootDir := setupRoutesJSCommandProject(t, "vue")
 
-	result := runRoutesJSCommandInProject(t, rootDir, "generate", "routes", "--json")
+	result := runRoutesJSCommandInProject(t, rootDir, "sync", "routes", "--json")
 	if result.err != nil {
 		t.Fatalf("generate routes failed: %v\nstderr:\n%s", result.err, result.stderr)
 	}

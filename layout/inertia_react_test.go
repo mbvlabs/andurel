@@ -13,7 +13,7 @@ import (
 func TestScaffoldReactInertiaAssets(t *testing.T) {
 	projectDir := t.TempDir()
 
-	if err := Scaffold(projectDir, "testapp", "postgresql", "test", nil, "react", ""); err != nil {
+	if err := Scaffold(projectDir, "testapp", "postgresql", "test", "react", ""); err != nil {
 		t.Fatalf("scaffold react inertia project: %v", err)
 	}
 
@@ -343,7 +343,7 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 func TestScaffoldVueInertiaTSConfigIncludesViteClientTypes(t *testing.T) {
 	projectDir := t.TempDir()
 
-	if err := Scaffold(projectDir, "testapp", "postgresql", "test", nil, "vue", ""); err != nil {
+	if err := Scaffold(projectDir, "testapp", "postgresql", "test", "vue", ""); err != nil {
 		t.Fatalf("scaffold vue inertia project: %v", err)
 	}
 

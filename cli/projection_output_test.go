@@ -60,7 +60,7 @@ func TestOrdinaryJSONAndAgentOutputRetainStableEnvelopes(t *testing.T) {
 }
 
 func TestGenerateQueriesAgentNoOpReturnsMutationEnvelope(t *testing.T) {
-	result := runCLITest(t, "generate", "queries", "--agent")
+	result := runCLITest(t, "sync", "queries", "--agent")
 	if result.err != nil {
 		t.Fatalf("generate queries --agent: %v\nstderr:\n%s", result.err, result.stderr)
 	}

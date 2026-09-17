@@ -26,10 +26,10 @@ func newGenerateFactoryCommand() *cobra.Command {
 With no flags, the singular factory command syncs by default. Factory sync
 regenerates Andurel-owned factory declarations, including generated WithX
 options, and preserves custom helpers with non-conflicting names.`,
-		Example: `  andurel generate factory User
-  andurel generate factory User --check
-  andurel generate factory User --sync
-  andurel generate factory User --check --diff`,
+		Example: `  andurel sync factory User
+  andurel sync factory User --check
+  andurel sync factory User --sync
+  andurel sync factory User --check --diff`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := generator.FactorySyncOptions{Check: check, Sync: sync, Diff: diff}
@@ -66,17 +66,17 @@ The plural command requires --check or --sync to avoid accidental repo-wide
 writes. Factory sync regenerates Andurel-owned factory declarations, including
 generated WithX options, and preserves custom helpers with non-conflicting
 names.`,
-		Example: `  andurel generate factories --check
-  andurel generate factories --check --diff
-  andurel generate factories --sync`,
+		Example: `  andurel sync factories --check
+  andurel sync factories --check --diff
+  andurel sync factories --sync`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !check && !sync {
 				return output.NewError(
 					output.CodeUsage,
-					"generate factories requires --check or --sync",
+					"sync factories requires --check or --sync",
 					output.ExitUsage,
-					"Run andurel generate factories --check or andurel generate factories --sync.",
+					"Run andurel sync factories --check or andurel sync factories --sync.",
 				)
 			}
 			opts := generator.FactorySyncOptions{Check: check, Sync: sync, Diff: diff}
@@ -135,7 +135,7 @@ func runFactorySyncCommand(
 			output.CodeGenerationFailed,
 			fmt.Sprintf("%d factories are stale", len(driftedFactories(results))),
 			output.ExitGeneration,
-			"Run andurel generate factories --sync or andurel generate factory NAME --sync.",
+			"Run andurel sync factories --sync or andurel sync factory NAME --sync.",
 		)
 		checkErr.Data = factorySyncReport{Results: results}
 		if output.UsesStructuredOutput(outOpts) {

@@ -64,19 +64,13 @@ var errDatabaseOperationAborted = errors.New("database operation aborted")
 
 func newDatabaseCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "database",
-		Aliases: []string{"d", "db"},
-		Short:   "Database management commands",
+		Use:   "db",
+		Short: "Database create, migrate, seed, console",
 		Long: `Commands for managing your Andurel project's database lifecycle:
-create, drop, nuke, rebuild, seed, and run migrations.
+create, drop, nuke, rebuild, seed, migrate, and console.
 
-Use the subcommands below to manage your database.`,
+Creating a SQL migration file is andurel generate migration.`,
 	}
-	setAgentMetadata(
-		cmd,
-		"database",
-		"Database lifecycle commands. Prefer --json or --agent for automation; destructive commands may prompt unless --force is provided.",
-	)
 
 	cmd.AddCommand(
 		newDBSeedCommand(),
@@ -85,6 +79,7 @@ Use the subcommands below to manage your database.`,
 		newDBNukeCommand(),
 		newDBRebuildCommand(),
 		newMigrateCommand(),
+		newConsoleCommand(),
 	)
 
 	return cmd
@@ -92,22 +87,19 @@ Use the subcommands below to manage your database.`,
 
 func newMigrateCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "migrate",
-		Aliases: []string{"m", "mig"},
-		Short:   "Database migration helpers",
+		Use:   "migrate",
+		Short: "Apply, roll back, and inspect SQL migrations",
 		Long: `Manage database migrations for the current project using goose.
 
-Migrations live in migrations/ as SQL files. Create a new
-migration, apply pending ones, rollback, check status, or fix gaps.`,
-		Example: `  andurel database migrate new add_user_role
-  andurel database migrate up
-  andurel database migrate status
-  andurel database migrate down
-  andurel database migrate reset`,
+Migrations live in migrations/ as SQL files. Create a new migration with
+andurel generate migration, then apply, rollback, check status, or fix gaps.`,
+		Example: `  andurel db migrate up
+  andurel db migrate status
+  andurel db migrate down
+  andurel db migrate reset`,
 	}
 
 	cmd.AddCommand(
-		newDBMigrationNewCommand(),
 		newDBMigrationUpCommand(),
 		newDBMigrationDownCommand(),
 		newDBMigrationStatusCommand(),
@@ -122,15 +114,17 @@ migration, apply pending ones, rollback, check status, or fix gaps.`,
 
 // Migration commands
 
-func newDBMigrationNewCommand() *cobra.Command {
+func newGenerateMigrationCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:     "new [name]",
-		Aliases: []string{"n"},
-		Short:   "Create a new SQL migration",
+		Use:   "migration NAME",
+		Short: "Create a new SQL migration",
 		Long: `Create a new SQL migration file in migrations/.
-The name should describe the change, e.g. "create_users_table".`,
+The name should describe the change, e.g. "create_users_table".
+
+This is the only command that creates migration files. Apply them with
+andurel db migrate up.`,
 		Args:    cobra.MinimumNArgs(1),
-		Example: "  andurel database migrate new create_users_table",
+		Example: "  andurel generate migration create_users_table",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c := []string{"create"}
 			c = append(c, args...)
@@ -197,7 +191,7 @@ func newDBMigrationUpToCommand() *cobra.Command {
 		Short:   "Apply migrations up to a specific version",
 		Long:    "Apply migrations only up to (and including) the given version number.",
 		Args:    cobra.ExactArgs(1),
-		Example: "  andurel database migrate up-to 20250101120000",
+		Example: "  andurel db migrate up-to 20250101120000",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGoose("up-to", args[0])
 		},
@@ -211,7 +205,7 @@ func newDBMigrationDownToCommand() *cobra.Command {
 		Short:   "Rollback migrations down to a specific version",
 		Long:    "Roll back migrations down to (but not including) the given version number.",
 		Args:    cobra.ExactArgs(1),
-		Example: "  andurel database migrate down-to 20250101120000",
+		Example: "  andurel db migrate down-to 20250101120000",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runGoose("down-to", args[0])
 		},
@@ -244,10 +238,10 @@ func newDBSeedCommand() *cobra.Command {
 
 Edit seeds/ to add reusable named seed sets using model factories.`,
 		Args: cobra.MaximumNArgs(1),
-		Example: `  andurel database seed
-  andurel database seed development
-  andurel database seed test
-  andurel database seed --list`,
+		Example: `  andurel db seed
+  andurel db seed development
+  andurel db seed test
+  andurel db seed --list`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := ""
 			if len(args) == 1 {
@@ -280,9 +274,9 @@ func newDBDropCommand() *cobra.Command {
 Uses --force to override protection on system databases (e.g.,
 postgres, template1). This cannot be undone.`,
 		Args:    cobra.NoArgs,
-		Example: "  andurel database drop\n  andurel database drop --force",
+		Example: "  andurel db drop\n  andurel db drop --force",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return dropDatabase(force)
+			return dropDatabase(cmd, force)
 		},
 	}
 
@@ -302,7 +296,7 @@ func newDBCreateCommand() *cobra.Command {
 Reads DB_HOST, DB_PORT, DB_NAME, DB_USER, and DB_PASSWORD to connect
 and create the database. No-op if the database already exists.`,
 		Args:    cobra.NoArgs,
-		Example: "  andurel database create",
+		Example: "  andurel db create",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return createDatabase()
 		},
@@ -321,9 +315,9 @@ from .env.
 This is a destructive operation that drops the database and creates a
 fresh empty one. Use --force to override system database protection.`,
 		Args:    cobra.NoArgs,
-		Example: "  andurel database nuke\n  andurel database nuke --force",
+		Example: "  andurel db nuke\n  andurel db nuke --force",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return nukeDatabase(force)
+			return nukeDatabase(cmd, force)
 		},
 	}
 
@@ -354,7 +348,7 @@ Use --seed to choose a named seed set. Use --skip-seed to skip step 4.
 Use --force to override system
 database protection for the drop step.`,
 		Args:    cobra.NoArgs,
-		Example: "  andurel database rebuild\n  andurel database rebuild --seed development\n  andurel database rebuild --skip-seed",
+		Example: "  andurel db rebuild\n  andurel db rebuild --seed development\n  andurel db rebuild --skip-seed",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return rebuildDatabase(cmd, force, skipSeed, seedName)
 		},
@@ -439,7 +433,7 @@ func runSeed(cmd *cobra.Command, name string, list bool) error {
 		seedReport{Name: seedName, Output: lines},
 		fmt.Sprintf("Ran %q seed", seedName),
 		output.Breadcrumb{
-			Command:     "andurel database seed --list",
+			Command:     "andurel db seed --list",
 			Description: "List available seed sets",
 		},
 	)
@@ -550,7 +544,7 @@ func loadDatabaseConfig() (dbConfig, error) {
 	}, nil
 }
 
-func dropDatabase(force bool) (err error) {
+func dropDatabase(cmd *cobra.Command, force bool) (err error) {
 	rootDir, err := findGoModRoot()
 	if err != nil {
 		return err
@@ -562,15 +556,13 @@ func dropDatabase(force bool) (err error) {
 		return err
 	}
 
-	confirmed, err := confirmDestructive("drop", cfg.Name)
-	if err != nil {
-		return err
-	}
-	if !confirmed {
-		if _, err := fmt.Fprintln(os.Stdout, "Aborted."); err != nil {
-			return err
+	if err := confirmDestructiveAction(cmd, force, "drop", cfg.Name); err != nil {
+		if err == errDatabaseOperationAborted {
+			if _, printErr := fmt.Fprintln(os.Stdout, "Aborted."); printErr != nil {
+				return printErr
+			}
 		}
-		return errDatabaseOperationAborted
+		return err
 	}
 
 	cfg, conn, ctx, cancel, err := openAdminConnectionFunc()
@@ -610,7 +602,7 @@ func createDatabase() (err error) {
 	return nil
 }
 
-func nukeDatabase(force bool) (err error) {
+func nukeDatabase(cmd *cobra.Command, force bool) (err error) {
 	rootDir, err := findGoModRoot()
 	if err != nil {
 		return err
@@ -622,15 +614,13 @@ func nukeDatabase(force bool) (err error) {
 		return err
 	}
 
-	confirmed, err := confirmDestructive("nuke", cfg.Name)
-	if err != nil {
-		return err
-	}
-	if !confirmed {
-		if _, err := fmt.Fprintln(os.Stdout, "Aborted."); err != nil {
-			return err
+	if err := confirmDestructiveAction(cmd, force, "nuke", cfg.Name); err != nil {
+		if err == errDatabaseOperationAborted {
+			if _, printErr := fmt.Fprintln(os.Stdout, "Aborted."); printErr != nil {
+				return printErr
+			}
 		}
-		return errDatabaseOperationAborted
+		return err
 	}
 
 	cfg, conn, ctx, cancel, err := openAdminConnectionFunc()
@@ -664,7 +654,7 @@ func rebuildDatabase(cmd *cobra.Command, force bool, skipSeed bool, seedName str
 		return err
 	}
 
-	if err := nukeDatabase(force); err != nil {
+	if err := nukeDatabase(cmd, force); err != nil {
 		return err
 	}
 

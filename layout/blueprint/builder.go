@@ -86,8 +86,7 @@ func (b *Builder) AddControllerDependencyWithInit(name, typeName, initExpr strin
 }
 
 // addControllerDependencyWithInitAndImport adds a dependency with initialization expression
-// and the import path needed for that expression. This is the internal implementation used
-// by the extension API.
+// and the import path needed for that expression.
 func (b *Builder) addControllerDependencyWithInitAndImport(
 	name, typeName, initExpr, importPath string,
 ) *Builder {

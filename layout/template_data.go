@@ -2,13 +2,11 @@ package layout
 
 import (
 	"github.com/mbvlabs/andurel/layout/blueprint"
-	"github.com/mbvlabs/andurel/layout/extensions"
 	"github.com/mbvlabs/andurel/layout/versions"
 )
 
-// TemplateData carries the values available to base templates and extension
-// contributions. It wraps a Blueprint for structured data alongside
-// project-level metadata.
+// TemplateData carries the values available to base templates.
+// It wraps a Blueprint for structured data alongside project-level metadata.
 type TemplateData struct {
 	AppName              string
 	ProjectName          string
@@ -19,7 +17,6 @@ type TemplateData struct {
 	SessionEncryptionKey string
 	TokenSigningKey      string
 	Pepper               string
-	Extensions           []string
 	RunToolVersion       string // Version of the run built tool
 	FrameworkVersion     string // Version of the framework that generated managed files
 	Inertia              string // "vue", "react", "svelte", etc. Empty means templ-only
@@ -148,8 +145,7 @@ func (td *TemplateData) SetBlueprint(bp *blueprint.Blueprint) {
 	}
 }
 
-// Builder returns a builder adapter wrapping the template data's blueprint.
-// The return type satisfies the extensions.Builder interface.
+// Builder returns a builder wrapping the template data's blueprint.
 func (td *TemplateData) Builder() *blueprint.Builder {
 	if td == nil {
 		return nil
@@ -157,5 +153,3 @@ func (td *TemplateData) Builder() *blueprint.Builder {
 
 	return blueprint.NewBuilder(td.Blueprint())
 }
-
-var _ extensions.TemplateData = (*TemplateData)(nil)

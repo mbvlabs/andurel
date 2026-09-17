@@ -200,21 +200,6 @@ func TestValidateSchema1RequiredFields(t *testing.T) {
 			mutate: func(lock *AndurelLock) { lock.DatabaseConfig.NullType = "" },
 			want:   "databaseConfig.nullType",
 		},
-		{
-			name:   "extension name",
-			mutate: func(lock *AndurelLock) { lock.Extensions[""] = lock.Extensions["example"] },
-			want:   "must have appliedAt",
-		},
-		{
-			name:   "extension value",
-			mutate: func(lock *AndurelLock) { lock.Extensions["example"] = nil },
-			want:   "must have appliedAt",
-		},
-		{
-			name:   "extension applied at",
-			mutate: func(lock *AndurelLock) { lock.Extensions["example"].AppliedAt = "" },
-			want:   "appliedAt",
-		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -313,9 +298,6 @@ func validSchema1Lock() *AndurelLock {
 	return &AndurelLock{
 		SchemaVersion: 1,
 		Version:       "v9.8.7",
-		Extensions: map[string]*Extension{
-			"example": {AppliedAt: "2026-01-01T00:00:00Z"},
-		},
 		Tools: map[string]*Tool{
 			"templ": {
 				Version: "v0.3.1020",

@@ -35,7 +35,7 @@ Pass the query group name in CamelCase, for example UserReport. The file is
 created at models/queries/user_report.sql with narsilc annotation examples.
 
 Use --table to scaffold an initial annotated query against an existing table.
-After editing the SQL, run andurel generate queries to produce Go code in
+After editing the SQL, run andurel sync queries to produce Go code in
 models/internal/queries.`,
 		Example: `  andurel generate query UserReport
 
@@ -69,7 +69,7 @@ models/internal/queries.`,
 				Diff:     diff,
 				Breadcrumbs: []output.Breadcrumb{
 					{
-						Command:     "andurel generate queries",
+						Command:     "andurel sync queries",
 						Description: "Generate Go code from narsilc SQL files",
 					},
 				},

@@ -81,8 +81,8 @@ func newGeneratePayloadsCommand() *cobra.Command {
 
 The command scans controllers for inertia.FromStruct and named Bind payloads
 and writes resources/js/types/payloads.ts.`,
-		Example: `  andurel generate payloads
-  andurel generate payloads --json`,
+		Example: `  andurel sync payloads
+  andurel sync payloads --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
@@ -756,7 +756,7 @@ func (s *payloadScan) firstFailure() error {
 	if len(s.failLater) == 0 {
 		return nil
 	}
-	return generationFailed(s.failLater[0], "Fix the controller payload type and run andurel generate payloads.")
+	return generationFailed(s.failLater[0], "Fix the controller payload type and run andurel sync payloads.")
 }
 
 func generationFailed(message, hint string) error {

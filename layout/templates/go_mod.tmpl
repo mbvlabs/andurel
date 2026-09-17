@@ -4,12 +4,6 @@ go {{.GoVersion}}
 
 require (
 	github.com/a-h/templ v0.3.1020
-{{- if hasExtension .Extensions "aws-ses"}}
-	github.com/aws/aws-sdk-go-v2 v1.42.1
-	github.com/aws/aws-sdk-go-v2/config v1.32.29
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.28
-	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.63.0
-{{- end}}
 	github.com/go-faker/faker/v4 v4.9.0
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/sessions v1.4.0

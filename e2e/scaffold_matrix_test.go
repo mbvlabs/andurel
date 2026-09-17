@@ -18,74 +18,31 @@ import (
 )
 
 type ScaffoldConfig struct {
-	Name       string
-	Database   string
-	Inertia    string
-	Extensions []string
-	Critical   bool
+	Name     string
+	Database string
+	Inertia  string
+	Critical bool
 }
 
 func getScaffoldConfigs() []ScaffoldConfig {
-	inertiaModes := []string{"", "vue"}
-	extensionSets := extensionPowerSet([]string{"docker", "aws-ses", "css-components"})
-
-	var configs []ScaffoldConfig
-	for _, inertia := range inertiaModes {
-		for _, extensions := range extensionSets {
-			configs = append(configs, ScaffoldConfig{
-				Name:       scaffoldConfigName("postgresql", inertia, extensions),
-				Database:   "postgresql",
-				Inertia:    inertia,
-				Extensions: extensions,
-				Critical:   isCriticalScaffoldConfig("postgresql", inertia, extensions),
-			})
-		}
+	return []ScaffoldConfig{
+		{
+			Name:     "postgresql",
+			Database: "postgresql",
+			Critical: true,
+		},
+		{
+			Name:     "postgresql-inertia-vue",
+			Database: "postgresql",
+			Inertia:  "vue",
+			Critical: true,
+		},
 	}
-
-	return configs
-}
-
-func isCriticalScaffoldConfig(database, inertia string, extensions []string) bool {
-	criticalConfigs := map[string]bool{
-		"postgresql":             true,
-		"postgresql-inertia-vue": true,
-		"postgresql-docker-aws-ses-css-components": true,
-	}
-
-	return criticalConfigs[scaffoldConfigName(database, inertia, extensions)]
-}
-
-func extensionPowerSet(extensions []string) [][]string {
-	sets := make([][]string, 0, 1<<len(extensions))
-	for mask := 0; mask < 1<<len(extensions); mask++ {
-		var set []string
-		for i, extension := range extensions {
-			if mask&(1<<i) != 0 {
-				set = append(set, extension)
-			}
-		}
-		sets = append(sets, set)
-	}
-
-	return sets
-}
-
-func scaffoldConfigName(database, inertia string, extensions []string) string {
-	parts := []string{database}
-
-	if inertia != "" {
-		parts = append(parts, "inertia", inertia)
-	}
-
-	parts = append(parts, extensions...)
-
-	return strings.Join(parts, "-")
 }
 
 func TestScaffoldCriticalConfigs(t *testing.T) {
 	expected := []string{
 		"postgresql",
-		"postgresql-docker-aws-ses-css-components",
 		"postgresql-inertia-vue",
 	}
 
@@ -128,12 +85,6 @@ func TestScaffoldGoldens(t *testing.T) {
 
 			if config.Inertia != "" {
 				args = append(args, "--inertia", config.Inertia)
-			}
-
-			if len(config.Extensions) > 0 {
-				for _, ext := range config.Extensions {
-					args = append(args, "-e", ext)
-				}
 			}
 
 			err := project.Scaffold(args...)

@@ -59,9 +59,6 @@ it stays inactive until an annotated query is added to models/queries.`,
 	}
 
 	projectCmd.Flags().
-		StringSliceP("extensions", "e", nil, "Extensions to enable (comma-separated list)")
-
-	projectCmd.Flags().
 		String("inertia", "", "Inertia adapter to use (vue, react, svelte). Optionally append /npm|pnpm|bun|yarn to specify the package manager (default: npm)")
 	projectCmd.Flags().
 		BoolVar(&dryRun, "dry-run", false, "Preview project files without creating them")
@@ -127,17 +124,12 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 		}
 	}
 
-	extensions, err := cmd.Flags().GetStringSlice("extensions")
-	if err != nil {
-		return err
-	}
 	scaffold := func(target string) error {
 		return layout.Scaffold(
 			target,
 			projectName,
 			database,
 			version,
-			extensions,
 			adapter,
 			javascriptRuntime,
 		)
@@ -188,7 +180,7 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 		breadcrumbs = append(
 			breadcrumbs,
 			output.Breadcrumb{
-				Command:     "andurel database migrate up",
+				Command:     "andurel db migrate up",
 				Description: "Apply database migrations inside the new project",
 			},
 			output.Breadcrumb{
@@ -214,8 +206,8 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 	fmt.Printf("  andurel tool sync\n")
 	fmt.Printf("  cp .env.example .env\n")
 	fmt.Printf("  fill in your database connection details in .env\n")
-	fmt.Printf("  (andurel database create - if database does not exist\n")
-	fmt.Printf("  andurel database migrate up\n")
+	fmt.Printf("  (andurel db create - if database does not exist\n")
+	fmt.Printf("  andurel db migrate up\n")
 	if layout.IsSupportedInertiaAdapter(adapter) {
 		fmt.Printf("  %s install\n", javascriptRuntime)
 	}

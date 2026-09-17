@@ -22,7 +22,7 @@ Andurel v1 supports **Linux** and **macOS** on **amd64** and **arm64**. Windows 
 
 See [release verification](docs/release-verification.md) for archive installation, checksums, SBOMs, keyless signatures, and provenance. Maintainers must follow the [release procedure](docs/releasing.md) before creating a version tag.
 
-The frozen v1 contracts are documented in the [public Go API policy](docs/contracts/public-api.md), [CLI and structured-output policy](docs/contracts/cli-v1.md), and [lock schema 1 specification](docs/contracts/lock-schema-v1.md). Model generation supports the conservative SQL subset in the [DDL parser contract](docs/ddl-model-generation.md), and upgrades follow the [generated-file ownership policy](docs/generated-files-and-upgrades.md).
+The frozen v2 contracts are documented in the [public Go API policy](docs/contracts/public-api.md), [CLI and structured-output policy](docs/contracts/cli-v2.md), and [lock schema 1 specification](docs/contracts/lock-schema-v1.md). Model generation supports the conservative SQL subset in the [DDL parser contract](docs/ddl-model-generation.md), and upgrades follow the [generated-file ownership policy](docs/generated-files-and-upgrades.md).
 
 If you'd like to help bring Windows support to Andurel, please see [issue #382](https://github.com/mbvlabs/andurel/issues/382) - contributions are welcome!
 
@@ -85,18 +85,11 @@ Andurel gives you choices when creating a new project:
 # Create a new project (PostgreSQL + Tailwind CSS)
 andurel new myapp
 
-# Add extensions for additional features:
-andurel new myapp -e docker              # Add Dockerfile for containerization
-andurel new myapp -e aws-ses             # Add AWS SES email integration
-
 # Choose your frontend approach:
 andurel new myapp --inertia vue           # Inertia SPA with Vue 3 + Vite (JS package manager: npm)
 andurel new myapp --inertia react/pnpm    # Inertia SPA with React + Vite (JS package manager: pnpm)
 andurel new myapp --inertia svelte        # Inertia SPA with Svelte 5 + Vite (JS package manager: npm)
 andurel new myapp --inertia vue/bun       # Inertia SPA with Vue 3 + Vite (JS package manager: bun)
-
-# Combine options:
-andurel new myapp --inertia vue -e docker
 
 cd myapp
 
@@ -115,7 +108,7 @@ cp .env.example .env
 # andurel new prints the correct package manager command based on the configured package manager (npm/pnpm/bun/yarn)
 
 # Apply database migrations
-andurel database migrate up
+andurel db migrate up
 
 # Run the development server (with live reload)
 andurel run
@@ -129,20 +122,20 @@ Andurel provides commands to manage your database lifecycle:
 
 ```bash
 # Create the configured database
-andurel database create                    # Requires .env to be filled out with DB credentials
+andurel db create                    # Requires .env to be filled out with DB credentials
 
 # Drop the configured database (prompts for confirmation)
-andurel database drop
-andurel database drop --force              # Allow dropping system databases
+andurel db drop
+andurel db drop --force              # Allow dropping system databases
 
 # Drop and recreate the database
-andurel database nuke
-andurel database nuke --force              # Allow nuking system databases
+andurel db nuke
+andurel db nuke --force              # Allow nuking system databases
 
 # Full rebuild: drop, recreate, migrate, and seed
-andurel database rebuild
-andurel database rebuild --force           # Allow rebuilding system databases
-andurel database rebuild --skip-seed       # Skip seeding after migrations
+andurel db rebuild
+andurel db rebuild --force           # Allow rebuilding system databases
+andurel db rebuild --skip-seed       # Skip seeding after migrations
 ```
 
 ### Generate Your First Resource
@@ -151,7 +144,7 @@ andurel database rebuild --skip-seed       # Skip seeding after migrations
 # Create a migration and add the columns you need. Resource generation requires
 # an `id` primary key (uuid/serial/bigserial/string-supported types). `created_at`
 # and `updated_at` are optional but recommended.
-andurel database migrate new create_products_table
+andurel generate migration create_products_table
 
 # Create a complete resource with model, controller, views, and routes
 andurel generate scaffold Product
@@ -168,7 +161,7 @@ Andurel's CLI is designed to be consumed by people and agents. Commands that sup
   "ok": true,
   "data": {},
   "summary": "Generated resource",
-  "breadcrumbs": [{"cmd": "andurel routes --json", "description": "Inspect generated routes"}]
+  "breadcrumbs": [{"cmd": "andurel inspect routes --json", "description": "Inspect generated routes"}]
 }
 ```
 
@@ -204,22 +197,21 @@ Agents should start with CLI discovery instead of scraping prose:
 ```bash
 andurel --agent --help
 andurel commands --json
-andurel project info --json
-andurel config show --json
+andurel inspect project --json
 ```
 
 Project-shape commands are read-only and return structured data:
 
 ```bash
-andurel routes --json
-andurel models --json
-andurel migrations --json
-andurel controllers --json
-andurel views --json
-andurel jobs --json
+andurel inspect routes --json
+andurel inspect models --json
+andurel inspect migrations --json
+andurel inspect controllers --json
+andurel inspect views --json
+andurel inspect jobs --json
 ```
 
-`andurel project info --json` reports the Inertia adapter and JavaScript package manager from `andurel.lock`. Models persist through narsilc-generated queries; use `andurel generate queries --json` to regenerate typed query code.
+`andurel inspect project --json` reports the Inertia adapter and JavaScript package manager from `andurel.lock`. Models persist through narsilc-generated queries; use `andurel sync queries --json` to regenerate typed query code.
 
 The embedded agent skill is available from the binary:
 
@@ -240,7 +232,6 @@ Mutating commands that support `--dry-run` report artifact changes before writin
 andurel new myapp --dry-run --json
 andurel generate scaffold Product --dry-run --json
 andurel generate controller Dashboard overview --dry-run --json
-andurel extension add docker --dry-run --json
 andurel upgrade --dry-run --json
 andurel packages update --dry-run --json
 ```
@@ -259,7 +250,6 @@ andurel new (alias: n) [project-name] [flags]
 
 | Flag | Description |
 |------|-------------|
-| `-e`, `--extensions` | Comma-separated extensions to enable (e.g. `docker,aws-ses,css-components`) |
 | `--inertia` | Frontend adapter: `vue`, `react`, or `svelte`. Optionally append `/npm`, `/pnpm`, `/bun`, or `/yarn` to set JavaScript package manager (default: `npm`). Example: `--inertia vue/pnpm` |
 
 ### `andurel generate` — Code generation
@@ -267,19 +257,16 @@ andurel new (alias: n) [project-name] [flags]
 Generate models, controllers, and scaffolds from your existing database migrations.
 
 ```bash
-andurel generate (alias: g) model NAME [flags]
-andurel generate factory NAME [flags]
-andurel generate factories [flags]
-andurel generate view (alias: v)
+andurel generate model NAME [flags]
+andurel generate migration NAME
 andurel generate controller (alias: c) NAME [action ...] [flags]
 andurel generate scaffold (alias: s) NAME [flags]
 andurel generate job (alias: j) NAME [flags]
 andurel generate email (alias: e) NAME
-andurel generate routes
-andurel generate payloads
 andurel generate query NAME [flags]
-andurel generate queries
 ```
+
+Create-only generators live here. Refresh derived files with `andurel sync`. List existing files with `andurel inspect`.
 
 **`generate model`** — Creates a model from a database migration, or updates an existing one. Fields, types, and timestamps are read from the migration automatically. When `--update` is applied, Andurel also syncs the matching factory unless `--skip-factory` is passed.
 
@@ -293,9 +280,15 @@ andurel generate queries
 | `--dry-run`      | Preview file changes without applying them |
 | `--diff`         | Include a text diff preview in structured output |
 
-**`generate factory`** — Generates or syncs one model factory from the model entity. With no flags, the singular command syncs by default. Use `--check --json` in CI or agent workflows to detect drift without writing files, and `--sync --json` to update the factory.
+**`generate migration`** — Creates a new SQL file in `migrations/`. Apply it with `andurel db migrate up`.
 
-**`generate factories`** — Checks or syncs every model factory in the project. The plural command requires `--check` or `--sync` to avoid accidental repo-wide writes. Use `--check --json` for a structured drift report across all models.
+### `andurel sync` — Refresh derived files
+
+`andurel sync` regenerates files from a source of truth. `andurel tool sync` downloads pinned binaries; they are different commands.
+
+**`sync factory`** — Generates or syncs one model factory from the model entity. With no flags, the singular command syncs by default. Use `--check --json` in CI or agent workflows to detect drift without writing files, and `--sync --json` to update the factory.
+
+**`sync factories`** — Checks or syncs every model factory in the project. The plural command requires `--check` or `--sync` to avoid accidental repo-wide writes. Use `--check --json` for a structured drift report across all models.
 
 Factory sync treats generated factory declarations as owned by Andurel. In practice, `Build<Name>`, `Create<Name>`, `Create<Name>s`, the factory types, and generated `WithX` option functions are regenerated from the current model entity. Custom helpers are preserved when they use names that do not collide with those generated declarations.
 
@@ -344,7 +337,7 @@ When `--api` is set, any namespace segment is nested under `api`, and the defaul
 | `--dry-run`   | Preview file changes without applying them |
 | `--diff`      | Include a text diff preview in structured output |
 
-**`generate view`** — Generates Go code from `.templ` template files (runs `templ generate`).
+**`sync views`** — Generates Go code from `.templ` template files (runs `templ generate`).
 
 **`generate query`** — Creates an application-owned narsilc SQL file under `models/queries/`. Pass `--table` to include an active starter query for an existing table; without it, the file contains commented examples.
 
@@ -353,10 +346,10 @@ andurel generate query UserReport --table users --dry-run --json
 andurel generate query UserReport --table users --json
 ```
 
-**`generate queries`** — Runs the project-managed narsilc binary and formats generated Go code under `models/internal/queries/`. The command is a no-op when there are no SQL files containing a `-- name:` annotation, and structured modes still return a mutation report describing the skip.
+**`sync queries`** — Runs the project-managed narsilc binary and formats generated Go code under `models/internal/queries/`. The command is a no-op when there are no SQL files containing a `-- name:` annotation, and structured modes still return a mutation report describing the skip.
 
 ```bash
-andurel generate queries --json
+andurel sync queries --json
 ```
 
 Every scaffolded model writes SQL under `models/queries/` and persists through narsilc-generated methods. Only the owning `models` package should import `models/internal/queries`; controllers and services should consume application-owned model types instead of generated rows or parameters.
@@ -373,14 +366,14 @@ Every scaffolded model writes SQL under `models/queries/` and persists through n
 | `--dry-run`      | Preview file changes without applying them |
 | `--diff`         | Include a text diff preview in structured output |
 
-**`generate routes`** — Generates framework-neutral TypeScript helpers for Inertia frontends.
+**`sync routes`** — Generates framework-neutral TypeScript helpers for Inertia frontends.
 
 ```bash
-andurel generate routes
-andurel generate routes --json
+andurel sync routes
+andurel sync routes --json
 ```
 
-The command is always visible in CLI discovery, but only runs in projects whose `andurel.lock` has `scaffoldConfig.inertia` set to `vue`, `react`, or `svelte`. It reads the same `router/routes/*.go` route package used by `andurel routes --json` and writes `resources/js/routes.ts`. Route variables become lower-camel-case helper names, and typed route params become function arguments:
+The command is always visible in CLI discovery, but only runs in projects whose `andurel.lock` has `scaffoldConfig.inertia` set to `vue`, `react`, or `svelte`. It reads the same `router/routes/*.go` route package used by `andurel inspect routes --json` and writes `resources/js/routes.ts`. Route variables become lower-camel-case helper names, and typed route params become function arguments:
 
 ```ts
 // resources/js/routes.ts
@@ -392,28 +385,28 @@ export const routes = {
 
 Use this after adding or changing routes for an Inertia project so Inertia pages can import route helpers instead of hard-coding URL strings. Non-Inertia projects receive a structured `invalid_inertia_adapter` error. `--json` reports the generated file, helper count, skipped count, and any skipped manifest entries.
 
-**`generate payloads`** — Generates TypeScript types from backend-owned Inertia payload structs.
+**`sync payloads`** — Generates TypeScript types from backend-owned Inertia payload structs.
 
 ```bash
-andurel generate payloads
-andurel generate payloads --json
+andurel sync payloads
+andurel sync payloads --json
 ```
 
 The command is always visible in CLI discovery, but only runs in projects whose `andurel.lock` has `scaffoldConfig.inertia` set to `vue`, `react`, or `svelte`. It scans `controllers/**/*.go` for `inertia.FromStruct` page payloads and named `etx.Bind` form payloads, then writes `resources/js/types/payloads.ts`. Run it after editing those controller structs so frontend pages stay in sync. `generate controller --inertia` and `generate scaffold --inertia` refresh the same file. Non-Inertia projects receive a structured `invalid_inertia_adapter` error. `--json` reports the generated file, type count, skipped count, and any skipped entries.
 
-### `andurel routes` — Route manifest
+### `andurel inspect routes` — Route manifest
 
 Lists route metadata extracted from `router/routes/*.go`.
 
 ```bash
-andurel routes
-andurel routes --json
-andurel routes --jq .routes
+andurel inspect routes
+andurel inspect routes --json
+andurel inspect routes --jq .routes
 ```
 
 The default output is a table with route variables, route names, actual URL paths, parameters, and source locations. In this command, `path` means the URL path for the route. The Go file where the route variable is declared is reported separately as `source_file` in JSON output.
 
-`andurel routes --json` is the stable machine-readable route manifest. `andurel routes --jq .routes` emits the route array directly, without the normal success envelope. `andurel generate routes` uses this same source of truth to generate Inertia `resources/js/routes.ts` helpers.
+`andurel inspect routes --json` is the stable machine-readable route manifest. `andurel inspect routes --jq .routes` emits the route array directly, without the normal success envelope. `andurel sync routes` uses this same source of truth to generate Inertia `resources/js/routes.ts` helpers.
 
 Example JSON shape:
 
@@ -479,25 +472,27 @@ andurel fmt (alias: f) [flags]
 
 Runs `go fmt ./...`, `golines -w -m 100 .`, and `templ fmt` on `views/` and `email/` directories.
 
-### `andurel database` — Database management
+### `andurel db` — Database management
 
 Manage the full database lifecycle.
 
 ```bash
-andurel database (aliases: d, db)
-andurel database create
-andurel database drop [--force]
-andurel database nuke [--force]
-andurel database rebuild [--force] [--skip-seed]
-andurel database seed
-andurel database migrate (aliases: m, mig)
+andurel db
+andurel db create
+andurel db drop [--force]
+andurel db nuke [--force]
+andurel db rebuild [--force] [--skip-seed]
+andurel db seed
+andurel db migrate
+andurel db console
 ```
 
-**`database migrate` subcommands:**
+Creating a SQL migration file is `andurel generate migration NAME`, not a `db` subcommand.
+
+**`db migrate` subcommands:**
 
 | Subcommand | Description |
 |------------|-------------|
-| `new [name]` (alias: `n`) | Create a new SQL migration file |
 | `up` | Apply all pending migrations |
 | `down` | Roll back the most recently applied migration |
 | `status` (alias: `st`) | Show current migration version and status |
@@ -542,12 +537,12 @@ For Inertia projects, `andurel run` passes an explicit flag contract to Shadowfa
 project's `cmd/ssr` process (Laravel-style Node owner). The HTTP app (`cmd/app`)
 is always an SSR HTTP client; pages opt in with `inertia.WithSSR()`.
 
-### `andurel console` — Database console
+### `andurel db console` — Database console
 
 Opens an interactive database console (usql) using connection details from `.env`.
 
 ```bash
-andurel console (alias: c)
+andurel db console
 ```
 
 ### `andurel tool` — Project tools and binaries
@@ -568,21 +563,6 @@ andurel tool mailpit (alias: m)
 | `set-version` (alias: `sv`) | Set a specific tool version (e.g. `templ 0.3.977`) |
 | `dblab` (alias: `d`) | Open the dblab database UI in the browser |
 | `mailpit` (alias: `m`) | Run the Mailpit email testing server (SMTP :1025, HTTP :8025) |
-
-### `andurel extension` — Project extensions
-
-Add and list optional framework features. Adding an extension to an existing
-project generates its code files, updates framework-managed files (config.go,
-.env.example, main.go, etc.), and records it in andurel.lock. Commit or create
-a branch before adding an extension, as it modifies files in place.
-
-```bash
-andurel extension (aliases: ext, e)
-andurel extension add (alias: a) [extension-name]
-andurel extension list (alias: ls)
-```
-
-Available extensions: `docker`, `aws-ses`, `css-components`.
 
 ### `andurel upgrade` — Framework upgrade
 
@@ -620,7 +600,7 @@ Run comprehensive diagnostic checks (Go version, latest stable Andurel release, 
 andurel doctor (alias: doc) [--verbose]
 ```
 
-For Inertia projects, the Code Generation checks also compare `resources/js/routes.ts` against the current `router/routes/*.go` manifest and `resources/js/types/payloads.ts` against controller payload structs, and fail when either file is missing or stale. Run `andurel generate routes` or `andurel generate payloads` to update them.
+For Inertia projects, the Code Generation checks also compare `resources/js/routes.ts` against the current `router/routes/*.go` manifest and `resources/js/types/payloads.ts` against controller payload structs, and fail when either file is missing or stale. Run `andurel sync routes` or `andurel sync payloads` to update them.
 
 If a newer stable CLI release exists, `andurel doctor` reports a nonblocking warning with the exact installation command. If the release lookup is unavailable, doctor warns without failing the project health check.
 
@@ -630,34 +610,23 @@ Shows the full command tree, flags, descriptions, examples, and agent metadata.
 
 ```bash
 andurel commands --json
+andurel commands --markdown
+andurel commands --check
 andurel commands --agent
 andurel generate --agent --help
 ```
 
-Use this when an agent or script needs to discover the CLI surface without parsing human help text.
+Use this when an agent or script needs to discover the CLI surface without parsing human help text. `commands --check` fails if command metadata or generated catalog/AGENTS/README templates drift.
 
-### `andurel project` — Project metadata
+### `andurel inspect project` — Project metadata
 
-Reads project metadata from `go.mod`, `andurel.lock`, and Andurel config files.
-
-```bash
-andurel project info --json
-```
-
-The response includes the project root, Go module, Andurel version, scaffold config, database config, extensions, tools, and config/cache paths.
-
-### `andurel config` — Agent configuration
-
-Manages non-secret Andurel configuration across project, user, and cache scopes.
+Reads project metadata from `go.mod` and `andurel.lock`.
 
 ```bash
-andurel config init [--scope project|user|cache]
-andurel config show --json
-andurel config set KEY VALUE [--scope project|user|cache]
-andurel config unset KEY [--scope project|user|cache]
+andurel inspect project --json
 ```
 
-Project config is stored at `.andurel/config.json`. User config uses the OS config directory under `andurel/config.json`, and cache config uses the OS cache directory under `andurel/config.json`.
+The response includes the project root, Go module, Andurel version, scaffold config, database config, and tools.
 
 ### `andurel skill` - Embedded agent skill
 
@@ -688,48 +657,30 @@ Without `--harness`, human mode displays a numbered multi-select prompt with no 
 | Full Command | Alias(es) |
 |---|---|
 | `andurel new` | `n` |
-| `andurel generate` | `g` |
 | `andurel generate model` | `m` |
-| `andurel generate factory` | none |
-| `andurel generate factories` | none |
-| `andurel generate view` | `v` |
 | `andurel generate controller` | `c` |
 | `andurel generate scaffold` | `s` |
 | `andurel generate job` | `j` |
 | `andurel generate email` | `e` |
-| `andurel generate routes` | none |
-| `andurel generate payloads` | none |
 | `andurel fmt` | `f` |
-| `andurel database` | `d`, `db` |
-| `andurel database create` | `crt` |
-| `andurel database seed` | `s` |
-| `andurel database rebuild` | `rb` |
-| `andurel database migrate` | `m`, `mig` |
-| `andurel database migrate new` | `n` |
-| `andurel database migrate status` | `st` |
-| `andurel database migrate reset` | `rs` |
-| `andurel database migrate up-to` | `upto` |
-| `andurel database migrate down-to` | `downto` |
+| `andurel db create` | `crt` |
+| `andurel db seed` | `s` |
+| `andurel db rebuild` | `rb` |
+| `andurel db migrate status` | `st` |
+| `andurel db migrate reset` | `rs` |
+| `andurel db migrate up-to` | `upto` |
+| `andurel db migrate down-to` | `downto` |
 | `andurel run` | `r` |
-| `andurel console` | `c` |
-| `andurel tool` | `t` |
+| `andurel tool` | `t`, `tools` |
 | `andurel tool sync` | `s` |
 | `andurel tool set-version` | `sv` |
 | `andurel tool dblab` | `d` |
 | `andurel tool mailpit` | `m` |
-| `andurel extension` | `ext`, `e` |
-| `andurel extension add` | `a` |
-| `andurel extension list` | `ls` |
 | `andurel upgrade` | `up` |
 | `andurel packages` | `pkg`, `package` |
 | `andurel packages list` | `ls` |
 | `andurel packages update` | `up` |
 | `andurel doctor` | `doc` |
-| `andurel commands` | none |
-| `andurel project info` | none |
-| `andurel config` | none |
-| `andurel routes` | none |
-| `andurel skill` | none |
 
 ## Project Structure
 
@@ -913,7 +864,7 @@ SSR uses per-response `inertia.WithSSR()`. Node process ownership belongs to `cm
 
 Here's how an auth controller renders a Vue component via Inertia, from route definition to rendered page.
 
-Use `andurel routes --json` when frontend tooling needs the same route metadata. The JSON manifest keeps `router/routes/*.go` as the source of truth while exposing URL paths, route names, params, and source locations to external generators. Use `andurel generate routes` to write those URLs as TypeScript helpers in `resources/js/routes.ts`. Use `andurel generate payloads` after editing controller `FromStruct` or Bind structs so pages can import types from `resources/js/types/payloads.ts`.
+Use `andurel inspect routes --json` when frontend tooling needs the same route metadata. The JSON manifest keeps `router/routes/*.go` as the source of truth while exposing URL paths, route names, params, and source locations to external generators. Use `andurel sync routes` to write those URLs as TypeScript helpers in `resources/js/routes.ts`. Use `andurel sync payloads` after editing controller `FromStruct` or Bind structs so pages can import types from `resources/js/types/payloads.ts`.
 
 #### Route Definition
 

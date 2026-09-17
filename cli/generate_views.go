@@ -8,15 +8,14 @@ import (
 
 func newGenerateViewsCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:     "view",
-		Aliases: []string{"v"},
-		Short:   "Generate Go code from Templ templates",
+		Use:   "views",
+		Short: "Generate Go code from Templ templates",
 		Long: `Run templ generate to produce Go code from .templ files.
 
 Scans views/ and email/ directories for .templ files and produces
 corresponding _templ.go files. Email templates are then compiled through
 Andurel so Tailwind utilities become email-compatible inline styles.`,
-		Example: `  andurel generate view`,
+		Example: `  andurel sync views`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := runTemplFunc("generate", "-path", "./views"); err != nil {

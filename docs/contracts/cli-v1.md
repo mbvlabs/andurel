@@ -1,3 +1,5 @@
+v1 is historical. The v2 scripting freeze is [`contracts/cli-v2.json`](../../contracts/cli-v2.json) and [cli-v2.md](cli-v2.md).
+
 # CLI v1 contract
 
 [`contracts/cli-v1.json`](../../contracts/cli-v1.json) is the deterministic baseline for public command paths, aliases, locally declared and persistent flags, JSON-tagged response fields, structured error codes, and exit codes.

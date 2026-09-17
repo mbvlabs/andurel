@@ -63,7 +63,7 @@ Inspired by Ruby on Rails, Andurel is now its own thing: generated Go you own, e
 
 3. **Run migrations**
    ```bash
-   andurel migration up
+   andurel db migrate up
    ```
 
 4. **Start the development server**
@@ -88,7 +88,7 @@ This orchestrates Air (Go), Templ watch, and Tailwind CSS compilation.
 
 ```bash
 # Open interactive database console
-andurel app console
+andurel db console
 ```
 
 Provides a SQL console connected to your database for ad-hoc queries and exploration.
@@ -97,26 +97,52 @@ Provides a SQL console connected to your database for ad-hoc queries and explora
 
 ```bash
 # Create a new migration
-andurel migration new create_users_table
+andurel generate migration create_users_table
 
 # Run all pending migrations
-andurel migration up
+andurel db migrate up
 
 # Rollback last migration
-andurel migration down
+andurel db migrate down
 
 # Rollback to specific version
-andurel migration down-to [version]
+andurel db migrate down-to [version]
 
 # Apply up to specific version
-andurel migration up-to [version]
+andurel db migrate up-to [version]
 
 # Reset database (rollback all, then reapply)
-andurel migration reset
+andurel db migrate reset
 
 # Fix migration version gaps
-andurel migration fix
+andurel db migrate fix
 ```
+
+### Create, refresh, and inspect
+
+```bash
+# Create application-owned files
+andurel generate migration create_users_table
+andurel generate model User
+andurel generate scaffold Product
+
+# Refresh derived files
+andurel sync queries --json
+andurel sync views
+andurel sync routes --json
+andurel sync payloads --json
+
+# Inspect project shape
+andurel inspect project --json
+andurel inspect routes --json
+andurel inspect models --json
+
+# Discover commands
+andurel commands --json
+andurel commands --check
+```
+
+`andurel sync` refreshes generated app files. `andurel tool sync` downloads pinned binaries.
 
 ## How-To Guides
 
@@ -128,7 +154,7 @@ Andurel generates models, factories, controllers, routes, and pages that belong 
 
 ```bash
 # 1. Create a migration for your table
-andurel migration new create_products_table
+andurel generate migration create_products_table
 ```
 
 Edit the generated migration file in `migrations/` to define your table schema:
@@ -151,7 +177,7 @@ DROP TABLE products;
 Apply the migration:
 
 ```bash
-andurel migration up
+andurel db migrate up
 ```
 
 **Generate the resource**:
@@ -323,8 +349,8 @@ templ WelcomeEmail(userName string) {
 }
 ```
 
-`andurel run`, `andurel generate view`, and `andurel build` compile emails
-automatically. Run `andurel email compile` for a standalone compilation pass.
+`andurel run`, `andurel sync views`, and `andurel build` compile emails
+automatically. Run `andurel sync email` for a standalone compilation pass.
 
 **2. Send the email**
 
@@ -382,13 +408,13 @@ When modifying your database schema:
 
 ```bash
 # 1. Create a migration
-andurel migration new add_email_to_users
+andurel generate migration add_email_to_users
 
 # 2. Edit the migration file
 # Add your ALTER TABLE statements
 
 # 3. Apply the migration
-andurel migration up
+andurel db migrate up
 
 # 4. Refresh affected models
 andurel g model User --refresh
@@ -484,7 +510,7 @@ CSRF protection uses Fetch Metadata. Unsafe API requests bypass CSRF only when t
 
 1. **Live Reload**: Use `andurel run` during development for automatic reloading
 2. **Type Safety**: Let narsilc-backed models and Templ catch errors at compile time
-3. **Database Console**: Use `andurel app console` for quick database queries
+3. **Database Console**: Use `andurel db console` for quick database queries
 4. **Hot Reload**: Changes to Go, Templ, or CSS automatically trigger rebuilds
 5. **Tailwind**: Use Tailwind's utility classes in your Templ templates
 
@@ -498,13 +524,13 @@ andurel run
 andurel g resource Product
 
 # Add a migration
-andurel migration new add_field_to_products
+andurel generate migration add_field_to_products
 
 # Run migrations
-andurel migration up
+andurel db migrate up
 
 # Access database console
-andurel app console
+andurel db console
 
 # Run tests
 go test ./...
@@ -788,295 +814,7 @@ The test helper automatically:
 4. **Descriptive names**: Name tests clearly (e.g., `TestProducts_Create_WithInvalidData`)
 5. **Assert clearly**: Check both success cases and expected database state
 6. **Don't test frameworks**: Focus on your business logic, not Echo or narsilc behavior
-{{if .Extensions}}
-## Extensions
 
-This project includes the following extensions:
-{{range .Extensions}}
-### {{.}}
-{{if eq . "aws-ses"}}
-This project uses Amazon SES (Simple Email Service) for sending transactional and marketing emails in production.
-
-#### Setup
-
-**1. AWS Configuration**
-
-You'll need an AWS account with SES configured:
-
-```bash
-# Verify your sender email address or domain in AWS SES Console
-# https://console.aws.amazon.com/ses/
-
-# Create IAM credentials with SES sending permissions
-# Required policy: AmazonSESFullAccess or custom policy with ses:SendEmail
-```
-
-**2. Environment Variables**
-
-Add these to your `.env` file:
-
-```bash
-# AWS SES Configuration
-AWS_REGION=us-east-1                      # Your AWS region
-AWS_SES_ACCESS_KEY_ID=your_access_key     # IAM access key
-AWS_SES_SECRET_ACCESS_KEY=your_secret     # IAM secret key
-AWS_SES_CONFIGURATION_SET=                # Optional: for open/click tracking
-```
-
-**3. Configuration Set (Optional)**
-
-For email tracking (opens, clicks), create a Configuration Set in AWS SES:
-
-1. Go to AWS SES Console → Configuration Sets
-2. Create a new configuration set
-3. Add event destinations (SNS, CloudWatch, Kinesis, etc.)
-4. Set `AWS_SES_CONFIGURATION_SET` environment variable
-
-#### Sending Transactional Emails
-
-Transactional emails are one-to-one messages like password resets, order confirmations, and account notifications.
-
-**Create an email template:**
-
-```go
-// email/order_confirmation.templ
-package email
-
-templ OrderConfirmation(orderID string, total string) {
-    @BaseLayout() {
-        <h1 class="text-[28px] leading-9 font-bold text-[#414552]">Order Confirmed!</h1>
-        <p class="text-base leading-6 text-[#414552]">Thank you for your order #{orderID}.</p>
-        <p class="text-base leading-6 font-bold text-[#625afa]">Total: {total}</p>
-    }
-}
-```
-
-**Send immediately (synchronous):**
-
-```go
-import "{{$.ModuleName}}/email"
-
-err := email.SendTransactional(ctx, email.TransactionalData{
-    To:      "customer@example.com",
-    Cc:      []string{"manager@example.com"},  // Optional
-    From:    "orders@yourapp.com",
-    Subject: "Order Confirmation",
-    Component: email.OrderConfirmation("12345", "$99.99"),
-    Attachments: []email.Attachment{  // Optional
-        {
-            Filename:    "invoice.pdf",
-            ContentType: "application/pdf",
-            Content:     pdfBytes,
-        },
-    },
-}, emailClient)
-```
-{{if eq $.Database "postgresql"}}
-**Send via background queue (recommended):**
-
-```go
-import "{{$.ModuleName}}/queue/jobs"
-
-_, err := insertOnly.Client.Insert(ctx, jobs.SendTransactionalEmailArgs{
-    Data: email.TransactionalData{
-        To:      "customer@example.com",
-        From:    "orders@yourapp.com",
-        Subject: "Order Confirmation",
-        Component: email.OrderConfirmation("12345", "$99.99"),
-    },
-}, nil)
-```
-
-Benefits of queuing:
-- Non-blocking: Returns immediately without waiting for AWS SES
-- Automatic retries: Failed sends retry with exponential backoff
-- Better reliability: Survives temporary AWS outages
-- Observability: Track job status through River
-{{end}}
-#### Sending Marketing Emails
-
-Marketing emails are bulk messages like newsletters, promotions, and announcements sent to multiple recipients.
-
-**Important:** Marketing emails must include an unsubscribe link to comply with email regulations (CAN-SPAM, GDPR).
-
-**Create a newsletter template:**
-
-```go
-// email/newsletter.templ
-package email
-
-templ Newsletter(recipientName string, unsubscribeURL string) {
-    @BaseLayout() {
-        <h1>Monthly Newsletter</h1>
-        <p>Hi {recipientName},</p>
-        <p>Here's what's new this month...</p>
-
-        <footer>
-            <a href={unsubscribeURL}>Unsubscribe</a>
-        </footer>
-    }
-}
-```
-{{if eq $.Database "postgresql"}}
-**Send to multiple recipients (queued pattern):**
-
-```go
-import "{{$.ModuleName}}/queue/jobs"
-
-// Queue individual emails for each recipient
-recipients := []struct{
-    Email string
-    Name  string
-    ID    string
-}{
-    {Email: "user1@example.com", Name: "Alice", ID: "user-123"},
-    {Email: "user2@example.com", Name: "Bob", ID: "user-456"},
-}
-
-for _, recipient := range recipients {
-    unsubscribeURL := fmt.Sprintf("https://yourapp.com/unsubscribe/%s", recipient.ID)
-
-    _, err := insertOnly.Client.Insert(ctx, jobs.SendMarketingEmailArgs{
-        Data: email.MarketingData{
-            To:             []string{recipient.Email},
-            From:           "newsletter@yourapp.com",
-            Subject:        "Your Monthly Newsletter",
-            Component:      email.Newsletter(recipient.Name, unsubscribeURL),
-            UnsubscribeURL: unsubscribeURL,  // Required!
-            Tags:           []string{"newsletter", "monthly"},
-            TrackOpens:     true,   // Requires Configuration Set
-            TrackClicks:    true,   // Requires Configuration Set
-        },
-    }, nil)
-
-    if err != nil {
-        // Handle error (log, retry, etc.)
-        continue
-    }
-}
-```
-
-**Why queue individual emails?**
-
-- **Personalization**: Each recipient gets customized content (name, preferences, etc.)
-- **Tracking**: Individual delivery status and bounce tracking per recipient
-- **Rate limiting**: AWS SES has sending limits; queuing prevents hitting them
-- **Retries**: Failed emails retry automatically without affecting successful sends
-- **Unsubscribe compliance**: Each email has a unique unsubscribe link
-{{else}}
-**Send to a recipient:**
-
-```go
-import "{{$.ModuleName}}/email"
-
-unsubscribeURL := "https://yourapp.com/unsubscribe/user-123"
-
-err := email.SendMarketing(ctx, email.MarketingData{
-    To:             []string{"user@example.com"},
-    From:           "newsletter@yourapp.com",
-    Subject:        "Your Monthly Newsletter",
-    Component:      email.Newsletter("Alice", unsubscribeURL),
-    UnsubscribeURL: unsubscribeURL,  // Required!
-    Tags:           []string{"newsletter", "monthly"},
-    TrackOpens:     true,   // Requires Configuration Set
-    TrackClicks:    true,   // Requires Configuration Set
-}, emailClient)
-```
-
-**Bulk sending:** For sending to multiple recipients, send individual emails in a loop or use background jobs for better reliability.
-{{end}}
-#### Email Tracking
-
-Enable open and click tracking by configuring a Configuration Set in AWS SES:
-
-```go
-// Tracking is enabled per email
-Data: email.MarketingData{
-    // ... other fields
-    TrackOpens:  true,
-    TrackClicks: true,
-}
-```
-
-**View tracking data:**
-- Configure event destinations in your AWS SES Configuration Set
-- Send events to CloudWatch, SNS, or Kinesis
-- Build dashboards to visualize open/click rates
-
-#### Testing in Development
-
-During development, emails are sent to Mailpit instead of AWS SES:
-
-```bash
-# Mailpit configuration (automatically used in development)
-MAILPIT_HOST=0.0.0.0
-MAILPIT_PORT=1025
-```
-
-View test emails at `http://localhost:8025`
-
-To test with real AWS SES in development:
-
-1. Use the `aws-ses` extension
-2. Set `ENVIRONMENT=production` or configure your app to use AWS SES in dev
-3. Ensure your AWS credentials are valid
-
-#### Error Handling
-
-AWS SES provides detailed error information:
-
-```go
-err := email.SendTransactional(ctx, data, emailClient)
-if err != nil {
-    if email.IsValidationError(err) {
-        // Invalid email address, missing required fields, etc.
-        // Don't retry - fix the data
-        log.Error("Invalid email data", "error", err)
-    } else if email.IsTemporaryError(err) {
-        // AWS throttling, service unavailable, etc.
-        // Safe to retry
-        log.Warn("Temporary email error, will retry", "error", err)
-    } else if email.IsPermanentError(err) {
-        // Account suspended, domain not verified, etc.
-        // Don't retry - requires AWS console action
-        log.Error("Permanent email error", "error", err)
-    }
-}
-```
-{{if eq $.Database "postgresql"}}
-The background queue automatically handles retries for temporary errors and cancels jobs with validation or permanent errors.
-{{end}}
-#### AWS SES Limits
-
-Be aware of AWS SES sending limits:
-
-- **Sandbox**: 200 emails/day, verified recipients only
-- **Production**: Request limit increase (up to millions/day)
-- **Rate limit**: 14 emails/second (default, can be increased)
-
-Request production access: AWS SES Console → Account Dashboard → Request Production Access
-
-#### Best Practices
-
-1. **Verify your domain**: Use domain verification instead of email verification for better deliverability
-2. **Use Configuration Sets**: Enable tracking and monitoring
-3. **Monitor bounce rates**: High bounce rates can hurt your sender reputation
-4. **Handle suppression lists**: AWS SES automatically suppresses bounced/complained addresses
-5. **Warm up your sending**: Gradually increase volume when starting with a new domain
-6. **Use templates**: Create reusable email templates in AWS SES for simple use cases
-7. **Queue emails**: Use background jobs for reliability and non-blocking sends
-
-#### Resources
-
-- [AWS SES Documentation](https://docs.aws.amazon.com/ses/)
-- [AWS SES Pricing](https://aws.amazon.com/ses/pricing/) - $0.10 per 1,000 emails
-- [SES Best Practices](https://docs.aws.amazon.com/ses/latest/dg/best-practices.html)
-- [Moving out of Sandbox](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html)
-{{else}}
-<!-- Extension-specific documentation will be added here -->
-{{end}}
-{{end}}
-{{end}}
 ## Learn More
 
 - [Andurel Documentation](https://github.com/mbvlabs/andurel)

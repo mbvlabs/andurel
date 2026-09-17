@@ -56,15 +56,14 @@ func databaseFromEnvironment() (database, error) {
 
 func newConsoleCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "console",
-		Aliases: []string{"c"},
-		Short:   "Open an interactive database console",
+		Use:   "console",
+		Short: "Open an interactive database console",
 		Long: `Open an interactive database console (usql) using the connection
 details from .env.
 
 Reads DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DB_KIND, and
 DB_SSL_MODE from your .env file and connects via usql.`,
-		Example: `  andurel console`,
+		Example: `  andurel db console`,
 		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()

@@ -13,29 +13,19 @@ import (
 )
 
 type projectInfo struct {
-	Root               string                 `json:"root"`
-	Module             string                 `json:"module,omitempty"`
-	GoVersion          string                 `json:"go_version,omitempty"`
-	AndurelVersion     string                 `json:"andurel_version,omitempty"`
-	ScaffoldConfig     *layout.ScaffoldConfig `json:"scaffold_config,omitempty"`
-	DatabaseConfig     *layout.DatabaseConfig `json:"database_config,omitempty"`
-	Extensions         []extensionInfo        `json:"extensions"`
-	Tools              []toolInfo             `json:"tools"`
-	ConfigPath         string                 `json:"config_path,omitempty"`
-	UserConfigPath     string                 `json:"user_config_path,omitempty"`
-	UserCacheDirectory string                 `json:"user_cache_directory,omitempty"`
+	Root           string                 `json:"root"`
+	Module         string                 `json:"module,omitempty"`
+	GoVersion      string                 `json:"go_version,omitempty"`
+	AndurelVersion string                 `json:"andurel_version,omitempty"`
+	ScaffoldConfig *layout.ScaffoldConfig `json:"scaffold_config,omitempty"`
+	DatabaseConfig *layout.DatabaseConfig `json:"database_config,omitempty"`
+	Tools          []toolInfo             `json:"tools"`
 }
 
 type projectItem struct {
 	Name string `json:"name"`
 	Path string `json:"path"`
 	Kind string `json:"kind,omitempty"`
-}
-
-type extensionInfo struct {
-	Name      string `json:"name"`
-	AppliedAt string `json:"applied_at,omitempty"`
-	Available bool   `json:"available,omitempty"`
 }
 
 type toolInfo struct {
@@ -51,7 +41,7 @@ func newProjectInfoCommand() *cobra.Command {
 	projectCmd := &cobra.Command{
 		Use:   "project",
 		Short: "Inspect Andurel project metadata",
-		Long:  "Inspect project metadata derived from go.mod, andurel.lock, and Andurel config files.",
+		Long:  "Inspect project metadata derived from go.mod and andurel.lock.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runProjectInfo(cmd)
@@ -98,20 +88,14 @@ func collectProjectInfo(rootDir string) (projectInfo, error) {
 	if err != nil {
 		return projectInfo{}, err
 	}
-	userConfig, _ := userConfigPath()
-	userCache, _ := userCacheDir()
 	info := projectInfo{
-		Root:               rootDir,
-		Module:             module,
-		GoVersion:          goVersion,
-		AndurelVersion:     lock.Version,
-		ScaffoldConfig:     lock.ScaffoldConfig,
-		DatabaseConfig:     lock.DatabaseConfig,
-		Extensions:         extensionInfos(lock),
-		Tools:              toolInfos(rootDir, lock),
-		ConfigPath:         filepath.Join(rootDir, ".andurel", "config.json"),
-		UserConfigPath:     userConfig,
-		UserCacheDirectory: userCache,
+		Root:           rootDir,
+		Module:         module,
+		GoVersion:      goVersion,
+		AndurelVersion: lock.Version,
+		ScaffoldConfig: lock.ScaffoldConfig,
+		DatabaseConfig: lock.DatabaseConfig,
+		Tools:          toolInfos(rootDir, lock),
 	}
 	return info, nil
 }
@@ -126,9 +110,9 @@ The manifest reports actual URL paths, route names, parameter names and
 types, and the Go source location for each route variable. In this command's
 output, path means the route URL path. The declaring Go file is reported as
 source_file in structured output.`,
-		Example: `  andurel routes
-  andurel routes --json
-  andurel routes --jq .routes`,
+		Example: `  andurel inspect routes
+  andurel inspect routes --json
+  andurel inspect routes --jq .routes`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
@@ -286,22 +270,6 @@ func readGoModMetadata(rootDir string) (module, goVersion string, err error) {
 		}
 	}
 	return module, goVersion, nil
-}
-
-func extensionInfos(lock *layout.AndurelLock) []extensionInfo {
-	infos := []extensionInfo{}
-	if lock == nil {
-		return infos
-	}
-	for name, ext := range lock.Extensions {
-		appliedAt := ""
-		if ext != nil {
-			appliedAt = ext.AppliedAt
-		}
-		infos = append(infos, extensionInfo{Name: name, AppliedAt: appliedAt})
-	}
-	sort.SliceStable(infos, func(i, j int) bool { return infos[i].Name < infos[j].Name })
-	return infos
 }
 
 func toolInfos(rootDir string, lock *layout.AndurelLock) []toolInfo {

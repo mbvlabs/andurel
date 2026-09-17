@@ -113,6 +113,14 @@ update also syncs the matching factory unless --skip-factory is passed.`,
 				},
 				Run: func(rootDir string) error {
 					if updateModel {
+						if err := requireFlagInStructuredMode(
+							cmd,
+							autoApply,
+							"--yes",
+							"model update",
+						); err != nil {
+							return err
+						}
 						return runModelUpdateFunc(name, autoApply, skipFactory)
 					}
 					return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {

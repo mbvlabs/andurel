@@ -17,7 +17,7 @@ func newGenerateQueriesCommand() *cobra.Command {
 
 Generated code is written to models/internal/queries. This command is a
 no-op when models/queries contains no .sql files with a -- name: annotation.`,
-		Example: `  andurel generate queries`,
+		Example: `  andurel sync queries`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()

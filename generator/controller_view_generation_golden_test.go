@@ -27,18 +27,16 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 	}
 
 	cssModes := []struct {
-		name          string
-		cssComponents bool
+		name string
 	}{
 		{name: "bare"},
-		{name: "css_components", cssComponents: true},
 	}
 
 	for _, scenario := range scenarios {
 		for _, cssMode := range cssModes {
 			testName := scenario.name + "_" + cssMode.name
 			t.Run(testName, func(t *testing.T) {
-				coord := setupControllerViewGoldenProject(t, cssMode.cssComponents)
+				coord := setupControllerViewGoldenProject(t)
 
 				if len(scenario.initialActions) > 0 {
 					if err := coord.GenerateControllerWithActions(
@@ -72,7 +70,7 @@ func TestControllerViewGenerationGoldens(t *testing.T) {
 
 func TestControllerViewGenerationWithModelNameGolden(t *testing.T) {
 	g := goldie.New(t, goldie.WithFixtureDir(controllerViewGenerationGoldenDir(t)))
-	coord := setupControllerViewGoldenProject(t, false)
+	coord := setupControllerViewGoldenProject(t)
 
 	if err := coord.GenerateControllerWithActionsForModel(
 		"Dashboard",
@@ -94,7 +92,7 @@ func TestControllerViewGenerationWithModelNameGolden(t *testing.T) {
 }
 
 func TestControllerViewGenerationNamespacedController(t *testing.T) {
-	coord := setupControllerViewGoldenProject(t, false)
+	coord := setupControllerViewGoldenProject(t)
 
 	if err := coord.GenerateControllerWithActions(
 		"Widget",
@@ -150,7 +148,7 @@ func TestControllerViewGenerationNamespacedController(t *testing.T) {
 }
 
 func TestControllerViewGenerationRootAndNamespacedRegistrations(t *testing.T) {
-	coord := setupControllerViewGoldenProject(t, false)
+	coord := setupControllerViewGoldenProject(t)
 
 	if err := coord.GenerateControllerWithActions(
 		"Widget",
@@ -195,7 +193,7 @@ func TestControllerViewGenerationRootAndNamespacedRegistrations(t *testing.T) {
 }
 
 func TestControllerViewGenerationNamespacedModelName(t *testing.T) {
-	coord := setupControllerViewGoldenProject(t, false)
+	coord := setupControllerViewGoldenProject(t)
 
 	if err := coord.GenerateControllerWithActionsForModel(
 		"Dashboard",
@@ -314,7 +312,7 @@ func TestControllerViewGenerationNamespacedNoControllerGo(t *testing.T) {
 }
 
 func TestControllerViewGenerationNamespacedInertia(t *testing.T) {
-	coord := setupControllerViewGoldenProject(t, false)
+	coord := setupControllerViewGoldenProject(t)
 
 	if err := coord.GenerateControllerWithActions(
 		"Widget",
@@ -351,7 +349,7 @@ func TestControllerViewGenerationNamespacedInertia(t *testing.T) {
 }
 
 func TestControllerViewGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
-	coord := setupControllerViewGoldenProjectWithInertia(t, false, "vue")
+	coord := setupControllerViewGoldenProjectWithInertia(t, "vue")
 
 	if err := coord.GenerateControllerWithActions(
 		"Widget",
@@ -382,7 +380,7 @@ func TestControllerViewGenerationGoldensInertiaProjectDefaultsToTempl(t *testing
 }
 
 func TestControllerViewGenerationGoldensInertiaFlagStillGeneratesInertia(t *testing.T) {
-	coord := setupControllerViewGoldenProject(t, false)
+	coord := setupControllerViewGoldenProject(t)
 
 	if err := coord.GenerateControllerWithActions(
 		"Widget",
@@ -419,7 +417,7 @@ func TestControllerViewGenerationGoldensInertiaFlagStillGeneratesInertia(t *test
 }
 
 func TestControllerViewGenerationGoldensReactInertiaFlagGeneratesReactPages(t *testing.T) {
-	coord := setupControllerViewGoldenProject(t, false)
+	coord := setupControllerViewGoldenProject(t)
 
 	if err := coord.GenerateControllerWithActions(
 		"Widget",
@@ -459,7 +457,7 @@ func TestControllerViewGenerationGoldensReactInertiaFlagGeneratesReactPages(t *t
 }
 
 func TestControllerViewGenerationGoldensSingleVueActionGeneratesInertiaController(t *testing.T) {
-	coord := setupControllerViewGoldenProject(t, false)
+	coord := setupControllerViewGoldenProject(t)
 
 	if err := coord.GenerateControllerWithActions(
 		"Widget",
@@ -494,7 +492,7 @@ func TestControllerViewGenerationGoldensSingleVueActionGeneratesInertiaControlle
 }
 
 func TestControllerViewGenerationGoldensVueActionDoesNotInheritTemplViewActions(t *testing.T) {
-	coord := setupControllerViewGoldenProjectWithInertia(t, false, "vue")
+	coord := setupControllerViewGoldenProjectWithInertia(t, "vue")
 
 	if err := coord.GenerateControllerWithActions(
 		"Widget",
@@ -548,7 +546,7 @@ func TestControllerViewGenerationGoldensVueActionDoesNotInheritTemplViewActions(
 }
 
 func TestControllerViewGenerationGoldensVueActionUpdatesRegisterRoutes(t *testing.T) {
-	coord := setupControllerViewGoldenProjectWithInertia(t, false, "vue")
+	coord := setupControllerViewGoldenProjectWithInertia(t, "vue")
 
 	if err := coord.GenerateControllerWithActions(
 		"Widget",
@@ -585,13 +583,12 @@ func TestControllerViewGenerationGoldensVueActionUpdatesRegisterRoutes(t *testin
 	assertGeneratedFileContains(t, "controllers/widgets.go", "inertia.FromStruct(WidgetItemProps{")
 }
 
-func setupControllerViewGoldenProject(t *testing.T, cssComponents bool) Coordinator {
-	return setupControllerViewGoldenProjectWithInertia(t, cssComponents, "")
+func setupControllerViewGoldenProject(t *testing.T) Coordinator {
+	return setupControllerViewGoldenProjectWithInertia(t, "")
 }
 
 func setupControllerViewGoldenProjectWithInertia(
 	t *testing.T,
-	cssComponents bool,
 	inertia string,
 ) Coordinator {
 	t.Helper()
@@ -629,9 +626,6 @@ func setupControllerViewGoldenProjectWithInertia(
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "testapp",
 		Inertia:     inertia,
-	}
-	if cssComponents {
-		lock.AddExtension("css-components", "test-applied-at")
 	}
 	if err := lock.WriteLockFile(projectDir); err != nil {
 		t.Fatalf("failed to write andurel.lock: %v", err)

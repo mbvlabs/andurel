@@ -37,8 +37,8 @@ func newGenerateRoutesCommand() *cobra.Command {
 
 The command reads router/routes/*.go as the source of truth and writes
 resources/js/routes.ts for Vue, React, or Svelte Inertia frontends.`,
-		Example: `  andurel generate routes
-  andurel generate routes --json`,
+		Example: `  andurel sync routes
+  andurel sync routes --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()

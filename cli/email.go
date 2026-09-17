@@ -13,23 +13,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newEmailCommand() *cobra.Command {
-	command := &cobra.Command{
-		Use:   "email",
-		Short: "Compile email templates",
-		Long: `Compile Tailwind-authored email templates into email-compatible Go renderers.
-
-The compiler leaves authored .templ files unchanged. Tailwind utilities are
-resolved in memory, converted to inline styles and compatibility attributes,
-then emitted through Templ as the normal *_templ.go files.`,
-	}
-	command.AddCommand(newEmailCompileCommand())
-	return command
-}
-
 func newEmailCompileCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "compile",
+		Use:   "email",
 		Short: "Compile Tailwind classes in email templates",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

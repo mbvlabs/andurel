@@ -244,13 +244,13 @@ func doctorHint(result checkResult) string {
 	case "go mod tidy":
 		return "Run go mod tidy and commit the resulting go.mod or go.sum changes."
 	case "views generate":
-		return "Run andurel generate view and fix any template generation errors."
+		return "Run andurel sync views and fix any template generation errors."
 	case "narsilc generate":
-		return "Run andurel generate queries and commit the updated models/internal/queries output."
+		return "Run andurel sync queries and commit the updated models/internal/queries output."
 	case "routes.ts":
-		return "Run andurel generate routes and commit the updated resources/js/routes.ts file."
+		return "Run andurel sync routes and commit the updated resources/js/routes.ts file."
 	case "payloads.ts":
-		return "Run andurel generate payloads and commit the updated resources/js/types/payloads.ts file."
+		return "Run andurel sync payloads and commit the updated resources/js/types/payloads.ts file."
 	default:
 		return ""
 	}
@@ -1158,7 +1158,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 		}
 	}
 	if len(changed) > 0 {
-		details := []string{"Run 'andurel generate view' and commit the generated output."}
+		details := []string{"Run 'andurel sync views' and commit the generated output."}
 		if verbose {
 			details = append(details, changed...)
 		}
@@ -1233,7 +1233,7 @@ func checkNarsilcGenerate(rootDir string, verbose bool) checkResult {
 		}
 	}
 	if len(changed) > 0 {
-		details := []string{"Run 'andurel generate queries' and commit the generated output."}
+		details := []string{"Run 'andurel sync queries' and commit the generated output."}
 		if verbose {
 			details = append(details, changed...)
 		}
@@ -1323,7 +1323,7 @@ func checkRoutesTSGenerate(rootDir string, verbose bool) checkResult {
 				name:    "routes.ts",
 				status:  statusFail,
 				message: "resources/js/routes.ts is missing",
-				details: []string{"Run 'andurel generate routes' to create it."},
+				details: []string{"Run 'andurel sync routes' to create it."},
 			}
 		}
 		return checkResult{
@@ -1335,7 +1335,7 @@ func checkRoutesTSGenerate(rootDir string, verbose bool) checkResult {
 	}
 
 	if !bytes.Equal(actual, expected) {
-		details := []string{"Run 'andurel generate routes' to update resources/js/routes.ts."}
+		details := []string{"Run 'andurel sync routes' to update resources/js/routes.ts."}
 		if verbose {
 			details = append(
 				details,
@@ -1394,7 +1394,7 @@ func checkPayloadsTSGenerate(rootDir string, verbose bool) checkResult {
 				name:    "payloads.ts",
 				status:  statusFail,
 				message: "resources/js/types/payloads.ts is missing",
-				details: []string{"Run 'andurel generate payloads' to create it."},
+				details: []string{"Run 'andurel sync payloads' to create it."},
 			}
 		}
 		return checkResult{
@@ -1406,7 +1406,7 @@ func checkPayloadsTSGenerate(rootDir string, verbose bool) checkResult {
 	}
 
 	if !bytes.Equal(actual, expected) {
-		details := []string{"Run 'andurel generate payloads' to update resources/js/types/payloads.ts."}
+		details := []string{"Run 'andurel sync payloads' to update resources/js/types/payloads.ts."}
 		if verbose {
 			details = append(
 				details,

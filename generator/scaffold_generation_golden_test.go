@@ -21,19 +21,12 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 		migrations       string
 		skipFactory      bool
 		primaryKeyColumn string
-		extensions       []string
 		inertia          string
 	}{
 		{
 			name:         "full_crud",
 			resourceName: "Widget",
 			migrations:   "controller_view_generation",
-		},
-		{
-			name:         "full_crud_css_components",
-			resourceName: "Widget",
-			migrations:   "controller_view_generation",
-			extensions:   []string{"css-components"},
 		},
 		{
 			name:         "skip_factory",
@@ -80,7 +73,6 @@ func TestScaffoldGenerationGoldens(t *testing.T) {
 			gen := setupScaffoldGoldenProject(
 				t,
 				scenario.migrations,
-				scenario.extensions,
 				scenario.inertia,
 			)
 
@@ -113,7 +105,6 @@ func TestScaffoldGenerationGoldensInertiaProjectDefaultsToTempl(t *testing.T) {
 	gen := setupScaffoldGoldenProject(
 		t,
 		"scaffold_generation_projects",
-		nil,
 		"vue",
 	)
 
@@ -138,7 +129,6 @@ func TestScaffoldGenerationNamespaced(t *testing.T) {
 	gen := setupScaffoldGoldenProject(
 		t,
 		"controller_view_generation",
-		nil,
 		"",
 	)
 
@@ -177,7 +167,6 @@ func TestScaffoldGenerationNamespaced(t *testing.T) {
 func setupScaffoldGoldenProject(
 	t *testing.T,
 	migrationsFixture string,
-	extensions []string,
 	inertia string,
 ) Generator {
 	t.Helper()
@@ -215,9 +204,6 @@ func setupScaffoldGoldenProject(
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
 		ProjectName: "testapp",
 		Inertia:     inertia,
-	}
-	for _, ext := range extensions {
-		lock.AddExtension(ext, "test-applied-at")
 	}
 	if err := lock.WriteLockFile(projectDir); err != nil {
 		t.Fatalf("failed to write andurel.lock: %v", err)

@@ -1,5 +1,5 @@
 // Package blueprint provides structured types for scaffold configuration that
-// support additive merges from multiple extensions without conflicts.
+// support additive merges without conflicts.
 package blueprint
 
 import "sort"

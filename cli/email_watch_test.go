@@ -244,15 +244,11 @@ func TestCompileEmailProjectRequiresLockFile(t *testing.T) {
 }
 
 func TestEmailCommandSurface(t *testing.T) {
-	command := newEmailCommand()
-	if command.Use != "email" || len(command.Commands()) != 1 ||
-		command.Commands()[0].Use != "compile" {
-		t.Fatalf("email command surface = %q, %#v", command.Use, command.Commands())
+	command := newEmailCompileCommand()
+	if command.Use != "email" {
+		t.Fatalf("email compile command use = %q", command.Use)
 	}
-	if err := command.Commands()[0].Args(
-		command.Commands()[0],
-		[]string{"unexpected"},
-	); err == nil {
+	if err := command.Args(command, []string{"unexpected"}); err == nil {
 		t.Fatal("email compile accepted a positional argument")
 	}
 }

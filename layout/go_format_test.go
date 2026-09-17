@@ -23,7 +23,7 @@ func TestGeneratedScaffoldGoFilesGolinesCompatibleFormatting(t *testing.T) {
 
 func TestGeneratedInertiaScaffoldGoFilesGolinesCompatibleFormatting(t *testing.T) {
 	root := t.TempDir()
-	if err := Scaffold(root, "testapp", "postgresql", "test", nil, "react", ""); err != nil {
+	if err := Scaffold(root, "testapp", "postgresql", "test", "react", ""); err != nil {
 		t.Fatalf("scaffold inertia project: %v", err)
 	}
 
