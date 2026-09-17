@@ -21,21 +21,21 @@ const (
 	// NarsilcModule is the Go module version required by generated query code.
 	NarsilcModule = "v0.4.2"
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
-	Hypermedia = "v0.2.3"
+	Hypermedia = "v0.2.4"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.5.0"
+	Inertia = "v0.6.0"
 	// Email is the standalone Andurel email module version verified with this framework.
-	Email = "v0.3.2"
+	Email = "v0.3.3"
 	// Routing is the standalone Andurel routing module version verified with this framework.
-	Routing = "v0.2.1"
+	Routing = "v0.3.0"
 	// Server is the standalone Andurel server module version verified with this framework.
-	Server = "v0.3.2"
+	Server = "v0.3.3"
 	// Storage is the standalone Andurel storage module version verified with this framework.
 	Storage = "v0.8.0"
 	// Telemetry is the standalone Andurel telemetry module version verified with this framework.
 	Telemetry = "v0.1.0"
 	// Validation is the standalone Andurel validation module version verified with this framework.
-	Validation = "v0.1.3"
+	Validation = "v0.1.4"
 
 	// PkgPrefix is the module path prefix for standalone Andurel packages.
 	PkgPrefix = "github.com/mbvlabs/andurel/pkg/"
