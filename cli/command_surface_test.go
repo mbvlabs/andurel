@@ -780,6 +780,7 @@ func TestRootHelpAndBinaryChecks(t *testing.T) {
 }
 
 func TestStandardHelpRendering(t *testing.T) {
+	root := &cobra.Command{Use: "andurel"}
 	cmd := &cobra.Command{
 		Use:   "tools",
 		Short: "Tool summary",
@@ -787,6 +788,7 @@ func TestStandardHelpRendering(t *testing.T) {
 	}
 	cmd.Flags().Bool("local", false, "local flag")
 	cmd.AddCommand(&cobra.Command{Use: "child", Short: "Child command"})
+	root.AddCommand(cmd)
 	setStandardHelp(cmd, helpCommand{Use: "sync", Description: "Sync tools"})
 
 	capture := captureProcessOutput(t, &os.Stdout)
@@ -794,6 +796,7 @@ func TestStandardHelpRendering(t *testing.T) {
 		t.Fatalf("render owner help: %v", err)
 	}
 	if got := capture(); !strings.Contains(got, "Tool summary") ||
+		!strings.Contains(got, "Commands:") ||
 		!strings.Contains(got, "child") {
 		t.Fatalf("owner help missing group sections:\n%s", got)
 	}

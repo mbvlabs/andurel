@@ -491,8 +491,9 @@ func TestDeclinedRebuildDoesNotMutateOrContinue(t *testing.T) {
 	outputText := captureProcessOutput(t, &os.Stdout)
 
 	err := rebuildDatabase(newStructuredTestCommand(&bytes.Buffer{}), false, false, "development")
-	if err == nil || !strings.Contains(err.Error(), "--force") {
-		t.Fatalf("rebuildDatabase error = %v, want --force usage error", err)
+	if err == nil ||
+		!strings.Contains(err.Error(), "cannot prompt in --json or --agent mode") {
+		t.Fatalf("rebuildDatabase error = %v, want structured-mode prompt refusal", err)
 	}
 	if gooseCalled || seedCalled || len(fake.execs) != 0 {
 		t.Fatalf(

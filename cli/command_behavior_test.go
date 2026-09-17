@@ -702,7 +702,7 @@ func TestGenerateFactoryCommandsMapOptionsAndReportDrift(t *testing.T) {
 		Path:         "models/factories/order.go",
 		Missing:      true,
 	}}
-	result = executeCLITest(t, "generate", "factories", "--check")
+	result = executeCLITest(t, "sync", "factories", "--check")
 	if result.err == nil || !strings.Contains(result.err.Error(), "factories are stale") {
 		t.Fatalf("expected bulk stale factory error, got %v", result.err)
 	}

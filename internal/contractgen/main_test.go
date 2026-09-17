@@ -158,7 +158,7 @@ func TestEmitContractsFromRepository(t *testing.T) {
 	if err := json.Unmarshal([]byte(cliOutput), &value); err != nil {
 		t.Fatalf("decode CLI contract: %v\n%s", err, cliOutput)
 	}
-	if value.SchemaVersion != 1 || len(value.Commands) == 0 || len(value.JSONStructs) == 0 {
+	if value.SchemaVersion != 2 || len(value.Commands) == 0 || len(value.JSONStructs) == 0 {
 		t.Fatalf("incomplete CLI contract: %#v", value)
 	}
 	if len(value.Success.Fields) == 0 || len(value.Failure.Fields) == 0 {
