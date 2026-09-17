@@ -52,14 +52,13 @@ func NewTemplateGenerator(targetVersion string) *TemplateGenerator {
 func (g *TemplateGenerator) RenderFrameworkTemplates(
 	projectRoot string,
 	config layout.ScaffoldConfig,
-	extensions []string,
 ) (map[string][]byte, error) {
 	modulePath, err := resolveModulePath(projectRoot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve module path: %w", err)
 	}
 
-	templateData := g.buildTemplateData(config, modulePath, extensions)
+	templateData := g.buildTemplateData(config, modulePath)
 	result := make(map[string][]byte)
 
 	frameworkTemplates := GetFrameworkTemplates(&config)
@@ -80,7 +79,6 @@ func (g *TemplateGenerator) RenderFrameworkTemplates(
 func (g *TemplateGenerator) buildTemplateData(
 	config layout.ScaffoldConfig,
 	modulePath string,
-	extensions []string,
 ) *layout.TemplateData {
 	frameworkVersion := strings.TrimSpace(g.targetVersion)
 	if frameworkVersion == "" {
@@ -92,7 +90,6 @@ func (g *TemplateGenerator) buildTemplateData(
 		ProjectName:      config.ProjectName,
 		ModuleName:       modulePath,
 		Database:         config.Database,
-		Extensions:       extensions,
 		RunToolVersion:   layout.GetRunToolVersion(),
 		FrameworkVersion: frameworkVersion,
 		Inertia:          config.Inertia,

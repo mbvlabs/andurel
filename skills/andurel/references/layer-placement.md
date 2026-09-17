@@ -65,15 +65,15 @@ Use factories for:
 Keep the model `Entity` struct as the source of truth for generated factory fields. When the model changes, check or sync the factory with:
 
 ```bash
-andurel generate factory ModelName --check --json
-andurel generate factory ModelName --sync --json
+andurel sync factory ModelName --check --json
+andurel sync factory ModelName --sync --json
 ```
 
 For repo-wide drift checks, use:
 
 ```bash
-andurel generate factories --check --json
-andurel generate factories --sync --json
+andurel sync factories --check --json
+andurel sync factories --sync --json
 ```
 
 The factory sync command rewrites Andurel generated regions and preserves custom helpers outside those regions. Prefer syncing generated regions over hand-editing boilerplate. Hand-write only the custom helpers, options, or test-specific defaults that the generator cannot infer safely.

@@ -13,17 +13,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 
 	"github.com/mbvlabs/andurel/internal/constants"
 	"github.com/mbvlabs/andurel/layout/blueprint"
 	"github.com/mbvlabs/andurel/layout/cmds"
-	"github.com/mbvlabs/andurel/layout/extensions"
 	"github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/layout/versions"
 )
@@ -34,15 +31,9 @@ type Element struct {
 	SubDirs []Element
 }
 
-var (
-	registerBuiltinOnce sync.Once
-	registerBuiltinErr  error
-)
-
 // Scaffold creates a new Andurel project in the target directory.
 func Scaffold(
 	targetDir, projectName, database, version string,
-	extensionNames []string,
 	inertia, javascriptRuntime string,
 ) error {
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
@@ -64,20 +55,10 @@ func Scaffold(
 		SessionEncryptionKey: secrets.sessionEncryptionKey,
 		TokenSigningKey:      secrets.tokenSigningKey,
 		Pepper:               secrets.pepper,
-		Extensions:           extensionNames,
 		RunToolVersion:       GetRunToolVersion(),
 		FrameworkVersion:     normalizeFrameworkVersion(version),
 		Inertia:              inertia,
 		blueprint:            blueprint,
-	}
-
-	if err := registerBuiltinExtensions(); err != nil {
-		return fmt.Errorf("failed to register builtin extensions: %w", err)
-	}
-
-	requestedExtensions, err := resolveExtensions(extensionNames)
-	if err != nil {
-		return err
 	}
 
 	fmt.Print("Creating project structure...\n")
@@ -101,8 +82,7 @@ func Scaffold(
 	}
 
 	fmt.Print("Processing database migrations...\n")
-	nextMigrationTime, err := processMigrations(targetDir, &templateData)
-	if err != nil {
+	if _, err := processMigrations(targetDir, &templateData); err != nil {
 		return fmt.Errorf("failed to process migrations: %w", err)
 	}
 
@@ -112,67 +92,8 @@ func Scaffold(
 		Inertia:                  inertia,
 		JavaScriptPackageManager: javascriptRuntime,
 	}
-	if err := generateLockFile(targetDir, version, scaffoldConfig, database, extensionNames); err != nil {
+	if err := generateLockFile(targetDir, version, scaffoldConfig, database); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
-	}
-
-	type postStep struct {
-		extensionName string
-		fn            func(targetDir string) error
-	}
-
-	var postExtensionSteps []postStep
-
-	if len(requestedExtensions) > 0 {
-		fmt.Print("Applying extensions...\n")
-	}
-
-	for _, ext := range requestedExtensions {
-		currentExt := ext
-		fmt.Printf(" - %s\n", currentExt.Name())
-
-		ctx := extensions.Context{
-			TargetDir: targetDir,
-			Data:      &templateData,
-			Inertia:   inertia,
-			ProcessTemplate: func(templateFile, targetPath string, data extensions.TemplateData) error {
-				if data == nil {
-					data = &templateData
-				}
-
-				return renderTemplate(targetDir, templateFile, targetPath, extensions.Files, data)
-			},
-			AddPostStep: func(fn func(targetDir string) error) {
-				if fn == nil {
-					return
-				}
-
-				postExtensionSteps = append(postExtensionSteps, postStep{
-					extensionName: currentExt.Name(),
-					fn:            fn,
-				})
-			},
-			NextMigrationTime: &nextMigrationTime,
-		}
-
-		if err := currentExt.Apply(&ctx); err != nil {
-			return fmt.Errorf("failed to apply extension %s: %w", currentExt.Name(), err)
-		}
-
-		nextMigrationTime = nextMigrationTime.Add(10 * time.Second)
-	}
-
-	// Re-render templates that use blueprint data after extensions have been applied
-	if len(requestedExtensions) > 0 {
-		if err := rerenderBlueprintTemplates(targetDir, &templateData); err != nil {
-			return fmt.Errorf("failed to re-render blueprint templates: %w", err)
-		}
-	}
-
-	for _, step := range postExtensionSteps {
-		if err := step.fn(targetDir); err != nil {
-			return fmt.Errorf("extension %s post-step failed: %w", step.extensionName, err)
-		}
 	}
 
 	fmt.Print("Fixing migration timestamps...\n")
@@ -263,6 +184,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"env.tmpl":       ".env.example",
 	"gitignore.tmpl": ".gitignore",
 	"readme.tmpl":    "README.md",
+	"agents.tmpl":    "AGENTS.md",
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",
@@ -518,7 +440,7 @@ func sortedFrameworkManagedFiles(mappings map[TmplTarget]TmplTargetPath) []Frame
 	return files
 }
 
-func processTemplatedFiles(targetDir string, data extensions.TemplateData) error {
+func processTemplatedFiles(targetDir string, data *TemplateData) error {
 	mappings := make(
 		map[TmplTarget]TmplTargetPath,
 		len(
@@ -531,7 +453,7 @@ func processTemplatedFiles(targetDir string, data extensions.TemplateData) error
 	)
 	maps.Copy(mappings, baseTemplateMappings)
 
-	if td, ok := data.(*TemplateData); ok && IsSupportedInertiaAdapter(td.Inertia) {
+	if data != nil && IsSupportedInertiaAdapter(data.Inertia) {
 		for k := range inertiaSkippedTemplates {
 			delete(mappings, k)
 		}
@@ -546,7 +468,7 @@ func processTemplatedFiles(targetDir string, data extensions.TemplateData) error
 		mappings["controllers_reset_passwords_inertia.tmpl"] = "controllers/reset_passwords.go"
 		mappings["controllers_sessions_inertia.tmpl"] = "controllers/sessions.go"
 		maps.Copy(mappings, inertiaSharedTemplateMappings)
-		maps.Copy(mappings, inertiaAdapterTemplateMappings(td.Inertia))
+		maps.Copy(mappings, inertiaAdapterTemplateMappings(data.Inertia))
 	}
 
 	for templateFile, targetPath := range mappings {
@@ -584,7 +506,7 @@ func processTemplatedFiles(targetDir string, data extensions.TemplateData) error
 	}
 
 	for templateFile, targetPath := range baseStyleTemplateMappings {
-		if td, ok := data.(*TemplateData); ok && IsSupportedInertiaAdapter(td.Inertia) &&
+		if data != nil && IsSupportedInertiaAdapter(data.Inertia) &&
 			inertiaSkippedTemplates[templateFile] {
 			continue
 		}
@@ -604,7 +526,7 @@ func processTemplatedFiles(targetDir string, data extensions.TemplateData) error
 
 func processMigrations(
 	targetDir string,
-	data extensions.TemplateData,
+	data *TemplateData,
 ) (time.Time, error) {
 	baseTime := time.Now()
 
@@ -665,69 +587,6 @@ func processMigrations(
 	return lastTime.Add(1 * time.Second), nil
 }
 
-func rerenderBlueprintTemplates(targetDir string, data extensions.TemplateData) error {
-	if data == nil {
-		return fmt.Errorf("template data is nil")
-	}
-
-	if _, ok := data.(*TemplateData); !ok {
-		return fmt.Errorf("template data is not *TemplateData")
-	}
-
-	// Templates to re-render after extensions have been applied
-	blueprintTemplates := []TmplTarget{
-		"config_config.tmpl",
-		"config_email.tmpl",
-		"env.tmpl",
-		"router_cookies_cookies.tmpl",
-	}
-
-	blueprintTemplates = append(blueprintTemplates,
-		"cmd_app_main.tmpl",
-		"cmd_queue_main.tmpl",
-		"controllers_controller.tmpl",
-	)
-
-	for _, tmplName := range blueprintTemplates {
-		targetPath, ok := baseTemplateMappings[tmplName]
-		if !ok {
-			return fmt.Errorf("template mapping missing for blueprint template %s", tmplName)
-		}
-
-		if err := renderTemplate(
-			targetDir,
-			string(tmplName),
-			string(targetPath),
-			templates.Files,
-			data,
-		); err != nil {
-			return fmt.Errorf("failed to render blueprint template %s: %w", tmplName, err)
-		}
-	}
-
-	if err := renderTemplate(
-		targetDir,
-		"go_mod.tmpl",
-		"go.mod",
-		templates.Files,
-		data,
-	); err != nil {
-		return fmt.Errorf("failed to render go.mod template: %w", err)
-	}
-
-	if err := renderTemplate(
-		targetDir,
-		"css_base.tmpl",
-		"css/base.css",
-		templates.Files,
-		data,
-	); err != nil {
-		return fmt.Errorf("failed to render css base template: %w", err)
-	}
-
-	return nil
-}
-
 func copyFile(
 	targetDir, sourceFile, targetPath string,
 	fsys fs.FS,
@@ -753,7 +612,7 @@ func copyFile(
 func renderTemplate(
 	targetDir, templateFile, targetPath string,
 	fsys fs.FS,
-	data extensions.TemplateData,
+	data *TemplateData,
 ) error {
 	content, err := fs.ReadFile(fsys, templateFile)
 	if err != nil {
@@ -833,187 +692,8 @@ func renderTemplate(
 
 func templateFuncMap() template.FuncMap {
 	return template.FuncMap{
-		"hasExtension": hasExtension,
-		"lower":        strings.ToLower,
+		"lower": strings.ToLower,
 	}
-}
-
-func hasExtension(extensions []string, name string) bool {
-	return slices.Contains(extensions, name)
-}
-
-func registerBuiltinExtensions() error {
-	registerBuiltinOnce.Do(func() {
-		builtin := []extensions.Extension{
-			extensions.AwsSes{},
-			extensions.Docker{},
-			extensions.CssComponents{},
-		}
-
-		for _, ext := range builtin {
-			if err := extensions.Register(ext); err != nil {
-				registerBuiltinErr = fmt.Errorf("register %s: %w", ext.Name(), err)
-				return
-			}
-		}
-	})
-
-	return registerBuiltinErr
-}
-
-// AvailableExtensionNames returns the sorted names of built-in extensions.
-func AvailableExtensionNames() ([]string, error) {
-	if err := registerBuiltinExtensions(); err != nil {
-		return nil, err
-	}
-	return extensions.Names(), nil
-}
-
-func resolveExtensions(names []string) ([]extensions.Extension, error) {
-	if len(names) == 0 {
-		return nil, nil
-	}
-
-	// First pass: collect all requested extensions and validate they exist
-	requested := make(map[string]struct{})
-	for _, rawName := range names {
-		name := strings.TrimSpace(rawName)
-		if name == "" {
-			return nil, fmt.Errorf("extension name cannot be empty")
-		}
-
-		if _, ok := extensions.Get(name); !ok {
-			available := strings.Join(extensions.Names(), ", ")
-			if available == "" {
-				return nil, fmt.Errorf("unknown extension %q", name)
-			}
-			return nil, fmt.Errorf(
-				"unknown extension %q. available extensions: %s",
-				name,
-				available,
-			)
-		}
-
-		requested[name] = struct{}{}
-	}
-
-	// Build complete dependency graph (includes transitive dependencies)
-	allNeeded := make(map[string]struct{})
-	if err := collectDependencies(requested, allNeeded); err != nil {
-		return nil, err
-	}
-
-	// Topologically sort extensions so dependencies come before dependents
-	sorted, err := topologicalSort(allNeeded)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert names to extension instances
-	resolved := make([]extensions.Extension, 0, len(sorted))
-	for _, name := range sorted {
-		ext, _ := extensions.Get(name)
-		resolved = append(resolved, ext)
-	}
-
-	return resolved, nil
-}
-
-// collectDependencies recursively gathers all extensions needed, including transitive dependencies
-func collectDependencies(requested map[string]struct{}, allNeeded map[string]struct{}) error {
-	for name := range requested {
-		if _, seen := allNeeded[name]; seen {
-			continue
-		}
-
-		ext, ok := extensions.Get(name)
-		if !ok {
-			return fmt.Errorf("unknown extension %q", name)
-		}
-
-		allNeeded[name] = struct{}{}
-
-		// Recursively add dependencies
-		deps := ext.Dependencies()
-		if len(deps) > 0 {
-			depsMap := make(map[string]struct{}, len(deps))
-			for _, dep := range deps {
-				dep = strings.TrimSpace(dep)
-				if dep == "" {
-					continue
-				}
-				if dep == name {
-					return fmt.Errorf("extension %q cannot depend on itself", name)
-				}
-				depsMap[dep] = struct{}{}
-			}
-
-			if err := collectDependencies(depsMap, allNeeded); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-// topologicalSort orders extensions so dependencies are applied before dependents.
-// Returns an error if a circular dependency is detected.
-func topologicalSort(extSet map[string]struct{}) ([]string, error) {
-	const (
-		unvisited = 0
-		visiting  = 1
-		visited   = 2
-	)
-
-	state := make(map[string]int)
-	var result []string
-	var path []string // for cycle detection
-
-	var visit func(string) error
-	visit = func(name string) error {
-		switch state[name] {
-		case visited:
-			return nil
-		case visiting:
-			// Found a cycle
-			cycle := append(path, name)
-			return fmt.Errorf("circular dependency detected: %s", strings.Join(cycle, " -> "))
-		}
-
-		state[name] = visiting
-		path = append(path, name)
-
-		ext, ok := extensions.Get(name)
-		if !ok {
-			return fmt.Errorf("unknown extension %q", name)
-		}
-
-		// Visit dependencies first
-		for _, dep := range ext.Dependencies() {
-			dep = strings.TrimSpace(dep)
-			if dep == "" {
-				continue
-			}
-			if err := visit(dep); err != nil {
-				return err
-			}
-		}
-
-		path = path[:len(path)-1]
-		state[name] = visited
-		result = append(result, name)
-		return nil
-	}
-
-	// Visit all extensions
-	for name := range extSet {
-		if err := visit(name); err != nil {
-			return nil, err
-		}
-	}
-
-	return result, nil
 }
 
 const goVersion = "1.27.1"
@@ -1188,7 +868,6 @@ func generateLockFile(
 	targetDir, version string,
 	config *ScaffoldConfig,
 	databaseEngine string,
-	extensions []string,
 ) error {
 	lock := NewAndurelLock(version)
 	lock.ScaffoldConfig = config
@@ -1204,10 +883,6 @@ func generateLockFile(
 
 	lock.AddTool("narsilc", NewBinaryTool("narsilc", versions.Narsilc))
 	lock.AddTool("tailwindcli", NewBinaryTool("tailwindcli", versions.TailwindCLI))
-
-	for _, ext := range extensions {
-		lock.AddExtension(ext, time.Now().Format(time.RFC3339))
-	}
 
 	return lock.WriteLockFile(targetDir)
 }

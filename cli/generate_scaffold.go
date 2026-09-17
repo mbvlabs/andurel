@@ -117,7 +117,7 @@ flag requires an Inertia project and cannot be combined with --api.`,
 				Diff:     diff,
 				Breadcrumbs: []output.Breadcrumb{
 					{
-						Command:     "andurel database migrate up",
+						Command:     "andurel db migrate up",
 						Description: "Apply migrations before using the resource",
 					},
 					{Command: "andurel run", Description: "Start the development server"},

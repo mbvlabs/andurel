@@ -27,6 +27,7 @@ type commandDiscovery struct {
 	Subcommands    []commandSummary   `json:"subcommands,omitempty"`
 	AgentNotes     string             `json:"agent_notes,omitempty"`
 	Category       string             `json:"category,omitempty"`
+	Meta           *CommandMeta       `json:"meta,omitempty"`
 	Commands       []commandDiscovery `json:"commands,omitempty"`
 }
 
@@ -47,11 +48,15 @@ type flagDiscovery struct {
 }
 
 func newCommandsCommand(root *cobra.Command) *cobra.Command {
+	var markdown bool
+	var check bool
 	cmd := &cobra.Command{
 		Use:   "commands",
 		Short: "Show structured command discovery data",
 		Long:  "Show the Andurel command tree, flags, descriptions, examples, and agent metadata.",
 		Example: `  andurel commands --json
+  andurel commands --markdown
+  andurel commands --check
   andurel commands --agent`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -59,9 +64,33 @@ func newCommandsCommand(root *cobra.Command) *cobra.Command {
 			if target == nil {
 				target = cmd.Root()
 			}
-			return output.OK(cmd, discoverCommandTree(target), "Discovered Andurel commands")
+			if check && markdown {
+				return output.NewError(
+					output.CodeUsage,
+					"choose only one of --check or --markdown",
+					output.ExitUsage,
+					"Run andurel commands --json, --markdown, or --check.",
+				)
+			}
+			if check {
+				return runCommandsCheck(cmd, target)
+			}
+			opts, err := output.ParseOptions(cmd)
+			if err != nil {
+				return err
+			}
+			if markdown || opts.Mode == output.ModeMarkdown || opts.Mode == output.ModeHuman {
+				return runCommandsMarkdown(cmd, target)
+			}
+			payload := commandsDiscoveryPayload{
+				commandDiscovery: discoverCommandTree(target),
+				Catalog:          flattenCatalog(target),
+			}
+			return output.OK(cmd, payload, "Discovered Andurel commands")
 		},
 	}
+	cmd.Flags().BoolVar(&markdown, "markdown", false, "Emit a Markdown command table")
+	cmd.Flags().BoolVar(&check, "check", false, "Validate command metadata completeness")
 	setAgentMetadata(cmd, "discovery", "Returns structured command metadata for agent planning.")
 	return cmd
 }
@@ -105,6 +134,10 @@ func discoverCommand(cmd *cobra.Command) commandDiscovery {
 	if cmd.Annotations != nil {
 		discovery.AgentNotes = cmd.Annotations[agentNotesAnnotation]
 		discovery.Category = cmd.Annotations[agentCategoryAnnotation]
+	}
+	if meta, ok := metaFor(cmd); ok {
+		copied := meta
+		discovery.Meta = &copied
 	}
 
 	return discovery

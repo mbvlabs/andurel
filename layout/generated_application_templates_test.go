@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/layout/extensions"
 	layouttemplates "github.com/mbvlabs/andurel/layout/templates"
 )
 
@@ -688,7 +687,6 @@ func TestGeneratedGoTemplatesSeparateFunctions(t *testing.T) {
 	}
 
 	checkGoTemplateSpacing(t, layouttemplates.Files, ".")
-	checkGoTemplateSpacing(t, extensions.Files, "templates")
 }
 
 func TestGeneratedScaffoldGoFilesSeparateFunctions(t *testing.T) {
@@ -704,7 +702,7 @@ func TestGeneratedScaffoldGoFilesSeparateFunctions(t *testing.T) {
 
 func TestGeneratedInertiaScaffoldGoFilesSeparateFunctions(t *testing.T) {
 	root := t.TempDir()
-	if err := Scaffold(root, "testapp", "postgresql", "test", nil, "react", ""); err != nil {
+	if err := Scaffold(root, "testapp", "postgresql", "test", "react", ""); err != nil {
 		t.Fatalf("scaffold inertia project: %v", err)
 	}
 

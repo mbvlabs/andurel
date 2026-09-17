@@ -69,8 +69,7 @@ func TestGenerateViewsCommand(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"generate view help", []string{"generate", "view", "--help"}},
-		{"generate view alias v", []string{"generate", "v", "--help"}},
+		{"sync views help", []string{"sync", "views", "--help"}},
 	}
 
 	for _, tt := range tests {
@@ -82,16 +81,12 @@ func TestGenerateViewsCommand(t *testing.T) {
 		})
 	}
 
-	generateCmd, _, err := rootCmd.Find([]string{"generate"})
+	syncCmd, _, err := rootCmd.Find([]string{"sync"})
 	if err != nil {
-		t.Fatalf("'generate' command not found: %v", err)
+		t.Fatalf("'sync' command not found: %v", err)
 	}
 
-	viewCmd, _, err := generateCmd.Find([]string{"view"})
-	if err != nil {
-		t.Fatalf("'generate view' command not found: %v", err)
-	}
-	if !viewCmd.HasAlias("v") {
-		t.Fatal("generate view command should have v as an alias")
+	if _, _, err := syncCmd.Find([]string{"views"}); err != nil {
+		t.Fatalf("'sync views' command not found: %v", err)
 	}
 }

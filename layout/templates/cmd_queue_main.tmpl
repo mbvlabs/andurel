@@ -10,9 +10,6 @@ import (
 	"time"
 
 	"{{.ModuleName}}/config"
-{{- if hasExtension .Extensions "aws-ses"}}
-	mailclients "{{.ModuleName}}/clients/email"
-{{- end}}
 	"{{.ModuleName}}/queue"
 
 	"github.com/mbvlabs/andurel/pkg/email"
@@ -167,15 +164,6 @@ func newEmailSenders(
 		}
 
 		return client, client, nil
-{{- if hasExtension .Extensions "aws-ses"}}
-	case config.AWSSESDriver:
-		client, err := mailclients.NewAwsSes(ctx, cfg.AWSSES)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		return client, client, nil
-{{- end}}
 	default:
 		return nil, nil, fmt.Errorf("unsupported email provider %q", cfg.Driver)
 	}

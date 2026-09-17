@@ -124,7 +124,7 @@ flag requires an Inertia project and cannot be combined with --api.`,
 				Diff:     diff,
 				Breadcrumbs: []output.Breadcrumb{
 					{
-						Command:     "andurel routes --json",
+						Command:     "andurel inspect routes --json",
 						Description: "Inspect generated route manifest",
 					},
 					{Command: "andurel doctor", Description: "Verify project health"},

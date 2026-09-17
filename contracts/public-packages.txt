@@ -10,7 +10,6 @@ github.com/mbvlabs/andurel/generator/views
 github.com/mbvlabs/andurel/layout
 github.com/mbvlabs/andurel/layout/blueprint
 github.com/mbvlabs/andurel/layout/cmds
-github.com/mbvlabs/andurel/layout/extensions
 github.com/mbvlabs/andurel/layout/templates
 github.com/mbvlabs/andurel/layout/upgrade
 github.com/mbvlabs/andurel/layout/versions

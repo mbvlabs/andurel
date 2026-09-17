@@ -297,7 +297,6 @@ func (u *Upgrader) addFrameworkChanges(plan *upgradePlan) error {
 	rendered, err := u.generator.RenderFrameworkTemplates(
 		u.projectRoot,
 		*u.lock.ScaffoldConfig,
-		u.lock.ExtensionNames(),
 	)
 	if err != nil {
 		return fmt.Errorf("render framework templates: %w", err)

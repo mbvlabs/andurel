@@ -619,7 +619,6 @@ func newUpgradeFixtureProjectWithConfig(t *testing.T, config layout.ScaffoldConf
 	rendered, err := NewTemplateGenerator(fixtureSourceVersion).RenderFrameworkTemplates(
 		root,
 		*lock.ScaffoldConfig,
-		nil,
 	)
 	if err != nil {
 		t.Fatal(err)

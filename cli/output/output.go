@@ -24,8 +24,6 @@ const (
 	CodeProjectNotFound = "project_not_found"
 	// CodeMissingTool identifies a missing external tool dependency.
 	CodeMissingTool = "missing_tool"
-	// CodeInvalidExtension identifies an unknown extension name.
-	CodeInvalidExtension = "invalid_extension"
 	// CodeInvalidInertiaAdapter identifies an unsupported Inertia adapter.
 	CodeInvalidInertiaAdapter = "invalid_inertia_adapter"
 	// CodeUnsafeAction identifies an action that requires explicit confirmation.
@@ -353,13 +351,6 @@ func classifyError(err error) *CLIError {
 			ExitDependency,
 			"Run andurel tool sync to install project tools.",
 		)
-	case strings.Contains(msg, "unknown extension") || strings.Contains(msg, "invalid extension"):
-		return WrapError(
-			CodeInvalidExtension,
-			err,
-			ExitUsage,
-			"Run andurel extension list --available to inspect available extensions.",
-		)
 	case strings.Contains(msg, "invalid inertia adapter"):
 		return WrapError(
 			CodeInvalidInertiaAdapter,
@@ -393,7 +384,7 @@ func classifyError(err error) *CLIError {
 			CodeConfigError,
 			err,
 			ExitConfig,
-			"Inspect andurel.lock and .andurel/config.json.",
+			"Inspect andurel.lock.",
 		)
 	case strings.Contains(msg, "ambiguous"):
 		return WrapError(
@@ -588,7 +579,7 @@ func projectionItems(data any) ([]any, error) {
 			"Use --jq for scalar or object data.",
 		)
 	}
-	for _, field := range []string{"routes", "items", "results", "names", "extensions", "tools", "packages"} {
+	for _, field := range []string{"routes", "items", "results", "names", "tools", "packages"} {
 		if items, ok := object[field].([]any); ok {
 			return items, nil
 		}

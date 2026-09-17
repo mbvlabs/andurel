@@ -396,7 +396,7 @@ func TestDatabaseLifecycleWithFakeAdminConnection(t *testing.T) {
 	originalStdin := os.Stdin
 	t.Cleanup(func() { os.Stdin = originalStdin })
 	os.Stdin = tempInputFile(t, "yes\n")
-	if err := dropDatabase(false); err != nil {
+	if err := dropDatabase(nil, false); err != nil {
 		t.Fatalf("dropDatabase: %v", err)
 	}
 	if !containsSQL(fake.execs, "pg_terminate_backend") ||
@@ -406,7 +406,7 @@ func TestDatabaseLifecycleWithFakeAdminConnection(t *testing.T) {
 
 	fake.reset()
 	os.Stdin = tempInputFile(t, "n\n")
-	if err := nukeDatabase(false); !errors.Is(err, errDatabaseOperationAborted) {
+	if err := nukeDatabase(nil, false); !errors.Is(err, errDatabaseOperationAborted) {
 		t.Fatalf("nukeDatabase abort: %v", err)
 	}
 	if len(fake.execs) != 0 {
@@ -425,7 +425,7 @@ func TestDatabaseLifecycleWithFakeAdminConnection(t *testing.T) {
 		seedName = name
 		return nil
 	}
-	cmd := newStructuredTestCommand(&bytes.Buffer{})
+	cmd := &cobra.Command{}
 	if err := rebuildDatabase(cmd, false, false, "development"); err != nil {
 		t.Fatalf("rebuildDatabase: %v", err)
 	}
@@ -491,8 +491,8 @@ func TestDeclinedRebuildDoesNotMutateOrContinue(t *testing.T) {
 	outputText := captureProcessOutput(t, &os.Stdout)
 
 	err := rebuildDatabase(newStructuredTestCommand(&bytes.Buffer{}), false, false, "development")
-	if !errors.Is(err, errDatabaseOperationAborted) {
-		t.Fatalf("rebuildDatabase error = %v", err)
+	if err == nil || !strings.Contains(err.Error(), "--force") {
+		t.Fatalf("rebuildDatabase error = %v, want --force usage error", err)
 	}
 	if gooseCalled || seedCalled || len(fake.execs) != 0 {
 		t.Fatalf(
@@ -609,7 +609,7 @@ func TestMigrationCommandsCallGoose(t *testing.T) {
 	}{
 		{
 			name: "new",
-			cmd:  newDBMigrationNewCommand(),
+			cmd:  newGenerateMigrationCommand(),
 			args: []string{"create_users"},
 			want: []string{"create", "create_users", "sql"},
 		},

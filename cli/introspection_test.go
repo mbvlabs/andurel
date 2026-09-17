@@ -57,25 +57,15 @@ func TestListProjectFilesAndSorting(t *testing.T) {
 	}
 }
 
-func TestExtensionAndToolInfos(t *testing.T) {
+func TestToolInfos(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, "bin/templ", "#!/bin/sh\n")
 	lock := layout.NewAndurelLock("v1.2.3")
-	lock.Extensions["mail"] = &layout.Extension{AppliedAt: "2026-07-08T10:00:00Z"}
-	lock.Extensions["aws"] = nil
 	lock.Tools["templ"] = layout.NewBinaryTool("templ", "v0.3.1")
 	lock.Tools["shadowfax"] = layout.NewBuiltTool(
 		filepath.ToSlash(filepath.Join("cmd", "shadowfax")),
 		"v1.0.0",
 	)
-
-	extensions := extensionInfos(lock)
-	if !reflect.DeepEqual(extensions, []extensionInfo{
-		{Name: "aws"},
-		{Name: "mail", AppliedAt: "2026-07-08T10:00:00Z"},
-	}) {
-		t.Fatalf("extensionInfos = %#v", extensions)
-	}
 
 	tools := toolInfos(root, lock)
 	if len(tools) != 2 || tools[0].Name != "shadowfax" || tools[1].Name != "templ" {
@@ -102,7 +92,6 @@ func TestCollectProjectInfo(t *testing.T) {
 	}
 	lock.DatabaseConfig = &layout.DatabaseConfig{Engine: layout.DatabaseEnginePostgreSQL, NullType: layout.NullTypePGType}
 	lock.Tools["goose"] = validTestTool("goose", "v3.0.0")
-	lock.Extensions["docker"] = &layout.Extension{AppliedAt: "2026-07-08T10:00:00Z"}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
@@ -123,16 +112,8 @@ func TestCollectProjectInfo(t *testing.T) {
 		info.DatabaseConfig.NullType != layout.NullTypePGType {
 		t.Fatalf("missing database config: %#v", info.DatabaseConfig)
 	}
-	if len(info.Extensions) != 1 || info.Extensions[0].Name != "docker" {
-		t.Fatalf("unexpected extensions: %#v", info.Extensions)
-	}
 	if len(info.Tools) != 1 || !info.Tools[0].Installed {
 		t.Fatalf("unexpected tools: %#v", info.Tools)
-	}
-	if info.ConfigPath != filepath.Join(root, ".andurel", "config.json") ||
-		info.UserConfigPath == "" ||
-		info.UserCacheDirectory == "" {
-		t.Fatalf("unexpected paths: %#v", info)
 	}
 }
 

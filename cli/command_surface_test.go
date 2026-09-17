@@ -793,9 +793,9 @@ func TestStandardHelpRendering(t *testing.T) {
 	if err := cmd.Help(); err != nil {
 		t.Fatalf("render owner help: %v", err)
 	}
-	if got := capture(); !strings.Contains(got, "Long tool help.") ||
-		!strings.Contains(got, "sync") {
-		t.Fatalf("owner help missing custom sections:\n%s", got)
+	if got := capture(); !strings.Contains(got, "Tool summary") ||
+		!strings.Contains(got, "child") {
+		t.Fatalf("owner help missing group sections:\n%s", got)
 	}
 
 	child := cmd.Commands()[0]
@@ -1068,60 +1068,6 @@ func TestRunUpgradeReleaseRequirementAndRepairBypass(t *testing.T) {
 	}
 	if !initialized {
 		t.Fatal("repair did not initialize the upgrader")
-	}
-}
-
-func TestExtensionListCommandHumanAndStructured(t *testing.T) {
-	root := t.TempDir()
-	writeGoModule(t, root)
-	lock := layout.NewAndurelLock("test")
-	lock.AddExtension("docker", "2026-07-08")
-	if err := lock.WriteLockFile(root); err != nil {
-		t.Fatalf("write lock: %v", err)
-	}
-
-	originalFindGoModRoot := findGoModRoot
-	findGoModRoot = func() (string, error) { return root, nil }
-	t.Cleanup(func() {
-		findGoModRoot = originalFindGoModRoot
-	})
-
-	capture := captureProcessOutput(t, &os.Stdout)
-	cmd := &cobra.Command{Use: "extension"}
-	if err := runExtensionList(cmd, false); err != nil {
-		t.Fatalf("runExtensionList human: %v", err)
-	}
-	if out := capture(); !strings.Contains(out, "docker (applied: 2026-07-08)") {
-		t.Fatalf("human extension output missing applied extension:\n%s", out)
-	}
-
-	var out bytes.Buffer
-	cmd = newExtensionListCommand()
-	output.RegisterPersistentFlags(cmd)
-	cmd.SetOut(&out)
-	_ = cmd.PersistentFlags().Set("json", "true")
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("extension list command: %v", err)
-	}
-	if !strings.Contains(out.String(), "Listed extensions") ||
-		!strings.Contains(out.String(), "docker") {
-		t.Fatalf("structured extension output missing data:\n%s", out.String())
-	}
-
-	emptyRoot := t.TempDir()
-	writeGoModule(t, emptyRoot)
-	emptyLock := layout.NewAndurelLock("test")
-	if err := emptyLock.WriteLockFile(emptyRoot); err != nil {
-		t.Fatalf("write empty lock: %v", err)
-	}
-	findGoModRoot = func() (string, error) { return emptyRoot, nil }
-	capture = captureProcessOutput(t, &os.Stdout)
-	cmd = &cobra.Command{Use: "extension"}
-	if err := runExtensionList(cmd, false); err != nil {
-		t.Fatalf("runExtensionList empty: %v", err)
-	}
-	if out := capture(); !strings.Contains(out, "No extensions applied") {
-		t.Fatalf("empty extension output missing message:\n%s", out)
 	}
 }
 

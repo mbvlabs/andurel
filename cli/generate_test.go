@@ -16,13 +16,14 @@ func TestGenerateCommands(t *testing.T) {
 		args []string
 	}{
 		{"generate model help", []string{"generate", "model", "--help"}},
-		{"generate view help", []string{"generate", "view", "--help"}},
+		{"generate migration help", []string{"generate", "migration", "--help"}},
 		{"generate controller help", []string{"generate", "controller", "--help"}},
 		{"generate scaffold help", []string{"generate", "scaffold", "--help"}},
 		{"generate job help", []string{"generate", "job", "--help"}},
 		{"generate email help", []string{"generate", "email", "--help"}},
 		{"generate query help", []string{"generate", "query", "--help"}},
-		{"generate queries help", []string{"generate", "queries", "--help"}},
+		{"sync views help", []string{"sync", "views", "--help"}},
+		{"sync queries help", []string{"sync", "queries", "--help"}},
 		{"fmt help", []string{"fmt", "--help"}},
 	}
 
@@ -40,7 +41,7 @@ func TestGenerateCommands(t *testing.T) {
 func TestRootCommandStructure(t *testing.T) {
 	rootCmd := NewRootCommand("test", "test-date")
 
-	expectedCommands := []string{"generate", "fmt"}
+	expectedCommands := []string{"generate", "sync", "inspect", "fmt", "db"}
 	foundCommands := make(map[string]bool)
 
 	for _, cmd := range rootCmd.Commands() {
@@ -67,7 +68,7 @@ func TestGenerateSubCommands(t *testing.T) {
 		t.Fatalf("'generate' command not found: %v", err)
 	}
 
-	expectedSubs := []string{"model", "view", "query", "queries", "controller", "scaffold", "job", "email", "routes", "payloads"}
+	expectedSubs := []string{"migration", "model", "query", "controller", "scaffold", "job", "email"}
 	subNames := getCommandNames(generateCmd.Commands())
 
 	for _, expectedSub := range expectedSubs {
@@ -96,11 +97,9 @@ func TestGenerateHelpMentionsNamespacedResources(t *testing.T) {
 			name: "generate",
 			text: generateCmd.Long + "\n" + generateCmd.Example,
 			want: []string{
-				"admin/Widget",
-				"generate controller admin/Widget export",
-				"generate scaffold admin/Widget",
-				"generate routes",
-				"generate payloads",
+				"andurel generate",
+				"andurel sync",
+				"andurel inspect",
 			},
 		},
 		{

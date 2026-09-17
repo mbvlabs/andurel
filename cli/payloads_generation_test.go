@@ -257,7 +257,7 @@ func (p Pages) Index(etx *echo.Context) error {
 
 func TestGeneratePayloadsCommandRequiresInertiaProject(t *testing.T) {
 	rootDir := setupPayloadsProject(t, "")
-	result := runRoutesJSCommandInProject(t, rootDir, "generate", "payloads", "--json")
+	result := runRoutesJSCommandInProject(t, rootDir, "sync", "payloads", "--json")
 	if result.err == nil {
 		t.Fatal("expected generate payloads to reject non-Inertia project")
 	}
@@ -271,7 +271,7 @@ func TestGeneratePayloadsCommandWritesFile(t *testing.T) {
 	rootDir := setupPayloadsProject(t, "svelte")
 	writePayloadsController(t, rootDir, "controllers/widgets.go", widgetControllerSource)
 
-	result := runRoutesJSCommandInProject(t, rootDir, "generate", "payloads", "--json")
+	result := runRoutesJSCommandInProject(t, rootDir, "sync", "payloads", "--json")
 	if result.err != nil {
 		t.Fatalf("generate payloads failed: %v\n%s", result.err, result.stderr)
 	}
@@ -336,7 +336,7 @@ func TestCheckPayloadsTSGenerateFailsWhenMissingOrStale(t *testing.T) {
 	if stale.status != statusFail || !strings.Contains(stale.message, "out of date") {
 		t.Fatalf("expected stale payloads.ts failure, got %#v", stale)
 	}
-	if !strings.Contains(strings.Join(stale.details, "\n"), "andurel generate payloads") {
+	if !strings.Contains(strings.Join(stale.details, "\n"), "andurel sync payloads") {
 		t.Fatalf("expected generate payloads hint, got %#v", stale)
 	}
 }

@@ -39,7 +39,7 @@ func TestBuildTemplateData_UsesModulePathInsteadOfProjectName(t *testing.T) {
 	generator := NewTemplateGenerator("v0.0.0")
 	templateData := generator.buildTemplateData(layout.ScaffoldConfig{
 		ProjectName: "test-upgrade",
-	}, "github.com/example/correct-module", nil)
+	}, "github.com/example/correct-module")
 
 	if templateData.ProjectName != "test-upgrade" {
 		t.Fatalf("ProjectName = %q, want %q", templateData.ProjectName, "test-upgrade")

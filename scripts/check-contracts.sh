@@ -17,9 +17,9 @@ go run ./internal/contractgen packages > "$tmp_dir/public-packages.txt"
     go doc -all "$package"
   done < "$tmp_dir/public-packages.txt"
 } | sed $'s/\u2014/-/g' > "$tmp_dir/public-api.txt"
-go run ./internal/contractgen cli > "$tmp_dir/cli-v1.json"
+go run ./internal/contractgen cli > "$tmp_dir/cli-v2.json"
 
-fixtures=(public-packages.txt cli-v1.json)
+fixtures=(public-packages.txt cli-v2.json)
 if git rev-parse --verify 'v2.0.0^{commit}' >/dev/null 2>&1; then
   fixtures+=(public-api.txt)
 else

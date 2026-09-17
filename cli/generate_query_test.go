@@ -26,7 +26,7 @@ func TestGenerateQueryFromTemplate(t *testing.T) {
 	text := string(content)
 	for _, want := range []string{
 		"UserReport",
-		"andurel generate queries",
+		"andurel sync queries",
 		"-- Example:",
 	} {
 		if !strings.Contains(text, want) {

@@ -32,7 +32,7 @@ Non-negotiable rules
 
 Phase 1: establish provenance and a safe baseline
 
-1. Inspect `git status --short`, `andurel.lock`, `go.mod`, the enabled extensions, the Inertia adapter, and the JavaScript runtime.
+1. Inspect `git status --short`, `andurel.lock`, `go.mod`, the Inertia adapter, and the JavaScript runtime.
 2. Read `andurel.lock.version` before changing it and record whether the source is rc.2 or rc.3.
 3. Record all existing worktree changes before editing. Do not hide, stash, reset, or delete user changes.
 4. Use the installed CLI that supplied `TARGET_VERSION`. If isolation is required, install that exact tag into a temporary `GOBIN`; never resolve a moving reference.
@@ -40,11 +40,10 @@ Phase 1: establish provenance and a safe baseline
 
 Phase 2: create the authoritative comparison scaffold
 
-Create a fresh target-version project under a temporary directory, outside the application and outside any existing Andurel project. Use the same values from `andurel.lock.scaffoldConfig` and `andurel.lock.extensions`:
+Create a fresh target-version project under a temporary directory, outside the application and outside any existing Andurel project. Use the same values from `andurel.lock.scaffoldConfig`:
 
 - the same project name
 - PostgreSQL
-- the same extension names
 - the same Inertia adapter, if any
 - the same JavaScript runtime, if any
 
@@ -55,7 +54,6 @@ Normalize these expected sources of noise before judging a difference:
 - module and project names
 - generated secret values
 - framework version strings in generated headers and `andurel.lock`
-- extension timestamps
 - generated or environment-specific absolute paths
 
 The fresh target scaffold and its `andurel.lock` are the source of truth for the base scaffold. Do not rely on memory or infer target code from this checklist when an exact target file is available.
@@ -85,7 +83,7 @@ Diff the application against the fresh target scaffold. Focus on files that came
 - New regression coverage for a ported behavior: skip it.
 - Cosmetic base-scaffold change: preserve the application's intentional design unless the user explicitly wants the target scaffold's look.
 - Application customization: preserve it.
-- Feature absent because its extension or adapter is disabled: ignore it.
+- Feature absent because its adapter is disabled: ignore it.
 
 At minimum, verify and reconcile every checkpoint below.
 
@@ -158,8 +156,8 @@ Phase 5: regenerate and validate
 
    gofmt -w <changed Go files>
    go fix ./...
-   andurel generate view
-   andurel generate routes     # Inertia only
+   andurel sync views
+   andurel sync routes     # Inertia only
 
 2. Run:
 

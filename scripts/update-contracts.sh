@@ -18,4 +18,4 @@ go run ./internal/contractgen packages > contracts/public-packages.txt
   done < contracts/public-packages.txt
 } | sed $'s/\u2014/-/g' > contracts/public-api.txt
 
-go run ./internal/contractgen cli > contracts/cli-v1.json
+go run ./internal/contractgen cli > contracts/cli-v2.json

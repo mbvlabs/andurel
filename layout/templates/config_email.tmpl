@@ -12,9 +12,6 @@ type MailDriver string
 
 const (
 	MailpitDriver MailDriver = "mailpit"
-{{- if hasExtension .Extensions "aws-ses"}}
-	AWSSESDriver  MailDriver = "aws-ses"
-{{- end}}
 
 	DefaultMailpitHost = "0.0.0.0"
 	DefaultMailpitPort = "1025"
@@ -26,10 +23,7 @@ type Mail struct {
 
 type MailTransport struct {
 	Driver  MailDriver
-	Mailpit                email.MailpitConfig
-{{- if hasExtension .Extensions "aws-ses"}}
-	AWSSES                 AWSSES
-{{- end}}
+	Mailpit email.MailpitConfig
 }
 
 func NewMail(app App) (Mail, error) {
@@ -50,11 +44,6 @@ func NewMailTransport(app App) (MailTransport, error) {
 	if !app.IsProduction() {
 		defaultDriver = MailpitDriver
 	}
-{{- if hasExtension .Extensions "aws-ses"}}
-	if app.IsProduction() {
-		defaultDriver = AWSSESDriver
-	}
-{{- end}}
 	cfg := MailTransport{
 		Driver: MailDriver(env.String("EMAIL_PROVIDER", string(defaultDriver))),
 	}
@@ -66,10 +55,6 @@ func NewMailTransport(app App) (MailTransport, error) {
 			Port: env.String("MAILPIT_PORT", DefaultMailpitPort),
 		}
 		driverErr = cfg.Mailpit.Validate()
-{{- if hasExtension .Extensions "aws-ses"}}
-	case AWSSESDriver:
-		cfg.AWSSES, driverErr = loadAWSSES(env)
-{{- end}}
 	default:
 		driverErr = fmt.Errorf(
 			"choose an installed EMAIL_PROVIDER in config/email.go (got %q)",

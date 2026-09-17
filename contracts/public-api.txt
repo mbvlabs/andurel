@@ -12,6 +12,29 @@ func NewRootCommand(version, date string) *cobra.Command
     NewRootCommand creates a new root command.
 
 
+TYPES
+
+type CommandMeta struct {
+	Group            string   `json:"group,omitempty"`
+	Summary          string   `json:"summary"`
+	Args             string   `json:"args,omitempty"`
+	WhenToUse        []string `json:"when_to_use,omitempty"`
+	WhenNotToUse     []string `json:"when_not_to_use,omitempty"`
+	Prerequisites    []string `json:"prerequisites,omitempty"`
+	Next             []string `json:"next,omitempty"`
+	Examples         []string `json:"examples,omitempty"`
+	Mutating         bool     `json:"mutating"`
+	Destructive      bool     `json:"destructive,omitempty"`
+	RequiresProject  bool     `json:"requires_project,omitempty"`
+	SupportsDryRun   bool     `json:"supports_dry_run,omitempty"`
+	SkipDryRunCheck  bool     `json:"skip_dry_run_check,omitempty"`
+	Prompts          bool     `json:"prompts,omitempty"`
+	InteractiveFlags []string `json:"interactive_flags,omitempty"`
+}
+    CommandMeta is the canonical per-command documentation for humans and
+    agents.
+
+
 ## github.com/mbvlabs/andurel/cli/output
 package output // import "github.com/mbvlabs/andurel/cli/output"
 
@@ -31,8 +54,6 @@ const (
 	CodeProjectNotFound = "project_not_found"
 	// CodeMissingTool identifies a missing external tool dependency.
 	CodeMissingTool = "missing_tool"
-	// CodeInvalidExtension identifies an unknown extension name.
-	CodeInvalidExtension = "invalid_extension"
 	// CodeInvalidInertiaAdapter identifies an unsupported Inertia adapter.
 	CodeInvalidInertiaAdapter = "invalid_inertia_adapter"
 	// CodeUnsafeAction identifies an action that requires explicit confirmation.
@@ -1764,24 +1785,6 @@ var DefaultGoTools = []GoTool{
 
 FUNCTIONS
 
-func ApplyExtension(rootDir, extensionName string) ([]string, error)
-    ApplyExtension adds an extension to an existing project. It:
-     1. Reconstructs the project context (TemplateData + lock) from disk.
-     2. Re-applies all existing extensions to rebuild the full blueprint state.
-     3. Applies the new extension (generates its code files + mutates the
-        blueprint).
-     4. Re-renders all blueprint-consuming templates (config.go, .env.example,
-        main.go, etc.) with the updated blueprint.
-     5. Runs post-steps and code generation tools (goose fix, templ generate,
-        narsilc generate when query files exist, go mod tidy, go fmt).
-     6. Updates and writes andurel.lock.
-
-    Returns the names of all newly applied extensions (the requested extension
-    plus any unsatisfied dependencies).
-
-func AvailableExtensionNames() ([]string, error)
-    AvailableExtensionNames returns the sorted names of built-in extensions.
-
 func GetExpectedTools(config *ScaffoldConfig) map[string]*Tool
     GetExpectedTools returns the list of tools that should exist for a given
     scaffold config
@@ -1797,24 +1800,8 @@ func IsSupportedJavaScriptRuntime(runtime string) bool
     IsSupportedJavaScriptRuntime reports whether runtime is a known JavaScript
     package manager.
 
-func LoadProjectContext(rootDir string) (*TemplateData, *AndurelLock, error)
-    LoadProjectContext reconstructs TemplateData and AndurelLock from an
-    existing project on disk. It reads the lock file for scaffold configuration,
-    parses go.mod for the module path and Go version, and reads secrets from
-    .env.example (or .env as fallback) so they are preserved when blueprint
-    templates are re-rendered.
-
-    The blueprint is rebuilt from scratch by calling initializeBlueprint and
-    then re-applying all existing extensions with a no-op ProcessTemplate.
-    This restores the full blueprint state (config fields, env vars, imports,
-    etc.) without overwriting any existing extension-generated files.
-
-func ReadLockFile(targetDir string) (*AndurelLock, error)
-    ReadLockFile reads lock file.
-
 func Scaffold(
 	targetDir, projectName, database, version string,
-	extensionNames []string,
 	inertia, javascriptRuntime string,
 ) error
     Scaffold creates a new Andurel project in the target directory.
@@ -1823,30 +1810,26 @@ func Scaffold(
 TYPES
 
 type AndurelLock struct {
-	SchemaVersion  int                   `json:"schemaVersion"`
-	Version        string                `json:"version"`
-	Extensions     map[string]*Extension `json:"extensions,omitempty"`
-	Tools          map[string]*Tool      `json:"tools"`
-	ScaffoldConfig *ScaffoldConfig       `json:"scaffoldConfig,omitempty"`
-	DatabaseConfig *DatabaseConfig       `json:"databaseConfig,omitempty"`
+	SchemaVersion  int              `json:"schemaVersion"`
+	Version        string           `json:"version"`
+	Tools          map[string]*Tool `json:"tools"`
+	ScaffoldConfig *ScaffoldConfig  `json:"scaffoldConfig,omitempty"`
+	DatabaseConfig *DatabaseConfig  `json:"databaseConfig,omitempty"`
 }
-    AndurelLock is the serialized project lock file for tools and extensions.
+    AndurelLock is the serialized project lock file for tools.
 
 func NewAndurelLock(version string) *AndurelLock
     NewAndurelLock creates a lock file model for a version with default
     databaseConfig (postgresql + pgtype.Null).
 
-func (l *AndurelLock) AddExtension(name, appliedAt string)
-    AddExtension records an applied extension in the lock file.
+func ReadLockFile(targetDir string) (*AndurelLock, error)
+    ReadLockFile reads lock file.
 
 func (l *AndurelLock) AddTool(name string, tool *Tool)
     AddTool records a managed tool in the lock file.
 
 func (l *AndurelLock) DatabaseEngine() string
     DatabaseEngine returns the configured SQL engine after legacy migration.
-
-func (l *AndurelLock) ExtensionNames() []string
-    ExtensionNames returns the names of all applied extensions in sorted order.
 
 func (l *AndurelLock) Sync(targetDir string, silent bool) error
     Sync downloads missing managed tools and rewrites the lock file.
@@ -1865,11 +1848,6 @@ type Element struct {
 	SubDirs []Element
 }
     Element describes a directory tree node to create during scaffolding.
-
-type Extension struct {
-	AppliedAt string `json:"appliedAt"`
-}
-    Extension records when an extension was applied.
 
 type FrameworkManagedFile struct {
 	TemplateName string
@@ -1917,24 +1895,21 @@ type TemplateData struct {
 	SessionEncryptionKey string
 	TokenSigningKey      string
 	Pepper               string
-	Extensions           []string
 	RunToolVersion       string // Version of the run built tool
 	FrameworkVersion     string // Version of the framework that generated managed files
 	Inertia              string // "vue", "react", "svelte", etc. Empty means templ-only
 
 	// Has unexported fields.
 }
-    TemplateData carries the values available to base templates and extension
-    contributions. It wraps a Blueprint for structured data alongside
-    project-level metadata.
+    TemplateData carries the values available to base templates. It wraps a
+    Blueprint for structured data alongside project-level metadata.
 
 func (td *TemplateData) Blueprint() *blueprint.Blueprint
     Blueprint returns the underlying blueprint. If not yet initialized, creates
     a new one.
 
 func (td *TemplateData) Builder() *blueprint.Builder
-    Builder returns a builder adapter wrapping the template data's blueprint.
-    The return type satisfies the extensions.Builder interface.
+    Builder returns a builder wrapping the template data's blueprint.
 
 func (td *TemplateData) DatabaseDialect() string
     DatabaseDialect returns the configured database, which is always PostgreSQL.
@@ -2035,7 +2010,7 @@ func GetDefaultToolVersionCheck(name string) (*VersionCheck, bool)
 package blueprint // import "github.com/mbvlabs/andurel/layout/blueprint"
 
 Package blueprint provides structured types for scaffold configuration that
-support additive merges from multiple extensions without conflicts.
+support additive merges without conflicts.
 
 TYPES
 
@@ -2663,102 +2638,6 @@ type ToolDownloader struct {
     ToolDownloader represents tool downloader.
 
 
-## github.com/mbvlabs/andurel/layout/extensions
-package extensions // import "github.com/mbvlabs/andurel/layout/extensions"
-
-Package extensions provides the framework for registering and applying
-extensions to the scaffold generation process.
-
-VARIABLES
-
-var Files embed.FS
-    Files contains the templates provided by scaffold extensions.
-
-
-FUNCTIONS
-
-func Names() []string
-    Names returns all registered extension names in sorted order.
-
-func Register(ext Extension) error
-    Register adds an extension to the global registry.
-
-
-TYPES
-
-type AwsSes struct{}
-    AwsSes adds AWS SES email client support to a scaffolded project.
-
-func (e AwsSes) Apply(ctx *Context) error
-    Apply adds AWS SES configuration, providers, and client files.
-
-func (e AwsSes) Dependencies() []string
-    Dependencies returns extension names that must be applied first.
-
-func (e AwsSes) Name() string
-    Name returns the extension name used in lock files and CLI flags.
-
-type Context struct {
-	TargetDir         string
-	Data              TemplateData
-	ProcessTemplate   ProcessTemplateFunc
-	AddPostStep       func(func(targetDir string) error)
-	NextMigrationTime *time.Time
-	Inertia           string // inertia adapter, e.g. "vue", "react", "svelte"
-}
-    Context carries state and callbacks for applying an extension.
-
-func (ctx *Context) Builder() *blueprint.Builder
-    Builder returns the blueprint builder for structured contributions.
-
-type CssComponents struct{}
-    CssComponents adds optional CSS component examples to a scaffolded project.
-
-func (c CssComponents) Apply(ctx *Context) error
-    Apply renders component CSS and example templates.
-
-func (c CssComponents) Dependencies() []string
-    Dependencies returns extension names that must be applied first.
-
-func (c CssComponents) Name() string
-    Name returns the extension name used in lock files and CLI flags.
-
-type Docker struct{}
-    Docker adds Docker build files to a scaffolded project.
-
-func (d Docker) Apply(ctx *Context) error
-    Apply renders Docker templates into the target project.
-
-func (d Docker) Dependencies() []string
-    Dependencies returns extension names that must be applied first.
-
-func (d Docker) Name() string
-    Name returns the extension name used in lock files and CLI flags.
-
-type Extension interface {
-	Name() string
-	Apply(ctx *Context) error
-	Dependencies() []string
-}
-    Extension adds files, blueprint entries, or post-processing steps to a
-    scaffold.
-
-func Get(name string) (Extension, bool)
-    Get returns a registered extension by name.
-
-type ProcessTemplateFunc func(templateFile, targetPath string, data TemplateData) error
-    ProcessTemplateFunc renders an extension template into a target file.
-
-type TemplateData interface {
-	DatabaseDialect() string
-	GetModuleName() string
-	GetInertia() string
-	Builder() *blueprint.Builder
-	SetBlueprint(bp *blueprint.Blueprint)
-}
-    TemplateData exposes scaffold data to extension templates and blueprints.
-
-
 ## github.com/mbvlabs/andurel/layout/templates
 package templates // import "github.com/mbvlabs/andurel/layout/templates"
 
@@ -2831,7 +2710,6 @@ func NewTemplateGenerator(targetVersion string) *TemplateGenerator
 func (g *TemplateGenerator) RenderFrameworkTemplates(
 	projectRoot string,
 	config layout.ScaffoldConfig,
-	extensions []string,
 ) (map[string][]byte, error)
     RenderFrameworkTemplates renders all framework element templates and returns
     a map of file paths to their rendered content

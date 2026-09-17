@@ -9,15 +9,16 @@ Use this skill when working in an Andurel project or generating Andurel code. It
 
 ## Agent Invariants
 
-- Prefer `andurel --agent --help` and `andurel commands --json` for discovery.
-- Run `andurel project info --json` before generation.
+- Prefer `andurel --agent --help`, `andurel commands --json`, and `andurel commands --check` for discovery.
+- Read [references/cli-catalog.md](references/cli-catalog.md) for group layout and workflows.
+- Run `andurel inspect project --json` before generation.
 - Use `--json` or `--jq` when extracting data.
 - Use `--dry-run --json` before mutating commands when intent is uncertain.
 - Inspect returned artifact arrays before assuming which files changed.
-- Treat `andurel project info --json` as the source of truth for the configured Inertia adapter and JavaScript package manager.
+- Treat `andurel inspect project --json` as the source of truth for the configured Inertia adapter and JavaScript package manager.
 - Persist through narsilc-generated queries. Keep generated `models/internal/queries` types behind the owning model package.
-- After adding or changing Inertia routes, run `andurel generate routes --json` so frontend pages can import `resources/js/routes.ts`.
-- After adding or changing Inertia controller payload or Bind structs, run `andurel generate payloads --json` so frontend pages can import `resources/js/types/payloads.ts`.
+- After adding or changing Inertia routes, run `andurel sync routes --json` so frontend pages can import `resources/js/routes.ts`.
+- After adding or changing Inertia controller payload or Bind structs, run `andurel sync payloads --json` so frontend pages can import `resources/js/types/payloads.ts`.
 - Follow the repository rules for verification.
 - Prefer the local project pattern over a generic Rails, Echo, Bun, Templ, or frontend framework convention.
 - Keep controllers as HTTP adapters: parse input, call models or services, map errors, and render a response.
@@ -68,10 +69,10 @@ Structured failures include `ok:false`, a stable `code`, `error`, optional `hint
 Inspect a project:
 
 ```bash
-andurel project info --json
-andurel routes --json
-andurel models --json
-andurel migrations --json
+andurel inspect project --json
+andurel inspect routes --json
+andurel inspect models --json
+andurel inspect migrations --json
 andurel commands --json
 ```
 
@@ -90,24 +91,24 @@ andurel generate scaffold Product --json
 Generate Inertia route helpers:
 
 ```bash
-andurel routes --json
-andurel generate routes --json
+andurel inspect routes --json
+andurel sync routes --json
 ```
 
-`andurel generate routes` reads `router/routes/*.go` as the source of truth and writes `resources/js/routes.ts`. It only runs when `andurel.lock` has `scaffoldConfig.inertia` set to `vue`, `react`, or `svelte`. Import helpers from that file in Inertia pages instead of hard-coding URLs.
+`andurel sync routes` reads `router/routes/*.go` as the source of truth and writes `resources/js/routes.ts`. It only runs when `andurel.lock` has `scaffoldConfig.inertia` set to `vue`, `react`, or `svelte`. Import helpers from that file in Inertia pages instead of hard-coding URLs.
 
 Generate Inertia payload types:
 
 ```bash
-andurel generate payloads --json
+andurel sync payloads --json
 ```
 
-`andurel generate payloads` scans controller `inertia.FromStruct` and named Bind structs and writes `resources/js/types/payloads.ts`. Import page and form types from that file instead of hand-written or catalog-derived TypeScript. Run it after editing those Go structs. `generate controller --inertia` and `generate scaffold --inertia` refresh the same file.
+`andurel sync payloads` scans controller `inertia.FromStruct` and named Bind structs and writes `resources/js/types/payloads.ts`. Import page and form types from that file instead of hand-written or catalog-derived TypeScript. Run it after editing those Go structs. `generate controller --inertia` and `generate scaffold --inertia` refresh the same file.
 
 Generate an Inertia resource:
 
 ```bash
-andurel project info --jq .scaffold_config.inertia
+andurel inspect project --jq .scaffold_config.inertia
 andurel generate scaffold Product --inertia --dry-run --json
 andurel generate scaffold Product --inertia --json
 ```
@@ -120,7 +121,7 @@ Add a narsilc query:
 andurel generate query UserReport --table users --dry-run --json
 andurel generate query UserReport --table users --json
 # Edit models/queries/user_report.sql, then generate typed code.
-andurel generate queries --json
+andurel sync queries --json
 ```
 
 Keep hand-written SQL in `models/queries/` and generated code in `models/internal/queries/`. Only the owning `models` package should import that internal package. Construct clients with `queries.New(db)` where `db` is `storage.Connection`, and inside shared transactions use `queries.New(tx)` where `tx` is `storage.Transaction`.
@@ -128,17 +129,17 @@ Keep hand-written SQL in `models/queries/` and generated code in `models/interna
 Check or sync factories:
 
 ```bash
-andurel generate factory Product --check --json
-andurel generate factory Product --sync --json
-andurel generate factories --check --json
-andurel generate factories --sync --json
+andurel sync factory Product --check --json
+andurel sync factory Product --sync --json
+andurel sync factories --check --json
+andurel sync factories --sync --json
 ```
 
 Factory guidance:
 
 1. Treat model `Entity` structs as the source of truth for generated factory fields.
 2. Keep reusable test data builders in `models/factories/`.
-3. Prefer `andurel generate factory NAME --check --json` before editing factory files by hand.
+3. Prefer `andurel sync factory NAME --check --json` before editing factory files by hand.
 4. Use `--sync` to update Andurel generated regions and preserve custom helpers outside those regions.
 5. Pass `--skip-factory` only when a generated model or scaffold should intentionally omit a factory.
 
@@ -151,9 +152,9 @@ Generate a named database seed:
 5. Verify the seed is discoverable:
 
 ```bash
-andurel database seed --list
-andurel database seed development
-andurel database seed test
+andurel db seed --list
+andurel db seed development
+andurel db seed test
 ```
 
 Check project health:
@@ -162,9 +163,9 @@ Check project health:
 andurel doctor --json
 ```
 
-In Inertia projects, `doctor` checks whether `resources/js/routes.ts` matches the current `router/routes/*.go` manifest and whether `resources/js/types/payloads.ts` matches controller payload structs. If the `routes.ts` check fails, run `andurel generate routes --json`. If the `payloads.ts` check fails, run `andurel generate payloads --json`. Doctor does not delete leftover per-resource files under `resources/js/types/`.
+In Inertia projects, `doctor` checks whether `resources/js/routes.ts` matches the current `router/routes/*.go` manifest and whether `resources/js/types/payloads.ts` matches controller payload structs. If the `routes.ts` check fails, run `andurel sync routes --json`. If the `payloads.ts` check fails, run `andurel sync payloads --json`. Doctor does not delete leftover per-resource files under `resources/js/types/`.
 
-When annotated narsilc queries exist, `doctor` also checks generated code for drift. If the `narsilc generate` check fails, run `andurel generate queries --json`.
+When annotated narsilc queries exist, `doctor` also checks generated code for drift. If the `narsilc generate` check fails, run `andurel sync queries --json`.
 
 Update standalone Andurel packages in `go.mod` (`github.com/mbvlabs/andurel/pkg/*`):
 

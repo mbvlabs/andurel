@@ -19,69 +19,8 @@ type helpCommand struct {
 	Description string
 }
 
-func setStandardHelp(cmd *cobra.Command, commands ...helpCommand) {
-	helpOwner := cmd
-	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
-		if renderStructuredHelpIfNeeded(cmd) {
-			return
-		}
-
-		// Output description
-		if cmd.Long != "" {
-			fmt.Println(cmd.Long)
-			fmt.Println()
-		} else if cmd.Short != "" {
-			fmt.Println(cmd.Short)
-			fmt.Println()
-		}
-
-		// Output commands
-		if cmd == helpOwner && len(commands) > 0 {
-			fmt.Println("Commands:")
-			maxUseLength := 0
-			for _, command := range commands {
-				if len(command.Use) > maxUseLength {
-					maxUseLength = len(command.Use)
-				}
-			}
-			for _, command := range commands {
-				fmt.Printf("  %-*s", maxUseLength, command.Use)
-				if command.Description != "" {
-					fmt.Printf("  %s", command.Description)
-				}
-				fmt.Println()
-			}
-			fmt.Println()
-		} else if cmd.HasAvailableSubCommands() {
-			fmt.Println("Commands:")
-			for _, sub := range cmd.Commands() {
-				if sub.IsAvailableCommand() || sub.Hidden {
-					fmt.Printf("  %-12s %s\n", sub.Name(), sub.Short)
-				}
-			}
-			fmt.Println()
-		}
-
-		// Output examples
-		if cmd.HasExample() {
-			fmt.Println("Examples:")
-			fmt.Print(cmd.Example)
-			fmt.Println()
-			fmt.Println()
-		}
-
-		// Output flags
-		if cmd.HasAvailableLocalFlags() {
-			fmt.Println("Flags:")
-			usage := cmd.LocalFlags().FlagUsages()
-			// FlagUsages already has leading spaces, just print as-is
-			fmt.Print(usage)
-		}
-		if cmd.HasAvailableInheritedFlags() {
-			fmt.Println("Global Flags:")
-			fmt.Print(cmd.InheritedFlags().FlagUsages())
-		}
-	})
+func setStandardHelp(cmd *cobra.Command, _ ...helpCommand) {
+	cmd.SetHelpFunc(renderHumanHelp)
 }
 
 func isInAndurelProject() bool {
@@ -112,27 +51,17 @@ Everything you and your agent(s) need to build robust and performant application
 
 	rootCmd.AddCommand(newProjectCommand(version))
 	rootCmd.AddCommand(newGenerateCommand())
+	rootCmd.AddCommand(newSyncGroupCommand())
+	rootCmd.AddCommand(newInspectCommand())
 	rootCmd.AddCommand(newFmtCommand())
 	rootCmd.AddCommand(newDatabaseCommand())
-	rootCmd.AddCommand(newEmailCommand())
-
 	rootCmd.AddCommand(newRunAppCommand())
-	rootCmd.AddCommand(newConsoleCommand())
 	rootCmd.AddCommand(newToolCommand())
-	rootCmd.AddCommand(newExtensionCommand())
 	rootCmd.AddCommand(newBuildCommand())
 	rootCmd.AddCommand(newUpgradeCommand(version))
 	rootCmd.AddCommand(newPackagesCommand())
 	rootCmd.AddCommand(newDoctorCommand(version))
 	rootCmd.AddCommand(newCommandsCommand(rootCmd))
-	rootCmd.AddCommand(newProjectInfoCommand())
-	rootCmd.AddCommand(newRoutesCommand())
-	rootCmd.AddCommand(newModelsCommand())
-	rootCmd.AddCommand(newMigrationsCommand())
-	rootCmd.AddCommand(newControllersCommand())
-	rootCmd.AddCommand(newViewsCommand())
-	rootCmd.AddCommand(newJobsCommand())
-	rootCmd.AddCommand(newConfigCommand())
 	rootCmd.AddCommand(newSkillCommand())
 
 	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
@@ -140,78 +69,9 @@ Everything you and your agent(s) need to build robust and performant application
 	if err := configureProjectionContracts(rootCmd); err != nil {
 		panic(err)
 	}
+	registerAllCommandMeta(rootCmd)
 
-	rootCmd.SetHelpFunc(func(c *cobra.Command, args []string) {
-		if renderStructuredHelpIfNeeded(c) {
-			return
-		}
-
-		if c.Parent() != nil {
-			c.Print(c.Short)
-			c.Println()
-			c.Println()
-			c.Println("Usage:")
-			c.Printf("  %s\n", c.UseLine())
-			if c.HasAvailableSubCommands() {
-				c.Println()
-				c.Println("Available Commands:")
-				for _, s := range c.Commands() {
-					if !s.IsAvailableCommand() || s.Hidden {
-						continue
-					}
-					c.Printf("  %-12s %s\n", s.Name(), s.Short)
-				}
-			}
-			if c.HasAvailableLocalFlags() {
-				c.Println()
-				c.Println("Flags:")
-				c.Print(c.LocalFlags().FlagUsages())
-			}
-			if c.HasAvailableInheritedFlags() {
-				c.Println()
-				c.Println("Global Flags:")
-				c.Print(c.InheritedFlags().FlagUsages())
-			}
-			return
-		}
-		if isInAndurelProject() {
-			c.Println("Usage:")
-			c.Println("  andurel [command]")
-			c.Println()
-			c.Println("Commands:")
-			for _, sub := range c.Commands() {
-				if !sub.IsAvailableCommand() || sub.Hidden {
-					continue
-				}
-				if sub.Name() == "new" || sub.Name() == "help" || sub.Name() == "completion" {
-					continue
-				}
-				c.Printf("  %-12s %s\n", sub.Name(), sub.Short)
-			}
-			c.Println()
-			c.Println("Flags:")
-			c.Print(c.PersistentFlags().FlagUsages())
-			c.Println("Use \"andurel [command] --help\" for more information about a command.")
-		} else {
-			fmt.Println("Usage:")
-			fmt.Println("  andurel COMMAND [options]")
-			fmt.Println()
-			fmt.Println("You must specify a command:")
-			fmt.Println()
-			fmt.Printf("  %-14s %s\n", "new", "Stand up a new Andurel project")
-			fmt.Println()
-			fmt.Println("All commands can be run with -h (or --help) for more information.")
-			fmt.Println()
-			fmt.Println("Global Flags:")
-			fmt.Print(c.PersistentFlags().FlagUsages())
-			fmt.Println()
-			fmt.Println("Inside an Andurel application directory, some common commands are:")
-			fmt.Println()
-			fmt.Printf("  %-14s %s\n", "generate", "Generate new code")
-			fmt.Printf("  %-14s %s\n", "console", "Interactive database console")
-			fmt.Printf("  %-14s %s\n", "migrate", "Run database migrations")
-		}
-	})
+	rootCmd.SetHelpFunc(renderHumanHelp)
 
 	return rootCmd
 }

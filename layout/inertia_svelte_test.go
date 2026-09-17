@@ -10,7 +10,6 @@ func TestScaffoldSvelteInertiaAssets(t *testing.T) {
 		"testapp",
 		"postgresql",
 		"test",
-		nil,
 		"svelte",
 		"npm",
 	); err != nil {

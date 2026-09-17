@@ -30,118 +30,29 @@ func chdirToProjectRoot() error {
 
 func newGenerateCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "generate",
-		Aliases: []string{"g"},
-		Short:   "Generate new code (model, factory, controller, scaffold, job, email, routes, payloads, query, queries)",
-		Long: `Generates new code for your Andurel application. The following
-generators are available:
+		Use:   "generate",
+		Short: "Create application-owned code",
+		Long: `Create application-owned files: migrations, models, controllers, scaffolds, jobs, emails, and SQL query files.
 
-  model       Generate a model from the existing migration, or update one
-              with --update. Model updates also sync the matching factory
-              unless --skip-factory is passed.
-  factory     Generate or sync a model factory
-  factories   Check or sync all model factories
-  views       Generate Go code from Templ templates (templ generate)
-  query       Generate a narsilc SQL query file in models/queries
-  queries     Generate Go code from narsilc SQL files
-  controller  Generate a controller, views, and routes
-  scaffold    Generate a complete resource with model, controller, views, and routes
-  job         Generate a background job with a worker
-  email       Generate an email template
-  routes      Generate TypeScript route helpers for Inertia frontends
-  payloads    Generate TypeScript payload types for Inertia frontends
-
-Controller and scaffold names may include one lowercase namespace segment,
-for example admin/Widget. Namespaces generate controllers/admin, admin route
-names, and Admin-prefixed route/view symbols.`,
-		Example: `  andurel generate model Post
-  andurel generate model Post --update
-  andurel generate factory Post --sync
-  andurel generate factories --check
-  andurel generate view
-  andurel generate controller Widget index show
-  andurel generate controller admin/Widget export
+Refresh derived files with andurel sync. Inspect existing files with andurel inspect.`,
+		Example: `  andurel generate migration create_posts
+  andurel generate model Post
   andurel generate scaffold Product
-  andurel generate scaffold admin/Widget
+  andurel generate controller Widget index show
   andurel generate job SendWelcomeEmail
   andurel generate email WelcomeEmail
-  andurel generate routes
-  andurel generate payloads
-  andurel generate query UserReport
-  andurel generate queries`,
+  andurel generate query UserReport`,
 	}
-	setAgentMetadata(
-		cmd,
-		"generation",
-		"Requires an Andurel project root for generators that inspect or write project files.",
-	)
-
 	cmd.AddCommand(
+		newGenerateMigrationCommand(),
 		newGenerateModelCommand(),
-		newGenerateFactoryCommand(),
-		newGenerateFactoriesCommand(),
-		newGenerateViewsCommand(),
 		newGenerateQueryCommand(),
-		newGenerateQueriesCommand(),
 		newGenerateControllerCommand(),
 		newGenerateScaffoldCommand(),
 		newGenerateJobCommand(),
 		newGenerateEmailCommand(),
-		newGenerateRoutesCommand(),
-		newGeneratePayloadsCommand(),
 	)
-
-	setStandardHelp(cmd,
-		helpCommand{
-			Use:         "generate model NAME",
-			Description: "generates a new model from migration",
-		},
-		helpCommand{
-			Use:         "generate factory NAME",
-			Description: "generates or syncs a model factory",
-		},
-		helpCommand{
-			Use:         "generate factories",
-			Description: "checks or syncs all model factories",
-		},
-		helpCommand{
-			Use:         "generate view",
-			Description: "generates Go code from Templ templates",
-		},
-		helpCommand{
-			Use:         "generate query NAME",
-			Description: "generates a narsilc SQL query file",
-		},
-		helpCommand{
-			Use:         "generate queries",
-			Description: "generates Go code from narsilc SQL files",
-		},
-		helpCommand{
-			Use:         "generate controller [namespace/]NAME [action ...]",
-			Description: "generates a new controller",
-		},
-		helpCommand{
-			Use:         "generate scaffold [namespace/]NAME",
-			Description: "generates a complete scaffold resource",
-		},
-		helpCommand{
-			Use:         "generate job NAME",
-			Description: "generates a new background job",
-		},
-		helpCommand{
-			Use:         "generate email NAME",
-			Description: "generates a new email template",
-		},
-		helpCommand{
-			Use:         "generate routes",
-			Description: "generates TypeScript route helpers for Inertia frontends",
-		},
-		helpCommand{
-			Use:         "generate payloads",
-			Description: "generates TypeScript payload types for Inertia frontends",
-		},
-	)
-
+	setStandardHelp(cmd)
 	return cmd
 }
 
