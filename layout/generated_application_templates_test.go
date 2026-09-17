@@ -229,6 +229,7 @@ func TestGeneratedConfigEnvDefaults(t *testing.T) {
 		"INERTIA_",
 		"HTTP_",
 		"SESSION_MAX_AGE=",
+		"SESSION_DRIVER=",
 		"CORS_",
 		"DEFAULT_SENDER_SIGNATURE=",
 		"PREVIOUS_PEPPERS=",
@@ -593,62 +594,86 @@ func TestStandalonePackagesOwnDefaultsWithoutReadingEnvironment(t *testing.T) {
 	}
 }
 
-func TestGeneratedSessionRecoveryTemplates(t *testing.T) {
+func TestGeneratedKiksSessionTemplates(t *testing.T) {
 	root := t.TempDir()
 	if err := processTemplatedFiles(root, &TemplateData{ModuleName: "example.com/app"}); err != nil {
 		t.Fatalf("process templates: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(root, "router/cookies/session.go")); err != nil {
-		t.Fatalf("generated shared session loader: %v", err)
+	if _, err := os.Stat(filepath.Join(root, "router/cookies/cookies.go")); err != nil {
+		t.Fatalf("generated cookies package: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "router/appctx/appctx.go")); err == nil {
+		t.Fatal("generated appctx package should be removed")
+	}
+	if _, err := os.Stat(filepath.Join(root, "router/cookies/flash.go")); err == nil {
+		t.Fatal("generated flash cookie helper should be removed")
+	}
+	if _, err := os.Stat(filepath.Join(root, "router/cookies/session.go")); err == nil {
+		t.Fatal("generated gorilla session helper should be removed")
+	}
+	if _, err := os.Stat(filepath.Join(root, "views/components/toast.templ")); err != nil {
+		t.Fatalf("generated toast component: %v", err)
 	}
 
-	sessionRecovery := readGeneratedApplicationTemplate(t, "router_cookies_session.tmpl")
+	cookies := readGeneratedApplicationTemplate(t, "router_cookies_cookies.tmpl")
 	for _, want := range []string{
-		"func (s *Session) RecoverInvalidSessions",
-		"securecookie.Error",
-		"decodeError.IsDecode()",
-		"decodeError.IsUsage()",
-		"decodeError.IsInternal()",
-		"clear(sess.Values)",
-		"sess.Save(c.Request(), c.Response())",
-		"func getSession",
+		"github.com/mbvlabs/andurel/pkg/kiks",
+		"func Definitions(",
+		"kiks.Session[App]",
+		"func Current(ctx context.Context) App",
+		"func CreateAppSession(",
+		"func DestroyAppSession(",
 	} {
-		if !strings.Contains(sessionRecovery, want) {
-			t.Errorf("router_cookies_session.tmpl missing %q", want)
+		if !strings.Contains(cookies, want) {
+			t.Errorf("router_cookies_cookies.tmpl missing %q", want)
 		}
-	}
-
-	for _, templateName := range []string{"router_cookies_cookies.tmpl", "router_cookies_flash.tmpl"} {
-		content := readGeneratedApplicationTemplate(t, templateName)
-		if strings.Contains(content, "session.Get(") {
-			t.Errorf("%s bypasses the recoverable session loader", templateName)
-		}
-		if !strings.Contains(content, "getSession(") {
-			t.Errorf("%s does not use the recoverable session loader", templateName)
-		}
-	}
-
-	middleware := readGeneratedApplicationTemplate(t, "router_middleware_middleware.tmpl")
-	if !strings.Contains(middleware, "session.RecoverInvalidSessions(c)") {
-		t.Error("router_middleware_middleware.tmpl does not recover invalid session cookies")
 	}
 
 	router := readGeneratedApplicationTemplate(t, "router_router.tmpl")
-	if !strings.Contains(router, "middleware.RegisterRequestMeta(cookieSession)") {
-		t.Error("router_router.tmpl does not register request metadata with injected session")
+	for _, want := range []string{
+		"jar.EchoMiddleware",
+		"kiks.SkipPrefixes",
+		"func newJar(",
+		"kiks.CookieStore()",
+	} {
+		if !strings.Contains(router, want) {
+			t.Errorf("router_router.tmpl missing %q", want)
+		}
+	}
+	if strings.Contains(router, "kiks.NewSQLStore") {
+		t.Error("router_router.tmpl still wires the database session driver")
+	}
+	if strings.Contains(router, "RegisterRequestMeta") {
+		t.Error("router_router.tmpl still registers request metadata middleware")
 	}
 
 	if _, exists := baseTemplateMappings["application_metadata.tmpl"]; exists {
 		t.Error("legacy application_metadata template is still mapped")
 	}
+	if _, exists := baseTemplateMappings["router_appctx_appctx.tmpl"]; exists {
+		t.Error("legacy appctx template is still mapped")
+	}
+	if _, exists := baseTemplateMappings["router_cookies_session.tmpl"]; exists {
+		t.Error("legacy gorilla session template is still mapped")
+	}
+	if strings.Contains(cookies, "func init(") {
+		t.Error("router_cookies_cookies.tmpl still uses init")
+	}
+	if _, exists := baseStyleTemplateMappings["css_toasts.tmpl"]; !exists {
+		t.Error("toast CSS template is not mapped")
+	}
+	if _, exists := baseStyleTemplateMappings["views_components_toast.tmpl"]; !exists {
+		t.Error("toast component template is not mapped")
+	}
 
-	if got := baseTemplateMappings["router_cookies_session.tmpl"]; got != "router/cookies/session.go" {
-		t.Fatalf("session recovery template target = %q, want router/cookies/session.go", got)
+	toast := readGeneratedApplicationTemplate(t, "views_components_toast.tmpl")
+	if !strings.Contains(toast, "kiks.FlashMessage") {
+		t.Error("views_components_toast.tmpl does not use kiks.FlashMessage")
 	}
 
 	goMod := readGeneratedApplicationTemplate(t, "go_mod.tmpl")
-	if !strings.Contains(goMod, "github.com/gorilla/securecookie v1.1.2") {
-		t.Error("go_mod.tmpl does not declare securecookie as a direct dependency")
+	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/kiks {{.KiksPackageVersion}}") {
+		t.Error("go_mod.tmpl does not require the standalone kiks module")
 	}
 	if !strings.Contains(goMod, "github.com/mbvlabs/andurel/pkg/telemetry {{.TelemetryPackageVersion}}") {
 		t.Error("go_mod.tmpl does not require the standalone telemetry module")

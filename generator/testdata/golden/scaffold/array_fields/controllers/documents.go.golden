@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"testapp/models"
 	"testapp/router"
-	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/views"
 	"uuid"
@@ -15,16 +14,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 type Documents struct {
 	documents models.Documents
-	session   *cookies.Session
 }
 
-func NewDocuments(documents models.Documents, session *cookies.Session) Documents {
-	return Documents{documents: documents, session: session}
+func NewDocuments(documents models.Documents) Documents {
+	return Documents{documents}
 }
 
 func (d Documents) RegisterRoutes(r *router.Router) error {
@@ -185,15 +184,11 @@ func (d Documents) Create(etx *echo.Context) error {
 		data,
 	)
 	if err != nil {
-		if flashErr := d.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create document: %v", err)); flashErr != nil {
-			return flashErr
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to create document: %v", err))
 		return etx.Redirect(http.StatusSeeOther, routes.DocumentNew.URL())
 	}
 
-	if flashErr := d.session.AddFlash(etx, cookies.FlashSuccess, "Document created successfully"); flashErr != nil {
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Document created successfully")
 	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID.Bytes))
 }
 
@@ -258,18 +253,14 @@ func (d Documents) Update(etx *echo.Context) error {
 		data,
 	)
 	if err != nil {
-		if flashErr := d.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update document: %v", err)); flashErr != nil {
-			return hypermedia.RenderPage(etx, views.InternalError())
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to update document: %v", err))
 		return etx.Redirect(
 			http.StatusSeeOther,
 			routes.DocumentEdit.URL(documentID),
 		)
 	}
 
-	if flashErr := d.session.AddFlash(etx, cookies.FlashSuccess, "Document updated successfully"); flashErr != nil {
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Document updated successfully")
 	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID.Bytes))
 }
 
@@ -281,14 +272,10 @@ func (d Documents) Destroy(etx *echo.Context) error {
 
 	err = d.documents.Destroy(etx.Request().Context(), pgtype.UUID{Bytes: documentID, Valid: true})
 	if err != nil {
-		if flashErr := d.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete document: %v", err)); flashErr != nil {
-			return hypermedia.RenderPage(etx, views.InternalError())
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to delete document: %v", err))
 		return etx.Redirect(http.StatusSeeOther, routes.DocumentIndex.URL())
 	}
 
-	if flashErr := d.session.AddFlash(etx, cookies.FlashSuccess, "Document destroyed successfully"); flashErr != nil {
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Document destroyed successfully")
 	return etx.Redirect(http.StatusSeeOther, routes.DocumentIndex.URL())
 }

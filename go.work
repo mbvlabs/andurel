@@ -5,6 +5,7 @@ use (
 	./pkg/email
 	./pkg/hypermedia
 	./pkg/inertia
+	./pkg/kiks
 	./pkg/routing
 	./pkg/server
 	./pkg/storage

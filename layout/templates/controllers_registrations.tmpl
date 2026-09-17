@@ -6,13 +6,13 @@ import (
 	"strings"
 
 	"{{.ModuleName}}/router"
-	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
 	"{{.ModuleName}}/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
@@ -21,11 +21,10 @@ import (
 
 type Registrations struct {
 	identity services.Identity
-	session  *cookies.Session
 }
 
-func NewRegistrations(identity services.Identity, session *cookies.Session) Registrations {
-	return Registrations{identity, session}
+func NewRegistrations(identity services.Identity) Registrations {
+	return Registrations{identity}
 }
 
 func (r Registrations) RegisterRoutes(rtr *router.Router) error {
@@ -127,13 +126,11 @@ func (r Registrations) Create(etx *echo.Context) error {
 		outcome = "error"
 		cause = err
 
-		if flashErr := r.session.AddFlash(
-			etx,
-			cookies.FlashError,
+		kiks.AddFlash(
+			etx.Request().Context(),
+			kiks.FlashError,
 			"Failed to register user",
-		); flashErr != nil {
-			return hypermedia.RenderPage(etx, views.InternalError())
-		}
+		)
 
 		return etx.Redirect(http.StatusSeeOther, routes.RegistrationNew.URL())
 	}

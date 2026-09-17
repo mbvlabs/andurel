@@ -976,7 +976,7 @@ defineProps<{
 </template>
 ```
 
-Flash messages set via `cookies.AddFlash()` in the controller are automatically injected into Inertia props as `flash` and displayed as toast notifications by the configured Inertia adapter.
+Flash messages set via `kiks.AddFlash()` in the controller are automatically injected into Inertia as `page.flash` and displayed as toast notifications by the configured Inertia adapter.
 
 ## Contributing
 

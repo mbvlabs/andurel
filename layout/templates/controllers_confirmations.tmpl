@@ -11,6 +11,7 @@ import (
 	"{{.ModuleName}}/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
@@ -19,11 +20,10 @@ import (
 
 type Confirmations struct {
 	identity services.Identity
-	session  *cookies.Session
 }
 
-func NewConfirmations(identity services.Identity, session *cookies.Session) Confirmations {
-	return Confirmations{identity, session}
+func NewConfirmations(identity services.Identity) Confirmations {
+	return Confirmations{identity}
 }
 
 func (c Confirmations) RegisterRoutes(r *router.Router) error {
@@ -105,31 +105,18 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			errorMsg = "Failed to verify email"
 		}
 
-		if flashErr := c.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return hypermedia.RenderPage(etx, views.InternalError())
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, errorMsg)
 
 		return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
 	}
 
-	if err := c.session.CreateAppSession(etx, user); err != nil {
-		telemetry.Error(
-			ctx,
-			"failed to create session",
-			"error",
-			err,
-		)
+	cookies.CreateAppSession(etx.Request().Context(), user)
 
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
-
-	if flashErr := c.session.AddFlash(
-		etx,
-		cookies.FlashSuccess,
+	kiks.AddFlash(
+		etx.Request().Context(),
+		kiks.FlashSuccess,
 		"Email verified successfully!",
-	); flashErr != nil {
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	)
 
 	return hypermedia.Redirect(etx, routes.HomePage.URL())
 }

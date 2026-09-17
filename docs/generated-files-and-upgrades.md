@@ -14,7 +14,7 @@ The `router/*` tree is application-owned, so `andurel upgrade` does not install 
 
 When an upgrade crosses from a version before `v1.5.4` to `v1.5.4` or later, `andurel upgrade` prints this complete migration with the project's module path already rendered. The same manual action is included in dry-run and structured JSON output. Projects starting on `v1.5.4` or later do not receive the note.
 
-1. Add `router/cookies/session.go` from [`router_cookies_session.tmpl`](../layout/templates/router_cookies_session.tmpl), replacing the template module import with the project's module path.
+1. Add `router/cookies/session.go` using the complete source printed by the upgrade note (the historical gorilla decode-recovery helper).
 2. In `router/cookies/cookies.go` and `router/cookies/flash.go`, replace calls to Echo's `session.Get` with the shared `getSession` helper and remove the now-unused Echo session imports.
 3. In `router/middleware/middleware.go`, call `cookies.RecoverInvalidSessions(c)` inside `ValidateSession`, after the assets and API bypass and before calling the next handler.
 4. Add `github.com/gorilla/securecookie v1.1.2` as a direct dependency, then run `gofmt`, `go fix ./...`, and `go vet ./...`.

@@ -10,6 +10,7 @@ import (
 	"{{.ModuleName}}/services"
 
 	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
@@ -19,15 +20,13 @@ import (
 type Confirmations struct {
 	identity services.Identity
 	renderer *inertia.Renderer
-	session  *cookies.Session
 }
 
 func NewConfirmations(
 	identity services.Identity,
 	renderer *inertia.Renderer,
-	session *cookies.Session,
 ) Confirmations {
-	return Confirmations{identity: identity, renderer: renderer, session: session}
+	return Confirmations{identity: identity, renderer: renderer}
 }
 
 func (c Confirmations) RegisterRoutes(r *router.Router) error {
@@ -110,31 +109,18 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			errorMsg = "Failed to verify email"
 		}
 
-		if flashErr := c.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, errorMsg)
 
 		return c.renderer.Redirect(etx, routes.ConfirmationNew.URL(), http.StatusSeeOther)
 	}
 
-	if err := c.session.CreateAppSession(etx, user); err != nil {
-		telemetry.Error(
-			ctx,
-			"failed to create session",
-			"error",
-			err,
-		)
+	cookies.CreateAppSession(etx.Request().Context(), user)
 
-		return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
-	}
-
-	if flashErr := c.session.AddFlash(
-		etx,
-		cookies.FlashSuccess,
+	kiks.AddFlash(
+		etx.Request().Context(),
+		kiks.FlashSuccess,
 		"Email verified successfully!",
-	); flashErr != nil {
-		return c.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
-	}
+	)
 
 	return c.renderer.Location(etx, routes.HomePage.URL())
 }

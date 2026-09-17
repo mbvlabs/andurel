@@ -73,8 +73,13 @@ func ExecuteScript(c *echo.Context, scriptContents string, opts ...ExecuteScript
 	return nil
 }
 
+// ClientRedirectHeader marks a Datastar/SSE navigation so session flashes can
+// persist without an HTTP 3xx status. Must match kiks.ClientRedirectHeader.
+const ClientRedirectHeader = "X-Andurel-Client-Redirect"
+
 // Redirect sends a browser redirect script as a Datastar/SSE response.
 func Redirect(c *echo.Context, url string, opts ...ExecuteScriptOption) error {
+	c.Response().Header().Set(ClientRedirectHeader, "1")
 	js := fmt.Sprintf("setTimeout(() => window.location.href = %q)", url)
 	return ExecuteScript(c, js, opts...)
 }

@@ -265,8 +265,8 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileMissing(t, projectDir, "views/root.go.html")
 	assertFileContains(t, projectDir, "router/router.go", "renderer *inertia.Renderer")
 	assertFileContains(t, projectDir, "router/router.go", "renderer.Middleware()")
-	assertFileContains(t, projectDir, "router/router.go", "renderer.SetReflashHandler")
-	assertFileContains(t, projectDir, "router/cookies/flash.go", "func (s *Session) Reflash(")
+	assertFileContains(t, projectDir, "router/router.go", "jar.EchoMiddleware")
+	assertFileMissing(t, projectDir, "router/cookies/flash.go")
 	assertFileContains(
 		t,
 		projectDir,
@@ -282,8 +282,9 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	)
 	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/hypermedia "+versions.Hypermedia)
 	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/inertia "+versions.Inertia)
-	assertFileContains(t, projectDir, "router/appctx/appctx.go", "func WithFlashes(")
-	assertFileContains(t, projectDir, "router/middleware/middleware.go", "appctx.WithFlashes(")
+	assertFileContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel/pkg/kiks "+versions.Kiks)
+	assertFileMissing(t, projectDir, "router/appctx/appctx.go")
+	assertFileContains(t, projectDir, "cmd/app/main.go", "kiks.Flashes")
 	assertFileNotContains(t, projectDir, "go.mod", "github.com/mbvlabs/andurel v")
 	assertFileNotContains(t, projectDir, "go.mod", "github.com/romsar/gonertia")
 	assertFileMissing(t, projectDir, "resources/js/app.ts")
@@ -297,7 +298,7 @@ func TestScaffoldReactInertiaAssets(t *testing.T) {
 	assertFileMissing(t, projectDir, "views/reset_password.templ")
 	assertFileMissing(t, projectDir, "views/confirm_email.templ")
 
-	for _, pkg := range []string{"email", "hypermedia", "inertia", "routing", "server", "storage", "validation"} {
+	for _, pkg := range []string{"email", "hypermedia", "inertia", "kiks", "routing", "server", "storage", "telemetry", "validation"} {
 		module, err := filepath.Abs(filepath.Join("..", "pkg", pkg))
 		if err != nil {
 			t.Fatalf("resolve standalone %s module: %v", pkg, err)

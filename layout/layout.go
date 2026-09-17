@@ -160,12 +160,14 @@ type FrameworkManagedFile struct {
 }
 
 var baseStyleTemplateMappings = map[TmplTarget]TmplTargetPath{
-	"css_base.tmpl":  "css/base.css",
-	"css_email.tmpl": "css/email.css",
+	"css_base.tmpl":   "css/base.css",
+	"css_toasts.tmpl": "css/toasts.css",
+	"css_email.tmpl":  "css/email.css",
 
 	// Views
-	"views_layout.tmpl":  "views/layout.templ",
-	"views_welcome.tmpl": "views/welcome.templ",
+	"views_layout.tmpl":           "views/layout.templ",
+	"views_components_toast.tmpl": "views/components/toast.templ",
+	"views_welcome.tmpl":          "views/welcome.templ",
 
 	// Views - Pages
 	"views_bad_request.tmpl":    "views/bad_request.templ",
@@ -252,10 +254,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Router
 	"router_router.tmpl":                     "router/router.go",
 	"router_router_test.tmpl":                "router/router_test.go",
-	"router_appctx_appctx.tmpl":              "router/appctx/appctx.go",
 	"router_cookies_cookies.tmpl":            "router/cookies/cookies.go",
-	"router_cookies_flash.tmpl":              "router/cookies/flash.go",
-	"router_cookies_session.tmpl":            "router/cookies/session.go",
 	"router_middleware_middleware.tmpl":      "router/middleware/middleware.go",
 	"router_middleware_middleware_test.tmpl": "router/middleware/middleware_test.go",
 
@@ -832,30 +831,17 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 	builder.AddWorkerDependency("marketingSender", "email.MarketingSender")
 
 	// Auth cookies configuration
-	builder.AddCookiesImport("uuid")
 	builder.AddCookiesImport(fmt.Sprintf("%s/models", moduleName))
-
-	builder.AddCookiesConstant("isAuthenticated", "is_authenticated")
-	builder.AddCookiesConstant("isAdmin", "is_admin")
-	builder.AddCookiesConstant("userID", "user_id")
 
 	builder.AddCookiesAppField("UserID", "uuid.UUID")
 	builder.AddCookiesAppField("IsAdmin", "bool")
 	builder.AddCookiesAppField("IsAuthenticated", "bool")
 
-	builder.SetCookiesCreateSessionCode(`	sess.Values[isAuthenticated] = true
-	sess.Values[isAdmin] = user.IsAdmin
-	sess.Values[userID] = user.ID.String()`)
-
-	builder.SetCookiesGetSessionCode(`	if v, ok := sess.Values[isAuthenticated].(bool); ok {
-		app.IsAuthenticated = v
-	}
-	if v, ok := sess.Values[isAdmin].(bool); ok {
-		app.IsAdmin = v
-	}
-	if v, ok := sess.Values[userID].(string); ok {
-		app.UserID, _ = uuid.Parse(v)
-	}`)
+	builder.SetCookiesCreateSessionCode(`	kiks.Set(ctx, App{
+		UserID:          user.ID,
+		IsAdmin:         user.IsAdmin,
+		IsAuthenticated: true,
+	})`)
 
 	for _, tool := range defaultTools {
 		builder.AddTool(tool)

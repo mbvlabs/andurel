@@ -4,11 +4,60 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mbvlabs/andurel/layout"
-	layouttemplates "github.com/mbvlabs/andurel/layout/templates"
 	"github.com/mbvlabs/andurel/layout/versions"
 	"golang.org/x/mod/semver"
 )
+
+// historicalSessionCookieRecovery is the v1.5.4 gorilla session decode-recovery
+// helper. The generating template was removed when sessions moved to pkg/kiks.
+const historicalSessionCookieRecovery = `package cookies
+
+import (
+	"errors"
+
+	"github.com/gorilla/securecookie"
+	"github.com/gorilla/sessions"
+	"github.com/labstack/echo-contrib/v5/session"
+	"github.com/labstack/echo/v5"
+)
+
+const recoveredSessionContextPrefix = "andurel/recovered-session/"
+
+func (s *Session) RecoverInvalidSessions(c *echo.Context) error {
+	for _, name := range []string{s.appSessionName, s.flashSessionName} {
+		sess, err := session.Get(name, c)
+		if err == nil {
+			continue
+		}
+
+		var decodeError securecookie.Error
+		if !errors.As(err, &decodeError) ||
+			!decodeError.IsDecode() ||
+			decodeError.IsUsage() ||
+			decodeError.IsInternal() {
+			return err
+		}
+
+		clear(sess.Values)
+		sess.IsNew = true
+		if err := sess.Save(c.Request(), c.Response()); err != nil {
+			return err
+		}
+		c.Set(recoveredSessionContextPrefix+name, true)
+	}
+
+	return nil
+}
+
+func getSession(name string, c *echo.Context) (*sessions.Session, error) {
+	sess, err := session.Get(name, c)
+	if err != nil && c.Get(recoveredSessionContextPrefix+name) != true {
+		return nil, err
+	}
+
+	return sess, nil
+}
+`
 
 const (
 	sessionCookieRecoveryVersion    = "v1.5.4"
@@ -33,22 +82,13 @@ func manualActionsForUpgrade(
 	actions := []ManualAction{}
 
 	if crossesVersion(fromVersion, toVersion, sessionCookieRecoveryVersion) {
-		sessionSource, err := renderTemplateToBytes(
-			"router_cookies_session.tmpl",
-			layouttemplates.Files,
-			&layout.TemplateData{ModuleName: modulePath},
-		)
-		if err != nil {
-			return nil, fmt.Errorf("render session-cookie recovery instructions: %w", err)
-		}
-
 		var instructions strings.Builder
 		instructions.WriteString(
 			"The router tree is application-owned, so Andurel did not change it automatically.\n",
 		)
 		instructions.WriteString("If this recovery is already present, no action is required.\n\n")
 		instructions.WriteString("1. Create router/cookies/session.go:\n\n```go\n")
-		instructions.Write(sessionSource)
+		instructions.WriteString(historicalSessionCookieRecovery)
 		instructions.WriteString("```\n\n")
 		instructions.WriteString("2. In router/cookies/cookies.go and router/cookies/flash.go:\n")
 		instructions.WriteString("   - Replace calls to session.Get with getSession.\n")

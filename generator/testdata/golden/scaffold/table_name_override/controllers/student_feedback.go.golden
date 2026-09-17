@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"testapp/models"
 	"testapp/router"
-	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/views"
 	"time"
@@ -16,16 +15,16 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 type FeedbackEntry struct {
 	feedbackEntries models.FeedbackEntries
-	session         *cookies.Session
 }
 
-func NewFeedbackEntry(feedbackEntries models.FeedbackEntries, session *cookies.Session) FeedbackEntry {
-	return FeedbackEntry{feedbackEntries: feedbackEntries, session: session}
+func NewFeedbackEntry(feedbackEntries models.FeedbackEntries) FeedbackEntry {
+	return FeedbackEntry{feedbackEntries}
 }
 
 func (fe FeedbackEntry) RegisterRoutes(r *router.Router) error {
@@ -191,15 +190,11 @@ func (fe FeedbackEntry) Create(etx *echo.Context) error {
 		data,
 	)
 	if err != nil {
-		if flashErr := fe.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create feedbackEntry: %v", err)); flashErr != nil {
-			return flashErr
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to create feedbackEntry: %v", err))
 		return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryNew.URL())
 	}
 
-	if flashErr := fe.session.AddFlash(etx, cookies.FlashSuccess, "FeedbackEntry created successfully"); flashErr != nil {
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "FeedbackEntry created successfully")
 	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryShow.URL(feedbackEntry.ID.Bytes))
 }
 
@@ -269,18 +264,14 @@ func (fe FeedbackEntry) Update(etx *echo.Context) error {
 		data,
 	)
 	if err != nil {
-		if flashErr := fe.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update feedbackEntry: %v", err)); flashErr != nil {
-			return hypermedia.RenderPage(etx, views.InternalError())
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to update feedbackEntry: %v", err))
 		return etx.Redirect(
 			http.StatusSeeOther,
 			routes.FeedbackEntryEdit.URL(feedbackEntryID),
 		)
 	}
 
-	if flashErr := fe.session.AddFlash(etx, cookies.FlashSuccess, "FeedbackEntry updated successfully"); flashErr != nil {
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "FeedbackEntry updated successfully")
 	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryShow.URL(feedbackEntry.ID.Bytes))
 }
 
@@ -292,14 +283,10 @@ func (fe FeedbackEntry) Destroy(etx *echo.Context) error {
 
 	err = fe.feedbackEntries.Destroy(etx.Request().Context(), pgtype.UUID{Bytes: feedbackEntryID, Valid: true})
 	if err != nil {
-		if flashErr := fe.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete feedbackEntry: %v", err)); flashErr != nil {
-			return hypermedia.RenderPage(etx, views.InternalError())
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to delete feedbackEntry: %v", err))
 		return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryIndex.URL())
 	}
 
-	if flashErr := fe.session.AddFlash(etx, cookies.FlashSuccess, "FeedbackEntry destroyed successfully"); flashErr != nil {
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "FeedbackEntry destroyed successfully")
 	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryIndex.URL())
 }

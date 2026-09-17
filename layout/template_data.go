@@ -66,6 +66,12 @@ func (td *TemplateData) InertiaPackageVersion() string {
 	return versions.Inertia
 }
 
+// KiksPackageVersion returns the standalone kiks module version verified with
+// this framework release.
+func (td *TemplateData) KiksPackageVersion() string {
+	return versions.Kiks
+}
+
 // RoutingPackageVersion returns the standalone routing module version verified
 // with this framework release.
 func (td *TemplateData) RoutingPackageVersion() string {

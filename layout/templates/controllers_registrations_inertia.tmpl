@@ -6,12 +6,12 @@ import (
 	"strings"
 
 	"{{.ModuleName}}/router"
-	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
 
 	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
@@ -21,15 +21,13 @@ import (
 type Registrations struct {
 	identity services.Identity
 	renderer *inertia.Renderer
-	session  *cookies.Session
 }
 
 func NewRegistrations(
 	identity services.Identity,
 	renderer *inertia.Renderer,
-	session *cookies.Session,
 ) Registrations {
-	return Registrations{identity: identity, renderer: renderer, session: session}
+	return Registrations{identity: identity, renderer: renderer}
 }
 
 func (r Registrations) RegisterRoutes(rtr *router.Router) error {
@@ -132,13 +130,11 @@ func (r Registrations) Create(etx *echo.Context) error {
 		outcome = "error"
 		cause = err
 
-		if flashErr := r.session.AddFlash(
-			etx,
-			cookies.FlashError,
+		kiks.AddFlash(
+			etx.Request().Context(),
+			kiks.FlashError,
 			"Failed to register user",
-		); flashErr != nil {
-			return r.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
-		}
+		)
 
 		return r.renderer.Redirect(etx, routes.RegistrationNew.URL(), http.StatusSeeOther)
 	}
