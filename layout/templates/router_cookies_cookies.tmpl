@@ -1,11 +1,13 @@
 package cookies
 
 import (
+	"context"
+	"uuid"
 {{- range .Blueprint.Cookies.Imports.Items}}
 	"{{.}}"
 {{- end}}
 
-	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 )
 
 {{- if gt (len .Blueprint.Cookies.SortedConstants) 0}}
@@ -17,74 +19,49 @@ const (
 )
 {{- end}}
 
-// Session carries the runtime session cookie names derived from app identity
-// so the cookies package holds no global state. It is constructed once and
-// injected where session/flash cookies are needed.
-type Session struct {
-	appSessionName   string
-	flashSessionName string
-}
-
-func NewSession(appSessionName, projectName, environment string) *Session {
-	return &Session{
-		appSessionName:   appSessionName,
-		flashSessionName: buildFlashSessionName(projectName, environment),
-	}
-}
-
 type App struct {
-	CurrentPath string
 {{- range .Blueprint.Cookies.SortedAppFields}}
 	{{.Name}} {{.Type}}
 {{- end}}
 }
 
+func Definitions(name string, secure bool, maxAge int) []kiks.Definition {
+	return []kiks.Definition{
+		kiks.Session[App](
+			name,
+			kiks.HTTPOnly(),
+			kiks.Secure(secure),
+			kiks.MaxAge(maxAge),
+		),
+	}
+}
+
+func Current(ctx context.Context) App {
+	return kiks.Get[App](ctx)
+}
+
 {{- if not (len .Blueprint.Cookies.SortedAppFields)}}
 
-func (s *Session) CreateAppSession(c *echo.Context) error {
-{{- else}}
-
-func (s *Session) CreateAppSession(c *echo.Context, user models.User) error {
-{{- end}}
-	sess, err := getSession(s.appSessionName, c)
-	if err != nil {
-		return err
-	}
+func CreateAppSession(ctx context.Context) {
 {{- if .Blueprint.Cookies.CreateSessionCode}}
-
 {{.Blueprint.Cookies.CreateSessionCode}}
-{{- end}}
-
-	return sess.Save(c.Request(), c.Response())
-}
-
-func (s *Session) DestroyAppSession(c *echo.Context) error {
-	sess, err := getSession(s.appSessionName, c)
-	if err != nil {
-		return err
-	}
-
-	sess.Options.MaxAge = -1
-	return sess.Save(c.Request(), c.Response())
-}
-
-func (s *Session) ExtractFromCookieApp(c *echo.Context) App {
-{{- if not (len .Blueprint.Cookies.SortedAppFields)}}
-	_, err := getSession(s.appSessionName, c)
 {{- else}}
-	sess, err := getSession(s.appSessionName, c)
+	kiks.Set(ctx, App{})
 {{- end}}
-	if err != nil {
-		return App{}
-	}
+}
+{{- else}}
 
-	app := App{}
-{{- if .Blueprint.Cookies.GetSessionCode}}
-
-{{.Blueprint.Cookies.GetSessionCode}}
+func CreateAppSession(ctx context.Context, user models.User) {
+{{- if .Blueprint.Cookies.CreateSessionCode}}
+{{.Blueprint.Cookies.CreateSessionCode}}
+{{- else}}
+	kiks.Set(ctx, App{})
+{{- end}}
+}
 {{- end}}
 
-	return app
+func DestroyAppSession(ctx context.Context) {
+	kiks.Delete[App](ctx)
 }
 
 {{- range .Blueprint.Cookies.SortedFunctions}}

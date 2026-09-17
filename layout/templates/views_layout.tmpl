@@ -3,7 +3,6 @@ package views
 import (
 	"time"
 
-	"{{.ModuleName}}/router/appctx"
 	"{{.ModuleName}}/router/routes"
 )
 
@@ -36,13 +35,6 @@ templ base(headOpts ...HeadDataOption) {
 					&copy; { time.Now().Format("2006") } andurel.
 				</div>
 			</footer>
-			<div id="flashContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-				for _, flash := range appctx.Flashes(ctx) {
-					<div class="border border-[#2f3a37] bg-[#101414] px-4 py-3 text-[#e4dfd2] shadow-lg shadow-black/40">
-						{ flash.Message }
-					</div>
-				}
-			</div>
 		</body>
 	</html>
 }

@@ -2,27 +2,22 @@
 package router
 
 import (
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
-	"uuid"
 
-{{- if .Inertia}}
-	"{{.ModuleName}}/router/appctx"
-{{- end}}
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
+	"{{.ModuleName}}/router/routes"
 
 {{- if .Inertia}}
 	"github.com/mbvlabs/andurel/pkg/inertia"
 {{- end}}
-	"github.com/gorilla/sessions"
-	"github.com/labstack/echo-contrib/v5/session"
 	"github.com/labstack/echo/v5"
 	echomw "github.com/labstack/echo/v5/middleware"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"go.uber.org/fx"
 )
@@ -36,15 +31,12 @@ func New(
 	appCfg config.App,
 	httpCfg config.HTTP,
 	sessionCfg config.Session,
-	cookieSession *cookies.Session,
+	jar *kiks.Jar,
 	tel *telemetry.Telemetry,
 {{- if .Inertia}}
 	renderer *inertia.Renderer,
 {{- end}}
 ) (*Router, error) {
-	gob.Register(uuid.UUID{})
-	gob.Register(cookies.FlashMessage{})
-
 	router := echo.New()
 	defaultHTTPErrorHandler := echo.DefaultHTTPErrorHandler(false)
 	router.HTTPErrorHandler = func(c *echo.Context, err error) {
@@ -75,7 +67,7 @@ func New(
 		appCfg,
 		httpCfg,
 		sessionCfg,
-		cookieSession,
+		jar,
 		tel,
 		"_csrf",
 		renderer,
@@ -85,7 +77,7 @@ func New(
 		appCfg,
 		httpCfg,
 		sessionCfg,
-		cookieSession,
+		jar,
 		tel,
 		"_csrf",
 	)
@@ -108,7 +100,7 @@ func SetupGlobalMiddleware(
 	appCfg config.App,
 	httpCfg config.HTTP,
 	sessionCfg config.Session,
-	cookieSession *cookies.Session,
+	jar *kiks.Jar,
 	tel *telemetry.Telemetry,
 	csrfName string,
 {{- if .Inertia}}
@@ -127,27 +119,10 @@ func SetupGlobalMiddleware(
 	if err != nil {
 		return nil, err
 	}
-	sessionStore, err := newApplicationSessionStore(
-		sessionCfg.AuthenticationKey,
-		sessionCfg.EncryptionKey,
-		sessionCfg.MaxAge,
-		appCfg.IsProduction(),
-	)
-	if err != nil {
-		return nil, err
-	}
 	corsConfig, err := newCORSConfig(appCfg.BaseURL, httpCfg.CORSAllowedOrigins)
 	if err != nil {
 		return nil, err
 	}
-	{{- if .Inertia}}
-	if err := renderer.SetReflashHandler(func(etx *echo.Context) error {
-		flashes := appctx.Flashes(etx.Request().Context())
-		return cookieSession.Reflash(etx, flashes)
-	}); err != nil {
-		return nil, err
-	}
-	{{- end}}
 
 	// Order matters: middlewares execute in the order listed, with Recover last
 	// to catch panics from all preceding middlewares.
@@ -155,40 +130,16 @@ func SetupGlobalMiddleware(
 		middleware.Telemetry(tel),
 		middleware.TraceRouteAttributes(),
 		middleware.Logger(),
-		session.Middleware(sessionStore),
-		middleware.ValidateSession(cookieSession),
+		jar.EchoMiddleware(kiks.SkipPrefixes(routes.AssetsPrefix, routes.APIPrefix)),
 {{- if .Inertia}}
 		renderer.Middleware(),
 {{- end}}
-		middleware.RegisterRequestMeta(cookieSession),
 		echomw.CORSWithConfig(corsConfig),
 		csrfMiddleware,
 		echomw.Recover(),
 	}
 
 	return middlewares, nil
-}
-
-func newApplicationSessionStore(
-	authKey []byte,
-	encKey []byte,
-	maxAge int,
-	secure bool,
-) (*sessions.CookieStore, error) {
-	if maxAge <= 0 {
-		return nil, errors.New("SESSION_MAX_AGE must be greater than zero")
-	}
-
-	store := sessions.NewCookieStore(authKey, encKey)
-	store.Options = &sessions.Options{
-		Path:     "/",
-		MaxAge:   maxAge,
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
-	}
-
-	return store, nil
 }
 
 func newCORSConfig(
@@ -240,16 +191,22 @@ func (r *Router) AddRouteNotFound(
 	return r.e.RouteNotFound("/*", notFoundHandler)
 }
 
-var Module = fx.Module(
-	"router",
-	fx.Provide(newSession),
-	fx.Provide(New),
-)
-
-func newSession(appCfg config.App, sessionCfg config.Session) *cookies.Session {
-	return cookies.NewSession(
-		sessionCfg.Name,
-		appCfg.ProjectName,
-		appCfg.Environment,
+func newJar(
+	appCfg config.App,
+	sessionCfg config.Session,
+) (*kiks.Jar, error) {
+	keys := kiks.Keys{
+		Authentication: sessionCfg.AuthenticationKey,
+		Encryption:     sessionCfg.EncryptionKey,
+	}
+	return kiks.New(
+		keys,
+		cookies.Definitions(sessionCfg.Name, appCfg.IsProduction(), sessionCfg.MaxAge)...,
 	)
 }
+
+var Module = fx.Module(
+	"router",
+	fx.Provide(newJar),
+	fx.Provide(New),
+)

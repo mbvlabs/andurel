@@ -7,24 +7,23 @@ import (
 	"strconv"
 	"testapp/models"
 	"testapp/router"
-	"testapp/router/cookies"
 	"testapp/router/routes"
 	"uuid"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 type Projects struct {
 	projects models.Projects
 	renderer *inertia.Renderer
-	session  *cookies.Session
 }
 
-func NewProjects(projects models.Projects, renderer *inertia.Renderer, session *cookies.Session) Projects {
-	return Projects{projects: projects, renderer: renderer, session: session}
+func NewProjects(projects models.Projects, renderer *inertia.Renderer) Projects {
+	return Projects{projects: projects, renderer: renderer}
 }
 
 func (p Projects) RegisterRoutes(r *router.Router) error {
@@ -223,15 +222,11 @@ func (p Projects) Create(etx *echo.Context) error {
 		data,
 	)
 	if err != nil {
-		if flashErr := p.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to create project: %v", err)); flashErr != nil {
-			return flashErr
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to create project: %v", err))
 		return p.renderer.Redirect(etx, routes.ProjectNew.URL(), http.StatusSeeOther)
 	}
 
-	if flashErr := p.session.AddFlash(etx, cookies.FlashSuccess, "Project created successfully"); flashErr != nil {
-		return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
-	}
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Project created successfully")
 	return p.renderer.Redirect(etx, routes.ProjectShow.URL(project.ID.Bytes), http.StatusSeeOther)
 }
 
@@ -293,9 +288,7 @@ func (p Projects) Update(etx *echo.Context) error {
 		data,
 	)
 	if err != nil {
-		if flashErr := p.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to update project: %v", err)); flashErr != nil {
-			return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to update project: %v", err))
 		return p.renderer.Redirect(
 			etx,
 			routes.ProjectEdit.URL(projectID),
@@ -303,9 +296,7 @@ func (p Projects) Update(etx *echo.Context) error {
 		)
 	}
 
-	if flashErr := p.session.AddFlash(etx, cookies.FlashSuccess, "Project updated successfully"); flashErr != nil {
-		return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
-	}
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Project updated successfully")
 	return p.renderer.Redirect(etx, routes.ProjectShow.URL(project.ID.Bytes), http.StatusSeeOther)
 }
 
@@ -317,14 +308,10 @@ func (p Projects) Destroy(etx *echo.Context) error {
 
 	err = p.projects.Destroy(etx.Request().Context(), pgtype.UUID{Bytes: projectID, Valid: true})
 	if err != nil {
-		if flashErr := p.session.AddFlash(etx, cookies.FlashError, fmt.Sprintf("Failed to delete project: %v", err)); flashErr != nil {
-			return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to delete project: %v", err))
 		return p.renderer.Redirect(etx, routes.ProjectIndex.URL(), http.StatusSeeOther)
 	}
 
-	if flashErr := p.session.AddFlash(etx, cookies.FlashSuccess, "Project destroyed successfully"); flashErr != nil {
-		return p.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
-	}
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Project destroyed successfully")
 	return p.renderer.Redirect(etx, routes.ProjectIndex.URL(), http.StatusSeeOther)
 }

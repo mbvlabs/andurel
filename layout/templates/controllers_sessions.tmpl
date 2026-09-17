@@ -12,6 +12,7 @@ import (
 	"{{.ModuleName}}/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
@@ -20,11 +21,10 @@ import (
 
 type Sessions struct {
 	identity services.Identity
-	session  *cookies.Session
 }
 
-func NewSessions(identity services.Identity, session *cookies.Session) Sessions {
-	return Sessions{identity, session}
+func NewSessions(identity services.Identity) Sessions {
+	return Sessions{identity}
 }
 
 func (s Sessions) RegisterRoutes(r *router.Router) error {
@@ -118,31 +118,18 @@ func (s Sessions) Create(etx *echo.Context) error {
 			errorMsg = "Failed to log in"
 		}
 
-		if flashErr := s.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return hypermedia.RenderPage(etx, views.InternalError())
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, errorMsg)
 
 		return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 	}
 
-	if err := s.session.CreateAppSession(etx, user); err != nil {
-		telemetry.Error(
-			ctx,
-			"failed to create session",
-			"error",
-			err,
-		)
+	cookies.CreateAppSession(etx.Request().Context(), user)
 
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
-
-	if flashErr := s.session.AddFlash(
-		etx,
-		cookies.FlashSuccess,
+	kiks.AddFlash(
+		etx.Request().Context(),
+		kiks.FlashSuccess,
 		"Successfully logged in!",
-	); flashErr != nil {
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	)
 
 	return hypermedia.Redirect(etx, routes.HomePage.URL())
 }
@@ -151,23 +138,13 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 	ctx, span := telemetry.From(etx, "sessions.destroy")
 	defer span.End()
 
-	if err := s.session.DestroyAppSession(etx); err != nil {
-		telemetry.Error(
-			ctx,
-			"failed to destroy session",
-			"error",
-			err,
-		)
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	cookies.DestroyAppSession(etx.Request().Context())
 
-	if flashErr := s.session.AddFlash(
-		etx,
-		cookies.FlashSuccess,
+	kiks.AddFlash(
+		etx.Request().Context(),
+		kiks.FlashSuccess,
 		"Successfully logged out!",
-	); flashErr != nil {
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	)
 
 	return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 }

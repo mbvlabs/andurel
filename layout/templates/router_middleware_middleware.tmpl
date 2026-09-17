@@ -7,62 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"{{.ModuleName}}/router/appctx"
 	"github.com/mbvlabs/andurel/pkg/server"
-	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
 
 	"github.com/labstack/echo/v5"
-{{- if .Inertia}}
-	"github.com/mbvlabs/andurel/pkg/inertia"
-{{- end}}
 	echomw "github.com/labstack/echo/v5/middleware"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
-
-func RegisterRequestMeta(session *cookies.Session) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
-				return next(c)
-			}
-
-			flashes, err := session.ExtractFlashes(c)
-			if err != nil {
-				telemetry.Error(
-					c.Request().Context(),
-					"Error getting flash messages from session",
-					"error",
-					err,
-				)
-			}
-
-			ctx := appctx.WithFlashes(c.Request().Context(), flashes)
-{{- if .Inertia}}
-			ctx = inertia.ContextWithFlash(ctx, flashes)
-{{- end}}
-			c.SetRequest(c.Request().WithContext(ctx))
-
-			return next(c)
-		}
-	}
-}
-
-func ValidateSession(session *cookies.Session) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			// Skip session validation for static assets and API routes
-			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
-				return next(c)
-			}
-			if err := session.RecoverInvalidSessions(c); err != nil {
-				return err
-			}
-
-			return next(c)
-		}
-	}
-}
 
 func isAPIPath(path string) bool {
 	return matchesPathPrefix(path, routes.APIPrefix)

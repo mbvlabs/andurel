@@ -35,10 +35,11 @@ pkg/
 ├── routing/
 ├── server/
 ├── storage/
-└── validation/
+├── validation/
+└── kiks/
 ```
 
-The former `pkg/request` module was not kept. Request-scoped metadata such as flash messages travels through typed helpers in the application-owned `router/appctx` package instead.
+The former `pkg/request` module was not kept. Cookie, session, and flash values travel through `pkg/kiks` on `context.Context`. Applications define named cookies in `router/cookies`.
 
 Each standalone package should:
 

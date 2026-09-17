@@ -4,6 +4,13 @@ All notable changes to the standalone Andurel hypermedia module are documented h
 
 ## Unreleased
 
+## 0.2.5 - 2026-09-17
+
+### Added
+
+- `Redirect` sets `X-Andurel-Client-Redirect` so cookie/session middleware can
+  persist flashes across Datastar JavaScript navigations.
+
 ## 0.2.4 - 2026-09-17
 
 ### Changed

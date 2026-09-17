@@ -1,9 +1,7 @@
 import '../../css/base.css'
 
-import { createApp, createSSRApp, type DefineComponent } from 'vue'
+import { createApp, createSSRApp, h, type DefineComponent } from 'vue'
 import { createInertiaApp } from '@inertiajs/vue3'
-
-import { renderAppTree } from '@/components/flash-toasts'
 
 createInertiaApp({
   resolve: (name: string): DefineComponent => {
@@ -12,11 +10,7 @@ createInertiaApp({
   },
   setup({ el, App, props, plugin }) {
     const createVueApp = el.dataset.serverRendered === 'true' ? createSSRApp : createApp
-    createVueApp({
-      render() {
-        return renderAppTree(App, props)
-      },
-    })
+    createVueApp({ render: () => h(App, props) })
       .use(plugin)
       .mount(el)
   },

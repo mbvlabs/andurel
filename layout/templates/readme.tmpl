@@ -488,7 +488,7 @@ TRACE_SAMPLE_RATE=1.0
 
 ## Session, CORS, and CSRF Protection
 
-Application sessions use `HttpOnly` cookies with `SameSite=Lax` and `Path=/`. Production cookies also use `Secure`. `SESSION_MAX_AGE` is the lifetime in seconds and defaults to seven days (`604800`). Saving session state renews the expiration for another seven days. Signing out deletes the cookie immediately.
+Application sessions are defined in `router/cookies` and loaded onto `context.Context` by `pkg/kiks`. Controllers read and write them with `kiks.Get` / `kiks.Set` / `kiks.AddFlash`. The session envelope lives in an encrypted cookie. Cookies are `HttpOnly` with `SameSite=Lax` and `Path=/`. Production cookies also use `Secure`. `SESSION_MAX_AGE` is the lifetime in seconds and defaults to seven days (`604800`). Saving session state renews the expiration for another seven days. Signing out deletes the cookie immediately. Flashes persist across HTTP redirects and Datastar `X-Andurel-Client-Redirect` responses; they are consumed when a page renders them.
 
 CORS allows credentials and trusts only the configured application origin (`PROTOCOL` + `DOMAIN`) by default. `CORS_ALLOWED_ORIGINS` accepts a comma-separated list of additional exact origins. Wildcard origins are rejected when the application starts.
 

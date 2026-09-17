@@ -13,10 +13,10 @@ import (
 	"github.com/maypok86/otter/v2"
 )
 
-func AuthOnly(session *cookies.Session) echo.MiddlewareFunc {
+func AuthOnly() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			if session.ExtractFromCookieApp(c).IsAuthenticated {
+			if cookies.Current(c.Request().Context()).IsAuthenticated {
 				return next(c)
 			}
 
