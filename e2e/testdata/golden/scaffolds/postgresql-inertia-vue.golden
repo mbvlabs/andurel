@@ -4526,14 +4526,14 @@ require (
 	github.com/labstack/echo-contrib/v5 v5.0.1
 	github.com/labstack/echo/v5 v5.3.0
 	github.com/maypok86/otter/v2 v2.3.0
-	github.com/mbvlabs/andurel/pkg/email v0.3.2
-	github.com/mbvlabs/andurel/pkg/hypermedia v0.2.3
-	github.com/mbvlabs/andurel/pkg/inertia v0.5.0
-	github.com/mbvlabs/andurel/pkg/routing v0.2.1
-	github.com/mbvlabs/andurel/pkg/server v0.3.2
+	github.com/mbvlabs/andurel/pkg/email v0.3.3
+	github.com/mbvlabs/andurel/pkg/hypermedia v0.2.4
+	github.com/mbvlabs/andurel/pkg/inertia v0.6.0
+	github.com/mbvlabs/andurel/pkg/routing v0.3.0
+	github.com/mbvlabs/andurel/pkg/server v0.3.3
 	github.com/mbvlabs/andurel/pkg/storage v0.8.0
 	github.com/mbvlabs/andurel/pkg/telemetry v0.1.0
-	github.com/mbvlabs/andurel/pkg/validation v0.1.3
+	github.com/mbvlabs/andurel/pkg/validation v0.1.4
 	github.com/mbvlabs/narsilc v0.4.2
 	github.com/riverqueue/river v0.40.0
 	github.com/rs/xid v1.6.0
@@ -4740,22 +4740,22 @@ github.com/mattn/go-isatty v0.0.21 h1:xYae+lCNBP7QuW4PUnNG61ffM4hVIfm+zUzDuSzYLG
 github.com/mattn/go-isatty v0.0.21/go.mod h1:ZXfXG4SQHsB/w3ZeOYbR0PrPwLy+n6xiMrJlRFqopa4=
 github.com/maypok86/otter/v2 v2.3.0 h1:8H8AVVFUSzJwIegKwv1uF5aGitTY+AIrtktg7OcLs8w=
 github.com/maypok86/otter/v2 v2.3.0/go.mod h1:XgIdlpmL6jYz882/CAx1E4C1ukfgDKSaw4mWq59+7l8=
-github.com/mbvlabs/andurel/pkg/email v0.3.2 h1:rRtlPg1LNEZ3gg3P9C+81IkAu00/5HUN5FRv9s3RSHo=
-github.com/mbvlabs/andurel/pkg/email v0.3.2/go.mod h1:qyTSU/InfTLhCHzMAxn80VdwRp9pYRvBFz9d540kOeQ=
-github.com/mbvlabs/andurel/pkg/hypermedia v0.2.3 h1:F0sm96xTnLP0UDDsHIg/vhp15uKkG5BlyrErArPX8QQ=
-github.com/mbvlabs/andurel/pkg/hypermedia v0.2.3/go.mod h1:GuVQyvMlL5pAjEMePsHSJSYFnQDxaOiFhRtBo0UCPNk=
-github.com/mbvlabs/andurel/pkg/inertia v0.5.0 h1:fV9rba20ZOGpApjRWYRnqyA0hcpsxX81ttcrmDvU7qM=
-github.com/mbvlabs/andurel/pkg/inertia v0.5.0/go.mod h1:iisw0dG8nB7O0rMYze+vAbD3aDQ0VnRxHxwe/PQiJfk=
-github.com/mbvlabs/andurel/pkg/routing v0.2.1 h1:zftsatUrJ+6HObGTSi5dPpkaqa0NIaEX+BwgMlNKOWU=
-github.com/mbvlabs/andurel/pkg/routing v0.2.1/go.mod h1:g0KpCFpevH9O5S+CiNz4WUIFrzhrSE9KrYKtwt1TjeY=
-github.com/mbvlabs/andurel/pkg/server v0.3.2 h1:XnW6Q/uOOs4MAYf0eQ4dDCnx18mbz1nWNGDmbqgzHps=
-github.com/mbvlabs/andurel/pkg/server v0.3.2/go.mod h1:8LgcYQCnIQ6U8qy5Ar13UJZAOACZGucgjHbviLpzpLY=
+github.com/mbvlabs/andurel/pkg/email v0.3.3 h1:ehK6H7cBMsDiiYZg1rhLDSbED/K/5ZoC0LFjZcHoseY=
+github.com/mbvlabs/andurel/pkg/email v0.3.3/go.mod h1:HQ8Qs9oT67pHsWZ8StOqJiS5sGIWkDRMPHJfhb8WIn8=
+github.com/mbvlabs/andurel/pkg/hypermedia v0.2.4 h1:vahSdRDh9Q4YL/8jC/n/Strw2WnUhgVEEUMd4WdW9OI=
+github.com/mbvlabs/andurel/pkg/hypermedia v0.2.4/go.mod h1:Iy5UDDTh2hiqybArqJW2EjeTAluCAFvyKv4vZcS/v18=
+github.com/mbvlabs/andurel/pkg/inertia v0.6.0 h1:SmqyxWjdcGXY5z0BkKxSc61o+gsErujQvxh9T75RCj8=
+github.com/mbvlabs/andurel/pkg/inertia v0.6.0/go.mod h1:kTDbdal00Hhj+5kcS7g1htrMfgT5ZtyxrkJZg8ROKBI=
+github.com/mbvlabs/andurel/pkg/routing v0.3.0 h1:o4ERa1+UtMzBjW3D8yl0R1l0qxQHkkxuLgllwKFQOg8=
+github.com/mbvlabs/andurel/pkg/routing v0.3.0/go.mod h1:EbyIKeSgUj/U8vxaZkcd1VZj965vCeFFibDAJqHkclI=
+github.com/mbvlabs/andurel/pkg/server v0.3.3 h1:nZLMFmCwcC9+3v8h1fdVizJxBEg0x5Q0lXu4ieC6ZfI=
+github.com/mbvlabs/andurel/pkg/server v0.3.3/go.mod h1:vP79wzM5BVpA+HEP+XzXt5OwXkEq7IFcaSRt5+0MIKo=
 github.com/mbvlabs/andurel/pkg/storage v0.8.0 h1:I0wG5hnl6dDZeXDG0GjFQ88pNyz4+Th9qq8uWq2mbio=
 github.com/mbvlabs/andurel/pkg/storage v0.8.0/go.mod h1:DJ/uVEbn1kQZChOaPPl2SR9c1O6FajDy22UhGcKGrTw=
 github.com/mbvlabs/andurel/pkg/telemetry v0.1.0 h1:SZCIaTP3Ow5CwA3KBg5w632nCbOXg1sEimy4K02YxZ0=
 github.com/mbvlabs/andurel/pkg/telemetry v0.1.0/go.mod h1:Wc0aGyImPmymQUvs5D0aVJJG2tTibwSBwfIFKvGNPSE=
-github.com/mbvlabs/andurel/pkg/validation v0.1.3 h1:u3g71TB09ZUE5TwAKCRJ6vfU6dEfgQAnTZXz7MjCeZU=
-github.com/mbvlabs/andurel/pkg/validation v0.1.3/go.mod h1:ZITp0yTHhd9ZaMMaHcixS/GoDuJHqvDkpe2A/gKnTbw=
+github.com/mbvlabs/andurel/pkg/validation v0.1.4 h1:F18PFtVBqlL3XSR6jbinDYARDSkoda8xn+7W1kzRS00=
+github.com/mbvlabs/andurel/pkg/validation v0.1.4/go.mod h1:CFtbpeMreWbtZFioJauj6euQGsNgtcgnyHqSnfq7zEU=
 github.com/mbvlabs/narsilc v0.4.2 h1:xpzfISiJLOCPPdHg+gw/auCphlAb3RGghDIgg3OHlfs=
 github.com/mbvlabs/narsilc v0.4.2/go.mod h1:m1aJoad2Nvt/2F84PWcVpLCP8x4KfbPcBC35+adzNAE=
 github.com/mdelapenya/tlscert v0.2.0 h1:7H81W6Z/4weDvZBNOfQte5GpIMo0lGYEeWbkGp5LJHI=
