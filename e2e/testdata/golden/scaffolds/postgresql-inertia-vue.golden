@@ -8152,6 +8152,7 @@ func newJar(
 		Authentication: sessionCfg.AuthenticationKey,
 		Encryption:     sessionCfg.EncryptionKey,
 	}
+
 	return kiks.New(
 		keys,
 		cookies.Definitions(sessionCfg.Name, appCfg.IsProduction(), sessionCfg.MaxAge)...,
