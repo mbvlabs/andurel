@@ -29,8 +29,8 @@ func (o Orders) WithTx(tx storage.Transaction) Orders {
 }
 
 type Order struct {
-	OrderId    pgtype.UUID        `andurel:"order_id"`
-	CustomerId pgtype.UUID        `andurel:"customer_id"`
+	OrderId    uuid.UUID          `andurel:"order_id"`
+	CustomerId uuid.UUID          `andurel:"customer_id"`
 	Reference  string             `andurel:"reference"`
 	TotalCents int64              `andurel:"total_cents"`
 	Status     string             `andurel:"status"`
@@ -39,7 +39,7 @@ type Order struct {
 	UpdatedAt  pgtype.Timestamptz `andurel:"updated_at"`
 }
 
-func (o Orders) Find(ctx context.Context, id pgtype.UUID) (Order, error) {
+func (o Orders) Find(ctx context.Context, id uuid.UUID) (Order, error) {
 	entity, err := o.queries.GetOrder[Order](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -52,7 +52,7 @@ func (o Orders) Find(ctx context.Context, id pgtype.UUID) (Order, error) {
 }
 
 type CreateOrderData struct {
-	CustomerId pgtype.UUID
+	CustomerId uuid.UUID
 	Reference  string
 	TotalCents int64
 	Status     string
@@ -61,7 +61,7 @@ type CreateOrderData struct {
 
 func (o Orders) Create(ctx context.Context, data CreateOrderData) (Order, error) {
 	entity := Order{
-		OrderId:    pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		OrderId:    uuid.New(),
 		CreatedAt:  pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt:  pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		CustomerId: data.CustomerId,
@@ -88,8 +88,8 @@ func (o Orders) Create(ctx context.Context, data CreateOrderData) (Order, error)
 }
 
 type UpdateOrderData struct {
-	OrderId    pgtype.UUID
-	CustomerId pgtype.UUID
+	OrderId    uuid.UUID
+	CustomerId uuid.UUID
 	Reference  string
 	TotalCents int64
 	Status     string
@@ -130,7 +130,7 @@ func (o Orders) Update(ctx context.Context, data UpdateOrderData) (Order, error)
 	return row, nil
 }
 
-func (o Orders) Destroy(ctx context.Context, id pgtype.UUID) error {
+func (o Orders) Destroy(ctx context.Context, id uuid.UUID) error {
 	if err := o.queries.DeleteOrder(ctx, id); err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func (o Orders) Paginate(ctx context.Context, page, pageSize int64) (PaginatedOr
 	}, nil
 }
 
-func (o Orders) Upsert(ctx context.Context, id pgtype.UUID, data CreateOrderData) (Order, error) {
+func (o Orders) Upsert(ctx context.Context, id uuid.UUID, data CreateOrderData) (Order, error) {
 	entity := Order{
 		OrderId:    id,
 		CreatedAt:  pgtype.Timestamptz{Time: time.Now(), Valid: true},

@@ -114,11 +114,11 @@ func TestBuildViewField_StringConverter(t *testing.T) {
 			expectedInputType:       "date",
 		},
 		{
-			name:                    "pgtype.UUID uses String method",
+			name:                    "uuid.UUID uses String method",
 			columnName:              "user_id",
 			dataType:                "uuid",
 			isNullable:              false,
-			expectedGoType:          "pgtype.UUID",
+			expectedGoType:          "uuid.UUID",
 			expectedStringConverter: "%s.String()",
 			expectedInputType:       "text",
 		},

@@ -29,7 +29,7 @@ func (p Products) WithTx(tx storage.Transaction) Products {
 }
 
 type Product struct {
-	ID          pgtype.UUID        `andurel:"id"`
+	ID          uuid.UUID          `andurel:"id"`
 	Sku         string             `andurel:"sku"`
 	Name        string             `andurel:"name"`
 	Description pgtype.Text        `andurel:"description"`
@@ -45,7 +45,7 @@ type Product struct {
 	UpdatedAt   pgtype.Timestamptz `andurel:"updated_at"`
 }
 
-func (p Products) Find(ctx context.Context, id pgtype.UUID) (Product, error) {
+func (p Products) Find(ctx context.Context, id uuid.UUID) (Product, error) {
 	entity, err := p.queries.GetProduct[Product](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -73,7 +73,7 @@ type CreateProductData struct {
 
 func (p Products) Create(ctx context.Context, data CreateProductData) (Product, error) {
 	entity := Product{
-		ID:          pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ID:          uuid.New(),
 		CreatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Sku:         data.Sku,
@@ -112,7 +112,7 @@ func (p Products) Create(ctx context.Context, data CreateProductData) (Product, 
 }
 
 type UpdateProductData struct {
-	ID          pgtype.UUID
+	ID          uuid.UUID
 	Sku         string
 	Name        string
 	Description pgtype.Text
@@ -172,7 +172,7 @@ func (p Products) Update(ctx context.Context, data UpdateProductData) (Product, 
 	return row, nil
 }
 
-func (p Products) Destroy(ctx context.Context, id pgtype.UUID) error {
+func (p Products) Destroy(ctx context.Context, id uuid.UUID) error {
 	if err := p.queries.DeleteProduct(ctx, id); err != nil {
 		return err
 	}
@@ -229,7 +229,7 @@ func (p Products) Paginate(ctx context.Context, page, pageSize int64) (Paginated
 	}, nil
 }
 
-func (p Products) Upsert(ctx context.Context, id pgtype.UUID, data CreateProductData) (Product, error) {
+func (p Products) Upsert(ctx context.Context, id uuid.UUID, data CreateProductData) (Product, error) {
 	entity := Product{
 		ID:          id,
 		CreatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},

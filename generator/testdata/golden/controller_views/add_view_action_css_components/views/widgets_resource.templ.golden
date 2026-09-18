@@ -53,7 +53,7 @@ templ (ws WidgetShow) Page() {
 						<h1 class="text-2xl font-semibold tracking-normal text-base-content">Widget Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
 							
-							<a href={ routes.WidgetEdit.URL(ws.Item.ID.Bytes) } class="btn btn-primary">Edit</a>
+							<a href={ routes.WidgetEdit.URL(ws.Item.ID) } class="btn btn-primary">Edit</a>
 							
 							
 						</div>

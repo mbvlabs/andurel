@@ -929,14 +929,14 @@ file -----------rw-r--r-- andurel.lock
         "archive": "tar.gz",
         "binaryName": "narsilc",
         "sha256": {
-          "darwin/amd64": "53c24c8d751940c89057307ac8a0c56d89c60ca8425cc3ad23cfdae6d7a1caad",
-          "darwin/arm64": "a18f4d625a2e2926682b47902f4455537745cdd0bf8527370c84c1f9f2cd8203",
-          "linux/amd64": "63e8f36fef232727e0ecdf6508718c314bb019751f70142cb42d81a9db79676c",
-          "linux/arm64": "886e56e2460cdfcd91c46423aba1b37b4183cb34f5244a94d913a9e9409e57a4"
+          "darwin/amd64": "ee44c2e929811bb206bfa6fa2d185df9a899013c75da08dc487572b79cb0dd17",
+          "darwin/arm64": "052ea301dd8aaacc095f60c132ffce1997917261cdc100700526fed32ca181d4",
+          "linux/amd64": "78696b25b7b8895c0776e462a38f051a784511bd5b5f04872cea565500daaec8",
+          "linux/arm64": "101a35274a25edeb1b4994a56d628f0a2b123cc2c5cbe7554705a59a1b60c16d"
         },
         "urlTemplate": "https://github.com/mbvlabs/narsilc/releases/download/{{version}}/narsilc_{{version_no_v}}_{{os}}_{{arch}}.tar.gz"
       },
-      "version": "v0.4.2",
+      "version": "v0.4.3",
       "versionCheck": {
         "args": [
           "version"
@@ -4199,7 +4199,6 @@ go 1.27.1
 require (
 	github.com/a-h/templ v0.3.1020
 	github.com/go-faker/faker/v4 v4.9.0
-	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.15.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
@@ -4213,7 +4212,7 @@ require (
 	github.com/mbvlabs/andurel/pkg/storage v0.8.0
 	github.com/mbvlabs/andurel/pkg/telemetry v0.1.0
 	github.com/mbvlabs/andurel/pkg/validation v0.1.4
-	github.com/mbvlabs/narsilc v0.4.2
+	github.com/mbvlabs/narsilc v0.4.3
 	github.com/riverqueue/river v0.40.0
 	go.uber.org/fx v1.24.0
 	golang.org/x/crypto v0.55.0
@@ -4240,6 +4239,7 @@ require (
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
@@ -4430,8 +4430,8 @@ github.com/mbvlabs/andurel/pkg/telemetry v0.1.0 h1:SZCIaTP3Ow5CwA3KBg5w632nCbOXg
 github.com/mbvlabs/andurel/pkg/telemetry v0.1.0/go.mod h1:Wc0aGyImPmymQUvs5D0aVJJG2tTibwSBwfIFKvGNPSE=
 github.com/mbvlabs/andurel/pkg/validation v0.1.4 h1:F18PFtVBqlL3XSR6jbinDYARDSkoda8xn+7W1kzRS00=
 github.com/mbvlabs/andurel/pkg/validation v0.1.4/go.mod h1:CFtbpeMreWbtZFioJauj6euQGsNgtcgnyHqSnfq7zEU=
-github.com/mbvlabs/narsilc v0.4.2 h1:xpzfISiJLOCPPdHg+gw/auCphlAb3RGghDIgg3OHlfs=
-github.com/mbvlabs/narsilc v0.4.2/go.mod h1:m1aJoad2Nvt/2F84PWcVpLCP8x4KfbPcBC35+adzNAE=
+github.com/mbvlabs/narsilc v0.4.3 h1:aL+I4g3/rBS3DRVFViSClWefzk0NzqNcnHX1w6ilWr0=
+github.com/mbvlabs/narsilc v0.4.3/go.mod h1:m1aJoad2Nvt/2F84PWcVpLCP8x4KfbPcBC35+adzNAE=
 github.com/mdelapenya/tlscert v0.2.0 h1:7H81W6Z/4weDvZBNOfQte5GpIMo0lGYEeWbkGp5LJHI=
 github.com/mdelapenya/tlscert v0.2.0/go.mod h1:O4njj3ELLnJjGdkN7M/vIVCpZ+Cf0L6muqOG4tLSl8o=
 github.com/mfridman/interpolate v0.0.2 h1:pnuTK7MQIxxFz1Gr+rjSIx9u7qVjf5VOoM/u6BbAxPY=
@@ -5285,7 +5285,7 @@ func CreateToken(
 	built := BuildToken(opts...)
 
 	return queries.New(db).CreateToken[models.Token](ctx, queries.CreateTokenParams{
-		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ID:        uuid.New(),
 		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Scope:     built.Scope,
@@ -5405,7 +5405,7 @@ func CreateUser(
 	built := BuildUser(opts...)
 
 	return queries.New(db).CreateUser[models.User](ctx, queries.CreateUserParams{
-		ID:               pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ID:               uuid.New(),
 		CreatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Email:            built.Email,
@@ -5521,6 +5521,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/narsilc"
+	"uuid"
 )
 
 const countTokens = `-- name: CountTokens :one
@@ -5551,7 +5552,7 @@ RETURNING id, created_at, updated_at, scope, expires_at, hash, meta_data
 `
 
 type CreateTokenParams struct {
-	ID        pgtype.UUID
+	ID        uuid.UUID
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
 	Scope     string
@@ -5578,7 +5579,7 @@ DELETE FROM tokens
 WHERE id = $1
 `
 
-func (q *Queries) DeleteToken(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) DeleteToken(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteToken, id)
 	return err
 }
@@ -5590,7 +5591,7 @@ WHERE id = $1
 LIMIT 1
 `
 
-func (q *Queries) GetToken[T any](ctx context.Context, id pgtype.UUID) (T, error) {
+func (q *Queries) GetToken[T any](ctx context.Context, id uuid.UUID) (T, error) {
 	row := q.db.QueryRow(ctx, getToken, id)
 	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
 }
@@ -5727,6 +5728,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/narsilc"
+	"uuid"
 )
 
 const countUsers = `-- name: CountUsers :one
@@ -5757,7 +5759,7 @@ RETURNING id, created_at, updated_at, email, email_validated_at, password, is_ad
 `
 
 type CreateUserParams struct {
-	ID               pgtype.UUID
+	ID               uuid.UUID
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
 	Email            string
@@ -5784,7 +5786,7 @@ DELETE FROM users
 WHERE id = $1
 `
 
-func (q *Queries) DeleteUser(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteUser, id)
 	return err
 }
@@ -5796,7 +5798,7 @@ WHERE id = $1
 LIMIT 1
 `
 
-func (q *Queries) GetUser[T any](ctx context.Context, id pgtype.UUID) (T, error) {
+func (q *Queries) GetUser[T any](ctx context.Context, id uuid.UUID) (T, error) {
 	row := q.db.QueryRow(ctx, getUser, id)
 	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
 }
@@ -5925,7 +5927,7 @@ RETURNING id, created_at, updated_at, email, email_validated_at, password, is_ad
 `
 
 type UpdateUserParams struct {
-	ID               pgtype.UUID
+	ID               uuid.UUID
 	Email            string
 	EmailValidatedAt pgtype.Timestamptz
 	Password         []byte
@@ -6102,7 +6104,7 @@ func (t Tokens) WithTx(tx storage.Transaction) Tokens {
 }
 
 type Token struct {
-	ID        pgtype.UUID        `andurel:"id"`
+	ID        uuid.UUID          `andurel:"id"`
 	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
 	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
 	Scope     string             `andurel:"scope"`
@@ -6150,7 +6152,7 @@ func HashForStorage(plain, secret string) string {
 	return hex.EncodeToString(m.Sum(nil))
 }
 
-func (t Tokens) Find(ctx context.Context, id pgtype.UUID) (Token, error) {
+func (t Tokens) Find(ctx context.Context, id uuid.UUID) (Token, error) {
 	entity, err := t.queries.GetToken[Token](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -6208,7 +6210,7 @@ func (t Tokens) createToken(
 	data createTokenData,
 ) (Token, error) {
 	entity := Token{
-		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ID:        uuid.New(),
 		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Scope:     data.Scope,
@@ -6280,7 +6282,7 @@ func (t Tokens) Create(
 	return tkn, nil
 }
 
-func (t Tokens) Destroy(ctx context.Context, id pgtype.UUID) error {
+func (t Tokens) Destroy(ctx context.Context, id uuid.UUID) error {
 	return t.queries.DeleteToken(ctx, id)
 }
 
@@ -6379,7 +6381,7 @@ func (u Users) WithTx(tx storage.Transaction) Users {
 }
 
 type User struct {
-	ID               pgtype.UUID        `andurel:"id"`
+	ID               uuid.UUID          `andurel:"id"`
 	CreatedAt        pgtype.Timestamptz `andurel:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `andurel:"updated_at"`
 	Email            string             `andurel:"email"`
@@ -6428,7 +6430,7 @@ func (u *User) ValidPassword(providedPassword, pepper string) (bool, error) {
 	return subtle.ConstantTimeCompare(newHash, expectedHash) == 1, nil
 }
 
-func (u Users) Find(ctx context.Context, id pgtype.UUID) (User, error) {
+func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
 	entity, err := u.queries.GetUser[User](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -6478,7 +6480,7 @@ func (u Users) Create(
 	}
 
 	entity := User{
-		ID:               pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ID:               uuid.New(),
 		CreatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Email:            strings.ToLower(data.Email),
@@ -6503,7 +6505,7 @@ func (u Users) Create(
 }
 
 type UpdateUserData struct {
-	ID               pgtype.UUID
+	ID               uuid.UUID
 	Email            string
 	EmailValidatedAt pgtype.Timestamptz
 	Password         []byte
@@ -6567,7 +6569,7 @@ func (u Users) Update(
 	return row, nil
 }
 
-func (u Users) Destroy(ctx context.Context, id pgtype.UUID) error {
+func (u Users) Destroy(ctx context.Context, id uuid.UUID) error {
 	return u.queries.DeleteUser(ctx, id)
 }
 
@@ -6840,7 +6842,6 @@ package cookies
 
 import (
 	"context"
-	"github.com/google/uuid"
 	"testapp/models"
 
 	"github.com/mbvlabs/andurel/pkg/kiks"
@@ -6869,7 +6870,7 @@ func Current(ctx context.Context) App {
 
 func CreateAppSession(ctx context.Context, user models.User) {
 	kiks.Set(ctx, App{
-		UserID:          uuid.UUID(user.ID.Bytes).String(),
+		UserID:          user.ID.String(),
 		IsAdmin:         user.IsAdmin,
 		IsAuthenticated: true,
 	})

@@ -9,7 +9,7 @@ import (
 {{- $needsUUID := or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
 {{- $needsSQLNull := false}}
 {{- $needsJSON := false}}
-{{- $needsPG := eq .IDType "pgtype.UUID"}}
+{{- $needsPG := false}}
 {{- range .Fields}}
 {{- if and (not .IsSystemField) (or (eq .GoFormType "time.Time") (eq .GoType "sql.NullTime"))}}
 	{{- $needsTime = true}}
@@ -218,7 +218,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
+	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -282,7 +282,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "{{.ResourceName}} created successfully")
 
 	{{- if HasAction "show"}}
-	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}{{if eq .IDType "pgtype.UUID"}}.Bytes{{end}}))
+	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
 	{{- else}}
 	_ = {{.ResourceName | ToLowerCamelCase}}
 	{{- if HasAction "index"}}
@@ -317,7 +317,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Edit(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
+	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -377,7 +377,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	}
 
 	data := models.Update{{.ModelName}}Data{
-		{{.IDGoFieldName}}:      {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}},
+		{{.IDGoFieldName}}:      {{.ResourceName | ToLowerCamelCase}}ID,
 {{- range .Fields}}
 {{- if not .IsSystemField}}
 		{{template "ControllerPayloadAssignment" .}}
@@ -404,7 +404,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "{{.ResourceName}} updated successfully")
 
 	{{- if HasAction "show"}}
-	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}{{if eq .IDType "pgtype.UUID"}}.Bytes{{end}}))
+	return etx.Redirect(http.StatusSeeOther, routes.{{.NamespacePascal}}{{.ResourceName}}Show.URL({{.ResourceName | ToLowerCamelCase}}.{{.IDGoFieldName}}))
 	{{- else}}
 	_ = {{.ResourceName | ToLowerCamelCase}}
 	{{- if HasAction "index"}}
@@ -439,7 +439,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	}
 {{- end}}
 
-	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(etx.Request().Context(), {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
+	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to delete {{.ResourceName | ToLowerCamelCase}}: %v", err))
 		{{- if HasAction "index"}}

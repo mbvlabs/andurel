@@ -29,14 +29,14 @@ func (c Companies) WithTx(tx storage.Transaction) Companies {
 }
 
 type Company struct {
-	ID        pgtype.UUID        `andurel:"id"`
+	ID        uuid.UUID          `andurel:"id"`
 	Name      string             `andurel:"name"`
 	Industry  pgtype.Text        `andurel:"industry"`
 	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
 	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
 }
 
-func (c Companies) Find(ctx context.Context, id pgtype.UUID) (Company, error) {
+func (c Companies) Find(ctx context.Context, id uuid.UUID) (Company, error) {
 	entity, err := c.queries.GetCompany[Company](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -55,7 +55,7 @@ type CreateCompanyData struct {
 
 func (c Companies) Create(ctx context.Context, data CreateCompanyData) (Company, error) {
 	entity := Company{
-		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ID:        uuid.New(),
 		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Name:      data.Name,
@@ -76,7 +76,7 @@ func (c Companies) Create(ctx context.Context, data CreateCompanyData) (Company,
 }
 
 type UpdateCompanyData struct {
-	ID       pgtype.UUID
+	ID       uuid.UUID
 	Name     string
 	Industry pgtype.Text
 }
@@ -109,7 +109,7 @@ func (c Companies) Update(ctx context.Context, data UpdateCompanyData) (Company,
 	return row, nil
 }
 
-func (c Companies) Destroy(ctx context.Context, id pgtype.UUID) error {
+func (c Companies) Destroy(ctx context.Context, id uuid.UUID) error {
 	if err := c.queries.DeleteCompany(ctx, id); err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (c Companies) Paginate(ctx context.Context, page, pageSize int64) (Paginate
 	}, nil
 }
 
-func (c Companies) Upsert(ctx context.Context, id pgtype.UUID, data CreateCompanyData) (Company, error) {
+func (c Companies) Upsert(ctx context.Context, id uuid.UUID, data CreateCompanyData) (Company, error) {
 	entity := Company{
 		ID:        id,
 		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},

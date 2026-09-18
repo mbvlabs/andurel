@@ -43,9 +43,10 @@ var sqlNullTypeMap = map[string]string{
 }
 
 // MapSQLTypeToGo returns the Go type for a SQL column, matching the types
-// narsilc generates for pgx/v5 so model structs can be assigned to query
-// parameters directly. The second return value is the import path required
-// for the type, or "" if it is a builtin.
+// narsilc generates for Andurel projects (pgx/v5 with stdlib uuid.UUID) so
+// model structs can be assigned to query parameters directly. The second
+// return value is the import path required for the type, or "" if it is a
+// builtin.
 func (tm *TypeMapper) MapSQLTypeToGo(
 	sqlType string,
 	nullable bool,
@@ -91,7 +92,12 @@ func (tm *TypeMapper) postgresType(
 
 	switch normalized {
 	case "uuid":
-		return "pgtype.UUID", pgtypePkg
+		// narsilc andurel.lock always overrides uuid to stdlib uuid.UUID /
+		// *uuid.UUID regardless of nullType.
+		if nullable {
+			return "*uuid.UUID", "uuid"
+		}
+		return "uuid.UUID", "uuid"
 	case "timestamptz", "timestamp with time zone":
 		return "pgtype.Timestamptz", pgtypePkg
 	case "timestamp", "timestamp without time zone":

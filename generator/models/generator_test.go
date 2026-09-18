@@ -199,7 +199,7 @@ func TestGenerateModelUpsertRequiresExplicitPrimaryKey(t *testing.T) {
 			resource:   "Product",
 			tableName:  "products",
 			primaryKey: catalog.NewColumn("id", "uuid").SetPrimaryKey(),
-			idType:     "pgtype.UUID",
+			idType:     "uuid.UUID",
 			receiver:   "p",
 		},
 		{
@@ -907,7 +907,7 @@ func TestBuildModelPrimaryKeyOverridesAndImports(t *testing.T) {
 	}
 	if !model.HasPrimaryKey || model.IDFieldName != "tenant_id" ||
 		model.IDGoFieldName != "TenantId" ||
-		model.IDType != "pgtype.UUID" {
+		model.IDType != "uuid.UUID" {
 		t.Fatalf("primary key override was not applied: %#v", model)
 	}
 	if !model.HasCreatedAt || !model.HasUpdatedAt {

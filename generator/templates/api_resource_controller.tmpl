@@ -19,7 +19,7 @@ import (
 {{- $needsTime := false}}
 {{- $needsUUID := and $hasIDAction (or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID"))}}
 {{- $needsSQLNull := false}}
-{{- $needsPG := eq .IDType "pgtype.UUID"}}
+{{- $needsPG := false}}
 {{- range .Fields}}
 {{- if and $hasWrite (not .IsSystemField) (eq .GoFormType "time.Time")}}
 	{{- $needsTime = true}}
@@ -183,7 +183,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Show(etx *echo.Context) error {
 	}
 {{- end}}
 
-	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
+	{{.ResourceName | ToLowerCamelCase}}, err := {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Find(etx.Request().Context(), {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		return etx.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
 	}
@@ -294,24 +294,6 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Create(etx *echo.Context) error
 		{{.Name}}:    sql.NullInt64{Int64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullFloat64"}}
 		{{.Name}}:    sql.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "pgtype.UUID"}}
-		{{.Name}}:    func() pgtype.UUID {
-			if payload.{{.Name}} == "" {
-				return pgtype.UUID{}
-			}
-			parsed, err := uuid.Parse(payload.{{.Name}})
-			if err != nil {
-				slog.WarnContext(
-					etx.Request().Context(),
-					"could not parse {{.Name}}, setting to invalid pgtype.UUID",
-					"error",
-					err,
-				)
-				return pgtype.UUID{}
-			}
-
-			return pgtype.UUID{Bytes: parsed, Valid: true}
-		}(),
 		{{- else if eq .GoType "pgtype.Text"}}
 		{{.Name}}:    pgtype.Text{String: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "pgtype.Bool"}}
@@ -445,7 +427,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 	}
 
 	data := models.Update{{.ModelName}}Data{
-		{{.IDGoFieldName}}:      {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}},
+		{{.IDGoFieldName}}:      {{.ResourceName | ToLowerCamelCase}}ID,
 {{- range .Fields}}
 {{- if not .IsSystemField}}
 		{{- if eq .GoType "*uuid.UUID"}}
@@ -520,24 +502,6 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Update(etx *echo.Context) error
 		{{.Name}}:    sql.NullInt64{Int64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullFloat64"}}
 		{{.Name}}:    sql.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "pgtype.UUID"}}
-		{{.Name}}:    func() pgtype.UUID {
-			if payload.{{.Name}} == "" {
-				return pgtype.UUID{}
-			}
-			parsed, err := uuid.Parse(payload.{{.Name}})
-			if err != nil {
-				slog.WarnContext(
-					etx.Request().Context(),
-					"could not parse {{.Name}}, setting to invalid pgtype.UUID",
-					"error",
-					err,
-				)
-				return pgtype.UUID{}
-			}
-
-			return pgtype.UUID{Bytes: parsed, Valid: true}
-		}(),
 		{{- else if eq .GoType "pgtype.Text"}}
 		{{.Name}}:    pgtype.Text{String: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "pgtype.Bool"}}
@@ -646,7 +610,7 @@ func ({{.ReceiverName}} {{.PluralResourceName}}) Destroy(etx *echo.Context) erro
 	}
 {{- end}}
 
-	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(ctx, {{if eq .IDType "pgtype.UUID"}}pgtype.UUID{Bytes: {{.ResourceName | ToLowerCamelCase}}ID, Valid: true}{{else}}{{.ResourceName | ToLowerCamelCase}}ID{{end}})
+	err = {{.ReceiverName}}.{{.ModelServiceName | ToLowerCamelCase}}.Destroy(ctx, {{.ResourceName | ToLowerCamelCase}}ID)
 	if err != nil {
 		telemetry.Error(
 			ctx,

@@ -73,24 +73,6 @@
 		{{.Name}}:    sql.NullInt64{Int64: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "sql.NullFloat64"}}
 		{{.Name}}:    sql.NullFloat64{Float64: payload.{{.Name}}, Valid: true},
-		{{- else if eq .GoType "pgtype.UUID"}}
-		{{.Name}}:    func() pgtype.UUID {
-			if payload.{{.Name}} == "" {
-				return pgtype.UUID{}
-			}
-			parsed, err := uuid.Parse(payload.{{.Name}})
-			if err != nil {
-				slog.WarnContext(
-					etx.Request().Context(),
-					"could not parse {{.Name}}, setting to invalid pgtype.UUID",
-					"error",
-					err,
-				)
-				return pgtype.UUID{}
-			}
-
-			return pgtype.UUID{Bytes: parsed, Valid: true}
-		}(),
 		{{- else if eq .GoType "pgtype.Text"}}
 		{{.Name}}:    pgtype.Text{String: payload.{{.Name}}, Valid: true},
 		{{- else if eq .GoType "pgtype.Bool"}}

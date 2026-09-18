@@ -10,7 +10,7 @@ import (
 	"testapp/router/routes"
 	"uuid"
 
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
@@ -97,7 +97,7 @@ func (p Projects) RegisterRoutes(r *router.Router) error {
 }
 
 type ProjectData struct {
-	ID        pgtype.UUID        `json:"id"`
+	ID        uuid.UUID          `json:"id"`
 	Title     string             `json:"title"`
 	Status    string             `json:"status"`
 	CreatedAt pgtype.Timestamptz `json:"createdAt"`
@@ -171,7 +171,7 @@ func (p Projects) Show(etx *echo.Context) error {
 		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
-	project, err := p.projects.Find(etx.Request().Context(), pgtype.UUID{Bytes: projectID, Valid: true})
+	project, err := p.projects.Find(etx.Request().Context(), projectID)
 	if err != nil {
 		return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
 	}
@@ -227,7 +227,7 @@ func (p Projects) Create(etx *echo.Context) error {
 	}
 
 	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Project created successfully")
-	return p.renderer.Redirect(etx, routes.ProjectShow.URL(project.ID.Bytes), http.StatusSeeOther)
+	return p.renderer.Redirect(etx, routes.ProjectShow.URL(project.ID), http.StatusSeeOther)
 }
 
 func (p Projects) Edit(etx *echo.Context) error {
@@ -236,7 +236,7 @@ func (p Projects) Edit(etx *echo.Context) error {
 		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
-	project, err := p.projects.Find(etx.Request().Context(), pgtype.UUID{Bytes: projectID, Valid: true})
+	project, err := p.projects.Find(etx.Request().Context(), projectID)
 	if err != nil {
 		return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
 	}
@@ -276,7 +276,7 @@ func (p Projects) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateProjectData{
-		ID: pgtype.UUID{Bytes: projectID, Valid: true},
+		ID: projectID,
 
 		Title: payload.Title,
 
@@ -297,7 +297,7 @@ func (p Projects) Update(etx *echo.Context) error {
 	}
 
 	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Project updated successfully")
-	return p.renderer.Redirect(etx, routes.ProjectShow.URL(project.ID.Bytes), http.StatusSeeOther)
+	return p.renderer.Redirect(etx, routes.ProjectShow.URL(project.ID), http.StatusSeeOther)
 }
 
 func (p Projects) Destroy(etx *echo.Context) error {
@@ -306,7 +306,7 @@ func (p Projects) Destroy(etx *echo.Context) error {
 		return p.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
-	err = p.projects.Destroy(etx.Request().Context(), pgtype.UUID{Bytes: projectID, Valid: true})
+	err = p.projects.Destroy(etx.Request().Context(), projectID)
 	if err != nil {
 		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to delete project: %v", err))
 		return p.renderer.Redirect(etx, routes.ProjectIndex.URL(), http.StatusSeeOther)

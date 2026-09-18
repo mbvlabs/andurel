@@ -51,7 +51,7 @@ func CreateToken(
 	built := BuildToken(opts...)
 
 	return queries.New(db).CreateToken[models.Token](ctx, queries.CreateTokenParams{
-		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ID:        uuid.New(),
 		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Scope:     built.Scope,

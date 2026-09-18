@@ -11,7 +11,6 @@ import (
 	"testapp/views"
 	"uuid"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
@@ -130,7 +129,7 @@ func (d Documents) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	document, err := d.documents.Find(etx.Request().Context(), pgtype.UUID{Bytes: documentID, Valid: true})
+	document, err := d.documents.Find(etx.Request().Context(), documentID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -189,7 +188,7 @@ func (d Documents) Create(etx *echo.Context) error {
 	}
 
 	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Document created successfully")
-	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID.Bytes))
+	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID))
 }
 
 func (d Documents) Edit(etx *echo.Context) error {
@@ -198,7 +197,7 @@ func (d Documents) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	document, err := d.documents.Find(etx.Request().Context(), pgtype.UUID{Bytes: documentID, Valid: true})
+	document, err := d.documents.Find(etx.Request().Context(), documentID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -235,7 +234,7 @@ func (d Documents) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateDocumentData{
-		ID: pgtype.UUID{Bytes: documentID, Valid: true},
+		ID: documentID,
 
 		Title: payload.Title,
 
@@ -261,7 +260,7 @@ func (d Documents) Update(etx *echo.Context) error {
 	}
 
 	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Document updated successfully")
-	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID.Bytes))
+	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID))
 }
 
 func (d Documents) Destroy(etx *echo.Context) error {
@@ -270,7 +269,7 @@ func (d Documents) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = d.documents.Destroy(etx.Request().Context(), pgtype.UUID{Bytes: documentID, Valid: true})
+	err = d.documents.Destroy(etx.Request().Context(), documentID)
 	if err != nil {
 		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to delete document: %v", err))
 		return etx.Redirect(http.StatusSeeOther, routes.DocumentIndex.URL())

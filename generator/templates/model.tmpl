@@ -65,7 +65,7 @@ func ({{.ReceiverName}} {{.NamespaceType}}) Create(ctx context.Context, data Cre
 {{- if .HasPrimaryKey}}
 {{- if not .IsAutoIncrementID}}
 {{- if or (not .IDType) (eq .IDType "uuid.UUID") (eq .IDType "pgtype.UUID")}}
-		{{.IDGoFieldName}}: pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		{{.IDGoFieldName}}: uuid.New(),
 {{- else}}
 		{{.IDGoFieldName}}: data.{{.IDGoFieldName}},
 {{- end}}

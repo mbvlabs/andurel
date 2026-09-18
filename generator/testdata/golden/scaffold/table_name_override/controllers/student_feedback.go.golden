@@ -131,7 +131,7 @@ func (fe FeedbackEntry) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	feedbackEntry, err := fe.feedbackEntries.Find(etx.Request().Context(), pgtype.UUID{Bytes: feedbackEntryID, Valid: true})
+	feedbackEntry, err := fe.feedbackEntries.Find(etx.Request().Context(), feedbackEntryID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -195,7 +195,7 @@ func (fe FeedbackEntry) Create(etx *echo.Context) error {
 	}
 
 	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "FeedbackEntry created successfully")
-	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryShow.URL(feedbackEntry.ID.Bytes))
+	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryShow.URL(feedbackEntry.ID))
 }
 
 func (fe FeedbackEntry) Edit(etx *echo.Context) error {
@@ -204,7 +204,7 @@ func (fe FeedbackEntry) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	feedbackEntry, err := fe.feedbackEntries.Find(etx.Request().Context(), pgtype.UUID{Bytes: feedbackEntryID, Valid: true})
+	feedbackEntry, err := fe.feedbackEntries.Find(etx.Request().Context(), feedbackEntryID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -240,7 +240,7 @@ func (fe FeedbackEntry) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateFeedbackEntryData{
-		ID: pgtype.UUID{Bytes: feedbackEntryID, Valid: true},
+		ID: feedbackEntryID,
 
 		StudentName: payload.StudentName,
 
@@ -272,7 +272,7 @@ func (fe FeedbackEntry) Update(etx *echo.Context) error {
 	}
 
 	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "FeedbackEntry updated successfully")
-	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryShow.URL(feedbackEntry.ID.Bytes))
+	return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryShow.URL(feedbackEntry.ID))
 }
 
 func (fe FeedbackEntry) Destroy(etx *echo.Context) error {
@@ -281,7 +281,7 @@ func (fe FeedbackEntry) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = fe.feedbackEntries.Destroy(etx.Request().Context(), pgtype.UUID{Bytes: feedbackEntryID, Valid: true})
+	err = fe.feedbackEntries.Destroy(etx.Request().Context(), feedbackEntryID)
 	if err != nil {
 		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to delete feedbackEntry: %v", err))
 		return etx.Redirect(http.StatusSeeOther, routes.FeedbackEntryIndex.URL())

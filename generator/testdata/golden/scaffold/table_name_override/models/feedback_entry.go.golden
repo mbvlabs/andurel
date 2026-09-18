@@ -29,7 +29,7 @@ func (fe FeedbackEntries) WithTx(tx storage.Transaction) FeedbackEntries {
 }
 
 type FeedbackEntry struct {
-	ID          pgtype.UUID        `andurel:"id"`
+	ID          uuid.UUID          `andurel:"id"`
 	StudentName string             `andurel:"student_name"`
 	Feedback    string             `andurel:"feedback"`
 	Rating      pgtype.Int4        `andurel:"rating"`
@@ -38,7 +38,7 @@ type FeedbackEntry struct {
 	UpdatedAt   pgtype.Timestamptz `andurel:"updated_at"`
 }
 
-func (fe FeedbackEntries) Find(ctx context.Context, id pgtype.UUID) (FeedbackEntry, error) {
+func (fe FeedbackEntries) Find(ctx context.Context, id uuid.UUID) (FeedbackEntry, error) {
 	entity, err := fe.queries.GetFeedbackEntry[FeedbackEntry](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -59,7 +59,7 @@ type CreateFeedbackEntryData struct {
 
 func (fe FeedbackEntries) Create(ctx context.Context, data CreateFeedbackEntryData) (FeedbackEntry, error) {
 	entity := FeedbackEntry{
-		ID:          pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ID:          uuid.New(),
 		CreatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		StudentName: data.StudentName,
@@ -84,7 +84,7 @@ func (fe FeedbackEntries) Create(ctx context.Context, data CreateFeedbackEntryDa
 }
 
 type UpdateFeedbackEntryData struct {
-	ID          pgtype.UUID
+	ID          uuid.UUID
 	StudentName string
 	Feedback    string
 	Rating      pgtype.Int4
@@ -123,7 +123,7 @@ func (fe FeedbackEntries) Update(ctx context.Context, data UpdateFeedbackEntryDa
 	return row, nil
 }
 
-func (fe FeedbackEntries) Destroy(ctx context.Context, id pgtype.UUID) error {
+func (fe FeedbackEntries) Destroy(ctx context.Context, id uuid.UUID) error {
 	if err := fe.queries.DeleteFeedbackEntry(ctx, id); err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func (fe FeedbackEntries) Paginate(ctx context.Context, page, pageSize int64) (P
 	}, nil
 }
 
-func (fe FeedbackEntries) Upsert(ctx context.Context, id pgtype.UUID, data CreateFeedbackEntryData) (FeedbackEntry, error) {
+func (fe FeedbackEntries) Upsert(ctx context.Context, id uuid.UUID, data CreateFeedbackEntryData) (FeedbackEntry, error) {
 	entity := FeedbackEntry{
 		ID:          id,
 		CreatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},

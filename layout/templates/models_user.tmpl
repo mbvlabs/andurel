@@ -38,7 +38,7 @@ func (u Users) WithTx(tx storage.Transaction) Users {
 }
 
 type User struct {
-	ID               pgtype.UUID        `andurel:"id"`
+	ID               uuid.UUID          `andurel:"id"`
 	CreatedAt        pgtype.Timestamptz `andurel:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `andurel:"updated_at"`
 	Email            string             `andurel:"email"`
@@ -87,7 +87,7 @@ func (u *User) ValidPassword(providedPassword, pepper string) (bool, error) {
 	return subtle.ConstantTimeCompare(newHash, expectedHash) == 1, nil
 }
 
-func (u Users) Find(ctx context.Context, id pgtype.UUID) (User, error) {
+func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
 	entity, err := u.queries.GetUser[User](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -137,7 +137,7 @@ func (u Users) Create(
 	}
 
 	entity := User{
-		ID:               pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ID:               uuid.New(),
 		CreatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Email:            strings.ToLower(data.Email),
@@ -162,7 +162,7 @@ func (u Users) Create(
 }
 
 type UpdateUserData struct {
-	ID               pgtype.UUID
+	ID               uuid.UUID
 	Email            string
 	EmailValidatedAt pgtype.Timestamptz
 	Password         []byte
@@ -226,7 +226,7 @@ func (u Users) Update(
 	return row, nil
 }
 
-func (u Users) Destroy(ctx context.Context, id pgtype.UUID) error {
+func (u Users) Destroy(ctx context.Context, id uuid.UUID) error {
 	return u.queries.DeleteUser(ctx, id)
 }
 

@@ -29,7 +29,7 @@ func (w Widgets) WithTx(tx storage.Transaction) Widgets {
 }
 
 type Widget struct {
-	ID        pgtype.UUID        `andurel:"id"`
+	ID        uuid.UUID          `andurel:"id"`
 	Name      string             `andurel:"name"`
 	Quantity  int32              `andurel:"quantity"`
 	Active    bool               `andurel:"active"`
@@ -37,7 +37,7 @@ type Widget struct {
 	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
 }
 
-func (w Widgets) Find(ctx context.Context, id pgtype.UUID) (Widget, error) {
+func (w Widgets) Find(ctx context.Context, id uuid.UUID) (Widget, error) {
 	entity, err := w.queries.GetWidget[Widget](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -57,7 +57,7 @@ type CreateWidgetData struct {
 
 func (w Widgets) Create(ctx context.Context, data CreateWidgetData) (Widget, error) {
 	entity := Widget{
-		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ID:        uuid.New(),
 		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Name:      data.Name,
@@ -80,7 +80,7 @@ func (w Widgets) Create(ctx context.Context, data CreateWidgetData) (Widget, err
 }
 
 type UpdateWidgetData struct {
-	ID       pgtype.UUID
+	ID       uuid.UUID
 	Name     string
 	Quantity int32
 	Active   bool
@@ -116,7 +116,7 @@ func (w Widgets) Update(ctx context.Context, data UpdateWidgetData) (Widget, err
 	return row, nil
 }
 
-func (w Widgets) Destroy(ctx context.Context, id pgtype.UUID) error {
+func (w Widgets) Destroy(ctx context.Context, id uuid.UUID) error {
 	if err := w.queries.DeleteWidget(ctx, id); err != nil {
 		return err
 	}
@@ -173,7 +173,7 @@ func (w Widgets) Paginate(ctx context.Context, page, pageSize int64) (PaginatedW
 	}, nil
 }
 
-func (w Widgets) Upsert(ctx context.Context, id pgtype.UUID, data CreateWidgetData) (Widget, error) {
+func (w Widgets) Upsert(ctx context.Context, id uuid.UUID, data CreateWidgetData) (Widget, error) {
 	entity := Widget{
 		ID:        id,
 		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},

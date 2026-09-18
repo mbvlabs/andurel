@@ -36,7 +36,7 @@ func (t Tokens) WithTx(tx storage.Transaction) Tokens {
 }
 
 type Token struct {
-	ID        pgtype.UUID        `andurel:"id"`
+	ID        uuid.UUID          `andurel:"id"`
 	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
 	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
 	Scope     string             `andurel:"scope"`
@@ -84,7 +84,7 @@ func HashForStorage(plain, secret string) string {
 	return hex.EncodeToString(m.Sum(nil))
 }
 
-func (t Tokens) Find(ctx context.Context, id pgtype.UUID) (Token, error) {
+func (t Tokens) Find(ctx context.Context, id uuid.UUID) (Token, error) {
 	entity, err := t.queries.GetToken[Token](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -142,7 +142,7 @@ func (t Tokens) createToken(
 	data createTokenData,
 ) (Token, error) {
 	entity := Token{
-		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ID:        uuid.New(),
 		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Scope:     data.Scope,
@@ -214,7 +214,7 @@ func (t Tokens) Create(
 	return tkn, nil
 }
 
-func (t Tokens) Destroy(ctx context.Context, id pgtype.UUID) error {
+func (t Tokens) Destroy(ctx context.Context, id uuid.UUID) error {
 	return t.queries.DeleteToken(ctx, id)
 }
 

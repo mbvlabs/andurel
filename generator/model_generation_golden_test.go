@@ -76,8 +76,8 @@ func TestModelGenerationGoldens(t *testing.T) {
 		)
 		modelContent = strings.Replace(
 			modelContent,
-			"ID          pgtype.UUID        `andurel:\"id\"`",
-			"ID          pgtype.UUID        `andurel:\"id\"`\n\tStatus        ProductStatus `andurel:\"status\"`",
+			"ID          uuid.UUID          `andurel:\"id\"`",
+			"ID          uuid.UUID          `andurel:\"id\"`\n\tStatus        ProductStatus `andurel:\"status\"`",
 			1,
 		)
 		if err := os.WriteFile(modelPath, []byte(modelContent), 0o600); err != nil {
