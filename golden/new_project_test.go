@@ -9,9 +9,10 @@ import (
 
 // newProjectCapture is a curated allowlist of scaffolded source files that are
 // byte-stable under -tags andurel_golden (seeded secrets + fixed migration
-// timestamps). Paths that need network or float without scrubbing are omitted:
-// bin/, go.sum, .git/, models/internal/queries/, and templ-generated *_templ.go
-// beyond what templates already emit. See testdata/golden/README.md.
+// timestamps + CLI version injected as "latest" at build time). Paths that
+// need network or float without scrubbing are omitted: bin/, go.sum, .git/,
+// models/internal/queries/, and templ-generated *_templ.go beyond what
+// templates already emit. See testdata/golden/README.md.
 var newProjectCapture = []string{
 	"go.mod",
 	".env.example",

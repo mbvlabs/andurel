@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "version": "v1.5.6-0.20260918155617-0377c3e84bd0+dirty",
+  "version": "latest",
   "tools": {
     "dblab": {
       "version": "v0.40.2",

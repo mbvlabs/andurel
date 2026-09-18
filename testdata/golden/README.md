@@ -1,8 +1,8 @@
 # Golden files
 
 CLI-driven golden tests live under `golden/` and compare **raw bytes** written by
-the `andurel` binary (built with `-tags andurel_golden`) against committed files
-here.
+the `andurel` binary (built with `-tags andurel_golden` and
+`-ldflags -X main.version=latest`) against committed files here.
 
 ## Layout
 
@@ -31,6 +31,10 @@ Assertions use a **curated allowlist** of relative paths (not a full tree walk).
 Under `-tags andurel_golden`, `layout.Scaffold` writes templates/lock/migrations
 then skips goose fix, templ generate, narsilc generate, `go mod tidy`, and
 `go fmt` so the run stays offline and byte-stable.
+
+The golden CLI is built with `-ldflags -X main.version=latest`, so
+`andurel.lock`'s `version` field (and any version banners) stay stable without
+scrubbing.
 
 **Intentionally not goldened** (unstable or absent without network/tools):
 

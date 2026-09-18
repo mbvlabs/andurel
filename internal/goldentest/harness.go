@@ -305,13 +305,25 @@ func RequireBinary(t testing.TB) {
 }
 
 // BuildTaggedCLI builds andurel with -tags andurel_golden into dir/andurel.
+// Version is injected via ldflags as "latest" so scaffold lock/banners do not
+// embed git pseudoversions that differ between local and CI.
 // Intended for TestMain only (humans/CI run go test; agents must not).
 func BuildTaggedCLI(projectRoot, outDir string) (binPath string, err error) {
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return "", err
 	}
 	binPath = filepath.Join(outDir, "andurel")
-	cmd := exec.Command("go", "build", "-tags", "andurel_golden", "-o", binPath, ".")
+	cmd := exec.Command(
+		"go",
+		"build",
+		"-tags",
+		"andurel_golden",
+		"-ldflags",
+		"-X main.version=latest",
+		"-o",
+		binPath,
+		".",
+	)
 	cmd.Dir = projectRoot
 	out, err := cmd.CombinedOutput()
 	if err != nil {

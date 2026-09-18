@@ -2,7 +2,8 @@
 // builds. Production binaries (without the andurel_golden build tag) keep
 // real randomness and wall-clock time. Golden binaries built with
 // -tags andurel_golden lock scaffold secrets and timestamps so raw file
-// assertions need no scrubbers.
+// assertions need no scrubbers. The CLI version string itself is not handled
+// here: golden TestMain injects -ldflags -X main.version=latest at build time.
 //
 // # Golden-tag behavior
 //
