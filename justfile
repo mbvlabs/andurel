@@ -89,7 +89,7 @@ ci:
 install-dev-tools:
 	./scripts/install-dev-tools.sh
 
-# Update golden files under testdata/golden (smoke + generate + sync)
+# Update golden files under testdata/golden (smoke + generate + sync + new)
 update-golden: install-dev-tools
 	go clean -testcache
 	go test ./golden/... -v -timeout 15m -update

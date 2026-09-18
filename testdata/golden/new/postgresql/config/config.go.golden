@@ -1,0 +1,21 @@
+// Package config loads, validates, and provides application configuration.
+package config
+
+import "go.uber.org/fx"
+
+// Module registers independent configuration constructors. Fx evaluates only
+// the constructors required by the active application graph.
+var Module = fx.Module("config",
+	fx.Provide(
+		NewApp,
+		NewHTTP,
+		NewSession,
+		NewAuth,
+		NewDatabase,
+		NewQueueInsert,
+		NewQueueWorker,
+		NewTelemetry,
+		NewMail,
+		NewMailTransport,
+	),
+)

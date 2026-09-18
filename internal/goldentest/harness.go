@@ -168,6 +168,30 @@ func AssertFiles(t testing.TB, g *goldie.Goldie, goldenPrefix, projectDir string
 	}
 }
 
+// ShouldSkipNewProjectPath reports paths that must not be raw-goldened for
+// `andurel new` even under andurel_golden (downloads, VCS metadata, tidy churn).
+// Filters paths only — never mutates content. Prefer curated allowlists; use
+// this when walking a tree so unstable paths are omitted rather than scrubbed.
+func ShouldSkipNewProjectPath(rel string, isDir bool) bool {
+	rel = filepath.ToSlash(rel)
+	switch {
+	case rel == ".git" || strings.HasPrefix(rel, ".git/"):
+		return true
+	case rel == "bin" || strings.HasPrefix(rel, "bin/"):
+		return true
+	case rel == "go.sum":
+		return true
+	case rel == "node_modules" || strings.HasPrefix(rel, "node_modules/"):
+		return true
+	case rel == "models/internal" || strings.HasPrefix(rel, "models/internal/"):
+		return true
+	case isDir:
+		return false
+	default:
+		return false
+	}
+}
+
 // AssertMissing fails if projectDir/relPath exists.
 func AssertMissing(t testing.TB, projectDir, relPath string) {
 	t.Helper()

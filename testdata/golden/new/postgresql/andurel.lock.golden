@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "version": "v1.5.6-0.20260918155617-0377c3e84bd0+dirty",
+  "tools": {
+    "dblab": {
+      "version": "v0.40.2",
+      "source": "github.com/danvergara/dblab",
+      "download": {
+        "urlTemplate": "https://github.com/danvergara/dblab/releases/download/{{version}}/dblab_{{version_no_v}}_{{os}}_{{arch}}.tar.gz",
+        "archive": "tar.gz",
+        "binaryName": "dblab",
+        "sha256": {
+          "darwin/amd64": "9070295d6f75e9cd5c015c3624c4fdf081711c16d44775d87aaeff44febe086a",
+          "darwin/arm64": "99322f9e494a4b17a65d1c3618c7cad5694387325749be82255aa6afa2c0cdf5",
+          "linux/amd64": "5672260f7230cda2a8a464480d80a5c08fba5e48ccc637cd709ade2c19bd1509",
+          "linux/arm64": "516487b248472edac79bd3a0c6a5b3a78a4bbef5990876bb4b9a1176c3252b1b"
+        }
+      },
+      "versionCheck": {
+        "args": [
+          "--version"
+        ]
+      }
+    },
+    "goose": {
+      "version": "v3.27.1",
+      "source": "github.com/pressly/goose",
+      "download": {
+        "urlTemplate": "https://github.com/pressly/goose/releases/download/{{version}}/goose_{{os}}_{{arch_x86_64}}",
+        "archive": "binary",
+        "binaryName": "goose",
+        "sha256": {
+          "darwin/amd64": "24f3b4dc3c792a7afba348de12245af8b4199cfd0ac6a673f7ab483b2ad48f08",
+          "darwin/arm64": "d7867b7a9d1117024b17afdb043c573909e595d2c29dcee13bd96c341eb98ff2",
+          "linux/amd64": "c5f1e5cd3b8e5da05592c2714b079d78ec846ddc7ec1f70d474c0449e79f6ab4",
+          "linux/arm64": "638af56b2ed33ff33cc3f30447f447b1c8e5894c6252fbda1e459adec94ba0fe"
+        }
+      },
+      "versionCheck": {
+        "args": [
+          "--version"
+        ]
+      }
+    },
+    "mailpit": {
+      "version": "v1.30.2",
+      "source": "github.com/axllent/mailpit",
+      "download": {
+        "urlTemplate": "https://github.com/axllent/mailpit/releases/download/{{version}}/mailpit-{{os}}-{{arch}}.tar.gz",
+        "archive": "tar.gz",
+        "binaryName": "mailpit",
+        "sha256": {
+          "darwin/amd64": "6aabc9576350b98eed9d6d96427fec092361415c6a7c094842cba5773716a5b3",
+          "darwin/arm64": "05b92a4b804c34b0f6e665a482a1141be64256f500ecf23a204c2084a27a248b",
+          "linux/amd64": "63b113aa9748adf7091b649ebe02693f99a459000cbe415faa6679f4b39f82cf",
+          "linux/arm64": "b159574f32e527f34624e5683f79859258360179268a8fac0f3030f74ca6bb96"
+        }
+      },
+      "versionCheck": {
+        "args": [
+          "version",
+          "--no-release-check"
+        ]
+      }
+    },
+    "narsilc": {
+      "version": "v0.4.3",
+      "download": {
+        "urlTemplate": "https://github.com/mbvlabs/narsilc/releases/download/{{version}}/narsilc_{{version_no_v}}_{{os}}_{{arch}}.tar.gz",
+        "archive": "tar.gz",
+        "binaryName": "narsilc",
+        "sha256": {
+          "darwin/amd64": "ee44c2e929811bb206bfa6fa2d185df9a899013c75da08dc487572b79cb0dd17",
+          "darwin/arm64": "052ea301dd8aaacc095f60c132ffce1997917261cdc100700526fed32ca181d4",
+          "linux/amd64": "78696b25b7b8895c0776e462a38f051a784511bd5b5f04872cea565500daaec8",
+          "linux/arm64": "101a35274a25edeb1b4994a56d628f0a2b123cc2c5cbe7554705a59a1b60c16d"
+        }
+      },
+      "versionCheck": {
+        "args": [
+          "version"
+        ]
+      }
+    },
+    "shadowfax": {
+      "version": "v0.11.1",
+      "source": "github.com/mbvlabs/shadowfax",
+      "download": {
+        "urlTemplate": "https://github.com/mbvlabs/shadowfax/releases/download/{{version}}/shadowfax-{{os}}-{{arch}}",
+        "archive": "binary",
+        "binaryName": "shadowfax",
+        "sha256": {
+          "darwin/amd64": "92a9230740085aebbc7908fb4f22677860dfdb27a9ebaee39f914ffcdebb56b0",
+          "darwin/arm64": "9d3203b315bd3e8d2cd1f8d7d11b6356be6fec551235794f6eb755c3d3aa3a9d",
+          "linux/amd64": "cecdcb89dfb292af27323f8089f61fbe0b3c4d63e3645acfadbcc3fb5c580b10",
+          "linux/arm64": "78bd369eff62794c023768c23a9c94383adefffa04e598c0fbad967a0817be16"
+        }
+      },
+      "versionCheck": {
+        "args": [
+          "--version"
+        ]
+      }
+    },
+    "tailwindcli": {
+      "version": "v4.3.2",
+      "download": {
+        "urlTemplate": "https://github.com/tailwindlabs/tailwindcss/releases/download/{{version}}/tailwindcss-{{os_tailwind}}-{{arch_tailwind}}",
+        "archive": "binary",
+        "binaryName": "tailwindcli",
+        "sha256": {
+          "darwin/amd64": "cef8f110471e889c3c4409055cf8aff33076f58a081867b0dfc6534b290bfbb0",
+          "darwin/arm64": "b800b0659dc64b9f03ede5660244d9415d777d5739ae2889280877ca37be742a",
+          "linux/amd64": "5036c4fb4328e0bcdbb6065c70d8ac9452e0d4c947113a788a8f94fd390425c1",
+          "linux/arm64": "394ddccc2402cfa3abd97dfba56f3587781a3d6e6ce66e65ceada14beb7664b8"
+        }
+      },
+      "versionCheck": {
+        "args": [
+          "--version"
+        ]
+      }
+    },
+    "templ": {
+      "version": "v0.3.1020",
+      "source": "github.com/a-h/templ",
+      "download": {
+        "urlTemplate": "https://github.com/a-h/templ/releases/download/{{version}}/templ_{{os_capitalized}}_{{arch_x86_64}}.tar.gz",
+        "archive": "tar.gz",
+        "binaryName": "templ",
+        "sha256": {
+          "darwin/amd64": "f1522f2558081335584fd4fb67d329d02a9ae6e83dd88b14cae1ad84c770e5c0",
+          "darwin/arm64": "f391943e3e49ece301f90c2283c7f9e629081f18b0b3ab6b48cb4b87ad94b206",
+          "linux/amd64": "d1e726e8e78a6cf7e1e72ce3746f30fd94ec0eba10be1abab02208a41efc9aa5",
+          "linux/arm64": "8d38728fa82c0ee568d2ae1ce0720963402d384dd59d4c76bcdbb38d581c815c"
+        }
+      },
+      "versionCheck": {
+        "args": [
+          "--version"
+        ]
+      }
+    },
+    "usql": {
+      "version": "v0.21.4",
+      "source": "github.com/xo/usql",
+      "download": {
+        "urlTemplate": "https://github.com/xo/usql/releases/download/{{version}}/usql-{{version_no_v}}-{{os}}-{{arch}}.tar.bz2",
+        "archive": "tar.bz2",
+        "binaryName": "usql",
+        "sha256": {
+          "darwin/amd64": "60feb0d73b2e29e4ecf6b36bf34b23c230d8233c778893b0b56811036d16d17e",
+          "darwin/arm64": "cee9fd2117c17fd622fe0df37b334c356b80cf48d6e9bb164084830ae4ce6d05",
+          "linux/amd64": "78bd9b221e223d7a954d41f51e9eca98bdd94b401618367ba0f3887abebd44fc",
+          "linux/arm64": "ccad89d6f4c67a9bf595df0aa8a550e0a9e3d6a6f9356356ba1e164e311335e4"
+        }
+      },
+      "versionCheck": {
+        "args": [
+          "--version"
+        ]
+      }
+    }
+  },
+  "scaffoldConfig": {
+    "projectName": "app"
+  },
+  "databaseConfig": {
+    "engine": "postgresql",
+    "nullType": "pgtype.Null"
+  }
+}

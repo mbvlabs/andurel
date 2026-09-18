@@ -96,6 +96,14 @@ func Scaffold(
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
+	// Golden CLI builds already seed secrets and migration timestamps via
+	// testseed. Skip network-bound post-scaffold steps so `andurel new`
+	// stays offline and raw-byte goldens need no scrubbers. See
+	// internal/testseed and testdata/golden/README.md.
+	if testseed.Enabled() {
+		return nil
+	}
+
 	fmt.Print("Fixing migration timestamps...\n")
 	if err := cmds.RunGooseFix(targetDir); err != nil {
 		slog.Error(
