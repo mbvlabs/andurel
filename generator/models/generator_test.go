@@ -34,7 +34,7 @@ func TestBuildUUIDImports(t *testing.T) {
 				catalog.NewColumn("event_id", "uuid").SetNotNull(),
 				catalog.NewColumn("action", "text").SetNotNull(),
 			),
-			wantUUID: false,
+			wantUUID: true,
 		},
 		{
 			name: "uuid primary key",
