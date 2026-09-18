@@ -1,0 +1,306 @@
+
+
+
+
+package views
+
+import (
+	"fmt"
+	"time"
+	"strings"
+		"net/http"
+	
+	"example.com/app/models"
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	
+	
+	"example.com/app/router/routes"
+	
+)
+
+type DocumentData struct {
+	Title string
+	Tags []string
+	PageNumbers []int32
+	ViewCount int32
+	IsPublished bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func newDocumentData(entity models.Document) DocumentData {
+	return DocumentData{
+		Title: entity.Title,
+		Tags: entity.Tags,
+		PageNumbers: entity.PageNumbers,
+		ViewCount: entity.ViewCount,
+		IsPublished: entity.IsPublished,
+		CreatedAt: func() time.Time { if !entity.CreatedAt.Valid { return time.Time{} }; return entity.CreatedAt.Time }(),
+		UpdatedAt: func() time.Time { if !entity.UpdatedAt.Valid { return time.Time{} }; return entity.UpdatedAt.Time }(),
+	}
+}
+
+
+type DocumentIndex struct {
+	Items []models.Document
+}
+
+func (di DocumentIndex) PageFragment() string {
+	return "document-index-page-fragment"
+}
+
+templ (di DocumentIndex) Page() {
+	@base() {
+		@templ.Fragment(di.PageFragment()) {
+			<main id="document-index-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold text-slate-100">Documents</h1>
+						
+						<a href={ routes.DocumentNew.URL() } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">New Document</a>
+						
+					</div>
+					if len(di.Items) == 0 {
+						<p class="text-sm text-slate-400">No documents found.</p>
+					} else {
+						<div class="relative w-full overflow-auto">
+							<table class="w-full caption-bottom text-sm">
+								<thead class="[&_tr]:border-b [&_tr]:border-cyan-400/25">
+									<tr class="border-b border-cyan-400/25 transition-colors hover:bg-slate-900">
+										<th class="h-10 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0">Title</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0">Tags</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0">Page Numbers</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0">View Count</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0">Is Published</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0">Created At</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0">Updated At</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0">Actions</th>
+									</tr>
+								</thead>
+								<tbody class="[&_tr:last-child]:border-0">
+									for _, document := range di.Items {
+									{{ documentData := newDocumentData(document) }}
+										<tr class="border-b border-cyan-400/25 transition-colors hover:bg-slate-900">
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ documentData.Title }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ strings.Join(documentData.Tags, ", ") }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%v", documentData.PageNumbers) }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%d", documentData.ViewCount) }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%t", documentData.IsPublished) }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ documentData.CreatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ documentData.UpdatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+												<div class="flex flex-wrap gap-3 text-sm">
+													
+													<a class="text-slate-300 hover:text-slate-100" href={ routes.DocumentShow.URL(document.ID) }>View</a>
+													
+													
+													<a class="text-slate-300 hover:text-slate-100" href={ routes.DocumentEdit.URL(document.ID) }>Edit</a>
+													
+												</div>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			</main>
+		}
+	}
+}
+
+
+
+type DocumentShow struct {
+	Item models.Document
+}
+
+func (ds DocumentShow) PageFragment() string {
+	return "document-show-page-fragment"
+}
+
+templ (ds DocumentShow) Page() {
+	@base() {
+		@templ.Fragment(ds.PageFragment()) {
+			<main id="document-show-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold text-slate-100">Document Details</h1>
+						<div class="flex flex-wrap items-center gap-3">
+							
+							<a href={ routes.DocumentEdit.URL(ds.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
+							
+							
+							<a class="text-sm text-slate-300 hover:text-slate-100" href={ routes.DocumentIndex.URL() }>Back to List</a>
+							
+						</div>
+					</div>
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
+						<div class="p-6 pt-0">
+							<div class="grid gap-5 sm:grid-cols-2">
+								
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Title</label>
+									<p class="text-sm text-slate-100">{ newDocumentData(ds.Item).Title }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Tags</label>
+									<p class="text-sm text-slate-100">{ strings.Join(newDocumentData(ds.Item).Tags, ", ") }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Page Numbers</label>
+									<p class="text-sm text-slate-100">{ fmt.Sprintf("%v", newDocumentData(ds.Item).PageNumbers) }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">View Count</label>
+									<p class="text-sm text-slate-100">{ fmt.Sprintf("%d", newDocumentData(ds.Item).ViewCount) }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Is Published</label>
+									<p class="text-sm text-slate-100">{ fmt.Sprintf("%t", newDocumentData(ds.Item).IsPublished) }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
+									<p class="text-sm text-slate-100">{ newDocumentData(ds.Item).CreatedAt.String() }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
+									<p class="text-sm text-slate-100">{ newDocumentData(ds.Item).UpdatedAt.String() }</p>
+								</div>
+								
+							</div>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}
+
+
+
+type DocumentNew struct{}
+
+func (dn DocumentNew) PageFragment() string {
+	return "document-new-page-fragment"
+}
+
+templ (dn DocumentNew) Page() {
+	@base() {
+		@templ.Fragment(dn.PageFragment()) {
+			<main id="document-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
+						<div class="flex flex-col space-y-1.5 p-6">
+							<h3 class="text-lg font-semibold leading-none text-slate-100">New Document</h3>
+							<p class="text-sm text-slate-400">Enter the details for the new document.</p>
+						</div>
+						<div class="p-6 pt-0">
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.DocumentCreate.URL()) }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div class="space-y-4">
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="title">Title</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="title" />
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="tags">Tags</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="tags" />
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="pageNumbers">Page Numbers</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="pageNumbers" />
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="viewCount">View Count</label>
+											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="viewCount" />
+										</div>
+										<div class="flex items-center gap-2">
+											<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-cyan-400/25 bg-slate-950 accent-cyan-400 transition focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="isPublished" />
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="isPublished">Is Published</label>
+										</div>
+										
+									</div>
+									<div class="mt-6 space-y-3">
+										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded w-full">Create Document</button>
+										
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-cyan-400/25 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-slate-100" href={ routes.DocumentIndex.URL() }>Back to List</a>
+										
+									</div>
+								</fieldset>
+							</form>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}
+
+
+
+type DocumentEdit struct {
+	Item models.Document
+}
+
+func (de DocumentEdit) PageFragment() string {
+	return "document-edit-page-fragment"
+}
+
+templ (de DocumentEdit) Page() {
+	@base() {
+		@templ.Fragment(de.PageFragment()) {
+			<main id="document-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
+						<div class="flex flex-col space-y-1.5 p-6">
+							<h3 class="text-lg font-semibold leading-none text-slate-100">Edit Document</h3>
+							<p class="text-sm text-slate-400">Update the details for this document.</p>
+						</div>
+						<div class="p-6 pt-0">
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.DocumentUpdate.URL(de.Item.ID)) }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div class="space-y-4">
+										
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="title">Title</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="title" value={ newDocumentData(de.Item).Title } />
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="tags">Tags</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="tags" value={ strings.Join(newDocumentData(de.Item).Tags, ", ") } />
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="pageNumbers">Page Numbers</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="pageNumbers" value={ fmt.Sprintf("%v", newDocumentData(de.Item).PageNumbers) } />
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="viewCount">View Count</label>
+											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="viewCount" value={ fmt.Sprintf("%d", newDocumentData(de.Item).ViewCount) } />
+										</div>
+										<div class="flex items-center gap-2">
+											<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-cyan-400/25 bg-slate-950 accent-cyan-400 transition focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="isPublished" if newDocumentData(de.Item).IsPublished { checked } />
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="isPublished">Is Published</label>
+										</div>
+										
+									</div>
+									<div class="mt-6 space-y-3">
+										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded w-full">Update Document</button>
+										
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-cyan-400/25 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-slate-100" href={ routes.DocumentIndex.URL() }>Back to List</a>
+										
+									</div>
+								</fieldset>
+							</form>
+							<div role="separator" class="my-6 shrink-0 bg-slate-800 h-px w-full"></div>
+							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.DocumentDestroy.URL(de.Item.ID)) }>Destroy Document</button>
+							
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}
+

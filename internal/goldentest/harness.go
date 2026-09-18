@@ -129,6 +129,49 @@ func AssertFile(t testing.TB, g *goldie.Goldie, goldenName, projectDir, relPath 
 	g.Assert(t, goldenName, got)
 }
 
+// AssertFiles asserts each relPath under goldenPrefix/<relPath>.
+func AssertFiles(t testing.TB, g *goldie.Goldie, goldenPrefix, projectDir string, relPaths []string) {
+	t.Helper()
+	for _, relPath := range relPaths {
+		goldenName := filepath.ToSlash(filepath.Join(goldenPrefix, filepath.FromSlash(relPath)))
+		AssertFile(t, g, goldenName, projectDir, relPath)
+	}
+}
+
+// AssertMissing fails if projectDir/relPath exists.
+func AssertMissing(t testing.TB, projectDir, relPath string) {
+	t.Helper()
+	path := filepath.Join(projectDir, filepath.FromSlash(relPath))
+	if _, err := os.Stat(path); err == nil {
+		t.Fatalf("expected %s not to exist", relPath)
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat %s: %v", relPath, err)
+	}
+}
+
+// CopyMigrations copies SQL files from generator/testdata/migrations/<name>
+// into projectDir/migrations/.
+func CopyMigrations(t testing.TB, projectDir, name string) {
+	t.Helper()
+
+	src := filepath.Join(RepoRoot(), "generator", "testdata", "migrations", name)
+	info, err := os.Stat(src)
+	if err != nil {
+		t.Fatalf("migrations %q: %v", name, err)
+	}
+	if !info.IsDir() {
+		t.Fatalf("migrations %q is not a directory", name)
+	}
+
+	dst := filepath.Join(projectDir, "migrations")
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		t.Fatalf("mkdir migrations: %v", err)
+	}
+	if err := copyDir(src, dst); err != nil {
+		t.Fatalf("copy migrations %q: %v", name, err)
+	}
+}
+
 func cliEnv() []string {
 	env := os.Environ()
 	if toolBinDir == "" {

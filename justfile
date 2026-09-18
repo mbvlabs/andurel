@@ -45,7 +45,7 @@ vet:
 test:
 	go test ./pkg/... -v
 
-# Run unit tests with coverage (pkg only until Phase 2 expands coverage)
+# Run unit tests with coverage (pkg only; CLI goldens use just test-golden)
 test-coverage:
 	./scripts/coverage.sh
 
@@ -53,7 +53,7 @@ test-coverage:
 test-golden: install-dev-tools
 	go test ./golden/... -v -timeout 15m
 
-# Run critical tests (vet + contracts + golden smoke)
+# Run critical tests (vet + contracts + golden)
 test-critical:
 	@echo "Running go vet..."
 	@just vet
@@ -75,7 +75,7 @@ check:
 	@echo "\nChecking contracts..."
 	@just check-contracts
 
-# Run full CI check (vet + contracts + golden; coverage deferred until Phase 2)
+# Run full CI check (vet + contracts + golden)
 ci:
 	@echo "Running go vet..."
 	@just vet
@@ -89,12 +89,12 @@ ci:
 install-dev-tools:
 	./scripts/install-dev-tools.sh
 
-# Update golden files under testdata/golden
+# Update golden files under testdata/golden (smoke + generate model/scaffold/controller)
 update-golden: install-dev-tools
 	go clean -testcache
 	go test ./golden/... -v -timeout 15m -update
 
-# Update all golden files (alias for update-golden during Phase 1)
+# Alias for update-golden
 update-golden-all: update-golden
 
 # Clean test artifacts and cache

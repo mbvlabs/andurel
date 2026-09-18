@@ -7,6 +7,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/models"
 	"github.com/mbvlabs/andurel/generator/views"
 	"github.com/mbvlabs/andurel/internal/naming"
+	"github.com/mbvlabs/andurel/internal/testseed"
 )
 
 // Coordinator wires the managers that implement high-level generation workflows.
@@ -66,6 +67,13 @@ func NewCoordinator() (Coordinator, error) {
 	)
 
 	actionManager := NewActionManager()
+
+	// Golden-tagged binaries skip interactive PK prompts so CLI scenarios stay
+	// non-interactive (alternate PK confirmation and no-PK tables).
+	if testseed.Enabled() {
+		modelManager.SetPrimaryKeyResolver(NopPrimaryKeyResolver{})
+		controllerManager.SetPrimaryKeyResolver(NopPrimaryKeyResolver{})
+	}
 
 	return Coordinator{
 		ModelManager:      modelManager,

@@ -1,0 +1,263 @@
+package controllers
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"strconv"
+	"uuid"
+
+	"example.com/app/models"
+	"example.com/app/router"
+	"example.com/app/router/routes"
+	"example.com/app/views"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+)
+
+type Companies struct {
+	companies models.Companies
+}
+
+func NewCompanies(companies models.Companies) Companies {
+	return Companies{companies}
+}
+
+func (c Companies) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.CompanyIndex.Path(),
+		Name:    routes.CompanyIndex.Name(),
+		Handler: c.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.CompanyShow.Path(),
+		Name:    routes.CompanyShow.Name(),
+		Handler: c.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.CompanyNew.Path(),
+		Name:    routes.CompanyNew.Name(),
+		Handler: c.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.CompanyCreate.Path(),
+		Name:    routes.CompanyCreate.Name(),
+		Handler: c.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.CompanyEdit.Path(),
+		Name:    routes.CompanyEdit.Name(),
+		Handler: c.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.CompanyUpdate.Path(),
+		Name:    routes.CompanyUpdate.Name(),
+		Handler: c.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.CompanyDestroy.Path(),
+		Name:    routes.CompanyDestroy.Name(),
+		Handler: c.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+func (c Companies) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	companiesList, err := c.companies.Paginate(
+		etx.Request().Context(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+
+	return hypermedia.RenderPage(etx, views.CompanyIndex{Items: companiesList.Companies}.Page())
+}
+
+func (c Companies) Show(etx *echo.Context) error {
+	companyID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	company, err := c.companies.Find(etx.Request().Context(), companyID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.CompanyShow{Item: company}.Page())
+}
+
+func (c Companies) New(etx *echo.Context) error {
+	return hypermedia.RenderPage(etx, views.CompanyNew{}.Page())
+}
+
+type CreateCompanyFormPayload struct {
+	Name     string `json:"name"`
+	Industry string `json:"industry"`
+}
+
+func (c Companies) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "companies.create")
+	defer span.End()
+
+	var payload CreateCompanyFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse CreateCompanyFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.CreateCompanyData{
+
+		Name: payload.Name,
+
+		Industry: pgtype.Text{String: payload.Industry, Valid: true},
+	}
+
+	company, err := c.companies.Create(
+		ctx,
+		data,
+	)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to create company: %v", err))
+		return etx.Redirect(http.StatusSeeOther, routes.CompanyNew.URL())
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Company created successfully")
+	return etx.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID))
+}
+
+func (c Companies) Edit(etx *echo.Context) error {
+	companyID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	company, err := c.companies.Find(etx.Request().Context(), companyID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.CompanyEdit{Item: company}.Page())
+}
+
+type UpdateCompanyFormPayload struct {
+	Name     string `json:"name"`
+	Industry string `json:"industry"`
+}
+
+func (c Companies) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "companies.update")
+	defer span.End()
+	companyID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	var payload UpdateCompanyFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse UpdateCompanyFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.UpdateCompanyData{
+		ID: companyID,
+
+		Name: payload.Name,
+
+		Industry: pgtype.Text{String: payload.Industry, Valid: true},
+	}
+
+	company, err := c.companies.Update(
+		ctx,
+		data,
+	)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to update company: %v", err))
+		return etx.Redirect(
+			http.StatusSeeOther,
+			routes.CompanyEdit.URL(companyID),
+		)
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Company updated successfully")
+	return etx.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID))
+}
+
+func (c Companies) Destroy(etx *echo.Context) error {
+	companyID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	err = c.companies.Destroy(etx.Request().Context(), companyID)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to delete company: %v", err))
+		return etx.Redirect(http.StatusSeeOther, routes.CompanyIndex.URL())
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Company destroyed successfully")
+	return etx.Redirect(http.StatusSeeOther, routes.CompanyIndex.URL())
+}

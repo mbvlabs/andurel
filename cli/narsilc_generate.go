@@ -5,12 +5,19 @@ import (
 	"runtime"
 
 	"github.com/mbvlabs/andurel/cli/output"
+	"github.com/mbvlabs/andurel/internal/testseed"
 	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 func generateNarsilcIfNeeded(rootDir string) error {
+	// Golden CLI tests assert generator-written files (models, factories, SQL).
+	// Skipping the external narsilc binary keeps scenarios offline and focused.
+	if testseed.Enabled() {
+		return nil
+	}
+
 	hasQueries, err := storage.HasQueryFiles(rootDir)
 	if err != nil {
 		return fmt.Errorf("check narsilc queries: %w", err)
