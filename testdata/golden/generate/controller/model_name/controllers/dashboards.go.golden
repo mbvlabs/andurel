@@ -1,0 +1,90 @@
+package controllers
+
+import (
+	"errors"
+	"net/http"
+	"strconv"
+	"uuid"
+
+	"example.com/app/models"
+	"example.com/app/router"
+	"example.com/app/router/routes"
+	"example.com/app/views"
+	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+)
+
+type Dashboards struct {
+	widgets models.Widgets
+}
+
+func NewDashboards(widgets models.Widgets) Dashboards {
+	return Dashboards{widgets}
+}
+
+func (d Dashboards) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.DashboardIndex.Path(),
+		Name:    routes.DashboardIndex.Name(),
+		Handler: d.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.DashboardShow.Path(),
+		Name:    routes.DashboardShow.Name(),
+		Handler: d.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+func (d Dashboards) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	widgetsList, err := d.widgets.Paginate(
+		etx.Request().Context(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+
+	return hypermedia.RenderPage(etx, views.DashboardIndex{Items: widgetsList.Widgets}.Page())
+}
+
+func (d Dashboards) Show(etx *echo.Context) error {
+	dashboardID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	dashboard, err := d.widgets.Find(etx.Request().Context(), dashboardID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.DashboardShow{Item: dashboard}.Page())
+}

@@ -1,9 +1,11 @@
 package files
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/mbvlabs/andurel/internal/cache"
@@ -122,10 +124,36 @@ var (
 	_ Manager        = (*UnifiedManager)(nil)
 )
 
-// FormatGoFile formats a Go file using goimports and go fmt
+// FormatGoFile formats a Go file using goimports and go fmt.
+// Tool binaries are resolved via LookPath (and ANDUREL_TOOL_BIN when set), so
+// CI and golden harnesses can put pinned goimports on PATH / in that bin dir.
+//
+// goimports runs with GOWORK=off and cwd set to the file's directory so an
+// ambient go.work (e.g. this repo's workspace) cannot change import resolution
+// for generated project files.
 func FormatGoFile(path string) error {
-	// First run goimports to fix imports
-	cmd := exec.Command("goimports", "-w", path)
+	goimportsPath, err := resolveTool("goimports")
+	if err != nil {
+		return &FileOperationError{
+			Operation: "goimports",
+			Path:      path,
+			Err:       err,
+		}
+	}
+
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return &FileOperationError{
+			Operation: "goimports",
+			Path:      path,
+			Err:       err,
+		}
+	}
+	fileDir := filepath.Dir(absPath)
+
+	cmd := exec.Command(goimportsPath, "-w", absPath)
+	cmd.Dir = fileDir
+	cmd.Env = toolEnv()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return &FileOperationError{
 			Operation: "goimports",
@@ -135,8 +163,9 @@ func FormatGoFile(path string) error {
 		}
 	}
 
-	// Then run go fmt to format
-	cmd = exec.Command("go", "fmt", path)
+	cmd = exec.Command("go", "fmt", absPath)
+	cmd.Dir = fileDir
+	cmd.Env = toolEnv()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return &FileOperationError{
 			Operation: "go_fmt",
@@ -147,6 +176,36 @@ func FormatGoFile(path string) error {
 	}
 
 	return nil
+}
+
+// toolEnv is the process environment for formatter subprocesses: inherit the
+// current env but force GOWORK=off so workspace mode cannot rewrite imports.
+func toolEnv() []string {
+	env := os.Environ()
+	filtered := make([]string, 0, len(env)+1)
+	for _, entry := range env {
+		if strings.HasPrefix(entry, "GOWORK=") {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return append(filtered, "GOWORK=off")
+}
+
+// resolveTool finds a formatter/codegen binary. ANDUREL_TOOL_BIN, when set,
+// is checked first so golden/CI installs of pinned versions win over PATH drift.
+func resolveTool(name string) (string, error) {
+	if dir := os.Getenv("ANDUREL_TOOL_BIN"); dir != "" {
+		candidate := filepath.Join(dir, name)
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate, nil
+		}
+	}
+	path, err := exec.LookPath(name)
+	if err != nil {
+		return "", fmt.Errorf("%s not found in ANDUREL_TOOL_BIN or PATH: %w", name, err)
+	}
+	return path, nil
 }
 
 // FindGoModRoot finds the root directory containing go.mod (with caching)

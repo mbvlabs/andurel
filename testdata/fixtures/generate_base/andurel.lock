@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "version": "test",
+  "tools": {},
+  "scaffoldConfig": {
+    "projectName": "app"
+  },
+  "databaseConfig": {
+    "engine": "postgresql",
+    "nullType": "pgtype.Null"
+  }
+}

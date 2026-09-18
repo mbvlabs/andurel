@@ -1,0 +1,288 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+	"app/assets"
+	"app/config"
+	"app/controllers"
+	"app/models"
+	"app/router"
+	"app/router/routes"
+	"app/services"
+	"app/views"
+
+	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/server"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+	"go.uber.org/fx"
+)
+
+var appVersion string
+
+func main() {
+	if err := config.LoadEnvironment(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	app := fx.New(
+		fx.Provide(
+			func() context.Context { return ctx },
+			newEmailSenders,
+			newTelemetry,
+		),
+
+		config.Module,
+		databaseModule,
+		queueInsertModule,
+		models.Module,
+		inertiaModule,
+		services.Module,
+		controllers.Module,
+		router.Module,
+
+		fx.Invoke(startServer),
+	)
+
+	if err := app.Start(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+
+	<-ctx.Done()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := app.Stop(shutdownCtx); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
+}
+
+var databaseModule = fx.Module(
+	"database",
+	fx.Provide(fx.Annotate(newDatabase, fx.As(new(storage.Connection)), fx.As(fx.Self()))),
+)
+
+var queueInsertModule = fx.Module(
+	"queue-insert",
+	fx.Provide(fx.Annotate(newQueueInsert, fx.As(new(storage.InsertQueue)))),
+)
+var inertiaModule = fx.Module(
+	"inertia",
+	fx.Provide(newInertia),
+)
+
+func startServer(
+	lc fx.Lifecycle,
+	appCtx context.Context,
+	r *router.Router,
+	appCfg config.App,
+	httpCfg config.HTTP,
+	tel *telemetry.Telemetry,
+) {
+	appCtx = tel.Context(appCtx)
+	srv := server.New(
+		appCtx,
+		httpCfg.Host,
+		httpCfg.Port,
+		appCfg.Environment,
+		r.Handler,
+		nil,
+		server.WithTimeouts(
+			httpCfg.IdleTimeout,
+			httpCfg.ReadTimeout,
+			httpCfg.WriteTimeout,
+		),
+	)
+	var done <-chan struct{}
+
+	lc.Append(fx.Hook{
+		OnStart: func(_ context.Context) error {
+			telemetry.Info(
+				appCtx,
+				"starting server",
+				"host",
+				httpCfg.Host,
+				"port",
+				httpCfg.Port,
+			)
+			done = startInBackground(appCtx, "server", func(ctx context.Context) error {
+				return srv.Start(ctx, appCfg.Environment)
+			})
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			telemetry.Info(ctx, "initiating graceful shutdown")
+			return stopAndWait(ctx, func(ctx context.Context) error {
+				var shutdownErr error
+				for _, shutdowner := range srv.Shutdowners {
+					if err := shutdowner.Shutdown(ctx); err != nil {
+						shutdownErr = errors.Join(
+							shutdownErr,
+							fmt.Errorf("server: shutdown component %T: %w", shutdowner, err),
+						)
+					}
+				}
+
+				return shutdownErr
+			}, done)
+		},
+	})
+}
+
+func newDatabase(
+	lifecycle fx.Lifecycle,
+	ctx context.Context,
+	cfg storage.Config,
+	tel *telemetry.Telemetry,
+) (*storage.Postgres, error) {
+	opts := []storage.Option{}
+	if tel != nil {
+		opts = append(opts, storage.WithOpenTelemetry(storage.TelemetryConfig{
+			TracerProvider: tel.TracerProvider(),
+			MeterProvider:  tel.MeterProvider(),
+		}))
+	}
+	db, err := storage.NewPostgres(ctx, cfg, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	lifecycle.Append(fx.Hook{OnStop: func(context.Context) error { return db.Close() }})
+	return db, nil
+}
+
+func newQueueInsert(
+	connection storage.Connection,
+	cfg config.QueueInsert,
+) (*storage.QueueInsert, error) {
+	return storage.NewQueueInsert(connection, cfg.Config)
+}
+
+func newTelemetry(
+	lifecycle fx.Lifecycle,
+	ctx context.Context,
+	appCfg config.App,
+	cfg config.Telemetry,
+) (*telemetry.Telemetry, error) {
+	opts := []telemetry.Option{
+		telemetry.WithTraceSampleRate(cfg.TraceSampleRate),
+		telemetry.WithBatchConfig(
+			cfg.BatchSize,
+			time.Duration(cfg.BatchTimeoutMs)*time.Millisecond,
+			2048,
+		),
+		telemetry.WithLogLevel(cfg.LogLevel),
+	}
+	if !appCfg.IsProduction() {
+		opts = append(opts, telemetry.WithConsole())
+	}
+	headers := telemetry.ParseHeaders(cfg.OtlpHeaders)
+	if cfg.OtlpLogsEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPLogs(cfg.OtlpLogsEndpoint, headers))
+	}
+	if cfg.OtlpTracesEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPTraces(cfg.OtlpTracesEndpoint, headers))
+	}
+	if cfg.OtlpMetricsEndpoint != "" {
+		opts = append(opts, telemetry.WithOTLPMetrics(cfg.OtlpMetricsEndpoint, headers))
+	}
+	tel, err := telemetry.New(ctx, cfg.ServiceName, cfg.ServiceVersion, opts...)
+	if err != nil {
+		return nil, err
+	}
+	lifecycle.Append(fx.Hook{OnStop: tel.Shutdown})
+	return tel, nil
+}
+
+
+
+func newInertia(
+	appCfg config.App,
+	cfg config.Inertia,
+) (*inertia.Renderer, error) {
+	renderer, err := inertia.NewRenderer(
+		cfg.ContainerID,
+		routes.ViteBuild.Path(),
+		cfg.EntryPoint,
+		cfg.ViteDevURL,
+		cfg.SSRURL,
+		cfg.SSRRequestTimeout,
+		cfg.SSRMaxResponseBytes,
+		inertia.WithRoot(views.Root),
+		inertia.WithAssetFS(assets.Files),
+		inertia.WithProjectName(appCfg.ProjectName),
+		inertia.WithEnvironment(appCfg.Environment),
+		inertia.WithProtocolDebug(cfg.ProtocolDebug),
+		inertia.WithShared(inertia.Props{"appVersion": appVersion}),
+		inertia.WithSSRFailFast(cfg.SSRFailFast),
+		inertia.WithFlashProvider(func(etx *echo.Context) any {
+			return kiks.Flashes(etx.Request().Context())
+		}),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return renderer, nil
+}
+
+func newEmailSenders(
+	ctx context.Context,
+	cfg config.MailTransport,
+) (email.TransactionalSender, email.MarketingSender, error) {
+	switch cfg.Driver {
+	case config.MailpitDriver:
+		client, err := email.NewMailpit(cfg.Mailpit)
+		if err != nil {
+			return nil, nil, fmt.Errorf("create Mailpit client: %w", err)
+		}
+
+		return client, client, nil
+	default:
+		return nil, nil, fmt.Errorf("unsupported email provider %q", cfg.Driver)
+	}
+}
+
+func startInBackground(
+	ctx context.Context,
+	name string,
+	start func(context.Context) error,
+) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if err := start(ctx); err != nil {
+			telemetry.Error(ctx, name+" error", "error", err)
+		}
+	}()
+	return done
+}
+
+func stopAndWait(
+	ctx context.Context,
+	stop func(context.Context) error,
+	done <-chan struct{},
+) error {
+	stopErr := stop(ctx)
+	select {
+	case <-done:
+		return stopErr
+	case <-ctx.Done():
+		return errors.Join(stopErr, ctx.Err())
+	}
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "version": "test",
+  "tools": {},
+  "scaffoldConfig": {
+    "projectName": "app",
+    "inertia": "vue"
+  },
+  "databaseConfig": {
+    "engine": "postgresql",
+    "nullType": "pgtype.Null"
+  }
+}

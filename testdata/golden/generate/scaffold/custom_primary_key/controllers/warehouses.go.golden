@@ -1,0 +1,262 @@
+package controllers
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"strconv"
+
+	"example.com/app/models"
+	"example.com/app/router"
+	"example.com/app/router/routes"
+	"example.com/app/views"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+)
+
+type Warehouses struct {
+	warehouses models.Warehouses
+}
+
+func NewWarehouses(warehouses models.Warehouses) Warehouses {
+	return Warehouses{warehouses}
+}
+
+func (w Warehouses) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WarehouseIndex.Path(),
+		Name:    routes.WarehouseIndex.Name(),
+		Handler: w.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WarehouseShow.Path(),
+		Name:    routes.WarehouseShow.Name(),
+		Handler: w.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WarehouseNew.Path(),
+		Name:    routes.WarehouseNew.Name(),
+		Handler: w.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.WarehouseCreate.Path(),
+		Name:    routes.WarehouseCreate.Name(),
+		Handler: w.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WarehouseEdit.Path(),
+		Name:    routes.WarehouseEdit.Name(),
+		Handler: w.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.WarehouseUpdate.Path(),
+		Name:    routes.WarehouseUpdate.Name(),
+		Handler: w.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.WarehouseDestroy.Path(),
+		Name:    routes.WarehouseDestroy.Name(),
+		Handler: w.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+func (w Warehouses) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	warehousesList, err := w.warehouses.Paginate(
+		etx.Request().Context(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+
+	return hypermedia.RenderPage(etx, views.WarehouseIndex{Items: warehousesList.Warehouses}.Page())
+}
+
+func (w Warehouses) Show(etx *echo.Context) error {
+	warehouseID := etx.Param("id")
+	if warehouseID == "" {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	warehouse, err := w.warehouses.Find(etx.Request().Context(), warehouseID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.WarehouseShow{Item: warehouse}.Page())
+}
+
+func (w Warehouses) New(etx *echo.Context) error {
+	return hypermedia.RenderPage(etx, views.WarehouseNew{}.Page())
+}
+
+type CreateWarehouseFormPayload struct {
+	Name     string `json:"name"`
+	Location string `json:"location"`
+}
+
+func (w Warehouses) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "warehouses.create")
+	defer span.End()
+
+	var payload CreateWarehouseFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse CreateWarehouseFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.CreateWarehouseData{
+
+		Name: payload.Name,
+
+		Location: pgtype.Text{String: payload.Location, Valid: true},
+	}
+
+	warehouse, err := w.warehouses.Create(
+		ctx,
+		data,
+	)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to create warehouse: %v", err))
+		return etx.Redirect(http.StatusSeeOther, routes.WarehouseNew.URL())
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Warehouse created successfully")
+	return etx.Redirect(http.StatusSeeOther, routes.WarehouseShow.URL(warehouse.Slug))
+}
+
+func (w Warehouses) Edit(etx *echo.Context) error {
+	warehouseID := etx.Param("id")
+	if warehouseID == "" {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	warehouse, err := w.warehouses.Find(etx.Request().Context(), warehouseID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.WarehouseEdit{Item: warehouse}.Page())
+}
+
+type UpdateWarehouseFormPayload struct {
+	Name     string `json:"name"`
+	Location string `json:"location"`
+}
+
+func (w Warehouses) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "warehouses.update")
+	defer span.End()
+	warehouseID := etx.Param("id")
+	if warehouseID == "" {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	var payload UpdateWarehouseFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse UpdateWarehouseFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.UpdateWarehouseData{
+		Slug: warehouseID,
+
+		Name: payload.Name,
+
+		Location: pgtype.Text{String: payload.Location, Valid: true},
+	}
+
+	warehouse, err := w.warehouses.Update(
+		ctx,
+		data,
+	)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to update warehouse: %v", err))
+		return etx.Redirect(
+			http.StatusSeeOther,
+			routes.WarehouseEdit.URL(warehouseID),
+		)
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Warehouse updated successfully")
+	return etx.Redirect(http.StatusSeeOther, routes.WarehouseShow.URL(warehouse.Slug))
+}
+
+func (w Warehouses) Destroy(etx *echo.Context) error {
+	warehouseID := etx.Param("id")
+	if warehouseID == "" {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	err = w.warehouses.Destroy(etx.Request().Context(), warehouseID)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to delete warehouse: %v", err))
+		return etx.Redirect(http.StatusSeeOther, routes.WarehouseIndex.URL())
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Warehouse destroyed successfully")
+	return etx.Redirect(http.StatusSeeOther, routes.WarehouseIndex.URL())
+}

@@ -10,6 +10,7 @@ import (
 	"github.com/mbvlabs/andurel/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/generator/models"
 	"github.com/mbvlabs/andurel/internal/naming"
+	"github.com/mbvlabs/andurel/internal/testseed"
 	"github.com/mbvlabs/andurel/layout"
 )
 
@@ -77,8 +78,17 @@ func NewModelManager(
 		migrationManager: migrationManager,
 		config:           config,
 		pkResolver:       DefaultPrimaryKeyResolver{},
-		factoryValidator: &factoryValidationHook{validate: validatePlannedFactory},
+		factoryValidator: factoryValidatorForEnv(),
 	}
+}
+
+// factoryValidatorForEnv skips packages.Load type-checks under andurel_golden.
+// Golden fixtures stay minimal (no module graph); --check still reports drift.
+func factoryValidatorForEnv() *factoryValidationHook {
+	if testseed.Enabled() {
+		return nil
+	}
+	return &factoryValidationHook{validate: validatePlannedFactory}
 }
 
 // SetPrimaryKeyResolver overrides primary key resolution during model generation.

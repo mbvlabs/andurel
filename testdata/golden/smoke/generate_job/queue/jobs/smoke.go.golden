@@ -1,0 +1,5 @@
+package jobs
+
+type SmokeArgs struct{}
+
+func (SmokeArgs) Kind() string { return "smoke" }

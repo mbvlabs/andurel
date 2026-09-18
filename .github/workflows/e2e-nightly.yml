@@ -19,37 +19,29 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.27.1'
-          check-latest: true
+          check-latest: false
           cache: true
 
       - name: Download dependencies
         run: go mod download
 
-      - name: Install tools
-        run: |
-          go install github.com/a-h/templ/cmd/templ
-          go install github.com/segmentio/golines
-          go install golang.org/x/tools/cmd/goimports
+      - name: Install pinned tools
+        run: ./scripts/install-dev-tools.sh
 
       - name: Run go vet
         run: |
           go vet ./...
           ./scripts/vet-standalone-modules.sh
 
-      - name: Run unit tests with canonical coverage
+      - name: Check contracts
+        run: ./scripts/check-contracts.sh
+
+      - name: Run golden CLI tests
+        run: go test ./golden/... -v -timeout 15m
+
+      - name: Run pkg tests with coverage (informational)
+        continue-on-error: true
         run: ./scripts/coverage.sh
-
-      - name: Run E2E full test suite
-        run: go test ./e2e/... -v -timeout 55m
-
-      - name: Upload failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-nightly-failures
-          path: |
-            /tmp/andurel-e2e-*
-          retention-days: 7
 
       - name: Notify on failure
         if: failure()

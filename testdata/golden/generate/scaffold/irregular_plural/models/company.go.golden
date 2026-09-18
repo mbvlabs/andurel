@@ -1,0 +1,189 @@
+package models
+
+// andurel:table companies
+
+import (
+	"context"
+	"errors"
+	"time"
+	"uuid"
+
+	"example.com/app/models/internal/queries"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+type Companies struct {
+	queries *queries.Queries
+}
+
+func NewCompanies(db storage.Connection) Companies {
+	return Companies{queries: queries.New(db)}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (c Companies) WithTx(tx storage.Transaction) Companies {
+	return Companies{queries: queries.New(tx)}
+}
+
+type Company struct {
+	ID        uuid.UUID          `andurel:"id"`
+	Name      string             `andurel:"name"`
+	Industry  pgtype.Text        `andurel:"industry"`
+	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
+}
+
+func (c Companies) Find(ctx context.Context, id uuid.UUID) (Company, error) {
+	entity, err := c.queries.GetCompany[Company](ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Company{}, ErrNotFound
+		}
+		return Company{}, err
+	}
+
+	return entity, nil
+}
+
+type CreateCompanyData struct {
+	Name     string
+	Industry pgtype.Text
+}
+
+func (c Companies) Create(ctx context.Context, data CreateCompanyData) (Company, error) {
+	entity := Company{
+		ID:        uuid.New(),
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		Name:      data.Name,
+		Industry:  data.Industry,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return Company{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	return c.queries.CreateCompany[Company](ctx, queries.CreateCompanyParams{
+		ID:        entity.ID,
+		Name:      entity.Name,
+		Industry:  entity.Industry,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	})
+}
+
+type UpdateCompanyData struct {
+	ID       uuid.UUID
+	Name     string
+	Industry pgtype.Text
+}
+
+func (c Companies) Update(ctx context.Context, data UpdateCompanyData) (Company, error) {
+	entity := Company{
+		ID:        data.ID,
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		Name:      data.Name,
+		Industry:  data.Industry,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return Company{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	row, err := c.queries.UpdateCompany[Company](ctx, queries.UpdateCompanyParams{
+		ID:        entity.ID,
+		Name:      entity.Name,
+		Industry:  entity.Industry,
+		UpdatedAt: entity.UpdatedAt,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Company{}, ErrNotFound
+		}
+		return Company{}, err
+	}
+
+	return row, nil
+}
+
+func (c Companies) Destroy(ctx context.Context, id uuid.UUID) error {
+	if err := c.queries.DeleteCompany(ctx, id); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c Companies) All(ctx context.Context) ([]Company, error) {
+	return c.queries.ListCompanies[Company](ctx).All()
+}
+
+type PaginatedCompanies struct {
+	Companies  []Company
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (c Companies) Paginate(ctx context.Context, page, pageSize int64) (PaginatedCompanies, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := c.queries.CountCompanies(ctx)
+	if err != nil {
+		return PaginatedCompanies{}, err
+	}
+
+	entities, err := c.queries.ListCompanies[Company](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
+		return PaginatedCompanies{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedCompanies{
+		Companies:  entities,
+		TotalCount: int64(totalCount),
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (c Companies) Upsert(ctx context.Context, id uuid.UUID, data CreateCompanyData) (Company, error) {
+	entity := Company{
+		ID:        id,
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		Name:      data.Name,
+		Industry:  data.Industry,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return Company{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	return c.queries.UpsertCompany[Company](ctx, queries.UpsertCompanyParams{
+		ID:        entity.ID,
+		Name:      entity.Name,
+		Industry:  entity.Industry,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	})
+}

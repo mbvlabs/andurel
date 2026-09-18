@@ -1,0 +1,58 @@
+package config
+
+import (
+	"errors"
+	"fmt"
+
+	"github.com/mbvlabs/andurel/pkg/storage"
+)
+
+const (
+	DefaultDatabaseKind           = "postgres"
+	DefaultDatabaseHost           = "127.0.0.1"
+	DefaultDatabasePort           = "5432"
+	DefaultDatabaseName           = "andurel"
+	DefaultDatabaseUser           = "postgres"
+	DefaultDatabasePassword       = "postgres"
+	DefaultDatabaseSSLMode        = "disable"
+	DefaultDatabaseApplicationName = "andurel"
+)
+
+func NewDatabase() (storage.Config, error) {
+	env := newEnvironment()
+	cfg := storage.DefaultConfig()
+	cfg.DatabaseKind = env.String("DB_KIND", DefaultDatabaseKind)
+	cfg.Host = env.String("DB_HOST", DefaultDatabaseHost)
+	cfg.Port = env.String("DB_PORT", DefaultDatabasePort)
+	cfg.Name = env.String("DB_NAME", DefaultDatabaseName)
+	cfg.User = env.String("DB_USER", DefaultDatabaseUser)
+	cfg.Password = env.String("DB_PASSWORD", DefaultDatabasePassword)
+	cfg.SSLMode = env.String("DB_SSL_MODE", DefaultDatabaseSSLMode)
+	cfg.ApplicationName = env.String("DB_APPLICATION_NAME", DefaultDatabaseApplicationName)
+	cfg.ConnectTimeout = env.Duration("DB_CONNECT_TIMEOUT", cfg.ConnectTimeout)
+	cfg.StatementCacheCapacity = env.Int(
+		"DB_STATEMENT_CACHE_CAPACITY",
+		cfg.StatementCacheCapacity,
+	)
+	cfg.DescriptionCacheCapacity = env.Int(
+		"DB_DESCRIPTION_CACHE_CAPACITY",
+		cfg.DescriptionCacheCapacity,
+	)
+	cfg.MaxOpenConnections = env.Int("DB_MAX_OPEN_CONNECTIONS", cfg.MaxOpenConnections)
+	cfg.MaxIdleConnections = env.Int("DB_MAX_IDLE_CONNECTIONS", cfg.MaxIdleConnections)
+	cfg.ConnectionMaxLifetime = env.Duration(
+		"DB_CONNECTION_MAX_LIFETIME",
+		cfg.ConnectionMaxLifetime,
+	)
+	cfg.ConnectionMaxIdleTime = env.Duration(
+		"DB_CONNECTION_MAX_IDLE_TIME",
+		cfg.ConnectionMaxIdleTime,
+	)
+	cfg.OpenTelemetry = env.Bool("DB_OPEN_TELEMETRY", true)
+
+	if err := errors.Join(env.Err(), cfg.Validate()); err != nil {
+		return storage.Config{}, fmt.Errorf("config: database: %w", err)
+	}
+
+	return cfg, nil
+}

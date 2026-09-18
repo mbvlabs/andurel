@@ -1,0 +1,17 @@
+import '../../css/base.css'
+
+import { createApp, createSSRApp, h, type DefineComponent } from 'vue'
+import { createInertiaApp } from '@inertiajs/vue3'
+
+createInertiaApp({
+  resolve: (name: string): DefineComponent => {
+    const pages = import.meta.glob<DefineComponent>('./Pages/**/*.vue', { eager: true, import: 'default' })
+    return pages[`./Pages/${name}.vue`]
+  },
+  setup({ el, App, props, plugin }) {
+    const createVueApp = el.dataset.serverRendered === 'true' ? createSSRApp : createApp
+    createVueApp({ render: () => h(App, props) })
+      .use(plugin)
+      .mount(el)
+  },
+})
