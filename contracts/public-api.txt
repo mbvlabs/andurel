@@ -1932,6 +1932,10 @@ func (td *TemplateData) InertiaPackageVersion() string
     InertiaPackageVersion returns the standalone Inertia module version verified
     with this framework release.
 
+func (td *TemplateData) KiksPackageVersion() string
+    KiksPackageVersion returns the standalone kiks module version verified with
+    this framework release.
+
 func (td *TemplateData) NarsilcPackageVersion() string
     NarsilcPackageVersion returns the narsilc module version required by
     generated query code.
@@ -2798,7 +2802,9 @@ const (
 	// NarsilcModule is the Go module version required by generated query code.
 	NarsilcModule = "v0.4.2"
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
-	Hypermedia = "v0.2.4"
+	Hypermedia = "v0.2.5"
+	// Kiks is the standalone Andurel cookies and sessions module version verified with this framework.
+	Kiks = "v0.1.0"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
 	Inertia = "v0.6.0"
 	// Email is the standalone Andurel email module version verified with this framework.
@@ -3027,6 +3033,10 @@ const (
 	NewLine       = "\n"
 	DoubleNewLine = "\n\n"
 )
+const ClientRedirectHeader = "X-Andurel-Client-Redirect"
+    ClientRedirectHeader marks a Datastar/SSE navigation so session flashes can
+    persist without an HTTP 3xx status. Must match kiks.ClientRedirectHeader.
+
 
 FUNCTIONS
 
@@ -3997,6 +4007,123 @@ func NewViteSSRRenderer(
 
 func (renderer *ViteSSRRenderer) Render(ctx context.Context, page Page) (*SSRResponse, error)
     Render posts a final v3 page object to Vite's /__inertia_ssr endpoint.
+
+
+## github.com/mbvlabs/andurel/pkg/kiks
+package kiks // import "github.com/mbvlabs/andurel/pkg/kiks"
+
+
+CONSTANTS
+
+const ClientRedirectHeader = "X-Andurel-Client-Redirect"
+    ClientRedirectHeader marks a response that navigates in the browser without
+    an HTTP 3xx status (Datastar/SSE redirects). hypermedia.Redirect sets the
+    same header name.
+
+
+FUNCTIONS
+
+func AddFlash(ctx context.Context, flashType FlashType, message string)
+    AddFlash appends a flash to the current request bag. It is visible to
+    whatever this response renders. Persistence is decided by middleware.
+
+func Delete[T any](ctx context.Context)
+    Delete removes a cookie or session value from the request bag.
+
+func Get[T any](ctx context.Context) T
+    Get returns the cookie value of type T, or the zero value if missing.
+
+func Lookup[T any](ctx context.Context) (T, bool)
+    Lookup returns the cookie value of type T and whether it was present.
+
+func Set[T any](ctx context.Context, value T)
+    Set writes a cookie or session value on the request bag.
+
+
+TYPES
+
+type Definition interface {
+	// Has unexported methods.
+}
+    Definition is a named cookie registered on a Jar.
+
+func Encrypted[T any](name string, opts ...Option) Definition
+    Encrypted defines a signed and encrypted HTTP cookie.
+
+func Plain[T any](name string, opts ...Option) Definition
+    Plain defines an unsigned HTTP cookie.
+
+func Session[T any](name string, opts ...Option) Definition
+    Session defines the application session bag (value + flashes).
+
+func Signed[T any](name string, opts ...Option) Definition
+    Signed defines a tamper-evident HTTP cookie.
+
+type FlashMessage struct {
+	ID        string    `json:"id"`
+	Type      FlashType `json:"type"`
+	Message   string    `json:"message"`
+	CreatedAt time.Time `json:"created_at"`
+}
+    FlashMessage is the shared flash contract for Templ and Inertia.
+
+func Flashes(ctx context.Context) []FlashMessage
+    Flashes returns the flash messages on the request bag. An empty bag yields
+    nil so JSON omitempty and Inertia flash providers skip the field.
+
+type FlashType string
+    FlashType is the visual category of a flash message.
+
+const (
+	FlashSuccess FlashType = "success"
+	FlashError   FlashType = "error"
+	FlashWarning FlashType = "warning"
+	FlashInfo    FlashType = "info"
+)
+type Jar struct {
+	// Has unexported fields.
+}
+    Jar holds cookie definitions and codecs.
+
+func New(keys Keys, defs ...Definition) (*Jar, error)
+    New constructs a cookie jar. Session values live in an encrypted cookie.
+
+func (jar *Jar) EchoMiddleware(opts ...MiddlewareOption) echo.MiddlewareFunc
+    EchoMiddleware loads defined cookies onto context.Context and persists the
+    bag once before the response is committed.
+
+type Keys struct {
+	Authentication []byte
+	Encryption     []byte
+}
+    Keys holds the gorilla/securecookie hash and optional encryption keys.
+
+type MiddlewareOption func(*middlewareConfig)
+    MiddlewareOption configures EchoMiddleware.
+
+func SkipPrefixes(prefixes ...string) MiddlewareOption
+    SkipPrefixes skips jar load/persist for matching URL path prefixes.
+
+type Option func(*cookieOptions)
+    Option configures a named cookie definition.
+
+func Domain(domain string) Option
+    Domain sets the cookie domain.
+
+func HTTPOnly() Option
+    HTTPOnly marks the cookie inaccessible to JavaScript.
+
+func MaxAge(seconds int) Option
+    MaxAge sets cookie lifetime in seconds.
+
+func Path(path string) Option
+    Path sets the cookie path. Defaults to "/".
+
+func SameSite(mode http.SameSite) Option
+    SameSite sets the SameSite attribute.
+
+func Secure(secure bool) Option
+    Secure sets the Secure attribute.
 
 
 ## github.com/mbvlabs/andurel/pkg/routing

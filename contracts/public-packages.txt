@@ -16,6 +16,7 @@ github.com/mbvlabs/andurel/layout/versions
 github.com/mbvlabs/andurel/pkg/email
 github.com/mbvlabs/andurel/pkg/hypermedia
 github.com/mbvlabs/andurel/pkg/inertia
+github.com/mbvlabs/andurel/pkg/kiks
 github.com/mbvlabs/andurel/pkg/routing
 github.com/mbvlabs/andurel/pkg/server
 github.com/mbvlabs/andurel/pkg/storage

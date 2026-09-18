@@ -138,10 +138,10 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 	ctx, span := telemetry.From(etx, "sessions.destroy")
 	defer span.End()
 
-	cookies.DestroyAppSession(etx.Request().Context())
+	cookies.DestroyAppSession(ctx)
 
 	kiks.AddFlash(
-		etx.Request().Context(),
+		ctx,
 		kiks.FlashSuccess,
 		"Successfully logged out!",
 	)

@@ -504,7 +504,7 @@ TRACE_SAMPLE_RATE=1.0
 
 ## Session, CORS, and CSRF Protection
 
-Application sessions use `HttpOnly` cookies with `SameSite=Lax` and `Path=/`. Production cookies also use `Secure`. `SESSION_MAX_AGE` is the lifetime in seconds and defaults to seven days (`604800`). Saving session state renews the expiration for another seven days. Signing out deletes the cookie immediately.
+Application sessions are defined in `router/cookies` and loaded onto `context.Context` by `pkg/kiks`. Controllers read and write them with `kiks.Get` / `kiks.Set` / `kiks.AddFlash`. The session envelope lives in an encrypted cookie. Cookies are `HttpOnly` with `SameSite=Lax` and `Path=/`. Production cookies also use `Secure`. `SESSION_MAX_AGE` is the lifetime in seconds and defaults to seven days (`604800`). Saving session state renews the expiration for another seven days. Signing out deletes the cookie immediately. Flashes persist across HTTP redirects and Datastar `X-Andurel-Client-Redirect` responses; they are consumed when a page renders them.
 
 CORS allows credentials and trusts only the configured application origin (`PROTOCOL` + `DOMAIN`) by default. `CORS_ALLOWED_ORIGINS` accepts a comma-separated list of additional exact origins. Wildcard origins are rejected when the application starts.
 
@@ -2795,6 +2795,7 @@ import (
 	"testapp/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
@@ -2803,11 +2804,10 @@ import (
 
 type Confirmations struct {
 	identity services.Identity
-	session  *cookies.Session
 }
 
-func NewConfirmations(identity services.Identity, session *cookies.Session) Confirmations {
-	return Confirmations{identity, session}
+func NewConfirmations(identity services.Identity) Confirmations {
+	return Confirmations{identity}
 }
 
 func (c Confirmations) RegisterRoutes(r *router.Router) error {
@@ -2889,31 +2889,18 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			errorMsg = "Failed to verify email"
 		}
 
-		if flashErr := c.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return hypermedia.RenderPage(etx, views.InternalError())
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, errorMsg)
 
 		return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
 	}
 
-	if err := c.session.CreateAppSession(etx, user); err != nil {
-		telemetry.Error(
-			ctx,
-			"failed to create session",
-			"error",
-			err,
-		)
+	cookies.CreateAppSession(etx.Request().Context(), user)
 
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
-
-	if flashErr := c.session.AddFlash(
-		etx,
-		cookies.FlashSuccess,
+	kiks.AddFlash(
+		etx.Request().Context(),
+		kiks.FlashSuccess,
 		"Email verified successfully!",
-	); flashErr != nil {
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	)
 
 	return hypermedia.Redirect(etx, routes.HomePage.URL())
 }
@@ -3071,13 +3058,13 @@ import (
 	"strings"
 
 	"testapp/router"
-	"testapp/router/cookies"
 	"testapp/router/middleware"
 	"testapp/router/routes"
 	"testapp/services"
 	"testapp/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
@@ -3086,11 +3073,10 @@ import (
 
 type Registrations struct {
 	identity services.Identity
-	session  *cookies.Session
 }
 
-func NewRegistrations(identity services.Identity, session *cookies.Session) Registrations {
-	return Registrations{identity, session}
+func NewRegistrations(identity services.Identity) Registrations {
+	return Registrations{identity}
 }
 
 func (r Registrations) RegisterRoutes(rtr *router.Router) error {
@@ -3192,13 +3178,11 @@ func (r Registrations) Create(etx *echo.Context) error {
 		outcome = "error"
 		cause = err
 
-		if flashErr := r.session.AddFlash(
-			etx,
-			cookies.FlashError,
+		kiks.AddFlash(
+			etx.Request().Context(),
+			kiks.FlashError,
 			"Failed to register user",
-		); flashErr != nil {
-			return hypermedia.RenderPage(etx, views.InternalError())
-		}
+		)
 
 		return etx.Redirect(http.StatusSeeOther, routes.RegistrationNew.URL())
 	}
@@ -3217,12 +3201,12 @@ import (
 	"net/http"
 
 	"testapp/router"
-	"testapp/router/cookies"
 	"testapp/router/routes"
 	"testapp/services"
 	"testapp/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
@@ -3231,11 +3215,10 @@ import (
 
 type ResetPasswords struct {
 	identity services.Identity
-	session  *cookies.Session
 }
 
-func NewResetPasswords(identity services.Identity, session *cookies.Session) ResetPasswords {
-	return ResetPasswords{identity, session}
+func NewResetPasswords(identity services.Identity) ResetPasswords {
+	return ResetPasswords{identity}
 }
 
 func (rp ResetPasswords) RegisterRoutes(r *router.Router) error {
@@ -3326,24 +3309,20 @@ func (rp ResetPasswords) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-		if flashErr := rp.session.AddFlash(
-			etx,
-			cookies.FlashError,
+		kiks.AddFlash(
+			etx.Request().Context(),
+			kiks.FlashError,
 			"Failed to send password reset code",
-		); flashErr != nil {
-			return hypermedia.RenderPage(etx, views.InternalError())
-		}
+		)
 
 		return etx.Redirect(http.StatusSeeOther, routes.PasswordNew.URL())
 	}
 
-	if flashErr := rp.session.AddFlash(
-		etx,
-		cookies.FlashSuccess,
+	kiks.AddFlash(
+		etx.Request().Context(),
+		kiks.FlashSuccess,
 		"If an account exists with that email, you will receive password reset instructions.",
-	); flashErr != nil {
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	)
 
 	return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 }
@@ -3353,13 +3332,11 @@ func (rp ResetPasswords) Edit(etx *echo.Context) error {
 
 	token := etx.Param("token")
 	if token == "" {
-		if flashErr := rp.session.AddFlash(
-			etx,
-			cookies.FlashError,
+		kiks.AddFlash(
+			etx.Request().Context(),
+			kiks.FlashError,
 			"Invalid or missing reset token",
-		); flashErr != nil {
-			return hypermedia.RenderPage(etx, views.InternalError())
-		}
+		)
 
 		return etx.Redirect(http.StatusSeeOther, routes.PasswordNew.URL())
 	}
@@ -3419,9 +3396,7 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 			errorMsg = "Failed to reset password"
 		}
 
-		if flashErr := rp.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return hypermedia.RenderPage(etx, views.InternalError())
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, errorMsg)
 		redirectPath := routes.PasswordEdit.URL(payload.Token)
 		if payload.Token != "" {
 			redirectPath = routes.PasswordEdit.URL(payload.Token)
@@ -3430,13 +3405,11 @@ func (rp ResetPasswords) Update(etx *echo.Context) error {
 		return etx.Redirect(http.StatusSeeOther, redirectPath)
 	}
 
-	if flashErr := rp.session.AddFlash(
-		etx,
-		cookies.FlashSuccess,
+	kiks.AddFlash(
+		etx.Request().Context(),
+		kiks.FlashSuccess,
 		"Password reset successfully! Please log in.",
-	); flashErr != nil {
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	)
 
 	return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 }
@@ -3458,6 +3431,7 @@ import (
 	"testapp/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
@@ -3466,11 +3440,10 @@ import (
 
 type Sessions struct {
 	identity services.Identity
-	session  *cookies.Session
 }
 
-func NewSessions(identity services.Identity, session *cookies.Session) Sessions {
-	return Sessions{identity, session}
+func NewSessions(identity services.Identity) Sessions {
+	return Sessions{identity}
 }
 
 func (s Sessions) RegisterRoutes(r *router.Router) error {
@@ -3564,31 +3537,18 @@ func (s Sessions) Create(etx *echo.Context) error {
 			errorMsg = "Failed to log in"
 		}
 
-		if flashErr := s.session.AddFlash(etx, cookies.FlashError, errorMsg); flashErr != nil {
-			return hypermedia.RenderPage(etx, views.InternalError())
-		}
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, errorMsg)
 
 		return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 	}
 
-	if err := s.session.CreateAppSession(etx, user); err != nil {
-		telemetry.Error(
-			ctx,
-			"failed to create session",
-			"error",
-			err,
-		)
+	cookies.CreateAppSession(etx.Request().Context(), user)
 
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
-
-	if flashErr := s.session.AddFlash(
-		etx,
-		cookies.FlashSuccess,
+	kiks.AddFlash(
+		etx.Request().Context(),
+		kiks.FlashSuccess,
 		"Successfully logged in!",
-	); flashErr != nil {
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	)
 
 	return hypermedia.Redirect(etx, routes.HomePage.URL())
 }
@@ -3597,23 +3557,13 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 	ctx, span := telemetry.From(etx, "sessions.destroy")
 	defer span.End()
 
-	if err := s.session.DestroyAppSession(etx); err != nil {
-		telemetry.Error(
-			ctx,
-			"failed to destroy session",
-			"error",
-			err,
-		)
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	cookies.DestroyAppSession(ctx)
 
-	if flashErr := s.session.AddFlash(
-		etx,
-		cookies.FlashSuccess,
+	kiks.AddFlash(
+		ctx,
+		kiks.FlashSuccess,
 		"Successfully logged out!",
-	); flashErr != nil {
-		return hypermedia.RenderPage(etx, views.InternalError())
-	}
+	)
 
 	return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 }
@@ -4249,16 +4199,15 @@ go 1.27.1
 require (
 	github.com/a-h/templ v0.3.1020
 	github.com/go-faker/faker/v4 v4.9.0
-	github.com/gorilla/securecookie v1.1.2
-	github.com/gorilla/sessions v1.4.0
+	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.15.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/joho/godotenv v1.5.1
-	github.com/labstack/echo-contrib/v5 v5.0.1
 	github.com/labstack/echo/v5 v5.3.0
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/mbvlabs/andurel/pkg/email v0.3.3
-	github.com/mbvlabs/andurel/pkg/hypermedia v0.2.4
+	github.com/mbvlabs/andurel/pkg/hypermedia v0.2.5
+	github.com/mbvlabs/andurel/pkg/kiks v0.1.0
 	github.com/mbvlabs/andurel/pkg/routing v0.3.0
 	github.com/mbvlabs/andurel/pkg/server v0.3.3
 	github.com/mbvlabs/andurel/pkg/storage v0.8.0
@@ -4266,7 +4215,6 @@ require (
 	github.com/mbvlabs/andurel/pkg/validation v0.1.4
 	github.com/mbvlabs/narsilc v0.4.2
 	github.com/riverqueue/river v0.40.0
-	github.com/rs/xid v1.6.0
 	go.uber.org/fx v1.24.0
 	golang.org/x/crypto v0.55.0
 )
@@ -4292,7 +4240,7 @@ require (
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -4432,8 +4380,6 @@ github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/gorilla/securecookie v1.1.2 h1:YCIWL56dvtr73r6715mJs5ZvhtnY73hBvEF8kXD8ePA=
 github.com/gorilla/securecookie v1.1.2/go.mod h1:NfCASbcHqRSY+3a8tlWJwsQap2VX5pwzwo4h3eOamfo=
-github.com/gorilla/sessions v1.4.0 h1:kpIYOp/oi6MG/p5PgxApU8srsSw9tuFbt46Lt7auzqQ=
-github.com/gorilla/sessions v1.4.0/go.mod h1:FLWm50oby91+hl7p/wRxDth9bWSuk0qVL2emc7lT5ik=
 github.com/gosimple/slug v1.15.0 h1:wRZHsRrRcs6b0XnxMUBM6WK1U1Vg5B0R7VkIf1Xzobo=
 github.com/gosimple/slug v1.15.0/go.mod h1:UiRaFH+GEilHstLUmcBgWcI42viBN7mAb818JrYOeFQ=
 github.com/gosimple/unidecode v1.0.1 h1:hZzFTMMqSswvf0LBJZCZgThIZrpDHFXux9KeGmn6T/o=
@@ -4454,8 +4400,6 @@ github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
 github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
 github.com/klauspost/compress v1.18.5 h1:/h1gH5Ce+VWNLSWqPzOVn6XBO+vJbCNGvjoaGBFW2IE=
 github.com/klauspost/compress v1.18.5/go.mod h1:cwPg85FWrGar70rWktvGQj8/hthj3wpl0PGDogxkrSQ=
-github.com/labstack/echo-contrib/v5 v5.0.1 h1:Z23m8p1F9Doax+pa8ek8ll5d6wvzCbvrAn25ZWmSgrE=
-github.com/labstack/echo-contrib/v5 v5.0.1/go.mod h1:ajrqEwSloW0vQSTfJ4j9u4tHoS+dg4umCDPxuTvChZs=
 github.com/labstack/echo/v5 v5.3.0 h1:KT74Mprk053PQEHwSZdeCDIz1BigTZOZhavMD0c9Fjs=
 github.com/labstack/echo/v5 v5.3.0/go.mod h1:Q3j2+clBRgJr0O3DDONQeXNsM7RHgSwUhcuo47unqm8=
 github.com/lib/pq v1.12.3 h1:tTWxr2YLKwIvK90ZXEw8GP7UFHtcbTtty8zsI+YjrfQ=
@@ -4472,8 +4416,10 @@ github.com/maypok86/otter/v2 v2.3.0 h1:8H8AVVFUSzJwIegKwv1uF5aGitTY+AIrtktg7OcLs
 github.com/maypok86/otter/v2 v2.3.0/go.mod h1:XgIdlpmL6jYz882/CAx1E4C1ukfgDKSaw4mWq59+7l8=
 github.com/mbvlabs/andurel/pkg/email v0.3.3 h1:ehK6H7cBMsDiiYZg1rhLDSbED/K/5ZoC0LFjZcHoseY=
 github.com/mbvlabs/andurel/pkg/email v0.3.3/go.mod h1:HQ8Qs9oT67pHsWZ8StOqJiS5sGIWkDRMPHJfhb8WIn8=
-github.com/mbvlabs/andurel/pkg/hypermedia v0.2.4 h1:vahSdRDh9Q4YL/8jC/n/Strw2WnUhgVEEUMd4WdW9OI=
-github.com/mbvlabs/andurel/pkg/hypermedia v0.2.4/go.mod h1:Iy5UDDTh2hiqybArqJW2EjeTAluCAFvyKv4vZcS/v18=
+github.com/mbvlabs/andurel/pkg/hypermedia v0.2.5 h1:8JOt717iYMGytTrYblAFGzDpoa/Clmpj34/gYzzXrb8=
+github.com/mbvlabs/andurel/pkg/hypermedia v0.2.5/go.mod h1:Iy5UDDTh2hiqybArqJW2EjeTAluCAFvyKv4vZcS/v18=
+github.com/mbvlabs/andurel/pkg/kiks v0.1.0 h1:PInx4KwkMYapfL55QC5imFjX133BB6XAyaYIvEpv+cc=
+github.com/mbvlabs/andurel/pkg/kiks v0.1.0/go.mod h1:BDcbKWEWOoNjJQpC5GoUazTagQF1QIJNFV9tXbb0I0c=
 github.com/mbvlabs/andurel/pkg/routing v0.3.0 h1:o4ERa1+UtMzBjW3D8yl0R1l0qxQHkkxuLgllwKFQOg8=
 github.com/mbvlabs/andurel/pkg/routing v0.3.0/go.mod h1:EbyIKeSgUj/U8vxaZkcd1VZj965vCeFFibDAJqHkclI=
 github.com/mbvlabs/andurel/pkg/server v0.3.3 h1:nZLMFmCwcC9+3v8h1fdVizJxBEg0x5Q0lXu4ieC6ZfI=
@@ -4533,8 +4479,6 @@ github.com/riverqueue/river/rivertype v0.40.0 h1:6sFLhs0OtkxDZ/iyZIUqaQJb/G1krnb
 github.com/riverqueue/river/rivertype v0.40.0/go.mod h1:D1Ad+EaZiaXbQbJcJcfeicXJMBKno0n6UcfKI5Q7DIQ=
 github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=
 github.com/robfig/cron/v3 v3.0.1/go.mod h1:eQICP3HwyT7UooqI/z+Ov+PtYAWygg1TEWWzGIFLtro=
-github.com/rs/xid v1.6.0 h1:fV591PaemRlL6JfRxGDEPl69wICngIQ3shQtzfy2gxU=
-github.com/rs/xid v1.6.0/go.mod h1:7XoLgs4eV+QndskICGsho+ADou8ySMSjJKDIan90Nz0=
 github.com/sethvargo/go-retry v0.3.0 h1:EEt31A35QhrcRZtrYFDTBg91cqZVnFL2navjDrah2SE=
 github.com/sethvargo/go-retry v0.3.0/go.mod h1:mNX17F0C/HguQMyMyJxcnU471gOZGxCLyYaFyAZraas=
 github.com/shirou/gopsutil/v4 v4.26.5 h1:RPcBXkpz7kOj9PqGFQOlBPZHsyaPvPVQc098y9RmCNM=
@@ -6888,37 +6832,6 @@ var WorkersModule = fx.Module(
 
 dir  d----------rwxr-xr-x router
 
-dir  d----------rwxr-xr-x router/appctx
-
-file -----------rw-r--r-- router/appctx/appctx.go
-```
-// Package appctx provides typed accessors for request-scoped values that
-// travel through the request lifecycle via context.Context.
-package appctx
-
-import (
-	"context"
-
-	"testapp/router/cookies"
-)
-
-type contextKey string
-
-const flashesKey contextKey = "flashes"
-
-// WithFlashes stores flash messages extracted from the session on the
-// request context so views and shared props can render them.
-func WithFlashes(ctx context.Context, flashes []cookies.FlashMessage) context.Context {
-	return context.WithValue(ctx, flashesKey, flashes)
-}
-
-// Flashes returns the flash messages stored on the request context, if any.
-func Flashes(ctx context.Context) []cookies.FlashMessage {
-	flashes, _ := ctx.Value(flashesKey).([]cookies.FlashMessage)
-	return flashes
-}
-```
-
 dir  d----------rwxr-xr-x router/cookies
 
 file -----------rw-r--r-- router/cookies/cookies.go
@@ -6926,231 +6839,44 @@ file -----------rw-r--r-- router/cookies/cookies.go
 package cookies
 
 import (
+	"context"
+	"github.com/google/uuid"
 	"testapp/models"
-	"uuid"
 
-	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 )
-
-const (
-	isAuthenticated = "is_authenticated"
-	isAdmin         = "is_admin"
-	userID          = "user_id"
-)
-
-// Session carries the runtime session cookie names derived from app identity
-// so the cookies package holds no global state. It is constructed once and
-// injected where session/flash cookies are needed.
-type Session struct {
-	appSessionName   string
-	flashSessionName string
-}
-
-func NewSession(appSessionName, projectName, environment string) *Session {
-	return &Session{
-		appSessionName:   appSessionName,
-		flashSessionName: buildFlashSessionName(projectName, environment),
-	}
-}
 
 type App struct {
-	CurrentPath     string
-	UserID          uuid.UUID
+	UserID          string
 	IsAdmin         bool
 	IsAuthenticated bool
 }
 
-func (s *Session) CreateAppSession(c *echo.Context, user models.User) error {
-	sess, err := getSession(s.appSessionName, c)
-	if err != nil {
-		return err
+func Definitions(name string, secure bool, maxAge int) []kiks.Definition {
+	return []kiks.Definition{
+		kiks.Session[App](
+			name,
+			kiks.HTTPOnly(),
+			kiks.Secure(secure),
+			kiks.MaxAge(maxAge),
+		),
 	}
-
-	sess.Values[isAuthenticated] = true
-	sess.Values[isAdmin] = user.IsAdmin
-	sess.Values[userID] = user.ID.String()
-
-	return sess.Save(c.Request(), c.Response())
 }
 
-func (s *Session) DestroyAppSession(c *echo.Context) error {
-	sess, err := getSession(s.appSessionName, c)
-	if err != nil {
-		return err
-	}
-
-	sess.Options.MaxAge = -1
-	return sess.Save(c.Request(), c.Response())
+func Current(ctx context.Context) App {
+	return kiks.Get[App](ctx)
 }
 
-func (s *Session) ExtractFromCookieApp(c *echo.Context) App {
-	sess, err := getSession(s.appSessionName, c)
-	if err != nil {
-		return App{}
-	}
-
-	app := App{}
-
-	if v, ok := sess.Values[isAuthenticated].(bool); ok {
-		app.IsAuthenticated = v
-	}
-	if v, ok := sess.Values[isAdmin].(bool); ok {
-		app.IsAdmin = v
-	}
-	if v, ok := sess.Values[userID].(string); ok {
-		app.UserID, _ = uuid.Parse(v)
-	}
-
-	return app
-}
-```
-
-file -----------rw-r--r-- router/cookies/flash.go
-```
-package cookies
-
-import (
-	"strings"
-	"time"
-
-	"github.com/gosimple/slug"
-	"github.com/mbvlabs/andurel/pkg/server"
-
-	"github.com/labstack/echo/v5"
-	"github.com/rs/xid"
-)
-
-type FlashMessage struct {
-	ID        xid.ID
-	Type      FlashType
-	CreatedAt time.Time
-	Message   string
+func CreateAppSession(ctx context.Context, user models.User) {
+	kiks.Set(ctx, App{
+		UserID:          uuid.UUID(user.ID.Bytes).String(),
+		IsAdmin:         user.IsAdmin,
+		IsAuthenticated: true,
+	})
 }
 
-func buildFlashSessionName(projectName, environment string) string {
-	base := slug.Make(strings.ToLower(projectName))
-	if environment == server.ProdEnvironment {
-		return base + "_flash_key"
-	}
-
-	return base + "_dev_flash_key"
-}
-
-const flashSessionName = "flash_session"
-
-type FlashType string
-
-const (
-	FlashSuccess FlashType = "success"
-	FlashError   FlashType = "error"
-	FlashWarning FlashType = "warning"
-	FlashInfo    FlashType = "info"
-)
-
-func (s *Session) AddFlash(
-	c *echo.Context, flashType FlashType, msg string,
-) error {
-	sess, err := getSession(s.flashSessionName, c)
-	if err != nil {
-		return err
-	}
-
-	sess.AddFlash(FlashMessage{
-		ID:        xid.New(),
-		Type:      flashType,
-		CreatedAt: time.Now(),
-		Message:   msg,
-	}, flashSessionName)
-
-	return sess.Save(c.Request(), c.Response())
-}
-
-func (s *Session) ExtractFlashes(c *echo.Context) ([]FlashMessage, error) {
-	sess, err := getSession(s.flashSessionName, c)
-	if err != nil {
-		return nil, err
-	}
-
-	var flashMessages []FlashMessage
-	for _, flash := range sess.Flashes(flashSessionName) {
-		if msg, ok := flash.(FlashMessage); ok {
-			flashMessages = append(flashMessages, msg)
-		}
-	}
-
-	if err := sess.Save(c.Request(), c.Response()); err != nil {
-		return nil, err
-	}
-
-	return flashMessages, nil
-}
-
-// Reflash restores flashes consumed for the current request when Inertia
-// returns a redirect, so the next request can still render them.
-func (s *Session) Reflash(c *echo.Context, flashes []FlashMessage) error {
-	if len(flashes) == 0 {
-		return nil
-	}
-	sess, err := getSession(s.flashSessionName, c)
-	if err != nil {
-		return err
-	}
-	for _, flash := range flashes {
-		sess.AddFlash(flash, flashSessionName)
-	}
-
-	return sess.Save(c.Request(), c.Response())
-}
-```
-
-file -----------rw-r--r-- router/cookies/session.go
-```
-package cookies
-
-import (
-	"errors"
-
-	"github.com/gorilla/securecookie"
-	"github.com/gorilla/sessions"
-	"github.com/labstack/echo-contrib/v5/session"
-	"github.com/labstack/echo/v5"
-)
-
-const recoveredSessionContextPrefix = "andurel/recovered-session/"
-
-func (s *Session) RecoverInvalidSessions(c *echo.Context) error {
-	for _, name := range []string{s.appSessionName, s.flashSessionName} {
-		sess, err := session.Get(name, c)
-		if err == nil {
-			continue
-		}
-
-		var decodeError securecookie.Error
-		if !errors.As(err, &decodeError) ||
-			!decodeError.IsDecode() ||
-			decodeError.IsUsage() ||
-			decodeError.IsInternal() {
-			return err
-		}
-
-		clear(sess.Values)
-		sess.IsNew = true
-		if err := sess.Save(c.Request(), c.Response()); err != nil {
-			return err
-		}
-		c.Set(recoveredSessionContextPrefix+name, true)
-	}
-
-	return nil
-}
-
-func getSession(name string, c *echo.Context) (*sessions.Session, error) {
-	sess, err := session.Get(name, c)
-	if err != nil && c.Get(recoveredSessionContextPrefix+name) != true {
-		return nil, err
-	}
-
-	return sess, nil
+func DestroyAppSession(ctx context.Context) {
+	kiks.Delete[App](ctx)
 }
 ```
 
@@ -7173,10 +6899,10 @@ import (
 	"github.com/maypok86/otter/v2"
 )
 
-func AuthOnly(session *cookies.Session) echo.MiddlewareFunc {
+func AuthOnly() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			if session.ExtractFromCookieApp(c).IsAuthenticated {
+			if cookies.Current(c.Request().Context()).IsAuthenticated {
 				return next(c)
 			}
 
@@ -7288,55 +7014,12 @@ import (
 	"time"
 
 	"github.com/mbvlabs/andurel/pkg/server"
-	"testapp/router/appctx"
-	"testapp/router/cookies"
 	"testapp/router/routes"
 
 	"github.com/labstack/echo/v5"
 	echomw "github.com/labstack/echo/v5/middleware"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
-
-func RegisterRequestMeta(session *cookies.Session) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
-				return next(c)
-			}
-
-			flashes, err := session.ExtractFlashes(c)
-			if err != nil {
-				telemetry.Error(
-					c.Request().Context(),
-					"Error getting flash messages from session",
-					"error",
-					err,
-				)
-			}
-
-			ctx := appctx.WithFlashes(c.Request().Context(), flashes)
-			c.SetRequest(c.Request().WithContext(ctx))
-
-			return next(c)
-		}
-	}
-}
-
-func ValidateSession(session *cookies.Session) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			// Skip session validation for static assets and API routes
-			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
-				return next(c)
-			}
-			if err := session.RecoverInvalidSessions(c); err != nil {
-				return err
-			}
-
-			return next(c)
-		}
-	}
-}
 
 func isAPIPath(path string) bool {
 	return matchesPathPrefix(path, routes.APIPrefix)
@@ -7523,32 +7206,12 @@ file -----------rw-r--r-- router/middleware/middleware_test.go
 package middleware
 
 import (
-	"encoding/gob"
 	"net/http"
 	"net/http/httptest"
-	"sync"
 	"testing"
-
-	"testapp/router/appctx"
-	"testapp/router/cookies"
-
-	"github.com/mbvlabs/andurel/pkg/server"
-
-	"github.com/gorilla/sessions"
-	echosession "github.com/labstack/echo-contrib/v5/session"
-	"github.com/labstack/echo/v5"
 )
 
 const testAppSessionName = "app_sess_andurel-dev"
-
-var (
-	registerFlashMessageOnce sync.Once
-	testSession              = cookies.NewSession(
-		testAppSessionName,
-		"andurel",
-		server.DevEnvironment,
-	)
-)
 
 func TestAPIPathBoundary(t *testing.T) {
 	tests := []struct {
@@ -7613,294 +7276,11 @@ func TestCSRFBypassRequiresBearerWithoutApplicationSession(t *testing.T) {
 			}
 
 			if got := mayBypassCSRF(request, testAppSessionName); got != test.want {
-				t.Fatalf("mayBypassCSRF() = %t, want %t", got, test.want)
+				t.Fatalf("mayBypassCSRF(%q) = %t, want %t", test.path, got, test.want)
 			}
 		})
 	}
 }
-
-func TestValidateSessionRecoversStaleApplicationCookie(t *testing.T) {
-	oldStore := newTestCookieStore("old-application-session-auth-key")
-	newStore := newTestCookieStore("new-application-session-auth-key")
-	staleCookie := issueSessionCookie(t, oldStore, testAppSessionName, func(c *echo.Context) error {
-		sess, err := echosession.Get(testAppSessionName, c)
-		if err != nil {
-			return err
-		}
-		sess.Values["legacy"] = "value"
-		return sess.Save(c.Request(), c.Response())
-	})
-
-	request := httptest.NewRequest(http.MethodPost, "/", nil)
-	request.AddCookie(staleCookie)
-	called := false
-	recorder, err := serveSessionRequest(newStore, request, func(c *echo.Context) error {
-		called = true
-		return c.NoContent(http.StatusNoContent)
-	})
-	if err != nil {
-		t.Fatalf("ValidateSession returned an error: %v", err)
-	}
-	if !called {
-		t.Fatal("downstream handler was not called")
-	}
-
-	replacement := responseCookie(t, recorder, testAppSessionName)
-	assertEmptySessionCookie(t, newStore, replacement)
-}
-
-func TestValidateSessionRecoversStaleFlashCookie(t *testing.T) {
-	registerFlashMessageOnce.Do(func() {
-		gob.Register(cookies.FlashMessage{})
-	})
-
-	oldStore := newTestCookieStore("old-flash-session-authentication-key")
-	newStore := newTestCookieStore("new-flash-session-authentication-key")
-	staleCookie := issueSessionCookie(t, oldStore, "", func(c *echo.Context) error {
-		return testSession.AddFlash(c, cookies.FlashWarning, "stale warning")
-	})
-
-	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	request.AddCookie(staleCookie)
-	recorder, err := serveSessionRequest(newStore, request, func(c *echo.Context) error {
-		flashes := appctx.Flashes(c.Request().Context())
-		if len(flashes) != 0 {
-			t.Fatalf("recovered flashes = %v, want none", flashes)
-		}
-
-		return c.NoContent(http.StatusNoContent)
-	})
-	if err != nil {
-		t.Fatalf("ValidateSession returned an error: %v", err)
-	}
-
-	replacement := responseCookie(t, recorder, staleCookie.Name)
-	assertEmptySessionCookie(t, newStore, replacement)
-}
-
-func TestValidateSessionPreservesValidSessions(t *testing.T) {
-	registerFlashMessageOnce.Do(func() {
-		gob.Register(cookies.FlashMessage{})
-	})
-
-	store := newTestCookieStore("valid-session-authentication-key")
-	appCookie := issueSessionCookie(t, store, testAppSessionName, func(c *echo.Context) error {
-		sess, err := echosession.Get(testAppSessionName, c)
-		if err != nil {
-			return err
-		}
-		sess.Values["marker"] = "valid"
-		return sess.Save(c.Request(), c.Response())
-	})
-	flashCookie := issueSessionCookie(t, store, "", func(c *echo.Context) error {
-		return testSession.AddFlash(c, cookies.FlashSuccess, "saved")
-	})
-
-	request := httptest.NewRequest(http.MethodPost, "/", nil)
-	request.AddCookie(appCookie)
-	request.AddCookie(flashCookie)
-	recorder, err := serveSessionRequest(store, request, func(c *echo.Context) error {
-		flashes := appctx.Flashes(c.Request().Context())
-		if len(flashes) != 1 || flashes[0].Message != "saved" {
-			t.Fatalf("flashes = %v, want saved flash", flashes)
-		}
-
-		return c.NoContent(http.StatusNoContent)
-	})
-	if err != nil {
-		t.Fatalf("ValidateSession returned an error: %v", err)
-	}
-	if hasResponseCookie(recorder, testAppSessionName) {
-		t.Fatal("valid application session was unexpectedly replaced")
-	}
-}
-
-func TestValidateSessionPropagatesNonDecodeErrors(t *testing.T) {
-	tests := []struct {
-		name       string
-		middleware echo.MiddlewareFunc
-		request    *http.Request
-	}{
-		{
-			name:    "missing session middleware",
-			request: httptest.NewRequest(http.MethodGet, "/", nil),
-		},
-		{
-			name:       "usage error",
-			middleware: echosession.Middleware(sessions.NewCookieStore()),
-			request: requestWithCookie(&http.Cookie{
-				Name:  testAppSessionName,
-				Value: "configured-without-codecs",
-			}),
-		},
-		{
-			name:       "internal error",
-			middleware: echosession.Middleware(classifiedErrorStore{}),
-			request:    httptest.NewRequest(http.MethodGet, "/", nil),
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			called := false
-			handler := ValidateSession(testSession)(func(c *echo.Context) error {
-				called = true
-				return nil
-			})
-			if test.middleware != nil {
-				handler = test.middleware(handler)
-			}
-
-			recorder := httptest.NewRecorder()
-			ctx := echo.New().NewContext(test.request, recorder)
-			if err := handler(ctx); err == nil {
-				t.Fatal("expected session validation error")
-			}
-			if called {
-				t.Fatal("downstream handler was called")
-			}
-		})
-	}
-}
-
-func newTestCookieStore(authKey string) *sessions.CookieStore {
-	return sessions.NewCookieStore(
-		[]byte(authKey),
-		[]byte("0123456789abcdef0123456789abcdef"),
-	)
-}
-
-func issueSessionCookie(
-	t *testing.T,
-	store sessions.Store,
-	wantName string,
-	handler echo.HandlerFunc,
-) *http.Cookie {
-	t.Helper()
-
-	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	recorder := httptest.NewRecorder()
-	ctx := echo.New().NewContext(request, recorder)
-	if err := echosession.Middleware(store)(handler)(ctx); err != nil {
-		t.Fatalf("issue session cookie: %v", err)
-	}
-
-	cookies := recorder.Result().Cookies()
-	if wantName == "" {
-		if len(cookies) != 1 {
-			t.Fatalf("issued cookies = %d, want 1", len(cookies))
-		}
-
-		return cookies[0]
-	}
-	for _, cookie := range cookies {
-		if cookie.Name == wantName {
-			return cookie
-		}
-	}
-
-	t.Fatalf("response did not contain cookie %q", wantName)
-	return nil
-}
-
-func serveSessionRequest(
-	store sessions.Store,
-	request *http.Request,
-	handler echo.HandlerFunc,
-) (*httptest.ResponseRecorder, error) {
-	recorder := httptest.NewRecorder()
-	ctx := echo.New().NewContext(request, recorder)
-	chain := echosession.Middleware(
-		store,
-	)(
-		ValidateSession(testSession)(RegisterRequestMeta(testSession)(handler)),
-	)
-	return recorder, chain(ctx)
-}
-
-func responseCookie(
-	t *testing.T,
-	recorder *httptest.ResponseRecorder,
-	name string,
-) *http.Cookie {
-	t.Helper()
-
-	for _, cookie := range recorder.Result().Cookies() {
-		if cookie.Name == name {
-			return cookie
-		}
-	}
-
-	t.Fatalf("response did not contain replacement cookie %q", name)
-	return nil
-}
-
-func hasResponseCookie(recorder *httptest.ResponseRecorder, name string) bool {
-	for _, cookie := range recorder.Result().Cookies() {
-		if cookie.Name == name {
-			return true
-		}
-	}
-
-	return false
-}
-
-func assertEmptySessionCookie(
-	t *testing.T,
-	store *sessions.CookieStore,
-	cookie *http.Cookie,
-) {
-	t.Helper()
-
-	request := requestWithCookie(cookie)
-	sess, err := store.New(request, cookie.Name)
-	if err != nil {
-		t.Fatalf("replacement cookie cannot be decoded: %v", err)
-	}
-	if len(sess.Values) != 0 {
-		t.Fatalf("replacement cookie values = %v, want empty", sess.Values)
-	}
-}
-
-func requestWithCookie(cookie *http.Cookie) *http.Request {
-	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	request.AddCookie(cookie)
-	return request
-}
-
-type classifiedErrorStore struct{}
-
-func (classifiedErrorStore) Get(*http.Request, string) (*sessions.Session, error) {
-	return nil, internalSessionError{}
-}
-
-func (classifiedErrorStore) New(*http.Request, string) (*sessions.Session, error) {
-	return nil, internalSessionError{}
-}
-
-func (classifiedErrorStore) Save(*http.Request, http.ResponseWriter, *sessions.Session) error {
-	return nil
-}
-
-type internalSessionError struct{}
-
-func (internalSessionError) Error() string { return "internal session error" }
-
-func (internalSessionError) IsUsage() bool { return false }
-
-func (internalSessionError) IsDecode() bool { return false }
-
-func (internalSessionError) IsInternal() bool { return true }
-
-func (internalSessionError) Cause() error { return nil }
-
-var _ interface {
-	error
-	IsUsage() bool
-	IsDecode() bool
-	IsInternal() bool
-	Cause() error
-} = internalSessionError{}
 ```
 
 file -----------rw-r--r-- router/router.go
@@ -7909,21 +7289,20 @@ file -----------rw-r--r-- router/router.go
 package router
 
 import (
-	"encoding/gob"
 	"errors"
 	"fmt"
-	"github.com/gorilla/sessions"
-	"github.com/labstack/echo-contrib/v5/session"
-	"github.com/labstack/echo/v5"
-	echomw "github.com/labstack/echo/v5/middleware"
-	"github.com/mbvlabs/andurel/pkg/telemetry"
-	"go.uber.org/fx"
 	"net/http"
 	"strings"
+
+	"github.com/labstack/echo/v5"
+	echomw "github.com/labstack/echo/v5/middleware"
+	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+	"go.uber.org/fx"
 	"testapp/config"
 	"testapp/router/cookies"
 	"testapp/router/middleware"
-	"uuid"
+	"testapp/router/routes"
 )
 
 type Router struct {
@@ -7935,12 +7314,9 @@ func New(
 	appCfg config.App,
 	httpCfg config.HTTP,
 	sessionCfg config.Session,
-	cookieSession *cookies.Session,
+	jar *kiks.Jar,
 	tel *telemetry.Telemetry,
 ) (*Router, error) {
-	gob.Register(uuid.UUID{})
-	gob.Register(cookies.FlashMessage{})
-
 	router := echo.New()
 	defaultHTTPErrorHandler := echo.DefaultHTTPErrorHandler(false)
 	router.HTTPErrorHandler = func(c *echo.Context, err error) {
@@ -7970,7 +7346,7 @@ func New(
 		appCfg,
 		httpCfg,
 		sessionCfg,
-		cookieSession,
+		jar,
 		tel,
 		"_csrf",
 	)
@@ -7992,7 +7368,7 @@ func SetupGlobalMiddleware(
 	appCfg config.App,
 	httpCfg config.HTTP,
 	sessionCfg config.Session,
-	cookieSession *cookies.Session,
+	jar *kiks.Jar,
 	tel *telemetry.Telemetry,
 	csrfName string,
 ) ([]echo.MiddlewareFunc, error) {
@@ -8008,15 +7384,6 @@ func SetupGlobalMiddleware(
 	if err != nil {
 		return nil, err
 	}
-	sessionStore, err := newApplicationSessionStore(
-		sessionCfg.AuthenticationKey,
-		sessionCfg.EncryptionKey,
-		sessionCfg.MaxAge,
-		appCfg.IsProduction(),
-	)
-	if err != nil {
-		return nil, err
-	}
 	corsConfig, err := newCORSConfig(appCfg.BaseURL, httpCfg.CORSAllowedOrigins)
 	if err != nil {
 		return nil, err
@@ -8028,37 +7395,13 @@ func SetupGlobalMiddleware(
 		middleware.Telemetry(tel),
 		middleware.TraceRouteAttributes(),
 		middleware.Logger(),
-		session.Middleware(sessionStore),
-		middleware.ValidateSession(cookieSession),
-		middleware.RegisterRequestMeta(cookieSession),
+		jar.EchoMiddleware(kiks.SkipPrefixes(routes.AssetsPrefix, routes.APIPrefix)),
 		echomw.CORSWithConfig(corsConfig),
 		csrfMiddleware,
 		echomw.Recover(),
 	}
 
 	return middlewares, nil
-}
-
-func newApplicationSessionStore(
-	authKey []byte,
-	encKey []byte,
-	maxAge int,
-	secure bool,
-) (*sessions.CookieStore, error) {
-	if maxAge <= 0 {
-		return nil, errors.New("SESSION_MAX_AGE must be greater than zero")
-	}
-
-	store := sessions.NewCookieStore(authKey, encKey)
-	store.Options = &sessions.Options{
-		Path:     "/",
-		MaxAge:   maxAge,
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
-	}
-
-	return store, nil
 }
 
 func newCORSConfig(
@@ -8110,19 +7453,26 @@ func (r *Router) AddRouteNotFound(
 	return r.e.RouteNotFound("/*", notFoundHandler)
 }
 
-var Module = fx.Module(
-	"router",
-	fx.Provide(newSession),
-	fx.Provide(New),
-)
+func newJar(
+	appCfg config.App,
+	sessionCfg config.Session,
+) (*kiks.Jar, error) {
+	keys := kiks.Keys{
+		Authentication: sessionCfg.AuthenticationKey,
+		Encryption:     sessionCfg.EncryptionKey,
+	}
 
-func newSession(appCfg config.App, sessionCfg config.Session) *cookies.Session {
-	return cookies.NewSession(
-		sessionCfg.Name,
-		appCfg.ProjectName,
-		appCfg.Environment,
+	return kiks.New(
+		keys,
+		cookies.Definitions(sessionCfg.Name, appCfg.IsProduction(), sessionCfg.MaxAge)...,
 	)
 }
+
+var Module = fx.Module(
+	"router",
+	fx.Provide(newJar),
+	fx.Provide(New),
+)
 ```
 
 file -----------rw-r--r-- router/router_test.go
@@ -8130,52 +7480,9 @@ file -----------rw-r--r-- router/router_test.go
 package router
 
 import (
-	"net/http"
 	"reflect"
 	"testing"
 )
-
-func TestApplicationSessionStoreOptions(t *testing.T) {
-	tests := []struct {
-		name   string
-		secure bool
-	}{
-		{name: "development", secure: false},
-		{name: "production", secure: true},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			store, err := newApplicationSessionStore(
-				[]byte("auth-key"),
-				[]byte("encryption-key"),
-				604800,
-				test.secure,
-			)
-			if err != nil {
-				t.Fatalf("newApplicationSessionStore returned an error: %v", err)
-			}
-
-			options := store.Options
-			if options.Path != "/" || options.MaxAge != 604800 || !options.HttpOnly ||
-				options.Secure != test.secure ||
-				options.SameSite != http.SameSiteLaxMode {
-				t.Fatalf("unexpected session options: %+v", options)
-			}
-		})
-	}
-}
-
-func TestApplicationSessionStoreRejectsInvalidLifetime(t *testing.T) {
-	if _, err := newApplicationSessionStore(
-		[]byte("auth-key"),
-		[]byte("encryption-key"),
-		0,
-		false,
-	); err == nil {
-		t.Fatal("expected an invalid session lifetime error")
-	}
-}
 
 func TestCORSDefaultsToApplicationOrigin(t *testing.T) {
 	config, err := newCORSConfig("https://app.example.com", nil)
@@ -10369,7 +9676,6 @@ package views
 import (
 	"time"
 
-	"testapp/router/appctx"
 	"testapp/router/routes"
 )
 
@@ -10402,13 +9708,6 @@ templ base(headOpts ...HeadDataOption) {
 					&copy; { time.Now().Format("2006") } andurel.
 				</div>
 			</footer>
-			<div id="flashContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-				for _, flash := range appctx.Flashes(ctx) {
-					<div class="border border-[#2f3a37] bg-[#101414] px-4 py-3 text-[#e4dfd2] shadow-lg shadow-black/40">
-						{ flash.Message }
-					</div>
-				}
-			</div>
 		</body>
 	</html>
 }
@@ -10429,7 +9728,6 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"time"
 
-	"testapp/router/appctx"
 	"testapp/router/routes"
 )
 
@@ -10469,7 +9767,7 @@ func base(headOpts ...HeadDataOption) templ.Component {
 		var templ_7745c5c3_Var2 templ.SafeURL
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinURLErrs(routes.HomePage.URL())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layout.templ`, Line: 17, Col: 112}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layout.templ`, Line: 16, Col: 112}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -10482,7 +9780,7 @@ func base(headOpts ...HeadDataOption) templ.Component {
 		var templ_7745c5c3_Var3 templ.SafeURL
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(routes.SessionNew.URL())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layout.templ`, Line: 28, Col: 104}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layout.templ`, Line: 27, Col: 104}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -10495,7 +9793,7 @@ func base(headOpts ...HeadDataOption) templ.Component {
 		var templ_7745c5c3_Var4 templ.SafeURL
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(routes.RegistrationNew.URL())
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layout.templ`, Line: 29, Col: 109}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layout.templ`, Line: 28, Col: 109}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -10516,36 +9814,13 @@ func base(headOpts ...HeadDataOption) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(time.Now().Format("2006"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layout.templ`, Line: 36, Col: 39}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layout.templ`, Line: 35, Col: 39}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " andurel.</div></footer><div id=\"flashContainer\" class=\"fixed bottom-4 right-4 z-50 flex flex-col gap-2\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		for _, flash := range appctx.Flashes(ctx) {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"border border-[#2f3a37] bg-[#101414] px-4 py-3 text-[#e4dfd2] shadow-lg shadow-black/40\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var6 string
-			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(flash.Message)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `views/layout.templ`, Line: 42, Col: 21}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, " andurel.</div></footer></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
