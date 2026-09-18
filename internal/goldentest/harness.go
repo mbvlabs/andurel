@@ -229,7 +229,7 @@ func CopyMigrations(t testing.TB, projectDir, name string) {
 func cliEnv() []string {
 	env := os.Environ()
 	if toolBinDir == "" {
-		return env
+		return forceGoWorkOff(env)
 	}
 
 	path := toolBinDir
@@ -237,12 +237,14 @@ func cliEnv() []string {
 		path = toolBinDir + string(os.PathListSeparator) + existing
 	}
 
-	filtered := make([]string, 0, len(env)+2)
+	filtered := make([]string, 0, len(env)+3)
 	for _, entry := range env {
 		switch {
 		case strings.HasPrefix(entry, "PATH="):
 			continue
 		case strings.HasPrefix(entry, "ANDUREL_TOOL_BIN="):
+			continue
+		case strings.HasPrefix(entry, "GOWORK="):
 			continue
 		}
 		filtered = append(filtered, entry)
@@ -250,8 +252,20 @@ func cliEnv() []string {
 	filtered = append(filtered,
 		"PATH="+path,
 		"ANDUREL_TOOL_BIN="+toolBinDir,
+		"GOWORK=off",
 	)
 	return filtered
+}
+
+func forceGoWorkOff(env []string) []string {
+	filtered := make([]string, 0, len(env)+1)
+	for _, entry := range env {
+		if strings.HasPrefix(entry, "GOWORK=") {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return append(filtered, "GOWORK=off")
 }
 
 func copyDir(src, dst string) error {
