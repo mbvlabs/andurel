@@ -4,13 +4,6 @@ All notable changes to the standalone Andurel kiks module are documented here.
 
 ## Unreleased
 
-### Changed
-
-- `New` takes only keys and definitions; session values always live in an
-  encrypted cookie. The SQL/`SessionStore` API is gone.
-- `New` registers each cookie value type (and session envelope types) with
-  `gob` when the jar is constructed. No package `init` registration.
-
 ## 0.1.0 - 2026-09-17
 
 ### Added
@@ -18,6 +11,8 @@ All notable changes to the standalone Andurel kiks module are documented here.
 - Initial standalone cookie and session module with named definitions
   (`Plain`, `Signed`, `Encrypted`, `Session`), type-keyed
   `Get`/`Set`/`Delete` on `context.Context`, and flash helpers.
-- `SessionStore` with a gorilla/securecookie cookie driver and a SQL driver.
+- Cookie-only sessions: `New` takes keys and definitions; session values
+  live in an encrypted cookie. Cookie value types (and session envelope
+  types) are registered with `gob` when the jar is constructed.
 - Echo middleware that loads the request bag, recovers corrupt cookies, and
   persists once using the flash render/redirect policy.

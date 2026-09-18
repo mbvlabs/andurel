@@ -826,13 +826,14 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 
 	// Auth cookies configuration
 	builder.AddCookiesImport(fmt.Sprintf("%s/models", moduleName))
+	builder.AddCookiesImport("github.com/google/uuid")
 
-	builder.AddCookiesAppField("UserID", "uuid.UUID")
+	builder.AddCookiesAppField("UserID", "string")
 	builder.AddCookiesAppField("IsAdmin", "bool")
 	builder.AddCookiesAppField("IsAuthenticated", "bool")
 
 	builder.SetCookiesCreateSessionCode(`	kiks.Set(ctx, App{
-		UserID:          user.ID,
+		UserID:          uuid.UUID(user.ID.Bytes).String(),
 		IsAdmin:         user.IsAdmin,
 		IsAuthenticated: true,
 	})`)

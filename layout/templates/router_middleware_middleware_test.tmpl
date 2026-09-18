@@ -23,7 +23,7 @@ func TestAPIPathBoundary(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if got := isAPIPath(test.path); got != test.want {
-				t.Fatalf("isAPIPath(%q) = %t, want %t", test.path, test.want)
+				t.Fatalf("isAPIPath(%q) = %t, want %t", test.path, got, test.want)
 			}
 		})
 	}
@@ -71,7 +71,7 @@ func TestCSRFBypassRequiresBearerWithoutApplicationSession(t *testing.T) {
 			}
 
 			if got := mayBypassCSRF(request, testAppSessionName); got != test.want {
-				t.Fatalf("mayBypassCSRF() = %t, want %t", test.path, test.want)
+				t.Fatalf("mayBypassCSRF(%q) = %t, want %t", test.path, got, test.want)
 			}
 		})
 	}
