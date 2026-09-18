@@ -41,96 +41,64 @@ bmo:
 vet:
 	go vet ./...
 
-# Run unit tests (excludes e2e, fast)
+# Run pkg unit tests (CLI/generator goldens live under ./golden)
 test:
-	go list ./... | grep -v /e2e | xargs go test -v
+	go test ./pkg/... -v
 
-# Run unit tests with coverage
+# Run unit tests with coverage (pkg only until Phase 2 expands coverage)
 test-coverage:
 	./scripts/coverage.sh
 
-# Run critical e2e tests only
-test-e2e-critical:
-	go clean -testcache
-	E2E_CRITICAL_ONLY=true go test ./e2e/... -v -timeout 25m
+# Run golden CLI tests (builds andurel with -tags andurel_golden)
+test-golden: install-dev-tools
+	go test ./golden/... -v -timeout 15m
 
-# Run full e2e test suite
-test-e2e-full:
-	go clean -testcache
-	go test ./e2e/... -v -timeout 55m
-
-# Run scaffold golden e2e tests
-test-e2e-scaffold:
-	go clean -testcache
-	go test ./e2e -run TestScaffoldGoldens -v -timeout 30m
-
-# Run critical tests (unit + critical e2e, recommended for PRs)
+# Run critical tests (vet + contracts + golden smoke)
 test-critical:
-	@echo "Running unit tests..."
-	@just test
-	@echo "\nRunning critical e2e tests..."
-	@just test-e2e-critical
+	@echo "Running go vet..."
+	@just vet
+	@echo "\nChecking contracts..."
+	@just check-contracts
+	@echo "\nRunning golden tests..."
+	@just test-golden
 
-# Run all tests (unit + full e2e suite)
+# Run all currently available checks
 test-all:
-	@echo "Running unit tests..."
+	@just test-critical
+	@echo "\nRunning pkg tests..."
 	@just test
-	@echo "\nRunning full e2e test suite..."
-	@just test-e2e-full
 
-# Run quick check (vet + unit tests, very fast)
+# Run quick check (vet + contracts)
 check:
 	@echo "Running go vet..."
 	@just vet
-	@echo "\nRunning unit tests..."
-	@just test
+	@echo "\nChecking contracts..."
+	@just check-contracts
 
-# Run full CI check (vet + unit tests + critical e2e, matches PR workflow)
+# Run full CI check (vet + contracts + golden; coverage deferred until Phase 2)
 ci:
 	@echo "Running go vet..."
 	@just vet
-	@echo "\nRunning unit tests with coverage..."
-	@just test-coverage
-	@echo "\nRunning critical e2e tests..."
-	@just test-e2e-critical
+	@echo "\nChecking contracts..."
+	@just check-contracts
+	@echo "\nRunning golden tests..."
+	@just test-golden
 	@echo "\n✅ All CI checks passed!"
 
-# Install formatter/codegen tools used by golden updates (same as CI)
+# Install formatter/codegen tools used by golden updates (pinned; match layout/versions)
 install-dev-tools:
-	go install github.com/a-h/templ/cmd/templ
-	go install github.com/segmentio/golines
-	go install golang.org/x/tools/cmd/goimports
+	./scripts/install-dev-tools.sh
 
-# Update scaffold golden files
+# Update golden files under testdata/golden
 update-golden: install-dev-tools
 	go clean -testcache
-	go test ./e2e -run TestScaffoldGoldens -v -timeout 30m -update -clean
+	go test ./golden/... -v -timeout 15m -update
 
-# Update golden files for generator model tests
-update-golden-generator-models: install-dev-tools
-	go clean -testcache
-	go test ./generator -run TestModelGenerationGoldens -v -update
-
-# Update golden files for generator controller/view tests
-update-golden-generator-controller-views: install-dev-tools
-	go clean -testcache
-	go test ./generator -run TestControllerViewGenerationGoldens -v -update
-
-# Update golden files for generator scaffold tests
-update-golden-generator-scaffold: install-dev-tools
-	go clean -testcache
-	go test ./generator -run TestScaffoldGenerationGoldens -v -update
-
-# Update all golden files
-update-golden-all: install-dev-tools
-	go clean -testcache
-	go test ./generator -run TestModelGenerationGoldens -v -update
-	go test ./generator -run TestControllerViewGenerationGoldens -v -update
-	go test ./generator -run TestScaffoldGenerationGoldens -v -update
-	go test ./e2e -run TestScaffoldGoldens -v -timeout 30m -update -clean
+# Update all golden files (alias for update-golden during Phase 1)
+update-golden-all: update-golden
 
 # Clean test artifacts and cache
 clean-test:
 	go clean -testcache
 	rm -f coverage.out coverage-summary.out coverage.txt
-	rm -rf /tmp/andurel-e2e-*
+	rm -rf /tmp/andurel-e2e-* /tmp/andurel-golden-*

@@ -4,6 +4,10 @@ package versions
 const (
 	// Templ is the default templ tool version.
 	Templ = "v0.3.1020"
+	// Golines is the pinned golines formatter version used by CI and local tooling.
+	Golines = "v0.13.0"
+	// Goimports is the pinned goimports version used by CI and local tooling.
+	Goimports = "v0.44.0"
 	// Goose is the default goose migration tool version.
 	Goose = "v3.27.1"
 	// Mailpit is the default Mailpit tool version.

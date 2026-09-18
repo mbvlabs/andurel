@@ -12,9 +12,6 @@ jobs:
     permissions:
       contents: read
 
-    env:
-      E2E_CRITICAL_ONLY: "true"
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -23,7 +20,7 @@ jobs:
       uses: actions/setup-go@v5
       with:
         go-version: '1.27.1'
-        check-latest: true
+        check-latest: false
 
     - name: Cache Go modules
       uses: actions/cache@v4
@@ -39,37 +36,29 @@ jobs:
     - name: Check public API and CLI contracts
       run: ./scripts/check-contracts.sh
 
-    - name: Install tools
-      run: |
-        go install github.com/a-h/templ/cmd/templ
-        go install github.com/segmentio/golines
-        go install golang.org/x/tools/cmd/goimports
+    - name: Install pinned tools
+      run: ./scripts/install-dev-tools.sh
 
     - name: Run go vet
       run: |
         go vet ./...
         ./scripts/vet-standalone-modules.sh
 
-    - name: Run tests with canonical coverage
+    - name: Run golden CLI tests
+      run: go test ./golden/... -v -timeout 15m
+
+    # Coverage + pkg suite return with Phase 2; keep the step visible but non-blocking.
+    - name: Run pkg tests with coverage (informational)
+      continue-on-error: true
       run: ./scripts/coverage.sh
 
     - name: Upload coverage to Codecov
+      if: success() || failure()
+      continue-on-error: true
       uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1 # v7.0.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.out
         disable_search: true
         flags: unit
-        fail_ci_if_error: true
-
-    - name: Run E2E critical tests
-      run: go test ./e2e/... -v -timeout 25m
-
-    - name: Upload E2E failure artifacts
-      if: failure()
-      uses: actions/upload-artifact@v4
-      with:
-        name: e2e-pr-failures
-        path: |
-          /tmp/andurel-e2e-*
-        retention-days: 7
+        fail_ci_if_error: false

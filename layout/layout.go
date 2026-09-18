@@ -2,7 +2,6 @@
 package layout
 
 import (
-	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -19,6 +18,7 @@ import (
 	"time"
 
 	"github.com/mbvlabs/andurel/internal/constants"
+	"github.com/mbvlabs/andurel/internal/testseed"
 	"github.com/mbvlabs/andurel/layout/blueprint"
 	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/mbvlabs/andurel/layout/templates"
@@ -39,7 +39,7 @@ func Scaffold(
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
 
 	moduleName := projectName
-	secrets, err := generateScaffoldSecrets(rand.Reader)
+	secrets, err := generateScaffoldSecrets(testseed.RandomReader())
 	if err != nil {
 		return fmt.Errorf("failed to generate scaffold secrets: %w", err)
 	}
@@ -521,11 +521,7 @@ func processMigrations(
 	targetDir string,
 	data *TemplateData,
 ) (time.Time, error) {
-	baseTime := time.Now()
-
-	if os.Getenv("ANDUREL_TEST_MODE") == "true" {
-		baseTime = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	}
+	baseTime := testseed.Now()
 
 	migrations := []struct {
 		template string

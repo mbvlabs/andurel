@@ -1,6 +1,7 @@
 package files
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -122,10 +123,20 @@ var (
 	_ Manager        = (*UnifiedManager)(nil)
 )
 
-// FormatGoFile formats a Go file using goimports and go fmt
+// FormatGoFile formats a Go file using goimports and go fmt.
+// Tool binaries are resolved via LookPath (and ANDUREL_TOOL_BIN when set), so
+// CI and golden harnesses can put pinned goimports on PATH / in that bin dir.
 func FormatGoFile(path string) error {
-	// First run goimports to fix imports
-	cmd := exec.Command("goimports", "-w", path)
+	goimportsPath, err := resolveTool("goimports")
+	if err != nil {
+		return &FileOperationError{
+			Operation: "goimports",
+			Path:      path,
+			Err:       err,
+		}
+	}
+
+	cmd := exec.Command(goimportsPath, "-w", path)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return &FileOperationError{
 			Operation: "goimports",
@@ -135,7 +146,6 @@ func FormatGoFile(path string) error {
 		}
 	}
 
-	// Then run go fmt to format
 	cmd = exec.Command("go", "fmt", path)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return &FileOperationError{
@@ -147,6 +157,22 @@ func FormatGoFile(path string) error {
 	}
 
 	return nil
+}
+
+// resolveTool finds a formatter/codegen binary. ANDUREL_TOOL_BIN, when set,
+// is checked first so golden/CI installs of pinned versions win over PATH drift.
+func resolveTool(name string) (string, error) {
+	if dir := os.Getenv("ANDUREL_TOOL_BIN"); dir != "" {
+		candidate := filepath.Join(dir, name)
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate, nil
+		}
+	}
+	path, err := exec.LookPath(name)
+	if err != nil {
+		return "", fmt.Errorf("%s not found in ANDUREL_TOOL_BIN or PATH: %w", name, err)
+	}
+	return path, nil
 }
 
 // FindGoModRoot finds the root directory containing go.mod (with caching)

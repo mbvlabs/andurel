@@ -17,7 +17,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.27.1'
-          check-latest: true
+          check-latest: false
           cache: true
 
       - name: Install just
@@ -26,20 +26,17 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Install tools
-        run: |
-          go install github.com/a-h/templ/cmd/templ
-          go install github.com/segmentio/golines
-          go install golang.org/x/tools/cmd/goimports
+      - name: Install pinned tools
+        run: ./scripts/install-dev-tools.sh
 
       - name: Update golden files
-        run: just update-golden-all
+        run: just update-golden
 
       - name: Check for golden file changes
         run: |
-          golden_paths='e2e/testdata/golden generator/testdata/golden'
+          golden_paths='testdata/golden'
           if [ -n "$(git status --porcelain -- ${golden_paths})" ]; then
-            echo "Golden files are out of date. Run 'just update-golden-all' locally and commit the changes."
+            echo "Golden files are out of date. Run 'just update-golden' locally and commit the changes."
             git status --short -- ${golden_paths}
             git diff -- ${golden_paths}
             exit 1

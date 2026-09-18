@@ -5,16 +5,16 @@ import (
 	"context"
 	"os"
 	"runtime/debug"
-	"time"
 
 	"github.com/mbvlabs/andurel/cli"
 	"github.com/mbvlabs/andurel/cli/output"
+	"github.com/mbvlabs/andurel/internal/testseed"
 	"github.com/spf13/cobra"
 )
 
 var (
 	version        string
-	date           = time.Now().Format("2006-01-02")
+	date           = testseed.Now().Format("2006-01-02")
 	readBuildInfo  = debug.ReadBuildInfo
 	newRootCommand = cli.NewRootCommand
 	exitProcess    = os.Exit

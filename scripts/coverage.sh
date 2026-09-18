@@ -13,13 +13,13 @@ while IFS= read -r package; do
   fi
 
   case "${package}" in
-    */e2e | */e2e/*) ;;
+    */e2e | */e2e/* | */golden | */golden/*) ;;
     *) packages+=("${package}") ;;
   esac
 done <<< "${package_list}"
 
 if (( ${#packages[@]} == 0 )); then
-  echo "no non-e2e Go packages found" >&2
+  echo "no coverable Go packages found" >&2
   exit 1
 fi
 

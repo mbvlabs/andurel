@@ -167,7 +167,7 @@ for requirement in \
   './scripts/coverage.sh' \
   'codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1' \
   'token: ${{ secrets.CODECOV_TOKEN }}' \
-  'go test ./e2e/... -v -timeout 25m'; do
+  'go test ./golden/... -v -timeout 15m'; do
   if ! grep -Fq "${requirement}" "${test_workflow}"; then
     echo "pull request test workflow is missing ${requirement}" >&2
     exit 1
