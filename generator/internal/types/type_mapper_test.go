@@ -15,7 +15,7 @@ func TestMapSQLTypeToGo_NonNullableTypes(t *testing.T) {
 		{"text", "text", "string", ""},
 		{"char", "char", "string", ""},
 
-		{"uuid", "uuid", "pgtype.UUID", "github.com/jackc/pgx/v5/pgtype"},
+		{"uuid", "uuid", "uuid.UUID", "uuid"},
 
 		{"boolean", "boolean", "bool", ""},
 		{"bool", "bool", "bool", ""},
@@ -112,7 +112,7 @@ func TestMapSQLTypeToGo_NullableTypes(t *testing.T) {
 		{"numeric nullable", "numeric", "pgtype.Numeric", pgtypePkg},
 		{"timestamp nullable", "timestamp", "pgtype.Timestamp", pgtypePkg},
 		{"timestamptz nullable", "timestamptz", "pgtype.Timestamptz", pgtypePkg},
-		{"uuid nullable", "uuid", "pgtype.UUID", pgtypePkg},
+		{"uuid nullable", "uuid", "*uuid.UUID", "uuid"},
 	}
 
 	tm := NewTypeMapper("postgresql")

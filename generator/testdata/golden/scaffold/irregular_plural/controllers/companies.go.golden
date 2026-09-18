@@ -130,7 +130,7 @@ func (c Companies) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	company, err := c.companies.Find(etx.Request().Context(), pgtype.UUID{Bytes: companyID, Valid: true})
+	company, err := c.companies.Find(etx.Request().Context(), companyID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -180,7 +180,7 @@ func (c Companies) Create(etx *echo.Context) error {
 	}
 
 	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Company created successfully")
-	return etx.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID.Bytes))
+	return etx.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID))
 }
 
 func (c Companies) Edit(etx *echo.Context) error {
@@ -189,7 +189,7 @@ func (c Companies) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	company, err := c.companies.Find(etx.Request().Context(), pgtype.UUID{Bytes: companyID, Valid: true})
+	company, err := c.companies.Find(etx.Request().Context(), companyID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -223,7 +223,7 @@ func (c Companies) Update(etx *echo.Context) error {
 	}
 
 	data := models.UpdateCompanyData{
-		ID: pgtype.UUID{Bytes: companyID, Valid: true},
+		ID: companyID,
 
 		Name: payload.Name,
 
@@ -243,7 +243,7 @@ func (c Companies) Update(etx *echo.Context) error {
 	}
 
 	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Company updated successfully")
-	return etx.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID.Bytes))
+	return etx.Redirect(http.StatusSeeOther, routes.CompanyShow.URL(company.ID))
 }
 
 func (c Companies) Destroy(etx *echo.Context) error {
@@ -252,7 +252,7 @@ func (c Companies) Destroy(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	err = c.companies.Destroy(etx.Request().Context(), pgtype.UUID{Bytes: companyID, Valid: true})
+	err = c.companies.Destroy(etx.Request().Context(), companyID)
 	if err != nil {
 		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to delete company: %v", err))
 		return etx.Redirect(http.StatusSeeOther, routes.CompanyIndex.URL())

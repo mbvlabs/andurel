@@ -82,10 +82,10 @@ templ (wi WidgetIndex) Page() {
 											<td>
 												<div class="flex flex-wrap gap-3 text-sm">
 													
-													<a class="inline-link" href={ routes.WidgetShow.URL(widget.ID.Bytes) }>View</a>
+													<a class="inline-link" href={ routes.WidgetShow.URL(widget.ID) }>View</a>
 													
 													
-													<a class="inline-link" href={ routes.WidgetEdit.URL(widget.ID.Bytes) }>Edit</a>
+													<a class="inline-link" href={ routes.WidgetEdit.URL(widget.ID) }>Edit</a>
 													
 												</div>
 											</td>
@@ -120,7 +120,7 @@ templ (ws WidgetShow) Page() {
 						<h1 class="text-2xl font-semibold tracking-normal text-base-content">Widget Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
 							
-							<a href={ routes.WidgetEdit.URL(ws.Item.ID.Bytes) } class="btn btn-primary">Edit</a>
+							<a href={ routes.WidgetEdit.URL(ws.Item.ID) } class="btn btn-primary">Edit</a>
 							
 							
 							<a class="inline-link text-sm" href={ routes.WidgetIndex.URL() }>Back to List</a>
@@ -232,7 +232,7 @@ templ (we WidgetEdit) Page() {
 							<p class="card-description">Update the details for this widget.</p>
 						</div>
 						<div class="card-content">
-							<form class="form" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.WidgetUpdate.URL(we.Item.ID.Bytes)) }>
+							<form class="form" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.WidgetUpdate.URL(we.Item.ID)) }>
 								<fieldset class="fieldset" data-attr:disabled="$_submitting">
 									
 									<div class="field">
@@ -257,7 +257,7 @@ templ (we WidgetEdit) Page() {
 								</fieldset>
 							</form>
 							<div class="separator my-6"></div>
-							<button type="button" class="btn btn-destructive btn-block" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.WidgetDestroy.URL(we.Item.ID.Bytes)) }>Destroy Widget</button>
+							<button type="button" class="btn btn-destructive btn-block" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.WidgetDestroy.URL(we.Item.ID)) }>Destroy Widget</button>
 							
 						</div>
 					</div>

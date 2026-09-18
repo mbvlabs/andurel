@@ -29,7 +29,7 @@ func (d Documents) WithTx(tx storage.Transaction) Documents {
 }
 
 type Document struct {
-	ID          pgtype.UUID        `andurel:"id"`
+	ID          uuid.UUID          `andurel:"id"`
 	Title       string             `andurel:"title"`
 	Tags        []string           `andurel:"tags"`
 	PageNumbers []int32            `andurel:"page_numbers"`
@@ -39,7 +39,7 @@ type Document struct {
 	UpdatedAt   pgtype.Timestamptz `andurel:"updated_at"`
 }
 
-func (d Documents) Find(ctx context.Context, id pgtype.UUID) (Document, error) {
+func (d Documents) Find(ctx context.Context, id uuid.UUID) (Document, error) {
 	entity, err := d.queries.GetDocument[Document](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -61,7 +61,7 @@ type CreateDocumentData struct {
 
 func (d Documents) Create(ctx context.Context, data CreateDocumentData) (Document, error) {
 	entity := Document{
-		ID:          pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ID:          uuid.New(),
 		CreatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Title:       data.Title,
@@ -88,7 +88,7 @@ func (d Documents) Create(ctx context.Context, data CreateDocumentData) (Documen
 }
 
 type UpdateDocumentData struct {
-	ID          pgtype.UUID
+	ID          uuid.UUID
 	Title       string
 	Tags        []string
 	PageNumbers []int32
@@ -130,7 +130,7 @@ func (d Documents) Update(ctx context.Context, data UpdateDocumentData) (Documen
 	return row, nil
 }
 
-func (d Documents) Destroy(ctx context.Context, id pgtype.UUID) error {
+func (d Documents) Destroy(ctx context.Context, id uuid.UUID) error {
 	if err := d.queries.DeleteDocument(ctx, id); err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func (d Documents) Paginate(ctx context.Context, page, pageSize int64) (Paginate
 	}, nil
 }
 
-func (d Documents) Upsert(ctx context.Context, id pgtype.UUID, data CreateDocumentData) (Document, error) {
+func (d Documents) Upsert(ctx context.Context, id uuid.UUID, data CreateDocumentData) (Document, error) {
 	entity := Document{
 		ID:          id,
 		CreatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},

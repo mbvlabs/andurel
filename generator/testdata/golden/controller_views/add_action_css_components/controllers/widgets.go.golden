@@ -9,7 +9,6 @@ import (
 	"testapp/views"
 	"uuid"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
 )
@@ -53,7 +52,7 @@ func (w Widgets) Show(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	widget, err := w.widgets.Find(etx.Request().Context(), pgtype.UUID{Bytes: widgetID, Valid: true})
+	widget, err := w.widgets.Find(etx.Request().Context(), widgetID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}
@@ -67,7 +66,7 @@ func (w Widgets) Edit(etx *echo.Context) error {
 		return hypermedia.RenderPage(etx, views.BadRequest())
 	}
 
-	widget, err := w.widgets.Find(etx.Request().Context(), pgtype.UUID{Bytes: widgetID, Valid: true})
+	widget, err := w.widgets.Find(etx.Request().Context(), widgetID)
 	if err != nil {
 		return hypermedia.RenderPage(etx, views.NotFound())
 	}

@@ -2,7 +2,7 @@
 +++ updated
 @@ -1,16 +1,17 @@
  type Product struct {
--	ID          pgtype.UUID        `andurel:"id"`
+-	ID          uuid.UUID          `andurel:"id"`
 -	Sku         string             `andurel:"sku"`
 -	Name        string             `andurel:"name"`
 -	Description pgtype.Text        `andurel:"description"`
@@ -16,7 +16,7 @@
 -	LaunchedAt  pgtype.Timestamptz `andurel:"launched_at"`
 -	CreatedAt   pgtype.Timestamptz `andurel:"created_at"`
 -	UpdatedAt   pgtype.Timestamptz `andurel:"updated_at"`
-+	ID pgtype.UUID `andurel:"id"`
++	ID uuid.UUID `andurel:"id"`
 +	Sku string `andurel:"sku"`
 +	Name string `andurel:"name"`
 +	Description string `andurel:"description"`

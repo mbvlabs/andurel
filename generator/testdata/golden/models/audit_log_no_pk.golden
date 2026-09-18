@@ -5,6 +5,7 @@ package models
 import (
 	"context"
 	"errors"
+	"uuid"
 
 	"github.com/example/shop/models/internal/queries"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -26,19 +27,19 @@ func (al AuditLogs) WithTx(tx storage.Transaction) AuditLogs {
 }
 
 type AuditLog struct {
-	EventId    pgtype.UUID        `andurel:"event_id"`
+	EventId    uuid.UUID          `andurel:"event_id"`
 	Action     string             `andurel:"action"`
 	EntityType string             `andurel:"entity_type"`
-	EntityId   pgtype.UUID        `andurel:"entity_id"`
+	EntityId   uuid.UUID          `andurel:"entity_id"`
 	Payload    []byte             `andurel:"payload"`
 	OccurredAt pgtype.Timestamptz `andurel:"occurred_at"`
 }
 
 type CreateAuditLogData struct {
-	EventId    pgtype.UUID
+	EventId    uuid.UUID
 	Action     string
 	EntityType string
-	EntityId   pgtype.UUID
+	EntityId   uuid.UUID
 	Payload    []byte
 	OccurredAt pgtype.Timestamptz
 }

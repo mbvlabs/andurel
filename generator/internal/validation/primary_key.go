@@ -45,7 +45,7 @@ func IsAutoIncrement(dataType string) bool {
 func GoType(pkType PKType) string {
 	switch pkType {
 	case PKTypeUUID:
-		return "pgtype.UUID"
+		return "uuid.UUID"
 	case PKTypeInt32:
 		return "int32"
 	case PKTypeInt64:
@@ -53,7 +53,7 @@ func GoType(pkType PKType) string {
 	case PKTypeString:
 		return "string"
 	default:
-		return "pgtype.UUID"
+		return "uuid.UUID"
 	}
 }
 

@@ -52,7 +52,7 @@ func CreateUser(
 	built := BuildUser(opts...)
 
 	return queries.New(db).CreateUser[models.User](ctx, queries.CreateUserParams{
-		ID:               pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ID:               uuid.New(),
 		CreatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Email:            built.Email,

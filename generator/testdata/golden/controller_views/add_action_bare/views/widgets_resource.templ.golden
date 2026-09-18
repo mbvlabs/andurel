@@ -53,7 +53,7 @@ templ (ws WidgetShow) Page() {
 						<h1 class="text-2xl font-semibold text-slate-100">Widget Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
 							
-							<a href={ routes.WidgetEdit.URL(ws.Item.ID.Bytes) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
+							<a href={ routes.WidgetEdit.URL(ws.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
 							
 							
 						</div>

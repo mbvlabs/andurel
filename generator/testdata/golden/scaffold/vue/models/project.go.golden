@@ -29,14 +29,14 @@ func (p Projects) WithTx(tx storage.Transaction) Projects {
 }
 
 type Project struct {
-	ID        pgtype.UUID        `andurel:"id"`
+	ID        uuid.UUID          `andurel:"id"`
 	Title     string             `andurel:"title"`
 	Status    string             `andurel:"status"`
 	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
 	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
 }
 
-func (p Projects) Find(ctx context.Context, id pgtype.UUID) (Project, error) {
+func (p Projects) Find(ctx context.Context, id uuid.UUID) (Project, error) {
 	entity, err := p.queries.GetProject[Project](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -55,7 +55,7 @@ type CreateProjectData struct {
 
 func (p Projects) Create(ctx context.Context, data CreateProjectData) (Project, error) {
 	entity := Project{
-		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ID:        uuid.New(),
 		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		Title:     data.Title,
@@ -76,7 +76,7 @@ func (p Projects) Create(ctx context.Context, data CreateProjectData) (Project, 
 }
 
 type UpdateProjectData struct {
-	ID     pgtype.UUID
+	ID     uuid.UUID
 	Title  string
 	Status string
 }
@@ -109,7 +109,7 @@ func (p Projects) Update(ctx context.Context, data UpdateProjectData) (Project, 
 	return row, nil
 }
 
-func (p Projects) Destroy(ctx context.Context, id pgtype.UUID) error {
+func (p Projects) Destroy(ctx context.Context, id uuid.UUID) error {
 	if err := p.queries.DeleteProject(ctx, id); err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (p Projects) Paginate(ctx context.Context, page, pageSize int64) (Paginated
 	}, nil
 }
 
-func (p Projects) Upsert(ctx context.Context, id pgtype.UUID, data CreateProjectData) (Project, error) {
+func (p Projects) Upsert(ctx context.Context, id uuid.UUID, data CreateProjectData) (Project, error) {
 	entity := Project{
 		ID:        id,
 		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
