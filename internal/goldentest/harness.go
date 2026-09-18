@@ -4,6 +4,7 @@
 package goldentest
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -97,6 +98,18 @@ func CopyFixture(t testing.TB, name string) string {
 func RunCLI(t testing.TB, dir string, args ...string) {
 	t.Helper()
 
+	out, exitCode := RunCLIExit(t, dir, args...)
+	if exitCode != 0 {
+		t.Fatalf("andurel %v exited %d\n%s", args, exitCode, out)
+	}
+}
+
+// RunCLIExit runs the CLI and returns combined stdout/stderr plus the process
+// exit code. Output bytes are returned raw — never scrubbed or reformatted.
+// Non-exit failures (missing binary, start error) fail the test.
+func RunCLIExit(t testing.TB, dir string, args ...string) (output []byte, exitCode int) {
+	t.Helper()
+
 	if andurelBin == "" {
 		t.Fatal("andurel binary not set; call goldentest.SetBinary from TestMain")
 	}
@@ -106,8 +119,25 @@ func RunCLI(t testing.TB, dir string, args ...string) {
 	cmd.Env = cliEnv()
 
 	out, err := cmd.CombinedOutput()
+	if err == nil {
+		return out, 0
+	}
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+		return out, exitErr.ExitCode()
+	}
+	t.Fatalf("andurel %v failed to start: %v\n%s", args, err, out)
+	return nil, -1
+}
+
+// AssertFileBytesEquals fails if projectDir/relPath bytes differ from want.
+func AssertFileBytesEquals(t testing.TB, projectDir, relPath string, want []byte) {
+	t.Helper()
+	got, err := os.ReadFile(filepath.Join(projectDir, filepath.FromSlash(relPath)))
 	if err != nil {
-		t.Fatalf("andurel %v failed: %v\n%s", args, err, out)
+		t.Fatalf("read %s: %v", relPath, err)
+	}
+	if string(got) != string(want) {
+		t.Fatalf("%s changed unexpectedly\nwant %d bytes, got %d bytes", relPath, len(want), len(got))
 	}
 }
 
