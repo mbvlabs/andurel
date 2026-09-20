@@ -41,11 +41,11 @@ bmo:
 vet:
 	go vet ./...
 
-# Run pkg unit tests (CLI/generator goldens live under ./golden)
+# Run unit tests (excludes ./golden CLI goldens — use just test-golden)
 test:
-	go test ./pkg/... -v
+	go test $(go list ./... | grep -v '/golden$$') -count=1
 
-# Run unit tests with coverage (pkg only; CLI goldens use just test-golden)
+# Run unit tests with coverage (excludes golden; CLI goldens use just test-golden)
 test-coverage:
 	./scripts/coverage.sh
 
@@ -69,7 +69,7 @@ test-critical:
 # Run all currently available checks
 test-all:
 	@just test-critical
-	@echo "\nRunning pkg tests..."
+	@echo "\nRunning unit tests..."
 	@just test
 
 # Run quick check (vet + contracts)

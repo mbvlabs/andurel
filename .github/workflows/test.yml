@@ -44,11 +44,13 @@ jobs:
         go vet ./...
         ./scripts/vet-standalone-modules.sh
 
+    - name: Run unit tests
+      run: go test $(go list ./... | grep -v '/golden$') -count=1
+
     - name: Run golden CLI tests
       run: go test ./golden/... -v -timeout 15m
 
-    # Coverage + pkg suite return with Phase 2; keep the step visible but non-blocking.
-    - name: Run pkg tests with coverage (informational)
+    - name: Run unit tests with coverage
       continue-on-error: true
       run: ./scripts/coverage.sh
 

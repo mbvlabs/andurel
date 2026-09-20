@@ -1,0 +1,511 @@
+package cli
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/mbvlabs/andurel/generator"
+	"github.com/mbvlabs/andurel/internal/cache"
+	"github.com/mbvlabs/andurel/layout"
+	"github.com/spf13/cobra"
+)
+
+type cliTestResult struct {
+	cmd    *cobra.Command
+	stdout string
+	stderr string
+	err    error
+}
+
+func validTestDownload(binaryName string) *layout.ToolDownload {
+	return &layout.ToolDownload{
+		URLTemplate: "https://example.invalid/{{version}}/" + binaryName,
+		Archive:     "binary",
+		BinaryName:  binaryName,
+		SHA256: map[string]string{
+			"linux/amd64":  strings.Repeat("1", 64),
+			"linux/arm64":  strings.Repeat("2", 64),
+			"darwin/amd64": strings.Repeat("3", 64),
+			"darwin/arm64": strings.Repeat("4", 64),
+		},
+	}
+}
+
+func validTestTool(name, version string) *layout.Tool {
+	return &layout.Tool{
+		Version:      version,
+		Download:     validTestDownload(name),
+		VersionCheck: &layout.VersionCheck{Args: []string{"--version"}},
+	}
+}
+
+func testChecksumArguments() []string {
+	return []string{
+		"linux/amd64=" + strings.Repeat("1", 64),
+		"linux/arm64=" + strings.Repeat("2", 64),
+		"darwin/amd64=" + strings.Repeat("3", 64),
+		"darwin/arm64=" + strings.Repeat("4", 64),
+	}
+}
+
+func runCLITest(t *testing.T, args ...string) cliTestResult {
+	t.Helper()
+	resetCLITestSeams(t)
+	return executeCLITest(t, args...)
+}
+
+func executeCLITest(t *testing.T, args ...string) cliTestResult {
+	return executeConfiguredCLITest(t, "", args...)
+}
+
+func executeInertiaCLITest(t *testing.T, adapter string, args ...string) cliTestResult {
+	t.Helper()
+	return executeConfiguredCLITest(t, adapter, args...)
+}
+
+func executeConfiguredCLITest(t *testing.T, inertiaAdapter string, args ...string) cliTestResult {
+	t.Helper()
+
+	rootDir := t.TempDir()
+	if err := os.WriteFile(
+		filepath.Join(rootDir, "go.mod"),
+		[]byte("module example.com/app\n"),
+		0o644,
+	); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	if inertiaAdapter != "" {
+		lock := layout.NewAndurelLock("test")
+		lock.ScaffoldConfig = &layout.ScaffoldConfig{
+			ProjectName: "app",
+			Inertia:     inertiaAdapter,
+		}
+		if err := lock.WriteLockFile(rootDir); err != nil {
+			t.Fatalf("write andurel.lock: %v", err)
+		}
+	}
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(rootDir); err != nil {
+		t.Fatalf("chdir temp project: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	findGoModRoot = func() (string, error) {
+		return rootDir, nil
+	}
+
+	stdoutCapture := captureProcessOutput(t, &os.Stdout)
+	stderrCapture := captureProcessOutput(t, &os.Stderr)
+
+	var cobraStdout, cobraStderr bytes.Buffer
+	cmd := NewRootCommand("test", "test-date")
+	cmd.SetOut(&cobraStdout)
+	cmd.SetErr(&cobraStderr)
+	cmd.SetArgs(args)
+
+	err = cmd.Execute()
+	stdout := cobraStdout.String() + stdoutCapture()
+	stderr := cobraStderr.String() + stderrCapture()
+	return cliTestResult{
+		cmd:    cmd,
+		stdout: stdout,
+		stderr: stderr,
+		err:    err,
+	}
+}
+
+func captureProcessOutput(t *testing.T, stream **os.File) func() string {
+	t.Helper()
+
+	original := *stream
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create pipe: %v", err)
+	}
+	*stream = writer
+
+	done := make(chan string, 1)
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, reader)
+		done <- buf.String()
+	}()
+
+	return func() string {
+		_ = writer.Close()
+		*stream = original
+		out := <-done
+		_ = reader.Close()
+		return out
+	}
+}
+
+func resetCLITestSeams(t *testing.T) {
+	t.Helper()
+
+	cache.ClearFileSystemCache()
+	defaultFindGoModRoot := findGoModRoot
+	defaultNewGenerator := newGenerator
+	defaultRunModelUpdate := runModelUpdateFunc
+	defaultRunTempl := runTemplFunc
+	defaultRunFmt := runFmtFunc
+	defaultRunGoFmt := runGoFmtFunc
+	defaultRunGolines := runGolinesFunc
+	defaultRunTemplFmt := runTemplFmtFunc
+	defaultMakeDiagnosticTempDir := makeDiagnosticTempDir
+	defaultRemoveDiagnosticTempDir := removeDiagnosticTempDir
+	defaultGenerateController := generateControllerWithActionsFunc
+	defaultSyncSingleTool := syncSingleToolFunc
+	defaultEnsureTool := ensureToolFunc
+	defaultDownloadFromLockTool := downloadFromLockToolFunc
+	defaultInstallToolVersionAndLock := installToolVersionAndLockFunc
+	defaultResolveToolChecksums := resolveToolChecksumsFunc
+	defaultNewUpgrader := newUpgraderFunc
+	defaultLookupLatestAndurelVersion := lookupLatestAndurelVersionFunc
+	defaultLookupLatestModuleVersion := lookupLatestModuleVersionFunc
+	defaultApplyAndurelPackageUpdates := applyAndurelPackageUpdatesFunc
+	defaultOpenAdminConnection := openAdminConnectionFunc
+	defaultRunGoose := runGooseFunc
+	defaultRunSeed := runSeedFunc
+
+	t.Cleanup(func() {
+		findGoModRoot = defaultFindGoModRoot
+		newGenerator = defaultNewGenerator
+		runModelUpdateFunc = defaultRunModelUpdate
+		runTemplFunc = defaultRunTempl
+		runFmtFunc = defaultRunFmt
+		runGoFmtFunc = defaultRunGoFmt
+		runGolinesFunc = defaultRunGolines
+		runTemplFmtFunc = defaultRunTemplFmt
+		makeDiagnosticTempDir = defaultMakeDiagnosticTempDir
+		removeDiagnosticTempDir = defaultRemoveDiagnosticTempDir
+		generateControllerWithActionsFunc = defaultGenerateController
+		syncSingleToolFunc = defaultSyncSingleTool
+		ensureToolFunc = defaultEnsureTool
+		downloadFromLockToolFunc = defaultDownloadFromLockTool
+		installToolVersionAndLockFunc = defaultInstallToolVersionAndLock
+		resolveToolChecksumsFunc = defaultResolveToolChecksums
+		newUpgraderFunc = defaultNewUpgrader
+		lookupLatestAndurelVersionFunc = defaultLookupLatestAndurelVersion
+		lookupLatestModuleVersionFunc = defaultLookupLatestModuleVersion
+		applyAndurelPackageUpdatesFunc = defaultApplyAndurelPackageUpdates
+		openAdminConnectionFunc = defaultOpenAdminConnection
+		runGooseFunc = defaultRunGoose
+		runSeedFunc = defaultRunSeed
+		cache.ClearFileSystemCache()
+	})
+}
+
+func stubLatestAndurelVersion(t *testing.T, version string, err error) {
+	t.Helper()
+
+	original := lookupLatestAndurelVersionFunc
+	lookupLatestAndurelVersionFunc = func(context.Context) (string, error) {
+		return version, err
+	}
+	t.Cleanup(func() {
+		lookupLatestAndurelVersionFunc = original
+	})
+}
+
+type fakeGenerator struct {
+	modelCalls       []modelCall
+	modelWithPKCalls []modelWithPKCall
+	modelModeCalls   []modelModeCall
+	modelPlanCalls   []modelPlanCall
+	modelPlan        *generator.ModelGenerationPlan
+	modelPlanErr     error
+	scaffoldCalls    []scaffoldCall
+	controllerCalls  []controllerCall
+	factoryCalls     []factoryCall
+	factoriesCalls   []generator.FactorySyncOptions
+	factoryResult    *generator.FactorySyncResult
+	factoriesResult  []*generator.FactorySyncResult
+	modelUpdateCalls []string
+	modelUpdate      *generator.UpdateModelResult
+	modelUpdateErr   error
+	modelApplyCalls  []*generator.UpdateModelResult
+	modelApplyErr    error
+	err              error
+	onGenerateModel  func()
+}
+
+type modelCall struct {
+	name        string
+	tableName   string
+	skipFactory bool
+}
+
+type modelWithPKCall struct {
+	name        string
+	tableName   string
+	skipFactory bool
+	primaryKey  string
+}
+
+type modelModeCall struct {
+	name        string
+	tableName   string
+	skipFactory bool
+	primaryKey  string
+	mode        generator.ModelMode
+}
+
+type modelPlanCall struct {
+	name    string
+	options generator.ModelGenerationOptions
+}
+
+type scaffoldCall struct {
+	name        string
+	namespace   string
+	tableName   string
+	skipFactory bool
+	primaryKey  string
+	inertia     string
+	isAPI       bool
+}
+
+type factoryCall struct {
+	name string
+	opts generator.FactorySyncOptions
+}
+
+type controllerCall struct {
+	name      string
+	namespace string
+	modelName string
+	tableName string
+	actions   []string
+	inertia   string
+	isAPI     bool
+}
+
+func (f *fakeGenerator) GenerateModel(
+	resourceName string,
+	tableNameOverride string,
+	skipFactory bool,
+) error {
+	if f.onGenerateModel != nil {
+		f.onGenerateModel()
+	}
+	f.modelCalls = append(f.modelCalls, modelCall{
+		name:        resourceName,
+		tableName:   tableNameOverride,
+		skipFactory: skipFactory,
+	})
+	return f.err
+}
+
+func (f *fakeGenerator) GenerateModelWithPK(
+	resourceName string,
+	tableNameOverride string,
+	skipFactory bool,
+	primaryKeyColumn string,
+) error {
+	f.modelWithPKCalls = append(f.modelWithPKCalls, modelWithPKCall{
+		name:        resourceName,
+		tableName:   tableNameOverride,
+		skipFactory: skipFactory,
+		primaryKey:  primaryKeyColumn,
+	})
+	return f.err
+}
+
+func (f *fakeGenerator) GenerateModelWithMode(
+	resourceName string,
+	tableNameOverride string,
+	skipFactory bool,
+	primaryKeyColumn string,
+	mode generator.ModelMode,
+) error {
+	f.modelModeCalls = append(f.modelModeCalls, modelModeCall{
+		name:        resourceName,
+		tableName:   tableNameOverride,
+		skipFactory: skipFactory,
+		primaryKey:  primaryKeyColumn,
+		mode:        mode,
+	})
+	return f.err
+}
+
+func (f *fakeGenerator) PlanModel(
+	resourceName string,
+	options generator.ModelGenerationOptions,
+) (*generator.ModelGenerationPlan, error) {
+	f.modelPlanCalls = append(f.modelPlanCalls, modelPlanCall{name: resourceName, options: options})
+	return f.modelPlan, f.modelPlanErr
+}
+
+func (f *fakeGenerator) GenerateControllerWithActions(
+	resourceName, namespace, tableName string,
+	actions []string,
+	inertia string,
+	isAPI bool,
+) error {
+	f.controllerCalls = append(f.controllerCalls, controllerCall{
+		name:      resourceName,
+		namespace: namespace,
+		modelName: resourceName,
+		tableName: tableName,
+		actions:   append([]string(nil), actions...),
+		inertia:   inertia,
+		isAPI:     isAPI,
+	})
+	return f.err
+}
+
+func (f *fakeGenerator) GenerateControllerWithActionsForModel(
+	resourceName, namespace, modelName, tableName string,
+	actions []string,
+	inertia string,
+	isAPI bool,
+) error {
+	f.controllerCalls = append(f.controllerCalls, controllerCall{
+		name:      resourceName,
+		namespace: namespace,
+		modelName: modelName,
+		tableName: tableName,
+		actions:   append([]string(nil), actions...),
+		inertia:   inertia,
+		isAPI:     isAPI,
+	})
+	return f.err
+}
+
+func (f *fakeGenerator) GenerateScaffold(
+	resourceName, namespace, tableName string,
+	skipFactory bool,
+	primaryKeyColumn string,
+	inertia string,
+	isAPI bool,
+) error {
+	f.scaffoldCalls = append(f.scaffoldCalls, scaffoldCall{
+		name:        resourceName,
+		namespace:   namespace,
+		tableName:   tableName,
+		skipFactory: skipFactory,
+		primaryKey:  primaryKeyColumn,
+		inertia:     inertia,
+		isAPI:       isAPI,
+	})
+	return f.err
+}
+
+func (f *fakeGenerator) UpdateModel(resourceName string) (*generator.UpdateModelResult, error) {
+	f.modelUpdateCalls = append(f.modelUpdateCalls, resourceName)
+	if f.modelUpdateErr != nil {
+		return nil, f.modelUpdateErr
+	}
+	return f.modelUpdate, nil
+}
+
+func (f *fakeGenerator) ApplyModelUpdate(result *generator.UpdateModelResult) error {
+	f.modelApplyCalls = append(f.modelApplyCalls, result)
+	return f.modelApplyErr
+}
+
+func (f *fakeGenerator) SyncFactory(
+	resourceName string,
+	opts generator.FactorySyncOptions,
+) (*generator.FactorySyncResult, error) {
+	f.factoryCalls = append(f.factoryCalls, factoryCall{name: resourceName, opts: opts})
+	if f.err != nil {
+		return nil, f.err
+	}
+	if f.factoryResult != nil {
+		return f.factoryResult, nil
+	}
+	return &generator.FactorySyncResult{
+		ResourceName: resourceName,
+		Path:         "models/factories/" + resourceName + ".go",
+	}, nil
+}
+
+func (f *fakeGenerator) SyncFactories(
+	opts generator.FactorySyncOptions,
+) ([]*generator.FactorySyncResult, error) {
+	f.factoriesCalls = append(f.factoriesCalls, opts)
+	if f.err != nil {
+		return nil, f.err
+	}
+	if f.factoriesResult != nil {
+		return f.factoriesResult, nil
+	}
+	return []*generator.FactorySyncResult{}, nil
+}
+
+func installFakeGenerator(t *testing.T) *fakeGenerator {
+	t.Helper()
+	fake := &fakeGenerator{}
+	newGenerator = func() (cliGenerator, error) {
+		if fake.err != nil && errors.Is(fake.err, errGeneratorFactory) {
+			return nil, fake.err
+		}
+		return fake, nil
+	}
+	return fake
+}
+
+var errGeneratorFactory = errors.New("generator factory failed")
+
+func writeCLITestFile(t *testing.T, root, relPath, content string) {
+	t.Helper()
+	path := filepath.Join(root, relPath)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", relPath, err)
+	}
+}
+
+func assertCLITestFileContains(t *testing.T, root, relPath, want string) {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join(root, relPath))
+	if err != nil {
+		t.Fatalf("read %s: %v", relPath, err)
+	}
+	if !strings.Contains(string(content), want) {
+		t.Fatalf("expected %s to contain %q:\n%s", relPath, want, string(content))
+	}
+}
+
+func assertCLITestFileNotContains(t *testing.T, root, relPath, unwanted string) {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join(root, relPath))
+	if err != nil {
+		t.Fatalf("read %s: %v", relPath, err)
+	}
+	if strings.Contains(string(content), unwanted) {
+		t.Fatalf("expected %s not to contain %q:\n%s", relPath, unwanted, string(content))
+	}
+}
+
+func assertCLITestFileExists(t *testing.T, root, relPath string) {
+	t.Helper()
+	if _, err := os.Stat(filepath.Join(root, relPath)); err != nil {
+		t.Fatalf("expected %s to exist: %v", relPath, err)
+	}
+}
+
+func assertCLITestFileMissing(t *testing.T, root, relPath string) {
+	t.Helper()
+	if _, err := os.Stat(filepath.Join(root, relPath)); err == nil {
+		t.Fatalf("expected %s to be missing", relPath)
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat %s: %v", relPath, err)
+	}
+}

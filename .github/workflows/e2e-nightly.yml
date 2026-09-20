@@ -41,7 +41,7 @@ jobs:
           ANDUREL_GOLDEN_FULL: "1"
         run: go test ./golden/... -v -timeout 45m
 
-      - name: Run pkg tests with coverage (informational)
+      - name: Run unit tests with coverage
         continue-on-error: true
         run: ./scripts/coverage.sh
 

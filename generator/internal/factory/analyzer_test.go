@@ -1,0 +1,185 @@
+package factory
+
+import (
+	"testing"
+
+	"github.com/mbvlabs/andurel/generator/models"
+)
+
+func TestFieldAnalyzer_StringDefaults(t *testing.T) {
+	tests := []struct {
+		fieldName string
+		expected  string
+	}{
+		{"Email", "faker.Email()"},
+		{"Name", "faker.Name()"},
+		{"UserName", "faker.Name()"},
+		{"PhoneNumber", "faker.Phonenumber()"},
+		{"Description", "faker.Sentence()"},
+		{"Title", "faker.Word()"},
+		{"City", "faker.GetRealAddress().City"},
+		{"Address", "faker.GetRealAddress().Address"},
+		{"Country", "faker.GetRealAddress().Country"},
+		{"RandomField", "faker.Word()"},
+	}
+
+	analyzer := NewFieldAnalyzer("postgres")
+	for _, tt := range tests {
+		t.Run(tt.fieldName, func(t *testing.T) {
+			got := analyzer.stringDefault(tt.fieldName)
+			if got != tt.expected {
+				t.Errorf("stringDefault(%s) = %s, want %s", tt.fieldName, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFieldAnalyzer_IntDefaults(t *testing.T) {
+	analyzer := NewFieldAnalyzer("postgres")
+
+	// intDefault now returns a generic random int call for all fields
+	expected := "randomInt(1, 1000, 100)"
+	got := analyzer.intDefault("anyField")
+	if got != expected {
+		t.Errorf("intDefault(anyField) = %s, want %s", got, expected)
+	}
+}
+
+func TestFieldAnalyzer_DetermineDefaultAndGoZero(t *testing.T) {
+	analyzer := NewFieldAnalyzer("postgres")
+
+	defaults := map[string]string{
+		"string":          "faker.Word()",
+		"int32":           "randomInt(1, 1000, 100)",
+		"int":             "randomInt(1, 1000, 100)",
+		"int64":           "randomInt64(1, 1000, 100)",
+		"int16":           "randomInt16(1, 1000, 100)",
+		"bool":            "randomBool()",
+		"time.Time":       "time.Now()",
+		"uuid.UUID":       "uuid.New()",
+		"json.RawMessage": `json.RawMessage("{}")`,
+		"[]byte":          "[]byte{}",
+		"*string":         "nil",
+		"*time.Time":      "nil",
+		"*bool":           "nil",
+		"sql.NullString":  "sql.NullString{}",
+		"sql.NullTime":    "sql.NullTime{}",
+		"CustomType":      "CustomType{}",
+	}
+	for typ, want := range defaults {
+		if got := analyzer.determineDefault("Field", typ); got != want {
+			t.Fatalf("determineDefault(%q) = %q, want %q", typ, got, want)
+		}
+	}
+
+	zeros := map[string]string{
+		"string":          `""`,
+		"int":             "0",
+		"int32":           "0",
+		"int64":           "0",
+		"float32":         "0",
+		"float64":         "0",
+		"bool":            "false",
+		"time.Time":       "time.Time{}",
+		"uuid.UUID":       "uuid.UUID{}",
+		"json.RawMessage": "nil",
+		"[]byte":          "nil",
+		"[]string":        "nil",
+		"CustomType":      "CustomType{}",
+	}
+	for typ, want := range zeros {
+		if got := analyzer.getGoZero(typ); got != want {
+			t.Fatalf("getGoZero(%q) = %q, want %q", typ, got, want)
+		}
+	}
+
+	if got := analyzer.pgtypeDefault("pgtype.Text"); got != "pgtype.Text{}" {
+		t.Fatalf("pgtypeDefault = %q", got)
+	}
+}
+
+func TestFieldAnalyzer_AnalyzeField(t *testing.T) {
+	analyzer := NewFieldAnalyzer("postgres")
+
+	tests := []struct {
+		name         string
+		field        models.GeneratedField
+		modelName    string
+		expectedName string
+		expectedType string
+		expectedIsFK bool
+		expectedIsID bool
+	}{
+		{
+			name: "ID field",
+			field: models.GeneratedField{
+				Name: "ID",
+				Type: "uuid.UUID",
+			},
+			modelName:    "Product",
+			expectedName: "ID",
+			expectedType: "uuid.UUID",
+			expectedIsFK: false,
+			expectedIsID: true,
+		},
+		{
+			name: "Foreign key field",
+			field: models.GeneratedField{
+				Name:         "CategoryID",
+				Type:         "uuid.UUID",
+				IsForeignKey: true,
+			},
+			modelName:    "Product",
+			expectedName: "CategoryID",
+			expectedType: "uuid.UUID",
+			expectedIsFK: true,
+			expectedIsID: false,
+		},
+		{
+			name: "Regular string field",
+			field: models.GeneratedField{
+				Name: "Name",
+				Type: "string",
+			},
+			modelName:    "Product",
+			expectedName: "Name",
+			expectedType: "string",
+			expectedIsFK: false,
+			expectedIsID: false,
+		},
+		{
+			name: "supplied model name creates option name",
+			field: models.GeneratedField{
+				Name: "TeamID",
+				Type: "uuid.UUID",
+			},
+			modelName:    "TeamMembership",
+			expectedName: "TeamID",
+			expectedType: "uuid.UUID",
+			expectedIsFK: false,
+			expectedIsID: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := analyzer.AnalyzeField(tt.field, tt.modelName)
+
+			if result.Name != tt.expectedName {
+				t.Errorf("Name = %s, want %s", result.Name, tt.expectedName)
+			}
+			if result.Type != tt.expectedType {
+				t.Errorf("Type = %s, want %s", result.Type, tt.expectedType)
+			}
+			if result.IsFK != tt.expectedIsFK {
+				t.Errorf("IsFK = %v, want %v", result.IsFK, tt.expectedIsFK)
+			}
+			if result.IsID != tt.expectedIsID {
+				t.Errorf("IsID = %v, want %v", result.IsID, tt.expectedIsID)
+			}
+			if tt.modelName == "TeamMembership" && result.OptionName != "WithTeamMembershipTeamID" {
+				t.Errorf("OptionName = %s, want %s", result.OptionName, "WithTeamMembershipTeamID")
+			}
+		})
+	}
+}

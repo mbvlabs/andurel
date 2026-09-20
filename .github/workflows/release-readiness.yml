@@ -84,7 +84,7 @@ jobs:
       - name: Run pinned vulnerability scan
         run: govulncheck ./...
 
-      - name: Run pkg tests with race detection and report coverage
+      - name: Run unit tests with race detection and report coverage
         continue-on-error: true
         run: ./scripts/coverage.sh
 
