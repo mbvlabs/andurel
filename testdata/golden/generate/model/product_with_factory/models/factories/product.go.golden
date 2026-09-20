@@ -1,0 +1,158 @@
+package factories
+
+import (
+	"context"
+	"fmt"
+
+	"example.com/app/models"
+	"github.com/go-faker/faker/v4"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/mbvlabs/andurel/pkg/storage"
+)
+
+// ProductFactory wraps models.Product for testing
+type ProductFactory struct {
+	models.Product
+}
+
+type ProductOption func(*ProductFactory)
+
+// BuildProduct creates an in-memory Product with default test values.
+// Auto-managed fields (ID, timestamps) are left at zero and set by CreateProduct.
+func BuildProduct(opts ...ProductOption) models.Product {
+	f := &ProductFactory{
+		Product: models.Product{
+			Sku:         faker.Word(),
+			Name:        faker.Name(),
+			Description: pgtype.Text{},
+			PriceCents:  randomInt(1, 1000, 100),
+			StockCount:  randomInt(1, 1000, 100),
+			Active:      randomBool(),
+			Tags:        *new([]string),
+			Scores:      *new([]int32),
+			Metadata:    []byte{},
+			Attributes:  []byte{},
+			LaunchedAt:  pgtype.Timestamptz{},
+		},
+	}
+
+	for _, opt := range opts {
+		opt(f)
+	}
+
+	return f.Product
+}
+
+// CreateProduct creates and persists a Product to the database.
+// It returns the entity populated with all DB-assigned values via RETURNING *.
+func CreateProduct(ctx context.Context, db storage.Connection, opts ...ProductOption) (models.Product, error) {
+	built := BuildProduct(opts...)
+
+	return models.NewProducts(db).Create(ctx, models.CreateProductData{
+		Sku:         built.Sku,
+		Name:        built.Name,
+		Description: built.Description,
+		PriceCents:  built.PriceCents,
+		StockCount:  built.StockCount,
+		Active:      built.Active,
+		Tags:        built.Tags,
+		Scores:      built.Scores,
+		Metadata:    built.Metadata,
+		Attributes:  built.Attributes,
+		LaunchedAt:  built.LaunchedAt,
+	})
+}
+
+// CreateProducts creates multiple Product records at once
+func CreateProducts(ctx context.Context, db storage.Connection, count int, opts ...ProductOption) ([]models.Product, error) {
+	products := make([]models.Product, 0, count)
+
+	for i := range count {
+		entity, err := CreateProduct(ctx, db, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create product %d: %w", i+1, err)
+		}
+		products = append(products, entity)
+	}
+
+	return products, nil
+}
+
+// Option functions
+
+// WithProductSku sets the Sku field
+func WithProductSku(value string) ProductOption {
+	return func(f *ProductFactory) {
+		f.Product.Sku = value
+	}
+}
+
+// WithProductName sets the Name field
+func WithProductName(value string) ProductOption {
+	return func(f *ProductFactory) {
+		f.Product.Name = value
+	}
+}
+
+// WithProductDescription sets the Description field
+func WithProductDescription(value pgtype.Text) ProductOption {
+	return func(f *ProductFactory) {
+		f.Product.Description = value
+	}
+}
+
+// WithProductPriceCents sets the PriceCents field
+func WithProductPriceCents(value int32) ProductOption {
+	return func(f *ProductFactory) {
+		f.Product.PriceCents = value
+	}
+}
+
+// WithProductStockCount sets the StockCount field
+func WithProductStockCount(value int32) ProductOption {
+	return func(f *ProductFactory) {
+		f.Product.StockCount = value
+	}
+}
+
+// WithProductActive sets the Active field
+func WithProductActive(value bool) ProductOption {
+	return func(f *ProductFactory) {
+		f.Product.Active = value
+	}
+}
+
+// WithProductTags sets the Tags field
+func WithProductTags(value []string) ProductOption {
+	return func(f *ProductFactory) {
+		f.Product.Tags = value
+	}
+}
+
+// WithProductScores sets the Scores field
+func WithProductScores(value []int32) ProductOption {
+	return func(f *ProductFactory) {
+		f.Product.Scores = value
+	}
+}
+
+// WithProductMetadata sets the Metadata field
+func WithProductMetadata(value []byte) ProductOption {
+	return func(f *ProductFactory) {
+		f.Product.Metadata = value
+	}
+}
+
+// WithProductAttributes sets the Attributes field
+func WithProductAttributes(value []byte) ProductOption {
+	return func(f *ProductFactory) {
+		f.Product.Attributes = value
+	}
+}
+
+// WithProductLaunchedAt sets the LaunchedAt field
+func WithProductLaunchedAt(value pgtype.Timestamptz) ProductOption {
+	return func(f *ProductFactory) {
+		f.Product.LaunchedAt = value
+	}
+}

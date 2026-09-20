@@ -49,9 +49,13 @@ test:
 test-coverage:
 	./scripts/coverage.sh
 
-# Run golden CLI tests (builds andurel with -tags andurel_golden)
+# Run golden CLI tests (PR track: generate + sync)
 test-golden: install-dev-tools
 	go test ./golden/... -v -timeout 15m
+
+# Run golden CLI tests including nightly full-tree `andurel new`
+test-golden-full: install-dev-tools
+	ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m
 
 # Run critical tests (vet + contracts + golden)
 test-critical:
@@ -89,13 +93,15 @@ ci:
 install-dev-tools:
 	./scripts/install-dev-tools.sh
 
-# Update golden files under testdata/golden (smoke + generate + sync + new)
+# Update PR golden files under testdata/golden (generate + sync)
 update-golden: install-dev-tools
 	go clean -testcache
 	go test ./golden/... -v -timeout 15m -update
 
-# Alias for update-golden
-update-golden-all: update-golden
+# Update nightly full-tree `new/` goldens (also refreshes generate + sync)
+update-golden-full: install-dev-tools
+	go clean -testcache
+	ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m -update
 
 # Clean test artifacts and cache
 clean-test:

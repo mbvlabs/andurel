@@ -6,37 +6,54 @@ package views
 
 import (
 	"fmt"
+	"net/http"
 	"time"
-		"net/http"
-	
+
 	"example.com/app/models"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	
-	
+
 	"example.com/app/router/routes"
-	
 )
 
 type FeedbackEntryData struct {
 	StudentName string
-	Feedback string
-	Rating int32
+	Feedback    string
+	Rating      int32
 	SubmittedAt time.Time
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 func newFeedbackEntryData(entity models.FeedbackEntry) FeedbackEntryData {
 	return FeedbackEntryData{
 		StudentName: entity.StudentName,
-		Feedback: entity.Feedback,
-		Rating: func() int32 { if !entity.Rating.Valid { return 0 }; return entity.Rating.Int32 }(),
-		SubmittedAt: func() time.Time { if !entity.SubmittedAt.Valid { return time.Time{} }; return entity.SubmittedAt.Time }(),
-		CreatedAt: func() time.Time { if !entity.CreatedAt.Valid { return time.Time{} }; return entity.CreatedAt.Time }(),
-		UpdatedAt: func() time.Time { if !entity.UpdatedAt.Valid { return time.Time{} }; return entity.UpdatedAt.Time }(),
+		Feedback:    entity.Feedback,
+		Rating: func() int32 {
+			if !entity.Rating.Valid {
+				return 0
+			}
+			return entity.Rating.Int32
+		}(),
+		SubmittedAt: func() time.Time {
+			if !entity.SubmittedAt.Valid {
+				return time.Time{}
+			}
+			return entity.SubmittedAt.Time
+		}(),
+		CreatedAt: func() time.Time {
+			if !entity.CreatedAt.Valid {
+				return time.Time{}
+			}
+			return entity.CreatedAt.Time
+		}(),
+		UpdatedAt: func() time.Time {
+			if !entity.UpdatedAt.Valid {
+				return time.Time{}
+			}
+			return entity.UpdatedAt.Time
+		}(),
 	}
 }
-
 
 type FeedbackEntryIndex struct {
 	Items []models.FeedbackEntry
@@ -53,9 +70,7 @@ templ (fei FeedbackEntryIndex) Page() {
 				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
 						<h1 class="text-2xl font-semibold text-slate-100">FeedbackEntries</h1>
-						
 						<a href={ routes.FeedbackEntryNew.URL() } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">New FeedbackEntry</a>
-						
 					</div>
 					if len(fei.Items) == 0 {
 						<p class="text-sm text-slate-400">No feedback_entries found.</p>
@@ -75,7 +90,7 @@ templ (fei FeedbackEntryIndex) Page() {
 								</thead>
 								<tbody class="[&_tr:last-child]:border-0">
 									for _, feedbackentry := range fei.Items {
-									{{ feedbackentryData := newFeedbackEntryData(feedbackentry) }}
+										{{ feedbackentryData := newFeedbackEntryData(feedbackentry) }}
 										<tr class="border-b border-cyan-400/25 transition-colors hover:bg-slate-900">
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentryData.StudentName }</td>
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentryData.Feedback }</td>
@@ -85,12 +100,8 @@ templ (fei FeedbackEntryIndex) Page() {
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ feedbackentryData.UpdatedAt.String() }</td>
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 												<div class="flex flex-wrap gap-3 text-sm">
-													
 													<a class="text-slate-300 hover:text-slate-100" href={ routes.FeedbackEntryShow.URL(feedbackentry.ID) }>View</a>
-													
-													
 													<a class="text-slate-300 hover:text-slate-100" href={ routes.FeedbackEntryEdit.URL(feedbackentry.ID) }>Edit</a>
-													
 												</div>
 											</td>
 										</tr>
@@ -104,8 +115,6 @@ templ (fei FeedbackEntryIndex) Page() {
 		}
 	}
 }
-
-
 
 type FeedbackEntryShow struct {
 	Item models.FeedbackEntry
@@ -123,18 +132,13 @@ templ (fes FeedbackEntryShow) Page() {
 					<div class="flex flex-wrap items-center justify-between gap-4">
 						<h1 class="text-2xl font-semibold text-slate-100">FeedbackEntry Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
-							
 							<a href={ routes.FeedbackEntryEdit.URL(fes.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
-							
-							
 							<a class="text-sm text-slate-300 hover:text-slate-100" href={ routes.FeedbackEntryIndex.URL() }>Back to List</a>
-							
 						</div>
 					</div>
 					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
 						<div class="p-6 pt-0">
 							<div class="grid gap-5 sm:grid-cols-2">
-								
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Student Name</label>
 									<p class="text-sm text-slate-100">{ newFeedbackEntryData(fes.Item).StudentName }</p>
@@ -159,7 +163,6 @@ templ (fes FeedbackEntryShow) Page() {
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
 									<p class="text-sm text-slate-100">{ newFeedbackEntryData(fes.Item).UpdatedAt.String() }</p>
 								</div>
-								
 							</div>
 						</div>
 					</div>
@@ -168,8 +171,6 @@ templ (fes FeedbackEntryShow) Page() {
 		}
 	}
 }
-
-
 
 type FeedbackEntryNew struct{}
 
@@ -193,34 +194,31 @@ templ (fen FeedbackEntryNew) Page() {
 									<div class="space-y-4">
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="studentName">Student Name</label>
-											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="studentName" />
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="studentName"/>
 										</div>
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="feedback">Feedback</label>
-											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="feedback" />
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="feedback"/>
 										</div>
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="rating">Rating</label>
-											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="rating" />
+											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="rating"/>
 										</div>
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="submittedAt">Submitted At</label>
 											<div class="relative w-full">
 												<div class="relative">
-													<input type="date" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 pr-8 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="submittedAt" />
+													<input type="date" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 pr-8 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="submittedAt"/>
 													<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
 														<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
 													</div>
 												</div>
 											</div>
 										</div>
-										
 									</div>
 									<div class="mt-6 space-y-3">
 										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded w-full">Create FeedbackEntry</button>
-										
 										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-cyan-400/25 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-slate-100" href={ routes.FeedbackEntryIndex.URL() }>Back to List</a>
-										
 									</div>
 								</fieldset>
 							</form>
@@ -231,8 +229,6 @@ templ (fen FeedbackEntryNew) Page() {
 		}
 	}
 }
-
-
 
 type FeedbackEntryEdit struct {
 	Item models.FeedbackEntry
@@ -256,43 +252,38 @@ templ (fee FeedbackEntryEdit) Page() {
 							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.FeedbackEntryUpdate.URL(fee.Item.ID)) }>
 								<fieldset data-attr:disabled="$_submitting">
 									<div class="space-y-4">
-										
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="studentName">Student Name</label>
-											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="studentName" value={ newFeedbackEntryData(fee.Item).StudentName } />
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="studentName" value={ newFeedbackEntryData(fee.Item).StudentName }/>
 										</div>
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="feedback">Feedback</label>
-											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="feedback" value={ newFeedbackEntryData(fee.Item).Feedback } />
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="feedback" value={ newFeedbackEntryData(fee.Item).Feedback }/>
 										</div>
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="rating">Rating</label>
-											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="rating" value={ fmt.Sprintf("%d", newFeedbackEntryData(fee.Item).Rating) } />
+											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="rating" value={ fmt.Sprintf("%d", newFeedbackEntryData(fee.Item).Rating) }/>
 										</div>
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="submittedAt">Submitted At</label>
 											<div class="relative w-full">
 												<div class="relative">
-													<input type="date" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 pr-8 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="submittedAt" value={ newFeedbackEntryData(fee.Item).SubmittedAt.String() } />
+													<input type="date" class="flex h-9 w-full rounded border border-cyan-400/25 bg-slate-950 px-3 py-1 pr-8 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="submittedAt" value={ newFeedbackEntryData(fee.Item).SubmittedAt.String() }/>
 													<div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
 														<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-500"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
 													</div>
 												</div>
 											</div>
 										</div>
-										
 									</div>
 									<div class="mt-6 space-y-3">
 										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded w-full">Update FeedbackEntry</button>
-										
 										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-cyan-400/25 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-slate-100" href={ routes.FeedbackEntryIndex.URL() }>Back to List</a>
-										
 									</div>
 								</fieldset>
 							</form>
 							<div role="separator" class="my-6 shrink-0 bg-slate-800 h-px w-full"></div>
 							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.FeedbackEntryDestroy.URL(fee.Item.ID)) }>Destroy FeedbackEntry</button>
-							
 						</div>
 					</div>
 				</div>
@@ -300,4 +291,3 @@ templ (fee FeedbackEntryEdit) Page() {
 		}
 	}
 }
-

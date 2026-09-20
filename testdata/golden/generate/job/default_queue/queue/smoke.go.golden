@@ -1,0 +1,27 @@
+package queue
+
+import (
+	"context"
+
+	"github.com/riverqueue/river"
+
+	"example.com/app/queue/jobs"
+)
+
+type SmokeWorker struct {
+	river.WorkerDefaults[jobs.SmokeArgs]
+}
+
+func NewSmokeWorker() *SmokeWorker {
+	return &SmokeWorker{}
+}
+
+func (w *SmokeWorker) Register(workers *river.Workers) error {
+	return river.AddWorkerSafely(workers, w)
+}
+
+func (w *SmokeWorker) Work(ctx context.Context, job *river.Job[jobs.SmokeArgs]) error {
+	_ = ctx
+	_ = job
+	return nil
+}

@@ -1,0 +1,50 @@
+package routes
+
+import (
+	"github.com/mbvlabs/andurel/pkg/routing"
+)
+
+const WidgetPrefix = "/widgets"
+
+var WidgetIndex = routing.NewSimpleRoute(
+	"",
+	"widgets.index",
+	WidgetPrefix,
+	routing.InertiaRoute(),
+)
+var WidgetShow = routing.NewRouteWithUUIDID(
+	"/:id",
+	"widgets.show",
+	WidgetPrefix,
+	routing.InertiaRoute(),
+)
+var WidgetNew = routing.NewSimpleRoute(
+	"/new",
+	"widgets.new",
+	WidgetPrefix,
+	routing.InertiaRoute(),
+)
+var WidgetCreate = routing.NewSimpleRoute(
+	"",
+	"widgets.create",
+	WidgetPrefix,
+	routing.InertiaRoute(),
+)
+var WidgetEdit = routing.NewRouteWithUUIDID(
+	"/:id/edit",
+	"widgets.edit",
+	WidgetPrefix,
+	routing.InertiaRoute(),
+)
+var WidgetUpdate = routing.NewRouteWithUUIDID(
+	"/:id",
+	"widgets.update",
+	WidgetPrefix,
+	routing.InertiaRoute(),
+)
+var WidgetDestroy = routing.NewRouteWithUUIDID(
+	"/:id",
+	"widgets.destroy",
+	WidgetPrefix,
+	routing.InertiaRoute(),
+)

@@ -1,0 +1,111 @@
+package services
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"app/models"
+
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+var (
+	ErrInvalidCredentials = errors.New("invalid email or password")
+	ErrEmailNotVerified   = errors.New("email not verified")
+)
+
+type LoginData struct {
+	Email    string
+	Password string
+}
+
+func (i Identity) AuthenticateUser(
+	ctx context.Context,
+	data LoginData,
+) (models.User, error) {
+	b := validation.NewBuilder()
+	b.Required("email", data.Email)
+	b.Required("password", data.Password)
+	if !b.Errors().Empty() {
+		return models.User{}, b.Errors()
+	}
+
+	user, err := i.users.FindByEmail(ctx, data.Email)
+
+	if err != nil {
+
+		if errors.Is(err, models.ErrNotFound) {
+			return models.User{}, ErrInvalidCredentials
+		}
+
+		return models.User{}, fmt.Errorf("find user by email: %w", err)
+
+	}
+
+	validPassword, needsRehash, err := verifyPasswordWithPeppers(
+		user,
+		data.Password,
+		i.pepper,
+		i.previousPeppers,
+	)
+
+	if err != nil {
+
+		return models.User{}, fmt.Errorf("validate password: %w", err)
+
+	}
+
+	if !validPassword {
+
+		return models.User{}, ErrInvalidCredentials
+	}
+
+	if needsRehash {
+		hashedPassword, err := models.HashPassword(data.Password, i.pepper)
+		if err != nil {
+			return models.User{}, fmt.Errorf("rehash password with current pepper: %w", err)
+		}
+
+		user, err = i.users.Update(ctx, models.UpdateUserData{
+			ID:               user.ID,
+			Email:            user.Email,
+			EmailValidatedAt: user.EmailValidatedAt,
+			Password:         []byte(hashedPassword),
+			IsAdmin:          user.IsAdmin,
+		})
+		if err != nil {
+			return models.User{}, fmt.Errorf("persist password rehash: %w", err)
+		}
+	}
+
+	if !user.HasValidatedEmail() {
+		return models.User{}, ErrEmailNotVerified
+	}
+
+	return user, nil
+}
+
+func verifyPasswordWithPeppers(
+	user models.User,
+	providedPassword string,
+	currentPepper string,
+	previousPeppers []string,
+) (valid bool, needsRehash bool, err error) {
+	valid, err = user.ValidPassword(providedPassword, currentPepper)
+	if err != nil || valid {
+		return valid, false, err
+	}
+
+	for _, previousPepper := range previousPeppers {
+		valid, err = user.ValidPassword(providedPassword, previousPepper)
+		if err != nil {
+			return false, false, err
+		}
+		if valid {
+			return true, true, nil
+		}
+	}
+
+	return false, false, nil
+}

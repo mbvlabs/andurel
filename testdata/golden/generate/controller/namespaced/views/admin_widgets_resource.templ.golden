@@ -1,0 +1,260 @@
+
+
+
+
+package views
+
+import (
+	"fmt"
+	"net/http"
+	"time"
+
+	"example.com/app/models"
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+
+	"example.com/app/router/routes"
+)
+
+type AdminWidgetData struct {
+	Name      string
+	Quantity  int32
+	Active    bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func newAdminWidgetData(entity models.Widget) AdminWidgetData {
+	return AdminWidgetData{
+		Name:     entity.Name,
+		Quantity: entity.Quantity,
+		Active:   entity.Active,
+		CreatedAt: func() time.Time {
+			if !entity.CreatedAt.Valid {
+				return time.Time{}
+			}
+			return entity.CreatedAt.Time
+		}(),
+		UpdatedAt: func() time.Time {
+			if !entity.UpdatedAt.Valid {
+				return time.Time{}
+			}
+			return entity.UpdatedAt.Time
+		}(),
+	}
+}
+
+type AdminWidgetIndex struct {
+	Items []models.Widget
+}
+
+func (wi AdminWidgetIndex) PageFragment() string {
+	return "widget-index-page-fragment"
+}
+
+templ (wi AdminWidgetIndex) Page() {
+	@base() {
+		@templ.Fragment(wi.PageFragment()) {
+			<main id="widget-index-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold text-slate-100">Widgets</h1>
+						<a href={ routes.AdminWidgetNew.URL() } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">New Widget</a>
+					</div>
+					if len(wi.Items) == 0 {
+						<p class="text-sm text-slate-400">No widgets found.</p>
+					} else {
+						<div class="relative w-full overflow-auto">
+							<table class="w-full caption-bottom text-sm">
+								<thead class="[&_tr]:border-b [&_tr]:border-cyan-400/25">
+									<tr class="border-b border-cyan-400/25 transition-colors hover:bg-slate-900">
+										<th class="h-10 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0">Name</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0">Quantity</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0">Active</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0">Created At</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0">Updated At</th>
+										<th class="h-10 px-4 text-left align-middle font-medium text-slate-400 [&:has([role=checkbox])]:pr-0">Actions</th>
+									</tr>
+								</thead>
+								<tbody class="[&_tr:last-child]:border-0">
+									for _, widget := range wi.Items {
+										{{ adminWidgetData := newAdminWidgetData(widget) }}
+										<tr class="border-b border-cyan-400/25 transition-colors hover:bg-slate-900">
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ adminWidgetData.Name }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%d", adminWidgetData.Quantity) }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%t", adminWidgetData.Active) }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ adminWidgetData.CreatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ adminWidgetData.UpdatedAt.String() }</td>
+											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+												<div class="flex flex-wrap gap-3 text-sm">
+													<a class="text-slate-300 hover:text-slate-100" href={ routes.AdminWidgetShow.URL(widget.ID) }>View</a>
+													<a class="text-slate-300 hover:text-slate-100" href={ routes.AdminWidgetEdit.URL(widget.ID) }>Edit</a>
+												</div>
+											</td>
+										</tr>
+									}
+								</tbody>
+							</table>
+						</div>
+					}
+				</div>
+			</main>
+		}
+	}
+}
+
+type AdminWidgetShow struct {
+	Item models.Widget
+}
+
+func (ws AdminWidgetShow) PageFragment() string {
+	return "widget-show-page-fragment"
+}
+
+templ (ws AdminWidgetShow) Page() {
+	@base() {
+		@templ.Fragment(ws.PageFragment()) {
+			<main id="widget-show-container" class="flex-1 px-6 py-10">
+				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<h1 class="text-2xl font-semibold text-slate-100">Widget Details</h1>
+						<div class="flex flex-wrap items-center gap-3">
+							<a href={ routes.AdminWidgetEdit.URL(ws.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
+							<a class="text-sm text-slate-300 hover:text-slate-100" href={ routes.AdminWidgetIndex.URL() }>Back to List</a>
+						</div>
+					</div>
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
+						<div class="p-6 pt-0">
+							<div class="grid gap-5 sm:grid-cols-2">
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Name</label>
+									<p class="text-sm text-slate-100">{ newAdminWidgetData(ws.Item).Name }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Quantity</label>
+									<p class="text-sm text-slate-100">{ fmt.Sprintf("%d", newAdminWidgetData(ws.Item).Quantity) }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Active</label>
+									<p class="text-sm text-slate-100">{ fmt.Sprintf("%t", newAdminWidgetData(ws.Item).Active) }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Created At</label>
+									<p class="text-sm text-slate-100">{ newAdminWidgetData(ws.Item).CreatedAt.String() }</p>
+								</div>
+								<div class="space-y-1">
+									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
+									<p class="text-sm text-slate-100">{ newAdminWidgetData(ws.Item).UpdatedAt.String() }</p>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}
+
+type AdminWidgetNew struct{}
+
+func (wn AdminWidgetNew) PageFragment() string {
+	return "widget-new-page-fragment"
+}
+
+templ (wn AdminWidgetNew) Page() {
+	@base() {
+		@templ.Fragment(wn.PageFragment()) {
+			<main id="widget-new-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
+						<div class="flex flex-col space-y-1.5 p-6">
+							<h3 class="text-lg font-semibold leading-none text-slate-100">New Widget</h3>
+							<p class="text-sm text-slate-400">Enter the details for the new widget.</p>
+						</div>
+						<div class="p-6 pt-0">
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPost, routes.AdminWidgetCreate.URL()) }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div class="space-y-4">
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="name"/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="quantity">Quantity</label>
+											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="quantity"/>
+										</div>
+										<div class="flex items-center gap-2">
+											<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-cyan-400/25 bg-slate-950 accent-cyan-400 transition focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="active"/>
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="active">Active</label>
+										</div>
+									</div>
+									<div class="mt-6 space-y-3">
+										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded w-full">Create Widget</button>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-cyan-400/25 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-slate-100" href={ routes.AdminWidgetIndex.URL() }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}
+
+type AdminWidgetEdit struct {
+	Item models.Widget
+}
+
+func (we AdminWidgetEdit) PageFragment() string {
+	return "widget-edit-page-fragment"
+}
+
+templ (we AdminWidgetEdit) Page() {
+	@base() {
+		@templ.Fragment(we.PageFragment()) {
+			<main id="widget-edit-container" class="flex-1 flex items-center justify-center px-6 py-10">
+				<div class="mx-auto flex w-full max-w-md flex-col gap-6">
+					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
+						<div class="flex flex-col space-y-1.5 p-6">
+							<h3 class="text-lg font-semibold leading-none text-slate-100">Edit Widget</h3>
+							<p class="text-sm text-slate-400">Update the details for this widget.</p>
+						</div>
+						<div class="p-6 pt-0">
+							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.AdminWidgetUpdate.URL(we.Item.ID)) }>
+								<fieldset data-attr:disabled="$_submitting">
+									<div class="space-y-4">
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="name" value={ newAdminWidgetData(we.Item).Name }/>
+										</div>
+										<div class="space-y-1">
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="quantity">Quantity</label>
+											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="quantity" value={ fmt.Sprintf("%d", newAdminWidgetData(we.Item).Quantity) }/>
+										</div>
+										<div class="flex items-center gap-2">
+											<input
+												type="checkbox"
+												class="h-4 w-4 shrink-0 rounded border border-cyan-400/25 bg-slate-950 accent-cyan-400 transition focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60"
+												data-bind="active"
+												if newAdminWidgetData(we.Item).Active {
+													checked
+												}
+											/>
+											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="active">Active</label>
+										</div>
+									</div>
+									<div class="mt-6 space-y-3">
+										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded w-full">Update Widget</button>
+										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-cyan-400/25 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-slate-100" href={ routes.AdminWidgetIndex.URL() }>Back to List</a>
+									</div>
+								</fieldset>
+							</form>
+							<div role="separator" class="my-6 shrink-0 bg-slate-800 h-px w-full"></div>
+							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.AdminWidgetDestroy.URL(we.Item.ID)) }>Destroy Widget</button>
+						</div>
+					</div>
+				</div>
+			</main>
+		}
+	}
+}

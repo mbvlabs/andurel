@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "version": "test",
+  "tools": {
+    "tailwindcli": {
+      "version": "v4.3.2",
+      "download": {
+        "urlTemplate": "https://github.com/tailwindlabs/tailwindcss/releases/download/{{version}}/tailwindcss-{{os_tailwind}}-{{arch_tailwind}}",
+        "archive": "binary",
+        "binaryName": "tailwindcli",
+        "sha256": {
+          "darwin/amd64": "cef8f110471e889c3c4409055cf8aff33076f58a081867b0dfc6534b290bfbb0",
+          "darwin/arm64": "b800b0659dc64b9f03ede5660244d9415d777d5739ae2889280877ca37be742a",
+          "linux/amd64": "5036c4fb4328e0bcdbb6065c70d8ac9452e0d4c947113a788a8f94fd390425c1",
+          "linux/arm64": "394ddccc2402cfa3abd97dfba56f3587781a3d6e6ce66e65ceada14beb7664b8"
+        }
+      },
+      "versionCheck": {
+        "args": ["--version"]
+      }
+    }
+  },
+  "scaffoldConfig": {
+    "projectName": "app"
+  },
+  "databaseConfig": {
+    "engine": "postgresql",
+    "nullType": "pgtype.Null"
+  }
+}

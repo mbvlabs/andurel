@@ -1,0 +1,237 @@
+package api
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"strconv"
+	"uuid"
+
+	"example.com/app/models"
+	"example.com/app/router"
+	"example.com/app/router/routes"
+	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+)
+
+type Widgets struct {
+	widgets models.Widgets
+}
+
+func NewWidgets(widgets models.Widgets) Widgets {
+	return Widgets{widgets}
+}
+
+func (w Widgets) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+	var err error
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ApiWidgetIndex.Path(),
+		Name:    routes.ApiWidgetIndex.Name(),
+		Handler: w.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ApiWidgetShow.Path(),
+		Name:    routes.ApiWidgetShow.Name(),
+		Handler: w.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.ApiWidgetCreate.Path(),
+		Name:    routes.ApiWidgetCreate.Name(),
+		Handler: w.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.ApiWidgetUpdate.Path(),
+		Name:    routes.ApiWidgetUpdate.Name(),
+		Handler: w.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.ApiWidgetDestroy.Path(),
+		Name:    routes.ApiWidgetDestroy.Name(),
+		Handler: w.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+func (w Widgets) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	widgetsList, err := w.widgets.Paginate(
+		etx.Request().Context(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return etx.JSON(http.StatusInternalServerError, map[string]string{"error": "internal server error"})
+	}
+
+	return etx.JSON(http.StatusOK, widgetsList.Widgets)
+}
+
+func (w Widgets) Show(etx *echo.Context) error {
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return etx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid id"})
+	}
+
+	widget, err := w.widgets.Find(etx.Request().Context(), widgetID)
+	if err != nil {
+		return etx.JSON(http.StatusNotFound, map[string]string{"error": "not found"})
+	}
+
+	return etx.JSON(http.StatusOK, widget)
+}
+
+type CreateWidgetPayload struct {
+	Name     string `json:"name"`
+	Quantity int32  `json:"quantity"`
+	Active   bool   `json:"active"`
+}
+
+func (w Widgets) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "widgets.create")
+	defer span.End()
+
+	var payload CreateWidgetPayload
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse CreateWidgetPayload",
+			"error",
+			err,
+		)
+
+		return etx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	data := models.CreateWidgetData{
+		Name:     payload.Name,
+		Quantity: payload.Quantity,
+		Active:   payload.Active,
+	}
+
+	widget, err := w.widgets.Create(
+		ctx,
+		data,
+	)
+	if err != nil {
+		telemetry.Error(
+			ctx,
+			"failed to create widget",
+			"error",
+			err,
+		)
+
+		return etx.JSON(http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("failed to create widget: %v", err)})
+	}
+
+	return etx.JSON(http.StatusCreated, widget)
+}
+
+type UpdateWidgetPayload struct {
+	Name     string `json:"name"`
+	Quantity int32  `json:"quantity"`
+	Active   bool   `json:"active"`
+}
+
+func (w Widgets) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "widgets.update")
+	defer span.End()
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return etx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid id"})
+	}
+
+	var payload UpdateWidgetPayload
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse UpdateWidgetPayload",
+			"error",
+			err,
+		)
+
+		return etx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	data := models.UpdateWidgetData{
+		ID:       widgetID,
+		Name:     payload.Name,
+		Quantity: payload.Quantity,
+		Active:   payload.Active,
+	}
+
+	widget, err := w.widgets.Update(
+		ctx,
+		data,
+	)
+	if err != nil {
+		telemetry.Error(
+			ctx,
+			"failed to update widget",
+			"error",
+			err,
+		)
+
+		return etx.JSON(http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("failed to update widget: %v", err)})
+	}
+
+	return etx.JSON(http.StatusOK, widget)
+}
+
+func (w Widgets) Destroy(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "widgets.destroy")
+	defer span.End()
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return etx.JSON(http.StatusBadRequest, map[string]string{"error": "invalid id"})
+	}
+
+	err = w.widgets.Destroy(ctx, widgetID)
+	if err != nil {
+		telemetry.Error(
+			ctx,
+			"failed to delete widget",
+			"error",
+			err,
+		)
+
+		return etx.JSON(http.StatusInternalServerError, map[string]string{"error": fmt.Sprintf("failed to delete widget: %v", err)})
+	}
+
+	return etx.NoContent(http.StatusNoContent)
+}

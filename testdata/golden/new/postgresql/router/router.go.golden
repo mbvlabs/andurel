@@ -55,7 +55,6 @@ func New(
 		defaultHTTPErrorHandler(c, err)
 	}
 
-
 	globalMiddleware, err := SetupGlobalMiddleware(
 		appCfg,
 		httpCfg,

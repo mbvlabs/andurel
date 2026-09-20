@@ -12,9 +12,11 @@
 //   - RandomReader / Now: fixed secret stream and 2025-01-01T00:00:00Z clock
 //     (scaffold .env.example secrets, migration filenames, CLI date banner).
 //   - layout.Scaffold: after writing templates + andurel.lock, skips goose fix,
-//     templ generate, narsilc generate, go mod tidy, and go fmt (network /
-//     tool-version churn). Capture allowlisted template outputs only.
-//   - cli generateNarsilcIfNeeded: skips invoking the narsilc binary.
+//     templ generate, narsilc generate, go mod tidy, and go fmt unless
+//     FullScaffold() is true (andurel_golden_full tag or ANDUREL_GOLDEN_FULL=1).
+//     Nightly full-tree goldens run the generators; PR goldens stay offline.
+//   - layout/cmds RunNarsilcGenerate: still runs narsilc, but always skips
+//     go mod tidy under the golden tag (Scaffold tidies when FullScaffold).
 //   - generator.Coordinator: uses NopPrimaryKeyResolver (no interactive prompts).
 //   - generator.ModelManager: skips packages.Load factory type-checks.
 package testseed

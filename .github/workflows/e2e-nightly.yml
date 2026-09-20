@@ -9,7 +9,7 @@ jobs:
   test-full:
     name: Full Test Suite
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 120
 
     steps:
       - name: Checkout code
@@ -36,8 +36,10 @@ jobs:
       - name: Check contracts
         run: ./scripts/check-contracts.sh
 
-      - name: Run golden CLI tests
-        run: go test ./golden/... -v -timeout 15m
+      - name: Run golden CLI tests (generate + sync + full scaffold)
+        env:
+          ANDUREL_GOLDEN_FULL: "1"
+        run: go test ./golden/... -v -timeout 45m
 
       - name: Run pkg tests with coverage (informational)
         continue-on-error: true

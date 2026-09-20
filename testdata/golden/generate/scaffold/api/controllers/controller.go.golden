@@ -1,0 +1,20 @@
+package controllers
+
+import (
+	"example.com/app/controllers/api"
+	"example.com/app/router"
+
+	"go.uber.org/fx"
+)
+
+var constructors = fx.Provide(
+	api.NewWidgets,
+)
+
+var Module = fx.Module(
+	"controllers",
+	constructors,
+	fx.Invoke(func(r *router.Router, c api.Widgets) error {
+		return c.RegisterRoutes(r)
+	}),
+)

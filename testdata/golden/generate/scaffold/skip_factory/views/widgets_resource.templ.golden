@@ -6,35 +6,42 @@ package views
 
 import (
 	"fmt"
+	"net/http"
 	"time"
-		"net/http"
-	
+
 	"example.com/app/models"
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
-	
-	
+
 	"example.com/app/router/routes"
-	
 )
 
 type WidgetData struct {
-	Name string
-	Quantity int32
-	Active bool
+	Name      string
+	Quantity  int32
+	Active    bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
 func newWidgetData(entity models.Widget) WidgetData {
 	return WidgetData{
-		Name: entity.Name,
+		Name:     entity.Name,
 		Quantity: entity.Quantity,
-		Active: entity.Active,
-		CreatedAt: func() time.Time { if !entity.CreatedAt.Valid { return time.Time{} }; return entity.CreatedAt.Time }(),
-		UpdatedAt: func() time.Time { if !entity.UpdatedAt.Valid { return time.Time{} }; return entity.UpdatedAt.Time }(),
+		Active:   entity.Active,
+		CreatedAt: func() time.Time {
+			if !entity.CreatedAt.Valid {
+				return time.Time{}
+			}
+			return entity.CreatedAt.Time
+		}(),
+		UpdatedAt: func() time.Time {
+			if !entity.UpdatedAt.Valid {
+				return time.Time{}
+			}
+			return entity.UpdatedAt.Time
+		}(),
 	}
 }
-
 
 type WidgetIndex struct {
 	Items []models.Widget
@@ -51,9 +58,7 @@ templ (wi WidgetIndex) Page() {
 				<div class="mx-auto flex w-full max-w-5xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
 						<h1 class="text-2xl font-semibold text-slate-100">Widgets</h1>
-						
 						<a href={ routes.WidgetNew.URL() } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">New Widget</a>
-						
 					</div>
 					if len(wi.Items) == 0 {
 						<p class="text-sm text-slate-400">No widgets found.</p>
@@ -72,7 +77,7 @@ templ (wi WidgetIndex) Page() {
 								</thead>
 								<tbody class="[&_tr:last-child]:border-0">
 									for _, widget := range wi.Items {
-									{{ widgetData := newWidgetData(widget) }}
+										{{ widgetData := newWidgetData(widget) }}
 										<tr class="border-b border-cyan-400/25 transition-colors hover:bg-slate-900">
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ widgetData.Name }</td>
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ fmt.Sprintf("%d", widgetData.Quantity) }</td>
@@ -81,12 +86,8 @@ templ (wi WidgetIndex) Page() {
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">{ widgetData.UpdatedAt.String() }</td>
 											<td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
 												<div class="flex flex-wrap gap-3 text-sm">
-													
 													<a class="text-slate-300 hover:text-slate-100" href={ routes.WidgetShow.URL(widget.ID) }>View</a>
-													
-													
 													<a class="text-slate-300 hover:text-slate-100" href={ routes.WidgetEdit.URL(widget.ID) }>Edit</a>
-													
 												</div>
 											</td>
 										</tr>
@@ -100,8 +101,6 @@ templ (wi WidgetIndex) Page() {
 		}
 	}
 }
-
-
 
 type WidgetShow struct {
 	Item models.Widget
@@ -119,18 +118,13 @@ templ (ws WidgetShow) Page() {
 					<div class="flex flex-wrap items-center justify-between gap-4">
 						<h1 class="text-2xl font-semibold text-slate-100">Widget Details</h1>
 						<div class="flex flex-wrap items-center gap-3">
-							
 							<a href={ routes.WidgetEdit.URL(ws.Item.ID) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded">Edit</a>
-							
-							
 							<a class="text-sm text-slate-300 hover:text-slate-100" href={ routes.WidgetIndex.URL() }>Back to List</a>
-							
 						</div>
 					</div>
 					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
 						<div class="p-6 pt-0">
 							<div class="grid gap-5 sm:grid-cols-2">
-								
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Name</label>
 									<p class="text-sm text-slate-100">{ newWidgetData(ws.Item).Name }</p>
@@ -151,7 +145,6 @@ templ (ws WidgetShow) Page() {
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
 									<p class="text-sm text-slate-100">{ newWidgetData(ws.Item).UpdatedAt.String() }</p>
 								</div>
-								
 							</div>
 						</div>
 					</div>
@@ -160,8 +153,6 @@ templ (ws WidgetShow) Page() {
 		}
 	}
 }
-
-
 
 type WidgetNew struct{}
 
@@ -185,23 +176,20 @@ templ (wn WidgetNew) Page() {
 									<div class="space-y-4">
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
-											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="name" />
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="name"/>
 										</div>
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="quantity">Quantity</label>
-											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="quantity" />
+											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="quantity"/>
 										</div>
 										<div class="flex items-center gap-2">
-											<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-cyan-400/25 bg-slate-950 accent-cyan-400 transition focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="active" />
+											<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-cyan-400/25 bg-slate-950 accent-cyan-400 transition focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="active"/>
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="active">Active</label>
 										</div>
-										
 									</div>
 									<div class="mt-6 space-y-3">
 										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded w-full">Create Widget</button>
-										
 										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-cyan-400/25 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-slate-100" href={ routes.WidgetIndex.URL() }>Back to List</a>
-										
 									</div>
 								</fieldset>
 							</form>
@@ -212,8 +200,6 @@ templ (wn WidgetNew) Page() {
 		}
 	}
 }
-
-
 
 type WidgetEdit struct {
 	Item models.Widget
@@ -237,32 +223,34 @@ templ (we WidgetEdit) Page() {
 							<form class="space-y-5" data-indicator:_submitting data-on:submit={ hypermedia.DataAction(http.MethodPut, routes.WidgetUpdate.URL(we.Item.ID)) }>
 								<fieldset data-attr:disabled="$_submitting">
 									<div class="space-y-4">
-										
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="name">Name</label>
-											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="name" value={ newWidgetData(we.Item).Name } />
+											<input type="text" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="name" value={ newWidgetData(we.Item).Name }/>
 										</div>
 										<div class="space-y-1">
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="quantity">Quantity</label>
-											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="quantity" value={ fmt.Sprintf("%d", newWidgetData(we.Item).Quantity) } />
+											<input type="number" class="flex h-9 w-full rounded border bg-slate-950 px-3 py-1 text-sm text-slate-100 shadow-inner transition placeholder:text-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60 border-cyan-400/25" data-bind="quantity" value={ fmt.Sprintf("%d", newWidgetData(we.Item).Quantity) }/>
 										</div>
 										<div class="flex items-center gap-2">
-											<input type="checkbox" class="h-4 w-4 shrink-0 rounded border border-cyan-400/25 bg-slate-950 accent-cyan-400 transition focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60" data-bind="active" if newWidgetData(we.Item).Active { checked } />
+											<input
+												type="checkbox"
+												class="h-4 w-4 shrink-0 rounded border border-cyan-400/25 bg-slate-950 accent-cyan-400 transition focus:ring-2 focus:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60"
+												data-bind="active"
+												if newWidgetData(we.Item).Active {
+													checked
+												}
+											/>
 											<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60" for="active">Active</label>
 										</div>
-										
 									</div>
 									<div class="mt-6 space-y-3">
 										<button type="submit" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:opacity-60 disabled:cursor-not-allowed bg-cyan-400 text-slate-950 shadow-sm hover:bg-cyan-300 h-9 px-4 py-2 text-sm rounded w-full">Update Widget</button>
-										
 										<a class="inline-flex h-9 w-full items-center justify-center rounded border border-cyan-400/25 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-900 hover:text-slate-100" href={ routes.WidgetIndex.URL() }>Back to List</a>
-										
 									</div>
 								</fieldset>
 							</form>
 							<div role="separator" class="my-6 shrink-0 bg-slate-800 h-px w-full"></div>
 							<button type="button" class="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 text-white shadow-sm hover:bg-red-700 h-9 px-4 py-2 text-sm rounded w-full" data-on:click={ hypermedia.DataAction(http.MethodDelete, routes.WidgetDestroy.URL(we.Item.ID)) }>Destroy Widget</button>
-							
 						</div>
 					</div>
 				</div>
@@ -270,4 +258,3 @@ templ (we WidgetEdit) Page() {
 		}
 	}
 }
-

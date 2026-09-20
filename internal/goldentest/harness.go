@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -90,6 +91,7 @@ func CopyFixture(t testing.TB, name string) string {
 	if err := copyDir(src, dst); err != nil {
 		t.Fatalf("copy fixture %q: %v", name, err)
 	}
+	SeedProjectTools(t, dst)
 	return dst
 }
 
@@ -168,28 +170,49 @@ func AssertFiles(t testing.TB, g *goldie.Goldie, goldenPrefix, projectDir string
 	}
 }
 
-// ShouldSkipNewProjectPath reports paths that must not be raw-goldened for
-// `andurel new` even under andurel_golden (downloads, VCS metadata, tidy churn).
-// Filters paths only — never mutates content. Prefer curated allowlists; use
-// this when walking a tree so unstable paths are omitted rather than scrubbed.
-func ShouldSkipNewProjectPath(rel string, isDir bool) bool {
-	rel = filepath.ToSlash(rel)
-	switch {
-	case rel == ".git" || strings.HasPrefix(rel, ".git/"):
-		return true
-	case rel == "bin" || strings.HasPrefix(rel, "bin/"):
-		return true
-	case rel == "go.sum":
-		return true
-	case rel == "node_modules" || strings.HasPrefix(rel, "node_modules/"):
-		return true
-	case rel == "models/internal" || strings.HasPrefix(rel, "models/internal/"):
-		return true
-	case isDir:
-		return false
-	default:
-		return false
+// AssertDir asserts every regular file under projectDir/relDir at
+// goldenPrefix/<relPath>.
+func AssertDir(t testing.TB, g *goldie.Goldie, goldenPrefix, projectDir, relDir string) {
+	t.Helper()
+	root := filepath.Join(projectDir, filepath.FromSlash(relDir))
+	info, err := os.Stat(root)
+	if err != nil {
+		t.Fatalf("stat %s: %v", relDir, err)
 	}
+	if !info.IsDir() {
+		t.Fatalf("%s is not a directory", relDir)
+	}
+	var paths []string
+	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !d.Type().IsRegular() {
+			return nil
+		}
+		rel, err := filepath.Rel(projectDir, path)
+		if err != nil {
+			return err
+		}
+		paths = append(paths, filepath.ToSlash(rel))
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk %s: %v", relDir, err)
+	}
+	if len(paths) == 0 {
+		t.Fatalf("no files under %s", relDir)
+	}
+	AssertFiles(t, g, goldenPrefix, projectDir, paths)
+}
+
+// ShouldSkipNewProjectPath reports paths that must not be raw-goldened for
+// `andurel new` even under andurel_golden (downloads, VCS metadata, tidy churn,
+// secrets). Filters paths only — never mutates content. Nightly full-tree
+// capture uses AssertTree with FullScaffoldDenylist; models/internal/queries
+// and *_templ.go are included.
+func ShouldSkipNewProjectPath(rel string, isDir bool) bool {
+	return ShouldSkipFullScaffoldPath(rel, isDir, FullScaffoldDenylist)
 }
 
 // AssertMissing fails if projectDir/relPath exists.

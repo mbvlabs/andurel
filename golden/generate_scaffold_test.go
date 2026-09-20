@@ -126,6 +126,26 @@ func TestGenerateScaffold(t *testing.T) {
 				"views/projects_resource.templ",
 			},
 		},
+		{
+			name:       "api",
+			fixture:    "generate_base",
+			migrations: "controller_view_generation",
+			args: []string{
+				"generate", "scaffold", "Widget",
+				"--api",
+				"--skip-factory",
+			},
+			capture: []string{
+				"models/widget.go",
+				"controllers/api/widgets.go",
+				"router/routes/api_widgets.go",
+				"controllers/controller.go",
+			},
+			missing: []string{
+				"views/widgets_resource.templ",
+				"controllers/widgets.go",
+			},
+		},
 	}
 
 	for _, scenario := range scenarios {

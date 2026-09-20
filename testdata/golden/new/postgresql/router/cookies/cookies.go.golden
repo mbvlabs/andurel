@@ -1,0 +1,41 @@
+package cookies
+
+import (
+	"app/models"
+	"context"
+
+	"github.com/mbvlabs/andurel/pkg/kiks"
+)
+
+type App struct {
+	UserID          string
+	IsAdmin         bool
+	IsAuthenticated bool
+}
+
+func Definitions(name string, secure bool, maxAge int) []kiks.Definition {
+	return []kiks.Definition{
+		kiks.Session[App](
+			name,
+			kiks.HTTPOnly(),
+			kiks.Secure(secure),
+			kiks.MaxAge(maxAge),
+		),
+	}
+}
+
+func Current(ctx context.Context) App {
+	return kiks.Get[App](ctx)
+}
+
+func CreateAppSession(ctx context.Context, user models.User) {
+	kiks.Set(ctx, App{
+		UserID:          user.ID.String(),
+		IsAdmin:         user.IsAdmin,
+		IsAuthenticated: true,
+	})
+}
+
+func DestroyAppSession(ctx context.Context) {
+	kiks.Delete[App](ctx)
+}

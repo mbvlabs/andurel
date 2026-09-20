@@ -1,0 +1,13 @@
+package jobs
+
+import "github.com/riverqueue/river"
+
+type ProcessPaymentArgs struct{}
+
+func (ProcessPaymentArgs) Kind() string { return "process_payment" }
+
+func (ProcessPaymentArgs) InsertOpts() river.InsertOpts {
+	return river.InsertOpts{
+		Queue: "financial",
+	}
+}

@@ -1,6 +1,11 @@
 package main
 
 import (
+	"app/config"
+	"app/controllers"
+	"app/models"
+	"app/router"
+	"app/services"
 	"context"
 	"errors"
 	"fmt"
@@ -8,11 +13,6 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-	"app/config"
-	"app/controllers"
-	"app/models"
-	"app/router"
-	"app/services"
 
 	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/server"
@@ -197,8 +197,6 @@ func newTelemetry(
 	lifecycle.Append(fx.Hook{OnStop: tel.Shutdown})
 	return tel, nil
 }
-
-
 
 func newEmailSenders(
 	ctx context.Context,

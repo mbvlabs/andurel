@@ -72,6 +72,29 @@ func TestGenerateModel(t *testing.T) {
 				"models/event_metric.go",
 			},
 		},
+		{
+			name:       "product_read_only",
+			migrations: "model_generation_initial",
+			steps: []generateStep{
+				{args: []string{"generate", "model", "Product", "--mode", "read-only", "--skip-factory"}},
+			},
+			capture: []string{
+				"models/product.go",
+				"models/queries/product.sql",
+			},
+		},
+		{
+			name:       "product_with_factory",
+			migrations: "model_generation_initial",
+			steps: []generateStep{
+				{args: []string{"generate", "model", "Product"}},
+			},
+			capture: []string{
+				"models/product.go",
+				"models/factories/product.go",
+				"models/queries/product.sql",
+			},
+		},
 	}
 
 	for _, scenario := range scenarios {

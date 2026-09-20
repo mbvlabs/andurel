@@ -41,6 +41,15 @@ func TestMain(m *testing.M) {
 		_ = os.RemoveAll(tmpDir)
 		panic(err)
 	}
+	// Lock-managed binaries (same URL templates + digests as andurel.lock).
+	if err := goldentest.InstallLockTools(toolBin, []string{
+		"narsilc",
+		"tailwindcli",
+		"goose",
+	}); err != nil {
+		_ = os.RemoveAll(tmpDir)
+		panic(err)
+	}
 	goldentest.SetToolBinDir(toolBin)
 
 	code := m.Run()

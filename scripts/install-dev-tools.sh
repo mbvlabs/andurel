@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Install pinned formatter/codegen tools. Versions must match layout/versions.
+# Golden TestMain also installs these into a temp GOBIN, and downloads
+# narsilc/tailwindcli/goose from andurel.lock URL templates.
 set -euo pipefail
 
 readonly TEMPL_VERSION="${ANDUREL_TEMPL_VERSION:-v0.3.1020}"

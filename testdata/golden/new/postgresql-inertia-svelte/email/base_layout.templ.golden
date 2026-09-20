@@ -1,0 +1,45 @@
+package email
+
+templ baseLayout(title, preHeader string) {
+	<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+	<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+		<head>
+			<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+			<meta name="viewport" content="width=device-width"/>
+			<meta name="robots" content="noindex"/>
+			<title>{ title }</title>
+		</head>
+		<body class="m-0 min-w-full bg-[#f6f9fc] p-0 [font-family:Arial,sans-serif] [-webkit-text-size-adjust:100%] [-ms-text-size-adjust:100%]">
+			<div class="hidden max-h-0 max-w-0 overflow-hidden text-[1px] leading-[1px] text-[#f6f9fc] opacity-0 invisible [mso-hide:all]">
+				{ preHeader }
+				&#160;&#8203;&#160;&#8203;&#160;&#8203;&#160;&#8203;&#160;&#8203;
+			</div>
+			<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" class="w-full bg-[#f6f9fc]">
+				<tbody>
+					<tr>
+						<td align="center" class="px-4 py-10 max-sm:p-0">
+							<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" align="center" class="w-[600px] max-sm:w-full rounded-2xl bg-white max-sm:rounded-none">
+								<tbody>
+									<tr>
+										<td>
+											{ children... }
+										</td>
+									</tr>
+									<tr>
+										<td class="px-12 pt-8 pb-10 max-sm:px-6">
+											<div class="mb-6 h-px bg-[#e6ebf1]"></div>
+											<p class="m-0 [font-family:Arial,sans-serif] text-xs leading-5 text-[#687385]">
+												This email relates to your account.<br/>
+												Powered by <strong>Andurel</strong>
+											</p>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</body>
+	</html>
+}

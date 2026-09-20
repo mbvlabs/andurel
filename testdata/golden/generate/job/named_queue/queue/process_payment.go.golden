@@ -1,0 +1,27 @@
+package queue
+
+import (
+	"context"
+
+	"github.com/riverqueue/river"
+
+	"example.com/app/queue/jobs"
+)
+
+type ProcessPaymentWorker struct {
+	river.WorkerDefaults[jobs.ProcessPaymentArgs]
+}
+
+func NewProcessPaymentWorker() *ProcessPaymentWorker {
+	return &ProcessPaymentWorker{}
+}
+
+func (w *ProcessPaymentWorker) Register(workers *river.Workers) error {
+	return river.AddWorkerSafely(workers, w)
+}
+
+func (w *ProcessPaymentWorker) Work(ctx context.Context, job *river.Job[jobs.ProcessPaymentArgs]) error {
+	_ = ctx
+	_ = job
+	return nil
+}

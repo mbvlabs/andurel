@@ -1,0 +1,106 @@
+package models
+
+// andurel:table products
+
+import (
+	"context"
+	"errors"
+	"time"
+	"uuid"
+
+	"example.com/app/models/internal/queries"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/mbvlabs/andurel/pkg/storage"
+)
+
+type Products struct {
+	queries *queries.Queries
+}
+
+func NewProducts(db storage.Connection) Products {
+	return Products{queries: queries.New(db)}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (p Products) WithTx(tx storage.Transaction) Products {
+	return Products{queries: queries.New(tx)}
+}
+
+type Product struct {
+	ID          uuid.UUID          `andurel:"id"`
+	Sku         string             `andurel:"sku"`
+	Name        string             `andurel:"name"`
+	Description pgtype.Text        `andurel:"description"`
+	PriceCents  int32              `andurel:"price_cents"`
+	StockCount  int32              `andurel:"stock_count"`
+	Active      bool               `andurel:"active"`
+	Tags        []string           `andurel:"tags"`
+	Scores      []int32            `andurel:"scores"`
+	Metadata    []byte             `andurel:"metadata"`
+	Attributes  []byte             `andurel:"attributes"`
+	LaunchedAt  pgtype.Timestamptz `andurel:"launched_at"`
+	CreatedAt   pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `andurel:"updated_at"`
+}
+
+func (p Products) Find(ctx context.Context, id uuid.UUID) (Product, error) {
+	entity, err := p.queries.GetProduct[Product](ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Product{}, ErrNotFound
+		}
+		return Product{}, err
+	}
+
+	return entity, nil
+}
+
+func (p Products) All(ctx context.Context) ([]Product, error) {
+	return p.queries.ListProducts[Product](ctx).All()
+}
+
+type PaginatedProducts struct {
+	Products   []Product
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (p Products) Paginate(ctx context.Context, page, pageSize int64) (PaginatedProducts, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := p.queries.CountProducts(ctx)
+	if err != nil {
+		return PaginatedProducts{}, err
+	}
+
+	entities, err := p.queries.ListProducts[Product](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
+		return PaginatedProducts{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedProducts{
+		Products:   entities,
+		TotalCount: int64(totalCount),
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}

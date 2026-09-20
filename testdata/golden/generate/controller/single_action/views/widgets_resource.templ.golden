@@ -7,32 +7,37 @@ package views
 import (
 	"fmt"
 	"time"
-	
+
 	"example.com/app/models"
-	
-	
 )
 
 type WidgetData struct {
-	Name string
-	Quantity int32
-	Active bool
+	Name      string
+	Quantity  int32
+	Active    bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
 func newWidgetData(entity models.Widget) WidgetData {
 	return WidgetData{
-		Name: entity.Name,
+		Name:     entity.Name,
 		Quantity: entity.Quantity,
-		Active: entity.Active,
-		CreatedAt: func() time.Time { if !entity.CreatedAt.Valid { return time.Time{} }; return entity.CreatedAt.Time }(),
-		UpdatedAt: func() time.Time { if !entity.UpdatedAt.Valid { return time.Time{} }; return entity.UpdatedAt.Time }(),
+		Active:   entity.Active,
+		CreatedAt: func() time.Time {
+			if !entity.CreatedAt.Valid {
+				return time.Time{}
+			}
+			return entity.CreatedAt.Time
+		}(),
+		UpdatedAt: func() time.Time {
+			if !entity.UpdatedAt.Valid {
+				return time.Time{}
+			}
+			return entity.UpdatedAt.Time
+		}(),
 	}
 }
-
-
-
 
 type WidgetShow struct {
 	Item models.Widget
@@ -49,15 +54,11 @@ templ (ws WidgetShow) Page() {
 				<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
 					<div class="flex flex-wrap items-center justify-between gap-4">
 						<h1 class="text-2xl font-semibold text-slate-100">Widget Details</h1>
-						<div class="flex flex-wrap items-center gap-3">
-							
-							
-						</div>
+						<div class="flex flex-wrap items-center gap-3"></div>
 					</div>
 					<div class="rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
 						<div class="p-6 pt-0">
 							<div class="grid gap-5 sm:grid-cols-2">
-								
 								<div class="space-y-1">
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Name</label>
 									<p class="text-sm text-slate-100">{ newWidgetData(ws.Item).Name }</p>
@@ -78,7 +79,6 @@ templ (ws WidgetShow) Page() {
 									<label class="text-sm font-medium leading-none text-slate-200 peer-disabled:cursor-not-allowed peer-disabled:opacity-60">Updated At</label>
 									<p class="text-sm text-slate-100">{ newWidgetData(ws.Item).UpdatedAt.String() }</p>
 								</div>
-								
 							</div>
 						</div>
 					</div>
@@ -87,8 +87,3 @@ templ (ws WidgetShow) Page() {
 		}
 	}
 }
-
-
-
-
-

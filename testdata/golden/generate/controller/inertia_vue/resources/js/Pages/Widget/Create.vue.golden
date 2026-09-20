@@ -1,0 +1,42 @@
+<script setup lang="ts">
+import { Link, useForm } from '@inertiajs/vue3'
+import type { CreateWidgetFormPayload } from '@/types/payloads'
+import { routes } from '@/routes'
+
+const form = useForm<CreateWidgetFormPayload>({
+  name: '' as string,
+  quantity: 0 as number,
+  active: false as boolean,
+})
+
+function submit() {
+  form.post(routes.widgetCreate())
+}
+</script>
+
+<template>
+  <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold text-slate-100">New Widget</h1>
+      <Link :href="routes.widgetIndex()" class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
+    </div>
+
+    <form @submit.prevent="submit" class="mt-8 space-y-6 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 p-6 shadow-sm">
+      <div>
+        <label for="name" class="block text-sm font-medium text-slate-200">Name</label>
+        <input id="name" type="text" v-model="form.name" class="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
+      </div>
+      <div>
+        <label for="quantity" class="block text-sm font-medium text-slate-200">Quantity</label>
+        <input id="quantity" type="number" v-model="form.quantity" class="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
+      </div>
+      <div>
+        <label for="active" class="block text-sm font-medium text-slate-200">Active</label>
+        <input id="active" type="checkbox" v-model="form.active" class="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
+      </div>
+      <div class="flex justify-end">
+        <button type="submit" :disabled="form.processing" class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300 disabled:opacity-50">{{ form.processing ? 'Creating...' : 'Create Widget' }}</button>
+      </div>
+    </form>
+  </div>
+</template>

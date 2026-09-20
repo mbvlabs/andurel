@@ -1,0 +1,33 @@
+package routes
+
+import (
+	"github.com/mbvlabs/andurel/pkg/routing"
+)
+
+const ApiWidgetPrefix = "/api/widgets"
+
+var ApiWidgetIndex = routing.NewSimpleRoute(
+	"",
+	"api.widgets.index",
+	ApiWidgetPrefix,
+)
+var ApiWidgetShow = routing.NewRouteWithUUIDID(
+	"/:id",
+	"api.widgets.show",
+	ApiWidgetPrefix,
+)
+var ApiWidgetCreate = routing.NewSimpleRoute(
+	"",
+	"api.widgets.create",
+	ApiWidgetPrefix,
+)
+var ApiWidgetUpdate = routing.NewRouteWithUUIDID(
+	"/:id",
+	"api.widgets.update",
+	ApiWidgetPrefix,
+)
+var ApiWidgetDestroy = routing.NewRouteWithUUIDID(
+	"/:id",
+	"api.widgets.destroy",
+	ApiWidgetPrefix,
+)

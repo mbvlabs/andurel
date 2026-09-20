@@ -1,0 +1,12 @@
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE widgets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL
+);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE widgets;
+-- +goose StatementEnd
