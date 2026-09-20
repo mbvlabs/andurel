@@ -202,7 +202,9 @@ func TestRunNarsilcGenerate(t *testing.T) {
 	})
 
 	t.Run("falls back to go run when binary is missing", func(t *testing.T) {
-		isolateProjectTools(t)
+		// Clear tool-bin override only; keep PATH so the tidy/fmt stubs can
+		// invoke `true`. install-dev-tools does not put narsilc on PATH.
+		t.Setenv("ANDUREL_TOOL_BIN", "")
 		targetDir := t.TempDir()
 		queriesDir := filepath.Join(targetDir, "models", "queries")
 		if err := os.MkdirAll(queriesDir, 0o755); err != nil {
