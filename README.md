@@ -16,7 +16,7 @@ Andurel is the fullstack framework for the agentic era: one-time generation that
 
 **Docs:** [andurel.com](https://andurel.com) · **Discord:** [join here](https://discord.gg/TnTBZHvat3)
 
-> **This README tracks `master` (head / nightly).** It may describe features not yet in the latest semver release. Stable documentation matches `go install …@latest` at [docs/latest](https://andurel.com/docs/latest/introduction). Head documentation that matches this branch lives at [docs/head](https://andurel.com/docs/head/introduction).
+> **This README tracks `master` (head / nightly).** It may describe features not yet in the latest semver release. Stable documentation matches `go install …@latest` at [andurel.com/docs](https://andurel.com/docs/latest/introduction).
 
 ## Platform Support
 
@@ -47,7 +47,7 @@ Andurel is built for humans and agents on the same pad:
 - **[PostgreSQL](https://www.postgresql.org/)** + **[pgx](https://github.com/jackc/pgx)**: Database
 - **[narsilc](https://github.com/mbvlabs/narsilc)**: Typed SQL with caller-owned result structs
 - **[Templ](https://templ.guide/)** + **[Datastar](https://data-star.dev/)**: Default hypermedia UI
-- **[Inertia v3](https://andurel.com/docs/head/frontend-options)**: Optional React / Vue / Svelte + Vite
+- **[Inertia v3](https://andurel.com/docs/latest/frontend-options)**: Optional React / Vue / Svelte + Vite
 - **[River](https://riverqueue.com/)**: Background jobs
 - **[OpenTelemetry](https://opentelemetry.io/)**: Observability
 - **[Tailwind CSS](https://tailwindcss.com/)**: CSS
@@ -86,7 +86,7 @@ andurel --version
 
 Verified release archives (checksums, attestations) are documented in [release verification](docs/release-verification.md).
 
-Full install guide: [andurel.com/docs](https://andurel.com/docs/latest/installation) (stable) · [docs/head](https://andurel.com/docs/head/installation) (this branch).
+Full install guide: [andurel.com/docs](https://andurel.com/docs/latest/installation).
 
 ## Quick Start
 
@@ -122,7 +122,12 @@ andurel generate migration create_products_table
 andurel generate scaffold Product
 ```
 
-More: [code generation](https://andurel.com/docs/head/code-generation) · [database](https://andurel.com/docs/head/database-commands).
+See what generators can do:
+
+```bash
+andurel generate --help
+andurel db --help
+```
 
 ## Project Layout & Options
 
@@ -145,7 +150,7 @@ A new app is ordinary Go you own. Top-level shape:
 
 **`--inertia vue|react|svelte`**: Same Go backend; page layer becomes an Inertia SPA with Vite. Optional `/npm|/pnpm|/bun|/yarn` selects the JS package manager (default `npm`).
 
-Details: [directory structure](https://andurel.com/docs/head/directory-structure) · [frontend options](https://andurel.com/docs/head/frontend-options).
+Details: [directory structure](https://andurel.com/docs/latest/directory-structure) · [frontend options](https://andurel.com/docs/latest/frontend-options).
 
 ## Core Commands
 
@@ -164,7 +169,7 @@ Details: [directory structure](https://andurel.com/docs/head/directory-structure
 | `andurel inspect` | Read-only project shape (routes, models, …) |
 | `andurel commands` | Structured command discovery |
 
-Use `andurel <command> --help` for flags. Full CLI reference: [andurel.com/docs/head/cli](https://andurel.com/docs/head/cli).
+Use `andurel <command> --help` for flags. Full CLI reference: [andurel.com/docs/latest/cli](https://andurel.com/docs/latest/cli).
 
 ## Agents
 
@@ -176,7 +181,7 @@ andurel inspect project --json
 andurel skill install
 ```
 
-Many mutating commands support `--dry-run` and `--json`. Agent workflows: [andurel.com/docs/head/agent-workflows](https://andurel.com/docs/head/agent-workflows).
+Many mutating commands support `--dry-run` and `--json`. Agent workflows: [andurel.com/docs/latest/agent-workflows](https://andurel.com/docs/latest/agent-workflows).
 
 ## Contributing
 
