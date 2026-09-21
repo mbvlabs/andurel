@@ -6,8 +6,7 @@ import (
 	"go.uber.org/fx"
 )
 
-var constructors = fx.Provide(
-)
+var constructors = fx.Provide()
 
 var Module = fx.Module(
 	"controllers",
