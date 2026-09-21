@@ -46,11 +46,11 @@ vet:
 	./scripts/vet-standalone-modules.sh
 
 # Run unit tests (excludes ./golden CLI goldens — use just test-golden)
-test:
+test: install-dev-tools
 	go test $(go list ./... | grep -v '/golden$$') -count=1
 
 # Run unit tests with race detection (PR and nightly CI)
-test-race:
+test-race: install-dev-tools
 	go test $(go list ./... | grep -v '/golden$$') -race -count=1
 
 # Run unit tests with coverage (excludes golden; CLI goldens use just test-golden)
