@@ -143,9 +143,9 @@ func setVersion(projectRoot, toolName, version string, checksumArguments ...stri
 		return err
 	}
 
-	lockPath := filepath.Join(projectRoot, "andurel.lock")
+	lockPath := filepath.Join(projectRoot, layout.ProjectTomlName)
 	if _, err := os.Stat(lockPath); err != nil {
-		return fmt.Errorf("andurel.lock not found. Are you in an andurel project?")
+		return fmt.Errorf("andurel.toml not found. Are you in an andurel project?")
 	}
 
 	if len(checksums) > 0 {

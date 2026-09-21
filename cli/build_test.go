@@ -251,7 +251,7 @@ func TestBuildAppReportsErrors(t *testing.T) {
 		root,
 		"",
 	); err == nil ||
-		!strings.Contains(err.Error(), "failed to read andurel.lock") {
+		!strings.Contains(err.Error(), "failed to read andurel.toml") {
 		t.Fatalf("expected missing lock error, got %v", err)
 	}
 
@@ -265,9 +265,9 @@ func TestBuildAppReportsErrors(t *testing.T) {
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
-	lockPath := filepath.Join(root, "andurel.lock")
+	lockPath := filepath.Join(root, layout.ProjectTomlName)
 	lockContent := readBuildTestFile(t, lockPath)
-	writeTestFile(t, root, "andurel.lock", strings.Replace(lockContent, `"npm"`, `"deno"`, 1))
+	writeTestFile(t, root, layout.ProjectTomlName, strings.Replace(lockContent, `javascriptPackageManager = "npm"`, `javascriptPackageManager = "deno"`, 1))
 	if err := buildApp(
 		root,
 		"",

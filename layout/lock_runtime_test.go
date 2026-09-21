@@ -159,8 +159,11 @@ func TestLockSyncSkipsCurrentBinaryAndRejectsStaleUndownloadableTool(t *testing.
 	if err := newLock().Sync(currentRoot, true); err != nil {
 		t.Fatalf("sync current binary: %v", err)
 	}
-	if _, err := ReadLockFile(currentRoot); err != nil {
-		t.Fatalf("sync did not write a valid lock: %v", err)
+	if _, err := os.Stat(filepath.Join(currentRoot, ProjectTomlName)); err != nil {
+		t.Fatalf("sync did not write %s: %v", ProjectTomlName, err)
+	}
+	if _, err := os.Stat(filepath.Join(currentRoot, ProjectLockName)); err != nil {
+		t.Fatalf("sync did not write %s: %v", ProjectLockName, err)
 	}
 
 	staleRoot := t.TempDir()

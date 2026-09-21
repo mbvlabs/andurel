@@ -20,6 +20,7 @@ type TemplateData struct {
 	RunToolVersion       string // Version of the run built tool
 	FrameworkVersion     string // Version of the framework that generated managed files
 	Inertia              string // "vue", "react", "svelte", etc. Empty means templ-only
+	JavaScriptSSRRuntime string // Seeded into config DefaultInertiaSSRRuntime
 
 	// Blueprint holds the structured scaffold configuration
 	blueprint *blueprint.Blueprint
@@ -124,6 +125,17 @@ func IsSupportedInertiaAdapter(adapter string) bool {
 func IsSupportedJavaScriptRuntime(runtime string) bool {
 	switch runtime {
 	case "npm", "pnpm", "bun", "yarn":
+		return true
+	default:
+		return false
+	}
+}
+
+// IsSupportedJavaScriptSSRRuntime reports whether runtime is a known
+// JavaScript executable for Inertia SSR.
+func IsSupportedJavaScriptSSRRuntime(runtime string) bool {
+	switch runtime {
+	case "node", "bun":
 		return true
 	default:
 		return false

@@ -1,83 +1,191 @@
-{
-  "schemaVersion": 1,
-  "version": "test",
-  "tools": {
-    "goose": {
-      "version": "v3.27.1",
-      "source": "github.com/pressly/goose",
-      "download": {
-        "urlTemplate": "https://github.com/pressly/goose/releases/download/{{version}}/goose_{{os}}_{{arch_x86_64}}",
-        "archive": "binary",
-        "binaryName": "goose",
-        "sha256": {
-          "darwin/amd64": "24f3b4dc3c792a7afba348de12245af8b4199cfd0ac6a673f7ab483b2ad48f08",
-          "darwin/arm64": "d7867b7a9d1117024b17afdb043c573909e595d2c29dcee13bd96c341eb98ff2",
-          "linux/amd64": "c5f1e5cd3b8e5da05592c2714b079d78ec846ddc7ec1f70d474c0449e79f6ab4",
-          "linux/arm64": "638af56b2ed33ff33cc3f30447f447b1c8e5894c6252fbda1e459adec94ba0fe"
-        }
-      },
-      "versionCheck": {
-        "args": ["--version"]
-      }
-    },
-    "narsilc": {
-      "version": "v0.4.3",
-      "download": {
-        "urlTemplate": "https://github.com/mbvlabs/narsilc/releases/download/{{version}}/narsilc_{{version_no_v}}_{{os}}_{{arch}}.tar.gz",
-        "archive": "tar.gz",
-        "binaryName": "narsilc",
-        "sha256": {
-          "darwin/amd64": "ee44c2e929811bb206bfa6fa2d185df9a899013c75da08dc487572b79cb0dd17",
-          "darwin/arm64": "052ea301dd8aaacc095f60c132ffce1997917261cdc100700526fed32ca181d4",
-          "linux/amd64": "78696b25b7b8895c0776e462a38f051a784511bd5b5f04872cea565500daaec8",
-          "linux/arm64": "101a35274a25edeb1b4994a56d628f0a2b123cc2c5cbe7554705a59a1b60c16d"
-        }
-      },
-      "versionCheck": {
-        "args": ["version"]
-      }
-    },
-    "tailwindcli": {
-      "version": "v4.3.2",
-      "download": {
-        "urlTemplate": "https://github.com/tailwindlabs/tailwindcss/releases/download/{{version}}/tailwindcss-{{os_tailwind}}-{{arch_tailwind}}",
-        "archive": "binary",
-        "binaryName": "tailwindcli",
-        "sha256": {
-          "darwin/amd64": "cef8f110471e889c3c4409055cf8aff33076f58a081867b0dfc6534b290bfbb0",
-          "darwin/arm64": "b800b0659dc64b9f03ede5660244d9415d777d5739ae2889280877ca37be742a",
-          "linux/amd64": "5036c4fb4328e0bcdbb6065c70d8ac9452e0d4c947113a788a8f94fd390425c1",
-          "linux/arm64": "394ddccc2402cfa3abd97dfba56f3587781a3d6e6ce66e65ceada14beb7664b8"
-        }
-      },
-      "versionCheck": {
-        "args": ["--version"]
-      }
-    },
-    "templ": {
-      "version": "v0.3.1020",
-      "source": "github.com/a-h/templ",
-      "download": {
-        "urlTemplate": "https://github.com/a-h/templ/releases/download/{{version}}/templ_{{os_capitalized}}_{{arch_x86_64}}.tar.gz",
-        "archive": "tar.gz",
-        "binaryName": "templ",
-        "sha256": {
-          "darwin/amd64": "f1522f2558081335584fd4fb67d329d02a9ae6e83dd88b14cae1ad84c770e5c0",
-          "darwin/arm64": "f391943e3e49ece301f90c2283c7f9e629081f18b0b3ab6b48cb4b87ad94b206",
-          "linux/amd64": "d1e726e8e78a6cf7e1e72ce3746f30fd94ec0eba10be1abab02208a41efc9aa5",
-          "linux/arm64": "8d38728fa82c0ee568d2ae1ce0720963402d384dd59d4c76bcdbb38d581c815c"
-        }
-      },
-      "versionCheck": {
-        "args": ["--version"]
-      }
-    }
-  },
-  "scaffoldConfig": {
-    "projectName": "app"
-  },
-  "databaseConfig": {
-    "engine": "postgresql",
-    "nullType": "pgtype.Null"
-  }
-}
+[[hashes]]
+  tool = 'dblab'
+  version = 'v0.40.2'
+  platform = 'linux/amd64'
+  sha256 = '5672260f7230cda2a8a464480d80a5c08fba5e48ccc637cd709ade2c19bd1509'
+
+[[hashes]]
+  tool = 'dblab'
+  version = 'v0.40.2'
+  platform = 'linux/arm64'
+  sha256 = '516487b248472edac79bd3a0c6a5b3a78a4bbef5990876bb4b9a1176c3252b1b'
+
+[[hashes]]
+  tool = 'dblab'
+  version = 'v0.40.2'
+  platform = 'darwin/amd64'
+  sha256 = '9070295d6f75e9cd5c015c3624c4fdf081711c16d44775d87aaeff44febe086a'
+
+[[hashes]]
+  tool = 'dblab'
+  version = 'v0.40.2'
+  platform = 'darwin/arm64'
+  sha256 = '99322f9e494a4b17a65d1c3618c7cad5694387325749be82255aa6afa2c0cdf5'
+
+[[hashes]]
+  tool = 'goose'
+  version = 'v3.27.1'
+  platform = 'linux/amd64'
+  sha256 = 'c5f1e5cd3b8e5da05592c2714b079d78ec846ddc7ec1f70d474c0449e79f6ab4'
+
+[[hashes]]
+  tool = 'goose'
+  version = 'v3.27.1'
+  platform = 'linux/arm64'
+  sha256 = '638af56b2ed33ff33cc3f30447f447b1c8e5894c6252fbda1e459adec94ba0fe'
+
+[[hashes]]
+  tool = 'goose'
+  version = 'v3.27.1'
+  platform = 'darwin/amd64'
+  sha256 = '24f3b4dc3c792a7afba348de12245af8b4199cfd0ac6a673f7ab483b2ad48f08'
+
+[[hashes]]
+  tool = 'goose'
+  version = 'v3.27.1'
+  platform = 'darwin/arm64'
+  sha256 = 'd7867b7a9d1117024b17afdb043c573909e595d2c29dcee13bd96c341eb98ff2'
+
+[[hashes]]
+  tool = 'mailpit'
+  version = 'v1.30.2'
+  platform = 'linux/amd64'
+  sha256 = '63b113aa9748adf7091b649ebe02693f99a459000cbe415faa6679f4b39f82cf'
+
+[[hashes]]
+  tool = 'mailpit'
+  version = 'v1.30.2'
+  platform = 'linux/arm64'
+  sha256 = 'b159574f32e527f34624e5683f79859258360179268a8fac0f3030f74ca6bb96'
+
+[[hashes]]
+  tool = 'mailpit'
+  version = 'v1.30.2'
+  platform = 'darwin/amd64'
+  sha256 = '6aabc9576350b98eed9d6d96427fec092361415c6a7c094842cba5773716a5b3'
+
+[[hashes]]
+  tool = 'mailpit'
+  version = 'v1.30.2'
+  platform = 'darwin/arm64'
+  sha256 = '05b92a4b804c34b0f6e665a482a1141be64256f500ecf23a204c2084a27a248b'
+
+[[hashes]]
+  tool = 'narsilc'
+  version = 'v0.4.3'
+  platform = 'linux/amd64'
+  sha256 = '78696b25b7b8895c0776e462a38f051a784511bd5b5f04872cea565500daaec8'
+
+[[hashes]]
+  tool = 'narsilc'
+  version = 'v0.4.3'
+  platform = 'linux/arm64'
+  sha256 = '101a35274a25edeb1b4994a56d628f0a2b123cc2c5cbe7554705a59a1b60c16d'
+
+[[hashes]]
+  tool = 'narsilc'
+  version = 'v0.4.3'
+  platform = 'darwin/amd64'
+  sha256 = 'ee44c2e929811bb206bfa6fa2d185df9a899013c75da08dc487572b79cb0dd17'
+
+[[hashes]]
+  tool = 'narsilc'
+  version = 'v0.4.3'
+  platform = 'darwin/arm64'
+  sha256 = '052ea301dd8aaacc095f60c132ffce1997917261cdc100700526fed32ca181d4'
+
+[[hashes]]
+  tool = 'shadowfax'
+  version = 'v0.11.1'
+  platform = 'linux/amd64'
+  sha256 = 'cecdcb89dfb292af27323f8089f61fbe0b3c4d63e3645acfadbcc3fb5c580b10'
+
+[[hashes]]
+  tool = 'shadowfax'
+  version = 'v0.11.1'
+  platform = 'linux/arm64'
+  sha256 = '78bd369eff62794c023768c23a9c94383adefffa04e598c0fbad967a0817be16'
+
+[[hashes]]
+  tool = 'shadowfax'
+  version = 'v0.11.1'
+  platform = 'darwin/amd64'
+  sha256 = '92a9230740085aebbc7908fb4f22677860dfdb27a9ebaee39f914ffcdebb56b0'
+
+[[hashes]]
+  tool = 'shadowfax'
+  version = 'v0.11.1'
+  platform = 'darwin/arm64'
+  sha256 = '9d3203b315bd3e8d2cd1f8d7d11b6356be6fec551235794f6eb755c3d3aa3a9d'
+
+[[hashes]]
+  tool = 'tailwindcli'
+  version = 'v4.3.2'
+  platform = 'linux/amd64'
+  sha256 = '5036c4fb4328e0bcdbb6065c70d8ac9452e0d4c947113a788a8f94fd390425c1'
+
+[[hashes]]
+  tool = 'tailwindcli'
+  version = 'v4.3.2'
+  platform = 'linux/arm64'
+  sha256 = '394ddccc2402cfa3abd97dfba56f3587781a3d6e6ce66e65ceada14beb7664b8'
+
+[[hashes]]
+  tool = 'tailwindcli'
+  version = 'v4.3.2'
+  platform = 'darwin/amd64'
+  sha256 = 'cef8f110471e889c3c4409055cf8aff33076f58a081867b0dfc6534b290bfbb0'
+
+[[hashes]]
+  tool = 'tailwindcli'
+  version = 'v4.3.2'
+  platform = 'darwin/arm64'
+  sha256 = 'b800b0659dc64b9f03ede5660244d9415d777d5739ae2889280877ca37be742a'
+
+[[hashes]]
+  tool = 'templ'
+  version = 'v0.3.1020'
+  platform = 'linux/amd64'
+  sha256 = 'd1e726e8e78a6cf7e1e72ce3746f30fd94ec0eba10be1abab02208a41efc9aa5'
+
+[[hashes]]
+  tool = 'templ'
+  version = 'v0.3.1020'
+  platform = 'linux/arm64'
+  sha256 = '8d38728fa82c0ee568d2ae1ce0720963402d384dd59d4c76bcdbb38d581c815c'
+
+[[hashes]]
+  tool = 'templ'
+  version = 'v0.3.1020'
+  platform = 'darwin/amd64'
+  sha256 = 'f1522f2558081335584fd4fb67d329d02a9ae6e83dd88b14cae1ad84c770e5c0'
+
+[[hashes]]
+  tool = 'templ'
+  version = 'v0.3.1020'
+  platform = 'darwin/arm64'
+  sha256 = 'f391943e3e49ece301f90c2283c7f9e629081f18b0b3ab6b48cb4b87ad94b206'
+
+[[hashes]]
+  tool = 'usql'
+  version = 'v0.21.4'
+  platform = 'linux/amd64'
+  sha256 = '78bd9b221e223d7a954d41f51e9eca98bdd94b401618367ba0f3887abebd44fc'
+
+[[hashes]]
+  tool = 'usql'
+  version = 'v0.21.4'
+  platform = 'linux/arm64'
+  sha256 = 'ccad89d6f4c67a9bf595df0aa8a550e0a9e3d6a6f9356356ba1e164e311335e4'
+
+[[hashes]]
+  tool = 'usql'
+  version = 'v0.21.4'
+  platform = 'darwin/amd64'
+  sha256 = '60feb0d73b2e29e4ecf6b36bf34b23c230d8233c778893b0b56811036d16d17e'
+
+[[hashes]]
+  tool = 'usql'
+  version = 'v0.21.4'
+  platform = 'darwin/arm64'
+  sha256 = 'cee9fd2117c17fd622fe0df37b334c356b80cf48d6e9bb164084830ae4ce6d05'

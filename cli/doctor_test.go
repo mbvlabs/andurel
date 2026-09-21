@@ -128,8 +128,8 @@ func TestDoctorLockAndVersionChecks(t *testing.T) {
 		t.Fatalf("missing lock check = %#v", missing)
 	}
 
-	if err := os.WriteFile(filepath.Join(root, "andurel.lock"), []byte("{"), 0o644); err != nil {
-		t.Fatalf("write invalid lock: %v", err)
+	if err := os.WriteFile(filepath.Join(root, layout.ProjectTomlName), []byte("schemaVersion = \""), 0o644); err != nil {
+		t.Fatalf("write invalid toml: %v", err)
 	}
 	invalid := checkLockFile(root)
 	if invalid.status != statusFail || !strings.Contains(invalid.message, "invalid format") {

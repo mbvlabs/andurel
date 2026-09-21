@@ -136,7 +136,7 @@ cmd/ssr is the production Node owner. Run this from your project root.`,
 }
 
 // shadowfaxRunArgs builds the explicit CLI contract passed to Shadowfax.
-// Inertia identity and package manager come from andurel.lock. Development
+// Inertia identity and package manager come from andurel.toml. Development
 // SSR is owned by Vite; cmd/ssr settings stay in app config for production.
 func shadowfaxRunArgs(rootDir string) ([]string, error) {
 	lock, err := layout.ReadLockFile(rootDir)
