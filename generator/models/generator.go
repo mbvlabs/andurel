@@ -737,21 +737,6 @@ func (g *Generator) stringFactoryDefault(fieldName string) string {
 	}
 }
 
-func (g *Generator) intFactoryDefault(fieldName string) string {
-	lower := strings.ToLower(fieldName)
-
-	switch {
-	case strings.Contains(lower, "price") || strings.Contains(lower, "amount"):
-		return "faker.RandomInt(100, 10000)" // Price in cents
-	case strings.Contains(lower, "count") || strings.Contains(lower, "quantity"):
-		return "faker.RandomInt(1, 100)"
-	case strings.Contains(lower, "age"):
-		return "faker.RandomInt(18, 80)"
-	default:
-		return "faker.RandomInt(1, 1000)"
-	}
-}
-
 func (g *Generator) getFactoryGoZero(goType string) string {
 	switch goType {
 	case "string":
