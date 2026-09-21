@@ -28,14 +28,14 @@ See [release verification](docs/release-verification.md) for archive installatio
 
 Andurel is built for humans and agents on the same pad:
 
-- **Airframe** — Generated models, factories, controllers, routes, and pages that belong to the application
-- **GNC** — Fx for dependency injection and lifecycle. Explicit wiring, not a hidden runtime
-- **Propellant** — PostgreSQL with narsilc-generated queries into application-owned model structs
-- **Payload** — Inertia v3 with React, Vue, or Svelte. Same Go backend, official Inertia adapters, optional SSR. Templ + Datastar remains available for hypermedia pages
-- **Range ops** — River jobs, email, and queues on the same stack that serves the request path
-- **Ground support** — Agent-ready CLI, JSON discovery, and AGENTS.md so machines can operate the project without a second stack
-- **Live reload** — `andurel run` with [Shadowfax](https://github.com/mbvlabs/shadowfax) for Go, templates, CSS, and Vite
-- **Production build** — `andurel build` compiles Templ, Tailwind CSS, Vite assets, and the Go binary
+- **Airframe**: Generated models, factories, controllers, routes, and pages that belong to the application
+- **GNC**: Fx for dependency injection and lifecycle. Explicit wiring, not a hidden runtime
+- **Propellant**: PostgreSQL with narsilc-generated queries into application-owned model structs
+- **Payload**: Inertia v3 with React, Vue, or Svelte. Same Go backend, official Inertia adapters, optional SSR. Templ + Datastar remains available for hypermedia pages
+- **Range ops**: River jobs, email, and queues on the same stack that serves the request path
+- **Ground support**: Agent-ready CLI, JSON discovery, and AGENTS.md so machines can operate the project without a second stack
+- **Live reload**: `andurel run` with [Shadowfax](https://github.com/mbvlabs/shadowfax) for Go, templates, CSS, and Vite
+- **Production build**: `andurel build` compiles Templ, Tailwind CSS, Vite assets, and the Go binary
 
 **Humans.** One-time generation. The scaffold writes Go and Inertia pages you can read, edit, and ship. After that, the code is yours.
 
@@ -43,16 +43,16 @@ Andurel is built for humans and agents on the same pad:
 
 ## Core Technologies
 
-- **[Echo](https://echo.labstack.com/)** — HTTP framework
-- **[PostgreSQL](https://www.postgresql.org/)** + **[pgx](https://github.com/jackc/pgx)** — Database
-- **[narsilc](https://github.com/mbvlabs/narsilc)** — Typed SQL with caller-owned result structs
-- **[Templ](https://templ.guide/)** + **[Datastar](https://data-star.dev/)** — Default hypermedia UI
-- **[Inertia v3](https://andurel.com/docs/head/frontend-options)** — Optional React / Vue / Svelte + Vite
-- **[River](https://riverqueue.com/)** — Background jobs
-- **[OpenTelemetry](https://opentelemetry.io/)** — Observability
-- **[Tailwind CSS](https://tailwindcss.com/)** — CSS
-- **[Shadowfax](https://github.com/mbvlabs/shadowfax)** — Dev runner
-- **[Fx](https://uber-go.github.io/fx/)** — Dependency injection
+- **[Echo](https://echo.labstack.com/)**: HTTP framework
+- **[PostgreSQL](https://www.postgresql.org/)** + **[pgx](https://github.com/jackc/pgx)**: Database
+- **[narsilc](https://github.com/mbvlabs/narsilc)**: Typed SQL with caller-owned result structs
+- **[Templ](https://templ.guide/)** + **[Datastar](https://data-star.dev/)**: Default hypermedia UI
+- **[Inertia v3](https://andurel.com/docs/head/frontend-options)**: Optional React / Vue / Svelte + Vite
+- **[River](https://riverqueue.com/)**: Background jobs
+- **[OpenTelemetry](https://opentelemetry.io/)**: Observability
+- **[Tailwind CSS](https://tailwindcss.com/)**: CSS
+- **[Shadowfax](https://github.com/mbvlabs/shadowfax)**: Dev runner
+- **[Fx](https://uber-go.github.io/fx/)**: Dependency injection
 
 ## Install
 
@@ -74,10 +74,10 @@ andurel --version
 
 ### Nightly (matches `master` / this README)
 
-Nightly ships as prebuilt binaries on the [`nightly` GitHub release](https://github.com/mbvlabs/andurel/releases/tag/nightly). Do not use `go install` for nightly — it builds from source without the embedded nightly version metadata.
+Nightly ships as prebuilt binaries on the [`nightly` GitHub release](https://github.com/mbvlabs/andurel/releases/tag/nightly). Do not use `go install` for nightly; it builds from source without the embedded nightly version metadata.
 
 ```bash
-# Linux amd64 — also available: andurel-darwin-arm64, andurel-darwin-amd64
+# Linux amd64 (also available: andurel-darwin-arm64, andurel-darwin-amd64)
 curl -L https://github.com/mbvlabs/andurel/releases/download/nightly/andurel-linux-amd64 -o andurel
 chmod +x andurel
 mv andurel "$(go env GOBIN)/"
@@ -107,6 +107,7 @@ cp .env.example .env
 # Edit .env with your database credentials
 
 # If using Inertia, install JS deps with the package manager chosen above
+andurel db create          # optional: if the local database does not exist yet
 andurel db migrate up
 andurel run
 ```
@@ -140,9 +141,9 @@ A new app is ordinary Go you own. Top-level shape:
 | `queue/` | River jobs and workers |
 | `css/` / `assets/` | Tailwind source and compiled assets |
 
-**Default** — Templ + Datastar hypermedia pages.
+**Default**: Templ + Datastar hypermedia pages.
 
-**`--inertia vue|react|svelte`** — Same Go backend; page layer becomes an Inertia SPA with Vite. Optional `/npm|/pnpm|/bun|/yarn` selects the JS package manager (default `npm`).
+**`--inertia vue|react|svelte`**: Same Go backend; page layer becomes an Inertia SPA with Vite. Optional `/npm|/pnpm|/bun|/yarn` selects the JS package manager (default `npm`).
 
 Details: [directory structure](https://andurel.com/docs/head/directory-structure) · [frontend options](https://andurel.com/docs/head/frontend-options).
 
@@ -194,14 +195,14 @@ go vet ./...
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
 
 ## Sites built with Andurel
 
-- [DeployCrate](https://deploycrate.com) — Remote boxes for your agents and teams
-- [MBV Blog](https://mortenvistisen.com) — Personal blog
-- [Master Golang](https://mastergolang.com) — Course platform
-- [Palantir](https://github.com/mbvlabs/palantir) — Open sourced analytics platform (WIP)
+- [DeployCrate](https://deploycrate.com): Remote boxes for your agents and teams
+- [MBV Blog](https://mortenvistisen.com): Personal blog
+- [Master Golang](https://mastergolang.com): Course platform
+- [Palantir](https://github.com/mbvlabs/palantir): Open sourced analytics platform (WIP)
 
 Built something cool? Let me know or open a PR.
 
