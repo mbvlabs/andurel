@@ -1,0 +1,158 @@
+package controllers
+
+import (
+	"errors"
+	"net/http"
+
+	"app/router"
+	"app/router/cookies"
+	"app/router/middleware"
+	"app/router/routes"
+	"app/services"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+	"github.com/mbvlabs/andurel/pkg/validation"
+
+	"github.com/labstack/echo/v5"
+)
+
+type Sessions struct {
+	identity services.Identity
+	renderer *inertia.Renderer
+}
+
+func NewSessions(
+	identity services.Identity,
+	renderer *inertia.Renderer,
+) Sessions {
+	return Sessions{identity: identity, renderer: renderer}
+}
+
+func (s Sessions) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.SessionNew.Path(),
+		Name:    routes.SessionNew.Name(),
+		Handler: s.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.SessionCreate.Path(),
+		Name:    routes.SessionCreate.Name(),
+		Handler: s.Create,
+		Middlewares: []echo.MiddlewareFunc{
+			middleware.IPRateLimiter(5, routes.SessionNew),
+		},
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.SessionDestroy.Path(),
+		Name:    routes.SessionDestroy.Name(),
+		Handler: s.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+func (s Sessions) New(etx *echo.Context) error {
+	return s.renderer.Page(etx, "Auth/Login", inertia.Props{}).Render()
+}
+
+func (s Sessions) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "sessions.create")
+	defer span.End()
+
+	var payload struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse login form payload",
+			"error",
+			err,
+		)
+		return s.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
+	}
+
+	user, err := s.identity.AuthenticateUser(
+		ctx,
+		services.LoginData{
+			Email:    payload.Email,
+			Password: payload.Password,
+		},
+	)
+	if err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+		return s.renderer.Page(
+			etx,
+			"Auth/Login",
+			inertia.Props{},
+		).ValidationErrors(validationErrors.ToMap()).Render()
+		}
+
+		telemetry.Error(
+			ctx,
+			"failed to authenticate user",
+			"error",
+			err,
+		)
+
+		var errorMsg string
+		switch {
+		case errors.Is(err, services.ErrInvalidCredentials):
+			errorMsg = "Invalid email or password"
+		case errors.Is(err, services.ErrEmailNotVerified):
+			errorMsg = "Please verify your email before logging in"
+		default:
+			errorMsg = "Failed to log in"
+		}
+
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, errorMsg)
+
+		return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
+	}
+
+	cookies.CreateAppSession(etx.Request().Context(), user)
+
+	kiks.AddFlash(
+		etx.Request().Context(),
+		kiks.FlashSuccess,
+		"Successfully logged in!",
+	)
+
+	return s.renderer.Location(etx, routes.HomePage.URL())
+}
+
+func (s Sessions) Destroy(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "sessions.destroy")
+	defer span.End()
+
+	cookies.DestroyAppSession(ctx)
+
+	kiks.AddFlash(
+		ctx,
+		kiks.FlashSuccess,
+		"Successfully logged out!",
+	)
+
+	return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
+}
+

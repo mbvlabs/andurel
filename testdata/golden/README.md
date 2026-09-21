@@ -81,6 +81,7 @@ scrubber. If a path floats, denylist it (nightly) or omit it from the allowlist
 | `sync/routes/` | `andurel sync routes` |
 | `sync/payloads/` | `andurel sync payloads` |
 | `sync/email/` | `andurel sync email` |
+| `new/mvc/` | PR slim `andurel new` MVC dirs (templates only, no go fmt) |
 | `new/` | Nightly only: `andurel new app` full tree via `AssertTree` |
 
 Fixtures for generate/sync scenarios are under `testdata/fixtures/generate_base`,
@@ -93,9 +94,11 @@ via the harness.
 `andurel new app` (optionally `--inertia vue|react|svelte`). The module path is
 the project name (`app`), not `example.com/app`.
 
-PR CI captures the scaffold MVC for postgresql (templ views) and
+PR CI captures scaffold MVC under `new/mvc/` for postgresql (templ views) and
 `--inertia react` (Inertia pages) without running post-scaffold generators.
-Nightly full-tree capture covers all four adapters with generators on.
+Nightly full-tree capture lives under `new/<adapter>/` for all four adapters
+with generators on. Those directories must stay separate: formatted nightly
+trees must not be the PR MVC baseline.
 
 ### Nightly `andurel new` capture strategy
 
@@ -186,6 +189,7 @@ just update-golden
 ```
 
 That runs `go test ./golden/... -update` for the PR generate+sync suite.
+CI never blesses goldens: PR jobs run `just test-golden` (compare only).
 
 ```bash
 just update-golden-full
@@ -198,5 +202,5 @@ Commit the resulting diffs when expectations change.
 
 ```bash
 just test-golden
-just test-golden-full   # requires ANDUREL_GOLDEN_FULL; used by e2e-nightly
+just test-golden-full   # sets ANDUREL_GOLDEN_FULL; used by e2e-nightly
 ```

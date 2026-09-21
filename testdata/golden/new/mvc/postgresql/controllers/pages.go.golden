@@ -1,0 +1,77 @@
+package controllers
+
+import (
+	"errors"
+	"net/http"
+
+	"app/router"
+	"app/router/routes"
+	"app/views"
+
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+
+	"github.com/a-h/templ"
+	"github.com/labstack/echo/v5"
+)
+
+type Pages struct {
+	cache *Cache[templ.Component]
+}
+
+func NewPages(cache *Cache[templ.Component]) Pages {
+	return Pages{cache: cache}
+}
+
+func (p Pages) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.HomePage.Path(),
+		Name:    routes.HomePage.Name(),
+		Handler: p.Home,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodHead,
+		Path:    routes.HomePage.Path(),
+		Name:    routes.HomePage.Name() + ".head",
+		Handler: p.Home,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_ = r.AddRouteNotFound(p.NotFound)
+
+	return errors.Join(errs...)
+}
+
+func (p Pages) Home(etx *echo.Context) error {
+	cacheKey := "home"
+
+	component, err := p.cache.Get(cacheKey, func() (templ.Component, error) {
+		return views.Welcome{}.Page(), nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return hypermedia.RenderPage(etx, component)
+}
+
+func (p Pages) NotFound(etx *echo.Context) error {
+	cacheKey := "not_found"
+
+	component, err := p.cache.Get(cacheKey, func() (templ.Component, error) {
+		return views.NotFound(), nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return hypermedia.RenderPage(etx, component)
+}

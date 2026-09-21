@@ -1,0 +1,122 @@
+package controllers
+
+import (
+	"errors"
+	"net/http"
+
+	"app/router"
+	"app/router/cookies"
+	"app/router/routes"
+	"app/services"
+	"app/views"
+
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+	"github.com/mbvlabs/andurel/pkg/validation"
+
+	"github.com/labstack/echo/v5"
+)
+
+type Confirmations struct {
+	identity services.Identity
+}
+
+func NewConfirmations(identity services.Identity) Confirmations {
+	return Confirmations{identity}
+}
+
+func (c Confirmations) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ConfirmationNew.Path(),
+		Name:    routes.ConfirmationNew.Name(),
+		Handler: c.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.ConfirmationCreate.Path(),
+		Name:    routes.ConfirmationCreate.Name(),
+		Handler: c.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+func (c Confirmations) New(etx *echo.Context) error {
+	return hypermedia.RenderPage(etx, views.ConfirmationForm{}.Page())
+}
+
+func (c Confirmations) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "confirmations.create")
+	defer span.End()
+
+	var payload struct {
+		Code string `json:"code"`
+	}
+
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse verification form payload",
+			"error",
+			err,
+		)
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	user, err := c.identity.VerifyEmail(
+		ctx,
+		services.VerifyEmailData{
+			Code: payload.Code,
+		},
+	)
+	if err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+			return hypermedia.RenderPage(
+				etx,
+				views.ConfirmationForm{Errors: validationErrors}.Page(),
+			)
+		}
+
+		telemetry.Error(
+			ctx,
+			"failed to verify email",
+			"error",
+			err,
+		)
+
+		var errorMsg string
+		switch {
+		case errors.Is(err, services.ErrInvalidVerificationCode):
+			errorMsg = "Invalid verification code"
+		case errors.Is(err, services.ErrExpiredVerificationCode):
+			errorMsg = "Verification code has expired"
+		default:
+			errorMsg = "Failed to verify email"
+		}
+
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, errorMsg)
+
+		return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
+	}
+
+	cookies.CreateAppSession(etx.Request().Context(), user)
+
+	kiks.AddFlash(
+		etx.Request().Context(),
+		kiks.FlashSuccess,
+		"Email verified successfully!",
+	)
+
+	return hypermedia.Redirect(etx, routes.HomePage.URL())
+}

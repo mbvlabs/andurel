@@ -13,8 +13,11 @@
 //     (scaffold .env.example secrets, migration filenames, CLI date banner).
 //   - layout.Scaffold: after writing templates + andurel.lock, skips goose fix,
 //     templ generate, narsilc generate, go mod tidy, and go fmt unless
-//     FullScaffold() is true (andurel_golden_full tag or ANDUREL_GOLDEN_FULL=1).
-//     Nightly full-tree goldens run the generators; PR goldens stay offline.
+//     FullScaffold() is true (andurel_golden_full tag or ANDUREL_GOLDEN_FULL=1
+//     in the CLI process). The golden harness strips ambient
+//     ANDUREL_GOLDEN_FULL so PR tests cannot pick it up from a developer
+//     shell; nightly tests pass it explicitly. Nightly full-tree goldens run
+//     the generators; PR goldens stay offline.
 //   - layout/cmds RunNarsilcGenerate: still runs narsilc, but always skips
 //     go mod tidy under the golden tag (Scaffold tidies when FullScaffold).
 //   - generator.Coordinator: uses NopPrimaryKeyResolver (no interactive prompts).

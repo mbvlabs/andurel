@@ -98,8 +98,8 @@ func Scaffold(
 
 	// Golden CLI builds already seed secrets and migration timestamps via
 	// testseed. PR goldens skip network-bound post-scaffold steps so
-	// `andurel new` stays offline. Nightly full-tree goldens set
-	// FullScaffold() so templ, narsilc, go fmt, and tidy still run.
+	// `andurel new` stays offline. Nightly full-tree goldens call RunCLIFull
+	// so templ, narsilc, go fmt, and tidy still run.
 	// See internal/testseed and testdata/golden/README.md.
 	if testseed.Enabled() && !testseed.FullScaffold() {
 		return nil

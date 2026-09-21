@@ -51,7 +51,7 @@ test-coverage:
 
 # Run golden CLI tests (PR track: generate + sync + slim new MVC)
 test-golden: install-dev-tools
-	go test ./golden/... -v -timeout 15m
+	env -u ANDUREL_GOLDEN_FULL go test ./golden/... -v -timeout 15m
 
 # Run golden CLI tests including nightly full-tree `andurel new`
 test-golden-full: install-dev-tools
@@ -96,7 +96,7 @@ install-dev-tools:
 # Update PR golden files under testdata/golden (generate + sync + slim new)
 update-golden: install-dev-tools
 	go clean -testcache
-	go test ./golden/... -v -timeout 15m -update
+	env -u ANDUREL_GOLDEN_FULL go test ./golden/... -v -timeout 15m -update
 
 # Update nightly full-tree `new/` goldens (also refreshes generate + sync)
 update-golden-full: install-dev-tools

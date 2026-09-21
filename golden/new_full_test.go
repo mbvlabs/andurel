@@ -43,7 +43,7 @@ func TestNewProjectMVC(t *testing.T) {
 			project := filepath.Join(parent, "app")
 			g := goldentest.NewGoldie(t)
 			for _, dir := range scenario.dirs {
-				goldentest.AssertDir(t, g, "new/"+scenario.name, project, dir)
+				goldentest.AssertDir(t, g, "new/mvc/"+scenario.name, project, dir)
 			}
 		})
 	}
@@ -78,7 +78,7 @@ func TestNewProjectFullScaffold(t *testing.T) {
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
 			parent := t.TempDir()
-			goldentest.RunCLI(t, parent, scenario.args...)
+			goldentest.RunCLIFull(t, parent, scenario.args...)
 
 			project := filepath.Join(parent, "app")
 			goldentest.AssertTree(t, project, "new/"+scenario.name, goldentest.FullScaffoldDenylist)

@@ -97,10 +97,24 @@ func CopyFixture(t testing.TB, name string) string {
 
 // RunCLI executes the prebuilt andurel binary with args in dir.
 // Non-zero exit fails the test and dumps stdout/stderr.
+// The child does not inherit ANDUREL_GOLDEN_FULL from the developer shell;
+// PR-track `andurel new` must stay offline even if that var is exported locally.
 func RunCLI(t testing.TB, dir string, args ...string) {
 	t.Helper()
 
 	out, exitCode := RunCLIExit(t, dir, args...)
+	if exitCode != 0 {
+		t.Fatalf("andurel %v exited %d\n%s", args, exitCode, out)
+	}
+}
+
+// RunCLIFull is RunCLI with ANDUREL_GOLDEN_FULL=1 in the child environment so
+// layout.Scaffold runs post-scaffold generators. Use only from tests gated by
+// RequireFullScaffold.
+func RunCLIFull(t testing.TB, dir string, args ...string) {
+	t.Helper()
+
+	out, exitCode := runCLIExit(t, dir, true, args...)
 	if exitCode != 0 {
 		t.Fatalf("andurel %v exited %d\n%s", args, exitCode, out)
 	}
@@ -111,6 +125,11 @@ func RunCLI(t testing.TB, dir string, args ...string) {
 // Non-exit failures (missing binary, start error) fail the test.
 func RunCLIExit(t testing.TB, dir string, args ...string) (output []byte, exitCode int) {
 	t.Helper()
+	return runCLIExit(t, dir, false, args...)
+}
+
+func runCLIExit(t testing.TB, dir string, fullScaffold bool, args ...string) (output []byte, exitCode int) {
+	t.Helper()
 
 	if andurelBin == "" {
 		t.Fatal("andurel binary not set; call goldentest.SetBinary from TestMain")
@@ -118,7 +137,7 @@ func RunCLIExit(t testing.TB, dir string, args ...string) (output []byte, exitCo
 
 	cmd := exec.Command(andurelBin, args...)
 	cmd.Dir = dir
-	cmd.Env = cliEnv()
+	cmd.Env = cliEnv(fullScaffold)
 
 	out, err := cmd.CombinedOutput()
 	if err == nil {
@@ -249,46 +268,39 @@ func CopyMigrations(t testing.TB, projectDir, name string) {
 	}
 }
 
-func cliEnv() []string {
-	env := os.Environ()
-	if toolBinDir == "" {
-		return forceGoWorkOff(env)
+func cliEnv(fullScaffold bool) []string {
+	env := filterCLIEnv(os.Environ())
+	if toolBinDir != "" {
+		path := toolBinDir
+		if existing := os.Getenv("PATH"); existing != "" {
+			path = toolBinDir + string(os.PathListSeparator) + existing
+		}
+		env = append(env, "PATH="+path, "ANDUREL_TOOL_BIN="+toolBinDir)
 	}
-
-	path := toolBinDir
-	if existing := os.Getenv("PATH"); existing != "" {
-		path = toolBinDir + string(os.PathListSeparator) + existing
+	env = append(env, "GOWORK=off")
+	if fullScaffold {
+		env = append(env, "ANDUREL_GOLDEN_FULL=1")
 	}
+	return env
+}
 
-	filtered := make([]string, 0, len(env)+3)
+func filterCLIEnv(env []string) []string {
+	filtered := make([]string, 0, len(env))
 	for _, entry := range env {
 		switch {
-		case strings.HasPrefix(entry, "PATH="):
+		case strings.HasPrefix(entry, "PATH=") && toolBinDir != "":
 			continue
 		case strings.HasPrefix(entry, "ANDUREL_TOOL_BIN="):
 			continue
 		case strings.HasPrefix(entry, "GOWORK="):
 			continue
-		}
-		filtered = append(filtered, entry)
-	}
-	filtered = append(filtered,
-		"PATH="+path,
-		"ANDUREL_TOOL_BIN="+toolBinDir,
-		"GOWORK=off",
-	)
-	return filtered
-}
-
-func forceGoWorkOff(env []string) []string {
-	filtered := make([]string, 0, len(env)+1)
-	for _, entry := range env {
-		if strings.HasPrefix(entry, "GOWORK=") {
+		case strings.HasPrefix(entry, "ANDUREL_GOLDEN_FULL="):
+			// PR vs nightly must not depend on the developer/CI shell.
 			continue
 		}
 		filtered = append(filtered, entry)
 	}
-	return append(filtered, "GOWORK=off")
+	return filtered
 }
 
 func copyDir(src, dst string) error {

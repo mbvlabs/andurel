@@ -1,0 +1,126 @@
+package controllers
+
+import (
+	"errors"
+	"net/http"
+
+	"app/router"
+	"app/router/cookies"
+	"app/router/routes"
+	"app/services"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+	"github.com/mbvlabs/andurel/pkg/validation"
+
+	"github.com/labstack/echo/v5"
+)
+
+type Confirmations struct {
+	identity services.Identity
+	renderer *inertia.Renderer
+}
+
+func NewConfirmations(
+	identity services.Identity,
+	renderer *inertia.Renderer,
+) Confirmations {
+	return Confirmations{identity: identity, renderer: renderer}
+}
+
+func (c Confirmations) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.ConfirmationNew.Path(),
+		Name:    routes.ConfirmationNew.Name(),
+		Handler: c.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.ConfirmationCreate.Path(),
+		Name:    routes.ConfirmationCreate.Name(),
+		Handler: c.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+func (c Confirmations) New(etx *echo.Context) error {
+	return c.renderer.Page(etx, "Auth/ConfirmEmail", inertia.Props{}).Render()
+}
+
+func (c Confirmations) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "confirmations.create")
+	defer span.End()
+
+	var payload struct {
+		Code string `json:"code"`
+	}
+
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse verification form payload",
+			"error",
+			err,
+		)
+		return c.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
+	}
+
+	user, err := c.identity.VerifyEmail(
+		ctx,
+		services.VerifyEmailData{
+			Code: payload.Code,
+		},
+	)
+	if err != nil {
+		if validationErrors, ok := validation.As(err); ok {
+		return c.renderer.Page(
+			etx,
+			"Auth/ConfirmEmail",
+			inertia.Props{},
+		).ValidationErrors(validationErrors.ToMap()).Render()
+		}
+
+		telemetry.Error(
+			ctx,
+			"failed to verify email",
+			"error",
+			err,
+		)
+
+		var errorMsg string
+		switch {
+		case errors.Is(err, services.ErrInvalidVerificationCode):
+			errorMsg = "Invalid verification code"
+		case errors.Is(err, services.ErrExpiredVerificationCode):
+			errorMsg = "Verification code has expired"
+		default:
+			errorMsg = "Failed to verify email"
+		}
+
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, errorMsg)
+
+		return c.renderer.Redirect(etx, routes.ConfirmationNew.URL(), http.StatusSeeOther)
+	}
+
+	cookies.CreateAppSession(etx.Request().Context(), user)
+
+	kiks.AddFlash(
+		etx.Request().Context(),
+		kiks.FlashSuccess,
+		"Email verified successfully!",
+	)
+
+	return c.renderer.Location(etx, routes.HomePage.URL())
+}
