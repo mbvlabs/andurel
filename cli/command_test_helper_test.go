@@ -80,15 +80,16 @@ func executeConfiguredCLITest(t *testing.T, inertiaAdapter string, args ...strin
 	); err != nil {
 		t.Fatalf("write go.mod: %v", err)
 	}
+	lock := layout.NewAndurelLock("test")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName: "app",
+	}
 	if inertiaAdapter != "" {
-		lock := layout.NewAndurelLock("test")
-		lock.ScaffoldConfig = &layout.ScaffoldConfig{
-			ProjectName: "app",
-			Inertia:     inertiaAdapter,
-		}
-		if err := lock.WriteLockFile(rootDir); err != nil {
-			t.Fatalf("write andurel.lock: %v", err)
-		}
+		lock.ScaffoldConfig.Inertia = inertiaAdapter
+		lock.ScaffoldConfig.JavaScriptPackageManager = "pnpm"
+	}
+	if err := lock.WriteLockFile(rootDir); err != nil {
+		t.Fatalf("write andurel.lock: %v", err)
 	}
 
 	originalWD, err := os.Getwd()

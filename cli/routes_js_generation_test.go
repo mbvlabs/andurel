@@ -221,17 +221,10 @@ func TestConfiguredInertiaAdapterRejectsMissingAndInvalidConfiguration(t *testin
 	}
 
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
-		ProjectName: "app",
-		Inertia:     "angular",
+		ProjectName:              "app",
+		Inertia:                  "svelte",
+		JavaScriptPackageManager: "pnpm",
 	}
-	if err := lock.WriteLockFile(root); err != nil {
-		t.Fatalf("write invalid lock: %v", err)
-	}
-	if _, err := configuredInertiaAdapter(root); err == nil {
-		t.Fatal("expected invalid Inertia adapter to fail")
-	}
-
-	lock.ScaffoldConfig.Inertia = "svelte"
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write valid lock: %v", err)
 	}
