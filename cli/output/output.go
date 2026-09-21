@@ -356,7 +356,7 @@ func classifyError(err error) *CLIError {
 			CodeInvalidInertiaAdapter,
 			err,
 			ExitUsage,
-			"Use vue, react, or svelte, optionally followed by /npm, /pnpm, /bun, or /yarn.",
+			"Use --ui react/pnpm, vue/bun, svelte/npm, or templ/datastar.",
 		)
 	case strings.Contains(msg, "requires --force") || strings.Contains(msg, "use --force") || strings.Contains(msg, "without --force"):
 		return WrapError(

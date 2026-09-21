@@ -4,7 +4,7 @@ version = 'latest'
 [project]
   name = 'app'
   inertia = 'react'
-  javascriptPackageManager = 'npm'
+  javascriptPackageManager = 'pnpm'
   javascriptSSRRuntime = 'node'
 
 [database]

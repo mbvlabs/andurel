@@ -47,7 +47,7 @@ Andurel is built for humans and agents on the same pad:
 - **[PostgreSQL](https://www.postgresql.org/)** + **[pgx](https://github.com/jackc/pgx)**: Database
 - **[narsilc](https://github.com/mbvlabs/narsilc)**: Typed SQL with caller-owned result structs
 - **[Templ](https://templ.guide/)** + **[Datastar](https://data-star.dev/)**: Default hypermedia UI
-- **[Inertia v3](https://andurel.com/docs/latest/frontend-options)**: Optional React / Vue / Svelte + Vite
+- **[Inertia v3](https://andurel.com/docs/latest/frontend-options)**: Default React / Vue / Svelte + Vite
 - **[River](https://riverqueue.com/)**: Background jobs
 - **[OpenTelemetry](https://opentelemetry.io/)**: Observability
 - **[Tailwind CSS](https://tailwindcss.com/)**: CSS
@@ -91,13 +91,13 @@ Full install guide: [andurel.com/docs](https://andurel.com/docs/latest/installat
 ## Quick Start
 
 ```bash
-# Default: PostgreSQL + Tailwind + Templ/Datastar
+# Default: PostgreSQL + Inertia React + pnpm
 andurel new myapp
 
-# Or Inertia (append /npm, /pnpm, /bun, or /yarn for the JS package manager)
-andurel new myapp --inertia react
-andurel new myapp --inertia vue/pnpm
-andurel new myapp --inertia svelte
+# Other UI combinations
+andurel new myapp --ui vue/bun
+andurel new myapp --ui svelte/npm
+andurel new myapp --ui templ/datastar
 
 cd myapp
 andurel tool sync
@@ -106,7 +106,7 @@ andurel skill install
 cp .env.example .env
 # Edit .env with your database credentials
 
-# If using Inertia, install JS deps with the package manager chosen above
+# If using Inertia, install JS deps with the package manager from --ui
 andurel db create          # optional: if the local database does not exist yet
 andurel db migrate up
 andurel run
@@ -140,15 +140,15 @@ A new app is ordinary Go you own. Top-level shape:
 | `controllers/` | HTTP handlers |
 | `models/` | Domain types + narsilc queries |
 | `router/` | Routes and middleware |
-| `views/` | Templ pages (default) |
-| `resources/js/` | Inertia pages when `--inertia` is set |
+| `views/` | Templ pages for Datastar UI; Inertia root document when using Inertia |
+| `resources/js/` | Inertia pages (default UI) |
 | `database/` | Migrations and seeds |
 | `queue/` | River jobs and workers |
 | `css/` / `assets/` | Tailwind source and compiled assets |
 
-**Default**: Templ + Datastar hypermedia pages.
+**Default**: Inertia React + pnpm (`--ui react/pnpm`).
 
-**`--inertia vue|react|svelte`**: Same Go backend; page layer becomes an Inertia SPA with Vite. Optional `/npm|/pnpm|/bun|/yarn` selects the JS package manager (default `npm`).
+**`--ui react/pnpm|vue/bun|svelte/npm|templ/datastar`**: Same Go backend; choose Inertia + JS package manager (`pnpm`, `bun`, or `npm`), or Templ + Datastar. Generate follows the project UI; pass `--api` for JSON responses instead.
 
 Details: [directory structure](https://andurel.com/docs/latest/directory-structure) · [frontend options](https://andurel.com/docs/latest/frontend-options).
 

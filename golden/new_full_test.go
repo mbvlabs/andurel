@@ -17,7 +17,7 @@ func TestNewProjectMVC(t *testing.T) {
 	}{
 		{
 			name: "postgresql",
-			args: []string{"new", "app"},
+			args: []string{"new", "app", "--ui", "templ/datastar"},
 			dirs: []string{
 				"models",
 				"views",
@@ -26,7 +26,7 @@ func TestNewProjectMVC(t *testing.T) {
 		},
 		{
 			name: "postgresql-inertia-react",
-			args: []string{"new", "app", "--inertia", "react"},
+			args: []string{"new", "app"},
 			dirs: []string{
 				"models",
 				"controllers",
@@ -59,19 +59,19 @@ func TestNewProjectFullScaffold(t *testing.T) {
 	}{
 		{
 			name: "postgresql",
-			args: []string{"new", "app"},
+			args: []string{"new", "app", "--ui", "templ/datastar"},
 		},
 		{
 			name: "postgresql-inertia-vue",
-			args: []string{"new", "app", "--inertia", "vue"},
+			args: []string{"new", "app", "--ui", "vue/pnpm"},
 		},
 		{
 			name: "postgresql-inertia-react",
-			args: []string{"new", "app", "--inertia", "react"},
+			args: []string{"new", "app"},
 		},
 		{
 			name: "postgresql-inertia-svelte",
-			args: []string{"new", "app", "--inertia", "svelte"},
+			args: []string{"new", "app", "--ui", "svelte/pnpm"},
 		},
 	}
 

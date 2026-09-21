@@ -14,7 +14,6 @@ func newGenerateScaffoldCommand() *cobra.Command {
 		skipFactory      bool
 		tableName        string
 		primaryKeyColumn string
-		inertia          bool
 		api              bool
 		dryRun           bool
 		diff             bool
@@ -42,8 +41,8 @@ Use --api to generate a JSON API controller instead of views. The
 scaffold creates the model and an API controller under controllers/api
 with echo.JSON responses. No views are generated.
 
-Use --inertia to generate pages for the adapter recorded in andurel.lock. The
-flag requires an Inertia project and cannot be combined with --api.`,
+In Inertia projects, pages are generated for the adapter recorded in
+andurel.lock. Templ/Datastar projects get templ views instead.`,
 		Example: `  andurel generate scaffold Post
 
       Generates a full Post resource with model, CRUD controller, views, and routes.
@@ -65,11 +64,7 @@ flag requires an Inertia project and cannot be combined with --api.`,
 
   andurel generate scaffold User --table-name=people_data
 
-      Generates a User resource from the people_data table.
-
-  andurel generate scaffold admin/Widget --inertia
-
-      Generates an Inertia resource using the adapter from andurel.lock.`,
+      Generates a User resource from the people_data table.`,
 		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
@@ -93,17 +88,9 @@ flag requires an Inertia project and cannot be combined with --api.`,
 			if err != nil {
 				return err
 			}
-			if api && inertia {
-				return output.NewError(
-					output.CodeUsage,
-					"--api and --inertia cannot be used together",
-					output.ExitUsage,
-					"Choose --api for JSON responses or --inertia for frontend pages.",
-				)
-			}
 			inertiaAdapter := ""
-			if inertia {
-				inertiaAdapter, err = configuredInertiaAdapter(rootDir)
+			if !api {
+				inertiaAdapter, err = projectUIAdapter(rootDir)
 				if err != nil {
 					return err
 				}
@@ -153,14 +140,12 @@ flag requires an Inertia project and cannot be combined with --api.`,
 	cmd.Flags().
 		StringVar(&primaryKeyColumn, "primary-key", "", "Specify the primary key column (skips interactive detection)")
 	cmd.Flags().BoolVar(&api, "api", false, "Generate a JSON API controller under controllers/api")
-	cmd.Flags().
-		BoolVar(&inertia, "inertia", false, "Generate Inertia views using the adapter configured in andurel.lock")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview file changes without applying")
 	cmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
 	setAgentMetadata(
 		cmd,
 		"generation",
-		"Defaults to Templ. Pass --inertia only when project info reports a supported scaffold_config.inertia adapter; --api and --inertia are mutually exclusive.",
+		"Follows project UI from andurel.lock (Inertia pages or Templ). --api is mutually exclusive with UI page generation.",
 	)
 
 	return cmd

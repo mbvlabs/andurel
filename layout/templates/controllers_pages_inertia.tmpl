@@ -6,9 +6,7 @@ import (
 
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/routes"
-	"{{.ModuleName}}/views"
 
-	"github.com/mbvlabs/andurel/pkg/hypermedia"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 
 	"github.com/labstack/echo/v5"
@@ -51,7 +49,12 @@ func (p Pages) RegisterRoutes(r *router.Router) error {
 }
 
 func (p Pages) Home(etx *echo.Context) error {
-	return hypermedia.RenderPage(etx, views.Welcome{}.Page())
+	return p.renderer.Page(etx, "Welcome", inertia.Props{
+		"appName":         "{{.AppName}}",
+		"docsURL":         "https://andurel.com",
+		"registrationURL": routes.RegistrationNew.URL(),
+		"loginURL":        routes.SessionNew.URL(),
+	}).Render()
 }
 
 func (p Pages) NotFound(etx *echo.Context) error {

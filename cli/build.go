@@ -221,7 +221,7 @@ func (c shellCommand) String() string {
 
 func inertiaPackageManagerCommands(runtime string) (shellCommand, shellCommand, error) {
 	if runtime == "" {
-		runtime = "npm"
+		runtime = "pnpm"
 	}
 
 	switch runtime {
@@ -237,13 +237,9 @@ func inertiaPackageManagerCommands(runtime string) (shellCommand, shellCommand, 
 		return shellCommand{Name: "bun", Args: []string{"install", "--frozen-lockfile"}},
 			shellCommand{Name: "bun", Args: []string{"run", "build"}},
 			nil
-	case "yarn":
-		return shellCommand{Name: "yarn", Args: []string{"install", "--frozen-lockfile"}},
-			shellCommand{Name: "yarn", Args: []string{"build"}},
-			nil
 	default:
 		return shellCommand{}, shellCommand{}, fmt.Errorf(
-			"invalid JavaScript package manager in andurel.lock: %s - valid options are 'npm', 'pnpm', 'bun', 'yarn'",
+			"invalid JavaScript package manager in andurel.lock: %s - valid options are 'pnpm', 'bun', 'npm'",
 			runtime,
 		)
 	}

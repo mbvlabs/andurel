@@ -644,8 +644,8 @@ func TestDownloadFromLockToolRejectsMissingAndUnsupportedPlatformDigests(t *test
 
 func TestNewProjectValidatesInertiaAndBuildsReports(t *testing.T) {
 	cmd := newProjectCommand("test")
-	if err := cmd.Flags().Set("inertia", "angular"); err != nil {
-		t.Fatalf("set inertia: %v", err)
+	if err := cmd.Flags().Set("ui", "angular/pnpm"); err != nil {
+		t.Fatalf("set ui: %v", err)
 	}
 	if err := newProject(
 		cmd,
@@ -654,13 +654,13 @@ func TestNewProjectValidatesInertiaAndBuildsReports(t *testing.T) {
 		true,
 		false,
 	); err == nil ||
-		!strings.Contains(err.Error(), "invalid inertia adapter") {
-		t.Fatalf("expected invalid inertia adapter, got %v", err)
+		!strings.Contains(err.Error(), "invalid --ui adapter") {
+		t.Fatalf("expected invalid --ui adapter, got %v", err)
 	}
 
 	cmd = newProjectCommand("test")
-	if err := cmd.Flags().Set("inertia", "vue/deno"); err != nil {
-		t.Fatalf("set inertia runtime: %v", err)
+	if err := cmd.Flags().Set("ui", "vue/deno"); err != nil {
+		t.Fatalf("set ui runtime: %v", err)
 	}
 	if err := newProject(
 		cmd,
@@ -669,8 +669,8 @@ func TestNewProjectValidatesInertiaAndBuildsReports(t *testing.T) {
 		true,
 		false,
 	); err == nil ||
-		!strings.Contains(err.Error(), "invalid JavaScript package manager") {
-		t.Fatalf("expected invalid runtime, got %v", err)
+		!strings.Contains(err.Error(), "invalid --ui package manager") {
+		t.Fatalf("expected invalid --ui package manager, got %v", err)
 	}
 
 	root := t.TempDir()

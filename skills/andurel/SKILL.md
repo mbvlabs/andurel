@@ -103,17 +103,17 @@ Generate Inertia payload types:
 andurel sync payloads --json
 ```
 
-`andurel sync payloads` scans controller `inertia.FromStruct` and named Bind structs and writes `resources/js/types/payloads.ts`. Import page and form types from that file instead of hand-written or catalog-derived TypeScript. Run it after editing those Go structs. `generate controller --inertia` and `generate scaffold --inertia` refresh the same file.
+`andurel sync payloads` scans controller `inertia.FromStruct` and named Bind structs and writes `resources/js/types/payloads.ts`. Import page and form types from that file instead of hand-written or catalog-derived TypeScript. Run it after editing those Go structs. `generate controller` and `generate scaffold` refresh the same file in Inertia projects.
 
-Generate an Inertia resource:
+Generate an Inertia resource (follows project UI from `andurel.lock`):
 
 ```bash
 andurel inspect project --jq .scaffold_config.inertia
-andurel generate scaffold Product --inertia --dry-run --json
-andurel generate scaffold Product --inertia --json
+andurel generate scaffold Product --dry-run --json
+andurel generate scaffold Product --json
 ```
 
-Controller and scaffold generation defaults to Templ even in an Inertia project. Pass `--inertia` explicitly when the generated views should be frontend pages. Do not combine `--inertia` with `--api`; choose either Inertia pages or JSON responses.
+Controller and scaffold generation follow the project UI (Inertia pages in Inertia projects, Templ in Datastar projects). Pass `--api` for JSON responses instead of UI pages.
 
 Add a narsilc query:
 

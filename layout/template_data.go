@@ -124,7 +124,7 @@ func IsSupportedInertiaAdapter(adapter string) bool {
 // JavaScript package manager.
 func IsSupportedJavaScriptRuntime(runtime string) bool {
 	switch runtime {
-	case "npm", "pnpm", "bun", "yarn":
+	case "npm", "pnpm", "bun":
 		return true
 	default:
 		return false
