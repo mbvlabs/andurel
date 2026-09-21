@@ -12,9 +12,9 @@ import (
 	"app/router"
 	"app/router/routes"
 
+	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
-	"github.com/labstack/echo/v5"
 )
 
 const threeMonthsCache = "7776000"
@@ -138,7 +138,7 @@ func (a Assets) Robots(etx *echo.Context) error {
 			"failed to get robots.txt from cache",
 			"error", err,
 		)
-	return etx.String(http.StatusOK, createRobotsTxt(a.appCfg.BaseURL))
+		return etx.String(http.StatusOK, createRobotsTxt(a.appCfg.BaseURL))
 	}
 
 	return etx.String(http.StatusOK, robotsTxt)
@@ -244,5 +244,3 @@ func (a Assets) Script(etx *echo.Context) error {
 	etx = a.enableCaching(etx, stylesheet)
 	return etx.Blob(http.StatusOK, "application/javascript", stylesheet)
 }
-
-

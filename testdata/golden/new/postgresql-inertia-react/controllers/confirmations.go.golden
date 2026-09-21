@@ -85,11 +85,11 @@ func (c Confirmations) Create(etx *echo.Context) error {
 	)
 	if err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-		return c.renderer.Page(
-			etx,
-			"Auth/ConfirmEmail",
-			inertia.Props{},
-		).ValidationErrors(validationErrors.ToMap()).Render()
+			return c.renderer.Page(
+				etx,
+				"Auth/ConfirmEmail",
+				inertia.Props{},
+			).ValidationErrors(validationErrors.ToMap()).Render()
 		}
 
 		telemetry.Error(
