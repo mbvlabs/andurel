@@ -683,6 +683,9 @@ func TestSyncToolsToFrameworkVersion_UpdatesBuiltToolPathAndVersion(t *testing.T
 	if templ.Version != expected.Version {
 		t.Fatalf("templ version = %q, want %q", templ.Version, expected.Version)
 	}
+	if templ.Download == nil {
+		t.Fatal("expected legacy path-based templ to gain download metadata")
+	}
 	if len(result.Updated) == 0 {
 		t.Fatal("expected built tool update to be reported")
 	}

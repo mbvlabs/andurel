@@ -104,7 +104,7 @@ func TestCollectProjectInfo(t *testing.T) {
 		info.AndurelVersion != "v1.2.3" {
 		t.Fatalf("unexpected project identity: %#v", info)
 	}
-	if info.ScaffoldConfig == nil || info.ScaffoldConfig.JavaScriptRuntime != "pnpm" {
+	if info.ScaffoldConfig == nil || info.ScaffoldConfig.PackageManager() != "pnpm" {
 		t.Fatalf("missing scaffold config: %#v", info.ScaffoldConfig)
 	}
 	if info.DatabaseConfig == nil ||
