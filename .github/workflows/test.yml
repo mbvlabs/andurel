@@ -44,13 +44,13 @@ jobs:
         go vet ./...
         ./scripts/vet-standalone-modules.sh
 
-    - name: Run unit tests
-      run: go test $(go list ./... | grep -v '/golden$') -count=1
+    - name: Run unit tests with race detection
+      run: go test $(go list ./... | grep -v '/golden$') -race -count=1
 
     - name: Run golden CLI tests
       run: go test ./golden/... -v -timeout 15m
 
-    - name: Run unit tests with coverage
+    - name: Collect coverage
       continue-on-error: true
       run: ./scripts/coverage.sh
 

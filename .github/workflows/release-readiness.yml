@@ -18,7 +18,7 @@ jobs:
   readiness:
     name: Release Readiness
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
     permissions:
       contents: read
 
@@ -84,7 +84,10 @@ jobs:
       - name: Run pinned vulnerability scan
         run: govulncheck ./...
 
-      - name: Run unit tests with race detection and report coverage
+      - name: Run unit tests with race detection
+        run: go test $(go list ./... | grep -v '/golden$') -race -count=1
+
+      - name: Collect coverage
         continue-on-error: true
         run: ./scripts/coverage.sh
 
@@ -98,8 +101,10 @@ jobs:
           flags: unit
           fail_ci_if_error: false
 
-      - name: Run golden CLI tests
-        run: go test ./golden/... -v -timeout 15m
+      - name: Run golden CLI tests (generate + sync + full scaffold)
+        env:
+          ANDUREL_GOLDEN_FULL: "1"
+        run: go test ./golden/... -v -timeout 45m
 
       - name: Upload golden failure artifacts
         if: failure()

@@ -1,0 +1,41 @@
+package controllers
+
+import (
+	"errors"
+	"net/http"
+
+	"example.com/app/router"
+	"example.com/app/router/routes"
+
+	"example.com/app/views"
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+
+	"github.com/labstack/echo/v5"
+)
+
+type Widgets struct{}
+
+func NewWidgets() Widgets {
+	return Widgets{}
+}
+
+func (w Widgets) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetExport.Path(),
+		Name:    routes.WidgetExport.Name(),
+		Handler: w.Export,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+func (w Widgets) Export(etx *echo.Context) error {
+	return hypermedia.RenderPage(etx, views.WidgetExport())
+}

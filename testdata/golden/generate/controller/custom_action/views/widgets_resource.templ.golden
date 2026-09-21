@@ -1,0 +1,9 @@
+package views
+
+templ WidgetExport() {
+	<div class="p-6">
+		<h1 class="text-2xl font-semibold">Widget#Export</h1>
+		<p class="text-sm text-base-content/60 mt-2">Content for this action has not been implemented yet.</p>
+	</div>
+}
+

@@ -49,7 +49,7 @@ test:
 test-coverage:
 	./scripts/coverage.sh
 
-# Run golden CLI tests (PR track: generate + sync)
+# Run golden CLI tests (PR track: generate + sync + slim new MVC)
 test-golden: install-dev-tools
 	go test ./golden/... -v -timeout 15m
 
@@ -93,7 +93,7 @@ ci:
 install-dev-tools:
 	./scripts/install-dev-tools.sh
 
-# Update PR golden files under testdata/golden (generate + sync)
+# Update PR golden files under testdata/golden (generate + sync + slim new)
 update-golden: install-dev-tools
 	go clean -testcache
 	go test ./golden/... -v -timeout 15m -update

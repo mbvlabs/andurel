@@ -4,25 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/internal/goldentest"
 )
-
-const dummyMigrationBody = `-- +goose Up
--- +goose StatementBegin
-CREATE TABLE widgets (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL
-);
--- +goose StatementEnd
-
--- +goose Down
--- +goose StatementBegin
-DROP TABLE widgets;
--- +goose StatementEnd
-`
 
 const dummyProjectEnv = `DB_KIND=postgres
 DB_HOST=127.0.0.1
@@ -32,6 +19,8 @@ DB_USER=postgres
 DB_PASSWORD=postgres
 DB_SSL_MODE=disable
 `
+
+var generatedMigrationName = regexp.MustCompile(`^migrations/\d{14}_[a-z0-9_]+\.sql$`)
 
 func TestGenerateMigration(t *testing.T) {
 	goldentest.RequireBinary(t)
@@ -48,9 +37,9 @@ func TestGenerateMigration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// goose create emits empty Up/Down stubs. Seed a dummy CREATE TABLE so the
-	// golden locks a representative migration body plus the CLI filename pattern.
-	goldentest.WriteProjectFile(t, project, rel, dummyMigrationBody)
+	if !generatedMigrationName.MatchString(rel) {
+		t.Fatalf("migration path %q does not match goose timestamp pattern", rel)
+	}
 
 	g := goldentest.NewGoldie(t)
 	goldentest.AssertFile(

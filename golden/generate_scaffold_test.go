@@ -121,6 +121,8 @@ func TestGenerateScaffold(t *testing.T) {
 				"resources/js/Pages/Project/Show.vue",
 				"resources/js/Pages/Project/Create.vue",
 				"resources/js/Pages/Project/Edit.vue",
+				"resources/js/routes.ts",
+				"resources/js/types/payloads.ts",
 			},
 			missing: []string{
 				"views/projects_resource.templ",

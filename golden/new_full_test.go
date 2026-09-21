@@ -7,6 +7,48 @@ import (
 	"github.com/mbvlabs/andurel/internal/goldentest"
 )
 
+func TestNewProjectMVC(t *testing.T) {
+	goldentest.RequireBinary(t)
+
+	scenarios := []struct {
+		name string
+		args []string
+		dirs []string
+	}{
+		{
+			name: "postgresql",
+			args: []string{"new", "app"},
+			dirs: []string{
+				"models",
+				"views",
+				"controllers",
+			},
+		},
+		{
+			name: "postgresql-inertia-react",
+			args: []string{"new", "app", "--inertia", "react"},
+			dirs: []string{
+				"models",
+				"controllers",
+				"resources/js/Pages",
+			},
+		},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			parent := t.TempDir()
+			goldentest.RunCLI(t, parent, scenario.args...)
+
+			project := filepath.Join(parent, "app")
+			g := goldentest.NewGoldie(t)
+			for _, dir := range scenario.dirs {
+				goldentest.AssertDir(t, g, "new/"+scenario.name, project, dir)
+			}
+		})
+	}
+}
+
 func TestNewProjectFullScaffold(t *testing.T) {
 	goldentest.RequireBinary(t)
 	goldentest.RequireFullScaffold(t)

@@ -41,9 +41,8 @@ jobs:
           ANDUREL_GOLDEN_FULL: "1"
         run: go test ./golden/... -v -timeout 45m
 
-      - name: Run unit tests with coverage
-        continue-on-error: true
-        run: ./scripts/coverage.sh
+      - name: Run unit tests with race detection
+        run: go test $(go list ./... | grep -v '/golden$') -race -count=1
 
       - name: Notify on failure
         if: failure()

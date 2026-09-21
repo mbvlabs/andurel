@@ -77,6 +77,18 @@ func TestGenerateController(t *testing.T) {
 			},
 		},
 		{
+			name: "custom_action",
+			steps: []generateStep{
+				{args: []string{"generate", "controller", "Widget", "export"}},
+			},
+			capture: []string{
+				"controllers/widgets.go",
+				"router/routes/widgets.go",
+				"views/widgets_resource.templ",
+				"controllers/controller.go",
+			},
+		},
+		{
 			name: "namespaced",
 			steps: []generateStep{
 				modelStep,
