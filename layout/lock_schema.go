@@ -24,6 +24,8 @@ func isSupportedChecksumPlatform(platform string) bool {
 	return slices.Contains(requiredChecksumPlatforms, platform)
 }
 
+// decodeAndValidateLock parses a legacy JSON lock document for tests that still
+// exercise the old schema helpers. V2 project IO uses andurel.toml + TOML digests.
 func decodeAndValidateLock(data []byte) (*AndurelLock, error) {
 	var header struct {
 		SchemaVersion *int `json:"schemaVersion"`
@@ -87,6 +89,10 @@ func validateSchema1Lock(lock *AndurelLock) error {
 		if manager := lock.ScaffoldConfig.PackageManager(); manager != "" &&
 			!IsSupportedJavaScriptRuntime(manager) {
 			return fmt.Errorf("scaffoldConfig.javascriptPackageManager is invalid")
+		}
+		if runtime := strings.TrimSpace(lock.ScaffoldConfig.JavaScriptSSRRuntime); runtime != "" &&
+			!IsSupportedJavaScriptSSRRuntime(runtime) {
+			return fmt.Errorf("scaffoldConfig.javascriptSSRRuntime is invalid")
 		}
 	}
 	if lock.DatabaseConfig == nil {

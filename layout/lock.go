@@ -2,7 +2,6 @@ package layout
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"maps"
 	"os"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/mbvlabs/andurel/layout/versions"
+	toml "github.com/pelletier/go-toml/v2"
 )
 
 // AndurelLock is the serialized project lock file for tools.
@@ -50,6 +50,7 @@ type ScaffoldConfig struct {
 	Inertia                  string `json:"inertia,omitempty"`
 	JavaScriptPackageManager string `json:"javascriptPackageManager,omitempty"`
 	JavaScriptRuntime        string `json:"javascriptRuntime,omitempty"` // Deprecated: use JavaScriptPackageManager.
+	JavaScriptSSRRuntime     string `json:"javascriptSSRRuntime,omitempty"`
 }
 
 // DatabaseEngine returns the configured SQL engine after legacy migration.
@@ -127,10 +128,10 @@ var defaultToolDownloads = map[string]ToolDownload{
 		Archive:     "tar.gz",
 		BinaryName:  "narsilc",
 		SHA256: map[string]string{
-			"linux/amd64":  "78696b25b7b8895c0776e462a38f051a784511bd5b5f04872cea565500daaec8",
-			"linux/arm64":  "101a35274a25edeb1b4994a56d628f0a2b123cc2c5cbe7554705a59a1b60c16d",
-			"darwin/amd64": "ee44c2e929811bb206bfa6fa2d185df9a899013c75da08dc487572b79cb0dd17",
-			"darwin/arm64": "052ea301dd8aaacc095f60c132ffce1997917261cdc100700526fed32ca181d4",
+			"linux/amd64":  "0b57f97ecf4813bc60e361cd5cd5dc806b41bb434defd7cb399754f11d7c1c66",
+			"linux/arm64":  "9d30975cea87055225d825772796b2faf31755a97ce10e6af2bf499fe08b4e18",
+			"darwin/amd64": "1b2da14468a5e4b11b4acd18b6748fe9c0c7de897782f84253ad09c268241dc8",
+			"darwin/arm64": "b8d9f53701fd9b3f3e428ad8d9632e9875d21dd8c3463a1807c93618df4a1994",
 		},
 	},
 	"templ": {
@@ -313,26 +314,42 @@ func (l *AndurelLock) AddTool(name string, tool *Tool) {
 	l.Tools[name] = tool
 }
 
-// WriteLockFile writes andurel.lock into the target directory.
-func (l *AndurelLock) WriteLockFile(targetDir string) error {
+// EncodeProjectFiles returns the andurel.toml and andurel.lock encodings for l.
+func (l *AndurelLock) EncodeProjectFiles() (tomlData, lockData []byte, err error) {
 	if err := validateSchema1Lock(l); err != nil {
-		return fmt.Errorf("failed to validate lock file: %w", err)
+		return nil, nil, fmt.Errorf("failed to validate lock file: %w", err)
 	}
+	tomlDoc, err := lockToProjectToml(l)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build project manifest: %w", err)
+	}
+	tomlData, err = encodeProjectToml(tomlDoc)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal %s: %w", ProjectTomlName, err)
+	}
+	lockData, err = encodeProjectLock(lockToProjectLock(l))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal %s: %w", ProjectLockName, err)
+	}
+	return tomlData, lockData, nil
+}
+
+// WriteLockFile writes andurel.toml (manifest) and andurel.lock (digests).
+func (l *AndurelLock) WriteLockFile(targetDir string) error {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
-	lockPath := filepath.Join(absTargetDir, "andurel.lock")
 
-	data, err := json.MarshalIndent(l, "", "  ")
+	tomlData, lockData, err := l.EncodeProjectFiles()
 	if err != nil {
-		return fmt.Errorf("failed to marshal lock file: %w", err)
+		return err
 	}
-
-	data = append(data, '\n')
-
-	if err := os.WriteFile(lockPath, data, 0o644); err != nil {
-		return fmt.Errorf("failed to write lock file: %w", err)
+	if err := os.WriteFile(projectTomlPath(absTargetDir), tomlData, 0o644); err != nil {
+		return fmt.Errorf("failed to write %s: %w", ProjectTomlName, err)
+	}
+	if err := os.WriteFile(projectLockPath(absTargetDir), lockData, 0o644); err != nil {
+		return fmt.Errorf("failed to write %s: %w", ProjectLockName, err)
 	}
 
 	return nil
@@ -496,24 +513,59 @@ func downloadToolBinary(name string, tool *Tool, goos, goarch, destPath string) 
 	return fmt.Errorf("tool has no download metadata")
 }
 
-// ReadLockFile reads lock file.
+// ReadLockFile reads andurel.toml plus digest-only andurel.lock.
 func ReadLockFile(targetDir string) (*AndurelLock, error) {
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	lockPath := filepath.Join(absTargetDir, "andurel.lock")
-
-	data, err := os.ReadFile(lockPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read lock file: %w", err)
+	lockPath := projectLockPath(absTargetDir)
+	lockData, lockErr := os.ReadFile(lockPath)
+	if lockErr == nil {
+		if err := rejectLegacyJSONLock(absTargetDir, lockData); err != nil {
+			return nil, err
+		}
 	}
 
-	lock, err := decodeAndValidateLock(data)
+	tomlPath := projectTomlPath(absTargetDir)
+	tomlData, err := os.ReadFile(tomlPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse lock file: %w", err)
+		if lockErr == nil && looksLikeJSONLock(lockData) {
+			return nil, fmt.Errorf(
+				"V2 projects require %s; found legacy JSON %s without a manifest — recreate with andurel new or migrate manually",
+				ProjectTomlName,
+				ProjectLockName,
+			)
+		}
+		return nil, fmt.Errorf("failed to read %s: %w", ProjectTomlName, err)
 	}
 
+	var tomlDoc projectTomlFile
+	if err := toml.Unmarshal(tomlData, &tomlDoc); err != nil {
+		return nil, fmt.Errorf("failed to parse %s: %w", ProjectTomlName, err)
+	}
+
+	var digestDoc projectLockFile
+	if lockErr != nil {
+		if !os.IsNotExist(lockErr) {
+			return nil, fmt.Errorf("failed to read %s: %w", ProjectLockName, lockErr)
+		}
+	} else {
+		if looksLikeJSONLock(lockData) {
+			return nil, fmt.Errorf(
+				"%s must be the TOML digest lock; found legacy JSON — recreate with andurel new",
+				ProjectLockName,
+			)
+		}
+		if err := toml.Unmarshal(lockData, &digestDoc); err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %w", ProjectLockName, err)
+		}
+	}
+
+	lock, err := assembleLockFromProjectFiles(tomlDoc, digestDoc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to assemble project files: %w", err)
+	}
 	return lock, nil
 }

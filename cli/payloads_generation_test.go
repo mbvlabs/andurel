@@ -488,12 +488,8 @@ func setupPayloadsProject(t *testing.T, inertia string) string {
 			NullType: layout.NullTypePGType,
 		},
 	}
-	lockData, err := json.MarshalIndent(lock, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal lock: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(rootDir, "andurel.lock"), append(lockData, '\n'), 0o644); err != nil {
-		t.Fatalf("write lock: %v", err)
+	if err := lock.WriteLockFile(rootDir); err != nil {
+		t.Fatalf("write project files: %v", err)
 	}
 	return rootDir
 }

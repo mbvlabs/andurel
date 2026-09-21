@@ -279,12 +279,12 @@ func TestVersionedInertiaUpgradeEmbedsExistingRoot(t *testing.T) {
 	if lockData := mustReadProjectFile(
 		t,
 		root,
-		"andurel.lock",
+		layout.ProjectTomlName,
 	); bytes.Contains(
 		lockData,
 		[]byte("inertiaRoot"),
 	) {
-		t.Fatalf("upgraded lock contains removed inertiaRoot field:\n%s", lockData)
+		t.Fatalf("upgraded project contains removed inertiaRoot field:\n%s", lockData)
 	}
 
 	goMod := string(mustReadProjectFile(t, root, "go.mod"))
@@ -596,11 +596,9 @@ func newUpgradeFixtureProjectWithConfig(t *testing.T, config layout.ScaffoldConf
 		ScaffoldConfig: &config,
 		DatabaseConfig: &layout.DatabaseConfig{Engine: layout.DatabaseEnginePostgreSQL, NullType: layout.NullTypePGType},
 	}
-	lockContent, err := json.MarshalIndent(lock, "", "  ")
-	if err != nil {
+	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatal(err)
 	}
-	mustWriteTestFile(t, root, "andurel.lock", append(lockContent, '\n'))
 	if config.Inertia != "" {
 		mustWriteTestFile(
 			t,
@@ -685,21 +683,14 @@ func mustReadProjectFile(t *testing.T, root, path string) []byte {
 
 func addCustomToolToLock(t *testing.T, root string) {
 	t.Helper()
-	var object map[string]any
-	if err := json.Unmarshal(mustReadProjectFile(t, root, "andurel.lock"), &object); err != nil {
-		t.Fatal(err)
-	}
-	tools := object["tools"].(map[string]any)
-	tools["user-tool"] = map[string]any{
-		"version":      "v9.9.9",
-		"path":         "cmd/user-tool/main.go",
-		"versionCheck": map[string]any{"args": []any{"--version"}},
-	}
-	content, err := json.MarshalIndent(object, "", "  ")
+	lock, err := layout.ReadLockFile(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	mustWriteTestFile(t, root, "andurel.lock", append(content, '\n'))
+	lock.Tools["user-tool"] = layout.NewBuiltTool("cmd/user-tool/main.go", "v9.9.9")
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func snapshotUpgradeTree(t *testing.T, root string) map[string][]byte {
@@ -765,7 +756,7 @@ func assertUpgradeOutcome(t *testing.T, root string) {
 	if lockData := mustReadProjectFile(
 		t,
 		root,
-		"andurel.lock",
+		layout.ProjectTomlName,
 	); bytes.Contains(
 		lockData,
 		[]byte("inertiaRoot"),

@@ -58,6 +58,7 @@ func Scaffold(
 		RunToolVersion:       GetRunToolVersion(),
 		FrameworkVersion:     normalizeFrameworkVersion(version),
 		Inertia:              inertia,
+		JavaScriptSSRRuntime: "node",
 		blueprint:            blueprint,
 	}
 
@@ -86,11 +87,12 @@ func Scaffold(
 		return fmt.Errorf("failed to process migrations: %w", err)
 	}
 
-	fmt.Print("Generating andurel.lock file...\n")
+	fmt.Print("Generating andurel.toml and andurel.lock...\n")
 	scaffoldConfig := &ScaffoldConfig{
 		ProjectName:              projectName,
 		Inertia:                  inertia,
 		JavaScriptPackageManager: javascriptRuntime,
+		JavaScriptSSRRuntime:     "node",
 	}
 	if err := generateLockFile(targetDir, version, scaffoldConfig, database); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)

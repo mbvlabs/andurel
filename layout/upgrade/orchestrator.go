@@ -191,7 +191,7 @@ func (u *Upgrader) validatePreconditions() error {
 	}
 
 	if u.lock == nil {
-		return fmt.Errorf("andurel.lock file not found or invalid")
+		return fmt.Errorf("andurel.toml / andurel.lock not found or invalid")
 	}
 
 	if u.lock.Version == "" {
@@ -264,7 +264,7 @@ func printUpgradeSuccess(writer io.Writer, report *UpgradeReport) {
 
 	lockChanged := report.FromVersion != report.ToVersion || hasToolChanges(report)
 	if lockChanged {
-		output.println("✓ Updated andurel.lock")
+		output.println("✓ Updated andurel.toml and andurel.lock")
 	}
 	printManualActions(output, report.ManualActions)
 	if len(report.ReplacedFiles) == 0 && len(report.RemovedFiles) == 0 && !lockChanged {
@@ -293,7 +293,7 @@ func printUpgradeDryRun(writer io.Writer, report *UpgradeReport) {
 	}
 	printToolChanges(output, report, true)
 	if report.FromVersion != report.ToVersion || hasToolChanges(report) {
-		output.println("\n[DRY RUN] Would update andurel.lock")
+		output.println("\n[DRY RUN] Would update andurel.toml and andurel.lock")
 	}
 	printManualActions(output, report.ManualActions)
 }
@@ -436,8 +436,8 @@ func syncTools(lock *layout.AndurelLock) (*ToolSyncResult, error) {
 			)
 		} else if shouldUpdateTool(existingTool, expectedTool) {
 			// Tool exists but needs update
-			if existingTool.Path != "" {
-				// Update version and path for built tools
+			if expectedTool.Path != "" {
+				// Built / path-based tools keep a project-relative Path.
 				existingTool.Version = expectedTool.Version
 				existingTool.Path = expectedTool.Path
 				result.Updated = append(
@@ -445,8 +445,10 @@ func syncTools(lock *layout.AndurelLock) (*ToolSyncResult, error) {
 					fmt.Sprintf("%s: %s", toolName, expectedTool.Version),
 				)
 			} else {
-				// Update version and source metadata for versioned tools.
+				// Versioned download tools. Clear any legacy Path so validation
+				// sees download metadata rather than an empty path.
 				existingTool.Version = expectedTool.Version
+				existingTool.Path = ""
 				existingTool.Source = expectedTool.Source
 				existingTool.Download = expectedTool.Download
 				existingTool.VersionCheck = expectedTool.VersionCheck

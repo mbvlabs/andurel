@@ -13,7 +13,7 @@ const (
 	DefaultInertiaContainerID         = "app"
 	DefaultInertiaViteDevURL          = "http://localhost:5173/assets/dist"
 	DefaultInertiaProtocolDebug       = true
-	DefaultInertiaSSRRuntime          = "node"
+	DefaultInertiaSSRRuntime          = "{{if .JavaScriptSSRRuntime}}{{.JavaScriptSSRRuntime}}{{else}}node{{end}}"
 	DefaultInertiaSSRBundle           = "assets/dist/ssr/ssr.js"
 	DefaultInertiaSSRListen           = "http://127.0.0.1:13714"
 	DefaultInertiaSSRURL              = "http://127.0.0.1:13714"

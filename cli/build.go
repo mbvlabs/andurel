@@ -56,7 +56,7 @@ This command:
 func buildApp(rootDir string, versionFlag string) error {
 	lock, err := layout.ReadLockFile(rootDir)
 	if err != nil {
-		return fmt.Errorf("failed to read andurel.lock: %w", err)
+		return fmt.Errorf("failed to read andurel.toml: %w", err)
 	}
 
 	binDir := filepath.Join(rootDir, "bin")

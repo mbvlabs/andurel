@@ -238,7 +238,7 @@ func TestCompileEmailProjectDefaultsTailwindAndReportsCompilerErrors(t *testing.
 func TestCompileEmailProjectRequiresLockFile(t *testing.T) {
 	resetCLITestSeams(t)
 	err := compileEmailProject(context.Background(), t.TempDir())
-	if err == nil || !strings.Contains(err.Error(), "failed to read andurel.lock") {
+	if err == nil || !strings.Contains(err.Error(), "failed to read andurel.toml") {
 		t.Fatalf("compileEmailProject error = %v, want lock failure", err)
 	}
 }
@@ -273,7 +273,7 @@ func TestEmailCompileCommandReportsProjectErrors(t *testing.T) {
 			command,
 			nil,
 		); err == nil ||
-			!strings.Contains(err.Error(), "failed to read andurel.lock") {
+			!strings.Contains(err.Error(), "failed to read andurel.toml") {
 			t.Fatalf("RunE error = %v, want project compile failure", err)
 		}
 	})
