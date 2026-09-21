@@ -12,7 +12,7 @@ func TestLintCommandPinsVersionAndDeterministicConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve repository root: %v", err)
 	}
-	script, err := os.ReadFile(filepath.Join(root, "scripts", "lint.sh"))
+	justfile, err := os.ReadFile(filepath.Join(root, "justfile"))
 	if err != nil {
 		t.Fatalf("read lint command: %v", err)
 	}
@@ -27,7 +27,7 @@ func TestLintCommandPinsVersionAndDeterministicConfiguration(t *testing.T) {
 		"GOCACHE=",
 		"golangci-lint run --config .golangci.yml",
 	} {
-		if !strings.Contains(string(script), required) {
+		if !strings.Contains(string(justfile), required) {
 			t.Fatalf("lint command missing %q", required)
 		}
 	}
