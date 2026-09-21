@@ -18,7 +18,7 @@ require (
 	github.com/mbvlabs/andurel/pkg/storage v0.8.0
 	github.com/mbvlabs/andurel/pkg/telemetry v0.1.0
 	github.com/mbvlabs/andurel/pkg/validation v0.1.4
-	github.com/mbvlabs/narsilc v0.4.3
+	github.com/mbvlabs/narsilc v0.4.4
 	github.com/riverqueue/river v0.40.0
 	go.uber.org/fx v1.24.0
 	golang.org/x/crypto v0.55.0

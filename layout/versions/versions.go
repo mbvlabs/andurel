@@ -21,9 +21,9 @@ const (
 	// Shadowfax is the default Shadowfax runner version.
 	Shadowfax = "v0.11.1"
 	// Narsilc is the default narsilc tool version.
-	Narsilc = "v0.4.3"
+	Narsilc = "v0.4.4"
 	// NarsilcModule is the Go module version required by generated query code.
-	NarsilcModule = "v0.4.3"
+	NarsilcModule = "v0.4.4"
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
 	Hypermedia = "v0.2.5"
 	// Kiks is the standalone Andurel cookies and sessions module version verified with this framework.

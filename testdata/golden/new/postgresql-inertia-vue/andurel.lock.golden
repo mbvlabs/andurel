@@ -72,27 +72,27 @@
 
 [[hashes]]
   tool = 'narsilc'
-  version = 'v0.4.3'
+  version = 'v0.4.4'
   platform = 'linux/amd64'
-  sha256 = '78696b25b7b8895c0776e462a38f051a784511bd5b5f04872cea565500daaec8'
+  sha256 = '0b57f97ecf4813bc60e361cd5cd5dc806b41bb434defd7cb399754f11d7c1c66'
 
 [[hashes]]
   tool = 'narsilc'
-  version = 'v0.4.3'
+  version = 'v0.4.4'
   platform = 'linux/arm64'
-  sha256 = '101a35274a25edeb1b4994a56d628f0a2b123cc2c5cbe7554705a59a1b60c16d'
+  sha256 = '9d30975cea87055225d825772796b2faf31755a97ce10e6af2bf499fe08b4e18'
 
 [[hashes]]
   tool = 'narsilc'
-  version = 'v0.4.3'
+  version = 'v0.4.4'
   platform = 'darwin/amd64'
-  sha256 = 'ee44c2e929811bb206bfa6fa2d185df9a899013c75da08dc487572b79cb0dd17'
+  sha256 = '1b2da14468a5e4b11b4acd18b6748fe9c0c7de897782f84253ad09c268241dc8'
 
 [[hashes]]
   tool = 'narsilc'
-  version = 'v0.4.3'
+  version = 'v0.4.4'
   platform = 'darwin/arm64'
-  sha256 = '052ea301dd8aaacc095f60c132ffce1997917261cdc100700526fed32ca181d4'
+  sha256 = 'b8d9f53701fd9b3f3e428ad8d9632e9875d21dd8c3463a1807c93618df4a1994'
 
 [[hashes]]
   tool = 'shadowfax'
