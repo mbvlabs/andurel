@@ -98,8 +98,9 @@ func Scaffold(
 
 	// Golden CLI builds already seed secrets and migration timestamps via
 	// testseed. PR goldens skip network-bound post-scaffold steps so
-	// `andurel new` stays offline. Nightly full-tree goldens call RunCLIFull
-	// so templ, narsilc, go fmt, and tidy still run.
+	// `andurel new` stays offline. Compiled views (*_templ.go) and narsilc
+	// query packages are written from embeds above; nightly full-tree goldens
+	// call RunCLIFull so goose fix, go fmt, and tidy still run.
 	// See internal/testseed and testdata/golden/README.md.
 	if testseed.Enabled() && !testseed.FullScaffold() {
 		return nil
@@ -114,22 +115,6 @@ func Scaffold(
 			"fix",
 			"run 'andurel tool sync' then 'goose -dir migrations fix' after sync",
 		)
-	}
-
-	fmt.Print("Running templ generate...\n")
-	if err := cmds.RunTemplGenerate(targetDir); err != nil {
-		slog.Error(
-			"failed to run templ generate",
-			"error",
-			err,
-			"fix",
-			"run 'andurel template generate' after sync",
-		)
-	}
-
-	fmt.Print("Running narsilc generate...\n")
-	if err := cmds.RunNarsilcGenerate(targetDir); err != nil {
-		return fmt.Errorf("failed to run narsilc generate: %w", err)
 	}
 
 	fmt.Print("Running go mod tidy...\n")
@@ -173,20 +158,30 @@ var baseStyleTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"css_email.tmpl": "css/email.css",
 
 	// Views
-	"views_layout.tmpl":  "views/layout.templ",
-	"views_welcome.tmpl": "views/welcome.templ",
+	"views_layout.tmpl":           "views/layout.templ",
+	"views_layout_templ_go.tmpl":  "views/layout_templ.go",
+	"views_welcome.tmpl":          "views/welcome.templ",
+	"views_welcome_templ_go.tmpl": "views/welcome_templ.go",
 
 	// Views - Pages
-	"views_bad_request.tmpl":    "views/bad_request.templ",
-	"views_internal_error.tmpl": "views/internal_error.templ",
-	"views_not_found.tmpl":      "views/not_found.templ",
-	"views_confirm_email.tmpl":  "views/confirm_email.templ",
-	"views_login.tmpl":          "views/login.templ",
-	"views_registration.tmpl":   "views/registration.templ",
-	"views_reset_password.tmpl": "views/reset_password.templ",
+	"views_bad_request.tmpl":             "views/bad_request.templ",
+	"views_bad_request_templ_go.tmpl":    "views/bad_request_templ.go",
+	"views_internal_error.tmpl":          "views/internal_error.templ",
+	"views_internal_error_templ_go.tmpl": "views/internal_error_templ.go",
+	"views_not_found.tmpl":               "views/not_found.templ",
+	"views_not_found_templ_go.tmpl":      "views/not_found_templ.go",
+	"views_confirm_email.tmpl":           "views/confirm_email.templ",
+	"views_confirm_email_templ_go.tmpl":  "views/confirm_email_templ.go",
+	"views_login.tmpl":                   "views/login.templ",
+	"views_login_templ_go.tmpl":          "views/login_templ.go",
+	"views_registration.tmpl":            "views/registration.templ",
+	"views_registration_templ_go.tmpl":   "views/registration_templ.go",
+	"views_reset_password.tmpl":          "views/reset_password.templ",
+	"views_reset_password_templ_go.tmpl": "views/reset_password_templ.go",
 
 	// Views
-	"views_head.tmpl": "views/head.templ",
+	"views_head.tmpl":          "views/head.templ",
+	"views_head_templ_go.tmpl": "views/head_templ.go",
 }
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -252,11 +247,14 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_token.tmpl":  "models/token.go",
 	"models_user.tmpl":   "models/user.go",
 
-	"models_factories_factories.tmpl": "models/factories/factories.go",
-	"models_factories_user.tmpl":      "models/factories/user.go",
-	"models_factories_token.tmpl":     "models/factories/token.go",
-	"models_queries_user.tmpl":        "models/queries/user.sql",
-	"models_queries_token.tmpl":       "models/queries/token.sql",
+	"models_factories_factories.tmpl":    "models/factories/factories.go",
+	"models_factories_user.tmpl":         "models/factories/user.go",
+	"models_factories_token.tmpl":        "models/factories/token.go",
+	"models_queries_user.tmpl":           "models/queries/user.sql",
+	"models_queries_token.tmpl":          "models/queries/token.sql",
+	"models_internal_queries_db.tmpl":    "models/internal/queries/db.go",
+	"models_internal_queries_user.tmpl":  "models/internal/queries/user.sql.go",
+	"models_internal_queries_token.tmpl": "models/internal/queries/token.sql.go",
 
 	// Router
 	"router_router.tmpl":                     "router/router.go",
@@ -301,6 +299,7 @@ var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"cmd_ssr_main.tmpl":           "cmd/ssr/main.go",
 	"inertia_assets_routes.tmpl":  "resources/js/routes.ts",
 	"inertia_framework_root.tmpl": "views/root.templ",
+	"views_root_templ_go.tmpl":    "views/root_templ.go",
 }
 
 var inertiaVueTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -356,10 +355,14 @@ var inertiaSvelteTemplateMappings = map[TmplTarget]TmplTargetPath{
 }
 
 var inertiaSkippedTemplates = map[TmplTarget]bool{
-	"views_confirm_email.tmpl":  true,
-	"views_login.tmpl":          true,
-	"views_registration.tmpl":   true,
-	"views_reset_password.tmpl": true,
+	"views_confirm_email.tmpl":           true,
+	"views_confirm_email_templ_go.tmpl":  true,
+	"views_login.tmpl":                   true,
+	"views_login_templ_go.tmpl":          true,
+	"views_registration.tmpl":            true,
+	"views_registration_templ_go.tmpl":   true,
+	"views_reset_password.tmpl":          true,
+	"views_reset_password_templ_go.tmpl": true,
 }
 
 func inertiaAdapterTemplateMappings(adapter string) map[TmplTarget]TmplTargetPath {
