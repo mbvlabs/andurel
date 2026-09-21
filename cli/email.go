@@ -31,7 +31,7 @@ func newEmailCompileCommand() *cobra.Command {
 func compileEmailProject(ctx context.Context, rootDir string) error {
 	lock, err := layout.ReadLockFile(rootDir)
 	if err != nil {
-		return fmt.Errorf("failed to read andurel.lock: %w", err)
+		return fmt.Errorf("failed to read andurel.toml: %w", err)
 	}
 
 	tailwindTool, ok := lock.Tools["tailwindcli"]

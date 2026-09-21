@@ -21,12 +21,12 @@ func newSyncCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:     "sync",
 		Aliases: []string{"s"},
-		Short:   "Download and validate binaries specified in andurel.lock",
-		Long: `Download all tools listed in andurel.lock to bin/. Already-downloaded
-tools at the correct version are skipped.
+		Short:   "Download and validate binaries pinned in andurel.toml",
+		Long: `Download all tools listed in andurel.toml to bin/, verifying digests
+from andurel.lock. Already-downloaded tools at the correct version are skipped.
 
 Managed tools include narsilc, templ, goose, mailpit, usql, dblab, shadowfax,
-and tailwindcli. Versions are pinned in andurel.lock.`,
+and tailwindcli. Versions are pinned in andurel.toml.`,
 		Example: `  andurel tool sync`,
 		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -41,14 +41,14 @@ and tailwindcli. Versions are pinned in andurel.lock.`,
 }
 
 func syncBinaries(projectRoot string) error {
-	lockPath := filepath.Join(projectRoot, "andurel.lock")
-	if _, err := os.Stat(lockPath); err != nil {
-		return fmt.Errorf("andurel.lock not found. Are you in an andurel project?")
+	tomlPath := filepath.Join(projectRoot, layout.ProjectTomlName)
+	if _, err := os.Stat(tomlPath); err != nil {
+		return fmt.Errorf("andurel.toml not found. Are you in an andurel project?")
 	}
 
 	lock, err := layout.ReadLockFile(projectRoot)
 	if err != nil {
-		return fmt.Errorf("failed to read lock file: %w", err)
+		return fmt.Errorf("failed to read project files: %w", err)
 	}
 
 	// Ensure bin directory exists
@@ -60,7 +60,7 @@ func syncBinaries(projectRoot string) error {
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 
-	fmt.Println("Syncing tools from andurel.lock...")
+	fmt.Println("Syncing tools from andurel.toml...")
 
 	// Track expected tools for cleanup
 	expectedTools := make(map[string]bool)
@@ -82,7 +82,7 @@ func syncBinaries(projectRoot string) error {
 				continue
 			}
 			if !expectedTools[entry.Name()] {
-				fmt.Printf("✗ Removing %s (not in andurel.lock)\n", entry.Name())
+				fmt.Printf("✗ Removing %s (not in andurel.lock tools)\n", entry.Name())
 				if err := os.Remove(filepath.Join(binDir, entry.Name())); err != nil {
 					return fmt.Errorf("failed to remove %s: %w", entry.Name(), err)
 				}

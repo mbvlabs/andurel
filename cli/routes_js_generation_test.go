@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -328,13 +327,8 @@ func setupRoutesJSCommandProject(t *testing.T, inertia string) string {
 			NullType: layout.NullTypePGType,
 		},
 	}
-	lockData, err := json.MarshalIndent(lock, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal lock: %v", err)
-	}
-	lockData = append(lockData, '\n')
-	if err := os.WriteFile(filepath.Join(rootDir, "andurel.lock"), lockData, 0o644); err != nil {
-		t.Fatalf("write andurel.lock: %v", err)
+	if err := lock.WriteLockFile(rootDir); err != nil {
+		t.Fatalf("write project files: %v", err)
 	}
 	writeRouteManifestTestFile(t, rootDir, "users.go", `package routes
 

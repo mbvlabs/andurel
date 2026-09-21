@@ -464,10 +464,10 @@ func checkInAndurelProject() checkResult {
 }
 
 func checkLockFile(rootDir string) checkResult {
-	lockPath := filepath.Join(rootDir, "andurel.lock")
-	if _, err := os.Stat(lockPath); err != nil {
+	tomlPath := filepath.Join(rootDir, layout.ProjectTomlName)
+	if _, err := os.Stat(tomlPath); err != nil {
 		return checkResult{
-			name:    "andurel.lock",
+			name:    layout.ProjectTomlName,
 			status:  statusFail,
 			message: "file not found",
 		}
@@ -476,14 +476,14 @@ func checkLockFile(rootDir string) checkResult {
 	lock, err := layout.ReadLockFile(rootDir)
 	if err != nil {
 		return checkResult{
-			name:    "andurel.lock",
+			name:    layout.ProjectTomlName,
 			status:  statusFail,
 			message: fmt.Sprintf("invalid format: %v", err),
 		}
 	}
 
 	return checkResult{
-		name:    "andurel.lock",
+		name:    layout.ProjectTomlName,
 		status:  statusPass,
 		message: fmt.Sprintf("valid (version: %s, %d tools)", lock.Version, len(lock.Tools)),
 	}

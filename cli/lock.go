@@ -143,9 +143,9 @@ func setVersion(projectRoot, toolName, version string, checksumArguments ...stri
 		return err
 	}
 
-	lockPath := filepath.Join(projectRoot, "andurel.lock")
+	lockPath := filepath.Join(projectRoot, layout.ProjectTomlName)
 	if _, err := os.Stat(lockPath); err != nil {
-		return fmt.Errorf("andurel.lock not found. Are you in an andurel project?")
+		return fmt.Errorf("andurel.toml not found. Are you in an andurel project?")
 	}
 
 	if len(checksums) > 0 {
@@ -288,13 +288,15 @@ func installToolVersionAndLock(
 			restoreBinary(),
 		)
 	}
-	stagedLockPath := filepath.Join(stagingDir, "andurel.lock")
-	lockPath := filepath.Join(projectRoot, "andurel.lock")
-	if err := os.Rename(stagedLockPath, lockPath); err != nil {
-		return errors.Join(
-			fmt.Errorf("failed to atomically update andurel.lock: %w", err),
-			restoreBinary(),
-		)
+	for _, name := range []string{layout.ProjectTomlName, layout.ProjectLockName} {
+		stagedPath := filepath.Join(stagingDir, name)
+		destPath := filepath.Join(projectRoot, name)
+		if err := os.Rename(stagedPath, destPath); err != nil {
+			return errors.Join(
+				fmt.Errorf("failed to atomically update %s: %w", name, err),
+				restoreBinary(),
+			)
+		}
 	}
 	if hadExistingBinary {
 		if err := os.Remove(backupPath); err != nil {

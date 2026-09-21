@@ -141,11 +141,14 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 	}
 
 	lock.Version = u.opts.TargetVersion
-	lockBytes, err := marshalLock(lock)
+	tomlBytes, lockBytes, err := lock.EncodeProjectFiles()
 	if err != nil {
-		return nil, fmt.Errorf("render final lock: %w", err)
+		return nil, fmt.Errorf("render final project files: %w", err)
 	}
-	if err := plan.addReplacement(u.projectRoot, "andurel.lock", lockBytes, true); err != nil {
+	if err := plan.addReplacement(u.projectRoot, layout.ProjectTomlName, tomlBytes, true); err != nil {
+		return nil, err
+	}
+	if err := plan.addReplacement(u.projectRoot, layout.ProjectLockName, lockBytes, true); err != nil {
 		return nil, err
 	}
 
@@ -355,10 +358,20 @@ func (u *Upgrader) addFrameworkChanges(plan *upgradePlan) error {
 
 func finalizePlan(plan *upgradePlan) error {
 	sort.SliceStable(plan.files, func(i, j int) bool {
-		if plan.files[i].isLock != plan.files[j].isLock {
-			return !plan.files[i].isLock
+		left, right := plan.files[i], plan.files[j]
+		if left.isLock != right.isLock {
+			return !left.isLock
 		}
-		return plan.files[i].path < plan.files[j].path
+		if left.isLock && right.isLock {
+			// Commit digests after the manifest.
+			if left.path == layout.ProjectLockName {
+				return false
+			}
+			if right.path == layout.ProjectLockName {
+				return true
+			}
+		}
+		return left.path < right.path
 	})
 	plan.diffs = make([]FileDiff, 0, len(plan.files))
 	for _, file := range plan.files {
@@ -469,14 +482,6 @@ func cloneLock(lock *layout.AndurelLock) (*layout.AndurelLock, error) {
 		return nil, err
 	}
 	return &result, nil
-}
-
-func marshalLock(lock *layout.AndurelLock) ([]byte, error) {
-	data, err := json.MarshalIndent(lock, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	return append(data, '\n'), nil
 }
 
 func unifiedFileDiff(file plannedFile) (string, error) {
