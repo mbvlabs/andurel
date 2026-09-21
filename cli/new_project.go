@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"strings"
 
 	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/layout"
@@ -28,9 +27,10 @@ Generates the full project structure including controllers, models, views,
 database migrations, router, services, and configuration files. After
 creation, run 'andurel tool sync' to download required binaries.
 
-Projects use Templ by default. Pass --inertia with vue, react, or svelte for a
-rich frontend. Persistence uses narsilc-generated queries;
-it stays inactive until an annotated query is added to models/queries.`,
+Projects use Inertia React with pnpm by default. Pass --ui to choose another
+combination (vue/bun, svelte/npm, templ/datastar, …). Persistence uses
+narsilc-generated queries; it stays inactive until an annotated query is
+added to models/queries.`,
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) <= 1 {
 				return nil
@@ -59,7 +59,7 @@ it stays inactive until an annotated query is added to models/queries.`,
 	}
 
 	projectCmd.Flags().
-		String("inertia", "", "Inertia adapter to use (vue, react, svelte). Optionally append /npm|pnpm|bun|yarn to specify the package manager (default: npm)")
+		String("ui", layout.DefaultUICombo, "UI combination: react|vue|svelte / pnpm|bun|npm, or templ/datastar (default: react/pnpm)")
 	projectCmd.Flags().
 		BoolVar(&dryRun, "dry-run", false, "Preview project files without creating them")
 	projectCmd.Flags().
@@ -67,7 +67,7 @@ it stays inactive until an annotated query is added to models/queries.`,
 	setAgentMetadata(
 		projectCmd,
 		"generation",
-		"Creates a Templ project by default. Use --inertia vue|react|svelte, optionally followed by /npm|pnpm|bun|yarn. Models persist through narsilc-generated queries.",
+		"Creates an Inertia React/pnpm project by default. Use --ui react|vue|svelte/pnpm|bun|npm or --ui templ/datastar. Models persist through narsilc-generated queries.",
 	)
 
 	return projectCmd
@@ -94,35 +94,22 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 
 	database := "postgresql"
 
-	inertiaFlag, err := cmd.Flags().GetString("inertia")
+	uiFlag, err := cmd.Flags().GetString("ui")
 	if err != nil {
 		return err
 	}
-
-	adapter := inertiaFlag
-	javascriptRuntime := ""
-	if inertiaFlag != "" {
-		parts := strings.SplitN(inertiaFlag, "/", 2)
-		adapter = parts[0]
-		if len(parts) == 2 {
-			javascriptRuntime = parts[1]
-		} else {
-			javascriptRuntime = "npm"
-		}
-
-		if !layout.IsSupportedInertiaAdapter(adapter) {
-			return fmt.Errorf(
-				"invalid inertia adapter: %s - valid options are 'vue', 'react', 'svelte'",
-				adapter,
-			)
-		}
-		if !layout.IsSupportedJavaScriptRuntime(javascriptRuntime) {
-			return fmt.Errorf(
-				"invalid JavaScript package manager: %s - valid options are 'npm', 'pnpm', 'bun', 'yarn'",
-				javascriptRuntime,
-			)
-		}
+	ui, err := layout.ParseUICombo(uiFlag)
+	if err != nil {
+		return output.NewError(
+			output.CodeUsage,
+			err.Error(),
+			output.ExitUsage,
+			"Use --ui react/pnpm, vue/bun, svelte/npm, or templ/datastar.",
+		)
 	}
+
+	adapter := ui.Inertia
+	javascriptRuntime := ui.PackageManager
 
 	scaffold := func(target string) error {
 		return layout.Scaffold(
@@ -171,7 +158,7 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 				Description: "Create the local environment file inside the new project",
 			},
 		}
-		if layout.IsSupportedInertiaAdapter(adapter) {
+		if ui.IsInertia() {
 			breadcrumbs = append(breadcrumbs, output.Breadcrumb{
 				Command:     javascriptRuntime + " install",
 				Description: "Install Inertia frontend dependencies inside the new project",
@@ -208,7 +195,7 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 	fmt.Printf("  fill in your database connection details in .env\n")
 	fmt.Printf("  (andurel db create - if database does not exist\n")
 	fmt.Printf("  andurel db migrate up\n")
-	if layout.IsSupportedInertiaAdapter(adapter) {
+	if ui.IsInertia() {
 		fmt.Printf("  %s install\n", javascriptRuntime)
 	}
 	fmt.Printf("  andurel run\n")

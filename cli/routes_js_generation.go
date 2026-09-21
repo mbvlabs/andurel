@@ -73,6 +73,24 @@ func requireInertiaProjectForRoutesJS(rootDir string) error {
 }
 
 func configuredInertiaAdapter(rootDir string) (string, error) {
+	adapter, err := projectUIAdapter(rootDir)
+	if err != nil {
+		return "", err
+	}
+	if adapter == "" {
+		return "", output.NewError(
+			output.CodeInvalidInertiaAdapter,
+			"this operation requires an Inertia project",
+			output.ExitUsage,
+			"Create the project with --ui react/pnpm, --ui vue/bun, or --ui svelte/npm before generating Inertia artifacts.",
+		)
+	}
+	return adapter, nil
+}
+
+// projectUIAdapter returns the Inertia adapter from andurel.lock, or "" for
+// templ/datastar projects.
+func projectUIAdapter(rootDir string) (string, error) {
 	lock, err := layout.ReadLockFile(rootDir)
 	if err != nil {
 		return "", output.WrapError(
@@ -83,12 +101,7 @@ func configuredInertiaAdapter(rootDir string) (string, error) {
 		)
 	}
 	if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia == "" {
-		return "", output.NewError(
-			output.CodeInvalidInertiaAdapter,
-			"this operation requires an Inertia project",
-			output.ExitUsage,
-			"Create the project with --inertia vue, --inertia react, or --inertia svelte before generating Inertia artifacts.",
-		)
+		return "", nil
 	}
 	if !layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
 		return "", output.NewError(

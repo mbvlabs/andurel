@@ -72,12 +72,12 @@ func TestSupportedAdaptersAndRuntimes(t *testing.T) {
 		}
 	}
 
-	for _, runtime := range []string{"npm", "pnpm", "bun", "yarn"} {
+	for _, runtime := range []string{"npm", "pnpm", "bun"} {
 		if !IsSupportedJavaScriptRuntime(runtime) {
 			t.Fatalf("expected runtime %q to be supported", runtime)
 		}
 	}
-	for _, runtime := range []string{"", "deno", "NPM"} {
+	for _, runtime := range []string{"", "deno", "NPM", "yarn"} {
 		if IsSupportedJavaScriptRuntime(runtime) {
 			t.Fatalf("expected runtime %q to be unsupported", runtime)
 		}

@@ -19,10 +19,10 @@ func TestInertiaPackageManagerCommands(t *testing.T) {
 		wantBuild   string
 	}{
 		{
-			name:        "default runtime uses npm",
+			name:        "default runtime uses pnpm",
 			runtime:     "",
-			wantInstall: "npm ci",
-			wantBuild:   "npm run build",
+			wantInstall: "pnpm install --frozen-lockfile",
+			wantBuild:   "pnpm run build",
 		},
 		{
 			name:        "npm",
@@ -41,12 +41,6 @@ func TestInertiaPackageManagerCommands(t *testing.T) {
 			runtime:     "bun",
 			wantInstall: "bun install --frozen-lockfile",
 			wantBuild:   "bun run build",
-		},
-		{
-			name:        "yarn",
-			runtime:     "yarn",
-			wantInstall: "yarn install --frozen-lockfile",
-			wantBuild:   "yarn build",
 		},
 	}
 
@@ -67,8 +61,10 @@ func TestInertiaPackageManagerCommands(t *testing.T) {
 }
 
 func TestInertiaPackageManagerCommandsRejectsUnsupportedRuntime(t *testing.T) {
-	if _, _, err := inertiaPackageManagerCommands("deno"); err == nil {
-		t.Fatal("expected unsupported runtime error")
+	for _, runtime := range []string{"deno", "yarn"} {
+		if _, _, err := inertiaPackageManagerCommands(runtime); err == nil {
+			t.Fatalf("expected unsupported runtime error for %q", runtime)
+		}
 	}
 }
 

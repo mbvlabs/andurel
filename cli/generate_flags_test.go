@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/layout"
 )
 
@@ -71,34 +70,66 @@ func TestGenerateCommandsRejectTooManyArgs(t *testing.T) {
 	}
 }
 
-func TestInertiaGenerationRequiresConfiguredProjectAndRejectsAPI(t *testing.T) {
+func TestGenerateControllerFollowsProjectUI(t *testing.T) {
 	root := t.TempDir()
 	writeCLITestFile(t, root, "go.mod", "module example.com/app\n")
 	lock := layout.NewAndurelLock("test")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName:              "app",
+		Inertia:                  "react",
+		JavaScriptPackageManager: "pnpm",
+	}
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
 	}
 
 	resetCLITestSeams(t)
 	findGoModRoot = func() (string, error) { return root, nil }
+	fake := installFakeGenerator(t)
 
-	for _, arguments := range [][]string{
-		{"Product", "--inertia"},
-		{"Product", "--inertia", "--api"},
-	} {
-		cmd := newGenerateControllerCommand()
-		cmd.SetArgs(arguments)
-		err := cmd.Execute()
-		if err == nil {
-			t.Fatalf("controller %v should fail", arguments)
-		}
-		envelope := output.Fail(err)
-		if len(arguments) == 2 && envelope.Code != output.CodeInvalidInertiaAdapter {
-			t.Fatalf("controller %v error = %#v", arguments, envelope)
-		}
-		if len(arguments) == 3 && envelope.Code != output.CodeUsage {
-			t.Fatalf("controller %v error = %#v", arguments, envelope)
-		}
+	cmd := newGenerateControllerCommand()
+	cmd.SetArgs([]string{"Product"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("controller generate: %v", err)
+	}
+	if len(fake.controllerCalls) != 1 {
+		t.Fatalf("expected one controller call, got %#v", fake.controllerCalls)
+	}
+	if fake.controllerCalls[0].inertia != "react" {
+		t.Fatalf("inertia = %q, want react", fake.controllerCalls[0].inertia)
+	}
+}
+
+func TestGenerateControllerAPISkipsInertia(t *testing.T) {
+	root := t.TempDir()
+	writeCLITestFile(t, root, "go.mod", "module example.com/app\n")
+	lock := layout.NewAndurelLock("test")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName:              "app",
+		Inertia:                  "vue",
+		JavaScriptPackageManager: "bun",
+	}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+
+	resetCLITestSeams(t)
+	findGoModRoot = func() (string, error) { return root, nil }
+	fake := installFakeGenerator(t)
+
+	cmd := newGenerateControllerCommand()
+	cmd.SetArgs([]string{"Product", "--api"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("controller generate: %v", err)
+	}
+	if len(fake.controllerCalls) != 1 {
+		t.Fatalf("expected one controller call, got %#v", fake.controllerCalls)
+	}
+	if fake.controllerCalls[0].inertia != "" {
+		t.Fatalf("inertia = %q, want empty for --api", fake.controllerCalls[0].inertia)
+	}
+	if !fake.controllerCalls[0].isAPI {
+		t.Fatal("expected API=true")
 	}
 }
 

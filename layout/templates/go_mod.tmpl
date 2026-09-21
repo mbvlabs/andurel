@@ -10,9 +10,10 @@ require (
 	github.com/labstack/echo/v5 v5.3.0
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/mbvlabs/andurel/pkg/email {{.EmailPackageVersion}}
-	github.com/mbvlabs/andurel/pkg/hypermedia {{.HypermediaPackageVersion}}
 {{- if .Inertia}}
 	github.com/mbvlabs/andurel/pkg/inertia {{.InertiaPackageVersion}}
+{{- else}}
+	github.com/mbvlabs/andurel/pkg/hypermedia {{.HypermediaPackageVersion}}
 {{- end}}
 	github.com/mbvlabs/andurel/pkg/kiks {{.KiksPackageVersion}}
 	github.com/mbvlabs/andurel/pkg/routing {{.RoutingPackageVersion}}

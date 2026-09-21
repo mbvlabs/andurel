@@ -11,7 +11,7 @@ There are two tracks:
 | **PR** | `just test-golden` / `just update-golden` | `generate`, `sync`, and a slim `andurel new` MVC capture (postgresql + react). Fast, curated `AssertFiles` / `AssertDir`. |
 | **Nightly** | `just test-golden-full` / `just update-golden-full` | Same suite **plus** full-tree `andurel new` for four adapters, with generators on. |
 
-Full-tree `andurel new` tests skip unless `ANDUREL_GOLDEN_FULL=1`. The PR track still runs a slim MVC capture for postgresql and `--inertia react`.
+Full-tree `andurel new` tests skip unless `ANDUREL_GOLDEN_FULL=1`. The PR track still runs a slim MVC capture for postgresql (`--ui templ/datastar`) and default Inertia react.
 
 ## How it works
 

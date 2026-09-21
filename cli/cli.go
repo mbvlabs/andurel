@@ -150,7 +150,7 @@ func shadowfaxRunArgs(rootDir string) ([]string, error) {
 
 	packageManager := lock.ScaffoldConfig.PackageManager()
 	if packageManager == "" {
-		packageManager = "npm"
+		packageManager = "pnpm"
 	}
 	return []string{
 		"--inertia",

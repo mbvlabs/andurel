@@ -106,7 +106,7 @@ func TestGenerateController(t *testing.T) {
 			fixture: "generate_inertia_vue",
 			steps: []generateStep{
 				modelStep,
-				{args: []string{"generate", "controller", "Widget", "--inertia"}},
+				{args: []string{"generate", "controller", "Widget"}},
 			},
 			capture: []string{
 				"controllers/widgets.go",

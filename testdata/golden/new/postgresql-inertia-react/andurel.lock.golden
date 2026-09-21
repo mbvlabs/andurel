@@ -165,7 +165,7 @@
   "scaffoldConfig": {
     "projectName": "app",
     "inertia": "react",
-    "javascriptPackageManager": "npm"
+    "javascriptPackageManager": "pnpm"
   },
   "databaseConfig": {
     "engine": "postgresql",

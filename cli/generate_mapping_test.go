@@ -269,7 +269,6 @@ func TestGenerateScaffoldMapsFlagsToGenerator(t *testing.T) {
 		"work_projects",
 		"--primary-key",
 		"slug",
-		"--inertia",
 	)
 	if result.err != nil {
 		t.Fatalf("generate scaffold failed: %v", result.err)
@@ -359,7 +358,6 @@ func TestGenerateControllerMapsActionsAndVue(t *testing.T) {
 		"Widget",
 		"index",
 		"export",
-		"--inertia",
 	)
 	if result.err != nil {
 		t.Fatalf("generate controller failed: %v", result.err)
@@ -518,7 +516,7 @@ var WidgetExport = routing.NewSimpleRoute(
 	cmd := NewRootCommand("test", "test-date")
 	cmd.SetOut(&stdout)
 	cmd.SetErr(&stderr)
-	cmd.SetArgs([]string{"generate", "controller", "Widget", "export", "--inertia"})
+	cmd.SetArgs([]string{"generate", "controller", "Widget", "export"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("generate controller failed: %v\nstderr:\n%s", err, stderr.String())
 	}

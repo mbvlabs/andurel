@@ -11,7 +11,6 @@ require (
 	github.com/labstack/echo/v5 v5.3.0
 	github.com/maypok86/otter/v2 v2.3.0
 	github.com/mbvlabs/andurel/pkg/email v0.3.3
-	github.com/mbvlabs/andurel/pkg/hypermedia v0.2.5
 	github.com/mbvlabs/andurel/pkg/inertia v0.6.0
 	github.com/mbvlabs/andurel/pkg/kiks v0.1.0
 	github.com/mbvlabs/andurel/pkg/routing v0.3.0
@@ -87,7 +86,6 @@ require (
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
-	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/bridges/otelslog v0.20.1 // indirect

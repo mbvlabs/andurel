@@ -110,7 +110,6 @@ func TestGenerateScaffold(t *testing.T) {
 			migrations: "scaffold_generation_projects",
 			args: []string{
 				"generate", "scaffold", "Project",
-				"--inertia",
 				"--skip-factory",
 			},
 			capture: []string{

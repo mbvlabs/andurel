@@ -84,6 +84,10 @@ func validateSchema1Lock(lock *AndurelLock) error {
 		if strings.TrimSpace(lock.ScaffoldConfig.ProjectName) == "" {
 			return fmt.Errorf("scaffoldConfig.projectName is required")
 		}
+		if inertia := strings.TrimSpace(lock.ScaffoldConfig.Inertia); inertia != "" &&
+			!IsSupportedInertiaAdapter(inertia) {
+			return fmt.Errorf("scaffoldConfig.inertia is invalid")
+		}
 		if manager := lock.ScaffoldConfig.PackageManager(); manager != "" &&
 			!IsSupportedJavaScriptRuntime(manager) {
 			return fmt.Errorf("scaffoldConfig.javascriptPackageManager is invalid")
