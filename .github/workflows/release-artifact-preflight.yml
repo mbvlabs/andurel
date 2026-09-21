@@ -171,6 +171,9 @@ jobs:
           name: ${{ inputs.artifact_name }}
           path: dist
 
+      - name: Install just
+        uses: taiki-e/install-action@just
+
       - name: Install pinned Cosign
         uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1, Cosign v3.0.5
 
@@ -182,7 +185,7 @@ jobs:
         run: |
           set -euo pipefail
           version="${RELEASE_TAG#v}"
-          ./scripts/smoke-release-archive.sh \
+          just smoke-release-archive \
             "dist/andurel_${version}_${{ matrix.goos }}_${{ matrix.goarch }}.tar.gz" \
             "${RELEASE_TAG}" \
             dist \
