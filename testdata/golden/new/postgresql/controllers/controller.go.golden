@@ -13,7 +13,6 @@ import (
 func configureViews(cfg config.App) {
 	views.ConfigureHead(cfg.ProjectName, cfg.BaseURL)
 }
-
 var pageCache = NewCacheBuilder[templ.Component]().Build
 var otherCache = NewCacheBuilder[string]().WithSize(2).Build
 

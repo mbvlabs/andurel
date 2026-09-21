@@ -12,7 +12,6 @@ import (
 func configureViews(cfg config.App) {
 	views.ConfigureHead(cfg.ProjectName, cfg.BaseURL)
 }
-
 var otherCache = NewCacheBuilder[string]().WithSize(2).Build
 
 var constructors = fx.Provide(
