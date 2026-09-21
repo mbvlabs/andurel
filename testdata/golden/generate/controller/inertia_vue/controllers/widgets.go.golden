@@ -1,0 +1,325 @@
+package controllers
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"strconv"
+	"uuid"
+
+	"example.com/app/models"
+	"example.com/app/router"
+	"example.com/app/router/routes"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+)
+
+type Widgets struct {
+	widgets  models.Widgets
+	renderer *inertia.Renderer
+}
+
+func NewWidgets(widgets models.Widgets, renderer *inertia.Renderer) Widgets {
+	return Widgets{widgets: widgets, renderer: renderer}
+}
+
+func (w Widgets) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetIndex.Path(),
+		Name:    routes.WidgetIndex.Name(),
+		Handler: w.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetShow.Path(),
+		Name:    routes.WidgetShow.Name(),
+		Handler: w.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetNew.Path(),
+		Name:    routes.WidgetNew.Name(),
+		Handler: w.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.WidgetCreate.Path(),
+		Name:    routes.WidgetCreate.Name(),
+		Handler: w.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.WidgetEdit.Path(),
+		Name:    routes.WidgetEdit.Name(),
+		Handler: w.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.WidgetUpdate.Path(),
+		Name:    routes.WidgetUpdate.Name(),
+		Handler: w.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.WidgetDestroy.Path(),
+		Name:    routes.WidgetDestroy.Name(),
+		Handler: w.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+type WidgetData struct {
+	ID        uuid.UUID          `json:"id"`
+	Name      string             `json:"name"`
+	Quantity  int32              `json:"quantity"`
+	Active    bool               `json:"active"`
+	CreatedAt pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt pgtype.Timestamptz `json:"updatedAt"`
+}
+
+type WidgetIndexProps struct {
+	Items []WidgetData `json:"items"`
+}
+
+type WidgetItemProps struct {
+	Item WidgetData `json:"item"`
+}
+
+func newWidgetData(entity models.Widget) WidgetData {
+	return WidgetData{
+		ID:        entity.ID,
+		Name:      entity.Name,
+		Quantity:  entity.Quantity,
+		Active:    entity.Active,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	}
+}
+
+func newWidgetDataList(entities []models.Widget) []WidgetData {
+	items := make([]WidgetData, 0, len(entities))
+	for _, entity := range entities {
+		items = append(items, newWidgetData(entity))
+	}
+
+	return items
+}
+
+func (w Widgets) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	widgetsList, err := w.widgets.Paginate(
+		etx.Request().Context(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return w.renderer.Page(etx, "Errors/InternalError", inertia.Props{}).Render()
+	}
+
+	return w.renderer.Page(
+		etx,
+		"Widget/Index",
+		inertia.FromStruct(WidgetIndexProps{
+			Items: newWidgetDataList(widgetsList.Widgets),
+		}),
+	).Render()
+}
+
+func (w Widgets) Show(etx *echo.Context) error {
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return w.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
+	}
+
+	widget, err := w.widgets.Find(etx.Request().Context(), widgetID)
+	if err != nil {
+		return w.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
+	}
+
+	return w.renderer.Page(
+		etx,
+		"Widget/Show",
+		inertia.FromStruct(WidgetItemProps{
+			Item: newWidgetData(widget),
+		}),
+	).Render()
+}
+
+func (w Widgets) New(etx *echo.Context) error {
+	return w.renderer.Page(etx, "Widget/Create", inertia.Props{}).Render()
+}
+
+type CreateWidgetFormPayload struct {
+	Name     string `json:"name"`
+	Quantity int32  `json:"quantity"`
+	Active   bool   `json:"active"`
+}
+
+func (w Widgets) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "widgets.create")
+	defer span.End()
+
+	var payload CreateWidgetFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse CreateWidgetFormPayload",
+			"error",
+			err,
+		)
+
+		return w.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
+	}
+
+	data := models.CreateWidgetData{
+
+		Name: payload.Name,
+
+		Quantity: payload.Quantity,
+
+		Active: payload.Active,
+	}
+
+	widget, err := w.widgets.Create(
+		ctx,
+		data,
+	)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to create widget: %v", err))
+		return w.renderer.Redirect(etx, routes.WidgetNew.URL(), http.StatusSeeOther)
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Widget created successfully")
+	return w.renderer.Redirect(etx, routes.WidgetShow.URL(widget.ID), http.StatusSeeOther)
+}
+
+func (w Widgets) Edit(etx *echo.Context) error {
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return w.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
+	}
+
+	widget, err := w.widgets.Find(etx.Request().Context(), widgetID)
+	if err != nil {
+		return w.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
+	}
+
+	return w.renderer.Page(
+		etx,
+		"Widget/Edit",
+		inertia.FromStruct(WidgetItemProps{
+			Item: newWidgetData(widget),
+		}),
+	).Render()
+}
+
+type UpdateWidgetFormPayload struct {
+	Name     string `json:"name"`
+	Quantity int32  `json:"quantity"`
+	Active   bool   `json:"active"`
+}
+
+func (w Widgets) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "widgets.update")
+	defer span.End()
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return w.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
+	}
+
+	var payload UpdateWidgetFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse UpdateWidgetFormPayload",
+			"error",
+			err,
+		)
+
+		return w.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
+	}
+
+	data := models.UpdateWidgetData{
+		ID: widgetID,
+
+		Name: payload.Name,
+
+		Quantity: payload.Quantity,
+
+		Active: payload.Active,
+	}
+
+	widget, err := w.widgets.Update(
+		ctx,
+		data,
+	)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to update widget: %v", err))
+		return w.renderer.Redirect(
+			etx,
+			routes.WidgetEdit.URL(widgetID),
+			http.StatusSeeOther,
+		)
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Widget updated successfully")
+	return w.renderer.Redirect(etx, routes.WidgetShow.URL(widget.ID), http.StatusSeeOther)
+}
+
+func (w Widgets) Destroy(etx *echo.Context) error {
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return w.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
+	}
+
+	err = w.widgets.Destroy(etx.Request().Context(), widgetID)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to delete widget: %v", err))
+		return w.renderer.Redirect(etx, routes.WidgetIndex.URL(), http.StatusSeeOther)
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Widget destroyed successfully")
+	return w.renderer.Redirect(etx, routes.WidgetIndex.URL(), http.StatusSeeOther)
+}

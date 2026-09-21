@@ -1,0 +1,280 @@
+package controllers
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"strconv"
+	"uuid"
+
+	"example.com/app/models"
+	"example.com/app/router"
+	"example.com/app/router/routes"
+	"example.com/app/views"
+	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+)
+
+type Documents struct {
+	documents models.Documents
+}
+
+func NewDocuments(documents models.Documents) Documents {
+	return Documents{documents}
+}
+
+func (d Documents) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.DocumentIndex.Path(),
+		Name:    routes.DocumentIndex.Name(),
+		Handler: d.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.DocumentShow.Path(),
+		Name:    routes.DocumentShow.Name(),
+		Handler: d.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.DocumentNew.Path(),
+		Name:    routes.DocumentNew.Name(),
+		Handler: d.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.DocumentCreate.Path(),
+		Name:    routes.DocumentCreate.Name(),
+		Handler: d.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.DocumentEdit.Path(),
+		Name:    routes.DocumentEdit.Name(),
+		Handler: d.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.DocumentUpdate.Path(),
+		Name:    routes.DocumentUpdate.Name(),
+		Handler: d.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.DocumentDestroy.Path(),
+		Name:    routes.DocumentDestroy.Name(),
+		Handler: d.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+func (d Documents) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	documentsList, err := d.documents.Paginate(
+		etx.Request().Context(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+
+	return hypermedia.RenderPage(etx, views.DocumentIndex{Items: documentsList.Documents}.Page())
+}
+
+func (d Documents) Show(etx *echo.Context) error {
+	documentID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	document, err := d.documents.Find(etx.Request().Context(), documentID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.DocumentShow{Item: document}.Page())
+}
+
+func (d Documents) New(etx *echo.Context) error {
+	return hypermedia.RenderPage(etx, views.DocumentNew{}.Page())
+}
+
+type CreateDocumentFormPayload struct {
+	Title       string   `json:"title"`
+	Tags        []string `json:"tags"`
+	PageNumbers []int32  `json:"pageNumbers"`
+	ViewCount   int32    `json:"viewCount"`
+	IsPublished bool     `json:"isPublished"`
+}
+
+func (d Documents) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "documents.create")
+	defer span.End()
+
+	var payload CreateDocumentFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse CreateDocumentFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.CreateDocumentData{
+
+		Title: payload.Title,
+
+		Tags: payload.Tags,
+
+		PageNumbers: payload.PageNumbers,
+
+		ViewCount: payload.ViewCount,
+
+		IsPublished: payload.IsPublished,
+	}
+
+	document, err := d.documents.Create(
+		ctx,
+		data,
+	)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to create document: %v", err))
+		return etx.Redirect(http.StatusSeeOther, routes.DocumentNew.URL())
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Document created successfully")
+	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID))
+}
+
+func (d Documents) Edit(etx *echo.Context) error {
+	documentID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	document, err := d.documents.Find(etx.Request().Context(), documentID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.DocumentEdit{Item: document}.Page())
+}
+
+type UpdateDocumentFormPayload struct {
+	Title       string   `json:"title"`
+	Tags        []string `json:"tags"`
+	PageNumbers []int32  `json:"pageNumbers"`
+	ViewCount   int32    `json:"viewCount"`
+	IsPublished bool     `json:"isPublished"`
+}
+
+func (d Documents) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "documents.update")
+	defer span.End()
+	documentID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	var payload UpdateDocumentFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse UpdateDocumentFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.UpdateDocumentData{
+		ID: documentID,
+
+		Title: payload.Title,
+
+		Tags: payload.Tags,
+
+		PageNumbers: payload.PageNumbers,
+
+		ViewCount: payload.ViewCount,
+
+		IsPublished: payload.IsPublished,
+	}
+
+	document, err := d.documents.Update(
+		ctx,
+		data,
+	)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to update document: %v", err))
+		return etx.Redirect(
+			http.StatusSeeOther,
+			routes.DocumentEdit.URL(documentID),
+		)
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Document updated successfully")
+	return etx.Redirect(http.StatusSeeOther, routes.DocumentShow.URL(document.ID))
+}
+
+func (d Documents) Destroy(etx *echo.Context) error {
+	documentID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	err = d.documents.Destroy(etx.Request().Context(), documentID)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to delete document: %v", err))
+		return etx.Redirect(http.StatusSeeOther, routes.DocumentIndex.URL())
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Document destroyed successfully")
+	return etx.Redirect(http.StatusSeeOther, routes.DocumentIndex.URL())
+}

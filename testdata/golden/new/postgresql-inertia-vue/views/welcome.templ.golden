@@ -1,0 +1,71 @@
+package views
+
+import "app/router/routes"
+
+type Welcome struct{}
+
+func (w Welcome) PageFragment() string {
+	return "welcome-page-fragment"
+}
+
+templ (w Welcome) Page() {
+	@base(SetTitle("Welcome")) {
+		@templ.Fragment(w.PageFragment()) {
+			<main id="welcome-container" class="relative flex flex-1 items-center justify-center overflow-hidden bg-[#090b0d] text-[#e4dfd2]">
+				<div class="pointer-events-none absolute inset-0 opacity-60" style="background-image: radial-gradient(circle at 12% 18%, #f2ead8 0 1px, transparent 1.5px), radial-gradient(circle at 82% 22%, #aaa393 0 1px, transparent 1.5px), radial-gradient(circle at 67% 72%, #f2ead8 0 1px, transparent 1.5px), radial-gradient(circle at 24% 83%, #8f8a7d 0 1px, transparent 1.5px);"></div>
+				<div class="relative mx-auto w-full max-w-[960px] px-4 py-4">
+					<section class="grid items-center gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+						<div class="max-w-3xl">
+							<h1 class="text-4xl font-semibold text-[#f2ead8] sm:text-5xl lg:text-6xl">Space-grade Go, wired locally.</h1>
+							<p class="mt-5 max-w-2xl text-lg leading-7 text-[#aaa393]">
+								Andurel has generated the core app shell: routing, controllers, validation, authentication, email, queues, Templ, and Inertia-ready frontends.
+							</p>
+							<div class="mt-8 flex flex-wrap gap-3">
+								<a class="bg-[#ff6b1a] px-4 py-2 text-sm font-semibold text-[#130f0b] shadow-sm shadow-black/40 transition hover:bg-[#ff8748]" href="https://andurel.com">Read the docs</a>
+								<a class="border border-[#2f3a37] bg-[#101414]/80 px-4 py-2 text-sm font-semibold text-[#d7d0bf] transition hover:border-[#52605c] hover:text-[#f2ead8]" href={ routes.RegistrationNew.URL() }>Create account</a>
+							</div>
+						</div>
+						<div class="border border-[#2f3a37] bg-[#101414]/80 p-4 shadow-sm shadow-black/40">
+							<div class="mb-4 flex items-center justify-between border-b border-[#2f3a37] pb-3 text-xs uppercase text-[#8f8a7d]">
+								<span>deploy console</span>
+								<span class="text-[#8df7a4]">ready</span>
+							</div>
+							<div class="space-y-4 font-mono text-sm">
+								@consoleLine("auth", "sessions, registration, reset password")
+								@consoleLine("views", "Templ + Inertia scaffold online")
+								@consoleLine("routes", "slugged endpoints mounted")
+								@consoleLine("jobs", "queue worker ready")
+							</div>
+						</div>
+						<section class="grid gap-4 md:grid-cols-2 lg:col-span-2">
+							@welcomeCard("Documentation", "Start with the framework guides and learn the conventions that shape an Andurel app.", "https://andurel.com")
+							@welcomeCard("Authentication", "Registration, sessions, email confirmation, and password reset are already wired.", routes.RegistrationNew.URL())
+							@welcomeCard("Templ and Inertia", "Render server-side Templ pages or scaffold Inertia pages when Inertia is enabled.", routes.HomePage.URL())
+							@welcomeCard("Command line", "Generate models, factories, controllers, routes, jobs, emails, and views from the CLI.", "https://andurel.com")
+						</section>
+					</section>
+				</div>
+			</main>
+		}
+	}
+}
+
+templ welcomeCard(title string, description string, href string) {
+	<a class="group border border-[#2f3a37] bg-[#101414]/80 p-4 text-left shadow-sm shadow-black/40 transition hover:border-[#52605c]" href={ href }>
+		<div class="mb-4 flex size-8 items-center justify-center border border-[#52605c] bg-[#090c0d] text-[#8df7a4] transition group-hover:border-[#8df7a4]">
+			<span class="size-2 bg-[#8df7a4]"></span>
+		</div>
+		<h2 class="text-base font-semibold text-[#f2ead8]">{ title }</h2>
+		<p class="mt-2 text-sm leading-5 text-[#8f8a7d]">{ description }</p>
+	</a>
+}
+
+templ consoleLine(label string, value string) {
+	<div class="flex items-start gap-3">
+		<span class="mt-1 size-1.5 bg-[#8df7a4]"></span>
+		<div>
+			<p class="text-[#8df7a4]">{ label }</p>
+			<p class="text-[#8f8a7d]">{ value }</p>
+		</div>
+	</div>
+}

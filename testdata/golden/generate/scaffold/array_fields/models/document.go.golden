@@ -1,0 +1,216 @@
+package models
+
+// andurel:table documents
+
+import (
+	"context"
+	"errors"
+	"time"
+	"uuid"
+
+	"example.com/app/models/internal/queries"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+type Documents struct {
+	queries *queries.Queries
+}
+
+func NewDocuments(db storage.Connection) Documents {
+	return Documents{queries: queries.New(db)}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (d Documents) WithTx(tx storage.Transaction) Documents {
+	return Documents{queries: queries.New(tx)}
+}
+
+type Document struct {
+	ID          uuid.UUID          `andurel:"id"`
+	Title       string             `andurel:"title"`
+	Tags        []string           `andurel:"tags"`
+	PageNumbers []int32            `andurel:"page_numbers"`
+	ViewCount   int32              `andurel:"view_count"`
+	IsPublished bool               `andurel:"is_published"`
+	CreatedAt   pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `andurel:"updated_at"`
+}
+
+func (d Documents) Find(ctx context.Context, id uuid.UUID) (Document, error) {
+	entity, err := d.queries.GetDocument[Document](ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Document{}, ErrNotFound
+		}
+		return Document{}, err
+	}
+
+	return entity, nil
+}
+
+type CreateDocumentData struct {
+	Title       string
+	Tags        []string
+	PageNumbers []int32
+	ViewCount   int32
+	IsPublished bool
+}
+
+func (d Documents) Create(ctx context.Context, data CreateDocumentData) (Document, error) {
+	entity := Document{
+		ID:          uuid.New(),
+		CreatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		Title:       data.Title,
+		Tags:        data.Tags,
+		PageNumbers: data.PageNumbers,
+		ViewCount:   data.ViewCount,
+		IsPublished: data.IsPublished,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return Document{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	return d.queries.CreateDocument[Document](ctx, queries.CreateDocumentParams{
+		ID:          entity.ID,
+		Title:       entity.Title,
+		Tags:        entity.Tags,
+		PageNumbers: entity.PageNumbers,
+		ViewCount:   entity.ViewCount,
+		IsPublished: entity.IsPublished,
+		CreatedAt:   entity.CreatedAt,
+		UpdatedAt:   entity.UpdatedAt,
+	})
+}
+
+type UpdateDocumentData struct {
+	ID          uuid.UUID
+	Title       string
+	Tags        []string
+	PageNumbers []int32
+	ViewCount   int32
+	IsPublished bool
+}
+
+func (d Documents) Update(ctx context.Context, data UpdateDocumentData) (Document, error) {
+	entity := Document{
+		ID:          data.ID,
+		UpdatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		Title:       data.Title,
+		Tags:        data.Tags,
+		PageNumbers: data.PageNumbers,
+		ViewCount:   data.ViewCount,
+		IsPublished: data.IsPublished,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return Document{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	row, err := d.queries.UpdateDocument[Document](ctx, queries.UpdateDocumentParams{
+		ID:          entity.ID,
+		Title:       entity.Title,
+		Tags:        entity.Tags,
+		PageNumbers: entity.PageNumbers,
+		ViewCount:   entity.ViewCount,
+		IsPublished: entity.IsPublished,
+		UpdatedAt:   entity.UpdatedAt,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Document{}, ErrNotFound
+		}
+		return Document{}, err
+	}
+
+	return row, nil
+}
+
+func (d Documents) Destroy(ctx context.Context, id uuid.UUID) error {
+	if err := d.queries.DeleteDocument(ctx, id); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d Documents) All(ctx context.Context) ([]Document, error) {
+	return d.queries.ListDocuments[Document](ctx).All()
+}
+
+type PaginatedDocuments struct {
+	Documents  []Document
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (d Documents) Paginate(ctx context.Context, page, pageSize int64) (PaginatedDocuments, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := d.queries.CountDocuments(ctx)
+	if err != nil {
+		return PaginatedDocuments{}, err
+	}
+
+	entities, err := d.queries.ListDocuments[Document](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
+		return PaginatedDocuments{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedDocuments{
+		Documents:  entities,
+		TotalCount: int64(totalCount),
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (d Documents) Upsert(ctx context.Context, id uuid.UUID, data CreateDocumentData) (Document, error) {
+	entity := Document{
+		ID:          id,
+		CreatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		Title:       data.Title,
+		Tags:        data.Tags,
+		PageNumbers: data.PageNumbers,
+		ViewCount:   data.ViewCount,
+		IsPublished: data.IsPublished,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return Document{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	return d.queries.UpsertDocument[Document](ctx, queries.UpsertDocumentParams{
+		ID:          entity.ID,
+		Title:       entity.Title,
+		Tags:        entity.Tags,
+		PageNumbers: entity.PageNumbers,
+		ViewCount:   entity.ViewCount,
+		IsPublished: entity.IsPublished,
+		CreatedAt:   entity.CreatedAt,
+		UpdatedAt:   entity.UpdatedAt,
+	})
+}

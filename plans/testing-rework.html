@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Testing rework · Andurel</title>
+<style>
+:root {
+  --background: oklch(0.97 0.005 260);
+  --foreground: oklch(0.18 0.02 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.02 260);
+  --primary: oklch(0.50 0.25 280);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.50 0.18 180);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.92 0.01 260);
+  --muted-foreground: oklch(0.40 0.02 260);
+  --accent: oklch(0.60 0.22 50);
+  --accent-foreground: oklch(0.18 0.02 260);
+  --destructive: oklch(0.50 0.25 25);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.45 0.20 150);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.55 0.18 85);
+  --warning-foreground: oklch(0.18 0.02 260);
+  --border: oklch(0.88 0.01 260);
+  --input: oklch(0.92 0.01 260);
+  --ring: oklch(0.50 0.25 280);
+  --code-bg: oklch(0.92 0.01 260);
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  --font-display: ui-serif, Georgia, 'Times New Roman', serif;
+  --radius: 0.625rem;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--background);
+  color: var(--foreground);
+  line-height: 1.65;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 64px 24px;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+}
+
+header h1 {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 500;
+  margin: 8px 0 24px;
+  line-height: 1.2;
+}
+
+.prompt-box {
+  background: var(--muted);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 24px;
+}
+
+.prompt-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.prompt-box p {
+  font-size: 0.92rem;
+  color: var(--muted-foreground);
+  line-height: 1.55;
+  max-width: 65ch;
+}
+
+.summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin: 32px 0;
+}
+
+.stat-card {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 24px;
+  text-align: center;
+  background: var(--card);
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 500;
+  display: block;
+  color: var(--foreground);
+}
+
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+  margin-top: 4px;
+  display: block;
+}
+
+section { margin-top: 64px; }
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid var(--border);
+}
+
+.section-number {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.section-header h2 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+
+p, li {
+  max-width: 65ch;
+  font-size: 0.95rem;
+}
+
+ul, ol { padding-left: 1.25rem; margin: 12px 0; }
+li { margin: 6px 0; }
+li strong { font-weight: 600; }
+
+.lead {
+  font-size: 1.05rem;
+  color: var(--muted-foreground);
+  max-width: 68ch;
+  margin-bottom: 8px;
+}
+
+.timeline {
+  position: relative;
+  margin: 24px 0 0;
+  padding-left: 28px;
+}
+
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--border);
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 28px;
+}
+
+.timeline-item::before {
+  content: "";
+  position: absolute;
+  left: -28px;
+  top: 6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 2px solid var(--primary);
+}
+
+.timeline-phase {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--primary);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.timeline-item h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.timeline-item p {
+  color: var(--muted-foreground);
+  font-size: 0.92rem;
+}
+
+.diagram-wrap {
+  margin: 28px 0;
+  padding: 24px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+.diagram-caption {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+  margin-top: 12px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+@media (max-width: 720px) {
+  .grid-2 { grid-template-columns: 1fr; }
+}
+
+.compare-card {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+}
+
+.compare-card h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+
+.compare-card ul { margin: 0; }
+
+.badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.badge-high {
+  background: color-mix(in oklab, var(--destructive) 18%, transparent);
+  color: var(--destructive);
+}
+
+.badge-med {
+  background: color-mix(in oklab, var(--warning) 22%, transparent);
+  color: oklch(0.40 0.12 85);
+}
+
+.badge-low {
+  background: color-mix(in oklab, var(--success) 18%, transparent);
+  color: var(--success);
+}
+
+.badge-keep {
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+
+.badge-drop {
+  background: color-mix(in oklab, var(--destructive) 14%, transparent);
+  color: var(--destructive);
+}
+
+table.risks {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 0.9rem;
+}
+
+table.risks th,
+table.risks td {
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+table.risks th {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+
+.code-panel {
+  background: oklch(0.22 0.02 260);
+  color: oklch(0.92 0.01 260);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin: 16px 0;
+  overflow-x: auto;
+}
+
+.code-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: oklch(0.70 0.02 260);
+  display: block;
+  margin-bottom: 10px;
+}
+
+.code-panel pre {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  white-space: pre;
+}
+
+.code-panel .kw { color: oklch(0.78 0.12 300); }
+.code-panel .fn { color: oklch(0.82 0.12 200); }
+.code-panel .str { color: oklch(0.78 0.12 140); }
+.code-panel .cm { color: oklch(0.62 0.02 260); }
+
+.callout {
+  border: 1.5px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 16px 20px;
+  margin: 14px 0;
+}
+
+.callout h3 {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.callout p {
+  color: var(--muted-foreground);
+  font-size: 0.92rem;
+}
+
+.callout .owner {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--primary);
+  margin-top: 8px;
+  display: block;
+}
+
+.matrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.matrix-card {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+
+.matrix-card h3 {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.matrix-card p {
+  font-size: 0.88rem;
+  color: var(--muted-foreground);
+}
+
+.matrix-card.priority {
+  border-color: var(--primary);
+  background: color-mix(in oklab, var(--primary) 6%, var(--card));
+}
+
+.howto {
+  counter-reset: how;
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+}
+
+.howto li {
+  counter-increment: how;
+  position: relative;
+  max-width: none;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px 18px 64px;
+  margin: 12px 0;
+}
+
+.howto li::before {
+  content: counter(how, decimal-leading-zero);
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.howto li h3 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.howto li p {
+  color: var(--muted-foreground);
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+.revision-note {
+  border: 1.5px solid var(--accent);
+  background: color-mix(in oklab, var(--accent) 10%, var(--card));
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin: 24px 0 0;
+  font-size: 0.9rem;
+  max-width: none;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <span class="eyebrow">Implementation plan · Andurel · rev 2</span>
+  <h1>Rework testing around reliable golden files</h1>
+  <div class="prompt-box">
+    <span class="prompt-label">Brief</span>
+    <p>
+      Tests pass locally but fail on CI too often. Start from scratch: remove the
+      current suite, rebuild around golden-file generation and sync tests that
+      write deterministic, byte-stable outputs so local and CI always agree.
+    </p>
+  </div>
+  <p class="revision-note">
+    <strong>Rev 2 from review:</strong> drive every golden through a built
+    <code>andurel</code> CLI binary (not in-process generator APIs). Fix
+    product output so tests do not need formatting/normalization layers —
+    assert file bytes as written.
+  </p>
+</header>
+
+<div class="summary-strip">
+  <div class="stat-card">
+    <span class="stat-value">CLI</span>
+    <span class="stat-label">Only driver</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value">0</span>
+    <span class="stat-label">Test formatters</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value">2</span>
+    <span class="stat-label">Priority surfaces</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value">5</span>
+    <span class="stat-label">Phases</span>
+  </div>
+</div>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">01</span>
+    <h2>Core approach</h2>
+  </div>
+  <p class="lead">
+    Goldens are integration tests of the product CLI. Build one binary once,
+    run real <code>andurel generate …</code> / <code>andurel sync …</code>
+    against fixture projects, compare written files to committed goldens.
+  </p>
+
+  <div class="grid-2">
+    <div class="compare-card">
+      <h3><span class="badge badge-drop">Drop</span> What we stop doing</h3>
+      <ul>
+        <li>Calling generator packages directly from tests</li>
+        <li>Post-hoc scrubbers (secrets, versions, paths, lock timestamps)</li>
+        <li>Test-only formatting / rewriting of output before assert</li>
+        <li>Overlapping e2e tree snapshots + generator package goldens</li>
+        <li>Unpinned <code>go install</code> of formatters that change bytes</li>
+      </ul>
+    </div>
+    <div class="compare-card">
+      <h3><span class="badge badge-keep">Do</span> What replaces it</h3>
+      <ul>
+        <li>Build <code>andurel</code> once in <code>TestMain</code></li>
+        <li>Copy a fixture project into a temp dir</li>
+        <li>Exec the CLI with the same flags users run</li>
+        <li>Read the files the CLI wrote; goldie-assert them as-is</li>
+        <li>Make the CLI emit stable bytes (seeded secrets, pinned tools, stable module path in fixtures)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">02</span>
+    <h2>How — step by step</h2>
+  </div>
+  <p class="lead">
+    The harness stays thin on purpose. Determinism lives in the product and in
+    fixtures, not in test helpers.
+  </p>
+
+  <ol class="howto">
+    <li>
+      <h3>Product: make output byte-stable</h3>
+      <p>
+        Before new goldens land, remove the reasons tests currently scrub.
+        Scaffold secrets come from a fixed seed or a test-only env
+        (<code>ANDUREL_TEST_SEED</code> / injected RNG) when set — never random
+        on CI. Version banners in generated headers use the same version the
+        binary reports. Lock <code>appliedAt</code> is either omitted in test
+        mode or written as a fixed epoch. <code>FormatGoFile</code> always
+        invokes pinned tool versions from <code>layout/versions</code> (same
+        pins local and CI install), never whatever happens to be on PATH.
+      </p>
+    </li>
+    <li>
+      <h3>Fixtures: freeze the project shape</h3>
+      <p>
+        Each scenario is a directory under <code>testdata/fixtures/&lt;name&gt;/</code>:
+        a minimal Andurel project (go.mod with a fixed module path like
+        <code>example.com/app</code>, migrations, stubs for controllers/router
+        as needed). Copy into <code>t.TempDir()</code>. No rewriting of module
+        paths at assert time — the fixture already uses the stable name.
+      </p>
+    </li>
+    <li>
+      <h3>Harness: build CLI, run command, assert files</h3>
+      <p>
+        <code>TestMain</code> builds <code>andurel</code> into a shared temp bin
+        once (same pattern as today’s e2e, but without a normalizer). Each test:
+        copy fixture → <code>exec.Command(bin, args...).Dir(project)</code> →
+        on success, for each path in the scenario’s capture list, read bytes and
+        <code>goldie.Assert</code>. On failure, dump CLI stdout/stderr. Update
+        mode: <code>-update</code> / <code>GOLDEN_UPDATE=1</code> via goldie.
+        That is the entire assert path — no format, no regex replace, no JSON
+        rewrite.
+      </p>
+    </li>
+    <li>
+      <h3>Scenario tables for generate + sync</h3>
+      <p>
+        One table-driven test file (or two: generate / sync). Each row:
+        fixture name, argv, list of relative paths to capture. Example:
+        fixture <code>widgets_crud</code>, args
+        <code>generate scaffold Widget</code>, capture
+        <code>models/widget.go</code>, <code>controllers/widgets.go</code>,
+        views, routes, factory. Sync row: fixture with an existing factory that
+        has custom helpers, args <code>sync factory Widget --sync</code>,
+        capture the factory file.
+      </p>
+    </li>
+    <li>
+      <h3>CI = local</h3>
+      <p>
+        One just recipe installs pinned tools and runs the golden package.
+        CI runs that same recipe, then fails if goldens are dirty when run with
+        update, or simply runs tests and fails on mismatch. No second e2e
+        golden job. Go version pinned without <code>check-latest</code>.
+      </p>
+    </li>
+  </ol>
+
+  <div class="code-panel">
+    <span class="code-label">illustrative harness · no normalizer</span>
+    <pre><code><span class="kw">func</span> <span class="fn">TestGenerateGoldens</span>(t *testing.T) {
+  <span class="kw">for</span> _, sc := <span class="kw">range</span> generateScenarios {
+    t.Run(sc.Name, <span class="kw">func</span>(t *testing.T) {
+      project := copyFixture(t, sc.Fixture)
+      runCLI(t, andurelBin, project, sc.Args...)  <span class="cm">// fail on nonzero exit</span>
+      <span class="kw">for</span> _, path := <span class="kw">range</span> sc.Capture {
+        got := readFile(t, project, path)
+        g.Assert(t, filepath.Join(sc.Name, path), got)  <span class="cm">// raw bytes</span>
+      }
+    })
+  }
+}</code></pre>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 980 280" width="100%" role="img" aria-label="CLI-driven golden flow">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--muted-foreground)"/>
+        </marker>
+        <marker id="arrow-primary" viewBox="0 0 10 10" refX="9" refY="5"
+                markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--primary)"/>
+        </marker>
+      </defs>
+
+      <g transform="translate(30, 95)">
+        <rect width="140" height="70" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5"/>
+        <text x="70" y="30" text-anchor="middle" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--foreground)">go build</text>
+        <text x="70" y="48" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--muted-foreground)">andurel binary</text>
+      </g>
+
+      <g transform="translate(220, 95)">
+        <rect width="150" height="70" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5"/>
+        <text x="75" y="30" text-anchor="middle" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--foreground)">copy fixture</text>
+        <text x="75" y="48" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--muted-foreground)">stable module path</text>
+      </g>
+
+      <g transform="translate(420, 80)">
+        <rect width="200" height="100" rx="10"
+              fill="color-mix(in oklab, var(--primary) 8%, transparent)"
+              stroke="var(--primary)" stroke-width="1.5"/>
+        <text x="100" y="36" text-anchor="middle" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--foreground)">exec andurel …</text>
+        <text x="100" y="54" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--primary)">generate / sync</text>
+        <text x="100" y="72" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--primary)">pinned tools on PATH</text>
+      </g>
+
+      <g transform="translate(680, 95)">
+        <rect width="240" height="70" rx="10"
+              fill="color-mix(in oklab, var(--success) 8%, transparent)"
+              stroke="var(--success)" stroke-width="1.5"/>
+        <text x="120" y="30" text-anchor="middle" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--foreground)">goldie.Assert raw files</text>
+        <text x="120" y="48" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--success)">no normalize / format</text>
+      </g>
+
+      <line x1="170" y1="130" x2="220" y2="130" stroke="var(--muted-foreground)" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <line x1="370" y1="130" x2="420" y2="130" stroke="var(--primary)" stroke-width="1.5" marker-end="url(#arrow-primary)"/>
+      <line x1="620" y1="130" x2="680" y2="130" stroke="var(--muted-foreground)" stroke-width="1.5" marker-end="url(#arrow)"/>
+    </svg>
+    <p class="diagram-caption">Figure · Build CLI → run against fixture → assert bytes as written</p>
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">03</span>
+    <h2>Why local ≠ CI today</h2>
+  </div>
+  <ul>
+    <li><strong>Unpinned formatters</strong> — most workflows install templ / golines / goimports without versions; release-readiness pins them. Bytes drift.</li>
+    <li><strong>PATH-dependent <code>FormatGoFile</code></strong> — product shells out to whatever is installed; tests then try to compensate.</li>
+    <li><strong>Random scaffold secrets + lock timestamps</strong> — e2e normalizer papers over instability instead of fixing the writer.</li>
+    <li><strong>Two golden stacks</strong> — generator package APIs vs full e2e CLI, different harnesses, same intent.</li>
+  </ul>
+  <p>
+    The rework attacks the root: stable writers + CLI-only goldens. If a golden
+    is flaky, the product is wrong — not the test helper.
+  </p>
+</section>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">04</span>
+    <h2>Priority coverage</h2>
+  </div>
+  <p class="lead">Phase 2–3 only. Capture lists are the files the CLI actually writes for that command.</p>
+
+  <div class="matrix">
+    <div class="matrix-card priority">
+      <h3>andurel generate model</h3>
+      <p>Initial, update-from-migration, custom PK, no-PK edges. Capture model (+ factory if not skipped).</p>
+    </div>
+    <div class="matrix-card priority">
+      <h3>andurel generate scaffold</h3>
+      <p>Full CRUD, skip-factory, table override, irregular plurals, arrays, Inertia variants.</p>
+    </div>
+    <div class="matrix-card priority">
+      <h3>andurel generate controller</h3>
+      <p>CRUD vs actions, namespaces/API, add-action, bare vs CSS components.</p>
+    </div>
+    <div class="matrix-card priority">
+      <h3>andurel sync factory / factories</h3>
+      <p>Owned regions rewrite + custom helpers preserved; also <code>--check --json</code> stdout golden if useful.</p>
+    </div>
+    <div class="matrix-card">
+      <h3>sync routes / payloads</h3>
+      <p>Second wave once factory goldens are green.</p>
+    </div>
+    <div class="matrix-card">
+      <h3>sync views / queries / email</h3>
+      <p>Third wave — needs pinned external tools proven first.</p>
+    </div>
+    <div class="matrix-card">
+      <h3>andurel new</h3>
+      <p>Later full-tree golden with seeded secrets; replaces today’s e2e scaffold snapshot.</p>
+    </div>
+    <div class="matrix-card">
+      <h3>Thin unit tests</h3>
+      <p>Only after goldens: parsers, flag errors, pkg modules — no output formatting.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">05</span>
+    <h2>Milestones</h2>
+  </div>
+
+  <div class="timeline">
+    <div class="timeline-item">
+      <span class="timeline-phase">Phase 0 · Clean slate</span>
+      <h3>Delete old tests and goldens; slim CI</h3>
+      <p>
+        Remove <code>*_test.go</code> (scope per open question on <code>pkg/*</code>),
+        e2e suite, and golden trees. Keep contract scripts. CI runs vet +
+        contracts only until Phase 2 lands.
+      </p>
+    </div>
+
+    <div class="timeline-item">
+      <span class="timeline-phase">Phase 1 · Product stability + thin harness</span>
+      <h3>Fix writers; add CLI TestMain harness</h3>
+      <p>
+        Pin tool versions in one module; make scaffold/lock/header output
+        deterministic under test seed; point FormatGoFile at pinned binaries.
+        Add <code>internal/goldentest</code>: build binary, copy fixture, run CLI,
+        assert raw files. Prove with one trivial generate that already writes
+        stable output.
+      </p>
+    </div>
+
+    <div class="timeline-item">
+      <span class="timeline-phase">Phase 2 · Generation goldens</span>
+      <h3>Table-driven <code>andurel generate …</code> scenarios</h3>
+      <p>
+        Port today’s high-value model / controller / scaffold cases as CLI
+        argv + capture lists. Prefer fewer scenarios that stay green over a
+        large flaky set.
+      </p>
+    </div>
+
+    <div class="timeline-item">
+      <span class="timeline-phase">Phase 3 · Sync goldens</span>
+      <h3>Factory sync via CLI, then routes/payloads</h3>
+      <p>
+        Fixtures include hand-edited factory helpers; run
+        <code>sync factory</code> / <code>sync factories</code>; assert files.
+        Add check-mode JSON goldens only if stdout is already stable (no test
+        reformatting).
+      </p>
+    </div>
+
+    <div class="timeline-item">
+      <span class="timeline-phase">Phase 4 · Thin extras</span>
+      <h3>Units and <code>andurel new</code> tree golden</h3>
+      <p>
+        Reintroduce non-file unit tests sparingly. One or two
+        <code>andurel new</code> matrix goldens replace the old e2e snapshot
+        suite — still CLI-driven, still raw bytes.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">06</span>
+    <h2>Layout</h2>
+  </div>
+  <div class="code-panel">
+    <span class="code-label">after rework</span>
+    <pre><code>internal/goldentest/     <span class="cm"># build CLI, copy fixture, run, assert — no normalizer</span>
+testdata/
+  fixtures/              <span class="cm"># example.com/app projects + migrations</span>
+  golden/
+    generate/…
+    sync/…
+golden/                  <span class="cm"># package with TestMain + scenario tables</span>
+  generate_test.go
+  sync_test.go
+  main_test.go           <span class="cm"># builds andurel once</span>
+.github/workflows/
+  test.yml               <span class="cm"># vet + golden package, pinned tools</span>
+  golden-files.yml       <span class="cm"># optional: update + dirty check</span></code></pre>
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">07</span>
+    <h2>Risks</h2>
+  </div>
+  <table class="risks">
+    <thead>
+      <tr>
+        <th>Risk</th>
+        <th>Severity</th>
+        <th>Mitigation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Coverage hole between delete and first goldens</td>
+        <td><span class="badge badge-high">High</span></td>
+        <td>Do not merge Phase 0 alone to master; ship Phase 1–2 on the same branch series.</td>
+      </tr>
+      <tr>
+        <td>Product changes for determinism touch user-visible output</td>
+        <td><span class="badge badge-med">Med</span></td>
+        <td>Prefer test-seed env over changing default production randomness; document any lock/header changes.</td>
+      </tr>
+      <tr>
+        <td>Building CLI in TestMain needs network/modules</td>
+        <td><span class="badge badge-med">Med</span></td>
+        <td>Same as current e2e; cache modules in CI; fail loud if build fails.</td>
+      </tr>
+      <tr>
+        <td>Temptation to add a “small” normalizer later</td>
+        <td><span class="badge badge-low">Low</span></td>
+        <td>Hard rule: if bytes differ, fix the CLI or the fixture — never add scrubbers.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">08</span>
+    <h2>Open questions</h2>
+  </div>
+
+  <div class="callout">
+    <h3>Wipe scope for <code>pkg/*</code>?</h3>
+    <p>
+      Delete standalone package tests too, or leave <code>pkg/**</code> alone while
+      wiping CLI/generator/e2e?
+    </p>
+    <span class="owner">Decide with: you</span>
+  </div>
+
+  <div class="callout">
+    <h3>Test-seed API shape</h3>
+    <p>
+      Env var (<code>ANDUREL_TEST_SEED</code>), hidden flag, or build tag? Needs to
+      be unavailable / inert for normal users.
+    </p>
+    <span class="owner">Decide with: you</span>
+  </div>
+
+  <div class="callout">
+    <h3>Stacked PRs vs one branch</h3>
+    <p>
+      Proposal: long-lived branch; Phase 0–2 land before merging to master so
+      master never sits without generation goldens.
+    </p>
+    <span class="owner">Decide with: you</span>
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">09</span>
+    <h2>Next step after approval</h2>
+  </div>
+  <p>
+    Phase 0 + Phase 1 on a feature branch: delete the old suite, pin tools,
+    make writers stable under a test seed, land the CLI harness with one smoke
+    golden. Then Phase 2 generation scenarios before anything else returns.
+  </p>
+</section>
+
+</div>
+</body>
+</html>

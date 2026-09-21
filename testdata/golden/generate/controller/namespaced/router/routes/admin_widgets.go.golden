@@ -1,0 +1,43 @@
+package routes
+
+import (
+	"github.com/mbvlabs/andurel/pkg/routing"
+)
+
+const AdminWidgetPrefix = "/admin/widgets"
+
+var AdminWidgetIndex = routing.NewSimpleRoute(
+	"",
+	"admin.widgets.index",
+	AdminWidgetPrefix,
+)
+var AdminWidgetShow = routing.NewRouteWithUUIDID(
+	"/:id",
+	"admin.widgets.show",
+	AdminWidgetPrefix,
+)
+var AdminWidgetNew = routing.NewSimpleRoute(
+	"/new",
+	"admin.widgets.new",
+	AdminWidgetPrefix,
+)
+var AdminWidgetCreate = routing.NewSimpleRoute(
+	"",
+	"admin.widgets.create",
+	AdminWidgetPrefix,
+)
+var AdminWidgetEdit = routing.NewRouteWithUUIDID(
+	"/:id/edit",
+	"admin.widgets.edit",
+	AdminWidgetPrefix,
+)
+var AdminWidgetUpdate = routing.NewRouteWithUUIDID(
+	"/:id",
+	"admin.widgets.update",
+	AdminWidgetPrefix,
+)
+var AdminWidgetDestroy = routing.NewRouteWithUUIDID(
+	"/:id",
+	"admin.widgets.destroy",
+	AdminWidgetPrefix,
+)

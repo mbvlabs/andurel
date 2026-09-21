@@ -35,102 +35,100 @@ bmo:
 
 # ============================================================================
 # Testing Commands
+#
+# GitHub Actions calls these recipes instead of inlining go test / go vet.
+# PR: just ci-pr. Nightly / release-readiness: just ci-nightly.
 # ============================================================================
 
-# Run go vet
+# Run go vet on the module and standalone pkg/* modules
 vet:
 	go vet ./...
+	./scripts/vet-standalone-modules.sh
 
-# Run unit tests (excludes e2e, fast)
-test:
-	go list ./... | grep -v /e2e | xargs go test -v
+# Run unit tests (excludes ./golden CLI goldens — use just test-golden)
+test: install-dev-tools
+	go test $(go list ./... | grep -v '/golden$$') -count=1
 
-# Run unit tests with coverage
+# Run unit tests with race detection (PR and nightly CI)
+test-race: install-dev-tools
+	go test $(go list ./... | grep -v '/golden$$') -race -count=1
+
+# Run unit tests with coverage (excludes golden; CLI goldens use just test-golden)
 test-coverage:
 	./scripts/coverage.sh
 
-# Run critical e2e tests only
-test-e2e-critical:
-	go clean -testcache
-	E2E_CRITICAL_ONLY=true go test ./e2e/... -v -timeout 25m
+# Run golden CLI tests (PR track: generate + sync + slim new MVC)
+test-golden: install-dev-tools
+	env -u ANDUREL_GOLDEN_FULL go test ./golden/... -v -timeout 15m
 
-# Run full e2e test suite
-test-e2e-full:
-	go clean -testcache
-	go test ./e2e/... -v -timeout 55m
+# Run golden CLI tests including nightly full-tree `andurel new`
+test-golden-full: install-dev-tools
+	ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m
 
-# Run scaffold golden e2e tests
-test-e2e-scaffold:
-	go clean -testcache
-	go test ./e2e -run TestScaffoldGoldens -v -timeout 30m
+# Fail if gofmt would change any file
+check-fmt:
+	test -z "$(gofmt -l .)"
 
-# Run critical tests (unit + critical e2e, recommended for PRs)
+# Run golangci-lint via the pinned wrapper
+lint:
+	./scripts/lint.sh
+
+# Run critical tests (vet + contracts + golden)
 test-critical:
-	@echo "Running unit tests..."
-	@just test
-	@echo "\nRunning critical e2e tests..."
-	@just test-e2e-critical
-
-# Run all tests (unit + full e2e suite)
-test-all:
-	@echo "Running unit tests..."
-	@just test
-	@echo "\nRunning full e2e test suite..."
-	@just test-e2e-full
-
-# Run quick check (vet + unit tests, very fast)
-check:
 	@echo "Running go vet..."
 	@just vet
+	@echo "\nChecking contracts..."
+	@just check-contracts
+	@echo "\nRunning golden tests..."
+	@just test-golden
+
+# Run all currently available checks
+test-all:
+	@just test-critical
 	@echo "\nRunning unit tests..."
 	@just test
 
-# Run full CI check (vet + unit tests + critical e2e, matches PR workflow)
-ci:
+# Run quick check (vet + contracts)
+check:
 	@echo "Running go vet..."
 	@just vet
-	@echo "\nRunning unit tests with coverage..."
-	@just test-coverage
-	@echo "\nRunning critical e2e tests..."
-	@just test-e2e-critical
-	@echo "\n✅ All CI checks passed!"
+	@echo "\nChecking contracts..."
+	@just check-contracts
 
-# Install formatter/codegen tools used by golden updates (same as CI)
+# PR CI suite (Test workflow). Coverage stays a separate best-effort step.
+ci-pr:
+	@just check-contracts
+	@just vet
+	@just test-race
+	@just test-golden
+
+# Nightly / release-readiness suite (full goldens + race)
+ci-nightly:
+	@just check-contracts
+	@just vet
+	@just test-golden-full
+	@just test-race
+
+# Local alias for the PR CI suite
+ci:
+	@just ci-pr
+
+# Install formatter/codegen tools used by golden updates (pinned; match layout/versions)
 install-dev-tools:
-	go install github.com/a-h/templ/cmd/templ
-	go install github.com/segmentio/golines
-	go install golang.org/x/tools/cmd/goimports
+	./scripts/install-dev-tools.sh
 
-# Update scaffold golden files
+# Update PR golden files under testdata/golden (generate + sync + slim new)
 update-golden: install-dev-tools
 	go clean -testcache
-	go test ./e2e -run TestScaffoldGoldens -v -timeout 30m -update -clean
+	env -u ANDUREL_GOLDEN_FULL go test ./golden/... -v -timeout 15m -update
 
-# Update golden files for generator model tests
-update-golden-generator-models: install-dev-tools
+# Update nightly full-tree `new/` goldens (also refreshes generate + sync)
+update-golden-full: install-dev-tools
 	go clean -testcache
-	go test ./generator -run TestModelGenerationGoldens -v -update
-
-# Update golden files for generator controller/view tests
-update-golden-generator-controller-views: install-dev-tools
-	go clean -testcache
-	go test ./generator -run TestControllerViewGenerationGoldens -v -update
-
-# Update golden files for generator scaffold tests
-update-golden-generator-scaffold: install-dev-tools
-	go clean -testcache
-	go test ./generator -run TestScaffoldGenerationGoldens -v -update
-
-# Update all golden files
-update-golden-all: install-dev-tools
-	go clean -testcache
-	go test ./generator -run TestModelGenerationGoldens -v -update
-	go test ./generator -run TestControllerViewGenerationGoldens -v -update
-	go test ./generator -run TestScaffoldGenerationGoldens -v -update
-	go test ./e2e -run TestScaffoldGoldens -v -timeout 30m -update -clean
+	ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m -update
 
 # Clean test artifacts and cache
 clean-test:
 	go clean -testcache
 	rm -f coverage.out coverage-summary.out coverage.txt
-	rm -rf /tmp/andurel-e2e-*
+	rm -rf /tmp/andurel-e2e-* /tmp/andurel-golden-*

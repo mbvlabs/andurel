@@ -1,0 +1,315 @@
+package models
+
+// andurel:table users
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+	"uuid"
+
+	"app/models/internal/queries"
+
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/validation"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"golang.org/x/crypto/argon2"
+)
+
+type Users struct {
+	queries *queries.Queries
+}
+
+func NewUsers(db storage.Connection) Users {
+	return Users{queries: queries.New(db)}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (u Users) WithTx(tx storage.Transaction) Users {
+	return Users{queries: queries.New(tx)}
+}
+
+type User struct {
+	ID               uuid.UUID          `andurel:"id"`
+	CreatedAt        pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `andurel:"updated_at"`
+	Email            string             `andurel:"email"`
+	EmailValidatedAt pgtype.Timestamptz `andurel:"email_validated_at"`
+	Password         []byte             `andurel:"password"`
+	IsAdmin          bool               `andurel:"is_admin"`
+}
+
+func (u *User) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("email", u.Email)
+	b.MaxLen("email", u.Email, 255)
+
+	return b.Err()
+}
+
+func (u *User) HasValidatedEmail() bool {
+	return u.EmailValidatedAt.Valid
+}
+
+func (u *User) ValidPassword(providedPassword, pepper string) (bool, error) {
+	parts := strings.Split(string(u.Password), ":")
+	if len(parts) != 2 {
+		return false, fmt.Errorf("invalid stored password format")
+	}
+
+	expectedHash, err := base64.RawStdEncoding.DecodeString(parts[0])
+	if err != nil {
+		return false, fmt.Errorf("failed to decode hash: %w", err)
+	}
+
+	salt, err := base64.RawStdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return false, fmt.Errorf("failed to decode pepper: %w", err)
+	}
+
+	newHash := argon2.IDKey(
+		[]byte(providedPassword+pepper),
+		salt,
+		2,
+		19*1024,
+		1,
+		uint32(len(expectedHash)),
+	)
+
+	return subtle.ConstantTimeCompare(newHash, expectedHash) == 1, nil
+}
+
+func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
+	entity, err := u.queries.GetUser[User](ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return User{}, ErrNotFound
+		}
+
+		return User{}, err
+	}
+
+	return entity, nil
+}
+
+func (u Users) FindByEmail(
+	ctx context.Context,
+	email string,
+) (User, error) {
+	entity, err := u.queries.GetUserByEmail[User](ctx, strings.ToLower(email))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return User{}, ErrNotFound
+		}
+
+		return User{}, err
+	}
+
+	return entity, nil
+}
+
+type PasswordPair struct {
+	Password        string
+	ConfirmPassword string
+}
+
+type CreateUserData struct {
+	Email        string
+	PasswordPair PasswordPair
+}
+
+func (u Users) Create(
+	ctx context.Context,
+	pepper string,
+	data CreateUserData,
+) (User, error) {
+	hashedPassword, err := HashPassword(data.PasswordPair.Password, pepper)
+	if err != nil {
+		return User{}, err
+	}
+
+	entity := User{
+		ID:               uuid.New(),
+		CreatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		Email:            strings.ToLower(data.Email),
+		EmailValidatedAt: pgtype.Timestamptz{},
+		Password:         []byte(hashedPassword),
+		IsAdmin:          false,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return User{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	return u.queries.CreateUser[User](ctx, queries.CreateUserParams{
+		ID:               entity.ID,
+		CreatedAt:        entity.CreatedAt,
+		UpdatedAt:        entity.UpdatedAt,
+		Email:            entity.Email,
+		EmailValidatedAt: entity.EmailValidatedAt,
+		Password:         entity.Password,
+		IsAdmin:          entity.IsAdmin,
+	})
+}
+
+type UpdateUserData struct {
+	ID               uuid.UUID
+	Email            string
+	EmailValidatedAt pgtype.Timestamptz
+	Password         []byte
+	IsAdmin          bool
+}
+
+func (u Users) Update(
+	ctx context.Context,
+	data UpdateUserData,
+) (User, error) {
+	current, err := u.Find(ctx, data.ID)
+	if err != nil {
+		return User{}, err
+	}
+
+	email := strings.ToLower(data.Email)
+	if email == "" {
+		email = current.Email
+	}
+
+	emailValidatedAt := data.EmailValidatedAt
+	if !emailValidatedAt.Valid && current.EmailValidatedAt.Valid {
+		emailValidatedAt = current.EmailValidatedAt
+	}
+
+	password := data.Password
+	if len(password) == 0 {
+		password = current.Password
+	}
+
+	entity := User{
+		ID:               data.ID,
+		CreatedAt:        current.CreatedAt,
+		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		Email:            email,
+		EmailValidatedAt: emailValidatedAt,
+		Password:         password,
+		IsAdmin:          data.IsAdmin,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return User{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	row, err := u.queries.UpdateUser[User](ctx, queries.UpdateUserParams{
+		ID:               entity.ID,
+		Email:            entity.Email,
+		EmailValidatedAt: entity.EmailValidatedAt,
+		Password:         entity.Password,
+		IsAdmin:          entity.IsAdmin,
+		UpdatedAt:        entity.UpdatedAt,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return User{}, ErrNotFound
+		}
+
+		return User{}, err
+	}
+
+	return row, nil
+}
+
+func (u Users) Destroy(ctx context.Context, id uuid.UUID) error {
+	return u.queries.DeleteUser(ctx, id)
+}
+
+func (u Users) All(ctx context.Context) ([]User, error) {
+	return u.queries.ListUsers[User](ctx).All()
+}
+
+type PaginatedUsers struct {
+	Users      []User
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (u Users) Paginate(
+	ctx context.Context,
+	page, pageSize int64,
+) (PaginatedUsers, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := u.queries.CountUsers(ctx)
+	if err != nil {
+		return PaginatedUsers{}, err
+	}
+
+	entities, err := u.queries.ListUsers[User](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
+		return PaginatedUsers{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedUsers{
+		Users:      entities,
+		TotalCount: int64(totalCount),
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func generateSalt(size int) ([]byte, error) {
+	salt := make([]byte, size)
+	_, err := rand.Read(salt)
+	if err != nil {
+		return nil, err
+	}
+
+	return salt, nil
+}
+
+func HashPassword(password, pepper string) (string, error) {
+	salt, err := generateSalt(16)
+	if err != nil {
+		return "", err
+	}
+
+	hash := argon2.IDKey(
+		[]byte(password+pepper),
+		[]byte(salt),
+		2,
+		19*1024,
+		1,
+		32,
+	)
+
+	encodedHash := fmt.Sprintf("%s:%s",
+		base64.RawStdEncoding.EncodeToString(hash),
+		base64.RawStdEncoding.EncodeToString(salt))
+
+	return encodedHash, nil
+}

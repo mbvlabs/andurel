@@ -2,7 +2,6 @@
 package layout
 
 import (
-	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -19,6 +18,7 @@ import (
 	"time"
 
 	"github.com/mbvlabs/andurel/internal/constants"
+	"github.com/mbvlabs/andurel/internal/testseed"
 	"github.com/mbvlabs/andurel/layout/blueprint"
 	"github.com/mbvlabs/andurel/layout/cmds"
 	"github.com/mbvlabs/andurel/layout/templates"
@@ -39,7 +39,7 @@ func Scaffold(
 	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
 
 	moduleName := projectName
-	secrets, err := generateScaffoldSecrets(rand.Reader)
+	secrets, err := generateScaffoldSecrets(testseed.RandomReader())
 	if err != nil {
 		return fmt.Errorf("failed to generate scaffold secrets: %w", err)
 	}
@@ -94,6 +94,15 @@ func Scaffold(
 	}
 	if err := generateLockFile(targetDir, version, scaffoldConfig, database); err != nil {
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
+	}
+
+	// Golden CLI builds already seed secrets and migration timestamps via
+	// testseed. PR goldens skip network-bound post-scaffold steps so
+	// `andurel new` stays offline. Nightly full-tree goldens call RunCLIFull
+	// so templ, narsilc, go fmt, and tidy still run.
+	// See internal/testseed and testdata/golden/README.md.
+	if testseed.Enabled() && !testseed.FullScaffold() {
+		return nil
 	}
 
 	fmt.Print("Fixing migration timestamps...\n")
@@ -521,11 +530,7 @@ func processMigrations(
 	targetDir string,
 	data *TemplateData,
 ) (time.Time, error) {
-	baseTime := time.Now()
-
-	if os.Getenv("ANDUREL_TEST_MODE") == "true" {
-		baseTime = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	}
+	baseTime := testseed.Now()
 
 	migrations := []struct {
 		template string

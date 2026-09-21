@@ -1,0 +1,115 @@
+package factories
+
+import (
+	"context"
+	"fmt"
+	"time"
+	"uuid"
+
+	"app/models"
+	"app/models/internal/queries"
+
+	"github.com/mbvlabs/andurel/pkg/storage"
+
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+// TokenFactory wraps models.Token for testing
+type TokenFactory struct {
+	models.Token
+}
+
+// TokenOption is a functional option for configuring a TokenFactory
+type TokenOption func(*TokenFactory)
+
+// BuildToken creates an in-memory Token with default test values.
+// Auto-managed fields (ID, timestamps) are left at zero and set by CreateToken.
+func BuildToken(opts ...TokenOption) models.Token {
+	f := &TokenFactory{
+		Token: models.Token{
+			Scope:     "default",
+			ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(1 * time.Hour), Valid: true},
+			Hash:      "test-hash",
+			MetaData:  []byte("{}"),
+		},
+	}
+
+	for _, opt := range opts {
+		opt(f)
+	}
+
+	return f.Token
+}
+
+// CreateToken creates and persists a Token to the database.
+// It returns the entity populated with all DB-assigned values via RETURNING *.
+func CreateToken(
+	ctx context.Context,
+	db storage.Connection,
+	opts ...TokenOption,
+) (models.Token, error) {
+	built := BuildToken(opts...)
+
+	return queries.New(db).CreateToken[models.Token](ctx, queries.CreateTokenParams{
+		ID:        uuid.New(),
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		Scope:     built.Scope,
+		ExpiresAt: built.ExpiresAt,
+		Hash:      built.Hash,
+		MetaData:  built.MetaData,
+	})
+}
+
+// CreateTokens creates multiple Token records at once
+func CreateTokens(
+	ctx context.Context,
+	db storage.Connection,
+	count int,
+	opts ...TokenOption,
+) ([]models.Token, error) {
+	tokens := make([]models.Token, 0, count)
+
+	for i := range count {
+		token, err := CreateToken(ctx, db, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create token %d: %w", i+1, err)
+		}
+		tokens = append(tokens, token)
+	}
+
+	return tokens, nil
+}
+
+// WithScope sets the scope for the token
+func WithScope(scope string) TokenOption {
+	return func(f *TokenFactory) {
+		f.Scope = scope
+	}
+}
+
+// WithExpiresAt sets the expiration time for the token
+func WithExpiresAt(t time.Time) TokenOption {
+	return func(f *TokenFactory) {
+		f.ExpiresAt = pgtype.Timestamptz{Time: t, Valid: true}
+	}
+}
+
+// WithMetaData sets the metadata for the token
+func WithMetaData(data []byte) TokenOption {
+	return func(f *TokenFactory) {
+		f.MetaData = data
+	}
+}
+
+// WithExpired creates a token that has already expired
+func WithExpired() TokenOption {
+	return WithExpiresAt(time.Now().Add(-1 * time.Hour))
+}
+
+// WithHash sets a custom hash
+func WithHash(hash string) TokenOption {
+	return func(f *TokenFactory) {
+		f.Hash = hash
+	}
+}

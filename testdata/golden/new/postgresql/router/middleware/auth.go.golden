@@ -1,0 +1,60 @@
+package middleware
+
+import (
+	"net/http"
+	"time"
+
+	"app/router/cookies"
+	"app/router/routes"
+
+	"github.com/mbvlabs/andurel/pkg/routing"
+
+	"github.com/labstack/echo/v5"
+	"github.com/maypok86/otter/v2"
+)
+
+func AuthOnly() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			if cookies.Current(c.Request().Context()).IsAuthenticated {
+				return next(c)
+			}
+
+			return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
+		}
+	}
+}
+
+func IPRateLimiter(
+	limit int32,
+	redirectURL routing.Route,
+) func(next echo.HandlerFunc) echo.HandlerFunc {
+	cache := otter.Must(&otter.Options[string, int32]{
+		MaximumSize:      1000,
+		ExpiryCalculator: otter.ExpiryCreating[string, int32](10 * time.Minute),
+	})
+
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			ip := c.RealIP()
+			allowed := false
+			cache.Compute(ip, func(hits int32, found bool) (int32, otter.ComputeOp) {
+				if !found {
+					hits = 0
+				}
+				if hits >= limit {
+					return hits, otter.CancelOp
+				}
+
+				allowed = true
+				return hits + 1, otter.WriteOp
+			})
+
+			if !allowed {
+				return c.String(http.StatusTooManyRequests, redirectURL.URL())
+			}
+
+			return next(c)
+		}
+	}
+}

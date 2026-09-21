@@ -1,0 +1,189 @@
+package models
+
+// andurel:table projects
+
+import (
+	"context"
+	"errors"
+	"time"
+	"uuid"
+
+	"example.com/app/models/internal/queries"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+type Projects struct {
+	queries *queries.Queries
+}
+
+func NewProjects(db storage.Connection) Projects {
+	return Projects{queries: queries.New(db)}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (p Projects) WithTx(tx storage.Transaction) Projects {
+	return Projects{queries: queries.New(tx)}
+}
+
+type Project struct {
+	ID        uuid.UUID          `andurel:"id"`
+	Title     string             `andurel:"title"`
+	Status    string             `andurel:"status"`
+	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
+}
+
+func (p Projects) Find(ctx context.Context, id uuid.UUID) (Project, error) {
+	entity, err := p.queries.GetProject[Project](ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Project{}, ErrNotFound
+		}
+		return Project{}, err
+	}
+
+	return entity, nil
+}
+
+type CreateProjectData struct {
+	Title  string
+	Status string
+}
+
+func (p Projects) Create(ctx context.Context, data CreateProjectData) (Project, error) {
+	entity := Project{
+		ID:        uuid.New(),
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		Title:     data.Title,
+		Status:    data.Status,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return Project{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	return p.queries.CreateProject[Project](ctx, queries.CreateProjectParams{
+		ID:        entity.ID,
+		Title:     entity.Title,
+		Status:    entity.Status,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	})
+}
+
+type UpdateProjectData struct {
+	ID     uuid.UUID
+	Title  string
+	Status string
+}
+
+func (p Projects) Update(ctx context.Context, data UpdateProjectData) (Project, error) {
+	entity := Project{
+		ID:        data.ID,
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		Title:     data.Title,
+		Status:    data.Status,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return Project{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	row, err := p.queries.UpdateProject[Project](ctx, queries.UpdateProjectParams{
+		ID:        entity.ID,
+		Title:     entity.Title,
+		Status:    entity.Status,
+		UpdatedAt: entity.UpdatedAt,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Project{}, ErrNotFound
+		}
+		return Project{}, err
+	}
+
+	return row, nil
+}
+
+func (p Projects) Destroy(ctx context.Context, id uuid.UUID) error {
+	if err := p.queries.DeleteProject(ctx, id); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p Projects) All(ctx context.Context) ([]Project, error) {
+	return p.queries.ListProjects[Project](ctx).All()
+}
+
+type PaginatedProjects struct {
+	Projects   []Project
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (p Projects) Paginate(ctx context.Context, page, pageSize int64) (PaginatedProjects, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := p.queries.CountProjects(ctx)
+	if err != nil {
+		return PaginatedProjects{}, err
+	}
+
+	entities, err := p.queries.ListProjects[Project](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
+		return PaginatedProjects{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedProjects{
+		Projects:   entities,
+		TotalCount: int64(totalCount),
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+func (p Projects) Upsert(ctx context.Context, id uuid.UUID, data CreateProjectData) (Project, error) {
+	entity := Project{
+		ID:        id,
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		Title:     data.Title,
+		Status:    data.Status,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return Project{}, errors.Join(ErrDomainValidation, err)
+	}
+
+	return p.queries.UpsertProject[Project](ctx, queries.UpsertProjectParams{
+		ID:        entity.ID,
+		Title:     entity.Title,
+		Status:    entity.Status,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	})
+}

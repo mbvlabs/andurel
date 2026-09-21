@@ -7,9 +7,27 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/mbvlabs/andurel/internal/testseed"
 	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
+
+func resolveProjectTool(name, projectDir string) string {
+	if dir := os.Getenv("ANDUREL_TOOL_BIN"); dir != "" {
+		candidate := filepath.Join(dir, name)
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	candidate := filepath.Join(projectDir, "bin", name)
+	if _, err := os.Stat(candidate); err == nil {
+		return candidate
+	}
+	if path, err := exec.LookPath(name); err == nil {
+		return path
+	}
+	return ""
+}
 
 var (
 	absolutePath = filepath.Abs
@@ -24,8 +42,11 @@ func RunGoModTidy(targetDir string) error {
 	}
 	cmd := newCommand("go", "mod", "tidy")
 	cmd.Dir = absTargetDir
-
-	return cmd.Run()
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%w\n%s", err, out)
+	}
+	return nil
 }
 
 // RunGoFmt runs go fmt.
@@ -73,10 +94,12 @@ func RunGolines(targetDir string) error {
 }
 
 // RunNarsilcGenerate runs narsilc generate when models/queries contains SQL files.
-// If bin/narsilc is not installed yet, it falls back to
+// It prefers ANDUREL_TOOL_BIN, then bin/narsilc, then PATH, then falls back to
 // go run github.com/mbvlabs/narsilc/cmd/narsilc@<version> so scaffold can
-// emit models/internal/queries. go mod tidy runs before go fmt because
-// rewriting go.mod from the scaffold template leaves the module untidy.
+// emit models/internal/queries. Outside golden builds, go mod tidy runs before
+// go fmt so new query packages resolve. Golden builds skip tidy here — slim
+// fixtures lack a full require graph, and layout.Scaffold already tidies when
+// FullScaffold() is on.
 func RunNarsilcGenerate(targetDir string) error {
 	return runNarsilcGenerate(targetDir)
 }
@@ -100,9 +123,8 @@ func runNarsilcGenerate(targetDir string) error {
 		return nil
 	}
 
-	narsilcBin := filepath.Join(absTargetDir, "bin", "narsilc")
 	var cmd *exec.Cmd
-	if _, err := os.Stat(narsilcBin); err == nil {
+	if narsilcBin := resolveProjectTool("narsilc", absTargetDir); narsilcBin != "" {
 		cmd = newCommand(narsilcBin, "generate")
 	} else {
 		cmd = newCommand(
@@ -118,8 +140,13 @@ func runNarsilcGenerate(targetDir string) error {
 		return fmt.Errorf("narsilc generate failed: %w\nOutput: %s", runErr, string(output))
 	}
 
-	if err := RunGoModTidy(absTargetDir); err != nil {
-		return fmt.Errorf("go mod tidy after narsilc generate: %w", err)
+	// Golden CLI (PR or full) skips tidy here. ANDUREL_GOLDEN_FULL=1 would
+	// otherwise re-enable tidy for every generate/sync fixture and break on
+	// incomplete go.mod graphs. Full `andurel new` still tidies in Scaffold.
+	if !testseed.Enabled() {
+		if err := RunGoModTidy(absTargetDir); err != nil {
+			return fmt.Errorf("go mod tidy after narsilc generate: %w", err)
+		}
 	}
 
 	return RunGoFmtPath(absTargetDir, "./models/internal/queries/...")
@@ -132,14 +159,19 @@ func RunTemplGenerate(targetDir string) error {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	cmd := newCommand(
-		"go",
-		"run",
-		"github.com/a-h/templ/cmd/templ@"+versions.Templ,
-		"generate",
-		"-path",
-		".",
-	)
+	var cmd *exec.Cmd
+	if templBin := resolveProjectTool("templ", absTargetDir); templBin != "" {
+		cmd = newCommand(templBin, "generate", "-path", ".")
+	} else {
+		cmd = newCommand(
+			"go",
+			"run",
+			"github.com/a-h/templ/cmd/templ@"+versions.Templ,
+			"generate",
+			"-path",
+			".",
+		)
+	}
 	cmd.Dir = absTargetDir
 	return cmd.Run()
 }
@@ -151,13 +183,18 @@ func RunTemplFmt(targetDir string) error {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	cmd := newCommand(
-		"go",
-		"run",
-		"github.com/a-h/templ/cmd/templ@"+versions.Templ,
-		"fmt",
-		"views",
-	)
+	var cmd *exec.Cmd
+	if templBin := resolveProjectTool("templ", absTargetDir); templBin != "" {
+		cmd = newCommand(templBin, "fmt", "views")
+	} else {
+		cmd = newCommand(
+			"go",
+			"run",
+			"github.com/a-h/templ/cmd/templ@"+versions.Templ,
+			"fmt",
+			"views",
+		)
+	}
 	cmd.Dir = absTargetDir
 	return cmd.Run()
 }
@@ -169,14 +206,19 @@ func RunGooseFix(targetDir string) error {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	cmd := newCommand(
-		"go",
-		"run",
-		"github.com/pressly/goose/v3/cmd/goose@"+versions.Goose,
-		"-dir",
-		"migrations",
-		"fix",
-	)
+	var cmd *exec.Cmd
+	if gooseBin := resolveProjectTool("goose", absTargetDir); gooseBin != "" {
+		cmd = newCommand(gooseBin, "-dir", "migrations", "fix")
+	} else {
+		cmd = newCommand(
+			"go",
+			"run",
+			"github.com/pressly/goose/v3/cmd/goose@"+versions.Goose,
+			"-dir",
+			"migrations",
+			"fix",
+		)
+	}
 	cmd.Dir = absTargetDir
 	return cmd.Run()
 }

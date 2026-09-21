@@ -460,3 +460,101 @@ func installFakeGenerator(t *testing.T) *fakeGenerator {
 }
 
 var errGeneratorFactory = errors.New("generator factory failed")
+
+func chdirCLITestRoot(t *testing.T, rootDir string) {
+	t.Helper()
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(rootDir); err != nil {
+		t.Fatalf("chdir temp project: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+}
+
+func writeGenerateFileTestLock(t *testing.T, rootDir string) {
+	t.Helper()
+	lock := layout.NewAndurelLock("test")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName: "app",
+	}
+	lock.DatabaseConfig = &layout.DatabaseConfig{
+		Engine:   layout.DatabaseEnginePostgreSQL,
+		NullType: layout.NullTypePGType,
+	}
+	if err := lock.WriteLockFile(rootDir); err != nil {
+		t.Fatalf("write andurel.lock: %v", err)
+	}
+}
+
+func writeEmptyControllersModule(t *testing.T, rootDir string) {
+	t.Helper()
+	writeCLITestFile(t, rootDir, "controllers/controller.go", `package controllers
+
+import (
+	"example.com/app/router"
+
+	"go.uber.org/fx"
+)
+
+var constructors = fx.Provide(
+)
+
+var Module = fx.Module(
+	"controllers",
+	constructors,
+)
+`)
+}
+
+func writeCLITestFile(t *testing.T, root, relPath, content string) {
+	t.Helper()
+	path := filepath.Join(root, relPath)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", relPath, err)
+	}
+}
+
+func assertCLITestFileContains(t *testing.T, root, relPath, want string) {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join(root, relPath))
+	if err != nil {
+		t.Fatalf("read %s: %v", relPath, err)
+	}
+	if !strings.Contains(string(content), want) {
+		t.Fatalf("expected %s to contain %q:\n%s", relPath, want, string(content))
+	}
+}
+
+func assertCLITestFileNotContains(t *testing.T, root, relPath, unwanted string) {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join(root, relPath))
+	if err != nil {
+		t.Fatalf("read %s: %v", relPath, err)
+	}
+	if strings.Contains(string(content), unwanted) {
+		t.Fatalf("expected %s not to contain %q:\n%s", relPath, unwanted, string(content))
+	}
+}
+
+func assertCLITestFileExists(t *testing.T, root, relPath string) {
+	t.Helper()
+	if _, err := os.Stat(filepath.Join(root, relPath)); err != nil {
+		t.Fatalf("expected %s to exist: %v", relPath, err)
+	}
+}
+
+func assertCLITestFileMissing(t *testing.T, root, relPath string) {
+	t.Helper()
+	if _, err := os.Stat(filepath.Join(root, relPath)); err == nil {
+		t.Fatalf("expected %s to be missing", relPath)
+	} else if !os.IsNotExist(err) {
+		t.Fatalf("stat %s: %v", relPath, err)
+	}
+}

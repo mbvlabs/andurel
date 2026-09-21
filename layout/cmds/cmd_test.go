@@ -57,6 +57,14 @@ func expectCommand(t *testing.T, parts ...string) {
 	t.Setenv("ANDUREL_COMMAND_EXPECTED", strings.Join(parts, "\x1f"))
 }
 
+// isolateProjectTools clears ANDUREL_TOOL_BIN and PATH so resolveProjectTool
+// cannot find templ/goose/narsilc and the go-run fallback is exercised.
+func isolateProjectTools(t *testing.T) {
+	t.Helper()
+	t.Setenv("ANDUREL_TOOL_BIN", "")
+	t.Setenv("PATH", t.TempDir())
+}
+
 func TestRunCommands(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -113,6 +121,7 @@ func TestRunCommands(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			installCommandHelper(t)
+			isolateProjectTools(t)
 			expectCommand(t, tt.command...)
 			targetDir := t.TempDir()
 			t.Setenv("ANDUREL_COMMAND_DIR", targetDir)
@@ -193,6 +202,9 @@ func TestRunNarsilcGenerate(t *testing.T) {
 	})
 
 	t.Run("falls back to go run when binary is missing", func(t *testing.T) {
+		// Clear tool-bin override only; keep PATH so the tidy/fmt stubs can
+		// invoke `true`. install-dev-tools does not put narsilc on PATH.
+		t.Setenv("ANDUREL_TOOL_BIN", "")
 		targetDir := t.TempDir()
 		queriesDir := filepath.Join(targetDir, "models", "queries")
 		if err := os.MkdirAll(queriesDir, 0o755); err != nil {
@@ -274,6 +286,7 @@ func TestRunCommandErrors(t *testing.T) {
 
 	t.Run("command", func(t *testing.T) {
 		installCommandHelper(t)
+		isolateProjectTools(t)
 		t.Setenv("ANDUREL_COMMAND_FAIL", "1")
 		targetDir := t.TempDir()
 		t.Setenv("ANDUREL_COMMAND_DIR", targetDir)

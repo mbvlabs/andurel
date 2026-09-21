@@ -1,0 +1,268 @@
+package admin
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"strconv"
+	"uuid"
+
+	"example.com/app/models"
+	"example.com/app/router"
+	"example.com/app/router/routes"
+	"example.com/app/views"
+	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+)
+
+type Widgets struct {
+	widgets models.Widgets
+}
+
+func NewWidgets(widgets models.Widgets) Widgets {
+	return Widgets{widgets}
+}
+
+func (w Widgets) RegisterRoutes(r *router.Router) error {
+	var errs []error
+	var err error
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.AdminWidgetIndex.Path(),
+		Name:    routes.AdminWidgetIndex.Name(),
+		Handler: w.Index,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.AdminWidgetShow.Path(),
+		Name:    routes.AdminWidgetShow.Name(),
+		Handler: w.Show,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.AdminWidgetNew.Path(),
+		Name:    routes.AdminWidgetNew.Name(),
+		Handler: w.New,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPost,
+		Path:    routes.AdminWidgetCreate.Path(),
+		Name:    routes.AdminWidgetCreate.Name(),
+		Handler: w.Create,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.AdminWidgetEdit.Path(),
+		Name:    routes.AdminWidgetEdit.Name(),
+		Handler: w.Edit,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodPut,
+		Path:    routes.AdminWidgetUpdate.Path(),
+		Name:    routes.AdminWidgetUpdate.Name(),
+		Handler: w.Update,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+	_, err = r.AddRoute(echo.Route{
+		Method:  http.MethodDelete,
+		Path:    routes.AdminWidgetDestroy.Path(),
+		Name:    routes.AdminWidgetDestroy.Name(),
+		Handler: w.Destroy,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+func (w Widgets) Index(etx *echo.Context) error {
+	page := int64(1)
+	if p := etx.QueryParam("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = int64(parsed)
+		}
+	}
+
+	perPage := int64(25)
+	if pp := etx.QueryParam("per_page"); pp != "" {
+		if parsed, err := strconv.Atoi(pp); err == nil && parsed > 0 &&
+			parsed <= 100 {
+			perPage = int64(parsed)
+		}
+	}
+
+	widgetsList, err := w.widgets.Paginate(
+		etx.Request().Context(),
+		page,
+		perPage,
+	)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.InternalError())
+	}
+
+	return hypermedia.RenderPage(etx, views.AdminWidgetIndex{Items: widgetsList.Widgets}.Page())
+}
+
+func (w Widgets) Show(etx *echo.Context) error {
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	widget, err := w.widgets.Find(etx.Request().Context(), widgetID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.AdminWidgetShow{Item: widget}.Page())
+}
+
+func (w Widgets) New(etx *echo.Context) error {
+	return hypermedia.RenderPage(etx, views.AdminWidgetNew{}.Page())
+}
+
+type CreateWidgetFormPayload struct {
+	Name     string `json:"name"`
+	Quantity int32  `json:"quantity"`
+	Active   bool   `json:"active"`
+}
+
+func (w Widgets) Create(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "widgets.create")
+	defer span.End()
+
+	var payload CreateWidgetFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse CreateWidgetFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.CreateWidgetData{
+
+		Name: payload.Name,
+
+		Quantity: payload.Quantity,
+
+		Active: payload.Active,
+	}
+
+	widget, err := w.widgets.Create(
+		ctx,
+		data,
+	)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to create widget: %v", err))
+		return etx.Redirect(http.StatusSeeOther, routes.AdminWidgetNew.URL())
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Widget created successfully")
+	return etx.Redirect(http.StatusSeeOther, routes.AdminWidgetShow.URL(widget.ID))
+}
+
+func (w Widgets) Edit(etx *echo.Context) error {
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	widget, err := w.widgets.Find(etx.Request().Context(), widgetID)
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	return hypermedia.RenderPage(etx, views.AdminWidgetEdit{Item: widget}.Page())
+}
+
+type UpdateWidgetFormPayload struct {
+	Name     string `json:"name"`
+	Quantity int32  `json:"quantity"`
+	Active   bool   `json:"active"`
+}
+
+func (w Widgets) Update(etx *echo.Context) error {
+	ctx, span := telemetry.From(etx, "widgets.update")
+	defer span.End()
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	var payload UpdateWidgetFormPayload
+	if err := etx.Bind(&payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse UpdateWidgetFormPayload",
+			"error",
+			err,
+		)
+
+		return hypermedia.RenderPage(etx, views.NotFound())
+	}
+
+	data := models.UpdateWidgetData{
+		ID: widgetID,
+
+		Name: payload.Name,
+
+		Quantity: payload.Quantity,
+
+		Active: payload.Active,
+	}
+
+	widget, err := w.widgets.Update(
+		ctx,
+		data,
+	)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to update widget: %v", err))
+		return etx.Redirect(
+			http.StatusSeeOther,
+			routes.AdminWidgetEdit.URL(widgetID),
+		)
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Widget updated successfully")
+	return etx.Redirect(http.StatusSeeOther, routes.AdminWidgetShow.URL(widget.ID))
+}
+
+func (w Widgets) Destroy(etx *echo.Context) error {
+	widgetID, err := uuid.Parse(etx.Param("id"))
+	if err != nil {
+		return hypermedia.RenderPage(etx, views.BadRequest())
+	}
+
+	err = w.widgets.Destroy(etx.Request().Context(), widgetID)
+	if err != nil {
+		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, fmt.Sprintf("Failed to delete widget: %v", err))
+		return etx.Redirect(http.StatusSeeOther, routes.AdminWidgetIndex.URL())
+	}
+
+	kiks.AddFlash(etx.Request().Context(), kiks.FlashSuccess, "Widget destroyed successfully")
+	return etx.Redirect(http.StatusSeeOther, routes.AdminWidgetIndex.URL())
+}

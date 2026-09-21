@@ -306,6 +306,15 @@ func assertRuleCodes(t *testing.T, rules []Rule, want ...string) {
 }
 `
 
+func readStandalonePackageFile(t *testing.T, packageName, name string) string {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join("..", "pkg", packageName, name))
+	if err != nil {
+		t.Fatalf("read standalone package file %s/%s: %v", packageName, name, err)
+	}
+	return string(content)
+}
+
 func TestGeneratedValidationTemplatesExposePublicContract(t *testing.T) {
 	validation := readStandalonePackageFile(t, "validation", "validation.go")
 	rules := readStandalonePackageFile(t, "validation", "rules.go")

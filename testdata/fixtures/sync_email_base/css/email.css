@@ -1,0 +1,11 @@
+@import "tailwindcss/theme" source(none);
+@import "tailwindcss/utilities" source(none);
+
+/* andurel:head:start */
+html,
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+}
+/* andurel:head:end */

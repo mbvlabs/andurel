@@ -1,0 +1,47 @@
+package api
+
+import (
+	"errors"
+	"net/http"
+
+	"app/router"
+	"app/router/routes"
+
+	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/storage"
+)
+
+type API struct {
+	db storage.Connection
+}
+
+func NewAPI(db storage.Connection) API {
+	return API{db: db}
+}
+
+func (a API) RegisterRoutes(r *router.Router) error {
+	errs := []error{}
+
+	_, err := r.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    routes.Health.Path(),
+		Name:    routes.Health.Name(),
+		Handler: a.Health,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+func (a API) Health(etx *echo.Context) error {
+	if err := a.db.Health(etx.Request().Context()); err != nil {
+		return echo.NewHTTPError(
+			http.StatusServiceUnavailable,
+			"database is unavailable",
+		).Wrap(err)
+	}
+
+	return etx.JSON(http.StatusOK, "app is healthy and running")
+}

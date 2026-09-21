@@ -18,7 +18,7 @@ jobs:
   readiness:
     name: Release Readiness
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
     permissions:
       contents: read
 
@@ -38,13 +38,14 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
+      - name: Install just
+        uses: taiki-e/install-action@just
+
       - name: Install pinned validation tools
         shell: bash
         run: |
           set -euo pipefail
-          go install github.com/a-h/templ/cmd/templ@v0.3.1020
-          go install github.com/segmentio/golines@v0.13.0
-          go install golang.org/x/tools/cmd/goimports@v0.44.0
+          just install-dev-tools
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
           go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
           go install golang.org/x/exp/cmd/apidiff@${APIDIFF_VERSION}
@@ -61,52 +62,54 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          unformatted="$(gofmt -l .)"
-          test -z "${unformatted}"
+          just check-fmt
           go fix -diff ./... | tee /tmp/go-fix.diff
           test ! -s /tmp/go-fix.diff
           git diff --exit-code -- .
 
       - name: Run vet
-        run: |
-          go vet ./...
-          ./scripts/vet-standalone-modules.sh
+        run: just vet
 
       - name: Check public API and CLI contracts
         shell: bash
         run: |
           set -euo pipefail
-          ./scripts/check-contracts.sh
+          just check-contracts
           ./scripts/check-api-compat.sh v2.0.0 v2.0.0
           ./scripts/release_tag_policy_test.sh
 
       - name: Run pinned lint
-        run: ./scripts/lint.sh
+        run: just lint
 
       - name: Run pinned vulnerability scan
         run: govulncheck ./...
 
-      - name: Run unit and integration tests with race detection and report coverage
-        run: ./scripts/coverage.sh
+      - name: Run unit tests with race detection
+        run: just test-race
+
+      - name: Collect coverage
+        continue-on-error: true
+        run: just test-coverage
 
       - name: Upload coverage to Codecov
+        continue-on-error: true
         uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1 # v7.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.out
           disable_search: true
           flags: unit
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
-      - name: Run full end-to-end and scaffold suite
-        run: go test ./e2e/... -v -timeout 55m
+      - name: Run golden CLI tests (generate + sync + full scaffold)
+        run: just test-golden-full
 
-      - name: Upload end-to-end failure artifacts
+      - name: Upload golden failure artifacts
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: release-readiness-e2e-failures-${{ github.sha }}
-          path: /tmp/andurel-e2e-*
+          name: release-readiness-golden-failures-${{ github.sha }}
+          path: /tmp/andurel-golden-*
           if-no-files-found: ignore
           retention-days: 7
 

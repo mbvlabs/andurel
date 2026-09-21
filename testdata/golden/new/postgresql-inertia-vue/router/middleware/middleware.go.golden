@@ -1,0 +1,195 @@
+// Package middleware provides HTTP middleware for the Echo web framework,
+package middleware
+
+import (
+	"errors"
+	"net/http"
+	"strings"
+	"time"
+
+	"app/router/routes"
+	"github.com/mbvlabs/andurel/pkg/server"
+
+	"github.com/labstack/echo/v5"
+	echomw "github.com/labstack/echo/v5/middleware"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+)
+
+func isAPIPath(path string) bool {
+	return matchesPathPrefix(path, routes.APIPrefix)
+}
+
+func isAssetsPath(path string) bool {
+	return matchesPathPrefix(path, routes.AssetsPrefix)
+}
+
+func matchesPathPrefix(path, prefix string) bool {
+	prefix = strings.TrimSuffix(prefix, "/")
+	if prefix == "" {
+		return false
+	}
+
+	return path == prefix || strings.HasPrefix(path, prefix+"/")
+}
+
+func hasNonEmptyBearerToken(authorization string) bool {
+	parts := strings.Fields(authorization)
+	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && parts[1] != ""
+}
+
+func hasApplicationSessionCookie(request *http.Request, appCookieSessionName string) bool {
+	_, err := request.Cookie(appCookieSessionName)
+	return err == nil
+}
+
+func mayBypassCSRF(request *http.Request, appCookieSessionName string) bool {
+	return isAPIPath(request.URL.Path) &&
+		hasNonEmptyBearerToken(request.Header.Get("Authorization")) &&
+		!hasApplicationSessionCookie(request, appCookieSessionName)
+}
+
+func Telemetry(tel *telemetry.Telemetry) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			c.SetRequest(c.Request().WithContext(tel.Context(c.Request().Context())))
+			return next(c)
+		}
+	}
+}
+
+func Logger() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
+				return next(c)
+			}
+
+			ctx := c.Request().Context()
+			start := time.Now()
+
+			err := next(c)
+			duration := time.Since(start)
+
+			statusCode := 0
+			if resp, unwrapErr := echo.UnwrapResponse(c.Response()); unwrapErr == nil {
+				statusCode = resp.Status
+			}
+
+			telemetry.Info(ctx, "HTTP request completed",
+				"method", c.Request().Method,
+				"path", c.Request().URL.Path,
+				"status", statusCode,
+				"remote_addr", c.RealIP(),
+				"user_agent", c.Request().UserAgent(),
+				"duration", duration.String(),
+			)
+
+			return err
+		}
+	}
+}
+
+func TraceRouteAttributes() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			err := next(c)
+			routeInfo := c.RouteInfo()
+			if routeInfo.Path != "" {
+				telemetry.SetHTTPRoute(c.Request().Context(), routeInfo.Path)
+			}
+
+			return err
+		}
+	}
+}
+
+func CSRFMiddleware(
+	csrfStrategy string,
+	csrfTrustedOrigins []string,
+	csrfName string,
+	baseURL string,
+	environment string,
+	domain string,
+	appCookieSessionName string,
+) (echo.MiddlewareFunc, error) {
+	strategy := strings.TrimSpace(csrfStrategy)
+
+	var headerOnly bool
+	var tokenLookup string
+	switch strategy {
+	case "header_only":
+		headerOnly = true
+		tokenLookup = "cookie:" + csrfName
+	case "header_or_legacy_token":
+		headerOnly = false
+		tokenLookup = "header:X-CSRF-Token,form:_csrf"
+	default:
+		return nil, errors.New("invalid CSRF strategy")
+	}
+
+	trustedOrigins := []string{baseURL}
+	if len(csrfTrustedOrigins) > 0 {
+		trustedOrigins = append(trustedOrigins, csrfTrustedOrigins...)
+	}
+
+	csrfConfig := echomw.CSRFConfig{
+		Skipper: func(c *echo.Context) bool {
+			return mayBypassCSRF(c.Request(), appCookieSessionName)
+		},
+		TokenLookup: tokenLookup,
+		CookiePath:  "/",
+		CookieDomain: func() string {
+			if environment == server.ProdEnvironment {
+				return domain
+			}
+
+			return ""
+		}(),
+		CookieSecure:   environment == server.ProdEnvironment,
+		CookieHTTPOnly: true,
+		CookieSameSite: http.SameSiteStrictMode,
+		TrustedOrigins: trustedOrigins,
+	}
+
+	echoCSRF := echomw.CSRFWithConfig(csrfConfig)
+
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			if mayBypassCSRF(c.Request(), appCookieSessionName) {
+				return next(c)
+			}
+
+			// Add Vary header for proper caching behavior
+			c.Response().Header().Add("Vary", "Sec-Fetch-Site")
+
+			method := c.Request().Method
+			isUnsafe := method != http.MethodGet && method != http.MethodHead &&
+				method != http.MethodOptions && method != http.MethodTrace
+
+			if isUnsafe {
+				secFetchSite := strings.ToLower(
+					strings.TrimSpace(c.Request().Header.Get("Sec-Fetch-Site")),
+				)
+
+				// In header_only mode, reject requests missing Sec-Fetch-Site
+				if headerOnly && (secFetchSite == "" || secFetchSite == "none") {
+					return echo.NewHTTPError(
+						http.StatusForbidden,
+						"CSRF verification failed: missing Sec-Fetch-Site header",
+					)
+				}
+
+				// In legacy mode, log when falling back to form token
+				if !headerOnly && secFetchSite != "same-origin" && secFetchSite != "same-site" &&
+					secFetchSite != "cross-site" {
+					if c.Request().Header.Get("X-CSRF-Token") == "" && c.FormValue("_csrf") != "" {
+						telemetry.Warn(c.Request().Context(), "CSRF check fell back to legacy token")
+					}
+				}
+			}
+
+			// Delegate to Echo's CSRF middleware
+			return echoCSRF(next)(c)
+		}
+	}, nil
+}

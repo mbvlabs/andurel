@@ -1,0 +1,116 @@
+package factories
+
+import (
+	"context"
+	"fmt"
+	"time"
+	"uuid"
+
+	"app/models"
+	"app/models/internal/queries"
+
+	"github.com/mbvlabs/andurel/pkg/storage"
+
+	"github.com/go-faker/faker/v4"
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+// UserFactory wraps models.User for testing
+type UserFactory struct {
+	models.User
+}
+
+// UserOption is a functional option for configuring a UserFactory
+type UserOption func(*UserFactory)
+
+// BuildUser creates an in-memory User with default test values.
+// Auto-managed fields (ID, timestamps) are left at zero and set by CreateUser.
+func BuildUser(opts ...UserOption) models.User {
+	f := &UserFactory{
+		User: models.User{
+			Email:            faker.Email(),
+			EmailValidatedAt: pgtype.Timestamptz{},
+			Password:         defaultPassword(),
+			IsAdmin:          false,
+		},
+	}
+
+	for _, opt := range opts {
+		opt(f)
+	}
+
+	return f.User
+}
+
+// CreateUser creates and persists a User to the database.
+// It returns the entity populated with all DB-assigned values via RETURNING *.
+func CreateUser(
+	ctx context.Context,
+	db storage.Connection,
+	opts ...UserOption,
+) (models.User, error) {
+	built := BuildUser(opts...)
+
+	return queries.New(db).CreateUser[models.User](ctx, queries.CreateUserParams{
+		ID:               uuid.New(),
+		CreatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		Email:            built.Email,
+		EmailValidatedAt: built.EmailValidatedAt,
+		Password:         built.Password,
+		IsAdmin:          built.IsAdmin,
+	})
+}
+
+// CreateUsers creates multiple User records at once
+func CreateUsers(
+	ctx context.Context,
+	db storage.Connection,
+	count int,
+	opts ...UserOption,
+) ([]models.User, error) {
+	users := make([]models.User, 0, count)
+
+	for i := range count {
+		user, err := CreateUser(ctx, db, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create user %d: %w", i+1, err)
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
+// WithEmail sets the email address for the user
+func WithEmail(email string) UserOption {
+	return func(f *UserFactory) {
+		f.Email = email
+	}
+}
+
+// WithIsAdmin sets whether the user is an admin
+func WithIsAdmin(isAdmin bool) UserOption {
+	return func(f *UserFactory) {
+		f.IsAdmin = isAdmin
+	}
+}
+
+// WithEmailValidatedAt sets the email validation timestamp
+func WithEmailValidatedAt(t time.Time) UserOption {
+	return func(f *UserFactory) {
+		f.EmailValidatedAt = pgtype.Timestamptz{Time: t, Valid: true}
+	}
+}
+
+// WithValidatedEmail marks the email as validated at the current time
+func WithValidatedEmail() UserOption {
+	return WithEmailValidatedAt(time.Now())
+}
+
+// WithPassword sets a custom password hash.
+func WithPassword(password []byte) UserOption {
+	return func(f *UserFactory) {
+		f.Password = password
+	}
+}

@@ -1,0 +1,77 @@
+package factories
+
+import (
+	"context"
+	"fmt"
+
+	"example.com/app/models"
+	"github.com/go-faker/faker/v4"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/mbvlabs/andurel/pkg/storage"
+)
+
+// CompanyFactory wraps models.Company for testing
+type CompanyFactory struct {
+	models.Company
+}
+
+type CompanyOption func(*CompanyFactory)
+
+// BuildCompany creates an in-memory Company with default test values.
+// Auto-managed fields (ID, timestamps) are left at zero and set by CreateCompany.
+func BuildCompany(opts ...CompanyOption) models.Company {
+	f := &CompanyFactory{
+		Company: models.Company{
+			Name:     faker.Name(),
+			Industry: pgtype.Text{},
+		},
+	}
+
+	for _, opt := range opts {
+		opt(f)
+	}
+
+	return f.Company
+}
+
+// CreateCompany creates and persists a Company to the database.
+// It returns the entity populated with all DB-assigned values via RETURNING *.
+func CreateCompany(ctx context.Context, db storage.Connection, opts ...CompanyOption) (models.Company, error) {
+	built := BuildCompany(opts...)
+
+	return models.NewCompanies(db).Create(ctx, models.CreateCompanyData{
+		Name:     built.Name,
+		Industry: built.Industry,
+	})
+}
+
+// CreateCompanies creates multiple Company records at once
+func CreateCompanies(ctx context.Context, db storage.Connection, count int, opts ...CompanyOption) ([]models.Company, error) {
+	companies := make([]models.Company, 0, count)
+
+	for i := range count {
+		entity, err := CreateCompany(ctx, db, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create company %d: %w", i+1, err)
+		}
+		companies = append(companies, entity)
+	}
+
+	return companies, nil
+}
+
+// Option functions
+
+// WithCompanyName sets the Name field
+func WithCompanyName(value string) CompanyOption {
+	return func(f *CompanyFactory) {
+		f.Company.Name = value
+	}
+}
+
+// WithCompanyIndustry sets the Industry field
+func WithCompanyIndustry(value pgtype.Text) CompanyOption {
+	return func(f *CompanyFactory) {
+		f.Company.Industry = value
+	}
+}
