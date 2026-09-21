@@ -50,7 +50,7 @@ func TestUpgradePresentationRestoresProgressiveHumanOutput(t *testing.T) {
 		"Updating managed tool metadata...",
 		"Updated:",
 		"Metadata:",
-		"✓ Updated andurel.lock",
+		"✓ Updated andurel.toml and andurel.lock",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("upgrade presentation missing %q:\n%s", want, got)
@@ -78,7 +78,7 @@ func TestUpgradeDryRunPresentationOmitsEmptySections(t *testing.T) {
 		"[DRY RUN] No files will be changed.",
 		"Would replace framework files:",
 		"pkg/server/server.go",
-		"Would update andurel.lock",
+		"Would update andurel.toml and andurel.lock",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("dry-run presentation missing %q:\n%s", want, got)
@@ -208,7 +208,7 @@ func TestUpgradePresentationRemovalAndNoOpBranches(t *testing.T) {
 		"worktree is dirty",
 		"Would remove obsolete internal package files",
 		"Added:",
-		"Would update andurel.lock",
+		"Would update andurel.toml and andurel.lock",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("dry-run presentation missing %q:\n%s", want, got)
@@ -528,14 +528,17 @@ func TestNewUpgraderRejectsMissingAndSchemaLessLocks(t *testing.T) {
 
 	root := t.TempDir()
 	if err := os.WriteFile(
-		filepath.Join(root, "andurel.lock"),
-		[]byte(`{"version":"v1.0.0","tools":{}}`),
+		filepath.Join(root, layout.ProjectTomlName),
+		[]byte("version = \"v1.0.0\"\n\n[database]\nengine = \"postgresql\"\nnullType = \"pgtype\"\n\n[tools]\n"),
 		0o644,
 	); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(root, layout.ProjectLockName), []byte(""), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := NewUpgrader(root, UpgradeOptions{TargetVersion: "v1.0.1"}); err == nil ||
-		!strings.Contains(err.Error(), "schemaVersion is required") {
+		!strings.Contains(err.Error(), "schemaVersion must be") {
 		t.Fatalf("schema-less lock error = %v", err)
 	}
 }
@@ -572,7 +575,7 @@ func TestValidatePreconditions_RejectsMissingLock(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected missing lock to fail preconditions")
 	}
-	if !strings.Contains(err.Error(), "andurel.lock file not found or invalid") {
+	if !strings.Contains(err.Error(), "andurel.toml / andurel.lock not found or invalid") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

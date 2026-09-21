@@ -2,8 +2,6 @@ package layout
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -265,11 +263,7 @@ func TestValidateSchema1ChecksumsAndVersionExpression(t *testing.T) {
 
 func TestReadLockFileValidatesAfterSchemaFirstDecode(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(
-		filepath.Join(root, "andurel.lock"),
-		mustMarshalLock(t, validSchema1Lock()),
-		0o644,
-	); err != nil {
+	if err := validSchema1Lock().WriteLockFile(root); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ReadLockFile(root); err != nil {

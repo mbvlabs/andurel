@@ -314,31 +314,39 @@ func (l *AndurelLock) AddTool(name string, tool *Tool) {
 	l.Tools[name] = tool
 }
 
+// EncodeProjectFiles returns the andurel.toml and andurel.lock encodings for l.
+func (l *AndurelLock) EncodeProjectFiles() (tomlData, lockData []byte, err error) {
+	if err := validateSchema1Lock(l); err != nil {
+		return nil, nil, fmt.Errorf("failed to validate lock file: %w", err)
+	}
+	tomlDoc, err := lockToProjectToml(l)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build project manifest: %w", err)
+	}
+	tomlData, err = encodeProjectToml(tomlDoc)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal %s: %w", ProjectTomlName, err)
+	}
+	lockData, err = encodeProjectLock(lockToProjectLock(l))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to marshal %s: %w", ProjectLockName, err)
+	}
+	return tomlData, lockData, nil
+}
+
 // WriteLockFile writes andurel.toml (manifest) and andurel.lock (digests).
 func (l *AndurelLock) WriteLockFile(targetDir string) error {
-	if err := validateSchema1Lock(l); err != nil {
-		return fmt.Errorf("failed to validate lock file: %w", err)
-	}
 	absTargetDir, err := filepath.Abs(targetDir)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	tomlDoc, err := lockToProjectToml(l)
+	tomlData, lockData, err := l.EncodeProjectFiles()
 	if err != nil {
-		return fmt.Errorf("failed to build project manifest: %w", err)
-	}
-	tomlData, err := encodeProjectToml(tomlDoc)
-	if err != nil {
-		return fmt.Errorf("failed to marshal %s: %w", ProjectTomlName, err)
+		return err
 	}
 	if err := os.WriteFile(projectTomlPath(absTargetDir), tomlData, 0o644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", ProjectTomlName, err)
-	}
-
-	lockData, err := encodeProjectLock(lockToProjectLock(l))
-	if err != nil {
-		return fmt.Errorf("failed to marshal %s: %w", ProjectLockName, err)
 	}
 	if err := os.WriteFile(projectLockPath(absTargetDir), lockData, 0o644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", ProjectLockName, err)

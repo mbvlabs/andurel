@@ -191,7 +191,7 @@ func (u *Upgrader) validatePreconditions() error {
 	}
 
 	if u.lock == nil {
-		return fmt.Errorf("andurel.lock file not found or invalid")
+		return fmt.Errorf("andurel.toml / andurel.lock not found or invalid")
 	}
 
 	if u.lock.Version == "" {
@@ -264,7 +264,7 @@ func printUpgradeSuccess(writer io.Writer, report *UpgradeReport) {
 
 	lockChanged := report.FromVersion != report.ToVersion || hasToolChanges(report)
 	if lockChanged {
-		output.println("✓ Updated andurel.lock")
+		output.println("✓ Updated andurel.toml and andurel.lock")
 	}
 	printManualActions(output, report.ManualActions)
 	if len(report.ReplacedFiles) == 0 && len(report.RemovedFiles) == 0 && !lockChanged {
@@ -293,7 +293,7 @@ func printUpgradeDryRun(writer io.Writer, report *UpgradeReport) {
 	}
 	printToolChanges(output, report, true)
 	if report.FromVersion != report.ToVersion || hasToolChanges(report) {
-		output.println("\n[DRY RUN] Would update andurel.lock")
+		output.println("\n[DRY RUN] Would update andurel.toml and andurel.lock")
 	}
 	printManualActions(output, report.ManualActions)
 }

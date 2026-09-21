@@ -253,16 +253,56 @@ func toolFromProjectEntry(
 	}
 
 	key := name + "@" + version
-	if platformDigests, ok := digests[key]; ok && tool.Download != nil {
-		tool.Download.SHA256 = cloneStringMap(platformDigests)
-	} else if tool.Download != nil && len(tool.Download.SHA256) == 0 {
-		// Fall back to framework defaults when versions match.
-		if spec, ok := getDefaultToolDownloadForVersion(name, version); ok {
-			tool.Download.SHA256 = cloneStringMap(spec.SHA256)
+	platformDigests, hasDigests := digests[key]
+	if tool.Download != nil {
+		if hasDigests {
+			tool.Download.SHA256 = cloneStringMap(platformDigests)
+		} else if len(tool.Download.SHA256) == 0 {
+			if spec, ok := getDefaultToolDownloadForVersion(name, version); ok {
+				tool.Download.SHA256 = cloneStringMap(spec.SHA256)
+			}
 		}
 	}
 
+	if hasCompleteToolDigests(tool) {
+		return tool, nil
+	}
+
+	if hasDigests {
+		// Digests were recorded for a non-catalog (or non-default-version) tool.
+		tool.Path = ""
+		tool.Download = &ToolDownload{
+			URLTemplate: "https://example.invalid/" + name + "/{{version}}",
+			Archive:     "binary",
+			BinaryName:  name,
+			SHA256:      cloneStringMap(platformDigests),
+		}
+		if tool.VersionCheck == nil {
+			tool.VersionCheck = &VersionCheck{Args: []string{"--version"}}
+		}
+		return tool, nil
+	}
+
+	// Path-managed tools are not fully encoded in V2; reconstruct a local path.
+	tool.Download = nil
+	tool.Path = filepath.Join("bin", name)
+	if tool.VersionCheck == nil {
+		tool.VersionCheck = &VersionCheck{Args: []string{"--version"}}
+	}
 	return tool, nil
+}
+
+func hasCompleteToolDigests(tool *Tool) bool {
+	if tool == nil || tool.Download == nil {
+		return false
+	}
+	for _, platform := range requiredChecksumPlatforms {
+		digest := tool.Download.SHA256[platform]
+		if !sha256Pattern.MatchString(digest) {
+			return false
+		}
+	}
+	return true
 }
 
 func looksLikeJSONLock(data []byte) bool {
