@@ -38,11 +38,14 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
+      - name: Install just
+        uses: taiki-e/install-action@just
+
       - name: Install pinned validation tools
         shell: bash
         run: |
           set -euo pipefail
-          ./scripts/install-dev-tools.sh
+          just install-dev-tools
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION}
           go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
           go install golang.org/x/exp/cmd/apidiff@${APIDIFF_VERSION}
@@ -59,37 +62,34 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          unformatted="$(gofmt -l .)"
-          test -z "${unformatted}"
+          just check-fmt
           go fix -diff ./... | tee /tmp/go-fix.diff
           test ! -s /tmp/go-fix.diff
           git diff --exit-code -- .
 
       - name: Run vet
-        run: |
-          go vet ./...
-          ./scripts/vet-standalone-modules.sh
+        run: just vet
 
       - name: Check public API and CLI contracts
         shell: bash
         run: |
           set -euo pipefail
-          ./scripts/check-contracts.sh
+          just check-contracts
           ./scripts/check-api-compat.sh v2.0.0 v2.0.0
           ./scripts/release_tag_policy_test.sh
 
       - name: Run pinned lint
-        run: ./scripts/lint.sh
+        run: just lint
 
       - name: Run pinned vulnerability scan
         run: govulncheck ./...
 
       - name: Run unit tests with race detection
-        run: go test $(go list ./... | grep -v '/golden$') -race -count=1
+        run: just test-race
 
       - name: Collect coverage
         continue-on-error: true
-        run: ./scripts/coverage.sh
+        run: just test-coverage
 
       - name: Upload coverage to Codecov
         continue-on-error: true
@@ -102,9 +102,7 @@ jobs:
           fail_ci_if_error: false
 
       - name: Run golden CLI tests (generate + sync + full scaffold)
-        env:
-          ANDUREL_GOLDEN_FULL: "1"
-        run: go test ./golden/... -v -timeout 45m
+        run: just test-golden-full
 
       - name: Upload golden failure artifacts
         if: failure()

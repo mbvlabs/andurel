@@ -189,7 +189,8 @@ just update-golden
 ```
 
 That runs `go test ./golden/... -update` for the PR generate+sync suite.
-CI never blesses goldens: PR jobs run `just test-golden` (compare only).
+CI never blesses goldens: PR jobs run `just ci-pr` / `just test-golden`.
+Nightly runs `just ci-nightly` (`just test-golden-full`).
 
 ```bash
 just update-golden-full
@@ -202,5 +203,5 @@ Commit the resulting diffs when expectations change.
 
 ```bash
 just test-golden
-just test-golden-full   # sets ANDUREL_GOLDEN_FULL; used by e2e-nightly
+just test-golden-full   # just ci-nightly; used by e2e-nightly
 ```

@@ -35,15 +35,23 @@ bmo:
 
 # ============================================================================
 # Testing Commands
+#
+# GitHub Actions calls these recipes instead of inlining go test / go vet.
+# PR: just ci-pr. Nightly / release-readiness: just ci-nightly.
 # ============================================================================
 
-# Run go vet
+# Run go vet on the module and standalone pkg/* modules
 vet:
 	go vet ./...
+	./scripts/vet-standalone-modules.sh
 
 # Run unit tests (excludes ./golden CLI goldens — use just test-golden)
 test:
 	go test $(go list ./... | grep -v '/golden$$') -count=1
+
+# Run unit tests with race detection (PR and nightly CI)
+test-race:
+	go test $(go list ./... | grep -v '/golden$$') -race -count=1
 
 # Run unit tests with coverage (excludes golden; CLI goldens use just test-golden)
 test-coverage:
@@ -56,6 +64,14 @@ test-golden: install-dev-tools
 # Run golden CLI tests including nightly full-tree `andurel new`
 test-golden-full: install-dev-tools
 	ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m
+
+# Fail if gofmt would change any file
+check-fmt:
+	test -z "$(gofmt -l .)"
+
+# Run golangci-lint via the pinned wrapper
+lint:
+	./scripts/lint.sh
 
 # Run critical tests (vet + contracts + golden)
 test-critical:
@@ -79,15 +95,23 @@ check:
 	@echo "\nChecking contracts..."
 	@just check-contracts
 
-# Run full CI check (vet + contracts + golden)
-ci:
-	@echo "Running go vet..."
-	@just vet
-	@echo "\nChecking contracts..."
+# PR CI suite (Test workflow). Coverage stays a separate best-effort step.
+ci-pr:
 	@just check-contracts
-	@echo "\nRunning golden tests..."
+	@just vet
+	@just test-race
 	@just test-golden
-	@echo "\n✅ All CI checks passed!"
+
+# Nightly / release-readiness suite (full goldens + race)
+ci-nightly:
+	@just check-contracts
+	@just vet
+	@just test-golden-full
+	@just test-race
+
+# Local alias for the PR CI suite
+ci:
+	@just ci-pr
 
 # Install formatter/codegen tools used by golden updates (pinned; match layout/versions)
 install-dev-tools:
