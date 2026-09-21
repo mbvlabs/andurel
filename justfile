@@ -67,7 +67,12 @@ test-golden-full: install-dev-tools
 
 # Fail if gofmt would change any file
 check-fmt:
-	test -z "$(gofmt -l .)"
+	@unformatted="$(gofmt -l .)"; \
+	if [ -n "$unformatted" ]; then \
+		echo "gofmt would change the following files:"; \
+		echo "$unformatted"; \
+		exit 1; \
+	fi
 
 # Run golangci-lint via the pinned wrapper
 lint:
