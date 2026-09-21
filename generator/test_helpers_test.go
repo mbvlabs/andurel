@@ -17,15 +17,6 @@ func writeGeneratorTestFile(t *testing.T, root, rel, content string) {
 	}
 }
 
-func readGeneratorTestFile(t *testing.T, root, rel string) string {
-	t.Helper()
-	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
-	if err != nil {
-		t.Fatalf("read %s: %v", rel, err)
-	}
-	return string(data)
-}
-
 func withWorkingDir(t *testing.T, dir string) {
 	t.Helper()
 	original, err := os.Getwd()

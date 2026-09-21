@@ -37,30 +37,30 @@ func renderHumanHelp(cmd *cobra.Command, _ []string) {
 
 func renderRootHelp(cmd *cobra.Command, w io.Writer) {
 	if !isInAndurelProject() {
-		fmt.Fprintln(w, "Andurel — space-grade Go framework for humans and agents")
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "Usage:")
-		fmt.Fprintln(w, "  andurel <command> [args...]")
-		fmt.Fprintln(w, "  andurel commands [--json|--markdown|--check]")
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "You must specify a command:")
-		fmt.Fprintln(w)
-		fmt.Fprintf(w, "  %-14s %s\n", "new", "Stand up a new Andurel project")
-		fmt.Fprintln(w)
+		helpPrintln(w, "Andurel — space-grade Go framework for humans and agents")
+		helpPrintln(w)
+		helpPrintln(w, "Usage:")
+		helpPrintln(w, "  andurel <command> [args...]")
+		helpPrintln(w, "  andurel commands [--json|--markdown|--check]")
+		helpPrintln(w)
+		helpPrintln(w, "You must specify a command:")
+		helpPrintln(w)
+		helpPrintf(w, "  %-14s %s\n", "new", "Stand up a new Andurel project")
+		helpPrintln(w)
 		writeDiscoveryHelp(w)
-		fmt.Fprintln(w, "Global Flags:")
-		fmt.Fprint(w, cmd.PersistentFlags().FlagUsages())
+		helpPrintln(w, "Global Flags:")
+		helpPrint(w, cmd.PersistentFlags().FlagUsages())
 		return
 	}
 
-	fmt.Fprintln(w, "Andurel — space-grade Go framework for humans and agents")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Usage:")
-	fmt.Fprintln(w, "  andurel <command> [args...]")
-	fmt.Fprintln(w, "  andurel commands [--json|--markdown|--check]")
-	fmt.Fprintln(w, "  andurel <group> --help")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Common commands:")
+	helpPrintln(w, "Andurel — space-grade Go framework for humans and agents")
+	helpPrintln(w)
+	helpPrintln(w, "Usage:")
+	helpPrintln(w, "  andurel <command> [args...]")
+	helpPrintln(w, "  andurel commands [--json|--markdown|--check]")
+	helpPrintln(w, "  andurel <group> --help")
+	helpPrintln(w)
+	helpPrintln(w, "Common commands:")
 	width := 0
 	for _, item := range rootCommonCommands {
 		if len(item.Use) > width {
@@ -68,10 +68,10 @@ func renderRootHelp(cmd *cobra.Command, w io.Writer) {
 		}
 	}
 	for _, item := range rootCommonCommands {
-		fmt.Fprintf(w, "  %-*s  %s\n", width, item.Use, item.Description)
+		helpPrintf(w, "  %-*s  %s\n", width, item.Use, item.Description)
 	}
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Groups:")
+	helpPrintln(w)
+	helpPrintln(w, "Groups:")
 	groups := make([]*cobra.Command, 0)
 	leaves := make([]*cobra.Command, 0)
 	for _, sub := range availableSubcommands(cmd) {
@@ -86,28 +86,28 @@ func renderRootHelp(cmd *cobra.Command, w io.Writer) {
 	}
 	writeCommandNameTable(w, groups)
 	if len(leaves) > 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "Commands:")
+		helpPrintln(w)
+		helpPrintln(w, "Commands:")
 		writeCommandNameTable(w, leaves)
 	}
-	fmt.Fprintln(w)
+	helpPrintln(w)
 	writeDiscoveryHelp(w)
-	fmt.Fprintln(w, "Global Flags:")
-	fmt.Fprint(w, cmd.PersistentFlags().FlagUsages())
+	helpPrintln(w, "Global Flags:")
+	helpPrint(w, cmd.PersistentFlags().FlagUsages())
 }
 
 func renderGroupHelp(cmd *cobra.Command, w io.Writer) {
-	fmt.Fprintln(w, commandHeadline(cmd))
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Usage:")
-	fmt.Fprintf(w, "  %s <command> [args...]\n", cmd.CommandPath())
-	fmt.Fprintf(w, "  %s --help\n", cmd.CommandPath())
-	fmt.Fprintln(w)
+	helpPrintln(w, commandHeadline(cmd))
+	helpPrintln(w)
+	helpPrintln(w, "Usage:")
+	helpPrintf(w, "  %s <command> [args...]\n", cmd.CommandPath())
+	helpPrintf(w, "  %s --help\n", cmd.CommandPath())
+	helpPrintln(w)
 	children := availableSubcommands(cmd)
 	if len(children) == 0 {
 		return
 	}
-	fmt.Fprintln(w, "Commands:")
+	helpPrintln(w, "Commands:")
 	rows := make([][2]string, 0, len(children))
 	maxUse := 0
 	for _, child := range children {
@@ -122,53 +122,53 @@ func renderGroupHelp(cmd *cobra.Command, w io.Writer) {
 		rows = append(rows, [2]string{use, commandHeadline(child)})
 	}
 	for _, row := range rows {
-		fmt.Fprintf(w, "  %-*s  %s\n", maxUse, row[0], row[1])
+		helpPrintf(w, "  %-*s  %s\n", maxUse, row[0], row[1])
 	}
 	if cmd.HasAvailableLocalFlags() {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "Flags:")
-		fmt.Fprint(w, cmd.LocalFlags().FlagUsages())
+		helpPrintln(w)
+		helpPrintln(w, "Flags:")
+		helpPrint(w, cmd.LocalFlags().FlagUsages())
 	}
 	if cmd.HasAvailableInheritedFlags() {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "Global Flags:")
-		fmt.Fprint(w, cmd.InheritedFlags().FlagUsages())
+		helpPrintln(w)
+		helpPrintln(w, "Global Flags:")
+		helpPrint(w, cmd.InheritedFlags().FlagUsages())
 	}
 }
 
 func renderLeafHelp(cmd *cobra.Command, w io.Writer) {
 	meta, ok := metaFor(cmd)
-	fmt.Fprintln(w, commandHeadline(cmd))
-	fmt.Fprintln(w)
+	helpPrintln(w, commandHeadline(cmd))
+	helpPrintln(w)
 	if ok {
 		writeBulletSection(w, "When to use", meta.WhenToUse)
 		writeBulletSection(w, "When not to use", meta.WhenNotToUse)
 		writeBulletSection(w, "Prerequisites", meta.Prerequisites)
 	} else if strings.TrimSpace(cmd.Long) != "" && cmd.Long != cmd.Short {
-		fmt.Fprintln(w, cmd.Long)
-		fmt.Fprintln(w)
+		helpPrintln(w, cmd.Long)
+		helpPrintln(w)
 	}
-	fmt.Fprintln(w, "Usage:")
-	fmt.Fprintf(w, "  %s\n", cmd.UseLine())
-	fmt.Fprintln(w)
+	helpPrintln(w, "Usage:")
+	helpPrintf(w, "  %s\n", cmd.UseLine())
+	helpPrintln(w)
 	examples := commandExamples(cmd, meta, ok)
 	if len(examples) > 0 {
-		fmt.Fprintln(w, "Examples:")
+		helpPrintln(w, "Examples:")
 		for _, example := range examples {
-			fmt.Fprintf(w, "  %s\n", example)
+			helpPrintf(w, "  %s\n", example)
 		}
-		fmt.Fprintln(w)
+		helpPrintln(w)
 	}
 	if ok {
 		writeBulletSection(w, "Next", meta.Next)
 	}
 	if cmd.HasAvailableLocalFlags() {
-		fmt.Fprintln(w, "Flags:")
-		fmt.Fprint(w, cmd.LocalFlags().FlagUsages())
+		helpPrintln(w, "Flags:")
+		helpPrint(w, cmd.LocalFlags().FlagUsages())
 	}
 	if cmd.HasAvailableInheritedFlags() {
-		fmt.Fprintln(w, "Global Flags:")
-		fmt.Fprint(w, cmd.InheritedFlags().FlagUsages())
+		helpPrintln(w, "Global Flags:")
+		helpPrint(w, cmd.InheritedFlags().FlagUsages())
 	}
 }
 
@@ -197,19 +197,19 @@ func writeBulletSection(w io.Writer, title string, items []string) {
 	if len(items) == 0 {
 		return
 	}
-	fmt.Fprintf(w, "%s:\n", title)
+	helpPrintf(w, "%s:\n", title)
 	for _, item := range items {
-		fmt.Fprintf(w, "  - %s\n", item)
+		helpPrintf(w, "  - %s\n", item)
 	}
-	fmt.Fprintln(w)
+	helpPrintln(w)
 }
 
 func writeDiscoveryHelp(w io.Writer) {
-	fmt.Fprintln(w, "Discovery:")
-	fmt.Fprintln(w, "  andurel commands --json       Machine-readable catalog")
-	fmt.Fprintln(w, "  andurel commands --markdown   Markdown command table")
-	fmt.Fprintln(w, "  andurel commands --check      Validate metadata completeness")
-	fmt.Fprintln(w)
+	helpPrintln(w, "Discovery:")
+	helpPrintln(w, "  andurel commands --json       Machine-readable catalog")
+	helpPrintln(w, "  andurel commands --markdown   Markdown command table")
+	helpPrintln(w, "  andurel commands --check      Validate metadata completeness")
+	helpPrintln(w)
 }
 
 func writeCommandNameTable(w io.Writer, commands []*cobra.Command) {
@@ -220,6 +220,18 @@ func writeCommandNameTable(w io.Writer, commands []*cobra.Command) {
 		}
 	}
 	for _, command := range commands {
-		fmt.Fprintf(w, "  %-*s  %s\n", maxName, command.Name(), commandHeadline(command))
+		helpPrintf(w, "  %-*s  %s\n", maxName, command.Name(), commandHeadline(command))
 	}
+}
+
+func helpPrint(w io.Writer, a ...any) {
+	_, _ = fmt.Fprint(w, a...)
+}
+
+func helpPrintf(w io.Writer, format string, a ...any) {
+	_, _ = fmt.Fprintf(w, format, a...)
+}
+
+func helpPrintln(w io.Writer, a ...any) {
+	_, _ = fmt.Fprintln(w, a...)
 }
