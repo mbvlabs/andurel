@@ -2,7 +2,7 @@ schemaVersion = 1
 version = 'latest'
 
 [project]
-  name = 'testapp'
+  name = 'app'
   inertia = 'svelte'
   javascriptPackageManager = 'npm'
   javascriptSSRRuntime = 'node'

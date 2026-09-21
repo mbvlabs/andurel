@@ -2,8 +2,7 @@ schemaVersion = 1
 version = 'latest'
 
 [project]
-  name = 'testapp'
-  javascriptPackageManager = 'npm'
+  name = 'app'
   javascriptSSRRuntime = 'node'
 
 [database]

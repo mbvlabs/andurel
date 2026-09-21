@@ -2,7 +2,7 @@ schemaVersion = 1
 version = 'latest'
 
 [project]
-  name = 'testapp'
+  name = 'app'
   inertia = 'vue'
   javascriptPackageManager = 'npm'
   javascriptSSRRuntime = 'node'
