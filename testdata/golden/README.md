@@ -45,15 +45,21 @@ The harness **never normalizes, scrubs, or reformats captured bytes**
 fixtures, not the test harness:
 
 - `-tags andurel_golden` switches `internal/testseed` to a fixed seed: database
-  secrets and migration timestamps (`2025-01-01T00:00:00Z`) are deterministic.
+  secrets use a deterministic stream and the CLI date banner is pinned to
+  `2025-01-01T00:00:00Z`. Scaffold migrations are written with finished
+  sequential versions (`00001`–`00008`), so filenames need no goose fix.
   Without the tag, `internal/testseed/seed_default.go` is compiled instead.
-- Under the tag, `layout.Scaffold` skips goose fix, `go mod tidy`, and `go fmt`
+- Under the tag, `layout.Scaffold` skips `go mod tidy` and `go fmt`
   **unless** `testseed.FullScaffold()` is true (`andurel_golden_full` tag or
   `ANDUREL_GOLDEN_FULL=1`). Compiled views (`*_templ.go`) and narsilc query
   packages are written from embeds during template rendering (no `templ` /
   `narsilc` invocation on `andurel new`). PR goldens stay offline; nightly
-  full-tree `new` still runs goose/tidy/fmt with pinned tools on
+  full-tree `new` still runs tidy/fmt with pinned tools on
   `ANDUREL_TOOL_BIN`.
+- Generated controllers always emit `"github.com/jackc/pgx/v5/pgtype"` when
+  any field (including system timestamps) uses `pgtype.*`. `FormatGoFile`
+  also rewrites standalone `"github.com/jackc/pgtype"` after goimports so a
+  polluted local module cache cannot drift goldens vs clean CI.
 - The golden CLI is built with `-ldflags -X main.version=latest`, so
   `andurel.lock`'s `version` field and any version banners stay stable without
   scrubbing.
@@ -97,10 +103,10 @@ via the harness.
 the project name (`app`), not `example.com/app`.
 
 PR CI captures scaffold MVC under `new/mvc/` for postgresql (templ views) and
-`--inertia react` (Inertia pages) without running goose/tidy/fmt. Compiled
+`--inertia react` (Inertia pages) without running tidy/fmt. Compiled
 `*_templ.go` and narsilc query packages are included from embeds. Nightly
 full-tree capture lives under `new/<adapter>/` for all four adapters with
-goose/tidy/fmt on. Those directories must stay separate: formatted nightly
+tidy/fmt on. Those directories must stay separate: formatted nightly
 trees must not be the PR MVC baseline.
 
 ### Nightly `andurel new` capture strategy
@@ -109,10 +115,11 @@ Assertions use `goldentest.AssertTree`: walk the project, goldie-assert every
 file except the denylist, then fail (or, with `-update`, delete) orphan
 `.golden` files that have no project counterpart.
 
-`ANDUREL_GOLDEN_FULL=1` makes `layout.Scaffold` run goose fix, `go fmt`, and
+`ANDUREL_GOLDEN_FULL=1` makes `layout.Scaffold` run `go fmt` and
 `go mod tidy` with pinned tools from `ANDUREL_TOOL_BIN`. Compiled views and
 narsilc query packages are always written from embeds (no scaffold-time
-`templ` / `narsilc` generate).
+`templ` / `narsilc` generate). Migration files are written with finished
+sequential versions, so goose fix is not part of scaffold.
 
 **Denylist** (no content scrubbers):
 

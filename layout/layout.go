@@ -15,7 +15,6 @@ import (
 	"sort"
 	"strings"
 	"text/template"
-	"time"
 
 	"github.com/mbvlabs/andurel/internal/constants"
 	"github.com/mbvlabs/andurel/internal/testseed"
@@ -36,8 +35,6 @@ func Scaffold(
 	targetDir, projectName, database, version string,
 	inertia, javascriptRuntime string,
 ) error {
-	fmt.Printf("Scaffolding new project in %s...\n", targetDir)
-
 	moduleName := projectName
 	secrets, err := generateScaffoldSecrets(testseed.RandomReader())
 	if err != nil {
@@ -83,7 +80,7 @@ func Scaffold(
 	}
 
 	fmt.Print("Processing database migrations...\n")
-	if _, err := processMigrations(targetDir, &templateData); err != nil {
+	if err := processMigrations(targetDir, &templateData); err != nil {
 		return fmt.Errorf("failed to process migrations: %w", err)
 	}
 
@@ -98,25 +95,15 @@ func Scaffold(
 		fmt.Printf("Warning: failed to generate lock file: %v\n", err)
 	}
 
-	// Golden CLI builds already seed secrets and migration timestamps via
-	// testseed. PR goldens skip network-bound post-scaffold steps so
-	// `andurel new` stays offline. Compiled views (*_templ.go) and narsilc
+	// Golden CLI builds already seed secrets via testseed. Migration files are
+	// written with finished sequential versions (00001–00008), so scaffold
+	// never runs goose fix. PR goldens skip network-bound post-scaffold steps
+	// so `andurel new` stays offline. Compiled views (*_templ.go) and narsilc
 	// query packages are written from embeds above; nightly full-tree goldens
-	// call RunCLIFull so goose fix, go fmt, and tidy still run.
+	// call RunCLIFull so go fmt and tidy still run.
 	// See internal/testseed and testdata/golden/README.md.
 	if testseed.Enabled() && !testseed.FullScaffold() {
 		return nil
-	}
-
-	fmt.Print("Fixing migration timestamps...\n")
-	if err := cmds.RunGooseFix(targetDir); err != nil {
-		slog.Error(
-			"failed to run goose fix",
-			"error",
-			err,
-			"fix",
-			"run 'andurel tool sync' then 'goose -dir migrations fix' after sync",
-		)
 	}
 
 	fmt.Print("Running go mod tidy...\n")
@@ -550,43 +537,26 @@ func processTemplatedFiles(targetDir string, data *TemplateData) error {
 func processMigrations(
 	targetDir string,
 	data *TemplateData,
-) (time.Time, error) {
-	baseTime := testseed.Now()
-
+) error {
 	migrations := []struct {
 		template string
 		name     string
-		offset   time.Duration
 	}{
 		// River queue migrations
-		{"psql_riverqueue_migration_one.tmpl", "create_river_migration_table", 0},
-		{
-			"psql_riverqueue_migration_two.tmpl",
-			"create_river_job_and_leader_tables",
-			1 * time.Second,
-		},
-		{"psql_riverqueue_migration_three.tmpl", "alter_river_job_tags", 2 * time.Second},
-		{
-			"psql_riverqueue_migration_four.tmpl",
-			"alter_river_job_args_metadata_add_queue",
-			3 * time.Second,
-		},
-		{
-			"psql_riverqueue_migration_five.tmpl",
-			"add_river_job_unique_key_and_clients",
-			4 * time.Second,
-		},
-		{"psql_riverqueue_migration_six.tmpl", "add_river_job_unique_states", 5 * time.Second},
+		{"psql_riverqueue_migration_one.tmpl", "create_river_migration_table"},
+		{"psql_riverqueue_migration_two.tmpl", "create_river_job_and_leader_tables"},
+		{"psql_riverqueue_migration_three.tmpl", "alter_river_job_tags"},
+		{"psql_riverqueue_migration_four.tmpl", "alter_river_job_args_metadata_add_queue"},
+		{"psql_riverqueue_migration_five.tmpl", "add_river_job_unique_key_and_clients"},
+		{"psql_riverqueue_migration_six.tmpl", "add_river_job_unique_states"},
 		// Auth migrations
-		{"database_migrations_users.tmpl", "create_users_table", 6 * time.Second},
-		{"database_migrations_tokens.tmpl", "create_tokens_table", 7 * time.Second},
+		{"database_migrations_users.tmpl", "create_users_table"},
+		{"database_migrations_tokens.tmpl", "create_tokens_table"},
 	}
 
-	var lastTime time.Time
-	for _, migration := range migrations {
-		lastTime = baseTime.Add(migration.offset)
-		timestamp := lastTime.Format("20060102150405")
-		targetPath := fmt.Sprintf("migrations/%s_%s.sql", timestamp, migration.name)
+	for i, migration := range migrations {
+		version := fmt.Sprintf("%05d", i+1)
+		targetPath := fmt.Sprintf("migrations/%s_%s.sql", version, migration.name)
 
 		if err := renderTemplate(
 			targetDir,
@@ -595,7 +565,7 @@ func processMigrations(
 			templates.Files,
 			data,
 		); err != nil {
-			return time.Time{}, fmt.Errorf(
+			return fmt.Errorf(
 				"failed to process migration %s: %w",
 				migration.template,
 				err,
@@ -603,7 +573,7 @@ func processMigrations(
 		}
 	}
 
-	return lastTime.Add(1 * time.Second), nil
+	return nil
 }
 
 func copyFile(

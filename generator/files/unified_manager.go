@@ -1,6 +1,7 @@
 package files
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -130,7 +131,9 @@ var (
 //
 // goimports runs with GOWORK=off and cwd set to the file's directory so an
 // ambient go.work (e.g. this repo's workspace) cannot change import resolution
-// for generated project files.
+// for generated project files. After goimports, ambiguous third-party imports
+// that the module cache may prefer incorrectly are rewritten to the paths
+// Andurel templates emit (see canonicalizeAmbiguousImports).
 func FormatGoFile(path string) error {
 	goimportsPath, err := resolveTool("goimports")
 	if err != nil {
@@ -163,6 +166,14 @@ func FormatGoFile(path string) error {
 		}
 	}
 
+	if err := canonicalizeAmbiguousImports(absPath); err != nil {
+		return &FileOperationError{
+			Operation: "canonicalize_imports",
+			Path:      path,
+			Err:       err,
+		}
+	}
+
 	cmd = exec.Command("go", "fmt", absPath)
 	cmd.Dir = fileDir
 	cmd.Env = toolEnv()
@@ -176,6 +187,37 @@ func FormatGoFile(path string) error {
 	}
 
 	return nil
+}
+
+// Standalone jackc/pgtype is still common in developer module caches. When
+// goimports adds a missing pgtype import it prefers that shorter path over
+// github.com/jackc/pgx/v5/pgtype, which breaks golden parity with clean CI.
+var ambiguousImportRewrites = []struct {
+	from, to string
+}{
+	{`"github.com/jackc/pgtype"`, `"github.com/jackc/pgx/v5/pgtype"`},
+}
+
+func canonicalizeAmbiguousImports(path string) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	updated := content
+	for _, rewrite := range ambiguousImportRewrites {
+		updated = bytes.ReplaceAll(updated, []byte(rewrite.from), []byte(rewrite.to))
+	}
+	if bytes.Equal(updated, content) {
+		return nil
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, updated, info.Mode().Perm())
 }
 
 // toolEnv is the process environment for formatter subprocesses: inherit the

@@ -18,7 +18,10 @@ import (
 {{- if and (not .IsSystemField) (or (eq .GoType "uuid.UUID") (eq .GoType "*uuid.UUID"))}}
 	{{- $needsUUID = true}}
 {{- end}}
-{{- if and (not .IsSystemField) (hasPrefix .GoType "pgtype.")}}
+{{- /* Include system fields: CreatedAt/UpdatedAt are often pgtype.Timestamptz
+     and appear on {{.ResourceName}}Data. Omitting the import lets goimports
+     pick standalone github.com/jackc/pgtype from a polluted module cache. */}}
+{{- if hasPrefix .GoType "pgtype."}}
 	{{- $needsPG = true}}
 {{- end}}
 {{- if and (not .IsSystemField) (eq .GoType "json.RawMessage") (or (HasAction "create") (HasAction "update"))}}
