@@ -10,14 +10,16 @@
 // When Enabled() is true (binary built with -tags andurel_golden):
 //
 //   - RandomReader / Now: fixed secret stream and 2025-01-01T00:00:00Z clock
-//     (scaffold .env.example secrets, migration filenames, CLI date banner).
-//   - layout.Scaffold: after writing templates + andurel.lock, skips goose fix,
-//     go mod tidy, and go fmt unless FullScaffold() is true (andurel_golden_full
+//     (scaffold .env.example secrets, CLI date banner).
+//   - layout.Scaffold: after writing templates + andurel.lock, skips
+//     go mod tidy and go fmt unless FullScaffold() is true (andurel_golden_full
 //     tag or ANDUREL_GOLDEN_FULL=1 in the CLI process). Compiled views
 //     (*_templ.go) and narsilc query packages are always written from embeds.
+//     Scaffold migrations are written with finished sequential versions
+//     (00001–00008), so goose fix is never run during `andurel new`.
 //     The golden harness strips ambient ANDUREL_GOLDEN_FULL so PR tests cannot
 //     pick it up from a developer shell; nightly tests pass it explicitly.
-//     Nightly full-tree goldens still run goose/tidy/fmt; PR goldens stay offline.
+//     Nightly full-tree goldens still run tidy/fmt; PR goldens stay offline.
 //   - layout/cmds RunNarsilcGenerate: still runs narsilc, but always skips
 //     go mod tidy under the golden tag (Scaffold tidies when FullScaffold).
 //   - generator.Coordinator: uses NopPrimaryKeyResolver (no interactive prompts).
