@@ -27,7 +27,7 @@ const (
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
 	Hypermedia = "v0.2.5"
 	// Kiks is the standalone Andurel cookies and sessions module version verified with this framework.
-	Kiks = "v0.1.0"
+	Kiks = "v0.2.0"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
 	Inertia = "v0.6.0"
 	// Email is the standalone Andurel email module version verified with this framework.

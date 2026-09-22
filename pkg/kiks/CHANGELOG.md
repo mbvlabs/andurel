@@ -2,7 +2,7 @@
 
 All notable changes to the standalone Andurel kiks module are documented here.
 
-## Unreleased
+## 0.2.0 - 2026-09-22
 
 ### Added
 
@@ -34,16 +34,14 @@ All notable changes to the standalone Andurel kiks module are documented here.
 - Cookie definitions require `T Cookie` (`MarshalCookie` / `UnmarshalCookie`).
   Prefer pointer types (`*App`) so methods use pointer receivers. One Go type
   per jar registration.
-
-### Changed (prior)
-
 - Renamed `Session` → `NewSession`, `New` → `NewJar(keys, store, defs...)`, and
   `Delete` → `Destroy`. Added `Exists[T]`.
 - Session persistence goes through a `Store`; scaffolds use `CookieStore`.
 - Flashes always live in a dedicated flash cookie (`{sessionName}_flash`),
   never in the AppCookie envelope and never in the sessions table.
-- Middleware eager-loads only the session + flash cookie; named cookies
-  (`Plain` / `Signed` / `Encrypted`) load lazily on first `Get` / `Exists`.
+- Middleware eager-loads only the session + flash cookie; bagged named cookies
+  (`Plain` / `Signed` / `Encrypted` wrapped with `Bagged`) load lazily on
+  first `Get` / `Exists`.
 
 ## 0.1.0 - 2026-09-17
 
