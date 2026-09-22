@@ -147,3 +147,28 @@ func TestFindGoModRoot(t *testing.T) {
 		t.Fatalf("FindGoModRoot = %q, want %q", found, root)
 	}
 }
+
+func TestCanonicalizeAmbiguousImports(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "widgets.go")
+	original := "package controllers\n\nimport (\n\t\"github.com/jackc/pgtype\"\n)\n"
+	if err := os.WriteFile(path, []byte(original), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	if err := canonicalizeAmbiguousImports(path); err != nil {
+		t.Fatalf("canonicalizeAmbiguousImports: %v", err)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	want := "package controllers\n\nimport (\n\t\"github.com/jackc/pgx/v5/pgtype\"\n)\n"
+	if string(got) != want {
+		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
+	}
+
+	if err := canonicalizeAmbiguousImports(path); err != nil {
+		t.Fatalf("second canonicalize: %v", err)
+	}
+}

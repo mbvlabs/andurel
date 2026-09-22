@@ -56,6 +56,10 @@ fixtures, not the test harness:
   `narsilc` invocation on `andurel new`). PR goldens stay offline; nightly
   full-tree `new` still runs tidy/fmt with pinned tools on
   `ANDUREL_TOOL_BIN`.
+- Generated controllers always emit `"github.com/jackc/pgx/v5/pgtype"` when
+  any field (including system timestamps) uses `pgtype.*`. `FormatGoFile`
+  also rewrites standalone `"github.com/jackc/pgtype"` after goimports so a
+  polluted local module cache cannot drift goldens vs clean CI.
 - The golden CLI is built with `-ldflags -X main.version=latest`, so
   `andurel.lock`'s `version` field and any version banners stay stable without
   scrubbing.

@@ -418,3 +418,57 @@ func TestRenderInertiaControllerUsesDataStructAndRawMessagePlaceholder(t *testin
 		}
 	}
 }
+
+func TestRenderInertiaControllerEmitsPgxPgtypeForSystemTimestamps(t *testing.T) {
+	controller := &GeneratedController{
+		ResourceName:       "Widget",
+		PluralName:         "widgets",
+		PluralResourceName: "Widgets",
+		ReceiverName:       "w",
+		Package:            "controllers",
+		ModulePath:         "testapp",
+		Type:               ResourceController,
+		IDType:             "uuid.UUID",
+		IDGoFieldName:      "ID",
+		HasPrimaryKey:      true,
+		Fields: []GeneratedField{
+			{
+				Name:          "ID",
+				GoType:        "uuid.UUID",
+				GoFormType:    "string",
+				CamelCase:     "id",
+				IsSystemField: true,
+			},
+			{Name: "Name", GoType: "string", GoFormType: "string", CamelCase: "name"},
+			{
+				Name:          "CreatedAt",
+				GoType:        "pgtype.Timestamptz",
+				GoFormType:    "time.Time",
+				CamelCase:     "createdAt",
+				IsSystemField: true,
+			},
+			{
+				Name:          "UpdatedAt",
+				GoType:        "pgtype.Timestamptz",
+				GoFormType:    "time.Time",
+				CamelCase:     "updatedAt",
+				IsSystemField: true,
+			},
+		},
+	}
+
+	rendered, err := NewTemplateRenderer().RenderControllerFile(controller, "vue")
+	if err != nil {
+		t.Fatalf("RenderControllerFile failed: %v", err)
+	}
+
+	if !strings.Contains(rendered, `"github.com/jackc/pgx/v5/pgtype"`) {
+		t.Fatalf("expected pgx/v5/pgtype import for system timestamps\n\n%s", rendered)
+	}
+	if strings.Contains(rendered, `"github.com/jackc/pgtype"`) {
+		t.Fatalf("must not emit standalone jackc/pgtype import\n\n%s", rendered)
+	}
+	if !strings.Contains(rendered, "CreatedAt pgtype.Timestamptz") {
+		t.Fatalf("expected CreatedAt pgtype.Timestamptz on WidgetData\n\n%s", rendered)
+	}
+}
