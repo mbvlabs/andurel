@@ -16,6 +16,7 @@ type Session struct {
 	AuthenticationKey []byte
 	EncryptionKey     []byte
 	MaxAge            int
+	Driver            string
 }
 
 func NewSession(app App) (Session, error) {
@@ -25,6 +26,7 @@ func NewSession(app App) (Session, error) {
 	cfg := Session{
 		Name:   "app_sess_" + slug.Make(strings.ToLower(app.ProjectName)) + "-" + app.Environment,
 		MaxAge: env.Int("SESSION_MAX_AGE", DefaultSessionMaxAge),
+		Driver: strings.ToLower(env.String("SESSION_DRIVER", "cookie")),
 	}
 	var errs []error
 	if value, err := hex.DecodeString(authenticationKey); err != nil {
@@ -39,6 +41,14 @@ func NewSession(app App) (Session, error) {
 	}
 	if cfg.MaxAge < 1 {
 		errs = append(errs, fmt.Errorf("SESSION_MAX_AGE must be greater than zero"))
+	}
+	switch cfg.Driver {
+	case "", "cookie", "database":
+		if cfg.Driver == "" {
+			cfg.Driver = "cookie"
+		}
+	default:
+		errs = append(errs, fmt.Errorf("SESSION_DRIVER must be cookie or database"))
 	}
 	errs = append(errs, env.Err())
 	if err := errors.Join(errs...); err != nil {

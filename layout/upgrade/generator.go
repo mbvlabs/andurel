@@ -135,7 +135,8 @@ func renderTemplateToBytes(
 	}
 
 	funcMap := template.FuncMap{
-		"lower": strings.ToLower,
+		"lower":   strings.ToLower,
+		"toSnake": layout.ToSnakeCase,
 	}
 
 	tmpl, err := template.New(templateFile).

@@ -114,7 +114,11 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		return c.renderer.Redirect(etx, routes.ConfirmationNew.URL(), http.StatusSeeOther)
 	}
 
-	cookies.CreateAppSession(etx.Request().Context(), user)
+	kiks.Set(etx.Request().Context(), &cookies.App{
+		UserID:          user.ID.String(),
+		IsAdmin:         user.IsAdmin,
+		IsAuthenticated: true,
+	})
 
 	kiks.AddFlash(
 		etx.Request().Context(),

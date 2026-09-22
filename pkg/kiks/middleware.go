@@ -113,8 +113,9 @@ func shouldPersistFlashes(status int, header http.Header) bool {
 	return status == http.StatusConflict
 }
 
-// EchoMiddleware loads defined cookies onto context.Context and persists the
-// bag once before the response is committed.
+// EchoMiddleware eager-loads the session and flash cookie onto context.Context
+// and persists once before the response is committed. Named cookies load lazily
+// on Get/Exists.
 func (jar *Jar) EchoMiddleware(opts ...MiddlewareOption) echo.MiddlewareFunc {
 	config := middlewareConfig{}
 	for _, opt := range opts {
@@ -157,50 +158,31 @@ func (jar *Jar) EchoMiddleware(opts ...MiddlewareOption) echo.MiddlewareFunc {
 func (jar *Jar) load(request *http.Request) (*bag, error) {
 	requestBag := &bag{
 		jar:     jar,
+		request: request,
 		values:  make(map[reflect.Type]any),
 		deleted: make(map[reflect.Type]bool),
 		dirty:   make(map[reflect.Type]bool),
+		loaded:  make(map[reflect.Type]bool),
 	}
 
-	for _, definition := range jar.defs {
-		cookie, err := request.Cookie(definition.cookieName())
-		if err != nil {
-			continue
-		}
-		if definition.kind() == kindSession {
-			if loadErr := jar.loadSession(requestBag, definition, cookie.Value); loadErr != nil {
-				return nil, loadErr
-			}
-			continue
-		}
-		payload, decodeErr := jar.decodeCookie(definition, cookie.Value)
-		if decodeErr != nil {
-			if isDecodeError(decodeErr) {
-				requestBag.dirty[definition.typeKey()] = true
-				continue
-			}
-			return nil, decodeErr
-		}
-		value, err := definition.decodePayload(payload)
-		if err != nil {
-			if isDecodeError(err) {
-				requestBag.dirty[definition.typeKey()] = true
-				continue
-			}
+	if jar.sessionDef != nil {
+		if err := jar.loadSession(requestBag, request); err != nil {
 			return nil, err
 		}
-		requestBag.values[definition.typeKey()] = value
+		if err := jar.loadFlashes(requestBag, request); err != nil {
+			return nil, err
+		}
 	}
 
 	return requestBag, nil
 }
 
-func (jar *Jar) loadSession(
-	requestBag *bag,
-	definition Definition,
-	raw string,
-) error {
-	blob, err := jar.decodeSessionBlob(definition.cookieName(), raw)
+func (jar *Jar) loadSession(requestBag *bag, request *http.Request) error {
+	definition := jar.sessionDef
+	key := definition.typeKey()
+	requestBag.loaded[key] = true
+
+	payload, err := jar.store.Load(request, definition.cookieName())
 	if err != nil {
 		if isDecodeError(err) {
 			requestBag.sessionDirty = true
@@ -208,24 +190,38 @@ func (jar *Jar) loadSession(
 		}
 		return err
 	}
-	return jar.applySessionBlob(requestBag, definition, blob)
+	if payload == nil {
+		return nil
+	}
+	value, err := definition.decodePayload(payload)
+	if err != nil {
+		if isDecodeError(err) {
+			requestBag.sessionDirty = true
+			return nil
+		}
+		return err
+	}
+	requestBag.values[key] = value
+	return nil
 }
 
-func (jar *Jar) applySessionBlob(
-	requestBag *bag,
-	definition Definition,
-	blob sessionBlob,
-) error {
-	value, err := definition.decodePayload(blob.Payload)
+func (jar *Jar) loadFlashes(requestBag *bag, request *http.Request) error {
+	cookie, err := request.Cookie(jar.flashName)
 	if err != nil {
-		if isDecodeError(err) {
-			requestBag.sessionDirty = true
+		if errors.Is(err, http.ErrNoCookie) {
 			return nil
 		}
 		return err
 	}
-	requestBag.values[definition.typeKey()] = value
-	requestBag.flashes = blob.Flashes
+	flashes, decodeErr := jar.decodeFlashCookie(cookie.Value)
+	if decodeErr != nil {
+		if isDecodeError(decodeErr) {
+			requestBag.flashesDirty = true
+			return nil
+		}
+		return decodeErr
+	}
+	requestBag.flashes = flashes
 	return nil
 }
 
@@ -240,7 +236,7 @@ func (jar *Jar) persist(
 	if !persistFlashes {
 		outgoingFlashes = nil
 	}
-	clearFlashes := !persistFlashes && len(requestBag.flashes) > 0
+	clearFlashes := !persistFlashes && (len(requestBag.flashes) > 0 || requestBag.flashesDirty)
 
 	for _, definition := range jar.defs {
 		if definition.kind() == kindSession {
@@ -267,41 +263,40 @@ func (jar *Jar) persist(
 		http.SetCookie(writer, newCookie(definition.cookieName(), raw, opts))
 	}
 
-	if jar.sessionDef == nil {
-		return
-	}
-	definition := jar.sessionDef
-	opts := definition.options()
-	value := requestBag.values[definition.typeKey()]
-	if value == nil {
-		value = definition.zeroValue()
-	}
-	emptyValue := isZeroValue(value)
-	if emptyValue && len(outgoingFlashes) == 0 {
-		if requestBag.sessionDirty || requestBag.deleted[definition.typeKey()] {
-			http.SetCookie(writer, expireCookie(definition.cookieName(), opts))
+	if jar.sessionDef != nil {
+		definition := jar.sessionDef
+		opts := definition.options()
+		attrs := attrsFromOptions(opts)
+		key := definition.typeKey()
+
+		if requestBag.deleted[key] {
+			_ = jar.store.Destroy(writer, request, definition.cookieName(), attrs)
+		} else if requestBag.sessionDirty {
+			value := requestBag.values[key]
+			if value == nil {
+				value = definition.zeroValue()
+			}
+			if isZeroValue(value) {
+				_ = jar.store.Destroy(writer, request, definition.cookieName(), attrs)
+			} else {
+				payload, err := definition.encodePayload(value)
+				if err == nil {
+					_ = jar.store.Save(writer, request, definition.cookieName(), payload, attrs)
+				}
+			}
 		}
-		return
-	}
-	if !requestBag.sessionDirty && !clearFlashes {
-		return
-	}
 
-	payload, err := definition.encodePayload(value)
-	if err != nil {
-		return
+		flashOpts := opts
+		if clearFlashes || requestBag.deleted[key] {
+			http.SetCookie(writer, expireCookie(jar.flashName, flashOpts))
+		} else if persistFlashes && (requestBag.flashesDirty || len(outgoingFlashes) > 0) {
+			if len(outgoingFlashes) == 0 {
+				http.SetCookie(writer, expireCookie(jar.flashName, flashOpts))
+			} else if raw, err := jar.encodeFlashCookie(outgoingFlashes); err == nil {
+				http.SetCookie(writer, newCookie(jar.flashName, raw, flashOpts))
+			}
+		}
 	}
-	blob := sessionBlob{Payload: payload, Flashes: outgoingFlashes}
-	encoded, err := encodeSessionBlobBytes(blob)
-	if err != nil {
-		return
-	}
-
-	raw, err := jar.encrypted.Encode(definition.cookieName(), encoded)
-	if err != nil {
-		return
-	}
-	http.SetCookie(writer, newCookie(definition.cookieName(), raw, opts))
 }
 
 func (jar *Jar) encodeCookie(definition Definition, payload []byte) (string, error) {
@@ -338,31 +333,27 @@ func (jar *Jar) decodeCookie(definition Definition, raw string) ([]byte, error) 
 	}
 }
 
-func (jar *Jar) decodeSessionBlob(name, raw string) (sessionBlob, error) {
-	var encoded []byte
-	if err := jar.encrypted.Decode(name, raw, &encoded); err != nil {
-		return sessionBlob{}, err
+func (jar *Jar) encodeFlashCookie(flashes []FlashMessage) (string, error) {
+	var buffer bytes.Buffer
+	if err := gob.NewEncoder(&buffer).Encode(flashes); err != nil {
+		return "", err
 	}
-	return decodeSessionBlobBytes(encoded)
+	return jar.encrypted.Encode(jar.flashName, buffer.Bytes())
 }
 
-func encodeSessionBlobBytes(blob sessionBlob) ([]byte, error) {
-	var buffer bytes.Buffer
-	if err := gob.NewEncoder(&buffer).Encode(blob); err != nil {
+func (jar *Jar) decodeFlashCookie(raw string) ([]FlashMessage, error) {
+	var encoded []byte
+	if err := jar.encrypted.Decode(jar.flashName, raw, &encoded); err != nil {
 		return nil, err
 	}
-	return buffer.Bytes(), nil
-}
-
-func decodeSessionBlobBytes(payload []byte) (sessionBlob, error) {
-	var blob sessionBlob
-	if len(payload) == 0 {
-		return blob, nil
+	if len(encoded) == 0 {
+		return nil, nil
 	}
-	if err := gob.NewDecoder(bytes.NewReader(payload)).Decode(&blob); err != nil {
-		return blob, err
+	var flashes []FlashMessage
+	if err := gob.NewDecoder(bytes.NewReader(encoded)).Decode(&flashes); err != nil {
+		return nil, err
 	}
-	return blob, nil
+	return flashes, nil
 }
 
 func isDecodeError(err error) bool {

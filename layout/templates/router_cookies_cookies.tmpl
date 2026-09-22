@@ -2,9 +2,12 @@ package cookies
 
 import (
 	"context"
+	"encoding/json"
 {{- range .Blueprint.Cookies.Imports.Items}}
 	"{{.}}"
 {{- end}}
+
+	"{{.ModuleName}}/config"
 
 	"github.com/mbvlabs/andurel/pkg/kiks"
 )
@@ -20,47 +23,33 @@ const (
 
 type App struct {
 {{- range .Blueprint.Cookies.SortedAppFields}}
-	{{.Name}} {{.Type}}
+	{{.Name}} {{.Type}} `json:"{{toSnake .Name}},omitempty"`
 {{- end}}
 }
 
-func Definitions(name string, secure bool, maxAge int) []kiks.Definition {
-	return []kiks.Definition{
-		kiks.Session[App](
-			name,
-			kiks.HTTPOnly(),
-			kiks.Secure(secure),
-			kiks.MaxAge(maxAge),
-		),
+func (a *App) MarshalCookie() ([]byte, error) {
+	return json.Marshal(a)
+}
+
+func (a *App) UnmarshalCookie(data []byte) error {
+	if len(data) == 0 {
+		*a = App{}
+		return nil
 	}
+	return json.Unmarshal(data, a)
 }
 
-func Current(ctx context.Context) App {
-	return kiks.Get[App](ctx)
+func NewAppCookie(cfg config.Session, secure bool) kiks.Definition {
+	return kiks.NewSession[*App](
+		cfg.Name,
+		kiks.HTTPOnly(),
+		kiks.Secure(secure),
+		kiks.MaxAge(cfg.MaxAge),
+	)
 }
 
-{{- if not (len .Blueprint.Cookies.SortedAppFields)}}
-
-func CreateAppSession(ctx context.Context) {
-{{- if .Blueprint.Cookies.CreateSessionCode}}
-{{.Blueprint.Cookies.CreateSessionCode}}
-{{- else}}
-	kiks.Set(ctx, App{})
-{{- end}}
-}
-{{- else}}
-
-func CreateAppSession(ctx context.Context, user models.User) {
-{{- if .Blueprint.Cookies.CreateSessionCode}}
-{{.Blueprint.Cookies.CreateSessionCode}}
-{{- else}}
-	kiks.Set(ctx, App{})
-{{- end}}
-}
-{{- end}}
-
-func DestroyAppSession(ctx context.Context) {
-	kiks.Delete[App](ctx)
+func (a *App) Destroy(ctx context.Context) {
+	kiks.Destroy[*App](ctx)
 }
 
 {{- range .Blueprint.Cookies.SortedFunctions}}

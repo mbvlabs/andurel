@@ -1,7 +1,6 @@
 package kiks
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/gob"
 	"errors"
@@ -11,6 +10,14 @@ import (
 
 	"github.com/gorilla/securecookie"
 )
+
+// Cookie is the payload codec for a named cookie or session bag value.
+// MarshalCookie returns raw payload bytes; kiks signs, encrypts, or stores
+// those bytes afterwards — never return a Set-Cookie string.
+type Cookie interface {
+	MarshalCookie() ([]byte, error)
+	UnmarshalCookie([]byte) error
+}
 
 // Keys holds the gorilla/securecookie hash and optional encryption keys.
 type Keys struct {
@@ -113,7 +120,7 @@ type Definition interface {
 	zeroValue() any
 }
 
-type typedDef[T any] struct {
+type typedDef[T Cookie] struct {
 	name string
 	k    defKind
 	opts cookieOptions
@@ -126,19 +133,18 @@ func (definition *typedDef[T]) options() cookieOptions { return definition.opts 
 func (definition *typedDef[T]) zeroValue() any         { var zero T; return zero }
 
 func (definition *typedDef[T]) encodePayload(value any) ([]byte, error) {
+	if value == nil {
+		return nil, nil
+	}
 	typed, ok := value.(T)
-	if !ok && value != nil {
+	if !ok {
 		return nil, fmt.Errorf("kiks: value type %T does not match cookie %s", value, definition.name)
 	}
-	if value == nil {
-		var zero T
-		typed = zero
+	rv := reflect.ValueOf(typed)
+	if rv.Kind() == reflect.Pointer && rv.IsNil() {
+		return nil, nil
 	}
-	var buffer bytes.Buffer
-	if err := gob.NewEncoder(&buffer).Encode(typed); err != nil {
-		return nil, err
-	}
-	return buffer.Bytes(), nil
+	return typed.MarshalCookie()
 }
 
 func (definition *typedDef[T]) decodePayload(payload []byte) (any, error) {
@@ -146,48 +152,56 @@ func (definition *typedDef[T]) decodePayload(payload []byte) (any, error) {
 	if len(payload) == 0 {
 		return value, nil
 	}
-	if err := gob.NewDecoder(bytes.NewReader(payload)).Decode(&value); err != nil {
+	rt := reflect.TypeFor[T]()
+	if rt.Kind() == reflect.Pointer {
+		rv := reflect.ValueOf(value)
+		if !rv.IsValid() || rv.IsNil() {
+			value = reflect.New(rt.Elem()).Interface().(T)
+		}
+	}
+	if err := value.UnmarshalCookie(payload); err != nil {
 		return value, err
 	}
 	return value, nil
 }
 
 // Plain defines an unsigned HTTP cookie.
-func Plain[T any](name string, opts ...Option) Definition {
+func Plain[T Cookie](name string, opts ...Option) Definition {
 	return &typedDef[T]{name: name, k: kindPlain, opts: applyOptions(opts)}
 }
 
 // Signed defines a tamper-evident HTTP cookie.
-func Signed[T any](name string, opts ...Option) Definition {
+func Signed[T Cookie](name string, opts ...Option) Definition {
 	return &typedDef[T]{name: name, k: kindSigned, opts: applyOptions(opts)}
 }
 
 // Encrypted defines a signed and encrypted HTTP cookie.
-func Encrypted[T any](name string, opts ...Option) Definition {
+func Encrypted[T Cookie](name string, opts ...Option) Definition {
 	return &typedDef[T]{name: name, k: kindEncrypted, opts: applyOptions(opts)}
 }
 
-// Session defines the application session bag (value + flashes).
-func Session[T any](name string, opts ...Option) Definition {
+// NewSession defines the application session bag (exactly one per jar).
+func NewSession[T Cookie](name string, opts ...Option) Definition {
 	return &typedDef[T]{name: name, k: kindSession, opts: applyOptions(opts)}
 }
 
-type sessionBlob struct {
-	Payload []byte
-	Flashes []FlashMessage
-}
-
-// Jar holds cookie definitions and codecs.
+// Jar holds cookie definitions, codecs, and the session Store.
 type Jar struct {
 	signed     *securecookie.SecureCookie
 	encrypted  *securecookie.SecureCookie
+	store      Store
 	defs       []Definition
 	byType     map[reflect.Type]Definition
 	sessionDef Definition
+	flashName  string
 }
 
-// New constructs a cookie jar. Session values live in an encrypted cookie.
-func New(keys Keys, defs ...Definition) (*Jar, error) {
+// NewJar constructs a cookie jar. Session payload persistence goes through
+// store; flashes always use a dedicated flash cookie derived from the session name.
+func NewJar(keys Keys, store Store, defs ...Definition) (*Jar, error) {
+	if store == nil {
+		return nil, errors.New("kiks: store is required")
+	}
 	if len(keys.Authentication) < 32 {
 		return nil, errors.New("kiks: authentication key must be at least 32 bytes")
 	}
@@ -201,16 +215,16 @@ func New(keys Keys, defs ...Definition) (*Jar, error) {
 	jar := &Jar{
 		signed:    securecookie.New(keys.Authentication, nil),
 		encrypted: securecookie.New(keys.Authentication, keys.Encryption),
+		store:     store,
 		defs:      defs,
 		byType:    make(map[reflect.Type]Definition, len(defs)),
 	}
 
 	gob.Register(FlashMessage{})
 	gob.Register([]FlashMessage{})
-	gob.Register(sessionBlob{})
 
 	var sessionCount int
-	names := make(map[string]struct{}, len(defs))
+	names := make(map[string]struct{}, len(defs)+1)
 	for _, definition := range defs {
 		if definition == nil {
 			return nil, errors.New("kiks: nil cookie definition")
@@ -228,10 +242,14 @@ func New(keys Keys, defs ...Definition) (*Jar, error) {
 			return nil, fmt.Errorf("kiks: duplicate cookie type %s", key)
 		}
 		jar.byType[key] = definition
-		gob.Register(definition.zeroValue())
 		if definition.kind() == kindSession {
 			sessionCount++
 			jar.sessionDef = definition
+			jar.flashName = name + "_flash"
+			if _, exists := names[jar.flashName]; exists {
+				return nil, fmt.Errorf("kiks: flash cookie name %q conflicts with a definition", jar.flashName)
+			}
+			names[jar.flashName] = struct{}{}
 			maxAge := definition.options().maxAge
 			if maxAge > 0 {
 				jar.signed.MaxAge(maxAge)
@@ -240,21 +258,10 @@ func New(keys Keys, defs ...Definition) (*Jar, error) {
 		}
 	}
 	if sessionCount != 1 {
-		return nil, errors.New("kiks: exactly one Session definition is required")
+		return nil, errors.New("kiks: exactly one NewSession definition is required")
 	}
 
 	return jar, nil
-}
-
-func (jar *Jar) codecFor(kind defKind) *securecookie.SecureCookie {
-	switch kind {
-	case kindEncrypted, kindSession:
-		return jar.encrypted
-	case kindSigned:
-		return jar.signed
-	default:
-		return nil
-	}
 }
 
 func encodePlain(payload []byte) string {

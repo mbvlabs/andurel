@@ -15,6 +15,7 @@ import (
 	echomw "github.com/labstack/echo/v5/middleware"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"go.uber.org/fx"
 )
@@ -174,15 +175,20 @@ func (r *Router) AddRouteNotFound(
 func newJar(
 	appCfg config.App,
 	sessionCfg config.Session,
+	db storage.Connection,
 ) (*kiks.Jar, error) {
 	keys := kiks.Keys{
 		Authentication: sessionCfg.AuthenticationKey,
 		Encryption:     sessionCfg.EncryptionKey,
 	}
+	store, err := kiks.NewStore(sessionCfg.Driver, keys, db)
+	if err != nil {
+		return nil, err
+	}
 
-	return kiks.New(
-		keys,
-		cookies.Definitions(sessionCfg.Name, appCfg.IsProduction(), sessionCfg.MaxAge)...,
+	return kiks.NewJar(keys, store,
+		cookies.NewAppCookie(sessionCfg, appCfg.IsProduction()),
+		// optional: kiks.Encrypted[*cookies.Cart]("cart", kiks.HTTPOnly()),
 	)
 }
 
