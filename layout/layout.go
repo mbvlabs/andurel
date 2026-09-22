@@ -177,7 +177,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"env.tmpl":       ".env.example",
 	"gitignore.tmpl": ".gitignore",
 	"readme.tmpl":    "README.md",
-	"agents.tmpl":    "AGENTS.md",
 
 	// Assets
 	"assets_assets.tmpl":      "assets/assets.go",

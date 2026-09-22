@@ -203,9 +203,8 @@ func findAndurelFrameworkRoot() string {
 
 func isAndurelFrameworkRoot(dir string) bool {
 	_, catalogErr := os.Stat(filepath.Join(dir, "skills", "andurel", "references", "cli-catalog.md"))
-	_, agentsErr := os.Stat(filepath.Join(dir, "layout", "templates", "agents.tmpl"))
 	_, readmeErr := os.Stat(filepath.Join(dir, "layout", "templates", "readme.tmpl"))
-	return catalogErr == nil && agentsErr == nil && readmeErr == nil
+	return catalogErr == nil && readmeErr == nil
 }
 
 func checkGeneratedDocs(root *cobra.Command) []string {
@@ -215,36 +214,21 @@ func checkGeneratedDocs(root *cobra.Command) []string {
 	}
 	failures := make([]string, 0)
 	catalogPath := filepath.Join(frameworkRoot, "skills", "andurel", "references", "cli-catalog.md")
-	agentsPath := filepath.Join(frameworkRoot, "layout", "templates", "agents.tmpl")
 	readmePath := filepath.Join(frameworkRoot, "layout", "templates", "readme.tmpl")
 	catalogBody, err := os.ReadFile(catalogPath)
 	if err != nil {
 		return []string{"skills/andurel/references/cli-catalog.md: " + err.Error()}
-	}
-	agentsBody, err := os.ReadFile(agentsPath)
-	if err != nil {
-		return []string{"layout/templates/agents.tmpl: " + err.Error()}
 	}
 	readmeBody, err := os.ReadFile(readmePath)
 	if err != nil {
 		return []string{"layout/templates/readme.tmpl: " + err.Error()}
 	}
 	catalogText := string(catalogBody)
-	agentsText := string(agentsBody)
 	readmeText := string(readmeBody)
 	for _, record := range flattenCatalog(root) {
 		needle := "`" + record.Path + "`"
 		if !strings.Contains(catalogText, needle) {
 			failures = append(failures, "skills/andurel/references/cli-catalog.md: missing "+needle)
-		}
-	}
-	for _, needle := range []string{
-		"andurel commands --json",
-		"andurel inspect project --json",
-		"andurel doctor --json",
-	} {
-		if !strings.Contains(agentsText, needle) {
-			failures = append(failures, "layout/templates/agents.tmpl: missing "+needle)
 		}
 	}
 	for _, retired := range []string{"andurel migration", "andurel app console"} {
