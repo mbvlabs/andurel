@@ -137,7 +137,11 @@ func AssertTree(t testing.TB, projectDir, goldenSubdir string, denylist []string
 		t.Logf("removed %d orphan golden file(s) under %s", len(orphans), goldenSubdir)
 		return
 	}
-	t.Fatalf("orphan golden files under %s (no project counterpart): %s", goldenSubdir, strings.Join(orphans, ", "))
+	t.Fatalf(
+		"orphan golden files under %s (no project counterpart): %s",
+		goldenSubdir,
+		strings.Join(orphans, ", "),
+	)
 }
 
 func updatingGoldens() bool {

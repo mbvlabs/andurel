@@ -297,7 +297,10 @@ func TestCodeGenerationChecksSkipsPayloadsTSForNonInertiaProject(t *testing.T) {
 	results := codeGenerationChecks(rootDir, false)
 	for _, result := range results {
 		if result.name == "payloads.ts" {
-			t.Fatalf("expected payloads.ts check to be skipped for non-Inertia project: %#v", results)
+			t.Fatalf(
+				"expected payloads.ts check to be skipped for non-Inertia project: %#v",
+				results,
+			)
 		}
 	}
 }
@@ -516,7 +519,8 @@ func TestPayloadsReportJSONShape(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if !bytes.Contains(raw, []byte(`"generated_file"`)) || !bytes.Contains(raw, []byte(`"type_count"`)) ||
+	if !bytes.Contains(raw, []byte(`"generated_file"`)) ||
+		!bytes.Contains(raw, []byte(`"type_count"`)) ||
 		!bytes.Contains(raw, []byte(`"skipped"`)) {
 		t.Fatalf("unexpected json: %s", raw)
 	}

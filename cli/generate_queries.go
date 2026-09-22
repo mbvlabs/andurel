@@ -32,7 +32,11 @@ no-op when models/queries contains no .sql files with a -- name: annotation.`,
 			commandsRun := []string{}
 			warnings := []string{}
 			if hasQueries {
-				commandsRun = append(commandsRun, "narsilc generate", "go fmt ./models/internal/queries/...")
+				commandsRun = append(
+					commandsRun,
+					"narsilc generate",
+					"go fmt ./models/internal/queries/...",
+				)
 			} else {
 				warnings = append(
 					warnings,
@@ -46,11 +50,16 @@ no-op when models/queries contains no .sql files with a -- name: annotation.`,
 				CommandsRun: commandsRun,
 				Warnings:    warnings,
 				Breadcrumbs: []output.Breadcrumb{
-					{Command: "andurel doctor --json", Description: "Check generated narsilc code for drift"},
+					{
+						Command:     "andurel doctor --json",
+						Description: "Check generated narsilc code for drift",
+					},
 				},
 				Run: func(rootDir string) error {
 					if !hasQueries {
-						fmt.Println("No annotated narsilc query files found in models/queries; skipping generation.")
+						fmt.Println(
+							"No annotated narsilc query files found in models/queries; skipping generation.",
+						)
 						return nil
 					}
 					if err := generateNarsilcIfNeeded(rootDir); err != nil {

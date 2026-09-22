@@ -128,7 +128,12 @@ func RunCLIExit(t testing.TB, dir string, args ...string) (output []byte, exitCo
 	return runCLIExit(t, dir, false, args...)
 }
 
-func runCLIExit(t testing.TB, dir string, fullScaffold bool, args ...string) (output []byte, exitCode int) {
+func runCLIExit(
+	t testing.TB,
+	dir string,
+	fullScaffold bool,
+	args ...string,
+) (output []byte, exitCode int) {
 	t.Helper()
 
 	if andurelBin == "" {
@@ -158,7 +163,12 @@ func AssertFileBytesEquals(t testing.TB, projectDir, relPath string, want []byte
 		t.Fatalf("read %s: %v", relPath, err)
 	}
 	if string(got) != string(want) {
-		t.Fatalf("%s changed unexpectedly\nwant %d bytes, got %d bytes", relPath, len(want), len(got))
+		t.Fatalf(
+			"%s changed unexpectedly\nwant %d bytes, got %d bytes",
+			relPath,
+			len(want),
+			len(got),
+		)
 	}
 }
 
@@ -181,7 +191,12 @@ func AssertFile(t testing.TB, g *goldie.Goldie, goldenName, projectDir, relPath 
 }
 
 // AssertFiles asserts each relPath under goldenPrefix/<relPath>.
-func AssertFiles(t testing.TB, g *goldie.Goldie, goldenPrefix, projectDir string, relPaths []string) {
+func AssertFiles(
+	t testing.TB,
+	g *goldie.Goldie,
+	goldenPrefix, projectDir string,
+	relPaths []string,
+) {
 	t.Helper()
 	for _, relPath := range relPaths {
 		goldenName := filepath.ToSlash(filepath.Join(goldenPrefix, filepath.FromSlash(relPath)))

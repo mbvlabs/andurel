@@ -38,9 +38,19 @@ func TestMapSQLTypeToGo_NonNullableTypes(t *testing.T) {
 		{"numeric", "numeric", "pgtype.Numeric", "github.com/jackc/pgx/v5/pgtype"},
 
 		{"timestamp", "timestamp", "pgtype.Timestamp", "github.com/jackc/pgx/v5/pgtype"},
-		{"timestamp without time zone", "timestamp without time zone", "pgtype.Timestamp", "github.com/jackc/pgx/v5/pgtype"},
+		{
+			"timestamp without time zone",
+			"timestamp without time zone",
+			"pgtype.Timestamp",
+			"github.com/jackc/pgx/v5/pgtype",
+		},
 		{"timestamptz", "timestamptz", "pgtype.Timestamptz", "github.com/jackc/pgx/v5/pgtype"},
-		{"timestamp with time zone", "timestamp with time zone", "pgtype.Timestamptz", "github.com/jackc/pgx/v5/pgtype"},
+		{
+			"timestamp with time zone",
+			"timestamp with time zone",
+			"pgtype.Timestamptz",
+			"github.com/jackc/pgx/v5/pgtype",
+		},
 		{"date", "date", "pgtype.Date", "github.com/jackc/pgx/v5/pgtype"},
 		{"time", "time", "pgtype.Time", "github.com/jackc/pgx/v5/pgtype"},
 

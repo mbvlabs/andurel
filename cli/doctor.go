@@ -559,9 +559,13 @@ func checkInertiaSSRConfiguration(rootDir string) checkResult {
 
 	if err := checkSSRHealth(healthURL); err != nil {
 		return checkResult{
-			name:    "Inertia SSR",
-			status:  statusWarn,
-			message: fmt.Sprintf("cmd/ssr renderer unreachable at %s: %v", healthURL.Redacted(), err),
+			name:   "Inertia SSR",
+			status: statusWarn,
+			message: fmt.Sprintf(
+				"cmd/ssr renderer unreachable at %s: %v",
+				healthURL.Redacted(),
+				err,
+			),
 		}
 	}
 	return checkResult{
@@ -1215,7 +1219,11 @@ func checkNarsilcGenerate(rootDir string, verbose bool) checkResult {
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("narsilc generate failed: %w: %s", err, strings.TrimSpace(stderr.String()))
+			return fmt.Errorf(
+				"narsilc generate failed: %w: %s",
+				err,
+				strings.TrimSpace(stderr.String()),
+			)
 		}
 		after, err := snapshotFilesForReport(tempRoot)
 		if err != nil {

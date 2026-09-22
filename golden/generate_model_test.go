@@ -35,7 +35,14 @@ func TestGenerateModel(t *testing.T) {
 				{args: []string{"generate", "model", "Product", "--skip-factory"}},
 				{
 					addMigrations: "model_generation_updated",
-					args:          []string{"generate", "model", "Product", "--update", "--yes", "--skip-factory"},
+					args: []string{
+						"generate",
+						"model",
+						"Product",
+						"--update",
+						"--yes",
+						"--skip-factory",
+					},
 				},
 			},
 			capture: []string{
@@ -46,7 +53,16 @@ func TestGenerateModel(t *testing.T) {
 			name:       "order_custom_pk",
 			migrations: "model_generation_custom_pk",
 			steps: []generateStep{
-				{args: []string{"generate", "model", "Order", "--skip-factory", "--primary-key", "order_id"}},
+				{
+					args: []string{
+						"generate",
+						"model",
+						"Order",
+						"--skip-factory",
+						"--primary-key",
+						"order_id",
+					},
+				},
 			},
 			capture: []string{
 				"models/order.go",
@@ -76,7 +92,16 @@ func TestGenerateModel(t *testing.T) {
 			name:       "product_read_only",
 			migrations: "model_generation_initial",
 			steps: []generateStep{
-				{args: []string{"generate", "model", "Product", "--mode", "read-only", "--skip-factory"}},
+				{
+					args: []string{
+						"generate",
+						"model",
+						"Product",
+						"--mode",
+						"read-only",
+						"--skip-factory",
+					},
+				},
 			},
 			capture: []string{
 				"models/product.go",

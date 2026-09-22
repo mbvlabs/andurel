@@ -696,9 +696,15 @@ func writeFactoryCreateFunctions(sb *strings.Builder, factory *models.GeneratedF
 	fmt.Fprintf(sb, "\tbuilt := Build%s(", factory.ModelName)
 	writeFactoryFKArgs(sb, factory)
 	sb.WriteString("opts...)\n\n")
-	fmt.Fprintf(sb, "\treturn models.New%s(db).Create(ctx, models.Create%sData{\n", factory.NamespaceVar, factory.ModelName)
+	fmt.Fprintf(
+		sb,
+		"\treturn models.New%s(db).Create(ctx, models.Create%sData{\n",
+		factory.NamespaceVar,
+		factory.ModelName,
+	)
 	if !factory.IsAutoIncrementID && factory.IDGoFieldName != "" {
-		if factory.IDType != "" && factory.IDType != "uuid.UUID" && factory.IDType != "pgtype.UUID" {
+		if factory.IDType != "" && factory.IDType != "uuid.UUID" &&
+			factory.IDType != "pgtype.UUID" {
 			fmt.Fprintf(sb, "\t\t%s: built.%s,\n", factory.IDGoFieldName, factory.IDGoFieldName)
 		}
 	}
