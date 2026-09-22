@@ -179,4 +179,4 @@ This updates required package versions to the latest published releases. It does
 
 ## Validation
 
-Follow the target repository's local validation guidance, including `AGENTS.md` when it exists. Do not assume that a command is permitted merely because it is common in another Andurel project.
+Follow the target repository's `AGENTS.md` and local validation guidance. Do not assume that a command is permitted merely because it is common in another Andurel project.
