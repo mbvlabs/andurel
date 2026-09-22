@@ -1,0 +1,24 @@
+# Agent notes for app
+
+This is an Andurel application. Use the `andurel` CLI instead of inventing file paths, URLs, or generator names.
+
+## Discovery
+
+```bash
+andurel commands --json
+andurel inspect project --json
+andurel doctor --json
+```
+
+## Common commands
+
+```bash
+andurel generate scaffold <Name> --dry-run --json
+andurel generate migration <name>
+andurel db migrate up
+andurel sync queries --json
+andurel inspect routes --json
+andurel run
+```
+
+Never invent frontend URLs in Inertia apps: import `resources/js/routes.ts` after `andurel sync routes --json`.
