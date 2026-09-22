@@ -105,7 +105,7 @@ andurel run
 | `andurel inspect routes` | List the route manifest |
 | `andurel inspect views` | List Templ view files |
 | `andurel new` | Stand up a new Andurel project |
-| `andurel packages` | List standalone andurel/pkg versions in go.mod |
+| `andurel packages` | List or update Andurel packages in go.mod |
 | `andurel packages list` | List Andurel package versions in go.mod |
 | `andurel packages update` | Update Andurel packages in go.mod to latest |
 | `andurel run` | Start the development server |

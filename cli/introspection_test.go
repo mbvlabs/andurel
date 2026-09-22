@@ -90,7 +90,10 @@ func TestCollectProjectInfo(t *testing.T) {
 		Inertia:           "react",
 		JavaScriptRuntime: "pnpm",
 	}
-	lock.DatabaseConfig = &layout.DatabaseConfig{Engine: layout.DatabaseEnginePostgreSQL, NullType: layout.NullTypePGType}
+	lock.DatabaseConfig = &layout.DatabaseConfig{
+		Engine:   layout.DatabaseEnginePostgreSQL,
+		NullType: layout.NullTypePGType,
+	}
 	lock.Tools["goose"] = validTestTool("goose", "v3.0.0")
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
@@ -100,7 +103,8 @@ func TestCollectProjectInfo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("collectProjectInfo: %v", err)
 	}
-	if info.Root != root || info.Module != "example.com/acme/orders" || info.GoVersion != "1.27.1" ||
+	if info.Root != root || info.Module != "example.com/acme/orders" ||
+		info.GoVersion != "1.27.1" ||
 		info.AndurelVersion != "v1.2.3" {
 		t.Fatalf("unexpected project identity: %#v", info)
 	}

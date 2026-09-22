@@ -372,7 +372,10 @@ func (s *payloadScan) noteBind(
 	if !strings.HasSuffix(name, "Payload") {
 		s.failLater = append(s.failLater, fmt.Sprintf(
 			"%s:%d: Bind root %s must be named with a Payload suffix; rename it (for example %sPayload)",
-			sourceFile, line, name, name,
+			sourceFile,
+			line,
+			name,
+			name,
 		))
 		return
 	}
@@ -449,7 +452,10 @@ func (s *payloadScan) emitTypes() ([]payloadType, bool, error) {
 	return emitted, needsJSON, s.firstFailure()
 }
 
-func (s *payloadScan) forNestedStructs(cs *controllerStruct, add func(*controllerStruct) error) error {
+func (s *payloadScan) forNestedStructs(
+	cs *controllerStruct,
+	add func(*controllerStruct) error,
+) error {
 	if cs.structType.Fields == nil {
 		return nil
 	}
@@ -756,7 +762,10 @@ func (s *payloadScan) firstFailure() error {
 	if len(s.failLater) == 0 {
 		return nil
 	}
-	return generationFailed(s.failLater[0], "Fix the controller payload type and run andurel sync payloads.")
+	return generationFailed(
+		s.failLater[0],
+		"Fix the controller payload type and run andurel sync payloads.",
+	)
 }
 
 func generationFailed(message, hint string) error {
@@ -765,7 +774,12 @@ func generationFailed(message, hint string) error {
 
 func unmappedTypeError(loc, fieldName, typeName string) error {
 	return generationFailed(
-		fmt.Sprintf("%s: field %s has unmapped type %s; define a controller-owned payload type", loc, fieldName, typeName),
+		fmt.Sprintf(
+			"%s: field %s has unmapped type %s; define a controller-owned payload type",
+			loc,
+			fieldName,
+			typeName,
+		),
 		"Replace the field with a mapped scalar or a named controller struct.",
 	)
 }

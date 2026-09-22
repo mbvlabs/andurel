@@ -72,7 +72,12 @@ func TestSyncFactoryCheck(t *testing.T) {
 
 		out, exitCode := goldentest.RunCLIExit(t, project, "sync", "factory", "Widget", "--check")
 		if exitCode != exitGeneration {
-			t.Fatalf("expected exit %d for stale factory, got %d\n%s", exitGeneration, exitCode, out)
+			t.Fatalf(
+				"expected exit %d for stale factory, got %d\n%s",
+				exitGeneration,
+				exitCode,
+				out,
+			)
 		}
 		goldentest.AssertFileBytesEquals(t, project, "models/factories/widget.go", before)
 	})

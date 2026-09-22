@@ -155,7 +155,10 @@ func checkCommandMetadata(root *cobra.Command) commandMetaCheckReport {
 			failures = append(failures, path+": missing examples")
 		}
 		if meta.Mutating && !meta.SupportsDryRun && !meta.SkipDryRunCheck {
-			failures = append(failures, path+": mutating command must support dry-run or skip the check")
+			failures = append(
+				failures,
+				path+": mutating command must support dry-run or skip the check",
+			)
 		}
 		if meta.Prompts && len(meta.InteractiveFlags) == 0 {
 			failures = append(failures, path+": prompts without interactive_flags")
@@ -164,13 +167,21 @@ func checkCommandMetadata(root *cobra.Command) commandMetaCheckReport {
 		if meta.Group != expectedGroup {
 			failures = append(
 				failures,
-				fmt.Sprintf("%s: group %q does not match cobra parent %q", path, meta.Group, expectedGroup),
+				fmt.Sprintf(
+					"%s: group %q does not match cobra parent %q",
+					path,
+					meta.Group,
+					expectedGroup,
+				),
 			)
 		}
 		if cmd.Parent() != nil && cmd.Parent().Name() == "generate" {
 			switch cmd.Name() {
 			case "view", "views", "queries", "routes", "payloads", "factory", "factories":
-				failures = append(failures, path+": derived-file command must not live under generate")
+				failures = append(
+					failures,
+					path+": derived-file command must not live under generate",
+				)
 			}
 		}
 	}
@@ -202,7 +213,9 @@ func findAndurelFrameworkRoot() string {
 }
 
 func isAndurelFrameworkRoot(dir string) bool {
-	_, catalogErr := os.Stat(filepath.Join(dir, "skills", "andurel", "references", "cli-catalog.md"))
+	_, catalogErr := os.Stat(
+		filepath.Join(dir, "skills", "andurel", "references", "cli-catalog.md"),
+	)
 	_, agentsErr := os.Stat(filepath.Join(dir, "layout", "templates", "agents.tmpl"))
 	_, readmeErr := os.Stat(filepath.Join(dir, "layout", "templates", "readme.tmpl"))
 	return catalogErr == nil && agentsErr == nil && readmeErr == nil

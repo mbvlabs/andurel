@@ -16,7 +16,12 @@ func (g *Generator) PlanQuerySource(model *GeneratedModel) (string, error) {
 
 	if model.HasPrimaryKey && model.Mode != ModelModeCreateOnly {
 		fmt.Fprintf(&b, "\n-- name: Get%s :one\n", model.EntityName)
-		fmt.Fprintf(&b, "SELECT *\nFROM %s\nWHERE %s = $1\nLIMIT 1;\n", model.TableName, model.IDFieldName)
+		fmt.Fprintf(
+			&b,
+			"SELECT *\nFROM %s\nWHERE %s = $1\nLIMIT 1;\n",
+			model.TableName,
+			model.IDFieldName,
+		)
 	}
 
 	if model.Mode != ModelModeCreateOnly {

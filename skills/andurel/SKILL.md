@@ -170,7 +170,7 @@ When annotated narsilc queries exist, `doctor` also checks generated code for dr
 Update standalone Andurel packages in `go.mod` (`github.com/mbvlabs/andurel/pkg/*`):
 
 ```bash
-andurel packages --json
+andurel packages list --json
 andurel packages update --dry-run --json
 andurel packages update --json
 ```
