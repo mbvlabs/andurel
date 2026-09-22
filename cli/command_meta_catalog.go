@@ -392,7 +392,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 		WhenToUse:       []string{"List, pin, download, or launch lockfile tools."},
 		WhenNotToUse:    []string{"Application code generation is under generate, not tool."},
 		Prerequisites:   []string{"Andurel project root", "andurel.lock"},
-		Examples:        []string{"andurel tool --json", "andurel tool sync"},
+		Examples:        []string{"andurel tool --help", "andurel tool list --json", "andurel tool sync"},
 		RequiresProject: true,
 	},
 	"andurel tool sync": {
@@ -458,11 +458,15 @@ var commandMetaSpecs = map[string]CommandMeta{
 		SupportsDryRun:  true,
 	},
 	"andurel packages": {
-		Summary:         "List standalone andurel/pkg versions in go.mod",
-		WhenToUse:       []string{"See whether required Andurel packages are current."},
-		WhenNotToUse:    []string{"Framework file upgrades are andurel upgrade."},
-		Prerequisites:   []string{"Andurel project root"},
-		Examples:        []string{"andurel packages --json", "andurel packages update --dry-run"},
+		Summary:       "List or update Andurel packages in go.mod",
+		WhenToUse:     []string{"List or bump github.com/mbvlabs/andurel/pkg/* modules already required in go.mod."},
+		WhenNotToUse:  []string{"Framework file upgrades are andurel upgrade."},
+		Prerequisites: []string{"Andurel project root"},
+		Examples: []string{
+			"andurel packages --help",
+			"andurel packages list --json",
+			"andurel packages update --dry-run",
+		},
 		RequiresProject: true,
 	},
 	"andurel packages list": {

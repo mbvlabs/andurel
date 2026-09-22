@@ -136,7 +136,13 @@ func TestGenerateController(t *testing.T) {
 
 			g := goldentest.NewGoldie(t)
 			runGenerateSteps(t, project, scenario.steps)
-			goldentest.AssertFiles(t, g, "generate/controller/"+scenario.name, project, scenario.capture)
+			goldentest.AssertFiles(
+				t,
+				g,
+				"generate/controller/"+scenario.name,
+				project,
+				scenario.capture,
+			)
 			for _, path := range scenario.missing {
 				goldentest.AssertMissing(t, project, path)
 			}

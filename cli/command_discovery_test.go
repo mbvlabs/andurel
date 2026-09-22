@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 type discoverySummary struct {
@@ -50,7 +52,11 @@ func TestCommandsJSONDiscovery(t *testing.T) {
 func TestCommandsCatalogAndCheck(t *testing.T) {
 	jsonResult := runCLITest(t, "commands", "--json")
 	if jsonResult.err != nil {
-		t.Fatalf("commands --json returned error: %v\nstderr:\n%s", jsonResult.err, jsonResult.stderr)
+		t.Fatalf(
+			"commands --json returned error: %v\nstderr:\n%s",
+			jsonResult.err,
+			jsonResult.stderr,
+		)
 	}
 	var envelope struct {
 		OK   bool `json:"ok"`
@@ -183,6 +189,30 @@ func TestNewInertiaAndSQLCCommandsExposeAgentNotes(t *testing.T) {
 			t.Fatalf("%s is missing agent discovery metadata", path)
 		}
 	}
+}
+
+func TestGroupCommandsAreNotRunnable(t *testing.T) {
+	// Root prints banner+help via Run. inspect project is a leaf with an
+	// optional info alias. Every other command that owns subcommands is a
+	// group and must show help instead of running a default action.
+	allowRunnableWithChildren := map[string]bool{
+		"andurel":                 true,
+		"andurel inspect project": true,
+	}
+
+	root := NewRootCommand("test", "test-date")
+	var walk func(cmd *cobra.Command)
+	walk = func(cmd *cobra.Command) {
+		t.Helper()
+		children := availableSubcommands(cmd)
+		if len(children) > 0 && cmd.Runnable() && !allowRunnableWithChildren[cmd.CommandPath()] {
+			t.Fatalf("%s has subcommands but is runnable; bare invocation should show group help", cmd.CommandPath())
+		}
+		for _, child := range children {
+			walk(child)
+		}
+	}
+	walk(root)
 }
 
 func discoveryContains(commands []discoverySummary, name, path string) bool {

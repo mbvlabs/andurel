@@ -849,12 +849,13 @@ func TestRunTemplAndToolListCommands(t *testing.T) {
 	cmd := newToolCommand()
 	output.RegisterPersistentFlags(cmd)
 	cmd.SetOut(&out)
-	_ = cmd.PersistentFlags().Set("json", "true")
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("tool list root command: %v", err)
+		t.Fatalf("bare tool group: %v", err)
 	}
-	if !strings.Contains(out.String(), "Listed tools") || !strings.Contains(out.String(), "templ") {
-		t.Fatalf("tool output missing data:\n%s", out.String())
+	if got := out.String(); !strings.Contains(got, "Usage:") ||
+		!strings.Contains(got, "Commands:") ||
+		!strings.Contains(got, "list") {
+		t.Fatalf("bare tool should render group help:\n%s", got)
 	}
 
 	out.Reset()
@@ -866,8 +867,23 @@ func TestRunTemplAndToolListCommands(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("tool list subcommand: %v", err)
 	}
-	if !strings.Contains(out.String(), "Listed tools") {
-		t.Fatalf("tool list output missing summary:\n%s", out.String())
+	if !strings.Contains(out.String(), "templ") ||
+		!strings.Contains(out.String(), "tool is installed") {
+		t.Fatalf("tool list output missing data:\n%s", out.String())
+	}
+
+	out.Reset()
+	cmd = newToolCommand()
+	output.RegisterPersistentFlags(cmd)
+	cmd.SetOut(&out)
+	cmd.SetArgs([]string{"list"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("tool list human: %v", err)
+	}
+	if got := out.String(); !strings.Contains(got, "templ") ||
+		!strings.Contains(got, "installed") ||
+		!strings.Contains(got, "v0.3.0") {
+		t.Fatalf("tool list human output missing table:\n%s", got)
 	}
 }
 

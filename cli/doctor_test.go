@@ -57,12 +57,14 @@ func TestDoctorBuildReportSummaryHintsAndDetails(t *testing.T) {
 }
 
 func TestCheckSSRHealth(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		if request.URL.Path != "/health" {
-			t.Errorf("request path = %q, want /health", request.URL.Path)
-		}
-		response.WriteHeader(http.StatusNoContent)
-	}))
+	server := httptest.NewServer(
+		http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+			if request.URL.Path != "/health" {
+				t.Errorf("request path = %q, want /health", request.URL.Path)
+			}
+			response.WriteHeader(http.StatusNoContent)
+		}),
+	)
 	t.Cleanup(server.Close)
 
 	baseURL, err := url.Parse(server.URL)

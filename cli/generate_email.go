@@ -58,7 +58,10 @@ email.SendMarketing.`,
 				DryRun:   dryRun,
 				Diff:     diff,
 				Breadcrumbs: []output.Breadcrumb{
-					{Command: "andurel inspect views --json", Description: "Inspect generated templates"},
+					{
+						Command:     "andurel inspect views --json",
+						Description: "Inspect generated templates",
+					},
 					{Command: "andurel doctor", Description: "Verify project health"},
 				},
 				Run: func(rootDir string) error {

@@ -190,7 +190,8 @@ func TestRunNarsilcGenerate(t *testing.T) {
 				invoked,
 			)
 		}
-		if !strings.HasPrefix(invoked[0], narsilcPath) || !strings.Contains(invoked[0], "generate") {
+		if !strings.HasPrefix(invoked[0], narsilcPath) ||
+			!strings.Contains(invoked[0], "generate") {
 			t.Fatalf("first command = %q, want narsilc generate", invoked[0])
 		}
 		if !strings.Contains(invoked[1], "go mod tidy") {

@@ -55,7 +55,10 @@ func TestFilterAndurelPackages(t *testing.T) {
 		{Name: "storage", Path: versions.PkgPrefix + "storage"},
 	}
 
-	selected, err := filterAndurelPackages(packages, []string{"storage", versions.PkgPrefix + "email"})
+	selected, err := filterAndurelPackages(
+		packages,
+		[]string{"storage", versions.PkgPrefix + "email"},
+	)
 	if err != nil {
 		t.Fatalf("filter: %v", err)
 	}
@@ -82,9 +85,9 @@ func TestPackagesListJSON(t *testing.T) {
 	var stdout bytes.Buffer
 	cmd := NewRootCommand("test", "test-date")
 	cmd.SetOut(&stdout)
-	cmd.SetArgs([]string{"packages", "--json"})
+	cmd.SetArgs([]string{"packages", "list", "--json"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("packages --json: %v", err)
+		t.Fatalf("packages list --json: %v", err)
 	}
 
 	report := decodePackageReport(t, stdout.String())
@@ -100,6 +103,23 @@ func TestPackagesListJSON(t *testing.T) {
 	if report.Packages[1].Status != packageStatusOutdated ||
 		report.Packages[1].Latest != "v0.7.1" {
 		t.Fatalf("storage package = %#v", report.Packages[1])
+	}
+}
+
+func TestPackagesBareShowsGroupHelp(t *testing.T) {
+	var stdout bytes.Buffer
+	cmd := NewRootCommand("test", "test-date")
+	cmd.SetOut(&stdout)
+	cmd.SetArgs([]string{"packages"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("bare packages: %v", err)
+	}
+	out := stdout.String()
+	if !strings.Contains(out, "Usage:") ||
+		!strings.Contains(out, "Commands:") ||
+		!strings.Contains(out, "list") ||
+		!strings.Contains(out, "update") {
+		t.Fatalf("bare packages should render group help:\n%s", out)
 	}
 }
 
@@ -226,7 +246,7 @@ func TestPackagesListMissingPackages(t *testing.T) {
 	findGoModRoot = func() (string, error) { return root, nil }
 
 	cmd := NewRootCommand("test", "test-date")
-	cmd.SetArgs([]string{"packages"})
+	cmd.SetArgs([]string{"packages", "list"})
 	err := cmd.Execute()
 	var cliErr *output.CLIError
 	if !errors.As(err, &cliErr) || cliErr.Code != output.CodeConfigError {
@@ -246,9 +266,9 @@ func TestPackagesHumanList(t *testing.T) {
 	var stdout bytes.Buffer
 	cmd := NewRootCommand("test", "test-date")
 	cmd.SetOut(&stdout)
-	cmd.SetArgs([]string{"packages"})
+	cmd.SetArgs([]string{"packages", "list"})
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("packages: %v", err)
+		t.Fatalf("packages list: %v", err)
 	}
 	out := stdout.String()
 	if !strings.Contains(out, "1 Andurel package has an update available") ||

@@ -157,7 +157,13 @@ func TestGenerateScaffold(t *testing.T) {
 			goldentest.RunCLI(t, project, scenario.args...)
 
 			g := goldentest.NewGoldie(t)
-			goldentest.AssertFiles(t, g, "generate/scaffold/"+scenario.name, project, scenario.capture)
+			goldentest.AssertFiles(
+				t,
+				g,
+				"generate/scaffold/"+scenario.name,
+				project,
+				scenario.capture,
+			)
 			for _, path := range scenario.missing {
 				goldentest.AssertMissing(t, project, path)
 			}

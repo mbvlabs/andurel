@@ -55,20 +55,16 @@ the versions verified with the installed CLI instead of chasing @latest.
 
 Only packages already required in go.mod are considered. Packages with a
 replace directive are reported and left unchanged.`,
-		Example: `  andurel packages
+		Example: `  andurel packages list
   andurel packages list --json
   andurel packages update --dry-run
   andurel packages update
   andurel packages update storage email`,
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runPackagesList(cmd)
-		},
 	}
 	setAgentMetadata(
 		cmd,
 		"maintenance",
-		"Read-only by default. Use packages update to bump github.com/mbvlabs/andurel/pkg/* versions already required in go.mod.",
+		"Group for Andurel pkg modules. Use packages list or packages update.",
 	)
 
 	cmd.AddCommand(newPackagesListCommand(), newPackagesUpdateCommand())
@@ -120,7 +116,8 @@ with the installed CLI instead of chasing @latest.`,
 			return runPackagesUpdate(cmd, dryRun, args)
 		},
 	}
-	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be updated without changing go.mod")
+	cmd.Flags().
+		BoolVar(&dryRun, "dry-run", false, "Show what would be updated without changing go.mod")
 	setAgentMetadata(
 		cmd,
 		"maintenance",
@@ -348,7 +345,12 @@ func runGoModCommand(ctx context.Context, dir string, args []string) error {
 	if err := cmd.Run(); err != nil {
 		return output.WrapError(
 			output.CodeExternalCommandFailed,
-			fmt.Errorf("go %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String())),
+			fmt.Errorf(
+				"go %s: %w: %s",
+				strings.Join(args, " "),
+				err,
+				strings.TrimSpace(stderr.String()),
+			),
 			output.ExitExternal,
 			"Inspect go.mod and retry the listed Go module command.",
 		)
