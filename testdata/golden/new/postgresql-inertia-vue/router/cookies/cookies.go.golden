@@ -1,41 +1,65 @@
 package cookies
 
 import (
-	"app/models"
-	"context"
+	"encoding/json"
+
+	"app/config"
 
 	"github.com/mbvlabs/andurel/pkg/kiks"
+	"go.uber.org/fx"
 )
 
 type App struct {
-	UserID          string
-	IsAdmin         bool
-	IsAuthenticated bool
+	UserID          string `json:"user_id,omitempty"`
+	IsAdmin         bool   `json:"is_admin,omitempty"`
+	IsAuthenticated bool   `json:"is_authenticated,omitempty"`
 }
 
-func Definitions(name string, secure bool, maxAge int) []kiks.Definition {
-	return []kiks.Definition{
-		kiks.Session[App](
-			name,
-			kiks.HTTPOnly(),
-			kiks.Secure(secure),
-			kiks.MaxAge(maxAge),
-		),
+func (a *App) MarshalCookie() ([]byte, error) {
+	return json.Marshal(a)
+}
+
+func (a *App) UnmarshalCookie(data []byte) error {
+	if len(data) == 0 {
+		*a = App{}
+		return nil
 	}
+	return json.Unmarshal(data, a)
 }
 
-func Current(ctx context.Context) App {
-	return kiks.Get[App](ctx)
+func NewAppCookie(cfg config.Session, secure bool) kiks.Definition {
+	return kiks.NewSession[*App](
+		cfg.Name,
+		kiks.HTTPOnly(),
+		kiks.Secure(secure),
+		kiks.MaxAge(cfg.MaxAge),
+	)
 }
 
-func CreateAppSession(ctx context.Context, user models.User) {
-	kiks.Set(ctx, App{
-		UserID:          user.ID.String(),
-		IsAdmin:         user.IsAdmin,
-		IsAuthenticated: true,
-	})
+// NewJar builds the cookie jar. NewSession and kiks.Bagged(...) defs ride
+// EchoMiddleware; unmarked Plain/Signed/Encrypted defs are native-only
+// (kiks.Read/Write/Clear with the injected jar).
+func NewJar(
+	appCfg config.App,
+	sessionCfg config.Session,
+) (*kiks.Jar, error) {
+	keys := kiks.Keys{
+		Authentication: sessionCfg.AuthenticationKey,
+		Encryption:     sessionCfg.EncryptionKey,
+	}
+	store, err := kiks.NewCookieStore(keys)
+	if err != nil {
+		return nil, err
+	}
+
+	return kiks.NewJar(keys, store,
+		NewAppCookie(sessionCfg, appCfg.IsProduction()),
+		// kiks.Bagged(ConsentCookie(appCfg.IsProduction())), // bag / every request
+		// CartCookie(appCfg.IsProduction()),                  // native / Read-Write
+	)
 }
 
-func DestroyAppSession(ctx context.Context) {
-	kiks.Delete[App](ctx)
-}
+var Module = fx.Module(
+	"cookies",
+	fx.Provide(NewJar),
+)

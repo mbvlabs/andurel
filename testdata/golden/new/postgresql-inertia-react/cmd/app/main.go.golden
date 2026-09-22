@@ -6,6 +6,7 @@ import (
 	"app/controllers"
 	"app/models"
 	"app/router"
+	"app/router/cookies"
 	"app/router/routes"
 	"app/services"
 	"app/views"
@@ -51,6 +52,7 @@ func main() {
 		inertiaModule,
 		services.Module,
 		controllers.Module,
+		cookies.Module,
 		router.Module,
 
 		fx.Invoke(startServer),

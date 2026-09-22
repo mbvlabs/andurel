@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+	"unicode"
 
 	"github.com/mbvlabs/andurel/internal/constants"
 	"github.com/mbvlabs/andurel/internal/testseed"
@@ -681,8 +682,34 @@ func renderTemplate(
 
 func templateFuncMap() template.FuncMap {
 	return template.FuncMap{
-		"lower": strings.ToLower,
+		"lower":   strings.ToLower,
+		"toSnake": ToSnakeCase,
 	}
+}
+
+// ToSnakeCase converts PascalCase or camelCase identifiers to snake_case
+// (UserID → user_id, IsAuthenticated → is_authenticated).
+func ToSnakeCase(name string) string {
+	runes := []rune(name)
+	if len(runes) == 0 {
+		return name
+	}
+	var result []rune
+	for i, r := range runes {
+		if unicode.IsUpper(r) {
+			if i > 0 {
+				prevLower := unicode.IsLower(runes[i-1])
+				nextLower := i+1 < len(runes) && unicode.IsLower(runes[i+1])
+				if prevLower || nextLower {
+					result = append(result, '_')
+				}
+			}
+			result = append(result, unicode.ToLower(r))
+			continue
+		}
+		result = append(result, r)
+	}
+	return string(result)
 }
 
 const goVersion = "1.27.1"
@@ -821,17 +848,9 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 	builder.AddWorkerDependency("marketingSender", "email.MarketingSender")
 
 	// Auth cookies configuration
-	builder.AddCookiesImport(fmt.Sprintf("%s/models", moduleName))
-
 	builder.AddCookiesAppField("UserID", "string")
 	builder.AddCookiesAppField("IsAdmin", "bool")
 	builder.AddCookiesAppField("IsAuthenticated", "bool")
-
-	builder.SetCookiesCreateSessionCode(`	kiks.Set(ctx, App{
-		UserID:          user.ID.String(),
-		IsAdmin:         user.IsAdmin,
-		IsAuthenticated: true,
-	})`)
 
 	for _, tool := range defaultTools {
 		builder.AddTool(tool)

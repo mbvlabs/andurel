@@ -38,7 +38,8 @@ func Flashes(ctx context.Context) []FlashMessage {
 }
 
 // AddFlash appends a flash to the current request bag. It is visible to
-// whatever this response renders. Persistence is decided by middleware.
+// whatever this response renders. Persistence is decided by middleware and
+// always uses the dedicated flash cookie.
 func AddFlash(ctx context.Context, flashType FlashType, message string) {
 	requestBag := bagFrom(ctx)
 	if requestBag == nil {
@@ -50,7 +51,7 @@ func AddFlash(ctx context.Context, flashType FlashType, message string) {
 		Message:   message,
 		CreatedAt: time.Now(),
 	})
-	requestBag.sessionDirty = true
+	requestBag.flashesDirty = true
 }
 
 func newFlashID() string {

@@ -5,6 +5,7 @@ import (
 	"app/controllers"
 	"app/models"
 	"app/router"
+	"app/router/cookies"
 	"app/services"
 	"context"
 	"errors"
@@ -44,6 +45,7 @@ func main() {
 		models.Module,
 		services.Module,
 		controllers.Module,
+		cookies.Module,
 		router.Module,
 
 		fx.Invoke(startServer),

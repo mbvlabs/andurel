@@ -7,6 +7,7 @@ import (
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/routes"
 
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/routing"
 
 	"github.com/labstack/echo/v5"
@@ -16,7 +17,11 @@ import (
 func AuthOnly() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			if cookies.Current(c.Request().Context()).IsAuthenticated {
+			app, err := kiks.Get[*cookies.App](c.Request().Context())
+			if err != nil {
+				return err
+			}
+			if app != nil && app.IsAuthenticated {
 				return next(c)
 			}
 

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"app/config"
-	"app/router/cookies"
 	"app/router/middleware"
 	"app/router/routes"
 	"github.com/labstack/echo/v5"
@@ -166,23 +165,7 @@ func (r *Router) AddRouteNotFound(
 	return r.e.RouteNotFound("/*", notFoundHandler)
 }
 
-func newJar(
-	appCfg config.App,
-	sessionCfg config.Session,
-) (*kiks.Jar, error) {
-	keys := kiks.Keys{
-		Authentication: sessionCfg.AuthenticationKey,
-		Encryption:     sessionCfg.EncryptionKey,
-	}
-
-	return kiks.New(
-		keys,
-		cookies.Definitions(sessionCfg.Name, appCfg.IsProduction(), sessionCfg.MaxAge)...,
-	)
-}
-
 var Module = fx.Module(
 	"router",
-	fx.Provide(newJar),
 	fx.Provide(New),
 )
