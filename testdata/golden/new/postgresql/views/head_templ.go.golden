@@ -525,23 +525,13 @@ func head(data HeadData) templ.Component {
 	})
 }
 
-var headDefaults struct {
-	projectName string
-	baseURL     string
-}
-
-func ConfigureHead(projectName, baseURL string) {
-	headDefaults.projectName = projectName
-	headDefaults.baseURL = baseURL
-}
-
 func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 	data := &HeadData{
-		siteName:       headDefaults.projectName,
-		Title:          headDefaults.projectName,
+		siteName:       "app",
+		Title:          "app",
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
-		canonical:      headDefaults.baseURL,
+		canonical:      "http://localhost:8080",
 		twitterCreator: "@mbvisti",
 		faviconBaseURL: "https://media.andurel.com/favicon",
 		MetaType:       "website",
