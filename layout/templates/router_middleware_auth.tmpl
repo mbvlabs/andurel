@@ -17,7 +17,10 @@ import (
 func AuthOnly() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
-			app := kiks.Get[*cookies.App](c.Request().Context())
+			app, err := kiks.Get[*cookies.App](c.Request().Context())
+			if err != nil {
+				return err
+			}
 			if app != nil && app.IsAuthenticated {
 				return next(c)
 			}

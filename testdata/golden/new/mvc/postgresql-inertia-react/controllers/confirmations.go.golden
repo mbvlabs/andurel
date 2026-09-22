@@ -114,11 +114,13 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		return c.renderer.Redirect(etx, routes.ConfirmationNew.URL(), http.StatusSeeOther)
 	}
 
-	kiks.Set(etx.Request().Context(), &cookies.App{
+	if err := kiks.Set(etx.Request().Context(), &cookies.App{
 		UserID:          user.ID.String(),
 		IsAdmin:         user.IsAdmin,
 		IsAuthenticated: true,
-	})
+	}); err != nil {
+		return err
+	}
 
 	kiks.AddFlash(
 		etx.Request().Context(),

@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -45,54 +44,13 @@ type Store interface {
 	Destroy(w http.ResponseWriter, r *http.Request, name string, attrs CookieAttrs) error
 }
 
-// SessionDB is the minimal query surface DatabaseStore needs. It matches
-// storage.Connection's Exec/QueryRow signatures so a pgx-backed connection
-// can be passed directly.
-type SessionDB interface {
+type sessionDB interface {
 	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-// DriverCookie and DriverDatabase are SESSION_DRIVER values.
-const (
-	DriverCookie   = "cookie"
-	DriverDatabase = "database"
-)
-
-// NewStore builds a Store from a driver name. db may be nil for the cookie driver.
-func NewStore(driver string, keys Keys, db SessionDB) (Store, error) {
-	switch driver {
-	case "", DriverCookie:
-		return NewCookieStore(keys)
-	case DriverDatabase:
-		if db == nil {
-			return nil, errors.New("kiks: database session driver requires a SessionDB")
-		}
-		return NewDatabaseStore(keys, db)
-	default:
-		return nil, fmt.Errorf("kiks: unknown session driver %q", driver)
-	}
-}
-
-// SQLSessionDB adapts database/sql.DB to SessionDB.
-func SQLSessionDB(db *sql.DB) SessionDB {
-	if db == nil {
-		return nil
-	}
-	return sqlSessionDB{db: db}
-}
-
-type sqlSessionDB struct {
-	db *sql.DB
-}
-
-func (s sqlSessionDB) Exec(ctx context.Context, query string, args ...any) (pgconn.CommandTag, error) {
-	_, err := s.db.ExecContext(ctx, query, args...)
-	return pgconn.CommandTag{}, err
-}
-
-func (s sqlSessionDB) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
-	return s.db.QueryRowContext(ctx, query, args...)
+type maxAgeSetter interface {
+	setMaxAge(seconds int)
 }
 
 // CookieStore keeps the App payload in an encrypted AppCookie.
@@ -111,6 +69,12 @@ func NewCookieStore(keys Keys) (*CookieStore, error) {
 	return &CookieStore{
 		codec: securecookie.New(keys.Authentication, keys.Encryption),
 	}, nil
+}
+
+func (store *CookieStore) setMaxAge(seconds int) {
+	if seconds > 0 {
+		store.codec.MaxAge(seconds)
+	}
 }
 
 func (store *CookieStore) Load(r *http.Request, name string) ([]byte, error) {
@@ -153,28 +117,34 @@ func (store *CookieStore) Destroy(
 	return nil
 }
 
-// DatabaseStore keeps the App payload in a sessions row and a signed id in
-// AppCookie. Flashes stay in the jar's flash cookie.
-type DatabaseStore struct {
+// databaseStore keeps the App payload in a sessions row and a signed id in
+// AppCookie. Flashes stay in the jar's flash cookie. Unexported until the
+// database driver is productized again.
+type databaseStore struct {
 	codec *securecookie.SecureCookie
-	db    SessionDB
+	db    sessionDB
 }
 
-// NewDatabaseStore constructs a database-backed session store.
-func NewDatabaseStore(keys Keys, db SessionDB) (*DatabaseStore, error) {
+func newDatabaseStore(keys Keys, db sessionDB) (*databaseStore, error) {
 	if len(keys.Authentication) < 32 {
 		return nil, errors.New("kiks: authentication key must be at least 32 bytes")
 	}
 	if db == nil {
-		return nil, errors.New("kiks: database store requires a SessionDB")
+		return nil, errors.New("kiks: database store requires a sessionDB")
 	}
-	return &DatabaseStore{
+	return &databaseStore{
 		codec: securecookie.New(keys.Authentication, nil),
 		db:    db,
 	}, nil
 }
 
-func (store *DatabaseStore) Load(r *http.Request, name string) ([]byte, error) {
+func (store *databaseStore) setMaxAge(seconds int) {
+	if seconds > 0 {
+		store.codec.MaxAge(seconds)
+	}
+}
+
+func (store *databaseStore) Load(r *http.Request, name string) ([]byte, error) {
 	cookie, err := r.Cookie(name)
 	if err != nil {
 		if errors.Is(err, http.ErrNoCookie) {
@@ -205,13 +175,16 @@ func (store *DatabaseStore) Load(r *http.Request, name string) ([]byte, error) {
 	return payload, nil
 }
 
-func (store *DatabaseStore) Save(
+func (store *databaseStore) Save(
 	w http.ResponseWriter,
 	r *http.Request,
 	name string,
 	payload []byte,
 	attrs CookieAttrs,
 ) error {
+	if attrs.MaxAge <= 0 {
+		return errors.New("kiks: session MaxAge must be greater than zero")
+	}
 	id, err := store.sessionID(r, name)
 	if err != nil {
 		return err
@@ -223,9 +196,6 @@ func (store *DatabaseStore) Save(
 		}
 	}
 	expiresAt := time.Now().UTC().Add(time.Duration(attrs.MaxAge) * time.Second)
-	if attrs.MaxAge <= 0 {
-		expiresAt = time.Now().UTC().Add(24 * time.Hour)
-	}
 	if _, err := store.db.Exec(
 		r.Context(),
 		`INSERT INTO sessions (id, payload, expires_at) VALUES ($1, $2, $3)
@@ -244,14 +214,14 @@ func (store *DatabaseStore) Save(
 	return nil
 }
 
-func (store *DatabaseStore) Destroy(
+func (store *databaseStore) Destroy(
 	w http.ResponseWriter,
 	r *http.Request,
 	name string,
 	attrs CookieAttrs,
 ) error {
 	id, err := store.sessionID(r, name)
-	if err != nil && !isDecodeError(err) {
+	if err != nil && !isCorruptCookie(err) {
 		return err
 	}
 	if id != "" {
@@ -261,7 +231,7 @@ func (store *DatabaseStore) Destroy(
 	return nil
 }
 
-func (store *DatabaseStore) sessionID(r *http.Request, name string) (string, error) {
+func (store *databaseStore) sessionID(r *http.Request, name string) (string, error) {
 	cookie, err := r.Cookie(name)
 	if err != nil {
 		if errors.Is(err, http.ErrNoCookie) {

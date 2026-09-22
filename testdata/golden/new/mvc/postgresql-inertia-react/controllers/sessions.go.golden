@@ -130,11 +130,13 @@ func (s Sessions) Create(etx *echo.Context) error {
 		return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
 	}
 
-	kiks.Set(etx.Request().Context(), &cookies.App{
+	if err := kiks.Set(etx.Request().Context(), &cookies.App{
 		UserID:          user.ID.String(),
 		IsAdmin:         user.IsAdmin,
 		IsAuthenticated: true,
-	})
+	}); err != nil {
+		return err
+	}
 
 	kiks.AddFlash(
 		etx.Request().Context(),
@@ -149,7 +151,9 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 	ctx, span := telemetry.From(etx, "sessions.destroy")
 	defer span.End()
 
-	kiks.Destroy[*cookies.App](ctx)
+	if err := kiks.Destroy[*cookies.App](ctx); err != nil {
+		return err
+	}
 
 	kiks.AddFlash(
 		ctx,

@@ -1,8 +1,7 @@
 package kiks
 
 import (
-	"bytes"
-	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"reflect"
@@ -33,11 +32,12 @@ func SkipPrefixes(prefixes ...string) MiddlewareOption {
 
 type persistWriter struct {
 	http.ResponseWriter
-	jar       *Jar
-	bag       *bag
-	request   *http.Request
-	status    int
-	persisted bool
+	jar        *Jar
+	bag        *bag
+	request    *http.Request
+	status     int
+	persisted  bool
+	persistErr error
 }
 
 var (
@@ -61,6 +61,9 @@ func (writer *persistWriter) Write(body []byte) (int, error) {
 		writer.status = http.StatusOK
 	}
 	writer.save()
+	if writer.persistErr != nil {
+		return 0, writer.persistErr
+	}
 	return writer.ResponseWriter.Write(body)
 }
 
@@ -73,6 +76,9 @@ func (writer *persistWriter) FlushError() error {
 		writer.status = http.StatusOK
 	}
 	writer.save()
+	if writer.persistErr != nil {
+		return writer.persistErr
+	}
 	if flusher, ok := writer.ResponseWriter.(interface{ FlushError() error }); ok {
 		return flusher.FlushError()
 	}
@@ -87,7 +93,7 @@ func (writer *persistWriter) save() {
 		return
 	}
 	writer.persisted = true
-	writer.jar.persist(writer.ResponseWriter, writer.request, writer.bag, writer.status)
+	writer.persistErr = writer.jar.persist(writer.ResponseWriter, writer.request, writer.bag, writer.status)
 }
 
 func skipPath(path string, prefixes []string) bool {
@@ -114,8 +120,8 @@ func shouldPersistFlashes(status int, header http.Header) bool {
 }
 
 // EchoMiddleware eager-loads the session and flash cookie onto context.Context
-// and persists once before the response is committed. Named cookies load lazily
-// on Get/Exists.
+// and persists bagged cookies once before the response is committed. Bagged
+// named cookies load lazily on Get/Exists; native (unmarked) defs are skipped.
 func (jar *Jar) EchoMiddleware(opts ...MiddlewareOption) echo.MiddlewareFunc {
 	config := middlewareConfig{}
 	for _, opt := range opts {
@@ -149,6 +155,12 @@ func (jar *Jar) EchoMiddleware(opts ...MiddlewareOption) echo.MiddlewareFunc {
 					}
 				}
 				writer.save()
+			}
+			if writer.persistErr != nil {
+				if err == nil {
+					return writer.persistErr
+				}
+				return errors.Join(err, writer.persistErr)
 			}
 			return err
 		}
@@ -184,7 +196,7 @@ func (jar *Jar) loadSession(requestBag *bag, request *http.Request) error {
 
 	payload, err := jar.store.Load(request, definition.cookieName())
 	if err != nil {
-		if isDecodeError(err) {
+		if isCorruptCookie(err) {
 			requestBag.sessionDirty = true
 			return nil
 		}
@@ -195,7 +207,7 @@ func (jar *Jar) loadSession(requestBag *bag, request *http.Request) error {
 	}
 	value, err := definition.decodePayload(payload)
 	if err != nil {
-		if isDecodeError(err) {
+		if isCorruptCookie(err) {
 			requestBag.sessionDirty = true
 			return nil
 		}
@@ -215,7 +227,7 @@ func (jar *Jar) loadFlashes(requestBag *bag, request *http.Request) error {
 	}
 	flashes, decodeErr := jar.decodeFlashCookie(cookie.Value)
 	if decodeErr != nil {
-		if isDecodeError(decodeErr) {
+		if isCorruptCookie(decodeErr) {
 			requestBag.flashesDirty = true
 			return nil
 		}
@@ -230,7 +242,7 @@ func (jar *Jar) persist(
 	request *http.Request,
 	requestBag *bag,
 	status int,
-) {
+) error {
 	persistFlashes := shouldPersistFlashes(status, writer.Header())
 	outgoingFlashes := requestBag.flashes
 	if !persistFlashes {
@@ -239,7 +251,7 @@ func (jar *Jar) persist(
 	clearFlashes := !persistFlashes && (len(requestBag.flashes) > 0 || requestBag.flashesDirty)
 
 	for _, definition := range jar.defs {
-		if definition.kind() == kindSession {
+		if definition.kind() == kindSession || !definition.isBagged() {
 			continue
 		}
 		key := definition.typeKey()
@@ -254,11 +266,11 @@ func (jar *Jar) persist(
 		value := requestBag.values[key]
 		payload, err := definition.encodePayload(value)
 		if err != nil {
-			continue
+			return err
 		}
 		raw, err := jar.encodeCookie(definition, payload)
 		if err != nil {
-			continue
+			return err
 		}
 		http.SetCookie(writer, newCookie(definition.cookieName(), raw, opts))
 	}
@@ -270,18 +282,25 @@ func (jar *Jar) persist(
 		key := definition.typeKey()
 
 		if requestBag.deleted[key] {
-			_ = jar.store.Destroy(writer, request, definition.cookieName(), attrs)
+			if err := jar.store.Destroy(writer, request, definition.cookieName(), attrs); err != nil {
+				return err
+			}
 		} else if requestBag.sessionDirty {
 			value := requestBag.values[key]
 			if value == nil {
 				value = definition.zeroValue()
 			}
 			if isZeroValue(value) {
-				_ = jar.store.Destroy(writer, request, definition.cookieName(), attrs)
+				if err := jar.store.Destroy(writer, request, definition.cookieName(), attrs); err != nil {
+					return err
+				}
 			} else {
 				payload, err := definition.encodePayload(value)
-				if err == nil {
-					_ = jar.store.Save(writer, request, definition.cookieName(), payload, attrs)
+				if err != nil {
+					return err
+				}
+				if err := jar.store.Save(writer, request, definition.cookieName(), payload, attrs); err != nil {
+					return err
 				}
 			}
 		}
@@ -292,53 +311,32 @@ func (jar *Jar) persist(
 		} else if persistFlashes && (requestBag.flashesDirty || len(outgoingFlashes) > 0) {
 			if len(outgoingFlashes) == 0 {
 				http.SetCookie(writer, expireCookie(jar.flashName, flashOpts))
-			} else if raw, err := jar.encodeFlashCookie(outgoingFlashes); err == nil {
+			} else {
+				raw, err := jar.encodeFlashCookie(outgoingFlashes)
+				if err != nil {
+					return err
+				}
 				http.SetCookie(writer, newCookie(jar.flashName, raw, flashOpts))
 			}
 		}
 	}
+	return nil
 }
 
 func (jar *Jar) encodeCookie(definition Definition, payload []byte) (string, error) {
-	switch definition.kind() {
-	case kindPlain:
-		return encodePlain(payload), nil
-	case kindSigned:
-		return jar.signed.Encode(definition.cookieName(), payload)
-	case kindEncrypted:
-		return jar.encrypted.Encode(definition.cookieName(), payload)
-	default:
-		return "", errors.New("kiks: unsupported cookie kind")
-	}
+	return encodeCookieRaw(definition, jar.signed, jar.encrypted, payload)
 }
 
 func (jar *Jar) decodeCookie(definition Definition, raw string) ([]byte, error) {
-	switch definition.kind() {
-	case kindPlain:
-		return decodePlain(raw)
-	case kindSigned:
-		var payload []byte
-		if err := jar.signed.Decode(definition.cookieName(), raw, &payload); err != nil {
-			return nil, err
-		}
-		return payload, nil
-	case kindEncrypted:
-		var payload []byte
-		if err := jar.encrypted.Decode(definition.cookieName(), raw, &payload); err != nil {
-			return nil, err
-		}
-		return payload, nil
-	default:
-		return nil, errors.New("kiks: unsupported cookie kind")
-	}
+	return decodeCookieRaw(definition, jar.signed, jar.encrypted, raw)
 }
 
 func (jar *Jar) encodeFlashCookie(flashes []FlashMessage) (string, error) {
-	var buffer bytes.Buffer
-	if err := gob.NewEncoder(&buffer).Encode(flashes); err != nil {
+	encoded, err := json.Marshal(flashes)
+	if err != nil {
 		return "", err
 	}
-	return jar.encrypted.Encode(jar.flashName, buffer.Bytes())
+	return jar.encrypted.Encode(jar.flashName, encoded)
 }
 
 func (jar *Jar) decodeFlashCookie(raw string) ([]FlashMessage, error) {
@@ -350,20 +348,37 @@ func (jar *Jar) decodeFlashCookie(raw string) ([]FlashMessage, error) {
 		return nil, nil
 	}
 	var flashes []FlashMessage
-	if err := gob.NewDecoder(bytes.NewReader(encoded)).Decode(&flashes); err != nil {
-		return nil, err
+	if err := json.Unmarshal(encoded, &flashes); err != nil {
+		return nil, corruptPayloadError{err: err}
 	}
 	return flashes, nil
 }
 
-func isDecodeError(err error) bool {
+// corruptPayloadError marks intentional payload / flash JSON decode failures
+// so middleware can recover them as corrupt cookies without treating infra
+// errors the same way.
+type corruptPayloadError struct {
+	err error
+}
+
+func (e corruptPayloadError) Error() string {
+	if e.err == nil {
+		return "kiks: corrupt cookie payload"
+	}
+	return e.err.Error()
+}
+
+func (e corruptPayloadError) Unwrap() error { return e.err }
+
+func isCorruptCookie(err error) bool {
 	if err == nil {
 		return false
 	}
 	if secureErr, ok := errors.AsType[securecookie.Error](err); ok {
 		return secureErr.IsDecode() && !secureErr.IsUsage() && !secureErr.IsInternal()
 	}
-	return true
+	var payloadErr corruptPayloadError
+	return errors.As(err, &payloadErr)
 }
 
 func newCookie(name, value string, opts cookieOptions) *http.Cookie {

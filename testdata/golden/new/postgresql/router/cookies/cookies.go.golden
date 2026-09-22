@@ -1,12 +1,12 @@
 package cookies
 
 import (
-	"context"
 	"encoding/json"
 
 	"app/config"
 
 	"github.com/mbvlabs/andurel/pkg/kiks"
+	"go.uber.org/fx"
 )
 
 type App struct {
@@ -36,6 +36,30 @@ func NewAppCookie(cfg config.Session, secure bool) kiks.Definition {
 	)
 }
 
-func (a *App) Destroy(ctx context.Context) {
-	kiks.Destroy[*App](ctx)
+// NewJar builds the cookie jar. NewSession and kiks.Bagged(...) defs ride
+// EchoMiddleware; unmarked Plain/Signed/Encrypted defs are native-only
+// (kiks.Read/Write/Clear with the injected jar).
+func NewJar(
+	appCfg config.App,
+	sessionCfg config.Session,
+) (*kiks.Jar, error) {
+	keys := kiks.Keys{
+		Authentication: sessionCfg.AuthenticationKey,
+		Encryption:     sessionCfg.EncryptionKey,
+	}
+	store, err := kiks.NewCookieStore(keys)
+	if err != nil {
+		return nil, err
+	}
+
+	return kiks.NewJar(keys, store,
+		NewAppCookie(sessionCfg, appCfg.IsProduction()),
+		// kiks.Bagged(ConsentCookie(appCfg.IsProduction())), // bag / every request
+		// CartCookie(appCfg.IsProduction()),                  // native / Read-Write
+	)
 }
+
+var Module = fx.Module(
+	"cookies",
+	fx.Provide(NewJar),
+)

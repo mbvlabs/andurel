@@ -12,8 +12,8 @@ Use these rules when changing an Andurel app shaped like this repository.
 | Multi-step workflows, transactions, cross-model coordination, policy checks that require current database state, external side effects coordinated with domain writes | `services/` |
 | Request parsing, path/query/form payload binding, HTTP status/render choices, flash messages, redirects, CSRF/session handling | `controllers/`, `controllers/admin/`, `controllers/api/` |
 | Route names, route paths, URL builders | `router/routes/` |
-| Middleware and request/session plumbing | `router/middleware/` and `router/cookies/` (named cookie definitions registered in `newJar`; values travel through `pkg/kiks` on `context.Context`) |
-| Extra named cookies (cart, consent, …) | Define the type in `router/cookies/` with `MarshalCookie`/`UnmarshalCookie`, then append `kiks.Encrypted[*Cart](…)` / `Signed` / `Plain` next to `cookies.NewAppCookie` in `router.newJar` |
+| Middleware and request/session plumbing | `router/middleware/` and `router/cookies/` (`cookies.NewJar` / `cookies.Module`; bag values via `pkg/kiks` on `context.Context`) |
+| Extra named cookies (cart, consent, …) | Define the type in `router/cookies/` with `MarshalCookie`/`UnmarshalCookie`. Register in `cookies.NewJar`: wrap with `kiks.Bagged(...)` for middleware bag (`Get`/`Set`), or leave unmarked for native `Read`/`Write`/`Clear` (inject `*kiks.Jar`). One Go type per jar. |
 | Public templ pages, view models, schema helpers, templ-specific presentation labels | `views/` |
 | Admin Inertia pages and reusable frontend components | `resources/js/Pages/`, `resources/js/Layouts/`, `resources/js/Components/`, `resources/js/components/ui/` |
 | Source CSS and theme primitives | `css/` |

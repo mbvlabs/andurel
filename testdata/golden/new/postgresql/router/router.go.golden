@@ -8,13 +8,11 @@ import (
 	"strings"
 
 	"app/config"
-	"app/router/cookies"
 	"app/router/middleware"
 	"app/router/routes"
 	"github.com/labstack/echo/v5"
 	echomw "github.com/labstack/echo/v5/middleware"
 	"github.com/mbvlabs/andurel/pkg/kiks"
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"go.uber.org/fx"
 )
@@ -167,28 +165,7 @@ func (r *Router) AddRouteNotFound(
 	return r.e.RouteNotFound("/*", notFoundHandler)
 }
 
-func newJar(
-	appCfg config.App,
-	sessionCfg config.Session,
-	db storage.Connection,
-) (*kiks.Jar, error) {
-	keys := kiks.Keys{
-		Authentication: sessionCfg.AuthenticationKey,
-		Encryption:     sessionCfg.EncryptionKey,
-	}
-	store, err := kiks.NewStore(sessionCfg.Driver, keys, db)
-	if err != nil {
-		return nil, err
-	}
-
-	return kiks.NewJar(keys, store,
-		cookies.NewAppCookie(sessionCfg, appCfg.IsProduction()),
-		// optional: kiks.Encrypted[*cookies.Cart]("cart", kiks.HTTPOnly()),
-	)
-}
-
 var Module = fx.Module(
 	"router",
-	fx.Provide(newJar),
 	fx.Provide(New),
 )

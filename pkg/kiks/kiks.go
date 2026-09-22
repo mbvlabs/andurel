@@ -2,7 +2,6 @@ package kiks
 
 import (
 	"encoding/base64"
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"net/http"
@@ -109,7 +108,9 @@ func applyOptions(opts []Option) cookieOptions {
 	return options
 }
 
-// Definition is a named cookie registered on a Jar.
+// Definition describes a named cookie registered on a Jar.
+// NewSession and Bagged(...) defs ride the middleware bag; unmarked
+// Plain/Signed/Encrypted defs are native-only (Read/Write/Clear).
 type Definition interface {
 	cookieName() string
 	kind() defKind
@@ -118,6 +119,7 @@ type Definition interface {
 	encodePayload(value any) ([]byte, error)
 	decodePayload(payload []byte) (any, error)
 	zeroValue() any
+	isBagged() bool
 }
 
 type typedDef[T Cookie] struct {
@@ -131,6 +133,9 @@ func (definition *typedDef[T]) kind() defKind          { return definition.k }
 func (definition *typedDef[T]) typeKey() reflect.Type  { return reflect.TypeFor[T]() }
 func (definition *typedDef[T]) options() cookieOptions { return definition.opts }
 func (definition *typedDef[T]) zeroValue() any         { var zero T; return zero }
+func (definition *typedDef[T]) isBagged() bool {
+	return definition.k == kindSession
+}
 
 func (definition *typedDef[T]) encodePayload(value any) ([]byte, error) {
 	if value == nil {
@@ -160,9 +165,39 @@ func (definition *typedDef[T]) decodePayload(payload []byte) (any, error) {
 		}
 	}
 	if err := value.UnmarshalCookie(payload); err != nil {
-		return value, err
+		return value, corruptPayloadError{err: err}
 	}
 	return value, nil
+}
+
+type baggedDef struct {
+	inner Definition
+}
+
+func (definition *baggedDef) cookieName() string     { return definition.inner.cookieName() }
+func (definition *baggedDef) kind() defKind          { return definition.inner.kind() }
+func (definition *baggedDef) typeKey() reflect.Type  { return definition.inner.typeKey() }
+func (definition *baggedDef) options() cookieOptions { return definition.inner.options() }
+func (definition *baggedDef) encodePayload(value any) ([]byte, error) {
+	return definition.inner.encodePayload(value)
+}
+func (definition *baggedDef) decodePayload(payload []byte) (any, error) {
+	return definition.inner.decodePayload(payload)
+}
+func (definition *baggedDef) zeroValue() any { return definition.inner.zeroValue() }
+func (definition *baggedDef) isBagged() bool { return true }
+
+// Bagged marks a Plain/Signed/Encrypted definition for the middleware bag
+// (lazy Get/Set + deferred persist). NewSession is always bagged. Unmarked
+// named defs stay registered for type-keyed Read/Write/Clear only.
+func Bagged(def Definition) Definition {
+	if def == nil {
+		return nil
+	}
+	if def.isBagged() || def.kind() == kindSession {
+		return def
+	}
+	return &baggedDef{inner: def}
 }
 
 // Plain defines an unsigned HTTP cookie.
@@ -220,9 +255,6 @@ func NewJar(keys Keys, store Store, defs ...Definition) (*Jar, error) {
 		byType:    make(map[reflect.Type]Definition, len(defs)),
 	}
 
-	gob.Register(FlashMessage{})
-	gob.Register([]FlashMessage{})
-
 	var sessionCount int
 	names := make(map[string]struct{}, len(defs)+1)
 	for _, definition := range defs {
@@ -254,6 +286,9 @@ func NewJar(keys Keys, store Store, defs ...Definition) (*Jar, error) {
 			if maxAge > 0 {
 				jar.signed.MaxAge(maxAge)
 				jar.encrypted.MaxAge(maxAge)
+				if setter, ok := store.(maxAgeSetter); ok {
+					setter.setMaxAge(maxAge)
+				}
 			}
 		}
 	}
