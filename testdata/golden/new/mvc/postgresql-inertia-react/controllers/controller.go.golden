@@ -2,16 +2,11 @@
 package controllers
 
 import (
-	"app/config"
 	"app/controllers/api"
 	"app/router"
-	"app/views"
 	"go.uber.org/fx"
 )
 
-func configureViews(cfg config.App) {
-	views.ConfigureHead(cfg.ProjectName, cfg.BaseURL)
-}
 var otherCache = NewCacheBuilder[string]().WithSize(2).Build
 
 var constructors = fx.Provide(
@@ -28,7 +23,6 @@ var constructors = fx.Provide(
 var Module = fx.Module(
 	"controllers",
 	constructors,
-	fx.Invoke(configureViews),
 	fx.Invoke(func(r *router.Router, c Pages) error {
 		return c.RegisterRoutes(r)
 	}),
