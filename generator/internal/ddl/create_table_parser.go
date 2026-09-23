@@ -6,8 +6,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mbvlabs/andurel/generator/internal/catalog"
-	"github.com/mbvlabs/andurel/generator/internal/validation"
+	"github.com/mbvlabs/andurel/v2/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/v2/generator/internal/validation"
 )
 
 // CreateTableParser handles CREATE TABLE statements

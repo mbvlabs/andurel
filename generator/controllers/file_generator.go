@@ -11,11 +11,11 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mbvlabs/andurel/generator/files"
-	"github.com/mbvlabs/andurel/generator/internal/catalog"
-	"github.com/mbvlabs/andurel/internal/constants"
-	"github.com/mbvlabs/andurel/internal/naming"
-	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/v2/generator/files"
+	"github.com/mbvlabs/andurel/v2/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/v2/internal/constants"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
+	"github.com/mbvlabs/andurel/v2/layout"
 )
 
 // FileGenerator generates file artifacts.

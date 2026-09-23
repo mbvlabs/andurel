@@ -6,9 +6,9 @@ import (
 	"os"
 	"runtime/debug"
 
-	"github.com/mbvlabs/andurel/cli"
-	"github.com/mbvlabs/andurel/cli/output"
-	"github.com/mbvlabs/andurel/internal/testseed"
+	"github.com/mbvlabs/andurel/v2/cli"
+	"github.com/mbvlabs/andurel/v2/cli/output"
+	"github.com/mbvlabs/andurel/v2/internal/testseed"
 	"github.com/spf13/cobra"
 )
 

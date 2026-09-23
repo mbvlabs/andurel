@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/v2/layout"
 )
 
 func TestDoctorDiagnosticsUseTemporaryCopiesWithoutMutatingOriginalProject(t *testing.T) {
@@ -21,7 +21,7 @@ func TestDoctorDiagnosticsUseTemporaryCopiesWithoutMutatingOriginalProject(t *te
 	writeTestFile(t, root, "views/page_templ.go", "package views\n")
 	writeTestFile(t, root, "router/routes/pages.go", `package routes
 
-import "github.com/mbvlabs/andurel/router"
+import "github.com/mbvlabs/andurel/v2/router"
 
 var Home = router.NewRoute("/", "home")
 `)

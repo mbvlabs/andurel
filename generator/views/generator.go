@@ -11,17 +11,17 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/mbvlabs/andurel/emailcompiler"
-	"github.com/mbvlabs/andurel/generator/controllers"
-	"github.com/mbvlabs/andurel/generator/files"
-	"github.com/mbvlabs/andurel/generator/internal/catalog"
-	"github.com/mbvlabs/andurel/generator/internal/types"
-	"github.com/mbvlabs/andurel/generator/internal/validation"
-	"github.com/mbvlabs/andurel/generator/templates"
-	"github.com/mbvlabs/andurel/internal/constants"
-	"github.com/mbvlabs/andurel/internal/errors"
-	"github.com/mbvlabs/andurel/internal/naming"
-	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/v2/emailcompiler"
+	"github.com/mbvlabs/andurel/v2/generator/controllers"
+	"github.com/mbvlabs/andurel/v2/generator/files"
+	"github.com/mbvlabs/andurel/v2/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/v2/generator/internal/types"
+	"github.com/mbvlabs/andurel/v2/generator/internal/validation"
+	"github.com/mbvlabs/andurel/v2/generator/templates"
+	"github.com/mbvlabs/andurel/v2/internal/constants"
+	"github.com/mbvlabs/andurel/v2/internal/errors"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
+	"github.com/mbvlabs/andurel/v2/layout"
 )
 
 // ViewField describes one form or display field in generated views.

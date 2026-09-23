@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mbvlabs/andurel/generator/files"
-	"github.com/mbvlabs/andurel/generator/internal/catalog"
-	"github.com/mbvlabs/andurel/generator/models"
-	"github.com/mbvlabs/andurel/internal/naming"
-	"github.com/mbvlabs/andurel/internal/testseed"
-	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/v2/generator/files"
+	"github.com/mbvlabs/andurel/v2/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/v2/generator/models"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
+	"github.com/mbvlabs/andurel/v2/internal/testseed"
+	"github.com/mbvlabs/andurel/v2/layout"
 )
 
 type factoryValidationHook struct {

@@ -12,15 +12,15 @@ import (
 	"text/template"
 
 	"github.com/jinzhu/inflection"
-	"github.com/mbvlabs/andurel/generator/internal/catalog"
-	"github.com/mbvlabs/andurel/generator/internal/ddl"
-	"github.com/mbvlabs/andurel/generator/internal/migrations"
-	"github.com/mbvlabs/andurel/generator/internal/types"
-	"github.com/mbvlabs/andurel/generator/internal/validation"
-	"github.com/mbvlabs/andurel/generator/templates"
-	"github.com/mbvlabs/andurel/internal/constants"
-	"github.com/mbvlabs/andurel/internal/errors"
-	"github.com/mbvlabs/andurel/internal/naming"
+	"github.com/mbvlabs/andurel/v2/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/v2/generator/internal/ddl"
+	"github.com/mbvlabs/andurel/v2/generator/internal/migrations"
+	"github.com/mbvlabs/andurel/v2/generator/internal/types"
+	"github.com/mbvlabs/andurel/v2/generator/internal/validation"
+	"github.com/mbvlabs/andurel/v2/generator/templates"
+	"github.com/mbvlabs/andurel/v2/internal/constants"
+	"github.com/mbvlabs/andurel/v2/internal/errors"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
 )
 
 // GeneratedField describes one model field derived from a database column.

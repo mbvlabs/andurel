@@ -1,7 +1,7 @@
 package catalog
 
 import (
-	"github.com/mbvlabs/andurel/generator/internal/validation"
+	"github.com/mbvlabs/andurel/v2/generator/internal/validation"
 )
 
 // ForeignKey represents foreign key.

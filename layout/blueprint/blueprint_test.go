@@ -3,7 +3,7 @@ package blueprint_test
 import (
 	"testing"
 
-	"github.com/mbvlabs/andurel/layout/blueprint"
+	"github.com/mbvlabs/andurel/v2/layout/blueprint"
 )
 
 func TestNew(t *testing.T) {

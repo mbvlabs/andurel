@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mbvlabs/andurel/generator/internal/catalog"
-	"github.com/mbvlabs/andurel/generator/internal/types"
-	"github.com/mbvlabs/andurel/generator/internal/validation"
+	"github.com/mbvlabs/andurel/v2/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/v2/generator/internal/types"
+	"github.com/mbvlabs/andurel/v2/generator/internal/validation"
 )
 
 // PrimaryKeyInfo represents primary key info.

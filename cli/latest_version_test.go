@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/cli/output"
+	"github.com/mbvlabs/andurel/v2/cli/output"
 )
 
 func TestFetchLatestAndurelVersion(t *testing.T) {
@@ -96,7 +96,7 @@ func TestAndurelVersionHelpers(t *testing.T) {
 	}
 	if got := andurelInstallCommand(
 		"v1.3.0",
-	); got != "go install github.com/mbvlabs/andurel@v1.3.0" {
+	); got != "go install github.com/mbvlabs/andurel/v2@v1.3.0" {
 		t.Fatalf("install command = %q", got)
 	}
 }
@@ -107,7 +107,7 @@ func TestCheckLatestAndurelRelease(t *testing.T) {
 		result := checkLatestAndurelRelease("v1.2.0")
 		if result.status != statusWarn ||
 			!strings.Contains(result.message, "v1.3.0 is available") ||
-			!strings.Contains(result.hint, "go install github.com/mbvlabs/andurel@v1.3.0") {
+			!strings.Contains(result.hint, "go install github.com/mbvlabs/andurel/v2@v1.3.0") {
 			t.Fatalf("release check = %#v", result)
 		}
 	})
@@ -164,7 +164,7 @@ func TestRequireLatestAndurelRelease(t *testing.T) {
 			t.Fatalf("error = %v, want CLIError", err)
 		}
 		if cliErr.Code != output.CodeUpdateRequired || cliErr.ExitCode != output.ExitDependency ||
-			!strings.Contains(cliErr.Hint, "go install github.com/mbvlabs/andurel@v1.3.0") {
+			!strings.Contains(cliErr.Hint, "go install github.com/mbvlabs/andurel/v2@v1.3.0") {
 			t.Fatalf("CLI error = %#v", cliErr)
 		}
 	})

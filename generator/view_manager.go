@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mbvlabs/andurel/generator/controllers"
-	"github.com/mbvlabs/andurel/generator/views"
-	"github.com/mbvlabs/andurel/internal/naming"
+	"github.com/mbvlabs/andurel/v2/generator/controllers"
+	"github.com/mbvlabs/andurel/v2/generator/views"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
 )
 
 // ViewManager coordinates view operations.

@@ -3,7 +3,7 @@ package layout
 import (
 	"testing"
 
-	"github.com/mbvlabs/andurel/layout/blueprint"
+	"github.com/mbvlabs/andurel/v2/layout/blueprint"
 )
 
 func TestTemplateDataAccessors(t *testing.T) {

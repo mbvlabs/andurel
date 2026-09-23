@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/v2/layout"
 )
 
 func TestParseRunTools(t *testing.T) {

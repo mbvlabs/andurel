@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/layout/cmds"
+	"github.com/mbvlabs/andurel/v2/layout"
+	"github.com/mbvlabs/andurel/v2/layout/cmds"
 	"github.com/spf13/cobra"
 )
 

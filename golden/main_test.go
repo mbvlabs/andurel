@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mbvlabs/andurel/internal/goldentest"
-	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/v2/internal/goldentest"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
 
 func TestMain(m *testing.M) {

@@ -1,7 +1,7 @@
 // Package generator orchestrates model, controller, view, and scaffold generation.
 package generator
 
-import "github.com/mbvlabs/andurel/generator/models"
+import "github.com/mbvlabs/andurel/v2/generator/models"
 
 // ModelMode controls which persistence operations are generated for a model.
 type ModelMode = models.ModelMode

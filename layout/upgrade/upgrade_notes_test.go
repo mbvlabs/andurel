@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
 
 func TestSessionRecoveryManualActionVersionGate(t *testing.T) {

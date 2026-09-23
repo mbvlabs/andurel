@@ -10,8 +10,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mbvlabs/andurel/cli/output"
-	"github.com/mbvlabs/andurel/layout/upgrade"
+	"github.com/mbvlabs/andurel/v2/cli/output"
+	"github.com/mbvlabs/andurel/v2/layout/upgrade"
 	"github.com/spf13/cobra"
 )
 

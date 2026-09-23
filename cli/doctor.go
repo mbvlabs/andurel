@@ -19,10 +19,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mbvlabs/andurel/cli/output"
-	"github.com/mbvlabs/andurel/emailcompiler"
-	"github.com/mbvlabs/andurel/layout"
 	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/v2/cli/output"
+	"github.com/mbvlabs/andurel/v2/emailcompiler"
+	"github.com/mbvlabs/andurel/v2/layout"
 	"github.com/spf13/cobra"
 )
 

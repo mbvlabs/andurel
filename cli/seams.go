@@ -1,9 +1,9 @@
 package cli
 
 import (
-	"github.com/mbvlabs/andurel/generator"
-	"github.com/mbvlabs/andurel/layout/cmds"
-	"github.com/mbvlabs/andurel/layout/upgrade"
+	"github.com/mbvlabs/andurel/v2/generator"
+	"github.com/mbvlabs/andurel/v2/layout/cmds"
+	"github.com/mbvlabs/andurel/v2/layout/upgrade"
 )
 
 type cliGenerator interface {

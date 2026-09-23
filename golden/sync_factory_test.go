@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mbvlabs/andurel/internal/goldentest"
+	"github.com/mbvlabs/andurel/v2/internal/goldentest"
 )
 
 // exitGeneration matches cli/output.ExitGeneration (stale --check).

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/layout/templates"
+	"github.com/mbvlabs/andurel/v2/layout"
+	"github.com/mbvlabs/andurel/v2/layout/templates"
 )
 
 // FrameworkTemplate represents a framework element template and its target path

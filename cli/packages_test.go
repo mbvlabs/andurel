@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/cli/output"
-	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/v2/cli/output"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
 
 const testAndurelPackagesGoMod = `module example.com/app

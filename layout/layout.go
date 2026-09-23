@@ -17,12 +17,12 @@ import (
 	"text/template"
 	"unicode"
 
-	"github.com/mbvlabs/andurel/internal/constants"
-	"github.com/mbvlabs/andurel/internal/testseed"
-	"github.com/mbvlabs/andurel/layout/blueprint"
-	"github.com/mbvlabs/andurel/layout/cmds"
-	"github.com/mbvlabs/andurel/layout/templates"
-	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/v2/internal/constants"
+	"github.com/mbvlabs/andurel/v2/internal/testseed"
+	"github.com/mbvlabs/andurel/v2/layout/blueprint"
+	"github.com/mbvlabs/andurel/v2/layout/cmds"
+	"github.com/mbvlabs/andurel/v2/layout/templates"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
 
 // Element describes a directory tree node to create during scaffolding.

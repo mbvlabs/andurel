@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/v2/generator/internal/catalog"
 )
 
 // DropTableParser handles DROP TABLE statements

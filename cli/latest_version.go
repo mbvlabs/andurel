@@ -21,7 +21,7 @@ var (
 )
 
 func lookupLatestAndurelVersion(ctx context.Context) (string, error) {
-	return lookupLatestModuleVersion(ctx, "github.com/mbvlabs/andurel")
+	return lookupLatestModuleVersion(ctx, "github.com/mbvlabs/andurel/v2")
 }
 
 func lookupLatestModuleVersion(ctx context.Context, modulePath string) (string, error) {
@@ -110,5 +110,5 @@ func newerAndurelVersion(currentVersion, latestVersion string) bool {
 }
 
 func andurelInstallCommand(version string) string {
-	return "go install github.com/mbvlabs/andurel@" + version
+	return "go install github.com/mbvlabs/andurel/v2@" + version
 }

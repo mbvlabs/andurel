@@ -3,7 +3,7 @@ package factory
 import (
 	"testing"
 
-	"github.com/mbvlabs/andurel/generator/models"
+	"github.com/mbvlabs/andurel/v2/generator/models"
 )
 
 func TestFieldAnalyzer_StringDefaults(t *testing.T) {

@@ -1,6 +1,6 @@
 package ddl
 
-import "github.com/mbvlabs/andurel/generator/internal/catalog"
+import "github.com/mbvlabs/andurel/v2/generator/internal/catalog"
 
 // StatementType represents the type of DDL statement
 type StatementType int

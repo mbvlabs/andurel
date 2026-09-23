@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/v2/layout"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
 
 func TestShouldUpgradePackage(t *testing.T) {

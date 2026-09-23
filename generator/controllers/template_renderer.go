@@ -8,10 +8,10 @@ import (
 	"text/template"
 
 	"github.com/jinzhu/inflection"
-	"github.com/mbvlabs/andurel/generator/templates"
-	"github.com/mbvlabs/andurel/internal/errors"
-	"github.com/mbvlabs/andurel/internal/naming"
-	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/v2/generator/templates"
+	"github.com/mbvlabs/andurel/v2/internal/errors"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
+	"github.com/mbvlabs/andurel/v2/layout"
 )
 
 // TemplateRenderer represents template renderer.

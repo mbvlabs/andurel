@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/v2/generator/internal/catalog"
 )
 
 // CatalogVisitor visits catalog data.

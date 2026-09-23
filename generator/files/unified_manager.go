@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mbvlabs/andurel/internal/cache"
-	"github.com/mbvlabs/andurel/internal/constants"
+	"github.com/mbvlabs/andurel/v2/internal/cache"
+	"github.com/mbvlabs/andurel/v2/internal/constants"
 )
 
 // UnifiedManager provides centralized file operations with consistent error handling
