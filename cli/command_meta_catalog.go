@@ -372,10 +372,10 @@ var commandMetaSpecs = map[string]CommandMeta{
 	},
 	"andurel run": {
 		Summary:         "Start the development server",
-		WhenToUse:       []string{"Local development with auto-reload."},
+		WhenToUse:       []string{"Local development with auto-reload.", "Optionally start sidecars like mailpit via --tools."},
 		WhenNotToUse:    []string{"Agents should not use run to finish a generation task.", "This is a long-running process, not JSON."},
 		Prerequisites:   []string{"Andurel project root", "bin/shadowfax"},
-		Examples:        []string{"andurel run"},
+		Examples:        []string{"andurel run", "andurel run --tools mailpit"},
 		RequiresProject: true,
 		SkipDryRunCheck: true,
 	},

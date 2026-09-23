@@ -34,7 +34,7 @@ Andurel is built for humans and agents on the same pad:
 - **Payload**: Inertia v3 with React, Vue, or Svelte. Same Go backend, official Inertia adapters, optional SSR. Templ + Datastar remains available for hypermedia pages
 - **Range ops**: River jobs, email, and queues on the same stack that serves the request path
 - **Ground support**: Agent-ready CLI, JSON discovery, and AGENTS.md so machines can operate the project without a second stack
-- **Live reload**: `andurel run` with [Shadowfax](https://github.com/mbvlabs/shadowfax) for Go, templates, CSS, and Vite
+- **Live reload**: `andurel run` with [Shadowfax](https://github.com/mbvlabs/shadowfax) for Go, templates, CSS, and Vite (`--tools mailpit` for sidecars)
 - **Production build**: `andurel build` compiles Templ, Tailwind CSS, Vite assets, and the Go binary
 
 **Humans.** One-time generation. The scaffold writes Go and Inertia pages you can read, edit, and ship. After that, the code is yours.

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/mbvlabs/andurel/cli/output"
 	"github.com/mbvlabs/andurel/internal/cache"
@@ -86,9 +87,12 @@ func newRunAppCommand() *cobra.Command {
 The server auto-reloads on file changes, including Go, Templ, CSS, and
 narsilc query files. For Inertia projects, shadowfax also runs the Vite
 dev server. Development SSR is served by Vite's /__inertia_ssr endpoint.
-cmd/ssr is the production Node owner. Run this from your project root.`,
-		Example: `  andurel run`,
-		Args:    cobra.ExactArgs(0),
+cmd/ssr is the production Node owner. Run this from your project root.
+
+Pass --tools to start allowlisted sidecars (mailpit) alongside the runner.`,
+		Example: `  andurel run
+  andurel run --tools mailpit`,
+		Args: cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {
@@ -116,8 +120,13 @@ cmd/ssr is the production Node owner. Run this from your project root.`,
 				}
 			}
 
+			toolsFlag, err := cmd.Flags().GetString("tools")
+			if err != nil {
+				return err
+			}
+
 			binPath := filepath.Join(rootDir, "bin", "shadowfax")
-			shadowfaxArgs, err := shadowfaxRunArgs(rootDir)
+			shadowfaxArgs, err := shadowfaxRunArgs(rootDir, toolsFlag)
 			if err != nil {
 				return err
 			}
@@ -132,30 +141,97 @@ cmd/ssr is the production Node owner. Run this from your project root.`,
 		},
 	}
 
+	cmd.Flags().String(
+		"tools",
+		"",
+		"comma-separated sidecar tools to start with the runner (mailpit)",
+	)
+
 	return cmd
 }
 
 // shadowfaxRunArgs builds the explicit CLI contract passed to Shadowfax.
 // Inertia identity and package manager come from andurel.toml. Development
 // SSR is owned by Vite; cmd/ssr settings stay in app config for production.
-func shadowfaxRunArgs(rootDir string) ([]string, error) {
+func shadowfaxRunArgs(rootDir, toolsFlag string) ([]string, error) {
+	var args []string
+
 	lock, err := layout.ReadLockFile(rootDir)
-	if err != nil {
-		// Missing or incomplete lock: run Shadowfax without Inertia flags.
-		return nil, nil
+	if err == nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia != "" {
+		packageManager := lock.ScaffoldConfig.PackageManager()
+		if packageManager == "" {
+			packageManager = "pnpm"
+		}
+		args = append(args,
+			"--inertia",
+			"--js-package-manager", packageManager,
+		)
 	}
-	if lock.ScaffoldConfig == nil || lock.ScaffoldConfig.Inertia == "" {
+
+	toolNames, err := parseRunTools(toolsFlag)
+	if err != nil {
+		return nil, err
+	}
+	if len(toolNames) > 0 {
+		if err := checkToolBinaries(rootDir, toolNames); err != nil {
+			return nil, err
+		}
+		args = append(args, "--tools", strings.Join(toolNames, ","))
+	}
+
+	return args, nil
+}
+
+// allowedRunTools is the v1 allowlist for `andurel run --tools`.
+var allowedRunTools = map[string]struct{}{
+	"mailpit": {},
+}
+
+func parseRunTools(raw string) ([]string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		if raw != "" {
+			return nil, fmt.Errorf("--tools: empty list")
+		}
 		return nil, nil
 	}
 
-	packageManager := lock.ScaffoldConfig.PackageManager()
-	if packageManager == "" {
-		packageManager = "pnpm"
+	parts := strings.Split(raw, ",")
+	seen := make(map[string]struct{}, len(parts))
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		name := strings.TrimSpace(part)
+		if name == "" {
+			return nil, fmt.Errorf("--tools: empty name")
+		}
+		if _, ok := allowedRunTools[name]; !ok {
+			return nil, fmt.Errorf("--tools: unknown tool %q (allowed: mailpit)", name)
+		}
+		if _, dup := seen[name]; dup {
+			return nil, fmt.Errorf("--tools: duplicate tool %q", name)
+		}
+		seen[name] = struct{}{}
+		out = append(out, name)
 	}
-	return []string{
-		"--inertia",
-		"--js-package-manager", packageManager,
-	}, nil
+	if len(out) == 0 {
+		return nil, fmt.Errorf("--tools: empty list")
+	}
+	return out, nil
+}
+
+func checkToolBinaries(rootDir string, names []string) error {
+	for _, name := range names {
+		binPath := filepath.Join(rootDir, "bin", name)
+		if _, err := os.Stat(binPath); err != nil {
+			return output.NewError(
+				output.CodeMissingTool,
+				fmt.Sprintf("bin/%s not found", name),
+				output.ExitDependency,
+				"Run 'andurel tool sync' to download it.",
+			)
+		}
+	}
+	return nil
 }
 
 var findGoModRoot = func() (string, error) {
