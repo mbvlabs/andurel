@@ -362,7 +362,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	},
 	"andurel sync email": {
 		Summary:         "Compile Tailwind classes in email templates",
-		WhenToUse:       []string{"After editing email/*.templ or css/email.css."},
+		WhenToUse:       []string{"After editing email/*.templ, css/email.css, or css/theme.css."},
 		WhenNotToUse:    []string{"Does not modify authored .templ files."},
 		Prerequisites:   []string{"Andurel project root", "email/ and css/email.css"},
 		Examples:        []string{"andurel sync email"},
