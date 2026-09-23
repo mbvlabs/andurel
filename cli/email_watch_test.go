@@ -21,6 +21,7 @@ func TestIsEmailCompilerSource(t *testing.T) {
 		want bool
 	}{
 		{name: "email css", path: filepath.Join(root, "css", "email.css"), want: true},
+		{name: "theme css", path: filepath.Join(root, "css", "theme.css"), want: true},
 		{name: "email template", path: filepath.Join(root, "email", "welcome.templ"), want: true},
 		{
 			name: "nested email template",

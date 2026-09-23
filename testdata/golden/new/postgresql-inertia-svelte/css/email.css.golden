@@ -1,5 +1,16 @@
 @import "tailwindcss/theme" source(none);
 @import "tailwindcss/utilities" source(none);
+@import "./theme.css";
+
+:root {
+  --background: #f6f9fc;
+  --foreground: #172033;
+  --card: #ffffff;
+  --card-foreground: #172033;
+  --muted: #f6f9fc;
+  --muted-foreground: #687385;
+  --border: #e6ebf1;
+}
 
 /* andurel:head:start */
 html,
