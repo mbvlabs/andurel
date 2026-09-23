@@ -48,6 +48,7 @@ andurel sync payloads --json
 andurel sync factories --check --json
 andurel doctor --json
 andurel run
+andurel run --tools mailpit
 ```
 
 ## Create vs refresh vs inspect
@@ -108,7 +109,7 @@ andurel run
 | `andurel packages` | List or update Andurel packages in go.mod |
 | `andurel packages list` | List Andurel package versions in go.mod |
 | `andurel packages update` | Update Andurel packages in go.mod to latest |
-| `andurel run` | Start the development server |
+| `andurel run` | Start the development server (`--tools mailpit` for sidecars) |
 | `andurel skill` | Show or install the embedded Andurel skill |
 | `andurel skill install` | Install the embedded skill into an agent harness |
 | `andurel skill show` | Print the embedded Andurel skill |

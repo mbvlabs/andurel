@@ -194,10 +194,10 @@ var defaultToolDownloads = map[string]ToolDownload{
 		Archive:     "binary",
 		BinaryName:  "shadowfax",
 		SHA256: map[string]string{
-			"linux/amd64":  "cecdcb89dfb292af27323f8089f61fbe0b3c4d63e3645acfadbcc3fb5c580b10",
-			"linux/arm64":  "78bd369eff62794c023768c23a9c94383adefffa04e598c0fbad967a0817be16",
-			"darwin/amd64": "92a9230740085aebbc7908fb4f22677860dfdb27a9ebaee39f914ffcdebb56b0",
-			"darwin/arm64": "9d3203b315bd3e8d2cd1f8d7d11b6356be6fec551235794f6eb755c3d3aa3a9d",
+			"linux/amd64":  "3af3f2ca5337bc5aa1d929cbce1e305debcfc50fe25045da7bab4ade53ad858c",
+			"linux/arm64":  "e5bbda03c47f07dd45aa1fa5fa91c76b94d2878842bb27aac7f41343890299c9",
+			"darwin/amd64": "b1c494d796d961fdf523206c55ad31286b6dac5a6142d8e2c298db46a29240a7",
+			"darwin/arm64": "f4a0933bb3d2969cc8df5438780fdc4d918e6c2b81a3b54db2a33b715e139bd4",
 		},
 	},
 	"tailwindcli": {
