@@ -24,26 +24,26 @@ function submit() {
 <template>
   <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold text-slate-100">Edit Widget</h1>
-      <Link :href="routes.widgetShow(routeID(item))" class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
+      <h1 class="text-2xl font-bold text-foreground">Edit Widget</h1>
+      <Link :href="routes.widgetShow(routeID(item))" class="border border-border bg-card px-4 py-2 text-sm font-medium text-card-foreground hover:bg-background">Cancel</Link>
     </div>
 
-    <form @submit.prevent="submit" class="mt-8 space-y-6 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 p-6 shadow-sm">
+    <form @submit.prevent="submit" class="mt-8 space-y-6 overflow-hidden border border-border bg-card p-6 shadow-sm">
       <div>
-        <label for="name" class="block text-sm font-medium text-slate-200">Name</label>
-        <input id="name" type="text" v-model="form.name" class="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
+        <label for="name" class="block text-sm font-medium text-card-foreground">Name</label>
+        <input id="name" type="text" v-model="form.name" class="mt-1 block w-full border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-ring focus:ring-ring/40" />
       </div>
       <div>
-        <label for="quantity" class="block text-sm font-medium text-slate-200">Quantity</label>
-        <input id="quantity" type="number" v-model="form.quantity" class="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
+        <label for="quantity" class="block text-sm font-medium text-card-foreground">Quantity</label>
+        <input id="quantity" type="number" v-model="form.quantity" class="mt-1 block w-full border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-ring focus:ring-ring/40" />
       </div>
       <div>
-        <label for="active" class="block text-sm font-medium text-slate-200">Active</label>
-        <input id="active" type="checkbox" v-model="form.active" class="mt-1 block w-full rounded-md border border-cyan-400/25 bg-slate-950 px-3 py-2 text-sm text-slate-100 shadow-sm focus:border-cyan-400 focus:ring-cyan-400/40" />
+        <label for="active" class="block text-sm font-medium text-card-foreground">Active</label>
+        <input id="active" type="checkbox" v-model="form.active" class="mt-1 block w-full border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm focus:border-ring focus:ring-ring/40" />
       </div>
       <div class="flex justify-end gap-3">
-        <Link :href="routes.widgetShow(routeID(item))" class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Cancel</Link>
-        <button type="submit" :disabled="form.processing" class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300 disabled:opacity-50">{{ form.processing ? 'Updating...' : 'Update Widget' }}</button>
+        <Link :href="routes.widgetShow(routeID(item))" class="border border-border bg-card px-4 py-2 text-sm font-medium text-card-foreground hover:bg-background">Cancel</Link>
+        <button type="submit" :disabled="form.processing" class="bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">{{ form.processing ? 'Updating...' : 'Update Widget' }}</button>
       </div>
     </form>
   </div>

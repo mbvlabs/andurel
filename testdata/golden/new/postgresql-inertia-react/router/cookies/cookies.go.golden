@@ -1,40 +1,11 @@
 package cookies
 
 import (
-	"encoding/json"
-
 	"app/config"
 
 	"github.com/mbvlabs/andurel/pkg/kiks"
 	"go.uber.org/fx"
 )
-
-type App struct {
-	UserID          string `json:"user_id,omitempty"`
-	IsAdmin         bool   `json:"is_admin,omitempty"`
-	IsAuthenticated bool   `json:"is_authenticated,omitempty"`
-}
-
-func (a *App) MarshalCookie() ([]byte, error) {
-	return json.Marshal(a)
-}
-
-func (a *App) UnmarshalCookie(data []byte) error {
-	if len(data) == 0 {
-		*a = App{}
-		return nil
-	}
-	return json.Unmarshal(data, a)
-}
-
-func NewAppCookie(cfg config.Session, secure bool) kiks.Definition {
-	return kiks.NewSession[*App](
-		cfg.Name,
-		kiks.HTTPOnly(),
-		kiks.Secure(secure),
-		kiks.MaxAge(cfg.MaxAge),
-	)
-}
 
 // NewJar builds the cookie jar. NewSession and kiks.Bagged(...) defs ride
 // EchoMiddleware; unmarked Plain/Signed/Encrypted defs are native-only

@@ -11,7 +11,6 @@ import (
 	"{{.ModuleName}}/services"
 
 	"github.com/mbvlabs/andurel/pkg/inertia"
-	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
@@ -129,12 +128,6 @@ func (r Registrations) Create(etx *echo.Context) error {
 
 		outcome = "error"
 		cause = err
-
-		kiks.AddFlash(
-			etx.Request().Context(),
-			kiks.FlashError,
-			"Failed to register user",
-		)
 
 		return r.renderer.Redirect(etx, routes.RegistrationNew.URL(), http.StatusSeeOther)
 	}

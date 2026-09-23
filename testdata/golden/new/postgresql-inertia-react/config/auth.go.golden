@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"slices"
 )
 
 type Auth struct {
@@ -23,9 +22,4 @@ func NewAuth() (Auth, error) {
 	}
 
 	return cfg, nil
-}
-
-func (c Auth) Clone() Auth {
-	c.PreviousPeppers = slices.Clone(c.PreviousPeppers)
-	return c
 }

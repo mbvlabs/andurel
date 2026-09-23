@@ -145,6 +145,7 @@ type FrameworkManagedFile struct {
 
 var baseStyleTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"css_base.tmpl":  "css/base.css",
+	"css_theme.tmpl": "css/theme.css",
 	"css_email.tmpl": "css/email.css",
 
 	// Views
@@ -249,6 +250,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	// Router
 	"router_router.tmpl":                     "router/router.go",
 	"router_router_test.tmpl":                "router/router_test.go",
+	"router_cookies_app.tmpl":                "router/cookies/app.go",
 	"router_cookies_cookies.tmpl":            "router/cookies/cookies.go",
 	"router_middleware_middleware.tmpl":      "router/middleware/middleware.go",
 	"router_middleware_middleware_test.tmpl": "router/middleware/middleware_test.go",

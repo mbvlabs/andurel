@@ -143,7 +143,7 @@ func (a Assets) Robots(etx *echo.Context) error {
 	cacheKey := "assets:robots"
 
 	robotsTxt, err := a.cache.Get(cacheKey, func() (string, error) {
-		return createRobotsTxt(a.appCfg.BaseURL), nil
+		return createRobotsTxt(a.appCfg.BaseURL()), nil
 	})
 	if err != nil {
 		telemetry.Error(
@@ -151,7 +151,7 @@ func (a Assets) Robots(etx *echo.Context) error {
 			"failed to get robots.txt from cache",
 			"error", err,
 		)
-	return etx.String(http.StatusOK, createRobotsTxt(a.appCfg.BaseURL))
+		return etx.String(http.StatusOK, createRobotsTxt(a.appCfg.BaseURL()))
 	}
 
 	return etx.String(http.StatusOK, robotsTxt)
@@ -164,7 +164,7 @@ func (a Assets) Sitemap(etx *echo.Context) error {
 	cacheKey := "assets:sitemap"
 
 	sitemap, err := a.cache.Get(cacheKey, func() (string, error) {
-		return createSitemap(a.appCfg.BaseURL, []routing.Route{})
+		return createSitemap(a.appCfg.BaseURL(), []routing.Route{})
 	})
 	if err != nil {
 		telemetry.Error(
@@ -173,7 +173,7 @@ func (a Assets) Sitemap(etx *echo.Context) error {
 			"error", err,
 		)
 
-		result, err := createSitemap(a.appCfg.BaseURL, []routing.Route{})
+		result, err := createSitemap(a.appCfg.BaseURL(), []routing.Route{})
 		if err != nil {
 			return err
 		}

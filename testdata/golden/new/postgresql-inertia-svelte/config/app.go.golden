@@ -20,7 +20,6 @@ type App struct {
 	ProjectName string
 	Domain      string
 	Protocol    string
-	BaseURL     string
 }
 
 func NewApp() (App, error) {
@@ -31,7 +30,6 @@ func NewApp() (App, error) {
 		Domain:      env.String("DOMAIN", DefaultDomain),
 		Protocol:    env.String("PROTOCOL", ""),
 	}
-	cfg.BaseURL = cfg.baseURL()
 
 	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
 		return App{}, fmt.Errorf("config: app: %w", err)
@@ -48,7 +46,7 @@ func (c App) validate() error {
 	if err := b.Err(); err != nil {
 		return err
 	}
-	parsed, err := url.Parse(c.BaseURL)
+	parsed, err := url.Parse(c.BaseURL())
 	if err != nil || parsed.Host == "" ||
 		(parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return fmt.Errorf("application base URL must be an HTTP or HTTPS URL")
@@ -57,7 +55,7 @@ func (c App) validate() error {
 	return nil
 }
 
-func (c App) baseURL() string {
+func (c App) BaseURL() string {
 	protocol := c.Protocol
 	if protocol == "" {
 		protocol = "http"

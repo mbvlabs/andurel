@@ -1,0 +1,36 @@
+package cookies
+
+import (
+	"encoding/json"
+
+	"{{.ModuleName}}/config"
+
+	"github.com/mbvlabs/andurel/pkg/kiks"
+)
+
+type App struct {
+{{- range .Blueprint.Cookies.SortedAppFields}}
+	{{.Name}} {{.Type}} `json:"{{toSnake .Name}},omitempty"`
+{{- end}}
+}
+
+func (a *App) MarshalCookie() ([]byte, error) {
+	return json.Marshal(a)
+}
+
+func (a *App) UnmarshalCookie(data []byte) error {
+	if len(data) == 0 {
+		*a = App{}
+		return nil
+	}
+	return json.Unmarshal(data, a)
+}
+
+func NewAppCookie(cfg config.Session, secure bool) kiks.Definition {
+	return kiks.NewSession[*App](
+		cfg.Name,
+		kiks.HTTPOnly(),
+		kiks.Secure(secure),
+		kiks.MaxAge(cfg.MaxAge),
+	)
+}

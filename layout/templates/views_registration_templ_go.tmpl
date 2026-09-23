@@ -72,7 +72,7 @@ func (rf RegistrationForm) Page() templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"registration-container\" class=\"flex flex-1 items-center justify-center px-6 py-6\"><div class=\"mx-auto flex w-full max-w-md flex-col gap-6\"><div class=\"border border-[#2f3a37] bg-[#101414]/90 shadow-sm shadow-black/40\"><div class=\"flex flex-col space-y-1.5 p-6 pb-0\"><h2 class=\"text-xl font-semibold text-[#f2ead8]\">Create an account</h2><p class=\"text-sm text-[#8f8a7d]\">Enter your details below to create your account</p></div><div class=\"p-6\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<main id=\"registration-container\" class=\"flex flex-1 items-center justify-center px-6 py-6\"><div class=\"mx-auto flex w-full max-w-md flex-col gap-6\"><div class=\"border border-border bg-card/90 shadow-sm shadow-black/40\"><div class=\"flex flex-col space-y-1.5 p-6 pb-0\"><h2 class=\"text-xl font-semibold text-card-foreground\">Create an account</h2><p class=\"text-sm text-muted-foreground\">Enter your details below to create your account</p></div><div class=\"p-6\"><form class=\"space-y-5\" data-indicator:_submitting data-on:submit=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -85,12 +85,12 @@ func (rf RegistrationForm) Page() templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-[#c7c0ad] peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"email\">Email</label> <input id=\"email\" type=\"email\" class=\"flex h-9 w-full border border-[#2f3a37] bg-[#090c0d] px-3 py-1 text-sm text-[#e4dfd2] shadow-inner shadow-black/35 transition placeholder:text-[#8f8a7d] focus:border-[#8df7a4] focus:outline-none focus:ring-2 focus:ring-[#8df7a4]/20 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"email\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\"><fieldset class=\"space-y-5 border-0 p-0\" data-attr:disabled=\"$_submitting\"><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-muted-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"email\">Email</label> <input id=\"email\" type=\"email\" class=\"flex h-9 w-full border border-border bg-background px-3 py-1 text-sm text-foreground shadow-inner shadow-black/35 transition placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"email\" required> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if rf.FieldError("email") != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p id=\"email-error\" class=\"text-sm font-medium text-[#ff875f]\" role=\"alert\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<p id=\"email-error\" class=\"text-sm font-medium text-destructive\" role=\"alert\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -108,12 +108,12 @@ func (rf RegistrationForm) Page() templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-[#c7c0ad] peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"password\">Password</label> <input id=\"password\" type=\"password\" class=\"flex h-9 w-full border border-[#2f3a37] bg-[#090c0d] px-3 py-1 text-sm text-[#e4dfd2] shadow-inner shadow-black/35 transition placeholder:text-[#8f8a7d] focus:border-[#8df7a4] focus:outline-none focus:ring-2 focus:ring-[#8df7a4]/20 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"password\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-muted-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"password\">Password</label> <input id=\"password\" type=\"password\" class=\"flex h-9 w-full border border-border bg-background px-3 py-1 text-sm text-foreground shadow-inner shadow-black/35 transition placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"password\" required> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if rf.FieldError("password") != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p id=\"password-error\" class=\"text-sm font-medium text-[#ff875f]\" role=\"alert\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p id=\"password-error\" class=\"text-sm font-medium text-destructive\" role=\"alert\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -131,12 +131,12 @@ func (rf RegistrationForm) Page() templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-[#c7c0ad] peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"confirmPassword\">Confirm Password</label> <input id=\"confirmPassword\" type=\"password\" class=\"flex h-9 w-full border border-[#2f3a37] bg-[#090c0d] px-3 py-1 text-sm text-[#e4dfd2] shadow-inner shadow-black/35 transition placeholder:text-[#8f8a7d] focus:border-[#8df7a4] focus:outline-none focus:ring-2 focus:ring-[#8df7a4]/20 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"confirmPassword\" required> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div><div class=\"space-y-1\"><label class=\"text-sm font-medium leading-none text-muted-foreground peer-disabled:cursor-not-allowed peer-disabled:opacity-60\" for=\"confirmPassword\">Confirm Password</label> <input id=\"confirmPassword\" type=\"password\" class=\"flex h-9 w-full border border-border bg-background px-3 py-1 text-sm text-foreground shadow-inner shadow-black/35 transition placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60\" data-bind=\"confirmPassword\" required> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if rf.FieldError("confirmPassword") != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p id=\"confirm-password-error\" class=\"text-sm font-medium text-[#ff875f]\" role=\"alert\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p id=\"confirm-password-error\" class=\"text-sm font-medium text-destructive\" role=\"alert\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -154,7 +154,7 @@ func (rf RegistrationForm) Page() templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap bg-[#ff6b1a] px-4 py-2 text-sm font-medium text-[#130f0b] shadow-sm shadow-black/40 transition-colors hover:bg-[#ff8748] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff6b1a]/30 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Sign Up</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form><p class=\"mt-6 text-center text-sm text-[#8f8a7d]\">Already have an account? <a class=\"text-[#d7d0bf] hover:text-[#f2ead8] hover:underline\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div><button type=\"submit\" class=\"inline-flex w-full items-center justify-center gap-2 whitespace-nowrap bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm shadow-black/40 transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60\"><span data-show=\"!$_submitting\">Sign Up</span> <span data-show=\"$_submitting\">Loading</span></button></fieldset></form><p class=\"mt-6 text-center text-sm text-muted-foreground\">Already have an account? <a class=\"text-foreground hover:text-card-foreground hover:underline\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

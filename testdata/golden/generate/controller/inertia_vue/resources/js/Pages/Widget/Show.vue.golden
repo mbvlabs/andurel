@@ -14,34 +14,34 @@ defineProps<WidgetItemProps>()
 <template>
   <div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold text-slate-100">Widget Details</h1>
+      <h1 class="text-2xl font-bold text-foreground">Widget Details</h1>
       <div class="flex gap-3">
-        <Link :href="routes.widgetEdit(routeID(item))" class="rounded-md bg-cyan-400 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-300">Edit</Link>
-        <Link :href="routes.widgetIndex()" class="rounded-md border border-cyan-400/25 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-950">Back</Link>
+        <Link :href="routes.widgetEdit(routeID(item))" class="bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">Edit</Link>
+        <Link :href="routes.widgetIndex()" class="border border-border bg-card px-4 py-2 text-sm font-medium text-card-foreground hover:bg-background">Back</Link>
       </div>
     </div>
 
-    <div class="mt-8 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900 shadow-sm">
-      <dl class="divide-y divide-cyan-400/20">
+    <div class="mt-8 overflow-hidden border border-border bg-card shadow-sm">
+      <dl class="divide-y divide-border">
         <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-          <dt class="text-sm font-medium text-slate-400">Name</dt>
-          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.name }}</dd>
+          <dt class="text-sm font-medium text-muted-foreground">Name</dt>
+          <dd class="mt-1 text-sm text-foreground sm:col-span-2 sm:mt-0">{{ item.name }}</dd>
         </div>
         <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-          <dt class="text-sm font-medium text-slate-400">Quantity</dt>
-          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.quantity }}</dd>
+          <dt class="text-sm font-medium text-muted-foreground">Quantity</dt>
+          <dd class="mt-1 text-sm text-foreground sm:col-span-2 sm:mt-0">{{ item.quantity }}</dd>
         </div>
         <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-          <dt class="text-sm font-medium text-slate-400">Active</dt>
-          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.active }}</dd>
+          <dt class="text-sm font-medium text-muted-foreground">Active</dt>
+          <dd class="mt-1 text-sm text-foreground sm:col-span-2 sm:mt-0">{{ item.active }}</dd>
         </div>
         <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-          <dt class="text-sm font-medium text-slate-400">Created At</dt>
-          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.createdAt }}</dd>
+          <dt class="text-sm font-medium text-muted-foreground">Created At</dt>
+          <dd class="mt-1 text-sm text-foreground sm:col-span-2 sm:mt-0">{{ item.createdAt }}</dd>
         </div>
         <div class="px-6 py-4 sm:grid sm:grid-cols-3 sm:gap-4">
-          <dt class="text-sm font-medium text-slate-400">Updated At</dt>
-          <dd class="mt-1 text-sm text-slate-100 sm:col-span-2 sm:mt-0">{{ item.updatedAt }}</dd>
+          <dt class="text-sm font-medium text-muted-foreground">Updated At</dt>
+          <dd class="mt-1 text-sm text-foreground sm:col-span-2 sm:mt-0">{{ item.updatedAt }}</dd>
         </div>
       </dl>
     </div>

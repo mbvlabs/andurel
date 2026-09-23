@@ -34,8 +34,11 @@ type Telemetry struct {
 func NewTelemetry(app App) (Telemetry, error) {
 	env := newEnvironment()
 	cfg := Telemetry{
-		ServiceName:         env.String("TELEMETRY_SERVICE_NAME", slug.Make(app.ProjectName)),
-		ServiceVersion:      env.String("TELEMETRY_SERVICE_VERSION", DefaultTelemetryServiceVersion),
+		ServiceName: env.String("TELEMETRY_SERVICE_NAME", slug.Make(app.ProjectName)),
+		ServiceVersion: env.String(
+			"TELEMETRY_SERVICE_VERSION",
+			DefaultTelemetryServiceVersion,
+		),
 		OtlpLogsEndpoint:    env.String("OTLP_LOGS_ENDPOINT", ""),
 		OtlpMetricsEndpoint: env.String("OTLP_METRICS_ENDPOINT", ""),
 		OtlpTracesEndpoint:  env.String("OTLP_TRACES_ENDPOINT", ""),

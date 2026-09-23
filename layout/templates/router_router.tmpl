@@ -11,11 +11,11 @@ import (
 	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/router/routes"
 
+	"github.com/labstack/echo/v5"
+	echomw "github.com/labstack/echo/v5/middleware"
 {{- if .Inertia}}
 	"github.com/mbvlabs/andurel/pkg/inertia"
 {{- end}}
-	"github.com/labstack/echo/v5"
-	echomw "github.com/labstack/echo/v5/middleware"
 	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"go.uber.org/fx"
@@ -110,7 +110,7 @@ func SetupGlobalMiddleware(
 		httpCfg.CSRFStrategy,
 		httpCfg.CSRFTrustedOrigins,
 		csrfName,
-		appCfg.BaseURL,
+		appCfg.BaseURL(),
 		appCfg.Environment,
 		appCfg.Domain,
 		sessionCfg.Name,
@@ -118,7 +118,7 @@ func SetupGlobalMiddleware(
 	if err != nil {
 		return nil, err
 	}
-	corsConfig, err := newCORSConfig(appCfg.BaseURL, httpCfg.CORSAllowedOrigins)
+	corsConfig, err := newCORSConfig(appCfg.BaseURL(), httpCfg.CORSAllowedOrigins)
 	if err != nil {
 		return nil, err
 	}

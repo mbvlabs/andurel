@@ -60,11 +60,9 @@ func main() {
 	assert(len(auth.PreviousPeppers) == 2, "auth pepper list")
 
 	must(os.Setenv("EMAIL_PROVIDER", "mailpit"))
-	mailIdentity, err := config.NewMail(app)
+	mail, err := config.NewMail(app)
 	must(err)
-	assert(mailIdentity.DefaultSenderSignature == "noreply@localhost:8080", "mail sender identity")
-	mail, err := config.NewMailTransport(app)
-	must(err)
+	assert(mail.DefaultSenderSignature == "noreply@localhost:8080", "mail sender identity")
 	assert(mail.Driver == config.MailpitDriver, "mail driver")
 
 	must(os.Setenv("QUEUE_POLL_INTERVAL", "2s"))

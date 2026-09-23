@@ -3,7 +3,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"slices"
 	"strconv"
 	"time"
 
@@ -72,10 +71,4 @@ func (c HTTP) validate() error {
 	}
 
 	return nil
-}
-
-func (c HTTP) Clone() HTTP {
-	c.CORSAllowedOrigins = slices.Clone(c.CORSAllowedOrigins)
-	c.CSRFTrustedOrigins = slices.Clone(c.CSRFTrustedOrigins)
-	return c
 }

@@ -377,19 +377,24 @@ andurel g model User --refresh
 ```
 ### Customize Styling
 
-This project uses Tailwind CSS. Customize your theme in `css/themes.css`:
+This project uses Tailwind CSS v4 with shadcn-style CSS variables in `css/theme.css`:
 
 ```css
-@layer theme {
-  :root {
-    --color-primary: theme('colors.blue.600');
-    --color-secondary: theme('colors.gray.600');
-  }
+:root {
+  --primary: #ff6b1a;
+  --primary-foreground: #130f0b;
+  --ring: #8df7a4;
+  --radius: 0;
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
 }
 ```
 
-Add reusable wrapper classes in `css/components.css` under `@layer components`, then import or compose in your views.
-Use `examples/html/*.html` for snippet-based patterns (pure HTML + Datastar attributes).
+Use semantic utilities in views (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `ring-ring`).
 The development server automatically rebuilds CSS on changes.
 
 ## Environment Configuration
@@ -444,7 +449,7 @@ TRACE_SAMPLE_RATE=1.0
 
 ## Session, CORS, and CSRF Protection
 
-Application sessions are defined in `router/cookies` (`cookies.NewJar`, FX `cookies.Module`) and loaded onto `context.Context` by `pkg/kiks`. Controllers read and write bag cookies with `kiks.Get` / `kiks.Exists` / `kiks.Set` / `kiks.Destroy` / `kiks.AddFlash` (`Get`, `Exists`, `Set`, and `Destroy` return an error when the bag is missing, the type is unregistered, or the type is native-only — use the same pointer type you registered, e.g. `*cookies.App`). Mark named bag cookies with `kiks.Bagged(...)` in `NewJar`; unmarked named cookies use native `kiks.Read` / `Write` / `Clear` with an injected `*kiks.Jar`. The App session payload is persisted by a cookie-backed `Store` (`kiks.NewCookieStore`). Flashes always use a separate flash cookie and never enter the sessions table. Each Go type may be registered at most once per jar — two same-shape cookies need distinct types. Cookies are `HttpOnly` with `SameSite=Lax` and `Path=/`. Production cookies also use `Secure`. `SESSION_MAX_AGE` is the lifetime in seconds and defaults to seven days (`604800`). Saving session state renews the expiration for another seven days. Signing out destroys the session immediately. Flashes persist across HTTP redirects and Datastar `X-Andurel-Client-Redirect` responses; they are consumed when a page renders them.
+Application sessions are defined in `router/cookies` (`cookies.NewJar`, FX `cookies.Module`) and loaded onto `context.Context` by `pkg/kiks`. Controllers read and write bag cookies with `kiks.Get` / `kiks.Exists` / `kiks.Set` / `kiks.Destroy` (`Get`, `Exists`, `Set`, and `Destroy` return an error when the bag is missing, the type is unregistered, or the type is native-only — use the same pointer type you registered, e.g. `*cookies.App`). Mark named bag cookies with `kiks.Bagged(...)` in `NewJar`; unmarked named cookies use native `kiks.Read` / `Write` / `Clear` with an injected `*kiks.Jar`. The App session payload is persisted by a cookie-backed `Store` (`kiks.NewCookieStore`). Each Go type may be registered at most once per jar — two same-shape cookies need distinct types. Cookies are `HttpOnly` with `SameSite=Lax` and `Path=/`. Production cookies also use `Secure`. `SESSION_MAX_AGE` is the lifetime in seconds and defaults to seven days (`604800`). Saving session state renews the expiration for another seven days. Signing out destroys the session immediately.
 
 CORS allows credentials and trusts only the configured application origin (`PROTOCOL` + `DOMAIN`) by default. `CORS_ALLOWED_ORIGINS` accepts a comma-separated list of additional exact origins. Wildcard origins are rejected when the application starts.
 
