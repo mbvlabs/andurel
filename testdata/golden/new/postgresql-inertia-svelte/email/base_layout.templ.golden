@@ -9,16 +9,16 @@ templ baseLayout(title, preHeader string) {
 			<meta name="robots" content="noindex"/>
 			<title>{ title }</title>
 		</head>
-		<body class="m-0 min-w-full bg-[#f6f9fc] p-0 [font-family:Arial,sans-serif] [-webkit-text-size-adjust:100%] [-ms-text-size-adjust:100%]">
-			<div class="hidden max-h-0 max-w-0 overflow-hidden text-[1px] leading-[1px] text-[#f6f9fc] opacity-0 invisible [mso-hide:all]">
+		<body class="m-0 min-w-full bg-background p-0 [font-family:Arial,sans-serif] [-webkit-text-size-adjust:100%] [-ms-text-size-adjust:100%]">
+			<div class="hidden max-h-0 max-w-0 overflow-hidden text-[1px] leading-[1px] text-background opacity-0 invisible [mso-hide:all]">
 				{ preHeader }
 				&#160;&#8203;&#160;&#8203;&#160;&#8203;&#160;&#8203;&#160;&#8203;
 			</div>
-			<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" class="w-full bg-[#f6f9fc]">
+			<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" class="w-full bg-background">
 				<tbody>
 					<tr>
 						<td align="center" class="px-4 py-10 max-sm:p-0">
-							<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" align="center" class="w-[600px] max-sm:w-full rounded-2xl bg-white max-sm:rounded-none">
+							<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" align="center" class="w-[600px] max-sm:w-full rounded-2xl bg-card max-sm:rounded-none">
 								<tbody>
 									<tr>
 										<td>
@@ -27,8 +27,8 @@ templ baseLayout(title, preHeader string) {
 									</tr>
 									<tr>
 										<td class="px-12 pt-8 pb-10 max-sm:px-6">
-											<div class="mb-6 h-px bg-[#e6ebf1]"></div>
-											<p class="m-0 [font-family:Arial,sans-serif] text-xs leading-5 text-[#687385]">
+											<div class="mb-6 h-px bg-border"></div>
+											<p class="m-0 [font-family:Arial,sans-serif] text-xs leading-5 text-muted-foreground">
 												This email relates to your account.<br/>
 												Powered by <strong>Andurel</strong>
 											</p>

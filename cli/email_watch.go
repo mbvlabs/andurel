@@ -102,7 +102,8 @@ func runEmailWatcher(ctx context.Context, watcher *fsnotify.Watcher, rootDir, ta
 
 func isEmailCompilerSource(rootDir, path string) bool {
 	cleanPath := filepath.Clean(path)
-	if cleanPath == filepath.Join(rootDir, "css", "email.css") {
+	if cleanPath == filepath.Join(rootDir, "css", "email.css") ||
+		cleanPath == filepath.Join(rootDir, "css", "theme.css") {
 		return true
 	}
 	emailDir := filepath.Join(rootDir, "email") + string(filepath.Separator)
