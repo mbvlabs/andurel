@@ -6,6 +6,12 @@ alias t := test
 alias tc := test-critical
 alias ta := test-all
 
+# Resolve modules like `go install` / published tags, not the local workspace.
+# go.work stays for ad-hoc local `go` commands; just recipes and CI ignore it.
+# That can fail CI when go.mod lags an unreleased pkg/* change — tag the package,
+# bump the require, then re-run. Prefer that over green CI that users cannot install.
+export GOWORK := "off"
+
 # Default recipe - show available commands
 default:
     @just --list
@@ -47,8 +53,8 @@ vet:
     	echo "vetting ${module_dir#"$repo_root"/}"
     	(
     		cd "$module_dir"
-    		GOWORK=off go mod download
-    		GOWORK=off go vet ./...
+    		go mod download
+    		go vet ./...
     	)
     done < <(find "$repo_root/pkg" -mindepth 2 -maxdepth 2 -name go.mod -print | sort)
 

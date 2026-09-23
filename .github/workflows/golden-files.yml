@@ -8,6 +8,8 @@ jobs:
     name: Check golden files
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      GOWORK: 'off'
 
     steps:
       - name: Checkout code

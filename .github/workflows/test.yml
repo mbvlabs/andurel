@@ -11,6 +11,8 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: read
+    env:
+      GOWORK: 'off'
 
     steps:
     - name: Checkout code
