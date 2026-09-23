@@ -101,11 +101,11 @@ func (s Sessions) Create(etx *echo.Context) error {
 	)
 	if err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-			return s.renderer.Page(
-				etx,
-				"Auth/Login",
-				inertia.Props{},
-			).ValidationErrors(validationErrors.ToMap()).Render()
+		return s.renderer.Page(
+			etx,
+			"Auth/Login",
+			inertia.Props{},
+		).ValidationErrors(validationErrors.ToMap()).Render()
 		}
 
 		telemetry.Error(
@@ -139,3 +139,4 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 
 	return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
 }
+
