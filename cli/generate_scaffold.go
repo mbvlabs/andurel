@@ -127,6 +127,9 @@ andurel.lock. Templ/Datastar projects get templ views instead.`,
 						); err != nil {
 							return err
 						}
+						if err := generateNarsilcIfNeeded(rootDir); err != nil {
+							return err
+						}
 						return refreshInertiaGeneratedTypeScript(rootDir, inertiaAdapter, api)
 					})(cmd, args)
 				},
