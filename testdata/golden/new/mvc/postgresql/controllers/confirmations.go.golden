@@ -95,18 +95,6 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			err,
 		)
 
-		var errorMsg string
-		switch {
-		case errors.Is(err, services.ErrInvalidVerificationCode):
-			errorMsg = "Invalid verification code"
-		case errors.Is(err, services.ErrExpiredVerificationCode):
-			errorMsg = "Verification code has expired"
-		default:
-			errorMsg = "Failed to verify email"
-		}
-
-		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, errorMsg)
-
 		return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
 	}
 
@@ -117,12 +105,6 @@ func (c Confirmations) Create(etx *echo.Context) error {
 	}); err != nil {
 		return err
 	}
-
-	kiks.AddFlash(
-		etx.Request().Context(),
-		kiks.FlashSuccess,
-		"Email verified successfully!",
-	)
 
 	return hypermedia.Redirect(etx, routes.HomePage.URL())
 }

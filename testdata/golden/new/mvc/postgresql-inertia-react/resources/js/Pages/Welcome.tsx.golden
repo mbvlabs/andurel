@@ -17,7 +17,7 @@ export default function Welcome({
 }: WelcomeProps) {
   return (
     <Layout>
-      <main className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#090b0d] text-[#e4dfd2]">
+      <main className="relative flex flex-1 items-center justify-center overflow-hidden bg-background text-foreground">
         <div
           className="pointer-events-none absolute inset-0 opacity-60"
           style={{
@@ -28,32 +28,32 @@ export default function Welcome({
         <div className="relative mx-auto w-full max-w-[960px] px-4 py-4">
           <section className="grid items-center gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
             <div className="max-w-3xl">
-              <h1 className="text-4xl font-semibold text-[#f2ead8] sm:text-5xl lg:text-6xl">
+              <h1 className="text-4xl font-semibold text-card-foreground sm:text-5xl lg:text-6xl">
                 Space-grade Go, wired locally.
               </h1>
-              <p className="mt-5 max-w-2xl text-lg leading-7 text-[#aaa393]">
+              <p className="mt-5 max-w-2xl text-lg leading-7 text-muted-foreground">
                 {appName} is ready with routing, controllers, validation, authentication,
                 email, queues, and an Inertia frontend.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
-                  className="bg-[#ff6b1a] px-4 py-2 text-sm font-semibold text-[#130f0b] shadow-sm shadow-black/40 transition hover:bg-[#ff8748]"
+                  className="bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm shadow-black/40 transition hover:bg-primary/90"
                   href={docsURL}
                 >
                   Read the docs
                 </a>
                 <Link
-                  className="border border-[#2f3a37] bg-[#101414]/80 px-4 py-2 text-sm font-semibold text-[#d7d0bf] transition hover:border-[#52605c] hover:text-[#f2ead8]"
+                  className="border border-border bg-card/80 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-border hover:text-card-foreground"
                   href={registrationURL}
                 >
                   Create account
                 </Link>
               </div>
             </div>
-            <div className="border border-[#2f3a37] bg-[#101414]/80 p-4 shadow-sm shadow-black/40">
-              <div className="mb-4 flex items-center justify-between border-b border-[#2f3a37] pb-3 text-xs uppercase text-[#8f8a7d]">
+            <div className="border border-border bg-card/80 p-4 shadow-sm shadow-black/40">
+              <div className="mb-4 flex items-center justify-between border-b border-border pb-3 text-xs uppercase text-muted-foreground">
                 <span>deploy console</span>
-                <span className="text-[#8df7a4]">ready</span>
+                <span className="text-ring">ready</span>
               </div>
               <div className="space-y-4 font-mono text-sm">
                 <ConsoleLine label="auth" value="sessions, registration, reset password" />
@@ -102,14 +102,14 @@ function WelcomeCard({
 }) {
   return (
     <Link
-      className="group border border-[#2f3a37] bg-[#101414]/80 p-4 text-left shadow-sm shadow-black/40 transition hover:border-[#52605c]"
+      className="group border border-border bg-card/80 p-4 text-left shadow-sm shadow-black/40 transition hover:border-border"
       href={href}
     >
-      <div className="mb-4 flex size-8 items-center justify-center border border-[#52605c] bg-[#090c0d] text-[#8df7a4] transition group-hover:border-[#8df7a4]">
-        <span className="size-2 bg-[#8df7a4]" />
+      <div className="mb-4 flex size-8 items-center justify-center border border-border bg-background text-ring transition group-hover:border-ring">
+        <span className="size-2 bg-ring" />
       </div>
-      <h2 className="text-base font-semibold text-[#f2ead8]">{title}</h2>
-      <p className="mt-2 text-sm leading-5 text-[#8f8a7d]">{description}</p>
+      <h2 className="text-base font-semibold text-card-foreground">{title}</h2>
+      <p className="mt-2 text-sm leading-5 text-muted-foreground">{description}</p>
     </Link>
   )
 }
@@ -117,10 +117,10 @@ function WelcomeCard({
 function ConsoleLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start gap-3">
-      <span className="mt-1 size-1.5 bg-[#8df7a4]" />
+      <span className="mt-1 size-1.5 bg-ring" />
       <div>
-        <p className="text-[#8df7a4]">{label}</p>
-        <p className="text-[#8f8a7d]">{value}</p>
+        <p className="text-ring">{label}</p>
+        <p className="text-muted-foreground">{value}</p>
       </div>
     </div>
   )

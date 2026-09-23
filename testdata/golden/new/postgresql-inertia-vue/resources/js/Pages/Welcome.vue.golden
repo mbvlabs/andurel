@@ -13,7 +13,7 @@ defineProps<{
 
 <template>
   <Layout>
-    <main class="relative flex flex-1 items-center justify-center overflow-hidden bg-[#090b0d] text-[#e4dfd2]">
+    <main class="relative flex flex-1 items-center justify-center overflow-hidden bg-background text-foreground">
       <div
         class="pointer-events-none absolute inset-0 opacity-60"
         style="background-image: radial-gradient(circle at 12% 18%, #f2ead8 0 1px, transparent 1.5px), radial-gradient(circle at 82% 22%, #aaa393 0 1px, transparent 1.5px), radial-gradient(circle at 67% 72%, #f2ead8 0 1px, transparent 1.5px), radial-gradient(circle at 24% 83%, #8f8a7d 0 1px, transparent 1.5px);"
@@ -21,110 +21,110 @@ defineProps<{
       <div class="relative mx-auto w-full max-w-[960px] px-4 py-4">
         <section class="grid items-center gap-6 py-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div class="max-w-3xl">
-            <h1 class="text-4xl font-semibold text-[#f2ead8] sm:text-5xl lg:text-6xl">
+            <h1 class="text-4xl font-semibold text-card-foreground sm:text-5xl lg:text-6xl">
               Space-grade Go, wired locally.
             </h1>
-            <p class="mt-5 max-w-2xl text-lg leading-7 text-[#aaa393]">
+            <p class="mt-5 max-w-2xl text-lg leading-7 text-muted-foreground">
               {{ appName }} is ready with routing, controllers, validation, authentication,
               email, queues, and an Inertia frontend.
             </p>
             <div class="mt-8 flex flex-wrap gap-3">
               <a
-                class="bg-[#ff6b1a] px-4 py-2 text-sm font-semibold text-[#130f0b] shadow-sm shadow-black/40 transition hover:bg-[#ff8748]"
+                class="bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm shadow-black/40 transition hover:bg-primary/90"
                 :href="docsURL"
               >
                 Read the docs
               </a>
               <Link
-                class="border border-[#2f3a37] bg-[#101414]/80 px-4 py-2 text-sm font-semibold text-[#d7d0bf] transition hover:border-[#52605c] hover:text-[#f2ead8]"
+                class="border border-border bg-card/80 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-border hover:text-card-foreground"
                 :href="registrationURL"
               >
                 Create account
               </Link>
             </div>
           </div>
-          <div class="border border-[#2f3a37] bg-[#101414]/80 p-4 shadow-sm shadow-black/40">
-            <div class="mb-4 flex items-center justify-between border-b border-[#2f3a37] pb-3 text-xs uppercase text-[#8f8a7d]">
+          <div class="border border-border bg-card/80 p-4 shadow-sm shadow-black/40">
+            <div class="mb-4 flex items-center justify-between border-b border-border pb-3 text-xs uppercase text-muted-foreground">
               <span>deploy console</span>
-              <span class="text-[#8df7a4]">ready</span>
+              <span class="text-ring">ready</span>
             </div>
             <div class="space-y-4 font-mono text-sm">
               <div class="flex items-start gap-3">
-                <span class="mt-1 size-1.5 bg-[#8df7a4]" />
+                <span class="mt-1 size-1.5 bg-ring" />
                 <div>
-                  <p class="text-[#8df7a4]">auth</p>
-                  <p class="text-[#8f8a7d]">sessions, registration, reset password</p>
+                  <p class="text-ring">auth</p>
+                  <p class="text-muted-foreground">sessions, registration, reset password</p>
                 </div>
               </div>
               <div class="flex items-start gap-3">
-                <span class="mt-1 size-1.5 bg-[#8df7a4]" />
+                <span class="mt-1 size-1.5 bg-ring" />
                 <div>
-                  <p class="text-[#8df7a4]">pages</p>
-                  <p class="text-[#8f8a7d]">Inertia Vue scaffold online</p>
+                  <p class="text-ring">pages</p>
+                  <p class="text-muted-foreground">Inertia Vue scaffold online</p>
                 </div>
               </div>
               <div class="flex items-start gap-3">
-                <span class="mt-1 size-1.5 bg-[#8df7a4]" />
+                <span class="mt-1 size-1.5 bg-ring" />
                 <div>
-                  <p class="text-[#8df7a4]">routes</p>
-                  <p class="text-[#8f8a7d]">slugged endpoints mounted</p>
+                  <p class="text-ring">routes</p>
+                  <p class="text-muted-foreground">slugged endpoints mounted</p>
                 </div>
               </div>
               <div class="flex items-start gap-3">
-                <span class="mt-1 size-1.5 bg-[#8df7a4]" />
+                <span class="mt-1 size-1.5 bg-ring" />
                 <div>
-                  <p class="text-[#8df7a4]">jobs</p>
-                  <p class="text-[#8f8a7d]">queue worker ready</p>
+                  <p class="text-ring">jobs</p>
+                  <p class="text-muted-foreground">queue worker ready</p>
                 </div>
               </div>
             </div>
           </div>
           <section class="grid gap-4 md:grid-cols-2 lg:col-span-2">
             <Link
-              class="group border border-[#2f3a37] bg-[#101414]/80 p-4 text-left shadow-sm shadow-black/40 transition hover:border-[#52605c]"
+              class="group border border-border bg-card/80 p-4 text-left shadow-sm shadow-black/40 transition hover:border-border"
               :href="docsURL"
             >
-              <div class="mb-4 flex size-8 items-center justify-center border border-[#52605c] bg-[#090c0d] text-[#8df7a4] transition group-hover:border-[#8df7a4]">
-                <span class="size-2 bg-[#8df7a4]" />
+              <div class="mb-4 flex size-8 items-center justify-center border border-border bg-background text-ring transition group-hover:border-ring">
+                <span class="size-2 bg-ring" />
               </div>
-              <h2 class="text-base font-semibold text-[#f2ead8]">Documentation</h2>
-              <p class="mt-2 text-sm leading-5 text-[#8f8a7d]">
+              <h2 class="text-base font-semibold text-card-foreground">Documentation</h2>
+              <p class="mt-2 text-sm leading-5 text-muted-foreground">
                 Start with the framework guides and learn the conventions that shape an Andurel app.
               </p>
             </Link>
             <Link
-              class="group border border-[#2f3a37] bg-[#101414]/80 p-4 text-left shadow-sm shadow-black/40 transition hover:border-[#52605c]"
+              class="group border border-border bg-card/80 p-4 text-left shadow-sm shadow-black/40 transition hover:border-border"
               :href="registrationURL"
             >
-              <div class="mb-4 flex size-8 items-center justify-center border border-[#52605c] bg-[#090c0d] text-[#8df7a4] transition group-hover:border-[#8df7a4]">
-                <span class="size-2 bg-[#8df7a4]" />
+              <div class="mb-4 flex size-8 items-center justify-center border border-border bg-background text-ring transition group-hover:border-ring">
+                <span class="size-2 bg-ring" />
               </div>
-              <h2 class="text-base font-semibold text-[#f2ead8]">Authentication</h2>
-              <p class="mt-2 text-sm leading-5 text-[#8f8a7d]">
+              <h2 class="text-base font-semibold text-card-foreground">Authentication</h2>
+              <p class="mt-2 text-sm leading-5 text-muted-foreground">
                 Registration, sessions, email confirmation, and password reset are already wired.
               </p>
             </Link>
             <Link
-              class="group border border-[#2f3a37] bg-[#101414]/80 p-4 text-left shadow-sm shadow-black/40 transition hover:border-[#52605c]"
+              class="group border border-border bg-card/80 p-4 text-left shadow-sm shadow-black/40 transition hover:border-border"
               :href="loginURL"
             >
-              <div class="mb-4 flex size-8 items-center justify-center border border-[#52605c] bg-[#090c0d] text-[#8df7a4] transition group-hover:border-[#8df7a4]">
-                <span class="size-2 bg-[#8df7a4]" />
+              <div class="mb-4 flex size-8 items-center justify-center border border-border bg-background text-ring transition group-hover:border-ring">
+                <span class="size-2 bg-ring" />
               </div>
-              <h2 class="text-base font-semibold text-[#f2ead8]">Inertia pages</h2>
-              <p class="mt-2 text-sm leading-5 text-[#8f8a7d]">
+              <h2 class="text-base font-semibold text-card-foreground">Inertia pages</h2>
+              <p class="mt-2 text-sm leading-5 text-muted-foreground">
                 Server-driven Vue pages with shared props, Vite, and optional SSR.
               </p>
             </Link>
             <Link
-              class="group border border-[#2f3a37] bg-[#101414]/80 p-4 text-left shadow-sm shadow-black/40 transition hover:border-[#52605c]"
+              class="group border border-border bg-card/80 p-4 text-left shadow-sm shadow-black/40 transition hover:border-border"
               :href="docsURL"
             >
-              <div class="mb-4 flex size-8 items-center justify-center border border-[#52605c] bg-[#090c0d] text-[#8df7a4] transition group-hover:border-[#8df7a4]">
-                <span class="size-2 bg-[#8df7a4]" />
+              <div class="mb-4 flex size-8 items-center justify-center border border-border bg-background text-ring transition group-hover:border-ring">
+                <span class="size-2 bg-ring" />
               </div>
-              <h2 class="text-base font-semibold text-[#f2ead8]">Command line</h2>
-              <p class="mt-2 text-sm leading-5 text-[#8f8a7d]">
+              <h2 class="text-base font-semibold text-card-foreground">Command line</h2>
+              <p class="mt-2 text-sm leading-5 text-muted-foreground">
                 Generate models, factories, controllers, routes, jobs, emails, and pages from the CLI.
               </p>
             </Link>

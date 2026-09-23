@@ -101,11 +101,11 @@ func (s Sessions) Create(etx *echo.Context) error {
 	)
 	if err != nil {
 		if validationErrors, ok := validation.As(err); ok {
-		return s.renderer.Page(
-			etx,
-			"Auth/Login",
-			inertia.Props{},
-		).ValidationErrors(validationErrors.ToMap()).Render()
+			return s.renderer.Page(
+				etx,
+				"Auth/Login",
+				inertia.Props{},
+			).ValidationErrors(validationErrors.ToMap()).Render()
 		}
 
 		telemetry.Error(
@@ -114,18 +114,6 @@ func (s Sessions) Create(etx *echo.Context) error {
 			"error",
 			err,
 		)
-
-		var errorMsg string
-		switch {
-		case errors.Is(err, services.ErrInvalidCredentials):
-			errorMsg = "Invalid email or password"
-		case errors.Is(err, services.ErrEmailNotVerified):
-			errorMsg = "Please verify your email before logging in"
-		default:
-			errorMsg = "Failed to log in"
-		}
-
-		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, errorMsg)
 
 		return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
 	}
@@ -138,12 +126,6 @@ func (s Sessions) Create(etx *echo.Context) error {
 		return err
 	}
 
-	kiks.AddFlash(
-		etx.Request().Context(),
-		kiks.FlashSuccess,
-		"Successfully logged in!",
-	)
-
 	return s.renderer.Location(etx, routes.HomePage.URL())
 }
 
@@ -155,12 +137,5 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 		return err
 	}
 
-	kiks.AddFlash(
-		ctx,
-		kiks.FlashSuccess,
-		"Successfully logged out!",
-	)
-
 	return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
 }
-

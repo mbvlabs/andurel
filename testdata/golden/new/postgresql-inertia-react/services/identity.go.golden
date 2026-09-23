@@ -45,7 +45,7 @@ func NewIdentity(
 		pepper:                 authCfg.Pepper,
 		previousPeppers:        validPeppers,
 		tokenSigningKey:        authCfg.TokenSigningKey,
-		baseURL:                appCfg.BaseURL,
+		baseURL:                appCfg.BaseURL(),
 		defaultSenderSignature: mailCfg.DefaultSenderSignature,
 	}
 }

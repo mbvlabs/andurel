@@ -108,18 +108,6 @@ func (s Sessions) Create(etx *echo.Context) error {
 			err,
 		)
 
-		var errorMsg string
-		switch {
-		case errors.Is(err, services.ErrInvalidCredentials):
-			errorMsg = "Invalid email or password"
-		case errors.Is(err, services.ErrEmailNotVerified):
-			errorMsg = "Please verify your email before logging in"
-		default:
-			errorMsg = "Failed to log in"
-		}
-
-		kiks.AddFlash(etx.Request().Context(), kiks.FlashError, errorMsg)
-
 		return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 	}
 
@@ -131,12 +119,6 @@ func (s Sessions) Create(etx *echo.Context) error {
 		return err
 	}
 
-	kiks.AddFlash(
-		etx.Request().Context(),
-		kiks.FlashSuccess,
-		"Successfully logged in!",
-	)
-
 	return hypermedia.Redirect(etx, routes.HomePage.URL())
 }
 
@@ -147,12 +129,6 @@ func (s Sessions) Destroy(etx *echo.Context) error {
 	if err := kiks.Destroy[*cookies.App](ctx); err != nil {
 		return err
 	}
-
-	kiks.AddFlash(
-		ctx,
-		kiks.FlashSuccess,
-		"Successfully logged out!",
-	)
 
 	return etx.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
 }

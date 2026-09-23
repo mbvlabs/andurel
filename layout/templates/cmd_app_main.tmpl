@@ -27,9 +27,7 @@ import (
 
 	"github.com/mbvlabs/andurel/pkg/email"
 	{{- if .Inertia}}
-	"github.com/labstack/echo/v5"
 	"github.com/mbvlabs/andurel/pkg/inertia"
-	"github.com/mbvlabs/andurel/pkg/kiks"
 	{{- end}}
 	"github.com/mbvlabs/andurel/pkg/server"
 	"github.com/mbvlabs/andurel/pkg/storage"
@@ -250,9 +248,6 @@ func newInertia(
 		inertia.WithProtocolDebug(cfg.ProtocolDebug),
 		inertia.WithShared(inertia.Props{"appVersion": appVersion}),
 		inertia.WithSSRFailFast(cfg.SSRFailFast),
-		inertia.WithFlashProvider(func(etx *echo.Context) any {
-			return kiks.Flashes(etx.Request().Context())
-		}),
 	)
 	if err != nil {
 		return nil, err
@@ -265,11 +260,14 @@ func newInertia(
 
 func newEmailSenders(
 	ctx context.Context,
-	cfg config.MailTransport,
+	cfg config.Mail,
 ) (email.TransactionalSender, email.MarketingSender, error) {
 	switch cfg.Driver {
 	case config.MailpitDriver:
-		client, err := email.NewMailpit(cfg.Mailpit)
+		client, err := email.NewMailpit(email.MailpitConfig{
+			Host: cfg.Host,
+			Port: cfg.Port,
+		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("create Mailpit client: %w", err)
 		}

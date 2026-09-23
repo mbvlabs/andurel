@@ -16,7 +16,6 @@ var Module = fx.Module("config",
 		NewQueueWorker,
 		NewTelemetry,
 		NewMail,
-		NewMailTransport,
 		NewInertia,
 	),
 )

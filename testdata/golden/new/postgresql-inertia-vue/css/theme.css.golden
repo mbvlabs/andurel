@@ -1,0 +1,50 @@
+/* Dark-first: landing palette. No .light unless we add one later. */
+:root {
+	color-scheme: dark;
+
+	--background: #090b0d;
+	--foreground: #e4dfd2;
+	--card: #101414;
+	--card-foreground: #f2ead8;
+	--popover: #101414;
+	--popover-foreground: #f2ead8;
+	--primary: #ff6b1a;
+	--primary-foreground: #130f0b;
+	--secondary: #101414;
+	--secondary-foreground: #e4dfd2;
+	--muted: #101414;
+	--muted-foreground: #8f8a7d;
+	--accent: #101414;
+	--accent-foreground: #f2ead8;
+	--destructive: #ff875f;
+	--destructive-foreground: #130f0b;
+	--border: #2f3a37;
+	--input: #2f3a37;
+	--ring: #8df7a4; /* mint mark — focus / logo */
+	--radius: 0; /* no rounded corners */
+}
+
+@theme inline {
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--radius-sm: 0;
+	--radius-md: 0;
+	--radius-lg: 0;
+}

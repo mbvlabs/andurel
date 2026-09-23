@@ -202,11 +202,14 @@ func newTelemetry(
 
 func newEmailSenders(
 	ctx context.Context,
-	cfg config.MailTransport,
+	cfg config.Mail,
 ) (email.TransactionalSender, email.MarketingSender, error) {
 	switch cfg.Driver {
 	case config.MailpitDriver:
-		client, err := email.NewMailpit(cfg.Mailpit)
+		client, err := email.NewMailpit(email.MailpitConfig{
+			Host: cfg.Host,
+			Port: cfg.Port,
+		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("create Mailpit client: %w", err)
 		}
