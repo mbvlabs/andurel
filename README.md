@@ -189,15 +189,16 @@ Many mutating commands support `--dry-run` and `--json`. Agent workflows: [andur
 
 1. Fork and branch
 2. Make changes
-3. Run `go fix ./...`, `gofmt -w` on changed Go files, and `go vet ./...`
+3. Run `just check-fmt`, `just check-fix`, and `just vet` (or `gofmt` / `go fix` / `go vet` with `GOWORK=off`)
 4. Open a pull request
+
+`just` recipes and CI set `GOWORK=off` so the CLI resolves `pkg/*` from `go.mod`, matching `go install`. The workspace file is for local ad-hoc work only.
 
 ```bash
 git clone https://github.com/mbvlabs/andurel
 cd andurel
-go mod download
-go fix ./...
-go vet ./...
+GOWORK=off go mod download
+just vet
 ```
 
 ## License

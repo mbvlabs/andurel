@@ -16,6 +16,7 @@ env:
   GO_VERSION: '1.27.1'
   GORELEASER_VERSION: 'v2.17.0'
   GORELEASER_CURRENT_TAG: ${{ github.ref_name }}
+  GOWORK: 'off'
   SIGNING_IDENTITY: https://github.com/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}
 
 jobs:

@@ -10,6 +10,8 @@ jobs:
     name: Full Test Suite
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      GOWORK: 'off'
 
     steps:
       - name: Checkout code
