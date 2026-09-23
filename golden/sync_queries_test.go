@@ -3,7 +3,7 @@ package golden
 import (
 	"testing"
 
-	"github.com/mbvlabs/andurel/internal/goldentest"
+	"github.com/mbvlabs/andurel/v2/internal/goldentest"
 )
 
 func TestSyncQueries(t *testing.T) {

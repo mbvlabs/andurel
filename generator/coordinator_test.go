@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/mbvlabs/andurel/internal/cache"
+	"github.com/mbvlabs/andurel/v2/internal/cache"
 )
 
 func setupTestProject(t *testing.T) (string, func()) {

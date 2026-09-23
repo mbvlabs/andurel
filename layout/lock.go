@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mbvlabs/andurel/layout/cmds"
-	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/v2/layout/cmds"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 	toml "github.com/pelletier/go-toml/v2"
 )
 

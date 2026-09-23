@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/v2/layout"
 )
 
 func TestIsEmailCompilerSource(t *testing.T) {

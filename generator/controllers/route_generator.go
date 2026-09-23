@@ -8,9 +8,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mbvlabs/andurel/generator/files"
-	"github.com/mbvlabs/andurel/internal/constants"
-	"github.com/mbvlabs/andurel/internal/naming"
+	"github.com/mbvlabs/andurel/v2/generator/files"
+	"github.com/mbvlabs/andurel/v2/internal/constants"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
 )
 
 // RouteGenerator generates route artifacts.

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mbvlabs/andurel/internal/naming"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
 )
 
 // ExtractTableNameOverride reads the table name from the andurel:table

@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/mbvlabs/andurel/cli/output"
-	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/v2/cli/output"
+	"github.com/mbvlabs/andurel/v2/layout"
 	"github.com/spf13/cobra"
 )
 

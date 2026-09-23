@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	"github.com/jinzhu/inflection"
-	"github.com/mbvlabs/andurel/generator/files"
-	"github.com/mbvlabs/andurel/generator/internal/catalog"
-	"github.com/mbvlabs/andurel/generator/internal/types"
-	"github.com/mbvlabs/andurel/generator/internal/validation"
-	"github.com/mbvlabs/andurel/internal/naming"
+	"github.com/mbvlabs/andurel/v2/generator/files"
+	"github.com/mbvlabs/andurel/v2/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/v2/generator/internal/types"
+	"github.com/mbvlabs/andurel/v2/generator/internal/validation"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
 )
 
 // ControllerType identifies the shape of controller being generated.

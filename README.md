@@ -4,7 +4,7 @@
 
 [![Go Version](https://img.shields.io/badge/go-1.27.1%2B-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Go Reference](https://pkg.go.dev/badge/github.com/mbvlabs/andurel.svg)](https://pkg.go.dev/github.com/mbvlabs/andurel)
+[![Go Reference](https://pkg.go.dev/badge/github.com/mbvlabs/andurel/v2.svg)](https://pkg.go.dev/github.com/mbvlabs/andurel/v2)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mbvlabs/andurel)](https://goreportcard.com/report/github.com/mbvlabs/andurel)
 [![codecov](https://codecov.io/gh/mbvlabs/andurel/branch/master/graph/badge.svg)](https://app.codecov.io/gh/mbvlabs/andurel)
 
@@ -58,19 +58,21 @@ Andurel is built for humans and agents on the same pad:
 
 Match the install channel to the docs you follow.
 
-### Latest stable (semver)
+### Latest stable (v2)
 
 ```bash
-go install github.com/mbvlabs/andurel@latest
+go install github.com/mbvlabs/andurel/v2@latest
 andurel --version
 ```
 
 ### Specific version
 
 ```bash
-go install github.com/mbvlabs/andurel@v1.2.3
+go install github.com/mbvlabs/andurel/v2@v2.0.0
 andurel --version
 ```
+
+v1 releases stay on the unversioned module path (`go install github.com/mbvlabs/andurel@v1.x.y`). That path's `@latest` never jumps to v2.
 
 ### Nightly (matches `master` / this README)
 

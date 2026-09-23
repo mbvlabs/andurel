@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/internal/cache"
+	"github.com/mbvlabs/andurel/v2/internal/cache"
 )
 
 func TestNewDefaultAppConfig(t *testing.T) {

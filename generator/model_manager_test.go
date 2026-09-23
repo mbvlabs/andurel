@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/generator/models"
-	"github.com/mbvlabs/andurel/internal/cache"
+	"github.com/mbvlabs/andurel/v2/generator/models"
+	"github.com/mbvlabs/andurel/v2/internal/cache"
 )
 
 func TestPlanModelRegistration(t *testing.T) {

@@ -3,7 +3,7 @@ package generator
 import (
 	"testing"
 
-	"github.com/mbvlabs/andurel/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/v2/generator/internal/catalog"
 )
 
 func TestDetectPrimaryKey(t *testing.T) {

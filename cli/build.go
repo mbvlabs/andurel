@@ -11,10 +11,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/layout/cmds"
-	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/v2/layout"
+	"github.com/mbvlabs/andurel/v2/layout/cmds"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 	"github.com/spf13/cobra"
 )
 

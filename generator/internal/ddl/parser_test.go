@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/generator/internal/validation"
+	"github.com/mbvlabs/andurel/v2/generator/internal/validation"
 )
 
 func TestStripComments(t *testing.T) {

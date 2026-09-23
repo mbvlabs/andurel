@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mbvlabs/andurel/cli/output"
+	"github.com/mbvlabs/andurel/v2/cli/output"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"

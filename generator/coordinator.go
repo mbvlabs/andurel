@@ -3,11 +3,11 @@ package generator
 import (
 	"fmt"
 
-	"github.com/mbvlabs/andurel/generator/files"
-	"github.com/mbvlabs/andurel/generator/models"
-	"github.com/mbvlabs/andurel/generator/views"
-	"github.com/mbvlabs/andurel/internal/naming"
-	"github.com/mbvlabs/andurel/internal/testseed"
+	"github.com/mbvlabs/andurel/v2/generator/files"
+	"github.com/mbvlabs/andurel/v2/generator/models"
+	"github.com/mbvlabs/andurel/v2/generator/views"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
+	"github.com/mbvlabs/andurel/v2/internal/testseed"
 )
 
 // Coordinator wires the managers that implement high-level generation workflows.

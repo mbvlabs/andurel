@@ -1,8 +1,8 @@
 package layout
 
 import (
-	"github.com/mbvlabs/andurel/layout/blueprint"
-	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/v2/layout/blueprint"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
 
 // TemplateData carries the values available to base templates.

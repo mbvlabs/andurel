@@ -3,7 +3,7 @@ package types
 import (
 	"strings"
 
-	"github.com/mbvlabs/andurel/internal/naming"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
 )
 
 // TypeOverride lets users map a SQL database type to a custom Go type.

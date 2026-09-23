@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/layout/cmds"
+	"github.com/mbvlabs/andurel/v2/layout"
+	"github.com/mbvlabs/andurel/v2/layout/cmds"
 )
 
 // SeedProjectTools copies pinned binaries from ToolBinDir into projectDir/bin,

@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/v2/layout"
 	"golang.org/x/mod/semver"
 )
 

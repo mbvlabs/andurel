@@ -5,9 +5,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/mbvlabs/andurel/generator/internal/catalog"
-	"github.com/mbvlabs/andurel/generator/internal/ddl"
-	"github.com/mbvlabs/andurel/generator/internal/migrations"
+	"github.com/mbvlabs/andurel/v2/generator/internal/catalog"
+	"github.com/mbvlabs/andurel/v2/generator/internal/ddl"
+	"github.com/mbvlabs/andurel/v2/generator/internal/migrations"
 )
 
 // MigrationManager coordinates migration operations.

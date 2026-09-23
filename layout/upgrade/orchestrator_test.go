@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/v2/layout"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
 
 var errPresentationWrite = errors.New("presentation write failed")

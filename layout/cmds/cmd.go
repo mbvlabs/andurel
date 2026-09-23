@@ -7,9 +7,9 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/mbvlabs/andurel/internal/testseed"
-	"github.com/mbvlabs/andurel/layout/versions"
 	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/v2/internal/testseed"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
 
 func resolveProjectTool(name, projectDir string) string {

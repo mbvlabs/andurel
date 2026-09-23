@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mbvlabs/andurel/layout"
-	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/v2/layout"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 	"github.com/pmezard/go-difflib/difflib"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/semver"

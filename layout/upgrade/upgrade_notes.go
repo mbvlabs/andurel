@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 	"golang.org/x/mod/semver"
 )
 

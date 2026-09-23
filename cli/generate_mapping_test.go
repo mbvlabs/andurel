@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/generator"
-	"github.com/mbvlabs/andurel/layout"
+	"github.com/mbvlabs/andurel/v2/generator"
+	"github.com/mbvlabs/andurel/v2/layout"
 )
 
 func TestGenerateModelMapsFlagsToGenerator(t *testing.T) {

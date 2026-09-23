@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mbvlabs/andurel/generator/files"
-	"github.com/mbvlabs/andurel/generator/templates"
+	"github.com/mbvlabs/andurel/v2/generator/files"
+	"github.com/mbvlabs/andurel/v2/generator/templates"
 )
 
 const registerRoutesReturn = "return errors.Join(errs...)"

@@ -16,8 +16,8 @@ import (
 	"strings"
 
 	"github.com/jinzhu/inflection"
-	"github.com/mbvlabs/andurel/generator/models"
-	"github.com/mbvlabs/andurel/internal/naming"
+	"github.com/mbvlabs/andurel/v2/generator/models"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
 	"github.com/pmezard/go-difflib/difflib"
 	"golang.org/x/tools/go/packages"
 )

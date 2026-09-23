@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/generator/models"
+	"github.com/mbvlabs/andurel/v2/generator/models"
 )
 
 type factorySyncRootFileManager struct {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mbvlabs/andurel/generator/models"
+	"github.com/mbvlabs/andurel/v2/generator/models"
 )
 
 // FieldAnalyzer determines appropriate default values for factory fields

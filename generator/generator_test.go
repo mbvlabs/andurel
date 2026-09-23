@@ -3,7 +3,7 @@ package generator
 import (
 	"testing"
 
-	"github.com/mbvlabs/andurel/internal/cache"
+	"github.com/mbvlabs/andurel/v2/internal/cache"
 )
 
 func TestNew(t *testing.T) {

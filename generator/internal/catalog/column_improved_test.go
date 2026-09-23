@@ -3,7 +3,7 @@ package catalog
 import (
 	"testing"
 
-	testsuite "github.com/mbvlabs/andurel/internal/testing"
+	testsuite "github.com/mbvlabs/andurel/v2/internal/testing"
 )
 
 // testError is a simple error for testing purposes

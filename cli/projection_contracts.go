@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mbvlabs/andurel/cli/output"
+	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/spf13/cobra"
 )
 

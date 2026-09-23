@@ -10,8 +10,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mbvlabs/andurel/cli/output"
-	"github.com/mbvlabs/andurel/layout/versions"
+	"github.com/mbvlabs/andurel/v2/cli/output"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 	"github.com/spf13/cobra"
 	"golang.org/x/mod/modfile"
 )

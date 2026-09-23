@@ -3,9 +3,9 @@ package cli
 import (
 	"fmt"
 
-	"github.com/mbvlabs/andurel/cli/output"
-	"github.com/mbvlabs/andurel/generator"
-	"github.com/mbvlabs/andurel/internal/naming"
+	"github.com/mbvlabs/andurel/v2/cli/output"
+	"github.com/mbvlabs/andurel/v2/generator"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
 	"github.com/spf13/cobra"
 )
 

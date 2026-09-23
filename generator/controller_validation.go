@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/jinzhu/inflection"
-	"github.com/mbvlabs/andurel/internal/naming"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
 )
 
 type controllerValidationContext struct {

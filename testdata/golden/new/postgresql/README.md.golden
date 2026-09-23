@@ -46,7 +46,7 @@ app/
 
 - Go 1.24.4 or higher
 - PostgreSQL database
-- Andurel CLI: `go install github.com/mbvlabs/andurel@latest`
+- Andurel CLI: `go install github.com/mbvlabs/andurel/v2@latest`
 
 ### Setup
 

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mbvlabs/andurel/internal/goldentest"
+	"github.com/mbvlabs/andurel/v2/internal/goldentest"
 )
 
 const dummyProjectEnv = `DB_KIND=postgres

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	layouttemplates "github.com/mbvlabs/andurel/layout/templates"
+	layouttemplates "github.com/mbvlabs/andurel/v2/layout/templates"
 )
 
 func TestGeneratedConfigRuntime(t *testing.T) {

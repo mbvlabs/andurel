@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mbvlabs/andurel/internal/goldentest"
+	"github.com/mbvlabs/andurel/v2/internal/goldentest"
 )
 
 func TestNewProjectMVC(t *testing.T) {
