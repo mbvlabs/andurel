@@ -125,6 +125,13 @@ func (m *ModelManager) UpdateModel(resourceName string) (*UpdateModelResult, err
 		return nil, fmt.Errorf("failed to read model file: %w", err)
 	}
 
+	if IsCustomModel(modelPath) {
+		return nil, fmt.Errorf(
+			"%s is a custom model (// andurel:custom) and cannot be updated from migrations; edit fields by hand or regenerate with --custom",
+			modelPath,
+		)
+	}
+
 	entityName := resourceName
 
 	existingFields, structStart, structEnd, err := parseEntityStruct(src, entityName)

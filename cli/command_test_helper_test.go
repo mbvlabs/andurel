@@ -159,7 +159,6 @@ func resetCLITestSeams(t *testing.T) {
 	cache.ClearFileSystemCache()
 	defaultFindGoModRoot := findGoModRoot
 	defaultNewGenerator := newGenerator
-	defaultRunModelUpdate := runModelUpdateFunc
 	defaultRunTempl := runTemplFunc
 	defaultRunFmt := runFmtFunc
 	defaultRunGoFmt := runGoFmtFunc
@@ -184,7 +183,6 @@ func resetCLITestSeams(t *testing.T) {
 	t.Cleanup(func() {
 		findGoModRoot = defaultFindGoModRoot
 		newGenerator = defaultNewGenerator
-		runModelUpdateFunc = defaultRunModelUpdate
 		runTemplFunc = defaultRunTempl
 		runFmtFunc = defaultRunFmt
 		runGoFmtFunc = defaultRunGoFmt
@@ -347,6 +345,24 @@ func (f *fakeGenerator) PlanModel(
 	options generator.ModelGenerationOptions,
 ) (*generator.ModelGenerationPlan, error) {
 	f.modelPlanCalls = append(f.modelPlanCalls, modelPlanCall{name: resourceName, options: options})
+	return f.modelPlan, f.modelPlanErr
+}
+
+func (f *fakeGenerator) GenerateCustomModel(resourceName string, fieldSpecs []string) error {
+	f.modelCalls = append(f.modelCalls, modelCall{
+		name:        resourceName,
+		skipFactory: true,
+	})
+	_ = fieldSpecs
+	return f.err
+}
+
+func (f *fakeGenerator) PlanCustomModel(
+	resourceName string,
+	fieldSpecs []string,
+) (*generator.ModelGenerationPlan, error) {
+	f.modelPlanCalls = append(f.modelPlanCalls, modelPlanCall{name: resourceName})
+	_ = fieldSpecs
 	return f.modelPlan, f.modelPlanErr
 }
 

@@ -55,6 +55,7 @@ andurel run --tools mailpit
 
 - Create SQL: `andurel generate migration NAME` then `andurel db migrate up`.
 - Create a model: `andurel generate model NAME`.
+- Refresh a model after migrations: `andurel sync model NAME`.
 - Compile SQL: `andurel sync queries`.
 - List models: `andurel inspect models --json`.
 - List routes: `andurel inspect routes --json`.
@@ -62,7 +63,7 @@ andurel run --tools mailpit
 - Compile Templ: `andurel sync views`.
 - List `.templ` files: `andurel inspect views --json`.
 
-`--json` and `--agent` never wait on a TTY. Pass `--yes`, `--force`, `--harness`, or `--primary-key` instead of answering a prompt.
+`--json` and `--agent` never wait on a TTY. Pass `--force`, `--harness`, or `--primary-key` instead of answering a prompt.
 
 ## Command table
 
@@ -93,7 +94,7 @@ andurel run --tools mailpit
 | `andurel generate email` | Author a new email template |
 | `andurel generate job` | Generate a background job and worker |
 | `andurel generate migration` | Create a new SQL migration file |
-| `andurel generate model` | Generate or update a model from a SQL migration |
+| `andurel generate model` | Generate a new model from a SQL migration |
 | `andurel generate query` | Create a narsilc SQL query file |
 | `andurel generate scaffold` | Generate a model, controller, views, and routes |
 | `andurel inspect` | Read-only project shape |
@@ -117,6 +118,7 @@ andurel run --tools mailpit
 | `andurel sync email` | Compile Tailwind classes in email templates |
 | `andurel sync factories` | Check or sync every model factory |
 | `andurel sync factory` | Sync one model factory from the model Entity |
+| `andurel sync model` | Sync one model from SQL migrations |
 | `andurel sync payloads` | Write TypeScript payload types for Inertia |
 | `andurel sync queries` | Compile narsilc SQL into Go |
 | `andurel sync routes` | Write TypeScript route helpers for Inertia |

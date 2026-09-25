@@ -22,3 +22,31 @@ Split these migrations into supported statements or update the generated model e
 ## Model-neutral statements
 
 Statements that can be proven not to change generated table structure may produce a warning and are otherwise ignored. This includes data-only `INSERT`, `UPDATE`, `DELETE`, and `TRUNCATE` statements, transaction control, comments, grants, revocations, session settings, `VACUUM`, `ANALYZE`, and index creation or removal. `SELECT INTO`, procedural calls, dynamic SQL, and cascading type or schema drops are not considered model-neutral.
+
+## Custom (non-table) models
+
+When an entity is not backed by a migration table — for example a row shape returned by a hand-written narsilc query — use:
+
+```
+andurel generate model AggregateResult --custom id:uuid name:string currency:int64
+```
+
+This path does not read migrations. It emits:
+
+- `models/<snake>.go` marked `// andurel:custom` with a service shell (`NewX`, `WithTx`), the entity struct, and an empty `Validate()` stub
+- `models/queries/<snake>.sql` via the same stub template as `generate query` (no live `-- name:` annotations)
+- Fx registration of `NewX` in `models/model.go`
+
+No CRUD methods and no factory are generated. `--custom` conflicts with `--table-name`, `--mode`, and `--primary-key`. After you author annotated SQL, run `andurel sync queries`. Custom models cannot be refreshed with `andurel sync model`; edit fields by hand or regenerate with `--custom`.
+
+## Refreshing a table model after migrations
+
+After a migration changes columns on an existing table-backed model:
+
+```
+andurel sync model Post
+andurel sync model Post --check
+andurel sync model Post --check --diff
+```
+
+`sync model` writes by default and updates the model only. Refresh the factory separately with `andurel sync factory Post` when needed.

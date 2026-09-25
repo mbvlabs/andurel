@@ -87,6 +87,19 @@ func (g *Generator) ApplyModelPlan(plan *ModelGenerationPlan) error {
 	return g.coordinator.ModelManager.ApplyModelPlan(plan)
 }
 
+// GenerateCustomModel generates a non-table-backed model from field:type specs.
+func (g *Generator) GenerateCustomModel(resourceName string, fieldSpecs []string) error {
+	return g.coordinator.ModelManager.GenerateCustomModel(resourceName, fieldSpecs)
+}
+
+// PlanCustomModel computes custom model generation output without writing files.
+func (g *Generator) PlanCustomModel(
+	resourceName string,
+	fieldSpecs []string,
+) (*ModelGenerationPlan, error) {
+	return g.coordinator.ModelManager.PlanCustomModel(resourceName, fieldSpecs)
+}
+
 // GenerateController generates controller and route files for a resource.
 func (g *Generator) GenerateController(
 	resourceName, namespace, tableName string,
