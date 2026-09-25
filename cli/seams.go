@@ -25,6 +25,11 @@ type cliGenerator interface {
 		resourceName string,
 		options generator.ModelGenerationOptions,
 	) (*generator.ModelGenerationPlan, error)
+	GenerateCustomModel(resourceName string, fieldSpecs []string) error
+	PlanCustomModel(
+		resourceName string,
+		fieldSpecs []string,
+	) (*generator.ModelGenerationPlan, error)
 	GenerateControllerWithActions(
 		resourceName, namespace, tableName string,
 		actions []string,
@@ -61,7 +66,6 @@ var newGenerator = func() (cliGenerator, error) {
 	return &gen, nil
 }
 
-var runModelUpdateFunc = runModelUpdate
 var runTemplFunc = runTempl
 var runFmtFunc = runFmt
 var runGoFmtFunc = runGoFmt

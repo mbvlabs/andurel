@@ -1,0 +1,11 @@
+-- narsilc queries for AggregateResult
+--
+-- Add annotated queries below, then run:
+--   andurel sync queries
+
+-- Example:
+-- -- name: ListAggregateResult :many
+-- SELECT *
+-- FROM your_table
+-- WHERE 1 = 0;
+

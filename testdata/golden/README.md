@@ -75,7 +75,7 @@ scrubber. If a path floats, denylist it (nightly) or omit it from the allowlist
 
 | Path | Source |
 |------|--------|
-| `generate/model/` | `andurel generate model …` |
+| `generate/model/` | `andurel generate model …` (includes `sync model` refresh scenarios) |
 | `generate/scaffold/` | `andurel generate scaffold …` |
 | `generate/controller/` | `andurel generate controller …` |
 | `generate/job/` | `andurel generate job …` |
@@ -161,7 +161,7 @@ Tests only run `andurel sync …`; they do not regenerate models first.
 
 | Family | Scenarios | What is asserted |
 |--------|-----------|------------------|
-| `generate/model/` | 7 | initial, two-step update, custom PK, no PK, no PK without UUID, `--mode read-only`, with factory |
+| `generate/model/` | 8 | initial, two-step update, custom PK, no PK, no PK without UUID, `--mode read-only`, with factory, `--custom` |
 | `generate/scaffold/` | 8 | full CRUD, `--skip-factory`, `--table-name`, irregular plural, array fields, custom PK, `--inertia` Vue (including `routes.ts` / `payloads.ts`), `--api` |
 | `generate/controller/` | 7 | full CRUD, single action, add-action, `--model-name`, custom-only `export`, namespaced `admin/Widget`, `--inertia` |
 | `generate/job/` | 2 | default queue (job + worker + `queue/workers.go`), `--queue` |

@@ -189,26 +189,49 @@ func TestGenerateModelDryRunReturnsPlanningError(t *testing.T) {
 	}
 }
 
-func TestGenerateModelUpdateMapsYesFlag(t *testing.T) {
+func TestSyncModelWritesByDefault(t *testing.T) {
 	resetCLITestSeams(t)
-	var gotName string
-	var gotAutoApply bool
-	runModelUpdateFunc = func(resourceName string, autoApply bool, skipFactory bool) error {
-		gotName = resourceName
-		gotAutoApply = autoApply
-		return nil
+	fake := installFakeGenerator(t)
+	fake.modelUpdate = &generator.UpdateModelResult{
+		ModelPath:      "models/widget.go",
+		HasChanges:     true,
+		NewFileContent: "package models\n",
+		OldFileContent: "package models\n// old\n",
+		OldStruct:      "type Widget struct{}",
+		NewStruct:      "type Widget struct{ ID string }",
 	}
 
-	result := executeCLITest(t, "generate", "model", "Widget", "--update", "--yes")
+	result := executeCLITest(t, "sync", "model", "Widget")
 	if result.err != nil {
-		t.Fatalf("generate model update failed: %v", result.err)
+		t.Fatalf("sync model failed: %v", result.err)
 	}
-	if gotName != "Widget" || !gotAutoApply {
-		t.Fatalf(
-			"expected update Widget autoApply=true, got name=%q autoApply=%v",
-			gotName,
-			gotAutoApply,
-		)
+	if len(fake.modelUpdateCalls) != 1 || fake.modelUpdateCalls[0] != "Widget" {
+		t.Fatalf("expected UpdateModel(Widget), got %#v", fake.modelUpdateCalls)
+	}
+	if len(fake.modelApplyCalls) != 1 {
+		t.Fatalf("expected ApplyModelUpdate once, got %d", len(fake.modelApplyCalls))
+	}
+	if fake.modelApplyCalls[0].FactoryHasChanges || fake.modelApplyCalls[0].NewFactoryContent != "" {
+		t.Fatalf("sync model must not apply factory changes: %#v", fake.modelApplyCalls[0])
+	}
+}
+
+func TestSyncModelCheckReportsDriftWithoutWriting(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+	fake.modelUpdate = &generator.UpdateModelResult{
+		ModelPath:  "models/widget.go",
+		HasChanges: true,
+		OldStruct:  "type Widget struct{}",
+		NewStruct:  "type Widget struct{ ID string }",
+	}
+
+	result := executeCLITest(t, "sync", "model", "Widget", "--check")
+	if result.err == nil {
+		t.Fatal("expected sync model --check to fail when model is stale")
+	}
+	if len(fake.modelApplyCalls) != 0 {
+		t.Fatalf("check must not write, got %d ApplyModelUpdate calls", len(fake.modelApplyCalls))
 	}
 }
 

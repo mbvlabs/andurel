@@ -887,28 +887,7 @@ func TestRunTemplAndToolListCommands(t *testing.T) {
 	}
 }
 
-func TestModelPromptAndDiffOutput(t *testing.T) {
-	originalStdin := os.Stdin
-	t.Cleanup(func() { os.Stdin = originalStdin })
-
-	os.Stdin = tempInputFile(t, "yes\n")
-	confirmed, err := confirmModelApply()
-	if err != nil {
-		t.Fatalf("confirmModelApply yes: %v", err)
-	}
-	if !confirmed {
-		t.Fatalf("expected yes to confirm")
-	}
-
-	os.Stdin = tempInputFile(t, "\n")
-	confirmed, err = confirmModelApply()
-	if err != nil {
-		t.Fatalf("confirmModelApply default: %v", err)
-	}
-	if confirmed {
-		t.Fatalf("expected blank response to decline")
-	}
-
+func TestModelDiffOutput(t *testing.T) {
 	capture := captureProcessOutput(t, &os.Stdout)
 	printColoredDiff("--- old\n+++ new\n@@ hunk\n-removed\n+added\n context")
 	out := capture()

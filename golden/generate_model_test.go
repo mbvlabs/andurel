@@ -36,12 +36,9 @@ func TestGenerateModel(t *testing.T) {
 				{
 					addMigrations: "model_generation_updated",
 					args: []string{
-						"generate",
+						"sync",
 						"model",
 						"Product",
-						"--update",
-						"--yes",
-						"--skip-factory",
 					},
 				},
 			},
@@ -120,12 +117,35 @@ func TestGenerateModel(t *testing.T) {
 				"models/queries/product.sql",
 			},
 		},
+		{
+			name: "custom",
+			steps: []generateStep{
+				{
+					args: []string{
+						"generate",
+						"model",
+						"AggregateResult",
+						"--custom",
+						"id:uuid",
+						"name:string",
+						"currency:int64",
+					},
+				},
+			},
+			capture: []string{
+				"models/aggregate_result.go",
+				"models/model.go",
+				"models/queries/aggregate_result.sql",
+			},
+		},
 	}
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.name, func(t *testing.T) {
 			project := goldentest.CopyFixture(t, "generate_base")
-			goldentest.CopyMigrations(t, project, scenario.migrations)
+			if scenario.migrations != "" {
+				goldentest.CopyMigrations(t, project, scenario.migrations)
+			}
 
 			g := goldentest.NewGoldie(t)
 			runGenerateSteps(t, project, scenario.steps)

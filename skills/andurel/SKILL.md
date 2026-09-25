@@ -126,6 +126,15 @@ andurel sync queries --json
 
 Keep hand-written SQL in `models/queries/` and generated code in `models/internal/queries/`. Only the owning `models` package should import that internal package. Construct clients with `queries.New(db)` where `db` is `storage.Connection`, and inside shared transactions use `queries.New(tx)` where `tx` is `storage.Transaction`.
 
+After a migration changes columns on an existing table model:
+
+```bash
+andurel sync model Product --check --json
+andurel sync model Product --json
+```
+
+`andurel sync model` writes by default and updates the model only. Refresh the factory separately with `andurel sync factory`.
+
 Check or sync factories:
 
 ```bash

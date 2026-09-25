@@ -10,6 +10,22 @@ import (
 	"github.com/mbvlabs/andurel/v2/internal/naming"
 )
 
+// IsCustomModel reports whether the model file is marked // andurel:custom.
+func IsCustomModel(modelPath string) bool {
+	content, err := os.ReadFile(modelPath)
+	if err != nil {
+		return false
+	}
+	scanner := bufio.NewScanner(bytes.NewReader(content))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "// andurel:custom" {
+			return true
+		}
+	}
+	return false
+}
+
 // ExtractTableNameOverride reads the table name from the andurel:table
 // comment on a generated model file.
 func ExtractTableNameOverride(modelPath string, resourceName string) (string, bool) {
@@ -20,6 +36,9 @@ func ExtractTableNameOverride(modelPath string, resourceName string) (string, bo
 	scanner := bufio.NewScanner(bytes.NewReader(content))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
+		if line == "// andurel:custom" {
+			return "", false
+		}
 		if after, ok := strings.CutPrefix(line, "// andurel:table "); ok {
 			table := strings.TrimSpace(after)
 			if table != "" {
