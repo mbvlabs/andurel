@@ -94,6 +94,7 @@ func (c *ControllerManager) GenerateControllerWithActions(
 		inertia,
 		false,
 		"",
+		"",
 	)
 }
 
@@ -103,7 +104,7 @@ func (c *ControllerManager) GenerateControllerWithActionsForModel(
 	actions []string,
 	inertia string,
 	isAPI bool,
-	hostExpr string,
+	hostExpr, hostPkg string,
 ) error {
 	modulePath := c.projectManager.GetModulePath()
 	if modelName == "" {
@@ -181,6 +182,7 @@ func (c *ControllerManager) GenerateControllerWithActionsForModel(
 		actions,
 		isAPI,
 		hostExpr,
+		hostPkg,
 	); err != nil {
 		return fmt.Errorf("failed to generate controller: %w", err)
 	}

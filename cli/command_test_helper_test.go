@@ -357,7 +357,7 @@ func (f *fakeGenerator) GenerateControllerWithActions(
 	actions []string,
 	inertia string,
 	isAPI bool,
-	hostExpr string,
+	hostExpr, hostPkg string,
 ) error {
 	f.controllerCalls = append(f.controllerCalls, controllerCall{
 		name:      resourceName,
@@ -377,7 +377,7 @@ func (f *fakeGenerator) GenerateControllerWithActionsForModel(
 	actions []string,
 	inertia string,
 	isAPI bool,
-	hostExpr string,
+	hostExpr, hostPkg string,
 ) error {
 	f.controllerCalls = append(f.controllerCalls, controllerCall{
 		name:      resourceName,
@@ -398,7 +398,7 @@ func (f *fakeGenerator) GenerateScaffold(
 	primaryKeyColumn string,
 	inertia string,
 	isAPI bool,
-	hostExpr string,
+	hostExpr, hostPkg string,
 ) error {
 	f.scaffoldCalls = append(f.scaffoldCalls, scaffoldCall{
 		name:        resourceName,

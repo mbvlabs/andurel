@@ -123,6 +123,11 @@ func (c App) Origins() []string {
 	for _, name := range names {
 		add(c.Hosts[name])
 	}
+	if len(origins) == 0 {
+		if origin := c.BaseURL(); origin != "" {
+			return []string{origin}
+		}
+	}
 	return origins
 }
 

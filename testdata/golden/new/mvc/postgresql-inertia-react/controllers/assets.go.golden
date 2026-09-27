@@ -33,59 +33,47 @@ func NewAssets(cache *Cache[string], appCfg config.App) Assets {
 func (a Assets) RegisterRoutes(r *router.Router) error {
 	errs := []error{}
 
-	_, err := r.AddRoute(echo.Route{
+	_, err := r.AddRoute(routes.Robots, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.Robots.Path(),
-		Name:    routes.Robots.Name(),
 		Handler: a.Robots,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.Sitemap, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.Sitemap.Path(),
-		Name:    routes.Sitemap.Name(),
 		Handler: a.Sitemap,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.Stylesheet, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.Stylesheet.Path(),
-		Name:    routes.Stylesheet.Name(),
 		Handler: a.Stylesheet,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.Scripts, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.Scripts.Path(),
-		Name:    routes.Scripts.Name(),
 		Handler: a.Scripts,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.Script, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.Script.Path(),
-		Name:    routes.Script.Name(),
 		Handler: a.Script,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.ViteBuild, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.ViteBuild.Path(),
-		Name:    routes.ViteBuild.Name(),
 		Handler: a.ViteBuild,
 	})
 	if err != nil {

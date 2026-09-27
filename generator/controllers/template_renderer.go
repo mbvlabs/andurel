@@ -217,7 +217,7 @@ func (tr *TemplateRenderer) generateRouteContent(
 	resourceName, namespace, pluralName, idType string,
 	actions []string,
 	isInertia bool,
-	hostExpr string,
+	hostExpr, hostPkg string,
 ) (string, error) {
 	// Get module path
 	modulePath, err := tr.getModulePath()
@@ -238,6 +238,7 @@ func (tr *TemplateRenderer) generateRouteContent(
 		CustomActions   []customRouteAction
 		IsInertia       bool
 		HostExpr        string
+		HostPkg         string
 	}{
 		ResourceName:    resourceName,
 		Namespace:       namespace,
@@ -250,6 +251,7 @@ func (tr *TemplateRenderer) generateRouteContent(
 		CustomActions:   customRouteActions(actions),
 		IsInertia:       isInertia,
 		HostExpr:        hostExpr,
+		HostPkg:         routeHostPkg(hostExpr, hostPkg),
 	}
 
 	customFuncs := template.FuncMap{
@@ -267,6 +269,17 @@ func (tr *TemplateRenderer) generateRouteContent(
 		return "", errors.WrapTemplateError(err, "render route", "route.tmpl")
 	}
 	return result, nil
+}
+
+func routeHostPkg(hostExpr, hostPkg string) string {
+	hostPkg = strings.TrimSpace(hostPkg)
+	if hostPkg != "" && hostPkg != "." {
+		return hostPkg
+	}
+	if pkg, _, ok := strings.Cut(strings.TrimSpace(hostExpr), "."); ok {
+		return pkg
+	}
+	return ""
 }
 
 // getModulePath reads go.mod to get the module path

@@ -176,3 +176,53 @@ func TestTelemetryPackageManualActionVersionGate(t *testing.T) {
 		})
 	}
 }
+
+func TestHostPrimaryConfigManualActionVersionGate(t *testing.T) {
+	tests := []struct {
+		name string
+		from string
+		to   string
+		want bool
+	}{
+		{name: "first affected upgrade", from: "v1.9.0", to: "v2.0.0", want: true},
+		{name: "skips directly over release", from: "v1.5.6", to: "v2.1.0", want: true},
+		{name: "already received note", from: "v2.0.0", to: "v2.1.0", want: false},
+		{name: "target predates release", from: "v1.5.6", to: "v1.9.0", want: false},
+		{name: "development version", from: "dev", to: "v2.0.0", want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actions, err := manualActionsForUpgrade(test.from, test.to, "example.com/acme", false)
+			if err != nil {
+				t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
+			}
+
+			var action *ManualAction
+			for i := range actions {
+				if actions[i].ID == "host-primary-config-v2.0.0" {
+					action = &actions[i]
+					break
+				}
+			}
+			if got := action != nil; got != test.want {
+				t.Fatalf("host-primary action present = %t, want %t: %#v", got, test.want, actions)
+			}
+			if !test.want {
+				return
+			}
+
+			for _, want := range []string{
+				"DOMAIN",
+				"HOST_PRIMARY",
+				"CSRF_TRUSTED_ORIGINS",
+				"routing.Host(config.HostAdmin)",
+				"RegisterRoutes(*router.Router)",
+			} {
+				if !strings.Contains(action.Instructions, want) {
+					t.Errorf("manual action missing %q:\n%s", want, action.Instructions)
+				}
+			}
+		})
+	}
+}

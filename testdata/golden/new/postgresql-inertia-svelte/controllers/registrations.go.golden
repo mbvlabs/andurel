@@ -29,23 +29,19 @@ func NewRegistrations(
 	return Registrations{identity: identity, renderer: renderer}
 }
 
-func (r Registrations) RegisterRoutes(rtr *router.HostRouter) error {
+func (r Registrations) RegisterRoutes(rtr *router.Router) error {
 	errs := []error{}
 
-	_, err := rtr.AddRoute(echo.Route{
+	_, err := rtr.AddRoute(routes.RegistrationNew, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.RegistrationNew.Path(),
-		Name:    routes.RegistrationNew.Name(),
 		Handler: r.New,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	_, err = rtr.AddRoute(echo.Route{
+	_, err = rtr.AddRoute(routes.RegistrationCreate, echo.Route{
 		Method:  http.MethodPost,
-		Path:    routes.RegistrationCreate.Path(),
-		Name:    routes.RegistrationCreate.Name(),
 		Handler: r.Create,
 		Middlewares: []echo.MiddlewareFunc{
 			middleware.IPRateLimiter(5, routes.RegistrationNew),

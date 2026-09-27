@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sort"
 	"strings"
 
 	"app/config"
@@ -21,20 +20,28 @@ import (
 	"go.uber.org/fx"
 )
 
+// HostedRoute is a named path bound to one HostName. AddRoute reads Path,
+// Name, and Host from it so the host is declared only on the route.
+type HostedRoute interface {
+	Name() string
+	Path() string
+	Host() routing.HostName
+}
+
 // Router is the process-wide HTTP entrypoint. Named hosts each get a child
 // Echo; unknown Request.Host values are served by the primary Echo.
 type Router struct {
 	hosts   map[routing.HostName]*echo.Echo
-	primary *echo.Echo
 	Handler http.Handler
 }
 
-// HostRouter registers routes and extra middleware on one named host.
-type HostRouter struct {
-	name routing.HostName
-	e    *echo.Echo
-	err  error
-}
+// perHostMiddleware is extra middleware for a named host, applied after the
+// shared global stack while child Echos are built. Example:
+//
+//	var perHostMiddleware = map[routing.HostName][]echo.MiddlewareFunc{
+//		config.HostAdmin: {adminCSRF, ipAllowlist},
+//	}
+var perHostMiddleware = map[routing.HostName][]echo.MiddlewareFunc{}
 
 func New(
 	appCfg config.App,
@@ -72,6 +79,7 @@ func New(
 		child := echo.New()
 		child.HTTPErrorHandler = httpErrorHandler
 		child.Use(globalMiddleware...)
+		child.Use(perHostMiddleware[name]...)
 		children[name] = child
 		registerHostnames(vhosts, spec, child)
 	}
@@ -79,11 +87,11 @@ func New(
 	primary := echo.NewVirtualHostHandler(vhosts)
 	primary.HTTPErrorHandler = httpErrorHandler
 	primary.Use(globalMiddleware...)
+	primary.Use(perHostMiddleware[routing.HostPrimary]...)
 	children[routing.HostPrimary] = primary
 
 	return &Router{
 		hosts:   children,
-		primary: primary,
 		Handler: telemetry.WrapHandler("http", primary, tel),
 	}, nil
 }
@@ -242,111 +250,53 @@ func mergeCredentialedOrigins(base []string, extra []string) ([]string, error) {
 	return origins, nil
 }
 
-// Host returns a registrar for the named Echo. Unknown names fail when
-// AddRoute is called so missing HOST_* values surface at boot.
-func (r *Router) Host(name routing.HostName) *HostRouter {
+func (r *Router) echoFor(name routing.HostName) (*echo.Echo, error) {
 	if name == "" {
 		name = routing.HostPrimary
 	}
 	e, ok := r.hosts[name]
 	if !ok {
-		return &HostRouter{
-			name: name,
-			err: fmt.Errorf(
-				"router: host %q is not configured (set a hostname for this HostName at boot)",
-				name,
-			),
-		}
+		return nil, fmt.Errorf(
+			"router: host %q is not configured (set a hostname for this HostName at boot)",
+			name,
+		)
 	}
-	return &HostRouter{name: name, e: e}
+	return e, nil
 }
 
-// EachHost calls fn for every configured host, primary first.
-func (r *Router) EachHost(fn func(*HostRouter) error) error {
-	if fn == nil {
-		return nil
+// AddRoute mounts route on the Echo for rt.Host(). Empty Path/Name are filled
+// from rt so controllers do not copy them. A missing HOST_* fails at boot,
+// naming the route.
+func (r *Router) AddRoute(rt HostedRoute, route echo.Route) (echo.RouteInfo, error) {
+	if rt == nil {
+		return echo.RouteInfo{}, errors.New("router: hosted route is nil")
 	}
-	names := make([]routing.HostName, 0, len(r.hosts))
-	for name := range r.hosts {
-		if name == routing.HostPrimary {
-			continue
-		}
-		names = append(names, name)
+	if route.Path == "" {
+		route.Path = rt.Path()
 	}
-	sort.Slice(names, func(i, j int) bool {
-		return names[i] < names[j]
-	})
-	ordered := append([]routing.HostName{routing.HostPrimary}, names...)
-	var errs []error
-	for _, name := range ordered {
-		if err := fn(r.Host(name)); err != nil {
-			errs = append(errs, err)
-		}
+	if route.Name == "" {
+		route.Name = rt.Name()
 	}
-	return errors.Join(errs...)
-}
-
-// AddRoute mounts a route on every host Echo (assets, /api).
-func (r *Router) AddRoute(route echo.Route) (echo.RouteInfo, error) {
-	var info echo.RouteInfo
-	var errs []error
-	err := r.EachHost(func(h *HostRouter) error {
-		ri, addErr := h.AddRoute(route)
-		if addErr != nil {
-			return addErr
-		}
-		info = ri
-		return nil
-	})
+	e, err := r.echoFor(rt.Host())
 	if err != nil {
-		errs = append(errs, err)
+		return echo.RouteInfo{}, fmt.Errorf("router: %s: %w", rt.Name(), err)
 	}
-	return info, errors.Join(errs...)
+	return e.AddRoute(route)
 }
 
+// AddRouteNotFound registers a host-scoped catch-all for rt.Host().
 func (r *Router) AddRouteNotFound(
+	rt HostedRoute,
 	notFoundHandler echo.HandlerFunc,
-) echo.RouteInfo {
-	var info echo.RouteInfo
-	_ = r.EachHost(func(h *HostRouter) error {
-		info = h.AddRouteNotFound(notFoundHandler)
-		return nil
-	})
-	return info
-}
-
-// Use adds middleware to this host Echo in addition to the shared global stack.
-func (h *HostRouter) Use(mw ...echo.MiddlewareFunc) {
-	if h == nil || h.e == nil {
-		return
+) (echo.RouteInfo, error) {
+	if rt == nil {
+		return echo.RouteInfo{}, errors.New("router: hosted route is nil")
 	}
-	h.e.Use(mw...)
-}
-
-func (h *HostRouter) AddRoute(route echo.Route) (echo.RouteInfo, error) {
-	if h == nil {
-		return echo.RouteInfo{}, errors.New("router: host registrar is nil")
+	e, err := r.echoFor(rt.Host())
+	if err != nil {
+		return echo.RouteInfo{}, fmt.Errorf("router: %s: %w", rt.Name(), err)
 	}
-	if h.err != nil {
-		return echo.RouteInfo{}, h.err
-	}
-	return h.e.AddRoute(route)
-}
-
-func (h *HostRouter) AddRouteNotFound(
-	notFoundHandler echo.HandlerFunc,
-) echo.RouteInfo {
-	if h == nil || h.e == nil {
-		return echo.RouteInfo{}
-	}
-	return h.e.RouteNotFound("/*", notFoundHandler)
-}
-
-func (h *HostRouter) Name() routing.HostName {
-	if h == nil {
-		return routing.HostPrimary
-	}
-	return h.name
+	return e.RouteNotFound("/*", notFoundHandler), nil
 }
 
 var Module = fx.Module(

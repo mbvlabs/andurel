@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"example.com/app/router"
-	"github.com/mbvlabs/andurel/pkg/routing"
 
 	"go.uber.org/fx"
 )
@@ -13,6 +12,6 @@ var Module = fx.Module(
 	"controllers",
 	constructors,
 	fx.Invoke(func(r *router.Router, c Dashboards) error {
-		return c.RegisterRoutes(r.Host(routing.HostPrimary))
+		return c.RegisterRoutes(r)
 	}),
 )

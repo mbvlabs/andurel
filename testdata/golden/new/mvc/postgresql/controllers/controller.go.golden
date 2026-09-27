@@ -4,8 +4,8 @@ package controllers
 import (
 	"app/controllers/api"
 	"app/router"
+
 	"github.com/a-h/templ"
-	"github.com/mbvlabs/andurel/pkg/routing"
 	"go.uber.org/fx"
 )
 
@@ -28,7 +28,7 @@ var Module = fx.Module(
 	"controllers",
 	constructors,
 	fx.Invoke(func(r *router.Router, c Pages) error {
-		return c.RegisterRoutes(r.Host(routing.HostPrimary))
+		return c.RegisterRoutes(r)
 	}),
 	fx.Invoke(func(r *router.Router, c Assets) error {
 		return c.RegisterRoutes(r)
@@ -37,15 +37,15 @@ var Module = fx.Module(
 		return c.RegisterRoutes(r)
 	}),
 	fx.Invoke(func(r *router.Router, c Sessions) error {
-		return c.RegisterRoutes(r.Host(routing.HostPrimary))
+		return c.RegisterRoutes(r)
 	}),
 	fx.Invoke(func(r *router.Router, c Registrations) error {
-		return c.RegisterRoutes(r.Host(routing.HostPrimary))
+		return c.RegisterRoutes(r)
 	}),
 	fx.Invoke(func(r *router.Router, c Confirmations) error {
-		return c.RegisterRoutes(r.Host(routing.HostPrimary))
+		return c.RegisterRoutes(r)
 	}),
 	fx.Invoke(func(r *router.Router, c ResetPasswords) error {
-		return c.RegisterRoutes(r.Host(routing.HostPrimary))
+		return c.RegisterRoutes(r)
 	}),
 )

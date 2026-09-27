@@ -27,23 +27,19 @@ func NewSessions(identity services.Identity) Sessions {
 	return Sessions{identity}
 }
 
-func (s Sessions) RegisterRoutes(r *router.HostRouter) error {
+func (s Sessions) RegisterRoutes(r *router.Router) error {
 	errs := []error{}
 
-	_, err := r.AddRoute(echo.Route{
+	_, err := r.AddRoute(routes.SessionNew, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.SessionNew.Path(),
-		Name:    routes.SessionNew.Name(),
 		Handler: s.New,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.SessionCreate, echo.Route{
 		Method:  http.MethodPost,
-		Path:    routes.SessionCreate.Path(),
-		Name:    routes.SessionCreate.Name(),
 		Handler: s.Create,
 		Middlewares: []echo.MiddlewareFunc{
 			middleware.IPRateLimiter(5, routes.SessionNew),
@@ -53,10 +49,8 @@ func (s Sessions) RegisterRoutes(r *router.HostRouter) error {
 		errs = append(errs, err)
 	}
 
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.SessionDestroy, echo.Route{
 		Method:  http.MethodDelete,
-		Path:    routes.SessionDestroy.Path(),
-		Name:    routes.SessionDestroy.Name(),
 		Handler: s.Destroy,
 	})
 	if err != nil {

@@ -32,7 +32,7 @@ func (rg *RouteGenerator) GenerateRoutes(
 	resourceName, namespace, pluralName, idType string,
 	actions []string,
 	isInertia bool,
-	hostExpr string,
+	hostExpr, hostPkg string,
 ) error {
 	prefixedPluralName := namespacePrefix(namespace) + pluralName
 	routesPath := filepath.Join("router/routes", prefixedPluralName+".go")
@@ -53,7 +53,7 @@ func (rg *RouteGenerator) GenerateRoutes(
 				isInertia = routeFileIncludesInertia(routesPath)
 			}
 			if hostExpr == "" {
-				hostExpr = routeFileHostExpr(routesPath)
+				hostExpr, hostPkg = existingRouteHost(routesPath)
 			}
 			routeContent, err := rg.templateRenderer.generateRouteContent(
 				resourceName,
@@ -63,6 +63,7 @@ func (rg *RouteGenerator) GenerateRoutes(
 				actions,
 				isInertia,
 				hostExpr,
+				hostPkg,
 			)
 			if err != nil {
 				return fmt.Errorf("failed to generate route content: %w", err)
@@ -94,6 +95,7 @@ func (rg *RouteGenerator) GenerateRoutes(
 		actions,
 		isInertia,
 		hostExpr,
+		hostPkg,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to generate route content: %w", err)
@@ -163,18 +165,20 @@ func routeFileIncludesInertia(routesPath string) bool {
 	return strings.Contains(string(content), "InertiaRoute")
 }
 
-var routeHostExprPattern = regexp.MustCompile(`routing\.Host\(([^)]+)\)`)
-
-func routeFileHostExpr(routesPath string) string {
+func existingRouteHost(routesPath string) (hostExpr, hostPkg string) {
 	content, err := os.ReadFile(routesPath)
 	if err != nil {
-		return ""
+		return "", ""
 	}
-	match := routeHostExprPattern.FindStringSubmatch(string(content))
+	match := regexp.MustCompile(`routing\.Host\(([^)]+)\)`).FindStringSubmatch(string(content))
 	if len(match) != 2 {
-		return ""
+		return "", ""
 	}
-	return strings.TrimSpace(match[1])
+	hostExpr = strings.TrimSpace(match[1])
+	if pkg, _, ok := strings.Cut(hostExpr, "."); ok {
+		hostPkg = pkg
+	}
+	return hostExpr, hostPkg
 }
 
 // ExistingRouteFileActions returns the resource actions declared in a generated route file.

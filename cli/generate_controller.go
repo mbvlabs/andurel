@@ -175,7 +175,7 @@ func generateControllerWithActions(
 	if err != nil {
 		return err
 	}
-	namespace, resourceName, hostExpr, err := resolvePrefixAndHost(rootDir, name, prefix, host)
+	namespace, resourceName, hostExpr, hostPkg, err := resolvePrefixAndHost(rootDir, name, prefix, host)
 	if err != nil {
 		return err
 	}
@@ -224,10 +224,11 @@ func generateControllerWithActions(
 				inertia,
 				isAPI,
 				hostExpr,
+				hostPkg,
 			); err != nil {
 				return err
 			}
-		} else if err := gen.GenerateControllerWithActions(resourceName, namespace, "", modelBackedActions, inertia, isAPI, hostExpr); err != nil {
+		} else if err := gen.GenerateControllerWithActions(resourceName, namespace, "", modelBackedActions, inertia, isAPI, hostExpr, hostPkg); err != nil {
 			return err
 		}
 	}
@@ -247,7 +248,7 @@ func generateControllerWithActions(
 			return err
 		}
 		if err := controllergen.NewMainInjector().
-			InjectController(resourceName, namespace, pluralName, hostExpr); err != nil {
+			InjectController(resourceName, namespace, pluralName); err != nil {
 			return err
 		}
 		routeGen := controllergen.NewRouteGenerator()
@@ -259,6 +260,7 @@ func generateControllerWithActions(
 			customActions,
 			layout.IsSupportedInertiaAdapter(inertia),
 			hostExpr,
+			hostPkg,
 		); err != nil {
 			return err
 		}
@@ -600,7 +602,8 @@ func ensureCustomRegisterRoutes(
 	content, receiverName, namespace, resourceName string,
 	actions []string,
 ) string {
-	if !strings.Contains(content, "RegisterRoutes(r *router.HostRouter)") {
+	if !strings.Contains(content, "RegisterRoutes(r *router.Router)") &&
+		!strings.Contains(content, "RegisterRoutes(rtr *router.Router)") {
 		controllerName := naming.ToPascalCase(naming.DeriveTableName(resourceName))
 		return strings.TrimRight(
 			content,
@@ -621,7 +624,7 @@ func ensureCustomRegisterRoutes(
 	for _, action := range actions {
 		methodName := naming.ToPascalCase(action)
 		routeRef := fmt.Sprintf(
-			"routes.%s%s%s.Path()",
+			"AddRoute(routes.%s%s%s,",
 			naming.NamespaceToPascal(namespace),
 			resourceName,
 			methodName,
@@ -662,7 +665,7 @@ func customRegisterRoutesMethod(
 	var sb strings.Builder
 	fmt.Fprintf(
 		&sb,
-		"func (%s %s) RegisterRoutes(r *router.HostRouter) error {\n",
+		"func (%s %s) RegisterRoutes(r *router.Router) error {\n",
 		receiverName,
 		controllerName,
 	)
@@ -681,9 +684,7 @@ func customRegisterRoutesMethod(
 
 func customRouteRegistrationBlock(receiverName, namespace, resourceName, methodName string) string {
 	return fmt.Sprintf(
-		"\t_, err = r.AddRoute(echo.Route{\n\t\tMethod:  http.MethodGet,\n\t\tPath:    routes.%s%s.Path(),\n\t\tName:    routes.%s%s.Name(),\n\t\tHandler: %s.%s,\n\t})\n\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n",
-		naming.NamespaceToPascal(namespace)+resourceName,
-		methodName,
+		"\t_, err = r.AddRoute(routes.%s%s, echo.Route{\n\t\tMethod:  http.MethodGet,\n\t\tHandler: %s.%s,\n\t})\n\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n",
 		naming.NamespaceToPascal(namespace)+resourceName,
 		methodName,
 		receiverName,

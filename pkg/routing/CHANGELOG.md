@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+## 0.4.0 - 2026-09-27
+
 ### Added
 
 - `HostName` type and `HostPrimary` constant for named virtual hosts.

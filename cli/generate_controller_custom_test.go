@@ -594,7 +594,7 @@ func TestGenerateControllerAPIWithNamespaceWritesUnderAPIPath(t *testing.T) {
 		t,
 		rootDir,
 		filepath.Join("controllers", "api", "v1", "project_inquiries.go"),
-		"routes.ApiV1ProjectInquiryCreate.Path()",
+		"AddRoute(routes.ApiV1ProjectInquiryCreate,",
 	)
 	assertCLITestFileContains(
 		t,

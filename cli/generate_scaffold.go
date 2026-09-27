@@ -83,7 +83,7 @@ andurel.lock. Templ/Datastar projects get templ views instead.`,
 			if err != nil {
 				return err
 			}
-			namespace, resourceName, hostExpr, err := resolvePrefixAndHost(
+			namespace, resourceName, hostExpr, hostPkg, err := resolvePrefixAndHost(
 				rootDir,
 				name,
 				prefix,
@@ -133,6 +133,7 @@ andurel.lock. Templ/Datastar projects get templ views instead.`,
 							inertiaAdapter,
 							api,
 							hostExpr,
+							hostPkg,
 						); err != nil {
 							return err
 						}

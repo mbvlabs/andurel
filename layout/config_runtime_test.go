@@ -41,7 +41,7 @@ require (
 `, goVersion); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"email", "server", "storage", "validation"} {
+	for _, name := range []string{"email", "routing", "server", "storage", "validation"} {
 		path, err := filepath.Abs(filepath.Join("..", "pkg", name))
 		if err != nil {
 			t.Fatal(err)

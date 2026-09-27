@@ -19,14 +19,12 @@ func NewWidgets() Widgets {
 	return Widgets{}
 }
 
-func (w Widgets) RegisterRoutes(r *router.HostRouter) error {
+func (w Widgets) RegisterRoutes(r *router.Router) error {
 	var errs []error
 	var err error
 
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.WidgetExport, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.WidgetExport.Path(),
-		Name:    routes.WidgetExport.Name(),
 		Handler: w.Export,
 	})
 	if err != nil {

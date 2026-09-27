@@ -2,7 +2,7 @@ package routes
 
 import (
 {{- if .HostExpr }}
-	"{{.ModulePath}}/config"
+	"{{.ModulePath}}/{{.HostPkg}}"
 
 {{- end }}
 	"github.com/mbvlabs/andurel/pkg/routing"

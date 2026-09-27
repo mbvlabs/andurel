@@ -22,10 +22,8 @@ func NewAPI(db storage.Connection) API {
 func (a API) RegisterRoutes(r *router.Router) error {
 	errs := []error{}
 
-	_, err := r.AddRoute(echo.Route{
+	_, err := r.AddRoute(routes.Health, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.Health.Path(),
-		Name:    routes.Health.Name(),
 		Handler: a.Health,
 	})
 	if err != nil {

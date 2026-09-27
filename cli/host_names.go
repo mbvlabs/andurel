@@ -23,21 +23,21 @@ type discoveredHost struct {
 
 func resolvePrefixAndHost(
 	rootDir, name, prefixFlag, hostFlag string,
-) (namespace, resourceName, hostExpr string, err error) {
+) (namespace, resourceName, hostExpr, hostPkg string, err error) {
 	namespace, resourceName, err = naming.ParseNamespacedResource(name)
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", "", err
 	}
 	prefixFlag = strings.TrimSpace(prefixFlag)
 	if prefixFlag != "" {
 		if !naming.IsValidNamespace(prefixFlag) {
-			return "", "", "", fmt.Errorf(
+			return "", "", "", "", fmt.Errorf(
 				"invalid prefix %q: prefix must be a valid Go package name and not a reserved path",
 				prefixFlag,
 			)
 		}
 		if namespace != "" && namespace != prefixFlag {
-			return "", "", "", fmt.Errorf(
+			return "", "", "", "", fmt.Errorf(
 				"--prefix=%q conflicts with namespaced name %q",
 				prefixFlag,
 				name,
@@ -46,22 +46,22 @@ func resolvePrefixAndHost(
 		namespace = prefixFlag
 	}
 
-	hostExpr, err = resolveHostFlag(rootDir, hostFlag)
+	host, err := resolveHostFlag(rootDir, hostFlag)
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", "", err
 	}
-	return namespace, resourceName, hostExpr, nil
+	return namespace, resourceName, host.GoExpr, host.PkgName, nil
 }
 
-func resolveHostFlag(rootDir, hostFlag string) (string, error) {
+func resolveHostFlag(rootDir, hostFlag string) (discoveredHost, error) {
 	hostFlag = strings.TrimSpace(hostFlag)
 	if hostFlag == "" || hostFlag == "primary" {
-		return "", nil
+		return discoveredHost{}, nil
 	}
 
 	hosts, err := discoverAppHostNames(rootDir)
 	if err != nil {
-		return "", err
+		return discoveredHost{}, err
 	}
 
 	known := []string{"primary"}
@@ -72,15 +72,15 @@ func resolveHostFlag(rootDir, hostFlag string) (string, error) {
 
 	for _, host := range hosts {
 		if host.Value == hostFlag || host.Name == hostFlag {
-			return host.GoExpr, nil
+			return host, nil
 		}
 		trimmed := strings.TrimPrefix(host.Name, "Host")
 		if strings.EqualFold(trimmed, hostFlag) {
-			return host.GoExpr, nil
+			return host, nil
 		}
 	}
 
-	return "", fmt.Errorf(
+	return discoveredHost{}, fmt.Errorf(
 		"unknown host %q; known hosts: %s",
 		hostFlag,
 		strings.Join(uniqueStrings(known), ", "),
@@ -139,10 +139,14 @@ func discoverAppHostNames(rootDir string) ([]discoveredHost, error) {
 						continue
 					}
 					seen[key] = struct{}{}
+					relDir, err := filepath.Rel(rootDir, filepath.Dir(path))
+					if err != nil || relDir == "." {
+						relDir = file.Name.Name
+					}
 					hosts = append(hosts, discoveredHost{
 						Name:    ident.Name,
 						Value:   value,
-						PkgName: file.Name.Name,
+						PkgName: filepath.ToSlash(relDir),
 						GoExpr:  file.Name.Name + "." + ident.Name,
 					})
 				}

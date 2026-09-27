@@ -105,14 +105,14 @@ func TestControllerFrontendActionsAndRegistrationHelpers(t *testing.T) {
 		[]string{"INDEX", "custom"},
 	)
 	if !strings.Contains(method, "RegisterRoutes") ||
-		!strings.Contains(method, "routes.AdminProductIndex.Path()") ||
+		!strings.Contains(method, "AddRoute(routes.AdminProductIndex,") ||
 		strings.Contains(method, "Custom") {
 		t.Fatalf("unexpected generated registration method:\n%s", method)
 	}
 
 	existing := `package controllers
 
-func (p Products) RegisterRoutes(r *router.HostRouter) error {
+func (p Products) RegisterRoutes(r *router.Router) error {
 	var errs []error
 	var err error
 
@@ -127,7 +127,7 @@ func (p Products) RegisterRoutes(r *router.HostRouter) error {
 		"Product",
 		[]string{"create", "custom"},
 	)
-	if strings.Count(updated, "routes.ProductCreate.Path()") != 1 ||
+	if strings.Count(updated, "AddRoute(routes.ProductCreate,") != 1 ||
 		!strings.Contains(updated, "http.MethodPost") {
 		t.Fatalf("registration was not inserted once:\n%s", updated)
 	}
@@ -142,7 +142,7 @@ func (p Products) RegisterRoutes(r *router.HostRouter) error {
 		t.Fatalf("existing registration should be unchanged:\n%s", got)
 	}
 
-	withoutReturn := "package controllers\n\nfunc (p Products) RegisterRoutes(r *router.HostRouter) error {}\n"
+	withoutReturn := "package controllers\n\nfunc (p Products) RegisterRoutes(r *router.Router) error {}\n"
 	appended := ensureRegisterRoutes(
 		withoutReturn,
 		"p",

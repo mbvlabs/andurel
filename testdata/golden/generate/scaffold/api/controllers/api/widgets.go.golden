@@ -22,49 +22,39 @@ func NewWidgets(widgets models.Widgets) Widgets {
 	return Widgets{widgets}
 }
 
-func (w Widgets) RegisterRoutes(r *router.HostRouter) error {
+func (w Widgets) RegisterRoutes(r *router.Router) error {
 	errs := []error{}
 	var err error
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.ApiWidgetIndex, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.ApiWidgetIndex.Path(),
-		Name:    routes.ApiWidgetIndex.Name(),
 		Handler: w.Index,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.ApiWidgetShow, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.ApiWidgetShow.Path(),
-		Name:    routes.ApiWidgetShow.Name(),
 		Handler: w.Show,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.ApiWidgetCreate, echo.Route{
 		Method:  http.MethodPost,
-		Path:    routes.ApiWidgetCreate.Path(),
-		Name:    routes.ApiWidgetCreate.Name(),
 		Handler: w.Create,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.ApiWidgetUpdate, echo.Route{
 		Method:  http.MethodPut,
-		Path:    routes.ApiWidgetUpdate.Path(),
-		Name:    routes.ApiWidgetUpdate.Name(),
 		Handler: w.Update,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.ApiWidgetDestroy, echo.Route{
 		Method:  http.MethodDelete,
-		Path:    routes.ApiWidgetDestroy.Path(),
-		Name:    routes.ApiWidgetDestroy.Name(),
 		Handler: w.Destroy,
 	})
 	if err != nil {

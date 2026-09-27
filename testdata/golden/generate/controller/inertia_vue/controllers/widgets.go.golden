@@ -26,67 +26,53 @@ func NewWidgets(widgets models.Widgets, renderer *inertia.Renderer) Widgets {
 	return Widgets{widgets: widgets, renderer: renderer}
 }
 
-func (w Widgets) RegisterRoutes(r *router.HostRouter) error {
+func (w Widgets) RegisterRoutes(r *router.Router) error {
 	var errs []error
 	var err error
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.WidgetIndex, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.WidgetIndex.Path(),
-		Name:    routes.WidgetIndex.Name(),
 		Handler: w.Index,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.WidgetShow, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.WidgetShow.Path(),
-		Name:    routes.WidgetShow.Name(),
 		Handler: w.Show,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.WidgetNew, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.WidgetNew.Path(),
-		Name:    routes.WidgetNew.Name(),
 		Handler: w.New,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.WidgetCreate, echo.Route{
 		Method:  http.MethodPost,
-		Path:    routes.WidgetCreate.Path(),
-		Name:    routes.WidgetCreate.Name(),
 		Handler: w.Create,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.WidgetEdit, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.WidgetEdit.Path(),
-		Name:    routes.WidgetEdit.Name(),
 		Handler: w.Edit,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.WidgetUpdate, echo.Route{
 		Method:  http.MethodPut,
-		Path:    routes.WidgetUpdate.Path(),
-		Name:    routes.WidgetUpdate.Name(),
 		Handler: w.Update,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.WidgetDestroy, echo.Route{
 		Method:  http.MethodDelete,
-		Path:    routes.WidgetDestroy.Path(),
-		Name:    routes.WidgetDestroy.Name(),
 		Handler: w.Destroy,
 	})
 	if err != nil {
