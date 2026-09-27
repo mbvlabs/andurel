@@ -4,7 +4,6 @@ package controllers
 import (
 	"app/controllers/api"
 	"app/router"
-
 	"github.com/a-h/templ"
 	"go.uber.org/fx"
 )
