@@ -29,7 +29,7 @@ func NewConfirmations(
 	return Confirmations{identity: identity, renderer: renderer}
 }
 
-func (c Confirmations) RegisterRoutes(r *router.Router) error {
+func (c Confirmations) RegisterRoutes(r *router.HostRouter) error {
 	errs := []error{}
 
 	_, err := r.AddRoute(echo.Route{

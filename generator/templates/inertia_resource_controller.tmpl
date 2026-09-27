@@ -67,7 +67,7 @@ func New{{.PluralResourceName}}({{.ModelServiceName | ToLowerCamelCase}} models.
 	return {{.PluralResourceName}}{ {{.ModelServiceName | ToLowerCamelCase}}: {{.ModelServiceName | ToLowerCamelCase}}, renderer: renderer }
 }
 
-func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router) error {
+func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.HostRouter) error {
 	var errs []error
 	var err error
 

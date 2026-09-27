@@ -26,7 +26,7 @@ func NewWidgets(widgets models.Widgets, renderer *inertia.Renderer) Widgets {
 	return Widgets{widgets: widgets, renderer: renderer}
 }
 
-func (w Widgets) RegisterRoutes(r *router.Router) error {
+func (w Widgets) RegisterRoutes(r *router.HostRouter) error {
 	var errs []error
 	var err error
 	_, err = r.AddRoute(echo.Route{

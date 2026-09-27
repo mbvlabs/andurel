@@ -26,7 +26,7 @@ func NewCompanies(companies models.Companies) Companies {
 	return Companies{companies}
 }
 
-func (c Companies) RegisterRoutes(r *router.Router) error {
+func (c Companies) RegisterRoutes(r *router.HostRouter) error {
 	var errs []error
 	var err error
 	_, err = r.AddRoute(echo.Route{

@@ -27,7 +27,7 @@ func NewFeedbackEntry(feedbackEntries models.FeedbackEntries) FeedbackEntry {
 	return FeedbackEntry{feedbackEntries}
 }
 
-func (fe FeedbackEntry) RegisterRoutes(r *router.Router) error {
+func (fe FeedbackEntry) RegisterRoutes(r *router.HostRouter) error {
 	var errs []error
 	var err error
 	_, err = r.AddRoute(echo.Route{

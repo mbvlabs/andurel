@@ -22,7 +22,7 @@ func NewDashboards(widgets models.Widgets) Dashboards {
 	return Dashboards{widgets}
 }
 
-func (d Dashboards) RegisterRoutes(r *router.Router) error {
+func (d Dashboards) RegisterRoutes(r *router.HostRouter) error {
 	var errs []error
 	var err error
 	_, err = r.AddRoute(echo.Route{

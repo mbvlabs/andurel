@@ -25,7 +25,7 @@ func NewWarehouses(warehouses models.Warehouses) Warehouses {
 	return Warehouses{warehouses}
 }
 
-func (w Warehouses) RegisterRoutes(r *router.Router) error {
+func (w Warehouses) RegisterRoutes(r *router.HostRouter) error {
 	var errs []error
 	var err error
 	_, err = r.AddRoute(echo.Route{

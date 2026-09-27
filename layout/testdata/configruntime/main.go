@@ -41,6 +41,7 @@ func main() {
 	)
 	fmt.Println("PASS: each constructor validates only its own process requirements")
 
+	must(os.Setenv("HOST_PRIMARY", "localhost:8080"))
 	app, err := config.NewApp()
 	must(err)
 	_, err = config.NewTelemetry(app)

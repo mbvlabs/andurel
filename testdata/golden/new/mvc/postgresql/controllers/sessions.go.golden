@@ -27,7 +27,7 @@ func NewSessions(identity services.Identity) Sessions {
 	return Sessions{identity}
 }
 
-func (s Sessions) RegisterRoutes(r *router.Router) error {
+func (s Sessions) RegisterRoutes(r *router.HostRouter) error {
 	errs := []error{}
 
 	_, err := r.AddRoute(echo.Route{

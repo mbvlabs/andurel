@@ -104,6 +104,37 @@ var WidgetIndex = routing.NewSimpleRoute(
 	)
 }
 
+func TestCollectRouteManifestExtractsHost(t *testing.T) {
+	rootDir := t.TempDir()
+	writeRouteManifestTestFile(t, rootDir, "admin_widgets.go", `package routes
+
+import (
+	"example.com/app/config"
+	"example.com/app/pkg/routing"
+)
+
+const AdminWidgetPrefix = "/widgets"
+
+var AdminWidgetIndex = routing.NewSimpleRoute(
+	"",
+	"widgets.index",
+	AdminWidgetPrefix,
+	routing.Host(config.HostAdmin),
+)
+`)
+
+	manifest, err := collectRouteManifest(rootDir)
+	if err != nil {
+		t.Fatalf("collect route manifest: %v", err)
+	}
+	if len(manifest.Routes) != 1 {
+		t.Fatalf("expected 1 route, got %#v", manifest.Routes)
+	}
+	if manifest.Routes[0].Host != "admin" {
+		t.Fatalf("expected host admin, got %#v", manifest.Routes[0])
+	}
+}
+
 func TestCollectRouteManifestSupportsConstExpressionsAndGenericParams(t *testing.T) {
 	rootDir := t.TempDir()
 	writeRouteManifestTestFile(t, rootDir, "admin_dashboards.go", `package routes

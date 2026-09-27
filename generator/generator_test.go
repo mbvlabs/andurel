@@ -66,13 +66,13 @@ func TestGenerator_MethodsExist(t *testing.T) {
 		{
 			name: "GenerateController",
 			fn: func() error {
-				return gen.GenerateController("", "", "", "", false)
+				return gen.GenerateController("", "", "", "", false, "")
 			},
 		},
 		{
 			name: "GenerateScaffold",
 			fn: func() error {
-				return gen.GenerateScaffold("", "", "", false, "", "", false)
+				return gen.GenerateScaffold("", "", "", false, "", "", false, "")
 			},
 		},
 		{
@@ -130,8 +130,8 @@ func TestGenerator_DelegationToCoordinator(t *testing.T) {
 	})
 
 	t.Run("GenerateController delegation", func(t *testing.T) {
-		genErr := gen.GenerateController("", "", "", "", false)
-		coordErr := gen.coordinator.GenerateController("", "", "", "", false)
+		genErr := gen.GenerateController("", "", "", "", false, "")
+		coordErr := gen.coordinator.GenerateController("", "", "", "", false, "")
 
 		if genErr == nil || coordErr == nil {
 			t.Skip("Expected validation errors for empty parameters")

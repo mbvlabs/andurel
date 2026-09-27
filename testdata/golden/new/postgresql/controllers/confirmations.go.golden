@@ -26,7 +26,7 @@ func NewConfirmations(identity services.Identity) Confirmations {
 	return Confirmations{identity}
 }
 
-func (c Confirmations) RegisterRoutes(r *router.Router) error {
+func (c Confirmations) RegisterRoutes(r *router.HostRouter) error {
 	errs := []error{}
 
 	_, err := r.AddRoute(echo.Route{

@@ -19,7 +19,7 @@ func NewWidgets() Widgets {
 	return Widgets{}
 }
 
-func (w Widgets) RegisterRoutes(r *router.Router) error {
+func (w Widgets) RegisterRoutes(r *router.HostRouter) error {
 	var errs []error
 	var err error
 

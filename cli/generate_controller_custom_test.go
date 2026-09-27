@@ -22,6 +22,8 @@ func TestGenerateControllerCustomActionCreatesRouteWithoutModel(t *testing.T) {
 		[]string{"overview"},
 		"",
 		false,
+		"",
+		"",
 	); err != nil {
 		t.Fatalf("generate custom controller action: %v", err)
 	}
@@ -62,6 +64,8 @@ func TestGenerateControllerNamespacedCustomActionCreatesNamespacedArtifacts(t *t
 		[]string{"export"},
 		"",
 		false,
+		"",
+		"",
 	); err != nil {
 		t.Fatalf("generate namespaced custom controller action: %v", err)
 	}
@@ -211,6 +215,8 @@ func TestGenerateControllerCustomActionInertiaProjectDefaultsToTemplAndInertiaFl
 				[]string{"overview"},
 				tt.inertia,
 				false,
+				"",
+				"",
 			); err != nil {
 				t.Fatalf("generate custom controller action: %v", err)
 			}
@@ -281,6 +287,8 @@ func NewDashboards(enabled bool) Dashboards {
 			[]string{"overview"},
 			"vue",
 			false,
+			"",
+			"",
 		); err != nil {
 			t.Fatalf("generate custom Inertia controller action: %v", err)
 		}
@@ -348,6 +356,8 @@ func TestGenerateControllerSingleCRUDActionVueGeneratesInertiaController(t *test
 		[]string{"show"},
 		"vue",
 		false,
+		"",
+		"",
 	); err != nil {
 		t.Fatalf("generate controller: %v", err)
 	}
@@ -408,6 +418,8 @@ func TestGenerateControllerSingleCRUDActionReactGeneratesInertiaController(t *te
 		[]string{"show"},
 		"react",
 		false,
+		"",
+		"",
 	); err != nil {
 		t.Fatalf("generate controller: %v", err)
 	}
@@ -509,6 +521,8 @@ func TestGenerateControllerSingleCRUDActionInertiaProjectDefaultsToTemplControll
 		[]string{"index"},
 		"",
 		false,
+		"",
+		"",
 	); err != nil {
 		t.Fatalf("generate controller: %v", err)
 	}
@@ -559,7 +573,7 @@ func TestGenerateControllerAPIWithNamespaceWritesUnderAPIPath(t *testing.T) {
 	chdirCLITestRoot(t, rootDir)
 
 	stdoutCapture := captureProcessOutput(t, &os.Stdout)
-	err := generateControllerWithActions("v1/ProjectInquiry", "", []string{"create"}, "", true)
+	err := generateControllerWithActions("v1/ProjectInquiry", "", []string{"create"}, "", true, "", "")
 	stdout := stdoutCapture()
 	if err != nil {
 		t.Fatalf("generate controller: %v", err)
@@ -613,7 +627,7 @@ func TestGenerateControllerRejectsModelNameForCustomOnly(t *testing.T) {
 	writeCLITestFile(t, rootDir, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 	chdirCLITestRoot(t, rootDir)
 
-	err := generateControllerWithActions("Dashboard", "User", []string{"overview"}, "", false)
+	err := generateControllerWithActions("Dashboard", "User", []string{"overview"}, "", false, "", "")
 	if err == nil || !strings.Contains(err.Error(), "--model-name requires") {
 		t.Fatalf("expected --model-name custom-only error, got %v", err)
 	}

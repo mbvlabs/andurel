@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/mbvlabs/andurel/v2/cli/output"
-	"github.com/mbvlabs/andurel/v2/internal/naming"
 	"github.com/mbvlabs/andurel/v2/layout"
 	"github.com/spf13/cobra"
 )
@@ -17,6 +16,8 @@ func newGenerateScaffoldCommand() *cobra.Command {
 		api              bool
 		dryRun           bool
 		diff             bool
+		prefix           string
+		host             string
 	)
 
 	cmd := &cobra.Command{
@@ -29,6 +30,8 @@ RESTful, resource-oriented application.
 
 Pass the resource name in CamelCase as the first argument.
 Names may include one lowercase namespace segment, such as admin/Widget.
+--prefix and --host are independent: prefix is the path/package namespace,
+host is the named virtual host (routing.HostName).
 
 This is a convenience command that runs both:
   andurel generate model NAME
@@ -76,7 +79,16 @@ andurel.lock. Templ/Datastar projects get templ views instead.`,
 				)
 			}
 			name := args[0]
-			namespace, resourceName, err := naming.ParseNamespacedResource(name)
+			rootDir, err := findGoModRoot()
+			if err != nil {
+				return err
+			}
+			namespace, resourceName, hostExpr, err := resolvePrefixAndHost(
+				rootDir,
+				name,
+				prefix,
+				host,
+			)
 			if err != nil {
 				return err
 			}
@@ -84,10 +96,6 @@ andurel.lock. Templ/Datastar projects get templ views instead.`,
 				namespace = apiNamespace(namespace)
 			}
 
-			rootDir, err := findGoModRoot()
-			if err != nil {
-				return err
-			}
 			inertiaAdapter := ""
 			if !api {
 				inertiaAdapter, err = projectUIAdapter(rootDir)
@@ -124,6 +132,7 @@ andurel.lock. Templ/Datastar projects get templ views instead.`,
 							primaryKeyColumn,
 							inertiaAdapter,
 							api,
+							hostExpr,
 						); err != nil {
 							return err
 						}
@@ -143,6 +152,8 @@ andurel.lock. Templ/Datastar projects get templ views instead.`,
 	cmd.Flags().
 		StringVar(&primaryKeyColumn, "primary-key", "", "Specify the primary key column (skips interactive detection)")
 	cmd.Flags().BoolVar(&api, "api", false, "Generate a JSON API controller under controllers/api")
+	cmd.Flags().StringVar(&prefix, "prefix", "", "Path/package namespace (independent of --host)")
+	cmd.Flags().StringVar(&host, "host", "", "Named virtual host (routing.HostName); default primary")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview file changes without applying")
 	cmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
 	setAgentMetadata(

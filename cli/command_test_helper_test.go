@@ -277,6 +277,7 @@ type scaffoldCall struct {
 	primaryKey  string
 	inertia     string
 	isAPI       bool
+	hostExpr    string
 }
 
 type factoryCall struct {
@@ -292,6 +293,7 @@ type controllerCall struct {
 	actions   []string
 	inertia   string
 	isAPI     bool
+	hostExpr  string
 }
 
 func (f *fakeGenerator) GenerateModel(
@@ -355,6 +357,7 @@ func (f *fakeGenerator) GenerateControllerWithActions(
 	actions []string,
 	inertia string,
 	isAPI bool,
+	hostExpr string,
 ) error {
 	f.controllerCalls = append(f.controllerCalls, controllerCall{
 		name:      resourceName,
@@ -364,6 +367,7 @@ func (f *fakeGenerator) GenerateControllerWithActions(
 		actions:   append([]string(nil), actions...),
 		inertia:   inertia,
 		isAPI:     isAPI,
+		hostExpr:  hostExpr,
 	})
 	return f.err
 }
@@ -373,6 +377,7 @@ func (f *fakeGenerator) GenerateControllerWithActionsForModel(
 	actions []string,
 	inertia string,
 	isAPI bool,
+	hostExpr string,
 ) error {
 	f.controllerCalls = append(f.controllerCalls, controllerCall{
 		name:      resourceName,
@@ -382,6 +387,7 @@ func (f *fakeGenerator) GenerateControllerWithActionsForModel(
 		actions:   append([]string(nil), actions...),
 		inertia:   inertia,
 		isAPI:     isAPI,
+		hostExpr:  hostExpr,
 	})
 	return f.err
 }
@@ -392,6 +398,7 @@ func (f *fakeGenerator) GenerateScaffold(
 	primaryKeyColumn string,
 	inertia string,
 	isAPI bool,
+	hostExpr string,
 ) error {
 	f.scaffoldCalls = append(f.scaffoldCalls, scaffoldCall{
 		name:        resourceName,
@@ -401,6 +408,7 @@ func (f *fakeGenerator) GenerateScaffold(
 		primaryKey:  primaryKeyColumn,
 		inertia:     inertia,
 		isAPI:       isAPI,
+		hostExpr:    hostExpr,
 	})
 	return f.err
 }

@@ -22,6 +22,8 @@ func newGenerateControllerCommand() *cobra.Command {
 		api       bool
 		dryRun    bool
 		diff      bool
+		prefix    string
+		host      string
 	)
 
 	cmd := &cobra.Command{
@@ -48,7 +50,17 @@ provided.
 
 Names may include one lowercase namespace segment, such as admin/Widget.
 Namespaced controllers are generated under controllers/admin, use admin.*
-route names, and use Admin-prefixed route and view symbols.
+route names, and use Admin-prefixed route and view symbols. --prefix is
+an independent path/package namespace and does not imply --host.
+
+--host binds routes to a named virtual host (routing.HostName). It is
+independent of --prefix:
+  --host=admin --prefix=admin  → HostAdmin, /admin/widgets
+  --host=admin                 → HostAdmin, /widgets
+  --prefix=admin               → HostPrimary, /admin/widgets
+
+--host must match a known HostName (HostPrimary is always valid; other
+names are discovered from app constants of type routing.HostName).
 
 Use --api to generate a JSON API controller instead. The controller is placed
 under controllers/api and returns echo.JSON responses. No views are generated.
@@ -124,6 +136,8 @@ andurel.lock. Templ/Datastar projects get templ views instead.`,
 							actions,
 							inertiaAdapter,
 							api,
+							prefix,
+							host,
 						); err != nil {
 							return err
 						}
@@ -137,6 +151,8 @@ andurel.lock. Templ/Datastar projects get templ views instead.`,
 	cmd.Flags().BoolVar(&api, "api", false, "Generate a JSON API controller under controllers/api")
 	cmd.Flags().
 		StringVar(&modelName, "model-name", "", "Use a different model name for model-backed controller generation")
+	cmd.Flags().StringVar(&prefix, "prefix", "", "Path/package namespace (independent of --host)")
+	cmd.Flags().StringVar(&host, "host", "", "Named virtual host (routing.HostName); default primary")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview file changes without applying")
 	cmd.Flags().BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
 	setAgentMetadata(
@@ -153,8 +169,13 @@ func generateControllerWithActions(
 	actions []string,
 	inertia string,
 	isAPI bool,
+	prefix, host string,
 ) error {
-	namespace, resourceName, err := naming.ParseNamespacedResource(name)
+	rootDir, err := findGoModRoot()
+	if err != nil {
+		return err
+	}
+	namespace, resourceName, hostExpr, err := resolvePrefixAndHost(rootDir, name, prefix, host)
 	if err != nil {
 		return err
 	}
@@ -202,10 +223,11 @@ func generateControllerWithActions(
 				modelBackedActions,
 				inertia,
 				isAPI,
+				hostExpr,
 			); err != nil {
 				return err
 			}
-		} else if err := gen.GenerateControllerWithActions(resourceName, namespace, "", modelBackedActions, inertia, isAPI); err != nil {
+		} else if err := gen.GenerateControllerWithActions(resourceName, namespace, "", modelBackedActions, inertia, isAPI, hostExpr); err != nil {
 			return err
 		}
 	}
@@ -225,7 +247,7 @@ func generateControllerWithActions(
 			return err
 		}
 		if err := controllergen.NewMainInjector().
-			InjectController(resourceName, namespace, pluralName); err != nil {
+			InjectController(resourceName, namespace, pluralName, hostExpr); err != nil {
 			return err
 		}
 		routeGen := controllergen.NewRouteGenerator()
@@ -236,6 +258,7 @@ func generateControllerWithActions(
 			"uuid.UUID",
 			customActions,
 			layout.IsSupportedInertiaAdapter(inertia),
+			hostExpr,
 		); err != nil {
 			return err
 		}
@@ -577,7 +600,7 @@ func ensureCustomRegisterRoutes(
 	content, receiverName, namespace, resourceName string,
 	actions []string,
 ) string {
-	if !strings.Contains(content, "RegisterRoutes(r *router.Router)") {
+	if !strings.Contains(content, "RegisterRoutes(r *router.HostRouter)") {
 		controllerName := naming.ToPascalCase(naming.DeriveTableName(resourceName))
 		return strings.TrimRight(
 			content,
@@ -639,7 +662,7 @@ func customRegisterRoutesMethod(
 	var sb strings.Builder
 	fmt.Fprintf(
 		&sb,
-		"func (%s %s) RegisterRoutes(r *router.Router) error {\n",
+		"func (%s %s) RegisterRoutes(r *router.HostRouter) error {\n",
 		receiverName,
 		controllerName,
 	)

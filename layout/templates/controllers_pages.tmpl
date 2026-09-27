@@ -22,7 +22,7 @@ func NewPages(cache *Cache[templ.Component]) Pages {
 	return Pages{cache: cache}
 }
 
-func (p Pages) RegisterRoutes(r *router.Router) error {
+func (p Pages) RegisterRoutes(r *router.HostRouter) error {
 	errs := []error{}
 
 	_, err := r.AddRoute(echo.Route{

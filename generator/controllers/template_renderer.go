@@ -217,6 +217,7 @@ func (tr *TemplateRenderer) generateRouteContent(
 	resourceName, namespace, pluralName, idType string,
 	actions []string,
 	isInertia bool,
+	hostExpr string,
 ) (string, error) {
 	// Get module path
 	modulePath, err := tr.getModulePath()
@@ -236,6 +237,7 @@ func (tr *TemplateRenderer) generateRouteContent(
 		Actions         []string
 		CustomActions   []customRouteAction
 		IsInertia       bool
+		HostExpr        string
 	}{
 		ResourceName:    resourceName,
 		Namespace:       namespace,
@@ -247,6 +249,7 @@ func (tr *TemplateRenderer) generateRouteContent(
 		Actions:         actions,
 		CustomActions:   customRouteActions(actions),
 		IsInertia:       isInertia,
+		HostExpr:        hostExpr,
 	}
 
 	customFuncs := template.FuncMap{

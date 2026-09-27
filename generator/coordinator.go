@@ -90,8 +90,9 @@ func (c *Coordinator) GenerateController(
 	resourceName, namespace, tableName string,
 	inertia string,
 	isAPI bool,
+	hostExpr string,
 ) error {
-	return c.GenerateControllerWithActions(resourceName, namespace, tableName, nil, inertia, isAPI)
+	return c.GenerateControllerWithActions(resourceName, namespace, tableName, nil, inertia, isAPI, hostExpr)
 }
 
 // GenerateControllerWithActions generates a controller and views for selected actions.
@@ -100,6 +101,7 @@ func (c *Coordinator) GenerateControllerWithActions(
 	actions []string,
 	inertia string,
 	isAPI bool,
+	hostExpr string,
 ) error {
 	return c.GenerateControllerWithActionsForModel(
 		resourceName,
@@ -109,6 +111,7 @@ func (c *Coordinator) GenerateControllerWithActions(
 		actions,
 		inertia,
 		isAPI,
+		hostExpr,
 	)
 }
 
@@ -118,6 +121,7 @@ func (c *Coordinator) GenerateControllerWithActionsForModel(
 	actions []string,
 	inertia string,
 	isAPI bool,
+	hostExpr string,
 ) error {
 	if modelName == "" {
 		modelName = resourceName
@@ -134,6 +138,7 @@ func (c *Coordinator) GenerateControllerWithActionsForModel(
 		actions,
 		inertia,
 		isAPI,
+		hostExpr,
 	); err != nil {
 		return err
 	}
@@ -164,6 +169,7 @@ func (c *Coordinator) GenerateScaffold(
 	primaryKeyColumn string,
 	inertia string,
 	isAPI bool,
+	hostExpr string,
 ) error {
 	if primaryKeyColumn != "" {
 		if err := c.ModelManager.GenerateModel(
@@ -186,7 +192,7 @@ func (c *Coordinator) GenerateScaffold(
 		}
 	}
 
-	return c.GenerateController(resourceName, namespace, tableName, inertia, isAPI)
+	return c.GenerateController(resourceName, namespace, tableName, inertia, isAPI, hostExpr)
 }
 
 // GenerateControllerFromModel coordinates controller and view generation from existing model

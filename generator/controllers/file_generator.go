@@ -67,6 +67,7 @@ func (fg *FileGenerator) GenerateController(
 		inertia,
 		nil,
 		false,
+		"",
 	)
 }
 
@@ -88,6 +89,7 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 	inertia string,
 	actions []string,
 	isAPI bool,
+	hostExpr string,
 ) error {
 	if modelName == "" {
 		modelName = resourceName
@@ -167,6 +169,7 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		PrimaryKeyColumn:         primaryKeyColumn,
 		Actions:                  renderActions,
 		IsAPI:                    isAPI,
+		HostExpr:                 hostExpr,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller: %w", err)
@@ -226,7 +229,7 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		return fmt.Errorf("failed to format controller file: %w", err)
 	}
 
-	if err := fg.mainInjector.InjectController(resourceName, namespace, pluralName); err != nil {
+	if err := fg.mainInjector.InjectController(resourceName, namespace, pluralName, hostExpr); err != nil {
 		return fmt.Errorf("failed to inject controller: %w", err)
 	}
 
@@ -237,6 +240,7 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		controller.IDType,
 		routeActions,
 		layout.IsSupportedInertiaAdapter(inertia),
+		hostExpr,
 	); err != nil {
 		return fmt.Errorf("failed to generate routes: %w", err)
 	}
@@ -548,7 +552,7 @@ func ensureRegisterRoutes(
 	content, receiverName, controllerName, namespace, resourceName string,
 	actions []string,
 ) string {
-	if !strings.Contains(content, "RegisterRoutes(r *router.Router)") {
+	if !strings.Contains(content, "RegisterRoutes(r *router.HostRouter)") {
 		return strings.TrimRight(content, "\n") + "\n\n" +
 			strings.TrimRight(
 				registerRoutesMethod(
@@ -609,7 +613,7 @@ func registerRoutesMethod(
 	var sb strings.Builder
 	fmt.Fprintf(
 		&sb,
-		"func (%s %s) RegisterRoutes(r *router.Router) error {\n",
+		"func (%s %s) RegisterRoutes(r *router.HostRouter) error {\n",
 		receiverName,
 		controllerName,
 	)

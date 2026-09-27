@@ -22,7 +22,7 @@ func NewWidgets(widgets models.Widgets) Widgets {
 	return Widgets{widgets}
 }
 
-func (w Widgets) RegisterRoutes(r *router.Router) error {
+func (w Widgets) RegisterRoutes(r *router.HostRouter) error {
 	errs := []error{}
 	var err error
 	_, err = r.AddRoute(echo.Route{

@@ -107,9 +107,7 @@ func CSRFMiddleware(
 	csrfStrategy string,
 	csrfTrustedOrigins []string,
 	csrfName string,
-	baseURL string,
 	environment string,
-	domain string,
 	appCookieSessionName string,
 ) (echo.MiddlewareFunc, error) {
 	strategy := strings.TrimSpace(csrfStrategy)
@@ -127,28 +125,19 @@ func CSRFMiddleware(
 		return nil, errors.New("invalid CSRF strategy")
 	}
 
-	trustedOrigins := []string{baseURL}
-	if len(csrfTrustedOrigins) > 0 {
-		trustedOrigins = append(trustedOrigins, csrfTrustedOrigins...)
-	}
-
 	csrfConfig := echomw.CSRFConfig{
 		Skipper: func(c *echo.Context) bool {
 			return mayBypassCSRF(c.Request(), appCookieSessionName)
 		},
 		TokenLookup: tokenLookup,
 		CookiePath:  "/",
-		CookieDomain: func() string {
-			if environment == server.ProdEnvironment {
-				return domain
-			}
-
-			return ""
-		}(),
+		// Host-only cookies (no Domain). Sharing sessions across subdomains is
+		// an explicit opt-in via kiks.Domain(".example.com") — never a generated default.
+		CookieDomain:   "",
 		CookieSecure:   environment == server.ProdEnvironment,
 		CookieHTTPOnly: true,
 		CookieSameSite: http.SameSiteStrictMode,
-		TrustedOrigins: trustedOrigins,
+		TrustedOrigins: csrfTrustedOrigins,
 	}
 
 	echoCSRF := echomw.CSRFWithConfig(csrfConfig)

@@ -30,7 +30,7 @@ func NewSessions(
 	return Sessions{identity: identity, renderer: renderer}
 }
 
-func (s Sessions) RegisterRoutes(r *router.Router) error {
+func (s Sessions) RegisterRoutes(r *router.HostRouter) error {
 	errs := []error{}
 
 	_, err := r.AddRoute(echo.Route{

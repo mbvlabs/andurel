@@ -4,15 +4,27 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 
+	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 const (
 	DefaultEnvironment = "development"
 	DefaultProjectName = "app"
-	DefaultDomain      = "localhost:8080"
 )
+
+// Extra named hosts belong in this package as HostName constants, then in
+// App.Hosts. Example:
+//
+//	const HostAdmin routing.HostName = "admin"
+//
+//	cfg.Hosts[HostAdmin] = routing.HostSpec{
+//		Hostname: env.RequiredString("HOST_ADMIN"),
+//		Protocol: protocol,
+//		// Aliases: []string{"www.admin.example.com"},
+//	}
 
 // App contains process-independent application identity and URL settings.
 type App struct {
@@ -20,18 +32,30 @@ type App struct {
 	ProjectName string
 	Domain      string
 	Protocol    string
+	Hosts       map[routing.HostName]routing.HostSpec
 }
 
 func NewApp() (App, error) {
 	env := newEnvironment()
+	protocol := env.String("PROTOCOL", "")
+	primaryHost := env.RequiredString("HOST_PRIMARY")
 	cfg := App{
 		Environment: env.String("ENVIRONMENT", DefaultEnvironment),
 		ProjectName: env.String("PROJECT_NAME", DefaultProjectName),
-		Domain:      env.String("DOMAIN", DefaultDomain),
-		Protocol:    env.String("PROTOCOL", ""),
+		Domain:      primaryHost,
+		Protocol:    protocol,
+		Hosts: map[routing.HostName]routing.HostSpec{
+			routing.HostPrimary: {
+				Hostname: primaryHost,
+				Protocol: protocol,
+			},
+		},
 	}
 
 	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
+		return App{}, fmt.Errorf("config: app: %w", err)
+	}
+	if err := routing.ConfigureHosts(cfg.Hosts); err != nil {
 		return App{}, fmt.Errorf("config: app: %w", err)
 	}
 
@@ -56,12 +80,50 @@ func (c App) validate() error {
 }
 
 func (c App) BaseURL() string {
+	if spec, ok := c.Hosts[routing.HostPrimary]; ok {
+		if origin := spec.BaseURL(); origin != "" {
+			return origin
+		}
+	}
+
 	protocol := c.Protocol
 	if protocol == "" {
 		protocol = "http"
 	}
 
 	return fmt.Sprintf("%s://%s", protocol, c.Domain)
+}
+
+// Origins returns the unique origins for every configured host and alias.
+func (c App) Origins() []string {
+	seen := make(map[string]struct{})
+	origins := make([]string, 0, len(c.Hosts))
+	add := func(spec routing.HostSpec) {
+		for _, origin := range spec.Origins() {
+			if _, ok := seen[origin]; ok {
+				continue
+			}
+			seen[origin] = struct{}{}
+			origins = append(origins, origin)
+		}
+	}
+	if spec, ok := c.Hosts[routing.HostPrimary]; ok {
+		add(spec)
+	}
+	names := make([]routing.HostName, 0, len(c.Hosts))
+	for name := range c.Hosts {
+		if name == routing.HostPrimary {
+			continue
+		}
+		names = append(names, name)
+	}
+	sort.Slice(names, func(i, j int) bool {
+		return names[i] < names[j]
+	})
+	for _, name := range names {
+		add(c.Hosts[name])
+	}
+	return origins
 }
 
 func (c App) IsProduction() bool {

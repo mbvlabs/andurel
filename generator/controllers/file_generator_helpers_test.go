@@ -112,7 +112,7 @@ func TestControllerFrontendActionsAndRegistrationHelpers(t *testing.T) {
 
 	existing := `package controllers
 
-func (p Products) RegisterRoutes(r *router.Router) error {
+func (p Products) RegisterRoutes(r *router.HostRouter) error {
 	var errs []error
 	var err error
 
@@ -142,7 +142,7 @@ func (p Products) RegisterRoutes(r *router.Router) error {
 		t.Fatalf("existing registration should be unchanged:\n%s", got)
 	}
 
-	withoutReturn := "package controllers\n\nfunc (p Products) RegisterRoutes(r *router.Router) error {}\n"
+	withoutReturn := "package controllers\n\nfunc (p Products) RegisterRoutes(r *router.HostRouter) error {}\n"
 	appended := ensureRegisterRoutes(
 		withoutReturn,
 		"p",

@@ -22,7 +22,8 @@ type SimpleRoute interface {
 	Name() string
 	Path() string
 	URL(opts ...RouteOption) string
-	FullURL(base string, opts ...RouteOption) string
+	FullURL(opts ...RouteOption) string
+	Host() HostName
 }
 
 // UUIDIDRoute represents routes with a UUID ID in the URL parameter
@@ -30,8 +31,9 @@ type UUIDIDRoute interface {
 	Name() string
 	Path() string
 	URL(id uuid.UUID, opts ...RouteOption) string
-	FullURL(base string, id uuid.UUID, opts ...RouteOption) string
+	FullURL(id uuid.UUID, opts ...RouteOption) string
 	GetParam() string
+	Host() HostName
 }
 
 // SerialIDRoute represents routes with a serial (int32) ID in the URL parameter
@@ -39,8 +41,9 @@ type SerialIDRoute interface {
 	Name() string
 	Path() string
 	URL(id int32, opts ...RouteOption) string
-	FullURL(base string, id int32, opts ...RouteOption) string
+	FullURL(id int32, opts ...RouteOption) string
 	GetParam() string
+	Host() HostName
 }
 
 // BigSerialIDRoute represents routes with a bigserial (int64) ID in the URL parameter
@@ -48,8 +51,9 @@ type BigSerialIDRoute interface {
 	Name() string
 	Path() string
 	URL(id int64, opts ...RouteOption) string
-	FullURL(base string, id int64, opts ...RouteOption) string
+	FullURL(id int64, opts ...RouteOption) string
 	GetParam() string
+	Host() HostName
 }
 
 // StringIDRoute represents routes with a string ID in the URL parameter
@@ -57,8 +61,9 @@ type StringIDRoute interface {
 	Name() string
 	Path() string
 	URL(id string, opts ...RouteOption) string
-	FullURL(base string, id string, opts ...RouteOption) string
+	FullURL(id string, opts ...RouteOption) string
 	GetParam() string
+	Host() HostName
 }
 
 // ParamRoute represents routes with a single URL parameter
@@ -66,8 +71,9 @@ type ParamRoute interface {
 	Name() string
 	Path() string
 	URL(param string, opts ...RouteOption) string
-	FullURL(base string, param string, opts ...RouteOption) string
+	FullURL(param string, opts ...RouteOption) string
 	GetParam() string
+	Host() HostName
 }
 
 // ParamsRoute represents routes with multiple parameters, where Params is a struct
@@ -83,5 +89,6 @@ type ParamsRoute[Params any] interface {
 	Name() string
 	Path() string
 	URL(params Params, opts ...RouteOption) string
-	FullURL(base string, params Params, opts ...RouteOption) string
+	FullURL(params Params, opts ...RouteOption) string
+	Host() HostName
 }

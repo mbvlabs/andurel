@@ -6,7 +6,7 @@ import (
 )
 
 func TestCORSDefaultsToApplicationOrigin(t *testing.T) {
-	config, err := newCORSConfig("https://app.example.com", nil)
+	config, err := newCORSConfig([]string{"https://app.example.com"}, nil)
 	if err != nil {
 		t.Fatalf("newCORSConfig returned an error: %v", err)
 	}
@@ -22,7 +22,7 @@ func TestCORSDefaultsToApplicationOrigin(t *testing.T) {
 
 func TestCORSRequiresExplicitAdditionalOrigins(t *testing.T) {
 	config, err := newCORSConfig(
-		"https://app.example.com",
+		[]string{"https://app.example.com"},
 		[]string{" https://admin.example.com ", ""},
 	)
 	if err != nil {
@@ -37,21 +37,21 @@ func TestCORSRequiresExplicitAdditionalOrigins(t *testing.T) {
 
 func TestCredentialedCORSRejectsWildcards(t *testing.T) {
 	tests := []struct {
-		name              string
-		applicationOrigin string
-		additionalOrigins []string
+		name               string
+		applicationOrigins []string
+		additionalOrigins  []string
 	}{
-		{name: "wildcard application origin", applicationOrigin: "*"},
+		{name: "wildcard application origin", applicationOrigins: []string{"*"}},
 		{
-			name:              "wildcard additional origin",
-			applicationOrigin: "https://app.example.com",
-			additionalOrigins: []string{"https://*"},
+			name:               "wildcard additional origin",
+			applicationOrigins: []string{"https://app.example.com"},
+			additionalOrigins:  []string{"https://*"},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := newCORSConfig(test.applicationOrigin, test.additionalOrigins); err == nil {
+			if _, err := newCORSConfig(test.applicationOrigins, test.additionalOrigins); err == nil {
 				t.Fatalf("expected wildcard CORS configuration to be rejected")
 			}
 		})

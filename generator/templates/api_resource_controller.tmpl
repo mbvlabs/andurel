@@ -64,7 +64,7 @@ func New{{.PluralResourceName}}({{.ModelServiceName | ToLowerCamelCase}} models.
 	return {{.PluralResourceName}}{ {{.ModelServiceName | ToLowerCamelCase}} }
 }
 
-func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.Router) error {
+func ({{.ReceiverName}} {{.PluralResourceName}}) RegisterRoutes(r *router.HostRouter) error {
 	errs := []error{}
 	var err error
 

@@ -25,7 +25,7 @@ func NewDocuments(documents models.Documents) Documents {
 	return Documents{documents}
 }
 
-func (d Documents) RegisterRoutes(r *router.Router) error {
+func (d Documents) RegisterRoutes(r *router.HostRouter) error {
 	var errs []error
 	var err error
 	_, err = r.AddRoute(echo.Route{

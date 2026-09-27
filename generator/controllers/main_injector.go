@@ -31,7 +31,7 @@ func NewMainInjector() *MainInjector {
 // InjectController adds a generated resource controller to controllers.Module.
 // Returns nil if the file or expected module shape is not found, after printing
 // instructions for a manual update.
-func (mi *MainInjector) InjectController(resourceName, namespace, pluralName string) error {
+func (mi *MainInjector) InjectController(resourceName, namespace, pluralName, hostExpr string) error {
 	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
 	packageName := naming.ControllerPackageName(namespace)
 
@@ -45,12 +45,28 @@ func (mi *MainInjector) InjectController(resourceName, namespace, pluralName str
 	if err != nil {
 		slog.Info("controllers/controller.go not found for controller injection",
 			"hint", "manually add the controller to the controllers module")
-		mi.printManualInstructions(resourceName, namespace, pluralName)
+		mi.printManualInstructions(resourceName, namespace, pluralName, hostExpr)
 		return nil
 	}
 
 	contentStr := string(content)
 	updated := false
+
+	if nextContent := ensureImport(contentStr, "", "github.com/mbvlabs/andurel/pkg/routing"); nextContent != contentStr {
+		contentStr = nextContent
+		updated = true
+	}
+	if hostPkg, ok := hostExprPackage(hostExpr); ok {
+		modulePath, err := readModulePathFromRoot(rootDir)
+		if err != nil {
+			return fmt.Errorf("failed to read module path for controller injection: %w", err)
+		}
+		nextContent := ensureImport(contentStr, "", modulePath+"/"+hostPkg)
+		if nextContent != contentStr {
+			contentStr = nextContent
+			updated = true
+		}
+	}
 	constructorRef := "New" + capitalizedPlural
 	constructorProvideRef := constructorRef
 	if namespace != "" {
@@ -84,9 +100,9 @@ func (mi *MainInjector) InjectController(resourceName, namespace, pluralName str
 	invokeNeedle := fmt.Sprintf("c %s) error", controllerType)
 	if !strings.Contains(contentStr, invokeNeedle) {
 		invoke := fmt.Sprintf(`	fx.Invoke(func(r *router.Router, c %s) error {
-		return c.RegisterRoutes(r)
+		return c.RegisterRoutes(r.Host(%s))
 	}),
-`, controllerType)
+`, controllerType, hostTargetExpr(hostExpr))
 		nextContent, changed, err := ensureModuleEntry(contentStr, invoke)
 		if err != nil {
 			return err
@@ -180,7 +196,9 @@ func findMatchingParen(content string, openIdx int) int {
 	return -1
 }
 
-func (mi *MainInjector) printManualInstructions(resourceName, namespace, pluralName string) {
+func (mi *MainInjector) printManualInstructions(
+	resourceName, namespace, pluralName, hostExpr string,
+) {
 	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
 	packageName := naming.ControllerPackageName(namespace)
 	constructorRef := "New" + capitalizedPlural
@@ -196,10 +214,26 @@ INFO: Add the following to your controller setup in controllers/controller.go:
 	%s,
 
 	fx.Invoke(func(r *router.Router, c %s) error {
-		return c.RegisterRoutes(r)
+		return c.RegisterRoutes(r.Host(%s))
 	}),
 
-`, constructorRef, controllerType)
+`, constructorRef, controllerType, hostTargetExpr(hostExpr))
+}
+
+func hostTargetExpr(hostExpr string) string {
+	if strings.TrimSpace(hostExpr) == "" {
+		return "routing.HostPrimary"
+	}
+	return strings.TrimSpace(hostExpr)
+}
+
+func hostExprPackage(hostExpr string) (string, bool) {
+	hostExpr = strings.TrimSpace(hostExpr)
+	pkg, ident, ok := strings.Cut(hostExpr, ".")
+	if !ok || pkg == "" || ident == "" || pkg == "routing" {
+		return "", false
+	}
+	return pkg, true
 }
 
 func readModulePathFromRoot(rootDir string) (string, error) {

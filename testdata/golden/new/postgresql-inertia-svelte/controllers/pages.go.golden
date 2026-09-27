@@ -20,7 +20,7 @@ func NewPages(renderer *inertia.Renderer) Pages {
 	return Pages{renderer: renderer}
 }
 
-func (p Pages) RegisterRoutes(r *router.Router) error {
+func (p Pages) RegisterRoutes(r *router.HostRouter) error {
 	errs := []error{}
 
 	_, err := r.AddRoute(echo.Route{

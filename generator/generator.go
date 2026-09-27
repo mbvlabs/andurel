@@ -92,8 +92,9 @@ func (g *Generator) GenerateController(
 	resourceName, namespace, tableName string,
 	inertia string,
 	isAPI bool,
+	hostExpr string,
 ) error {
-	return g.coordinator.GenerateController(resourceName, namespace, tableName, inertia, isAPI)
+	return g.coordinator.GenerateController(resourceName, namespace, tableName, inertia, isAPI, hostExpr)
 }
 
 // GenerateControllerWithActions generates a controller restricted to the requested actions.
@@ -102,6 +103,7 @@ func (g *Generator) GenerateControllerWithActions(
 	actions []string,
 	inertia string,
 	isAPI bool,
+	hostExpr string,
 ) error {
 	return g.coordinator.GenerateControllerWithActions(
 		resourceName,
@@ -110,6 +112,7 @@ func (g *Generator) GenerateControllerWithActions(
 		actions,
 		inertia,
 		isAPI,
+		hostExpr,
 	)
 }
 
@@ -119,6 +122,7 @@ func (g *Generator) GenerateControllerWithActionsForModel(
 	actions []string,
 	inertia string,
 	isAPI bool,
+	hostExpr string,
 ) error {
 	return g.coordinator.GenerateControllerWithActionsForModel(
 		resourceName,
@@ -128,6 +132,7 @@ func (g *Generator) GenerateControllerWithActionsForModel(
 		actions,
 		inertia,
 		isAPI,
+		hostExpr,
 	)
 }
 
@@ -138,6 +143,7 @@ func (g *Generator) GenerateScaffold(
 	primaryKeyColumn string,
 	inertia string,
 	isAPI bool,
+	hostExpr string,
 ) error {
 	return g.coordinator.GenerateScaffold(
 		resourceName,
@@ -147,6 +153,7 @@ func (g *Generator) GenerateScaffold(
 		primaryKeyColumn,
 		inertia,
 		isAPI,
+		hostExpr,
 	)
 }
 
