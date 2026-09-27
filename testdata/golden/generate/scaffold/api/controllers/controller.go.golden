@@ -3,8 +3,8 @@ package controllers
 import (
 	"example.com/app/controllers/api"
 	"example.com/app/router"
-
 	"github.com/mbvlabs/andurel/pkg/routing"
+
 	"go.uber.org/fx"
 )
 

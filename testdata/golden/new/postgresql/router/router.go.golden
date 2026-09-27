@@ -45,6 +45,7 @@ func New(
 	if err := routing.ConfigureHosts(appCfg.Hosts); err != nil {
 		return nil, err
 	}
+
 	globalMiddleware, err := SetupGlobalMiddleware(
 		appCfg,
 		httpCfg,
