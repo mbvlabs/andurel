@@ -538,11 +538,15 @@ andurel g controller Widget --prefix=admin                # HostPrimary, /admin/
 
 The reverse proxy must forward the public `Host` header unchanged. When a configured hostname has no port, Andurel also registers `hostname:80` and `hostname:443` aliases so lookups succeed whether the proxy forwards a bare host or an explicit standard port. Unknown hosts are served by the primary Echo. Duplicate hostnames or aliases across `HostName`s fail at boot.
 
-Assets and `/api` stay on the primary host unless those routes set `routing.Host(...)`. A secondary-host page that loads `https://primary.example/assets/...` is a normal cross-origin request; CORS already unions every configured host origin. Layout `<link>` / `<script>` tags use `FullURL()` so they always point at the asset host — avoid relative `/assets/...` on secondary hosts.
+Templ CSS and JS stay on the primary host unless those routes set `routing.Host(...)`. Layout `<link>` / `<script>` tags use `FullURL()` so they always point at the asset host.
+
+`/api` stays on the primary host unless those routes set `routing.Host(...)`.
+
+Inertia Vite files stay on the primary host. Production tags from `pkg/inertia` use `ViteBuild.FullURL()` plus `crossorigin` so a secondary-host page loads the entry from primary. Vite production `base` is `'./'` so hashed chunks and fonts resolve against that script URL, not the page origin. Development keeps `base: '/assets/dist/'` and tags that hit `INERTIA_VITE_DEV_URL`.
 
 Inertia TypeScript helpers from `andurel sync routes` return full URLs. Boot configures origins once via the shared `hosts` prop (`configureRouteHosts` in `resources/js/app` / SSR entry), so `routes.homePage()` resolves to the correct host without per-call arguments. Use `routes.homePage.path()` when a relative path is required. Run `andurel sync routes` after adding host-bound Inertia routes. Not-found handlers are registered on every configured host.
 
-To serve assets from `assets.example.com`, declare `const HostAssets routing.HostName = "assets"`, bind `HOST_ASSETS`, and put `routing.Host(config.HostAssets)` on the asset routes. There is no framework special case — it is another named host.
+To serve Templ CSS/JS from `assets.example.com`, declare `const HostAssets routing.HostName = "assets"`, bind `HOST_ASSETS`, and put `routing.Host(config.HostAssets)` on those routes. There is no framework special case — it is another named host. For Inertia Vite, bind `ViteBuild` (and `ViteDevFiles`) to that host too; `FullURL()` plus relative Vite `base` follow the script origin.
 
 **Client/testing tips**:
 - For unsafe requests in tests or custom clients, include `Sec-Fetch-Site: same-origin`.

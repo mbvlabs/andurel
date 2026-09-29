@@ -4,14 +4,14 @@ import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 import inertia from '@inertiajs/vite'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [svelte(), inertia({ ssr: { entry: 'resources/js/ssr.ts' } }), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./resources/js', import.meta.url)),
     },
   },
-  base: '/assets/dist/',
+  base: command === 'build' ? './' : '/assets/dist/',
   build: {
     manifest: 'vite/manifest.json',
     assetsDir: '',
@@ -24,4 +24,4 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
-})
+}))

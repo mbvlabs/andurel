@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/a-h/templ"
@@ -145,5 +146,43 @@ func TestPageScriptEscapesClosingScript(t *testing.T) {
 	if strings.Contains(output.String(), "</script></script>") ||
 		!strings.Contains(output.String(), `<\/script>`) {
 		t.Fatalf("unsafe page script: %s", output.String())
+	}
+}
+
+func TestProductionViteTagsUseBuildPathPrefixAndCrossOrigin(t *testing.T) {
+	t.Parallel()
+
+	assetFS := fstest.MapFS{
+		"dist/vite/manifest.json": &fstest.MapFile{Data: []byte(
+			`{"resources/js/app.ts":{"file":"app-abc.js","css":["app-abc.css"]}}`,
+		)},
+	}
+
+	renderer, err := NewRenderer(
+		"app",
+		"https://example.com/assets/dist/1710000000/*",
+		"resources/js/app.ts",
+		"http://localhost:5173/assets/dist",
+		"http://127.0.0.1:13714",
+		2*time.Second,
+		2<<20,
+		WithRoot(testRoot(nil)),
+		WithAssetFS(assetFS),
+		WithEnvironment("production"),
+	)
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	wantCSS := `href="https://example.com/assets/dist/1710000000/app-abc.css"`
+	if !strings.Contains(renderer.viteTags.head, wantCSS) ||
+		!strings.Contains(renderer.viteTags.head, "crossorigin") {
+		t.Fatalf("vite head = %q", renderer.viteTags.head)
+	}
+	wantJS := `src="https://example.com/assets/dist/1710000000/app-abc.js"`
+	if !strings.Contains(renderer.viteTags.body, wantJS) ||
+		!strings.Contains(renderer.viteTags.body, `type="module"`) ||
+		!strings.Contains(renderer.viteTags.body, "crossorigin") {
+		t.Fatalf("vite body = %q", renderer.viteTags.body)
 	}
 }

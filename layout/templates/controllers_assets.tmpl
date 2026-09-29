@@ -84,7 +84,17 @@ func (a Assets) RegisterRoutes(r *router.Router) error {
 		errs = append(errs, err)
 	}
 
-{{end}}
+	// Production Vite base is relative (./). Hashed files usually share the
+	// timestamped ViteBuild path. Keep /assets/dist/* for anything still
+	// emitted without the timestamp.
+	_, err = r.AddRoute(routes.ViteDevFiles, echo.Route{
+		Method:  http.MethodGet,
+		Handler: a.ViteBuild,
+	})
+	if err != nil {
+		errs = append(errs, err)
+	}
+{{- end}}
 
 	return errors.Join(errs...)
 }
@@ -262,6 +272,10 @@ func contentTypeByExt(name string) string {
 		return "application/json"
 	case strings.HasSuffix(name, ".svg"):
 		return "image/svg+xml"
+	case strings.HasSuffix(name, ".woff2"):
+		return "font/woff2"
+	case strings.HasSuffix(name, ".woff"):
+		return "font/woff"
 	default:
 		return "application/octet-stream"
 	}

@@ -220,3 +220,29 @@ func TestAddRouteNotFoundEachHost(t *testing.T) {
 		t.Fatalf("AddRouteNotFoundEachHost: %v", err)
 	}
 }
+
+func TestAddRouteEachHost(t *testing.T) {
+	primary := echo.New()
+	admin := echo.New()
+	r := &Router{
+		hosts: map[routing.HostName]*echo.Echo{
+			routing.HostPrimary: primary,
+			"admin":             admin,
+		},
+	}
+
+	if err := r.AddRouteEachHost(echo.Route{
+		Method:  http.MethodGet,
+		Path:    "/assets/dist/*",
+		Name:    "vite.build",
+		Handler: func(c *echo.Context) error { return c.NoContent(http.StatusNoContent) },
+	}); err != nil {
+		t.Fatalf("AddRouteEachHost: %v", err)
+	}
+	if len(primary.Router().Routes()) != 1 {
+		t.Fatalf("primary routes = %d, want 1", len(primary.Router().Routes()))
+	}
+	if len(admin.Router().Routes()) != 1 {
+		t.Fatalf("admin routes = %d, want 1", len(admin.Router().Routes()))
+	}
+}

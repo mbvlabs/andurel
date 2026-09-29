@@ -71,7 +71,7 @@ func NewInertia(
 ) (*inertia.Renderer, error) {
 	renderer, err := inertia.NewRenderer(
 		cfg.ContainerID,
-		routes.ViteBuild.Path(),
+		routes.ViteBuild.FullURL(),
 		cfg.EntryPoint,
 		cfg.ViteDevURL,
 		cfg.SSRURL,

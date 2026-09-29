@@ -25,7 +25,7 @@ andurel run
 
 - Default identity is `HOST_PRIMARY` in `.env`. Extra hosts need a `routing.HostName` const in `config/hosts.go` plus a matching `App.Hosts` entry (load `HOST_<NAME>` yourself — not scaffolded).
 - `--host` and `--prefix` are independent: `--host` selects the Echo/`routing.HostName`; `--prefix` is only the path/package namespace. `--host` must match a known `HostName` (`primary` always works; others come from app `routing.HostName` consts).
-- Declare the host on the route with `routing.Host(config.HostAdmin)`. Controllers call `r.AddRoute(route, echo.Route{...})`; Fx stays `RegisterRoutes(r)`. Assets and `/api` stay on primary unless those routes set `Host(...)`.
+- Declare the host on the route with `routing.Host(config.HostAdmin)`. Controllers call `r.AddRoute(route, echo.Route{...})`; Fx stays `RegisterRoutes(r)`. `/api` stays on primary unless those routes set `Host(...)`. Templ CSS/JS and Inertia Vite tags use `FullURL()` to primary. Vite production `base` is `'./'` so nested files follow the script origin.
 - Never invent frontend URLs in Inertia apps: import `resources/js/routes.ts` after `andurel sync routes --json`. Helpers return full URLs once `configureRouteHosts` runs from the shared `hosts` prop at boot. Use `routes.name.path()` for a relative path.
 
 ## Process graphs
