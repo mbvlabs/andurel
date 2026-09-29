@@ -242,7 +242,7 @@ func manualActionsForUpgrade(
 			"1. In `.env` and deployment config, rename `DOMAIN` to `HOST_PRIMARY`. Keep the same hostname value (for example `localhost:8080` or `example.com`).\n\n",
 		)
 		instructions.WriteString(
-			"2. `PROTOCOL` still sets the scheme. Optional extra hosts use `HOST_<NAME>` (for example `HOST_ADMIN`) plus a `const HostAdmin routing.HostName` in `config` and an `App.Hosts` entry.\n\n",
+			"2. `PROTOCOL` still sets the scheme. Optional extra hosts use `HOST_<NAME>` (for example `HOST_ADMIN`) plus a `const HostAdmin routing.HostName` in `config/hosts.go` and an `App.Hosts` entry.\n\n",
 		)
 		instructions.WriteString(
 			"3. CSRF and CORS now trust the union of every configured host origin automatically. `CSRF_TRUSTED_ORIGINS` and `CORS_ALLOWED_ORIGINS` are additional exact origins only — do not repeat `HOST_PRIMARY` there. Wildcards are rejected at boot.\n\n",

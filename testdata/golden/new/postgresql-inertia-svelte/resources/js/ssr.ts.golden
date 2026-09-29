@@ -1,14 +1,18 @@
 import { createInertiaApp, type ResolvedComponent } from '@inertiajs/svelte'
 import createServer from '@inertiajs/svelte/server'
 import { render } from 'svelte/server'
+import { configureRouteHosts } from './routes'
 
 const serverOptions = {
   host: process.env.INERTIA_SSR_HOST ?? '127.0.0.1',
   port: Number(process.env.INERTIA_SSR_PORT ?? '13714'),
 }
 
-createServer(page =>
-  createInertiaApp({
+createServer(page => {
+  configureRouteHosts(
+    (page.props.hosts ?? {}) as Record<string, string>,
+  )
+  return createInertiaApp({
     page,
     resolve: (name: string) => {
       const pages = import.meta.glob<ResolvedComponent>('./Pages/**/*.svelte', { eager: true })
@@ -17,6 +21,5 @@ createServer(page =>
     setup({ App, props }) {
       return render(App, { props })
     },
-  }),
-  serverOptions,
-)
+  })
+}, serverOptions)

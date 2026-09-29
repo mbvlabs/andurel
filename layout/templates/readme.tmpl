@@ -515,7 +515,7 @@ Single-host apps are the default: set `HOST_PRIMARY` and keep path namespaces su
 
 To serve a second domain from the same process:
 
-1. Declare a host name in `config`, for example `const HostAdmin routing.HostName = "admin"`.
+1. Declare a host name in `config/hosts.go`, for example `const HostAdmin routing.HostName = "admin"`.
 2. Load `HOST_ADMIN` (or another `HOST_*`) into `App.Hosts` at boot. Missing hostnames fail startup.
 3. Register aliases (`www`, extra names) as additional hostnames for that `HostName`.
 4. Declare the host on the route with `routing.Host(config.HostAdmin)`. Controllers register with `r.AddRoute(routes.WidgetsIndex, echo.Route{...})` and Fx invokes `c.RegisterRoutes(r)` with no host argument. Generators accept independent `--host` and `--prefix` flags:
@@ -529,6 +529,8 @@ andurel g controller Widget --prefix=admin                # HostPrimary, /admin/
 The reverse proxy must forward the public `Host` header unchanged. Trailing `:80` / `:443` are stripped (and extra hosts are also registered with those ports) before lookup. Unknown hosts are served by the primary Echo.
 
 Assets and `/api` default to the primary host. A secondary host fetching `https://example.com/assets/...` is a normal cross-origin request; CORS already unions every configured host origin. Layout `<link>` / `<script>` tags use `FullURL()` so they always point at the asset host.
+
+Inertia TypeScript helpers from `andurel sync routes` return full URLs. Boot configures origins once via the shared `hosts` prop (`configureRouteHosts` in `resources/js/app` / SSR entry), so `routes.homePage()` resolves to the correct host without per-call arguments. Run `andurel sync routes` after adding host-bound Inertia routes.
 
 To serve assets from `assets.example.com`, declare `const HostAssets routing.HostName = "assets"`, bind `HOST_ASSETS`, and put `routing.Host(config.HostAssets)` on the asset routes. There is no framework special case — it is another named host.
 

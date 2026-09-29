@@ -21,4 +21,4 @@ andurel inspect routes --json
 andurel run
 ```
 
-Never invent frontend URLs in Inertia apps: import `resources/js/routes.ts` after `andurel sync routes --json`.
+Never invent frontend URLs in Inertia apps: import `resources/js/routes.ts` after `andurel sync routes --json`. Helpers return full URLs once `configureRouteHosts` runs from the shared `hosts` prop at boot.

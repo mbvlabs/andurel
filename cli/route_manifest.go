@@ -71,10 +71,15 @@ func collectRouteManifest(rootDir string) (routeManifest, error) {
 	}
 
 	consts := collectRouteConstants(files)
+	hosts, err := discoverAppHostNames(rootDir)
+	if err != nil {
+		return routeManifest{}, err
+	}
+	hostNames := buildHostNameResolver(hosts)
 
 	var manifest routeManifest
 	for _, file := range files {
-		routes, skipped := collectRoutesFromFile(rootDir, file, consts)
+		routes, skipped := collectRoutesFromFile(rootDir, file, consts, hostNames)
 		manifest.Routes = append(manifest.Routes, routes...)
 		manifest.Skipped = append(manifest.Skipped, skipped...)
 	}
@@ -182,6 +187,7 @@ func collectRoutesFromFile(
 	rootDir string,
 	file parsedRouteFile,
 	consts map[string]string,
+	hostNames map[string]string,
 ) ([]routeManifestRoute, []routeManifestSkipped) {
 	sourceFile := routeManifestSourceFile(rootDir, file.path)
 	routes := []routeManifestRoute{}
@@ -209,6 +215,7 @@ func collectRoutesFromFile(
 					name.Name,
 					valueSpec.Values[i],
 					consts,
+					hostNames,
 				)
 				if !ok {
 					continue
@@ -231,6 +238,7 @@ func routeManifestFromValue(
 	variable string,
 	expr ast.Expr,
 	consts map[string]string,
+	hostNames map[string]string,
 ) (routeManifestRoute, *routeManifestSkipped, bool) {
 	call, ok := expr.(*ast.CallExpr)
 	if !ok {
@@ -272,7 +280,7 @@ func routeManifestFromValue(
 		return routeManifestRoute{}, skip("route prefix is not a static string expression"), true
 	}
 
-	isInertia, host, errReason := evalRouteSetupOptions(call.Args[3:])
+	isInertia, host, errReason := evalRouteSetupOptions(call.Args[3:], hostNames)
 	if errReason != "" {
 		return routeManifestRoute{}, skip(errReason), true
 	}
@@ -292,7 +300,7 @@ func routeManifestFromValue(
 	}, nil, true
 }
 
-func evalRouteSetupOptions(args []ast.Expr) (bool, string, string) {
+func evalRouteSetupOptions(args []ast.Expr, hostNames map[string]string) (bool, string, string) {
 	isInertia := false
 	host := ""
 	for _, arg := range args {
@@ -300,7 +308,11 @@ func evalRouteSetupOptions(args []ast.Expr) (bool, string, string) {
 			isInertia = true
 			continue
 		}
-		if name, ok := evalHostRouteOption(arg); ok {
+		name, isHost, reason := evalHostRouteOption(arg, hostNames)
+		if isHost {
+			if reason != "" {
+				return false, "", reason
+			}
 			if name != "" && name != string(mustHostPrimary()) {
 				host = name
 			}
@@ -315,28 +327,51 @@ func mustHostPrimary() string {
 	return "primary"
 }
 
-func evalHostRouteOption(expr ast.Expr) (string, bool) {
+func buildHostNameResolver(hosts []discoveredHost) map[string]string {
+	hostNames := map[string]string{
+		"HostPrimary":         "primary",
+		"routing.HostPrimary": "primary",
+	}
+	for _, host := range hosts {
+		hostNames[host.GoExpr] = host.Value
+		hostNames[host.Name] = host.Value
+	}
+	return hostNames
+}
+
+func evalHostRouteOption(expr ast.Expr, hostNames map[string]string) (string, bool, string) {
 	call, ok := expr.(*ast.CallExpr)
 	if !ok || len(call.Args) != 1 {
-		return "", false
+		return "", false, ""
 	}
 	sel, ok := call.Fun.(*ast.SelectorExpr)
 	if !ok {
-		return "", false
+		return "", false, ""
 	}
 	pkg, ok := sel.X.(*ast.Ident)
 	if !ok || pkg.Name != "routing" || sel.Sel.Name != "Host" {
-		return "", false
+		return "", false, ""
 	}
-	return hostNameFromExpr(call.Args[0])
+	value, ok := hostNameFromExpr(call.Args[0], hostNames)
+	if !ok {
+		return "", true, "route host is not a resolvable HostName constant or string literal"
+	}
+	return value, true, ""
 }
 
-func hostNameFromExpr(expr ast.Expr) (string, bool) {
+func hostNameFromExpr(expr ast.Expr, hostNames map[string]string) (string, bool) {
 	switch typed := expr.(type) {
 	case *ast.Ident:
-		return hostNameFromIdent(typed.Name), true
+		value, ok := hostNames[typed.Name]
+		return value, ok
 	case *ast.SelectorExpr:
-		return hostNameFromIdent(typed.Sel.Name), true
+		if pkg, ok := typed.X.(*ast.Ident); ok {
+			if value, ok := hostNames[pkg.Name+"."+typed.Sel.Name]; ok {
+				return value, true
+			}
+		}
+		value, ok := hostNames[typed.Sel.Name]
+		return value, ok
 	case *ast.BasicLit:
 		if typed.Kind != token.STRING {
 			return "", false
@@ -350,17 +385,10 @@ func hostNameFromExpr(expr ast.Expr) (string, bool) {
 		if len(typed.Args) != 1 {
 			return "", false
 		}
-		return hostNameFromExpr(typed.Args[0])
+		return hostNameFromExpr(typed.Args[0], hostNames)
 	default:
 		return "", false
 	}
-}
-
-func hostNameFromIdent(name string) string {
-	if name == "HostPrimary" {
-		return "primary"
-	}
-	return strings.ToLower(strings.TrimPrefix(name, "Host"))
 }
 
 func isInertiaRouteOption(expr ast.Expr) bool {

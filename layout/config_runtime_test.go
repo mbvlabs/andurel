@@ -19,7 +19,7 @@ func TestGeneratedConfigRuntime(t *testing.T) {
 	root := t.TempDir()
 	data := &TemplateData{ModuleName: "testapp", ProjectName: "testapp"}
 	for _, name := range []string{
-		"config", "helper", "app", "http", "session", "database", "queue", "telemetry", "email", "auth",
+		"config", "helper", "app", "hosts", "http", "session", "database", "queue", "telemetry", "email", "auth",
 	} {
 		if err := renderTemplate(
 			root, "config_"+name+".tmpl", "config/"+name+".go", layouttemplates.Files, data,

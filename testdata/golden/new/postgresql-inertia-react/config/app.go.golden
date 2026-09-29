@@ -15,17 +15,6 @@ const (
 	DefaultProjectName = "app"
 )
 
-// Extra named hosts belong in this package as HostName constants, then in
-// App.Hosts. Example:
-//
-//	const HostAdmin routing.HostName = "admin"
-//
-//	cfg.Hosts[HostAdmin] = routing.HostSpec{
-//		Hostname: env.RequiredString("HOST_ADMIN"),
-//		Protocol: protocol,
-//		// Aliases: []string{"www.admin.example.com"},
-//	}
-
 // App contains process-independent application identity and URL settings.
 type App struct {
 	Environment string
@@ -129,6 +118,17 @@ func (c App) Origins() []string {
 		}
 	}
 	return origins
+}
+
+// HostOrigins returns the canonical origin for each named host.
+func (c App) HostOrigins() map[string]string {
+	out := make(map[string]string, len(c.Hosts))
+	for name, spec := range c.Hosts {
+		if origin := spec.BaseURL(); origin != "" {
+			out[string(name)] = origin
+		}
+	}
+	return out
 }
 
 func (c App) IsProduction() bool {

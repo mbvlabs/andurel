@@ -2,6 +2,7 @@ import '../../css/base.css'
 
 import { createInertiaApp, type ResolvedComponent } from '@inertiajs/svelte'
 import { hydrate, mount } from 'svelte'
+import { configureRouteHosts } from './routes'
 
 createInertiaApp({
   resolve: (name: string) => {
@@ -10,6 +11,10 @@ createInertiaApp({
   },
   setup({ el, App, props }) {
     if (!el) return
+
+    configureRouteHosts(
+      (props.initialPage.props.hosts ?? {}) as Record<string, string>,
+    )
 
     if (el.dataset.serverRendered === 'true') {
       hydrate(App, { target: el, props })
