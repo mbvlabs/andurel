@@ -520,7 +520,7 @@ func (b *Builder) AddPreRunHook(name, code string) *Builder {
 	return b
 }
 
-// AddServiceProvide adds a service provide expression.
+// AddServiceProvide adds a service provide expression to internal/runtime Shared.
 // The expression is a function literal or constructor reference passed to fx.Provide.
 func (b *Builder) AddServiceProvide(expr string) *Builder {
 	if expr == "" {

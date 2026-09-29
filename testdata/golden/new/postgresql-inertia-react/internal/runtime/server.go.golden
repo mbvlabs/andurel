@@ -1,0 +1,101 @@
+package runtime
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"app/config"
+	"app/router"
+
+	"github.com/mbvlabs/andurel/pkg/server"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+	"go.uber.org/fx"
+)
+
+func startServer(
+	lc fx.Lifecycle,
+	appCtx context.Context,
+	r *router.Router,
+	appCfg config.App,
+	httpCfg config.HTTP,
+	tel *telemetry.Telemetry,
+) {
+	appCtx = tel.Context(appCtx)
+	srv := server.New(
+		appCtx,
+		httpCfg.Host,
+		httpCfg.Port,
+		appCfg.Environment,
+		r.Handler,
+		nil,
+		server.WithTimeouts(
+			httpCfg.IdleTimeout,
+			httpCfg.ReadTimeout,
+			httpCfg.WriteTimeout,
+		),
+	)
+	var done <-chan struct{}
+
+	lc.Append(fx.Hook{
+		OnStart: func(_ context.Context) error {
+			telemetry.Info(
+				appCtx,
+				"starting server",
+				"host",
+				httpCfg.Host,
+				"port",
+				httpCfg.Port,
+			)
+			done = startInBackground(appCtx, "server", func(ctx context.Context) error {
+				return srv.Start(ctx, appCfg.Environment)
+			})
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			telemetry.Info(ctx, "initiating graceful shutdown")
+			return stopAndWait(ctx, func(ctx context.Context) error {
+				var shutdownErr error
+				for _, shutdowner := range srv.Shutdowners {
+					if err := shutdowner.Shutdown(ctx); err != nil {
+						shutdownErr = errors.Join(
+							shutdownErr,
+							fmt.Errorf("server: shutdown component %T: %w", shutdowner, err),
+						)
+					}
+				}
+
+				return shutdownErr
+			}, done)
+		},
+	})
+}
+
+func startInBackground(
+	ctx context.Context,
+	name string,
+	start func(context.Context) error,
+) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if err := start(ctx); err != nil {
+			telemetry.Error(ctx, name+" error", "error", err)
+		}
+	}()
+	return done
+}
+
+func stopAndWait(
+	ctx context.Context,
+	stop func(context.Context) error,
+	done <-chan struct{},
+) error {
+	stopErr := stop(ctx)
+	select {
+	case <-done:
+		return stopErr
+	case <-ctx.Done():
+		return errors.Join(stopErr, ctx.Err())
+	}
+}

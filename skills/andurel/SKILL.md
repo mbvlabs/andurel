@@ -49,6 +49,7 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 - Put River job argument types in `queue/jobs/` and worker implementations or registration in `queue/`.
 - Put provider adapters in `clients/`, email templates/helpers in `email/`, and config/environment loading in `config/`.
 - Put reusable framework-like support that is independent of one resource in `internal/`.
+- Put Fx process graphs and infrastructure constructors in `internal/runtime`. `cmd/app` and `cmd/queue` only load env and call `runtime.App` / `runtime.Queue`.
 - Register new constructors in the existing `fx` modules for the package that owns them.
 
 ## Output Modes

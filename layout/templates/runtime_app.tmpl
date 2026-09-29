@@ -1,0 +1,98 @@
+package runtime
+
+import (
+	"context"
+
+{{- if .Inertia}}
+	"{{.ModuleName}}/assets"
+{{- end}}
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/controllers"
+	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/router"
+	"{{.ModuleName}}/router/cookies"
+{{- if .Inertia}}
+	"{{.ModuleName}}/router/routes"
+{{- end}}
+	"{{.ModuleName}}/services"
+{{- if .Inertia}}
+	"{{.ModuleName}}/views"
+{{- end}}
+
+{{if .Inertia}}	"github.com/mbvlabs/andurel/pkg/inertia"
+{{end}}	"github.com/mbvlabs/andurel/pkg/storage"
+	"go.uber.org/fx"
+)
+
+type AppVersion string
+
+func App(ctx context.Context, appVersion string) fx.Option {
+	return fx.Options(
+		fx.Provide(
+			func() context.Context { return ctx },
+			func() AppVersion { return AppVersion(appVersion) },
+		),
+		config.Module,
+		Shared,
+		QueueInsert,
+{{if .Inertia}}		Inertia,
+{{end}}		models.Module,
+		services.Module,
+		controllers.Module,
+		cookies.Module,
+		router.Module,
+		fx.Invoke(startServer),
+	)
+}
+
+var QueueInsert = fx.Module(
+	"queue-insert",
+	fx.Provide(fx.Annotate(NewQueueInsert, fx.As(new(storage.InsertQueue)))),
+)
+
+func NewQueueInsert(
+	connection storage.Connection,
+	cfg config.QueueInsert,
+) (*storage.QueueInsert, error) {
+	return storage.NewQueueInsert(connection, cfg.Config)
+}
+
+{{- if .Inertia}}
+
+var Inertia = fx.Module(
+	"inertia",
+	fx.Provide(NewInertia),
+)
+
+func NewInertia(
+	appCfg config.App,
+	cfg config.Inertia,
+	version AppVersion,
+) (*inertia.Renderer, error) {
+	renderer, err := inertia.NewRenderer(
+		cfg.ContainerID,
+		routes.ViteBuild.Path(),
+		cfg.EntryPoint,
+		cfg.ViteDevURL,
+		cfg.SSRURL,
+		cfg.SSRRequestTimeout,
+		cfg.SSRMaxResponseBytes,
+		inertia.WithRoot(views.Root),
+		inertia.WithAssetFS(assets.Files),
+		inertia.WithProjectName(appCfg.ProjectName),
+		inertia.WithEnvironment(appCfg.Environment),
+		inertia.WithProtocolDebug(cfg.ProtocolDebug),
+		inertia.WithShared(inertia.Props{
+			"appVersion": string(version),
+			"hosts":      appCfg.HostOrigins(),
+		}),
+		inertia.WithSSRFailFast(cfg.SSRFailFast),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return renderer, nil
+}
+
+{{- end}}

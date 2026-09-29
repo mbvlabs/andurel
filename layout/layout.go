@@ -188,10 +188,16 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-1.min.js",
 
 	// Commands
-	"cmd_app_main.tmpl":      "cmd/app/main.go",
-	"cmd_app_main_test.tmpl": "cmd/app/main_test.go",
-	"cmd_queue_main.tmpl":    "cmd/queue/main.go",
-	"cmd_seeds_main.tmpl":    "cmd/seeds/main.go",
+	"cmd_app_main.tmpl":   "cmd/app/main.go",
+	"cmd_queue_main.tmpl": "cmd/queue/main.go",
+	"cmd_seeds_main.tmpl": "cmd/seeds/main.go",
+
+	// Process composition
+	"runtime_app.tmpl":         "internal/runtime/app.go",
+	"runtime_queue.tmpl":       "internal/runtime/queue.go",
+	"runtime_runtime.tmpl":     "internal/runtime/runtime.go",
+	"runtime_server.tmpl":      "internal/runtime/server.go",
+	"runtime_server_test.tmpl": "internal/runtime/server_test.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
@@ -393,7 +399,8 @@ func isStaticInertiaAssetTemplate(templateFile TmplTarget) bool {
 		strings.HasPrefix(string(templateFile), "inertia_svelte_assets_")
 }
 
-// GetInternalFrameworkFiles returns the internal package files expected for a project config.
+// GetInternalFrameworkFiles returns template-backed files that upgrades own
+// for a project config. Generated application internal/ is not included.
 func GetInternalFrameworkFiles(config *ScaffoldConfig) []FrameworkManagedFile {
 	mappings := make(map[TmplTarget]TmplTargetPath)
 	for templateName, targetPath := range baseTemplateMappings {
@@ -430,11 +437,12 @@ func GetAllManagedInternalFrameworkFiles() []FrameworkManagedFile {
 	return sortedFrameworkManagedFiles(mappings)
 }
 
-// isManagedInternalFile reports whether a template maps to an internal package
-// file that upgrades own. Test files are generated on project creation but are
-// not part of the upgrade-managed surface.
+// isManagedInternalFile reports whether a template maps to a file that
+// upgrades own. Generated application internal/ is application-owned.
+// Standalone pkg/ sources are not scaffolded into apps. Test files are
+// generated on project creation but are not part of the upgrade-managed surface.
 func isManagedInternalFile(_ TmplTarget, targetPath TmplTargetPath) bool {
-	return (strings.HasPrefix(string(targetPath), "internal/") || strings.HasPrefix(string(targetPath), "pkg/")) &&
+	return strings.HasPrefix(string(targetPath), "pkg/") &&
 		!strings.HasSuffix(string(targetPath), "_test.go")
 }
 
