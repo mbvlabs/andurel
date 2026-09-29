@@ -200,6 +200,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_database.tmpl":  "config/database.go",
 	"config_email.tmpl":     "config/email.go",
 	"config_helper.tmpl":    "config/helper.go",
+	"config_hosts.tmpl":     "config/hosts.go",
 	"config_http.tmpl":      "config/http.go",
 	"config_queue.tmpl":     "config/queue.go",
 	"config_session.tmpl":   "config/session.go",

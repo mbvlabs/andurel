@@ -67,6 +67,8 @@ func (fg *FileGenerator) GenerateController(
 		inertia,
 		nil,
 		false,
+		"",
+		"",
 	)
 }
 
@@ -88,6 +90,7 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 	inertia string,
 	actions []string,
 	isAPI bool,
+	hostExpr, hostPkg string,
 ) error {
 	if modelName == "" {
 		modelName = resourceName
@@ -167,6 +170,7 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		PrimaryKeyColumn:         primaryKeyColumn,
 		Actions:                  renderActions,
 		IsAPI:                    isAPI,
+		HostExpr:                 hostExpr,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to build controller: %w", err)
@@ -237,6 +241,8 @@ func (fg *FileGenerator) GenerateControllerWithActionsForModel(
 		controller.IDType,
 		routeActions,
 		layout.IsSupportedInertiaAdapter(inertia),
+		hostExpr,
+		hostPkg,
 	); err != nil {
 		return fmt.Errorf("failed to generate routes: %w", err)
 	}
@@ -548,7 +554,8 @@ func ensureRegisterRoutes(
 	content, receiverName, controllerName, namespace, resourceName string,
 	actions []string,
 ) string {
-	if !strings.Contains(content, "RegisterRoutes(r *router.Router)") {
+	if !strings.Contains(content, "RegisterRoutes(r *router.Router)") &&
+		!strings.Contains(content, "RegisterRoutes(rtr *router.Router)") {
 		return strings.TrimRight(content, "\n") + "\n\n" +
 			strings.TrimRight(
 				registerRoutesMethod(
@@ -567,7 +574,7 @@ func ensureRegisterRoutes(
 	for _, action := range actions {
 		action = strings.ToLower(action)
 		methodName := naming.ToPascalCase(action)
-		routeRef := fmt.Sprintf("routes.%s%s.Path()", routePrefix, methodName)
+		routeRef := fmt.Sprintf("AddRoute(routes.%s%s,", routePrefix, methodName)
 		if strings.Contains(content, routeRef) {
 			continue
 		}
@@ -647,12 +654,10 @@ func routeRegistrationBlock(receiverName, namespace, resourceName, action string
 	routePrefix := naming.NamespaceToPascal(namespace) + resourceName
 
 	return fmt.Sprintf(
-		"\t_, err = r.AddRoute(echo.Route{\n\t\tMethod:  %s,\n\t\tPath:    routes.%s%s.Path(),\n\t\tName:    routes.%s%s.Name(),\n\t\tHandler: %s.%s,\n\t})\n\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n",
+		"\t_, err = r.AddRoute(routes.%s%s, echo.Route{\n\t\tMethod:  %s,\n\t\tHandler: %s.%s,\n\t})\n\tif err != nil {\n\t\terrs = append(errs, err)\n\t}\n\n",
+		routePrefix,
+		methodName,
 		httpMethod,
-		routePrefix,
-		methodName,
-		routePrefix,
-		methodName,
 		receiverName,
 		methodName,
 	)

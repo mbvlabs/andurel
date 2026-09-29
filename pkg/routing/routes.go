@@ -16,6 +16,7 @@ type routeOptions struct {
 
 type routeConfig struct {
 	isInertia bool
+	host      HostName
 }
 
 func applyRouteSetupOptions(opts []RouteSetupOption) routeConfig {
@@ -35,6 +36,7 @@ func newRoute(path, name, prefix string, opts ...RouteSetupOption) Route {
 		path:      path,
 		prefix:    prefix,
 		isInertia: cfg.isInertia,
+		host:      routeHost(cfg),
 	}
 }
 
@@ -204,6 +206,7 @@ type Route struct {
 	path      string
 	prefix    string
 	isInertia bool
+	host      HostName
 }
 
 var _ SimpleRoute = (*Route)(nil)
@@ -217,8 +220,8 @@ func (r Route) URL(opts ...RouteOption) string {
 	return applyOptions(configurePath(r.path, r.prefix, r.name), opts...)
 }
 
-func (r Route) FullURL(base string, opts ...RouteOption) string {
-	return base + r.URL(opts...)
+func (r Route) FullURL(opts ...RouteOption) string {
+	return r.fullURL(r.URL(opts...))
 }
 
 func (r Route) Name() string {
@@ -227,6 +230,14 @@ func (r Route) Name() string {
 
 func (r Route) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
+}
+
+// Host returns the named host this route is bound to.
+func (r Route) Host() HostName {
+	if r.host == "" {
+		return HostPrimary
+	}
+	return r.host
 }
 
 // IsInertia reports whether this route should be included in generated
@@ -257,12 +268,16 @@ func (r RouteWithUUIDID) URL(id uuid.UUID, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
-func (r RouteWithUUIDID) FullURL(base string, id uuid.UUID, opts ...RouteOption) string {
-	return base + r.URL(id, opts...)
+func (r RouteWithUUIDID) FullURL(id uuid.UUID, opts ...RouteOption) string {
+	return Route(r).fullURL(r.URL(id, opts...))
 }
 
 func (r RouteWithUUIDID) GetParam() string {
 	return "id"
+}
+
+func (r RouteWithUUIDID) Host() HostName {
+	return Route(r).Host()
 }
 
 func (r RouteWithUUIDID) IsInertia() bool {
@@ -291,12 +306,16 @@ func (r RouteWithSerialID) URL(id int32, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
-func (r RouteWithSerialID) FullURL(base string, id int32, opts ...RouteOption) string {
-	return base + r.URL(id, opts...)
+func (r RouteWithSerialID) FullURL(id int32, opts ...RouteOption) string {
+	return Route(r).fullURL(r.URL(id, opts...))
 }
 
 func (r RouteWithSerialID) GetParam() string {
 	return "id"
+}
+
+func (r RouteWithSerialID) Host() HostName {
+	return Route(r).Host()
 }
 
 func (r RouteWithSerialID) IsInertia() bool {
@@ -328,12 +347,16 @@ func (r RouteWithBigSerialID) URL(id int64, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
-func (r RouteWithBigSerialID) FullURL(base string, id int64, opts ...RouteOption) string {
-	return base + r.URL(id, opts...)
+func (r RouteWithBigSerialID) FullURL(id int64, opts ...RouteOption) string {
+	return Route(r).fullURL(r.URL(id, opts...))
 }
 
 func (r RouteWithBigSerialID) GetParam() string {
 	return "id"
+}
+
+func (r RouteWithBigSerialID) Host() HostName {
+	return Route(r).Host()
 }
 
 func (r RouteWithBigSerialID) IsInertia() bool {
@@ -362,12 +385,16 @@ func (r RouteWithStringID) URL(id string, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
-func (r RouteWithStringID) FullURL(base string, id string, opts ...RouteOption) string {
-	return base + r.URL(id, opts...)
+func (r RouteWithStringID) FullURL(id string, opts ...RouteOption) string {
+	return Route(r).fullURL(r.URL(id, opts...))
 }
 
 func (r RouteWithStringID) GetParam() string {
 	return "id"
+}
+
+func (r RouteWithStringID) Host() HostName {
+	return Route(r).Host()
 }
 
 func (r RouteWithStringID) IsInertia() bool {
@@ -395,12 +422,16 @@ func (r RouteWithSlug) URL(slug string, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
-func (r RouteWithSlug) FullURL(base string, slug string, opts ...RouteOption) string {
-	return base + r.URL(slug, opts...)
+func (r RouteWithSlug) FullURL(slug string, opts ...RouteOption) string {
+	return Route(r).fullURL(r.URL(slug, opts...))
 }
 
 func (r RouteWithSlug) GetParam() string {
 	return "slug"
+}
+
+func (r RouteWithSlug) Host() HostName {
+	return Route(r).Host()
 }
 
 func (r RouteWithSlug) IsInertia() bool {
@@ -428,12 +459,16 @@ func (r RouteWithToken) URL(token string, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
-func (r RouteWithToken) FullURL(base string, token string, opts ...RouteOption) string {
-	return base + r.URL(token, opts...)
+func (r RouteWithToken) FullURL(token string, opts ...RouteOption) string {
+	return Route(r).fullURL(r.URL(token, opts...))
 }
 
 func (r RouteWithToken) GetParam() string {
 	return "token"
+}
+
+func (r RouteWithToken) Host() HostName {
+	return Route(r).Host()
 }
 
 func (r RouteWithToken) IsInertia() bool {
@@ -461,12 +496,16 @@ func (r RouteWithFile) URL(file string, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
-func (r RouteWithFile) FullURL(base string, file string, opts ...RouteOption) string {
-	return base + r.URL(file, opts...)
+func (r RouteWithFile) FullURL(file string, opts ...RouteOption) string {
+	return Route(r).fullURL(r.URL(file, opts...))
 }
 
 func (r RouteWithFile) GetParam() string {
 	return "file"
+}
+
+func (r RouteWithFile) Host() HostName {
+	return Route(r).Host()
 }
 
 func (r RouteWithFile) IsInertia() bool {
@@ -521,8 +560,12 @@ func (r RouteWithParams[Params]) URL(params Params, opts ...RouteOption) string 
 	return applyOptions(route, opts...)
 }
 
-func (r RouteWithParams[Params]) FullURL(base string, params Params, opts ...RouteOption) string {
-	return base + r.URL(params, opts...)
+func (r RouteWithParams[Params]) FullURL(params Params, opts ...RouteOption) string {
+	return Route(r).fullURL(r.URL(params, opts...))
+}
+
+func (r RouteWithParams[Params]) Host() HostName {
+	return Route(r).Host()
 }
 
 func (r RouteWithParams[Params]) IsInertia() bool {

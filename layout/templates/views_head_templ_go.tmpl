@@ -535,8 +535,8 @@ func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 		twitterCreator: "@mbvisti",
 		faviconBaseURL: "https://media.andurel.com/favicon",
 		MetaType:       "website",
-		stylesheetHref: routes.Stylesheet.URL(),
-		scriptSrc:      routes.Scripts.URL(),
+		stylesheetHref: routes.Stylesheet.FullURL(),
+		scriptSrc:      routes.Scripts.FullURL(),
 	}
 
 	for _, opt := range opts {

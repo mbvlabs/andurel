@@ -1,8 +1,6 @@
 
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.{{.NamespacePascal}}{{.ResourceName}}{{.MethodName}}, echo.Route{
 		Method:  http.Method{{.HTTPMethod}},
-		Path:    routes.{{.NamespacePascal}}{{.ResourceName}}{{.MethodName}}.Path(),
-		Name:    routes.{{.NamespacePascal}}{{.ResourceName}}{{.MethodName}}.Name(),
 		Handler: {{.HandlerVar}}.{{.MethodName}},
 	})
 	if err != nil {

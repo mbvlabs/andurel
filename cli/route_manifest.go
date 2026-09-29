@@ -25,6 +25,7 @@ type routeManifestRoute struct {
 	Path        string               `json:"path"`
 	Constructor string               `json:"constructor"`
 	Kind        string               `json:"kind"`
+	Host        string               `json:"host,omitempty"`
 	IsInertia   bool                 `json:"is_inertia"`
 	Params      []routeManifestParam `json:"params,omitempty"`
 	SourceFile  string               `json:"source_file"`
@@ -70,10 +71,15 @@ func collectRouteManifest(rootDir string) (routeManifest, error) {
 	}
 
 	consts := collectRouteConstants(files)
+	hosts, err := discoverAppHostNames(rootDir)
+	if err != nil {
+		return routeManifest{}, err
+	}
+	hostNames := buildHostNameResolver(hosts)
 
 	var manifest routeManifest
 	for _, file := range files {
-		routes, skipped := collectRoutesFromFile(rootDir, file, consts)
+		routes, skipped := collectRoutesFromFile(rootDir, file, consts, hostNames)
 		manifest.Routes = append(manifest.Routes, routes...)
 		manifest.Skipped = append(manifest.Skipped, skipped...)
 	}
@@ -181,6 +187,7 @@ func collectRoutesFromFile(
 	rootDir string,
 	file parsedRouteFile,
 	consts map[string]string,
+	hostNames map[string]string,
 ) ([]routeManifestRoute, []routeManifestSkipped) {
 	sourceFile := routeManifestSourceFile(rootDir, file.path)
 	routes := []routeManifestRoute{}
@@ -208,6 +215,7 @@ func collectRoutesFromFile(
 					name.Name,
 					valueSpec.Values[i],
 					consts,
+					hostNames,
 				)
 				if !ok {
 					continue
@@ -230,6 +238,7 @@ func routeManifestFromValue(
 	variable string,
 	expr ast.Expr,
 	consts map[string]string,
+	hostNames map[string]string,
 ) (routeManifestRoute, *routeManifestSkipped, bool) {
 	call, ok := expr.(*ast.CallExpr)
 	if !ok {
@@ -271,7 +280,7 @@ func routeManifestFromValue(
 		return routeManifestRoute{}, skip("route prefix is not a static string expression"), true
 	}
 
-	isInertia, errReason := evalRouteSetupOptions(call.Args[3:])
+	isInertia, host, errReason := evalRouteSetupOptions(call.Args[3:], hostNames)
 	if errReason != "" {
 		return routeManifestRoute{}, skip(errReason), true
 	}
@@ -283,6 +292,7 @@ func routeManifestFromValue(
 		Path:        routePath,
 		Constructor: constructor,
 		Kind:        routeKind(constructor),
+		Host:        host,
 		IsInertia:   isInertia,
 		Params:      routeParams(routePath, constructor),
 		SourceFile:  sourceFile,
@@ -290,16 +300,95 @@ func routeManifestFromValue(
 	}, nil, true
 }
 
-func evalRouteSetupOptions(args []ast.Expr) (bool, string) {
+func evalRouteSetupOptions(args []ast.Expr, hostNames map[string]string) (bool, string, string) {
 	isInertia := false
+	host := ""
 	for _, arg := range args {
 		if isInertiaRouteOption(arg) {
 			isInertia = true
 			continue
 		}
-		return false, "unsupported route setup option"
+		name, isHost, reason := evalHostRouteOption(arg, hostNames)
+		if isHost {
+			if reason != "" {
+				return false, "", reason
+			}
+			if name != "" && name != string(mustHostPrimary()) {
+				host = name
+			}
+			continue
+		}
+		return false, "", "unsupported route setup option"
 	}
-	return isInertia, ""
+	return isInertia, host, ""
+}
+
+func mustHostPrimary() string {
+	return "primary"
+}
+
+func buildHostNameResolver(hosts []discoveredHost) map[string]string {
+	hostNames := map[string]string{
+		"HostPrimary":         "primary",
+		"routing.HostPrimary": "primary",
+	}
+	for _, host := range hosts {
+		hostNames[host.GoExpr] = host.Value
+		hostNames[host.Name] = host.Value
+	}
+	return hostNames
+}
+
+func evalHostRouteOption(expr ast.Expr, hostNames map[string]string) (string, bool, string) {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok || len(call.Args) != 1 {
+		return "", false, ""
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return "", false, ""
+	}
+	pkg, ok := sel.X.(*ast.Ident)
+	if !ok || pkg.Name != "routing" || sel.Sel.Name != "Host" {
+		return "", false, ""
+	}
+	value, ok := hostNameFromExpr(call.Args[0], hostNames)
+	if !ok {
+		return "", true, "route host is not a resolvable HostName constant or string literal"
+	}
+	return value, true, ""
+}
+
+func hostNameFromExpr(expr ast.Expr, hostNames map[string]string) (string, bool) {
+	switch typed := expr.(type) {
+	case *ast.Ident:
+		value, ok := hostNames[typed.Name]
+		return value, ok
+	case *ast.SelectorExpr:
+		if pkg, ok := typed.X.(*ast.Ident); ok {
+			if value, ok := hostNames[pkg.Name+"."+typed.Sel.Name]; ok {
+				return value, true
+			}
+		}
+		value, ok := hostNames[typed.Sel.Name]
+		return value, ok
+	case *ast.BasicLit:
+		if typed.Kind != token.STRING {
+			return "", false
+		}
+		value, err := strconv.Unquote(typed.Value)
+		if err != nil {
+			return "", false
+		}
+		return value, true
+	case *ast.CallExpr:
+		if len(typed.Args) != 1 {
+			return "", false
+		}
+		return hostNameFromExpr(typed.Args[0], hostNames)
+	default:
+		return "", false
+	}
 }
 
 func isInertiaRouteOption(expr ast.Expr) bool {
@@ -486,15 +575,20 @@ func renderRouteManifestHuman(w io.Writer, manifest routeManifest) error {
 			return err
 		}
 		table := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-		if _, err := fmt.Fprintln(table, "VARIABLE\tNAME\tURL PATH\tPARAMS\tSOURCE"); err != nil {
+		if _, err := fmt.Fprintln(table, "VARIABLE\tNAME\tHOST\tURL PATH\tPARAMS\tSOURCE"); err != nil {
 			return err
 		}
 		for _, route := range manifest.Routes {
+			host := route.Host
+			if host == "" {
+				host = "-"
+			}
 			if _, err := fmt.Fprintf(
 				table,
-				"%s\t%s\t%s\t%s\t%s:%d\n",
+				"%s\t%s\t%s\t%s\t%s\t%s:%d\n",
 				route.Variable,
 				route.Name,
+				host,
 				route.Path,
 				formatRouteManifestParams(route.Params),
 				route.SourceFile,

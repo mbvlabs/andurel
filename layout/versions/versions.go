@@ -33,7 +33,7 @@ const (
 	// Email is the standalone Andurel email module version verified with this framework.
 	Email = "v0.3.3"
 	// Routing is the standalone Andurel routing module version verified with this framework.
-	Routing = "v0.3.0"
+	Routing = "v0.4.0"
 	// Server is the standalone Andurel server module version verified with this framework.
 	Server = "v0.3.3"
 	// Storage is the standalone Andurel storage module version verified with this framework.

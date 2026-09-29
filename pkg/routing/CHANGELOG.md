@@ -4,6 +4,26 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+## 0.4.0 - 2026-09-27
+
+### Added
+
+- `HostName` type and `HostPrimary` constant for named virtual hosts.
+- `Host(name HostName)` route setup option (defaults to `HostPrimary`).
+- `Host()` accessor on route types.
+- Boot-time hostname registry (`ConfigureHosts`, `HostSpec`, `LookupHost`,
+  `Hosts`, `HostBaseURL`, `HostSpec.Origins`) so `FullURL()` resolves the
+  route's host origin without a base argument.
+
+### Changed
+
+- `FullURL` no longer takes a `base` argument. The origin comes from the
+  boot-time host registry using the route's stored `HostName`.
+- `ConfigureHosts` rejects hostname/alias collisions across distinct
+  `HostName`s.
+- `HostBaseURL` returns an empty string for unregistered names instead of
+  falling back to the primary origin.
+
 ## 0.3.0 - 2026-09-17
 
 ### Changed

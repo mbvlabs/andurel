@@ -28,64 +28,50 @@ func NewDocuments(documents models.Documents) Documents {
 func (d Documents) RegisterRoutes(r *router.Router) error {
 	var errs []error
 	var err error
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.DocumentIndex, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.DocumentIndex.Path(),
-		Name:    routes.DocumentIndex.Name(),
 		Handler: d.Index,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.DocumentShow, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.DocumentShow.Path(),
-		Name:    routes.DocumentShow.Name(),
 		Handler: d.Show,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.DocumentNew, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.DocumentNew.Path(),
-		Name:    routes.DocumentNew.Name(),
 		Handler: d.New,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.DocumentCreate, echo.Route{
 		Method:  http.MethodPost,
-		Path:    routes.DocumentCreate.Path(),
-		Name:    routes.DocumentCreate.Name(),
 		Handler: d.Create,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.DocumentEdit, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.DocumentEdit.Path(),
-		Name:    routes.DocumentEdit.Name(),
 		Handler: d.Edit,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.DocumentUpdate, echo.Route{
 		Method:  http.MethodPut,
-		Path:    routes.DocumentUpdate.Path(),
-		Name:    routes.DocumentUpdate.Name(),
 		Handler: d.Update,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.DocumentDestroy, echo.Route{
 		Method:  http.MethodDelete,
-		Path:    routes.DocumentDestroy.Path(),
-		Name:    routes.DocumentDestroy.Name(),
 		Handler: d.Destroy,
 	})
 	if err != nil {

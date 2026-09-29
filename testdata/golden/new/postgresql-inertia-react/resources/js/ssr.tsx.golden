@@ -1,6 +1,7 @@
 import { createInertiaApp, type ResolvedComponent } from '@inertiajs/react'
 import createServer from '@inertiajs/react/server'
 import ReactDOMServer from 'react-dom/server'
+import { configureRouteHosts } from './routes'
 
 type PageModule = {
   default: ResolvedComponent
@@ -11,8 +12,11 @@ const serverOptions = {
   port: Number(process.env.INERTIA_SSR_PORT ?? '13714'),
 }
 
-createServer(page =>
-  createInertiaApp({
+createServer(page => {
+  configureRouteHosts(
+    (page.props.hosts ?? {}) as Record<string, string>,
+  )
+  return createInertiaApp({
     page,
     render: ReactDOMServer.renderToString,
     resolve: (name: string) => {
@@ -20,6 +24,5 @@ createServer(page =>
       return pages[`./Pages/${name}.tsx`].default
     },
     setup: ({ App, props }) => <App {...props} />,
-  }),
-  serverOptions,
-)
+  })
+}, serverOptions)

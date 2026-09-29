@@ -15,14 +15,33 @@ import (
 	echomw "github.com/labstack/echo/v5/middleware"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"go.uber.org/fx"
 )
 
+// HostedRoute is a named path bound to one HostName. AddRoute reads Path,
+// Name, and Host from it so the host is declared only on the route.
+type HostedRoute interface {
+	Name() string
+	Path() string
+	Host() routing.HostName
+}
+
+// Router is the process-wide HTTP entrypoint. Named hosts each get a child
+// Echo; unknown Request.Host values are served by the primary Echo.
 type Router struct {
-	e       *echo.Echo
+	hosts   map[routing.HostName]*echo.Echo
 	Handler http.Handler
 }
+
+// perHostMiddleware is extra middleware for a named host, applied after the
+// shared global stack while child Echos are built. Example:
+//
+//	var perHostMiddleware = map[routing.HostName][]echo.MiddlewareFunc{
+//		config.HostAdmin: {adminCSRF, ipAllowlist},
+//	}
+var perHostMiddleware = map[routing.HostName][]echo.MiddlewareFunc{}
 
 func New(
 	appCfg config.App,
@@ -32,9 +51,56 @@ func New(
 	tel *telemetry.Telemetry,
 	renderer *inertia.Renderer,
 ) (*Router, error) {
-	router := echo.New()
+	if err := routing.ConfigureHosts(appCfg.Hosts); err != nil {
+		return nil, err
+	}
+
+	globalMiddleware, err := SetupGlobalMiddleware(
+		appCfg,
+		httpCfg,
+		sessionCfg,
+		jar,
+		tel,
+		"_csrf",
+		renderer,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	httpErrorHandler := newHTTPErrorHandler()
+	children := make(map[routing.HostName]*echo.Echo)
+	vhosts := make(map[string]*echo.Echo)
+
+	for name, spec := range appCfg.Hosts {
+		if name == routing.HostPrimary {
+			continue
+		}
+		child := echo.New()
+		child.HTTPErrorHandler = httpErrorHandler
+		child.Use(globalMiddleware...)
+		child.Use(perHostMiddleware[name]...)
+		children[name] = child
+		if err := registerHostnames(vhosts, spec, child); err != nil {
+			return nil, err
+		}
+	}
+
+	primary := echo.NewVirtualHostHandler(vhosts)
+	primary.HTTPErrorHandler = httpErrorHandler
+	primary.Use(globalMiddleware...)
+	primary.Use(perHostMiddleware[routing.HostPrimary]...)
+	children[routing.HostPrimary] = primary
+
+	return &Router{
+		hosts:   children,
+		Handler: telemetry.WrapHandler("http", primary, tel),
+	}, nil
+}
+
+func newHTTPErrorHandler() echo.HTTPErrorHandler {
 	defaultHTTPErrorHandler := echo.DefaultHTTPErrorHandler(false)
-	router.HTTPErrorHandler = func(c *echo.Context, err error) {
+	return func(c *echo.Context, err error) {
 		if panicErr, ok := errors.AsType[*echomw.PanicStackError](err); ok {
 			telemetry.Error(
 				c.Request().Context(),
@@ -56,28 +122,49 @@ func New(
 
 		defaultHTTPErrorHandler(c, err)
 	}
+}
 
-	globalMiddleware, err := SetupGlobalMiddleware(
-		appCfg,
-		httpCfg,
-		sessionCfg,
-		jar,
-		tel,
-		"_csrf",
-		renderer,
-	)
-	if err != nil {
-		return nil, err
+func registerHostnames(
+	vhosts map[string]*echo.Echo,
+	spec routing.HostSpec,
+	child *echo.Echo,
+) error {
+	if err := bindHostname(vhosts, spec.Hostname, child); err != nil {
+		return err
 	}
+	for _, alias := range spec.Aliases {
+		if err := bindHostname(vhosts, alias, child); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	router.Use(globalMiddleware...)
+func bindHostname(vhosts map[string]*echo.Echo, hostname string, child *echo.Echo) error {
+	hostname = strings.TrimSpace(hostname)
+	if hostname == "" {
+		return nil
+	}
+	if err := claimHostname(vhosts, hostname, child); err != nil {
+		return err
+	}
+	if _, _, ok := strings.Cut(hostname, ":"); !ok {
+		if err := claimHostname(vhosts, hostname+":80", child); err != nil {
+			return err
+		}
+		if err := claimHostname(vhosts, hostname+":443", child); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	handler := telemetry.WrapHandler("http", router, tel)
-
-	return &Router{
-		e:       router,
-		Handler: handler,
-	}, nil
+func claimHostname(vhosts map[string]*echo.Echo, hostname string, child *echo.Echo) error {
+	if existing, ok := vhosts[hostname]; ok && existing != child {
+		return fmt.Errorf("router: hostname %q is already bound to another host", hostname)
+	}
+	vhosts[hostname] = child
+	return nil
 }
 
 func SetupGlobalMiddleware(
@@ -89,19 +176,24 @@ func SetupGlobalMiddleware(
 	csrfName string,
 	renderer *inertia.Renderer,
 ) ([]echo.MiddlewareFunc, error) {
+	trustedOrigins, err := mergeCredentialedOrigins(
+		appCfg.Origins(),
+		httpCfg.CSRFTrustedOrigins,
+	)
+	if err != nil {
+		return nil, err
+	}
 	csrfMiddleware, err := middleware.CSRFMiddleware(
 		httpCfg.CSRFStrategy,
-		httpCfg.CSRFTrustedOrigins,
+		trustedOrigins,
 		csrfName,
-		appCfg.BaseURL(),
 		appCfg.Environment,
-		appCfg.Domain,
 		sessionCfg.Name,
 	)
 	if err != nil {
 		return nil, err
 	}
-	corsConfig, err := newCORSConfig(appCfg.BaseURL(), httpCfg.CORSAllowedOrigins)
+	corsConfig, err := newCORSConfig(appCfg.Origins(), httpCfg.CORSAllowedOrigins)
 	if err != nil {
 		return nil, err
 	}
@@ -123,33 +215,12 @@ func SetupGlobalMiddleware(
 }
 
 func newCORSConfig(
-	applicationOrigin string,
+	applicationOrigins []string,
 	additionalOrigins []string,
 ) (echomw.CORSConfig, error) {
-	applicationOrigin = strings.TrimSpace(applicationOrigin)
-	if applicationOrigin == "" {
-		return echomw.CORSConfig{}, errors.New("application origin must not be empty")
-	}
-	if strings.Contains(applicationOrigin, "*") {
-		return echomw.CORSConfig{}, fmt.Errorf(
-			"credentialed CORS origin %q must not contain a wildcard",
-			applicationOrigin,
-		)
-	}
-
-	origins := []string{applicationOrigin}
-	for _, configuredOrigin := range additionalOrigins {
-		origin := strings.TrimSpace(configuredOrigin)
-		if origin == "" {
-			continue
-		}
-		if strings.Contains(origin, "*") {
-			return echomw.CORSConfig{}, fmt.Errorf(
-				"credentialed CORS origin %q must not contain a wildcard",
-				origin,
-			)
-		}
-		origins = append(origins, origin)
+	origins, err := mergeCredentialedOrigins(applicationOrigins, additionalOrigins)
+	if err != nil {
+		return echomw.CORSConfig{}, err
 	}
 
 	return echomw.CORSConfig{
@@ -161,14 +232,108 @@ func newCORSConfig(
 	}, nil
 }
 
-func (r *Router) AddRoute(route echo.Route) (echo.RouteInfo, error) {
-	return r.e.AddRoute(route)
+func mergeCredentialedOrigins(base []string, extra []string) ([]string, error) {
+	origins := make([]string, 0, len(base)+len(extra))
+	seen := make(map[string]struct{}, len(base)+len(extra))
+	add := func(origin string) error {
+		origin = strings.TrimSpace(origin)
+		if origin == "" {
+			return nil
+		}
+		if strings.Contains(origin, "*") {
+			return fmt.Errorf(
+				"credentialed CORS origin %q must not contain a wildcard",
+				origin,
+			)
+		}
+		if _, ok := seen[origin]; ok {
+			return nil
+		}
+		seen[origin] = struct{}{}
+		origins = append(origins, origin)
+		return nil
+	}
+	if len(base) == 0 {
+		return nil, errors.New("application origin must not be empty")
+	}
+	for _, origin := range base {
+		if err := add(origin); err != nil {
+			return nil, err
+		}
+	}
+	if len(origins) == 0 {
+		return nil, errors.New("application origin must not be empty")
+	}
+	for _, origin := range extra {
+		if err := add(origin); err != nil {
+			return nil, err
+		}
+	}
+	return origins, nil
 }
 
+func (r *Router) echoFor(name routing.HostName) (*echo.Echo, error) {
+	if name == "" {
+		name = routing.HostPrimary
+	}
+	e, ok := r.hosts[name]
+	if !ok {
+		return nil, fmt.Errorf(
+			"router: host %q is not configured (set a hostname for this HostName at boot)",
+			name,
+		)
+	}
+	return e, nil
+}
+
+// AddRoute mounts route on the Echo for rt.Host(). Empty Path/Name are filled
+// from rt so controllers do not copy them. A missing HOST_* fails at boot,
+// naming the route.
+func (r *Router) AddRoute(rt HostedRoute, route echo.Route) (echo.RouteInfo, error) {
+	if rt == nil {
+		return echo.RouteInfo{}, errors.New("router: hosted route is nil")
+	}
+	if route.Path == "" {
+		route.Path = rt.Path()
+	}
+	if route.Name == "" {
+		route.Name = rt.Name()
+	}
+	e, err := r.echoFor(rt.Host())
+	if err != nil {
+		return echo.RouteInfo{}, fmt.Errorf("router: %s: %w", rt.Name(), err)
+	}
+	return e.AddRoute(route)
+}
+
+// AddRouteNotFound registers a host-scoped catch-all for rt.Host().
 func (r *Router) AddRouteNotFound(
+	rt HostedRoute,
 	notFoundHandler echo.HandlerFunc,
-) echo.RouteInfo {
-	return r.e.RouteNotFound("/*", notFoundHandler)
+) (echo.RouteInfo, error) {
+	if rt == nil {
+		return echo.RouteInfo{}, errors.New("router: hosted route is nil")
+	}
+	e, err := r.echoFor(rt.Host())
+	if err != nil {
+		return echo.RouteInfo{}, fmt.Errorf("router: %s: %w", rt.Name(), err)
+	}
+	return e.RouteNotFound("/*", notFoundHandler), nil
+}
+
+// AddRouteNotFoundEachHost registers the same catch-all on every configured
+// host Echo so secondary hosts do not fall through to Echo's default 404.
+func (r *Router) AddRouteNotFoundEachHost(notFoundHandler echo.HandlerFunc) error {
+	if notFoundHandler == nil {
+		return errors.New("router: not-found handler is nil")
+	}
+	for name, e := range r.hosts {
+		if e == nil {
+			return fmt.Errorf("router: host %q has a nil Echo", name)
+		}
+		e.RouteNotFound("/*", notFoundHandler)
+	}
+	return nil
 }
 
 var Module = fx.Module(

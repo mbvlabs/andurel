@@ -28,64 +28,50 @@ func NewWidgets(widgets models.Widgets) Widgets {
 func (w Widgets) RegisterRoutes(r *router.Router) error {
 	var errs []error
 	var err error
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.AdminWidgetIndex, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.AdminWidgetIndex.Path(),
-		Name:    routes.AdminWidgetIndex.Name(),
 		Handler: w.Index,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.AdminWidgetShow, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.AdminWidgetShow.Path(),
-		Name:    routes.AdminWidgetShow.Name(),
 		Handler: w.Show,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.AdminWidgetNew, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.AdminWidgetNew.Path(),
-		Name:    routes.AdminWidgetNew.Name(),
 		Handler: w.New,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.AdminWidgetCreate, echo.Route{
 		Method:  http.MethodPost,
-		Path:    routes.AdminWidgetCreate.Path(),
-		Name:    routes.AdminWidgetCreate.Name(),
 		Handler: w.Create,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.AdminWidgetEdit, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.AdminWidgetEdit.Path(),
-		Name:    routes.AdminWidgetEdit.Name(),
 		Handler: w.Edit,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.AdminWidgetUpdate, echo.Route{
 		Method:  http.MethodPut,
-		Path:    routes.AdminWidgetUpdate.Path(),
-		Name:    routes.AdminWidgetUpdate.Name(),
 		Handler: w.Update,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.AdminWidgetDestroy, echo.Route{
 		Method:  http.MethodDelete,
-		Path:    routes.AdminWidgetDestroy.Path(),
-		Name:    routes.AdminWidgetDestroy.Name(),
 		Handler: w.Destroy,
 	})
 	if err != nil {

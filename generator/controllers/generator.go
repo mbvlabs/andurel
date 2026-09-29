@@ -59,6 +59,7 @@ type GeneratedController struct {
 	HasPrimaryKey           bool   // Whether the table has any primary key
 	Actions                 []string
 	IsAPI                   bool // Generate JSON API controller under controllers/api
+	HostExpr                string
 }
 
 // Config controls controller generation for a resource.
@@ -78,6 +79,7 @@ type Config struct {
 	PrimaryKeyColumn         string // Override PK column name (empty = auto-detect)
 	Actions                  []string
 	IsAPI                    bool // Controller is JSON API
+	HostExpr                 string
 }
 
 // Generator builds controller template data and writes controller files.
@@ -141,6 +143,7 @@ func (g *Generator) Build(cat *catalog.Catalog, config Config) (*GeneratedContro
 		IDType:                  "uuid.UUID", // Default to UUID
 		Actions:                 config.Actions,
 		IsAPI:                   config.IsAPI,
+		HostExpr:                config.HostExpr,
 	}
 
 	if config.ControllerType == ResourceController {
