@@ -30,12 +30,14 @@ type cliGenerator interface {
 		actions []string,
 		inertia string,
 		isAPI bool,
+		hostExpr, hostPkg string,
 	) error
 	GenerateControllerWithActionsForModel(
 		resourceName, namespace, modelName, tableName string,
 		actions []string,
 		inertia string,
 		isAPI bool,
+		hostExpr, hostPkg string,
 	) error
 	GenerateScaffold(
 		resourceName, namespace, tableName string,
@@ -43,6 +45,7 @@ type cliGenerator interface {
 		primaryKeyColumn string,
 		inertia string,
 		isAPI bool,
+		hostExpr, hostPkg string,
 	) error
 	UpdateModel(resourceName string) (*generator.UpdateModelResult, error)
 	ApplyModelUpdate(result *generator.UpdateModelResult) error

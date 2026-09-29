@@ -23,19 +23,16 @@ func NewPages(renderer *inertia.Renderer) Pages {
 func (p Pages) RegisterRoutes(r *router.Router) error {
 	errs := []error{}
 
-	_, err := r.AddRoute(echo.Route{
+	_, err := r.AddRoute(routes.HomePage, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.HomePage.Path(),
-		Name:    routes.HomePage.Name(),
 		Handler: p.Home,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.HomePage, echo.Route{
 		Method:  http.MethodHead,
-		Path:    routes.HomePage.Path(),
 		Name:    routes.HomePage.Name() + ".head",
 		Handler: p.Home,
 	})
@@ -43,7 +40,9 @@ func (p Pages) RegisterRoutes(r *router.Router) error {
 		errs = append(errs, err)
 	}
 
-	_ = r.AddRouteNotFound(p.NotFound)
+	if err = r.AddRouteNotFoundEachHost(p.NotFound); err != nil {
+		errs = append(errs, err)
+	}
 
 	return errors.Join(errs...)
 }

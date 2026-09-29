@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -102,6 +103,103 @@ var WidgetIndex = routing.NewSimpleRoute(
 		nil,
 		false,
 	)
+}
+
+func TestCollectRouteManifestExtractsHost(t *testing.T) {
+	rootDir := t.TempDir()
+	writeHostNameConst(t, rootDir, "HostAdmin", "admin")
+	writeRouteManifestTestFile(t, rootDir, "admin_widgets.go", `package routes
+
+import (
+	"example.com/app/config"
+	"example.com/app/pkg/routing"
+)
+
+const AdminWidgetPrefix = "/widgets"
+
+var AdminWidgetIndex = routing.NewSimpleRoute(
+	"",
+	"widgets.index",
+	AdminWidgetPrefix,
+	routing.Host(config.HostAdmin),
+)
+`)
+
+	manifest, err := collectRouteManifest(rootDir)
+	if err != nil {
+		t.Fatalf("collect route manifest: %v", err)
+	}
+	if len(manifest.Routes) != 1 {
+		t.Fatalf("expected 1 route, got %#v", manifest.Routes)
+	}
+	if manifest.Routes[0].Host != "admin" {
+		t.Fatalf("expected host admin, got %#v", manifest.Routes[0])
+	}
+}
+
+func TestCollectRouteManifestUsesHostConstValueNotIdentName(t *testing.T) {
+	rootDir := t.TempDir()
+	writeHostNameConst(t, rootDir, "AdminHost", "admin")
+	writeRouteManifestTestFile(t, rootDir, "admin_widgets.go", `package routes
+
+import (
+	"example.com/app/config"
+	"example.com/app/pkg/routing"
+)
+
+const AdminWidgetPrefix = "/widgets"
+
+var AdminWidgetIndex = routing.NewSimpleRoute(
+	"",
+	"widgets.index",
+	AdminWidgetPrefix,
+	routing.Host(config.AdminHost),
+	routing.InertiaRoute(),
+)
+`)
+
+	manifest, err := collectRouteManifest(rootDir)
+	if err != nil {
+		t.Fatalf("collect route manifest: %v", err)
+	}
+	if len(manifest.Routes) != 1 {
+		t.Fatalf("expected 1 route, got %#v", manifest.Routes)
+	}
+	if manifest.Routes[0].Host != "admin" {
+		t.Fatalf("expected host value admin, got %#v", manifest.Routes[0])
+	}
+}
+
+func TestCollectRouteManifestSkipsUnresolvedHostConst(t *testing.T) {
+	rootDir := t.TempDir()
+	writeRouteManifestTestFile(t, rootDir, "admin_widgets.go", `package routes
+
+import (
+	"example.com/app/config"
+	"example.com/app/pkg/routing"
+)
+
+var AdminWidgetIndex = routing.NewSimpleRoute(
+	"/widgets",
+	"widgets.index",
+	"",
+	routing.Host(config.MissingHost),
+)
+`)
+
+	manifest, err := collectRouteManifest(rootDir)
+	if err != nil {
+		t.Fatalf("collect route manifest: %v", err)
+	}
+	if len(manifest.Routes) != 0 {
+		t.Fatalf("expected no routes, got %#v", manifest.Routes)
+	}
+	if len(manifest.Skipped) != 1 {
+		t.Fatalf("expected one skipped route, got %#v", manifest.Skipped)
+	}
+	if !strings.Contains(manifest.Skipped[0].Reason, "resolvable HostName") {
+		t.Fatalf("unexpected skip reason: %#v", manifest.Skipped[0])
+	}
 }
 
 func TestCollectRouteManifestSupportsConstExpressionsAndGenericParams(t *testing.T) {
@@ -397,6 +495,24 @@ func writeRouteManifestTestFile(t *testing.T, rootDir, filename, content string)
 	}
 	if err := os.WriteFile(filepath.Join(routesDir, filename), []byte(content), 0o644); err != nil {
 		t.Fatalf("write route file: %v", err)
+	}
+}
+
+func writeHostNameConst(t *testing.T, rootDir, constName, value string) {
+	t.Helper()
+
+	configDir := filepath.Join(rootDir, "config")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatalf("create config dir: %v", err)
+	}
+	content := fmt.Sprintf(`package config
+
+import "example.com/app/pkg/routing"
+
+const %s routing.HostName = %q
+`, constName, value)
+	if err := os.WriteFile(filepath.Join(configDir, "hosts.go"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write host const: %v", err)
 	}
 }
 

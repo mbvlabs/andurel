@@ -1,6 +1,10 @@
 package routes
 
 import (
+{{- if .HostExpr }}
+	"{{.ModulePath}}/{{.HostPkg}}"
+
+{{- end }}
 	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
@@ -14,6 +18,9 @@ var {{.NamespacePascal}}{{.ResourceName}}Index = routing.NewSimpleRoute(
 {{- if .IsInertia }}
 	routing.InertiaRoute(),
 {{- end }}
+{{- if .HostExpr }}
+	routing.Host({{.HostExpr}}),
+{{- end }}
 )
 {{- end }}
 
@@ -24,6 +31,9 @@ var {{.NamespacePascal}}{{.ResourceName}}Show = routing.{{if eq .IDType "int32"}
 	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 {{- if .IsInertia }}
 	routing.InertiaRoute(),
+{{- end }}
+{{- if .HostExpr }}
+	routing.Host({{.HostExpr}}),
 {{- end }}
 )
 {{- end }}
@@ -36,6 +46,9 @@ var {{.NamespacePascal}}{{.ResourceName}}New = routing.NewSimpleRoute(
 {{- if .IsInertia }}
 	routing.InertiaRoute(),
 {{- end }}
+{{- if .HostExpr }}
+	routing.Host({{.HostExpr}}),
+{{- end }}
 )
 {{- end }}
 
@@ -46,6 +59,9 @@ var {{.NamespacePascal}}{{.ResourceName}}Create = routing.NewSimpleRoute(
 	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 {{- if .IsInertia }}
 	routing.InertiaRoute(),
+{{- end }}
+{{- if .HostExpr }}
+	routing.Host({{.HostExpr}}),
 {{- end }}
 )
 {{- end }}
@@ -58,6 +74,9 @@ var {{.NamespacePascal}}{{.ResourceName}}Edit = routing.{{if eq .IDType "int32"}
 {{- if .IsInertia }}
 	routing.InertiaRoute(),
 {{- end }}
+{{- if .HostExpr }}
+	routing.Host({{.HostExpr}}),
+{{- end }}
 )
 {{- end }}
 
@@ -68,6 +87,9 @@ var {{.NamespacePascal}}{{.ResourceName}}Update = routing.{{if eq .IDType "int32
 	{{.NamespacePascal}}{{.ResourceName}}Prefix,
 {{- if .IsInertia }}
 	routing.InertiaRoute(),
+{{- end }}
+{{- if .HostExpr }}
+	routing.Host({{.HostExpr}}),
 {{- end }}
 )
 {{- end }}
@@ -80,6 +102,9 @@ var {{.NamespacePascal}}{{.ResourceName}}Destroy = routing.{{if eq .IDType "int3
 {{- if .IsInertia }}
 	routing.InertiaRoute(),
 {{- end }}
+{{- if .HostExpr }}
+	routing.Host({{.HostExpr}}),
+{{- end }}
 )
 {{- end }}
 
@@ -90,6 +115,9 @@ var {{$.NamespacePascal}}{{$.ResourceName}}{{.MethodName}} = routing.NewSimpleRo
 	{{$.NamespacePascal}}{{$.ResourceName}}Prefix,
 {{- if $.IsInertia }}
 	routing.InertiaRoute(),
+{{- end }}
+{{- if $.HostExpr }}
+	routing.Host({{$.HostExpr}}),
 {{- end }}
 )
 {{- end }}

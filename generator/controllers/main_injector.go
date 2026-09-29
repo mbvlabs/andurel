@@ -51,6 +51,7 @@ func (mi *MainInjector) InjectController(resourceName, namespace, pluralName str
 
 	contentStr := string(content)
 	updated := false
+
 	constructorRef := "New" + capitalizedPlural
 	constructorProvideRef := constructorRef
 	if namespace != "" {
@@ -180,7 +181,9 @@ func findMatchingParen(content string, openIdx int) int {
 	return -1
 }
 
-func (mi *MainInjector) printManualInstructions(resourceName, namespace, pluralName string) {
+func (mi *MainInjector) printManualInstructions(
+	resourceName, namespace, pluralName string,
+) {
 	capitalizedPlural := naming.Capitalize(naming.ToCamelCase(pluralName))
 	packageName := naming.ControllerPackageName(namespace)
 	constructorRef := "New" + capitalizedPlural

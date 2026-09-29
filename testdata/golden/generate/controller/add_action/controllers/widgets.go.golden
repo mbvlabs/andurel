@@ -24,19 +24,15 @@ func NewWidgets(widgets models.Widgets) Widgets {
 func (w Widgets) RegisterRoutes(r *router.Router) error {
 	var errs []error
 	var err error
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.WidgetShow, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.WidgetShow.Path(),
-		Name:    routes.WidgetShow.Name(),
 		Handler: w.Show,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.WidgetEdit, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.WidgetEdit.Path(),
-		Name:    routes.WidgetEdit.Name(),
 		Handler: w.Edit,
 	})
 	if err != nil {

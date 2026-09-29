@@ -2,6 +2,7 @@ import '../../css/base.css'
 
 import { createApp, createSSRApp, h, type DefineComponent } from 'vue'
 import { createInertiaApp } from '@inertiajs/vue3'
+import { configureRouteHosts } from './routes'
 
 createInertiaApp({
   resolve: (name: string): DefineComponent => {
@@ -9,6 +10,9 @@ createInertiaApp({
     return pages[`./Pages/${name}.vue`]
   },
   setup({ el, App, props, plugin }) {
+    configureRouteHosts(
+      (props.initialPage.props.hosts ?? {}) as Record<string, string>,
+    )
     const createVueApp = el.dataset.serverRendered === 'true' ? createSSRApp : createApp
     createVueApp({ render: () => h(App, props) })
       .use(plugin)

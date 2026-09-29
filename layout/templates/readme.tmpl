@@ -451,7 +451,7 @@ ENVIRONMENT=development
 HOST=localhost
 PORT=8080
 PROJECT_NAME={{.AppName}}
-DOMAIN=localhost:8080
+HOST_PRIMARY=localhost:8080
 PROTOCOL=http
 
 # Database
@@ -495,7 +495,7 @@ TRACE_SAMPLE_RATE=1.0
 
 Application sessions are defined in `router/cookies` (`cookies.NewJar`, FX `cookies.Module`) and loaded onto `context.Context` by `pkg/kiks`. Controllers read and write bag cookies with `kiks.Get` / `kiks.Exists` / `kiks.Set` / `kiks.Destroy` (`Get`, `Exists`, `Set`, and `Destroy` return an error when the bag is missing, the type is unregistered, or the type is native-only — use the same pointer type you registered, e.g. `*cookies.App`). Mark named bag cookies with `kiks.Bagged(...)` in `NewJar`; unmarked named cookies use native `kiks.Read` / `Write` / `Clear` with an injected `*kiks.Jar`. The App session payload is persisted by a cookie-backed `Store` (`kiks.NewCookieStore`). Each Go type may be registered at most once per jar — two same-shape cookies need distinct types. Cookies are `HttpOnly` with `SameSite=Lax` and `Path=/`. Production cookies also use `Secure`. `SESSION_MAX_AGE` is the lifetime in seconds and defaults to seven days (`604800`). Saving session state renews the expiration for another seven days. Signing out destroys the session immediately.
 
-CORS allows credentials and trusts only the configured application origin (`PROTOCOL` + `DOMAIN`) by default. `CORS_ALLOWED_ORIGINS` accepts a comma-separated list of additional exact origins. Wildcard origins are rejected when the application starts.
+CORS allows credentials and trusts the union of configured host origins (`PROTOCOL` + `HOST_PRIMARY`, plus any extra `HOST_*` names) by default. `CORS_ALLOWED_ORIGINS` accepts a comma-separated list of additional exact origins. Wildcard origins are rejected when the application starts.
 
 CSRF protection uses Fetch Metadata. Unsafe API requests bypass CSRF only when they carry a non-empty Bearer token and do not carry the application session cookie. Cookie-authenticated unsafe requests remain protected on every path.
 
@@ -504,8 +504,35 @@ CSRF protection uses Fetch Metadata. Unsafe API requests bypass CSRF only when t
 - `header_or_legacy_token`: Allows legacy form tokens when `Sec-Fetch-Site` is missing. Forms must submit `_csrf` or send `X-CSRF-Token` header.
 
 **Trusted origins**:
-- The base URL (`PROTOCOL` + `DOMAIN`) is always trusted automatically.
+- Every configured host origin (`PROTOCOL` + `HOST_PRIMARY`, and extra hosts such as `HOST_ADMIN`) is trusted automatically.
 - `CSRF_TRUSTED_ORIGINS` accepts a comma-separated list of additional origins (e.g., `https://api.example.com,https://admin.example.com`).
+
+Session and CSRF cookies are host-only by default (no `Domain` attribute). Sharing login across subdomains is an explicit opt-in via `kiks.Domain(".example.com")` in `router/cookies` — never a generated default.
+
+## Multiple domains
+
+Single-host apps are the default: set `HOST_PRIMARY` and keep path namespaces such as `/admin/...` on the primary Echo.
+
+To serve a second domain from the same process:
+
+1. Declare a host name in `config/hosts.go`, for example `const HostAdmin routing.HostName = "admin"`.
+2. Load `HOST_ADMIN` (or another `HOST_*`) into `App.Hosts` at boot. Missing hostnames fail startup.
+3. Register aliases (`www`, extra names) as additional hostnames for that `HostName`.
+4. Declare the host on the route with `routing.Host(config.HostAdmin)`. Controllers register with `r.AddRoute(routes.WidgetsIndex, echo.Route{...})` and Fx invokes `c.RegisterRoutes(r)` with no host argument. Generators accept independent `--host` and `--prefix` flags:
+
+```bash
+andurel g controller Widget --host=admin --prefix=admin   # HostAdmin, /admin/widgets
+andurel g controller Widget --host=admin                  # HostAdmin, /widgets
+andurel g controller Widget --prefix=admin                # HostPrimary, /admin/widgets
+```
+
+The reverse proxy must forward the public `Host` header unchanged. When a configured hostname has no port, Andurel also registers `hostname:80` and `hostname:443` aliases so lookups succeed whether the proxy forwards a bare host or an explicit standard port. Unknown hosts are served by the primary Echo. Duplicate hostnames or aliases across `HostName`s fail at boot.
+
+Assets and `/api` stay on the primary host unless those routes set `routing.Host(...)`. A secondary-host page that loads `https://primary.example/assets/...` is a normal cross-origin request; CORS already unions every configured host origin. Layout `<link>` / `<script>` tags use `FullURL()` so they always point at the asset host — avoid relative `/assets/...` on secondary hosts.
+
+Inertia TypeScript helpers from `andurel sync routes` return full URLs. Boot configures origins once via the shared `hosts` prop (`configureRouteHosts` in `resources/js/app` / SSR entry), so `routes.homePage()` resolves to the correct host without per-call arguments. Use `routes.homePage.path()` when a relative path is required. Run `andurel sync routes` after adding host-bound Inertia routes. Not-found handlers are registered on every configured host.
+
+To serve assets from `assets.example.com`, declare `const HostAssets routing.HostName = "assets"`, bind `HOST_ASSETS`, and put `routing.Host(config.HostAssets)` on the asset routes. There is no framework special case — it is another named host.
 
 **Client/testing tips**:
 - For unsafe requests in tests or custom clients, include `Sec-Fetch-Site: same-origin`.

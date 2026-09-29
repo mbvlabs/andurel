@@ -246,7 +246,10 @@ func newInertia(
 		inertia.WithProjectName(appCfg.ProjectName),
 		inertia.WithEnvironment(appCfg.Environment),
 		inertia.WithProtocolDebug(cfg.ProtocolDebug),
-		inertia.WithShared(inertia.Props{"appVersion": appVersion}),
+		inertia.WithShared(inertia.Props{
+			"appVersion": appVersion,
+			"hosts":      appCfg.HostOrigins(),
+		}),
 		inertia.WithSSRFailFast(cfg.SSRFailFast),
 	)
 	if err != nil {

@@ -32,5 +32,7 @@ func NewAppCookie(cfg config.Session, secure bool) kiks.Definition {
 		kiks.HTTPOnly(),
 		kiks.Secure(secure),
 		kiks.MaxAge(cfg.MaxAge),
+		// Host-only (no Domain). To share login across subdomains, opt in with
+		// kiks.Domain(".example.com") — never a generated default.
 	)
 }

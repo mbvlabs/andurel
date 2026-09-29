@@ -182,15 +182,13 @@ func (ai *ActionInjector) printManualRegistrationInstructions(data ActionRegistr
 INFO: Could not find the RegisterRoutes error return.
 Add the following route registration manually:
 
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.%s%s%s, echo.Route{
 		Method:  http.Method%s,
-		Path:    routes.%s%s%s.Path(),
-		Name:    routes.%s%s%s.Name(),
 		Handler: %s.%s,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
 
-`, data.HTTPMethod, data.NamespacePascal, data.ResourceName, data.MethodName, data.NamespacePascal, data.ResourceName, data.MethodName, data.HandlerVar, data.MethodName)
+`, data.NamespacePascal, data.ResourceName, data.MethodName, data.HTTPMethod, data.HandlerVar, data.MethodName)
 }

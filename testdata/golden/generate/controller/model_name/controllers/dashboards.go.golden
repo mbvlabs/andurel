@@ -25,19 +25,15 @@ func NewDashboards(widgets models.Widgets) Dashboards {
 func (d Dashboards) RegisterRoutes(r *router.Router) error {
 	var errs []error
 	var err error
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.DashboardIndex, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.DashboardIndex.Path(),
-		Name:    routes.DashboardIndex.Name(),
 		Handler: d.Index,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.DashboardShow, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.DashboardShow.Path(),
-		Name:    routes.DashboardShow.Name(),
 		Handler: d.Show,
 	})
 	if err != nil {

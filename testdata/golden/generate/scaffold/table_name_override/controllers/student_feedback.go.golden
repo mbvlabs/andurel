@@ -30,64 +30,50 @@ func NewFeedbackEntry(feedbackEntries models.FeedbackEntries) FeedbackEntry {
 func (fe FeedbackEntry) RegisterRoutes(r *router.Router) error {
 	var errs []error
 	var err error
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.FeedbackEntryIndex, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.FeedbackEntryIndex.Path(),
-		Name:    routes.FeedbackEntryIndex.Name(),
 		Handler: fe.Index,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.FeedbackEntryShow, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.FeedbackEntryShow.Path(),
-		Name:    routes.FeedbackEntryShow.Name(),
 		Handler: fe.Show,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.FeedbackEntryNew, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.FeedbackEntryNew.Path(),
-		Name:    routes.FeedbackEntryNew.Name(),
 		Handler: fe.New,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.FeedbackEntryCreate, echo.Route{
 		Method:  http.MethodPost,
-		Path:    routes.FeedbackEntryCreate.Path(),
-		Name:    routes.FeedbackEntryCreate.Name(),
 		Handler: fe.Create,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.FeedbackEntryEdit, echo.Route{
 		Method:  http.MethodGet,
-		Path:    routes.FeedbackEntryEdit.Path(),
-		Name:    routes.FeedbackEntryEdit.Name(),
 		Handler: fe.Edit,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.FeedbackEntryUpdate, echo.Route{
 		Method:  http.MethodPut,
-		Path:    routes.FeedbackEntryUpdate.Path(),
-		Name:    routes.FeedbackEntryUpdate.Name(),
 		Handler: fe.Update,
 	})
 	if err != nil {
 		errs = append(errs, err)
 	}
-	_, err = r.AddRoute(echo.Route{
+	_, err = r.AddRoute(routes.FeedbackEntryDestroy, echo.Route{
 		Method:  http.MethodDelete,
-		Path:    routes.FeedbackEntryDestroy.Path(),
-		Name:    routes.FeedbackEntryDestroy.Name(),
 		Handler: fe.Destroy,
 	})
 	if err != nil {

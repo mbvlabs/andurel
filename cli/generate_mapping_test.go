@@ -340,7 +340,7 @@ func TestGenerateScaffoldRejectsInvalidNamespaceBeforeGenerator(t *testing.T) {
 func TestGenerateControllerMapsActionsAndVue(t *testing.T) {
 	resetCLITestSeams(t)
 	var got controllerCall
-	generateControllerWithActionsFunc = func(name, modelName string, actions []string, inertia string, isAPI bool) error {
+	generateControllerWithActionsFunc = func(name, modelName string, actions []string, inertia string, isAPI bool, prefix, host string) error {
 		got = controllerCall{
 			name:      name,
 			modelName: modelName,
@@ -431,7 +431,7 @@ func TestGenerateControllerRejectsInvalidNamespaceBeforeGenerator(t *testing.T) 
 func TestGenerateControllerMapsModelName(t *testing.T) {
 	resetCLITestSeams(t)
 	var got controllerCall
-	generateControllerWithActionsFunc = func(name, modelName string, actions []string, inertia string, isAPI bool) error {
+	generateControllerWithActionsFunc = func(name, modelName string, actions []string, inertia string, isAPI bool, prefix, host string) error {
 		got = controllerCall{
 			name:      name,
 			modelName: modelName,
@@ -481,7 +481,7 @@ func TestGenerateControllerInertiaRefreshesRoutesTSForCustomActions(t *testing.T
 	findGoModRoot = func() (string, error) {
 		return rootDir, nil
 	}
-	generateControllerWithActionsFunc = func(name, modelName string, actions []string, inertia string, isAPI bool) error {
+	generateControllerWithActionsFunc = func(name, modelName string, actions []string, inertia string, isAPI bool, prefix, host string) error {
 		if name != "Widget" || modelName != "" || inertia != "react" || isAPI {
 			t.Fatalf(
 				"unexpected controller call: name=%q model=%q inertia=%q api=%v",
@@ -525,7 +525,7 @@ var WidgetExport = routing.NewSimpleRoute(
 		t,
 		rootDir,
 		filepath.Join("resources", "js", "routes.ts"),
-		"widgetExport: () => '/widgets/export'",
+		"widgetExport: routeHelper({\n    host: 'primary',\n    path: () => '/widgets/export',\n  })",
 	)
 }
 
@@ -559,5 +559,152 @@ func TestGenerateViewCallsTemplGenerate(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, []string{"generate", "-path", "./views"}) {
 		t.Fatalf("templ args: expected [generate -path ./views], got %v", got)
+	}
+}
+
+func TestGenerateControllerMapsPrefixFlag(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+
+	result := executeCLITest(t, "generate", "controller", "Widget", "index", "--prefix=admin")
+	if result.err != nil {
+		t.Fatalf("generate controller failed: %v", result.err)
+	}
+
+	want := []controllerCall{{
+		name:      "Widget",
+		namespace: "admin",
+		modelName: "Widget",
+		actions:   []string{"index"},
+	}}
+	if !reflect.DeepEqual(fake.controllerCalls, want) {
+		t.Fatalf("controller calls: expected %#v, got %#v", want, fake.controllerCalls)
+	}
+}
+
+func TestGenerateControllerRejectsUnknownHost(t *testing.T) {
+	resetCLITestSeams(t)
+	fake := installFakeGenerator(t)
+
+	result := executeCLITest(t, "generate", "controller", "Widget", "--host=unknown")
+	if result.err == nil {
+		t.Fatalf("expected unknown host error")
+	}
+	if !strings.Contains(result.err.Error(), `unknown host "unknown"`) {
+		t.Fatalf("expected unknown host error, got %v", result.err)
+	}
+	if len(fake.controllerCalls) != 0 {
+		t.Fatalf("expected no controller calls, got %#v", fake.controllerCalls)
+	}
+}
+
+func TestGenerateControllerMapsHostFlag(t *testing.T) {
+	root := t.TempDir()
+	writeCLITestFile(t, root, "go.mod", "module example.com/app\n")
+	writeCLITestFile(t, root, "config/hosts.go", `package config
+
+import "github.com/mbvlabs/andurel/pkg/routing"
+
+const HostAdmin routing.HostName = "admin"
+`)
+	lock := layout.NewAndurelLock("test")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "app"}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+
+	resetCLITestSeams(t)
+	findGoModRoot = func() (string, error) { return root, nil }
+	chdirCLITestRoot(t, root)
+	fake := installFakeGenerator(t)
+
+	cmd := newGenerateControllerCommand()
+	cmd.SetArgs([]string{"Widget", "index", "--host=admin"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("generate controller failed: %v", err)
+	}
+
+	want := []controllerCall{{
+		name:      "Widget",
+		namespace: "",
+		modelName: "Widget",
+		actions:   []string{"index"},
+		hostExpr:  "config.HostAdmin",
+	}}
+	if !reflect.DeepEqual(fake.controllerCalls, want) {
+		t.Fatalf("controller calls: expected %#v, got %#v", want, fake.controllerCalls)
+	}
+}
+
+func TestGenerateControllerMapsHostAndPrefixIndependently(t *testing.T) {
+	root := t.TempDir()
+	writeCLITestFile(t, root, "go.mod", "module example.com/app\n")
+	writeCLITestFile(t, root, "config/hosts.go", `package config
+
+import "github.com/mbvlabs/andurel/pkg/routing"
+
+const HostAdmin routing.HostName = "admin"
+`)
+	lock := layout.NewAndurelLock("test")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "app"}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+
+	resetCLITestSeams(t)
+	findGoModRoot = func() (string, error) { return root, nil }
+	chdirCLITestRoot(t, root)
+	fake := installFakeGenerator(t)
+
+	cmd := newGenerateControllerCommand()
+	cmd.SetArgs([]string{"Widget", "index", "--host=admin", "--prefix=admin"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("generate controller failed: %v", err)
+	}
+
+	want := []controllerCall{{
+		name:      "Widget",
+		namespace: "admin",
+		modelName: "Widget",
+		actions:   []string{"index"},
+		hostExpr:  "config.HostAdmin",
+	}}
+	if !reflect.DeepEqual(fake.controllerCalls, want) {
+		t.Fatalf("controller calls: expected %#v, got %#v", want, fake.controllerCalls)
+	}
+}
+
+func TestGenerateScaffoldMapsHostFlag(t *testing.T) {
+	root := t.TempDir()
+	writeCLITestFile(t, root, "go.mod", "module example.com/app\n")
+	writeCLITestFile(t, root, "config/hosts.go", `package config
+
+import "github.com/mbvlabs/andurel/pkg/routing"
+
+const HostAdmin routing.HostName = "admin"
+`)
+	lock := layout.NewAndurelLock("test")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "app"}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+
+	resetCLITestSeams(t)
+	findGoModRoot = func() (string, error) { return root, nil }
+	chdirCLITestRoot(t, root)
+	fake := installFakeGenerator(t)
+
+	cmd := newGenerateScaffoldCommand()
+	cmd.SetArgs([]string{"Widget", "--host=admin"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("generate scaffold failed: %v", err)
+	}
+
+	want := []scaffoldCall{{
+		name:     "Widget",
+		hostExpr: "config.HostAdmin",
+	}}
+	if !reflect.DeepEqual(fake.scaffoldCalls, want) {
+		t.Fatalf("scaffold calls: expected %#v, got %#v", want, fake.scaffoldCalls)
 	}
 }
