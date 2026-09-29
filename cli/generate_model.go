@@ -117,14 +117,12 @@ andurel sync model NAME.`,
 			}
 
 			return runMutation(cmd, mutationOptions{
-				Action:   "generate model",
-				Resource: name,
-				RootDir:  rootDir,
-				DryRun:   dryRun,
-				Diff:     diff,
-				Breadcrumbs: []output.Breadcrumb{
-					{Command: "andurel doctor", Description: "Verify generated model health"},
-				},
+				Action:      "generate model",
+				Resource:    name,
+				RootDir:     rootDir,
+				DryRun:      dryRun,
+				Diff:        diff,
+				Breadcrumbs: generateModelNextBreadcrumbs(customModel),
 				Run: func(rootDir string) error {
 					return withGenerateCleanup(func(_ *cobra.Command, _ []string) error {
 						gen, err := newGenerator()
@@ -284,7 +282,7 @@ func runModelGenerationDryRun(
 		cmd,
 		report,
 		mutationSummary(report),
-		output.Breadcrumb{Command: "andurel doctor", Description: "Verify generated model health"},
+		generateModelNextBreadcrumbs(false)...,
 	)
 }
 
@@ -331,8 +329,26 @@ func runCustomModelGenerationDryRun(
 		cmd,
 		report,
 		mutationSummary(report),
-		output.Breadcrumb{Command: "andurel doctor", Description: "Verify generated model health"},
+		generateModelNextBreadcrumbs(true)...,
 	)
+}
+
+func generateModelNextBreadcrumbs(custom bool) []output.Breadcrumb {
+	if custom {
+		return []output.Breadcrumb{
+			{
+				Command:     "andurel sync queries",
+				Description: "Compile authored narsilc SQL into Go",
+			},
+			{
+				Command:     "andurel doctor --json",
+				Description: "Verify generated model health",
+			},
+		}
+	}
+	return []output.Breadcrumb{
+		{Command: "andurel doctor", Description: "Verify generated model health"},
+	}
 }
 
 func printGeneratedModel(resourceName string, skipFactory bool) {
