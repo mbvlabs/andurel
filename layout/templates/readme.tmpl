@@ -17,6 +17,7 @@ Inspired by Ruby on Rails, Andurel is now its own thing: generated Go you own, e
 ├── cmd/                 # Process entry points
 │   ├── app/             # Web process (runtime.App)
 │   ├── queue/           # Queue process (runtime.Queue)
+│   ├── migrate/         # Apply pending SQL migrations
 │   └── seeds/           # Database seeding
 ├── clients/             # External service clients
 ├── config/              # Application configuration
@@ -118,6 +119,13 @@ andurel db migrate reset
 
 # Fix migration version gaps
 andurel db migrate fix
+```
+
+Development uses `andurel db migrate` (goose CLI against `migrations/` on disk). To apply the same embedded SQL that tests use, build and run `cmd/migrate`. It only applies pending migrations. It is a one-shot process: run it, then start `cmd/app` / `cmd/queue`. Do not call it from application start.
+
+```bash
+go build -o migrate ./cmd/migrate
+./migrate
 ```
 
 ### Create, refresh, and inspect

@@ -50,6 +50,7 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 - Put provider adapters in `clients/`, email templates/helpers in `email/`, and config/environment loading in `config/`.
 - Put reusable framework-like support that is independent of one resource in `internal/`.
 - Put Fx process graphs and infrastructure constructors in `internal/runtime`. `cmd/app` and `cmd/queue` only load env and call `runtime.App` / `runtime.Queue`.
+- `cmd/migrate` applies pending SQL with `storage.RunMigrations` on the embedded migration FS. It is a one-shot process, not part of `cmd/app` start. Development uses `andurel db migrate up`.
 - Register new constructors in the existing `fx` modules for the package that owns them.
 
 ## Output Modes
