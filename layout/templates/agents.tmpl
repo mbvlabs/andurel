@@ -31,3 +31,5 @@ andurel run
 ## Process graphs
 
 Fx process graphs live in `internal/runtime`. `cmd/app` calls `runtime.App`; `cmd/queue` calls `runtime.Queue`. Register new services, controllers, and workers in their package `Module`. Add process-wide providers (email drivers, extra Fx provides) in `internal/runtime`.
+
+`cmd/migrate` applies pending SQL with `storage.RunMigrations` on `migrations.Migrations`. It is a one-shot process, not part of `cmd/app` start. Development still uses `andurel db migrate up`.

@@ -138,6 +138,8 @@ A new app is ordinary Go you own. Top-level shape:
 | Path | Role |
 |------|------|
 | `cmd/app`, `cmd/queue` | Process entry: load env, signal context, `fx.New` |
+| `cmd/migrate` | One-shot process: apply pending SQL via `storage.RunMigrations` |
+| `cmd/seeds` | One-shot process: run named seed sets |
 | `internal/runtime` | Fx graphs and process wiring (telemetry, email, database, server) |
 | `config/` | App, DB, auth, email, telemetry config |
 | `controllers/` | HTTP handlers |

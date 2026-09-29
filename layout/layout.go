@@ -188,9 +188,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-1.min.js",
 
 	// Commands
-	"cmd_app_main.tmpl":   "cmd/app/main.go",
-	"cmd_queue_main.tmpl": "cmd/queue/main.go",
-	"cmd_seeds_main.tmpl": "cmd/seeds/main.go",
+	"cmd_app_main.tmpl":     "cmd/app/main.go",
+	"cmd_queue_main.tmpl":   "cmd/queue/main.go",
+	"cmd_migrate_main.tmpl": "cmd/migrate/main.go",
+	"cmd_seeds_main.tmpl":   "cmd/seeds/main.go",
 
 	// Process composition
 	"runtime_app.tmpl":         "internal/runtime/app.go",

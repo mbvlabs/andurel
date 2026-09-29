@@ -19,6 +19,7 @@ Use these rules when changing an Andurel app shaped like this repository.
 | Source CSS and theme primitives | `css/` |
 | Compiled/static assets | `assets/` |
 | SQL schema changes | `migrations/` |
+| Apply pending SQL (one-shot process) | `cmd/migrate/` |
 | Seed data | `seeds/` or `cmd/seeds/` following the existing pattern |
 | External provider adapters | `clients/` |
 | Email templates and send helpers | `email/` |
@@ -28,6 +29,7 @@ Use these rules when changing an Andurel app shaped like this repository.
 | Reusable framework-like packages not specific to one resource | `internal/` |
 | Process composition (Fx graphs, infrastructure constructors, process lifecycle) | `internal/runtime` |
 | Process entry (load env, signal context, fx.New) | `cmd/app/`, `cmd/queue/` |
+| One-shot database processes | `cmd/migrate/`, `cmd/seeds/` |
 
 ## Models
 
@@ -175,7 +177,7 @@ Use `internal/` for reusable framework-like support code that is not owned by on
 
 Do not put app-specific domain workflows in `internal/` just to make them feel shared. Use `models/` or `services/`.
 
-`internal/` in a generated app is application-owned. Put process-wide Fx providers and lifecycle (telemetry, email senders, database, queue insert/processor, HTTP server) in `internal/runtime`. Package `Module` vars still live next to their types; `runtime.App` and `runtime.Queue` assemble those modules into process graphs. `cmd/app` and `cmd/queue` only load environment, create the signal context, and call `fx.New`.
+`internal/` in a generated app is application-owned. Put process-wide Fx providers and lifecycle (telemetry, email senders, database, queue insert/processor, HTTP server) in `internal/runtime`. Package `Module` vars still live next to their types; `runtime.App` and `runtime.Queue` assemble those modules into process graphs. `cmd/app` and `cmd/queue` only load environment, create the signal context, and call `fx.New`. `cmd/migrate` and `cmd/seeds` load environment, open Postgres, run one task, and exit. Do not apply migrations from `cmd/app` start.
 
 ## Dependency Wiring
 
@@ -187,6 +189,7 @@ Follow existing `go.uber.org/fx` modules.
 - New queue workers: `queue/` module files.
 - Process graphs: `internal/runtime` (`runtime.App`, `runtime.Queue`).
 - Process entry: `cmd/app/main.go` and `cmd/queue/main.go` only for env loading, the signal context, and `fx.New`.
+- One-shot database processes: `cmd/migrate/main.go` applies pending SQL; `cmd/seeds/main.go` runs named seed sets.
 
 Prefer constructor injection over package globals, except for the established model receiver singletons such as `models.Project`.
 

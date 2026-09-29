@@ -92,7 +92,10 @@ func newMigrateCommand() *cobra.Command {
 		Long: `Manage database migrations for the current project using goose.
 
 Migrations live in migrations/ as SQL files. Create a new migration with
-andurel generate migration, then apply, rollback, check status, or fix gaps.`,
+andurel generate migration, then apply, rollback, check status, or fix gaps.
+
+This CLI wraps bin/goose against files on disk. A one-shot process that
+applies the embedded SQL is cmd/migrate.`,
 		Example: `  andurel db migrate up
   andurel db migrate status
   andurel db migrate down

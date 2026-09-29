@@ -340,7 +340,8 @@ var commandMetaSpecs = map[string]CommandMeta{
 	},
 	"andurel db migrate up": {
 		Summary:         "Apply pending SQL migrations",
-		WhenToUse:       []string{"Bring the database schema up to date."},
+		WhenToUse:       []string{"Bring the local database schema up to date."},
+		WhenNotToUse:    []string{"For a one-shot process without the CLI, build and run cmd/migrate."},
 		Prerequisites:   []string{"Andurel project root", "bin/goose", ".env database variables"},
 		Examples:        []string{"andurel db migrate up"},
 		Mutating:        true,

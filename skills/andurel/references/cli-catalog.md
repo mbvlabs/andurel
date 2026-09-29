@@ -54,7 +54,7 @@ andurel run --tools mailpit
 
 ## Create vs refresh vs inspect
 
-- Create SQL: `andurel generate migration NAME` then `andurel db migrate up`.
+- Create SQL: `andurel generate migration NAME` then `andurel db migrate up`. A one-shot process that applies embedded SQL is `cmd/migrate`.
 - Create a table model: `andurel generate model NAME` from an existing migration.
 - Create a non-table model for narsilc queries: `andurel generate model NAME --custom field:type ...`. Do not use `--custom` when the entity maps to a real table. No CRUD methods or factory are generated. Fill in `models/queries/<name>.sql`, then run `andurel sync queries`.
 - Refresh a table model after migrations: `andurel sync model NAME`. Models marked `// andurel:custom` cannot be synced from migrations.
@@ -85,7 +85,7 @@ andurel run --tools mailpit
 | `andurel db migrate fix` | Re-number migrations to fix gaps |
 | `andurel db migrate reset` | Roll back all migrations and re-apply them |
 | `andurel db migrate status` | Show migration status |
-| `andurel db migrate up` | Apply pending SQL migrations |
+| `andurel db migrate up` | Apply pending SQL migrations (dev CLI; production one-shot is `cmd/migrate`) |
 | `andurel db migrate up-to` | Apply migrations up to a version |
 | `andurel db nuke` | Drop and recreate the configured database |
 | `andurel db rebuild` | Drop, recreate, migrate, and seed the database |
