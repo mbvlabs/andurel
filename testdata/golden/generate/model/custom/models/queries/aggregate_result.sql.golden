@@ -1,0 +1,2 @@
+-- Lists AggregateResult rows.
+-- name: ListAggregateResult :many

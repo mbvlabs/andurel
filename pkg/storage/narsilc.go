@@ -15,7 +15,8 @@ const (
 )
 
 // HasQueryFiles reports whether models/queries contains narsilc query
-// definitions. Files must include at least one active -- name: annotation.
+// definitions. Files must include at least one active -- name: annotation
+// followed by a SQL statement.
 func HasQueryFiles(projectRoot string) (bool, error) {
 	queriesDir := filepath.Join(projectRoot, QueriesDir)
 	entries, err := os.ReadDir(queriesDir)
@@ -44,8 +45,16 @@ func HasQueryFiles(projectRoot string) (bool, error) {
 }
 
 func containsQueryAnnotation(content string) bool {
-	for line := range strings.SplitSeq(content, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "-- name:") {
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		if !strings.HasPrefix(strings.TrimSpace(line), "-- name:") {
+			continue
+		}
+		for _, next := range lines[i+1:] {
+			trimmed := strings.TrimSpace(next)
+			if trimmed == "" || strings.HasPrefix(trimmed, "--") {
+				continue
+			}
 			return true
 		}
 	}

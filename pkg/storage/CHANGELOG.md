@@ -4,6 +4,10 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+### Changed
+
+- `HasQueryFiles` requires a SQL statement after `-- name:`. Query headers without a body do not count.
+
 ## 0.8.0 - 2026-09-15
 
 ### Changed

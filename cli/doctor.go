@@ -238,7 +238,7 @@ func doctorHint(result checkResult) string {
 	case "tool versions":
 		return "Run andurel tool sync to install or update framework tools."
 	case "Inertia SSR":
-		return "Check cmd/ssr, INERTIA_SSR_LISTEN, INERTIA_SSR_URL, runtime, and bundle configuration."
+		return "In development, Vite serves SSR. In production, build assets/dist/ssr/ssr.js and run cmd/ssr."
 	case "go vet":
 		return "Run go vet ./... and fix the reported issues."
 	case "go mod tidy":
@@ -545,6 +545,14 @@ func checkInertiaSSRConfiguration(rootDir string) checkResult {
 		}
 	}
 
+	if doctorUsesDevelopmentSSR(values) {
+		return checkResult{
+			name:    "Inertia SSR",
+			status:  statusPass,
+			message: "development SSR is served by Vite; production bundle not required",
+		}
+	}
+
 	bundle := strings.TrimSpace(values["INERTIA_SSR_BUNDLE"])
 	if bundle == "" {
 		bundle = "assets/dist/ssr/ssr.js"
@@ -573,6 +581,14 @@ func checkInertiaSSRConfiguration(rootDir string) checkResult {
 		status:  statusPass,
 		message: fmt.Sprintf("cmd/ssr ready; renderer healthy at %s", healthURL.Redacted()),
 	}
+}
+
+func doctorUsesDevelopmentSSR(values map[string]string) bool {
+	environment := strings.TrimSpace(values["ENVIRONMENT"])
+	if environment == "" {
+		environment = "development"
+	}
+	return environment == "development"
 }
 
 // doctorSSRListenHealthURL rewrites unspecified bind hosts to the same-family
@@ -1126,7 +1142,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 		if err != nil {
 			return err
 		}
-		cmd := exec.Command(filepath.Join(tempRoot, "bin", "templ"), "generate", "-path", "./views")
+		cmd := exec.Command(filepath.Join(tempRoot, "bin", "templ"), templGenerateArgs...)
 		cmd.Dir = tempRoot
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout = &stdout

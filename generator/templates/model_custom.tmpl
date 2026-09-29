@@ -1,0 +1,39 @@
+package models
+
+// andurel:custom
+
+import (
+{{- range .StandardImports}}
+	"{{.}}"
+{{- end}}
+{{if and (gt (len .StandardImports) 0) (gt (len .ExternalImports) 0)}}
+{{end}}
+{{- range .ExternalImports}}
+	"{{.}}"
+{{- end}}
+)
+
+type {{.NamespaceType}} struct {
+	queries *queries.Queries
+}
+
+func New{{.NamespaceVar}}(db storage.Connection) {{.NamespaceType}} {
+	return {{.NamespaceType}}{queries: queries.New(db)}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func ({{.ReceiverName}} {{.NamespaceType}}) WithTx(tx storage.Transaction) {{.NamespaceType}} {
+	return {{.NamespaceType}}{queries: queries.New(tx)}
+}
+
+type {{.EntityName}} struct {
+{{- range .Fields}}
+	{{.Name}} {{.Type}} `andurel:"{{.ColumnName}}"`
+{{- end}}
+}
+
+func ({{.ReceiverName}} *{{.EntityName}}) Validate() error {
+	b := validation.NewBuilder()
+	// Add domain validation rules here.
+	return b.Err()
+}

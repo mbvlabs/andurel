@@ -237,6 +237,13 @@ func (m *ModelManager) factoryModelFromEntity(
 		return nil, "", fmt.Errorf("read model file: %w", err)
 	}
 
+	if IsCustomModel(modelPath) {
+		return nil, "", fmt.Errorf(
+			"%s is a custom model (// andurel:custom) and has no factory",
+			modelPath,
+		)
+	}
+
 	entityName := resourceName
 	fields, _, _, err := parseEntityStruct(src, entityName)
 	if err != nil {

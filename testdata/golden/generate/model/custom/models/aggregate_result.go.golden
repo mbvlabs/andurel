@@ -1,0 +1,36 @@
+package models
+
+// andurel:custom
+
+import (
+	"uuid"
+
+	"example.com/app/models/internal/queries"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+type AggregateResults struct {
+	queries *queries.Queries
+}
+
+func NewAggregateResults(db storage.Connection) AggregateResults {
+	return AggregateResults{queries: queries.New(db)}
+}
+
+// WithTx returns a copy that runs queries inside tx.
+func (ar AggregateResults) WithTx(tx storage.Transaction) AggregateResults {
+	return AggregateResults{queries: queries.New(tx)}
+}
+
+type AggregateResult struct {
+	ID       uuid.UUID `andurel:"id"`
+	Name     string    `andurel:"name"`
+	Currency int64     `andurel:"currency"`
+}
+
+func (ar *AggregateResult) Validate() error {
+	b := validation.NewBuilder()
+	// Add domain validation rules here.
+	return b.Err()
+}

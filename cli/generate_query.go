@@ -32,14 +32,15 @@ func newGenerateQueryCommand() *cobra.Command {
 		Long: `Generates a new narsilc SQL query file in models/queries.
 
 Pass the query group name in CamelCase, for example UserReport. The file is
-created at models/queries/user_report.sql with narsilc annotation examples.
+created at models/queries/user_report.sql with a ListUserReport query
+annotation.
 
-Use --table to scaffold an initial annotated query against an existing table.
+Use --table to include a starter SELECT against an existing table.
 After editing the SQL, run andurel sync queries to produce Go code in
 models/internal/queries.`,
 		Example: `  andurel generate query UserReport
 
-      Creates models/queries/user_report.sql with commented examples.
+      Creates models/queries/user_report.sql with a ListUserReport query name.
 
   andurel generate query UserReport --table users
 

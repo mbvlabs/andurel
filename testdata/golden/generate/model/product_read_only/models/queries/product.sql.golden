@@ -1,16 +1,17 @@
--- narsilc queries for Product
-
+-- Fetches one Product by primary key.
 -- name: GetProduct :one
 SELECT *
 FROM products
 WHERE id = $1
 LIMIT 1;
 
+-- Lists Product rows.
 -- name: ListProducts :many
 -- @order id
 SELECT *
 FROM products;
 
+-- Counts Product rows.
 -- name: CountProducts :one
 SELECT count(*)
 FROM products;

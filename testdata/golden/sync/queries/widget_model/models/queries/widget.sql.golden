@@ -1,20 +1,22 @@
--- narsilc queries for Widget
-
+-- Fetches one Widget by primary key.
 -- name: GetWidget :one
 SELECT *
 FROM widgets
 WHERE id = $1
 LIMIT 1;
 
+-- Lists Widget rows.
 -- name: ListWidgets :many
 -- @order id
 SELECT *
 FROM widgets;
 
+-- Counts Widget rows.
 -- name: CountWidgets :one
 SELECT count(*)
 FROM widgets;
 
+-- Inserts one Widget and returns the row.
 -- name: CreateWidget :one
 INSERT INTO widgets (
 	id,
@@ -33,6 +35,7 @@ INSERT INTO widgets (
 )
 RETURNING *;
 
+-- Updates one Widget by primary key and returns the row.
 -- name: UpdateWidget :one
 UPDATE widgets
 SET
@@ -43,10 +46,12 @@ SET
 WHERE id = $1
 RETURNING *;
 
+-- Deletes one Widget by primary key.
 -- name: DeleteWidget :exec
 DELETE FROM widgets
 WHERE id = $1;
 
+-- Inserts or updates one Widget and returns the row.
 -- name: UpsertWidget :one
 INSERT INTO widgets (
 	id,

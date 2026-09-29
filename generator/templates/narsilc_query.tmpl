@@ -1,16 +1,5 @@
--- narsilc queries for {{.PascalName}}
---
--- Add annotated queries below, then run:
---   andurel sync queries
-{{if .TableName}}
--- name: List{{.PascalName}} :many
+-- Lists {{.PascalName}} rows{{if .TableName}} from {{.TableName}}{{end}}.
+-- name: List{{.PascalName}} :many{{if .TableName}}
 SELECT *
 FROM {{.TableName}}
-WHERE 1 = 0;
-{{else}}
--- Example:
--- -- name: List{{.PascalName}} :many
--- SELECT *
--- FROM your_table
--- WHERE 1 = 0;
-{{end}}
+WHERE 1 = 0;{{end}}

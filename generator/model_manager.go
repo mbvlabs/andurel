@@ -5,10 +5,12 @@ import (
 	"go/format"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/mbvlabs/andurel/v2/generator/files"
 	"github.com/mbvlabs/andurel/v2/generator/internal/catalog"
 	"github.com/mbvlabs/andurel/v2/generator/models"
+	"github.com/mbvlabs/andurel/v2/generator/templates"
 	"github.com/mbvlabs/andurel/v2/internal/naming"
 	"github.com/mbvlabs/andurel/v2/internal/testseed"
 	"github.com/mbvlabs/andurel/v2/layout"
@@ -353,6 +355,173 @@ func (m *ModelManager) ApplyModelPlan(plan *ModelGenerationPlan) error {
 		}
 	}
 	return nil
+}
+
+// GenerateCustomModel generates a non-table-backed model from field:type specs.
+func (m *ModelManager) GenerateCustomModel(resourceName string, fieldSpecs []string) error {
+	plan, err := m.PlanCustomModel(resourceName, fieldSpecs)
+	if err != nil {
+		return err
+	}
+	return m.ApplyModelPlan(plan)
+}
+
+// PlanCustomModel computes custom model generation output without writing files.
+func (m *ModelManager) PlanCustomModel(
+	resourceName string,
+	fieldSpecs []string,
+) (*ModelGenerationPlan, error) {
+	fields, fieldStdImports, fieldExtImports, err := ParseCustomFieldSpecs(fieldSpecs)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, err := m.setupCustomModelContext(resourceName)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := m.fileManager.ValidateFileNotExists(ctx.ModelPath); err != nil {
+		return nil, err
+	}
+
+	serviceName := naming.ModelServiceName(resourceName)
+	data := CustomModelData{
+		EntityName:    resourceName,
+		NamespaceVar:  serviceName,
+		NamespaceType: serviceName,
+		ReceiverName:  naming.ToReceiverName(resourceName),
+		ModulePath:    ctx.ModulePath,
+		Fields:        fields,
+	}
+
+	importSet := make(map[string]bool)
+	for _, imp := range fieldStdImports {
+		importSet[imp] = true
+	}
+	for _, imp := range fieldExtImports {
+		importSet[imp] = true
+	}
+	if ctx.ModulePath != "" {
+		importSet[ctx.ModulePath+"/models/internal/queries"] = true
+	}
+	importSet["github.com/mbvlabs/andurel/pkg/storage"] = true
+	importSet["github.com/mbvlabs/andurel/pkg/validation"] = true
+	data.StandardImports, data.ExternalImports = groupAndSortCustomImports(importSet)
+
+	modelContent, err := renderCustomModelSource(data)
+	if err != nil {
+		return nil, fmt.Errorf("plan custom model source: %w", err)
+	}
+
+	queryContent, err := templates.RenderTemplateUsingGlobal("narsilc_query.tmpl", struct {
+		PascalName string
+		TableName  string
+	}{
+		PascalName: resourceName,
+		TableName:  "",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("plan custom query stub: %w", err)
+	}
+
+	queryPath := filepath.Join(
+		filepath.Dir(ctx.ModelPath),
+		"queries",
+		naming.ToSnakeCase(resourceName)+".sql",
+	)
+	plan := &ModelGenerationPlan{
+		ResourceName: resourceName,
+		Files: []PlannedFile{
+			{
+				Path:       ctx.ModelPath,
+				NewContent: modelContent,
+			},
+			{
+				Path:       queryPath,
+				NewContent: queryContent,
+			},
+		},
+	}
+
+	registryPath := filepath.Join(filepath.Dir(ctx.ModelPath), "model.go")
+	if m.fileManager.FileExists(registryPath) {
+		registryContent, readErr := m.fileManager.ReadFile(registryPath)
+		if readErr != nil {
+			return nil, fmt.Errorf("read model registry: %w", readErr)
+		}
+		updatedRegistry, formatErr := planModelRegistration(resourceName, registryContent)
+		if formatErr != nil {
+			return nil, fmt.Errorf("plan model registry: %w", formatErr)
+		}
+		if updatedRegistry != registryContent {
+			plan.Files = append(plan.Files, PlannedFile{
+				Path:       registryPath,
+				OldContent: registryContent,
+				NewContent: updatedRegistry,
+				Exists:     true,
+			})
+		}
+	}
+
+	return plan, nil
+}
+
+func (m *ModelManager) setupCustomModelContext(resourceName string) (*modelSetupContext, error) {
+	modulePath := m.projectManager.GetModulePath()
+
+	if err := m.validator.ValidateModelResourceName(resourceName); err != nil {
+		return nil, err
+	}
+	if err := m.validator.ValidateModulePath(modulePath); err != nil {
+		return nil, fmt.Errorf("module path validation failed: %w", err)
+	}
+
+	rootDir, err := m.fileManager.FindGoModRoot()
+	if err != nil {
+		return nil, fmt.Errorf("failed to find go.mod root: %w", err)
+	}
+
+	var modelFileName strings.Builder
+	modelFileName.Grow(len(resourceName) + 3)
+	modelFileName.WriteString(naming.ToSnakeCase(resourceName))
+	modelFileName.WriteString(".go")
+	modelsPath := m.config.Paths.Models
+	if !filepath.IsAbs(modelsPath) {
+		modelsPath = filepath.Join(rootDir, modelsPath)
+	}
+	modelPath := filepath.Join(modelsPath, modelFileName.String())
+
+	return &modelSetupContext{
+		ModulePath:   modulePath,
+		RootDir:      rootDir,
+		ModelPath:    modelPath,
+		ResourceName: resourceName,
+		PluralName:   naming.ModelServiceName(resourceName),
+	}, nil
+}
+
+func renderCustomModelSource(data CustomModelData) (string, error) {
+	templateContent, err := templates.Files.ReadFile("model_custom.tmpl")
+	if err != nil {
+		return "", fmt.Errorf("failed to read custom model template: %w", err)
+	}
+
+	tmpl, err := template.New("model_custom").Parse(string(templateContent))
+	if err != nil {
+		return "", fmt.Errorf("failed to parse custom model template: %w", err)
+	}
+
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("failed to execute custom model template: %w", err)
+	}
+
+	formatted, err := format.Source([]byte(buf.String()))
+	if err != nil {
+		return "", fmt.Errorf("failed to format custom model source: %w", err)
+	}
+	return string(formatted), nil
 }
 
 // resolvePrimaryKey inspects the catalog for the table's primary key and

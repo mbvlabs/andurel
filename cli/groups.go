@@ -13,6 +13,7 @@ func newSyncGroupCommand() *cobra.Command {
   routes     router/routes/*.go → resources/js/routes.ts (Inertia)
   payloads   controller payload/Bind structs → resources/js/types/payloads.ts
   email      authored email templates → inlined email renderers
+  model      migrations → one models/*.go Entity
   factory    model Entity → one models/factories file
   factories  model Entities → every Andurel-owned factory declaration
 
@@ -22,6 +23,8 @@ andurel tool sync downloads pinned binaries. It is not this group.`,
   andurel sync routes --json
   andurel sync payloads --json
   andurel sync email
+  andurel sync model Post
+  andurel sync model Post --check
   andurel sync factory User --check
   andurel sync factories --sync`,
 	}
@@ -31,6 +34,7 @@ andurel tool sync downloads pinned binaries. It is not this group.`,
 		newGenerateRoutesCommand(),
 		newGeneratePayloadsCommand(),
 		newEmailCompileCommand(),
+		newSyncModelCommand(),
 		newGenerateFactoryCommand(),
 		newGenerateFactoriesCommand(),
 	)
