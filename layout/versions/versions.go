@@ -37,7 +37,7 @@ const (
 	// Server is the standalone Andurel server module version verified with this framework.
 	Server = "v0.3.3"
 	// Storage is the standalone Andurel storage module version verified with this framework.
-	Storage = "v0.8.0"
+	Storage = "v0.8.1"
 	// Telemetry is the standalone Andurel telemetry module version verified with this framework.
 	Telemetry = "v0.1.0"
 	// Validation is the standalone Andurel validation module version verified with this framework.

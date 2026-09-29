@@ -8,7 +8,7 @@ require (
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jinzhu/inflection v1.0.0
 	github.com/joho/godotenv v1.5.1
-	github.com/mbvlabs/andurel/pkg/storage v0.8.0
+	github.com/mbvlabs/andurel/pkg/storage v0.8.1
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/sebdah/goldie/v2 v2.8.0
