@@ -525,7 +525,7 @@ var WidgetExport = routing.NewSimpleRoute(
 		t,
 		rootDir,
 		filepath.Join("resources", "js", "routes.ts"),
-		"widgetExport: () => '/widgets/export'",
+		"widgetExport: routeHelper({\n    host: 'primary',\n    path: () => '/widgets/export',\n  })",
 	)
 }
 
