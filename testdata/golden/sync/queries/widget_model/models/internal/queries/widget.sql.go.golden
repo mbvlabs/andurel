@@ -79,7 +79,6 @@ func (q *Queries) DeleteWidget(ctx context.Context, id uuid.UUID) error {
 }
 
 const getWidget = `-- name: GetWidget :one
-
 SELECT id, name, quantity, active, created_at, updated_at
 FROM widgets
 WHERE id = $1
@@ -98,6 +97,7 @@ FROM widgets
 `
 
 // Lists Widget rows.
+
 func (q *Queries) ListWidgets[T any](ctx context.Context) *ListWidgetsBuilder[T] {
 	return &ListWidgetsBuilder[T]{
 		q:        q,
