@@ -176,6 +176,7 @@ function routeHelper<Args extends unknown[]>(def: {
 }) {
   const full = (...args: Args) => origin(def.host) + def.path(...args)
   return Object.assign(full, {
+    path: def.path,
     host: def.host,
   })
 }

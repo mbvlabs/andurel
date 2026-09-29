@@ -63,7 +63,6 @@ const (
 	sessionCookieRecoveryVersion    = "v1.5.4"
 	inertiaRendererInjectionVersion = "v1.5.6"
 	telemetryPackageVersion         = "v2.0.0"
-	hostPrimaryConfigVersion        = "v2.0.0"
 )
 
 // ManualAction describes an application-owned change that an upgrade cannot
@@ -229,34 +228,6 @@ func manualActionsForUpgrade(
 		actions = append(actions, ManualAction{
 			ID:           "telemetry-package-v2.0.0",
 			Title:        "Migrate generated telemetry onto pkg/telemetry",
-			Instructions: instructions.String(),
-		})
-	}
-
-	if crossesVersion(fromVersion, toVersion, hostPrimaryConfigVersion) {
-		var instructions strings.Builder
-		instructions.WriteString(
-			"Application identity now uses named hosts. DOMAIN is HOST_PRIMARY, and CSRF trusted origins are derived from every configured host.\n\n",
-		)
-		instructions.WriteString(
-			"1. In `.env` and deployment config, rename `DOMAIN` to `HOST_PRIMARY`. Keep the same hostname value (for example `localhost:8080` or `example.com`).\n\n",
-		)
-		instructions.WriteString(
-			"2. `PROTOCOL` still sets the scheme. Optional extra hosts use `HOST_<NAME>` (for example `HOST_ADMIN`) plus a `const HostAdmin routing.HostName` in `config/hosts.go` and an `App.Hosts` entry.\n\n",
-		)
-		instructions.WriteString(
-			"3. CSRF and CORS now trust the union of every configured host origin automatically. `CSRF_TRUSTED_ORIGINS` and `CORS_ALLOWED_ORIGINS` are additional exact origins only — do not repeat `HOST_PRIMARY` there. Wildcards are rejected at boot.\n\n",
-		)
-		instructions.WriteString(
-			"4. Declare a route's host with `routing.Host(config.HostAdmin)` in the route file. Controllers take `*router.Router` and call `r.AddRoute(routes.WidgetsIndex, echo.Route{Method, Handler})`. Fx invokes stay `c.RegisterRoutes(r)` with no host argument. Assets and `/api` stay on the primary host unless those routes set `Host(...)`.\n\n",
-		)
-		instructions.WriteString(
-			"Controllers generated before this change do not need a host-argument patch: `RegisterRoutes(*router.Router)` is unchanged.\n",
-		)
-
-		actions = append(actions, ManualAction{
-			ID:           "host-primary-config-v2.0.0",
-			Title:        "Switch DOMAIN to HOST_PRIMARY and host-derived CSRF origins",
 			Instructions: instructions.String(),
 		})
 	}

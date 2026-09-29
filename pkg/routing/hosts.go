@@ -80,12 +80,30 @@ var (
 
 // ConfigureHosts installs the boot-time hostname registry used by FullURL.
 // HostPrimary must be present with a non-empty hostname. Every other entry
-// must also have a hostname. Calling again replaces the registry.
+// must also have a hostname. Hostname and alias strings must be unique across
+// HostNames. Calling again replaces the registry.
 func ConfigureHosts(hosts map[HostName]HostSpec) error {
 	if len(hosts) == 0 {
 		return fmt.Errorf("routing: host registry must include %q", HostPrimary)
 	}
 	cloned := make(map[HostName]HostSpec, len(hosts))
+	claimed := make(map[string]HostName)
+	claim := func(hostname string, name HostName) error {
+		hostname = strings.TrimSpace(hostname)
+		if hostname == "" {
+			return nil
+		}
+		if other, ok := claimed[hostname]; ok && other != name {
+			return fmt.Errorf(
+				"routing: hostname %q is claimed by both %q and %q",
+				hostname,
+				other,
+				name,
+			)
+		}
+		claimed[hostname] = name
+		return nil
+	}
 	for name, spec := range hosts {
 		if strings.TrimSpace(string(name)) == "" {
 			return fmt.Errorf("routing: host name must not be empty")
@@ -94,12 +112,18 @@ func ConfigureHosts(hosts map[HostName]HostSpec) error {
 		if spec.Hostname == "" {
 			return fmt.Errorf("routing: host %q is missing a hostname", name)
 		}
+		if err := claim(spec.Hostname, name); err != nil {
+			return err
+		}
 		if len(spec.Aliases) > 0 {
 			aliases := make([]string, 0, len(spec.Aliases))
 			for _, alias := range spec.Aliases {
 				alias = strings.TrimSpace(alias)
 				if alias == "" {
 					continue
+				}
+				if err := claim(alias, name); err != nil {
+					return err
 				}
 				aliases = append(aliases, alias)
 			}
@@ -140,19 +164,14 @@ func Hosts() map[HostName]HostSpec {
 }
 
 // HostBaseURL returns the origin for name from the boot-time registry.
-// Unregistered names fall back to HostPrimary. An unconfigured registry
-// returns the empty string.
+// Empty name selects HostPrimary. Unregistered names and an unconfigured
+// registry return the empty string (no silent fallback to another host).
 func HostBaseURL(name HostName) string {
 	if name == "" {
 		name = HostPrimary
 	}
 	if spec, ok := LookupHost(name); ok {
 		return spec.BaseURL()
-	}
-	if name != HostPrimary {
-		if spec, ok := LookupHost(HostPrimary); ok {
-			return spec.BaseURL()
-		}
 	}
 	return ""
 }

@@ -57,8 +57,9 @@ andurel run --tools mailpit
 - Create a model: `andurel generate model NAME`.
 - Compile SQL: `andurel sync queries`.
 - List models: `andurel inspect models --json`.
-- List routes: `andurel inspect routes --json`.
-- Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia only).
+- List routes: `andurel inspect routes --json` (includes host when set).
+- Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia only; helpers are host-aware full URLs after `configureRouteHosts`).
+- Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then `andurel generate controller|scaffold NAME --host=<name>`. `--prefix` is independent.
 - Compile Templ: `andurel sync views`.
 - List `.templ` files: `andurel inspect views --json`.
 

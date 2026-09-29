@@ -78,7 +78,9 @@ func New(
 		child.Use(globalMiddleware...)
 		child.Use(perHostMiddleware[name]...)
 		children[name] = child
-		registerHostnames(vhosts, spec, child)
+		if err := registerHostnames(vhosts, spec, child); err != nil {
+			return nil, err
+		}
 	}
 
 	primary := echo.NewVirtualHostHandler(vhosts)
@@ -123,23 +125,43 @@ func registerHostnames(
 	vhosts map[string]*echo.Echo,
 	spec routing.HostSpec,
 	child *echo.Echo,
-) {
-	bindHostname(vhosts, spec.Hostname, child)
-	for _, alias := range spec.Aliases {
-		bindHostname(vhosts, alias, child)
+) error {
+	if err := bindHostname(vhosts, spec.Hostname, child); err != nil {
+		return err
 	}
+	for _, alias := range spec.Aliases {
+		if err := bindHostname(vhosts, alias, child); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func bindHostname(vhosts map[string]*echo.Echo, hostname string, child *echo.Echo) {
+func bindHostname(vhosts map[string]*echo.Echo, hostname string, child *echo.Echo) error {
 	hostname = strings.TrimSpace(hostname)
 	if hostname == "" {
-		return
+		return nil
+	}
+	if err := claimHostname(vhosts, hostname, child); err != nil {
+		return err
+	}
+	if _, _, ok := strings.Cut(hostname, ":"); !ok {
+		if err := claimHostname(vhosts, hostname+":80", child); err != nil {
+			return err
+		}
+		if err := claimHostname(vhosts, hostname+":443", child); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func claimHostname(vhosts map[string]*echo.Echo, hostname string, child *echo.Echo) error {
+	if existing, ok := vhosts[hostname]; ok && existing != child {
+		return fmt.Errorf("router: hostname %q is already bound to another host", hostname)
 	}
 	vhosts[hostname] = child
-	if _, _, ok := strings.Cut(hostname, ":"); !ok {
-		vhosts[hostname+":80"] = child
-		vhosts[hostname+":443"] = child
-	}
+	return nil
 }
 
 func SetupGlobalMiddleware(
@@ -292,6 +314,21 @@ func (r *Router) AddRouteNotFound(
 		return echo.RouteInfo{}, fmt.Errorf("router: %s: %w", rt.Name(), err)
 	}
 	return e.RouteNotFound("/*", notFoundHandler), nil
+}
+
+// AddRouteNotFoundEachHost registers the same catch-all on every configured
+// host Echo so secondary hosts do not fall through to Echo's default 404.
+func (r *Router) AddRouteNotFoundEachHost(notFoundHandler echo.HandlerFunc) error {
+	if notFoundHandler == nil {
+		return errors.New("router: not-found handler is nil")
+	}
+	for name, e := range r.hosts {
+		if e == nil {
+			return fmt.Errorf("router: host %q has a nil Echo", name)
+		}
+		e.RouteNotFound("/*", notFoundHandler)
+	}
+	return nil
 }
 
 var Module = fx.Module(

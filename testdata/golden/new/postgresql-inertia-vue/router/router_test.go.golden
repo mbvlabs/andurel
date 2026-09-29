@@ -1,7 +1,9 @@
 package router
 
 import (
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
@@ -130,5 +132,91 @@ func TestCredentialedCORSRejectsWildcards(t *testing.T) {
 				t.Fatalf("expected wildcard CORS configuration to be rejected")
 			}
 		})
+	}
+}
+
+func TestBindHostnameRejectsCollision(t *testing.T) {
+	vhosts := map[string]*echo.Echo{}
+	first := echo.New()
+	second := echo.New()
+	if err := bindHostname(vhosts, "admin.example.com", first); err != nil {
+		t.Fatalf("first bind: %v", err)
+	}
+	if err := bindHostname(vhosts, "admin.example.com", second); err == nil {
+		t.Fatal("expected hostname collision")
+	}
+	if err := bindHostname(vhosts, "admin.example.com:443", second); err == nil {
+		t.Fatal("expected ported hostname collision")
+	}
+}
+
+func TestBindHostnameRegistersStandardPorts(t *testing.T) {
+	vhosts := map[string]*echo.Echo{}
+	child := echo.New()
+	if err := bindHostname(vhosts, "admin.example.com", child); err != nil {
+		t.Fatalf("bind: %v", err)
+	}
+	for _, key := range []string{"admin.example.com", "admin.example.com:80", "admin.example.com:443"} {
+		if vhosts[key] != child {
+			t.Fatalf("missing binding for %q", key)
+		}
+	}
+}
+
+func TestVirtualHostDispatchesByHostHeader(t *testing.T) {
+	admin := echo.New()
+	admin.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    "/",
+		Handler: func(c *echo.Context) error { return c.String(http.StatusOK, "admin") },
+	})
+
+	vhosts := map[string]*echo.Echo{}
+	if err := bindHostname(vhosts, "admin.example.com", admin); err != nil {
+		t.Fatalf("bind: %v", err)
+	}
+
+	primary := echo.NewVirtualHostHandler(vhosts)
+	primary.AddRoute(echo.Route{
+		Method:  http.MethodGet,
+		Path:    "/",
+		Handler: func(c *echo.Context) error { return c.String(http.StatusOK, "primary") },
+	})
+
+	assertBody := func(t *testing.T, host, want string) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Host = host
+		rec := httptest.NewRecorder()
+		primary.ServeHTTP(rec, req)
+		body, err := io.ReadAll(rec.Result().Body)
+		if err != nil {
+			t.Fatalf("read body: %v", err)
+		}
+		if got := string(body); got != want {
+			t.Fatalf("Host %q body = %q, want %q", host, got, want)
+		}
+	}
+
+	assertBody(t, "admin.example.com", "admin")
+	assertBody(t, "admin.example.com:443", "admin")
+	assertBody(t, "unknown.example.com", "primary")
+}
+
+func TestAddRouteNotFoundEachHost(t *testing.T) {
+	primary := echo.New()
+	admin := echo.New()
+	r := &Router{
+		hosts: map[routing.HostName]*echo.Echo{
+			routing.HostPrimary: primary,
+			"admin":             admin,
+		},
+	}
+
+	handler := func(c *echo.Context) error {
+		return c.String(http.StatusNotFound, "missing")
+	}
+	if err := r.AddRouteNotFoundEachHost(handler); err != nil {
+		t.Fatalf("AddRouteNotFoundEachHost: %v", err)
 	}
 }

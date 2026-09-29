@@ -19,6 +19,10 @@ All notable changes to the standalone Andurel routing module are documented here
 
 - `FullURL` no longer takes a `base` argument. The origin comes from the
   boot-time host registry using the route's stored `HostName`.
+- `ConfigureHosts` rejects hostname/alias collisions across distinct
+  `HostName`s.
+- `HostBaseURL` returns an empty string for unregistered names instead of
+  falling back to the primary origin.
 
 ## 0.3.0 - 2026-09-17
 

@@ -1,6 +1,9 @@
 package routing
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestIsInertiaDefaultsFalse(t *testing.T) {
 	route := NewSimpleRoute("/", "pages.home", "")
@@ -86,6 +89,59 @@ func TestFullURLUsesHostRegistry(t *testing.T) {
 	admin := NewSimpleRoute("", "widgets.index", "/widgets", Host(hostAdmin))
 	if got, want := admin.FullURL(), "https://admin.andurel.com/widgets"; got != want {
 		t.Fatalf("admin FullURL = %q, want %q", got, want)
+	}
+}
+
+func TestHostBaseURLUnknownReturnsEmpty(t *testing.T) {
+	t.Cleanup(func() {
+		hostMu.Lock()
+		hostRegistry = nil
+		hostMu.Unlock()
+	})
+
+	if err := ConfigureHosts(map[HostName]HostSpec{
+		HostPrimary: {Hostname: "andurel.com", Protocol: "https"},
+	}); err != nil {
+		t.Fatalf("configure hosts: %v", err)
+	}
+
+	if got := HostBaseURL("admin"); got != "" {
+		t.Fatalf("unknown host BaseURL = %q, want empty", got)
+	}
+}
+
+func TestConfigureHostsRejectsHostnameCollision(t *testing.T) {
+	t.Cleanup(func() {
+		hostMu.Lock()
+		hostRegistry = nil
+		hostMu.Unlock()
+	})
+
+	err := ConfigureHosts(map[HostName]HostSpec{
+		HostPrimary: {Hostname: "andurel.com", Protocol: "https"},
+		"admin":     {Hostname: "andurel.com", Protocol: "https"},
+	})
+	if err == nil {
+		t.Fatal("expected hostname collision error")
+	}
+	if !strings.Contains(err.Error(), "andurel.com") {
+		t.Fatalf("error should name the hostname, got %v", err)
+	}
+}
+
+func TestConfigureHostsRejectsAliasCollision(t *testing.T) {
+	t.Cleanup(func() {
+		hostMu.Lock()
+		hostRegistry = nil
+		hostMu.Unlock()
+	})
+
+	err := ConfigureHosts(map[HostName]HostSpec{
+		HostPrimary: {Hostname: "andurel.com", Aliases: []string{"www.andurel.com"}, Protocol: "https"},
+		"admin":     {Hostname: "admin.andurel.com", Aliases: []string{"www.andurel.com"}, Protocol: "https"},
+	})
+	if err == nil {
+		t.Fatal("expected alias collision error")
 	}
 }
 
