@@ -26,7 +26,8 @@ Use these rules when changing an Andurel app shaped like this repository.
 | River workers and queue registration | `queue/` |
 | App configuration structs and environment loading | `config/` |
 | Reusable framework-like packages not specific to one resource | `internal/` |
-| Application boot and lifecycle wiring | `cmd/app/` |
+| Process composition (Fx graphs, infrastructure constructors, process lifecycle) | `internal/runtime` |
+| Process entry (load env, signal context, fx.New) | `cmd/app/`, `cmd/queue/` |
 
 ## Models
 
@@ -163,6 +164,7 @@ Put email templates and send helpers in `email/`. Put provider-specific implemen
 
 Use `internal/` for reusable framework-like support code that is not owned by one resource:
 
+- process composition (`internal/runtime`)
 - request context helpers
 - routing definitions
 - hypermedia rendering
@@ -173,6 +175,8 @@ Use `internal/` for reusable framework-like support code that is not owned by on
 
 Do not put app-specific domain workflows in `internal/` just to make them feel shared. Use `models/` or `services/`.
 
+`internal/` in a generated app is application-owned. Put process-wide Fx providers and lifecycle (telemetry, email senders, database, queue insert/processor, HTTP server) in `internal/runtime`. Package `Module` vars still live next to their types; `runtime.App` and `runtime.Queue` assemble those modules into process graphs. `cmd/app` and `cmd/queue` only load environment, create the signal context, and call `fx.New`.
+
 ## Dependency Wiring
 
 Follow existing `go.uber.org/fx` modules.
@@ -181,7 +185,8 @@ Follow existing `go.uber.org/fx` modules.
 - New services: `services/service.go`.
 - New controllers: `controllers/controller.go`.
 - New queue workers: `queue/` module files.
-- Application lifecycle hooks: `cmd/app/main.go` only when startup/shutdown behavior changes.
+- Process graphs: `internal/runtime` (`runtime.App`, `runtime.Queue`).
+- Process entry: `cmd/app/main.go` and `cmd/queue/main.go` only for env loading, the signal context, and `fx.New`.
 
 Prefer constructor injection over package globals, except for the established model receiver singletons such as `models.Project`.
 

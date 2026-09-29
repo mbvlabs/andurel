@@ -14,9 +14,9 @@ Inspired by Ruby on Rails, Andurel is now its own thing: generated Go you own, e
 │   ├── console          # Database console
 │   ├── migration        # Migration runner
 │   └── shadowfax        # Development server
-├── cmd/                 # Command entry points
-│   ├── app/             # Main web application
-│   ├── queue/           # Background queue processor
+├── cmd/                 # Process entry points
+│   ├── app/             # Web process (runtime.App)
+│   ├── queue/           # Queue process (runtime.Queue)
 │   └── seeds/           # Database seeding
 ├── clients/             # External service clients
 ├── config/              # Application configuration
@@ -24,6 +24,8 @@ Inspired by Ruby on Rails, Andurel is now its own thing: generated Go you own, e
 ├── css/                 # Source CSS files (Tailwind wrappers + theme)
 ├── examples/
 │   └── html/            # Copy/paste HTML snippets with Datastar attributes
+├── internal/
+│   └── runtime/         # Process graphs and infrastructure constructors
 ├── migrations/          # SQL migration files
 ├── seeds/               # Database seed definitions
 ├── email/               # Email templates and sending

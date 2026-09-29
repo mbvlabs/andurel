@@ -137,7 +137,8 @@ A new app is ordinary Go you own. Top-level shape:
 
 | Path | Role |
 |------|------|
-| `cmd/app` | Entry point and Fx wiring |
+| `cmd/app`, `cmd/queue` | Process entry: load env, signal context, `fx.New` |
+| `internal/runtime` | Fx graphs and process wiring (telemetry, email, database, server) |
 | `config/` | App, DB, auth, email, telemetry config |
 | `controllers/` | HTTP handlers |
 | `models/` | Domain types + narsilc queries |

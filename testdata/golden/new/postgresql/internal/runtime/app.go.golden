@@ -1,0 +1,47 @@
+package runtime
+
+import (
+	"context"
+
+	"app/config"
+	"app/controllers"
+	"app/models"
+	"app/router"
+	"app/router/cookies"
+	"app/services"
+
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"go.uber.org/fx"
+)
+
+type AppVersion string
+
+func App(ctx context.Context, appVersion string) fx.Option {
+	return fx.Options(
+		fx.Provide(
+			func() context.Context { return ctx },
+			func() AppVersion { return AppVersion(appVersion) },
+		),
+		config.Module,
+		Shared,
+		QueueInsert,
+		models.Module,
+		services.Module,
+		controllers.Module,
+		cookies.Module,
+		router.Module,
+		fx.Invoke(startServer),
+	)
+}
+
+var QueueInsert = fx.Module(
+	"queue-insert",
+	fx.Provide(fx.Annotate(NewQueueInsert, fx.As(new(storage.InsertQueue)))),
+)
+
+func NewQueueInsert(
+	connection storage.Connection,
+	cfg config.QueueInsert,
+) (*storage.QueueInsert, error) {
+	return storage.NewQueueInsert(connection, cfg.Config)
+}

@@ -1,0 +1,88 @@
+package runtime
+
+import (
+	"context"
+
+	"app/assets"
+	"app/config"
+	"app/controllers"
+	"app/models"
+	"app/router"
+	"app/router/cookies"
+	"app/router/routes"
+	"app/services"
+	"app/views"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"go.uber.org/fx"
+)
+
+type AppVersion string
+
+func App(ctx context.Context, appVersion string) fx.Option {
+	return fx.Options(
+		fx.Provide(
+			func() context.Context { return ctx },
+			func() AppVersion { return AppVersion(appVersion) },
+		),
+		config.Module,
+		Shared,
+		QueueInsert,
+		Inertia,
+		models.Module,
+		services.Module,
+		controllers.Module,
+		cookies.Module,
+		router.Module,
+		fx.Invoke(startServer),
+	)
+}
+
+var QueueInsert = fx.Module(
+	"queue-insert",
+	fx.Provide(fx.Annotate(NewQueueInsert, fx.As(new(storage.InsertQueue)))),
+)
+
+func NewQueueInsert(
+	connection storage.Connection,
+	cfg config.QueueInsert,
+) (*storage.QueueInsert, error) {
+	return storage.NewQueueInsert(connection, cfg.Config)
+}
+
+var Inertia = fx.Module(
+	"inertia",
+	fx.Provide(NewInertia),
+)
+
+func NewInertia(
+	appCfg config.App,
+	cfg config.Inertia,
+	version AppVersion,
+) (*inertia.Renderer, error) {
+	renderer, err := inertia.NewRenderer(
+		cfg.ContainerID,
+		routes.ViteBuild.Path(),
+		cfg.EntryPoint,
+		cfg.ViteDevURL,
+		cfg.SSRURL,
+		cfg.SSRRequestTimeout,
+		cfg.SSRMaxResponseBytes,
+		inertia.WithRoot(views.Root),
+		inertia.WithAssetFS(assets.Files),
+		inertia.WithProjectName(appCfg.ProjectName),
+		inertia.WithEnvironment(appCfg.Environment),
+		inertia.WithProtocolDebug(cfg.ProtocolDebug),
+		inertia.WithShared(inertia.Props{
+			"appVersion": string(version),
+			"hosts":      appCfg.HostOrigins(),
+		}),
+		inertia.WithSSRFailFast(cfg.SSRFailFast),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return renderer, nil
+}

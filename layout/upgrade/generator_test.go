@@ -64,15 +64,21 @@ func TestGetFrameworkTemplates_ExcludesStandalonePackages(t *testing.T) {
 	}
 }
 
-func TestGetFrameworkTemplates_ExcludesGeneratedInertiaPackage(t *testing.T) {
+func TestGetFrameworkTemplates_ExcludesApplicationInternal(t *testing.T) {
 	t.Parallel()
 
-	for _, tmpl := range GetFrameworkTemplates(&layout.ScaffoldConfig{Inertia: "vue"}) {
-		if strings.HasPrefix(tmpl.TargetPath, "internal/inertia/") {
-			t.Fatalf(
-				"upgrade templates include removed generated Inertia package file %s",
-				tmpl.TargetPath,
-			)
+	configs := []*layout.ScaffoldConfig{
+		{},
+		{Inertia: "vue"},
+	}
+	for _, config := range configs {
+		for _, tmpl := range GetFrameworkTemplates(config) {
+			if strings.HasPrefix(tmpl.TargetPath, "internal/") {
+				t.Fatalf(
+					"upgrade templates include application-owned internal file %s",
+					tmpl.TargetPath,
+				)
+			}
 		}
 	}
 }

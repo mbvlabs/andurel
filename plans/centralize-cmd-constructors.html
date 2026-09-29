@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="plannotator-theme" content="host" />
+<meta name="color-scheme" content="dark light" />
+<title>Centralize cmd constructors · Andurel</title>
+<style>
+:root {
+  --background: oklch(0.15 0.02 260);
+  --foreground: oklch(0.90 0.01 260);
+  --card: oklch(0.22 0.02 260);
+  --card-foreground: oklch(0.90 0.01 260);
+  --primary: oklch(0.75 0.18 280);
+  --primary-foreground: oklch(0.15 0.02 260);
+  --secondary: oklch(0.50 0.18 180);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.26 0.02 260);
+  --muted-foreground: oklch(0.72 0.02 260);
+  --accent: oklch(0.70 0.20 60);
+  --accent-foreground: oklch(0.18 0.02 260);
+  --destructive: oklch(0.65 0.20 25);
+  --destructive-foreground: oklch(1 0 0);
+  --success: oklch(0.72 0.17 150);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.75 0.15 85);
+  --warning-foreground: oklch(0.18 0.02 260);
+  --border: oklch(0.35 0.02 260);
+  --input: oklch(0.26 0.02 260);
+  --ring: oklch(0.75 0.18 280);
+  --code-bg: oklch(0.26 0.02 260);
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  --font-display: ui-serif, Georgia, 'Times New Roman', serif;
+  --radius: 0.625rem;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--background);
+  color: var(--foreground);
+  line-height: 1.65;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 64px 24px;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+}
+
+header h1 {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 500;
+  margin: 8px 0 24px;
+  line-height: 1.2;
+}
+
+.prompt-box {
+  background: var(--muted);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 24px;
+}
+
+.prompt-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.prompt-box p {
+  font-size: 0.92rem;
+  color: var(--muted-foreground);
+  line-height: 1.55;
+}
+
+.summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin: 32px 0;
+}
+
+.stat-card {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 24px;
+  text-align: center;
+  background: var(--card);
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-weight: 500;
+  display: block;
+  color: var(--foreground);
+}
+
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+  margin-top: 4px;
+  display: block;
+}
+
+section { margin-top: 64px; }
+
+.section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid var(--border);
+}
+
+.section-number {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.section-header h2 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+
+p, li {
+  max-width: 65ch;
+}
+
+p { margin-bottom: 12px; }
+
+ul { padding-left: 1.2em; margin-bottom: 12px; }
+li { margin-bottom: 6px; }
+
+.diagram-panel {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin: 24px 0;
+  background: var(--card);
+}
+
+.diagram-caption {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+  display: block;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 720px) {
+  .two-col { grid-template-columns: 1fr; }
+}
+
+.option-card {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  background: var(--card);
+}
+
+.option-card.recommended {
+  background: color-mix(in oklab, var(--primary) 5%, var(--card));
+  border-color: var(--primary);
+}
+
+.option-card h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.option-card p {
+  font-size: 0.9rem;
+  color: var(--muted-foreground);
+}
+
+.tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 12px; }
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 2px 8px;
+  border-radius: calc(var(--radius) - 4px);
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.tag.highlight {
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  color: var(--primary);
+}
+
+.tag.reject {
+  background: color-mix(in oklab, var(--destructive) 12%, transparent);
+  color: var(--destructive);
+}
+
+.code-panel {
+  background: var(--code-bg);
+  border-radius: var(--radius);
+  padding: 24px;
+  overflow-x: auto;
+  margin: 16px 0;
+  border: 1.5px solid var(--border);
+}
+
+.code-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.code-panel pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--foreground);
+}
+
+.code-panel .kw  { color: var(--primary); }
+.code-panel .fn  { color: var(--accent); }
+.code-panel .str { color: var(--success); }
+.code-panel .cm  { color: var(--muted-foreground); font-style: italic; }
+.code-panel .num { color: var(--warning); }
+
+.milestones { display: flex; flex-direction: column; gap: 0; }
+
+.milestone {
+  display: grid;
+  grid-template-columns: 120px 28px 1fr;
+  gap: 0 18px;
+}
+
+.milestone .when {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  padding-top: 4px;
+}
+
+.milestone .dot-col { display: flex; flex-direction: column; align-items: center; }
+
+.milestone .dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--card);
+  border: 3px solid var(--primary);
+  flex-shrink: 0;
+}
+
+.milestone .line { width: 2px; flex: 1; background: var(--border); margin: 4px 0; }
+.milestone:last-child .line { display: none; }
+
+.milestone .body { padding-bottom: 36px; }
+
+.milestone .body h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.milestone .body p {
+  font-size: 0.88rem;
+  color: var(--muted-foreground);
+  max-width: 620px;
+  margin-bottom: 10px;
+}
+
+.risk-grid {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.risk-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1.5fr;
+  gap: 24px;
+  padding: 16px 24px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+
+.risk-row:last-child { border-bottom: none; }
+.risk-name { font-weight: 500; }
+.risk-mitigation { font-size: 0.9rem; color: var(--muted-foreground); }
+
+.badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: calc(var(--radius) - 4px);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge.high {
+  background: color-mix(in oklab, var(--destructive) 15%, transparent);
+  color: var(--destructive);
+}
+.badge.med {
+  background: color-mix(in oklab, var(--warning) 15%, transparent);
+  color: var(--warning);
+}
+.badge.low {
+  background: color-mix(in oklab, var(--success) 15%, transparent);
+  color: var(--success);
+}
+
+.callout {
+  border-left: 3px solid var(--primary);
+  padding: 16px 24px;
+  margin: 16px 0;
+  background: var(--card);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.callout h3 {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.callout p {
+  font-size: 0.9rem;
+  color: var(--muted-foreground);
+  line-height: 1.55;
+}
+
+.decide-with {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--primary);
+  font-weight: 500;
+  display: block;
+  margin-top: 8px;
+}
+
+.split-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  margin: 16px 0;
+}
+
+.split-table th {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1.5px solid var(--border);
+}
+
+.split-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.split-table code {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.yes { color: var(--success); font-weight: 600; }
+.no { color: var(--muted-foreground); }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <span class="eyebrow">Implementation plan · Andurel scaffold</span>
+  <h1>One composition package for shared cmd wiring</h1>
+  <div class="prompt-box">
+    <span class="prompt-label">Brief</span>
+    <p>cmd/app and cmd/queue both copy newEmailSenders, newTelemetry, and newDatabase. Explore a way to write those constructors once without putting Fx modules back into pkg/*. Review decision: internal/runtime is the composition package — it assembles the full process graphs. Generated internal/ is application space, not framework-owned.</p>
+  </div>
+</header>
+
+<div class="summary-strip">
+  <div class="stat-card">
+    <span class="stat-value">3</span>
+    <span class="stat-label">Duplicated constructors</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value">2</span>
+    <span class="stat-label">Fx binaries sharing them</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value">0</span>
+    <span class="stat-label">pkg Fx modules added</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value">internal/runtime</span>
+    <span class="stat-label">Package path (decided)</span>
+  </div>
+</div>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">01</span>
+    <h2>What is duplicated today</h2>
+  </div>
+  <p>Each generated Fx binary is its own composition root. The constructors that map <code>config.*</code> onto <code>pkg/telemetry</code>, <code>pkg/email</code>, and <code>pkg/storage</code> are copy-pasted into both <code>cmd/app/main.go</code> and <code>cmd/queue/main.go</code>. Seeds and SSR do not use this graph.</p>
+  <table class="split-table">
+    <thead>
+      <tr>
+        <th>Constructor</th>
+        <th>cmd/app</th>
+        <th>cmd/queue</th>
+        <th>cmd/seeds</th>
+        <th>cmd/ssr</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>newTelemetry</code></td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+        <td class="no">—</td>
+        <td class="no">—</td>
+      </tr>
+      <tr>
+        <td><code>newEmailSenders</code></td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+        <td class="no">—</td>
+        <td class="no">—</td>
+      </tr>
+      <tr>
+        <td><code>newDatabase</code></td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+        <td class="no">inline, no OTel</td>
+        <td class="no">—</td>
+      </tr>
+      <tr>
+        <td><code>newQueueInsert</code></td>
+        <td class="yes">app only</td>
+        <td class="no">—</td>
+        <td class="no">—</td>
+        <td class="no">—</td>
+      </tr>
+      <tr>
+        <td><code>newQueueProcessor</code></td>
+        <td class="no">—</td>
+        <td class="yes">queue only</td>
+        <td class="no">—</td>
+        <td class="no">—</td>
+      </tr>
+      <tr>
+        <td><code>newInertia</code></td>
+        <td class="yes">Inertia apps</td>
+        <td class="no">—</td>
+        <td class="no">—</td>
+        <td class="no">own runtime</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>This is intentional V2 layering: packages accept values, generated <code>config/</code> loads env, and Fx wiring lives in the app. The miss is that the wiring has two copies.</p>
+</section>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">02</span>
+    <h2>Recommendation</h2>
+  </div>
+  <p>Add a generated, <strong>application-owned</strong> <code>internal/runtime</code> package. Generated <code>internal/</code> is application space (layer-placement already puts reusable plumbing there). It is the composition root: every Fx provider and invoke for a process is assembled here. <code>models.Module</code>, <code>services.Module</code>, and the rest still <em>declare</em> their constructors in their own packages (generators keep injecting there). <code>internal/runtime</code> is the only place that <em>lists</em> them into a process graph. Each <code>cmd/*</code> loads env, builds a signal context, and calls <code>fx.New(runtime.App(ctx))</code> or <code>fx.New(runtime.Queue(ctx))</code>.</p>
+
+  <div class="diagram-panel">
+    <svg viewBox="0 0 960 320" xmlns="http://www.w3.org/2000/svg" style="width:100%">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--muted-foreground)"/>
+        </marker>
+        <marker id="arrow-primary" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--primary)"/>
+        </marker>
+      </defs>
+
+      <g transform="translate(24, 48)">
+        <rect width="150" height="64" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5"/>
+        <text x="75" y="26" text-anchor="middle" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--foreground)">cmd/app</text>
+        <text x="75" y="44" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--muted-foreground)">fx.New(App)</text>
+      </g>
+
+      <g transform="translate(24, 208)">
+        <rect width="150" height="64" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5"/>
+        <text x="75" y="26" text-anchor="middle" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--foreground)">cmd/queue</text>
+        <text x="75" y="44" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--muted-foreground)">fx.New(Queue)</text>
+      </g>
+
+      <line x1="174" y1="80" x2="248" y2="160" stroke="var(--primary)" stroke-width="1.75" marker-end="url(#arrow-primary)"/>
+      <line x1="174" y1="240" x2="248" y2="160" stroke="var(--primary)" stroke-width="1.75" marker-end="url(#arrow-primary)"/>
+
+      <g transform="translate(252, 88)">
+        <rect width="280" height="144" rx="10" fill="color-mix(in oklab, var(--primary) 8%, transparent)" stroke="var(--primary)" stroke-width="1.5"/>
+        <text x="140" y="28" text-anchor="middle" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--foreground)">internal/runtime</text>
+        <text x="140" y="46" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--primary)">all Fx providers and invokes</text>
+        <text x="140" y="78" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="var(--foreground)">App(ctx) · Queue(ctx)</text>
+        <text x="140" y="100" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--muted-foreground)">NewTelemetry · NewEmailSenders</text>
+        <text x="140" y="118" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--muted-foreground)">NewDatabase · QueueInsert/Processor</text>
+        <text x="140" y="136" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--muted-foreground)">Inertia · startServer · processor LC</text>
+      </g>
+
+      <line x1="532" y1="120" x2="608" y2="48" stroke="var(--muted-foreground)" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <line x1="532" y1="160" x2="608" y2="160" stroke="var(--muted-foreground)" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <line x1="532" y1="200" x2="608" y2="272" stroke="var(--muted-foreground)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+      <g transform="translate(612, 16)">
+        <rect width="200" height="64" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5"/>
+        <text x="100" y="26" text-anchor="middle" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--foreground)">package Modules</text>
+        <text x="100" y="44" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--muted-foreground)">config · models · services · …</text>
+      </g>
+
+      <g transform="translate(612, 128)">
+        <rect width="200" height="64" rx="10" fill="var(--card)" stroke="var(--border)" stroke-width="1.5"/>
+        <text x="100" y="26" text-anchor="middle" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--foreground)">pkg/*</text>
+        <text x="100" y="44" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--muted-foreground)">New + With* · no Fx · no env</text>
+      </g>
+
+      <g transform="translate(612, 240)">
+        <rect width="200" height="64" rx="10" fill="var(--muted)" stroke="var(--border)" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <text x="100" y="26" text-anchor="middle" font-family="var(--font-sans)" font-size="13" font-weight="600" fill="var(--foreground)">generators unchanged</text>
+        <text x="100" y="44" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--muted-foreground)">still inject into package Module</text>
+      </g>
+    </svg>
+    <span class="diagram-caption">internal/runtime assembles every process graph; package Module vars still live next to their types</span>
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">03</span>
+    <h2>Why not the other homes</h2>
+  </div>
+  <div class="two-col">
+    <div class="option-card recommended">
+      <h3>internal/runtime — decided</h3>
+      <p>Go package name <code>runtime</code>, path <code>internal/runtime</code>. Generated <code>internal/</code> is application space. Assembles every Fx provider and invoke for App and Queue. Adding SES or Postmark in <code>NewEmailSenders</code> is a user edit and must not be upgrade-owned.</p>
+      <div class="tags">
+        <span class="tag highlight">decided</span>
+        <span class="tag">full graphs</span>
+        <span class="tag">app-owned internal/</span>
+      </div>
+    </div>
+    <div class="option-card">
+      <h3>pkg/* Fx modules — reject</h3>
+      <p>v2.0.0 removed <code>telemetry.Module</code> from the package and put constructors in main on purpose. Packages must not read env or depend on generated <code>config</code>. Putting Fx back into pkg reverses that.</p>
+      <div class="tags">
+        <span class="tag reject">reject</span>
+        <span class="tag">breaks v2 invariant</span>
+      </div>
+    </div>
+    <div class="option-card">
+      <h3>Top-level runtime/ — reject</h3>
+      <p>A root <code>runtime/</code> package is importable outside the module and sits beside domain packages. Layer-placement already reserves <code>internal/</code> for reusable plumbing. Keep composition unexported from other modules.</p>
+      <div class="tags">
+        <span class="tag reject">reject</span>
+        <span class="tag">use internal/runtime</span>
+      </div>
+    </div>
+    <div class="option-card">
+      <h3>config/ — reject</h3>
+      <p>Config loads and validates env. Constructing Postgres, OTLP exporters, and Mailpit clients is a different layer. Keep <code>config.Module</code> as constructors of structs only.</p>
+      <div class="tags">
+        <span class="tag reject">reject</span>
+        <span class="tag">layer mix</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">04</span>
+    <h2>Shape of internal/runtime</h2>
+  </div>
+  <p>Every Fx provider and invoke for a process lives in <code>internal/runtime</code>. Package-level <code>Module</code> vars stay in <code>config/</code>, <code>models/</code>, <code>services/</code>, and so on so generators keep injecting there. <code>runtime.App</code> and <code>runtime.Queue</code> are the only graphs.</p>
+
+  <div class="code-panel">
+    <span class="code-label">internal/runtime/app.go</span>
+    <pre><code><span class="kw">func</span> <span class="fn">App</span>(ctx context.Context) fx.Option {
+  <span class="kw">return</span> fx.Options(
+    fx.Provide(<span class="kw">func</span>() context.Context { <span class="kw">return</span> ctx }),
+    config.Module,
+    Shared,          <span class="cm">// telemetry, email, database</span>
+    QueueInsert,
+    Inertia,         <span class="cm">// Inertia scaffolds only</span>
+    models.Module,
+    services.Module,
+    controllers.Module,
+    cookies.Module,
+    router.Module,
+    fx.Invoke(startServer),
+  )
+}</code></pre>
+  </div>
+
+  <div class="code-panel">
+    <span class="code-label">internal/runtime/queue.go</span>
+    <pre><code><span class="kw">func</span> <span class="fn">Queue</span>(ctx context.Context) fx.Option {
+  <span class="kw">return</span> fx.Options(
+    fx.Provide(<span class="kw">func</span>() context.Context { <span class="kw">return</span> ctx }),
+    config.Module,
+    Shared,
+    queue.Module,
+    QueueProcessor,  <span class="cm">// constructor + lifecycle invoke</span>
+  )
+}</code></pre>
+  </div>
+
+  <div class="code-panel">
+    <span class="code-label">cmd/app/main.go — after</span>
+    <pre><code>app := fx.New(runtime.App(ctx))</code></pre>
+  </div>
+
+  <div class="code-panel">
+    <span class="code-label">cmd/queue/main.go — after</span>
+    <pre><code>app := fx.New(runtime.Queue(ctx))</code></pre>
+  </div>
+
+  <p>Move into <code>internal/runtime</code>:</p>
+  <ul>
+    <li>Full <code>App</code> and <code>Queue</code> option graphs</li>
+    <li><code>NewTelemetry</code>, <code>NewEmailSenders</code>, <code>NewDatabase</code></li>
+    <li><code>NewQueueInsert</code>, <code>NewQueueProcessor</code>, processor lifecycle</li>
+    <li><code>NewInertia</code> on Inertia scaffolds</li>
+    <li><code>startServer</code>, <code>startInBackground</code>, <code>stopAndWait</code> (tests move to <code>internal/runtime</code>)</li>
+    <li><code>Blueprint.Main.ServiceProvides</code> range — inject into Shared so both processes see them</li>
+  </ul>
+  <p>Leave in the binary:</p>
+  <ul>
+    <li><code>config.LoadEnvironment</code>, signal context, <code>fx.New</code>, start/stop, <code>os.Exit</code></li>
+  </ul>
+</section>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">05</span>
+    <h2>Milestones</h2>
+  </div>
+  <div class="milestones">
+    <div class="milestone">
+      <div class="when">Phase 1</div>
+      <div class="dot-col"><span class="dot"></span><span class="line"></span></div>
+      <div class="body">
+        <h3>Scaffold internal/runtime</h3>
+        <p>Add templates under <code>internal/runtime/</code> for App(ctx), Queue(ctx), Shared constructors, QueueInsert, QueueProcessor, Inertia, and startServer. Register them as ordinary scaffold files, not framework-managed. Stop treating generated <code>internal/</code> as upgrade-owned (<code>isManagedInternalFile</code> and the upgrades doc).</p>
+        <div class="tags">
+          <span class="tag">layout/templates</span>
+          <span class="tag">layout/layout.go</span>
+        </div>
+      </div>
+    </div>
+    <div class="milestone">
+      <div class="when">Phase 2</div>
+      <div class="dot-col"><span class="dot"></span><span class="line"></span></div>
+      <div class="body">
+        <h3>Thin the cmd templates</h3>
+        <p>cmd/app becomes load env, signal context, fx.New(runtime.App(ctx)). cmd/queue the same with runtime.Queue. Move ServiceProvides into runtime.Shared so custom providers still reach both binaries. Move startServer tests with the helpers.</p>
+        <div class="tags">
+          <span class="tag">cmd_app_main.tmpl</span>
+          <span class="tag">cmd_queue_main.tmpl</span>
+          <span class="tag">blueprint</span>
+        </div>
+      </div>
+    </div>
+    <div class="milestone">
+      <div class="when">Phase 3</div>
+      <div class="dot-col"><span class="dot"></span><span class="line"></span></div>
+      <div class="body">
+        <h3>Docs and goldens</h3>
+        <p>Update layer-placement: cmd is process entry; internal/runtime assembles graphs; generators still register in package Modules. Mention internal/runtime in generated AGENTS.md. Refresh new-project goldens. No pkg changelog — pkg APIs do not change.</p>
+        <div class="tags">
+          <span class="tag">skills/andurel</span>
+          <span class="tag">testdata/golden/new</span>
+        </div>
+      </div>
+    </div>
+    <div class="milestone">
+      <div class="when">Phase 4</div>
+      <div class="dot-col"><span class="dot"></span><span class="line"></span></div>
+      <div class="body">
+        <h3>No upgrade path</h3>
+        <p>This is still alpha. Change the scaffold and goldens only. Do not rewrite existing cmd files and do not emit an upgrade note.</p>
+        <div class="tags">
+          <span class="tag">alpha</span>
+          <span class="tag">new scaffolds only</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">06</span>
+    <h2>Risks</h2>
+  </div>
+  <div class="risk-grid">
+    <div class="risk-row">
+      <div class="risk-name">Putting this under internal/</div>
+      <div><span class="badge med">MED</span></div>
+      <div class="risk-mitigation">internal/ is application space. Do not register these templates as framework-managed. Update isManagedInternalFile and generated-files docs so upgrades do not rewrite user wiring.</div>
+    </div>
+    <div class="risk-row">
+      <div class="risk-name">Moving startServer into runtime</div>
+      <div><span class="badge med">MED</span></div>
+      <div class="risk-mitigation">It is an invoke, not a provider, but it belongs in the App graph. Move the helper tests to internal/runtime so cmd/app/main_test.go can go away.</div>
+    </div>
+    <div class="risk-row">
+      <div class="risk-name">Blueprint.Main.ServiceProvides still targeting package main</div>
+      <div><span class="badge med">MED</span></div>
+      <div class="risk-mitigation">Move the template range into runtime.Module so both binaries still see custom provides.</div>
+    </div>
+    <div class="risk-row">
+      <div class="risk-name">Seeds still connecting without telemetry</div>
+      <div><span class="badge low">LOW</span></div>
+      <div class="risk-mitigation">Leave cmd/seeds as a flag CLI. Optional later: call runtime.NewDatabase without Fx. Out of this change.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-header">
+    <span class="section-number">07</span>
+    <h2>Decided</h2>
+  </div>
+  <div class="callout">
+    <h3>Package: internal/runtime</h3>
+    <p>Go package name <code>runtime</code>. Path is <code>internal/runtime</code>, not a top-level <code>runtime/</code>. Generated <code>internal/</code> is application space; do not framework-own these files.</p>
+  </div>
+  <div class="callout">
+    <h3>All Fx providers go in internal/runtime</h3>
+    <p>runtime.App and runtime.Queue assemble the full graphs, including package Modules, infrastructure constructors, Inertia, QueueInsert, QueueProcessor, and startServer / processor lifecycle. cmd binaries only load env and call fx.New. Generators still inject into models.Module / controllers.Module / queue workers.</p>
+  </div>
+  <div class="callout">
+    <h3>QueueProcessor lives in runtime</h3>
+    <p>Opt-in module used only by runtime.Queue, matching QueueInsert on the app graph.</p>
+  </div>
+  <div class="callout">
+    <h3>No upgrade note</h3>
+    <p>Still alpha. Scaffold and goldens only. Existing duplicated constructors are not migrated and are not documented as a manual action.</p>
+  </div>
+</section>
+</div>
+</body>
+</html>
