@@ -18,7 +18,7 @@ Andurel so Tailwind utilities become email-compatible inline styles.`,
 		Example: `  andurel sync views`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := runTemplFunc("generate", "-path", "./views"); err != nil {
+			if err := runTemplFunc(templGenerateArgs...); err != nil {
 				return err
 			}
 			rootDir, err := findGoModRoot()

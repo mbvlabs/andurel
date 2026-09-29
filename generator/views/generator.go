@@ -1052,7 +1052,8 @@ func (g *Generator) runCompileTemplates() error {
 	}
 
 	templBin := filepath.Join(rootDir, "bin", "templ")
-	cmd := exec.Command(templBin, "generate", "-path", "./views")
+	// -path . keeps FileName values project-relative, matching andurel new.
+	cmd := exec.Command(templBin, "generate", "-path", ".")
 	cmd.Dir = rootDir
 
 	if err := cmd.Run(); err != nil {

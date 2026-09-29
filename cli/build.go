@@ -74,7 +74,7 @@ func buildApp(rootDir string, versionFlag string) error {
 		}
 
 		fmt.Println("Generating templ views...")
-		templCmd := exec.Command(filepath.Join(binDir, "templ"), "generate", "-path", "./views")
+		templCmd := exec.Command(filepath.Join(binDir, "templ"), templGenerateArgs...)
 		templCmd.Dir = rootDir
 		templCmd.Stdout = os.Stdout
 		templCmd.Stderr = os.Stderr

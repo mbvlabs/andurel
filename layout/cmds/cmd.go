@@ -152,7 +152,8 @@ func runNarsilcGenerate(targetDir string) error {
 	return RunGoFmtPath(absTargetDir, "./models/internal/queries/...")
 }
 
-// RunTemplGenerate runs templ generate.
+// RunTemplGenerate runs templ generate over the project root so FileName
+// values stay project-relative (views/root.templ), matching andurel new.
 func RunTemplGenerate(targetDir string) error {
 	absTargetDir, err := absolutePath(targetDir)
 	if err != nil {
