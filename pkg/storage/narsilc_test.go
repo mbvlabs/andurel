@@ -72,4 +72,20 @@ func TestHasQueryFiles(t *testing.T) {
 	if hasQueries {
 		t.Fatal("expected commented stubs not to count as narsilc queries")
 	}
+
+	if err := os.WriteFile(
+		filepath.Join(queriesDir, "users.sql"),
+		[]byte("-- Lists Users rows.\n-- name: ListUsers :many\n"),
+		0o644,
+	); err != nil {
+		t.Fatalf("write name-only query file: %v", err)
+	}
+
+	hasQueries, err = HasQueryFiles(root)
+	if err != nil {
+		t.Fatalf("HasQueryFiles name-only stub: %v", err)
+	}
+	if hasQueries {
+		t.Fatal("expected name-only stubs not to count as narsilc queries")
+	}
 }

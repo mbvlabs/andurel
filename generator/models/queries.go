@@ -12,10 +12,13 @@ func (g *Generator) PlanQuerySource(model *GeneratedModel) (string, error) {
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "-- narsilc queries for %s\n", model.EntityName)
 
 	if model.HasPrimaryKey && model.Mode != ModelModeCreateOnly {
-		fmt.Fprintf(&b, "\n-- name: Get%s :one\n", model.EntityName)
+		writeNamedQuery(
+			&b,
+			fmt.Sprintf("Fetches one %s by primary key.", model.EntityName),
+			fmt.Sprintf("Get%s :one", model.EntityName),
+		)
 		fmt.Fprintf(
 			&b,
 			"SELECT *\nFROM %s\nWHERE %s = $1\nLIMIT 1;\n",
@@ -25,17 +28,29 @@ func (g *Generator) PlanQuerySource(model *GeneratedModel) (string, error) {
 	}
 
 	if model.Mode != ModelModeCreateOnly {
-		fmt.Fprintf(&b, "\n-- name: List%s :many\n", model.PluralName)
+		writeNamedQuery(
+			&b,
+			fmt.Sprintf("Lists %s rows.", model.EntityName),
+			fmt.Sprintf("List%s :many", model.PluralName),
+		)
 		fmt.Fprintf(&b, "-- @order %s\n", listOrderColumn(model))
 		fmt.Fprintf(&b, "SELECT *\nFROM %s;\n", model.TableName)
 
-		fmt.Fprintf(&b, "\n-- name: Count%s :one\n", model.PluralName)
+		writeNamedQuery(
+			&b,
+			fmt.Sprintf("Counts %s rows.", model.EntityName),
+			fmt.Sprintf("Count%s :one", model.PluralName),
+		)
 		fmt.Fprintf(&b, "SELECT count(*)\nFROM %s;\n", model.TableName)
 	}
 
 	if model.Mode != ModelModeReadOnly {
 		insertFields := insertFields(model)
-		fmt.Fprintf(&b, "\n-- name: Create%s :one\n", model.EntityName)
+		writeNamedQuery(
+			&b,
+			fmt.Sprintf("Inserts one %s and returns the row.", model.EntityName),
+			fmt.Sprintf("Create%s :one", model.EntityName),
+		)
 		fmt.Fprintf(&b, "INSERT INTO %s (\n", model.TableName)
 		writeColumnList(&b, insertFields)
 		b.WriteString(") VALUES (\n")
@@ -45,7 +60,11 @@ func (g *Generator) PlanQuerySource(model *GeneratedModel) (string, error) {
 
 	if model.HasPrimaryKey && model.Mode == ModelModeCRUD {
 		updateFields := updateFields(model)
-		fmt.Fprintf(&b, "\n-- name: Update%s :one\n", model.EntityName)
+		writeNamedQuery(
+			&b,
+			fmt.Sprintf("Updates one %s by primary key and returns the row.", model.EntityName),
+			fmt.Sprintf("Update%s :one", model.EntityName),
+		)
 		fmt.Fprintf(&b, "UPDATE %s\nSET\n", model.TableName)
 		for i, field := range updateFields {
 			fmt.Fprintf(&b, "	%s = $%d", field.ColumnName, i+2)
@@ -56,10 +75,18 @@ func (g *Generator) PlanQuerySource(model *GeneratedModel) (string, error) {
 		}
 		fmt.Fprintf(&b, "WHERE %s = $1\nRETURNING *;\n", model.IDFieldName)
 
-		fmt.Fprintf(&b, "\n-- name: Delete%s :exec\n", model.EntityName)
+		writeNamedQuery(
+			&b,
+			fmt.Sprintf("Deletes one %s by primary key.", model.EntityName),
+			fmt.Sprintf("Delete%s :exec", model.EntityName),
+		)
 		fmt.Fprintf(&b, "DELETE FROM %s\nWHERE %s = $1;\n", model.TableName, model.IDFieldName)
 
-		fmt.Fprintf(&b, "\n-- name: Upsert%s :one\n", model.EntityName)
+		writeNamedQuery(
+			&b,
+			fmt.Sprintf("Inserts or updates one %s and returns the row.", model.EntityName),
+			fmt.Sprintf("Upsert%s :one", model.EntityName),
+		)
 		fmt.Fprintf(&b, "INSERT INTO %s (\n", model.TableName)
 		writeColumnList(&b, model.Fields)
 		b.WriteString(") VALUES (\n")
@@ -77,6 +104,14 @@ func (g *Generator) PlanQuerySource(model *GeneratedModel) (string, error) {
 	}
 
 	return b.String(), nil
+}
+
+func writeNamedQuery(b *strings.Builder, description, name string) {
+	if b.Len() > 0 {
+		b.WriteByte('\n')
+	}
+	fmt.Fprintf(b, "-- %s\n", description)
+	fmt.Fprintf(b, "-- name: %s\n", name)
 }
 
 // listOrderColumn picks a stable column for narsilc query-builder @order.

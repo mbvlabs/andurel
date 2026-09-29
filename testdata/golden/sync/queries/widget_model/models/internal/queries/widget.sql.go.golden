@@ -18,6 +18,7 @@ SELECT count(*)
 FROM widgets
 `
 
+// Counts Widget rows.
 func (q *Queries) CountWidgets(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, countWidgets)
 	var count int64
@@ -53,6 +54,7 @@ type CreateWidgetParams struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+// Inserts one Widget and returns the row.
 func (q *Queries) CreateWidget[T any](ctx context.Context, arg CreateWidgetParams) (T, error) {
 	row := q.db.QueryRow(ctx, createWidget,
 		arg.ID,
@@ -70,6 +72,7 @@ DELETE FROM widgets
 WHERE id = $1
 `
 
+// Deletes one Widget by primary key.
 func (q *Queries) DeleteWidget(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteWidget, id)
 	return err
@@ -83,7 +86,7 @@ WHERE id = $1
 LIMIT 1
 `
 
-// narsilc queries for Widget
+// Fetches one Widget by primary key.
 func (q *Queries) GetWidget[T any](ctx context.Context, id uuid.UUID) (T, error) {
 	row := q.db.QueryRow(ctx, getWidget, id)
 	return narsilc.Scan[T](row, []string{"id", "name", "quantity", "active", "created_at", "updated_at"})
@@ -94,6 +97,7 @@ SELECT id, name, quantity, active, created_at, updated_at
 FROM widgets
 `
 
+// Lists Widget rows.
 func (q *Queries) ListWidgets[T any](ctx context.Context) *ListWidgetsBuilder[T] {
 	return &ListWidgetsBuilder[T]{
 		q:        q,
@@ -207,6 +211,7 @@ type UpdateWidgetParams struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+// Updates one Widget by primary key and returns the row.
 func (q *Queries) UpdateWidget[T any](ctx context.Context, arg UpdateWidgetParams) (T, error) {
 	row := q.db.QueryRow(ctx, updateWidget,
 		arg.ID,
@@ -251,6 +256,7 @@ type UpsertWidgetParams struct {
 	UpdatedAt pgtype.Timestamptz
 }
 
+// Inserts or updates one Widget and returns the row.
 func (q *Queries) UpsertWidget[T any](ctx context.Context, arg UpsertWidgetParams) (T, error) {
 	row := q.db.QueryRow(ctx, upsertWidget,
 		arg.ID,

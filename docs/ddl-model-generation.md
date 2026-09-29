@@ -34,7 +34,7 @@ andurel generate model AggregateResult --custom id:uuid name:string currency:int
 This path does not read migrations. It emits:
 
 - `models/<snake>.go` marked `// andurel:custom` with a service shell (`NewX`, `WithTx`), the entity struct, and an empty `Validate()` stub
-- `models/queries/<snake>.sql` via the same stub template as `generate query` (no live `-- name:` annotations)
+- `models/queries/<snake>.sql` via the same stub template as `generate query` (`-- name: ListX :many` with no SQL body until you author it)
 - Fx registration of `NewX` in `models/model.go`
 
 No CRUD methods and no factory are generated. `--custom` conflicts with `--table-name`, `--mode`, and `--primary-key`. After you author annotated SQL, run `andurel sync queries`. Custom models cannot be refreshed with `andurel sync model`; edit fields by hand or regenerate with `--custom`.

@@ -1,10 +1,5 @@
--- narsilc queries for WidgetReport
---
--- Add annotated queries below, then run:
---   andurel sync queries
-
+-- Lists WidgetReport rows from widgets.
 -- name: ListWidgetReport :many
 SELECT *
 FROM widgets
 WHERE 1 = 0;
-
