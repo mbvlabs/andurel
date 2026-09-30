@@ -331,26 +331,6 @@ func (r *Router) AddRouteNotFoundEachHost(notFoundHandler echo.HandlerFunc) erro
 	return nil
 }
 
-// AddRouteEachHost mounts the same path on every configured host Echo.
-func (r *Router) AddRouteEachHost(route echo.Route) error {
-	if route.Path == "" {
-		return errors.New("router: each-host route path is empty")
-	}
-	if route.Handler == nil {
-		return errors.New("router: each-host route handler is nil")
-	}
-	for name, e := range r.hosts {
-		if e == nil {
-			return fmt.Errorf("router: host %q has a nil Echo", name)
-		}
-		hosted := route
-		if _, err := e.AddRoute(hosted); err != nil {
-			return fmt.Errorf("router: %s on host %q: %w", route.Name, name, err)
-		}
-	}
-	return nil
-}
-
 var Module = fx.Module(
 	"router",
 	fx.Provide(New),
