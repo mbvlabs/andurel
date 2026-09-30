@@ -80,16 +80,21 @@ func (a Assets) RegisterRoutes(r *router.Router) error {
 		errs = append(errs, err)
 	}
 
-
-
 	return errors.Join(errs...)
 }
 
-func (a Assets) enableCaching(etx *echo.Context, content []byte) *echo.Context {
+func (a Assets) enableCaching(etx *echo.Context, cacheKey string, content []byte) *echo.Context {
 	if a.appCfg.IsProduction() {
-		//nolint:gosec //only needed for browser caching
-		hash := md5.Sum(content)
-		etag := fmt.Sprintf(`"%x-%x"`, hash, len(content))
+		etag, err := a.cache.Get("etag:"+cacheKey, func() (string, error) {
+			//nolint:gosec //only needed for browser caching
+			hash := md5.Sum(content)
+			return fmt.Sprintf(`"%x-%x"`, hash, len(content)), nil
+		})
+		if err != nil {
+			//nolint:gosec //only needed for browser caching
+			hash := md5.Sum(content)
+			etag = fmt.Sprintf(`"%x-%x"`, hash, len(content))
+		}
 
 		if match := etx.Request().Header.Get("If-None-Match"); match == etag {
 			etx.Response().
@@ -217,7 +222,7 @@ func (a Assets) Stylesheet(etx *echo.Context) error {
 		return err
 	}
 
-	etx = a.enableCaching(etx, stylesheet)
+	etx = a.enableCaching(etx, "css/style.css", stylesheet)
 	return etx.Blob(http.StatusOK, "text/css", stylesheet)
 }
 
@@ -229,24 +234,42 @@ func (a Assets) Scripts(etx *echo.Context) error {
 		return err
 	}
 
-	etx = a.enableCaching(etx, stylesheet)
+	etx = a.enableCaching(etx, "js/scripts.js", stylesheet)
 	return etx.Blob(http.StatusOK, "application/javascript", stylesheet)
 }
 
 func (a Assets) Script(etx *echo.Context) error {
-	param := etx.Param("file")
-	stylesheet, err := assets.Files.ReadFile(
-		fmt.Sprintf("js/%s", param),
-	)
-	if err != nil {
-		return err
+	param := path.Clean(etx.Param("file"))
+	if param == "." || param == "" || strings.HasPrefix(param, "../") {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 	}
 
-	etx = a.enableCaching(etx, stylesheet)
+	file := fmt.Sprintf("js/%s", param)
+	stylesheet, err := assets.Files.ReadFile(file)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	}
+
+	etx = a.enableCaching(etx, file, stylesheet)
 	return etx.Blob(http.StatusOK, "application/javascript", stylesheet)
 }
 
+func (a Assets) ViteBuild(etx *echo.Context) error {
+	param := strings.TrimPrefix(etx.Param("*"), "/")
+	param = path.Clean(param)
+	if param == "." || param == "" || strings.HasPrefix(param, "../") {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	}
 
+	file := fmt.Sprintf("dist/%s", param)
+	data, err := assets.Files.ReadFile(file)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	}
+
+	etx = a.enableCaching(etx, file, data)
+	return etx.Blob(http.StatusOK, contentTypeByExt(param), data)
+}
 
 func contentTypeByExt(name string) string {
 	switch {
@@ -258,25 +281,16 @@ func contentTypeByExt(name string) string {
 		return "application/json"
 	case strings.HasSuffix(name, ".svg"):
 		return "image/svg+xml"
+	case strings.HasSuffix(name, ".woff2"):
+		return "font/woff2"
+	case strings.HasSuffix(name, ".woff"):
+		return "font/woff"
+	case strings.HasSuffix(name, ".ttf"):
+		return "font/ttf"
+	case strings.HasSuffix(name, ".otf"):
+		return "font/otf"
 	default:
 		return "application/octet-stream"
 	}
 }
-
-func (a Assets) ViteBuild(etx *echo.Context) error {
-	param := strings.TrimPrefix(etx.Param("*"), "/")
-	param = path.Clean(param)
-	if param == "." || param == "" || strings.HasPrefix(param, "../") {
-		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
-	}
-
-	data, err := assets.Files.ReadFile(fmt.Sprintf("dist/%s", param))
-	if err != nil {
-		return echo.NewHTTPError(http.StatusNotFound, http.StatusText(http.StatusNotFound))
-	}
-
-	etx = a.enableCaching(etx, data)
-	return etx.Blob(http.StatusOK, contentTypeByExt(param), data)
-}
-
 

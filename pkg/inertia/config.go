@@ -117,12 +117,12 @@ window.__vite_plugin_react_preamble_installed__ = true
 		prefix := strings.TrimSuffix(renderer.buildPathURL, "*")
 		tags := viteTags{}
 		for _, stylesheet := range entry.CSS {
-			tags.head += `<link rel="stylesheet" href="` + html.EscapeString(
+			tags.head += `<link rel="stylesheet" crossorigin href="` + html.EscapeString(
 				prefix+stylesheet,
 			) + `">`
 		}
 
-		tags.body = `<script type="module" src="` + html.EscapeString(
+		tags.body = `<script type="module" crossorigin src="` + html.EscapeString(
 			prefix+entry.File,
 		) + `"></script>`
 		renderer.viteTags = tags

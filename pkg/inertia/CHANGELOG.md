@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Changed
+
+- Production Vite `<link>` and `<script type="module">` tags include
+  `crossorigin` so a page on a secondary host can load assets from the
+  origin in `buildPathURL` (pass `routes.ViteBuild.FullURL()`).
+
 ## 0.6.0 - 2026-09-17
 
 ### Changed

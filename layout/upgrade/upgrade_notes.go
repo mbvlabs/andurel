@@ -63,6 +63,7 @@ const (
 	sessionCookieRecoveryVersion    = "v1.5.4"
 	inertiaRendererInjectionVersion = "v1.5.6"
 	telemetryPackageVersion         = "v2.0.0"
+	inertiaViteFullURLVersion       = "v2.0.0"
 )
 
 // ManualAction describes an application-owned change that an upgrade cannot
@@ -228,6 +229,33 @@ func manualActionsForUpgrade(
 		actions = append(actions, ManualAction{
 			ID:           "telemetry-package-v2.0.0",
 			Title:        "Migrate generated telemetry onto pkg/telemetry",
+			Instructions: instructions.String(),
+		})
+	}
+
+	if includeInertiaMigration &&
+		crossesVersion(fromVersion, toVersion, inertiaViteFullURLVersion) {
+		var instructions strings.Builder
+		instructions.WriteString(
+			"Inertia production tags now need an absolute Vite build URL so secondary-host pages load the entry from the primary origin.\n\n",
+		)
+		instructions.WriteString(
+			"The composition root is application-owned, so Andurel does not rewrite NewInertia automatically.\n\n",
+		)
+		instructions.WriteString(
+			"1. In NewInertia (or the inertia renderer provider), pass routes.ViteBuild.FullURL() instead of Path():\n\n```go\n",
+		)
+		instructions.WriteString(
+			"inertia.NewRenderer(\n\tcfg.ContainerID,\n\troutes.ViteBuild.FullURL(),\n\tcfg.EntryPoint,\n\t// ...\n)\n",
+		)
+		instructions.WriteString("```\n\n")
+		instructions.WriteString("2. Format and verify the migration:\n\n```text\n")
+		instructions.WriteString("gofmt -w internal/runtime/app.go\n")
+		instructions.WriteString("go fix ./...\ngo vet ./...\n```\n")
+
+		actions = append(actions, ManualAction{
+			ID:           "inertia-vite-fullurl-v2.0.0",
+			Title:        "Pass ViteBuild.FullURL() to the Inertia renderer",
 			Instructions: instructions.String(),
 		})
 	}

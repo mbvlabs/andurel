@@ -62,7 +62,7 @@ andurel run --tools mailpit
 - List models: `andurel inspect models --json`.
 - List routes: `andurel inspect routes --json` (includes host when set).
 - Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia only; helpers are host-aware full URLs after `configureRouteHosts`).
-- Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then `andurel generate controller|scaffold NAME --host=<name>`. `--prefix` is independent.
+- Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then `andurel generate controller|scaffold NAME --host=<name>`. `--prefix` is independent. `/api` stays on primary unless `Host(...)`. Layout CSS/JS use `FullURL()` to primary. Inertia apps: Vite tags use `FullURL()` to primary. Vite production `base` is `'./'` so nested files follow the script origin.
 - Compile Templ: `andurel sync views`.
 - List `.templ` files: `andurel inspect views --json`.
 

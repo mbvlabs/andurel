@@ -4,14 +4,14 @@ import inertia from '@inertiajs/vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react(), inertia({ ssr: { entry: 'resources/js/ssr.tsx' } }), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./resources/js', import.meta.url)),
     },
   },
-  base: '/assets/dist/',
+  base: command === 'build' ? './' : '/assets/dist/',
   build: {
     manifest: "vite/manifest.json",
     assetsDir: "",
@@ -24,4 +24,4 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
   },
-})
+}))

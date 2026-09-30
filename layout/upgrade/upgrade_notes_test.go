@@ -176,3 +176,65 @@ func TestTelemetryPackageManualActionVersionGate(t *testing.T) {
 		})
 	}
 }
+
+func TestInertiaViteFullURLManualActionVersionGate(t *testing.T) {
+	tests := []struct {
+		name string
+		from string
+		to   string
+		want bool
+	}{
+		{name: "first affected upgrade", from: "v1.9.0", to: "v2.0.0", want: true},
+		{name: "skips directly over release", from: "v1.5.6", to: "v2.1.0", want: true},
+		{name: "already received note", from: "v2.0.0", to: "v2.1.0", want: false},
+		{name: "target predates release", from: "v1.5.6", to: "v1.9.0", want: false},
+		{name: "development version", from: "dev", to: "v2.0.0", want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actions, err := manualActionsForUpgrade(test.from, test.to, "example.com/acme", true)
+			if err != nil {
+				t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
+			}
+
+			var action *ManualAction
+			for i := range actions {
+				if actions[i].ID == "inertia-vite-fullurl-v2.0.0" {
+					action = &actions[i]
+					break
+				}
+			}
+			if got := action != nil; got != test.want {
+				t.Fatalf(
+					"Inertia Vite FullURL action present = %t, want %t: %#v",
+					got,
+					test.want,
+					actions,
+				)
+			}
+			if !test.want {
+				return
+			}
+
+			for _, want := range []string{
+				"NewInertia",
+				"routes.ViteBuild.FullURL()",
+				"Path()",
+				"gofmt -w internal/runtime/app.go",
+				"go fix ./...",
+				"go vet ./...",
+			} {
+				if !strings.Contains(action.Instructions, want) {
+					t.Errorf("manual action missing %q:\n%s", want, action.Instructions)
+				}
+			}
+			if strings.Contains(action.Instructions, "{{.ModuleName}}") {
+				t.Errorf(
+					"manual action contains an unresolved module placeholder:\n%s",
+					action.Instructions,
+				)
+			}
+		})
+	}
+}

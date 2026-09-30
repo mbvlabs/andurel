@@ -108,7 +108,7 @@ andurel generate scaffold Widget --host=admin --json
 andurel sync routes --json
 ```
 
-`--host` selects the Echo / `routing.Host(...)` binding. `--prefix` only affects the path and package namespace. Assets and `/api` stay on the primary host unless those routes set `Host(...)`.
+`--host` selects the Echo / `routing.Host(...)` binding. `--prefix` only affects the path and package namespace. `/api` stays on the primary host unless those routes set `Host(...)`. Layout CSS/JS use `FullURL()` to primary. Inertia apps: Vite tags use `FullURL()` to primary. Vite production `base` is `'./'` so nested files follow the script origin.
 
 Generate Inertia payload types:
 
