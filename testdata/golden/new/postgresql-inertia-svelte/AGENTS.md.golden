@@ -29,6 +29,7 @@ andurel run
 - Inertia Vite tags use `FullURL()` to primary. Vite production `base` is `'./'` so nested files follow the script origin.
 - Never invent frontend URLs in Inertia apps: import `resources/js/routes.ts` after `andurel sync routes --json`. Helpers return full URLs once `configureRouteHosts` runs from the shared `hosts` prop at boot. Use `routes.name.path()` for a relative path.
 
+
 ## Process graphs
 
 Fx process graphs live in `internal/runtime`. `cmd/app` calls `runtime.App`; `cmd/queue` calls `runtime.Queue`. Register new services, controllers, and workers in their package `Module`. Add process-wide providers (email drivers, extra Fx provides) in `internal/runtime`.
