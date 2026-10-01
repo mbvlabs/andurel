@@ -30,7 +30,6 @@ func NewTokens(db storage.Connection) Tokens {
 	return Tokens{queries: queries.New(db)}
 }
 
-// WithTx returns a copy that runs queries inside tx.
 func (t Tokens) WithTx(tx storage.Transaction) Tokens {
 	return Tokens{queries: queries.New(tx)}
 }
@@ -69,7 +68,7 @@ func GenerateCode(n int) (string, error) {
 }
 
 func GenerateSecureToken() (string, error) {
-	b := make([]byte, 15) // 120 bits
+	b := make([]byte, 15)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}

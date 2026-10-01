@@ -10,8 +10,6 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "github.com/mbvlabs/andurel/pkg/inertia"
 
-// Root is the application-owned initial Inertia document. Customize it to add
-// metadata, fonts, analytics, or other application-wide document elements.
 func Root(data inertia.RootData) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

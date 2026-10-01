@@ -15,16 +15,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// UserFactory wraps models.User for testing
 type UserFactory struct {
 	models.User
 }
 
-// UserOption is a functional option for configuring a UserFactory
 type UserOption func(*UserFactory)
 
-// BuildUser creates an in-memory User with default test values.
-// Auto-managed fields (ID, timestamps) are left at zero and set by CreateUser.
 func BuildUser(opts ...UserOption) models.User {
 	f := &UserFactory{
 		User: models.User{
@@ -42,8 +38,6 @@ func BuildUser(opts ...UserOption) models.User {
 	return f.User
 }
 
-// CreateUser creates and persists a User to the database.
-// It returns the entity populated with all DB-assigned values via RETURNING *.
 func CreateUser(
 	ctx context.Context,
 	db storage.Connection,
@@ -62,7 +56,6 @@ func CreateUser(
 	})
 }
 
-// CreateUsers creates multiple User records at once
 func CreateUsers(
 	ctx context.Context,
 	db storage.Connection,
@@ -82,33 +75,28 @@ func CreateUsers(
 	return users, nil
 }
 
-// WithEmail sets the email address for the user
 func WithEmail(email string) UserOption {
 	return func(f *UserFactory) {
 		f.Email = email
 	}
 }
 
-// WithIsAdmin sets whether the user is an admin
 func WithIsAdmin(isAdmin bool) UserOption {
 	return func(f *UserFactory) {
 		f.IsAdmin = isAdmin
 	}
 }
 
-// WithEmailValidatedAt sets the email validation timestamp
 func WithEmailValidatedAt(t time.Time) UserOption {
 	return func(f *UserFactory) {
 		f.EmailValidatedAt = pgtype.Timestamptz{Time: t, Valid: true}
 	}
 }
 
-// WithValidatedEmail marks the email as validated at the current time
 func WithValidatedEmail() UserOption {
 	return WithEmailValidatedAt(time.Now())
 }
 
-// WithPassword sets a custom password hash.
 func WithPassword(password []byte) UserOption {
 	return func(f *UserFactory) {
 		f.Password = password

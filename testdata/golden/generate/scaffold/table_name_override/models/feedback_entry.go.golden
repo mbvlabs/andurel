@@ -23,7 +23,6 @@ func NewFeedbackEntries(db storage.Connection) FeedbackEntries {
 	return FeedbackEntries{queries: queries.New(db)}
 }
 
-// WithTx returns a copy that runs queries inside tx.
 func (fe FeedbackEntries) WithTx(tx storage.Transaction) FeedbackEntries {
 	return FeedbackEntries{queries: queries.New(tx)}
 }

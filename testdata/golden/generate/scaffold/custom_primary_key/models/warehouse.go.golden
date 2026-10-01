@@ -22,7 +22,6 @@ func NewWarehouses(db storage.Connection) Warehouses {
 	return Warehouses{queries: queries.New(db)}
 }
 
-// WithTx returns a copy that runs queries inside tx.
 func (w Warehouses) WithTx(tx storage.Transaction) Warehouses {
 	return Warehouses{queries: queries.New(tx)}
 }

@@ -19,9 +19,6 @@ const (
 )
 {{- end}}
 
-// NewJar builds the cookie jar. NewSession and kiks.Bagged(...) defs ride
-// EchoMiddleware; unmarked Plain/Signed/Encrypted defs are native-only
-// (kiks.Read/Write/Clear with the injected jar).
 func NewJar(
 	appCfg config.App,
 	sessionCfg config.Session,
@@ -37,8 +34,6 @@ func NewJar(
 
 	return kiks.NewJar(keys, store,
 		NewAppCookie(sessionCfg, appCfg.IsProduction()),
-		// kiks.Bagged(ConsentCookie(appCfg.IsProduction())), // bag / every request
-		// CartCookie(appCfg.IsProduction()),                  // native / Read-Write
 	)
 }
 

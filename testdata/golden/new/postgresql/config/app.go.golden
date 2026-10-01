@@ -15,7 +15,6 @@ const (
 	DefaultProjectName = "app"
 )
 
-// App contains process-independent application identity and URL settings.
 type App struct {
 	Environment string
 	ProjectName string
@@ -83,7 +82,6 @@ func (c App) BaseURL() string {
 	return fmt.Sprintf("%s://%s", protocol, c.Domain)
 }
 
-// Origins returns the unique origins for every configured host and alias.
 func (c App) Origins() []string {
 	seen := make(map[string]struct{})
 	origins := make([]string, 0, len(c.Hosts))
@@ -120,7 +118,6 @@ func (c App) Origins() []string {
 	return origins
 }
 
-// HostOrigins returns the canonical origin for each named host.
 func (c App) HostOrigins() map[string]string {
 	out := make(map[string]string, len(c.Hosts))
 	for name, spec := range c.Hosts {

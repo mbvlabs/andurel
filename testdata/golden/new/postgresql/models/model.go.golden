@@ -1,4 +1,3 @@
-// Package models contains data models and validation logic.
 package models
 
 import (

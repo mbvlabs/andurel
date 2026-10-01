@@ -1,4 +1,3 @@
-// Package assets contains embedded static assets.
 package assets
 
 import "embed"

@@ -18,7 +18,6 @@ func NewAggregateResults(db storage.Connection) AggregateResults {
 	return AggregateResults{queries: queries.New(db)}
 }
 
-// WithTx returns a copy that runs queries inside tx.
 func (ar AggregateResults) WithTx(tx storage.Transaction) AggregateResults {
 	return AggregateResults{queries: queries.New(tx)}
 }
@@ -31,6 +30,5 @@ type AggregateResult struct {
 
 func (ar *AggregateResult) Validate() error {
 	b := validation.NewBuilder()
-	// Add domain validation rules here.
 	return b.Err()
 }
