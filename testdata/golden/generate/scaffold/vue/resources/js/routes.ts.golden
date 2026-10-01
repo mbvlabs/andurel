@@ -4,7 +4,6 @@ type HostOrigins = Record<string, string>
 
 let origins: HostOrigins = {}
 
-/** Call once at boot with Inertia shared hosts prop. */
 export function configureRouteHosts(next: HostOrigins) {
   origins = next
 }

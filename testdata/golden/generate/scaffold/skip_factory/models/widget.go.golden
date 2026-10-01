@@ -23,7 +23,6 @@ func NewWidgets(db storage.Connection) Widgets {
 	return Widgets{queries: queries.New(db)}
 }
 
-// WithTx returns a copy that runs queries inside tx.
 func (w Widgets) WithTx(tx storage.Transaction) Widgets {
 	return Widgets{queries: queries.New(tx)}
 }

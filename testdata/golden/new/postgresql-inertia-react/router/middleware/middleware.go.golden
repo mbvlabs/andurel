@@ -1,4 +1,3 @@
-// Package middleware provides HTTP middleware for the Echo web framework,
 package middleware
 
 import (
@@ -129,10 +128,8 @@ func CSRFMiddleware(
 		Skipper: func(c *echo.Context) bool {
 			return mayBypassCSRF(c.Request(), appCookieSessionName)
 		},
-		TokenLookup: tokenLookup,
-		CookiePath:  "/",
-		// Host-only cookies (no Domain). Sharing sessions across subdomains is
-		// an explicit opt-in via kiks.Domain(".example.com") — never a generated default.
+		TokenLookup:    tokenLookup,
+		CookiePath:     "/",
 		CookieDomain:   "",
 		CookieSecure:   environment == server.ProdEnvironment,
 		CookieHTTPOnly: true,
@@ -148,7 +145,6 @@ func CSRFMiddleware(
 				return next(c)
 			}
 
-			// Add Vary header for proper caching behavior
 			c.Response().Header().Add("Vary", "Sec-Fetch-Site")
 
 			method := c.Request().Method
@@ -160,7 +156,6 @@ func CSRFMiddleware(
 					strings.TrimSpace(c.Request().Header.Get("Sec-Fetch-Site")),
 				)
 
-				// In header_only mode, reject requests missing Sec-Fetch-Site
 				if headerOnly && (secFetchSite == "" || secFetchSite == "none") {
 					return echo.NewHTTPError(
 						http.StatusForbidden,
@@ -168,7 +163,6 @@ func CSRFMiddleware(
 					)
 				}
 
-				// In legacy mode, log when falling back to form token
 				if !headerOnly && secFetchSite != "same-origin" && secFetchSite != "same-site" &&
 					secFetchSite != "cross-site" {
 					if c.Request().Header.Get("X-CSRF-Token") == "" && c.FormValue("_csrf") != "" {
@@ -177,7 +171,6 @@ func CSRFMiddleware(
 				}
 			}
 
-			// Delegate to Echo's CSRF middleware
 			return echoCSRF(next)(c)
 		}
 	}, nil

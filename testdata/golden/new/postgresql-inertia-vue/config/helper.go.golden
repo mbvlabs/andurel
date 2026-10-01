@@ -25,9 +25,6 @@ func newEnvironmentWithLookup(lookup func(string) (string, bool)) *environment {
 	return &environment{lookup: lookup}
 }
 
-// LoadEnvironment loads a dotenv file before configuration constructors run.
-// A missing default .env file is allowed because deployed applications commonly
-// receive their environment directly from the operating system.
 func LoadEnvironment(filenames ...string) error {
 	err := godotenv.Load(filenames...)
 	if err == nil || (len(filenames) == 0 && os.IsNotExist(err)) {

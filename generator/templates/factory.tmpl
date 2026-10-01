@@ -14,15 +14,12 @@ import (
 {{- end}}
 )
 
-// {{.ModelName}}Factory wraps models.{{.EntityName}} for testing
 type {{.ModelName}}Factory struct {
 	models.{{.EntityName}}
 }
 
 type {{.ModelName}}Option func(*{{.ModelName}}Factory)
 
-// Build{{.ModelName}} creates an in-memory {{.ModelName}} with default test values.
-// Auto-managed fields (ID, timestamps) are left at zero and set by Create{{.ModelName}}.
 func Build{{.ModelName}}({{- range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}opts ...{{.ModelName}}Option) models.{{.EntityName}} {
 	f := &{{.ModelName}}Factory{
 		{{.EntityName}}: models.{{.EntityName}}{
@@ -46,8 +43,6 @@ func Build{{.ModelName}}({{- range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}
 }
 
 {{if .HasCreateFunction}}
-// Create{{.ModelName}} creates and persists a {{.ModelName}} to the database.
-// It returns the entity populated with all DB-assigned values via RETURNING *.
 func Create{{.ModelName}}(ctx context.Context, db storage.Connection, {{range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}opts ...{{.ModelName}}Option) (models.{{.EntityName}}, error) {
 	built := Build{{.ModelName}}({{range .ForeignKeyFields}}{{.ArgumentName}}, {{end}}opts...)
 
@@ -65,7 +60,6 @@ func Create{{.ModelName}}(ctx context.Context, db storage.Connection, {{range .F
 	})
 }
 
-// Create{{.ModelName | plural}} creates multiple {{.ModelName}} records at once
 func Create{{.ModelName | plural}}(ctx context.Context, db storage.Connection, {{range .ForeignKeyFields}}{{.ArgumentName}} {{.Type}}, {{end}}count int, opts ...{{.ModelName}}Option) ([]models.{{.EntityName}}, error) {
 	{{.ModelName | plural | lowerCamel}} := make([]models.{{.EntityName}}, 0, count)
 
@@ -80,12 +74,9 @@ func Create{{.ModelName | plural}}(ctx context.Context, db storage.Connection, {
 	return {{.ModelName | plural | lowerCamel}}, nil
 }
 {{end}}
-
-// Option functions
 {{- range .Fields}}
 {{- if not .IsAutoManaged}}
 
-// {{.OptionName}} sets the {{.Name}} field
 func {{.OptionName}}(value {{.Type}}) {{$.ModelName}}Option {
 	return func(f *{{$.ModelName}}Factory) {
 		f.{{$.EntityName}}.{{.Name}} = value

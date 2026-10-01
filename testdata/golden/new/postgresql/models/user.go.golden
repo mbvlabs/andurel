@@ -32,7 +32,6 @@ func NewUsers(db storage.Connection) Users {
 	return Users{queries: queries.New(db)}
 }
 
-// WithTx returns a copy that runs queries inside tx.
 func (u Users) WithTx(tx storage.Transaction) Users {
 	return Users{queries: queries.New(tx)}
 }

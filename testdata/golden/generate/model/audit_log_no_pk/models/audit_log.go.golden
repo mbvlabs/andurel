@@ -21,7 +21,6 @@ func NewAuditLogs(db storage.Connection) AuditLogs {
 	return AuditLogs{queries: queries.New(db)}
 }
 
-// WithTx returns a copy that runs queries inside tx.
 func (al AuditLogs) WithTx(tx storage.Transaction) AuditLogs {
 	return AuditLogs{queries: queries.New(tx)}
 }

@@ -20,7 +20,6 @@ func NewEventMetrics(db storage.Connection) EventMetrics {
 	return EventMetrics{queries: queries.New(db)}
 }
 
-// WithTx returns a copy that runs queries inside tx.
 func (em EventMetrics) WithTx(tx storage.Transaction) EventMetrics {
 	return EventMetrics{queries: queries.New(tx)}
 }

@@ -21,7 +21,6 @@ func New{{.NamespaceVar}}(db storage.Connection) {{.NamespaceType}} {
 	return {{.NamespaceType}}{queries: queries.New(db)}
 }
 
-// WithTx returns a copy that runs queries inside tx.
 func ({{.ReceiverName}} {{.NamespaceType}}) WithTx(tx storage.Transaction) {{.NamespaceType}} {
 	return {{.NamespaceType}}{queries: queries.New(tx)}
 }

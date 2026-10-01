@@ -14,16 +14,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// TokenFactory wraps models.Token for testing
 type TokenFactory struct {
 	models.Token
 }
 
-// TokenOption is a functional option for configuring a TokenFactory
 type TokenOption func(*TokenFactory)
 
-// BuildToken creates an in-memory Token with default test values.
-// Auto-managed fields (ID, timestamps) are left at zero and set by CreateToken.
 func BuildToken(opts ...TokenOption) models.Token {
 	f := &TokenFactory{
 		Token: models.Token{
@@ -41,8 +37,6 @@ func BuildToken(opts ...TokenOption) models.Token {
 	return f.Token
 }
 
-// CreateToken creates and persists a Token to the database.
-// It returns the entity populated with all DB-assigned values via RETURNING *.
 func CreateToken(
 	ctx context.Context,
 	db storage.Connection,
@@ -61,7 +55,6 @@ func CreateToken(
 	})
 }
 
-// CreateTokens creates multiple Token records at once
 func CreateTokens(
 	ctx context.Context,
 	db storage.Connection,
@@ -81,33 +74,28 @@ func CreateTokens(
 	return tokens, nil
 }
 
-// WithScope sets the scope for the token
 func WithScope(scope string) TokenOption {
 	return func(f *TokenFactory) {
 		f.Scope = scope
 	}
 }
 
-// WithExpiresAt sets the expiration time for the token
 func WithExpiresAt(t time.Time) TokenOption {
 	return func(f *TokenFactory) {
 		f.ExpiresAt = pgtype.Timestamptz{Time: t, Valid: true}
 	}
 }
 
-// WithMetaData sets the metadata for the token
 func WithMetaData(data []byte) TokenOption {
 	return func(f *TokenFactory) {
 		f.MetaData = data
 	}
 }
 
-// WithExpired creates a token that has already expired
 func WithExpired() TokenOption {
 	return WithExpiresAt(time.Now().Add(-1 * time.Hour))
 }
 
-// WithHash sets a custom hash
 func WithHash(hash string) TokenOption {
 	return func(f *TokenFactory) {
 		f.Hash = hash

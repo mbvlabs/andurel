@@ -23,7 +23,6 @@ func NewCompanies(db storage.Connection) Companies {
 	return Companies{queries: queries.New(db)}
 }
 
-// WithTx returns a copy that runs queries inside tx.
 func (c Companies) WithTx(tx storage.Transaction) Companies {
 	return Companies{queries: queries.New(tx)}
 }

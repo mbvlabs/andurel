@@ -23,7 +23,6 @@ func NewDocuments(db storage.Connection) Documents {
 	return Documents{queries: queries.New(db)}
 }
 
-// WithTx returns a copy that runs queries inside tx.
 func (d Documents) WithTx(tx storage.Transaction) Documents {
 	return Documents{queries: queries.New(tx)}
 }
