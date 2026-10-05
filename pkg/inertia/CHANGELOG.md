@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.6.1 - 2026-10-05
+
 ### Changed
 
 - Production Vite `<link>` and `<script type="module">` tags include
