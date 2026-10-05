@@ -29,7 +29,7 @@ const (
 	// Kiks is the standalone Andurel cookies and sessions module version verified with this framework.
 	Kiks = "v0.2.0"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.6.0"
+	Inertia = "v0.6.1"
 	// Email is the standalone Andurel email module version verified with this framework.
 	Email = "v0.3.3"
 	// Routing is the standalone Andurel routing module version verified with this framework.
