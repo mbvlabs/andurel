@@ -146,7 +146,7 @@ andurel sync model Product --check --json
 andurel sync model Product --json
 ```
 
-`andurel sync model` writes by default and updates the model only. Refresh the factory separately with `andurel sync factory`.
+`andurel sync model` writes by default and updates the model only. Refresh the factory separately with `andurel sync factory`. A hand-written `Transform(queries.XRow)` on the entity is preserved; `sync model` only rewrites the struct fields. Implement Transform when the entity is not the scan row (custom types). `database.nullType` remains how SQL NULL is represented on the row and on 1:1 entities. `sql.Scanner` is not required when Transform is used.
 
 Check or sync factories:
 

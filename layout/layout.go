@@ -246,14 +246,15 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"models_token.tmpl":  "models/token.go",
 	"models_user.tmpl":   "models/user.go",
 
-	"models_factories_factories.tmpl":    "models/factories/factories.go",
-	"models_factories_user.tmpl":         "models/factories/user.go",
-	"models_factories_token.tmpl":        "models/factories/token.go",
-	"models_queries_user.tmpl":           "models/queries/user.sql",
-	"models_queries_token.tmpl":          "models/queries/token.sql",
-	"models_internal_queries_db.tmpl":    "models/internal/queries/db.go",
-	"models_internal_queries_user.tmpl":  "models/internal/queries/user.sql.go",
-	"models_internal_queries_token.tmpl": "models/internal/queries/token.sql.go",
+	"models_factories_factories.tmpl":     "models/factories/factories.go",
+	"models_factories_user.tmpl":          "models/factories/user.go",
+	"models_factories_token.tmpl":         "models/factories/token.go",
+	"models_queries_user.tmpl":            "models/queries/user.sql",
+	"models_queries_token.tmpl":           "models/queries/token.sql",
+	"models_internal_queries_db.tmpl":     "models/internal/queries/db.go",
+	"models_internal_queries_models.tmpl": "models/internal/queries/models.go",
+	"models_internal_queries_user.tmpl":   "models/internal/queries/user.sql.go",
+	"models_internal_queries_token.tmpl":  "models/internal/queries/token.sql.go",
 
 	// Router
 	"router_router.tmpl":                     "router/router.go",

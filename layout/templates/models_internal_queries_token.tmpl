@@ -60,7 +60,7 @@ func (q *Queries) CreateToken[T any](ctx context.Context, arg CreateTokenParams)
 		arg.Hash,
 		arg.MetaData,
 	)
-	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
+	return narsilc.Read[T, TokenRow](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
 }
 
 const deleteToken = `-- name: DeleteToken :exec
@@ -82,7 +82,7 @@ LIMIT 1
 
 func (q *Queries) GetToken[T any](ctx context.Context, id uuid.UUID) (T, error) {
 	row := q.db.QueryRow(ctx, getToken, id)
-	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
+	return narsilc.Read[T, TokenRow](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
 }
 
 const getTokenByScopeAndHash = `-- name: GetTokenByScopeAndHash :one
@@ -100,7 +100,7 @@ type GetTokenByScopeAndHashParams struct {
 
 func (q *Queries) GetTokenByScopeAndHash[T any](ctx context.Context, arg GetTokenByScopeAndHashParams) (T, error) {
 	row := q.db.QueryRow(ctx, getTokenByScopeAndHash, arg.Scope, arg.Hash)
-	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
+	return narsilc.Read[T, TokenRow](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
 }
 
 const listTokens = `-- name: ListTokens :many
@@ -189,8 +189,21 @@ func (b *ListTokensBuilder[T]) All() ([]T, error) {
 	}
 	defer rows.Close()
 	var items []T
+	var probe T
+	_, mapRow := any(&probe).(narsilc.Transformer[TokenRow])
+	cols := []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"}
 	for rows.Next() {
-		item, err := narsilc.Scan[T](rows, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
+		var item T
+		var err error
+		if mapRow {
+			var scanned TokenRow
+			scanned, err = narsilc.Scan[TokenRow](rows, cols)
+			if err == nil {
+				item, err = narsilc.FromRow[T, TokenRow](scanned)
+			}
+		} else {
+			item, err = narsilc.Scan[T](rows, cols)
+		}
 		if err != nil {
 			return nil, err
 		}

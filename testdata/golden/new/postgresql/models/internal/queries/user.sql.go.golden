@@ -60,7 +60,7 @@ func (q *Queries) CreateUser[T any](ctx context.Context, arg CreateUserParams) (
 		arg.Password,
 		arg.IsAdmin,
 	)
-	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
 }
 
 const deleteUser = `-- name: DeleteUser :exec
@@ -82,7 +82,7 @@ LIMIT 1
 
 func (q *Queries) GetUser[T any](ctx context.Context, id uuid.UUID) (T, error) {
 	row := q.db.QueryRow(ctx, getUser, id)
-	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
@@ -94,7 +94,7 @@ LIMIT 1
 
 func (q *Queries) GetUserByEmail[T any](ctx context.Context, email string) (T, error) {
 	row := q.db.QueryRow(ctx, getUserByEmail, email)
-	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
 }
 
 const listUsers = `-- name: ListUsers :many
@@ -183,8 +183,21 @@ func (b *ListUsersBuilder[T]) All() ([]T, error) {
 	}
 	defer rows.Close()
 	var items []T
+	var probe T
+	_, mapRow := any(&probe).(narsilc.Transformer[UserRow])
+	cols := []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"}
 	for rows.Next() {
-		item, err := narsilc.Scan[T](rows, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+		var item T
+		var err error
+		if mapRow {
+			var scanned UserRow
+			scanned, err = narsilc.Scan[UserRow](rows, cols)
+			if err == nil {
+				item, err = narsilc.FromRow[T, UserRow](scanned)
+			}
+		} else {
+			item, err = narsilc.Scan[T](rows, cols)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -226,5 +239,5 @@ func (q *Queries) UpdateUser[T any](ctx context.Context, arg UpdateUserParams) (
 		arg.IsAdmin,
 		arg.UpdatedAt,
 	)
-	return narsilc.Scan[T](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
 }
