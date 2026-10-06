@@ -37,7 +37,8 @@ Put business logic in models when it belongs to the domain object itself.
 
 Use models for:
 
-- Entity structs and Bun tags.
+- Entity structs. Default generated fields stay 1:1 with the table (`andurel:"column"` tags). For custom types, add `func (m *X) Transform(row queries.XRow) error` by hand; keep `sql.Scanner` off the entity. Do not invent a third `database.nullType`.
+- Generated `queries.XRow` / `queries.QueryNameRow` in `models/internal/queries/` (narsilc). Domain code should still return the entity, not the row.
 - `CreateXData` and `UpdateXData` structs that represent domain input.
 - Validation methods such as `Validate() error`.
 - Null, JSON, and time normalization needed to build a valid entity.

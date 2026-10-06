@@ -55,10 +55,10 @@ andurel run --tools mailpit
 ## Create vs refresh vs inspect
 
 - Create SQL: `andurel generate migration NAME` then `andurel db migrate up`. A one-shot process that applies embedded SQL is `cmd/migrate`.
-- Create a table model: `andurel generate model NAME` from an existing migration.
+- Create a table model: `andurel generate model NAME` from an existing migration. Leave the entity 1:1 with the table unless custom types are needed; then add `Transform(queries.XRow) error` by hand. Do not generate Transform.
 - Create a non-table model for narsilc queries: `andurel generate model NAME --custom field:type ...`. Do not use `--custom` when the entity maps to a real table. No CRUD methods or factory are generated. Fill in `models/queries/<name>.sql`, then run `andurel sync queries`.
-- Refresh a table model after migrations: `andurel sync model NAME`. Models marked `// andurel:custom` cannot be synced from migrations.
-- Compile SQL: `andurel sync queries`.
+- Refresh a table model after migrations: `andurel sync model NAME`. Models marked `// andurel:custom` cannot be synced from migrations. Does not overwrite a hand-written Transform method.
+- Compile SQL: `andurel sync queries`. Table-shaped CRUD (`SELECT *` / `RETURNING *`) shares `XRow`; other queries get `QueryNameRow`. Does not write Transform on the entity.
 - List models: `andurel inspect models --json`.
 - List routes: `andurel inspect routes --json` (includes host when set).
 - Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia only; helpers are host-aware full URLs after `configureRouteHosts`).
@@ -97,7 +97,7 @@ andurel run --tools mailpit
 | `andurel generate email` | Author a new email template |
 | `andurel generate job` | Generate a background job and worker |
 | `andurel generate migration` | Create a new SQL migration file |
-| `andurel generate model` | Generate a model from a SQL migration, or a custom query model with `--custom` |
+| `andurel generate model` | Generate a model from a SQL migration, or a custom query model with `--custom`. Custom types: add Transform by hand |
 | `andurel generate query` | Create a narsilc SQL query file |
 | `andurel generate scaffold` | Generate a model, controller, views, and routes |
 | `andurel inspect` | Read-only project shape |
@@ -121,9 +121,9 @@ andurel run --tools mailpit
 | `andurel sync email` | Compile Tailwind classes in email templates |
 | `andurel sync factories` | Check or sync every model factory |
 | `andurel sync factory` | Sync one model factory from the model Entity |
-| `andurel sync model` | Sync one table model from SQL migrations |
+| `andurel sync model` | Sync one table model from SQL migrations. Preserves a hand-written Transform |
 | `andurel sync payloads` | Write TypeScript payload types for Inertia |
-| `andurel sync queries` | Compile narsilc SQL into Go |
+| `andurel sync queries` | Compile narsilc SQL into Go (`XRow` / `QueryNameRow`). Does not write Transform |
 | `andurel sync routes` | Write TypeScript route helpers for Inertia |
 | `andurel sync views` | Generate Go from Templ templates |
 | `andurel tool` | Manage project tools and binaries |

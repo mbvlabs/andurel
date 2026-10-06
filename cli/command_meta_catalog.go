@@ -56,6 +56,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 		WhenToUse: []string{
 			"Create models/NAME.go from an existing table migration.",
 			"Pass --custom field:type ... for a non-table model used with narsilc custom queries.",
+			"Leave the entity 1:1 with the scanned row unless you need custom types; then add Transform by hand.",
 		},
 		WhenNotToUse: []string{
 			"Do not invent table columns by hand; write a migration first.",
@@ -81,7 +82,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel sync model": {
 		Summary:         "Sync one model from SQL migrations",
 		Args:            "NAME",
-		WhenToUse:       []string{"Refresh models/NAME.go after a migration changes columns."},
+		WhenToUse:       []string{"Refresh models/NAME.go after a migration changes columns.", "Does not overwrite a hand-written Transform method."},
 		WhenNotToUse:    []string{"Do not use this to create a model; that is andurel generate model.", "Custom models (// andurel:custom) cannot be synced from migrations.", "Factory refresh is andurel sync factory NAME."},
 		Prerequisites:   []string{"Andurel project root", "Existing table-backed model", "Matching migration in migrations/"},
 		Next:            []string{"andurel sync factory NAME --check", "andurel doctor --json"},
@@ -124,9 +125,12 @@ var commandMetaSpecs = map[string]CommandMeta{
 		SkipDryRunCheck: true,
 	},
 	"andurel generate query": {
-		Summary:         "Create a narsilc SQL query file",
-		Args:            "NAME",
-		WhenToUse:       []string{"Add a new models/queries/*.sql file for typed persistence."},
+		Summary: "Create a narsilc SQL query file",
+		Args:    "NAME",
+		WhenToUse: []string{
+			"Add a new models/queries/*.sql file for typed persistence.",
+			"Table-shaped CRUD shares XRow; other queries get QueryNameRow. Custom entity types belong on a hand-written Transform, not in the generated query package.",
+		},
 		WhenNotToUse:    []string{"Do not use this to compile SQL; that is andurel sync queries."},
 		Prerequisites:   []string{"Andurel project root"},
 		Next:            []string{"andurel sync queries"},
@@ -136,8 +140,11 @@ var commandMetaSpecs = map[string]CommandMeta{
 		SupportsDryRun:  true,
 	},
 	"andurel sync queries": {
-		Summary:         "Compile narsilc SQL into Go",
-		WhenToUse:       []string{"After adding or editing annotated SQL in models/queries."},
+		Summary: "Compile narsilc SQL into Go",
+		WhenToUse: []string{
+			"After adding or editing annotated SQL in models/queries.",
+			"Regenerates *Row types. Does not write Transform on the entity.",
+		},
 		WhenNotToUse:    []string{"No-op when there are no annotated query files.", "Do not confuse with generate query."},
 		Prerequisites:   []string{"Andurel project root"},
 		Next:            []string{"andurel doctor --json"},

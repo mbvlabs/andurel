@@ -64,7 +64,7 @@ func (q *Queries) CreateWidget[T any](ctx context.Context, arg CreateWidgetParam
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
-	return narsilc.Scan[T](row, []string{"id", "name", "quantity", "active", "created_at", "updated_at"})
+	return narsilc.Read[T, WidgetRow](row, []string{"id", "name", "quantity", "active", "created_at", "updated_at"})
 }
 
 const deleteWidget = `-- name: DeleteWidget :exec
@@ -88,7 +88,7 @@ LIMIT 1
 // Fetches one Widget by primary key.
 func (q *Queries) GetWidget[T any](ctx context.Context, id uuid.UUID) (T, error) {
 	row := q.db.QueryRow(ctx, getWidget, id)
-	return narsilc.Scan[T](row, []string{"id", "name", "quantity", "active", "created_at", "updated_at"})
+	return narsilc.Read[T, WidgetRow](row, []string{"id", "name", "quantity", "active", "created_at", "updated_at"})
 }
 
 const listWidgets = `-- name: ListWidgets :many
@@ -179,8 +179,21 @@ func (b *ListWidgetsBuilder[T]) All() ([]T, error) {
 	}
 	defer rows.Close()
 	var items []T
+	var probe T
+	_, mapRow := any(&probe).(narsilc.Transformer[WidgetRow])
+	cols := []string{"id", "name", "quantity", "active", "created_at", "updated_at"}
 	for rows.Next() {
-		item, err := narsilc.Scan[T](rows, []string{"id", "name", "quantity", "active", "created_at", "updated_at"})
+		var item T
+		var err error
+		if mapRow {
+			var scanned WidgetRow
+			scanned, err = narsilc.Scan[WidgetRow](rows, cols)
+			if err == nil {
+				item, err = narsilc.FromRow[T, WidgetRow](scanned)
+			}
+		} else {
+			item, err = narsilc.Scan[T](rows, cols)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -220,7 +233,7 @@ func (q *Queries) UpdateWidget[T any](ctx context.Context, arg UpdateWidgetParam
 		arg.Active,
 		arg.UpdatedAt,
 	)
-	return narsilc.Scan[T](row, []string{"id", "name", "quantity", "active", "created_at", "updated_at"})
+	return narsilc.Read[T, WidgetRow](row, []string{"id", "name", "quantity", "active", "created_at", "updated_at"})
 }
 
 const upsertWidget = `-- name: UpsertWidget :one
@@ -266,5 +279,5 @@ func (q *Queries) UpsertWidget[T any](ctx context.Context, arg UpsertWidgetParam
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
-	return narsilc.Scan[T](row, []string{"id", "name", "quantity", "active", "created_at", "updated_at"})
+	return narsilc.Read[T, WidgetRow](row, []string{"id", "name", "quantity", "active", "created_at", "updated_at"})
 }

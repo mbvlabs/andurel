@@ -39,6 +39,22 @@ This path does not read migrations. It emits:
 
 No CRUD methods and no factory are generated. `--custom` conflicts with `--table-name`, `--mode`, and `--primary-key`. After you author annotated SQL, run `andurel sync queries`. Custom models cannot be refreshed with `andurel sync model`; edit fields by hand or regenerate with `--custom`.
 
+## Custom field types (Transform vs nullType vs Scanner)
+
+Default generated models are 1:1 with the scanned row. `database.nullType` (`pgtype.Null` vs `pointer`) is how SQL NULL is represented on that row and on 1:1 entities. It is not a mapping from empty string to NULL.
+
+When an entity field is not pgx-scannable (enum, named type, `string` for nullable text, parsed JSON), implement `Transform` on the entity instead of `sql.Scanner`:
+
+```go
+func (u *User) Transform(row queries.UserRow) error {
+    u.ID = row.ID
+    u.Email = Email(row.Email)
+    return nil
+}
+```
+
+narsilc still scans into `UserRow` (driver-native types) then calls Transform. `GetUser[User]` stays the same. Writes still fill `CreateUserParams` / `UpdateUserParams`. `andurel sync model` updates the entity struct from migrations and must not overwrite a hand-written `Transform`.
+
 ## Refreshing a table model after migrations
 
 After a migration changes columns on an existing table-backed model:

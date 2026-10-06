@@ -93,6 +93,40 @@ type Product struct {
 	}
 }
 
+func TestModelStructRewritePreservesTransform(t *testing.T) {
+	src := []byte(`package models
+
+type Product struct {
+	ID uuid.UUID ` + "`andurel:\"id\"`" + `
+	Name string ` + "`andurel:\"name\"`" + `
+}
+
+func (p *Product) Transform(row queries.ProductRow) error {
+	p.ID = row.ID
+	p.Name = row.Name
+	return nil
+}
+`)
+
+	_, start, end, err := parseEntityStruct(src, "Product")
+	if err != nil {
+		t.Fatalf("parseEntityStruct: %v", err)
+	}
+
+	newEntity := renderEntityStruct("Product", "products", []models.GeneratedField{
+		{Name: "ID", Type: "uuid.UUID", ColumnName: "id"},
+		{Name: "Name", Type: "string", ColumnName: "name"},
+		{Name: "Sku", Type: "string", ColumnName: "sku"},
+	})
+	got := string(src[:start]) + newEntity + string(src[end:])
+	if !strings.Contains(got, "func (p *Product) Transform(row queries.ProductRow) error") {
+		t.Fatalf("Transform was overwritten:\n%s", got)
+	}
+	if !strings.Contains(got, "Sku string `andurel:\"sku\"`") {
+		t.Fatalf("updated struct missing Sku:\n%s", got)
+	}
+}
+
 func TestRenderCreateAndUpdateDataStructs(t *testing.T) {
 	model := &models.GeneratedModel{
 		IDGoFieldName:     "AccountID",
