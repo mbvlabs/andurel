@@ -435,20 +435,22 @@ This project uses Tailwind CSS v4 with shadcn-style CSS variables in `css/theme.
 
 ```css
 :root {
-  --primary: #ff6b1a;
-  --primary-foreground: #130f0b;
-  --ring: #8df7a4;
-  --radius: 0;
+  --primary: oklch(0.7029 0.1979 43.36);
+  --primary-foreground: oklch(0.1719 0.0105 67.03);
+  --accent: oklch(0.8913 0.1513 149.50);
+  --ring: oklch(0.4758 0.0184 176.39);
+  --radius: 0.625rem;
 }
 
 @theme inline {
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
   --color-ring: var(--ring);
 }
 ```
 
-Use semantic utilities in views (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `ring-ring`).
+Use semantic utilities in views (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `text-accent`, `ring-ring`).
 The development server automatically rebuilds CSS on changes.
 
 ## Environment Configuration

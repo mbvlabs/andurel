@@ -12,7 +12,7 @@ templ Root(data inertia.RootData) {
 			@inertia.SSRHead(data.SSR)
 			@templ.Raw(string(data.ViteHead))
 		</head>
-		<body class="bg-slate-950 text-slate-100">
+		<body class="bg-background text-foreground">
 			if data.SSR != nil {
 				@inertia.SSRBody(data.SSR)
 			} else {
