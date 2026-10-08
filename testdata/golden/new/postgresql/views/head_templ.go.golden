@@ -527,8 +527,8 @@ func head(data HeadData) templ.Component {
 
 func SetupHead(ctx context.Context, opts ...HeadDataOption) templ.Component {
 	data := &HeadData{
-		siteName:       "{{.ProjectName}}",
-		Title:          "{{.ProjectName}}",
+		siteName:       "app",
+		Title:          "app",
 		Description:    "Andurel is the web development framework for Go.",
 		Slug:           "/",
 		canonical:      "http://localhost:8080",
