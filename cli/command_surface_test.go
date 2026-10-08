@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"maps"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -117,6 +118,67 @@ func TestDatabaseConnectionToolCommandsReportEnvProblems(t *testing.T) {
 	); err == nil ||
 		!strings.Contains(err.Error(), "error parsing environment variables") {
 		t.Fatalf("expected env parse error, got %v", err)
+	}
+}
+
+func TestConsoleCommandRegisteredAtRoot(t *testing.T) {
+	root := NewRootCommand("test", "date")
+
+	cmd, _, err := root.Find([]string{"console"})
+	if err != nil {
+		t.Fatalf("find console: %v", err)
+	}
+	if cmd.CommandPath() != "andurel console" {
+		t.Fatalf("console path = %q", cmd.CommandPath())
+	}
+	aliased := false
+	for _, alias := range cmd.Aliases {
+		if alias == "c" {
+			aliased = true
+		}
+	}
+	if !aliased {
+		t.Fatalf("console aliases = %#v", cmd.Aliases)
+	}
+
+	dbConsole, _, err := root.Find([]string{"db", "console"})
+	if err != nil {
+		t.Fatalf("find db console: %v", err)
+	}
+	if dbConsole.CommandPath() != "andurel db console" {
+		t.Fatalf("db console path = %q", dbConsole.CommandPath())
+	}
+}
+
+func TestGetDatabaseURLEscapesReservedCredentials(t *testing.T) {
+	cfg := database{
+		DatabaseKind: "postgres",
+		Host:         "127.0.0.1",
+		Port:         "5432",
+		Name:         "app_db",
+		User:         "user@example.com",
+		Password:     "secret:/?#",
+		SslMode:      "disable",
+	}
+
+	parsed, err := url.Parse(cfg.GetDatabaseURL())
+	if err != nil {
+		t.Fatalf("parse database url: %v", err)
+	}
+	if parsed.User.Username() != "user@example.com" {
+		t.Fatalf("user = %q", parsed.User.Username())
+	}
+	if password, _ := parsed.User.Password(); password != "secret:/?#" {
+		t.Fatalf("password = %q", password)
+	}
+	if parsed.Host != "127.0.0.1:5432" {
+		t.Fatalf("host = %q", parsed.Host)
+	}
+	if parsed.Path != "/app_db" {
+		t.Fatalf("path = %q", parsed.Path)
+	}
+	if parsed.Query().Get("sslmode") != "disable" {
+		t.Fatalf("sslmode = %q", parsed.Query().Get("sslmode"))
 	}
 }
 

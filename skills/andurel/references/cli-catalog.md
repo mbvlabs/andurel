@@ -75,6 +75,7 @@ andurel run --tools mailpit
 | `andurel` | Andurel CLI for humans and agents |
 | `andurel build` | Build the application for production |
 | `andurel commands` | Show the command catalog |
+| `andurel console` | Open an interactive database console |
 | `andurel db` | Database lifecycle and migrations |
 | `andurel db console` | Open an interactive database console |
 | `andurel db create` | Create the configured database |

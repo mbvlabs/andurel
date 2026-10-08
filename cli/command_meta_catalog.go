@@ -432,6 +432,14 @@ var commandMetaSpecs = map[string]CommandMeta{
 		RequiresProject: true,
 		SkipDryRunCheck: true,
 	},
+	"andurel console": {
+		Summary:         "Open an interactive database console",
+		WhenToUse:       []string{"Inspect or query the project database with usql."},
+		WhenNotToUse:    []string{"Not for applying migrations; use andurel db migrate."},
+		Prerequisites:   []string{"Andurel project root", ".env", "bin/usql"},
+		Examples:        []string{"andurel console"},
+		RequiresProject: true,
+	},
 	"andurel db console": {
 		Summary:         "Open an interactive database console",
 		WhenToUse:       []string{"Inspect or query the project database with usql."},

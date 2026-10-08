@@ -56,6 +56,7 @@ Everything you and your agent(s) need to build robust and performant application
 	rootCmd.AddCommand(newInspectCommand())
 	rootCmd.AddCommand(newFmtCommand())
 	rootCmd.AddCommand(newDatabaseCommand())
+	rootCmd.AddCommand(newConsoleCommand())
 	rootCmd.AddCommand(newRunAppCommand())
 	rootCmd.AddCommand(newToolCommand())
 	rootCmd.AddCommand(newBuildCommand())
