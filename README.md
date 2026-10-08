@@ -165,6 +165,7 @@ Details: [directory structure](https://andurel.com/docs/latest/directory-structu
 | `andurel generate` | Create model, migration, controller, scaffold, job, email, query |
 | `andurel sync` | Refresh derived files (factories, views, queries, …) |
 | `andurel db` | Database lifecycle: create, drop, nuke, rebuild, migrate, seed, console |
+| `andurel console` (`c`) | Open an interactive database console |
 | `andurel run` (`r`) | Dev server with live reload |
 | `andurel build` | Production build (Templ, CSS, Vite, Go binary) |
 | `andurel tool sync` | Download pinned project binaries |

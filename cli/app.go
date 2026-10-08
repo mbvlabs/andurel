@@ -23,10 +23,15 @@ type database struct {
 
 // GetDatabaseURL returns database URL.
 func (d database) GetDatabaseURL() string {
-	return fmt.Sprintf("%s://%s:%s@%s:%s/%s?sslmode=%s",
-		d.DatabaseKind, d.User, d.Password, d.Host, d.Port,
-		d.Name, d.SslMode,
-	)
+	return databaseURL(dbConfig{
+		Kind:     d.DatabaseKind,
+		Port:     d.Port,
+		Host:     d.Host,
+		Name:     d.Name,
+		User:     d.User,
+		Password: d.Password,
+		SslMode:  d.SslMode,
+	}, d.Name)
 }
 
 func databaseFromEnvironment() (database, error) {
@@ -56,15 +61,17 @@ func databaseFromEnvironment() (database, error) {
 
 func newConsoleCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "console",
-		Short: "Open an interactive database console",
+		Use:     "console",
+		Aliases: []string{"c"},
+		Short:   "Open an interactive database console",
 		Long: `Open an interactive database console (usql) using the connection
 details from .env.
 
 Reads DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DB_KIND, and
 DB_SSL_MODE from your .env file and connects via usql.`,
-		Example: `  andurel db console`,
-		Args:    cobra.ExactArgs(0),
+		Example: `  andurel console
+  andurel db console`,
+		Args: cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {
