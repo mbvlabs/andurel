@@ -132,7 +132,7 @@ check-mod:
 lint *args:
     #!/usr/bin/env bash
     set -euo pipefail
-    readonly expected_version="2.13.2"
+    readonly expected_version="2.14.0"
     installed_version="$(golangci-lint version 2>&1)"
     if [[ "${installed_version}" != *"has version ${expected_version} "* ]]; then
     	echo "golangci-lint ${expected_version} is required" >&2
