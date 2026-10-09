@@ -725,7 +725,7 @@ func ToSnakeCase(name string) string {
 	return string(result)
 }
 
-const goVersion = "1.27.1"
+const goVersion = "1.27.2"
 
 // GoTool represents go tool.
 type GoTool struct {
