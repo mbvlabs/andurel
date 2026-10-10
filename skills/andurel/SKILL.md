@@ -47,7 +47,7 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 - Put templ rendering helpers and presentation-specific adapters in `views/`.
 - Put admin Inertia pages and reusable frontend components in `resources/js/`.
 - Put River job argument types in `queue/jobs/` and worker implementations or registration in `queue/`.
-- Put provider adapters in `clients/`, email templates/helpers in `email/`, and config/environment loading in `config/`.
+- Put provider adapters in a package under `internal/` named for its job (for example `internal/clients/` or `internal/payment/`), email templates/helpers in `email/`, and config/environment loading in `config/`. Adapters wrap external APIs only; business rules stay in `models/` or `services/`.
 - Put reusable framework-like support that is independent of one resource in `internal/`.
 - Put Fx process graphs and infrastructure constructors in `internal/runtime`. `cmd/app` and `cmd/queue` only load env and call `runtime.App` / `runtime.Queue`.
 - `cmd/migrate` applies pending SQL with `storage.RunMigrations` on the embedded migration FS. It is a one-shot process, not part of `cmd/app` start. Development uses `andurel db migrate up`.

@@ -141,6 +141,7 @@ A new app is ordinary Go you own. Top-level shape:
 | `cmd/migrate` | One-shot process: apply pending SQL via `storage.RunMigrations` |
 | `cmd/seeds` | One-shot process: run named seed sets |
 | `internal/runtime` | Fx graphs and process wiring (telemetry, email, database, server) |
+| `internal/…` | Other app support code, such as third-party adapters (for example `internal/clients`, `internal/payment`), wired from `internal/runtime` |
 | `config/` | App, DB, auth, email, telemetry config |
 | `controllers/` | HTTP handlers |
 | `models/` | Domain types + narsilc queries |

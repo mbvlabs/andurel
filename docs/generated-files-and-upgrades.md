@@ -66,6 +66,14 @@ When an Inertia project upgrades across `v2.0.0`, `andurel upgrade` emits a vers
 
 Projects created at `v2.0.0` or later do not receive the note. The historical `v1.5.6` renderer-injection note still documents `Path()` for that era's API.
 
+## Provider adapters move under `internal/`
+
+External provider adapters (API clients for payment providers, email providers, Discord, and similar third-party services) now belong in a package under `internal/` instead of a top-level `clients/` directory. `internal/` holds application-owned support code that is not a domain model, service, controller, or view. Name each package for its job, for example `internal/clients/` for a group of API clients or `internal/payment/` for one payment adapter. One home for this code keeps the top level of the app smaller. Fx wiring for adapters stays in `internal/runtime`. Andurel never generated `clients/`, so `andurel upgrade` does not move hand-written adapters. To follow the new convention in an existing app:
+
+1. Move each `clients/<x>` package under `internal/`. The smallest move is `git mv clients internal/clients`.
+2. Rewrite imports to match, for example `<module>/clients/<x>` → `<module>/internal/clients/<x>`.
+3. Run `gofmt`, `go fix ./...`, `go vet ./...`, and `go build ./...`.
+
 ## Planning and preview
 
 Run a structured dry run before applying an upgrade:

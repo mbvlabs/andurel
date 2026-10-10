@@ -19,13 +19,12 @@ app/
 │   ├── queue/           # Queue process (runtime.Queue)
 │   ├── migrate/         # Apply pending SQL migrations
 │   └── seeds/           # Database seeding
-├── clients/             # External service clients
 ├── config/              # Application configuration
 ├── controllers/         # HTTP request handlers
 ├── css/                 # Source CSS files (Tailwind wrappers + theme)
 ├── examples/
 │   └── html/            # Copy/paste HTML snippets with Datastar attributes
-├── internal/
+├── internal/            # App support code, e.g. provider adapters (clients/, payment/)
 │   └── runtime/         # Process graphs and infrastructure constructors
 ├── migrations/          # SQL migration files
 ├── seeds/               # Database seed definitions

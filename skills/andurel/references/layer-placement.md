@@ -21,7 +21,7 @@ Use these rules when changing an Andurel app shaped like this repository.
 | SQL schema changes | `migrations/` |
 | Apply pending SQL (one-shot process) | `cmd/migrate/` |
 | Seed data | `seeds/` or `cmd/seeds/` following the existing pattern |
-| External provider adapters | `clients/` |
+| External provider adapters | A package under `internal/` named for its job (for example `internal/clients/`, `internal/payment/`) |
 | Email templates and send helpers | `email/` |
 | River job argument types | `queue/jobs/` |
 | River workers and queue registration | `queue/` |
@@ -161,13 +161,14 @@ Put River argument structs in `queue/jobs/`.
 
 Put worker implementations, queue registration, and queue helpers in `queue/`. Workers should call domain/application code rather than duplicating model rules.
 
-Put email templates and send helpers in `email/`. Put provider-specific implementations in `clients/email/`.
+Put email templates and send helpers in `email/`. Put provider-specific implementations in a package under `internal/` (for example `internal/clients/email/`).
 
 ## Internal Packages
 
 Use `internal/` for reusable framework-like support code that is not owned by one resource:
 
 - process composition (`internal/runtime`)
+- external provider adapters (for example `internal/clients/`, `internal/payment/`)
 - request context helpers
 - routing definitions
 - hypermedia rendering
@@ -177,6 +178,8 @@ Use `internal/` for reusable framework-like support code that is not owned by on
 - server support
 
 Do not put app-specific domain workflows in `internal/` just to make them feel shared. Use `models/` or `services/`.
+
+What goes in `internal/`: application-owned support code that is not a domain model, service, controller, or view. Give each package a name that says what it does, rather than one fixed layout. `internal/runtime` holds process wiring. Adapters for third-party services (payment providers, email providers, Discord, and similar) also live here, for example `internal/clients/` for a group of API clients or `internal/payment/` for a single payment-provider adapter. Keeping this code under `internal/` keeps the top level of the app small. An adapter wraps an external API and must not contain business rules; services decide when and why to call it. Wire adapters into Fx from `internal/runtime`, next to the other process-wide providers.
 
 `internal/` in a generated app is application-owned. Put process-wide Fx providers and lifecycle (telemetry, email senders, database, queue insert/processor, HTTP server) in `internal/runtime`. Package `Module` vars still live next to their types; `runtime.App` and `runtime.Queue` assemble those modules into process graphs. `cmd/app` and `cmd/queue` only load environment, create the signal context, and call `fx.New`. `cmd/migrate` and `cmd/seeds` load environment, open Postgres, run one task, and exit. Do not apply migrations from `cmd/app` start.
 
@@ -189,6 +192,7 @@ Follow existing `go.uber.org/fx` modules.
 - New controllers: `controllers/controller.go`.
 - New queue workers: `queue/` module files.
 - Process graphs: `internal/runtime` (`runtime.App`, `runtime.Queue`).
+- External provider adapters: constructors in their `internal/` package, provided from `internal/runtime`.
 - Process entry: `cmd/app/main.go` and `cmd/queue/main.go` only for env loading, the signal context, and `fx.New`.
 - One-shot database processes: `cmd/migrate/main.go` applies pending SQL; `cmd/seeds/main.go` runs named seed sets.
 
@@ -203,4 +207,5 @@ Before adding code, answer:
 3. Is it about HTTP parsing, session/flash, redirects, or rendering? Put it in `controllers/`.
 4. Is it only for how a value is displayed? Put it in `views/` or the relevant Vue component.
 5. Is it a route path/name? Put it in `router/routes/`.
-6. Is it reusable framework plumbing independent of this app's domain? Put it in `internal/`.
+6. Does it only wrap a third-party API (payments, email delivery, Discord, …) with no business rules? Put it in a package under `internal/` named for its job (for example `internal/clients/` or `internal/payment/`).
+7. Is it reusable framework plumbing independent of this app's domain? Put it in `internal/`.
