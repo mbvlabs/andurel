@@ -221,6 +221,10 @@ func (u *Upgrader) addVerifiedPackageDependencies(
 			pins[path] = verified
 		}
 	}
+	if current, ok := currentByPath[versions.NarsilcModulePath]; ok &&
+		shouldUpgradePackage(current, versions.NarsilcModule) {
+		pins[versions.NarsilcModulePath] = versions.NarsilcModule
+	}
 	if len(pins) == 0 {
 		return nil
 	}

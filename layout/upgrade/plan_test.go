@@ -115,3 +115,48 @@ func TestAddVerifiedPackageDependenciesNoopsWhenCurrent(t *testing.T) {
 		t.Fatalf("expected no go.mod rewrite, planned %#v", plan.files)
 	}
 }
+
+func TestAddVerifiedPackageDependenciesPinsNarsilc(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	mustWriteTestFile(t, root, "go.mod", []byte(`module testapp
+
+go 1.27.1
+
+require github.com/mbvlabs/narsilc v0.4.5
+`))
+
+	plan := &upgradePlan{}
+	upgrader := &Upgrader{projectRoot: root}
+	if err := upgrader.addVerifiedPackageDependencies(plan, &layout.ScaffoldConfig{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.files) != 1 || plan.files[0].path != "go.mod" {
+		t.Fatalf("planned files = %#v", plan.files)
+	}
+
+	goMod := string(plan.files[0].after)
+	if !strings.Contains(goMod, "github.com/mbvlabs/narsilc "+versions.NarsilcModule) {
+		t.Fatalf("narsilc was not pinned:\n%s", goMod)
+	}
+}
+
+func TestAddVerifiedPackageDependenciesDoesNotDowngradeNarsilc(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	mustWriteTestFile(t, root, "go.mod", []byte(
+		"module testapp\n\ngo 1.27.1\n\nrequire (\n\tgithub.com/mbvlabs/andurel/pkg/telemetry "+
+			versions.Telemetry+"\n\tgithub.com/mbvlabs/narsilc v9.0.0\n)\n",
+	))
+
+	plan := &upgradePlan{}
+	upgrader := &Upgrader{projectRoot: root}
+	if err := upgrader.addVerifiedPackageDependencies(plan, &layout.ScaffoldConfig{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.files) != 0 {
+		t.Fatalf("expected no go.mod rewrite, planned %#v", plan.files)
+	}
+}

@@ -24,6 +24,8 @@ const (
 	Narsilc = "v0.5.0"
 	// NarsilcModule is the Go module version required by generated query code.
 	NarsilcModule = "v0.5.0"
+	// NarsilcModulePath is the module path of the narsilc query code generator.
+	NarsilcModulePath = "github.com/mbvlabs/narsilc"
 	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
 	Hypermedia = "v0.2.5"
 	// Kiks is the standalone Andurel cookies and sessions module version verified with this framework.
