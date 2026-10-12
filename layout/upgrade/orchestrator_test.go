@@ -95,12 +95,12 @@ func TestUpgradePresentationIncludesManualActions(t *testing.T) {
 	t.Parallel()
 
 	report := &UpgradeReport{
-		FromVersion: "v1.5.2",
-		ToVersion:   "v1.5.4",
+		FromVersion: "v2.0.0-alpha",
+		ToVersion:   "v2.0.0-alpha.4",
 		ManualActions: []ManualAction{{
-			ID:           "session-cookie-recovery-v1.5.4",
-			Title:        "Update application-owned session handling",
-			Instructions: "Create router/cookies/session.go with the rendered recovery helper.",
+			ID:           "inertia-vite-fullurl-v2.0.0",
+			Title:        "Pass ViteBuild.FullURL() to the Inertia renderer",
+			Instructions: "Pass routes.ViteBuild.FullURL() to the Inertia renderer.",
 		}},
 	}
 
@@ -120,8 +120,8 @@ func TestUpgradePresentationIncludesManualActions(t *testing.T) {
 			render.call(&output, report)
 			for _, want := range []string{
 				"Manual action required",
-				"Update application-owned session handling",
-				"Create router/cookies/session.go",
+				"Pass ViteBuild.FullURL() to the Inertia renderer",
+				"routes.ViteBuild.FullURL()",
 			} {
 				if !strings.Contains(output.String(), want) {
 					t.Fatalf("manual action presentation missing %q:\n%s", want, output.String())

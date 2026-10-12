@@ -56,8 +56,8 @@ A local `govulncheck` reports nine reachable vulnerabilities in `net/http`, `net
 
 `crossesVersion` uses `semver.Compare`, and `v2.0.0-alpha.N < v2.0.0`. Every alpha or beta application that upgrades to `v2.0.0` therefore receives the `telemetry-package-v2.0.0` and `inertia-vite-fullurl-v2.0.0` notes, although it already has those changes. The V1-era notes (`session-cookie-recovery-v1.5.4`, the renderer injection at `v1.5.6`) still ship and reference gorilla securecookie and echo-contrib session APIs that V2 no longer uses.
 
-- [ ] Gate V2 notes on the first pre-release that contained the change, or drop notes that only apply to V1 to V2 migration.
-- [ ] Remove the V1-only notes from the V2 CLI.
+- [x] Gate V2 notes on the first pre-release that contained the change, or drop notes that only apply to V1 to V2 migration.
+- [x] Remove the V1-only notes from the V2 CLI.
 
 ### R6 — No upgrade test covers V2
 

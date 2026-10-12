@@ -1,70 +1,15 @@
 package upgrade
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/mbvlabs/andurel/v2/layout/versions"
 	"golang.org/x/mod/semver"
 )
 
-// historicalSessionCookieRecovery is the v1.5.4 gorilla session decode-recovery
-// helper. The generating template was removed when sessions moved to pkg/kiks.
-const historicalSessionCookieRecovery = `package cookies
-
-import (
-	"errors"
-
-	"github.com/gorilla/securecookie"
-	"github.com/gorilla/sessions"
-	"github.com/labstack/echo-contrib/v5/session"
-	"github.com/labstack/echo/v5"
-)
-
-const recoveredSessionContextPrefix = "andurel/recovered-session/"
-
-func (s *Session) RecoverInvalidSessions(c *echo.Context) error {
-	for _, name := range []string{s.appSessionName, s.flashSessionName} {
-		sess, err := session.Get(name, c)
-		if err == nil {
-			continue
-		}
-
-		var decodeError securecookie.Error
-		if !errors.As(err, &decodeError) ||
-			!decodeError.IsDecode() ||
-			decodeError.IsUsage() ||
-			decodeError.IsInternal() {
-			return err
-		}
-
-		clear(sess.Values)
-		sess.IsNew = true
-		if err := sess.Save(c.Request(), c.Response()); err != nil {
-			return err
-		}
-		c.Set(recoveredSessionContextPrefix+name, true)
-	}
-
-	return nil
-}
-
-func getSession(name string, c *echo.Context) (*sessions.Session, error) {
-	sess, err := session.Get(name, c)
-	if err != nil && c.Get(recoveredSessionContextPrefix+name) != true {
-		return nil, err
-	}
-
-	return sess, nil
-}
-`
-
-const (
-	sessionCookieRecoveryVersion    = "v1.5.4"
-	inertiaRendererInjectionVersion = "v1.5.6"
-	telemetryPackageVersion         = "v2.0.0"
-	inertiaViteFullURLVersion       = "v2.0.0"
-)
+// inertiaViteFullURLVersion is the first released V2 pre-release that shipped
+// the absolute Vite build URL for Inertia (#805). Projects already on or past
+// it get no note.
+const inertiaViteFullURLVersion = "v2.0.0-alpha.3"
 
 // ManualAction describes an application-owned change that an upgrade cannot
 // apply without risking user code.
@@ -77,161 +22,9 @@ type ManualAction struct {
 func manualActionsForUpgrade(
 	fromVersion string,
 	toVersion string,
-	modulePath string,
 	includeInertiaMigration bool,
 ) ([]ManualAction, error) {
 	actions := []ManualAction{}
-
-	if crossesVersion(fromVersion, toVersion, sessionCookieRecoveryVersion) {
-		var instructions strings.Builder
-		instructions.WriteString(
-			"The router tree is application-owned, so Andurel did not change it automatically.\n",
-		)
-		instructions.WriteString("If this recovery is already present, no action is required.\n\n")
-		instructions.WriteString("1. Create router/cookies/session.go:\n\n```go\n")
-		instructions.WriteString(historicalSessionCookieRecovery)
-		instructions.WriteString("```\n\n")
-		instructions.WriteString("2. In router/cookies/cookies.go and router/cookies/flash.go:\n")
-		instructions.WriteString("   - Replace calls to session.Get with getSession.\n")
-		instructions.WriteString(
-			"   - Remove the now-unused github.com/labstack/echo-contrib/v5/session imports.\n\n",
-		)
-		instructions.WriteString(
-			"3. In router/middleware/middleware.go, add this inside ValidateSession after the assets and API bypass and before calling the next handler:\n\n",
-		)
-		instructions.WriteString(
-			"```go\nif err := cookies.RecoverInvalidSessions(c); err != nil {\n\treturn err\n}\n```\n\n",
-		)
-		instructions.WriteString("4. Add this direct requirement to go.mod:\n\n")
-		instructions.WriteString("```go\ngithub.com/gorilla/securecookie v1.1.2\n```\n\n")
-		instructions.WriteString("5. Format and verify the migration:\n\n```text\n")
-		instructions.WriteString(
-			"gofmt -w router/cookies/session.go router/cookies/cookies.go router/cookies/flash.go router/middleware/middleware.go\n",
-		)
-		instructions.WriteString("go fix ./...\ngo vet ./...\n```\n")
-
-		actions = append(actions, ManualAction{
-			ID:           "session-cookie-recovery-v1.5.4",
-			Title:        "Update application-owned session handling",
-			Instructions: instructions.String(),
-		})
-	}
-
-	if includeInertiaMigration &&
-		crossesVersion(fromVersion, toVersion, inertiaRendererInjectionVersion) {
-		var instructions strings.Builder
-		instructions.WriteString(
-			"Inertia is now an Fx-managed renderer instance. Framework-owned internal/inertia files update automatically, but Andurel does not rewrite application-owned controllers.\n\n",
-		)
-		instructions.WriteString(
-			"1. In cmd/app/main.go, add these imports and the renderer provider:\n\n```go\n",
-		)
-		fmt.Fprintf(
-			&instructions,
-			"import (\n\t\"%s/assets\"\n\t\"%s/router/appctx\"\n\t\"%s/router/routes\"\n)\n\nfunc provideInertia() (*inertia.Renderer, error) {\n\treturn inertia.New(\n\t\tassets.Files,\n\t\t\"inertia/root.go.html\",\n\t\tconfig.ProjectName,\n\t\tconfig.Env,\n\t\troutes.ViteBuild.Path(),\n\t\tinertia.WithSharedProp(\"appVersion\", appVersion),\n\t\tinertia.WithRequestProps(func(ctx context.Context) inertia.Props {\n\t\t\tflashes := appctx.Flashes(ctx)\n\t\t\tif len(flashes) == 0 {\n\t\t\t\treturn nil\n\t\t\t}\n\t\t\treturn inertia.Props{\"flash\": flashes}\n\t\t}),\n\t)\n}\n",
-			modulePath,
-			modulePath,
-			modulePath,
-		)
-		instructions.WriteString(
-			"```\n\n2. Remove the old inertia.Init call and add provideInertia to the existing fx.Provide block.\n\n",
-		)
-		instructions.WriteString(
-			"3. Inject renderer *inertia.Renderer into router.New and pass renderer.Middleware() to the global middleware list.\n\n",
-		)
-		instructions.WriteString(
-			"4. Add renderer *inertia.Renderer to every Inertia controller constructor and struct. Replace package calls with receiver calls, for example:\n\n```go\ntype Sessions struct {\n\tidentity services.Identity\n\trenderer *inertia.Renderer\n}\n\nfunc NewSessions(identity services.Identity, renderer *inertia.Renderer) Sessions {\n\treturn Sessions{identity: identity, renderer: renderer}\n}\n\nfunc (s Sessions) New(etx *echo.Context) error {\n\treturn s.renderer.Page(etx, \"Auth/Login\", inertia.Props{})\n}\n```\n\n",
-		)
-		instructions.WriteString(
-			"Apply the same receiver change to Redirect and Location calls in built-in and generated resource controllers.\n\n",
-		)
-		instructions.WriteString(
-			"5. Format and verify the migration:\n\n```text\ngofmt -w cmd/app/main.go router/router.go\nfind controllers -name '*.go' -type f -exec gofmt -w {} +\ngo fix ./...\ngo vet ./...\n```\n",
-		)
-
-		actions = append(actions, ManualAction{
-			ID:           "inertia-renderer-injection-v1.5.6",
-			Title:        "Inject the Inertia renderer through Fx",
-			Instructions: instructions.String(),
-		})
-	}
-
-	if crossesVersion(fromVersion, toVersion, telemetryPackageVersion) {
-		var instructions strings.Builder
-		instructions.WriteString(
-			"Generated application telemetry/ is replaced by the standalone github.com/mbvlabs/andurel/pkg/telemetry module. Composition roots, routers, and controllers are application-owned, so Andurel does not rewrite them automatically.\n\n",
-		)
-		instructions.WriteString(
-			"1. Delete the copied telemetry/ package from the application.\n\n",
-		)
-		instructions.WriteString("2. Add this direct requirement to go.mod:\n\n```go\n")
-		fmt.Fprintf(
-			&instructions,
-			"github.com/mbvlabs/andurel/pkg/telemetry %s\n",
-			versions.Telemetry,
-		)
-		instructions.WriteString("```\n\n")
-		instructions.WriteString(
-			"3. Keep config.Telemetry as env-backed values. In cmd/app/main.go and cmd/queue/main.go, remove telemetry.Module and provide *telemetry.Telemetry with positional New plus With* options:\n\n```go\n",
-		)
-		instructions.WriteString(`func newTelemetry(
-	lifecycle fx.Lifecycle,
-	ctx context.Context,
-	appCfg config.App,
-	cfg config.Telemetry,
-) (*telemetry.Telemetry, error) {
-	opts := []telemetry.Option{
-		telemetry.WithTraceSampleRate(cfg.TraceSampleRate),
-		telemetry.WithBatchConfig(
-			cfg.BatchSize,
-			time.Duration(cfg.BatchTimeoutMs)*time.Millisecond,
-			2048,
-		),
-		telemetry.WithLogLevel(cfg.LogLevel),
-	}
-	if !appCfg.IsProduction() {
-		opts = append(opts, telemetry.WithConsole())
-	}
-	headers := telemetry.ParseHeaders(cfg.OtlpHeaders)
-	if cfg.OtlpLogsEndpoint != "" {
-		opts = append(opts, telemetry.WithOTLPLogs(cfg.OtlpLogsEndpoint, headers))
-	}
-	if cfg.OtlpTracesEndpoint != "" {
-		opts = append(opts, telemetry.WithOTLPTraces(cfg.OtlpTracesEndpoint, headers))
-	}
-	if cfg.OtlpMetricsEndpoint != "" {
-		opts = append(opts, telemetry.WithOTLPMetrics(cfg.OtlpMetricsEndpoint, headers))
-	}
-	tel, err := telemetry.New(ctx, cfg.ServiceName, cfg.ServiceVersion, opts...)
-	if err != nil {
-		return nil, err
-	}
-	lifecycle.Append(fx.Hook{OnStop: tel.Shutdown})
-	return tel, nil
-}
-`)
-		instructions.WriteString("```\n\n")
-		instructions.WriteString(
-			"4. Inject tel *telemetry.Telemetry into newDatabase and pass storage.WithOpenTelemetry(storage.TelemetryConfig{TracerProvider: tel.TracerProvider(), MeterProvider: tel.MeterProvider()}).\n\n",
-		)
-		instructions.WriteString(
-			"5. In router.New, wrap the Echo handler with telemetry.WrapHandler(\"http\", router, tel) and attach the handle on each request with middleware.Telemetry(tel). Queue workers should start from tel.Context(ctx).\n\n",
-		)
-		instructions.WriteString(
-			"6. Replace slog.ErrorContext / slog.InfoContext / slog.WarnContext calls in application code with telemetry.Error / telemetry.Info / telemetry.Warn. Controllers use telemetry.From(etx, name) then pass ctx. Services use telemetry.Start. Do not call otel.SetTracerProvider or slog.SetDefault.\n\n",
-		)
-		instructions.WriteString("7. Format and verify the migration:\n\n```text\n")
-		instructions.WriteString(
-			"gofmt -w cmd/app/main.go cmd/queue/main.go router/router.go router/middleware/middleware.go\n",
-		)
-		instructions.WriteString("go fix ./...\ngo vet ./...\n```\n")
-
-		actions = append(actions, ManualAction{
-			ID:           "telemetry-package-v2.0.0",
-			Title:        "Migrate generated telemetry onto pkg/telemetry",
-			Instructions: instructions.String(),
-		})
-	}
 
 	if includeInertiaMigration &&
 		crossesVersion(fromVersion, toVersion, inertiaViteFullURLVersion) {
@@ -254,6 +47,8 @@ func manualActionsForUpgrade(
 		instructions.WriteString("go fix ./...\ngo vet ./...\n```\n")
 
 		actions = append(actions, ManualAction{
+			// The ID predates the alpha.3 gate. It stays unchanged because
+			// structured upgrade output exposes it as a stable identifier.
 			ID:           "inertia-vite-fullurl-v2.0.0",
 			Title:        "Pass ViteBuild.FullURL() to the Inertia renderer",
 			Instructions: instructions.String(),

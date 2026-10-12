@@ -1007,9 +1007,9 @@ func TestRunUpgradeStructuredAndHumanBranches(t *testing.T) {
 			RemovedFiles:  []string{"internal/old.go"},
 			ToolsUpdated:  1,
 			ManualActions: []upgrade.ManualAction{{
-				ID:           "session-cookie-recovery-v1.5.4",
-				Title:        "Update application-owned session handling",
-				Instructions: "Create router/cookies/session.go",
+				ID:           "inertia-vite-fullurl-v2.0.0",
+				Title:        "Pass ViteBuild.FullURL() to the Inertia renderer",
+				Instructions: "Pass routes.ViteBuild.FullURL() to the Inertia renderer.",
 			}},
 		}}, nil
 	}
@@ -1033,7 +1033,7 @@ func TestRunUpgradeStructuredAndHumanBranches(t *testing.T) {
 	if !strings.Contains(out.String(), "dry run only") ||
 		!strings.Contains(out.String(), "controllers/controller.go") ||
 		!strings.Contains(out.String(), `"manual_actions"`) ||
-		!strings.Contains(out.String(), "session-cookie-recovery-v1.5.4") {
+		!strings.Contains(out.String(), "inertia-vite-fullurl-v2.0.0") {
 		t.Fatalf("structured upgrade output missing report data:\n%s", out.String())
 	}
 

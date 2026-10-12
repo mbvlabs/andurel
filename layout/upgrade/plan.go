@@ -86,18 +86,11 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 		dirty:       dirty,
 	}
 	includeInertiaMigration := layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia)
-	if crossesVersion(plan.fromVersion, plan.toVersion, sessionCookieRecoveryVersion) ||
-		(includeInertiaMigration && crossesVersion(plan.fromVersion, plan.toVersion, inertiaRendererInjectionVersion)) ||
-		crossesVersion(plan.fromVersion, plan.toVersion, telemetryPackageVersion) ||
-		(includeInertiaMigration && crossesVersion(plan.fromVersion, plan.toVersion, inertiaViteFullURLVersion)) {
-		modulePath, err := resolveModulePath(u.projectRoot)
-		if err != nil {
-			return nil, fmt.Errorf("resolve module path for manual actions: %w", err)
-		}
+	if includeInertiaMigration &&
+		crossesVersion(plan.fromVersion, plan.toVersion, inertiaViteFullURLVersion) {
 		plan.manualActions, err = manualActionsForUpgrade(
 			plan.fromVersion,
 			plan.toVersion,
-			modulePath,
 			includeInertiaMigration,
 		)
 		if err != nil {

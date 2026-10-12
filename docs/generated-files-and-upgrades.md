@@ -8,63 +8,34 @@ Factory synchronization is one such narrow boundary. It regenerates the Andurel-
 
 The historical Inertia root embedding migration is another narrow boundary. It moves `views/root.go.html` to `assets/inertia/root.go.html` and replaces only the exact legacy `inertia.Init("views/root.go.html")` call in `cmd/app/main.go`. The upgrade stops without writing if that call is not present. Current V2 scaffolds own a compiled templ document at `views/root.templ`; the composition root supplies `views.Root` with `inertia.WithRoot`.
 
-## Manual session-cookie recovery migration
+## V1-era migrations
 
-The `router/*` tree is application-owned, so `andurel upgrade` does not install session-cookie decode recovery into an existing project. New projects include the recovery automatically. Existing projects should reconcile only these declarations against a fresh scaffold created with the target Andurel version:
+The V1 upgrade notes for session-cookie decode recovery (`v1.5.4`) and Fx-managed Inertia renderer injection (`v1.5.6`) are not part of the V2 CLI. V1 projects reach them by upgrading on `1-5-stable` with a V1 `andurel` binary. The V2 CLI refuses to upgrade a project across a major version.
 
-When an upgrade crosses from a version before `v1.5.4` to `v1.5.4` or later, `andurel upgrade` prints this complete migration with the project's module path already rendered. The same manual action is included in dry-run and structured JSON output. Projects starting on `v1.5.4` or later do not receive the note.
-
-1. Add `router/cookies/session.go` using the complete source printed by the upgrade note (the historical gorilla decode-recovery helper).
-2. In `router/cookies/cookies.go` and `router/cookies/flash.go`, replace calls to Echo's `session.Get` with the shared `getSession` helper and remove the now-unused Echo session imports.
-3. In `router/middleware/middleware.go`, call `cookies.RecoverInvalidSessions(c)` inside `ValidateSession`, after the assets and API bypass and before calling the next handler.
-4. Add `github.com/gorilla/securecookie v1.1.2` as a direct dependency, then run `gofmt`, `go fix ./...`, and `go vet ./...`.
-
-Do not replace the whole `router/*` tree. These changes preserve valid sessions, replace only cookies that fail secure-cookie decoding, and continue to return configuration, usage, internal, or save errors.
-
-## Inertia renderer injection migration
-
-Starting with `v1.5.6`, new Inertia scaffolds construct one `*inertia.Renderer` through Fx. The composition root injects the embedded asset filesystem, project name, environment, Vite build route, shared application version, and request-scoped flash props. Router and controller constructors receive that renderer and call its `Page`, `Redirect`, `Location`, and `Middleware` methods.
-
-When an Inertia project upgrades across `v1.5.6`, `andurel upgrade` emits a version-gated manual action with the project's module path rendered into copy-ready imports. The release notes must include the same migration:
-
-1. Replace the pre-Fx `inertia.Init` call in `cmd/app/main.go` with an Fx provider that calls `inertia.New` using `assets.Files`, configuration values, `routes.ViteBuild.Path()`, and `inertia.WithRequestProps` for flash propagation.
-2. Add that provider to `fx.Provide`.
-3. Inject `*inertia.Renderer` into `router.New`, include `renderer.Middleware()` in the existing middleware order, and inject the renderer into every Inertia controller constructor.
-4. Replace package-level `inertia.Page`, `inertia.Redirect`, and `inertia.Location` calls with calls on the controller's renderer field.
-5. Run `gofmt`, `go fix ./...`, and `go vet ./...` after reconciling application-owned code.
+## Inertia renderer
 
 The current V2 scaffold imports the complete implementation directly from the
 standalone `github.com/mbvlabs/andurel/pkg/inertia` module. Generated
 `config/inertia.go` owns ENV-backed settings, renderer composition, and Fx
 lifecycle wiring; there is no generated `internal/inertia` package. Controllers remain application-owned and
-are never rewritten. Projects created at `v1.5.6` or
-later do not receive the original renderer-injection migration note.
+are never rewritten.
 
-## Standalone telemetry package migration
+## Standalone telemetry package
 
-Starting with `v2.0.0`, new scaffolds construct `*telemetry.Telemetry` from `github.com/mbvlabs/andurel/pkg/telemetry`. Generated `config/telemetry.go` still loads env values. Composition roots unpack those fields into positional `telemetry.New` plus `With*` options. Fx injects the provider into HTTP (`otelhttp`) and Postgres (`otelpgx`) instrumentation. Application code uses `telemetry.Error`, `Start`, and `Set` instead of a copied `telemetry/` package or `slog.*Context`. Controllers call `telemetry.From(etx, name)` then pass the returned `context.Context` to `Set` / `Error`. Services call `telemetry.Start(ctx, name, …)`.
+V2 scaffolds construct `*telemetry.Telemetry` from `github.com/mbvlabs/andurel/pkg/telemetry`. Generated `config/telemetry.go` still loads env values. Composition roots unpack those fields into positional `telemetry.New` plus `With*` options. Fx injects the provider into HTTP (`otelhttp`) and Postgres (`otelpgx`) instrumentation. Application code uses `telemetry.Error`, `Start`, and `Set` instead of a copied `telemetry/` package or `slog.*Context`. Controllers call `telemetry.From(etx, name)` then pass the returned `context.Context` to `Set` / `Error`. Services call `telemetry.Start(ctx, name, …)`.
 
-When an upgrade crosses from a version before `v2.0.0` to `v2.0.0` or later, `andurel upgrade` emits a version-gated manual action. The same migration belongs in the release notes:
-
-1. Delete the copied application `telemetry/` directory.
-2. Pin `github.com/mbvlabs/andurel/pkg/telemetry` in `go.mod` to the version verified with that CLI.
-3. Keep `config.Telemetry` as env-backed values. In `cmd/app/main.go` and `cmd/queue/main.go`, replace `telemetry.Module` with a `newTelemetry` provider that calls `telemetry.New` and registers `Shutdown` on the Fx lifecycle.
-4. Inject `*telemetry.Telemetry` into `newDatabase` with `storage.WithOpenTelemetry`, wrap the HTTP handler with `telemetry.WrapHandler("http", router, tel)`, and attach the handle on request and queue contexts with `tel.Context`.
-5. Replace `slog.ErrorContext` / `slog.InfoContext` / `slog.WarnContext` with `telemetry.Error` / `telemetry.Info` / `telemetry.Warn`. Controllers use `telemetry.From(etx, name)` then pass `ctx`. Services use `telemetry.Start`. Do not call `otel.SetTracerProvider` or `slog.SetDefault`.
-6. Run `gofmt`, `go fix ./...`, and `go vet ./...` after reconciling application-owned code.
-
-Projects created at `v2.0.0` or later do not receive the note.
+Every V2 release, starting with `v2.0.0-alpha`, ships this layout, so `andurel upgrade` emits no telemetry manual action.
 
 ## Inertia Vite FullURL migration
 
-Starting with `v2.0.0`, Inertia production tags need an absolute Vite build URL so a secondary-host page loads the entry from the primary origin. Pass `routes.ViteBuild.FullURL()` into the renderer. `pkg/inertia` emits `crossorigin` on those tags. Generated `internal/runtime` is application-owned, so `andurel upgrade` does not rewrite `NewInertia`.
+Starting with `v2.0.0-alpha.3`, Inertia production tags need an absolute Vite build URL so a secondary-host page loads the entry from the primary origin. Pass `routes.ViteBuild.FullURL()` into the renderer. `pkg/inertia` emits `crossorigin` on those tags. Generated `internal/runtime` is application-owned, so `andurel upgrade` does not rewrite `NewInertia`.
 
-When an Inertia project upgrades across `v2.0.0`, `andurel upgrade` emits a version-gated manual action:
+When an Inertia project upgrades from a version before `v2.0.0-alpha.3` to `v2.0.0-alpha.3` or later, `andurel upgrade` emits a version-gated manual action:
 
 1. In `NewInertia` (or the inertia renderer provider), pass `routes.ViteBuild.FullURL()` instead of `Path()`.
 2. Run `gofmt`, `go fix ./...`, and `go vet ./...` after reconciling application-owned code.
 
-Projects created at `v2.0.0` or later do not receive the note. The historical `v1.5.6` renderer-injection note still documents `Path()` for that era's API.
+Projects created at `v2.0.0-alpha.3` or later do not receive the note.
 
 ## Provider adapters move under `internal/`
 
