@@ -15,6 +15,8 @@ type TokenRow struct {
 	ExpiresAt pgtype.Timestamptz `andurel:"expires_at"`
 	Hash      string             `andurel:"hash"`
 	MetaData  []byte             `andurel:"meta_data"`
+	UserID    uuid.UUID          `andurel:"user_id"`
+	Attempts  int32              `andurel:"attempts"`
 }
 
 type UserRow struct {

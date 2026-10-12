@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"uuid"
 
 	appemail "app/email"
 	"app/models"
@@ -67,14 +68,86 @@ func (i Identity) RegisterUser(
 		return models.User{}, fmt.Errorf("create user: %w", err)
 	}
 
+	code, err := i.issueVerificationCode(ctx, tokens, user)
+	if err != nil {
+		_ = tx.Rollback(ctx)
+
+		return models.User{}, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+
+		return models.User{}, fmt.Errorf("commit registration transaction: %w", err)
+
+	}
+
+	if err := i.sendVerificationEmail(ctx, user, code); err != nil {
+		return user, err
+	}
+
+	telemetry.Set(ctx, "user.id", user.ID, "registration.email_queued", true)
+	return user, nil
+
+}
+
+// ResendEmailVerification replaces any outstanding verification code for an
+// unverified user with a fresh one and emails it. It is how a user recovers
+// after losing the registering session or exhausting their attempts.
+func (i Identity) ResendEmailVerification(
+	ctx context.Context,
+	user models.User,
+) error {
+	if user.HasValidatedEmail() {
+		return nil
+	}
+
+	tx, err := i.db.BeginTransaction(ctx)
+
+	if err != nil {
+
+		return fmt.Errorf("begin resend verification transaction: %w", err)
+
+	}
+
+	tokens := i.tokens.WithTx(tx)
+
+	if err := tokens.DestroyByUserAndScope(ctx, user.ID, userEmailVerification); err != nil {
+		_ = tx.Rollback(ctx)
+
+		return fmt.Errorf("destroy previous verification tokens: %w", err)
+	}
+
+	code, err := i.issueVerificationCode(ctx, tokens, user)
+	if err != nil {
+		_ = tx.Rollback(ctx)
+
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+
+		return fmt.Errorf("commit resend verification transaction: %w", err)
+
+	}
+
+	if err := i.sendVerificationEmail(ctx, user, code); err != nil {
+		return err
+	}
+
+	telemetry.Set(ctx, "user.id", user.ID, "registration.email_requeued", true)
+	return nil
+}
+
+func (i Identity) issueVerificationCode(
+	ctx context.Context,
+	tokens models.Tokens,
+	user models.User,
+) (string, error) {
 	meta, err := json.Marshal(map[string]string{
 		"email": user.Email,
 	})
 	if err != nil {
-		_ = tx.Rollback(ctx)
-
-		return models.User{}, fmt.Errorf("marshal verification token metadata: %v", err)
-
+		return "", fmt.Errorf("marshal verification token metadata: %v", err)
 	}
 
 	code, err := tokens.CreateCode(
@@ -84,34 +157,30 @@ func (i Identity) RegisterUser(
 		userEmailVerification,
 		time.Now().Add(24*time.Hour),
 		meta,
+		user.ID,
 	)
 	if err != nil {
-		_ = tx.Rollback(ctx)
-
-		return models.User{}, fmt.Errorf("create verification token: %w", err)
-
+		return "", fmt.Errorf("create verification token: %w", err)
 	}
 
-	if err := tx.Commit(ctx); err != nil {
+	return code, nil
+}
 
-		return models.User{}, fmt.Errorf("commit registration transaction: %w", err)
-
-	}
-
+func (i Identity) sendVerificationEmail(
+	ctx context.Context,
+	user models.User,
+	code string,
+) error {
 	vEmail := appemail.VerifyEmail{VerificationCode: code}
 
 	html, err := vEmail.ToHTML()
 	if err != nil {
-
-		return models.User{}, fmt.Errorf("render verification email html: %v", err)
-
+		return fmt.Errorf("render verification email html: %v", err)
 	}
 
 	text, err := vEmail.ToText()
 	if err != nil {
-
-		return models.User{}, fmt.Errorf("render verification email text: %v", err)
-
+		return fmt.Errorf("render verification email text: %v", err)
 	}
 
 	_, err = i.insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
@@ -126,22 +195,44 @@ func (i Identity) RegisterUser(
 	}, nil)
 
 	if err != nil {
-		return user, fmt.Errorf("queue verification email: %v", err)
+		return fmt.Errorf("queue verification email: %v", err)
 	}
 
-	telemetry.Set(ctx, "user.id", user.ID, "registration.email_queued", true)
-	return user, nil
-
+	return nil
 }
 
 var (
-	ErrInvalidVerificationCode = errors.New("invalid verification code")
-	ErrExpiredVerificationCode = errors.New("verification code has expired")
+	ErrInvalidVerificationCode = errors.New("invalid or expired verification code")
 	ErrUserNotFound            = errors.New("user not found")
 )
 
+const (
+	maxVerificationAttempts        = 5
+	invalidVerificationCodeMessage = "Invalid or expired code. Sign in to get a new one."
+)
+
 type VerifyEmailData struct {
-	Code string
+	UserID uuid.UUID
+	Code   string
+}
+
+func invalidVerificationCode() error {
+	b := validation.NewBuilder()
+	b.Add("code", "invalid", invalidVerificationCodeMessage)
+
+	return errors.Join(ErrInvalidVerificationCode, b.Errors())
+}
+
+// verificationAttemptAllowed reports whether the attempt numbered attempts
+// (1-based, as returned by Tokens.IncrementAttempts) may be checked.
+func verificationAttemptAllowed(attempts int32) bool {
+	return attempts <= maxVerificationAttempts
+}
+
+// verificationLocked reports whether a failed attempt numbered attempts
+// exhausts the code.
+func verificationLocked(attempts int32) bool {
+	return attempts >= maxVerificationAttempts
 }
 
 func (i Identity) VerifyEmail(
@@ -152,6 +243,10 @@ func (i Identity) VerifyEmail(
 	b.Required("code", data.Code)
 	if !b.Errors().Empty() {
 		return models.User{}, b.Errors()
+	}
+
+	if data.UserID == uuid.Nil() {
+		return models.User{}, invalidVerificationCode()
 	}
 
 	tx, err := i.db.BeginTransaction(ctx)
@@ -165,47 +260,57 @@ func (i Identity) VerifyEmail(
 	users := i.users.WithTx(tx)
 	tokens := i.tokens.WithTx(tx)
 
-	token, err := tokens.FindByScopeAndHash(
+	token, err := tokens.FindByUserAndScope(
 		ctx,
-		i.tokenSigningKey,
+		data.UserID,
 
 		userEmailVerification,
-		data.Code,
 	)
 	if err != nil {
 		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, models.ErrNotFound) {
-			return models.User{}, ErrInvalidVerificationCode
+			return models.User{}, invalidVerificationCode()
 		}
 
 		return models.User{}, fmt.Errorf("find email verification token: %w", err)
 
 	}
 
-	if !token.IsValid(data.Code, i.tokenSigningKey) {
-
-		_ = tx.Rollback(ctx)
-		return models.User{}, ErrExpiredVerificationCode
-	}
-
-	var meta map[string]string
-	if err := json.Unmarshal(token.MetaData, &meta); err != nil {
+	// Count the attempt before checking the code. The UPDATE takes the row
+	// lock, so concurrent attempts are serialized and each sees its own count;
+	// once the code is locked out, later attempts find no row.
+	attempts, err := tokens.IncrementAttempts(ctx, token.ID)
+	if err != nil {
 		_ = tx.Rollback(ctx)
 
-		return models.User{}, fmt.Errorf("unmarshal verification token metadata: %v", err)
+		if errors.Is(err, models.ErrNotFound) {
+			return models.User{}, invalidVerificationCode()
+		}
 
+		return models.User{}, fmt.Errorf("record verification attempt: %w", err)
 	}
 
-	emailAddr, ok := meta["email"]
-	if !ok {
-		_ = tx.Rollback(ctx)
+	if !verificationAttemptAllowed(attempts) ||
+		!token.IsValid(data.Code, i.tokenSigningKey) {
 
-		return models.User{}, errors.New("verification token metadata missing email")
+		if verificationLocked(attempts) {
+			if err := tokens.Destroy(ctx, token.ID); err != nil {
+				_ = tx.Rollback(ctx)
 
+				return models.User{}, fmt.Errorf("destroy locked verification token: %w", err)
+			}
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+
+			return models.User{}, fmt.Errorf("commit failed verification attempt: %w", err)
+		}
+
+		return models.User{}, invalidVerificationCode()
 	}
 
-	user, err := users.FindByEmail(ctx, emailAddr)
+	user, err := users.Find(ctx, data.UserID)
 	if err != nil {
 		_ = tx.Rollback(ctx)
 

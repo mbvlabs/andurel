@@ -33,11 +33,12 @@ INSERT INTO tokens (
 	scope,
 	expires_at,
 	hash,
-	meta_data
+	meta_data,
+	user_id
 ) VALUES (
-	$1, $2, $3, $4, $5, $6, $7
+	$1, $2, $3, $4, $5, $6, $7, $8
 )
-RETURNING id, created_at, updated_at, scope, expires_at, hash, meta_data
+RETURNING id, created_at, updated_at, scope, expires_at, hash, meta_data, user_id, attempts
 `
 
 type CreateTokenParams struct {
@@ -48,6 +49,7 @@ type CreateTokenParams struct {
 	ExpiresAt pgtype.Timestamptz
 	Hash      string
 	MetaData  []byte
+	UserID    uuid.UUID
 }
 
 func (q *Queries) CreateToken[T any](ctx context.Context, arg CreateTokenParams) (T, error) {
@@ -59,8 +61,9 @@ func (q *Queries) CreateToken[T any](ctx context.Context, arg CreateTokenParams)
 		arg.ExpiresAt,
 		arg.Hash,
 		arg.MetaData,
+		arg.UserID,
 	)
-	return narsilc.Read[T, TokenRow](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
+	return narsilc.Read[T, TokenRow](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data", "user_id", "attempts"})
 }
 
 const deleteToken = `-- name: DeleteToken :exec
@@ -73,8 +76,24 @@ func (q *Queries) DeleteToken(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const deleteTokensByUserAndScope = `-- name: DeleteTokensByUserAndScope :exec
+DELETE FROM tokens
+WHERE user_id = $1
+	AND scope = $2
+`
+
+type DeleteTokensByUserAndScopeParams struct {
+	UserID uuid.UUID
+	Scope  string
+}
+
+func (q *Queries) DeleteTokensByUserAndScope(ctx context.Context, arg DeleteTokensByUserAndScopeParams) error {
+	_, err := q.db.Exec(ctx, deleteTokensByUserAndScope, arg.UserID, arg.Scope)
+	return err
+}
+
 const getToken = `-- name: GetToken :one
-SELECT id, created_at, updated_at, scope, expires_at, hash, meta_data
+SELECT id, created_at, updated_at, scope, expires_at, hash, meta_data, user_id, attempts
 FROM tokens
 WHERE id = $1
 LIMIT 1
@@ -82,11 +101,11 @@ LIMIT 1
 
 func (q *Queries) GetToken[T any](ctx context.Context, id uuid.UUID) (T, error) {
 	row := q.db.QueryRow(ctx, getToken, id)
-	return narsilc.Read[T, TokenRow](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
+	return narsilc.Read[T, TokenRow](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data", "user_id", "attempts"})
 }
 
 const getTokenByScopeAndHash = `-- name: GetTokenByScopeAndHash :one
-SELECT id, created_at, updated_at, scope, expires_at, hash, meta_data
+SELECT id, created_at, updated_at, scope, expires_at, hash, meta_data, user_id, attempts
 FROM tokens
 WHERE scope = $1
 	AND hash = $2
@@ -100,11 +119,51 @@ type GetTokenByScopeAndHashParams struct {
 
 func (q *Queries) GetTokenByScopeAndHash[T any](ctx context.Context, arg GetTokenByScopeAndHashParams) (T, error) {
 	row := q.db.QueryRow(ctx, getTokenByScopeAndHash, arg.Scope, arg.Hash)
-	return narsilc.Read[T, TokenRow](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"})
+	return narsilc.Read[T, TokenRow](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data", "user_id", "attempts"})
+}
+
+const getTokenByUserAndScope = `-- name: GetTokenByUserAndScope :one
+SELECT id, created_at, updated_at, scope, expires_at, hash, meta_data, user_id, attempts
+FROM tokens
+WHERE user_id = $1
+	AND scope = $2
+ORDER BY created_at DESC
+LIMIT 1
+`
+
+type GetTokenByUserAndScopeParams struct {
+	UserID uuid.UUID
+	Scope  string
+}
+
+func (q *Queries) GetTokenByUserAndScope[T any](ctx context.Context, arg GetTokenByUserAndScopeParams) (T, error) {
+	row := q.db.QueryRow(ctx, getTokenByUserAndScope, arg.UserID, arg.Scope)
+	return narsilc.Read[T, TokenRow](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data", "user_id", "attempts"})
+}
+
+const incrementTokenAttempts = `-- name: IncrementTokenAttempts :one
+UPDATE tokens
+SET
+	attempts = attempts + 1,
+	updated_at = $2
+WHERE id = $1
+RETURNING attempts
+`
+
+type IncrementTokenAttemptsParams struct {
+	ID        uuid.UUID
+	UpdatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) IncrementTokenAttempts(ctx context.Context, arg IncrementTokenAttemptsParams) (int32, error) {
+	row := q.db.QueryRow(ctx, incrementTokenAttempts, arg.ID, arg.UpdatedAt)
+	var attempts int32
+	err := row.Scan(&attempts)
+	return attempts, err
 }
 
 const listTokens = `-- name: ListTokens :many
-SELECT id, created_at, updated_at, scope, expires_at, hash, meta_data
+SELECT id, created_at, updated_at, scope, expires_at, hash, meta_data, user_id, attempts
 FROM tokens
 `
 
@@ -191,7 +250,7 @@ func (b *ListTokensBuilder[T]) All() ([]T, error) {
 	var items []T
 	var probe T
 	_, mapRow := any(&probe).(narsilc.Transformer[TokenRow])
-	cols := []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data"}
+	cols := []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data", "user_id", "attempts"}
 	for rows.Next() {
 		var item T
 		var err error

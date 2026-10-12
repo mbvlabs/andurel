@@ -42,6 +42,8 @@ type Token struct {
 	ExpiresAt pgtype.Timestamptz `andurel:"expires_at"`
 	Hash      string             `andurel:"hash"`
 	MetaData  []byte             `andurel:"meta_data"`
+	UserID    uuid.UUID          `andurel:"user_id"`
+	Attempts  int32              `andurel:"attempts"`
 }
 
 func (t Token) IsValid(token, secret string) bool {
@@ -119,11 +121,62 @@ func (t Tokens) FindByScopeAndHash(
 	return entity, nil
 }
 
+func (t Tokens) FindByUserAndScope(
+	ctx context.Context,
+	userID uuid.UUID,
+	scope string,
+) (Token, error) {
+	entity, err := t.queries.GetTokenByUserAndScope[Token](ctx, queries.GetTokenByUserAndScopeParams{
+		UserID: userID,
+		Scope:  scope,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Token{}, ErrNotFound
+		}
+
+		return Token{}, err
+	}
+
+	return entity, nil
+}
+
+// IncrementAttempts atomically bumps the token's attempt counter and returns
+// the new count. Concurrent callers are serialized by the row lock, so each
+// sees a distinct count.
+func (t Tokens) IncrementAttempts(ctx context.Context, id uuid.UUID) (int32, error) {
+	attempts, err := t.queries.IncrementTokenAttempts(ctx, queries.IncrementTokenAttemptsParams{
+		ID:        id,
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, ErrNotFound
+		}
+
+		return 0, err
+	}
+
+	return attempts, nil
+}
+
+func (t Tokens) DestroyByUserAndScope(
+	ctx context.Context,
+	userID uuid.UUID,
+	scope string,
+) error {
+	return t.queries.DeleteTokensByUserAndScope(ctx, queries.DeleteTokensByUserAndScopeParams{
+		UserID: userID,
+		Scope:  scope,
+	})
+}
+
 type createTokenData struct {
 	Scope     string
 	ExpiresAt time.Time
 	Hash      string
 	MetaData  []byte
+	UserID    uuid.UUID
 }
 
 func (t *Token) Validate() error {
@@ -132,6 +185,7 @@ func (t *Token) Validate() error {
 	b.Required("expires_at", t.ExpiresAt)
 	b.Required("hash", t.Hash)
 	b.Required("meta_data", t.MetaData)
+	b.Required("user_id", t.UserID)
 
 	return b.Err()
 }
@@ -148,6 +202,7 @@ func (t Tokens) createToken(
 		ExpiresAt: pgtype.Timestamptz{Time: data.ExpiresAt, Valid: true},
 		Hash:      data.Hash,
 		MetaData:  data.MetaData,
+		UserID:    data.UserID,
 	}
 
 	if err := validation.Validate(&entity); err != nil {
@@ -162,6 +217,7 @@ func (t Tokens) createToken(
 		ExpiresAt: entity.ExpiresAt,
 		Hash:      entity.Hash,
 		MetaData:  entity.MetaData,
+		UserID:    entity.UserID,
 	})
 }
 
@@ -171,6 +227,7 @@ func (t Tokens) CreateCode(
 	scope string,
 	expiresAt time.Time,
 	metaData []byte,
+	userID uuid.UUID,
 ) (string, error) {
 	tkn, err := GenerateCode(6)
 	if err != nil {
@@ -182,6 +239,7 @@ func (t Tokens) CreateCode(
 		ExpiresAt: expiresAt,
 		Hash:      HashForStorage(tkn, secret),
 		MetaData:  metaData,
+		UserID:    userID,
 	}); err != nil {
 		return "", err
 	}
@@ -195,6 +253,7 @@ func (t Tokens) Create(
 	scope string,
 	expiresAt time.Time,
 	metaData []byte,
+	userID uuid.UUID,
 ) (string, error) {
 	tkn, err := GenerateSecureToken()
 	if err != nil {
@@ -206,6 +265,7 @@ func (t Tokens) Create(
 		ExpiresAt: expiresAt,
 		Hash:      HashForStorage(tkn, secret),
 		MetaData:  metaData,
+		UserID:    userID,
 	}); err != nil {
 		return "", err
 	}

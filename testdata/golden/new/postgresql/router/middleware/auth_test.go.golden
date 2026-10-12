@@ -50,3 +50,39 @@ func TestIPRateLimiterPermitsExactlyConfiguredLimitAtomically(t *testing.T) {
 		t.Fatalf("handled requests = %d, want exactly %d", got, limit)
 	}
 }
+
+func TestIPRateLimiterRejectsOverLimitAndScopesByIP(t *testing.T) {
+	const limit = int32(2)
+	redirect := routing.NewSimpleRoute("/rate-limited", "rate_limited", "")
+
+	limiter := IPRateLimiter(limit, redirect)(func(c *echo.Context) error {
+		return c.NoContent(http.StatusNoContent)
+	})
+
+	call := func(remoteAddr string) int {
+		request := httptest.NewRequest(http.MethodPost, "/", nil)
+		request.RemoteAddr = remoteAddr
+		recorder := httptest.NewRecorder()
+		e := echo.New()
+		ctx := e.NewContext(request, recorder)
+		if err := limiter(ctx); err != nil {
+			t.Fatalf("rate limiter returned error: %v", err)
+		}
+
+		return recorder.Code
+	}
+
+	for i := range limit {
+		if got := call("192.0.2.1:1234"); got != http.StatusNoContent {
+			t.Fatalf("request %d status = %d, want %d", i+1, got, http.StatusNoContent)
+		}
+	}
+
+	if got := call("192.0.2.1:1234"); got != http.StatusTooManyRequests {
+		t.Fatalf("over-limit status = %d, want %d", got, http.StatusTooManyRequests)
+	}
+
+	if got := call("192.0.2.2:1234"); got != http.StatusNoContent {
+		t.Fatalf("second IP status = %d, want %d", got, http.StatusNoContent)
+	}
+}

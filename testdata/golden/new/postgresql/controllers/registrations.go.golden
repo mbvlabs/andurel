@@ -6,12 +6,14 @@ import (
 	"strings"
 
 	"app/router"
+	"app/router/cookies"
 	"app/router/middleware"
 	"app/router/routes"
 	"app/services"
 	"app/views"
 
 	"github.com/mbvlabs/andurel/pkg/hypermedia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
@@ -125,5 +127,25 @@ func (r Registrations) Create(etx *echo.Context) error {
 	}
 
 	userID = user.ID
+
+	if err := setPendingUser(etx, user.ID.String()); err != nil {
+		outcome = "error"
+		cause = err
+		return err
+	}
+
 	return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
+}
+
+func setPendingUser(etx *echo.Context, userID string) error {
+	app, err := kiks.Get[*cookies.App](etx.Request().Context())
+	if err != nil {
+		return err
+	}
+	if app == nil {
+		app = &cookies.App{}
+	}
+	app.PendingUserID = userID
+
+	return kiks.Set(etx.Request().Context(), app)
 }
