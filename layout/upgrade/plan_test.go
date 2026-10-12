@@ -148,7 +148,7 @@ func TestAddVerifiedPackageDependenciesDoesNotDowngradeNarsilc(t *testing.T) {
 	root := t.TempDir()
 	mustWriteTestFile(t, root, "go.mod", []byte(
 		"module testapp\n\ngo 1.27.1\n\nrequire (\n\tgithub.com/mbvlabs/andurel/pkg/telemetry "+
-			versions.Telemetry+"\n\tgithub.com/mbvlabs/narsilc v9.0.0\n)\n",
+			versions.Telemetry+"\n\tgithub.com/mbvlabs/narsilc v0.99.0\n)\n",
 	))
 
 	plan := &upgradePlan{}

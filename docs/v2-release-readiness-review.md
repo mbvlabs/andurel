@@ -15,11 +15,11 @@ Each item has an ID for tracking in issues and PRs. Severity: **H** high, **M** 
 
 | ID | Target | Status |
 | --- | --- | --- |
-| R1 | alpha.4 | fixed in #811, needs the golangci-lint bump on `fix/golangci-lint-2.14.0` |
-| R2 | alpha.4 | fixed in #811, needs the golangci-lint bump on `fix/golangci-lint-2.14.0` |
-| R3 | alpha.4 | open |
-| R4 | beta | open |
-| R5 | beta | open |
+| R1 | alpha.4 | fixed in #811; golangci-lint bumped to v2.14.0 in `4eab5680` |
+| R2 | alpha.4 | fixed in #811 (`pkg/*` minimums open) |
+| R3 | alpha.4 | fixed in `fa42d244` |
+| R4 | beta | fixed |
+| R5 | beta | fixed in `3108ae68` |
 | R6 | beta | open |
 | R7 | beta | open |
 

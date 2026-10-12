@@ -22,7 +22,7 @@ func TestLintCommandPinsVersionAndDeterministicConfiguration(t *testing.T) {
 	}
 
 	for _, required := range []string{
-		`expected_version="2.13.2"`,
+		`expected_version="2.14.0"`,
 		"GOLANGCI_LINT_CACHE=",
 		"GOCACHE=",
 		"golangci-lint run --config .golangci.yml",
