@@ -198,6 +198,10 @@ func (u *Upgrader) validatePreconditions() error {
 		return fmt.Errorf("lock file missing template version - please manually set it")
 	}
 
+	if err := validateMajorVersion(u.lock.Version, u.opts.TargetVersion); err != nil {
+		return err
+	}
+
 	clean, err := u.git.IsClean()
 	if err != nil {
 		return fmt.Errorf("git validation failed: %w", err)
@@ -207,6 +211,27 @@ func (u *Upgrader) validatePreconditions() error {
 	}
 
 	return nil
+}
+
+// validateMajorVersion refuses to upgrade a project across a major version
+// boundary. There is no automated V1 to V2 migration; V1 projects stay on
+// 1-5-stable. Non-semver versions (such as development builds) are not checked.
+func validateMajorVersion(projectVersion, targetVersion string) error {
+	if !semver.IsValid(projectVersion) || !semver.IsValid(targetVersion) {
+		return nil
+	}
+	projectMajor := semver.Major(projectVersion)
+	targetMajor := semver.Major(targetVersion)
+	if semver.Compare(projectMajor, targetMajor) >= 0 {
+		return nil
+	}
+	return fmt.Errorf(
+		"cannot upgrade project from %s to %s: upgrading across major versions is not supported. "+
+			"V1 projects are maintained on the 1-5-stable branch; upgrade them with a V1 andurel CLI, "+
+			"or create a new project with `andurel new`",
+		projectVersion,
+		targetVersion,
+	)
 }
 
 func printUpgradeStart(writer io.Writer, fromVersion, toVersion string) {

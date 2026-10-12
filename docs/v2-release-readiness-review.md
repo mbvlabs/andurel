@@ -50,7 +50,7 @@ A local `govulncheck` reports nine reachable vulnerabilities in `net/http`, `net
 
 `Upgrader.validatePreconditions` has no major-version guard. A `1-5-stable` project (lock version `v1.5.x`) gets a plan built from V2 templates and `pkg/*` pins. This contradicts the "no V1 to V2 path" policy in `plans/version-two.md`.
 
-- [ ] Refuse to upgrade when the lock version's major is below the CLI's major, with an error that points to `1-5-stable`.
+- [x] Refuse to upgrade when the lock version's major is below the CLI's major, with an error that points to `1-5-stable`.
 
 ### R5 — Upgrade notes misfire for pre-release applications
 
@@ -75,7 +75,7 @@ The `v2.0.0-alpha.3` GitHub release body is just `## Changelog`, because `.gorel
 
 - [ ] Add `govulncheck` for each `pkg/*` module to CI. Locally, `pkg/storage` has vulnerable `golang.org/x/crypto` v0.52.0, `golang.org/x/text` v0.38.0, and `github.com/moby/go-archive` v0.2.0. `pkg/telemetry` has vulnerable `golang.org/x/net` v0.58.0. Fixing them requires package releases, changelog entries, and a `layout/versions/versions.go` bump.
 - [ ] Run `just lint` and `just vulncheck` in PR CI (`just ci-pr`). PR #811 merged green, then Release Readiness failed on `master` because golangci-lint v2.13.2 cannot read Go 1.27.2 export data. The readiness gate was the first job to run lint against the new toolchain.
-- [ ] Delete `go1-27.md`, which is a committed Codex conversation transcript.
+- [x] Delete `go1-27.md`, which is a committed Codex conversation transcript.
 - [ ] Close issue #807; the nightly suite has passed since.
 - [ ] Rename `e2e-nightly.yml`, or make it run an end-to-end check (create, migrate, serve) on a generated application.
 - [ ] Route direct pushes to `master` (for example `41304cf0`) through PRs.

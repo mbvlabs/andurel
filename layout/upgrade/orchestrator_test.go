@@ -599,6 +599,56 @@ func TestValidatePreconditions_RejectsMissingVersion(t *testing.T) {
 	}
 }
 
+func TestValidatePreconditions_RejectsMajorVersionUpgrade(t *testing.T) {
+	t.Parallel()
+
+	projectRoot := newGitUpgradeProject(t)
+	upgrader := &Upgrader{
+		projectRoot: projectRoot,
+		lock:        &layout.AndurelLock{Version: "v1.5.6"},
+		git:         NewGitAnalyzer(projectRoot),
+		opts:        UpgradeOptions{TargetVersion: "v2.0.0-alpha.4"},
+	}
+
+	err := upgrader.validatePreconditions()
+	if err == nil {
+		t.Fatal("expected V1 to V2 upgrade to fail preconditions")
+	}
+	if !strings.Contains(err.Error(), "1-5-stable") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateMajorVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		projectVersion string
+		targetVersion  string
+		wantErr        bool
+	}{
+		{name: "v1 to v2", projectVersion: "v1.5.6", targetVersion: "v2.0.0", wantErr: true},
+		{name: "v1 to v2 pre-release", projectVersion: "v1.5.6", targetVersion: "v2.0.0-alpha.4", wantErr: true},
+		{name: "v2 pre-release to v2", projectVersion: "v2.0.0-alpha.3", targetVersion: "v2.0.0"},
+		{name: "same major", projectVersion: "v2.0.0", targetVersion: "v2.1.0"},
+		{name: "older CLI", projectVersion: "v2.0.0", targetVersion: "v1.5.6"},
+		{name: "development build", projectVersion: "v1.5.6", targetVersion: "dev"},
+		{name: "non-semver lock", projectVersion: "main", targetVersion: "v2.0.0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := validateMajorVersion(tt.projectVersion, tt.targetVersion)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validateMajorVersion(%q, %q) = %v, wantErr %v",
+					tt.projectVersion, tt.targetVersion, err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestSyncToolsToFrameworkVersion_RemovesLegacyRunTool(t *testing.T) {
 	t.Parallel()
 
