@@ -3,9 +3,11 @@ package controllers
 import (
 	"errors"
 	"net/http"
+	"uuid"
 
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
+	"{{.ModuleName}}/router/middleware"
 	"{{.ModuleName}}/router/routes"
 	"{{.ModuleName}}/services"
 
@@ -43,6 +45,9 @@ func (c Confirmations) RegisterRoutes(r *router.Router) error {
 	_, err = r.AddRoute(routes.ConfirmationCreate, echo.Route{
 		Method:  http.MethodPost,
 		Handler: c.Create,
+		Middlewares: []echo.MiddlewareFunc{
+			middleware.IPRateLimiter(5, routes.ConfirmationNew),
+		},
 	})
 	if err != nil {
 		errs = append(errs, err)
@@ -76,7 +81,8 @@ func (c Confirmations) Create(etx *echo.Context) error {
 	user, err := c.identity.VerifyEmail(
 		ctx,
 		services.VerifyEmailData{
-			Code: payload.Code,
+			UserID: pendingUserID(etx),
+			Code:   payload.Code,
 		},
 	)
 	if err != nil {
@@ -107,4 +113,18 @@ func (c Confirmations) Create(etx *echo.Context) error {
 	}
 
 	return c.renderer.Location(etx, routes.HomePage.URL())
+}
+
+func pendingUserID(etx *echo.Context) uuid.UUID {
+	app, err := kiks.Get[*cookies.App](etx.Request().Context())
+	if err != nil || app == nil || app.PendingUserID == "" {
+		return uuid.Nil()
+	}
+
+	userID, err := uuid.Parse(app.PendingUserID)
+	if err != nil {
+		return uuid.Nil()
+	}
+
+	return userID
 }

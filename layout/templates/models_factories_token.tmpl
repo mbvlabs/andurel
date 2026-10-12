@@ -44,6 +44,14 @@ func CreateToken(
 ) (models.Token, error) {
 	built := BuildToken(opts...)
 
+	if built.UserID == uuid.Nil() {
+		user, err := CreateUser(ctx, db)
+		if err != nil {
+			return models.Token{}, fmt.Errorf("failed to create token owner: %w", err)
+		}
+		built.UserID = user.ID
+	}
+
 	return queries.New(db).CreateToken[models.Token](ctx, queries.CreateTokenParams{
 		ID:        uuid.New(),
 		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
@@ -52,6 +60,7 @@ func CreateToken(
 		ExpiresAt: built.ExpiresAt,
 		Hash:      built.Hash,
 		MetaData:  built.MetaData,
+		UserID:    built.UserID,
 	})
 }
 
@@ -99,5 +108,11 @@ func WithExpired() TokenOption {
 func WithHash(hash string) TokenOption {
 	return func(f *TokenFactory) {
 		f.Hash = hash
+	}
+}
+
+func WithUserID(userID uuid.UUID) TokenOption {
+	return func(f *TokenFactory) {
+		f.UserID = userID
 	}
 }

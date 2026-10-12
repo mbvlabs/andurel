@@ -79,8 +79,10 @@ func (i Identity) AuthenticateUser(
 		}
 	}
 
+	// The password checked out, so the caller may use the returned user to
+	// resume email verification.
 	if !user.HasValidatedEmail() {
-		return models.User{}, ErrEmailNotVerified
+		return user, ErrEmailNotVerified
 	}
 
 	return user, nil

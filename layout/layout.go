@@ -862,6 +862,7 @@ func initializeBlueprint(moduleName string) *blueprint.Blueprint {
 
 	// Auth cookies configuration
 	builder.AddCookiesAppField("UserID", "string")
+	builder.AddCookiesAppField("PendingUserID", "string")
 	builder.AddCookiesAppField("IsAdmin", "bool")
 	builder.AddCookiesAppField("IsAuthenticated", "bool")
 

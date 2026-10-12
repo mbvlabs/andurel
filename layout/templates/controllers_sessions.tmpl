@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"{{.ModuleName}}/models"
 	"{{.ModuleName}}/router"
 	"{{.ModuleName}}/router/cookies"
 	"{{.ModuleName}}/router/middleware"
@@ -95,6 +96,14 @@ func (s Sessions) Create(etx *echo.Context) error {
 			return hypermedia.RenderPage(etx, views.LoginForm{Errors: validationErrors}.Page())
 		}
 
+		if errors.Is(err, services.ErrEmailNotVerified) {
+			if err := s.resumeEmailVerification(etx, user); err != nil {
+				return err
+			}
+
+			return hypermedia.Redirect(etx, routes.ConfirmationNew.URL())
+		}
+
 		telemetry.Error(
 			ctx,
 			"failed to authenticate user",
@@ -114,6 +123,16 @@ func (s Sessions) Create(etx *echo.Context) error {
 	}
 
 	return hypermedia.Redirect(etx, routes.HomePage.URL())
+}
+
+// resumeEmailVerification sends an unverified user a fresh code and binds it
+// to this session, so they can confirm from any browser.
+func (s Sessions) resumeEmailVerification(etx *echo.Context, user models.User) error {
+	if err := s.identity.ResendEmailVerification(etx.Request().Context(), user); err != nil {
+		return err
+	}
+
+	return setPendingUser(etx, user.ID.String())
 }
 
 func (s Sessions) Destroy(etx *echo.Context) error {

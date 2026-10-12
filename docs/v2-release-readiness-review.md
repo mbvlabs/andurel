@@ -88,7 +88,7 @@ The `v2.0.0-alpha.3` GitHub release body is just `## Changelog`, because `.gorel
 
 | ID | Sev | Target | Area | Status |
 | --- | --- | --- | --- | --- |
-| S1 | H | alpha.4 | generated auth | open |
+| S1 | H | alpha.4 | generated auth | fixed |
 | S2 | H | alpha.4 | `pkg/hypermedia` | open |
 | S3 | H | beta | generated middleware | open |
 | S4 | M | beta | generated auth, `pkg/kiks` | open |
@@ -104,9 +104,9 @@ The `v2.0.0-alpha.3` GitHub release body is just `## Changelog`, because `.gorel
 
 An attacker who sprays codes signs in as an arbitrary freshly registered user. The expected work drops with every pending registration.
 
-- [ ] Bind verification to the user: carry the email or a signed pending-user reference in the session, and query by it.
-- [ ] Add per-account and per-IP attempt limits, and invalidate the code after N failures.
-- [ ] Do not sign the user in on confirmation, or only sign in the session that registered.
+- [x] Bind verification to the user: carry the email or a signed pending-user reference in the session, and query by it.
+- [x] Add per-account and per-IP attempt limits, and invalidate the code after N failures.
+- [x] Do not sign the user in on confirmation, or only sign in the session that registered.
 
 ### S2 — Script injection in `pkg/hypermedia` script helpers
 

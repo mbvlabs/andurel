@@ -26,6 +26,21 @@ V2 scaffolds construct `*telemetry.Telemetry` from `github.com/mbvlabs/andurel/p
 
 Every V2 release, starting with `v2.0.0-alpha`, ships this layout, so `andurel upgrade` emits no telemetry manual action.
 
+## Email verification binding
+
+Starting with `v2.0.0-alpha.4`, generated email verification binds the code to the pending user carried in the session cookie, and confirmation signs in only the session that registered. Email verification no longer resolves the user from the code alone. The confirmation route is rate limited, and the code is invalidated after five attempts. An unverified user who signs in with the correct password gets a fresh code bound to that session, which is how they recover from a lost session or a locked-out code.
+
+Generated auth code is application-owned, so `andurel upgrade` does not patch it. Existing alpha apps must make these changes by hand:
+
+1. In a new migration, add `user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE` and `attempts INTEGER NOT NULL DEFAULT 0` to the `tokens` table, and an index on `(user_id, scope, created_at DESC)`. Existing rows have no owner, so delete them first (`DELETE FROM tokens;`). Pending users can get a new code by signing in, and password resets can be requested again.
+2. Add a `PendingUserID string` field to the `router/cookies.App` session payload (see `initializeBlueprint` for the cookie field list).
+3. Add a `userID uuid.UUID` parameter to `Tokens.CreateCode` and `Tokens.Create`, store it in the new `user_id` column, and pass the user's ID from registration and password reset.
+4. Add the `GetTokenByUserAndScope :one`, `IncrementTokenAttempts :one` (`UPDATE … SET attempts = attempts + 1 … RETURNING attempts`) and `DeleteTokensByUserAndScope :exec` queries, then run `andurel sync queries`.
+5. On registration, store the new user's ID in the session's pending-user field. On confirmation, look the token up by that user and the `user_email_verification` scope, increment its attempt counter, and check the code only if the returned count is within the limit. Counting the attempt before checking the code serializes concurrent attempts on the row lock. Delete the token when a failure reaches five attempts. Return a generic "Invalid or expired code" error when the session has no pending user or the code does not match.
+6. In `AuthenticateUser`, return the user together with `ErrEmailNotVerified`. In the sessions controller, handle that error by deleting the user's outstanding verification tokens, issuing and emailing a new code, setting the pending-user field, and redirecting to `ConfirmationNew`.
+7. Apply `middleware.IPRateLimiter` to the `ConfirmationCreate` route in both the MVC and Inertia confirmation controllers.
+8. Run `gofmt`, `go fix ./...`, and `go vet ./...` after reconciling application-owned code.
+
 ## Inertia Vite FullURL migration
 
 Starting with `v2.0.0-alpha.3`, Inertia production tags need an absolute Vite build URL so a secondary-host page loads the entry from the primary origin. Pass `routes.ViteBuild.FullURL()` into the renderer. `pkg/inertia` emits `crossorigin` on those tags. Generated `internal/runtime` is application-owned, so `andurel upgrade` does not rewrite `NewInertia`.
