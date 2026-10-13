@@ -54,6 +54,8 @@ Everything you and your agent(s) need to build robust and performant application
 	rootCmd.AddCommand(newGenerateCommand())
 	rootCmd.AddCommand(newSyncGroupCommand())
 	rootCmd.AddCommand(newInspectCommand())
+	rootCmd.AddCommand(newPatternsCommand())
+	rootCmd.AddCommand(newVerifyCommand())
 	rootCmd.AddCommand(newFmtCommand())
 	rootCmd.AddCommand(newDatabaseCommand())
 	rootCmd.AddCommand(newConsoleCommand())

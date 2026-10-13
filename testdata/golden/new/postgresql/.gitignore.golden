@@ -1,6 +1,0 @@
-node_modules
-.env
-bin
-tmp
-app.db
-.andurel-upgrade-state.json

@@ -227,7 +227,7 @@ func checkTemplFormatting(rootDir string) error {
 
 func runTemplFormatter(rootDir string) error {
 	templBin := filepath.Join(rootDir, "bin", "templ")
-	dirs := []string{"views", "email"}
+	dirs := []string{"resources", "email"}
 	for _, dir := range dirs {
 		dirPath := filepath.Join(rootDir, dir)
 		if _, err := os.Stat(dirPath); os.IsNotExist(err) {

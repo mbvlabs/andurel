@@ -8,10 +8,11 @@ There are two tracks:
 
 | Track | Recipe | What runs |
 |-------|--------|-----------|
-| **PR** | `just test-golden` / `just update-golden` | `generate`, `sync`, and a slim `andurel new` MVC capture (postgresql + react). Fast, curated `AssertFiles` / `AssertDir`. |
-| **Nightly** | `just test-golden-full` / `just update-golden-full` | Same suite **plus** full-tree `andurel new` for four adapters, with generators on. |
+| **PR** | `just test-golden` / `just update-golden` | `generate migration`, `sync`, and a slim `andurel new` capture. Fast, curated `AssertFiles` / `AssertDir`. |
+| **Nightly** | `just test-golden-full` / `just update-golden-full` | Same suite **plus** full-tree `andurel new` for the three Inertia adapters. |
 
-Full-tree `andurel new` tests skip unless `ANDUREL_GOLDEN_FULL=1`. The PR track still runs a slim MVC capture for postgresql (`--ui templ/datastar`) and default Inertia react.
+Full-tree `andurel new` tests skip unless `ANDUREL_GOLDEN_FULL=1`. The PR track
+still runs a slim capture for `andurel new` (Inertia react and vue).
 
 ## How it works
 
@@ -19,17 +20,16 @@ Full-tree `andurel new` tests skip unless `ANDUREL_GOLDEN_FULL=1`. The PR track 
 
 1. `TestMain` (`golden/main_test.go`) locates the repo root, builds the
    `andurel` binary with `-tags andurel_golden -ldflags -X main.version=latest`,
-   `go install`s templ/golines/goimports/narsilc at the versions from
-   `layout/versions`, and downloads narsilc, tailwindcli, and goose from the
-   same lock URL templates and SHA-256 digests as `andurel.lock`.
-2. Each generate/sync test clones a fixture from `testdata/fixtures/`,
-   optionally layers migration SQL from `generator/testdata/migrations/` via
-   `goldentest.CopyMigrations`, seeds pinned tools into the project's `bin/`,
-   then runs the prebuilt CLI in that project directory.
+   `go install`s templ/golines/goimports at the versions from `layout/versions`,
+   and downloads narsilc, tailwindcli, and goose from the same lock URL
+   templates and SHA-256 digests as `andurel.lock`.
+2. Each generate/sync test clones a fixture from `testdata/fixtures/`, seeds
+   pinned tools into the project's `bin/`, then runs the prebuilt CLI in that
+   project directory. Fixtures carry their own `migrations/`.
 3. The harness reads files the CLI wrote and hands the **raw bytes** to
    `goldie/v2`, asserting byte-for-byte equality against the mirror path under
    this tree. The golden name is the mirrored relative path (e.g.
-   `models/widget.go` under `generate/scaffold/full_crud/`).
+   `domains/widget/widget.sql` under `sync/queries/`).
 4. Running tests **compare** against the committed `.golden` files. Passing
    `-update` (via `just update-golden` or `just update-golden-full`) **writes**
    them instead. Expected files are never hand-written.
@@ -51,15 +51,11 @@ fixtures, not the test harness:
   Without the tag, `internal/testseed/seed_default.go` is compiled instead.
 - Under the tag, `layout.Scaffold` skips `go mod tidy` and `go fmt`
   **unless** `testseed.FullScaffold()` is true (`andurel_golden_full` tag or
-  `ANDUREL_GOLDEN_FULL=1`). Compiled views (`*_templ.go`) and narsilc query
+  `ANDUREL_GOLDEN_FULL=1`). Compiled templ (`*_templ.go`) and narsilc query
   packages are written from embeds during template rendering (no `templ` /
   `narsilc` invocation on `andurel new`). PR goldens stay offline; nightly
   full-tree `new` still runs tidy/fmt with pinned tools on
   `ANDUREL_TOOL_BIN`.
-- Generated controllers always emit `"github.com/jackc/pgx/v5/pgtype"` when
-  any field (including system timestamps) uses `pgtype.*`. `FormatGoFile`
-  also rewrites standalone `"github.com/jackc/pgtype"` after goimports so a
-  polluted local module cache cannot drift goldens vs clean CI.
 - The golden CLI is built with `-ldflags -X main.version=latest`, so
   `andurel.lock`'s `version` field and any version banners stay stable without
   scrubbing.
@@ -75,39 +71,27 @@ scrubber. If a path floats, denylist it (nightly) or omit it from the allowlist
 
 | Path | Source |
 |------|--------|
-| `generate/model/` | `andurel generate model …` (includes `sync model` refresh scenarios) |
-| `generate/scaffold/` | `andurel generate scaffold …` |
-| `generate/controller/` | `andurel generate controller …` |
-| `generate/job/` | `andurel generate job …` |
 | `generate/migration/` | `andurel generate migration …` (dummy SQL body) |
-| `generate/query/` | `andurel generate query …` |
-| `generate/email/` | `andurel generate email …` |
-| `sync/factory/` | `andurel sync factory … --sync` |
-| `sync/factories/` | `andurel sync factories --sync` |
-| `sync/views/` | `andurel sync views` |
 | `sync/queries/` | `andurel sync queries` |
 | `sync/routes/` | `andurel sync routes` |
 | `sync/payloads/` | `andurel sync payloads` |
 | `sync/email/` | `andurel sync email` |
-| `new/mvc/` | PR slim `andurel new` MVC dirs (templates only, no go fmt) |
+| `new/slim/` | PR slim `andurel new` dirs (templates only, no go fmt) |
 | `new/` | Nightly only: `andurel new app` full tree via `AssertTree` |
 
 Fixtures for generate/sync scenarios are under `testdata/fixtures/generate_base`,
-`testdata/fixtures/generate_inertia_vue`, `testdata/fixtures/job_smoke`,
-`testdata/fixtures/sync_factory_base`, and `testdata/fixtures/sync_email_base`.
-Migration SQL for generate scenarios is reused from `generator/testdata/migrations/`
-via the harness.
+`testdata/fixtures/generate_inertia_vue`, `testdata/fixtures/job_smoke`, and
+`testdata/fixtures/sync_email_base`.
 
 `andurel new` scenarios create an empty parent directory and run
-`andurel new app` (optionally `--inertia vue|react|svelte`). The module path is
-the project name (`app`), not `example.com/app`.
+`andurel new app` (optionally `--ui vue/pnpm`). The module path is the project
+name (`app`), not `example.com/app`.
 
-PR CI captures scaffold MVC under `new/mvc/` for postgresql (templ views) and
-`--inertia react` (Inertia pages) without running tidy/fmt. Compiled
-`*_templ.go` and narsilc query packages are included from embeds. Nightly
-full-tree capture lives under `new/<adapter>/` for all four adapters with
-tidy/fmt on. Those directories must stay separate: formatted nightly
-trees must not be the PR MVC baseline.
+PR CI captures the slim scaffold under `new/slim/` without running tidy/fmt.
+Compiled `*_templ.go` and narsilc query packages are included from embeds.
+Nightly full-tree capture lives under `new/<scenario>/` for every adapter with
+tidy/fmt on. Those directories must stay separate: formatted nightly trees must
+not be the PR baseline.
 
 ### Nightly `andurel new` capture strategy
 
@@ -116,7 +100,7 @@ file except the denylist, then fail (or, with `-update`, delete) orphan
 `.golden` files that have no project counterpart.
 
 `ANDUREL_GOLDEN_FULL=1` makes `layout.Scaffold` run `go fmt` and
-`go mod tidy` with pinned tools from `ANDUREL_TOOL_BIN`. Compiled views and
+`go mod tidy` with pinned tools from `ANDUREL_TOOL_BIN`. Compiled templ and
 narsilc query packages are always written from embeds (no scaffold-time
 `templ` / `narsilc` generate). Migration files are written with finished
 sequential versions, so goose fix is not part of scaffold.
@@ -131,7 +115,7 @@ sequential versions, so goose fix is not part of scaffold.
 | `.env` / `.env.example` | Secrets (even when seeded) |
 | `node_modules/` | JS package install artifacts if present |
 
-**Captured** (generators have run): `models/internal/queries/`, `*_templ.go`,
+**Captured** (generators have run): `domains/internal/queries/`, `*_templ.go`,
 `go.mod`, and the rest of the tree.
 
 Secrets in `.env.example` still come from `internal/testseed` (fixed RNG +
@@ -143,41 +127,26 @@ UTC timestamp (`YYYYMMDDHHMMSS_create_widgets.sql`). The test globs that path
 and goldie-asserts the file bytes under a stable name
 (`migrations/create_widgets.sql`). The body is goose's default SQL stub.
 
-### Sync factory fixture
-
-`sync_factory_base` is a minimal project with:
-
-- `models/widget.go` / `models/product.go` — Entity structs + `andurel:table` markers
-  (slimmed as if after `generate model`, without query/CRUD bodies)
-- `models/factories/widget.go` — intentionally stale factory plus a hand-written
-  `CustomWidgetScore` helper that sync must preserve
-- no `models/factories/product.go` — missing factory created by sync
-
-Tests only run `andurel sync …`; they do not regenerate models first.
-
-`--check --json` stdout is **not** goldened: result paths are absolute temp dirs.
-
 ## Coverage map
 
 | Family | Scenarios | What is asserted |
 |--------|-----------|------------------|
-| `generate/model/` | 8 | initial, two-step update, custom PK, no PK, no PK without UUID, `--mode read-only`, with factory, `--custom` |
-| `generate/scaffold/` | 8 | full CRUD, `--skip-factory`, `--table-name`, irregular plural, array fields, custom PK, `--inertia` Vue (including `routes.ts` / `payloads.ts`), `--api` |
-| `generate/controller/` | 7 | full CRUD, single action, add-action, `--model-name`, custom-only `export`, namespaced `admin/Widget`, `--inertia` |
-| `generate/job/` | 2 | default queue (job + worker + `queue/workers.go`), `--queue` |
 | `generate/migration/` | 1 | goose SQL stub (timestamped filename globbed, body goldened as `migrations/create_widgets.sql`) |
-| `generate/query/` | 2 | named query, `--table` |
-| `generate/email/` | 1 | `email/*.templ` |
-| `sync/factory/` + `sync/factories/` | 4 + checks | preserve custom code, create missing, idempotent, bulk |
-| `sync/views/` | 1 | `*_templ.go` after scaffold |
-| `sync/queries/` | 1 | narsilc output under `models/internal/queries/` after `generate model` |
+| `sync/queries/` | 1 | narsilc output under `domains/internal/queries/` from the fixture's `domains/widget/widget.sql` |
 | `sync/routes/` + `sync/payloads/` | 2 | Inertia `routes.ts` / `payloads.ts` |
 | `sync/email/` | 1 | compiled `*_templ.go` renderers |
-| `new/` (PR) | 2 | postgresql + react — MVC dirs (`models`, `controllers`, templ `views` or Inertia `Pages`) |
-| `new/` (nightly) | 4 | postgresql, vue, react, svelte — full tree minus denylist |
+| `new/` (PR) | 2 | slim Inertia react + vue dirs (`domains`, `services`, `handlers`, `routes`, `middleware`, `resources/js/Pages`) |
+| `new/` (nightly) | 3 | vue, react, svelte — full tree minus denylist |
 
-`sync --check` is asserted via **exit code only** (stale exit `5`, `golden/sync_factory_test.go`);
-the generated bytes and `--check --json` stdout are not goldened.
+## Note: narsilc query paths
+
+`andurel sync queries` shells out to narsilc, which reads `andurel.toml` and
+currently pins its input/output directories to `models/queries` →
+`models/internal/queries`. The `sync/queries/` golden asserts the target shape
+(`domains/**/*.sql` → `domains/internal/queries`); it turns green once narsilc
+ships a release that scans the `domains` tree. Until then, run
+`just update-golden` only after that narsilc release is pinned in
+`layout/versions`.
 
 ## Adding a golden scenario
 

@@ -41,34 +41,22 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 		"ON tokens (user_id, scope, created_at DESC)",
 	)
 
-	for _, name := range []string{
-		"controllers_sessions.tmpl",
-		"controllers_sessions_inertia.tmpl",
-	} {
-		assertTemplateContains(t, name,
-			"services.ErrEmailNotVerified",
-			"ResendEmailVerification",
-			"setPendingUser",
-		)
-	}
+	assertTemplateContains(t, "controllers_sessions_inertia.tmpl",
+		"services.ErrEmailNotVerified",
+		"ResendEmailVerification",
+		"setPendingUser",
+		"middleware.IPRateLimiter",
+	)
 
-	for _, name := range []string{
-		"controllers_confirmations.tmpl",
-		"controllers_confirmations_inertia.tmpl",
-	} {
-		assertTemplateContains(t, name,
-			"pendingUserID",
-			"middleware.IPRateLimiter",
-			"UserID: pendingUserID(etx)",
-		)
-	}
+	assertTemplateContains(t, "controllers_confirmations_inertia.tmpl",
+		"pendingUserID",
+		"UserID: pendingUserID(ctx)",
+	)
 
-	for _, name := range []string{
-		"controllers_registrations.tmpl",
-		"controllers_registrations_inertia.tmpl",
-	} {
-		assertTemplateContains(t, name, "setPendingUser", "PendingUserID")
-	}
+	assertTemplateContains(t, "controllers_registrations_inertia.tmpl",
+		"setPendingUser",
+		"PendingUserID",
+	)
 }
 
 func TestBlueprintCarriesPendingUserCookieField(t *testing.T) {

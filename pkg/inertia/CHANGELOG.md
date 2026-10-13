@@ -1,5 +1,22 @@
 ## Unreleased
 
+### Changed
+
+- The renderer no longer depends on Echo. `Page`, `Redirect`, `Location`,
+  `FreshRedirect`, `Middleware`, and every request-scoped callback
+  (`SharedProvider`, `VersionProvider`, `ReflashHandler`, `FlashProvider`,
+  `Resolver`, `PropResolver.ResolveInertiaProp`, `ScrollMetadataResolver`, and
+  lazy prop funcs) now take a plain `context.Context`. Request and response
+  access goes through `github.com/mbvlabs/andurel/pkg/anduin`.
+- `ParseRequest` takes a `context.Context`; `ParseHTTPRequest` is unchanged.
+- `Renderer.Middleware` returns an `anduin.Middleware` and captures the response
+  through `anduin.ResponseWriter` / `anduin.ReplaceResponseWriter`.
+- Package doc comments refer to `anduin` rather than Echo.
+
+### Removed
+
+- The `github.com/labstack/echo/v5` dependency.
+
 ## 0.6.1 - 2026-10-05
 
 ### Changed

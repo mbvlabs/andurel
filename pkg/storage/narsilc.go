@@ -2,46 +2,65 @@ package storage
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 const (
-	// QueriesDir holds hand-written SQL query files for narsilc.
-	QueriesDir = "models/queries"
-	// GeneratedQueriesDir is the narsilc output directory beneath models/internal.
-	GeneratedQueriesDir = "models/internal/queries"
+	// QueriesDir is the root under which hand-written narsilc query files live.
+	// Each domain colocates its SQL beside the entity it describes, e.g.
+	// domains/user/user.sql, so narsilc scans this tree recursively.
+	QueriesDir = "domains"
+	// GeneratedQueriesDir is the narsilc output directory. Only domains may
+	// import it.
+	GeneratedQueriesDir = "domains/internal/queries"
 )
 
-// HasQueryFiles reports whether models/queries contains narsilc query
+// HasQueryFiles reports whether the domains tree contains narsilc query
 // definitions. Files must include at least one active -- name: annotation
-// followed by a SQL statement.
+// followed by a SQL statement. The generated output directory is ignored.
 func HasQueryFiles(projectRoot string) (bool, error) {
-	queriesDir := filepath.Join(projectRoot, QueriesDir)
-	entries, err := os.ReadDir(queriesDir)
-	if err != nil {
+	queriesRoot := filepath.Join(projectRoot, QueriesDir)
+	if _, err := os.Stat(queriesRoot); err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
-		return false, fmt.Errorf("storage: read narsilc queries directory: %w", err)
+		return false, fmt.Errorf("storage: stat narsilc queries root: %w", err)
 	}
 
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
-			continue
+	generatedRoot := filepath.Join(projectRoot, GeneratedQueriesDir)
+	found := false
+	walkErr := filepath.WalkDir(queriesRoot, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if path == generatedRoot {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(entry.Name(), ".sql") {
+			return nil
 		}
 
-		content, err := os.ReadFile(filepath.Join(queriesDir, entry.Name()))
-		if err != nil {
-			return false, fmt.Errorf("storage: read query file %s: %w", entry.Name(), err)
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return fmt.Errorf("storage: read query file %s: %w", path, readErr)
 		}
 		if containsQueryAnnotation(string(content)) {
-			return true, nil
+			found = true
+			return fs.SkipAll
 		}
+		return nil
+	})
+	if walkErr != nil {
+		return false, fmt.Errorf("storage: scan narsilc queries: %w", walkErr)
 	}
 
-	return false, nil
+	return found, nil
 }
 
 func containsQueryAnnotation(content string) bool {

@@ -32,23 +32,23 @@ func TestReadGoModMetadata(t *testing.T) {
 
 func TestListProjectFilesAndSorting(t *testing.T) {
 	root := t.TempDir()
-	writeTestFile(t, root, "models/zeta.go", "package models\n")
-	writeTestFile(t, root, "models/admin/alpha.go", "package admin\n")
-	writeTestFile(t, root, "models/readme.md", "ignore\n")
+	writeTestFile(t, root, "domains/zeta.go", "package domains\n")
+	writeTestFile(t, root, "domains/user/alpha.go", "package user\n")
+	writeTestFile(t, root, "domains/readme.md", "ignore\n")
 
-	items, err := listProjectFiles(root, "models", ".go", "model")
+	items, err := listProjectFiles(root, "domains", ".go", "domain")
 	if err != nil {
 		t.Fatalf("listProjectFiles: %v", err)
 	}
 	want := []projectItem{
-		{Name: "alpha", Path: "models/admin/alpha.go", Kind: "model"},
-		{Name: "zeta", Path: "models/zeta.go", Kind: "model"},
+		{Name: "alpha", Path: "domains/user/alpha.go", Kind: "domain"},
+		{Name: "zeta", Path: "domains/zeta.go", Kind: "domain"},
 	}
 	if !reflect.DeepEqual(items, want) {
 		t.Fatalf("items = %#v, want %#v", items, want)
 	}
 
-	missing, err := listProjectFiles(root, "controllers", ".go", "controller")
+	missing, err := listProjectFiles(root, "handlers", ".go", "handler")
 	if err != nil {
 		t.Fatalf("listProjectFiles missing: %v", err)
 	}
@@ -124,9 +124,9 @@ func TestCollectProjectInfo(t *testing.T) {
 func TestIntrospectionCommands(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/acme/orders\n\ngo 1.27.1\n")
-	writeTestFile(t, root, "models/user.go", "package models\n")
-	writeTestFile(t, root, "controllers/users.go", "package controllers\n")
-	writeTestFile(t, root, "views/users.templ", "package views\n")
+	writeTestFile(t, root, "domains/errors.go", "package domains\n")
+	writeTestFile(t, root, "domains/user/user.go", "package user\n")
+	writeTestFile(t, root, "handlers/users.go", "package handlers\n")
 	writeTestFile(t, root, "migrations/0001_init.sql", "-- noop\n")
 	writeTestFile(t, root, "queue/jobs/send_email.go", "package jobs\n")
 	writeTestFile(t, root, "queue/workers.go", "package queue\n")
@@ -151,10 +151,9 @@ var UserIndex = routing.NewSimpleRoute("", "users.index", UserPrefix)
 
 	for _, cmd := range []*cobra.Command{
 		newProjectInfoCommand(),
-		newModelsCommand(),
+		newDomainsCommand(),
 		newMigrationsCommand(),
-		newControllersCommand(),
-		newViewsCommand(),
+		newHandlersCommand(),
 		newJobsCommand(),
 	} {
 		var out bytes.Buffer

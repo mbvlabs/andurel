@@ -1,80 +1,15 @@
 package cli
 
 import (
-	"github.com/mbvlabs/andurel/v2/generator"
 	"github.com/mbvlabs/andurel/v2/layout/cmds"
 	"github.com/mbvlabs/andurel/v2/layout/upgrade"
 )
-
-type cliGenerator interface {
-	GenerateModel(resourceName string, tableNameOverride string, skipFactory bool) error
-	GenerateModelWithPK(
-		resourceName string,
-		tableNameOverride string,
-		skipFactory bool,
-		primaryKeyColumn string,
-	) error
-	GenerateModelWithMode(
-		resourceName string,
-		tableNameOverride string,
-		skipFactory bool,
-		primaryKeyColumn string,
-		mode generator.ModelMode,
-	) error
-	PlanModel(
-		resourceName string,
-		options generator.ModelGenerationOptions,
-	) (*generator.ModelGenerationPlan, error)
-	GenerateCustomModel(resourceName string, fieldSpecs []string) error
-	PlanCustomModel(
-		resourceName string,
-		fieldSpecs []string,
-	) (*generator.ModelGenerationPlan, error)
-	GenerateControllerWithActions(
-		resourceName, namespace, tableName string,
-		actions []string,
-		inertia string,
-		isAPI bool,
-		hostExpr, hostPkg string,
-	) error
-	GenerateControllerWithActionsForModel(
-		resourceName, namespace, modelName, tableName string,
-		actions []string,
-		inertia string,
-		isAPI bool,
-		hostExpr, hostPkg string,
-	) error
-	GenerateScaffold(
-		resourceName, namespace, tableName string,
-		skipFactory bool,
-		primaryKeyColumn string,
-		inertia string,
-		isAPI bool,
-		hostExpr, hostPkg string,
-	) error
-	UpdateModel(resourceName string) (*generator.UpdateModelResult, error)
-	ApplyModelUpdate(result *generator.UpdateModelResult) error
-	SyncFactory(
-		resourceName string,
-		opts generator.FactorySyncOptions,
-	) (*generator.FactorySyncResult, error)
-	SyncFactories(opts generator.FactorySyncOptions) ([]*generator.FactorySyncResult, error)
-}
-
-var newGenerator = func() (cliGenerator, error) {
-	gen, err := generator.New()
-	if err != nil {
-		return nil, err
-	}
-	return &gen, nil
-}
 
 var runTemplFunc = runTempl
 var runFmtFunc = runFmt
 var runGoFmtFunc = runGoFmt
 var runGolinesFunc = runGolines
 var runTemplFmtFunc = runTemplFmt
-var generateControllerWithActionsFunc = generateControllerWithActions
 var syncSingleToolFunc = syncSingleTool
 var ensureToolFunc = ensureToolInstalled
 var downloadFromLockToolFunc = downloadFromLockTool

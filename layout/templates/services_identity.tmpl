@@ -1,32 +1,32 @@
 package services
 
 import (
+	"context"
 	"strings"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/models"
+	domaintoken "{{.ModuleName}}/domains/token"
+	domainuser "{{.ModuleName}}/domains/user"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
+// Identity coordinates the user and token domains with the queue, email, and
+// auth/mail configuration. It is the only place those domains meet.
 type Identity struct {
-	db                     storage.Connection
-	users                  models.Users
-	tokens                 models.Tokens
+	users                  domainuser.Users
+	tokens                 domaintoken.Tokens
 	insertOnly             storage.InsertQueue
 	pepper                 string
 	previousPeppers        []string
 	tokenSigningKey        string
-	baseURL                string
 	defaultSenderSignature string
 }
 
 func NewIdentity(
-	db storage.Connection,
-	users models.Users,
-	tokens models.Tokens,
+	users domainuser.Users,
+	tokens domaintoken.Tokens,
 	insertOnly storage.InsertQueue,
-	appCfg config.App,
 	authCfg config.Auth,
 	mailCfg config.Mail,
 ) Identity {
@@ -38,14 +38,19 @@ func NewIdentity(
 	}
 
 	return Identity{
-		db:                     db,
 		users:                  users,
 		tokens:                 tokens,
 		insertOnly:             insertOnly,
 		pepper:                 authCfg.Pepper,
 		previousPeppers:        validPeppers,
 		tokenSigningKey:        authCfg.TokenSigningKey,
-		baseURL:                appCfg.BaseURL(),
 		defaultSenderSignature: mailCfg.DefaultSenderSignature,
 	}
+}
+
+// beginTx starts a transaction that spans the user and token domains. The
+// domains each expose their connection so a use case can commit writes to more
+// than one table atomically; domains themselves never coordinate transactions.
+func (i Identity) beginTx(ctx context.Context) (storage.Transaction, error) {
+	return i.users.Connection().BeginTransaction(ctx)
 }

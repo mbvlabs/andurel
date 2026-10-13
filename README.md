@@ -12,7 +12,7 @@
 
 Everything you and your agent(s) need to build robust and performant applications that will scale to the far-side of the moon.
 
-Andurel is the fullstack framework for the agentic era: one-time generation that writes Go you own, explicit wiring, and an agent-ready CLI.
+Andurel is the fullstack framework for the agentic era: one-time generation that writes Go you own, explicit wiring, and an agent-ready CLI. It is Go-native — `net/http`, no HTTP framework dialect, no dependency-injection container.
 
 **Docs:** [andurel.com](https://andurel.com) · **Discord:** [join here](https://discord.gg/TnTBZHvat3)
 
@@ -28,31 +28,30 @@ See [release verification](docs/release-verification.md) for archive installatio
 
 Andurel is built for humans and agents on the same pad:
 
-- **Airframe**: Generated models, factories, controllers, routes, and pages that belong to the application
-- **GNC**: Fx for dependency injection and lifecycle. Explicit wiring, not a hidden runtime
-- **Propellant**: PostgreSQL with narsilc-generated queries into application-owned model structs
-- **Payload**: Inertia v3 with React, Vue, or Svelte. Same Go backend, official Inertia adapters, optional SSR. Templ + Datastar remains available for hypermedia pages
+- **Airframe**: `domains/` (business logic + persistence), `services/` (application logic), `handlers/` (HTTP), `routes/`, and `middleware/` — all ordinary Go you own
+- **GNC**: Explicit constructor injection in `internal/runtime`. The dependency graph is readable top-to-bottom; there is no container and no reflection
+- **Propellant**: PostgreSQL with narsilc-generated queries from SQL colocated with the domain that owns it
+- **Payload**: Inertia v3 with React, Vue, or Svelte. One Go backend, official Inertia adapters, optional SSR. Templ survives only for email and the Inertia root document
 - **Range ops**: River jobs, email, and queues on the same stack that serves the request path
-- **Ground support**: Agent-ready CLI, JSON discovery, and AGENTS.md so machines can operate the project without a second stack
+- **Ground support**: Agent-ready CLI with read-only patterns, JSON discovery, and AGENTS.md so machines can operate the project without a second stack
 - **Live reload**: `andurel run` with [Shadowfax](https://github.com/mbvlabs/shadowfax) for Go, templates, CSS, and Vite (`--tools mailpit` for sidecars)
 - **Production build**: `andurel build` compiles Templ, Tailwind CSS, Vite assets, and the Go binary
 
-**Humans.** One-time generation. The scaffold writes Go and Inertia pages you can read, edit, and ship. After that, the code is yours.
+**Humans.** One-time generation. The scaffold writes Go and Inertia pages you can read, edit, and ship. After that, the code is yours, laid out in a shape you can navigate.
 
-**Agents.** An agent-ready CLI with JSON discovery, plus AGENTS.md in the project. Machines get the same pad as humans, without inventing a second stack.
+**Agents.** `andurel patterns show <kind>` publishes the reference code and a definition-of-done checklist for every layer. `andurel verify` proves a change respects the layer boundaries. Machines get the same pad as humans, without inventing a second stack.
 
 ## Core Technologies
 
-- **[Echo](https://echo.labstack.com/)**: HTTP framework
+- **[net/http](https://pkg.go.dev/net/http)** + **[`pkg/anduin`](https://pkg.go.dev/github.com/mbvlabs/andurel/v2/pkg/anduin)**: The single HTTP package — routing, `func(ctx) error` handlers, middleware, request/response helpers, and the server lifecycle over `http.ServeMux`
 - **[PostgreSQL](https://www.postgresql.org/)** + **[pgx](https://github.com/jackc/pgx)**: Database
 - **[narsilc](https://github.com/mbvlabs/narsilc)**: Typed SQL with caller-owned result structs
-- **[Templ](https://templ.guide/)** + **[Datastar](https://data-star.dev/)**: Default hypermedia UI
-- **[Inertia v3](https://andurel.com/docs/latest/frontend-options)**: Default React / Vue / Svelte + Vite
+- **[Inertia v3](https://andurel.com/docs/latest/frontend-options)**: React / Vue / Svelte + Vite
+- **[templ](https://templ.guide/)**: Email templates and the Inertia root document only
 - **[River](https://riverqueue.com/)**: Background jobs
 - **[OpenTelemetry](https://opentelemetry.io/)**: Observability
 - **[Tailwind CSS](https://tailwindcss.com/)**: CSS
 - **[Shadowfax](https://github.com/mbvlabs/shadowfax)**: Dev runner
-- **[Fx](https://uber-go.github.io/fx/)**: Dependency injection
 
 ## Install
 
@@ -96,10 +95,9 @@ Full install guide: [andurel.com/docs](https://andurel.com/docs/latest/installat
 # Default: PostgreSQL + Inertia React + pnpm
 andurel new myapp
 
-# Other UI combinations
+# Other UI combinations (Inertia adapter + JS package manager)
 andurel new myapp --ui vue/bun
 andurel new myapp --ui svelte/npm
-andurel new myapp --ui templ/datastar
 
 cd myapp
 andurel tool sync
@@ -108,7 +106,6 @@ andurel skill install
 cp .env.example .env
 # Edit .env with your database credentials
 
-# If using Inertia, install JS deps with the package manager from --ui
 andurel db create          # optional: if the local database does not exist yet
 andurel db migrate up
 andurel run
@@ -116,18 +113,27 @@ andurel run
 
 App: `http://localhost:8080`
 
-Generate a first resource after writing a migration:
+Build a first resource. The generator creates migrations; the agent writes the code from the patterns:
 
 ```bash
 andurel generate migration create_products_table
-# Edit the SQL, then:
-andurel generate scaffold Product
+# Edit the SQL in migrations/, then apply it:
+andurel db migrate up
+
+# Read the pattern for each layer, then write the code yourself:
+andurel patterns show domain
+andurel patterns show handler
+andurel patterns show route
+
+andurel sync queries
+andurel verify
 ```
 
-See what generators can do:
+Explore what the CLI knows:
 
 ```bash
-andurel generate --help
+andurel patterns list
+andurel patterns --help
 andurel db --help
 ```
 
@@ -137,24 +143,29 @@ A new app is ordinary Go you own. Top-level shape:
 
 | Path | Role |
 |------|------|
-| `cmd/app`, `cmd/queue` | Process entry: load env, signal context, `fx.New` |
+| `cmd/app`, `cmd/queue` | Process entry: load env, signal context, `runtime.New` + `anduin.NewServer` (or the queue processor) |
 | `cmd/migrate` | One-shot process: apply pending SQL via `storage.RunMigrations` |
 | `cmd/seeds` | One-shot process: run named seed sets |
-| `internal/runtime` | Fx graphs and process wiring (telemetry, email, database, server) |
-| `internal/…` | Other app support code, such as third-party adapters (for example `internal/clients`, `internal/payment`), wired from `internal/runtime` |
+| `internal/runtime` | Composition root: explicit constructors, HTTP server + queue lifecycle |
+| `internal/…` | Other app support code, such as third-party adapters (for example `internal/clients`, `internal/payment`) |
 | `config/` | App, DB, auth, email, telemetry config |
-| `controllers/` | HTTP handlers |
-| `models/` | Domain types + narsilc queries |
-| `router/` | Routes and middleware |
-| `views/` | Templ pages for Datastar UI; Inertia root document when using Inertia |
-| `resources/js/` | Inertia pages (default UI) |
-| `database/` | Migrations and seeds |
+| `domains/` | Business logic + persistence; one package per entity; SQL colocated as `domains/<entity>/<entity>.sql` |
+| `domains/internal/queries/` | narsilc output; imported only by `domains/**` |
+| `services/` | Application logic / cross-domain orchestration |
+| `handlers/`, `handlers/api/`, `handlers/auth/` | HTTP handlers (`func(ctx context.Context) error`) |
+| `routes/` | Route data: names, paths, URL builders |
+| `middleware/` | App HTTP middleware + cookie-jar wiring |
+| `resources/root.templ` | Inertia root document (the only page-shaped templ) |
+| `resources/js/` | Inertia pages, layouts, components, and generated TS helpers |
+| `email/` | templ email templates and send helpers |
 | `queue/` | River jobs and workers |
-| `css/` / `assets/` | Tailwind source and compiled assets |
+| `migrations/` | SQL migrations |
+| `seeds/` | Seed data |
+| `css/` / `assets/` | Tailwind source and compiled/static assets |
 
 **Default**: Inertia React + pnpm (`--ui react/pnpm`).
 
-**`--ui react/pnpm|vue/bun|svelte/npm|templ/datastar`**: Same Go backend; choose Inertia + JS package manager (`pnpm`, `bun`, or `npm`), or Templ + Datastar. Generate follows the project UI; pass `--api` for JSON responses instead.
+**`--ui react/pnpm|vue/bun|svelte/npm`**: Same Go backend; choose the Inertia adapter and JavaScript package manager. Inertia is the only UI; there are no templ/Datastar pages. `--api` returns JSON responses instead of pages.
 
 Details: [directory structure](https://andurel.com/docs/latest/directory-structure) · [frontend options](https://andurel.com/docs/latest/frontend-options).
 
@@ -163,8 +174,10 @@ Details: [directory structure](https://andurel.com/docs/latest/directory-structu
 | Command | Purpose |
 |---------|---------|
 | `andurel new` (`n`) | Scaffold a project |
-| `andurel generate` | Create model, migration, controller, scaffold, job, email, query |
-| `andurel sync` | Refresh derived files (factories, views, queries, …) |
+| `andurel patterns` | Read-only reference patterns for every layer (`patterns list`, `patterns show <kind> --json`) |
+| `andurel verify` | Format, `go fix`, `go vet`, and the domain/service boundary lint (`--with-tests` also runs tests) |
+| `andurel generate migration` | Create a migration file (code-writing generators are gone) |
+| `andurel sync` | Refresh derived files (queries, email, routes, payloads) |
 | `andurel db` | Database lifecycle: create, drop, nuke, rebuild, migrate, seed, console |
 | `andurel console` (`c`) | Open an interactive database console |
 | `andurel run` (`r`) | Dev server with live reload |
@@ -173,7 +186,7 @@ Details: [directory structure](https://andurel.com/docs/latest/directory-structu
 | `andurel upgrade` | Bring an app forward to a newer Andurel |
 | `andurel doctor` | Project diagnostics |
 | `andurel skill` | Show / install the embedded agent skill |
-| `andurel inspect` | Read-only project shape (routes, models, …) |
+| `andurel inspect` | Read-only project shape (`handlers`, `domains`, `routes`, …) |
 | `andurel commands` | Structured command discovery |
 
 Use `andurel <command> --help` for flags. Full CLI reference: [andurel.com/docs/latest/cli](https://andurel.com/docs/latest/cli).
@@ -183,12 +196,16 @@ Use `andurel <command> --help` for flags. Full CLI reference: [andurel.com/docs/
 The CLI is meant for humans and machines. Prefer discovery over scraping this README:
 
 ```bash
+andurel patterns show domain --json
+andurel verify
+andurel inspect handlers --json
+andurel inspect domains --json
+andurel inspect routes --json
 andurel commands --json
-andurel inspect project --json
 andurel skill install
 ```
 
-Many mutating commands support `--dry-run` and `--json`. Agent workflows: [andurel.com/docs/latest/agent-workflows](https://andurel.com/docs/latest/agent-workflows).
+`andurel patterns` never writes files. It prints reference code, the placement rules, and a definition-of-done checklist the agent self-verifies against. Many commands support `--dry-run` and `--json`. Agent workflows: [andurel.com/docs/latest/agent-workflows](https://andurel.com/docs/latest/agent-workflows).
 
 ## Contributing
 

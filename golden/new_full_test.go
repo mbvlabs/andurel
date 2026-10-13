@@ -7,31 +7,30 @@ import (
 	"github.com/mbvlabs/andurel/v2/internal/goldentest"
 )
 
-func TestNewProjectMVC(t *testing.T) {
+// slimScaffoldDirs are the top-level directories that define the new shape.
+var slimScaffoldDirs = []string{
+	"domains",
+	"services",
+	"handlers",
+	"routes",
+	"middleware",
+	"resources/js/Pages",
+}
+
+func TestNewProjectInertia(t *testing.T) {
 	goldentest.RequireBinary(t)
 
 	scenarios := []struct {
 		name string
 		args []string
-		dirs []string
 	}{
 		{
-			name: "postgresql",
-			args: []string{"new", "app", "--ui", "templ/datastar"},
-			dirs: []string{
-				"models",
-				"views",
-				"controllers",
-			},
+			name: "inertia-react",
+			args: []string{"new", "app"},
 		},
 		{
-			name: "postgresql-inertia-react",
-			args: []string{"new", "app"},
-			dirs: []string{
-				"models",
-				"controllers",
-				"resources/js/Pages",
-			},
+			name: "inertia-vue",
+			args: []string{"new", "app", "--ui", "vue/pnpm"},
 		},
 	}
 
@@ -42,8 +41,8 @@ func TestNewProjectMVC(t *testing.T) {
 
 			project := filepath.Join(parent, "app")
 			g := goldentest.NewGoldie(t)
-			for _, dir := range scenario.dirs {
-				goldentest.AssertDir(t, g, "new/mvc/"+scenario.name, project, dir)
+			for _, dir := range slimScaffoldDirs {
+				goldentest.AssertDir(t, g, "new/slim/"+scenario.name, project, dir)
 			}
 		})
 	}
@@ -57,10 +56,6 @@ func TestNewProjectFullScaffold(t *testing.T) {
 		name string
 		args []string
 	}{
-		{
-			name: "postgresql",
-			args: []string{"new", "app", "--ui", "templ/datastar"},
-		},
 		{
 			name: "postgresql-inertia-vue",
 			args: []string{"new", "app", "--ui", "vue/pnpm"},

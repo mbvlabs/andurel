@@ -1,6 +1,7 @@
 # Andurel CLI catalog
 
-This file is the agent-oriented command playbook. The live source of truth is command metadata on the `andurel` binary.
+This file is the agent-oriented command playbook. The live source of truth is
+the command metadata on the `andurel` binary.
 
 Discover commands:
 
@@ -14,20 +15,32 @@ andurel --agent --help
 ## Workflow
 
 1. `andurel inspect project --json` — lockfile, Inertia adapter, tools.
-2. `andurel generate … --dry-run --json` — preview application-owned files.
-3. `andurel generate … --json` — write application-owned files.
-4. `andurel sync … --json` — refresh derived files from their source of truth.
-5. `andurel doctor --json` — health and generated-file drift.
+2. `andurel patterns show <kind>` — read the reference shape for a layer.
+3. `andurel generate migration NAME` — create a migration (the only generated file).
+4. Write domains, services, handlers, routes, and middleware by hand.
+5. `andurel sync queries` / `sync routes` / `sync payloads` / `sync email` — refresh derived files.
+6. `andurel verify` — format, `go fix`, `go vet`, and the domain/service boundary.
+7. `andurel doctor --json` — health and generated-file drift.
 
-`andurel sync` refreshes derived app files. `andurel tool sync` downloads pinned binaries. They are different commands.
+`andurel sync` refreshes derived app files. `andurel tool sync` downloads pinned
+binaries. They are different commands.
+
+## Patterns
+
+`andurel patterns` never writes files. It prints reference code, the placement
+rules, and a "definition of done" checklist you self-verify against.
+
+Pattern ids: `domain`, `service`, `handler`, `route`, `job`, `email`,
+`migration`, `test-domain`, `test-handler`, `test-integration`, `composition`.
 
 ## Groups
 
 | Group | Use |
 | --- | --- |
-| `generate` | Create application-owned code (migrations, models, controllers, scaffolds, jobs, emails, SQL query files) |
-| `sync` | Refresh derived files (`views`, `queries`, `routes`, `payloads`, `email`, `factory`, `factories`) |
+| `generate` | Create files with no derived source (SQL migrations) |
+| `sync` | Refresh derived files (`queries`, `routes`, `payloads`, `email`) |
 | `inspect` | Read-only project shape |
+| `patterns` | Read-only reference patterns |
 | `db` | Database create, migrate, seed, console |
 | `tool` | Pin and download binaries |
 | `packages` | Standalone `andurel/pkg` versions |
@@ -36,17 +49,19 @@ andurel --agent --help
 ## Common commands
 
 ```bash
-andurel generate scaffold Product --dry-run --json
+andurel patterns list --json
+andurel patterns show domain
+andurel patterns show handler --json
 andurel generate migration create_posts
-andurel generate model Post --dry-run --json
-andurel generate model AggregateResult --custom id:uuid name:string currency:int64
 andurel db migrate up
 andurel inspect project --json
+andurel inspect domains --json
+andurel inspect handlers --json
 andurel inspect routes --json
 andurel sync queries --json
 andurel sync routes --json
 andurel sync payloads --json
-andurel sync factories --check --json
+andurel verify
 andurel doctor --json
 andurel run
 andurel run --tools mailpit
@@ -54,19 +69,19 @@ andurel run --tools mailpit
 
 ## Create vs refresh vs inspect
 
+- Read a pattern: `andurel patterns show <kind>` (add `--json` for the parsed form).
 - Create SQL: `andurel generate migration NAME` then `andurel db migrate up`. A one-shot process that applies embedded SQL is `cmd/migrate`.
-- Create a table model: `andurel generate model NAME` from an existing migration. Leave the entity 1:1 with the table unless custom types are needed; then add `Transform(queries.XRow) error` by hand. Do not generate Transform.
-- Create a non-table model for narsilc queries: `andurel generate model NAME --custom field:type ...`. Do not use `--custom` when the entity maps to a real table. No CRUD methods or factory are generated. Fill in `models/queries/<name>.sql`, then run `andurel sync queries`.
-- Refresh a table model after migrations: `andurel sync model NAME`. Models marked `// andurel:custom` cannot be synced from migrations. Does not overwrite a hand-written Transform method.
-- Compile SQL: `andurel sync queries`. Table-shaped CRUD (`SELECT *` / `RETURNING *`) shares `XRow`; other queries get `QueryNameRow`. Does not write Transform on the entity.
-- List models: `andurel inspect models --json`.
+- Add a domain: hand-write `domains/<entity>/<entity>.go` and its colocated `<entity>.sql`, then run `andurel sync queries`.
+- Add a service, handler, route, middleware, or composition: read the matching pattern and write the files yourself. `andurel new` ships a complete reference app for each.
+- Compile SQL: `andurel sync queries` writes `domains/internal/queries`. Only `domains/**` may import it.
+- List domains: `andurel inspect domains --json`.
+- List handlers: `andurel inspect handlers --json`.
 - List routes: `andurel inspect routes --json` (includes host when set).
-- Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia only; helpers are host-aware full URLs after `configureRouteHosts`).
-- Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then `andurel generate controller|scaffold NAME --host=<name>`. `--prefix` is independent. `/api` stays on primary unless `Host(...)`. Layout CSS/JS use `FullURL()` to primary. Inertia apps: Vite tags use `FullURL()` to primary. Vite production `base` is `'./'` so nested files follow the script origin.
-- Compile Templ: `andurel sync views`.
-- List `.templ` files: `andurel inspect views --json`.
+- Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia only; helpers are host-aware full URLs).
+- Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then bind routes with `rt.Host(name)`.
+- Refresh derived artifacts: `andurel sync email` compiles email templates.
 
-`--json` and `--agent` never wait on a TTY. Pass `--force`, `--harness`, or `--primary-key` instead of answering a prompt.
+`--json` and `--agent` never wait on a TTY. Pass `--force`, `--harness`, or `--yes` instead of answering a prompt.
 
 ## Command table
 
@@ -93,40 +108,32 @@ andurel run --tools mailpit
 | `andurel db seed` | Run database seeds |
 | `andurel doctor` | Run diagnostic checks on the project |
 | `andurel fmt` | Format Go and Templ source files |
-| `andurel generate` | Create application-owned code |
-| `andurel generate controller` | Generate a controller, views, and routes |
-| `andurel generate email` | Author a new email template |
-| `andurel generate job` | Generate a background job and worker |
+| `andurel generate` | Create files that have no derived source |
 | `andurel generate migration` | Create a new SQL migration file |
-| `andurel generate model` | Generate a model from a SQL migration, or a custom query model with `--custom`. Custom types: add Transform by hand |
-| `andurel generate query` | Create a narsilc SQL query file |
-| `andurel generate scaffold` | Generate a model, controller, views, and routes |
 | `andurel inspect` | Read-only project shape |
-| `andurel inspect controllers` | List controller files |
+| `andurel inspect domains` | List domain files |
+| `andurel inspect handlers` | List handler files |
 | `andurel inspect jobs` | List job and worker files |
 | `andurel inspect migrations` | List migration files |
-| `andurel inspect models` | List model files |
 | `andurel inspect project` | Inspect project metadata |
 | `andurel inspect project info` | Show project metadata |
 | `andurel inspect routes` | List the route manifest |
-| `andurel inspect views` | List Templ view files |
 | `andurel new` | Stand up a new Andurel project |
 | `andurel packages` | List or update Andurel packages in go.mod |
 | `andurel packages list` | List Andurel package versions in go.mod |
 | `andurel packages update` | Update Andurel packages in go.mod to latest |
+| `andurel patterns` | Read the reference patterns for every layer |
+| `andurel patterns list` | List the available pattern ids |
+| `andurel patterns show` | Print one reference pattern |
 | `andurel run` | Start the development server (`--tools mailpit` for sidecars) |
 | `andurel skill` | Show or install the embedded Andurel skill |
 | `andurel skill install` | Install the embedded skill into an agent harness |
 | `andurel skill show` | Print the embedded Andurel skill |
 | `andurel sync` | Refresh derived files from a source of truth |
 | `andurel sync email` | Compile Tailwind classes in email templates |
-| `andurel sync factories` | Check or sync every model factory |
-| `andurel sync factory` | Sync one model factory from the model Entity |
-| `andurel sync model` | Sync one table model from SQL migrations. Preserves a hand-written Transform |
 | `andurel sync payloads` | Write TypeScript payload types for Inertia |
-| `andurel sync queries` | Compile narsilc SQL into Go (`XRow` / `QueryNameRow`). Does not write Transform |
+| `andurel sync queries` | Compile narsilc SQL into Go in `domains/internal/queries` |
 | `andurel sync routes` | Write TypeScript route helpers for Inertia |
-| `andurel sync views` | Generate Go from Templ templates |
 | `andurel tool` | Manage project tools and binaries |
 | `andurel tool dblab` | Open the dblab database UI |
 | `andurel tool list` | List project tool status |
@@ -134,4 +141,4 @@ andurel run --tools mailpit
 | `andurel tool set-version` | Pin a tool version in andurel.lock and sync it |
 | `andurel tool sync` | Download pinned binaries from andurel.lock |
 | `andurel upgrade` | Upgrade framework-owned files to this CLI version |
-
+| `andurel verify` | Check formatting, vet, and layer boundaries |

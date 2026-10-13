@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/domains"
+	domainuser "{{.ModuleName}}/domains/user"
 
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
@@ -23,24 +24,21 @@ type LoginData struct {
 func (i Identity) AuthenticateUser(
 	ctx context.Context,
 	data LoginData,
-) (models.User, error) {
+) (domainuser.User, error) {
 	b := validation.NewBuilder()
 	b.Required("email", data.Email)
 	b.Required("password", data.Password)
-	if !b.Errors().Empty() {
-		return models.User{}, b.Errors()
+	if err := b.Err(); err != nil {
+		return domainuser.User{}, validationError(err)
 	}
 
 	user, err := i.users.FindByEmail(ctx, data.Email)
-
 	if err != nil {
-
-		if errors.Is(err, models.ErrNotFound) {
-			return models.User{}, ErrInvalidCredentials
+		if errors.Is(err, domains.ErrNotFound) {
+			return domainuser.User{}, ErrInvalidCredentials
 		}
 
-		return models.User{}, fmt.Errorf("find user by email: %w", err)
-
+		return domainuser.User{}, fmt.Errorf("find user by email: %w", err)
 	}
 
 	validPassword, needsRehash, err := verifyPasswordWithPeppers(
@@ -49,25 +47,21 @@ func (i Identity) AuthenticateUser(
 		i.pepper,
 		i.previousPeppers,
 	)
-
 	if err != nil {
-
-		return models.User{}, fmt.Errorf("validate password: %w", err)
-
+		return domainuser.User{}, fmt.Errorf("validate password: %w", err)
 	}
 
 	if !validPassword {
-
-		return models.User{}, ErrInvalidCredentials
+		return domainuser.User{}, ErrInvalidCredentials
 	}
 
 	if needsRehash {
-		hashedPassword, err := models.HashPassword(data.Password, i.pepper)
+		hashedPassword, err := domainuser.HashPassword(data.Password, i.pepper)
 		if err != nil {
-			return models.User{}, fmt.Errorf("rehash password with current pepper: %w", err)
+			return domainuser.User{}, fmt.Errorf("rehash password with current pepper: %w", err)
 		}
 
-		user, err = i.users.Update(ctx, models.UpdateUserData{
+		user, err = i.users.Update(ctx, domainuser.UpdateUserData{
 			ID:               user.ID,
 			Email:            user.Email,
 			EmailValidatedAt: user.EmailValidatedAt,
@@ -75,7 +69,7 @@ func (i Identity) AuthenticateUser(
 			IsAdmin:          user.IsAdmin,
 		})
 		if err != nil {
-			return models.User{}, fmt.Errorf("persist password rehash: %w", err)
+			return domainuser.User{}, fmt.Errorf("persist password rehash: %w", err)
 		}
 	}
 
@@ -89,7 +83,7 @@ func (i Identity) AuthenticateUser(
 }
 
 func verifyPasswordWithPeppers(
-	user models.User,
+	user domainuser.User,
 	providedPassword string,
 	currentPepper string,
 	previousPeppers []string,

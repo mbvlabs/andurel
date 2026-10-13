@@ -7,30 +7,27 @@ import (
 
 const (
 	DefaultUICombo   = "react/pnpm"
-	DatastarUICombo  = "templ/datastar"
 	DefaultUIAdapter = "react"
 	DefaultUIPackage = "pnpm"
 )
 
-// UISelection is the parsed result of an andurel new --ui value.
+// UISelection is the parsed result of an andurel new --ui value. Inertia is the
+// only supported UI, so a valid selection always names an adapter and a package
+// manager.
 type UISelection struct {
-	// Inertia is the adapter (react, vue, svelte). Empty means Datastar/templ UI.
+	// Inertia is the adapter (react, vue, svelte).
 	Inertia string
-	// PackageManager is the JS package manager. Empty for Datastar UI.
+	// PackageManager is the JS package manager.
 	PackageManager string
 }
 
-// IsInertia reports whether the selection uses Inertia.
+// IsInertia reports whether the selection uses Inertia. It is true for every
+// valid selection.
 func (s UISelection) IsInertia() bool {
 	return IsSupportedInertiaAdapter(s.Inertia)
 }
 
-// IsDatastar reports whether the selection uses templ + Datastar.
-func (s UISelection) IsDatastar() bool {
-	return s.Inertia == ""
-}
-
-// ParseUICombo parses a compound --ui value such as "react/pnpm" or "templ/datastar".
+// ParseUICombo parses a compound --ui value such as "react/pnpm".
 // Empty combo defaults to DefaultUICombo.
 func ParseUICombo(combo string) (UISelection, error) {
 	combo = strings.TrimSpace(combo)
@@ -41,22 +38,16 @@ func ParseUICombo(combo string) (UISelection, error) {
 	parts := strings.SplitN(combo, "/", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		return UISelection{}, fmt.Errorf(
-			"invalid --ui %q: use adapter/package-manager (e.g. react/pnpm, vue/bun) or %s",
+			"invalid --ui %q: use adapter/package-manager (e.g. react/pnpm, vue/bun, svelte/npm)",
 			combo,
-			DatastarUICombo,
 		)
 	}
 
 	left, right := parts[0], parts[1]
-	if left == "templ" && right == "datastar" {
-		return UISelection{}, nil
-	}
-
 	if !IsSupportedInertiaAdapter(left) {
 		return UISelection{}, fmt.Errorf(
-			"invalid --ui adapter %q: valid options are 'react', 'vue', 'svelte', or %s",
+			"invalid --ui adapter %q: valid options are 'react', 'vue', 'svelte'",
 			left,
-			DatastarUICombo,
 		)
 	}
 	if !IsSupportedJavaScriptRuntime(right) {

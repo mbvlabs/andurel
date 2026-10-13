@@ -243,10 +243,10 @@ func doctorHint(result checkResult) string {
 		return "Run go vet ./... and fix the reported issues."
 	case "go mod tidy":
 		return "Run go mod tidy and commit the resulting go.mod or go.sum changes."
-	case "views generate":
-		return "Run andurel sync views and fix any template generation errors."
+	case "templ generate":
+		return "Commit the generated *_templ.go output (andurel build regenerates it) and fix any template errors."
 	case "narsilc generate":
-		return "Run andurel sync queries and commit the updated models/internal/queries output."
+		return "Run andurel sync queries and commit the updated domains/internal/queries output."
 	case "routes.ts":
 		return "Run andurel sync routes and commit the updated resources/js/routes.ts file."
 	case "payloads.ts":
@@ -1130,7 +1130,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	templPath := filepath.Join(rootDir, "bin", "templ")
 	if _, err := os.Stat(templPath); err != nil {
 		return checkResult{
-			name:    "views generate",
+			name:    "templ generate",
 			status:  statusWarn,
 			message: "templ binary not found (skipping check)",
 		}
@@ -1171,19 +1171,19 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	})
 	if err != nil {
 		return checkResult{
-			name:    "views generate",
+			name:    "templ generate",
 			status:  statusFail,
 			message: "temporary generation diagnostic failed",
 			details: []string{err.Error()},
 		}
 	}
 	if len(changed) > 0 {
-		details := []string{"Run 'andurel sync views' and commit the generated output."}
+		details := []string{"Commit the generated *_templ.go output; andurel build regenerates it."}
 		if verbose {
 			details = append(details, changed...)
 		}
 		return checkResult{
-			name:    "views generate",
+			name:    "templ generate",
 			status:  statusFail,
 			message: "generated templates are out of date",
 			details: details,
@@ -1191,7 +1191,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	}
 
 	return checkResult{
-		name:    "views generate",
+		name:    "templ generate",
 		status:  statusPass,
 		message: "templates generated successfully",
 	}
@@ -1454,6 +1454,6 @@ func checkPayloadsTSGenerate(rootDir string, verbose bool) checkResult {
 	return checkResult{
 		name:    "payloads.ts",
 		status:  statusPass,
-		message: fmt.Sprintf("matches controller payloads (%d types)", typeCount),
+		message: fmt.Sprintf("matches handler payloads (%d types)", typeCount),
 	}
 }

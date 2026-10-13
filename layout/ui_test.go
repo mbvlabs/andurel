@@ -32,18 +32,13 @@ func TestParseUICombo(t *testing.T) {
 			want:  UISelection{Inertia: "svelte", PackageManager: "npm"},
 		},
 		{
-			name:  "templ/datastar",
-			combo: "templ/datastar",
-			want:  UISelection{},
+			name:    "templ/datastar rejected",
+			combo:   "templ/datastar",
+			wantErr: true,
 		},
 		{
 			name:    "bare react rejected",
 			combo:   "react",
-			wantErr: true,
-		},
-		{
-			name:    "bare datastar rejected",
-			combo:   "datastar",
 			wantErr: true,
 		},
 		{
@@ -76,9 +71,6 @@ func TestParseUICombo(t *testing.T) {
 			}
 			if got.IsInertia() != (tt.want.Inertia != "") {
 				t.Fatalf("IsInertia = %v", got.IsInertia())
-			}
-			if got.IsDatastar() != (tt.want.Inertia == "") {
-				t.Fatalf("IsDatastar = %v", got.IsDatastar())
 			}
 		})
 	}

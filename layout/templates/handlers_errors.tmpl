@@ -1,0 +1,42 @@
+package handlers
+
+import (
+	"context"
+	"errors"
+	"net/http"
+
+	"{{.ModuleName}}/domains"
+
+	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+// MapError is the router-wide error handler. It turns the shared domain
+// vocabulary into Inertia error pages: a missing entity is a 404, a validation
+// failure is a 422 carrying the field messages, and everything else is a 500.
+// Handlers only return an error; mapping happens once, here.
+func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
+	return func(ctx context.Context, err error) error {
+		switch {
+		case errors.Is(err, domains.ErrNotFound):
+			return renderer.Page(ctx, "Errors/NotFound", inertia.Props{}).
+				Status(http.StatusNotFound).
+				Render()
+
+		case errors.Is(err, domains.ErrViolation):
+			var validationErr domains.ValidationError
+			if errors.As(err, &validationErr) {
+				return renderer.Page(ctx, "Errors/Validation", inertia.Props{}).
+					ValidationErrors(validationErr.Fields).
+					Status(http.StatusUnprocessableEntity).
+					Render()
+			}
+
+			return renderer.Page(ctx, "Errors/Validation", inertia.Props{}).
+				Status(http.StatusUnprocessableEntity).
+				Render()
+		}
+
+		return anduin.Error(ctx, http.StatusInternalServerError, err)
+	}
+}

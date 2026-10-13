@@ -104,7 +104,7 @@ func newRoutesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "routes",
 		Short: "List route manifest",
-		Long: `List route metadata extracted from router/routes/*.go.
+		Long: `List route metadata extracted from routes/*.go.
 
 The manifest reports actual URL paths, route names, parameter names and
 types, and the Go source location for each route variable. In this command's
@@ -149,10 +149,6 @@ source_file in structured output.`,
 	return cmd
 }
 
-func newModelsCommand() *cobra.Command {
-	return readOnlyListCommand("models", "List model files", "models", ".go")
-}
-
 func newMigrationsCommand() *cobra.Command {
 	return readOnlyListCommand(
 		"migrations",
@@ -162,12 +158,12 @@ func newMigrationsCommand() *cobra.Command {
 	)
 }
 
-func newControllersCommand() *cobra.Command {
-	return readOnlyListCommand("controllers", "List controller files", "controllers", ".go")
+func newDomainsCommand() *cobra.Command {
+	return readOnlyListCommand("domains", "List domain files", "domains", ".go")
 }
 
-func newViewsCommand() *cobra.Command {
-	return readOnlyListCommand("views", "List view templates", "views", ".templ")
+func newHandlersCommand() *cobra.Command {
+	return readOnlyListCommand("handlers", "List handler files", "handlers", ".go")
 }
 
 func newJobsCommand() *cobra.Command {

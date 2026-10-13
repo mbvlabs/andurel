@@ -1,17 +1,16 @@
-package controllers
+package handlers
 
 import (
-	"errors"
-	"net/http"
+	"context"
 
-	"{{.ModuleName}}/router"
-	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/routes"
 
+	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/inertia"
-
-	"github.com/labstack/echo/v5"
 )
 
+// Pages serves the application's Inertia pages. Home is the reference page: it
+// renders the Welcome component and links to the auth routes.
 type Pages struct {
 	renderer *inertia.Renderer
 }
@@ -20,42 +19,17 @@ func NewPages(renderer *inertia.Renderer) Pages {
 	return Pages{renderer: renderer}
 }
 
-func (p Pages) RegisterRoutes(r *router.Router) error {
-	errs := []error{}
-
-	_, err := r.AddRoute(routes.HomePage, echo.Route{
-		Method:  http.MethodGet,
-		Handler: p.Home,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	_, err = r.AddRoute(routes.HomePage, echo.Route{
-		Method:  http.MethodHead,
-		Name:    routes.HomePage.Name() + ".head",
-		Handler: p.Home,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	if err = r.AddRouteNotFoundEachHost(p.NotFound); err != nil {
-		errs = append(errs, err)
-	}
-
-	return errors.Join(errs...)
+// Register mounts the page routes. HomePage is "/", so it also acts as the
+// least-specific match for unmatched GET requests.
+func (p Pages) Register(rt *anduin.Router) {
+	rt.Get(routes.HomePage.Path(), p.Home)
 }
 
-func (p Pages) Home(etx *echo.Context) error {
-	return p.renderer.Page(etx, "Welcome", inertia.Props{
+func (p Pages) Home(ctx context.Context) error {
+	return p.renderer.Page(ctx, "Welcome", inertia.Props{
 		"appName":         "{{.AppName}}",
 		"docsURL":         "https://andurel.com",
 		"registrationURL": routes.RegistrationNew.URL(),
 		"loginURL":        routes.SessionNew.URL(),
 	}).Render()
-}
-
-func (p Pages) NotFound(etx *echo.Context) error {
-	return p.renderer.Page(etx, "Errors/NotFound", inertia.Props{}).Render()
 }

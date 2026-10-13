@@ -2,8 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
-	"os"
 	"strings"
 	"testing"
 
@@ -77,33 +75,5 @@ func TestGenerateQueriesAgentNoOpReturnsMutationEnvelope(t *testing.T) {
 	if !envelope.OK || envelope.Data.Action != "generate queries" ||
 		len(envelope.Data.Warnings) != 1 {
 		t.Fatalf("unexpected generate queries envelope: %#v", envelope)
-	}
-}
-
-func TestStructuredMutationSuppressesHumanProgressOnStdoutAndStderr(t *testing.T) {
-	resetCLITestSeams(t)
-	fake := &fakeGenerator{
-		onGenerateModel: func() {
-			_, _ = fmt.Fprintln(os.Stdout, "human progress")
-			_, _ = fmt.Fprintln(os.Stderr, "human warning")
-		},
-	}
-	newGenerator = func() (cliGenerator, error) { return fake, nil }
-
-	result := executeCLITest(t, "generate", "model", "Product", "--json")
-	if result.err != nil {
-		t.Fatalf("structured mutation: %v\nstderr:\n%s", result.err, result.stderr)
-	}
-	if strings.Contains(result.stdout, "human progress") ||
-		strings.Contains(result.stderr, "human warning") {
-		t.Fatalf(
-			"structured mutation leaked human output\nstdout:\n%s\nstderr:\n%s",
-			result.stdout,
-			result.stderr,
-		)
-	}
-	var envelope output.Envelope
-	if err := json.Unmarshal([]byte(result.stdout), &envelope); err != nil || !envelope.OK {
-		t.Fatalf("decode mutation envelope: %v\n%s", err, result.stdout)
 	}
 }
