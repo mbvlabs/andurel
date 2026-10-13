@@ -15,11 +15,11 @@ func TestDiagnosticCopyDereferencesExternalRelativeSymlinks(t *testing.T) {
 	if err := os.MkdirAll(project, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeTestFile(t, shared, "views/page.templ", "package views\n")
+	writeTestFile(t, shared, "resources/root.templ", "package resources\n")
 	writeTestFile(t, shared, "settings.txt", "external settings\n")
 	if err := os.Symlink(
-		filepath.Join("..", "shared", "views"),
-		filepath.Join(project, "views"),
+		filepath.Join("..", "shared", "resources"),
+		filepath.Join(project, "resources"),
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -32,12 +32,12 @@ func TestDiagnosticCopyDereferencesExternalRelativeSymlinks(t *testing.T) {
 
 	before := snapshotAllTestFiles(t, shared)
 	if err := withDiagnosticProjectCopy(project, func(copyRoot string) error {
-		viewsInfo, err := os.Lstat(filepath.Join(copyRoot, "views"))
+		resourcesInfo, err := os.Lstat(filepath.Join(copyRoot, "resources"))
 		if err != nil {
 			return err
 		}
-		if viewsInfo.Mode()&os.ModeSymlink != 0 || !viewsInfo.IsDir() {
-			t.Fatalf("copied views mode = %s, want real directory", viewsInfo.Mode())
+		if resourcesInfo.Mode()&os.ModeSymlink != 0 || !resourcesInfo.IsDir() {
+			t.Fatalf("copied resources mode = %s, want real directory", resourcesInfo.Mode())
 		}
 		settingsInfo, err := os.Lstat(filepath.Join(copyRoot, "settings.txt"))
 		if err != nil {
@@ -46,15 +46,15 @@ func TestDiagnosticCopyDereferencesExternalRelativeSymlinks(t *testing.T) {
 		if !settingsInfo.Mode().IsRegular() {
 			t.Fatalf("copied settings mode = %s, want regular file", settingsInfo.Mode())
 		}
-		content, err := os.ReadFile(filepath.Join(copyRoot, "views", "page.templ"))
+		content, err := os.ReadFile(filepath.Join(copyRoot, "resources", "root.templ"))
 		if err != nil {
 			return err
 		}
-		if !bytes.Equal(content, []byte("package views\n")) {
+		if !bytes.Equal(content, []byte("package resources\n")) {
 			t.Fatalf("copied template = %q", content)
 		}
 		return os.WriteFile(
-			filepath.Join(copyRoot, "views", "page.templ"),
+			filepath.Join(copyRoot, "resources", "root.templ"),
 			[]byte("changed copy\n"),
 			0o644,
 		)
@@ -158,7 +158,7 @@ func TestTemplFormatCheckInspectsExternalSymlinkContentWithoutMutatingIt(t *test
 	if err := os.MkdirAll(project, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	writeTestFile(t, shared, "page.templ", "package views\n")
+	writeTestFile(t, shared, "page.templ", "package resources\n")
 	writeExecutable(
 		t,
 		project,
@@ -167,7 +167,7 @@ func TestTemplFormatCheckInspectsExternalSymlinkContentWithoutMutatingIt(t *test
 	)
 	if err := os.Symlink(
 		filepath.Join("..", "shared"),
-		filepath.Join(project, "views"),
+		filepath.Join(project, "resources"),
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +176,7 @@ func TestTemplFormatCheckInspectsExternalSymlinkContentWithoutMutatingIt(t *test
 		t.Fatal(err)
 	}
 	err = runTemplFmt(project, true)
-	if err == nil || !strings.Contains(err.Error(), "views/page.templ") {
+	if err == nil || !strings.Contains(err.Error(), "resources/page.templ") {
 		t.Fatalf("templ format check = %v", err)
 	}
 	after, err := os.ReadFile(filepath.Join(shared, "page.templ"))

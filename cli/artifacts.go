@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/mbvlabs/andurel/v2/cli/output"
-	"github.com/mbvlabs/andurel/v2/generator"
 	"github.com/mbvlabs/andurel/v2/internal/cache"
 	"github.com/spf13/cobra"
 )
@@ -243,44 +242,8 @@ func mutationSummary(report mutationReport) string {
 	return fmt.Sprintf("%s %d files for %s", verb, total, report.Action)
 }
 
-func buildModelPlanMutationReport(
-	rootDir, resourceName string,
-	plan *generator.ModelGenerationPlan,
-	includeDiff bool,
-) mutationReport {
-	before := make(fileSnapshot)
-	after := make(fileSnapshot)
-	if plan != nil {
-		for _, file := range plan.Files {
-			relativePath, err := filepath.Rel(rootDir, file.Path)
-			if err != nil {
-				relativePath = file.Path
-			}
-			relativePath = filepath.ToSlash(relativePath)
-			if file.Exists {
-				before[relativePath] = plannedFileState(file.OldContent)
-			}
-			after[relativePath] = plannedFileState(file.NewContent)
-		}
-	}
-	report := buildMutationReport(mutationOptions{
-		Action:   "generate model",
-		Resource: resourceName,
-		DryRun:   true,
-		Diff:     includeDiff,
-	}, before, after)
-	report.DryRun = true
-	report.Warnings = append(report.Warnings, "dry run only; no files were changed")
-	return report
-}
-
-func plannedFileState(content string) fileState {
-	data := []byte(content)
-	return fileState{Hash: sha256.Sum256(data), Content: data}
-}
-
 func isRoutePath(path string) bool {
-	return strings.HasPrefix(filepath.ToSlash(path), "router/routes/")
+	return strings.HasPrefix(filepath.ToSlash(path), "routes/")
 }
 
 func snapshotFilesForReport(root string) (fileSnapshot, error) {

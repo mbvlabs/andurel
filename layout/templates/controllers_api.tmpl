@@ -1,16 +1,17 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
-	"{{.ModuleName}}/router"
-	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/routes"
 
-	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
+// API exposes the JSON API surface. It is mounted under routes.APIPrefix.
 type API struct {
 	db storage.Connection
 }
@@ -19,27 +20,18 @@ func NewAPI(db storage.Connection) API {
 	return API{db: db}
 }
 
-func (a API) RegisterRoutes(r *router.Router) error {
-	errs := []error{}
-
-	_, err := r.AddRoute(routes.Health, echo.Route{
-		Method:  http.MethodGet,
-		Handler: a.Health,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	return errors.Join(errs...)
+func (a API) Register(rt *anduin.Router) {
+	rt.Get(routes.Health.Path(), a.Health)
 }
 
-func (a API) Health(etx *echo.Context) error {
-	if err := a.db.Health(etx.Request().Context()); err != nil {
-		return echo.NewHTTPError(
+func (a API) Health(ctx context.Context) error {
+	if err := a.db.Health(ctx); err != nil {
+		return anduin.Error(
+			ctx,
 			http.StatusServiceUnavailable,
-			"database is unavailable",
-		).Wrap(err)
+			errors.New("database is unavailable"),
+		)
 	}
 
-	return etx.JSON(http.StatusOK, "app is healthy and running")
+	return anduin.JSON(ctx, http.StatusOK, "app is healthy and running")
 }

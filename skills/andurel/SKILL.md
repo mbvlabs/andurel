@@ -1,57 +1,60 @@
 ---
 name: andurel
-description: Use this skill for Andurel framework projects when deciding where code belongs, adding or changing resources, controllers, models, services, routes, templ views, Inertia screens, background jobs, migrations, config, clients, or framework-adjacent internals. Focuses on project structure, layer placement, command discovery, generator workflows, and agent-safe CLI usage.
+description: Use this skill for Andurel framework projects when deciding where code belongs, adding or changing domains, services, handlers, routes, app middleware, background jobs, migrations, config, clients, or framework-adjacent internals. Focuses on project structure, layer placement, the read-only pattern library, and agent-safe CLI usage.
 ---
 
 # Andurel
 
-Use this skill when working in an Andurel project or generating Andurel code. It helps place code in the right layer and use the `andurel` CLI safely.
+Use this skill when working in an Andurel project or adding Andurel code. It helps place code in the right layer and use the `andurel` CLI safely.
+
+Andurel is Go-native: `net/http` through `pkg/anduin`, explicit constructor injection (no DI container), and Inertia for the UI. There is no Echo, no Fx, and no templ page layer.
 
 ## Agent Invariants
 
 - Prefer `andurel --agent --help`, `andurel commands --json`, and `andurel commands --check` for discovery.
 - Read [references/cli-catalog.md](references/cli-catalog.md) for group layout and workflows.
-- Run `andurel inspect project --json` before generation.
+- Read [references/http-and-routing.md](references/http-and-routing.md) for the `pkg/anduin` HTTP model.
+- Run `andurel inspect project --json` before changing code.
 - Use `--json` or `--jq` when extracting data.
-- Use `--dry-run --json` before mutating commands when intent is uncertain.
-- Inspect returned artifact arrays before assuming which files changed.
-- Treat `andurel inspect project --json` as the source of truth for the configured Inertia adapter and JavaScript package manager.
-- Persist through narsilc-generated queries. Keep generated `models/internal/queries` types behind the owning model package.
-- After adding or changing Inertia routes, run `andurel sync routes --json` so frontend pages can import `resources/js/routes.ts`. Helpers return full URLs after boot calls `configureRouteHosts` from the shared `hosts` prop; use `routes.name.path()` for a relative path.
-- `--host` and `--prefix` are independent on `generate controller` / `generate scaffold`. Declare extra `routing.HostName` consts in `config/hosts.go` and load them into `App.Hosts` before generating with `--host`.
-- After adding or changing Inertia controller payload or Bind structs, run `andurel sync payloads --json` so frontend pages can import `resources/js/types/payloads.ts`.
-- Follow the repository rules for verification.
-- Prefer the local project pattern over a generic Rails, Echo, Bun, Templ, or frontend framework convention.
-- Keep controllers as HTTP adapters: parse input, call models or services, map errors, and render a response.
-- Create a service only when there is real application orchestration, not just because code exists.
+- `andurel generate` does not write application code. Read a pattern with `andurel patterns show <kind>` and write the files yourself. Only `andurel generate migration` creates a file.
+- Run `andurel verify` after a change: it checks formatting, `go fix`, `go vet`, and the domain/service import boundary. Add `--with-tests` to also run the test suite.
+- Prefer the local project pattern over a generic Rails, Echo, Bun, Templ, or frontend convention.
+- Keep handlers as thin HTTP adapters: parse input, call a domain or service, map errors, render a response.
+- Create a service only when there is real cross-domain orchestration, not just because code exists.
 
 ## Read When Placing Code
 
-Read [references/layer-placement.md](references/layer-placement.md) before adding or moving behavior across models, services, controllers, routes, views, queue jobs, config, clients, or internal packages.
+Read [references/layer-placement.md](references/layer-placement.md) before adding or moving behavior across domains, services, handlers, routes, middleware, queue jobs, config, clients, or internal packages.
 
 ## First Pass
 
 1. Inspect the existing resource closest to the requested change.
-2. Identify the delivery surface: public hypermedia page, admin Inertia page, API endpoint, background job, email, or CLI/command.
+2. Identify the delivery surface: Inertia page, API endpoint, background job, email, or CLI/command.
 3. Identify the domain object or workflow being changed.
 4. Keep changes in the smallest layer that can own the behavior honestly.
-5. Use the CLI discovery commands before generating or mutating project files.
+5. Use `andurel patterns show <kind>` and `andurel inspect … --json` before writing.
 
 ## Layer Placement
 
-- Put invariant business rules, domain validation, entity construction, persistence methods, and finder/query methods in `models/`.
-- Put test factory definitions and factory helpers in `models/factories/`.
-- Put transactions, cross-model coordination, external side effects, and multi-step application workflows in `services/`.
-- Put HTTP-specific concerns in `controllers/`, `controllers/admin/`, or `controllers/api/`.
-- Put route names, route paths, and URL builders in `router/routes/`.
-- Put templ rendering helpers and presentation-specific adapters in `views/`.
-- Put admin Inertia pages and reusable frontend components in `resources/js/`.
-- Put River job argument types in `queue/jobs/` and worker implementations or registration in `queue/`.
-- Put provider adapters in a package under `internal/` named for its job (for example `internal/clients/` or `internal/payment/`), email templates/helpers in `email/`, and config/environment loading in `config/`. Adapters wrap external APIs only; business rules stay in `models/` or `services/`.
-- Put reusable framework-like support that is independent of one resource in `internal/`.
-- Put Fx process graphs and infrastructure constructors in `internal/runtime`. `cmd/app` and `cmd/queue` only load env and call `runtime.App` / `runtime.Queue`.
-- `cmd/migrate` applies pending SQL with `storage.RunMigrations` on the embedded migration FS. It is a one-shot process, not part of `cmd/app` start. Development uses `andurel db migrate up`.
-- Register new constructors in the existing `fx` modules for the package that owns them.
+- Put invariant business rules, domain validation, entity construction, persistence methods, and finder/query methods in `domains/<entity>/`.
+- Colocate each domain's SQL at `domains/<entity>/<entity>.sql`; narsilc output goes to `domains/internal/queries`.
+- Put transactions, cross-domain coordination, external side effects, and multi-step application workflows in `services/`.
+- Put HTTP adapters in `handlers/`, `handlers/auth/`, and `handlers/api/`.
+- Put route names, paths, and URL builders in `routes/`.
+- Put app HTTP middleware (auth, rate limiting) and the cookie jar wiring in `middleware/`.
+- Put Inertia pages and reusable frontend components in `resources/js/`; the Inertia root document is `resources/root.templ`.
+- Put River job argument types in `queue/jobs/` and workers/registration in `queue/`.
+- Put provider adapters in a package under `internal/` named for its job (for example `internal/clients/` or `internal/payment/`), email templates/helpers in `email/`, and config/environment loading in `config/`. Adapters wrap external APIs only; business rules stay in `domains/` or `services/`.
+- Put composition (constructors and the dependency graph) in `internal/runtime`. `cmd/app` and `cmd/queue` only load env and call `runtime.New` / the queue runtime.
+- `cmd/migrate` applies pending SQL with `storage.RunMigrations` on the embedded migration FS. It is a one-shot process. Development uses `andurel db migrate up`.
+- Wire new dependencies explicitly in `internal/runtime`, and add them to the `App` `closers` list when they need shutdown.
+
+Hard rules:
+
+- A domain package never imports another domain package. If a rule spans two entities, a service coordinates them.
+- Only `domains/**` imports `domains/internal/queries` and issues SQL.
+- Handlers are `func(ctx context.Context) error` and use `pkg/anduin` request/response helpers.
+- `andurel verify` enforces the domain/service import boundary.
 
 ## Output Modes
 
@@ -74,22 +77,36 @@ Inspect a project:
 ```bash
 andurel inspect project --json
 andurel inspect routes --json
-andurel inspect models --json
+andurel inspect handlers --json
+andurel inspect domains --json
 andurel inspect migrations --json
 andurel commands --json
 ```
 
-Preview scaffold generation:
+Read a pattern before writing code:
 
 ```bash
-andurel generate scaffold Product --dry-run --json
+andurel patterns list --json
+andurel patterns show domain
+andurel patterns show handler --json
 ```
 
-Generate and review artifacts:
+Add a domain (type-driven: change the Go type first, then let SQL and queries follow):
 
-```bash
-andurel generate scaffold Product --json
-```
+1. `andurel patterns show domain` — read the placement rules and checklist.
+2. Write `domains/<entity>/<entity>.go` (entity + receiver + rules) and `domains/<entity>/<entity>.sql`.
+3. Run `andurel sync queries --json` to regenerate `domains/internal/queries`.
+4. Write the migration with `andurel generate migration <name>`.
+
+Keep hand-written SQL in `domains/<entity>/<entity>.sql` and generated code in `domains/internal/queries/`. Only the owning domain should import that internal package. Construct clients with `queries.New(db)` where `db` is `storage.Connection`, and inside shared transactions use `queries.New(tx)` where `tx` is `storage.Transaction`.
+
+Add an HTTP resource:
+
+1. `andurel patterns show handler` and `andurel patterns show route`.
+2. Add route data to `routes/`.
+3. Write the handler in `handlers/` (or `handlers/api/` for JSON) using `pkg/anduin`.
+4. Wire the handler in `internal/runtime`.
+5. Run `andurel sync routes --json` so Inertia pages can import `resources/js/routes.ts`.
 
 Generate Inertia route helpers:
 
@@ -98,17 +115,7 @@ andurel inspect routes --json
 andurel sync routes --json
 ```
 
-`andurel sync routes` reads `router/routes/*.go` as the source of truth and writes `resources/js/routes.ts`. It only runs when `andurel.lock` has `scaffoldConfig.inertia` set to `vue`, `react`, or `svelte`. Import helpers from that file in Inertia pages instead of hard-coding URLs. Helpers include the route host and return absolute URLs once `configureRouteHosts` has run; call `routes.name.path()` when a relative path is required.
-
-Generate on a secondary host (after declaring the `HostName` and loading `App.Hosts`):
-
-```bash
-andurel generate controller Widget --host=admin --prefix=admin --dry-run --json
-andurel generate scaffold Widget --host=admin --json
-andurel sync routes --json
-```
-
-`--host` selects the Echo / `routing.Host(...)` binding. `--prefix` only affects the path and package namespace. `/api` stays on the primary host unless those routes set `Host(...)`. Layout CSS/JS use `FullURL()` to primary. Inertia apps: Vite tags use `FullURL()` to primary. Vite production `base` is `'./'` so nested files follow the script origin.
+`andurel sync routes` reads `routes/*.go` as the source of truth and writes `resources/js/routes.ts`. Import helpers from that file in Inertia pages instead of hard-coding URLs. Helpers include the route host and return absolute URLs once `configureRouteHosts` has run; call `routes.name.path()` when a relative path is required.
 
 Generate Inertia payload types:
 
@@ -116,62 +123,14 @@ Generate Inertia payload types:
 andurel sync payloads --json
 ```
 
-`andurel sync payloads` scans controller `inertia.FromStruct` and named Bind structs and writes `resources/js/types/payloads.ts`. Import page and form types from that file instead of hand-written or catalog-derived TypeScript. Run it after editing those Go structs. `generate controller` and `generate scaffold` refresh the same file in Inertia projects.
-
-Generate an Inertia resource (follows project UI from `andurel.lock`):
-
-```bash
-andurel inspect project --jq .scaffold_config.inertia
-andurel generate scaffold Product --dry-run --json
-andurel generate scaffold Product --json
-```
-
-Controller and scaffold generation follow the project UI (Inertia pages in Inertia projects, Templ in Datastar projects). Pass `--api` for JSON responses instead of UI pages.
-
-Add a narsilc query:
-
-```bash
-andurel generate query UserReport --table users --dry-run --json
-andurel generate query UserReport --table users --json
-# Edit models/queries/user_report.sql, then generate typed code.
-andurel sync queries --json
-```
-
-Keep hand-written SQL in `models/queries/` and generated code in `models/internal/queries/`. Only the owning `models` package should import that internal package. Construct clients with `queries.New(db)` where `db` is `storage.Connection`, and inside shared transactions use `queries.New(tx)` where `tx` is `storage.Transaction`.
-
-After a migration changes columns on an existing table model:
-
-```bash
-andurel sync model Product --check --json
-andurel sync model Product --json
-```
-
-`andurel sync model` writes by default and updates the model only. Refresh the factory separately with `andurel sync factory`. A hand-written `Transform(queries.XRow)` on the entity is preserved; `sync model` only rewrites the struct fields. Implement Transform when the entity is not the scan row (custom types). `database.nullType` remains how SQL NULL is represented on the row and on 1:1 entities. `sql.Scanner` is not required when Transform is used.
-
-Check or sync factories:
-
-```bash
-andurel sync factory Product --check --json
-andurel sync factory Product --sync --json
-andurel sync factories --check --json
-andurel sync factories --sync --json
-```
-
-Factory guidance:
-
-1. Treat model `Entity` structs as the source of truth for generated factory fields.
-2. Keep reusable test data builders in `models/factories/`.
-3. Prefer `andurel sync factory NAME --check --json` before editing factory files by hand.
-4. Use `--sync` to update Andurel generated regions and preserve custom helpers outside those regions.
-5. Pass `--skip-factory` only when a generated model or scaffold should intentionally omit a factory.
+`andurel sync payloads` scans handler `inertia.FromStruct` and named Bind structs and writes `resources/js/types/payloads.ts`. Import page and form types from that file instead of hand-written TypeScript. Run it after editing those Go structs.
 
 Generate a named database seed:
 
-1. Inspect the relevant models and existing factories in `models/factories`.
-2. Add a seed function to `seeds/`, using only exported model/factory/storage primitives.
+1. Inspect the relevant domains and existing seeds in `seeds/`.
+2. Add a seed function to `seeds/`, using only exported domain/storage primitives.
 3. Register it in `seeds.Registry` with a stable lowercase name.
-4. Keep the seed idempotence expectations explicit in code comments when it may be re-run.
-5. Verify the seed is discoverable:
+4. Verify the seed is discoverable:
 
 ```bash
 andurel db seed --list
@@ -179,13 +138,14 @@ andurel db seed development
 andurel db seed test
 ```
 
-Check project health:
+Check project health and verify a change:
 
 ```bash
 andurel doctor --json
+andurel verify
 ```
 
-In Inertia projects, `doctor` checks whether `resources/js/routes.ts` matches the current `router/routes/*.go` manifest and whether `resources/js/types/payloads.ts` matches controller payload structs. If the `routes.ts` check fails, run `andurel sync routes --json`. If the `payloads.ts` check fails, run `andurel sync payloads --json`. Doctor does not delete leftover per-resource files under `resources/js/types/`.
+In Inertia projects, `doctor` checks whether `resources/js/routes.ts` matches the current `routes/*.go` manifest and whether `resources/js/types/payloads.ts` matches handler payload structs. If the `routes.ts` check fails, run `andurel sync routes --json`. If the `payloads.ts` check fails, run `andurel sync payloads --json`.
 
 When annotated narsilc queries exist, `doctor` also checks generated code for drift. If the `narsilc generate` check fails, run `andurel sync queries --json`.
 
@@ -201,4 +161,4 @@ This updates required package versions to the latest published releases. It does
 
 ## Validation
 
-Follow the target repository's `AGENTS.md` and local validation guidance. Do not assume that a command is permitted merely because it is common in another Andurel project.
+Follow the target repository's `AGENTS.md` and local validation guidance. Run `andurel verify` for the framework checks. Do not assume that a command is permitted merely because it is common in another Andurel project.

@@ -35,7 +35,7 @@ func newGenerateRoutesCommand() *cobra.Command {
 		Short: "Generate TypeScript route helpers for Inertia frontends",
 		Long: `Generate framework-neutral TypeScript route helpers for Inertia frontends.
 
-The command reads router/routes/*.go as the source of truth and writes
+The command reads routes/*.go as the source of truth and writes
 resources/js/routes.ts for Vue, React, or Svelte Inertia frontends.`,
 		Example: `  andurel sync routes
   andurel sync routes --json`,
@@ -88,8 +88,8 @@ func configuredInertiaAdapter(rootDir string) (string, error) {
 	return adapter, nil
 }
 
-// projectUIAdapter returns the Inertia adapter from andurel.lock, or "" for
-// templ/datastar projects.
+// projectUIAdapter returns the Inertia adapter from andurel.lock, or "" when
+// the project has no Inertia adapter configured.
 func projectUIAdapter(rootDir string) (string, error) {
 	lock, err := layout.ReadLockFile(rootDir)
 	if err != nil {

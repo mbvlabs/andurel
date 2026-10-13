@@ -12,7 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/anduin"
 )
 
 type testApp struct {
@@ -78,15 +78,14 @@ func TestCookieDriverRoundTrip(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	ctx := echo.New().NewContext(request, recorder)
-	handler := jar.EchoMiddleware()(func(c *echo.Context) error {
-		if err := Set(c.Request().Context(), &testApp{UserID: "u1", IsAuthenticated: true}); err != nil {
+	handler := jar.Middleware()(func(ctx context.Context) error {
+		if err := Set(ctx, &testApp{UserID: "u1", IsAuthenticated: true}); err != nil {
 			return err
 		}
-		AddFlash(c.Request().Context(), FlashSuccess, "saved")
-		return c.Redirect(http.StatusSeeOther, "/next")
+		AddFlash(ctx, FlashSuccess, "saved")
+		return anduin.Redirect(ctx, "/next", http.StatusSeeOther)
 	})
-	if err := handler(ctx); err != nil {
+	if err := anduin.Serve(recorder, request, handler); err != nil {
 		t.Fatal(err)
 	}
 
@@ -101,18 +100,17 @@ func TestCookieDriverRoundTrip(t *testing.T) {
 	follow.AddCookie(appCookie)
 	follow.AddCookie(flashCookie)
 	followRecorder := httptest.NewRecorder()
-	followCtx := echo.New().NewContext(follow, followRecorder)
 	var got *testApp
 	var flashes []FlashMessage
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
+	if err := anduin.Serve(followRecorder, follow, jar.Middleware()(func(ctx context.Context) error {
 		var err error
-		got, err = Get[*testApp](c.Request().Context())
+		got, err = Get[*testApp](ctx)
 		if err != nil {
 			return err
 		}
-		flashes = Flashes(c.Request().Context())
-		return c.NoContent(http.StatusOK)
-	})(followCtx); err != nil {
+		flashes = Flashes(ctx)
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
 		t.Fatal(err)
 	}
 	if got == nil || !got.IsAuthenticated || got.UserID != "u1" {
@@ -130,13 +128,12 @@ func TestCookieDriverRoundTrip(t *testing.T) {
 	third := httptest.NewRequest(http.MethodGet, "/", nil)
 	third.AddCookie(appCookie)
 	thirdRecorder := httptest.NewRecorder()
-	thirdCtx := echo.New().NewContext(third, thirdRecorder)
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
-		if got := Flashes(c.Request().Context()); len(got) != 0 {
+	if err := anduin.Serve(thirdRecorder, third, jar.Middleware()(func(ctx context.Context) error {
+		if got := Flashes(ctx); len(got) != 0 {
 			t.Fatalf("flashes persisted onto the next page: %v", got)
 		}
-		return c.NoContent(http.StatusOK)
-	})(thirdCtx); err != nil {
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -153,15 +150,14 @@ func TestSameRequestFlashIsVisible(t *testing.T) {
 	jar := testJar(t, NewSession[*testApp]("app"))
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	recorder := httptest.NewRecorder()
-	ctx := echo.New().NewContext(request, recorder)
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
-		AddFlash(c.Request().Context(), FlashError, "nope")
-		got := Flashes(c.Request().Context())
+	if err := anduin.Serve(recorder, request, jar.Middleware()(func(ctx context.Context) error {
+		AddFlash(ctx, FlashError, "nope")
+		got := Flashes(ctx)
 		if len(got) != 1 || got[0].Message != "nope" {
 			t.Fatalf("same-request flashes = %+v", got)
 		}
-		return c.NoContent(http.StatusOK)
-	})(ctx); err != nil {
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -171,19 +167,18 @@ func TestCorruptSessionIsRecovered(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	request.AddCookie(&http.Cookie{Name: "app", Value: "not-a-valid-cookie"})
 	recorder := httptest.NewRecorder()
-	ctx := echo.New().NewContext(request, recorder)
 	called := false
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
+	if err := anduin.Serve(recorder, request, jar.Middleware()(func(ctx context.Context) error {
 		called = true
-		app, err := Get[*testApp](c.Request().Context())
+		app, err := Get[*testApp](ctx)
 		if err != nil {
 			return err
 		}
 		if app != nil && app.IsAuthenticated {
 			t.Fatal("corrupt cookie should yield nil App")
 		}
-		return c.NoContent(http.StatusOK)
-	})(ctx); err != nil {
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
 		t.Fatal(err)
 	}
 	if !called {
@@ -195,13 +190,12 @@ func TestSkipPrefixes(t *testing.T) {
 	jar := testJar(t, NewSession[*testApp]("app"))
 	request := httptest.NewRequest(http.MethodGet, "/assets/app.js", nil)
 	recorder := httptest.NewRecorder()
-	ctx := echo.New().NewContext(request, recorder)
-	if err := jar.EchoMiddleware(SkipPrefixes("/assets"))(func(c *echo.Context) error {
-		if bagFrom(c.Request().Context()) != nil {
+	if err := anduin.Serve(recorder, request, jar.Middleware(SkipPrefixes("/assets"))(func(ctx context.Context) error {
+		if bagFrom(ctx) != nil {
 			t.Fatal("skipped path should not have a bag")
 		}
-		return c.NoContent(http.StatusOK)
-	})(ctx); err != nil {
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -210,14 +204,12 @@ func TestClientRedirectPersistsFlashes(t *testing.T) {
 	jar := testJar(t, NewSession[*testApp]("app", MaxAge(60)))
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	ctx := echo.New().NewContext(request, recorder)
-	handler := jar.EchoMiddleware()(func(c *echo.Context) error {
-		AddFlash(c.Request().Context(), FlashSuccess, "next")
-		c.Response().Header().Set(ClientRedirectHeader, "1")
-		c.Response().WriteHeader(http.StatusOK)
-		return nil
+	handler := jar.Middleware()(func(ctx context.Context) error {
+		AddFlash(ctx, FlashSuccess, "next")
+		anduin.SetHeader(ctx, ClientRedirectHeader, "1")
+		return anduin.NoContent(ctx, http.StatusOK)
 	})
-	if err := handler(ctx); err != nil {
+	if err := anduin.Serve(recorder, request, handler); err != nil {
 		t.Fatal(err)
 	}
 	flashCookie := cookieByName(recorder.Result().Cookies(), "app_flash")
@@ -227,14 +219,13 @@ func TestClientRedirectPersistsFlashes(t *testing.T) {
 	follow := httptest.NewRequest(http.MethodGet, "/next", nil)
 	follow.AddCookie(flashCookie)
 	followRecorder := httptest.NewRecorder()
-	followCtx := echo.New().NewContext(follow, followRecorder)
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
-		got := Flashes(c.Request().Context())
+	if err := anduin.Serve(followRecorder, follow, jar.Middleware()(func(ctx context.Context) error {
+		got := Flashes(ctx)
 		if len(got) != 1 || got[0].Message != "next" {
 			t.Fatalf("redirect flashes = %+v", got)
 		}
-		return c.NoContent(http.StatusOK)
-	})(followCtx); err != nil {
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -246,14 +237,13 @@ func TestNamedEncryptedCookieLazy(t *testing.T) {
 	)
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	ctx := echo.New().NewContext(request, recorder)
 	dark := theme("dark")
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
-		if err := Set(c.Request().Context(), &dark); err != nil {
+	if err := anduin.Serve(recorder, request, jar.Middleware()(func(ctx context.Context) error {
+		if err := Set(ctx, &dark); err != nil {
 			return err
 		}
-		return c.NoContent(http.StatusOK)
-	})(ctx); err != nil {
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
 		t.Fatal(err)
 	}
 	themeCookie := cookieByName(recorder.Result().Cookies(), "theme")
@@ -263,24 +253,23 @@ func TestNamedEncryptedCookieLazy(t *testing.T) {
 	follow := httptest.NewRequest(http.MethodGet, "/", nil)
 	follow.AddCookie(themeCookie)
 	followRecorder := httptest.NewRecorder()
-	followCtx := echo.New().NewContext(follow, followRecorder)
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
-		exists, err := Exists[*theme](c.Request().Context())
+	if err := anduin.Serve(followRecorder, follow, jar.Middleware()(func(ctx context.Context) error {
+		exists, err := Exists[*theme](ctx)
 		if err != nil {
 			return err
 		}
 		if !exists {
 			t.Fatal("theme should Exist after lazy Get path")
 		}
-		got, err := Get[*theme](c.Request().Context())
+		got, err := Get[*theme](ctx)
 		if err != nil {
 			return err
 		}
 		if got == nil || *got != "dark" {
 			t.Fatalf("theme = %v", got)
 		}
-		return c.NoContent(http.StatusOK)
-	})(followCtx); err != nil {
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -289,13 +278,12 @@ func TestDestroySession(t *testing.T) {
 	jar := testJar(t, NewSession[*testApp]("app", MaxAge(60)))
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	ctx := echo.New().NewContext(request, recorder)
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
-		if err := Set(c.Request().Context(), &testApp{UserID: "u1", IsAuthenticated: true}); err != nil {
+	if err := anduin.Serve(recorder, request, jar.Middleware()(func(ctx context.Context) error {
+		if err := Set(ctx, &testApp{UserID: "u1", IsAuthenticated: true}); err != nil {
 			return err
 		}
-		return c.NoContent(http.StatusOK)
-	})(ctx); err != nil {
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
 		t.Fatal(err)
 	}
 	appCookie := cookieByName(recorder.Result().Cookies(), "app")
@@ -306,27 +294,26 @@ func TestDestroySession(t *testing.T) {
 	destroyRecorder := httptest.NewRecorder()
 	destroyReq := httptest.NewRequest(http.MethodGet, "/", nil)
 	destroyReq.AddCookie(appCookie)
-	destroyCtx := echo.New().NewContext(destroyReq, destroyRecorder)
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
-		exists, err := Exists[*testApp](c.Request().Context())
+	if err := anduin.Serve(destroyRecorder, destroyReq, jar.Middleware()(func(ctx context.Context) error {
+		exists, err := Exists[*testApp](ctx)
 		if err != nil {
 			return err
 		}
 		if !exists {
 			t.Fatal("expected session to exist")
 		}
-		if err := Destroy[*testApp](c.Request().Context()); err != nil {
+		if err := Destroy[*testApp](ctx); err != nil {
 			return err
 		}
-		exists, err = Exists[*testApp](c.Request().Context())
+		exists, err = Exists[*testApp](ctx)
 		if err != nil {
 			return err
 		}
 		if exists {
 			t.Fatal("expected session destroyed")
 		}
-		return c.NoContent(http.StatusOK)
-	})(destroyCtx); err != nil {
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
 		t.Fatal(err)
 	}
 	expired := cookieByName(destroyRecorder.Result().Cookies(), "app")
@@ -354,17 +341,16 @@ func TestGetUnknownType(t *testing.T) {
 	jar := testJar(t, NewSession[*testApp]("app"))
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	recorder := httptest.NewRecorder()
-	ctx := echo.New().NewContext(request, recorder)
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
+	if err := anduin.Serve(recorder, request, jar.Middleware()(func(ctx context.Context) error {
 		// Value type when the jar registered *testApp.
-		if _, err := Get[testApp](c.Request().Context()); !errors.Is(err, ErrUnknownType) {
+		if _, err := Get[testApp](ctx); !errors.Is(err, ErrUnknownType) {
 			t.Fatalf("Get[testApp] error = %v, want ErrUnknownType", err)
 		}
-		if _, err := Exists[testApp](c.Request().Context()); !errors.Is(err, ErrUnknownType) {
+		if _, err := Exists[testApp](ctx); !errors.Is(err, ErrUnknownType) {
 			t.Fatalf("Exists[testApp] error = %v, want ErrUnknownType", err)
 		}
-		return c.NoContent(http.StatusOK)
-	})(ctx); err != nil {
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -452,17 +438,16 @@ func TestBagRejectsNative(t *testing.T) {
 	)
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	recorder := httptest.NewRecorder()
-	ctx := echo.New().NewContext(request, recorder)
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
+	if err := anduin.Serve(recorder, request, jar.Middleware()(func(ctx context.Context) error {
 		dark := theme("x")
-		if err := Set(c.Request().Context(), &dark); !errors.Is(err, ErrNotBag) {
+		if err := Set(ctx, &dark); !errors.Is(err, ErrNotBag) {
 			t.Fatalf("Set(native) = %v, want ErrNotBag", err)
 		}
-		if _, err := Get[*theme](c.Request().Context()); !errors.Is(err, ErrNotBag) {
+		if _, err := Get[*theme](ctx); !errors.Is(err, ErrNotBag) {
 			t.Fatalf("Get(native) = %v, want ErrNotBag", err)
 		}
-		return c.NoContent(http.StatusOK)
-	})(ctx); err != nil {
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -549,14 +534,13 @@ func TestDatabaseStoreRoundTrip(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	ctx := echo.New().NewContext(request, recorder)
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
-		if err := Set(c.Request().Context(), &testApp{UserID: "db1", IsAuthenticated: true}); err != nil {
+	if err := anduin.Serve(recorder, request, jar.Middleware()(func(ctx context.Context) error {
+		if err := Set(ctx, &testApp{UserID: "db1", IsAuthenticated: true}); err != nil {
 			return err
 		}
-		AddFlash(c.Request().Context(), FlashInfo, "hi")
-		return c.Redirect(http.StatusSeeOther, "/next")
-	})(ctx); err != nil {
+		AddFlash(ctx, FlashInfo, "hi")
+		return anduin.Redirect(ctx, "/next", http.StatusSeeOther)
+	})); err != nil {
 		t.Fatal(err)
 	}
 	appCookie := cookieByName(recorder.Result().Cookies(), "app")
@@ -572,23 +556,22 @@ func TestDatabaseStoreRoundTrip(t *testing.T) {
 	follow.AddCookie(appCookie)
 	follow.AddCookie(flashCookie)
 	followRecorder := httptest.NewRecorder()
-	followCtx := echo.New().NewContext(follow, followRecorder)
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
-		got, err := Get[*testApp](c.Request().Context())
+	if err := anduin.Serve(followRecorder, follow, jar.Middleware()(func(ctx context.Context) error {
+		got, err := Get[*testApp](ctx)
 		if err != nil {
 			return err
 		}
 		if got == nil || got.UserID != "db1" || !got.IsAuthenticated {
 			t.Fatalf("app = %+v", got)
 		}
-		if flashes := Flashes(c.Request().Context()); len(flashes) != 1 {
+		if flashes := Flashes(ctx); len(flashes) != 1 {
 			t.Fatalf("flashes = %+v", flashes)
 		}
-		if err := Destroy[*testApp](c.Request().Context()); err != nil {
+		if err := Destroy[*testApp](ctx); err != nil {
 			return err
 		}
-		return c.NoContent(http.StatusOK)
-	})(followCtx); err != nil {
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
 		t.Fatal(err)
 	}
 	if len(db.rows) != 0 {
@@ -610,10 +593,9 @@ func TestStoreLoadInfraErrorPropagates(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	ctx := echo.New().NewContext(request, recorder)
-	if err := jar.EchoMiddleware()(func(c *echo.Context) error {
-		return Set(c.Request().Context(), &testApp{UserID: "u1", IsAuthenticated: true})
-	})(ctx); err != nil {
+	if err := anduin.Serve(recorder, request, jar.Middleware()(func(ctx context.Context) error {
+		return Set(ctx, &testApp{UserID: "u1", IsAuthenticated: true})
+	})); err != nil {
 		t.Fatal(err)
 	}
 	appCookie := cookieByName(recorder.Result().Cookies(), "app")
@@ -625,12 +607,11 @@ func TestStoreLoadInfraErrorPropagates(t *testing.T) {
 	failReq := httptest.NewRequest(http.MethodGet, "/", nil)
 	failReq.AddCookie(appCookie)
 	failRecorder := httptest.NewRecorder()
-	failCtx := echo.New().NewContext(failReq, failRecorder)
 	called := false
-	err = jar.EchoMiddleware()(func(c *echo.Context) error {
+	err = anduin.Serve(failRecorder, failReq, jar.Middleware()(func(ctx context.Context) error {
 		called = true
-		return c.NoContent(http.StatusOK)
-	})(failCtx)
+		return anduin.NoContent(ctx, http.StatusOK)
+	}))
 	if err == nil {
 		t.Fatal("expected load infra error")
 	}
@@ -675,13 +656,12 @@ func TestPersistSaveErrorFailsRequest(t *testing.T) {
 	}
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	ctx := echo.New().NewContext(request, recorder)
-	err = jar.EchoMiddleware()(func(c *echo.Context) error {
-		if err := Set(c.Request().Context(), &testApp{UserID: "u1", IsAuthenticated: true}); err != nil {
+	err = anduin.Serve(recorder, request, jar.Middleware()(func(ctx context.Context) error {
+		if err := Set(ctx, &testApp{UserID: "u1", IsAuthenticated: true}); err != nil {
 			return err
 		}
-		return c.NoContent(http.StatusOK)
-	})(ctx)
+		return anduin.NoContent(ctx, http.StatusOK)
+	}))
 	if err == nil {
 		t.Fatal("expected persist error")
 	}
@@ -706,13 +686,12 @@ func TestPersistMarshalErrorFailsRequest(t *testing.T) {
 	jar := testJar(t, NewSession[*failMarshalApp]("app", MaxAge(60)))
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	ctx := echo.New().NewContext(request, recorder)
-	err := jar.EchoMiddleware()(func(c *echo.Context) error {
-		if err := Set(c.Request().Context(), &failMarshalApp{UserID: "u1", IsAuthenticated: true}); err != nil {
+	err := anduin.Serve(recorder, request, jar.Middleware()(func(ctx context.Context) error {
+		if err := Set(ctx, &failMarshalApp{UserID: "u1", IsAuthenticated: true}); err != nil {
 			return err
 		}
-		return c.NoContent(http.StatusOK)
-	})(ctx)
+		return anduin.NoContent(ctx, http.StatusOK)
+	}))
 	if err == nil {
 		t.Fatal("expected marshal persist error")
 	}

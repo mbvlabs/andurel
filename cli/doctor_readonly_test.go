@@ -17,13 +17,13 @@ func TestDoctorDiagnosticsUseTemporaryCopiesWithoutMutatingOriginalProject(t *te
 	writeTestFile(t, root, "go.mod", "module example.com/doctor\n\ngo 1.27.1\n")
 	writeTestFile(t, root, "go.sum", "original sum\n")
 	writeTestFile(t, root, "main.go", "package main\n\nfunc main() {}\n")
-	writeTestFile(t, root, "views/page.templ", "package views\n")
-	writeTestFile(t, root, "views/page_templ.go", "package views\n")
-	writeTestFile(t, root, "router/routes/pages.go", `package routes
+	writeTestFile(t, root, "resources/root.templ", "package resources\n")
+	writeTestFile(t, root, "resources/root_templ.go", "package resources\n")
+	writeTestFile(t, root, "routes/pages.go", `package routes
 
-import "github.com/mbvlabs/andurel/v2/router"
+import "github.com/mbvlabs/andurel/pkg/routing"
 
-var Home = router.NewRoute("/", "home")
+var Home = routing.NewSimpleRoute("/", "home", "")
 `)
 	writeTestFile(t, root, generatedRoutesJSPath, "stale routes\n")
 	writeTestFile(t, root, ".git/status-sentinel", "unchanged\n")
@@ -40,7 +40,7 @@ var Home = router.NewRoute("/", "home")
 		t,
 		root,
 		"bin/templ",
-		"#!/bin/sh\nprintf 'package views\\n// generated in temporary copy\\n' > views/page_templ.go\n",
+		"#!/bin/sh\nprintf 'package resources\\n// generated in temporary copy\\n' > resources/root_templ.go\n",
 	)
 
 	fakePath := t.TempDir()

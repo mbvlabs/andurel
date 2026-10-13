@@ -1,75 +1,70 @@
-package controllers
+package auth
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
-	"{{.ModuleName}}/models"
-	"{{.ModuleName}}/router"
-	"{{.ModuleName}}/router/cookies"
-	"{{.ModuleName}}/router/middleware"
-	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/domains"
+	domainuser "{{.ModuleName}}/domains/user"
+	"{{.ModuleName}}/middleware"
+	"{{.ModuleName}}/routes"
 	"{{.ModuleName}}/services"
 
+	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
-	"github.com/mbvlabs/andurel/pkg/validation"
-
-	"github.com/labstack/echo/v5"
 )
 
-type Sessions struct {
+// Handler serves the authentication surface: sessions, registration, email
+// confirmation, and password reset. It is the reference handler for the
+// generated application and the only place the identity service meets HTTP.
+type Handler struct {
 	identity services.Identity
 	renderer *inertia.Renderer
 }
 
-func NewSessions(
-	identity services.Identity,
-	renderer *inertia.Renderer,
-) Sessions {
-	return Sessions{identity: identity, renderer: renderer}
+func NewHandler(identity services.Identity, renderer *inertia.Renderer) Handler {
+	return Handler{identity: identity, renderer: renderer}
 }
 
-func (s Sessions) RegisterRoutes(r *router.Router) error {
-	errs := []error{}
+// Register mounts every auth route, rate-limiting the credential endpoints.
+func (h Handler) Register(rt *anduin.Router) {
+	rt.Get(routes.SessionNew.Path(), h.SessionNew)
+	rt.Post(
+		routes.SessionCreate.Path(),
+		h.SessionCreate,
+		middleware.IPRateLimiter(5, routes.SessionNew),
+	)
+	rt.Delete(routes.SessionDestroy.Path(), h.SessionDestroy)
 
-	_, err := r.AddRoute(routes.SessionNew, echo.Route{
-		Method:  http.MethodGet,
-		Handler: s.New,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
+	rt.Get(routes.RegistrationNew.Path(), h.RegistrationNew)
+	rt.Post(
+		routes.RegistrationCreate.Path(),
+		h.RegistrationCreate,
+		middleware.IPRateLimiter(5, routes.RegistrationNew),
+	)
 
-	_, err = r.AddRoute(routes.SessionCreate, echo.Route{
-		Method:  http.MethodPost,
-		Handler: s.Create,
-		Middlewares: []echo.MiddlewareFunc{
-			middleware.IPRateLimiter(5, routes.SessionNew),
-		},
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
+	rt.Get(routes.ConfirmationNew.Path(), h.ConfirmationNew)
+	rt.Post(
+		routes.ConfirmationCreate.Path(),
+		h.ConfirmationCreate,
+		middleware.IPRateLimiter(5, routes.ConfirmationNew),
+	)
 
-	_, err = r.AddRoute(routes.SessionDestroy, echo.Route{
-		Method:  http.MethodDelete,
-		Handler: s.Destroy,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	return errors.Join(errs...)
+	rt.Get(routes.PasswordNew.Path(), h.PasswordNew)
+	rt.Post(routes.PasswordCreate.Path(), h.PasswordCreate)
+	rt.Get(routes.PasswordEdit.Path(), h.PasswordEdit)
+	rt.Put(routes.PasswordUpdate.Path(), h.PasswordUpdate)
 }
 
-func (s Sessions) New(etx *echo.Context) error {
-	return s.renderer.Page(etx, "Auth/Login", inertia.Props{}).Render()
+func (h Handler) SessionNew(ctx context.Context) error {
+	return h.renderer.Page(ctx, "Auth/Login", inertia.Props{}).Render()
 }
 
-func (s Sessions) Create(etx *echo.Context) error {
-	ctx, span := telemetry.From(etx, "sessions.create")
+func (h Handler) SessionCreate(ctx context.Context) error {
+	ctx, span := telemetry.From(anduin.Request(ctx), "sessions.create")
 	defer span.End()
 
 	var payload struct {
@@ -77,17 +72,16 @@ func (s Sessions) Create(etx *echo.Context) error {
 		Password string `json:"password"`
 	}
 
-	if err := etx.Bind(&payload); err != nil {
+	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		telemetry.Error(
 			ctx,
 			"could not parse login form payload",
-			"error",
-			err,
+			"error", err,
 		)
-		return s.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
+		return h.renderer.Page(ctx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
-	user, err := s.identity.AuthenticateUser(
+	user, err := h.identity.AuthenticateUser(
 		ctx,
 		services.LoginData{
 			Email:    payload.Email,
@@ -95,33 +89,36 @@ func (s Sessions) Create(etx *echo.Context) error {
 		},
 	)
 	if err != nil {
-		if validationErrors, ok := validation.As(err); ok {
-		return s.renderer.Page(
-			etx,
-			"Auth/Login",
-			inertia.Props{},
-		).ValidationErrors(validationErrors.ToMap()).Render()
+		if fields, ok := validationFields(err); ok {
+			return h.renderer.Page(
+				ctx,
+				"Auth/Login",
+				inertia.Props{},
+			).ValidationErrors(fields).Render()
 		}
 
 		if errors.Is(err, services.ErrEmailNotVerified) {
-			if err := s.resumeEmailVerification(etx, user); err != nil {
-				return err
+			if resumeErr := h.resumeEmailVerification(ctx, user); resumeErr != nil {
+				return resumeErr
 			}
 
-			return s.renderer.Redirect(etx, routes.ConfirmationNew.URL(), http.StatusSeeOther)
+			return h.renderer.Redirect(
+				ctx,
+				routes.ConfirmationNew.URL(),
+				http.StatusSeeOther,
+			)
 		}
 
 		telemetry.Error(
 			ctx,
 			"failed to authenticate user",
-			"error",
-			err,
+			"error", err,
 		)
 
-		return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
+		return h.renderer.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
 	}
 
-	if err := kiks.Set(etx.Request().Context(), &cookies.App{
+	if err := kiks.Set(ctx, &middleware.App{
 		UserID:          user.ID.String(),
 		IsAdmin:         user.IsAdmin,
 		IsAuthenticated: true,
@@ -129,27 +126,37 @@ func (s Sessions) Create(etx *echo.Context) error {
 		return err
 	}
 
-	return s.renderer.Location(etx, routes.HomePage.URL())
+	return h.renderer.Location(ctx, routes.HomePage.URL())
 }
 
 // resumeEmailVerification sends an unverified user a fresh code and binds it
 // to this session, so they can confirm from any browser.
-func (s Sessions) resumeEmailVerification(etx *echo.Context, user models.User) error {
-	if err := s.identity.ResendEmailVerification(etx.Request().Context(), user); err != nil {
+func (h Handler) resumeEmailVerification(ctx context.Context, user domainuser.User) error {
+	if err := h.identity.ResendEmailVerification(ctx, user); err != nil {
 		return err
 	}
 
-	return setPendingUser(etx, user.ID.String())
+	return setPendingUser(ctx, user.ID.String())
 }
 
-func (s Sessions) Destroy(etx *echo.Context) error {
-	ctx, span := telemetry.From(etx, "sessions.destroy")
+func (h Handler) SessionDestroy(ctx context.Context) error {
+	ctx, span := telemetry.From(anduin.Request(ctx), "sessions.destroy")
 	defer span.End()
 
-	if err := kiks.Destroy[*cookies.App](ctx); err != nil {
+	if err := kiks.Destroy[*middleware.App](ctx); err != nil {
 		return err
 	}
 
-	return s.renderer.Redirect(etx, routes.SessionNew.URL(), http.StatusSeeOther)
+	return h.renderer.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
 }
 
+// validationFields unwraps the domain validation error that services return so
+// a handler can re-render its form with field-level messages.
+func validationFields(err error) (map[string]string, bool) {
+	var validationErr domains.ValidationError
+	if errors.As(err, &validationErr) {
+		return validationErr.Fields, true
+	}
+
+	return nil, false
+}

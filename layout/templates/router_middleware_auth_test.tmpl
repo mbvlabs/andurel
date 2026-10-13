@@ -1,20 +1,20 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"sync/atomic"
 	"testing"
 
+	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/routing"
-
-	"github.com/labstack/echo/v5"
 )
 
 func TestIPRateLimiterPermitsExactlyConfiguredLimitAtomically(t *testing.T) {
 	const (
-		limit    = int32(5)
+		limit    = 5
 		requests = 50
 	)
 
@@ -22,9 +22,9 @@ func TestIPRateLimiterPermitsExactlyConfiguredLimitAtomically(t *testing.T) {
 	limiter := IPRateLimiter(
 		limit,
 		routing.NewSimpleRoute("/rate-limited", "rate_limited", ""),
-	)(func(c *echo.Context) error {
+	)(func(ctx context.Context) error {
 		handled.Add(1)
-		return c.NoContent(http.StatusNoContent)
+		return anduin.NoContent(ctx, http.StatusNoContent)
 	})
 
 	start := make(chan struct{})
@@ -36,9 +36,7 @@ func TestIPRateLimiterPermitsExactlyConfiguredLimitAtomically(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, "/", nil)
 			request.RemoteAddr = "192.0.2.1:1234"
 			recorder := httptest.NewRecorder()
-			e := echo.New()
-			ctx := e.NewContext(request, recorder)
-			if err := limiter(ctx); err != nil {
+			if err := anduin.Serve(recorder, request, limiter); err != nil {
 				t.Errorf("rate-limited request: %v", err)
 			}
 		})
@@ -52,20 +50,18 @@ func TestIPRateLimiterPermitsExactlyConfiguredLimitAtomically(t *testing.T) {
 }
 
 func TestIPRateLimiterRejectsOverLimitAndScopesByIP(t *testing.T) {
-	const limit = int32(2)
+	const limit = 2
 	redirect := routing.NewSimpleRoute("/rate-limited", "rate_limited", "")
 
-	limiter := IPRateLimiter(limit, redirect)(func(c *echo.Context) error {
-		return c.NoContent(http.StatusNoContent)
+	limiter := IPRateLimiter(limit, redirect)(func(ctx context.Context) error {
+		return anduin.NoContent(ctx, http.StatusNoContent)
 	})
 
 	call := func(remoteAddr string) int {
 		request := httptest.NewRequest(http.MethodPost, "/", nil)
 		request.RemoteAddr = remoteAddr
 		recorder := httptest.NewRecorder()
-		e := echo.New()
-		ctx := e.NewContext(request, recorder)
-		if err := limiter(ctx); err != nil {
+		if err := anduin.Serve(recorder, request, limiter); err != nil {
 			t.Fatalf("rate limiter returned error: %v", err)
 		}
 

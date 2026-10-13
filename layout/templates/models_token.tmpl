@@ -1,4 +1,4 @@
-package models
+package token
 
 // andurel:table tokens
 
@@ -13,7 +13,8 @@ import (
 	"time"
 	"uuid"
 
-	"{{.ModuleName}}/models/internal/queries"
+	"{{.ModuleName}}/domains"
+	"{{.ModuleName}}/domains/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
@@ -22,16 +23,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// Tokens is the token domain's persistence entry point. It owns the tokens
+// table and the token hashing/verification rules; it never imports another
+// domain.
 type Tokens struct {
+	db      storage.Connection
 	queries *queries.Queries
 }
 
 func NewTokens(db storage.Connection) Tokens {
-	return Tokens{queries: queries.New(db)}
+	return Tokens{db: db, queries: queries.New(db)}
 }
 
 func (t Tokens) WithTx(tx storage.Transaction) Tokens {
 	return Tokens{queries: queries.New(tx)}
+}
+
+// Connection exposes the underlying database handle so application services can
+// run a transaction that spans domains.
+func (t Tokens) Connection() storage.Connection {
+	return t.db
 }
 
 type Token struct {
@@ -89,7 +100,7 @@ func (t Tokens) Find(ctx context.Context, id uuid.UUID) (Token, error) {
 	entity, err := t.queries.GetToken[Token](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Token{}, ErrNotFound
+			return Token{}, domains.ErrNotFound
 		}
 
 		return Token{}, err
@@ -112,7 +123,7 @@ func (t Tokens) FindByScopeAndHash(
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Token{}, ErrNotFound
+			return Token{}, domains.ErrNotFound
 		}
 
 		return Token{}, err
@@ -132,7 +143,7 @@ func (t Tokens) FindByUserAndScope(
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Token{}, ErrNotFound
+			return Token{}, domains.ErrNotFound
 		}
 
 		return Token{}, err
@@ -151,7 +162,7 @@ func (t Tokens) IncrementAttempts(ctx context.Context, id uuid.UUID) (int32, err
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return 0, ErrNotFound
+			return 0, domains.ErrNotFound
 		}
 
 		return 0, err
@@ -206,7 +217,7 @@ func (t Tokens) createToken(
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return Token{}, errors.Join(ErrDomainValidation, err)
+		return Token{}, validationFailure(err)
 	}
 
 	return t.queries.CreateToken[Token](ctx, queries.CreateTokenParams{
@@ -327,4 +338,14 @@ func (t Tokens) Paginate(
 		PageSize:   pageSize,
 		TotalPages: totalPages,
 	}, nil
+}
+
+// validationFailure maps pkg/validation field errors into the domain
+// vocabulary: a ValidationError that reports true for domains.ErrViolation.
+func validationFailure(err error) error {
+	if validationErrors, ok := validation.As(err); ok {
+		return domains.ValidationError{Fields: validationErrors.ToMap()}
+	}
+
+	return err
 }

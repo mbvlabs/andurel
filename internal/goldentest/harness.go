@@ -243,7 +243,7 @@ func AssertDir(t testing.TB, g *goldie.Goldie, goldenPrefix, projectDir, relDir 
 // ShouldSkipNewProjectPath reports paths that must not be raw-goldened for
 // `andurel new` even under andurel_golden (downloads, VCS metadata, tidy churn,
 // secrets). Filters paths only — never mutates content. Nightly full-tree
-// capture uses AssertTree with FullScaffoldDenylist; models/internal/queries
+// capture uses AssertTree with FullScaffoldDenylist; domains/internal/queries
 // and *_templ.go are included.
 func ShouldSkipNewProjectPath(rel string, isDir bool) bool {
 	return ShouldSkipFullScaffoldPath(rel, isDir, FullScaffoldDenylist)
@@ -257,29 +257,6 @@ func AssertMissing(t testing.TB, projectDir, relPath string) {
 		t.Fatalf("expected %s not to exist", relPath)
 	} else if !os.IsNotExist(err) {
 		t.Fatalf("stat %s: %v", relPath, err)
-	}
-}
-
-// CopyMigrations copies SQL files from generator/testdata/migrations/<name>
-// into projectDir/migrations/.
-func CopyMigrations(t testing.TB, projectDir, name string) {
-	t.Helper()
-
-	src := filepath.Join(RepoRoot(), "generator", "testdata", "migrations", name)
-	info, err := os.Stat(src)
-	if err != nil {
-		t.Fatalf("migrations %q: %v", name, err)
-	}
-	if !info.IsDir() {
-		t.Fatalf("migrations %q is not a directory", name)
-	}
-
-	dst := filepath.Join(projectDir, "migrations")
-	if err := os.MkdirAll(dst, 0o755); err != nil {
-		t.Fatalf("mkdir migrations: %v", err)
-	}
-	if err := copyDir(src, dst); err != nil {
-		t.Fatalf("copy migrations %q: %v", name, err)
 	}
 }
 

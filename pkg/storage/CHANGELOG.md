@@ -4,6 +4,10 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+### Changed
+
+- narsilc query discovery moved from `models/queries/` to `domains/`: `QueriesDir` is now `domains` and `GeneratedQueriesDir` is `domains/internal/queries`. `HasQueryFiles` scans the `domains` tree recursively and ignores the generated output directory.
+
 ## 0.8.1 - 2026-09-29
 
 ### Changed

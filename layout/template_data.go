@@ -55,10 +55,10 @@ func (td *TemplateData) EmailPackageVersion() string {
 	return versions.Email
 }
 
-// HypermediaPackageVersion returns the standalone hypermedia module version
+// AnduinPackageVersion returns the standalone anduin HTTP module version
 // verified with this framework release.
-func (td *TemplateData) HypermediaPackageVersion() string {
-	return versions.Hypermedia
+func (td *TemplateData) AnduinPackageVersion() string {
+	return versions.Anduin
 }
 
 // InertiaPackageVersion returns the standalone Inertia module version verified
@@ -77,12 +77,6 @@ func (td *TemplateData) KiksPackageVersion() string {
 // with this framework release.
 func (td *TemplateData) RoutingPackageVersion() string {
 	return versions.Routing
-}
-
-// ServerPackageVersion returns the standalone server module version verified
-// with this framework release.
-func (td *TemplateData) ServerPackageVersion() string {
-	return versions.Server
 }
 
 // StoragePackageVersion returns the standalone storage module version verified

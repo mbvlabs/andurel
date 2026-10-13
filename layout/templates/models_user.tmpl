@@ -1,4 +1,4 @@
-package models
+package user
 
 // andurel:table users
 
@@ -13,7 +13,8 @@ import (
 	"time"
 	"uuid"
 
-	"{{.ModuleName}}/models/internal/queries"
+	"{{.ModuleName}}/domains"
+	"{{.ModuleName}}/domains/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
@@ -24,16 +25,25 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
+// Users is the user domain's persistence entry point. It owns the users table:
+// every read and write goes through it, and it never imports another domain.
 type Users struct {
+	db      storage.Connection
 	queries *queries.Queries
 }
 
 func NewUsers(db storage.Connection) Users {
-	return Users{queries: queries.New(db)}
+	return Users{db: db, queries: queries.New(db)}
 }
 
 func (u Users) WithTx(tx storage.Transaction) Users {
 	return Users{queries: queries.New(tx)}
+}
+
+// Connection exposes the underlying database handle so application services can
+// run a transaction that spans domains.
+func (u Users) Connection() storage.Connection {
+	return u.db
 }
 
 type User struct {
@@ -90,7 +100,7 @@ func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
 	entity, err := u.queries.GetUser[User](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return User{}, ErrNotFound
+			return User{}, domains.ErrNotFound
 		}
 
 		return User{}, err
@@ -106,7 +116,7 @@ func (u Users) FindByEmail(
 	entity, err := u.queries.GetUserByEmail[User](ctx, strings.ToLower(email))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return User{}, ErrNotFound
+			return User{}, domains.ErrNotFound
 		}
 
 		return User{}, err
@@ -146,7 +156,7 @@ func (u Users) Create(
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return User{}, errors.Join(ErrDomainValidation, err)
+		return User{}, validationFailure(err)
 	}
 
 	return u.queries.CreateUser[User](ctx, queries.CreateUserParams{
@@ -203,7 +213,7 @@ func (u Users) Update(
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return User{}, errors.Join(ErrDomainValidation, err)
+		return User{}, validationFailure(err)
 	}
 
 	row, err := u.queries.UpdateUser[User](ctx, queries.UpdateUserParams{
@@ -216,7 +226,7 @@ func (u Users) Update(
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return User{}, ErrNotFound
+			return User{}, domains.ErrNotFound
 		}
 
 		return User{}, err
@@ -279,6 +289,16 @@ func (u Users) Paginate(
 		PageSize:   pageSize,
 		TotalPages: totalPages,
 	}, nil
+}
+
+// validationFailure maps pkg/validation field errors into the domain
+// vocabulary: a ValidationError that reports true for domains.ErrViolation.
+func validationFailure(err error) error {
+	if validationErrors, ok := validation.As(err); ok {
+		return domains.ValidationError{Fields: validationErrors.ToMap()}
+	}
+
+	return err
 }
 
 func generateSalt(size int) ([]byte, error) {

@@ -1,97 +1,56 @@
-package controllers
+package auth
 
 import (
-	"errors"
+	"context"
 	"net/http"
 	"uuid"
 
-	"{{.ModuleName}}/router"
-	"{{.ModuleName}}/router/cookies"
-	"{{.ModuleName}}/router/middleware"
-	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/middleware"
+	"{{.ModuleName}}/routes"
 	"{{.ModuleName}}/services"
 
+	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
-	"github.com/mbvlabs/andurel/pkg/validation"
-
-	"github.com/labstack/echo/v5"
 )
 
-type Confirmations struct {
-	identity services.Identity
-	renderer *inertia.Renderer
+func (h Handler) ConfirmationNew(ctx context.Context) error {
+	return h.renderer.Page(ctx, "Auth/ConfirmEmail", inertia.Props{}).Render()
 }
 
-func NewConfirmations(
-	identity services.Identity,
-	renderer *inertia.Renderer,
-) Confirmations {
-	return Confirmations{identity: identity, renderer: renderer}
-}
-
-func (c Confirmations) RegisterRoutes(r *router.Router) error {
-	errs := []error{}
-
-	_, err := r.AddRoute(routes.ConfirmationNew, echo.Route{
-		Method:  http.MethodGet,
-		Handler: c.New,
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	_, err = r.AddRoute(routes.ConfirmationCreate, echo.Route{
-		Method:  http.MethodPost,
-		Handler: c.Create,
-		Middlewares: []echo.MiddlewareFunc{
-			middleware.IPRateLimiter(5, routes.ConfirmationNew),
-		},
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}
-
-	return errors.Join(errs...)
-}
-
-func (c Confirmations) New(etx *echo.Context) error {
-	return c.renderer.Page(etx, "Auth/ConfirmEmail", inertia.Props{}).Render()
-}
-
-func (c Confirmations) Create(etx *echo.Context) error {
-	ctx, span := telemetry.From(etx, "confirmations.create")
+func (h Handler) ConfirmationCreate(ctx context.Context) error {
+	ctx, span := telemetry.From(anduin.Request(ctx), "confirmations.create")
 	defer span.End()
 
 	var payload struct {
 		Code string `json:"code"`
 	}
 
-	if err := etx.Bind(&payload); err != nil {
+	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		telemetry.Error(
 			ctx,
 			"could not parse verification form payload",
 			"error",
 			err,
 		)
-		return c.renderer.Page(etx, "Errors/BadRequest", inertia.Props{}).Render()
+		return h.renderer.Page(ctx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
-	user, err := c.identity.VerifyEmail(
+	user, err := h.identity.VerifyEmail(
 		ctx,
 		services.VerifyEmailData{
-			UserID: pendingUserID(etx),
+			UserID: pendingUserID(ctx),
 			Code:   payload.Code,
 		},
 	)
 	if err != nil {
-		if validationErrors, ok := validation.As(err); ok {
-		return c.renderer.Page(
-			etx,
-			"Auth/ConfirmEmail",
-			inertia.Props{},
-		).ValidationErrors(validationErrors.ToMap()).Render()
+		if fields, ok := validationFields(err); ok {
+			return h.renderer.Page(
+				ctx,
+				"Auth/ConfirmEmail",
+				inertia.Props{},
+			).ValidationErrors(fields).Render()
 		}
 
 		telemetry.Error(
@@ -101,10 +60,14 @@ func (c Confirmations) Create(etx *echo.Context) error {
 			err,
 		)
 
-		return c.renderer.Redirect(etx, routes.ConfirmationNew.URL(), http.StatusSeeOther)
+		return h.renderer.Redirect(
+			ctx,
+			routes.ConfirmationNew.URL(),
+			http.StatusSeeOther,
+		)
 	}
 
-	if err := kiks.Set(etx.Request().Context(), &cookies.App{
+	if err := kiks.Set(ctx, &middleware.App{
 		UserID:          user.ID.String(),
 		IsAdmin:         user.IsAdmin,
 		IsAuthenticated: true,
@@ -112,11 +75,13 @@ func (c Confirmations) Create(etx *echo.Context) error {
 		return err
 	}
 
-	return c.renderer.Location(etx, routes.HomePage.URL())
+	return h.renderer.Location(ctx, routes.HomePage.URL())
 }
 
-func pendingUserID(etx *echo.Context) uuid.UUID {
-	app, err := kiks.Get[*cookies.App](etx.Request().Context())
+// pendingUserID reads the user awaiting confirmation from the session. Invalid
+// or absent state yields uuid.Nil, which the service treats as an invalid code.
+func pendingUserID(ctx context.Context) uuid.UUID {
+	app, err := kiks.Get[*middleware.App](ctx)
 	if err != nil || app == nil || app.PendingUserID == "" {
 		return uuid.Nil()
 	}

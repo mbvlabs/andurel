@@ -1,0 +1,20 @@
+<script lang="ts">
+  import Layout from '@/Layouts/Layout.svelte'
+
+  export let errors: Record<string, string> = {}
+</script>
+
+<Layout>
+  <section class="w-full max-w-md border border-border bg-card/90 p-6 text-center shadow-sm shadow-black/40">
+    <p class="text-sm font-medium uppercase tracking-wide text-accent">422</p>
+    <h1 class="mt-2 text-2xl font-semibold text-card-foreground">Validation failed</h1>
+    <p class="mt-3 text-sm leading-6 text-muted-foreground">Please correct the highlighted fields and try again.</p>
+    {#if Object.keys(errors).length > 0}
+      <ul class="mt-4 space-y-1 text-left text-sm font-medium text-destructive">
+        {#each Object.entries(errors) as [field, message] (field)}
+          <li>{message}</li>
+        {/each}
+      </ul>
+    {/if}
+  </section>
+</Layout>

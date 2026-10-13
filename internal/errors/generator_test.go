@@ -9,19 +9,19 @@ import (
 func TestGenerationError(t *testing.T) {
 	cause := stderrors.New("disk full")
 
-	err := NewGeneratorError("generate", "controller", cause)
+	err := NewGeneratorError("generate", "handler", cause)
 	if !stderrors.Is(err, cause) {
 		t.Fatalf("NewGeneratorError should wrap cause")
 	}
-	if got, want := err.Error(), "failed to generate controller: disk full"; got != want {
+	if got, want := err.Error(), "failed to generate handler: disk full"; got != want {
 		t.Fatalf("Error() = %q, want %q", got, want)
 	}
 
-	fileErr := NewFileOperationError("controllers/users.go", "write", cause)
+	fileErr := NewFileOperationError("handlers/users.go", "write", cause)
 	if !stderrors.Is(fileErr, cause) {
 		t.Fatalf("NewFileOperationError should wrap cause")
 	}
-	if got, want := fileErr.Error(), "failed to write file in controllers/users.go: disk full"; got != want {
+	if got, want := fileErr.Error(), "failed to write file in handlers/users.go: disk full"; got != want {
 		t.Fatalf("Error() = %q, want %q", got, want)
 	}
 }
@@ -29,11 +29,11 @@ func TestGenerationError(t *testing.T) {
 func TestSpecificFileOperationError(t *testing.T) {
 	cause := stderrors.New("permission denied")
 
-	err := NewSpecificFileOperationError("views/index.templ", "read", cause)
+	err := NewSpecificFileOperationError("resources/root.templ", "read", cause)
 	if !stderrors.Is(err, cause) {
 		t.Fatalf("NewSpecificFileOperationError should wrap cause")
 	}
-	if got, want := err.Error(), "failed to read file views/index.templ: permission denied"; got != want {
+	if got, want := err.Error(), "failed to read file resources/root.templ: permission denied"; got != want {
 		t.Fatalf("Error() = %q, want %q", got, want)
 	}
 }
@@ -48,8 +48,8 @@ func TestTemplateValidationAndDatabaseErrors(t *testing.T) {
 	}{
 		{
 			name: "template",
-			err:  NewTemplateError("model.go.tmpl", "execute", cause),
-			want: "failed to execute template model.go.tmpl: bad input",
+			err:  NewTemplateError("domain.go.tmpl", "execute", cause),
+			want: "failed to execute template domain.go.tmpl: bad input",
 		},
 		{
 			name: "validation without cause",

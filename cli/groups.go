@@ -8,35 +8,22 @@ func newSyncGroupCommand() *cobra.Command {
 		Short: "Refresh derived files from a source of truth",
 		Long: `Refresh generated artifacts. This group does not create application-owned files.
 
-  views      .templ → *_templ.go (and email compile when inputs exist)
-  queries    models/queries/*.sql → models/internal/queries
-  routes     router/routes/*.go → resources/js/routes.ts (Inertia)
-  payloads   controller payload/Bind structs → resources/js/types/payloads.ts
+  queries    domains/**/*.sql → domains/internal/queries
+  routes     routes/*.go → resources/js/routes.ts (Inertia)
+  payloads   handler payload/Bind structs → resources/js/types/payloads.ts
   email      authored email templates → inlined email renderers
-  model      migrations → one models/*.go Entity
-  factory    model Entity → one models/factories file
-  factories  model Entities → every Andurel-owned factory declaration
 
 andurel tool sync downloads pinned binaries. It is not this group.`,
-		Example: `  andurel sync views
-  andurel sync queries
+		Example: `  andurel sync queries
   andurel sync routes --json
   andurel sync payloads --json
-  andurel sync email
-  andurel sync model Post
-  andurel sync model Post --check
-  andurel sync factory User --check
-  andurel sync factories --sync`,
+  andurel sync email`,
 	}
 	cmd.AddCommand(
-		newGenerateViewsCommand(),
 		newGenerateQueriesCommand(),
 		newGenerateRoutesCommand(),
 		newGeneratePayloadsCommand(),
 		newEmailCompileCommand(),
-		newSyncModelCommand(),
-		newGenerateFactoryCommand(),
-		newGenerateFactoriesCommand(),
 	)
 	setStandardHelp(cmd)
 	return cmd
@@ -48,18 +35,19 @@ func newInspectCommand() *cobra.Command {
 		Short: "Read-only project shape",
 		Long: `List project metadata and source files without writing anything.
 
-Use andurel sync to refresh derived files. Use andurel generate to create application-owned code.`,
+Use andurel sync to refresh derived files. Use andurel patterns to read the
+reference shape before writing application-owned code yourself.`,
 		Example: `  andurel inspect project --json
   andurel inspect routes --json
-  andurel inspect models --json`,
+  andurel inspect domains --json
+  andurel inspect handlers --json`,
 	}
 	cmd.AddCommand(
 		newProjectInfoCommand(),
 		newRoutesCommand(),
-		newModelsCommand(),
 		newMigrationsCommand(),
-		newControllersCommand(),
-		newViewsCommand(),
+		newDomainsCommand(),
+		newHandlersCommand(),
 		newJobsCommand(),
 	)
 	setStandardHelp(cmd)

@@ -1,49 +1,54 @@
 package middleware
 
 import (
+	"context"
+	"net"
 	"net/http"
 	"time"
 
-	"{{.ModuleName}}/router/cookies"
-	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/routes"
 
+	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/routing"
 
-	"github.com/labstack/echo/v5"
 	"github.com/maypok86/otter/v2"
 )
 
-func AuthOnly() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			app, err := kiks.Get[*cookies.App](c.Request().Context())
+// AuthOnly gates a route on an authenticated application session, redirecting
+// anonymous visitors to the sign-in page.
+func AuthOnly() anduin.Middleware {
+	return func(next anduin.Handler) anduin.Handler {
+		return func(ctx context.Context) error {
+			app, err := kiks.Get[*App](ctx)
 			if err != nil {
 				return err
 			}
 			if app != nil && app.IsAuthenticated {
-				return next(c)
+				return next(ctx)
 			}
 
-			return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
+			return anduin.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
 		}
 	}
 }
 
+// IPRateLimiter allows at most limit requests per client IP within ten minutes.
+// Over-limit requests receive 429 with the redirect route's URL as the body.
 func IPRateLimiter(
-	limit int32,
+	limit int,
 	redirectURL routing.Route,
-) func(next echo.HandlerFunc) echo.HandlerFunc {
-	cache := otter.Must(&otter.Options[string, int32]{
+) anduin.Middleware {
+	cache := otter.Must(&otter.Options[string, int]{
 		MaximumSize:      1000,
-		ExpiryCalculator: otter.ExpiryCreating[string, int32](10 * time.Minute),
+		ExpiryCalculator: otter.ExpiryCreating[string, int](10 * time.Minute),
 	})
 
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			ip := c.RealIP()
+	return func(next anduin.Handler) anduin.Handler {
+		return func(ctx context.Context) error {
+			ip := clientIP(anduin.Request(ctx))
 			allowed := false
-			cache.Compute(ip, func(hits int32, found bool) (int32, otter.ComputeOp) {
+			cache.Compute(ip, func(hits int, found bool) (int, otter.ComputeOp) {
 				if !found {
 					hits = 0
 				}
@@ -56,10 +61,22 @@ func IPRateLimiter(
 			})
 
 			if !allowed {
-				return c.String(http.StatusTooManyRequests, redirectURL.URL())
+				return anduin.Text(ctx, http.StatusTooManyRequests, redirectURL.URL())
 			}
 
-			return next(c)
+			return next(ctx)
 		}
 	}
+}
+
+// clientIP resolves the request's client address, stripping the port.
+func clientIP(request *http.Request) string {
+	if request == nil {
+		return ""
+	}
+	if host, _, err := net.SplitHostPort(request.RemoteAddr); err == nil {
+		return host
+	}
+
+	return request.RemoteAddr
 }

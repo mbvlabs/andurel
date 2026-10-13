@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 )
 
-// templGenerateArgs is the templ invocation shared by sync views, doctor, and
-// build. `-path .` matches andurel new / cmds.RunTemplGenerate so generated
-// FileName values stay project-relative (views/root.templ).
+// templGenerateArgs is the templ invocation shared by doctor and build.
+// `-path .` matches andurel new / cmds.RunTemplGenerate so generated
+// FileName values stay project-relative (resources/root.templ).
 var templGenerateArgs = []string{"generate", "-path", "."}
 
 func runTempl(args ...string) error {

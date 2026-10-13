@@ -27,8 +27,8 @@ func newBuildCommand() *cobra.Command {
 		Long: `Build the application binary and compile all assets for production deployment.
 
 This command:
-  • Downloads templ and generates views
-  • Generates narsilc code when models/queries contains SQL files
+  • Downloads templ and generates Go from .templ files (email + Inertia root)
+  • Generates narsilc code when domains/**/*.sql contains SQL files
   • Compiles Tailwind utilities in email templates
   • Builds Tailwind CSS
   • Builds Vite assets (if Inertia is configured)
@@ -73,7 +73,7 @@ func buildApp(rootDir string, versionFlag string) error {
 			return fmt.Errorf("failed to sync templ: %w", err)
 		}
 
-		fmt.Println("Generating templ views...")
+		fmt.Println("Generating templ files...")
 		templCmd := exec.Command(filepath.Join(binDir, "templ"), templGenerateArgs...)
 		templCmd.Dir = rootDir
 		templCmd.Stdout = os.Stdout

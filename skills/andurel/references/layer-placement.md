@@ -1,21 +1,43 @@
 # Layer Placement
 
-Use these rules when changing an Andurel app shaped like this repository.
+Rules for placing code in an Andurel app. The shape is fixed and deliberately
+small:
+
+- HTTP is ordinary Go over `net/http`, reached through
+  `github.com/mbvlabs/andurel/pkg/anduin` (see
+  [http-and-routing.md](http-and-routing.md)).
+- Business logic and persistence live in `domains/`.
+- Application logic (cross-domain orchestration) lives in `services/`.
+- HTTP adapters live in `handlers/`; route *data* lives in `routes/`; app
+  middleware and the cookie jar live in `middleware/`.
+- Composition is explicit constructor injection in `internal/runtime/`. There is
+  no Fx, no reflection wiring, and no code generator.
+
+Two commands keep an agent honest:
+
+- `andurel patterns show <kind>` prints reference code, the rules for that
+  layer, and a "definition of done" checklist. Patterns are read-only; the agent
+  writes every file.
+- `andurel verify` runs formatting, `go fix`, `go vet`, and the
+  domain/service import-boundary lint. Add `--with-tests` to also run
+  `go test ./...`.
 
 ## Placement Rules
 
 | Code | Put it in |
 | --- | --- |
-| Database-backed entity structs, Bun table mappings, create/update input structs, validation, persistence methods, finder/query methods, domain errors | `models/` |
-| Rules that must hold regardless of HTTP, admin UI, API, jobs, or seeds | `models/` |
-| Test factory definitions, generated factory fields, factory options, reusable test data helpers | `models/factories/` |
-| Multi-step workflows, transactions, cross-model coordination, policy checks that require current database state, external side effects coordinated with domain writes | `services/` |
-| Request parsing, path/query/form payload binding, HTTP status/render choices, flash messages, redirects, CSRF/session handling | `controllers/`, `controllers/admin/`, `controllers/api/` |
-| Route names, route paths, URL builders | `router/routes/` |
-| Middleware and request/session plumbing | `router/middleware/` and `router/cookies/` (`cookies.NewJar` / `cookies.Module`; bag values via `pkg/kiks` on `context.Context`) |
-| Extra named cookies (cart, consent, …) | Define the type in `router/cookies/` with `MarshalCookie`/`UnmarshalCookie`. Register in `cookies.NewJar`: wrap with `kiks.Bagged(...)` for middleware bag (`Get`/`Set`), or leave unmarked for native `Read`/`Write`/`Clear` (inject `*kiks.Jar`). One Go type per jar. |
-| Public templ pages, view models, schema helpers, templ-specific presentation labels | `views/` |
-| Admin Inertia pages and reusable frontend components | `resources/js/Pages/`, `resources/js/Layouts/`, `resources/js/Components/`, `resources/js/components/ui/` |
+| Database-backed entity structs, `andurel:"column"` table tags, create/update input structs, validation, persistence methods, finder/query methods, domain errors | `domains/<entity>/` (for example `domains/user/user.go`) |
+| SQL for a domain (narsilc input) | `domains/<entity>/<entity>.sql`, colocated with the entity |
+| narsilc-generated query types and rows (narsilc output) | `domains/internal/queries/` — imported only by `domains/**` |
+| Cross-domain vocabulary: `ErrNotFound`, `ErrConflict`, `ErrViolation`, `ValidationError{Fields}` | `domains/errors.go` (package `domains`) |
+| Rules that must hold regardless of HTTP, Inertia, API, jobs, or seeds | `domains/` |
+| Multi-step workflows, transactions, cross-domain coordination, external side effects, application policy that requires current database state | `services/` |
+| Request parsing, path/query/form/JSON binding, HTTP status/render/redirect choices, flash messages, CSRF/session handling | `handlers/`, `handlers/api/`, `handlers/auth/` |
+| Route names, route paths, URL builders | `routes/` |
+| App HTTP middleware (auth, rate limit) and cookie-jar wiring | `middleware/` |
+| Inertia root document | `resources/root.templ` (package `resources`) |
+| Inertia pages and reusable frontend components | `resources/js/Pages/`, `resources/js/Layouts/`, `resources/js/Components/`, `resources/js/components/ui/` |
+| Generated TS route/payload helpers | `resources/js/routes.ts`, `resources/js/types/payloads.ts` (written by `andurel sync routes` / `sync payloads`) |
 | Source CSS and theme primitives | `css/` |
 | Compiled/static assets | `assets/` |
 | SQL schema changes | `migrations/` |
@@ -26,186 +48,267 @@ Use these rules when changing an Andurel app shaped like this repository.
 | River job argument types | `queue/jobs/` |
 | River workers and queue registration | `queue/` |
 | App configuration structs and environment loading | `config/` |
-| Reusable framework-like packages not specific to one resource | `internal/` |
-| Process composition (Fx graphs, infrastructure constructors, process lifecycle) | `internal/runtime` |
-| Process entry (load env, signal context, fx.New) | `cmd/app/`, `cmd/queue/` |
+| Process composition (constructor wiring, infrastructure, process lifecycle) | `internal/runtime/` |
+| Process entry (load env, signal context, `runtime.New` + `anduin.NewServer`) | `cmd/app/`, `cmd/queue/` |
 | One-shot database processes | `cmd/migrate/`, `cmd/seeds/` |
 
-## Models
+## Domains
 
-Put business logic in models when it belongs to the domain object itself.
+`domains/` is all business logic and persistence. A domain package answers "what
+is true about this entity?" and owns the SQL that reads and writes it.
 
-Use models for:
+Use a domain package for:
 
-- Entity structs. Default generated fields stay 1:1 with the table (`andurel:"column"` tags). For custom types, add `func (m *X) Transform(row queries.XRow) error` by hand; keep `sql.Scanner` off the entity. Do not invent a third `database.nullType`.
-- Generated `queries.XRow` / `queries.QueryNameRow` in `models/internal/queries/` (narsilc). Domain code should still return the entity, not the row.
-- `CreateXData` and `UpdateXData` structs that represent domain input.
-- Validation methods such as `Validate() error`.
-- Null, JSON, and time normalization needed to build a valid entity.
-- CRUD methods, finder methods, pagination, count queries, and domain query methods.
-- Domain errors such as not found or validation failures.
+- Entity structs. Keep generated fields 1:1 with the table (`andurel:"column"`
+  tags). When the entity is not the scan row, hand-write a
+  `Transform(queries.XRow) error`; keep `sql.Scanner` off the entity.
+- Generated `queries.XRow` / `queries.QueryNameRow` values. Domain code returns
+  the entity, never the row.
+- `Create<Entity>Data` and `Update<Entity>Data` input structs.
+- Validation methods such as `Validate() error` and field normalization.
+- CRUD methods, finder methods, pagination, count queries, and domain query
+  methods.
+- Domain errors. Return the shared sentinels from the root `domains` package
+  (`domains.ErrNotFound`, `domains.ErrConflict`, `domains.ErrViolation`) or a
+  `domains.ValidationError` for field-level failures.
 
-Keep model methods independent of HTTP, Echo, Inertia, templ, sessions, cookies, flash messages, and route names.
+Hard rules:
 
-Good model responsibilities:
+- **A domain package must not import another domain package.** If a rule spans
+  `user` and `token`, it is application logic and belongs in a service.
+- **Only `domains/**` may import `domains/internal/queries`.** `services/`,
+  `handlers/`, `internal/runtime/`, `queue/`, and `seeds/` call domain
+  constructors and methods; they never touch the generated queries package.
+- **SQL is colocated with its domain** (`domains/user/user.sql`). Narsilc globs
+  `domains/**/*.sql` and writes to `domains/internal/queries/`. You never
+  place SQL under `models/` — there is no `models/`.
+- **Type-driven by default.** The Go domain type is the source of truth; SQL,
+  generated queries, and validation follow it. Inspect the mapping with
+  `andurel inspect domains --json`. Hand-written SQL is the exception, not the
+  default.
+- Keep domain methods independent of HTTP, `anduin`, Inertia, sessions, cookies,
+  flash messages, and route names.
+
+Good domain responsibilities:
 
 - "A featured project requires a description."
 - "A slug must be valid."
 - "Create a project entity from domain input and validate it before insert."
 - "Find a published item by slug."
 
-Avoid putting orchestration in models when it coordinates multiple operations under a policy or transaction. That belongs in a service.
-
-## Factories
-
-Put model factories in `models/factories/`. Factories are test and seed support code; they should create valid model entities using exported model primitives without owning durable business rules themselves.
-
-Use factories for:
-
-- Test data builders for model entities.
-- Default field values for generated `Entity` fields.
-- Functional options such as `WithProjectName` or `WithProjectOwnerID`.
-- Custom helpers that make tests and seeds clearer.
-
-Keep the model `Entity` struct as the source of truth for generated factory fields. When the model changes, check or sync the factory with:
-
-```bash
-andurel sync factory ModelName --check --json
-andurel sync factory ModelName --sync --json
-```
-
-For repo-wide drift checks, use:
-
-```bash
-andurel sync factories --check --json
-andurel sync factories --sync --json
-```
-
-The factory sync command rewrites Andurel generated regions and preserves custom helpers outside those regions. Prefer syncing generated regions over hand-editing boilerplate. Hand-write only the custom helpers, options, or test-specific defaults that the generator cannot infer safely.
-
-Do not put application workflows, authorization, queueing, email, or HTTP behavior in factories. If a setup path needs real application behavior, call the appropriate model or service from the test instead of hiding it in the factory.
+Avoid orchestration in a domain when it coordinates multiple entities under one
+policy or transaction; that belongs in a service.
 
 ## Services
 
-Create or extend a service when the use case is bigger than one model operation.
+Create or extend a service when the use case is bigger than one domain
+operation.
 
 Use services for:
 
-- Transactions.
-- Cross-model coordination.
+- Transactions spanning more than one domain.
+- Cross-domain coordination.
 - Workflow policies that require current database state.
-- Coordinating persistence with email, queue insertion, cache invalidation, or external clients.
+- Coordinating persistence with email, queue insertion, cache invalidation, or
+  external clients.
 - Shared application use cases used by more than one delivery surface.
 
-Do not create a service for a pass-through wrapper around one model method. Call the model directly from the controller until a real workflow appears.
+A service declares its dependencies as constructor arguments and may depend on
+several domains, the queue, email, and config:
+
+```go
+func NewIdentity(
+	users user.Users,
+	tokens token.Tokens,
+	queue storage.InsertQueue,
+	authCfg config.Auth,
+	mailCfg config.Mail,
+) Identity
+```
+
+Do not create a service for a pass-through wrapper around one domain method.
+Call the domain directly from the handler until a real workflow appears. There
+is no `domains/identity`; `identity`, `authentication`, `registration`, and
+`reset_password` live in `services/`.
 
 Good service responsibilities:
 
-- "Create a featured project only if fewer than three projects are featured, using a serializable transaction."
-- "Register a user, create identity records, issue a token, and enqueue an email."
+- "Create a featured project only if fewer than three projects are featured,
+  using a serializable transaction."
+- "Register a user, create identity records, issue a token, and enqueue an
+  email."
 - "Reset a password after validating a token and updating dependent records."
 
-Register new services in `services/service.go` through the existing `fx.Provide` module.
+## Handlers
 
-## Controllers
+Handlers are thin HTTP adapters. A handler is ordinary Go over a context:
 
-Keep controllers thin and delivery-specific.
+```go
+func (h Handler) Index(ctx context.Context) error
+```
 
-Use controllers for:
+Use handlers for:
 
-- Reading params and query strings.
-- Binding JSON or form payloads.
-- Converting HTTP/admin form input into model data structs.
-- Calling a model or service.
-- Mapping domain/service errors into pages, validation errors, redirects, flash messages, or API responses.
-- Rendering templ pages through `hypermedia` or Inertia pages through `github.com/mbvlabs/andurel/pkg/inertia`.
-- Registering routes in `RegisterRoutes`.
+- Reading path values, query strings, headers, and cookies with `anduin`.
+- Binding JSON or form payloads with `anduin.DecodeJSON` / `anduin.DecodeForm`.
+- Converting HTTP/admin form input into domain data structs.
+- Calling a domain or service.
+- Mapping errors into pages, validation errors, redirects, flash messages, or
+  API responses.
+- Rendering Inertia pages through `github.com/mbvlabs/andurel/pkg/inertia`.
+- Registering routes in `Register(rt *anduin.Router)`.
 
-Do not put durable business rules in controllers. If the same rule must apply outside that one HTTP action, move it to a model or service.
+Each handler declares its dependencies in a `NewXHandler` constructor and
+registers its routes:
 
-Use `controllers/admin/` for admin Inertia workflows and `controllers/api/` for API endpoints.
+```go
+func NewHandler(users domainuser.Users, renderer *inertia.Renderer) Handler
 
-Register new controller constructors and route invocations in `controllers/controller.go`.
+func (h Handler) Register(rt *anduin.Router) {
+	rt.Get(routes.UserIndex.Path(), h.Index)
+}
+```
+
+Do not put durable business rules in handlers. If the same rule must apply
+outside one HTTP action, move it to a domain or service. Error mapping is
+uniform: return the error and let the router's `ErrorHandler`
+(`handlers.MapError`) translate `domains.Err*` into the right response. See
+[http-and-routing.md](http-and-routing.md) for the full request/response and
+error API.
+
+Use `handlers/auth/` for sessions, registration, confirmation, and password
+reset, and `handlers/api/` for JSON endpoints.
 
 ## Routes
 
-Define route constants in `router/routes/`.
-
-Use:
+Route *data* lives in `routes/`. A route is a value built with the
+`github.com/mbvlabs/andurel/pkg/routing` constructors and declared as a package
+variable so handlers can register it and pages can build URLs:
 
 - `routing.NewSimpleRoute` for fixed paths.
 - `routing.NewRouteWithSlug` for slug params.
 - `routing.NewRouteWithSerialID` for integer ID params.
+- `routing.NewRouteWithUUIDID`, `routing.NewRouteWithToken`,
+  `routing.NewRouteWithFile`, `routing.NewRouteWithParams` as needed.
 
-Controllers should refer to these route constants for route registration and URL generation. Do not scatter raw path strings through views and controllers when a route constant should exist.
+Route values expose `Name() string`, `Path() string`, `URL(params ...string)
+string`, `FullURL(...) string`, `Host() routing.HostName`, and
+`IsInertia() bool`.
 
-## Views And Frontend
+Handlers and services refer to these route values for registration and URL
+generation. Do not scatter raw path strings through handlers and pages when a
+route value should exist. After adding or changing routes, run
+`andurel sync routes --json` so `resources/js/routes.ts` stays in sync.
 
-Use `views/` for templ-rendered public pages and emails only when the existing package pattern calls for it. It is acceptable for view files to include presentation adapters that convert model entities into strings, labels, lists, or schema data.
+The `Router` type itself is not app code; it lives in `pkg/anduin`. There is no
+`router/` package.
 
-Keep presentation adapters out of models when they exist only for display:
+## Middleware
 
-- Label maps.
-- Initials and fallback display text.
-- Date labels.
-- JSON-to-list formatting for rendering.
-- Schema.org view helpers.
+App-specific HTTP middleware and cookie-jar wiring live in `middleware/`.
+Middleware has the `anduin.Middleware` shape (`func(anduin.Handler)
+anduin.Handler`):
 
-Use `resources/js/Pages/Admin/...` for admin Inertia screens. Keep page components focused on UI state and form behavior; preserve domain validation in Go models/services.
+- Auth and authorization middleware.
+- Rate limiting (`IPRateLimiter`).
+- Route attribute / telemetry helpers.
+- CSRF strategy construction.
+- `NewJar(config.App, config.Session) (*kiks.Jar, error)` plus its
+  `Middleware()`.
 
-Use `resources/js/components/ui/` for reusable UI primitives and `resources/js/Components/` for app-level reusable components.
+Generic middleware (`Recover`, `Logger`, `Telemetry`, `CORS`, `CSRF`) is
+provided by `pkg/anduin`; do not reimplement it here. Session/bag values travel
+on `context.Context` through `pkg/kiks` (`kiks.Get[T]`, `kiks.Set`,
+`kiks.Destroy`). See [http-and-routing.md](http-and-routing.md).
+
+## Resources And Frontend
+
+Use `resources/root.templ` for the one page-shaped templ in the app: the Inertia
+root document (package `resources`). It is the only templ outside `email/`.
+
+Use `resources/js/Pages/` for Inertia screens and `resources/js/Components/` or
+`resources/js/components/ui/` for reusable UI. Keep page components focused on
+UI state and form behavior; preserve domain validation in Go domains/services.
+
+Keep presentation adapters out of domains when they exist only for display
+(label maps, initials and fallback display text, date labels, JSON-to-list
+formatting).
+
+Never invent frontend URLs: import `resources/js/routes.ts` after
+`andurel sync routes --json`. Import page/form types from
+`resources/js/types/payloads.ts` after `andurel sync payloads --json`.
 
 ## Queue And Email
 
 Put River argument structs in `queue/jobs/`.
 
-Put worker implementations, queue registration, and queue helpers in `queue/`. Workers should call domain/application code rather than duplicating model rules.
+Put worker implementations, queue registration, and queue helpers in `queue/`.
+Workers call domain/application code rather than duplicating domain rules.
+Registration is a plain slice/map assembled in `internal/runtime`, not Fx.
 
-Put email templates and send helpers in `email/`. Put provider-specific implementations in a package under `internal/` (for example `internal/clients/email/`).
+Put email templates and send helpers in `email/`. Email is the other templ
+home (`email/*.templ` compiled by `emailcompiler`). Put provider-specific
+implementations in a package under `internal/` (for example
+`internal/clients/email/`).
 
 ## Internal Packages
 
-Use `internal/` for reusable framework-like support code that is not owned by one resource:
+Use `internal/` for reusable framework-like support code that is not owned by
+one resource, and for adapters to third-party services:
 
-- process composition (`internal/runtime`)
-- external provider adapters (for example `internal/clients/`, `internal/payment/`)
-- request context helpers
-- routing definitions
-- hypermedia rendering
-- Inertia integration
-- storage abstractions
-- validation helpers
-- server support
+- Process composition (`internal/runtime/`).
+- External provider adapters (for example `internal/clients/`,
+  `internal/payment/`).
+- Request context helpers, storage abstractions, validation helpers, server
+  support.
 
-Do not put app-specific domain workflows in `internal/` just to make them feel shared. Use `models/` or `services/`.
+Give each package a name that says what it does. An adapter wraps an external
+API and must not contain business rules; services decide when and why to call
+it. Do not put app-specific domain workflows in `internal/` just to make them
+feel shared. Use `domains/` or `services/`.
 
-What goes in `internal/`: application-owned support code that is not a domain model, service, controller, or view. Give each package a name that says what it does, rather than one fixed layout. `internal/runtime` holds process wiring. Adapters for third-party services (payment providers, email providers, Discord, and similar) also live here, for example `internal/clients/` for a group of API clients or `internal/payment/` for a single payment-provider adapter. Keeping this code under `internal/` keeps the top level of the app small. An adapter wraps an external API and must not contain business rules; services decide when and why to call it. Wire adapters into Fx from `internal/runtime`, next to the other process-wide providers.
-
-`internal/` in a generated app is application-owned. Put process-wide Fx providers and lifecycle (telemetry, email senders, database, queue insert/processor, HTTP server) in `internal/runtime`. Package `Module` vars still live next to their types; `runtime.App` and `runtime.Queue` assemble those modules into process graphs. `cmd/app` and `cmd/queue` only load environment, create the signal context, and call `fx.New`. `cmd/migrate` and `cmd/seeds` load environment, open Postgres, run one task, and exit. Do not apply migrations from `cmd/app` start.
+`internal/` in a generated app is application-owned. `internal/runtime/`
+constructs the whole dependency graph bottom-up (`runtime.New`,
+`runtime.NewServer`, `runtime.NewQueue`) and owns process lifecycle. `cmd/app`
+and `cmd/queue` only load environment, create the signal context, and call into
+`runtime`. `cmd/migrate` and `cmd/seeds` load environment, open Postgres, run
+one task, and exit. Do not apply migrations from `cmd/app` start.
 
 ## Dependency Wiring
 
-Follow existing `go.uber.org/fx` modules.
+Wiring is explicit constructor injection in `internal/runtime`. There is no
+container.
 
 - New config providers: `config/`.
-- New services: `services/service.go`.
-- New controllers: `controllers/controller.go`.
-- New queue workers: `queue/` module files.
-- Process graphs: `internal/runtime` (`runtime.App`, `runtime.Queue`).
-- External provider adapters: constructors in their `internal/` package, provided from `internal/runtime`.
-- Process entry: `cmd/app/main.go` and `cmd/queue/main.go` only for env loading, the signal context, and `fx.New`.
-- One-shot database processes: `cmd/migrate/main.go` applies pending SQL; `cmd/seeds/main.go` runs named seed sets.
+- New domains: construct them in `internal/runtime` (for example
+  `users := user.NewUsers(db)`).
+- New services: construct them in `internal/runtime` (`services.NewIdentity(...)`).
+- New handlers: construct them and call `Register(rt)` in `internal/runtime`.
+- New queue workers: register them in `internal/runtime/queue.go`.
+- External provider adapters: constructors in their `internal/` package,
+  provided from `internal/runtime`.
+- Process entry: `cmd/app/main.go` and `cmd/queue/main.go` for env loading, the
+  signal context, and starting `runtime`/`anduin.Server`.
+- One-shot database processes: `cmd/migrate/main.go` applies pending SQL;
+  `cmd/seeds/main.go` runs named seed sets.
 
-Prefer constructor injection over package globals, except for the established model receiver singletons such as `models.Project`.
+Prefer constructor arguments over package globals. The dependency graph should
+be readable top-to-bottom in `internal/runtime/runtime.go`.
 
 ## Decision Checklist
 
 Before adding code, answer:
 
-1. Is this a rule about a domain object being valid or allowed? Put it in `models/`.
-2. Does it require a transaction, multiple models, external side effects, or stateful policy checks? Put it in `services/`.
-3. Is it about HTTP parsing, session/flash, redirects, or rendering? Put it in `controllers/`.
-4. Is it only for how a value is displayed? Put it in `views/` or the relevant Vue component.
-5. Is it a route path/name? Put it in `router/routes/`.
-6. Does it only wrap a third-party API (payments, email delivery, Discord, …) with no business rules? Put it in a package under `internal/` named for its job (for example `internal/clients/` or `internal/payment/`).
-7. Is it reusable framework plumbing independent of this app's domain? Put it in `internal/`.
+1. Is this a rule about a domain object being valid or allowed? Put it in
+   `domains/<entity>/`.
+2. Does it require a transaction, multiple domains, external side effects, or a
+   stateful policy check? Put it in `services/`.
+3. Is it about HTTP parsing, session/flash, redirects, or rendering? Put it in
+   `handlers/`.
+4. Is it only a route path, name, or URL? Put it in `routes/`.
+5. Is it app HTTP middleware or cookie-jar wiring? Put it in `middleware/`.
+6. Is it only for how a value is displayed? Put it in the relevant Inertia
+   component under `resources/js/`.
+7. Does it only wrap a third-party API with no business rules? Put it in a
+   package under `internal/` named for its job.
+8. Is it process composition or lifecycle? Put it in `internal/runtime/`.

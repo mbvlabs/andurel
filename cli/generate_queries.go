@@ -13,10 +13,10 @@ func newGenerateQueriesCommand() *cobra.Command {
 		Use:     "queries",
 		Aliases: []string{"q"},
 		Short:   "Generate Go code from narsilc SQL queries",
-		Long: `Run narsilc generate for SQL files in models/queries.
+		Long: `Run narsilc generate for SQL files under domains/.
 
-Generated code is written to models/internal/queries. This command is a
-no-op when models/queries contains no .sql files with a -- name: annotation.`,
+Generated code is written to domains/internal/queries. This command is a
+no-op when the domains tree contains no .sql files with a -- name: annotation.`,
 		Example: `  andurel sync queries`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -35,12 +35,12 @@ no-op when models/queries contains no .sql files with a -- name: annotation.`,
 				commandsRun = append(
 					commandsRun,
 					"narsilc generate",
-					"go fmt ./models/internal/queries/...",
+					"go fmt ./domains/internal/queries/...",
 				)
 			} else {
 				warnings = append(
 					warnings,
-					"no annotated narsilc query files found in models/queries; generation was skipped",
+					"no annotated narsilc query files found under domains/; generation was skipped",
 				)
 			}
 
@@ -58,14 +58,14 @@ no-op when models/queries contains no .sql files with a -- name: annotation.`,
 				Run: func(rootDir string) error {
 					if !hasQueries {
 						fmt.Println(
-							"No annotated narsilc query files found in models/queries; skipping generation.",
+							"No annotated narsilc query files found under domains/; skipping generation.",
 						)
 						return nil
 					}
 					if err := generateNarsilcIfNeeded(rootDir); err != nil {
 						return err
 					}
-					fmt.Println("✓ Generated typed queries: models/internal/queries")
+					fmt.Println("✓ Generated typed queries: domains/internal/queries")
 					return nil
 				},
 			})
@@ -74,7 +74,7 @@ no-op when models/queries contains no .sql files with a -- name: annotation.`,
 	setAgentMetadata(
 		cmd,
 		"generation",
-		"Runs only when models/queries contains a narsilc -- name: annotation. Returns a mutation report in structured modes.",
+		"Runs only when domains/**/*.sql contains a narsilc -- name: annotation. Returns a mutation report in structured modes.",
 	)
 	return cmd
 }

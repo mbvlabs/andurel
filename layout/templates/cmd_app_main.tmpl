@@ -10,34 +10,65 @@ import (
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/runtime"
-
-	"go.uber.org/fx"
 )
 
+// appVersion is injected at build time with -ldflags. It is empty for local
+// builds, in which case the config default ("dev") is used.
 var appVersion string
 
 func main() {
-	if err := config.LoadEnvironment(); err != nil {
+	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+}
+
+func run() error {
+	if err := config.LoadEnvironment(); err != nil {
+		return err
+	}
+
+	cfg, err := config.New()
+	if err != nil {
+		return err
+	}
+	if appVersion != "" {
+		cfg.Version = appVersion
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	app := fx.New(runtime.App(ctx, appVersion))
 
-	if err := app.Start(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
+	app, err := runtime.New(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer closeApp(app)
+
+	srv := runtime.NewServer(ctx, cfg, app)
+
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- srv.Start(ctx, cfg.App.Environment) }()
+
+	select {
+	case err := <-serveErr:
+		return err
+	case <-ctx.Done():
 	}
 
-	<-ctx.Done()
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelShutdown()
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	return srv.Shutdown(shutdownCtx)
+}
+
+// closeApp releases the composition root's dependencies in reverse construction
+// order. It always runs, even when the server exits with an error.
+func closeApp(app *runtime.App) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := app.Stop(shutdownCtx); err != nil {
+	if err := app.Close(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
 	}
 }

@@ -82,14 +82,14 @@ func TestGoFmtCheckReportsDirtyFilesWithoutChangingThem(t *testing.T) {
 
 func TestTemplFormatCheckUsesTemporaryCopyAndDetectsChanges(t *testing.T) {
 	root := t.TempDir()
-	writeTestFile(t, root, "views/page.templ", "package views\n")
+	writeTestFile(t, root, "resources/root.templ", "package resources\n")
 	writeExecutable(
 		t,
 		root,
 		"bin/templ",
 		"#!/bin/sh\nprintf '// formatted\\n' >> \"$2/page.templ\"\n",
 	)
-	original, err := os.ReadFile(filepath.Join(root, "views", "page.templ"))
+	original, err := os.ReadFile(filepath.Join(root, "resources", "root.templ"))
 	if err != nil {
 		t.Fatalf("read original template: %v", err)
 	}
@@ -97,10 +97,10 @@ func TestTemplFormatCheckUsesTemporaryCopyAndDetectsChanges(t *testing.T) {
 		root,
 		true,
 	); err == nil ||
-		!strings.Contains(err.Error(), "views/page.templ") {
+		!strings.Contains(err.Error(), "resources/page.templ") {
 		t.Fatalf("templ check = %v", err)
 	}
-	after, err := os.ReadFile(filepath.Join(root, "views", "page.templ"))
+	after, err := os.ReadFile(filepath.Join(root, "resources", "root.templ"))
 	if err != nil {
 		t.Fatalf("read template after check: %v", err)
 	}
@@ -111,7 +111,7 @@ func TestTemplFormatCheckUsesTemporaryCopyAndDetectsChanges(t *testing.T) {
 
 func TestTemplFormatCheckPassesWhenTemplatesAreUnchanged(t *testing.T) {
 	root := t.TempDir()
-	writeTestFile(t, root, "views/page.templ", "package views\n")
+	writeTestFile(t, root, "resources/root.templ", "package resources\n")
 	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
 	if err := runTemplFmt(root, true); err != nil {
 		t.Fatalf("clean templ check: %v", err)

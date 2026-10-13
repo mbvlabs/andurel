@@ -1,8 +1,9 @@
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
+// Package inertia implements the Inertia v3 protocol for anduin and templ.
 package inertia
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -14,25 +15,25 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/anduin"
 )
 
 // SharedProvider supplies request-scoped shared props.
-type SharedProvider func(*echo.Context) (Props, error)
+type SharedProvider func(context.Context) (Props, error)
 
 // VersionProvider supplies the current asset version.
-type VersionProvider func(*echo.Context) (string, error)
+type VersionProvider func(context.Context) (string, error)
 
 // ReflashHandler preserves application flash data across redirect responses.
-type ReflashHandler func(*echo.Context) error
+type ReflashHandler func(context.Context) error
 
 // FlashProvider supplies the v3 top-level page flash value for each response.
-type FlashProvider func(*echo.Context) any
+type FlashProvider func(context.Context) any
 
 // Option configures a Renderer.
 type Option func(*Renderer) error
 
-// Renderer implements the Inertia v3 server protocol for Echo and templ.
+// Renderer implements the Inertia v3 server protocol for anduin and templ.
 type Renderer struct {
 	root                RootFunc
 	containerID         string
@@ -47,7 +48,7 @@ type Renderer struct {
 	versionProvider     VersionProvider
 	shared              Props
 	sharedProviders     []SharedProvider
-	requestFlash        []func(*echo.Context) any
+	requestFlash        []func(context.Context) any
 	ssr                 SSRRenderer
 	customSSR           bool
 	ssrURL              string
@@ -163,7 +164,7 @@ func (renderer *Renderer) SetReflashHandler(handler ReflashHandler) error {
 // PageBuilder configures and renders a single Inertia page response.
 type PageBuilder struct {
 	renderer         *Renderer
-	etx              *echo.Context
+	ctx              context.Context
 	component        string
 	props            Props
 	status           int
@@ -207,13 +208,13 @@ func (p *PageBuilder) Flash(flash any) *PageBuilder { p.flash = flash; return p 
 
 // Page starts building one Inertia page response.
 func (renderer *Renderer) Page(
-	etx *echo.Context,
+	ctx context.Context,
 	component string,
 	props Props,
 ) *PageBuilder {
 	return &PageBuilder{
 		renderer:  renderer,
-		etx:       etx,
+		ctx:       ctx,
 		component: component,
 		props:     props,
 		status:    http.StatusOK,
@@ -223,30 +224,31 @@ func (renderer *Renderer) Page(
 // Render resolves and renders the Inertia page response.
 func (p *PageBuilder) Render() error {
 	renderer := p.renderer
-	etx := p.etx
+	ctx := p.ctx
 	component := p.component
-	request, err := requestState(etx)
+	request, err := requestState(ctx)
 	if err != nil {
 		return err
 	}
+	method := anduin.Request(ctx).Method
 
 	shared := make(Props, len(renderer.shared))
 	maps.Copy(shared, renderer.shared)
 	for _, provider := range renderer.sharedProviders {
-		provided, err := provider(etx)
+		provided, err := provider(ctx)
 		if err != nil {
 			return &Error{
 				Kind:      ErrorProps,
 				Operation: "resolve shared provider",
-				Method:    etx.Request().Method,
-				URL:       requestURL(etx),
+				Method:    method,
+				URL:       requestURL(ctx),
 				Err:       err,
 			}
 		}
 		maps.Copy(shared, provided)
 	}
 
-	resolved, err := resolvePageProps(etx, request, component, shared, p.props)
+	resolved, err := resolvePageProps(ctx, request, component, shared, p.props)
 	if err != nil {
 		return err
 	}
@@ -267,14 +269,14 @@ func (p *PageBuilder) Render() error {
 	resolved.resolvedShared = append(resolved.resolvedShared, "errors")
 	slices.Sort(resolved.resolvedShared)
 
-	version, err := renderer.currentVersion(etx)
+	version, err := renderer.currentVersion(ctx)
 	if err != nil {
 		return err
 	}
 
 	if p.flash == nil {
 		for _, provider := range renderer.requestFlash {
-			if p.flash = provider(etx); p.flash != nil {
+			if p.flash = provider(ctx); p.flash != nil {
 				break
 			}
 		}
@@ -283,7 +285,7 @@ func (p *PageBuilder) Render() error {
 	page := Page{
 		Component:        component,
 		Props:            resolved.props,
-		URL:              requestURL(etx),
+		URL:              requestURL(ctx),
 		Version:          version,
 		EncryptHistory:   p.encryptHistory,
 		ClearHistory:     p.clearHistory,
@@ -311,9 +313,9 @@ func (p *PageBuilder) Render() error {
 			deferredGroups = append(deferredGroups, key)
 		}
 		slices.Sort(deferredGroups)
-		etx.Logger().Debug("inertia protocol page",
+		slog.Default().Debug("inertia protocol page",
 			slog.String("component", component),
-			slog.String("method", etx.Request().Method),
+			slog.String("method", method),
 			slog.String("url", page.URL),
 			slog.Any("prop_keys", propKeys),
 			slog.Any("merge_props", page.MergeProps),
@@ -330,18 +332,18 @@ func (p *PageBuilder) Render() error {
 			Kind:      ErrorProps,
 			Operation: "encode page",
 			Component: component,
-			Method:    etx.Request().Method,
+			Method:    method,
 			URL:       page.URL,
 			Err:       err,
 		}
 	}
 	pageJSON := bytes.TrimSuffix(pageBuffer.Bytes(), []byte("\n"))
 
-	appendVary(etx.Response().Header(), HeaderInertia)
+	appendVary(anduin.ResponseWriter(ctx).Header(), HeaderInertia)
 
 	if request.Inertia {
-		etx.Response().Header().Set(HeaderInertia, "true")
-		return etx.JSONBlob(p.status, pageJSON)
+		anduin.SetHeader(ctx, HeaderInertia, "true")
+		return anduin.JSONBlob(ctx, p.status, pageJSON)
 	}
 
 	var ssrResponse *SSRResponse
@@ -349,7 +351,7 @@ func (p *PageBuilder) Render() error {
 		if renderer.ssr == nil {
 			err = fmt.Errorf("SSR requested without a configured renderer")
 		} else {
-			ssrResponse, err = renderer.ssr.Render(etx.Request().Context(), page)
+			ssrResponse, err = renderer.ssr.Render(anduin.Request(ctx).Context(), page)
 			if err == nil {
 				switch {
 				case ssrResponse == nil:
@@ -366,14 +368,14 @@ func (p *PageBuilder) Render() error {
 				Kind:      ErrorSSR,
 				Operation: "render",
 				Component: component,
-				Method:    etx.Request().Method,
+				Method:    method,
 				URL:       page.URL,
 				Err:       err,
 			}
 			if renderer.ssrFailFast {
 				return wrapped
 			}
-			etx.Logger().
+			slog.Default().
 				Error("inertia SSR fallback", slog.String("component", component), slog.String("url", page.URL), slog.Any("error", wrapped))
 			ssrResponse = nil
 		}
@@ -394,39 +396,39 @@ func (p *PageBuilder) Render() error {
 			Kind:      ErrorRoot,
 			Operation: "construct",
 			Component: component,
-			Method:    etx.Request().Method,
+			Method:    method,
 			URL:       page.URL,
 			Err:       fmt.Errorf("root returned nil component"),
 		}
 	}
 
 	var document bytes.Buffer
-	if err := root.Render(etx.Request().Context(), &document); err != nil {
+	if err := root.Render(anduin.Request(ctx).Context(), &document); err != nil {
 		return &Error{
 			Kind:      ErrorRoot,
 			Operation: "render",
 			Component: component,
-			Method:    etx.Request().Method,
+			Method:    method,
 			URL:       page.URL,
 			Err:       err,
 		}
 	}
 
-	return etx.HTMLBlob(p.status, document.Bytes())
+	return anduin.HTMLBlob(ctx, p.status, document.Bytes())
 }
 
-func (renderer *Renderer) currentVersion(etx *echo.Context) (string, error) {
+func (renderer *Renderer) currentVersion(ctx context.Context) (string, error) {
 	if renderer.versionProvider == nil {
 		return renderer.version, nil
 	}
 
-	version, err := renderer.versionProvider(etx)
+	version, err := renderer.versionProvider(ctx)
 	if err != nil {
 		return "", &Error{
 			Kind:      ErrorProtocol,
 			Operation: "resolve version",
-			Method:    etx.Request().Method,
-			URL:       requestURL(etx),
+			Method:    anduin.Request(ctx).Method,
+			URL:       requestURL(ctx),
 			Err:       err,
 		}
 	}
@@ -434,9 +436,9 @@ func (renderer *Renderer) currentVersion(etx *echo.Context) (string, error) {
 	return version, nil
 }
 
-func requestURL(etx *echo.Context) string {
-	request := etx.Request()
-	if request.URL == nil {
+func requestURL(ctx context.Context) string {
+	request := anduin.Request(ctx)
+	if request == nil || request.URL == nil {
 		return "/"
 	}
 

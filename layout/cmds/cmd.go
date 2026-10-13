@@ -93,10 +93,10 @@ func RunGolines(targetDir string) error {
 	return cmd.Run()
 }
 
-// RunNarsilcGenerate runs narsilc generate when models/queries contains SQL files.
-// It prefers ANDUREL_TOOL_BIN, then bin/narsilc, then PATH, then falls back to
-// go run github.com/mbvlabs/narsilc/cmd/narsilc@<version> so scaffold can
-// emit models/internal/queries. Outside golden builds, go mod tidy runs before
+// RunNarsilcGenerate runs narsilc generate when domains/**/*.sql contains SQL
+// files. It prefers ANDUREL_TOOL_BIN, then bin/narsilc, then PATH, then falls
+// back to go run github.com/mbvlabs/narsilc/cmd/narsilc@<version> so scaffold
+// can emit domains/internal/queries. Outside golden builds, go mod tidy runs before
 // go fmt so new query packages resolve. Golden builds skip tidy here — slim
 // fixtures lack a full require graph, and layout.Scaffold already tidies when
 // FullScaffold() is on.
@@ -149,11 +149,11 @@ func runNarsilcGenerate(targetDir string) error {
 		}
 	}
 
-	return RunGoFmtPath(absTargetDir, "./models/internal/queries/...")
+	return RunGoFmtPath(absTargetDir, "./domains/internal/queries/...")
 }
 
 // RunTemplGenerate runs templ generate over the project root so FileName
-// values stay project-relative (views/root.templ), matching andurel new.
+// values stay project-relative (resources/root.templ), matching andurel new.
 func RunTemplGenerate(targetDir string) error {
 	absTargetDir, err := absolutePath(targetDir)
 	if err != nil {
@@ -186,14 +186,14 @@ func RunTemplFmt(targetDir string) error {
 
 	var cmd *exec.Cmd
 	if templBin := resolveProjectTool("templ", absTargetDir); templBin != "" {
-		cmd = newCommand(templBin, "fmt", "views")
+		cmd = newCommand(templBin, "fmt", ".")
 	} else {
 		cmd = newCommand(
 			"go",
 			"run",
 			"github.com/a-h/templ/cmd/templ@"+versions.Templ,
 			"fmt",
-			"views",
+			".",
 		)
 	}
 	cmd.Dir = absTargetDir

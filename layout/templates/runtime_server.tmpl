@@ -3,74 +3,37 @@ package runtime
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/router"
 
-	"github.com/mbvlabs/andurel/pkg/server"
+	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
-	"go.uber.org/fx"
 )
 
-func startServer(
-	lc fx.Lifecycle,
-	appCtx context.Context,
-	r *router.Router,
-	appCfg config.App,
-	httpCfg config.HTTP,
-	tel *telemetry.Telemetry,
-) {
-	appCtx = tel.Context(appCtx)
-	srv := server.New(
-		appCtx,
-		httpCfg.Host,
-		httpCfg.Port,
-		appCfg.Environment,
-		r.Handler,
-		nil,
-		server.WithTimeouts(
-			httpCfg.IdleTimeout,
-			httpCfg.ReadTimeout,
-			httpCfg.WriteTimeout,
+// NewServer builds the process HTTP server over the App's handler, applying the
+// configured timeouts. The App is registered as a Shutdowner so a server owns
+// the same dependency graph the composition root built. cmd/app starts it with
+// Start and stops it with Shutdown; lifecycle ordering is explicit code, not a
+// container.
+func NewServer(ctx context.Context, cfg config.Config, app *App) anduin.Server {
+	return anduin.NewServer(
+		ctx,
+		cfg.HTTP.Host,
+		cfg.HTTP.Port,
+		cfg.App.Environment,
+		app.Handler,
+		[]anduin.Shutdowner{app},
+		anduin.WithTimeouts(
+			cfg.HTTP.IdleTimeout,
+			cfg.HTTP.ReadTimeout,
+			cfg.HTTP.WriteTimeout,
 		),
 	)
-	var done <-chan struct{}
-
-	lc.Append(fx.Hook{
-		OnStart: func(_ context.Context) error {
-			telemetry.Info(
-				appCtx,
-				"starting server",
-				"host",
-				httpCfg.Host,
-				"port",
-				httpCfg.Port,
-			)
-			done = startInBackground(appCtx, "server", func(ctx context.Context) error {
-				return srv.Start(ctx, appCfg.Environment)
-			})
-			return nil
-		},
-		OnStop: func(ctx context.Context) error {
-			telemetry.Info(ctx, "initiating graceful shutdown")
-			return stopAndWait(ctx, func(ctx context.Context) error {
-				var shutdownErr error
-				for _, shutdowner := range srv.Shutdowners {
-					if err := shutdowner.Shutdown(ctx); err != nil {
-						shutdownErr = errors.Join(
-							shutdownErr,
-							fmt.Errorf("server: shutdown component %T: %w", shutdowner, err),
-						)
-					}
-				}
-
-				return shutdownErr
-			}, done)
-		},
-	})
 }
 
+// startInBackground runs start in a goroutine and returns a channel that is
+// closed when it exits. It is the generic primitive behind explicit process
+// lifecycle ordering.
 func startInBackground(
 	ctx context.Context,
 	name string,
@@ -83,9 +46,12 @@ func startInBackground(
 			telemetry.Error(ctx, name+" error", "error", err)
 		}
 	}()
+
 	return done
 }
 
+// stopAndWait runs stop and waits for the background function to exit, or for
+// ctx to be done, whichever happens first.
 func stopAndWait(
 	ctx context.Context,
 	stop func(context.Context) error,

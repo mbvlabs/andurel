@@ -1,4 +1,4 @@
-package cookies
+package middleware
 
 import (
 {{- range .Blueprint.Cookies.Imports.Items}}
@@ -7,7 +7,6 @@ import (
 	"{{.ModuleName}}/config"
 
 	"github.com/mbvlabs/andurel/pkg/kiks"
-	"go.uber.org/fx"
 )
 
 {{- if gt (len .Blueprint.Cookies.SortedConstants) 0}}
@@ -19,6 +18,9 @@ const (
 )
 {{- end}}
 
+// NewJar builds the cookie jar: the session codec, the cookie-backed store,
+// and the App session definition. It is wired once in internal/runtime and
+// installed with jar.Middleware().
 func NewJar(
 	appCfg config.App,
 	sessionCfg config.Session,
@@ -36,11 +38,6 @@ func NewJar(
 		NewAppCookie(sessionCfg, appCfg.IsProduction()),
 	)
 }
-
-var Module = fx.Module(
-	"cookies",
-	fx.Provide(NewJar),
-)
 
 {{- range .Blueprint.Cookies.SortedFunctions}}
 

@@ -23,14 +23,14 @@ func newProjectCommand(version string) *cobra.Command {
 		Short:   "Stand up a new Andurel project",
 		Long: `Stand up a complete Andurel project with the given name.
 
-Generates the full project structure including controllers, models, views,
-database migrations, router, services, and configuration files. After
+Generates the full project structure including handlers, domains, services,
+routes, middleware, database migrations, and configuration files. After
 creation, run 'andurel tool sync' to download required binaries.
 
 Projects use Inertia React with pnpm by default. Pass --ui to choose another
-combination (vue/bun, svelte/npm, templ/datastar, …). Persistence uses
+Inertia combination (react|vue|svelte / pnpm|bun|npm). Persistence uses
 narsilc-generated queries; it stays inactive until an annotated query is
-added to models/queries.`,
+added to a domain, for example domains/user/user.sql.`,
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) <= 1 {
 				return nil
@@ -59,7 +59,7 @@ added to models/queries.`,
 	}
 
 	projectCmd.Flags().
-		String("ui", layout.DefaultUICombo, "UI combination: react|vue|svelte / pnpm|bun|npm, or templ/datastar (default: react/pnpm)")
+		String("ui", layout.DefaultUICombo, "UI combination: react|vue|svelte / pnpm|bun|npm (default: react/pnpm)")
 	projectCmd.Flags().
 		BoolVar(&dryRun, "dry-run", false, "Preview project files without creating them")
 	projectCmd.Flags().
@@ -67,7 +67,7 @@ added to models/queries.`,
 	setAgentMetadata(
 		projectCmd,
 		"generation",
-		"Creates an Inertia React/pnpm project by default. Use --ui react|vue|svelte/pnpm|bun|npm or --ui templ/datastar. Models persist through narsilc-generated queries.",
+		"Creates an Inertia React/pnpm project by default. Use --ui react|vue|svelte/pnpm|bun|npm. Domains persist through narsilc-generated queries.",
 	)
 
 	return projectCmd
@@ -104,7 +104,7 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 			output.CodeUsage,
 			err.Error(),
 			output.ExitUsage,
-			"Use --ui react/pnpm, vue/bun, svelte/npm, or templ/datastar.",
+			"Use --ui react/pnpm, vue/bun, or svelte/npm.",
 		)
 	}
 
