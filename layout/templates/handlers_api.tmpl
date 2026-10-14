@@ -1,0 +1,42 @@
+package handlers
+
+import (
+	"context"
+	"errors"
+	"net/http"
+
+	"{{.ModuleName}}/routes"
+
+	"github.com/mbvlabs/andurel/pkg/anduin"
+)
+
+// APIHandler exposes the JSON API surface. It is mounted under routes.APIPrefix.
+type APIHandler struct {
+	db healthChecker
+}
+
+// healthChecker is the only database capability the API surface needs. It
+// takes no query methods, so handlers cannot issue raw database calls.
+type healthChecker interface {
+	Health(ctx context.Context) error
+}
+
+func NewAPIHandler(db healthChecker) APIHandler {
+	return APIHandler{db: db}
+}
+
+func (a APIHandler) Register(rt *anduin.Router) {
+	rt.Get(routes.Health.Path(), a.Health)
+}
+
+func (a APIHandler) Health(ctx context.Context) error {
+	if err := a.db.Health(ctx); err != nil {
+		return anduin.Error(
+			ctx,
+			http.StatusServiceUnavailable,
+			errors.New("database is unavailable"),
+		)
+	}
+
+	return anduin.JSON(ctx, http.StatusOK, "app is healthy and running")
+}

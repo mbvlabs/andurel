@@ -3,6 +3,7 @@ go 1.27.2
 use (
 	.
 	./pkg/anduin
+	./pkg/cache
 	./pkg/email
 	./pkg/inertia
 	./pkg/kiks

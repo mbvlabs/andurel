@@ -9,8 +9,20 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/mbvlabs/andurel/pkg/routing"
 )
+
+func newTestStore(t *testing.T) cache.Store {
+	t.Helper()
+
+	store, err := cache.New(cache.Config{Driver: "memory"})
+	if err != nil {
+		t.Fatalf("new test cache store: %v", err)
+	}
+
+	return store
+}
 
 func TestIPRateLimiterPermitsExactlyConfiguredLimitAtomically(t *testing.T) {
 	const (
@@ -20,6 +32,7 @@ func TestIPRateLimiterPermitsExactlyConfiguredLimitAtomically(t *testing.T) {
 
 	var handled atomic.Int32
 	limiter := IPRateLimiter(
+		newTestStore(t),
 		limit,
 		routing.NewSimpleRoute("/rate-limited", "rate_limited", ""),
 	)(func(ctx context.Context) error {
@@ -53,7 +66,7 @@ func TestIPRateLimiterRejectsOverLimitAndScopesByIP(t *testing.T) {
 	const limit = 2
 	redirect := routing.NewSimpleRoute("/rate-limited", "rate_limited", "")
 
-	limiter := IPRateLimiter(limit, redirect)(func(ctx context.Context) error {
+	limiter := IPRateLimiter(newTestStore(t), limit, redirect)(func(ctx context.Context) error {
 		return anduin.NoContent(ctx, http.StatusNoContent)
 	})
 

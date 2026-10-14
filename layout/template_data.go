@@ -61,6 +61,12 @@ func (td *TemplateData) AnduinPackageVersion() string {
 	return versions.Anduin
 }
 
+// CachePackageVersion returns the standalone cache module version verified with
+// this framework release.
+func (td *TemplateData) CachePackageVersion() string {
+	return versions.Cache
+}
+
 // InertiaPackageVersion returns the standalone Inertia module version verified
 // with this framework release.
 func (td *TemplateData) InertiaPackageVersion() string {

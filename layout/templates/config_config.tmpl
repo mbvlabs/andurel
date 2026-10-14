@@ -16,6 +16,7 @@ type Config struct {
 	HTTP        HTTP
 	Auth        Auth
 	Session     Session
+	Cache       Cache
 	Database    storage.Config
 	QueueInsert QueueInsert
 	QueueWorker QueueWorker
@@ -44,6 +45,11 @@ func New() (Config, error) {
 	}
 
 	session, err := NewSession(app)
+	if err != nil {
+		return Config{}, err
+	}
+
+	cacheCfg, err := NewCache()
 	if err != nil {
 		return Config{}, err
 	}
@@ -84,6 +90,7 @@ func New() (Config, error) {
 		HTTP:        httpCfg,
 		Auth:        auth,
 		Session:     session,
+		Cache:       cacheCfg,
 		Database:    database,
 		QueueInsert: queueInsert,
 		QueueWorker: queueWorker,

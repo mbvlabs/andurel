@@ -6,16 +6,16 @@ Postgres.
 
 ## Files
 
-### handlers/<resource>/handler_test.go
+### handlers/user_test.go
 ```go
-package user_test
+package handlers_test
 
 import (
 	"net/http"
 	"testing"
 
-	"app/domains/user"
-	userhandler "app/handlers/user"
+	"app/domains"
+	"app/handlers"
 	"app/migrations"
 	"app/routes"
 
@@ -26,15 +26,19 @@ import (
 
 func TestUserIndex(t *testing.T) {
 	db := storage.NewTestCluster(t.Context()).NewTestDB(t, migrations.Migrations, ".")
-	users := user.NewUsers(db)
+	users := domains.NewUsers(db)
 	for i := range 3 {
-		if _, err := users.Create(t.Context(), user.CreateUserData{Email: "u@x.y"}); err != nil {
+		email, err := domains.ParseEmail("u@x.y")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := users.Create(t.Context(), domains.CreateUserData{Email: email}); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	srv := anduintest.New(t, func(rt *anduin.Router) {
-		userhandler.NewHandler(users, testRenderer(t)).Register(rt)
+		handlers.NewUserHandler(users, testRenderer(t)).Register(rt)
 	})
 
 	resp := srv.Get(routes.UserIndex.Path() + "?page=1")

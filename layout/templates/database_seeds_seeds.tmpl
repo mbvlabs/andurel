@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/domains/user"
+	"{{.ModuleName}}/domains"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
@@ -60,7 +60,7 @@ func Development(ctx context.Context, db storage.Connection) error {
 		return err
 	}
 
-	users := user.NewUsers(db)
+	users := domains.NewUsers(db)
 
 	admin, err := createUser(ctx, users, auth.Pepper, "admin@example.com", true)
 	if err != nil {
@@ -83,7 +83,7 @@ func Test(ctx context.Context, db storage.Connection) error {
 		return err
 	}
 
-	users := user.NewUsers(db)
+	users := domains.NewUsers(db)
 
 	if _, err := createUser(ctx, users, auth.Pepper, "test@example.com", false); err != nil {
 		return fmt.Errorf("failed to create test user: %w", err)
@@ -96,22 +96,27 @@ func Test(ctx context.Context, db storage.Connection) error {
 // promotes it. It uses only the user domain's public API.
 func createUser(
 	ctx context.Context,
-	users user.Users,
-	pepper, address string,
+	users domains.Users,
+	pepper, rawAddress string,
 	admin bool,
-) (user.User, error) {
-	created, err := users.Create(ctx, pepper, user.CreateUserData{
+) (domains.User, error) {
+	address, err := domains.ParseEmail(rawAddress)
+	if err != nil {
+		return domains.User{}, err
+	}
+
+	created, err := users.Create(ctx, pepper, domains.CreateUserData{
 		Email: address,
-		PasswordPair: user.PasswordPair{
+		PasswordPair: domains.PasswordPair{
 			Password:        DefaultPassword,
 			ConfirmPassword: DefaultPassword,
 		},
 	})
 	if err != nil {
-		return user.User{}, err
+		return domains.User{}, err
 	}
 
-	return users.Update(ctx, user.UpdateUserData{
+	return users.Update(ctx, domains.UpdateUserData{
 		ID:               created.ID,
 		Email:            created.Email,
 		EmailValidatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},

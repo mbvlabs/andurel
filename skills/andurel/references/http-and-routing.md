@@ -245,9 +245,9 @@ func (s *Server) Shutdown(ctx context.Context) error
 ```
 
 `NewServer` appends the HTTP listener to the supplied `Shutdowner`s (shut down
-in order, listener last). `cmd/app` builds the router through `runtime.New`,
-wraps it with `anduin.NewServer(...)`, and calls `Start`; lifecycle ordering is
-explicit code, not an Fx hook.
+in order, listener last). `cmd/app` gets its server from `runtime.New`, which
+builds the router and wraps it with `anduin.NewServer(...)` internally, then
+calls `app.Start`; lifecycle ordering is explicit code, not an Fx hook.
 
 ## Inertia
 
@@ -281,7 +281,7 @@ process does:
 
 ```go
 srv := anduintest.New(t, func(rt *anduin.Router) {
-	userhandler.NewHandler(users, testRenderer(t)).Register(rt)
+	handlers.NewUserHandler(users, testRenderer(t)).Register(rt)
 })
 
 resp := srv.Get(routes.UserIndex.Path() + "?page=1")

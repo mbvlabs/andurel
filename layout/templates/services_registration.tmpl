@@ -9,8 +9,6 @@ import (
 	"uuid"
 
 	"{{.ModuleName}}/domains"
-	domaintoken "{{.ModuleName}}/domains/token"
-	domainuser "{{.ModuleName}}/domains/user"
 	appemail "{{.ModuleName}}/email"
 	"{{.ModuleName}}/queue/jobs"
 
@@ -33,9 +31,13 @@ type RegisterUserData struct {
 func (i Identity) RegisterUser(
 	ctx context.Context,
 	data RegisterUserData,
-) (domainuser.User, error) {
+) (domains.User, error) {
+	parsedEmail, err := domains.ParseEmail(data.Email)
+	if err != nil {
+		return domains.User{}, err
+	}
+
 	b := validation.NewBuilder()
-	b.Required("email", data.Email)
 	b.Required("password", data.Password)
 	b.MinLen("password", data.Password, 8)
 	b.Required("confirmPassword", data.ConfirmPassword)
@@ -43,11 +45,11 @@ func (i Identity) RegisterUser(
 		b.Add("confirmPassword", "mismatch", "Passwords do not match")
 	}
 	if err := b.Err(); err != nil {
-		return domainuser.User{}, validationError(err)
+		return domains.User{}, validationError(err)
 	}
 
 	var (
-		user domainuser.User
+		user domains.User
 		code string
 	)
 
@@ -58,9 +60,9 @@ func (i Identity) RegisterUser(
 			users := i.users.WithTx(tx)
 			tokens := i.tokens.WithTx(tx)
 
-			created, err := users.Create(ctx, i.pepper, domainuser.CreateUserData{
-				Email: data.Email,
-				PasswordPair: domainuser.PasswordPair{
+			created, err := users.Create(ctx, i.pepper, domains.CreateUserData{
+				Email: parsedEmail,
+				PasswordPair: domains.PasswordPair{
 					Password:        data.Password,
 					ConfirmPassword: data.ConfirmPassword,
 				},
@@ -80,7 +82,7 @@ func (i Identity) RegisterUser(
 			return nil
 		},
 	); err != nil {
-		return domainuser.User{}, err
+		return domains.User{}, err
 	}
 
 	if err := i.sendVerificationEmail(ctx, user, code); err != nil {
@@ -96,7 +98,7 @@ func (i Identity) RegisterUser(
 // after losing the registering session or exhausting their attempts.
 func (i Identity) ResendEmailVerification(
 	ctx context.Context,
-	user domainuser.User,
+	user domains.User,
 ) error {
 	if user.HasValidatedEmail() {
 		return nil
@@ -137,11 +139,11 @@ func (i Identity) ResendEmailVerification(
 
 func (i Identity) issueVerificationCode(
 	ctx context.Context,
-	tokens domaintoken.Tokens,
-	user domainuser.User,
+	tokens domains.Tokens,
+	user domains.User,
 ) (string, error) {
 	meta, err := json.Marshal(map[string]string{
-		"email": user.Email,
+		"email": user.Email.String(),
 	})
 	if err != nil {
 		return "", fmt.Errorf("marshal verification token metadata: %v", err)
@@ -164,7 +166,7 @@ func (i Identity) issueVerificationCode(
 
 func (i Identity) sendVerificationEmail(
 	ctx context.Context,
-	user domainuser.User,
+	user domains.User,
 	code string,
 ) error {
 	vEmail := appemail.VerifyEmail{VerificationCode: code}
@@ -181,7 +183,7 @@ func (i Identity) sendVerificationEmail(
 
 	_, err = i.insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
 		Data: email.TransactionalData{
-			To:       user.Email,
+			To:       user.Email.String(),
 			From:     i.defaultSenderSignature,
 			Subject:  "Verify Your Email Address",
 			HTMLBody: html,
@@ -235,20 +237,20 @@ func verificationLocked(attempts int32) bool {
 func (i Identity) VerifyEmail(
 	ctx context.Context,
 	data VerifyEmailData,
-) (domainuser.User, error) {
+) (domains.User, error) {
 	b := validation.NewBuilder()
 	b.Required("code", data.Code)
 	if err := b.Err(); err != nil {
-		return domainuser.User{}, validationError(err)
+		return domains.User{}, validationError(err)
 	}
 
 	if data.UserID == uuid.Nil() {
-		return domainuser.User{}, invalidVerificationCode()
+		return domains.User{}, invalidVerificationCode()
 	}
 
 	tx, err := i.beginTx(ctx)
 	if err != nil {
-		return domainuser.User{}, fmt.Errorf("begin email verification transaction: %w", err)
+		return domains.User{}, fmt.Errorf("begin email verification transaction: %w", err)
 	}
 
 	users := i.users.WithTx(tx)
@@ -263,10 +265,10 @@ func (i Identity) VerifyEmail(
 		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, domains.ErrNotFound) {
-			return domainuser.User{}, invalidVerificationCode()
+			return domains.User{}, invalidVerificationCode()
 		}
 
-		return domainuser.User{}, fmt.Errorf("find email verification token: %w", err)
+		return domains.User{}, fmt.Errorf("find email verification token: %w", err)
 	}
 
 	// Count the attempt before checking the code. The UPDATE takes the row
@@ -277,10 +279,10 @@ func (i Identity) VerifyEmail(
 		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, domains.ErrNotFound) {
-			return domainuser.User{}, invalidVerificationCode()
+			return domains.User{}, invalidVerificationCode()
 		}
 
-		return domainuser.User{}, fmt.Errorf("record verification attempt: %w", err)
+		return domains.User{}, fmt.Errorf("record verification attempt: %w", err)
 	}
 
 	if !verificationAttemptAllowed(attempts) ||
@@ -290,15 +292,15 @@ func (i Identity) VerifyEmail(
 			if err := tokens.Destroy(ctx, token.ID); err != nil {
 				_ = tx.Rollback(ctx)
 
-				return domainuser.User{}, fmt.Errorf("destroy locked verification token: %w", err)
+				return domains.User{}, fmt.Errorf("destroy locked verification token: %w", err)
 			}
 		}
 
 		if err := tx.Commit(ctx); err != nil {
-			return domainuser.User{}, fmt.Errorf("commit failed verification attempt: %w", err)
+			return domains.User{}, fmt.Errorf("commit failed verification attempt: %w", err)
 		}
 
-		return domainuser.User{}, invalidVerificationCode()
+		return domains.User{}, invalidVerificationCode()
 	}
 
 	user, err := users.Find(ctx, data.UserID)
@@ -306,14 +308,14 @@ func (i Identity) VerifyEmail(
 		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, domains.ErrNotFound) {
-			return domainuser.User{}, ErrUserNotFound
+			return domains.User{}, ErrUserNotFound
 		}
 
-		return domainuser.User{}, fmt.Errorf("find verification user: %w", err)
+		return domains.User{}, fmt.Errorf("find verification user: %w", err)
 	}
 
 	now := time.Now()
-	user, err = users.Update(ctx, domainuser.UpdateUserData{
+	user, err = users.Update(ctx, domains.UpdateUserData{
 		ID:               user.ID,
 		Email:            user.Email,
 		EmailValidatedAt: pgtype.Timestamptz{Time: now, Valid: true},
@@ -324,20 +326,20 @@ func (i Identity) VerifyEmail(
 		_ = tx.Rollback(ctx)
 
 		if errors.Is(err, domains.ErrNotFound) {
-			return domainuser.User{}, ErrUserNotFound
+			return domains.User{}, ErrUserNotFound
 		}
 
-		return domainuser.User{}, fmt.Errorf("mark user email verified: %w", err)
+		return domains.User{}, fmt.Errorf("mark user email verified: %w", err)
 	}
 
 	if err := tokens.Destroy(ctx, token.ID); err != nil {
 		_ = tx.Rollback(ctx)
 
-		return domainuser.User{}, fmt.Errorf("destroy email verification token: %w", err)
+		return domains.User{}, fmt.Errorf("destroy email verification token: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return domainuser.User{}, fmt.Errorf("commit email verification transaction: %w", err)
+		return domains.User{}, fmt.Errorf("commit email verification transaction: %w", err)
 	}
 
 	return user, nil

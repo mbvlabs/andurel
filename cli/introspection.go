@@ -26,6 +26,9 @@ type projectItem struct {
 	Name string `json:"name"`
 	Path string `json:"path"`
 	Kind string `json:"kind,omitempty"`
+	// Entities holds the type→column mapping for domain files. It is only
+	// populated by andurel inspect domains; every other list leaves it empty.
+	Entities []domainEntity `json:"entities,omitempty"`
 }
 
 type toolInfo struct {
@@ -159,7 +162,41 @@ func newMigrationsCommand() *cobra.Command {
 }
 
 func newDomainsCommand() *cobra.Command {
-	return readOnlyListCommand("domains", "List domain files", "domains", ".go")
+	cmd := &cobra.Command{
+		Use:   "domains",
+		Short: "List domain files with their type to column mapping",
+		Long: `List files under domains/ and report each entity's type to column
+mapping: the structs, their andurel-tagged fields, the table they belong to,
+and whether the file provides Parse constructors (newtype coverage).
+
+The type is the source of truth for type-driven work: change the entity
+first, then let SQL and generated queries follow.`,
+		Example: `  andurel inspect domains --json`,
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rootDir, err := findGoModRoot()
+			if err != nil {
+				return err
+			}
+			items, err := listProjectFiles(rootDir, "domains", ".go", "domain")
+			if err != nil {
+				return err
+			}
+			for i, item := range items {
+				if !isDomainEntityFile(item.Path) {
+					continue
+				}
+				items[i].Entities = describeDomainFile(filepath.Join(rootDir, item.Path))
+			}
+			return output.OK(cmd, items, "List domain files")
+		},
+	}
+	setAgentMetadata(
+		cmd,
+		"introspection",
+		"Read-only domain inventory with the type to column mapping and Parse-constructor coverage. Use --json.",
+	)
+	return cmd
 }
 
 func newHandlersCommand() *cobra.Command {

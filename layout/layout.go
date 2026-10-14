@@ -168,13 +168,13 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Process composition
 	"runtime_runtime.tmpl":     "internal/runtime/runtime.go",
-	"runtime_server.tmpl":      "internal/runtime/server.go",
 	"runtime_queue.tmpl":       "internal/runtime/queue.go",
 	"runtime_server_test.tmpl": "internal/runtime/server_test.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
 	"config_auth.tmpl":      "config/auth.go",
+	"config_cache.tmpl":     "config/cache.go",
 	"config_config.tmpl":    "config/config.go",
 	"config_database.tmpl":  "config/database.go",
 	"config_email.tmpl":     "config/email.go",
@@ -186,15 +186,11 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_telemetry.tmpl": "config/telemetry.go",
 
 	// Handlers
-	"controllers_api.tmpl":                     "handlers/api/api.go",
-	"controllers_assets.tmpl":                  "handlers/assets.go",
-	"controllers_cache.tmpl":                   "handlers/cache.go",
-	"controllers_pages_inertia.tmpl":           "handlers/pages.go",
-	"handlers_errors.tmpl":                     "handlers/errors.go",
-	"controllers_confirmations_inertia.tmpl":   "handlers/auth/confirmations.go",
-	"controllers_registrations_inertia.tmpl":   "handlers/auth/registrations.go",
-	"controllers_reset_passwords_inertia.tmpl": "handlers/auth/reset_passwords.go",
-	"controllers_sessions_inertia.tmpl":        "handlers/auth/sessions.go",
+	"handlers_api.tmpl":    "handlers/api.go",
+	"handlers_assets.tmpl": "handlers/assets.go",
+	"handlers_pages.tmpl":  "handlers/pages.go",
+	"handlers_errors.tmpl": "handlers/errors.go",
+	"handlers_auth.tmpl":   "handlers/auth.go",
 
 	// Migrations and seeds
 	"database_migrations_gitkeep.tmpl": "migrations/.gitkeep",
@@ -220,10 +216,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Domains
 	"models_errors.tmpl":                  "domains/errors.go",
-	"models_user.tmpl":                    "domains/user/user.go",
-	"models_token.tmpl":                   "domains/token/token.go",
-	"models_queries_user.tmpl":            "domains/user/user.sql",
-	"models_queries_token.tmpl":           "domains/token/token.sql",
+	"models_user.tmpl":                    "domains/user.go",
+	"models_token.tmpl":                   "domains/token.go",
+	"models_queries_user.tmpl":            "domains/user.sql",
+	"models_queries_token.tmpl":           "domains/token.sql",
 	"models_internal_queries_db.tmpl":     "domains/internal/queries/db.go",
 	"models_internal_queries_models.tmpl": "domains/internal/queries/models.go",
 	"models_internal_queries_user.tmpl":   "domains/internal/queries/user.sql.go",
@@ -249,7 +245,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_middleware_auth.tmpl":            "middleware/auth.go",
 	"router_middleware_auth_test.tmpl":       "middleware/auth_test.go",
 	"router_cookies_app.tmpl":                "middleware/cookies.go",
-	"router_cookies_cookies.tmpl":            "middleware/jar.go",
 }
 
 var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{

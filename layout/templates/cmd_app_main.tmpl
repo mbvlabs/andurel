@@ -45,10 +45,8 @@ func run() error {
 	}
 	defer closeApp(app)
 
-	srv := runtime.NewServer(ctx, cfg, app)
-
 	serveErr := make(chan error, 1)
-	go func() { serveErr <- srv.Start(ctx, cfg.App.Environment) }()
+	go func() { serveErr <- app.Start(ctx) }()
 
 	select {
 	case err := <-serveErr:
@@ -59,7 +57,7 @@ func run() error {
 	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelShutdown()
 
-	return srv.Shutdown(shutdownCtx)
+	return app.Shutdown(shutdownCtx)
 }
 
 // closeApp releases the composition root's dependencies in reverse construction

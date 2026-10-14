@@ -961,11 +961,15 @@ func TestModelDiffOutput(t *testing.T) {
 }
 
 func TestFrameworkRepairPrompt(t *testing.T) {
-	originalStdin := os.Stdin
-	t.Cleanup(func() { os.Stdin = originalStdin })
+	newRepairCmd := func(input string) *cobra.Command {
+		cmd := &cobra.Command{Use: "upgrade"}
+		cmd.SetIn(tempInputFile(t, input))
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		return cmd
+	}
 
-	os.Stdin = tempInputFile(t, "yes\n")
-	confirmed, err := confirmFrameworkRepair()
+	confirmed, err := confirmFrameworkRepair(newRepairCmd("yes\n"))
 	if err != nil {
 		t.Fatalf("confirmFrameworkRepair yes: %v", err)
 	}
@@ -973,8 +977,7 @@ func TestFrameworkRepairPrompt(t *testing.T) {
 		t.Fatal("expected yes to confirm framework repair")
 	}
 
-	os.Stdin = tempInputFile(t, "\n")
-	confirmed, err = confirmFrameworkRepair()
+	confirmed, err = confirmFrameworkRepair(newRepairCmd("\n"))
 	if err != nil {
 		t.Fatalf("confirmFrameworkRepair default: %v", err)
 	}

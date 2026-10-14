@@ -97,6 +97,9 @@ Pass --tools to start allowlisted sidecars (mailpit) alongside the runner.`,
   andurel run --tools mailpit`,
 		Args: cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel run"); err != nil {
+				return err
+			}
 			rootDir, err := findGoModRoot()
 			if err != nil {
 				return err

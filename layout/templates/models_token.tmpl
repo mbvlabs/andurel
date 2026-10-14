@@ -1,4 +1,4 @@
-package token
+package domains
 
 // andurel:table tokens
 
@@ -13,7 +13,6 @@ import (
 	"time"
 	"uuid"
 
-	"{{.ModuleName}}/domains"
 	"{{.ModuleName}}/domains/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
@@ -23,9 +22,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// Tokens is the token domain's persistence entry point. It owns the tokens
-// table and the token hashing/verification rules; it never imports another
-// domain.
 type Tokens struct {
 	db      storage.Connection
 	queries *queries.Queries
@@ -39,8 +35,6 @@ func (t Tokens) WithTx(tx storage.Transaction) Tokens {
 	return Tokens{queries: queries.New(tx)}
 }
 
-// Connection exposes the underlying database handle so application services can
-// run a transaction that spans domains.
 func (t Tokens) Connection() storage.Connection {
 	return t.db
 }
@@ -100,7 +94,7 @@ func (t Tokens) Find(ctx context.Context, id uuid.UUID) (Token, error) {
 	entity, err := t.queries.GetToken[Token](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Token{}, domains.ErrNotFound
+			return Token{}, ErrNotFound
 		}
 
 		return Token{}, err
@@ -123,7 +117,7 @@ func (t Tokens) FindByScopeAndHash(
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Token{}, domains.ErrNotFound
+			return Token{}, ErrNotFound
 		}
 
 		return Token{}, err
@@ -143,7 +137,7 @@ func (t Tokens) FindByUserAndScope(
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Token{}, domains.ErrNotFound
+			return Token{}, ErrNotFound
 		}
 
 		return Token{}, err
@@ -152,9 +146,6 @@ func (t Tokens) FindByUserAndScope(
 	return entity, nil
 }
 
-// IncrementAttempts atomically bumps the token's attempt counter and returns
-// the new count. Concurrent callers are serialized by the row lock, so each
-// sees a distinct count.
 func (t Tokens) IncrementAttempts(ctx context.Context, id uuid.UUID) (int32, error) {
 	attempts, err := t.queries.IncrementTokenAttempts(ctx, queries.IncrementTokenAttemptsParams{
 		ID:        id,
@@ -162,7 +153,7 @@ func (t Tokens) IncrementAttempts(ctx context.Context, id uuid.UUID) (int32, err
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return 0, domains.ErrNotFound
+			return 0, ErrNotFound
 		}
 
 		return 0, err
@@ -340,11 +331,9 @@ func (t Tokens) Paginate(
 	}, nil
 }
 
-// validationFailure maps pkg/validation field errors into the domain
-// vocabulary: a ValidationError that reports true for domains.ErrViolation.
 func validationFailure(err error) error {
 	if validationErrors, ok := validation.As(err); ok {
-		return domains.ValidationError{Fields: validationErrors.ToMap()}
+		return ValidationError{Fields: validationErrors.ToMap()}
 	}
 
 	return err

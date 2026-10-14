@@ -41,19 +41,19 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 		"ON tokens (user_id, scope, created_at DESC)",
 	)
 
-	assertTemplateContains(t, "controllers_sessions_inertia.tmpl",
+	assertTemplateContains(t, "handlers_auth.tmpl",
 		"services.ErrEmailNotVerified",
 		"ResendEmailVerification",
 		"setPendingUser",
 		"middleware.IPRateLimiter",
 	)
 
-	assertTemplateContains(t, "controllers_confirmations_inertia.tmpl",
+	assertTemplateContains(t, "handlers_auth.tmpl",
 		"pendingUserID",
 		"UserID: pendingUserID(ctx)",
 	)
 
-	assertTemplateContains(t, "controllers_registrations_inertia.tmpl",
+	assertTemplateContains(t, "handlers_auth.tmpl",
 		"setPendingUser",
 		"PendingUserID",
 	)

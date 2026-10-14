@@ -11,7 +11,7 @@ import (
 const (
 	// QueriesDir is the root under which hand-written narsilc query files live.
 	// Each domain colocates its SQL beside the entity it describes, e.g.
-	// domains/user/user.sql, so narsilc scans this tree recursively.
+	// domains/user.sql, so narsilc scans this tree recursively.
 	QueriesDir = "domains"
 	// GeneratedQueriesDir is the narsilc output directory. Only domains may
 	// import it.

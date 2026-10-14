@@ -52,6 +52,7 @@ Pattern ids: `domain`, `service`, `handler`, `route`, `job`, `email`,
 andurel patterns list --json
 andurel patterns show domain
 andurel patterns show handler --json
+andurel patterns show domain --entity User --table users --json
 andurel generate migration create_posts
 andurel db migrate up
 andurel inspect project --json
@@ -69,7 +70,7 @@ andurel run --tools mailpit
 
 ## Create vs refresh vs inspect
 
-- Read a pattern: `andurel patterns show <kind>` (add `--json` for the parsed form).
+- Read a pattern: `andurel patterns show <kind>` (add `--json` for the parsed form; add `--entity/--table` with `domain` for the per-entity file manifest).
 - Create SQL: `andurel generate migration NAME` then `andurel db migrate up`. A one-shot process that applies embedded SQL is `cmd/migrate`.
 - Add a domain: hand-write `domains/<entity>/<entity>.go` and its colocated `<entity>.sql`, then run `andurel sync queries`.
 - Add a service, handler, route, middleware, or composition: read the matching pattern and write the files yourself. `andurel new` ships a complete reference app for each.
