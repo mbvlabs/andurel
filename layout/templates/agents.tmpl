@@ -2,7 +2,7 @@
 
 This is an Andurel application. Use the `andurel` CLI to discover the project shape and to read the reference patterns instead of inventing file paths, URLs, or generator names.
 
-Frontend: Inertia ({{.Inertia}}) + Vite. HTTP: `net/http` via `pkg/anduin` — handlers are `func(ctx context.Context) error`. There is no Echo and no Fx.
+Frontend: Inertia ({{.Inertia}}) + Vite. HTTP: `net/http` via `pkg/anduin` — handlers are `func(ctx context.Context) error`. There is no Echo and no Fx. Domains are type-driven: invariants live in newtypes built by `ParseX` constructors; there are no post-construction `Validate` methods.
 
 ## Discovery
 
@@ -33,17 +33,18 @@ andurel patterns show test-handler
 andurel patterns show test-integration
 andurel patterns show composition
 andurel patterns show domain --json
+andurel patterns show domain --entity User --table users --json
 ```
 
 ## Layer placement
 
-- `domains/` — business logic and persistence. One package per entity; SQL is colocated as `domains/<entity>/<entity>.sql`. A domain never imports another domain, and only `domains/**` imports `domains/internal/queries`.
+- `domains/` — business logic and persistence in one flat package (one file per domain); SQL is colocated as `domains/<entity>.sql`. Only `domains` imports `domains/internal/queries`.
 - `domains/errors.go` — the shared vocabulary: `ErrNotFound`, `ErrConflict`, `ErrViolation`, `ValidationError`.
 - `services/` — application logic: transactions, cross-domain orchestration, external side effects.
-- `handlers/`, `handlers/api/`, `handlers/auth/` — HTTP adapters. Register routes in `Register(rt *anduin.Router)`.
+- `handlers/` — HTTP adapters in one flat package (`AuthHandler`, `APIHandler`, `NewXHandler` constructors, no sub-packages). Register routes in `Register(rt *anduin.Router)`.
 - `routes/` — route data only (names, paths, URL builders).
-- `middleware/` — app HTTP middleware and cookie-jar wiring.
-- `internal/runtime` — composition root. Explicit constructor injection; no Fx.
+- `middleware/` — app HTTP policy (auth, rate limiting) plus the session definition. Jar construction lives in `internal/runtime`.
+- `internal/runtime` — composition root. One constructor per process (`New` owns `Handler`+`Server`); explicit constructor injection; no Fx.
 - `resources/root.templ` — the one page-shaped templ (the Inertia root document). Email templ lives in `email/`.
 
 Read the `layer-placement` skill reference for the full table and the decision checklist.

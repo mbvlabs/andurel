@@ -129,6 +129,9 @@ andurel db migrate up.`,
 		Args:    cobra.MinimumNArgs(1),
 		Example: "  andurel generate migration create_users_table",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel generate migration"); err != nil {
+				return err
+			}
 			c := []string{"create"}
 			c = append(c, args...)
 			c = append(c, "sql")
@@ -145,6 +148,9 @@ func newDBMigrationUpCommand() *cobra.Command {
 		Long:  "Apply any pending migrations that have not yet been run against the database.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel db migrate up"); err != nil {
+				return err
+			}
 			return runGoose("up")
 		},
 	}
@@ -157,6 +163,9 @@ func newDBMigrationDownCommand() *cobra.Command {
 		Long:  "Roll back the most recently applied migration.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel db migrate down"); err != nil {
+				return err
+			}
 			return runGoose("down")
 		},
 	}
@@ -169,6 +178,9 @@ func newDBMigrationFixCommand() *cobra.Command {
 		Long:  "Re-number sequential migrations to close any gaps in the numbering.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel db migrate fix"); err != nil {
+				return err
+			}
 			return runGoose("fix")
 		},
 	}
@@ -182,6 +194,9 @@ func newDBMigrationResetCommand() *cobra.Command {
 		Long:    "Roll back every migration (down), then re-apply them all (up).",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel db migrate reset"); err != nil {
+				return err
+			}
 			return runGoose("reset")
 		},
 	}
@@ -196,6 +211,9 @@ func newDBMigrationUpToCommand() *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		Example: "  andurel db migrate up-to 20250101120000",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel db migrate up-to"); err != nil {
+				return err
+			}
 			return runGoose("up-to", args[0])
 		},
 	}
@@ -210,6 +228,9 @@ func newDBMigrationDownToCommand() *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		Example: "  andurel db migrate down-to 20250101120000",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel db migrate down-to"); err != nil {
+				return err
+			}
 			return runGoose("down-to", args[0])
 		},
 	}
@@ -223,6 +244,9 @@ func newDBMigrationStatusCommand() *cobra.Command {
 		Long:    "Display the current migration version and list all migrations with their status.",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel db migrate status"); err != nil {
+				return err
+			}
 			return runGoose("status")
 		},
 	}
@@ -279,6 +303,9 @@ postgres, template1). This cannot be undone.`,
 		Args:    cobra.NoArgs,
 		Example: "  andurel db drop\n  andurel db drop --force",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel db drop"); err != nil {
+				return err
+			}
 			return dropDatabase(cmd, force)
 		},
 	}
@@ -301,6 +328,9 @@ and create the database. No-op if the database already exists.`,
 		Args:    cobra.NoArgs,
 		Example: "  andurel db create",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel db create"); err != nil {
+				return err
+			}
 			return createDatabase()
 		},
 	}
@@ -320,6 +350,9 @@ fresh empty one. Use --force to override system database protection.`,
 		Args:    cobra.NoArgs,
 		Example: "  andurel db nuke\n  andurel db nuke --force",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel db nuke"); err != nil {
+				return err
+			}
 			return nukeDatabase(cmd, force)
 		},
 	}
@@ -353,6 +386,9 @@ database protection for the drop step.`,
 		Args:    cobra.NoArgs,
 		Example: "  andurel db rebuild\n  andurel db rebuild --seed development\n  andurel db rebuild --skip-seed",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel db rebuild"); err != nil {
+				return err
+			}
 			return rebuildDatabase(cmd, force, skipSeed, seedName)
 		},
 	}
@@ -472,9 +508,11 @@ func runGoose(args ...string) error {
 	goosePath := filepath.Join(rootDir, "bin", "goose")
 	if _, err := os.Stat(goosePath); err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf(
-				"goose binary not found at %s\nRun 'andurel tool sync' to download it",
-				goosePath,
+			return output.NewError(
+				output.CodeMissingTool,
+				fmt.Sprintf("goose binary not found at %s", goosePath),
+				output.ExitDependency,
+				"Run 'andurel tool sync' to download it.",
 			)
 		}
 		return err

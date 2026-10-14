@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/joho/godotenv"
+	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/spf13/cobra"
 )
 
@@ -73,6 +74,9 @@ DB_SSL_MODE from your .env file and connects via usql.`,
   andurel db console`,
 		Args: cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel console"); err != nil {
+				return err
+			}
 			rootDir, err := findGoModRoot()
 			if err != nil {
 				return err
@@ -81,9 +85,11 @@ DB_SSL_MODE from your .env file and connects via usql.`,
 			envPath := filepath.Join(rootDir, ".env")
 			if _, err := os.Stat(envPath); err != nil {
 				if os.IsNotExist(err) {
-					return fmt.Errorf(
-						".env file not found at %s\nCreate one to set your environment variables",
-						envPath,
+					return output.NewError(
+						output.CodeConfigError,
+						fmt.Sprintf(".env file not found at %s", envPath),
+						output.ExitConfig,
+						"Create one to set your environment variables.",
 					)
 				}
 				return err
@@ -101,9 +107,11 @@ DB_SSL_MODE from your .env file and connects via usql.`,
 			usqlPath := filepath.Join(rootDir, "bin", "usql")
 			if _, err := os.Stat(usqlPath); err != nil {
 				if os.IsNotExist(err) {
-					return fmt.Errorf(
-						"usql binary not found at %s\nRun 'andurel tool sync' to download it",
-						usqlPath,
+					return output.NewError(
+						output.CodeMissingTool,
+						fmt.Sprintf("usql binary not found at %s", usqlPath),
+						output.ExitDependency,
+						"Run 'andurel tool sync' to download it.",
 					)
 				}
 				return err
@@ -134,6 +142,9 @@ DB_SSL_MODE from your .env file.`,
 		Example: `  andurel tool dblab`,
 		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel tool dblab"); err != nil {
+				return err
+			}
 			rootDir, err := findGoModRoot()
 			if err != nil {
 				return err
@@ -142,9 +153,11 @@ DB_SSL_MODE from your .env file.`,
 			envPath := filepath.Join(rootDir, ".env")
 			if _, err := os.Stat(envPath); err != nil {
 				if os.IsNotExist(err) {
-					return fmt.Errorf(
-						".env file not found at %s\nCreate one to set your environment variables",
-						envPath,
+					return output.NewError(
+						output.CodeConfigError,
+						fmt.Sprintf(".env file not found at %s", envPath),
+						output.ExitConfig,
+						"Create one to set your environment variables.",
 					)
 				}
 				return err
@@ -162,9 +175,11 @@ DB_SSL_MODE from your .env file.`,
 			dblabPath := filepath.Join(rootDir, "bin", "dblab")
 			if _, err := os.Stat(dblabPath); err != nil {
 				if os.IsNotExist(err) {
-					return fmt.Errorf(
-						"dblab binary not found at %s\nRun 'andurel tool sync' to download it",
-						dblabPath,
+					return output.NewError(
+						output.CodeMissingTool,
+						fmt.Sprintf("dblab binary not found at %s", dblabPath),
+						output.ExitDependency,
+						"Run 'andurel tool sync' to download it.",
 					)
 				}
 				return err
@@ -197,6 +212,9 @@ Default bindings:
 Override defaults by passing flags, e.g.:
   andurel tool mailpit --smtp=0.0.0.0:2525`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel tool mailpit"); err != nil {
+				return err
+			}
 			rootDir, err := findGoModRoot()
 			if err != nil {
 				return err
@@ -205,9 +223,11 @@ Override defaults by passing flags, e.g.:
 			binPath := filepath.Join(rootDir, "bin", "mailpit")
 			if _, err := os.Stat(binPath); err != nil {
 				if os.IsNotExist(err) {
-					return fmt.Errorf(
-						"mailpit binary not found at %s\nRun 'andurel tool sync' to download it",
-						binPath,
+					return output.NewError(
+						output.CodeMissingTool,
+						fmt.Sprintf("mailpit binary not found at %s", binPath),
+						output.ExitDependency,
+						"Run 'andurel tool sync' to download it.",
 					)
 				}
 				return err

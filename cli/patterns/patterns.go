@@ -26,12 +26,13 @@ type File struct {
 
 // Pattern is the complete, machine-readable description of a primitive.
 type Pattern struct {
-	ID        string   `json:"id"`
-	Title     string   `json:"title"`
-	Summary   string   `json:"summary"`
-	Files     []File   `json:"files"`
-	Rules     []string `json:"rules"`
-	Checklist []string `json:"checklist"`
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	Summary   string    `json:"summary"`
+	Files     []File    `json:"files"`
+	Rules     []string  `json:"rules"`
+	Checklist []string  `json:"checklist"`
+	Manifest  *Manifest `json:"manifest,omitempty"`
 
 	markdown string
 }

@@ -11,7 +11,7 @@ The app is ordinary Go you own: `domains/` for business logic and persistence, `
 ├── assets/               # Static/compiled assets
 ├── bin/                  # Command-line tools
 ├── cmd/                  # Process entry points
-│   ├── app/              # Web process (runtime.New + anduin.NewServer)
+│   ├── app/              # Web process (single runtime.New owns Handler + Server)
 │   ├── queue/            # Queue process
 │   ├── migrate/          # Apply pending SQL migrations
 │   └── seeds/            # Database seeding
@@ -21,7 +21,7 @@ The app is ordinary Go you own: `domains/` for business logic and persistence, `
 │   ├── errors.go         # Shared domain vocabulary (ErrNotFound, ValidationError, ...)
 │   └── internal/queries/ # narsilc output (imported only by domains/**)
 ├── email/                # Email templates and sending
-├── handlers/             # HTTP handlers (also handlers/auth, handlers/api)
+├── handlers/             # HTTP handlers, one flat package
 ├── internal/             # App support code, e.g. provider adapters (clients/, payment/)
 │   └── runtime/          # Composition root: explicit constructors + lifecycle
 ├── middleware/           # App HTTP middleware and cookie-jar wiring
@@ -205,11 +205,11 @@ andurel db migrate up
 andurel patterns show domain
 ```
 
-Create `domains/product/product.go` (package `product`) and colocate the SQL in `domains/product/product.sql`. Mark the table the entity maps to:
+Create `domains/product.go` (package `domains`) and colocate the SQL in `domains/product.sql`. Mark the table the entity maps to:
 
 ```go
-// domains/product/product.go
-package product
+// domains/product.go
+package domains
 
 // andurel:table products
 
@@ -218,7 +218,6 @@ import (
     "errors"
     "uuid"
 
-    "{{.ModuleName}}/domains"
     "{{.ModuleName}}/domains/internal/queries"
 
     "github.com/jackc/pgx/v5"
@@ -238,7 +237,7 @@ type Product struct {
 func (p Products) Find(ctx context.Context, id uuid.UUID) (Product, error) {
     entity, err := p.q.GetProduct[Product](ctx, id)
     if errors.Is(err, pgx.ErrNoRows) {
-        return Product{}, domains.ErrNotFound
+        return Product{}, ErrNotFound
     }
     return entity, err
 }
@@ -250,7 +249,7 @@ func (p Products) Find(ctx context.Context, id uuid.UUID) (Product, error) {
 andurel sync queries
 ```
 
-Narsilc globs `domains/**/*.sql` and writes `domains/internal/queries/`. Only `domains/**` may import that package. A domain must never import another domain — cross-domain behavior belongs in a service.
+Narsilc globs `domains/**/*.sql` and writes `domains/internal/queries/`. Only `domains` may import that package. Domains share one flat package (one file per domain) — cross-domain behavior belongs in a service.
 
 ### Add A Handler And Route
 
@@ -274,29 +273,29 @@ var ProductIndex = routing.NewSimpleRoute("/products", "products.index", "")
 Register it in a handler:
 
 ```go
-// handlers/product/handler.go
-package product
+// handlers/product.go
+package handlers
 
 import (
     "context"
 
-    domainproduct "{{.ModuleName}}/domains/product"
+    "{{.ModuleName}}/domains"
     "{{.ModuleName}}/routes"
 
     "github.com/mbvlabs/andurel/pkg/anduin"
     "github.com/mbvlabs/andurel/pkg/inertia"
 )
 
-type Handler struct {
-    products domainproduct.Products
+type ProductHandler struct {
+    products domains.Products
     renderer *inertia.Renderer
 }
 
-func NewHandler(products domainproduct.Products, renderer *inertia.Renderer) Handler {
-    return Handler{products: products, renderer: renderer}
+func NewProductHandler(products domains.Products, renderer *inertia.Renderer) ProductHandler {
+    return ProductHandler{products: products, renderer: renderer}
 }
 
-func (h Handler) Register(rt *anduin.Router) {
+func (h ProductHandler) Register(rt *anduin.Router) {
     rt.Get(routes.ProductIndex.Path(), h.Index)
 }
 
@@ -591,8 +590,9 @@ TRACE_SAMPLE_RATE=1.0
 
 ## Session, CORS, And CSRF Protection
 
-Application sessions and the cookie jar live in `middleware/`. A `kiks.Jar` is
-constructed by `middleware.NewJar(config.App, config.Session)` and installed with
+Application sessions and the cookie jar live in `middleware/` (policy) and
+`internal/runtime` (construction). A `kiks.Jar` is built by `newJar` in the
+composition root from `middleware.NewAppCookie` and installed with
 `jar.Middleware()`. Handlers read and write bag cookies with `kiks.Get` /
 `kiks.Set` / `kiks.Destroy` (they return an error when the bag is missing, the
 type is unregistered, or the type is native-only — use the same pointer type you
@@ -702,14 +702,24 @@ Domains take a `storage.Connection`; tests get a real migrated database from
 ```go
 func TestUsers_Create(t *testing.T) {
     db := storage.NewTestCluster(t.Context()).NewTestDB(t, migrations.Migrations, ".")
-    users := user.NewUsers(db)
+    users := domains.NewUsers(db)
 
-    got, err := users.Create(t.Context(), user.CreateUserData{Email: "a@b.c"})
+    email, err := domains.ParseEmail("a@b.c")
+    if err != nil {
+        t.Fatalf("parse: %v", err)
+    }
+    got, err := users.Create(t.Context(), domains.CreateUserData{Email: email})
     if err != nil {
         t.Fatalf("create: %v", err)
     }
     if got.ID == uuid.Nil() {
         t.Fatal("expected id")
+    }
+}
+
+func TestParseEmail(t *testing.T) {
+    if _, err := domains.ParseEmail("not-an-email"); err == nil {
+        t.Fatal("expected error")
     }
 }
 ```

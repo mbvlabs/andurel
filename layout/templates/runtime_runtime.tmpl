@@ -11,11 +11,8 @@ import (
 
 	"{{.ModuleName}}/assets"
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/domains/token"
-	"{{.ModuleName}}/domains/user"
+	"{{.ModuleName}}/domains"
 	"{{.ModuleName}}/handlers"
-	"{{.ModuleName}}/handlers/api"
-	"{{.ModuleName}}/handlers/auth"
 	"{{.ModuleName}}/middleware"
 	"{{.ModuleName}}/resources"
 	"{{.ModuleName}}/routes"
@@ -24,25 +21,28 @@ import (
 	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 // App is the HTTP process graph: the assembled dependencies, the serving
-// handler, and the ordered list of closers that release them. It is the one
-// place that knows how the application is wired; nothing here is discovered by
-// reflection.
+// handler, the HTTP server, and the ordered list of closers that release them.
+// It is the one place that knows how the application is wired; nothing here is
+// discovered by reflection.
 type App struct {
 	Config  config.Config
 	DB      storage.Connection
 	Handler http.Handler
+	Server  anduin.Server
 
 	closers []func(context.Context) error
 }
 
 // New builds the whole HTTP dependency graph bottom-up: telemetry, database,
-// queue inserter, domains, services, presentation, and finally the router with
-// its handlers registered. Callers own the returned App and must Close it.
+// queue inserter, domains, services, presentation, the router with its handlers
+// registered, and finally the HTTP server over the router handler. Callers own
+// the returned App: Start it, then Shutdown and Close it.
 func New(ctx context.Context, cfg config.Config) (*App, error) {
 	tel, err := newTelemetry(ctx, cfg.App, cfg.Telemetry)
 	if err != nil {
@@ -63,8 +63,8 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	}
 
 	// Domains are islands: each owns its table and never imports another.
-	users := user.NewUsers(db)
-	tokens := token.NewTokens(db)
+	users := domains.NewUsers(db)
+	tokens := domains.NewTokens(db)
 
 	// Services coordinate domains, the queue, and configuration.
 	identity := services.NewIdentity(users, tokens, queueInsert, cfg.Auth, cfg.Mail)
@@ -76,14 +76,14 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, err
 	}
 
-	jar, err := middleware.NewJar(cfg.App, cfg.Session)
+	jar, err := newJar(cfg.App, cfg.Session)
 	if err != nil {
 		_ = db.Close()
 		_ = tel.Shutdown(ctx)
 		return nil, err
 	}
 
-	cache, err := handlers.NewCacheBuilder[string]().Build()
+	cacheStore, err := cfg.Cache.Store()
 	if err != nil {
 		_ = db.Close()
 		_ = tel.Shutdown(ctx)
@@ -104,16 +104,42 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	)
 
 	handlers.NewPages(renderer).Register(router)
-	handlers.NewAssets(cache, cfg.App).Register(router)
-	auth.NewHandler(identity, renderer).Register(router)
-	api.NewAPI(db).Register(router)
+	handlers.NewAssets(cacheStore, cfg.App).Register(router)
+	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)
+	handlers.NewAPIHandler(db).Register(router)
+
+	handler := router.Handler()
+	srv := anduin.NewServer(
+		ctx,
+		cfg.HTTP.Host,
+		cfg.HTTP.Port,
+		cfg.App.Environment,
+		handler,
+		nil,
+		anduin.WithTimeouts(
+			cfg.HTTP.IdleTimeout,
+			cfg.HTTP.ReadTimeout,
+			cfg.HTTP.WriteTimeout,
+		),
+	)
 
 	return &App{
 		Config:  cfg,
 		DB:      db,
-		Handler: router.Handler(),
+		Handler: handler,
+		Server:  srv,
 		closers: []func(context.Context) error{db.Close, tel.Shutdown},
 	}, nil
+}
+
+// Start serves HTTP until Shutdown is called or the listener fails.
+func (a *App) Start(ctx context.Context) error {
+	return a.Server.Start(ctx, a.Config.App.Environment)
+}
+
+// Shutdown gracefully stops the HTTP listener.
+func (a *App) Shutdown(ctx context.Context) error {
+	return a.Server.Shutdown(ctx)
 }
 
 // Close releases the App's dependencies in reverse construction order.
@@ -126,11 +152,40 @@ func (a *App) Close(ctx context.Context) error {
 	return closeErr
 }
 
-// Shutdown lets App satisfy anduin.Shutdowner so the server can stop it during
-// graceful shutdown.
-func (a *App) Shutdown(ctx context.Context) error {
-	return a.Close(ctx)
+// newJar builds the cookie jar: the session codec, the cookie-backed store,
+// and the App session definition from middleware. Jar construction lives here,
+// in the composition root — middleware exports policy only.
+{{- if gt (len .Blueprint.Cookies.SortedConstants) 0}}
+
+const (
+{{- range .Blueprint.Cookies.SortedConstants}}
+	{{.Name}} = "{{.Value}}"
+{{- end}}
+)
+{{- end}}
+
+func newJar(
+	appCfg config.App,
+	sessionCfg config.Session,
+) (*kiks.Jar, error) {
+	keys := kiks.Keys{
+		Authentication: sessionCfg.AuthenticationKey,
+		Encryption:     sessionCfg.EncryptionKey,
+	}
+	store, err := kiks.NewCookieStore(keys)
+	if err != nil {
+		return nil, err
+	}
+
+	return kiks.NewJar(keys, store,
+		middleware.NewAppCookie(sessionCfg, appCfg.IsProduction()),
+	)
 }
+
+{{- range .Blueprint.Cookies.SortedFunctions}}
+
+{{.Code}}
+{{- end}}
 
 // newTelemetry constructs the process-wide telemetry pipeline. Console output
 // is enabled everywhere except production unless OTLP is configured.
@@ -305,6 +360,41 @@ func hasNonEmptyBearerToken(authorization string) bool {
 	parts := strings.Fields(authorization)
 
 	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && parts[1] != ""
+}
+
+// startInBackground runs start in a goroutine and returns a channel that is
+// closed when it exits. It is the generic primitive behind explicit process
+// lifecycle ordering.
+func startInBackground(
+	ctx context.Context,
+	name string,
+	start func(context.Context) error,
+) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if err := start(ctx); err != nil {
+			telemetry.Error(ctx, name+" error", "error", err)
+		}
+	}()
+
+	return done
+}
+
+// stopAndWait runs stop and waits for the background function to exit, or for
+// ctx to be done, whichever happens first.
+func stopAndWait(
+	ctx context.Context,
+	stop func(context.Context) error,
+	done <-chan struct{},
+) error {
+	stopErr := stop(ctx)
+	select {
+	case <-done:
+		return stopErr
+	case <-ctx.Done():
+		return errors.Join(stopErr, ctx.Err())
+	}
 }
 
 // mergedOrigins combines origin groups, trimming blanks and de-duplicating.

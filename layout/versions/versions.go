@@ -28,6 +28,8 @@ const (
 	NarsilcModulePath = "github.com/mbvlabs/narsilc"
 	// Anduin is the standalone Andurel HTTP module version verified with this framework.
 	Anduin = "v0.1.0"
+	// Cache is the standalone Andurel cache module version verified with this framework.
+	Cache = "v0.1.0"
 	// Kiks is the standalone Andurel cookies and sessions module version verified with this framework.
 	Kiks = "v0.3.0"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
@@ -49,6 +51,7 @@ const (
 
 var verifiedPackageVersions = map[string]string{
 	PkgPrefix + "anduin":     Anduin,
+	PkgPrefix + "cache":      Cache,
 	PkgPrefix + "email":      Email,
 	PkgPrefix + "inertia":    Inertia,
 	PkgPrefix + "kiks":       Kiks,

@@ -36,8 +36,7 @@ andurel verify checks, in order:
   • gofmt   — every Go file is gofmt-clean
   • go fix  — the toolchain reports no automatic rewrites
   • go vet  — the module vets clean
-  • layers  — domains never import another domain, and only domains import
-              domains/internal/queries
+  • layers  — only domains import domains/internal/queries
 
 Pass --with-tests to also run go test ./... (requires a Postgres container for
 domain tests). verify never rewrites files; fix reported issues and re-run.`,
@@ -53,7 +52,7 @@ domain tests). verify never rewrites files; fix reported issues and re-run.`,
 	setAgentMetadata(
 		cmd,
 		"verification",
-		"Read-only verification: gofmt, go fix, go vet, and the domains/service import boundary.",
+		"Read-only verification: gofmt, go fix, go vet, and the queries import boundary.",
 	)
 	setStandardHelp(cmd)
 	return cmd
@@ -159,7 +158,7 @@ func verifyGoFix(rootDir string) verifyStep {
 }
 
 func verifyGoVet(rootDir string) verifyStep {
-	out, err := runVerifyCommand(rootDir, "go", "vet", "./...")
+	out, err := runGoVet(rootDir)
 	detail := strings.TrimSpace(out)
 	if err != nil {
 		return verifyStep{Name: "go vet", OK: false, Detail: commandDetail(err, detail)}
@@ -193,9 +192,18 @@ func runVerifyCommand(dir string, name string, args ...string) (string, error) {
 	return buf.String(), err
 }
 
-// verifyLayerBoundaries enforces the domain import rules from the RFC:
-//   - only domains/** may import domains/internal/queries
-//   - a domain package never imports another domain package
+// runGoVet runs go vet ./... in dir and returns the combined output. It is
+// the single vet implementation shared by andurel verify (the write-path
+// gate) and andurel doctor (read-only diagnostics); each formats the result
+// for its own report type.
+func runGoVet(dir string) (string, error) {
+	return runVerifyCommand(dir, "go", "vet", "./...")
+}
+
+// verifyLayerBoundaries enforces the domain import rule from the RFC: only
+// files under domains/ may import domains/internal/queries. Domains live in
+// one flat package (one file per domain by convention), so isolation between
+// domains is a code-review concern, not an import-graph one.
 func verifyLayerBoundaries(rootDir string) verifyStep {
 	module, _, err := readGoModMetadata(rootDir)
 	if err != nil {
@@ -203,7 +211,6 @@ func verifyLayerBoundaries(rootDir string) verifyStep {
 	}
 
 	queriesImport := module + "/domains/internal/queries"
-	domainsImportPrefix := module + "/domains/"
 
 	violations := make([]string, 0)
 	walkErr := filepath.WalkDir(rootDir, func(path string, entry fs.DirEntry, err error) error {
@@ -234,26 +241,12 @@ func verifyLayerBoundaries(rootDir string) verifyStep {
 		}
 
 		inDomains := strings.HasPrefix(rel, "domains/")
-		owner := domainOwner(rel)
 		for _, imported := range file.Imports {
 			value := strings.Trim(imported.Path.Value, `"`)
-			switch {
-			case value == queriesImport && !inDomains:
+			if value == queriesImport && !inDomains {
 				violations = append(
 					violations,
 					fmt.Sprintf("%s imports %s; only domains/** may import it", rel, queriesImport),
-				)
-			case strings.HasPrefix(value, domainsImportPrefix) && owner != "":
-				target := strings.TrimPrefix(value, domainsImportPrefix)
-				if target == owner || strings.HasPrefix(target, owner+"/") {
-					continue
-				}
-				if strings.HasPrefix(target, "internal/") || target == "internal" {
-					continue
-				}
-				violations = append(
-					violations,
-					fmt.Sprintf("%s imports %s; %s must not import another domain", rel, value, owner),
 				)
 			}
 		}
@@ -266,23 +259,4 @@ func verifyLayerBoundaries(rootDir string) verifyStep {
 		return verifyStep{Name: "layers", OK: true}
 	}
 	return verifyStep{Name: "layers", OK: false, Detail: strings.Join(violations, "\n")}
-}
-
-// domainOwner returns the domain directory name for a project-relative path
-// under domains/<name>/..., or "" when the file is not inside a domain package.
-func domainOwner(rel string) string {
-	if !strings.HasPrefix(rel, "domains/") {
-		return ""
-	}
-	rest := strings.TrimPrefix(rel, "domains/")
-	parts := strings.SplitN(rest, "/", 2)
-	if len(parts) < 2 {
-		// domains/errors.go: the shared vocabulary package, not a domain.
-		return ""
-	}
-	name := parts[0]
-	if name == "internal" {
-		return ""
-	}
-	return name
 }

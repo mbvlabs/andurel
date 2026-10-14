@@ -143,13 +143,13 @@ A new app is ordinary Go you own. Top-level shape:
 
 | Path | Role |
 |------|------|
-| `cmd/app`, `cmd/queue` | Process entry: load env, signal context, `runtime.New` + `anduin.NewServer` (or the queue processor) |
+| `cmd/app`, `cmd/queue` | Process entry: load env, signal context, single `runtime.New` / `runtime.NewQueue` (the App owns its Server) |
 | `cmd/migrate` | One-shot process: apply pending SQL via `storage.RunMigrations` |
 | `cmd/seeds` | One-shot process: run named seed sets |
 | `internal/runtime` | Composition root: explicit constructors, HTTP server + queue lifecycle |
 | `internal/…` | Other app support code, such as third-party adapters (for example `internal/clients`, `internal/payment`) |
 | `config/` | App, DB, auth, email, telemetry config |
-| `domains/` | Business logic + persistence; one package per entity; SQL colocated as `domains/<entity>/<entity>.sql` |
+| `domains/` | Business logic + persistence in one flat package; SQL colocated as `domains/<entity>.sql` |
 | `domains/internal/queries/` | narsilc output; imported only by `domains/**` |
 | `services/` | Application logic / cross-domain orchestration |
 | `handlers/`, `handlers/api/`, `handlers/auth/` | HTTP handlers (`func(ctx context.Context) error`) |

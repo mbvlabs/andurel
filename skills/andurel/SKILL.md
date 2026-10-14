@@ -36,12 +36,12 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 
 ## Layer Placement
 
-- Put invariant business rules, domain validation, entity construction, persistence methods, and finder/query methods in `domains/<entity>/`.
-- Colocate each domain's SQL at `domains/<entity>/<entity>.sql`; narsilc output goes to `domains/internal/queries`.
+- Put invariant business rules, entity construction (`ParseX`), persistence methods, and finder/query methods in `domains/` (one file per domain).
+- Colocate each domain's SQL at `domains/<entity>.sql`; narsilc output goes to `domains/internal/queries`.
 - Put transactions, cross-domain coordination, external side effects, and multi-step application workflows in `services/`.
-- Put HTTP adapters in `handlers/`, `handlers/auth/`, and `handlers/api/`.
+- Put HTTP adapters in the single flat `handlers/` package (`AuthHandler`, `APIHandler`, `NewXHandler` constructors, no sub-packages).
 - Put route names, paths, and URL builders in `routes/`.
-- Put app HTTP middleware (auth, rate limiting) and the cookie jar wiring in `middleware/`.
+- Put app HTTP policy (auth, rate limiting) in `middleware/`; the session definition lives there too, but jar construction lives in `internal/runtime`.
 - Put Inertia pages and reusable frontend components in `resources/js/`; the Inertia root document is `resources/root.templ`.
 - Put River job argument types in `queue/jobs/` and workers/registration in `queue/`.
 - Put provider adapters in a package under `internal/` named for its job (for example `internal/clients/` or `internal/payment/`), email templates/helpers in `email/`, and config/environment loading in `config/`. Adapters wrap external APIs only; business rules stay in `domains/` or `services/`.
@@ -51,8 +51,8 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 
 Hard rules:
 
-- A domain package never imports another domain package. If a rule spans two entities, a service coordinates them.
-- Only `domains/**` imports `domains/internal/queries` and issues SQL.
+- One file per domain; keep cross-domain rules in services. If a rule spans two entities, a service coordinates them.
+- Only `domains` imports `domains/internal/queries` and issues SQL.
 - Handlers are `func(ctx context.Context) error` and use `pkg/anduin` request/response helpers.
 - `andurel verify` enforces the domain/service import boundary.
 
@@ -94,17 +94,17 @@ andurel patterns show handler --json
 Add a domain (type-driven: change the Go type first, then let SQL and queries follow):
 
 1. `andurel patterns show domain` — read the placement rules and checklist.
-2. Write `domains/<entity>/<entity>.go` (entity + receiver + rules) and `domains/<entity>/<entity>.sql`.
+2. Write `domains/<entity>.go` (entity + receiver + rules) and `domains/<entity>.sql`.
 3. Run `andurel sync queries --json` to regenerate `domains/internal/queries`.
 4. Write the migration with `andurel generate migration <name>`.
 
-Keep hand-written SQL in `domains/<entity>/<entity>.sql` and generated code in `domains/internal/queries/`. Only the owning domain should import that internal package. Construct clients with `queries.New(db)` where `db` is `storage.Connection`, and inside shared transactions use `queries.New(tx)` where `tx` is `storage.Transaction`.
+Keep hand-written SQL in `domains/<entity>.sql` and generated code in `domains/internal/queries/`. Only `domains` should import that internal package. Construct clients with `queries.New(db)` where `db` is `storage.Connection`, and inside shared transactions use `queries.New(tx)` where `tx` is `storage.Transaction`.
 
 Add an HTTP resource:
 
 1. `andurel patterns show handler` and `andurel patterns show route`.
 2. Add route data to `routes/`.
-3. Write the handler in `handlers/` (or `handlers/api/` for JSON) using `pkg/anduin`.
+3. Write the handler in `handlers/` using `pkg/anduin`.
 4. Wire the handler in `internal/runtime`.
 5. Run `andurel sync routes --json` so Inertia pages can import `resources/js/routes.ts`.
 

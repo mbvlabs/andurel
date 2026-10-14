@@ -22,7 +22,7 @@ Three forces drive the design:
 1. **Be Go, not a dialect of Go.** Drop `echo.Context`, drop Uber Fx, and drop server-rendered
    component templating for pages. Use `net/http`, `http.ServeMux`, and constructor injection.
 2. **Domains are business logic; services are application logic.** Entity rules and persistence live
-   in `domains/<entity>` packages that never import each other. Cross-domain orchestration lives in
+   in one flat `domains` package (one file per domain). Cross-domain orchestration lives in
    `services/`. No DDD ceremony.
 3. **Agents, not generators.** `andurel generate …` stops writing application code. It publishes
    **read-only patterns** an agent reads and adapts. `andurel new` keeps producing one complete,
@@ -59,8 +59,8 @@ Concrete findings from the current codebase that motivate each change:
 2. **Explicit over injected.** Dependencies are constructor arguments, visible by reading one file.
 3. **One owner per concern.** Business rules in `domains/`. Application flows in `services/`. HTTP in
    `handlers/`. Routes in `routes/`. Composition in `internal/runtime`.
-4. **Domains are islands.** A domain package never imports another domain package. If two domains
-   must cooperate, a service coordinates them.
+4. **Domains are one package.** `domains/` holds every domain (one file per
+   entity). If two domains must cooperate, a service coordinates them.
 5. **Patterns are the API.** The CLI teaches patterns; it does not write applications. The generated
    reference app is the executable pattern book.
 6. **Every layer is testable in isolation, and together.**
@@ -78,7 +78,7 @@ Concrete findings from the current codebase that motivate each change:
 | Current | Target | Notes |
 | --- | --- | --- |
 | `controllers/`, `controllers/api`, `controllers/admin` | `handlers/` (one flat package) | Go name: HTTP handlers. No sub-packages; one `package handlers` with `NewUserHandler`, `NewAuthHandler`, `NewAPIHandler` constructors. A shared-helper file is illustrative, not mandated. |
-| `models/` (+ `models/queries`, `models/internal/queries`, `models/factories`) | `domains/` (+ `domains/user`, `domains/token`, `domains/internal/queries`) | Business logic + persistence. SQL is colocated with its domain. Factories are dropped. |
+| `models/` (+ `models/queries`, `models/internal/queries`, `models/factories`) | `domains/` (`domains/user.go`, `domains/token.go`, `domains/user.sql`, `domains/internal/queries`) | Business logic + persistence. SQL is colocated with its domain. Factories are dropped. |
 | `services/` | `services/` (unchanged role) | Application logic / cross-domain orchestration. |
 | `router/` (Router + middleware + cookies + routes) | `routes/` + `middleware/` | The Router type moves to `pkg/anduin`. Only route *data* stays in the app. Cookie jar *construction* lives in `internal/runtime`; `middleware/` exports only session definitions and policy middleware. |
 | `views/` | *(removed)* | `resources/root.templ` keeps the Inertia root document only. |
@@ -94,15 +94,13 @@ Concrete findings from the current codebase that motivate each change:
 │   ├── runtime.go            #   App struct, New(ctx, cfg) (*App, error) — owns Handler + Server + jar
 │   └── queue.go              #   worker process wiring (Queue struct, NewQueue)
 ├── config/                   # app-owned config, one type per subsystem
-├── domains/                  # ALL business logic and persistence; domains never import domains
-│   ├── errors.go             #   package domains: ErrNotFound, ErrConflict, ErrViolation, ValidationError
-│   ├── user/
-│   │   ├── user.go           #     newtypes + Users receiver + Parse constructors + persistence
-│   │   ├── user.sql          #     SQL for this domain (narsilc input)
-│   │   └── user_test.go
-│   ├── token/
-│   │   ├── token.go
-│   │   └── token.sql
+├── domains/                  # ALL business logic and persistence, one flat package
+│   ├── errors.go             #   ErrNotFound, ErrConflict, ErrViolation, ValidationError
+│   ├── user.go               #     User + Users receiver + Email/PasswordHash newtypes + Parse constructors
+│   ├── user.sql              #     SQL for the user domain (narsilc input)
+│   ├── user_test.go
+│   ├── token.go              #     Token + Tokens receiver
+│   ├── token.sql
 │   └── internal/queries/     #   narsilc output (only domains may import)
 ├── services/                 # application logic / cross-domain orchestration
 │   ├── service.go
@@ -130,13 +128,19 @@ Concrete findings from the current codebase that motivate each change:
 └── internal/                 # third-party provider adapters only (clients/, payment/, …)
 ```
 
-### 4.3 No sub-packages under handlers (rev 5)
+### 4.3 No sub-packages under handlers (rev 5); flat domains (rev 6)
 
 `handlers/` is one flat `package handlers`. Sub-packages (`handlers/user`,
-`handlers/auth`, `handlers/api`) buy a second import block and force the
-`domainuser` alias dance wherever a domain and its handler meet, for no
-isolation benefit — handlers share the renderer, the error mapper, and the
-router type.
+`handlers/auth`, `handlers/api`) buy a second import block and force import
+aliases wherever a domain and its handler meet, for no isolation benefit —
+handlers share the renderer, the error mapper, and the router type.
+
+The same logic flattens `domains/`: one `package domains`, one file per domain
+(`user.go`, `token.go`). Domain sub-packages forced `domainuser`/`domaintoken`
+aliases at every service, handler, and composition call site while the
+"islands" rule they enforced is a code-review concern in an app this size.
+Isolation that remains mechanically enforced: only `domains` imports
+`domains/internal/queries` (the `verify` layers lint).
 
 Distinct constructors disambiguate instead: `NewUserHandler`,
 `NewAuthHandler`, `NewAPIHandler`, `NewPagesHandler`, each with a `Register(rt
@@ -173,27 +177,25 @@ func (e ValidationError) Error() string     { return "domain: validation failed"
 func (e ValidationError) Is(target error) bool { return target == ErrViolation }
 ```
 
-### 5.2 Entity domain: `domains/user/user.go` (rev 5: type-driven, parse-don't-validate)
+### 5.2 Entity domain: `domains/user.go` (rev 5: type-driven, parse-don't-validate; rev 6: flat package)
 
 Domains follow Palmieri-style type-driven development ("Using Types To Guarantee
-Domain Invariants", Zero to Production ch. 6): invariants live in newtypes with
-private state, the `ParseX` constructor is the *only* way to build one outside
-the domain package, and read access is read-only. There is no exported
-`Validate() *User` called after construction — an invalid value is
-unrepresentable, so `insert`-style callees never re-check.
+Domain Invariants", Zero to Production ch. 6): invariants live in newtypes and
+`ParseX` is the supported constructor, so callees rely on the invariants
+instead of re-checking. There is no exported `Validate()` called after
+construction — an invalid value is unrepresentable, so `insert`-style callees
+never re-check.
 
 ```go
-package user
+package domains
 
 // andurel:table users
 
 import (
 	"context"
 	"errors"
-	"strings"
 	"uuid"
 
-	"app/domains"
 	"app/domains/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
@@ -205,32 +207,30 @@ type Users struct{ q *queries.Queries }
 func NewUsers(db storage.Connection) Users            { return Users{q: queries.New(db)} }
 func (u Users) WithTx(tx storage.Transaction) Users   { return Users{q: queries.New(tx)} }
 
-// Email is a parsed, normalised address. ParseEmail is the sole constructor.
+// Email is a parsed, normalised address. Build one with ParseEmail.
 type Email string
 
-func ParseEmail(raw string) (Email, error) {
-	v := Email(strings.ToLower(strings.TrimSpace(raw)))
-	if err := validation.ValidateEmail(string(v)); err != nil {
-		return "", domains.ValidationError{Fields: map[string]string{"email": err.Error()}}
-	}
-	return v, nil
-}
+func ParseEmail(raw string) (Email, error) { /* trim, lowercase, shape check */ }
 
 func (e Email) String() string { return string(e) }
 
+// PasswordHash is an argon2 password hash. Build one with HashPassword.
+type PasswordHash []byte
+
 type User struct {
-	ID    uuid.UUID `andurel:"id"`
-	Email Email     `andurel:"email"`
+	ID       uuid.UUID    `andurel:"id"`
+	Email    Email        `andurel:"email"`
+	Password PasswordHash `andurel:"password"`
 }
 
 type CreateUserData struct {
-	Email Email // already parsed; handlers/services parse at the edge
+	Email Email
 }
 
 func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
 	entity, err := u.q.GetUser[User](ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return User{}, domains.ErrNotFound
+		return User{}, ErrNotFound
 	}
 	return entity, err
 }
@@ -239,10 +239,10 @@ func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
 // Create takes CreateUserData (parsed types), never raw strings.
 ```
 
-Rules: one newtype per invariant (`Email`, `PasswordHash`, `TokenScope`, …);
-fields stay unexported or expose value-only accessors (`String()`, `Bytes()`);
-`Parse` returns `(T, error)` mapping failures to `domains.ValidationError`;
-persistence methods accept parsed inputs; unit tests target `Parse` directly.
+Rules: one newtype per invariant (`Email`, `PasswordHash`, …);
+`Parse`/`Hash` constructors map failures to `ValidationError`;
+persistence methods accept parsed inputs; reads convert trusted rows via
+`Transform`; unit tests target `Parse` directly.
 
 ### 5.3 SQL colocated with its domain
 
@@ -250,8 +250,8 @@ Narsilc stops scanning a single `models/queries/` directory. Queries live beside
 owns them:
 
 ```
-domains/user/user.sql      # hand-written
-domains/token/token.sql
+domains/user.sql           # hand-written
+domains/token.sql
 domains/internal/queries/  # narsilc output (all generated types)
 ```
 
@@ -261,16 +261,16 @@ package fixed at `domains/internal/queries`. `pkg/storage/narsilc.go` (`QueriesD
 
 ### 5.4 What "DB logic only under domains" means in practice
 
-- Only `domains/**` imports `domains/internal/queries` and issues SQL.
+- Only `domains` imports `domains/internal/queries` and issues SQL.
 - `services/`, `handlers/`, `internal/runtime/`, `queue/`, and `seeds/` call domain constructors and
   methods; they never import the generated queries package.
 - `internal/` adapters wrap third-party APIs and hold no business rules.
 - Transactions use `storage.RunInTransaction` inside a domain method or a service.
-- **A domain package must not import another domain package.** A rule that spans `user` and `token`
+- **Domains share one flat package (one file per domain).** A rule that spans `user` and `token`
   is application logic and belongs in a service.
 
 This is enforceable mechanically (see §12): an `andurel verify` import check fails when a file
-outside `domains/` imports `domains/internal/queries`, or when one domain imports another.
+outside `domains/` imports `domains/internal/queries`.
 
 ---
 
@@ -287,21 +287,21 @@ outside `domains/` imports `domains/internal/queries`, or when one domain import
 package services
 
 type Identity struct {
-	users  user.Users
-	tokens token.Tokens
+	users  domains.Users
+	tokens domains.Tokens
 	queue  storage.InsertQueue
 	pepper string
 }
 
 func NewIdentity(
-	users user.Users,
-	tokens token.Tokens,
+	users domains.Users,
+	tokens domains.Tokens,
 	queue storage.InsertQueue,
 	authCfg config.Auth,
 	mailCfg config.Mail,
 ) Identity { /* ... */ }
 
-func (i Identity) AuthenticateUser(ctx context.Context, data LoginData) (user.User, error) {
+func (i Identity) AuthenticateUser(ctx context.Context, data LoginData) (domains.User, error) {
 	// coordinates user + token + email; the only place these domains meet
 }
 ```
@@ -338,7 +338,7 @@ package handlers
 import (
 	"context"
 
-	"app/domains/user"
+	"app/domains"
 	"app/routes"
 	"app/middleware"
 
@@ -347,11 +347,11 @@ import (
 )
 
 type UserHandler struct {
-	users    user.Users
+	users    domains.Users
 	renderer *inertia.Renderer
 }
 
-func NewUserHandler(users user.Users, renderer *inertia.Renderer) UserHandler {
+func NewUserHandler(users domains.Users, renderer *inertia.Renderer) UserHandler {
 	return UserHandler{users: users, renderer: renderer}
 }
 
@@ -644,8 +644,8 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	}
 
 	// domains
-	users := user.NewUsers(db)
-	tokens := token.NewTokens(db)
+	users := domains.NewUsers(db)
+	tokens := domains.NewTokens(db)
 	queueInsert, err := storage.NewQueueInsert(db, cfg.Queue)
 	if err != nil {
 		return nil, err
@@ -694,7 +694,6 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		Server:  srv,
 		closers: []func(context.Context) error{db.Close, tel.Shutdown},
 	}
-	srv.AddShutdowner(app) // App.Close runs on graceful shutdown
 
 	return app, nil
 }
@@ -811,13 +810,13 @@ helpers are fine when they earn their keep.
 ```go
 func TestUserIndex(t *testing.T) {
 	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-	users := user.NewUsers(db)
+	users := domains.NewUsers(db)
 	for i := range 3 {
-		email, err := user.ParseEmail(fmt.Sprintf("u%d@x.y", i))
+		email, err := domains.ParseEmail(fmt.Sprintf("u%d@x.y", i))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := users.Create(t.Context(), user.CreateUserData{Email: email}); err != nil {
+		if _, err := users.Create(t.Context(), domains.CreateUserData{Email: email}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -836,20 +835,20 @@ func TestUserIndex(t *testing.T) {
 
 ```go
 func TestParseEmail(t *testing.T) {
-	if _, err := user.ParseEmail("not-an-email"); err == nil {
+	if _, err := domains.ParseEmail("not-an-email"); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
 func TestUsers_Create(t *testing.T) {
 	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-	users := user.NewUsers(db)
+	users := domains.NewUsers(db)
 
-	email, err := user.ParseEmail("a@b.c")
+	email, err := domains.ParseEmail("a@b.c")
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	got, err := users.Create(t.Context(), user.CreateUserData{Email: email})
+	got, err := users.Create(t.Context(), domains.CreateUserData{Email: email})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -870,9 +869,9 @@ func TestUsers_Create(t *testing.T) {
 ### 12.5 Facts the agent can assert against
 
 - Route manifest (`routes/` is data) — no server needed.
-- Domain/service package boundaries — lintable from imports (domains never import domains; only
-  domains import generated queries).
-- Typed errors (`domains.Err*`) — handlers, services, and tests share one vocabulary.
+- Domain/service package boundaries — lintable from imports (only
+  `domains` imports generated queries).
+- Typed errors (`Err*`) — handlers, services, and tests share one vocabulary.
 
 ---
 
@@ -969,9 +968,9 @@ plus `just check-fmt && just check-fix && just vet`.
 | Handlers layout | **Flat `package handlers`** — no `handlers/user|auth|api` sub-packages; `NewUserHandler`/`NewAuthHandler`/`NewAPIHandler` + `Register`. |
 | Routing | **Keep `pkg/routing`**; do not merge it. |
 | Composition | **Keep `internal/runtime`, single constructor**: `New` owns `Handler`+`Server`+jar; no `NewServer`, no `middleware.NewJar`. Explicit constructors replace Fx. |
-| Domain vs service | Business logic → **`domains/`**; application logic → **`services/`**. **Domains never import each other.** No DDD. |
-| Domain modelling | **Type-driven newtypes, parse-don't-validate** (Palmieri ch. 6): private state, `ParseX` sole constructor, read-only accessors, `CreateData` takes parsed types. |
-| SQL | Colocated per domain (`domains/user/user.sql`); narsilc globs `domains/**/*.sql`, output `domains/internal/queries`. |
+| Domain vs service | Business logic → flat **`domains/`** (one file per domain); application logic → **`services/`**. Cross-domain rules live in services. No DDD. |
+| Domain modelling | **Type-driven newtypes, parse-don't-validate** (Palmieri ch. 6): `ParseX` supported constructors, `CreateData` takes parsed types. |
+| SQL | Colocated per domain (`domains/user.sql`); narsilc globs `domains/**/*.sql`, output `domains/internal/queries`. |
 | Root document | **`resources/root.templ`** (package `resources`). |
 | Factories | **Dropped**; tests build entities inline. |
 | Generators | **Strictly read-only patterns** (`patterns show [--entity/--table]`) that still expose complete deterministic primitives + worked examples. `generate` keeps only `migration`. |
@@ -984,11 +983,11 @@ plus `just check-fmt && just check-fix && just vet`.
 ## Appendix A — Full reference feature (users), target shape
 
 ```
-domains/user/user.go                 # newtypes + Parse + Users receiver + rules
-domains/user/user.sql                # colocated SQL
+domains/user.go                      # newtypes + Parse + Users receiver + rules
+domains/user.sql                     # colocated SQL
 domains/internal/queries/user.sql.go # narsilc output
 services/                            # application logic if the use case spans domains
-handlers/user.go                     # package handlers: NewUserHandler(user.Users, *inertia.Renderer) + Register
+handlers/user.go                     # package handlers: NewUserHandler(domains.Users, *inertia.Renderer) + Register
 routes/users.go                      # route data
 internal/runtime/runtime.go          # single New wires it all (Handler + Server + jar)
 resources/js/Pages/User/Index.vue    # Inertia page
@@ -1001,9 +1000,9 @@ resources/js/Pages/User/Index.vue    # Inertia page
 | Handler signature | `func(etx *echo.Context) error` | `func(ctx context.Context) error` |
 | HTTP framework | Echo v5 (+ echomw) | `pkg/anduin` over `net/http` (merged with `pkg/server`) |
 | DI | Uber Fx | constructor injection in `internal/runtime` |
-| Business logic | `models/` | `domains/` (islands) |
+| Business logic | `models/` | `domains/` (flat, one file per domain) |
 | Application logic | `services/` | `services/` (unchanged role) |
-| SQL location | `models/queries/` | `domains/<entity>/<entity>.sql` |
+| SQL location | `models/queries/` | `domains/<entity>.sql` |
 | Views | templ+Datastar **or** Inertia | Inertia only |
 | Root document | `views/root.templ` | `resources/root.templ` |
 | Controllers | `controllers/` | `handlers/` (flat, no sub-packages) |

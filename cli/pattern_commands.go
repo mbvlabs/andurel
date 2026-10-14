@@ -68,18 +68,27 @@ func newPatternsShowCommand() *cobra.Command {
 		Long: `Print one pattern, including its reference files, rules, and checklist.
 
 In human mode the raw Markdown is printed. In --json/--agent mode the parsed
-pattern (id, title, summary, files, rules, checklist) is emitted.`,
+pattern (id, title, summary, files, rules, checklist) is emitted.
+
+Pass --entity (and optionally --table) with the domain pattern to render the
+ordered file manifest for one entity: the read-only replacement for the old
+generate-model convention. The manifest lists the files to create, in order;
+the agent writes every file.`,
 		Example: `  andurel patterns show domain
-  andurel patterns show handler --json`,
+  andurel patterns show handler --json
+  andurel patterns show domain --entity User --table users
+  andurel patterns show domain --entity User --table users --json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPatternsShow(cmd, args[0])
 		},
 	}
+	cmd.Flags().String("entity", "", "Render the file manifest for one entity (e.g. User)")
+	cmd.Flags().String("table", "", "Table the entity maps to (defaults to the lowercased entity name, pluralized)")
 	setAgentMetadata(
 		cmd,
 		"reference",
-		"Prints one pattern's reference code, rules, and checklist. Use --json for the parsed form.",
+		"Prints one pattern's reference code, rules, and checklist. Use --json for the parsed form. Use --entity/--table with domain for the per-entity file manifest.",
 	)
 	setStandardHelp(cmd)
 	return cmd
@@ -128,6 +137,15 @@ func runPatternsShow(cmd *cobra.Command, id string) error {
 		)
 	}
 
+	entity, _ := cmd.Flags().GetString("entity")
+	table, _ := cmd.Flags().GetString("table")
+	var manifest *patterns.Manifest
+	if entity != "" {
+		made := patterns.ManifestFor(entity, table)
+		manifest = &made
+		pattern.Manifest = manifest
+	}
+
 	opts, err := output.ParseOptions(cmd)
 	if err != nil {
 		return err
@@ -136,9 +154,30 @@ func runPatternsShow(cmd *cobra.Command, id string) error {
 		if opts.Quiet {
 			return nil
 		}
-		_, err := fmt.Fprint(cmd.OutOrStdout(), pattern.Markdown())
-		return err
+		if _, err := fmt.Fprint(cmd.OutOrStdout(), pattern.Markdown()); err != nil {
+			return err
+		}
+		if manifest != nil {
+			if _, err := fmt.Fprint(cmd.OutOrStdout(), renderManifestMarkdown(*manifest)); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 
 	return output.OK(cmd, pattern, "Pattern "+pattern.ID)
+}
+
+// renderManifestMarkdown renders the per-entity file manifest as Markdown.
+func renderManifestMarkdown(manifest patterns.Manifest) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "\n## Manifest for %s (`%s`)\n\n", manifest.Entity, manifest.Table)
+	for i, file := range manifest.Files {
+		fmt.Fprintf(&b, "%d. %s `%s` — %s\n", i+1, file.Action, file.Path, file.Summary)
+	}
+	b.WriteString("\nNext:\n\n")
+	for _, next := range manifest.Next {
+		fmt.Fprintf(&b, "- %s\n", next)
+	}
+	return b.String()
 }

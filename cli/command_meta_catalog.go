@@ -93,7 +93,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel fmt": {
 		Summary:         "Format Go and Templ source files",
 		WhenToUse:       []string{"Normalize formatting before commit.", "Use --check in CI."},
-		WhenNotToUse:    []string{"This is not go vet; use andurel doctor for diagnostics."},
+		WhenNotToUse:    []string{"This is not go vet; use andurel doctor for diagnostics.", "Does not support --json, --agent, or --md; use andurel verify --json for a machine-readable gate."},
 		Prerequisites:   []string{"Andurel project root"},
 		Examples:        []string{"andurel fmt", "andurel fmt --check"},
 		Mutating:        true,
@@ -112,7 +112,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel db create": {
 		Summary:         "Create the configured database",
 		WhenToUse:       []string{"First-time setup when the database does not exist."},
-		WhenNotToUse:    []string{"No-op if the database already exists."},
+		WhenNotToUse:    []string{"No-op if the database already exists.", "Does not support --json, --agent, or --md; run without a structured output flag."},
 		Prerequisites:   []string{"Andurel project root", ".env database variables"},
 		Next:            []string{"andurel db migrate up"},
 		Examples:        []string{"andurel db create"},
@@ -123,7 +123,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel db drop": {
 		Summary:          "Drop the configured database",
 		WhenToUse:        []string{"Destroy the project database on purpose."},
-		WhenNotToUse:     []string{"Do not run against shared or production databases."},
+		WhenNotToUse:     []string{"Do not run against shared or production databases.", "Does not support --json, --agent, or --md; run without a structured output flag."},
 		Prerequisites:    []string{"Andurel project root", ".env database variables"},
 		Examples:         []string{"andurel db drop", "andurel db drop --force"},
 		Mutating:         true,
@@ -136,7 +136,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel db nuke": {
 		Summary:          "Drop and recreate the configured database",
 		WhenToUse:        []string{"Reset to an empty database without running migrations."},
-		WhenNotToUse:     []string{"Use database rebuild to also migrate and seed."},
+		WhenNotToUse:     []string{"Use database rebuild to also migrate and seed.", "Does not support --json, --agent, or --md; run without a structured output flag."},
 		Prerequisites:    []string{"Andurel project root", ".env database variables"},
 		Next:             []string{"andurel db migrate up"},
 		Examples:         []string{"andurel db nuke --force"},
@@ -150,7 +150,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel db rebuild": {
 		Summary:          "Drop, recreate, migrate, and seed the database",
 		WhenToUse:        []string{"Full local database reset."},
-		WhenNotToUse:     []string{"Do not run against shared or production databases."},
+		WhenNotToUse:     []string{"Do not run against shared or production databases.", "Does not support --json, --agent, or --md; run without a structured output flag."},
 		Prerequisites:    []string{"Andurel project root", ".env database variables"},
 		Examples:         []string{"andurel db rebuild --force"},
 		Mutating:         true,
@@ -184,7 +184,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 		Summary:         "Create a new SQL migration file",
 		Args:            "[name]",
 		WhenToUse:       []string{"Add a schema change as SQL in migrations/."},
-		WhenNotToUse:    []string{"This does not apply the migration; run migrate up next."},
+		WhenNotToUse:    []string{"This does not apply the migration; run migrate up next.", "Streams goose output; does not support --json, --agent, or --md."},
 		Prerequisites:   []string{"Andurel project root"},
 		Next:            []string{"andurel db migrate up", "andurel patterns show domain"},
 		Examples:        []string{"andurel generate migration create_posts"},
@@ -195,7 +195,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel db migrate up": {
 		Summary:         "Apply pending SQL migrations",
 		WhenToUse:       []string{"Bring the local database schema up to date."},
-		WhenNotToUse:    []string{"For a one-shot process without the CLI, build and run cmd/migrate."},
+		WhenNotToUse:    []string{"For a one-shot process without the CLI, build and run cmd/migrate.", "Streams goose output; does not support --json, --agent, or --md."},
 		Prerequisites:   []string{"Andurel project root", "bin/goose", ".env database variables"},
 		Examples:        []string{"andurel db migrate up"},
 		Mutating:        true,
@@ -205,6 +205,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel db migrate down": {
 		Summary:         "Roll back the most recent migration",
 		WhenToUse:       []string{"Undo the last applied migration."},
+		WhenNotToUse:    []string{"Streams goose output; does not support --json, --agent, or --md."},
 		Prerequisites:   []string{"Andurel project root", "bin/goose"},
 		Examples:        []string{"andurel db migrate down"},
 		Mutating:        true,
@@ -215,6 +216,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel db migrate status": {
 		Summary:         "Show migration status",
 		WhenToUse:       []string{"Inspect which migrations are applied."},
+		WhenNotToUse:    []string{"Streams goose output; does not support --json, --agent, or --md."},
 		Prerequisites:   []string{"Andurel project root", "bin/goose"},
 		Examples:        []string{"andurel db migrate status"},
 		RequiresProject: true,
@@ -222,6 +224,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel db migrate fix": {
 		Summary:         "Re-number migrations to fix gaps",
 		WhenToUse:       []string{"Close gaps in sequential goose versions."},
+		WhenNotToUse:    []string{"Streams goose output; does not support --json, --agent, or --md."},
 		Prerequisites:   []string{"Andurel project root", "bin/goose"},
 		Examples:        []string{"andurel db migrate fix"},
 		Mutating:        true,
@@ -231,7 +234,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel db migrate reset": {
 		Summary:         "Roll back all migrations and re-apply them",
 		WhenToUse:       []string{"Replay every migration against the current database."},
-		WhenNotToUse:    []string{"Use database rebuild to also drop and recreate the database."},
+		WhenNotToUse:    []string{"Use database rebuild to also drop and recreate the database.", "Streams goose output; does not support --json, --agent, or --md."},
 		Prerequisites:   []string{"Andurel project root", "bin/goose"},
 		Examples:        []string{"andurel db migrate reset"},
 		Mutating:        true,
@@ -243,6 +246,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 		Summary:         "Apply migrations up to a version",
 		Args:            "[version]",
 		WhenToUse:       []string{"Migrate forward only to a specific goose version."},
+		WhenNotToUse:    []string{"Streams goose output; does not support --json, --agent, or --md."},
 		Prerequisites:   []string{"Andurel project root", "bin/goose"},
 		Examples:        []string{"andurel db migrate up-to 20250101120000"},
 		Mutating:        true,
@@ -253,6 +257,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 		Summary:         "Roll back migrations down to a version",
 		Args:            "[version]",
 		WhenToUse:       []string{"Migrate backward to a specific goose version."},
+		WhenNotToUse:    []string{"Streams goose output; does not support --json, --agent, or --md."},
 		Prerequisites:   []string{"Andurel project root", "bin/goose"},
 		Examples:        []string{"andurel db migrate down-to 20250101120000"},
 		Mutating:        true,
@@ -282,7 +287,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel console": {
 		Summary:         "Open an interactive database console",
 		WhenToUse:       []string{"Inspect or query the project database with usql."},
-		WhenNotToUse:    []string{"Not for applying migrations; use andurel db migrate."},
+		WhenNotToUse:    []string{"Not for applying migrations; use andurel db migrate.", "Does not support --json, --agent, or --md; run without a structured output flag."},
 		Prerequisites:   []string{"Andurel project root", ".env", "bin/usql"},
 		Examples:        []string{"andurel console"},
 		RequiresProject: true,
@@ -290,7 +295,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel db console": {
 		Summary:         "Open an interactive database console",
 		WhenToUse:       []string{"Inspect or query the project database with usql."},
-		WhenNotToUse:    []string{"Not for applying migrations; use database migrate."},
+		WhenNotToUse:    []string{"Not for applying migrations; use database migrate.", "Does not support --json, --agent, or --md; run without a structured output flag."},
 		Prerequisites:   []string{"Andurel project root", ".env", "bin/usql"},
 		Examples:        []string{"andurel db console"},
 		RequiresProject: true,
@@ -334,6 +339,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel tool dblab": {
 		Summary:         "Open the dblab database UI",
 		WhenToUse:       []string{"Interactive database browsing."},
+		WhenNotToUse:    []string{"Does not support --json, --agent, or --md; run without a structured output flag."},
 		Prerequisites:   []string{"Andurel project root", "bin/dblab", ".env"},
 		Examples:        []string{"andurel tool dblab"},
 		RequiresProject: true,
@@ -341,6 +347,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel tool mailpit": {
 		Summary:         "Start Mailpit for local email capture",
 		WhenToUse:       []string{"Inspect emails sent during local development."},
+		WhenNotToUse:    []string{"Does not support --json, --agent, or --md; run without a structured output flag."},
 		Prerequisites:   []string{"Andurel project root", "bin/mailpit"},
 		Examples:        []string{"andurel tool mailpit"},
 		RequiresProject: true,
@@ -348,7 +355,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel build": {
 		Summary:         "Build the application for production",
 		WhenToUse:       []string{"Create the production binary and compiled assets."},
-		WhenNotToUse:    []string{"Use andurel run for local development."},
+		WhenNotToUse:    []string{"Use andurel run for local development.", "Streams build output; does not support --json, --agent, or --md."},
 		Prerequisites:   []string{"Andurel project root"},
 		Examples:        []string{"andurel build", "andurel build --version 1.2.3"},
 		Mutating:        true,
@@ -441,8 +448,8 @@ var commandMetaSpecs = map[string]CommandMeta{
 		RequiresProject: true,
 	},
 	"andurel inspect domains": {
-		Summary:         "List domain files",
-		WhenToUse:       []string{"See which domains exist before writing a service, handler, or migration."},
+		Summary:         "List domain files with their type to column mapping",
+		WhenToUse:       []string{"See which domains exist before writing a service, handler, or migration.", "Read an entity's fields, table, and Parse-constructor coverage for type-driven work."},
 		Prerequisites:   []string{"Andurel project root"},
 		Examples:        []string{"andurel inspect domains --json"},
 		RequiresProject: true,
@@ -484,9 +491,9 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel patterns show": {
 		Summary:      "Print one reference pattern",
 		Args:         "<kind>",
-		WhenToUse:    []string{"Read the complete requirement for a primitive: files, rules, and a definition-of-done checklist."},
+		WhenToUse:    []string{"Read the complete requirement for a primitive: files, rules, and a definition-of-done checklist.", "Render the per-entity file manifest with --entity/--table instead of generating code."},
 		WhenNotToUse: []string{"Do not expect it to write files; it prints reference code only."},
-		Examples:     []string{"andurel patterns show domain", "andurel patterns show test-handler --json"},
+		Examples:     []string{"andurel patterns show domain", "andurel patterns show test-handler --json", "andurel patterns show domain --entity User --table users --json"},
 	},
 	"andurel verify": {
 		Summary:         "Check formatting, vet, and layer boundaries",

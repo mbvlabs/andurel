@@ -7,7 +7,6 @@ import (
 	"uuid"
 
 	"{{.ModuleName}}/domains"
-	domainuser "{{.ModuleName}}/domains/user"
 )
 
 func TestVerifyEmailRejectsMissingPendingUser(t *testing.T) {
@@ -86,11 +85,11 @@ func TestVerifyPasswordWithPeppers(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			hash, err := domainuser.HashPassword(password, test.hashPepper)
+			hash, err := domains.HashPassword(password, test.hashPepper)
 			if err != nil {
 				t.Fatalf("HashPassword: %v", err)
 			}
-			user := domainuser.User{Password: []byte(hash)}
+			user := domains.User{Password: []byte(hash)}
 
 			valid, needsRehash, err := verifyPasswordWithPeppers(
 				user,

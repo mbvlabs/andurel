@@ -54,14 +54,15 @@ package services
 import (
 	"context"
 
+	"app/domains"
 	appemail "app/email"
 	"app/queue/jobs"
 
 	"github.com/mbvlabs/andurel/pkg/email"
 )
 
-func (i Identity) sendWelcome(ctx context.Context, user domainuser.User) error {
-	message := appemail.WelcomeEmail{UserName: user.Email}
+func (i Identity) sendWelcome(ctx context.Context, user domains.User) error {
+	message := appemail.WelcomeEmail{UserName: user.Email.String()}
 
 	html, err := message.ToHTML()
 	if err != nil {
@@ -74,7 +75,7 @@ func (i Identity) sendWelcome(ctx context.Context, user domainuser.User) error {
 
 	_, err = i.insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
 		Data: email.TransactionalData{
-			To:       user.Email,
+			To:       user.Email.String(),
 			From:     i.defaultSenderSignature,
 			Subject:  "Welcome",
 			HTMLBody: html,

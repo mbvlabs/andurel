@@ -39,6 +39,9 @@ This command:
   andurel build --version 1.2.3`,
 		Args: cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel build"); err != nil {
+				return err
+			}
 			rootDir, err := findGoModRoot()
 			if err != nil {
 				return err

@@ -15,22 +15,21 @@ import (
 	"context"
 
 	"app/config"
-	domainuser "app/domains/user"
-	domaintoken "app/domains/token"
+	"app/domains"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 type Identity struct {
-	users  domainuser.Users
-	tokens domaintoken.Tokens
+	users  domains.Users
+	tokens domains.Tokens
 	queue  storage.InsertQueue
 	pepper string
 }
 
 func NewIdentity(
-	users domainuser.Users,
-	tokens domaintoken.Tokens,
+	users domains.Users,
+	tokens domains.Tokens,
 	queue storage.InsertQueue,
 	authCfg config.Auth,
 	mailCfg config.Mail,
@@ -38,9 +37,9 @@ func NewIdentity(
 	return Identity{users: users, tokens: tokens, queue: queue, pepper: authCfg.Pepper}
 }
 
-func (i Identity) AuthenticateUser(ctx context.Context, data LoginData) (domainuser.User, error) {
+func (i Identity) AuthenticateUser(ctx context.Context, data LoginData) (domains.User, error) {
 	// coordinate user + token + email; the only place these domains meet
-	return domainuser.User{}, nil
+	return domains.User{}, nil
 }
 ```
 

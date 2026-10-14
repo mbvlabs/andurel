@@ -213,8 +213,13 @@ check:
 # PR CI suite (Test workflow). Coverage stays a separate best-effort step.
 ci-pr:
     @just vet
+    @just commands-check
     @just test-race
     @just test-golden
+
+# Validate agent-first command metadata (catalog, projections, generated docs)
+commands-check:
+    go run . commands --check
 
 # Nightly / release-readiness suite (full goldens + race)
 ci-nightly:

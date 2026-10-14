@@ -9,10 +9,9 @@ import (
 	"{{.ModuleName}}/routes"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/routing"
-
-	"github.com/maypok86/otter/v2"
 )
 
 // AuthOnly gates a route on an authenticated application session, redirecting
@@ -33,34 +32,26 @@ func AuthOnly() anduin.Middleware {
 	}
 }
 
-// IPRateLimiter allows at most limit requests per client IP within ten minutes.
-// Over-limit requests receive 429 with the redirect route's URL as the body.
+// IPRateLimiter allows at most limit requests per client IP within a ten
+// minute window. Over-limit requests receive 429 with the redirect route's
+// URL as the body. Counts live in store, so every replica enforces the same
+// limit when the redis driver backs it.
 func IPRateLimiter(
+	store cache.Store,
 	limit int,
 	redirectURL routing.Route,
 ) anduin.Middleware {
-	cache := otter.Must(&otter.Options[string, int]{
-		MaximumSize:      1000,
-		ExpiryCalculator: otter.ExpiryCreating[string, int](10 * time.Minute),
-	})
+	const window = 10 * time.Minute
 
 	return func(next anduin.Handler) anduin.Handler {
 		return func(ctx context.Context) error {
 			ip := clientIP(anduin.Request(ctx))
-			allowed := false
-			cache.Compute(ip, func(hits int, found bool) (int, otter.ComputeOp) {
-				if !found {
-					hits = 0
-				}
-				if hits >= limit {
-					return hits, otter.CancelOp
-				}
+			hits, err := store.Increment(ctx, "ratelimit:"+ip, window)
+			if err != nil {
+				return err
+			}
 
-				allowed = true
-				return hits + 1, otter.WriteOp
-			})
-
-			if !allowed {
+			if hits > int64(limit) {
 				return anduin.Text(ctx, http.StatusTooManyRequests, redirectURL.URL())
 			}
 

@@ -26,13 +26,13 @@ Two commands keep an agent honest:
 
 | Code | Put it in |
 | --- | --- |
-| Database-backed entity structs, `andurel:"column"` table tags, create/update input structs, validation, persistence methods, finder/query methods, domain errors | `domains/<entity>/` (for example `domains/user/user.go`) |
-| SQL for a domain (narsilc input) | `domains/<entity>/<entity>.sql`, colocated with the entity |
+| Database-backed entity structs, `andurel:"column"` table tags, create/update input structs, validation, persistence methods, finder/query methods, domain errors | `domains/` (for example `domains/user.go`) |
+| SQL for a domain (narsilc input) | `domains/<entity>.sql`, colocated with the entity |
 | narsilc-generated query types and rows (narsilc output) | `domains/internal/queries/` — imported only by `domains/**` |
 | Cross-domain vocabulary: `ErrNotFound`, `ErrConflict`, `ErrViolation`, `ValidationError{Fields}` | `domains/errors.go` (package `domains`) |
 | Rules that must hold regardless of HTTP, Inertia, API, jobs, or seeds | `domains/` |
 | Multi-step workflows, transactions, cross-domain coordination, external side effects, application policy that requires current database state | `services/` |
-| Request parsing, path/query/form/JSON binding, HTTP status/render/redirect choices, flash messages, CSRF/session handling | `handlers/`, `handlers/api/`, `handlers/auth/` |
+| Request parsing, path/query/form/JSON binding, HTTP status/render/redirect choices, flash messages, CSRF/session handling | `handlers/` (one flat package) |
 | Route names, route paths, URL builders | `routes/` |
 | App HTTP middleware (auth, rate limit) and cookie-jar wiring | `middleware/` |
 | Inertia root document | `resources/root.templ` (package `resources`) |
@@ -49,37 +49,41 @@ Two commands keep an agent honest:
 | River workers and queue registration | `queue/` |
 | App configuration structs and environment loading | `config/` |
 | Process composition (constructor wiring, infrastructure, process lifecycle) | `internal/runtime/` |
-| Process entry (load env, signal context, `runtime.New` + `anduin.NewServer`) | `cmd/app/`, `cmd/queue/` |
+| Process entry (load env, signal context, single `runtime.New` / `runtime.NewQueue`) | `cmd/app/`, `cmd/queue/` |
 | One-shot database processes | `cmd/migrate/`, `cmd/seeds/` |
 
 ## Domains
 
-`domains/` is all business logic and persistence. A domain package answers "what
-is true about this entity?" and owns the SQL that reads and writes it.
+`domains/` is all business logic and persistence in one flat package — one
+file per domain (`domains/user.go`, `domains/token.go`). A domain answers
+"what is true about this entity?" and owns the SQL that reads and writes it.
 
-Use a domain package for:
+Use a domain file for:
 
-- Entity structs. Keep generated fields 1:1 with the table (`andurel:"column"`
-  tags). When the entity is not the scan row, hand-write a
+- Entity structs with newtypes for every invariant (`Email`, not `string`).
+  `ParseX` constructors are the supported way to build values; direct
+  conversion bypasses validation. There are no post-construction `Validate`
+  methods. Keep generated fields mapped to the table (`andurel:"column"`
+  tags). When the entity is not the scan row, implement
   `Transform(queries.XRow) error`; keep `sql.Scanner` off the entity.
 - Generated `queries.XRow` / `queries.QueryNameRow` values. Domain code returns
   the entity, never the row.
 - `Create<Entity>Data` and `Update<Entity>Data` input structs.
-- Validation methods such as `Validate() error` and field normalization.
+- `ParseX` constructors returning `(T, error)` with field normalization
+  (trim, lowercase) and `ValidationError` failures.
 - CRUD methods, finder methods, pagination, count queries, and domain query
   methods.
-- Domain errors. Return the shared sentinels from the root `domains` package
-  (`domains.ErrNotFound`, `domains.ErrConflict`, `domains.ErrViolation`) or a
-  `domains.ValidationError` for field-level failures.
+- Domain errors. Return the shared sentinels (`ErrNotFound`, `ErrConflict`,
+  `ErrViolation`) or a `ValidationError` for field-level failures.
 
 Hard rules:
 
-- **A domain package must not import another domain package.** If a rule spans
+- **One file per domain; keep cross-domain rules in services.** If a rule spans
   `user` and `token`, it is application logic and belongs in a service.
-- **Only `domains/**` may import `domains/internal/queries`.** `services/`,
+- **Only `domains` may import `domains/internal/queries`.** `services/`,
   `handlers/`, `internal/runtime/`, `queue/`, and `seeds/` call domain
   constructors and methods; they never touch the generated queries package.
-- **SQL is colocated with its domain** (`domains/user/user.sql`). Narsilc globs
+- **SQL is colocated with its domain** (`domains/user.sql`). Narsilc globs
   `domains/**/*.sql` and writes to `domains/internal/queries/`. You never
   place SQL under `models/` — there is no `models/`.
 - **Type-driven by default.** The Go domain type is the source of truth; SQL,
@@ -158,13 +162,14 @@ Use handlers for:
 - Rendering Inertia pages through `github.com/mbvlabs/andurel/pkg/inertia`.
 - Registering routes in `Register(rt *anduin.Router)`.
 
-Each handler declares its dependencies in a `NewXHandler` constructor and
-registers its routes:
+Each handler declares its dependencies in a distinct `NewXHandler`
+constructor and registers its routes. `handlers/` is one flat package: no
+sub-packages, no import aliases.
 
 ```go
-func NewHandler(users domainuser.Users, renderer *inertia.Renderer) Handler
+func NewUserHandler(users user.Users, renderer *inertia.Renderer) UserHandler
 
-func (h Handler) Register(rt *anduin.Router) {
+func (h UserHandler) Register(rt *anduin.Router) {
 	rt.Get(routes.UserIndex.Path(), h.Index)
 }
 ```
@@ -172,12 +177,14 @@ func (h Handler) Register(rt *anduin.Router) {
 Do not put durable business rules in handlers. If the same rule must apply
 outside one HTTP action, move it to a domain or service. Error mapping is
 uniform: return the error and let the router's `ErrorHandler`
-(`handlers.MapError`) translate `domains.Err*` into the right response. See
+(`handlers.MapError`) translate `Err*` into the right response. See
 [http-and-routing.md](http-and-routing.md) for the full request/response and
 error API.
 
-Use `handlers/auth/` for sessions, registration, confirmation, and password
-reset, and `handlers/api/` for JSON endpoints.
+Use `AuthHandler` in `handlers/auth.go` for sessions, registration,
+confirmation, and password reset, and `APIHandler` in `handlers/api.go` for
+JSON endpoints. Parse payloads into domain newtypes at the edge with `ParseX`
+before calling services.
 
 ## Routes
 
@@ -205,19 +212,23 @@ The `Router` type itself is not app code; it lives in `pkg/anduin`. There is no
 
 ## Middleware
 
-App-specific HTTP middleware and cookie-jar wiring live in `middleware/`.
+App-specific HTTP policy lives in `middleware/`.
 Middleware has the `anduin.Middleware` shape (`func(anduin.Handler)
 anduin.Handler`):
 
 - Auth and authorization middleware.
-- Rate limiting (`IPRateLimiter`).
+- Rate limiting (`IPRateLimiter`), backed by the injected `cache.Store` so
+  every replica enforces the same limit on Redis.
 - Route attribute / telemetry helpers.
 - CSRF strategy construction.
-- `NewJar(config.App, config.Session) (*kiks.Jar, error)` plus its
-  `Middleware()`.
+
+Cookie jar construction lives in `internal/runtime` (`newJar`); `middleware/`
+exports the session definition (`NewAppCookie`) and policy only. There is no
+`middleware.NewJar`.
 
 Generic middleware (`Recover`, `Logger`, `Telemetry`, `CORS`, `CSRF`) is
-provided by `pkg/anduin`; do not reimplement it here. Session/bag values travel
+provided by `pkg/anduin` and used directly; do not wrap or reimplement it
+here. Session/bag values travel
 on `context.Context` through `pkg/kiks` (`kiks.Get[T]`, `kiks.Set`,
 `kiks.Destroy`). See [http-and-routing.md](http-and-routing.md).
 
@@ -268,11 +279,12 @@ it. Do not put app-specific domain workflows in `internal/` just to make them
 feel shared. Use `domains/` or `services/`.
 
 `internal/` in a generated app is application-owned. `internal/runtime/`
-constructs the whole dependency graph bottom-up (`runtime.New`,
-`runtime.NewServer`, `runtime.NewQueue`) and owns process lifecycle. `cmd/app`
-and `cmd/queue` only load environment, create the signal context, and call into
-`runtime`. `cmd/migrate` and `cmd/seeds` load environment, open Postgres, run
-one task, and exit. Do not apply migrations from `cmd/app` start.
+constructs the whole dependency graph bottom-up with one constructor per
+process (`runtime.New` owns `Handler`+`Server`; `runtime.NewQueue` owns the
+worker graph) and owns process lifecycle. `cmd/app` and `cmd/queue` only load
+environment, create the signal context, and call into `runtime`.
+`cmd/migrate` and `cmd/seeds` load environment, open Postgres, run one task,
+and exit. Do not apply migrations from `cmd/app` start.
 
 ## Dependency Wiring
 
@@ -300,7 +312,7 @@ be readable top-to-bottom in `internal/runtime/runtime.go`.
 Before adding code, answer:
 
 1. Is this a rule about a domain object being valid or allowed? Put it in
-   `domains/<entity>/`.
+   `domains/` (one file per domain).
 2. Does it require a transaction, multiple domains, external side effects, or a
    stateful policy check? Put it in `services/`.
 3. Is it about HTTP parsing, session/flash, redirects, or rendering? Put it in

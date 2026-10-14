@@ -1,42 +1,47 @@
 # Handler
 
-A handler is a thin HTTP adapter. Its methods are regular Go over
-`context.Context`, and `pkg/anduin` supplies request and response access from
-that context. Each handler declares its dependencies in a `NewHandler`
-constructor and registers its routes in `Register`.
+A handler is a thin HTTP adapter in the single flat `handlers` package. Its
+methods are regular Go over `context.Context`, and `pkg/anduin` supplies
+request and response access from that context. Each handler declares its
+dependencies in a distinct `NewXHandler` constructor and registers its routes
+in `Register`. There are no handler sub-packages: `NewUserHandler`,
+`NewAuthHandler`, and `NewAPIHandler` disambiguate instead of imports.
+
+Handlers parse raw input at the edge: payload strings become domain newtypes
+via `ParseX` before any service call, so services and domains never re-check.
 
 ## Files
 
-### handlers/<resource>/handler.go
+### handlers/user.go
 ```go
-package user
+package handlers
 
 import (
 	"context"
 
-	domainuser "app/domains/user"
+	"app/domains"
 	"app/routes"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 )
 
-type Handler struct {
-	users    domainuser.Users
+type UserHandler struct {
+	users    domains.Users
 	renderer *inertia.Renderer
 }
 
-func NewHandler(users domainuser.Users, renderer *inertia.Renderer) Handler {
-	return Handler{users: users, renderer: renderer}
+func NewUserHandler(users domains.Users, renderer *inertia.Renderer) UserHandler {
+	return UserHandler{users: users, renderer: renderer}
 }
 
-func (h Handler) Register(rt *anduin.Router) {
+func (h UserHandler) Register(rt *anduin.Router) {
 	rt.Get(routes.UserIndex.Path(), h.Index)
 	rt.Get(routes.UserShow.Path(), h.Show)
 	rt.Post(routes.UserCreate.Path(), h.Create)
 }
 
-func (h Handler) Index(ctx context.Context) error {
+func (h UserHandler) Index(ctx context.Context) error {
 	page, err := anduin.QueryInt(ctx, "page", 1)
 	if err != nil {
 		return anduin.BadRequest(err)
@@ -48,6 +53,27 @@ func (h Handler) Index(ctx context.Context) error {
 	}
 
 	return h.renderer.Page(ctx, "User/Index", inertia.FromStruct(result.Items)).Render()
+}
+
+func (h UserHandler) Create(ctx context.Context) error {
+	var payload struct {
+		Email string `json:"email"`
+	}
+	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
+		return anduin.BadRequest(err)
+	}
+
+	email, err := domains.ParseEmail(payload.Email)
+	if err != nil {
+		return err
+	}
+
+	created, err := h.users.Create(ctx, domains.CreateUserData{Email: email})
+	if err != nil {
+		return err
+	}
+
+	return h.renderer.Redirect(ctx, routes.UserShow.URL(created.ID.String()))
 }
 ```
 
@@ -88,6 +114,8 @@ func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
 ## Rules
 
 - A handler signature is `func(ctx context.Context) error`.
+- One flat `package handlers`; distinct `NewXHandler` constructors, no sub-packages.
+- Parse payloads into domain newtypes at the edge with `ParseX`; pass parsed values down.
 - Never import `domains/internal/queries`; call domain methods.
 - Route registration happens in `Register(rt *anduin.Router)`.
 - Return domain errors unchanged; the router error handler maps them uniformly.
@@ -95,8 +123,9 @@ func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
 
 ## Checklist
 
-- [ ] `NewHandler` constructor lists every dependency.
+- [ ] `NewXHandler` constructor lists every dependency.
 - [ ] `Register` binds each route to a method.
+- [ ] Raw payload input is parsed with `ParseX` before any service or domain call.
 - [ ] Handler methods return domain errors untouched.
-- [ ] Wired via `userhandlers.NewHandler(...).Register(rt)` in `internal/runtime`.
+- [ ] Wired via `handlers.NewUserHandler(...).Register(rt)` in `internal/runtime`.
 - [ ] `andurel inspect handlers --json` lists the new handler.

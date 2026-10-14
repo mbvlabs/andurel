@@ -30,7 +30,7 @@ creation, run 'andurel tool sync' to download required binaries.
 Projects use Inertia React with pnpm by default. Pass --ui to choose another
 Inertia combination (react|vue|svelte / pnpm|bun|npm). Persistence uses
 narsilc-generated queries; it stays inactive until an annotated query is
-added to a domain, for example domains/user/user.sql.`,
+added to a domain, for example domains/user.sql.`,
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) <= 1 {
 				return nil
@@ -187,18 +187,18 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 		return wrapNewProjectScaffoldError(err)
 	}
 
-	fmt.Printf("\n🎉 Successfully created project: %s\n", projectName)
-	fmt.Printf("\nNext steps:\n")
-	fmt.Printf("  cd %s\n", args[0])
-	fmt.Printf("  andurel tool sync\n")
-	fmt.Printf("  cp .env.example .env\n")
-	fmt.Printf("  fill in your database connection details in .env\n")
-	fmt.Printf("  (andurel db create - if database does not exist\n")
-	fmt.Printf("  andurel db migrate up\n")
+	fmt.Fprintf(cmd.OutOrStdout(), "\n🎉 Successfully created project: %s\n", projectName)
+	fmt.Fprintln(cmd.OutOrStdout(), "\nNext steps:")
+	fmt.Fprintf(cmd.OutOrStdout(), "  cd %s\n", args[0])
+	fmt.Fprintln(cmd.OutOrStdout(), "  andurel tool sync")
+	fmt.Fprintln(cmd.OutOrStdout(), "  cp .env.example .env")
+	fmt.Fprintln(cmd.OutOrStdout(), "  fill in your database connection details in .env")
+	fmt.Fprintln(cmd.OutOrStdout(), "  (andurel db create - if database does not exist")
+	fmt.Fprintln(cmd.OutOrStdout(), "  andurel db migrate up")
 	if ui.IsInertia() {
-		fmt.Printf("  %s install\n", javascriptRuntime)
+		fmt.Fprintf(cmd.OutOrStdout(), "  %s install\n", javascriptRuntime)
 	}
-	fmt.Printf("  andurel run\n")
+	fmt.Fprintln(cmd.OutOrStdout(), "  andurel run")
 
 	return nil
 }
