@@ -449,7 +449,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	},
 	"andurel inspect domains": {
 		Summary:         "List domain files with their type to column mapping",
-		WhenToUse:       []string{"See which domains exist before writing a service, handler, or migration.", "Read an entity's fields, table, and Parse-constructor coverage for type-driven work."},
+		WhenToUse:       []string{"See which domains exist before writing a service, handler, or migration.", "Read an entity's table, fields, Validate coverage, and whether its receiver is constructed in internal/runtime (wired)."},
 		Prerequisites:   []string{"Andurel project root"},
 		Examples:        []string{"andurel inspect domains --json"},
 		RequiresProject: true,
@@ -496,11 +496,11 @@ var commandMetaSpecs = map[string]CommandMeta{
 		Examples:     []string{"andurel patterns show domain", "andurel patterns show test-handler --json", "andurel patterns show domain --entity User --table users --json"},
 	},
 	"andurel verify": {
-		Summary:         "Check formatting, vet, and layer boundaries",
-		WhenToUse:       []string{"After a change, before commit: gofmt, go fix, go vet, and the domains/service import boundary."},
+		Summary:         "Check formatting, vet, layer boundaries, and generated code",
+		WhenToUse:       []string{"After a change, before commit: gofmt, go fix, go vet, the domain persistence and transaction boundary (queries-import, db-handle, tx-unwrap, tx-escape, tx-public-call), and generated-code drift (generated).", "Read each violation's fix field and apply it; a failed run exits 9 (verification_failed)."},
 		WhenNotToUse:    []string{"verify is read-only; fix the reported issues yourself and re-run."},
 		Prerequisites:   []string{"Andurel project root"},
-		Examples:        []string{"andurel verify", "andurel verify --json", "andurel verify --with-tests"},
+		Examples:        []string{"andurel verify", "andurel verify --json", "andurel verify --with-tests", "andurel verify --skip-generated"},
 		RequiresProject: true,
 	},
 	"andurel skill": {

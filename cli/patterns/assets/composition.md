@@ -56,12 +56,15 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, err
 	}
 
-	// Domains live in one flat package: one file per domain.
+	// Domain receivers are built individually. The transactor runs
+	// transactions for services through storage.AtomicOps; services never
+	// see the connection, so raw queries can only originate in domains.
+	transactor := storage.NewTransactor(db)
 	users := domains.NewUsers(db)
 	tokens := domains.NewTokens(db)
 
 	// Services coordinate domains, the queue, and configuration.
-	identity := services.NewIdentity(users, tokens, queueInsert, cfg.Auth, cfg.Mail)
+	identity := services.NewIdentity(transactor, users, tokens, queueInsert, cfg.Auth, cfg.Mail)
 
 	renderer, err := newRenderer(cfg)
 	if err != nil {
@@ -105,7 +108,10 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		DB:      db,
 		Handler: handler,
 		Server:  srv,
-		closers: []func(context.Context) error{db.Close, tel.Shutdown},
+		closers: []func(context.Context) error{
+			func(context.Context) error { return db.Close() },
+			tel.Shutdown,
+		},
 	}, nil
 }
 
@@ -130,6 +136,9 @@ func (a *App) Close(ctx context.Context) error {
 - Track shutdown with an explicit ordered `closers` list and release in reverse.
 - `cmd/app` is env load + `runtime.New` + `app.Start` + `app.Shutdown`.
 - Add a new dependency by constructing it here and passing it down; never reach for a container or a global.
+- Build one `storage.NewTransactor(db)` and each domain receiver with `domains.NewX(db)`, then pass them individually to the services and handlers that use them. Handlers that need only health take a narrow interface (`healthChecker`, satisfied by `db`).
+- Only the wiring layers (`internal/runtime`, `cmd`, `seeds`, `migrations`) and `domains` may name `storage.Connection`; services and handlers never do.
+- A new domain is one `domains.NewX(db)` line here, passed to whoever uses it.
 
 ## Checklist
 

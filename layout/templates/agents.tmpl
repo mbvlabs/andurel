@@ -40,7 +40,7 @@ andurel patterns show domain --entity User --table users --json
 
 - `domains/` — business logic and persistence in one flat package (one file per domain); SQL is colocated as `domains/<entity>.sql`. Only `domains` imports `domains/internal/queries`.
 - `domains/errors.go` — the shared vocabulary: `ErrNotFound`, `ErrConflict`, `ErrViolation`, `ValidationError`.
-- `services/` — application logic: transactions, cross-domain orchestration, external side effects.
+- `services/` — application logic: transactions, cross-domain orchestration, external side effects. Writes that must commit together run in `storage.AtomicOps(ctx, i.transactor, func(ctx, tx storage.Tx) error { … })`, binding receivers and the queue with `InTx(tx)` at the top of the callback; returning `nil` commits, an error rolls back.
 - `handlers/` — HTTP adapters in one flat package (`AuthHandler`, `APIHandler`, `NewXHandler` constructors, no sub-packages). Register routes in `Register(rt *anduin.Router)`.
 - `routes/` — route data only (names, paths, URL builders).
 - `middleware/` — app HTTP policy (auth, rate limiting) plus the session definition. Jar construction lives in `internal/runtime`.
@@ -55,7 +55,7 @@ Read the `layer-placement` skill reference for the full table and the decision c
 andurel verify
 ```
 
-Runs formatting, `go fix`, `go vet`, and the domain/service import-boundary lint. Pass `--with-tests` to also run `go test ./...` (domain tests need a Postgres container). Run it after every change.
+Runs formatting, `go fix`, `go vet`, the persistence-boundary lints (queries import, raw DB handle, `storage.Unwrap`, transaction escape, nested public calls), and generated-code drift. Violations come with a `fix`; a failed run exits 9. Pass `--with-tests` to also run `go test ./...` (domain tests need a Postgres container). Run it after every change.
 
 ## HTTP
 

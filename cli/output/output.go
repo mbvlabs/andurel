@@ -38,6 +38,9 @@ const (
 	CodeAmbiguousInput = "ambiguous_input"
 	// CodeUpdateRequired identifies an operation that requires a newer Andurel CLI.
 	CodeUpdateRequired = "update_required"
+	// CodeVerificationFailed identifies project checks that ran and found
+	// problems in the code, as opposed to a usage error in the invocation.
+	CodeVerificationFailed = "verification_failed"
 	// ExitUsage is the exit code for command usage errors.
 	ExitUsage = 1
 	// ExitProject is the exit code for missing project context.
@@ -54,6 +57,9 @@ const (
 	ExitConfig = 7
 	// ExitAmbiguous is the exit code for ambiguous input.
 	ExitAmbiguous = 8
+	// ExitVerification is the exit code for checks that ran and failed: the
+	// command was invoked correctly, but the project code needs fixing.
+	ExitVerification = 9
 )
 
 // Mode is the selected output format for a command invocation.

@@ -62,12 +62,14 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, err
 	}
 
-	// Domains are islands: each owns its table and never imports another.
+	// Domain receivers own all SQL. Services get them individually plus the
+	// transactor, and run multi-step writes in storage.AtomicOps.
+	transactor := storage.NewTransactor(db)
 	users := domains.NewUsers(db)
 	tokens := domains.NewTokens(db)
 
 	// Services coordinate domains, the queue, and configuration.
-	identity := services.NewIdentity(users, tokens, queueInsert, cfg.Auth, cfg.Mail)
+	identity := services.NewIdentity(transactor, users, tokens, queueInsert, cfg.Auth, cfg.Mail)
 
 	renderer, err := newRenderer(cfg)
 	if err != nil {
@@ -128,7 +130,10 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		DB:      db,
 		Handler: handler,
 		Server:  srv,
-		closers: []func(context.Context) error{db.Close, tel.Shutdown},
+		closers: []func(context.Context) error{
+			func(context.Context) error { return db.Close() },
+			tel.Shutdown,
+		},
 	}, nil
 }
 

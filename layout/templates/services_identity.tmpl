@@ -1,7 +1,6 @@
 package services
 
 import (
-	"context"
 	"strings"
 
 	"{{.ModuleName}}/config"
@@ -11,9 +10,10 @@ import (
 )
 
 type Identity struct {
+	transactor             storage.Transactor
 	users                  domains.Users
 	tokens                 domains.Tokens
-	insertOnly             storage.InsertQueue
+	queue                  storage.InsertQueue
 	pepper                 string
 	previousPeppers        []string
 	tokenSigningKey        string
@@ -21,9 +21,10 @@ type Identity struct {
 }
 
 func NewIdentity(
+	transactor storage.Transactor,
 	users domains.Users,
 	tokens domains.Tokens,
-	insertOnly storage.InsertQueue,
+	queue storage.InsertQueue,
 	authCfg config.Auth,
 	mailCfg config.Mail,
 ) Identity {
@@ -35,16 +36,13 @@ func NewIdentity(
 	}
 
 	return Identity{
+		transactor:             transactor,
 		users:                  users,
 		tokens:                 tokens,
-		insertOnly:             insertOnly,
+		queue:                  queue,
 		pepper:                 authCfg.Pepper,
 		previousPeppers:        validPeppers,
 		tokenSigningKey:        authCfg.TokenSigningKey,
 		defaultSenderSignature: mailCfg.DefaultSenderSignature,
 	}
-}
-
-func (i Identity) beginTx(ctx context.Context) (storage.Transaction, error) {
-	return i.users.Connection().BeginTransaction(ctx)
 }

@@ -215,15 +215,15 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"email_verify_email_templ_go.tmpl":   "email/verify_email_templ.go",
 
 	// Domains
-	"models_errors.tmpl":                  "domains/errors.go",
-	"models_user.tmpl":                    "domains/user.go",
-	"models_token.tmpl":                   "domains/token.go",
-	"models_queries_user.tmpl":            "domains/user.sql",
-	"models_queries_token.tmpl":           "domains/token.sql",
-	"models_internal_queries_db.tmpl":     "domains/internal/queries/db.go",
-	"models_internal_queries_models.tmpl": "domains/internal/queries/models.go",
-	"models_internal_queries_user.tmpl":   "domains/internal/queries/user.sql.go",
-	"models_internal_queries_token.tmpl":  "domains/internal/queries/token.sql.go",
+	"domains_errors.tmpl":                  "domains/errors.go",
+	"domains_user.tmpl":                    "domains/user.go",
+	"domains_token.tmpl":                   "domains/token.go",
+	"domains_queries_user.tmpl":            "domains/user.sql",
+	"domains_queries_token.tmpl":           "domains/token.sql",
+	"domains_internal_queries_db.tmpl":     "domains/internal/queries/db.go",
+	"domains_internal_queries_models.tmpl": "domains/internal/queries/models.go",
+	"domains_internal_queries_user.tmpl":   "domains/internal/queries/user.sql.go",
+	"domains_internal_queries_token.tmpl":  "domains/internal/queries/token.sql.go",
 
 	// Services
 	"services_service.tmpl":             "services/service.go",

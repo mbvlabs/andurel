@@ -84,23 +84,10 @@ func (h AuthHandler) SessionCreate(ctx context.Context) error {
 		return h.renderer.Page(ctx, "Errors/BadRequest", inertia.Props{}).Render()
 	}
 
-	email, err := domains.ParseEmail(payload.Email)
-	if err != nil {
-		if fields, ok := validationFields(err); ok {
-			return h.renderer.Page(
-				ctx,
-				"Auth/Login",
-				inertia.Props{},
-			).ValidationErrors(fields).Render()
-		}
-
-		return err
-	}
-
 	entity, err := h.identity.AuthenticateUser(
 		ctx,
 		services.LoginData{
-			Email:    email,
+			Email:    payload.Email,
 			Password: payload.Password,
 		},
 	)

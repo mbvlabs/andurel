@@ -16,7 +16,7 @@ var (
 )
 
 type LoginData struct {
-	Email    domains.Email
+	Email    string
 	Password string
 }
 
@@ -25,6 +25,7 @@ func (i Identity) AuthenticateUser(
 	data LoginData,
 ) (domains.User, error) {
 	b := validation.NewBuilder()
+	b.Required("email", data.Email)
 	b.Required("password", data.Password)
 	if err := b.Err(); err != nil {
 		return domains.User{}, validationError(err)
@@ -86,13 +87,13 @@ func verifyPasswordWithPeppers(
 	currentPepper string,
 	previousPeppers []string,
 ) (valid bool, needsRehash bool, err error) {
-	valid, err = user.Password.Verify(providedPassword, currentPepper)
+	valid, err = user.ValidPassword(providedPassword, currentPepper)
 	if err != nil || valid {
 		return valid, false, err
 	}
 
 	for _, previousPepper := range previousPeppers {
-		valid, err = user.Password.Verify(providedPassword, previousPepper)
+		valid, err = user.ValidPassword(providedPassword, previousPepper)
 		if err != nil {
 			return false, false, err
 		}

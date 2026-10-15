@@ -205,7 +205,7 @@ andurel db migrate up
 andurel patterns show domain
 ```
 
-Create `domains/product.go` (package `domains`) and colocate the SQL in `domains/product.sql`. Mark the table the entity maps to:
+Create `domains/product.go` (package `domains`) and colocate the SQL in `domains/product.sql`:
 
 ```go
 // domains/product.go
@@ -222,26 +222,40 @@ import (
 
     "github.com/jackc/pgx/v5"
     "github.com/mbvlabs/andurel/pkg/storage"
+    "github.com/mbvlabs/andurel/pkg/validation"
 )
 
-type Products struct{ q *queries.Queries }
+type Products struct{ queries *queries.Queries }
 
-func NewProducts(db storage.Connection) Products           { return Products{q: queries.New(db)} }
-func (p Products) WithTx(tx storage.Transaction) Products  { return Products{q: queries.New(tx)} }
+func NewProducts(db storage.Connection) Products { return Products{queries: queries.New(db)} }
+
+// InTx returns a Products whose calls run inside tx.
+func (p Products) InTx(tx storage.Tx) Products {
+    return Products{queries: queries.New(storage.Unwrap(tx))}
+}
 
 type Product struct {
     ID   uuid.UUID `andurel:"id"`
     Name string    `andurel:"name"`
 }
 
+// Validate is the write gate; Create and Update call it.
+func (p *Product) Validate() error {
+    b := validation.NewBuilder()
+    b.Required("name", p.Name)
+    return b.Err()
+}
+
 func (p Products) Find(ctx context.Context, id uuid.UUID) (Product, error) {
-    entity, err := p.q.GetProduct[Product](ctx, id)
+    entity, err := p.queries.GetProduct[Product](ctx, id)
     if errors.Is(err, pgx.ErrNoRows) {
         return Product{}, ErrNotFound
     }
     return entity, err
 }
 ```
+
+Then construct it in `internal/runtime` (`products := domains.NewProducts(db)`) and pass it to the services and handlers that use it.
 
 **3. Generate the typed queries**
 
@@ -250,6 +264,24 @@ andurel sync queries
 ```
 
 Narsilc globs `domains/**/*.sql` and writes `domains/internal/queries/`. Only `domains` may import that package. Domains share one flat package (one file per domain) — cross-domain behavior belongs in a service.
+
+`internal/runtime` builds a `storage.NewTransactor(db)` and each receiver, and passes them to services. A service that writes across domains runs the writes in one transaction with `storage.AtomicOps`, binding what it needs at the top of the callback:
+
+```go
+err := storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {
+    users, queue := i.users.InTx(tx), i.queue.InTx(tx)
+
+    user, err := users.Create(ctx, i.pepper, data)
+    if err != nil {
+        return err // rolls back
+    }
+    // Enqueued on the transaction: workers only see it if the user commits.
+    _, err = queue.Insert(ctx, jobs.WelcomeArgs{UserID: user.ID}, nil)
+    return err // nil commits
+})
+```
+
+Returning `nil` commits; returning an error or panicking rolls back. `storage.Tx` has no query methods, so services can join a transaction but never issue SQL; only `domains` unwraps it. `andurel verify` enforces the boundary and flags `i.users` used inside the callback.
 
 ### Add A Handler And Route
 
@@ -387,15 +419,14 @@ func ProcessMyJob(ctx context.Context, msg []byte) error {
 {{if eq .Database "postgres"}}river.AddWorker(workers, &MyJobWorker{}){{else}}// Register in your queue setup{{end}}
 ```
 
-**4. Enqueue jobs** from a service or handler:
+**4. Enqueue jobs** from a service through its `storage.InsertQueue`. Inside `storage.AtomicOps`, enqueue on `i.queue.InTx(tx)` so the job only runs if the data commits:
 
 ```go
 {{if eq .Database "postgres"}}import (
-    "github.com/riverqueue/river"
     "{{.ModuleName}}/queue/jobs"
 )
 
-_, err := insertOnly.Client.Insert(ctx, jobs.MyJobArgs{
+_, err := i.queue.Insert(ctx, jobs.MyJobArgs{
     UserID: "123",
     Action: "send_welcome_email",
 }, nil){{else}}import "{{.ModuleName}}/queue/jobs"
@@ -417,7 +448,7 @@ River provides a web UI for monitoring jobs. During development, you can access 
 **Job Options**
 
 ```go
-{{if eq .Database "postgres"}}_, err := insertOnly.Client.Insert(ctx, jobs.MyJobArgs{
+{{if eq .Database "postgres"}}_, err := i.queue.Insert(ctx, jobs.MyJobArgs{
     UserID: "123",
 }, &river.InsertOpts{
     MaxAttempts: 5,
@@ -482,7 +513,9 @@ func sendWelcome(
     "{{.ModuleName}}/queue/jobs"
 )
 
-_, err := insertOnly.Client.Insert(ctx, jobs.SendTransactionalEmailArgs{
+// queue is i.queue, or i.queue.InTx(tx) inside storage.AtomicOps when the
+// email depends on data written in the same transaction.
+_, err := queue.Insert(ctx, jobs.SendTransactionalEmailArgs{
     Data: email.TransactionalData{
         From:    mailCfg.DefaultSenderSignature,
         To:      []string{"user@example.com"},
@@ -696,19 +729,19 @@ entities inline with the domain API.
 
 ### Domain Tests
 
-Domains take a `storage.Connection`; tests get a real migrated database from
-`pkg/storage.TestCluster`.
+Each test gets a real migrated database from `pkg/storage.TestCluster` and
+builds its own receivers over it. There are no globals, so tests can run in
+parallel.
 
 ```go
 func TestUsers_Create(t *testing.T) {
     db := storage.NewTestCluster(t.Context()).NewTestDB(t, migrations.Migrations, ".")
     users := domains.NewUsers(db)
 
-    email, err := domains.ParseEmail("a@b.c")
-    if err != nil {
-        t.Fatalf("parse: %v", err)
-    }
-    got, err := users.Create(t.Context(), domains.CreateUserData{Email: email})
+    got, err := users.Create(t.Context(), "pepper", domains.CreateUserData{
+        Email:        "a@b.c",
+        PasswordPair: domains.PasswordPair{Password: "password", ConfirmPassword: "password"},
+    })
     if err != nil {
         t.Fatalf("create: %v", err)
     }
@@ -717,8 +750,9 @@ func TestUsers_Create(t *testing.T) {
     }
 }
 
-func TestParseEmail(t *testing.T) {
-    if _, err := domains.ParseEmail("not-an-email"); err == nil {
+func TestUser_Validate(t *testing.T) {
+    u := domains.User{}
+    if err := u.Validate(); err == nil {
         t.Fatal("expected error")
     }
 }
@@ -728,20 +762,20 @@ func TestParseEmail(t *testing.T) {
 
 `pkg/anduin/anduintest` builds an `httptest` server from real handler
 registrations, so tests exercise the same `anduin.Router` a production process
-does. It needs nothing external.
+does. The server needs nothing external; seeding data needs a test database.
 
 ```go
-func TestUserIndex(t *testing.T) {
+func TestProductIndex(t *testing.T) {
     db := storage.NewTestCluster(t.Context()).NewTestDB(t, migrations.Migrations, ".")
-    users := user.NewUsers(db)
+    products := domains.NewProducts(db)
 
     srv := anduintest.New(t, func(rt *anduin.Router) {
-        userhandler.NewHandler(users, testRenderer(t)).Register(rt)
+        handlers.NewProductHandler(products, testRenderer(t)).Register(rt)
     })
 
-    resp := srv.Get(routes.UserIndex.Path() + "?page=1")
+    resp := srv.Get(routes.ProductIndex.Path() + "?page=1")
     resp.AssertStatus(http.StatusOK)
-    resp.AssertInertia("User/Index")
+    resp.AssertInertia("Product/Index")
 }
 ```
 
@@ -755,7 +789,7 @@ app, err := runtime.New(t.Context(), testConfig)
 if err != nil {
     t.Fatal(err)
 }
-// app.DB, app.Handler
+// app.DB (seed through domains.NewUsers(app.DB) etc.), app.Handler
 ```
 
 ### Running Tests

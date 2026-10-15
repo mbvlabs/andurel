@@ -11,8 +11,7 @@ import (
 
 	"example.com/app/assets"
 	"example.com/app/config"
-	"example.com/app/domains/token"
-	"example.com/app/domains/user"
+	"example.com/app/domains"
 	"example.com/app/handlers"
 	"example.com/app/handlers/api"
 	"example.com/app/handlers/auth"
@@ -62,12 +61,13 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, err
 	}
 
-	// Domains are islands: each owns its table and never imports another.
-	users := user.NewUsers(db)
-	tokens := token.NewTokens(db)
+	// Domain receivers are built individually; the transactor runs
+	// transactions for services through storage.AtomicOps.
+	transactor := storage.NewTransactor(db)
+	users := domains.NewUsers(db)
 
 	// Services coordinate domains, the queue, and configuration.
-	identity := services.NewIdentity(users, tokens, queueInsert, cfg.Auth, cfg.Mail)
+	identity := services.NewIdentity(transactor, users, queueInsert, cfg.Auth, cfg.Mail)
 
 	renderer, err := newRenderer(cfg)
 	if err != nil {
@@ -112,7 +112,10 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		Config:  cfg,
 		DB:      db,
 		Handler: router.Handler(),
-		closers: []func(context.Context) error{db.Close, tel.Shutdown},
+		closers: []func(context.Context) error{
+			func(context.Context) error { return db.Close() },
+			tel.Shutdown,
+		},
 	}, nil
 }
 
