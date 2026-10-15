@@ -9,8 +9,8 @@ import (
 )
 
 // Transaction is one PostgreSQL transaction on a Connection. narsilc
-// clients accept it directly: queries.New(tx). River inserts that must
-// share the boundary use InsertTx with this same value.
+// clients accept it directly: queries.New(tx). Application code outside the
+// domains layer holds the opaque Tx instead (see AtomicOps).
 type Transaction interface {
 	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
@@ -53,7 +53,9 @@ func (t pgxTransaction) Rollback(ctx context.Context) error {
 	return nil
 }
 
-// RunInTransaction runs fn inside a transaction and commits on success.
+// RunInTransaction runs fn inside a transaction and commits when fn returns
+// nil. An error from fn, or a panic, rolls back; the error is returned
+// unchanged and the panic keeps unwinding.
 func RunInTransaction(
 	ctx context.Context,
 	conn Connection,
@@ -61,13 +63,15 @@ func RunInTransaction(
 ) error {
 	tx, err := conn.BeginTransaction(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("storage: begin transaction: %w", err)
 	}
 
 	committed := false
 	defer func() {
 		if !committed {
-			_ = tx.Rollback(ctx)
+			// A cancelled ctx would make Rollback fail fast; roll back
+			// regardless so the connection returns to the pool clean.
+			_ = tx.Rollback(context.WithoutCancel(ctx))
 		}
 	}()
 

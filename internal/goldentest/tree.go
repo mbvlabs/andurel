@@ -11,7 +11,7 @@ import (
 
 // FullScaffoldDenylist is the nightly `andurel new` capture denylist.
 // Paths that float, contain secrets, or are local toolchain artifacts are
-// omitted. models/internal/queries and *_templ.go are captured.
+// omitted. domains/internal/queries and *_templ.go are captured.
 var FullScaffoldDenylist = []string{
 	".git/",
 	"bin/",

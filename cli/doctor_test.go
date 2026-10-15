@@ -16,6 +16,7 @@ import (
 
 	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/mbvlabs/andurel/v2/layout"
+	"github.com/spf13/cobra"
 )
 
 func TestDoctorBuildReportSummaryHintsAndDetails(t *testing.T) {
@@ -233,14 +234,14 @@ func TestRunDoctorStructuredPassAndFail(t *testing.T) {
 }
 
 func TestPrintResults(t *testing.T) {
-	capture := captureProcessOutput(t, &os.Stdout)
-	printResults([]checkResult{
+	var buf bytes.Buffer
+	printResults(&buf, []checkResult{
 		{name: "pass", status: statusPass, message: "ok", details: []string{"hidden"}},
 		{name: "warn", status: statusWarn, message: "review", details: []string{"visible"}},
 		{name: "fail", status: statusFail, message: "broken"},
 		{name: "unknown", status: checkStatus(99)},
-	}, true)
-	out := capture()
+	}, true, false)
+	out := buf.String()
 	for _, want := range []string{"pass: ok", "warn: review", "visible", "fail: broken", "unknown"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("printResults output missing %q:\n%s", want, out)
@@ -404,7 +405,7 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 		root,
 		false,
 	); len(got) != 2 ||
-		got[0].name != "views generate" || got[0].status != statusPass ||
+		got[0].name != "templ generate" || got[0].status != statusPass ||
 		got[1].name != "narsilc generate" || got[1].status != statusPass {
 		t.Fatalf("codeGenerationChecks = %#v", got)
 	}
@@ -442,31 +443,39 @@ func TestRunDoctorHumanPassWarnAndProjectFailure(t *testing.T) {
 	})
 
 	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
-	capture := captureProcessOutput(t, &os.Stdout)
-	if err := runDoctor("1.2.3", true); err != nil {
+	newDoctorCmd := func() (*cobra.Command, *bytes.Buffer) {
+		cmd := &cobra.Command{Use: "doctor"}
+		output.RegisterPersistentFlags(cmd)
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		cmd.SetErr(&out)
+		return cmd, &out
+	}
+	doctorCmd, doctorOut := newDoctorCmd()
+	if err := runDoctor(doctorCmd, "1.2.3", true); err != nil {
 		t.Fatalf("runDoctor pass: %v", err)
 	}
-	if out := capture(); !strings.Contains(out, "All checks passed") {
+	if out := doctorOut.String(); !strings.Contains(out, "All checks passed") {
 		t.Fatalf("expected pass summary, got:\n%s", out)
 	}
 
 	if err := os.Remove(filepath.Join(root, "bin", "templ")); err != nil {
 		t.Fatalf("remove templ: %v", err)
 	}
-	capture = captureProcessOutput(t, &os.Stdout)
-	if err := runDoctor("1.2.3", false); err != nil {
+	doctorCmd, doctorOut = newDoctorCmd()
+	if err := runDoctor(doctorCmd, "1.2.3", false); err != nil {
 		t.Fatalf("runDoctor warn: %v", err)
 	}
-	if out := capture(); !strings.Contains(out, "warnings to review") {
+	if out := doctorOut.String(); !strings.Contains(out, "warnings to review") {
 		t.Fatalf("expected warning summary, got:\n%s", out)
 	}
 
 	findGoModRoot = func() (string, error) { return "", os.ErrNotExist }
-	capture = captureProcessOutput(t, &os.Stdout)
-	if err := runDoctor("1.2.3", false); err == nil {
+	doctorCmd, doctorOut = newDoctorCmd()
+	if err := runDoctor(doctorCmd, "1.2.3", false); err == nil {
 		t.Fatalf("expected project failure")
 	}
-	if out := capture(); !strings.Contains(out, "Cannot continue") {
+	if out := doctorOut.String(); !strings.Contains(out, "Cannot continue") {
 		t.Fatalf("expected cannot continue output, got:\n%s", out)
 	}
 }

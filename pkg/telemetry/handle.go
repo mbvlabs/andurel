@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"reflect"
 	"runtime"
 	"time"
 
@@ -15,19 +14,13 @@ import (
 
 var noopTracer = noop.NewTracerProvider().Tracer("andurel")
 
-// HTTPContext is implemented by *echo.Context. From writes the child span
-// context back onto the request so later Set/Info/Error calls see it.
-type HTTPContext interface {
-	Request() *http.Request
-	SetRequest(*http.Request)
-}
-
-// From starts a named span from an HTTPContext (*echo.Context) and writes the
-// child context back onto the request. Add attributes with Set.
-func From(c HTTPContext, name string) (context.Context, Span) {
-	ctx := requestContext(c)
+// From starts a named span from an *http.Request and writes the child context
+// back onto the request so later Set/Info/Error calls see it. Add attributes
+// with Set. Handlers under anduin receive the request through anduin.Request.
+func From(req *http.Request, name string) (context.Context, Span) {
+	ctx := requestContext(req)
 	ctx, span := startSpan(ctx, name, nil)
-	attachRequest(c, ctx)
+	attachRequest(req, ctx)
 	return ctx, span
 }
 
@@ -142,15 +135,7 @@ func log(ctx context.Context, level slog.Level, msg string, args ...any) {
 	}
 }
 
-func requestContext(c HTTPContext) context.Context {
-	if c == nil {
-		return context.Background()
-	}
-	value := reflect.ValueOf(c)
-	if value.Kind() == reflect.Pointer && value.IsNil() {
-		return context.Background()
-	}
-	req := c.Request()
+func requestContext(req *http.Request) context.Context {
 	if req == nil {
 		return context.Background()
 	}
@@ -160,17 +145,9 @@ func requestContext(c HTTPContext) context.Context {
 	return context.Background()
 }
 
-func attachRequest(c HTTPContext, ctx context.Context) {
-	if c == nil {
-		return
-	}
-	value := reflect.ValueOf(c)
-	if value.Kind() == reflect.Pointer && value.IsNil() {
-		return
-	}
-	req := c.Request()
+func attachRequest(req *http.Request, ctx context.Context) {
 	if req == nil {
 		return
 	}
-	c.SetRequest(req.WithContext(ctx))
+	*req = *req.WithContext(ctx)
 }

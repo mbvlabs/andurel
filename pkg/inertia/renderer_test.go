@@ -12,8 +12,15 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
-	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/anduin"
 )
+
+// testContext builds an anduin request context around an httptest request and
+// recorder so the renderer can read the request and write the response.
+func testContext(request *http.Request, writer http.ResponseWriter) context.Context {
+	ctx := anduin.ReplaceRequest(context.Background(), request)
+	return anduin.ReplaceResponseWriter(ctx, writer)
+}
 
 func testSSRClient() (string, time.Duration, int64) {
 	return "http://127.0.0.1:13714", 2 * time.Second, 2 << 20
@@ -69,11 +76,9 @@ func TestWithSSRContactsRendererOnlyForInitialDocument(t *testing.T) {
 		t.Fatalf("NewRenderer: %v", err)
 	}
 
-	e := echo.New()
 	request := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
 	recorder := httptest.NewRecorder()
-	etx := e.NewContext(request, recorder)
-	if err := renderer.Page(etx, "Dashboard", Props{"name": "Ada"}).SSR().Render(); err != nil {
+	if err := renderer.Page(testContext(request, recorder), "Dashboard", Props{"name": "Ada"}).SSR().Render(); err != nil {
 		t.Fatalf("initial Page: %v", err)
 	}
 	if ssr.calls != 1 || captured.SSR == nil || !strings.Contains(recorder.Body.String(), "SSR") {
@@ -88,8 +93,7 @@ func TestWithSSRContactsRendererOnlyForInitialDocument(t *testing.T) {
 	request = httptest.NewRequest(http.MethodGet, "/dashboard", nil)
 	request.Header.Set(HeaderInertia, "true")
 	recorder = httptest.NewRecorder()
-	etx = e.NewContext(request, recorder)
-	if err := renderer.Page(etx, "Dashboard", nil).SSR().Render(); err != nil {
+	if err := renderer.Page(testContext(request, recorder), "Dashboard", nil).SSR().Render(); err != nil {
 		t.Fatalf("Inertia Page: %v", err)
 	}
 	if ssr.calls != 1 {
@@ -106,10 +110,9 @@ func TestSSRFailureFallsBackUnlessFailFast(t *testing.T) {
 		t.Fatalf("NewRenderer: %v", err)
 	}
 
-	e := echo.New()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	recorder := httptest.NewRecorder()
-	if err := renderer.Page(e.NewContext(request, recorder), "Home", nil).SSR().Render(); err != nil {
+	if err := renderer.Page(testContext(request, recorder), "Home", nil).SSR().Render(); err != nil {
 		t.Fatalf("fallback Page: %v", err)
 	}
 	if captured.SSR != nil || recorder.Body.String() != "client" {
@@ -130,7 +133,7 @@ func TestSSRFailureFallsBackUnlessFailFast(t *testing.T) {
 	}
 	request = httptest.NewRequest(http.MethodGet, "/", nil)
 	recorder = httptest.NewRecorder()
-	err = renderer.Page(e.NewContext(request, recorder), "Home", nil).SSR().Render()
+	err = renderer.Page(testContext(request, recorder), "Home", nil).SSR().Render()
 	var inertiaErr *Error
 	if !errors.As(err, &inertiaErr) || inertiaErr.Kind != ErrorSSR {
 		t.Fatalf("fail-fast error = %#v", err)

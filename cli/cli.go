@@ -54,6 +54,8 @@ Everything you and your agent(s) need to build robust and performant application
 	rootCmd.AddCommand(newGenerateCommand())
 	rootCmd.AddCommand(newSyncGroupCommand())
 	rootCmd.AddCommand(newInspectCommand())
+	rootCmd.AddCommand(newPatternsCommand())
+	rootCmd.AddCommand(newVerifyCommand())
 	rootCmd.AddCommand(newFmtCommand())
 	rootCmd.AddCommand(newDatabaseCommand())
 	rootCmd.AddCommand(newConsoleCommand())
@@ -95,6 +97,9 @@ Pass --tools to start allowlisted sidecars (mailpit) alongside the runner.`,
   andurel run --tools mailpit`,
 		Args: cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel run"); err != nil {
+				return err
+			}
 			rootDir, err := findGoModRoot()
 			if err != nil {
 				return err

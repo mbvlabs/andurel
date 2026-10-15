@@ -2,6 +2,19 @@
 
 All notable changes to the standalone Andurel kiks module are documented here.
 
+## Unreleased
+
+### Changed
+
+- Replaced `(*Jar).EchoMiddleware` with `(*Jar).Middleware`, which returns
+  `anduin.Middleware` (`func(anduin.Handler) anduin.Handler`) and operates on
+  the native `context.Context` request context. Handlers now use `anduin`
+  `Redirect` / `NoContent` / `JSON` / `Text` / `HTML` helpers.
+- `Middleware` now attaches the cookie bag to the handler `context.Context`
+  (not the request context), so `kiks.Get`/`Set`/`Destroy` work after
+  `anduin.Router` re-derives the request from the middleware context.
+- Removed the `github.com/labstack/echo/v5` dependency.
+
 ## 0.2.0 - 2026-09-22
 
 ### Added

@@ -1,20 +1,101 @@
 package config
 
-import "go.uber.org/fx"
+import "github.com/mbvlabs/andurel/pkg/storage"
 
-var Module = fx.Module("config",
-	fx.Provide(
-		NewApp,
-		NewHTTP,
-		NewSession,
-		NewAuth,
-		NewDatabase,
-		NewQueueInsert,
-		NewQueueWorker,
-		NewTelemetry,
-		NewMail,
-{{- if .Inertia}}
-		NewInertia,
-{{- end}}
-	),
-)
+// Config is the complete application configuration. It is assembled once at
+// startup by New and passed explicitly to the composition root in
+// internal/runtime. There is no dependency-injection container: every
+// collaborator receives the configuration value it needs as a constructor
+// argument.
+type Config struct {
+	// Version is the application build version. cmd/app overrides it from the
+	// linker-injected appVersion; the default marks local builds.
+	Version string
+
+	App         App
+	HTTP        HTTP
+	Auth        Auth
+	Session     Session
+	Cache       Cache
+	Database    storage.Config
+	QueueInsert QueueInsert
+	QueueWorker QueueWorker
+	Telemetry   Telemetry
+	Mail        Mail
+	Inertia     Inertia
+}
+
+// New assembles the configuration for every subsystem. Each section reads its
+// own environment variables; a failure in any section fails the whole config so
+// the process never starts half-configured.
+func New() (Config, error) {
+	app, err := NewApp()
+	if err != nil {
+		return Config{}, err
+	}
+
+	httpCfg, err := NewHTTP()
+	if err != nil {
+		return Config{}, err
+	}
+
+	auth, err := NewAuth()
+	if err != nil {
+		return Config{}, err
+	}
+
+	session, err := NewSession(app)
+	if err != nil {
+		return Config{}, err
+	}
+
+	cacheCfg, err := NewCache()
+	if err != nil {
+		return Config{}, err
+	}
+
+	database, err := NewDatabase()
+	if err != nil {
+		return Config{}, err
+	}
+
+	queueInsert, err := NewQueueInsert()
+	if err != nil {
+		return Config{}, err
+	}
+
+	queueWorker, err := NewQueueWorker(queueInsert)
+	if err != nil {
+		return Config{}, err
+	}
+
+	tel, err := NewTelemetry(app)
+	if err != nil {
+		return Config{}, err
+	}
+
+	mail, err := NewMail(app)
+	if err != nil {
+		return Config{}, err
+	}
+
+	inertiaCfg, err := NewInertia()
+	if err != nil {
+		return Config{}, err
+	}
+
+	return Config{
+		Version:     "dev",
+		App:         app,
+		HTTP:        httpCfg,
+		Auth:        auth,
+		Session:     session,
+		Cache:       cacheCfg,
+		Database:    database,
+		QueueInsert: queueInsert,
+		QueueWorker: queueWorker,
+		Telemetry:   tel,
+		Mail:        mail,
+		Inertia:     inertiaCfg,
+	}, nil
+}

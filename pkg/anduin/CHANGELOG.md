@@ -1,0 +1,28 @@
+# Changelog
+
+All notable changes to the standalone Andurel HTTP module are documented here.
+
+## Unreleased
+
+### Added
+
+- Initial `anduin` HTTP package: a thin `net/http` layer over `http.ServeMux`
+  (Go 1.22+ method/wildcard patterns).
+- `Handler` (`func(context.Context) error`), `Middleware`, and `ErrorHandler`.
+- `Router` with named virtual hosts, per-route middleware, and an `http.Handler`
+  adapter (`Router.Handler`) so a test and a production process use the same
+  router.
+- Request helpers (`Request`, `PathValue`, `Query`, `QueryInt`, `DecodeJSON`,
+  `DecodeForm`) and response helpers (`JSON`, `Text`, `HTML`, `NoContent`,
+  `Redirect`).
+- `HTTPError` and `Error`/`NotFound`/`BadRequest` constructors plus
+  `StatusCode`.
+- Generic middleware: `Recover`, `Logger`, `Telemetry`, `CORS`, `CSRF`.
+- The `Server` listener and lifecycle merged in from the retired `pkg/server`
+  module.
+- `github.com/mbvlabs/andurel/pkg/anduin/anduintest` for handler-level tests.
+
+### Notes
+
+- `Router` translates the `pkg/routing` route model's `:param` segments into
+  `http.ServeMux` `{param}` wildcards, so `pkg/routing` stays unchanged.

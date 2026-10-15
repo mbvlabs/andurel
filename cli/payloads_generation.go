@@ -79,7 +79,7 @@ func newGeneratePayloadsCommand() *cobra.Command {
 		Short: "Generate TypeScript payload types for Inertia frontends",
 		Long: `Generate TypeScript declarations from backend-owned Inertia payload structs.
 
-The command scans controllers for inertia.FromStruct and named Bind payloads
+The command scans handlers for inertia.FromStruct and named Bind payloads
 and writes resources/js/types/payloads.ts.`,
 		Example: `  andurel sync payloads
   andurel sync payloads --json`,
@@ -102,7 +102,7 @@ and writes resources/js/types/payloads.ts.`,
 	setAgentMetadata(
 		cmd,
 		"generation",
-		"Writes Inertia frontend payload types to resources/js/types/payloads.ts from controller structs. Use --json for type and skipped counts.",
+		"Writes Inertia frontend payload types to resources/js/types/payloads.ts from handler payload structs. Use --json for type and skipped counts.",
 	)
 	return cmd
 }
@@ -203,19 +203,19 @@ func scanControllerPayloads(rootDir string) (*payloadScan, error) {
 }
 
 func walkControllerGoFiles(rootDir string, visit func(string) error) error {
-	controllersDir := filepath.Join(rootDir, "controllers")
-	if _, err := os.Stat(controllersDir); err != nil {
+	handlersDir := filepath.Join(rootDir, "handlers")
+	if _, err := os.Stat(handlersDir); err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
 		return err
 	}
-	return filepath.WalkDir(controllersDir, func(path string, d os.DirEntry, walkErr error) error {
+	return filepath.WalkDir(handlersDir, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
 		if d.IsDir() {
-			if d.Name() == "api" && filepath.Base(filepath.Dir(path)) == "controllers" {
+			if d.Name() == "api" && filepath.Base(filepath.Dir(path)) == "handlers" {
 				return filepath.SkipDir
 			}
 			return nil
@@ -230,7 +230,7 @@ func walkControllerGoFiles(rootDir string, visit func(string) error) error {
 func (s *payloadScan) parseControllerFile(path string) error {
 	file, err := parser.ParseFile(s.fset, path, nil, parser.SkipObjectResolution)
 	if err != nil {
-		return fmt.Errorf("parse controller file %s: %w", path, err)
+		return fmt.Errorf("parse handler file %s: %w", path, err)
 	}
 	pkgRel := controllerPkgRel(s.rootDir, path)
 	imports := controllerImportMap(file)
@@ -267,7 +267,7 @@ func (s *payloadScan) parseControllerFile(path string) error {
 func (s *payloadScan) discoverInFile(path string) error {
 	file, err := parser.ParseFile(s.fset, path, nil, parser.SkipObjectResolution)
 	if err != nil {
-		return fmt.Errorf("parse controller file %s: %w", path, err)
+		return fmt.Errorf("parse handler file %s: %w", path, err)
 	}
 	pkgRel := controllerPkgRel(s.rootDir, path)
 	imports := controllerImportMap(file)
@@ -320,9 +320,9 @@ func (s *payloadScan) noteFromStruct(
 		})
 		return
 	}
-	if isModelsPackage(pkg) {
+	if isDomainPackage(pkg) {
 		s.failLater = append(s.failLater, fmt.Sprintf(
-			"%s:%d: FromStruct uses models type %s; define a controller-owned payload type",
+			"%s:%d: FromStruct uses domain type %s; define a handler-owned payload type",
 			sourceFile, line, name,
 		))
 		return
@@ -399,7 +399,7 @@ func (s *payloadScan) emitTypes() ([]payloadType, bool, error) {
 		if cs.typeParams {
 			return generationFailed(
 				fmt.Sprintf(
-					"%s:%d: %s uses type parameters; use a concrete controller-owned struct",
+					"%s:%d: %s uses type parameters; use a concrete handler-owned struct",
 					cs.sourceFile, cs.line, cs.name,
 				),
 				"Replace the generic struct with a concrete payload type.",
@@ -465,7 +465,7 @@ func (s *payloadScan) forNestedStructs(
 			if !ok {
 				continue
 			}
-			if isModelsPackage(pkgRel) {
+			if isDomainPackage(pkgRel) {
 				continue
 			}
 			nested, exists := s.structs[structKey(pkgRel, name)]
@@ -637,7 +637,7 @@ func (s *payloadScan) mapType(
 	case *ast.IndexExpr, *ast.IndexListExpr:
 		return "", false, generationFailed(
 			fmt.Sprintf("%s: field %s uses a type parameter or generic instantiation", loc, fieldName),
-			"Use a concrete controller-owned payload type.",
+			"Use a concrete handler-owned payload type.",
 		)
 	default:
 		return "", false, unmappedTypeError(loc, fieldName, exprString(expr))
@@ -655,13 +655,13 @@ func (s *payloadScan) mapSelector(
 		return "", false, unmappedTypeError(loc, fieldName, exprString(sel))
 	}
 	importPath := cs.imports[pkgIdent.Name]
-	if isModelsPackage(importPath) || pkgIdent.Name == "models" {
+	if isDomainPackage(importPath) || pkgIdent.Name == "domains" {
 		return "", false, generationFailed(
 			fmt.Sprintf(
-				"%s: field %s uses models.%s; define a controller-owned payload type",
+				"%s: field %s uses domains.%s; define a handler-owned payload type",
 				loc, fieldName, sel.Sel.Name,
 			),
-			"Copy the fields you need onto a controller-owned struct.",
+			"Copy the fields you need onto a handler-owned struct.",
 		)
 	}
 	if mapped, usedJSON, ok := mapKnownSelector(importPath, pkgIdent.Name, sel.Sel.Name); ok {
@@ -715,11 +715,11 @@ func (s *payloadScan) resolveNamedStruct(
 			return "", "", false
 		}
 		importPath := imports[pkgIdent.Name]
-		if isModelsPackage(importPath) || pkgIdent.Name == "models" {
-			return "models", typed.Sel.Name, true
+		if isDomainPackage(importPath) || pkgIdent.Name == "domains" {
+			return "domains", typed.Sel.Name, true
 		}
-		if importPath != "" && !strings.Contains(importPath, "/controllers") &&
-			filepath.Base(importPath) != "controllers" {
+		if importPath != "" && !strings.Contains(importPath, "/handlers") &&
+			filepath.Base(importPath) != "handlers" {
 			return "", "", false
 		}
 		rel := controllerPkgFromImport(importPath)
@@ -745,8 +745,8 @@ func (s *payloadScan) lookupRef(cs *controllerStruct, ref ast.Expr) (string, str
 			return "", "", false
 		}
 		importPath := cs.imports[pkgIdent.Name]
-		if isModelsPackage(importPath) || pkgIdent.Name == "models" {
-			return "models", typed.Sel.Name, true
+		if isDomainPackage(importPath) || pkgIdent.Name == "domains" {
+			return "domains", typed.Sel.Name, true
 		}
 		rel := controllerPkgFromImport(importPath)
 		if rel == "" {
@@ -764,7 +764,7 @@ func (s *payloadScan) firstFailure() error {
 	}
 	return generationFailed(
 		s.failLater[0],
-		"Fix the controller payload type and run andurel sync payloads.",
+		"Fix the handler payload type and run andurel sync payloads.",
 	)
 }
 
@@ -775,19 +775,19 @@ func generationFailed(message, hint string) error {
 func unmappedTypeError(loc, fieldName, typeName string) error {
 	return generationFailed(
 		fmt.Sprintf(
-			"%s: field %s has unmapped type %s; define a controller-owned payload type",
+			"%s: field %s has unmapped type %s; define a handler-owned payload type",
 			loc,
 			fieldName,
 			typeName,
 		),
-		"Replace the field with a mapped scalar or a named controller struct.",
+		"Replace the field with a mapped scalar or a named handler struct.",
 	)
 }
 
 func controllerPkgRel(rootDir, path string) string {
 	rel := routeManifestSourceFile(rootDir, filepath.Dir(path))
 	if rel == "." || rel == "" {
-		return "controllers"
+		return "handlers"
 	}
 	return rel
 }
@@ -819,18 +819,22 @@ func controllerPkgFromImport(importPath string) string {
 	if importPath == "" {
 		return ""
 	}
-	idx := strings.Index(importPath, "/controllers")
+	idx := strings.Index(importPath, "/handlers")
 	if idx == -1 {
-		if filepath.Base(importPath) == "controllers" {
-			return "controllers"
+		if filepath.Base(importPath) == "handlers" {
+			return "handlers"
 		}
 		return ""
 	}
 	return strings.TrimPrefix(importPath[idx+1:], "/")
 }
 
-func isModelsPackage(pathOrPkg string) bool {
-	return pathOrPkg == "models" || strings.HasSuffix(pathOrPkg, "/models")
+// isDomainPackage reports whether a package path or name is a domains package.
+// Payload structs must not embed domain types directly; define a handler-owned
+// payload type instead.
+func isDomainPackage(pathOrPkg string) bool {
+	return pathOrPkg == "domains" || strings.HasSuffix(pathOrPkg, "/domains") ||
+		strings.Contains(pathOrPkg, "/domains/") || strings.HasPrefix(pathOrPkg, "domains/")
 }
 
 func isInertiaFromStructCall(fun ast.Expr, imports map[string]string) bool {

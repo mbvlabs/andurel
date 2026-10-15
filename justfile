@@ -35,6 +35,47 @@ bmo:
     just build
     just move
 
+# Point a scaffolded project at THIS checkout's local pkg/* modules via
+# go.mod replace directives (instead of go.work).
+# Usage: just local-replace ../myapp   (run from the andurel repo root)
+local-replace app:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -d "{{ app }}" ]; then
+    	echo "no such directory: {{ app }}" >&2
+    	exit 1
+    fi
+    app_dir="$(cd "{{ app }}" && pwd)"
+    framework="$(pwd)"
+    if [ ! -f "${app_dir}/go.mod" ]; then
+    	echo "${app_dir} has no go.mod; scaffold it first" >&2
+    	exit 1
+    fi
+    for module_dir in "${framework}"/pkg/*/; do
+    	if [ -f "${module_dir}go.mod" ]; then
+    		mod="$(basename "${module_dir}")"
+    		(cd "${app_dir}" && go mod edit -replace "github.com/mbvlabs/andurel/pkg/${mod}=${module_dir%/}")
+    	fi
+    done
+    echo "Added replace directives in ${app_dir}/go.mod pointing at ${framework}/pkg/*"
+    echo "Then run: (cd ${app_dir} && GOWORK=off go mod tidy && GOWORK=off go vet ./...)"
+    echo "Note: remove ${app_dir}/go.work first if present (go.work ignores go.mod replaces)."
+
+# Drop the local pkg/* replace directives from a scaffolded project.
+# Usage: just local-dropreplace ../myapp
+local-dropreplace app:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    app_dir="$(cd "{{ app }}" && pwd)"
+    framework="$(pwd)"
+    for module_dir in "${framework}"/pkg/*/; do
+    	if [ -f "${module_dir}go.mod" ]; then
+    		mod="$(basename "${module_dir}")"
+    		(cd "${app_dir}" && go mod edit -dropreplace "github.com/mbvlabs/andurel/pkg/${mod}") || true
+    	fi
+    done
+    echo "Dropped local replace directives from ${app_dir}/go.mod"
+
 # ============================================================================
 # Testing / CI
 #
@@ -172,8 +213,13 @@ check:
 # PR CI suite (Test workflow). Coverage stays a separate best-effort step.
 ci-pr:
     @just vet
+    @just commands-check
     @just test-race
     @just test-golden
+
+# Validate agent-first command metadata (catalog, projections, generated docs)
+commands-check:
+    go run . commands --check
 
 # Nightly / release-readiness suite (full goldens + race)
 ci-nightly:

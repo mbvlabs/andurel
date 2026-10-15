@@ -1,11 +1,10 @@
 package queue
 
-import "go.uber.org/fx"
+import "github.com/riverqueue/river"
 
-var PeriodicJobsModule = fx.Module("queue-periodic-jobs")
-
-var Module = fx.Module(
-	"queue",
-	WorkersModule,
-	PeriodicJobsModule,
-)
+// PeriodicJobs returns the queue's periodic jobs. Add entries here; the
+// composition root passes them to the River processor in
+// internal/runtime/queue.go. There is no dependency-injection container.
+func PeriodicJobs() []*river.PeriodicJob {
+	return nil
+}

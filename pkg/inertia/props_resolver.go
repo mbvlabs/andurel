@@ -1,15 +1,17 @@
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
+// Package inertia implements the Inertia v3 protocol for anduin and templ.
 package inertia
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"maps"
 	"reflect"
 	"slices"
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/anduin"
 )
 
 type resolvedPage struct {
@@ -26,7 +28,7 @@ type resolvedPage struct {
 }
 
 type propResolver struct {
-	etx       *echo.Context
+	ctx       context.Context
 	request   Request
 	component string
 	partial   bool
@@ -34,7 +36,7 @@ type propResolver struct {
 }
 
 func resolvePageProps(
-	etx *echo.Context,
+	ctx context.Context,
 	request Request,
 	component string,
 	shared, page Props,
@@ -44,8 +46,8 @@ func resolvePageProps(
 			Kind:      ErrorProps,
 			Operation: "merge shared props",
 			Component: component,
-			Method:    etx.Request().Method,
-			URL:       requestURL(etx),
+			Method:    anduin.Request(ctx).Method,
+			URL:       requestURL(ctx),
 			PropPath:  "errors",
 			Err:       fmt.Errorf("framework prop is protected"),
 		}
@@ -56,8 +58,8 @@ func resolvePageProps(
 			Kind:      ErrorProps,
 			Operation: "merge page props",
 			Component: component,
-			Method:    etx.Request().Method,
-			URL:       requestURL(etx),
+			Method:    anduin.Request(ctx).Method,
+			URL:       requestURL(ctx),
 			PropPath:  "errors",
 			Err:       fmt.Errorf("framework prop is protected"),
 		}
@@ -74,14 +76,14 @@ func resolvePageProps(
 			Kind:      ErrorProps,
 			Operation: "unpack dotted props",
 			Component: component,
-			Method:    etx.Request().Method,
-			URL:       requestURL(etx),
+			Method:    anduin.Request(ctx).Method,
+			URL:       requestURL(ctx),
 			Err:       err,
 		}
 	}
 
 	resolver := &propResolver{
-		etx:       etx,
+		ctx:       ctx,
 		request:   request,
 		component: component,
 		partial:   request.IsPartialFor(component),
@@ -136,11 +138,11 @@ func (r *propResolver) resolveValue(
 			return nil, false, nil
 		}
 
-		resolved, _, err := evaluateLazyProp(r.etx, prop.value)
+		resolved, _, err := evaluateLazyProp(r.ctx, prop.value)
 		if err != nil {
 			if prop.deferred && prop.rescue {
-				r.etx.Logger().
-					Error("inertia rescued deferred prop", "component", r.component, "url", requestURL(r.etx), "prop", path, "error", err)
+				slog.Default().
+					Error("inertia rescued deferred prop", "component", r.component, "url", requestURL(r.ctx), "prop", path, "error", err)
 				r.result.rescued = append(r.result.rescued, path)
 				return nil, false, nil
 			}
@@ -149,8 +151,8 @@ func (r *propResolver) resolveValue(
 				Kind:      ErrorProps,
 				Operation: "resolve",
 				Component: r.component,
-				Method:    r.etx.Request().Method,
-				URL:       requestURL(r.etx),
+				Method:    anduin.Request(r.ctx).Method,
+				URL:       requestURL(r.ctx),
 				PropPath:  path,
 				Err:       err,
 			}
@@ -173,14 +175,14 @@ func (r *propResolver) resolveValue(
 	}
 
 	if !isPolicy {
-		resolved, lazy, err := evaluateLazyProp(r.etx, value)
+		resolved, lazy, err := evaluateLazyProp(r.ctx, value)
 		if err != nil {
 			return nil, false, &Error{
 				Kind:      ErrorProps,
 				Operation: "resolve",
 				Component: r.component,
-				Method:    r.etx.Request().Method,
-				URL:       requestURL(r.etx),
+				Method:    anduin.Request(r.ctx).Method,
+				URL:       requestURL(r.ctx),
 				PropPath:  path,
 				Err:       err,
 			}
@@ -392,14 +394,14 @@ func (r *propResolver) recordPolicy(path string, prop Prop, resolved any) error 
 
 	reset := resetMatches(path, r.request.Reset)
 	if prop.scroll != nil {
-		metadata, err := resolveScrollMetadata(r.etx, prop.scroll, resolved)
+		metadata, err := resolveScrollMetadata(r.ctx, prop.scroll, resolved)
 		if err != nil {
 			return &Error{
 				Kind:      ErrorProps,
 				Operation: "resolve scroll metadata",
 				Component: r.component,
-				Method:    r.etx.Request().Method,
-				URL:       requestURL(r.etx),
+				Method:    anduin.Request(r.ctx).Method,
+				URL:       requestURL(r.ctx),
 				PropPath:  path,
 				Err:       err,
 			}
@@ -473,7 +475,7 @@ func (r *propResolver) metadataIncluded(path string) bool {
 	return !pathExcluded(path, r.request.Except)
 }
 
-func resolveScrollMetadata(etx *echo.Context, provider, value any) (ScrollMetadata, error) {
+func resolveScrollMetadata(ctx context.Context, provider, value any) (ScrollMetadata, error) {
 	switch metadata := provider.(type) {
 	case ScrollMetadata:
 		return metadata, nil
@@ -491,9 +493,9 @@ func resolveScrollMetadata(etx *echo.Context, provider, value any) (ScrollMetada
 			CurrentPage:  metadata.GetCurrentPage(),
 		}, nil
 	case ScrollMetadataResolver:
-		return metadata(etx, value)
-	case func(*echo.Context, any) (ScrollMetadata, error):
-		return metadata(etx, value)
+		return metadata(ctx, value)
+	case func(context.Context, any) (ScrollMetadata, error):
+		return metadata(ctx, value)
 	case func(any) (ScrollMetadata, error):
 		return metadata(value)
 	case func(any) ScrollMetadata:
@@ -503,19 +505,19 @@ func resolveScrollMetadata(etx *echo.Context, provider, value any) (ScrollMetada
 	}
 }
 
-func evaluateLazyProp(etx *echo.Context, value any) (any, bool, error) {
+func evaluateLazyProp(ctx context.Context, value any) (any, bool, error) {
 	switch resolver := value.(type) {
 	case PropResolver:
-		resolved, err := resolver.ResolveInertiaProp(etx)
+		resolved, err := resolver.ResolveInertiaProp(ctx)
 		return resolved, true, err
 	case Resolver:
-		resolved, err := resolver(etx)
+		resolved, err := resolver(ctx)
 		return resolved, true, err
-	case func(*echo.Context) (any, error):
-		resolved, err := resolver(etx)
+	case func(context.Context) (any, error):
+		resolved, err := resolver(ctx)
 		return resolved, true, err
-	case func(*echo.Context) any:
-		return resolver(etx), true, nil
+	case func(context.Context) any:
+		return resolver(ctx), true, nil
 	case func() (any, error):
 		resolved, err := resolver()
 		return resolved, true, err

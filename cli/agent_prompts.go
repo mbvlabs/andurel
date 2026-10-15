@@ -53,3 +53,22 @@ func confirmDestructiveAction(
 	}
 	return nil
 }
+
+// rejectStructuredOutput fails fast for interactive or passthrough commands
+// that stream an external process to the TTY and cannot honor the shared
+// --json/--agent/--md envelope. Agents must not guess at unstructured output.
+func rejectStructuredOutput(cmd *cobra.Command, action string) error {
+	structured, err := usesStructuredOutput(cmd)
+	if err != nil {
+		return err
+	}
+	if !structured {
+		return nil
+	}
+	return output.NewError(
+		output.CodeUsage,
+		action+" does not support --json, --agent, or --md",
+		output.ExitUsage,
+		"Run without a structured output flag, or use andurel commands --json to find a machine-readable alternative.",
+	)
+}

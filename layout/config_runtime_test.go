@@ -36,12 +36,11 @@ go %s
 require (
 	github.com/gosimple/slug v1.15.0
 	github.com/joho/godotenv v1.5.1
-	go.uber.org/fx v1.24.0
 )
 `, goVersion); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"email", "routing", "server", "storage", "validation"} {
+	for _, name := range []string{"anduin", "inertia", "routing", "storage", "telemetry", "validation"} {
 		path, err := filepath.Abs(filepath.Join("..", "pkg", name))
 		if err != nil {
 			t.Fatal(err)

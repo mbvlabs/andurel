@@ -57,7 +57,7 @@ type routeConstCandidate struct {
 }
 
 func collectRouteManifest(rootDir string) (routeManifest, error) {
-	routesDir := filepath.Join(rootDir, "router", "routes")
+	routesDir := filepath.Join(rootDir, "routes")
 	if _, err := os.Stat(routesDir); err != nil {
 		if os.IsNotExist(err) {
 			return routeManifest{}, nil

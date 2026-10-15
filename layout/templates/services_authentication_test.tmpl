@@ -6,9 +6,7 @@ import (
 	"testing"
 	"uuid"
 
-	"{{.ModuleName}}/models"
-
-	"github.com/mbvlabs/andurel/pkg/validation"
+	"{{.ModuleName}}/domains"
 )
 
 func TestVerifyEmailRejectsMissingPendingUser(t *testing.T) {
@@ -22,11 +20,11 @@ func TestVerifyEmailRejectsMissingPendingUser(t *testing.T) {
 		t.Fatalf("VerifyEmail error = %v, want %v", err, ErrInvalidVerificationCode)
 	}
 
-	validationErrors, ok := validation.As(err)
+	validationErrors, ok := errors.AsType[domains.ValidationError](err)
 	if !ok {
 		t.Fatalf("VerifyEmail error = %v, want a validation error", err)
 	}
-	if got := validationErrors.ToMap()["code"]; got != invalidVerificationCodeMessage {
+	if got := validationErrors.Fields["code"]; got != invalidVerificationCodeMessage {
 		t.Fatalf("code error = %q, want %q", got, invalidVerificationCodeMessage)
 	}
 }
@@ -87,11 +85,11 @@ func TestVerifyPasswordWithPeppers(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			hash, err := models.HashPassword(password, test.hashPepper)
+			hash, err := domains.HashPassword(password, test.hashPepper)
 			if err != nil {
 				t.Fatalf("HashPassword: %v", err)
 			}
-			user := models.User{Password: []byte(hash)}
+			user := domains.User{Password: []byte(hash)}
 
 			valid, needsRehash, err := verifyPasswordWithPeppers(
 				user,

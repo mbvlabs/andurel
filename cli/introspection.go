@@ -26,6 +26,9 @@ type projectItem struct {
 	Name string `json:"name"`
 	Path string `json:"path"`
 	Kind string `json:"kind,omitempty"`
+	// Entities holds the type→column mapping for domain files. It is only
+	// populated by andurel inspect domains; every other list leaves it empty.
+	Entities []domainEntity `json:"entities,omitempty"`
 }
 
 type toolInfo struct {
@@ -104,7 +107,7 @@ func newRoutesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "routes",
 		Short: "List route manifest",
-		Long: `List route metadata extracted from router/routes/*.go.
+		Long: `List route metadata extracted from routes/*.go.
 
 The manifest reports actual URL paths, route names, parameter names and
 types, and the Go source location for each route variable. In this command's
@@ -149,10 +152,6 @@ source_file in structured output.`,
 	return cmd
 }
 
-func newModelsCommand() *cobra.Command {
-	return readOnlyListCommand("models", "List model files", "models", ".go")
-}
-
 func newMigrationsCommand() *cobra.Command {
 	return readOnlyListCommand(
 		"migrations",
@@ -162,12 +161,57 @@ func newMigrationsCommand() *cobra.Command {
 	)
 }
 
-func newControllersCommand() *cobra.Command {
-	return readOnlyListCommand("controllers", "List controller files", "controllers", ".go")
+func newDomainsCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "domains",
+		Short: "List domain files with their type to column mapping",
+		Long: `List files under domains/ and report each entity's type to column
+mapping: the structs, their andurel-tagged fields, the table from the
+// andurel:table annotation, whether the entity has a Validate method, and
+whether its receiver (e.g. Users for User) is wired: constructed with
+domains.NewUsers(db) in internal/runtime.
+
+An entity with wired=false exists but nothing constructs its receiver:
+build it in internal/runtime with domains.New<Receiver>(db) and pass it to
+the services and handlers that use it.`,
+		Example: `  andurel inspect domains --json`,
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rootDir, err := findGoModRoot()
+			if err != nil {
+				return err
+			}
+			items, err := listProjectFiles(rootDir, "domains", ".go", "domain")
+			if err != nil {
+				return err
+			}
+			module, _, err := readGoModMetadata(rootDir)
+			if err != nil {
+				return err
+			}
+			wired := runtimeConstructedReceivers(
+				filepath.Join(rootDir, "internal", "runtime"),
+				module,
+			)
+			for i, item := range items {
+				if !isDomainEntityFile(item.Path) {
+					continue
+				}
+				items[i].Entities = describeDomainFile(filepath.Join(rootDir, item.Path), wired)
+			}
+			return output.OK(cmd, items, "List domain files")
+		},
+	}
+	setAgentMetadata(
+		cmd,
+		"introspection",
+		"Read-only domain inventory with the table, type to column mapping, Validate coverage, and runtime wiring. Use --json.",
+	)
+	return cmd
 }
 
-func newViewsCommand() *cobra.Command {
-	return readOnlyListCommand("views", "List view templates", "views", ".templ")
+func newHandlersCommand() *cobra.Command {
+	return readOnlyListCommand("handlers", "List handler files", "handlers", ".go")
 }
 
 func newJobsCommand() *cobra.Command {

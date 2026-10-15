@@ -4,29 +4,27 @@ import (
 	"strings"
 
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/models"
+	"{{.ModuleName}}/domains"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 type Identity struct {
-	db                     storage.Connection
-	users                  models.Users
-	tokens                 models.Tokens
-	insertOnly             storage.InsertQueue
+	transactor             storage.Transactor
+	users                  domains.Users
+	tokens                 domains.Tokens
+	queue                  storage.InsertQueue
 	pepper                 string
 	previousPeppers        []string
 	tokenSigningKey        string
-	baseURL                string
 	defaultSenderSignature string
 }
 
 func NewIdentity(
-	db storage.Connection,
-	users models.Users,
-	tokens models.Tokens,
-	insertOnly storage.InsertQueue,
-	appCfg config.App,
+	transactor storage.Transactor,
+	users domains.Users,
+	tokens domains.Tokens,
+	queue storage.InsertQueue,
 	authCfg config.Auth,
 	mailCfg config.Mail,
 ) Identity {
@@ -38,14 +36,13 @@ func NewIdentity(
 	}
 
 	return Identity{
-		db:                     db,
+		transactor:             transactor,
 		users:                  users,
 		tokens:                 tokens,
-		insertOnly:             insertOnly,
+		queue:                  queue,
 		pepper:                 authCfg.Pepper,
 		previousPeppers:        validPeppers,
 		tokenSigningKey:        authCfg.TokenSigningKey,
-		baseURL:                appCfg.BaseURL(),
 		defaultSenderSignature: mailCfg.DefaultSenderSignature,
 	}
 }

@@ -281,13 +281,13 @@ func TestRenderRouteManifestHumanIncludesRoutes(t *testing.T) {
 			Name:       "users.user_session",
 			Path:       "/users/sign-in",
 			Kind:       "simple",
-			SourceFile: "router/routes/users.go",
+			SourceFile: "routes/users.go",
 			Line:       17,
 		}},
 		Skipped: []routeManifestSkipped{{
 			Variable:    "Scripts",
 			Constructor: "NewSimpleRoute",
-			SourceFile:  "router/routes/assets.go",
+			SourceFile:  "routes/assets.go",
 			Line:        104,
 			Reason:      "route path is not a static string expression",
 		}},
@@ -376,7 +376,7 @@ var NotCall = Root
 	}
 	for _, skipped := range manifest.Skipped {
 		if skipped.Reason == "" || skipped.Line == 0 ||
-			skipped.SourceFile != "router/routes/all.go" {
+			skipped.SourceFile != "routes/all.go" {
 			t.Fatalf("incomplete skipped route: %#v", skipped)
 		}
 	}
@@ -388,9 +388,9 @@ func TestRouteManifestHelpersAndFilesystemErrors(t *testing.T) {
 	}
 
 	rootDir := t.TempDir()
-	routesPath := filepath.Join(rootDir, "router", "routes")
+	routesPath := filepath.Join(rootDir, "routes")
 	if err := os.MkdirAll(filepath.Dir(routesPath), 0o755); err != nil {
-		t.Fatalf("create router directory: %v", err)
+		t.Fatalf("create routes parent directory: %v", err)
 	}
 	if err := os.WriteFile(routesPath, []byte("not a directory"), 0o644); err != nil {
 		t.Fatalf("write routes file: %v", err)
@@ -489,7 +489,7 @@ func (routeManifestFailWriter) Write([]byte) (int, error) {
 func writeRouteManifestTestFile(t *testing.T, rootDir, filename, content string) {
 	t.Helper()
 
-	routesDir := filepath.Join(rootDir, "router", "routes")
+	routesDir := filepath.Join(rootDir, "routes")
 	if err := os.MkdirAll(routesDir, 0o755); err != nil {
 		t.Fatalf("create routes dir: %v", err)
 	}

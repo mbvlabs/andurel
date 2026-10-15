@@ -26,18 +26,18 @@ const (
 	NarsilcModule = "v0.5.0"
 	// NarsilcModulePath is the module path of the narsilc query code generator.
 	NarsilcModulePath = "github.com/mbvlabs/narsilc"
-	// Hypermedia is the standalone Andurel hypermedia module version verified with this framework.
-	Hypermedia = "v0.2.5"
+	// Anduin is the standalone Andurel HTTP module version verified with this framework.
+	Anduin = "v0.1.0"
+	// Cache is the standalone Andurel cache module version verified with this framework.
+	Cache = "v0.1.0"
 	// Kiks is the standalone Andurel cookies and sessions module version verified with this framework.
-	Kiks = "v0.2.0"
+	Kiks = "v0.3.0"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.6.1"
+	Inertia = "v0.7.0"
 	// Email is the standalone Andurel email module version verified with this framework.
 	Email = "v0.3.3"
 	// Routing is the standalone Andurel routing module version verified with this framework.
 	Routing = "v0.4.0"
-	// Server is the standalone Andurel server module version verified with this framework.
-	Server = "v0.3.3"
 	// Storage is the standalone Andurel storage module version verified with this framework.
 	Storage = "v0.8.1"
 	// Telemetry is the standalone Andurel telemetry module version verified with this framework.
@@ -50,12 +50,12 @@ const (
 )
 
 var verifiedPackageVersions = map[string]string{
+	PkgPrefix + "anduin":     Anduin,
+	PkgPrefix + "cache":      Cache,
 	PkgPrefix + "email":      Email,
-	PkgPrefix + "hypermedia": Hypermedia,
 	PkgPrefix + "inertia":    Inertia,
 	PkgPrefix + "kiks":       Kiks,
 	PkgPrefix + "routing":    Routing,
-	PkgPrefix + "server":     Server,
 	PkgPrefix + "storage":    Storage,
 	PkgPrefix + "telemetry":  Telemetry,
 	PkgPrefix + "validation": Validation,

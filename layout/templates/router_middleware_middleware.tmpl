@@ -1,25 +1,24 @@
+// Package middleware holds the application's HTTP policy. Generic middleware
+// (recover, telemetry, logging, CORS, CSRF) lives in pkg/anduin and is used
+// directly; this package owns the pieces an application customises: the auth
+// guard, the IP rate limiter, the CSRF policy, and the session definition.
+// Cookie jar construction lives in internal/runtime.
 package middleware
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
-	"time"
 
-	"github.com/mbvlabs/andurel/pkg/server"
-	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/routes"
 
-	"github.com/labstack/echo/v5"
-	echomw "github.com/labstack/echo/v5/middleware"
+	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 func isAPIPath(path string) bool {
 	return matchesPathPrefix(path, routes.APIPrefix)
-}
-
-func isAssetsPath(path string) bool {
-	return matchesPathPrefix(path, routes.AssetsPrefix)
 }
 
 func matchesPathPrefix(path, prefix string) bool {
@@ -47,54 +46,14 @@ func mayBypassCSRF(request *http.Request, appCookieSessionName string) bool {
 		!hasApplicationSessionCookie(request, appCookieSessionName)
 }
 
-func Telemetry(tel *telemetry.Telemetry) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			c.SetRequest(c.Request().WithContext(tel.Context(c.Request().Context())))
-			return next(c)
-		}
-	}
-}
-
-func Logger() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			if isAssetsPath(c.Request().URL.Path) || isAPIPath(c.Request().URL.Path) {
-				return next(c)
-			}
-
-			ctx := c.Request().Context()
-			start := time.Now()
-
-			err := next(c)
-			duration := time.Since(start)
-
-			statusCode := 0
-			if resp, unwrapErr := echo.UnwrapResponse(c.Response()); unwrapErr == nil {
-				statusCode = resp.Status
-			}
-
-			telemetry.Info(ctx, "HTTP request completed",
-				"method", c.Request().Method,
-				"path", c.Request().URL.Path,
-				"status", statusCode,
-				"remote_addr", c.RealIP(),
-				"user_agent", c.Request().UserAgent(),
-				"duration", duration.String(),
-			)
-
-			return err
-		}
-	}
-}
-
-func TraceRouteAttributes() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			err := next(c)
-			routeInfo := c.RouteInfo()
-			if routeInfo.Path != "" {
-				telemetry.SetHTTPRoute(c.Request().Context(), routeInfo.Path)
+// TraceRouteAttributes records the matched ServeMux route on the active span
+// after the response has been produced.
+func TraceRouteAttributes() anduin.Middleware {
+	return func(next anduin.Handler) anduin.Handler {
+		return func(ctx context.Context) error {
+			err := next(ctx)
+			if pattern := anduin.RoutePattern(ctx); pattern != "" {
+				telemetry.SetHTTPRoute(ctx, anduin.RoutePath(pattern))
 			}
 
 			return err
@@ -102,76 +61,38 @@ func TraceRouteAttributes() echo.MiddlewareFunc {
 	}
 }
 
+// CSRFMiddleware builds the CSRF policy for the configured strategy. The
+// header_only strategy reads the token from the CSRF cookie; the
+// header_or_legacy_token strategy also accepts the legacy _csrf form field.
 func CSRFMiddleware(
 	csrfStrategy string,
 	csrfTrustedOrigins []string,
 	csrfName string,
 	environment string,
 	appCookieSessionName string,
-) (echo.MiddlewareFunc, error) {
+) (anduin.Middleware, error) {
 	strategy := strings.TrimSpace(csrfStrategy)
 
-	var headerOnly bool
 	var tokenLookup string
 	switch strategy {
 	case "header_only":
-		headerOnly = true
 		tokenLookup = "cookie:" + csrfName
 	case "header_or_legacy_token":
-		headerOnly = false
 		tokenLookup = "header:X-CSRF-Token,form:_csrf"
 	default:
 		return nil, errors.New("invalid CSRF strategy")
 	}
 
-	csrfConfig := echomw.CSRFConfig{
-		Skipper: func(c *echo.Context) bool {
-			return mayBypassCSRF(c.Request(), appCookieSessionName)
-		},
+	return anduin.CSRF(anduin.CSRFConfig{
 		TokenLookup:    tokenLookup,
+		CookieName:     csrfName,
 		CookiePath:     "/",
-		CookieDomain:   "",
-		CookieSecure:   environment == server.ProdEnvironment,
+		CookieSecure:   environment == "production",
 		CookieHTTPOnly: true,
 		CookieSameSite: http.SameSiteStrictMode,
 		TrustedOrigins: csrfTrustedOrigins,
-	}
-
-	echoCSRF := echomw.CSRFWithConfig(csrfConfig)
-
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			if mayBypassCSRF(c.Request(), appCookieSessionName) {
-				return next(c)
-			}
-
-			c.Response().Header().Add("Vary", "Sec-Fetch-Site")
-
-			method := c.Request().Method
-			isUnsafe := method != http.MethodGet && method != http.MethodHead &&
-				method != http.MethodOptions && method != http.MethodTrace
-
-			if isUnsafe {
-				secFetchSite := strings.ToLower(
-					strings.TrimSpace(c.Request().Header.Get("Sec-Fetch-Site")),
-				)
-
-				if headerOnly && (secFetchSite == "" || secFetchSite == "none") {
-					return echo.NewHTTPError(
-						http.StatusForbidden,
-						"CSRF verification failed: missing Sec-Fetch-Site header",
-					)
-				}
-
-				if !headerOnly && secFetchSite != "same-origin" && secFetchSite != "same-site" &&
-					secFetchSite != "cross-site" {
-					if c.Request().Header.Get("X-CSRF-Token") == "" && c.FormValue("_csrf") != "" {
-						telemetry.Warn(c.Request().Context(), "CSRF check fell back to legacy token")
-					}
-				}
-			}
-
-			return echoCSRF(next)(c)
-		}
-	}, nil
+		Skipper: func(ctx context.Context) bool {
+			return mayBypassCSRF(anduin.Request(ctx), appCookieSessionName)
+		},
+	}), nil
 }

@@ -35,6 +35,9 @@ Use --check to verify formatting without modifying files.`,
   andurel fmt --skip-go`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel fmt"); err != nil {
+				return err
+			}
 			rootDir, err := findGoModRoot()
 			if err != nil {
 				return fmt.Errorf("not in an andurel project directory: %w", err)
@@ -227,7 +230,7 @@ func checkTemplFormatting(rootDir string) error {
 
 func runTemplFormatter(rootDir string) error {
 	templBin := filepath.Join(rootDir, "bin", "templ")
-	dirs := []string{"views", "email"}
+	dirs := []string{"resources", "email"}
 	for _, dir := range dirs {
 		dirPath := filepath.Join(rootDir, dir)
 		if _, err := os.Stat(dirPath); os.IsNotExist(err) {

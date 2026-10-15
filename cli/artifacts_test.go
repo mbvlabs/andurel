@@ -15,12 +15,12 @@ import (
 
 func TestBuildMutationReportSummarizesChangesRoutesAndDiff(t *testing.T) {
 	before := fileSnapshot{
-		"app/models/post.go": {
+		"app/domains/post/post.go": {
 			Hash:    hashForTest("old\n"),
 			Content: []byte("old\n"),
 			Mode:    0o644,
 		},
-		"router/routes/old.go": {
+		"routes/old.go": {
 			Hash:    hashForTest("old route\n"),
 			Content: []byte("old route\n"),
 			Mode:    0o644,
@@ -32,12 +32,12 @@ func TestBuildMutationReportSummarizesChangesRoutesAndDiff(t *testing.T) {
 		},
 	}
 	after := fileSnapshot{
-		"app/models/post.go": {
+		"app/domains/post/post.go": {
 			Hash:    hashForTest("new\n"),
 			Content: []byte("new\n"),
 			Mode:    0o644,
 		},
-		"router/routes/posts.go": {
+		"routes/posts.go": {
 			Hash:    hashForTest("posts route\n"),
 			Content: []byte("posts route\n"),
 			Mode:    0o644,
@@ -50,22 +50,22 @@ func TestBuildMutationReportSummarizesChangesRoutesAndDiff(t *testing.T) {
 	}
 
 	report := buildMutationReport(mutationOptions{
-		Action:      "generate model",
+		Action:      "generate migration",
 		Resource:    "Post",
 		DryRun:      true,
 		Diff:        true,
-		CommandsRun: []string{"andurel generate model Post"},
+		CommandsRun: []string{"andurel generate migration create_posts"},
 		Warnings:    []string{"preview"},
 	}, before, after)
 
-	assertStrings(t, report.FilesCreated, []string{"router/routes/posts.go"})
-	assertStrings(t, report.FilesUpdated, []string{"app/models/post.go", "assets/logo.png"})
-	assertStrings(t, report.FilesDeleted, []string{"router/routes/old.go"})
-	assertStrings(t, report.RoutesAdded, []string{"router/routes/posts.go"})
-	if report.CommandsRun[0] != "andurel generate model Post" || report.Warnings[0] != "preview" {
+	assertStrings(t, report.FilesCreated, []string{"routes/posts.go"})
+	assertStrings(t, report.FilesUpdated, []string{"app/domains/post/post.go", "assets/logo.png"})
+	assertStrings(t, report.FilesDeleted, []string{"routes/old.go"})
+	assertStrings(t, report.RoutesAdded, []string{"routes/posts.go"})
+	if report.CommandsRun[0] != "andurel generate migration create_posts" || report.Warnings[0] != "preview" {
 		t.Fatalf("metadata not copied into report: %#v", report)
 	}
-	if !strings.Contains(report.Diff, "diff --git a/app/models/post.go b/app/models/post.go") {
+	if !strings.Contains(report.Diff, "diff --git a/app/domains/post/post.go b/app/domains/post/post.go") {
 		t.Fatalf("expected text diff for updated file:\n%s", report.Diff)
 	}
 	if strings.Contains(report.Diff, "assets/logo.png") {
@@ -73,7 +73,7 @@ func TestBuildMutationReportSummarizesChangesRoutesAndDiff(t *testing.T) {
 	}
 	if got, want := mutationSummary(
 		report,
-	), "Would change 4 files for generate model"; got != want {
+	), "Would change 4 files for generate migration"; got != want {
 		t.Fatalf("mutationSummary = %q, want %q", got, want)
 	}
 }
@@ -81,7 +81,7 @@ func TestBuildMutationReportSummarizesChangesRoutesAndDiff(t *testing.T) {
 func TestSnapshotFilesForReportSkipsGeneratedAndDependencyDirs(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/app\n")
-	writeTestFile(t, root, "app/models/post.go", "package models\n")
+	writeTestFile(t, root, "app/domains/post/post.go", "package post\n")
 	writeTestFile(t, root, ".git/config", "[core]\n")
 	writeTestFile(t, root, "node_modules/pkg/index.js", "module.exports = {}\n")
 	writeTestFile(t, root, "bin/tool", "#!/bin/sh\n")
@@ -91,7 +91,7 @@ func TestSnapshotFilesForReportSkipsGeneratedAndDependencyDirs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("snapshotFilesForReport: %v", err)
 	}
-	if _, ok := snapshot["app/models/post.go"]; !ok {
+	if _, ok := snapshot["app/domains/post/post.go"]; !ok {
 		t.Fatalf("expected app file in snapshot: %#v", snapshot)
 	}
 	for _, skipped := range []string{".git/config", "node_modules/pkg/index.js", "bin/tool", ".andurel-cache/state.json"} {
@@ -104,13 +104,13 @@ func TestSnapshotFilesForReportSkipsGeneratedAndDependencyDirs(t *testing.T) {
 func TestCopyDirCopiesNestedFilesAndSkipsIgnoredDirs(t *testing.T) {
 	src := t.TempDir()
 	dst := filepath.Join(t.TempDir(), "copy")
-	writeTestFile(t, src, "app/views/posts/index.templ", "posts\n")
+	writeTestFile(t, src, "app/resources/js/Pages/posts/index.ts", "posts\n")
 	writeTestFile(t, src, "node_modules/pkg/index.js", "ignored\n")
 
 	if err := copyDir(src, dst); err != nil {
 		t.Fatalf("copyDir: %v", err)
 	}
-	content, err := os.ReadFile(filepath.Join(dst, "app", "views", "posts", "index.templ"))
+	content, err := os.ReadFile(filepath.Join(dst, "app", "resources", "js", "Pages", "posts", "index.ts"))
 	if err != nil {
 		t.Fatalf("read copied file: %v", err)
 	}
@@ -125,8 +125,8 @@ func TestCopyDirCopiesNestedFilesAndSkipsIgnoredDirs(t *testing.T) {
 func TestRunMutationDryRunReportsChangesWithoutMutatingOriginal(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/app\n")
-	writeTestFile(t, root, "app/models/post.go", "old\n")
-	writeTestFile(t, root, "router/routes/old.go", "old route\n")
+	writeTestFile(t, root, "app/domains/post/post.go", "old\n")
+	writeTestFile(t, root, "routes/old.go", "old route\n")
 
 	var out bytes.Buffer
 	cmd := &cobra.Command{Use: "andurel"}
@@ -137,15 +137,15 @@ func TestRunMutationDryRunReportsChangesWithoutMutatingOriginal(t *testing.T) {
 	}
 
 	err := runMutation(cmd, mutationOptions{
-		Action:   "generate model",
+		Action:   "generate migration",
 		Resource: "Post",
 		RootDir:  root,
 		DryRun:   true,
 		Diff:     true,
 		Run: func(rootDir string) error {
-			writeTestFile(t, rootDir, "app/models/post.go", "new\n")
-			writeTestFile(t, rootDir, "router/routes/posts.go", "posts route\n")
-			if err := os.Remove(filepath.Join(rootDir, "router", "routes", "old.go")); err != nil {
+			writeTestFile(t, rootDir, "app/domains/post/post.go", "new\n")
+			writeTestFile(t, rootDir, "routes/posts.go", "posts route\n")
+			if err := os.Remove(filepath.Join(rootDir, "routes", "old.go")); err != nil {
 				return err
 			}
 			return nil
@@ -173,14 +173,14 @@ func TestRunMutationDryRunReportsChangesWithoutMutatingOriginal(t *testing.T) {
 		t.Fatalf("expected dry-run warning in output:\n%s", out.String())
 	}
 
-	original, err := os.ReadFile(filepath.Join(root, "app", "models", "post.go"))
+	original, err := os.ReadFile(filepath.Join(root, "app", "domains", "post", "post.go"))
 	if err != nil {
 		t.Fatalf("read original model: %v", err)
 	}
 	if string(original) != "old\n" {
 		t.Fatalf("dry run mutated original model: %q", original)
 	}
-	if _, err := os.Stat(filepath.Join(root, "router", "routes", "posts.go")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(root, "routes", "posts.go")); !os.IsNotExist(err) {
 		t.Fatalf("dry run created route in original tree, stat err: %v", err)
 	}
 }

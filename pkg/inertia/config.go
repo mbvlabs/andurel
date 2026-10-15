@@ -1,6 +1,7 @@
 package inertia
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -8,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/anduin"
 )
 
 type viteTags struct {
@@ -55,8 +56,10 @@ func NewRenderer(
 		ssrTimeout:          ssrTimeout,
 		ssrMaxResponseBytes: ssrMaxResponseBytes,
 		shared:              make(Props),
-		requestFlash: []func(*echo.Context) any{
-			func(etx *echo.Context) any { return FlashFromContext(etx.Request().Context()) },
+		requestFlash: []func(context.Context) any{
+			func(ctx context.Context) any {
+				return FlashFromContext(anduin.Request(ctx).Context())
+			},
 		},
 	}
 	for _, option := range options {

@@ -23,13 +23,13 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 	)
 	assertTemplateMissing(t, "services_registration.tmpl", "FindByScopeAndHash")
 
-	assertTemplateContains(t, "models_token.tmpl",
+	assertTemplateContains(t, "domains_token.tmpl",
 		"func (t Tokens) FindByUserAndScope(",
 		"func (t Tokens) IncrementAttempts(ctx context.Context, id uuid.UUID) (int32, error)",
 		"func (t Tokens) DestroyByUserAndScope(",
 		"GetTokenByUserAndScope",
 	)
-	assertTemplateContains(t, "models_queries_token.tmpl",
+	assertTemplateContains(t, "domains_queries_token.tmpl",
 		"-- name: GetTokenByUserAndScope :one",
 		"-- name: IncrementTokenAttempts :one",
 		"RETURNING attempts;",
@@ -41,34 +41,52 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 		"ON tokens (user_id, scope, created_at DESC)",
 	)
 
-	for _, name := range []string{
-		"controllers_sessions.tmpl",
-		"controllers_sessions_inertia.tmpl",
-	} {
+	assertTemplateContains(t, "handlers_auth.tmpl",
+		"services.ErrEmailNotVerified",
+		"ResendEmailVerification",
+		"setPendingUser",
+		"middleware.IPRateLimiter",
+	)
+
+	assertTemplateContains(t, "handlers_auth.tmpl",
+		"pendingUserID",
+		"UserID: pendingUserID(ctx)",
+	)
+
+	assertTemplateContains(t, "handlers_auth.tmpl",
+		"setPendingUser",
+		"PendingUserID",
+	)
+}
+
+// TestGeneratedServicesCommitWritesAndJobsTogether guards the transaction
+// design: multi-step use cases run in storage.AtomicOps, bind receivers and
+// the queue with InTx, and never hold the raw connection or transaction.
+func TestGeneratedServicesCommitWritesAndJobsTogether(t *testing.T) {
+	for _, name := range []string{"services_registration.tmpl", "services_reset_password.tmpl"} {
 		assertTemplateContains(t, name,
-			"services.ErrEmailNotVerified",
-			"ResendEmailVerification",
-			"setPendingUser",
+			"storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {",
+			"i.queue.InTx(tx)",
 		)
+		for _, unwanted := range []string{"storage.Connection", "storage.Transaction", "storage.Unwrap", "domains.Store"} {
+			assertTemplateMissing(t, name, unwanted)
+		}
 	}
 
-	for _, name := range []string{
-		"controllers_confirmations.tmpl",
-		"controllers_confirmations_inertia.tmpl",
-	} {
-		assertTemplateContains(t, name,
-			"pendingUserID",
-			"middleware.IPRateLimiter",
-			"UserID: pendingUserID(etx)",
-		)
-	}
-
-	for _, name := range []string{
-		"controllers_registrations.tmpl",
-		"controllers_registrations_inertia.tmpl",
-	} {
-		assertTemplateContains(t, name, "setPendingUser", "PendingUserID")
-	}
+	assertTemplateContains(t, "domains_user.tmpl",
+		"func NewUsers(db storage.Connection) Users {",
+		"func (u Users) InTx(tx storage.Tx) Users {",
+	)
+	assertTemplateContains(t, "domains_token.tmpl",
+		"func NewTokens(db storage.Connection) Tokens {",
+		"func (t Tokens) InTx(tx storage.Tx) Tokens {",
+		"transactor: t.transactor.InTx(tx),",
+		"func (t Tokens) ReplaceCode(",
+	)
+	assertTemplateContains(t, "runtime_runtime.tmpl",
+		"transactor := storage.NewTransactor(db)",
+		"services.NewIdentity(transactor, users, tokens, queueInsert, cfg.Auth, cfg.Mail)",
+	)
 }
 
 func TestBlueprintCarriesPendingUserCookieField(t *testing.T) {

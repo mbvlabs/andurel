@@ -1,14 +1,13 @@
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
+// Package inertia implements the Inertia v3 protocol for anduin and templ.
 package inertia
 
 import (
+	"context"
 	"fmt"
 	"maps"
 	"reflect"
 	"strings"
 	"time"
-
-	"github.com/labstack/echo/v5"
 )
 
 // Props is the data exposed to an Inertia page. Policy constructors can be
@@ -92,11 +91,11 @@ func jsonFieldName(field reflect.StructField) (string, bool) {
 }
 
 // Resolver is a request-scoped lazy prop callback.
-type Resolver func(*echo.Context) (any, error)
+type Resolver func(context.Context) (any, error)
 
 // PropResolver may be implemented by application-defined lazy values.
 type PropResolver interface {
-	ResolveInertiaProp(*echo.Context) (any, error)
+	ResolveInertiaProp(context.Context) (any, error)
 }
 
 // Prop is a composable response-boundary policy around a value or resolver.
@@ -261,7 +260,7 @@ type ProvidesScrollMetadata interface {
 }
 
 // ScrollMetadataResolver derives metadata from the resolved prop value.
-type ScrollMetadataResolver func(*echo.Context, any) (ScrollMetadata, error)
+type ScrollMetadataResolver func(context.Context, any) (ScrollMetadata, error)
 
 // Scroll adds infinite-scroll metadata and merge behavior to a prop.
 func Scroll(value, metadata any) Prop {

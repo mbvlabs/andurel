@@ -105,7 +105,7 @@ This command will check:
 			if opts.Mode == output.ModeJSON || opts.Mode == output.ModeAgent {
 				return runDoctorStructured(cmd, currentVersion, verbose)
 			}
-			return runDoctor(currentVersion, verbose)
+			return runDoctor(cmd, currentVersion, verbose)
 		},
 	}
 
@@ -122,15 +122,27 @@ This command will check:
 func runDoctorStructured(cmd *cobra.Command, currentVersion string, verbose bool) error {
 	report, err := collectDoctorReport(currentVersion, verbose)
 	if err != nil {
-		return err
+		if cliErr, ok := err.(*output.CLIError); ok && cliErr.Data == nil {
+			cliErr.Data = report
+			return cliErr
+		}
+		return &output.CLIError{
+			Code:     output.CodeError,
+			Message:  doctorSummaryMessage(report),
+			Hint:     "Inspect the failed doctor checks and address the reported issues.",
+			ExitCode: output.ExitUsage,
+			Cause:    err,
+			Data:     report,
+		}
 	}
 	if report.Summary.Status == "fail" {
-		return output.NewError(
-			output.CodeError,
-			doctorSummaryMessage(report),
-			output.ExitUsage,
-			"Inspect the failed doctor checks and address the reported issues.",
-		)
+		return &output.CLIError{
+			Code:     output.CodeError,
+			Message:  doctorSummaryMessage(report),
+			Hint:     "Inspect the failed doctor checks and address the reported issues.",
+			ExitCode: output.ExitUsage,
+			Data:     report,
+		}
 	}
 	if err := output.OK(cmd, report, doctorSummaryMessage(report)); err != nil {
 		return err
@@ -243,10 +255,10 @@ func doctorHint(result checkResult) string {
 		return "Run go vet ./... and fix the reported issues."
 	case "go mod tidy":
 		return "Run go mod tidy and commit the resulting go.mod or go.sum changes."
-	case "views generate":
-		return "Run andurel sync views and fix any template generation errors."
+	case "templ generate":
+		return "Commit the generated *_templ.go output (andurel build regenerates it) and fix any template errors."
 	case "narsilc generate":
-		return "Run andurel sync queries and commit the updated models/internal/queries output."
+		return "Run andurel sync queries and commit the updated domains/internal/queries output."
 	case "routes.ts":
 		return "Run andurel sync routes and commit the updated resources/js/routes.ts file."
 	case "payloads.ts":
@@ -267,34 +279,44 @@ func doctorSummaryMessage(report doctorReport) string {
 	}
 }
 
-func runDoctor(currentVersion string, verbose bool) error {
-	printDoctorBanner()
-	fmt.Println("Running Andurel project diagnostics...")
+func runDoctor(cmd *cobra.Command, currentVersion string, verbose bool) error {
+	opts, _ := output.ParseOptions(cmd)
+	quiet := opts.Quiet
+	out := cmd.OutOrStdout()
+	if !quiet {
+		fmt.Fprint(out, bannerAndurel)
+		fmt.Fprint(out, bannerDoctor)
+		fmt.Fprintln(out, "Running Andurel project diagnostics...")
+	}
 
 	var results []checkResult
 	hasErrors := false
 	hasWarnings := false
 
 	// Environment checks
-	fmt.Println("\n=== Environment ===")
+	if !quiet {
+		fmt.Fprintln(out, "\n=== Environment ===")
+	}
 	environmentResults := []checkResult{
 		checkGoVersion(),
 		checkLatestAndurelRelease(currentVersion),
 		checkInAndurelProject(),
 	}
 	results = append(results, environmentResults...)
-	printResults(environmentResults, verbose)
+	printResults(out, environmentResults, verbose, quiet)
 
 	// Get project root directory
 	rootDir, err := findGoModRoot()
 	if err != nil {
 		// If we can't find the project root, we can't continue with remaining checks
-		fmt.Printf("\n✗ Cannot continue: %v\n", err)
+		fmt.Fprintf(out, "\n✗ Cannot continue: %v\n", err)
 		return err
 	}
 
 	// Configuration checks
-	fmt.Println("\n=== Configuration ===")
+	if !quiet {
+		fmt.Fprintln(out, "\n=== Configuration ===")
+	}
 	configResults := []checkResult{
 		checkLockFile(rootDir),
 		checkAndurelVersion(rootDir, currentVersion),
@@ -302,22 +324,26 @@ func runDoctor(currentVersion string, verbose bool) error {
 		checkInertiaSSRConfiguration(rootDir),
 	}
 	results = append(results, configResults...)
-	printResults(configResults, verbose)
+	printResults(out, configResults, verbose, quiet)
 
 	// Code quality checks
-	fmt.Println("\n=== Code Quality ===")
+	if !quiet {
+		fmt.Fprintln(out, "\n=== Code Quality ===")
+	}
 	qualityResults := []checkResult{
 		checkGoVet(rootDir, verbose),
 		checkGoModTidy(rootDir, verbose),
 	}
 	results = append(results, qualityResults...)
-	printResults(qualityResults, verbose)
+	printResults(out, qualityResults, verbose, quiet)
 
 	// Code generation checks
-	fmt.Println("\n=== Code Generation ===")
+	if !quiet {
+		fmt.Fprintln(out, "\n=== Code Generation ===")
+	}
 	genResults := codeGenerationChecks(rootDir, verbose)
 	results = append(results, genResults...)
-	printResults(genResults, verbose)
+	printResults(out, genResults, verbose, quiet)
 
 	// Summary
 	passCount := 0
@@ -337,30 +363,37 @@ func runDoctor(currentVersion string, verbose bool) error {
 		}
 	}
 
-	fmt.Printf("\n=== Summary ===\n")
-	fmt.Printf("Total checks: %d\n", len(results))
-	fmt.Printf("✓ Passed: %d\n", passCount)
+	fmt.Fprintln(out, "\n=== Summary ===")
+	fmt.Fprintf(out, "Total checks: %d\n", len(results))
+	fmt.Fprintf(out, "✓ Passed: %d\n", passCount)
 	if warnCount > 0 {
-		fmt.Printf("⚠ Warnings: %d\n", warnCount)
+		fmt.Fprintf(out, "⚠ Warnings: %d\n", warnCount)
 	}
 	if failCount > 0 {
-		fmt.Printf("✗ Failed: %d\n", failCount)
+		fmt.Fprintf(out, "✗ Failed: %d\n", failCount)
 	}
 
 	if hasErrors {
-		fmt.Printf("\n✗ Some checks failed. Please address the issues above.\n")
+		fmt.Fprintln(out, "\n✗ Some checks failed. Please address the issues above.")
 		return fmt.Errorf("doctor checks failed")
 	} else if hasWarnings {
-		fmt.Printf("\n⚠ All critical checks passed, but there are warnings to review.\n")
+		if !quiet {
+			fmt.Fprintln(out, "\n⚠ All critical checks passed, but there are warnings to review.")
+		}
 	} else {
-		fmt.Printf("\n✓ All checks passed! Your project is healthy.\n")
+		if !quiet {
+			fmt.Fprintln(out, "\n✓ All checks passed! Your project is healthy.")
+		}
 	}
 
 	return nil
 }
 
-func printResults(results []checkResult, verbose bool) {
+func printResults(out io.Writer, results []checkResult, verbose bool, quiet bool) {
 	for _, r := range results {
+		if quiet && r.status == statusPass {
+			continue
+		}
 		var symbol string
 		switch r.status {
 		case statusPass:
@@ -371,15 +404,15 @@ func printResults(results []checkResult, verbose bool) {
 			symbol = "✗"
 		}
 
-		fmt.Printf("%s %s", symbol, r.name)
+		fmt.Fprintf(out, "%s %s", symbol, r.name)
 		if r.message != "" {
-			fmt.Printf(": %s", r.message)
+			fmt.Fprintf(out, ": %s", r.message)
 		}
-		fmt.Println()
+		fmt.Fprintln(out)
 
 		if verbose && len(r.details) > 0 {
 			for _, detail := range r.details {
-				fmt.Printf("  %s\n", detail)
+				fmt.Fprintf(out, "  %s\n", detail)
 			}
 		}
 	}
@@ -986,20 +1019,8 @@ func normalizeVersion(version string) string {
 }
 
 func checkGoVet(rootDir string, verbose bool) checkResult {
-	cmd := exec.Command("go", "vet", "./...")
-	cmd.Dir = rootDir
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
+	output, err := runGoVet(rootDir)
 	if err != nil {
-		output := stderr.String()
-		if output == "" {
-			output = stdout.String()
-		}
-
 		lines := strings.Split(strings.TrimSpace(output), "\n")
 		issueCount := 0
 		var details []string
@@ -1130,7 +1151,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	templPath := filepath.Join(rootDir, "bin", "templ")
 	if _, err := os.Stat(templPath); err != nil {
 		return checkResult{
-			name:    "views generate",
+			name:    "templ generate",
 			status:  statusWarn,
 			message: "templ binary not found (skipping check)",
 		}
@@ -1171,19 +1192,19 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	})
 	if err != nil {
 		return checkResult{
-			name:    "views generate",
+			name:    "templ generate",
 			status:  statusFail,
 			message: "temporary generation diagnostic failed",
 			details: []string{err.Error()},
 		}
 	}
 	if len(changed) > 0 {
-		details := []string{"Run 'andurel sync views' and commit the generated output."}
+		details := []string{"Commit the generated *_templ.go output; andurel build regenerates it."}
 		if verbose {
 			details = append(details, changed...)
 		}
 		return checkResult{
-			name:    "views generate",
+			name:    "templ generate",
 			status:  statusFail,
 			message: "generated templates are out of date",
 			details: details,
@@ -1191,7 +1212,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	}
 
 	return checkResult{
-		name:    "views generate",
+		name:    "templ generate",
 		status:  statusPass,
 		message: "templates generated successfully",
 	}
@@ -1454,6 +1475,6 @@ func checkPayloadsTSGenerate(rootDir string, verbose bool) checkResult {
 	return checkResult{
 		name:    "payloads.ts",
 		status:  statusPass,
-		message: fmt.Sprintf("matches controller payloads (%d types)", typeCount),
+		message: fmt.Sprintf("matches handler payloads (%d types)", typeCount),
 	}
 }

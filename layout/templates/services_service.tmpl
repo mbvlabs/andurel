@@ -1,10 +1,24 @@
+// Package services holds application logic: the use cases that coordinate one or
+// more domains, the queue, email, and configuration. Business rules and
+// validation live in domains/. A use case whose writes must commit together
+// runs them in storage.AtomicOps and binds the receivers and queue it uses
+// with InTx(tx) at the top of the callback. Composition is explicit
+// constructor injection in internal/runtime.
 package services
 
-import "go.uber.org/fx"
+import (
+	"{{.ModuleName}}/domains"
 
-var Module = fx.Module(
-	"services",
-	fx.Provide(
-		NewIdentity,
-	),
+	"github.com/mbvlabs/andurel/pkg/validation"
 )
+
+// validationError translates pkg/validation field errors into the domain
+// vocabulary handlers understand: errors.Is(err, domains.ErrViolation) is true
+// and errors.AsType[domains.ValidationError] exposes the fields.
+func validationError(err error) error {
+	if validationErrors, ok := validation.As(err); ok {
+		return domains.ValidationError{Fields: validationErrors.ToMap()}
+	}
+
+	return err
+}

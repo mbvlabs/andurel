@@ -1,6 +1,7 @@
 package kiks
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -8,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/securecookie"
-	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/anduin"
 )
 
 // ClientRedirectHeader marks a response that navigates in the browser without
@@ -20,7 +21,7 @@ type middlewareConfig struct {
 	skip []string
 }
 
-// MiddlewareOption configures EchoMiddleware.
+// MiddlewareOption configures the kiks middleware.
 type MiddlewareOption func(*middlewareConfig)
 
 // SkipPrefixes skips jar load/persist for matching URL path prefixes.
@@ -119,40 +120,43 @@ func shouldPersistFlashes(status int, header http.Header) bool {
 	return status == http.StatusConflict
 }
 
-// EchoMiddleware eager-loads the session and flash cookie onto context.Context
-// and persists bagged cookies once before the response is committed. Bagged
-// named cookies load lazily on Get/Exists; native (unmarked) defs are skipped.
-func (jar *Jar) EchoMiddleware(opts ...MiddlewareOption) echo.MiddlewareFunc {
+// Middleware eager-loads the session and flash cookie onto context.Context and
+// persists bagged cookies once before the response is committed. Bagged named
+// cookies load lazily on Get/Exists; native (unmarked) defs are skipped.
+func (jar *Jar) Middleware(opts ...MiddlewareOption) anduin.Middleware {
 	config := middlewareConfig{}
 	for _, opt := range opts {
 		opt(&config)
 	}
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			if skipPath(c.Request().URL.Path, config.skip) {
-				return next(c)
+	return func(next anduin.Handler) anduin.Handler {
+		return func(ctx context.Context) error {
+			request := anduin.Request(ctx)
+			if request == nil {
+				return next(ctx)
+			}
+			if skipPath(request.URL.Path, config.skip) {
+				return next(ctx)
 			}
 
-			requestBag, err := jar.load(c.Request())
+			requestBag, err := jar.load(request)
 			if err != nil {
 				return err
 			}
 
 			writer := &persistWriter{
-				ResponseWriter: c.Response(),
+				ResponseWriter: anduin.ResponseWriter(ctx),
 				jar:            jar,
 				bag:            requestBag,
-				request:        c.Request(),
+				request:        request,
 			}
-			c.SetResponse(writer)
-			c.SetRequest(c.Request().WithContext(withBag(c.Request().Context(), requestBag)))
+			ctx = anduin.ReplaceResponseWriter(ctx, writer)
+			ctx = anduin.ReplaceRequest(ctx, request)
+			ctx = withBag(ctx, requestBag)
 
-			err = next(c)
+			err = next(ctx)
 			if !writer.persisted {
 				if writer.status == 0 {
-					if resp, unwrapErr := echo.UnwrapResponse(c.Response()); unwrapErr == nil {
-						writer.status = resp.Status
-					}
+					writer.status = http.StatusOK
 				}
 				writer.save()
 			}

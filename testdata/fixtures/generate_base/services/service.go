@@ -1,0 +1,22 @@
+// Package services holds application logic: the use cases that coordinate one or
+// more domains, the queue, email, and configuration. Business rules live in
+// domains/; domains never import each other, so this is the only layer where
+// they meet. Composition is explicit constructor injection in internal/runtime.
+package services
+
+import (
+	"example.com/app/domains"
+
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+// validationError translates pkg/validation field errors into the domain
+// vocabulary handlers understand: errors.Is(err, domains.ErrViolation) is true
+// and errors.AsType[domains.ValidationError] exposes the fields.
+func validationError(err error) error {
+	if validationErrors, ok := validation.As(err); ok {
+		return domains.ValidationError{Fields: validationErrors.ToMap()}
+	}
+
+	return err
+}
