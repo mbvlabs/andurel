@@ -22,21 +22,23 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// Tokens holds a Transactor because ReplaceCode is atomic on its own: called
+// on NewTokens it opens a transaction, called on InTx it joins the caller's.
 type Tokens struct {
-	db      storage.Connection
-	queries *queries.Queries
+	transactor storage.Transactor
+	queries    *queries.Queries
 }
 
 func NewTokens(db storage.Connection) Tokens {
-	return Tokens{db: db, queries: queries.New(db)}
+	return Tokens{transactor: storage.NewTransactor(db), queries: queries.New(db)}
 }
 
-func (t Tokens) WithTx(tx storage.Transaction) Tokens {
-	return Tokens{queries: queries.New(tx)}
-}
-
-func (t Tokens) Connection() storage.Connection {
-	return t.db
+// InTx returns a Tokens whose calls run inside tx.
+func (t Tokens) InTx(tx storage.Tx) Tokens {
+	return Tokens{
+		transactor: t.transactor.InTx(tx),
+		queries:    queries.New(storage.Unwrap(tx)),
+	}
 }
 
 type Token struct {
@@ -247,6 +249,41 @@ func (t Tokens) CreateCode(
 	}
 
 	return tkn, nil
+}
+
+// ReplaceCode destroys any outstanding code for (userID, scope) and issues a
+// new one, atomically.
+func (t Tokens) ReplaceCode(
+	ctx context.Context,
+	secret string,
+	scope string,
+	expiresAt time.Time,
+	metaData []byte,
+	userID uuid.UUID,
+) (string, error) {
+	var code string
+
+	err := storage.AtomicOps(ctx, t.transactor, func(ctx context.Context, tx storage.Tx) error {
+		tokens := t.InTx(tx)
+
+		if err := tokens.DestroyByUserAndScope(ctx, userID, scope); err != nil {
+			return err
+		}
+
+		created, err := tokens.CreateCode(ctx, secret, scope, expiresAt, metaData, userID)
+		if err != nil {
+			return err
+		}
+
+		code = created
+
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return code, nil
 }
 
 func (t Tokens) Create(

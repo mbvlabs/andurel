@@ -12,17 +12,17 @@ import (
 
 // APIHandler exposes the JSON API surface. It is mounted under routes.APIPrefix.
 type APIHandler struct {
-	db healthChecker
+	health healthChecker
 }
 
 // healthChecker is the only database capability the API surface needs. It
-// takes no query methods, so handlers cannot issue raw database calls.
+// has no query methods, so handlers cannot issue raw database calls.
 type healthChecker interface {
 	Health(ctx context.Context) error
 }
 
-func NewAPIHandler(db healthChecker) APIHandler {
-	return APIHandler{db: db}
+func NewAPIHandler(health healthChecker) APIHandler {
+	return APIHandler{health: health}
 }
 
 func (a APIHandler) Register(rt *anduin.Router) {
@@ -30,7 +30,7 @@ func (a APIHandler) Register(rt *anduin.Router) {
 }
 
 func (a APIHandler) Health(ctx context.Context) error {
-	if err := a.db.Health(ctx); err != nil {
+	if err := a.health.Health(ctx); err != nil {
 		return anduin.Error(
 			ctx,
 			http.StatusServiceUnavailable,

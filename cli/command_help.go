@@ -15,7 +15,7 @@ var rootCommonCommands = []struct {
 	{"andurel patterns show domain", "Read the reference pattern for a layer"},
 	{"andurel db migrate up", "Apply pending SQL migrations"},
 	{"andurel run", "Start the development server"},
-	{"andurel verify", "Check formatting, vet, and layer boundaries"},
+	{"andurel verify", "Check formatting, vet, layer boundaries, and generated code"},
 	{"andurel inspect project", "Show lockfile, adapter, and tool status"},
 	{"andurel doctor", "Check project health and generated-file drift"},
 }

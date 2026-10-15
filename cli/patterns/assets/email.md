@@ -59,10 +59,13 @@ import (
 	"app/queue/jobs"
 
 	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
-func (i Identity) sendWelcome(ctx context.Context, user domains.User) error {
-	message := appemail.WelcomeEmail{UserName: user.Email.String()}
+// sendWelcome enqueues the welcome email on queue. Pass i.queue.InTx(tx) from
+// inside storage.AtomicOps so the email is only sent if the user commits.
+func (i Identity) sendWelcome(ctx context.Context, queue storage.InsertQueue, user domains.User) error {
+	message := appemail.WelcomeEmail{UserName: user.Email}
 
 	html, err := message.ToHTML()
 	if err != nil {
@@ -73,9 +76,9 @@ func (i Identity) sendWelcome(ctx context.Context, user domains.User) error {
 		return err
 	}
 
-	_, err = i.insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
+	_, err = queue.Insert(ctx, jobs.SendTransactionalEmailArgs{
 		Data: email.TransactionalData{
-			To:       user.Email.String(),
+			To:       user.Email,
 			From:     i.defaultSenderSignature,
 			Subject:  "Welcome",
 			HTMLBody: html,
@@ -90,7 +93,7 @@ func (i Identity) sendWelcome(ctx context.Context, user domains.User) error {
 
 - Templates live in `email/`; run `andurel sync email` to compile them.
 - An email is a struct plus a `render()` templ method; render it with `ToHTML`/`ToText`.
-- Send transactional mail by enqueuing `jobs.SendTransactionalEmailArgs` from a service, not directly from a handler.
+- Send transactional mail by enqueuing `jobs.SendTransactionalEmailArgs` on a `storage.InsertQueue` from a service, not directly from a handler. When the email depends on data written in the same use case, pass `i.queue.InTx(tx)` from inside `storage.AtomicOps`.
 - Do not hand-edit the compiled `*_templ.go`; it is derived.
 - Email is the only templ home besides `resources/root.templ`.
 

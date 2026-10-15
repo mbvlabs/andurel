@@ -21,6 +21,8 @@ const Default = "development"
 // development and test environments.
 const DefaultPassword = "password"
 
+// Runner seeds one data set. Seeds write through domain receivers, so they
+// use the same validated write paths as the application.
 type Runner func(context.Context, storage.Connection) error
 
 var Registry = map[string]Runner{
@@ -92,7 +94,7 @@ func Test(ctx context.Context, db storage.Connection) error {
 	return nil
 }
 
-// createUser creates a user with a validated email and, when admin is true,
+// createUser creates a user with the given address and, when admin is true,
 // promotes it. It uses only the user domain's public API.
 func createUser(
 	ctx context.Context,
@@ -100,13 +102,8 @@ func createUser(
 	pepper, rawAddress string,
 	admin bool,
 ) (domains.User, error) {
-	address, err := domains.ParseEmail(rawAddress)
-	if err != nil {
-		return domains.User{}, err
-	}
-
 	created, err := users.Create(ctx, pepper, domains.CreateUserData{
-		Email: address,
+		Email: rawAddress,
 		PasswordPair: domains.PasswordPair{
 			Password:        DefaultPassword,
 			ConfirmPassword: DefaultPassword,

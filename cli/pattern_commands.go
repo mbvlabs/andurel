@@ -139,6 +139,22 @@ func runPatternsShow(cmd *cobra.Command, id string) error {
 
 	entity, _ := cmd.Flags().GetString("entity")
 	table, _ := cmd.Flags().GetString("table")
+	if (entity != "" || table != "") && pattern.ID != "domain" {
+		return output.NewError(
+			output.CodeUsage,
+			fmt.Sprintf("--entity and --table only apply to the domain pattern, not %q", pattern.ID),
+			output.ExitUsage,
+			"Run andurel patterns show domain --entity <Name> [--table <table>] for the per-entity manifest.",
+		)
+	}
+	if table != "" && entity == "" {
+		return output.NewError(
+			output.CodeUsage,
+			"--table requires --entity",
+			output.ExitUsage,
+			"Run andurel patterns show domain --entity <Name> --table <table>.",
+		)
+	}
 	var manifest *patterns.Manifest
 	if entity != "" {
 		made := patterns.ManifestFor(entity, table)

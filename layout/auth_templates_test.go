@@ -23,13 +23,13 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 	)
 	assertTemplateMissing(t, "services_registration.tmpl", "FindByScopeAndHash")
 
-	assertTemplateContains(t, "models_token.tmpl",
+	assertTemplateContains(t, "domains_token.tmpl",
 		"func (t Tokens) FindByUserAndScope(",
 		"func (t Tokens) IncrementAttempts(ctx context.Context, id uuid.UUID) (int32, error)",
 		"func (t Tokens) DestroyByUserAndScope(",
 		"GetTokenByUserAndScope",
 	)
-	assertTemplateContains(t, "models_queries_token.tmpl",
+	assertTemplateContains(t, "domains_queries_token.tmpl",
 		"-- name: GetTokenByUserAndScope :one",
 		"-- name: IncrementTokenAttempts :one",
 		"RETURNING attempts;",
@@ -56,6 +56,36 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 	assertTemplateContains(t, "handlers_auth.tmpl",
 		"setPendingUser",
 		"PendingUserID",
+	)
+}
+
+// TestGeneratedServicesCommitWritesAndJobsTogether guards the transaction
+// design: multi-step use cases run in storage.AtomicOps, bind receivers and
+// the queue with InTx, and never hold the raw connection or transaction.
+func TestGeneratedServicesCommitWritesAndJobsTogether(t *testing.T) {
+	for _, name := range []string{"services_registration.tmpl", "services_reset_password.tmpl"} {
+		assertTemplateContains(t, name,
+			"storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {",
+			"i.queue.InTx(tx)",
+		)
+		for _, unwanted := range []string{"storage.Connection", "storage.Transaction", "storage.Unwrap", "domains.Store"} {
+			assertTemplateMissing(t, name, unwanted)
+		}
+	}
+
+	assertTemplateContains(t, "domains_user.tmpl",
+		"func NewUsers(db storage.Connection) Users {",
+		"func (u Users) InTx(tx storage.Tx) Users {",
+	)
+	assertTemplateContains(t, "domains_token.tmpl",
+		"func NewTokens(db storage.Connection) Tokens {",
+		"func (t Tokens) InTx(tx storage.Tx) Tokens {",
+		"transactor: t.transactor.InTx(tx),",
+		"func (t Tokens) ReplaceCode(",
+	)
+	assertTemplateContains(t, "runtime_runtime.tmpl",
+		"transactor := storage.NewTransactor(db)",
+		"services.NewIdentity(transactor, users, tokens, queueInsert, cfg.Auth, cfg.Mail)",
 	)
 }
 

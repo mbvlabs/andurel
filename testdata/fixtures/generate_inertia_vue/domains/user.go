@@ -9,14 +9,14 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"net/mail"
 	"strings"
 	"time"
 	"uuid"
 
-	"{{.ModuleName}}/domains/internal/queries"
+	"example.com/app/domains/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -24,73 +24,45 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
+// Users is the user domain's persistence entry point. It owns the users table;
+// runtime builds it with NewUsers and services bind it with InTx.
 type Users struct {
-	db      storage.Connection
 	queries *queries.Queries
 }
 
 func NewUsers(db storage.Connection) Users {
-	return Users{db: db, queries: queries.New(db)}
+	return Users{queries: queries.New(db)}
 }
 
-func (u Users) WithTx(tx storage.Transaction) Users {
-	return Users{queries: queries.New(tx)}
+// InTx returns a Users whose calls run inside tx.
+func (u Users) InTx(tx storage.Tx) Users {
+	return Users{queries: queries.New(storage.Unwrap(tx))}
 }
 
-func (u Users) Connection() storage.Connection {
-	return u.db
+type User struct {
+	ID               uuid.UUID          `andurel:"id"`
+	CreatedAt        pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `andurel:"updated_at"`
+	Email            string             `andurel:"email"`
+	EmailValidatedAt pgtype.Timestamptz `andurel:"email_validated_at"`
+	Password         []byte             `andurel:"password"`
+	IsAdmin          bool               `andurel:"is_admin"`
 }
 
-// Email is a parsed, normalised address. Build one with ParseEmail.
-type Email string
+func (u *User) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("email", u.Email)
+	b.MaxLen("email", u.Email, 255)
 
-// ParseEmail normalises raw input and returns an Email or a ValidationError.
-func ParseEmail(raw string) (Email, error) {
-	normalised := strings.ToLower(strings.TrimSpace(raw))
-	if normalised == "" {
-		return "", ValidationError{Fields: map[string]string{"email": "Email is required"}}
-	}
-	if len(normalised) > 255 {
-		return "", ValidationError{Fields: map[string]string{"email": "Email must be at most 255 characters"}}
-	}
-	if _, err := mail.ParseAddress(normalised); err != nil {
-		return "", ValidationError{Fields: map[string]string{"email": "Email must be a valid email address"}}
-	}
-
-	return Email(normalised), nil
+	return b.Err()
 }
 
-func (e Email) String() string { return string(e) }
-
-// PasswordHash is an argon2 password hash. Build one with HashPassword.
-type PasswordHash []byte
-
-// HashPassword salts and hashes a password with the pepper.
-func HashPassword(password, pepper string) (PasswordHash, error) {
-	salt, err := generateSalt(16)
-	if err != nil {
-		return nil, err
-	}
-
-	hash := argon2.IDKey(
-		[]byte(password+pepper),
-		[]byte(salt),
-		2,
-		19*1024,
-		1,
-		32,
-	)
-
-	encodedHash := fmt.Sprintf("%s:%s",
-		base64.RawStdEncoding.EncodeToString(hash),
-		base64.RawStdEncoding.EncodeToString(salt))
-
-	return PasswordHash(encodedHash), nil
+func (u *User) HasValidatedEmail() bool {
+	return u.EmailValidatedAt.Valid
 }
 
-// Verify reports whether the provided password matches the hash.
-func (h PasswordHash) Verify(providedPassword, pepper string) (bool, error) {
-	parts := strings.Split(string(h), ":")
+func (u *User) ValidPassword(providedPassword, pepper string) (bool, error) {
+	parts := strings.Split(string(u.Password), ":")
 	if len(parts) != 2 {
 		return false, fmt.Errorf("invalid stored password format")
 	}
@@ -117,33 +89,6 @@ func (h PasswordHash) Verify(providedPassword, pepper string) (bool, error) {
 	return subtle.ConstantTimeCompare(newHash, expectedHash) == 1, nil
 }
 
-type User struct {
-	ID               uuid.UUID          `andurel:"id"`
-	CreatedAt        pgtype.Timestamptz `andurel:"created_at"`
-	UpdatedAt        pgtype.Timestamptz `andurel:"updated_at"`
-	Email            Email              `andurel:"email"`
-	EmailValidatedAt pgtype.Timestamptz `andurel:"email_validated_at"`
-	Password         PasswordHash       `andurel:"password"`
-	IsAdmin          bool               `andurel:"is_admin"`
-}
-
-// Transform maps a trusted database row into the entity.
-func (u *User) Transform(row queries.UserRow) error {
-	u.ID = row.ID
-	u.CreatedAt = row.CreatedAt
-	u.UpdatedAt = row.UpdatedAt
-	u.Email = Email(row.Email)
-	u.EmailValidatedAt = row.EmailValidatedAt
-	u.Password = PasswordHash(row.Password)
-	u.IsAdmin = row.IsAdmin
-
-	return nil
-}
-
-func (u *User) HasValidatedEmail() bool {
-	return u.EmailValidatedAt.Valid
-}
-
 func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
 	entity, err := u.queries.GetUser[User](ctx, id)
 	if err != nil {
@@ -159,9 +104,9 @@ func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
 
 func (u Users) FindByEmail(
 	ctx context.Context,
-	email Email,
+	email string,
 ) (User, error) {
-	entity, err := u.queries.GetUserByEmail[User](ctx, string(email))
+	entity, err := u.queries.GetUserByEmail[User](ctx, strings.ToLower(email))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return User{}, ErrNotFound
@@ -179,7 +124,7 @@ type PasswordPair struct {
 }
 
 type CreateUserData struct {
-	Email        Email
+	Email        string
 	PasswordPair PasswordPair
 }
 
@@ -197,28 +142,32 @@ func (u Users) Create(
 		ID:               uuid.New(),
 		CreatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
-		Email:            data.Email,
+		Email:            strings.ToLower(data.Email),
 		EmailValidatedAt: pgtype.Timestamptz{},
-		Password:         hashedPassword,
+		Password:         []byte(hashedPassword),
 		IsAdmin:          false,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return User{}, validationFailure(err)
 	}
 
 	return u.queries.CreateUser[User](ctx, queries.CreateUserParams{
 		ID:               entity.ID,
 		CreatedAt:        entity.CreatedAt,
 		UpdatedAt:        entity.UpdatedAt,
-		Email:            string(entity.Email),
+		Email:            entity.Email,
 		EmailValidatedAt: entity.EmailValidatedAt,
-		Password:         []byte(entity.Password),
+		Password:         entity.Password,
 		IsAdmin:          entity.IsAdmin,
 	})
 }
 
 type UpdateUserData struct {
 	ID               uuid.UUID
-	Email            Email
+	Email            string
 	EmailValidatedAt pgtype.Timestamptz
-	Password         PasswordHash
+	Password         []byte
 	IsAdmin          bool
 }
 
@@ -231,7 +180,7 @@ func (u Users) Update(
 		return User{}, err
 	}
 
-	email := data.Email
+	email := strings.ToLower(data.Email)
 	if email == "" {
 		email = current.Email
 	}
@@ -256,11 +205,15 @@ func (u Users) Update(
 		IsAdmin:          data.IsAdmin,
 	}
 
+	if err := validation.Validate(&entity); err != nil {
+		return User{}, validationFailure(err)
+	}
+
 	row, err := u.queries.UpdateUser[User](ctx, queries.UpdateUserParams{
 		ID:               entity.ID,
-		Email:            string(entity.Email),
+		Email:            entity.Email,
 		EmailValidatedAt: entity.EmailValidatedAt,
-		Password:         []byte(entity.Password),
+		Password:         entity.Password,
 		IsAdmin:          entity.IsAdmin,
 		UpdatedAt:        entity.UpdatedAt,
 	})
@@ -331,6 +284,16 @@ func (u Users) Paginate(
 	}, nil
 }
 
+// validationFailure maps pkg/validation field errors into the domain
+// vocabulary: a ValidationError that reports true for ErrViolation.
+func validationFailure(err error) error {
+	if validationErrors, ok := validation.As(err); ok {
+		return ValidationError{Fields: validationErrors.ToMap()}
+	}
+
+	return err
+}
+
 func generateSalt(size int) ([]byte, error) {
 	salt := make([]byte, size)
 	_, err := rand.Read(salt)
@@ -339,4 +302,26 @@ func generateSalt(size int) ([]byte, error) {
 	}
 
 	return salt, nil
+}
+
+func HashPassword(password, pepper string) (string, error) {
+	salt, err := generateSalt(16)
+	if err != nil {
+		return "", err
+	}
+
+	hash := argon2.IDKey(
+		[]byte(password+pepper),
+		[]byte(salt),
+		2,
+		19*1024,
+		1,
+		32,
+	)
+
+	encodedHash := fmt.Sprintf("%s:%s",
+		base64.RawStdEncoding.EncodeToString(hash),
+		base64.RawStdEncoding.EncodeToString(salt))
+
+	return encodedHash, nil
 }

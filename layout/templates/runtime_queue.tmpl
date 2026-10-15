@@ -60,7 +60,11 @@ func NewQueue(ctx context.Context, cfg config.Config) (*Queue, error) {
 
 	return &Queue{
 		processor: processor,
-		closers:   []func(context.Context) error{processor.Stop, db.Close, tel.Shutdown},
+		closers: []func(context.Context) error{
+			processor.Stop,
+			func(context.Context) error { return db.Close() },
+			tel.Shutdown,
+		},
 	}, nil
 }
 

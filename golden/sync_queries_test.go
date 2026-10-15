@@ -17,7 +17,7 @@ func TestSyncQueries(t *testing.T) {
 	// The fixture already colocates the widget SQL with its domain; sync
 	// queries compiles domains/**/*.sql into domains/internal/queries via
 	// narsilc and must not rewrite the hand-authored SQL.
-	widgetSQL := filepath.Join(project, "domains", "widget", "widget.sql")
+	widgetSQL := filepath.Join(project, "domains", "widget.sql")
 	before, err := os.ReadFile(widgetSQL)
 	if err != nil {
 		t.Fatalf("read fixture widget.sql: %v", err)
@@ -33,6 +33,6 @@ func TestSyncQueries(t *testing.T) {
 		t.Fatalf("read widget.sql after sync queries: %v", err)
 	}
 	if !bytes.Equal(before, after) {
-		t.Fatal("sync queries rewrote the hand-authored domains/widget/widget.sql")
+		t.Fatal("sync queries rewrote the hand-authored domains/widget.sql")
 	}
 }

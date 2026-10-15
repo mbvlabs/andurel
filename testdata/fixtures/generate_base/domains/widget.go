@@ -1,4 +1,4 @@
-package widget
+package domains
 
 // andurel:table widgets
 
@@ -8,7 +8,6 @@ import (
 	"time"
 	"uuid"
 
-	"example.com/app/domains"
 	"example.com/app/domains/internal/queries"
 
 	"github.com/jackc/pgx/v5"
@@ -18,18 +17,18 @@ import (
 )
 
 // Widgets is the widget domain's persistence entry point. It owns the widgets
-// table and never imports another domain.
+// table; runtime builds it with NewWidgets and services bind it with InTx.
 type Widgets struct {
-	db      storage.Connection
 	queries *queries.Queries
 }
 
 func NewWidgets(db storage.Connection) Widgets {
-	return Widgets{db: db, queries: queries.New(db)}
+	return Widgets{queries: queries.New(db)}
 }
 
-func (w Widgets) WithTx(tx storage.Transaction) Widgets {
-	return Widgets{queries: queries.New(tx)}
+// InTx returns a Widgets whose calls run inside tx.
+func (w Widgets) InTx(tx storage.Tx) Widgets {
+	return Widgets{queries: queries.New(storage.Unwrap(tx))}
 }
 
 type Widget struct {
@@ -43,7 +42,7 @@ func (w Widgets) Find(ctx context.Context, id uuid.UUID) (Widget, error) {
 	entity, err := w.queries.GetWidget[Widget](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Widget{}, domains.ErrNotFound
+			return Widget{}, ErrNotFound
 		}
 
 		return Widget{}, err

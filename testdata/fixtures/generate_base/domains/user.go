@@ -1,4 +1,4 @@
-package user
+package domains
 
 // andurel:table users
 
@@ -13,7 +13,6 @@ import (
 	"time"
 	"uuid"
 
-	"example.com/app/domains"
 	"example.com/app/domains/internal/queries"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
@@ -25,25 +24,19 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-// Users is the user domain's persistence entry point. It owns the users table:
-// every read and write goes through it, and it never imports another domain.
+// Users is the user domain's persistence entry point. It owns the users table;
+// runtime builds it with NewUsers and services bind it with InTx.
 type Users struct {
-	db      storage.Connection
 	queries *queries.Queries
 }
 
 func NewUsers(db storage.Connection) Users {
-	return Users{db: db, queries: queries.New(db)}
+	return Users{queries: queries.New(db)}
 }
 
-func (u Users) WithTx(tx storage.Transaction) Users {
-	return Users{queries: queries.New(tx)}
-}
-
-// Connection exposes the underlying database handle so application services can
-// run a transaction that spans domains.
-func (u Users) Connection() storage.Connection {
-	return u.db
+// InTx returns a Users whose calls run inside tx.
+func (u Users) InTx(tx storage.Tx) Users {
+	return Users{queries: queries.New(storage.Unwrap(tx))}
 }
 
 type User struct {
@@ -100,7 +93,7 @@ func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
 	entity, err := u.queries.GetUser[User](ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return User{}, domains.ErrNotFound
+			return User{}, ErrNotFound
 		}
 
 		return User{}, err
@@ -116,7 +109,7 @@ func (u Users) FindByEmail(
 	entity, err := u.queries.GetUserByEmail[User](ctx, strings.ToLower(email))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return User{}, domains.ErrNotFound
+			return User{}, ErrNotFound
 		}
 
 		return User{}, err
@@ -226,7 +219,7 @@ func (u Users) Update(
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return User{}, domains.ErrNotFound
+			return User{}, ErrNotFound
 		}
 
 		return User{}, err
@@ -292,10 +285,10 @@ func (u Users) Paginate(
 }
 
 // validationFailure maps pkg/validation field errors into the domain
-// vocabulary: a ValidationError that reports true for domains.ErrViolation.
+// vocabulary: a ValidationError that reports true for ErrViolation.
 func validationFailure(err error) error {
 	if validationErrors, ok := validation.As(err); ok {
-		return domains.ValidationError{Fields: validationErrors.ToMap()}
+		return ValidationError{Fields: validationErrors.ToMap()}
 	}
 
 	return err

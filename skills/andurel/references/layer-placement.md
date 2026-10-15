@@ -80,16 +80,28 @@ Hard rules:
 
 - **One file per domain; keep cross-domain rules in services.** If a rule spans
   `user` and `token`, it is application logic and belongs in a service.
-- **Only `domains` may import `domains/internal/queries`.** `services/`,
-  `handlers/`, `internal/runtime/`, `queue/`, and `seeds/` call domain
-  constructors and methods; they never touch the generated queries package.
+- **Only `domains` touches the database.** Only `domains` imports
+  `domains/internal/queries`, and only `domains` (plus `internal/runtime`,
+  `cmd/`, `seeds/`, and `migrations/` for wiring) may name
+  `storage.Connection`, `storage.Transaction`, or `storage.RunInTransaction` or
+  import pgx, and only `domains` may call `storage.Unwrap`. Everyone else
+  receives domain receivers (`domains.NewUsers(db)`, built in runtime) and, for
+  transactions, a `storage.Transactor`. `andurel verify` enforces this.
+- **Every receiver has `New<Plural>(db)` and `InTx(tx storage.Tx)`.** A receiver
+  whose method must run several statements atomically holds a
+  `storage.Transactor`, rebinds it in `InTx`, and wraps the statements in
+  `storage.AtomicOps` so it joins a caller's transaction when bound.
+- **Validate once, in the domain.** `Create`/`Update` call the entity's
+  `Validate()` before writing and return a `ValidationError`. Handlers and
+  services do not repeat entity rules.
+- **Annotate the table** with `// andurel:table <table>` after the package
+  clause.
 - **SQL is colocated with its domain** (`domains/user.sql`). Narsilc globs
   `domains/**/*.sql` and writes to `domains/internal/queries/`. You never
   place SQL under `models/` — there is no `models/`.
-- **Type-driven by default.** The Go domain type is the source of truth; SQL,
-  generated queries, and validation follow it. Inspect the mapping with
-  `andurel inspect domains --json`. Hand-written SQL is the exception, not the
-  default.
+- **The Go entity is the source of truth.** SQL and generated queries follow
+  it. Inspect the type→column mapping, `Validate()` coverage, and runtime
+  wiring with `andurel inspect domains --json`.
 - Keep domain methods independent of HTTP, `anduin`, Inertia, sessions, cookies,
   flash messages, and route names.
 
@@ -117,18 +129,33 @@ Use services for:
   external clients.
 - Shared application use cases used by more than one delivery surface.
 
-A service declares its dependencies as constructor arguments and may depend on
-several domains, the queue, email, and config:
+A service declares its dependencies individually as constructor arguments:
 
 ```go
 func NewIdentity(
-	users user.Users,
-	tokens token.Tokens,
+	transactor storage.Transactor,
+	users domains.Users,
+	tokens domains.Tokens,
 	queue storage.InsertQueue,
 	authCfg config.Auth,
 	mailCfg config.Mail,
 ) Identity
 ```
+
+Writes that must commit together run inside `storage.AtomicOps`. Bind what the
+use case needs at the top of the callback and use only the bound locals:
+
+```go
+err := storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {
+	users, queue := i.users.InTx(tx), i.queue.InTx(tx)
+	// … users.Create(…); queue.Insert(…) — the job commits with the data …
+	return nil
+})
+```
+
+Returning `nil` commits; returning an error or panicking rolls back. Helpers
+take bound dependencies as parameters; public use cases do not call each other
+inside a callback. See `andurel patterns show service`.
 
 Do not create a service for a pass-through wrapper around one domain method.
 Call the domain directly from the handler until a real workflow appears. There
@@ -183,8 +210,8 @@ error API.
 
 Use `AuthHandler` in `handlers/auth.go` for sessions, registration,
 confirmation, and password reset, and `APIHandler` in `handlers/api.go` for
-JSON endpoints. Parse payloads into domain newtypes at the edge with `ParseX`
-before calling services.
+JSON endpoints. Decode payloads at the edge and pass plain values to services
+or domains; validation errors come back from the domain as `ValidationError`.
 
 ## Routes
 
@@ -292,8 +319,9 @@ Wiring is explicit constructor injection in `internal/runtime`. There is no
 container.
 
 - New config providers: `config/`.
-- New domains: construct them in `internal/runtime` (for example
-  `users := user.NewUsers(db)`).
+- New domains: construct them in `internal/runtime` with `domains.NewX(db)`
+  and pass them to the services and handlers that use them. Services that run
+  transactions also take the runtime's `storage.NewTransactor(db)`.
 - New services: construct them in `internal/runtime` (`services.NewIdentity(...)`).
 - New handlers: construct them and call `Register(rt)` in `internal/runtime`.
 - New queue workers: register them in `internal/runtime/queue.go`.

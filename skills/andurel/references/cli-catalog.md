@@ -72,7 +72,7 @@ andurel run --tools mailpit
 
 - Read a pattern: `andurel patterns show <kind>` (add `--json` for the parsed form; add `--entity/--table` with `domain` for the per-entity file manifest).
 - Create SQL: `andurel generate migration NAME` then `andurel db migrate up`. A one-shot process that applies embedded SQL is `cmd/migrate`.
-- Add a domain: hand-write `domains/<entity>/<entity>.go` and its colocated `<entity>.sql`, then run `andurel sync queries`.
+- Add a domain: hand-write `domains/<entity>.go` and its colocated `domains/<entity>.sql`, construct the receiver with `domains.NewX(db)` in `internal/runtime`, then run `andurel sync queries`.
 - Add a service, handler, route, middleware, or composition: read the matching pattern and write the files yourself. `andurel new` ships a complete reference app for each.
 - Compile SQL: `andurel sync queries` writes `domains/internal/queries`. Only `domains/**` may import it.
 - List domains: `andurel inspect domains --json`.
@@ -142,4 +142,4 @@ andurel run --tools mailpit
 | `andurel tool set-version` | Pin a tool version in andurel.lock and sync it |
 | `andurel tool sync` | Download pinned binaries from andurel.lock |
 | `andurel upgrade` | Upgrade framework-owned files to this CLI version |
-| `andurel verify` | Check formatting, vet, and layer boundaries |
+| `andurel verify` | Check formatting, vet, layer boundaries, and generated code |

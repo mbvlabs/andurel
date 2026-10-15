@@ -3,6 +3,7 @@ package patterns
 import (
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 // ManifestFile is one file an agent writes or edits to apply a pattern to a
@@ -17,63 +18,108 @@ type ManifestFile struct {
 // It is the read-only replacement for the old `generate model` convention:
 // the same deterministic shape, rendered to stdout instead of written.
 type Manifest struct {
-	Entity  string         `json:"entity"`
-	Table   string         `json:"table"`
-	Package string         `json:"package"`
-	Files   []ManifestFile `json:"files"`
-	Next    []string       `json:"next"`
+	Entity   string         `json:"entity"`
+	Receiver string         `json:"receiver"`
+	Table    string         `json:"table"`
+	Package  string         `json:"package"`
+	Files    []ManifestFile `json:"files"`
+	Next     []string       `json:"next"`
 }
 
-// ManifestFor builds the domain manifest for entity (e.g. "User") on table
-// (e.g. "users"). An empty table defaults to the lowercased entity name with
-// a naive plural.
+// ManifestFor builds the domain manifest for entity (e.g. "User" or
+// "BlogPost") on table (e.g. "users"). An empty table defaults to the
+// snake_cased entity name, pluralized.
 func ManifestFor(entity, table string) Manifest {
-	name := strings.ToLower(strings.TrimSpace(entity))
-	if name == "" {
-		name = "entity"
+	title := strings.TrimSpace(entity)
+	if title == "" {
+		title = "Entity"
 	}
-	if strings.TrimSpace(table) == "" {
-		table = name + "s"
-	}
+	title = strings.ToUpper(title[:1]) + title[1:]
 
-	title := strings.ToUpper(name[:1]) + name[1:]
+	file := snakeCase(title)
+	if strings.TrimSpace(table) == "" {
+		table = Pluralize(file)
+	}
+	receiver := Pluralize(title)
 
 	return Manifest{
-		Entity:  title,
-		Table:   table,
-		Package: name,
+		Entity:   title,
+		Receiver: receiver,
+		Table:    table,
+		Package:  "domains",
 		Files: []ManifestFile{
-			{
-				Path:    fmt.Sprintf("domains/%s.go", name),
-				Action:  "create",
-				Summary: fmt.Sprintf("newtype entity %s with Parse constructors, %s receiver, and Transform", title, title+"s"),
-			},
-			{
-				Path:    fmt.Sprintf("domains/%s.sql", name),
-				Action:  "create",
-				Summary: "colocated narsilc queries owned by this domain",
-			},
-			{
-				Path:    fmt.Sprintf("domains/%s_test.go", name),
-				Action:  "create",
-				Summary: "Parse unit tests plus domain tests over a real test database",
-			},
 			{
 				Path:    fmt.Sprintf("migrations/<next>_create_%s_table.sql", table),
 				Action:  "create",
 				Summary: fmt.Sprintf("table definition; author with: andurel generate migration create_%s_table", table),
 			},
 			{
+				Path:    fmt.Sprintf("domains/%s.sql", file),
+				Action:  "create",
+				Summary: "colocated narsilc queries owned by this domain",
+			},
+			{
+				Path:   fmt.Sprintf("domains/%s.go", file),
+				Action: "create",
+				Summary: fmt.Sprintf(
+					"package domains with `// andurel:table %s`; entity %s with Validate(); %s receiver with New%s(db storage.Connection) and InTx(tx storage.Tx)",
+					table, title, receiver, receiver,
+				),
+			},
+			{
+				Path:    fmt.Sprintf("domains/%s_test.go", file),
+				Action:  "create",
+				Summary: fmt.Sprintf("Validate unit tests plus domain tests over a real test database via domains.New%s(db)", receiver),
+			},
+			{
 				Path:    "internal/runtime/runtime.go",
 				Action:  "edit",
-				Summary: "construct the domain and pass it to services and handlers",
+				Summary: fmt.Sprintf("construct with domains.New%s(db) and pass it to the services/handlers that use it", receiver),
 			},
 		},
 		Next: []string{
 			"andurel sync queries",
 			"andurel verify",
-			"andurel patterns show handler --entity " + title,
+			"andurel inspect domains --json",
+			"andurel patterns show handler",
 			"andurel patterns show test-domain",
 		},
 	}
+}
+
+// Pluralize returns a naive English plural: consonant+y → ies;
+// s, x, z, ch, sh → es; otherwise s.
+func Pluralize(word string) string {
+	if word == "" {
+		return word
+	}
+	lower := strings.ToLower(word)
+	switch {
+	case strings.HasSuffix(lower, "y") && len(lower) > 1 && !strings.ContainsRune("aeiou", rune(lower[len(lower)-2])):
+		return word[:len(word)-1] + "ies"
+	case strings.HasSuffix(lower, "s"), strings.HasSuffix(lower, "x"), strings.HasSuffix(lower, "z"),
+		strings.HasSuffix(lower, "ch"), strings.HasSuffix(lower, "sh"):
+		return word + "es"
+	default:
+		return word + "s"
+	}
+}
+
+// snakeCase converts a PascalCase identifier to snake_case (BlogPost →
+// blog_post).
+func snakeCase(name string) string {
+	var b strings.Builder
+	runes := []rune(name)
+	for i, r := range runes {
+		if unicode.IsUpper(r) {
+			if i > 0 && (unicode.IsLower(runes[i-1]) ||
+				(i+1 < len(runes) && unicode.IsLower(runes[i+1]) && unicode.IsUpper(runes[i-1]))) {
+				b.WriteByte('_')
+			}
+			b.WriteRune(unicode.ToLower(r))
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }

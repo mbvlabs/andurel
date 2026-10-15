@@ -3,9 +3,6 @@ package cli
 import (
 	"bytes"
 	"fmt"
-	"go/parser"
-	"go/token"
-	"io/fs"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -14,10 +11,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// verifyViolation is one actionable finding: which rule failed, where, and
+// the exact fix an agent should apply.
+type verifyViolation struct {
+	Rule    string `json:"rule"`
+	File    string `json:"file,omitempty"`
+	Line    int    `json:"line,omitempty"`
+	Message string `json:"message"`
+	Fix     string `json:"fix,omitempty"`
+}
+
 type verifyStep struct {
-	Name   string `json:"name"`
-	OK     bool   `json:"ok"`
-	Detail string `json:"detail,omitempty"`
+	Name       string            `json:"name"`
+	OK         bool              `json:"ok"`
+	Detail     string            `json:"detail,omitempty"`
+	Violations []verifyViolation `json:"violations,omitempty"`
 }
 
 type verifyReport struct {
@@ -27,38 +35,57 @@ type verifyReport struct {
 
 func newVerifyCommand() *cobra.Command {
 	var withTests bool
+	var skipGenerated bool
 	cmd := &cobra.Command{
 		Use:   "verify",
-		Short: "Check formatting, vet, and layer boundaries",
+		Short: "Check formatting, vet, layer boundaries, and generated code",
 		Long: `Run the Andurel verification loop against the current project.
 
 andurel verify checks, in order:
-  • gofmt   — every Go file is gofmt-clean
-  • go fix  — the toolchain reports no automatic rewrites
-  • go vet  — the module vets clean
-  • layers  — only domains import domains/internal/queries
+  • gofmt     — every Go file is gofmt-clean
+  • go fix    — the toolchain reports no automatic rewrites
+  • go vet    — the module vets clean
+  • layers    — the persistence boundary:
+                queries-import  only domains import domains/internal/queries
+                db-handle       outside domains, internal/runtime, cmd, seeds,
+                                and migrations nothing references
+                                storage.Connection, storage.Transaction,
+                                storage.RunInTransaction, or imports pgx
+                tx-unwrap       storage.Unwrap is called only in domains
+                tx-escape       a storage.AtomicOps callback uses only
+                                dependencies bound with .InTx(tx)
+                tx-public-call  a storage.AtomicOps callback does not call an
+                                exported method on its own receiver
+  • generated — templ, narsilc, routes.ts, and payloads.ts output is up to date
 
 Pass --with-tests to also run go test ./... (requires a Postgres container for
-domain tests). verify never rewrites files; fix reported issues and re-run.`,
+domain tests). verify never rewrites files; fix reported issues and re-run.
+
+Every failing step lists violations as {rule, file, line, message, fix}. A
+failed verification exits with code 9 (verification_failed); usage errors exit
+with code 1.`,
 		Example: `  andurel verify
   andurel verify --json
-  andurel verify --with-tests`,
+  andurel verify --with-tests
+  andurel verify --skip-generated`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runVerify(cmd, withTests)
+			return runVerify(cmd, withTests, skipGenerated)
 		},
 	}
 	cmd.Flags().BoolVar(&withTests, "with-tests", false, "Also run go test ./...")
+	cmd.Flags().
+		BoolVar(&skipGenerated, "skip-generated", false, "Skip the generated-code drift step")
 	setAgentMetadata(
 		cmd,
 		"verification",
-		"Read-only verification: gofmt, go fix, go vet, and the queries import boundary.",
+		"Read-only verification: gofmt, go fix, go vet, the domain persistence and transaction boundary, and generated-code drift. Fails with exit code 9 and structured violations.",
 	)
 	setStandardHelp(cmd)
 	return cmd
 }
 
-func runVerify(cmd *cobra.Command, withTests bool) error {
+func runVerify(cmd *cobra.Command, withTests, skipGenerated bool) error {
 	rootDir, err := findGoModRoot()
 	if err != nil {
 		return err
@@ -69,6 +96,9 @@ func runVerify(cmd *cobra.Command, withTests bool) error {
 	report.Steps = append(report.Steps, verifyGoFix(rootDir))
 	report.Steps = append(report.Steps, verifyGoVet(rootDir))
 	report.Steps = append(report.Steps, verifyLayerBoundaries(rootDir))
+	if !skipGenerated {
+		report.Steps = append(report.Steps, verifyGenerated(rootDir))
+	}
 	if withTests {
 		report.Steps = append(report.Steps, verifyGoTest(rootDir))
 	}
@@ -82,24 +112,28 @@ func runVerify(cmd *cobra.Command, withTests bool) error {
 	if err != nil {
 		return err
 	}
+	if opts.Mode == output.ModeHuman && !opts.Quiet {
+		if err := renderVerifyHuman(cmd, report); err != nil {
+			return err
+		}
+	}
+	if !report.OK {
+		failure := output.NewError(
+			output.CodeVerificationFailed,
+			verifySummary(report),
+			output.ExitVerification,
+			"Apply each violation's fix and run andurel verify again.",
+		)
+		failure.Data = report
+		return failure
+	}
 	if opts.Mode == output.ModeHuman {
-		return renderVerifyHuman(cmd, report, opts)
+		return nil
 	}
 	return output.OK(cmd, report, verifySummary(report))
 }
 
-func renderVerifyHuman(cmd *cobra.Command, report verifyReport, opts output.Options) error {
-	if opts.Quiet {
-		if report.OK {
-			return nil
-		}
-		return output.NewError(
-			output.CodeError,
-			"verification failed",
-			output.ExitUsage,
-			verifySummary(report),
-		)
-	}
+func renderVerifyHuman(cmd *cobra.Command, report verifyReport) error {
 	out := cmd.OutOrStdout()
 	for _, step := range report.Steps {
 		status := "ok"
@@ -109,21 +143,33 @@ func renderVerifyHuman(cmd *cobra.Command, report verifyReport, opts output.Opti
 		if _, err := fmt.Fprintf(out, "%-10s %s\n", step.Name, status); err != nil {
 			return err
 		}
+		for _, violation := range step.Violations {
+			if _, err := fmt.Fprintf(out, "  %s\n", formatViolation(violation)); err != nil {
+				return err
+			}
+		}
 		if step.Detail != "" {
 			if _, err := fmt.Fprintln(out, step.Detail); err != nil {
 				return err
 			}
 		}
 	}
-	if !report.OK {
-		return output.NewError(
-			output.CodeError,
-			"verification failed",
-			output.ExitUsage,
-			"Fix the reported issues and run andurel verify again.",
-		)
-	}
 	return nil
+}
+
+func formatViolation(v verifyViolation) string {
+	location := v.File
+	if location != "" && v.Line > 0 {
+		location = fmt.Sprintf("%s:%d", v.File, v.Line)
+	}
+	line := fmt.Sprintf("[%s] %s", v.Rule, v.Message)
+	if location != "" {
+		line = fmt.Sprintf("%s: %s", location, line)
+	}
+	if v.Fix != "" {
+		line += " — fix: " + v.Fix
+	}
+	return line
 }
 
 func verifySummary(report verifyReport) string {
@@ -145,7 +191,23 @@ func verifyGofmt(rootDir string) verifyStep {
 	if err != nil {
 		return verifyStep{Name: "gofmt", OK: false, Detail: commandDetail(err, detail)}
 	}
-	return verifyStep{Name: "gofmt", OK: detail == "", Detail: detail}
+	if detail == "" {
+		return verifyStep{Name: "gofmt", OK: true}
+	}
+	step := verifyStep{Name: "gofmt", OK: false}
+	for file := range strings.SplitSeq(detail, "\n") {
+		file = strings.TrimSpace(file)
+		if file == "" {
+			continue
+		}
+		step.Violations = append(step.Violations, verifyViolation{
+			Rule:    "gofmt",
+			File:    filepath.ToSlash(file),
+			Message: "file is not gofmt-clean",
+			Fix:     "gofmt -w " + file,
+		})
+	}
+	return step
 }
 
 func verifyGoFix(rootDir string) verifyStep {
@@ -154,7 +216,19 @@ func verifyGoFix(rootDir string) verifyStep {
 	if err != nil {
 		return verifyStep{Name: "go fix", OK: false, Detail: commandDetail(err, detail)}
 	}
-	return verifyStep{Name: "go fix", OK: detail == "", Detail: detail}
+	if detail == "" {
+		return verifyStep{Name: "go fix", OK: true}
+	}
+	return verifyStep{
+		Name:   "go fix",
+		OK:     false,
+		Detail: detail,
+		Violations: []verifyViolation{{
+			Rule:    "go fix",
+			Message: "go fix reports automatic rewrites",
+			Fix:     "go fix ./...",
+		}},
+	}
 }
 
 func verifyGoVet(rootDir string) verifyStep {
@@ -173,6 +247,52 @@ func verifyGoTest(rootDir string) verifyStep {
 		return verifyStep{Name: "go test", OK: false, Detail: commandDetail(err, detail)}
 	}
 	return verifyStep{Name: "go test", OK: true}
+}
+
+// verifyGenerated reports generated-code drift by reusing doctor's read-only
+// generation checks. Missing tool binaries are reported in Detail and do not
+// fail the step; out-of-date output does, with the sync command that fixes it.
+func verifyGenerated(rootDir string) verifyStep {
+	step := verifyStep{Name: "generated", OK: true}
+	notes := make([]string, 0)
+	for _, result := range codeGenerationChecks(rootDir, false) {
+		switch result.status {
+		case statusFail:
+			step.OK = false
+			message := result.name + ": " + result.message
+			if len(result.details) > 0 {
+				message += " (" + strings.Join(result.details, "; ") + ")"
+			}
+			file, fix := generatedTarget(result)
+			step.Violations = append(step.Violations, verifyViolation{
+				Rule:    "generated",
+				File:    file,
+				Message: message,
+				Fix:     fix,
+			})
+		case statusWarn:
+			notes = append(notes, result.name+": "+result.message)
+		}
+	}
+	step.Detail = strings.Join(notes, "\n")
+	return step
+}
+
+// generatedTarget maps a doctor generation check to the output it owns and
+// the command that regenerates it.
+func generatedTarget(result checkResult) (file, fix string) {
+	switch result.name {
+	case "templ generate":
+		return "", "andurel build"
+	case "narsilc generate":
+		return "domains/internal/queries", "andurel sync queries"
+	case "routes.ts":
+		return "resources/js/routes.ts", "andurel sync routes"
+	case "payloads.ts":
+		return "resources/js/types/payloads.ts", "andurel sync payloads"
+	default:
+		return "", doctorHint(result)
+	}
 }
 
 func commandDetail(err error, output string) string {
@@ -198,65 +318,4 @@ func runVerifyCommand(dir string, name string, args ...string) (string, error) {
 // for its own report type.
 func runGoVet(dir string) (string, error) {
 	return runVerifyCommand(dir, "go", "vet", "./...")
-}
-
-// verifyLayerBoundaries enforces the domain import rule from the RFC: only
-// files under domains/ may import domains/internal/queries. Domains live in
-// one flat package (one file per domain by convention), so isolation between
-// domains is a code-review concern, not an import-graph one.
-func verifyLayerBoundaries(rootDir string) verifyStep {
-	module, _, err := readGoModMetadata(rootDir)
-	if err != nil {
-		return verifyStep{Name: "layers", OK: false, Detail: err.Error()}
-	}
-
-	queriesImport := module + "/domains/internal/queries"
-
-	violations := make([]string, 0)
-	walkErr := filepath.WalkDir(rootDir, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.IsDir() {
-			switch entry.Name() {
-			case ".git", "bin", "node_modules", "vendor", "dist", "resources":
-				return fs.SkipDir
-			}
-			return nil
-		}
-		if filepath.Ext(path) != ".go" {
-			return nil
-		}
-
-		rel, err := filepath.Rel(rootDir, path)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
-
-		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
-		if err != nil {
-			violations = append(violations, fmt.Sprintf("%s: %v", rel, err))
-			return nil
-		}
-
-		inDomains := strings.HasPrefix(rel, "domains/")
-		for _, imported := range file.Imports {
-			value := strings.Trim(imported.Path.Value, `"`)
-			if value == queriesImport && !inDomains {
-				violations = append(
-					violations,
-					fmt.Sprintf("%s imports %s; only domains/** may import it", rel, queriesImport),
-				)
-			}
-		}
-		return nil
-	})
-	if walkErr != nil {
-		return verifyStep{Name: "layers", OK: false, Detail: walkErr.Error()}
-	}
-	if len(violations) == 0 {
-		return verifyStep{Name: "layers", OK: true}
-	}
-	return verifyStep{Name: "layers", OK: false, Detail: strings.Join(violations, "\n")}
 }
