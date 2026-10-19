@@ -240,8 +240,9 @@ Middleware has the `anduin.Middleware` shape (`func(anduin.Handler)
 anduin.Handler`):
 
 - Auth and authorization middleware.
-- Rate limiting (`IPRateLimiter`), backed by the injected `cache.Store` so
-  every replica enforces the same limit on Redis.
+- Rate limiting (`RateLimit`, keyed by route pattern + `anduin.ClientIP`),
+  backed by the injected `cache.Store` so every replica enforces the same
+  limit on Redis.
 - Route attribute / telemetry helpers.
 - CSRF strategy construction.
 
@@ -249,7 +250,7 @@ Cookie jar construction lives in `internal/runtime` (`newJar`); `middleware/`
 exports the session definition (`NewAppCookie`) and policy only. There is no
 `middleware.NewJar`.
 
-Generic middleware (`Recover`, `Logger`, `Telemetry`, `CORS`, `CSRF`) is
+Generic middleware (`Recover`, `RealIP`, `Logger`, `Telemetry`, `CORS`, `CSRF`) is
 provided by `pkg/anduin` and used directly; do not wrap or reimplement it
 here. Session/bag values travel
 on `context.Context` through `pkg/kiks` (`kiks.Get[T]`, `kiks.Set`,

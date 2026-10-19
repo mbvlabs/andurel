@@ -2,8 +2,8 @@ package middleware
 
 import (
 	"context"
-	"net"
 	"net/http"
+	"strconv"
 	"time"
 
 	"app/routes"
@@ -11,7 +11,6 @@ import (
 	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/mbvlabs/andurel/pkg/kiks"
-	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
 func AuthOnly() anduin.Middleware {
@@ -30,37 +29,36 @@ func AuthOnly() anduin.Middleware {
 	}
 }
 
-func IPRateLimiter(
+// RateLimit allows limit requests per client IP per route within window; every
+// attempt counts, successful or not. Each route keeps its own bucket, so a
+// burst on one endpoint never locks out another. The client IP comes from
+// anduin.ClientIP, which only honours X-Forwarded-For from HTTP_TRUSTED_PROXIES.
+// Over the limit, onLimited answers with Retry-After set; a nil onLimited
+// returns a plain 429 error.
+func RateLimit(
 	store cache.Store,
 	limit int,
-	redirectURL routing.Route,
+	window time.Duration,
+	onLimited anduin.Handler,
 ) anduin.Middleware {
-	const window = 10 * time.Minute
-
 	return func(next anduin.Handler) anduin.Handler {
 		return func(ctx context.Context) error {
-			ip := clientIP(anduin.Request(ctx))
-			hits, err := store.Increment(ctx, "ratelimit:"+ip, window)
+			key := "ratelimit:" + anduin.RoutePattern(ctx) + ":" + anduin.ClientIP(ctx)
+			hits, err := store.Increment(ctx, key, window)
 			if err != nil {
 				return err
 			}
 
-			if hits > int64(limit) {
-				return anduin.Text(ctx, http.StatusTooManyRequests, redirectURL.URL())
+			if hits <= int64(limit) {
+				return next(ctx)
 			}
 
-			return next(ctx)
+			anduin.SetHeader(ctx, "Retry-After", strconv.Itoa(int(window.Seconds())))
+			if onLimited == nil {
+				return anduin.Errorf(http.StatusTooManyRequests, "too many requests")
+			}
+
+			return onLimited(ctx)
 		}
 	}
-}
-
-func clientIP(request *http.Request) string {
-	if request == nil {
-		return ""
-	}
-	if host, _, err := net.SplitHostPort(request.RemoteAddr); err == nil {
-		return host
-	}
-
-	return request.RemoteAddr
 }

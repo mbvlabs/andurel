@@ -213,11 +213,11 @@ func (r *Response) inertiaComponent() (string, bool) {
 		return "", false
 	}
 	rest := r.Body[index+len(marker):]
-	end := bytes.IndexByte(rest, '"')
-	if end == -1 {
+	before, _, ok := bytes.Cut(rest, []byte{'"'})
+	if !ok {
 		return "", false
 	}
-	page := html.UnescapeString(string(rest[:end]))
+	page := html.UnescapeString(string(before))
 	return decodeComponent([]byte(page))
 }
 

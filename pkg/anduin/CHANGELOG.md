@@ -18,6 +18,9 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 - `HTTPError` and `Error`/`NotFound`/`BadRequest` constructors plus
   `StatusCode`.
 - Generic middleware: `Recover`, `Logger`, `Telemetry`, `CORS`, `CSRF`.
+- Trusted-proxy client IP resolution: `RealIP` middleware, `ClientIP`, and
+  `ParseTrustedProxies`. `X-Forwarded-For` is only honoured when the direct
+  peer is a trusted proxy; otherwise `ClientIP` is the `RemoteAddr` host.
 - The `Server` listener and lifecycle merged in from the retired `pkg/server`
   module.
 - `github.com/mbvlabs/andurel/pkg/anduin/anduintest` for handler-level tests.

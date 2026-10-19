@@ -83,6 +83,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	)
 	rt.Use(
 		anduin.Recover(),
+		anduin.RealIP(cfg.HTTP.TrustedProxies...),
 		anduin.Telemetry(tel),
 		jar.Middleware(),
 		renderer.Middleware(),

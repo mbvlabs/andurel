@@ -3,6 +3,7 @@ package anduin
 import (
 	"context"
 	"net/http"
+	"slices"
 )
 
 // Handler is an HTTP endpoint expressed as ordinary Go over a context.
@@ -18,9 +19,9 @@ type ErrorHandler func(ctx context.Context, err error) error
 
 // applyMiddleware builds a chain so that the first middleware is the outermost.
 func applyMiddleware(handler Handler, middleware []Middleware) Handler {
-	for i := len(middleware) - 1; i >= 0; i-- {
-		if middleware[i] != nil {
-			handler = middleware[i](handler)
+	for _, m := range slices.Backward(middleware) {
+		if m != nil {
+			handler = m(handler)
 		}
 	}
 	return handler

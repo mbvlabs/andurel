@@ -61,7 +61,7 @@ Registration:
 func (h Handler) Register(rt *anduin.Router) {
 	rt.Get(routes.UserIndex.Path(), h.Index)
 	rt.Get(routes.UserShow.Path(), h.Show)
-	rt.Post(routes.UserCreate.Path(), h.Create, middleware.IPRateLimiter(5, routes.UserCreate))
+	rt.Post(routes.UserCreate.Path(), h.Create, middleware.RateLimit(h.cache, 5, 10*time.Minute, nil))
 }
 ```
 
@@ -178,6 +178,7 @@ Generic middleware ships in `pkg/anduin`:
 
 ```go
 func Recover() Middleware
+func RealIP(trusted ...netip.Prefix) Middleware
 func Logger(log *slog.Logger, skipPrefixes ...string) Middleware
 func Telemetry(tel *telemetry.Telemetry) Middleware
 func CORS(cfg CORSConfig) Middleware
@@ -185,6 +186,10 @@ func CSRF(cfg CSRFConfig) Middleware
 ```
 
 - `Recover` turns a panic into a `500` so the `ErrorHandler` can render it.
+- `RealIP` resolves `anduin.ClientIP(ctx)`. `X-Forwarded-For` is read only
+  when the TCP peer is in `trusted` (`anduin.ParseTrustedProxies`, fed from
+  `HTTP_TRUSTED_PROXIES`); otherwise `ClientIP` is the peer address. Never
+  read `RemoteAddr` or forwarding headers directly for client identity.
 - `Logger` logs one line per request, skipping the given path prefixes.
 - `Telemetry` attaches the telemetry pipeline and records the matched route.
 - `CORS` answers preflight and annotates actual responses. `CORSConfig` fields:
@@ -206,6 +211,7 @@ Install global middleware in `internal/runtime`:
 ```go
 rt.Use(
 	anduin.Recover(),
+	anduin.RealIP(cfg.HTTP.TrustedProxies...),
 	anduin.Telemetry(tel),
 	jar.Middleware(),
 	renderer.Middleware(),

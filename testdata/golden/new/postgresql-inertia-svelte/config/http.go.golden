@@ -3,9 +3,11 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"strconv"
 	"time"
 
+	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
@@ -27,11 +29,19 @@ type HTTP struct {
 	IdleTimeout        time.Duration
 	ReadTimeout        time.Duration
 	WriteTimeout       time.Duration
+	// TrustedProxies are the reverse proxies (IPs or CIDRs) whose
+	// X-Forwarded-For header is believed when resolving the client IP. Leave
+	// empty when the app is exposed directly.
+	TrustedProxies []netip.Prefix
 }
 
 func NewHTTP() (HTTP, error) {
 	env := newEnvironment()
+	trustedProxies, proxiesErr := anduin.ParseTrustedProxies(
+		env.Strings("HTTP_TRUSTED_PROXIES", nil),
+	)
 	cfg := HTTP{
+		TrustedProxies:     trustedProxies,
 		Host:               env.String("HOST", DefaultHTTPHost),
 		Port:               env.String("PORT", DefaultHTTPPort),
 		CORSAllowedOrigins: env.Strings("CORS_ALLOWED_ORIGINS", nil),
@@ -42,7 +52,7 @@ func NewHTTP() (HTTP, error) {
 		WriteTimeout:       env.Duration("HTTP_WRITE_TIMEOUT", DefaultHTTPWriteTimeout),
 	}
 
-	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
+	if err := errors.Join(env.Err(), proxiesErr, cfg.validate()); err != nil {
 		return HTTP{}, fmt.Errorf("config: http: %w", err)
 	}
 

@@ -606,6 +606,7 @@ PREVIOUS_PEPPERS=
 CORS_ALLOWED_ORIGINS=
 CSRF_STRATEGY=header_only
 CSRF_TRUSTED_ORIGINS=
+HTTP_TRUSTED_PROXIES=
 
 # Telemetry (optional)
 TELEMETRY_SERVICE_NAME={{.ProjectName}}
@@ -651,6 +652,20 @@ path.
 - `CSRF_TRUSTED_ORIGINS` accepts a comma-separated list of additional origins.
 
 Session and CSRF cookies are host-only by default (no `Domain` attribute). Sharing login across subdomains is an explicit opt-in in `middleware/` — never a generated default.
+
+## Rate Limiting And Client IPs
+
+`middleware.RateLimit` counts every attempt per client IP per route in the
+injected `cache.Store` (use the Redis driver so replicas share counters). The
+auth endpoints — sign in, registration, email confirmation, and both password
+reset steps — allow 5 attempts per 10 minutes each. Over the limit the form is
+re-rendered with a `429` status, a `Retry-After` header, and an inline error.
+
+The client IP comes from `anduin.ClientIP`. By default it is the TCP peer
+address and forwarding headers are ignored. Behind a reverse proxy or load
+balancer, set `HTTP_TRUSTED_PROXIES` to the proxies' IPs or CIDRs (for example
+`10.0.0.0/8,fd00::/8`); `X-Forwarded-For` is then read right to left, skipping
+trusted hops. Without it, every visitor shares the proxy's bucket.
 
 ## Multiple Domains
 

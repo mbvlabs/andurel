@@ -10,8 +10,9 @@ import (
 // request or the writer is observed by everything downstream — including the
 // handler adapters registered with http.ServeMux, which only see the request.
 type requestState struct {
-	request *http.Request
-	writer  http.ResponseWriter
+	request  *http.Request
+	writer   http.ResponseWriter
+	clientIP string
 }
 
 type stateKey struct{}

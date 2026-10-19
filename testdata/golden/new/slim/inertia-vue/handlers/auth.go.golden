@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 	"uuid"
 
 	"app/domains"
@@ -34,12 +35,17 @@ func NewAuthHandler(
 	return AuthHandler{identity: identity, renderer: renderer, cache: store}
 }
 
+const (
+	authAttemptLimit  = 5
+	authAttemptWindow = 10 * time.Minute
+)
+
 func (h AuthHandler) Register(rt *anduin.Router) {
 	rt.Get(routes.SessionNew.Path(), h.SessionNew)
 	rt.Post(
 		routes.SessionCreate.Path(),
 		h.SessionCreate,
-		middleware.IPRateLimiter(h.cache, 5, routes.SessionNew),
+		h.throttle(h.tooManyAttempts("Auth/Login", "email")),
 	)
 	rt.Delete(routes.SessionDestroy.Path(), h.SessionDestroy)
 
@@ -47,20 +53,66 @@ func (h AuthHandler) Register(rt *anduin.Router) {
 	rt.Post(
 		routes.RegistrationCreate.Path(),
 		h.RegistrationCreate,
-		middleware.IPRateLimiter(h.cache, 5, routes.RegistrationNew),
+		h.throttle(h.tooManyAttempts("Auth/Registration", "email")),
 	)
 
 	rt.Get(routes.ConfirmationNew.Path(), h.ConfirmationNew)
 	rt.Post(
 		routes.ConfirmationCreate.Path(),
 		h.ConfirmationCreate,
-		middleware.IPRateLimiter(h.cache, 5, routes.ConfirmationNew),
+		h.throttle(h.tooManyAttempts("Auth/ConfirmEmail", "code")),
 	)
 
 	rt.Get(routes.PasswordNew.Path(), h.PasswordNew)
-	rt.Post(routes.PasswordCreate.Path(), h.PasswordCreate)
+	rt.Post(
+		routes.PasswordCreate.Path(),
+		h.PasswordCreate,
+		h.throttle(h.tooManyAttempts("Auth/ResetPasswordRequest", "email")),
+	)
 	rt.Get(routes.PasswordEdit.Path(), h.PasswordEdit)
-	rt.Put(routes.PasswordUpdate.Path(), h.PasswordUpdate)
+	rt.Put(
+		routes.PasswordUpdate.Path(),
+		h.PasswordUpdate,
+		h.throttle(h.tooManyPasswordResets),
+	)
+}
+
+// throttle rate-limits an auth endpoint per client IP; onLimited re-renders the
+// submitting form so Inertia shows the error inline.
+func (h AuthHandler) throttle(onLimited anduin.Handler) anduin.Middleware {
+	return middleware.RateLimit(h.cache, authAttemptLimit, authAttemptWindow, onLimited)
+}
+
+func (h AuthHandler) tooManyAttempts(component, field string) anduin.Handler {
+	return func(ctx context.Context) error {
+		return h.renderTooManyAttempts(ctx, component, field, inertia.Props{})
+	}
+}
+
+func (h AuthHandler) tooManyPasswordResets(ctx context.Context) error {
+	var payload PasswordResetPayload
+	_ = anduin.DecodeJSON(ctx, &payload)
+
+	return h.renderTooManyAttempts(
+		ctx,
+		"Auth/ResetPassword",
+		"resetPasswordToken",
+		inertia.Props{"token": payload.Token},
+	)
+}
+
+func (h AuthHandler) renderTooManyAttempts(
+	ctx context.Context,
+	component string,
+	field string,
+	props inertia.Props,
+) error {
+	return h.renderer.Page(ctx, component, props).
+		ValidationErrors(map[string]string{
+			field: "Too many attempts. Please try again later.",
+		}).
+		Status(http.StatusTooManyRequests).
+		Render()
 }
 
 func (h AuthHandler) SessionNew(ctx context.Context) error {

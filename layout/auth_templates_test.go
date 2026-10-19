@@ -65,7 +65,7 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 		"services.ErrEmailNotVerified",
 		"ResendEmailVerification",
 		"setPendingUser",
-		"middleware.IPRateLimiter",
+		"middleware.RateLimit",
 	)
 
 	assertTemplateContains(t, "handlers_auth.tmpl",
