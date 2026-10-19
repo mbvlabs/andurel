@@ -22,8 +22,6 @@ The worked example below is a `Product` domain. The reference app's
 ```go
 package domains
 
-// andurel:table products
-
 import (
 	"context"
 	"errors"
@@ -47,7 +45,6 @@ func NewProducts(db storage.Connection) Products {
 	return Products{queries: queries.New(db)}
 }
 
-// InTx returns a Products whose calls run inside tx.
 func (p Products) InTx(tx storage.Tx) Products {
 	return Products{queries: queries.New(storage.Unwrap(tx))}
 }
@@ -60,8 +57,6 @@ type Product struct {
 	PriceCents int64              `andurel:"price_cents"`
 }
 
-// Validate is the product write gate: Create and Update call it, so callers
-// never re-check these rules.
 func (p *Product) Validate() error {
 	b := validation.NewBuilder()
 	b.Required("name", p.Name)
@@ -99,7 +94,7 @@ func (p Products) Create(ctx context.Context, data CreateProductData) (Product, 
 		PriceCents: data.PriceCents,
 	}
 	if err := validation.Validate(&entity); err != nil {
-		return Product{}, validationFailure(err)
+		return Product{}, err
 	}
 
 	return p.queries.CreateProduct[Product](ctx, queries.CreateProductParams{
@@ -130,7 +125,6 @@ select * from products order by created_at desc;
 ```go
 products := domains.NewProducts(db)
 
-// pass it to the services and handlers that use it
 handlers.NewProductHandler(products, renderer).Register(router)
 ```
 
@@ -142,6 +136,8 @@ method opens its own transaction; on a receiver bound with `InTx`, the bound
 transactor makes `AtomicOps` join the caller's transaction instead.
 
 ```go
+// Tokens needs a transactor because ReplaceCode is atomic both standalone and
+// when bound to a service's transaction.
 type Tokens struct {
 	transactor storage.Transactor
 	queries    *queries.Queries
@@ -216,19 +212,18 @@ func TestProducts_Create(t *testing.T) {
 ## Rules
 
 - One file per domain in the flat `domains` package. Cross-entity rules belong in a service.
-- Mark the table with `// andurel:table <table>` right after the package clause; `andurel inspect domains` reads it.
 - Only files under `domains/` may import `domains/internal/queries` or call `storage.Unwrap`; only `domains/` and the wiring layers (`internal/runtime`, `cmd`, `seeds`, `migrations`) may name `storage.Connection`/`storage.Transaction` or call `storage.RunInTransaction`.
 - Every receiver has `New<Plural>(db storage.Connection)` and `InTx(tx storage.Tx)`. Construct it in `internal/runtime` and pass it to the services and handlers that use it.
 - A method with several statements that must be atomic on its own holds a `storage.Transactor`, rebinds it in `InTx`, and wraps the statements in `storage.AtomicOps` (it joins a caller's transaction when bound).
-- Entities expose `Validate()` via `pkg/validation`; `Create`/`Update` normalise, then validate, then write. Wrap failures with `validationFailure` so callers get a `ValidationError`.
+- Entities expose `Validate()` via `pkg/validation`; `Create`/`Update` normalise, then validate, then write, returning validation errors from `pkg/validation` directly.
 - Keep the entity 1:1 with a scanned row.
 - SQL lives beside the domain that owns it (`domains/product.sql`); narsilc globs `domains/**/*.sql`.
-- Return `ErrNotFound`, `ErrConflict`, and `ErrViolation`, never raw pgx errors.
+- Map expected not-found and unique-constraint failures to `ErrNotFound` and `ErrConflict`; return `pkg/validation` errors directly. Preserve unexpected database errors for diagnostics.
+- `inspect domains --json` labels table names with `table_source: "inferred"` when derived by convention. For custom names or irregular plurals, add `// andurel:table people` as the entity struct's doc comment (a free-standing annotation only applies when the file has a single entity); inspection reports `table_source: "annotation"`. The annotation is inspection metadata, not SQL configuration.
 - Writes that span receivers go through `storage.AtomicOps` in a service (see the `service` pattern).
 
 ## Checklist
 
-- [ ] `// andurel:table <table>` annotation present.
 - [ ] Entity has `Validate()` and `Create`/`Update` reject invalid entities.
 - [ ] `<entity>.sql` contains every query the receiver calls.
 - [ ] Receiver has `New<Plural>(db)` and `InTx(tx)` and is constructed in `internal/runtime`.

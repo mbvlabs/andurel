@@ -14,8 +14,6 @@ import (
 	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
-// AuthOnly gates a route on an authenticated application session, redirecting
-// anonymous visitors to the sign-in page.
 func AuthOnly() anduin.Middleware {
 	return func(next anduin.Handler) anduin.Handler {
 		return func(ctx context.Context) error {
@@ -32,10 +30,6 @@ func AuthOnly() anduin.Middleware {
 	}
 }
 
-// IPRateLimiter allows at most limit requests per client IP within a ten
-// minute window. Over-limit requests receive 429 with the redirect route's
-// URL as the body. Counts live in store, so every replica enforces the same
-// limit when the redis driver backs it.
 func IPRateLimiter(
 	store cache.Store,
 	limit int,
@@ -60,7 +54,6 @@ func IPRateLimiter(
 	}
 }
 
-// clientIP resolves the request's client address, stripping the port.
 func clientIP(request *http.Request) string {
 	if request == nil {
 		return ""

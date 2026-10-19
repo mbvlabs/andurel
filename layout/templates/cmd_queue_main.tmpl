@@ -32,9 +32,6 @@ func run() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	// Build the worker graph first, then start it. Start returns once the
-	// processor is ready; job processing continues in the background until the
-	// signal context is cancelled or Start fails.
 	worker, err := runtime.NewQueue(ctx, cfg)
 	if err != nil {
 		return err

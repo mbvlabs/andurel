@@ -26,10 +26,6 @@ import (
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
-// App is the HTTP process graph: the assembled dependencies, the serving
-// handler, the HTTP server, and the ordered list of closers that release them.
-// It is the one place that knows how the application is wired; nothing here is
-// discovered by reflection.
 type App struct {
 	Config  config.Config
 	DB      storage.Connection
@@ -39,10 +35,6 @@ type App struct {
 	closers []func(context.Context) error
 }
 
-// New builds the whole HTTP dependency graph bottom-up: telemetry, database,
-// queue inserter, domains, services, presentation, the router with its handlers
-// registered, and finally the HTTP server over the router handler. Callers own
-// the returned App: Start it, then Shutdown and Close it.
 func New(ctx context.Context, cfg config.Config) (*App, error) {
 	tel, err := newTelemetry(ctx, cfg.App, cfg.Telemetry)
 	if err != nil {
@@ -62,13 +54,10 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, err
 	}
 
-	// Domain receivers own all SQL. Services get them individually plus the
-	// transactor, and run multi-step writes in storage.AtomicOps.
 	transactor := storage.NewTransactor(db)
 	users := domains.NewUsers(db)
 	tokens := domains.NewTokens(db)
 
-	// Services coordinate domains, the queue, and configuration.
 	identity := services.NewIdentity(transactor, users, tokens, queueInsert, cfg.Auth, cfg.Mail)
 
 	renderer, err := newRenderer(cfg)
@@ -137,17 +126,14 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	}, nil
 }
 
-// Start serves HTTP until Shutdown is called or the listener fails.
 func (a *App) Start(ctx context.Context) error {
 	return a.Server.Start(ctx, a.Config.App.Environment)
 }
 
-// Shutdown gracefully stops the HTTP listener.
 func (a *App) Shutdown(ctx context.Context) error {
 	return a.Server.Shutdown(ctx)
 }
 
-// Close releases the App's dependencies in reverse construction order.
 func (a *App) Close(ctx context.Context) error {
 	var closeErr error
 	for _, closeFn := range slices.Backward(a.closers) {
@@ -156,10 +142,6 @@ func (a *App) Close(ctx context.Context) error {
 
 	return closeErr
 }
-
-// newJar builds the cookie jar: the session codec, the cookie-backed store,
-// and the App session definition from middleware. Jar construction lives here,
-// in the composition root — middleware exports policy only.
 {{- if gt (len .Blueprint.Cookies.SortedConstants) 0}}
 
 const (
@@ -192,8 +174,6 @@ func newJar(
 {{.Code}}
 {{- end}}
 
-// newTelemetry constructs the process-wide telemetry pipeline. Console output
-// is enabled everywhere except production unless OTLP is configured.
 func newTelemetry(
 	ctx context.Context,
 	appCfg config.App,
@@ -225,7 +205,6 @@ func newTelemetry(
 	return telemetry.New(ctx, cfg.ServiceName, cfg.ServiceVersion, opts...)
 }
 
-// newDatabase connects to PostgreSQL and reports query spans through tel.
 func newDatabase(
 	ctx context.Context,
 	cfg storage.Config,
@@ -242,8 +221,6 @@ func newDatabase(
 	return storage.NewPostgres(ctx, cfg, opts...)
 }
 
-// newEmailSenders builds the transactional and marketing senders for the
-// configured provider. Only the queue process needs them.
 func newEmailSenders(
 	cfg config.Mail,
 ) (email.TransactionalSender, email.MarketingSender, error) {
@@ -263,8 +240,6 @@ func newEmailSenders(
 	}
 }
 
-// newRenderer builds the Inertia renderer over the embedded assets and the
-// application root document.
 func newRenderer(cfg config.Config) (*inertia.Renderer, error) {
 	return inertia.NewRenderer(
 		cfg.Inertia.ContainerID,
@@ -287,8 +262,6 @@ func newRenderer(cfg config.Config) (*inertia.Renderer, error) {
 	)
 }
 
-// corsConfig allows the application's own origins, plus any extra origins
-// configured for the environment.
 func corsConfig(cfg config.Config) anduin.CORSConfig {
 	return anduin.CORSConfig{
 		AllowOrigins: mergedOrigins(
@@ -310,9 +283,6 @@ func corsConfig(cfg config.Config) anduin.CORSConfig {
 	}
 }
 
-// csrfConfig issues and verifies double-submit CSRF tokens. header_only accepts
-// the token from the X-CSRF-Token header; header_or_legacy_token additionally
-// accepts the legacy _csrf form field.
 func csrfConfig(cfg config.Config) anduin.CSRFConfig {
 	tokenLookup := "header:X-CSRF-Token"
 	if cfg.HTTP.CSRFStrategy == "header_or_legacy_token" {
@@ -335,8 +305,6 @@ func csrfConfig(cfg config.Config) anduin.CSRFConfig {
 	}
 }
 
-// csrfSkipper lets token-authenticated API requests bypass CSRF when they carry
-// a bearer token and no application session cookie.
 func csrfSkipper(cfg config.Config) func(context.Context) bool {
 	return func(ctx context.Context) bool {
 		request := anduin.Request(ctx)
@@ -367,9 +335,6 @@ func hasNonEmptyBearerToken(authorization string) bool {
 	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && parts[1] != ""
 }
 
-// startInBackground runs start in a goroutine and returns a channel that is
-// closed when it exits. It is the generic primitive behind explicit process
-// lifecycle ordering.
 func startInBackground(
 	ctx context.Context,
 	name string,
@@ -386,8 +351,6 @@ func startInBackground(
 	return done
 }
 
-// stopAndWait runs stop and waits for the background function to exit, or for
-// ctx to be done, whichever happens first.
 func stopAndWait(
 	ctx context.Context,
 	stop func(context.Context) error,
@@ -402,7 +365,6 @@ func stopAndWait(
 	}
 }
 
-// mergedOrigins combines origin groups, trimming blanks and de-duplicating.
 func mergedOrigins(groups ...[]string) []string {
 	seen := make(map[string]struct{})
 	origins := make([]string, 0)

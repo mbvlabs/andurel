@@ -24,11 +24,31 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 	assertTemplateMissing(t, "services_registration.tmpl", "FindByScopeAndHash")
 
 	assertTemplateContains(t, "domains_token.tmpl",
+		"type TokenScope string",
+		"Scope:  string(scope),",
 		"func (t Tokens) FindByUserAndScope(",
 		"func (t Tokens) IncrementAttempts(ctx context.Context, id uuid.UUID) (int32, error)",
 		"func (t Tokens) DestroyByUserAndScope(",
 		"GetTokenByUserAndScope",
 	)
+	tokenTemplate := strings.Join(strings.Fields(readLayoutTemplate(t, "domains_token.tmpl")), " ")
+	for _, declaration := range []string{
+		`UserEmailVerification TokenScope = "user_email_verification"`,
+		`UserResetPassword TokenScope = "user_password_reset"`,
+	} {
+		if !strings.Contains(tokenTemplate, declaration) {
+			t.Errorf("domains_token.tmpl missing %q", declaration)
+		}
+	}
+	assertTemplateMissing(t, "domains_token.tmpl", "validationFailure")
+	assertTemplateMissing(t, "domains_user.tmpl", "validationFailure")
+	assertTemplateMissing(t, "domains_errors.tmpl", "ValidationError")
+	assertTemplateMissing(t, "domains_errors.tmpl", "ErrViolation")
+	assertTemplateMissing(t, "handlers_errors.tmpl", "ErrViolation")
+	assertTemplateMissing(t, "domains_token.tmpl", "func (ts TokenScope) ToString(")
+	assertTemplateMissing(t, "domains_token.tmpl", "func (ts TokenScope) String(")
+	assertTemplateContains(t, "handlers_auth.tmpl", "validation.As(err)")
+	assertTemplateContains(t, "handlers_errors.tmpl", "validation.As(err)")
 	assertTemplateContains(t, "domains_queries_token.tmpl",
 		"-- name: GetTokenByUserAndScope :one",
 		"-- name: IncrementTokenAttempts :one",
@@ -57,6 +77,36 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 		"setPendingUser",
 		"PendingUserID",
 	)
+}
+
+func TestGeneratedUserEmailConflictsAreClassified(t *testing.T) {
+	assertTemplateContains(t, "domains_user.tmpl",
+		`pgErr.Code == "23505"`,
+		`pgErr.TableName == "users"`,
+		`pgErr.ConstraintName == "users_email_key"`,
+		"return errors.Join(ErrConflict, err)",
+		"return User{}, userWriteError(err)",
+	)
+	assertTemplateContains(t, "database_migrations_users.tmpl",
+		"CONSTRAINT users_email_key UNIQUE (email)",
+	)
+	assertTemplateContains(t, "handlers_auth.tmpl",
+		"errors.Is(err, domains.ErrConflict)",
+		`outcome = "conflict"`,
+	)
+	assertTemplateContains(t, "handlers_errors.tmpl",
+		"errors.Is(err, domains.ErrConflict)",
+		`renderer.Page(ctx, "Errors/Conflict", inertia.Props{})`,
+		"Status(http.StatusConflict)",
+	)
+	assertTemplateMissing(t, "handlers_errors.tmpl", "anduin.Conflict(")
+	assertTemplateContains(t, "handlers_errors.tmpl",
+		"func wantsJSON(ctx context.Context) bool",
+		"anduin.Header(ctx, inertia.HeaderInertia)",
+		"return mapJSONError(ctx, err)",
+	)
+	// Wrapping every unmapped error in a 500 would turn anduin.BadRequest into a 500.
+	assertTemplateMissing(t, "handlers_errors.tmpl", "anduin.Error(ctx, http.StatusInternalServerError, err)")
 }
 
 // TestGeneratedServicesCommitWritesAndJobsTogether guards the transaction

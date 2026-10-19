@@ -20,17 +20,14 @@ import (
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
-const userEmailVerification = "user_email_verification"
-
 type RegisterUserData struct {
 	Email           string
 	Password        string
 	ConfirmPassword string
 }
 
-// RegisterUser creates the user, issues a verification code, and enqueues the
-// verification email in one transaction: either all three commit or none do.
-// The user domain validates the input, so there is no validation here.
+// RegisterUser commits the user, verification code, and queued email together.
+// Entity validation belongs to the user domain, not this orchestration layer.
 func (i Identity) RegisterUser(
 	ctx context.Context,
 	data RegisterUserData,
@@ -67,9 +64,6 @@ func (i Identity) RegisterUser(
 	return user, nil
 }
 
-// ResendEmailVerification replaces any outstanding verification code for an
-// unverified user with a fresh one and emails it. It is how a user recovers
-// after losing the registering session or exhausting their attempts.
 func (i Identity) ResendEmailVerification(
 	ctx context.Context,
 	user domains.User,
@@ -89,9 +83,8 @@ func (i Identity) ResendEmailVerification(
 	return nil
 }
 
-// sendVerificationCode replaces the user's verification code and enqueues the
-// email carrying it. It takes its dependencies as parameters: pass receivers
-// bound with InTx so the code and the email commit together.
+// sendVerificationCode takes transaction-bound receivers and a queue so the
+// replacement code and its email commit together.
 func (i Identity) sendVerificationCode(
 	ctx context.Context,
 	tokens domains.Tokens,
@@ -108,7 +101,7 @@ func (i Identity) sendVerificationCode(
 	code, err := tokens.ReplaceCode(
 		ctx,
 		i.tokenSigningKey,
-		userEmailVerification,
+		domains.UserEmailVerification,
 		time.Now().Add(24*time.Hour),
 		meta,
 		user.ID,
@@ -161,22 +154,18 @@ type VerifyEmailData struct {
 }
 
 func invalidVerificationCode() error {
-	return errors.Join(
-		ErrInvalidVerificationCode,
-		domains.ValidationError{
-			Fields: map[string]string{"code": invalidVerificationCodeMessage},
-		},
-	)
+	b := validation.NewBuilder()
+	b.Add("code", "invalid", invalidVerificationCodeMessage)
+
+	return errors.Join(ErrInvalidVerificationCode, b.Err())
 }
 
-// verificationAttemptAllowed reports whether the attempt numbered attempts
-// (1-based, as returned by Tokens.IncrementAttempts) may be checked.
+// verificationAttemptAllowed takes the 1-based count returned by IncrementAttempts.
 func verificationAttemptAllowed(attempts int32) bool {
 	return attempts <= maxVerificationAttempts
 }
 
-// verificationLocked reports whether a failed attempt numbered attempts
-// exhausts the code.
+// verificationLocked reports whether a failed attempt exhausts the code.
 func verificationLocked(attempts int32) bool {
 	return attempts >= maxVerificationAttempts
 }
@@ -188,7 +177,7 @@ func (i Identity) VerifyEmail(
 	b := validation.NewBuilder()
 	b.Required("code", data.Code)
 	if err := b.Err(); err != nil {
-		return domains.User{}, validationError(err)
+		return domains.User{}, err
 	}
 
 	if data.UserID == uuid.Nil() {
@@ -206,7 +195,7 @@ func (i Identity) VerifyEmail(
 		token, err := tokens.FindByUserAndScope(
 			ctx,
 			data.UserID,
-			userEmailVerification,
+			domains.UserEmailVerification,
 		)
 		if err != nil {
 			if errors.Is(err, domains.ErrNotFound) {
@@ -218,9 +207,9 @@ func (i Identity) VerifyEmail(
 			return fmt.Errorf("find email verification token: %w", err)
 		}
 
-		// Count the attempt before checking the code. The UPDATE takes the row
-		// lock, so concurrent attempts are serialized and each sees its own count;
-		// once the code is locked out, later attempts find no row.
+		// Count before checking the code: the UPDATE row lock serializes
+		// concurrent attempts, each of which must observe its own count.
+		// Once a code is deleted on lockout, later attempts find no row.
 		attempts, err := tokens.IncrementAttempts(ctx, token.ID)
 		if err != nil {
 			if errors.Is(err, domains.ErrNotFound) {
@@ -241,8 +230,9 @@ func (i Identity) VerifyEmail(
 				}
 			}
 
-			// Returning nil commits the attempt count; the caller maps
-			// invalid to an invalid-code error below.
+			// Returning nil commits the attempt count and any lockout deletion.
+			// Returning an error here would roll back brute-force protection;
+			// invalid is translated into an error after the transaction commits.
 			invalid = true
 
 			return nil

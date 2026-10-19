@@ -19,16 +19,18 @@ type domainField struct {
 	Type   string `json:"type"`
 }
 
-// domainEntity is one struct in a domain file: its table, its mapped fields,
+// domainEntity is one struct in a domain file: its table name and provenance, its mapped fields,
 // whether it has a Validate method, and whether its receiver (the plural
 // type, e.g. Users for User) is constructed in internal/runtime.
 type domainEntity struct {
-	Name      string        `json:"name"`
-	Table     string        `json:"table,omitempty"`
-	Fields    []domainField `json:"fields"`
-	Validates bool          `json:"validates"`
-	Receiver  string        `json:"receiver,omitempty"`
-	Wired     bool          `json:"wired"`
+	Name        string        `json:"name"`
+	Table       string        `json:"table,omitempty"`
+	TableSource string        `json:"table_source"`
+	TableNote   string        `json:"table_note,omitempty"`
+	Fields      []domainField `json:"fields"`
+	Validates   bool          `json:"validates"`
+	Receiver    string        `json:"receiver,omitempty"`
+	Wired       bool          `json:"wired"`
 }
 
 // runtimeConstructedReceivers parses the non-test Go files in runtimeDir and
@@ -84,9 +86,9 @@ func runtimeConstructedReceivers(runtimeDir, module string) map[string]bool {
 
 // describeDomainFile parses one domains .go file and reports the type→column
 // mapping an agent needs: which structs map which fields to which columns,
-// the table from the `// andurel:table <name>` annotation, whether each
-// entity has a Validate method, and whether its receiver is constructed in
-// internal/runtime (wired).
+// the table (from `// andurel:table <name>` or explicitly labeled as inferred),
+// whether each entity has a Validate method, and whether its receiver is
+// constructed in internal/runtime (wired).
 func describeDomainFile(path string, wired map[string]bool) []domainEntity {
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -99,11 +101,27 @@ func describeDomainFile(path string, wired map[string]bool) []domainEntity {
 		return nil
 	}
 
-	table := ""
+	typeDocs := map[*ast.CommentGroup]bool{}
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.TYPE {
+			continue
+		}
+		typeDocs[gen.Doc] = true
+		for _, spec := range gen.Specs {
+			if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+				typeDocs[typeSpec.Doc] = true
+			}
+		}
+	}
+
+	// A free-standing annotation names the table of the file's only entity; a
+	// struct's own doc comment names that struct's table.
+	fileTable := ""
 	for _, group := range file.Comments {
-		for _, comment := range group.List {
-			if name, ok := strings.CutPrefix(comment.Text, "// andurel:table"); ok {
-				table = strings.TrimSpace(name)
+		if !typeDocs[group] {
+			if name := tableAnnotation(group); name != "" {
+				fileTable = name
 			}
 		}
 	}
@@ -137,6 +155,7 @@ func describeDomainFile(path string, wired map[string]bool) []domainEntity {
 	}
 
 	entities := []domainEntity{}
+	docTables := []string{}
 	for _, decl := range file.Decls {
 		gen, ok := decl.(*ast.GenDecl)
 		if !ok || gen.Tok != token.TYPE {
@@ -173,6 +192,12 @@ func describeDomainFile(path string, wired map[string]bool) []domainEntity {
 				continue
 			}
 
+			docTable := tableAnnotation(typeSpec.Doc)
+			if docTable == "" && len(gen.Specs) == 1 {
+				docTable = tableAnnotation(gen.Doc)
+			}
+			docTables = append(docTables, docTable)
+
 			name := typeSpec.Name.Name
 			receiver := patterns.Pluralize(name)
 			if !declared[receiver] {
@@ -180,7 +205,6 @@ func describeDomainFile(path string, wired map[string]bool) []domainEntity {
 			}
 			entities = append(entities, domainEntity{
 				Name:      name,
-				Table:     table,
 				Fields:    fields,
 				Validates: validates[name],
 				Receiver:  receiver,
@@ -189,7 +213,42 @@ func describeDomainFile(path string, wired map[string]bool) []domainEntity {
 		}
 	}
 
+	for i := range entities {
+		table := docTables[i]
+		if table == "" && len(entities) == 1 {
+			table = fileTable
+		}
+		entities[i].Table, entities[i].TableSource = table, "annotation"
+		if table == "" {
+			entities[i].Table, entities[i].TableSource = patterns.TableFor(entities[i].Name), "inferred"
+			if fileTable != "" {
+				entities[i].TableNote = "ignored free-standing `// andurel:table " + fileTable +
+					"`: the file has several entities; put the annotation on the struct's doc comment"
+			}
+		}
+	}
+
 	return entities
+}
+
+// tableAnnotation returns the name from an `// andurel:table <name>` line in
+// group, tolerating any whitespace around the directive and its argument.
+func tableAnnotation(group *ast.CommentGroup) string {
+	if group == nil {
+		return ""
+	}
+	table := ""
+	for _, comment := range group.List {
+		text, ok := strings.CutPrefix(comment.Text, "//")
+		if !ok {
+			continue
+		}
+		if fields := strings.Fields(text); len(fields) == 2 && fields[0] == "andurel:table" {
+			table = fields[1]
+		}
+	}
+
+	return table
 }
 
 // domainTypeString renders a field type expression compactly.

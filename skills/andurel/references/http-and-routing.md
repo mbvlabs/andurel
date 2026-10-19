@@ -167,8 +167,8 @@ rt := anduin.NewRouter(
 ```
 
 `handlers.MapError(*inertia.Renderer) anduin.ErrorHandler` translates the shared
-domain vocabulary (`domains.ErrNotFound`, `domains.ErrConflict`,
-`domains.ErrViolation`, `domains.ValidationError`) into error pages, validation
+domain vocabulary (`domains.ErrNotFound`, `domains.ErrConflict`)
+and `pkg/validation` errors (`validation.As(err)`) into HTTP responses, validation
 props, and statuses, falling back to `anduin.Error(ctx, http.StatusInternalServerError, err)`.
 Without an installed handler, the default writes the status text as plain text.
 
@@ -270,8 +270,7 @@ return h.renderer.Page(ctx, "User/Index", inertia.FromStruct(result.Items)).Rend
 
 The root document is `resources/root.templ` (package `resources`). Map
 validation failures with `Page(...).ValidationErrors(fields)`; check with
-`errors.Is(err, domains.ErrViolation)` or
-`errors.As(err, &domains.ValidationError{})`.
+`validation.As(err)`. There is no separate domain validation sentinel or wrapper.
 
 ## Testing handlers
 

@@ -1,7 +1,6 @@
-// Package middleware holds the application's HTTP middleware and cookie jar
-// wiring. Generic middleware (recover, telemetry, logging, CORS, CSRF) lives in
-// pkg/anduin; this package owns the pieces an application customises: the auth
-// guard, the IP rate limiter, the CSRF policy, and the session jar.
+// Package middleware owns application HTTP policy: authentication, rate limits,
+// CSRF policy, and session definitions. Generic middleware comes from pkg/anduin;
+// cookie jar construction and dependency wiring live in internal/runtime.
 package middleware
 
 import (
@@ -46,14 +45,10 @@ func mayBypassCSRF(request *http.Request, appCookieSessionName string) bool {
 		!hasApplicationSessionCookie(request, appCookieSessionName)
 }
 
-// Telemetry attaches the telemetry pipeline to the request context and records
-// the matched route on the active span. It is anduin's built-in Telemetry.
 func Telemetry(tel *telemetry.Telemetry) anduin.Middleware {
 	return anduin.Telemetry(tel)
 }
 
-// TraceRouteAttributes records the matched ServeMux route on the active span
-// after the response has been produced.
 func TraceRouteAttributes() anduin.Middleware {
 	return func(next anduin.Handler) anduin.Handler {
 		return func(ctx context.Context) error {
@@ -67,14 +62,10 @@ func TraceRouteAttributes() anduin.Middleware {
 	}
 }
 
-// Logger logs one completed request per line, skipping assets and API traffic.
 func Logger() anduin.Middleware {
 	return anduin.Logger(slog.Default(), routes.AssetsPrefix, routes.APIPrefix)
 }
 
-// CSRFMiddleware builds the CSRF policy for the configured strategy. The
-// header_only strategy reads the token from the CSRF cookie; the
-// header_or_legacy_token strategy also accepts the legacy _csrf form field.
 func CSRFMiddleware(
 	csrfStrategy string,
 	csrfTrustedOrigins []string,

@@ -16,8 +16,6 @@ import (
 	"context"
 )
 
-// WelcomeEmail is a transactional email. The struct carries the data; the
-// render method is the templ body; ToHTML/ToText render it for mail clients.
 type WelcomeEmail struct {
 	UserName string
 }
@@ -62,8 +60,8 @@ import (
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
-// sendWelcome enqueues the welcome email on queue. Pass i.queue.InTx(tx) from
-// inside storage.AtomicOps so the email is only sent if the user commits.
+// Pass i.queue.InTx(tx) from inside storage.AtomicOps so the email is only
+// delivered if the user commits.
 func (i Identity) sendWelcome(ctx context.Context, queue storage.InsertQueue, user domains.User) error {
 	message := appemail.WelcomeEmail{UserName: user.Email}
 

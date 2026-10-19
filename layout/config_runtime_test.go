@@ -20,6 +20,7 @@ func TestGeneratedConfigRuntime(t *testing.T) {
 	data := &TemplateData{ModuleName: "testapp", ProjectName: "testapp"}
 	for _, name := range []string{
 		"config", "helper", "app", "hosts", "http", "session", "database", "queue", "telemetry", "email", "auth",
+		"cache", "inertia",
 	} {
 		if err := renderTemplate(
 			root, "config_"+name+".tmpl", "config/"+name+".go", layouttemplates.Files, data,
@@ -40,7 +41,7 @@ require (
 `, goVersion); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"anduin", "inertia", "routing", "storage", "telemetry", "validation"} {
+	for _, name := range []string{"anduin", "cache", "inertia", "routing", "storage", "telemetry", "validation"} {
 		path, err := filepath.Abs(filepath.Join("..", "pkg", name))
 		if err != nil {
 			t.Fatal(err)

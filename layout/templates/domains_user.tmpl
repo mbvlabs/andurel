@@ -1,7 +1,5 @@
 package domains
 
-// andurel:table users
-
 import (
 	"context"
 	"crypto/rand"
@@ -20,10 +18,13 @@ import (
 	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"golang.org/x/crypto/argon2"
 )
+
+const minPasswordLength = 8
 
 type Users struct {
 	queries *queries.Queries
@@ -33,15 +34,12 @@ func NewUsers(db storage.Connection) Users {
 	return Users{queries: queries.New(db)}
 }
 
-// InTx returns a Users whose calls run inside tx.
+// InTx binds this receiver's queries to the caller's transaction.
 func (u Users) InTx(tx storage.Tx) Users {
 	return Users{queries: queries.New(storage.Unwrap(tx))}
 }
 
-const minPasswordLength = 8
-
-// normaliseEmail is the one normalisation every email entry point uses, so
-// lookups and writes always agree.
+// normaliseEmail is shared by lookups and writes so they agree on identity.
 func normaliseEmail(raw string) string {
 	return strings.ToLower(strings.TrimSpace(raw))
 }
@@ -78,8 +76,6 @@ type User struct {
 	IsAdmin          bool               `andurel:"is_admin"`
 }
 
-// Validate is the user write gate: Create and Update call it before touching
-// the database, so callers never re-check these rules.
 func (u *User) Validate() error {
 	b := validation.NewBuilder()
 	u.validate(b)
@@ -162,7 +158,6 @@ func (u Users) FindByEmail(
 	return entity, nil
 }
 
-// PasswordPair is a new password and its confirmation, as entered.
 type PasswordPair struct {
 	Password        string
 	ConfirmPassword string
@@ -182,8 +177,6 @@ type CreateUserData struct {
 	PasswordPair PasswordPair
 }
 
-// Create validates the email and password together, so a form gets every
-// field error in one response, then hashes the password and inserts the user.
 func (u Users) Create(
 	ctx context.Context,
 	pepper string,
@@ -203,7 +196,7 @@ func (u Users) Create(
 	entity.validate(b)
 	data.PasswordPair.validate(b)
 	if err := b.Err(); err != nil {
-		return User{}, validationFailure(err)
+		return User{}, err
 	}
 
 	hashedPassword, err := HashPassword(data.PasswordPair.Password, pepper)
@@ -212,7 +205,7 @@ func (u Users) Create(
 	}
 	entity.Password = []byte(hashedPassword)
 
-	return u.queries.CreateUser[User](ctx, queries.CreateUserParams{
+	created, err := u.queries.CreateUser[User](ctx, queries.CreateUserParams{
 		ID:               entity.ID,
 		CreatedAt:        entity.CreatedAt,
 		UpdatedAt:        entity.UpdatedAt,
@@ -221,6 +214,24 @@ func (u Users) Create(
 		Password:         entity.Password,
 		IsAdmin:          entity.IsAdmin,
 	})
+	if err != nil {
+		return User{}, userWriteError(err)
+	}
+
+	return created, nil
+}
+
+// userWriteError translates the expected email conflict without classifying
+// unrelated database failures as user errors. Keep the constraint in sync with
+// the users migration.
+func userWriteError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" &&
+		pgErr.TableName == "users" && pgErr.ConstraintName == "users_email_key" {
+		return errors.Join(ErrConflict, err)
+	}
+
+	return err
 }
 
 type UpdateUserData struct {
@@ -266,7 +277,7 @@ func (u Users) Update(
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return User{}, validationFailure(err)
+		return User{}, err
 	}
 
 	row, err := u.queries.UpdateUser[User](ctx, queries.UpdateUserParams{
@@ -282,14 +293,12 @@ func (u Users) Update(
 			return User{}, ErrNotFound
 		}
 
-		return User{}, err
+		return User{}, userWriteError(err)
 	}
 
 	return row, nil
 }
 
-// ChangePassword validates the new password pair, hashes it with pepper, and
-// stores it on the user.
 func (u Users) ChangePassword(
 	ctx context.Context,
 	pepper string,
@@ -299,7 +308,7 @@ func (u Users) ChangePassword(
 	b := validation.NewBuilder()
 	pair.validate(b)
 	if err := b.Err(); err != nil {
-		return User{}, validationFailure(err)
+		return User{}, err
 	}
 
 	current, err := u.Find(ctx, id)

@@ -7,6 +7,8 @@ import (
 	"uuid"
 
 	"{{.ModuleName}}/domains"
+
+	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 func TestVerifyEmailRejectsMissingPendingUser(t *testing.T) {
@@ -20,11 +22,11 @@ func TestVerifyEmailRejectsMissingPendingUser(t *testing.T) {
 		t.Fatalf("VerifyEmail error = %v, want %v", err, ErrInvalidVerificationCode)
 	}
 
-	validationErrors, ok := errors.AsType[domains.ValidationError](err)
+	validationErrors, ok := validation.As(err)
 	if !ok {
 		t.Fatalf("VerifyEmail error = %v, want a validation error", err)
 	}
-	if got := validationErrors.Fields["code"]; got != invalidVerificationCodeMessage {
+	if got := validationErrors.ToMap()["code"]; got != invalidVerificationCodeMessage {
 		t.Fatalf("code error = %q, want %q", got, invalidVerificationCodeMessage)
 	}
 }

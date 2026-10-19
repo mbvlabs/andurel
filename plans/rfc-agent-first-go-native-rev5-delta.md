@@ -8,6 +8,12 @@ Against `plans/rfc-agent-first-go-native.md` rev 3. No unchanged RFC text repeat
 - Rationale: same as handlers — sub-packages forced `domainuser`/`domaintoken` aliases at every service, handler, seed, and composition call site. Domains never use each other in practice (services coordinate), so nothing is lost: what stays mechanically enforced is the queries-only import lint (`verify` layers). One file per domain is convention.
 - `domains/internal/queries` stays a separate package; only `domains` imports it.
 - `inspect domains` reports per-file entities; `verify` keeps the queries-only check.
+- Current error contract: `domains/errors.go` holds `ErrNotFound` and `ErrConflict`.
+  Return `pkg/validation` errors directly and inspect them with `validation.As`;
+  there is no domain validation wrapper or `ErrViolation` sentinel.
+- Inspection labels table names with `table_source: inferred|annotation`.
+  Conventional names are guesses; optional `// andurel:table <name>` metadata
+  overrides inspection for custom tables without configuring SQL.
 
 ## 1. `handlers/` is one flat package
 
@@ -28,7 +34,9 @@ Against `plans/rfc-agent-first-go-native.md` rev 3. No unchanged RFC text repeat
 - `App` gains `Start`/`Shutdown` delegating to `Server`; `App.Close` runs closers in reverse. `cmd/app` becomes env load + `runtime.New` + `app.Start`.
 - `pkg/anduin` still keeps `Router` and `Server` as separate types (handler tests use `Router` alone); only the app stops exposing two constructors.
 
-## 4. Type-driven domains (Palmieri ch. 6: parse, don't validate)
+## 4. Type-driven domains (Palmieri ch. 6: parse, don't validate) — superseded in rev 6
+
+> **Rev 6:** dropped. Go zero values (`Email("")`, direct conversion) make newtypes unenforceable, so entities use `Validate()` at the domain write path instead. See RFC §5.2 and §18. Transactions run through `storage.AtomicOps` with an opaque `storage.Tx`; receivers, the queue, and the transactor bind with `InTx(tx)` (RFC §5.4, full design in `plans/rfc-domain-transactions-option1.md`). An intermediate aggregate `domains.Store` was prototyped and rejected.
 
 - Each invariant becomes a newtype with `ParseX` as the supported constructor; read access is read-only (`String()`, `Bytes()`).
 - Example: `type Email string` + `ParseEmail(raw) (Email, error)` (trim, lowercase, format check, `ValidationError` on failure). `User.Email` is `Email`, not `string`. `CreateUserData` takes parsed types.
@@ -43,7 +51,7 @@ Against `plans/rfc-agent-first-go-native.md` rev 3. No unchanged RFC text repeat
 
 ## 6. `patterns show domain --entity/--table`
 
-- The old `generate model User` convention survives only as builder output: `patterns show domain --entity User --table users` emits the ordered file manifest (migration + colocated `.sql` + newtype entity/receiver + test) to stdout/Markdown/`--json`. Patterns still never write files.
+- The old `generate model User` convention survives only as builder output: `patterns show domain --entity User --table users` emits the ordered file manifest (migration + colocated `.sql` + entity with `Validate()`/receiver + test) to stdout/Markdown/`--json`. Patterns still never write files.
 - `generate` keeps only `migration`. `inspect domains --json` reports the type→column mapping.
 
 ## 7. Open items (not yet in RFC text)

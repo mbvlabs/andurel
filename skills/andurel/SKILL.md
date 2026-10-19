@@ -36,7 +36,7 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 
 ## Layer Placement
 
-- Put invariant business rules, entity construction (`ParseX`), persistence methods, and finder/query methods in `domains/` (one file per domain).
+- Put invariant business rules, input validation (`Validate()` with `pkg/validation`), persistence methods, and finder/query methods in `domains/` (one file per domain).
 - Colocate each domain's SQL at `domains/<entity>.sql`; narsilc output goes to `domains/internal/queries`.
 - Put transactions, cross-domain coordination, external side effects, and multi-step application workflows in `services/`.
 - Put HTTP adapters in the single flat `handlers/` package (`AuthHandler`, `APIHandler`, `NewXHandler` constructors, no sub-packages).
@@ -123,7 +123,7 @@ Generate Inertia payload types:
 andurel sync payloads --json
 ```
 
-`andurel sync payloads` scans handler `inertia.FromStruct` and named Bind structs and writes `resources/js/types/payloads.ts`. Import page and form types from that file instead of hand-written TypeScript. Run it after editing those Go structs.
+`andurel sync payloads` scans handler `inertia.FromStruct` props and the named `*Payload` structs passed to `anduin.DecodeJSON`/`DecodeForm` and writes `resources/js/types/payloads.ts`. Import page and form types from that file instead of hand-written TypeScript. Run it after editing those Go structs.
 
 Generate a named database seed:
 

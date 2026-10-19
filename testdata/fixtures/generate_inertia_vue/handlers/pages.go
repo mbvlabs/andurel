@@ -9,8 +9,6 @@ import (
 	"github.com/mbvlabs/andurel/pkg/inertia"
 )
 
-// Pages serves the application's Inertia pages. Home is the reference page: it
-// renders the Welcome component and links to the auth routes.
 type Pages struct {
 	renderer *inertia.Renderer
 }
@@ -19,8 +17,6 @@ func NewPages(renderer *inertia.Renderer) Pages {
 	return Pages{renderer: renderer}
 }
 
-// Register mounts the page routes. HomePage is "/", so it also acts as the
-// least-specific match for unmatched GET requests.
 func (p Pages) Register(rt *anduin.Router) {
 	rt.Get(routes.HomePage.Path(), p.Home)
 }
