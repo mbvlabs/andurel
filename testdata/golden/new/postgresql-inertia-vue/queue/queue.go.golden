@@ -1,11 +1,7 @@
 package queue
 
-import "go.uber.org/fx"
+import "github.com/riverqueue/river"
 
-var PeriodicJobsModule = fx.Module("queue-periodic-jobs")
-
-var Module = fx.Module(
-	"queue",
-	WorkersModule,
-	PeriodicJobsModule,
-)
+func PeriodicJobs() []*river.PeriodicJob {
+	return nil
+}

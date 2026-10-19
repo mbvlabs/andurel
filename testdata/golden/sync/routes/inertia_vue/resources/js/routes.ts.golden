@@ -14,25 +14,41 @@ function origin(host: string): string {
 }
 
 export const routes = {
+  confirmationCreate: routeHelper({
+    host: 'primary',
+    path: () => '/users/confirmation',
+  }),
+  confirmationNew: routeHelper({
+    host: 'primary',
+    path: () => '/users/confirmation/new',
+  }),
+  homePage: routeHelper({
+    host: 'primary',
+    path: () => '/',
+  }),
+  passwordCreate: routeHelper({
+    host: 'primary',
+    path: () => '/users/password',
+  }),
+  passwordEdit: routeHelper({
+    host: 'primary',
+    path: (token: string) => `/users/password/${token}/edit`,
+  }),
+  passwordNew: routeHelper({
+    host: 'primary',
+    path: () => '/users/password/new',
+  }),
+  passwordUpdate: routeHelper({
+    host: 'primary',
+    path: () => '/users/password',
+  }),
   projectCreate: routeHelper({
     host: 'primary',
     path: () => '/projects',
   }),
-  projectDestroy: routeHelper({
-    host: 'primary',
-    path: (id: string) => `/projects/${id}`,
-  }),
-  projectEdit: routeHelper({
-    host: 'primary',
-    path: (id: string) => `/projects/${id}/edit`,
-  }),
   projectIndex: routeHelper({
     host: 'primary',
     path: () => '/projects',
-  }),
-  projectNew: routeHelper({
-    host: 'primary',
-    path: () => '/projects/new',
   }),
   projectShow: routeHelper({
     host: 'primary',
@@ -41,6 +57,26 @@ export const routes = {
   projectUpdate: routeHelper({
     host: 'primary',
     path: (id: string) => `/projects/${id}`,
+  }),
+  registrationCreate: routeHelper({
+    host: 'primary',
+    path: () => '/users',
+  }),
+  registrationNew: routeHelper({
+    host: 'primary',
+    path: () => '/users/sign-up',
+  }),
+  sessionCreate: routeHelper({
+    host: 'primary',
+    path: () => '/users/sign-in',
+  }),
+  sessionDestroy: routeHelper({
+    host: 'primary',
+    path: () => '/users/sign-out',
+  }),
+  sessionNew: routeHelper({
+    host: 'primary',
+    path: () => '/users/sign-in',
   }),
 }
 

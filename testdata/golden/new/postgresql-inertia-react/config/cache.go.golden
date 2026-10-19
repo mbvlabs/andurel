@@ -1,0 +1,52 @@
+package config
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/mbvlabs/andurel/pkg/cache"
+)
+
+const DefaultCacheNamespace = "andurel"
+
+type Cache struct {
+	Driver    string
+	Namespace string
+	RedisAddr string
+}
+
+func NewCache() (Cache, error) {
+	env := newEnvironment()
+	cfg := Cache{
+		Driver:    env.String("CACHE_DRIVER", "memory"),
+		Namespace: env.String("CACHE_NAMESPACE", DefaultCacheNamespace),
+		RedisAddr: env.String("CACHE_REDIS_ADDR", ""),
+	}
+	if err := env.Err(); err != nil {
+		return Cache{}, fmt.Errorf("config: cache: %w", err)
+	}
+	if cfg.Driver != "memory" && cfg.Driver != "redis" {
+		return Cache{}, fmt.Errorf("config: cache: CACHE_DRIVER must be memory or redis")
+	}
+	if cfg.Driver == "redis" && cfg.RedisAddr == "" {
+		return Cache{}, fmt.Errorf(
+			"config: cache: CACHE_REDIS_ADDR is required for the redis driver",
+		)
+	}
+
+	return cfg, nil
+}
+
+func (c Cache) Store() (cache.Store, error) {
+	return cache.New(cache.Config{
+		Driver:    c.Driver,
+		Namespace: c.Namespace,
+		Redis: cache.RedisConfig{
+			Addr: c.RedisAddr,
+		},
+	})
+}
+
+func CacheTTL() time.Duration {
+	return newEnvironment().Duration("CACHE_TTL", 15*time.Minute)
+}

@@ -1,22 +1,81 @@
 # Agent notes for app
 
-This is an Andurel application. Use the `andurel` CLI instead of inventing file paths, URLs, or generator names.
+This is an Andurel application. Use the `andurel` CLI to discover the project shape and to read the reference patterns instead of inventing file paths, URLs, or generator names.
+
+Frontend: Inertia (svelte) + Vite. HTTP: `net/http` via `pkg/anduin` — handlers are `func(ctx context.Context) error`. There is no Echo and no Fx. Entities validate via `pkg/validation`.
 
 ## Discovery
 
 ```bash
 andurel commands --json
 andurel inspect project --json
+andurel inspect handlers --json
+andurel inspect domains --json
+andurel inspect routes --json
 andurel doctor --json
 ```
+
+## Patterns (read-only)
+
+`andurel patterns` prints reference code, the placement rules, and a "definition of done" checklist. It never writes files; you write every file.
+
+```bash
+andurel patterns list
+andurel patterns show domain
+andurel patterns show service
+andurel patterns show handler
+andurel patterns show route
+andurel patterns show job
+andurel patterns show email
+andurel patterns show migration
+andurel patterns show test-domain
+andurel patterns show test-handler
+andurel patterns show test-integration
+andurel patterns show composition
+andurel patterns show domain --json
+andurel patterns show domain --entity User --table users --json
+```
+
+## Layer placement
+
+- `domains/` — business logic and persistence in one flat package (one file per domain); SQL is colocated as `domains/<entity>.sql`. Only `domains` imports `domains/internal/queries`.
+- `domains/errors.go` — the shared vocabulary: `ErrNotFound`, `ErrConflict`. Return `pkg/validation` errors directly; handlers inspect them with `validation.As`.
+- `services/` — application logic: transactions, cross-domain orchestration, external side effects. Writes that must commit together run in `storage.AtomicOps(ctx, i.transactor, func(ctx, tx storage.Tx) error { … })`, binding receivers and the queue with `InTx(tx)` at the top of the callback; returning `nil` commits, an error rolls back.
+- `handlers/` — HTTP adapters in one flat package (`AuthHandler`, `APIHandler`, `NewXHandler` constructors, no sub-packages). Register routes in `Register(rt *anduin.Router)`.
+- `routes/` — route data only (names, paths, URL builders).
+- `middleware/` — app HTTP policy (auth, rate limiting) plus the session definition. Jar construction lives in `internal/runtime`.
+- `internal/runtime` — composition root. One constructor per process (`New` owns `Handler`+`Server`); explicit constructor injection; no Fx.
+- `resources/root.templ` — the one page-shaped templ (the Inertia root document). Email templ lives in `email/`.
+
+Read the `layer-placement` skill reference for the full table and the decision checklist.
+
+## Verify
+
+```bash
+andurel verify
+```
+
+Runs formatting, `go fix`, `go vet`, the persistence-boundary lints (queries import, raw DB handle, `storage.Unwrap`, transaction escape, nested public calls), and generated-code drift. Violations come with a `fix`; a failed run exits 9. Pass `--with-tests` to also run `go test ./...` (domain tests need a Postgres container). Run it after every change.
+
+## HTTP
+
+Handlers are `func(ctx context.Context) error`. Use `pkg/anduin` for request/response access on the context:
+
+- Request: `anduin.PathValue`, `Query`, `QueryInt`, `QueryBool`, `FormValue`, `Header`, `Cookie`, `DecodeJSON`, `DecodeForm`.
+- Response: `anduin.JSON`, `JSONBlob`, `Text`, `HTML`, `NoContent`, `Redirect`, `SetHeader`.
+- Errors: return `anduin.Error(ctx, status, err)`, `anduin.BadRequest(err)`, `anduin.NotFound(err)`, or a `domains.Err*` sentinel. The router's `ErrorHandler` (`handlers.MapError`) renders them.
+
+See the `http-and-routing` skill reference for `Router`, `Server`, middleware, host dispatch, and the request/response API.
 
 ## Common commands
 
 ```bash
-andurel generate scaffold <Name> --dry-run --json
 andurel generate migration <name>
 andurel db migrate up
 andurel sync queries --json
+andurel sync email --json
+andurel sync routes --json
+andurel sync payloads --json
 andurel inspect routes --json
 andurel run
 ```
@@ -24,14 +83,15 @@ andurel run
 ## Hosts and URLs
 
 - Default identity is `HOST_PRIMARY` in `.env`. Extra hosts need a `routing.HostName` const in `config/hosts.go` plus a matching `App.Hosts` entry (load `HOST_<NAME>` yourself — not scaffolded).
-- `--host` and `--prefix` are independent: `--host` selects the Echo/`routing.HostName`; `--prefix` is only the path/package namespace. `--host` must match a known `HostName` (`primary` always works; others come from app `routing.HostName` consts).
-- Declare the host on the route with `routing.Host(config.HostAdmin)`. Controllers call `r.AddRoute(route, echo.Route{...})`; Fx stays `RegisterRoutes(r)`. `/api` stays on primary unless those routes set `Host(...)`. Layout CSS/JS use `FullURL()` to primary.
-- Inertia Vite tags use `FullURL()` to primary. Vite production `base` is `'./'` so nested files follow the script origin.
+- Declare the host on the route value with `routing.Host(config.HostAdmin)` and register it with `rt.Host(config.HostAdmin).Get(route.Path(), handler)`. Unknown hosts are served by the primary mux.
+- `/api` stays on the primary host unless those routes set `Host(...)`. Layout CSS/JS use `FullURL()` to primary.
 - Never invent frontend URLs in Inertia apps: import `resources/js/routes.ts` after `andurel sync routes --json`. Helpers return full URLs once `configureRouteHosts` runs from the shared `hosts` prop at boot. Use `routes.name.path()` for a relative path.
+- After changing handler payload or Bind structs, run `andurel sync payloads --json` so `resources/js/types/payloads.ts` stays in sync.
 
+## Composition
 
-## Process graphs
+`internal/runtime` constructs the graph explicitly, bottom-up: telemetry → database → domains → services → renderer/handlers/middleware → router. `cmd/app` and `cmd/queue` only load env, create the signal context, and start `runtime`. Add a dependency by constructing it and passing it as a constructor argument — never through a container.
 
-Fx process graphs live in `internal/runtime`. `cmd/app` calls `runtime.App`; `cmd/queue` calls `runtime.Queue`. Register new services, controllers, and workers in their package `Module`. Add process-wide providers (email drivers, extra Fx provides) in `internal/runtime`. `internal/` holds app support code that is not a model, service, controller, or view. Adapters for third-party services go in a package there named for its job (for example `internal/clients/` or `internal/payment/`); keep business rules out of them and wire them in `internal/runtime`.
+## Migrations
 
-`cmd/migrate` applies pending SQL with `storage.RunMigrations` on `migrations.Migrations`. It is a one-shot process, not part of `cmd/app` start. Development still uses `andurel db migrate up`.
+`cmd/migrate` applies pending SQL with `storage.RunMigrations` on `migrations.Migrations`. It is a one-shot process, not part of `cmd/app` start. Development uses `andurel db migrate up`.

@@ -1,0 +1,382 @@
+package domains
+
+import (
+	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base32"
+	"encoding/hex"
+	"errors"
+	"time"
+	"uuid"
+
+	"app/domains/internal/queries"
+
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/validation"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+type TokenScope string
+
+const (
+	UserEmailVerification TokenScope = "user_email_verification"
+	UserResetPassword     TokenScope = "user_password_reset"
+)
+
+// Tokens holds a Transactor because ReplaceCode must be atomic on its own.
+// ReplaceCode opens a transaction unless InTx binds it to the caller's.
+type Tokens struct {
+	transactor storage.Transactor
+	queries    *queries.Queries
+}
+
+func NewTokens(db storage.Connection) Tokens {
+	return Tokens{transactor: storage.NewTransactor(db), queries: queries.New(db)}
+}
+
+// InTx binds queries and atomic operations to the caller's transaction.
+func (t Tokens) InTx(tx storage.Tx) Tokens {
+	return Tokens{
+		transactor: t.transactor.InTx(tx),
+		queries:    queries.New(storage.Unwrap(tx)),
+	}
+}
+
+type Token struct {
+	ID        uuid.UUID          `andurel:"id"`
+	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
+	Scope     string             `andurel:"scope"`
+	ExpiresAt pgtype.Timestamptz `andurel:"expires_at"`
+	Hash      string             `andurel:"hash"`
+	MetaData  []byte             `andurel:"meta_data"`
+	UserID    uuid.UUID          `andurel:"user_id"`
+	Attempts  int32              `andurel:"attempts"`
+}
+
+func (t Token) IsValid(token, secret string) bool {
+	expected := HashForStorage(token, secret)
+
+	isEqual := hmac.Equal([]byte(expected), []byte(t.Hash))
+	isNotExpired := time.Now().Before(t.ExpiresAt.Time)
+
+	return isEqual && isNotExpired
+}
+
+const codeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+func GenerateCode(n int) (string, error) {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	for i := range b {
+		b[i] = codeAlphabet[int(b[i])%len(codeAlphabet)]
+	}
+
+	return string(b), nil
+}
+
+func GenerateSecureToken() (string, error) {
+	b := make([]byte, 15)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b), nil
+}
+
+func HashForStorage(plain, secret string) string {
+	m := hmac.New(sha256.New, []byte(secret))
+	m.Write([]byte(plain))
+
+	return hex.EncodeToString(m.Sum(nil))
+}
+
+func (t Tokens) Find(ctx context.Context, id uuid.UUID) (Token, error) {
+	entity, err := t.queries.GetToken[Token](ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Token{}, ErrNotFound
+		}
+
+		return Token{}, err
+	}
+
+	return entity, nil
+}
+
+func (t Tokens) FindByScopeAndHash(
+	ctx context.Context,
+	secret string,
+	scope TokenScope,
+	plainToken string,
+) (Token, error) {
+	hash := HashForStorage(plainToken, secret)
+
+	entity, err := t.queries.GetTokenByScopeAndHash[Token](
+		ctx,
+		queries.GetTokenByScopeAndHashParams{
+			Scope: string(scope),
+			Hash:  hash,
+		},
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Token{}, ErrNotFound
+		}
+
+		return Token{}, err
+	}
+
+	return entity, nil
+}
+
+func (t Tokens) FindByUserAndScope(
+	ctx context.Context,
+	userID uuid.UUID,
+	scope TokenScope,
+) (Token, error) {
+	entity, err := t.queries.GetTokenByUserAndScope[Token](
+		ctx,
+		queries.GetTokenByUserAndScopeParams{
+			UserID: userID,
+			Scope:  string(scope),
+		},
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Token{}, ErrNotFound
+		}
+
+		return Token{}, err
+	}
+
+	return entity, nil
+}
+
+// IncrementAttempts takes an UPDATE row lock until the transaction finishes.
+// Call it before checking a code, and commit even when that code is invalid.
+func (t Tokens) IncrementAttempts(ctx context.Context, id uuid.UUID) (int32, error) {
+	attempts, err := t.queries.IncrementTokenAttempts(ctx, queries.IncrementTokenAttemptsParams{
+		ID:        id,
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, ErrNotFound
+		}
+
+		return 0, err
+	}
+
+	return attempts, nil
+}
+
+func (t Tokens) DestroyByUserAndScope(
+	ctx context.Context,
+	userID uuid.UUID,
+	scope TokenScope,
+) error {
+	return t.queries.DeleteTokensByUserAndScope(ctx, queries.DeleteTokensByUserAndScopeParams{
+		UserID: userID,
+		Scope:  string(scope),
+	})
+}
+
+type createTokenData struct {
+	Scope     string
+	ExpiresAt time.Time
+	Hash      string
+	MetaData  []byte
+	UserID    uuid.UUID
+}
+
+func (t *Token) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("scope", t.Scope)
+	b.Required("expires_at", t.ExpiresAt)
+	b.Required("hash", t.Hash)
+	b.Required("meta_data", t.MetaData)
+	b.Required("user_id", t.UserID)
+
+	return b.Err()
+}
+
+func (t Tokens) createToken(
+	ctx context.Context,
+	data createTokenData,
+) (Token, error) {
+	entity := Token{
+		ID:        uuid.New(),
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		Scope:     data.Scope,
+		ExpiresAt: pgtype.Timestamptz{Time: data.ExpiresAt, Valid: true},
+		Hash:      data.Hash,
+		MetaData:  data.MetaData,
+		UserID:    data.UserID,
+	}
+
+	if err := validation.Validate(&entity); err != nil {
+		return Token{}, err
+	}
+
+	return t.queries.CreateToken[Token](ctx, queries.CreateTokenParams{
+		ID:        entity.ID,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+		Scope:     entity.Scope,
+		ExpiresAt: entity.ExpiresAt,
+		Hash:      entity.Hash,
+		MetaData:  entity.MetaData,
+		UserID:    entity.UserID,
+	})
+}
+
+func (t Tokens) CreateCode(
+	ctx context.Context,
+	secret string,
+	scope TokenScope,
+	expiresAt time.Time,
+	metaData []byte,
+	userID uuid.UUID,
+) (string, error) {
+	tkn, err := GenerateCode(6)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := t.createToken(ctx, createTokenData{
+		Scope:     string(scope),
+		ExpiresAt: expiresAt,
+		Hash:      HashForStorage(tkn, secret),
+		MetaData:  metaData,
+		UserID:    userID,
+	}); err != nil {
+		return "", err
+	}
+
+	return tkn, nil
+}
+
+// ReplaceCode atomically replaces the outstanding code for a user and scope,
+// joining the caller's transaction when the receiver was bound with InTx.
+func (t Tokens) ReplaceCode(
+	ctx context.Context,
+	secret string,
+	scope TokenScope,
+	expiresAt time.Time,
+	metaData []byte,
+	userID uuid.UUID,
+) (string, error) {
+	var code string
+
+	err := storage.AtomicOps(ctx, t.transactor, func(ctx context.Context, tx storage.Tx) error {
+		tokens := t.InTx(tx)
+
+		if err := tokens.DestroyByUserAndScope(ctx, userID, scope); err != nil {
+			return err
+		}
+
+		created, err := tokens.CreateCode(ctx, secret, scope, expiresAt, metaData, userID)
+		if err != nil {
+			return err
+		}
+
+		code = created
+
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return code, nil
+}
+
+func (t Tokens) Create(
+	ctx context.Context,
+	secret string,
+	scope TokenScope,
+	expiresAt time.Time,
+	metaData []byte,
+	userID uuid.UUID,
+) (string, error) {
+	tkn, err := GenerateSecureToken()
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := t.createToken(ctx, createTokenData{
+		Scope:     string(scope),
+		ExpiresAt: expiresAt,
+		Hash:      HashForStorage(tkn, secret),
+		MetaData:  metaData,
+		UserID:    userID,
+	}); err != nil {
+		return "", err
+	}
+
+	return tkn, nil
+}
+
+func (t Tokens) Destroy(ctx context.Context, id uuid.UUID) error {
+	return t.queries.DeleteToken(ctx, id)
+}
+
+func (t Tokens) All(ctx context.Context) ([]Token, error) {
+	return t.queries.ListTokens[Token](ctx).All()
+}
+
+type PaginatedTokens struct {
+	Tokens     []Token
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (t Tokens) Paginate(
+	ctx context.Context,
+	page, pageSize int64,
+) (PaginatedTokens, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := t.queries.CountTokens(ctx)
+	if err != nil {
+		return PaginatedTokens{}, err
+	}
+
+	entities, err := t.queries.ListTokens[Token](ctx).
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
+		return PaginatedTokens{}, err
+	}
+
+	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
+
+	return PaginatedTokens{
+		Tokens:     entities,
+		TotalCount: int64(totalCount),
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}

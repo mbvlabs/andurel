@@ -1,0 +1,66 @@
+package middleware
+
+import (
+	"context"
+	"net"
+	"net/http"
+	"time"
+
+	"app/routes"
+
+	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/cache"
+	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/routing"
+)
+
+func AuthOnly() anduin.Middleware {
+	return func(next anduin.Handler) anduin.Handler {
+		return func(ctx context.Context) error {
+			app, err := kiks.Get[*App](ctx)
+			if err != nil {
+				return err
+			}
+			if app != nil && app.IsAuthenticated {
+				return next(ctx)
+			}
+
+			return anduin.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
+		}
+	}
+}
+
+func IPRateLimiter(
+	store cache.Store,
+	limit int,
+	redirectURL routing.Route,
+) anduin.Middleware {
+	const window = 10 * time.Minute
+
+	return func(next anduin.Handler) anduin.Handler {
+		return func(ctx context.Context) error {
+			ip := clientIP(anduin.Request(ctx))
+			hits, err := store.Increment(ctx, "ratelimit:"+ip, window)
+			if err != nil {
+				return err
+			}
+
+			if hits > int64(limit) {
+				return anduin.Text(ctx, http.StatusTooManyRequests, redirectURL.URL())
+			}
+
+			return next(ctx)
+		}
+	}
+}
+
+func clientIP(request *http.Request) string {
+	if request == nil {
+		return ""
+	}
+	if host, _, err := net.SplitHostPort(request.RemoteAddr); err == nil {
+		return host
+	}
+
+	return request.RemoteAddr
+}

@@ -1,0 +1,116 @@
+package services
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"uuid"
+
+	"app/domains"
+
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+func TestVerifyEmailRejectsMissingPendingUser(t *testing.T) {
+	identity := Identity{}
+
+	_, err := identity.VerifyEmail(context.Background(), VerifyEmailData{
+		UserID: uuid.Nil(),
+		Code:   "ABC123",
+	})
+	if !errors.Is(err, ErrInvalidVerificationCode) {
+		t.Fatalf("VerifyEmail error = %v, want %v", err, ErrInvalidVerificationCode)
+	}
+
+	validationErrors, ok := validation.As(err)
+	if !ok {
+		t.Fatalf("VerifyEmail error = %v, want a validation error", err)
+	}
+	if got := validationErrors.ToMap()["code"]; got != invalidVerificationCodeMessage {
+		t.Fatalf("code error = %q, want %q", got, invalidVerificationCodeMessage)
+	}
+}
+
+func TestVerificationAttemptsAreBoundedByTheLimit(t *testing.T) {
+	if !verificationAttemptAllowed(maxVerificationAttempts) {
+		t.Fatal("the final allowed attempt must be checked")
+	}
+	if verificationAttemptAllowed(maxVerificationAttempts + 1) {
+		t.Fatal("attempts past the limit must not be checked")
+	}
+
+	if verificationLocked(maxVerificationAttempts - 1) {
+		t.Fatal("a failure below the limit must not lock out")
+	}
+	if !verificationLocked(maxVerificationAttempts) {
+		t.Fatal("the failure that reaches the limit must lock out")
+	}
+}
+
+func TestVerifyPasswordWithPeppers(t *testing.T) {
+	const (
+		password       = "correct horse battery staple"
+		currentPepper  = "current-pepper"
+		previousPepper = "previous-pepper"
+	)
+
+	tests := []struct {
+		name             string
+		hashPepper       string
+		providedPassword string
+		previousPeppers  []string
+		wantValid        bool
+		wantRehash       bool
+	}{
+		{
+			name:             "current pepper",
+			hashPepper:       currentPepper,
+			providedPassword: password,
+			previousPeppers:  []string{previousPepper},
+			wantValid:        true,
+		},
+		{
+			name:             "previous pepper requires rehash",
+			hashPepper:       previousPepper,
+			providedPassword: password,
+			previousPeppers:  []string{"older-pepper", previousPepper},
+			wantValid:        true,
+			wantRehash:       true,
+		},
+		{
+			name:             "invalid after all peppers",
+			hashPepper:       "unknown-pepper",
+			providedPassword: "wrong password",
+			previousPeppers:  []string{"older-pepper", previousPepper},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			hash, err := domains.HashPassword(password, test.hashPepper)
+			if err != nil {
+				t.Fatalf("HashPassword: %v", err)
+			}
+			user := domains.User{Password: []byte(hash)}
+
+			valid, needsRehash, err := verifyPasswordWithPeppers(
+				user,
+				test.providedPassword,
+				currentPepper,
+				test.previousPeppers,
+			)
+			if err != nil {
+				t.Fatalf("verifyPasswordWithPeppers: %v", err)
+			}
+			if valid != test.wantValid || needsRehash != test.wantRehash {
+				t.Fatalf(
+					"result = valid %t, rehash %t; want valid %t, rehash %t",
+					valid,
+					needsRehash,
+					test.wantValid,
+					test.wantRehash,
+				)
+			}
+		})
+	}
+}

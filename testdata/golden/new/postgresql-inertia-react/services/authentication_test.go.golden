@@ -6,7 +6,7 @@ import (
 	"testing"
 	"uuid"
 
-	"app/models"
+	"app/domains"
 
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
@@ -87,11 +87,11 @@ func TestVerifyPasswordWithPeppers(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			hash, err := models.HashPassword(password, test.hashPepper)
+			hash, err := domains.HashPassword(password, test.hashPepper)
 			if err != nil {
 				t.Fatalf("HashPassword: %v", err)
 			}
-			user := models.User{Password: []byte(hash)}
+			user := domains.User{Password: []byte(hash)}
 
 			valid, needsRehash, err := verifyPasswordWithPeppers(
 				user,

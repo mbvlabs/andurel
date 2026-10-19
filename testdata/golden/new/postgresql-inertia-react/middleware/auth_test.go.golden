@@ -1,0 +1,97 @@
+package middleware
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"sync"
+	"sync/atomic"
+	"testing"
+
+	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/cache"
+	"github.com/mbvlabs/andurel/pkg/routing"
+)
+
+func newTestStore(t *testing.T) cache.Store {
+	t.Helper()
+
+	store, err := cache.New(cache.Config{Driver: "memory"})
+	if err != nil {
+		t.Fatalf("new test cache store: %v", err)
+	}
+
+	return store
+}
+
+func TestIPRateLimiterPermitsExactlyConfiguredLimitAtomically(t *testing.T) {
+	const (
+		limit    = 5
+		requests = 50
+	)
+
+	var handled atomic.Int32
+	limiter := IPRateLimiter(
+		newTestStore(t),
+		limit,
+		routing.NewSimpleRoute("/rate-limited", "rate_limited", ""),
+	)(func(ctx context.Context) error {
+		handled.Add(1)
+		return anduin.NoContent(ctx, http.StatusNoContent)
+	})
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range requests {
+		wg.Go(func() {
+			<-start
+
+			request := httptest.NewRequest(http.MethodPost, "/", nil)
+			request.RemoteAddr = "192.0.2.1:1234"
+			recorder := httptest.NewRecorder()
+			if err := anduin.Serve(recorder, request, limiter); err != nil {
+				t.Errorf("rate-limited request: %v", err)
+			}
+		})
+	}
+	close(start)
+	wg.Wait()
+
+	if got := handled.Load(); got != limit {
+		t.Fatalf("handled requests = %d, want exactly %d", got, limit)
+	}
+}
+
+func TestIPRateLimiterRejectsOverLimitAndScopesByIP(t *testing.T) {
+	const limit = 2
+	redirect := routing.NewSimpleRoute("/rate-limited", "rate_limited", "")
+
+	limiter := IPRateLimiter(newTestStore(t), limit, redirect)(func(ctx context.Context) error {
+		return anduin.NoContent(ctx, http.StatusNoContent)
+	})
+
+	call := func(remoteAddr string) int {
+		request := httptest.NewRequest(http.MethodPost, "/", nil)
+		request.RemoteAddr = remoteAddr
+		recorder := httptest.NewRecorder()
+		if err := anduin.Serve(recorder, request, limiter); err != nil {
+			t.Fatalf("rate limiter returned error: %v", err)
+		}
+
+		return recorder.Code
+	}
+
+	for i := range limit {
+		if got := call("192.0.2.1:1234"); got != http.StatusNoContent {
+			t.Fatalf("request %d status = %d, want %d", i+1, got, http.StatusNoContent)
+		}
+	}
+
+	if got := call("192.0.2.1:1234"); got != http.StatusTooManyRequests {
+		t.Fatalf("over-limit status = %d, want %d", got, http.StatusTooManyRequests)
+	}
+
+	if got := call("192.0.2.2:1234"); got != http.StatusNoContent {
+		t.Fatalf("second IP status = %d, want %d", got, http.StatusNoContent)
+	}
+}

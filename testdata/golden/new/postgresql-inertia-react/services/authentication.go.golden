@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"app/models"
+	"app/domains"
 
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
@@ -23,24 +23,21 @@ type LoginData struct {
 func (i Identity) AuthenticateUser(
 	ctx context.Context,
 	data LoginData,
-) (models.User, error) {
+) (domains.User, error) {
 	b := validation.NewBuilder()
 	b.Required("email", data.Email)
 	b.Required("password", data.Password)
-	if !b.Errors().Empty() {
-		return models.User{}, b.Errors()
+	if err := b.Err(); err != nil {
+		return domains.User{}, err
 	}
 
 	user, err := i.users.FindByEmail(ctx, data.Email)
-
 	if err != nil {
-
-		if errors.Is(err, models.ErrNotFound) {
-			return models.User{}, ErrInvalidCredentials
+		if errors.Is(err, domains.ErrNotFound) {
+			return domains.User{}, ErrInvalidCredentials
 		}
 
-		return models.User{}, fmt.Errorf("find user by email: %w", err)
-
+		return domains.User{}, fmt.Errorf("find user by email: %w", err)
 	}
 
 	validPassword, needsRehash, err := verifyPasswordWithPeppers(
@@ -49,25 +46,21 @@ func (i Identity) AuthenticateUser(
 		i.pepper,
 		i.previousPeppers,
 	)
-
 	if err != nil {
-
-		return models.User{}, fmt.Errorf("validate password: %w", err)
-
+		return domains.User{}, fmt.Errorf("validate password: %w", err)
 	}
 
 	if !validPassword {
-
-		return models.User{}, ErrInvalidCredentials
+		return domains.User{}, ErrInvalidCredentials
 	}
 
 	if needsRehash {
-		hashedPassword, err := models.HashPassword(data.Password, i.pepper)
+		hashedPassword, err := domains.HashPassword(data.Password, i.pepper)
 		if err != nil {
-			return models.User{}, fmt.Errorf("rehash password with current pepper: %w", err)
+			return domains.User{}, fmt.Errorf("rehash password with current pepper: %w", err)
 		}
 
-		user, err = i.users.Update(ctx, models.UpdateUserData{
+		user, err = i.users.Update(ctx, domains.UpdateUserData{
 			ID:               user.ID,
 			Email:            user.Email,
 			EmailValidatedAt: user.EmailValidatedAt,
@@ -75,12 +68,12 @@ func (i Identity) AuthenticateUser(
 			IsAdmin:          user.IsAdmin,
 		})
 		if err != nil {
-			return models.User{}, fmt.Errorf("persist password rehash: %w", err)
+			return domains.User{}, fmt.Errorf("persist password rehash: %w", err)
 		}
 	}
 
-	// The password checked out, so the caller may use the returned user to
-	// resume email verification.
+	// The password matched: return the user alongside ErrEmailNotVerified so
+	// the caller can resume verification without authenticating the session.
 	if !user.HasValidatedEmail() {
 		return user, ErrEmailNotVerified
 	}
@@ -89,7 +82,7 @@ func (i Identity) AuthenticateUser(
 }
 
 func verifyPasswordWithPeppers(
-	user models.User,
+	user domains.User,
 	providedPassword string,
 	currentPepper string,
 	previousPeppers []string,

@@ -2,44 +2,41 @@
 
 A Go application built with [Andurel](https://github.com/mbvlabs/andurel), a space-grade framework for humans and agents.
 
-Inspired by Ruby on Rails, Andurel is now its own thing: generated Go you own, explicit wiring, and an agent-ready CLI.
+The app is ordinary Go you own: `domains/` for business logic and persistence, `services/` for application logic, `handlers/` for HTTP, `routes/` for route data, and `middleware/` for app HTTP concerns. The HTTP layer is `net/http` through `github.com/mbvlabs/andurel/pkg/anduin`; the frontend is Inertia (react) + Vite. There is no Echo, no Fx, and no templ/Datastar pages.
 
 ## Project Structure
 
 ```
 app/
-├── assets/              # Static assets (compiled CSS, images)
-├── bin/                 # Command-line tools
-│   ├── app              # Main application binary
-│   ├── console          # Database console
-│   ├── migration        # Migration runner
-│   └── shadowfax        # Development server
-├── cmd/                 # Process entry points
-│   ├── app/             # Web process (runtime.App)
-│   ├── queue/           # Queue process (runtime.Queue)
-│   ├── migrate/         # Apply pending SQL migrations
-│   └── seeds/           # Database seeding
-├── config/              # Application configuration
-├── controllers/         # HTTP request handlers
-├── css/                 # Source CSS files (Tailwind wrappers + theme)
-├── examples/
-│   └── html/            # Copy/paste HTML snippets with Datastar attributes
-├── internal/            # App support code, e.g. provider adapters (clients/, payment/)
-│   └── runtime/         # Process graphs and infrastructure constructors
-├── migrations/          # SQL migration files
-├── seeds/               # Database seed definitions
-├── email/               # Email templates and sending
-├── models/              # Data models and business logic
-├── queue/               # Background job processing
-│   ├── jobs/            # Job definitions
-│   └── workers/         # Worker implementations
-├── router/              # Routes and middleware
-│   ├── routes/          # Route definitions
-│   ├── cookies/         # Session helpers
-│   └── middleware/      # Custom middleware
-├── views/               # Templ templates
-├── .env.example         # Example environment configuration
-└── go.mod               # Go dependencies
+├── assets/               # Static/compiled assets
+├── bin/                  # Command-line tools
+├── cmd/                  # Process entry points
+│   ├── app/              # Web process (single runtime.New owns Handler + Server)
+│   ├── queue/            # Queue process
+│   ├── migrate/          # Apply pending SQL migrations
+│   └── seeds/            # Database seeding
+├── config/               # Application configuration
+├── css/                  # Source CSS files (Tailwind wrappers + theme)
+├── domains/              # Business logic + persistence (SQL colocated per domain)
+│   ├── errors.go         # Shared domain vocabulary (ErrNotFound, ErrConflict)
+│   └── internal/queries/ # narsilc output (imported only by domains/**)
+├── email/                # Email templates and sending
+├── handlers/             # HTTP handlers, one flat package
+├── internal/             # App support code, e.g. provider adapters (clients/, payment/)
+│   └── runtime/          # Composition root: explicit constructors + lifecycle
+├── middleware/           # App HTTP middleware and cookie-jar wiring
+├── migrations/           # SQL migration files
+├── queue/                # Background job processing
+│   ├── jobs/             # Job definitions
+│   └── workers/          # Worker implementations
+├── resources/            # Inertia root document + JS app
+│   ├── root.templ        # The one page-shaped templ
+│   └── js/               # Inertia Pages, Layouts, Components, routes.ts
+├── routes/               # Route data (names, paths, URL builders)
+├── seeds/                # Database seed definitions
+├── services/             # Application logic (cross-domain orchestration)
+├── .env.example          # Example environment configuration
+└── go.mod                # Go dependencies
 ```
 
 ## Quick Start
@@ -73,18 +70,16 @@ app/
    andurel run
    ```
 
-Your application is now running at `http://localhost:8080` with live reload for Go, Templ, and CSS changes!
+Your application is now running at `http://localhost:8080` with live reload for Go, Templ, CSS, and Vite changes.
 
 ## Available Commands
 
 ### Development Server
 
 ```bash
-# Run development server with hot reload for Go, Templ, and CSS
+# Run development server with hot reload for Go, Templ, CSS, and Vite
 andurel run
 ```
-
-This orchestrates Air (Go), Templ watch, and Tailwind CSS compilation.
 
 ### Database Console
 
@@ -127,46 +122,63 @@ go build -o migrate ./cmd/migrate
 ./migrate
 ```
 
-### Create, refresh, and inspect
+## Patterns, Sync, And Inspect
+
+`andurel patterns` prints reference code, placement rules, and a "definition of done" checklist. It is read-only — you write every file.
 
 ```bash
-# Create application-owned files
-andurel generate migration create_users_table
-andurel generate model User
-andurel generate scaffold Product
+# Read the pattern for a layer, then write the code yourself
+andurel patterns list
+andurel patterns show domain
+andurel patterns show service
+andurel patterns show handler
+andurel patterns show route
+andurel patterns show composition
+andurel patterns show test-domain
+andurel patterns show test-handler
+```
 
-# Refresh derived files
+Refresh derived files from their source of truth:
+
+```bash
 andurel sync queries --json
-andurel sync views
+andurel sync email --json
 andurel sync routes --json
 andurel sync payloads --json
+```
 
-# Inspect project shape
+Inspect the project shape without changing it:
+
+```bash
 andurel inspect project --json
+andurel inspect handlers --json
+andurel inspect domains --json
 andurel inspect routes --json
-andurel inspect models --json
-
-# Discover commands
 andurel commands --json
 andurel commands --check
 ```
 
-`andurel sync` refreshes generated app files. `andurel tool sync` downloads pinned binaries.
+Verify everything before you ship:
+
+```bash
+andurel verify
+```
+
+`andurel verify` runs formatting, `go fix`, `go vet`, and the domain/service import-boundary lint. Pass `--with-tests` to also run the test suite.
 
 ## How-To Guides
 
-### Generate a New Resource
+### Add A Domain
 
-Andurel generates models, factories, controllers, routes, and pages that belong to the application.
+A domain owns its entity and its SQL. The Go type is the source of truth; SQL and generated queries follow it (type-driven by default).
 
-**Prerequisites**: You need a database table first. Create a migration:
+**1. Create and apply the migration**
 
 ```bash
-# 1. Create a migration for your table
 andurel generate migration create_products_table
 ```
 
-Edit the generated migration file in `migrations/` to define your table schema:
+Edit the generated migration in `migrations/`:
 
 ```sql
 -- +goose Up
@@ -183,78 +195,195 @@ CREATE TABLE products (
 DROP TABLE products;
 ```
 
-Apply the migration:
-
 ```bash
 andurel db migrate up
 ```
 
-**Generate the resource**:
+**2. Read the pattern and write the domain**
 
 ```bash
-# Generate model + controller + views + routes
-andurel generate resource Product
-
-# Or use shorthand
-andurel g resource Product
+andurel patterns show domain
 ```
 
-This creates:
-- `models/product.go` - Data model with CRUD methods
-- `controllers/products.go` - HTTP handlers for CRUD operations
-- `views/products_*.templ` - Template files for all CRUD views
-- Routes automatically registered in `router/routes/products.go`
+Create `domains/product.go` (package `domains`) and colocate the SQL in `domains/product.sql`:
 
-The generator also:
-- Creates Bun-backed model methods for CRUD operations
-- Creates a complete CRUD interface at `/products`
+```go
+// domains/product.go
+package domains
 
-**Custom table names**: If your table doesn't follow the default naming (model `Product` → table `products`):
+import (
+    "context"
+    "errors"
+    "uuid"
+
+    "app/domains/internal/queries"
+
+    "github.com/jackc/pgx/v5"
+    "github.com/mbvlabs/andurel/pkg/storage"
+    "github.com/mbvlabs/andurel/pkg/validation"
+)
+
+type Product struct {
+    ID   uuid.UUID `andurel:"id"`
+    Name string    `andurel:"name"`
+}
+
+func (p *Product) Validate() error {
+    b := validation.NewBuilder()
+    b.Required("name", p.Name)
+    return b.Err()
+}
+
+func (p Products) Find(ctx context.Context, id uuid.UUID) (Product, error) {
+    entity, err := p.queries.GetProduct[Product](ctx, id)
+    if errors.Is(err, pgx.ErrNoRows) {
+        return Product{}, ErrNotFound
+    }
+    return entity, err
+}
+
+type Products struct{ queries *queries.Queries }
+
+func NewProducts(db storage.Connection) Products { return Products{queries: queries.New(db)} }
+
+func (p Products) InTx(tx storage.Tx) Products {
+    return Products{queries: queries.New(storage.Unwrap(tx))}
+}
+```
+
+Then construct it in `internal/runtime` (`products := domains.NewProducts(db)`) and pass it to the services and handlers that use it.
+
+**3. Generate the typed queries**
 
 ```bash
-# Map Product model to a custom table name
-andurel g resource Product --table products_catalog
+andurel sync queries
 ```
 
-**Individual components**:
+Narsilc globs `domains/**/*.sql` and writes `domains/internal/queries/`. Only `domains` may import that package. Domains share one flat package (one file per domain) — cross-domain behavior belongs in a service.
+
+`internal/runtime` builds a `storage.NewTransactor(db)` and each receiver, and passes them to services. A service that writes across domains runs the writes in one transaction with `storage.AtomicOps`, binding what it needs at the top of the callback:
+
+```go
+err := storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {
+    users, queue := i.users.InTx(tx), i.queue.InTx(tx)
+
+    user, err := users.Create(ctx, i.pepper, data)
+    if err != nil {
+        return err // rolls back
+    }
+    // Enqueued on the transaction: workers only see it if the user commits.
+    _, err = queue.Insert(ctx, jobs.WelcomeArgs{UserID: user.ID}, nil)
+    return err // nil commits
+})
+```
+
+Returning `nil` commits; returning an error or panicking rolls back. `storage.Tx` has no query methods, so services can join a transaction but never issue SQL; only `domains` unwraps it. `andurel verify` enforces the boundary and flags `i.users` used inside the callback.
+
+### Add A Handler And Route
+
+Handlers are thin HTTP adapters: `func(ctx context.Context) error`. Route data lives in `routes/`.
 
 ```bash
-# Generate only the model
-andurel g model Product
-
-# Generate controller with views
-andurel g controller Product --with-views
-
-# Generate views with controller
-andurel g view Product --with-controller
-
-# Refresh model after schema changes
-andurel g model Product --refresh
+andurel patterns show handler
+andurel patterns show route
 ```
+
+Define the route value in `routes/products.go`:
+
+```go
+package routes
+
+import "github.com/mbvlabs/andurel/pkg/routing"
+
+var ProductIndex = routing.NewSimpleRoute("/products", "products.index", "")
+```
+
+Register it in a handler:
+
+```go
+// handlers/product.go
+package handlers
+
+import (
+    "context"
+
+    "app/domains"
+    "app/routes"
+
+    "github.com/mbvlabs/andurel/pkg/anduin"
+    "github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+type ProductHandler struct {
+    products domains.Products
+    renderer *inertia.Renderer
+}
+
+func NewProductHandler(products domains.Products, renderer *inertia.Renderer) ProductHandler {
+    return ProductHandler{products: products, renderer: renderer}
+}
+
+func (h ProductHandler) Register(rt *anduin.Router) {
+    rt.Get(routes.ProductIndex.Path(), h.Index)
+}
+
+func (h Handler) Index(ctx context.Context) error {
+    page, err := anduin.QueryInt(ctx, "page", 1)
+    if err != nil {
+        return anduin.BadRequest(err)
+    }
+    result, err := h.products.Paginate(ctx, page, 25)
+    if err != nil {
+        return err
+    }
+    return h.renderer.Page(ctx, "Product/Index", inertia.FromStruct(result.Items)).Render()
+}
+```
+
+Wire it in `internal/runtime/runtime.go` with constructor injection:
+
+```go
+products := product.NewProducts(db)
+producthandlers.NewHandler(products, renderer).Register(rt)
+```
+
+Refresh the frontend route helper afterward:
+
+```bash
+andurel sync routes --json
+```
+
+Never invent frontend URLs: import `resources/js/routes.ts` and use `routes.productIndex.path()` (relative) or `routes.productIndex()` (full URL after boot).
+
+### Add A Service
+
+Create a service when a use case spans multiple domains, needs a transaction, or coordinates persistence with email, the queue, or an external client.
+
+```bash
+andurel patterns show service
+```
+
+Services live in `services/`, take their dependencies as constructor arguments, and are wired in `internal/runtime`. Do not create a service for a pass-through wrapper around one domain method — call the domain directly from the handler.
 
 ### Setup Background Jobs
 
 This project uses [River](https://riverqueue.com/) for background job processing with PostgreSQL.
 
-**1. Define a job**
-
-Create a new job type in `queue/jobs/`:
+**1. Define a job** in `queue/jobs/`:
 
 ```go
 // queue/jobs/my_job.go
 package jobs
 
 type MyJobArgs struct {
-    UserID   string
-    Action   string
+    UserID string
+    Action string
 }
 
 func (MyJobArgs) Kind() string { return "my_job" }
 ```
 
-**2. Implement a worker**
-
-Create the worker in `queue/workers/`:
+**2. Implement a worker** in `queue/workers/`:
 
 ```go
 // queue/workers/my_job.go
@@ -266,28 +395,22 @@ import (
 )
 
 func ProcessMyJob(ctx context.Context, msg []byte) error {
-    // Your job logic here
     // Unmarshal msg to jobs.MyJobArgs and process
     return nil
 }
 ```
 
-**3. Register the worker**
-
-Add your worker to `queue/workers/workers.go`:
+**3. Register the worker** in the plain registry assembled in `internal/runtime/queue.go`:
 
 ```go
 // Register in your queue setup
 ```
 
-**4. Enqueue jobs**
-
-From anywhere in your application:
+**4. Enqueue jobs** from a service through its `storage.InsertQueue`. Inside `storage.AtomicOps`, enqueue on `i.queue.InTx(tx)` so the job only runs if the data commits:
 
 ```go
 import "app/queue/jobs"
 
-// Enqueue a job through your queue client
 err := queue.Enqueue(ctx, jobs.MyJobArgs{
     UserID: "123",
     Action: "send_welcome_email",
@@ -297,22 +420,17 @@ err := queue.Enqueue(ctx, jobs.MyJobArgs{
 
 **Job Options**
 
-Customize job behavior:
-
 ```go
 // Configure retry behavior and priorities in your queue setup
 ```
 
 ### Send Emails
 
-This project includes built-in email functionality with Mailpit for development testing.
-Email templates use Tailwind utilities from `css/email.css`. Andurel compiles
-those utilities to inline, email-compatible styles without changing the authored
-`.templ` files.
+Email is one of the two places templ still lives. Templates sit in `email/` and
+are compiled by Andurel's email compiler to inline, email-compatible styles.
+Email templates use Tailwind utilities from `css/email.css`.
 
-**1. Create an email template**
-
-Add your template in `email/`:
+**1. Create an email template:**
 
 ```go
 // email/welcome.templ
@@ -326,14 +444,13 @@ templ WelcomeEmail(userName string) {
 }
 ```
 
-`andurel run`, `andurel sync views`, and `andurel build` compile emails
-automatically. Run `andurel sync email` for a standalone compilation pass.
+`andurel run` and `andurel build` compile emails automatically. Run `andurel sync email` for a standalone compilation pass.
 
-**2. Send the email**
+**2. Send the email:**
 
 ```go
 import (
-	"context"
+    "context"
 
     "app/config"
     "app/email"
@@ -355,9 +472,7 @@ func sendWelcome(
 }
 ```
 
-**3. Background email jobs**
-
-For better performance, send emails asynchronously:
+**3. Send it in the background:**
 
 ```go
 // Enqueue email job through your queue
@@ -365,7 +480,7 @@ For better performance, send emails asynchronously:
 
 **Development Testing**
 
-Emails are sent to Mailpit in development. Access the web UI at `http://localhost:8025` to view sent emails.
+Emails are sent to Mailpit in development. Access the web UI at `http://localhost:8025`.
 
 ### Schema Changes
 
@@ -375,15 +490,17 @@ When modifying your database schema:
 # 1. Create a migration
 andurel generate migration add_email_to_users
 
-# 2. Edit the migration file
-# Add your ALTER TABLE statements
+# 2. Edit the migration file in migrations/
 
 # 3. Apply the migration
 andurel db migrate up
 
-# 4. Refresh affected models
-andurel g model User --refresh
+# 4. Regenerate queries for affected domains
+andurel sync queries
 ```
+
+If the entity fields changed, update the domain type first (the type is the source of truth) and regenerate.
+
 ### Customize Styling
 
 This project uses Tailwind CSS v4 with shadcn-style CSS variables in `css/theme.css`:
@@ -405,8 +522,7 @@ This project uses Tailwind CSS v4 with shadcn-style CSS variables in `css/theme.
 }
 ```
 
-Use semantic utilities in views (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `text-accent`, `ring-ring`).
-The development server automatically rebuilds CSS on changes.
+Use semantic utilities in Inertia pages (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `text-accent`, `ring-ring`). The development server rebuilds CSS on change.
 
 ## Environment Configuration
 
@@ -458,42 +574,58 @@ OTLP_TRACES_ENDPOINT=
 TRACE_SAMPLE_RATE=1.0
 ```
 
-## Session, CORS, and CSRF Protection
+## Session, CORS, And CSRF Protection
 
-Application sessions are defined in `router/cookies` (`cookies.NewJar`, FX `cookies.Module`) and loaded onto `context.Context` by `pkg/kiks`. Controllers read and write bag cookies with `kiks.Get` / `kiks.Exists` / `kiks.Set` / `kiks.Destroy` (`Get`, `Exists`, `Set`, and `Destroy` return an error when the bag is missing, the type is unregistered, or the type is native-only — use the same pointer type you registered, e.g. `*cookies.App`). Mark named bag cookies with `kiks.Bagged(...)` in `NewJar`; unmarked named cookies use native `kiks.Read` / `Write` / `Clear` with an injected `*kiks.Jar`. The App session payload is persisted by a cookie-backed `Store` (`kiks.NewCookieStore`). Each Go type may be registered at most once per jar — two same-shape cookies need distinct types. Cookies are `HttpOnly` with `SameSite=Lax` and `Path=/`. Production cookies also use `Secure`. `SESSION_MAX_AGE` is the lifetime in seconds and defaults to seven days (`604800`). Saving session state renews the expiration for another seven days. Signing out destroys the session immediately.
+Application sessions and the cookie jar live in `middleware/` (policy) and
+`internal/runtime` (construction). A `kiks.Jar` is built by `newJar` in the
+composition root from `middleware.NewAppCookie` and installed with
+`jar.Middleware()`. Handlers read and write bag cookies with `kiks.Get` /
+`kiks.Set` / `kiks.Destroy` (they return an error when the bag is missing, the
+type is unregistered, or the type is native-only — use the same pointer type you
+registered, e.g. `*middleware.App`). The App session payload is persisted by a
+cookie-backed `Store`. Cookies are `HttpOnly` with `SameSite=Lax` and `Path=/`.
+Production cookies also use `Secure`. `SESSION_MAX_AGE` is the lifetime in
+seconds and defaults to seven days (`604800`). Saving session state renews the
+expiration. Signing out destroys the session immediately.
 
-CORS allows credentials and trusts the union of configured host origins (`PROTOCOL` + `HOST_PRIMARY`, plus any extra `HOST_*` names) by default. `CORS_ALLOWED_ORIGINS` accepts a comma-separated list of additional exact origins. Wildcard origins are rejected when the application starts.
+CORS is provided by `anduin.CORS(CORSConfig)` and configured in
+`internal/runtime`. It allows credentials and trusts the union of configured
+host origins (`PROTOCOL` + `HOST_PRIMARY`, plus any extra `HOST_*` names) by
+default. `CORS_ALLOWED_ORIGINS` accepts a comma-separated list of additional
+exact origins. Wildcard origins are rejected when credentials are allowed.
 
-CSRF protection uses Fetch Metadata. Unsafe API requests bypass CSRF only when they carry a non-empty Bearer token and do not carry the application session cookie. Cookie-authenticated unsafe requests remain protected on every path.
+CSRF is provided by `anduin.CSRF(CSRFConfig)`. Unsafe API requests bypass CSRF
+only when they carry a non-empty Bearer token and do not carry the application
+session cookie. Cookie-authenticated unsafe requests remain protected on every
+path.
 
 **Strategies** (`CSRF_STRATEGY`):
 - `header_only` (default): Unsafe requests must include the `Sec-Fetch-Site` header. Requests missing this header are rejected with `403`.
-- `header_or_legacy_token`: Allows legacy form tokens when `Sec-Fetch-Site` is missing. Forms must submit `_csrf` or send `X-CSRF-Token` header.
+- `header_or_legacy_token`: Allows legacy form tokens when `Sec-Fetch-Site` is missing. Forms must submit `_csrf` or send `X-CSRF-Token`.
 
 **Trusted origins**:
 - Every configured host origin (`PROTOCOL` + `HOST_PRIMARY`, and extra hosts such as `HOST_ADMIN`) is trusted automatically.
-- `CSRF_TRUSTED_ORIGINS` accepts a comma-separated list of additional origins (e.g., `https://api.example.com,https://admin.example.com`).
+- `CSRF_TRUSTED_ORIGINS` accepts a comma-separated list of additional origins.
 
-Session and CSRF cookies are host-only by default (no `Domain` attribute). Sharing login across subdomains is an explicit opt-in via `kiks.Domain(".example.com")` in `router/cookies` — never a generated default.
+Session and CSRF cookies are host-only by default (no `Domain` attribute). Sharing login across subdomains is an explicit opt-in in `middleware/` — never a generated default.
 
-## Multiple domains
+## Multiple Domains
 
-Single-host apps are the default: set `HOST_PRIMARY` and keep path namespaces such as `/admin/...` on the primary Echo.
+Single-host apps are the default: set `HOST_PRIMARY` and keep path namespaces such as `/admin/...` on the primary host.
 
 To serve a second domain from the same process:
 
 1. Declare a host name in `config/hosts.go`, for example `const HostAdmin routing.HostName = "admin"`.
 2. Load `HOST_ADMIN` (or another `HOST_*`) into `App.Hosts` at boot. Missing hostnames fail startup.
 3. Register aliases (`www`, extra names) as additional hostnames for that `HostName`.
-4. Declare the host on the route with `routing.Host(config.HostAdmin)`. Controllers register with `r.AddRoute(routes.WidgetsIndex, echo.Route{...})` and Fx invokes `c.RegisterRoutes(r)` with no host argument. Generators accept independent `--host` and `--prefix` flags:
+4. Bind a route value to the host with `routing.Host(config.HostAdmin)` and register it on `rt.Host(config.HostAdmin)`:
 
-```bash
-andurel g controller Widget --host=admin --prefix=admin   # HostAdmin, /admin/widgets
-andurel g controller Widget --host=admin                  # HostAdmin, /widgets
-andurel g controller Widget --prefix=admin                # HostPrimary, /admin/widgets
+```go
+admin := rt.Host(config.HostAdmin)
+admin.Get(routes.AdminDashboard.Path(), adminHandler.Dashboard)
 ```
 
-The reverse proxy must forward the public `Host` header unchanged. When a configured hostname has no port, Andurel also registers `hostname:80` and `hostname:443` aliases so lookups succeed whether the proxy forwards a bare host or an explicit standard port. Unknown hosts are served by the primary Echo. Duplicate hostnames or aliases across `HostName`s fail at boot.
+The reverse proxy must forward the public `Host` header unchanged. A configured hostname without a port is also aliased as `hostname:80` and `hostname:443` so lookups succeed whether the proxy forwards a bare host or an explicit standard port. Unknown hosts are served by the primary mux. Duplicate hostnames or aliases across `HostName`s fail at boot.
 
 Layout CSS and JS stay on the primary host unless those routes set `routing.Host(...)`. Layout `<link>` / `<script>` tags use `FullURL()` so they always point at the asset host.
 
@@ -507,15 +639,15 @@ To serve layout CSS/JS from `assets.example.com`, declare `const HostAssets rout
 
 **Client/testing tips**:
 - For unsafe requests in tests or custom clients, include `Sec-Fetch-Site: same-origin`.
-- When using `header_or_legacy_token`, submit `_csrf` with forms or send `X-CSRF-Token` header.
+- When using `header_or_legacy_token`, submit `_csrf` with forms or send `X-CSRF-Token`.
 
 ## Development Tips
 
 1. **Live Reload**: Use `andurel run` during development for automatic reloading
-2. **Type Safety**: Let narsilc-backed models and Templ catch errors at compile time
+2. **Type Safety**: Let narsilc-backed domains and the Go domain types catch errors at compile time
 3. **Database Console**: Use `andurel db console` for quick database queries
-4. **Hot Reload**: Changes to Go, Templ, or CSS automatically trigger rebuilds
-5. **Tailwind**: Use Tailwind's utility classes in your Templ templates
+4. **Hot Reload**: Changes to Go, Templ, CSS, or Vite trigger rebuilds
+5. **Tailwind**: Use Tailwind utility classes in Inertia pages
 
 ## Common Tasks
 
@@ -523,259 +655,94 @@ To serve layout CSS/JS from `assets.example.com`, declare `const HostAssets rout
 # Start development
 andurel run
 
-# Create a new resource
-andurel g resource Product
+# Read the pattern for the next layer
+andurel patterns show handler
 
 # Add a migration
 andurel generate migration add_field_to_products
-
-# Run migrations
 andurel db migrate up
+
+# Regenerate queries after a schema or type change
+andurel sync queries
 
 # Access database console
 andurel db console
+
+# Verify boundaries, formatting, and tests
+andurel verify
 
 # Run tests
 go test ./...
 ```
 
-## Integration Testing
+## Testing
 
-This project includes a built-in integration testing framework that makes it easy to test controllers and models with real database interactions.
+Every layer is testable in isolation and together. Factories do not exist — build
+entities inline with the domain API.
 
-### Test Infrastructure
+### Domain Tests
 
-The framework provides:
-- **Automatic test database setup**: Uses [testcontainers](https://golang.testcontainers.org/) to spin up PostgreSQL in Docker
-- **Per-test databases**: Each test gets an isolated migrated database from a package-scoped PostgreSQL container
-- **Factory pattern**: Simple builders for creating test data with sensible defaults
-
-### Writing Controller Tests
-
-**1. Create a test file** (e.g., `controllers/products_controller_test.go`):
+Each test gets a real migrated database from `pkg/storage.TestCluster` and
+builds its own receivers over it. There are no globals, so tests can run in
+parallel.
 
 ```go
-package controllers_test
+func TestUsers_Create(t *testing.T) {
+    db := storage.NewTestCluster(t.Context()).NewTestDB(t, migrations.Migrations, ".")
+    users := domains.NewUsers(db)
 
-import (
-	"context"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"testing"
-
-	"github.com/labstack/echo/v5"
-	"app/controllers"
-	"app/migrations"
-	"github.com/mbvlabs/andurel/pkg/storage"
-	"app/models"
-	"app/models/factories"
-)
-
-var testCluster *storage.TestCluster
-
-func TestMain(m *testing.M) {
-	ctx := context.Background()
-	var err error
-	testCluster, err = storage.NewTestCluster(ctx)
-	if err != nil {
-		panic(err)
-	}
-
-	code := m.Run()
-	if err := testCluster.Close(ctx); err != nil && code == 0 {
-		panic(err)
-	}
-	os.Exit(code)
+    got, err := users.Create(t.Context(), "pepper", domains.CreateUserData{
+        Email:        "a@b.c",
+        PasswordPair: domains.PasswordPair{Password: "password", ConfirmPassword: "password"},
+    })
+    if err != nil {
+        t.Fatalf("create: %v", err)
+    }
+    if got.ID == uuid.Nil() {
+        t.Fatal("expected id")
+    }
 }
 
-func TestProducts_Create(t *testing.T) {
-	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-	controller := controllers.NewProducts(db)
-
-	// Create test request
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/products", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	// Test the controller action
-	err := controller.Create(c)
-	if err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-
-	// Assert database state
-	products, err := models.NewProducts(db).All(c.Request().Context())
-	if err != nil {
-		t.Fatalf("failed to query products: %v", err)
-	}
-
-	if len(products) != 1 {
-		t.Errorf("expected 1 product, got %d", len(products))
-	}
+func TestUser_Validate(t *testing.T) {
+    u := domains.User{}
+    if err := u.Validate(); err == nil {
+        t.Fatal("expected error")
+    }
 }
 ```
 
-### Creating Test Factories
+### Handler Tests
 
-**1. Create a factory** in `models/factories/product_factory.go`:
+`pkg/anduin/anduintest` builds an `httptest` server from real handler
+registrations, so tests exercise the same `anduin.Router` a production process
+does. The server needs nothing external; seeding data needs a test database.
 
 ```go
-package factories
+func TestProductIndex(t *testing.T) {
+    db := storage.NewTestCluster(t.Context()).NewTestDB(t, migrations.Migrations, ".")
+    products := domains.NewProducts(db)
 
-import (
-	"app/models"
-)
+    srv := anduintest.New(t, func(rt *anduin.Router) {
+        handlers.NewProductHandler(products, testRenderer(t)).Register(rt)
+    })
 
-type ProductBuilder struct {
-	data models.CreateProductData
-}
-
-func Product() *ProductBuilder {
-	return &ProductBuilder{
-		data: models.CreateProductData{
-			Name:        "Test Product",
-			Description: "Test description",
-			Price:       "29.99",
-		},
-	}
-}
-
-func (b *ProductBuilder) WithName(name string) *ProductBuilder {
-	b.data.Name = name
-	return b
-}
-
-func (b *ProductBuilder) WithPrice(price string) *ProductBuilder {
-	b.data.Price = price
-	return b
-}
-
-func (b *ProductBuilder) Create(dbtx DBTX) models.Product {
-	product, err := models.CreateProduct(ctx, dbtx, b.data)
-	if err != nil {
-		panic(err)
-	}
-	return product
-}
-
-func (b *ProductBuilder) Build() models.CreateProductData {
-	return b.data
+    resp := srv.Get(routes.ProductIndex.Path() + "?page=1")
+    resp.AssertStatus(http.StatusOK)
+    resp.AssertInertia("Product/Index")
 }
 ```
 
-**2. Use factories in tests**:
+### Integration Tests
+
+Boot the whole real graph — no container — with `runtime.New` and call
+`app.Handler`:
 
 ```go
-func TestProducts_Show(t *testing.T) {
-	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-
-	// Create test data with default values
-	product, err := factories.CreateProduct(context.Background(), db)
-	if err != nil {
-		t.Fatalf("create product: %v", err)
-	}
-
-	// Or customize specific fields
-	premiumProduct, err := factories.CreateProduct(
-		context.Background(),
-		db,
-		factories.WithProductsName("Premium Product"),
-		factories.WithProductsPrice("99.99"),
-	)
-	if err != nil {
-		t.Fatalf("create premium product: %v", err)
-	}
-
-	// Test your controller with the created data
-	// ...
+app, err := runtime.New(t.Context(), testConfig)
+if err != nil {
+    t.Fatal(err)
 }
-```
-
-### Testing Patterns
-
-**Test database queries**:
-
-```go
-func TestFindProduct(t *testing.T) {
-	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-	product, err := factories.CreateProduct(context.Background(), db)
-	if err != nil {
-		t.Fatalf("create product: %v", err)
-	}
-
-	found, err := models.NewProducts(db).Find(context.Background(), product.ID)
-	if err != nil {
-		t.Fatalf("FindProduct failed: %v", err)
-	}
-
-	if found.Name != product.Name {
-		t.Errorf("expected name %s, got %s", product.Name, found.Name)
-	}
-}
-```
-
-**Test with multiple records**:
-
-```go
-func TestPaginateProducts(t *testing.T) {
-	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-
-	// Create test data
-	for i := 0; i < 25; i++ {
-		if _, err := factories.CreateProduct(context.Background(), db); err != nil {
-			t.Fatalf("create product: %v", err)
-		}
-	}
-
-	// Test pagination
-	result, err := models.NewProducts(db).Paginate(context.Background(), 1, 10)
-	if err != nil {
-		t.Fatalf("PaginateProducts failed: %v", err)
-	}
-
-	if len(result.Products) != 10 {
-		t.Errorf("expected 10 products, got %d", len(result.Products))
-	}
-
-	if result.TotalCount != 25 {
-		t.Errorf("expected total count 25, got %d", result.TotalCount)
-	}
-}
-```
-
-**Test with related data**:
-
-```go
-func TestCreateOrder(t *testing.T) {
-	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-
-	// Create dependencies
-	user, err := factories.CreateUser(context.Background(), db)
-	if err != nil {
-		t.Fatalf("create user: %v", err)
-	}
-	product, err := factories.CreateProduct(context.Background(), db)
-	if err != nil {
-		t.Fatalf("create product: %v", err)
-	}
-
-	// Test order creation
-	order, err := factories.CreateOrder(
-		context.Background(),
-		db,
-		factories.WithOrdersUserID(user.ID),
-		factories.WithOrdersProductID(product.ID),
-	)
-	if err != nil {
-		t.Fatalf("create order: %v", err)
-	}
-
-	if order.UserID != user.ID {
-		t.Errorf("order user_id mismatch")
-	}
-}
+// app.DB (seed through domains.NewUsers(app.DB) etc.), app.Handler
 ```
 
 ### Running Tests
@@ -785,13 +752,13 @@ func TestCreateOrder(t *testing.T) {
 go test ./...
 
 # Run tests in a specific package
-go test ./controllers
+go test ./domains/...
 
 # Run tests with coverage
 go test -cover ./...
 
 # Run a specific test
-go test ./controllers -run TestProducts_Create
+go test ./handlers -run TestUserIndex
 
 # Verbose output
 go test -v ./...
@@ -801,29 +768,25 @@ go test -v ./...
 
 **Prerequisites**: Docker must be running to use testcontainers.
 
-The test helper automatically:
-1. Starts a PostgreSQL container with `postgres:17-alpine`
-2. Creates an isolated database for each test
-3. Runs embedded migrations from `migrations.Migrations`
-4. Cleans up containers when tests complete
+`storage.TestCluster` starts a PostgreSQL container and gives each test a clean
+migrated database. Handler tests need nothing external; only domain and
+integration tests require the container.
 
-**Note**: The first test run will download the PostgreSQL Docker image, which may take a moment.
+**Best Practices**
 
-### Best Practices
-
-1. **Use per-test databases**: Call `testCluster.NewTestDB(t, migrations.Migrations, ".")` in each test
-2. **Use factories**: Create test data with factories instead of manual model creation
-3. **Test isolation**: Each test should be independent and not rely on other tests
-4. **Descriptive names**: Name tests clearly (e.g., `TestProducts_Create_WithInvalidData`)
-5. **Assert clearly**: Check both success cases and expected database state
-6. **Don't test frameworks**: Focus on your business logic, not Echo or narsilc behavior
+1. **Use per-test databases**: call `testCluster.NewTestDB(t, migrations.Migrations, ".")` in each test
+2. **Build entities inline** with the domain API; do not add factories
+3. **Test isolation**: each test should be independent and not rely on other tests
+4. **Descriptive names**: name tests clearly (e.g., `TestUsers_Create_WithInvalidData`)
+5. **Assert clearly**: check both success cases and expected database state
+6. **Don't test frameworks**: focus on your business logic, not `net/http` or narsilc behavior
 
 ## Learn More
 
 - [Andurel Documentation](https://github.com/mbvlabs/andurel)
-- [Echo Framework](https://echo.labstack.com/)
-- [Templ](https://templ.guide/)
-- [Datastar](https://data-star.dev/)
+- [net/http](https://pkg.go.dev/net/http)
+- [Inertia.js](https://inertiajs.com/)
+- [templ](https://templ.guide/)
 - [goqite](https://github.com/maragudk/goqite)
 - [OpenTelemetry](https://opentelemetry.io/)
 

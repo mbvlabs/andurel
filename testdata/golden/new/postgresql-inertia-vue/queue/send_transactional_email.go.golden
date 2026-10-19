@@ -31,7 +31,12 @@ func (w *SendTransactionalEmailWorker) Work(
 	ctx context.Context,
 	job *river.Job[jobs.SendTransactionalEmailArgs],
 ) error {
-	ctx, span := telemetry.Start(ctx, "queue.send_transactional_email", "email.to", job.Args.Data.To)
+	ctx, span := telemetry.Start(
+		ctx,
+		"queue.send_transactional_email",
+		"email.to",
+		job.Args.Data.To,
+	)
 	defer span.End()
 
 	err := email.SendTransactional(ctx, job.Args.Data, w.sender)

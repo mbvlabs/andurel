@@ -1,23 +1,17 @@
 package queue
 
 import (
+	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/riverqueue/river"
-	"go.uber.org/fx"
 )
 
-var wrksConstructors = fx.Provide(
-	river.NewWorkers,
-	NewSendTransactionalEmailWorker,
-	NewSendMarketingEmailWorker,
-)
+func NewWorkers(
+	transactional email.TransactionalSender,
+	marketing email.MarketingSender,
+) *river.Workers {
+	workers := river.NewWorkers()
+	river.AddWorker(workers, NewSendTransactionalEmailWorker(transactional))
+	river.AddWorker(workers, NewSendMarketingEmailWorker(marketing))
 
-var WorkersModule = fx.Module(
-	"queue-workers",
-	wrksConstructors,
-	fx.Invoke(func(workers *river.Workers, worker *SendTransactionalEmailWorker) error {
-		return worker.Register(workers)
-	}),
-	fx.Invoke(func(workers *river.Workers, worker *SendMarketingEmailWorker) error {
-		return worker.Register(workers)
-	}),
-)
+	return workers
+}
