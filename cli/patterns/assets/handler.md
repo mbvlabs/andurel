@@ -9,7 +9,7 @@ in `Register`. There are no handler sub-packages: `NewProductHandler`,
 
 Handlers decode the request and pass plain values down. They do not validate
 entity rules: the domain's `Create`/`Update` is the single validation gate and
-returns a `ValidationError` that `MapError` renders as a 422.
+returns a `pkg/validation` error that `MapError` renders as a 422.
 
 ## Files
 
@@ -64,8 +64,8 @@ func (h ProductHandler) Create(ctx context.Context) error {
 		return anduin.BadRequest(err)
 	}
 
-	// No validation here: Products.Create validates and returns a
-	// ValidationError that MapError renders as a 422.
+	// No validation here: Products.Create owns entity validation, and MapError
+	// renders pkg/validation errors as a 422.
 	created, err := h.products.Create(ctx, domains.CreateProductData{
 		Name:       payload.Name,
 		PriceCents: payload.PriceCents,
@@ -91,23 +91,30 @@ import (
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
 	return func(ctx context.Context, err error) error {
+		if wantsJSON(ctx) { // no X-Inertia header, Accept: application/json
+			return mapJSONError(ctx, err) // same mapping, JSON bodies
+		}
+		if validationErr, ok := validation.As(err); ok {
+			return renderer.Page(ctx, "Errors/Validation", nil).
+				ValidationErrors(validationErr.ToMap()).
+				Status(http.StatusUnprocessableEntity).
+				Render()
+		}
+
 		switch {
 		case errors.Is(err, domains.ErrNotFound):
 			return renderer.Page(ctx, "Errors/NotFound", nil).
 				Status(http.StatusNotFound).Render()
-		case errors.Is(err, domains.ErrViolation):
-			if ve, ok := errors.AsType[domains.ValidationError](err); ok {
-				return renderer.Page(ctx, "Errors/Validation", nil).
-					ValidationErrors(ve.Fields).
-					Status(http.StatusUnprocessableEntity).
-					Render()
-			}
+		case errors.Is(err, domains.ErrConflict):
+			return renderer.Page(ctx, "Errors/Conflict", nil).
+				Status(http.StatusConflict).Render()
 		}
-		return anduin.Error(ctx, http.StatusInternalServerError, err)
+		return err // keeps its own status; the router answers and logs it
 	}
 }
 ```
@@ -120,6 +127,7 @@ func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
 - Depend on the narrowest thing: a receiver (`domains.Products`) for single-domain CRUD, a service for multi-domain use cases. Never `storage.*` or `domains/internal/queries`.
 - Route registration happens in `Register(rt *anduin.Router)`.
 - Return domain errors unchanged; the router error handler maps them uniformly.
+- Exception: a form that can hit `domains.ErrConflict` (e.g. a taken email) checks `errors.Is(err, domains.ErrConflict)` and re-renders its own page with a field error, as `AuthHandler.RegistrationCreate` does. Otherwise the user lands on the generic `Errors/Conflict` page.
 - Construct the handler once in `internal/runtime` (`handlers.NewProductHandler(products, renderer).Register(router)`, with `products := domains.NewProducts(db)`).
 
 ## Checklist

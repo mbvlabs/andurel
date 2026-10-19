@@ -28,7 +28,7 @@ func (i Identity) AuthenticateUser(
 	b.Required("email", data.Email)
 	b.Required("password", data.Password)
 	if err := b.Err(); err != nil {
-		return domains.User{}, validationError(err)
+		return domains.User{}, err
 	}
 
 	user, err := i.users.FindByEmail(ctx, data.Email)
@@ -72,8 +72,8 @@ func (i Identity) AuthenticateUser(
 		}
 	}
 
-	// The password checked out, so the caller may use the returned user to
-	// resume email verification.
+	// The password matched: return the user alongside ErrEmailNotVerified so
+	// the caller can resume verification without authenticating the session.
 	if !user.HasValidatedEmail() {
 		return user, ErrEmailNotVerified
 	}

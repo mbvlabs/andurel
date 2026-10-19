@@ -47,15 +47,12 @@ func NewIdentity(
 	return Identity{transactor: transactor, users: users, tokens: tokens, queue: queue, pepper: authCfg.Pepper}
 }
 
-// RegisterUser creates the user, a verification code, and the verification
-// email job in one transaction: all three commit or none do.
 func (i Identity) RegisterUser(ctx context.Context, data RegisterUserData) (domains.User, error) {
 	var user domains.User
 
 	err := storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {
 		users, tokens, queue := i.users.InTx(tx), i.tokens.InTx(tx), i.queue.InTx(tx)
 
-		// The user domain validates email and password; no checks here.
 		created, err := users.Create(ctx, i.pepper, domains.CreateUserData{
 			Email: data.Email,
 			PasswordPair: domains.PasswordPair{
@@ -81,8 +78,6 @@ func (i Identity) RegisterUser(ctx context.Context, data RegisterUserData) (doma
 	return user, nil
 }
 
-// sendVerificationCode takes its dependencies as parameters so the caller
-// decides whether it runs inside a transaction.
 func (i Identity) sendVerificationCode(
 	ctx context.Context,
 	tokens domains.Tokens,

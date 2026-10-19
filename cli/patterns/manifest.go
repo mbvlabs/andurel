@@ -38,7 +38,7 @@ func ManifestFor(entity, table string) Manifest {
 
 	file := snakeCase(title)
 	if strings.TrimSpace(table) == "" {
-		table = Pluralize(file)
+		table = TableFor(title)
 	}
 	receiver := Pluralize(title)
 
@@ -62,8 +62,8 @@ func ManifestFor(entity, table string) Manifest {
 				Path:   fmt.Sprintf("domains/%s.go", file),
 				Action: "create",
 				Summary: fmt.Sprintf(
-					"package domains with `// andurel:table %s`; entity %s with Validate(); %s receiver with New%s(db storage.Connection) and InTx(tx storage.Tx)",
-					table, title, receiver, receiver,
+					"package domains; entity %s with Validate(); %s receiver with New%s(db storage.Connection) and InTx(tx storage.Tx)",
+					title, receiver, receiver,
 				),
 			},
 			{
@@ -85,6 +85,12 @@ func ManifestFor(entity, table string) Manifest {
 			"andurel patterns show test-domain",
 		},
 	}
+}
+
+// TableFor returns the conventional table name, not a verified schema mapping.
+// Irregular plurals and custom table names need an explicit override.
+func TableFor(entity string) string {
+	return Pluralize(snakeCase(entity))
 }
 
 // Pluralize returns a naive English plural: consonant+y → ies;

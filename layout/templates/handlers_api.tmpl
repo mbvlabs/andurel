@@ -10,13 +10,10 @@ import (
 	"github.com/mbvlabs/andurel/pkg/anduin"
 )
 
-// APIHandler exposes the JSON API surface. It is mounted under routes.APIPrefix.
 type APIHandler struct {
 	health healthChecker
 }
 
-// healthChecker is the only database capability the API surface needs. It
-// has no query methods, so handlers cannot issue raw database calls.
 type healthChecker interface {
 	Health(ctx context.Context) error
 }

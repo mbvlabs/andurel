@@ -27,10 +27,6 @@ import (
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
-// App is the HTTP process graph: the assembled dependencies, the serving
-// handler, and the ordered list of closers that release them. It is the one
-// place that knows how the application is wired; nothing here is discovered by
-// reflection.
 type App struct {
 	Config  config.Config
 	DB      storage.Connection
@@ -39,9 +35,6 @@ type App struct {
 	closers []func(context.Context) error
 }
 
-// New builds the whole HTTP dependency graph bottom-up: telemetry, database,
-// queue inserter, domains, services, presentation, and finally the router with
-// its handlers registered. Callers own the returned App and must Close it.
 func New(ctx context.Context, cfg config.Config) (*App, error) {
 	tel, err := newTelemetry(ctx, cfg.App, cfg.Telemetry)
 	if err != nil {
@@ -61,12 +54,9 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, err
 	}
 
-	// Domain receivers are built individually; the transactor runs
-	// transactions for services through storage.AtomicOps.
 	transactor := storage.NewTransactor(db)
 	users := domains.NewUsers(db)
 
-	// Services coordinate domains, the queue, and configuration.
 	identity := services.NewIdentity(transactor, users, queueInsert, cfg.Auth, cfg.Mail)
 
 	renderer, err := newRenderer(cfg)
@@ -119,7 +109,6 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	}, nil
 }
 
-// Close releases the App's dependencies in reverse construction order.
 func (a *App) Close(ctx context.Context) error {
 	var closeErr error
 	for _, closeFn := range slices.Backward(a.closers) {
@@ -129,14 +118,10 @@ func (a *App) Close(ctx context.Context) error {
 	return closeErr
 }
 
-// Shutdown lets App satisfy anduin.Shutdowner so the server can stop it during
-// graceful shutdown.
 func (a *App) Shutdown(ctx context.Context) error {
 	return a.Close(ctx)
 }
 
-// newTelemetry constructs the process-wide telemetry pipeline. Console output
-// is enabled everywhere except production unless OTLP is configured.
 func newTelemetry(
 	ctx context.Context,
 	appCfg config.App,
@@ -168,7 +153,6 @@ func newTelemetry(
 	return telemetry.New(ctx, cfg.ServiceName, cfg.ServiceVersion, opts...)
 }
 
-// newDatabase connects to PostgreSQL and reports query spans through tel.
 func newDatabase(
 	ctx context.Context,
 	cfg storage.Config,
@@ -185,8 +169,6 @@ func newDatabase(
 	return storage.NewPostgres(ctx, cfg, opts...)
 }
 
-// newEmailSenders builds the transactional and marketing senders for the
-// configured provider. Only the queue process needs them.
 func newEmailSenders(
 	cfg config.Mail,
 ) (email.TransactionalSender, email.MarketingSender, error) {
@@ -206,8 +188,6 @@ func newEmailSenders(
 	}
 }
 
-// newRenderer builds the Inertia renderer over the embedded assets and the
-// application root document.
 func newRenderer(cfg config.Config) (*inertia.Renderer, error) {
 	return inertia.NewRenderer(
 		cfg.Inertia.ContainerID,
@@ -230,8 +210,6 @@ func newRenderer(cfg config.Config) (*inertia.Renderer, error) {
 	)
 }
 
-// corsConfig allows the application's own origins, plus any extra origins
-// configured for the environment.
 func corsConfig(cfg config.Config) anduin.CORSConfig {
 	return anduin.CORSConfig{
 		AllowOrigins: mergedOrigins(
@@ -253,9 +231,6 @@ func corsConfig(cfg config.Config) anduin.CORSConfig {
 	}
 }
 
-// csrfConfig issues and verifies double-submit CSRF tokens. header_only accepts
-// the token from the X-CSRF-Token header; header_or_legacy_token additionally
-// accepts the legacy _csrf form field.
 func csrfConfig(cfg config.Config) anduin.CSRFConfig {
 	tokenLookup := "header:X-CSRF-Token"
 	if cfg.HTTP.CSRFStrategy == "header_or_legacy_token" {
@@ -278,8 +253,6 @@ func csrfConfig(cfg config.Config) anduin.CSRFConfig {
 	}
 }
 
-// csrfSkipper lets token-authenticated API requests bypass CSRF when they carry
-// a bearer token and no application session cookie.
 func csrfSkipper(cfg config.Config) func(context.Context) bool {
 	return func(ctx context.Context) bool {
 		request := anduin.Request(ctx)
@@ -310,7 +283,6 @@ func hasNonEmptyBearerToken(authorization string) bool {
 	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && parts[1] != ""
 }
 
-// mergedOrigins combines origin groups, trimming blanks and de-duplicating.
 func mergedOrigins(groups ...[]string) []string {
 	seen := make(map[string]struct{})
 	origins := make([]string, 0)

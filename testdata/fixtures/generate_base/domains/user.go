@@ -1,7 +1,5 @@
 package domains
 
-// andurel:table users
-
 import (
 	"context"
 	"crypto/rand"
@@ -19,25 +17,11 @@ import (
 	"github.com/mbvlabs/andurel/pkg/validation"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"golang.org/x/crypto/argon2"
 )
-
-// Users is the user domain's persistence entry point. It owns the users table;
-// runtime builds it with NewUsers and services bind it with InTx.
-type Users struct {
-	queries *queries.Queries
-}
-
-func NewUsers(db storage.Connection) Users {
-	return Users{queries: queries.New(db)}
-}
-
-// InTx returns a Users whose calls run inside tx.
-func (u Users) InTx(tx storage.Tx) Users {
-	return Users{queries: queries.New(storage.Unwrap(tx))}
-}
 
 type User struct {
 	ID               uuid.UUID          `andurel:"id"`
@@ -149,10 +133,10 @@ func (u Users) Create(
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return User{}, validationFailure(err)
+		return User{}, err
 	}
 
-	return u.queries.CreateUser[User](ctx, queries.CreateUserParams{
+	created, err := u.queries.CreateUser[User](ctx, queries.CreateUserParams{
 		ID:               entity.ID,
 		CreatedAt:        entity.CreatedAt,
 		UpdatedAt:        entity.UpdatedAt,
@@ -161,6 +145,24 @@ func (u Users) Create(
 		Password:         entity.Password,
 		IsAdmin:          entity.IsAdmin,
 	})
+	if err != nil {
+		return User{}, userWriteError(err)
+	}
+
+	return created, nil
+}
+
+// userWriteError translates the expected email conflict without classifying
+// unrelated database failures as user errors. Keep the constraint in sync with
+// the users migration.
+func userWriteError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" &&
+		pgErr.TableName == "users" && pgErr.ConstraintName == "users_email_key" {
+		return errors.Join(ErrConflict, err)
+	}
+
+	return err
 }
 
 type UpdateUserData struct {
@@ -206,7 +208,7 @@ func (u Users) Update(
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return User{}, validationFailure(err)
+		return User{}, err
 	}
 
 	row, err := u.queries.UpdateUser[User](ctx, queries.UpdateUserParams{
@@ -222,7 +224,7 @@ func (u Users) Update(
 			return User{}, ErrNotFound
 		}
 
-		return User{}, err
+		return User{}, userWriteError(err)
 	}
 
 	return row, nil
@@ -284,16 +286,6 @@ func (u Users) Paginate(
 	}, nil
 }
 
-// validationFailure maps pkg/validation field errors into the domain
-// vocabulary: a ValidationError that reports true for ErrViolation.
-func validationFailure(err error) error {
-	if validationErrors, ok := validation.As(err); ok {
-		return ValidationError{Fields: validationErrors.ToMap()}
-	}
-
-	return err
-}
-
 func generateSalt(size int) ([]byte, error) {
 	salt := make([]byte, size)
 	_, err := rand.Read(salt)
@@ -324,4 +316,16 @@ func HashPassword(password, pepper string) (string, error) {
 		base64.RawStdEncoding.EncodeToString(salt))
 
 	return encodedHash, nil
+}
+
+type Users struct {
+	queries *queries.Queries
+}
+
+func NewUsers(db storage.Connection) Users {
+	return Users{queries: queries.New(db)}
+}
+
+func (u Users) InTx(tx storage.Tx) Users {
+	return Users{queries: queries.New(storage.Unwrap(tx))}
 }

@@ -8,9 +8,6 @@ import (
 	"github.com/mbvlabs/andurel/pkg/kiks"
 )
 
-// App is the application session payload stored in the signed, encrypted
-// session cookie. Handlers read and write it with
-// kiks.Get[*App] / kiks.Set / kiks.Destroy.
 type App struct {
 {{- range .Blueprint.Cookies.SortedAppFields}}
 	{{.Name}} {{.Type}} `json:"{{toSnake .Name}},omitempty"`

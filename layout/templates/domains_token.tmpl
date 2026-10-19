@@ -1,7 +1,5 @@
 package domains
 
-// andurel:table tokens
-
 import (
 	"context"
 	"crypto/hmac"
@@ -22,8 +20,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// Tokens holds a Transactor because ReplaceCode is atomic on its own: called
-// on NewTokens it opens a transaction, called on InTx it joins the caller's.
+type TokenScope string
+
+const (
+	UserEmailVerification TokenScope = "user_email_verification"
+	UserResetPassword     TokenScope = "user_password_reset"
+)
+
+// Tokens holds a Transactor because ReplaceCode must be atomic on its own.
+// ReplaceCode opens a transaction unless InTx binds it to the caller's.
 type Tokens struct {
 	transactor storage.Transactor
 	queries    *queries.Queries
@@ -33,7 +38,7 @@ func NewTokens(db storage.Connection) Tokens {
 	return Tokens{transactor: storage.NewTransactor(db), queries: queries.New(db)}
 }
 
-// InTx returns a Tokens whose calls run inside tx.
+// InTx binds queries and atomic operations to the caller's transaction.
 func (t Tokens) InTx(tx storage.Tx) Tokens {
 	return Tokens{
 		transactor: t.transactor.InTx(tx),
@@ -108,15 +113,18 @@ func (t Tokens) Find(ctx context.Context, id uuid.UUID) (Token, error) {
 func (t Tokens) FindByScopeAndHash(
 	ctx context.Context,
 	secret string,
-	scope string,
+	scope TokenScope,
 	plainToken string,
 ) (Token, error) {
 	hash := HashForStorage(plainToken, secret)
 
-	entity, err := t.queries.GetTokenByScopeAndHash[Token](ctx, queries.GetTokenByScopeAndHashParams{
-		Scope: scope,
-		Hash:  hash,
-	})
+	entity, err := t.queries.GetTokenByScopeAndHash[Token](
+		ctx,
+		queries.GetTokenByScopeAndHashParams{
+			Scope: string(scope),
+			Hash:  hash,
+		},
+	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return Token{}, ErrNotFound
@@ -131,12 +139,15 @@ func (t Tokens) FindByScopeAndHash(
 func (t Tokens) FindByUserAndScope(
 	ctx context.Context,
 	userID uuid.UUID,
-	scope string,
+	scope TokenScope,
 ) (Token, error) {
-	entity, err := t.queries.GetTokenByUserAndScope[Token](ctx, queries.GetTokenByUserAndScopeParams{
-		UserID: userID,
-		Scope:  scope,
-	})
+	entity, err := t.queries.GetTokenByUserAndScope[Token](
+		ctx,
+		queries.GetTokenByUserAndScopeParams{
+			UserID: userID,
+			Scope:  string(scope),
+		},
+	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return Token{}, ErrNotFound
@@ -148,6 +159,8 @@ func (t Tokens) FindByUserAndScope(
 	return entity, nil
 }
 
+// IncrementAttempts takes an UPDATE row lock until the transaction finishes.
+// Call it before checking a code, and commit even when that code is invalid.
 func (t Tokens) IncrementAttempts(ctx context.Context, id uuid.UUID) (int32, error) {
 	attempts, err := t.queries.IncrementTokenAttempts(ctx, queries.IncrementTokenAttemptsParams{
 		ID:        id,
@@ -167,11 +180,11 @@ func (t Tokens) IncrementAttempts(ctx context.Context, id uuid.UUID) (int32, err
 func (t Tokens) DestroyByUserAndScope(
 	ctx context.Context,
 	userID uuid.UUID,
-	scope string,
+	scope TokenScope,
 ) error {
 	return t.queries.DeleteTokensByUserAndScope(ctx, queries.DeleteTokensByUserAndScopeParams{
 		UserID: userID,
-		Scope:  scope,
+		Scope:  string(scope),
 	})
 }
 
@@ -210,7 +223,7 @@ func (t Tokens) createToken(
 	}
 
 	if err := validation.Validate(&entity); err != nil {
-		return Token{}, validationFailure(err)
+		return Token{}, err
 	}
 
 	return t.queries.CreateToken[Token](ctx, queries.CreateTokenParams{
@@ -228,7 +241,7 @@ func (t Tokens) createToken(
 func (t Tokens) CreateCode(
 	ctx context.Context,
 	secret string,
-	scope string,
+	scope TokenScope,
 	expiresAt time.Time,
 	metaData []byte,
 	userID uuid.UUID,
@@ -239,7 +252,7 @@ func (t Tokens) CreateCode(
 	}
 
 	if _, err := t.createToken(ctx, createTokenData{
-		Scope:     scope,
+		Scope:     string(scope),
 		ExpiresAt: expiresAt,
 		Hash:      HashForStorage(tkn, secret),
 		MetaData:  metaData,
@@ -251,12 +264,12 @@ func (t Tokens) CreateCode(
 	return tkn, nil
 }
 
-// ReplaceCode destroys any outstanding code for (userID, scope) and issues a
-// new one, atomically.
+// ReplaceCode atomically replaces the outstanding code for a user and scope,
+// joining the caller's transaction when the receiver was bound with InTx.
 func (t Tokens) ReplaceCode(
 	ctx context.Context,
 	secret string,
-	scope string,
+	scope TokenScope,
 	expiresAt time.Time,
 	metaData []byte,
 	userID uuid.UUID,
@@ -289,7 +302,7 @@ func (t Tokens) ReplaceCode(
 func (t Tokens) Create(
 	ctx context.Context,
 	secret string,
-	scope string,
+	scope TokenScope,
 	expiresAt time.Time,
 	metaData []byte,
 	userID uuid.UUID,
@@ -300,7 +313,7 @@ func (t Tokens) Create(
 	}
 
 	if _, err := t.createToken(ctx, createTokenData{
-		Scope:     scope,
+		Scope:     string(scope),
 		ExpiresAt: expiresAt,
 		Hash:      HashForStorage(tkn, secret),
 		MetaData:  metaData,
@@ -366,12 +379,4 @@ func (t Tokens) Paginate(
 		PageSize:   pageSize,
 		TotalPages: totalPages,
 	}, nil
-}
-
-func validationFailure(err error) error {
-	if validationErrors, ok := validation.As(err); ok {
-		return ValidationError{Fields: validationErrors.ToMap()}
-	}
-
-	return err
 }

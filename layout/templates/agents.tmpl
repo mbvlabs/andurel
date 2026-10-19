@@ -2,7 +2,7 @@
 
 This is an Andurel application. Use the `andurel` CLI to discover the project shape and to read the reference patterns instead of inventing file paths, URLs, or generator names.
 
-Frontend: Inertia ({{.Inertia}}) + Vite. HTTP: `net/http` via `pkg/anduin` — handlers are `func(ctx context.Context) error`. There is no Echo and no Fx. Domains are type-driven: invariants live in newtypes built by `ParseX` constructors; there are no post-construction `Validate` methods.
+Frontend: Inertia ({{.Inertia}}) + Vite. HTTP: `net/http` via `pkg/anduin` — handlers are `func(ctx context.Context) error`. There is no Echo and no Fx. Entities validate via `pkg/validation`.
 
 ## Discovery
 
@@ -39,7 +39,7 @@ andurel patterns show domain --entity User --table users --json
 ## Layer placement
 
 - `domains/` — business logic and persistence in one flat package (one file per domain); SQL is colocated as `domains/<entity>.sql`. Only `domains` imports `domains/internal/queries`.
-- `domains/errors.go` — the shared vocabulary: `ErrNotFound`, `ErrConflict`, `ErrViolation`, `ValidationError`.
+- `domains/errors.go` — the shared vocabulary: `ErrNotFound`, `ErrConflict`. Return `pkg/validation` errors directly; handlers inspect them with `validation.As`.
 - `services/` — application logic: transactions, cross-domain orchestration, external side effects. Writes that must commit together run in `storage.AtomicOps(ctx, i.transactor, func(ctx, tx storage.Tx) error { … })`, binding receivers and the queue with `InTx(tx)` at the top of the callback; returning `nil` commits, an error rolls back.
 - `handlers/` — HTTP adapters in one flat package (`AuthHandler`, `APIHandler`, `NewXHandler` constructors, no sub-packages). Register routes in `Register(rt *anduin.Router)`.
 - `routes/` — route data only (names, paths, URL builders).

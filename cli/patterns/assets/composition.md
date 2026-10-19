@@ -56,14 +56,10 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, err
 	}
 
-	// Domain receivers are built individually. The transactor runs
-	// transactions for services through storage.AtomicOps; services never
-	// see the connection, so raw queries can only originate in domains.
 	transactor := storage.NewTransactor(db)
 	users := domains.NewUsers(db)
 	tokens := domains.NewTokens(db)
 
-	// Services coordinate domains, the queue, and configuration.
 	identity := services.NewIdentity(transactor, users, tokens, queueInsert, cfg.Auth, cfg.Mail)
 
 	renderer, err := newRenderer(cfg)

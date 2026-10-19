@@ -23,20 +23,16 @@ a complete reference application that doubles as the executable pattern book.
 
 Pattern ids: domain, service, handler, route, job, email, migration,
 test-domain, test-handler, test-integration, composition.`,
-		Example: `  andurel patterns
+		Example: `  andurel patterns list
   andurel patterns list --json
   andurel patterns show domain
   andurel patterns show handler --json`,
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runPatternsList(cmd)
-		},
 	}
 	cmd.AddCommand(newPatternsListCommand(), newPatternsShowCommand())
 	setAgentMetadata(
 		cmd,
 		"reference",
-		"Read-only pattern library. Lists pattern ids; use andurel patterns show <kind> to read one.",
+		"Group for the read-only pattern library. Use patterns list for ids and patterns show <kind> to read one.",
 	)
 	setStandardHelp(cmd)
 	return cmd

@@ -7,12 +7,8 @@ import (
 	"github.com/mbvlabs/andurel/pkg/cache"
 )
 
-// DefaultCacheNamespace isolates application keys on shared infrastructure.
 const DefaultCacheNamespace = "andurel"
 
-// Cache selects the cache driver and its options. The memory driver is
-// in-process; the redis driver shares values and rate-limit counters across
-// replicas.
 type Cache struct {
 	Driver    string
 	Namespace string
@@ -33,13 +29,14 @@ func NewCache() (Cache, error) {
 		return Cache{}, fmt.Errorf("config: cache: CACHE_DRIVER must be memory or redis")
 	}
 	if cfg.Driver == "redis" && cfg.RedisAddr == "" {
-		return Cache{}, fmt.Errorf("config: cache: CACHE_REDIS_ADDR is required for the redis driver")
+		return Cache{}, fmt.Errorf(
+			"config: cache: CACHE_REDIS_ADDR is required for the redis driver",
+		)
 	}
 
 	return cfg, nil
 }
 
-// Store builds the cache.Store described by cfg.
 func (c Cache) Store() (cache.Store, error) {
 	return cache.New(cache.Config{
 		Driver:    c.Driver,
@@ -50,8 +47,6 @@ func (c Cache) Store() (cache.Store, error) {
 	})
 }
 
-// CacheTTL is a convenience for handlers: the default TTL for rendered
-// assets. It reads CACHE_TTL or falls back to fifteen minutes.
 func CacheTTL() time.Duration {
 	return newEnvironment().Duration("CACHE_TTL", 15*time.Minute)
 }

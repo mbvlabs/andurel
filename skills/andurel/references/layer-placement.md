@@ -29,7 +29,7 @@ Two commands keep an agent honest:
 | Database-backed entity structs, `andurel:"column"` table tags, create/update input structs, validation, persistence methods, finder/query methods, domain errors | `domains/` (for example `domains/user.go`) |
 | SQL for a domain (narsilc input) | `domains/<entity>.sql`, colocated with the entity |
 | narsilc-generated query types and rows (narsilc output) | `domains/internal/queries/` — imported only by `domains/**` |
-| Cross-domain vocabulary: `ErrNotFound`, `ErrConflict`, `ErrViolation`, `ValidationError{Fields}` | `domains/errors.go` (package `domains`) |
+| Cross-domain vocabulary: `ErrNotFound`, `ErrConflict` | `domains/errors.go` (package `domains`) |
 | Rules that must hold regardless of HTTP, Inertia, API, jobs, or seeds | `domains/` |
 | Multi-step workflows, transactions, cross-domain coordination, external side effects, application policy that requires current database state | `services/` |
 | Request parsing, path/query/form/JSON binding, HTTP status/render/redirect choices, flash messages, CSRF/session handling | `handlers/` (one flat package) |
@@ -60,21 +60,19 @@ file per domain (`domains/user.go`, `domains/token.go`). A domain answers
 
 Use a domain file for:
 
-- Entity structs with newtypes for every invariant (`Email`, not `string`).
-  `ParseX` constructors are the supported way to build values; direct
-  conversion bypasses validation. There are no post-construction `Validate`
-  methods. Keep generated fields mapped to the table (`andurel:"column"`
-  tags). When the entity is not the scan row, implement
+- Entity structs with plain Go field types. Keep generated fields mapped to
+  the table (`andurel:"column"` tags). When the entity is not the scan row, implement
   `Transform(queries.XRow) error`; keep `sql.Scanner` off the entity.
 - Generated `queries.XRow` / `queries.QueryNameRow` values. Domain code returns
   the entity, never the row.
 - `Create<Entity>Data` and `Update<Entity>Data` input structs.
-- `ParseX` constructors returning `(T, error)` with field normalization
-  (trim, lowercase) and `ValidationError` failures.
+- `Validate()` methods using `pkg/validation` with field normalization
+  (trim, lowercase) and `validation.ValidationErrors` failures.
 - CRUD methods, finder methods, pagination, count queries, and domain query
   methods.
-- Domain errors. Return the shared sentinels (`ErrNotFound`, `ErrConflict`,
-  `ErrViolation`) or a `ValidationError` for field-level failures.
+- Domain errors. Map expected persistence failures to the shared sentinels
+  (`ErrNotFound`, `ErrConflict`); return `pkg/validation` errors directly for
+  field-level failures. Preserve unexpected database errors for diagnostics.
 
 Hard rules:
 
@@ -92,10 +90,8 @@ Hard rules:
   `storage.Transactor`, rebinds it in `InTx`, and wraps the statements in
   `storage.AtomicOps` so it joins a caller's transaction when bound.
 - **Validate once, in the domain.** `Create`/`Update` call the entity's
-  `Validate()` before writing and return a `ValidationError`. Handlers and
-  services do not repeat entity rules.
-- **Annotate the table** with `// andurel:table <table>` after the package
-  clause.
+  `Validate()` before writing and return `pkg/validation` errors directly.
+  Handlers and services do not repeat entity rules.
 - **SQL is colocated with its domain** (`domains/user.sql`). Narsilc globs
   `domains/**/*.sql` and writes to `domains/internal/queries/`. You never
   place SQL under `models/` — there is no `models/`.
@@ -211,7 +207,7 @@ error API.
 Use `AuthHandler` in `handlers/auth.go` for sessions, registration,
 confirmation, and password reset, and `APIHandler` in `handlers/api.go` for
 JSON endpoints. Decode payloads at the edge and pass plain values to services
-or domains; validation errors come back from the domain as `ValidationError`.
+or domains; validation errors come back from `pkg/validation` via `validation.As(err)`.
 
 ## Routes
 

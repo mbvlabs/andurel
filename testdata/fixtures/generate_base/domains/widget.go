@@ -1,7 +1,5 @@
 package domains
 
-// andurel:table widgets
-
 import (
 	"context"
 	"errors"
@@ -15,21 +13,6 @@ import (
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
-
-// Widgets is the widget domain's persistence entry point. It owns the widgets
-// table; runtime builds it with NewWidgets and services bind it with InTx.
-type Widgets struct {
-	queries *queries.Queries
-}
-
-func NewWidgets(db storage.Connection) Widgets {
-	return Widgets{queries: queries.New(db)}
-}
-
-// InTx returns a Widgets whose calls run inside tx.
-func (w Widgets) InTx(tx storage.Tx) Widgets {
-	return Widgets{queries: queries.New(storage.Unwrap(tx))}
-}
 
 type Widget struct {
 	ID        uuid.UUID          `andurel:"id"`
@@ -66,4 +49,16 @@ func (w Widgets) Create(ctx context.Context, name string) (Widget, error) {
 
 func (w Widgets) Destroy(ctx context.Context, id uuid.UUID) error {
 	return w.queries.DeleteWidget(ctx, id)
+}
+
+type Widgets struct {
+	queries *queries.Queries
+}
+
+func NewWidgets(db storage.Connection) Widgets {
+	return Widgets{queries: queries.New(db)}
+}
+
+func (w Widgets) InTx(tx storage.Tx) Widgets {
+	return Widgets{queries: queries.New(storage.Unwrap(tx))}
 }

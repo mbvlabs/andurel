@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"sort"
+	"slices"
 
 	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/validation"
@@ -104,9 +104,7 @@ func (c App) Origins() []string {
 		}
 		names = append(names, name)
 	}
-	sort.Slice(names, func(i, j int) bool {
-		return names[i] < names[j]
-	})
+	slices.Sort(names)
 	for _, name := range names {
 		add(c.Hosts[name])
 	}

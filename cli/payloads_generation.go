@@ -79,7 +79,8 @@ func newGeneratePayloadsCommand() *cobra.Command {
 		Short: "Generate TypeScript payload types for Inertia frontends",
 		Long: `Generate TypeScript declarations from backend-owned Inertia payload structs.
 
-The command scans handlers for inertia.FromStruct and named Bind payloads
+The command scans handlers for inertia.FromStruct props and named payloads
+decoded with anduin.DecodeJSON or anduin.DecodeForm,
 and writes resources/js/types/payloads.ts.`,
 		Example: `  andurel sync payloads
   andurel sync payloads --json`,
@@ -280,16 +281,15 @@ func (s *payloadScan) discoverInFile(path string) error {
 		locals := collectFuncLocals(fn)
 		ast.Inspect(fn.Body, func(node ast.Node) bool {
 			call, ok := node.(*ast.CallExpr)
-			if !ok || len(call.Args) != 1 {
+			if !ok {
 				return true
 			}
 			line := s.fset.Position(call.Pos()).Line
-			if isInertiaFromStructCall(call.Fun, imports) {
+			switch {
+			case len(call.Args) == 1 && isInertiaFromStructCall(call.Fun, imports):
 				s.noteFromStruct(call.Args[0], locals, pkgRel, imports, sourceFile, line)
-				return true
-			}
-			if isBindCall(call.Fun) {
-				s.noteBind(call.Args[0], locals, pkgRel, imports, sourceFile, line)
+			case len(call.Args) == 2 && isAnduinDecodeCall(call.Fun, imports):
+				s.noteBind(call.Args[1], locals, pkgRel, imports, sourceFile, line)
 			}
 			return true
 		})
@@ -359,7 +359,7 @@ func (s *payloadScan) noteBind(
 	pkg, name, ok := s.resolveNamedStruct(arg, locals, pkgRel, imports, map[string]struct{}{})
 	if !ok {
 		s.skipped = append(s.skipped, payloadSkipped{
-			SourceFile: sourceFile, Line: line, Reason: "unresolved Bind argument",
+			SourceFile: sourceFile, Line: line, Reason: "unresolved decode argument",
 		})
 		return
 	}
@@ -371,7 +371,7 @@ func (s *payloadScan) noteBind(
 	}
 	if !strings.HasSuffix(name, "Payload") {
 		s.failLater = append(s.failLater, fmt.Sprintf(
-			"%s:%d: Bind root %s must be named with a Payload suffix; rename it (for example %sPayload)",
+			"%s:%d: decoded payload %s must be named with a Payload suffix; rename it (for example %sPayload)",
 			sourceFile,
 			line,
 			name,
@@ -382,7 +382,7 @@ func (s *payloadScan) noteBind(
 	key := structKey(pkg, name)
 	if _, exists := s.structs[key]; !exists {
 		s.skipped = append(s.skipped, payloadSkipped{
-			Name: name, SourceFile: sourceFile, Line: line, Reason: "unresolved Bind argument",
+			Name: name, SourceFile: sourceFile, Line: line, Reason: "unresolved decode argument",
 		})
 		return
 	}
@@ -853,9 +853,22 @@ func isInertiaFromStructCall(fun ast.Expr, imports map[string]string) bool {
 	return strings.HasSuffix(path, "/inertia") || strings.HasSuffix(path, "/pkg/inertia")
 }
 
-func isBindCall(fun ast.Expr) bool {
+// isAnduinDecodeCall matches anduin.DecodeJSON(ctx, &payload) and
+// anduin.DecodeForm(ctx, &payload), the request-binding entry points.
+func isAnduinDecodeCall(fun ast.Expr, imports map[string]string) bool {
 	sel, ok := fun.(*ast.SelectorExpr)
-	return ok && sel.Sel.Name == "Bind"
+	if !ok || (sel.Sel.Name != "DecodeJSON" && sel.Sel.Name != "DecodeForm") {
+		return false
+	}
+	ident, ok := sel.X.(*ast.Ident)
+	if !ok {
+		return false
+	}
+	path := imports[ident.Name]
+	if path == "" {
+		return ident.Name == "anduin"
+	}
+	return strings.HasSuffix(path, "/pkg/anduin")
 }
 
 func collectFuncLocals(fn *ast.FuncDecl) map[string]ast.Expr {

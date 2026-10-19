@@ -2,9 +2,6 @@ package queue
 
 import "github.com/riverqueue/river"
 
-// PeriodicJobs returns the queue's periodic jobs. Add entries here; the
-// composition root passes them to the River processor in
-// internal/runtime/queue.go. There is no dependency-injection container.
 func PeriodicJobs() []*river.PeriodicJob {
 	return nil
 }

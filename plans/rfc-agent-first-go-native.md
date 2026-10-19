@@ -6,6 +6,7 @@
 - **Approach:** **One branch ports everything at once** (§16) so the new shape can be explored locally in one piece.
 - **Relates to / supersedes:** `plans/version-two.md`, `plans/standalone-inertia-and-ssr.md`, `plans/andurel-owned-inertia-v3.md`, `plans/remove-di-mode.md`, `plans/testing-rework.html`
 - **Review command:** `plannotator annotate plans/rfc-agent-first-go-native.md --tailscale`
+- **Changelog rev 6:** domains are one flat package (§4.3); transactions run through `storage.AtomicOps` with an opaque `storage.Tx`; domain receivers, the queue, and the `storage.Transactor` bind with `InTx(tx)`; services bind inline per use case; no package globals (§5.4, §6, §10; full design in `plans/rfc-domain-transactions-option1.md`); entities validate with `Validate()` at the domain write path instead of `ParseX` newtypes, because Go zero values make newtypes unenforceable (§5.2, §18); `verify` enforces the DB-handle boundary, `storage.Unwrap` placement, transaction escape, and nested public calls (§12).
 - **Changelog rev 5:** flatten `handlers/` to one package (§4, §7); jar construction moves to `internal/runtime`, `middleware/` exports policy only (§4, §8, §10); single-constructor `runtime.New` owns `Handler`+`Server` (§10); domains are type-driven newtypes, parse-don't-validate (§5, §11); `verify` vs `doctor` split clarified, no merge (§12); `patterns show` gains `--entity/--table` builder output (§11, §13).
 
 ---
@@ -95,8 +96,8 @@ Concrete findings from the current codebase that motivate each change:
 │   └── queue.go              #   worker process wiring (Queue struct, NewQueue)
 ├── config/                   # app-owned config, one type per subsystem
 ├── domains/                  # ALL business logic and persistence, one flat package
-│   ├── errors.go             #   ErrNotFound, ErrConflict, ErrViolation, ValidationError
-│   ├── user.go               #     User + Users receiver + Email/PasswordHash newtypes + Parse constructors
+│   ├── errors.go             #   ErrNotFound, ErrConflict; validation uses pkg/validation
+│   ├── user.go               #     User + Users receiver + Validate()
 │   ├── user.sql              #     SQL for the user domain (narsilc input)
 │   ├── user_test.go
 │   ├── token.go              #     Token + Tokens receiver
@@ -111,7 +112,7 @@ Concrete findings from the current codebase that motivate each change:
 │   ├── pages.go              #     NewPagesHandler + Register
 │   ├── user.go               #     NewUserHandler(users, renderer) + Register
 │   ├── auth.go               #     NewAuthHandler(identity, renderer) + Register
-│   ├── api.go                #     NewAPIHandler(db) + Register
+│   ├── api.go                #     NewAPIHandler(db) + Register (health only, narrow interface)
 │   └── assets.go             #     NewAssetsHandler + Register
 ├── routes/                   # route definitions only (no Router type)
 ├── middleware/               # app HTTP policy only: auth guard, rate limit, session Definition
@@ -153,8 +154,9 @@ here; they belong in `internal/runtime` or the owning package.
 
 ### 5.1 Shared domain vocabulary: `domains/errors.go`
 
-The root `domains` package holds only cross-domain vocabulary. It has no subpackage dependencies (no
-import cycles).
+The flat `domains` package owns entities, persistence receivers, and shared
+error vocabulary. `domains/errors.go` declares the shared persistence sentinels;
+field validation returns `pkg/validation` errors directly, without a second wrapper.
 
 ```go
 // domains/errors.go
@@ -163,33 +165,24 @@ package domains
 import "errors"
 
 var (
-	ErrNotFound  = errors.New("domain: not found")
-	ErrConflict  = errors.New("domain: conflict")
-	ErrViolation = errors.New("domain: violation")
+	ErrNotFound = errors.New("domain: not found")
+	ErrConflict = errors.New("domain: conflict")
 )
-
-// ValidationError carries field-level messages that handlers map to 422 / Inertia props.errors.
-type ValidationError struct {
-	Fields map[string]string
-}
-
-func (e ValidationError) Error() string     { return "domain: validation failed" }
-func (e ValidationError) Is(target error) bool { return target == ErrViolation }
 ```
 
-### 5.2 Entity domain: `domains/user.go` (rev 5: type-driven, parse-don't-validate; rev 6: flat package)
+### 5.2 Entity domain: `domains/user.go` (rev 6: validate at the write path, flat package)
 
-Domains follow Palmieri-style type-driven development ("Using Types To Guarantee
-Domain Invariants", Zero to Production ch. 6): invariants live in newtypes and
-`ParseX` is the supported constructor, so callees rely on the invariants
-instead of re-checking. There is no exported `Validate()` called after
-construction — an invalid value is unrepresentable, so `insert`-style callees
-never re-check.
+Rev 5 proposed Palmieri-style newtypes (`Email`, `ParseEmail`). Rev 6 drops
+them: Go zero values and plain conversions (`Email("")`, `domains.Email(raw)`)
+mean a newtype cannot make an invalid value unrepresentable, so the guarantee
+was never real. Instead, **validation is the primitive, and it runs exactly
+once, at the domain write path**: entities expose `Validate()` (via
+`pkg/validation`), and `Create`/`Update` normalise, validate, then write.
+Handlers decode; services check only use-case-specific input. Neither repeats
+entity rules.
 
 ```go
 package domains
-
-// andurel:table users
 
 import (
 	"context"
@@ -198,51 +191,54 @@ import (
 
 	"app/domains/internal/queries"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/jackc/pgx/v5"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
-type Users struct{ q *queries.Queries }
+type Users struct{ queries *queries.Queries }
 
-func NewUsers(db storage.Connection) Users            { return Users{q: queries.New(db)} }
-func (u Users) WithTx(tx storage.Transaction) Users   { return Users{q: queries.New(tx)} }
-
-// Email is a parsed, normalised address. Build one with ParseEmail.
-type Email string
-
-func ParseEmail(raw string) (Email, error) { /* trim, lowercase, shape check */ }
-
-func (e Email) String() string { return string(e) }
-
-// PasswordHash is an argon2 password hash. Build one with HashPassword.
-type PasswordHash []byte
+// NewUsers is built in internal/runtime; InTx binds it to an open transaction (§5.4).
+func NewUsers(db storage.Connection) Users   { return Users{queries: queries.New(db)} }
+func (u Users) InTx(tx storage.Tx) Users     { return Users{queries: queries.New(storage.Unwrap(tx))} }
 
 type User struct {
-	ID       uuid.UUID    `andurel:"id"`
-	Email    Email        `andurel:"email"`
-	Password PasswordHash `andurel:"password"`
+	ID       uuid.UUID `andurel:"id"`
+	Email    string    `andurel:"email"`
+	Password []byte    `andurel:"password"`
 }
 
-type CreateUserData struct {
-	Email Email
+// Validate is the write gate: Create and Update call it.
+func (u *User) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("email", u.Email)
+	b.MaxLen("email", u.Email, 255)
+	// + format check via net/mail
+	return b.Err()
 }
 
 func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
-	entity, err := u.q.GetUser[User](ctx, id)
+	entity, err := u.queries.GetUser[User](ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return User{}, ErrNotFound
 	}
 	return entity, err
 }
 
-// Create / Update / Destroy / All / Paginate as today, returning domain errors.
-// Create takes CreateUserData (parsed types), never raw strings.
+// Create normalises (normaliseEmail: trim + lowercase), validates entity and
+// password rules into one pkg/validation error, hashes, then inserts.
+// ChangePassword / Update / Destroy / All / Paginate follow the same shape.
 ```
 
-Rules: one newtype per invariant (`Email`, `PasswordHash`, …);
-`Parse`/`Hash` constructors map failures to `ValidationError`;
-persistence methods accept parsed inputs; reads convert trusted rows via
-`Transform`; unit tests target `Parse` directly.
+Rules: one shared normaliser per field used by every entry point (writes and
+lookups); `Create`/`Update` return `pkg/validation` errors directly before
+touching the database; unit tests target `Validate` directly. Expected unique
+constraint errors map to `ErrConflict`; unexpected database errors are preserved.
+
+Table inspection labels conventional names with `table_source: "inferred"`;
+these are guesses, not schema facts. For irregular or custom table names, an
+optional `// andurel:table people` annotation supplies inspection metadata and
+reports `table_source: "annotation"`. SQL remains the actual persistence mapping.
 
 ### 5.3 SQL colocated with its domain
 
@@ -262,15 +258,57 @@ package fixed at `domains/internal/queries`. `pkg/storage/narsilc.go` (`QueriesD
 ### 5.4 What "DB logic only under domains" means in practice
 
 - Only `domains` imports `domains/internal/queries` and issues SQL.
-- `services/`, `handlers/`, `internal/runtime/`, `queue/`, and `seeds/` call domain constructors and
-  methods; they never import the generated queries package.
+- **Transactions go through `pkg/storage` (rev 6).** A `storage.Transactor` (built once in
+  runtime from the connection) runs transactions with `storage.AtomicOps(ctx, transactor, fn)`,
+  handing `fn` an opaque `storage.Tx`. `storage.Tx` has **no query methods**: holding one lets a
+  caller join the transaction, never issue SQL. Only `domains` calls `storage.Unwrap(tx)`.
+- **Everything that touches the database binds with `InTx(tx)`:** domain receivers
+  (`users.InTx(tx)`), the queue (`queue.InTx(tx)`, so a job is visible to workers only if the data
+  commits), and the `Transactor` itself (a bound transactor makes `AtomicOps` join the caller's
+  transaction instead of opening a second one).
+- **Receivers are constructed individually** (`domains.NewUsers(db)`) in runtime and listed
+  individually in service constructors. There is no aggregate type and no jobs code in `domains`.
+  Adding a domain is one `NewX(db)` in runtime plus a constructor parameter where it is used.
+- **Services bind inline, per use case**, at the top of the `AtomicOps` callback, and use only
+  the bound locals. Helpers take bound dependencies as parameters; public use cases do not call
+  each other inside a callback.
+- **Commit and rollback:** the callback's return value decides. `nil` commits; an error or a panic
+  rolls back. `storage.Tx` has no `Commit`/`Rollback`. A joined `AtomicOps` leaves both to the
+  transaction's owner. Side effects outside Postgres happen after commit or via the bound queue.
+- There are no package globals, so each test builds its own receivers over its own database and
+  can run in parallel.
 - `internal/` adapters wrap third-party APIs and hold no business rules.
-- Transactions use `storage.RunInTransaction` inside a domain method or a service.
 - **Domains share one flat package (one file per domain).** A rule that spans `user` and `token`
   is application logic and belongs in a service.
 
-This is enforceable mechanically (see §12): an `andurel verify` import check fails when a file
-outside `domains/` imports `domains/internal/queries`.
+```go
+// pkg/storage (abridged)
+type Tx struct{ /* opaque */ }
+type Transactor struct{ /* conn, or a bound Tx */ }
+
+func NewTransactor(conn Connection) Transactor
+func (t Transactor) InTx(tx Tx) Transactor
+func AtomicOps(ctx context.Context, t Transactor, fn func(ctx context.Context, tx Tx) error) error
+func Unwrap(tx Tx) Transaction // domains only
+
+type InsertQueue interface {
+	Insert(context.Context, river.JobArgs, *river.InsertOpts) (*rivertype.JobInsertResult, error)
+	InsertMany(context.Context, []river.InsertManyParams) ([]*rivertype.JobInsertResult, error)
+	InTx(tx Tx) InsertQueue
+}
+```
+
+The full design, alternatives considered, and commit/rollback semantics live in
+`plans/rfc-domain-transactions-option1.md`. Carrying the transaction on `ctx` was considered and
+rejected: it puts a database handle on the context, which §8.3 rules out. An aggregate
+`domains.Store` was prototyped and rejected: it became a dependency bag and pulled the queue into
+`domains`.
+
+This is enforceable mechanically (see §12): `andurel verify` fails when a file outside `domains/`
+imports `domains/internal/queries` or calls `storage.Unwrap`, when a file outside the wiring layers
+names `storage.Connection`/`storage.Transaction`/`storage.RunInTransaction` or imports pgx, when an
+`AtomicOps` callback uses an unbound receiver field (`i.users` instead of a bound local), and when
+it calls an exported method on the enclosing receiver.
 
 ---
 
@@ -279,21 +317,24 @@ outside `domains/` imports `domains/internal/queries`.
 `services/` keeps its role — it is where use cases live — but its boundary is now sharp:
 
 - A **domain** answers "what is true about this entity?" and owns its own persistence.
-- A **service** answers "what should happen across entities, surfaces, or side effects?" It may
-  depend on several domains, the queue, email, and config. It is not a pass-through wrapper.
+- A **service** answers "what should happen across entities, surfaces, or side effects?" It
+  receives a `storage.Transactor`, the domain receivers it uses, and the queue, plus config. It is
+  not a pass-through wrapper.
 
 ```go
 // services/identity.go
 package services
 
 type Identity struct {
-	users  domains.Users
-	tokens domains.Tokens
-	queue  storage.InsertQueue
-	pepper string
+	transactor storage.Transactor
+	users      domains.Users
+	tokens     domains.Tokens
+	queue      storage.InsertQueue
+	pepper     string
 }
 
 func NewIdentity(
+	transactor storage.Transactor,
 	users domains.Users,
 	tokens domains.Tokens,
 	queue storage.InsertQueue,
@@ -301,8 +342,23 @@ func NewIdentity(
 	mailCfg config.Mail,
 ) Identity { /* ... */ }
 
-func (i Identity) AuthenticateUser(ctx context.Context, data LoginData) (domains.User, error) {
-	// coordinates user + token + email; the only place these domains meet
+func (i Identity) RegisterUser(ctx context.Context, data RegisterUserData) (domains.User, error) {
+	var user domains.User
+	err := storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {
+		users, tokens, queue := i.users.InTx(tx), i.tokens.InTx(tx), i.queue.InTx(tx)
+
+		created, err := users.Create(ctx, i.pepper /* , ... */) // validates
+		if err != nil {
+			return err // rolls back
+		}
+		// tokens.ReplaceCode(...); queue.Insert(ctx, verifyEmailArgs, nil)
+		user = created
+		return nil // commits
+	})
+	if err != nil {
+		return domains.User{}, err
+	}
+	return user, nil
 }
 ```
 
@@ -395,19 +451,22 @@ import (
 
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 func MapError(renderer *inertia.Renderer, ctx context.Context, err error) error {
+	if validationErr, ok := validation.As(err); ok {
+		return renderer.Page(ctx, "Errors/Validation", nil).
+			ValidationErrors(validationErr.ToMap()).
+			Status(http.StatusUnprocessableEntity).
+			Render()
+	}
+
 	switch {
 	case errors.Is(err, domains.ErrNotFound):
 		return renderer.Page(ctx, "Errors/NotFound", nil).Status(http.StatusNotFound).Render()
-	case errors.Is(err, domains.ErrViolation):
-		if ve, ok := errors.AsType[domains.ValidationError](err); ok {
-			return renderer.Page(ctx, "Errors/Validation", nil).
-				ValidationErrors(ve.Fields).
-				Status(http.StatusUnprocessableEntity).
-				Render()
-		}
+	case errors.Is(err, domains.ErrConflict):
+		return anduin.Conflict(err)
 	}
 	return anduin.Error(ctx, http.StatusInternalServerError, err)
 }
@@ -643,16 +702,18 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, err
 	}
 
-	// domains
-	users := domains.NewUsers(db)
-	tokens := domains.NewTokens(db)
 	queueInsert, err := storage.NewQueueInsert(db, cfg.Queue)
 	if err != nil {
 		return nil, err
 	}
 
+	// domains: receivers built individually; the transactor runs transactions
+	transactor := storage.NewTransactor(db)
+	users := domains.NewUsers(db)
+	tokens := domains.NewTokens(db)
+
 	// services (application logic)
-	identity := services.NewIdentity(users, tokens, queueInsert, cfg.Auth, cfg.Mail)
+	identity := services.NewIdentity(transactor, users, tokens, queueInsert, cfg.Auth, cfg.Mail)
 
 	// presentation
 	renderer, err := inertia.New(rendererOptions(cfg), inertia.WithRoot(resources.Root))
@@ -680,7 +741,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 
 	handlers.NewUserHandler(users, renderer).Register(rt)
 	handlers.NewAuthHandler(identity, renderer).Register(rt)
-	handlers.NewAPIHandler(db).Register(rt)
+	handlers.NewAPIHandler(db).Register(rt) // healthChecker; runtime may hold db
 	handlers.NewAssetsHandler().Register(rt)
 
 	handler := rt.Handler()
@@ -692,7 +753,10 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		DB:      db,
 		Handler: handler,
 		Server:  srv,
-		closers: []func(context.Context) error{db.Close, tel.Shutdown},
+		closers: []func(context.Context) error{
+			func(context.Context) error { return db.Close() },
+			tel.Shutdown,
+		},
 	}
 
 	return app, nil
@@ -741,9 +805,8 @@ replacement for `generate model User`, emitting the same deterministic shape wit
 
 **Patterns expose primitives, not just prose.** Adding a new domain must be deterministic: the
 `domain` pattern emits the *whole* database picture for that entity — table + columns + types +
-nullability + constraints + indexes, the colocated `.sql`, the Go newtypes/receiver with `Parse`
-constructors, domain errors,
-and the migration/query wiring. The generator's deterministic **builder primitives are kept, not
+nullability + constraints + indexes, the colocated `.sql`, the Go entity with `Validate()` and its
+receiver (`NewX(db)` + `InTx(tx)`), the runtime wiring, domain errors, and the migration/query wiring. The generator's deterministic **builder primitives are kept, not
 deleted**: the pattern engine calls the same builders that map a domain type to files, but renders
 them to stdout (Markdown + `--json`) instead of writing them, so output stays diffable and
 golden-testable. Its output is an ordered manifest of files to create, so an agent applying it lands
@@ -752,18 +815,18 @@ on exactly the shape a human would. Every `andurel new` scaffold is designed dom
 **worked examples** (a real `user` domain,
 a real `handler`, a real migration) so each primitive is shown, not merely described.
 
-**Type-driven by default.** The default mode of work is type-driven: the Go domain newtypes (their
-`Parse` constructors and tags) are the single source of truth from which SQL, generated queries, and
-validation are derived and checked. Patterns document this as the intended flow, and the CLI exposes it
-(`andurel inspect domain --json` reports the type→column mapping), so an agent changes the type first
-and lets the deterministic primitives follow. Hand-written SQL remains possible, but it is the
-exception, not the default.
+**Entity first.** The Go entity's `andurel:"column"` tags and `Validate()` describe
+the row shape and write invariants; colocated SQL defines persistence, and
+generated queries follow that SQL. `andurel inspect domains --json` reports the
+type→column mapping, `Validate()` coverage, runtime wiring, and whether the table
+name was annotated or merely inferred. An agent changes the entity and its SQL
+together, then regenerates queries.
 
 Pattern catalog (initial):
 
 | Pattern | Covers |
 | --- | --- |
-| `domain` | complete DB picture: table + columns/types/constraints/indexes + colocated `.sql` + newtypes/`Parse` + entity/receiver + domain errors (`--entity/--table` builder output) |
+| `domain` | complete DB picture: table + columns/types/constraints/indexes + colocated `.sql` + entity with `Validate()` + receiver (`NewX`/`InTx`) + runtime wiring + domain errors (`--entity/--table` builder output) |
 | `service` | cross-domain orchestration + transaction |
 | `handler` | resource handler in flat `package handlers`, payload parsing at edge, error mapping, `Register` |
 | `route` | route definition + URL builder + TS route helper |
@@ -800,59 +863,53 @@ helpers are fine when they earn their keep.
 | --- | --- | --- |
 | Domain | `pkg/storage.TestCluster` + `NewTestDB(t, migrations.Migrations, ".")` | Real Postgres, migrations applied, one clean DB per test. |
 | Handler | `pkg/anduin/anduintest` | Builds an `httptest` server from real handler registrations; `Do(req)` returns a decoded response + cookie jar. |
-| Integration | `runtime.New(ctx, testConfig)` | Boots the entire real graph (no FX) and exposes `Handler` + `DB`. |
+| Integration | `runtime.New(ctx, testConfig)` | Boots the entire real graph (no FX) and exposes `Handler` + `DB` (seed through `domains.NewX(app.DB)`). |
 | CLI/artifacts | `internal/goldentest` | Existing CLI-driven byte-stable goldens (per `plans/testing-rework.html`). |
-| Cross-cutting | `andurel verify` | `gofmt`, `go fix`, `go vet` (shared helper with `doctor`), tests (`--with-tests`), and the domain-boundary import lint. The write-path gate; fails CI. |
+| Cross-cutting | `andurel verify` | `gofmt`, `go fix`, `go vet` (shared helper with `doctor`), tests (`--with-tests`), the persistence-boundary lints (`queries-import`, `db-handle`, `tx-unwrap`, `tx-escape`, `tx-public-call`), and generated-code drift with exact fix commands (`--skip-generated` to skip). Structured `{rule, file, line, message, fix}` violations; a failed run exits 9 (`verification_failed`). The write-path gate; fails CI. |
 | Diagnostics | `andurel doctor` | env, lock, tools, tidy, and generated-file drift (templ/narsilc/routes/payloads). Read-only health; warns, never fails the agent loop. No merge with `verify` (rev 5 decision). |
 
-### 12.2 Illustrative handler test (rev 5: flat handlers, parsed inputs)
+### 12.2 Illustrative handler test (rev 6: per-test receivers)
 
 ```go
-func TestUserIndex(t *testing.T) {
+func TestProductIndex(t *testing.T) {
 	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-	users := domains.NewUsers(db)
+	products := domains.NewProducts(db)
 	for i := range 3 {
-		email, err := domains.ParseEmail(fmt.Sprintf("u%d@x.y", i))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := users.Create(t.Context(), domains.CreateUserData{Email: email}); err != nil {
+		data := domains.CreateProductData{Name: fmt.Sprintf("Product %d", i), PriceCents: 100}
+		if _, err := products.Create(t.Context(), data); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	srv := anduintest.New(t, func(rt *anduin.Router) {
-		handlers.NewUserHandler(users, testRenderer(t)).Register(rt)
+		handlers.NewProductHandler(products, testRenderer(t)).Register(rt)
 	})
 
-	resp := srv.Get(t, routes.UserIndex.Path()+"?page=1")
-	resp.AssertStatus(t, http.StatusOK)
-	resp.AssertInertia(t, "User/Index")
+	resp := srv.Get(routes.ProductIndex.Path() + "?page=1")
+	resp.AssertStatus(http.StatusOK)
+	resp.AssertInertia("Product/Index")
 }
 ```
 
-### 12.3 Illustrative domain test (rev 5: Parse is the unit)
+### 12.3 Illustrative domain test (rev 6: Validate is the unit)
 
 ```go
-func TestParseEmail(t *testing.T) {
-	if _, err := domains.ParseEmail("not-an-email"); err == nil {
+func TestProduct_Validate(t *testing.T) {
+	if err := (&domains.Product{}).Validate(); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestUsers_Create(t *testing.T) {
+func TestProducts_Create(t *testing.T) {
+	t.Parallel() // safe: one database and fresh receivers per test, no globals
 	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-	users := domains.NewUsers(db)
+	products := domains.NewProducts(db)
 
-	email, err := domains.ParseEmail("a@b.c")
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-	got, err := users.Create(t.Context(), domains.CreateUserData{Email: email})
+	got, err := products.Create(t.Context(), domains.CreateProductData{Name: "Lamp"})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	if got.ID == uuid.Nil {
+	if got.ID == uuid.Nil() {
 		t.Fatal("expected id")
 	}
 }
@@ -861,9 +918,9 @@ func TestUsers_Create(t *testing.T) {
 ### 12.4 Self-verification loop for agents
 
 1. `andurel patterns show <kind> [--entity X --table y]` — read the pattern and its checklist.
-2. Write the code (domain newtypes first → service if needed → handler → route → composition).
-3. `andurel verify` — format, vet, domain/service-boundary lint (the gate).
-4. `go test ./...` (or `verify --with-tests`) — domain tests need a Postgres container; handler tests need nothing external.
+2. Write the code (domain entity + `Validate()` + `NewX`/`InTx` receiver first → service if needed → handler → route → composition).
+3. `andurel verify` — format, vet, persistence-boundary lints, generated-code drift (the gate).
+4. `go test ./...` (or `verify --with-tests`) — domain tests need a Postgres container; handler tests need one only when they seed data.
 5. `andurel inspect routes --json` / `andurel doctor --json` — confirm the declared shape and drift (diagnostics, not the gate).
 
 ### 12.5 Facts the agent can assert against
@@ -877,7 +934,7 @@ func TestUsers_Create(t *testing.T) {
 
 ## 13. CLI, docs, and agent surfaces
 
-- `inspect controllers` → `inspect handlers` (flat package); `inspect views` removed; add `inspect domains` (reports type→column mapping for the type-driven flow).
+- `inspect controllers` → `inspect handlers` (flat package); `inspect views` removed; add `inspect domains` (reports per-entity table, type→column mapping, `Validate()` coverage, and whether the receiver is constructed in runtime).
 - `inspect project --json` reports the new shape (UI adapter is always Inertia now).
 - `patterns show domain --entity/--table` documented alongside `generate migration` (the only writer left).
 - `cli/command_meta_catalog.go` and `commands --json` updated; `commands --check` keeps docs in sync.
@@ -969,12 +1026,13 @@ plus `just check-fmt && just check-fix && just vet`.
 | Routing | **Keep `pkg/routing`**; do not merge it. |
 | Composition | **Keep `internal/runtime`, single constructor**: `New` owns `Handler`+`Server`+jar; no `NewServer`, no `middleware.NewJar`. Explicit constructors replace Fx. |
 | Domain vs service | Business logic → flat **`domains/`** (one file per domain); application logic → **`services/`**. Cross-domain rules live in services. No DDD. |
-| Domain modelling | **Type-driven newtypes, parse-don't-validate** (Palmieri ch. 6): `ParseX` supported constructors, `CreateData` takes parsed types. |
+| Domain modelling | **`Validate()` at the domain write path** (rev 6, replaces rev 5 newtypes): Go zero values make newtypes unenforceable. `Create`/`Update` normalise → validate → write; handlers decode only; services check only use-case input. |
+| Persistence access | **`storage.AtomicOps` + opaque `storage.Tx`** (rev 6, `plans/rfc-domain-transactions-option1.md`): receivers built individually with `NewX(db)` and bound with `InTx(tx)`; the queue and `Transactor` bind the same way (transactional enqueue; a bound transactor joins). Services bind inline per use case. The callback's return value commits or rolls back. No aggregate `Store`, no jobs in `domains`, no package globals, no tx on `ctx`. |
 | SQL | Colocated per domain (`domains/user.sql`); narsilc globs `domains/**/*.sql`, output `domains/internal/queries`. |
 | Root document | **`resources/root.templ`** (package `resources`). |
 | Factories | **Dropped**; tests build entities inline. |
 | Generators | **Strictly read-only patterns** (`patterns show [--entity/--table]`) that still expose complete deterministic primitives + worked examples. `generate` keeps only `migration`. |
-| Development mode | **Type-driven by default**: the Go domain newtypes are the source of truth; SQL/queries follow. |
+| Development mode | **Entity first**: the Go entity (tags, table annotation, `Validate()`) is the source of truth; SQL/queries follow. |
 | Enforcement | **Import lint in `andurel verify` + CI** for the domain/service boundary. `verify` (gate) and `doctor` (diagnostics) stay split; shared `vet` helper, no merge. |
 | Optimisation target | **Machine consumption only.** |
 
@@ -983,7 +1041,7 @@ plus `just check-fmt && just check-fix && just vet`.
 ## Appendix A — Full reference feature (users), target shape
 
 ```
-domains/user.go                      # newtypes + Parse + Users receiver + rules
+domains/user.go                      # entity + Validate() + Users receiver (NewUsers + InTx) + rules
 domains/user.sql                     # colocated SQL
 domains/internal/queries/user.sql.go # narsilc output
 services/                            # application logic if the use case spans domains
@@ -1009,7 +1067,8 @@ resources/js/Pages/User/Index.vue    # Inertia page
 | Router package | `router/` | `routes/` + `middleware/` (policy only) + `pkg/anduin` |
 | Jar | `middleware.NewJar` (exploration) | `internal/runtime.newJar` |
 | Runtime | `New` + `NewServer` | single `New` owning `Handler`+`Server` |
-| Domain inputs | raw `string` + `Validate()` | parsed newtypes (`ParseEmail`) |
+| Domain inputs | validated in handler, service, and model | validated once, in the domain's `Create`/`Update` via `Validate()` |
+| DB access | `models.NewX(db)` per call site, `storage.RunInTransaction` anywhere | `domains.NewX(db)` in runtime; `storage.AtomicOps` + `x.InTx(tx)` in services; `queue.InTx(tx)` for transactional enqueue |
 | Factories | `models/factories/` | dropped (inline in tests) |
 | Code generation | `generate model/controller/scaffold/…` | `patterns show … [--entity/--table]` |
 | Verification | `doctor` only | `verify` (gate) + `doctor` (diagnostics), split |

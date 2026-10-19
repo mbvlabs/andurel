@@ -12,13 +12,13 @@ run in parallel. `Validate` gets plain unit tests that need no database.
 package domains_test
 
 import (
-	"errors"
 	"testing"
 
 	"app/domains"
 	"app/migrations"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 func TestProduct_Validate(t *testing.T) {
@@ -63,8 +63,8 @@ func TestProducts_CreateRejectsInvalid(t *testing.T) {
 	products := domains.NewProducts(db)
 
 	_, err := products.Create(t.Context(), domains.CreateProductData{})
-	if !errors.Is(err, domains.ErrViolation) {
-		t.Fatalf("err = %v, want ErrViolation", err)
+	if _, ok := validation.As(err); !ok {
+		t.Fatalf("err = %v, want validation error", err)
 	}
 }
 ```

@@ -11,18 +11,11 @@ import (
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
-// Queue is the worker process graph: the River processor plus the ordered list
-// of closers that release its dependencies. Callers own it and must Shutdown
-// it.
 type Queue struct {
 	processor *storage.QueueProcessor
 	closers   []func(context.Context) error
 }
 
-// NewQueue builds the worker process graph bottom-up: telemetry, database,
-// email senders, the explicit worker registry, and the River processor. Every
-// worker is registered by queue.NewWorkers; nothing is discovered by
-// reflection. Callers own the returned Queue.
 func NewQueue(ctx context.Context, cfg config.Config) (*Queue, error) {
 	tel, err := newTelemetry(ctx, cfg.App, cfg.Telemetry)
 	if err != nil {
@@ -68,13 +61,10 @@ func NewQueue(ctx context.Context, cfg config.Config) (*Queue, error) {
 	}, nil
 }
 
-// Start begins processing jobs and returns once the processor is ready.
 func (q *Queue) Start(ctx context.Context) error {
 	return q.processor.Start(ctx)
 }
 
-// Shutdown stops processing and releases the graph's dependencies in reverse
-// construction order.
 func (q *Queue) Shutdown(ctx context.Context) error {
 	var shutdownErr error
 	for _, closeFn := range slices.Backward(q.closers) {

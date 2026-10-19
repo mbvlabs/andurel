@@ -23,12 +23,8 @@ import (
 
 const threeMonthsCache = "7776000"
 
-// assetCacheTTL bounds rendered-asset entries. Content hashes make entries
-// immutable, so a long TTL is safe: new content hashes to a new key.
 const assetCacheTTL = 15 * time.Minute
 
-// Assets serves the layout's CSS, JavaScript, Vite build output, robots.txt,
-// and sitemap.xml. Static files are read from the embedded assets filesystem.
 type Assets struct {
 	cache  cache.Store
 	appCfg config.App
@@ -47,9 +43,6 @@ func (a Assets) Register(rt *anduin.Router) {
 	rt.Get(routes.ViteBuild.Path(), a.ViteBuild)
 }
 
-// enableCaching writes the production cache headers for an asset and reports
-// whether the request is already satisfied by a 304 Not Modified. The ETag is
-// a content hash cached under the asset key.
 func (a Assets) enableCaching(
 	ctx context.Context,
 	cacheKey string,
@@ -59,11 +52,17 @@ func (a Assets) enableCaching(
 		return false, nil
 	}
 
-	etag, err := cache.Remember(ctx, a.cache, "etag:"+cacheKey, assetCacheTTL, func(ctx context.Context) (string, error) {
-		//nolint:gosec //only needed for browser caching
-		hash := md5.Sum(content)
-		return fmt.Sprintf(`"%x-%x"`, hash, len(content)), nil
-	})
+	etag, err := cache.Remember(
+		ctx,
+		a.cache,
+		"etag:"+cacheKey,
+		assetCacheTTL,
+		func(ctx context.Context) (string, error) {
+			//nolint:gosec //only needed for browser caching
+			hash := md5.Sum(content)
+			return fmt.Sprintf(`"%x-%x"`, hash, len(content)), nil
+		},
+	)
 	if err != nil {
 		//nolint:gosec //only needed for browser caching
 		hash := md5.Sum(content)
@@ -100,9 +99,15 @@ func (a Assets) Robots(ctx context.Context) error {
 
 	cacheKey := "assets:robots"
 
-	robotsTxt, err := cache.Remember(ctx, a.cache, cacheKey, assetCacheTTL, func(ctx context.Context) (string, error) {
-		return createRobotsTxt(a.appCfg.BaseURL()), nil
-	})
+	robotsTxt, err := cache.Remember(
+		ctx,
+		a.cache,
+		cacheKey,
+		assetCacheTTL,
+		func(ctx context.Context) (string, error) {
+			return createRobotsTxt(a.appCfg.BaseURL()), nil
+		},
+	)
 	if err != nil {
 		telemetry.Error(
 			ctx,
@@ -121,9 +126,15 @@ func (a Assets) Sitemap(ctx context.Context) error {
 
 	cacheKey := "assets:sitemap"
 
-	sitemap, err := cache.Remember(ctx, a.cache, cacheKey, assetCacheTTL, func(ctx context.Context) (string, error) {
-		return createSitemap(a.appCfg.BaseURL(), nil)
-	})
+	sitemap, err := cache.Remember(
+		ctx,
+		a.cache,
+		cacheKey,
+		assetCacheTTL,
+		func(ctx context.Context) (string, error) {
+			return createSitemap(a.appCfg.BaseURL(), nil)
+		},
+	)
 	if err != nil {
 		telemetry.Error(
 			ctx,
@@ -142,7 +153,6 @@ func (a Assets) Sitemap(ctx context.Context) error {
 	return writeContent(ctx, http.StatusOK, "application/xml", []byte(sitemap))
 }
 
-// URL is one <url> entry in the sitemap.
 type URL struct {
 	XMLName    xml.Name `xml:"url"`
 	Loc        string   `xml:"loc"`
@@ -151,7 +161,6 @@ type URL struct {
 	Priority   string   `xml:"priority,omitempty"`
 }
 
-// Sitemap is the <urlset> document.
 type Sitemap struct {
 	XMLName xml.Name `xml:"urlset"`
 	XMLNS   string   `xml:"xmlns,attr"`
@@ -187,7 +196,8 @@ func (a Assets) Stylesheet(ctx context.Context) error {
 		return err
 	}
 
-	if handled, cacheErr := a.enableCaching(ctx, "css/style.css", stylesheet); handled || cacheErr != nil {
+	handled, cacheErr := a.enableCaching(ctx, "css/style.css", stylesheet)
+	if handled || cacheErr != nil {
 		return cacheErr
 	}
 
@@ -200,7 +210,8 @@ func (a Assets) Scripts(ctx context.Context) error {
 		return err
 	}
 
-	if handled, cacheErr := a.enableCaching(ctx, "js/scripts.js", script); handled || cacheErr != nil {
+	handled, cacheErr := a.enableCaching(ctx, "js/scripts.js", script)
+	if handled || cacheErr != nil {
 		return cacheErr
 	}
 
@@ -246,8 +257,6 @@ func (a Assets) ViteBuild(ctx context.Context) error {
 	return writeContent(ctx, http.StatusOK, contentTypeByExt(param), data)
 }
 
-// writeContent writes an arbitrary content type; anduin's helpers cover JSON,
-// text, and HTML but assets also need CSS, JavaScript, and XML.
 func writeContent(
 	ctx context.Context,
 	status int,

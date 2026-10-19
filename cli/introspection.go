@@ -166,10 +166,9 @@ func newDomainsCommand() *cobra.Command {
 		Use:   "domains",
 		Short: "List domain files with their type to column mapping",
 		Long: `List files under domains/ and report each entity's type to column
-mapping: the structs, their andurel-tagged fields, the table from the
-// andurel:table annotation, whether the entity has a Validate method, and
-whether its receiver (e.g. Users for User) is wired: constructed with
-domains.NewUsers(db) in internal/runtime.
+mapping: the structs, their andurel-tagged fields, the table, whether the
+entity has a Validate method, and whether its receiver (e.g. Users for User)
+is wired: constructed with domains.NewUsers(db) in internal/runtime.
 
 An entity with wired=false exists but nothing constructs its receiver:
 build it in internal/runtime with domains.New<Receiver>(db) and pass it to

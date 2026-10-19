@@ -17,22 +17,23 @@ import (
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
+	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
-// AuthHandler serves the authentication surface: sessions, registration, email
-// confirmation, and password reset. It is the reference handler for the
-// generated application and the only place the identity service meets HTTP.
 type AuthHandler struct {
 	identity services.Identity
 	renderer *inertia.Renderer
 	cache    cache.Store
 }
 
-func NewAuthHandler(identity services.Identity, renderer *inertia.Renderer, store cache.Store) AuthHandler {
+func NewAuthHandler(
+	identity services.Identity,
+	renderer *inertia.Renderer,
+	store cache.Store,
+) AuthHandler {
 	return AuthHandler{identity: identity, renderer: renderer, cache: store}
 }
 
-// Register mounts every auth route, rate-limiting the credential endpoints.
 func (h AuthHandler) Register(rt *anduin.Router) {
 	rt.Get(routes.SessionNew.Path(), h.SessionNew)
 	rt.Post(
@@ -132,8 +133,6 @@ func (h AuthHandler) SessionCreate(ctx context.Context) error {
 	return h.renderer.Location(ctx, routes.HomePage.URL())
 }
 
-// resumeEmailVerification sends an unverified user a fresh code and binds it
-// to this session, so they can confirm from any browser.
 func (h AuthHandler) resumeEmailVerification(ctx context.Context, entity domains.User) error {
 	if err := h.identity.ResendEmailVerification(ctx, entity); err != nil {
 		return err
@@ -153,12 +152,9 @@ func (h AuthHandler) SessionDestroy(ctx context.Context) error {
 	return h.renderer.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
 }
 
-// validationFields unwraps the domain validation error that services return so
-// a handler can re-render its form with field-level messages.
 func validationFields(err error) (map[string]string, bool) {
-	var validationErr domains.ValidationError
-	if errors.As(err, &validationErr) {
-		return validationErr.Fields, true
+	if validationErr, ok := validation.As(err); ok {
+		return validationErr.ToMap(), true
 	}
 
 	return nil, false
@@ -232,6 +228,18 @@ func (h AuthHandler) RegistrationCreate(ctx context.Context) error {
 			).ValidationErrors(fields).Render()
 		}
 
+		if errors.Is(err, domains.ErrConflict) {
+			outcome = "conflict"
+			cause = err
+			return h.renderer.Page(
+				ctx,
+				"Auth/Registration",
+				inertia.Props{},
+			).ValidationErrors(map[string]string{
+				"email": "An account with this email already exists",
+			}).Render()
+		}
+
 		outcome = "error"
 		cause = err
 
@@ -253,8 +261,6 @@ func (h AuthHandler) RegistrationCreate(ctx context.Context) error {
 	return h.renderer.Redirect(ctx, routes.ConfirmationNew.URL(), http.StatusSeeOther)
 }
 
-// setPendingUser records the user awaiting email confirmation on the session so
-// the confirmation handler can verify a code without a URL token.
 func setPendingUser(ctx context.Context, userID string) error {
 	app, err := kiks.Get[*middleware.App](ctx)
 	if err != nil {
@@ -331,8 +337,6 @@ func (h AuthHandler) ConfirmationCreate(ctx context.Context) error {
 	return h.renderer.Location(ctx, routes.HomePage.URL())
 }
 
-// pendingUserID reads the user awaiting confirmation from the session. Invalid
-// or absent state yields uuid.Nil, which the service treats as an invalid code.
 func pendingUserID(ctx context.Context) uuid.UUID {
 	app, err := kiks.Get[*middleware.App](ctx)
 	if err != nil || app == nil || app.PendingUserID == "" {

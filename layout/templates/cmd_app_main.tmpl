@@ -12,8 +12,8 @@ import (
 	"{{.ModuleName}}/internal/runtime"
 )
 
-// appVersion is injected at build time with -ldflags. It is empty for local
-// builds, in which case the config default ("dev") is used.
+// appVersion is injected with -ldflags. Empty local builds use the config's
+// default version ("dev").
 var appVersion string
 
 func main() {
@@ -60,8 +60,8 @@ func run() error {
 	return app.Shutdown(shutdownCtx)
 }
 
-// closeApp releases the composition root's dependencies in reverse construction
-// order. It always runs, even when the server exits with an error.
+// closeApp releases dependencies in reverse construction order. It is deferred
+// after construction so it also runs when the server exits with an error.
 func closeApp(app *runtime.App) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

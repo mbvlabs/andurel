@@ -18,7 +18,7 @@ The app is ordinary Go you own: `domains/` for business logic and persistence, `
 ├── config/               # Application configuration
 ├── css/                  # Source CSS files (Tailwind wrappers + theme)
 ├── domains/              # Business logic + persistence (SQL colocated per domain)
-│   ├── errors.go         # Shared domain vocabulary (ErrNotFound, ValidationError, ...)
+│   ├── errors.go         # Shared domain vocabulary (ErrNotFound, ErrConflict)
 │   └── internal/queries/ # narsilc output (imported only by domains/**)
 ├── email/                # Email templates and sending
 ├── handlers/             # HTTP handlers, one flat package
@@ -211,8 +211,6 @@ Create `domains/product.go` (package `domains`) and colocate the SQL in `domains
 // domains/product.go
 package domains
 
-// andurel:table products
-
 import (
     "context"
     "errors"
@@ -225,21 +223,11 @@ import (
     "github.com/mbvlabs/andurel/pkg/validation"
 )
 
-type Products struct{ queries *queries.Queries }
-
-func NewProducts(db storage.Connection) Products { return Products{queries: queries.New(db)} }
-
-// InTx returns a Products whose calls run inside tx.
-func (p Products) InTx(tx storage.Tx) Products {
-    return Products{queries: queries.New(storage.Unwrap(tx))}
-}
-
 type Product struct {
     ID   uuid.UUID `andurel:"id"`
     Name string    `andurel:"name"`
 }
 
-// Validate is the write gate; Create and Update call it.
 func (p *Product) Validate() error {
     b := validation.NewBuilder()
     b.Required("name", p.Name)
@@ -252,6 +240,14 @@ func (p Products) Find(ctx context.Context, id uuid.UUID) (Product, error) {
         return Product{}, ErrNotFound
     }
     return entity, err
+}
+
+type Products struct{ queries *queries.Queries }
+
+func NewProducts(db storage.Connection) Products { return Products{queries: queries.New(db)} }
+
+func (p Products) InTx(tx storage.Tx) Products {
+    return Products{queries: queries.New(storage.Unwrap(tx))}
 }
 ```
 

@@ -177,17 +177,19 @@ func (c Bad) Index(ctx context.Context) error {
 		rootDir := setupPayloadsProject(t, "vue")
 		writePayloadsHandler(t, rootDir, "handlers/bad.go", `package handlers
 
-type request struct{}
+import (
+	"context"
 
-func (request) Bind(any) error { return nil }
+	"github.com/mbvlabs/andurel/pkg/anduin"
+)
 
 type CreateForm struct {
 	Name string `+"`json:\"name\"`"+`
 }
 
-func (c Bad) Create(req request) error {
+func (c Bad) Create(ctx context.Context) error {
 	var payload CreateForm
-	return req.Bind(&payload)
+	return anduin.DecodeJSON(ctx, &payload)
 }
 `)
 		_, _, _, err := renderPayloadsTS(rootDir)
@@ -407,14 +409,12 @@ func (c Bad) Index(ctx context.Context) error {
 const widgetHandlerSource = `package handlers
 
 import (
+	"context"
 	"encoding/json"
 
+	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 )
-
-type request struct{}
-
-func (request) Bind(any) error { return nil }
 
 type WidgetData struct {
 	Name     string          ` + "`json:\"name\"`" + `
@@ -438,26 +438,26 @@ type UpdateWidgetFormPayload struct {
 	Name string ` + "`json:\"name\"`" + `
 }
 
-func (c Widgets) Index(req request) error {
+func (c Widgets) Index(ctx context.Context) error {
 	return inertia.FromStruct(WidgetIndexProps{})
 }
 
-func (c Widgets) Show(req request) error {
+func (c Widgets) Show(ctx context.Context) error {
 	item := WidgetItemProps{}
 	return inertia.FromStruct(item)
 }
 
-func (c Widgets) Create(req request) error {
+func (c Widgets) Create(ctx context.Context) error {
 	var payload CreateWidgetFormPayload
-	if err := req.Bind(&payload); err != nil {
+	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c Widgets) Update(req request) error {
+func (c Widgets) Update(ctx context.Context) error {
 	var payload UpdateWidgetFormPayload
-	return req.Bind(&payload)
+	return anduin.DecodeForm(ctx, &payload)
 }
 `
 
