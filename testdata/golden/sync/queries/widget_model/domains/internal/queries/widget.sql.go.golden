@@ -13,58 +13,33 @@ import (
 	"uuid"
 )
 
-const countWidgets = `-- name: CountWidgets :one
-SELECT count(*)
-FROM widgets
-`
-
-// Counts Widget rows.
-func (q *Queries) CountWidgets(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countWidgets)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const createWidget = `-- name: CreateWidget :one
 INSERT INTO widgets (
 	id,
 	name,
-	quantity,
-	active,
 	created_at,
 	updated_at
 ) VALUES (
-	$1,
-	$2,
-	$3,
-	$4,
-	$5,
-	$6
+	$1, $2, $3, $4
 )
-RETURNING id, name, quantity, active, created_at, updated_at
+RETURNING id, name, created_at, updated_at
 `
 
 type CreateWidgetParams struct {
 	ID        uuid.UUID
 	Name      string
-	Quantity  int32
-	Active    bool
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
 }
 
-// Inserts one Widget and returns the row.
 func (q *Queries) CreateWidget[T any](ctx context.Context, arg CreateWidgetParams) (T, error) {
 	row := q.db.QueryRow(ctx, createWidget,
 		arg.ID,
 		arg.Name,
-		arg.Quantity,
-		arg.Active,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
-	return narsilc.Read[T, WidgetRow](row, []string{"id", "name", "quantity", "active", "created_at", "updated_at"})
+	return narsilc.Read[T, WidgetRow](row, []string{"id", "name", "created_at", "updated_at"})
 }
 
 const deleteWidget = `-- name: DeleteWidget :exec
@@ -72,31 +47,27 @@ DELETE FROM widgets
 WHERE id = $1
 `
 
-// Deletes one Widget by primary key.
 func (q *Queries) DeleteWidget(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteWidget, id)
 	return err
 }
 
 const getWidget = `-- name: GetWidget :one
-SELECT id, name, quantity, active, created_at, updated_at
+SELECT id, name, created_at, updated_at
 FROM widgets
 WHERE id = $1
 LIMIT 1
 `
 
-// Fetches one Widget by primary key.
 func (q *Queries) GetWidget[T any](ctx context.Context, id uuid.UUID) (T, error) {
 	row := q.db.QueryRow(ctx, getWidget, id)
-	return narsilc.Read[T, WidgetRow](row, []string{"id", "name", "quantity", "active", "created_at", "updated_at"})
+	return narsilc.Read[T, WidgetRow](row, []string{"id", "name", "created_at", "updated_at"})
 }
 
 const listWidgets = `-- name: ListWidgets :many
-SELECT id, name, quantity, active, created_at, updated_at
+SELECT id, name, created_at, updated_at
 FROM widgets
 `
-
-// Lists Widget rows.
 
 func (q *Queries) ListWidgets[T any](ctx context.Context) *ListWidgetsBuilder[T] {
 	return &ListWidgetsBuilder[T]{
@@ -181,7 +152,7 @@ func (b *ListWidgetsBuilder[T]) All() ([]T, error) {
 	var items []T
 	var probe T
 	_, mapRow := any(&probe).(narsilc.Transformer[WidgetRow])
-	cols := []string{"id", "name", "quantity", "active", "created_at", "updated_at"}
+	cols := []string{"id", "name", "created_at", "updated_at"}
 	for rows.Next() {
 		var item T
 		var err error
@@ -203,81 +174,4 @@ func (b *ListWidgetsBuilder[T]) All() ([]T, error) {
 		return nil, err
 	}
 	return items, nil
-}
-
-const updateWidget = `-- name: UpdateWidget :one
-UPDATE widgets
-SET
-	name = $2,
-	quantity = $3,
-	active = $4,
-	updated_at = $5
-WHERE id = $1
-RETURNING id, name, quantity, active, created_at, updated_at
-`
-
-type UpdateWidgetParams struct {
-	ID        uuid.UUID
-	Name      string
-	Quantity  int32
-	Active    bool
-	UpdatedAt pgtype.Timestamptz
-}
-
-// Updates one Widget by primary key and returns the row.
-func (q *Queries) UpdateWidget[T any](ctx context.Context, arg UpdateWidgetParams) (T, error) {
-	row := q.db.QueryRow(ctx, updateWidget,
-		arg.ID,
-		arg.Name,
-		arg.Quantity,
-		arg.Active,
-		arg.UpdatedAt,
-	)
-	return narsilc.Read[T, WidgetRow](row, []string{"id", "name", "quantity", "active", "created_at", "updated_at"})
-}
-
-const upsertWidget = `-- name: UpsertWidget :one
-INSERT INTO widgets (
-	id,
-	name,
-	quantity,
-	active,
-	created_at,
-	updated_at
-) VALUES (
-	$1,
-	$2,
-	$3,
-	$4,
-	$5,
-	$6
-)
-ON CONFLICT (id) DO UPDATE SET
-	name = excluded.name,
-	quantity = excluded.quantity,
-	active = excluded.active,
-	updated_at = excluded.updated_at
-RETURNING id, name, quantity, active, created_at, updated_at
-`
-
-type UpsertWidgetParams struct {
-	ID        uuid.UUID
-	Name      string
-	Quantity  int32
-	Active    bool
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-}
-
-// Inserts or updates one Widget and returns the row.
-func (q *Queries) UpsertWidget[T any](ctx context.Context, arg UpsertWidgetParams) (T, error) {
-	row := q.db.QueryRow(ctx, upsertWidget,
-		arg.ID,
-		arg.Name,
-		arg.Quantity,
-		arg.Active,
-		arg.CreatedAt,
-		arg.UpdatedAt,
-	)
-	return narsilc.Read[T, WidgetRow](row, []string{"id", "name", "quantity", "active", "created_at", "updated_at"})
 }

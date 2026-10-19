@@ -21,9 +21,9 @@ const (
 	// Shadowfax is the default Shadowfax runner version.
 	Shadowfax = "v0.12.0"
 	// Narsilc is the default narsilc tool version.
-	Narsilc = "v0.5.0"
+	Narsilc = "v0.6.2"
 	// NarsilcModule is the Go module version required by generated query code.
-	NarsilcModule = "v0.5.0"
+	NarsilcModule = "v0.6.2"
 	// NarsilcModulePath is the module path of the narsilc query code generator.
 	NarsilcModulePath = "github.com/mbvlabs/narsilc"
 	// Anduin is the standalone Andurel HTTP module version verified with this framework.

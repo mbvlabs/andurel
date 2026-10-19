@@ -29,7 +29,7 @@ still runs a slim capture for `andurel new` (Inertia react and vue).
 3. The harness reads files the CLI wrote and hands the **raw bytes** to
    `goldie/v2`, asserting byte-for-byte equality against the mirror path under
    this tree. The golden name is the mirrored relative path (e.g.
-   `domains/widget/widget.sql` under `sync/queries/`).
+   `domains/internal/queries/widget.sql.go` under `sync/queries/`).
 4. Running tests **compare** against the committed `.golden` files. Passing
    `-update` (via `just update-golden` or `just update-golden-full`) **writes**
    them instead. Expected files are never hand-written.
@@ -132,21 +132,11 @@ and goldie-asserts the file bytes under a stable name
 | Family | Scenarios | What is asserted |
 |--------|-----------|------------------|
 | `generate/migration/` | 1 | goose SQL stub (timestamped filename globbed, body goldened as `migrations/create_widgets.sql`) |
-| `sync/queries/` | 1 | narsilc output under `domains/internal/queries/` from the fixture's `domains/widget/widget.sql` |
+| `sync/queries/` | 1 | narsilc output under `domains/internal/queries/` from the fixture's `domains/widget.sql` and `domains/user.sql` |
 | `sync/routes/` + `sync/payloads/` | 2 | Inertia `routes.ts` / `payloads.ts` |
 | `sync/email/` | 1 | compiled `*_templ.go` renderers |
 | `new/` (PR) | 2 | slim Inertia react + vue dirs (`domains`, `services`, `handlers`, `routes`, `middleware`, `resources/js/Pages`) |
 | `new/` (nightly) | 3 | vue, react, svelte — full tree minus denylist |
-
-## Note: narsilc query paths
-
-`andurel sync queries` shells out to narsilc, which reads `andurel.toml` and
-currently pins its input/output directories to `models/queries` →
-`models/internal/queries`. The `sync/queries/` golden asserts the target shape
-(`domains/**/*.sql` → `domains/internal/queries`); it turns green once narsilc
-ships a release that scans the `domains` tree. Until then, run
-`just update-golden` only after that narsilc release is pinned in
-`layout/versions`.
 
 ## Adding a golden scenario
 

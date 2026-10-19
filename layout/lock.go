@@ -128,10 +128,10 @@ var defaultToolDownloads = map[string]ToolDownload{
 		Archive:     "tar.gz",
 		BinaryName:  "narsilc",
 		SHA256: map[string]string{
-			"linux/amd64":  "871a379a040cf9a57b61dcbb0ee4fcc4358e23b8b825ff3f625ed7e75b5d7203",
-			"linux/arm64":  "bd16ff1e2c899610c3a4af6b7522d5c600f53314a80264cc19d03e29ccfdd400",
-			"darwin/amd64": "90395cb8f1abf8631e5ab42f3b468b702a38d8b58f9645895a13fe287113de3b",
-			"darwin/arm64": "f8dba212b291108d32c7276cb151d75838eb063cf55f1d43455d2a5718fc9b75",
+			"linux/amd64":  "18ab2c3c48be67ea02cfecf7d2d2f951bd77b86acaaddf9b9916f6f62539cd29",
+			"linux/arm64":  "5b947cc1ecdfcc5ce830d75e7518a9e3f8eb16063e7ce9c9333b123c69e33e0a",
+			"darwin/amd64": "cb328e29ced7684f4b48a5d0ffd8900e891fad8c0768eca29dc187d9e848d4b5",
+			"darwin/arm64": "28780ea6f35dce4ad36bd9bd4700ad9796f28ceca090217d3d36e0834f68cb62",
 		},
 	},
 	"templ": {
