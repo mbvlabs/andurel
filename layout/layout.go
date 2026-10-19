@@ -247,10 +247,12 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_cookies_app.tmpl":                "middleware/cookies.go",
 }
 
+// resources/js/routes.ts and resources/js/types/payloads.ts are not templated:
+// andurel new emits them with the sync generators so a fresh project never
+// drifts from andurel verify.
 var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_inertia.tmpl":         "config/inertia.go",
 	"cmd_ssr_main.tmpl":           "cmd/ssr/main.go",
-	"inertia_assets_routes.tmpl":  "resources/js/routes.ts",
 	"inertia_framework_root.tmpl": "resources/root.templ",
 	"views_root_templ_go.tmpl":    "resources/root_templ.go",
 }

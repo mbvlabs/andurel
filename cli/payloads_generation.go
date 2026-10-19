@@ -140,11 +140,21 @@ func generatePayloadsFile(rootDir string) (payloadsReport, error) {
 	}, nil
 }
 
-func refreshPayloadsTSAfterInertiaGeneration(rootDir, inertia string, isAPI bool) error {
-	if isAPI || !layout.IsSupportedInertiaAdapter(inertia) {
+// generateInertiaArtifacts writes resources/js/routes.ts and
+// resources/js/types/payloads.ts with the same generators as andurel sync, so
+// andurel new leaves nothing for andurel verify to flag as drift.
+func generateInertiaArtifacts(rootDir, inertia string) error {
+	if !layout.IsSupportedInertiaAdapter(inertia) {
 		return nil
 	}
-	_, err := generatePayloadsFile(rootDir)
+	manifest, err := collectRouteManifest(rootDir)
+	if err != nil {
+		return err
+	}
+	if _, err := generateRoutesJSFile(rootDir, manifest); err != nil {
+		return err
+	}
+	_, err = generatePayloadsFile(rootDir)
 	return err
 }
 

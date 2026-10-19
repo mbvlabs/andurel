@@ -112,14 +112,17 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 	javascriptRuntime := ui.PackageManager
 
 	scaffold := func(target string) error {
-		return layout.Scaffold(
+		if err := layout.Scaffold(
 			target,
 			projectName,
 			database,
 			version,
 			adapter,
 			javascriptRuntime,
-		)
+		); err != nil {
+			return err
+		}
+		return generateInertiaArtifacts(target, adapter)
 	}
 	opts, err := output.ParseOptions(cmd)
 	if err != nil {

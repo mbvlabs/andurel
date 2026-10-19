@@ -381,7 +381,7 @@ func TestCheckPayloadsTSGenerateLeavesPerResourceTypeFiles(t *testing.T) {
 	}
 }
 
-func TestRefreshPayloadsTSAfterInertiaGenerationFailsOnDomains(t *testing.T) {
+func TestGenerateInertiaArtifactsFailsOnDomains(t *testing.T) {
 	rootDir := setupPayloadsProject(t, "vue")
 	writePayloadsHandler(t, rootDir, "handlers/bad.go", `package handlers
 
@@ -400,9 +400,9 @@ func (c Bad) Index(ctx context.Context) error {
 	return inertia.FromStruct(BadIndexProps{})
 }
 `)
-	err := refreshPayloadsTSAfterInertiaGeneration(rootDir, "vue", false)
+	err := generateInertiaArtifacts(rootDir, "vue")
 	if err == nil {
-		t.Fatal("expected domains.* to fail inertia generate refresh")
+		t.Fatal("expected domains.* to fail inertia artifact generation")
 	}
 }
 
