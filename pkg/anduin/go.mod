@@ -4,7 +4,7 @@ go 1.27.1
 
 require (
 	github.com/mbvlabs/andurel/pkg/routing v0.4.0
-	github.com/mbvlabs/andurel/pkg/telemetry v0.1.0
+	github.com/mbvlabs/andurel/pkg/telemetry v0.2.0
 )
 
 require (

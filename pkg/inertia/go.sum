@@ -21,10 +21,6 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 h1:/Tnpcb2E0Pz/tN9s3bfEY2Q8ePC
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0/go.mod h1:zOBXOsUaBSjKgmH4OGzV1esUpR3oUSCPYVd2cUBjKYY=
 github.com/lmittmann/tint v1.2.0 h1:AogHRHy8HUJUnNJBHJlYa+fR4YY8mko2cnCp67xn9JY=
 github.com/lmittmann/tint v1.2.0/go.mod h1:HIS3gSy7qNwGCj+5oRjAutErFBl4BzdQP6cJZ0NfMwE=
-github.com/mbvlabs/andurel/pkg/routing v0.4.0 h1:lhK7/ZPc/MPGoK5+KMM6xPgE8P4qin2KWwhaPW0epMc=
-github.com/mbvlabs/andurel/pkg/routing v0.4.0/go.mod h1:EbyIKeSgUj/U8vxaZkcd1VZj965vCeFFibDAJqHkclI=
-github.com/mbvlabs/andurel/pkg/telemetry v0.1.0 h1:SZCIaTP3Ow5CwA3KBg5w632nCbOXg1sEimy4K02YxZ0=
-github.com/mbvlabs/andurel/pkg/telemetry v0.1.0/go.mod h1:Wc0aGyImPmymQUvs5D0aVJJG2tTibwSBwfIFKvGNPSE=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=

@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel telemetry module are documented he
 
 ## Unreleased
 
+## 0.2.0 - 2026-10-19
+
 ### Changed
 
 - `From` now takes `*http.Request` (it previously took an `echo.Context` via the removed `HTTPContext` interface). It writes the child span context back onto the request. Handlers wired through `pkg/anduin` can also use `Start(ctx, name)`, since the telemetry middleware already attaches the pipeline to the request context.

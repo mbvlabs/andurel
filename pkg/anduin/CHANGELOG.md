@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+## 0.1.0 - 2026-10-19
+
 ### Added
 
 - Initial `anduin` HTTP package: a thin `net/http` layer over `http.ServeMux`

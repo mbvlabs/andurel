@@ -39,9 +39,9 @@ const (
 	// Routing is the standalone Andurel routing module version verified with this framework.
 	Routing = "v0.4.0"
 	// Storage is the standalone Andurel storage module version verified with this framework.
-	Storage = "v0.8.1"
+	Storage = "v0.9.0"
 	// Telemetry is the standalone Andurel telemetry module version verified with this framework.
-	Telemetry = "v0.1.0"
+	Telemetry = "v0.2.0"
 	// Validation is the standalone Andurel validation module version verified with this framework.
 	Validation = "v0.1.4"
 

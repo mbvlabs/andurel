@@ -17,7 +17,8 @@ func (r *txRecorder) connection() stubConnection {
 	return stubConnection{
 		begin: func(context.Context) (Transaction, error) {
 			r.begun++
-			return stubTransaction{
+			// A pointer, so Tx values wrapping it stay comparable.
+			return &stubTransaction{
 				commit: func(context.Context) error {
 					r.committed++
 					return nil

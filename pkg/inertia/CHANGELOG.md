@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.7.0 - 2026-10-19
+
 ### Changed
 
 - The renderer no longer depends on Echo. `Page`, `Redirect`, `Location`,

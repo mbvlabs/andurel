@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel kiks module are documented here.
 
 ## Unreleased
 
+## 0.3.0 - 2026-10-19
+
 ### Changed
 
 - Replaced `(*Jar).EchoMiddleware` with `(*Jar).Middleware`, which returns

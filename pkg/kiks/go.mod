@@ -20,7 +20,7 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/lmittmann/tint v1.2.0 // indirect
 	github.com/mbvlabs/andurel/pkg/routing v0.4.0 // indirect
-	github.com/mbvlabs/andurel/pkg/telemetry v0.1.0 // indirect
+	github.com/mbvlabs/andurel/pkg/telemetry v0.2.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/bridges/otelslog v0.20.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.71.0 // indirect

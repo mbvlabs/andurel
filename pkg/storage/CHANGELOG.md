@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+## 0.9.0 - 2026-10-19
+
 ### Added
 
 - `Transactor`, `Tx`, `AtomicOps` and `Unwrap`. `AtomicOps(ctx, transactor, fn)` runs `fn` in one transaction and is the only way to commit or roll back: returning `nil` commits, an error or panic rolls back. `Tx` is an opaque handle with no query methods; components bind to it with `InTx(tx)`. `Transactor.InTx(tx)` returns a transactor whose `AtomicOps` joins `tx` instead of opening a new transaction. `Unwrap(tx)` exposes the underlying `Transaction` for the domains layer only.
@@ -12,10 +14,10 @@ All notable changes to the standalone Andurel storage module are documented here
 ### Changed
 
 - `RunInTransaction` wraps `BeginTransaction` errors (`storage: begin transaction: …`) and rolls back with `context.WithoutCancel(ctx)`, so a cancelled request context no longer skips the rollback.
+
 ### Removed
 
 - `HasQueryFiles`, `QueriesDir` and `GeneratedQueriesDir`. narsilc query discovery is project layout, so the andurel CLI owns it; the CLI no longer depends on this module.
-
 - `InsertQueue.InsertTx`, `InsertManyTx` and `InsertManyFastTx` (and the `QueueInsert` methods). Bind the queue with `InTx(tx)` and call `Insert`/`InsertMany`/`InsertManyFast` instead.
 
 ## 0.8.1 - 2026-09-29
