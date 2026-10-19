@@ -2,13 +2,14 @@ import { Link, useForm } from '@inertiajs/react'
 
 import Layout from '@/Layouts/Layout'
 import { routes } from '@/routes'
+import type { RegistrationPayload } from '@/types/payloads'
 
 type RegistrationProps = {
   errors?: Record<string, string>
 }
 
 export default function Registration({ errors = {} }: RegistrationProps) {
-  const form = useForm({ email: '', password: '', confirmPassword: '' })
+  const form = useForm<RegistrationPayload>({ email: '', password: '', confirmPassword: '' })
 
   function submit(event: SubmitEvent) {
     event.preventDefault()
