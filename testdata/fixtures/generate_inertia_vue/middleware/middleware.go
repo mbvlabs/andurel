@@ -1,0 +1,100 @@
+// Package middleware owns application HTTP policy: authentication, rate limits,
+// CSRF policy, and session definitions. Generic middleware comes from pkg/anduin;
+// cookie jar construction and dependency wiring live in internal/runtime.
+package middleware
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"strings"
+
+	"example.com/app/routes"
+
+	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+)
+
+func isAPIPath(path string) bool {
+	return matchesPathPrefix(path, routes.APIPrefix)
+}
+
+func matchesPathPrefix(path, prefix string) bool {
+	prefix = strings.TrimSuffix(prefix, "/")
+	if prefix == "" {
+		return false
+	}
+
+	return path == prefix || strings.HasPrefix(path, prefix+"/")
+}
+
+func hasNonEmptyBearerToken(authorization string) bool {
+	parts := strings.Fields(authorization)
+	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && parts[1] != ""
+}
+
+func hasApplicationSessionCookie(request *http.Request, appCookieSessionName string) bool {
+	_, err := request.Cookie(appCookieSessionName)
+	return err == nil
+}
+
+func mayBypassCSRF(request *http.Request, appCookieSessionName string) bool {
+	return isAPIPath(request.URL.Path) &&
+		hasNonEmptyBearerToken(request.Header.Get("Authorization")) &&
+		!hasApplicationSessionCookie(request, appCookieSessionName)
+}
+
+func Telemetry(tel *telemetry.Telemetry) anduin.Middleware {
+	return anduin.Telemetry(tel)
+}
+
+func TraceRouteAttributes() anduin.Middleware {
+	return func(next anduin.Handler) anduin.Handler {
+		return func(ctx context.Context) error {
+			err := next(ctx)
+			if pattern := anduin.RoutePattern(ctx); pattern != "" {
+				telemetry.SetHTTPRoute(ctx, anduin.RoutePath(pattern))
+			}
+
+			return err
+		}
+	}
+}
+
+func Logger() anduin.Middleware {
+	return anduin.Logger(slog.Default(), routes.AssetsPrefix, routes.APIPrefix)
+}
+
+func CSRFMiddleware(
+	csrfStrategy string,
+	csrfTrustedOrigins []string,
+	csrfName string,
+	environment string,
+	appCookieSessionName string,
+) (anduin.Middleware, error) {
+	strategy := strings.TrimSpace(csrfStrategy)
+
+	var tokenLookup string
+	switch strategy {
+	case "header_only":
+		tokenLookup = "cookie:" + csrfName
+	case "header_or_legacy_token":
+		tokenLookup = "header:X-CSRF-Token,form:_csrf"
+	default:
+		return nil, errors.New("invalid CSRF strategy")
+	}
+
+	return anduin.CSRF(anduin.CSRFConfig{
+		TokenLookup:    tokenLookup,
+		CookieName:     csrfName,
+		CookiePath:     "/",
+		CookieSecure:   environment == "production",
+		CookieHTTPOnly: true,
+		CookieSameSite: http.SameSiteStrictMode,
+		TrustedOrigins: csrfTrustedOrigins,
+		Skipper: func(ctx context.Context) bool {
+			return mayBypassCSRF(anduin.Request(ctx), appCookieSessionName)
+		},
+	}), nil
+}

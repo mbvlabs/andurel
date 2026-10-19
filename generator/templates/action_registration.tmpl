@@ -1,8 +1,0 @@
-
-	_, err = r.AddRoute(routes.{{.NamespacePascal}}{{.ResourceName}}{{.MethodName}}, echo.Route{
-		Method:  http.Method{{.HTTPMethod}},
-		Handler: {{.HandlerVar}}.{{.MethodName}},
-	})
-	if err != nil {
-		errs = append(errs, err)
-	}

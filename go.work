@@ -2,12 +2,12 @@ go 1.27.2
 
 use (
 	.
+	./pkg/anduin
+	./pkg/cache
 	./pkg/email
-	./pkg/hypermedia
 	./pkg/inertia
 	./pkg/kiks
 	./pkg/routing
-	./pkg/server
 	./pkg/storage
 	./pkg/telemetry
 	./pkg/validation

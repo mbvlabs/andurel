@@ -41,10 +41,8 @@ var Script = routing.NewRouteWithFile(
 	AssetsPrefix,
 )
 
-{{- if .Inertia}}
 var ViteBuild = routing.NewSimpleRoute(
 	fmt.Sprintf("/dist/%v/*", startTime),
 	"vite.build",
 	AssetsPrefix,
 )
-{{- end}}

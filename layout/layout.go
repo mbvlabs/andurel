@@ -147,32 +147,6 @@ var baseStyleTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"css_base.tmpl":  "css/base.css",
 	"css_theme.tmpl": "css/theme.css",
 	"css_email.tmpl": "css/email.css",
-
-	// Views
-	"views_layout.tmpl":           "views/layout.templ",
-	"views_layout_templ_go.tmpl":  "views/layout_templ.go",
-	"views_welcome.tmpl":          "views/welcome.templ",
-	"views_welcome_templ_go.tmpl": "views/welcome_templ.go",
-
-	// Views - Pages
-	"views_bad_request.tmpl":             "views/bad_request.templ",
-	"views_bad_request_templ_go.tmpl":    "views/bad_request_templ.go",
-	"views_internal_error.tmpl":          "views/internal_error.templ",
-	"views_internal_error_templ_go.tmpl": "views/internal_error_templ.go",
-	"views_not_found.tmpl":               "views/not_found.templ",
-	"views_not_found_templ_go.tmpl":      "views/not_found_templ.go",
-	"views_confirm_email.tmpl":           "views/confirm_email.templ",
-	"views_confirm_email_templ_go.tmpl":  "views/confirm_email_templ.go",
-	"views_login.tmpl":                   "views/login.templ",
-	"views_login_templ_go.tmpl":          "views/login_templ.go",
-	"views_registration.tmpl":            "views/registration.templ",
-	"views_registration_templ_go.tmpl":   "views/registration_templ.go",
-	"views_reset_password.tmpl":          "views/reset_password.templ",
-	"views_reset_password_templ_go.tmpl": "views/reset_password_templ.go",
-
-	// Views
-	"views_head.tmpl":          "views/head.templ",
-	"views_head_templ_go.tmpl": "views/head_templ.go",
 }
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -182,10 +156,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"agents.tmpl":    "AGENTS.md",
 
 	// Assets
-	"assets_assets.tmpl":      "assets/assets.go",
-	"assets_css_style.tmpl":   "assets/css/style.css",
-	"assets_js_scripts.tmpl":  "assets/js/scripts.js",
-	"assets_js_datastar.tmpl": "assets/js/datastar_1-0-1.min.js",
+	"assets_assets.tmpl":     "assets/assets.go",
+	"assets_css_style.tmpl":  "assets/css/style.css",
+	"assets_js_scripts.tmpl": "assets/js/scripts.js",
 
 	// Commands
 	"cmd_app_main.tmpl":     "cmd/app/main.go",
@@ -194,15 +167,14 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"cmd_seeds_main.tmpl":   "cmd/seeds/main.go",
 
 	// Process composition
-	"runtime_app.tmpl":         "internal/runtime/app.go",
-	"runtime_queue.tmpl":       "internal/runtime/queue.go",
 	"runtime_runtime.tmpl":     "internal/runtime/runtime.go",
-	"runtime_server.tmpl":      "internal/runtime/server.go",
+	"runtime_queue.tmpl":       "internal/runtime/queue.go",
 	"runtime_server_test.tmpl": "internal/runtime/server_test.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
 	"config_auth.tmpl":      "config/auth.go",
+	"config_cache.tmpl":     "config/cache.go",
 	"config_config.tmpl":    "config/config.go",
 	"config_database.tmpl":  "config/database.go",
 	"config_email.tmpl":     "config/email.go",
@@ -213,14 +185,12 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_session.tmpl":   "config/session.go",
 	"config_telemetry.tmpl": "config/telemetry.go",
 
-	// Clients
-
-	// Controllers
-	"controllers_api.tmpl":        "controllers/api/api.go",
-	"controllers_assets.tmpl":     "controllers/assets.go",
-	"controllers_cache.tmpl":      "controllers/cache.go",
-	"controllers_controller.tmpl": "controllers/controller.go",
-	"controllers_pages.tmpl":      "controllers/pages.go",
+	// Handlers
+	"handlers_api.tmpl":    "handlers/api.go",
+	"handlers_assets.tmpl": "handlers/assets.go",
+	"handlers_pages.tmpl":  "handlers/pages.go",
+	"handlers_errors.tmpl": "handlers/errors.go",
+	"handlers_auth.tmpl":   "handlers/auth.go",
 
 	// Migrations and seeds
 	"database_migrations_gitkeep.tmpl": "migrations/.gitkeep",
@@ -236,46 +206,26 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"psql_queue_workers_send_marketing_email.tmpl":     "queue/send_marketing_email.go",
 
 	// Email
-	"email_email.tmpl":                "email/email.go",
-	"email_base_layout.tmpl":          "email/base_layout.templ",
-	"email_base_layout_templ_go.tmpl": "email/base_layout_templ.go",
+	"email_email.tmpl":                   "email/email.go",
+	"email_base_layout.tmpl":             "email/base_layout.templ",
+	"email_base_layout_templ_go.tmpl":    "email/base_layout_templ.go",
+	"email_reset_password.tmpl":          "email/reset_password.templ",
+	"email_reset_password_templ_go.tmpl": "email/reset_password_templ.go",
+	"email_verify_email.tmpl":            "email/verify_email.templ",
+	"email_verify_email_templ_go.tmpl":   "email/verify_email_templ.go",
 
-	// Models
-	"models_errors.tmpl": "models/errors.go",
-	"models_model.tmpl":  "models/model.go",
-	"models_token.tmpl":  "models/token.go",
-	"models_user.tmpl":   "models/user.go",
+	// Domains
+	"domains_errors.tmpl":                  "domains/errors.go",
+	"domains_user.tmpl":                    "domains/user.go",
+	"domains_token.tmpl":                   "domains/token.go",
+	"domains_queries_user.tmpl":            "domains/user.sql",
+	"domains_queries_token.tmpl":           "domains/token.sql",
+	"domains_internal_queries_db.tmpl":     "domains/internal/queries/db.go",
+	"domains_internal_queries_models.tmpl": "domains/internal/queries/models.go",
+	"domains_internal_queries_user.tmpl":   "domains/internal/queries/user.sql.go",
+	"domains_internal_queries_token.tmpl":  "domains/internal/queries/token.sql.go",
 
-	"models_factories_factories.tmpl":     "models/factories/factories.go",
-	"models_factories_user.tmpl":          "models/factories/user.go",
-	"models_factories_token.tmpl":         "models/factories/token.go",
-	"models_queries_user.tmpl":            "models/queries/user.sql",
-	"models_queries_token.tmpl":           "models/queries/token.sql",
-	"models_internal_queries_db.tmpl":     "models/internal/queries/db.go",
-	"models_internal_queries_models.tmpl": "models/internal/queries/models.go",
-	"models_internal_queries_user.tmpl":   "models/internal/queries/user.sql.go",
-	"models_internal_queries_token.tmpl":  "models/internal/queries/token.sql.go",
-
-	// Router
-	"router_router.tmpl":                     "router/router.go",
-	"router_router_test.tmpl":                "router/router_test.go",
-	"router_cookies_app.tmpl":                "router/cookies/app.go",
-	"router_cookies_cookies.tmpl":            "router/cookies/cookies.go",
-	"router_middleware_middleware.tmpl":      "router/middleware/middleware.go",
-	"router_middleware_middleware_test.tmpl": "router/middleware/middleware_test.go",
-
-	// Routes
-	"router_routes_api.tmpl":    "router/routes/api.go",
-	"router_routes_assets.tmpl": "router/routes/assets.go",
-	"router_routes_pages.tmpl":  "router/routes/pages.go",
-
-	// Auth - Controllers
-	"controllers_confirmations.tmpl":   "controllers/confirmations.go",
-	"controllers_registrations.tmpl":   "controllers/registrations.go",
-	"controllers_reset_passwords.tmpl": "controllers/reset_passwords.go",
-	"controllers_sessions.tmpl":        "controllers/sessions.go",
-
-	// Auth - Services
+	// Services
 	"services_service.tmpl":             "services/service.go",
 	"services_identity.tmpl":            "services/identity.go",
 	"services_authentication.tmpl":      "services/authentication.go",
@@ -283,24 +233,26 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"services_registration.tmpl":        "services/registration.go",
 	"services_reset_password.tmpl":      "services/reset_password.go",
 
-	// Auth - Router
-	"router_routes_users.tmpl":         "router/routes/users.go",
-	"router_middleware_auth.tmpl":      "router/middleware/auth.go",
-	"router_middleware_auth_test.tmpl": "router/middleware/auth_test.go",
+	// Routes
+	"router_routes_api.tmpl":    "routes/api.go",
+	"router_routes_assets.tmpl": "routes/assets.go",
+	"router_routes_pages.tmpl":  "routes/pages.go",
+	"router_routes_users.tmpl":  "routes/users.go",
 
-	// Auth - Email
-	"email_reset_password.tmpl":          "email/reset_password.templ",
-	"email_reset_password_templ_go.tmpl": "email/reset_password_templ.go",
-	"email_verify_email.tmpl":            "email/verify_email.templ",
-	"email_verify_email_templ_go.tmpl":   "email/verify_email_templ.go",
+	// Middleware
+	"router_middleware_middleware.tmpl":      "middleware/middleware.go",
+	"router_middleware_middleware_test.tmpl": "middleware/middleware_test.go",
+	"router_middleware_auth.tmpl":            "middleware/auth.go",
+	"router_middleware_auth_test.tmpl":       "middleware/auth_test.go",
+	"router_cookies_app.tmpl":                "middleware/cookies.go",
 }
 
 var inertiaSharedTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_inertia.tmpl":         "config/inertia.go",
 	"cmd_ssr_main.tmpl":           "cmd/ssr/main.go",
 	"inertia_assets_routes.tmpl":  "resources/js/routes.ts",
-	"inertia_framework_root.tmpl": "views/root.templ",
-	"views_root_templ_go.tmpl":    "views/root_templ.go",
+	"inertia_framework_root.tmpl": "resources/root.templ",
+	"views_root_templ_go.tmpl":    "resources/root_templ.go",
 }
 
 var inertiaVueTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -314,8 +266,10 @@ var inertiaVueTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_assets_pages_auth_reset_password_request.tmpl": "resources/js/Pages/Auth/ResetPasswordRequest.vue",
 	"inertia_assets_pages_welcome.tmpl":                     "resources/js/Pages/Welcome.vue",
 	"inertia_assets_pages_errors_bad_request.tmpl":          "resources/js/Pages/Errors/BadRequest.vue",
+	"inertia_assets_pages_errors_conflict.tmpl":             "resources/js/Pages/Errors/Conflict.vue",
 	"inertia_assets_pages_errors_internal_error.tmpl":       "resources/js/Pages/Errors/InternalError.vue",
 	"inertia_assets_pages_errors_not_found.tmpl":            "resources/js/Pages/Errors/NotFound.vue",
+	"inertia_assets_pages_errors_validation.tmpl":           "resources/js/Pages/Errors/Validation.vue",
 	"inertia_assets_vite_config.tmpl":                       "vite.config.ts",
 	"inertia_assets_package_json.tmpl":                      "package.json",
 	"inertia_assets_tsconfig.tmpl":                          "tsconfig.json",
@@ -332,8 +286,10 @@ var inertiaReactTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_react_assets_pages_auth_reset_password_request.tmpl": "resources/js/Pages/Auth/ResetPasswordRequest.tsx",
 	"inertia_react_assets_pages_welcome.tmpl":                     "resources/js/Pages/Welcome.tsx",
 	"inertia_react_assets_pages_errors_bad_request.tmpl":          "resources/js/Pages/Errors/BadRequest.tsx",
+	"inertia_react_assets_pages_errors_conflict.tmpl":             "resources/js/Pages/Errors/Conflict.tsx",
 	"inertia_react_assets_pages_errors_internal_error.tmpl":       "resources/js/Pages/Errors/InternalError.tsx",
 	"inertia_react_assets_pages_errors_not_found.tmpl":            "resources/js/Pages/Errors/NotFound.tsx",
+	"inertia_react_assets_pages_errors_validation.tmpl":           "resources/js/Pages/Errors/Validation.tsx",
 	"inertia_react_assets_vite_config.tmpl":                       "vite.config.ts",
 	"inertia_react_assets_package_json.tmpl":                      "package.json",
 	"inertia_react_assets_tsconfig.tmpl":                          "tsconfig.json",
@@ -350,36 +306,14 @@ var inertiaSvelteTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_svelte_assets_pages_auth_reset_password_request.tmpl": "resources/js/Pages/Auth/ResetPasswordRequest.svelte",
 	"inertia_svelte_assets_pages_welcome.tmpl":                     "resources/js/Pages/Welcome.svelte",
 	"inertia_svelte_assets_pages_errors_bad_request.tmpl":          "resources/js/Pages/Errors/BadRequest.svelte",
+	"inertia_svelte_assets_pages_errors_conflict.tmpl":             "resources/js/Pages/Errors/Conflict.svelte",
 	"inertia_svelte_assets_pages_errors_internal_error.tmpl":       "resources/js/Pages/Errors/InternalError.svelte",
 	"inertia_svelte_assets_pages_errors_not_found.tmpl":            "resources/js/Pages/Errors/NotFound.svelte",
+	"inertia_svelte_assets_pages_errors_validation.tmpl":           "resources/js/Pages/Errors/Validation.svelte",
 	"inertia_svelte_assets_vite_config.tmpl":                       "vite.config.ts",
 	"inertia_svelte_assets_package_json.tmpl":                      "package.json",
 	"inertia_svelte_assets_tsconfig.tmpl":                          "tsconfig.json",
 	"inertia_svelte_assets_svelte_config.tmpl":                     "svelte.config.js",
-}
-
-var inertiaSkippedTemplates = map[TmplTarget]bool{
-	"views_confirm_email.tmpl":           true,
-	"views_confirm_email_templ_go.tmpl":  true,
-	"views_login.tmpl":                   true,
-	"views_login_templ_go.tmpl":          true,
-	"views_registration.tmpl":            true,
-	"views_registration_templ_go.tmpl":   true,
-	"views_reset_password.tmpl":          true,
-	"views_reset_password_templ_go.tmpl": true,
-	"views_welcome.tmpl":                 true,
-	"views_welcome_templ_go.tmpl":        true,
-	"views_layout.tmpl":                  true,
-	"views_layout_templ_go.tmpl":         true,
-	"views_head.tmpl":                    true,
-	"views_head_templ_go.tmpl":           true,
-	"views_bad_request.tmpl":             true,
-	"views_bad_request_templ_go.tmpl":    true,
-	"views_internal_error.tmpl":          true,
-	"views_internal_error_templ_go.tmpl": true,
-	"views_not_found.tmpl":               true,
-	"views_not_found_templ_go.tmpl":      true,
-	"assets_js_datastar.tmpl":            true,
 }
 
 func inertiaAdapterTemplateMappings(adapter string) map[TmplTarget]TmplTargetPath {
@@ -465,48 +399,14 @@ func sortedFrameworkManagedFiles(mappings map[TmplTarget]TmplTargetPath) []Frame
 }
 
 func processTemplatedFiles(targetDir string, data *TemplateData) error {
-	mappings := make(
-		map[TmplTarget]TmplTargetPath,
-		len(
-			baseTemplateMappings,
-		)+len(
-			inertiaSharedTemplateMappings,
-		)+len(
-			inertiaVueTemplateMappings,
-		),
-	)
+	mappings := make(map[TmplTarget]TmplTargetPath)
 	maps.Copy(mappings, baseTemplateMappings)
-
-	if data != nil && IsSupportedInertiaAdapter(data.Inertia) {
-		for k := range inertiaSkippedTemplates {
-			delete(mappings, k)
-		}
-		delete(mappings, "controllers_pages.tmpl")
-		delete(mappings, "controllers_confirmations.tmpl")
-		delete(mappings, "controllers_registrations.tmpl")
-		delete(mappings, "controllers_reset_passwords.tmpl")
-		delete(mappings, "controllers_sessions.tmpl")
-		mappings["controllers_pages_inertia.tmpl"] = "controllers/pages.go"
-		mappings["controllers_confirmations_inertia.tmpl"] = "controllers/confirmations.go"
-		mappings["controllers_registrations_inertia.tmpl"] = "controllers/registrations.go"
-		mappings["controllers_reset_passwords_inertia.tmpl"] = "controllers/reset_passwords.go"
-		mappings["controllers_sessions_inertia.tmpl"] = "controllers/sessions.go"
-		maps.Copy(mappings, inertiaSharedTemplateMappings)
+	maps.Copy(mappings, inertiaSharedTemplateMappings)
+	if data != nil {
 		maps.Copy(mappings, inertiaAdapterTemplateMappings(data.Inertia))
 	}
 
 	for templateFile, targetPath := range mappings {
-		if templateFile == "assets_js_datastar.tmpl" {
-			if err := copyFile(
-				targetDir,
-				string(templateFile),
-				string(targetPath),
-				templates.Files,
-			); err != nil {
-				return fmt.Errorf("failed to copy file %s: %w", templateFile, err)
-			}
-			continue
-		}
 		if isStaticInertiaAssetTemplate(templateFile) {
 			if err := copyFile(
 				targetDir,
@@ -530,10 +430,6 @@ func processTemplatedFiles(targetDir string, data *TemplateData) error {
 	}
 
 	for templateFile, targetPath := range baseStyleTemplateMappings {
-		if data != nil && IsSupportedInertiaAdapter(data.Inertia) &&
-			inertiaSkippedTemplates[templateFile] {
-			continue
-		}
 		if err := renderTemplate(
 			targetDir,
 			string(templateFile),

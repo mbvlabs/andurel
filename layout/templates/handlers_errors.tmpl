@@ -1,0 +1,75 @@
+package handlers
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"strings"
+
+	"{{.ModuleName}}/domains"
+
+	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
+	return func(ctx context.Context, err error) error {
+		if wantsJSON(ctx) {
+			return mapJSONError(ctx, err)
+		}
+
+		if validationErr, ok := validation.As(err); ok {
+			return renderer.Page(ctx, "Errors/Validation", inertia.Props{}).
+				ValidationErrors(validationErr.ToMap()).
+				Status(http.StatusUnprocessableEntity).
+				Render()
+		}
+
+		switch {
+		case errors.Is(err, domains.ErrNotFound):
+			return renderer.Page(ctx, "Errors/NotFound", inertia.Props{}).
+				Status(http.StatusNotFound).
+				Render()
+
+		case errors.Is(err, domains.ErrConflict):
+			return renderer.Page(ctx, "Errors/Conflict", inertia.Props{}).
+				Status(http.StatusConflict).
+				Render()
+		}
+
+		// Unmapped errors keep their own status (anduin.BadRequest stays a 400);
+		// the router answers and logs them.
+		return err
+	}
+}
+
+// wantsJSON reports whether the request is an API call rather than an Inertia
+// visit; Inertia visits send X-Inertia and accept HTML.
+func wantsJSON(ctx context.Context) bool {
+	return anduin.Header(ctx, inertia.HeaderInertia) == "" &&
+		strings.Contains(anduin.Header(ctx, "Accept"), "application/json")
+}
+
+func mapJSONError(ctx context.Context, err error) error {
+	if validationErr, ok := validation.As(err); ok {
+		return anduin.JSON(ctx, http.StatusUnprocessableEntity, map[string]any{
+			"error":  http.StatusText(http.StatusUnprocessableEntity),
+			"fields": validationErr.ToMap(),
+		})
+	}
+
+	status := anduin.StatusCode(err)
+	switch {
+	case errors.Is(err, domains.ErrNotFound):
+		status = http.StatusNotFound
+	case errors.Is(err, domains.ErrConflict):
+		status = http.StatusConflict
+	}
+	if status >= http.StatusInternalServerError {
+		// The router logs and answers unexpected failures without leaking details.
+		return err
+	}
+
+	return anduin.JSON(ctx, status, map[string]string{"error": http.StatusText(status)})
+}

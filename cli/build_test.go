@@ -195,7 +195,7 @@ func TestBuildAppRunsNarsilcWhenQueriesExist(t *testing.T) {
 	writeTestFile(
 		t,
 		root,
-		"models/queries/users.sql",
+		"domains/user/user.sql",
 		"-- name: GetUser :one\nSELECT 1;\n",
 	)
 	lock := layout.NewAndurelLock("test")
@@ -231,7 +231,7 @@ func TestBuildAppRunsNarsilcWhenQueriesExist(t *testing.T) {
 	for _, want := range []string{
 		"templ generate",
 		"narsilc generate",
-		"go fmt ./models/internal/queries/...",
+		"go fmt ./domains/internal/queries/...",
 	} {
 		if !strings.Contains(log, want) {
 			t.Fatalf("command log missing %q:\n%s", want, log)

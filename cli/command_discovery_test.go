@@ -166,18 +166,19 @@ func TestGenerateAgentHelpDiscovery(t *testing.T) {
 	if !flagDiscoveryContains(envelope.Data.InheritedFlags, "json") {
 		t.Fatalf("expected inherited output flags: %#v", envelope.Data.InheritedFlags)
 	}
-	if !discoveryContains(envelope.Data.Subcommands, "scaffold", "andurel generate scaffold") {
-		t.Fatalf("expected scaffold subcommand in help: %#v", envelope.Data.Subcommands)
+	if !discoveryContains(envelope.Data.Subcommands, "migration", "andurel generate migration") {
+		t.Fatalf("expected migration subcommand in help: %#v", envelope.Data.Subcommands)
 	}
 }
 
 func TestNewInertiaAndSQLCCommandsExposeAgentNotes(t *testing.T) {
 	for _, path := range []string{
-		"new",
-		"generate controller",
-		"generate scaffold",
-		"generate query",
+		"patterns",
+		"verify",
 		"generate migration",
+		"sync queries",
+		"inspect domains",
+		"inspect handlers",
 	} {
 		root := NewRootCommand("test", "test-date")
 		cmd, _, err := root.Find(strings.Fields(path))

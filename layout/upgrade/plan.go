@@ -264,6 +264,11 @@ func (u *Upgrader) addInertiaRootMigration(plan *upgradePlan, lock *layout.Andur
 	const legacyPath = "views/root.go.html"
 	rootHTML, err := os.ReadFile(filepath.Join(u.projectRoot, legacyPath))
 	if err != nil {
+		if os.IsNotExist(err) {
+			// A project already in the current shape has no legacy Inertia root
+			// to migrate; there is nothing to do.
+			return nil
+		}
 		return fmt.Errorf("read existing Inertia root %s: %w", legacyPath, err)
 	}
 	if err := plan.addReplacement(u.projectRoot, embeddedPath, rootHTML, false); err != nil {

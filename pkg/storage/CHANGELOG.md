@@ -4,6 +4,20 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+### Added
+
+- `Transactor`, `Tx`, `AtomicOps` and `Unwrap`. `AtomicOps(ctx, transactor, fn)` runs `fn` in one transaction and is the only way to commit or roll back: returning `nil` commits, an error or panic rolls back. `Tx` is an opaque handle with no query methods; components bind to it with `InTx(tx)`. `Transactor.InTx(tx)` returns a transactor whose `AtomicOps` joins `tx` instead of opening a new transaction. `Unwrap(tx)` exposes the underlying `Transaction` for the domains layer only.
+- `InsertQueue.InTx(tx)` / `QueueInsert.InTx(tx)`: a queue whose `Insert`, `InsertMany` and `InsertManyFast` run on `tx`, so jobs become visible to workers only if the transaction commits.
+
+### Changed
+
+- `RunInTransaction` wraps `BeginTransaction` errors (`storage: begin transaction: …`) and rolls back with `context.WithoutCancel(ctx)`, so a cancelled request context no longer skips the rollback.
+- narsilc query discovery moved from `models/queries/` to `domains/`: `QueriesDir` is now `domains` and `GeneratedQueriesDir` is `domains/internal/queries`. `HasQueryFiles` scans the `domains` tree recursively and ignores the generated output directory.
+
+### Removed
+
+- `InsertQueue.InsertTx`, `InsertManyTx` and `InsertManyFastTx` (and the `QueueInsert` methods). Bind the queue with `InTx(tx)` and call `Insert`/`InsertMany`/`InsertManyFast` instead.
+
 ## 0.8.1 - 2026-09-29
 
 ### Changed

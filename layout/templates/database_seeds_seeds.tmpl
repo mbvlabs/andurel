@@ -5,13 +5,18 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
-	"{{.ModuleName}}/models/factories"
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/domains"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 const Default = "development"
+
+const DefaultPassword = "password"
 
 type Runner func(context.Context, storage.Connection) error
 
@@ -27,6 +32,7 @@ func Names() []string {
 		names = append(names, name)
 	}
 	slices.Sort(names)
+
 	return names
 }
 
@@ -44,45 +50,64 @@ func Run(ctx context.Context, db storage.Connection, name string) error {
 }
 
 func Development(ctx context.Context, db storage.Connection) error {
-	admin, err := factories.CreateUser(ctx, db,
-		factories.WithEmail("admin@example.com"),
-		factories.WithIsAdmin(true),
-		factories.WithValidatedEmail(),
-	)
+	auth, err := config.NewAuth()
+	if err != nil {
+		return err
+	}
+
+	users := domains.NewUsers(db)
+
+	admin, err := createUser(ctx, users, auth.Pepper, "admin@example.com", true)
 	if err != nil {
 		return fmt.Errorf("failed to create admin user: %w", err)
 	}
 	fmt.Printf("Created admin user: %s\n", admin.Email)
 
-	user, err := factories.CreateUser(ctx, db,
-		factories.WithEmail("user@example.com"),
-		factories.WithValidatedEmail(),
-	)
+	regular, err := createUser(ctx, users, auth.Pepper, "user@example.com", false)
 	if err != nil {
 		return fmt.Errorf("failed to create regular user: %w", err)
 	}
-	fmt.Printf("Created regular user: %s\n", user.Email)
-
-	// Add more seeds here using factories:
-	//
-	// // Create 10 additional users with random emails
-	// users, err := factories.CreateUsers(ctx, db, 10)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create users: %w", err)
-	// }
-	// fmt.Printf("Created %d additional users\n", len(users))
+	fmt.Printf("Created regular user: %s\n", regular.Email)
 
 	return nil
 }
 
 func Test(ctx context.Context, db storage.Connection) error {
-	_, err := factories.CreateUser(ctx, db,
-		factories.WithEmail("test@example.com"),
-		factories.WithValidatedEmail(),
-	)
+	auth, err := config.NewAuth()
 	if err != nil {
+		return err
+	}
+
+	users := domains.NewUsers(db)
+
+	if _, err := createUser(ctx, users, auth.Pepper, "test@example.com", false); err != nil {
 		return fmt.Errorf("failed to create test user: %w", err)
 	}
 
 	return nil
+}
+
+func createUser(
+	ctx context.Context,
+	users domains.Users,
+	pepper, rawAddress string,
+	admin bool,
+) (domains.User, error) {
+	created, err := users.Create(ctx, pepper, domains.CreateUserData{
+		Email: rawAddress,
+		PasswordPair: domains.PasswordPair{
+			Password:        DefaultPassword,
+			ConfirmPassword: DefaultPassword,
+		},
+	})
+	if err != nil {
+		return domains.User{}, err
+	}
+
+	return users.Update(ctx, domains.UpdateUserData{
+		ID:               created.ID,
+		Email:            created.Email,
+		EmailValidatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		IsAdmin:          admin,
+	})
 }

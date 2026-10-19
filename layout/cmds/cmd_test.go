@@ -75,9 +75,9 @@ func TestRunCommands(t *testing.T) {
 		{name: "go fmt", command: []string{"go", "fmt", "./..."}, run: RunGoFmt},
 		{
 			name:    "go fmt path",
-			command: []string{"go", "fmt", "./models"},
+			command: []string{"go", "fmt", "./domains"},
 			run: func(dir string) error {
-				return RunGoFmtPath(dir, "./models")
+				return RunGoFmtPath(dir, "./domains")
 			},
 		},
 		{name: "golines", command: []string{"golines", "-w", "-m", "100", "."}, run: RunGolines},
@@ -100,7 +100,7 @@ func TestRunCommands(t *testing.T) {
 				"run",
 				"github.com/a-h/templ/cmd/templ@" + versions.Templ,
 				"fmt",
-				"views",
+				".",
 			},
 			run: RunTemplFmt,
 		},
@@ -143,7 +143,7 @@ func TestRunNarsilcGenerate(t *testing.T) {
 
 	t.Run("generates when queries exist", func(t *testing.T) {
 		targetDir := t.TempDir()
-		queriesDir := filepath.Join(targetDir, "models", "queries")
+		queriesDir := filepath.Join(targetDir, "domains", "user")
 		if err := os.MkdirAll(queriesDir, 0o755); err != nil {
 			t.Fatalf("mkdir queries: %v", err)
 		}
@@ -207,7 +207,7 @@ func TestRunNarsilcGenerate(t *testing.T) {
 		// invoke `true`. install-dev-tools does not put narsilc on PATH.
 		t.Setenv("ANDUREL_TOOL_BIN", "")
 		targetDir := t.TempDir()
-		queriesDir := filepath.Join(targetDir, "models", "queries")
+		queriesDir := filepath.Join(targetDir, "domains", "user")
 		if err := os.MkdirAll(queriesDir, 0o755); err != nil {
 			t.Fatalf("mkdir queries: %v", err)
 		}
@@ -321,7 +321,7 @@ func TestRunCommandErrors(t *testing.T) {
 			"run",
 			"github.com/a-h/templ/cmd/templ@"+versions.Templ,
 			"fmt",
-			"views",
+			".",
 		)
 		if err := RunTemplFmt(targetDir); err == nil {
 			t.Fatal("expected templ fmt failure")
@@ -346,7 +346,7 @@ func TestRunCommandErrors(t *testing.T) {
 		run  func(string) error
 	}{
 		{name: "go fmt", run: RunGoFmt},
-		{name: "go fmt path", run: func(dir string) error { return RunGoFmtPath(dir, "./models") }},
+		{name: "go fmt path", run: func(dir string) error { return RunGoFmtPath(dir, "./domains") }},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			installCommandHelper(t)
@@ -356,7 +356,7 @@ func TestRunCommandErrors(t *testing.T) {
 			if tt.name == "go fmt" {
 				expectCommand(t, "go", "fmt", "./...")
 			} else {
-				expectCommand(t, "go", "fmt", "./models")
+				expectCommand(t, "go", "fmt", "./domains")
 			}
 			err := tt.run(targetDir)
 			if err == nil || !strings.Contains(err.Error(), "intentional failure") {

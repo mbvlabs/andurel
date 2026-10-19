@@ -14,7 +14,7 @@ import (
 
 func TestRenderPayloadsTSGoldenWidget(t *testing.T) {
 	rootDir := setupPayloadsProject(t, "vue")
-	writePayloadsController(t, rootDir, "controllers/widgets.go", widgetControllerSource)
+	writePayloadsHandler(t, rootDir, "handlers/widgets.go", widgetHandlerSource)
 
 	got, count, skipped, err := renderPayloadsTS(rootDir)
 	if err != nil {
@@ -52,10 +52,11 @@ func TestRenderPayloadsTSGoldenWidget(t *testing.T) {
 
 func TestRenderPayloadsTSJSONOmitEmbedPointerAndCollision(t *testing.T) {
 	rootDir := setupPayloadsProject(t, "react")
-	writePayloadsController(t, rootDir, "controllers/pages.go", `package controllers
+	writePayloadsHandler(t, rootDir, "handlers/pages.go", `package handlers
 
 import (
-	"github.com/labstack/echo/v5"
+	"context"
+
 	"github.com/mbvlabs/andurel/pkg/inertia"
 )
 
@@ -73,7 +74,7 @@ type DashboardIndexProps struct {
 	} `+"`json:\"nested\"`"+`
 }
 
-func (p Pages) Index(etx *echo.Context) error {
+func (p Pages) Index(ctx context.Context) error {
 	return inertia.FromStruct(DashboardIndexProps{})
 }
 `)
@@ -98,45 +99,47 @@ func (p Pages) Index(etx *echo.Context) error {
 	}
 }
 
-func TestRenderPayloadsTSFailsOnModelsUnmappedGenericsAndBindName(t *testing.T) {
-	t.Run("models field", func(t *testing.T) {
+func TestRenderPayloadsTSFailsOnDomainsUnmappedGenericsAndBindName(t *testing.T) {
+	t.Run("domain field", func(t *testing.T) {
 		rootDir := setupPayloadsProject(t, "vue")
-		writePayloadsController(t, rootDir, "controllers/bad.go", `package controllers
+		writePayloadsHandler(t, rootDir, "handlers/bad.go", `package handlers
 
 import (
-	"example.com/app/models"
+	"context"
+
+	"example.com/app/domains"
 	"github.com/mbvlabs/andurel/pkg/inertia"
-	"github.com/labstack/echo/v5"
 )
 
 type BadIndexProps struct {
-	Item models.Widget `+"`json:\"item\"`"+`
+	Item domains.Widget `+"`json:\"item\"`"+`
 }
 
-func (c Bad) Index(etx *echo.Context) error {
+func (c Bad) Index(ctx context.Context) error {
 	return inertia.FromStruct(BadIndexProps{})
 }
 `)
 		_, _, _, err := renderPayloadsTS(rootDir)
-		if err == nil || !strings.Contains(err.Error(), "define a controller-owned payload type") {
-			t.Fatalf("expected models rejection, got %v", err)
+		if err == nil || !strings.Contains(err.Error(), "define a handler-owned payload type") {
+			t.Fatalf("expected domains rejection, got %v", err)
 		}
 	})
 
 	t.Run("unmapped map", func(t *testing.T) {
 		rootDir := setupPayloadsProject(t, "vue")
-		writePayloadsController(t, rootDir, "controllers/bad.go", `package controllers
+		writePayloadsHandler(t, rootDir, "handlers/bad.go", `package handlers
 
 import (
+	"context"
+
 	"github.com/mbvlabs/andurel/pkg/inertia"
-	"github.com/labstack/echo/v5"
 )
 
 type BadIndexProps struct {
 	Values map[string]string `+"`json:\"values\"`"+`
 }
 
-func (c Bad) Index(etx *echo.Context) error {
+func (c Bad) Index(ctx context.Context) error {
 	return inertia.FromStruct(BadIndexProps{})
 }
 `)
@@ -148,18 +151,19 @@ func (c Bad) Index(etx *echo.Context) error {
 
 	t.Run("type parameters", func(t *testing.T) {
 		rootDir := setupPayloadsProject(t, "vue")
-		writePayloadsController(t, rootDir, "controllers/bad.go", `package controllers
+		writePayloadsHandler(t, rootDir, "handlers/bad.go", `package handlers
 
 import (
+	"context"
+
 	"github.com/mbvlabs/andurel/pkg/inertia"
-	"github.com/labstack/echo/v5"
 )
 
 type PageProps[T any] struct {
 	Item T `+"`json:\"item\"`"+`
 }
 
-func (c Bad) Index(etx *echo.Context) error {
+func (c Bad) Index(ctx context.Context) error {
 	return inertia.FromStruct(PageProps[string]{})
 }
 `)
@@ -171,17 +175,21 @@ func (c Bad) Index(etx *echo.Context) error {
 
 	t.Run("bind without Payload suffix", func(t *testing.T) {
 		rootDir := setupPayloadsProject(t, "vue")
-		writePayloadsController(t, rootDir, "controllers/bad.go", `package controllers
+		writePayloadsHandler(t, rootDir, "handlers/bad.go", `package handlers
 
-import "github.com/labstack/echo/v5"
+import (
+	"context"
+
+	"github.com/mbvlabs/andurel/pkg/anduin"
+)
 
 type CreateForm struct {
 	Name string `+"`json:\"name\"`"+`
 }
 
-func (c Bad) Create(etx *echo.Context) error {
+func (c Bad) Create(ctx context.Context) error {
 	var payload CreateForm
-	return etx.Bind(&payload)
+	return anduin.DecodeJSON(ctx, &payload)
 }
 `)
 		_, _, _, err := renderPayloadsTS(rootDir)
@@ -192,10 +200,11 @@ func (c Bad) Create(etx *echo.Context) error {
 
 	t.Run("name collision", func(t *testing.T) {
 		rootDir := setupPayloadsProject(t, "vue")
-		writePayloadsController(t, rootDir, "controllers/widgets.go", `package controllers
+		writePayloadsHandler(t, rootDir, "handlers/widgets.go", `package handlers
 
 import (
-	"github.com/labstack/echo/v5"
+	"context"
+
 	"github.com/mbvlabs/andurel/pkg/inertia"
 )
 
@@ -203,14 +212,15 @@ type WidgetIndexProps struct {
 	Title string `+"`json:\"title\"`"+`
 }
 
-func (c Widgets) Index(etx *echo.Context) error {
+func (c Widgets) Index(ctx context.Context) error {
 	return inertia.FromStruct(WidgetIndexProps{})
 }
 `)
-		writePayloadsController(t, rootDir, "controllers/admin/widgets.go", `package admin
+		writePayloadsHandler(t, rootDir, "handlers/admin/widgets.go", `package admin
 
 import (
-	"github.com/labstack/echo/v5"
+	"context"
+
 	"github.com/mbvlabs/andurel/pkg/inertia"
 )
 
@@ -218,7 +228,7 @@ type WidgetIndexProps struct {
 	Title string `+"`json:\"title\"`"+`
 }
 
-func (c Widgets) Index(etx *echo.Context) error {
+func (c Widgets) Index(ctx context.Context) error {
 	return inertia.FromStruct(WidgetIndexProps{})
 }
 `)
@@ -231,14 +241,15 @@ func (c Widgets) Index(etx *echo.Context) error {
 
 func TestRenderPayloadsTSSkipsUnresolvedFromStruct(t *testing.T) {
 	rootDir := setupPayloadsProject(t, "vue")
-	writePayloadsController(t, rootDir, "controllers/pages.go", `package controllers
+	writePayloadsHandler(t, rootDir, "handlers/pages.go", `package handlers
 
 import (
-	"github.com/labstack/echo/v5"
+	"context"
+
 	"github.com/mbvlabs/andurel/pkg/inertia"
 )
 
-func (p Pages) Index(etx *echo.Context) error {
+func (p Pages) Index(ctx context.Context) error {
 	props := loadProps()
 	return inertia.FromStruct(props)
 }
@@ -269,7 +280,7 @@ func TestGeneratePayloadsCommandRequiresInertiaProject(t *testing.T) {
 
 func TestGeneratePayloadsCommandWritesFile(t *testing.T) {
 	rootDir := setupPayloadsProject(t, "svelte")
-	writePayloadsController(t, rootDir, "controllers/widgets.go", widgetControllerSource)
+	writePayloadsHandler(t, rootDir, "handlers/widgets.go", widgetHandlerSource)
 
 	result := runRoutesJSCommandInProject(t, rootDir, "sync", "payloads", "--json")
 	if result.err != nil {
@@ -307,7 +318,7 @@ func TestCodeGenerationChecksSkipsPayloadsTSForNonInertiaProject(t *testing.T) {
 
 func TestCheckPayloadsTSGeneratePassesWhenCurrent(t *testing.T) {
 	rootDir := setupPayloadsProject(t, "react")
-	writePayloadsController(t, rootDir, "controllers/widgets.go", widgetControllerSource)
+	writePayloadsHandler(t, rootDir, "handlers/widgets.go", widgetHandlerSource)
 	if _, err := generatePayloadsFile(rootDir); err != nil {
 		t.Fatalf("generate payloads.ts: %v", err)
 	}
@@ -320,7 +331,7 @@ func TestCheckPayloadsTSGeneratePassesWhenCurrent(t *testing.T) {
 
 func TestCheckPayloadsTSGenerateFailsWhenMissingOrStale(t *testing.T) {
 	rootDir := setupPayloadsProject(t, "vue")
-	writePayloadsController(t, rootDir, "controllers/widgets.go", widgetControllerSource)
+	writePayloadsHandler(t, rootDir, "handlers/widgets.go", widgetHandlerSource)
 
 	missing := checkPayloadsTSGenerate(rootDir, false)
 	if missing.status != statusFail || !strings.Contains(missing.message, "missing") {
@@ -346,7 +357,7 @@ func TestCheckPayloadsTSGenerateFailsWhenMissingOrStale(t *testing.T) {
 
 func TestCheckPayloadsTSGenerateLeavesPerResourceTypeFiles(t *testing.T) {
 	rootDir := setupPayloadsProject(t, "svelte")
-	writePayloadsController(t, rootDir, "controllers/widgets.go", widgetControllerSource)
+	writePayloadsHandler(t, rootDir, "handlers/widgets.go", widgetHandlerSource)
 	if _, err := generatePayloadsFile(rootDir); err != nil {
 		t.Fatalf("generate payloads.ts: %v", err)
 	}
@@ -370,60 +381,38 @@ func TestCheckPayloadsTSGenerateLeavesPerResourceTypeFiles(t *testing.T) {
 	}
 }
 
-func TestRefreshInertiaGeneratedTypeScriptFailsOnModels(t *testing.T) {
+func TestRefreshPayloadsTSAfterInertiaGenerationFailsOnDomains(t *testing.T) {
 	rootDir := setupPayloadsProject(t, "vue")
-	writePayloadsController(t, rootDir, "controllers/bad.go", `package controllers
+	writePayloadsHandler(t, rootDir, "handlers/bad.go", `package handlers
 
 import (
-	"example.com/app/models"
+	"context"
+
+	"example.com/app/domains"
 	"github.com/mbvlabs/andurel/pkg/inertia"
-	"github.com/labstack/echo/v5"
 )
 
 type BadIndexProps struct {
-	Item models.Widget `+"`json:\"item\"`"+`
+	Item domains.Widget `+"`json:\"item\"`"+`
 }
 
-func (c Bad) Index(etx *echo.Context) error {
-	return inertia.FromStruct(BadIndexProps{})
-}
-`)
-	err := refreshInertiaGeneratedTypeScript(rootDir, "vue", false)
-	if err == nil {
-		t.Fatal("expected models.* to fail inertia generate refresh")
-	}
-}
-
-func TestRefreshPayloadsTSAfterInertiaGenerationFailsOnModels(t *testing.T) {
-	rootDir := setupPayloadsProject(t, "vue")
-	writePayloadsController(t, rootDir, "controllers/bad.go", `package controllers
-
-import (
-	"example.com/app/models"
-	"github.com/mbvlabs/andurel/pkg/inertia"
-	"github.com/labstack/echo/v5"
-)
-
-type BadIndexProps struct {
-	Item models.Widget `+"`json:\"item\"`"+`
-}
-
-func (c Bad) Index(etx *echo.Context) error {
+func (c Bad) Index(ctx context.Context) error {
 	return inertia.FromStruct(BadIndexProps{})
 }
 `)
 	err := refreshPayloadsTSAfterInertiaGeneration(rootDir, "vue", false)
 	if err == nil {
-		t.Fatal("expected models.* to fail inertia generate refresh")
+		t.Fatal("expected domains.* to fail inertia generate refresh")
 	}
 }
 
-const widgetControllerSource = `package controllers
+const widgetHandlerSource = `package handlers
 
 import (
+	"context"
 	"encoding/json"
 
-	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 )
 
@@ -449,26 +438,26 @@ type UpdateWidgetFormPayload struct {
 	Name string ` + "`json:\"name\"`" + `
 }
 
-func (c Widgets) Index(etx *echo.Context) error {
+func (c Widgets) Index(ctx context.Context) error {
 	return inertia.FromStruct(WidgetIndexProps{})
 }
 
-func (c Widgets) Show(etx *echo.Context) error {
+func (c Widgets) Show(ctx context.Context) error {
 	item := WidgetItemProps{}
 	return inertia.FromStruct(item)
 }
 
-func (c Widgets) Create(etx *echo.Context) error {
+func (c Widgets) Create(ctx context.Context) error {
 	var payload CreateWidgetFormPayload
-	if err := etx.Bind(&payload); err != nil {
+	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c Widgets) Update(etx *echo.Context) error {
+func (c Widgets) Update(ctx context.Context) error {
 	var payload UpdateWidgetFormPayload
-	return etx.Bind(&payload)
+	return anduin.DecodeForm(ctx, &payload)
 }
 `
 
@@ -497,7 +486,7 @@ func setupPayloadsProject(t *testing.T, inertia string) string {
 	return rootDir
 }
 
-func writePayloadsController(t *testing.T, rootDir, rel, contents string) {
+func writePayloadsHandler(t *testing.T, rootDir, rel, contents string) {
 	t.Helper()
 	path := filepath.Join(rootDir, rel)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

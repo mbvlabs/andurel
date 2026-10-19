@@ -8,18 +8,17 @@ import (
 	"time"
 	"uuid"
 
+	"{{.ModuleName}}/domains"
 	appemail "{{.ModuleName}}/email"
-	"{{.ModuleName}}/models"
 	"{{.ModuleName}}/queue/jobs"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
-
-const userEmailVerification = "user_email_verification"
 
 type RegisterUserData struct {
 	Email           string
@@ -27,110 +26,56 @@ type RegisterUserData struct {
 	ConfirmPassword string
 }
 
+// RegisterUser commits the user, verification code, and queued email together.
+// Entity validation belongs to the user domain, not this orchestration layer.
 func (i Identity) RegisterUser(
 	ctx context.Context,
 	data RegisterUserData,
-) (models.User, error) {
-	b := validation.NewBuilder()
-	b.Required("email", data.Email)
-	b.Required("password", data.Password)
-	b.MinLen("password", data.Password, 8)
-	b.Required("confirmPassword", data.ConfirmPassword)
-	if data.Password != data.ConfirmPassword {
-		b.Add("confirmPassword", "mismatch", "Passwords do not match")
-	}
-	if !b.Errors().Empty() {
-		return models.User{}, b.Errors()
-	}
+) (domains.User, error) {
+	var user domains.User
 
-	tx, err := i.db.BeginTransaction(ctx)
+	err := storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {
+		users, tokens, queue := i.users.InTx(tx), i.tokens.InTx(tx), i.queue.InTx(tx)
 
-	if err != nil {
+		created, err := users.Create(ctx, i.pepper, domains.CreateUserData{
+			Email: data.Email,
+			PasswordPair: domains.PasswordPair{
+				Password:        data.Password,
+				ConfirmPassword: data.ConfirmPassword,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("create user: %w", err)
+		}
 
-		return models.User{}, fmt.Errorf("begin registration transaction: %w", err)
+		if err := i.sendVerificationCode(ctx, tokens, queue, created); err != nil {
+			return err
+		}
 
-	}
+		user = created
 
-	users := i.users.WithTx(tx)
-	tokens := i.tokens.WithTx(tx)
-
-	user, err := users.Create(ctx, i.pepper, models.CreateUserData{
-
-		Email: data.Email,
-		PasswordPair: models.PasswordPair{
-			Password:        data.Password,
-			ConfirmPassword: data.ConfirmPassword,
-		},
+		return nil
 	})
 	if err != nil {
-		_ = tx.Rollback(ctx)
-
-		return models.User{}, fmt.Errorf("create user: %w", err)
-	}
-
-	code, err := i.issueVerificationCode(ctx, tokens, user)
-	if err != nil {
-		_ = tx.Rollback(ctx)
-
-		return models.User{}, err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-
-		return models.User{}, fmt.Errorf("commit registration transaction: %w", err)
-
-	}
-
-	if err := i.sendVerificationEmail(ctx, user, code); err != nil {
-		return user, err
+		return domains.User{}, err
 	}
 
 	telemetry.Set(ctx, "user.id", user.ID, "registration.email_queued", true)
 	return user, nil
-
 }
 
-// ResendEmailVerification replaces any outstanding verification code for an
-// unverified user with a fresh one and emails it. It is how a user recovers
-// after losing the registering session or exhausting their attempts.
 func (i Identity) ResendEmailVerification(
 	ctx context.Context,
-	user models.User,
+	user domains.User,
 ) error {
 	if user.HasValidatedEmail() {
 		return nil
 	}
 
-	tx, err := i.db.BeginTransaction(ctx)
-
+	err := storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {
+		return i.sendVerificationCode(ctx, i.tokens.InTx(tx), i.queue.InTx(tx), user)
+	})
 	if err != nil {
-
-		return fmt.Errorf("begin resend verification transaction: %w", err)
-
-	}
-
-	tokens := i.tokens.WithTx(tx)
-
-	if err := tokens.DestroyByUserAndScope(ctx, user.ID, userEmailVerification); err != nil {
-		_ = tx.Rollback(ctx)
-
-		return fmt.Errorf("destroy previous verification tokens: %w", err)
-	}
-
-	code, err := i.issueVerificationCode(ctx, tokens, user)
-	if err != nil {
-		_ = tx.Rollback(ctx)
-
-		return err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-
-		return fmt.Errorf("commit resend verification transaction: %w", err)
-
-	}
-
-	if err := i.sendVerificationEmail(ctx, user, code); err != nil {
 		return err
 	}
 
@@ -138,39 +83,33 @@ func (i Identity) ResendEmailVerification(
 	return nil
 }
 
-func (i Identity) issueVerificationCode(
+// sendVerificationCode takes transaction-bound receivers and a queue so the
+// replacement code and its email commit together.
+func (i Identity) sendVerificationCode(
 	ctx context.Context,
-	tokens models.Tokens,
-	user models.User,
-) (string, error) {
+	tokens domains.Tokens,
+	queue storage.InsertQueue,
+	user domains.User,
+) error {
 	meta, err := json.Marshal(map[string]string{
 		"email": user.Email,
 	})
 	if err != nil {
-		return "", fmt.Errorf("marshal verification token metadata: %v", err)
+		return fmt.Errorf("marshal verification token metadata: %v", err)
 	}
 
-	code, err := tokens.CreateCode(
+	code, err := tokens.ReplaceCode(
 		ctx,
 		i.tokenSigningKey,
-
-		userEmailVerification,
+		domains.UserEmailVerification,
 		time.Now().Add(24*time.Hour),
 		meta,
 		user.ID,
 	)
 	if err != nil {
-		return "", fmt.Errorf("create verification token: %w", err)
+		return fmt.Errorf("replace verification token: %w", err)
 	}
 
-	return code, nil
-}
-
-func (i Identity) sendVerificationEmail(
-	ctx context.Context,
-	user models.User,
-	code string,
-) error {
 	vEmail := appemail.VerifyEmail{VerificationCode: code}
 
 	html, err := vEmail.ToHTML()
@@ -183,8 +122,7 @@ func (i Identity) sendVerificationEmail(
 		return fmt.Errorf("render verification email text: %v", err)
 	}
 
-	_, err = i.insertOnly.Insert(ctx, jobs.SendTransactionalEmailArgs{
-
+	_, err = queue.Insert(ctx, jobs.SendTransactionalEmailArgs{
 		Data: email.TransactionalData{
 			To:       user.Email,
 			From:     i.defaultSenderSignature,
@@ -193,7 +131,6 @@ func (i Identity) sendVerificationEmail(
 			TextBody: text,
 		},
 	}, nil)
-
 	if err != nil {
 		return fmt.Errorf("queue verification email: %v", err)
 	}
@@ -220,17 +157,15 @@ func invalidVerificationCode() error {
 	b := validation.NewBuilder()
 	b.Add("code", "invalid", invalidVerificationCodeMessage)
 
-	return errors.Join(ErrInvalidVerificationCode, b.Errors())
+	return errors.Join(ErrInvalidVerificationCode, b.Err())
 }
 
-// verificationAttemptAllowed reports whether the attempt numbered attempts
-// (1-based, as returned by Tokens.IncrementAttempts) may be checked.
+// verificationAttemptAllowed takes the 1-based count returned by IncrementAttempts.
 func verificationAttemptAllowed(attempts int32) bool {
 	return attempts <= maxVerificationAttempts
 }
 
-// verificationLocked reports whether a failed attempt numbered attempts
-// exhausts the code.
+// verificationLocked reports whether a failed attempt exhausts the code.
 func verificationLocked(attempts int32) bool {
 	return attempts >= maxVerificationAttempts
 }
@@ -238,119 +173,109 @@ func verificationLocked(attempts int32) bool {
 func (i Identity) VerifyEmail(
 	ctx context.Context,
 	data VerifyEmailData,
-) (models.User, error) {
+) (domains.User, error) {
 	b := validation.NewBuilder()
 	b.Required("code", data.Code)
-	if !b.Errors().Empty() {
-		return models.User{}, b.Errors()
+	if err := b.Err(); err != nil {
+		return domains.User{}, err
 	}
 
 	if data.UserID == uuid.Nil() {
-		return models.User{}, invalidVerificationCode()
+		return domains.User{}, invalidVerificationCode()
 	}
 
-	tx, err := i.db.BeginTransaction(ctx)
-
-	if err != nil {
-
-		return models.User{}, fmt.Errorf("begin email verification transaction: %w", err)
-
-	}
-
-	users := i.users.WithTx(tx)
-	tokens := i.tokens.WithTx(tx)
-
-	token, err := tokens.FindByUserAndScope(
-		ctx,
-		data.UserID,
-
-		userEmailVerification,
+	var (
+		user    domains.User
+		invalid bool
 	)
-	if err != nil {
-		_ = tx.Rollback(ctx)
 
-		if errors.Is(err, models.ErrNotFound) {
-			return models.User{}, invalidVerificationCode()
-		}
+	err := storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {
+		users, tokens := i.users.InTx(tx), i.tokens.InTx(tx)
 
-		return models.User{}, fmt.Errorf("find email verification token: %w", err)
+		token, err := tokens.FindByUserAndScope(
+			ctx,
+			data.UserID,
+			domains.UserEmailVerification,
+		)
+		if err != nil {
+			if errors.Is(err, domains.ErrNotFound) {
+				invalid = true
 
-	}
-
-	// Count the attempt before checking the code. The UPDATE takes the row
-	// lock, so concurrent attempts are serialized and each sees its own count;
-	// once the code is locked out, later attempts find no row.
-	attempts, err := tokens.IncrementAttempts(ctx, token.ID)
-	if err != nil {
-		_ = tx.Rollback(ctx)
-
-		if errors.Is(err, models.ErrNotFound) {
-			return models.User{}, invalidVerificationCode()
-		}
-
-		return models.User{}, fmt.Errorf("record verification attempt: %w", err)
-	}
-
-	if !verificationAttemptAllowed(attempts) ||
-		!token.IsValid(data.Code, i.tokenSigningKey) {
-
-		if verificationLocked(attempts) {
-			if err := tokens.Destroy(ctx, token.ID); err != nil {
-				_ = tx.Rollback(ctx)
-
-				return models.User{}, fmt.Errorf("destroy locked verification token: %w", err)
+				return nil
 			}
+
+			return fmt.Errorf("find email verification token: %w", err)
 		}
 
-		if err := tx.Commit(ctx); err != nil {
+		// Count before checking the code: the UPDATE row lock serializes
+		// concurrent attempts, each of which must observe its own count.
+		// Once a code is deleted on lockout, later attempts find no row.
+		attempts, err := tokens.IncrementAttempts(ctx, token.ID)
+		if err != nil {
+			if errors.Is(err, domains.ErrNotFound) {
+				invalid = true
 
-			return models.User{}, fmt.Errorf("commit failed verification attempt: %w", err)
+				return nil
+			}
+
+			return fmt.Errorf("record verification attempt: %w", err)
 		}
 
-		return models.User{}, invalidVerificationCode()
-	}
+		if !verificationAttemptAllowed(attempts) ||
+			!token.IsValid(data.Code, i.tokenSigningKey) {
 
-	user, err := users.Find(ctx, data.UserID)
-	if err != nil {
-		_ = tx.Rollback(ctx)
+			if verificationLocked(attempts) {
+				if err := tokens.Destroy(ctx, token.ID); err != nil {
+					return fmt.Errorf("destroy locked verification token: %w", err)
+				}
+			}
 
-		if errors.Is(err, models.ErrNotFound) {
-			return models.User{}, ErrUserNotFound
+			// Returning nil commits the attempt count and any lockout deletion.
+			// Returning an error here would roll back brute-force protection;
+			// invalid is translated into an error after the transaction commits.
+			invalid = true
+
+			return nil
 		}
 
-		return models.User{}, fmt.Errorf("find verification user: %w", err)
+		found, err := users.Find(ctx, data.UserID)
+		if err != nil {
+			if errors.Is(err, domains.ErrNotFound) {
+				return ErrUserNotFound
+			}
 
-	}
+			return fmt.Errorf("find verification user: %w", err)
+		}
 
-	now := time.Now()
-	user, err = users.Update(ctx, models.UpdateUserData{
-		ID:               user.ID,
-		Email:            user.Email,
-		EmailValidatedAt: pgtype.Timestamptz{Time: now, Valid: true},
-		Password:         user.Password,
-		IsAdmin:          user.IsAdmin,
+		updated, err := users.Update(ctx, domains.UpdateUserData{
+			ID:               found.ID,
+			Email:            found.Email,
+			EmailValidatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+			Password:         found.Password,
+			IsAdmin:          found.IsAdmin,
+		})
+		if err != nil {
+			if errors.Is(err, domains.ErrNotFound) {
+				return ErrUserNotFound
+			}
+
+			return fmt.Errorf("mark user email verified: %w", err)
+		}
+
+		if err := tokens.Destroy(ctx, token.ID); err != nil {
+			return fmt.Errorf("destroy email verification token: %w", err)
+		}
+
+		user = updated
+
+		return nil
 	})
 	if err != nil {
-		_ = tx.Rollback(ctx)
-
-		if errors.Is(err, models.ErrNotFound) {
-			return models.User{}, ErrUserNotFound
-		}
-
-		return models.User{}, fmt.Errorf("mark user email verified: %w", err)
-
+		return domains.User{}, err
 	}
 
-	if err := tokens.Destroy(ctx, token.ID); err != nil {
-		_ = tx.Rollback(ctx)
-
-		return models.User{}, fmt.Errorf("destroy email verification token: %w", err)
-
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-
-		return models.User{}, fmt.Errorf("commit email verification transaction: %w", err)
+	if invalid {
+		return domains.User{}, invalidVerificationCode()
 	}
 
 	return user, nil

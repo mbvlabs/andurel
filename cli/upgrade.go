@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"slices"
 	"strings"
 
@@ -83,9 +82,12 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 	}
 
 	opts := upgrade.UpgradeOptions{
-		DryRun:        dryRun,
-		Auto:          false,
-		Repair:        repair && !dryRun && !structured,
+		DryRun: dryRun,
+		// In structured mode there is no TTY to confirm on, so an explicit
+		// --repair runs non-interactively (Auto). Human mode keeps the
+		// confirm prompt below unless --dry-run.
+		Auto:          structured && repair && !dryRun,
+		Repair:        repair && !dryRun,
 		TargetVersion: targetVersion,
 	}
 
@@ -137,7 +139,7 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		if report != nil && report.RepairAvailable {
 			artifactReport.Warnings = append(
 				artifactReport.Warnings,
-				"framework-owned file drift detected; run andurel upgrade --repair interactively to restore it",
+				"framework-owned file drift detected; run andurel upgrade --repair to restore it",
 			)
 		}
 		data := map[string]any{
@@ -165,12 +167,12 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 				"worktree is dirty; commit or stash changes before repairing framework files",
 			)
 		}
-		confirmed, err := confirmFrameworkRepair()
+		confirmed, err := confirmFrameworkRepair(cmd)
 		if err != nil {
 			return err
 		}
 		if !confirmed {
-			fmt.Println("No files were changed.")
+			fmt.Fprintln(cmd.OutOrStdout(), "No files were changed.")
 			return nil
 		}
 		opts.Repair = true
@@ -191,38 +193,38 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 
 	if report.Success {
 		if report.RepairApplied {
-			fmt.Printf("\n✓ Framework repair complete for version %s\n", targetVersion)
-			printUpgradeSummary(report)
-			fmt.Printf("\nNext steps:\n")
-			fmt.Printf("  1. Review the restored files with 'git diff'\n")
-			fmt.Printf("  2. Test your application\n")
-			fmt.Printf("  3. Commit when ready\n")
+			fmt.Fprintf(cmd.OutOrStdout(), "\n✓ Framework repair complete for version %s\n", targetVersion)
+			printUpgradeSummary(cmd, report)
+			fmt.Fprintln(cmd.OutOrStdout(), "\nNext steps:")
+			fmt.Fprintln(cmd.OutOrStdout(), "  1. Review the restored files with 'git diff'")
+			fmt.Fprintln(cmd.OutOrStdout(), "  2. Test your application")
+			fmt.Fprintln(cmd.OutOrStdout(), "  3. Commit when ready")
 			return nil
 		}
 		// Sync tools if any were added, updated, or removed
 		totalToolChanges := report.ToolsAdded + report.ToolsUpdated + report.ToolsRemoved
 		if totalToolChanges > 0 {
-			fmt.Printf("\nSyncing tool binaries...\n")
+			fmt.Fprintln(cmd.OutOrStdout(), "\nSyncing tool binaries...")
 			if err := syncBinaries(projectRoot); err != nil {
-				fmt.Printf("⚠ Warning: failed to sync tools: %v\n", err)
-				fmt.Printf("You can manually sync tools by running: andurel tool sync\n")
+				fmt.Fprintf(cmd.OutOrStdout(), "⚠ Warning: failed to sync tools: %v\n", err)
+				fmt.Fprintln(cmd.OutOrStdout(), "You can manually sync tools by running: andurel tool sync")
 			}
 		}
 
-		fmt.Printf("\n✓ Upgrade complete! Project is now at version %s\n", targetVersion)
-		printUpgradeSummary(report)
-		fmt.Printf("\nNext steps:\n")
-		fmt.Printf("  1. Review the changes with 'git diff'\n")
+		fmt.Fprintf(cmd.OutOrStdout(), "\n✓ Upgrade complete! Project is now at version %s\n", targetVersion)
+		printUpgradeSummary(cmd, report)
+		fmt.Fprintln(cmd.OutOrStdout(), "\nNext steps:")
+		fmt.Fprintln(cmd.OutOrStdout(), "  1. Review the changes with 'git diff'")
 		step := 2
 		if slices.Contains(report.ReplacedFiles, "go.mod") {
-			fmt.Printf("  %d. Run 'go mod tidy' to refresh go.sum\n", step)
+			fmt.Fprintf(cmd.OutOrStdout(), "  %d. Run 'go mod tidy' to refresh go.sum\n", step)
 			step++
 		}
-		fmt.Printf("  %d. Update your application code if needed for API changes\n", step)
+		fmt.Fprintf(cmd.OutOrStdout(), "  %d. Update your application code if needed for API changes\n", step)
 		step++
-		fmt.Printf("  %d. Test your application\n", step)
+		fmt.Fprintf(cmd.OutOrStdout(), "  %d. Test your application\n", step)
 		step++
-		fmt.Printf("  %d. Commit when ready\n", step)
+		fmt.Fprintf(cmd.OutOrStdout(), "  %d. Commit when ready\n", step)
 		return nil
 	}
 
@@ -260,9 +262,9 @@ func requireLatestAndurelRelease(ctx context.Context, currentVersion string) err
 	)
 }
 
-func confirmFrameworkRepair() (bool, error) {
-	fmt.Print("Restore these framework-owned files? [y/N] ")
-	reader := bufio.NewReader(os.Stdin)
+func confirmFrameworkRepair(cmd *cobra.Command) (bool, error) {
+	fmt.Fprint(cmd.OutOrStdout(), "Restore these framework-owned files? [y/N] ")
+	reader := bufio.NewReader(cmd.InOrStdin())
 	line, err := reader.ReadString('\n')
 	if err != nil && !errors.Is(err, io.EOF) {
 		return false, err
@@ -271,28 +273,29 @@ func confirmFrameworkRepair() (bool, error) {
 	return answer == "y" || answer == "yes", nil
 }
 
-func printUpgradeSummary(report *upgrade.UpgradeReport) {
+func printUpgradeSummary(cmd *cobra.Command, report *upgrade.UpgradeReport) {
 	if report.FilesReplaced == 0 && report.FilesRemoved == 0 && report.ToolsAdded == 0 &&
 		report.ToolsUpdated == 0 && report.ToolsRemoved == 0 && len(report.ToolMetadataChanges) == 0 {
 		return
 	}
-	fmt.Printf("\nSummary:\n")
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out, "\nSummary:")
 	if report.FilesReplaced > 0 {
-		fmt.Printf("  • %d framework files replaced\n", report.FilesReplaced)
+		fmt.Fprintf(out, "  • %d framework files replaced\n", report.FilesReplaced)
 	}
 	if report.FilesRemoved > 0 {
-		fmt.Printf("  • %d obsolete internal package files removed\n", report.FilesRemoved)
+		fmt.Fprintf(out, "  • %d obsolete internal package files removed\n", report.FilesRemoved)
 	}
 	if report.ToolsAdded > 0 {
-		fmt.Printf("  • %d tools added\n", report.ToolsAdded)
+		fmt.Fprintf(out, "  • %d tools added\n", report.ToolsAdded)
 	}
 	if report.ToolsUpdated > 0 {
-		fmt.Printf("  • %d tools updated\n", report.ToolsUpdated)
+		fmt.Fprintf(out, "  • %d tools updated\n", report.ToolsUpdated)
 	}
 	if report.ToolsRemoved > 0 {
-		fmt.Printf("  • %d tools removed\n", report.ToolsRemoved)
+		fmt.Fprintf(out, "  • %d tools removed\n", report.ToolsRemoved)
 	}
 	if len(report.ToolMetadataChanges) > 0 {
-		fmt.Printf("  • %d tool metadata entries updated\n", len(report.ToolMetadataChanges))
+		fmt.Fprintf(out, "  • %d tool metadata entries updated\n", len(report.ToolMetadataChanges))
 	}
 }

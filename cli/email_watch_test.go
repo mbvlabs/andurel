@@ -36,7 +36,7 @@ func TestIsEmailCompilerSource(t *testing.T) {
 		{name: "web css", path: filepath.Join(root, "css", "base.css"), want: false},
 		{
 			name: "outside template",
-			path: filepath.Join(root, "views", "welcome.templ"),
+			path: filepath.Join(root, "resources", "root.templ"),
 			want: false,
 		},
 	}

@@ -1,4 +1,4 @@
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
+// Package inertia implements the Inertia v3 protocol for anduin and templ.
 package inertia
 
 import (
@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/anduin"
 )
 
 type requestContextKey struct{}
 
-// Request is the normalized Inertia protocol state for an Echo request.
+// Request is the normalized Inertia protocol state for an HTTP request.
 type Request struct {
 	Inertia          bool
 	Version          string
@@ -25,13 +25,23 @@ type Request struct {
 	Purpose          string
 }
 
-// ParseRequest parses all Inertia v3 request headers.
-func ParseRequest(etx *echo.Context) (Request, error) {
-	return ParseHTTPRequest(etx.Request())
+// ParseRequest parses all Inertia v3 request headers from the request carried
+// on ctx.
+func ParseRequest(ctx context.Context) (Request, error) {
+	request := anduin.Request(ctx)
+	if request == nil {
+		return Request{}, protocolError("parse request", "missing HTTP request")
+	}
+
+	return ParseHTTPRequest(request)
 }
 
 // ParseHTTPRequest parses all Inertia v3 request headers.
 func ParseHTTPRequest(req *http.Request) (Request, error) {
+	if req == nil {
+		return Request{}, protocolError("parse request", "missing HTTP request")
+	}
+
 	state := Request{
 		Inertia: strings.EqualFold(
 			strings.TrimSpace(req.Header.Get(HeaderInertia)),
@@ -85,9 +95,17 @@ func requestWithState(req *http.Request, state Request) *http.Request {
 	return req.WithContext(context.WithValue(req.Context(), requestContextKey{}, state))
 }
 
-func requestState(etx *echo.Context) (Request, error) {
-	if state, ok := etx.Request().Context().Value(requestContextKey{}).(Request); ok {
+// requestState reads the parsed Inertia state stored on the request context by
+// Middleware, falling back to parsing the request headers directly.
+func requestState(ctx context.Context) (Request, error) {
+	request := anduin.Request(ctx)
+	if request == nil {
+		return Request{}, protocolError("parse request", "missing HTTP request")
+	}
+
+	if state, ok := request.Context().Value(requestContextKey{}).(Request); ok {
 		return state, nil
 	}
-	return ParseRequest(etx)
+
+	return ParseHTTPRequest(request)
 }

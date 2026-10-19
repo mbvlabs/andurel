@@ -1,4 +1,4 @@
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
+// Package inertia implements the Inertia v3 protocol for anduin and templ.
 package inertia
 
 // Page is the Inertia v3 page object sent to the browser and SSR runtime.

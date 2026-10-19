@@ -1,30 +1,32 @@
-// Package inertia implements the Inertia v3 protocol for Echo and templ.
+// Package inertia implements the Inertia v3 protocol for anduin and templ.
 package inertia
 
 import (
 	"bytes"
+	"context"
 	"log/slog"
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v5"
+	"github.com/mbvlabs/andurel/pkg/anduin"
 )
 
 // Middleware parses request state and applies v3 version, empty-response, and
 // redirect corrections only to Inertia visits.
-func (renderer *Renderer) Middleware() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(etx *echo.Context) error {
-			state, err := ParseRequest(etx)
+func (renderer *Renderer) Middleware() anduin.Middleware {
+	return func(next anduin.Handler) anduin.Handler {
+		return func(ctx context.Context) error {
+			request := anduin.Request(ctx)
+			state, err := ParseRequest(ctx)
 			if err != nil {
 				return err
 			}
 
-			etx.SetRequest(requestWithState(etx.Request(), state))
+			ctx = anduin.ReplaceRequest(ctx, requestWithState(request, state))
 			if renderer.protocolDebug {
-				etx.Logger().Debug("inertia protocol request",
-					slog.String("method", etx.Request().Method),
-					slog.String("url", requestURL(etx)),
+				slog.Default().Debug("inertia protocol request",
+					slog.String("method", request.Method),
+					slog.String("url", requestURL(ctx)),
 					slog.Bool("inertia", state.Inertia),
 					slog.String("partial_component", state.PartialComponent),
 					slog.Any("only", state.Only),
@@ -34,39 +36,39 @@ func (renderer *Renderer) Middleware() echo.MiddlewareFunc {
 				)
 			}
 			if !state.Inertia {
-				return next(etx)
+				return next(ctx)
 			}
 
-			if etx.Request().Method == http.MethodGet {
-				version, versionErr := renderer.currentVersion(etx)
+			if request.Method == http.MethodGet {
+				version, versionErr := renderer.currentVersion(ctx)
 				if versionErr != nil {
 					return versionErr
 				}
 
 				if state.Version != version {
-					header := etx.Response().Header()
+					header := anduin.ResponseWriter(ctx).Header()
 					header.Del(HeaderInertia)
-					header.Set(HeaderLocation, requestURL(etx))
+					header.Set(HeaderLocation, requestURL(ctx))
 					header.Set(HeaderVersion, version)
 					appendVary(header, HeaderInertia)
-					return etx.NoContent(http.StatusConflict)
+					return anduin.NoContent(ctx, http.StatusConflict)
 				}
 			}
 
-			original := etx.Response()
+			original := anduin.ResponseWriter(ctx)
 			captured := &captureWriter{ResponseWriter: original}
-			etx.SetResponse(captured)
-			err = next(etx)
-			etx.SetResponse(original)
+			ctx = anduin.ReplaceResponseWriter(ctx, captured)
+			err = next(ctx)
+			ctx = anduin.ReplaceResponseWriter(ctx, original)
 			if err != nil {
 				return err
 			}
 
 			wasRedirect := captured.status >= 300 && captured.status < 400
-			captured.normalize(etx)
+			captured.normalize(ctx)
 			if renderer.reflash != nil &&
 				(wasRedirect || captured.status >= 300 && captured.status < 400) {
-				if err := renderer.reflash(etx); err != nil {
+				if err := renderer.reflash(ctx); err != nil {
 					return err
 				}
 			}
@@ -97,7 +99,7 @@ func (writer *captureWriter) Write(value []byte) (int, error) {
 	return writer.body.Write(value)
 }
 
-func (writer *captureWriter) normalize(etx *echo.Context) {
+func (writer *captureWriter) normalize(ctx context.Context) {
 	if writer.status == 0 {
 		writer.status = http.StatusOK
 	}
@@ -105,20 +107,20 @@ func (writer *captureWriter) normalize(etx *echo.Context) {
 	appendVary(header, HeaderInertia)
 
 	if writer.status == http.StatusOK && writer.body.Len() == 0 {
-		location := etx.Request().Referer()
+		location := anduin.Request(ctx).Referer()
 		if location == "" {
 			location = "/"
 		}
 		header.Set("Location", location)
 		writer.status = http.StatusFound
 	}
-	if writer.status == http.StatusFound && isUnsafeRedirectMethod(etx.Request().Method) {
+	if writer.status == http.StatusFound && isUnsafeRedirectMethod(anduin.Request(ctx).Method) {
 		writer.status = http.StatusSeeOther
 	}
 
 	if writer.status >= 300 && writer.status < 400 &&
 		strings.Contains(header.Get("Location"), "#") {
-		state, _ := requestState(etx)
+		state, _ := requestState(ctx)
 		if state.Purpose != PurposePrefetch {
 			location := header.Get("Location")
 			header.Del("Location")

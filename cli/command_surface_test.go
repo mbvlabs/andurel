@@ -278,13 +278,13 @@ func TestFormatterHelpers(t *testing.T) {
 		t.Fatalf("missing templ should be skipped: %v", err)
 	}
 	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nprintf '%s\\n' \"$@\" >> templ.args\n")
-	writeTestFile(t, root, "views/home.templ", "package views\n")
+	writeTestFile(t, root, "resources/root.templ", "package resources\n")
 	writeTestFile(t, root, "email/welcome.templ", "package email\n")
 	if err := runTemplFmt(root, false); err != nil {
 		t.Fatalf("runTemplFmt: %v", err)
 	}
 	assertTestFileContains(t, root, "templ.args", "fmt")
-	assertTestFileContains(t, root, "templ.args", "views")
+	assertTestFileContains(t, root, "templ.args", "resources")
 	assertTestFileContains(t, root, "templ.args", "email")
 }
 
@@ -896,11 +896,11 @@ func TestRunTemplAndToolListCommands(t *testing.T) {
 		t.Fatalf("expected missing templ error, got %v", err)
 	}
 	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nprintf '%s\\n' \"$@\" > templ.args\n")
-	if err := runTempl("generate", "./views"); err != nil {
+	if err := runTempl("generate", "./resources"); err != nil {
 		t.Fatalf("runTempl: %v", err)
 	}
 	assertTestFileContains(t, root, "templ.args", "generate")
-	assertTestFileContains(t, root, "templ.args", "./views")
+	assertTestFileContains(t, root, "templ.args", "./resources")
 
 	lock := layout.NewAndurelLock("test")
 	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")
@@ -961,11 +961,15 @@ func TestModelDiffOutput(t *testing.T) {
 }
 
 func TestFrameworkRepairPrompt(t *testing.T) {
-	originalStdin := os.Stdin
-	t.Cleanup(func() { os.Stdin = originalStdin })
+	newRepairCmd := func(input string) *cobra.Command {
+		cmd := &cobra.Command{Use: "upgrade"}
+		cmd.SetIn(tempInputFile(t, input))
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		return cmd
+	}
 
-	os.Stdin = tempInputFile(t, "yes\n")
-	confirmed, err := confirmFrameworkRepair()
+	confirmed, err := confirmFrameworkRepair(newRepairCmd("yes\n"))
 	if err != nil {
 		t.Fatalf("confirmFrameworkRepair yes: %v", err)
 	}
@@ -973,8 +977,7 @@ func TestFrameworkRepairPrompt(t *testing.T) {
 		t.Fatal("expected yes to confirm framework repair")
 	}
 
-	os.Stdin = tempInputFile(t, "\n")
-	confirmed, err = confirmFrameworkRepair()
+	confirmed, err = confirmFrameworkRepair(newRepairCmd("\n"))
 	if err != nil {
 		t.Fatalf("confirmFrameworkRepair default: %v", err)
 	}
@@ -1003,7 +1006,7 @@ func TestRunUpgradeStructuredAndHumanBranches(t *testing.T) {
 		gotOpts = opts
 		return fakeUpgrader{report: &upgrade.UpgradeReport{
 			Success:       true,
-			ReplacedFiles: []string{"controllers/controller.go"},
+			ReplacedFiles: []string{"handlers/pages.go"},
 			RemovedFiles:  []string{"internal/old.go"},
 			ToolsUpdated:  1,
 			ManualActions: []upgrade.ManualAction{{
@@ -1031,7 +1034,7 @@ func TestRunUpgradeStructuredAndHumanBranches(t *testing.T) {
 		t.Fatalf("upgrade opts = %#v", gotOpts)
 	}
 	if !strings.Contains(out.String(), "dry run only") ||
-		!strings.Contains(out.String(), "controllers/controller.go") ||
+		!strings.Contains(out.String(), "handlers/pages.go") ||
 		!strings.Contains(out.String(), `"manual_actions"`) ||
 		!strings.Contains(out.String(), "inertia-vite-fullurl-v2.0.0") {
 		t.Fatalf("structured upgrade output missing report data:\n%s", out.String())

@@ -1,0 +1,468 @@
+package handlers
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"strings"
+	"uuid"
+
+	"{{.ModuleName}}/domains"
+	"{{.ModuleName}}/middleware"
+	"{{.ModuleName}}/routes"
+	"{{.ModuleName}}/services"
+
+	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/cache"
+	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+type AuthHandler struct {
+	identity services.Identity
+	renderer *inertia.Renderer
+	cache    cache.Store
+}
+
+func NewAuthHandler(
+	identity services.Identity,
+	renderer *inertia.Renderer,
+	store cache.Store,
+) AuthHandler {
+	return AuthHandler{identity: identity, renderer: renderer, cache: store}
+}
+
+func (h AuthHandler) Register(rt *anduin.Router) {
+	rt.Get(routes.SessionNew.Path(), h.SessionNew)
+	rt.Post(
+		routes.SessionCreate.Path(),
+		h.SessionCreate,
+		middleware.IPRateLimiter(h.cache, 5, routes.SessionNew),
+	)
+	rt.Delete(routes.SessionDestroy.Path(), h.SessionDestroy)
+
+	rt.Get(routes.RegistrationNew.Path(), h.RegistrationNew)
+	rt.Post(
+		routes.RegistrationCreate.Path(),
+		h.RegistrationCreate,
+		middleware.IPRateLimiter(h.cache, 5, routes.RegistrationNew),
+	)
+
+	rt.Get(routes.ConfirmationNew.Path(), h.ConfirmationNew)
+	rt.Post(
+		routes.ConfirmationCreate.Path(),
+		h.ConfirmationCreate,
+		middleware.IPRateLimiter(h.cache, 5, routes.ConfirmationNew),
+	)
+
+	rt.Get(routes.PasswordNew.Path(), h.PasswordNew)
+	rt.Post(routes.PasswordCreate.Path(), h.PasswordCreate)
+	rt.Get(routes.PasswordEdit.Path(), h.PasswordEdit)
+	rt.Put(routes.PasswordUpdate.Path(), h.PasswordUpdate)
+}
+
+func (h AuthHandler) SessionNew(ctx context.Context) error {
+	return h.renderer.Page(ctx, "Auth/Login", inertia.Props{}).Render()
+}
+
+func (h AuthHandler) SessionCreate(ctx context.Context) error {
+	ctx, span := telemetry.From(anduin.Request(ctx), "sessions.create")
+	defer span.End()
+
+	var payload struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse login form payload",
+			"error", err,
+		)
+		return h.renderer.Page(ctx, "Errors/BadRequest", inertia.Props{}).Render()
+	}
+
+	entity, err := h.identity.AuthenticateUser(
+		ctx,
+		services.LoginData{
+			Email:    payload.Email,
+			Password: payload.Password,
+		},
+	)
+	if err != nil {
+		if fields, ok := validationFields(err); ok {
+			return h.renderer.Page(
+				ctx,
+				"Auth/Login",
+				inertia.Props{},
+			).ValidationErrors(fields).Render()
+		}
+
+		if errors.Is(err, services.ErrEmailNotVerified) {
+			if resumeErr := h.resumeEmailVerification(ctx, entity); resumeErr != nil {
+				return resumeErr
+			}
+
+			return h.renderer.Redirect(
+				ctx,
+				routes.ConfirmationNew.URL(),
+				http.StatusSeeOther,
+			)
+		}
+
+		telemetry.Error(
+			ctx,
+			"failed to authenticate user",
+			"error", err,
+		)
+
+		return h.renderer.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
+	}
+
+	if err := kiks.Set(ctx, &middleware.App{
+		UserID:          entity.ID.String(),
+		IsAdmin:         entity.IsAdmin,
+		IsAuthenticated: true,
+	}); err != nil {
+		return err
+	}
+
+	return h.renderer.Location(ctx, routes.HomePage.URL())
+}
+
+func (h AuthHandler) resumeEmailVerification(ctx context.Context, entity domains.User) error {
+	if err := h.identity.ResendEmailVerification(ctx, entity); err != nil {
+		return err
+	}
+
+	return setPendingUser(ctx, entity.ID.String())
+}
+
+func (h AuthHandler) SessionDestroy(ctx context.Context) error {
+	ctx, span := telemetry.From(anduin.Request(ctx), "sessions.destroy")
+	defer span.End()
+
+	if err := kiks.Destroy[*middleware.App](ctx); err != nil {
+		return err
+	}
+
+	return h.renderer.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
+}
+
+func validationFields(err error) (map[string]string, bool) {
+	if validationErr, ok := validation.As(err); ok {
+		return validationErr.ToMap(), true
+	}
+
+	return nil, false
+}
+
+func (h AuthHandler) RegistrationNew(ctx context.Context) error {
+	return h.renderer.Page(ctx, "Auth/Registration", inertia.Props{}).Render()
+}
+
+func (h AuthHandler) RegistrationCreate(ctx context.Context) error {
+	ctx, span := telemetry.From(anduin.Request(ctx), "user.registration")
+	defer span.End()
+
+	outcome := "success"
+	var (
+		email  string
+		userID any
+		cause  error
+	)
+	defer func() {
+		args := []any{"registration.outcome", outcome}
+		if email != "" {
+			args = append(args, "user.email", email)
+			if _, domain, found := strings.Cut(email, "@"); found && domain != "" {
+				args = append(args, "user.email_domain", domain)
+			}
+		}
+		if userID != nil {
+			args = append(args, "user.id", userID)
+		}
+		if cause != nil {
+			args = append(args, "error", cause)
+			if outcome == "error" {
+				_ = telemetry.Fail(ctx, cause)
+			}
+		}
+		telemetry.Set(ctx, args...)
+		telemetry.Info(ctx, "user.registration", args...)
+	}()
+
+	var payload struct {
+		Email           string `json:"email"`
+		Password        string `json:"password"`
+		ConfirmPassword string `json:"confirmPassword"`
+	}
+
+	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
+		outcome = "bind_error"
+		cause = err
+		return h.renderer.Page(ctx, "Errors/BadRequest", inertia.Props{}).Render()
+	}
+
+	email = payload.Email
+
+	entity, err := h.identity.RegisterUser(
+		ctx,
+		services.RegisterUserData{
+			Email:           payload.Email,
+			Password:        payload.Password,
+			ConfirmPassword: payload.ConfirmPassword,
+		},
+	)
+	if err != nil {
+		if fields, ok := validationFields(err); ok {
+			outcome = "validation_error"
+			cause = err
+			return h.renderer.Page(
+				ctx,
+				"Auth/Registration",
+				inertia.Props{},
+			).ValidationErrors(fields).Render()
+		}
+
+		if errors.Is(err, domains.ErrConflict) {
+			outcome = "conflict"
+			cause = err
+			return h.renderer.Page(
+				ctx,
+				"Auth/Registration",
+				inertia.Props{},
+			).ValidationErrors(map[string]string{
+				"email": "An account with this email already exists",
+			}).Render()
+		}
+
+		outcome = "error"
+		cause = err
+
+		return h.renderer.Redirect(
+			ctx,
+			routes.RegistrationNew.URL(),
+			http.StatusSeeOther,
+		)
+	}
+
+	userID = entity.ID
+
+	if err := setPendingUser(ctx, entity.ID.String()); err != nil {
+		outcome = "error"
+		cause = err
+		return err
+	}
+
+	return h.renderer.Redirect(ctx, routes.ConfirmationNew.URL(), http.StatusSeeOther)
+}
+
+func setPendingUser(ctx context.Context, userID string) error {
+	app, err := kiks.Get[*middleware.App](ctx)
+	if err != nil {
+		return err
+	}
+	if app == nil {
+		app = &middleware.App{}
+	}
+	app.PendingUserID = userID
+
+	return kiks.Set(ctx, app)
+}
+
+func (h AuthHandler) ConfirmationNew(ctx context.Context) error {
+	return h.renderer.Page(ctx, "Auth/ConfirmEmail", inertia.Props{}).Render()
+}
+
+func (h AuthHandler) ConfirmationCreate(ctx context.Context) error {
+	ctx, span := telemetry.From(anduin.Request(ctx), "confirmations.create")
+	defer span.End()
+
+	var payload struct {
+		Code string `json:"code"`
+	}
+
+	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse verification form payload",
+			"error",
+			err,
+		)
+		return h.renderer.Page(ctx, "Errors/BadRequest", inertia.Props{}).Render()
+	}
+
+	entity, err := h.identity.VerifyEmail(
+		ctx,
+		services.VerifyEmailData{
+			UserID: pendingUserID(ctx),
+			Code:   payload.Code,
+		},
+	)
+	if err != nil {
+		if fields, ok := validationFields(err); ok {
+			return h.renderer.Page(
+				ctx,
+				"Auth/ConfirmEmail",
+				inertia.Props{},
+			).ValidationErrors(fields).Render()
+		}
+
+		telemetry.Error(
+			ctx,
+			"failed to verify email",
+			"error",
+			err,
+		)
+
+		return h.renderer.Redirect(
+			ctx,
+			routes.ConfirmationNew.URL(),
+			http.StatusSeeOther,
+		)
+	}
+
+	if err := kiks.Set(ctx, &middleware.App{
+		UserID:          entity.ID.String(),
+		IsAdmin:         entity.IsAdmin,
+		IsAuthenticated: true,
+	}); err != nil {
+		return err
+	}
+
+	return h.renderer.Location(ctx, routes.HomePage.URL())
+}
+
+func pendingUserID(ctx context.Context) uuid.UUID {
+	app, err := kiks.Get[*middleware.App](ctx)
+	if err != nil || app == nil || app.PendingUserID == "" {
+		return uuid.Nil()
+	}
+
+	userID, err := uuid.Parse(app.PendingUserID)
+	if err != nil {
+		return uuid.Nil()
+	}
+
+	return userID
+}
+
+func (h AuthHandler) PasswordNew(ctx context.Context) error {
+	return h.renderer.Page(ctx, "Auth/ResetPasswordRequest", inertia.Props{}).Render()
+}
+
+func (h AuthHandler) PasswordCreate(ctx context.Context) error {
+	ctx, span := telemetry.From(anduin.Request(ctx), "reset_passwords.create")
+	defer span.End()
+
+	var payload struct {
+		Email string `json:"email"`
+	}
+
+	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse password reset request payload",
+			"error",
+			err,
+		)
+
+		return h.renderer.Page(ctx, "Errors/BadRequest", inertia.Props{}).Render()
+	}
+
+	if err := h.identity.RequestResetPassword(
+		ctx,
+		services.RequestResetPasswordData{
+			Email: payload.Email,
+		},
+	); err != nil {
+		if fields, ok := validationFields(err); ok {
+			return h.renderer.Page(
+				ctx,
+				"Auth/ResetPasswordRequest",
+				inertia.Props{},
+			).ValidationErrors(fields).Render()
+		}
+
+		telemetry.Error(
+			ctx,
+			"failed to request password reset",
+			"error",
+			err,
+		)
+
+		return h.renderer.Redirect(ctx, routes.PasswordNew.URL(), http.StatusSeeOther)
+	}
+
+	return h.renderer.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
+}
+
+func (h AuthHandler) PasswordEdit(ctx context.Context) error {
+	anduin.SetHeader(ctx, "Referrer-Policy", "strict-origin")
+
+	token := anduin.PathValue(ctx, "token")
+	if token == "" {
+		return h.renderer.Redirect(ctx, routes.PasswordNew.URL(), http.StatusSeeOther)
+	}
+
+	return h.renderer.Page(ctx, "Auth/ResetPassword", inertia.Props{
+		"token": token,
+	}).Render()
+}
+
+func (h AuthHandler) PasswordUpdate(ctx context.Context) error {
+	ctx, span := telemetry.From(anduin.Request(ctx), "reset_passwords.update")
+	defer span.End()
+
+	var payload struct {
+		Token           string `json:"resetPasswordToken"`
+		Password        string `json:"password"`
+		ConfirmPassword string `json:"confirmPassword"`
+	}
+
+	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
+		telemetry.Error(
+			ctx,
+			"could not parse password reset payload",
+			"error",
+			err,
+		)
+		return h.renderer.Page(ctx, "Errors/BadRequest", inertia.Props{}).Render()
+	}
+
+	if err := h.identity.ResetPassword(
+		ctx,
+		services.ResetPasswordData{
+			Token:           payload.Token,
+			Password:        payload.Password,
+			ConfirmPassword: payload.ConfirmPassword,
+		},
+	); err != nil {
+		if fields, ok := validationFields(err); ok {
+			return h.renderer.Page(
+				ctx,
+				"Auth/ResetPassword",
+				inertia.Props{"token": payload.Token},
+			).ValidationErrors(fields).Render()
+		}
+
+		telemetry.Error(
+			ctx,
+			"failed to reset password",
+			"error",
+			err,
+		)
+
+		return h.renderer.Redirect(
+			ctx,
+			routes.PasswordEdit.URL(payload.Token),
+			http.StatusSeeOther,
+		)
+	}
+
+	return h.renderer.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
+}

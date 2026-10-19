@@ -1,65 +1,66 @@
 package middleware
 
 import (
+	"context"
+	"net"
 	"net/http"
 	"time"
 
-	"{{.ModuleName}}/router/cookies"
-	"{{.ModuleName}}/router/routes"
+	"{{.ModuleName}}/routes"
 
+	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/routing"
-
-	"github.com/labstack/echo/v5"
-	"github.com/maypok86/otter/v2"
 )
 
-func AuthOnly() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			app, err := kiks.Get[*cookies.App](c.Request().Context())
+func AuthOnly() anduin.Middleware {
+	return func(next anduin.Handler) anduin.Handler {
+		return func(ctx context.Context) error {
+			app, err := kiks.Get[*App](ctx)
 			if err != nil {
 				return err
 			}
 			if app != nil && app.IsAuthenticated {
-				return next(c)
+				return next(ctx)
 			}
 
-			return c.Redirect(http.StatusSeeOther, routes.SessionNew.URL())
+			return anduin.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
 		}
 	}
 }
 
 func IPRateLimiter(
-	limit int32,
+	store cache.Store,
+	limit int,
 	redirectURL routing.Route,
-) func(next echo.HandlerFunc) echo.HandlerFunc {
-	cache := otter.Must(&otter.Options[string, int32]{
-		MaximumSize:      1000,
-		ExpiryCalculator: otter.ExpiryCreating[string, int32](10 * time.Minute),
-	})
+) anduin.Middleware {
+	const window = 10 * time.Minute
 
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			ip := c.RealIP()
-			allowed := false
-			cache.Compute(ip, func(hits int32, found bool) (int32, otter.ComputeOp) {
-				if !found {
-					hits = 0
-				}
-				if hits >= limit {
-					return hits, otter.CancelOp
-				}
-
-				allowed = true
-				return hits + 1, otter.WriteOp
-			})
-
-			if !allowed {
-				return c.String(http.StatusTooManyRequests, redirectURL.URL())
+	return func(next anduin.Handler) anduin.Handler {
+		return func(ctx context.Context) error {
+			ip := clientIP(anduin.Request(ctx))
+			hits, err := store.Increment(ctx, "ratelimit:"+ip, window)
+			if err != nil {
+				return err
 			}
 
-			return next(c)
+			if hits > int64(limit) {
+				return anduin.Text(ctx, http.StatusTooManyRequests, redirectURL.URL())
+			}
+
+			return next(ctx)
 		}
 	}
+}
+
+func clientIP(request *http.Request) string {
+	if request == nil {
+		return ""
+	}
+	if host, _, err := net.SplitHostPort(request.RemoteAddr); err == nil {
+		return host
+	}
+
+	return request.RemoteAddr
 }

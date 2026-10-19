@@ -1,0 +1,31 @@
+package handlers
+
+import (
+	"context"
+
+	"{{.ModuleName}}/routes"
+
+	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+type Pages struct {
+	renderer *inertia.Renderer
+}
+
+func NewPages(renderer *inertia.Renderer) Pages {
+	return Pages{renderer: renderer}
+}
+
+func (p Pages) Register(rt *anduin.Router) {
+	rt.Get(routes.HomePage.Path(), p.Home)
+}
+
+func (p Pages) Home(ctx context.Context) error {
+	return p.renderer.Page(ctx, "Welcome", inertia.Props{
+		"appName":         "{{.AppName}}",
+		"docsURL":         "https://andurel.com",
+		"registrationURL": routes.RegistrationNew.URL(),
+		"loginURL":        routes.SessionNew.URL(),
+	}).Render()
+}

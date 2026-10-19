@@ -1,5 +1,0 @@
--- Lists WidgetReport rows from widgets.
--- name: ListWidgetReport :many
-SELECT *
-FROM widgets
-WHERE 1 = 0;

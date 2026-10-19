@@ -2,56 +2,179 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"slices"
+	"strings"
 	"time"
 
+	"{{.ModuleName}}/assets"
 	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/domains"
+	"{{.ModuleName}}/handlers"
+	"{{.ModuleName}}/middleware"
+	"{{.ModuleName}}/resources"
+	"{{.ModuleName}}/routes"
+	"{{.ModuleName}}/services"
 
+	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
-	"go.uber.org/fx"
 )
 
-var Shared = fx.Module(
-	"runtime",
-	fx.Provide(
-{{range .Blueprint.Main.ServiceProvides}}		{{.}},
-{{end}}		NewEmailSenders,
-		NewTelemetry,
-	),
-	Database,
-)
+type App struct {
+	Config  config.Config
+	DB      storage.Connection
+	Handler http.Handler
+	Server  anduin.Server
 
-var Database = fx.Module(
-	"database",
-	fx.Provide(fx.Annotate(NewDatabase, fx.As(new(storage.Connection)), fx.As(fx.Self()))),
-)
+	closers []func(context.Context) error
+}
 
-func NewDatabase(
-	lifecycle fx.Lifecycle,
-	ctx context.Context,
-	cfg storage.Config,
-	tel *telemetry.Telemetry,
-) (*storage.Postgres, error) {
-	opts := []storage.Option{}
-	if tel != nil {
-		opts = append(opts, storage.WithOpenTelemetry(storage.TelemetryConfig{
-			TracerProvider: tel.TracerProvider(),
-			MeterProvider:  tel.MeterProvider(),
-		}))
-	}
-	db, err := storage.NewPostgres(ctx, cfg, opts...)
+func New(ctx context.Context, cfg config.Config) (*App, error) {
+	tel, err := newTelemetry(ctx, cfg.App, cfg.Telemetry)
 	if err != nil {
 		return nil, err
 	}
 
-	lifecycle.Append(fx.Hook{OnStop: func(context.Context) error { return db.Close() }})
-	return db, nil
+	db, err := newDatabase(ctx, cfg.Database, tel)
+	if err != nil {
+		_ = tel.Shutdown(ctx)
+		return nil, err
+	}
+
+	queueInsert, err := storage.NewQueueInsert(db, cfg.QueueInsert.Config)
+	if err != nil {
+		_ = db.Close()
+		_ = tel.Shutdown(ctx)
+		return nil, err
+	}
+
+	transactor := storage.NewTransactor(db)
+	users := domains.NewUsers(db)
+	tokens := domains.NewTokens(db)
+
+	identity := services.NewIdentity(transactor, users, tokens, queueInsert, cfg.Auth, cfg.Mail)
+
+	renderer, err := newRenderer(cfg)
+	if err != nil {
+		_ = db.Close()
+		_ = tel.Shutdown(ctx)
+		return nil, err
+	}
+
+	jar, err := newJar(cfg.App, cfg.Session)
+	if err != nil {
+		_ = db.Close()
+		_ = tel.Shutdown(ctx)
+		return nil, err
+	}
+
+	cacheStore, err := cfg.Cache.Store()
+	if err != nil {
+		_ = db.Close()
+		_ = tel.Shutdown(ctx)
+		return nil, err
+	}
+
+	router := anduin.NewRouter(
+		anduin.WithErrorHandler(handlers.MapError(renderer)),
+		anduin.WithTelemetry(tel),
+	)
+	router.Use(
+		anduin.Recover(),
+		anduin.Telemetry(tel),
+		jar.Middleware(),
+		renderer.Middleware(),
+		anduin.CORS(corsConfig(cfg)),
+		anduin.CSRF(csrfConfig(cfg)),
+	)
+
+	handlers.NewPages(renderer).Register(router)
+	handlers.NewAssets(cacheStore, cfg.App).Register(router)
+	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)
+	handlers.NewAPIHandler(db).Register(router)
+
+	handler := router.Handler()
+	srv := anduin.NewServer(
+		ctx,
+		cfg.HTTP.Host,
+		cfg.HTTP.Port,
+		cfg.App.Environment,
+		handler,
+		nil,
+		anduin.WithTimeouts(
+			cfg.HTTP.IdleTimeout,
+			cfg.HTTP.ReadTimeout,
+			cfg.HTTP.WriteTimeout,
+		),
+	)
+
+	return &App{
+		Config:  cfg,
+		DB:      db,
+		Handler: handler,
+		Server:  srv,
+		closers: []func(context.Context) error{
+			func(context.Context) error { return db.Close() },
+			tel.Shutdown,
+		},
+	}, nil
 }
 
-func NewTelemetry(
-	lifecycle fx.Lifecycle,
+func (a *App) Start(ctx context.Context) error {
+	return a.Server.Start(ctx, a.Config.App.Environment)
+}
+
+func (a *App) Shutdown(ctx context.Context) error {
+	return a.Server.Shutdown(ctx)
+}
+
+func (a *App) Close(ctx context.Context) error {
+	var closeErr error
+	for _, closeFn := range slices.Backward(a.closers) {
+		closeErr = errors.Join(closeErr, closeFn(ctx))
+	}
+
+	return closeErr
+}
+{{- if gt (len .Blueprint.Cookies.SortedConstants) 0}}
+
+const (
+{{- range .Blueprint.Cookies.SortedConstants}}
+	{{.Name}} = "{{.Value}}"
+{{- end}}
+)
+{{- end}}
+
+func newJar(
+	appCfg config.App,
+	sessionCfg config.Session,
+) (*kiks.Jar, error) {
+	keys := kiks.Keys{
+		Authentication: sessionCfg.AuthenticationKey,
+		Encryption:     sessionCfg.EncryptionKey,
+	}
+	store, err := kiks.NewCookieStore(keys)
+	if err != nil {
+		return nil, err
+	}
+
+	return kiks.NewJar(keys, store,
+		middleware.NewAppCookie(sessionCfg, appCfg.IsProduction()),
+	)
+}
+
+{{- range .Blueprint.Cookies.SortedFunctions}}
+
+{{.Code}}
+{{- end}}
+
+func newTelemetry(
 	ctx context.Context,
 	appCfg config.App,
 	cfg config.Telemetry,
@@ -78,16 +201,27 @@ func NewTelemetry(
 	if cfg.OtlpMetricsEndpoint != "" {
 		opts = append(opts, telemetry.WithOTLPMetrics(cfg.OtlpMetricsEndpoint, headers))
 	}
-	tel, err := telemetry.New(ctx, cfg.ServiceName, cfg.ServiceVersion, opts...)
-	if err != nil {
-		return nil, err
-	}
-	lifecycle.Append(fx.Hook{OnStop: tel.Shutdown})
-	return tel, nil
+
+	return telemetry.New(ctx, cfg.ServiceName, cfg.ServiceVersion, opts...)
 }
 
-func NewEmailSenders(
+func newDatabase(
 	ctx context.Context,
+	cfg storage.Config,
+	tel *telemetry.Telemetry,
+) (*storage.Postgres, error) {
+	opts := []storage.Option{}
+	if tel != nil {
+		opts = append(opts, storage.WithOpenTelemetry(storage.TelemetryConfig{
+			TracerProvider: tel.TracerProvider(),
+			MeterProvider:  tel.MeterProvider(),
+		}))
+	}
+
+	return storage.NewPostgres(ctx, cfg, opts...)
+}
+
+func newEmailSenders(
 	cfg config.Mail,
 ) (email.TransactionalSender, email.MarketingSender, error) {
 	switch cfg.Driver {
@@ -104,4 +238,149 @@ func NewEmailSenders(
 	default:
 		return nil, nil, fmt.Errorf("unsupported email provider %q", cfg.Driver)
 	}
+}
+
+func newRenderer(cfg config.Config) (*inertia.Renderer, error) {
+	return inertia.NewRenderer(
+		cfg.Inertia.ContainerID,
+		routes.ViteBuild.FullURL(),
+		cfg.Inertia.EntryPoint,
+		cfg.Inertia.ViteDevURL,
+		cfg.Inertia.SSRURL,
+		cfg.Inertia.SSRRequestTimeout,
+		cfg.Inertia.SSRMaxResponseBytes,
+		inertia.WithRoot(resources.Root),
+		inertia.WithAssetFS(assets.Files),
+		inertia.WithProjectName(cfg.App.ProjectName),
+		inertia.WithEnvironment(cfg.App.Environment),
+		inertia.WithProtocolDebug(cfg.Inertia.ProtocolDebug),
+		inertia.WithShared(inertia.Props{
+			"appVersion": cfg.Version,
+			"hosts":      cfg.App.HostOrigins(),
+		}),
+		inertia.WithSSRFailFast(cfg.Inertia.SSRFailFast),
+	)
+}
+
+func corsConfig(cfg config.Config) anduin.CORSConfig {
+	return anduin.CORSConfig{
+		AllowOrigins: mergedOrigins(
+			cfg.App.Origins(),
+			cfg.HTTP.CORSAllowedOrigins,
+		),
+		AllowMethods: []string{
+			http.MethodGet,
+			http.MethodHead,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+			http.MethodOptions,
+		},
+		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}
+}
+
+func csrfConfig(cfg config.Config) anduin.CSRFConfig {
+	tokenLookup := "header:X-CSRF-Token"
+	if cfg.HTTP.CSRFStrategy == "header_or_legacy_token" {
+		tokenLookup = "header:X-CSRF-Token,form:_csrf"
+	}
+
+	return anduin.CSRFConfig{
+		TokenLookup:  tokenLookup,
+		CookieName:   "_csrf",
+		CookiePath:   "/",
+		CookieSecure: cfg.App.IsProduction(),
+		//nolint:gosec // HttpOnly is safe: the token is only read server-side.
+		CookieHTTPOnly: true,
+		CookieSameSite: http.SameSiteStrictMode,
+		TrustedOrigins: mergedOrigins(
+			cfg.App.Origins(),
+			cfg.HTTP.CSRFTrustedOrigins,
+		),
+		Skipper: csrfSkipper(cfg),
+	}
+}
+
+func csrfSkipper(cfg config.Config) func(context.Context) bool {
+	return func(ctx context.Context) bool {
+		request := anduin.Request(ctx)
+		if request == nil || !isAPIPath(request.URL.Path) {
+			return false
+		}
+		if !hasNonEmptyBearerToken(request.Header.Get("Authorization")) {
+			return false
+		}
+		_, err := request.Cookie(cfg.Session.Name)
+
+		return err != nil
+	}
+}
+
+func isAPIPath(path string) bool {
+	prefix := strings.TrimSuffix(routes.APIPrefix, "/")
+	if prefix == "" {
+		return false
+	}
+
+	return path == prefix || strings.HasPrefix(path, prefix+"/")
+}
+
+func hasNonEmptyBearerToken(authorization string) bool {
+	parts := strings.Fields(authorization)
+
+	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && parts[1] != ""
+}
+
+func startInBackground(
+	ctx context.Context,
+	name string,
+	start func(context.Context) error,
+) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if err := start(ctx); err != nil {
+			telemetry.Error(ctx, name+" error", "error", err)
+		}
+	}()
+
+	return done
+}
+
+func stopAndWait(
+	ctx context.Context,
+	stop func(context.Context) error,
+	done <-chan struct{},
+) error {
+	stopErr := stop(ctx)
+	select {
+	case <-done:
+		return stopErr
+	case <-ctx.Done():
+		return errors.Join(stopErr, ctx.Err())
+	}
+}
+
+func mergedOrigins(groups ...[]string) []string {
+	seen := make(map[string]struct{})
+	origins := make([]string, 0)
+	for _, group := range groups {
+		for _, origin := range group {
+			origin = strings.TrimSpace(origin)
+			if origin == "" {
+				continue
+			}
+			if _, ok := seen[origin]; ok {
+				continue
+			}
+			seen[origin] = struct{}{}
+			origins = append(origins, origin)
+		}
+	}
+
+	return origins
 }

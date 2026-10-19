@@ -97,7 +97,7 @@ The `v2.0.0-alpha.3` GitHub release body is just `## Changelog`, because `.gorel
 
 ### S1 — Email verification codes allow account takeover
 
-- `Tokens.CreateCode` (`layout/templates/models_token.tmpl`) generates six characters from A–Z0–9, about 2.2 × 10⁹ values, valid for 24 hours.
+- `Tokens.CreateCode` (`layout/templates/domains_token.tmpl`) generates six characters from A–Z0–9, about 2.2 × 10⁹ values, valid for 24 hours.
 - `Tokens.FindByScopeAndHash` looks a code up by scope and hash only. It is not bound to the email or session that requested it, so any pending user's code matches.
 - `ConfirmationCreate` has no rate limit (`controllers_confirmations.tmpl`, `controllers_confirmations_inertia.tmpl`).
 - `Confirmations.Create` signs the requester in as the user who owns the matched code.

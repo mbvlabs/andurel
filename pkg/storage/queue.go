@@ -15,23 +15,15 @@ import (
 	"github.com/riverqueue/river/rivertype"
 )
 
-// InsertQueue is the subset of River used to insert jobs.
+// InsertQueue is the subset of River used to insert jobs. Whether an insert
+// is transactional depends only on whether the queue was bound with InTx.
 type InsertQueue interface {
 	Insert(context.Context, river.JobArgs, *river.InsertOpts) (*rivertype.JobInsertResult, error)
-	InsertTx(
-		context.Context,
-		Transaction,
-		river.JobArgs,
-		*river.InsertOpts,
-	) (*rivertype.JobInsertResult, error)
 	InsertMany(context.Context, []river.InsertManyParams) ([]*rivertype.JobInsertResult, error)
-	InsertManyTx(
-		context.Context,
-		Transaction,
-		[]river.InsertManyParams,
-	) ([]*rivertype.JobInsertResult, error)
 	InsertManyFast(context.Context, []river.InsertManyParams) (int, error)
-	InsertManyFastTx(context.Context, Transaction, []river.InsertManyParams) (int, error)
+	// InTx returns a queue whose inserts join tx: the jobs become visible to
+	// workers only if tx commits.
+	InTx(tx Tx) InsertQueue
 }
 
 // QueueOption configures the underlying River client.
@@ -178,9 +170,11 @@ func WithRiverWorkers(workers *river.Workers) QueueOption {
 	return func(config *river.Config) { config.Workers = workers }
 }
 
-// QueueInsert is an independently constructible River job inserter.
+// QueueInsert is an independently constructible River job inserter. A
+// QueueInsert returned by InTx inserts on that transaction.
 type QueueInsert struct {
 	client *river.Client[pgx.Tx]
+	bound  Tx
 }
 
 var _ InsertQueue = (*QueueInsert)(nil)
@@ -194,21 +188,20 @@ func NewQueueInsert(connection Connection, config QueueConfig, options ...QueueO
 	return &QueueInsert{client: client}, nil
 }
 
+// InTx returns a QueueInsert whose inserts join tx.
+func (q *QueueInsert) InTx(tx Tx) InsertQueue {
+	return &QueueInsert{client: q.client, bound: tx}
+}
+
 func (q *QueueInsert) Insert(
 	ctx context.Context,
 	args river.JobArgs,
 	opts *river.InsertOpts,
 ) (*rivertype.JobInsertResult, error) {
-	return q.client.Insert(ctx, args, opts)
-}
-
-func (q *QueueInsert) InsertTx(
-	ctx context.Context,
-	tx Transaction,
-	args river.JobArgs,
-	opts *river.InsertOpts,
-) (*rivertype.JobInsertResult, error) {
-	pgxTx, err := pgxTxFrom(tx)
+	if q.bound.tx == nil {
+		return q.client.Insert(ctx, args, opts)
+	}
+	pgxTx, err := pgxTxFrom(q.bound.tx)
 	if err != nil {
 		return nil, err
 	}
@@ -219,15 +212,10 @@ func (q *QueueInsert) InsertMany(
 	ctx context.Context,
 	params []river.InsertManyParams,
 ) ([]*rivertype.JobInsertResult, error) {
-	return q.client.InsertMany(ctx, params)
-}
-
-func (q *QueueInsert) InsertManyTx(
-	ctx context.Context,
-	tx Transaction,
-	params []river.InsertManyParams,
-) ([]*rivertype.JobInsertResult, error) {
-	pgxTx, err := pgxTxFrom(tx)
+	if q.bound.tx == nil {
+		return q.client.InsertMany(ctx, params)
+	}
+	pgxTx, err := pgxTxFrom(q.bound.tx)
 	if err != nil {
 		return nil, err
 	}
@@ -238,15 +226,10 @@ func (q *QueueInsert) InsertManyFast(
 	ctx context.Context,
 	params []river.InsertManyParams,
 ) (int, error) {
-	return q.client.InsertManyFast(ctx, params)
-}
-
-func (q *QueueInsert) InsertManyFastTx(
-	ctx context.Context,
-	tx Transaction,
-	params []river.InsertManyParams,
-) (int, error) {
-	pgxTx, err := pgxTxFrom(tx)
+	if q.bound.tx == nil {
+		return q.client.InsertManyFast(ctx, params)
+	}
+	pgxTx, err := pgxTxFrom(q.bound.tx)
 	if err != nil {
 		return 0, err
 	}

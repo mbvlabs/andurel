@@ -412,15 +412,6 @@ func TestVersionedInertiaUpgradeRejectsInvalidMigrationState(t *testing.T) {
 		want  string
 	}{
 		{
-			name: "missing legacy root",
-			setup: func(t *testing.T, root string) {
-				if err := os.Remove(filepath.Join(root, "views", "root.go.html")); err != nil {
-					t.Fatal(err)
-				}
-			},
-			want: "read existing Inertia root",
-		},
-		{
 			name: "missing application entrypoint",
 			setup: func(t *testing.T, root string) {
 				if err := os.Remove(filepath.Join(root, "cmd", "app", "main.go")); err != nil {

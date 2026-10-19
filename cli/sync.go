@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/mbvlabs/andurel/v2/layout"
 	"github.com/mbvlabs/andurel/v2/layout/cmds"
 	"github.com/spf13/cobra"
@@ -32,7 +33,39 @@ and tailwindcli. Versions are pinned in andurel.toml.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectRoot, err := findGoModRoot()
 			if err != nil {
-				return fmt.Errorf("not in an andurel project directory: %w", err)
+				return output.WrapError(
+					output.CodeProjectNotFound,
+					err,
+					output.ExitProject,
+					"Run this from a directory containing an Andurel project's go.mod file.",
+				)
+			}
+
+			opts, err := output.ParseOptions(cmd)
+			if err != nil {
+				return err
+			}
+			if output.SuppressesHumanOutput(opts) {
+				if err := runWithOptionalStdoutSilence(true, func() error {
+					return syncBinaries(projectRoot)
+				}); err != nil {
+					return err
+				}
+				lock, err := layout.ReadLockFile(projectRoot)
+				if err != nil {
+					return output.WrapError(
+						output.CodeConfigError,
+						err,
+						output.ExitConfig,
+						"Inspect andurel.lock.",
+					)
+				}
+				return output.OK(cmd, toolInfos(projectRoot, lock), toolListSummary(toolInfos(projectRoot, lock)))
+			}
+			if opts.Quiet {
+				return runWithOptionalStdoutSilence(true, func() error {
+					return syncBinaries(projectRoot)
+				})
 			}
 
 			return syncBinaries(projectRoot)
@@ -43,12 +76,22 @@ and tailwindcli. Versions are pinned in andurel.toml.`,
 func syncBinaries(projectRoot string) error {
 	tomlPath := filepath.Join(projectRoot, layout.ProjectTomlName)
 	if _, err := os.Stat(tomlPath); err != nil {
-		return fmt.Errorf("andurel.toml not found. Are you in an andurel project?")
+		return output.NewError(
+			output.CodeConfigError,
+			"andurel.toml not found. Are you in an andurel project?",
+			output.ExitConfig,
+			"Run from a generated Andurel project root with andurel.toml and andurel.lock.",
+		)
 	}
 
 	lock, err := layout.ReadLockFile(projectRoot)
 	if err != nil {
-		return fmt.Errorf("failed to read project files: %w", err)
+		return output.WrapError(
+			output.CodeConfigError,
+			fmt.Errorf("failed to read project files: %w", err),
+			output.ExitConfig,
+			"Inspect andurel.lock.",
+		)
 	}
 
 	// Ensure bin directory exists
