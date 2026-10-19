@@ -55,11 +55,15 @@ func (h ProductHandler) Index(ctx context.Context) error {
 	return h.renderer.Page(ctx, "Product/Index", inertia.FromStruct(result)).Render()
 }
 
+// CreateProductPayload is named so andurel sync payloads emits a matching
+// TypeScript type for the page's form.
+type CreateProductPayload struct {
+	Name       string `json:"name"`
+	PriceCents int64  `json:"priceCents"`
+}
+
 func (h ProductHandler) Create(ctx context.Context) error {
-	var payload struct {
-		Name       string `json:"name"`
-		PriceCents int64  `json:"priceCents"`
-	}
+	var payload CreateProductPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		return anduin.BadRequest(err)
 	}
@@ -124,6 +128,7 @@ func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
 - A handler signature is `func(ctx context.Context) error`.
 - One flat `package handlers`; distinct `NewXHandler` constructors, no sub-packages.
 - Decode payloads at the edge (`anduin.DecodeJSON`/`DecodeForm`); a decode failure is `anduin.BadRequest`. Do not re-implement entity validation.
+- Decode into a named, exported `XPayload` struct, never an anonymous `struct{…}`: `andurel sync payloads` only emits TypeScript for named `*Payload` types, so the frontend form can import it from `@/types/payloads`.
 - Depend on the narrowest thing: a receiver (`domains.Products`) for single-domain CRUD, a service for multi-domain use cases. Never `storage.*` or `domains/internal/queries`.
 - Route registration happens in `Register(rt *anduin.Router)`.
 - Return domain errors unchanged; the router error handler maps them uniformly.
@@ -134,7 +139,8 @@ func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
 
 - [ ] `NewXHandler` constructor lists every dependency.
 - [ ] `Register` binds each route to a method.
-- [ ] Payloads are decoded, not re-validated; validation errors come from the domain.
+- [ ] Payloads are decoded into named `XPayload` structs, not re-validated; validation errors come from the domain.
+- [ ] `andurel sync payloads --json` reports the new payload type.
 - [ ] Handler methods return domain errors untouched.
 - [ ] Wired via `handlers.NewProductHandler(products, renderer).Register(router)` in `internal/runtime`.
 - [ ] `andurel inspect handlers --json` lists the new handler.

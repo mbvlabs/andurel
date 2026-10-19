@@ -2,13 +2,14 @@ import { useForm } from '@inertiajs/react'
 
 import Layout from '@/Layouts/Layout'
 import { routes } from '@/routes'
+import type { ConfirmationPayload } from '@/types/payloads'
 
 type ConfirmEmailProps = {
   errors?: Record<string, string>
 }
 
 export default function ConfirmEmail({ errors = {} }: ConfirmEmailProps) {
-  const form = useForm({ code: '' })
+  const form = useForm<ConfirmationPayload>({ code: '' })
 
   function submit(event: SubmitEvent) {
     event.preventDefault()

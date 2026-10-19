@@ -67,15 +67,16 @@ func (h AuthHandler) SessionNew(ctx context.Context) error {
 	return h.renderer.Page(ctx, "Auth/Login", inertia.Props{}).Render()
 }
 
+type LoginPayload struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 func (h AuthHandler) SessionCreate(ctx context.Context) error {
 	ctx, span := telemetry.From(anduin.Request(ctx), "sessions.create")
 	defer span.End()
 
-	var payload struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-
+	var payload LoginPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		telemetry.Error(
 			ctx,
@@ -164,6 +165,12 @@ func (h AuthHandler) RegistrationNew(ctx context.Context) error {
 	return h.renderer.Page(ctx, "Auth/Registration", inertia.Props{}).Render()
 }
 
+type RegistrationPayload struct {
+	Email           string `json:"email"`
+	Password        string `json:"password"`
+	ConfirmPassword string `json:"confirmPassword"`
+}
+
 func (h AuthHandler) RegistrationCreate(ctx context.Context) error {
 	ctx, span := telemetry.From(anduin.Request(ctx), "user.registration")
 	defer span.End()
@@ -195,12 +202,7 @@ func (h AuthHandler) RegistrationCreate(ctx context.Context) error {
 		telemetry.Info(ctx, "user.registration", args...)
 	}()
 
-	var payload struct {
-		Email           string `json:"email"`
-		Password        string `json:"password"`
-		ConfirmPassword string `json:"confirmPassword"`
-	}
-
+	var payload RegistrationPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		outcome = "bind_error"
 		cause = err
@@ -278,14 +280,15 @@ func (h AuthHandler) ConfirmationNew(ctx context.Context) error {
 	return h.renderer.Page(ctx, "Auth/ConfirmEmail", inertia.Props{}).Render()
 }
 
+type ConfirmationPayload struct {
+	Code string `json:"code"`
+}
+
 func (h AuthHandler) ConfirmationCreate(ctx context.Context) error {
 	ctx, span := telemetry.From(anduin.Request(ctx), "confirmations.create")
 	defer span.End()
 
-	var payload struct {
-		Code string `json:"code"`
-	}
-
+	var payload ConfirmationPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		telemetry.Error(
 			ctx,
@@ -355,14 +358,15 @@ func (h AuthHandler) PasswordNew(ctx context.Context) error {
 	return h.renderer.Page(ctx, "Auth/ResetPasswordRequest", inertia.Props{}).Render()
 }
 
+type PasswordResetRequestPayload struct {
+	Email string `json:"email"`
+}
+
 func (h AuthHandler) PasswordCreate(ctx context.Context) error {
 	ctx, span := telemetry.From(anduin.Request(ctx), "reset_passwords.create")
 	defer span.End()
 
-	var payload struct {
-		Email string `json:"email"`
-	}
-
+	var payload PasswordResetRequestPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		telemetry.Error(
 			ctx,
@@ -414,16 +418,17 @@ func (h AuthHandler) PasswordEdit(ctx context.Context) error {
 	}).Render()
 }
 
+type PasswordResetPayload struct {
+	Token           string `json:"resetPasswordToken"`
+	Password        string `json:"password"`
+	ConfirmPassword string `json:"confirmPassword"`
+}
+
 func (h AuthHandler) PasswordUpdate(ctx context.Context) error {
 	ctx, span := telemetry.From(anduin.Request(ctx), "reset_passwords.update")
 	defer span.End()
 
-	var payload struct {
-		Token           string `json:"resetPasswordToken"`
-		Password        string `json:"password"`
-		ConfirmPassword string `json:"confirmPassword"`
-	}
-
+	var payload PasswordResetPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		telemetry.Error(
 			ctx,

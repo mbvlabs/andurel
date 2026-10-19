@@ -3,9 +3,10 @@
 
   import Layout from '@/Layouts/Layout.svelte'
   import { routes } from '@/routes'
+  import type { LoginPayload } from '@/types/payloads'
 
   let { errors = {} }: { errors?: Record<string, string> } = $props()
-  const form = useForm({ email: '', password: '' })
+  const form = useForm<LoginPayload>({ email: '', password: '' })
 
   function submit(event: SubmitEvent) {
     event.preventDefault()
