@@ -12,9 +12,9 @@ All notable changes to the standalone Andurel storage module are documented here
 ### Changed
 
 - `RunInTransaction` wraps `BeginTransaction` errors (`storage: begin transaction: …`) and rolls back with `context.WithoutCancel(ctx)`, so a cancelled request context no longer skips the rollback.
-- narsilc query discovery moved from `models/queries/` to `domains/`: `QueriesDir` is now `domains` and `GeneratedQueriesDir` is `domains/internal/queries`. `HasQueryFiles` scans the `domains` tree recursively and ignores the generated output directory.
-
 ### Removed
+
+- `HasQueryFiles`, `QueriesDir` and `GeneratedQueriesDir`. narsilc query discovery is project layout, so the andurel CLI owns it; the CLI no longer depends on this module.
 
 - `InsertQueue.InsertTx`, `InsertManyTx` and `InsertManyFastTx` (and the `QueueInsert` methods). Bind the queue with `InTx(tx)` and call `Insert`/`InsertMany`/`InsertManyFast` instead.
 

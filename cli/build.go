@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/v2/layout"
 	"github.com/mbvlabs/andurel/v2/layout/cmds"
 	"github.com/mbvlabs/andurel/v2/layout/versions"
@@ -87,7 +86,7 @@ func buildApp(rootDir string, versionFlag string) error {
 	}
 
 	// 1b. narsilc generate
-	if hasQueries, err := storage.HasQueryFiles(rootDir); err != nil {
+	if hasQueries, err := cmds.HasQueryFiles(rootDir); err != nil {
 		return fmt.Errorf("check narsilc queries: %w", err)
 	} else if hasQueries {
 		tool, ok := lock.Tools["narsilc"]

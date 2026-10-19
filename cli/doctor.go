@@ -19,10 +19,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/mbvlabs/andurel/v2/emailcompiler"
 	"github.com/mbvlabs/andurel/v2/layout"
+	"github.com/mbvlabs/andurel/v2/layout/cmds"
 	"github.com/spf13/cobra"
 )
 
@@ -1219,7 +1219,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 }
 
 func checkNarsilcGenerate(rootDir string, verbose bool) checkResult {
-	hasQueries, err := storage.HasQueryFiles(rootDir)
+	hasQueries, err := cmds.HasQueryFiles(rootDir)
 	if err != nil {
 		return checkResult{
 			name:    "narsilc generate",

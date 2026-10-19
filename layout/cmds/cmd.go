@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/v2/internal/testseed"
 	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
@@ -115,7 +114,7 @@ func runNarsilcGenerate(targetDir string) error {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	hasQueries, err := storage.HasQueryFiles(absTargetDir)
+	hasQueries, err := HasQueryFiles(absTargetDir)
 	if err != nil {
 		return fmt.Errorf("check narsilc queries: %w", err)
 	}

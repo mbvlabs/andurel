@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/mbvlabs/andurel/v2/layout"
 	"github.com/mbvlabs/andurel/v2/layout/cmds"
 )
 
 func generateNarsilcIfNeeded(rootDir string) error {
-	hasQueries, err := storage.HasQueryFiles(rootDir)
+	hasQueries, err := cmds.HasQueryFiles(rootDir)
 	if err != nil {
 		return fmt.Errorf("check narsilc queries: %w", err)
 	}

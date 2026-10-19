@@ -3,8 +3,8 @@ package cli
 import (
 	"fmt"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/v2/cli/output"
+	"github.com/mbvlabs/andurel/v2/layout/cmds"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +25,7 @@ no-op when the domains tree contains no .sql files with a -- name: annotation.`,
 				return err
 			}
 
-			hasQueries, err := storage.HasQueryFiles(rootDir)
+			hasQueries, err := cmds.HasQueryFiles(rootDir)
 			if err != nil {
 				return fmt.Errorf("check narsilc queries: %w", err)
 			}

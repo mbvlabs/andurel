@@ -1,4 +1,4 @@
-package storage
+package cmds
 
 import (
 	"fmt"
@@ -27,7 +27,7 @@ func HasQueryFiles(projectRoot string) (bool, error) {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
-		return false, fmt.Errorf("storage: stat narsilc queries root: %w", err)
+		return false, fmt.Errorf("stat narsilc queries root: %w", err)
 	}
 
 	generatedRoot := filepath.Join(projectRoot, GeneratedQueriesDir)
@@ -48,7 +48,7 @@ func HasQueryFiles(projectRoot string) (bool, error) {
 
 		content, readErr := os.ReadFile(path)
 		if readErr != nil {
-			return fmt.Errorf("storage: read query file %s: %w", path, readErr)
+			return fmt.Errorf("read query file %s: %w", path, readErr)
 		}
 		if containsQueryAnnotation(string(content)) {
 			found = true
@@ -57,7 +57,7 @@ func HasQueryFiles(projectRoot string) (bool, error) {
 		return nil
 	})
 	if walkErr != nil {
-		return false, fmt.Errorf("storage: scan narsilc queries: %w", walkErr)
+		return false, fmt.Errorf("scan narsilc queries: %w", walkErr)
 	}
 
 	return found, nil
