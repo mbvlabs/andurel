@@ -18,6 +18,9 @@ CREATE TABLE IF NOT EXISTS tokens (
 
 CREATE INDEX IF NOT EXISTS tokens_user_id_scope_created_at_idx
     ON tokens (user_id, scope, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS tokens_scope_hash_idx
+    ON tokens (scope, hash);
 -- +goose StatementEnd
 
 -- +goose Down

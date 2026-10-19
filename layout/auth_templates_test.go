@@ -139,6 +139,22 @@ func TestGeneratedServicesCommitWritesAndJobsTogether(t *testing.T) {
 	)
 }
 
+// TestGeneratedPasswordResetUsesTokenOwner guards M6: a reset resolves the
+// user by token.UserID (not by an email stored in token metadata, which breaks
+// after an email change), revokes every outstanding reset token on success,
+// and the scope/hash lookup is backed by an index.
+func TestGeneratedPasswordResetUsesTokenOwner(t *testing.T) {
+	assertTemplateContains(t, "services_reset_password.tmpl",
+		"users.ChangePassword(ctx, i.pepper, token.UserID,",
+		"tokens.DestroyByUserAndScope(ctx, token.UserID, domains.UserResetPassword)",
+	)
+	assertTemplateMissing(t, "services_reset_password.tmpl", `meta["email"]`)
+	assertTemplateMissing(t, "services_reset_password.tmpl", "tokens.Destroy(ctx, token.ID)")
+	assertTemplateContains(t, "database_migrations_tokens.tmpl",
+		"ON tokens (scope, hash)",
+	)
+}
+
 // TestGeneratedAuthEmailsKeepSecretsOutOfJobArgs guards M5: verification codes
 // and reset URLs must not be rendered at enqueue time, because job args are
 // persisted in river_job for the retention period. Services enqueue a user id;
