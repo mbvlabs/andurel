@@ -1,0 +1,56 @@
+package queue
+
+import (
+	"context"
+	"errors"
+
+	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+	"github.com/riverqueue/river"
+
+	"{{.ModuleName}}/queue/jobs"
+	"{{.ModuleName}}/services"
+)
+
+// SendVerificationEmailWorker mints the verification code at send time so it
+// never sits in plaintext in the job table.
+type SendVerificationEmailWorker struct {
+	river.WorkerDefaults[jobs.SendVerificationEmailArgs]
+	identity services.Identity
+	sender   email.TransactionalSender
+}
+
+func NewSendVerificationEmailWorker(
+	identity services.Identity,
+	sender email.TransactionalSender,
+) *SendVerificationEmailWorker {
+	return &SendVerificationEmailWorker{
+		identity: identity,
+		sender:   sender,
+	}
+}
+
+func (w *SendVerificationEmailWorker) Work(
+	ctx context.Context,
+	job *river.Job[jobs.SendVerificationEmailArgs],
+) error {
+	ctx, span := telemetry.Start(
+		ctx,
+		"queue.send_verification_email",
+		"user.id",
+		job.Args.UserID,
+	)
+	defer span.End()
+
+	data, err := w.identity.VerificationEmail(ctx, job.Args.UserID)
+	if err != nil {
+		if errors.Is(err, services.ErrNoEmailToSend) {
+			telemetry.Info(ctx, "verification email no longer needed")
+			return nil
+		}
+
+		return telemetry.Fail(ctx, err)
+	}
+
+	return sendTransactional(ctx, data, w.sender)
+}

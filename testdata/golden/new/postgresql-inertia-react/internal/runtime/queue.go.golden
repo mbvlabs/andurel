@@ -6,7 +6,9 @@ import (
 	"slices"
 
 	"app/config"
+	"app/domains"
 	"app/queue"
+	"app/services"
 
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
@@ -37,10 +39,29 @@ func NewQueue(ctx context.Context, cfg config.Config) (*Queue, error) {
 		return nil, err
 	}
 
+	// Auth email workers mint tokens at send time, so they need the identity
+	// service; its insert queue is unused here but required by the constructor.
+	queueInsert, err := storage.NewQueueInsert(db, cfg.QueueInsert.Config)
+	if err != nil {
+		_ = db.Close()
+		_ = tel.Shutdown(ctx)
+
+		return nil, err
+	}
+
+	identity := services.NewIdentity(
+		storage.NewTransactor(db),
+		domains.NewUsers(db),
+		domains.NewTokens(db),
+		queueInsert,
+		cfg.Auth,
+		cfg.Mail,
+	)
+
 	processor, err := storage.NewQueueProcessor(
 		db,
 		cfg.QueueWorker.Config,
-		storage.WithRiverWorkers(queue.NewWorkers(transactional, marketing)),
+		storage.WithRiverWorkers(queue.NewWorkers(identity, transactional, marketing)),
 		storage.WithRiverPeriodicJobs(queue.PeriodicJobs()...),
 		storage.WithRiverLogger(tel.Logger()),
 	)

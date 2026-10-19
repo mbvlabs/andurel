@@ -198,12 +198,16 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"database_seeds_seeds.tmpl":        "seeds/seeds.go",
 
 	// Queue package
-	"psql_queue_queue.tmpl":                            "queue/queue.go",
-	"psql_queue_jobs_send_transactional_email.tmpl":    "queue/jobs/send_transactional_email.go",
-	"psql_queue_jobs_send_marketing_email.tmpl":        "queue/jobs/send_marketing_email.go",
-	"psql_queue_workers_workers.tmpl":                  "queue/workers.go",
-	"psql_queue_workers_send_transactional_email.tmpl": "queue/send_transactional_email.go",
-	"psql_queue_workers_send_marketing_email.tmpl":     "queue/send_marketing_email.go",
+	"psql_queue_queue.tmpl":                             "queue/queue.go",
+	"psql_queue_jobs_send_transactional_email.tmpl":     "queue/jobs/send_transactional_email.go",
+	"psql_queue_jobs_send_marketing_email.tmpl":         "queue/jobs/send_marketing_email.go",
+	"psql_queue_jobs_send_verification_email.tmpl":      "queue/jobs/send_verification_email.go",
+	"psql_queue_jobs_send_password_reset_email.tmpl":    "queue/jobs/send_password_reset_email.go",
+	"psql_queue_workers_workers.tmpl":                   "queue/workers.go",
+	"psql_queue_workers_send_transactional_email.tmpl":  "queue/send_transactional_email.go",
+	"psql_queue_workers_send_verification_email.tmpl":   "queue/send_verification_email.go",
+	"psql_queue_workers_send_password_reset_email.tmpl": "queue/send_password_reset_email.go",
+	"psql_queue_workers_send_marketing_email.tmpl":      "queue/send_marketing_email.go",
 
 	// Email
 	"email_email.tmpl":                   "email/email.go",

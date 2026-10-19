@@ -26,7 +26,7 @@ type RegisterUserData struct {
 	ConfirmPassword string
 }
 
-// RegisterUser commits the user, verification code, and queued email together.
+// RegisterUser commits the user and the queued verification email together.
 // Entity validation belongs to the user domain, not this orchestration layer.
 func (i Identity) RegisterUser(
 	ctx context.Context,
@@ -35,7 +35,7 @@ func (i Identity) RegisterUser(
 	var user domains.User
 
 	err := storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {
-		users, tokens, queue := i.users.InTx(tx), i.tokens.InTx(tx), i.queue.InTx(tx)
+		users, queue := i.users.InTx(tx), i.queue.InTx(tx)
 
 		created, err := users.Create(ctx, i.pepper, domains.CreateUserData{
 			Email: data.Email,
@@ -48,8 +48,8 @@ func (i Identity) RegisterUser(
 			return fmt.Errorf("create user: %w", err)
 		}
 
-		if err := i.sendVerificationCode(ctx, tokens, queue, created); err != nil {
-			return err
+		if _, err := queue.Insert(ctx, jobs.SendVerificationEmailArgs{UserID: created.ID}, nil); err != nil {
+			return fmt.Errorf("queue verification email: %w", err)
 		}
 
 		user = created
@@ -72,33 +72,47 @@ func (i Identity) ResendEmailVerification(
 		return nil
 	}
 
-	err := storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {
-		return i.sendVerificationCode(ctx, i.tokens.InTx(tx), i.queue.InTx(tx), user)
-	})
-	if err != nil {
-		return err
+	if _, err := i.queue.Insert(ctx, jobs.SendVerificationEmailArgs{UserID: user.ID}, nil); err != nil {
+		return fmt.Errorf("queue verification email: %w", err)
 	}
 
 	telemetry.Set(ctx, "user.id", user.ID, "registration.email_requeued", true)
 	return nil
 }
 
-// sendVerificationCode takes transaction-bound receivers and a queue so the
-// replacement code and its email commit together.
-func (i Identity) sendVerificationCode(
+// ErrNoEmailToSend tells a queue worker that the email it was asked to send
+// is no longer needed, e.g. the user is gone or already verified.
+var ErrNoEmailToSend = errors.New("no email to send")
+
+// VerificationEmail mints a fresh verification code and renders the email
+// that carries it. It runs in the queue worker, not at enqueue time, so the
+// plaintext code is never persisted in river_job.args. Every call replaces
+// the outstanding code, so a retried job invalidates earlier emails.
+func (i Identity) VerificationEmail(
 	ctx context.Context,
-	tokens domains.Tokens,
-	queue storage.InsertQueue,
-	user domains.User,
-) error {
+	userID uuid.UUID,
+) (email.TransactionalData, error) {
+	user, err := i.users.Find(ctx, userID)
+	if err != nil {
+		if errors.Is(err, domains.ErrNotFound) {
+			return email.TransactionalData{}, ErrNoEmailToSend
+		}
+
+		return email.TransactionalData{}, fmt.Errorf("find verification user: %w", err)
+	}
+
+	if user.HasValidatedEmail() {
+		return email.TransactionalData{}, ErrNoEmailToSend
+	}
+
 	meta, err := json.Marshal(map[string]string{
 		"email": user.Email,
 	})
 	if err != nil {
-		return fmt.Errorf("marshal verification token metadata: %v", err)
+		return email.TransactionalData{}, fmt.Errorf("marshal verification token metadata: %w", err)
 	}
 
-	code, err := tokens.ReplaceCode(
+	code, err := i.tokens.ReplaceCode(
 		ctx,
 		i.tokenSigningKey,
 		domains.UserEmailVerification,
@@ -107,35 +121,28 @@ func (i Identity) sendVerificationCode(
 		user.ID,
 	)
 	if err != nil {
-		return fmt.Errorf("replace verification token: %w", err)
+		return email.TransactionalData{}, fmt.Errorf("replace verification token: %w", err)
 	}
 
 	vEmail := appemail.VerifyEmail{VerificationCode: code}
 
 	html, err := vEmail.ToHTML()
 	if err != nil {
-		return fmt.Errorf("render verification email html: %v", err)
+		return email.TransactionalData{}, fmt.Errorf("render verification email html: %w", err)
 	}
 
 	text, err := vEmail.ToText()
 	if err != nil {
-		return fmt.Errorf("render verification email text: %v", err)
+		return email.TransactionalData{}, fmt.Errorf("render verification email text: %w", err)
 	}
 
-	_, err = queue.Insert(ctx, jobs.SendTransactionalEmailArgs{
-		Data: email.TransactionalData{
-			To:       user.Email,
-			From:     i.defaultSenderSignature,
-			Subject:  "Verify Your Email Address",
-			HTMLBody: html,
-			TextBody: text,
-		},
-	}, nil)
-	if err != nil {
-		return fmt.Errorf("queue verification email: %v", err)
-	}
-
-	return nil
+	return email.TransactionalData{
+		To:       user.Email,
+		From:     i.defaultSenderSignature,
+		Subject:  "Verify Your Email Address",
+		HTMLBody: html,
+		TextBody: text,
+	}, nil
 }
 
 var (

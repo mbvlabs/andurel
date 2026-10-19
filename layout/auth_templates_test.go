@@ -113,10 +113,10 @@ func TestGeneratedUserEmailConflictsAreClassified(t *testing.T) {
 // design: multi-step use cases run in storage.AtomicOps, bind receivers and
 // the queue with InTx, and never hold the raw connection or transaction.
 func TestGeneratedServicesCommitWritesAndJobsTogether(t *testing.T) {
+	assertTemplateContains(t, "services_registration.tmpl", "i.queue.InTx(tx)")
 	for _, name := range []string{"services_registration.tmpl", "services_reset_password.tmpl"} {
 		assertTemplateContains(t, name,
 			"storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {",
-			"i.queue.InTx(tx)",
 		)
 		for _, unwanted := range []string{"storage.Connection", "storage.Transaction", "storage.Unwrap", "domains.Store"} {
 			assertTemplateMissing(t, name, unwanted)
@@ -136,6 +136,42 @@ func TestGeneratedServicesCommitWritesAndJobsTogether(t *testing.T) {
 	assertTemplateContains(t, "runtime_runtime.tmpl",
 		"transactor := storage.NewTransactor(db)",
 		"services.NewIdentity(transactor, users, tokens, queueInsert, cfg.Auth, cfg.Mail)",
+	)
+}
+
+// TestGeneratedAuthEmailsKeepSecretsOutOfJobArgs guards M5: verification codes
+// and reset URLs must not be rendered at enqueue time, because job args are
+// persisted in river_job for the retention period. Services enqueue a user id;
+// the worker mints the secret and renders the email.
+func TestGeneratedAuthEmailsKeepSecretsOutOfJobArgs(t *testing.T) {
+	for _, name := range []string{"services_registration.tmpl", "services_reset_password.tmpl"} {
+		assertTemplateMissing(t, name, "jobs.SendTransactionalEmailArgs")
+	}
+	assertTemplateContains(t, "services_registration.tmpl",
+		"jobs.SendVerificationEmailArgs{UserID: created.ID}",
+		"jobs.SendVerificationEmailArgs{UserID: user.ID}",
+		"func (i Identity) VerificationEmail(",
+	)
+	assertTemplateContains(t, "services_reset_password.tmpl",
+		"jobs.SendPasswordResetEmailArgs{UserID: user.ID}",
+		"func (i Identity) PasswordResetEmail(",
+		"tokens.DestroyByUserAndScope(ctx, user.ID, domains.UserResetPassword)",
+	)
+	for _, name := range []string{
+		"psql_queue_jobs_send_verification_email.tmpl",
+		"psql_queue_jobs_send_password_reset_email.tmpl",
+	} {
+		assertTemplateContains(t, name, "UserID uuid.UUID")
+		for _, unwanted := range []string{"Code", "Token", "URL", "email.TransactionalData"} {
+			assertTemplateMissing(t, name, unwanted)
+		}
+	}
+	assertTemplateContains(t, "psql_queue_workers_workers.tmpl",
+		"NewSendVerificationEmailWorker(identity, transactional)",
+		"NewSendPasswordResetEmailWorker(identity, transactional)",
+	)
+	assertTemplateContains(t, "runtime_queue.tmpl",
+		"queue.NewWorkers(identity, transactional, marketing)",
 	)
 }
 

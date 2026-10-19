@@ -39,7 +39,17 @@ func (w *SendTransactionalEmailWorker) Work(
 	)
 	defer span.End()
 
-	err := email.SendTransactional(ctx, job.Args.Data, w.sender)
+	return sendTransactional(ctx, job.Args.Data, w.sender)
+}
+
+// sendTransactional delivers data, cancelling the job on errors a retry
+// cannot fix.
+func sendTransactional(
+	ctx context.Context,
+	data email.TransactionalData,
+	sender email.TransactionalSender,
+) error {
+	err := email.SendTransactional(ctx, data, sender)
 	if err != nil {
 		telemetry.Error(ctx, "send transactional email failed", "error", err)
 		if !email.IsRetryable(err) {

@@ -92,6 +92,7 @@ func (i Identity) sendWelcome(ctx context.Context, queue storage.InsertQueue, us
 - Templates live in `email/`; run `andurel sync email` to compile them.
 - An email is a struct plus a `render()` templ method; render it with `ToHTML`/`ToText`.
 - Send transactional mail by enqueuing `jobs.SendTransactionalEmailArgs` on a `storage.InsertQueue` from a service, not directly from a handler. When the email depends on data written in the same use case, pass `i.queue.InTx(tx)` from inside `storage.AtomicOps`.
+- Job args persist in `river_job`. An email that carries a secret (verification code, reset link) is not rendered at enqueue time: enqueue a job with the user id and let its worker mint the secret and render the email, as `jobs.SendVerificationEmailArgs` and `jobs.SendPasswordResetEmailArgs` do.
 - Do not hand-edit the compiled `*_templ.go`; it is derived.
 - Email is the only templ home besides `resources/root.templ`.
 

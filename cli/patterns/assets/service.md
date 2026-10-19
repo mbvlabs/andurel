@@ -51,7 +51,7 @@ func (i Identity) RegisterUser(ctx context.Context, data RegisterUserData) (doma
 	var user domains.User
 
 	err := storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {
-		users, tokens, queue := i.users.InTx(tx), i.tokens.InTx(tx), i.queue.InTx(tx)
+		users, queue := i.users.InTx(tx), i.queue.InTx(tx)
 
 		created, err := users.Create(ctx, i.pepper, domains.CreateUserData{
 			Email: data.Email,
@@ -64,8 +64,10 @@ func (i Identity) RegisterUser(ctx context.Context, data RegisterUserData) (doma
 			return fmt.Errorf("create user: %w", err)
 		}
 
-		if err := i.sendVerificationCode(ctx, tokens, queue, created); err != nil {
-			return err
+		// Job args persist in river_job: enqueue the id, and let the worker
+		// mint the code via i.VerificationEmail and render the email.
+		if _, err := queue.Insert(ctx, jobs.SendVerificationEmailArgs{UserID: created.ID}, nil); err != nil {
+			return fmt.Errorf("queue verification email: %w", err)
 		}
 
 		user = created
@@ -76,21 +78,6 @@ func (i Identity) RegisterUser(ctx context.Context, data RegisterUserData) (doma
 	}
 
 	return user, nil
-}
-
-func (i Identity) sendVerificationCode(
-	ctx context.Context,
-	tokens domains.Tokens,
-	queue storage.InsertQueue,
-	user domains.User,
-) error {
-	code, err := tokens.ReplaceCode(ctx /* … */)
-	if err != nil {
-		return err
-	}
-
-	_, err = queue.Insert(ctx, jobs.SendTransactionalEmailArgs{ /* code */ }, nil)
-	return err
 }
 ```
 
@@ -113,6 +100,7 @@ has no `Commit` or `Rollback`. The callback's return value decides:
 - Bind at the top of the callback (`users, queue := i.users.InTx(tx), i.queue.InTx(tx)`) and use only the bound locals inside it. `i.users` inside the callback runs outside the transaction; `andurel verify` flags it (`tx-escape`).
 - Helpers take their dependencies as parameters (`tokens domains.Tokens`, `queue storage.InsertQueue`) rather than reaching for `i.tokens`/`i.queue`.
 - Public use cases do not call each other inside a callback; a nested public call opens an independent transaction. Share logic through unexported helpers that take bound dependencies (`andurel verify` flags this as `tx-public-call`).
+- Job args are stored in `river_job` for the retention period. Never enqueue secrets (verification codes, reset tokens or URLs, emails rendered with them): enqueue ids, and have the worker call a service method that mints the secret and renders the email at send time.
 - Assign results to locals declared before `AtomicOps`, and only on the success path; return the zero value on error.
 - Do not re-validate entity rules; the domain's `Create`/`Update` do. Only check input specific to the use case (e.g. a login form's required fields).
 - Keep constructors explicit (`NewIdentity(...)`); the runtime wires them.
@@ -122,6 +110,7 @@ has no `Commit` or `Rollback`. The callback's return value decides:
 - [ ] Constructor takes `storage.Transactor`, each receiver, and the queue explicitly.
 - [ ] Multi-write use cases run inside `storage.AtomicOps`, binding with `InTx(tx)` at the top and using only bound locals.
 - [ ] Jobs that depend on the written data are enqueued on `i.queue.InTx(tx)`.
+- [ ] Job args hold ids, never codes, tokens, or emails rendered with them.
 - [ ] No import of `domains/internal/queries`; no `storage.Connection`, `storage.Transaction`, or `storage.Unwrap`.
 - [ ] The service adds orchestration rather than forwarding one call.
 - [ ] Wired once in `internal/runtime`.
