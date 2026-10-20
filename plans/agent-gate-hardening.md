@@ -717,6 +717,8 @@ Each item is its own small branch.
 | d | `andurel new` breadcrumbs skip the agent loop | `printNewProjectNextSteps` (`cli/new_project.go:199`): `tool sync`, `.env`, `pnpm install`, `migrate up`, `run` | Add `andurel skill install` after `tool sync`, and `andurel verify` last. Update `TestPrintNewProjectNextSteps`. |
 | e | `verify` long help lists rules by hand | `cli/verify.go` `Long` | Render from the W4 rule catalog. |
 
+- [x] W10a: `inspect domains` excludes `domains/internal/**`, with regression coverage for retained entity metadata.
+
 ---
 
 ## Out of scope for this alpha

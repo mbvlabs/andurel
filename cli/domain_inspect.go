@@ -267,16 +267,20 @@ func domainTypeString(expr ast.Expr) string {
 	}
 }
 
+// isDomainInternalFile reports whether rel (slash-separated, relative to the
+// project root) is generated output under domains/internal/. Those files
+// belong to the internal queries package, not to the flat domains package.
+func isDomainInternalFile(rel string) bool {
+	return strings.HasPrefix(rel, "domains/internal/")
+}
+
 // isDomainEntityFile reports whether rel (slash-separated, relative to the
 // project root) is a domain file rather than generated output or tests.
 // Domains live in one flat package: one file per domain plus errors.go.
 func isDomainEntityFile(rel string) bool {
-	if !strings.HasPrefix(rel, "domains/") {
+	if !strings.HasPrefix(rel, "domains/") || isDomainInternalFile(rel) {
 		return false
 	}
 	rest := strings.TrimPrefix(rel, "domains/")
-	if strings.HasPrefix(rest, "internal/") {
-		return false
-	}
 	return strings.HasSuffix(rest, ".go") && !strings.HasSuffix(rest, "_test.go")
 }

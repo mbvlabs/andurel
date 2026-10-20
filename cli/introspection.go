@@ -184,6 +184,7 @@ the services and handlers that use it.`,
 			if err != nil {
 				return err
 			}
+			items = excludeDomainInternalFiles(items)
 			module, _, err := readGoModMetadata(rootDir)
 			if err != nil {
 				return err
@@ -255,6 +256,21 @@ func readOnlyListCommand(use, short, dir, ext string) *cobra.Command {
 	}
 	setAgentMetadata(cmd, "introspection", "Read-only project shape inspection.")
 	return cmd
+}
+
+// excludeDomainInternalFiles removes generated output under domains/internal/
+// from the inspect domains item list. Those files are emitted by
+// `andurel sync queries` and belong to the internal queries package, so they
+// are not domain entities.
+func excludeDomainInternalFiles(items []projectItem) []projectItem {
+	filtered := make([]projectItem, 0, len(items))
+	for _, item := range items {
+		if isDomainInternalFile(item.Path) {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	return filtered
 }
 
 func listProjectFiles(rootDir, relDir, ext, kind string) ([]projectItem, error) {
