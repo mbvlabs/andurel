@@ -733,6 +733,7 @@ Each item is its own small branch.
 | e | `verify` long help lists rules by hand | `cli/verify.go` `Long` | Render from the W4 rule catalog. |
 
 - [x] W10a: `inspect domains` excludes `domains/internal/**`, with regression coverage for retained entity metadata.
+- [x] W10d: `andurel new` next steps now run `andurel skill install` right after `tool sync` and end with `andurel verify`; `TestPrintNewProjectNextSteps` asserts both and their order.
 
 ---
 

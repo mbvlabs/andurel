@@ -206,6 +206,7 @@ func printNewProjectNextSteps(
 	_, _ = fmt.Fprintln(out, "\nNext steps:")
 	_, _ = fmt.Fprintf(out, "  cd %s\n", dir)
 	_, _ = fmt.Fprintln(out, "  andurel tool sync")
+	_, _ = fmt.Fprintln(out, "  andurel skill install")
 	_, _ = fmt.Fprintln(out, "  cp .env.example .env")
 	_, _ = fmt.Fprintln(out, "  fill in your database connection details in .env")
 	_, _ = fmt.Fprintln(out, "  (andurel db create - if database does not exist")
@@ -214,6 +215,7 @@ func printNewProjectNextSteps(
 		_, _ = fmt.Fprintf(out, "  %s install\n", javascriptRuntime)
 	}
 	_, _ = fmt.Fprintln(out, "  andurel run")
+	_, _ = fmt.Fprintln(out, "  andurel verify")
 }
 
 func resolveNewProjectDestination(projectArgument string) (newProjectDestination, error) {

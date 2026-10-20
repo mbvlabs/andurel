@@ -1270,13 +1270,20 @@ func TestPrintNewProjectNextSteps(t *testing.T) {
 		"Successfully created project: app",
 		"cd ./app",
 		"andurel tool sync",
+		"andurel skill install",
 		"andurel db migrate up",
 		"pnpm install",
 		"andurel run",
+		"andurel verify",
 	} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("next steps missing %q:\n%s", want, out.String())
 		}
+	}
+	steps := out.String()
+	if strings.Index(steps, "andurel skill install") < strings.Index(steps, "andurel tool sync") ||
+		strings.Index(steps, "andurel verify") < strings.Index(steps, "andurel run") {
+		t.Fatalf("next steps out of order:\n%s", steps)
 	}
 
 	out.Reset()
