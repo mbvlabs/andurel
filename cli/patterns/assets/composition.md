@@ -97,7 +97,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 		return nil, err
 	}
 
-	assetsHandler, err := handlers.NewAssets(cfg.App)
+	assetsHandler, err := handlers.NewAssetsHandler(cfg.App)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 		anduin.CSRF(csrfConfig(cfg)),
 	)
 
-	handlers.NewPages(renderer).Register(rt)
+	handlers.NewPagesHandler(renderer).Register(rt)
 	assetsHandler.Register(rt)
 	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(rt)
 	handlers.NewAPIHandler(db).Register(rt)

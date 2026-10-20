@@ -9,19 +9,19 @@ import (
 	"github.com/mbvlabs/andurel/pkg/inertia"
 )
 
-type Pages struct {
+type PagesHandler struct {
 	renderer *inertia.Renderer
 }
 
-func NewPages(renderer *inertia.Renderer) Pages {
-	return Pages{renderer: renderer}
+func NewPagesHandler(renderer *inertia.Renderer) PagesHandler {
+	return PagesHandler{renderer: renderer}
 }
 
-func (p Pages) Register(rt *anduin.Router) {
+func (p PagesHandler) Register(rt *anduin.Router) {
 	rt.Get(routes.HomePage.Path(), p.Home)
 }
 
-func (p Pages) Home(ctx context.Context) error {
+func (p PagesHandler) Home(ctx context.Context) error {
 	return p.renderer.Page(ctx, "Welcome", inertia.Props{
 		"appName": "app",
 		"docsURL": "https://andurel.com",

@@ -20,19 +20,19 @@ import (
 
 const threeMonthsCache = "7776000"
 
-// Assets serves embedded files. The embedded files are fixed at build time, so
-// robots.txt, the sitemap and every ETag are computed once at startup.
-type Assets struct {
+// AssetsHandler serves embedded files. The embedded files are fixed at build
+// time, so robots.txt, the sitemap and every ETag are computed once at startup.
+type AssetsHandler struct {
 	production bool
 	robots     string
 	sitemap    []byte
 	etags      map[string]string
 }
 
-func NewAssets(appCfg config.App) (Assets, error) {
+func NewAssetsHandler(appCfg config.App) (AssetsHandler, error) {
 	sitemap, err := createSitemap(appCfg.BaseURL())
 	if err != nil {
-		return Assets{}, fmt.Errorf("assets: sitemap: %w", err)
+		return AssetsHandler{}, fmt.Errorf("assets: sitemap: %w", err)
 	}
 
 	etags := make(map[string]string)
@@ -50,11 +50,11 @@ func NewAssets(appCfg config.App) (Assets, error) {
 			return nil
 		})
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return Assets{}, fmt.Errorf("assets: etags: %w", err)
+			return AssetsHandler{}, fmt.Errorf("assets: etags: %w", err)
 		}
 	}
 
-	return Assets{
+	return AssetsHandler{
 		production: appCfg.IsProduction(),
 		robots:     createRobotsTxt(appCfg.BaseURL()),
 		sitemap:    sitemap,
@@ -62,7 +62,7 @@ func NewAssets(appCfg config.App) (Assets, error) {
 	}, nil
 }
 
-func (a Assets) Register(rt *anduin.Router) {
+func (a AssetsHandler) Register(rt *anduin.Router) {
 	rt.Get(routes.Robots.Path(), a.Robots)
 	rt.Get(routes.Sitemap.Path(), a.Sitemap)
 	rt.Get(routes.ViteBuild.Path(), a.ViteBuild)
@@ -77,7 +77,7 @@ func etagFor(content []byte) string {
 
 // enableCaching sets long-lived cache headers in production and reports
 // whether the request was answered with 304 Not Modified.
-func (a Assets) enableCaching(ctx context.Context, file string) (bool, error) {
+func (a AssetsHandler) enableCaching(ctx context.Context, file string) (bool, error) {
 	etag, ok := a.etags[file]
 	if !a.production || !ok {
 		return false, nil
@@ -107,11 +107,11 @@ func createRobotsTxt(baseURL string) string {
 	)
 }
 
-func (a Assets) Robots(ctx context.Context) error {
+func (a AssetsHandler) Robots(ctx context.Context) error {
 	return anduin.Text(ctx, http.StatusOK, a.robots)
 }
 
-func (a Assets) Sitemap(ctx context.Context) error {
+func (a AssetsHandler) Sitemap(ctx context.Context) error {
 	return writeContent(ctx, http.StatusOK, "application/xml", a.sitemap)
 }
 
@@ -148,7 +148,7 @@ func createSitemap(baseURL string) ([]byte, error) {
 	return append([]byte(xml.Header), xmlBytes...), nil
 }
 
-func (a Assets) ViteBuild(ctx context.Context) error {
+func (a AssetsHandler) ViteBuild(ctx context.Context) error {
 	param := strings.TrimPrefix(anduin.PathValue(ctx, "path"), "/")
 	param = path.Clean(param)
 	if param == "." || param == "" || strings.HasPrefix(param, "../") {

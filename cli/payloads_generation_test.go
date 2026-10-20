@@ -151,7 +151,7 @@ type DashboardIndexProps struct {
 	} `+"`json:\"nested\"`"+`
 }
 
-func (p Pages) Index(ctx context.Context) error {
+func (p PagesHandler) Index(ctx context.Context) error {
 	return inertia.FromStruct(DashboardIndexProps{})
 }
 `)
@@ -326,7 +326,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/inertia"
 )
 
-func (p Pages) Index(ctx context.Context) error {
+func (p PagesHandler) Index(ctx context.Context) error {
 	props := loadProps()
 	return inertia.FromStruct(props)
 }
