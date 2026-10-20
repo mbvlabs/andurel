@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+## 0.2.0 - 2026-10-20
+
 ### Changed
 
 - `NewServer(ctx, host, port, handler, options...)` drops the unused

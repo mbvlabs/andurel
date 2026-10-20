@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0 - 2026-10-20
+
 ### Added
 
 - `Store.Close`. The Redis driver closes its client and connection pool; the

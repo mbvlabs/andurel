@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.8.0 - 2026-10-20
+
 ### Changed
 
 - `NewRenderer(cfg RendererConfig, options...)` and
