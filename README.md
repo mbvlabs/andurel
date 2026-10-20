@@ -175,7 +175,7 @@ Details: [directory structure](https://andurel.com/docs/latest/directory-structu
 |---------|---------|
 | `andurel new` (`n`) | Scaffold a project |
 | `andurel patterns` | Read-only reference patterns for every layer (`patterns list`, `patterns show <kind> --json`) |
-| `andurel verify` | Format, `go fix`, `go vet`, the typed persistence and transaction boundary rules (`queries-import`, `db-handle`, `tx-unwrap`, `tx-escape`, `tx-public-call`, `tx-layer`, `domain-transport`, `entity-columns`), and generated-code drift (`generated`; missing tools report `missing-tool`, fix with `andurel tool sync`); `--with-tests` also runs tests |
+| `andurel verify` | Format, `go fix`, `go vet`, the typed layer rules, and generated-code drift; `--with-tests` also runs tests. Rules: `andurel verify --help` or [the rule table](skills/andurel/references/cli-catalog.md#verify-rules) |
 | `andurel generate migration` | Create a migration file (code-writing generators are gone) |
 | `andurel sync` | Refresh derived files (queries, email, routes, payloads) |
 | `andurel db` | Database lifecycle: create, drop, nuke, rebuild, migrate, seed, console |

@@ -275,6 +275,7 @@ func checkGeneratedDocs(root *cobra.Command) []string {
 			failures = append(failures, "layout/templates/readme.tmpl: missing "+needle)
 		}
 	}
+	failures = append(failures, checkVerifyRuleDocs(frameworkRoot)...)
 	return failures
 }
 
@@ -323,6 +324,29 @@ func runCommandsCheck(cmd *cobra.Command, root *cobra.Command) error {
 		ExitCode: output.ExitUsage,
 		Data:     report,
 	}
+}
+
+// runCommandsWriteDocs regenerates the catalog-derived regions of the
+// framework docs. It only works inside an andurel framework checkout.
+func runCommandsWriteDocs(cmd *cobra.Command) error {
+	frameworkRoot := findAndurelFrameworkRoot()
+	if frameworkRoot == "" {
+		return output.NewError(
+			output.CodeUsage,
+			"not inside an andurel framework checkout",
+			output.ExitUsage,
+			"Run andurel commands --write-docs from the andurel repository.",
+		)
+	}
+	changed, err := writeVerifyRuleDocs(frameworkRoot)
+	if err != nil {
+		return err
+	}
+	message := "Generated docs are up to date"
+	if len(changed) > 0 {
+		message = "Updated " + strings.Join(changed, ", ")
+	}
+	return output.OK(cmd, map[string]any{"changed": changed}, message)
 }
 
 func runCommandsMarkdown(cmd *cobra.Command, root *cobra.Command) error {

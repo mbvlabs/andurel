@@ -17,14 +17,14 @@ Andurel is Go-native: `net/http` through `pkg/anduin`, explicit constructor inje
 - Run `andurel inspect project --json` before changing code.
 - Use `--json` or `--jq` when extracting data.
 - `andurel generate` does not write application code. Read a pattern with `andurel patterns show <kind>` and write the files yourself. Only `andurel generate migration` creates a file.
-- Run `andurel verify` after a change: it checks formatting, `go fix`, `go vet`, the typed persistence and transaction boundary rules (`queries-import`, `db-handle`, `tx-unwrap`, `tx-escape`, `tx-public-call`, `tx-layer`, `domain-transport`, `entity-columns`), and generated-code drift (`generated`; a missing templ or narsilc binary reports `missing-tool` — run `andurel tool sync`). Add `--with-tests` to also run the test suite.
+- Run `andurel verify` after a change: it checks formatting, `go fix`, `go vet`, the typed layer rules, and generated-code drift. The rules are listed under [Verify](#verify). Add `--with-tests` to also run the test suite.
 - Prefer the local project pattern over a generic Rails, Echo, Bun, Templ, or frontend convention.
 - Keep handlers as thin HTTP adapters: parse input, call a domain or service, map errors, render a response.
 - Create a service only when there is real cross-domain orchestration, not just because code exists.
 
 ## Read When Placing Code
 
-Read [references/layer-placement.md](references/layer-placement.md) before adding or moving behavior across domains, services, handlers, routes, middleware, queue jobs, config, clients, or internal packages.
+Read [references/layer-placement.md](references/layer-placement.md) before adding or moving behavior across domains, services, handlers, routes, middleware, queue jobs, config, clients, or internal packages. It is the one place the placement table, the hard rules per layer, and the decision checklist are written down.
 
 ## First Pass
 
@@ -34,27 +34,26 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 4. Keep changes in the smallest layer that can own the behavior honestly.
 5. Use `andurel patterns show <kind>` and `andurel inspect … --json` before writing.
 
-## Layer Placement
+## Verify
 
-- Put invariant business rules, input validation (`Validate()` with `pkg/validation`), persistence methods, and finder/query methods in `domains/` (one file per domain).
-- Colocate each domain's SQL at `domains/<entity>.sql`; narsilc output goes to `domains/internal/queries`.
-- Put transactions, cross-domain coordination, external side effects, and multi-step application workflows in `services/`.
-- Put HTTP adapters in the single flat `handlers/` package (`AuthHandler`, `APIHandler`, `NewXHandler` constructors, no sub-packages).
-- Put route names, paths, and URL builders in `routes/`.
-- Put app HTTP policy (auth, rate limiting) in `middleware/`; the session definition lives there too, but jar construction lives in `internal/runtime`.
-- Put Inertia pages and reusable frontend components in `resources/js/`; the Inertia root document is `resources/root.templ`.
-- Put River job argument types in `queue/jobs/` and workers/registration in `queue/`.
-- Put provider adapters in a package under `internal/` named for its job (for example `internal/clients/` or `internal/payment/`), email templates/helpers in `email/`, and config/environment loading in `config/`. Adapters wrap external APIs only; business rules stay in `domains/` or `services/`.
-- Put composition (constructors and the dependency graph) in `internal/runtime`. `cmd/app` and `cmd/queue` only load env and call `runtime.New` / the queue runtime.
-- `cmd/migrate` applies pending SQL with `storage.RunMigrations` on the embedded migration FS. It is a one-shot process. Development uses `andurel db migrate up`.
-- Wire new dependencies explicitly in `internal/runtime`, and add them to the `App` `closers` list when they need shutdown.
+`andurel verify` runs `gofmt`, `go fix`, `go vet`, the typed layer rules, and generated-code drift, and reports each violation as `{rule, file, line, message, fix}`. Apply the `fix` and re-run. Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
 
-Hard rules:
-
-- One file per domain; keep cross-domain rules in services. If a rule spans two entities, a service coordinates them.
-- Only `domains` imports `domains/internal/queries` and issues SQL.
-- Handlers are `func(ctx context.Context) error` and use `pkg/anduin` request/response helpers.
-- `andurel verify` enforces the persistence and transaction boundary through `queries-import`, `db-handle`, `tx-unwrap`, `tx-escape`, `tx-public-call`, `tx-layer`, and `domain-transport`, checks generated query/entity column mapping with `entity-columns`, and checks generated-code drift with `generated` (`missing-tool` when a generation tool is absent; run `andurel tool sync`).
+<!-- andurel:verify-rules:begin: generated from the verify rule catalog by 'just docs-sync'; do not edit -->
+| Rule | Checks |
+| --- | --- |
+| `gofmt` | every Go file is gofmt-clean |
+| `go fix` | go fix reports no automatic rewrites |
+| `queries-import` | only domains/** imports domains/internal/queries |
+| `db-handle` | outside domains no SQL methods or SQL drivers; Connection/Transaction are persistence wiring |
+| `tx-unwrap` | storage.Unwrap is referenced only under domains/** |
+| `tx-escape` | a storage.AtomicOps callback uses only dependencies bound inside the transaction |
+| `tx-public-call` | a storage.AtomicOps callback does not call an exported method on its own receiver |
+| `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and internal/runtime |
+| `domain-transport` | domains/** imports no HTTP, Inertia, routing, handler, middleware, or route package |
+| `entity-columns` | every automatic generated query column maps to an exported andurel tag on its domain entity |
+| `generated` | generated templ, queries, routes, and payload output is up to date |
+| `missing-tool` | a required generation binary is installed; run 'andurel tool sync' |
+<!-- andurel:verify-rules:end -->
 
 ## Output Modes
 

@@ -306,9 +306,7 @@ For full-graph tests, boot `runtime.New(ctx, testConfig)` and call
 - `andurel inspect handlers --json` lists each handler with its constructor
   params and the routes its `Register` method mounts (name, method, path).
 - `andurel inspect routes --json` lists the route manifest (host-aware).
-- `andurel verify` runs format, `go fix`, `go vet`, the persistence and
-  transaction boundary rules (`queries-import`, `db-handle`, `tx-unwrap`,
-  `tx-escape`, `tx-public-call`, `tx-layer`, `domain-transport`), and
-  generated-code drift (`generated`; a missing templ or narsilc binary reports
-  `missing-tool` — run `andurel tool sync`). Add `--with-tests` to also run
+- `andurel verify` runs format, `go fix`, `go vet`, the typed layer rules, and
+  generated-code drift. The rule list is in
+  [cli-catalog.md](cli-catalog.md#verify-rules). Add `--with-tests` to also run
   `go test ./...`.

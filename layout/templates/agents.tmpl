@@ -38,16 +38,7 @@ andurel patterns show domain --entity User --table users --json
 
 ## Layer placement
 
-- `domains/` — business logic and persistence in one flat package (one file per domain); SQL is colocated as `domains/<entity>.sql`. Only `domains` imports `domains/internal/queries`.
-- `domains/errors.go` — the shared vocabulary: `ErrNotFound`, `ErrConflict`. Return `pkg/validation` errors directly; handlers inspect them with `validation.As`.
-- `services/` — application logic: transactions, cross-domain orchestration, external side effects. Writes that must commit together run in `storage.AtomicOps(ctx, i.transactor, func(ctx, tx storage.Tx) error { … })`, binding receivers and the queue with `InTx(tx)` at the top of the callback; returning `nil` commits, an error rolls back.
-- `handlers/` — HTTP adapters in one flat package (`AuthHandler`, `APIHandler`, `NewXHandler` constructors, no sub-packages). Register routes in `Register(rt *anduin.Router)`.
-- `routes/` — route data only (names, paths, URL builders).
-- `middleware/` — app HTTP policy (auth, rate limiting) plus the session definition. Jar construction lives in `internal/runtime`.
-- `internal/runtime` — composition root. One constructor per process (`New` owns `Handler`+`Server`); explicit constructor injection; no Fx.
-- `resources/root.templ` — the one page-shaped templ (the Inertia root document). Email templ lives in `email/`.
-
-Read the `layer-placement` skill reference for the full table and the decision checklist.
+Where code belongs (domains, services, handlers, routes, middleware, `internal/runtime`, and the rest) is defined in one place: the `layer-placement` reference of the Andurel skill. Install the skill with `andurel skill install`, then read `references/layer-placement.md` in the installed skill directory (for example `.claude/skills/andurel/references/layer-placement.md`) for the placement table and the decision checklist. `andurel patterns show <kind>` prints the rules for one layer.
 
 ## Verify
 
@@ -55,7 +46,26 @@ Read the `layer-placement` skill reference for the full table and the decision c
 andurel verify
 ```
 
-Runs formatting, `go fix`, `go vet`, the persistence-boundary lints (queries import, raw DB handle, `storage.Unwrap`, transaction escape, nested public calls), and generated-code drift. Violations come with a `fix`; a failed run exits 9. Pass `--with-tests` to also run `go test ./...` (domain tests need a Postgres container). Run it after every change.
+Runs formatting, `go fix`, `go vet`, the typed layer rules, and generated-code drift. Violations come with a `fix`; a failed run exits 9. Pass `--with-tests` to also run `go test ./...` (domain tests need a Postgres container). Run it after every change.
+
+Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
+
+{{/* andurel:verify-rules:begin: generated from the verify rule catalog by 'just docs-sync'; do not edit */ -}}
+| Rule | Checks |
+| --- | --- |
+| `gofmt` | every Go file is gofmt-clean |
+| `go fix` | go fix reports no automatic rewrites |
+| `queries-import` | only domains/** imports domains/internal/queries |
+| `db-handle` | outside domains no SQL methods or SQL drivers; Connection/Transaction are persistence wiring |
+| `tx-unwrap` | storage.Unwrap is referenced only under domains/** |
+| `tx-escape` | a storage.AtomicOps callback uses only dependencies bound inside the transaction |
+| `tx-public-call` | a storage.AtomicOps callback does not call an exported method on its own receiver |
+| `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and internal/runtime |
+| `domain-transport` | domains/** imports no HTTP, Inertia, routing, handler, middleware, or route package |
+| `entity-columns` | every automatic generated query column maps to an exported andurel tag on its domain entity |
+| `generated` | generated templ, queries, routes, and payload output is up to date |
+| `missing-tool` | a required generation binary is installed; run 'andurel tool sync' |
+{{- /* andurel:verify-rules:end */}}
 
 ## HTTP
 

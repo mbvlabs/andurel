@@ -221,6 +221,10 @@ ci-pr:
 commands-check:
     go run . commands --check
 
+# Regenerate catalog-derived doc regions (verify rule tables in AGENTS.md, SKILL.md, cli-catalog.md)
+docs-sync:
+    go run . commands --write-docs
+
 # Nightly / release-readiness suite (full goldens + race)
 ci-nightly:
     @just vet

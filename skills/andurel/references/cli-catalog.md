@@ -33,6 +33,28 @@ excluded by GOOS, GOARCH, or build constraints are not analyzed by that step.
 `andurel sync` refreshes derived app files. `andurel tool sync` downloads pinned
 binaries. They are different commands.
 
+## Verify rules
+
+Each `andurel verify` violation's `rule` is one of these (`andurel verify --help`
+also prints each rule's fix):
+
+<!-- andurel:verify-rules:begin: generated from the verify rule catalog by 'just docs-sync'; do not edit -->
+| Rule | Checks |
+| --- | --- |
+| `gofmt` | every Go file is gofmt-clean |
+| `go fix` | go fix reports no automatic rewrites |
+| `queries-import` | only domains/** imports domains/internal/queries |
+| `db-handle` | outside domains no SQL methods or SQL drivers; Connection/Transaction are persistence wiring |
+| `tx-unwrap` | storage.Unwrap is referenced only under domains/** |
+| `tx-escape` | a storage.AtomicOps callback uses only dependencies bound inside the transaction |
+| `tx-public-call` | a storage.AtomicOps callback does not call an exported method on its own receiver |
+| `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and internal/runtime |
+| `domain-transport` | domains/** imports no HTTP, Inertia, routing, handler, middleware, or route package |
+| `entity-columns` | every automatic generated query column maps to an exported andurel tag on its domain entity |
+| `generated` | generated templ, queries, routes, and payload output is up to date |
+| `missing-tool` | a required generation binary is installed; run 'andurel tool sync' |
+<!-- andurel:verify-rules:end -->
+
 ## Patterns
 
 `andurel patterns` never writes files. It prints reference code, the placement

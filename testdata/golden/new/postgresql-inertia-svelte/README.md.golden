@@ -163,7 +163,7 @@ Verify everything before you ship:
 andurel verify
 ```
 
-`andurel verify` runs formatting, `go fix`, `go vet`, the persistence-boundary lints (queries import, raw DB handle, `storage.Unwrap`, transaction escape, nested public calls), and generated-code drift. Violations come with a `fix`; a failed run exits 9. Pass `--with-tests` to also run `go test ./...`.
+`andurel verify` runs formatting, `go fix`, `go vet`, the typed layer rules (listed in `AGENTS.md` and `andurel verify --help`), and generated-code drift. Violations come with a `fix`; a failed run exits 9. Pass `--with-tests` to also run `go test ./...`.
 
 ## How-To Guides
 

@@ -50,6 +50,7 @@ type flagDiscovery struct {
 func newCommandsCommand(root *cobra.Command) *cobra.Command {
 	var markdown bool
 	var check bool
+	var writeDocs bool
 	cmd := &cobra.Command{
 		Use:   "commands",
 		Short: "Show structured command discovery data",
@@ -72,6 +73,17 @@ func newCommandsCommand(root *cobra.Command) *cobra.Command {
 					"Run andurel commands --json, --markdown, or --check.",
 				)
 			}
+			if writeDocs && (check || markdown) {
+				return output.NewError(
+					output.CodeUsage,
+					"choose only one of --write-docs, --check, or --markdown",
+					output.ExitUsage,
+					"Run andurel commands --write-docs on its own.",
+				)
+			}
+			if writeDocs {
+				return runCommandsWriteDocs(cmd)
+			}
 			if check {
 				return runCommandsCheck(cmd, target)
 			}
@@ -91,6 +103,11 @@ func newCommandsCommand(root *cobra.Command) *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&markdown, "markdown", false, "Emit a Markdown command table")
 	cmd.Flags().BoolVar(&check, "check", false, "Validate command metadata completeness")
+	// Framework-maintainer flag: regenerates catalog-derived doc regions in an
+	// andurel checkout (just docs-sync). Hidden from discovery and help.
+	cmd.Flags().
+		BoolVar(&writeDocs, "write-docs", false, "Regenerate catalog-derived regions in the framework docs")
+	_ = cmd.Flags().MarkHidden("write-docs")
 	setAgentMetadata(cmd, "discovery", "Returns structured command metadata for agent planning.")
 	return cmd
 }

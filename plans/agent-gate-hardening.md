@@ -713,7 +713,7 @@ W4 (rule catalog), for items 1–2 only.
 
 ### Acceptance
 
-- [ ] A test fails if a `verify` rule ID is missing from the skill or `AGENTS.md`, or if the docs
+- [x] A test fails if a `verify` rule ID is missing from the skill or `AGENTS.md`, or if the docs
       name a rule that does not exist.
 - [x] `grep -rn "echo\.Context\|models/\|controllers/" docs skills layout/templates` finds only
       intentional historical references. List them in the commit body.
@@ -736,6 +736,7 @@ Each item is its own small branch.
 - [x] W10b: `inspect handlers` reports each handler's type, constructor, constructor params and the routes its `Register` mounts (route variable, name, method, path, action), parsed with `go/ast` only.
 - [x] W10c: scaffold handlers are `PagesHandler`/`NewPagesHandler` and `AssetsHandler`/`NewAssetsHandler`, matching `NewAuthHandler`/`NewAPIHandler`; templates, the composition pattern and goldens updated. No upgrade note: `handlers/` and `internal/runtime/` are app-owned, so upgrades never rewrite them and existing apps keep compiling.
 - [x] W10d: `andurel new` next steps now run `andurel skill install` right after `tool sync` and end with `andurel verify`; `TestPrintNewProjectNextSteps` asserts both and their order.
+- [x] W10e: `verify` long help renders its rules and fixes from the W4 catalog through the same helper as the human help; the hand-written `missing-tool` paragraph and rule mentions in the agent notes and when-to-use metadata are gone, and a test fails if that prose names a catalog rule again.
 
 ---
 
