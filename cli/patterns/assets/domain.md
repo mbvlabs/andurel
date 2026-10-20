@@ -243,72 +243,6 @@ func (t Tokens) ReplaceCode(ctx context.Context /* … */) (string, error) {
 }
 ```
 
-### domains/product_test.go
-```go
-package domains_test
-
-import (
-	"testing"
-	"uuid"
-
-	"app/domains"
-	"app/migrations"
-)
-
-func TestProduct_Validate(t *testing.T) {
-	if err := (&domains.Product{}).Validate(); err == nil {
-		t.Fatal("expected error for a product without a name")
-	}
-}
-
-func TestProducts_Create(t *testing.T) {
-	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-	products := domains.NewProducts(db)
-
-	got, err := products.Create(t.Context(), domains.CreateProductData{
-		Name:       "Lamp",
-		PriceCents: 4500,
-	})
-	if err != nil {
-		t.Fatalf("create: %v", err)
-	}
-	if got.ID == uuid.Nil() {
-		t.Fatal("expected id")
-	}
-}
-```
-
-### domains/main_test.go
-```go
-package domains_test
-
-import (
-	"context"
-	"fmt"
-	"os"
-	"testing"
-
-	"github.com/mbvlabs/andurel/pkg/storage"
-)
-
-// testCluster is one Postgres container for the whole test package.
-var testCluster *storage.TestCluster
-
-func TestMain(m *testing.M) {
-	cluster, err := storage.NewTestCluster(context.Background())
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "skipping domain tests: start postgres container: %v\n", err)
-		os.Exit(0)
-	}
-	testCluster = cluster
-
-	code := m.Run()
-
-	_ = testCluster.Close(context.Background())
-	os.Exit(code)
-}
-```
-
 ## Rules
 
 - One file per domain in the flat `domains` package. Cross-entity rules belong in a service.
@@ -321,6 +255,7 @@ func TestMain(m *testing.M) {
 - Map expected not-found and unique-constraint failures to `ErrNotFound` and `ErrConflict`; return `pkg/validation` errors directly. Preserve unexpected database errors for diagnostics.
 - `inspect domains --json` labels table names with `table_source: "inferred"` when derived by convention. For custom names or irregular plurals, add `// andurel:table people` as the entity struct's doc comment (a free-standing annotation only applies when the file has a single entity); inspection reports `table_source: "annotation"`. The annotation is inspection metadata, not SQL configuration.
 - Writes that span receivers go through `storage.AtomicOps` in a service (see the `service` pattern).
+- Test the domain as the `test-domain` pattern shows: `domains/main_test.go` owns the Postgres cluster and `domains/<entity>_test.go` covers `Validate` and the receiver methods.
 
 ## Checklist
 

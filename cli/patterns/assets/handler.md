@@ -87,7 +87,11 @@ func (h ProductHandler) Create(ctx context.Context) error {
 }
 ```
 
-### handlers/errors.go
+### handlers/errors.go (excerpt)
+
+An excerpt of the scaffold's own `handlers/errors.go`; `wantsJSON` and
+`mapJSONError` are defined further down that file.
+
 ```go fragment
 package handlers
 
