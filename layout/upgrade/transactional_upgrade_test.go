@@ -183,10 +183,23 @@ func TestV2PreReleaseUpgradeManualActionGating(t *testing.T) {
 	tests := []struct {
 		name        string
 		fromVersion string
+		toVersion   string
 		wantAction  bool
 	}{
-		{name: "alpha before the change", fromVersion: "v2.0.0-alpha", wantAction: true},
-		{name: "alpha that already has the change", fromVersion: "v2.0.0-alpha.3", wantAction: false},
+		{
+			name:        "alpha before the change",
+			fromVersion: "v2.0.0-alpha",
+			toVersion:   "v2.0.0-alpha.3",
+			wantAction:  true,
+		},
+		{
+			// alpha.4 is the rebuild boundary: the upgrade is allowed and the
+			// Inertia note is already stale.
+			name:        "alpha that already has the change",
+			fromVersion: "v2.0.0-alpha.4",
+			toVersion:   "v2.0.0-alpha.5",
+			wantAction:  false,
+		},
 	}
 
 	for _, test := range tests {
@@ -205,7 +218,7 @@ func TestV2PreReleaseUpgradeManualActionGating(t *testing.T) {
 
 			upgrader, err := NewUpgrader(
 				root,
-				UpgradeOptions{DryRun: true, TargetVersion: "v2.0.0-alpha.4"},
+				UpgradeOptions{DryRun: true, TargetVersion: test.toVersion},
 			)
 			if err != nil {
 				t.Fatal(err)

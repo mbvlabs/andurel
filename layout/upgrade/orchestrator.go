@@ -202,6 +202,16 @@ func (u *Upgrader) validatePreconditions() error {
 		return err
 	}
 
+	// This runs before the git check, tool sync and upgrade notes so a
+	// pre-rebuild project is rejected without touching the worktree.
+	if err := validateGoNativeRebuild(
+		u.projectRoot,
+		u.lock.Version,
+		u.opts.TargetVersion,
+	); err != nil {
+		return err
+	}
+
 	clean, err := u.git.IsClean()
 	if err != nil {
 		return fmt.Errorf("git validation failed: %w", err)

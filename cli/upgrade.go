@@ -37,7 +37,7 @@ package versions without a framework upgrade, use andurel packages update.`,
   andurel upgrade --dry-run
   andurel upgrade --repair`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runUpgrade(cmd, version)
+			return upgradeCommandError(runUpgrade(cmd, version))
 		},
 	}
 
@@ -113,7 +113,7 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		return upgrader.Execute()
 	}()
 	if err != nil {
-		return err
+		return upgradeCommandError(err)
 	}
 
 	if structured {
@@ -183,7 +183,7 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		}
 		report, err = upgrader.Execute()
 		if err != nil {
-			return err
+			return upgradeCommandError(err)
 		}
 	}
 
@@ -229,6 +229,31 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 	}
 
 	return nil
+}
+
+// upgradeCommandError maps upgrade-domain typed errors onto the shared CLI
+// error contract. Without this the structured JSON envelope would only see a
+// generic "error" and the unsupported_upgrade code, hint and data would be
+// lost.
+func upgradeCommandError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if _, ok := errors.AsType[*output.CLIError](err); ok {
+		return err
+	}
+	var unsupported *upgrade.UnsupportedUpgradeError
+	if !errors.As(err, &unsupported) {
+		return err
+	}
+	return &output.CLIError{
+		Code:     output.CodeUnsupportedUpgrade,
+		Message:  unsupported.Error(),
+		Hint:     unsupported.Hint(),
+		ExitCode: output.ExitConfig,
+		Cause:    err,
+		Data:     unsupported.Data(),
+	}
 }
 
 func upgradeCommandsRun(report *upgrade.UpgradeReport) []string {

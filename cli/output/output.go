@@ -26,6 +26,9 @@ const (
 	CodeMissingTool = "missing_tool"
 	// CodeInvalidInertiaAdapter identifies an unsupported Inertia adapter.
 	CodeInvalidInertiaAdapter = "invalid_inertia_adapter"
+	// CodeUnsupportedUpgrade identifies a project that cannot be upgraded
+	// automatically and needs a manual port.
+	CodeUnsupportedUpgrade = "unsupported_upgrade"
 	// CodeUnsafeAction identifies an action that requires explicit confirmation.
 	CodeUnsafeAction = "unsafe_action_requires_confirmation"
 	// CodeGenerationFailed identifies a failed code generation command.

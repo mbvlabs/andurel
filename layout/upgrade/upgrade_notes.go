@@ -15,6 +15,11 @@ const inertiaViteFullURLVersion = "v2.0.0-alpha.3"
 // that take config structs and drop unused arguments.
 const packageAPIVersion = "v2.0.0-alpha.5"
 
+// goNativeRebuildVersion is the release that replaced Echo and Fx with the
+// Go-native domains/services/handlers layout. Projects older than it cannot be
+// upgraded automatically; they must be ported by hand.
+const goNativeRebuildVersion = "v2.0.0-alpha.4"
+
 // ManualAction describes an application-owned change that an upgrade cannot
 // apply without risking user code.
 type ManualAction struct {

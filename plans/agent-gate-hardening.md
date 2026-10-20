@@ -276,10 +276,10 @@ RFC §15 says such apps are migrated by hand. The CLI should say so instead of a
 
 ### Acceptance
 
-- [ ] An `alpha.3 → alpha.5` upgrade fails before any file or tool change, with
+- [x] An `alpha.3 → alpha.5` upgrade fails before any file or tool change, with
       `unsupported_upgrade` and populated `legacy_markers`.
-- [ ] `alpha.4 → alpha.5` behaves exactly as today.
-- [ ] `layout/upgrade/orchestrator_test.go` covers both cases plus `alpha → alpha.4`. The last
+- [x] `alpha.4 → alpha.5` behaves exactly as today.
+- [x] Upgrade orchestrator tests cover both cases plus `alpha → alpha.4`. The last
       one is refused, because the boundary is inclusive on `to`.
 
 ---
