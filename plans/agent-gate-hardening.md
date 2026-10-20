@@ -533,11 +533,11 @@ v1 and the alphas had a migration DDL catalog (`generator/internal/ddl` and
 
 ### Acceptance
 
-- [ ] The `emial` drift (rename `Email`'s tag on `domains.User`) fails `verify` with
+- [x] The `emial` drift (rename `Email`'s tag on `domains.User`) fails `verify` with
       `entity-columns` at the field's file and line.
-- [ ] An entity implementing `Transformer[Row]` is not checked.
-- [ ] A fresh scaffold passes, and the rule is in the W4 catalog.
-- [ ] `docs/ddl-model-generation.md` is removed, and nothing links to it.
+- [x] An entity implementing `Transformer[Row]` is not checked.
+- [x] A fresh scaffold passes, and the rule is in the W4 catalog.
+- [x] `docs/ddl-model-generation.md` is removed, and nothing links to it.
 
 ---
 
