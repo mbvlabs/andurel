@@ -6,11 +6,40 @@ constructs exactly what production does and gets `Handler` and `DB`.
 
 ## Files
 
+### internal/runtime/main_test.go
+```go
+package runtime_test
+
+import (
+	"testing"
+
+	"app/config"
+)
+
+// testConfig loads the project's .env and builds the same config cmd/app uses.
+// The test binary runs in internal/runtime, so .env is two directories up.
+func testConfig(t *testing.T) config.Config {
+	t.Helper()
+
+	if err := config.LoadEnvironment("../../.env"); err != nil {
+		t.Fatalf("load environment: %v", err)
+	}
+
+	cfg, err := config.New()
+	if err != nil {
+		t.Fatalf("build config: %v", err)
+	}
+
+	return cfg
+}
+```
+
 ### internal/runtime/runtime_test.go
 ```go
 package runtime_test
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -24,7 +53,8 @@ func TestAppBoots(t *testing.T) {
 	if err != nil {
 		t.Fatalf("boot: %v", err)
 	}
-	t.Cleanup(func() { _ = app.Close(t.Context()) })
+	// t.Context() is already canceled when cleanups run; keep the close alive.
+	t.Cleanup(func() { _ = app.Close(context.WithoutCancel(t.Context())) })
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
@@ -40,7 +70,8 @@ func TestAppBoots(t *testing.T) {
 
 - Boot the same graph production uses via `runtime.New`.
 - Integration tests cover cross-domain flows that handler tests cannot.
-- Close the app with `app.Close` to release the database and telemetry.
+- Close the app with `app.Close` to release the database and telemetry, passing `context.WithoutCancel(t.Context())` because `t.Context()` is canceled before cleanup runs.
+- `testConfig(t)` lives in `internal/runtime/main_test.go`; it loads the project `.env` and builds the same config `cmd/app` does.
 - Use a real Postgres test database; migrations are applied at boot.
 - Do not reach into unexported runtime fields.
 

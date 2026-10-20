@@ -9,6 +9,7 @@ package patterns
 import (
 	"embed"
 	"io/fs"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -22,6 +23,11 @@ type File struct {
 	Path     string `json:"path"`
 	Language string `json:"language"`
 	Content  string `json:"content"`
+	// Fragment marks content that is not a complete file: an excerpt, a
+	// statement list, or declarations that belong in an existing file. The
+	// full-scaffold compile test skips fragments even when the path looks like
+	// a Go file.
+	Fragment bool `json:"fragment,omitempty"`
 }
 
 // Pattern is the complete, machine-readable description of a primitive.
@@ -129,6 +135,7 @@ func parseMarkdown(id, raw string) Pattern {
 	summary := make([]string, 0)
 	filePath := ""
 	fileLang := ""
+	fileFragment := false
 	fileBody := make([]string, 0)
 	inFence := false
 
@@ -145,8 +152,10 @@ func parseMarkdown(id, raw string) Pattern {
 			Path:     filePath,
 			Language: fileLang,
 			Content:  content,
+			Fragment: fileFragment,
 		})
 		filePath, fileLang, fileBody = "", "", nil
+		fileFragment = false
 	}
 
 	for line := range strings.SplitSeq(strings.ReplaceAll(raw, "\r\n", "\n"), "\n") {
@@ -169,7 +178,13 @@ func parseMarkdown(id, raw string) Pattern {
 		case strings.HasPrefix(trimmed, "# ") && pattern.Title == "":
 			pattern.Title = strings.TrimSpace(strings.TrimPrefix(trimmed, "# "))
 		case strings.HasPrefix(trimmed, "```"):
-			fileLang = strings.TrimSpace(strings.TrimPrefix(trimmed, "```"))
+			info := strings.Fields(strings.TrimSpace(strings.TrimPrefix(trimmed, "```")))
+			fileLang = ""
+			fileFragment = false
+			if len(info) > 0 {
+				fileLang = info[0]
+				fileFragment = slices.Contains(info[1:], "fragment")
+			}
 			inFence = true
 		default:
 			switch section {

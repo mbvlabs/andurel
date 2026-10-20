@@ -8,7 +8,7 @@ views do not.
 ## Files
 
 ### email/<name>.templ
-```go
+```templ
 package email
 
 import (

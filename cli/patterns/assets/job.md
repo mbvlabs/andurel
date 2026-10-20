@@ -16,6 +16,12 @@ import (
 	"github.com/riverqueue/river"
 )
 
+// Mailer is the slice of the email sender this worker needs; the queue package
+// wires the real transactional sender.
+type Mailer interface {
+	SendWelcome(ctx context.Context, userID string) error
+}
+
 type SendWelcomeEmailArgs struct {
 	UserID string `json:"user_id"`
 }

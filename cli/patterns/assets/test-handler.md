@@ -6,6 +6,62 @@ needs Postgres only when it seeds data through the domains, as below.
 
 ## Files
 
+### handlers/main_test.go
+```go
+package handlers_test
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"testing"
+
+	"app/resources"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/storage"
+)
+
+// testCluster is one Postgres container for the whole test package.
+var testCluster *storage.TestCluster
+
+func TestMain(m *testing.M) {
+	cluster, err := storage.NewTestCluster(context.Background())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "skipping handler tests: start postgres container: %v\n", err)
+		os.Exit(0)
+	}
+	testCluster = cluster
+
+	code := m.Run()
+
+	_ = testCluster.Close(context.Background())
+	os.Exit(code)
+}
+
+// testRenderer builds the Inertia renderer handlers expect. There is no
+// framework default: the root component is the application's own.
+func testRenderer(t *testing.T) *inertia.Renderer {
+	t.Helper()
+
+	renderer, err := inertia.NewRenderer(
+		inertia.RendererConfig{
+			ContainerID:  "app",
+			BuildPathURL: "/dist/",
+			EntryPoint:   "resources/js/app.ts",
+			ViteDevURL:   "http://localhost:5173",
+		},
+		inertia.WithRoot(resources.Root),
+		inertia.WithEnvironment("test"),
+	)
+	if err != nil {
+		t.Fatalf("create renderer: %v", err)
+	}
+
+	return renderer
+}
+```
+
 ### handlers/product_test.go
 ```go
 package handlers_test
@@ -22,11 +78,10 @@ import (
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/anduin/anduintest"
-	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 func TestProductIndex(t *testing.T) {
-	db := storage.NewTestCluster(t.Context()).NewTestDB(t, migrations.Migrations, ".")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 	products := domains.NewProducts(db)
 	for i := range 3 {
 		_, err := products.Create(t.Context(), domains.CreateProductData{
@@ -56,6 +111,7 @@ func TestProductIndex(t *testing.T) {
 - Prefer handler tests over integration tests when no cross-domain behavior is exercised.
 - Assert status and the Inertia component name, not HTML strings.
 - Seed data through receivers built per test (`domains.NewProducts(db)`); pass the handler the same receiver.
+- Tests that seed data share the package cluster from `TestMain` (`handlers/main_test.go`) and call `testCluster.NewTestDB(t, migrations.Migrations, ".")` for a clean database.
 
 ## Checklist
 

@@ -32,6 +32,7 @@ import (
 	"app/domains/internal/queries"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
@@ -97,13 +98,79 @@ func (p Products) Create(ctx context.Context, data CreateProductData) (Product, 
 		return Product{}, err
 	}
 
-	return p.queries.CreateProduct[Product](ctx, queries.CreateProductParams{
+	created, err := p.queries.CreateProduct[Product](ctx, queries.CreateProductParams{
 		ID:         entity.ID,
 		CreatedAt:  entity.CreatedAt,
 		UpdatedAt:  entity.UpdatedAt,
 		Name:       entity.Name,
 		PriceCents: entity.PriceCents,
 	})
+	if err != nil {
+		return Product{}, productWriteError(err)
+	}
+
+	return created, nil
+}
+
+type PaginatedProducts struct {
+	Products   []Product
+	TotalCount int64
+	Page       int64
+	PageSize   int64
+	TotalPages int64
+}
+
+func (p Products) Paginate(
+	ctx context.Context,
+	page, pageSize int64,
+) (PaginatedProducts, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	totalCount, err := p.queries.CountProducts(ctx)
+	if err != nil {
+		return PaginatedProducts{}, err
+	}
+
+	entities, err := p.queries.ListProducts[Product](ctx).
+		OrderByCreatedAtDesc().
+		Limit(int32(pageSize)).
+		Offset(int32(offset)).
+		All()
+	if err != nil {
+		return PaginatedProducts{}, err
+	}
+
+	totalPages := (totalCount + pageSize - 1) / pageSize
+
+	return PaginatedProducts{
+		Products:   entities,
+		TotalCount: totalCount,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
+}
+
+// productWriteError translates the expected name conflict without classifying
+// unrelated database failures as product errors. Keep the constraint in sync
+// with the products migration.
+func productWriteError(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return errors.Join(ErrConflict, err)
+	}
+
+	return err
 }
 ```
 
@@ -118,24 +185,28 @@ values ($1, $2, $3, $4, $5)
 returning *;
 
 -- name: ListProducts :many
-select * from products order by created_at desc;
+-- @order created_at
+select * from products;
+
+-- name: CountProducts :one
+select count(*) from products;
 ```
 
 ### internal/runtime/runtime.go (edit)
-```go
+```go fragment
 products := domains.NewProducts(db)
 
 handlers.NewProductHandler(products, renderer).Register(router)
 ```
 
-### Atomic multi-statement methods (when needed)
+### domains/product.go (edit: atomic methods)
 
 A receiver whose method runs several statements that must be atomic on their
 own holds a `storage.Transactor` and rebinds it in `InTx`. Standalone, the
 method opens its own transaction; on a receiver bound with `InTx`, the bound
 transactor makes `AtomicOps` join the caller's transaction instead.
 
-```go
+```go fragment
 // Tokens needs a transactor because ReplaceCode is atomic both standalone and
 // when bound to a service's transaction.
 type Tokens struct {
@@ -182,8 +253,6 @@ import (
 
 	"app/domains"
 	"app/migrations"
-
-	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 func TestProduct_Validate(t *testing.T) {
@@ -193,7 +262,7 @@ func TestProduct_Validate(t *testing.T) {
 }
 
 func TestProducts_Create(t *testing.T) {
-	db := storage.NewTestCluster(t.Context()).NewTestDB(t, migrations.Migrations, ".")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 	products := domains.NewProducts(db)
 
 	got, err := products.Create(t.Context(), domains.CreateProductData{
@@ -206,6 +275,37 @@ func TestProducts_Create(t *testing.T) {
 	if got.ID == uuid.Nil() {
 		t.Fatal("expected id")
 	}
+}
+```
+
+### domains/main_test.go
+```go
+package domains_test
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"testing"
+
+	"github.com/mbvlabs/andurel/pkg/storage"
+)
+
+// testCluster is one Postgres container for the whole test package.
+var testCluster *storage.TestCluster
+
+func TestMain(m *testing.M) {
+	cluster, err := storage.NewTestCluster(context.Background())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "skipping domain tests: start postgres container: %v\n", err)
+		os.Exit(0)
+	}
+	testCluster = cluster
+
+	code := m.Run()
+
+	_ = testCluster.Close(context.Background())
+	os.Exit(code)
 }
 ```
 

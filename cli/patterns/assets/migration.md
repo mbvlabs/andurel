@@ -9,18 +9,18 @@ truth; domain entities and queries follow it.
 ### migrations/<timestamp>_create_<table>.sql
 ```sql
 -- +goose Up
-create table posts (
+create table products (
 	id uuid primary key default gen_random_uuid(),
-	title text not null,
-	body text not null,
+	name text not null unique,
+	price_cents bigint not null default 0,
 	created_at timestamptz not null default now(),
 	updated_at timestamptz not null default now()
 );
 
-create index posts_created_at_idx on posts (created_at desc);
+create index products_created_at_idx on products (created_at desc);
 
 -- +goose Down
-drop table if exists posts;
+drop table if exists products;
 ```
 
 ## Rules

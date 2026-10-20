@@ -19,6 +19,7 @@ package handlers
 
 import (
 	"context"
+	"net/http"
 
 	"app/domains"
 	"app/routes"
@@ -78,12 +79,16 @@ func (h ProductHandler) Create(ctx context.Context) error {
 		return err
 	}
 
-	return h.renderer.Redirect(ctx, routes.ProductShow.URL(created.ID.String()))
+	return h.renderer.Redirect(
+		ctx,
+		routes.ProductShow.URL(created.ID.String()),
+		http.StatusSeeOther,
+	)
 }
 ```
 
 ### handlers/errors.go
-```go
+```go fragment
 package handlers
 
 import (

@@ -13,7 +13,7 @@ and `cfg.Cache.Store()`.
 ## Files
 
 ### internal/runtime/runtime.go
-```go
+```go fragment
 package runtime
 
 import (

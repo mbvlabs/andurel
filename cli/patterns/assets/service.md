@@ -29,11 +29,12 @@ import (
 )
 
 type Identity struct {
-	transactor storage.Transactor
-	users      domains.Users
-	tokens     domains.Tokens
-	queue      storage.InsertQueue
-	pepper     string
+	transactor             storage.Transactor
+	users                  domains.Users
+	tokens                 domains.Tokens
+	queue                  storage.InsertQueue
+	pepper                 string
+	defaultSenderSignature string
 }
 
 func NewIdentity(
@@ -44,7 +45,14 @@ func NewIdentity(
 	authCfg config.Auth,
 	mailCfg config.Mail,
 ) Identity {
-	return Identity{transactor: transactor, users: users, tokens: tokens, queue: queue, pepper: authCfg.Pepper}
+	return Identity{
+		transactor:             transactor,
+		users:                  users,
+		tokens:                 tokens,
+		queue:                  queue,
+		pepper:                 authCfg.Pepper,
+		defaultSenderSignature: mailCfg.DefaultSenderSignature,
+	}
 }
 
 func (i Identity) RegisterUser(ctx context.Context, data RegisterUserData) (domains.User, error) {

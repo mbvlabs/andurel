@@ -7,6 +7,37 @@ run in parallel. `Validate` gets plain unit tests that need no database.
 
 ## Files
 
+### domains/main_test.go
+```go
+package domains_test
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"testing"
+
+	"github.com/mbvlabs/andurel/pkg/storage"
+)
+
+// testCluster is one Postgres container for the whole test package.
+var testCluster *storage.TestCluster
+
+func TestMain(m *testing.M) {
+	cluster, err := storage.NewTestCluster(context.Background())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "skipping domain tests: start postgres container: %v\n", err)
+		os.Exit(0)
+	}
+	testCluster = cluster
+
+	code := m.Run()
+
+	_ = testCluster.Close(context.Background())
+	os.Exit(code)
+}
+```
+
 ### domains/product_test.go
 ```go
 package domains_test
@@ -17,7 +48,6 @@ import (
 	"app/domains"
 	"app/migrations"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
@@ -42,7 +72,7 @@ func TestProduct_Validate(t *testing.T) {
 
 func TestProducts_Create(t *testing.T) {
 	t.Parallel()
-	db := storage.NewTestCluster(t.Context()).NewTestDB(t, migrations.Migrations, ".")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 	products := domains.NewProducts(db)
 
 	got, err := products.Create(t.Context(), domains.CreateProductData{
@@ -59,7 +89,7 @@ func TestProducts_Create(t *testing.T) {
 
 func TestProducts_CreateRejectsInvalid(t *testing.T) {
 	t.Parallel()
-	db := storage.NewTestCluster(t.Context()).NewTestDB(t, migrations.Migrations, ".")
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
 	products := domains.NewProducts(db)
 
 	_, err := products.Create(t.Context(), domains.CreateProductData{})
@@ -72,8 +102,9 @@ func TestProducts_CreateRejectsInvalid(t *testing.T) {
 ## Rules
 
 - Domain tests require a real Postgres container; handler tests only when they seed data.
+- One Postgres container per package: `TestMain` starts it once and closes it after `m.Run()`. If the container cannot start (no Docker), it prints the reason and exits 0 so the suite passes with the database tests skipped.
 - Unit-test every `Validate` method directly, including the unhappy paths.
-- Get a clean database per test with `storage.NewTestCluster(t.Context()).NewTestDB(t, migrations.Migrations, ".")` and build receivers over it (`domains.NewProducts(db)`). Add `storage.NewTransactor(db)` when the test exercises a service or an atomic method.
+- Get a clean database per test with `testCluster.NewTestDB(t, migrations.Migrations, ".")`, where `testCluster` is the package-level cluster `TestMain` starts and closes, and build receivers over it (`domains.NewProducts(db)`). Add `storage.NewTransactor(db)` when the test exercises a service or an atomic method.
 - Never share receivers or a database between tests; there are no globals, so per-test construction keeps `t.Parallel()` safe.
 - To prove atomicity, make a later step fail (e.g. a queue whose `Insert` errors) and assert the earlier writes were rolled back.
 - Build entities inline through the domain API; do not add factories.
