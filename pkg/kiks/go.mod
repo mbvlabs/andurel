@@ -5,7 +5,7 @@ go 1.27.1
 require (
 	github.com/gorilla/securecookie v1.1.2
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/mbvlabs/andurel/pkg/anduin v0.1.0
+	github.com/mbvlabs/andurel/pkg/anduin v0.2.1
 )
 
 require (

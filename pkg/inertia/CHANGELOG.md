@@ -1,5 +1,11 @@
 ## Unreleased
 
+## 0.8.1 - 2026-10-20
+
+### Changed
+
+- Requires `pkg/anduin` v0.2.1.
+
 ## 0.8.0 - 2026-10-20
 
 ### Changed

@@ -4,6 +4,12 @@ All notable changes to the standalone Andurel kiks module are documented here.
 
 ## Unreleased
 
+## 0.3.1 - 2026-10-20
+
+### Changed
+
+- Requires `pkg/anduin` v0.2.1.
+
 ## 0.3.0 - 2026-10-19
 
 ### Changed
