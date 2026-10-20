@@ -58,9 +58,7 @@ func verifyStepPassed(step verifyStep) bool {
 
 func verifyRuleHelp() string {
 	var b strings.Builder
-	for _, rule := range layers.Catalog() {
-		fmt.Fprintf(&b, "  %-16s %s\n", rule.ID, rule.Summary)
-	}
+	writeRuleSection(&b, layers.Catalog())
 	return b.String()
 }
 
@@ -82,12 +80,8 @@ andurel verify checks, in order:
 The layers step loads the active build target, like go vet: files excluded by
 GOOS, GOARCH, or build constraints are not type-checked or analyzed.
 
-Rules:
-` + verifyRuleHelp() + `
-A missing templ or narsilc binary fails the generated step with the
-missing-tool rule; run 'andurel tool sync' to install it. Pass
---skip-generated to mark that step 'skipped' instead; an explicit skip does
-not fail the run.
+` + verifyRuleHelp() + `Pass --skip-generated to mark the generated step 'skipped'; an explicit skip
+does not fail the run.
 
 Pass --with-tests to also run go test ./... (requires a Postgres container for
 domain tests). verify never rewrites files; fix reported issues and re-run.
@@ -110,7 +104,7 @@ with code 9 (verification_failed); usage errors exit with code 1.`,
 	setAgentMetadata(
 		cmd,
 		"verification",
-		"Read-only verification: gofmt, go fix, go vet, the domain persistence and transaction boundary, and generated-code drift. A missing templ or narsilc binary fails generated with missing-tool; run 'andurel tool sync'. Fails with exit code 9 and structured violations.",
+		"Read-only verification: gofmt, go fix, go vet, the domain persistence and transaction boundary, and generated-code drift. Fails with exit code 9 and structured violations; each rule and its fix is listed in verify --help and the rules field of andurel commands --json.",
 	)
 	setStandardHelp(cmd)
 	return cmd

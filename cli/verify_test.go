@@ -247,6 +247,43 @@ func TestVerifyHelpListsRuleCatalog(t *testing.T) {
 		if !strings.Contains(stdout.String(), rule.ID) {
 			t.Fatalf("verify --help is missing rule %q:\n%s", rule.ID, stdout.String())
 		}
+		if !strings.Contains(stdout.String(), "fix: "+rule.Fix) {
+			t.Fatalf("verify --help is missing the fix for %q:\n%s", rule.ID, stdout.String())
+		}
+	}
+}
+
+// TestVerifyLongHelpRendersRuleCatalog keeps verify's long help and agent
+// notes from restating rules by hand: the rule list comes from the catalog, and
+// the surrounding prose names no rule ID that is not also a step name.
+func TestVerifyLongHelpRendersRuleCatalog(t *testing.T) {
+	cmd := newVerifyCommand()
+	ruleHelp := verifyRuleHelp()
+	if !strings.Contains(cmd.Long, ruleHelp) {
+		t.Fatalf("verify long help does not embed the catalog rule list:\n%s", cmd.Long)
+	}
+	for _, rule := range layers.Catalog() {
+		if !strings.Contains(ruleHelp, rule.ID) || !strings.Contains(ruleHelp, "fix: "+rule.Fix) {
+			t.Fatalf("catalog rule list is missing %q or its fix:\n%s", rule.ID, ruleHelp)
+		}
+	}
+
+	steps := map[string]bool{"gofmt": true, "go fix": true, "generated": true}
+	meta := commandMetaSpecs["andurel verify"]
+	prose := map[string]string{
+		"long help":   strings.Replace(cmd.Long, ruleHelp, "", 1),
+		"agent notes": cmd.Annotations[agentNotesAnnotation],
+		"when to use": strings.Join(meta.WhenToUse, "\n"),
+	}
+	for _, rule := range layers.Catalog() {
+		if steps[rule.ID] {
+			continue
+		}
+		for name, text := range prose {
+			if strings.Contains(text, rule.ID) {
+				t.Fatalf("verify %s restates rule %q by hand:\n%s", name, rule.ID, text)
+			}
+		}
 	}
 }
 
