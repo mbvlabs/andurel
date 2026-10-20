@@ -27,12 +27,13 @@ import (
 )
 
 type checkResult struct {
-	category string
-	name     string
-	status   checkStatus
-	message  string
-	details  []string
-	hint     string
+	category    string
+	name        string
+	status      checkStatus
+	message     string
+	details     []string
+	hint        string
+	missingTool string
 }
 
 type checkStatus int
@@ -1151,9 +1152,10 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	templPath := filepath.Join(rootDir, "bin", "templ")
 	if _, err := os.Stat(templPath); err != nil {
 		return checkResult{
-			name:    "templ generate",
-			status:  statusWarn,
-			message: "templ binary not found (skipping check)",
+			name:        "templ generate",
+			status:      statusWarn,
+			message:     "templ binary not found (skipping check)",
+			missingTool: "templ",
 		}
 	}
 
@@ -1239,9 +1241,10 @@ func checkNarsilcGenerate(rootDir string, verbose bool) checkResult {
 	narsilcPath := filepath.Join(rootDir, "bin", "narsilc")
 	if _, err := os.Stat(narsilcPath); err != nil {
 		return checkResult{
-			name:    "narsilc generate",
-			status:  statusWarn,
-			message: "narsilc binary not found (skipping check)",
+			name:        "narsilc generate",
+			status:      statusWarn,
+			message:     "narsilc binary not found (skipping check)",
+			missingTool: "narsilc",
 		}
 	}
 

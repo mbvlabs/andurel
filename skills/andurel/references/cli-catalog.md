@@ -19,8 +19,13 @@ andurel --agent --help
 3. `andurel generate migration NAME` — create a migration (the only generated file).
 4. Write domains, services, handlers, routes, and middleware by hand.
 5. `andurel sync queries` / `sync routes` / `sync payloads` / `sync email` — refresh derived files.
-6. `andurel verify` — format, `go fix`, `go vet`, and the domain/service boundary.
+6. `andurel verify` — formatting, `go fix`, `go vet`, layer boundaries, and generated-code drift.
 7. `andurel doctor --json` — health and generated-file drift.
+
+`andurel verify` reports each step as `ok`, `fail`, or `skipped`. A missing
+`templ` or `narsilc` binary fails the `generated` step with the `missing-tool`
+rule; run `andurel tool sync` to install it. `--skip-generated` marks that step
+`skipped` and does not fail the run.
 
 `andurel sync` refreshes derived app files. `andurel tool sync` downloads pinned
 binaries. They are different commands.

@@ -21,9 +21,17 @@ type verifyViolation struct {
 	Fix     string `json:"fix,omitempty"`
 }
 
+const (
+	verifyStatusOK      = "ok"
+	verifyStatusFail    = "fail"
+	verifyStatusSkipped = "skipped"
+)
+
 type verifyStep struct {
 	Name       string            `json:"name"`
+	Status     string            `json:"status"`
 	OK         bool              `json:"ok"`
+	Reason     string            `json:"reason,omitempty"`
 	Detail     string            `json:"detail,omitempty"`
 	Violations []verifyViolation `json:"violations,omitempty"`
 }
@@ -31,6 +39,20 @@ type verifyStep struct {
 type verifyReport struct {
 	OK    bool         `json:"ok"`
 	Steps []verifyStep `json:"steps"`
+}
+
+func verifyStepOK(name string) verifyStep {
+	return verifyStep{Name: name, Status: verifyStatusOK, OK: true}
+}
+
+func verifyStepFailed(name string) verifyStep {
+	return verifyStep{Name: name, Status: verifyStatusFail}
+}
+
+// verifyStepPassed reports whether a step lets the overall run pass. A skip is
+// an explicit decision and does not fail verification; anything else must be ok.
+func verifyStepPassed(step verifyStep) bool {
+	return step.Status == verifyStatusOK || step.Status == verifyStatusSkipped
 }
 
 func newVerifyCommand() *cobra.Command {
@@ -58,12 +80,17 @@ andurel verify checks, in order:
                                 exported method on its own receiver
   • generated — templ, narsilc, routes.ts, and payloads.ts output is up to date
 
+A missing templ or narsilc binary fails the generated step with the
+missing-tool rule; run 'andurel tool sync' to install it. Pass
+--skip-generated to mark that step 'skipped' instead; an explicit skip does
+not fail the run.
+
 Pass --with-tests to also run go test ./... (requires a Postgres container for
 domain tests). verify never rewrites files; fix reported issues and re-run.
 
-Every failing step lists violations as {rule, file, line, message, fix}. A
-failed verification exits with code 9 (verification_failed); usage errors exit
-with code 1.`,
+Each step reports status 'ok', 'fail', or 'skipped'. Every failing step lists
+violations as {rule, file, line, message, fix}. A failed verification exits
+with code 9 (verification_failed); usage errors exit with code 1.`,
 		Example: `  andurel verify
   andurel verify --json
   andurel verify --with-tests
@@ -79,7 +106,7 @@ with code 1.`,
 	setAgentMetadata(
 		cmd,
 		"verification",
-		"Read-only verification: gofmt, go fix, go vet, the domain persistence and transaction boundary, and generated-code drift. Fails with exit code 9 and structured violations.",
+		"Read-only verification: gofmt, go fix, go vet, the domain persistence and transaction boundary, and generated-code drift. A missing templ or narsilc binary fails generated with missing-tool; run 'andurel tool sync'. Fails with exit code 9 and structured violations.",
 	)
 	setStandardHelp(cmd)
 	return cmd
@@ -91,20 +118,28 @@ func runVerify(cmd *cobra.Command, withTests, skipGenerated bool) error {
 		return err
 	}
 
-	report := verifyReport{OK: true}
+	report := verifyReport{}
 	report.Steps = append(report.Steps, verifyGofmt(rootDir))
 	report.Steps = append(report.Steps, verifyGoFix(rootDir))
 	report.Steps = append(report.Steps, verifyGoVet(rootDir))
 	report.Steps = append(report.Steps, verifyLayerBoundaries(rootDir))
-	if !skipGenerated {
+	if skipGenerated {
+		report.Steps = append(report.Steps, verifyStep{
+			Name:   "generated",
+			Status: verifyStatusSkipped,
+			Reason: "--skip-generated",
+		})
+	} else {
 		report.Steps = append(report.Steps, verifyGenerated(rootDir))
 	}
 	if withTests {
 		report.Steps = append(report.Steps, verifyGoTest(rootDir))
 	}
+	report.OK = true
 	for _, step := range report.Steps {
-		if !step.OK {
+		if !verifyStepPassed(step) {
 			report.OK = false
+			break
 		}
 	}
 
@@ -137,14 +172,22 @@ func renderVerifyHuman(cmd *cobra.Command, report verifyReport) error {
 	out := cmd.OutOrStdout()
 	for _, step := range report.Steps {
 		status := "ok"
-		if !step.OK {
+		switch step.Status {
+		case verifyStatusFail:
 			status = "FAIL"
+		case verifyStatusSkipped:
+			status = "SKIP"
 		}
 		if _, err := fmt.Fprintf(out, "%-10s %s\n", step.Name, status); err != nil {
 			return err
 		}
 		for _, violation := range step.Violations {
 			if _, err := fmt.Fprintf(out, "  %s\n", formatViolation(violation)); err != nil {
+				return err
+			}
+		}
+		if step.Reason != "" {
+			if _, err := fmt.Fprintf(out, "  reason: %s\n", step.Reason); err != nil {
 				return err
 			}
 		}
@@ -178,7 +221,7 @@ func verifySummary(report verifyReport) string {
 	}
 	failed := make([]string, 0)
 	for _, step := range report.Steps {
-		if !step.OK {
+		if !verifyStepPassed(step) {
 			failed = append(failed, step.Name)
 		}
 	}
@@ -189,12 +232,14 @@ func verifyGofmt(rootDir string) verifyStep {
 	out, err := runVerifyCommand(rootDir, "gofmt", "-l", ".")
 	detail := strings.TrimSpace(out)
 	if err != nil {
-		return verifyStep{Name: "gofmt", OK: false, Detail: commandDetail(err, detail)}
+		step := verifyStepFailed("gofmt")
+		step.Detail = commandDetail(err, detail)
+		return step
 	}
 	if detail == "" {
-		return verifyStep{Name: "gofmt", OK: true}
+		return verifyStepOK("gofmt")
 	}
-	step := verifyStep{Name: "gofmt", OK: false}
+	step := verifyStepFailed("gofmt")
 	for file := range strings.SplitSeq(detail, "\n") {
 		file = strings.TrimSpace(file)
 		if file == "" {
@@ -214,50 +259,55 @@ func verifyGoFix(rootDir string) verifyStep {
 	out, err := runVerifyCommand(rootDir, "go", "fix", "-diff", "./...")
 	detail := strings.TrimSpace(out)
 	if err != nil {
-		return verifyStep{Name: "go fix", OK: false, Detail: commandDetail(err, detail)}
+		step := verifyStepFailed("go fix")
+		step.Detail = commandDetail(err, detail)
+		return step
 	}
 	if detail == "" {
-		return verifyStep{Name: "go fix", OK: true}
+		return verifyStepOK("go fix")
 	}
-	return verifyStep{
-		Name:   "go fix",
-		OK:     false,
-		Detail: detail,
-		Violations: []verifyViolation{{
-			Rule:    "go fix",
-			Message: "go fix reports automatic rewrites",
-			Fix:     "go fix ./...",
-		}},
-	}
+	step := verifyStepFailed("go fix")
+	step.Detail = detail
+	step.Violations = []verifyViolation{{
+		Rule:    "go fix",
+		Message: "go fix reports automatic rewrites",
+		Fix:     "go fix ./...",
+	}}
+	return step
 }
 
 func verifyGoVet(rootDir string) verifyStep {
 	out, err := runGoVet(rootDir)
 	detail := strings.TrimSpace(out)
 	if err != nil {
-		return verifyStep{Name: "go vet", OK: false, Detail: commandDetail(err, detail)}
+		step := verifyStepFailed("go vet")
+		step.Detail = commandDetail(err, detail)
+		return step
 	}
-	return verifyStep{Name: "go vet", OK: true}
+	return verifyStepOK("go vet")
 }
 
 func verifyGoTest(rootDir string) verifyStep {
 	out, err := runVerifyCommand(rootDir, "go", "test", "./...")
 	detail := strings.TrimSpace(out)
 	if err != nil {
-		return verifyStep{Name: "go test", OK: false, Detail: commandDetail(err, detail)}
+		step := verifyStepFailed("go test")
+		step.Detail = commandDetail(err, detail)
+		return step
 	}
-	return verifyStep{Name: "go test", OK: true}
+	return verifyStepOK("go test")
 }
 
 // verifyGenerated reports generated-code drift by reusing doctor's read-only
-// generation checks. Missing tool binaries are reported in Detail and do not
-// fail the step; out-of-date output does, with the sync command that fixes it.
+// generation checks. A missing tool binary fails the step with a missing-tool
+// violation; out-of-date output fails it with the sync command that fixes it.
 func verifyGenerated(rootDir string) verifyStep {
-	step := verifyStep{Name: "generated", OK: true}
+	step := verifyStepOK("generated")
 	notes := make([]string, 0)
 	for _, result := range codeGenerationChecks(rootDir, false) {
 		switch result.status {
 		case statusFail:
+			step.Status = verifyStatusFail
 			step.OK = false
 			message := result.name + ": " + result.message
 			if len(result.details) > 0 {
@@ -271,6 +321,16 @@ func verifyGenerated(rootDir string) verifyStep {
 				Fix:     fix,
 			})
 		case statusWarn:
+			if result.missingTool != "" {
+				step.Status = verifyStatusFail
+				step.OK = false
+				step.Violations = append(step.Violations, verifyViolation{
+					Rule:    "missing-tool",
+					Message: result.missingTool + " binary not found",
+					Fix:     "andurel tool sync",
+				})
+				continue
+			}
 			notes = append(notes, result.name+": "+result.message)
 		}
 	}

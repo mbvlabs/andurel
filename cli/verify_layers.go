@@ -79,7 +79,9 @@ type boundaryIndex struct {
 func verifyLayerBoundaries(rootDir string) verifyStep {
 	module, _, err := readGoModMetadata(rootDir)
 	if err != nil {
-		return verifyStep{Name: "layers", OK: false, Detail: err.Error()}
+		step := verifyStepFailed("layers")
+		step.Detail = err.Error()
+		return step
 	}
 
 	fset := token.NewFileSet()
@@ -125,7 +127,9 @@ func verifyLayerBoundaries(rootDir string) verifyStep {
 		return nil
 	})
 	if walkErr != nil {
-		return verifyStep{Name: "layers", OK: false, Detail: walkErr.Error()}
+		step := verifyStepFailed("layers")
+		step.Detail = walkErr.Error()
+		return step
 	}
 
 	index := buildBoundaryIndex(module, files)
@@ -136,9 +140,11 @@ func verifyLayerBoundaries(rootDir string) verifyStep {
 	}
 
 	if len(violations) == 0 {
-		return verifyStep{Name: "layers", OK: true}
+		return verifyStepOK("layers")
 	}
-	return verifyStep{Name: "layers", OK: false, Violations: violations}
+	step := verifyStepFailed("layers")
+	step.Violations = violations
+	return step
 }
 
 // importNames maps each import's local package name to its path.

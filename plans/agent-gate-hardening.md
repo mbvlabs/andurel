@@ -234,12 +234,12 @@ step `OK`. An agent reads that as a pass. `cli/` has **no `verify` tests at all*
 
 ### Acceptance
 
-- [ ] `verify` without templ or narsilc on `PATH` exits 9 with a `missing-tool` violation whose
+- [x] `verify` without templ or narsilc on `PATH` exits 9 with a `missing-tool` violation whose
       fix is `andurel tool sync`.
-- [ ] `verify --skip-generated` exits 0, and the step reports `status: "skipped"`.
-- [ ] New `cli/verify_test.go` covers four cases: ok, fail, missing-tool and
+- [x] `verify --skip-generated` exits 0, and the step reports `status: "skipped"`.
+- [x] New `cli/verify_test.go` covers four cases: ok, fail, missing-tool and
       explicitly-skipped. These tests use a tiny temp project; they do not scaffold.
-- [ ] `verify --help` and `skills/andurel/references/cli-catalog.md` mention `missing-tool`, and
+- [x] `verify --help` and `skills/andurel/references/cli-catalog.md` mention `missing-tool`, and
       `just commands-check` passes.
 
 ---

@@ -497,7 +497,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	},
 	"andurel verify": {
 		Summary:         "Check formatting, vet, layer boundaries, and generated code",
-		WhenToUse:       []string{"After a change, before commit: gofmt, go fix, go vet, the domain persistence and transaction boundary (queries-import, db-handle, tx-unwrap, tx-escape, tx-public-call), and generated-code drift (generated).", "Read each violation's fix field and apply it; a failed run exits 9 (verification_failed)."},
+		WhenToUse:       []string{"After a change, before commit: gofmt, go fix, go vet, the domain persistence and transaction boundary (queries-import, db-handle, tx-unwrap, tx-escape, tx-public-call), and generated-code drift (generated, missing-tool).", "A missing templ or narsilc binary fails the generated step with the missing-tool rule; run 'andurel tool sync' to install it, or pass --skip-generated to mark the step skipped.", "Read each violation's fix field and apply it; a failed run exits 9 (verification_failed)."},
 		WhenNotToUse:    []string{"verify is read-only; fix the reported issues yourself and re-run."},
 		Prerequisites:   []string{"Andurel project root"},
 		Examples:        []string{"andurel verify", "andurel verify --json", "andurel verify --with-tests", "andurel verify --skip-generated"},
