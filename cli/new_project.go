@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -190,20 +191,29 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 		return wrapNewProjectScaffoldError(err)
 	}
 
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n🎉 Successfully created project: %s\n", projectName)
-	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\nNext steps:")
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  cd %s\n", args[0])
-	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  andurel tool sync")
-	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  cp .env.example .env")
-	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  fill in your database connection details in .env")
-	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  (andurel db create - if database does not exist")
-	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  andurel db migrate up")
-	if ui.IsInertia() {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %s install\n", javascriptRuntime)
-	}
-	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  andurel run")
+	printNewProjectNextSteps(cmd.OutOrStdout(), projectName, args[0], ui.IsInertia(), javascriptRuntime)
 
 	return nil
+}
+
+func printNewProjectNextSteps(
+	out io.Writer,
+	projectName, dir string,
+	inertia bool,
+	javascriptRuntime string,
+) {
+	_, _ = fmt.Fprintf(out, "\n🎉 Successfully created project: %s\n", projectName)
+	_, _ = fmt.Fprintln(out, "\nNext steps:")
+	_, _ = fmt.Fprintf(out, "  cd %s\n", dir)
+	_, _ = fmt.Fprintln(out, "  andurel tool sync")
+	_, _ = fmt.Fprintln(out, "  cp .env.example .env")
+	_, _ = fmt.Fprintln(out, "  fill in your database connection details in .env")
+	_, _ = fmt.Fprintln(out, "  (andurel db create - if database does not exist")
+	_, _ = fmt.Fprintln(out, "  andurel db migrate up")
+	if inertia {
+		_, _ = fmt.Fprintf(out, "  %s install\n", javascriptRuntime)
+	}
+	_, _ = fmt.Fprintln(out, "  andurel run")
 }
 
 func resolveNewProjectDestination(projectArgument string) (newProjectDestination, error) {

@@ -480,6 +480,40 @@ func TestRunDoctorHumanPassWarnAndProjectFailure(t *testing.T) {
 	}
 }
 
+func TestRunDoctorHumanFailureSummary(t *testing.T) {
+	stubLatestAndurelVersion(t, "v1.2.3", nil)
+	root := t.TempDir()
+	writeGoModule(t, root)
+	lock := layout.NewAndurelLock("v1.2.3")
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+
+	fakePath := t.TempDir()
+	writeExecutable(t, fakePath, "go", "#!/bin/sh\necho broken >&2\nexit 1\n")
+	t.Setenv("PATH", fakePath)
+
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() {
+		findGoModRoot = originalFindGoModRoot
+	})
+
+	cmd := &cobra.Command{Use: "doctor"}
+	output.RegisterPersistentFlags(cmd)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	if err := runDoctor(cmd, "1.2.3", false); err == nil {
+		t.Fatalf("expected doctor failure, got output:\n%s", out.String())
+	}
+	for _, want := range []string{"✗ Failed:", "Some checks failed"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("doctor output missing %q:\n%s", want, out.String())
+		}
+	}
+}
+
 func TestDoctorToolVersionMismatchesAndUnknowns(t *testing.T) {
 	root := t.TempDir()
 	writeGoModule(t, root)

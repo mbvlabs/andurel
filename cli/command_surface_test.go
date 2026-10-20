@@ -1139,6 +1139,153 @@ func TestRunUpgradeReleaseRequirementAndRepairBypass(t *testing.T) {
 	}
 }
 
+func TestRunUpgradeHumanRepairConfirmation(t *testing.T) {
+	resetCLITestSeams(t)
+	stubLatestAndurelVersion(t, "v2.0.0", nil)
+	root := t.TempDir()
+	writeGoModule(t, root)
+	findGoModRoot = func() (string, error) { return root, nil }
+
+	calls := 0
+	newUpgraderFunc = func(_ string, opts upgrade.UpgradeOptions) (cliUpgrader, error) {
+		calls++
+		if calls == 1 {
+			return fakeUpgrader{report: &upgrade.UpgradeReport{RepairAvailable: true}}, nil
+		}
+		if !opts.Repair || !opts.Auto {
+			t.Fatalf("repair upgrader opts = %#v, want Repair and Auto", opts)
+		}
+		return fakeUpgrader{report: &upgrade.UpgradeReport{
+			Success:       true,
+			RepairApplied: true,
+			FilesReplaced: 1,
+		}}, nil
+	}
+
+	newHumanUpgradeCmd := func(answer string) (*cobra.Command, *bytes.Buffer) {
+		cmd := &cobra.Command{Use: "upgrade"}
+		cmd.Flags().Bool("dry-run", false, "")
+		cmd.Flags().Bool("diff", false, "")
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		cmd.SetIn(strings.NewReader(answer))
+		return cmd, &out
+	}
+
+	cmd, out := newHumanUpgradeCmd("n\n")
+	if err := runUpgrade(cmd, "v2.0.0"); err != nil {
+		t.Fatalf("declined repair: %v", err)
+	}
+	if !strings.Contains(out.String(), "No files were changed.") || calls != 1 {
+		t.Fatalf("declined repair output (calls=%d):\n%s", calls, out.String())
+	}
+
+	calls = 0
+	cmd, out = newHumanUpgradeCmd("y\n")
+	if err := runUpgrade(cmd, "v2.0.0"); err != nil {
+		t.Fatalf("confirmed repair: %v", err)
+	}
+	for _, want := range []string{
+		"Framework repair complete for version v2.0.0",
+		"1 framework files replaced",
+		"Review the restored files with 'git diff'",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("confirmed repair output missing %q:\n%s", want, out.String())
+		}
+	}
+}
+
+func TestRunUpgradeHumanToolSyncFailureAndGoModStep(t *testing.T) {
+	resetCLITestSeams(t)
+	stubLatestAndurelVersion(t, "v2.0.0", nil)
+	root := t.TempDir()
+	writeGoModule(t, root)
+	findGoModRoot = func() (string, error) { return root, nil }
+
+	newUpgraderFunc = func(string, upgrade.UpgradeOptions) (cliUpgrader, error) {
+		return fakeUpgrader{report: &upgrade.UpgradeReport{
+			Success:       true,
+			ToolsAdded:    1,
+			ReplacedFiles: []string{"go.mod"},
+		}}, nil
+	}
+
+	cmd := &cobra.Command{Use: "upgrade"}
+	cmd.Flags().Bool("dry-run", false, "")
+	cmd.Flags().Bool("diff", false, "")
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	if err := runUpgrade(cmd, "v2.0.0"); err != nil {
+		t.Fatalf("runUpgrade: %v", err)
+	}
+	for _, want := range []string{
+		"Warning: failed to sync tools",
+		"andurel tool sync",
+		"2. Run 'go mod tidy' to refresh go.sum",
+		"5. Commit when ready",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("upgrade output missing %q:\n%s", want, out.String())
+		}
+	}
+}
+
+func TestPrintUpgradeSummary(t *testing.T) {
+	var out bytes.Buffer
+	cmd := &cobra.Command{Use: "upgrade"}
+	cmd.SetOut(&out)
+
+	printUpgradeSummary(cmd, &upgrade.UpgradeReport{})
+	if out.Len() != 0 {
+		t.Fatalf("empty report printed a summary:\n%s", out.String())
+	}
+
+	printUpgradeSummary(cmd, &upgrade.UpgradeReport{
+		FilesReplaced:       2,
+		FilesRemoved:        3,
+		ToolsAdded:          4,
+		ToolsUpdated:        5,
+		ToolsRemoved:        6,
+		ToolMetadataChanges: []string{"templ"},
+	})
+	for _, want := range []string{
+		"2 framework files replaced",
+		"3 obsolete internal package files removed",
+		"4 tools added",
+		"5 tools updated",
+		"6 tools removed",
+		"1 tool metadata entries updated",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("summary missing %q:\n%s", want, out.String())
+		}
+	}
+}
+
+func TestPrintNewProjectNextSteps(t *testing.T) {
+	var out bytes.Buffer
+	printNewProjectNextSteps(&out, "app", "./app", true, "pnpm")
+	for _, want := range []string{
+		"Successfully created project: app",
+		"cd ./app",
+		"andurel tool sync",
+		"andurel db migrate up",
+		"pnpm install",
+		"andurel run",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("next steps missing %q:\n%s", want, out.String())
+		}
+	}
+
+	out.Reset()
+	printNewProjectNextSteps(&out, "app", "app", false, "pnpm")
+	if strings.Contains(out.String(), "pnpm install") {
+		t.Fatalf("non-Inertia next steps include a JS install:\n%s", out.String())
+	}
+}
+
 func executeStandaloneCommand(cmd *cobra.Command, args ...string) error {
 	var stdout, stderr bytes.Buffer
 	cmd.SetOut(&stdout)
