@@ -191,13 +191,13 @@ and several snippets do not compile against the real APIs.
 
 ### Acceptance
 
-- [ ] Every `NewTestCluster` call site in the patterns compiles and the cluster is closed.
-- [ ] No pattern references an undefined helper.
-- [ ] `go test ./cli/patterns/...` fails if any Go block stops parsing, or if a Files heading is
+- [x] Every `NewTestCluster` call site in the patterns compiles and the cluster is closed.
+- [x] No pattern references an undefined helper.
+- [x] `go test ./cli/patterns/...` fails if any Go block stops parsing, or if a Files heading is
       not a path.
-- [ ] The full-scaffold compile test fails if a compile-tested snippet stops compiling against
+- [x] The full-scaffold compile test fails if a compile-tested snippet stops compiling against
       the scaffold.
-- [ ] `patterns show <kind> --json` output only gains `fragment` where marked. Other fields are
+- [x] `patterns show <kind> --json` output only gains `fragment` where marked. Other fields are
       unchanged, and `just commands-check` passes.
 
 ---
