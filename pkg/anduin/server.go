@@ -15,8 +15,9 @@ const (
 	TestEnvironment = "testing"
 )
 
-// Shutdowner is anything the Server shuts down gracefully on stop (the HTTP
-// listener plus application components).
+// Shutdowner is anything that stops gracefully within a deadline. Server
+// implements it; Server.Shutdown stops only the HTTP listener, and the process
+// shuts down other components itself.
 type Shutdowner interface {
 	Shutdown(ctx context.Context) error
 }

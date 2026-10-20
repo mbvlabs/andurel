@@ -4,6 +4,13 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+## 0.2.1 - 2026-10-20
+
+### Changed
+
+- The `Shutdowner` doc comment no longer says `Server` shuts down application
+  components; since 0.2.0 `Server.Shutdown` stops only the listener.
+
 ## 0.2.0 - 2026-10-20
 
 ### Changed
