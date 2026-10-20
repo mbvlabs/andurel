@@ -1,0 +1,63 @@
+{
+  "entity": "Widget",
+  "receiver": "Widgets",
+  "table": "widgets",
+  "package": "domains",
+  "row": "WidgetRow",
+  "row_found": true,
+  "columns": [
+    {
+      "field": "ID",
+      "type": "uuid.UUID",
+      "column": "id"
+    },
+    {
+      "field": "Name",
+      "type": "string",
+      "column": "name"
+    },
+    {
+      "field": "CreatedAt",
+      "type": "pgtype.Timestamptz",
+      "column": "created_at"
+    },
+    {
+      "field": "UpdatedAt",
+      "type": "pgtype.Timestamptz",
+      "column": "updated_at"
+    }
+  ],
+  "files": [
+    {
+      "path": "domains/widget.sql",
+      "action": "create",
+      "summary": "colocated narsilc CRUD queries for widgets, columns from queries.WidgetRow; keep the queries the receiver calls",
+      "language": "sql",
+      "content": "-- name: GetWidget :one\nSELECT *\nFROM widgets\nWHERE id = $1\nLIMIT 1;\n\n-- name: ListWidgets :many\n-- @order id\nSELECT *\nFROM widgets;\n\n-- name: CountWidgets :one\nSELECT count(*)\nFROM widgets;\n\n-- name: CreateWidget :one\nINSERT INTO widgets (\n\tid,\n\tname,\n\tcreated_at,\n\tupdated_at\n) VALUES (\n\t$1, $2, $3, $4\n)\nRETURNING *;\n\n-- name: UpdateWidget :one\nUPDATE widgets\nSET\n\tname = $2,\n\tupdated_at = $3\nWHERE id = $1\nRETURNING *;\n\n-- name: DeleteWidget :exec\nDELETE FROM widgets\nWHERE id = $1;\n"
+    },
+    {
+      "path": "domains/widget.go",
+      "action": "create",
+      "summary": "package domains; entity Widget mirrors queries.WidgetRow with Validate(); Widgets receiver with NewWidgets(db storage.Connection) and InTx(tx storage.Tx); add the methods that call the queries",
+      "language": "go",
+      "content": "package domains\n\nimport (\n\t\"uuid\"\n\n\t\"example.com/app/domains/internal/queries\"\n\n\t\"github.com/jackc/pgx/v5/pgtype\"\n\t\"github.com/mbvlabs/andurel/pkg/storage\"\n\t\"github.com/mbvlabs/andurel/pkg/validation\"\n)\n\ntype Widgets struct {\n\tqueries *queries.Queries\n}\n\nfunc NewWidgets(db storage.Connection) Widgets {\n\treturn Widgets{queries: queries.New(db)}\n}\n\n// InTx binds this receiver's queries to the caller's transaction.\nfunc (w Widgets) InTx(tx storage.Tx) Widgets {\n\treturn Widgets{queries: queries.New(storage.Unwrap(tx))}\n}\n\ntype Widget struct {\n\tID        uuid.UUID          `andurel:\"id\"`\n\tName      string             `andurel:\"name\"`\n\tCreatedAt pgtype.Timestamptz `andurel:\"created_at\"`\n\tUpdatedAt pgtype.Timestamptz `andurel:\"updated_at\"`\n}\n\nfunc (w *Widget) Validate() error {\n\tb := validation.NewBuilder()\n\t// TODO: rules for Name, e.g. b.Required(\"name\", w.Name)\n\n\treturn b.Err()\n}\n"
+    },
+    {
+      "path": "domains/widget_test.go",
+      "action": "create",
+      "summary": "Validate unit tests plus domain tests over a real test database via domains.NewWidgets(db)"
+    },
+    {
+      "path": "internal/runtime/runtime.go",
+      "action": "edit",
+      "summary": "construct with domains.NewWidgets(db) and pass it to the services/handlers that use it"
+    }
+  ],
+  "next": [
+    "andurel sync queries",
+    "andurel verify",
+    "andurel inspect domains --json",
+    "andurel patterns show handler",
+    "andurel patterns show test-domain"
+  ]
+}

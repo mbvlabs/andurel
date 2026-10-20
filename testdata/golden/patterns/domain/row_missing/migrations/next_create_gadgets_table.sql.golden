@@ -1,0 +1,10 @@
+-- +goose Up
+create table gadgets (
+	id uuid primary key default gen_random_uuid(),
+	created_at timestamptz not null default now(),
+	updated_at timestamptz not null default now()
+	-- TODO: add the Gadget columns, constraints and indexes
+);
+
+-- +goose Down
+drop table if exists gadgets;

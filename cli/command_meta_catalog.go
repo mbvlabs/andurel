@@ -492,7 +492,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel patterns show": {
 		Summary:      "Print one reference pattern",
 		Args:         "<kind>",
-		WhenToUse:    []string{"Read the complete requirement for a primitive: files, rules, and a definition-of-done checklist.", "Render the per-entity file manifest with --entity/--table instead of generating code."},
+		WhenToUse:    []string{"Read the complete requirement for a primitive: files, rules, and a definition-of-done checklist.", "Render the per-entity file manifest with --entity/--table instead of generating code; with <Entity>Row in domains/internal/queries/models.go it includes the entity, receiver, Validate() stub and CRUD .sql, otherwise a migration skeleton."},
 		WhenNotToUse: []string{"Do not expect it to write files; it prints reference code only."},
 		Examples:     []string{"andurel patterns show domain", "andurel patterns show test-handler --json", "andurel patterns show domain --entity User --table users --json"},
 	},

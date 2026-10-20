@@ -78,7 +78,7 @@ andurel run --tools mailpit
 
 ## Create vs refresh vs inspect
 
-- Read a pattern: `andurel patterns show <kind>` (add `--json` for the parsed form; add `--entity/--table` with `domain` for the per-entity file manifest).
+- Read a pattern: `andurel patterns show <kind>` (add `--json` for the parsed form; add `--entity/--table` with `domain` for the per-entity file manifest; once `queries.<Entity>Row` exists in `domains/internal/queries/models.go` it includes the entity struct, receiver, `Validate()` stub and CRUD `.sql` as file contents, otherwise a migration skeleton).
 - Create SQL: `andurel generate migration NAME` then `andurel db migrate up`. A one-shot process that applies embedded SQL is `cmd/migrate`.
 - Add a domain: hand-write `domains/<entity>.go` and its colocated `domains/<entity>.sql`, construct the receiver with `domains.NewX(db)` in `internal/runtime`, then run `andurel sync queries`.
 - Add a service, handler, route, middleware, or composition: read the matching pattern and write the files yourself. `andurel new` ships a complete reference app for each.

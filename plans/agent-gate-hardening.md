@@ -569,9 +569,9 @@ Nothing hard. W5 makes the column data reusable; share the code if W5 has landed
 
 ### Acceptance
 
-- [ ] `patterns show domain --entity User --table users --json` on a fresh scaffold returns an
+- [x] `patterns show domain --entity User --table users --json` on a fresh scaffold returns an
       entity struct whose fields, tags and types match `domains/user.go`.
-- [ ] Golden test for the rendered output, covering both the table-exists and table-missing
+- [x] Golden test for the rendered output, covering both the table-exists and table-missing
       cases.
 
 ---

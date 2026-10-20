@@ -76,6 +76,7 @@ scrubber. If a path floats, denylist it (nightly) or omit it from the allowlist
 | `sync/routes/` | `andurel sync routes` |
 | `sync/payloads/` | `andurel sync payloads` |
 | `sync/email/` | `andurel sync email` |
+| `patterns/domain/` | `andurel patterns show domain --entity … --json` (manifest plus each rendered file) |
 | `new/slim/` | PR slim `andurel new` dirs (templates only, no go fmt) |
 | `new/` | Nightly only: `andurel new app` full tree via `AssertTree` |
 
@@ -135,6 +136,7 @@ and goldie-asserts the file bytes under a stable name
 | `sync/queries/` | 1 | narsilc output under `domains/internal/queries/` from the fixture's `domains/widget.sql` and `domains/user.sql` |
 | `sync/routes/` + `sync/payloads/` | 2 | Inertia `routes.ts` / `payloads.ts` |
 | `sync/email/` | 1 | compiled `*_templ.go` renderers |
+| `patterns/domain/` | 2 | domain manifest JSON and rendered files for a table with a narsilc row (widgets, after `sync queries`) and one without (gadgets) |
 | `new/` (PR) | 2 | slim Inertia react + vue dirs (`domains`, `services`, `handlers`, `routes`, `middleware`, `resources/js/Pages`) |
 | `new/` (nightly) | 3 | vue, react, svelte — full tree minus denylist |
 

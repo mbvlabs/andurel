@@ -2,44 +2,102 @@ package patterns
 
 import (
 	"fmt"
+	"go/parser"
+	"go/token"
 	"strings"
 	"unicode"
+
+	"github.com/mbvlabs/andurel/v2/cli/internal/columns"
 )
 
 // ManifestFile is one file an agent writes or edits to apply a pattern to a
-// concrete entity.
+// concrete entity. Content, when set, is the rendered starting point for the
+// file; the agent still writes it.
 type ManifestFile struct {
-	Path    string `json:"path"`
-	Action  string `json:"action"`
-	Summary string `json:"summary"`
+	Path     string `json:"path"`
+	Action   string `json:"action"`
+	Summary  string `json:"summary"`
+	Language string `json:"language,omitempty"`
+	Content  string `json:"content,omitempty"`
 }
 
 // Manifest is the ordered file list for building one entity from a pattern.
 // It is the read-only replacement for the old `generate model` convention:
 // the same deterministic shape, rendered to stdout instead of written.
+//
+// Row is the narsilc row type the entity is rendered from
+// (domains/internal/queries.<Entity>Row). RowFound reports whether the
+// project's models.go declares it; Columns lists its fields when it does.
 type Manifest struct {
-	Entity   string         `json:"entity"`
-	Receiver string         `json:"receiver"`
-	Table    string         `json:"table"`
-	Package  string         `json:"package"`
-	Files    []ManifestFile `json:"files"`
-	Next     []string       `json:"next"`
+	Entity   string                `json:"entity"`
+	Receiver string                `json:"receiver"`
+	Table    string                `json:"table"`
+	Package  string                `json:"package"`
+	Row      string                `json:"row"`
+	RowFound bool                  `json:"row_found"`
+	Columns  []columns.StructField `json:"columns,omitempty"`
+	Files    []ManifestFile        `json:"files"`
+	Next     []string              `json:"next"`
+}
+
+// ModelsPath is the narsilc models file, relative to the project root, that
+// holds the <Entity>Row types the domain manifest renders from.
+const ModelsPath = "domains/internal/queries/models.go"
+
+// Project is the project context a domain manifest renders from. Module is the
+// go.mod module path. Models is the content of ModelsPath, or nil when the
+// project has none.
+type Project struct {
+	Module string
+	Models []byte
 }
 
 // ManifestFor builds the domain manifest for entity (e.g. "User" or
-// "BlogPost") on table (e.g. "users"). An empty table defaults to the
-// snake_cased entity name, pluralized.
+// "BlogPost") on table (e.g. "users") without project context: the file list
+// plus a migration skeleton. An empty table defaults to the snake_cased
+// entity name, pluralized.
 func ManifestFor(entity, table string) Manifest {
+	title, table := manifestNames(entity, table)
+	return missingRowManifest(title, table)
+}
+
+// ManifestForProject builds the domain manifest from project. When models.go
+// declares <Entity>Row, the manifest carries the entity, receiver, Validate()
+// stub and CRUD .sql rendered from that row. Otherwise it is ManifestFor.
+func ManifestForProject(entity, table string, project Project) (Manifest, error) {
+	title, table := manifestNames(entity, table)
+	if len(project.Models) == 0 {
+		return missingRowManifest(title, table), nil
+	}
+
+	file, err := parser.ParseFile(token.NewFileSet(), ModelsPath, project.Models, parser.SkipObjectResolution)
+	if err != nil {
+		return Manifest{}, fmt.Errorf("parse %s: %w", ModelsPath, err)
+	}
+	fields, ok := columns.StructFields(file, title+"Row")
+	if !ok {
+		return missingRowManifest(title, table), nil
+	}
+
+	return rowManifest(title, table, project.Module, fields, columns.ImportPaths(file))
+}
+
+func manifestNames(entity, table string) (string, string) {
 	title := strings.TrimSpace(entity)
 	if title == "" {
 		title = "Entity"
 	}
 	title = strings.ToUpper(title[:1]) + title[1:]
 
-	file := snakeCase(title)
-	if strings.TrimSpace(table) == "" {
+	table = strings.TrimSpace(table)
+	if table == "" {
 		table = TableFor(title)
 	}
+	return title, table
+}
+
+func missingRowManifest(title, table string) Manifest {
+	file := snakeCase(title)
 	receiver := Pluralize(title)
 
 	return Manifest{
@@ -47,11 +105,14 @@ func ManifestFor(entity, table string) Manifest {
 		Receiver: receiver,
 		Table:    table,
 		Package:  "domains",
+		Row:      title + "Row",
 		Files: []ManifestFile{
 			{
-				Path:    fmt.Sprintf("migrations/<next>_create_%s_table.sql", table),
-				Action:  "create",
-				Summary: fmt.Sprintf("table definition; author with: andurel generate migration create_%s_table", table),
+				Path:     fmt.Sprintf("migrations/<next>_create_%s_table.sql", table),
+				Action:   "create",
+				Summary:  fmt.Sprintf("table definition; author with: andurel generate migration create_%s_table, then replace its body with this skeleton", table),
+				Language: "sql",
+				Content:  migrationSkeleton(title, table),
 			},
 			{
 				Path:    fmt.Sprintf("domains/%s.sql", file),
@@ -78,7 +139,9 @@ func ManifestFor(entity, table string) Manifest {
 			},
 		},
 		Next: []string{
+			"andurel db migrate up",
 			"andurel sync queries",
+			fmt.Sprintf("andurel patterns show domain --entity %s --table %s", title, table),
 			"andurel verify",
 			"andurel inspect domains --json",
 			"andurel patterns show handler",

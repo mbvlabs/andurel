@@ -1,0 +1,46 @@
+{
+  "entity": "Gadget",
+  "receiver": "Gadgets",
+  "table": "gadgets",
+  "package": "domains",
+  "row": "GadgetRow",
+  "row_found": false,
+  "files": [
+    {
+      "path": "migrations/\u003cnext\u003e_create_gadgets_table.sql",
+      "action": "create",
+      "summary": "table definition; author with: andurel generate migration create_gadgets_table, then replace its body with this skeleton",
+      "language": "sql",
+      "content": "-- +goose Up\ncreate table gadgets (\n\tid uuid primary key default gen_random_uuid(),\n\tcreated_at timestamptz not null default now(),\n\tupdated_at timestamptz not null default now()\n\t-- TODO: add the Gadget columns, constraints and indexes\n);\n\n-- +goose Down\ndrop table if exists gadgets;\n"
+    },
+    {
+      "path": "domains/gadget.sql",
+      "action": "create",
+      "summary": "colocated narsilc queries owned by this domain"
+    },
+    {
+      "path": "domains/gadget.go",
+      "action": "create",
+      "summary": "package domains; entity Gadget with Validate(); Gadgets receiver with NewGadgets(db storage.Connection) and InTx(tx storage.Tx)"
+    },
+    {
+      "path": "domains/gadget_test.go",
+      "action": "create",
+      "summary": "Validate unit tests plus domain tests over a real test database via domains.NewGadgets(db)"
+    },
+    {
+      "path": "internal/runtime/runtime.go",
+      "action": "edit",
+      "summary": "construct with domains.NewGadgets(db) and pass it to the services/handlers that use it"
+    }
+  ],
+  "next": [
+    "andurel db migrate up",
+    "andurel sync queries",
+    "andurel patterns show domain --entity Gadget --table gadgets",
+    "andurel verify",
+    "andurel inspect domains --json",
+    "andurel patterns show handler",
+    "andurel patterns show test-domain"
+  ]
+}

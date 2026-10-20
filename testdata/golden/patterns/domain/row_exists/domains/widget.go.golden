@@ -1,0 +1,38 @@
+package domains
+
+import (
+	"uuid"
+
+	"example.com/app/domains/internal/queries"
+
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/validation"
+)
+
+type Widgets struct {
+	queries *queries.Queries
+}
+
+func NewWidgets(db storage.Connection) Widgets {
+	return Widgets{queries: queries.New(db)}
+}
+
+// InTx binds this receiver's queries to the caller's transaction.
+func (w Widgets) InTx(tx storage.Tx) Widgets {
+	return Widgets{queries: queries.New(storage.Unwrap(tx))}
+}
+
+type Widget struct {
+	ID        uuid.UUID          `andurel:"id"`
+	Name      string             `andurel:"name"`
+	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
+	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
+}
+
+func (w *Widget) Validate() error {
+	b := validation.NewBuilder()
+	// TODO: rules for Name, e.g. b.Required("name", w.Name)
+
+	return b.Err()
+}
