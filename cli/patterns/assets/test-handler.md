@@ -19,14 +19,14 @@ import (
 	"app/resources"
 
 	"github.com/mbvlabs/andurel/pkg/inertia"
-	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/storage/storagetest"
 )
 
 // testCluster is one Postgres container for the whole test package.
-var testCluster *storage.TestCluster
+var testCluster *storagetest.Cluster
 
 func TestMain(m *testing.M) {
-	cluster, err := storage.NewTestCluster(context.Background())
+	cluster, err := storagetest.NewCluster(context.Background())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "skipping handler tests: start postgres container: %v\n", err)
 		os.Exit(0)

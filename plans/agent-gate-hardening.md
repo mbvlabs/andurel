@@ -634,14 +634,12 @@ remaining W7 blocker is the release and pin.
 
 ## W8. Move test containers out of `pkg/storage` — P2
 
-**Progress:** Part 1 is implemented and tested, including a fresh scaffold's
-production import graph with only a local storage replacement (no testcontainers).
-It also includes the USER-approved test-only `NewTestDBWithConfig` helper, which
-returns the `storage.Config` for the same isolated, migrated database. That
-resolves W7's test-config dependency without exposing `Postgres.Pool`, cluster
-fields or a production API exception; W7 still waits for the W8 tag and pin.
-**Needs release: `pkg/storage`.** Part 2 and final acceptance remain pending the
-human's tag; no version pins, patterns, upgrade notes or goldens have changed yet.
+**Progress:** Part 1 moved the container helpers to `pkg/storage/storagetest` and added the
+USER-approved test-only `NewTestDBWithConfig` helper, which returns the `storage.Config` for
+the same isolated, migrated database. Part 2 is implemented against the tagged
+`pkg/storage/v0.11.0`: the scaffold pin is bumped, the pattern, README and skill call sites use
+`storagetest`, the upgrade note is covered by `upgrade_notes_test.go`, and the full-scaffold
+goldens are refreshed.
 
 ### Problem
 
@@ -668,8 +666,8 @@ human's tag; no version pins, patterns, upgrade notes or goldens have changed ye
 
 ### Acceptance
 
-- [ ] `go list -deps ./cmd/app` in a fresh scaffold does not include `testcontainers`.
-- [ ] `pkg/storage` changelog entry. After part 2: the pin is bumped and the upgrade note is
+- [x] `go list -deps ./cmd/app` in a fresh scaffold does not include `testcontainers`.
+- [x] `pkg/storage` changelog entry. After part 2: the pin is bumped and the upgrade note is
       tested in `upgrade_notes_test.go`.
 
 ---

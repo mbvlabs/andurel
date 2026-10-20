@@ -17,14 +17,14 @@ import (
 	"os"
 	"testing"
 
-	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/storage/storagetest"
 )
 
 // testCluster is one Postgres container for the whole test package.
-var testCluster *storage.TestCluster
+var testCluster *storagetest.Cluster
 
 func TestMain(m *testing.M) {
-	cluster, err := storage.NewTestCluster(context.Background())
+	cluster, err := storagetest.NewCluster(context.Background())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "skipping domain tests: start postgres container: %v\n", err)
 		os.Exit(0)
@@ -102,7 +102,7 @@ func TestProducts_CreateRejectsInvalid(t *testing.T) {
 ## Rules
 
 - Domain tests require a real Postgres container; handler tests only when they seed data.
-- One Postgres container per package: `TestMain` starts it once and closes it after `m.Run()`. If the container cannot start (no Docker), it prints the reason and exits 0 so the suite passes with the database tests skipped.
+- One Postgres container per package: `TestMain` starts it once with `storagetest.NewCluster` and closes it after `m.Run()`. If the container cannot start (no Docker), it prints the reason and exits 0 so the suite passes with the database tests skipped.
 - Unit-test every `Validate` method directly, including the unhappy paths.
 - Get a clean database per test with `testCluster.NewTestDB(t, migrations.Migrations, ".")`, where `testCluster` is the package-level cluster `TestMain` starts and closes, and build receivers over it (`domains.NewProducts(db)`). Add `storage.NewTransactor(db)` when the test exercises a service or an atomic method.
 - Never share receivers or a database between tests; there are no globals, so per-test construction keeps `t.Parallel()` safe.

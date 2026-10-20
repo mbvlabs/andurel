@@ -748,13 +748,13 @@ entities inline with the domain API.
 
 ### Domain Tests
 
-Each test gets a real migrated database from `pkg/storage.TestCluster` and
+Each test gets a real migrated database from a package-level `storagetest.Cluster` and
 builds its own receivers over it. There are no globals, so tests can run in
 parallel.
 
 ```go
 func TestUsers_Create(t *testing.T) {
-    db := storage.NewTestCluster(t.Context()).NewTestDB(t, migrations.Migrations, ".")
+    db := testCluster.NewTestDB(t, migrations.Migrations, ".")
     users := domains.NewUsers(db)
 
     got, err := users.Create(t.Context(), "pepper", domains.CreateUserData{
@@ -785,7 +785,7 @@ does. The server needs nothing external; seeding data needs a test database.
 
 ```go
 func TestProductIndex(t *testing.T) {
-    db := storage.NewTestCluster(t.Context()).NewTestDB(t, migrations.Migrations, ".")
+    db := testCluster.NewTestDB(t, migrations.Migrations, ".")
     products := domains.NewProducts(db)
 
     srv := anduintest.New(t, func(rt *anduin.Router) {
@@ -834,7 +834,7 @@ go test -v ./...
 
 **Prerequisites**: Docker must be running to use testcontainers.
 
-`storage.TestCluster` starts a PostgreSQL container and gives each test a clean
+`storagetest.Cluster` starts a PostgreSQL container and gives each test a clean
 migrated database. Handler tests need nothing external; only domain and
 integration tests require the container.
 

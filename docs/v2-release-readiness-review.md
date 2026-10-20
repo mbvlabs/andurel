@@ -202,7 +202,7 @@ On the Datastar path, `Sessions.Create`, `Confirmations.Create`, and `Registrati
 
 `pkg/storage/psql.go` imports `testing` and `testcontainers-go`. Every generated application's production binary therefore links the Docker SDK and runs its package `init` functions. This is also the source of the `moby/go-archive` vulnerability.
 
-- [ ] Move `TestCluster` and `NewTestDB` to a separate package or module, for example `pkg/storage/storagetest`, and amend `plans/version-two.md`, which currently forbids that split.
+- [x] Move `TestCluster` and `NewTestDB` to a separate package or module, for example `pkg/storage/storagetest`, and amend `plans/version-two.md`, which currently forbids that split.
 - [ ] Alternatively, guard them with a build tag.
 
 ### C6 — SSE streams end at the HTTP write timeout

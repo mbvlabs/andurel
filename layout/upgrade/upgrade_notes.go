@@ -15,6 +15,10 @@ const inertiaViteFullURLVersion = "v2.0.0-alpha.3"
 // that take config structs and drop unused arguments.
 const packageAPIVersion = "v2.0.0-alpha.5"
 
+// storageTestClusterVersion is the first release whose scaffold imports the
+// test-container helpers from pkg/storage/storagetest.
+const storageTestClusterVersion = "v2.0.0-alpha.5"
+
 // goNativeRebuildVersion is the release that replaced Echo and Fx with the
 // Go-native domains/services/handlers layout. Projects older than it cannot be
 // upgraded automatically; they must be ported by hand.
@@ -72,13 +76,44 @@ func manualActionsForUpgrade(
 		})
 	}
 
+	if crossesVersion(fromVersion, toVersion, storageTestClusterVersion) {
+		actions = append(actions, ManualAction{
+			ID:           "storage-storagetest-v2.0.0-alpha.5",
+			Title:        "Move test-cluster helpers to pkg/storage/storagetest",
+			Instructions: storageTestClusterInstructions(),
+		})
+	}
+
 	return actions, nil
+}
+
+func storageTestClusterInstructions() string {
+	var instructions strings.Builder
+	instructions.WriteString(
+		"pkg/storage no longer imports testing or testcontainers. The test-cluster helpers moved to pkg/storage/storagetest with their methods unchanged:\n\n",
+	)
+	instructions.WriteString(
+		"1. In your test files, import the new package and rename the helpers:\n\n```go\n" +
+			"import \"github.com/mbvlabs/andurel/pkg/storage/storagetest\"\n\n" +
+			"var testCluster *storagetest.Cluster\n\n" +
+			"cluster, err := storagetest.NewCluster(context.Background())\n```\n\n",
+	)
+	instructions.WriteString(
+		"2. There is no compatibility alias. Replace `storage.TestCluster` with `storagetest.Cluster` and " +
+			"`storage.NewTestCluster` with `storagetest.NewCluster`; `Close` and `NewTestDB` keep their signatures.\n\n",
+	)
+	instructions.WriteString(
+		"3. The upgrade pins pkg/storage v0.11.0. Format and verify:\n\n```text\n" +
+			"gofmt -w .\ngo fix ./...\ngo vet ./...\ngolangci-lint run ./...\n```\n",
+	)
+
+	return instructions.String()
 }
 
 func packageAPIInstructions(inertia bool) string {
 	var instructions strings.Builder
 	instructions.WriteString(
-		"The upgrade pins pkg/anduin v0.2.1, pkg/cache v0.2.0, pkg/inertia v0.8.1, pkg/kiks v0.3.1 and pkg/storage v0.10.0. " +
+		"The upgrade pins pkg/anduin v0.2.1, pkg/cache v0.2.0, pkg/inertia v0.8.1, pkg/kiks v0.3.1 and pkg/storage v0.11.0. " +
 			"internal/runtime is application-owned, so update it by hand:\n\n",
 	)
 	instructions.WriteString(

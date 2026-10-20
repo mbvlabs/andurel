@@ -115,7 +115,7 @@ The standalone storage module should own shared database infrastructure, includi
 - health checks;
 - tracing and logging integration;
 - migration execution primitives;
-- test database support through helpers such as `TestCluster` and `RunMigrations` in the storage module itself, not a separate `storagetest` subpackage.
+- test database support through helpers such as `Cluster` and `RunMigrations` in the storage module, with the container-backed test helpers isolated in the `pkg/storage/storagetest` package so production binaries never link testcontainers.
 
 PostgreSQL remains the initial supported database for V2.
 

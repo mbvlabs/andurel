@@ -298,7 +298,7 @@ resp.AssertInertia(t, "User/Index")
 `AssertInertia`. It keeps a cookie jar across requests.
 
 For full-graph tests, boot `runtime.New(ctx, testConfig)` and call
-`app.Handler`. For domain tests, use `pkg/storage.TestCluster` and
+`app.Handler`. For domain tests, use `pkg/storage/storagetest.Cluster` and
 `NewTestDB(t, migrations.Migrations, ".")`.
 
 ## Discovery and verification

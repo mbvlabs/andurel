@@ -127,6 +127,56 @@ func TestPackageAPIManualActionVersionGate(t *testing.T) {
 	}
 }
 
+func TestStorageTestClusterManualActionVersionGate(t *testing.T) {
+	tests := []struct {
+		name string
+		from string
+		to   string
+		want bool
+	}{
+		{name: "alpha.4 to alpha.5", from: "v2.0.0-alpha.4", to: "v2.0.0-alpha.5", want: true},
+		{name: "alpha.4 to stable", from: "v2.0.0-alpha.4", to: "v2.0.0", want: true},
+		{name: "already on alpha.5", from: "v2.0.0-alpha.5", to: "v2.0.0", want: false},
+		{name: "target predates change", from: "v2.0.0-alpha.3", to: "v2.0.0-alpha.4", want: false},
+		{name: "development version", from: "dev", to: "v2.0.0", want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actions, err := manualActionsForUpgrade(test.from, test.to, true)
+			if err != nil {
+				t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
+			}
+
+			var action *ManualAction
+			for i := range actions {
+				if actions[i].ID == "storage-storagetest-v2.0.0-alpha.5" {
+					action = &actions[i]
+				}
+			}
+			if got := action != nil; got != test.want {
+				t.Fatalf("storage storagetest action present = %t, want %t: %#v", got, test.want, actions)
+			}
+			if action == nil {
+				return
+			}
+
+			for _, want := range []string{
+				"pkg/storage/storagetest",
+				"storagetest.NewCluster",
+				"storagetest.Cluster",
+				"storage.NewTestCluster",
+				"NewTestDB",
+				"pkg/storage v0.11.0",
+			} {
+				if !strings.Contains(action.Instructions, want) {
+					t.Errorf("manual action missing %q:\n%s", want, action.Instructions)
+				}
+			}
+		})
+	}
+}
+
 func TestInertiaManualActionSkippedForNonInertiaProjects(t *testing.T) {
 	actions, err := manualActionsForUpgrade("v2.0.0-alpha", "v2.0.0", false)
 	if err != nil {
