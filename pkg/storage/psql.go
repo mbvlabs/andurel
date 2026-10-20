@@ -8,8 +8,6 @@ import (
 	"maps"
 	"math"
 	"strings"
-	"testing"
-	"time"
 
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5"
@@ -17,9 +15,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 // Connection is the application database handle. Constructors and
@@ -226,131 +221,6 @@ func (p *Postgres) BeginTransaction(ctx context.Context) (Transaction, error) {
 	}
 
 	return pgxTransaction{tx: tx}, nil
-}
-
-// TestCluster owns a Postgres test container and can create isolated databases.
-type TestCluster struct {
-	container *postgres.PostgresContainer
-	host      string
-	port      string
-	user      string
-	password  string
-	adminDB   string
-}
-
-// NewTestCluster starts a Postgres container for a test package.
-func NewTestCluster(ctx context.Context) (*TestCluster, error) {
-	const (
-		user     = "testuser"
-		password = "testpass"
-		adminDB  = "postgres"
-	)
-
-	pgContainer, err := postgres.Run(ctx,
-		"postgres:17-alpine",
-		postgres.WithDatabase(adminDB),
-		postgres.WithUsername(user),
-		postgres.WithPassword(password),
-		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
-				WithStartupTimeout(60*time.Second)),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("storage: start postgres container: %w", err)
-	}
-
-	port, err := pgContainer.MappedPort(ctx, "5432/tcp")
-	if err != nil {
-		_ = pgContainer.Terminate(ctx)
-		return nil, fmt.Errorf("storage: get postgres port: %w", err)
-	}
-
-	host, err := pgContainer.Host(ctx)
-	if err != nil {
-		_ = pgContainer.Terminate(ctx)
-		return nil, fmt.Errorf("storage: get postgres host: %w", err)
-	}
-
-	return &TestCluster{
-		container: pgContainer,
-		host:      host,
-		port:      port.Port(),
-		user:      user,
-		password:  password,
-		adminDB:   adminDB,
-	}, nil
-}
-
-// Close terminates the Postgres test container.
-func (tc *TestCluster) Close(ctx context.Context) error {
-	if tc == nil || tc.container == nil {
-		return nil
-	}
-	return tc.container.Terminate(ctx)
-}
-
-// NewTestDB creates a migrated, isolated database for one test.
-func (tc *TestCluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir string) Connection {
-	t.Helper()
-
-	if migrations == nil {
-		t.Fatal("migrations filesystem is required")
-	}
-	if strings.TrimSpace(migrationDir) == "" {
-		t.Fatal("migration directory is required")
-	}
-
-	ctx := context.Background()
-	name := fmt.Sprintf("test_%d", time.Now().UnixNano())
-
-	admin, err := NewPostgres(ctx, DefaultConfig(), WithDatabaseURL(tc.databaseURL(tc.adminDB)))
-	if err != nil {
-		t.Fatalf("failed to connect to admin database: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = admin.Close()
-	})
-
-	if _, err := admin.Exec(ctx, fmt.Sprintf(`CREATE DATABASE %q`, name)); err != nil {
-		t.Fatalf("failed to create test database: %v", err)
-	}
-
-	dropped := false
-	t.Cleanup(func() {
-		if dropped {
-			return
-		}
-		_, _ = admin.Exec(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
-	})
-
-	db, err := NewPostgres(ctx, DefaultConfig(), WithDatabaseURL(tc.databaseURL(name)))
-	if err != nil {
-		t.Fatalf("failed to connect to test database: %v", err)
-	}
-
-	t.Cleanup(func() {
-		_ = db.Close()
-		_, _ = admin.Exec(ctx, fmt.Sprintf(`DROP DATABASE IF EXISTS %q WITH (FORCE)`, name))
-		dropped = true
-	})
-
-	if err := RunMigrations(ctx, db, migrations, migrationDir); err != nil {
-		t.Fatalf("failed to run migrations: %v", err)
-	}
-
-	return db
-}
-
-func (tc *TestCluster) databaseURL(name string) string {
-	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		tc.user,
-		tc.password,
-		tc.host,
-		tc.port,
-		name,
-	)
 }
 
 // RunMigrations applies Goose migrations from an embedded filesystem.

@@ -628,6 +628,11 @@ W1 (pattern text) and W8 (tagged and pinned, so scaffold tests import `storagete
 
 ## W8. Move test containers out of `pkg/storage` — P2
 
+**Progress:** Part 1 is implemented and tested, including a fresh scaffold's
+production import graph with only a local storage replacement (no testcontainers).
+**Needs release: `pkg/storage`.** Part 2 and final acceptance remain pending the
+human's tag; no version pins, patterns, upgrade notes or goldens have changed yet.
+
 ### Problem
 
 `TestCluster` and `NewTestCluster` live in `pkg/storage/psql.go`, so every production app links
