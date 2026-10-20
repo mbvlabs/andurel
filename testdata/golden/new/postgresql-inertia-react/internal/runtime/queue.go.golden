@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 
 	"app/config"
@@ -10,6 +11,7 @@ import (
 	"app/queue"
 	"app/services"
 
+	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -18,24 +20,35 @@ type Queue struct {
 	closers   []func(context.Context) error
 }
 
-func NewQueue(ctx context.Context, cfg config.Config) (*Queue, error) {
+// NewQueue builds the worker process. Like New, each dependency registers its
+// cleanup as soon as it exists.
+func NewQueue(ctx context.Context, cfg config.Config) (_ *Queue, err error) {
+	// Workers render absolute links into emails, so routes need the hosts.
+	if err := routing.ConfigureHosts(cfg.App.Hosts); err != nil {
+		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
+	}
+
+	q := &Queue{}
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, q.Shutdown(context.WithoutCancel(ctx)))
+		}
+	}()
+
 	tel, err := newTelemetry(ctx, cfg.App, cfg.Telemetry)
 	if err != nil {
 		return nil, err
 	}
+	q.closers = append(q.closers, tel.Shutdown)
 
 	db, err := newDatabase(ctx, cfg.Database, tel)
 	if err != nil {
-		_ = tel.Shutdown(ctx)
-
 		return nil, err
 	}
+	q.closers = append(q.closers, func(context.Context) error { return db.Close() })
 
 	transactional, marketing, err := newEmailSenders(cfg.Mail)
 	if err != nil {
-		_ = db.Close()
-		_ = tel.Shutdown(ctx)
-
 		return nil, err
 	}
 
@@ -43,9 +56,6 @@ func NewQueue(ctx context.Context, cfg config.Config) (*Queue, error) {
 	// service; its insert queue is unused here but required by the constructor.
 	queueInsert, err := storage.NewQueueInsert(db, cfg.QueueInsert.Config)
 	if err != nil {
-		_ = db.Close()
-		_ = tel.Shutdown(ctx)
-
 		return nil, err
 	}
 
@@ -66,26 +76,20 @@ func NewQueue(ctx context.Context, cfg config.Config) (*Queue, error) {
 		storage.WithRiverLogger(tel.Logger()),
 	)
 	if err != nil {
-		_ = db.Close()
-		_ = tel.Shutdown(ctx)
-
 		return nil, err
 	}
+	q.processor = processor
+	q.closers = append(q.closers, processor.Stop)
 
-	return &Queue{
-		processor: processor,
-		closers: []func(context.Context) error{
-			processor.Stop,
-			func(context.Context) error { return db.Close() },
-			tel.Shutdown,
-		},
-	}, nil
+	return q, nil
 }
 
 func (q *Queue) Start(ctx context.Context) error {
 	return q.processor.Start(ctx)
 }
 
+// Shutdown stops the processor first, then releases the database and
+// telemetry: the reverse of construction order.
 func (q *Queue) Shutdown(ctx context.Context) error {
 	var shutdownErr error
 	for _, closeFn := range slices.Backward(q.closers) {

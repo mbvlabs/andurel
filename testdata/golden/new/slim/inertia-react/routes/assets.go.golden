@@ -1,15 +1,10 @@
 package routes
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
 const AssetsPrefix = "/assets"
-
-var startTime = time.Now().Unix()
 
 var Robots = routing.NewSimpleRoute(
 	"/robots.txt",
@@ -23,26 +18,10 @@ var Sitemap = routing.NewSimpleRoute(
 	"",
 )
 
-var Stylesheet = routing.NewSimpleRoute(
-	fmt.Sprintf("/css/%v/style.css", startTime),
-	"css.stylesheet",
-	AssetsPrefix,
-)
-
-var Scripts = routing.NewSimpleRoute(
-	fmt.Sprintf("/js/%v/scripts.js", startTime),
-	"js.scripts",
-	AssetsPrefix,
-)
-
-var Script = routing.NewRouteWithFile(
-	fmt.Sprintf("/js/%v/:file", startTime),
-	"js.script",
-	AssetsPrefix,
-)
-
+// ViteBuild serves the Vite build output. Vite fingerprints file names, so
+// the path needs no cache-busting segment.
 var ViteBuild = routing.NewSimpleRoute(
-	fmt.Sprintf("/dist/%v/*", startTime),
+	"/dist/*",
 	"vite.build",
 	AssetsPrefix,
 )

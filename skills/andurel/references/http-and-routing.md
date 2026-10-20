@@ -222,7 +222,7 @@ rt.Use(
 
 ## Server lifecycle
 
-`Server` owns an HTTP listener plus a set of `Shutdowner`s. The router stays
+`Server` owns the HTTP listener and nothing else. The router stays
 independently testable; only the process pays for a `Server`.
 
 ```go
@@ -240,18 +240,17 @@ func WithTimeouts(idle, read, write time.Duration) ServerOption
 
 func NewServer(
 	ctx context.Context,
-	host, port, env string,
+	host, port string,
 	handler http.Handler,
-	shutdowners []Shutdowner,
 	opts ...ServerOption,
 ) Server
 func (s *Server) Addr() string
-func (s *Server) Start(ctx context.Context, _ string) error
+func (s *Server) Start() error
 func (s *Server) Shutdown(ctx context.Context) error
 ```
 
-`NewServer` appends the HTTP listener to the supplied `Shutdowner`s (shut down
-in order, listener last). `cmd/app` gets its server from `runtime.New`, which
+`Shutdown` stops only the HTTP listener; `runtime.App.Close` releases the
+other dependencies afterwards. `cmd/app` gets its server from `runtime.New`, which
 builds the router and wraps it with `anduin.NewServer(...)` internally, then
 calls `app.Start`; lifecycle ordering is explicit code, not an Fx hook.
 

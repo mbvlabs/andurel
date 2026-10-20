@@ -174,7 +174,6 @@ func TestBuildAppRunsExpectedToolchain(t *testing.T) {
 	log := readBuildTestFile(t, logPath)
 	for _, want := range []string{
 		"templ generate",
-		"tailwindcli -i ./css/base.css -o ./assets/css/style.css --minify",
 		"pnpm install --frozen-lockfile",
 		"pnpm run build",
 		"go mod download",

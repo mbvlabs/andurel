@@ -49,8 +49,8 @@ andurel verify checks, in order:
                 queries-import  only domains import domains/internal/queries
                 db-handle       outside domains, internal/runtime, cmd, seeds,
                                 and migrations nothing references
-                                storage.Connection, storage.Transaction,
-                                storage.RunInTransaction, or imports pgx
+                                storage.Connection or storage.Transaction,
+                                or imports pgx
                 tx-unwrap       storage.Unwrap is called only in domains
                 tx-escape       a storage.AtomicOps callback uses only
                                 dependencies bound with .InTx(tx)

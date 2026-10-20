@@ -22,6 +22,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
@@ -35,22 +36,41 @@ type App struct {
 	closers []func(context.Context) error
 }
 
-func New(ctx context.Context, cfg config.Config) (*App, error) {
+// New builds the web process. Each dependency registers its cleanup as soon as
+// it exists, so a failure part way through releases everything built so far.
+func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
+	if err := routing.ConfigureHosts(cfg.App.Hosts); err != nil {
+		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
+	}
+
+	app := &App{Config: cfg}
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, app.Close(context.WithoutCancel(ctx)))
+		}
+	}()
+
 	tel, err := newTelemetry(ctx, cfg.App, cfg.Telemetry)
 	if err != nil {
 		return nil, err
 	}
+	app.closers = append(app.closers, tel.Shutdown)
 
 	db, err := newDatabase(ctx, cfg.Database, tel)
 	if err != nil {
-		_ = tel.Shutdown(ctx)
 		return nil, err
 	}
+	app.DB = db
+	app.closers = append(app.closers, func(context.Context) error { return db.Close() })
+
+	cacheStore, err := cfg.Cache.Store()
+	if err != nil {
+		return nil, err
+	}
+	app.closers = append(app.closers, func(context.Context) error { return cacheStore.Close() })
 
 	queueInsert, err := storage.NewQueueInsert(db, cfg.QueueInsert.Config)
 	if err != nil {
-		_ = db.Close()
-		_ = tel.Shutdown(ctx)
 		return nil, err
 	}
 
@@ -62,22 +82,16 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 
 	renderer, err := newRenderer(cfg)
 	if err != nil {
-		_ = db.Close()
-		_ = tel.Shutdown(ctx)
 		return nil, err
 	}
 
 	jar, err := newJar(cfg.App, cfg.Session)
 	if err != nil {
-		_ = db.Close()
-		_ = tel.Shutdown(ctx)
 		return nil, err
 	}
 
-	cacheStore, err := cfg.Cache.Store()
+	assetsHandler, err := handlers.NewAssets(cfg.App)
 	if err != nil {
-		_ = db.Close()
-		_ = tel.Shutdown(ctx)
 		return nil, err
 	}
 
@@ -96,18 +110,16 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	)
 
 	handlers.NewPages(renderer).Register(router)
-	handlers.NewAssets(cacheStore, cfg.App).Register(router)
+	assetsHandler.Register(router)
 	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)
 	handlers.NewAPIHandler(db).Register(router)
 
-	handler := router.Handler()
-	srv := anduin.NewServer(
+	app.Handler = router.Handler()
+	app.Server = anduin.NewServer(
 		ctx,
 		cfg.HTTP.Host,
 		cfg.HTTP.Port,
-		cfg.App.Environment,
-		handler,
-		nil,
+		app.Handler,
 		anduin.WithTimeouts(
 			cfg.HTTP.IdleTimeout,
 			cfg.HTTP.ReadTimeout,
@@ -115,26 +127,20 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		),
 	)
 
-	return &App{
-		Config:  cfg,
-		DB:      db,
-		Handler: handler,
-		Server:  srv,
-		closers: []func(context.Context) error{
-			func(context.Context) error { return db.Close() },
-			tel.Shutdown,
-		},
-	}, nil
+	return app, nil
 }
 
-func (a *App) Start(ctx context.Context) error {
-	return a.Server.Start(ctx, a.Config.App.Environment)
+func (a *App) Start() error {
+	return a.Server.Start()
 }
 
+// Shutdown stops accepting requests and waits for in-flight ones. Close
+// releases the dependencies afterwards.
 func (a *App) Shutdown(ctx context.Context) error {
 	return a.Server.Shutdown(ctx)
 }
 
+// Close releases dependencies in reverse construction order.
 func (a *App) Close(ctx context.Context) error {
 	var closeErr error
 	for _, closeFn := range slices.Backward(a.closers) {
@@ -166,7 +172,7 @@ func newJar(
 	}
 
 	return kiks.NewJar(keys, store,
-		middleware.NewAppCookie(sessionCfg, appCfg.IsProduction()),
+		middleware.NewSessionCookie(sessionCfg, appCfg.IsProduction()),
 	)
 }
 
@@ -243,13 +249,15 @@ func newEmailSenders(
 
 func newRenderer(cfg config.Config) (*inertia.Renderer, error) {
 	return inertia.NewRenderer(
-		cfg.Inertia.ContainerID,
-		routes.ViteBuild.FullURL(),
-		cfg.Inertia.EntryPoint,
-		cfg.Inertia.ViteDevURL,
-		cfg.Inertia.SSRURL,
-		cfg.Inertia.SSRRequestTimeout,
-		cfg.Inertia.SSRMaxResponseBytes,
+		inertia.RendererConfig{
+			ContainerID:         cfg.Inertia.ContainerID,
+			BuildPathURL:        routes.ViteBuild.FullURL(),
+			EntryPoint:          cfg.Inertia.EntryPoint,
+			ViteDevURL:          cfg.Inertia.ViteDevURL,
+			SSRURL:              cfg.Inertia.SSRURL,
+			SSRTimeout:          cfg.Inertia.SSRRequestTimeout,
+			SSRMaxResponseBytes: cfg.Inertia.SSRMaxResponseBytes,
+		},
 		inertia.WithRoot(resources.Root),
 		inertia.WithAssetFS(assets.Files),
 		inertia.WithProjectName(cfg.App.ProjectName),
@@ -259,8 +267,24 @@ func newRenderer(cfg config.Config) (*inertia.Renderer, error) {
 			"appVersion": cfg.Version,
 			"hosts":      cfg.App.HostOrigins(),
 		}),
+		inertia.WithSharedProvider(sharedAuth),
 		inertia.WithSSRFailFast(cfg.Inertia.SSRFailFast),
 	)
+}
+
+// sharedAuth gives every page the visitor's sign-in state, so layouts can
+// switch between "Log in" and "Sign out" without each handler passing it.
+func sharedAuth(ctx context.Context) (inertia.Props, error) {
+	session, err := kiks.Get[*middleware.Session](ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return inertia.Props{
+		"auth": inertia.Props{
+			"isAuthenticated": session != nil && session.IsAuthenticated,
+		},
+	}, nil
 }
 
 func corsConfig(cfg config.Config) anduin.CORSConfig {
@@ -302,67 +326,7 @@ func csrfConfig(cfg config.Config) anduin.CSRFConfig {
 			cfg.App.Origins(),
 			cfg.HTTP.CSRFTrustedOrigins,
 		),
-		Skipper: csrfSkipper(cfg),
-	}
-}
-
-func csrfSkipper(cfg config.Config) func(context.Context) bool {
-	return func(ctx context.Context) bool {
-		request := anduin.Request(ctx)
-		if request == nil || !isAPIPath(request.URL.Path) {
-			return false
-		}
-		if !hasNonEmptyBearerToken(request.Header.Get("Authorization")) {
-			return false
-		}
-		_, err := request.Cookie(cfg.Session.Name)
-
-		return err != nil
-	}
-}
-
-func isAPIPath(path string) bool {
-	prefix := strings.TrimSuffix(routes.APIPrefix, "/")
-	if prefix == "" {
-		return false
-	}
-
-	return path == prefix || strings.HasPrefix(path, prefix+"/")
-}
-
-func hasNonEmptyBearerToken(authorization string) bool {
-	parts := strings.Fields(authorization)
-
-	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && parts[1] != ""
-}
-
-func startInBackground(
-	ctx context.Context,
-	name string,
-	start func(context.Context) error,
-) <-chan struct{} {
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		if err := start(ctx); err != nil {
-			telemetry.Error(ctx, name+" error", "error", err)
-		}
-	}()
-
-	return done
-}
-
-func stopAndWait(
-	ctx context.Context,
-	stop func(context.Context) error,
-	done <-chan struct{},
-) error {
-	stopErr := stop(ctx)
-	select {
-	case <-done:
-		return stopErr
-	case <-ctx.Done():
-		return errors.Join(stopErr, ctx.Err())
+		Skipper: middleware.CSRFSkipper(cfg.Session.Name),
 	}
 }
 

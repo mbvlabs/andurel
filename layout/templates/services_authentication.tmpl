@@ -55,20 +55,9 @@ func (i Identity) AuthenticateUser(
 	}
 
 	if needsRehash {
-		hashedPassword, err := domains.HashPassword(data.Password, i.pepper)
+		user, err = i.users.RehashPassword(ctx, i.pepper, user, data.Password)
 		if err != nil {
 			return domains.User{}, fmt.Errorf("rehash password with current pepper: %w", err)
-		}
-
-		user, err = i.users.Update(ctx, domains.UpdateUserData{
-			ID:               user.ID,
-			Email:            user.Email,
-			EmailValidatedAt: user.EmailValidatedAt,
-			Password:         []byte(hashedPassword),
-			IsAdmin:          user.IsAdmin,
-		})
-		if err != nil {
-			return domains.User{}, fmt.Errorf("persist password rehash: %w", err)
 		}
 	}
 

@@ -71,7 +71,7 @@ templ (v VerifyEmail) render() {
 				</tr>
 				<tr>
 					<td class="px-12 pb-4 [font-family:Arial,sans-serif] text-sm leading-6 text-muted-foreground max-sm:px-6">
-						<p class="m-0">This code expires in 15 minutes.</p>
+						<p class="m-0">This code expires in 24 hours.</p>
 						<p class="m-0 mt-4">If you did not create an account, you can safely ignore this email.</p>
 					</td>
 				</tr>

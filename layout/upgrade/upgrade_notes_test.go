@@ -46,9 +46,6 @@ func TestInertiaViteFullURLManualActionVersionGate(t *testing.T) {
 				)
 			}
 			if !test.want {
-				if len(actions) != 0 {
-					t.Fatalf("expected no manual actions, got %#v", actions)
-				}
 				return
 			}
 
@@ -75,7 +72,7 @@ func TestInertiaViteFullURLManualActionVersionGate(t *testing.T) {
 }
 
 func TestLatestAlphaUpgradeToStableEmitsNoManualActions(t *testing.T) {
-	actions, err := manualActionsForUpgrade("v2.0.0-alpha.3", "v2.0.0", true)
+	actions, err := manualActionsForUpgrade("v2.0.0-alpha.5", "v2.0.0", true)
 	if err != nil {
 		t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
 	}
@@ -84,12 +81,60 @@ func TestLatestAlphaUpgradeToStableEmitsNoManualActions(t *testing.T) {
 	}
 }
 
+func TestPackageAPIManualActionVersionGate(t *testing.T) {
+	tests := []struct {
+		name    string
+		from    string
+		to      string
+		inertia bool
+		want    bool
+	}{
+		{name: "alpha.4 to alpha.5", from: "v2.0.0-alpha.4", to: "v2.0.0-alpha.5", inertia: true, want: true},
+		{name: "non-Inertia project", from: "v2.0.0-alpha.4", to: "v2.0.0", want: true},
+		{name: "already on alpha.5", from: "v2.0.0-alpha.5", to: "v2.0.0", inertia: true, want: false},
+		{name: "target predates change", from: "v2.0.0-alpha.3", to: "v2.0.0-alpha.4", inertia: true, want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actions, err := manualActionsForUpgrade(test.from, test.to, test.inertia)
+			if err != nil {
+				t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
+			}
+
+			var action *ManualAction
+			for i := range actions {
+				if actions[i].ID == "package-api-v2.0.0-alpha.5" {
+					action = &actions[i]
+				}
+			}
+			if got := action != nil; got != test.want {
+				t.Fatalf("package API action present = %t, want %t: %#v", got, test.want, actions)
+			}
+			if action == nil {
+				return
+			}
+
+			for _, want := range []string{"anduin.NewServer", "cacheStore.Close()", "storage.AtomicOps"} {
+				if !strings.Contains(action.Instructions, want) {
+					t.Errorf("manual action missing %q:\n%s", want, action.Instructions)
+				}
+			}
+			if got := strings.Contains(action.Instructions, "inertia.RendererConfig"); got != test.inertia {
+				t.Errorf("Inertia instructions present = %t, want %t", got, test.inertia)
+			}
+		})
+	}
+}
+
 func TestInertiaManualActionSkippedForNonInertiaProjects(t *testing.T) {
 	actions, err := manualActionsForUpgrade("v2.0.0-alpha", "v2.0.0", false)
 	if err != nil {
 		t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
 	}
-	if len(actions) != 0 {
-		t.Fatalf("non-Inertia project emitted manual actions: %#v", actions)
+	for _, action := range actions {
+		if action.ID == "inertia-vite-fullurl-v2.0.0" {
+			t.Fatalf("non-Inertia project emitted the Inertia action: %#v", actions)
+		}
 	}
 }

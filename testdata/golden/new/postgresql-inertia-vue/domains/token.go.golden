@@ -8,6 +8,7 @@ import (
 	"encoding/base32"
 	"encoding/hex"
 	"errors"
+	"math/big"
 	"time"
 	"uuid"
 
@@ -69,13 +70,17 @@ func (t Token) IsValid(token, secret string) bool {
 
 const codeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
+// GenerateCode returns n characters drawn uniformly from codeAlphabet.
+// rand.Int avoids the bias a byte modulo the alphabet size would add.
 func GenerateCode(n int) (string, error) {
+	limit := big.NewInt(int64(len(codeAlphabet)))
 	b := make([]byte, n)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
 	for i := range b {
-		b[i] = codeAlphabet[int(b[i])%len(codeAlphabet)]
+		index, err := rand.Int(rand.Reader, limit)
+		if err != nil {
+			return "", err
+		}
+		b[i] = codeAlphabet[index.Int64()]
 	}
 
 	return string(b), nil
@@ -327,56 +332,4 @@ func (t Tokens) Create(
 
 func (t Tokens) Destroy(ctx context.Context, id uuid.UUID) error {
 	return t.queries.DeleteToken(ctx, id)
-}
-
-func (t Tokens) All(ctx context.Context) ([]Token, error) {
-	return t.queries.ListTokens[Token](ctx).All()
-}
-
-type PaginatedTokens struct {
-	Tokens     []Token
-	TotalCount int64
-	Page       int64
-	PageSize   int64
-	TotalPages int64
-}
-
-func (t Tokens) Paginate(
-	ctx context.Context,
-	page, pageSize int64,
-) (PaginatedTokens, error) {
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 {
-		pageSize = 10
-	}
-	if pageSize > 100 {
-		pageSize = 100
-	}
-
-	offset := (page - 1) * pageSize
-
-	totalCount, err := t.queries.CountTokens(ctx)
-	if err != nil {
-		return PaginatedTokens{}, err
-	}
-
-	entities, err := t.queries.ListTokens[Token](ctx).
-		Limit(int32(pageSize)).
-		Offset(int32(offset)).
-		All()
-	if err != nil {
-		return PaginatedTokens{}, err
-	}
-
-	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
-
-	return PaginatedTokens{
-		Tokens:     entities,
-		TotalCount: int64(totalCount),
-		Page:       page,
-		PageSize:   pageSize,
-		TotalPages: totalPages,
-	}, nil
 }

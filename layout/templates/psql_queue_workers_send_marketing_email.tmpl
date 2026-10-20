@@ -20,10 +20,6 @@ func NewSendMarketingEmailWorker(sender email.MarketingSender) *SendMarketingEma
 	}
 }
 
-func (w *SendMarketingEmailWorker) Register(workers *river.Workers) error {
-	return river.AddWorkerSafely(workers, w)
-}
-
 func (w *SendMarketingEmailWorker) Work(
 	ctx context.Context,
 	job *river.Job[jobs.SendMarketingEmailArgs],

@@ -23,20 +23,13 @@ func NewSendTransactionalEmailWorker(
 	}
 }
 
-func (w *SendTransactionalEmailWorker) Register(workers *river.Workers) error {
-	return river.AddWorkerSafely(workers, w)
-}
-
 func (w *SendTransactionalEmailWorker) Work(
 	ctx context.Context,
 	job *river.Job[jobs.SendTransactionalEmailArgs],
 ) error {
-	ctx, span := telemetry.Start(
-		ctx,
-		"queue.send_transactional_email",
-		"email.to",
-		job.Args.Data.To,
-	)
+	// The recipient address stays out of the span: traces are not a place
+	// for personal data.
+	ctx, span := telemetry.Start(ctx, "queue.send_transactional_email")
 	defer span.End()
 
 	return sendTransactional(ctx, job.Args.Data, w.sender)

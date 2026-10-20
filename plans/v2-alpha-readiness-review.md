@@ -61,6 +61,13 @@ v1 scored from master templates/AGENTS/command set (lighter review); v2 fully re
 
 ## Should fix
 
+> Status (2026-10-20): S1–S13, README drift and the nits below are resolved in
+> pkg/storage v0.10.0, pkg/cache v0.2.0, pkg/anduin v0.2.0, pkg/inertia v0.8.0
+> and the scaffold that pins them. S13's River drift was real: River v0.40 added
+> main-line migration 7, which is now vendored, and
+> `TestRiverMigrationsMatchPinnedRiver` fails when the vendored migrations stop
+> matching the pinned River driver.
+
 ### S1. Dead / duplicated code
 - `middleware.CSRFMiddleware`, `mayBypassCSRF`, `TraceRouteAttributes` are unused; `internal/runtime` re-implements CSRF + bypass with a *different* token lookup (`cookie:` vs `header:`); `middleware_test.go` tests the dead copy.
 - `startInBackground` / `stopAndWait` only exercised by `internal/runtime/server_test.go`.

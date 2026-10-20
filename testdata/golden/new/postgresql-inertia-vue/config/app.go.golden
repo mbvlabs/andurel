@@ -43,9 +43,6 @@ func NewApp() (App, error) {
 	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
 		return App{}, fmt.Errorf("config: app: %w", err)
 	}
-	if err := routing.ConfigureHosts(cfg.Hosts); err != nil {
-		return App{}, fmt.Errorf("config: app: %w", err)
-	}
 
 	return cfg, nil
 }

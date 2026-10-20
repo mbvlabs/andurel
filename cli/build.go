@@ -103,7 +103,7 @@ func buildApp(rootDir string, versionFlag string) error {
 		}
 	}
 
-	// 2. Tailwind minify
+	// 2. Tailwind compiles email CSS. Vite builds the application CSS.
 	tailwindTool, ok := lock.Tools["tailwindcli"]
 	if !ok {
 		tailwindTool = layout.NewBinaryTool("tailwindcli", versions.TailwindCLI)
@@ -120,20 +120,6 @@ func buildApp(rootDir string, versionFlag string) error {
 		); err != nil {
 			return err
 		}
-	}
-
-	fmt.Println("Building tailwind CSS...")
-	twCmd := exec.Command(
-		filepath.Join(binDir, "tailwindcli"),
-		"-i", "./css/base.css",
-		"-o", "./assets/css/style.css",
-		"--minify",
-	)
-	twCmd.Dir = rootDir
-	twCmd.Stdout = os.Stdout
-	twCmd.Stderr = os.Stderr
-	if err := twCmd.Run(); err != nil {
-		return fmt.Errorf("tailwind build failed: %w", err)
 	}
 
 	// 2.5. Vite build for Inertia frontend

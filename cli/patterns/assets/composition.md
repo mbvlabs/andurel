@@ -18,6 +18,8 @@ package runtime
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 
@@ -28,6 +30,7 @@ import (
 	"app/services"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
@@ -40,16 +43,38 @@ type App struct {
 	closers []func(context.Context) error
 }
 
-func New(ctx context.Context, cfg config.Config) (*App, error) {
+func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
+	if err := routing.ConfigureHosts(cfg.App.Hosts); err != nil {
+		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
+	}
+
+	// Each dependency registers its cleanup as soon as it exists, so a failure
+	// part way through releases everything built so far.
+	app := &App{Config: cfg}
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, app.Close(context.WithoutCancel(ctx)))
+		}
+	}()
+
 	tel, err := newTelemetry(ctx, cfg.App, cfg.Telemetry)
 	if err != nil {
 		return nil, err
 	}
+	app.closers = append(app.closers, tel.Shutdown)
 
 	db, err := newDatabase(ctx, cfg.Database, tel)
 	if err != nil {
 		return nil, err
 	}
+	app.DB = db
+	app.closers = append(app.closers, func(context.Context) error { return db.Close() })
+
+	cacheStore, err := cfg.Cache.Store()
+	if err != nil {
+		return nil, err
+	}
+	app.closers = append(app.closers, func(context.Context) error { return cacheStore.Close() })
 
 	queueInsert, err := storage.NewQueueInsert(db, cfg.QueueInsert.Config)
 	if err != nil {
@@ -72,7 +97,7 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, err
 	}
 
-	cacheStore, err := cfg.Cache.Store()
+	assetsHandler, err := handlers.NewAssets(cfg.App)
 	if err != nil {
 		return nil, err
 	}
@@ -92,36 +117,26 @@ func New(ctx context.Context, cfg config.Config) (*App, error) {
 	)
 
 	handlers.NewPages(renderer).Register(rt)
-	handlers.NewAssets(cacheStore, cfg.App).Register(rt)
+	assetsHandler.Register(rt)
 	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(rt)
 	handlers.NewAPIHandler(db).Register(rt)
 
-	handler := rt.Handler()
-	srv := anduin.NewServer(ctx, cfg.HTTP.Host, cfg.HTTP.Port, cfg.App.Environment,
-		handler, nil, anduin.WithTimeouts(cfg.HTTP.IdleTimeout, cfg.HTTP.ReadTimeout, cfg.HTTP.WriteTimeout))
+	app.Handler = rt.Handler()
+	app.Server = anduin.NewServer(ctx, cfg.HTTP.Host, cfg.HTTP.Port, app.Handler,
+		anduin.WithTimeouts(cfg.HTTP.IdleTimeout, cfg.HTTP.ReadTimeout, cfg.HTTP.WriteTimeout))
 
-	return &App{
-		Config:  cfg,
-		DB:      db,
-		Handler: handler,
-		Server:  srv,
-		closers: []func(context.Context) error{
-			func(context.Context) error { return db.Close() },
-			tel.Shutdown,
-		},
-	}, nil
+	return app, nil
 }
 
-func (a *App) Start(ctx context.Context) error    { return a.Server.Start(ctx, a.Config.App.Environment) }
+func (a *App) Start() error                       { return a.Server.Start() }
 func (a *App) Shutdown(ctx context.Context) error { return a.Server.Shutdown(ctx) }
 
 func (a *App) Close(ctx context.Context) error {
+	var closeErr error
 	for _, closeFn := range slices.Backward(a.closers) {
-		if err := closeFn(ctx); err != nil {
-			return err
-		}
+		closeErr = errors.Join(closeErr, closeFn(ctx))
 	}
-	return nil
+	return closeErr
 }
 ```
 
@@ -130,7 +145,7 @@ func (a *App) Close(ctx context.Context) error {
 - Construct dependencies bottom-up in `internal/runtime/runtime.go` with one `New`.
 - Build the jar in `newJar` and the cache with `cfg.Cache.Store()`; middleware is policy only.
 - Register flat handlers with `handlers.NewXHandler(...).Register(rt)`; there is no reflection.
-- Track shutdown with an explicit ordered `closers` list and release in reverse.
+- Append each dependency's cleanup to `closers` as soon as it is built; `Close` releases them in reverse, and the same path cleans up a failed `New`.
 - `cmd/app` is env load + `runtime.New` + `app.Start` + `app.Shutdown`.
 - Add a new dependency by constructing it here and passing it down; never reach for a container or a global.
 - Build one `storage.NewTransactor(db)` and each domain receiver with `domains.NewX(db)`, then pass them individually to the services and handlers that use them. Handlers that need only health take a narrow interface (`healthChecker`, satisfied by `db`).

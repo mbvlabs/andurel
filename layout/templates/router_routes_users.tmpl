@@ -50,7 +50,7 @@ var PasswordEdit = routing.NewRouteWithToken(
 
 var PasswordUpdate = routing.NewSimpleRoute(
 	"/password",
-	"users.user_password",
+	"users.update_user_password",
 	UserPrefix,
 	routing.InertiaRoute(),
 )

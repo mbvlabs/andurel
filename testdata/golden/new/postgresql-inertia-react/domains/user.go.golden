@@ -114,7 +114,7 @@ func (u *User) ValidPassword(providedPassword, pepper string) (bool, error) {
 
 	salt, err := base64.RawStdEncoding.DecodeString(parts[1])
 	if err != nil {
-		return false, fmt.Errorf("failed to decode pepper: %w", err)
+		return false, fmt.Errorf("failed to decode salt: %w", err)
 	}
 
 	newHash := argon2.IDKey(
@@ -234,47 +234,41 @@ func userWriteError(err error) error {
 	return err
 }
 
+// UpdateUserData changes the fields that are set; a nil field keeps its current
+// value. Passwords change through ChangePassword or RehashPassword.
 type UpdateUserData struct {
 	ID               uuid.UUID
-	Email            string
-	EmailValidatedAt pgtype.Timestamptz
-	Password         []byte
-	IsAdmin          bool
+	Email            *string
+	EmailValidatedAt *pgtype.Timestamptz
+	IsAdmin          *bool
 }
 
 func (u Users) Update(
 	ctx context.Context,
 	data UpdateUserData,
 ) (User, error) {
-	current, err := u.Find(ctx, data.ID)
+	entity, err := u.Find(ctx, data.ID)
 	if err != nil {
 		return User{}, err
 	}
 
-	email := normaliseEmail(data.Email)
-	if email == "" {
-		email = current.Email
+	if data.Email != nil {
+		entity.Email = normaliseEmail(*data.Email)
+	}
+	if data.EmailValidatedAt != nil {
+		entity.EmailValidatedAt = *data.EmailValidatedAt
+	}
+	if data.IsAdmin != nil {
+		entity.IsAdmin = *data.IsAdmin
 	}
 
-	emailValidatedAt := data.EmailValidatedAt
-	if !emailValidatedAt.Valid && current.EmailValidatedAt.Valid {
-		emailValidatedAt = current.EmailValidatedAt
-	}
+	return u.save(ctx, entity)
+}
 
-	password := data.Password
-	if len(password) == 0 {
-		password = current.Password
-	}
-
-	entity := User{
-		ID:               data.ID,
-		CreatedAt:        current.CreatedAt,
-		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
-		Email:            email,
-		EmailValidatedAt: emailValidatedAt,
-		Password:         password,
-		IsAdmin:          data.IsAdmin,
-	}
+// save validates entity and writes it in one statement. Callers load the user
+// first, so every update reads the row once.
+func (u Users) save(ctx context.Context, entity User) (User, error) {
+	entity.UpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
 
 	if err := validation.Validate(&entity); err != nil {
 		return User{}, err
@@ -311,7 +305,7 @@ func (u Users) ChangePassword(
 		return User{}, err
 	}
 
-	current, err := u.Find(ctx, id)
+	entity, err := u.Find(ctx, id)
 	if err != nil {
 		return User{}, err
 	}
@@ -320,14 +314,26 @@ func (u Users) ChangePassword(
 	if err != nil {
 		return User{}, err
 	}
+	entity.Password = []byte(hashedPassword)
 
-	return u.Update(ctx, UpdateUserData{
-		ID:               current.ID,
-		Email:            current.Email,
-		EmailValidatedAt: current.EmailValidatedAt,
-		Password:         []byte(hashedPassword),
-		IsAdmin:          current.IsAdmin,
-	})
+	return u.save(ctx, entity)
+}
+
+// RehashPassword stores password hashed with the current pepper. Login calls it
+// with the user it already loaded after the password matched a previous pepper.
+func (u Users) RehashPassword(
+	ctx context.Context,
+	pepper string,
+	user User,
+	password string,
+) (User, error) {
+	hashedPassword, err := HashPassword(password, pepper)
+	if err != nil {
+		return User{}, err
+	}
+	user.Password = []byte(hashedPassword)
+
+	return u.save(ctx, user)
 }
 
 func (u Users) Destroy(ctx context.Context, id uuid.UUID) error {

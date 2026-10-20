@@ -82,7 +82,7 @@ func (v VerifyEmail) render() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</td></tr></tbody></table></td></tr><tr><td class=\"andurel-email-max-sm-px-6\" style=\"padding-inline: 48px; padding-bottom: 16px; font-family: Arial,sans-serif; font-size: 14px; line-height: 24px; color: #687385;\"><p style=\"margin: 0;\">This code expires in 15 minutes.</p><p style=\"margin: 0; margin-top: 16px;\">If you did not create an account, you can safely ignore this email.</p></td></tr></tbody></table>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</td></tr></tbody></table></td></tr><tr><td class=\"andurel-email-max-sm-px-6\" style=\"padding-inline: 48px; padding-bottom: 16px; font-family: Arial,sans-serif; font-size: 14px; line-height: 24px; color: #687385;\"><p style=\"margin: 0;\">This code expires in 24 hours.</p><p style=\"margin: 0; margin-top: 16px;\">If you did not create an account, you can safely ignore this email.</p></td></tr></tbody></table>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

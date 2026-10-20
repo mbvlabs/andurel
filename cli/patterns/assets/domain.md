@@ -212,7 +212,7 @@ func TestProducts_Create(t *testing.T) {
 ## Rules
 
 - One file per domain in the flat `domains` package. Cross-entity rules belong in a service.
-- Only files under `domains/` may import `domains/internal/queries` or call `storage.Unwrap`; only `domains/` and the wiring layers (`internal/runtime`, `cmd`, `seeds`, `migrations`) may name `storage.Connection`/`storage.Transaction` or call `storage.RunInTransaction`.
+- Only files under `domains/` may import `domains/internal/queries` or call `storage.Unwrap`; only `domains/` and the wiring layers (`internal/runtime`, `cmd`, `seeds`, `migrations`) may name `storage.Connection`/`storage.Transaction`.
 - Every receiver has `New<Plural>(db storage.Connection)` and `InTx(tx storage.Tx)`. Construct it in `internal/runtime` and pass it to the services and handlers that use it.
 - A method with several statements that must be atomic on its own holds a `storage.Transactor`, rebinds it in `InTx`, and wraps the statements in `storage.AtomicOps` (it joins a caller's transaction when bound).
 - Entities expose `Validate()` via `pkg/validation`; `Create`/`Update` normalise, then validate, then write, returning validation errors from `pkg/validation` directly.

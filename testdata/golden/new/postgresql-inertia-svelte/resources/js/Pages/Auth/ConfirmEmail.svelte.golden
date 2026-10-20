@@ -18,7 +18,7 @@
   <section class="w-full max-w-md border border-border bg-card/90 shadow-sm shadow-black/40">
     <div class="p-6 pb-0">
       <h1 class="text-xl font-semibold text-card-foreground">Verify Your Email</h1>
-      <p class="mt-1 text-sm text-muted-foreground">Please enter the 6-digit verification code sent to your email.</p>
+      <p class="mt-1 text-sm text-muted-foreground">Please enter the 6-character verification code sent to your email.</p>
     </div>
     <div class="p-6">
       <form class="space-y-5" onsubmit={submit}>

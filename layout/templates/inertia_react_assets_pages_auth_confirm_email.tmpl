@@ -21,7 +21,7 @@ export default function ConfirmEmail({ errors = {} }: ConfirmEmailProps) {
       <section className="w-full max-w-md border border-border bg-card/90 shadow-sm shadow-black/40">
         <div className="p-6 pb-0">
           <h1 className="text-xl font-semibold text-card-foreground">Verify Your Email</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Please enter the 6-digit verification code sent to your email.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Please enter the 6-character verification code sent to your email.</p>
         </div>
         <div className="p-6">
           <form onSubmit={(event) => submit(event.nativeEvent as SubmitEvent)} className="space-y-5">

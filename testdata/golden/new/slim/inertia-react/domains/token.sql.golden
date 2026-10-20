@@ -27,15 +27,6 @@ SET
 WHERE id = $1
 RETURNING attempts;
 
--- name: ListTokens :many
--- @order id
-SELECT *
-FROM tokens;
-
--- name: CountTokens :one
-SELECT count(*)
-FROM tokens;
-
 -- name: CreateToken :one
 INSERT INTO tokens (
 	id,

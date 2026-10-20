@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"text/template"
@@ -156,9 +157,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"agents.tmpl":    "AGENTS.md",
 
 	// Assets
-	"assets_assets.tmpl":     "assets/assets.go",
-	"assets_css_style.tmpl":  "assets/css/style.css",
-	"assets_js_scripts.tmpl": "assets/js/scripts.js",
+	"assets_assets.tmpl": "assets/assets.go",
 
 	// Commands
 	"cmd_app_main.tmpl":     "cmd/app/main.go",
@@ -167,9 +166,8 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"cmd_seeds_main.tmpl":   "cmd/seeds/main.go",
 
 	// Process composition
-	"runtime_runtime.tmpl":     "internal/runtime/runtime.go",
-	"runtime_queue.tmpl":       "internal/runtime/queue.go",
-	"runtime_server_test.tmpl": "internal/runtime/server_test.go",
+	"runtime_runtime.tmpl": "internal/runtime/runtime.go",
+	"runtime_queue.tmpl":   "internal/runtime/queue.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
@@ -450,25 +448,32 @@ func processTemplatedFiles(targetDir string, data *TemplateData) error {
 	return nil
 }
 
+type migrationTemplate struct {
+	template string
+	name     string
+}
+
+// riverMigrations vendors River's main-line migrations, in order, as goose
+// migrations. TestRiverMigrationsMatchPinnedRiver fails when they drift from
+// the River version pinned in go_mod.tmpl.
+var riverMigrations = []migrationTemplate{
+	{"psql_riverqueue_migration_one.tmpl", "create_river_migration_table"},
+	{"psql_riverqueue_migration_two.tmpl", "create_river_job_and_leader_tables"},
+	{"psql_riverqueue_migration_three.tmpl", "alter_river_job_tags"},
+	{"psql_riverqueue_migration_four.tmpl", "alter_river_job_args_metadata_add_queue"},
+	{"psql_riverqueue_migration_five.tmpl", "add_river_job_unique_key_and_clients"},
+	{"psql_riverqueue_migration_six.tmpl", "add_river_job_unique_states"},
+	{"psql_riverqueue_migration_seven.tmpl", "add_river_notification_drop_river_client"},
+}
+
 func processMigrations(
 	targetDir string,
 	data *TemplateData,
 ) error {
-	migrations := []struct {
-		template string
-		name     string
-	}{
-		// River queue migrations
-		{"psql_riverqueue_migration_one.tmpl", "create_river_migration_table"},
-		{"psql_riverqueue_migration_two.tmpl", "create_river_job_and_leader_tables"},
-		{"psql_riverqueue_migration_three.tmpl", "alter_river_job_tags"},
-		{"psql_riverqueue_migration_four.tmpl", "alter_river_job_args_metadata_add_queue"},
-		{"psql_riverqueue_migration_five.tmpl", "add_river_job_unique_key_and_clients"},
-		{"psql_riverqueue_migration_six.tmpl", "add_river_job_unique_states"},
-		// Auth migrations
-		{"database_migrations_users.tmpl", "create_users_table"},
-		{"database_migrations_tokens.tmpl", "create_tokens_table"},
-	}
+	migrations := append(slices.Clone(riverMigrations),
+		migrationTemplate{"database_migrations_users.tmpl", "create_users_table"},
+		migrationTemplate{"database_migrations_tokens.tmpl", "create_tokens_table"},
+	)
 
 	for i, migration := range migrations {
 		version := fmt.Sprintf("%05d", i+1)

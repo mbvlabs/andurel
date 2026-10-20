@@ -11,11 +11,11 @@ const (
 	DefaultDatabaseKind            = "postgres"
 	DefaultDatabaseHost            = "127.0.0.1"
 	DefaultDatabasePort            = "5432"
-	DefaultDatabaseName            = "andurel"
+	DefaultDatabaseName            = "app"
 	DefaultDatabaseUser            = "postgres"
 	DefaultDatabasePassword        = "postgres"
 	DefaultDatabaseSSLMode         = "disable"
-	DefaultDatabaseApplicationName = "andurel"
+	DefaultDatabaseApplicationName = "app"
 )
 
 func NewDatabase() (storage.Config, error) {

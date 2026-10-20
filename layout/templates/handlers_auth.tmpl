@@ -130,12 +130,7 @@ func (h AuthHandler) SessionCreate(ctx context.Context) error {
 
 	var payload LoginPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
-		telemetry.Error(
-			ctx,
-			"could not parse login form payload",
-			"error", err,
-		)
-		return h.renderer.Page(ctx, "Errors/BadRequest", inertia.Props{}).Render()
+		return anduin.BadRequest(err)
 	}
 
 	entity, err := h.identity.AuthenticateUser(
@@ -166,16 +161,20 @@ func (h AuthHandler) SessionCreate(ctx context.Context) error {
 			)
 		}
 
-		telemetry.Error(
-			ctx,
-			"failed to authenticate user",
-			"error", err,
-		)
+		if errors.Is(err, services.ErrInvalidCredentials) {
+			return h.renderer.Page(
+				ctx,
+				"Auth/Login",
+				inertia.Props{},
+			).ValidationErrors(map[string]string{
+				"email": "Invalid email or password",
+			}).Render()
+		}
 
-		return h.renderer.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
+		return err
 	}
 
-	if err := kiks.Set(ctx, &middleware.App{
+	if err := kiks.Set(ctx, &middleware.Session{
 		UserID:          entity.ID.String(),
 		IsAdmin:         entity.IsAdmin,
 		IsAuthenticated: true,
@@ -198,7 +197,7 @@ func (h AuthHandler) SessionDestroy(ctx context.Context) error {
 	ctx, span := telemetry.From(anduin.Request(ctx), "sessions.destroy")
 	defer span.End()
 
-	if err := kiks.Destroy[*middleware.App](ctx); err != nil {
+	if err := kiks.Destroy[*middleware.Session](ctx); err != nil {
 		return err
 	}
 
@@ -234,12 +233,11 @@ func (h AuthHandler) RegistrationCreate(ctx context.Context) error {
 		cause  error
 	)
 	defer func() {
+		// Only the email domain is recorded: the address itself is personal
+		// data and does not belong in logs or traces.
 		args := []any{"registration.outcome", outcome}
-		if email != "" {
-			args = append(args, "user.email", email)
-			if _, domain, found := strings.Cut(email, "@"); found && domain != "" {
-				args = append(args, "user.email_domain", domain)
-			}
+		if _, domain, found := strings.Cut(email, "@"); found && domain != "" {
+			args = append(args, "user.email_domain", domain)
 		}
 		if userID != nil {
 			args = append(args, "user.id", userID)
@@ -258,7 +256,7 @@ func (h AuthHandler) RegistrationCreate(ctx context.Context) error {
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		outcome = "bind_error"
 		cause = err
-		return h.renderer.Page(ctx, "Errors/BadRequest", inertia.Props{}).Render()
+		return anduin.BadRequest(err)
 	}
 
 	email = payload.Email
@@ -316,16 +314,16 @@ func (h AuthHandler) RegistrationCreate(ctx context.Context) error {
 }
 
 func setPendingUser(ctx context.Context, userID string) error {
-	app, err := kiks.Get[*middleware.App](ctx)
+	session, err := kiks.Get[*middleware.Session](ctx)
 	if err != nil {
 		return err
 	}
-	if app == nil {
-		app = &middleware.App{}
+	if session == nil {
+		session = &middleware.Session{}
 	}
-	app.PendingUserID = userID
+	session.PendingUserID = userID
 
-	return kiks.Set(ctx, app)
+	return kiks.Set(ctx, session)
 }
 
 func (h AuthHandler) ConfirmationNew(ctx context.Context) error {
@@ -342,13 +340,7 @@ func (h AuthHandler) ConfirmationCreate(ctx context.Context) error {
 
 	var payload ConfirmationPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
-		telemetry.Error(
-			ctx,
-			"could not parse verification form payload",
-			"error",
-			err,
-		)
-		return h.renderer.Page(ctx, "Errors/BadRequest", inertia.Props{}).Render()
+		return anduin.BadRequest(err)
 	}
 
 	entity, err := h.identity.VerifyEmail(
@@ -381,7 +373,7 @@ func (h AuthHandler) ConfirmationCreate(ctx context.Context) error {
 		)
 	}
 
-	if err := kiks.Set(ctx, &middleware.App{
+	if err := kiks.Set(ctx, &middleware.Session{
 		UserID:          entity.ID.String(),
 		IsAdmin:         entity.IsAdmin,
 		IsAuthenticated: true,
@@ -393,12 +385,12 @@ func (h AuthHandler) ConfirmationCreate(ctx context.Context) error {
 }
 
 func pendingUserID(ctx context.Context) uuid.UUID {
-	app, err := kiks.Get[*middleware.App](ctx)
-	if err != nil || app == nil || app.PendingUserID == "" {
+	session, err := kiks.Get[*middleware.Session](ctx)
+	if err != nil || session == nil || session.PendingUserID == "" {
 		return uuid.Nil()
 	}
 
-	userID, err := uuid.Parse(app.PendingUserID)
+	userID, err := uuid.Parse(session.PendingUserID)
 	if err != nil {
 		return uuid.Nil()
 	}
@@ -420,14 +412,7 @@ func (h AuthHandler) PasswordCreate(ctx context.Context) error {
 
 	var payload PasswordResetRequestPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
-		telemetry.Error(
-			ctx,
-			"could not parse password reset request payload",
-			"error",
-			err,
-		)
-
-		return h.renderer.Page(ctx, "Errors/BadRequest", inertia.Props{}).Render()
+		return anduin.BadRequest(err)
 	}
 
 	if err := h.identity.RequestResetPassword(
@@ -482,13 +467,7 @@ func (h AuthHandler) PasswordUpdate(ctx context.Context) error {
 
 	var payload PasswordResetPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
-		telemetry.Error(
-			ctx,
-			"could not parse password reset payload",
-			"error",
-			err,
-		)
-		return h.renderer.Page(ctx, "Errors/BadRequest", inertia.Props{}).Render()
+		return anduin.BadRequest(err)
 	}
 
 	if err := h.identity.ResetPassword(

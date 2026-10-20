@@ -1,7 +1,6 @@
 -- +goose Up
 -- +goose StatementBegin
-SELECT 'up SQL query';
-CREATE TABLE IF NOT EXISTS tokens (
+CREATE TABLE tokens (
     id uuid not null PRIMARY KEY,
 
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -16,15 +15,14 @@ CREATE TABLE IF NOT EXISTS tokens (
     attempts INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE INDEX IF NOT EXISTS tokens_user_id_scope_created_at_idx
+CREATE INDEX tokens_user_id_scope_created_at_idx
     ON tokens (user_id, scope, created_at DESC);
 
-CREATE INDEX IF NOT EXISTS tokens_scope_hash_idx
+CREATE INDEX tokens_scope_hash_idx
     ON tokens (scope, hash);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-SELECT 'down SQL query';
-DROP TABLE IF EXISTS tokens;
+DROP TABLE tokens;
 -- +goose StatementEnd

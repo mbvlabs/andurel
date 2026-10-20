@@ -1,6 +1,8 @@
 package layout
 
 import (
+	"strings"
+
 	"github.com/mbvlabs/andurel/v2/layout/blueprint"
 	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
@@ -29,6 +31,34 @@ type TemplateData struct {
 // DatabaseDialect returns the configured database, which is always PostgreSQL.
 func (td *TemplateData) DatabaseDialect() string {
 	return "postgresql"
+}
+
+// Identifier returns the project name as a lowercase identifier safe for
+// database names, connection application names and cache namespaces: anything
+// other than a letter or digit becomes an underscore.
+func (td *TemplateData) Identifier() string {
+	if td == nil {
+		return ""
+	}
+
+	var b strings.Builder
+	for _, r := range strings.ToLower(ToSnakeCase(td.ProjectName)) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			continue
+		}
+		b.WriteRune('_')
+	}
+
+	identifier := strings.Trim(b.String(), "_")
+	if identifier == "" {
+		return "app"
+	}
+	if identifier[0] >= '0' && identifier[0] <= '9' {
+		return "app_" + identifier
+	}
+
+	return identifier
 }
 
 // GetModuleName returns the module name for the project.

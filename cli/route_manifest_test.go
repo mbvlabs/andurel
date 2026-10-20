@@ -105,6 +105,28 @@ var WidgetIndex = routing.NewSimpleRoute(
 	)
 }
 
+func TestCollectRouteManifestRejectsDuplicateNames(t *testing.T) {
+	rootDir := t.TempDir()
+	writeRouteManifestTestFile(t, rootDir, "users.go", `package routes
+
+import "example.com/app/pkg/routing"
+
+var PasswordCreate = routing.NewSimpleRoute("/password", "users.user_password", "")
+
+var PasswordUpdate = routing.NewSimpleRoute("/password", "users.user_password", "")
+`)
+
+	_, err := collectRouteManifest(rootDir)
+	if err == nil {
+		t.Fatal("expected duplicate route names to be rejected")
+	}
+	for _, want := range []string{`"users.user_password"`, "PasswordCreate", "PasswordUpdate"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q missing %q", err, want)
+		}
+	}
+}
+
 func TestCollectRouteManifestExtractsHost(t *testing.T) {
 	rootDir := t.TempDir()
 	writeHostNameConst(t, rootDir, "HostAdmin", "admin")

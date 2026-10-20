@@ -245,21 +245,10 @@ func (i Identity) VerifyEmail(
 			return nil
 		}
 
-		found, err := users.Find(ctx, data.UserID)
-		if err != nil {
-			if errors.Is(err, domains.ErrNotFound) {
-				return ErrUserNotFound
-			}
-
-			return fmt.Errorf("find verification user: %w", err)
-		}
-
+		validatedAt := pgtype.Timestamptz{Time: time.Now(), Valid: true}
 		updated, err := users.Update(ctx, domains.UpdateUserData{
-			ID:               found.ID,
-			Email:            found.Email,
-			EmailValidatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-			Password:         found.Password,
-			IsAdmin:          found.IsAdmin,
+			ID:               data.UserID,
+			EmailValidatedAt: &validatedAt,
 		})
 		if err != nil {
 			if errors.Is(err, domains.ErrNotFound) {

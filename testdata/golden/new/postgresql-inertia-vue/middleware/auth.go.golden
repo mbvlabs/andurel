@@ -16,11 +16,11 @@ import (
 func AuthOnly() anduin.Middleware {
 	return func(next anduin.Handler) anduin.Handler {
 		return func(ctx context.Context) error {
-			app, err := kiks.Get[*App](ctx)
+			session, err := kiks.Get[*Session](ctx)
 			if err != nil {
 				return err
 			}
-			if app != nil && app.IsAuthenticated {
+			if session != nil && session.IsAuthenticated {
 				return next(ctx)
 			}
 

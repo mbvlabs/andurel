@@ -81,8 +81,7 @@ Hard rules:
 - **Only `domains` touches the database.** Only `domains` imports
   `domains/internal/queries`, and only `domains` (plus `internal/runtime`,
   `cmd/`, `seeds/`, and `migrations/` for wiring) may name
-  `storage.Connection`, `storage.Transaction`, or `storage.RunInTransaction` or
-  import pgx, and only `domains` may call `storage.Unwrap`. Everyone else
+  `storage.Connection` or `storage.Transaction` or import pgx, and only `domains` may call `storage.Unwrap`. Everyone else
   receives domain receivers (`domains.NewUsers(db)`, built in runtime) and, for
   transactions, a `storage.Transactor`. `andurel verify` enforces this.
 - **Every receiver has `New<Plural>(db)` and `InTx(tx storage.Tx)`.** A receiver
@@ -247,7 +246,7 @@ anduin.Handler`):
 - CSRF strategy construction.
 
 Cookie jar construction lives in `internal/runtime` (`newJar`); `middleware/`
-exports the session definition (`NewAppCookie`) and policy only. There is no
+exports the session definition (`Session`, `NewSessionCookie`) and policy only. There is no
 `middleware.NewJar`.
 
 Generic middleware (`Recover`, `RealIP`, `Logger`, `Telemetry`, `CORS`, `CSRF`) is

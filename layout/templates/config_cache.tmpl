@@ -2,12 +2,11 @@ package config
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/mbvlabs/andurel/pkg/cache"
 )
 
-const DefaultCacheNamespace = "andurel"
+const DefaultCacheNamespace = "{{.Identifier}}"
 
 type Cache struct {
 	Driver    string
@@ -45,8 +44,4 @@ func (c Cache) Store() (cache.Store, error) {
 			Addr: c.RedisAddr,
 		},
 	})
-}
-
-func CacheTTL() time.Duration {
-	return newEnvironment().Duration("CACHE_TTL", 15*time.Minute)
 }

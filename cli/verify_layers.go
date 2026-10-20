@@ -23,9 +23,8 @@ var persistenceDirs = []string{"domains/", "internal/runtime/", "cmd/", "seeds/"
 // database handle. Code outside persistenceDirs reaches the database only
 // through domain receivers and storage.AtomicOps.
 var forbiddenStorageIdents = map[string]bool{
-	"Connection":       true,
-	"Transaction":      true,
-	"RunInTransaction": true,
+	"Connection":  true,
+	"Transaction": true,
 }
 
 // bindableStorageTypes are the pkg/storage types with an InTx method.
@@ -62,8 +61,8 @@ type boundaryIndex struct {
 //
 //   - queries-import: only files under domains/ may import domains/internal/queries.
 //   - db-handle: outside persistenceDirs, no file references storage.Connection,
-//     storage.Transaction, or storage.RunInTransaction, or imports pgx (pgtype
-//     is allowed because entities carry pgtype values).
+//     or storage.Transaction, or imports pgx (pgtype is allowed because
+//     entities carry pgtype values).
 //   - tx-unwrap: storage.Unwrap is called only under domains/.
 //   - tx-escape: inside a func literal passed to storage.AtomicOps, the
 //     enclosing method's receiver fields that can be bound with InTx are used

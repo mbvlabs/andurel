@@ -8,27 +8,28 @@ import (
 	"github.com/mbvlabs/andurel/pkg/kiks"
 )
 
-type App struct {
+// Session is the application session stored in an encrypted cookie.
+type Session struct {
 	UserID          string `json:"user_id,omitempty"`
 	PendingUserID   string `json:"pending_user_id,omitempty"`
 	IsAdmin         bool   `json:"is_admin,omitempty"`
 	IsAuthenticated bool   `json:"is_authenticated,omitempty"`
 }
 
-func (a *App) MarshalCookie() ([]byte, error) {
-	return json.Marshal(a)
+func (s *Session) MarshalCookie() ([]byte, error) {
+	return json.Marshal(s)
 }
 
-func (a *App) UnmarshalCookie(data []byte) error {
+func (s *Session) UnmarshalCookie(data []byte) error {
 	if len(data) == 0 {
-		*a = App{}
+		*s = Session{}
 		return nil
 	}
-	return json.Unmarshal(data, a)
+	return json.Unmarshal(data, s)
 }
 
-func NewAppCookie(cfg config.Session, secure bool) kiks.Definition {
-	return kiks.NewSession[*App](
+func NewSessionCookie(cfg config.Session, secure bool) kiks.Definition {
+	return kiks.NewSession[*Session](
 		cfg.Name,
 		kiks.HTTPOnly(),
 		kiks.Secure(secure),

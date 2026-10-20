@@ -46,7 +46,7 @@ func run() error {
 	defer closeApp(app)
 
 	serveErr := make(chan error, 1)
-	go func() { serveErr <- app.Start(ctx) }()
+	go func() { serveErr <- app.Start() }()
 
 	select {
 	case err := <-serveErr:

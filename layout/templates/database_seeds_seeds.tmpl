@@ -2,6 +2,7 @@ package seeds
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -21,7 +22,6 @@ const DefaultPassword = "password"
 type Runner func(context.Context, storage.Connection) error
 
 var Registry = map[string]Runner{
-	"default":     Development,
 	"development": Development,
 	"test":        Test,
 }
@@ -93,6 +93,15 @@ func createUser(
 	pepper, rawAddress string,
 	admin bool,
 ) (domains.User, error) {
+	// Seeds run more than once during development; an existing user is kept.
+	existing, err := users.FindByEmail(ctx, rawAddress)
+	if err == nil {
+		return existing, nil
+	}
+	if !errors.Is(err, domains.ErrNotFound) {
+		return domains.User{}, err
+	}
+
 	created, err := users.Create(ctx, pepper, domains.CreateUserData{
 		Email: rawAddress,
 		PasswordPair: domains.PasswordPair{
@@ -104,10 +113,11 @@ func createUser(
 		return domains.User{}, err
 	}
 
+	validatedAt := pgtype.Timestamptz{Time: time.Now(), Valid: true}
+
 	return users.Update(ctx, domains.UpdateUserData{
 		ID:               created.ID,
-		Email:            created.Email,
-		EmailValidatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-		IsAdmin:          admin,
+		EmailValidatedAt: &validatedAt,
+		IsAdmin:          &admin,
 	})
 }

@@ -6,67 +6,81 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"path"
 	"strings"
-	"time"
 
 	"app/assets"
 	"app/config"
 	"app/routes"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
-	"github.com/mbvlabs/andurel/pkg/cache"
-	"github.com/mbvlabs/andurel/pkg/routing"
-	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 const threeMonthsCache = "7776000"
 
-const assetCacheTTL = 15 * time.Minute
-
+// Assets serves embedded files. The embedded files are fixed at build time, so
+// robots.txt, the sitemap and every ETag are computed once at startup.
 type Assets struct {
-	cache  cache.Store
-	appCfg config.App
+	production bool
+	robots     string
+	sitemap    []byte
+	etags      map[string]string
 }
 
-func NewAssets(store cache.Store, appCfg config.App) Assets {
-	return Assets{cache: store, appCfg: appCfg}
+func NewAssets(appCfg config.App) (Assets, error) {
+	sitemap, err := createSitemap(appCfg.BaseURL())
+	if err != nil {
+		return Assets{}, fmt.Errorf("assets: sitemap: %w", err)
+	}
+
+	etags := make(map[string]string)
+	if appCfg.IsProduction() {
+		err := fs.WalkDir(assets.Files, "dist", func(name string, entry fs.DirEntry, err error) error {
+			if err != nil || entry.IsDir() {
+				return err
+			}
+			content, err := assets.Files.ReadFile(name)
+			if err != nil {
+				return err
+			}
+			etags[name] = etagFor(content)
+
+			return nil
+		})
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return Assets{}, fmt.Errorf("assets: etags: %w", err)
+		}
+	}
+
+	return Assets{
+		production: appCfg.IsProduction(),
+		robots:     createRobotsTxt(appCfg.BaseURL()),
+		sitemap:    sitemap,
+		etags:      etags,
+	}, nil
 }
 
 func (a Assets) Register(rt *anduin.Router) {
 	rt.Get(routes.Robots.Path(), a.Robots)
 	rt.Get(routes.Sitemap.Path(), a.Sitemap)
-	rt.Get(routes.Stylesheet.Path(), a.Stylesheet)
-	rt.Get(routes.Scripts.Path(), a.Scripts)
-	rt.Get(routes.Script.Path(), a.Script)
 	rt.Get(routes.ViteBuild.Path(), a.ViteBuild)
 }
 
-func (a Assets) enableCaching(
-	ctx context.Context,
-	cacheKey string,
-	content []byte,
-) (bool, error) {
-	if !a.appCfg.IsProduction() {
-		return false, nil
-	}
+func etagFor(content []byte) string {
+	//nolint:gosec //only needed for browser caching
+	hash := md5.Sum(content)
 
-	etag, err := cache.Remember(
-		ctx,
-		a.cache,
-		"etag:"+cacheKey,
-		assetCacheTTL,
-		func(ctx context.Context) (string, error) {
-			//nolint:gosec //only needed for browser caching
-			hash := md5.Sum(content)
-			return fmt.Sprintf(`"%x-%x"`, hash, len(content)), nil
-		},
-	)
-	if err != nil {
-		//nolint:gosec //only needed for browser caching
-		hash := md5.Sum(content)
-		etag = fmt.Sprintf(`"%x-%x"`, hash, len(content))
+	return fmt.Sprintf(`"%x-%x"`, hash, len(content))
+}
+
+// enableCaching sets long-lived cache headers in production and reports
+// whether the request was answered with 304 Not Modified.
+func (a Assets) enableCaching(ctx context.Context, file string) (bool, error) {
+	etag, ok := a.etags[file]
+	if !a.production || !ok {
+		return false, nil
 	}
 
 	anduin.SetHeader(ctx, "ETag", etag)
@@ -94,147 +108,44 @@ func createRobotsTxt(baseURL string) string {
 }
 
 func (a Assets) Robots(ctx context.Context) error {
-	ctx, span := telemetry.From(anduin.Request(ctx), "assets.robots")
-	defer span.End()
-
-	cacheKey := "assets:robots"
-
-	robotsTxt, err := cache.Remember(
-		ctx,
-		a.cache,
-		cacheKey,
-		assetCacheTTL,
-		func(ctx context.Context) (string, error) {
-			return createRobotsTxt(a.appCfg.BaseURL()), nil
-		},
-	)
-	if err != nil {
-		telemetry.Error(
-			ctx,
-			"failed to get robots.txt from cache",
-			"error", err,
-		)
-		return anduin.Text(ctx, http.StatusOK, createRobotsTxt(a.appCfg.BaseURL()))
-	}
-
-	return anduin.Text(ctx, http.StatusOK, robotsTxt)
+	return anduin.Text(ctx, http.StatusOK, a.robots)
 }
 
 func (a Assets) Sitemap(ctx context.Context) error {
-	ctx, span := telemetry.From(anduin.Request(ctx), "assets.sitemap")
-	defer span.End()
-
-	cacheKey := "assets:sitemap"
-
-	sitemap, err := cache.Remember(
-		ctx,
-		a.cache,
-		cacheKey,
-		assetCacheTTL,
-		func(ctx context.Context) (string, error) {
-			return createSitemap(a.appCfg.BaseURL(), nil)
-		},
-	)
-	if err != nil {
-		telemetry.Error(
-			ctx,
-			"failed to get sitemap from cache",
-			"error", err,
-		)
-
-		result, buildErr := createSitemap(a.appCfg.BaseURL(), nil)
-		if buildErr != nil {
-			return buildErr
-		}
-
-		return writeContent(ctx, http.StatusOK, "application/xml", []byte(result))
-	}
-
-	return writeContent(ctx, http.StatusOK, "application/xml", []byte(sitemap))
+	return writeContent(ctx, http.StatusOK, "application/xml", a.sitemap)
 }
 
-type URL struct {
+type sitemapURL struct {
 	XMLName    xml.Name `xml:"url"`
 	Loc        string   `xml:"loc"`
 	ChangeFreq string   `xml:"changefreq"`
-	LastMod    string   `xml:"lastmod,omitempty"`
 	Priority   string   `xml:"priority,omitempty"`
 }
 
-type Sitemap struct {
-	XMLName xml.Name `xml:"urlset"`
-	XMLNS   string   `xml:"xmlns,attr"`
-	URL     []URL    `xml:"url"`
+type sitemapURLSet struct {
+	XMLName xml.Name     `xml:"urlset"`
+	XMLNS   string       `xml:"xmlns,attr"`
+	URL     []sitemapURL `xml:"url"`
 }
 
-func createSitemap(baseURL string, _ []routing.Route) (string, error) {
-	urls := []URL{
-		{
-			Loc:        baseURL,
-			ChangeFreq: "monthly",
-			LastMod:    "2024-10-22T09:43:09+00:00",
-			Priority:   "1",
-		},
-	}
-
-	sitemap := Sitemap{
+func createSitemap(baseURL string) ([]byte, error) {
+	sitemap := sitemapURLSet{
 		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
-		URL:   urls,
+		URL: []sitemapURL{
+			{
+				Loc:        baseURL,
+				ChangeFreq: "monthly",
+				Priority:   "1",
+			},
+		},
 	}
 
 	xmlBytes, err := xml.MarshalIndent(sitemap, "", "  ")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return xml.Header + string(xmlBytes), nil
-}
-
-func (a Assets) Stylesheet(ctx context.Context) error {
-	stylesheet, err := assets.Files.ReadFile("css/style.css")
-	if err != nil {
-		return err
-	}
-
-	handled, cacheErr := a.enableCaching(ctx, "css/style.css", stylesheet)
-	if handled || cacheErr != nil {
-		return cacheErr
-	}
-
-	return writeContent(ctx, http.StatusOK, "text/css", stylesheet)
-}
-
-func (a Assets) Scripts(ctx context.Context) error {
-	script, err := assets.Files.ReadFile("js/scripts.js")
-	if err != nil {
-		return err
-	}
-
-	handled, cacheErr := a.enableCaching(ctx, "js/scripts.js", script)
-	if handled || cacheErr != nil {
-		return cacheErr
-	}
-
-	return writeContent(ctx, http.StatusOK, "application/javascript", script)
-}
-
-func (a Assets) Script(ctx context.Context) error {
-	param := path.Clean(anduin.PathValue(ctx, "file"))
-	if param == "." || param == "" || strings.HasPrefix(param, "../") {
-		return anduin.NotFound(errors.New(http.StatusText(http.StatusNotFound)))
-	}
-
-	file := fmt.Sprintf("js/%s", param)
-	script, err := assets.Files.ReadFile(file)
-	if err != nil {
-		return anduin.NotFound(errors.New(http.StatusText(http.StatusNotFound)))
-	}
-
-	if handled, cacheErr := a.enableCaching(ctx, file, script); handled || cacheErr != nil {
-		return cacheErr
-	}
-
-	return writeContent(ctx, http.StatusOK, "application/javascript", script)
+	return append([]byte(xml.Header), xmlBytes...), nil
 }
 
 func (a Assets) ViteBuild(ctx context.Context) error {
@@ -250,7 +161,7 @@ func (a Assets) ViteBuild(ctx context.Context) error {
 		return anduin.NotFound(errors.New(http.StatusText(http.StatusNotFound)))
 	}
 
-	if handled, cacheErr := a.enableCaching(ctx, file, data); handled || cacheErr != nil {
+	if handled, cacheErr := a.enableCaching(ctx, file); handled || cacheErr != nil {
 		return cacheErr
 	}
 

@@ -97,7 +97,30 @@ func collectRouteManifest(rootDir string) (routeManifest, error) {
 		return manifest.Skipped[i].SourceFile < manifest.Skipped[j].SourceFile
 	})
 
+	if err := checkDuplicateRouteNames(manifest.Routes); err != nil {
+		return routeManifest{}, err
+	}
+
 	return manifest, nil
+}
+
+// checkDuplicateRouteNames rejects two routes sharing a name: generated
+// helpers key on the name, so one route would silently shadow the other.
+func checkDuplicateRouteNames(routes []routeManifestRoute) error {
+	seen := make(map[string]routeManifestRoute, len(routes))
+	for _, route := range routes {
+		if first, ok := seen[route.Name]; ok {
+			return fmt.Errorf(
+				"duplicate route name %q: %s (%s:%d) and %s (%s:%d)",
+				route.Name,
+				first.Variable, first.SourceFile, first.Line,
+				route.Variable, route.SourceFile, route.Line,
+			)
+		}
+		seen[route.Name] = route
+	}
+
+	return nil
 }
 
 func parseRouteFiles(routesDir string) ([]parsedRouteFile, error) {

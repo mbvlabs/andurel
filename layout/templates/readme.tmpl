@@ -8,11 +8,11 @@ The app is ordinary Go you own: `domains/` for business logic and persistence, `
 
 ```
 {{.ProjectName}}/
-├── assets/               # Static/compiled assets
-├── bin/                  # Command-line tools
+├── assets/               # Embedded files, including the Vite build in assets/dist
 ├── cmd/                  # Process entry points
 │   ├── app/              # Web process (single runtime.New owns Handler + Server)
 │   ├── queue/            # Queue process
+│   ├── ssr/              # Inertia SSR process (production)
 │   ├── migrate/          # Apply pending SQL migrations
 │   └── seeds/            # Database seeding
 ├── config/               # Application configuration
@@ -22,13 +22,12 @@ The app is ordinary Go you own: `domains/` for business logic and persistence, `
 │   └── internal/queries/ # narsilc output (imported only by domains/**)
 ├── email/                # Email templates and sending
 ├── handlers/             # HTTP handlers, one flat package
-├── internal/             # App support code, e.g. provider adapters (clients/, payment/)
+├── internal/             # App support code
 │   └── runtime/          # Composition root: explicit constructors + lifecycle
-├── middleware/           # App HTTP middleware and cookie-jar wiring
+├── middleware/           # App HTTP policy and the session definition
 ├── migrations/           # SQL migration files
-├── queue/                # Background job processing
-│   ├── jobs/             # Job definitions
-│   └── workers/          # Worker implementations
+├── queue/                # Workers, periodic jobs and their registration
+│   └── jobs/             # Job argument types
 ├── resources/            # Inertia root document + JS app
 │   ├── root.templ        # The one page-shaped templ
 │   └── js/               # Inertia Pages, Layouts, Components, routes.ts
@@ -43,7 +42,7 @@ The app is ordinary Go you own: `domains/` for business logic and persistence, `
 
 ### Prerequisites
 
-- Go 1.24.4 or higher
+- Go {{.GoVersion}} or higher
 - PostgreSQL database
 - Andurel CLI: `go install github.com/mbvlabs/andurel/v2@latest`
 
@@ -57,7 +56,7 @@ The app is ordinary Go you own: `domains/` for business logic and persistence, `
 
 2. **Create database**
    ```bash
-   createdb {{.ProjectName}}_development
+   createdb {{.Identifier}}
    ```
 
 3. **Run migrations**
@@ -164,7 +163,7 @@ Verify everything before you ship:
 andurel verify
 ```
 
-`andurel verify` runs formatting, `go fix`, `go vet`, and the domain/service import-boundary lint. Pass `--with-tests` to also run the test suite.
+`andurel verify` runs formatting, `go fix`, `go vet`, the persistence-boundary lints (queries import, raw DB handle, `storage.Unwrap`, transaction escape, nested public calls), and generated-code drift. Violations come with a `fix`; a failed run exits 9. Pass `--with-tests` to also run `go test ./...`.
 
 ## How-To Guides
 
@@ -327,24 +326,27 @@ func (h ProductHandler) Register(rt *anduin.Router) {
     rt.Get(routes.ProductIndex.Path(), h.Index)
 }
 
-func (h Handler) Index(ctx context.Context) error {
+func (h ProductHandler) Index(ctx context.Context) error {
     page, err := anduin.QueryInt(ctx, "page", 1)
     if err != nil {
         return anduin.BadRequest(err)
     }
-    result, err := h.products.Paginate(ctx, page, 25)
+    result, err := h.products.Paginate(ctx, int64(page), 25)
     if err != nil {
         return err
     }
-    return h.renderer.Page(ctx, "Product/Index", inertia.FromStruct(result.Items)).Render()
+    return h.renderer.Page(ctx, "Product/Index", inertia.Props{
+        "products":   result.Products,
+        "totalPages": result.TotalPages,
+    }).Render()
 }
 ```
 
 Wire it in `internal/runtime/runtime.go` with constructor injection:
 
 ```go
-products := product.NewProducts(db)
-producthandlers.NewHandler(products, renderer).Register(rt)
+products := domains.NewProducts(db)
+handlers.NewProductHandler(products, renderer).Register(router)
 ```
 
 Refresh the frontend route helper afterward:
@@ -383,18 +385,20 @@ type MyJobArgs struct {
 func (MyJobArgs) Kind() string { return "my_job" }
 ```
 
-**2. Implement a worker** in `queue/workers/`:
+**2. Implement a worker** in `queue/`:
 
 ```go
-// queue/workers/my_job.go
-package workers
+// queue/my_job.go
+package queue
 
 import (
     "context"
-{{if eq .Database "postgres"}}    "github.com/riverqueue/river"
-{{end}}    "{{.ModuleName}}/queue/jobs"
+
+    "github.com/riverqueue/river"
+
+    "{{.ModuleName}}/queue/jobs"
 )
-{{if eq .Database "postgres"}}
+
 type MyJobWorker struct {
     river.WorkerDefaults[jobs.MyJobArgs]
 }
@@ -402,55 +406,38 @@ type MyJobWorker struct {
 func (w *MyJobWorker) Work(ctx context.Context, job *river.Job[jobs.MyJobArgs]) error {
     // Access job arguments: job.Args.UserID, job.Args.Action
     return nil
-}{{else}}
-func ProcessMyJob(ctx context.Context, msg []byte) error {
-    // Unmarshal msg to jobs.MyJobArgs and process
-    return nil
-}{{end}}
+}
 ```
 
-**3. Register the worker** in the plain registry assembled in `internal/runtime/queue.go`:
+**3. Register the worker** in `NewWorkers` in `queue/workers.go`:
 
 ```go
-{{if eq .Database "postgres"}}river.AddWorker(workers, &MyJobWorker{}){{else}}// Register in your queue setup{{end}}
+river.AddWorker(workers, &MyJobWorker{})
 ```
 
 **4. Enqueue jobs** from a service through its `storage.InsertQueue`. Inside `storage.AtomicOps`, enqueue on `i.queue.InTx(tx)` so the job only runs if the data commits:
 
 ```go
-{{if eq .Database "postgres"}}import (
+import (
     "{{.ModuleName}}/queue/jobs"
 )
 
 _, err := i.queue.Insert(ctx, jobs.MyJobArgs{
     UserID: "123",
     Action: "send_welcome_email",
-}, nil){{else}}import "{{.ModuleName}}/queue/jobs"
-
-err := queue.Enqueue(ctx, jobs.MyJobArgs{
-    UserID: "123",
-    Action: "send_welcome_email",
-}){{end}}
+}, nil)
 ```
-{{if eq .Database "postgres"}}
-**Job Monitoring**
-
-River provides a web UI for monitoring jobs. During development, you can access RiverUI to:
-- View job status and history
-- Retry failed jobs
-- Monitor queue performance
-- Inspect job details{{end}}
 
 **Job Options**
 
 ```go
-{{if eq .Database "postgres"}}_, err := i.queue.Insert(ctx, jobs.MyJobArgs{
+_, err := i.queue.Insert(ctx, jobs.MyJobArgs{
     UserID: "123",
 }, &river.InsertOpts{
     MaxAttempts: 5,
     Priority:    1,
     Queue:       "critical",
-}){{else}}// Configure retry behavior and priorities in your queue setup{{end}}
+})
 ```
 
 ### Send Emails
@@ -461,13 +448,45 @@ Email templates use Tailwind utilities from `css/email.css`.
 
 **1. Create an email template:**
 
+Follow `email/verify_email.templ`: a struct holds the data, `ToHTML` renders
+it, and `ToText` derives the plain-text part.
+
 ```go
 // email/welcome.templ
 package email
 
-templ WelcomeEmail(userName string) {
-    @BaseLayout() {
-        <h1 class="text-[28px] leading-9 font-bold text-[#414552]">Welcome, { userName }!</h1>
+import (
+    "bytes"
+    "context"
+)
+
+type WelcomeEmail struct {
+    UserName string
+}
+
+var _ Transformer = (*WelcomeEmail)(nil)
+
+func (w WelcomeEmail) ToHTML() (string, error) {
+    var buf bytes.Buffer
+    if err := w.render().Render(context.Background(), &buf); err != nil {
+        return "", err
+    }
+
+    return buf.String(), nil
+}
+
+func (w WelcomeEmail) ToText() (string, error) {
+    html, err := w.ToHTML()
+    if err != nil {
+        return "", err
+    }
+
+    return HTMLToText(html)
+}
+
+templ (w WelcomeEmail) render() {
+    @baseLayout("Welcome!", "Thank you for joining us.") {
+        <h1 class="text-[28px] leading-9 font-bold text-[#414552]">Welcome, { w.UserName }!</h1>
         <p class="text-base leading-6 text-[#414552]">Thank you for joining us.</p>
     }
 }
@@ -475,50 +494,39 @@ templ WelcomeEmail(userName string) {
 
 `andurel run` and `andurel build` compile emails automatically. Run `andurel sync email` for a standalone compilation pass.
 
-**2. Send the email:**
+**2. Send it in the background** from a service. `i.queue` is the service's
+`storage.InsertQueue`; inside `storage.AtomicOps` use `i.queue.InTx(tx)` when
+the email depends on data written in the same transaction:
 
 ```go
 import (
-    "context"
+    "fmt"
 
-    "{{.ModuleName}}/config"
-    "{{.ModuleName}}/email"
-)
+    "github.com/mbvlabs/andurel/pkg/email"
 
-func sendWelcome(
-    ctx context.Context,
-    sender email.TransactionalSender,
-    mailCfg config.Mail,
-) error {
-    data := email.TransactionalData{
-        From:    mailCfg.DefaultSenderSignature,
-        To:      []string{"user@example.com"},
-        Subject: "Welcome!",
-        Body:    WelcomeEmail("John Doe"),
-    }
-
-    return email.SendTransactional(ctx, data, sender)
-}
-```
-
-**3. Send it in the background:**
-
-```go
-{{if eq .Database "postgres"}}import (
-    "{{.ModuleName}}/config"
+    appemail "{{.ModuleName}}/email"
     "{{.ModuleName}}/queue/jobs"
 )
 
-// queue is i.queue, or i.queue.InTx(tx) inside storage.AtomicOps when the
-// email depends on data written in the same transaction.
-_, err := queue.Insert(ctx, jobs.SendTransactionalEmailArgs{
+welcome := appemail.WelcomeEmail{UserName: "John Doe"}
+html, err := welcome.ToHTML()
+if err != nil {
+    return fmt.Errorf("render welcome email html: %w", err)
+}
+text, err := welcome.ToText()
+if err != nil {
+    return fmt.Errorf("render welcome email text: %w", err)
+}
+
+_, err = i.queue.Insert(ctx, jobs.SendTransactionalEmailArgs{
     Data: email.TransactionalData{
-        From:    mailCfg.DefaultSenderSignature,
-        To:      []string{"user@example.com"},
-        Subject: "Welcome!",
-        Body:    WelcomeEmail("John Doe"),
+        From:     i.defaultSenderSignature,
+        To:       "user@example.com",
+        Subject:  "Welcome!",
+        HTMLBody: html,
+        TextBody: text,
     },
-}, nil){{else}}// Enqueue email job through your queue{{end}}
+}, nil)
 ```
 
 **Development Testing**
@@ -584,7 +592,7 @@ PROTOCOL=http
 DB_KIND=postgres
 DB_HOST=127.0.0.1
 DB_PORT=5432
-DB_NAME={{.ProjectName}}_development
+DB_NAME={{.Identifier}}
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_SSL_MODE=disable
@@ -622,11 +630,11 @@ TRACE_SAMPLE_RATE=1.0
 
 Application sessions and the cookie jar live in `middleware/` (policy) and
 `internal/runtime` (construction). A `kiks.Jar` is built by `newJar` in the
-composition root from `middleware.NewAppCookie` and installed with
+composition root from `middleware.NewSessionCookie` and installed with
 `jar.Middleware()`. Handlers read and write bag cookies with `kiks.Get` /
 `kiks.Set` / `kiks.Destroy` (they return an error when the bag is missing, the
 type is unregistered, or the type is native-only — use the same pointer type you
-registered, e.g. `*middleware.App`). The App session payload is persisted by a
+registered, e.g. `*middleware.Session`). The session payload is persisted by a
 cookie-backed `Store`. Cookies are `HttpOnly` with `SameSite=Lax` and `Path=/`.
 Production cookies also use `Secure`. `SESSION_MAX_AGE` is the lifetime in
 seconds and defaults to seven days (`604800`). Saving session state renews the
@@ -844,9 +852,8 @@ integration tests require the container.
 - [Andurel Documentation](https://github.com/mbvlabs/andurel)
 - [net/http](https://pkg.go.dev/net/http)
 - [Inertia.js](https://inertiajs.com/)
-- [templ](https://templ.guide/){{if eq .Database "postgres"}}
-- [River](https://riverqueue.com/){{else}}
-- [goqite](https://github.com/maragudk/goqite){{end}}
+- [templ](https://templ.guide/) (the Inertia root document and emails)
+- [River](https://riverqueue.com/)
 - [OpenTelemetry](https://opentelemetry.io/)
 
 ## Getting Help

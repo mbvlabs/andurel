@@ -26,15 +26,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	runtime, err := inertia.NewSSRRuntime(
-		cfg.SSRRuntime,
-		cfg.SSRBundle,
-		cfg.SSRListen,
-		cfg.SSRStartupTimeout,
-		cfg.SSRMinimumMajor,
-		cfg.SSRRequestTimeout,
-		assets.Files,
-	)
+	runtime, err := inertia.NewSSRRuntime(inertia.SSRRuntimeConfig{
+		Executable:     cfg.SSRRuntime,
+		BundlePath:     cfg.SSRBundle,
+		ListenURL:      cfg.SSRListen,
+		StartupTimeout: cfg.SSRStartupTimeout,
+		MinimumMajor:   cfg.SSRMinimumMajor,
+		HealthTimeout:  cfg.SSRRequestTimeout,
+		BundleFS:       assets.Files,
+	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "inertia SSR runtime: %v\n", err)
 		os.Exit(1)
