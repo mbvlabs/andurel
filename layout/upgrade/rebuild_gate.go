@@ -48,11 +48,15 @@ func (e *UnsupportedUpgradeError) Code() string {
 	return CodeUnsupportedUpgrade
 }
 
-// Hint tells the caller how to migrate the project by hand.
+// Hint tells the caller how to migrate the project by hand. The gate is
+// version-driven, so retrying the upgrade cannot succeed while the project
+// still carries the pre-rebuild version.
 func (e *UnsupportedUpgradeError) Hint() string {
-	return "Port the app by hand to domains/, services/, handlers/ and pkg/anduin, " +
+	return "Use a fresh Go-native scaffold from `andurel new` as the migration baseline, " +
+		"then port the app by hand to domains/, services/, handlers/ and pkg/anduin, " +
 		"guided by `andurel patterns show composition`, `andurel patterns show domain` " +
-		"and `andurel patterns show handler`, then run `andurel upgrade` again."
+		"and `andurel patterns show handler`. Upgrading the pre-rebuild project in " +
+		"place is not supported."
 }
 
 // Data returns the structured detail carried by the CLI error envelope.

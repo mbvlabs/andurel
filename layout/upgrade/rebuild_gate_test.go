@@ -178,6 +178,45 @@ func TestValidateGoNativeRebuildVersionOrdering(t *testing.T) {
 	}
 }
 
+func TestUnsupportedUpgradeHintDoesNotPromiseRerun(t *testing.T) {
+	t.Parallel()
+
+	hint := (&UnsupportedUpgradeError{
+		FromVersion:    "v2.0.0-alpha.3",
+		ToVersion:      "v2.0.0-alpha.5",
+		RebuildVersion: goNativeRebuildVersion,
+	}).Hint()
+	lower := strings.ToLower(hint)
+
+	for _, forbidden := range []string{
+		"run `andurel upgrade`",
+		"upgrade again",
+		"retry the upgrade",
+		"edit andurel.toml",
+		"edit the manifest",
+		"change the manifest version",
+	} {
+		if strings.Contains(lower, forbidden) {
+			t.Fatalf("hint still promises a retry or manifest bypass (%q):\n%s", forbidden, hint)
+		}
+	}
+	for _, want := range []string{
+		"fresh go-native scaffold",
+		"andurel new",
+		"domains/",
+		"services/",
+		"handlers/",
+		"pkg/anduin",
+		"patterns show composition",
+		"patterns show domain",
+		"patterns show handler",
+	} {
+		if !strings.Contains(lower, want) {
+			t.Fatalf("hint is missing migration guidance %q:\n%s", want, hint)
+		}
+	}
+}
+
 func TestDetectLegacyMarkers(t *testing.T) {
 	t.Parallel()
 
