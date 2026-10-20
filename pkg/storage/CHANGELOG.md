@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+## 0.11.0 - 2026-10-20
+
 ### Added
 
 - `(*Cluster).NewTestDBWithConfig` creates the same migrated, isolated test database as `NewTestDB` and also returns the `storage.Config` that connects to it. Integration tests can pass the config to components such as `runtime.New` without exposing cluster fields, credentials on `storage.Postgres`, or production APIs. `NewTestDB` keeps its signature and behavior.
