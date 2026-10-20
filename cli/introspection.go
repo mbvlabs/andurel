@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mbvlabs/andurel/v2/cli/internal/layers"
 	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/mbvlabs/andurel/v2/layout"
 	"github.com/spf13/cobra"
@@ -175,7 +176,19 @@ is wired: constructed with domains.NewUsers(db) in internal/runtime.
 
 An entity with wired=false exists but nothing constructs its receiver:
 build it in internal/runtime with domains.New<Receiver>(db) and pass it to
-the services and handlers that use it.`,
+the services and handlers that use it.
+
+When narsilc-generated queries are present, each entity also reports
+columns_ok, mismatches, and unpopulated_tags. columns_ok is true when every
+column an automatic query mapping returns has an exported andurel tag, and
+false for a missing column or a duplicate exported tag. It is null when no
+generated query instantiates that entity, or when *T implements
+narsilc.Transformer[Row] and user code performs the mapping; mismatches and
+unpopulated_tags are empty in that unchecked case. Mismatch kinds are
+missing-column and duplicate-tag (hard failures) plus type-difference (a note
+only: pgx may convert between the Row and entity types, so it does not make
+columns_ok false). unpopulated_tags lists tagged fields no automatic query
+populated; narsilc leaves extra tags at their zero value.`,
 		Example: `  andurel inspect domains --json`,
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -196,11 +209,23 @@ the services and handlers that use it.`,
 				filepath.Join(rootDir, "internal", "runtime"),
 				module,
 			)
+			columnStatuses, err := layers.InspectEntityColumns(rootDir)
+			if err != nil {
+				return fmt.Errorf("inspect domains: %w", err)
+			}
 			for i, item := range items {
 				if !isDomainEntityFile(item.Path) {
 					continue
 				}
 				items[i].Entities = describeDomainFile(filepath.Join(rootDir, item.Path), wired)
+				for j := range items[i].Entities {
+					status, ok := columnStatuses[items[i].Entities[j].Name]
+					if !ok {
+						applyDomainColumnStatus(&items[i].Entities[j], nil)
+						continue
+					}
+					applyDomainColumnStatus(&items[i].Entities[j], &status)
+				}
 			}
 			return output.OK(cmd, items, "List domain files")
 		},

@@ -31,6 +31,7 @@ func Analyzers(cfg Config) []*analysis.Analyzer {
 		txPublicCallAnalyzer(cfg),
 		txLayerAnalyzer(cfg),
 		domainTransportAnalyzer(cfg),
+		entityColumnsAnalyzer(cfg),
 	}
 }
 

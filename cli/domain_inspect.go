@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/mbvlabs/andurel/v2/cli/internal/columns"
 	"github.com/mbvlabs/andurel/v2/cli/patterns"
 )
 
@@ -31,6 +32,40 @@ type domainEntity struct {
 	Validates   bool          `json:"validates"`
 	Receiver    string        `json:"receiver,omitempty"`
 	Wired       bool          `json:"wired"`
+	// ColumnsOK is true when every automatic generated query column maps to an
+	// exported andurel tag, false when a column is missing or a tag is
+	// duplicated, and null when no automatic mapping applies (no query, or the
+	// entity implements narsilc.Transformer and maps in user code).
+	ColumnsOK       *bool              `json:"columns_ok"`
+	Mismatches      []columns.Mismatch `json:"mismatches"`
+	UnpopulatedTags []columns.TagNote  `json:"unpopulated_tags"`
+}
+
+// applyDomainColumnStatus adds the automatic query mapping result to an
+// entity. An absent status still renders columns_ok:null with empty arrays, so
+// callers never mistake "not checked" for "checked and clean".
+func applyDomainColumnStatus(entity *domainEntity, status *columns.EntityStatus) {
+	entity.Mismatches = []columns.Mismatch{}
+	entity.UnpopulatedTags = []columns.TagNote{}
+	if status == nil || !status.Checked {
+		return
+	}
+	ok := true
+	for _, mismatch := range status.Mismatches {
+		switch mismatch.Kind {
+		case columns.KindMissingColumn, columns.KindDuplicateTag:
+			ok = false
+		}
+	}
+	entity.ColumnsOK = &ok
+	entity.Mismatches = status.Mismatches
+	entity.UnpopulatedTags = status.Unpopulated
+	if entity.Mismatches == nil {
+		entity.Mismatches = []columns.Mismatch{}
+	}
+	if entity.UnpopulatedTags == nil {
+		entity.UnpopulatedTags = []columns.TagNote{}
+	}
 }
 
 // runtimeConstructedReceivers parses the non-test Go files in runtimeDir and

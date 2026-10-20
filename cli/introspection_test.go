@@ -88,6 +88,8 @@ func TestDomainsCommandExcludesInternalGeneratedFiles(t *testing.T) {
 		"\n"+
 		"type Users struct{}\n"+
 		"\n"+
+		"func NewUsers(db any) Users { return Users{} }\n"+
+		"\n"+
 		"func (*User) Validate() error { return nil }\n")
 	writeTestFile(t, root, "domains/user.sql", "-- domain queries stay colocated\n")
 	writeTestFile(t, root, "domains/internal/queries/db.go", "package queries\n")
@@ -233,9 +235,15 @@ func TestIntrospectionCommands(t *testing.T) {
 	writeTestFile(t, root, "migrations/0001_init.sql", "-- noop\n")
 	writeTestFile(t, root, "queue/jobs/send_email.go", "package jobs\n")
 	writeTestFile(t, root, "queue/workers.go", "package queue\n")
+	writeTestFile(t, root, "pkg/routing/routing.go", `package routing
+
+type SimpleRoute struct{}
+
+func NewSimpleRoute(_, _, _ string) SimpleRoute { return SimpleRoute{} }
+`)
 	writeRouteManifestTestFile(t, root, "users.go", `package routes
 
-import "example.com/app/pkg/routing"
+import "example.com/acme/orders/pkg/routing"
 
 const UserPrefix = "/users"
 

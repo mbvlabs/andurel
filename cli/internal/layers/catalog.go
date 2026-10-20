@@ -75,6 +75,12 @@ var catalog = []Rule{
 		Layer:   RuleLayerLayers,
 	},
 	{
+		ID:      "entity-columns",
+		Summary: "every automatic generated query column maps to an exported andurel tag on its domain entity",
+		Fix:     "add an exported field tagged andurel:\"<column>\", or narrow the query columns and run 'andurel sync queries'",
+		Layer:   RuleLayerLayers,
+	},
+	{
 		ID:      "generated",
 		Summary: "generated templ, queries, routes, and payload output is up to date",
 		Fix:     "run the owning andurel sync command",
