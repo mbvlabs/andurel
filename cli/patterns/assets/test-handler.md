@@ -6,62 +6,6 @@ needs Postgres only when it seeds data through the domains, as below.
 
 ## Files
 
-### handlers/main_test.go
-```go
-package handlers_test
-
-import (
-	"context"
-	"fmt"
-	"os"
-	"testing"
-
-	"app/resources"
-
-	"github.com/mbvlabs/andurel/pkg/inertia"
-	"github.com/mbvlabs/andurel/pkg/storage/storagetest"
-)
-
-// testCluster is one Postgres container for the whole test package.
-var testCluster *storagetest.Cluster
-
-func TestMain(m *testing.M) {
-	cluster, err := storagetest.NewCluster(context.Background())
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "skipping handler tests: start postgres container: %v\n", err)
-		os.Exit(0)
-	}
-	testCluster = cluster
-
-	code := m.Run()
-
-	_ = testCluster.Close(context.Background())
-	os.Exit(code)
-}
-
-// testRenderer builds the Inertia renderer handlers expect. There is no
-// framework default: the root component is the application's own.
-func testRenderer(t *testing.T) *inertia.Renderer {
-	t.Helper()
-
-	renderer, err := inertia.NewRenderer(
-		inertia.RendererConfig{
-			ContainerID:  "app",
-			BuildPathURL: "/dist/",
-			EntryPoint:   "resources/js/app.ts",
-			ViteDevURL:   "http://localhost:5173",
-		},
-		inertia.WithRoot(resources.Root),
-		inertia.WithEnvironment("test"),
-	)
-	if err != nil {
-		t.Fatalf("create renderer: %v", err)
-	}
-
-	return renderer
-}
-```
-
 ### handlers/product_test.go
 ```go
 package handlers_test
@@ -97,7 +41,10 @@ func TestProductIndex(t *testing.T) {
 		handlers.NewProductHandler(products, testRenderer(t)).Register(rt)
 	})
 
-	resp := srv.Get(routes.ProductIndex.Path() + "?page=1")
+	resp := srv.Get(
+		routes.ProductIndex.Path()+"?page=1",
+		anduintest.Header{Name: "X-Inertia", Value: "true"},
+	)
 	resp.AssertStatus(http.StatusOK)
 	resp.AssertInertia("Product/Index")
 }
@@ -105,9 +52,11 @@ func TestProductIndex(t *testing.T) {
 
 ## Rules
 
+- The scaffold ships `handlers/main_test.go` with the package cluster and `testRenderer(t)`, and `handlers/auth_test.go` as the worked example. Use those files instead of redefining the helpers.
 - Use `anduintest.New(t, register)` to build the server from real registrations.
-- Provide a local `testRenderer(t)` helper that builds an `*inertia.Renderer`; there is no framework default.
+- Do not add another `testRenderer(t)`; `handlers/main_test.go` owns the renderer for the package.
 - Call `srv.Get(...)`, `srv.PostForm(...)`, or `srv.PostJSON(...)`; responses assert with `AssertStatus(int)` and `AssertInertia(string)`.
+- Send `X-Inertia: true` when asserting a page: `AssertInertia` decodes the Inertia JSON response. Decode `resp.JSON` for props such as `errors`.
 - Prefer handler tests over integration tests when no cross-domain behavior is exercised.
 - Assert status and the Inertia component name, not HTML strings.
 - Seed data through receivers built per test (`domains.NewProducts(db)`); pass the handler the same receiver.

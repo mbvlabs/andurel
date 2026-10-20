@@ -1,0 +1,69 @@
+package runtime_test
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"strings"
+	"testing"
+
+	"app/config"
+	"app/migrations"
+
+	"github.com/mbvlabs/andurel/pkg/storage/storagetest"
+)
+
+// testCluster is one Postgres container for the whole test package.
+var testCluster *storagetest.Cluster
+
+func TestMain(m *testing.M) {
+	cluster, err := storagetest.NewCluster(context.Background())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "skipping integration tests: start postgres container: %v\n", err)
+		os.Exit(0)
+	}
+	testCluster = cluster
+
+	code := m.Run()
+
+	_ = testCluster.Close(context.Background())
+	os.Exit(code)
+}
+
+// testConfig builds the same config cmd/app uses. A project .env wins when it
+// exists; the required keys fall back to fixed test values so a fresh scaffold
+// verifies without one. The database always points at this test's isolated
+// database, never the development one.
+func testConfig(t *testing.T) config.Config {
+	t.Helper()
+
+	if err := config.LoadEnvironment("../../.env"); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("load environment: %v", err)
+	}
+	setDefaultEnvironment(t, "HOST_PRIMARY", "localhost:8080")
+	setDefaultEnvironment(t, "TOKEN_SIGNING_KEY", "test-token-signing-key")
+	setDefaultEnvironment(t, "PEPPER", "test-pepper")
+	setDefaultEnvironment(t, "SESSION_KEY", strings.Repeat("ab", 32))
+	setDefaultEnvironment(t, "SESSION_ENCRYPTION_KEY", strings.Repeat("cd", 32))
+
+	cfg, err := config.New()
+	if err != nil {
+		t.Fatalf("build config: %v", err)
+	}
+
+	_, database := testCluster.NewTestDBWithConfig(t, migrations.Migrations, ".")
+	cfg.Database = database
+
+	return cfg
+}
+
+func setDefaultEnvironment(t *testing.T, key, value string) {
+	t.Helper()
+
+	if _, ok := os.LookupEnv(key); ok {
+		return
+	}
+	t.Setenv(key, value)
+}

@@ -743,73 +743,34 @@ go test ./...
 
 ## Testing
 
-Every layer is testable in isolation and together. Factories do not exist — build
+Every layer has a scaffold test to copy. Factories do not exist — build
 entities inline with the domain API.
 
 ### Domain Tests
 
-Each test gets a real migrated database from a package-level `storagetest.Cluster` and
-builds its own receivers over it. There are no globals, so tests can run in
-parallel.
-
-```go
-func TestUsers_Create(t *testing.T) {
-    db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-    users := domains.NewUsers(db)
-
-    got, err := users.Create(t.Context(), "pepper", domains.CreateUserData{
-        Email:        "a@b.c",
-        PasswordPair: domains.PasswordPair{Password: "password", ConfirmPassword: "password"},
-    })
-    if err != nil {
-        t.Fatalf("create: %v", err)
-    }
-    if got.ID == uuid.Nil() {
-        t.Fatal("expected id")
-    }
-}
-
-func TestUser_Validate(t *testing.T) {
-    u := domains.User{}
-    if err := u.Validate(); err == nil {
-        t.Fatal("expected error")
-    }
-}
-```
+`domains/main_test.go` owns one `storagetest.Cluster` for the package and
+`domains/user_test.go` covers `Validate`, Create/Find and the duplicate-email
+conflict. Each test gets a clean migrated database from
+`testCluster.NewTestDB(t, migrations.Migrations, ".")` and builds its own
+receivers over it, so tests can run in parallel.
 
 ### Handler Tests
 
 `pkg/anduin/anduintest` builds an `httptest` server from real handler
 registrations, so tests exercise the same `anduin.Router` a production process
-does. The server needs nothing external; seeding data needs a test database.
-
-```go
-func TestProductIndex(t *testing.T) {
-    db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-    products := domains.NewProducts(db)
-
-    srv := anduintest.New(t, func(rt *anduin.Router) {
-        handlers.NewProductHandler(products, testRenderer(t)).Register(rt)
-    })
-
-    resp := srv.Get(routes.ProductIndex.Path() + "?page=1")
-    resp.AssertStatus(http.StatusOK)
-    resp.AssertInertia("Product/Index")
-}
-```
+does. `handlers/main_test.go` owns the package cluster and `testRenderer(t)`;
+`handlers/auth_test.go` renders the login page and re-renders it with errors for
+bad credentials.
 
 ### Integration Tests
 
-Boot the whole real graph — no container — with `runtime.New` and call
-`app.Handler`:
-
-```go
-app, err := runtime.New(t.Context(), testConfig)
-if err != nil {
-    t.Fatal(err)
-}
-// app.DB (seed through domains.NewUsers(app.DB) etc.), app.Handler
-```
+`internal/runtime/main_test.go` owns the package cluster and `testConfig(t)`,
+which takes its `storage.Config` from `storagetest.Cluster.NewTestDBWithConfig`.
+`internal/runtime/runtime_test.go` boots the whole graph with `runtime.New` and
+calls `app.Handler`. The helpers load a project `.env` when present and fall
+back to fixed required values, so a fresh scaffold works without one. Do not
+use `t.Parallel()` here: `routing.ConfigureHosts` writes a package-level
+registry.
 
 ### Running Tests
 
@@ -835,8 +796,9 @@ go test -v ./...
 **Prerequisites**: Docker must be running to use testcontainers.
 
 `storagetest.Cluster` starts a PostgreSQL container and gives each test a clean
-migrated database. Handler tests need nothing external; only domain and
-integration tests require the container.
+migrated database. The domain, handler and integration packages each own one
+cluster in `TestMain`; without Docker they print the reason and exit 0 so
+`go test ./...` and `andurel verify --with-tests` still pass.
 
 **Best Practices**
 

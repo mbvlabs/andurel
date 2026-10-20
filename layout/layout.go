@@ -178,8 +178,10 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"cmd_seeds_main.tmpl":   "cmd/seeds/main.go",
 
 	// Process composition
-	"runtime_runtime.tmpl": "internal/runtime/runtime.go",
-	"runtime_queue.tmpl":   "internal/runtime/queue.go",
+	"runtime_runtime.tmpl":      "internal/runtime/runtime.go",
+	"runtime_queue.tmpl":        "internal/runtime/queue.go",
+	"runtime_main_test.tmpl":    "internal/runtime/main_test.go",
+	"runtime_runtime_test.tmpl": "internal/runtime/runtime_test.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
@@ -196,11 +198,13 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_telemetry.tmpl": "config/telemetry.go",
 
 	// Handlers
-	"handlers_api.tmpl":    "handlers/api.go",
-	"handlers_assets.tmpl": "handlers/assets.go",
-	"handlers_pages.tmpl":  "handlers/pages.go",
-	"handlers_errors.tmpl": "handlers/errors.go",
-	"handlers_auth.tmpl":   "handlers/auth.go",
+	"handlers_api.tmpl":       "handlers/api.go",
+	"handlers_assets.tmpl":    "handlers/assets.go",
+	"handlers_pages.tmpl":     "handlers/pages.go",
+	"handlers_errors.tmpl":    "handlers/errors.go",
+	"handlers_auth.tmpl":      "handlers/auth.go",
+	"handlers_main_test.tmpl": "handlers/main_test.go",
+	"handlers_auth_test.tmpl": "handlers/auth_test.go",
 
 	// Migrations and seeds
 	"database_migrations_gitkeep.tmpl": "migrations/.gitkeep",
@@ -232,6 +236,8 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"domains_errors.tmpl":                  "domains/errors.go",
 	"domains_user.tmpl":                    "domains/user.go",
 	"domains_token.tmpl":                   "domains/token.go",
+	"domains_main_test.tmpl":               "domains/main_test.go",
+	"domains_user_test.tmpl":               "domains/user_test.go",
 	"domains_queries_user.tmpl":            "domains/user.sql",
 	"domains_queries_token.tmpl":           "domains/token.sql",
 	"domains_internal_queries_db.tmpl":     "domains/internal/queries/db.go",

@@ -1,0 +1,56 @@
+package handlers_test
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"testing"
+	"time"
+
+	"app/resources"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/storage/storagetest"
+)
+
+// testCluster is one Postgres container for the whole test package.
+var testCluster *storagetest.Cluster
+
+func TestMain(m *testing.M) {
+	cluster, err := storagetest.NewCluster(context.Background())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "skipping handler tests: start postgres container: %v\n", err)
+		os.Exit(0)
+	}
+	testCluster = cluster
+
+	code := m.Run()
+
+	_ = testCluster.Close(context.Background())
+	os.Exit(code)
+}
+
+// testRenderer builds the Inertia renderer handlers expect. There is no
+// framework default: the root component is the application's own.
+func testRenderer(t *testing.T) *inertia.Renderer {
+	t.Helper()
+
+	renderer, err := inertia.NewRenderer(
+		inertia.RendererConfig{
+			ContainerID:  "app",
+			BuildPathURL: "/dist/",
+			EntryPoint:   "resources/js/app.ts",
+			ViteDevURL:   "http://localhost:5173",
+			SSRURL:       "http://127.0.0.1:13714",
+			SSRTimeout:   2 * time.Second,
+			SSRMaxResponseBytes: 2 << 20,
+		},
+		inertia.WithRoot(resources.Root),
+		inertia.WithEnvironment("test"),
+	)
+	if err != nil {
+		t.Fatalf("create renderer: %v", err)
+	}
+
+	return renderer
+}

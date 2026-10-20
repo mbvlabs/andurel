@@ -7,37 +7,6 @@ run in parallel. `Validate` gets plain unit tests that need no database.
 
 ## Files
 
-### domains/main_test.go
-```go
-package domains_test
-
-import (
-	"context"
-	"fmt"
-	"os"
-	"testing"
-
-	"github.com/mbvlabs/andurel/pkg/storage/storagetest"
-)
-
-// testCluster is one Postgres container for the whole test package.
-var testCluster *storagetest.Cluster
-
-func TestMain(m *testing.M) {
-	cluster, err := storagetest.NewCluster(context.Background())
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "skipping domain tests: start postgres container: %v\n", err)
-		os.Exit(0)
-	}
-	testCluster = cluster
-
-	code := m.Run()
-
-	_ = testCluster.Close(context.Background())
-	os.Exit(code)
-}
-```
-
 ### domains/product_test.go
 ```go
 package domains_test
@@ -101,6 +70,7 @@ func TestProducts_CreateRejectsInvalid(t *testing.T) {
 
 ## Rules
 
+- The scaffold ships `domains/main_test.go` with the package cluster and `domains/user_test.go` as the worked example. Add tests beside them instead of defining another `TestMain`.
 - Domain tests require a real Postgres container; handler tests only when they seed data.
 - One Postgres container per package: `TestMain` starts it once with `storagetest.NewCluster` and closes it after `m.Run()`. If the container cannot start (no Docker), it prints the reason and exits 0 so the suite passes with the database tests skipped.
 - Unit-test every `Validate` method directly, including the unhappy paths.

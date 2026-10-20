@@ -1,0 +1,32 @@
+package runtime_test
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"{{.ModuleName}}/internal/runtime"
+	"{{.ModuleName}}/routes"
+)
+
+func TestAppServesHealth(t *testing.T) {
+	app, err := runtime.New(t.Context(), testConfig(t))
+	if err != nil {
+		t.Fatalf("boot: %v", err)
+	}
+	// t.Context() is already canceled when cleanups run; keep the close alive.
+	t.Cleanup(func() { _ = app.Close(context.WithoutCancel(t.Context())) })
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, routes.Health.Path(), nil)
+	rec := httptest.NewRecorder()
+	app.Handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body: %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if body := strings.TrimSpace(rec.Body.String()); body != `"app is healthy and running"` {
+		t.Fatalf("body = %s, want the health message", body)
+	}
+}

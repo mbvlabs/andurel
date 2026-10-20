@@ -1,0 +1,77 @@
+package handlers_test
+
+import (
+	"net/http"
+	"testing"
+
+	"{{.ModuleName}}/config"
+	"{{.ModuleName}}/domains"
+	"{{.ModuleName}}/handlers"
+	"{{.ModuleName}}/migrations"
+	"{{.ModuleName}}/routes"
+	"{{.ModuleName}}/services"
+
+	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/anduin/anduintest"
+	"github.com/mbvlabs/andurel/pkg/cache"
+	"github.com/mbvlabs/andurel/pkg/storage"
+)
+
+func TestSessionNewRendersLogin(t *testing.T) {
+	srv := newAuthServer(t)
+
+	resp := srv.Get(
+		routes.SessionNew.Path(),
+		anduintest.Header{Name: "X-Inertia", Value: "true"},
+	)
+	resp.AssertStatus(http.StatusOK)
+	resp.AssertInertia("Auth/Login")
+}
+
+func TestSessionCreateRejectsBadCredentials(t *testing.T) {
+	srv := newAuthServer(t)
+
+	resp := srv.PostJSON(
+		routes.SessionCreate.Path(),
+		handlers.LoginPayload{Email: "nobody@example.com", Password: "wrong password"},
+		anduintest.Header{Name: "X-Inertia", Value: "true"},
+	)
+	resp.AssertStatus(http.StatusOK)
+	resp.AssertInertia("Auth/Login")
+
+	var page struct {
+		Props struct {
+			Errors map[string]string `json:"errors"`
+		} `json:"props"`
+	}
+	resp.JSON(&page)
+
+	if got := page.Props.Errors["email"]; got != "Invalid email or password" {
+		t.Fatalf("email error = %q, want %q", got, "Invalid email or password")
+	}
+}
+
+// newAuthServer builds the auth routes over a clean database and a real
+// renderer, the same graph runtime.New wires for production.
+func newAuthServer(t *testing.T) *anduintest.Server {
+	t.Helper()
+
+	store, err := cache.New(cache.Config{Driver: "memory"})
+	if err != nil {
+		t.Fatalf("create cache store: %v", err)
+	}
+
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	identity := services.NewIdentity(
+		storage.NewTransactor(db),
+		domains.NewUsers(db),
+		domains.NewTokens(db),
+		nil,
+		config.Auth{Pepper: "test-pepper", TokenSigningKey: "test-token-signing-key"},
+		config.Mail{},
+	)
+
+	return anduintest.New(t, func(rt *anduin.Router) {
+		handlers.NewAuthHandler(identity, testRenderer(t), store).Register(rt)
+	})
+}

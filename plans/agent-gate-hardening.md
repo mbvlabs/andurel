@@ -1,6 +1,6 @@
 # Agent gate hardening — next alpha
 
-- **Status:** In progress; `pkg/storage` release pending
+- **Status:** Complete; all workstreams landed
 - **Date:** 2026-10-20
 - **Baseline:** `master` @ `71510391` (post `v2.0.0-alpha.4`)
 - **Compared against:** `v2.0.0-alpha.3` (last Echo/Fx v2) and `v1.5.5` (stable)
@@ -624,11 +624,11 @@ remaining W7 blocker is the release and pin.
 
 ### Acceptance
 
-- [ ] On a fresh scaffold with Docker, `andurel verify --with-tests` runs the domain, handler and
+- [x] On a fresh scaffold with Docker, `andurel verify --with-tests` runs the domain, handler and
       integration tests, and they pass.
-- [ ] Without Docker, the same command passes, with the DB-backed tests reported as skipped.
-- [ ] Each `test-*` pattern names its scaffold counterpart.
-- [ ] Full-scaffold goldens are refreshed for all three UI variants.
+- [x] Without Docker, the same command passes, with the DB-backed tests reported as skipped.
+- [x] Each `test-*` pattern names its scaffold counterpart.
+- [x] Full-scaffold goldens are refreshed for all three UI variants.
 
 ---
 

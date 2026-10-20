@@ -1,0 +1,27 @@
+package domains_test
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"testing"
+
+	"github.com/mbvlabs/andurel/pkg/storage/storagetest"
+)
+
+// testCluster is one Postgres container for the whole test package.
+var testCluster *storagetest.Cluster
+
+func TestMain(m *testing.M) {
+	cluster, err := storagetest.NewCluster(context.Background())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "skipping domain tests: start postgres container: %v\n", err)
+		os.Exit(0)
+	}
+	testCluster = cluster
+
+	code := m.Run()
+
+	_ = testCluster.Close(context.Background())
+	os.Exit(code)
+}

@@ -1,0 +1,81 @@
+package domains_test
+
+import (
+	"errors"
+	"testing"
+
+	"app/domains"
+	"app/migrations"
+)
+
+func TestUser_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		email   string
+		wantErr bool
+	}{
+		{name: "valid", email: "user@example.com"},
+		{name: "missing email", email: "", wantErr: true},
+		{name: "malformed email", email: "not-an-email", wantErr: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			user := domains.User{Email: test.email}
+			if err := user.Validate(); (err != nil) != test.wantErr {
+				t.Fatalf("Validate() error = %v, wantErr %v", err, test.wantErr)
+			}
+		})
+	}
+}
+
+func TestUsers_CreateThenFind(t *testing.T) {
+	t.Parallel()
+
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	users := domains.NewUsers(db)
+
+	created, err := users.Create(t.Context(), "test-pepper", domains.CreateUserData{
+		Email: "User@Example.com",
+		PasswordPair: domains.PasswordPair{
+			Password:        "correct horse battery staple",
+			ConfirmPassword: "correct horse battery staple",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if created.Email != "user@example.com" {
+		t.Fatalf("email = %q, want normalised %q", created.Email, "user@example.com")
+	}
+
+	found, err := users.Find(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if found.ID != created.ID || found.Email != created.Email {
+		t.Fatalf("found user = %+v, want ID %s and email %q", found, created.ID, created.Email)
+	}
+}
+
+func TestUsers_CreateRejectsDuplicateEmail(t *testing.T) {
+	t.Parallel()
+
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	users := domains.NewUsers(db)
+
+	data := domains.CreateUserData{
+		Email: "duplicate@example.com",
+		PasswordPair: domains.PasswordPair{
+			Password:        "correct horse battery staple",
+			ConfirmPassword: "correct horse battery staple",
+		},
+	}
+	if _, err := users.Create(t.Context(), "test-pepper", data); err != nil {
+		t.Fatalf("first create: %v", err)
+	}
+
+	if _, err := users.Create(t.Context(), "test-pepper", data); !errors.Is(err, domains.ErrConflict) {
+		t.Fatalf("second create error = %v, want %v", err, domains.ErrConflict)
+	}
+}
