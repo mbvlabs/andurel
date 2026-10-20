@@ -152,4 +152,4 @@ func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
 - [ ] `andurel sync payloads --json` reports the new payload type.
 - [ ] Handler methods return domain errors untouched.
 - [ ] Wired via `handlers.NewProductHandler(products, renderer).Register(router)` in `internal/runtime`.
-- [ ] `andurel inspect handlers --json` lists the new handler.
+- [ ] `andurel inspect handlers --json` lists the new handler, its constructor params, and the routes `Register` mounts.

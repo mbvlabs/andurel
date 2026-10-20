@@ -733,6 +733,7 @@ Each item is its own small branch.
 | e | `verify` long help lists rules by hand | `cli/verify.go` `Long` | Render from the W4 rule catalog. |
 
 - [x] W10a: `inspect domains` excludes `domains/internal/**`, with regression coverage for retained entity metadata.
+- [x] W10b: `inspect handlers` reports each handler's type, constructor, constructor params and the routes its `Register` mounts (route variable, name, method, path, action), parsed with `go/ast` only.
 - [x] W10c: scaffold handlers are `PagesHandler`/`NewPagesHandler` and `AssetsHandler`/`NewAssetsHandler`, matching `NewAuthHandler`/`NewAPIHandler`; templates, the composition pattern and goldens updated. No upgrade note: `handlers/` and `internal/runtime/` are app-owned, so upgrades never rewrite them and existing apps keep compiling.
 - [x] W10d: `andurel new` next steps now run `andurel skill install` right after `tool sync` and end with `andurel verify`; `TestPrintNewProjectNextSteps` asserts both and their order.
 

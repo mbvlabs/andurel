@@ -29,6 +29,9 @@ type projectItem struct {
 	// Entities holds the type→column mapping for domain files. It is only
 	// populated by andurel inspect domains; every other list leaves it empty.
 	Entities []domainEntity `json:"entities,omitempty"`
+	// Handlers holds the handler types declared in a handlers file. It is
+	// only populated by andurel inspect handlers.
+	Handlers []handlerInfo `json:"handlers,omitempty"`
 }
 
 type toolInfo struct {
@@ -211,7 +214,61 @@ the services and handlers that use it.`,
 }
 
 func newHandlersCommand() *cobra.Command {
-	return readOnlyListCommand("handlers", "List handler files", "handlers", ".go")
+	cmd := &cobra.Command{
+		Use:   "handlers",
+		Short: "List handlers with their constructors and routes",
+		Long: `List files under handlers/ and report each handler: a type with a
+Register(rt *anduin.Router) method. For each handler the output names the
+type, its constructor (New<Type> preferred) with the constructor's
+parameters and whether it returns an error, and the routes Register mounts
+in source order: the routes variable, the route name and URL path from the
+route manifest, the HTTP method, and the handler method (action).
+
+A route registered with a string literal reports that literal as its path
+and has no variable or name. A file without a handler type is listed with
+no handlers.`,
+		Example: `  andurel inspect handlers
+  andurel inspect handlers --json
+  andurel inspect handlers --ids-only`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rootDir, err := findGoModRoot()
+			if err != nil {
+				return err
+			}
+			items, err := listProjectFiles(rootDir, "handlers", ".go", "handler")
+			if err != nil {
+				return err
+			}
+			module, _, err := readGoModMetadata(rootDir)
+			if err != nil {
+				return err
+			}
+			manifest, err := collectRouteManifest(rootDir)
+			if err != nil {
+				return err
+			}
+			items = describeHandlerItems(rootDir, module, items, manifest)
+
+			opts, err := output.ParseOptions(cmd)
+			if err != nil {
+				return err
+			}
+			if opts.Mode == output.ModeHuman {
+				if opts.Quiet {
+					return nil
+				}
+				return renderHandlersHuman(cmd.OutOrStdout(), items)
+			}
+			return output.OK(cmd, items, "List handlers")
+		},
+	}
+	setAgentMetadata(
+		cmd,
+		"introspection",
+		"Read-only handler inventory with each handler's constructor, constructor params, and the routes Register mounts (route name, method, path). Use --json.",
+	)
+	return cmd
 }
 
 func newJobsCommand() *cobra.Command {

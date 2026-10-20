@@ -303,7 +303,8 @@ For full-graph tests, boot `runtime.New(ctx, testConfig)` and call
 
 ## Discovery and verification
 
-- `andurel inspect handlers --json` lists handlers.
+- `andurel inspect handlers --json` lists each handler with its constructor
+  params and the routes its `Register` method mounts (name, method, path).
 - `andurel inspect routes --json` lists the route manifest (host-aware).
 - `andurel verify` runs format, `go fix`, `go vet`, the persistence and
   transaction boundary rules (`queries-import`, `db-handle`, `tx-unwrap`,

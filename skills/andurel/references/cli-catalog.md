@@ -84,7 +84,7 @@ andurel run --tools mailpit
 - Add a service, handler, route, middleware, or composition: read the matching pattern and write the files yourself. `andurel new` ships a complete reference app for each.
 - Compile SQL: `andurel sync queries` writes `domains/internal/queries`. Only `domains/**` may import it.
 - List domains: `andurel inspect domains --json`.
-- List handlers: `andurel inspect handlers --json`.
+- List handlers with their constructor params and the routes each `Register` mounts (route name, method, path): `andurel inspect handlers --json`.
 - List routes: `andurel inspect routes --json` (includes host when set).
 - Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia only; helpers are host-aware full URLs).
 - Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then bind routes with `rt.Host(name)`.
@@ -121,7 +121,7 @@ andurel run --tools mailpit
 | `andurel generate migration` | Create a new SQL migration file |
 | `andurel inspect` | Read-only project shape |
 | `andurel inspect domains` | List domain files |
-| `andurel inspect handlers` | List handler files |
+| `andurel inspect handlers` | List handlers with their constructors and routes |
 | `andurel inspect jobs` | List job and worker files |
 | `andurel inspect migrations` | List migration files |
 | `andurel inspect project` | Inspect project metadata |

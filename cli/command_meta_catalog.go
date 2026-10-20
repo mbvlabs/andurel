@@ -455,8 +455,9 @@ var commandMetaSpecs = map[string]CommandMeta{
 		RequiresProject: true,
 	},
 	"andurel inspect handlers": {
-		Summary:         "List handler files",
-		WhenToUse:       []string{"See which HTTP handlers exist before adding routes."},
+		Summary:         "List handlers with their constructors and routes",
+		WhenToUse:       []string{"See which HTTP handlers exist before adding routes.", "Read a handler's constructor params to wire it in internal/runtime, and the routes its Register method mounts (route name, method, path)."},
+		WhenNotToUse:    []string{"For every route in routes/*.go, including ones no handler registers, use andurel inspect routes."},
 		Prerequisites:   []string{"Andurel project root"},
 		Examples:        []string{"andurel inspect handlers --json"},
 		RequiresProject: true,
