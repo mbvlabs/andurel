@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/mbvlabs/andurel/v2/cli/internal/layers"
 	"github.com/spf13/cobra"
 )
 
@@ -145,6 +146,7 @@ func renderLeafHelp(cmd *cobra.Command, w io.Writer) {
 		writeBulletSection(w, "When to use", meta.WhenToUse)
 		writeBulletSection(w, "When not to use", meta.WhenNotToUse)
 		writeBulletSection(w, "Prerequisites", meta.Prerequisites)
+		writeRuleSection(w, meta.Rules)
 	} else if strings.TrimSpace(cmd.Long) != "" && cmd.Long != cmd.Short {
 		helpPrintln(w, cmd.Long)
 		helpPrintln(w)
@@ -201,6 +203,25 @@ func writeBulletSection(w io.Writer, title string, items []string) {
 	helpPrintf(w, "%s:\n", title)
 	for _, item := range items {
 		helpPrintf(w, "  - %s\n", item)
+	}
+	helpPrintln(w)
+}
+
+// writeRuleSection renders the verification rules from the catalog used by
+// commands --json, so help text cannot drift from the implemented rules.
+func writeRuleSection(w io.Writer, rules []layers.Rule) {
+	if len(rules) == 0 {
+		return
+	}
+	width := 0
+	for _, rule := range rules {
+		if len(rule.ID) > width {
+			width = len(rule.ID)
+		}
+	}
+	helpPrintln(w, "Rules:")
+	for _, rule := range rules {
+		helpPrintf(w, "  %-*s  %s (fix: %s)\n", width, rule.ID, rule.Summary, rule.Fix)
 	}
 	helpPrintln(w)
 }

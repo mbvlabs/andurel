@@ -1,6 +1,6 @@
 # Agent gate hardening — next alpha
 
-- **Status:** Ready for implementation
+- **Status:** In progress; `pkg/storage` release pending
 - **Date:** 2026-10-20
 - **Baseline:** `master` @ `71510391` (post `v2.0.0-alpha.4`)
 - **Compared against:** `v2.0.0-alpha.3` (last Echo/Fx v2) and `v1.5.5` (stable)
@@ -475,12 +475,12 @@ func ProbeHTTP(ctx context.Context) string { return anduin.Query(ctx, "x") }
 
 ### Acceptance
 
-- [ ] analysistest covers shapes 1–9. Shapes 1–8 report the expected rule from the table, and
+- [x] analysistest covers shapes 1–9. Shapes 1–8 report the expected rule from the table, and
       shape 9 still reports `tx-escape`.
-- [ ] The full-scaffold golden with the probe files reports exactly those rules. A fresh
+- [x] The full-scaffold golden with the probe files reports exactly those rules. A fresh
       scaffold without them passes `verify`.
-- [ ] Warm `verify` on a fresh scaffold is ≤ 1.5 s. Put the measured number in the commit body.
-- [ ] `verify --help` lists rules from the catalog, and `just commands-check` passes.
+- [x] Warm `verify` on a fresh scaffold is ≤ 1.5 s. Put the measured number in the commit body.
+- [x] `verify --help` lists rules from the catalog, and `just commands-check` passes.
 
 ---
 

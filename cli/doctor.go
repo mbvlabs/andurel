@@ -1160,7 +1160,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	}
 
 	var changed []string
-	err := withDiagnosticProjectCopy(rootDir, func(tempRoot string) error {
+	err := withDiagnosticProjectCopyTools(rootDir, []string{"templ", "tailwindcli"}, func(tempRoot string) error {
 		before, err := snapshotFilesForReport(tempRoot)
 		if err != nil {
 			return err
@@ -1249,7 +1249,7 @@ func checkNarsilcGenerate(rootDir string, verbose bool) checkResult {
 	}
 
 	var changed []string
-	err = withDiagnosticProjectCopy(rootDir, func(tempRoot string) error {
+	err = withDiagnosticProjectCopyTools(rootDir, []string{"narsilc"}, func(tempRoot string) error {
 		before, err := snapshotFilesForReport(tempRoot)
 		if err != nil {
 			return err
@@ -1340,7 +1340,7 @@ func checkRoutesTSGenerate(rootDir string, verbose bool) checkResult {
 	var expected []byte
 	var helperCount int
 	var skippedCount int
-	err := withDiagnosticProjectCopy(rootDir, func(tempRoot string) error {
+	err := withDiagnosticProjectCopyTools(rootDir, nil, func(tempRoot string) error {
 		manifest, err := collectRouteManifest(tempRoot)
 		if err != nil {
 			return err
@@ -1415,7 +1415,7 @@ func checkPayloadsTSGenerate(rootDir string, verbose bool) checkResult {
 	var expected []byte
 	var typeCount int
 	var skippedCount int
-	err := withDiagnosticProjectCopy(rootDir, func(tempRoot string) error {
+	err := withDiagnosticProjectCopyTools(rootDir, nil, func(tempRoot string) error {
 		report, err := generatePayloadsFile(tempRoot)
 		if err != nil {
 			return err

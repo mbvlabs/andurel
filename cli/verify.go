@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mbvlabs/andurel/v2/cli/internal/layers"
 	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/spf13/cobra"
 )
@@ -55,6 +56,14 @@ func verifyStepPassed(step verifyStep) bool {
 	return step.Status == verifyStatusOK || step.Status == verifyStatusSkipped
 }
 
+func verifyRuleHelp() string {
+	var b strings.Builder
+	for _, rule := range layers.Catalog() {
+		fmt.Fprintf(&b, "  %-16s %s\n", rule.ID, rule.Summary)
+	}
+	return b.String()
+}
+
 func newVerifyCommand() *cobra.Command {
 	var withTests bool
 	var skipGenerated bool
@@ -67,19 +76,14 @@ andurel verify checks, in order:
   • gofmt     — every Go file is gofmt-clean
   • go fix    — the toolchain reports no automatic rewrites
   • go vet    — the module vets clean
-  • layers    — the persistence boundary:
-                queries-import  only domains import domains/internal/queries
-                db-handle       outside domains, internal/runtime, cmd, seeds,
-                                and migrations nothing references
-                                storage.Connection or storage.Transaction,
-                                or imports pgx
-                tx-unwrap       storage.Unwrap is called only in domains
-                tx-escape       a storage.AtomicOps callback uses only
-                                dependencies bound with .InTx(tx)
-                tx-public-call  a storage.AtomicOps callback does not call an
-                                exported method on its own receiver
+  • layers    — the typed persistence, transaction, and domain transport rules
   • generated — templ, narsilc, routes.ts, and payloads.ts output is up to date
 
+The layers step loads the active build target, like go vet: files excluded by
+GOOS, GOARCH, or build constraints are not type-checked or analyzed.
+
+Rules:
+` + verifyRuleHelp() + `
 A missing templ or narsilc binary fails the generated step with the
 missing-tool rule; run 'andurel tool sync' to install it. Pass
 --skip-generated to mark that step 'skipped' instead; an explicit skip does

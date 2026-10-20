@@ -7,27 +7,29 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mbvlabs/andurel/v2/cli/internal/layers"
 	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/spf13/cobra"
 )
 
 // CommandMeta is the canonical per-command documentation for humans and agents.
 type CommandMeta struct {
-	Group            string   `json:"group,omitempty"`
-	Summary          string   `json:"summary"`
-	Args             string   `json:"args,omitempty"`
-	WhenToUse        []string `json:"when_to_use,omitempty"`
-	WhenNotToUse     []string `json:"when_not_to_use,omitempty"`
-	Prerequisites    []string `json:"prerequisites,omitempty"`
-	Next             []string `json:"next,omitempty"`
-	Examples         []string `json:"examples,omitempty"`
-	Mutating         bool     `json:"mutating"`
-	Destructive      bool     `json:"destructive,omitempty"`
-	RequiresProject  bool     `json:"requires_project,omitempty"`
-	SupportsDryRun   bool     `json:"supports_dry_run,omitempty"`
-	SkipDryRunCheck  bool     `json:"skip_dry_run_check,omitempty"`
-	Prompts          bool     `json:"prompts,omitempty"`
-	InteractiveFlags []string `json:"interactive_flags,omitempty"`
+	Group            string        `json:"group,omitempty"`
+	Summary          string        `json:"summary"`
+	Args             string        `json:"args,omitempty"`
+	WhenToUse        []string      `json:"when_to_use,omitempty"`
+	WhenNotToUse     []string      `json:"when_not_to_use,omitempty"`
+	Prerequisites    []string      `json:"prerequisites,omitempty"`
+	Next             []string      `json:"next,omitempty"`
+	Examples         []string      `json:"examples,omitempty"`
+	Rules            []layers.Rule `json:"rules,omitempty"`
+	Mutating         bool          `json:"mutating"`
+	Destructive      bool          `json:"destructive,omitempty"`
+	RequiresProject  bool          `json:"requires_project,omitempty"`
+	SupportsDryRun   bool          `json:"supports_dry_run,omitempty"`
+	SkipDryRunCheck  bool          `json:"skip_dry_run_check,omitempty"`
+	Prompts          bool          `json:"prompts,omitempty"`
+	InteractiveFlags []string      `json:"interactive_flags,omitempty"`
 }
 
 type catalogRecord struct {
@@ -130,6 +132,9 @@ func registerAllCommandMeta(root *cobra.Command) {
 			continue
 		}
 		spec.Group = groupFromCommand(cmd)
+		if cmd.CommandPath() == "andurel verify" {
+			spec.Rules = layers.Catalog()
+		}
 		registerMeta(cmd, spec)
 	}
 }

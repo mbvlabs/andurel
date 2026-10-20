@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mbvlabs/andurel/v2/cli/internal/layers"
 	"github.com/mbvlabs/andurel/v2/cli/output"
 )
 
@@ -230,6 +231,81 @@ func TestVerifyHelpMentionsMissingTool(t *testing.T) {
 	if !strings.Contains(stdout.String(), "missing-tool") ||
 		!strings.Contains(stdout.String(), "andurel tool sync") {
 		t.Fatalf("verify --help should mention missing-tool and its fix:\n%s", stdout.String())
+	}
+}
+
+func TestVerifyHelpListsRuleCatalog(t *testing.T) {
+	var stdout bytes.Buffer
+	cmd := NewRootCommand("test", "test-date")
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stdout)
+	cmd.SetArgs([]string{"verify", "--help"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("verify --help: %v", err)
+	}
+	for _, rule := range layers.Catalog() {
+		if !strings.Contains(stdout.String(), rule.ID) {
+			t.Fatalf("verify --help is missing rule %q:\n%s", rule.ID, stdout.String())
+		}
+	}
+}
+
+func TestCommandsJSONIncludesVerifyRules(t *testing.T) {
+	var stdout bytes.Buffer
+	cmd := NewRootCommand("test", "test-date")
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stdout)
+	cmd.SetArgs([]string{"commands", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("commands --json: %v", err)
+	}
+
+	var envelope struct {
+		Data struct {
+			Catalog []struct {
+				Path  string        `json:"path"`
+				Rules []layers.Rule `json:"rules"`
+			} `json:"catalog"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode commands JSON: %v\n%s", err, stdout.String())
+	}
+	for _, record := range envelope.Data.Catalog {
+		if record.Path != "andurel verify" {
+			continue
+		}
+		if len(record.Rules) != len(layers.Catalog()) {
+			t.Fatalf("verify rules = %#v, want %#v", record.Rules, layers.Catalog())
+		}
+		for i, want := range layers.Catalog() {
+			if record.Rules[i] != want {
+				t.Fatalf("verify rule %d = %#v, want %#v", i, record.Rules[i], want)
+			}
+		}
+		return
+	}
+	t.Fatal("commands JSON has no andurel verify record")
+}
+
+func TestVerifyLayersFailsOnTypeError(t *testing.T) {
+	root := newVerifyTestProject(t)
+	writeTestFile(t, root, "main.go", "package main\n\nfunc main() {\n\tvar value int = \"bad\"\n\t_ = value\n}\n")
+
+	result := runVerifyInProject(t, root, "verify", "--skip-generated", "--json")
+	assertVerifyExitCode(t, result, output.ExitVerification)
+
+	failure := output.Fail(result.err)
+	report, ok := failure.Data.(verifyReport)
+	if !ok {
+		t.Fatalf("failure data = %T, want verifyReport", failure.Data)
+	}
+	step := findVerifyStep(t, report, "layers")
+	if step.Status != verifyStatusFail || step.OK {
+		t.Fatalf("layers step = %#v, want fail", step)
+	}
+	if !strings.Contains(step.Detail, "type-check project") {
+		t.Fatalf("layers detail = %q, want type-check failure", step.Detail)
 	}
 }
 

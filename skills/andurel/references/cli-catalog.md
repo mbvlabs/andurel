@@ -27,6 +27,9 @@ andurel --agent --help
 rule; run `andurel tool sync` to install it. `--skip-generated` marks that step
 `skipped` and does not fail the run.
 
+The typed layer checks load the active build target, like `go vet`: files
+excluded by GOOS, GOARCH, or build constraints are not analyzed by that step.
+
 `andurel sync` refreshes derived app files. `andurel tool sync` downloads pinned
 binaries. They are different commands.
 

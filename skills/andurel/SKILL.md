@@ -17,7 +17,7 @@ Andurel is Go-native: `net/http` through `pkg/anduin`, explicit constructor inje
 - Run `andurel inspect project --json` before changing code.
 - Use `--json` or `--jq` when extracting data.
 - `andurel generate` does not write application code. Read a pattern with `andurel patterns show <kind>` and write the files yourself. Only `andurel generate migration` creates a file.
-- Run `andurel verify` after a change: it checks formatting, `go fix`, `go vet`, the persistence and transaction boundary rules (`queries-import`, `db-handle`, `tx-unwrap`, `tx-escape`, `tx-public-call`), and generated-code drift (`generated`; a missing templ or narsilc binary reports `missing-tool` — run `andurel tool sync`). Add `--with-tests` to also run the test suite.
+- Run `andurel verify` after a change: it checks formatting, `go fix`, `go vet`, the typed persistence and transaction boundary rules (`queries-import`, `db-handle`, `tx-unwrap`, `tx-escape`, `tx-public-call`, `tx-layer`, `domain-transport`), and generated-code drift (`generated`; a missing templ or narsilc binary reports `missing-tool` — run `andurel tool sync`). Add `--with-tests` to also run the test suite.
 - Prefer the local project pattern over a generic Rails, Echo, Bun, Templ, or frontend convention.
 - Keep handlers as thin HTTP adapters: parse input, call a domain or service, map errors, render a response.
 - Create a service only when there is real cross-domain orchestration, not just because code exists.
@@ -54,7 +54,7 @@ Hard rules:
 - One file per domain; keep cross-domain rules in services. If a rule spans two entities, a service coordinates them.
 - Only `domains` imports `domains/internal/queries` and issues SQL.
 - Handlers are `func(ctx context.Context) error` and use `pkg/anduin` request/response helpers.
-- `andurel verify` enforces the persistence and transaction boundary through `queries-import`, `db-handle`, `tx-unwrap`, `tx-escape`, and `tx-public-call`, and checks generated-code drift with `generated` (`missing-tool` when a generation tool is absent; run `andurel tool sync`).
+- `andurel verify` enforces the persistence and transaction boundary through `queries-import`, `db-handle`, `tx-unwrap`, `tx-escape`, `tx-public-call`, `tx-layer`, and `domain-transport`, and checks generated-code drift with `generated` (`missing-tool` when a generation tool is absent; run `andurel tool sync`).
 
 ## Output Modes
 
