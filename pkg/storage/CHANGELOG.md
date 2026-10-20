@@ -4,6 +4,10 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+### Added
+
+- `(*Cluster).NewTestDBWithConfig` creates the same migrated, isolated test database as `NewTestDB` and also returns the `storage.Config` that connects to it. Integration tests can pass the config to components such as `runtime.New` without exposing cluster fields, credentials on `storage.Postgres`, or production APIs. `NewTestDB` keeps its signature and behavior.
+
 ### Changed
 
 - **Breaking:** `TestCluster` and `NewTestCluster` moved to the `pkg/storage/storagetest` package as `Cluster` and `NewCluster`. `Close` and `NewTestDB` keep their signatures and behavior. There is no compatibility alias: update imports to `github.com/mbvlabs/andurel/pkg/storage/storagetest`. The `storage` package no longer imports `testing` or testcontainers, so production applications no longer link the Docker test dependencies. `NewCluster` checks the Docker provider before starting a container and returns a contextual error when discovery fails, including when testcontainers panics during provider discovery, so a `TestMain` can skip cleanly without Docker.

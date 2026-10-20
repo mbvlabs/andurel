@@ -127,6 +127,24 @@ func (c *Cluster) Close(ctx context.Context) error {
 func (c *Cluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir string) storage.Connection {
 	t.Helper()
 
+	db, _ := c.newTestDB(t, migrations, migrationDir)
+	return db
+}
+
+// NewTestDBWithConfig creates a migrated, isolated database for one test and
+// returns the storage.Config that connects to the same database. Use it when a
+// component needs a storage.Config, for example to boot a runtime in an
+// integration test. Any additional connection created from the config belongs
+// to the caller and must be closed before the test ends.
+func (c *Cluster) NewTestDBWithConfig(t testing.TB, migrations fs.FS, migrationDir string) (storage.Connection, storage.Config) {
+	t.Helper()
+
+	return c.newTestDB(t, migrations, migrationDir)
+}
+
+func (c *Cluster) newTestDB(t testing.TB, migrations fs.FS, migrationDir string) (storage.Connection, storage.Config) {
+	t.Helper()
+
 	if err := validateMigrations(migrations, migrationDir); err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +187,18 @@ func (c *Cluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir string)
 		t.Fatalf("failed to run migrations: %v", err)
 	}
 
-	return db
+	return db, c.databaseConfig(name)
+}
+
+func (c *Cluster) databaseConfig(name string) storage.Config {
+	config := storage.DefaultConfig()
+	config.Host = c.host
+	config.Port = c.port
+	config.Name = name
+	config.User = c.user
+	config.Password = c.password
+	config.SSLMode = "disable"
+	return config
 }
 
 func (c *Cluster) databaseURL(name string) string {

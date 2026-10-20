@@ -603,6 +603,10 @@ tests:
   | `handlers/auth_test.go` | Uses `anduintest`: the login page renders `Auth/Login`, and bad credentials re-render with errors. |
   | `internal/runtime/main_test.go` | A real `testConfig(t)` helper. |
   | `internal/runtime/runtime_test.go` | Boots `New` and hits `/health`. |
+- **Test config (USER decision).** `testConfig(t)` takes its `storage.Config` from
+  `storagetest.Cluster.NewTestDBWithConfig`, which returns the config for the same migrated,
+  isolated database as the test connection. W7 keeps the settled whole-package `TestMain` skip
+  when Docker is unavailable; do not replace it with per-test skip logic or change that behavior.
 - **Host registry: no `pkg/routing` change.** `routing.ConfigureHosts` writes a package-level
   registry, but it is guarded by `hostMu`, so there is no data race. `FullURL` reads that
   registry without a parameter, so making it an instance would ripple through every route.
@@ -615,6 +619,8 @@ tests:
 ### Depends on
 
 W1 (pattern text) and W8 (tagged and pinned, so scaffold tests import `storagetest`).
+W8 Part 1 already provides the `NewTestDBWithConfig` helper W7's runtime test needs; the
+remaining W7 blocker is the release and pin.
 
 ### Acceptance
 
@@ -630,6 +636,10 @@ W1 (pattern text) and W8 (tagged and pinned, so scaffold tests import `storagete
 
 **Progress:** Part 1 is implemented and tested, including a fresh scaffold's
 production import graph with only a local storage replacement (no testcontainers).
+It also includes the USER-approved test-only `NewTestDBWithConfig` helper, which
+returns the `storage.Config` for the same isolated, migrated database. That
+resolves W7's test-config dependency without exposing `Postgres.Pool`, cluster
+fields or a production API exception; W7 still waits for the W8 tag and pin.
 **Needs release: `pkg/storage`.** Part 2 and final acceptance remain pending the
 human's tag; no version pins, patterns, upgrade notes or goldens have changed yet.
 

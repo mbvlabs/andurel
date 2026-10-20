@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"reflect"
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 func TestClusterDatabaseURL(t *testing.T) {
@@ -22,6 +25,40 @@ func TestClusterDatabaseURL(t *testing.T) {
 	want := "postgres://testuser:testpass@127.0.0.1:55432/test_123?sslmode=disable"
 	if got != want {
 		t.Fatalf("databaseURL = %q, want %q", got, want)
+	}
+}
+
+func TestClusterDatabaseConfig(t *testing.T) {
+	cluster := &Cluster{
+		host:     "127.0.0.1",
+		port:     "55432",
+		user:     "testuser",
+		password: "testpass",
+		adminDB:  "postgres",
+	}
+
+	config := cluster.databaseConfig("test_123")
+
+	want := storage.DefaultConfig()
+	want.Host = cluster.host
+	want.Port = cluster.port
+	want.Name = "test_123"
+	want.User = cluster.user
+	want.Password = cluster.password
+	want.SSLMode = "disable"
+	if !reflect.DeepEqual(config, want) {
+		t.Fatalf("databaseConfig = %#v, want %#v", config, want)
+	}
+	if err := config.Validate(); err != nil {
+		t.Fatalf("databaseConfig.Validate = %v, want nil", err)
+	}
+
+	databaseURL, err := config.DatabaseURL()
+	if err != nil {
+		t.Fatalf("databaseConfig.DatabaseURL = %v", err)
+	}
+	if wantURL := cluster.databaseURL("test_123"); databaseURL != wantURL {
+		t.Fatalf("databaseConfig.DatabaseURL = %q, want %q", databaseURL, wantURL)
 	}
 }
 
