@@ -18,9 +18,10 @@ Two commands keep an agent honest:
 - `andurel patterns show <kind>` prints reference code, the rules for that
   layer, and a "definition of done" checklist. Patterns are read-only; the agent
   writes every file.
-- `andurel verify` runs formatting, `go fix`, `go vet`, and the
-  domain/service import-boundary lint. Add `--with-tests` to also run
-  `go test ./...`.
+- `andurel verify` runs formatting, `go fix`, `go vet`, the persistence and
+  transaction boundary rules (`queries-import`, `db-handle`, `tx-unwrap`,
+  `tx-escape`, `tx-public-call`), and generated-code drift (`generated`). Add
+  `--with-tests` to also run `go test ./...`.
 
 ## Placement Rules
 

@@ -43,7 +43,7 @@ Andurel is built for humans and agents on the same pad:
 
 ## Core Technologies
 
-- **[net/http](https://pkg.go.dev/net/http)** + **[`pkg/anduin`](https://pkg.go.dev/github.com/mbvlabs/andurel/v2/pkg/anduin)**: The single HTTP package — routing, `func(ctx) error` handlers, middleware, request/response helpers, and the server lifecycle over `http.ServeMux`
+- **[net/http](https://pkg.go.dev/net/http)** + **[`pkg/anduin`](https://pkg.go.dev/github.com/mbvlabs/andurel/pkg/anduin)**: The single HTTP package — routing, `func(ctx) error` handlers, middleware, request/response helpers, and the server lifecycle over `http.ServeMux`
 - **[PostgreSQL](https://www.postgresql.org/)** + **[pgx](https://github.com/jackc/pgx)**: Database
 - **[narsilc](https://github.com/mbvlabs/narsilc)**: Typed SQL with caller-owned result structs
 - **[Inertia v3](https://andurel.com/docs/latest/frontend-options)**: React / Vue / Svelte + Vite

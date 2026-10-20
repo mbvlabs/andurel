@@ -688,7 +688,7 @@ Known drift:
    the catalog.
 2. Keep layer-placement prose in `layer-placement.md` only. `AGENTS.md` and `SKILL.md` link to
    it instead of restating it.
-3. **Drift fixes (wave 1, no dependency):** fix the four items above now. For `SKILL.md`, list
+3. **Drift fixes (wave 1, no dependency; completed):** fix the four items above now. For `SKILL.md`, list
    the rules that exist today: `queries-import`, `db-handle`, `tx-unwrap`, `tx-escape`,
    `tx-public-call` and `generated`.
 
@@ -700,7 +700,7 @@ W4 (rule catalog), for items 1–2 only.
 
 - [ ] A test fails if a `verify` rule ID is missing from the skill or `AGENTS.md`, or if the docs
       name a rule that does not exist.
-- [ ] `grep -rn "echo\.Context\|models/\|controllers/" docs skills layout/templates` finds only
+- [x] `grep -rn "echo\.Context\|models/\|controllers/" docs skills layout/templates` finds only
       intentional historical references. List them in the commit body.
 
 ---

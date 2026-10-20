@@ -1,11 +1,14 @@
 # Andurel Inertia v3 adapter
 
-Andurel's Echo-native Inertia v3 protocol implementation is independently
-versioned at `github.com/mbvlabs/andurel/pkg/inertia`. Generated controllers and
-the router import that package directly. The package provides Vite integration,
-protocol behavior, and the SSR runtime. The application owns its compiled templ
-document at `views/root.templ`. Generated `config/inertia.go` contains the ENV-backed settings.
-`cmd/ssr` loads those fields and passes them into `NewSSRRuntime`; `internal/runtime` passes the client URL, timeout, and max response bytes into `NewRenderer`. The browser adapter remains the official
+Andurel's Inertia v3 protocol implementation is independently versioned at
+`github.com/mbvlabs/andurel/pkg/inertia`. Application handlers and
+`internal/runtime` import that package directly. The package provides Vite
+integration, protocol behavior, and the SSR runtime. The application owns its
+compiled templ document at `resources/root.templ` (package `resources`).
+Generated `config/inertia.go` contains the ENV-backed settings.
+`cmd/ssr` loads those fields and passes them into `NewSSRRuntime`;
+`internal/runtime` passes the client URL, timeout, and max response bytes into
+`NewRenderer`. The browser adapter remains the official
 `@inertiajs/*` client.
 
 This document is the protocol and migration baseline for the adapter. The
@@ -18,7 +21,7 @@ The adapter recognizes an Inertia visit only when `X-Inertia` is `true`. It
 parses the version, partial component, partial `only` and `except` paths, reset
 paths, error bag, infinite-scroll merge intent, and retained once-prop keys.
 Comma-separated header values are trimmed, empty values are discarded, and the
-request context used by prop resolvers is the Echo request context.
+context passed to prop resolvers is the handler's `context.Context`.
 
 Initial visits receive a buffered templ document. Inertia visits receive a JSON
 page object. Valid page responses set `X-Inertia: true`; all responses append
@@ -56,10 +59,10 @@ messages whenever a handler redirects, preserving them across redirect chains.
 
 `Props` is an Andurel-owned map type. `FromStruct` reflects exported struct
 fields and honors their JSON tags, keeping those tags as the source of
-browser-facing field names. Resolver
-callbacks accept `*echo.Context` and return `(any, error)`. Prop policies are
-composable through the value returned by `Prop` constructors rather than being
-encoded in application domain types.
+browser-facing field names. Resolver callbacks accept `context.Context` and
+return `(any, error)`; `inertia.Resolver` names that signature. Prop policies
+are composable through the value returned by `Prop` constructors rather than
+being encoded in application domain types.
 
 History encryption is client metadata only. The adapter emits
 `encryptHistory`, `clearHistory`, and `preserveFragment`; encryption of browser
@@ -89,13 +92,13 @@ shapes. Database model structs are never passed directly to an Inertia page.
 
 | Gonertia API or pattern | Decision | Andurel replacement |
 | --- | --- | --- |
-| Reusable `Inertia` engine | Adapt | Echo-native `Renderer` initialized once |
+| Reusable `Inertia` engine | Adapt | `anduin`-native `Renderer` initialized once |
 | `Props` map | Adapt | Andurel `Props` plus `FromStruct` |
 | `Render` / application `Page` | Adapt | generated `Renderer.Page` |
-| `Redirect`, `Location` | Adapt | Echo-native helpers with v3 fragment rules; empty responses redirect to the request referrer |
-| Generic `net/http` middleware and buffered writer | Replace | Narrow Echo middleware using Echo response state |
+| `Redirect`, `Location` | Adapt | `anduin`-native helpers with v3 fragment rules; empty responses redirect to the request referrer |
+| Generic `net/http` middleware and buffered writer | Replace | Narrow `anduin` middleware using the request context and `pkg/anduin` response state |
 | Static shared props | Keep | `WithShared` |
-| Request shared props | Adapt | providers receiving the active Echo context |
+| Request shared props | Adapt | providers receiving the active request `context.Context` |
 | `Always`, `Optional`, `Defer` | Adapt | composable v3 prop policy values |
 | Top-level partial filtering | Replace | JSON-tag-aware nested dot-path resolver |
 | Merge, prepend, deep merge, match | Adapt | emit metadata only for selected/resolved paths |
@@ -105,7 +108,7 @@ shapes. Database model structs are never passed directly to an Inertia page.
 | Flash provider | Adapt | generated request/session provider and page `flash` |
 | Global `WithSSR` engine option | Replace | per-response `WithSSR()` page option |
 | HTTP SSR gateway | Adapt | `SSRRenderer` plus bounded `HTTPRenderer` |
-| Go `html/template` root | Replace | application-owned `views/root.templ` supplied with `WithRoot` |
+| Go `html/template` root | Replace | application-owned `resources/root.templ` supplied with `WithRoot` |
 | Custom JSON marshaller | Omit | fixed `encoding/json` for protocol safety |
 | Vite helpers | Adapt | package defaults configured by options and the official v3 plugin |
 | Precognition | Intentionally omit | no Andurel validation protocol exists yet |
@@ -118,8 +121,8 @@ or missing generated templ output as migration diagnostics. Existing custom
 Gonertia options are not translated silently: upgrades call them out for manual
 migration to an Andurel renderer or page option.
 
-Controllers use the standalone `Renderer` directly for `Page`, `Redirect`,
+Handlers use the standalone `Renderer` directly for `Page`, `Redirect`,
 `Location`, and `Middleware`. Applications customize the initial document in
-`views/root.templ`; `config/inertia.go` supplies it with `WithRoot`.
+`resources/root.templ`; `config/inertia.go` supplies it with `WithRoot`.
 For local diagnostics, `WithProtocolDebug(true)` logs request classification
 and emitted metadata keys without logging prop or session values.

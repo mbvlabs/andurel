@@ -305,5 +305,7 @@ For full-graph tests, boot `runtime.New(ctx, testConfig)` and call
 
 - `andurel inspect handlers --json` lists handlers.
 - `andurel inspect routes --json` lists the route manifest (host-aware).
-- `andurel verify` runs format, `go fix`, `go vet`, and the domain/service
-  import-boundary lint. Add `--with-tests` to also run `go test ./...`.
+- `andurel verify` runs format, `go fix`, `go vet`, the persistence and
+  transaction boundary rules (`queries-import`, `db-handle`, `tx-unwrap`,
+  `tx-escape`, `tx-public-call`), and generated-code drift (`generated`). Add
+  `--with-tests` to also run `go test ./...`.
