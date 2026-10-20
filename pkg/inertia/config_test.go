@@ -24,13 +24,15 @@ func TestNewRendererAllowsServiceHostname(t *testing.T) {
 	t.Parallel()
 
 	renderer, err := NewRenderer(
-		"app",
-		"/assets/dist/vite/*",
-		"resources/js/app.ts",
-		"http://localhost:5173/assets/dist",
-		"http://ssr-service:13714",
-		2*time.Second,
-		2<<20,
+		RendererConfig{
+			ContainerID:         "app",
+			BuildPathURL:        "/assets/dist/vite/*",
+			EntryPoint:          "resources/js/app.ts",
+			ViteDevURL:          "http://localhost:5173/assets/dist",
+			SSRURL:              "http://ssr-service:13714",
+			SSRTimeout:          2 * time.Second,
+			SSRMaxResponseBytes: 2 << 20,
+		},
 		WithRoot(testRoot(nil)),
 	)
 	if err != nil {

@@ -83,6 +83,14 @@ func (s *memoryStore) Flush(_ context.Context) error {
 	return nil
 }
 
+// Close stops the caches' background goroutines.
+func (s *memoryStore) Close() error {
+	s.values.StopAllGoroutines()
+	s.counters.StopAllGoroutines()
+
+	return nil
+}
+
 func (s *memoryStore) Increment(_ context.Context, key string, window time.Duration) (int64, error) {
 	var count int64
 

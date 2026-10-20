@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"slices"
 	"time"
 )
 
@@ -58,22 +57,19 @@ func WithTimeouts(idle, read, write time.Duration) ServerOption {
 	}
 }
 
-// Server owns an HTTP listener and a set of Shutdowners. Router owns dispatch;
-// Server owns the process lifecycle.
+// Server owns an HTTP listener. Router owns dispatch; Server owns the
+// listener lifecycle.
 type Server struct {
-	srv         *http.Server
-	Shutdowners []Shutdowner
+	srv *http.Server
 }
 
-// NewServer builds a Server for handler. Shutdowners are shut down in order;
-// the HTTP listener is appended last.
+// NewServer builds a Server for handler listening on host:port. ctx is the
+// base context of every request.
 func NewServer(
 	ctx context.Context,
 	host string,
 	port string,
-	_ string,
 	handler http.Handler,
-	shutdowners []Shutdowner,
 	options ...ServerOption,
 ) Server {
 	serverOptions := DefaultConfig()
@@ -92,20 +88,14 @@ func NewServer(
 		BaseContext:  func(_ net.Listener) context.Context { return ctx },
 	}
 
-	server := Server{
-		srv:         srv,
-		Shutdowners: slices.Clone(shutdowners),
-	}
-	server.Shutdowners = append(server.Shutdowners, srv)
-
-	return server
+	return Server{srv: srv}
 }
 
 // Addr returns the listener address.
 func (s *Server) Addr() string { return s.srv.Addr }
 
 // Start serves HTTP until Shutdown is called or the listener fails.
-func (s *Server) Start(_ context.Context, _ string) error {
+func (s *Server) Start() error {
 	if err := s.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("anduin: server listen: %w", err)
 	}

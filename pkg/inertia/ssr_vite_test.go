@@ -94,13 +94,15 @@ func TestNewRendererUsesViteSSRInDevelopment(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	renderer, err := NewRenderer(
-		"app",
-		"/assets/dist/vite/*",
-		"resources/js/app.tsx",
-		server.URL+"/assets/dist",
-		"http://127.0.0.1:13714",
-		2*time.Second,
-		2<<20,
+		RendererConfig{
+			ContainerID:         "app",
+			BuildPathURL:        "/assets/dist/vite/*",
+			EntryPoint:          "resources/js/app.tsx",
+			ViteDevURL:          server.URL + "/assets/dist",
+			SSRURL:              "http://127.0.0.1:13714",
+			SSRTimeout:          2 * time.Second,
+			SSRMaxResponseBytes: 2 << 20,
+		},
 		WithRoot(testRoot(nil)),
 		WithEnvironment("development"),
 	)

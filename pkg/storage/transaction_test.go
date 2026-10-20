@@ -73,10 +73,10 @@ func TestRunInTransactionCommitsOnSuccess(t *testing.T) {
 		},
 	}
 
-	if err := RunInTransaction(context.Background(), conn, func(context.Context, Transaction) error {
+	if err := runInTransaction(context.Background(), conn, func(context.Context, Transaction) error {
 		return nil
 	}); err != nil {
-		t.Fatalf("RunInTransaction: %v", err)
+		t.Fatalf("runInTransaction: %v", err)
 	}
 	if !committed {
 		t.Fatal("expected commit")
@@ -105,7 +105,7 @@ func TestRunInTransactionRollsBackOnError(t *testing.T) {
 		},
 	}
 
-	err := RunInTransaction(context.Background(), conn, func(context.Context, Transaction) error {
+	err := runInTransaction(context.Background(), conn, func(context.Context, Transaction) error {
 		return errors.New("boom")
 	})
 	if err == nil {

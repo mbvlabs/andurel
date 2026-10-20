@@ -29,13 +29,15 @@ func testSSRClient() (string, time.Duration, int64) {
 func newTestRenderer(options ...Option) (*Renderer, error) {
 	ssrURL, timeout, maxBytes := testSSRClient()
 	return NewRenderer(
-		"app",
-		"/assets/dist/vite/*",
-		"resources/js/app.ts",
-		"http://localhost:5173/assets/dist",
-		ssrURL,
-		timeout,
-		maxBytes,
+		RendererConfig{
+			ContainerID:         "app",
+			BuildPathURL:        "/assets/dist/vite/*",
+			EntryPoint:          "resources/js/app.ts",
+			ViteDevURL:          "http://localhost:5173/assets/dist",
+			SSRURL:              ssrURL,
+			SSRTimeout:          timeout,
+			SSRMaxResponseBytes: maxBytes,
+		},
 		options...,
 	)
 }
@@ -162,13 +164,15 @@ func TestProductionViteTagsUseBuildPathPrefixAndCrossOrigin(t *testing.T) {
 	}
 
 	renderer, err := NewRenderer(
-		"app",
-		"https://example.com/assets/dist/1710000000/*",
-		"resources/js/app.ts",
-		"http://localhost:5173/assets/dist",
-		"http://127.0.0.1:13714",
-		2*time.Second,
-		2<<20,
+		RendererConfig{
+			ContainerID:         "app",
+			BuildPathURL:        "https://example.com/assets/dist/*",
+			EntryPoint:          "resources/js/app.ts",
+			ViteDevURL:          "http://localhost:5173/assets/dist",
+			SSRURL:              "http://127.0.0.1:13714",
+			SSRTimeout:          2 * time.Second,
+			SSRMaxResponseBytes: 2 << 20,
+		},
 		WithRoot(testRoot(nil)),
 		WithAssetFS(assetFS),
 		WithEnvironment("production"),
@@ -177,12 +181,12 @@ func TestProductionViteTagsUseBuildPathPrefixAndCrossOrigin(t *testing.T) {
 		t.Fatalf("NewRenderer: %v", err)
 	}
 
-	wantCSS := `href="https://example.com/assets/dist/1710000000/app-abc.css"`
+	wantCSS := `href="https://example.com/assets/dist/app-abc.css"`
 	if !strings.Contains(renderer.viteTags.head, wantCSS) ||
 		!strings.Contains(renderer.viteTags.head, "crossorigin") {
 		t.Fatalf("vite head = %q", renderer.viteTags.head)
 	}
-	wantJS := `src="https://example.com/assets/dist/1710000000/app-abc.js"`
+	wantJS := `src="https://example.com/assets/dist/app-abc.js"`
 	if !strings.Contains(renderer.viteTags.body, wantJS) ||
 		!strings.Contains(renderer.viteTags.body, `type="module"`) ||
 		!strings.Contains(renderer.viteTags.body, "crossorigin") {

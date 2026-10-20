@@ -53,10 +53,10 @@ func (t pgxTransaction) Rollback(ctx context.Context) error {
 	return nil
 }
 
-// RunInTransaction runs fn inside a transaction and commits when fn returns
+// runInTransaction runs fn inside a transaction and commits when fn returns
 // nil. An error from fn, or a panic, rolls back; the error is returned
 // unchanged and the panic keeps unwinding.
-func RunInTransaction(
+func runInTransaction(
 	ctx context.Context,
 	conn Connection,
 	fn func(context.Context, Transaction) error,

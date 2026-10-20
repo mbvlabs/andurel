@@ -47,7 +47,7 @@ func AtomicOps(
 		return fn(ctx, t.bound)
 	}
 
-	return RunInTransaction(ctx, t.conn, func(ctx context.Context, tx Transaction) error {
+	return runInTransaction(ctx, t.conn, func(ctx context.Context, tx Transaction) error {
 		return fn(ctx, Tx{tx: tx})
 	})
 }

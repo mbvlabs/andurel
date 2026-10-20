@@ -22,6 +22,26 @@ type viteManifestEntry struct {
 	CSS  []string `json:"css"`
 }
 
+// RendererConfig holds the Inertia protocol settings of a Renderer.
+type RendererConfig struct {
+	// ContainerID is the id of the root element Inertia mounts into. Required.
+	ContainerID string
+	// BuildPathURL is the URL pattern of the Vite build route, e.g.
+	// "https://example.com/assets/dist/*". It prefixes production asset tags
+	// and is the default asset version.
+	BuildPathURL string
+	// EntryPoint is the Vite input, e.g. "resources/js/app.ts".
+	EntryPoint string
+	// ViteDevURL is the Vite dev server URL used outside production.
+	ViteDevURL string
+	// SSRURL is the SSR client URL (INERTIA_SSR_URL); any http(s) host.
+	SSRURL string
+	// SSRTimeout bounds one SSR render request.
+	SSRTimeout time.Duration
+	// SSRMaxResponseBytes caps the SSR response body.
+	SSRMaxResponseBytes int64
+}
+
 // NewRenderer constructs the Inertia protocol renderer used by cmd/app.
 //
 // It always serves the Inertia protocol (CSR by default). Pages that pass
@@ -29,32 +49,22 @@ type viteManifestEntry struct {
 // Vite's /__inertia_ssr endpoint derived from ViteDevURL. In other
 // environments, cmd/app posts to INERTIA_SSR_URL /render. Node process
 // ownership belongs to NewSSRRuntime / cmd/ssr in production. Required Inertia
-// protocol settings are positional arguments; optional behavior is configured
-// with options such as WithRoot, WithAssetFS, and WithEnvironment. ssrURL is
-// the client URL (INERTIA_SSR_URL) and may be any http(s) host.
-func NewRenderer(
-	containerID string,
-	buildPathURL string,
-	entryPoint string,
-	viteDevURL string,
-	ssrURL string,
-	ssrTimeout time.Duration,
-	ssrMaxResponseBytes int64,
-	options ...Option,
-) (*Renderer, error) {
-	if strings.TrimSpace(containerID) == "" {
+// protocol settings live in RendererConfig; optional behavior is configured
+// with options such as WithRoot, WithAssetFS, and WithEnvironment.
+func NewRenderer(cfg RendererConfig, options ...Option) (*Renderer, error) {
+	if strings.TrimSpace(cfg.ContainerID) == "" {
 		return nil, fmt.Errorf("inertia: container ID cannot be empty")
 	}
 
 	renderer := &Renderer{
-		containerID:         strings.TrimSpace(containerID),
-		buildPathURL:        strings.TrimSpace(buildPathURL),
-		version:             strings.TrimSpace(buildPathURL),
-		entryPoint:          strings.TrimSpace(entryPoint),
-		viteDevURL:          strings.TrimRight(strings.TrimSpace(viteDevURL), "/"),
-		ssrURL:              strings.TrimSpace(ssrURL),
-		ssrTimeout:          ssrTimeout,
-		ssrMaxResponseBytes: ssrMaxResponseBytes,
+		containerID:         strings.TrimSpace(cfg.ContainerID),
+		buildPathURL:        strings.TrimSpace(cfg.BuildPathURL),
+		version:             strings.TrimSpace(cfg.BuildPathURL),
+		entryPoint:          strings.TrimSpace(cfg.EntryPoint),
+		viteDevURL:          strings.TrimRight(strings.TrimSpace(cfg.ViteDevURL), "/"),
+		ssrURL:              strings.TrimSpace(cfg.SSRURL),
+		ssrTimeout:          cfg.SSRTimeout,
+		ssrMaxResponseBytes: cfg.SSRMaxResponseBytes,
 		shared:              make(Props),
 		requestFlash: []func(context.Context) any{
 			func(ctx context.Context) any {

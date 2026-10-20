@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- `Store.Close`. The Redis driver closes its client and connection pool; the
+  memory driver stops its background goroutines. Applications close the store
+  on shutdown so Redis connections are not leaked.
+
 ## 0.1.0 - 2026-10-19
 
 ### Added

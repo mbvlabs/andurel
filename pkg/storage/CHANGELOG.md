@@ -4,6 +4,10 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+### Removed
+
+- `RunInTransaction`. `AtomicOps` with a `Transactor` is the one transaction API; it commits on `nil`, rolls back on error or panic, and joins a caller's transaction through `Transactor.InTx`.
+
 ## 0.9.0 - 2026-10-19
 
 ### Added

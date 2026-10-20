@@ -67,6 +67,11 @@ func (s *redisStore) Forget(ctx context.Context, key string) error {
 	return s.client.Del(ctx, s.key(key)).Err()
 }
 
+// Close closes the Redis client and its connection pool.
+func (s *redisStore) Close() error {
+	return s.client.Close()
+}
+
 // Flush deletes namespaced keys with a batched SCAN. It never runs FLUSHDB:
 // other applications sharing the Redis instance keep their keys.
 func (s *redisStore) Flush(ctx context.Context) error {

@@ -218,14 +218,14 @@ func TestCORSAllowsConfiguredOrigin(t *testing.T) {
 func TestServerTimeouts(t *testing.T) {
 	t.Parallel()
 
-	defaultServer := NewServer(t.Context(), "localhost", "8080", DevEnvironment, nil, nil)
+	defaultServer := NewServer(t.Context(), "localhost", "8080", nil)
 	if defaultServer.srv.ReadTimeout <= 0 || defaultServer.srv.WriteTimeout <= 0 ||
 		defaultServer.srv.IdleTimeout <= 0 {
 		t.Fatal("default server must have bounded HTTP timeouts")
 	}
 
 	zeroServer := NewServer(
-		t.Context(), "localhost", "8080", DevEnvironment, nil, nil, WithTimeouts(0, 0, 0),
+		t.Context(), "localhost", "8080", nil, WithTimeouts(0, 0, 0),
 	)
 	if zeroServer.srv.ReadTimeout != 0 || zeroServer.srv.WriteTimeout != 0 ||
 		zeroServer.srv.IdleTimeout != 0 {

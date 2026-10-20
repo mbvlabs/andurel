@@ -102,15 +102,18 @@ func TestValidateSSRClientAllowsServiceHostname(t *testing.T) {
 func TestNewSSRRuntimeAllowsUnspecifiedListenAndRejectsHostname(t *testing.T) {
 	t.Parallel()
 
-	runtime, err := NewSSRRuntime(
-		"node",
-		"assets/dist/ssr/ssr.js",
-		"http://0.0.0.0:13714",
-		10*time.Second,
-		22,
-		2*time.Second,
-		nil,
-	)
+	runtimeConfig := func(listenURL string) SSRRuntimeConfig {
+		return SSRRuntimeConfig{
+			Executable:     "node",
+			BundlePath:     "assets/dist/ssr/ssr.js",
+			ListenURL:      listenURL,
+			StartupTimeout: 10 * time.Second,
+			MinimumMajor:   22,
+			HealthTimeout:  2 * time.Second,
+		}
+	}
+
+	runtime, err := NewSSRRuntime(runtimeConfig("http://0.0.0.0:13714"))
 	if err != nil {
 		t.Fatalf("NewSSRRuntime 0.0.0.0: %v", err)
 	}
@@ -122,15 +125,7 @@ func TestNewSSRRuntimeAllowsUnspecifiedListenAndRejectsHostname(t *testing.T) {
 		)
 	}
 
-	runtime, err = NewSSRRuntime(
-		"node",
-		"assets/dist/ssr/ssr.js",
-		"http://[::]:13714",
-		10*time.Second,
-		22,
-		2*time.Second,
-		nil,
-	)
+	runtime, err = NewSSRRuntime(runtimeConfig("http://[::]:13714"))
 	if err != nil {
 		t.Fatalf("NewSSRRuntime [::]: %v", err)
 	}
@@ -142,15 +137,7 @@ func TestNewSSRRuntimeAllowsUnspecifiedListenAndRejectsHostname(t *testing.T) {
 		)
 	}
 
-	if _, err := NewSSRRuntime(
-		"node",
-		"assets/dist/ssr/ssr.js",
-		"http://ssr-service:13714",
-		10*time.Second,
-		22,
-		2*time.Second,
-		nil,
-	); err == nil {
+	if _, err := NewSSRRuntime(runtimeConfig("http://ssr-service:13714")); err == nil {
 		t.Fatal("expected hostname listen URL to be rejected")
 	}
 }

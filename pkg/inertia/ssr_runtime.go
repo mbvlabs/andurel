@@ -79,47 +79,56 @@ func WithSSRStderr(stderr io.Writer) SSRRuntimeOption {
 	}
 }
 
+// SSRRuntimeConfig holds the settings of an SSR runtime. Every field except
+// BundleFS is required.
+type SSRRuntimeConfig struct {
+	// Executable is the JavaScript runtime, e.g. "node" or "bun".
+	Executable string
+	// BundlePath is the SSR bundle, e.g. "assets/dist/ssr/ssr.js".
+	BundlePath string
+	// ListenURL is where Node binds (INERTIA_SSR_LISTEN), not the app client URL.
+	ListenURL string
+	// StartupTimeout bounds waiting for the process to report healthy.
+	StartupTimeout time.Duration
+	// MinimumMajor is the lowest accepted runtime major version.
+	MinimumMajor int
+	// HealthTimeout bounds one /health or /shutdown request.
+	HealthTimeout time.Duration
+	// BundleFS optionally embeds the bundle; nil means disk only. Generated
+	// cmd/ssr passes assets.Files.
+	BundleFS fs.FS
+}
+
 // NewSSRRuntime constructs an SSR runtime without starting it.
-// listenURL is where Node binds (INERTIA_SSR_LISTEN), not the app client URL.
-// bundleFS is optional; nil means disk only. Generated cmd/ssr passes assets.Files.
-func NewSSRRuntime(
-	executable string,
-	bundlePath string,
-	listenURL string,
-	startupTimeout time.Duration,
-	minimumMajor int,
-	healthTimeout time.Duration,
-	bundleFS fs.FS,
-	options ...SSRRuntimeOption,
-) (*SSRRuntime, error) {
-	if strings.TrimSpace(executable) == "" {
+func NewSSRRuntime(cfg SSRRuntimeConfig, options ...SSRRuntimeOption) (*SSRRuntime, error) {
+	if strings.TrimSpace(cfg.Executable) == "" {
 		return nil, fmt.Errorf("inertia: SSR executable cannot be empty")
 	}
 
-	if strings.TrimSpace(bundlePath) == "" {
+	if strings.TrimSpace(cfg.BundlePath) == "" {
 		return nil, fmt.Errorf("inertia: SSR bundle path cannot be empty")
 	}
 
-	if startupTimeout <= 0 {
+	if cfg.StartupTimeout <= 0 {
 		return nil, fmt.Errorf("inertia: SSR startup timeout must be positive")
 	}
 
-	if minimumMajor <= 0 {
+	if cfg.MinimumMajor <= 0 {
 		return nil, fmt.Errorf("inertia: SSR minimum runtime major must be positive")
 	}
 
-	if healthTimeout <= 0 {
+	if cfg.HealthTimeout <= 0 {
 		return nil, fmt.Errorf("inertia: SSR timeout must be positive")
 	}
 
-	listen, err := parseSSRListen(listenURL)
+	listen, err := parseSSRListen(cfg.ListenURL)
 	if err != nil {
 		return nil, err
 	}
 
 	renderer, err := NewHTTPRenderer(
 		listen.healthURL,
-		healthTimeout,
+		cfg.HealthTimeout,
 		ssrHealthMaxResponseBytes,
 	)
 	if err != nil {
@@ -127,13 +136,13 @@ func NewSSRRuntime(
 	}
 
 	runtime := &SSRRuntime{
-		executable:     strings.TrimSpace(executable),
-		bundlePath:     strings.TrimSpace(bundlePath),
+		executable:     strings.TrimSpace(cfg.Executable),
+		bundlePath:     strings.TrimSpace(cfg.BundlePath),
 		listenHost:     listen.host,
 		listenPort:     listen.port,
-		startupTimeout: startupTimeout,
-		minimumMajor:   minimumMajor,
-		bundleFS:       bundleFS,
+		startupTimeout: cfg.StartupTimeout,
+		minimumMajor:   cfg.MinimumMajor,
+		bundleFS:       cfg.BundleFS,
 		logger:         slog.Default(),
 		stdout:         os.Stdout,
 		stderr:         os.Stderr,

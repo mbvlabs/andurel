@@ -4,6 +4,17 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- `NewServer(ctx, host, port, handler, options...)` drops the unused
+  environment argument and the shutdowner list, and `Server.Start()` drops its
+  unused context and environment arguments. The process owns shutdown order;
+  `Server.Shutdown` only stops the listener.
+
+### Removed
+
+- `Server.Shutdowners`. It was never shut down by `Server.Shutdown`.
+
 ## 0.1.0 - 2026-10-19
 
 ### Added

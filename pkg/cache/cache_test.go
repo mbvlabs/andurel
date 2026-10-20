@@ -123,3 +123,19 @@ func TestUnknownDriver(t *testing.T) {
 		t.Fatal("expected error for unknown driver")
 	}
 }
+
+func TestCloseReleasesDrivers(t *testing.T) {
+	for _, cfg := range []Config{
+		{Driver: "memory"},
+		// go-redis dials lazily, so closing an unused client needs no server.
+		{Driver: "redis", Redis: RedisConfig{Addr: "127.0.0.1:0"}},
+	} {
+		store, err := New(cfg)
+		if err != nil {
+			t.Fatalf("new %s store: %v", cfg.Driver, err)
+		}
+		if err := store.Close(); err != nil {
+			t.Fatalf("close %s store: %v", cfg.Driver, err)
+		}
+	}
+}

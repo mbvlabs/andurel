@@ -38,6 +38,9 @@ type Store interface {
 	// count. It is the rate-limiting primitive: allow the request while
 	// count <= limit. The window starts on the first hit.
 	Increment(ctx context.Context, key string, window time.Duration) (int64, error)
+	// Close releases the driver's resources, such as the Redis connection
+	// pool. The store must not be used afterwards.
+	Close() error
 }
 
 // Get decodes the value at key into T. It returns false when the key is

@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Changed
+
+- `NewRenderer(cfg RendererConfig, options...)` and
+  `NewSSRRuntime(cfg SSRRuntimeConfig, options...)` take a config struct
+  instead of seven positional arguments, so call sites name every setting.
+
 ## 0.7.0 - 2026-10-19
 
 ### Changed
