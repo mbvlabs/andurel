@@ -284,9 +284,9 @@ func runDoctor(cmd *cobra.Command, currentVersion string, verbose bool) error {
 	quiet := opts.Quiet
 	out := cmd.OutOrStdout()
 	if !quiet {
-		fmt.Fprint(out, bannerAndurel)
-		fmt.Fprint(out, bannerDoctor)
-		fmt.Fprintln(out, "Running Andurel project diagnostics...")
+		_, _ = fmt.Fprint(out, bannerAndurel)
+		_, _ = fmt.Fprint(out, bannerDoctor)
+		_, _ = fmt.Fprintln(out, "Running Andurel project diagnostics...")
 	}
 
 	var results []checkResult
@@ -295,7 +295,7 @@ func runDoctor(cmd *cobra.Command, currentVersion string, verbose bool) error {
 
 	// Environment checks
 	if !quiet {
-		fmt.Fprintln(out, "\n=== Environment ===")
+		_, _ = fmt.Fprintln(out, "\n=== Environment ===")
 	}
 	environmentResults := []checkResult{
 		checkGoVersion(),
@@ -309,13 +309,13 @@ func runDoctor(cmd *cobra.Command, currentVersion string, verbose bool) error {
 	rootDir, err := findGoModRoot()
 	if err != nil {
 		// If we can't find the project root, we can't continue with remaining checks
-		fmt.Fprintf(out, "\n✗ Cannot continue: %v\n", err)
+		_, _ = fmt.Fprintf(out, "\n✗ Cannot continue: %v\n", err)
 		return err
 	}
 
 	// Configuration checks
 	if !quiet {
-		fmt.Fprintln(out, "\n=== Configuration ===")
+		_, _ = fmt.Fprintln(out, "\n=== Configuration ===")
 	}
 	configResults := []checkResult{
 		checkLockFile(rootDir),
@@ -328,7 +328,7 @@ func runDoctor(cmd *cobra.Command, currentVersion string, verbose bool) error {
 
 	// Code quality checks
 	if !quiet {
-		fmt.Fprintln(out, "\n=== Code Quality ===")
+		_, _ = fmt.Fprintln(out, "\n=== Code Quality ===")
 	}
 	qualityResults := []checkResult{
 		checkGoVet(rootDir, verbose),
@@ -339,7 +339,7 @@ func runDoctor(cmd *cobra.Command, currentVersion string, verbose bool) error {
 
 	// Code generation checks
 	if !quiet {
-		fmt.Fprintln(out, "\n=== Code Generation ===")
+		_, _ = fmt.Fprintln(out, "\n=== Code Generation ===")
 	}
 	genResults := codeGenerationChecks(rootDir, verbose)
 	results = append(results, genResults...)
@@ -363,26 +363,26 @@ func runDoctor(cmd *cobra.Command, currentVersion string, verbose bool) error {
 		}
 	}
 
-	fmt.Fprintln(out, "\n=== Summary ===")
-	fmt.Fprintf(out, "Total checks: %d\n", len(results))
-	fmt.Fprintf(out, "✓ Passed: %d\n", passCount)
+	_, _ = fmt.Fprintln(out, "\n=== Summary ===")
+	_, _ = fmt.Fprintf(out, "Total checks: %d\n", len(results))
+	_, _ = fmt.Fprintf(out, "✓ Passed: %d\n", passCount)
 	if warnCount > 0 {
-		fmt.Fprintf(out, "⚠ Warnings: %d\n", warnCount)
+		_, _ = fmt.Fprintf(out, "⚠ Warnings: %d\n", warnCount)
 	}
 	if failCount > 0 {
-		fmt.Fprintf(out, "✗ Failed: %d\n", failCount)
+		_, _ = fmt.Fprintf(out, "✗ Failed: %d\n", failCount)
 	}
 
 	if hasErrors {
-		fmt.Fprintln(out, "\n✗ Some checks failed. Please address the issues above.")
+		_, _ = fmt.Fprintln(out, "\n✗ Some checks failed. Please address the issues above.")
 		return fmt.Errorf("doctor checks failed")
 	} else if hasWarnings {
 		if !quiet {
-			fmt.Fprintln(out, "\n⚠ All critical checks passed, but there are warnings to review.")
+			_, _ = fmt.Fprintln(out, "\n⚠ All critical checks passed, but there are warnings to review.")
 		}
 	} else {
 		if !quiet {
-			fmt.Fprintln(out, "\n✓ All checks passed! Your project is healthy.")
+			_, _ = fmt.Fprintln(out, "\n✓ All checks passed! Your project is healthy.")
 		}
 	}
 
@@ -404,15 +404,15 @@ func printResults(out io.Writer, results []checkResult, verbose bool, quiet bool
 			symbol = "✗"
 		}
 
-		fmt.Fprintf(out, "%s %s", symbol, r.name)
+		_, _ = fmt.Fprintf(out, "%s %s", symbol, r.name)
 		if r.message != "" {
-			fmt.Fprintf(out, ": %s", r.message)
+			_, _ = fmt.Fprintf(out, ": %s", r.message)
 		}
-		fmt.Fprintln(out)
+		_, _ = fmt.Fprintln(out)
 
 		if verbose && len(r.details) > 0 {
 			for _, detail := range r.details {
-				fmt.Fprintf(out, "  %s\n", detail)
+				_, _ = fmt.Fprintf(out, "  %s\n", detail)
 			}
 		}
 	}

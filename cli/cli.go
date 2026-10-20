@@ -291,7 +291,3 @@ func checkBinaries(rootDir string) error {
 
 	return nil
 }
-
-func findProjectRoot() (string, error) {
-	return findGoModRoot()
-}

@@ -172,7 +172,7 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 			return err
 		}
 		if !confirmed {
-			fmt.Fprintln(cmd.OutOrStdout(), "No files were changed.")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No files were changed.")
 			return nil
 		}
 		opts.Repair = true
@@ -193,38 +193,38 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 
 	if report.Success {
 		if report.RepairApplied {
-			fmt.Fprintf(cmd.OutOrStdout(), "\n✓ Framework repair complete for version %s\n", targetVersion)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n✓ Framework repair complete for version %s\n", targetVersion)
 			printUpgradeSummary(cmd, report)
-			fmt.Fprintln(cmd.OutOrStdout(), "\nNext steps:")
-			fmt.Fprintln(cmd.OutOrStdout(), "  1. Review the restored files with 'git diff'")
-			fmt.Fprintln(cmd.OutOrStdout(), "  2. Test your application")
-			fmt.Fprintln(cmd.OutOrStdout(), "  3. Commit when ready")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\nNext steps:")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  1. Review the restored files with 'git diff'")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  2. Test your application")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  3. Commit when ready")
 			return nil
 		}
 		// Sync tools if any were added, updated, or removed
 		totalToolChanges := report.ToolsAdded + report.ToolsUpdated + report.ToolsRemoved
 		if totalToolChanges > 0 {
-			fmt.Fprintln(cmd.OutOrStdout(), "\nSyncing tool binaries...")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\nSyncing tool binaries...")
 			if err := syncBinaries(projectRoot); err != nil {
-				fmt.Fprintf(cmd.OutOrStdout(), "⚠ Warning: failed to sync tools: %v\n", err)
-				fmt.Fprintln(cmd.OutOrStdout(), "You can manually sync tools by running: andurel tool sync")
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "⚠ Warning: failed to sync tools: %v\n", err)
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "You can manually sync tools by running: andurel tool sync")
 			}
 		}
 
-		fmt.Fprintf(cmd.OutOrStdout(), "\n✓ Upgrade complete! Project is now at version %s\n", targetVersion)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n✓ Upgrade complete! Project is now at version %s\n", targetVersion)
 		printUpgradeSummary(cmd, report)
-		fmt.Fprintln(cmd.OutOrStdout(), "\nNext steps:")
-		fmt.Fprintln(cmd.OutOrStdout(), "  1. Review the changes with 'git diff'")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\nNext steps:")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  1. Review the changes with 'git diff'")
 		step := 2
 		if slices.Contains(report.ReplacedFiles, "go.mod") {
-			fmt.Fprintf(cmd.OutOrStdout(), "  %d. Run 'go mod tidy' to refresh go.sum\n", step)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %d. Run 'go mod tidy' to refresh go.sum\n", step)
 			step++
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "  %d. Update your application code if needed for API changes\n", step)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %d. Update your application code if needed for API changes\n", step)
 		step++
-		fmt.Fprintf(cmd.OutOrStdout(), "  %d. Test your application\n", step)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %d. Test your application\n", step)
 		step++
-		fmt.Fprintf(cmd.OutOrStdout(), "  %d. Commit when ready\n", step)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %d. Commit when ready\n", step)
 		return nil
 	}
 
@@ -263,7 +263,7 @@ func requireLatestAndurelRelease(ctx context.Context, currentVersion string) err
 }
 
 func confirmFrameworkRepair(cmd *cobra.Command) (bool, error) {
-	fmt.Fprint(cmd.OutOrStdout(), "Restore these framework-owned files? [y/N] ")
+	_, _ = fmt.Fprint(cmd.OutOrStdout(), "Restore these framework-owned files? [y/N] ")
 	reader := bufio.NewReader(cmd.InOrStdin())
 	line, err := reader.ReadString('\n')
 	if err != nil && !errors.Is(err, io.EOF) {
@@ -279,23 +279,23 @@ func printUpgradeSummary(cmd *cobra.Command, report *upgrade.UpgradeReport) {
 		return
 	}
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, "\nSummary:")
+	_, _ = fmt.Fprintln(out, "\nSummary:")
 	if report.FilesReplaced > 0 {
-		fmt.Fprintf(out, "  • %d framework files replaced\n", report.FilesReplaced)
+		_, _ = fmt.Fprintf(out, "  • %d framework files replaced\n", report.FilesReplaced)
 	}
 	if report.FilesRemoved > 0 {
-		fmt.Fprintf(out, "  • %d obsolete internal package files removed\n", report.FilesRemoved)
+		_, _ = fmt.Fprintf(out, "  • %d obsolete internal package files removed\n", report.FilesRemoved)
 	}
 	if report.ToolsAdded > 0 {
-		fmt.Fprintf(out, "  • %d tools added\n", report.ToolsAdded)
+		_, _ = fmt.Fprintf(out, "  • %d tools added\n", report.ToolsAdded)
 	}
 	if report.ToolsUpdated > 0 {
-		fmt.Fprintf(out, "  • %d tools updated\n", report.ToolsUpdated)
+		_, _ = fmt.Fprintf(out, "  • %d tools updated\n", report.ToolsUpdated)
 	}
 	if report.ToolsRemoved > 0 {
-		fmt.Fprintf(out, "  • %d tools removed\n", report.ToolsRemoved)
+		_, _ = fmt.Fprintf(out, "  • %d tools removed\n", report.ToolsRemoved)
 	}
 	if len(report.ToolMetadataChanges) > 0 {
-		fmt.Fprintf(out, "  • %d tool metadata entries updated\n", len(report.ToolMetadataChanges))
+		_, _ = fmt.Fprintf(out, "  • %d tool metadata entries updated\n", len(report.ToolMetadataChanges))
 	}
 }

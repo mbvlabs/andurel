@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -10,8 +9,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/mbvlabs/andurel/v2/internal/naming"
 )
 
 type discoveredHost struct {
@@ -19,72 +16,6 @@ type discoveredHost struct {
 	Value   string
 	PkgName string
 	GoExpr  string
-}
-
-func resolvePrefixAndHost(
-	rootDir, name, prefixFlag, hostFlag string,
-) (namespace, resourceName, hostExpr, hostPkg string, err error) {
-	namespace, resourceName, err = naming.ParseNamespacedResource(name)
-	if err != nil {
-		return "", "", "", "", err
-	}
-	prefixFlag = strings.TrimSpace(prefixFlag)
-	if prefixFlag != "" {
-		if !naming.IsValidNamespace(prefixFlag) {
-			return "", "", "", "", fmt.Errorf(
-				"invalid prefix %q: prefix must be a valid Go package name and not a reserved path",
-				prefixFlag,
-			)
-		}
-		if namespace != "" && namespace != prefixFlag {
-			return "", "", "", "", fmt.Errorf(
-				"--prefix=%q conflicts with namespaced name %q",
-				prefixFlag,
-				name,
-			)
-		}
-		namespace = prefixFlag
-	}
-
-	host, err := resolveHostFlag(rootDir, hostFlag)
-	if err != nil {
-		return "", "", "", "", err
-	}
-	return namespace, resourceName, host.GoExpr, host.PkgName, nil
-}
-
-func resolveHostFlag(rootDir, hostFlag string) (discoveredHost, error) {
-	hostFlag = strings.TrimSpace(hostFlag)
-	if hostFlag == "" || hostFlag == "primary" {
-		return discoveredHost{}, nil
-	}
-
-	hosts, err := discoverAppHostNames(rootDir)
-	if err != nil {
-		return discoveredHost{}, err
-	}
-
-	known := []string{"primary"}
-	for _, host := range hosts {
-		known = append(known, host.Value)
-	}
-	sort.Strings(known)
-
-	for _, host := range hosts {
-		if host.Value == hostFlag || host.Name == hostFlag {
-			return host, nil
-		}
-		trimmed := strings.TrimPrefix(host.Name, "Host")
-		if strings.EqualFold(trimmed, hostFlag) {
-			return host, nil
-		}
-	}
-
-	return discoveredHost{}, fmt.Errorf(
-		"unknown host %q; known hosts: %s",
-		hostFlag,
-		strings.Join(uniqueStrings(known), ", "),
-	)
 }
 
 func discoverAppHostNames(rootDir string) ([]discoveredHost, error) {
@@ -211,17 +142,4 @@ func evalHostString(expr ast.Expr) (string, bool) {
 		return "", false
 	}
 	return value, true
-}
-
-func uniqueStrings(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		out = append(out, value)
-	}
-	return out
 }

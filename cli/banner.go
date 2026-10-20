@@ -21,8 +21,3 @@ const bannerDoctor = `
 func printBanner() {
 	fmt.Print(bannerAndurel)
 }
-
-func printDoctorBanner() {
-	fmt.Print(bannerAndurel)
-	fmt.Print(bannerDoctor)
-}
