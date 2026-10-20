@@ -30,6 +30,19 @@ type File struct {
 	Fragment bool `json:"fragment,omitempty"`
 }
 
+// Concrete reports whether the file is a complete file at a real path: not a
+// fragment, no <placeholder> in the path and no "(edit)"-style annotation after
+// it. The full-scaffold compile test writes concrete files verbatim.
+func (f File) Concrete() bool {
+	return !f.Fragment && !strings.ContainsAny(f.Path, "< ")
+}
+
+// CompileTested reports whether the full-scaffold compile test compiles the
+// file: a concrete Go file.
+func (f File) CompileTested() bool {
+	return f.Concrete() && strings.HasSuffix(f.Path, ".go")
+}
+
 // Pattern is the complete, machine-readable description of a primitive.
 type Pattern struct {
 	ID        string    `json:"id"`

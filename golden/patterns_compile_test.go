@@ -116,6 +116,11 @@ func writeProductsRoutes(t *testing.T, project string) {
 			"User", "Product",
 			"users", "products",
 		).Replace(file.Content)
+		// The handler pattern calls routes.ProductShow; fail loudly if the
+		// route example stops being a users example the replacer can resolve.
+		if !strings.Contains(content, "ProductShow ") || strings.Contains(strings.ToLower(content), "user") {
+			t.Fatalf("route pattern no longer resolves to a products example:\n%s", content)
+		}
 		goldentest.WriteProjectFile(t, project, "routes/products.go", content)
 		return
 	}
@@ -123,16 +128,10 @@ func writeProductsRoutes(t *testing.T, project string) {
 }
 
 func patternFileWritten(file patterns.File) bool {
-	if strings.Contains(file.Path, "<") || strings.Contains(file.Path, "(edit)") {
-		return false
-	}
-	if file.Fragment {
-		return false
-	}
 	// Go files are compile-tested; concrete SQL files are not compiled, but the
 	// domain pattern's .sql is what `sync queries` turns into the queries the
 	// Go example calls.
-	return strings.HasSuffix(file.Path, ".go") || strings.HasSuffix(file.Path, ".sql")
+	return file.CompileTested() || (file.Concrete() && strings.HasSuffix(file.Path, ".sql"))
 }
 
 func runGoCommand(t *testing.T, dir string, args ...string) {
