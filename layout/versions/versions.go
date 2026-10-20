@@ -27,13 +27,13 @@ const (
 	// NarsilcModulePath is the module path of the narsilc query code generator.
 	NarsilcModulePath = "github.com/mbvlabs/narsilc"
 	// Anduin is the standalone Andurel HTTP module version verified with this framework.
-	Anduin = "v0.2.0"
+	Anduin = "v0.2.1"
 	// Cache is the standalone Andurel cache module version verified with this framework.
 	Cache = "v0.2.0"
 	// Kiks is the standalone Andurel cookies and sessions module version verified with this framework.
-	Kiks = "v0.3.0"
+	Kiks = "v0.3.1"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.8.0"
+	Inertia = "v0.8.1"
 	// Email is the standalone Andurel email module version verified with this framework.
 	Email = "v0.3.3"
 	// Routing is the standalone Andurel routing module version verified with this framework.

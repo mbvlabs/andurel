@@ -1,0 +1,7 @@
+# esbuild (used by Vite) downloads its platform binary in a postinstall script.
+# pnpm blocks dependency build scripts unless they are approved here:
+# allowBuilds for pnpm 11+, onlyBuiltDependencies for pnpm 10.
+allowBuilds:
+  esbuild: true
+onlyBuiltDependencies:
+  - esbuild

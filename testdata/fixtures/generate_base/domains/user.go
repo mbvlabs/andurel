@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/mail"
 	"strings"
 	"time"
 	"uuid"
@@ -23,6 +24,48 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
+const minPasswordLength = 8
+
+type Users struct {
+	queries *queries.Queries
+}
+
+func NewUsers(db storage.Connection) Users {
+	return Users{queries: queries.New(db)}
+}
+
+// InTx binds this receiver's queries to the caller's transaction.
+func (u Users) InTx(tx storage.Tx) Users {
+	return Users{queries: queries.New(storage.Unwrap(tx))}
+}
+
+// normaliseEmail is shared by lookups and writes so they agree on identity.
+func normaliseEmail(raw string) string {
+	return strings.ToLower(strings.TrimSpace(raw))
+}
+
+func HashPassword(password, pepper string) (string, error) {
+	salt, err := generateSalt(16)
+	if err != nil {
+		return "", err
+	}
+
+	hash := argon2.IDKey(
+		[]byte(password+pepper),
+		[]byte(salt),
+		2,
+		19*1024,
+		1,
+		32,
+	)
+
+	encodedHash := fmt.Sprintf("%s:%s",
+		base64.RawStdEncoding.EncodeToString(hash),
+		base64.RawStdEncoding.EncodeToString(salt))
+
+	return encodedHash, nil
+}
+
 type User struct {
 	ID               uuid.UUID          `andurel:"id"`
 	CreatedAt        pgtype.Timestamptz `andurel:"created_at"`
@@ -35,10 +78,23 @@ type User struct {
 
 func (u *User) Validate() error {
 	b := validation.NewBuilder()
-	b.Required("email", u.Email)
-	b.MaxLen("email", u.Email, 255)
+	u.validate(b)
 
 	return b.Err()
+}
+
+func (u *User) validate(b *validation.ValidationBuilder) {
+	b.Required("email", u.Email)
+	b.MaxLen("email", u.Email, 255)
+	if u.Email != "" && !validEmailAddress(u.Email) {
+		b.Add("email", "email", "Email must be a valid email address")
+	}
+}
+
+func validEmailAddress(value string) bool {
+	addr, err := mail.ParseAddress(value)
+
+	return err == nil && addr.Address == value
 }
 
 func (u *User) HasValidatedEmail() bool {
@@ -58,7 +114,7 @@ func (u *User) ValidPassword(providedPassword, pepper string) (bool, error) {
 
 	salt, err := base64.RawStdEncoding.DecodeString(parts[1])
 	if err != nil {
-		return false, fmt.Errorf("failed to decode pepper: %w", err)
+		return false, fmt.Errorf("failed to decode salt: %w", err)
 	}
 
 	newHash := argon2.IDKey(
@@ -90,7 +146,7 @@ func (u Users) FindByEmail(
 	ctx context.Context,
 	email string,
 ) (User, error) {
-	entity, err := u.queries.GetUserByEmail[User](ctx, strings.ToLower(email))
+	entity, err := u.queries.GetUserByEmail[User](ctx, normaliseEmail(email))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return User{}, ErrNotFound
@@ -107,6 +163,15 @@ type PasswordPair struct {
 	ConfirmPassword string
 }
 
+func (p PasswordPair) validate(b *validation.ValidationBuilder) {
+	b.Required("password", p.Password)
+	b.MinLen("password", p.Password, minPasswordLength)
+	b.Required("confirmPassword", p.ConfirmPassword)
+	if p.Password != p.ConfirmPassword {
+		b.Add("confirmPassword", "mismatch", "Passwords do not match")
+	}
+}
+
 type CreateUserData struct {
 	Email        string
 	PasswordPair PasswordPair
@@ -117,24 +182,28 @@ func (u Users) Create(
 	pepper string,
 	data CreateUserData,
 ) (User, error) {
+	now := time.Now()
+	entity := User{
+		ID:               uuid.New(),
+		CreatedAt:        pgtype.Timestamptz{Time: now, Valid: true},
+		UpdatedAt:        pgtype.Timestamptz{Time: now, Valid: true},
+		Email:            normaliseEmail(data.Email),
+		EmailValidatedAt: pgtype.Timestamptz{},
+		IsAdmin:          false,
+	}
+
+	b := validation.NewBuilder()
+	entity.validate(b)
+	data.PasswordPair.validate(b)
+	if err := b.Err(); err != nil {
+		return User{}, err
+	}
+
 	hashedPassword, err := HashPassword(data.PasswordPair.Password, pepper)
 	if err != nil {
 		return User{}, err
 	}
-
-	entity := User{
-		ID:               uuid.New(),
-		CreatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
-		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
-		Email:            strings.ToLower(data.Email),
-		EmailValidatedAt: pgtype.Timestamptz{},
-		Password:         []byte(hashedPassword),
-		IsAdmin:          false,
-	}
-
-	if err := validation.Validate(&entity); err != nil {
-		return User{}, err
-	}
+	entity.Password = []byte(hashedPassword)
 
 	created, err := u.queries.CreateUser[User](ctx, queries.CreateUserParams{
 		ID:               entity.ID,
@@ -165,47 +234,41 @@ func userWriteError(err error) error {
 	return err
 }
 
+// UpdateUserData changes the fields that are set; a nil field keeps its current
+// value. Passwords change through ChangePassword or RehashPassword.
 type UpdateUserData struct {
 	ID               uuid.UUID
-	Email            string
-	EmailValidatedAt pgtype.Timestamptz
-	Password         []byte
-	IsAdmin          bool
+	Email            *string
+	EmailValidatedAt *pgtype.Timestamptz
+	IsAdmin          *bool
 }
 
 func (u Users) Update(
 	ctx context.Context,
 	data UpdateUserData,
 ) (User, error) {
-	current, err := u.Find(ctx, data.ID)
+	entity, err := u.Find(ctx, data.ID)
 	if err != nil {
 		return User{}, err
 	}
 
-	email := strings.ToLower(data.Email)
-	if email == "" {
-		email = current.Email
+	if data.Email != nil {
+		entity.Email = normaliseEmail(*data.Email)
+	}
+	if data.EmailValidatedAt != nil {
+		entity.EmailValidatedAt = *data.EmailValidatedAt
+	}
+	if data.IsAdmin != nil {
+		entity.IsAdmin = *data.IsAdmin
 	}
 
-	emailValidatedAt := data.EmailValidatedAt
-	if !emailValidatedAt.Valid && current.EmailValidatedAt.Valid {
-		emailValidatedAt = current.EmailValidatedAt
-	}
+	return u.save(ctx, entity)
+}
 
-	password := data.Password
-	if len(password) == 0 {
-		password = current.Password
-	}
-
-	entity := User{
-		ID:               data.ID,
-		CreatedAt:        current.CreatedAt,
-		UpdatedAt:        pgtype.Timestamptz{Time: time.Now(), Valid: true},
-		Email:            email,
-		EmailValidatedAt: emailValidatedAt,
-		Password:         password,
-		IsAdmin:          data.IsAdmin,
-	}
+// save validates entity and writes it in one statement. Callers load the user
+// first, so every update reads the row once.
+func (u Users) save(ctx context.Context, entity User) (User, error) {
+	entity.UpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
 
 	if err := validation.Validate(&entity); err != nil {
 		return User{}, err
@@ -228,6 +291,49 @@ func (u Users) Update(
 	}
 
 	return row, nil
+}
+
+func (u Users) ChangePassword(
+	ctx context.Context,
+	pepper string,
+	id uuid.UUID,
+	pair PasswordPair,
+) (User, error) {
+	b := validation.NewBuilder()
+	pair.validate(b)
+	if err := b.Err(); err != nil {
+		return User{}, err
+	}
+
+	entity, err := u.Find(ctx, id)
+	if err != nil {
+		return User{}, err
+	}
+
+	hashedPassword, err := HashPassword(pair.Password, pepper)
+	if err != nil {
+		return User{}, err
+	}
+	entity.Password = []byte(hashedPassword)
+
+	return u.save(ctx, entity)
+}
+
+// RehashPassword stores password hashed with the current pepper. Login calls it
+// with the user it already loaded after the password matched a previous pepper.
+func (u Users) RehashPassword(
+	ctx context.Context,
+	pepper string,
+	user User,
+	password string,
+) (User, error) {
+	hashedPassword, err := HashPassword(password, pepper)
+	if err != nil {
+		return User{}, err
+	}
+	user.Password = []byte(hashedPassword)
+
+	return u.save(ctx, user)
 }
 
 func (u Users) Destroy(ctx context.Context, id uuid.UUID) error {
@@ -294,38 +400,4 @@ func generateSalt(size int) ([]byte, error) {
 	}
 
 	return salt, nil
-}
-
-func HashPassword(password, pepper string) (string, error) {
-	salt, err := generateSalt(16)
-	if err != nil {
-		return "", err
-	}
-
-	hash := argon2.IDKey(
-		[]byte(password+pepper),
-		[]byte(salt),
-		2,
-		19*1024,
-		1,
-		32,
-	)
-
-	encodedHash := fmt.Sprintf("%s:%s",
-		base64.RawStdEncoding.EncodeToString(hash),
-		base64.RawStdEncoding.EncodeToString(salt))
-
-	return encodedHash, nil
-}
-
-type Users struct {
-	queries *queries.Queries
-}
-
-func NewUsers(db storage.Connection) Users {
-	return Users{queries: queries.New(db)}
-}
-
-func (u Users) InTx(tx storage.Tx) Users {
-	return Users{queries: queries.New(storage.Unwrap(tx))}
 }

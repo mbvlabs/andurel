@@ -10,7 +10,7 @@
 
   function submit(event: SubmitEvent) {
     event.preventDefault()
-    $form.post(routes.confirmationCreate())
+    form.post(routes.confirmationCreate())
   }
 </script>
 
@@ -24,10 +24,10 @@
       <form class="space-y-5" onsubmit={submit}>
         <div class="space-y-1">
           <label class="text-sm font-medium text-muted-foreground" for="code">Verification Code</label>
-          <input id="code" bind:value={$form.code} type="text" maxlength="6" class="flex h-9 w-full border border-border bg-background px-3 py-1 text-center text-sm tracking-[0.3em] text-foreground shadow-inner shadow-black/35 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20" required />
+          <input id="code" bind:value={form.code} type="text" maxlength="6" class="flex h-9 w-full border border-border bg-background px-3 py-1 text-center text-sm tracking-[0.3em] text-foreground shadow-inner shadow-black/35 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/20" required />
           {#if errors.code}<p class="text-sm font-medium text-destructive">{errors.code}</p>{/if}
         </div>
-        <button type="submit" disabled={$form.processing} class="inline-flex w-full items-center justify-center bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm shadow-black/40 hover:bg-primary/90 disabled:opacity-60">{$form.processing ? 'Loading' : 'Verify Email'}</button>
+        <button type="submit" disabled={form.processing} class="inline-flex w-full items-center justify-center bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm shadow-black/40 hover:bg-primary/90 disabled:opacity-60">{form.processing ? 'Loading' : 'Verify Email'}</button>
       </form>
     </div>
   </section>

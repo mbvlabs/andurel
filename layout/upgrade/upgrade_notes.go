@@ -73,7 +73,7 @@ func manualActionsForUpgrade(
 func packageAPIInstructions(inertia bool) string {
 	var instructions strings.Builder
 	instructions.WriteString(
-		"The upgrade pins pkg/anduin v0.2.0, pkg/cache v0.2.0, pkg/inertia v0.8.0 and pkg/storage v0.10.0. " +
+		"The upgrade pins pkg/anduin v0.2.1, pkg/cache v0.2.0, pkg/inertia v0.8.1, pkg/kiks v0.3.1 and pkg/storage v0.10.0. " +
 			"internal/runtime is application-owned, so update it by hand:\n\n",
 	)
 	instructions.WriteString(
@@ -97,6 +97,14 @@ func packageAPIInstructions(inertia bool) string {
 		instructions.WriteString(
 			"4. inertia.NewRenderer takes inertia.RendererConfig and inertia.NewSSRRuntime takes inertia.SSRRuntimeConfig instead of positional arguments:\n\n```go\n" +
 				"inertia.NewRenderer(inertia.RendererConfig{\n\tContainerID:  cfg.Inertia.ContainerID,\n\tBuildPathURL: routes.ViteBuild.FullURL(),\n\t// ...\n})\n```\n\n",
+		)
+		instructions.WriteString(
+			"5. pnpm 10+ blocks esbuild's install script, so `pnpm install` fails. Add pnpm-workspace.yaml:\n\n```yaml\n" +
+				"allowBuilds:\n  esbuild: true\nonlyBuiltDependencies:\n  - esbuild\n```\n\n",
+		)
+		instructions.WriteString(
+			"6. Svelte projects: @inertiajs/svelte v3 `useForm` returns a runes object, not a store. " +
+				"In resources/js/Pages/Auth/*.svelte replace `$form.` with `form.`.\n\n",
 		)
 	}
 	instructions.WriteString("Then format and verify:\n\n```text\ngofmt -w internal/runtime\ngo fix ./...\ngo vet ./...\n```\n")

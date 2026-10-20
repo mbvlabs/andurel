@@ -23,9 +23,7 @@ func (p Pages) Register(rt *anduin.Router) {
 
 func (p Pages) Home(ctx context.Context) error {
 	return p.renderer.Page(ctx, "Welcome", inertia.Props{
-		"appName":         "testapp",
-		"docsURL":         "https://andurel.com",
-		"registrationURL": routes.RegistrationNew.URL(),
-		"loginURL":        routes.SessionNew.URL(),
+		"appName": "testapp",
+		"docsURL": "https://andurel.com",
 	}).Render()
 }

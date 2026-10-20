@@ -81,6 +81,18 @@ func Scaffold(
 		return fmt.Errorf("failed to process templated files: %w", err)
 	}
 
+	if IsSupportedInertiaAdapter(inertia) && javascriptRuntime == "pnpm" {
+		if err := renderTemplate(
+			targetDir,
+			"pnpm_workspace.tmpl",
+			"pnpm-workspace.yaml",
+			templates.Files,
+			&templateData,
+		); err != nil {
+			return fmt.Errorf("failed to create pnpm-workspace.yaml: %w", err)
+		}
+	}
+
 	fmt.Print("Processing database migrations...\n")
 	if err := processMigrations(targetDir, &templateData); err != nil {
 		return fmt.Errorf("failed to process migrations: %w", err)
