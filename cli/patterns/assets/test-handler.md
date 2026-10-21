@@ -54,7 +54,7 @@ func TestProductIndex(t *testing.T) {
 
 - The scaffold ships `handlers/main_test.go` with the package cluster and `testRenderer(t)`, and `handlers/auth_test.go` as the worked example. Use those files instead of redefining the helpers.
 - Use `anduintest.New(t, register)` to build the server from real registrations.
-- Do not add another `testRenderer(t)`; `handlers/main_test.go` owns the renderer for the package.
+- Do not add another `testRenderer(t)`; `handlers/main_test.go` owns the renderer for the package. It builds the renderer like `runtime.newRenderer`, from the `config.DefaultInertia*` constants, so change renderer settings in `config`, not in the test.
 - Call `srv.Get(...)`, `srv.PostForm(...)`, or `srv.PostJSON(...)`; responses assert with `AssertStatus(int)` and `AssertInertia(string)`.
 - Send `X-Inertia: true` when asserting a page: `AssertInertia` decodes the Inertia JSON response. Decode `resp.JSON` for props such as `errors`.
 - Prefer handler tests over integration tests when no cross-domain behavior is exercised.

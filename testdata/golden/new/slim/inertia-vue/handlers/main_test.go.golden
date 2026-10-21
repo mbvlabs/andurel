@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 
+	"app/config"
 	"app/resources"
+	"app/routes"
 
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/storage/storagetest"
@@ -30,23 +31,26 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// testRenderer builds the Inertia renderer handlers expect. There is no
-// framework default: the root component is the application's own.
+// testRenderer builds the Inertia renderer handlers expect, the way
+// runtime.newRenderer does, from the config package's Inertia defaults. It
+// reads no environment variables. The root component is the application's own.
+// SSR fail-fast stays off so a page render does not need the SSR server.
 func testRenderer(t *testing.T) *inertia.Renderer {
 	t.Helper()
 
 	renderer, err := inertia.NewRenderer(
 		inertia.RendererConfig{
-			ContainerID:  "app",
-			BuildPathURL: "/dist/",
-			EntryPoint:   "resources/js/app.ts",
-			ViteDevURL:   "http://localhost:5173",
-			SSRURL:       "http://127.0.0.1:13714",
-			SSRTimeout:   2 * time.Second,
-			SSRMaxResponseBytes: 2 << 20,
+			ContainerID:         config.DefaultInertiaContainerID,
+			BuildPathURL:        routes.ViteBuild.FullURL(),
+			EntryPoint:          config.DefaultInertiaEntryPoint,
+			ViteDevURL:          config.DefaultInertiaViteDevURL,
+			SSRURL:              config.DefaultInertiaSSRURL,
+			SSRTimeout:          config.DefaultInertiaSSRRequestTimeout,
+			SSRMaxResponseBytes: config.DefaultInertiaSSRMaxResponseBytes,
 		},
 		inertia.WithRoot(resources.Root),
 		inertia.WithEnvironment("test"),
+		inertia.WithProtocolDebug(config.DefaultInertiaProtocolDebug),
 	)
 	if err != nil {
 		t.Fatalf("create renderer: %v", err)
