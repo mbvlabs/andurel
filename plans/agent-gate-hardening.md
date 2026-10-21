@@ -627,6 +627,7 @@ remaining W7 blocker is the release and pin.
 - [x] On a fresh scaffold with Docker, `andurel verify --with-tests` runs the domain, handler and
       integration tests, and they pass.
 - [x] Without Docker, the same command passes, with the DB-backed tests reported as skipped.
+      `verify --with-tests` lists them under the go test step's `skipped_packages`.
 - [x] Each `test-*` pattern names its scaffold counterpart.
 - [x] Full-scaffold goldens are refreshed for all three UI variants.
 

@@ -346,6 +346,141 @@ func TestVerifyLayersFailsOnTypeError(t *testing.T) {
 	}
 }
 
+// writeVerifyTestPackages adds a package whose TestMain exits 0 before m.Run,
+// the way the scaffold's DB-backed packages skip without Docker, and a
+// package with a normal passing test.
+func writeVerifyTestPackages(t *testing.T, root string) {
+	t.Helper()
+
+	writeTestFile(t, root, "dbtests/db.go", "package dbtests\n")
+	writeTestFile(t, root, "dbtests/main_test.go", `package dbtests
+
+import (
+	"fmt"
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	fmt.Fprintln(os.Stderr, "skipping db tests: start postgres container: docker not found")
+	os.Exit(0)
+}
+
+func TestNeedsDB(t *testing.T) {}
+`)
+	writeTestFile(t, root, "plain/plain.go", "package plain\n")
+	writeTestFile(t, root, "plain/plain_test.go", "package plain\n\nimport \"testing\"\n\nfunc TestPlain(t *testing.T) {}\n")
+}
+
+func TestVerifyWithTestsReportsSkippedPackages(t *testing.T) {
+	root := newVerifyTestProject(t)
+	writeVerifyTestPackages(t, root)
+
+	result := runVerifyInProject(t, root, "verify", "--skip-generated", "--with-tests", "--json")
+	if result.err != nil {
+		t.Fatalf(
+			"verify --with-tests --json: %v\nreport: %#v",
+			result.err,
+			output.Fail(result.err).Data,
+		)
+	}
+	envelope := decodeVerifyEnvelope(t, result.stdout)
+	if !envelope.OK || !envelope.Data.OK {
+		t.Fatalf("a TestMain skip should not fail the run: %#v", envelope)
+	}
+	step := findVerifyStep(t, envelope.Data, "go test")
+	if step.Status != verifyStatusOK || !step.OK {
+		t.Fatalf("go test step = %#v, want status ok", step)
+	}
+	if len(step.SkippedPackages) != 1 {
+		t.Fatalf("skipped packages = %#v, want only dbtests", step.SkippedPackages)
+	}
+	skipped := step.SkippedPackages[0]
+	if skipped.Package != "example.com/app/dbtests" {
+		t.Fatalf("skipped package = %q, want example.com/app/dbtests", skipped.Package)
+	}
+	if skipped.Reason != "skipping db tests: start postgres container: docker not found" {
+		t.Fatalf("skipped reason = %q, want the TestMain message", skipped.Reason)
+	}
+
+	human := runVerifyInProject(t, root, "verify", "--skip-generated", "--with-tests")
+	if human.err != nil {
+		t.Fatalf("verify --with-tests: %v", human.err)
+	}
+	for _, want := range []string{
+		"go test    ok (1 package skipped: no tests ran)",
+		"skipped example.com/app/dbtests: skipping db tests",
+	} {
+		if !strings.Contains(human.stdout, want) {
+			t.Fatalf("human output is missing %q:\n%s", want, human.stdout)
+		}
+	}
+	if strings.Contains(human.stdout, "plain") {
+		t.Fatalf("a package whose tests ran should not be listed:\n%s", human.stdout)
+	}
+}
+
+func TestVerifyWithTestsFailsOnTestFailure(t *testing.T) {
+	root := newVerifyTestProject(t)
+	writeVerifyTestPackages(t, root)
+	writeTestFile(t, root, "broken/broken_test.go", `package broken
+
+import "testing"
+
+func TestBroken(t *testing.T) {
+	t.Fatal("expected failure marker")
+}
+`)
+
+	result := runVerifyInProject(t, root, "verify", "--skip-generated", "--with-tests", "--json")
+	assertVerifyExitCode(t, result, output.ExitVerification)
+
+	report, ok := output.Fail(result.err).Data.(verifyReport)
+	if !ok {
+		t.Fatalf("failure data = %T, want verifyReport", output.Fail(result.err).Data)
+	}
+	step := findVerifyStep(t, report, "go test")
+	if step.Status != verifyStatusFail || step.OK {
+		t.Fatalf("go test step = %#v, want fail", step)
+	}
+	for _, want := range []string{"--- FAIL: TestBroken", "expected failure marker", "FAIL\texample.com/app/broken"} {
+		if !strings.Contains(step.Detail, want) {
+			t.Fatalf("go test detail is missing %q:\n%s", want, step.Detail)
+		}
+	}
+	if strings.Contains(step.Detail, "TestPlain") {
+		t.Fatalf("go test detail should only show failing packages:\n%s", step.Detail)
+	}
+}
+
+func TestVerifyWithTestsFailsOnBuildError(t *testing.T) {
+	root := newVerifyTestProject(t)
+	writeTestFile(t, root, "broken/broken_test.go", `package broken
+
+import "testing"
+
+func TestBroken(t *testing.T) {
+	var value int = "bad"
+	_ = value
+}
+`)
+
+	result := runVerifyInProject(t, root, "verify", "--skip-generated", "--with-tests", "--json")
+	assertVerifyExitCode(t, result, output.ExitVerification)
+
+	report, ok := output.Fail(result.err).Data.(verifyReport)
+	if !ok {
+		t.Fatalf("failure data = %T, want verifyReport", output.Fail(result.err).Data)
+	}
+	step := findVerifyStep(t, report, "go test")
+	if step.Status != verifyStatusFail {
+		t.Fatalf("go test step = %#v, want fail", step)
+	}
+	if !strings.Contains(step.Detail, "broken_test.go") || !strings.Contains(step.Detail, "[build failed]") {
+		t.Fatalf("go test detail should show the build error:\n%s", step.Detail)
+	}
+}
+
 func findMissingToolViolation(
 	violations []verifyViolation,
 	binary string,

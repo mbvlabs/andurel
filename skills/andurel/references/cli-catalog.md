@@ -27,6 +27,12 @@ andurel --agent --help
 rule; run `andurel tool sync` to install it. `--skip-generated` marks that step
 `skipped` and does not fail the run.
 
+`andurel verify --with-tests` also runs `go test ./...`. A test package that has
+tests but ran none (the scaffold's DB-backed packages exit their `TestMain`
+early when Docker is unavailable) keeps the `go test` step `ok` and the run
+passing, but is listed under the step's `skipped_packages` as
+`{package, reason}`; the human output prints `ok (N packages skipped: …)`.
+
 The typed layer checks load the active build target, like `go vet`: files
 excluded by GOOS, GOARCH, or build constraints are not analyzed by that step.
 

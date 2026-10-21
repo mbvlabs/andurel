@@ -2,9 +2,11 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/mbvlabs/andurel/v2/cli/internal/layers"
@@ -28,6 +30,14 @@ const (
 	verifyStatusSkipped = "skipped"
 )
 
+// verifySkippedPackage is a test package that has tests but ran none of them,
+// for example because its TestMain exited before m.Run when Docker was
+// unavailable. Reason is what the package printed.
+type verifySkippedPackage struct {
+	Package string `json:"package"`
+	Reason  string `json:"reason"`
+}
+
 type verifyStep struct {
 	Name       string            `json:"name"`
 	Status     string            `json:"status"`
@@ -35,6 +45,9 @@ type verifyStep struct {
 	Reason     string            `json:"reason,omitempty"`
 	Detail     string            `json:"detail,omitempty"`
 	Violations []verifyViolation `json:"violations,omitempty"`
+	// SkippedPackages lists go test packages that ran no tests. It does not
+	// change the step's status: the run still passes.
+	SkippedPackages []verifySkippedPackage `json:"skipped_packages,omitempty"`
 }
 
 type verifyReport struct {
@@ -83,8 +96,11 @@ GOOS, GOARCH, or build constraints are not type-checked or analyzed.
 ` + verifyRuleHelp() + `Pass --skip-generated to mark the generated step 'skipped'; an explicit skip
 does not fail the run.
 
-Pass --with-tests to also run go test ./... (requires a Postgres container for
-domain tests). verify never rewrites files; fix reported issues and re-run.
+Pass --with-tests to also run go test ./... (DB-backed tests need Docker for a
+Postgres container). A test package that has tests but ran none, such as one
+whose TestMain exits early without Docker, does not fail the run: the go test
+step stays 'ok' and lists it under skipped_packages as {package, reason}.
+verify never rewrites files; fix reported issues and re-run.
 
 Each step reports status 'ok', 'fail', or 'skipped'. Every failing step lists
 violations as {rule, file, line, message, fix}. A failed verification exits
@@ -104,7 +120,7 @@ with code 9 (verification_failed); usage errors exit with code 1.`,
 	setAgentMetadata(
 		cmd,
 		"verification",
-		"Read-only verification: gofmt, go fix, go vet, the domain persistence and transaction boundary, and generated-code drift. Fails with exit code 9 and structured violations; each rule and its fix is listed in verify --help and the rules field of andurel commands --json.",
+		"Read-only verification: gofmt, go fix, go vet, the domain persistence and transaction boundary, and generated-code drift. With --with-tests, test packages that ran no tests (for example DB tests without Docker) are listed in the go test step's skipped_packages; they do not fail the run. Fails with exit code 9 and structured violations; each rule and its fix is listed in verify --help and the rules field of andurel commands --json.",
 	)
 	setStandardHelp(cmd)
 	return cmd
@@ -176,8 +192,20 @@ func renderVerifyHuman(cmd *cobra.Command, report verifyReport) error {
 		case verifyStatusSkipped:
 			status = "SKIP"
 		}
+		if n := len(step.SkippedPackages); n > 0 {
+			noun := "packages"
+			if n == 1 {
+				noun = "package"
+			}
+			status += fmt.Sprintf(" (%d %s skipped: no tests ran)", n, noun)
+		}
 		if _, err := fmt.Fprintf(out, "%-10s %s\n", step.Name, status); err != nil {
 			return err
+		}
+		for _, skipped := range step.SkippedPackages {
+			if _, err := fmt.Fprintf(out, "  skipped %s: %s\n", skipped.Package, skipped.Reason); err != nil {
+				return err
+			}
 		}
 		for _, violation := range step.Violations {
 			if _, err := fmt.Fprintf(out, "  %s\n", formatViolation(violation)); err != nil {
@@ -286,14 +314,148 @@ func verifyGoVet(rootDir string) verifyStep {
 }
 
 func verifyGoTest(rootDir string) verifyStep {
-	out, err := runVerifyCommand(rootDir, "go", "test", "./...")
-	detail := strings.TrimSpace(out)
+	cmd := exec.Command("go", "test", "-json", "./...")
+	cmd.Dir = rootDir
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	result := parseGoTestJSON(stdout.Bytes())
 	if err != nil {
 		step := verifyStepFailed("go test")
-		step.Detail = commandDetail(err, detail)
+		step.Detail = commandDetail(err, result.failureDetail(stderr.String()))
 		return step
 	}
-	return verifyStepOK("go test")
+	step := verifyStepOK("go test")
+	step.SkippedPackages = result.skipped
+	return step
+}
+
+// goTestEvent is one line of go test -json output (cmd/test2json), including
+// the build-output events the go command emits for packages that fail to build.
+type goTestEvent struct {
+	Action  string `json:"Action"`
+	Package string `json:"Package"`
+	Test    string `json:"Test"`
+	Output  string `json:"Output"`
+}
+
+type goTestPackage struct {
+	ranTests bool
+	failed   bool
+	passed   bool
+	output   []string
+	pkgLines []string
+}
+
+type goTestResult struct {
+	order    []string
+	packages map[string]*goTestPackage
+	build    []string
+	other    []string
+	skipped  []verifySkippedPackage
+}
+
+// parseGoTestJSON folds go test -json events per package. A package whose test
+// binary passed without a single test-level run event has tests but ran none,
+// typically because its TestMain exited before m.Run (for example when Docker
+// is unavailable); it is reported as skipped with its own output as the reason.
+func parseGoTestJSON(data []byte) goTestResult {
+	result := goTestResult{packages: map[string]*goTestPackage{}}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		var event goTestEvent
+		if err := json.Unmarshal([]byte(line), &event); err != nil || event.Action == "" {
+			result.other = append(result.other, line)
+			continue
+		}
+		if event.Action == "build-output" {
+			result.build = append(result.build, strings.TrimRight(event.Output, "\n"))
+			continue
+		}
+		if event.Package == "" {
+			continue
+		}
+		pkg, ok := result.packages[event.Package]
+		if !ok {
+			pkg = &goTestPackage{}
+			result.packages[event.Package] = pkg
+			result.order = append(result.order, event.Package)
+		}
+		switch event.Action {
+		case "run":
+			if event.Test != "" {
+				pkg.ranTests = true
+			}
+		case "output":
+			text := strings.TrimRight(event.Output, "\n")
+			pkg.output = append(pkg.output, text)
+			if event.Test == "" {
+				pkg.pkgLines = append(pkg.pkgLines, text)
+			}
+		case "fail":
+			if event.Test == "" {
+				pkg.failed = true
+			}
+		case "pass":
+			if event.Test == "" {
+				pkg.passed = true
+			}
+		}
+	}
+
+	for _, name := range result.order {
+		pkg := result.packages[name]
+		if !pkg.passed || pkg.failed || pkg.ranTests {
+			continue
+		}
+		result.skipped = append(result.skipped, verifySkippedPackage{
+			Package: name,
+			Reason:  goTestSkipReason(name, pkg.pkgLines),
+		})
+	}
+	slices.SortFunc(result.skipped, func(a, b verifySkippedPackage) int {
+		return strings.Compare(a.Package, b.Package)
+	})
+	return result
+}
+
+// goTestSkipReason keeps what the package printed itself, dropping the test
+// framework's own PASS and "ok <pkg>" summary lines.
+func goTestSkipReason(pkg string, lines []string) string {
+	reasons := make([]string, 0, len(lines))
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || trimmed == "PASS" || strings.HasPrefix(trimmed, "ok  \t"+pkg) ||
+			strings.HasPrefix(trimmed, "ok "+pkg) {
+			continue
+		}
+		reasons = append(reasons, trimmed)
+	}
+	if len(reasons) == 0 {
+		return "no tests ran"
+	}
+	return strings.Join(reasons, "; ")
+}
+
+// failureDetail renders the output a developer needs for a failed go test run:
+// build errors, every line from failing packages, and anything the go command
+// printed outside the JSON stream.
+func (r goTestResult) failureDetail(stderr string) string {
+	lines := append([]string{}, r.build...)
+	for _, name := range r.order {
+		if pkg := r.packages[name]; pkg.failed {
+			lines = append(lines, pkg.output...)
+		}
+	}
+	lines = append(lines, r.other...)
+	if text := strings.TrimSpace(stderr); text != "" {
+		lines = append(lines, text)
+	}
+	return strings.TrimSpace(strings.Join(lines, "\n"))
 }
 
 // verifyGenerated reports generated-code drift by reusing doctor's read-only
