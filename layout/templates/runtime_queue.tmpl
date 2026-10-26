@@ -55,10 +55,11 @@ func NewQueue(ctx context.Context, cfg config.Config) (_ *Queue, err error) {
 
 	// Auth email workers mint tokens at send time, so they need the identity
 	// service. They never enqueue, so the worker process has no insert queue.
+	tokens := domains.NewTokens(db)
 	identity := services.NewIdentity(
 		storage.NewTransactor(db),
 		domains.NewUsers(db),
-		domains.NewTokens(db),
+		tokens,
 		nil,
 		cfg.Auth,
 		cfg.Mail,
@@ -68,7 +69,7 @@ func NewQueue(ctx context.Context, cfg config.Config) (_ *Queue, err error) {
 	processor, err := storage.NewQueueProcessor(
 		db,
 		cfg.QueueWorker.Config,
-		storage.WithRiverWorkers(queue.NewWorkers(identity, transactional, marketing)),
+		storage.WithRiverWorkers(queue.NewWorkers(identity, tokens, transactional, marketing)),
 		storage.WithRiverPeriodicJobs(queue.PeriodicJobs()...),
 		storage.WithRiverLogger(tel.Logger()),
 	)

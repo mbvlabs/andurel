@@ -293,6 +293,13 @@ Put worker implementations, queue registration, and queue helpers in `queue/`.
 Workers call domain/application code rather than duplicating domain rules.
 Registration is a plain slice/map assembled in `internal/runtime`, not Fx.
 
+Recurring work returns a `*river.PeriodicJob` from `queue.PeriodicJobs()`,
+which `runtime.NewQueue` passes to `storage.WithRiverPeriodicJobs`. The job uses
+the same args and worker types as an enqueued job; for example the scaffold's
+`delete_expired_tokens` job runs hourly with
+`river.NewPeriodicJob(river.PeriodicInterval(time.Hour), ..., &river.PeriodicJobOpts{RunOnStart: true})`
+and its worker calls `domains.Tokens.DestroyExpired`.
+
 Put email templates and send helpers in `email/`. Email is the other templ
 home (`email/*.templ` compiled by `emailcompiler`). Put provider-specific
 implementations in a package under `internal/` (for example

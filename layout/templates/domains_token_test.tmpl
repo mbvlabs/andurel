@@ -1,0 +1,66 @@
+package domains_test
+
+import (
+	"errors"
+	"testing"
+	"time"
+
+	"{{.ModuleName}}/domains"
+	"{{.ModuleName}}/migrations"
+)
+
+func TestTokens_DestroyExpired(t *testing.T) {
+	t.Parallel()
+
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	users := domains.NewUsers(db)
+	tokens := domains.NewTokens(db)
+
+	user, err := users.Create(t.Context(), "test-pepper", domains.CreateUserData{
+		Email: "destroy-expired@example.com",
+		PasswordPair: domains.PasswordPair{
+			Password:        "correct horse battery staple",
+			ConfirmPassword: "correct horse battery staple",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	expired, err := tokens.Create(t.Context(), domains.CreateTokenData{
+		Scope:     string(domains.UserEmailVerification),
+		ExpiresAt: time.Now().Add(-time.Hour),
+		Hash:      "expired-hash",
+		MetaData:  []byte("{}"),
+		UserID:    user.ID,
+	})
+	if err != nil {
+		t.Fatalf("create expired token: %v", err)
+	}
+
+	live, err := tokens.Create(t.Context(), domains.CreateTokenData{
+		Scope:     string(domains.UserEmailVerification),
+		ExpiresAt: time.Now().Add(time.Hour),
+		Hash:      "live-hash",
+		MetaData:  []byte("{}"),
+		UserID:    user.ID,
+	})
+	if err != nil {
+		t.Fatalf("create live token: %v", err)
+	}
+
+	deleted, err := tokens.DestroyExpired(t.Context(), time.Now())
+	if err != nil {
+		t.Fatalf("destroy expired: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("deleted = %d, want 1", deleted)
+	}
+
+	if _, err := tokens.Find(t.Context(), expired.ID); !errors.Is(err, domains.ErrNotFound) {
+		t.Fatalf("find expired token error = %v, want %v", err, domains.ErrNotFound)
+	}
+	if _, err := tokens.Find(t.Context(), live.ID); err != nil {
+		t.Fatalf("find live token: %v", err)
+	}
+}

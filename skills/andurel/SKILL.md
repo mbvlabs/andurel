@@ -99,6 +99,12 @@ Add a domain (type-driven: change the Go type first, then let SQL and queries fo
 
 Keep hand-written SQL in `domains/<entity>.sql` and generated code in `domains/internal/queries/`. Only `domains` should import that internal package. Each receiver has `New<Plural>(db)` (constructed in `internal/runtime`) and `InTx(tx storage.Tx)`. A receiver whose own method writes more than once, or reads, modifies and writes a row, holds a `storage.Transactor`; that method locks the row before saving and joins a caller's transaction when bound. Services take a `storage.Transactor`, their receivers, and the queue individually, and run multi-domain writes in `storage.AtomicOps`, binding receivers with `InTx(tx)` at the top of the callback.
 
+Add a background job:
+
+1. `andurel patterns show job` — read the args, worker, and registration rules.
+2. Put the args in `queue/jobs/` and the worker in `queue/`; call domain or service code, not SQL.
+3. Register the worker in `queue/workers.go`. For recurring work, return a `river.NewPeriodicJob(...)` from `queue.PeriodicJobs()`; `runtime.NewQueue` passes it to River.
+
 Add an HTTP resource:
 
 1. `andurel patterns show handler` and `andurel patterns show route`.

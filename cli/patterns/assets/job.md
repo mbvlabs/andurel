@@ -51,9 +51,67 @@ func (w *SendWelcomeEmailWorker) Work(ctx context.Context, job *river.Job[SendWe
 - Keep `Work` idempotent; River may retry.
 - No `domains/internal/queries` import.
 
+## Periodic jobs
+
+A recurring job reuses the same args and worker types; River inserts it on a
+schedule instead of a service. Return one `*river.PeriodicJob` per schedule
+from `queue/PeriodicJobs()`; `runtime.NewQueue` passes the list to
+`storage.WithRiverPeriodicJobs`, so no other wiring is needed.
+
+```go
+// queue/queue.go
+func PeriodicJobs() []*river.PeriodicJob {
+	return []*river.PeriodicJob{
+		river.NewPeriodicJob(
+			river.PeriodicInterval(time.Hour),
+			func() (river.JobArgs, *river.InsertOpts) {
+				return jobs.DeleteExpiredTokensArgs{}, nil
+			},
+			&river.PeriodicJobOpts{RunOnStart: true},
+		),
+	}
+}
+```
+
+```go
+// queue/jobs/delete_expired_tokens.go
+package jobs
+
+// DeleteExpiredTokensArgs has no fields: the worker deletes every token whose
+// expiry has passed.
+type DeleteExpiredTokensArgs struct{}
+
+func (DeleteExpiredTokensArgs) Kind() string { return "delete_expired_tokens" }
+```
+
+```go
+// queue/delete_expired_tokens.go
+func (w *DeleteExpiredTokensWorker) Work(
+	ctx context.Context,
+	_ *river.Job[jobs.DeleteExpiredTokensArgs],
+) error {
+	ctx, span := telemetry.Start(ctx, "queue.delete_expired_tokens")
+	defer span.End()
+
+	deleted, err := w.tokens.DestroyExpired(ctx, time.Now())
+	if err != nil {
+		return telemetry.Fail(ctx, err)
+	}
+
+	telemetry.Info(ctx, "deleted expired tokens", "tokens.deleted", deleted)
+
+	return nil
+}
+```
+
+The constructor function must not block and receives no arguments; returning
+`nil` args skips the insertion for that tick. `RunOnStart: true` makes a new
+leader run housekeeping immediately instead of waiting a full interval.
+
 ## Checklist
 
 - [ ] Args struct with `json` tags and a stable `Kind()`.
 - [ ] Worker registered in `queue/workers.go`.
 - [ ] Enqueue call made from a service (on a bound queue when it must commit with data).
+- [ ] Recurring jobs returned from `queue/PeriodicJobs()`.
 - [ ] `andurel inspect jobs --json` lists the new file.

@@ -29,6 +29,7 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 		"func (t Tokens) FindByUserAndScope(",
 		"func (t Tokens) IncrementAttempts(ctx context.Context, id uuid.UUID) (int32, error)",
 		"func (t Tokens) DestroyByUserAndScope(",
+		"func (t Tokens) DestroyExpired(ctx context.Context, before time.Time) (int64, error)",
 		"GetTokenByUserAndScope",
 	)
 	tokenTemplate := strings.Join(strings.Fields(readLayoutTemplate(t, "domains_token.tmpl")), " ")
@@ -57,6 +58,12 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 		"-- name: IncrementTokenAttempts :one",
 		"RETURNING attempts;",
 		"-- name: DeleteTokensByUserAndScope :exec",
+		"-- name: DeleteExpiredTokens :execrows",
+		"WHERE expires_at < $1;",
+	)
+	assertTemplateContains(t, "domains_internal_queries_token.tmpl",
+		"func (q *Queries) DeleteExpiredTokens(ctx context.Context, expiresAt pgtype.Timestamptz) (int64, error)",
+		"return result.RowsAffected(), nil",
 	)
 	assertTemplateContains(t, "database_migrations_tokens.tmpl",
 		"user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE",
@@ -189,9 +196,17 @@ func TestGeneratedAuthEmailsKeepSecretsOutOfJobArgs(t *testing.T) {
 		"storage.AddEmailWorkers(workers, transactional, marketing)",
 		"NewSendVerificationEmailWorker(identity, transactional)",
 		"NewSendPasswordResetEmailWorker(identity, transactional)",
+		"NewDeleteExpiredTokensWorker(tokens)",
 	)
 	assertTemplateContains(t, "runtime_queue.tmpl",
-		"queue.NewWorkers(identity, transactional, marketing)",
+		"tokens := domains.NewTokens(db)",
+		"queue.NewWorkers(identity, tokens, transactional, marketing)",
+		"storage.WithRiverPeriodicJobs(queue.PeriodicJobs()...)",
+	)
+	assertTemplateContains(t, "psql_queue_queue.tmpl",
+		`jobs.DeleteExpiredTokensArgs{}`,
+		"river.PeriodicInterval(time.Hour)",
+		"&river.PeriodicJobOpts{RunOnStart: true}",
 	)
 }
 

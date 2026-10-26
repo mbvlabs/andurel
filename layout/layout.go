@@ -214,9 +214,11 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"psql_queue_queue.tmpl":                             "queue/queue.go",
 	"psql_queue_jobs_send_verification_email.tmpl":      "queue/jobs/send_verification_email.go",
 	"psql_queue_jobs_send_password_reset_email.tmpl":    "queue/jobs/send_password_reset_email.go",
+	"psql_queue_jobs_delete_expired_tokens.tmpl":        "queue/jobs/delete_expired_tokens.go",
 	"psql_queue_workers_workers.tmpl":                   "queue/workers.go",
 	"psql_queue_workers_send_verification_email.tmpl":   "queue/send_verification_email.go",
 	"psql_queue_workers_send_password_reset_email.tmpl": "queue/send_password_reset_email.go",
+	"psql_queue_workers_delete_expired_tokens.tmpl":     "queue/delete_expired_tokens.go",
 
 	// Email
 	"email_base_layout.tmpl":             "email/base_layout.templ",
@@ -231,6 +233,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"domains_user.tmpl":                    "domains/user.go",
 	"domains_token.tmpl":                   "domains/token.go",
 	"domains_main_test.tmpl":               "domains/main_test.go",
+	"domains_token_test.tmpl":              "domains/token_test.go",
 	"domains_user_test.tmpl":               "domains/user_test.go",
 	"domains_queries_user.tmpl":            "domains/user.sql",
 	"domains_queries_token.tmpl":           "domains/token.sql",

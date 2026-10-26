@@ -112,6 +112,12 @@ func (t Tokens) DestroyByUserAndScope(
 	})
 }
 
+// DestroyExpired deletes every token that expired before the given time and
+// returns the number of deleted rows.
+func (t Tokens) DestroyExpired(ctx context.Context, before time.Time) (int64, error) {
+	return t.queries.DeleteExpiredTokens(ctx, pgtype.Timestamptz{Time: before, Valid: true})
+}
+
 type CreateTokenData struct {
 	Scope     string
 	ExpiresAt time.Time

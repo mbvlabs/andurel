@@ -15,7 +15,6 @@ Every _beta_ item is fixed or moot. The agent-first port deleted `pkg/hypermedia
 
 Still open:
 
-- L6: expired tokens are never deleted.
 - R2 / hygiene: `pkg/*` `go.mod` minimums stay at Go 1.27.1. CI scans with Go 1.27.3.
 - Process: route direct pushes to `master` through PRs.
 - `GO-2026-5932` (`crypto/openpgp` in `golang.org/x/crypto`) has no fixed version. It is imported by `pkg/auth` and `pkg/storage` but never called.
@@ -239,7 +238,7 @@ The `pkg/server` and generated defaults set `WriteTimeout` to 30 seconds. `hyper
 | L3 | `pkg/kiks` | `NewJar` and `NewCookieStore` do not validate the encryption key length (16, 24, or 32 bytes). A bad key fails at the first write instead of at startup. | fixed: rejected at construction |
 | L4 | `pkg/validation`, generated `User` | No `Email` rule exists, so user email format is never validated. | fixed: `ValidationBuilder.Email` |
 | L5 | generated `User` | The stored Argon2 hash omits its parameters, so tuning them breaks existing hashes. Use a PHC-format string. | fixed: PHC strings; legacy hashes are rehashed on login |
-| L6 | generated `Token` | `GenerateCode` has modulo bias (`b % 36`). Expired tokens are never deleted, and no cleanup job exists. | bias fixed (`rand.Int`); expired-token cleanup in progress |
+| L6 | generated `Token` | `GenerateCode` has modulo bias (`b % 36`). Expired tokens are never deleted, and no cleanup job exists. | fixed: `rand.Int`, plus the hourly `delete_expired_tokens` River job |
 | L7 | scaffold output | Fresh scaffolds are not gofmt-clean: imports in `controllers/assets.go` are unsorted, and the Inertia `controllers/sessions.go` and `controllers/confirmations.go` have mis-indented returns. Commit #806 left blank lines inside `if` blocks across `services_*.tmpl`. Add a golden test that runs gofmt on generated Go files. | fixed: `layout/gofmt_scaffold_test.go` |
 | L8 | `pkg/routing` | `ConfigureHosts` installs a package-level mutable registry, which `plans/version-two.md` says to avoid. The generated router's `perHostMiddleware` is also a global. | fixed: explicit `*routing.Hosts` from `NewHosts` |
 | L9 | `pkg/hypermedia` | `MergeSignals` emits `datastar-merge-signals`, which Datastar 1.0 appears to have removed. Verify, then remove or deprecate. | moot: `pkg/hypermedia` was deleted |
