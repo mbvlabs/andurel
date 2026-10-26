@@ -203,7 +203,11 @@ func CSRF(cfg CSRFConfig) Middleware
   token is available to handlers via `anduin.CSRFToken(ctx)`.
 
 App middleware (auth and session definitions) lives in `middleware/` and uses
-the same `anduin.Middleware` type. `pkg/inertia`'s
+the same `anduin.Middleware` type. `middleware.AuthOnly(users)` reloads the
+session's user from the database on every request, rejects a missing user or a
+stale `SessionVersion` (clearing the cookie and redirecting to sign-in), and
+attaches the database-backed user for `middleware.ViewerFrom(ctx)`, so admin
+checks never trust a value in the cookie. `pkg/inertia`'s
 `(*Renderer).Middleware()` also returns an `anduin.Middleware`.
 
 Install global middleware in `internal/runtime`:

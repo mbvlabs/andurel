@@ -27,4 +27,5 @@ type UserRow struct {
 	EmailValidatedAt pgtype.Timestamptz `andurel:"email_validated_at"`
 	Password         []byte             `andurel:"password"`
 	IsAdmin          bool               `andurel:"is_admin"`
+	SessionVersion   int32              `andurel:"session_version"`
 }

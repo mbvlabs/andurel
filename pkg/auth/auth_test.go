@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"golang.org/x/crypto/argon2"
 )
 
 func TestHashPasswordRoundTrip(t *testing.T) {
@@ -16,8 +18,8 @@ func TestHashPasswordRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HashPassword: %v", err)
 	}
-	if !strings.Contains(hash, ":") {
-		t.Fatalf("HashPassword = %q, want base64hash:base64salt", hash)
+	if !strings.HasPrefix(hash, "$argon2id$v=19$m=19456,t=2,p=1$") {
+		t.Fatalf("HashPassword = %q, want an argon2id PHC hash", hash)
 	}
 
 	ok, err := VerifyPassword(hash, password, pepper)
@@ -61,14 +63,105 @@ func TestVerifyPasswordAcceptsExistingHash(t *testing.T) {
 	if !ok {
 		t.Fatal("VerifyPassword rejected a hash from the original scaffold")
 	}
+
+	ok, needsRehash, err := VerifyPasswordAny(hash, password, pepper)
+	if err != nil {
+		t.Fatalf("VerifyPasswordAny: %v", err)
+	}
+	if !ok {
+		t.Fatal("VerifyPasswordAny rejected a hash from the original scaffold")
+	}
+	if !needsRehash {
+		t.Fatal("VerifyPasswordAny did not request a rehash for a legacy hash")
+	}
 }
 
 func TestVerifyPasswordRejectsInvalidFormat(t *testing.T) {
-	for _, hash := range []string{"", "missing-separator", "a:b:c", "not-base64:salt"} {
+	for _, hash := range []string{
+		"",
+		"missing-separator",
+		"a:b:c",
+		"not-base64:salt",
+		"$argon2id$",
+		"$argon2id$v=19$m=19456,t=2,p=1$c2FsdA$",
+		"$argon2id$v=99$m=19456,t=2,p=1$c2FsdA$c2FsdA",
+		"$argon2id$v=19$m=0,t=2,p=1$c2FsdA$c2FsdA",
+		"$argon2id$v=19$m=19456,t=2,p=1$not-base64$c2FsdA",
+		"$argon2id$v=19$broken$c2FsdA$c2FsdA",
+	} {
 		if _, err := VerifyPassword(hash, "password", "pepper"); err == nil {
 			t.Fatalf("VerifyPassword(%q) error = nil, want an invalid format error", hash)
 		}
 	}
+}
+
+func TestVerifyPasswordAnyVerifiesDifferentArgonParams(t *testing.T) {
+	const (
+		password = "correct horse battery staple"
+		pepper   = "current-pepper"
+	)
+
+	hash := phcHash(t, password, pepper, 8*1024, 1, 1)
+
+	ok, err := VerifyPassword(hash, password, pepper)
+	if err != nil {
+		t.Fatalf("VerifyPassword: %v", err)
+	}
+	if !ok {
+		t.Fatal("VerifyPassword rejected a hash with different argon2 parameters")
+	}
+
+	ok, needsRehash, err := VerifyPasswordAny(hash, password, pepper)
+	if err != nil {
+		t.Fatalf("VerifyPasswordAny: %v", err)
+	}
+	if !ok {
+		t.Fatal("VerifyPasswordAny rejected a hash with different argon2 parameters")
+	}
+	if !needsRehash {
+		t.Fatal("VerifyPasswordAny did not request a rehash for different parameters")
+	}
+}
+
+func TestDummyVerifyRuns(t *testing.T) {
+	hash := dummyHash()
+	if hash == "" || !strings.HasPrefix(hash, "$argon2id$") {
+		t.Fatalf("dummy hash = %q, want a PHC hash", hash)
+	}
+
+	ok, err := VerifyPassword(hash, "andurel-dummy-password", "andurel-dummy-pepper")
+	if err != nil {
+		t.Fatalf("VerifyPassword dummy hash: %v", err)
+	}
+	if !ok {
+		t.Fatal("dummy hash does not verify its fixed password")
+	}
+
+	// Both paths must run a full verification; the result is discarded.
+	DummyVerify("wrong password", "current-pepper")
+	DummyVerify("andurel-dummy-password", "andurel-dummy-pepper")
+}
+
+func phcHash(
+	t *testing.T,
+	password, pepper string,
+	memory uint32,
+	iterations uint32,
+	threads uint8,
+) string {
+	t.Helper()
+
+	salt := []byte("0123456789abcdef")
+	hash := argon2.IDKey(
+		[]byte(password+pepper),
+		salt,
+		iterations,
+		memory,
+		threads,
+		argonKeyLen,
+	)
+
+	return formatPHC(memory, iterations, threads, salt, hash)
 }
 
 func TestVerifyPasswordAny(t *testing.T) {

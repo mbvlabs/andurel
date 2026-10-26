@@ -11,6 +11,9 @@ CREATE TABLE users (
     password BYTEA NOT NULL,
     is_admin BOOLEAN NOT NULL DEFAULT false,
 
+    -- Bumped to revoke every existing session for the user.
+    session_version INTEGER NOT NULL DEFAULT 1,
+
     -- storage.Conflict maps violations of this constraint to ErrConflict.
     CONSTRAINT users_email_key UNIQUE (email)
 );

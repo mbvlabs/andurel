@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"math"
 	"slices"
 	"testing"
 )
@@ -41,6 +42,23 @@ func TestPageClampsSelection(t *testing.T) {
 			page:     2,
 			pageSize: 500,
 			want:     PageRequest{Page: 2, PageSize: 100, Limit: 100, Offset: 100},
+		},
+		{
+			name:     "huge page keeps offset inside int32",
+			page:     math.MaxInt64,
+			pageSize: 10,
+			want: PageRequest{
+				Page:     maxOffset/10 + 1,
+				PageSize: 10,
+				Limit:    10,
+				Offset:   maxOffset / 10 * 10,
+			},
+		},
+		{
+			name:     "negative huge page starts at one",
+			page:     -math.MaxInt64,
+			pageSize: 10,
+			want:     PageRequest{Page: 1, PageSize: 10, Limit: 10, Offset: 0},
 		},
 	}
 

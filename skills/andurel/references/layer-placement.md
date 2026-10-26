@@ -242,8 +242,12 @@ App-specific HTTP policy lives in `middleware/`.
 Middleware has the `anduin.Middleware` shape (`func(anduin.Handler)
 anduin.Handler`):
 
-- Auth and authorization middleware.
-- Session definitions (`Session`, `NewSessionCookie`).
+- Auth and authorization middleware. `AuthOnly(users)` reloads the session's
+  user and rejects a missing user or stale `SessionVersion`; it attaches the
+  loaded user for `middleware.ViewerFrom(ctx)` so admin checks read the
+  database, not the cookie.
+- Session definitions (`Session`, `NewSessionCookie`). The session carries
+  `UserID` and `SessionVersion`, never `IsAdmin`.
 - Route attribute / telemetry helpers.
 
 Generic HTTP policy lives in `pkg/anduin`:
