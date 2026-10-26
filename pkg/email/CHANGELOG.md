@@ -4,6 +4,11 @@ All notable changes to the standalone Andurel email module are documented here.
 
 ## Unreleased
 
+### Added
+
+- `Transformer` (`ToHTML` / `ToText`) and `Compose`, which renders a template
+  into `TransactionalData` for a single recipient.
+
 ## 0.3.3 - 2026-09-17
 
 ### Changed
