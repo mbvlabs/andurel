@@ -19,6 +19,48 @@ type CORSConfig struct {
 	Skipper          func(ctx context.Context) bool
 }
 
+// DefaultCORS returns the application CORS policy. Origins are trimmed and
+// deduplicated, and credentials are allowed so the session cookie travels.
+func DefaultCORS(origins ...string) CORSConfig {
+	return CORSConfig{
+		AllowOrigins: MergeOrigins(origins),
+		AllowMethods: []string{
+			http.MethodGet,
+			http.MethodHead,
+			http.MethodPost,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+			http.MethodOptions,
+		},
+		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}
+}
+
+// MergeOrigins flattens origin groups in order, trimming whitespace and
+// dropping blanks and duplicates.
+func MergeOrigins(groups ...[]string) []string {
+	seen := make(map[string]struct{})
+	origins := make([]string, 0)
+	for _, group := range groups {
+		for _, origin := range group {
+			origin = strings.TrimSpace(origin)
+			if origin == "" {
+				continue
+			}
+			if _, ok := seen[origin]; ok {
+				continue
+			}
+			seen[origin] = struct{}{}
+			origins = append(origins, origin)
+		}
+	}
+
+	return origins
+}
+
 // CORS returns middleware that answers cross-origin preflight requests and
 // annotates actual responses with the matching Access-Control headers.
 func CORS(cfg CORSConfig) Middleware {

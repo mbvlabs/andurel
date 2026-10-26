@@ -28,6 +28,59 @@ type CSRFConfig struct {
 	Skipper        func(ctx context.Context) bool
 }
 
+// DefaultCSRF returns the application CSRF policy. A strategy of
+// "header_or_legacy_token" also accepts the legacy form field.
+func DefaultCSRF(strategy string, secure bool, origins ...string) CSRFConfig {
+	tokenLookup := "header:X-CSRF-Token"
+	if strategy == "header_or_legacy_token" {
+		tokenLookup = "header:X-CSRF-Token,form:_csrf"
+	}
+
+	return CSRFConfig{
+		TokenLookup:  tokenLookup,
+		CookieName:   "_csrf",
+		CookiePath:   "/",
+		CookieSecure: secure,
+		//nolint:gosec // HttpOnly is safe: the token is only read server-side.
+		CookieHTTPOnly: true,
+		CookieSameSite: http.SameSiteStrictMode,
+		TrustedOrigins: MergeOrigins(origins),
+	}
+}
+
+// SkipCSRFForBearer lets API requests that carry a bearer token and no
+// application session cookie skip CSRF checks. A request with the session
+// cookie is always checked, because the browser attaches that cookie on its own.
+func SkipCSRFForBearer(apiPrefix, sessionCookie string) func(context.Context) bool {
+	prefix := strings.TrimSuffix(apiPrefix, "/")
+
+	return func(ctx context.Context) bool {
+		request := Request(ctx)
+		if request == nil {
+			return false
+		}
+		_, cookieErr := request.Cookie(sessionCookie)
+
+		return isAPIPath(prefix, request.URL.Path) &&
+			hasNonEmptyBearerToken(request.Header.Get("Authorization")) &&
+			cookieErr != nil
+	}
+}
+
+func isAPIPath(prefix, path string) bool {
+	if prefix == "" {
+		return false
+	}
+
+	return path == prefix || strings.HasPrefix(path, prefix+"/")
+}
+
+func hasNonEmptyBearerToken(authorization string) bool {
+	parts := strings.Fields(authorization)
+
+	return len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") && parts[1] != ""
+}
+
 type csrfSource struct {
 	kind string
 	name string

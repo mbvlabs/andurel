@@ -4,6 +4,22 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+### Added
+
+- `StaticFS` serves an `fs.FS` for the route wildcard `path`, with the same
+  path cleaning, 404 handling, content types and optional `Immutable` ETag /
+  cache headers previously generated in application code. It returns
+  `(Handler, error)` so an ETag walk failure other than a missing root surfaces
+  at startup, and its explicit content-type table keeps fonts typed on images
+  without `/etc/mime.types`.
+- `RobotsTxt` and `Sitemap` build the `robots.txt` and sitemap XML responses.
+- `Health` wraps a health checker with the generated 200/503 responses.
+- `RateLimit` counts attempts per route and client IP through a `Counter`;
+  `cache.Store` satisfies the interface.
+- `SkipCSRFForBearer` is the bearer-token CSRF skipper for API requests.
+- `DefaultCORS`, `DefaultCSRF`, and `MergeOrigins` carry the application CORS
+  and CSRF policy that used to live in the runtime template.
+
 ## 0.2.1 - 2026-10-20
 
 ### Changed

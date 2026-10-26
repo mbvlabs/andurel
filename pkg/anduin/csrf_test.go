@@ -1,0 +1,94 @@
+package anduin
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+const testAppSessionName = "app_sess_andurel-dev"
+
+func TestSkipCSRFForBearerPathBoundary(t *testing.T) {
+	skip := SkipCSRFForBearer("/api", testAppSessionName)
+
+	tests := []struct {
+		name string
+		path string
+		want bool
+	}{
+		{name: "exact prefix", path: "/api", want: true},
+		{name: "below prefix", path: "/api/users", want: true},
+		{name: "prefix contained in segment", path: "/v1/api/users", want: false},
+		{name: "prefix starts another segment", path: "/apiary", want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, test.path, nil)
+			request.Header.Set("Authorization", "Bearer token")
+			ctx := ReplaceRequest(context.Background(), request)
+
+			if got := skip(ctx); got != test.want {
+				t.Fatalf("SkipCSRFForBearer(%q) = %t, want %t", test.path, got, test.want)
+			}
+		})
+	}
+}
+
+func TestSkipCSRFForBearerRequiresBearerWithoutApplicationSession(t *testing.T) {
+	skip := SkipCSRFForBearer("/api", testAppSessionName)
+
+	tests := []struct {
+		name          string
+		authorization string
+		path          string
+		sessionCookie bool
+		want          bool
+	}{
+		{name: "bearer API request", authorization: "Bearer token", path: "/api/users", want: true},
+		{name: "empty authorization", path: "/api/users", want: false},
+		{name: "empty bearer token", authorization: "Bearer", path: "/api/users", want: false},
+		{
+			name:          "malformed bearer header",
+			authorization: "Bearer token extra",
+			path:          "/api/users",
+			want:          false,
+		},
+		{
+			name:          "other authorization scheme",
+			authorization: "Basic token",
+			path:          "/api/users",
+			want:          false,
+		},
+		{name: "non API path", authorization: "Bearer token", path: "/users", want: false},
+		{
+			name:          "cookie authenticated API request",
+			authorization: "Bearer token",
+			path:          "/api/users",
+			sessionCookie: true,
+			want:          false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, test.path, nil)
+			request.Header.Set("Authorization", test.authorization)
+			if test.sessionCookie {
+				request.AddCookie(&http.Cookie{Name: testAppSessionName, Value: "session"})
+			}
+			ctx := ReplaceRequest(context.Background(), request)
+
+			if got := skip(ctx); got != test.want {
+				t.Fatalf("SkipCSRFForBearer(%q) = %t, want %t", test.path, got, test.want)
+			}
+		})
+	}
+}
+
+func TestSkipCSRFForBearerWithoutRequest(t *testing.T) {
+	if SkipCSRFForBearer("/api", testAppSessionName)(context.Background()) {
+		t.Fatal("SkipCSRFForBearer returned true without a request")
+	}
+}
