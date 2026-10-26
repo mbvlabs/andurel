@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel validation module are documented h
 
 ## Unreleased
 
+## 0.3.0 - 2026-10-26
+
 ### BREAKING
 
 - Removed the deprecated `Validate` function and `Validatable` interface. Call

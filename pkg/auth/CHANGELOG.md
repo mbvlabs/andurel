@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel auth module are documented here.
 
 ## Unreleased
 
+## 0.2.0 - 2026-10-26
+
 ### Added
 
 - `DummyVerify` runs a full argon2id verification against a fixed package hash

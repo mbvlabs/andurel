@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel email module are documented here.
 
 ## Unreleased
 
+## 0.5.0 - 2026-10-26
+
 ### Added
 
 - `SMTPConfig` and `NewSMTP`, a production SMTP sender with STARTTLS,

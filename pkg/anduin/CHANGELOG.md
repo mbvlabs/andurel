@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+## 0.4.0 - 2026-10-26
+
 ### Added
 
 - `WithHosts` installs the explicit `*routing.Hosts` registry used to dispatch

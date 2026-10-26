@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+## 0.5.0 - 2026-10-26
+
 ### BREAKING
 
 - Replaced the package-level `ConfigureHosts` registry and its `LookupHost`,
