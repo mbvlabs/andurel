@@ -612,9 +612,38 @@ func renderTemplate(
 
 func templateFuncMap() template.FuncMap {
 	return template.FuncMap{
-		"lower":   strings.ToLower,
-		"toSnake": ToSnakeCase,
+		"lower":          strings.ToLower,
+		"toSnake":        ToSnakeCase,
+		"goStructFields": formatGoStructFields,
 	}
+}
+
+// formatGoStructFields renders fields with the same column alignment gofmt
+// produces, so templates that loop over blueprint fields stay gofmt-clean.
+func formatGoStructFields(fields []blueprint.Field) string {
+	if len(fields) == 0 {
+		return ""
+	}
+
+	maxName, maxType := 0, 0
+	for _, field := range fields {
+		maxName = max(maxName, len(field.Name))
+		maxType = max(maxType, len(field.Type))
+	}
+
+	var b strings.Builder
+	for _, field := range fields {
+		fmt.Fprintf(
+			&b,
+			"\t%-*s %-*s `json:%q`\n",
+			maxName,
+			field.Name,
+			maxType,
+			field.Type,
+			ToSnakeCase(field.Name)+",omitempty",
+		)
+	}
+	return b.String()
 }
 
 // ToSnakeCase converts PascalCase or camelCase identifiers to snake_case

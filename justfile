@@ -142,6 +142,14 @@ test-golden: install-dev-tools
 test-golden-full: install-dev-tools
     ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m
 
+# Upgrade a released alpha.4 app to HEAD and compile it (nightly / readiness)
+test-upgrade-e2e:
+    ANDUREL_UPGRADE_E2E=1 go test ./layout/upgrade -run TestUpgradeAlpha4ToHEAD -count=1 -v -timeout 45m
+
+# Generate an app and drive it through the agent-first commands end to end
+e2e:
+    bash scripts/e2e.sh
+
 # Fail if gofmt would change any file
 check-fmt:
     #!/usr/bin/env bash
@@ -241,10 +249,11 @@ commands-check:
 docs-sync:
     go run . commands --write-docs
 
-# Nightly / release-readiness suite (full goldens + race)
+# Nightly / release-readiness suite (full goldens + upgrade e2e + race)
 ci-nightly:
     @just vet
     @just test-golden-full
+    @just test-upgrade-e2e
     @just test-race
 
 # Local alias for the full release-readiness validation suite
@@ -257,6 +266,7 @@ ci-readiness:
     @just vulncheck
     @just test-race
     @just test-golden-full
+    @just test-upgrade-e2e
 
 # Local alias for the PR CI suite
 ci:
@@ -294,6 +304,31 @@ clean-test:
 # ============================================================================
 # Release
 # ============================================================================
+
+# Validate hand-written release notes for tag and print goreleaser's
+# --release-notes flag when docs/release-notes/<tag>.md exists.
+# v2 tags at or after v2.0.0-alpha.5 must have a notes file.
+check-release-notes tag:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tag="{{ tag }}"
+    if [[ ! "${tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+        echo "release tag ${tag} does not match the required semantic tag pattern" >&2
+        exit 1
+    fi
+    notes="docs/release-notes/${tag}.md"
+    if [[ -f "${notes}" ]]; then
+        printf -- '--release-notes %s\n' "${notes}"
+        exit 0
+    fi
+    if [[ "${tag}" != v2.* ]]; then
+        exit 0
+    fi
+    if [[ "$(printf '%s\n%s\n' 'v2.0.0-alpha.5' "${tag}" | sort -V | head -n1)" == "v2.0.0-alpha.5" ]]; then
+        echo "missing release notes: ${notes}" >&2
+        echo "v2 tags at or after v2.0.0-alpha.5 must ship hand-written release notes." >&2
+        exit 1
+    fi
 
 # Verify a release tag peels to the expected commit and matches HEAD
 verify-release-tag tag sha:

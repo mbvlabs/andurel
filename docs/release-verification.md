@@ -9,7 +9,7 @@ Official releases contain four archives:
 | macOS | amd64 | `darwin_amd64.tar.gz` |
 | macOS | arm64 | `darwin_arm64.tar.gz` |
 
-Windows is not supported in Andurel v1. Each archive has a matching `.sbom.json` SPDX SBOM. The release also contains `checksums.txt`, `sbom-checksums.txt`, and a keyless Sigstore bundle for each manifest.
+Windows is not supported in Andurel v2. Each archive has a matching `.sbom.json` SPDX SBOM. The release also contains `checksums.txt`, `sbom-checksums.txt`, and a keyless Sigstore bundle for each manifest.
 
 The release workflow installs and executes every archive on its native operating system and architecture before making the draft public. It also publishes GitHub artifact attestations for every archive and SBOM.
 
@@ -18,7 +18,7 @@ The release workflow installs and executes every archive on its native operating
 Set the version without the leading `v`, then download one archive and the verification metadata:
 
 ```bash
-VERSION=1.0.0
+VERSION=2.0.0-alpha.5
 TAG="v${VERSION}"
 ARCHIVE="andurel_${VERSION}_linux_amd64.tar.gz"
 

@@ -1,4 +1,4 @@
-name: Nightly Test Suite
+name: Nightly E2E
 
 on:
   schedule:
@@ -6,12 +6,28 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-full:
-    name: Full Test Suite
+  e2e:
+    name: Generated app end-to-end
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
       GOWORK: 'off'
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout code
@@ -24,14 +40,24 @@ jobs:
           check-latest: false
           cache: true
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+
       - name: Install just
         uses: taiki-e/install-action@just
 
       - name: Download dependencies
         run: go mod download
 
-      - name: Run nightly test suite
-        run: just ci-nightly
+      - name: Run generated app end-to-end
+        run: just e2e
 
       - name: Notify on failure
         if: failure()
@@ -41,7 +67,7 @@ jobs:
             github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: 'Nightly Test Suite Failed',
-              body: `The nightly test suite failed. Please check the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId}) for details.`,
+              title: 'Nightly E2E Failed',
+              body: `The generated app end-to-end check failed. Please check the [workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId}) for details.`,
               labels: ['nightly-failure', 'automated']
             })

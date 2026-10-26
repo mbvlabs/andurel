@@ -43,6 +43,10 @@ jobs:
         shell: bash
         run: just verify-release-tag "${GITHUB_REF_NAME}" "${GITHUB_SHA}"
 
+      - name: Validate release notes
+        shell: bash
+        run: just check-release-notes "${GITHUB_REF_NAME}" >/dev/null
+
       - name: Verify post-merge readiness for the tagged commit
         shell: bash
         env:
@@ -132,6 +136,11 @@ jobs:
             exit 1
           fi
 
+      - name: Validate release notes
+        id: release-notes
+        shell: bash
+        run: echo "args=$(just check-release-notes "${GITHUB_REF_NAME}")" >> "${GITHUB_OUTPUT}"
+
       - name: Check GoReleaser configuration
         uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8 # v7.2.1
         with:
@@ -144,7 +153,7 @@ jobs:
         with:
           distribution: goreleaser
           version: ${{ env.GORELEASER_VERSION }}
-          args: release --clean
+          args: release --clean ${{ steps.release-notes.outputs.args }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
