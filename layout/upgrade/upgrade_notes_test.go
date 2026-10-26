@@ -187,6 +187,186 @@ func TestStorageTestClusterManualActionVersionGate(t *testing.T) {
 	}
 }
 
+func TestRoutingHostsManualActionVersionGate(t *testing.T) {
+	tests := []struct {
+		name string
+		from string
+		to   string
+		want bool
+	}{
+		{name: "alpha.4 to alpha.5", from: "v2.0.0-alpha.4", to: "v2.0.0-alpha.5", want: true},
+		{name: "alpha.4 to stable", from: "v2.0.0-alpha.4", to: "v2.0.0", want: true},
+		{name: "already on alpha.5", from: "v2.0.0-alpha.5", to: "v2.0.0", want: false},
+		{name: "target predates change", from: "v2.0.0-alpha.3", to: "v2.0.0-alpha.4", want: false},
+		{name: "development version", from: "dev", to: "v2.0.0", want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			action := findManualAction(t, test.from, test.to, "routing-hosts-v2.0.0-alpha.5")
+			if got := action != nil; got != test.want {
+				t.Fatalf("routing hosts action present = %t, want %t", got, test.want)
+			}
+			if action == nil {
+				return
+			}
+
+			for _, want := range []string{
+				"routing.ConfigureHosts",
+				"routing.NewHosts(cfg.App.Hosts)",
+				"anduin.WithHosts(hosts)",
+				"routes.ViteBuild.FullURL(hosts)",
+				"services.NewIdentity",
+				"BuildPathURL",
+				"andurel patterns show composition",
+				"go vet ./...",
+			} {
+				if !strings.Contains(action.Instructions, want) {
+					t.Errorf("manual action missing %q:\n%s", want, action.Instructions)
+				}
+			}
+		})
+	}
+}
+
+func TestSessionRevocationManualActionVersionGate(t *testing.T) {
+	tests := []struct {
+		name string
+		from string
+		to   string
+		want bool
+	}{
+		{name: "alpha.4 to alpha.5", from: "v2.0.0-alpha.4", to: "v2.0.0-alpha.5", want: true},
+		{name: "alpha.4 to stable", from: "v2.0.0-alpha.4", to: "v2.0.0", want: true},
+		{name: "already on alpha.5", from: "v2.0.0-alpha.5", to: "v2.0.0", want: false},
+		{name: "target predates change", from: "v2.0.0-alpha.3", to: "v2.0.0-alpha.4", want: false},
+		{name: "development version", from: "dev", to: "v2.0.0", want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			action := findManualAction(t, test.from, test.to, "session-revocation-v2.0.0-alpha.5")
+			if got := action != nil; got != test.want {
+				t.Fatalf("session revocation action present = %t, want %t", got, test.want)
+			}
+			if action == nil {
+				return
+			}
+
+			for _, want := range []string{
+				"andurel generate migration add_session_version_to_users",
+				"session_version INTEGER NOT NULL DEFAULT 1",
+				"andurel sync queries",
+				"BumpSessionVersion",
+				"middleware.AuthOnly(users)",
+				"SessionVersion  int32",
+				"andurel patterns show domain",
+				"andurel patterns show composition",
+				"keeps building without it",
+			} {
+				if !strings.Contains(action.Instructions, want) {
+					t.Errorf("manual action missing %q:\n%s", want, action.Instructions)
+				}
+			}
+		})
+	}
+}
+
+func TestEmailSMTPManualActionVersionGate(t *testing.T) {
+	tests := []struct {
+		name string
+		from string
+		to   string
+		want bool
+	}{
+		{name: "alpha.4 to alpha.5", from: "v2.0.0-alpha.4", to: "v2.0.0-alpha.5", want: true},
+		{name: "alpha.4 to stable", from: "v2.0.0-alpha.4", to: "v2.0.0", want: true},
+		{name: "already on alpha.5", from: "v2.0.0-alpha.5", to: "v2.0.0", want: false},
+		{name: "target predates change", from: "v2.0.0-alpha.3", to: "v2.0.0-alpha.4", want: false},
+		{name: "development version", from: "dev", to: "v2.0.0", want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			action := findManualAction(t, test.from, test.to, "email-smtp-v2.0.0-alpha.5")
+			if got := action != nil; got != test.want {
+				t.Fatalf("email SMTP action present = %t, want %t", got, test.want)
+			}
+			if action == nil {
+				return
+			}
+
+			for _, want := range []string{
+				"config.App",
+				"newEmailSenders(cfg.Mail, cfg.App)",
+				"email.NewSMTP",
+				"EMAIL_PROVIDER=smtp",
+				"optional",
+			} {
+				if !strings.Contains(action.Instructions, want) {
+					t.Errorf("manual action missing %q:\n%s", want, action.Instructions)
+				}
+			}
+		})
+	}
+}
+
+func TestValidationManualActionVersionGate(t *testing.T) {
+	tests := []struct {
+		name string
+		from string
+		to   string
+		want bool
+	}{
+		{name: "alpha.4 to alpha.5", from: "v2.0.0-alpha.4", to: "v2.0.0-alpha.5", want: true},
+		{name: "alpha.4 to stable", from: "v2.0.0-alpha.4", to: "v2.0.0", want: true},
+		{name: "already on alpha.5", from: "v2.0.0-alpha.5", to: "v2.0.0", want: false},
+		{name: "target predates change", from: "v2.0.0-alpha.3", to: "v2.0.0-alpha.4", want: false},
+		{name: "development version", from: "dev", to: "v2.0.0", want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			action := findManualAction(t, test.from, test.to, "validation-validate-v2.0.0-alpha.5")
+			if got := action != nil; got != test.want {
+				t.Fatalf("validation action present = %t, want %t", got, test.want)
+			}
+			if action == nil {
+				return
+			}
+
+			for _, want := range []string{
+				"validation.Validate",
+				"entity.Validate()",
+				"domains/user.go",
+				"domains/token.go",
+				"andurel patterns show domain",
+			} {
+				if !strings.Contains(action.Instructions, want) {
+					t.Errorf("manual action missing %q:\n%s", want, action.Instructions)
+				}
+			}
+		})
+	}
+}
+
+func findManualAction(t *testing.T, from, to, id string) *ManualAction {
+	t.Helper()
+
+	actions, err := manualActionsForUpgrade(from, to, true)
+	if err != nil {
+		t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
+	}
+
+	for i := range actions {
+		if actions[i].ID == id {
+			return &actions[i]
+		}
+	}
+
+	return nil
+}
+
 // TestAlpha4UpgradeReportsAlpha5ManualActions guards the plan wiring: the
 // alpha.5 package and storagetest actions must reach the report, not just
 // manualActionsForUpgrade. alpha.4 is the first version that can be upgraded
@@ -225,6 +405,10 @@ func TestAlpha4UpgradeReportsAlpha5ManualActions(t *testing.T) {
 	for _, want := range []string{
 		"package-api-v2.0.0-alpha.5",
 		"storage-storagetest-v2.0.0-alpha.5",
+		"routing-hosts-v2.0.0-alpha.5",
+		"session-revocation-v2.0.0-alpha.5",
+		"email-smtp-v2.0.0-alpha.5",
+		"validation-validate-v2.0.0-alpha.5",
 	} {
 		if !got[want] {
 			t.Fatalf("alpha.4 to alpha.5 report is missing %q: %#v", want, report.ManualActions)

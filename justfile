@@ -146,6 +146,10 @@ test-golden-full: install-dev-tools
 test-upgrade-e2e:
     ANDUREL_UPGRADE_E2E=1 go test ./layout/upgrade -run TestUpgradeAlpha4ToHEAD -count=1 -v -timeout 45m
 
+# Same upgrade, with every pkg/* replaced by this checkout (unpublished changes)
+test-upgrade-e2e-local:
+    ANDUREL_UPGRADE_E2E=1 ANDUREL_UPGRADE_E2E_LOCAL_PKG=1 go test ./layout/upgrade -run TestUpgradeAlpha4ToHEAD -count=1 -v -timeout 45m
+
 # Generate an app and drive it through the agent-first commands end to end
 e2e:
     bash scripts/e2e.sh

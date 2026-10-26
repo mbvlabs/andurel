@@ -9,6 +9,17 @@ Review of `master` at `10d6000d` (2026-10-09) against `v2.0.0-alpha.3`, covering
 
 Tests, vet, lint, and full goldens pass on HEAD (nightly `ci-nightly`). The blockers are in the release gate, the upgrade path, generated auth code, and `pkg/hypermedia`.
 
+### Status on `feat/v2-release-readiness` (2026-10-26)
+
+Every _beta_ item is fixed or moot. The agent-first port deleted `pkg/hypermedia`, `pkg/server`, Echo controllers and Fx, which removed S2, C6 and L9. The checkboxes below are ticked where the fix landed; unticked items under a moot finding refer to deleted code.
+
+Still open:
+
+- L6: expired tokens are never deleted.
+- R2 / hygiene: `pkg/*` `go.mod` minimums stay at Go 1.27.1. CI scans with Go 1.27.3.
+- Process: route direct pushes to `master` through PRs.
+- `GO-2026-5932` (`crypto/openpgp` in `golang.org/x/crypto`) has no fixed version. It is imported by `pkg/auth` and `pkg/storage` but never called.
+
 Each item has an ID for tracking in issues and PRs. Severity: **H** high, **M** medium, **L** low.
 
 ## Release blockers
@@ -20,8 +31,8 @@ Each item has an ID for tracking in issues and PRs. Severity: **H** high, **M** 
 | R3 | alpha.4 | fixed in `fa42d244` |
 | R4 | beta | fixed |
 | R5 | beta | fixed in `3108ae68` |
-| R6 | beta | open |
-| R7 | beta | open |
+| R6 | beta | fixed: `TestUpgradeAlpha4ToHEAD` (`just test-upgrade-e2e`) |
+| R7 | beta | fixed: `docs/release-notes/<tag>.md`, enforced by `just check-release-notes` |
 
 ### R1 — Release Readiness is red on `master`
 
@@ -63,23 +74,23 @@ A local `govulncheck` reports nine reachable vulnerabilities in `net/http`, `net
 
 Upgrade fixtures are all V1 (`v1.0.3 → v1.1.0`, `v1.5.x`). R3 would have been caught by a V2 fixture.
 
-- [ ] Add an alpha.N to HEAD upgrade test that also compiles the result.
+- [x] Add an alpha.N to HEAD upgrade test that also compiles the result.
 
 ### R7 — Release notes are empty
 
 The `v2.0.0-alpha.3` GitHub release body is just `## Changelog`, because `.goreleaser.yaml` excludes `^chore:` and nearly every recent commit uses that prefix.
 
-- [ ] Write release notes by hand for pre-releases, or adjust the changelog filters and commit prefixes.
+- [x] Write release notes by hand for pre-releases, or adjust the changelog filters and commit prefixes.
 
 ### Release hygiene
 
-- [ ] Add `govulncheck` for each `pkg/*` module to CI. Locally, `pkg/storage` has vulnerable `golang.org/x/crypto` v0.52.0, `golang.org/x/text` v0.38.0, and `github.com/moby/go-archive` v0.2.0. `pkg/telemetry` has vulnerable `golang.org/x/net` v0.58.0. Fixing them requires package releases, changelog entries, and a `layout/versions/versions.go` bump.
-- [ ] Run `just lint` and `just vulncheck` in PR CI (`just ci-pr`). PR #811 merged green, then Release Readiness failed on `master` because golangci-lint v2.13.2 cannot read Go 1.27.2 export data. The readiness gate was the first job to run lint against the new toolchain.
+- [x] Add `govulncheck` for each `pkg/*` module to CI. Locally, `pkg/storage` has vulnerable `golang.org/x/crypto` v0.52.0, `golang.org/x/text` v0.38.0, and `github.com/moby/go-archive` v0.2.0. `pkg/telemetry` has vulnerable `golang.org/x/net` v0.58.0. Fixing them requires package releases, changelog entries, and a `layout/versions/versions.go` bump.
+- [x] Run `just lint` and `just vulncheck` in PR CI (`just ci-pr`). PR #811 merged green, then Release Readiness failed on `master` because golangci-lint v2.13.2 cannot read Go 1.27.2 export data. The readiness gate was the first job to run lint against the new toolchain.
 - [x] Delete `go1-27.md`, which is a committed Codex conversation transcript.
-- [ ] Close issue #807; the nightly suite has passed since.
-- [ ] Rename `e2e-nightly.yml`, or make it run an end-to-end check (create, migrate, serve) on a generated application.
+- [x] Close issue #807; the nightly suite has passed since.
+- [x] Rename `e2e-nightly.yml`, or make it run an end-to-end check (create, migrate, serve) on a generated application.
 - [ ] Route direct pushes to `master` (for example `41304cf0`) through PRs.
-- [ ] Update stale documentation:
+- [x] Update stale documentation:
   - `docs/release-verification.md` still says "Andurel v1" and uses `VERSION=1.0.0`.
   - `plans/version-two.md` says the module path has no major suffix, but `go.mod` declares `/v2`.
   - `README.md` labels `@v2.0.0` as "Latest stable", but that tag does not exist yet.
@@ -89,11 +100,11 @@ The `v2.0.0-alpha.3` GitHub release body is just `## Changelog`, because `.gorel
 | ID | Sev | Target | Area | Status |
 | --- | --- | --- | --- | --- |
 | S1 | H | alpha.4 | generated auth | fixed |
-| S2 | H | alpha.4 | `pkg/hypermedia` | open |
-| S3 | H | beta | generated middleware | open |
-| S4 | M | beta | generated auth, `pkg/kiks` | open |
-| S5 | M | beta | generated auth | open |
-| S6 | M | beta | generated controllers | open |
+| S2 | H | alpha.4 | `pkg/hypermedia` | moot: `pkg/hypermedia` was deleted |
+| S3 | H | beta | generated middleware | fixed: trusted proxies (`anduin.RealIP`), limiter on every auth POST, 429 with `Retry-After` |
+| S4 | M | beta | generated auth, `pkg/kiks` | fixed: `users.session_version`, checked by `AuthOnly(users)`; admin read from the database |
+| S5 | M | beta | generated auth | fixed: `auth.DummyVerify` on the not-found path |
+| S6 | M | beta | generated controllers | fixed: controllers are gone; handlers log unmapped errors and return status text only |
 
 ### S1 — Email verification codes allow account takeover
 
@@ -134,69 +145,69 @@ Further limitations:
 - It is capped at 1000 entries (LRU), so a flood of distinct IPs resets counters.
 - It answers `429` with the redirect URL as the response body.
 
-- [ ] Add trusted-proxy configuration (for example `HTTP_TRUSTED_PROXIES`) and set `echo.IPExtractor` with `echo.ExtractIPFromXFFHeader(echo.TrustIPRange(…))`.
-- [ ] Return a meaningful 429 response.
-- [ ] Apply the limiter to `ConfirmationCreate`, `PasswordCreate`, and `PasswordUpdate` (S1).
+- [x] Add trusted-proxy configuration (for example `HTTP_TRUSTED_PROXIES`) and set `echo.IPExtractor` with `echo.ExtractIPFromXFFHeader(echo.TrustIPRange(…))`.
+- [x] Return a meaningful 429 response.
+- [x] Apply the limiter to `ConfirmationCreate`, `PasswordCreate`, and `PasswordUpdate` (S1).
 
 ### S4 — Sessions cannot be revoked
 
 The generated jar uses the stateless `kiks.CookieStore`, and `cookies.App` carries `IsAdmin`. Logout, password reset, and admin demotion leave other copies of the cookie valid for up to `SESSION_MAX_AGE` (7 days by default).
 
-- [ ] Add a per-user session version or generation to the user record, store it in the cookie, and check it in `AuthOnly`. Alternatively, productize the database-backed store.
-- [ ] Resolve admin status from the database instead of the cookie.
+- [x] Add a per-user session version or generation to the user record, store it in the cookie, and check it in `AuthOnly`. Alternatively, productize the database-backed store.
+- [x] Resolve admin status from the database instead of the cookie.
 
 ### S5 — Login timing reveals which emails have accounts
 
 `Identity.AuthenticateUser` (`services_authentication.tmpl`) returns immediately for an unknown email and runs Argon2 only for known ones.
 
-- [ ] Run a dummy Argon2 comparison on the not-found path.
+- [x] Run a dummy Argon2 comparison on the not-found path.
 
 ### S6 — Generated controllers leak internal errors
 
 Generated CRUD controllers flash `fmt.Sprintf("Failed to create widget: %v", err)` to end users, which exposes database and constraint text. See `testdata/golden/generate/controller/full_crud/controllers/widgets.go.golden`.
 
-- [ ] Log the error and flash a generic message, keeping validation errors user-facing.
+- [x] Log the error and flash a generic message, keeping validation errors user-facing.
 
 ## Correctness and operations
 
 | ID | Sev | Target | Area | Status |
 | --- | --- | --- | --- | --- |
-| C1 | H | beta | `pkg/email`, generated runtime | open |
-| C2 | M | beta | generated runtime | open |
-| C3 | M | beta | generated auth | open |
-| C4 | M | beta | generated auth views | open |
-| C5 | M | beta | `pkg/storage` | open |
-| C6 | M | beta | `pkg/hypermedia`, `pkg/server` | open |
-| C7 | M | beta | generated controllers | open |
+| C1 | H | beta | `pkg/email`, generated runtime | fixed: `email.NewSMTP`, `EMAIL_PROVIDER=smtp`, Mailpit refused in production |
+| C2 | M | beta | generated runtime | fixed: Fx is gone; `Server.Start` blocks and returns bind errors to `lifecycle.Run` |
+| C3 | M | beta | generated auth | fixed: enqueue inside the registration transaction, `ResendEmailVerification`, duplicate email answers like success |
+| C4 | M | beta | generated auth views | fixed: generic Inertia errors for login, code and reset failures |
+| C5 | M | beta | `pkg/storage` | fixed: `pkg/storage/storagetest` |
+| C6 | M | beta | `pkg/hypermedia`, `pkg/server` | moot: both packages were deleted |
+| C7 | M | beta | generated controllers | fixed: handler pattern maps decode → 400, only `ErrNotFound` → 404; `storage.Page` clamps |
 
 ### C1 — No production email transport
 
 `NewEmailSenders` (`layout/templates/runtime_runtime.tmpl:89`) supports only the `mailpit` driver, which uses `smtp.SendMail` with no authentication. Registration requires email verification, so a deployed application cannot onboard users without writing its own sender.
 
-- [ ] Add at least one production driver, such as generic SMTP with authentication and TLS, or an API provider.
-- [ ] Select the driver with `EMAIL_PROVIDER` and fail startup in production when it is `mailpit`.
+- [x] Add at least one production driver, such as generic SMTP with authentication and TLS, or an API provider.
+- [x] Select the driver with `EMAIL_PROVIDER` and fail startup in production when it is `mailpit`.
 
 ### C2 — The HTTP server can fail to bind while the process keeps running
 
 `startServer` (`layout/templates/runtime_server.tmpl`) runs `ListenAndServe` in a goroutine and returns `nil` from `OnStart`. A failed bind (port in use, permissions) is only logged. Fx keeps running and the process appears healthy while serving nothing.
 
-- [ ] Call `net.Listen` synchronously in `OnStart` and return its error, then `Serve` in the background.
+- [x] Call `net.Listen` synchronously in `OnStart` and return its error, then `Serve` in the background.
 - [ ] Have `pkg/server` expose a listener-based start.
 
 ### C3 — Registration can strand a user
 
 `Identity.RegisterUser` (`services_registration.tmpl`) commits the user and token, then enqueues the email with `Insert` outside the transaction. If the enqueue fails, the user exists without a code. There is no resend flow, and re-registering hits the unique-email constraint, which surfaces as a silent redirect.
 
-- [ ] Enqueue with `InsertTx` inside the registration transaction.
-- [ ] Add a resend-verification flow.
-- [ ] Map a duplicate email to a validation error, phrased to avoid account enumeration.
+- [x] Enqueue with `InsertTx` inside the registration transaction.
+- [x] Add a resend-verification flow.
+- [x] Map a duplicate email to a validation error, phrased to avoid account enumeration.
 
 ### C4 — Failed login, verification, and registration give no feedback
 
 On the Datastar path, `Sessions.Create`, `Confirmations.Create`, and `Registrations.Create` redirect with a 303 and no flash on non-validation errors. The form re-renders without a message.
 
-- [ ] Flash a message, or re-render with a generic error ("Invalid email or password", "Invalid or expired code").
-- [ ] Check the Inertia variants for the same behavior.
+- [x] Flash a message, or re-render with a generic error ("Invalid email or password", "Invalid or expired code").
+- [x] Check the Inertia variants for the same behavior.
 
 ### C5 — `pkg/storage` links test infrastructure into production binaries
 
@@ -217,23 +228,23 @@ The `pkg/server` and generated defaults set `WriteTimeout` to 30 seconds. `hyper
 - Any `Find` error in `Show` and `Edit`, including database outages, renders 404. Only `models.ErrNotFound` should.
 - In `Paginate`, a large `page` overflows `int32(offset)` into a negative `OFFSET`.
 
-- [ ] Fix the status mapping in the controller generator and the paginate template.
+- [x] Fix the status mapping in the controller generator and the paginate template.
 
 ## Low severity and cleanups
 
 | ID | Area | Item | Status |
 | --- | --- | --- | --- |
-| L1 | `pkg/email` | `Mailpit` writes the `Bcc` header into the message, which discloses Bcc recipients. It also uses a fixed MIME boundary, omits `Date` and `Message-ID`, does not RFC 2047 encode non-ASCII subjects, and ignores `ctx`. | open |
-| L2 | `pkg/kiks` | A `NewSession` `MaxAge` is applied to the jar-wide signed and encrypted codecs, so longer-lived signed or encrypted cookies are rejected early. | open |
-| L3 | `pkg/kiks` | `NewJar` and `NewCookieStore` do not validate the encryption key length (16, 24, or 32 bytes). A bad key fails at the first write instead of at startup. | open |
-| L4 | `pkg/validation`, generated `User` | No `Email` rule exists, so user email format is never validated. | open |
-| L5 | generated `User` | The stored Argon2 hash omits its parameters, so tuning them breaks existing hashes. Use a PHC-format string. | open |
-| L6 | generated `Token` | `GenerateCode` has modulo bias (`b % 36`). Expired tokens are never deleted, and no cleanup job exists. | open |
-| L7 | scaffold output | Fresh scaffolds are not gofmt-clean: imports in `controllers/assets.go` are unsorted, and the Inertia `controllers/sessions.go` and `controllers/confirmations.go` have mis-indented returns. Commit #806 left blank lines inside `if` blocks across `services_*.tmpl`. Add a golden test that runs gofmt on generated Go files. | open |
-| L8 | `pkg/routing` | `ConfigureHosts` installs a package-level mutable registry, which `plans/version-two.md` says to avoid. The generated router's `perHostMiddleware` is also a global. | open |
-| L9 | `pkg/hypermedia` | `MergeSignals` emits `datastar-merge-signals`, which Datastar 1.0 appears to have removed. Verify, then remove or deprecate. | open |
-| L10 | `pkg/inertia` | Page JSON is encoded with `SetEscapeHTML(false)`. `PageScript` escapes `/`, so `</script>` cannot break out, but a prop that contains `<!--<script` still breaks the document. Enable HTML escaping. | open |
-| L11 | generated registration | `Registrations.Create` logs the user's email at info level on every attempt. Consider logging only the domain or a hash. | open |
+| L1 | `pkg/email` | `Mailpit` writes the `Bcc` header into the message, which discloses Bcc recipients. It also uses a fixed MIME boundary, omits `Date` and `Message-ID`, does not RFC 2047 encode non-ASCII subjects, and ignores `ctx`. | fixed: shared MIME builder in `pkg/email/message.go` |
+| L2 | `pkg/kiks` | A `NewSession` `MaxAge` is applied to the jar-wide signed and encrypted codecs, so longer-lived signed or encrypted cookies are rejected early. | fixed: one codec per definition |
+| L3 | `pkg/kiks` | `NewJar` and `NewCookieStore` do not validate the encryption key length (16, 24, or 32 bytes). A bad key fails at the first write instead of at startup. | fixed: rejected at construction |
+| L4 | `pkg/validation`, generated `User` | No `Email` rule exists, so user email format is never validated. | fixed: `ValidationBuilder.Email` |
+| L5 | generated `User` | The stored Argon2 hash omits its parameters, so tuning them breaks existing hashes. Use a PHC-format string. | fixed: PHC strings; legacy hashes are rehashed on login |
+| L6 | generated `Token` | `GenerateCode` has modulo bias (`b % 36`). Expired tokens are never deleted, and no cleanup job exists. | bias fixed (`rand.Int`); expired-token cleanup in progress |
+| L7 | scaffold output | Fresh scaffolds are not gofmt-clean: imports in `controllers/assets.go` are unsorted, and the Inertia `controllers/sessions.go` and `controllers/confirmations.go` have mis-indented returns. Commit #806 left blank lines inside `if` blocks across `services_*.tmpl`. Add a golden test that runs gofmt on generated Go files. | fixed: `layout/gofmt_scaffold_test.go` |
+| L8 | `pkg/routing` | `ConfigureHosts` installs a package-level mutable registry, which `plans/version-two.md` says to avoid. The generated router's `perHostMiddleware` is also a global. | fixed: explicit `*routing.Hosts` from `NewHosts` |
+| L9 | `pkg/hypermedia` | `MergeSignals` emits `datastar-merge-signals`, which Datastar 1.0 appears to have removed. Verify, then remove or deprecate. | moot: `pkg/hypermedia` was deleted |
+| L10 | `pkg/inertia` | Page JSON is encoded with `SetEscapeHTML(false)`. `PageScript` escapes `/`, so `</script>` cannot break out, but a prop that contains `<!--<script` still breaks the document. Enable HTML escaping. | fixed: HTML escaping on |
+| L11 | generated registration | `Registrations.Create` logs the user's email at info level on every attempt. Consider logging only the domain or a hash. | fixed: logs the email domain and user ID only |
 
 ## Reviewed and found sound
 
