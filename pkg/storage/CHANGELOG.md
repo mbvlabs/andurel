@@ -4,6 +4,14 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+### Changed
+
+- Bump `golang.org/x/net` to v0.60.0 for GO-2026-6617, GO-2026-6612,
+  GO-2026-6611, GO-2026-6610, and GO-2026-6603, `golang.org/x/crypto` to
+  v0.57.0 for GO-2026-6355 and GO-2026-6354, `github.com/moby/go-archive`
+  to v0.3.0 for GO-2026-6253, and `google.golang.org/grpc` to v1.83.2 for
+  GO-2026-6443.
+
 ## 0.12.0 - 2026-10-26
 
 ### Added

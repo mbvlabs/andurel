@@ -46,7 +46,8 @@ type App struct {
 }
 
 func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
-	if err := routing.ConfigureHosts(cfg.App.Hosts); err != nil {
+	hosts, err := routing.NewHosts(cfg.App.Hosts)
+	if err != nil {
 		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
 	}
 
@@ -87,9 +88,17 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	users := domains.NewUsers(db)
 	tokens := domains.NewTokens(db)
 
-	identity := services.NewIdentity(transactor, users, tokens, queueInsert, cfg.Auth, cfg.Mail)
+	identity := services.NewIdentity(
+		transactor,
+		users,
+		tokens,
+		queueInsert,
+		cfg.Auth,
+		cfg.Mail,
+		hosts,
+	)
 
-	renderer, err := newRenderer(cfg)
+	renderer, err := newRenderer(cfg, hosts)
 	if err != nil {
 		return nil, err
 	}

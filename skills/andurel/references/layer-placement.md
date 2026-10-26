@@ -225,8 +225,8 @@ variable so handlers can register it and pages can build URLs:
   `routing.NewRouteWithFile`, `routing.NewRouteWithParams` as needed.
 
 Route values expose `Name() string`, `Path() string`, `URL(params ...string)
-string`, `FullURL(...) string`, `Host() routing.HostName`, and
-`IsInertia() bool`.
+string`, `FullURL(hosts *routing.Hosts, ...) string`, `Host()
+routing.HostName`, and `IsInertia() bool`.
 
 Handlers and services refer to these route values for registration and URL
 generation. Do not scatter raw path strings through handlers and pages when a

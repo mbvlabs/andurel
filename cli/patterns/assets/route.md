@@ -39,6 +39,8 @@ export const routes = {
 - Declare route data in `routes/`; never define the `Router` type there.
 - Route variables are the single source of truth for URLs used by handlers.
 - Bind a route to a named virtual host with `routing.Host(...)` when needed.
+  Build the host registry with `routing.NewHosts(...)`, pass it to
+  `anduin.WithHosts`, and pass the same value to `FullURL(hosts, ...)`.
 - Run `andurel sync routes` after changing Inertia route data.
 - `routes/` is data: the manifest can be inspected without a running server.
 

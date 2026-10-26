@@ -220,8 +220,8 @@ func (r Route) URL(opts ...RouteOption) string {
 	return applyOptions(configurePath(r.path, r.prefix, r.name), opts...)
 }
 
-func (r Route) FullURL(opts ...RouteOption) string {
-	return r.fullURL(r.URL(opts...))
+func (r Route) FullURL(hosts *Hosts, opts ...RouteOption) string {
+	return r.fullURL(hosts, r.URL(opts...))
 }
 
 func (r Route) Name() string {
@@ -268,8 +268,8 @@ func (r RouteWithUUIDID) URL(id uuid.UUID, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
-func (r RouteWithUUIDID) FullURL(id uuid.UUID, opts ...RouteOption) string {
-	return Route(r).fullURL(r.URL(id, opts...))
+func (r RouteWithUUIDID) FullURL(hosts *Hosts, id uuid.UUID, opts ...RouteOption) string {
+	return Route(r).fullURL(hosts, r.URL(id, opts...))
 }
 
 func (r RouteWithUUIDID) GetParam() string {
@@ -306,8 +306,8 @@ func (r RouteWithSerialID) URL(id int32, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
-func (r RouteWithSerialID) FullURL(id int32, opts ...RouteOption) string {
-	return Route(r).fullURL(r.URL(id, opts...))
+func (r RouteWithSerialID) FullURL(hosts *Hosts, id int32, opts ...RouteOption) string {
+	return Route(r).fullURL(hosts, r.URL(id, opts...))
 }
 
 func (r RouteWithSerialID) GetParam() string {
@@ -347,8 +347,8 @@ func (r RouteWithBigSerialID) URL(id int64, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
-func (r RouteWithBigSerialID) FullURL(id int64, opts ...RouteOption) string {
-	return Route(r).fullURL(r.URL(id, opts...))
+func (r RouteWithBigSerialID) FullURL(hosts *Hosts, id int64, opts ...RouteOption) string {
+	return Route(r).fullURL(hosts, r.URL(id, opts...))
 }
 
 func (r RouteWithBigSerialID) GetParam() string {
@@ -385,8 +385,8 @@ func (r RouteWithStringID) URL(id string, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
-func (r RouteWithStringID) FullURL(id string, opts ...RouteOption) string {
-	return Route(r).fullURL(r.URL(id, opts...))
+func (r RouteWithStringID) FullURL(hosts *Hosts, id string, opts ...RouteOption) string {
+	return Route(r).fullURL(hosts, r.URL(id, opts...))
 }
 
 func (r RouteWithStringID) GetParam() string {
@@ -422,8 +422,8 @@ func (r RouteWithSlug) URL(slug string, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
-func (r RouteWithSlug) FullURL(slug string, opts ...RouteOption) string {
-	return Route(r).fullURL(r.URL(slug, opts...))
+func (r RouteWithSlug) FullURL(hosts *Hosts, slug string, opts ...RouteOption) string {
+	return Route(r).fullURL(hosts, r.URL(slug, opts...))
 }
 
 func (r RouteWithSlug) GetParam() string {
@@ -459,8 +459,8 @@ func (r RouteWithToken) URL(token string, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
-func (r RouteWithToken) FullURL(token string, opts ...RouteOption) string {
-	return Route(r).fullURL(r.URL(token, opts...))
+func (r RouteWithToken) FullURL(hosts *Hosts, token string, opts ...RouteOption) string {
+	return Route(r).fullURL(hosts, r.URL(token, opts...))
 }
 
 func (r RouteWithToken) GetParam() string {
@@ -496,8 +496,8 @@ func (r RouteWithFile) URL(file string, opts ...RouteOption) string {
 	return applyOptions(path, opts...)
 }
 
-func (r RouteWithFile) FullURL(file string, opts ...RouteOption) string {
-	return Route(r).fullURL(r.URL(file, opts...))
+func (r RouteWithFile) FullURL(hosts *Hosts, file string, opts ...RouteOption) string {
+	return Route(r).fullURL(hosts, r.URL(file, opts...))
 }
 
 func (r RouteWithFile) GetParam() string {
@@ -560,8 +560,8 @@ func (r RouteWithParams[Params]) URL(params Params, opts ...RouteOption) string 
 	return applyOptions(route, opts...)
 }
 
-func (r RouteWithParams[Params]) FullURL(params Params, opts ...RouteOption) string {
-	return Route(r).fullURL(r.URL(params, opts...))
+func (r RouteWithParams[Params]) FullURL(hosts *Hosts, params Params, opts ...RouteOption) string {
+	return Route(r).fullURL(hosts, r.URL(params, opts...))
 }
 
 func (r RouteWithParams[Params]) Host() HostName {

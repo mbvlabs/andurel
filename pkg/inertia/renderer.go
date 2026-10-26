@@ -339,7 +339,6 @@ func (p *PageBuilder) Render() error {
 
 	var pageBuffer bytes.Buffer
 	encoder := json.NewEncoder(&pageBuffer)
-	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(page); err != nil {
 		return &Error{
 			Kind:      ErrorProps,

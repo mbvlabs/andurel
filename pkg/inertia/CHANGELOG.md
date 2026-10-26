@@ -1,5 +1,16 @@
 ## Unreleased
 
+### Changed
+
+- Bump `golang.org/x/net` to v0.60.0 for GO-2026-6617, GO-2026-6612,
+  GO-2026-6611, GO-2026-6610, and GO-2026-6603, and `google.golang.org/grpc`
+  to v1.83.2 for GO-2026-6443.
+
+### Fixed
+
+- Page JSON is HTML-escaped in both the JSON response and `PageScript`, so a
+  prop containing `</script>` or `<!--` cannot break out of the document.
+
 ## 0.9.0 - 2026-10-26
 
 ### Added

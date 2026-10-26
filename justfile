@@ -189,9 +189,21 @@ lint *args:
     GOLANGCI_LINT_CACHE="${lint_cache}" GOCACHE="${go_cache}" \
     	golangci-lint run --config .golangci.yml {{ args }}
 
-# Run govulncheck on the module
+# Run govulncheck on the module and standalone pkg/* modules
 vulncheck:
+    #!/usr/bin/env bash
+    set -euo pipefail
     govulncheck ./...
+    repo_root="$(pwd)"
+    while IFS= read -r module_file; do
+        module_dir="$(dirname "$module_file")"
+        echo "vulnchecking ${module_dir#"$repo_root"/}"
+        (
+            cd "$module_dir"
+            go mod download
+            govulncheck ./...
+        )
+    done < <(find "$repo_root/pkg" -mindepth 2 -maxdepth 2 -name go.mod -print | sort)
 
 # Run critical tests (vet + golden)
 test-critical:
@@ -212,7 +224,11 @@ check:
 
 # PR CI suite (Test workflow). Coverage stays a separate best-effort step.
 ci-pr:
+    @just check-fmt
+    @just check-fix
     @just vet
+    @just lint
+    @just vulncheck
     @just commands-check
     @just test-race
     @just test-golden

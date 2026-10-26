@@ -43,11 +43,11 @@ Generated auth code is application-owned, so `andurel upgrade` does not patch it
 
 ## Inertia Vite FullURL migration
 
-Starting with `v2.0.0-alpha.3`, Inertia production tags need an absolute Vite build URL so a secondary-host page loads the entry from the primary origin. Pass `routes.ViteBuild.FullURL()` into the renderer. `pkg/inertia` emits `crossorigin` on those tags. Generated `internal/runtime` is application-owned, so `andurel upgrade` does not rewrite `NewInertia`.
+Starting with `v2.0.0-alpha.3`, Inertia production tags need an absolute Vite build URL so a secondary-host page loads the entry from the primary origin. Pass `routes.ViteBuild.FullURL(hosts)` into the renderer. `pkg/inertia` emits `crossorigin` on those tags. Generated `internal/runtime` is application-owned, so `andurel upgrade` does not rewrite `NewInertia`.
 
 When an Inertia project upgrades from a version before `v2.0.0-alpha.3` to `v2.0.0-alpha.3` or later, `andurel upgrade` emits a version-gated manual action:
 
-1. In `NewInertia` (or the inertia renderer provider), pass `routes.ViteBuild.FullURL()` instead of `Path()`.
+1. In `NewInertia` (or the inertia renderer provider), pass `routes.ViteBuild.FullURL(hosts)` instead of `Path()`.
 2. Run `gofmt`, `go fix ./...`, and `go vet ./...` after reconciling application-owned code.
 
 Projects created at `v2.0.0-alpha.3` or later do not receive the note.

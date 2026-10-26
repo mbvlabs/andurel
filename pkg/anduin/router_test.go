@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
 func TestMuxPattern(t *testing.T) {
@@ -156,6 +158,35 @@ func TestRouterHostDispatch(t *testing.T) {
 	rt.Handler().ServeHTTP(recorder, request)
 	if got := recorder.Body.String(); got != "primary" {
 		t.Fatalf("primary body = %q, want primary", got)
+	}
+}
+
+func TestRouterHostDispatchWithHosts(t *testing.T) {
+	t.Parallel()
+
+	const hostAdmin routing.HostName = "admin"
+	hosts, err := routing.NewHosts(map[routing.HostName]routing.HostSpec{
+		routing.HostPrimary: {Hostname: "andurel.com", Protocol: "https"},
+		hostAdmin:           {Hostname: "admin.andurel.com", Aliases: []string{"manage.andurel.com"}},
+	})
+	if err != nil {
+		t.Fatalf("new hosts: %v", err)
+	}
+
+	rt := NewRouter(WithHosts(hosts))
+	rt.Get("/", func(ctx context.Context) error { return Text(ctx, http.StatusOK, "primary") })
+	rt.Host(hostAdmin).Get("/", func(ctx context.Context) error {
+		return Text(ctx, http.StatusOK, "admin")
+	})
+
+	for _, host := range []string{"admin.andurel.com", "manage.andurel.com:443"} {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/", nil)
+		request.Host = host
+		rt.Handler().ServeHTTP(recorder, request)
+		if got := recorder.Body.String(); got != "admin" {
+			t.Fatalf("host %q body = %q, want admin", host, got)
+		}
 	}
 }
 

@@ -24,7 +24,8 @@ type Queue struct {
 // cleanup as soon as it exists.
 func NewQueue(ctx context.Context, cfg config.Config) (_ *Queue, err error) {
 	// Workers render absolute links into emails, so routes need the hosts.
-	if err := routing.ConfigureHosts(cfg.App.Hosts); err != nil {
+	hosts, err := routing.NewHosts(cfg.App.Hosts)
+	if err != nil {
 		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
 	}
 
@@ -61,6 +62,7 @@ func NewQueue(ctx context.Context, cfg config.Config) (_ *Queue, err error) {
 		nil,
 		cfg.Auth,
 		cfg.Mail,
+		hosts,
 	)
 
 	processor, err := storage.NewQueueProcessor(

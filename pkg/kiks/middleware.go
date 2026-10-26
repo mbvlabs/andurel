@@ -328,11 +328,13 @@ func (jar *Jar) persist(
 }
 
 func (jar *Jar) encodeCookie(definition Definition, payload []byte) (string, error) {
-	return encodeCookieRaw(definition, jar.signed, jar.encrypted, payload)
+	name := definition.cookieName()
+	return encodeCookieRaw(definition, jar.signed[name], jar.encrypted[name], payload)
 }
 
 func (jar *Jar) decodeCookie(definition Definition, raw string) ([]byte, error) {
-	return decodeCookieRaw(definition, jar.signed, jar.encrypted, raw)
+	name := definition.cookieName()
+	return decodeCookieRaw(definition, jar.signed[name], jar.encrypted[name], raw)
 }
 
 func (jar *Jar) encodeFlashCookie(flashes []FlashMessage) (string, error) {
@@ -340,12 +342,12 @@ func (jar *Jar) encodeFlashCookie(flashes []FlashMessage) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return jar.encrypted.Encode(jar.flashName, encoded)
+	return jar.encrypted[jar.flashName].Encode(jar.flashName, encoded)
 }
 
 func (jar *Jar) decodeFlashCookie(raw string) ([]FlashMessage, error) {
 	var encoded []byte
-	if err := jar.encrypted.Decode(jar.flashName, raw, &encoded); err != nil {
+	if err := jar.encrypted[jar.flashName].Decode(jar.flashName, raw, &encoded); err != nil {
 		return nil, err
 	}
 	if len(encoded) == 0 {

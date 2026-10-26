@@ -60,11 +60,8 @@ type CookieStore struct {
 
 // NewCookieStore constructs a cookie-backed session store.
 func NewCookieStore(keys Keys) (*CookieStore, error) {
-	if len(keys.Authentication) < 32 {
-		return nil, errors.New("kiks: authentication key must be at least 32 bytes")
-	}
-	if len(keys.Encryption) == 0 {
-		return nil, errors.New("kiks: encryption key is required")
+	if err := validateKeys(keys); err != nil {
+		return nil, err
 	}
 	return &CookieStore{
 		codec: securecookie.New(keys.Authentication, keys.Encryption),

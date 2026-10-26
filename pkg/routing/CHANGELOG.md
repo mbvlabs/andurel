@@ -4,6 +4,13 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+### BREAKING
+
+- Replaced the package-level `ConfigureHosts` registry and its `LookupHost`,
+  `Hosts`, and `HostBaseURL` accessors with an explicit `*Hosts` value from
+  `NewHosts(map[HostName]HostSpec)` and `(*Hosts).Lookup`, `All`, and `BaseURL`.
+- `FullURL` now takes the `*Hosts` value to resolve the route's origin.
+
 ## 0.4.0 - 2026-09-27
 
 ### Added

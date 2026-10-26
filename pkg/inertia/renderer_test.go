@@ -149,8 +149,61 @@ func TestPageScriptEscapesClosingScript(t *testing.T) {
 		t.Fatalf("Render: %v", err)
 	}
 	if strings.Contains(output.String(), "</script></script>") ||
-		!strings.Contains(output.String(), `<\/script>`) {
+		!strings.Contains(output.String(), `\u003c\/script\u003e`) {
 		t.Fatalf("unsafe page script: %s", output.String())
+	}
+}
+
+func TestRenderedDocumentCannotBreakOutOfPageScript(t *testing.T) {
+	malicious := `</script><!--<script`
+	renderer, err := newTestRenderer(WithRoot(func(data RootData) templ.Component {
+		return PageScript(data.ContainerID, data.PageJSON)
+	}))
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	recorder := httptest.NewRecorder()
+	page := renderer.Page(testContext(request, recorder), "Home", Props{"value": malicious})
+	if err := page.Render(); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+
+	body := recorder.Body.String()
+	if strings.Contains(body, malicious) || strings.Contains(body, "<!--") {
+		t.Fatalf("document contains an unescaped prop: %s", body)
+	}
+	if got := strings.Count(body, "</script>"); got != 1 {
+		t.Fatalf("document has %d closing script tags, want 1: %s", got, body)
+	}
+	if !strings.Contains(body, `\u003c\/script\u003e`) {
+		t.Fatalf("document did not HTML-escape the prop: %s", body)
+	}
+}
+
+func TestInertiaJSONEscapesHTML(t *testing.T) {
+	var captured RootData
+	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	malicious := `</script><!--<script`
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set(HeaderInertia, "true")
+	recorder := httptest.NewRecorder()
+	page := renderer.Page(testContext(request, recorder), "Home", Props{"value": malicious})
+	if err := page.Render(); err != nil {
+		t.Fatalf("Render: %v", err)
+	}
+
+	body := recorder.Body.String()
+	if strings.Contains(body, malicious) || strings.Contains(body, "<!--") {
+		t.Fatalf("JSON contains an unescaped prop: %s", body)
+	}
+	if !strings.Contains(body, `\u003c/script\u003e`) {
+		t.Fatalf("JSON did not HTML-escape the prop: %s", body)
 	}
 }
 

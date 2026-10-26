@@ -135,7 +135,9 @@ func TestGeneratedServicesCommitWritesAndJobsTogether(t *testing.T) {
 	)
 	assertTemplateContains(t, "runtime_runtime.tmpl",
 		"transactor := storage.NewTransactor(db)",
-		"services.NewIdentity(transactor, users, tokens, queueInsert, cfg.Auth, cfg.Mail)",
+		"services.NewIdentity(",
+		"queueInsert,",
+		"hosts,",
 	)
 }
 
