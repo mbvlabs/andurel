@@ -2,6 +2,7 @@ package kiks
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,9 +11,10 @@ import (
 	"github.com/gorilla/securecookie"
 )
 
-// Cookie is the payload codec for a named cookie or session bag value.
-// MarshalCookie returns raw payload bytes; kiks signs, encrypts, or stores
-// those bytes afterwards — never return a Set-Cookie string.
+// Cookie is the optional payload codec for a named cookie or session bag
+// value. MarshalCookie returns raw payload bytes; kiks signs, encrypts, or
+// stores those bytes afterwards — never return a Set-Cookie string. Types that
+// do not implement Cookie are encoded as JSON.
 type Cookie interface {
 	MarshalCookie() ([]byte, error)
 	UnmarshalCookie([]byte) error
@@ -122,7 +124,7 @@ type Definition interface {
 	isBagged() bool
 }
 
-type typedDef[T Cookie] struct {
+type typedDef[T any] struct {
 	name string
 	k    defKind
 	opts cookieOptions
@@ -149,7 +151,10 @@ func (definition *typedDef[T]) encodePayload(value any) ([]byte, error) {
 	if rv.Kind() == reflect.Pointer && rv.IsNil() {
 		return nil, nil
 	}
-	return typed.MarshalCookie()
+	if cookie, ok := any(typed).(Cookie); ok {
+		return cookie.MarshalCookie()
+	}
+	return json.Marshal(typed)
 }
 
 func (definition *typedDef[T]) decodePayload(payload []byte) (any, error) {
@@ -157,14 +162,21 @@ func (definition *typedDef[T]) decodePayload(payload []byte) (any, error) {
 	if len(payload) == 0 {
 		return value, nil
 	}
-	rt := reflect.TypeFor[T]()
-	if rt.Kind() == reflect.Pointer {
-		rv := reflect.ValueOf(value)
-		if !rv.IsValid() || rv.IsNil() {
-			value = reflect.New(rt.Elem()).Interface().(T)
+	if cookie, ok := any(value).(Cookie); ok {
+		rt := reflect.TypeFor[T]()
+		if rt.Kind() == reflect.Pointer {
+			rv := reflect.ValueOf(cookie)
+			if !rv.IsValid() || rv.IsNil() {
+				value = reflect.New(rt.Elem()).Interface().(T)
+				cookie = any(value).(Cookie)
+			}
 		}
+		if err := cookie.UnmarshalCookie(payload); err != nil {
+			return value, corruptPayloadError{err: err}
+		}
+		return value, nil
 	}
-	if err := value.UnmarshalCookie(payload); err != nil {
+	if err := json.Unmarshal(payload, &value); err != nil {
 		return value, corruptPayloadError{err: err}
 	}
 	return value, nil
@@ -201,22 +213,22 @@ func Bagged(def Definition) Definition {
 }
 
 // Plain defines an unsigned HTTP cookie.
-func Plain[T Cookie](name string, opts ...Option) Definition {
+func Plain[T any](name string, opts ...Option) Definition {
 	return &typedDef[T]{name: name, k: kindPlain, opts: applyOptions(opts)}
 }
 
 // Signed defines a tamper-evident HTTP cookie.
-func Signed[T Cookie](name string, opts ...Option) Definition {
+func Signed[T any](name string, opts ...Option) Definition {
 	return &typedDef[T]{name: name, k: kindSigned, opts: applyOptions(opts)}
 }
 
 // Encrypted defines a signed and encrypted HTTP cookie.
-func Encrypted[T Cookie](name string, opts ...Option) Definition {
+func Encrypted[T any](name string, opts ...Option) Definition {
 	return &typedDef[T]{name: name, k: kindEncrypted, opts: applyOptions(opts)}
 }
 
 // NewSession defines the application session bag (exactly one per jar).
-func NewSession[T Cookie](name string, opts ...Option) Definition {
+func NewSession[T any](name string, opts ...Option) Definition {
 	return &typedDef[T]{name: name, k: kindSession, opts: applyOptions(opts)}
 }
 

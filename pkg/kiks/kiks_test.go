@@ -43,6 +43,12 @@ func (t *theme) UnmarshalCookie(data []byte) error {
 	return nil
 }
 
+// jsonApp has no Cookie methods; kiks encodes it with encoding/json.
+type jsonApp struct {
+	UserID          string `json:"user_id,omitempty"`
+	IsAuthenticated bool   `json:"is_authenticated,omitempty"`
+}
+
 func testKeys() Keys {
 	return Keys{
 		Authentication: []byte("01234567890123456789012345678901"),
@@ -144,6 +150,89 @@ func cookieNames(cookies []*http.Cookie) []string {
 		names = append(names, cookie.Name)
 	}
 	return names
+}
+
+func TestDefinitionsWithoutCookieMethodsUseJSON(t *testing.T) {
+	definitions := map[string]Definition{
+		"session": NewSession[*jsonApp]("app", MaxAge(60)),
+		"plain":   Plain[jsonApp]("prefs"),
+	}
+	want := jsonApp{UserID: "u1", IsAuthenticated: true}
+
+	for name, definition := range definitions {
+		t.Run(name, func(t *testing.T) {
+			var input any = &want
+			if name == "plain" {
+				input = want
+			}
+			payload, err := definition.encodePayload(input)
+			if err != nil {
+				t.Fatalf("encodePayload: %v", err)
+			}
+			if string(payload) != `{"user_id":"u1","is_authenticated":true}` {
+				t.Fatalf("payload = %q", payload)
+			}
+
+			decoded, err := definition.decodePayload(payload)
+			if err != nil {
+				t.Fatalf("decodePayload: %v", err)
+			}
+			switch value := decoded.(type) {
+			case *jsonApp:
+				if value == nil || *value != want {
+					t.Fatalf("decoded = %#v, want %#v", value, want)
+				}
+			case jsonApp:
+				if value != want {
+					t.Fatalf("decoded = %#v, want %#v", value, want)
+				}
+			default:
+				t.Fatalf("decoded type = %T", decoded)
+			}
+
+			zero, err := definition.decodePayload(nil)
+			if err != nil {
+				t.Fatalf("decodePayload empty: %v", err)
+			}
+			if name == "session" && zero.(*jsonApp) != nil {
+				t.Fatalf("empty session = %#v, want nil", zero)
+			}
+			if name == "plain" && zero.(jsonApp) != (jsonApp{}) {
+				t.Fatalf("empty plain = %#v, want zero", zero)
+			}
+		})
+	}
+}
+
+func TestSessionWithoutCookieMethodsRoundTripsAsJSON(t *testing.T) {
+	jar := testJar(t, NewSession[*jsonApp]("app", HTTPOnly(), MaxAge(60)))
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	if err := anduin.Serve(recorder, request, jar.Middleware()(func(ctx context.Context) error {
+		return Set(ctx, &jsonApp{UserID: "u2", IsAuthenticated: true})
+	})); err != nil {
+		t.Fatal(err)
+	}
+
+	appCookie := cookieByName(recorder.Result().Cookies(), "app")
+	if appCookie == nil {
+		t.Fatal("app cookie missing")
+	}
+
+	follow := httptest.NewRequest(http.MethodGet, "/", nil)
+	follow.AddCookie(appCookie)
+	var got *jsonApp
+	if err := anduin.Serve(httptest.NewRecorder(), follow, jar.Middleware()(func(ctx context.Context) error {
+		var err error
+		got, err = Get[*jsonApp](ctx)
+		return err
+	})); err != nil {
+		t.Fatal(err)
+	}
+	if got == nil || *got != (jsonApp{UserID: "u2", IsAuthenticated: true}) {
+		t.Fatalf("app = %#v", got)
+	}
 }
 
 func TestSameRequestFlashIsVisible(t *testing.T) {

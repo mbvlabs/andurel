@@ -4,6 +4,12 @@ All notable changes to the standalone Andurel kiks module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- `NewSession`, `Plain`, `Signed`, and `Encrypted` accept any `T`. Types that
+  implement `Cookie` keep their custom codec; other types are encoded as JSON,
+  and an empty payload decodes to the zero value.
+
 ## 0.3.1 - 2026-10-20
 
 ### Changed
