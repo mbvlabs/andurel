@@ -518,9 +518,26 @@ if err != nil {
 _, err = i.queue.Insert(ctx, storage.SendTransactionalEmailArgs{Data: data}, nil)
 ```
 
-**Development Testing**
+**Email Providers**
 
-Emails are sent to Mailpit in development. Access the web UI at `http://localhost:8025`.
+`EMAIL_PROVIDER` selects the mail transport:
+
+- `mailpit` (default) sends to a local Mailpit server and is for development
+  only. The app refuses to start in production with this driver. Access the
+  web UI at `http://localhost:8025`.
+- `smtp` sends through a production SMTP relay. Set `SMTP_HOST` and
+  `SMTP_PORT` (default `587`), plus `SMTP_USERNAME` and `SMTP_PASSWORD` when
+  the relay requires authentication. `SMTP_TLS` accepts `starttls` (default),
+  `tls` for implicit TLS (usually port 465), or `none` for a local relay.
+
+```bash
+EMAIL_PROVIDER=smtp
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=apikey
+SMTP_PASSWORD=secret
+SMTP_TLS=starttls
+```
 
 ### Schema Changes
 
@@ -587,8 +604,15 @@ DB_PASSWORD=postgres
 DB_SSL_MODE=disable
 
 # Email (Mailpit for development)
+EMAIL_PROVIDER=mailpit
 MAILPIT_HOST=0.0.0.0
 MAILPIT_PORT=1025
+# Production alternative: EMAIL_PROVIDER=smtp
+# SMTP_HOST=
+# SMTP_PORT=587
+# SMTP_USERNAME=
+# SMTP_PASSWORD=
+# SMTP_TLS=starttls
 DEFAULT_SENDER_SIGNATURE=info@{{.ProjectName}}.com
 
 # Security (auto-generated during scaffolding)

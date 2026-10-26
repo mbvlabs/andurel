@@ -82,6 +82,14 @@ func (i Identity) sendWelcome(ctx context.Context, queue storage.InsertQueue, us
 }
 ```
 
+## Providers
+
+`EMAIL_PROVIDER` selects the mail transport. `mailpit` (the default) captures
+mail locally and the app refuses to start in production with it. Set
+`EMAIL_PROVIDER=smtp` for a production relay and configure `SMTP_HOST`,
+`SMTP_PORT` (default `587`), `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_TLS`
+(`starttls`, `tls` for implicit TLS on port 465, or `none` for a local relay).
+
 ## Rules
 
 - Templates live in `email/`; run `andurel sync email` to compile them.

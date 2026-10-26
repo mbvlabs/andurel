@@ -292,7 +292,10 @@ Registration is a plain slice/map assembled in `internal/runtime`, not Fx.
 Put email templates and send helpers in `email/`. Email is the other templ
 home (`email/*.templ` compiled by `emailcompiler`). Put provider-specific
 implementations in a package under `internal/` (for example
-`internal/clients/email/`).
+`internal/clients/email/`). The scaffold's mail transport is selected with
+`EMAIL_PROVIDER`: `mailpit` captures mail locally and is refused in production;
+`smtp` uses `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and
+`SMTP_TLS` (`starttls`, `tls`, or `none`).
 
 ## Internal Packages
 

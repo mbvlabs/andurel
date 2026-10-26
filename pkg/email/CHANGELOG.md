@@ -4,6 +4,29 @@ All notable changes to the standalone Andurel email module are documented here.
 
 ## Unreleased
 
+### Added
+
+- `SMTPConfig` and `NewSMTP`, a production SMTP sender with STARTTLS,
+  implicit TLS, plaintext local relays, PLAIN authentication, and typed
+  temporary/permanent errors.
+- `SMTP` and `Mailpit` deliver transactional attachments as base64-encoded
+  `multipart/mixed` parts, using `Content-Disposition: attachment` or `inline`.
+
+### Fixed
+
+- Messages no longer write a `Bcc` header; Bcc recipients travel only in the
+  SMTP envelope.
+- Mail headers now include `Date` and `Message-ID`, use a random multipart
+  boundary, and RFC 2047 encode non-ASCII subjects and display names.
+- Mail headers reject invalid addresses and embedded newlines, preventing
+  header injection.
+- Message bodies are quoted-printable encoded so long or non-ASCII content
+  stays within SMTP line limits.
+- SMTP cancellation now interrupts an in-progress conversation, and TLS
+  certificate verification failures map to `PermanentError` instead of being
+  retried.
+- Mailpit honours the send context.
+
 ## 0.4.0 - 2026-10-26
 
 ### Added

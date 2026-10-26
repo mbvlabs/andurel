@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/runtime"
 	"{{.ModuleName}}/routes"
 )
@@ -28,5 +29,19 @@ func TestAppServesHealth(t *testing.T) {
 	}
 	if body := strings.TrimSpace(rec.Body.String()); body != `"app is healthy and running"` {
 		t.Fatalf("body = %s, want the health message", body)
+	}
+}
+
+func TestAppRefusesMailpitInProduction(t *testing.T) {
+	cfg := config.Config{}
+	cfg.App.Environment = "production"
+	cfg.Mail.Driver = config.MailpitDriver
+
+	_, err := runtime.New(t.Context(), cfg)
+	if err == nil {
+		t.Fatal("boot = nil, want an error refusing Mailpit in production")
+	}
+	if !strings.Contains(err.Error(), "EMAIL_PROVIDER=smtp") {
+		t.Fatalf("boot error = %v, want a hint to set EMAIL_PROVIDER=smtp", err)
 	}
 }

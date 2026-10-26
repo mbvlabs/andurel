@@ -38,6 +38,10 @@ type App struct {
 // New builds the web process. Each dependency registers its cleanup as soon as
 // it exists, so a failure part way through releases everything built so far.
 func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
+	if err := validateEmailConfig(cfg.Mail, cfg.App); err != nil {
+		return nil, err
+	}
+
 	if err := routing.ConfigureHosts(cfg.App.Hosts); err != nil {
 		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
 	}
@@ -218,7 +222,12 @@ func newTelemetry(
 
 func newEmailSenders(
 	cfg config.Mail,
+	app config.App,
 ) (email.TransactionalSender, email.MarketingSender, error) {
+	if err := validateEmailConfig(cfg, app); err != nil {
+		return nil, nil, err
+	}
+
 	switch cfg.Driver {
 	case config.MailpitDriver:
 		client, err := email.NewMailpit(email.MailpitConfig{
@@ -230,9 +239,40 @@ func newEmailSenders(
 		}
 
 		return client, client, nil
+	case config.SMTPDriver:
+		client, err := email.NewSMTP(email.SMTPConfig{
+			Host:     cfg.SMTPHost,
+			Port:     cfg.SMTPPort,
+			Username: cfg.SMTPUsername,
+			Password: cfg.SMTPPassword,
+			TLS:      email.SMTPTLSMode(cfg.SMTPTLS),
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("create SMTP sender: %w", err)
+		}
+
+		return client, client, nil
 	default:
 		return nil, nil, fmt.Errorf("unsupported email provider %q", cfg.Driver)
 	}
+}
+
+func validateEmailConfig(cfg config.Mail, app config.App) error {
+	switch cfg.Driver {
+	case config.MailpitDriver:
+		if app.IsProduction() {
+			return fmt.Errorf(
+				"email provider %q is for local development; set EMAIL_PROVIDER=%s in production",
+				config.MailpitDriver,
+				config.SMTPDriver,
+			)
+		}
+	case config.SMTPDriver:
+	default:
+		return fmt.Errorf("unsupported email provider %q", cfg.Driver)
+	}
+
+	return nil
 }
 
 func newRenderer(cfg config.Config) (*inertia.Renderer, error) {

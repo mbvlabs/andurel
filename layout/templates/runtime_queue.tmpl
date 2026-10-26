@@ -47,7 +47,7 @@ func NewQueue(ctx context.Context, cfg config.Config) (_ *Queue, err error) {
 	}
 	q.closers.Add(func(context.Context) error { return db.Close() })
 
-	transactional, marketing, err := newEmailSenders(cfg.Mail)
+	transactional, marketing, err := newEmailSenders(cfg.Mail, cfg.App)
 	if err != nil {
 		return nil, err
 	}

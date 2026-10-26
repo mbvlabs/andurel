@@ -11,9 +11,12 @@ type MailDriver string
 
 const (
 	MailpitDriver MailDriver = "mailpit"
+	SMTPDriver    MailDriver = "smtp"
 
 	DefaultMailpitHost = "0.0.0.0"
 	DefaultMailpitPort = "1025"
+	DefaultSMTPPort    = "587"
+	DefaultSMTPTLS     = "starttls"
 )
 
 type Mail struct {
@@ -21,6 +24,11 @@ type Mail struct {
 	Driver                 MailDriver
 	Host                   string
 	Port                   string
+	SMTPHost               string
+	SMTPPort               string
+	SMTPUsername           string
+	SMTPPassword           string
+	SMTPTLS                string
 }
 
 func NewMail(app App) (Mail, error) {
@@ -30,6 +38,11 @@ func NewMail(app App) (Mail, error) {
 		Driver:                 MailDriver(e.String("EMAIL_PROVIDER", string(MailpitDriver))),
 		Host:                   e.String("MAILPIT_HOST", DefaultMailpitHost),
 		Port:                   e.String("MAILPIT_PORT", DefaultMailpitPort),
+		SMTPHost:               e.String("SMTP_HOST", ""),
+		SMTPPort:               e.String("SMTP_PORT", DefaultSMTPPort),
+		SMTPUsername:           e.String("SMTP_USERNAME", ""),
+		SMTPPassword:           e.String("SMTP_PASSWORD", ""),
+		SMTPTLS:                e.String("SMTP_TLS", DefaultSMTPTLS),
 	}
 	if strings.TrimSpace(cfg.DefaultSenderSignature) == "" {
 		return Mail{}, fmt.Errorf("config: mail: DEFAULT_SENDER_SIGNATURE must not be empty")
