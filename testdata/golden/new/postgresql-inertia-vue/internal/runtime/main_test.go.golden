@@ -1,9 +1,7 @@
 package runtime_test
 
 import (
-	"context"
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"strings"
@@ -12,6 +10,7 @@ import (
 	"app/config"
 	"app/migrations"
 
+	"github.com/mbvlabs/andurel/pkg/env"
 	"github.com/mbvlabs/andurel/pkg/storage/storagetest"
 )
 
@@ -19,17 +18,7 @@ import (
 var testCluster *storagetest.Cluster
 
 func TestMain(m *testing.M) {
-	cluster, err := storagetest.NewCluster(context.Background())
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "skipping integration tests: start postgres container: %v\n", err)
-		os.Exit(0)
-	}
-	testCluster = cluster
-
-	code := m.Run()
-
-	_ = testCluster.Close(context.Background())
-	os.Exit(code)
+	storagetest.Main(m, &testCluster)
 }
 
 // testConfig builds the same config cmd/app uses. A project .env wins when it
@@ -39,7 +28,7 @@ func TestMain(m *testing.M) {
 func testConfig(t *testing.T) config.Config {
 	t.Helper()
 
-	if err := config.LoadEnvironment("../../.env"); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err := env.Load("../../.env"); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("load environment: %v", err)
 	}
 	setDefaultEnvironment(t, "HOST_PRIMARY", "localhost:8080")

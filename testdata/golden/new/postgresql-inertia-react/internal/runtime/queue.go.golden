@@ -4,20 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 
 	"app/config"
 	"app/domains"
 	"app/queue"
 	"app/services"
 
+	"github.com/mbvlabs/andurel/pkg/lifecycle"
 	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
 type Queue struct {
 	processor *storage.QueueProcessor
-	closers   []func(context.Context) error
+	closers   lifecycle.Stack
 }
 
 // NewQueue builds the worker process. Like New, each dependency registers its
@@ -39,13 +39,13 @@ func NewQueue(ctx context.Context, cfg config.Config) (_ *Queue, err error) {
 	if err != nil {
 		return nil, err
 	}
-	q.closers = append(q.closers, tel.Shutdown)
+	q.closers.Add(tel.Shutdown)
 
-	db, err := newDatabase(ctx, cfg.Database, tel)
+	db, err := storage.NewPostgres(ctx, cfg.Database, storage.WithTelemetry(tel))
 	if err != nil {
 		return nil, err
 	}
-	q.closers = append(q.closers, func(context.Context) error { return db.Close() })
+	q.closers.Add(func(context.Context) error { return db.Close() })
 
 	transactional, marketing, err := newEmailSenders(cfg.Mail)
 	if err != nil {
@@ -53,17 +53,12 @@ func NewQueue(ctx context.Context, cfg config.Config) (_ *Queue, err error) {
 	}
 
 	// Auth email workers mint tokens at send time, so they need the identity
-	// service; its insert queue is unused here but required by the constructor.
-	queueInsert, err := storage.NewQueueInsert(db, cfg.QueueInsert.Config)
-	if err != nil {
-		return nil, err
-	}
-
+	// service. They never enqueue, so the worker process has no insert queue.
 	identity := services.NewIdentity(
 		storage.NewTransactor(db),
 		domains.NewUsers(db),
 		domains.NewTokens(db),
-		queueInsert,
+		nil,
 		cfg.Auth,
 		cfg.Mail,
 	)
@@ -79,7 +74,7 @@ func NewQueue(ctx context.Context, cfg config.Config) (_ *Queue, err error) {
 		return nil, err
 	}
 	q.processor = processor
-	q.closers = append(q.closers, processor.Stop)
+	q.closers.Add(processor.Stop)
 
 	return q, nil
 }
@@ -91,10 +86,5 @@ func (q *Queue) Start(ctx context.Context) error {
 // Shutdown stops the processor first, then releases the database and
 // telemetry: the reverse of construction order.
 func (q *Queue) Shutdown(ctx context.Context) error {
-	var shutdownErr error
-	for _, closeFn := range slices.Backward(q.closers) {
-		shutdownErr = errors.Join(shutdownErr, closeFn(ctx))
-	}
-
-	return shutdownErr
+	return q.closers.Close(ctx)
 }

@@ -126,23 +126,17 @@ func (i Identity) VerificationEmail(
 
 	vEmail := appemail.VerifyEmail{VerificationCode: code}
 
-	html, err := vEmail.ToHTML()
+	data, err := email.Compose(
+		vEmail,
+		user.Email,
+		i.defaultSenderSignature,
+		"Verify Your Email Address",
+	)
 	if err != nil {
-		return email.TransactionalData{}, fmt.Errorf("render verification email html: %w", err)
+		return email.TransactionalData{}, fmt.Errorf("render verification email: %w", err)
 	}
 
-	text, err := vEmail.ToText()
-	if err != nil {
-		return email.TransactionalData{}, fmt.Errorf("render verification email text: %w", err)
-	}
-
-	return email.TransactionalData{
-		To:       user.Email,
-		From:     i.defaultSenderSignature,
-		Subject:  "Verify Your Email Address",
-		HTMLBody: html,
-		TextBody: text,
-	}, nil
+	return data, nil
 }
 
 var (
@@ -161,10 +155,10 @@ type VerifyEmailData struct {
 }
 
 func invalidVerificationCode() error {
-	b := validation.NewBuilder()
-	b.Add("code", "invalid", invalidVerificationCodeMessage)
-
-	return errors.Join(ErrInvalidVerificationCode, b.Err())
+	return errors.Join(
+		ErrInvalidVerificationCode,
+		validation.Field("code", "invalid", invalidVerificationCodeMessage),
+	)
 }
 
 // verificationAttemptAllowed takes the 1-based count returned by IncrementAttempts.

@@ -1,8 +1,6 @@
 package middleware
 
 import (
-	"encoding/json"
-
 	"app/config"
 
 	"github.com/mbvlabs/andurel/pkg/kiks"
@@ -14,18 +12,6 @@ type Session struct {
 	PendingUserID string `json:"pending_user_id,omitempty"`
 	IsAdmin bool `json:"is_admin,omitempty"`
 	IsAuthenticated bool `json:"is_authenticated,omitempty"`
-}
-
-func (s *Session) MarshalCookie() ([]byte, error) {
-	return json.Marshal(s)
-}
-
-func (s *Session) UnmarshalCookie(data []byte) error {
-	if len(data) == 0 {
-		*s = Session{}
-		return nil
-	}
-	return json.Unmarshal(data, s)
 }
 
 func NewSessionCookie(cfg config.Session, secure bool) kiks.Definition {

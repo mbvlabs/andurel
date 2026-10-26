@@ -27,23 +27,29 @@ const (
 	// NarsilcModulePath is the module path of the narsilc query code generator.
 	NarsilcModulePath = "github.com/mbvlabs/narsilc"
 	// Anduin is the standalone Andurel HTTP module version verified with this framework.
-	Anduin = "v0.2.1"
+	Anduin = "v0.3.0"
+	// Auth is the standalone Andurel auth module version verified with this framework.
+	Auth = "v0.1.0"
 	// Cache is the standalone Andurel cache module version verified with this framework.
 	Cache = "v0.2.0"
 	// Kiks is the standalone Andurel cookies and sessions module version verified with this framework.
-	Kiks = "v0.3.1"
+	Kiks = "v0.4.0"
+	// Lifecycle is the standalone Andurel process lifecycle module version verified with this framework.
+	Lifecycle = "v0.1.0"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.8.1"
+	Inertia = "v0.9.0"
 	// Email is the standalone Andurel email module version verified with this framework.
-	Email = "v0.3.3"
+	Email = "v0.4.0"
+	// Env is the standalone Andurel environment module version verified with this framework.
+	Env = "v0.1.0"
 	// Routing is the standalone Andurel routing module version verified with this framework.
 	Routing = "v0.4.0"
 	// Storage is the standalone Andurel storage module version verified with this framework.
-	Storage = "v0.11.0"
+	Storage = "v0.12.0"
 	// Telemetry is the standalone Andurel telemetry module version verified with this framework.
 	Telemetry = "v0.2.0"
 	// Validation is the standalone Andurel validation module version verified with this framework.
-	Validation = "v0.1.4"
+	Validation = "v0.2.0"
 
 	// PkgPrefix is the module path prefix for standalone Andurel packages.
 	PkgPrefix = "github.com/mbvlabs/andurel/pkg/"
@@ -51,10 +57,13 @@ const (
 
 var verifiedPackageVersions = map[string]string{
 	PkgPrefix + "anduin":     Anduin,
+	PkgPrefix + "auth":       Auth,
 	PkgPrefix + "cache":      Cache,
 	PkgPrefix + "email":      Email,
+	PkgPrefix + "env":        Env,
 	PkgPrefix + "inertia":    Inertia,
 	PkgPrefix + "kiks":       Kiks,
+	PkgPrefix + "lifecycle":  Lifecycle,
 	PkgPrefix + "routing":    Routing,
 	PkgPrefix + "storage":    Storage,
 	PkgPrefix + "telemetry":  Telemetry,

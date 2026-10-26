@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/internal/runtime"
+
+	"github.com/mbvlabs/andurel/pkg/env"
+	"github.com/mbvlabs/andurel/pkg/lifecycle"
 )
 
 // appVersion is injected with -ldflags. Empty local builds use the config's
@@ -24,7 +25,7 @@ func main() {
 }
 
 func run() error {
-	if err := config.LoadEnvironment(); err != nil {
+	if err := env.Load(); err != nil {
 		return err
 	}
 
@@ -36,7 +37,7 @@ func run() error {
 		cfg.Version = appVersion
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := lifecycle.NotifyContext(context.Background())
 	defer cancel()
 
 	app, err := runtime.New(ctx, cfg)
@@ -45,19 +46,9 @@ func run() error {
 	}
 	defer closeApp(app)
 
-	serveErr := make(chan error, 1)
-	go func() { serveErr <- app.Start() }()
-
-	select {
-	case err := <-serveErr:
-		return err
-	case <-ctx.Done():
-	}
-
-	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelShutdown()
-
-	return app.Shutdown(shutdownCtx)
+	return lifecycle.Run(ctx, func(context.Context) error {
+		return app.Start()
+	}, app.Shutdown, lifecycle.WithBlockingStart())
 }
 
 // closeApp releases dependencies in reverse construction order. It is deferred

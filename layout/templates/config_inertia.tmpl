@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/mbvlabs/andurel/pkg/env"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
@@ -46,33 +47,33 @@ type Inertia struct {
 }
 
 func NewInertia() (Inertia, error) {
-	env := newEnvironment()
+	e := env.New()
 	cfg := Inertia{
-		ContainerID:   env.String("INERTIA_CONTAINER_ID", DefaultInertiaContainerID),
-		ViteDevURL:    env.String("INERTIA_VITE_DEV_URL", DefaultInertiaViteDevURL),
-		ProtocolDebug: env.Bool("INERTIA_PROTOCOL_DEBUG", DefaultInertiaProtocolDebug),
-		SSRRuntime:    env.String("INERTIA_SSR_RUNTIME", DefaultInertiaSSRRuntime),
-		SSRBundle:     env.String("INERTIA_SSR_BUNDLE", DefaultInertiaSSRBundle),
-		SSRListen:     env.String("INERTIA_SSR_LISTEN", DefaultInertiaSSRListen),
-		SSRURL:        env.String("INERTIA_SSR_URL", DefaultInertiaSSRURL),
-		SSRStartupTimeout: env.Duration(
+		ContainerID:   e.String("INERTIA_CONTAINER_ID", DefaultInertiaContainerID),
+		ViteDevURL:    e.String("INERTIA_VITE_DEV_URL", DefaultInertiaViteDevURL),
+		ProtocolDebug: e.Bool("INERTIA_PROTOCOL_DEBUG", DefaultInertiaProtocolDebug),
+		SSRRuntime:    e.String("INERTIA_SSR_RUNTIME", DefaultInertiaSSRRuntime),
+		SSRBundle:     e.String("INERTIA_SSR_BUNDLE", DefaultInertiaSSRBundle),
+		SSRListen:     e.String("INERTIA_SSR_LISTEN", DefaultInertiaSSRListen),
+		SSRURL:        e.String("INERTIA_SSR_URL", DefaultInertiaSSRURL),
+		SSRStartupTimeout: e.Duration(
 			"INERTIA_SSR_STARTUP_TIMEOUT",
 			DefaultInertiaSSRStartupTimeout,
 		),
-		SSRRequestTimeout: env.Duration(
+		SSRRequestTimeout: e.Duration(
 			"INERTIA_SSR_REQUEST_TIMEOUT",
 			DefaultInertiaSSRRequestTimeout,
 		),
-		SSRMaxResponseBytes: env.Int64(
+		SSRMaxResponseBytes: e.Int64(
 			"INERTIA_SSR_MAX_RESPONSE_BYTES",
 			DefaultInertiaSSRMaxResponseBytes,
 		),
-		SSRMinimumMajor: env.Int("INERTIA_SSR_MINIMUM_MAJOR", DefaultInertiaSSRMinimumMajor),
-		SSRFailFast:     env.Bool("INERTIA_SSR_FAIL_FAST", DefaultInertiaSSRFailFast),
-		EntryPoint:      env.String("INERTIA_ENTRY_POINT", DefaultInertiaEntryPoint),
+		SSRMinimumMajor: e.Int("INERTIA_SSR_MINIMUM_MAJOR", DefaultInertiaSSRMinimumMajor),
+		SSRFailFast:     e.Bool("INERTIA_SSR_FAIL_FAST", DefaultInertiaSSRFailFast),
+		EntryPoint:      e.String("INERTIA_ENTRY_POINT", DefaultInertiaEntryPoint),
 	}
 
-	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
+	if err := errors.Join(e.Err(), cfg.validate()); err != nil {
 		return Inertia{}, fmt.Errorf("config: inertia: %w", err)
 	}
 

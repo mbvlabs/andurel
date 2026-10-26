@@ -18,7 +18,6 @@ import (
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
-	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 type AuthHandler struct {
@@ -80,7 +79,7 @@ func (h AuthHandler) Register(rt *anduin.Router) {
 // throttle rate-limits an auth endpoint per client IP; onLimited re-renders the
 // submitting form so Inertia shows the error inline.
 func (h AuthHandler) throttle(onLimited anduin.Handler) anduin.Middleware {
-	return middleware.RateLimit(h.cache, authAttemptLimit, authAttemptWindow, onLimited)
+	return anduin.RateLimit(h.cache, authAttemptLimit, authAttemptWindow, onLimited)
 }
 
 func (h AuthHandler) tooManyAttempts(component, field string) anduin.Handler {
@@ -141,12 +140,12 @@ func (h AuthHandler) SessionCreate(ctx context.Context) error {
 		},
 	)
 	if err != nil {
-		if fields, ok := validationFields(err); ok {
-			return h.renderer.Page(
-				ctx,
-				"Auth/Login",
-				inertia.Props{},
-			).ValidationErrors(fields).Render()
+		if page, ok := h.renderer.Page(
+			ctx,
+			"Auth/Login",
+			inertia.Props{},
+		).Errors(err); ok {
+			return page.Render()
 		}
 
 		if errors.Is(err, services.ErrEmailNotVerified) {
@@ -202,14 +201,6 @@ func (h AuthHandler) SessionDestroy(ctx context.Context) error {
 	}
 
 	return h.renderer.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
-}
-
-func validationFields(err error) (map[string]string, bool) {
-	if validationErr, ok := validation.As(err); ok {
-		return validationErr.ToMap(), true
-	}
-
-	return nil, false
 }
 
 func (h AuthHandler) RegistrationNew(ctx context.Context) error {
@@ -270,14 +261,14 @@ func (h AuthHandler) RegistrationCreate(ctx context.Context) error {
 		},
 	)
 	if err != nil {
-		if fields, ok := validationFields(err); ok {
+		if page, ok := h.renderer.Page(
+			ctx,
+			"Auth/Registration",
+			inertia.Props{},
+		).Errors(err); ok {
 			outcome = "validation_error"
 			cause = err
-			return h.renderer.Page(
-				ctx,
-				"Auth/Registration",
-				inertia.Props{},
-			).ValidationErrors(fields).Render()
+			return page.Render()
 		}
 
 		if errors.Is(err, domains.ErrConflict) {
@@ -351,12 +342,12 @@ func (h AuthHandler) ConfirmationCreate(ctx context.Context) error {
 		},
 	)
 	if err != nil {
-		if fields, ok := validationFields(err); ok {
-			return h.renderer.Page(
-				ctx,
-				"Auth/ConfirmEmail",
-				inertia.Props{},
-			).ValidationErrors(fields).Render()
+		if page, ok := h.renderer.Page(
+			ctx,
+			"Auth/ConfirmEmail",
+			inertia.Props{},
+		).Errors(err); ok {
+			return page.Render()
 		}
 
 		telemetry.Error(
@@ -421,12 +412,12 @@ func (h AuthHandler) PasswordCreate(ctx context.Context) error {
 			Email: payload.Email,
 		},
 	); err != nil {
-		if fields, ok := validationFields(err); ok {
-			return h.renderer.Page(
-				ctx,
-				"Auth/ResetPasswordRequest",
-				inertia.Props{},
-			).ValidationErrors(fields).Render()
+		if page, ok := h.renderer.Page(
+			ctx,
+			"Auth/ResetPasswordRequest",
+			inertia.Props{},
+		).Errors(err); ok {
+			return page.Render()
 		}
 
 		telemetry.Error(
@@ -478,12 +469,12 @@ func (h AuthHandler) PasswordUpdate(ctx context.Context) error {
 			ConfirmPassword: payload.ConfirmPassword,
 		},
 	); err != nil {
-		if fields, ok := validationFields(err); ok {
-			return h.renderer.Page(
-				ctx,
-				"Auth/ResetPassword",
-				inertia.Props{"token": payload.Token},
-			).ValidationErrors(fields).Render()
+		if page, ok := h.renderer.Page(
+			ctx,
+			"Auth/ResetPassword",
+			inertia.Props{"token": payload.Token},
+		).Errors(err); ok {
+			return page.Render()
 		}
 
 		telemetry.Error(

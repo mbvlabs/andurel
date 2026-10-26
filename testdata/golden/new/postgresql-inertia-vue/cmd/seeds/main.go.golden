@@ -11,6 +11,7 @@ import (
 	"app/config"
 	"app/seeds"
 
+	"github.com/mbvlabs/andurel/pkg/env"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -36,7 +37,7 @@ func run(args []string) error {
 		return fmt.Errorf("expected at most one seed name, got %d", flags.NArg())
 	}
 
-	if err := config.LoadEnvironment(); err != nil {
+	if err := env.Load(); err != nil {
 		return err
 	}
 

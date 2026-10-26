@@ -3,13 +3,15 @@ package email
 import (
 	"bytes"
 	"context"
+
+	pkgemail "github.com/mbvlabs/andurel/pkg/email"
 )
 
 type VerifyEmail struct {
 	VerificationCode string
 }
 
-var _ Transformer = (*VerifyEmail)(nil)
+var _ pkgemail.Transformer = (*VerifyEmail)(nil)
 
 func (v VerifyEmail) ToHTML() (string, error) {
 	var buf bytes.Buffer
@@ -26,7 +28,7 @@ func (v VerifyEmail) ToText() (string, error) {
 		return "", err
 	}
 
-	return HTMLToText(html)
+	return pkgemail.HTMLToText(html)
 }
 
 templ (v VerifyEmail) render() {

@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"slices"
-	"strings"
 	"time"
 
 	"example.com/app/assets"
@@ -22,6 +20,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/lifecycle"
 	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
@@ -33,7 +32,7 @@ type App struct {
 	Handler http.Handler
 	Server  anduin.Server
 
-	closers []func(context.Context) error
+	closers lifecycle.Stack
 }
 
 // New builds the web process. Each dependency registers its cleanup as soon as
@@ -54,20 +53,20 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	if err != nil {
 		return nil, err
 	}
-	app.closers = append(app.closers, tel.Shutdown)
+	app.closers.Add(tel.Shutdown)
 
-	db, err := newDatabase(ctx, cfg.Database, tel)
+	db, err := storage.NewPostgres(ctx, cfg.Database, storage.WithTelemetry(tel))
 	if err != nil {
 		return nil, err
 	}
 	app.DB = db
-	app.closers = append(app.closers, func(context.Context) error { return db.Close() })
+	app.closers.Add(func(context.Context) error { return db.Close() })
 
 	cacheStore, err := cfg.Cache.Store()
 	if err != nil {
 		return nil, err
 	}
-	app.closers = append(app.closers, func(context.Context) error { return cacheStore.Close() })
+	app.closers.Add(func(context.Context) error { return cacheStore.Close() })
 
 	queueInsert, err := storage.NewQueueInsert(db, cfg.QueueInsert.Config)
 	if err != nil {
@@ -99,14 +98,24 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 		anduin.WithErrorHandler(handlers.MapError(renderer)),
 		anduin.WithTelemetry(tel),
 	)
+	cors := anduin.DefaultCORS(
+		anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CORSAllowedOrigins)...,
+	)
+	csrf := anduin.DefaultCSRF(
+		cfg.HTTP.CSRFStrategy,
+		cfg.App.IsProduction(),
+		anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CSRFTrustedOrigins)...,
+	)
+	csrf.Skipper = anduin.SkipCSRFForBearer(routes.APIPrefix, cfg.Session.Name)
+
 	router.Use(
 		anduin.Recover(),
 		anduin.RealIP(cfg.HTTP.TrustedProxies...),
 		anduin.Telemetry(tel),
 		jar.Middleware(),
 		renderer.Middleware(),
-		anduin.CORS(corsConfig(cfg)),
-		anduin.CSRF(csrfConfig(cfg)),
+		anduin.CORS(cors),
+		anduin.CSRF(csrf),
 	)
 
 	handlers.NewPages(renderer).Register(router)
@@ -142,12 +151,7 @@ func (a *App) Shutdown(ctx context.Context) error {
 
 // Close releases dependencies in reverse construction order.
 func (a *App) Close(ctx context.Context) error {
-	var closeErr error
-	for _, closeFn := range slices.Backward(a.closers) {
-		closeErr = errors.Join(closeErr, closeFn(ctx))
-	}
-
-	return closeErr
+	return a.closers.Close(ctx)
 }
 
 func newJar(
@@ -197,22 +201,6 @@ func newTelemetry(
 	}
 
 	return telemetry.New(ctx, cfg.ServiceName, cfg.ServiceVersion, opts...)
-}
-
-func newDatabase(
-	ctx context.Context,
-	cfg storage.Config,
-	tel *telemetry.Telemetry,
-) (*storage.Postgres, error) {
-	opts := []storage.Option{}
-	if tel != nil {
-		opts = append(opts, storage.WithOpenTelemetry(storage.TelemetryConfig{
-			TracerProvider: tel.TracerProvider(),
-			MeterProvider:  tel.MeterProvider(),
-		}))
-	}
-
-	return storage.NewPostgres(ctx, cfg, opts...)
 }
 
 func newEmailSenders(
@@ -272,67 +260,4 @@ func sharedAuth(ctx context.Context) (inertia.Props, error) {
 			"isAuthenticated": session != nil && session.IsAuthenticated,
 		},
 	}, nil
-}
-
-func corsConfig(cfg config.Config) anduin.CORSConfig {
-	return anduin.CORSConfig{
-		AllowOrigins: mergedOrigins(
-			cfg.App.Origins(),
-			cfg.HTTP.CORSAllowedOrigins,
-		),
-		AllowMethods: []string{
-			http.MethodGet,
-			http.MethodHead,
-			http.MethodPost,
-			http.MethodPut,
-			http.MethodPatch,
-			http.MethodDelete,
-			http.MethodOptions,
-		},
-		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	}
-}
-
-func csrfConfig(cfg config.Config) anduin.CSRFConfig {
-	tokenLookup := "header:X-CSRF-Token"
-	if cfg.HTTP.CSRFStrategy == "header_or_legacy_token" {
-		tokenLookup = "header:X-CSRF-Token,form:_csrf"
-	}
-
-	return anduin.CSRFConfig{
-		TokenLookup:  tokenLookup,
-		CookieName:   "_csrf",
-		CookiePath:   "/",
-		CookieSecure: cfg.App.IsProduction(),
-		//nolint:gosec // HttpOnly is safe: the token is only read server-side.
-		CookieHTTPOnly: true,
-		CookieSameSite: http.SameSiteStrictMode,
-		TrustedOrigins: mergedOrigins(
-			cfg.App.Origins(),
-			cfg.HTTP.CSRFTrustedOrigins,
-		),
-		Skipper: middleware.CSRFSkipper(cfg.Session.Name),
-	}
-}
-
-func mergedOrigins(groups ...[]string) []string {
-	seen := make(map[string]struct{})
-	origins := make([]string, 0)
-	for _, group := range groups {
-		for _, origin := range group {
-			origin = strings.TrimSpace(origin)
-			if origin == "" {
-				continue
-			}
-			if _, ok := seen[origin]; ok {
-				continue
-			}
-			seen[origin] = struct{}{}
-			origins = append(origins, origin)
-		}
-	}
-
-	return origins
 }

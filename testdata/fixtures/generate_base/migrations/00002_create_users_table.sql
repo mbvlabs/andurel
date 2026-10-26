@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     password BYTEA NOT NULL,
     is_admin BOOLEAN NOT NULL DEFAULT false,
 
-    -- domains.userWriteError maps violations of this constraint to ErrConflict.
+    -- storage.Conflict maps violations of this constraint to ErrConflict.
     CONSTRAINT users_email_key UNIQUE (email)
 );
 -- +goose StatementEnd

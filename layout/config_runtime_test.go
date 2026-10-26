@@ -19,7 +19,7 @@ func TestGeneratedConfigRuntime(t *testing.T) {
 	root := t.TempDir()
 	data := &TemplateData{ModuleName: "testapp", ProjectName: "testapp"}
 	for _, name := range []string{
-		"config", "helper", "app", "hosts", "http", "session", "database", "queue", "telemetry", "email", "auth",
+		"config", "app", "hosts", "http", "session", "database", "queue", "telemetry", "email", "auth",
 		"cache", "inertia",
 	} {
 		if err := renderTemplate(
@@ -36,12 +36,13 @@ go %s
 
 require (
 	github.com/gosimple/slug v1.15.0
-	github.com/joho/godotenv v1.5.1
 )
 `, goVersion); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"anduin", "cache", "inertia", "routing", "storage", "telemetry", "validation"} {
+	for _, name := range []string{
+		"anduin", "cache", "env", "inertia", "routing", "storage", "telemetry", "validation",
+	} {
 		path, err := filepath.Abs(filepath.Join("..", "pkg", name))
 		if err != nil {
 			t.Fatal(err)

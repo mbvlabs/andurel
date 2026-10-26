@@ -2,26 +2,17 @@ package domains
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/subtle"
-	"encoding/base64"
-	"errors"
-	"fmt"
-	"net/mail"
 	"strings"
 	"time"
 	"uuid"
 
 	"app/domains/internal/queries"
 
+	"github.com/mbvlabs/andurel/pkg/auth"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
-
-	"golang.org/x/crypto/argon2"
 )
 
 const minPasswordLength = 8
@@ -39,31 +30,9 @@ func (u Users) InTx(tx storage.Tx) Users {
 	return Users{queries: queries.New(storage.Unwrap(tx))}
 }
 
-// normaliseEmail is shared by lookups and writes so they agree on identity.
-func normaliseEmail(raw string) string {
+// NormaliseEmail is shared by lookups and writes so they agree on identity.
+func NormaliseEmail(raw string) string {
 	return strings.ToLower(strings.TrimSpace(raw))
-}
-
-func HashPassword(password, pepper string) (string, error) {
-	salt, err := generateSalt(16)
-	if err != nil {
-		return "", err
-	}
-
-	hash := argon2.IDKey(
-		[]byte(password+pepper),
-		[]byte(salt),
-		2,
-		19*1024,
-		1,
-		32,
-	)
-
-	encodedHash := fmt.Sprintf("%s:%s",
-		base64.RawStdEncoding.EncodeToString(hash),
-		base64.RawStdEncoding.EncodeToString(salt))
-
-	return encodedHash, nil
 }
 
 type User struct {
@@ -76,86 +45,28 @@ type User struct {
 	IsAdmin          bool               `andurel:"is_admin"`
 }
 
-func (u *User) Validate() error {
+func (u User) Validate() error {
 	b := validation.NewBuilder()
-	u.validate(b)
-
-	return b.Err()
-}
-
-func (u *User) validate(b *validation.ValidationBuilder) {
 	b.Required("email", u.Email)
 	b.MaxLen("email", u.Email, 255)
-	if u.Email != "" && !validEmailAddress(u.Email) {
-		b.Add("email", "email", "Email must be a valid email address")
-	}
-}
+	b.Email("email", u.Email, "Email must be a valid email address")
 
-func validEmailAddress(value string) bool {
-	addr, err := mail.ParseAddress(value)
-
-	return err == nil && addr.Address == value
+	return b.Err()
 }
 
 func (u *User) HasValidatedEmail() bool {
 	return u.EmailValidatedAt.Valid
 }
 
-func (u *User) ValidPassword(providedPassword, pepper string) (bool, error) {
-	parts := strings.Split(string(u.Password), ":")
-	if len(parts) != 2 {
-		return false, fmt.Errorf("invalid stored password format")
-	}
-
-	expectedHash, err := base64.RawStdEncoding.DecodeString(parts[0])
-	if err != nil {
-		return false, fmt.Errorf("failed to decode hash: %w", err)
-	}
-
-	salt, err := base64.RawStdEncoding.DecodeString(parts[1])
-	if err != nil {
-		return false, fmt.Errorf("failed to decode salt: %w", err)
-	}
-
-	newHash := argon2.IDKey(
-		[]byte(providedPassword+pepper),
-		salt,
-		2,
-		19*1024,
-		1,
-		uint32(len(expectedHash)),
-	)
-
-	return subtle.ConstantTimeCompare(newHash, expectedHash) == 1, nil
-}
-
 func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
-	entity, err := u.queries.GetUser[User](ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return User{}, ErrNotFound
-		}
-
-		return User{}, err
-	}
-
-	return entity, nil
+	return storage.Row(u.queries.GetUser[User](ctx, id))
 }
 
 func (u Users) FindByEmail(
 	ctx context.Context,
 	email string,
 ) (User, error) {
-	entity, err := u.queries.GetUserByEmail[User](ctx, normaliseEmail(email))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return User{}, ErrNotFound
-		}
-
-		return User{}, err
-	}
-
-	return entity, nil
+	return storage.Row(u.queries.GetUserByEmail[User](ctx, NormaliseEmail(email)))
 }
 
 type PasswordPair struct {
@@ -163,13 +74,16 @@ type PasswordPair struct {
 	ConfirmPassword string
 }
 
-func (p PasswordPair) validate(b *validation.ValidationBuilder) {
+func (p PasswordPair) Validate() error {
+	b := validation.NewBuilder()
 	b.Required("password", p.Password)
 	b.MinLen("password", p.Password, minPasswordLength)
 	b.Required("confirmPassword", p.ConfirmPassword)
 	if p.Password != p.ConfirmPassword {
 		b.Add("confirmPassword", "mismatch", "Passwords do not match")
 	}
+
+	return b.Err()
 }
 
 type CreateUserData struct {
@@ -187,19 +101,16 @@ func (u Users) Create(
 		ID:               uuid.New(),
 		CreatedAt:        pgtype.Timestamptz{Time: now, Valid: true},
 		UpdatedAt:        pgtype.Timestamptz{Time: now, Valid: true},
-		Email:            normaliseEmail(data.Email),
+		Email:            NormaliseEmail(data.Email),
 		EmailValidatedAt: pgtype.Timestamptz{},
 		IsAdmin:          false,
 	}
 
-	b := validation.NewBuilder()
-	entity.validate(b)
-	data.PasswordPair.validate(b)
-	if err := b.Err(); err != nil {
+	if err := validation.Join(entity.Validate(), data.PasswordPair.Validate()); err != nil {
 		return User{}, err
 	}
 
-	hashedPassword, err := HashPassword(data.PasswordPair.Password, pepper)
+	hashedPassword, err := auth.HashPassword(data.PasswordPair.Password, pepper)
 	if err != nil {
 		return User{}, err
 	}
@@ -214,24 +125,8 @@ func (u Users) Create(
 		Password:         entity.Password,
 		IsAdmin:          entity.IsAdmin,
 	})
-	if err != nil {
-		return User{}, userWriteError(err)
-	}
 
-	return created, nil
-}
-
-// userWriteError translates the expected email conflict without classifying
-// unrelated database failures as user errors. Keep the constraint in sync with
-// the users migration.
-func userWriteError(err error) error {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" &&
-		pgErr.TableName == "users" && pgErr.ConstraintName == "users_email_key" {
-		return errors.Join(ErrConflict, err)
-	}
-
-	return err
+	return storage.Row(created, storage.Conflict(err, "users_email_key"))
 }
 
 // UpdateUserData changes the fields that are set; a nil field keeps its current
@@ -253,7 +148,7 @@ func (u Users) Update(
 	}
 
 	if data.Email != nil {
-		entity.Email = normaliseEmail(*data.Email)
+		entity.Email = NormaliseEmail(*data.Email)
 	}
 	if data.EmailValidatedAt != nil {
 		entity.EmailValidatedAt = *data.EmailValidatedAt
@@ -262,15 +157,15 @@ func (u Users) Update(
 		entity.IsAdmin = *data.IsAdmin
 	}
 
-	return u.save(ctx, entity)
+	return u.Save(ctx, entity)
 }
 
-// save validates entity and writes it in one statement. Callers load the user
+// Save validates entity and writes it in one statement. Callers load the user
 // first, so every update reads the row once.
-func (u Users) save(ctx context.Context, entity User) (User, error) {
+func (u Users) Save(ctx context.Context, entity User) (User, error) {
 	entity.UpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
 
-	if err := validation.Validate(&entity); err != nil {
+	if err := entity.Validate(); err != nil {
 		return User{}, err
 	}
 
@@ -282,15 +177,8 @@ func (u Users) save(ctx context.Context, entity User) (User, error) {
 		IsAdmin:          entity.IsAdmin,
 		UpdatedAt:        entity.UpdatedAt,
 	})
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return User{}, ErrNotFound
-		}
 
-		return User{}, userWriteError(err)
-	}
-
-	return row, nil
+	return storage.Row(row, storage.Conflict(err, "users_email_key"))
 }
 
 func (u Users) ChangePassword(
@@ -299,9 +187,7 @@ func (u Users) ChangePassword(
 	id uuid.UUID,
 	pair PasswordPair,
 ) (User, error) {
-	b := validation.NewBuilder()
-	pair.validate(b)
-	if err := b.Err(); err != nil {
+	if err := pair.Validate(); err != nil {
 		return User{}, err
 	}
 
@@ -310,13 +196,13 @@ func (u Users) ChangePassword(
 		return User{}, err
 	}
 
-	hashedPassword, err := HashPassword(pair.Password, pepper)
+	hashedPassword, err := auth.HashPassword(pair.Password, pepper)
 	if err != nil {
 		return User{}, err
 	}
 	entity.Password = []byte(hashedPassword)
 
-	return u.save(ctx, entity)
+	return u.Save(ctx, entity)
 }
 
 // RehashPassword stores password hashed with the current pepper. Login calls it
@@ -327,13 +213,13 @@ func (u Users) RehashPassword(
 	user User,
 	password string,
 ) (User, error) {
-	hashedPassword, err := HashPassword(password, pepper)
+	hashedPassword, err := auth.HashPassword(password, pepper)
 	if err != nil {
 		return User{}, err
 	}
 	user.Password = []byte(hashedPassword)
 
-	return u.save(ctx, user)
+	return u.Save(ctx, user)
 }
 
 func (u Users) Destroy(ctx context.Context, id uuid.UUID) error {
@@ -344,60 +230,24 @@ func (u Users) All(ctx context.Context) ([]User, error) {
 	return u.queries.ListUsers[User](ctx).All()
 }
 
-type PaginatedUsers struct {
-	Users      []User
-	TotalCount int64
-	Page       int64
-	PageSize   int64
-	TotalPages int64
-}
-
 func (u Users) Paginate(
 	ctx context.Context,
 	page, pageSize int64,
-) (PaginatedUsers, error) {
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 {
-		pageSize = 10
-	}
-	if pageSize > 100 {
-		pageSize = 100
-	}
-
-	offset := (page - 1) * pageSize
+) (storage.Paginated[User], error) {
+	req := storage.Page(page, pageSize)
 
 	totalCount, err := u.queries.CountUsers(ctx)
 	if err != nil {
-		return PaginatedUsers{}, err
+		return storage.Paginated[User]{}, err
 	}
 
 	entities, err := u.queries.ListUsers[User](ctx).
-		Limit(int32(pageSize)).
-		Offset(int32(offset)).
+		Limit(req.Limit).
+		Offset(req.Offset).
 		All()
 	if err != nil {
-		return PaginatedUsers{}, err
+		return storage.Paginated[User]{}, err
 	}
 
-	totalPages := (int64(totalCount) + pageSize - 1) / pageSize
-
-	return PaginatedUsers{
-		Users:      entities,
-		TotalCount: int64(totalCount),
-		Page:       page,
-		PageSize:   pageSize,
-		TotalPages: totalPages,
-	}, nil
-}
-
-func generateSalt(size int) ([]byte, error) {
-	salt := make([]byte, size)
-	_, err := rand.Read(salt)
-	if err != nil {
-		return nil, err
-	}
-
-	return salt, nil
+	return storage.NewPaginated(entities, int64(totalCount), req), nil
 }

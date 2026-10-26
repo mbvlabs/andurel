@@ -323,6 +323,8 @@ func TestGeneratedValidationTemplatesExposePublicContract(t *testing.T) {
 	for _, want := range []string{
 		"type Rule struct",
 		"type Rules map[string][]Rule",
+		"func Join(",
+		"func Field(",
 		"func (b *ValidationBuilder) AddRule(",
 		"func (b *ValidationBuilder) AddRuleWithParams(",
 		"func (b *ValidationBuilder) Rules() Rules",
@@ -333,6 +335,7 @@ func TestGeneratedValidationTemplatesExposePublicContract(t *testing.T) {
 	}
 
 	for _, want := range []string{
+		"func (b *ValidationBuilder) Email(",
 		"func (b *ValidationBuilder) RecommendedLenBetween(",
 		"func (b *ValidationBuilder) MinInt(",
 		"func (b *ValidationBuilder) MaxInt(",

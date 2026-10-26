@@ -60,7 +60,7 @@ func TestProductIndex(t *testing.T) {
 - Prefer handler tests over integration tests when no cross-domain behavior is exercised.
 - Assert status and the Inertia component name, not HTML strings.
 - Seed data through receivers built per test (`domains.NewProducts(db)`); pass the handler the same receiver.
-- Tests that seed data share the package cluster from `TestMain` (`handlers/main_test.go`) and call `testCluster.NewTestDB(t, migrations.Migrations, ".")` for a clean database.
+- Tests that seed data share the package cluster from `storagetest.Main` in `handlers/main_test.go` and call `testCluster.NewTestDB(t, migrations.Migrations, ".")` for a clean database.
 
 ## Checklist
 

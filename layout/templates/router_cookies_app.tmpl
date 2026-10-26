@@ -1,8 +1,6 @@
 package middleware
 
 import (
-	"encoding/json"
-
 	"{{.ModuleName}}/config"
 
 	"github.com/mbvlabs/andurel/pkg/kiks"
@@ -13,18 +11,6 @@ type Session struct {
 {{- range .Blueprint.Cookies.SortedAppFields}}
 	{{.Name}} {{.Type}} `json:"{{toSnake .Name}},omitempty"`
 {{- end}}
-}
-
-func (s *Session) MarshalCookie() ([]byte, error) {
-	return json.Marshal(s)
-}
-
-func (s *Session) UnmarshalCookie(data []byte) error {
-	if len(data) == 0 {
-		*s = Session{}
-		return nil
-	}
-	return json.Unmarshal(data, s)
 }
 
 func NewSessionCookie(cfg config.Session, secure bool) kiks.Definition {

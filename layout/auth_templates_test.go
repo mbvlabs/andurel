@@ -47,8 +47,11 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 	assertTemplateMissing(t, "handlers_errors.tmpl", "ErrViolation")
 	assertTemplateMissing(t, "domains_token.tmpl", "func (ts TokenScope) ToString(")
 	assertTemplateMissing(t, "domains_token.tmpl", "func (ts TokenScope) String(")
-	assertTemplateContains(t, "handlers_auth.tmpl", "validation.As(err)")
-	assertTemplateContains(t, "handlers_errors.tmpl", "validation.As(err)")
+	assertTemplateContains(t, "handlers_auth.tmpl", ".Errors(err)")
+	assertTemplateMissing(t, "handlers_auth.tmpl", "validation.As(err)")
+	assertTemplateMissing(t, "handlers_auth.tmpl", "validationFields")
+	assertTemplateContains(t, "handlers_errors.tmpl", "inertia.ErrorHandler(renderer")
+	assertTemplateMissing(t, "handlers_errors.tmpl", "validation.As(err)")
 	assertTemplateContains(t, "domains_queries_token.tmpl",
 		"-- name: GetTokenByUserAndScope :one",
 		"-- name: IncrementTokenAttempts :one",
@@ -65,8 +68,9 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 		"services.ErrEmailNotVerified",
 		"ResendEmailVerification",
 		"setPendingUser",
-		"middleware.RateLimit",
+		"anduin.RateLimit",
 	)
+	assertTemplateMissing(t, "handlers_auth.tmpl", "middleware.RateLimit")
 
 	assertTemplateContains(t, "handlers_auth.tmpl",
 		"pendingUserID",
@@ -81,11 +85,13 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 
 func TestGeneratedUserEmailConflictsAreClassified(t *testing.T) {
 	assertTemplateContains(t, "domains_user.tmpl",
-		`pgErr.Code == "23505"`,
-		`pgErr.TableName == "users"`,
-		`pgErr.ConstraintName == "users_email_key"`,
-		"return errors.Join(ErrConflict, err)",
-		"return User{}, userWriteError(err)",
+		`storage.Conflict(err, "users_email_key")`,
+		"storage.Row(",
+	)
+	assertTemplateMissing(t, "domains_user.tmpl", "userWriteError")
+	assertTemplateContains(t, "domains_errors.tmpl",
+		"ErrNotFound = storage.ErrNotFound",
+		"ErrConflict = storage.ErrConflict",
 	)
 	assertTemplateContains(t, "database_migrations_users.tmpl",
 		"CONSTRAINT users_email_key UNIQUE (email)",
@@ -95,16 +101,10 @@ func TestGeneratedUserEmailConflictsAreClassified(t *testing.T) {
 		`outcome = "conflict"`,
 	)
 	assertTemplateContains(t, "handlers_errors.tmpl",
-		"errors.Is(err, domains.ErrConflict)",
-		`renderer.Page(ctx, "Errors/Conflict", inertia.Props{})`,
-		"Status(http.StatusConflict)",
+		`inertia.MapError(domains.ErrConflict, http.StatusConflict, "Errors/Conflict")`,
 	)
 	assertTemplateMissing(t, "handlers_errors.tmpl", "anduin.Conflict(")
-	assertTemplateContains(t, "handlers_errors.tmpl",
-		"func wantsJSON(ctx context.Context) bool",
-		"anduin.Header(ctx, inertia.HeaderInertia)",
-		"return mapJSONError(ctx, err)",
-	)
+	assertTemplateMissing(t, "handlers_errors.tmpl", "wantsJSON")
 	// Wrapping every unmapped error in a 500 would turn anduin.BadRequest into a 500.
 	assertTemplateMissing(t, "handlers_errors.tmpl", "anduin.Error(ctx, http.StatusInternalServerError, err)")
 }
@@ -161,7 +161,7 @@ func TestGeneratedPasswordResetUsesTokenOwner(t *testing.T) {
 // the worker mints the secret and renders the email.
 func TestGeneratedAuthEmailsKeepSecretsOutOfJobArgs(t *testing.T) {
 	for _, name := range []string{"services_registration.tmpl", "services_reset_password.tmpl"} {
-		assertTemplateMissing(t, name, "jobs.SendTransactionalEmailArgs")
+		assertTemplateMissing(t, name, "storage.SendTransactionalEmailArgs")
 	}
 	assertTemplateContains(t, "services_registration.tmpl",
 		"jobs.SendVerificationEmailArgs{UserID: created.ID}",
@@ -183,6 +183,7 @@ func TestGeneratedAuthEmailsKeepSecretsOutOfJobArgs(t *testing.T) {
 		}
 	}
 	assertTemplateContains(t, "psql_queue_workers_workers.tmpl",
+		"storage.AddEmailWorkers(workers, transactional, marketing)",
 		"NewSendVerificationEmailWorker(identity, transactional)",
 		"NewSendPasswordResetEmailWorker(identity, transactional)",
 	)

@@ -2,6 +2,7 @@ package queue
 
 import (
 	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/riverqueue/river"
 )
 
@@ -10,8 +11,7 @@ func NewWorkers(
 	marketing email.MarketingSender,
 ) *river.Workers {
 	workers := river.NewWorkers()
-	river.AddWorker(workers, NewSendTransactionalEmailWorker(transactional))
-	river.AddWorker(workers, NewSendMarketingEmailWorker(marketing))
+	storage.AddEmailWorkers(workers, transactional, marketing)
 
 	return workers
 }

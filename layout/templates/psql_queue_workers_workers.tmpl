@@ -2,6 +2,7 @@ package queue
 
 import (
 	"github.com/mbvlabs/andurel/pkg/email"
+	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/riverqueue/river"
 
 	"{{.ModuleName}}/services"
@@ -13,10 +14,9 @@ func NewWorkers(
 	marketing email.MarketingSender,
 ) *river.Workers {
 	workers := river.NewWorkers()
-	river.AddWorker(workers, NewSendTransactionalEmailWorker(transactional))
+	storage.AddEmailWorkers(workers, transactional, marketing)
 	river.AddWorker(workers, NewSendVerificationEmailWorker(identity, transactional))
 	river.AddWorker(workers, NewSendPasswordResetEmailWorker(identity, transactional))
-	river.AddWorker(workers, NewSendMarketingEmailWorker(marketing))
 
 	return workers
 }

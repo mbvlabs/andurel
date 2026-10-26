@@ -6,8 +6,9 @@ explicitly, bottom-up, with one constructor per process: `New` owns the HTTP
 `NewServer` to glue, no `middleware.NewJar`, and no Fx: every dependency and
 every lifecycle hook is readable in one file.
 
-`middleware/` exports policy only (auth guard, rate limiter, session
-definition). The cookie jar and the cache store are built here, in `newJar`
+`middleware/` exports application policy only (auth guard, session
+definition); generic middleware such as rate limiting and CSRF comes from
+`pkg/anduin`. The cookie jar and the cache store are built here, in `newJar`
 and `cfg.Cache.Store()`.
 
 ## Files
@@ -21,15 +22,16 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"slices"
 
 	"app/config"
 	"app/domains"
 	"app/handlers"
 	"app/middleware"
+	"app/routes"
 	"app/services"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/lifecycle"
 	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
@@ -40,7 +42,7 @@ type App struct {
 	DB      storage.Connection
 	Handler http.Handler
 	Server  anduin.Server
-	closers []func(context.Context) error
+	closers lifecycle.Stack
 }
 
 func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
@@ -61,20 +63,20 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	if err != nil {
 		return nil, err
 	}
-	app.closers = append(app.closers, tel.Shutdown)
+	app.closers.Add(tel.Shutdown)
 
-	db, err := newDatabase(ctx, cfg.Database, tel)
+	db, err := storage.NewPostgres(ctx, cfg.Database, storage.WithTelemetry(tel))
 	if err != nil {
 		return nil, err
 	}
 	app.DB = db
-	app.closers = append(app.closers, func(context.Context) error { return db.Close() })
+	app.closers.Add(func(context.Context) error { return db.Close() })
 
 	cacheStore, err := cfg.Cache.Store()
 	if err != nil {
 		return nil, err
 	}
-	app.closers = append(app.closers, func(context.Context) error { return cacheStore.Close() })
+	app.closers.Add(func(context.Context) error { return cacheStore.Close() })
 
 	queueInsert, err := storage.NewQueueInsert(db, cfg.QueueInsert.Config)
 	if err != nil {
@@ -106,14 +108,24 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 		anduin.WithErrorHandler(handlers.MapError(renderer)),
 		anduin.WithTelemetry(tel),
 	)
+	cors := anduin.DefaultCORS(
+		anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CORSAllowedOrigins)...,
+	)
+	csrf := anduin.DefaultCSRF(
+		cfg.HTTP.CSRFStrategy,
+		cfg.App.IsProduction(),
+		anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CSRFTrustedOrigins)...,
+	)
+	csrf.Skipper = anduin.SkipCSRFForBearer(routes.APIPrefix, cfg.Session.Name)
+
 	rt.Use(
 		anduin.Recover(),
 		anduin.RealIP(cfg.HTTP.TrustedProxies...),
 		anduin.Telemetry(tel),
 		jar.Middleware(),
 		renderer.Middleware(),
-		anduin.CORS(corsConfig(cfg)),
-		anduin.CSRF(csrfConfig(cfg)),
+		anduin.CORS(cors),
+		anduin.CSRF(csrf),
 	)
 
 	handlers.NewPagesHandler(renderer).Register(rt)
@@ -132,11 +144,7 @@ func (a *App) Start() error                       { return a.Server.Start() }
 func (a *App) Shutdown(ctx context.Context) error { return a.Server.Shutdown(ctx) }
 
 func (a *App) Close(ctx context.Context) error {
-	var closeErr error
-	for _, closeFn := range slices.Backward(a.closers) {
-		closeErr = errors.Join(closeErr, closeFn(ctx))
-	}
-	return closeErr
+	return a.closers.Close(ctx)
 }
 ```
 
@@ -145,8 +153,8 @@ func (a *App) Close(ctx context.Context) error {
 - Construct dependencies bottom-up in `internal/runtime/runtime.go` with one `New`.
 - Build the jar in `newJar` and the cache with `cfg.Cache.Store()`; middleware is policy only.
 - Register flat handlers with `handlers.NewXHandler(...).Register(rt)`; there is no reflection.
-- Append each dependency's cleanup to `closers` as soon as it is built; `Close` releases them in reverse, and the same path cleans up a failed `New`.
-- `cmd/app` is env load + `runtime.New` + `app.Start` + `app.Shutdown`.
+- Add each dependency's cleanup to a `lifecycle.Stack` as soon as it is built; `Close` releases them in reverse, and the same path cleans up a failed `New`.
+- `cmd/app` is env load + `runtime.New` + `lifecycle.Run`, with `lifecycle.WithBlockingStart()` for the HTTP serve loop, `app.Shutdown` as stop and a deferred `closeApp` releasing the rest. Ready-returning starters such as the queue worker use the default, which finishes startup before shutdown.
 - Add a new dependency by constructing it here and passing it down; never reach for a container or a global.
 - Build one `storage.NewTransactor(db)` and each domain receiver with `domains.NewX(db)`, then pass them individually to the services and handlers that use them. Handlers that need only health take a narrow interface (`healthChecker`, satisfied by `db`).
 - Only the wiring layers (`internal/runtime`, `cmd`, `seeds`, `migrations`) and `domains` may name `storage.Connection`; services and handlers never do.
@@ -156,5 +164,5 @@ func (a *App) Close(ctx context.Context) error {
 
 - [ ] New dependency constructed explicitly in `runtime.New`.
 - [ ] Handler registered with a constructor call plus `Register`.
-- [ ] Shutdown function appended to `closers` if needed.
+- [ ] Shutdown function added to the `lifecycle.Stack` if needed.
 - [ ] `andurel verify` passes and the app boots.

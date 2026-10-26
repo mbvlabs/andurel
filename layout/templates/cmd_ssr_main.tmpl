@@ -4,29 +4,33 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"{{.ModuleName}}/assets"
 	"{{.ModuleName}}/config"
 
+	"github.com/mbvlabs/andurel/pkg/env"
 	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/lifecycle"
 )
 
 func main() {
-	if err := config.LoadEnvironment(); err != nil {
+	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+}
+
+func run() error {
+	if err := env.Load(); err != nil {
+		return err
 	}
 
 	cfg, err := config.NewInertia()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "inertia config: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("inertia config: %w", err)
 	}
 
-	runtime, err := inertia.NewSSRRuntime(inertia.SSRRuntimeConfig{
+	ssr, err := inertia.NewSSRRuntime(inertia.SSRRuntimeConfig{
 		Executable:     cfg.SSRRuntime,
 		BundlePath:     cfg.SSRBundle,
 		ListenURL:      cfg.SSRListen,
@@ -36,30 +40,32 @@ func main() {
 		BundleFS:       assets.Files,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "inertia SSR runtime: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("inertia SSR runtime: %w", err)
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := lifecycle.NotifyContext(context.Background())
 	defer cancel()
 
-	if err := runtime.Start(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "start inertia SSR: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("Inertia SSR listening on %s\n", cfg.SSRListen)
+	return lifecycle.Run(ctx, func(ctx context.Context) error {
+		if err := ssr.Start(ctx); err != nil {
+			return fmt.Errorf("start inertia SSR: %w", err)
+		}
+		fmt.Printf("Inertia SSR listening on %s\n", cfg.SSRListen)
 
-	select {
-	case <-ctx.Done():
-	case err := <-runtime.Errors():
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		select {
+		case <-ctx.Done():
+		case err := <-ssr.Errors():
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			cancel()
+		}
+
+		return nil
+	}, func(ctx context.Context) error {
 		cancel()
-	}
+		if err := ssr.Stop(ctx); err != nil {
+			return fmt.Errorf("stop inertia SSR: %w", err)
+		}
 
-	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelShutdown()
-	if err := runtime.Stop(shutdownCtx); err != nil {
-		fmt.Fprintf(os.Stderr, "stop inertia SSR: %v\n", err)
-		os.Exit(1)
-	}
+		return nil
+	})
 }

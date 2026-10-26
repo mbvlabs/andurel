@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mbvlabs/andurel/pkg/cache"
+	"github.com/mbvlabs/andurel/pkg/env"
 )
 
 const DefaultCacheNamespace = "{{.Identifier}}"
@@ -15,13 +16,13 @@ type Cache struct {
 }
 
 func NewCache() (Cache, error) {
-	env := newEnvironment()
+	e := env.New()
 	cfg := Cache{
-		Driver:    env.String("CACHE_DRIVER", "memory"),
-		Namespace: env.String("CACHE_NAMESPACE", DefaultCacheNamespace),
-		RedisAddr: env.String("CACHE_REDIS_ADDR", ""),
+		Driver:    e.String("CACHE_DRIVER", "memory"),
+		Namespace: e.String("CACHE_NAMESPACE", DefaultCacheNamespace),
+		RedisAddr: e.String("CACHE_REDIS_ADDR", ""),
 	}
-	if err := env.Err(); err != nil {
+	if err := e.Err(); err != nil {
 		return Cache{}, fmt.Errorf("config: cache: %w", err)
 	}
 	if cfg.Driver != "memory" && cfg.Driver != "redis" {

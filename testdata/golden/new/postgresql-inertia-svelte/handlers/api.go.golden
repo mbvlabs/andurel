@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"context"
-	"errors"
-	"net/http"
 
 	"app/routes"
 
@@ -11,29 +9,13 @@ import (
 )
 
 type APIHandler struct {
-	health healthChecker
+	health anduin.Handler
 }
 
-type healthChecker interface {
-	Health(ctx context.Context) error
-}
-
-func NewAPIHandler(health healthChecker) APIHandler {
-	return APIHandler{health: health}
+func NewAPIHandler(health interface{ Health(context.Context) error }) APIHandler {
+	return APIHandler{health: anduin.Health(health)}
 }
 
 func (a APIHandler) Register(rt *anduin.Router) {
-	rt.Get(routes.Health.Path(), a.Health)
-}
-
-func (a APIHandler) Health(ctx context.Context) error {
-	if err := a.health.Health(ctx); err != nil {
-		return anduin.Error(
-			ctx,
-			http.StatusServiceUnavailable,
-			errors.New("database is unavailable"),
-		)
-	}
-
-	return anduin.JSON(ctx, http.StatusOK, "app is healthy and running")
+	rt.Get(routes.Health.Path(), a.health)
 }

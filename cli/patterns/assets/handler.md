@@ -89,46 +89,26 @@ func (h ProductHandler) Create(ctx context.Context) error {
 
 ### handlers/errors.go (excerpt)
 
-An excerpt of the scaffold's own `handlers/errors.go`; `wantsJSON` and
-`mapJSONError` are defined further down that file.
+An excerpt of the scaffold's own `handlers/errors.go`: the shared inertia
+handler renders field errors as a 422 and the mapped sentinels as error pages.
 
 ```go fragment
 package handlers
 
 import (
-	"context"
-	"errors"
 	"net/http"
 
 	"app/domains"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/inertia"
-	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
-	return func(ctx context.Context, err error) error {
-		if wantsJSON(ctx) { // no X-Inertia header, Accept: application/json
-			return mapJSONError(ctx, err) // same mapping, JSON bodies
-		}
-		if validationErr, ok := validation.As(err); ok {
-			return renderer.Page(ctx, "Errors/Validation", nil).
-				ValidationErrors(validationErr.ToMap()).
-				Status(http.StatusUnprocessableEntity).
-				Render()
-		}
-
-		switch {
-		case errors.Is(err, domains.ErrNotFound):
-			return renderer.Page(ctx, "Errors/NotFound", nil).
-				Status(http.StatusNotFound).Render()
-		case errors.Is(err, domains.ErrConflict):
-			return renderer.Page(ctx, "Errors/Conflict", nil).
-				Status(http.StatusConflict).Render()
-		}
-		return err // keeps its own status; the router answers and logs it
-	}
+	return inertia.ErrorHandler(renderer,
+		inertia.MapError(domains.ErrNotFound, http.StatusNotFound, "Errors/NotFound"),
+		inertia.MapError(domains.ErrConflict, http.StatusConflict, "Errors/Conflict"),
+	)
 }
 ```
 

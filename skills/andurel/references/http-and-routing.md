@@ -61,7 +61,7 @@ Registration:
 func (h Handler) Register(rt *anduin.Router) {
 	rt.Get(routes.UserIndex.Path(), h.Index)
 	rt.Get(routes.UserShow.Path(), h.Show)
-	rt.Post(routes.UserCreate.Path(), h.Create, middleware.RateLimit(h.cache, 5, 10*time.Minute, nil))
+	rt.Post(routes.UserCreate.Path(), h.Create, anduin.RateLimit(h.cache, 5, 10*time.Minute, nil))
 }
 ```
 
@@ -202,21 +202,31 @@ func CSRF(cfg CSRFConfig) Middleware
   `CookieSameSite`, `TrustedOrigins`, `TokenLength`, `Skipper`. The current
   token is available to handlers via `anduin.CSRFToken(ctx)`.
 
-App middleware (auth, rate limiting, cookie-jar wiring) lives in `middleware/`
-and uses the same `anduin.Middleware` type. `pkg/inertia`'s
+App middleware (auth and session definitions) lives in `middleware/` and uses
+the same `anduin.Middleware` type. `pkg/inertia`'s
 `(*Renderer).Middleware()` also returns an `anduin.Middleware`.
 
 Install global middleware in `internal/runtime`:
 
 ```go
+cors := anduin.DefaultCORS(
+	anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CORSAllowedOrigins)...,
+)
+csrf := anduin.DefaultCSRF(
+	cfg.HTTP.CSRFStrategy,
+	cfg.App.IsProduction(),
+	anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CSRFTrustedOrigins)...,
+)
+csrf.Skipper = anduin.SkipCSRFForBearer(routes.APIPrefix, cfg.Session.Name)
+
 rt.Use(
 	anduin.Recover(),
 	anduin.RealIP(cfg.HTTP.TrustedProxies...),
 	anduin.Telemetry(tel),
 	jar.Middleware(),
 	renderer.Middleware(),
-	anduin.CORS(corsConfig(cfg)),
-	anduin.CSRF(csrfConfig(cfg)),
+	anduin.CORS(cors),
+	anduin.CSRF(csrf),
 )
 ```
 
@@ -252,7 +262,9 @@ func (s *Server) Shutdown(ctx context.Context) error
 `Shutdown` stops only the HTTP listener; `runtime.App.Close` releases the
 other dependencies afterwards. `cmd/app` gets its server from `runtime.New`, which
 builds the router and wraps it with `anduin.NewServer(...)` internally, then
-calls `app.Start`; lifecycle ordering is explicit code, not an Fx hook.
+calls `lifecycle.Run(ctx, start, app.Shutdown, lifecycle.WithBlockingStart())`
+and defers `closeApp` for `Close`; lifecycle ordering is explicit code, not an
+Fx hook. Without `WithBlockingStart`, startup must finish before shutdown starts.
 
 ## Inertia
 
@@ -273,9 +285,11 @@ A handler renders a page with:
 return h.renderer.Page(ctx, "User/Index", inertia.FromStruct(result.Items)).Render()
 ```
 
-The root document is `resources/root.templ` (package `resources`). Map
-validation failures with `Page(...).ValidationErrors(fields)`; check with
-`validation.As(err)`. There is no separate domain validation sentinel or wrapper.
+The root document is `resources/root.templ` (package `resources`). Map field
+errors with `Page(...).Errors(err)`, which sets the validation errors prop and
+reports whether the error carried a field map. `inertia.ErrorHandler` does the
+same for errors returned from handlers; configure it with `inertia.MapError`
+for domain sentinels.
 
 ## Testing handlers
 

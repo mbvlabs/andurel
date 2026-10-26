@@ -24,15 +24,12 @@ package domains
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 	"uuid"
 
 	"app/domains/internal/queries"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
@@ -68,16 +65,7 @@ func (p *Product) Validate() error {
 }
 
 func (p Products) Find(ctx context.Context, id uuid.UUID) (Product, error) {
-	entity, err := p.queries.GetProduct[Product](ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return Product{}, ErrNotFound
-		}
-
-		return Product{}, err
-	}
-
-	return entity, nil
+	return storage.Row(p.queries.GetProduct[Product](ctx, id))
 }
 
 type CreateProductData struct {
@@ -94,7 +82,7 @@ func (p Products) Create(ctx context.Context, data CreateProductData) (Product, 
 		Name:       strings.TrimSpace(data.Name),
 		PriceCents: data.PriceCents,
 	}
-	if err := validation.Validate(&entity); err != nil {
+	if err := entity.Validate(); err != nil {
 		return Product{}, err
 	}
 
@@ -105,72 +93,31 @@ func (p Products) Create(ctx context.Context, data CreateProductData) (Product, 
 		Name:       entity.Name,
 		PriceCents: entity.PriceCents,
 	})
-	if err != nil {
-		return Product{}, productWriteError(err)
-	}
 
-	return created, nil
-}
-
-type PaginatedProducts struct {
-	Products   []Product
-	TotalCount int64
-	Page       int64
-	PageSize   int64
-	TotalPages int64
+	return storage.Row(created, storage.Conflict(err, "products_name_key"))
 }
 
 func (p Products) Paginate(
 	ctx context.Context,
 	page, pageSize int64,
-) (PaginatedProducts, error) {
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 {
-		pageSize = 10
-	}
-	if pageSize > 100 {
-		pageSize = 100
-	}
-
-	offset := (page - 1) * pageSize
+) (storage.Paginated[Product], error) {
+	req := storage.Page(page, pageSize)
 
 	totalCount, err := p.queries.CountProducts(ctx)
 	if err != nil {
-		return PaginatedProducts{}, err
+		return storage.Paginated[Product]{}, err
 	}
 
 	entities, err := p.queries.ListProducts[Product](ctx).
 		OrderByCreatedAtDesc().
-		Limit(int32(pageSize)).
-		Offset(int32(offset)).
+		Limit(req.Limit).
+		Offset(req.Offset).
 		All()
 	if err != nil {
-		return PaginatedProducts{}, err
+		return storage.Paginated[Product]{}, err
 	}
 
-	totalPages := (totalCount + pageSize - 1) / pageSize
-
-	return PaginatedProducts{
-		Products:   entities,
-		TotalCount: totalCount,
-		Page:       page,
-		PageSize:   pageSize,
-		TotalPages: totalPages,
-	}, nil
-}
-
-// productWriteError translates the expected name conflict without classifying
-// unrelated database failures as product errors. Keep the constraint in sync
-// with the products migration.
-func productWriteError(err error) error {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		return errors.Join(ErrConflict, err)
-	}
-
-	return err
+	return storage.NewPaginated(entities, totalCount, req), nil
 }
 ```
 

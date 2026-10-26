@@ -212,12 +212,10 @@ package domains
 
 import (
     "context"
-    "errors"
     "uuid"
 
     "app/domains/internal/queries"
 
-    "github.com/jackc/pgx/v5"
     "github.com/mbvlabs/andurel/pkg/storage"
     "github.com/mbvlabs/andurel/pkg/validation"
 )
@@ -234,11 +232,7 @@ func (p *Product) Validate() error {
 }
 
 func (p Products) Find(ctx context.Context, id uuid.UUID) (Product, error) {
-    entity, err := p.queries.GetProduct[Product](ctx, id)
-    if errors.Is(err, pgx.ErrNoRows) {
-        return Product{}, ErrNotFound
-    }
-    return entity, err
+    return storage.Row(p.queries.GetProduct[Product](ctx, id))
 }
 
 type Products struct{ queries *queries.Queries }
@@ -336,7 +330,7 @@ func (h ProductHandler) Index(ctx context.Context) error {
         return err
     }
     return h.renderer.Page(ctx, "Product/Index", inertia.Props{
-        "products":   result.Products,
+        "products":   result.Items,
         "totalPages": result.TotalPages,
     }).Render()
 }
@@ -458,13 +452,15 @@ package email
 import (
     "bytes"
     "context"
+
+    pkgemail "github.com/mbvlabs/andurel/pkg/email"
 )
 
 type WelcomeEmail struct {
     UserName string
 }
 
-var _ Transformer = (*WelcomeEmail)(nil)
+var _ pkgemail.Transformer = (*WelcomeEmail)(nil)
 
 func (w WelcomeEmail) ToHTML() (string, error) {
     var buf bytes.Buffer
@@ -481,7 +477,7 @@ func (w WelcomeEmail) ToText() (string, error) {
         return "", err
     }
 
-    return HTMLToText(html)
+    return pkgemail.HTMLToText(html)
 }
 
 templ (w WelcomeEmail) render() {
@@ -503,30 +499,23 @@ import (
     "fmt"
 
     "github.com/mbvlabs/andurel/pkg/email"
+    "github.com/mbvlabs/andurel/pkg/storage"
 
     appemail "app/email"
-    "app/queue/jobs"
 )
 
 welcome := appemail.WelcomeEmail{UserName: "John Doe"}
-html, err := welcome.ToHTML()
+data, err := email.Compose(
+    welcome,
+    "user@example.com",
+    i.defaultSenderSignature,
+    "Welcome!",
+)
 if err != nil {
-    return fmt.Errorf("render welcome email html: %w", err)
-}
-text, err := welcome.ToText()
-if err != nil {
-    return fmt.Errorf("render welcome email text: %w", err)
+    return fmt.Errorf("render welcome email: %w", err)
 }
 
-_, err = i.queue.Insert(ctx, jobs.SendTransactionalEmailArgs{
-    Data: email.TransactionalData{
-        From:     i.defaultSenderSignature,
-        To:       "user@example.com",
-        Subject:  "Welcome!",
-        HTMLBody: html,
-        TextBody: text,
-    },
-}, nil)
+_, err = i.queue.Insert(ctx, storage.SendTransactionalEmailArgs{Data: data}, nil)
 ```
 
 **Development Testing**
@@ -663,7 +652,7 @@ Session and CSRF cookies are host-only by default (no `Domain` attribute). Shari
 
 ## Rate Limiting And Client IPs
 
-`middleware.RateLimit` counts every attempt per client IP per route in the
+`anduin.RateLimit` counts every attempt per client IP per route in the
 injected `cache.Store` (use the Redis driver so replicas share counters). The
 auth endpoints — sign in, registration, email confirmation, and both password
 reset steps — allow 5 attempts per 10 minutes each. Over the limit the form is
@@ -797,8 +786,9 @@ go test -v ./...
 
 `storagetest.Cluster` starts a PostgreSQL container and gives each test a clean
 migrated database. The domain, handler and integration packages each own one
-cluster in `TestMain`; without Docker they print the reason and exit 0 so
-`go test ./...` and `andurel verify --with-tests` still pass.
+cluster through `storagetest.Main` in `TestMain`; without Docker it prints the
+reason and exits 0 so `go test ./...` and `andurel verify --with-tests` still
+pass.
 
 **Best Practices**
 

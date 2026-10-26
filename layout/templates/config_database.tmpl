@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/mbvlabs/andurel/pkg/env"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -19,38 +20,38 @@ const (
 )
 
 func NewDatabase() (storage.Config, error) {
-	env := newEnvironment()
+	e := env.New()
 	cfg := storage.DefaultConfig()
-	cfg.DatabaseKind = env.String("DB_KIND", DefaultDatabaseKind)
-	cfg.Host = env.String("DB_HOST", DefaultDatabaseHost)
-	cfg.Port = env.String("DB_PORT", DefaultDatabasePort)
-	cfg.Name = env.String("DB_NAME", DefaultDatabaseName)
-	cfg.User = env.String("DB_USER", DefaultDatabaseUser)
-	cfg.Password = env.String("DB_PASSWORD", DefaultDatabasePassword)
-	cfg.SSLMode = env.String("DB_SSL_MODE", DefaultDatabaseSSLMode)
-	cfg.ApplicationName = env.String("DB_APPLICATION_NAME", DefaultDatabaseApplicationName)
-	cfg.ConnectTimeout = env.Duration("DB_CONNECT_TIMEOUT", cfg.ConnectTimeout)
-	cfg.StatementCacheCapacity = env.Int(
+	cfg.DatabaseKind = e.String("DB_KIND", DefaultDatabaseKind)
+	cfg.Host = e.String("DB_HOST", DefaultDatabaseHost)
+	cfg.Port = e.String("DB_PORT", DefaultDatabasePort)
+	cfg.Name = e.String("DB_NAME", DefaultDatabaseName)
+	cfg.User = e.String("DB_USER", DefaultDatabaseUser)
+	cfg.Password = e.String("DB_PASSWORD", DefaultDatabasePassword)
+	cfg.SSLMode = e.String("DB_SSL_MODE", DefaultDatabaseSSLMode)
+	cfg.ApplicationName = e.String("DB_APPLICATION_NAME", DefaultDatabaseApplicationName)
+	cfg.ConnectTimeout = e.Duration("DB_CONNECT_TIMEOUT", cfg.ConnectTimeout)
+	cfg.StatementCacheCapacity = e.Int(
 		"DB_STATEMENT_CACHE_CAPACITY",
 		cfg.StatementCacheCapacity,
 	)
-	cfg.DescriptionCacheCapacity = env.Int(
+	cfg.DescriptionCacheCapacity = e.Int(
 		"DB_DESCRIPTION_CACHE_CAPACITY",
 		cfg.DescriptionCacheCapacity,
 	)
-	cfg.MaxOpenConnections = env.Int("DB_MAX_OPEN_CONNECTIONS", cfg.MaxOpenConnections)
-	cfg.MaxIdleConnections = env.Int("DB_MAX_IDLE_CONNECTIONS", cfg.MaxIdleConnections)
-	cfg.ConnectionMaxLifetime = env.Duration(
+	cfg.MaxOpenConnections = e.Int("DB_MAX_OPEN_CONNECTIONS", cfg.MaxOpenConnections)
+	cfg.MaxIdleConnections = e.Int("DB_MAX_IDLE_CONNECTIONS", cfg.MaxIdleConnections)
+	cfg.ConnectionMaxLifetime = e.Duration(
 		"DB_CONNECTION_MAX_LIFETIME",
 		cfg.ConnectionMaxLifetime,
 	)
-	cfg.ConnectionMaxIdleTime = env.Duration(
+	cfg.ConnectionMaxIdleTime = e.Duration(
 		"DB_CONNECTION_MAX_IDLE_TIME",
 		cfg.ConnectionMaxIdleTime,
 	)
-	cfg.OpenTelemetry = env.Bool("DB_OPEN_TELEMETRY", true)
+	cfg.OpenTelemetry = e.Bool("DB_OPEN_TELEMETRY", true)
 
-	if err := errors.Join(env.Err(), cfg.Validate()); err != nil {
+	if err := errors.Join(e.Err(), cfg.Validate()); err != nil {
 		return storage.Config{}, fmt.Errorf("config: database: %w", err)
 	}
 

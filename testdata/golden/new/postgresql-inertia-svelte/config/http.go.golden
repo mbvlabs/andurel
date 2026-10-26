@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/env"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
@@ -36,23 +37,23 @@ type HTTP struct {
 }
 
 func NewHTTP() (HTTP, error) {
-	env := newEnvironment()
+	e := env.New()
 	trustedProxies, proxiesErr := anduin.ParseTrustedProxies(
-		env.Strings("HTTP_TRUSTED_PROXIES", nil),
+		e.Strings("HTTP_TRUSTED_PROXIES", nil),
 	)
 	cfg := HTTP{
 		TrustedProxies:     trustedProxies,
-		Host:               env.String("HOST", DefaultHTTPHost),
-		Port:               env.String("PORT", DefaultHTTPPort),
-		CORSAllowedOrigins: env.Strings("CORS_ALLOWED_ORIGINS", nil),
-		CSRFStrategy:       env.String("CSRF_STRATEGY", DefaultCSRFStrategy),
-		CSRFTrustedOrigins: env.Strings("CSRF_TRUSTED_ORIGINS", nil),
-		IdleTimeout:        env.Duration("HTTP_IDLE_TIMEOUT", DefaultHTTPIdleTimeout),
-		ReadTimeout:        env.Duration("HTTP_READ_TIMEOUT", DefaultHTTPReadTimeout),
-		WriteTimeout:       env.Duration("HTTP_WRITE_TIMEOUT", DefaultHTTPWriteTimeout),
+		Host:               e.String("HOST", DefaultHTTPHost),
+		Port:               e.String("PORT", DefaultHTTPPort),
+		CORSAllowedOrigins: e.Strings("CORS_ALLOWED_ORIGINS", nil),
+		CSRFStrategy:       e.String("CSRF_STRATEGY", DefaultCSRFStrategy),
+		CSRFTrustedOrigins: e.Strings("CSRF_TRUSTED_ORIGINS", nil),
+		IdleTimeout:        e.Duration("HTTP_IDLE_TIMEOUT", DefaultHTTPIdleTimeout),
+		ReadTimeout:        e.Duration("HTTP_READ_TIMEOUT", DefaultHTTPReadTimeout),
+		WriteTimeout:       e.Duration("HTTP_WRITE_TIMEOUT", DefaultHTTPWriteTimeout),
 	}
 
-	if err := errors.Join(env.Err(), proxiesErr, cfg.validate()); err != nil {
+	if err := errors.Join(e.Err(), proxiesErr, cfg.validate()); err != nil {
 		return HTTP{}, fmt.Errorf("config: http: %w", err)
 	}
 

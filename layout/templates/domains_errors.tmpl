@@ -2,9 +2,9 @@
 // before querying; services coordinate work spanning multiple receivers.
 package domains
 
-import "errors"
+import "github.com/mbvlabs/andurel/pkg/storage"
 
 var (
-	ErrNotFound = errors.New("domain: not found")
-	ErrConflict = errors.New("domain: conflict")
+	ErrNotFound = storage.ErrNotFound
+	ErrConflict = storage.ErrConflict
 )

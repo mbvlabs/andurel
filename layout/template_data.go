@@ -91,6 +91,18 @@ func (td *TemplateData) AnduinPackageVersion() string {
 	return versions.Anduin
 }
 
+// AuthPackageVersion returns the standalone auth module version verified with
+// this framework release.
+func (td *TemplateData) AuthPackageVersion() string {
+	return versions.Auth
+}
+
+// EnvPackageVersion returns the standalone env module version verified with
+// this framework release.
+func (td *TemplateData) EnvPackageVersion() string {
+	return versions.Env
+}
+
 // CachePackageVersion returns the standalone cache module version verified with
 // this framework release.
 func (td *TemplateData) CachePackageVersion() string {
@@ -107,6 +119,12 @@ func (td *TemplateData) InertiaPackageVersion() string {
 // this framework release.
 func (td *TemplateData) KiksPackageVersion() string {
 	return versions.Kiks
+}
+
+// LifecyclePackageVersion returns the standalone lifecycle module version
+// verified with this framework release.
+func (td *TemplateData) LifecyclePackageVersion() string {
+	return versions.Lifecycle
 }
 
 // RoutingPackageVersion returns the standalone routing module version verified

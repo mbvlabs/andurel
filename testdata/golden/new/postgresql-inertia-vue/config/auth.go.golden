@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+
+	"github.com/mbvlabs/andurel/pkg/env"
 )
 
 type Auth struct {
@@ -11,13 +13,13 @@ type Auth struct {
 }
 
 func NewAuth() (Auth, error) {
-	env := newEnvironment()
+	e := env.New()
 	cfg := Auth{
-		TokenSigningKey: env.RequiredString("TOKEN_SIGNING_KEY"),
-		Pepper:          env.RequiredString("PEPPER"),
-		PreviousPeppers: env.Strings("PREVIOUS_PEPPERS", nil),
+		TokenSigningKey: e.RequiredString("TOKEN_SIGNING_KEY"),
+		Pepper:          e.RequiredString("PEPPER"),
+		PreviousPeppers: e.Strings("PREVIOUS_PEPPERS", nil),
 	}
-	if err := env.Err(); err != nil {
+	if err := e.Err(); err != nil {
 		return Auth{}, fmt.Errorf("config: auth: %w", err)
 	}
 

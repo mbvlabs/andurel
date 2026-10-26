@@ -8,6 +8,7 @@ import (
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/migrations"
 
+	"github.com/mbvlabs/andurel/pkg/env"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -18,7 +19,7 @@ func main() {
 }
 
 func run() error {
-	if err := config.LoadEnvironment(); err != nil {
+	if err := env.Load(); err != nil {
 		return err
 	}
 

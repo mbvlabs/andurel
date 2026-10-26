@@ -2,22 +2,15 @@ package domains
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base32"
-	"encoding/hex"
-	"errors"
-	"math/big"
 	"time"
 	"uuid"
 
 	"app/domains/internal/queries"
 
+	"github.com/mbvlabs/andurel/pkg/auth"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -60,59 +53,12 @@ type Token struct {
 }
 
 func (t Token) IsValid(token, secret string) bool {
-	expected := HashForStorage(token, secret)
-
-	isEqual := hmac.Equal([]byte(expected), []byte(t.Hash))
-	isNotExpired := time.Now().Before(t.ExpiresAt.Time)
-
-	return isEqual && isNotExpired
-}
-
-const codeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-// GenerateCode returns n characters drawn uniformly from codeAlphabet.
-// rand.Int avoids the bias a byte modulo the alphabet size would add.
-func GenerateCode(n int) (string, error) {
-	limit := big.NewInt(int64(len(codeAlphabet)))
-	b := make([]byte, n)
-	for i := range b {
-		index, err := rand.Int(rand.Reader, limit)
-		if err != nil {
-			return "", err
-		}
-		b[i] = codeAlphabet[index.Int64()]
-	}
-
-	return string(b), nil
-}
-
-func GenerateSecureToken() (string, error) {
-	b := make([]byte, 15)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-
-	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b), nil
-}
-
-func HashForStorage(plain, secret string) string {
-	m := hmac.New(sha256.New, []byte(secret))
-	m.Write([]byte(plain))
-
-	return hex.EncodeToString(m.Sum(nil))
+	return auth.VerifyToken(token, secret, t.Hash) &&
+		time.Now().Before(t.ExpiresAt.Time)
 }
 
 func (t Tokens) Find(ctx context.Context, id uuid.UUID) (Token, error) {
-	entity, err := t.queries.GetToken[Token](ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return Token{}, ErrNotFound
-		}
-
-		return Token{}, err
-	}
-
-	return entity, nil
+	return storage.Row(t.queries.GetToken[Token](ctx, id))
 }
 
 func (t Tokens) FindByScopeAndHash(
@@ -121,24 +67,15 @@ func (t Tokens) FindByScopeAndHash(
 	scope TokenScope,
 	plainToken string,
 ) (Token, error) {
-	hash := HashForStorage(plainToken, secret)
+	hash := auth.HashToken(plainToken, secret)
 
-	entity, err := t.queries.GetTokenByScopeAndHash[Token](
+	return storage.Row(t.queries.GetTokenByScopeAndHash[Token](
 		ctx,
 		queries.GetTokenByScopeAndHashParams{
 			Scope: string(scope),
 			Hash:  hash,
 		},
-	)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return Token{}, ErrNotFound
-		}
-
-		return Token{}, err
-	}
-
-	return entity, nil
+	))
 }
 
 func (t Tokens) FindByUserAndScope(
@@ -146,40 +83,22 @@ func (t Tokens) FindByUserAndScope(
 	userID uuid.UUID,
 	scope TokenScope,
 ) (Token, error) {
-	entity, err := t.queries.GetTokenByUserAndScope[Token](
+	return storage.Row(t.queries.GetTokenByUserAndScope[Token](
 		ctx,
 		queries.GetTokenByUserAndScopeParams{
 			UserID: userID,
 			Scope:  string(scope),
 		},
-	)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return Token{}, ErrNotFound
-		}
-
-		return Token{}, err
-	}
-
-	return entity, nil
+	))
 }
 
 // IncrementAttempts takes an UPDATE row lock until the transaction finishes.
 // Call it before checking a code, and commit even when that code is invalid.
 func (t Tokens) IncrementAttempts(ctx context.Context, id uuid.UUID) (int32, error) {
-	attempts, err := t.queries.IncrementTokenAttempts(ctx, queries.IncrementTokenAttemptsParams{
+	return storage.Row(t.queries.IncrementTokenAttempts(ctx, queries.IncrementTokenAttemptsParams{
 		ID:        id,
 		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-	})
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return 0, ErrNotFound
-		}
-
-		return 0, err
-	}
-
-	return attempts, nil
+	}))
 }
 
 func (t Tokens) DestroyByUserAndScope(
@@ -193,7 +112,7 @@ func (t Tokens) DestroyByUserAndScope(
 	})
 }
 
-type createTokenData struct {
+type CreateTokenData struct {
 	Scope     string
 	ExpiresAt time.Time
 	Hash      string
@@ -201,7 +120,7 @@ type createTokenData struct {
 	UserID    uuid.UUID
 }
 
-func (t *Token) Validate() error {
+func (t Token) Validate() error {
 	b := validation.NewBuilder()
 	b.Required("scope", t.Scope)
 	b.Required("expires_at", t.ExpiresAt)
@@ -212,9 +131,9 @@ func (t *Token) Validate() error {
 	return b.Err()
 }
 
-func (t Tokens) createToken(
+func (t Tokens) Create(
 	ctx context.Context,
-	data createTokenData,
+	data CreateTokenData,
 ) (Token, error) {
 	entity := Token{
 		ID:        uuid.New(),
@@ -227,11 +146,11 @@ func (t Tokens) createToken(
 		UserID:    data.UserID,
 	}
 
-	if err := validation.Validate(&entity); err != nil {
+	if err := entity.Validate(); err != nil {
 		return Token{}, err
 	}
 
-	return t.queries.CreateToken[Token](ctx, queries.CreateTokenParams{
+	return storage.Row(t.queries.CreateToken[Token](ctx, queries.CreateTokenParams{
 		ID:        entity.ID,
 		CreatedAt: entity.CreatedAt,
 		UpdatedAt: entity.UpdatedAt,
@@ -240,7 +159,7 @@ func (t Tokens) createToken(
 		Hash:      entity.Hash,
 		MetaData:  entity.MetaData,
 		UserID:    entity.UserID,
-	})
+	}))
 }
 
 func (t Tokens) CreateCode(
@@ -251,15 +170,15 @@ func (t Tokens) CreateCode(
 	metaData []byte,
 	userID uuid.UUID,
 ) (string, error) {
-	tkn, err := GenerateCode(6)
+	tkn, err := auth.GenerateCode(6)
 	if err != nil {
 		return "", err
 	}
 
-	if _, err := t.createToken(ctx, createTokenData{
+	if _, err := t.Create(ctx, CreateTokenData{
 		Scope:     string(scope),
 		ExpiresAt: expiresAt,
-		Hash:      HashForStorage(tkn, secret),
+		Hash:      auth.HashToken(tkn, secret),
 		MetaData:  metaData,
 		UserID:    userID,
 	}); err != nil {
@@ -304,7 +223,7 @@ func (t Tokens) ReplaceCode(
 	return code, nil
 }
 
-func (t Tokens) Create(
+func (t Tokens) CreateSecure(
 	ctx context.Context,
 	secret string,
 	scope TokenScope,
@@ -312,15 +231,15 @@ func (t Tokens) Create(
 	metaData []byte,
 	userID uuid.UUID,
 ) (string, error) {
-	tkn, err := GenerateSecureToken()
+	tkn, err := auth.GenerateToken()
 	if err != nil {
 		return "", err
 	}
 
-	if _, err := t.createToken(ctx, createTokenData{
+	if _, err := t.Create(ctx, CreateTokenData{
 		Scope:     string(scope),
 		ExpiresAt: expiresAt,
-		Hash:      HashForStorage(tkn, secret),
+		Hash:      auth.HashToken(tkn, secret),
 		MetaData:  metaData,
 		UserID:    userID,
 	}); err != nil {

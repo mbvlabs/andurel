@@ -7,6 +7,7 @@ import (
 
 	"{{.ModuleName}}/domains"
 
+	"github.com/mbvlabs/andurel/pkg/auth"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
@@ -40,11 +41,11 @@ func (i Identity) AuthenticateUser(
 		return domains.User{}, fmt.Errorf("find user by email: %w", err)
 	}
 
-	validPassword, needsRehash, err := verifyPasswordWithPeppers(
-		user,
+	validPassword, needsRehash, err := auth.VerifyPasswordAny(
+		string(user.Password),
 		data.Password,
 		i.pepper,
-		i.previousPeppers,
+		i.previousPeppers...,
 	)
 	if err != nil {
 		return domains.User{}, fmt.Errorf("validate password: %w", err)
@@ -68,28 +69,4 @@ func (i Identity) AuthenticateUser(
 	}
 
 	return user, nil
-}
-
-func verifyPasswordWithPeppers(
-	user domains.User,
-	providedPassword string,
-	currentPepper string,
-	previousPeppers []string,
-) (valid bool, needsRehash bool, err error) {
-	valid, err = user.ValidPassword(providedPassword, currentPepper)
-	if err != nil || valid {
-		return valid, false, err
-	}
-
-	for _, previousPepper := range previousPeppers {
-		valid, err = user.ValidPassword(providedPassword, previousPepper)
-		if err != nil {
-			return false, false, err
-		}
-		if valid {
-			return true, true, nil
-		}
-	}
-
-	return false, false, nil
 }

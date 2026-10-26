@@ -10,13 +10,15 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"bytes"
 	"context"
+
+	pkgemail "github.com/mbvlabs/andurel/pkg/email"
 )
 
 type VerifyEmail struct {
 	VerificationCode string
 }
 
-var _ Transformer = (*VerifyEmail)(nil)
+var _ pkgemail.Transformer = (*VerifyEmail)(nil)
 
 func (v VerifyEmail) ToHTML() (string, error) {
 	var buf bytes.Buffer
@@ -33,7 +35,7 @@ func (v VerifyEmail) ToText() (string, error) {
 		return "", err
 	}
 
-	return HTMLToText(html)
+	return pkgemail.HTMLToText(html)
 }
 
 func (v VerifyEmail) render() templ.Component {
@@ -76,7 +78,7 @@ func (v VerifyEmail) render() templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(v.VerificationCode)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `email/verify_email.templ`, Line: 65, Col: 30}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `email/verify_email.templ`, Line: 67, Col: 30}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {

@@ -46,11 +46,11 @@ Two commands keep an agent honest:
 | Seed data | `seeds/` or `cmd/seeds/` following the existing pattern |
 | External provider adapters | A package under `internal/` named for its job (for example `internal/clients/`, `internal/payment/`) |
 | Email templates and send helpers | `email/` |
-| River job argument types | `queue/jobs/` |
+| River job argument types | `queue/jobs/` (`pkg/storage` owns the generic email args) |
 | River workers and queue registration | `queue/` |
 | App configuration structs and environment loading | `config/` |
 | Process composition (constructor wiring, infrastructure, process lifecycle) | `internal/runtime/` |
-| Process entry (load env, signal context, single `runtime.New` / `runtime.NewQueue`) | `cmd/app/`, `cmd/queue/` |
+| Process entry (load env, one `lifecycle.Run` around `runtime.New` / `runtime.NewQueue`) | `cmd/app/`, `cmd/queue/` |
 | One-shot database processes | `cmd/migrate/`, `cmd/seeds/` |
 
 ## Domains
@@ -240,14 +240,19 @@ Middleware has the `anduin.Middleware` shape (`func(anduin.Handler)
 anduin.Handler`):
 
 - Auth and authorization middleware.
-- Rate limiting (`RateLimit`, keyed by route pattern + `anduin.ClientIP`),
+- Session definitions (`Session`, `NewSessionCookie`).
+- Route attribute / telemetry helpers.
+
+Generic HTTP policy lives in `pkg/anduin`:
+
+- Rate limiting (`anduin.RateLimit`, keyed by route pattern + `anduin.ClientIP`),
   backed by the injected `cache.Store` so every replica enforces the same
   limit on Redis.
-- Route attribute / telemetry helpers.
-- CSRF strategy construction.
+- CSRF strategy construction (`anduin.DefaultCSRF`, `anduin.SkipCSRFForBearer`).
+- CORS policy (`anduin.DefaultCORS`, `anduin.MergeOrigins`).
 
 Cookie jar construction lives in `internal/runtime` (`newJar`); `middleware/`
-exports the session definition (`Session`, `NewSessionCookie`) and policy only. There is no
+exports the session definition and application policy only. There is no
 `middleware.NewJar`.
 
 Generic middleware (`Recover`, `RealIP`, `Logger`, `Telemetry`, `CORS`, `CSRF`) is
@@ -306,7 +311,9 @@ feel shared. Use `domains/` or `services/`.
 constructs the whole dependency graph bottom-up with one constructor per
 process (`runtime.New` owns `Handler`+`Server`; `runtime.NewQueue` owns the
 worker graph) and owns process lifecycle. `cmd/app` and `cmd/queue` only load
-environment, create the signal context, and call into `runtime`.
+environment and call `lifecycle.Run` around the runtime's start and stop.
+The blocking HTTP serve loop uses `lifecycle.WithBlockingStart()`; the queue
+worker finishes startup before shutdown can release its dependencies.
 `cmd/migrate` and `cmd/seeds` load environment, open Postgres, run one task,
 and exit. Do not apply migrations from `cmd/app` start.
 
@@ -321,11 +328,12 @@ container.
   transactions also take the runtime's `storage.NewTransactor(db)`.
 - New services: construct them in `internal/runtime` (`services.NewIdentity(...)`).
 - New handlers: construct them and call `Register(rt)` in `internal/runtime`.
-- New queue workers: register them in `internal/runtime/queue.go`.
+- New queue workers: register them in `internal/runtime/queue.go`; the generic
+  email workers come from `storage.AddEmailWorkers`.
 - External provider adapters: constructors in their `internal/` package,
   provided from `internal/runtime`.
-- Process entry: `cmd/app/main.go` and `cmd/queue/main.go` for env loading, the
-  signal context, and starting `runtime`/`anduin.Server`.
+- Process entry: `cmd/app/main.go` and `cmd/queue/main.go` for env loading and
+  `lifecycle.Run` around the runtime's start and stop.
 - One-shot database processes: `cmd/migrate/main.go` applies pending SQL;
   `cmd/seeds/main.go` runs named seed sets.
 

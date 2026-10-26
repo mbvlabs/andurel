@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"strings"
+
+	"github.com/mbvlabs/andurel/pkg/env"
 )
 
 type MailDriver string
@@ -22,12 +24,12 @@ type Mail struct {
 }
 
 func NewMail(app App) (Mail, error) {
-	env := newEnvironment()
+	e := env.New()
 	cfg := Mail{
-		DefaultSenderSignature: env.String("DEFAULT_SENDER_SIGNATURE", "noreply@"+app.Domain),
-		Driver:                 MailDriver(env.String("EMAIL_PROVIDER", string(MailpitDriver))),
-		Host:                   env.String("MAILPIT_HOST", DefaultMailpitHost),
-		Port:                   env.String("MAILPIT_PORT", DefaultMailpitPort),
+		DefaultSenderSignature: e.String("DEFAULT_SENDER_SIGNATURE", "noreply@"+app.Domain),
+		Driver:                 MailDriver(e.String("EMAIL_PROVIDER", string(MailpitDriver))),
+		Host:                   e.String("MAILPIT_HOST", DefaultMailpitHost),
+		Port:                   e.String("MAILPIT_PORT", DefaultMailpitPort),
 	}
 	if strings.TrimSpace(cfg.DefaultSenderSignature) == "" {
 		return Mail{}, fmt.Errorf("config: mail: DEFAULT_SENDER_SIGNATURE must not be empty")

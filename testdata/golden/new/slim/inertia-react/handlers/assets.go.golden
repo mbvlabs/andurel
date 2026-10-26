@@ -1,15 +1,8 @@
 package handlers
 
 import (
-	"context"
-	"crypto/md5"
-	"encoding/xml"
-	"errors"
 	"fmt"
 	"io/fs"
-	"net/http"
-	"path"
-	"strings"
 
 	"app/assets"
 	"app/config"
@@ -18,203 +11,43 @@ import (
 	"github.com/mbvlabs/andurel/pkg/anduin"
 )
 
-const threeMonthsCache = "7776000"
-
 // AssetsHandler serves embedded files. The embedded files are fixed at build
 // time, so robots.txt, the sitemap and every ETag are computed once at startup.
 type AssetsHandler struct {
-	production bool
-	robots     string
-	sitemap    []byte
-	etags      map[string]string
+	robots  anduin.Handler
+	sitemap anduin.Handler
+	dist    anduin.Handler
 }
 
 func NewAssetsHandler(appCfg config.App) (AssetsHandler, error) {
-	sitemap, err := createSitemap(appCfg.BaseURL())
+	dist, err := fs.Sub(assets.Files, "dist")
+	if err != nil {
+		return AssetsHandler{}, fmt.Errorf("assets: dist: %w", err)
+	}
+
+	sitemap, err := anduin.Sitemap(anduin.SitemapURL{
+		Loc:        appCfg.BaseURL(),
+		ChangeFreq: "monthly",
+		Priority:   "1",
+	})
 	if err != nil {
 		return AssetsHandler{}, fmt.Errorf("assets: sitemap: %w", err)
 	}
 
-	etags := make(map[string]string)
-	if appCfg.IsProduction() {
-		err := fs.WalkDir(assets.Files, "dist", func(name string, entry fs.DirEntry, err error) error {
-			if err != nil || entry.IsDir() {
-				return err
-			}
-			content, err := assets.Files.ReadFile(name)
-			if err != nil {
-				return err
-			}
-			etags[name] = etagFor(content)
-
-			return nil
-		})
-		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return AssetsHandler{}, fmt.Errorf("assets: etags: %w", err)
-		}
+	distHandler, err := anduin.StaticFS(dist, anduin.Immutable(appCfg.IsProduction()))
+	if err != nil {
+		return AssetsHandler{}, fmt.Errorf("assets: static files: %w", err)
 	}
 
 	return AssetsHandler{
-		production: appCfg.IsProduction(),
-		robots:     createRobotsTxt(appCfg.BaseURL()),
-		sitemap:    sitemap,
-		etags:      etags,
+		robots:  anduin.RobotsTxt(appCfg.BaseURL() + routes.Sitemap.URL()),
+		sitemap: sitemap,
+		dist:    distHandler,
 	}, nil
 }
 
 func (a AssetsHandler) Register(rt *anduin.Router) {
-	rt.Get(routes.Robots.Path(), a.Robots)
-	rt.Get(routes.Sitemap.Path(), a.Sitemap)
-	rt.Get(routes.ViteBuild.Path(), a.ViteBuild)
-}
-
-func etagFor(content []byte) string {
-	//nolint:gosec //only needed for browser caching
-	hash := md5.Sum(content)
-
-	return fmt.Sprintf(`"%x-%x"`, hash, len(content))
-}
-
-// enableCaching sets long-lived cache headers in production and reports
-// whether the request was answered with 304 Not Modified.
-func (a AssetsHandler) enableCaching(ctx context.Context, file string) (bool, error) {
-	etag, ok := a.etags[file]
-	if !a.production || !ok {
-		return false, nil
-	}
-
-	anduin.SetHeader(ctx, "ETag", etag)
-	anduin.SetHeader(
-		ctx,
-		"Cache-Control",
-		fmt.Sprintf("public, max-age=%s, immutable", threeMonthsCache),
-	)
-
-	if match := anduin.Header(ctx, "If-None-Match"); match == etag {
-		return true, anduin.NoContent(ctx, http.StatusNotModified)
-	}
-
-	anduin.SetHeader(ctx, "Vary", "Accept-Encoding")
-
-	return false, nil
-}
-
-func createRobotsTxt(baseURL string) string {
-	return fmt.Sprintf(
-		"User-agent: *\nAllow: /\nSitemap: %s%s\n",
-		baseURL,
-		routes.Sitemap.URL(),
-	)
-}
-
-func (a AssetsHandler) Robots(ctx context.Context) error {
-	return anduin.Text(ctx, http.StatusOK, a.robots)
-}
-
-func (a AssetsHandler) Sitemap(ctx context.Context) error {
-	return writeContent(ctx, http.StatusOK, "application/xml", a.sitemap)
-}
-
-type sitemapURL struct {
-	XMLName    xml.Name `xml:"url"`
-	Loc        string   `xml:"loc"`
-	ChangeFreq string   `xml:"changefreq"`
-	Priority   string   `xml:"priority,omitempty"`
-}
-
-type sitemapURLSet struct {
-	XMLName xml.Name     `xml:"urlset"`
-	XMLNS   string       `xml:"xmlns,attr"`
-	URL     []sitemapURL `xml:"url"`
-}
-
-func createSitemap(baseURL string) ([]byte, error) {
-	sitemap := sitemapURLSet{
-		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
-		URL: []sitemapURL{
-			{
-				Loc:        baseURL,
-				ChangeFreq: "monthly",
-				Priority:   "1",
-			},
-		},
-	}
-
-	xmlBytes, err := xml.MarshalIndent(sitemap, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-
-	return append([]byte(xml.Header), xmlBytes...), nil
-}
-
-func (a AssetsHandler) ViteBuild(ctx context.Context) error {
-	param := strings.TrimPrefix(anduin.PathValue(ctx, "path"), "/")
-	param = path.Clean(param)
-	if param == "." || param == "" || strings.HasPrefix(param, "../") {
-		return anduin.NotFound(errors.New(http.StatusText(http.StatusNotFound)))
-	}
-
-	file := fmt.Sprintf("dist/%s", param)
-	data, err := assets.Files.ReadFile(file)
-	if err != nil {
-		return anduin.NotFound(errors.New(http.StatusText(http.StatusNotFound)))
-	}
-
-	if handled, cacheErr := a.enableCaching(ctx, file); handled || cacheErr != nil {
-		return cacheErr
-	}
-
-	return writeContent(ctx, http.StatusOK, contentTypeByExt(param), data)
-}
-
-func writeContent(
-	ctx context.Context,
-	status int,
-	contentType string,
-	body []byte,
-) error {
-	writer := anduin.ResponseWriter(ctx)
-	if writer == nil {
-		return anduin.Error(
-			ctx,
-			http.StatusInternalServerError,
-			errors.New("assets: no response writer on context"),
-		)
-	}
-
-	writer.Header().Set("Content-Type", contentType)
-	writer.WriteHeader(status)
-	if len(body) == 0 {
-		return nil
-	}
-
-	if _, err := writer.Write(body); err != nil {
-		return anduin.Error(ctx, http.StatusInternalServerError, err)
-	}
-
-	return nil
-}
-
-func contentTypeByExt(name string) string {
-	switch {
-	case strings.HasSuffix(name, ".js"):
-		return "application/javascript"
-	case strings.HasSuffix(name, ".css"):
-		return "text/css"
-	case strings.HasSuffix(name, ".json"):
-		return "application/json"
-	case strings.HasSuffix(name, ".svg"):
-		return "image/svg+xml"
-	case strings.HasSuffix(name, ".woff2"):
-		return "font/woff2"
-	case strings.HasSuffix(name, ".woff"):
-		return "font/woff"
-	case strings.HasSuffix(name, ".ttf"):
-		return "font/ttf"
-	case strings.HasSuffix(name, ".otf"):
-		return "font/otf"
-	default:
-		return "application/octet-stream"
-	}
+	rt.Get(routes.Robots.Path(), a.robots)
+	rt.Get(routes.Sitemap.Path(), a.sitemap)
+	rt.Get(routes.ViteBuild.Path(), a.dist)
 }

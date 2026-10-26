@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"app/config"
 	"app/internal/runtime"
+
+	"github.com/mbvlabs/andurel/pkg/env"
+	"github.com/mbvlabs/andurel/pkg/lifecycle"
 )
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 }
 
 func run() error {
-	if err := config.LoadEnvironment(); err != nil {
+	if err := env.Load(); err != nil {
 		return err
 	}
 
@@ -29,7 +29,7 @@ func run() error {
 		return err
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := lifecycle.NotifyContext(context.Background())
 	defer cancel()
 
 	worker, err := runtime.NewQueue(ctx, cfg)
@@ -37,18 +37,5 @@ func run() error {
 		return err
 	}
 
-	if err := worker.Start(ctx); err != nil {
-		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancelShutdown()
-		_ = worker.Shutdown(shutdownCtx)
-
-		return err
-	}
-
-	<-ctx.Done()
-
-	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelShutdown()
-
-	return worker.Shutdown(shutdownCtx)
+	return lifecycle.Run(ctx, worker.Start, worker.Shutdown)
 }

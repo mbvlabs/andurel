@@ -190,7 +190,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"config_config.tmpl":    "config/config.go",
 	"config_database.tmpl":  "config/database.go",
 	"config_email.tmpl":     "config/email.go",
-	"config_helper.tmpl":    "config/helper.go",
 	"config_hosts.tmpl":     "config/hosts.go",
 	"config_http.tmpl":      "config/http.go",
 	"config_queue.tmpl":     "config/queue.go",
@@ -213,18 +212,13 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 
 	// Queue package
 	"psql_queue_queue.tmpl":                             "queue/queue.go",
-	"psql_queue_jobs_send_transactional_email.tmpl":     "queue/jobs/send_transactional_email.go",
-	"psql_queue_jobs_send_marketing_email.tmpl":         "queue/jobs/send_marketing_email.go",
 	"psql_queue_jobs_send_verification_email.tmpl":      "queue/jobs/send_verification_email.go",
 	"psql_queue_jobs_send_password_reset_email.tmpl":    "queue/jobs/send_password_reset_email.go",
 	"psql_queue_workers_workers.tmpl":                   "queue/workers.go",
-	"psql_queue_workers_send_transactional_email.tmpl":  "queue/send_transactional_email.go",
 	"psql_queue_workers_send_verification_email.tmpl":   "queue/send_verification_email.go",
 	"psql_queue_workers_send_password_reset_email.tmpl": "queue/send_password_reset_email.go",
-	"psql_queue_workers_send_marketing_email.tmpl":      "queue/send_marketing_email.go",
 
 	// Email
-	"email_email.tmpl":                   "email/email.go",
 	"email_base_layout.tmpl":             "email/base_layout.templ",
 	"email_base_layout_templ_go.tmpl":    "email/base_layout_templ.go",
 	"email_reset_password.tmpl":          "email/reset_password.templ",
@@ -260,11 +254,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"router_routes_users.tmpl":  "routes/users.go",
 
 	// Middleware
-	"router_middleware_middleware.tmpl":      "middleware/middleware.go",
-	"router_middleware_middleware_test.tmpl": "middleware/middleware_test.go",
-	"router_middleware_auth.tmpl":            "middleware/auth.go",
-	"router_middleware_auth_test.tmpl":       "middleware/auth_test.go",
-	"router_cookies_app.tmpl":                "middleware/cookies.go",
+	"router_middleware_middleware.tmpl": "middleware/middleware.go",
+	"router_middleware_auth.tmpl":       "middleware/auth.go",
+	"router_cookies_app.tmpl":           "middleware/cookies.go",
 }
 
 // resources/js/routes.ts and resources/js/types/payloads.ts are not templated:

@@ -46,6 +46,7 @@ func (w *SendWelcomeEmailWorker) Work(ctx context.Context, job *river.Job[SendWe
 
 - Args are a plain struct with `json` tags and a `Kind()` string.
 - Register the worker explicitly in `queue/workers.go` (`NewWorkers`); there is no reflection.
+- The framework email workers and their `storage.SendTransactionalEmailArgs` / `storage.SendMarketingEmailArgs` types live in `pkg/storage`; `storage.AddEmailWorkers` registers them alongside your own.
 - Enqueue through `storage.InsertQueue` from a service, not from a handler. When the job depends on data written in the same use case, enqueue on `i.queue.InTx(tx)` inside `storage.AtomicOps` so the job is only visible to workers after the data commits.
 - Keep `Work` idempotent; River may retry.
 - No `domains/internal/queries` import.

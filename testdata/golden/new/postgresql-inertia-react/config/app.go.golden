@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"slices"
 
+	"github.com/mbvlabs/andurel/pkg/env"
 	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
@@ -24,12 +25,12 @@ type App struct {
 }
 
 func NewApp() (App, error) {
-	env := newEnvironment()
-	protocol := env.String("PROTOCOL", "")
-	primaryHost := env.RequiredString("HOST_PRIMARY")
+	e := env.New()
+	protocol := e.String("PROTOCOL", "")
+	primaryHost := e.RequiredString("HOST_PRIMARY")
 	cfg := App{
-		Environment: env.String("ENVIRONMENT", DefaultEnvironment),
-		ProjectName: env.String("PROJECT_NAME", DefaultProjectName),
+		Environment: e.String("ENVIRONMENT", DefaultEnvironment),
+		ProjectName: e.String("PROJECT_NAME", DefaultProjectName),
 		Domain:      primaryHost,
 		Protocol:    protocol,
 		Hosts: map[routing.HostName]routing.HostSpec{
@@ -40,7 +41,7 @@ func NewApp() (App, error) {
 		},
 	}
 
-	if err := errors.Join(env.Err(), cfg.validate()); err != nil {
+	if err := errors.Join(e.Err(), cfg.validate()); err != nil {
 		return App{}, fmt.Errorf("config: app: %w", err)
 	}
 
