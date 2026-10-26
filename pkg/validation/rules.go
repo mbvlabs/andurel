@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"net/mail"
 	"reflect"
 	"slices"
 	"strconv"
@@ -184,6 +185,21 @@ func (b *ValidationBuilder) URL(field string, value any, message ...string) {
 func (b *ValidationBuilder) RequiredURL(field string, value any, message ...string) {
 	b.Required(field, value, message...)
 	b.URL(field, value, message...)
+}
+
+func (b *ValidationBuilder) Email(field string, value any, message ...string) {
+	validationMessage := messageOrDefault("must be a valid email address", message)
+	b.AddRule(field, "email", validationMessage)
+
+	str, present, ok := stringValue(value)
+	if !ok || !present {
+		return
+	}
+
+	addr, err := mail.ParseAddress(str)
+	if err != nil || addr.Address != str {
+		b.AddField(field, "email", validationMessage)
+	}
 }
 
 func (b *ValidationBuilder) MinItems(field string, value any, min int, message ...string) {

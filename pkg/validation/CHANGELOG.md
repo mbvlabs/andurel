@@ -4,6 +4,21 @@ All notable changes to the standalone Andurel validation module are documented h
 
 ## Unreleased
 
+### Added
+
+- `Join` combines validation errors and preserves non-validation errors;
+  `Field` builds a single field error; and `ValidationBuilder.Email` validates
+  an address with `net/mail`.
+
+### Deprecated
+
+- `Validate` and `Validatable`; call a value's `Validate` method directly.
+
+### Fixed
+
+- `Join` collects every field error beneath single-error wrappers and preserves
+  the original wrapped error trees, including non-validation sentinels.
+
 ## 0.1.4 - 2026-09-17
 
 ### Changed

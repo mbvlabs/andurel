@@ -11,6 +11,9 @@ import (
 
 const UnknownField = "unknown"
 
+// Validatable is implemented by values that validate themselves.
+//
+// Deprecated: call the value's Validate method directly.
 type Validatable interface {
 	Validate() error
 }
@@ -68,6 +71,69 @@ func As(err error) (ValidationErrors, bool) {
 	return nil, false
 }
 
+// Join combines validation errors into one ValidationErrors and joins any other
+// error onto the result. Nil errors are dropped.
+func Join(errs ...error) error {
+	var (
+		validationErrors ValidationErrors
+		otherErrors      []error
+	)
+
+	var collect func(error)
+	collect = func(err error) {
+		if err == nil {
+			return
+		}
+
+		if joined, ok := err.(interface{ Unwrap() []error }); ok {
+			for _, joinedErr := range joined.Unwrap() {
+				collect(joinedErr)
+			}
+
+			return
+		}
+
+		if wrapped, ok := err.(interface{ Unwrap() error }); ok {
+			collect(wrapped.Unwrap())
+
+			return
+		}
+
+		if validationErrs, ok := errors.AsType[ValidationErrors](err); ok {
+			validationErrors = append(validationErrors, validationErrs...)
+		}
+	}
+
+	for _, err := range errs {
+		collect(err)
+		// Keep wrappers intact so their context and errors.Is/As behaviour survive.
+		if _, ok := err.(ValidationErrors); err != nil && !ok {
+			otherErrors = append(otherErrors, err)
+		}
+	}
+
+	if len(validationErrors) == 0 {
+		return errors.Join(otherErrors...)
+	}
+
+	if len(otherErrors) == 0 {
+		return validationErrors
+	}
+
+	return errors.Join(validationErrors, errors.Join(otherErrors...))
+}
+
+// Field builds a ValidationErrors holding one field error.
+func Field(field, code, message string) error {
+	b := NewBuilder()
+	b.Add(field, code, message)
+
+	return b.Err()
+}
+
+// Validate calls the value's Validate method when it implements Validatable.
+//
+// Deprecated: call value.Validate() directly.
 func Validate(value any) error {
 	if value == nil {
 		return nil
