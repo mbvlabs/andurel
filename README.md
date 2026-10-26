@@ -57,17 +57,19 @@ Andurel is built for humans and agents on the same pad:
 
 Match the install channel to the docs you follow.
 
-### Latest stable (v2)
+### Latest v2 pre-release
+
+V2 has not shipped a stable tag yet. Install the latest alpha:
 
 ```bash
-go install github.com/mbvlabs/andurel/v2@latest
+go install github.com/mbvlabs/andurel/v2@v2.0.0-alpha.5
 andurel --version
 ```
 
 ### Specific version
 
 ```bash
-go install github.com/mbvlabs/andurel/v2@v2.0.0
+go install github.com/mbvlabs/andurel/v2@v2.0.0-alpha.4
 andurel --version
 ```
 

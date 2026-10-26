@@ -86,16 +86,13 @@ func (u *Upgrader) buildPlan(dirty bool) (*upgradePlan, error) {
 		dirty:       dirty,
 	}
 	includeInertiaMigration := layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia)
-	if includeInertiaMigration &&
-		crossesVersion(plan.fromVersion, plan.toVersion, inertiaViteFullURLVersion) {
-		plan.manualActions, err = manualActionsForUpgrade(
-			plan.fromVersion,
-			plan.toVersion,
-			includeInertiaMigration,
-		)
-		if err != nil {
-			return nil, err
-		}
+	plan.manualActions, err = manualActionsForUpgrade(
+		plan.fromVersion,
+		plan.toVersion,
+		includeInertiaMigration,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	toolChanges, err := syncTools(lock)

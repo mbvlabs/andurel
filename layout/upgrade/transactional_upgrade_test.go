@@ -243,9 +243,6 @@ func TestV2PreReleaseUpgradeManualActionGating(t *testing.T) {
 				)
 			}
 			if !test.wantAction {
-				if len(report.ManualActions) != 0 {
-					t.Fatalf("expected no manual actions, got %#v", report.ManualActions)
-				}
 				return
 			}
 			if !strings.Contains(fullURL.Instructions, "routes.ViteBuild.FullURL()") {

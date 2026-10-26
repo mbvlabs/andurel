@@ -1,8 +1,10 @@
 package upgrade
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 	"golang.org/x/mod/semver"
 )
 
@@ -56,7 +58,7 @@ func manualActionsForUpgrade(
 		)
 		instructions.WriteString("```\n\n")
 		instructions.WriteString("2. Format and verify the migration:\n\n```text\n")
-		instructions.WriteString("gofmt -w internal/runtime/app.go\n")
+		instructions.WriteString("gofmt -w internal/runtime\n")
 		instructions.WriteString("go fix ./...\ngo vet ./...\n```\n")
 
 		actions = append(actions, ManualAction{
@@ -102,20 +104,26 @@ func storageTestClusterInstructions() string {
 		"2. There is no compatibility alias. Replace `storage.TestCluster` with `storagetest.Cluster` and " +
 			"`storage.NewTestCluster` with `storagetest.NewCluster`; `Close` and `NewTestDB` keep their signatures.\n\n",
 	)
-	instructions.WriteString(
-		"3. The upgrade pins pkg/storage v0.11.0. Format and verify:\n\n```text\n" +
+	instructions.WriteString(fmt.Sprintf(
+		"3. The upgrade pins pkg/storage %s. Format and verify:\n\n```text\n"+
 			"gofmt -w .\ngo fix ./...\ngo vet ./...\ngolangci-lint run ./...\n```\n",
-	)
+		versions.Storage,
+	))
 
 	return instructions.String()
 }
 
 func packageAPIInstructions(inertia bool) string {
 	var instructions strings.Builder
-	instructions.WriteString(
-		"The upgrade pins pkg/anduin v0.2.1, pkg/cache v0.2.0, pkg/inertia v0.8.1, pkg/kiks v0.3.1 and pkg/storage v0.11.0. " +
+	instructions.WriteString(fmt.Sprintf(
+		"The upgrade pins pkg/anduin %s, pkg/cache %s, pkg/inertia %s, pkg/kiks %s and pkg/storage %s. "+
 			"internal/runtime is application-owned, so update it by hand:\n\n",
-	)
+		versions.Anduin,
+		versions.Cache,
+		versions.Inertia,
+		versions.Kiks,
+		versions.Storage,
+	))
 	instructions.WriteString(
 		"1. anduin.NewServer drops the environment and shutdowner arguments, and Server.Start takes none:\n\n```go\n" +
 			"srv := anduin.NewServer(ctx, cfg.HTTP.Host, cfg.HTTP.Port, handler, anduin.WithTimeouts(/* ... */))\n" +
@@ -135,8 +143,9 @@ func packageAPIInstructions(inertia bool) string {
 	)
 	if inertia {
 		instructions.WriteString(
-			"4. inertia.NewRenderer takes inertia.RendererConfig and inertia.NewSSRRuntime takes inertia.SSRRuntimeConfig instead of positional arguments:\n\n```go\n" +
-				"inertia.NewRenderer(inertia.RendererConfig{\n\tContainerID:  cfg.Inertia.ContainerID,\n\tBuildPathURL: routes.ViteBuild.FullURL(),\n\t// ...\n})\n```\n\n",
+			"4. In internal/runtime, inertia.NewRenderer takes inertia.RendererConfig; in cmd/ssr/main.go, inertia.NewSSRRuntime takes inertia.SSRRuntimeConfig. Both replace positional arguments:\n\n```go\n" +
+				"inertia.NewRenderer(inertia.RendererConfig{\n\tContainerID:  cfg.Inertia.ContainerID,\n\tBuildPathURL: routes.ViteBuild.FullURL(),\n\t// ...\n})\n\n" +
+				"inertia.NewSSRRuntime(inertia.SSRRuntimeConfig{\n\tExecutable:     cfg.SSRRuntime,\n\tBundlePath:     cfg.SSRBundle,\n\tListenURL:      cfg.SSRListen,\n\tStartupTimeout: cfg.SSRStartupTimeout,\n\tMinimumMajor:   cfg.SSRMinimumMajor,\n\tHealthTimeout:  cfg.SSRRequestTimeout,\n\tBundleFS:       assets.Files,\n})\n```\n\n",
 		)
 		instructions.WriteString(
 			"5. pnpm 10+ blocks esbuild's install script, so `pnpm install` fails. Add pnpm-workspace.yaml:\n\n```yaml\n" +

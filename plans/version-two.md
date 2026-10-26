@@ -50,10 +50,10 @@ Each standalone package should:
 - expose ordinary constructors in addition to any Fx integration;
 - provide useful defaults without preventing applications from replacing or extending its behavior.
 
-The Andurel CLI and generator retain the existing module path. V2 is identified by the `v2.0.0` release tag, not by a module-path suffix:
+The Andurel CLI and generator use the Go major-version module path. V2 is identified by the `v2.0.0` release tag and the `/v2` module suffix:
 
 ```text
-github.com/mbvlabs/andurel
+github.com/mbvlabs/andurel/v2
 ```
 
 Independent packages use paths such as:

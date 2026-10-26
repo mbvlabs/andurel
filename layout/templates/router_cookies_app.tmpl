@@ -8,10 +8,7 @@ import (
 
 // Session is the application session stored in an encrypted cookie.
 type Session struct {
-{{- range .Blueprint.Cookies.SortedAppFields}}
-	{{.Name}} {{.Type}} `json:"{{toSnake .Name}},omitempty"`
-{{- end}}
-}
+{{ goStructFields .Blueprint.Cookies.SortedAppFields }}}
 
 func NewSessionCookie(cfg config.Session, secure bool) kiks.Definition {
 	return kiks.NewSession[*Session](

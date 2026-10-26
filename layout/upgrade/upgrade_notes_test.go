@@ -3,6 +3,9 @@ package upgrade
 import (
 	"strings"
 	"testing"
+
+	"github.com/mbvlabs/andurel/v2/layout"
+	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
 
 func TestInertiaViteFullURLManualActionVersionGate(t *testing.T) {
@@ -53,7 +56,7 @@ func TestInertiaViteFullURLManualActionVersionGate(t *testing.T) {
 				"NewInertia",
 				"routes.ViteBuild.FullURL()",
 				"Path()",
-				"gofmt -w internal/runtime/app.go",
+				"gofmt -w internal/runtime",
 				"go fix ./...",
 				"go vet ./...",
 			} {
@@ -115,13 +118,20 @@ func TestPackageAPIManualActionVersionGate(t *testing.T) {
 				return
 			}
 
-			for _, want := range []string{"anduin.NewServer", "cacheStore.Close()", "storage.AtomicOps"} {
+			for _, want := range []string{
+				"anduin.NewServer",
+				"cacheStore.Close()",
+				"storage.AtomicOps",
+			} {
 				if !strings.Contains(action.Instructions, want) {
 					t.Errorf("manual action missing %q:\n%s", want, action.Instructions)
 				}
 			}
 			if got := strings.Contains(action.Instructions, "inertia.RendererConfig"); got != test.inertia {
 				t.Errorf("Inertia instructions present = %t, want %t", got, test.inertia)
+			}
+			if got := strings.Contains(action.Instructions, "inertia.SSRRuntimeConfig"); got != test.inertia {
+				t.Errorf("Inertia SSR instructions present = %t, want %t", got, test.inertia)
 			}
 		})
 	}
@@ -167,13 +177,61 @@ func TestStorageTestClusterManualActionVersionGate(t *testing.T) {
 				"storagetest.Cluster",
 				"storage.NewTestCluster",
 				"NewTestDB",
-				"pkg/storage v0.11.0",
+				"pkg/storage " + versions.Storage,
 			} {
 				if !strings.Contains(action.Instructions, want) {
 					t.Errorf("manual action missing %q:\n%s", want, action.Instructions)
 				}
 			}
 		})
+	}
+}
+
+// TestAlpha4UpgradeReportsAlpha5ManualActions guards the plan wiring: the
+// alpha.5 package and storagetest actions must reach the report, not just
+// manualActionsForUpgrade. alpha.4 is the first version that can be upgraded
+// past the Go-native rebuild.
+func TestAlpha4UpgradeReportsAlpha5ManualActions(t *testing.T) {
+	root := newUpgradeFixtureProjectWithConfig(t, layout.ScaffoldConfig{
+		ProjectName: "testapp",
+		Inertia:     "react",
+	})
+	lock, err := layout.ReadLockFile(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock.Version = "v2.0.0-alpha.4"
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatal(err)
+	}
+	commitUpgradeTree(t, root, "move fixture to alpha.4")
+
+	upgrader, err := NewUpgrader(
+		root,
+		UpgradeOptions{DryRun: true, TargetVersion: "v2.0.0-alpha.5"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := upgrader.Execute()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := map[string]bool{}
+	for _, action := range report.ManualActions {
+		got[action.ID] = true
+	}
+	for _, want := range []string{
+		"package-api-v2.0.0-alpha.5",
+		"storage-storagetest-v2.0.0-alpha.5",
+	} {
+		if !got[want] {
+			t.Fatalf("alpha.4 to alpha.5 report is missing %q: %#v", want, report.ManualActions)
+		}
+	}
+	if got["inertia-vite-fullurl-v2.0.0"] {
+		t.Fatalf("alpha.4 already has the Inertia FullURL change: %#v", report.ManualActions)
 	}
 }
 

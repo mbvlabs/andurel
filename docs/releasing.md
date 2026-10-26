@@ -8,6 +8,19 @@ Release tags must identify a commit that has already passed the canonical readin
 
 The tag-triggered release workflow verifies tag identity and confirms that the tagged commit has a successful post-merge `Release Readiness` run on `master`. It does not create artifacts until that proof passes. It then creates a signed private draft, smoke-tests every supported archive, attests the release artifacts and SBOMs, and publishes only the verified draft.
 
+## Release notes
+
+Write the GitHub release body by hand at `docs/release-notes/<tag>.md` before
+tagging. The release workflow calls `just check-release-notes <tag>`; it fails
+for v2 tags at or after `v2.0.0-alpha.5` unless that file exists. When it does,
+the workflow passes `--release-notes docs/release-notes/<tag>.md` to
+GoReleaser so the published release uses the hand-written body instead of the
+commit-filtered changelog. Older tags and v1 tags may omit the file.
+
+Commit the notes file with the release changes. Do not tag until
+`just check-release-notes <tag>` succeeds and `Release Readiness` is green on
+that commit.
+
 ## Module resolution
 
 CI, `just` recipes, and release builds run with `GOWORK=off` so the CLI
