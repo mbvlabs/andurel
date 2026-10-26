@@ -4,6 +4,22 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+### Added
+
+- `SendTransactionalEmailWorker`, `SendMarketingEmailWorker`, their job
+  arguments, and `SendTransactional`, which cancels jobs on errors a retry
+  cannot fix. `AddEmailWorkers` registers both framework email workers.
+- `WithTelemetry` configures PostgreSQL instrumentation from a telemetry
+  provider, so callers no longer assemble a `TelemetryConfig`.
+- `ErrNotFound` and `ErrConflict` sentinels. `Row` maps `pgx.ErrNoRows` to
+  `ErrNotFound`, and `Conflict` wraps `ErrConflict` for a unique violation of a
+  named constraint.
+- `Page` clamps pagination inputs into a `PageRequest`, and `Paginated` /
+  `NewPaginated` carry one page of items with its total count and page
+  metadata.
+- `storagetest.Main` runs a package's tests against one shared Postgres
+  container and skips with exit code 0 when the container cannot start.
+
 ## 0.11.0 - 2026-10-20
 
 ### Added

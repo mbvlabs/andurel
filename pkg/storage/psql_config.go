@@ -120,6 +120,13 @@ type TelemetryConfig struct {
 	IncludeQueryParameters bool
 }
 
+// TelemetryProvider supplies the OpenTelemetry providers used to instrument
+// PostgreSQL. *telemetry.Telemetry satisfies it.
+type TelemetryProvider interface {
+	TracerProvider() trace.TracerProvider
+	MeterProvider() metric.MeterProvider
+}
+
 // Option configures a PostgreSQL connection.
 type Option func(*postgresOptions) error
 
@@ -158,6 +165,24 @@ func WithOpenTelemetry(config TelemetryConfig) Option {
 		copy := config
 		copy.Attributes = slices.Clone(config.Attributes)
 		options.telemetry = &copy
+		options.telemetrySet = true
+		return nil
+	}
+}
+
+// WithTelemetry configures PostgreSQL tracing and metrics from a telemetry
+// provider. A nil provider disables instrumentation.
+func WithTelemetry(provider TelemetryProvider) Option {
+	return func(options *postgresOptions) error {
+		if provider == nil {
+			options.telemetry = nil
+			options.telemetrySet = true
+			return nil
+		}
+		options.telemetry = &TelemetryConfig{
+			TracerProvider: provider.TracerProvider(),
+			MeterProvider:  provider.MeterProvider(),
+		}
 		options.telemetrySet = true
 		return nil
 	}

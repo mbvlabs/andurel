@@ -3,6 +3,11 @@ package storage
 import (
 	"testing"
 	"time"
+
+	"go.opentelemetry.io/otel/metric"
+	metricnoop "go.opentelemetry.io/otel/metric/noop"
+	"go.opentelemetry.io/otel/trace"
+	tracenoop "go.opentelemetry.io/otel/trace/noop"
 )
 
 func TestConfigDatabaseURL(t *testing.T) {
@@ -72,6 +77,40 @@ func TestPostgresOptions(t *testing.T) {
 	}
 	if options.maxOpenConnections == nil || *options.maxOpenConnections != 20 {
 		t.Fatalf("maximum open connections was not configured")
+	}
+}
+
+type testTelemetryProvider struct {
+	tracer trace.TracerProvider
+	meter  metric.MeterProvider
+}
+
+func (p testTelemetryProvider) TracerProvider() trace.TracerProvider { return p.tracer }
+func (p testTelemetryProvider) MeterProvider() metric.MeterProvider  { return p.meter }
+
+func TestWithTelemetryOption(t *testing.T) {
+	tracer := tracenoop.NewTracerProvider()
+	meter := metricnoop.NewMeterProvider()
+	options := postgresOptions{}
+	if err := WithTelemetry(testTelemetryProvider{tracer: tracer, meter: meter})(&options); err != nil {
+		t.Fatalf("WithTelemetry returned an error: %v", err)
+	}
+	if options.telemetry == nil {
+		t.Fatal("WithTelemetry did not configure telemetry")
+	}
+	if options.telemetry.TracerProvider != tracer {
+		t.Fatal("WithTelemetry did not use the provider tracer")
+	}
+	if options.telemetry.MeterProvider != meter {
+		t.Fatal("WithTelemetry did not use the provider meter")
+	}
+
+	var nilProvider TelemetryProvider
+	if err := WithTelemetry(nilProvider)(&options); err != nil {
+		t.Fatalf("WithTelemetry(nil) returned an error: %v", err)
+	}
+	if options.telemetry != nil {
+		t.Fatal("WithTelemetry(nil) did not disable telemetry")
 	}
 }
 

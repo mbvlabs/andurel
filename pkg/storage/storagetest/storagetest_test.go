@@ -12,6 +12,54 @@ import (
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
+func TestRunMainSkipsWhenClusterFails(t *testing.T) {
+	var cluster *Cluster
+	sentinel := errors.New("docker unavailable")
+
+	code, err := runMain(
+		func() int {
+			t.Fatal("tests must not run when the cluster fails")
+
+			return 0
+		},
+		&cluster,
+		func(context.Context) (*Cluster, error) {
+			return nil, sentinel
+		},
+	)
+	if code != 0 {
+		t.Fatalf("code = %d, want 0", code)
+	}
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("runMain error = %v, want %v", err, sentinel)
+	}
+	if cluster != nil {
+		t.Fatalf("cluster = %#v, want nil", cluster)
+	}
+}
+
+func TestRunMainRunsTestsAndClosesCluster(t *testing.T) {
+	var cluster *Cluster
+	started := &Cluster{}
+
+	code, err := runMain(
+		func() int { return 7 },
+		&cluster,
+		func(context.Context) (*Cluster, error) {
+			return started, nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("runMain error = %v, want nil", err)
+	}
+	if code != 7 {
+		t.Fatalf("code = %d, want 7", code)
+	}
+	if cluster != started {
+		t.Fatalf("cluster = %#v, want %#v", cluster, started)
+	}
+}
+
 func TestClusterDatabaseURL(t *testing.T) {
 	cluster := &Cluster{
 		host:     "127.0.0.1",

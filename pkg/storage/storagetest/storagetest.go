@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -33,6 +34,34 @@ type Cluster struct {
 // error instead of panicking when Docker provider discovery fails.
 func NewCluster(ctx context.Context) (*Cluster, error) {
 	return newCluster(ctx, checkDockerProvider)
+}
+
+// Main runs a package's tests against a shared Postgres container. When the
+// container cannot start, for example because Docker is unavailable, it reports
+// the reason and exits 0 so callers without Docker still pass.
+func Main(m *testing.M, cluster **Cluster) {
+	code, err := runMain(m.Run, cluster, NewCluster)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "skipping tests: start postgres container: %v\n", err)
+	}
+	os.Exit(code)
+}
+
+func runMain(
+	runTests func() int,
+	cluster **Cluster,
+	start func(context.Context) (*Cluster, error),
+) (int, error) {
+	started, err := start(context.Background())
+	if err != nil {
+		return 0, err
+	}
+	*cluster = started
+
+	code := runTests()
+
+	_ = started.Close(context.Background())
+	return code, nil
 }
 
 type preflightFunc func(context.Context) error
