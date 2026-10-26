@@ -1,7 +1,22 @@
 package queue
 
-import "github.com/riverqueue/river"
+import (
+	"time"
 
+	"github.com/riverqueue/river"
+
+	"app/queue/jobs"
+)
+
+// PeriodicJobs returns the recurring jobs the worker process schedules.
 func PeriodicJobs() []*river.PeriodicJob {
-	return nil
+	return []*river.PeriodicJob{
+		river.NewPeriodicJob(
+			river.PeriodicInterval(time.Hour),
+			func() (river.JobArgs, *river.InsertOpts) {
+				return jobs.DeleteExpiredTokensArgs{}, nil
+			},
+			&river.PeriodicJobOpts{RunOnStart: true},
+		),
+	}
 }

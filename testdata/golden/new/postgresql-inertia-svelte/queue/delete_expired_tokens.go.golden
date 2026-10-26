@@ -1,0 +1,41 @@
+package queue
+
+import (
+	"context"
+	"time"
+
+	"github.com/mbvlabs/andurel/pkg/telemetry"
+	"github.com/riverqueue/river"
+
+	"app/domains"
+	"app/queue/jobs"
+)
+
+// DeleteExpiredTokensWorker removes verification and reset tokens whose expiry
+// has passed. The tokens domain owns the statement; the worker only schedules
+// it.
+type DeleteExpiredTokensWorker struct {
+	river.WorkerDefaults[jobs.DeleteExpiredTokensArgs]
+	tokens domains.Tokens
+}
+
+func NewDeleteExpiredTokensWorker(tokens domains.Tokens) *DeleteExpiredTokensWorker {
+	return &DeleteExpiredTokensWorker{tokens: tokens}
+}
+
+func (w *DeleteExpiredTokensWorker) Work(
+	ctx context.Context,
+	_ *river.Job[jobs.DeleteExpiredTokensArgs],
+) error {
+	ctx, span := telemetry.Start(ctx, "queue.delete_expired_tokens")
+	defer span.End()
+
+	deleted, err := w.tokens.DestroyExpired(ctx, time.Now())
+	if err != nil {
+		return telemetry.Fail(ctx, err)
+	}
+
+	telemetry.Info(ctx, "deleted expired tokens", "tokens.deleted", deleted)
+
+	return nil
+}

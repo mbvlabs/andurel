@@ -24,7 +24,8 @@ type Queue struct {
 // cleanup as soon as it exists.
 func NewQueue(ctx context.Context, cfg config.Config) (_ *Queue, err error) {
 	// Workers render absolute links into emails, so routes need the hosts.
-	if err := routing.ConfigureHosts(cfg.App.Hosts); err != nil {
+	hosts, err := routing.NewHosts(cfg.App.Hosts)
+	if err != nil {
 		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
 	}
 
@@ -47,26 +48,28 @@ func NewQueue(ctx context.Context, cfg config.Config) (_ *Queue, err error) {
 	}
 	q.closers.Add(func(context.Context) error { return db.Close() })
 
-	transactional, marketing, err := newEmailSenders(cfg.Mail)
+	transactional, marketing, err := newEmailSenders(cfg.Mail, cfg.App)
 	if err != nil {
 		return nil, err
 	}
 
 	// Auth email workers mint tokens at send time, so they need the identity
 	// service. They never enqueue, so the worker process has no insert queue.
+	tokens := domains.NewTokens(db)
 	identity := services.NewIdentity(
 		storage.NewTransactor(db),
 		domains.NewUsers(db),
-		domains.NewTokens(db),
+		tokens,
 		nil,
 		cfg.Auth,
 		cfg.Mail,
+		hosts,
 	)
 
 	processor, err := storage.NewQueueProcessor(
 		db,
 		cfg.QueueWorker.Config,
-		storage.WithRiverWorkers(queue.NewWorkers(identity, transactional, marketing)),
+		storage.WithRiverWorkers(queue.NewWorkers(identity, tokens, transactional, marketing)),
 		storage.WithRiverPeriodicJobs(queue.PeriodicJobs()...),
 		storage.WithRiverLogger(tel.Logger()),
 	)

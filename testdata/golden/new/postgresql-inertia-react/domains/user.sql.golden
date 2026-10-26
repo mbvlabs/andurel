@@ -33,9 +33,10 @@ INSERT INTO users (
 	email,
 	email_validated_at,
 	password,
-	is_admin
+	is_admin,
+	session_version
 ) VALUES (
-	$1, $2, $3, $4, $5, $6, $7
+	$1, $2, $3, $4, $5, $6, $7, $8
 )
 RETURNING *;
 
@@ -46,10 +47,16 @@ SET
 	email_validated_at = $3,
 	password = $4,
 	is_admin = $5,
-	updated_at = $6
+	session_version = $6,
+	updated_at = $7
 WHERE id = $1
 RETURNING *;
 
 -- name: DeleteUser :exec
 DELETE FROM users
+WHERE id = $1;
+
+-- name: BumpSessionVersion :exec
+UPDATE users
+SET session_version = session_version + 1
 WHERE id = $1;

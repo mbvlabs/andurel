@@ -518,9 +518,26 @@ if err != nil {
 _, err = i.queue.Insert(ctx, storage.SendTransactionalEmailArgs{Data: data}, nil)
 ```
 
-**Development Testing**
+**Email Providers**
 
-Emails are sent to Mailpit in development. Access the web UI at `http://localhost:8025`.
+`EMAIL_PROVIDER` selects the mail transport:
+
+- `mailpit` (default) sends to a local Mailpit server and is for development
+  only. The app refuses to start in production with this driver. Access the
+  web UI at `http://localhost:8025`.
+- `smtp` sends through a production SMTP relay. Set `SMTP_HOST` and
+  `SMTP_PORT` (default `587`), plus `SMTP_USERNAME` and `SMTP_PASSWORD` when
+  the relay requires authentication. `SMTP_TLS` accepts `starttls` (default),
+  `tls` for implicit TLS (usually port 465), or `none` for a local relay.
+
+```bash
+EMAIL_PROVIDER=smtp
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=apikey
+SMTP_PASSWORD=secret
+SMTP_TLS=starttls
+```
 
 ### Schema Changes
 
@@ -587,8 +604,15 @@ DB_PASSWORD=postgres
 DB_SSL_MODE=disable
 
 # Email (Mailpit for development)
+EMAIL_PROVIDER=mailpit
 MAILPIT_HOST=0.0.0.0
 MAILPIT_PORT=1025
+# Production alternative: EMAIL_PROVIDER=smtp
+# SMTP_HOST=
+# SMTP_PORT=587
+# SMTP_USERNAME=
+# SMTP_PASSWORD=
+# SMTP_TLS=starttls
 DEFAULT_SENDER_SIGNATURE=info@app.com
 
 # Security (auto-generated during scaffolding)
@@ -627,7 +651,11 @@ registered, e.g. `*middleware.Session`). The session payload is persisted by a
 cookie-backed `Store`. Cookies are `HttpOnly` with `SameSite=Lax` and `Path=/`.
 Production cookies also use `Secure`. `SESSION_MAX_AGE` is the lifetime in
 seconds and defaults to seven days (`604800`). Saving session state renews the
-expiration. Signing out destroys the session immediately.
+expiration. Signing out destroys the session immediately. The cookie carries the
+user id and a `session_version`; `middleware.AuthOnly(users)` reloads the user on
+every request and rejects a missing user or a stale version, so a password
+change or admin demotion revokes existing sessions. Handlers read the
+database-backed user (including `IsAdmin`) with `middleware.ViewerFrom(ctx)`.
 
 CORS is provided by `anduin.CORS(CORSConfig)` and configured in
 `internal/runtime`. It allows credentials and trusts the union of configured
@@ -682,15 +710,15 @@ admin.Get(routes.AdminDashboard.Path(), adminHandler.Dashboard)
 
 The reverse proxy must forward the public `Host` header unchanged. A configured hostname without a port is also aliased as `hostname:80` and `hostname:443` so lookups succeed whether the proxy forwards a bare host or an explicit standard port. Unknown hosts are served by the primary mux. Duplicate hostnames or aliases across `HostName`s fail at boot.
 
-Layout CSS and JS stay on the primary host unless those routes set `routing.Host(...)`. Layout `<link>` / `<script>` tags use `FullURL()` so they always point at the asset host.
+Layout CSS and JS stay on the primary host unless those routes set `routing.Host(...)`. Layout `<link>` / `<script>` tags use `FullURL(hosts, ...)` so they always point at the asset host.
 
 `/api` stays on the primary host unless those routes set `routing.Host(...)`.
 
-Inertia Vite files stay on the primary host. Production tags from `pkg/inertia` use `ViteBuild.FullURL()` plus `crossorigin` so a secondary-host page loads the entry from primary. Vite production `base` is `'./'` so hashed chunks and fonts resolve against that script URL, not the page origin. Development keeps `base: '/assets/dist/'` and tags that hit `INERTIA_VITE_DEV_URL`.
+Inertia Vite files stay on the primary host. Production tags from `pkg/inertia` use `ViteBuild.FullURL(hosts)` plus `crossorigin` so a secondary-host page loads the entry from primary. Vite production `base` is `'./'` so hashed chunks and fonts resolve against that script URL, not the page origin. Development keeps `base: '/assets/dist/'` and tags that hit `INERTIA_VITE_DEV_URL`.
 
 Inertia TypeScript helpers from `andurel sync routes` return full URLs. Boot configures origins once via the shared `hosts` prop (`configureRouteHosts` in `resources/js/app` / SSR entry), so `routes.homePage()` resolves to the correct host without per-call arguments. Use `routes.homePage.path()` when a relative path is required. Run `andurel sync routes` after adding host-bound Inertia routes. Not-found handlers are registered on every configured host.
 
-To serve layout CSS/JS from `assets.example.com`, declare `const HostAssets routing.HostName = "assets"`, bind `HOST_ASSETS`, and put `routing.Host(config.HostAssets)` on those routes. There is no framework special case — it is another named host. For Inertia Vite, bind `ViteBuild` to that host too; `FullURL()` plus relative Vite `base` follow the script origin.
+To serve layout CSS/JS from `assets.example.com`, declare `const HostAssets routing.HostName = "assets"`, bind `HOST_ASSETS`, and put `routing.Host(config.HostAssets)` on those routes. There is no framework special case — it is another named host. For Inertia Vite, bind `ViteBuild` to that host too; `FullURL(hosts)` plus relative Vite `base` follow the script origin.
 
 **Client/testing tips**:
 - For unsafe requests in tests or custom clients, include `Sec-Fetch-Site: same-origin`.
@@ -757,9 +785,9 @@ bad credentials.
 which takes its `storage.Config` from `storagetest.Cluster.NewTestDBWithConfig`.
 `internal/runtime/runtime_test.go` boots the whole graph with `runtime.New` and
 calls `app.Handler`. The helpers load a project `.env` when present and fall
-back to fixed required values, so a fresh scaffold works without one. Do not
-use `t.Parallel()` here: `routing.ConfigureHosts` writes a package-level
-registry.
+back to fixed required values, so a fresh scaffold works without one. Each
+test constructs its own `routing.Hosts` value, so the runtime graph has no
+package-level mutable host registry.
 
 ### Running Tests
 

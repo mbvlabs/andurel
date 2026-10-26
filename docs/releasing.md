@@ -40,3 +40,16 @@ with `GOWORK=off`, update its `CHANGELOG.md`, and update the framework's verifie
 package version set and the root `go.mod` require when the CLI depends on it.
 Generated applications must resolve the tag without a workspace or `replace`
 directive.
+
+Never let anything fetch a `pkg/*` version before its tag is pushed.
+proxy.golang.org and sum.golang.org cache the "unknown revision" answer, and
+then `andurel new`, the full goldens, and the published-pin upgrade test fail
+for up to an hour after the tag exists. Until the tags are pushed:
+
+- check unpublished pins with `just test-upgrade-e2e-local` and
+  `just local-replace`, not with `just test-upgrade-e2e`;
+- don't run `just test-golden-full` or `andurel new` against a bumped
+  `layout/versions/versions.go` without the local replaces.
+
+Push the tags, wait until `https://sum.golang.org/lookup/<module>@<version>`
+returns 200 for each module, and only then run `just update-golden-full`.

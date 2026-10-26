@@ -2,26 +2,83 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"uuid"
 
+	"app/domains"
 	"app/routes"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/kiks"
 )
 
-func AuthOnly() anduin.Middleware {
+// AuthOnly requires a signed-in session whose user still exists and whose
+// session version matches the database. It reloads the user on every request,
+// so a deleted user, a password change or an admin demotion takes effect
+// immediately instead of at cookie expiry.
+func AuthOnly(users domains.Users) anduin.Middleware {
 	return func(next anduin.Handler) anduin.Handler {
 		return func(ctx context.Context) error {
 			session, err := kiks.Get[*Session](ctx)
 			if err != nil {
 				return err
 			}
-			if session != nil && session.IsAuthenticated {
-				return next(ctx)
+			if session == nil || !session.IsAuthenticated {
+				return rejectSession(ctx)
 			}
 
-			return anduin.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
+			userID, err := uuid.Parse(session.UserID)
+			if err != nil {
+				return rejectSession(ctx)
+			}
+
+			user, err := users.Find(ctx, userID)
+			if err != nil {
+				if errors.Is(err, domains.ErrNotFound) {
+					return rejectSession(ctx)
+				}
+
+				return err
+			}
+
+			if user.SessionVersion != session.SessionVersion {
+				return rejectSession(ctx)
+			}
+
+			return next(WithViewer(ctx, user))
 		}
 	}
+}
+
+// rejectSession clears the invalid cookie before sending the visitor to sign in.
+func rejectSession(ctx context.Context) error {
+	if err := kiks.Destroy[*Session](ctx); err != nil {
+		return err
+	}
+
+	return anduin.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
+}
+
+// Viewer is the database-backed user AuthOnly attached to the request.
+type Viewer struct {
+	ID      uuid.UUID
+	IsAdmin bool
+}
+
+type viewerKey struct{}
+
+// WithViewer attaches the signed-in user loaded by AuthOnly to ctx.
+func WithViewer(ctx context.Context, user domains.User) context.Context {
+	return context.WithValue(ctx, viewerKey{}, Viewer{
+		ID:      user.ID,
+		IsAdmin: user.IsAdmin,
+	})
+}
+
+// ViewerFrom returns the database-backed user AuthOnly attached to ctx.
+func ViewerFrom(ctx context.Context) (Viewer, bool) {
+	viewer, ok := ctx.Value(viewerKey{}).(Viewer)
+
+	return viewer, ok
 }

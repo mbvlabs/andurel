@@ -52,6 +52,19 @@ func (q *Queries) CreateToken[T any](ctx context.Context, arg CreateTokenParams)
 	return narsilc.Read[T, TokenRow](row, []string{"id", "created_at", "updated_at", "scope", "expires_at", "hash", "meta_data", "user_id", "attempts"})
 }
 
+const deleteExpiredTokens = `-- name: DeleteExpiredTokens :execrows
+DELETE FROM tokens
+WHERE expires_at < $1
+`
+
+func (q *Queries) DeleteExpiredTokens(ctx context.Context, expiresAt pgtype.Timestamptz) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredTokens, expiresAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteToken = `-- name: DeleteToken :exec
 DELETE FROM tokens
 WHERE id = $1

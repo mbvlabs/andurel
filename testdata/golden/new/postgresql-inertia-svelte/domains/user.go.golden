@@ -49,6 +49,7 @@ type User struct {
 	EmailValidatedAt pgtype.Timestamptz `andurel:"email_validated_at"`
 	Password         []byte             `andurel:"password"`
 	IsAdmin          bool               `andurel:"is_admin"`
+	SessionVersion   int32              `andurel:"session_version"`
 }
 
 func (u User) Validate() error {
@@ -115,6 +116,7 @@ func (u Users) Create(
 		Email:            NormaliseEmail(data.Email),
 		EmailValidatedAt: pgtype.Timestamptz{},
 		IsAdmin:          false,
+		SessionVersion:   1,
 	}
 
 	if err := validation.Join(entity.Validate(), data.PasswordPair.Validate()); err != nil {
@@ -135,6 +137,7 @@ func (u Users) Create(
 		EmailValidatedAt: entity.EmailValidatedAt,
 		Password:         entity.Password,
 		IsAdmin:          entity.IsAdmin,
+		SessionVersion:   entity.SessionVersion,
 	})
 
 	return storage.Row(created, storage.Conflict(err, "users_email_key"))
@@ -200,6 +203,7 @@ func (u Users) Save(ctx context.Context, entity User) (User, error) {
 		EmailValidatedAt: entity.EmailValidatedAt,
 		Password:         entity.Password,
 		IsAdmin:          entity.IsAdmin,
+		SessionVersion:   entity.SessionVersion,
 		UpdatedAt:        entity.UpdatedAt,
 	})
 
@@ -233,14 +237,32 @@ func (u Users) ChangePassword(
 
 		locked.Password = []byte(hashedPassword)
 		entity, err = users.Save(ctx, locked)
+		if err != nil {
+			return err
+		}
 
-		return err
+		if err := users.BumpSessionVersion(ctx, id); err != nil {
+			return err
+		}
+
+		// Reflect the bump in the returned entity; Save wrote the previous
+		// version before the single increment.
+		entity.SessionVersion++
+
+		return nil
 	})
 	if err != nil {
 		return User{}, err
 	}
 
 	return entity, nil
+}
+
+// BumpSessionVersion revokes every existing session for the user with one
+// statement, so it needs no transactor; called on a bound receiver it joins the
+// caller's transaction.
+func (u Users) BumpSessionVersion(ctx context.Context, id uuid.UUID) error {
+	return u.queries.BumpSessionVersion(ctx, id)
 }
 
 // RehashPassword stores password hashed with the current pepper. Login calls it

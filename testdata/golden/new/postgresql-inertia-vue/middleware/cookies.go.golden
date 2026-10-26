@@ -10,7 +10,7 @@ import (
 type Session struct {
 	UserID          string `json:"user_id,omitempty"`
 	PendingUserID   string `json:"pending_user_id,omitempty"`
-	IsAdmin         bool   `json:"is_admin,omitempty"`
+	SessionVersion  int32  `json:"session_version,omitempty"`
 	IsAuthenticated bool   `json:"is_authenticated,omitempty"`
 }
 

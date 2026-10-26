@@ -5,11 +5,13 @@ import (
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/riverqueue/river"
 
+	"app/domains"
 	"app/services"
 )
 
 func NewWorkers(
 	identity services.Identity,
+	tokens domains.Tokens,
 	transactional email.TransactionalSender,
 	marketing email.MarketingSender,
 ) *river.Workers {
@@ -17,6 +19,7 @@ func NewWorkers(
 	storage.AddEmailWorkers(workers, transactional, marketing)
 	river.AddWorker(workers, NewSendVerificationEmailWorker(identity, transactional))
 	river.AddWorker(workers, NewSendPasswordResetEmailWorker(identity, transactional))
+	river.AddWorker(workers, NewDeleteExpiredTokensWorker(tokens))
 
 	return workers
 }

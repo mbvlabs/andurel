@@ -84,6 +84,85 @@ func TestUsers_CreateRejectsDuplicateEmail(t *testing.T) {
 	}
 }
 
+func TestUsers_BumpSessionVersion(t *testing.T) {
+	t.Parallel()
+
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	users := domains.NewUsers(db)
+
+	created, err := users.Create(t.Context(), "test-pepper", domains.CreateUserData{
+		Email: "bump@example.com",
+		PasswordPair: domains.PasswordPair{
+			Password:        "correct horse battery staple",
+			ConfirmPassword: "correct horse battery staple",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if created.SessionVersion != 1 {
+		t.Fatalf("initial session version = %d, want 1", created.SessionVersion)
+	}
+
+	if err := users.BumpSessionVersion(t.Context(), created.ID); err != nil {
+		t.Fatalf("bump session version: %v", err)
+	}
+
+	found, err := users.Find(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if found.SessionVersion != 2 {
+		t.Fatalf("session version = %d, want 2", found.SessionVersion)
+	}
+}
+
+func TestUsers_ChangePasswordBumpsSessionVersion(t *testing.T) {
+	t.Parallel()
+
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	users := domains.NewUsers(db)
+
+	created, err := users.Create(t.Context(), "test-pepper", domains.CreateUserData{
+		Email: "change-password-session@example.com",
+		PasswordPair: domains.PasswordPair{
+			Password:        "correct horse battery staple",
+			ConfirmPassword: "correct horse battery staple",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	const newPassword = "new correct horse battery staple"
+	updated, err := users.ChangePassword(t.Context(), "test-pepper", created.ID, domains.PasswordPair{
+		Password:        newPassword,
+		ConfirmPassword: newPassword,
+	})
+	if err != nil {
+		t.Fatalf("change password: %v", err)
+	}
+	if updated.SessionVersion != created.SessionVersion+1 {
+		t.Fatalf(
+			"session version = %d, want %d",
+			updated.SessionVersion,
+			created.SessionVersion+1,
+		)
+	}
+
+	found, err := users.Find(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if found.SessionVersion != updated.SessionVersion {
+		t.Fatalf(
+			"stored session version = %d, want %d",
+			found.SessionVersion,
+			updated.SessionVersion,
+		)
+	}
+}
+
 func TestUsers_ConcurrentChangePasswordAndValidationBothPersist(t *testing.T) {
 	t.Parallel()
 
