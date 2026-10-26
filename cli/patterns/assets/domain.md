@@ -222,6 +222,7 @@ return users.Save(ctx, locked)
 - A receiver holds a `storage.Transactor` when one of its methods writes more than once or reads, modifies and writes a row; it rebinds it in `InTx`, wraps the statements in `storage.AtomicOps` (joining a caller's transaction when bound), and locks the row with `FindForUpdate` before a read-modify-write. `Save` writes every column and does not lock for its caller.
 - Entities expose `Validate()` via `pkg/validation`; `Create`/`Update` normalise, then validate, then write, returning validation errors from `pkg/validation` directly.
 - Keep the entity 1:1 with a scanned row.
+- Pass raw `page`/`pageSize` to `storage.Page`: it clamps the page, the size and the `int32` offset, so a huge or negative page cannot overflow the query.
 - SQL lives beside the domain that owns it (`domains/product.sql`); narsilc globs `domains/**/*.sql`.
 - Map expected not-found and unique-constraint failures to `ErrNotFound` and `ErrConflict`; return `pkg/validation` errors directly. Preserve unexpected database errors for diagnostics.
 - `inspect domains --json` labels table names with `table_source: "inferred"` when derived by convention. For custom names or irregular plurals, add `// andurel:table people` as the entity struct's doc comment (a free-standing annotation only applies when the file has a single entity); inspection reports `table_source: "annotation"`. The annotation is inspection metadata, not SQL configuration.

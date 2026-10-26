@@ -132,7 +132,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 		anduin.CSRF(csrf),
 	)
 
-	handlers.NewPagesHandler(renderer).Register(router)
+	handlers.NewPagesHandler(renderer).Register(router, middleware.AuthOnly(users))
 	assetsHandler.Register(router)
 	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)
 	handlers.NewAPIHandler(db).Register(router)

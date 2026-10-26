@@ -651,7 +651,11 @@ registered, e.g. `*middleware.Session`). The session payload is persisted by a
 cookie-backed `Store`. Cookies are `HttpOnly` with `SameSite=Lax` and `Path=/`.
 Production cookies also use `Secure`. `SESSION_MAX_AGE` is the lifetime in
 seconds and defaults to seven days (`604800`). Saving session state renews the
-expiration. Signing out destroys the session immediately.
+expiration. Signing out destroys the session immediately. The cookie carries the
+user id and a `session_version`; `middleware.AuthOnly(users)` reloads the user on
+every request and rejects a missing user or a stale version, so a password
+change or admin demotion revokes existing sessions. Handlers read the
+database-backed user (including `IsAdmin`) with `middleware.ViewerFrom(ctx)`.
 
 CORS is provided by `anduin.CORS(CORSConfig)` and configured in
 `internal/runtime`. It allows credentials and trusts the union of configured

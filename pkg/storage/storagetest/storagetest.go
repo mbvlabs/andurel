@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,6 +20,10 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
+
+// testDBSeq keeps database names unique when parallel tests read the same
+// clock value.
+var testDBSeq atomic.Uint64
 
 // Cluster owns a Postgres test container and can create isolated databases.
 type Cluster struct {
@@ -179,7 +184,7 @@ func (c *Cluster) newTestDB(t testing.TB, migrations fs.FS, migrationDir string)
 	}
 
 	ctx := context.Background()
-	name := fmt.Sprintf("test_%d", time.Now().UnixNano())
+	name := fmt.Sprintf("test_%d_%d", time.Now().UnixNano(), testDBSeq.Add(1))
 
 	admin, err := storage.NewPostgres(ctx, storage.DefaultConfig(), storage.WithDatabaseURL(c.databaseURL(c.adminDB)))
 	if err != nil {

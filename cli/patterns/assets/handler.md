@@ -120,8 +120,8 @@ func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
 - Decode into a named, exported `XPayload` struct, never an anonymous `struct{…}`: `andurel sync payloads` only emits TypeScript for named `*Payload` types, so the frontend form can import it from `@/types/payloads`.
 - Depend on the narrowest thing: a receiver (`domains.Products`) for single-domain CRUD, a service for multi-domain use cases. Never `storage.*` or `domains/internal/queries`.
 - Route registration happens in `Register(rt *anduin.Router)`.
-- Return domain errors unchanged; the router error handler maps them uniformly.
-- Exception: a form that can hit `domains.ErrConflict` (e.g. a taken email) checks `errors.Is(err, domains.ErrConflict)` and re-renders its own page with a field error, as `AuthHandler.RegistrationCreate` does. Otherwise the user lands on the generic `Errors/Conflict` page.
+- Return domain errors unchanged; the router error handler maps them uniformly. Never put internal error text in a response: a 5xx is logged and answered generically.
+- Exception: a form that can hit `domains.ErrConflict` (e.g. a taken unique field) checks `errors.Is(err, domains.ErrConflict)` and re-renders its own page with a field error. A registration form must not confirm that an address is already registered: `AuthHandler.RegistrationCreate` answers a duplicate like a successful sign-up and sends nothing. Otherwise the user lands on the generic `Errors/Conflict` page.
 - Construct the handler once in `internal/runtime` (`handlers.NewProductHandler(products, renderer).Register(router)`, with `products := domains.NewProducts(db)`).
 
 ## Checklist

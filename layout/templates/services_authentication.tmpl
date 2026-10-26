@@ -40,6 +40,10 @@ func (i Identity) AuthenticateUser(
 	user, err := i.users.FindByEmail(ctx, data.Email)
 	if err != nil {
 		if errors.Is(err, domains.ErrNotFound) {
+			// Spend the same argon2 work as a known email so response time
+			// does not reveal which addresses have accounts.
+			auth.DummyVerify(data.Password, i.pepper)
+
 			return domains.User{}, ErrInvalidCredentials
 		}
 

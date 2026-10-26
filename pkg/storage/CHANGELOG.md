@@ -12,6 +12,14 @@ All notable changes to the standalone Andurel storage module are documented here
   to v0.3.0 for GO-2026-6253, and `google.golang.org/grpc` to v1.83.2 for
   GO-2026-6443.
 
+### Fixed
+
+- `Page` clamps the page number so `(page-1)*pageSize` stays within the
+  `int32` offset parameter. A huge `page` no longer wraps into a negative SQL
+  `OFFSET`.
+- `storagetest` test database names add a per-process sequence number, so
+  parallel tests that read the same clock value no longer collide.
+
 ## 0.12.0 - 2026-10-26
 
 ### Added

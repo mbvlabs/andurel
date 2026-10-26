@@ -78,7 +78,7 @@ func TestProducts_CreateRejectsInvalid(t *testing.T) {
 - Never share receivers or a database between tests; there are no globals, so per-test construction keeps `t.Parallel()` safe.
 - To prove atomicity, make a later step fail (e.g. a queue whose `Insert` errors) and assert the earlier writes were rolled back.
 - Build entities inline through the domain API; do not add factories.
-- Assert on the entity returned by the domain, not raw SQL rows; match errors with `errors.Is(err, domains.ErrX)`.
+- Assert on the entity returned by the domain, not raw SQL rows; match errors with `errors.Is(err, domains.ErrX)`. When a write revokes sessions, reload the user and assert `SessionVersion` changed.
 - Keep tests in the `_test` package to exercise the public API.
 
 ## Checklist

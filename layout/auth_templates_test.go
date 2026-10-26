@@ -195,6 +195,42 @@ func TestGeneratedAuthEmailsKeepSecretsOutOfJobArgs(t *testing.T) {
 	)
 }
 
+func TestGeneratedSessionsCarryVersionAndDropAdmin(t *testing.T) {
+	bp := initializeBlueprint("example.com/app")
+
+	var hasVersion bool
+	for _, field := range bp.Cookies.SortedAppFields() {
+		switch field.Name {
+		case "IsAdmin":
+			t.Fatal("session cookie must not carry IsAdmin")
+		case "SessionVersion":
+			hasVersion = field.Type == "int32"
+		}
+	}
+	if !hasVersion {
+		t.Fatal("blueprint cookies are missing the int32 SessionVersion field")
+	}
+
+	assertTemplateContains(t, "handlers_auth.tmpl",
+		"SessionVersion:  entity.SessionVersion",
+	)
+	assertTemplateContains(t, "router_middleware_auth.tmpl",
+		"func AuthOnly(users domains.Users)",
+		"user.SessionVersion != session.SessionVersion",
+		"func ViewerFrom(ctx context.Context) (Viewer, bool)",
+	)
+	assertTemplateContains(t, "runtime_runtime.tmpl", "middleware.AuthOnly(users)")
+	assertTemplateContains(t, "database_migrations_users.tmpl",
+		"session_version INTEGER NOT NULL DEFAULT 1",
+	)
+	assertTemplateContains(t, "domains_user.tmpl",
+		"func (u Users) BumpSessionVersion(",
+		"users.BumpSessionVersion(ctx, id)",
+	)
+	assertTemplateContains(t, "services_authentication.tmpl", "auth.DummyVerify(")
+	assertTemplateMissing(t, "handlers_auth.tmpl", "already exists")
+}
+
 func TestBlueprintCarriesPendingUserCookieField(t *testing.T) {
 	bp := initializeBlueprint("example.com/app")
 

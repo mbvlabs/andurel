@@ -1,8 +1,12 @@
 package storage
 
+import "math"
+
 const (
 	defaultPageSize = 10
 	maxPageSize     = 100
+	// maxOffset is the largest page offset an int32 SQL parameter can carry.
+	maxOffset = math.MaxInt32
 )
 
 // PageRequest is a clamped page selection ready for a query.
@@ -14,7 +18,8 @@ type PageRequest struct {
 }
 
 // Page clamps page and pageSize to a valid selection. The page starts at 1,
-// pageSize defaults to 10, and pageSize is capped at 100.
+// pageSize defaults to 10, pageSize is capped at 100, and the offset is kept
+// inside int32 so a huge page cannot wrap into a negative SQL OFFSET.
 func Page(page, pageSize int64) PageRequest {
 	if page < 1 {
 		page = 1
@@ -24,6 +29,11 @@ func Page(page, pageSize int64) PageRequest {
 	}
 	if pageSize > maxPageSize {
 		pageSize = maxPageSize
+	}
+
+	maxPage := maxOffset/pageSize + 1
+	if page > maxPage {
+		page = maxPage
 	}
 
 	return PageRequest{
