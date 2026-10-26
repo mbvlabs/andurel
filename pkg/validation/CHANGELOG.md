@@ -4,6 +4,11 @@ All notable changes to the standalone Andurel validation module are documented h
 
 ## Unreleased
 
+### Changed
+
+- Raise the minimum Go version from 1.27.1 to 1.27.3, the release that CI and
+  `govulncheck` use, so consumers pick up the standard-library security fixes.
+
 ## 0.3.0 - 2026-10-26
 
 ### BREAKING

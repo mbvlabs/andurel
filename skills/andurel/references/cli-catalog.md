@@ -177,5 +177,5 @@ andurel run --tools mailpit
 | `andurel tool mailpit` | Start Mailpit for local email capture |
 | `andurel tool set-version` | Pin a tool version in andurel.lock and sync it |
 | `andurel tool sync` | Download pinned binaries from andurel.lock |
-| `andurel upgrade` | Upgrade framework-owned files to this CLI version |
+| `andurel upgrade` | Upgrade the project to this CLI version |
 | `andurel verify` | Check formatting, vet, layer boundaries, and generated code |

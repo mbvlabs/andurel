@@ -363,8 +363,8 @@ var commandMetaSpecs = map[string]CommandMeta{
 		SkipDryRunCheck: true,
 	},
 	"andurel upgrade": {
-		Summary:         "Upgrade framework-owned files to this CLI version",
-		WhenToUse:       []string{"After installing a newer Andurel CLI, refresh managed files."},
+		Summary:         "Upgrade the project to this CLI version",
+		WhenToUse:       []string{"After installing a newer Andurel CLI: re-pin pkg modules, sync tools, and list the manual actions to apply."},
 		WhenNotToUse:    []string{"Commit first. Use packages update to bump pkg modules without a framework upgrade."},
 		Prerequisites:   []string{"Andurel project root"},
 		Examples:        []string{"andurel upgrade --dry-run --json", "andurel upgrade"},
@@ -375,7 +375,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel packages": {
 		Summary:       "List or update Andurel packages in go.mod",
 		WhenToUse:     []string{"List or bump github.com/mbvlabs/andurel/pkg/* modules already required in go.mod."},
-		WhenNotToUse:  []string{"Framework file upgrades are andurel upgrade."},
+		WhenNotToUse:  []string{"Framework upgrades are andurel upgrade."},
 		Prerequisites: []string{"Andurel project root"},
 		Examples: []string{
 			"andurel packages --help",

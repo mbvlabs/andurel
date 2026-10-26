@@ -15,14 +15,19 @@ import (
 	"time"
 )
 
-const (
-	upgradeE2ESourceVersion = "v2.0.0-alpha.4"
-	upgradeE2ETargetVersion = "v2.0.0-alpha.5"
-)
+// upgradeE2ESourceVersions are the released CLIs the upgrade test scaffolds
+// with. Keep the previous pre-release and the oldest supported one.
+var upgradeE2ESourceVersions = []string{
+	"v2.0.0-alpha.4",
+	"v2.0.0-alpha.5",
+}
 
-// TestUpgradeAlpha4ToHEAD scaffolds with the released v2.0.0-alpha.4 CLI,
-// upgrades the result with this checkout, applies every manual action the
-// upgrade reports, and requires the result to build and vet cleanly.
+const upgradeE2ETargetVersion = "v2.0.0-beta.1"
+
+// TestUpgradeToHEAD scaffolds with each released CLI in
+// upgradeE2ESourceVersions, upgrades the result with this checkout, applies
+// every manual action the upgrade reports, and requires the result to build and
+// vet cleanly.
 //
 // The test downloads the released CLI and modules, so it only runs in nightly
 // and release-readiness. Set ANDUREL_UPGRADE_E2E=1 to enable it.
@@ -31,12 +36,20 @@ const (
 // checkout after the upgrade, the way `just local-replace` does. Use it on a
 // branch whose package changes are not published yet; the default variant
 // stays on the published pins for nightly and release-readiness.
-func TestUpgradeAlpha4ToHEAD(t *testing.T) {
+func TestUpgradeToHEAD(t *testing.T) {
 	if os.Getenv("ANDUREL_UPGRADE_E2E") != "1" {
 		t.Skip("upgrade end-to-end test requires ANDUREL_UPGRADE_E2E=1")
 	}
 	localPkg := os.Getenv("ANDUREL_UPGRADE_E2E_LOCAL_PKG") == "1"
 
+	for _, source := range upgradeE2ESourceVersions {
+		t.Run(source, func(t *testing.T) {
+			testUpgradeToHEAD(t, source, localPkg)
+		})
+	}
+}
+
+func testUpgradeToHEAD(t *testing.T, source string, localPkg bool) {
 	parent := t.TempDir()
 	appName := "upgradee2e"
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
@@ -46,21 +59,21 @@ func TestUpgradeAlpha4ToHEAD(t *testing.T) {
 		ctx,
 		"go",
 		"run",
-		"github.com/mbvlabs/andurel/v2@"+upgradeE2ESourceVersion,
+		"github.com/mbvlabs/andurel/v2@"+source,
 		"new",
 		appName,
 	)
 	scaffold.Dir = parent
 	scaffold.Env = append(os.Environ(), "GOWORK=off")
 	if output, err := scaffold.CombinedOutput(); err != nil {
-		t.Fatalf("scaffold with %s: %v\n%s", upgradeE2ESourceVersion, err, output)
+		t.Fatalf("scaffold with %s: %v\n%s", source, err, output)
 	}
 
 	root := filepath.Join(parent, appName)
 	gitRun(t, root, "init")
 	gitRun(t, root, "config", "user.email", "upgrade-e2e@example.com")
 	gitRun(t, root, "config", "user.name", "Upgrade E2E")
-	commitUpgradeTree(t, root, "scaffold from "+upgradeE2ESourceVersion)
+	commitUpgradeTree(t, root, "scaffold from "+source)
 
 	upgrader, err := NewUpgrader(
 		root,
@@ -71,7 +84,7 @@ func TestUpgradeAlpha4ToHEAD(t *testing.T) {
 	}
 	report, err := upgrader.Execute()
 	if err != nil {
-		t.Fatalf("upgrade %s to %s: %v", upgradeE2ESourceVersion, upgradeE2ETargetVersion, err)
+		t.Fatalf("upgrade %s to %s: %v", source, upgradeE2ETargetVersion, err)
 	}
 
 	for _, action := range report.ManualActions {

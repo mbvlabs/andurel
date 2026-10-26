@@ -1,6 +1,6 @@
 module github.com/mbvlabs/andurel/pkg/telemetry
 
-go 1.26.0
+go 1.27.3
 
 require (
 	github.com/lmittmann/tint v1.2.0

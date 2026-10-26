@@ -68,6 +68,8 @@ andurel --version
 
 ### Specific version
 
+Pin any published tag, for example an earlier pre-release:
+
 ```bash
 go install github.com/mbvlabs/andurel/v2@v2.0.0-alpha.4
 andurel --version

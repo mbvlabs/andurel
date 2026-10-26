@@ -4,6 +4,11 @@ All notable changes to the standalone Andurel telemetry module are documented he
 
 ## Unreleased
 
+### Changed
+
+- Raise the minimum Go version from 1.26.0 to 1.27.3, the release that CI and
+  `govulncheck` use, so consumers pick up the standard-library security fixes.
+
 ## 0.2.1 - 2026-10-26
 
 ### Changed
