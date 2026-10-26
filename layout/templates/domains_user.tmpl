@@ -17,17 +17,23 @@ import (
 
 const minPasswordLength = 8
 
+// Users holds a transactor because Update, ChangePassword and RehashPassword
+// read, modify and write a row.
 type Users struct {
-	queries *queries.Queries
+	transactor storage.Transactor
+	queries    *queries.Queries
 }
 
 func NewUsers(db storage.Connection) Users {
-	return Users{queries: queries.New(db)}
+	return Users{transactor: storage.NewTransactor(db), queries: queries.New(db)}
 }
 
-// InTx binds this receiver's queries to the caller's transaction.
+// InTx binds queries and atomic operations to the caller's transaction.
 func (u Users) InTx(tx storage.Tx) Users {
-	return Users{queries: queries.New(storage.Unwrap(tx))}
+	return Users{
+		transactor: u.transactor.InTx(tx),
+		queries:    queries.New(storage.Unwrap(tx)),
+	}
 }
 
 // NormaliseEmail is shared by lookups and writes so they agree on identity.
@@ -60,6 +66,11 @@ func (u *User) HasValidatedEmail() bool {
 
 func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
 	return storage.Row(u.queries.GetUser[User](ctx, id))
+}
+
+// FindForUpdate locks the row until the transaction finishes.
+func (u Users) FindForUpdate(ctx context.Context, id uuid.UUID) (User, error) {
+	return storage.Row(u.queries.GetUserForUpdate[User](ctx, id))
 }
 
 func (u Users) FindByEmail(
@@ -142,26 +153,40 @@ func (u Users) Update(
 	ctx context.Context,
 	data UpdateUserData,
 ) (User, error) {
-	entity, err := u.Find(ctx, data.ID)
+	var entity User
+
+	err := storage.AtomicOps(ctx, u.transactor, func(ctx context.Context, tx storage.Tx) error {
+		users := u.InTx(tx)
+
+		locked, err := users.FindForUpdate(ctx, data.ID)
+		if err != nil {
+			return err
+		}
+
+		if data.Email != nil {
+			locked.Email = NormaliseEmail(*data.Email)
+		}
+		if data.EmailValidatedAt != nil {
+			locked.EmailValidatedAt = *data.EmailValidatedAt
+		}
+		if data.IsAdmin != nil {
+			locked.IsAdmin = *data.IsAdmin
+		}
+
+		entity, err = users.Save(ctx, locked)
+
+		return err
+	})
 	if err != nil {
 		return User{}, err
 	}
 
-	if data.Email != nil {
-		entity.Email = NormaliseEmail(*data.Email)
-	}
-	if data.EmailValidatedAt != nil {
-		entity.EmailValidatedAt = *data.EmailValidatedAt
-	}
-	if data.IsAdmin != nil {
-		entity.IsAdmin = *data.IsAdmin
-	}
-
-	return u.Save(ctx, entity)
+	return entity, nil
 }
 
-// Save validates entity and writes it in one statement. Callers load the user
-// first, so every update reads the row once.
+// Save validates entity and writes every column in one statement. It takes no
+// lock itself: a caller using it directly must lock the row with FindForUpdate
+// inside the same transaction before changing it.
 func (u Users) Save(ctx context.Context, entity User) (User, error) {
 	entity.UpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
 
@@ -191,35 +216,67 @@ func (u Users) ChangePassword(
 		return User{}, err
 	}
 
-	entity, err := u.Find(ctx, id)
-	if err != nil {
-		return User{}, err
-	}
-
 	hashedPassword, err := auth.HashPassword(pair.Password, pepper)
 	if err != nil {
 		return User{}, err
 	}
-	entity.Password = []byte(hashedPassword)
 
-	return u.Save(ctx, entity)
+	var entity User
+
+	err = storage.AtomicOps(ctx, u.transactor, func(ctx context.Context, tx storage.Tx) error {
+		users := u.InTx(tx)
+
+		locked, err := users.FindForUpdate(ctx, id)
+		if err != nil {
+			return err
+		}
+
+		locked.Password = []byte(hashedPassword)
+		entity, err = users.Save(ctx, locked)
+
+		return err
+	})
+	if err != nil {
+		return User{}, err
+	}
+
+	return entity, nil
 }
 
 // RehashPassword stores password hashed with the current pepper. Login calls it
-// with the user it already loaded after the password matched a previous pepper.
+// with the id of the user whose password matched a previous pepper; it reloads
+// the locked row so a concurrent change is not overwritten.
 func (u Users) RehashPassword(
 	ctx context.Context,
 	pepper string,
-	user User,
+	id uuid.UUID,
 	password string,
 ) (User, error) {
 	hashedPassword, err := auth.HashPassword(password, pepper)
 	if err != nil {
 		return User{}, err
 	}
-	user.Password = []byte(hashedPassword)
 
-	return u.Save(ctx, user)
+	var entity User
+
+	err = storage.AtomicOps(ctx, u.transactor, func(ctx context.Context, tx storage.Tx) error {
+		users := u.InTx(tx)
+
+		locked, err := users.FindForUpdate(ctx, id)
+		if err != nil {
+			return err
+		}
+
+		locked.Password = []byte(hashedPassword)
+		entity, err = users.Save(ctx, locked)
+
+		return err
+	})
+	if err != nil {
+		return User{}, err
+	}
+
+	return entity, nil
 }
 
 func (u Users) Destroy(ctx context.Context, id uuid.UUID) error {

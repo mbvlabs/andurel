@@ -3,9 +3,13 @@ package domains_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"app/domains"
 	"app/migrations"
+
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/mbvlabs/andurel/pkg/auth"
 )
 
 func TestUser_Validate(t *testing.T) {
@@ -77,5 +81,68 @@ func TestUsers_CreateRejectsDuplicateEmail(t *testing.T) {
 
 	if _, err := users.Create(t.Context(), "test-pepper", data); !errors.Is(err, domains.ErrConflict) {
 		t.Fatalf("second create error = %v, want %v", err, domains.ErrConflict)
+	}
+}
+
+func TestUsers_ConcurrentChangePasswordAndValidationBothPersist(t *testing.T) {
+	t.Parallel()
+
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	users := domains.NewUsers(db)
+
+	created, err := users.Create(t.Context(), "test-pepper", domains.CreateUserData{
+		Email: "concurrent@example.com",
+		PasswordPair: domains.PasswordPair{
+			Password:        "correct horse battery staple",
+			ConfirmPassword: "correct horse battery staple",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	const newPassword = "new correct horse battery staple"
+	validatedAt := pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+
+	go func() {
+		<-start
+		_, err := users.ChangePassword(t.Context(), "test-pepper", created.ID, domains.PasswordPair{
+			Password:        newPassword,
+			ConfirmPassword: newPassword,
+		})
+		errs <- err
+	}()
+	go func() {
+		<-start
+		_, err := users.Update(t.Context(), domains.UpdateUserData{
+			ID:               created.ID,
+			EmailValidatedAt: &validatedAt,
+		})
+		errs <- err
+	}()
+
+	close(start)
+	for range 2 {
+		if err := <-errs; err != nil {
+			t.Fatalf("concurrent update: %v", err)
+		}
+	}
+
+	found, err := users.Find(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if !found.HasValidatedEmail() {
+		t.Fatal("email validation was lost")
+	}
+
+	valid, err := auth.VerifyPassword(string(found.Password), newPassword, "test-pepper")
+	if err != nil {
+		t.Fatalf("verify password: %v", err)
+	}
+	if !valid {
+		t.Fatal("password change was lost")
 	}
 }

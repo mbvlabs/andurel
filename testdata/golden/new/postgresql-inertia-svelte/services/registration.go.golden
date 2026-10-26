@@ -154,6 +154,13 @@ type VerifyEmailData struct {
 	Code   string
 }
 
+func (d VerifyEmailData) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("code", d.Code)
+
+	return b.Err()
+}
+
 func invalidVerificationCode() error {
 	return errors.Join(
 		ErrInvalidVerificationCode,
@@ -175,9 +182,7 @@ func (i Identity) VerifyEmail(
 	ctx context.Context,
 	data VerifyEmailData,
 ) (domains.User, error) {
-	b := validation.NewBuilder()
-	b.Required("code", data.Code)
-	if err := b.Err(); err != nil {
+	if err := data.Validate(); err != nil {
 		return domains.User{}, err
 	}
 

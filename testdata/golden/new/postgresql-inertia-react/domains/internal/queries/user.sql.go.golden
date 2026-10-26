@@ -97,6 +97,18 @@ func (q *Queries) GetUserByEmail[T any](ctx context.Context, email string) (T, e
 	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
 }
 
+const getUserForUpdate = `-- name: GetUserForUpdate :one
+SELECT id, created_at, updated_at, email, email_validated_at, password, is_admin
+FROM users
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) GetUserForUpdate[T any](ctx context.Context, id uuid.UUID) (T, error) {
+	row := q.db.QueryRow(ctx, getUserForUpdate, id)
+	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT id, created_at, updated_at, email, email_validated_at, password, is_admin
 FROM users

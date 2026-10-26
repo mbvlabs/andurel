@@ -21,8 +21,8 @@ const (
 	UserResetPassword     TokenScope = "user_password_reset"
 )
 
-// Tokens holds a Transactor because ReplaceCode must be atomic on its own.
-// ReplaceCode opens a transaction unless InTx binds it to the caller's.
+// Tokens holds a transactor because ReplaceCode and Replace write more than
+// once.
 type Tokens struct {
 	transactor storage.Transactor
 	queries    *queries.Queries
@@ -198,7 +198,33 @@ func (t Tokens) ReplaceCode(
 	metaData []byte,
 	userID uuid.UUID,
 ) (string, error) {
-	var code string
+	return t.replace(ctx, scope, userID, func(ctx context.Context, tokens Tokens) (string, error) {
+		return tokens.CreateCode(ctx, secret, scope, expiresAt, metaData, userID)
+	})
+}
+
+// Replace atomically replaces the outstanding token for a user and scope,
+// joining the caller's transaction when the receiver was bound with InTx.
+func (t Tokens) Replace(
+	ctx context.Context,
+	secret string,
+	scope TokenScope,
+	expiresAt time.Time,
+	metaData []byte,
+	userID uuid.UUID,
+) (string, error) {
+	return t.replace(ctx, scope, userID, func(ctx context.Context, tokens Tokens) (string, error) {
+		return tokens.CreateSecure(ctx, secret, scope, expiresAt, metaData, userID)
+	})
+}
+
+func (t Tokens) replace(
+	ctx context.Context,
+	scope TokenScope,
+	userID uuid.UUID,
+	create func(context.Context, Tokens) (string, error),
+) (string, error) {
+	var token string
 
 	err := storage.AtomicOps(ctx, t.transactor, func(ctx context.Context, tx storage.Tx) error {
 		tokens := t.InTx(tx)
@@ -207,12 +233,12 @@ func (t Tokens) ReplaceCode(
 			return err
 		}
 
-		created, err := tokens.CreateCode(ctx, secret, scope, expiresAt, metaData, userID)
+		created, err := create(ctx, tokens)
 		if err != nil {
 			return err
 		}
 
-		code = created
+		token = created
 
 		return nil
 	})
@@ -220,7 +246,7 @@ func (t Tokens) ReplaceCode(
 		return "", err
 	}
 
-	return code, nil
+	return token, nil
 }
 
 func (t Tokens) CreateSecure(

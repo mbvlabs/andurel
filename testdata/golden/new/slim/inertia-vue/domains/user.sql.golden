@@ -10,6 +10,12 @@ FROM users
 WHERE email = $1
 LIMIT 1;
 
+-- name: GetUserForUpdate :one
+SELECT *
+FROM users
+WHERE id = $1
+FOR UPDATE;
+
 -- name: ListUsers :many
 -- @order id
 SELECT *

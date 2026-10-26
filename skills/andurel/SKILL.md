@@ -97,7 +97,7 @@ Add a domain (type-driven: change the Go type first, then let SQL and queries fo
 3. Run `andurel sync queries --json` to regenerate `domains/internal/queries`.
 4. Write the migration with `andurel generate migration <name>`.
 
-Keep hand-written SQL in `domains/<entity>.sql` and generated code in `domains/internal/queries/`. Only `domains` should import that internal package. Each receiver has `New<Plural>(db)` (constructed in `internal/runtime`) and `InTx(tx storage.Tx)`. Services take a `storage.Transactor`, their receivers, and the queue individually, and run multi-domain writes in `storage.AtomicOps`, binding receivers with `InTx(tx)` at the top of the callback.
+Keep hand-written SQL in `domains/<entity>.sql` and generated code in `domains/internal/queries/`. Only `domains` should import that internal package. Each receiver has `New<Plural>(db)` (constructed in `internal/runtime`) and `InTx(tx storage.Tx)`. A receiver whose own method writes more than once, or reads, modifies and writes a row, holds a `storage.Transactor`; that method locks the row before saving and joins a caller's transaction when bound. Services take a `storage.Transactor`, their receivers, and the queue individually, and run multi-domain writes in `storage.AtomicOps`, binding receivers with `InTx(tx)` at the top of the callback.
 
 Add an HTTP resource:
 

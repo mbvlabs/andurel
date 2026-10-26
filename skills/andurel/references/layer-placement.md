@@ -86,9 +86,12 @@ Hard rules:
   receives domain receivers (`domains.NewUsers(db)`, built in runtime) and, for
   transactions, a `storage.Transactor`. `andurel verify` enforces this.
 - **Every receiver has `New<Plural>(db)` and `InTx(tx storage.Tx)`.** A receiver
-  whose method must run several statements atomically holds a
-  `storage.Transactor`, rebinds it in `InTx`, and wraps the statements in
-  `storage.AtomicOps` so it joins a caller's transaction when bound.
+  holds a `storage.Transactor` when one of its own methods must be atomic by
+  itself, either because it writes more than once or because it reads, modifies
+  and writes a row. It rebinds the transactor in `InTx`, wraps the statements in
+  `storage.AtomicOps` so it joins a caller's transaction when bound, and locks
+  the row with `FindForUpdate` before a read-modify-write. `Save` writes every
+  column and leaves locking to a caller that uses it directly.
 - **Validate once, in the domain.** `Create`/`Update` call the entity's
   `Validate()` before writing and return `pkg/validation` errors directly.
   Handlers and services do not repeat entity rules.

@@ -148,14 +148,16 @@ handlers.NewProductHandler(products, renderer).Register(router)
 
 ### domains/product.go (edit: atomic methods)
 
-A receiver whose method runs several statements that must be atomic on their
-own holds a `storage.Transactor` and rebinds it in `InTx`. Standalone, the
-method opens its own transaction; on a receiver bound with `InTx`, the bound
-transactor makes `AtomicOps` join the caller's transaction instead.
+A receiver holds a `storage.Transactor` when one of its own methods must be
+atomic by itself, either because it writes more than once or because it reads,
+modifies and writes a row. Standalone, the method opens its own transaction; on
+a receiver bound with `InTx`, the bound transactor makes `AtomicOps` join the
+caller's transaction instead.
 
 ```go fragment
-// Tokens needs a transactor because ReplaceCode is atomic both standalone and
-// when bound to a service's transaction.
+// A receiver holds a storage.Transactor when one of its own methods must be
+// atomic by itself, either because it writes more than once or because it
+// reads, modifies and writes a row.
 type Tokens struct {
 	transactor storage.Transactor
 	queries    *queries.Queries
@@ -170,13 +172,22 @@ func (t Tokens) InTx(tx storage.Tx) Tokens {
 }
 
 func (t Tokens) ReplaceCode(ctx context.Context /* … */) (string, error) {
+	return t.replace(ctx /* … */, func(ctx context.Context, tokens Tokens) (string, error) {
+		return tokens.CreateCode(ctx /* … */)
+	})
+}
+
+func (t Tokens) replace(
+	ctx context.Context /* … */,
+	create func(context.Context, Tokens) (string, error),
+) (string, error) {
 	var code string
 	err := storage.AtomicOps(ctx, t.transactor, func(ctx context.Context, tx storage.Tx) error {
 		tokens := t.InTx(tx)
 		if err := tokens.DestroyByUserAndScope(ctx /* … */); err != nil {
 			return err
 		}
-		c, err := tokens.CreateCode(ctx /* … */)
+		c, err := create(ctx, tokens)
 		if err != nil {
 			return err
 		}
@@ -190,12 +201,25 @@ func (t Tokens) ReplaceCode(ctx context.Context /* … */) (string, error) {
 }
 ```
 
+### domains/product.go (edit: read-modify-write)
+
+A read-modify-write method locks its row in the same transaction:
+
+```go fragment
+locked, err := users.FindForUpdate(ctx, id)
+if err != nil {
+	return err
+}
+locked.Password = newPassword
+return users.Save(ctx, locked)
+```
+
 ## Rules
 
 - One file per domain in the flat `domains` package. Cross-entity rules belong in a service.
 - Only files under `domains/` may import `domains/internal/queries` or call `storage.Unwrap`; only `domains/` and the wiring layers (`internal/runtime`, `cmd`, `seeds`, `migrations`) may name `storage.Connection`/`storage.Transaction`.
 - Every receiver has `New<Plural>(db storage.Connection)` and `InTx(tx storage.Tx)`. Construct it in `internal/runtime` and pass it to the services and handlers that use it.
-- A method with several statements that must be atomic on its own holds a `storage.Transactor`, rebinds it in `InTx`, and wraps the statements in `storage.AtomicOps` (it joins a caller's transaction when bound).
+- A receiver holds a `storage.Transactor` when one of its methods writes more than once or reads, modifies and writes a row; it rebinds it in `InTx`, wraps the statements in `storage.AtomicOps` (joining a caller's transaction when bound), and locks the row with `FindForUpdate` before a read-modify-write. `Save` writes every column and does not lock for its caller.
 - Entities expose `Validate()` via `pkg/validation`; `Create`/`Update` normalise, then validate, then write, returning validation errors from `pkg/validation` directly.
 - Keep the entity 1:1 with a scanned row.
 - SQL lives beside the domain that owns it (`domains/product.sql`); narsilc globs `domains/**/*.sql`.

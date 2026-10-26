@@ -171,7 +171,8 @@ func TestGeneratedAuthEmailsKeepSecretsOutOfJobArgs(t *testing.T) {
 	assertTemplateContains(t, "services_reset_password.tmpl",
 		"jobs.SendPasswordResetEmailArgs{UserID: user.ID}",
 		"func (i Identity) PasswordResetEmail(",
-		"tokens.DestroyByUserAndScope(ctx, user.ID, domains.UserResetPassword)",
+		"i.tokens.Replace(",
+		"domains.UserResetPassword",
 	)
 	for _, name := range []string{
 		"psql_queue_jobs_send_verification_email.tmpl",

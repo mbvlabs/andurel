@@ -21,14 +21,19 @@ type LoginData struct {
 	Password string
 }
 
+func (d LoginData) Validate() error {
+	b := validation.NewBuilder()
+	b.Required("email", d.Email)
+	b.Required("password", d.Password)
+
+	return b.Err()
+}
+
 func (i Identity) AuthenticateUser(
 	ctx context.Context,
 	data LoginData,
 ) (domains.User, error) {
-	b := validation.NewBuilder()
-	b.Required("email", data.Email)
-	b.Required("password", data.Password)
-	if err := b.Err(); err != nil {
+	if err := data.Validate(); err != nil {
 		return domains.User{}, err
 	}
 
@@ -56,7 +61,7 @@ func (i Identity) AuthenticateUser(
 	}
 
 	if needsRehash {
-		user, err = i.users.RehashPassword(ctx, i.pepper, user, data.Password)
+		user, err = i.users.RehashPassword(ctx, i.pepper, user.ID, data.Password)
 		if err != nil {
 			return domains.User{}, fmt.Errorf("rehash password with current pepper: %w", err)
 		}
