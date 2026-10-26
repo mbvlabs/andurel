@@ -95,6 +95,10 @@ step "scaffolding ${app_name}"
 
 step "pointing ${app_name} at the local pkg modules"
 just local-replace "${app_dir}"
+(
+	cd "${app_dir}"
+	GOWORK=off go mod tidy
+)
 
 step "syncing project tools"
 (

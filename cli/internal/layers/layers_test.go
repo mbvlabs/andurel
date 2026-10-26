@@ -388,3 +388,18 @@ func writeProjectFile(t *testing.T, root, rel, contents string) {
 		t.Fatalf("write %s: %v", rel, err)
 	}
 }
+
+func TestNoPackagesErrorReportsGoCommandFailure(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module app\n\ngo 1.27.1\n\nnot-a-directive\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := noPackagesError(dir)
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if !strings.Contains(err.Error(), "go.mod") {
+		t.Fatalf("error does not carry the go command's message: %v", err)
+	}
+}

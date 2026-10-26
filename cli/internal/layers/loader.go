@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"go/types"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -59,6 +60,22 @@ type Project struct {
 	packageTypes map[*types.Package]*Package
 }
 
+// noPackagesError explains an empty load. go/packages reports no packages and
+// no error when the go command refuses to run, for example when go.mod needs
+// tidying, so the go command's own message is recovered by running go list.
+func noPackagesError(rootDir string) error {
+	cmd := exec.Command("go", "list", "./...")
+	cmd.Dir = rootDir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if message := strings.TrimSpace(string(output)); message != "" {
+			return fmt.Errorf("load Go packages: %s", message)
+		}
+	}
+
+	return errors.New("no Go packages found under the project root")
+}
+
 // Load loads rootDir and everything under it with the minimal type-checking
 // mode the layer analyzers need. Tests are included so the checks do not
 // silently narrow to production files.
@@ -96,7 +113,7 @@ func Load(rootDir string) (*Project, error) {
 		return nil, fmt.Errorf("load Go packages: %w", err)
 	}
 	if len(loaded) == 0 {
-		return nil, errors.New("no Go packages found under the project root")
+		return nil, noPackagesError(absRoot)
 	}
 
 	loadErrors := make([]error, 0)

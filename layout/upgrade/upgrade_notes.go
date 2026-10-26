@@ -136,18 +136,18 @@ func storageTestClusterInstructions() string {
 		"2. There is no compatibility alias. Replace `storage.TestCluster` with `storagetest.Cluster` and " +
 			"`storage.NewTestCluster` with `storagetest.NewCluster`; `Close` and `NewTestDB` keep their signatures.\n\n",
 	)
-	instructions.WriteString(fmt.Sprintf(
+	fmt.Fprintf(&instructions,
 		"3. The upgrade pins pkg/storage %s. Format and verify:\n\n```text\n"+
 			"gofmt -w .\ngo fix ./...\ngo vet ./...\ngolangci-lint run ./...\n```\n",
 		versions.Storage,
-	))
+	)
 
 	return instructions.String()
 }
 
 func packageAPIInstructions(inertia bool) string {
 	var instructions strings.Builder
-	instructions.WriteString(fmt.Sprintf(
+	fmt.Fprintf(&instructions,
 		"The upgrade pins pkg/anduin %s, pkg/cache %s, pkg/inertia %s, pkg/kiks %s and pkg/storage %s. "+
 			"internal/runtime is application-owned, so update it by hand:\n\n",
 		versions.Anduin,
@@ -155,7 +155,7 @@ func packageAPIInstructions(inertia bool) string {
 		versions.Inertia,
 		versions.Kiks,
 		versions.Storage,
-	))
+	)
 	instructions.WriteString(
 		"1. anduin.NewServer drops the environment and shutdowner arguments, and Server.Start takes none:\n\n```go\n" +
 			"srv := anduin.NewServer(ctx, cfg.HTTP.Host, cfg.HTTP.Port, handler, anduin.WithTimeouts(/* ... */))\n" +
@@ -195,12 +195,12 @@ func packageAPIInstructions(inertia bool) string {
 
 func routingHostsInstructions() string {
 	var instructions strings.Builder
-	instructions.WriteString(fmt.Sprintf(
+	fmt.Fprintf(&instructions,
 		"pkg/routing %s replaces the package-level host registry with an explicit *routing.Hosts. "+
 			"routing.ConfigureHosts, routing.LookupHost, routing.Hosts and routing.HostBaseURL are gone, "+
 			"and every FullURL now takes the registry as its first argument:\n\n",
 		versions.Routing,
-	))
+	)
 	instructions.WriteString(
 		"1. Delete the ConfigureHosts call from NewApp in config/app.go. The runtime builds and validates the registry instead:\n\n```go\n" +
 			"// remove\nif err := routing.ConfigureHosts(cfg.Hosts); err != nil {\n\treturn App{}, fmt.Errorf(\"config: app: %w\", err)\n}\n```\n\n",
@@ -244,12 +244,12 @@ func routingHostsInstructions() string {
 
 func sessionRevocationInstructions() string {
 	var instructions strings.Builder
-	instructions.WriteString(fmt.Sprintf(
+	fmt.Fprintf(&instructions,
 		"pkg/auth %s and the alpha.5 scaffold make sessions revocable: a per-user session_version is stored "+
 			"in the cookie and checked against the database on every authenticated request. Password resets bump "+
 			"the version, so every other session stops working immediately.\n\n",
 		versions.Auth,
-	))
+	)
 	instructions.WriteString(
 		"This is a recommended security fix, not a compile requirement: an alpha.4 app keeps building without it.\n\n",
 	)
@@ -313,11 +313,11 @@ func sessionRevocationInstructions() string {
 
 func emailSMTPInstructions() string {
 	var instructions strings.Builder
-	instructions.WriteString(fmt.Sprintf(
+	fmt.Fprintf(&instructions,
 		"pkg/email %s adds a production SMTP transport and the alpha.5 scaffold rejects Mailpit when "+
 			"ENVIRONMENT=production. `newEmailSenders` also takes config.App so it can make that check.\n\n",
 		versions.Email,
-	))
+	)
 	instructions.WriteString(
 		"This action is optional for local development, but production apps still on Mailpit must switch to SMTP.\n\n",
 	)
