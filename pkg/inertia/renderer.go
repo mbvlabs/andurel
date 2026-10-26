@@ -191,6 +191,19 @@ func (p *PageBuilder) ValidationErrors(errors map[string]string) *PageBuilder {
 	return p
 }
 
+// Errors sets the protected errors prop from err's field map and reports
+// whether err carried field errors.
+func (p *PageBuilder) Errors(err error) (*PageBuilder, bool) {
+	fields, ok := fieldErrors(err)
+	if !ok {
+		return p, false
+	}
+
+	p.validationErrors = fields
+
+	return p, true
+}
+
 // HistoryEncryption controls encrypted browser history metadata.
 func (p *PageBuilder) HistoryEncryption(enabled bool) *PageBuilder {
 	p.encryptHistory = enabled

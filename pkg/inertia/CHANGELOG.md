@@ -1,5 +1,14 @@
 ## Unreleased
 
+### Added
+
+- `ErrorHandler` and `MapError` translate handler errors into JSON or Inertia
+  responses: field errors become a 422 page, mapped sentinels render the
+  configured pages, and unmapped errors keep their status without leaking 5xx
+  details.
+- `PageBuilder.Errors` sets the validation errors prop from an error and reports
+  whether it carried field errors.
+
 ## 0.8.1 - 2026-10-20
 
 ### Changed
