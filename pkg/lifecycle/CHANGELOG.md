@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel lifecycle module are documented he
 
 ## Unreleased
 
+## 0.1.1 - 2026-10-26
+
 ### Changed
 
 - Raise the minimum Go version from 1.27.1 to 1.27.3, the release that CI and
