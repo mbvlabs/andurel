@@ -4,6 +4,18 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+### Added
+
+- `WithHosts` installs the explicit `*routing.Hosts` registry used to dispatch
+  requests to named hosts, replacing the package-level `routing.ConfigureHosts`
+  lookup.
+
+### Changed
+
+- Bump `golang.org/x/net` to v0.60.0 for GO-2026-6617, GO-2026-6612,
+  GO-2026-6611, GO-2026-6610, and GO-2026-6603, and `google.golang.org/grpc`
+  to v1.83.2 for GO-2026-6443.
+
 ## 0.3.0 - 2026-10-26
 
 ### Added

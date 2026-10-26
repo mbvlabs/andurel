@@ -4,6 +4,10 @@ All notable changes to the standalone Andurel auth module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Bump `golang.org/x/crypto` to v0.56.0 for GO-2026-6355 and GO-2026-6354.
+
 ## 0.1.0 - 2026-10-26
 
 ### Added

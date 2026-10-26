@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -141,6 +142,83 @@ func TestCookieDriverRoundTrip(t *testing.T) {
 		return anduin.NoContent(ctx, http.StatusOK)
 	})); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestConstructorsRejectInvalidEncryptionKeyLength(t *testing.T) {
+	valid := testKeys()
+	store, err := NewCookieStore(valid)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, size := range []int{0, 1, 15, 17, 20, 23, 25, 31, 33} {
+		t.Run(fmt.Sprintf("%d bytes", size), func(t *testing.T) {
+			keys := Keys{
+				Authentication: valid.Authentication,
+				Encryption:     make([]byte, size),
+			}
+			if _, err := NewCookieStore(keys); err == nil {
+				t.Fatalf("NewCookieStore accepted a %d-byte encryption key", size)
+			}
+			if _, err := NewJar(keys, store, NewSession[*testApp]("app")); err == nil {
+				t.Fatalf("NewJar accepted a %d-byte encryption key", size)
+			}
+		})
+	}
+
+	for _, size := range []int{16, 24, 32} {
+		t.Run(fmt.Sprintf("%d bytes valid", size), func(t *testing.T) {
+			keys := Keys{
+				Authentication: valid.Authentication,
+				Encryption:     make([]byte, size),
+			}
+			if _, err := NewCookieStore(keys); err != nil {
+				t.Fatalf("NewCookieStore rejected a %d-byte encryption key: %v", size, err)
+			}
+			if _, err := NewJar(keys, store, NewSession[*testApp]("app")); err != nil {
+				t.Fatalf("NewJar rejected a %d-byte encryption key: %v", size, err)
+			}
+		})
+	}
+}
+
+func TestCookieMaxAgeIsPerDefinition(t *testing.T) {
+	jar := testJar(t,
+		NewSession[*testApp]("app", MaxAge(1)),
+		Encrypted[*theme]("theme", MaxAge(1)),
+		Signed[jsonApp]("prefs", MaxAge(3600)),
+	)
+	ctx := context.Background()
+
+	themeRecorder := httptest.NewRecorder()
+	dark := theme("dark")
+	if err := Write(ctx, jar, themeRecorder, &dark); err != nil {
+		t.Fatal(err)
+	}
+	prefsRecorder := httptest.NewRecorder()
+	if err := Write(ctx, jar, prefsRecorder, jsonApp{UserID: "u1"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// securecookie compares whole seconds, so a 1-second MaxAge needs the
+	// clock to advance past the next tick to be observably expired.
+	time.Sleep(2100 * time.Millisecond)
+
+	themeRequest := httptest.NewRequest(http.MethodGet, "/", nil)
+	themeRequest.AddCookie(cookieByName(themeRecorder.Result().Cookies(), "theme"))
+	if _, err := Read[*theme](ctx, jar, themeRequest); err == nil {
+		t.Fatal("expected the 1-second theme cookie to expire")
+	}
+
+	prefsRequest := httptest.NewRequest(http.MethodGet, "/", nil)
+	prefsRequest.AddCookie(cookieByName(prefsRecorder.Result().Cookies(), "prefs"))
+	prefs, err := Read[jsonApp](ctx, jar, prefsRequest)
+	if err != nil {
+		t.Fatalf("longer-lived cookie was rejected: %v", err)
+	}
+	if prefs.UserID != "u1" {
+		t.Fatalf("prefs = %+v", prefs)
 	}
 }
 

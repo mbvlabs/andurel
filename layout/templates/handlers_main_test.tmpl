@@ -8,6 +8,7 @@ import (
 	"{{.ModuleName}}/routes"
 
 	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/storage/storagetest"
 )
 
@@ -25,10 +26,17 @@ func TestMain(m *testing.M) {
 func testRenderer(t *testing.T) *inertia.Renderer {
 	t.Helper()
 
+	hosts, err := routing.NewHosts(map[routing.HostName]routing.HostSpec{
+		routing.HostPrimary: {Hostname: "localhost", Protocol: "http"},
+	})
+	if err != nil {
+		t.Fatalf("create hosts: %v", err)
+	}
+
 	renderer, err := inertia.NewRenderer(
 		inertia.RendererConfig{
 			ContainerID:         config.DefaultInertiaContainerID,
-			BuildPathURL:        routes.ViteBuild.FullURL(),
+			BuildPathURL:        routes.ViteBuild.FullURL(hosts),
 			EntryPoint:          config.DefaultInertiaEntryPoint,
 			ViteDevURL:          config.DefaultInertiaViteDevURL,
 			SSRURL:              config.DefaultInertiaSSRURL,

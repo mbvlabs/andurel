@@ -4,6 +4,11 @@ All notable changes to the standalone Andurel validation module are documented h
 
 ## Unreleased
 
+### BREAKING
+
+- Removed the deprecated `Validate` function and `Validatable` interface. Call
+  a value's `Validate` method directly and join errors with `validation.Join`.
+
 ## 0.2.0 - 2026-10-26
 
 ### Added

@@ -14,6 +14,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/anduin/anduintest"
 	"github.com/mbvlabs/andurel/pkg/cache"
+	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -62,6 +63,12 @@ func newAuthServer(t *testing.T) *anduintest.Server {
 	}
 
 	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	hosts, err := routing.NewHosts(map[routing.HostName]routing.HostSpec{
+		routing.HostPrimary: {Hostname: "localhost", Protocol: "http"},
+	})
+	if err != nil {
+		t.Fatalf("create hosts: %v", err)
+	}
 	identity := services.NewIdentity(
 		storage.NewTransactor(db),
 		domains.NewUsers(db),
@@ -69,6 +76,7 @@ func newAuthServer(t *testing.T) *anduintest.Server {
 		nil,
 		config.Auth{Pepper: "test-pepper", TokenSigningKey: "test-token-signing-key"},
 		config.Mail{},
+		hosts,
 	)
 
 	return anduintest.New(t, func(rt *anduin.Router) {

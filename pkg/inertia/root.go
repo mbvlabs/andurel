@@ -29,8 +29,9 @@ type RootData struct {
 	SSR         *SSRResponse
 }
 
-// PageScript renders v3's non-SSR JSON page script. The JSON is validated and
-// every slash is escaped without HTML-entity encoding the script body.
+// PageScript renders v3's non-SSR JSON page script. The JSON is validated,
+// HTML-escaped, and has every slash escaped so a prop cannot close the script
+// element or open an HTML comment.
 func PageScript(containerID string, pageJSON []byte) templ.Component {
 	return templ.ComponentFunc(func(_ context.Context, writer io.Writer) error {
 		decoder := json.NewDecoder(bytes.NewReader(pageJSON))
@@ -46,7 +47,6 @@ func PageScript(containerID string, pageJSON []byte) templ.Component {
 
 		var normalized bytes.Buffer
 		encoder := json.NewEncoder(&normalized)
-		encoder.SetEscapeHTML(false)
 		if err := encoder.Encode(value); err != nil {
 			return fmt.Errorf("inertia: normalize page JSON: %w", err)
 		}

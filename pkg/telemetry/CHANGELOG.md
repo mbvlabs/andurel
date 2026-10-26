@@ -4,6 +4,12 @@ All notable changes to the standalone Andurel telemetry module are documented he
 
 ## Unreleased
 
+### Changed
+
+- Bump `golang.org/x/net` to v0.60.0 for GO-2026-6617, GO-2026-6612,
+  GO-2026-6611, GO-2026-6610, and GO-2026-6603, and `google.golang.org/grpc`
+  to v1.83.2 for GO-2026-6443.
+
 ## 0.2.0 - 2026-10-19
 
 ### Changed

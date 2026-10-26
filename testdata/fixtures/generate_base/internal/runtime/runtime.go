@@ -38,7 +38,8 @@ type App struct {
 // New builds the web process. Each dependency registers its cleanup as soon as
 // it exists, so a failure part way through releases everything built so far.
 func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
-	if err := routing.ConfigureHosts(cfg.App.Hosts); err != nil {
+	hosts, err := routing.NewHosts(cfg.App.Hosts)
+	if err != nil {
 		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
 	}
 
@@ -77,9 +78,17 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	users := domains.NewUsers(db)
 	tokens := domains.NewTokens(db)
 
-	identity := services.NewIdentity(transactor, users, tokens, queueInsert, cfg.Auth, cfg.Mail)
+	identity := services.NewIdentity(
+		transactor,
+		users,
+		tokens,
+		queueInsert,
+		cfg.Auth,
+		cfg.Mail,
+		hosts,
+	)
 
-	renderer, err := newRenderer(cfg)
+	renderer, err := newRenderer(cfg, hosts)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +104,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	}
 
 	router := anduin.NewRouter(
+		anduin.WithHosts(hosts),
 		anduin.WithErrorHandler(handlers.MapError(renderer)),
 		anduin.WithTelemetry(tel),
 	)
@@ -222,11 +232,11 @@ func newEmailSenders(
 	}
 }
 
-func newRenderer(cfg config.Config) (*inertia.Renderer, error) {
+func newRenderer(cfg config.Config, hosts *routing.Hosts) (*inertia.Renderer, error) {
 	return inertia.NewRenderer(
 		inertia.RendererConfig{
 			ContainerID:         cfg.Inertia.ContainerID,
-			BuildPathURL:        routes.ViteBuild.FullURL(),
+			BuildPathURL:        routes.ViteBuild.FullURL(hosts),
 			EntryPoint:          cfg.Inertia.EntryPoint,
 			ViteDevURL:          cfg.Inertia.ViteDevURL,
 			SSRURL:              cfg.Inertia.SSRURL,

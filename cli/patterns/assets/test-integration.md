@@ -49,7 +49,7 @@ func TestAppServesHealth(t *testing.T) {
 - Close the app with `app.Close` to release the database and telemetry, passing `context.WithoutCancel(t.Context())` because `t.Context()` is canceled before cleanup runs.
 - Use a real Postgres test database from the package cluster; migrations are applied before `runtime.New` boots.
 - Do not reach into unexported runtime fields.
-- `routing.ConfigureHosts` writes a package-level registry. Tests that call `runtime.New` use the same hosts config and do not use `t.Parallel()`.
+- `routing.NewHosts` returns an explicit registry value. Tests that call `runtime.New` each construct their own hosts and do not mutate package state.
 
 ## Checklist
 

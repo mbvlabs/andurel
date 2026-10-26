@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"maps"
 	"strings"
-	"sync"
 )
 
 // HostName identifies a named virtual host. Framework code owns the type and
@@ -13,7 +12,7 @@ import (
 type HostName string
 
 // HostPrimary is the required default host. Unknown Request.Host values are
-// served by the primary Echo.
+// served by the primary router.
 const HostPrimary HostName = "primary"
 
 // HostSpec is the public hostname (and optional aliases) for a HostName.
@@ -73,20 +72,19 @@ func Host(name HostName) RouteSetupOption {
 	}
 }
 
-var (
-	hostMu       sync.RWMutex
-	hostRegistry map[HostName]HostSpec
-)
+// Hosts is an immutable hostname registry used by route URLs and the router.
+type Hosts struct {
+	specs map[HostName]HostSpec
+}
 
-// ConfigureHosts installs the boot-time hostname registry used by FullURL.
-// HostPrimary must be present with a non-empty hostname. Every other entry
-// must also have a hostname. Hostname and alias strings must be unique across
-// HostNames. Calling again replaces the registry.
-func ConfigureHosts(hosts map[HostName]HostSpec) error {
-	if len(hosts) == 0 {
-		return fmt.Errorf("routing: host registry must include %q", HostPrimary)
+// NewHosts validates and clones a host registry. HostPrimary must be present
+// with a non-empty hostname. Every other entry must also have a hostname.
+// Hostname and alias strings must be unique across HostNames.
+func NewHosts(specs map[HostName]HostSpec) (*Hosts, error) {
+	if len(specs) == 0 {
+		return nil, fmt.Errorf("routing: host registry must include %q", HostPrimary)
 	}
-	cloned := make(map[HostName]HostSpec, len(hosts))
+	cloned := make(map[HostName]HostSpec, len(specs))
 	claimed := make(map[string]HostName)
 	claim := func(hostname string, name HostName) error {
 		hostname = strings.TrimSpace(hostname)
@@ -104,16 +102,16 @@ func ConfigureHosts(hosts map[HostName]HostSpec) error {
 		claimed[hostname] = name
 		return nil
 	}
-	for name, spec := range hosts {
+	for name, spec := range specs {
 		if strings.TrimSpace(string(name)) == "" {
-			return fmt.Errorf("routing: host name must not be empty")
+			return nil, fmt.Errorf("routing: host name must not be empty")
 		}
 		spec.Hostname = strings.TrimSpace(spec.Hostname)
 		if spec.Hostname == "" {
-			return fmt.Errorf("routing: host %q is missing a hostname", name)
+			return nil, fmt.Errorf("routing: host %q is missing a hostname", name)
 		}
 		if err := claim(spec.Hostname, name); err != nil {
-			return err
+			return nil, err
 		}
 		if len(spec.Aliases) > 0 {
 			aliases := make([]string, 0, len(spec.Aliases))
@@ -123,7 +121,7 @@ func ConfigureHosts(hosts map[HostName]HostSpec) error {
 					continue
 				}
 				if err := claim(alias, name); err != nil {
-					return err
+					return nil, err
 				}
 				aliases = append(aliases, alias)
 			}
@@ -133,44 +131,37 @@ func ConfigureHosts(hosts map[HostName]HostSpec) error {
 	}
 	primary, ok := cloned[HostPrimary]
 	if !ok || primary.Hostname == "" {
-		return fmt.Errorf("routing: host %q is required", HostPrimary)
+		return nil, fmt.Errorf("routing: host %q is required", HostPrimary)
 	}
 
-	hostMu.Lock()
-	hostRegistry = cloned
-	hostMu.Unlock()
-	return nil
+	return &Hosts{specs: cloned}, nil
 }
 
-// LookupHost returns the registered spec for name.
-func LookupHost(name HostName) (HostSpec, bool) {
-	hostMu.RLock()
-	defer hostMu.RUnlock()
-	if hostRegistry == nil {
+// Lookup returns the registered spec for name.
+func (h *Hosts) Lookup(name HostName) (HostSpec, bool) {
+	if h == nil {
 		return HostSpec{}, false
 	}
-	spec, ok := hostRegistry[name]
+	spec, ok := h.specs[name]
 	return spec, ok
 }
 
-// Hosts returns a copy of the boot-time hostname registry.
-func Hosts() map[HostName]HostSpec {
-	hostMu.RLock()
-	defer hostMu.RUnlock()
-	if hostRegistry == nil {
+// All returns a copy of the host registry.
+func (h *Hosts) All() map[HostName]HostSpec {
+	if h == nil {
 		return nil
 	}
-	return maps.Clone(hostRegistry)
+	return maps.Clone(h.specs)
 }
 
-// HostBaseURL returns the origin for name from the boot-time registry.
-// Empty name selects HostPrimary. Unregistered names and an unconfigured
-// registry return the empty string (no silent fallback to another host).
-func HostBaseURL(name HostName) string {
+// BaseURL returns the origin for name. Empty name selects HostPrimary.
+// Unregistered names return the empty string (no silent fallback to another
+// host).
+func (h *Hosts) BaseURL(name HostName) string {
 	if name == "" {
 		name = HostPrimary
 	}
-	if spec, ok := LookupHost(name); ok {
+	if spec, ok := h.Lookup(name); ok {
 		return spec.BaseURL()
 	}
 	return ""
@@ -183,6 +174,6 @@ func routeHost(cfg routeConfig) HostName {
 	return cfg.host
 }
 
-func (r Route) fullURL(path string) string {
-	return HostBaseURL(r.host) + path
+func (r Route) fullURL(hosts *Hosts, path string) string {
+	return hosts.BaseURL(r.host) + path
 }

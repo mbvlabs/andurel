@@ -44,80 +44,62 @@ func TestHostOption(t *testing.T) {
 	}
 }
 
-func TestConfigureHostsRequiresPrimary(t *testing.T) {
-	t.Cleanup(func() {
-		hostMu.Lock()
-		hostRegistry = nil
-		hostMu.Unlock()
-	})
-
-	if err := ConfigureHosts(nil); err == nil {
+func TestNewHostsRequiresPrimary(t *testing.T) {
+	if _, err := NewHosts(nil); err == nil {
 		t.Fatal("expected error for empty registry")
 	}
-	if err := ConfigureHosts(map[HostName]HostSpec{
+	if _, err := NewHosts(map[HostName]HostSpec{
 		"admin": {Hostname: "admin.example.com", Protocol: "https"},
 	}); err == nil {
 		t.Fatal("expected error when primary is missing")
 	}
-	if err := ConfigureHosts(map[HostName]HostSpec{
+	if _, err := NewHosts(map[HostName]HostSpec{
 		HostPrimary: {Hostname: "", Protocol: "https"},
 	}); err == nil {
 		t.Fatal("expected error when primary hostname is empty")
 	}
 }
 
-func TestFullURLUsesHostRegistry(t *testing.T) {
+func TestFullURLUsesHosts(t *testing.T) {
 	const hostAdmin HostName = "admin"
-	t.Cleanup(func() {
-		hostMu.Lock()
-		hostRegistry = nil
-		hostMu.Unlock()
-	})
-
-	if err := ConfigureHosts(map[HostName]HostSpec{
+	hosts, err := NewHosts(map[HostName]HostSpec{
 		HostPrimary: {Hostname: "andurel.com", Protocol: "https"},
 		hostAdmin:   {Hostname: "admin.andurel.com", Protocol: "https"},
-	}); err != nil {
-		t.Fatalf("configure hosts: %v", err)
+	})
+	if err != nil {
+		t.Fatalf("new hosts: %v", err)
 	}
 
 	primary := NewSimpleRoute("/", "pages.home", "")
-	if got, want := primary.FullURL(), "https://andurel.com/"; got != want {
+	if got, want := primary.FullURL(hosts), "https://andurel.com/"; got != want {
 		t.Fatalf("primary FullURL = %q, want %q", got, want)
 	}
 
 	admin := NewSimpleRoute("", "widgets.index", "/widgets", Host(hostAdmin))
-	if got, want := admin.FullURL(), "https://admin.andurel.com/widgets"; got != want {
+	if got, want := admin.FullURL(hosts), "https://admin.andurel.com/widgets"; got != want {
 		t.Fatalf("admin FullURL = %q, want %q", got, want)
+	}
+
+	if got, want := admin.FullURL(nil), "/widgets"; got != want {
+		t.Fatalf("nil hosts FullURL = %q, want %q", got, want)
 	}
 }
 
-func TestHostBaseURLUnknownReturnsEmpty(t *testing.T) {
-	t.Cleanup(func() {
-		hostMu.Lock()
-		hostRegistry = nil
-		hostMu.Unlock()
-	})
-
-	if err := ConfigureHosts(map[HostName]HostSpec{
+func TestHostsBaseURLUnknownReturnsEmpty(t *testing.T) {
+	hosts, err := NewHosts(map[HostName]HostSpec{
 		HostPrimary: {Hostname: "andurel.com", Protocol: "https"},
-	}); err != nil {
-		t.Fatalf("configure hosts: %v", err)
+	})
+	if err != nil {
+		t.Fatalf("new hosts: %v", err)
 	}
 
-	if got := HostBaseURL("admin"); got != "" {
+	if got := hosts.BaseURL("admin"); got != "" {
 		t.Fatalf("unknown host BaseURL = %q, want empty", got)
 	}
 }
 
-func TestConfigureHostsRejectsHostnameCollision(t *testing.T) {
-	t.Cleanup(func() {
-		hostMu.Lock()
-		hostRegistry = nil
-		hostMu.Unlock()
-	})
-
-	err := ConfigureHosts(map[HostName]HostSpec{
+func TestNewHostsRejectsHostnameCollision(t *testing.T) {
+	_, err := NewHosts(map[HostName]HostSpec{
 		HostPrimary: {Hostname: "andurel.com", Protocol: "https"},
 		"admin":     {Hostname: "andurel.com", Protocol: "https"},
 	})
@@ -129,14 +111,8 @@ func TestConfigureHostsRejectsHostnameCollision(t *testing.T) {
 	}
 }
 
-func TestConfigureHostsRejectsAliasCollision(t *testing.T) {
-	t.Cleanup(func() {
-		hostMu.Lock()
-		hostRegistry = nil
-		hostMu.Unlock()
-	})
-
-	err := ConfigureHosts(map[HostName]HostSpec{
+func TestNewHostsRejectsAliasCollision(t *testing.T) {
+	_, err := NewHosts(map[HostName]HostSpec{
 		HostPrimary: {Hostname: "andurel.com", Aliases: []string{"www.andurel.com"}, Protocol: "https"},
 		"admin":     {Hostname: "admin.andurel.com", Aliases: []string{"www.andurel.com"}, Protocol: "https"},
 	})

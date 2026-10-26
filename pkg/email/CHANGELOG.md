@@ -4,6 +4,11 @@ All notable changes to the standalone Andurel email module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Bump `golang.org/x/net` to v0.60.0 for GO-2026-6617, GO-2026-6612,
+  GO-2026-6611, GO-2026-6610, and GO-2026-6603.
+
 ## 0.4.0 - 2026-10-26
 
 ### Added

@@ -11,13 +11,6 @@ import (
 
 const UnknownField = "unknown"
 
-// Validatable is implemented by values that validate themselves.
-//
-// Deprecated: call the value's Validate method directly.
-type Validatable interface {
-	Validate() error
-}
-
 type Error struct {
 	Field   string         `json:"field"`
 	Code    string         `json:"code"`
@@ -129,22 +122,6 @@ func Field(field, code, message string) error {
 	b.Add(field, code, message)
 
 	return b.Err()
-}
-
-// Validate calls the value's Validate method when it implements Validatable.
-//
-// Deprecated: call value.Validate() directly.
-func Validate(value any) error {
-	if value == nil {
-		return nil
-	}
-
-	validatable, ok := value.(Validatable)
-	if !ok {
-		return nil
-	}
-
-	return validatable.Validate()
 }
 
 type ValidationBuilder struct {

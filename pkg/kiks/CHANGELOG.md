@@ -4,6 +4,19 @@ All notable changes to the standalone Andurel kiks module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Bump `golang.org/x/net` to v0.60.0 for GO-2026-6617, GO-2026-6612,
+  GO-2026-6611, GO-2026-6610, and GO-2026-6603, and `google.golang.org/grpc`
+  to v1.83.2 for GO-2026-6443.
+
+### Fixed
+
+- `MaxAge` now applies to each cookie definition. A session or named cookie's
+  lifetime no longer rejects a longer-lived signed or encrypted cookie.
+- `NewJar` and `NewCookieStore` reject an encryption key that is not 16, 24, or
+  32 bytes.
+
 ## 0.4.0 - 2026-10-26
 
 ### Changed

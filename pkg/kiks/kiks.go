@@ -232,10 +232,10 @@ func NewSession[T any](name string, opts ...Option) Definition {
 	return &typedDef[T]{name: name, k: kindSession, opts: applyOptions(opts)}
 }
 
-// Jar holds cookie definitions, codecs, and the session Store.
+// Jar holds cookie definitions, per-definition codecs, and the session Store.
 type Jar struct {
-	signed     *securecookie.SecureCookie
-	encrypted  *securecookie.SecureCookie
+	signed     map[string]*securecookie.SecureCookie
+	encrypted  map[string]*securecookie.SecureCookie
 	store      Store
 	defs       []Definition
 	byType     map[reflect.Type]Definition
@@ -249,19 +249,16 @@ func NewJar(keys Keys, store Store, defs ...Definition) (*Jar, error) {
 	if store == nil {
 		return nil, errors.New("kiks: store is required")
 	}
-	if len(keys.Authentication) < 32 {
-		return nil, errors.New("kiks: authentication key must be at least 32 bytes")
-	}
-	if len(keys.Encryption) == 0 {
-		return nil, errors.New("kiks: encryption key is required")
+	if err := validateKeys(keys); err != nil {
+		return nil, err
 	}
 	if len(defs) == 0 {
 		return nil, errors.New("kiks: at least one cookie definition is required")
 	}
 
 	jar := &Jar{
-		signed:    securecookie.New(keys.Authentication, nil),
-		encrypted: securecookie.New(keys.Authentication, keys.Encryption),
+		signed:    make(map[string]*securecookie.SecureCookie, len(defs)),
+		encrypted: make(map[string]*securecookie.SecureCookie, len(defs)+1),
 		store:     store,
 		defs:      defs,
 		byType:    make(map[reflect.Type]Definition, len(defs)),
@@ -286,6 +283,11 @@ func NewJar(keys Keys, store Store, defs ...Definition) (*Jar, error) {
 			return nil, fmt.Errorf("kiks: duplicate cookie type %s", key)
 		}
 		jar.byType[key] = definition
+
+		maxAge := definition.options().maxAge
+		jar.signed[name] = newSecureCookie(keys.Authentication, nil, maxAge)
+		jar.encrypted[name] = newSecureCookie(keys.Authentication, keys.Encryption, maxAge)
+
 		if definition.kind() == kindSession {
 			sessionCount++
 			jar.sessionDef = definition
@@ -294,10 +296,12 @@ func NewJar(keys Keys, store Store, defs ...Definition) (*Jar, error) {
 				return nil, fmt.Errorf("kiks: flash cookie name %q conflicts with a definition", jar.flashName)
 			}
 			names[jar.flashName] = struct{}{}
-			maxAge := definition.options().maxAge
+			jar.encrypted[jar.flashName] = newSecureCookie(
+				keys.Authentication,
+				keys.Encryption,
+				maxAge,
+			)
 			if maxAge > 0 {
-				jar.signed.MaxAge(maxAge)
-				jar.encrypted.MaxAge(maxAge)
 				if setter, ok := store.(maxAgeSetter); ok {
 					setter.setMaxAge(maxAge)
 				}
@@ -309,6 +313,29 @@ func NewJar(keys Keys, store Store, defs ...Definition) (*Jar, error) {
 	}
 
 	return jar, nil
+}
+
+func validateKeys(keys Keys) error {
+	if len(keys.Authentication) < 32 {
+		return errors.New("kiks: authentication key must be at least 32 bytes")
+	}
+	switch len(keys.Encryption) {
+	case 16, 24, 32:
+		return nil
+	default:
+		return fmt.Errorf(
+			"kiks: encryption key must be 16, 24, or 32 bytes (got %d)",
+			len(keys.Encryption),
+		)
+	}
+}
+
+func newSecureCookie(hashKey, blockKey []byte, maxAge int) *securecookie.SecureCookie {
+	codec := securecookie.New(hashKey, blockKey)
+	if maxAge > 0 {
+		codec.MaxAge(maxAge)
+	}
+	return codec
 }
 
 func encodePlain(payload []byte) string {

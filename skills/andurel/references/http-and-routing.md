@@ -80,10 +80,12 @@ aliases).
 rt.Host(config.HostAdmin).Get(routes.AdminDashboard.Path(), h.Dashboard)
 ```
 
-Configure the hostname registry at boot with `routing.ConfigureHosts`, using
-`routing.HostName` and `routing.HostPrimary`. `routing.Host(name)` binds a route
-value to a host. Unknown `Host` values are served by the primary mux. A hostname
-without a port is also aliased as `hostname:80` and `hostname:443`.
+Build the hostname registry at boot with `routing.NewHosts`, using
+`routing.HostName` and `routing.HostPrimary`, then pass it to `anduin.NewRouter`
+with `anduin.WithHosts`. `routing.Host(name)` binds a route value to a host, and
+route `FullURL(hosts, ...)` calls take the same value. Unknown `Host` values are
+served by the primary mux. A hostname without a port is also aliased as
+`hostname:80` and `hostname:443`.
 
 ## Request access
 

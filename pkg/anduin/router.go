@@ -34,16 +34,25 @@ func WithTelemetry(tel *telemetry.Telemetry) Option {
 	}
 }
 
+// WithHosts installs the host registry used to dispatch requests to named
+// hosts. Without it, every request is served by the primary mux.
+func WithHosts(hosts *routing.Hosts) Option {
+	return func(rt *Router) {
+		rt.hostsRegistry = hosts
+	}
+}
+
 // Router registers handlers and dispatches them over net/http's ServeMux. It
 // owns an http.ServeMux per virtual host; Router itself is not a listener (see
 // Server). A test and a production process share the same Router.
 type Router struct {
-	primary   *http.ServeMux
-	hosts     map[routing.HostName]*http.ServeMux
-	hostIndex map[string]routing.HostName
-	mw        []Middleware
-	onError   ErrorHandler
-	telemetry *telemetry.Telemetry
+	primary       *http.ServeMux
+	hosts         map[routing.HostName]*http.ServeMux
+	hostsRegistry *routing.Hosts
+	hostIndex     map[string]routing.HostName
+	mw            []Middleware
+	onError       ErrorHandler
+	telemetry     *telemetry.Telemetry
 
 	mu      sync.Mutex
 	handler http.Handler
@@ -100,8 +109,8 @@ func (rt *Router) Use(mw ...Middleware) {
 }
 
 // Host returns a named virtual host. Registering routes on it binds them to the
-// hostname(s) configured for name via routing.ConfigureHosts. The returned Host
-// is a thin view over a per-host ServeMux.
+// hostname(s) configured for name via WithHosts. The returned Host is a thin
+// view over a per-host ServeMux.
 func (rt *Router) Host(name routing.HostName) *Host {
 	if name == "" {
 		name = routing.HostPrimary
@@ -230,10 +239,10 @@ func (rt *Router) handleError(ctx context.Context, err error) {
 
 // indexHostsLocked maps every configured hostname and alias to its HostName.
 func (rt *Router) indexHostsLocked() {
-	if len(rt.hostIndex) > 0 {
+	if len(rt.hostIndex) > 0 || rt.hostsRegistry == nil {
 		return
 	}
-	for name, spec := range routing.Hosts() {
+	for name, spec := range rt.hostsRegistry.All() {
 		claim := func(hostname string) {
 			hostname = strings.TrimSpace(hostname)
 			if hostname == "" {
