@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel kiks module are documented here.
 
 ## Unreleased
 
+## 0.4.0 - 2026-10-26
+
 ### Changed
 
 - `NewSession`, `Plain`, `Signed`, and `Encrypted` accept any `T`. Types that

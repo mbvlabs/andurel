@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+## 0.12.0 - 2026-10-26
+
 ### Added
 
 - `SendTransactionalEmailWorker`, `SendMarketingEmailWorker`, their job

@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel auth module are documented here.
 
 ## Unreleased
 
+## 0.1.0 - 2026-10-26
+
 ### Added
 
 - Initial standalone auth module with argon2id password hashing and pepper

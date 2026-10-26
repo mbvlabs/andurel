@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel email module are documented here.
 
 ## Unreleased
 
+## 0.4.0 - 2026-10-26
+
 ### Added
 
 - `Transformer` (`ToHTML` / `ToText`) and `Compose`, which renders a template

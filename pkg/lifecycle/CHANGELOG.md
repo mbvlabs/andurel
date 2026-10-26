@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel lifecycle module are documented he
 
 ## Unreleased
 
+## 0.1.0 - 2026-10-26
+
 ### Added
 
 - Initial standalone lifecycle module with `Stack`, which closes resources in

@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.9.0 - 2026-10-26
+
 ### Added
 
 - `ErrorHandler` and `MapError` translate handler errors into JSON or Inertia

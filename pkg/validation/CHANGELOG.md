@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel validation module are documented h
 
 ## Unreleased
 
+## 0.2.0 - 2026-10-26
+
 ### Added
 
 - `Join` combines validation errors and preserves non-validation errors;

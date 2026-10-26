@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+## 0.3.0 - 2026-10-26
+
 ### Added
 
 - `StaticFS` serves an `fs.FS` for the route wildcard `path`, with the same
