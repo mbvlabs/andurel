@@ -13,6 +13,17 @@ import (
 	"uuid"
 )
 
+const bumpSessionVersion = `-- name: BumpSessionVersion :exec
+UPDATE users
+SET session_version = session_version + 1
+WHERE id = $1
+`
+
+func (q *Queries) BumpSessionVersion(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, bumpSessionVersion, id)
+	return err
+}
+
 const countUsers = `-- name: CountUsers :one
 SELECT count(*)
 FROM users
@@ -33,11 +44,12 @@ INSERT INTO users (
 	email,
 	email_validated_at,
 	password,
-	is_admin
+	is_admin,
+	session_version
 ) VALUES (
-	$1, $2, $3, $4, $5, $6, $7
+	$1, $2, $3, $4, $5, $6, $7, $8
 )
-RETURNING id, created_at, updated_at, email, email_validated_at, password, is_admin
+RETURNING id, created_at, updated_at, email, email_validated_at, password, is_admin, session_version
 `
 
 type CreateUserParams struct {
@@ -48,6 +60,7 @@ type CreateUserParams struct {
 	EmailValidatedAt pgtype.Timestamptz
 	Password         []byte
 	IsAdmin          bool
+	SessionVersion   int32
 }
 
 func (q *Queries) CreateUser[T any](ctx context.Context, arg CreateUserParams) (T, error) {
@@ -59,8 +72,9 @@ func (q *Queries) CreateUser[T any](ctx context.Context, arg CreateUserParams) (
 		arg.EmailValidatedAt,
 		arg.Password,
 		arg.IsAdmin,
+		arg.SessionVersion,
 	)
-	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin", "session_version"})
 }
 
 const deleteUser = `-- name: DeleteUser :exec
@@ -74,7 +88,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, created_at, updated_at, email, email_validated_at, password, is_admin
+SELECT id, created_at, updated_at, email, email_validated_at, password, is_admin, session_version
 FROM users
 WHERE id = $1
 LIMIT 1
@@ -82,11 +96,11 @@ LIMIT 1
 
 func (q *Queries) GetUser[T any](ctx context.Context, id uuid.UUID) (T, error) {
 	row := q.db.QueryRow(ctx, getUser, id)
-	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin", "session_version"})
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, created_at, updated_at, email, email_validated_at, password, is_admin
+SELECT id, created_at, updated_at, email, email_validated_at, password, is_admin, session_version
 FROM users
 WHERE email = $1
 LIMIT 1
@@ -94,11 +108,11 @@ LIMIT 1
 
 func (q *Queries) GetUserByEmail[T any](ctx context.Context, email string) (T, error) {
 	row := q.db.QueryRow(ctx, getUserByEmail, email)
-	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin", "session_version"})
 }
 
 const getUserForUpdate = `-- name: GetUserForUpdate :one
-SELECT id, created_at, updated_at, email, email_validated_at, password, is_admin
+SELECT id, created_at, updated_at, email, email_validated_at, password, is_admin, session_version
 FROM users
 WHERE id = $1
 FOR UPDATE
@@ -106,11 +120,11 @@ FOR UPDATE
 
 func (q *Queries) GetUserForUpdate[T any](ctx context.Context, id uuid.UUID) (T, error) {
 	row := q.db.QueryRow(ctx, getUserForUpdate, id)
-	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin", "session_version"})
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, created_at, updated_at, email, email_validated_at, password, is_admin
+SELECT id, created_at, updated_at, email, email_validated_at, password, is_admin, session_version
 FROM users
 `
 
@@ -197,7 +211,7 @@ func (b *ListUsersBuilder[T]) All() ([]T, error) {
 	var items []T
 	var probe T
 	_, mapRow := any(&probe).(narsilc.Transformer[UserRow])
-	cols := []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"}
+	cols := []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin", "session_version"}
 	for rows.Next() {
 		var item T
 		var err error
@@ -228,9 +242,10 @@ SET
 	email_validated_at = $3,
 	password = $4,
 	is_admin = $5,
-	updated_at = $6
+	session_version = $6,
+	updated_at = $7
 WHERE id = $1
-RETURNING id, created_at, updated_at, email, email_validated_at, password, is_admin
+RETURNING id, created_at, updated_at, email, email_validated_at, password, is_admin, session_version
 `
 
 type UpdateUserParams struct {
@@ -239,6 +254,7 @@ type UpdateUserParams struct {
 	EmailValidatedAt pgtype.Timestamptz
 	Password         []byte
 	IsAdmin          bool
+	SessionVersion   int32
 	UpdatedAt        pgtype.Timestamptz
 }
 
@@ -249,7 +265,8 @@ func (q *Queries) UpdateUser[T any](ctx context.Context, arg UpdateUserParams) (
 		arg.EmailValidatedAt,
 		arg.Password,
 		arg.IsAdmin,
+		arg.SessionVersion,
 		arg.UpdatedAt,
 	)
-	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin"})
+	return narsilc.Read[T, UserRow](row, []string{"id", "created_at", "updated_at", "email", "email_validated_at", "password", "is_admin", "session_version"})
 }

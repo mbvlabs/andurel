@@ -108,7 +108,7 @@ func (h AuthHandler) renderTooManyAttempts(
 ) error {
 	return h.renderer.Page(ctx, component, props).
 		ValidationErrors(map[string]string{
-			field: "Too many attempts. Please try again later.",
+			field: "Too many attempts, try again later.",
 		}).
 		Status(http.StatusTooManyRequests).
 		Render()
@@ -175,7 +175,7 @@ func (h AuthHandler) SessionCreate(ctx context.Context) error {
 
 	if err := kiks.Set(ctx, &middleware.Session{
 		UserID:          entity.ID.String(),
-		IsAdmin:         entity.IsAdmin,
+		SessionVersion:  entity.SessionVersion,
 		IsAuthenticated: true,
 	}); err != nil {
 		return err
@@ -272,15 +272,16 @@ func (h AuthHandler) RegistrationCreate(ctx context.Context) error {
 		}
 
 		if errors.Is(err, domains.ErrConflict) {
+			// Do not confirm that the address is already registered: answer
+			// like a successful sign-up and send nothing.
 			outcome = "conflict"
 			cause = err
-			return h.renderer.Page(
+
+			return h.renderer.Redirect(
 				ctx,
-				"Auth/Registration",
-				inertia.Props{},
-			).ValidationErrors(map[string]string{
-				"email": "An account with this email already exists",
-			}).Render()
+				routes.ConfirmationNew.URL(),
+				http.StatusSeeOther,
+			)
 		}
 
 		outcome = "error"
@@ -366,7 +367,7 @@ func (h AuthHandler) ConfirmationCreate(ctx context.Context) error {
 
 	if err := kiks.Set(ctx, &middleware.Session{
 		UserID:          entity.ID.String(),
-		IsAdmin:         entity.IsAdmin,
+		SessionVersion:  entity.SessionVersion,
 		IsAuthenticated: true,
 	}); err != nil {
 		return err
@@ -475,6 +476,17 @@ func (h AuthHandler) PasswordUpdate(ctx context.Context) error {
 			inertia.Props{"token": payload.Token},
 		).Errors(err); ok {
 			return page.Render()
+		}
+
+		if errors.Is(err, services.ErrInvalidResetCode) ||
+			errors.Is(err, services.ErrExpiredResetCode) {
+			return h.renderer.Page(
+				ctx,
+				"Auth/ResetPassword",
+				inertia.Props{"token": payload.Token},
+			).ValidationErrors(map[string]string{
+				"resetPasswordToken": "Invalid or expired reset code",
+			}).Render()
 		}
 
 		telemetry.Error(

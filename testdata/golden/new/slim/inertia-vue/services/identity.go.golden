@@ -5,6 +5,7 @@ import (
 	"app/domains"
 
 	"github.com/mbvlabs/andurel/pkg/auth"
+	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -17,6 +18,7 @@ type Identity struct {
 	previousPeppers        []string
 	tokenSigningKey        string
 	defaultSenderSignature string
+	hosts                  *routing.Hosts
 }
 
 func NewIdentity(
@@ -26,6 +28,7 @@ func NewIdentity(
 	queue storage.InsertQueue,
 	authCfg config.Auth,
 	mailCfg config.Mail,
+	hosts *routing.Hosts,
 ) Identity {
 	return Identity{
 		transactor:             transactor,
@@ -36,5 +39,6 @@ func NewIdentity(
 		previousPeppers:        auth.Peppers(authCfg.Pepper, authCfg.PreviousPeppers),
 		tokenSigningKey:        authCfg.TokenSigningKey,
 		defaultSenderSignature: mailCfg.DefaultSenderSignature,
+		hosts:                  hosts,
 	}
 }

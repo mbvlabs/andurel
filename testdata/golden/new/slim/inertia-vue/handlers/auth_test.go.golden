@@ -1,21 +1,30 @@
 package handlers_test
 
 import (
+	"context"
 	"net/http"
+	"strings"
 	"testing"
+	"time"
 
 	"app/config"
 	"app/domains"
 	"app/handlers"
+	"app/middleware"
 	"app/migrations"
 	"app/routes"
 	"app/services"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/anduin/anduintest"
 	"github.com/mbvlabs/andurel/pkg/cache"
+	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
+
+const testPassword = "correct horse battery staple"
 
 func TestSessionNewRendersLogin(t *testing.T) {
 	srv := newAuthServer(t)
@@ -51,27 +60,234 @@ func TestSessionCreateRejectsBadCredentials(t *testing.T) {
 	}
 }
 
-// newAuthServer builds the auth routes over a clean database and a real
-// renderer, the same graph runtime.New wires for production.
-func newAuthServer(t *testing.T) *anduintest.Server {
+func TestRegistrationDuplicateEmailBehavesLikeSuccess(t *testing.T) {
+	app := newAuthTestApp(t)
+
+	_, err := app.users.Create(t.Context(), "test-pepper", domains.CreateUserData{
+		Email: "taken@example.com",
+		PasswordPair: domains.PasswordPair{
+			Password:        testPassword,
+			ConfirmPassword: testPassword,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create existing user: %v", err)
+	}
+
+	resp := app.server.PostJSON(routes.RegistrationCreate.Path(), handlers.RegistrationPayload{
+		Email:           "taken@example.com",
+		Password:        testPassword,
+		ConfirmPassword: testPassword,
+	})
+	resp.AssertStatus(http.StatusSeeOther)
+	if got := resp.Header.Get("Location"); got != routes.ConfirmationNew.URL() {
+		t.Fatalf("location = %q, want %q", got, routes.ConfirmationNew.URL())
+	}
+	if strings.Contains(resp.Text(), "already exists") {
+		t.Fatal("duplicate registration response confirms that the account exists")
+	}
+}
+
+func TestPasswordUpdateRejectsInvalidTokenGenerically(t *testing.T) {
+	app := newAuthTestApp(t)
+
+	body := `{"resetPasswordToken":"not-a-real-token","password":"` + testPassword + `","confirmPassword":"` + testPassword + `"}`
+	req, err := http.NewRequestWithContext(
+		t.Context(),
+		http.MethodPut,
+		app.server.URL(routes.PasswordUpdate.Path()),
+		strings.NewReader(body),
+	)
+	if err != nil {
+		t.Fatalf("build password update request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := app.server.Do(req, anduintest.Header{Name: "X-Inertia", Value: "true"})
+	resp.AssertStatus(http.StatusOK)
+	resp.AssertInertia("Auth/ResetPassword")
+
+	var page struct {
+		Props struct {
+			Errors map[string]string `json:"errors"`
+		} `json:"props"`
+	}
+	resp.JSON(&page)
+
+	if got := page.Props.Errors["resetPasswordToken"]; got != "Invalid or expired reset code" {
+		t.Fatalf(
+			"resetPasswordToken error = %q, want %q",
+			got,
+			"Invalid or expired reset code",
+		)
+	}
+}
+
+func TestAuthOnlyRejectsStaleSessionVersion(t *testing.T) {
+	app := newAuthTestApp(t)
+	user := app.verifiedUser(t, "stale-session@example.com")
+	app.signIn(t, user.Email)
+
+	resp := app.server.Get("/protected")
+	resp.AssertStatus(http.StatusOK)
+
+	if err := app.users.BumpSessionVersion(t.Context(), user.ID); err != nil {
+		t.Fatalf("bump session version: %v", err)
+	}
+
+	resp = app.server.Get("/protected")
+	resp.AssertStatus(http.StatusSeeOther)
+	if got := resp.Header.Get("Location"); got != routes.SessionNew.URL() {
+		t.Fatalf("location = %q, want %q", got, routes.SessionNew.URL())
+	}
+}
+
+func TestPasswordResetInvalidatesExistingSession(t *testing.T) {
+	app := newAuthTestApp(t)
+	user := app.verifiedUser(t, "reset-session@example.com")
+	app.signIn(t, user.Email)
+
+	token, err := app.tokens.Replace(
+		t.Context(),
+		"test-token-signing-key",
+		domains.UserResetPassword,
+		time.Now().Add(time.Hour),
+		[]byte("{}"),
+		user.ID,
+	)
+	if err != nil {
+		t.Fatalf("replace reset token: %v", err)
+	}
+
+	const newPassword = "new correct horse battery staple"
+	if err := app.identity.ResetPassword(t.Context(), services.ResetPasswordData{
+		Token:           token,
+		Password:        newPassword,
+		ConfirmPassword: newPassword,
+	}); err != nil {
+		t.Fatalf("reset password: %v", err)
+	}
+
+	resp := app.server.Get("/protected")
+	resp.AssertStatus(http.StatusSeeOther)
+	if got := resp.Header.Get("Location"); got != routes.SessionNew.URL() {
+		t.Fatalf("location = %q, want %q", got, routes.SessionNew.URL())
+	}
+}
+
+type authTestApp struct {
+	server   *anduintest.Server
+	users    domains.Users
+	tokens   domains.Tokens
+	identity services.Identity
+}
+
+// newAuthTestApp builds the auth routes and one protected route over a clean
+// database, a real renderer, and the same session jar runtime.New wires.
+func newAuthTestApp(t *testing.T) authTestApp {
 	t.Helper()
+
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	users := domains.NewUsers(db)
+	tokens := domains.NewTokens(db)
+	queueInsert, err := storage.NewQueueInsert(db, storage.DefaultQueueConfig())
+	if err != nil {
+		t.Fatalf("create queue insert: %v", err)
+	}
+	hosts, err := routing.NewHosts(map[routing.HostName]routing.HostSpec{
+		routing.HostPrimary: {Hostname: "localhost", Protocol: "http"},
+	})
+	if err != nil {
+		t.Fatalf("create hosts: %v", err)
+	}
+	identity := services.NewIdentity(
+		storage.NewTransactor(db),
+		users,
+		tokens,
+		queueInsert,
+		config.Auth{Pepper: "test-pepper", TokenSigningKey: "test-token-signing-key"},
+		config.Mail{},
+		hosts,
+	)
 
 	store, err := cache.New(cache.Config{Driver: "memory"})
 	if err != nil {
 		t.Fatalf("create cache store: %v", err)
 	}
 
-	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
-	identity := services.NewIdentity(
-		storage.NewTransactor(db),
-		domains.NewUsers(db),
-		domains.NewTokens(db),
-		nil,
-		config.Auth{Pepper: "test-pepper", TokenSigningKey: "test-token-signing-key"},
-		config.Mail{},
-	)
+	keys := kiks.Keys{
+		Authentication: []byte(strings.Repeat("a", 32)),
+		Encryption:     []byte(strings.Repeat("b", 32)),
+	}
+	cookieStore, err := kiks.NewCookieStore(keys)
+	if err != nil {
+		t.Fatalf("create cookie store: %v", err)
+	}
+	jar, err := kiks.NewJar(keys, cookieStore, middleware.NewSessionCookie(config.Session{
+		Name:              "test_session",
+		AuthenticationKey: keys.Authentication,
+		EncryptionKey:     keys.Encryption,
+		MaxAge:            config.DefaultSessionMaxAge,
+	}, false))
+	if err != nil {
+		t.Fatalf("create jar: %v", err)
+	}
 
-	return anduintest.New(t, func(rt *anduin.Router) {
-		handlers.NewAuthHandler(identity, testRenderer(t), store).Register(rt)
+	renderer := testRenderer(t)
+
+	srv := anduintest.New(t, func(rt *anduin.Router) {
+		rt.Get("/protected", func(ctx context.Context) error {
+			return anduin.Text(ctx, http.StatusOK, "protected")
+		}, middleware.AuthOnly(users))
+		handlers.NewAuthHandler(identity, renderer, store).Register(rt)
+	}, anduintest.WithMiddleware(jar.Middleware()))
+
+	return authTestApp{
+		server:   srv,
+		users:    users,
+		tokens:   tokens,
+		identity: identity,
+	}
+}
+
+func newAuthServer(t *testing.T) *anduintest.Server {
+	t.Helper()
+
+	return newAuthTestApp(t).server
+}
+
+func (a authTestApp) verifiedUser(t *testing.T, email string) domains.User {
+	t.Helper()
+
+	created, err := a.users.Create(t.Context(), "test-pepper", domains.CreateUserData{
+		Email: email,
+		PasswordPair: domains.PasswordPair{
+			Password:        testPassword,
+			ConfirmPassword: testPassword,
+		},
 	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	validatedAt := pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	updated, err := a.users.Update(t.Context(), domains.UpdateUserData{
+		ID:               created.ID,
+		EmailValidatedAt: &validatedAt,
+	})
+	if err != nil {
+		t.Fatalf("verify user email: %v", err)
+	}
+
+	return updated
+}
+
+func (a authTestApp) signIn(t *testing.T, email string) {
+	t.Helper()
+
+	resp := a.server.PostJSON(routes.SessionCreate.Path(), handlers.LoginPayload{
+		Email:    email,
+		Password: testPassword,
+	})
+	resp.AssertStatus(http.StatusFound)
 }

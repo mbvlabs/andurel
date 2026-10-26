@@ -17,8 +17,11 @@ func NewPagesHandler(renderer *inertia.Renderer) PagesHandler {
 	return PagesHandler{renderer: renderer}
 }
 
-func (p PagesHandler) Register(rt *anduin.Router) {
-	rt.Get(routes.HomePage.Path(), p.Home)
+// Register mounts the home page with the middleware supplied by the runtime
+// (for example middleware.AuthOnly) so the page is public only when none is
+// passed.
+func (p PagesHandler) Register(rt *anduin.Router, middleware ...anduin.Middleware) {
+	rt.Get(routes.HomePage.Path(), p.Home, middleware...)
 }
 
 func (p PagesHandler) Home(ctx context.Context) error {
