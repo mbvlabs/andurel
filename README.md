@@ -59,19 +59,19 @@ Match the install channel to the docs you follow.
 
 ### Latest v2 pre-release
 
-V2 has not shipped a stable tag yet. Install the latest alpha:
+V2 has not shipped a stable tag yet. Install the latest beta:
 
 ```bash
-go install github.com/mbvlabs/andurel/v2@v2.0.0-alpha.5
+go install github.com/mbvlabs/andurel/v2@v2.0.0-beta.1
 andurel --version
 ```
 
 ### Specific version
 
-Pin any published tag, for example an earlier pre-release:
+Pin any published tag, for example the previous pre-release:
 
 ```bash
-go install github.com/mbvlabs/andurel/v2@v2.0.0-alpha.4
+go install github.com/mbvlabs/andurel/v2@v2.0.0-alpha.5
 andurel --version
 ```
 

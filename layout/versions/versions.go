@@ -27,29 +27,29 @@ const (
 	// NarsilcModulePath is the module path of the narsilc query code generator.
 	NarsilcModulePath = "github.com/mbvlabs/narsilc"
 	// Anduin is the standalone Andurel HTTP module version verified with this framework.
-	Anduin = "v0.4.0"
+	Anduin = "v0.4.1"
 	// Auth is the standalone Andurel auth module version verified with this framework.
-	Auth = "v0.2.0"
+	Auth = "v0.2.1"
 	// Cache is the standalone Andurel cache module version verified with this framework.
-	Cache = "v0.2.0"
+	Cache = "v0.2.1"
 	// Kiks is the standalone Andurel cookies and sessions module version verified with this framework.
-	Kiks = "v0.5.0"
+	Kiks = "v0.5.1"
 	// Lifecycle is the standalone Andurel process lifecycle module version verified with this framework.
-	Lifecycle = "v0.1.0"
+	Lifecycle = "v0.1.1"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.10.0"
+	Inertia = "v0.10.1"
 	// Email is the standalone Andurel email module version verified with this framework.
-	Email = "v0.5.0"
+	Email = "v0.5.1"
 	// Env is the standalone Andurel environment module version verified with this framework.
-	Env = "v0.1.0"
+	Env = "v0.1.1"
 	// Routing is the standalone Andurel routing module version verified with this framework.
-	Routing = "v0.5.0"
+	Routing = "v0.5.1"
 	// Storage is the standalone Andurel storage module version verified with this framework.
-	Storage = "v0.13.0"
+	Storage = "v0.13.1"
 	// Telemetry is the standalone Andurel telemetry module version verified with this framework.
-	Telemetry = "v0.2.1"
+	Telemetry = "v0.2.2"
 	// Validation is the standalone Andurel validation module version verified with this framework.
-	Validation = "v0.3.0"
+	Validation = "v0.3.1"
 
 	// PkgPrefix is the module path prefix for standalone Andurel packages.
 	PkgPrefix = "github.com/mbvlabs/andurel/pkg/"
