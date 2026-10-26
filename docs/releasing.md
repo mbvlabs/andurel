@@ -53,3 +53,19 @@ for up to an hour after the tag exists. Until the tags are pushed:
 
 Push the tags, wait until `https://sum.golang.org/lookup/<module>@<version>`
 returns 200 for each module, and only then run `just update-golden-full`.
+
+## Release sequence
+
+`master` accepts changes only through pull requests, so a release that also
+publishes `pkg/*` modules takes two:
+
+1. **Release PR.** Add `## X.Y.Z - <date>` under `## Unreleased` in each
+   changed `CHANGELOG.md`, bump `layout/versions/versions.go`, and add
+   `docs/release-notes/<tag>.md`. Checks that resolve the new pins fail until
+   the versions exist; merge it with the admin bypass after
+   `just test-upgrade-e2e-local` passes.
+2. Tag each changed module at the merge commit (`pkg/<name>/vX.Y.Z`), push the
+   tags, and wait for sum.golang.org.
+3. **Goldens PR.** Run `just update-golden-full` and merge the result.
+4. Wait for `Release Readiness` to pass on that `master` commit, then push the
+   application tag.

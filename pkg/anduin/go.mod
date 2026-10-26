@@ -1,6 +1,6 @@
 module github.com/mbvlabs/andurel/pkg/anduin
 
-go 1.27.1
+go 1.27.3
 
 require (
 	github.com/mbvlabs/andurel/pkg/routing v0.4.0

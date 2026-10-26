@@ -1,64 +1,44 @@
 # Generated files and upgrade behavior
 
-Andurel distinguishes framework-owned files from application files. Application code includes controllers, models, views, jobs, routes, migrations, configuration, application entrypoints, and generated `internal/` (including `internal/runtime`). Normal upgrades do not rewrite those trees unless a command explicitly documents a narrower generated declaration boundary. `andurel upgrade` also pins required `github.com/mbvlabs/andurel/pkg/*` modules in `go.mod` to the versions verified with that CLI. It does not downgrade a newer pin. `andurel packages update` still chases the latest published package versions independently of a framework upgrade.
+Every file `andurel new` writes belongs to the application: `cmd/`, `config/`, `domains/`, `handlers/`, `middleware/`, `internal/runtime/`, `queue/`, `email/`, `resources/`, `migrations/`, and the rest. Framework behavior lives in the standalone `github.com/mbvlabs/andurel/pkg/*` modules, which the application imports like any other library.
 
-V2 is not an upgrade from V1. Projects on `1-5-stable` continue to use V1's upgrade behavior. V2 projects on `master` are created fresh with `andurel new`; there is no automated V1-to-V2 migration path.
+`andurel upgrade` therefore never rewrites application source. A real upgrade:
 
-Factory synchronization is one such narrow boundary. It regenerates the Andurel-owned factory types, `Build<Name>`, `Create<Name>`, `Create<Name>s`, and generated `WithX` option functions. Custom helpers whose names do not collide with generated declarations are preserved.
+1. pins the `github.com/mbvlabs/andurel/pkg/*` requires in `go.mod` to the versions verified with the target CLI, without downgrading a newer pin;
+2. synchronizes the tool versions in `andurel.toml`;
+3. writes the target version to `andurel.lock`;
+4. reports a manual action for every application-owned change the target release needs.
 
-The historical Inertia root embedding migration is another narrow boundary. It moves `views/root.go.html` to `assets/inertia/root.go.html` and replaces only the exact legacy `inertia.Init("views/root.go.html")` call in `cmd/app/main.go`. The upgrade stops without writing if that call is not present. Current V2 scaffolds own a compiled templ document at `views/root.templ`; the composition root supplies `views.Root` with `inertia.WithRoot`.
+`andurel packages update` chases the latest published package versions independently of a framework upgrade.
 
-## V1-era migrations
+## Supported upgrade paths
 
-The V1 upgrade notes for session-cookie decode recovery (`v1.5.4`) and Fx-managed Inertia renderer injection (`v1.5.6`) are not part of the V2 CLI. V1 projects reach them by upgrading on `1-5-stable` with a V1 `andurel` binary. The V2 CLI refuses to upgrade a project across a major version.
+`andurel upgrade` accepts projects created at `v2.0.0-alpha.4` or later. `v2.0.0-alpha.4` replaced Echo and Fx with the Go-native `domains`/`handlers`/`internal/runtime` layout, so older V2 projects must be recreated with `andurel new` and ported by hand.
 
-## Inertia renderer
+V2 is not an upgrade from V1. Projects on `1-5-stable` continue to use V1's upgrade behavior with a V1 `andurel` binary. The V2 CLI refuses to upgrade a project across a major version.
 
-The current V2 scaffold imports the complete implementation directly from the
-standalone `github.com/mbvlabs/andurel/pkg/inertia` module. Generated
-`config/inertia.go` owns ENV-backed settings, renderer composition, and Fx
-lifecycle wiring; there is no generated `internal/inertia` package. Controllers remain application-owned and
-are never rewritten.
+Release readiness runs `TestUpgradeToHEAD` (`just test-upgrade-e2e`), which scaffolds with each supported released CLI, upgrades with the release candidate, applies every reported manual action, and requires the result to build and vet cleanly.
 
-## Standalone telemetry package
+## Manual actions
 
-V2 scaffolds construct `*telemetry.Telemetry` from `github.com/mbvlabs/andurel/pkg/telemetry`. Generated `config/telemetry.go` still loads env values. Composition roots unpack those fields into positional `telemetry.New` plus `With*` options. Fx injects the provider into HTTP (`otelhttp`) and Postgres (`otelpgx`) instrumentation. Application code uses `telemetry.Error`, `Start`, and `Set` instead of a copied `telemetry/` package or `slog.*Context`. Controllers call `telemetry.From(etx, name)` then pass the returned `context.Context` to `Set` / `Error`. Services call `telemetry.Start(ctx, name, …)`.
+A manual action is emitted only when the upgrade crosses the release that introduced the change. Each action has a stable `id`, a title, and instructions with before/after code. Read them from `andurel upgrade --json` or the human report, apply them, then run `gofmt -w .`, `go fix ./...`, and `go vet ./...`.
 
-Every V2 release, starting with `v2.0.0-alpha`, ships this layout, so `andurel upgrade` emits no telemetry manual action.
+Upgrading from `v2.0.0-alpha.4` to `v2.0.0-alpha.5` or later reports:
 
-## Email verification binding
+| ID | Change |
+| --- | --- |
+| `package-api-v2.0.0-alpha.5` | Composition-root changes for the alpha.5 `pkg/*` APIs. |
+| `storage-storagetest-v2.0.0-alpha.5` | Test databases come from `pkg/storage/storagetest`. |
+| `routing-hosts-v2.0.0-alpha.5` | `routing.NewHosts` replaces the package-level host registry; `FullURL` takes the registry. |
+| `session-revocation-v2.0.0-alpha.5` | `users.session_version`, checked by `middleware.AuthOnly(users)`; admin status is read from the database. |
+| `email-smtp-v2.0.0-alpha.5` | `EMAIL_PROVIDER=smtp` and the production Mailpit guard. |
+| `validation-validate-v2.0.0-alpha.5` | `validation.Validate` is gone; call the value's own `Validate` method. |
 
-Starting with `v2.0.0-alpha.4`, generated email verification binds the code to the pending user carried in the session cookie, and confirmation signs in only the session that registered. Email verification no longer resolves the user from the code alone. The confirmation route is rate limited, and the code is invalidated after five attempts. An unverified user who signs in with the correct password gets a fresh code bound to that session, which is how they recover from a lost session or a locked-out code.
+Upgrading from `v2.0.0-alpha.5` to `v2.0.0-beta.1` reports no manual actions.
 
-Generated auth code is application-owned, so `andurel upgrade` does not patch it. Existing alpha apps must make these changes by hand:
+## Provider adapters under `internal/`
 
-1. In a new migration, add `user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE` and `attempts INTEGER NOT NULL DEFAULT 0` to the `tokens` table, and an index on `(user_id, scope, created_at DESC)`. Existing rows have no owner, so delete them first (`DELETE FROM tokens;`). Pending users can get a new code by signing in, and password resets can be requested again.
-2. Add a `PendingUserID string` field to the `router/cookies.App` session payload (see `initializeBlueprint` for the cookie field list).
-3. Add a `userID uuid.UUID` parameter to `Tokens.CreateCode` and `Tokens.Create`, store it in the new `user_id` column, and pass the user's ID from registration and password reset.
-4. Add the `GetTokenByUserAndScope :one`, `IncrementTokenAttempts :one` (`UPDATE … SET attempts = attempts + 1 … RETURNING attempts`) and `DeleteTokensByUserAndScope :exec` queries, then run `andurel sync queries`.
-5. On registration, store the new user's ID in the session's pending-user field. On confirmation, look the token up by that user and the `user_email_verification` scope, increment its attempt counter, and check the code only if the returned count is within the limit. Counting the attempt before checking the code serializes concurrent attempts on the row lock. Delete the token when a failure reaches five attempts. Return a generic "Invalid or expired code" error when the session has no pending user or the code does not match.
-6. In `AuthenticateUser`, return the user together with `ErrEmailNotVerified`. In the sessions controller, handle that error by deleting the user's outstanding verification tokens, issuing and emailing a new code, setting the pending-user field, and redirecting to `ConfirmationNew`.
-7. Apply `middleware.IPRateLimiter` to the `ConfirmationCreate` route in both the MVC and Inertia confirmation controllers.
-8. Run `gofmt`, `go fix ./...`, and `go vet ./...` after reconciling application-owned code.
-
-## Inertia Vite FullURL migration
-
-Starting with `v2.0.0-alpha.3`, Inertia production tags need an absolute Vite build URL so a secondary-host page loads the entry from the primary origin. Pass `routes.ViteBuild.FullURL(hosts)` into the renderer. `pkg/inertia` emits `crossorigin` on those tags. Generated `internal/runtime` is application-owned, so `andurel upgrade` does not rewrite `NewInertia`.
-
-When an Inertia project upgrades from a version before `v2.0.0-alpha.3` to `v2.0.0-alpha.3` or later, `andurel upgrade` emits a version-gated manual action:
-
-1. In `NewInertia` (or the inertia renderer provider), pass `routes.ViteBuild.FullURL(hosts)` instead of `Path()`.
-2. Run `gofmt`, `go fix ./...`, and `go vet ./...` after reconciling application-owned code.
-
-Projects created at `v2.0.0-alpha.3` or later do not receive the note.
-
-## Provider adapters move under `internal/`
-
-External provider adapters (API clients for payment providers, email providers, Discord, and similar third-party services) now belong in a package under `internal/` instead of a top-level `clients/` directory. `internal/` holds application-owned support code that is not a domain model, service, controller, or view. Name each package for its job, for example `internal/clients/` for a group of API clients or `internal/payment/` for one payment adapter. One home for this code keeps the top level of the app smaller. Fx wiring for adapters stays in `internal/runtime`. Andurel never generated `clients/`, so `andurel upgrade` does not move hand-written adapters. To follow the new convention in an existing app:
-
-1. Move each `clients/<x>` package under `internal/`. The smallest move is `git mv clients internal/clients`.
-2. Rewrite imports to match, for example `<module>/clients/<x>` → `<module>/internal/clients/<x>`.
-3. Run `gofmt`, `go fix ./...`, `go vet ./...`, and `go build ./...`.
+External provider adapters (API clients for payment providers, email providers, Discord, and similar third-party services) belong in a package under `internal/`, named for its job: `internal/clients/` for a group of API clients or `internal/payment/` for one payment adapter. Wiring for adapters stays in `internal/runtime`. Andurel never generated a top-level `clients/` directory, so `andurel upgrade` does not move hand-written adapters.
 
 ## Planning and preview
 
@@ -68,10 +48,10 @@ Run a structured dry run before applying an upgrade:
 andurel upgrade --dry-run --diff --json
 ```
 
-The response reports replacements, deletions, tool metadata changes, unified diffs, and dirty-worktree state. Dry-run is read-only and deterministic, including on a dirty worktree.
+The response reports replacements, deletions, tool metadata changes, unified diffs, manual actions, and dirty-worktree state. Dry-run is read-only and deterministic, including on a dirty worktree.
 
 ## Transaction guarantees
 
 A real upgrade plans and renders the complete result before writing. It validates staged content, creates recoverable backups, replaces files atomically where the filesystem permits, and writes the final lock version last. Any replacement or validation failure rolls every changed file and `andurel.lock` back to their byte-identical originals.
 
-Real upgrades require a clean Git worktree. Re-running a successful upgrade is idempotent. The automated upgrader requires an explicit `schemaVersion` and does not accept release-candidate locks. Projects created with v1.0.0-rc.2 or v1.0.0-rc.3 must use the [RC-to-v1 manual upgrade guide](upgrade-rc-base-scaffold-prompt.md).
+Real upgrades require a clean Git worktree. Re-running a successful upgrade is idempotent. The upgrader requires an explicit `schemaVersion` in `andurel.lock`.

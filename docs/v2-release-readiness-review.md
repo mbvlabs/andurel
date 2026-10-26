@@ -15,9 +15,14 @@ Every _beta_ item is fixed or moot. The agent-first port deleted `pkg/hypermedia
 
 Still open:
 
-- R2 / hygiene: `pkg/*` `go.mod` minimums stay at Go 1.27.1. CI scans with Go 1.27.3.
-- Process: route direct pushes to `master` through PRs.
 - `GO-2026-5932` (`crypto/openpgp` in `golang.org/x/crypto`) has no fixed version. It is imported by `pkg/auth` and `pkg/storage` but never called.
+
+### Status for `v2.0.0-beta.1` (2026-10-26)
+
+- R2: every `pkg/*` `go.mod` requires Go 1.27.3. The modules get patch releases with beta.1.
+- Process: switch the `protect master` ruleset bypass from `always` to `pull_request`, so admins can still skip review but not push to `master` directly.
+- R6: `TestUpgradeToHEAD` covers `v2.0.0-alpha.4` and `v2.0.0-alpha.5` to beta.1.
+- [`docs/stability.md`](stability.md) states what beta and stable releases guarantee.
 
 Each item has an ID for tracking in issues and PRs. Severity: **H** high, **M** medium, **L** low.
 
@@ -26,11 +31,11 @@ Each item has an ID for tracking in issues and PRs. Severity: **H** high, **M** 
 | ID | Target | Status |
 | --- | --- | --- |
 | R1 | alpha.4 | fixed in #811; golangci-lint bumped to v2.14.0 in `4eab5680` |
-| R2 | alpha.4 | fixed in #811 (`pkg/*` minimums open) |
+| R2 | alpha.4 | fixed in #811; `pkg/*` minimums with beta.1 |
 | R3 | alpha.4 | fixed in `fa42d244` |
 | R4 | beta | fixed |
 | R5 | beta | fixed in `3108ae68` |
-| R6 | beta | fixed: `TestUpgradeAlpha4ToHEAD` (`just test-upgrade-e2e`) |
+| R6 | beta | fixed: `TestUpgradeToHEAD` (`just test-upgrade-e2e`) |
 | R7 | beta | fixed: `docs/release-notes/<tag>.md`, enforced by `just check-release-notes` |
 
 ### R1 — Release Readiness is red on `master`
@@ -47,7 +52,7 @@ A local `govulncheck` reports nine reachable vulnerabilities in `net/http`, `net
 - [x] Root `go.mod` and `go.work`
 - [x] `goVersion` in `layout/layout.go:728`, plus the four `testdata/golden/new/*/go.mod.golden` files it produces, so new applications do not start on a vulnerable toolchain
 - [x] Go version badge in `README.md`
-- [ ] `pkg/*` `go.mod` minimums. Deliberately unchanged because each change needs a package release. Handle it with the `pkg/*` vulncheck item under [Release hygiene](#release-hygiene).
+- [x] `pkg/*` `go.mod` minimums: Go 1.27.3, released with `v2.0.0-beta.1`.
 
 ### R3 — Upgrading an alpha.3 application to alpha.4 breaks compilation
 
@@ -88,7 +93,7 @@ The `v2.0.0-alpha.3` GitHub release body is just `## Changelog`, because `.gorel
 - [x] Delete `go1-27.md`, which is a committed Codex conversation transcript.
 - [x] Close issue #807; the nightly suite has passed since.
 - [x] Rename `e2e-nightly.yml`, or make it run an end-to-end check (create, migrate, serve) on a generated application.
-- [ ] Route direct pushes to `master` (for example `41304cf0`) through PRs.
+- [ ] Route direct pushes to `master` (for example `41304cf0`) through PRs: set the `protect master` ruleset bypass mode to `pull_request`.
 - [x] Update stale documentation:
   - `docs/release-verification.md` still says "Andurel v1" and uses `VERSION=1.0.0`.
   - `plans/version-two.md` says the module path has no major suffix, but `go.mod` declares `/v2`.

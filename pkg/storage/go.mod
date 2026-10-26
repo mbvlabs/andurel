@@ -1,6 +1,6 @@
 module github.com/mbvlabs/andurel/pkg/storage
 
-go 1.27.1
+go 1.27.3
 
 require (
 	github.com/exaring/otelpgx v0.11.1
