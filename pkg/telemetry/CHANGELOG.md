@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel telemetry module are documented he
 
 ## Unreleased
 
+## 0.2.2 - 2026-10-26
+
 ### Changed
 
 - Raise the minimum Go version from 1.26.0 to 1.27.3, the release that CI and

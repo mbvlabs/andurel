@@ -57,15 +57,17 @@ returns 200 for each module, and only then run `just update-golden-full`.
 ## Release sequence
 
 `master` accepts changes only through pull requests, so a release that also
-publishes `pkg/*` modules takes two:
+publishes `pkg/*` modules takes two. PR CI runs the golden tests, which
+download the pinned module versions, so no PR may bump a pin before its tag
+exists.
 
-1. **Release PR.** Add `## X.Y.Z - <date>` under `## Unreleased` in each
-   changed `CHANGELOG.md`, bump `layout/versions/versions.go`, and add
-   `docs/release-notes/<tag>.md`. Checks that resolve the new pins fail until
-   the versions exist; merge it with the admin bypass after
-   `just test-upgrade-e2e-local` passes.
+1. **Changelog PR.** Add `## X.Y.Z - <date>` under `## Unreleased` in each
+   changed `CHANGELOG.md` and add `docs/release-notes/<tag>.md`. Do not touch
+   `layout/versions/versions.go`.
 2. Tag each changed module at the merge commit (`pkg/<name>/vX.Y.Z`), push the
    tags, and wait for sum.golang.org.
-3. **Goldens PR.** Run `just update-golden-full` and merge the result.
+3. **Pins PR.** Bump `layout/versions/versions.go` and the README install
+   command, run `just update-golden` and `just update-golden-full`, and merge
+   the result once CI is green.
 4. Wait for `Release Readiness` to pass on that `master` commit, then push the
    application tag.
