@@ -105,6 +105,37 @@ var WidgetIndex = routing.NewSimpleRoute(
 	)
 }
 
+func TestCollectRouteManifestReportsExactPattern(t *testing.T) {
+	rootDir := t.TempDir()
+	writeRouteManifestTestFile(t, rootDir, "pages.go", `package routes
+
+import "example.com/app/pkg/routing"
+
+var HomePage = routing.NewSimpleRoute(
+	"/",
+	"pages.home",
+	"",
+	routing.InertiaRoute(),
+	routing.Exact(),
+)
+`)
+
+	manifest, err := collectRouteManifest(rootDir)
+	if err != nil {
+		t.Fatalf("collect route manifest: %v", err)
+	}
+	if len(manifest.Routes) != 1 {
+		t.Fatalf("expected 1 route, got %#v", manifest.Routes)
+	}
+	route := manifest.Routes[0]
+	if !route.Exact {
+		t.Fatalf("expected exact route, got %#v", route)
+	}
+	if route.Path != "/" || route.Pattern != "/{$}" {
+		t.Fatalf("path/pattern = %q/%q, want %q/%q", route.Path, route.Pattern, "/", "/{$}")
+	}
+}
+
 func TestCollectRouteManifestRejectsDuplicateNames(t *testing.T) {
 	rootDir := t.TempDir()
 	writeRouteManifestTestFile(t, rootDir, "users.go", `package routes
