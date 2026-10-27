@@ -9,6 +9,10 @@ import (
 	"strconv"
 )
 
+// ErrNotFound is the sentinel the router passes to the ErrorHandler when no
+// route matches a request. Applications map it to their themed 404 page.
+var ErrNotFound = errors.New("anduin: not found")
+
 // HTTPError carries an HTTP status alongside an optional cause. Handlers return
 // it (directly or through Error) and the router's ErrorHandler maps it.
 type HTTPError struct {
@@ -78,6 +82,9 @@ func Conflict(err error) error {
 func StatusCode(err error) int {
 	if err == nil {
 		return http.StatusOK
+	}
+	if errors.Is(err, ErrNotFound) {
+		return http.StatusNotFound
 	}
 
 	var httpErr *HTTPError

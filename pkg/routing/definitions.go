@@ -17,10 +17,21 @@ func InertiaRoute() RouteSetupOption {
 	}
 }
 
+// Exact marks a route as an exact match rather than a prefix match. It only
+// changes the route's Pattern(): the root path "/" is a prefix pattern in
+// net/http, so an exact root route registers as "/{$}". URL generation keeps
+// returning "/" through Path().
+func Exact() RouteSetupOption {
+	return func(cfg *routeConfig) {
+		cfg.exact = true
+	}
+}
+
 // Route represents routes with no URL parameters
 type SimpleRoute interface {
 	Name() string
 	Path() string
+	Pattern() string
 	URL(opts ...RouteOption) string
 	FullURL(hosts *Hosts, opts ...RouteOption) string
 	Host() HostName
@@ -30,6 +41,7 @@ type SimpleRoute interface {
 type UUIDIDRoute interface {
 	Name() string
 	Path() string
+	Pattern() string
 	URL(id uuid.UUID, opts ...RouteOption) string
 	FullURL(hosts *Hosts, id uuid.UUID, opts ...RouteOption) string
 	GetParam() string
@@ -40,6 +52,7 @@ type UUIDIDRoute interface {
 type SerialIDRoute interface {
 	Name() string
 	Path() string
+	Pattern() string
 	URL(id int32, opts ...RouteOption) string
 	FullURL(hosts *Hosts, id int32, opts ...RouteOption) string
 	GetParam() string
@@ -50,6 +63,7 @@ type SerialIDRoute interface {
 type BigSerialIDRoute interface {
 	Name() string
 	Path() string
+	Pattern() string
 	URL(id int64, opts ...RouteOption) string
 	FullURL(hosts *Hosts, id int64, opts ...RouteOption) string
 	GetParam() string
@@ -60,6 +74,7 @@ type BigSerialIDRoute interface {
 type StringIDRoute interface {
 	Name() string
 	Path() string
+	Pattern() string
 	URL(id string, opts ...RouteOption) string
 	FullURL(hosts *Hosts, id string, opts ...RouteOption) string
 	GetParam() string
@@ -70,6 +85,7 @@ type StringIDRoute interface {
 type ParamRoute interface {
 	Name() string
 	Path() string
+	Pattern() string
 	URL(param string, opts ...RouteOption) string
 	FullURL(hosts *Hosts, param string, opts ...RouteOption) string
 	GetParam() string
@@ -88,6 +104,7 @@ type ParamRoute interface {
 type ParamsRoute[Params any] interface {
 	Name() string
 	Path() string
+	Pattern() string
 	URL(params Params, opts ...RouteOption) string
 	FullURL(hosts *Hosts, params Params, opts ...RouteOption) string
 	Host() HostName

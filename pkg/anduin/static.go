@@ -11,9 +11,13 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"time"
 )
 
-const immutableCacheMaxAge = "7776000"
+const (
+	immutableCacheMaxAge  = "7776000"
+	immutableCacheControl = "public, max-age=" + immutableCacheMaxAge + ", immutable"
+)
 
 // staticConfig collects the options passed to StaticFS.
 type staticConfig struct {
@@ -72,11 +76,13 @@ func (s staticServer) serve(ctx context.Context) error {
 		return NotFound(errors.New(http.StatusText(http.StatusNotFound)))
 	}
 
-	if handled, cacheErr := s.enableCaching(ctx, param); handled || cacheErr != nil {
-		return cacheErr
+	if s.etags != nil {
+		if etag, ok := s.etags[param]; ok {
+			return serveContent(ctx, param, etag, data, immutableCacheControl)
+		}
 	}
 
-	return writeContent(ctx, http.StatusOK, contentTypeByExt(param), data)
+	return serveContent(ctx, param, "", data, "")
 }
 
 func precomputeETags(fsys fs.FS) (map[string]string, error) {
@@ -111,28 +117,29 @@ func etagFor(content []byte) string {
 	return fmt.Sprintf(`"%x-%x"`, hash, len(content))
 }
 
-// enableCaching sets long-lived cache headers and reports whether the request
-// was answered with 304 Not Modified.
-func (s staticServer) enableCaching(ctx context.Context, file string) (bool, error) {
-	etag, ok := s.etags[file]
-	if !ok {
-		return false, nil
+// ServeContent writes body as the response for name, setting the content type
+// implied by name's extension and an ETag derived from the bytes. A matching
+// If-None-Match is answered with 304 Not Modified. It shares StaticFS's ETag
+// format and conditional handling, so generated responses (a sitemap or a feed)
+// behave like embedded assets.
+func ServeContent(ctx context.Context, name string, body []byte) error {
+	return serveContent(ctx, name, etagFor(body), body, "")
+}
+
+func serveContent(ctx context.Context, name, etag string, body []byte, cacheControl string) error {
+	if etag != "" {
+		SetHeader(ctx, "ETag", etag)
 	}
-
-	SetHeader(ctx, "ETag", etag)
-	SetHeader(
-		ctx,
-		"Cache-Control",
-		fmt.Sprintf("public, max-age=%s, immutable", immutableCacheMaxAge),
-	)
-
-	if match := Header(ctx, "If-None-Match"); match == etag {
-		return true, NoContent(ctx, http.StatusNotModified)
+	if cacheControl != "" {
+		SetHeader(ctx, "Cache-Control", cacheControl)
+	}
+	if match := Header(ctx, "If-None-Match"); etag != "" && match == etag {
+		return NoContent(ctx, http.StatusNotModified)
 	}
 
 	SetHeader(ctx, "Vary", "Accept-Encoding")
 
-	return false, nil
+	return writeContent(ctx, http.StatusOK, contentTypeByExt(name), body)
 }
 
 func writeContent(ctx context.Context, status int, contentType string, body []byte) error {
@@ -197,11 +204,13 @@ type SitemapURL struct {
 	Loc        string
 	ChangeFreq string
 	Priority   string
+	LastMod    time.Time
 }
 
 type sitemapURL struct {
 	Loc        string `xml:"loc"`
-	ChangeFreq string `xml:"changefreq"`
+	ChangeFreq string `xml:"changefreq,omitempty"`
+	LastMod    string `xml:"lastmod,omitempty"`
 	Priority   string `xml:"priority,omitempty"`
 }
 
@@ -221,6 +230,7 @@ func Sitemap(urls ...SitemapURL) (Handler, error) {
 		set.URL = append(set.URL, sitemapURL{
 			Loc:        url.Loc,
 			ChangeFreq: url.ChangeFreq,
+			LastMod:    w3cDate(url.LastMod),
 			Priority:   url.Priority,
 		})
 	}
@@ -234,4 +244,14 @@ func Sitemap(urls ...SitemapURL) (Handler, error) {
 	return func(ctx context.Context) error {
 		return writeContent(ctx, http.StatusOK, "application/xml", body)
 	}, nil
+}
+
+// w3cDate formats a sitemap timestamp as a W3C datetime, or returns "" so the
+// entry is omitted when no modification time is known.
+func w3cDate(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+
+	return value.UTC().Format(time.RFC3339)
 }

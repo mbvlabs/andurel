@@ -210,6 +210,23 @@ func TestGeneratedAuthEmailsKeepSecretsOutOfJobArgs(t *testing.T) {
 	)
 }
 
+func TestGeneratedEmailWorkersLogFailures(t *testing.T) {
+	for _, name := range []string{
+		"psql_queue_workers_send_verification_email.tmpl",
+		"psql_queue_workers_send_password_reset_email.tmpl",
+	} {
+		assertTemplateContains(t, name,
+			"return failJob(ctx, job.ID, job.Kind, err)",
+			"if err := storage.SendTransactional(ctx, data, w.sender); err != nil {",
+		)
+		assertTemplateMissing(t, name, "return telemetry.Fail(ctx, err)")
+	}
+	assertTemplateContains(t, "psql_queue_workers_workers.tmpl",
+		"func failJob(ctx context.Context, jobID int64, kind string, err error) error",
+		`telemetry.Error(ctx, "job failed", "job.id", jobID, "job.kind", kind, "error", err)`,
+	)
+}
+
 func TestGeneratedSessionsCarryVersionAndDropAdmin(t *testing.T) {
 	bp := initializeBlueprint("example.com/app")
 

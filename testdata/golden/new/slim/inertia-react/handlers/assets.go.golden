@@ -47,7 +47,7 @@ func NewAssetsHandler(appCfg config.App) (AssetsHandler, error) {
 }
 
 func (a AssetsHandler) Register(rt *anduin.Router) {
-	rt.Get(routes.Robots.Path(), a.robots)
-	rt.Get(routes.Sitemap.Path(), a.sitemap)
-	rt.Get(routes.ViteBuild.Path(), a.dist)
+	rt.Get(routes.Robots.Pattern(), a.robots)
+	rt.Get(routes.Sitemap.Pattern(), a.sitemap)
+	rt.Get(routes.ViteBuild.Pattern(), a.dist)
 }

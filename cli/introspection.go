@@ -115,8 +115,9 @@ func newRoutesCommand() *cobra.Command {
 
 The manifest reports actual URL paths, route names, parameter names and
 types, and the Go source location for each route variable. In this command's
-output, path means the route URL path. The declaring Go file is reported as
-source_file in structured output.`,
+output, path means the route URL path. Exact routes also report exact: true
+and the http.ServeMux pattern (for example "/{$}"). The declaring Go file is
+reported as source_file in structured output.`,
 		Example: `  andurel inspect routes
   andurel inspect routes --json
   andurel inspect routes --jq .routes`,
