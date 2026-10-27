@@ -34,6 +34,12 @@ func JSONBlob(ctx context.Context, status int, blob []byte) error {
 	return writeBody(ctx, status, "application/json; charset=utf-8", blob)
 }
 
+// Blob writes body with an explicit content type, for responses that are
+// neither JSON, text, nor HTML (PDFs, images, CSV exports).
+func Blob(ctx context.Context, status int, contentType string, body []byte) error {
+	return writeBody(ctx, status, contentType, body)
+}
+
 // Text writes a plain-text response body.
 func Text(ctx context.Context, status int, value string) error {
 	return writeBody(ctx, status, "text/plain; charset=utf-8", []byte(value))

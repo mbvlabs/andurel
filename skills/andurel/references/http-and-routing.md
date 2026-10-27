@@ -126,15 +126,20 @@ func JSONBlob(ctx context.Context, status int, blob []byte) error
 func Text(ctx context.Context, status int, value string) error
 func HTML(ctx context.Context, status int, value string) error
 func HTMLBlob(ctx context.Context, status int, blob []byte) error
+func Blob(ctx context.Context, status int, contentType string, body []byte) error
 func NoContent(ctx context.Context, status int) error
 func Redirect(ctx context.Context, location string, status int) error
+func ServeContent(ctx context.Context, name string, body []byte) error
 
 func SetHeader(ctx context.Context, key, value string)
 func AddHeader(ctx context.Context, key, value string)
 ```
 
 `Redirect` requires a `3xx` status. Set response headers with `SetHeader` before
-writing a body.
+writing a body. `ServeContent` is the ETag / conditional-GET helper `StaticFS`
+uses: it sets the content type from `name`'s extension, an `ETag` derived from
+`body`, and answers a matching `If-None-Match` with `304`. Use it for generated
+documents such as sitemaps and feeds.
 
 ## Error model
 
@@ -235,6 +240,12 @@ rt.Use(
 	anduin.CSRF(csrf),
 )
 ```
+
+Responses are gzipped by `anduin.Compress`, an `http.Handler` wrapper installed
+outside `rt.Handler()` in `internal/runtime` behind `HTTP_COMPRESS` (default
+on). It covers `ErrorHandler` pages because it wraps the whole router, skips
+`HEAD`, upgrades and event streams, already-encoded and non-compressible
+responses, and bodies under 1 KiB, and sets `Vary: Accept-Encoding`.
 
 ## Server lifecycle
 
