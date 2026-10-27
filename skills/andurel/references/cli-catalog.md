@@ -14,7 +14,7 @@ andurel --agent --help
 
 ## Workflow
 
-1. `andurel inspect project --json` — lockfile, Inertia adapter, tools.
+1. `andurel inspect project --json` — andurel.toml manifest (version, adapter), andurel.lock digests, tools.
 2. `andurel patterns show <kind>` — read the reference shape for a layer.
 3. `andurel generate migration NAME` — create a migration (the only generated file).
 4. Write domains, services, handlers, routes, and middleware by hand.
@@ -38,6 +38,9 @@ excluded by GOOS, GOARCH, or build constraints are not analyzed by that step.
 
 `andurel sync` refreshes derived app files. `andurel tool sync` downloads pinned
 binaries. They are different commands.
+
+Tool versions live in `andurel.toml`; `andurel.lock` stores only per-platform
+SHA-256 digests for those downloads.
 
 ## Verify rules
 
@@ -113,7 +116,7 @@ andurel run --tools mailpit
 - Compile SQL: `andurel sync queries` writes `domains/internal/queries`. Only `domains/**` may import it.
 - List domains: `andurel inspect domains --json`.
 - List handlers with their constructor params and the routes each `Register` mounts (route name, method, path): `andurel inspect handlers --json`.
-- List routes: `andurel inspect routes --json` (includes host when set).
+- List routes: `andurel inspect routes --json` (every route reports `host`; unbound routes report `primary`).
 - Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia only; helpers are host-aware full URLs).
 - Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then bind routes with `rt.Host(name)`.
 - Refresh derived artifacts: `andurel sync email` compiles email templates.
@@ -150,7 +153,7 @@ andurel run --tools mailpit
 | `andurel inspect` | Read-only project shape |
 | `andurel inspect domains` | List domain files |
 | `andurel inspect handlers` | List handlers with their constructors and routes |
-| `andurel inspect jobs` | List job and worker files |
+| `andurel inspect jobs` | List queue job args and workers |
 | `andurel inspect migrations` | List migration files |
 | `andurel inspect project` | Inspect project metadata |
 | `andurel inspect project info` | Show project metadata |
@@ -175,7 +178,7 @@ andurel run --tools mailpit
 | `andurel tool dblab` | Open the dblab database UI |
 | `andurel tool list` | List project tool status |
 | `andurel tool mailpit` | Start Mailpit for local email capture |
-| `andurel tool set-version` | Pin a tool version in andurel.lock and sync it |
-| `andurel tool sync` | Download pinned binaries from andurel.lock |
+| `andurel tool set-version` | Pin a tool version in andurel.toml and sync it |
+| `andurel tool sync` | Download tool versions pinned in andurel.toml |
 | `andurel upgrade` | Upgrade the project to this CLI version |
 | `andurel verify` | Check formatting, vet, layer boundaries, and generated code |

@@ -6,10 +6,19 @@ Every file `andurel new` writes belongs to the application: `cmd/`, `config/`, `
 
 1. pins the `github.com/mbvlabs/andurel/pkg/*` requires in `go.mod` to the versions verified with the target CLI, without downgrading a newer pin;
 2. synchronizes the tool versions in `andurel.toml`;
-3. writes the target version to `andurel.lock`;
+3. writes the target version to `andurel.toml` and the refreshed digests to `andurel.lock`;
 4. reports a manual action for every application-owned change the target release needs.
 
 `andurel packages update` chases the latest published package versions independently of a framework upgrade.
+
+## `andurel.toml` vs `andurel.lock`
+
+The project keeps two files with different owners and contents:
+
+- `andurel.toml` is the human-edited manifest. It holds `schemaVersion`, the framework `version`, the `[project]` block (name, Inertia adapter, package manager, SSR runtime), the `[database]` settings (engine and null type), and `[tools]`, a name → version pin for every managed binary.
+- `andurel.lock` is the CLI-owned digest lock. It holds only `[[hashes]]` entries: tool name, version, platform (`os/arch`), and the SHA-256 digest used to verify that download.
+
+Edit `andurel.toml` to change an adapter or a tool version. Let `andurel tool sync` and `andurel upgrade` rewrite `andurel.lock`; hand-editing a digest makes the next download fail verification. Commands that read the adapter (`andurel sync routes`, `andurel sync payloads`) and commands that pin tools (`andurel tool set-version`) read and write `andurel.toml`, not `andurel.lock`.
 
 ## Supported upgrade paths
 

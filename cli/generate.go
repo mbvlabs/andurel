@@ -11,8 +11,9 @@ func newGenerateCommand() *cobra.Command {
 		Long: `Create application-owned files that have no derived source.
 
 Today the only generator is andurel generate migration, which authorises a
-new SQL migration for goose. Application code is not generated: read the
-Andurel patterns with andurel patterns and write the code yourself.
+new SQL migration for goose. Domains, services, handlers, routes, jobs, and
+emails are written by hand: read andurel patterns list, then
+andurel patterns show <kind> for the shape, placement rules, and checklist.
 
 Refresh derived files with andurel sync. Inspect existing files with
 andurel inspect.`,

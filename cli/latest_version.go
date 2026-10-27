@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mbvlabs/andurel/v2/layout"
+
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 )
@@ -110,5 +112,5 @@ func newerAndurelVersion(currentVersion, latestVersion string) bool {
 }
 
 func andurelInstallCommand(version string) string {
-	return "go install github.com/mbvlabs/andurel/v2@" + version
+	return layout.AndurelInstallCommand(version)
 }

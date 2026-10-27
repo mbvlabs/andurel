@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -214,6 +215,75 @@ func TestGroupCommandsAreNotRunnable(t *testing.T) {
 		}
 	}
 	walk(root)
+}
+
+func TestCommandsDiscoveryShortMatchesHelp(t *testing.T) {
+	root := NewRootCommand("test", "test-date")
+	for _, cmd := range walkPublicCommands(root) {
+		if cmd == root {
+			continue
+		}
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		cmd.SetErr(&out)
+		if err := cmd.Help(); err != nil {
+			t.Fatalf("%s help: %v", cmd.CommandPath(), err)
+		}
+		helpShort := strings.TrimSpace(strings.SplitN(out.String(), "\n", 2)[0])
+		if got := discoverCommand(cmd).Short; got != helpShort {
+			t.Errorf(
+				"%s: commands short %q != help short %q",
+				cmd.CommandPath(),
+				got,
+				helpShort,
+			)
+		}
+	}
+}
+
+func TestCommandsSubcommandsExposeMeta(t *testing.T) {
+	root := NewRootCommand("test", "test-date")
+	discovery := discoverCommandTree(root)
+
+	var update *commandSummary
+	var walk func(commands []commandSummary)
+	walk = func(commands []commandSummary) {
+		for i := range commands {
+			if commands[i].Path == "andurel packages update" {
+				update = &commands[i]
+			}
+		}
+	}
+	walk(discovery.Subcommands)
+	for _, child := range discovery.Commands {
+		walk(child.Subcommands)
+	}
+	if update == nil {
+		t.Fatal("missing andurel packages update summary")
+	}
+	if update.Meta == nil {
+		t.Fatalf("andurel packages update has no meta: %#v", update)
+	}
+	if !update.Meta.Mutating || !update.Meta.SupportsDryRun || !update.Meta.SupportsJSON {
+		t.Fatalf("andurel packages update meta = %#v", update.Meta)
+	}
+
+	var seed *commandSummary
+	var findAll func(commands []commandSummary)
+	findAll = func(commands []commandSummary) {
+		for i := range commands {
+			if commands[i].Path == "andurel db seed" {
+				seed = &commands[i]
+			}
+		}
+	}
+	findAll(discovery.Subcommands)
+	for _, child := range discovery.Commands {
+		findAll(child.Subcommands)
+	}
+	if seed == nil || seed.Meta == nil || !seed.Meta.SupportsJSON {
+		t.Fatalf("andurel db seed meta = %#v", seed)
+	}
 }
 
 func discoveryContains(commands []discoverySummary, name, path string) bool {

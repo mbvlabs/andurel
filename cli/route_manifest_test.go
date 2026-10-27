@@ -105,6 +105,26 @@ var WidgetIndex = routing.NewSimpleRoute(
 	)
 }
 
+func TestCollectRouteManifestDefaultsHostToPrimary(t *testing.T) {
+	rootDir := t.TempDir()
+	writeRouteManifestTestFile(t, rootDir, "pages.go", `package routes
+
+import "example.com/app/pkg/routing"
+
+var Home = routing.NewSimpleRoute("/", "pages.home", "")
+`)
+	manifest, err := collectRouteManifest(rootDir)
+	if err != nil {
+		t.Fatalf("collect route manifest: %v", err)
+	}
+	if len(manifest.Routes) != 1 {
+		t.Fatalf("expected 1 route, got %#v", manifest.Routes)
+	}
+	if manifest.Routes[0].Host != "primary" {
+		t.Fatalf("expected default host primary, got %#v", manifest.Routes[0])
+	}
+}
+
 func TestCollectRouteManifestRejectsDuplicateNames(t *testing.T) {
 	rootDir := t.TempDir()
 	writeRouteManifestTestFile(t, rootDir, "users.go", `package routes

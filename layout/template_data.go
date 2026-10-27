@@ -7,6 +7,28 @@ import (
 	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
 
+const andurelInstallModule = "github.com/mbvlabs/andurel/v2"
+
+// AndurelInstallCommand returns the command that installs a version of the
+// Andurel CLI. It is the single source of truth for the install command in the
+// scaffold README, the scaffold Welcome pages, and andurel doctor.
+func AndurelInstallCommand(version string) string {
+	version = strings.TrimSpace(version)
+	if version == "" || version == "dev" {
+		version = "latest"
+	}
+	return "go install " + andurelInstallModule + "@" + version
+}
+
+// AndurelInstallCommand returns the install command for this scaffold's
+// framework version.
+func (td *TemplateData) AndurelInstallCommand() string {
+	if td == nil {
+		return AndurelInstallCommand("")
+	}
+	return AndurelInstallCommand(td.FrameworkVersion)
+}
+
 // TemplateData carries the values available to base templates.
 // It wraps a Blueprint for structured data alongside project-level metadata.
 type TemplateData struct {

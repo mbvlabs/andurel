@@ -2,6 +2,9 @@ package cli
 
 import (
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"sort"
@@ -48,8 +51,13 @@ func newProjectInfoCommand() *cobra.Command {
 	projectCmd := &cobra.Command{
 		Use:   "project",
 		Short: "Inspect Andurel project metadata",
-		Long:  "Inspect project metadata derived from go.mod and andurel.lock.",
-		Args:  cobra.NoArgs,
+		Long: `Inspect project metadata from go.mod, andurel.toml, and andurel.lock.
+
+andurel.toml is the human-edited manifest: framework version, project name
+and Inertia adapter, database engine/null type, and the pinned version of each
+tool. andurel.lock is the CLI-owned digest lock: per-platform SHA-256 hashes
+of the tool downloads.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runProjectInfo(cmd)
 		},
@@ -299,24 +307,178 @@ no handlers.`,
 func newJobsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "jobs",
-		Short: "List job and worker files",
-		Args:  cobra.NoArgs,
+		Short: "List queue job args and workers",
+		Long: `List types declared under queue/ and classify each by its Go content,
+not by file name or directory:
+
+  job     a type with a Kind() string method (River job args)
+  worker  a type that embeds river.WorkerDefaults or defines a Work method
+
+Files such as queue/queue.go that only declare functions are not reported.`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
 			if err != nil {
 				return err
 			}
-			items := []projectItem{}
-			jobs, _ := listProjectFiles(rootDir, filepath.Join("queue", "jobs"), ".go", "job")
-			workers, _ := listProjectFiles(rootDir, "queue", ".go", "worker")
-			items = append(items, jobs...)
-			items = append(items, workers...)
-			sortProjectItems(items)
-			return output.OK(cmd, items, "Listed jobs")
+			items, err := collectQueueItems(rootDir)
+			if err != nil {
+				return err
+			}
+			return output.OK(cmd, items, fmt.Sprintf("Listed %d queue types", len(items)))
 		},
 	}
-	setAgentMetadata(cmd, "introspection", "Read-only list of queue job and worker files.")
+	setAgentMetadata(cmd, "introspection", "Read-only list of queue job args and workers classified by Go content.")
 	return cmd
+}
+
+// collectQueueItems walks queue/ and classifies each declared type by its Go
+// content: Kind() string marks River job args, river.WorkerDefaults or a Work
+// method marks a worker.
+func collectQueueItems(rootDir string) ([]projectItem, error) {
+	base := filepath.Join(rootDir, "queue")
+	if _, err := os.Stat(base); err != nil {
+		if os.IsNotExist(err) {
+			return []projectItem{}, nil
+		}
+		return nil, err
+	}
+
+	items := []projectItem{}
+	err := filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || filepath.Ext(path) != ".go" ||
+			strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		found, err := classifyQueueFile(rootDir, path)
+		if err != nil {
+			return err
+		}
+		items = append(items, found...)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].Path == items[j].Path {
+			return items[i].Name < items[j].Name
+		}
+		return items[i].Path < items[j].Path
+	})
+	return items, nil
+}
+
+func classifyQueueFile(rootDir, path string) ([]projectItem, error) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
+	if err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+
+	jobs := map[string]struct{}{}
+	workers := map[string]struct{}{}
+	for _, decl := range file.Decls {
+		switch decl := decl.(type) {
+		case *ast.GenDecl:
+			if decl.Tok != token.TYPE {
+				continue
+			}
+			for _, spec := range decl.Specs {
+				typeSpec, ok := spec.(*ast.TypeSpec)
+				if !ok || !embedsRiverWorkerDefaults(typeSpec.Type) {
+					continue
+				}
+				workers[typeSpec.Name.Name] = struct{}{}
+			}
+		case *ast.FuncDecl:
+			if decl.Recv == nil || len(decl.Recv.List) == 0 {
+				continue
+			}
+			recv := namedTypeName(decl.Recv.List[0].Type)
+			if recv == "" {
+				continue
+			}
+			switch decl.Name.Name {
+			case "Kind":
+				if isKindMethod(decl) {
+					jobs[recv] = struct{}{}
+				}
+			case "Work":
+				workers[recv] = struct{}{}
+			}
+		}
+	}
+
+	rel, err := filepath.Rel(rootDir, path)
+	if err != nil {
+		rel = path
+	}
+	rel = filepath.ToSlash(rel)
+
+	items := []projectItem{}
+	add := func(names map[string]struct{}, kind string) {
+		found := make([]string, 0, len(names))
+		for name := range names {
+			found = append(found, name)
+		}
+		sort.Strings(found)
+		for _, name := range found {
+			items = append(items, projectItem{
+				Name: name,
+				Path: rel,
+				Kind: kind,
+			})
+		}
+	}
+	add(workers, "worker")
+	add(jobs, "job")
+	return items, nil
+}
+
+// embedsRiverWorkerDefaults reports whether a type expression embeds
+// river.WorkerDefaults (optionally instantiated with a job args type).
+func embedsRiverWorkerDefaults(expr ast.Expr) bool {
+	switch typed := expr.(type) {
+	case *ast.StructType:
+		if typed.Fields == nil {
+			return false
+		}
+		for _, field := range typed.Fields.List {
+			if len(field.Names) > 0 {
+				continue
+			}
+			if embedsRiverWorkerDefaults(field.Type) {
+				return true
+			}
+		}
+	case *ast.SelectorExpr:
+		pkg, ok := typed.X.(*ast.Ident)
+		return ok && pkg.Name == "river" && typed.Sel.Name == "WorkerDefaults"
+	case *ast.IndexExpr:
+		return embedsRiverWorkerDefaults(typed.X)
+	case *ast.IndexListExpr:
+		return embedsRiverWorkerDefaults(typed.X)
+	case *ast.StarExpr:
+		return embedsRiverWorkerDefaults(typed.X)
+	}
+	return false
+}
+
+func isKindMethod(fn *ast.FuncDecl) bool {
+	if fn.Type.Params != nil && len(fn.Type.Params.List) > 0 {
+		return false
+	}
+	results := fn.Type.Results
+	if results == nil || len(results.List) != 1 {
+		return false
+	}
+	ident, ok := results.List[0].Type.(*ast.Ident)
+	return ok && ident.Name == "string"
 }
 
 func readOnlyListCommand(use, short, dir, ext string) *cobra.Command {

@@ -181,7 +181,7 @@ func RegisterPersistentFlags(cmd *cobra.Command) {
 	flags.Bool("agent", false, "Emit structured output optimized for agents")
 	flags.Bool("md", false, "Emit Markdown output")
 	flags.Bool("quiet", false, "Suppress non-essential human output")
-	flags.String("jq", "", "Select a simple field path from command data and emit JSON directly")
+	flags.String("jq", "", "Select a field path (for example .routes[0].name) from command data and emit JSON directly")
 	flags.Bool("ids-only", false, "Emit one resource identifier per line when supported")
 	flags.Bool("count", false, "Emit one raw resource count when supported")
 	flags.Bool("verbose", false, "Emit verbose output")
@@ -477,7 +477,6 @@ func writeJSON(w io.Writer, value any) error {
 }
 
 func applyJQ(data any, expr string) (any, error) {
-	expr = strings.TrimSpace(expr)
 	normalized, err := normalizeJSONValue(data)
 	if err != nil {
 		return nil, NewError(
@@ -487,45 +486,171 @@ func applyJQ(data any, expr string) (any, error) {
 			err.Error(),
 		)
 	}
-	if expr == "" || expr == "." {
-		return normalized, nil
+	segments, err := parseJQPath(expr)
+	if err != nil {
+		return nil, err
 	}
-	if !strings.HasPrefix(expr, ".") {
-		return nil, NewError(
-			CodeUsage,
-			"only simple jq-style field paths are supported",
-			ExitUsage,
-			"Use an expression like .field or .nested.field.",
-		)
+	if len(segments) == 0 {
+		return normalized, nil
 	}
 
 	current := normalized
-	parts := strings.SplitSeq(strings.TrimPrefix(expr, "."), ".")
-	for part := range parts {
-		if part == "" {
+	for _, segment := range segments {
+		if segment.index >= 0 {
+			array, ok := current.([]any)
+			if !ok {
+				return nil, NewError(
+					CodeUsage,
+					"jq path not found: "+strings.TrimSpace(expr),
+					ExitUsage,
+					fmt.Sprintf(
+						"Index [%d] requires an array, but the selected value is %s.",
+						segment.index,
+						jsonValueKind(current),
+					),
+				)
+			}
+			if segment.index >= len(array) {
+				return nil, NewError(
+					CodeUsage,
+					"jq path not found: "+strings.TrimSpace(expr),
+					ExitUsage,
+					fmt.Sprintf(
+						"The array has %d elements; index %d is out of range.",
+						len(array),
+						segment.index,
+					),
+				)
+			}
+			current = array[segment.index]
 			continue
 		}
+
 		object, ok := current.(map[string]any)
 		if !ok {
 			return nil, NewError(
 				CodeUsage,
-				"jq path not found: "+expr,
+				"jq path not found: "+strings.TrimSpace(expr),
 				ExitUsage,
-				"The selected value is not an object with field "+part+".",
+				fmt.Sprintf(
+					"Cannot select field %q from %s; check the path syntax and shape.",
+					segment.field,
+					jsonValueKind(current),
+				),
 			)
 		}
-		next, ok := object[part]
+		next, ok := object[segment.field]
 		if !ok {
 			return nil, NewError(
 				CodeUsage,
-				"jq path not found: "+expr,
+				"jq path not found: "+strings.TrimSpace(expr),
 				ExitUsage,
-				"Use andurel commands --json to inspect available fields.",
+				fmt.Sprintf(
+					"The selected object has no field %q. Use andurel commands --json to inspect available fields.",
+					segment.field,
+				),
 			)
 		}
 		current = next
 	}
 	return current, nil
+}
+
+// jqSegment is one step in a --jq path: either an object field or an array
+// index. index is -1 for a field.
+type jqSegment struct {
+	field string
+	index int
+}
+
+func parseJQPath(expr string) ([]jqSegment, error) {
+	trimmed := strings.TrimSpace(expr)
+	if trimmed == "" || trimmed == "." {
+		return nil, nil
+	}
+	if !strings.HasPrefix(trimmed, ".") {
+		return nil, invalidJQExpressionError(trimmed)
+	}
+
+	rest := strings.TrimPrefix(trimmed, ".")
+	if strings.HasPrefix(rest, ".") {
+		return nil, invalidJQExpressionError(trimmed)
+	}
+
+	segments := []jqSegment{}
+	for len(rest) > 0 {
+		switch {
+		case rest[0] == '[':
+			end := strings.IndexByte(rest, ']')
+			if end < 0 {
+				return nil, invalidJQExpressionError(trimmed)
+			}
+			index, err := strconv.Atoi(rest[1:end])
+			if err != nil || index < 0 {
+				return nil, invalidJQExpressionError(trimmed)
+			}
+			segments = append(segments, jqSegment{index: index})
+			rest = rest[end+1:]
+		case rest[0] == '.':
+			rest = rest[1:]
+			if rest == "" || rest[0] == '.' {
+				return nil, invalidJQExpressionError(trimmed)
+			}
+		default:
+			end := strings.IndexAny(rest, ".[")
+			name := rest
+			if end >= 0 {
+				name = rest[:end]
+				rest = rest[end:]
+			} else {
+				rest = ""
+			}
+			if name == "" || !validJQField(name) {
+				return nil, invalidJQExpressionError(trimmed)
+			}
+			segments = append(segments, jqSegment{field: name, index: -1})
+		}
+	}
+	return segments, nil
+}
+
+func validJQField(name string) bool {
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') || r == '_' || r == '-' {
+			continue
+		}
+		return false
+	}
+	return name != ""
+}
+
+func invalidJQExpressionError(expr string) error {
+	return NewError(
+		CodeUsage,
+		"invalid jq expression: "+expr,
+		ExitUsage,
+		"Use .field, .nested.field, .routes[0].name, or .[0].name.",
+	)
+}
+
+func jsonValueKind(value any) string {
+	switch value.(type) {
+	case nil:
+		return "null"
+	case map[string]any:
+		return "an object"
+	case []any:
+		return "an array"
+	case string:
+		return "a string"
+	case float64:
+		return "a number"
+	case bool:
+		return "a boolean"
+	default:
+		return "a non-object value"
+	}
 }
 
 func normalizeJSONValue(value any) (any, error) {

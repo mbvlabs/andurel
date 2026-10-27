@@ -32,11 +32,12 @@ type commandDiscovery struct {
 }
 
 type commandSummary struct {
-	Name     string   `json:"name"`
-	Path     string   `json:"path"`
-	Aliases  []string `json:"aliases,omitempty"`
-	Short    string   `json:"short,omitempty"`
-	Category string   `json:"category,omitempty"`
+	Name     string       `json:"name"`
+	Path     string       `json:"path"`
+	Aliases  []string     `json:"aliases,omitempty"`
+	Short    string       `json:"short,omitempty"`
+	Category string       `json:"category,omitempty"`
+	Meta     *CommandMeta `json:"meta,omitempty"`
 }
 
 type flagDiscovery struct {
@@ -139,7 +140,7 @@ func discoverCommand(cmd *cobra.Command) commandDiscovery {
 		Name:           cmd.Name(),
 		Path:           cmd.CommandPath(),
 		Aliases:        append([]string(nil), cmd.Aliases...),
-		Short:          strings.TrimSpace(cmd.Short),
+		Short:          commandHeadline(cmd),
 		Long:           strings.TrimSpace(cmd.Long),
 		Usage:          cmd.UseLine(),
 		Examples:       strings.TrimSpace(cmd.Example),
@@ -168,10 +169,14 @@ func discoverSubcommands(cmd *cobra.Command) []commandSummary {
 			Name:    sub.Name(),
 			Path:    sub.CommandPath(),
 			Aliases: append([]string(nil), sub.Aliases...),
-			Short:   strings.TrimSpace(sub.Short),
+			Short:   commandHeadline(sub),
 		}
 		if sub.Annotations != nil {
 			summary.Category = sub.Annotations[agentCategoryAnnotation]
+		}
+		if meta, ok := metaFor(sub); ok {
+			copied := meta
+			summary.Meta = &copied
 		}
 		summaries = append(summaries, summary)
 	}

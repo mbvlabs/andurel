@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -40,7 +41,14 @@ func TestJQWritesDirectJSONValuesFromCommandData(t *testing.T) {
 }
 
 func TestJQRejectsInvalidExpressionsAndMissingSelections(t *testing.T) {
-	for _, expression := range []string{"data.name", ".name | length", ".missing", ".name.value"} {
+	for _, expression := range []string{
+		"data.name",
+		".name | length",
+		".missing",
+		".name.value",
+		".routes[0",
+		".routes[].name",
+	} {
 		t.Run(expression, func(t *testing.T) {
 			var out bytes.Buffer
 			cmd := projectionTestCommand(t, &out, "jq", expression)
@@ -51,6 +59,74 @@ func TestJQRejectsInvalidExpressionsAndMissingSelections(t *testing.T) {
 			var cliErr *CLIError
 			if !errors.As(err, &cliErr) || cliErr.Code != CodeUsage {
 				t.Fatalf("expected usage CLIError, got %T %v", err, err)
+			}
+		})
+	}
+}
+
+func TestJQSupportsArrayIndexingAndExplainsFailures(t *testing.T) {
+	routes := map[string]any{
+		"routes": []any{
+			map[string]any{"name": "home"},
+			map[string]any{"name": "about"},
+		},
+	}
+
+	got, err := applyJQ(routes, ".routes[0].name")
+	if err != nil || got != "home" {
+		t.Fatalf("applyJQ .routes[0].name = %#v, %v", got, err)
+	}
+	got, err = applyJQ(routes, ".routes[1].name")
+	if err != nil || got != "about" {
+		t.Fatalf("applyJQ .routes[1].name = %#v, %v", got, err)
+	}
+	got, err = applyJQ([]any{map[string]any{"name": "only"}}, ".[0].name")
+	if err != nil || got != "only" {
+		t.Fatalf("applyJQ .[0].name = %#v, %v", got, err)
+	}
+
+	for _, test := range []struct {
+		name string
+		expr string
+		hint string
+	}{
+		{
+			name: "missing field",
+			expr: ".routes[0].missing",
+			hint: "no field \"missing\"",
+		},
+		{
+			name: "index out of range",
+			expr: ".routes[9].name",
+			hint: "index 9 is out of range",
+		},
+		{
+			name: "index on object",
+			expr: ".routes[0][0]",
+			hint: "requires an array",
+		},
+		{
+			name: "field on scalar",
+			expr: ".routes[0].name.more",
+			hint: "Cannot select field \"more\"",
+		},
+		{
+			name: "bad syntax",
+			expr: ".routes[0].name | length",
+			hint: ".routes[0].name",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := applyJQ(routes, test.expr)
+			if err == nil {
+				t.Fatal("expected projection error")
+			}
+			var cliErr *CLIError
+			if !errors.As(err, &cliErr) {
+				t.Fatalf("expected CLIError, got %T %v", err, err)
+			}
+			if !strings.Contains(cliErr.Hint, test.hint) {
+				t.Fatalf("hint %q missing %q", cliErr.Hint, test.hint)
 			}
 		})
 	}

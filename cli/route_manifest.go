@@ -25,7 +25,7 @@ type routeManifestRoute struct {
 	Path        string               `json:"path"`
 	Constructor string               `json:"constructor"`
 	Kind        string               `json:"kind"`
-	Host        string               `json:"host,omitempty"`
+	Host        string               `json:"host"`
 	IsInertia   bool                 `json:"is_inertia"`
 	Params      []routeManifestParam `json:"params,omitempty"`
 	SourceFile  string               `json:"source_file"`
@@ -306,6 +306,9 @@ func routeManifestFromValue(
 	isInertia, host, errReason := evalRouteSetupOptions(call.Args[3:], hostNames)
 	if errReason != "" {
 		return routeManifestRoute{}, skip(errReason), true
+	}
+	if host == "" {
+		host = string(mustHostPrimary())
 	}
 
 	routePath := configureRouteManifestPath(path, prefix)

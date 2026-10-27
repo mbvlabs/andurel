@@ -28,7 +28,7 @@ const features = [
   },
   {
     title: 'Command line',
-    body: 'Sync routes and payload types, inspect the app, and verify its layering with the andurel CLI.',
+    body: 'Install with go install github.com/mbvlabs/andurel/v2@latest, then sync routes and payload types, inspect the app, and verify its layering.',
   },
 ]
 </script>

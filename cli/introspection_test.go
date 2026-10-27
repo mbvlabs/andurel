@@ -226,6 +226,77 @@ func TestCollectProjectInfo(t *testing.T) {
 	}
 }
 
+func TestInspectJobsClassifiesByContent(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/acme/orders\n\ngo 1.27.1\n")
+	writeTestFile(t, root, "queue/jobs/send_email.go", `package jobs
+
+type SendEmailArgs struct{}
+
+func (SendEmailArgs) Kind() string { return "send_email" }
+`)
+	writeTestFile(t, root, "queue/send_email_worker.go", `package queue
+
+import (
+	"context"
+
+	"github.com/riverqueue/river"
+
+	"example.com/acme/orders/queue/jobs"
+)
+
+type SendEmailWorker struct {
+	river.WorkerDefaults[jobs.SendEmailArgs]
+}
+
+func (w *SendEmailWorker) Work(
+	ctx context.Context,
+	job *river.Job[jobs.SendEmailArgs],
+) error {
+	return nil
+}
+`)
+	writeTestFile(t, root, "queue/manual_worker.go", `package queue
+
+type ManualWorker struct{}
+
+func (ManualWorker) Work() error { return nil }
+`)
+	writeTestFile(t, root, "queue/workers.go", `package queue
+
+func NewWorkers() {}
+`)
+	writeTestFile(t, root, "queue/queue.go", `package queue
+
+func PeriodicJobs() {}
+`)
+
+	items, err := collectQueueItems(root)
+	if err != nil {
+		t.Fatalf("collectQueueItems: %v", err)
+	}
+	if len(items) != 3 {
+		t.Fatalf("expected three queue types, got %#v", items)
+	}
+	want := map[string]string{
+		"SendEmailArgs":   "job",
+		"SendEmailWorker": "worker",
+		"ManualWorker":    "worker",
+	}
+	for _, item := range items {
+		kind, ok := want[item.Name]
+		if !ok {
+			t.Fatalf("unexpected queue item: %#v", item)
+		}
+		if item.Kind != kind {
+			t.Fatalf("%s kind = %q, want %q", item.Name, item.Kind, kind)
+		}
+		if item.Path == "queue/workers.go" || item.Path == "queue/queue.go" {
+			t.Fatalf("function-only file reported as a queue type: %#v", item)
+		}
+	}
+}
+
 func TestIntrospectionCommands(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/acme/orders\n\ngo 1.27.1\n")
