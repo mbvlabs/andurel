@@ -196,7 +196,7 @@ sub-packages, no import aliases.
 func NewUserHandler(users user.Users, renderer *inertia.Renderer) UserHandler
 
 func (h UserHandler) Register(rt *anduin.Router) {
-	rt.Get(routes.UserIndex.Path(), h.Index)
+	rt.Get(routes.UserIndex.Pattern(), h.Index)
 }
 ```
 
@@ -224,9 +224,11 @@ variable so handlers can register it and pages can build URLs:
 - `routing.NewRouteWithUUIDID`, `routing.NewRouteWithToken`,
   `routing.NewRouteWithFile`, `routing.NewRouteWithParams` as needed.
 
-Route values expose `Name() string`, `Path() string`, `URL(params ...string)
-string`, `FullURL(hosts *routing.Hosts, ...) string`, `Host()
-routing.HostName`, and `IsInertia() bool`.
+Route values expose `Name() string`, `Path() string`, `Pattern() string`,
+`URL(params ...string) string`, `FullURL(hosts *routing.Hosts, ...) string`,
+`Host() routing.HostName`, and `IsInertia() bool`. Register with `Pattern()`
+and use `Path()` for links; `routing.Exact()` makes the root path exact
+(`"/{$}"`) without changing its URL.
 
 Handlers and services refer to these route values for registration and URL
 generation. Do not scatter raw path strings through handlers and pages when a

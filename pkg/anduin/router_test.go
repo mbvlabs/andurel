@@ -116,6 +116,87 @@ func TestRouterDefaultErrorStatus(t *testing.T) {
 	}
 }
 
+func TestRouterUnmatchedRequestRoutesToErrorHandler(t *testing.T) {
+	t.Parallel()
+
+	rt := NewRouter(WithErrorHandler(func(ctx context.Context, err error) error {
+		if !errors.Is(err, ErrNotFound) {
+			t.Errorf("err = %v, want ErrNotFound", err)
+		}
+		return Text(ctx, http.StatusNotFound, "themed not found")
+	}))
+	home := routing.NewSimpleRoute("/", "pages.home", "", routing.Exact(), routing.InertiaRoute())
+	rt.Get(home.Pattern(), func(ctx context.Context) error {
+		return Text(ctx, http.StatusOK, "home")
+	})
+
+	recorder := httptest.NewRecorder()
+	rt.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "home" {
+		t.Fatalf("GET / = %d %q, want 200 home", recorder.Code, recorder.Body.String())
+	}
+
+	recorder = httptest.NewRecorder()
+	rt.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/missing", nil))
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", recorder.Code)
+	}
+	if got := recorder.Body.String(); got != "themed not found" {
+		t.Fatalf("body = %q, want themed not found", got)
+	}
+}
+
+func TestRouterUnmatchedRequestDefaultHandlerIsNotFound(t *testing.T) {
+	t.Parallel()
+
+	rt := NewRouter()
+	recorder := httptest.NewRecorder()
+	rt.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/missing", nil))
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", recorder.Code)
+	}
+	if got, want := strings.TrimSpace(recorder.Body.String()), http.StatusText(http.StatusNotFound); got != want {
+		t.Fatalf("body = %q, want %q", got, want)
+	}
+}
+
+func TestRouterGetServesHead(t *testing.T) {
+	t.Parallel()
+
+	rt := NewRouter()
+	rt.Get("/health", func(ctx context.Context) error {
+		return Text(ctx, http.StatusOK, "ok")
+	})
+
+	recorder := httptest.NewRecorder()
+	rt.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodHead, "/health", nil))
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", recorder.Code)
+	}
+}
+
+func TestRouterMethodNotAllowedIsPreserved(t *testing.T) {
+	t.Parallel()
+
+	rt := NewRouter(WithErrorHandler(func(ctx context.Context, err error) error {
+		t.Errorf("unexpected ErrorHandler call: %v", err)
+		return nil
+	}))
+	rt.Get("/only-get", func(ctx context.Context) error { return NoContent(ctx, http.StatusNoContent) })
+
+	recorder := httptest.NewRecorder()
+	rt.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/only-get", nil))
+
+	if recorder.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, want 405", recorder.Code)
+	}
+	if got, want := recorder.Header().Get("Allow"), "GET, HEAD"; got != want {
+		t.Fatalf("Allow = %q, want %q", got, want)
+	}
+}
+
 func TestRouterQueryHelpers(t *testing.T) {
 	t.Parallel()
 

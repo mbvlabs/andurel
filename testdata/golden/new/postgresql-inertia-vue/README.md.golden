@@ -317,7 +317,7 @@ func NewProductHandler(products domains.Products, renderer *inertia.Renderer) Pr
 }
 
 func (h ProductHandler) Register(rt *anduin.Router) {
-    rt.Get(routes.ProductIndex.Path(), h.Index)
+    rt.Get(routes.ProductIndex.Pattern(), h.Index)
 }
 
 func (h ProductHandler) Index(ctx context.Context) error {
@@ -707,7 +707,7 @@ To serve a second domain from the same process:
 
 ```go
 admin := rt.Host(config.HostAdmin)
-admin.Get(routes.AdminDashboard.Path(), adminHandler.Dashboard)
+admin.Get(routes.AdminDashboard.Pattern(), adminHandler.Dashboard)
 ```
 
 The reverse proxy must forward the public `Host` header unchanged. A configured hostname without a port is also aliased as `hostname:80` and `hostname:443` so lookups succeed whether the proxy forwards a bare host or an explicit standard port. Unknown hosts are served by the primary mux. Duplicate hostnames or aliases across `HostName`s fail at boot.

@@ -89,7 +89,9 @@ func TestCookieDriverRoundTrip(t *testing.T) {
 		if err := Set(ctx, &testApp{UserID: "u1", IsAuthenticated: true}); err != nil {
 			return err
 		}
-		AddFlash(ctx, FlashSuccess, "saved")
+		if err := AddFlash(ctx, FlashSuccess, "saved"); err != nil {
+			return err
+		}
 		return anduin.Redirect(ctx, "/next", http.StatusSeeOther)
 	})
 	if err := anduin.Serve(recorder, request, handler); err != nil {
@@ -115,7 +117,7 @@ func TestCookieDriverRoundTrip(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		flashes = Flashes(ctx)
+		flashes = FlashMessages(ctx)
 		return anduin.NoContent(ctx, http.StatusOK)
 	})); err != nil {
 		t.Fatal(err)
@@ -136,7 +138,7 @@ func TestCookieDriverRoundTrip(t *testing.T) {
 	third.AddCookie(appCookie)
 	thirdRecorder := httptest.NewRecorder()
 	if err := anduin.Serve(thirdRecorder, third, jar.Middleware()(func(ctx context.Context) error {
-		if got := Flashes(ctx); len(got) != 0 {
+		if got := FlashMessages(ctx); len(got) != 0 {
 			t.Fatalf("flashes persisted onto the next page: %v", got)
 		}
 		return anduin.NoContent(ctx, http.StatusOK)
@@ -318,14 +320,154 @@ func TestSameRequestFlashIsVisible(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	recorder := httptest.NewRecorder()
 	if err := anduin.Serve(recorder, request, jar.Middleware()(func(ctx context.Context) error {
-		AddFlash(ctx, FlashError, "nope")
-		got := Flashes(ctx)
+		if err := AddFlash(ctx, FlashError, "nope"); err != nil {
+			return err
+		}
+		got := FlashMessages(ctx)
 		if len(got) != 1 || got[0].Message != "nope" {
 			t.Fatalf("same-request flashes = %+v", got)
 		}
 		return anduin.NoContent(ctx, http.StatusOK)
 	})); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDestroyThenFlashPersists(t *testing.T) {
+	jar := testJar(t, NewSession[*testApp]("app", MaxAge(60)))
+
+	signInRecorder := httptest.NewRecorder()
+	signInRequest := httptest.NewRequest(http.MethodPost, "/session", nil)
+	if err := anduin.Serve(signInRecorder, signInRequest, jar.Middleware()(func(ctx context.Context) error {
+		if err := Set(ctx, &testApp{UserID: "u1", IsAuthenticated: true}); err != nil {
+			return err
+		}
+		return anduin.Redirect(ctx, "/", http.StatusSeeOther)
+	})); err != nil {
+		t.Fatal(err)
+	}
+	appCookie := cookieByName(signInRecorder.Result().Cookies(), "app")
+	if appCookie == nil {
+		t.Fatal("missing app cookie")
+	}
+
+	signOutRecorder := httptest.NewRecorder()
+	signOutRequest := httptest.NewRequest(http.MethodDelete, "/session", nil)
+	signOutRequest.AddCookie(appCookie)
+	if err := anduin.Serve(signOutRecorder, signOutRequest, jar.Middleware()(func(ctx context.Context) error {
+		if err := Destroy[*testApp](ctx); err != nil {
+			return err
+		}
+		if err := AddFlash(ctx, FlashSuccess, "Signed out."); err != nil {
+			return err
+		}
+		return anduin.Redirect(ctx, "/session/new", http.StatusSeeOther)
+	})); err != nil {
+		t.Fatal(err)
+	}
+
+	signOutCookies := signOutRecorder.Result().Cookies()
+	if expired := cookieByName(signOutCookies, "app"); expired == nil || expired.MaxAge >= 0 {
+		t.Fatalf("expected an expired session cookie, got %v", cookieNames(signOutCookies))
+	}
+	flashCookie := cookieByName(signOutCookies, "app_flash")
+	if flashCookie == nil {
+		t.Fatalf("missing flash cookie after destroy + flash, got %v", cookieNames(signOutCookies))
+	}
+
+	follow := httptest.NewRequest(http.MethodGet, "/session/new", nil)
+	follow.AddCookie(flashCookie)
+	if err := anduin.Serve(httptest.NewRecorder(), follow, jar.Middleware()(func(ctx context.Context) error {
+		flashes := FlashMessages(ctx)
+		if len(flashes) != 1 || flashes[0].Message != "Signed out." {
+			t.Fatalf("flashes = %+v", flashes)
+		}
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFlashOnlyJarPersistsFlashes(t *testing.T) {
+	jar := testJar(t, Bagged(Plain[*theme]("theme", MaxAge(60))))
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	if err := anduin.Serve(recorder, request, jar.Middleware()(func(ctx context.Context) error {
+		dark := theme("dark")
+		if err := Set(ctx, &dark); err != nil {
+			return err
+		}
+		if err := AddFlash(ctx, FlashInfo, "no session here"); err != nil {
+			return err
+		}
+		return anduin.Redirect(ctx, "/next", http.StatusSeeOther)
+	})); err != nil {
+		t.Fatal(err)
+	}
+
+	cookies := recorder.Result().Cookies()
+	themeCookie := cookieByName(cookies, "theme")
+	flashCookie := cookieByName(cookies, defaultFlashCookieName)
+	if themeCookie == nil || flashCookie == nil {
+		t.Fatalf("cookies = %v, want theme + %s", cookieNames(cookies), defaultFlashCookieName)
+	}
+	if !flashCookie.HttpOnly || flashCookie.Path != "/" ||
+		flashCookie.SameSite != http.SameSiteLaxMode {
+		t.Fatalf("flash cookie options = %+v, want the cookie defaults", flashCookie)
+	}
+
+	follow := httptest.NewRequest(http.MethodGet, "/next", nil)
+	follow.AddCookie(themeCookie)
+	follow.AddCookie(flashCookie)
+	if err := anduin.Serve(httptest.NewRecorder(), follow, jar.Middleware()(func(ctx context.Context) error {
+		got, err := Get[*theme](ctx)
+		if err != nil {
+			return err
+		}
+		if got == nil || *got != theme("dark") {
+			t.Fatalf("theme = %#v", got)
+		}
+		flashes := FlashMessages(ctx)
+		if len(flashes) != 1 || flashes[0].Message != "no session here" {
+			t.Fatalf("flashes = %+v", flashes)
+		}
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAddFlashWithoutMiddlewareErrors(t *testing.T) {
+	err := AddFlash(context.Background(), FlashInfo, "lost")
+	if !errors.Is(err, ErrNoBag) {
+		t.Fatalf("AddFlash error = %v, want ErrNoBag", err)
+	}
+}
+
+func TestEmptyFlashesAreOmitted(t *testing.T) {
+	jar := testJar(t, NewSession[*testApp]("app"))
+	var page struct {
+		Flash any `json:"flash,omitempty"`
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	if err := anduin.Serve(httptest.NewRecorder(), request, jar.Middleware()(func(ctx context.Context) error {
+		page.Flash = Flashes(ctx)
+		return anduin.NoContent(ctx, http.StatusOK)
+	})); err != nil {
+		t.Fatal(err)
+	}
+
+	encoded, err := json.Marshal(page)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(encoded) != "{}" {
+		t.Fatalf("page JSON = %s, want the flash field omitted", encoded)
+	}
+	if Flashes(context.Background()) != nil {
+		t.Fatal("Flashes without a bag should be an untyped nil")
 	}
 }
 
@@ -372,7 +514,9 @@ func TestClientRedirectPersistsFlashes(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	handler := jar.Middleware()(func(ctx context.Context) error {
-		AddFlash(ctx, FlashSuccess, "next")
+		if err := AddFlash(ctx, FlashSuccess, "next"); err != nil {
+			return err
+		}
 		anduin.SetHeader(ctx, ClientRedirectHeader, "1")
 		return anduin.NoContent(ctx, http.StatusOK)
 	})
@@ -387,7 +531,7 @@ func TestClientRedirectPersistsFlashes(t *testing.T) {
 	follow.AddCookie(flashCookie)
 	followRecorder := httptest.NewRecorder()
 	if err := anduin.Serve(followRecorder, follow, jar.Middleware()(func(ctx context.Context) error {
-		got := Flashes(ctx)
+		got := FlashMessages(ctx)
 		if len(got) != 1 || got[0].Message != "next" {
 			t.Fatalf("redirect flashes = %+v", got)
 		}
@@ -705,7 +849,9 @@ func TestDatabaseStoreRoundTrip(t *testing.T) {
 		if err := Set(ctx, &testApp{UserID: "db1", IsAuthenticated: true}); err != nil {
 			return err
 		}
-		AddFlash(ctx, FlashInfo, "hi")
+		if err := AddFlash(ctx, FlashInfo, "hi"); err != nil {
+			return err
+		}
 		return anduin.Redirect(ctx, "/next", http.StatusSeeOther)
 	})); err != nil {
 		t.Fatal(err)
@@ -731,7 +877,7 @@ func TestDatabaseStoreRoundTrip(t *testing.T) {
 		if got == nil || got.UserID != "db1" || !got.IsAuthenticated {
 			t.Fatalf("app = %+v", got)
 		}
-		if flashes := Flashes(ctx); len(flashes) != 1 {
+		if flashes := FlashMessages(ctx); len(flashes) != 1 {
 			t.Fatalf("flashes = %+v", flashes)
 		}
 		if err := Destroy[*testApp](ctx); err != nil {

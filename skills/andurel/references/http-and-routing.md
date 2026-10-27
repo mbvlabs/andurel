@@ -59,15 +59,51 @@ Registration:
 
 ```go
 func (h Handler) Register(rt *anduin.Router) {
-	rt.Get(routes.UserIndex.Path(), h.Index)
-	rt.Get(routes.UserShow.Path(), h.Show)
-	rt.Post(routes.UserCreate.Path(), h.Create, anduin.RateLimit(h.cache, 5, 10*time.Minute, nil))
+	rt.Get(routes.UserIndex.Pattern(), h.Index)
+	rt.Get(routes.UserShow.Pattern(), h.Show)
+	rt.Post(routes.UserCreate.Pattern(), h.Create, anduin.RateLimit(h.cache, 5, 10*time.Minute, nil))
 }
 ```
 
 `anduin.Serve(w, r, handler)` is the low-level entry point behind
 `Router.Handler`, useful when embedding an `anduin.Handler` in another
 `http.Handler` and in tests.
+
+### Exact routes, precedence, and HEAD
+
+Register routes with `Pattern()`, not `Path()`. `Path()` returns the URL used
+in links and redirects (`"/"`); `Pattern()` returns the value to register with
+the router. They differ only when the route is declared with `routing.Exact()`:
+the URL path stays `"/"` and the pattern becomes `"/{$}"`, because an
+`http.ServeMux` pattern ending in `/` matches every path with that prefix.
+
+```go
+var HomePage = routing.NewSimpleRoute(
+	"/",
+	"pages.home",
+	"",
+	routing.Exact(),
+	routing.InertiaRoute(),
+)
+
+rt.Get(routes.HomePage.Pattern(), h.Home) // registers GET /{$}
+```
+
+Pattern precedence follows `http.ServeMux`: the most specific pattern wins.
+Exact paths (`/about`) beat wildcards (`/posts/{id}`), which beat a trailing
+catch-all (`/{path...}`); a method-specific pattern beats a method-less one.
+Prefer `routing.Exact()` over a hand-written catch-all. Requests that match no
+route are passed to the router's `ErrorHandler` as `anduin.ErrNotFound`, so a
+scaffolded app maps it once:
+
+```go
+inertia.MapError(anduin.ErrNotFound, http.StatusNotFound, "Errors/NotFound")
+```
+
+`Get` registers `GET`, and `http.ServeMux` serves `HEAD` with the `GET` handler
+(Go treats a `GET` pattern as matching both methods). Do not register a
+separate `HEAD` route. A `POST` to a path that only has `GET` still returns
+`405 Method Not Allowed`, not the not-found page.
 
 ## Host dispatch
 
@@ -77,7 +113,7 @@ are served only when the request `Host` matches that hostname (or one of its
 aliases).
 
 ```go
-rt.Host(config.HostAdmin).Get(routes.AdminDashboard.Path(), h.Dashboard)
+rt.Host(config.HostAdmin).Get(routes.AdminDashboard.Pattern(), h.Dashboard)
 ```
 
 Build the hostname registry at boot with `routing.NewHosts`, using
@@ -162,6 +198,8 @@ func Conflict(err error) error
 
 func StatusCode(err error) int   // unclassified -> 500
 func Message(err error) string   // falls back to status text
+
+var ErrNotFound error            // unmatched request sentinel
 ```
 
 Handlers return domain errors unchanged and let the router map them. The
@@ -174,9 +212,10 @@ rt := anduin.NewRouter(
 ```
 
 `handlers.MapError(*inertia.Renderer) anduin.ErrorHandler` translates the shared
-domain vocabulary (`domains.ErrNotFound`, `domains.ErrConflict`)
-and `pkg/validation` errors (`validation.As(err)`) into HTTP responses, validation
-props, and statuses, falling back to `anduin.Error(ctx, http.StatusInternalServerError, err)`.
+domain vocabulary (`domains.ErrNotFound`, `domains.ErrConflict`), the router's
+unmatched-request sentinel (`anduin.ErrNotFound`), and `pkg/validation` errors
+(`validation.As(err)`) into HTTP responses, validation props, and statuses,
+falling back to `anduin.Error(ctx, http.StatusInternalServerError, err)`.
 Without an installed handler, the default writes the status text as plain text.
 
 ## Middleware
@@ -326,7 +365,9 @@ resp.AssertInertia(t, "User/Index")
 
 `anduintest` provides `Get`, `PostForm`, `PostJSON`, and `Do`; responses expose
 `StatusCode`, `Header`, `Body`, `Text()`, `JSON(dst)`, `AssertStatus`, and
-`AssertInertia`. It keeps a cookie jar across requests.
+`AssertInertia`. It keeps a cookie jar across requests. Pass
+`anduintest.WithErrorHandler(handlers.MapError(renderer))` to exercise mapped
+errors such as the themed 404 page.
 
 For full-graph tests, boot `runtime.New(ctx, testConfig)` and call
 `app.Handler`. For domain tests, use `pkg/storage/storagetest.Cluster` and

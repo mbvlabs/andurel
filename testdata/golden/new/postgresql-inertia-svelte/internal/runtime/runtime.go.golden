@@ -92,7 +92,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 		hosts,
 	)
 
-	renderer, err := newRenderer(cfg, hosts)
+	renderer, err := NewRenderer(cfg, hosts)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +277,10 @@ func validateEmailConfig(cfg config.Mail, app config.App) error {
 	return nil
 }
 
-func newRenderer(cfg config.Config, hosts *routing.Hosts) (*inertia.Renderer, error) {
+// NewRenderer builds the Inertia renderer cmd/app uses, including the shared
+// props and kiks flash providers. Tests use it so their renderer mirrors the
+// runtime wiring instead of duplicating it.
+func NewRenderer(cfg config.Config, hosts *routing.Hosts) (*inertia.Renderer, error) {
 	return inertia.NewRenderer(
 		inertia.RendererConfig{
 			ContainerID:         cfg.Inertia.ContainerID,
@@ -298,6 +301,10 @@ func newRenderer(cfg config.Config, hosts *routing.Hosts) (*inertia.Renderer, er
 			"hosts":      cfg.App.HostOrigins(),
 		}),
 		inertia.WithSharedProvider(sharedAuth),
+		// Layouts render page.flash from the kiks flash cookie.
+		inertia.WithFlashProvider(func(ctx context.Context) any {
+			return kiks.Flashes(ctx)
+		}),
 		inertia.WithSSRFailFast(cfg.Inertia.SSRFailFast),
 	)
 }

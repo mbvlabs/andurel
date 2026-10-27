@@ -17,5 +17,5 @@ func NewAPIHandler(health interface{ Health(context.Context) error }) APIHandler
 }
 
 func (a APIHandler) Register(rt *anduin.Router) {
-	rt.Get(routes.Health.Path(), a.health)
+	rt.Get(routes.Health.Pattern(), a.health)
 }

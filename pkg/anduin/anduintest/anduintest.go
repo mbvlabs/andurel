@@ -21,7 +21,8 @@ import (
 type Option func(*options)
 
 type options struct {
-	middleware []anduin.Middleware
+	middleware   []anduin.Middleware
+	errorHandler anduin.ErrorHandler
 }
 
 // WithMiddleware installs global middleware on the test router (for example
@@ -29,6 +30,14 @@ type options struct {
 func WithMiddleware(mw ...anduin.Middleware) Option {
 	return func(o *options) {
 		o.middleware = append(o.middleware, mw...)
+	}
+}
+
+// WithErrorHandler installs the router's ErrorHandler so tests can exercise
+// mapped errors (for example a themed 404 page).
+func WithErrorHandler(handler anduin.ErrorHandler) Option {
+	return func(o *options) {
+		o.errorHandler = handler
 	}
 }
 
@@ -52,7 +61,11 @@ func New(t *testing.T, register func(*anduin.Router), opts ...Option) *Server {
 		}
 	}
 
-	rt := anduin.NewRouter()
+	var routerOpts []anduin.Option
+	if cfg.errorHandler != nil {
+		routerOpts = append(routerOpts, anduin.WithErrorHandler(cfg.errorHandler))
+	}
+	rt := anduin.NewRouter(routerOpts...)
 	register(rt)
 	rt.Use(cfg.middleware...)
 
