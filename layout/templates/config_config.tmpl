@@ -18,6 +18,18 @@ type Config struct {
 	Inertia     Inertia
 }
 
+// BuildVersion is injected with -ldflags at build time. Local builds leave it
+// empty and fall back to "dev".
+var BuildVersion string
+
+func buildVersion() string {
+	if BuildVersion != "" {
+		return BuildVersion
+	}
+
+	return "dev"
+}
+
 // WorkerConfig is the configuration the queue process reads. It excludes the
 // web-only settings (HTTP, sessions, cache and Inertia), so a queue container
 // does not need their environment variables.
@@ -134,7 +146,7 @@ func New() (Config, error) {
 	}
 
 	return Config{
-		Version:     "dev",
+		Version:     buildVersion(),
 		App:         app,
 		HTTP:        httpCfg,
 		Auth:        auth,

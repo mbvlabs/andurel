@@ -121,6 +121,27 @@ go build -o migrate ./cmd/migrate
 ./migrate
 ```
 
+## Build And Deploy
+
+`andurel build` compiles every process in `cmd/` that has a `main` package,
+except `seeds`, into `dist/`: `app`, `queue`, `migrate`, and `ssr` (when Inertia
+is configured). Client assets and the SSR bundle are embedded in the binaries.
+
+```bash
+andurel build
+andurel build --version 1.2.3 --only app,migrate
+andurel build --json
+```
+
+`--only` narrows the process list, and `--json` emits an artifact manifest with
+each binary's path, size, and version.
+
+Production runs `dist/migrate` once, then `dist/ssr`, then `dist/app` and
+`dist/queue`. Every process reads the same environment. Read
+`andurel patterns show deploy` for the start order, the variables each process
+needs, the app `/api/health` and SSR sidecar `/health` endpoints, and why
+`INERTIA_SSR_FAIL_FAST=true` belongs in production.
+
 ## Patterns, Sync, And Inspect
 
 `andurel patterns` prints reference code, placement rules, and a "definition of done" checklist. It is read-only — you write every file.
@@ -685,7 +706,8 @@ INERTIA_SSR_FAIL_FAST=false
 
 # Telemetry (optional)
 TELEMETRY_SERVICE_NAME=app
-TELEMETRY_SERVICE_VERSION=1.0.0
+# Unset, the service version is the version injected by andurel build (or 1.0.0 for local builds).
+# TELEMETRY_SERVICE_VERSION=
 LOG_LEVEL=INFO
 OTLP_LOGS_ENDPOINT=
 OTLP_METRICS_ENDPOINT=
