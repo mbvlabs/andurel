@@ -185,9 +185,9 @@ func (jar *Jar) load(request *http.Request) (*bag, error) {
 		if err := jar.loadSession(requestBag, request); err != nil {
 			return nil, err
 		}
-		if err := jar.loadFlashes(requestBag, request); err != nil {
-			return nil, err
-		}
+	}
+	if err := jar.loadFlashes(requestBag, request); err != nil {
+		return nil, err
 	}
 
 	return requestBag, nil
@@ -308,23 +308,36 @@ func (jar *Jar) persist(
 				}
 			}
 		}
+	}
 
-		flashOpts := opts
-		if clearFlashes || requestBag.deleted[key] {
+	// Flashes live in their own cookie, independent of the session: a jar with
+	// named cookies only still persists them, and destroying the session must
+	// not drop a flash added afterwards.
+	flashOpts := jar.flashOptions()
+	switch {
+	case clearFlashes:
+		http.SetCookie(writer, expireCookie(jar.flashName, flashOpts))
+	case persistFlashes && (requestBag.flashesDirty || len(outgoingFlashes) > 0):
+		if len(outgoingFlashes) == 0 {
 			http.SetCookie(writer, expireCookie(jar.flashName, flashOpts))
-		} else if persistFlashes && (requestBag.flashesDirty || len(outgoingFlashes) > 0) {
-			if len(outgoingFlashes) == 0 {
-				http.SetCookie(writer, expireCookie(jar.flashName, flashOpts))
-			} else {
-				raw, err := jar.encodeFlashCookie(outgoingFlashes)
-				if err != nil {
-					return err
-				}
-				http.SetCookie(writer, newCookie(jar.flashName, raw, flashOpts))
-			}
+			break
 		}
+		raw, err := jar.encodeFlashCookie(outgoingFlashes)
+		if err != nil {
+			return err
+		}
+		http.SetCookie(writer, newCookie(jar.flashName, raw, flashOpts))
 	}
 	return nil
+}
+
+// flashOptions reuses the session cookie options when the jar has a session
+// and falls back to the library defaults for a jar with named cookies only.
+func (jar *Jar) flashOptions() cookieOptions {
+	if jar.sessionDef != nil {
+		return jar.sessionDef.options()
+	}
+	return defaultCookieOptions()
 }
 
 func (jar *Jar) encodeCookie(definition Definition, payload []byte) (string, error) {

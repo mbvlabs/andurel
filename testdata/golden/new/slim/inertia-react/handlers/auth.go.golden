@@ -199,6 +199,9 @@ func (h AuthHandler) SessionDestroy(ctx context.Context) error {
 	if err := kiks.Destroy[*middleware.Session](ctx); err != nil {
 		return err
 	}
+	if err := kiks.AddFlash(ctx, kiks.FlashSuccess, "Signed out."); err != nil {
+		return err
+	}
 
 	return h.renderer.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
 }
