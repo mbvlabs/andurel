@@ -14,6 +14,7 @@ Andurel is Go-native: `net/http` through `pkg/anduin`, explicit constructor inje
 - Prefer `andurel --agent --help`, `andurel commands --json`, and `andurel commands --check` for discovery.
 - Read [references/cli-catalog.md](references/cli-catalog.md) for group layout and workflows.
 - Read [references/http-and-routing.md](references/http-and-routing.md) for the `pkg/anduin` HTTP model.
+- `andurel skill show <reference>` prints `cli-catalog`, `http-and-routing`, or `layer-placement` without installing the skill; the same files ship in `<harness skills dir>/andurel/references/` after `andurel skill install`.
 - Run `andurel inspect project --json` before changing code.
 - Use `--json` or `--jq` when extracting data.
 - `andurel generate` does not write application code. Read a pattern with `andurel patterns show <kind>` and write the files yourself. Only `andurel generate migration` creates a file.
@@ -88,6 +89,8 @@ Read a pattern before writing code:
 andurel patterns list --json
 andurel patterns show domain
 andurel patterns show handler --json
+andurel patterns show middleware
+andurel patterns show page
 ```
 
 Add a domain (type-driven: change the Go type first, then let SQL and queries follow):
@@ -120,7 +123,7 @@ andurel inspect routes --json
 andurel sync routes --json
 ```
 
-`andurel sync routes` reads `routes/*.go` as the source of truth and writes `resources/js/routes.ts`. Import helpers from that file in Inertia pages instead of hard-coding URLs. Helpers include the route host and return absolute URLs once `configureRouteHosts` has run; call `routes.name.path()` when a relative path is required.
+`andurel sync routes` reads `routes/*.go` as the source of truth and writes `resources/js/routes.ts`. Import helpers from that file in Inertia pages instead of hard-coding URLs. Helpers are flat and keyed by the route variable in lower camelCase (`UserIndex` → `routes.userIndex`), not by the route's declared name. They include the route host and return absolute URLs once `configureRouteHosts` has run; call `routes.name.path()` when a relative path is required, and build helpers at render time.
 
 Generate Inertia payload types:
 

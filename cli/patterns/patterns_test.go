@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"go/parser"
 	"go/token"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -98,6 +99,60 @@ func TestGoBlocksParse(t *testing.T) {
 				t.Fatalf("go block does not parse as a file or fragment: %v", fullErr)
 			})
 		}
+	}
+}
+
+// TestCompositionPatternMatchesScaffoldRuntime pins the wiring lines that the
+// composition pattern and layout/templates/runtime_runtime.tmpl must share.
+// The patterns package cannot type-check the fragment (it references the
+// scaffold's own helpers), so a drift check on the key lines is the guard.
+func TestCompositionPatternMatchesScaffoldRuntime(t *testing.T) {
+	pattern, ok := patterns.Get("composition")
+	if !ok {
+		t.Fatal("composition pattern not found")
+	}
+
+	var source string
+	for _, file := range pattern.Files {
+		if file.Path == "internal/runtime/runtime.go" {
+			source = file.Content
+			break
+		}
+	}
+	if source == "" {
+		t.Fatal("composition pattern has no internal/runtime/runtime.go snippet")
+	}
+
+	templateBytes, err := os.ReadFile(
+		filepath.Join("..", "..", "layout", "templates", "runtime_runtime.tmpl"),
+	)
+	if err != nil {
+		t.Fatalf("read scaffold runtime template: %v", err)
+	}
+	templateSource := string(templateBytes)
+
+	keyLines := []string{
+		"anduin.WithHosts(hosts)",
+		"handlers.NewPagesHandler(renderer).Register(router, middleware.AuthOnly(users))",
+		"assetsHandler.Register(router)",
+		"handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)",
+		"handlers.NewAPIHandler(db).Register(router)",
+		"app.Handler = router.Handler()",
+	}
+	for _, line := range keyLines {
+		if !strings.Contains(source, line) {
+			t.Errorf("composition pattern is missing %q", line)
+		}
+		if !strings.Contains(templateSource, line) {
+			t.Errorf("scaffold runtime template is missing %q", line)
+		}
+	}
+
+	if strings.Contains(source, "Register(rt") {
+		t.Error("composition pattern still uses the stale Register(rt) signature")
+	}
+	if strings.Contains(source, `"app/config"`) {
+		t.Error("composition pattern hard-codes an app module path; use <module>")
 	}
 }
 

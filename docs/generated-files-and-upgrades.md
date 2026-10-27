@@ -6,10 +6,26 @@ Every file `andurel new` writes belongs to the application: `cmd/`, `config/`, `
 
 1. pins the `github.com/mbvlabs/andurel/pkg/*` requires in `go.mod` to the versions verified with the target CLI, without downgrading a newer pin;
 2. synchronizes the tool versions in `andurel.toml`;
-3. writes the target version to `andurel.lock`;
+3. writes the target version to `andurel.toml` and refreshes the per-platform tool hashes in `andurel.lock`;
 4. reports a manual action for every application-owned change the target release needs.
 
 `andurel packages update` chases the latest published package versions independently of a framework upgrade.
+
+## Project metadata: andurel.toml vs andurel.lock
+
+The two files have different owners and different jobs:
+
+| File | Owner | Contents |
+| --- | --- | --- |
+| `andurel.toml` | human-editable project manifest | `schemaVersion`, the framework `version`, `[project]` (`name`, Inertia adapter, JavaScript package manager and SSR runtime), `[database]` (`engine`, `nullType`), and `[tools]` (`tool = "version"` pins) |
+| `andurel.lock` | CLI-owned digest lock | one `[[hashes]]` entry per tool and platform: `tool`, `version`, `platform`, `sha256` |
+
+Read `andurel.toml` for the framework version, adapter, package manager, and
+tool pins. `andurel.lock` carries no project metadata of its own; it records the
+digests `andurel tool sync` verifies when it downloads a pinned binary. The CLI
+writes both, and `andurel inspect project` reads both. Edit `andurel.toml` by
+hand only when you know the target release supports the change; let
+`andurel tool set-version` and `andurel upgrade` own the lock.
 
 ## Supported upgrade paths
 
@@ -52,6 +68,6 @@ The response reports replacements, deletions, tool metadata changes, unified dif
 
 ## Transaction guarantees
 
-A real upgrade plans and renders the complete result before writing. It validates staged content, creates recoverable backups, replaces files atomically where the filesystem permits, and writes the final lock version last. Any replacement or validation failure rolls every changed file and `andurel.lock` back to their byte-identical originals.
+A real upgrade plans and renders the complete result before writing. It validates staged content, creates recoverable backups, replaces files atomically where the filesystem permits, and writes the final manifest version last. Any replacement or validation failure rolls every changed file, `andurel.toml`, and `andurel.lock` back to their byte-identical originals.
 
-Real upgrades require a clean Git worktree. Re-running a successful upgrade is idempotent. The upgrader requires an explicit `schemaVersion` in `andurel.lock`.
+Real upgrades require a clean Git worktree. Re-running a successful upgrade is idempotent. The upgrader requires an explicit `schemaVersion` in `andurel.toml`.

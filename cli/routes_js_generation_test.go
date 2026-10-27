@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/v2/cli/output"
+	"github.com/mbvlabs/andurel/v2/cli/patterns"
 	"github.com/mbvlabs/andurel/v2/layout"
 )
 
@@ -67,6 +68,54 @@ func TestRenderRoutesJSGeneratesDeterministicHelpers(t *testing.T) {
 		routesJSHelperRuntime
 	if string(got) != want {
 		t.Fatalf("unexpected routes.ts:\n%s", got)
+	}
+}
+
+// TestRoutePatternMatchesGeneratedRoutesTS keeps the route pattern's
+// resources/js/routes.ts sample byte-identical to what `andurel sync routes`
+// writes for the same route data.
+func TestRoutePatternMatchesGeneratedRoutesTS(t *testing.T) {
+	pattern, ok := patterns.Get("route")
+	if !ok {
+		t.Fatal("route pattern not found")
+	}
+
+	var want string
+	for _, file := range pattern.Files {
+		if file.Path == generatedRoutesJSPath {
+			want = file.Content
+			break
+		}
+	}
+	if want == "" {
+		t.Fatalf("route pattern has no %s sample", generatedRoutesJSPath)
+	}
+
+	got, _, err := renderRoutesJS(routeManifest{
+		Routes: []routeManifestRoute{
+			{
+				Variable:  "UserIndex",
+				Path:      "/users",
+				IsInertia: true,
+			},
+			{
+				Variable:  "UserShow",
+				Path:      "/users/:id",
+				IsInertia: true,
+				Params:    []routeManifestParam{{Name: "id", Type: "string"}},
+			},
+			{
+				Variable:  "UserCreate",
+				Path:      "/users",
+				IsInertia: true,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("render routes js: %v", err)
+	}
+	if string(got) != want {
+		t.Fatalf("route pattern sample is stale:\n--- generated ---\n%s\n--- pattern ---\n%s", got, want)
 	}
 }
 

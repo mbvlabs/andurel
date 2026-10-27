@@ -156,9 +156,9 @@ A new app is ordinary Go you own. Top-level shape:
 | `domains/` | Business logic + persistence in one flat package; SQL colocated as `domains/<entity>.sql` |
 | `domains/internal/queries/` | narsilc output; imported only by `domains/**` |
 | `services/` | Application logic / cross-domain orchestration |
-| `handlers/`, `handlers/api/`, `handlers/auth/` | HTTP handlers (`func(ctx context.Context) error`) |
+| `handlers/` | HTTP handlers (`func(ctx context.Context) error`); one flat package |
 | `routes/` | Route data: names, paths, URL builders |
-| `middleware/` | App HTTP middleware + cookie-jar wiring |
+| `middleware/` | App HTTP middleware (auth, authorization); the cookie jar is built in `internal/runtime` |
 | `resources/root.templ` | Inertia root document (the only page-shaped templ) |
 | `resources/js/` | Inertia pages, layouts, components, and generated TS helpers |
 | `email/` | templ email templates and send helpers |
@@ -169,7 +169,7 @@ A new app is ordinary Go you own. Top-level shape:
 
 **Default**: Inertia React + pnpm (`--ui react/pnpm`).
 
-**`--ui react/pnpm|vue/bun|svelte/npm`**: Same Go backend; choose the Inertia adapter and JavaScript package manager. Inertia is the only UI; there are no templ/Datastar pages. `--api` returns JSON responses instead of pages.
+**`--ui react/pnpm|vue/bun|svelte/npm`**: Same Go backend; choose the Inertia adapter and JavaScript package manager. Inertia is the only UI; there are no templ/Datastar pages. JSON endpoints are ordinary routes that return `anduin.JSON`; there is no separate API mode.
 
 Details: [directory structure](https://andurel.com/docs/latest/directory-structure) · [frontend options](https://andurel.com/docs/latest/frontend-options).
 
@@ -207,6 +207,7 @@ andurel inspect domains --json
 andurel inspect routes --json
 andurel commands --json
 andurel skill install
+andurel skill show layer-placement
 ```
 
 `andurel patterns` never writes files. It prints reference code, the placement rules, and a definition-of-done checklist the agent self-verifies against. Many commands support `--dry-run` and `--json`. Agent workflows: [andurel.com/docs/latest/agent-workflows](https://andurel.com/docs/latest/agent-workflows).

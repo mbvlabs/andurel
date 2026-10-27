@@ -35,12 +35,14 @@ Two commands keep an agent honest:
 | Multi-step workflows, transactions, cross-domain coordination, external side effects, application policy that requires current database state | `services/` |
 | Request parsing, path/query/form/JSON binding, HTTP status/render/redirect choices, flash messages, CSRF/session handling | `handlers/` (one flat package) |
 | Route names, route paths, URL builders | `routes/` |
-| App HTTP middleware (auth, rate limit) and cookie-jar wiring | `middleware/` |
+| App HTTP middleware (auth, authorization) | `middleware/` |
 | Inertia root document | `resources/root.templ` (package `resources`) |
 | Inertia pages and reusable frontend components | `resources/js/Pages/`, `resources/js/Layouts/`, `resources/js/Components/`, `resources/js/components/ui/` |
 | Generated TS route/payload helpers | `resources/js/routes.ts`, `resources/js/types/payloads.ts` (written by `andurel sync routes` / `sync payloads`) |
-| Source CSS and theme primitives | `css/` |
+| Tailwind entry point | `css/base.css` (imports Tailwind and `css/theme.css`; `@source` globs live here) |
+| Theme tokens and their utility mappings | `css/theme.css` (`:root` values plus the single `@theme` color owner) |
 | Compiled/static assets | `assets/` |
+| Read-only embedded content or static data consumed by Go | `internal/<name>/` with `//go:embed` (not `assets/`, which is served, or `resources/`, which is frontend) |
 | SQL schema changes | `migrations/` |
 | Apply pending SQL (one-shot process) | `cmd/migrate/` |
 | Seed data | `seeds/` or `cmd/seeds/` following the existing pattern |
@@ -270,16 +272,70 @@ on `context.Context` through `pkg/kiks` (`kiks.Get[T]`, `kiks.Set`,
 
 ## Resources And Frontend
 
-Use `resources/root.templ` for the one page-shaped templ in the app: the Inertia
-root document (package `resources`). It is the only templ outside `email/`.
+`resources/root.templ` is the one page-shaped templ in the app: the Inertia root
+document (package `resources`). It is the only templ outside `email/`. The
+renderer owns it; you normally change it only when the document shell changes.
+It receives `inertia.RootData` with these fields:
 
-Use `resources/js/Pages/` for Inertia screens and `resources/js/Components/` or
-`resources/js/components/ui/` for reusable UI. Keep page components focused on
-UI state and form behavior; preserve domain validation in Go domains/services.
+| Field | Meaning |
+| --- | --- |
+| `Page` | the decoded Inertia page (component, props, url, version) |
+| `PageJSON` | the validated, escaped page JSON for the non-SSR mount |
+| `ContainerID` | element id the frontend mounts into |
+| `ProjectName` | display name from config |
+| `Environment` | `development`, `test`, or `production` |
+| `ViteHead` | production/dev stylesheet and module-preload tags |
+| `ViteBody` | module script tag |
+| `SSR` | non-nil when the page was server-rendered |
 
-Keep presentation adapters out of domains when they exist only for display
-(label maps, initials and fallback display text, date labels, JSON-to-list
-formatting).
+Page data never travels through `RootData`; pass it as page props. Shared props
+are the exception: `internal/runtime` configures `inertia.WithShared` with
+`appVersion` and `hosts`, and the scaffold's shared provider adds
+`auth.isAuthenticated`. Every page also receives `errors`. Layouts read shared
+props (`usePage()` in React/Vue, `page.props` in Svelte); pages read their own
+props.
+
+Frontend placement:
+
+- `resources/js/Pages/` — one component per Inertia page. The file path without
+  its extension is the component string passed to `renderer.Page`, for example
+  `Pages/Product/Index.tsx` (React), `.vue` (Vue), or `.svelte` (Svelte) for
+  `"Product/Index"`. See `andurel patterns show page`.
+- `resources/js/Layouts/` — chrome shared by pages (header, navigation, footer).
+  Layouts do not take page props.
+- `resources/js/Components/` and `resources/js/components/ui/` — reusable
+  presentational pieces.
+- `resources/js/routes.ts` and `resources/js/types/payloads.ts` — generated; do
+  not edit by hand. `routes.ts` is flat and keyed by the lower-camelCase route
+  variable (`UserIndex` → `routes.userIndex`); `configureRouteHosts` runs at
+  boot with the shared `hosts` prop. Use `routes.name.path(...)` for relative
+  URLs and `routes.name(...)` for absolute ones.
+- Keep presentation adapters out of domains when they exist only for display
+  (label maps, initials and fallback display text, date labels, JSON-to-list
+  formatting).
+
+CSS entry points:
+
+- `css/base.css` is the Tailwind entry. It imports `tailwindcss` and
+  `css/theme.css`, declares `@source` globs, and holds base-layer rules. The
+  adapter entry (`resources/js/app.tsx` for React, `resources/js/app.ts` for Vue
+  and Svelte) imports it once.
+- `css/theme.css` is the single owner of the semantic color tokens. `:root`
+  defines the plain values; one `@theme inline` block maps them to Tailwind
+  utilities. Do not add a second `@theme` block somewhere else.
+- Hand-written CSS uses the raw custom properties: `var(--background)`,
+  `var(--foreground)`, `var(--card)`, `var(--card-foreground)`,
+  `var(--popover)`, `var(--primary)`, `var(--primary-foreground)`,
+  `var(--secondary)`, `var(--muted)`, `var(--muted-foreground)`,
+  `var(--accent)`, `var(--accent-foreground)`, `var(--destructive)`,
+  `var(--destructive-foreground)`, `var(--border)`, `var(--input)`,
+  `var(--ring)`, `var(--surface)`, `var(--text-muted)`, `var(--radius)`, the
+  `--sidebar-*` set, and the `--chart-1` … `--chart-5` set.
+- Components use the mapped utilities instead: `bg-background`,
+  `text-foreground`, `bg-card`, `text-muted-foreground`, `border-border`,
+  `bg-primary`, `text-accent`, `ring-ring`, and the `font-sans`/`font-mono`
+  families. The root `html` element applies `font-sans`; add `font-mono` where
+  a monospace surface is intended.
 
 Never invent frontend URLs: import `resources/js/routes.ts` after
 `andurel sync routes --json`. Import page/form types from
@@ -316,6 +372,10 @@ one resource, and for adapters to third-party services:
 - Process composition (`internal/runtime/`).
 - External provider adapters (for example `internal/clients/`,
   `internal/payment/`).
+- Read-only embedded content or static data consumed by Go (bundled fixtures,
+  docs, templates, datasets) with `//go:embed`. `assets/` is for files served
+  over HTTP and `resources/` is frontend; do not put Go-only embedded data
+  there.
 - Request context helpers, storage abstractions, validation helpers, server
   support.
 
