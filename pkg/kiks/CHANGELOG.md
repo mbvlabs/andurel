@@ -4,6 +4,26 @@ All notable changes to the standalone Andurel kiks module are documented here.
 
 ## Unreleased
 
+### Added
+
+- `FlashMessages` returns the typed flash slice; `Flashes` now returns the
+  JSON-ready value used by Inertia page flash providers.
+- Flashes persist for a jar with named cookies and no `NewSession` definition.
+  Such a jar uses the `kiks_flash` cookie with the default cookie options.
+
+### Changed
+
+- **Breaking:** `AddFlash` returns an error, `ErrNoBag` when the middleware did
+  not attach a bag. Callers that ignored the return value must handle it.
+- **Breaking:** `Flashes` returns `any` (untyped nil when empty) so it is
+  omitted from page JSON instead of encoding as `"flash": null`; use
+  `FlashMessages` for a typed slice.
+- `Destroy` still drops flashes queued before it, but a flash added after
+  `Destroy` now persists with the response instead of being expired with the
+  session cookie.
+- `NewJar` allows a jar without a `NewSession` definition; multiple session
+  definitions are still rejected.
+
 ## 0.5.1 - 2026-10-26
 
 ### Changed

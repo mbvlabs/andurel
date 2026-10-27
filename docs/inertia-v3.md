@@ -105,7 +105,7 @@ shapes. Database model structs are never passed directly to an Inertia page.
 | Old once-prop behavior | Replace | retention header, keys, expiry, and fresh semantics |
 | Scroll prop | Adapt | v3 merge intent and `scrollProps` metadata |
 | Validation context helpers | Adapt | response option and named error-bag handling |
-| Flash provider | Adapt | generated request/session provider and page `flash` |
+| Flash provider | Adapt | generated `kiks` provider (`WithFlashProvider(kiks.Flashes)`) and page `flash` |
 | Global `WithSSR` engine option | Replace | per-response `WithSSR()` page option |
 | HTTP SSR gateway | Adapt | `SSRRenderer` plus bounded `HTTPRenderer` |
 | Go `html/template` root | Replace | application-owned `resources/root.templ` supplied with `WithRoot` |
