@@ -266,11 +266,14 @@ var commandMetaSpecs = map[string]CommandMeta{
 		SkipDryRunCheck: true,
 	},
 	"andurel sync email": {
-		Summary:         "Compile Tailwind classes in email templates",
-		WhenToUse:       []string{"After editing email/*.templ, css/email.css, or css/theme.css."},
+		Summary: "Compile email templates into inline-styled Go",
+		WhenToUse: []string{
+			"After editing email/*.templ, css/email.css, or css/theme.css.",
+			"Regenerates email/*_templ.go with Tailwind utilities inlined; never use templ generate for email.",
+		},
 		WhenNotToUse:    []string{"Does not modify authored .templ files."},
 		Prerequisites:   []string{"Andurel project root", "email/ and css/email.css"},
-		Examples:        []string{"andurel sync email"},
+		Examples:        []string{"andurel sync email", "andurel sync email --json"},
 		Mutating:        true,
 		RequiresProject: true,
 		SkipDryRunCheck: true,
@@ -503,11 +506,12 @@ var commandMetaSpecs = map[string]CommandMeta{
 		Examples:     []string{"andurel patterns show domain", "andurel patterns show test-handler --json", "andurel patterns show domain --entity User --table users --json"},
 	},
 	"andurel verify": {
-		Summary:         "Check formatting, vet, layer boundaries, and generated code",
-		WhenToUse:       []string{"After a change, before commit: gofmt, go fix, go vet, the typed persistence and transaction boundary checks, and generated-code drift.", "A missing generation binary fails the generated step; apply the rule's fix, or pass --skip-generated to mark the step skipped. Rules lists every rule and its fix.", "Read each violation's fix field and apply it; a failed run exits 9 (verification_failed).", "With --with-tests, check the go test step's skipped_packages: packages listed there ran no tests (DB tests skip without Docker) even though the step is ok."},
+		Summary:         "Check formatting, vet, layer boundaries, frontend, and generated code",
+		Args:            "[packages...]",
+		WhenToUse:       []string{"After a change, before commit: gofmt, go fix, go vet, the typed persistence and transaction boundary checks, the package.json typecheck script, and generated-code drift.", "Pass Go package patterns to scope gofmt, go fix, go vet, and layers to those packages; generated drift and the frontend typecheck stay whole-project.", "A missing generation binary fails the generated step; apply the rule's fix, or pass --skip-generated to mark the step skipped. Rules lists every rule and its fix.", "Without node_modules the frontend step fails with an install hint; pass --no-frontend to skip it explicitly.", "Read each violation's fix field and apply it; a failed run exits 9 (verification_failed).", "With --with-tests, check the go test step's skipped_packages: packages listed there ran no tests (DB tests skip without Docker) even though the step is ok."},
 		WhenNotToUse:    []string{"verify is read-only; fix the reported issues yourself and re-run."},
 		Prerequisites:   []string{"Andurel project root"},
-		Examples:        []string{"andurel verify", "andurel verify --json", "andurel verify --with-tests", "andurel verify --skip-generated"},
+		Examples:        []string{"andurel verify", "andurel verify --json", "andurel verify ./internal/docs/...", "andurel verify --with-tests", "andurel verify --skip-generated", "andurel verify --no-frontend"},
 		RequiresProject: true,
 	},
 	"andurel skill": {

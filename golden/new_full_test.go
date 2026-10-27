@@ -107,7 +107,9 @@ func TestNewProjectFullScaffold(t *testing.T) {
 			project := filepath.Join(parent, "app")
 			goldentest.AssertTree(t, project, "new/"+scenario.name, goldentest.FullScaffoldDenylist)
 			goldentest.SeedProjectTools(t, project)
-			goldentest.RunCLI(t, project, "verify")
+			// The golden scaffold has no installed frontend dependencies, so
+			// the full-tree capture verifies generated drift without typecheck.
+			goldentest.RunCLI(t, project, "verify", "--no-frontend")
 		})
 	}
 }

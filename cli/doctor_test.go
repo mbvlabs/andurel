@@ -404,9 +404,10 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 	if got := codeGenerationChecks(
 		root,
 		false,
-	); len(got) != 2 ||
+	); len(got) != 3 ||
 		got[0].name != "templ generate" || got[0].status != statusPass ||
-		got[1].name != "narsilc generate" || got[1].status != statusPass {
+		got[1].name != "email generate" || got[1].status != statusPass ||
+		got[2].name != "narsilc generate" || got[2].status != statusPass {
 		t.Fatalf("codeGenerationChecks = %#v", got)
 	}
 

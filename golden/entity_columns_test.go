@@ -39,7 +39,7 @@ func TestVerifyEntityColumnsDrift(t *testing.T) {
 	project := filepath.Join(parent, "app")
 	goldentest.SeedProjectTools(t, project)
 
-	goldentest.RunCLI(t, project, "verify", "--json")
+	goldentest.RunCLI(t, project, "verify", "--no-frontend", "--json")
 	before := inspectDomainsJSON(t, project)
 	user := findInspectEntity(t, before, "User")
 	if user.ColumnsOK == nil || !*user.ColumnsOK {
@@ -63,7 +63,7 @@ func TestVerifyEntityColumnsDrift(t *testing.T) {
 		t.Fatal("drifted domains/user.go has no Email field")
 	}
 
-	output, exitCode := goldentest.RunCLIExit(t, project, "verify", "--json")
+	output, exitCode := goldentest.RunCLIExit(t, project, "verify", "--no-frontend", "--json")
 	if exitCode != 9 {
 		t.Fatalf("verify --json exited %d, want 9\n%s", exitCode, output)
 	}

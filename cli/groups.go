@@ -17,7 +17,7 @@ andurel tool sync downloads pinned binaries. It is not this group.`,
 		Example: `  andurel sync queries
   andurel sync routes --json
   andurel sync payloads --json
-  andurel sync email`,
+  andurel sync email --json`,
 	}
 	cmd.AddCommand(
 		newGenerateQueriesCommand(),
