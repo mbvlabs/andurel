@@ -51,6 +51,7 @@ func TestCheckInertiaSSRSkipsProductionBundleInDevelopment(t *testing.T) {
 	root := t.TempDir()
 	writeInertiaSSRDoctorProject(t, root, "ENVIRONMENT=development\n")
 	withFakeNodeOnPath(t)
+	t.Setenv("ENVIRONMENT", "")
 
 	got := checkInertiaSSRConfiguration(root)
 	if got.status != statusPass {
@@ -65,6 +66,7 @@ func TestCheckInertiaSSRDefaultsToDevelopmentWhenEnvironmentUnset(t *testing.T) 
 	root := t.TempDir()
 	writeInertiaSSRDoctorProject(t, root, "")
 	withFakeNodeOnPath(t)
+	t.Setenv("ENVIRONMENT", "")
 
 	got := checkInertiaSSRConfiguration(root)
 	if got.status != statusPass {
@@ -72,14 +74,39 @@ func TestCheckInertiaSSRDefaultsToDevelopmentWhenEnvironmentUnset(t *testing.T) 
 	}
 }
 
-func TestCheckInertiaSSRWarnsWhenProductionBundleMissing(t *testing.T) {
+func TestCheckInertiaSSRFailsWhenProductionBundleMissing(t *testing.T) {
 	root := t.TempDir()
 	writeInertiaSSRDoctorProject(t, root, "ENVIRONMENT=production\n")
 	withFakeNodeOnPath(t)
+	t.Setenv("ENVIRONMENT", "")
 
 	got := checkInertiaSSRConfiguration(root)
-	if got.status != statusWarn || !strings.Contains(got.message, "not built") {
+	if got.status != statusFail || !strings.Contains(got.message, "required") {
 		t.Fatalf("production missing bundle = %#v", got)
+	}
+}
+
+func TestCheckInertiaSSRPrefersEnvironmentVariableOverDotEnv(t *testing.T) {
+	root := t.TempDir()
+	writeInertiaSSRDoctorProject(t, root, "ENVIRONMENT=production\n")
+	withFakeNodeOnPath(t)
+	t.Setenv("ENVIRONMENT", "development")
+
+	got := checkInertiaSSRConfiguration(root)
+	if got.status != statusPass || !strings.Contains(got.message, "Vite") {
+		t.Fatalf("env precedence SSR = %#v", got)
+	}
+}
+
+func TestCheckInertiaSSRUsesProductionFromEnvironmentVariable(t *testing.T) {
+	root := t.TempDir()
+	writeInertiaSSRDoctorProject(t, root, "ENVIRONMENT=development\n")
+	withFakeNodeOnPath(t)
+	t.Setenv("ENVIRONMENT", "production")
+
+	got := checkInertiaSSRConfiguration(root)
+	if got.status != statusFail || !strings.Contains(got.message, "required") {
+		t.Fatalf("env production SSR = %#v", got)
 	}
 }
 

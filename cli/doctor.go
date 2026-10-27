@@ -599,8 +599,9 @@ func checkInertiaSSRConfiguration(rootDir string) checkResult {
 	if _, err := os.Stat(filepath.Join(rootDir, filepath.FromSlash(bundle))); err != nil {
 		return checkResult{
 			name:    "Inertia SSR",
-			status:  statusWarn,
-			message: fmt.Sprintf("SSR bundle %s is not built (cmd/ssr needs it)", bundle),
+			status:  statusFail,
+			message: fmt.Sprintf("SSR bundle %s is required in production (cmd/ssr needs it)", bundle),
+			hint:    "Run pnpm build (or andurel build) and ship assets/dist/ssr/ssr.js with cmd/ssr.",
 		}
 	}
 
@@ -623,7 +624,10 @@ func checkInertiaSSRConfiguration(rootDir string) checkResult {
 }
 
 func doctorUsesDevelopmentSSR(values map[string]string) bool {
-	environment := strings.TrimSpace(values["ENVIRONMENT"])
+	environment := strings.TrimSpace(os.Getenv("ENVIRONMENT"))
+	if environment == "" {
+		environment = strings.TrimSpace(values["ENVIRONMENT"])
+	}
 	if environment == "" {
 		environment = "development"
 	}

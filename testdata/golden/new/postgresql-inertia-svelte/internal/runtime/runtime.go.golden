@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -92,7 +93,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 		hosts,
 	)
 
-	renderer, err := newRenderer(cfg, hosts)
+	renderer, err := NewRenderer(cfg, hosts)
 	if err != nil {
 		return nil, err
 	}
@@ -138,6 +139,11 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	handlers.NewAPIHandler(db).Register(router)
 
 	app.Handler = router.Handler()
+	if cfg.HTTP.Compress {
+		// Compress wraps the router rather than the middleware chain so that
+		// ErrorHandler pages are compressed too.
+		app.Handler = anduin.Compress(app.Handler)
+	}
 	app.Server = anduin.NewServer(
 		ctx,
 		cfg.HTTP.Host,
@@ -249,6 +255,10 @@ func newEmailSenders(
 		}
 
 		return client, client, nil
+	case config.LogDriver:
+		client := email.NewLog(slog.Default())
+
+		return client, client, nil
 	default:
 		return nil, nil, fmt.Errorf("unsupported email provider %q", cfg.Driver)
 	}
@@ -259,12 +269,13 @@ func validateEmailConfig(cfg config.Mail, app config.App) error {
 	case config.MailpitDriver:
 		if app.IsProduction() {
 			return fmt.Errorf(
-				"email provider %q is for local development; set EMAIL_PROVIDER=%s in production",
+				"email provider %q is for local development; set EMAIL_PROVIDER=%s (or %s for a production-like local run) in production",
 				config.MailpitDriver,
 				config.SMTPDriver,
+				config.LogDriver,
 			)
 		}
-	case config.SMTPDriver:
+	case config.SMTPDriver, config.LogDriver:
 	default:
 		return fmt.Errorf("unsupported email provider %q", cfg.Driver)
 	}
@@ -272,7 +283,10 @@ func validateEmailConfig(cfg config.Mail, app config.App) error {
 	return nil
 }
 
-func newRenderer(cfg config.Config, hosts *routing.Hosts) (*inertia.Renderer, error) {
+// NewRenderer builds the Inertia renderer cmd/app uses, including the shared
+// props and kiks flash providers. Tests use it so their renderer mirrors the
+// runtime wiring instead of duplicating it.
+func NewRenderer(cfg config.Config, hosts *routing.Hosts) (*inertia.Renderer, error) {
 	return inertia.NewRenderer(
 		inertia.RendererConfig{
 			ContainerID:         cfg.Inertia.ContainerID,
@@ -293,6 +307,10 @@ func newRenderer(cfg config.Config, hosts *routing.Hosts) (*inertia.Renderer, er
 			"hosts":      cfg.App.HostOrigins(),
 		}),
 		inertia.WithSharedProvider(sharedAuth),
+		// Layouts render page.flash from the kiks flash cookie.
+		inertia.WithFlashProvider(func(ctx context.Context) any {
+			return kiks.Flashes(ctx)
+		}),
 		inertia.WithSSRFailFast(cfg.Inertia.SSRFailFast),
 	)
 }
