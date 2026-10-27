@@ -47,6 +47,9 @@ func (h AuthHandler) Register(rt *anduin.Router) {
 		h.throttle(h.tooManyAttempts("Auth/Login", "email")),
 	)
 	rt.Delete(routes.SessionDestroy.Pattern(), h.SessionDestroy)
+	// The POST route lets a plain HTML form sign out without JavaScript; the
+	// DELETE route stays for the Inertia link.
+	rt.Post(routes.SessionDestroy.Pattern(), h.SessionDestroy)
 
 	rt.Get(routes.RegistrationNew.Pattern(), h.RegistrationNew)
 	rt.Post(

@@ -628,6 +628,8 @@ CORS_ALLOWED_ORIGINS=
 CSRF_STRATEGY=header_only
 CSRF_TRUSTED_ORIGINS=
 HTTP_TRUSTED_PROXIES=
+# Set false to serve responses uncompressed.
+HTTP_COMPRESS=true
 
 # Telemetry (optional)
 TELEMETRY_SERVICE_NAME=app

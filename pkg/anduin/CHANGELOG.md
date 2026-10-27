@@ -6,12 +6,27 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ### Added
 
+- `Blob` writes a body with an explicit content type for responses that are
+  neither JSON, text, nor HTML.
+- `ServeContent` exports the ETag / conditional-GET handling `StaticFS` uses: it
+  derives the same ETag format from the body, sets the content type from the
+  file extension, and answers a matching `If-None-Match` with
+  `304 Not Modified`. `SitemapURL.LastMod` adds the optional `<lastmod>` W3C
+  datetime, omitted when zero.
+- `Compress` gzips responses as an `http.Handler` wrapper, so it can sit outside
+  `Router.Handler()` and cover `ErrorHandler` pages too. It skips bodies under
+  1 KiB, already-encoded responses, `HEAD`, upgrades and event streams, and
+  adds `Vary: Accept-Encoding`.
 - `ErrNotFound` is passed to the `ErrorHandler` when no route matches a
   request, so apps can render their themed not-found page instead of
   `http.ServeMux`'s plain-text 404. `StatusCode` reports it as 404. Method
   mismatches still return 405.
 - `anduintest.WithErrorHandler` installs an `ErrorHandler` on the test router
   so tests can exercise mapped errors.
+
+### Changed
+
+- `Sitemap` omits an empty `<changefreq>` element instead of writing it empty.
 
 ## 0.4.1 - 2026-10-26
 

@@ -138,6 +138,11 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	handlers.NewAPIHandler(db).Register(router)
 
 	app.Handler = router.Handler()
+	if cfg.HTTP.Compress {
+		// Compress wraps the router rather than the middleware chain so that
+		// ErrorHandler pages are compressed too.
+		app.Handler = anduin.Compress(app.Handler)
+	}
 	app.Server = anduin.NewServer(
 		ctx,
 		cfg.HTTP.Host,
