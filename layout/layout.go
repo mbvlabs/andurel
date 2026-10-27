@@ -2,6 +2,7 @@
 package layout
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -430,6 +431,7 @@ func processTemplatedFiles(targetDir string, data *TemplateData) error {
 				string(templateFile),
 				string(targetPath),
 				templates.Files,
+				data,
 			); err != nil {
 				return fmt.Errorf("failed to copy file %s: %w", templateFile, err)
 			}
@@ -510,13 +512,27 @@ func processMigrations(
 	return nil
 }
 
+// andurelInstallPlaceholder marks the install command in static scaffold
+// assets. Those files are copied verbatim (their Vue/Svelte syntax includes
+// Go-looking delimiters), so a byte-level replacement keeps the command in
+// sync with layout.AndurelInstallCommand.
+const andurelInstallPlaceholder = "__ANDUREL_INSTALL_COMMAND__"
+
 func copyFile(
 	targetDir, sourceFile, targetPath string,
 	fsys fs.FS,
+	data *TemplateData,
 ) error {
 	content, err := fs.ReadFile(fsys, sourceFile)
 	if err != nil {
 		return fmt.Errorf("failed to read file %s: %w", sourceFile, err)
+	}
+	if bytes.Contains(content, []byte(andurelInstallPlaceholder)) {
+		content = bytes.ReplaceAll(
+			content,
+			[]byte(andurelInstallPlaceholder),
+			[]byte(data.AndurelInstallCommand()),
+		)
 	}
 
 	fullTargetPath := filepath.Join(targetDir, targetPath)

@@ -25,7 +25,11 @@ tool pins. `andurel.lock` carries no project metadata of its own; it records the
 digests `andurel tool sync` verifies when it downloads a pinned binary. The CLI
 writes both, and `andurel inspect project` reads both. Edit `andurel.toml` by
 hand only when you know the target release supports the change; let
-`andurel tool set-version` and `andurel upgrade` own the lock.
+`andurel tool set-version` and `andurel upgrade` own the lock; hand-editing a
+digest makes the next download fail verification. Commands that read the
+adapter (`andurel sync routes`, `andurel sync payloads`) and commands that pin
+tools (`andurel tool set-version`) read and write `andurel.toml`, not
+`andurel.lock`.
 
 ## Supported upgrade paths
 

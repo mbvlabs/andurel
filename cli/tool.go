@@ -15,7 +15,8 @@ func newToolCommand() *cobra.Command {
 		Short:   "Manage project tools and binaries",
 		Long: `Manage CLI tools and binaries used by your Andurel project.
 
-Tools are defined in andurel.lock and downloaded to bin/. Use the
+Tool versions are pinned in andurel.toml under [tools]; andurel.lock holds
+the per-platform SHA-256 digests used to verify downloads. Use the
 subcommands below to sync, configure, or run tools.`,
 		Example: `  andurel tool sync
   andurel tool list --json

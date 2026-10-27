@@ -27,7 +27,7 @@ type routeManifestRoute struct {
 	Exact       bool   `json:"exact,omitempty"`
 	Constructor string `json:"constructor"`
 	Kind        string `json:"kind"`
-	Host        string `json:"host,omitempty"`
+	Host        string `json:"host"`
 	// IsInertia records routing.TypeScriptRoute() (and its deprecated
 	// InertiaRoute alias). The JSON name is kept for output compatibility.
 	IsInertia  bool                 `json:"is_inertia"`
@@ -310,6 +310,9 @@ func routeManifestFromValue(
 	isInertia, exact, host, errReason := evalRouteSetupOptions(call.Args[3:], hostNames)
 	if errReason != "" {
 		return routeManifestRoute{}, skip(errReason), true
+	}
+	if host == "" {
+		host = string(mustHostPrimary())
 	}
 
 	routePath := configureRouteManifestPath(path, prefix)

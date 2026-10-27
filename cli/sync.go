@@ -23,11 +23,13 @@ func newSyncCommand() *cobra.Command {
 		Use:     "sync",
 		Aliases: []string{"s"},
 		Short:   "Download and validate binaries pinned in andurel.toml",
-		Long: `Download all tools listed in andurel.toml to bin/, verifying digests
-from andurel.lock. Already-downloaded tools at the correct version are skipped.
+		Long: `Download all tools listed under [tools] in andurel.toml to bin/, verifying
+digests from andurel.lock. Already-downloaded tools at the correct version are
+skipped.
 
 Managed tools include narsilc, templ, goose, mailpit, usql, dblab, shadowfax,
-and tailwindcli. Versions are pinned in andurel.toml.`,
+and tailwindcli. Versions are pinned in andurel.toml; andurel.lock holds the
+per-platform SHA-256 digests.`,
 		Example: `  andurel tool sync`,
 		Args:    cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -114,4 +114,4 @@ leader run housekeeping immediately instead of waiting a full interval.
 - [ ] Worker registered in `queue/workers.go`.
 - [ ] Enqueue call made from a service (on a bound queue when it must commit with data).
 - [ ] Recurring jobs returned from `queue/PeriodicJobs()`.
-- [ ] `andurel inspect jobs --json` lists the new file.
+- [ ] `andurel inspect jobs --json` lists the args type as a job and the worker type as a worker.

@@ -101,6 +101,9 @@ func renderRootHelp(cmd *cobra.Command, w io.Writer) {
 func renderGroupHelp(cmd *cobra.Command, w io.Writer) {
 	helpPrintln(w, commandHeadline(cmd))
 	helpPrintln(w)
+	if meta, ok := metaFor(cmd); ok {
+		writeBulletSection(w, "Notes", meta.GroupNotes)
+	}
 	helpPrintln(w, "Usage:")
 	helpPrintf(w, "  %s <command> [args...]\n", cmd.CommandPath())
 	helpPrintf(w, "  %s --help\n", cmd.CommandPath())

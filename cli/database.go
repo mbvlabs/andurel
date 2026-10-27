@@ -69,6 +69,9 @@ func newDatabaseCommand() *cobra.Command {
 		Long: `Commands for managing your Andurel project's database lifecycle:
 create, drop, nuke, rebuild, seed, migrate, and console.
 
+Only andurel db seed supports --json. db create, db drop, db nuke, db rebuild,
+and every db migrate command stream command output and reject --json.
+
 Creating a SQL migration file is andurel generate migration.`,
 	}
 
@@ -263,7 +266,9 @@ func newDBSeedCommand() *cobra.Command {
 		Short:   "Run database seeds",
 		Long: `Run the database seed entrypoint at cmd/seeds.
 
-Edit seeds/ to add reusable named seed sets using model factories.`,
+Seeds are registered in seeds/seeds.go as named runners that call exported
+domain APIs. With no name, the "development" set runs (seeds.Default).
+Use --list to print every registered name.`,
 		Args: cobra.MaximumNArgs(1),
 		Example: `  andurel db seed
   andurel db seed development
@@ -280,7 +285,7 @@ Edit seeds/ to add reusable named seed sets using model factories.`,
 	setAgentMetadata(
 		cmd,
 		"database",
-		"Runs the v1 seed entrypoint at cmd/seeds. Use --list to discover available named seeds.",
+		"Runs a named seed set from seeds/seeds.go. No name runs the default \"development\" set; use --list to discover names.",
 	)
 
 	cmd.Flags().BoolVar(&list, "list", false, "List available seeds")
@@ -380,7 +385,8 @@ This is a full database reset:
   3. Runs all pending migrations
   4. Seeds the database through cmd/seeds
 
-Use --seed to choose a named seed set. Use --skip-seed to skip step 4.
+Use --seed to choose a named seed set; without it the "development" set
+runs (seeds.Default). Use --skip-seed to skip step 4.
 Use --force to override system
 database protection for the drop step.`,
 		Args:    cobra.NoArgs,
@@ -395,7 +401,7 @@ database protection for the drop step.`,
 	setAgentMetadata(
 		cmd,
 		"database",
-		"Drops, recreates, migrates, then runs cmd/seeds. Use --seed to select the seed set.",
+		"Drops, recreates, migrates, then runs cmd/seeds. No --seed runs the default \"development\" set; use --seed to select another.",
 	)
 
 	cmd.Flags().
@@ -421,7 +427,7 @@ func runSeed(cmd *cobra.Command, name string, list bool) error {
 				output.CodeMissingTool,
 				fmt.Sprintf("seed entrypoint not found at %s", cmdSeedsMain),
 				output.ExitDependency,
-				fmt.Sprintf("Create %s or run andurel new to scaffold a v1 project.", cmdSeedsMain),
+				fmt.Sprintf("Create %s or run andurel new to scaffold a project.", cmdSeedsMain),
 			)
 		}
 		return err

@@ -27,10 +27,12 @@ type CommandMeta struct {
 	Mutating         bool          `json:"mutating"`
 	Destructive      bool          `json:"destructive,omitempty"`
 	RequiresProject  bool          `json:"requires_project,omitempty"`
-	SupportsDryRun   bool          `json:"supports_dry_run,omitempty"`
+	SupportsDryRun   bool          `json:"supports_dry_run"`
+	SupportsJSON     bool          `json:"supports_json"`
 	SkipDryRunCheck  bool          `json:"skip_dry_run_check,omitempty"`
 	Prompts          bool          `json:"prompts,omitempty"`
 	InteractiveFlags []string      `json:"interactive_flags,omitempty"`
+	GroupNotes       []string      `json:"group_notes,omitempty"`
 }
 
 type catalogRecord struct {
@@ -133,6 +135,7 @@ func registerAllCommandMeta(root *cobra.Command) {
 			continue
 		}
 		spec.Group = groupFromCommand(cmd)
+		spec.SupportsJSON = cmd.Annotations[projectionAnnotationPrefix+"jq"] == "true"
 		if cmd.CommandPath() == "andurel verify" {
 			spec.Rules = layers.Catalog()
 		}
