@@ -20,16 +20,18 @@ type routeManifest struct {
 }
 
 type routeManifestRoute struct {
-	Variable    string               `json:"variable"`
-	Name        string               `json:"name"`
-	Path        string               `json:"path"`
-	Constructor string               `json:"constructor"`
-	Kind        string               `json:"kind"`
-	Host        string               `json:"host,omitempty"`
-	IsInertia   bool                 `json:"is_inertia"`
-	Params      []routeManifestParam `json:"params,omitempty"`
-	SourceFile  string               `json:"source_file"`
-	Line        int                  `json:"line"`
+	Variable    string `json:"variable"`
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	Constructor string `json:"constructor"`
+	Kind        string `json:"kind"`
+	Host        string `json:"host,omitempty"`
+	// IsInertia records routing.TypeScriptRoute() (and its deprecated
+	// InertiaRoute alias). The JSON name is kept for output compatibility.
+	IsInertia  bool                 `json:"is_inertia"`
+	Params     []routeManifestParam `json:"params,omitempty"`
+	SourceFile string               `json:"source_file"`
+	Line       int                  `json:"line"`
 }
 
 type routeManifestParam struct {
@@ -414,6 +416,9 @@ func hostNameFromExpr(expr ast.Expr, hostNames map[string]string) (string, bool)
 	}
 }
 
+// isInertiaRouteOption recognizes the route setup option that opts a route into
+// generated TypeScript helpers. TypeScriptRoute is the current name;
+// InertiaRoute is the deprecated alias.
 func isInertiaRouteOption(expr ast.Expr) bool {
 	call, ok := expr.(*ast.CallExpr)
 	if !ok || len(call.Args) != 0 {
@@ -424,7 +429,10 @@ func isInertiaRouteOption(expr ast.Expr) bool {
 		return false
 	}
 	ident, ok := sel.X.(*ast.Ident)
-	return ok && ident.Name == "routing" && sel.Sel.Name == "InertiaRoute"
+	if !ok || ident.Name != "routing" {
+		return false
+	}
+	return sel.Sel.Name == "TypeScriptRoute" || sel.Sel.Name == "InertiaRoute"
 }
 
 func routeConstructorName(expr ast.Expr) (string, bool) {

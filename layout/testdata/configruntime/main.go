@@ -44,6 +44,12 @@ func main() {
 	must(os.Setenv("HOST_PRIMARY", "localhost:8080"))
 	app, err := config.NewApp()
 	must(err)
+	assert(app.SiteName == "Testapp", "site name default")
+	must(os.Setenv("SITE_NAME", "Test App"))
+	app, err = config.NewApp()
+	must(err)
+	assert(app.SiteName == "Test App", "site name override")
+	must(os.Unsetenv("SITE_NAME"))
 	_, err = config.NewTelemetry(app)
 	assert(err != nil && strings.Contains(err.Error(), "TRACE_SAMPLE_RATE"), "telemetry parse error")
 

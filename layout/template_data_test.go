@@ -37,6 +37,44 @@ func TestTemplateDataAccessors(t *testing.T) {
 	}
 }
 
+func TestTemplateDataSiteNameAndSlug(t *testing.T) {
+	for _, tc := range []struct {
+		project  string
+		siteName string
+		slug     string
+	}{
+		{"andurel-site", "Andurel Site", "andurel-site"},
+		{"testapp", "Testapp", "testapp"},
+		{"My App 2", "My App 2", "my-app-2"},
+	} {
+		data := &TemplateData{ProjectName: tc.project}
+		if got := data.SiteName(); got != tc.siteName {
+			t.Errorf("SiteName(%q) = %q, want %q", tc.project, got, tc.siteName)
+		}
+		if got := data.Slug(); got != tc.slug {
+			t.Errorf("Slug(%q) = %q, want %q", tc.project, got, tc.slug)
+		}
+	}
+
+	if got := (&TemplateData{Inertia: "react"}).InertiaEntryPoint(); got != "resources/js/app.tsx" {
+		t.Fatalf("react entry point = %q", got)
+	}
+	if got := (&TemplateData{Inertia: "vue"}).InertiaEntryPoint(); got != "resources/js/app.ts" {
+		t.Fatalf("vue entry point = %q", got)
+	}
+
+	var nilData *TemplateData
+	if got := nilData.SiteName(); got != "" {
+		t.Fatalf("expected empty site name for nil receiver, got %q", got)
+	}
+	if got := nilData.Slug(); got != "" {
+		t.Fatalf("expected empty slug for nil receiver, got %q", got)
+	}
+	if got := nilData.InertiaEntryPoint(); got != "resources/js/app.ts" {
+		t.Fatalf("expected default entry point for nil receiver, got %q", got)
+	}
+}
+
 func TestTemplateDataBlueprintLifecycle(t *testing.T) {
 	data := &TemplateData{}
 

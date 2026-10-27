@@ -583,7 +583,9 @@ Use semantic utilities in Inertia pages (`bg-background`, `text-foreground`, `bg
 
 ## Environment Configuration
 
-Key environment variables (see `.env.example` for all options):
+Key environment variables (see `.env.example` for all options, or run
+`andurel inspect config --json` to list every key and default read by
+`config/*.go`):
 
 ```bash
 # Application
@@ -591,6 +593,8 @@ ENVIRONMENT=development
 HOST=localhost
 PORT=8080
 PROJECT_NAME={{.ProjectName}}
+# Display name for titles and the shared siteName prop.
+SITE_NAME={{.SiteName}}
 HOST_PRIMARY=localhost:8080
 PROTOCOL=http
 
@@ -716,7 +720,7 @@ Layout CSS and JS stay on the primary host unless those routes set `routing.Host
 
 Inertia Vite files stay on the primary host. Production tags from `pkg/inertia` use `ViteBuild.FullURL(hosts)` plus `crossorigin` so a secondary-host page loads the entry from primary. Vite production `base` is `'./'` so hashed chunks and fonts resolve against that script URL, not the page origin. Development keeps `base: '/assets/dist/'` and tags that hit `INERTIA_VITE_DEV_URL`.
 
-Inertia TypeScript helpers from `andurel sync routes` return full URLs. Boot configures origins once via the shared `hosts` prop (`configureRouteHosts` in `resources/js/app` / SSR entry), so `routes.homePage()` resolves to the correct host without per-call arguments. Use `routes.homePage.path()` when a relative path is required. Run `andurel sync routes` after adding host-bound Inertia routes. Not-found handlers are registered on every configured host.
+Inertia TypeScript helpers from `andurel sync routes` return full URLs for routes marked `routing.TypeScriptRoute()` (`routing.InertiaRoute()` is a deprecated alias). Boot configures origins once via the shared `hosts` prop (`configureRouteHosts` in `resources/js/app` / SSR entry), so `routes.homePage()` resolves to the correct host without per-call arguments. Use `routes.homePage.path()` when a relative path is required. Call helpers at render time rather than caching `const url = routes.homePage()` at module scope: origins are configured after boot. Run `andurel sync routes` after adding host-bound routes. Not-found handlers are registered on every configured host.
 
 To serve layout CSS/JS from `assets.example.com`, declare `const HostAssets routing.HostName = "assets"`, bind `HOST_ASSETS`, and put `routing.Host(config.HostAssets)` on those routes. There is no framework special case — it is another named host. For Inertia Vite, bind `ViteBuild` to that host too; `FullURL(hosts)` plus relative Vite `base` follow the script origin.
 

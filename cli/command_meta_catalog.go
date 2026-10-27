@@ -66,8 +66,13 @@ var commandMetaSpecs = map[string]CommandMeta{
 	},
 	"andurel sync routes": {
 		Summary: "Write TypeScript route helpers for Inertia",
+		Details: []string{
+			"Scans routes/*.go and writes resources/js/routes.ts for routes marked routing.TypeScriptRoute() (routing.InertiaRoute() is a deprecated alias).",
+			"JSON endpoints and asset URLs can opt in, not only Inertia page routes.",
+			"Helpers resolve the route host from configureRouteHosts after boot; call them at render time instead of caching a module-scope constant.",
+		},
 		WhenToUse: []string{
-			"After adding or changing Inertia routes in routes/.",
+			"After adding or changing routes in routes/.",
 			"After binding a route to a named host with routing.Host(...) so helpers embed the host and return full URLs.",
 		},
 		WhenNotToUse: []string{
@@ -81,10 +86,18 @@ var commandMetaSpecs = map[string]CommandMeta{
 		SkipDryRunCheck: true,
 	},
 	"andurel sync payloads": {
-		Summary:         "Write TypeScript payload types for Inertia",
-		WhenToUse:       []string{"After changing handler payload or Bind structs."},
+		Summary: "Write TypeScript payload types for Inertia",
+		Details: []string{
+			"Scans handlers for inertia.FromStruct props (page props) and named structs decoded with anduin.DecodeJSON or anduin.DecodeForm (request payloads).",
+			"Follows named struct fields into other packages in this Go module, so a handler prop may reference a type declared under internal/.",
+			"Request payloads must be named with a Payload suffix; otherwise the sync fails and asks for a rename. Page props keep their struct name.",
+			"Rejects domains/ types, unexported or generic structs, and fields with no TypeScript mapping; define a handler-owned payload instead.",
+			"Skips literal inertia.Props{...} maps because there is no static struct to read, and omits fields tagged json:\"-\".",
+			"Writes resources/js/types/payloads.ts.",
+		},
+		WhenToUse:       []string{"After changing handler page props or request payload structs."},
 		WhenNotToUse:    []string{"Use andurel inspect handlers to list handler files."},
-		Prerequisites:   []string{"Andurel project root", "Inertia adapter in andurel.lock"},
+		Prerequisites:   []string{"Andurel project root", "Inertia adapter in andurel.toml"},
 		Examples:        []string{"andurel sync payloads --json"},
 		Mutating:        true,
 		RequiresProject: true,
@@ -434,6 +447,17 @@ var commandMetaSpecs = map[string]CommandMeta{
 		WhenToUse:       []string{"Same as andurel project; explicit info subcommand."},
 		Prerequisites:   []string{"Andurel project root"},
 		Examples:        []string{"andurel inspect project info --json"},
+		RequiresProject: true,
+	},
+	"andurel inspect config": {
+		Summary: "List config env keys and defaults",
+		WhenToUse: []string{
+			"Discover every env key read by config/*.go before writing .env or deployment settings.",
+			"Check a key's default and the source file and line that reads it.",
+		},
+		WhenNotToUse:    []string{"Changing config values is an .env edit; this command only reads config source."},
+		Prerequisites:   []string{"Andurel project root"},
+		Examples:        []string{"andurel inspect config --json", "andurel inspect config --jq .keys"},
 		RequiresProject: true,
 	},
 	"andurel inspect routes": {

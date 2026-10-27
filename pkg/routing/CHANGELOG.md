@@ -4,6 +4,17 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+### Added
+
+- `TypeScriptRoute` route setup option for routes that need generated
+  TypeScript helpers (`resources/js/routes.ts`), including non-Inertia JSON
+  endpoints and asset URLs.
+
+### Changed
+
+- `InertiaRoute` is now a deprecated alias for `TypeScriptRoute`; existing
+  route files keep working.
+
 ## 0.5.1 - 2026-10-26
 
 ### Changed

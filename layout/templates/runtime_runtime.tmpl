@@ -298,11 +298,13 @@ func newRenderer(cfg config.Config, hosts *routing.Hosts) (*inertia.Renderer, er
 		},
 		inertia.WithRoot(resources.Root),
 		inertia.WithAssetFS(assets.Files),
-		inertia.WithProjectName(cfg.App.ProjectName),
+		// The root document title is the display name, not the identifier.
+		inertia.WithProjectName(cfg.App.SiteName),
 		inertia.WithEnvironment(cfg.App.Environment),
 		inertia.WithProtocolDebug(cfg.Inertia.ProtocolDebug),
 		inertia.WithShared(inertia.Props{
 			"appVersion": cfg.Version,
+			"siteName":   cfg.App.SiteName,
 			"hosts":      cfg.App.HostOrigins(),
 		}),
 		inertia.WithSharedProvider(sharedAuth),

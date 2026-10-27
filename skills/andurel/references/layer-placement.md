@@ -228,6 +228,10 @@ Route values expose `Name() string`, `Path() string`, `URL(params ...string)
 string`, `FullURL(hosts *routing.Hosts, ...) string`, `Host()
 routing.HostName`, and `IsInertia() bool`.
 
+Pass `routing.TypeScriptRoute()` to opt a route into generated TypeScript
+helpers (`resources/js/routes.ts`), including JSON endpoints and asset URLs.
+`routing.InertiaRoute()` is a deprecated alias for the same option.
+
 Handlers and services refer to these route values for registration and URL
 generation. Do not scatter raw path strings through handlers and pages when a
 route value should exist. After adding or changing routes, run
@@ -284,6 +288,10 @@ formatting).
 Never invent frontend URLs: import `resources/js/routes.ts` after
 `andurel sync routes --json`. Import page/form types from
 `resources/js/types/payloads.ts` after `andurel sync payloads --json`.
+
+Call route helpers at render time (`routes.widgetShow(id)`), not in a
+module-scope constant: hosts are configured after boot, so a constant captured
+at import time keeps an empty origin (or a stale SSR value).
 
 ## Queue And Email
 

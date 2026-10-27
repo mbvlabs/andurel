@@ -22,7 +22,7 @@ var SessionCreate = routing.NewSimpleRoute(
 	"/sign-in",
 	"users.user_session",
 	UserPrefix,
-	routing.InertiaRoute(),
+	routing.TypeScriptRoute(),
 )
 
 var PasswordEdit = routing.NewRouteWithToken(

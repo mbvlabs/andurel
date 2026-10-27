@@ -9,12 +9,22 @@ type RouteOption func(*routeOptions)
 // RouteSetupOption configures route construction options.
 type RouteSetupOption func(*routeConfig)
 
-// InertiaRoute marks a route for inclusion in generated Inertia
-// TypeScript route helpers (resources/js/routes.ts).
-func InertiaRoute() RouteSetupOption {
+// TypeScriptRoute marks a route for inclusion in generated TypeScript route
+// helpers (resources/js/routes.ts). It is not limited to Inertia page routes:
+// JSON endpoints and asset URLs can opt in too.
+func TypeScriptRoute() RouteSetupOption {
 	return func(cfg *routeConfig) {
 		cfg.isInertia = true
 	}
+}
+
+// InertiaRoute is the deprecated name for TypeScriptRoute. Use
+// TypeScriptRoute for new routes; this alias keeps existing route files
+// compiling.
+//
+// Deprecated: use TypeScriptRoute.
+func InertiaRoute() RouteSetupOption {
+	return TypeScriptRoute()
 }
 
 // Route represents routes with no URL parameters

@@ -75,6 +75,7 @@ Inspect a project:
 
 ```bash
 andurel inspect project --json
+andurel inspect config --json
 andurel inspect routes --json
 andurel inspect handlers --json
 andurel inspect domains --json
@@ -120,7 +121,9 @@ andurel inspect routes --json
 andurel sync routes --json
 ```
 
-`andurel sync routes` reads `routes/*.go` as the source of truth and writes `resources/js/routes.ts`. Import helpers from that file in Inertia pages instead of hard-coding URLs. Helpers include the route host and return absolute URLs once `configureRouteHosts` has run; call `routes.name.path()` when a relative path is required.
+`andurel sync routes` reads `routes/*.go` as the source of truth and writes `resources/js/routes.ts` for routes marked `routing.TypeScriptRoute()` (`routing.InertiaRoute()` is a deprecated alias). Import helpers from that file in Inertia pages instead of hard-coding URLs. Helpers include the route host and return absolute URLs once `configureRouteHosts` has run; call `routes.name.path()` when a relative path is required.
+
+Call helpers at render time (`href={routes.widgetShow(id)}`), not in a module-scope constant such as `const url = routes.widgetShow(id)`: `configureRouteHosts` runs after the app boots, so a constant captured at import time keeps an empty origin (or the server's request-time value under SSR).
 
 Generate Inertia payload types:
 
@@ -128,7 +131,7 @@ Generate Inertia payload types:
 andurel sync payloads --json
 ```
 
-`andurel sync payloads` scans handler `inertia.FromStruct` props and the named `*Payload` structs passed to `anduin.DecodeJSON`/`DecodeForm` and writes `resources/js/types/payloads.ts`. Import page and form types from that file instead of hand-written TypeScript. Run it after editing those Go structs.
+`andurel sync payloads` scans handler `inertia.FromStruct` props (page props) and the named structs passed to `anduin.DecodeJSON`/`DecodeForm` (request payloads) and writes `resources/js/types/payloads.ts`. It follows named struct fields into other packages in the module, so a handler prop may reference a type such as `docs.PageProps`. Request payloads must be named with a `Payload` suffix; page props keep their struct name. `domains/` types are rejected, so define a handler-owned payload instead. Calls that pass a literal `inertia.Props{...}` map are skipped and need hand-written TypeScript. Import the generated page and form types from that file instead of hand-written TypeScript, and run it after editing those Go structs.
 
 Generate a named database seed:
 
