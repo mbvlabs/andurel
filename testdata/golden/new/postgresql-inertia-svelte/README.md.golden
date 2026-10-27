@@ -153,9 +153,12 @@ andurel patterns show domain
 andurel patterns show service
 andurel patterns show handler
 andurel patterns show route
+andurel patterns show middleware
+andurel patterns show page
 andurel patterns show composition
 andurel patterns show test-domain
 andurel patterns show test-handler
+andurel patterns show test-middleware
 ```
 
 Refresh derived files from their source of truth:
@@ -649,7 +652,7 @@ This project uses Tailwind CSS v4 with shadcn-style CSS variables in `css/theme.
 }
 ```
 
-Use semantic utilities in Inertia pages (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `text-accent`, `ring-ring`). The development server rebuilds CSS on change.
+Use semantic utilities in Inertia pages (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `text-accent`, `ring-ring`). In hand-written CSS, use the raw tokens with `var()` (`var(--background)`, `var(--foreground)`, `var(--radius)`, and the rest of the `:root` set); `css/theme.css` is the only place that maps them to Tailwind colors. The development server rebuilds CSS on change.
 
 ## Environment Configuration
 

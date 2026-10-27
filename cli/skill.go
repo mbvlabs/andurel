@@ -2,10 +2,13 @@ package cli
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -21,6 +24,7 @@ type skillInstallation struct {
 
 type skillReport struct {
 	Name          string              `json:"name"`
+	Reference     string              `json:"reference,omitempty"`
 	Path          string              `json:"path,omitempty"`
 	Installations []skillInstallation `json:"installations,omitempty"`
 	Body          string              `json:"body,omitempty"`
@@ -49,28 +53,47 @@ func newSkillCommand() *cobra.Command {
 	setAgentMetadata(cmd, "skill", "Provides the embedded Andurel agent skill.")
 
 	cmd.AddCommand(&cobra.Command{
-		Use:   "show",
-		Short: "Show the embedded Andurel skill",
-		Args:  cobra.NoArgs,
+		Use:   "show [reference]",
+		Short: "Show the embedded Andurel skill or one of its references",
+		Long: `Print the embedded Andurel skill.
+
+With a reference name, print that reference file instead of SKILL.md. Accepts
+the name ("http-and-routing"), the file path ("references/http-and-routing.md"),
+or the same with the .md suffix omitted. Available references:
+cli-catalog, http-and-routing, layer-placement.`,
+		Example: `  andurel skill show
+  andurel skill show layer-placement
+  andurel skill show references/http-and-routing.md --json`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts, err := output.ParseOptions(cmd)
 			if err != nil {
 				return err
 			}
+
+			reference := ""
+			body := skills.AndurelSkill
+			if len(args) == 1 {
+				reference, body, err = loadSkillReference(args[0])
+				if err != nil {
+					return err
+				}
+			}
+
 			if opts.Mode == output.ModeJSON || opts.Mode == output.ModeAgent {
 				return output.OK(
 					cmd,
-					skillReport{Name: "andurel", Body: skills.AndurelSkill},
+					skillReport{Name: "andurel", Reference: reference, Body: body},
 					"Loaded Andurel skill",
 				)
 			}
 			if opts.Quiet {
 				return nil
 			}
-			if _, err := fmt.Fprint(cmd.OutOrStdout(), skills.AndurelSkill); err != nil {
+			if _, err := fmt.Fprint(cmd.OutOrStdout(), body); err != nil {
 				return err
 			}
-			if !strings.HasSuffix(skills.AndurelSkill, "\n") {
+			if !strings.HasSuffix(body, "\n") {
 				_, err = fmt.Fprintln(cmd.OutOrStdout())
 				return err
 			}
@@ -240,6 +263,56 @@ func validSkillHarnessNames() string {
 
 func skillHarnessError(message, hint string) error {
 	return output.NewError(output.CodeUsage, message, output.ExitUsage, hint)
+}
+
+// loadSkillReference resolves shorthand names and file paths to an embedded
+// reference file and returns the canonical name and body.
+func loadSkillReference(raw string) (string, string, error) {
+	name := strings.TrimSpace(raw)
+	name = strings.TrimPrefix(name, "./")
+	name = strings.TrimPrefix(name, "andurel/")
+	name = strings.TrimSuffix(name, ".md")
+	name = strings.TrimPrefix(name, "references/")
+	name = strings.TrimPrefix(name, "/")
+	if name == "" || strings.Contains(name, "/") {
+		return "", "", skillReferenceError(raw)
+	}
+
+	body, err := skills.ReadAndurelSkillFile("references/" + name + ".md")
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", "", skillReferenceError(raw)
+		}
+		return "", "", fmt.Errorf("read skill reference %q: %w", raw, err)
+	}
+
+	return name, string(body), nil
+}
+
+func skillReferenceError(raw string) error {
+	return output.NewError(
+		output.CodeUsage,
+		fmt.Sprintf("unknown skill reference %q", raw),
+		output.ExitUsage,
+		"Use one of: "+strings.Join(skillReferenceNames(), ", ")+
+			"; run andurel skill show for SKILL.md.",
+	)
+}
+
+func skillReferenceNames() []string {
+	names := []string{}
+	if err := skills.WalkAndurelSkillFiles(func(path string, _ []byte) error {
+		rest, ok := strings.CutPrefix(path, "references/")
+		if !ok {
+			return nil
+		}
+		names = append(names, strings.TrimSuffix(rest, ".md"))
+		return nil
+	}); err != nil {
+		return names
+	}
+	sort.Strings(names)
+	return names
 }
 
 func installAndurelSkill(targetDir string) error {

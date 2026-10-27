@@ -11,6 +11,12 @@ definition); generic middleware such as rate limiting and CSRF comes from
 `pkg/anduin`. The cookie jar and the cache store are built here, in `newJar`
 and `cfg.Cache.Store()`.
 
+The snippet below is the shape of the scaffold's `internal/runtime/runtime.go`.
+`<module>` stands for your `go.mod` module path (for example
+`example.com/app`); substitute it for the imports. Keep the rest of the file's
+helpers (`newRenderer`, `newJar`, `newTelemetry`, `validateEmailConfig`) beside
+it.
+
 ## Files
 
 ### internal/runtime/runtime.go
@@ -23,12 +29,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"app/config"
-	"app/domains"
-	"app/handlers"
-	"app/middleware"
-	"app/routes"
-	"app/services"
+	"<module>/config"
+	"<module>/domains"
+	"<module>/handlers"
+	"<module>/middleware"
+	"<module>/routes"
+	"<module>/services"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/lifecycle"
@@ -46,6 +52,10 @@ type App struct {
 }
 
 func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
+	if err := validateEmailConfig(cfg.Mail, cfg.App); err != nil {
+		return nil, err
+	}
+
 	hosts, err := routing.NewHosts(cfg.App.Hosts)
 	if err != nil {
 		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
@@ -113,7 +123,8 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 		return nil, err
 	}
 
-	rt := anduin.NewRouter(
+	router := anduin.NewRouter(
+		anduin.WithHosts(hosts),
 		anduin.WithErrorHandler(handlers.MapError(renderer)),
 		anduin.WithTelemetry(tel),
 	)
@@ -127,7 +138,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	)
 	csrf.Skipper = anduin.SkipCSRFForBearer(routes.APIPrefix, cfg.Session.Name)
 
-	rt.Use(
+	router.Use(
 		anduin.Recover(),
 		anduin.RealIP(cfg.HTTP.TrustedProxies...),
 		anduin.Telemetry(tel),
@@ -137,20 +148,34 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 		anduin.CSRF(csrf),
 	)
 
-	handlers.NewPagesHandler(renderer).Register(rt, middleware.AuthOnly(users))
-	assetsHandler.Register(rt)
-	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(rt)
-	handlers.NewAPIHandler(db).Register(rt)
+	handlers.NewPagesHandler(renderer).Register(router, middleware.AuthOnly(users))
+	assetsHandler.Register(router)
+	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)
+	handlers.NewAPIHandler(db).Register(router)
 
-	app.Handler = rt.Handler()
-	app.Server = anduin.NewServer(ctx, cfg.HTTP.Host, cfg.HTTP.Port, app.Handler,
-		anduin.WithTimeouts(cfg.HTTP.IdleTimeout, cfg.HTTP.ReadTimeout, cfg.HTTP.WriteTimeout))
+	app.Handler = router.Handler()
+	app.Server = anduin.NewServer(
+		ctx,
+		cfg.HTTP.Host,
+		cfg.HTTP.Port,
+		app.Handler,
+		anduin.WithTimeouts(
+			cfg.HTTP.IdleTimeout,
+			cfg.HTTP.ReadTimeout,
+			cfg.HTTP.WriteTimeout,
+		),
+	)
 
 	return app, nil
 }
 
-func (a *App) Start() error                       { return a.Server.Start() }
-func (a *App) Shutdown(ctx context.Context) error { return a.Server.Shutdown(ctx) }
+func (a *App) Start() error {
+	return a.Server.Start()
+}
+
+func (a *App) Shutdown(ctx context.Context) error {
+	return a.Server.Shutdown(ctx)
+}
 
 func (a *App) Close(ctx context.Context) error {
 	return a.closers.Close(ctx)
@@ -161,17 +186,20 @@ func (a *App) Close(ctx context.Context) error {
 
 - Construct dependencies bottom-up in `internal/runtime/runtime.go` with one `New`.
 - Build the jar in `newJar` and the cache with `cfg.Cache.Store()`; middleware is policy only.
-- Register flat handlers with `handlers.NewXHandler(...).Register(rt)`; there is no reflection.
+- Register flat handlers with `handlers.NewXHandler(...).Register(router)`; there is no reflection. `PagesHandler.Register` takes the router plus optional middleware, `AssetsHandler.Register` takes only the router.
+- Construct the router with `anduin.NewRouter(anduin.WithHosts(hosts), ...)`. The host registry is what makes `routing.Host(...)`, `rt.Host(...)`, and route `FullURL(hosts, ...)` calls agree; without it every request is served by the primary mux.
 - Add each dependency's cleanup to a `lifecycle.Stack` as soon as it is built; `Close` releases them in reverse, and the same path cleans up a failed `New`.
 - `cmd/app` is env load + `runtime.New` + `lifecycle.Run`, with `lifecycle.WithBlockingStart()` for the HTTP serve loop, `app.Shutdown` as stop and a deferred `closeApp` releasing the rest. Ready-returning starters such as the queue worker use the default, which finishes startup before shutdown.
 - Add a new dependency by constructing it here and passing it down; never reach for a container or a global.
 - Build one `storage.NewTransactor(db)` and each domain receiver with `domains.NewX(db)`, then pass them individually to the services and handlers that use them. Handlers that need only health take a narrow interface (`healthChecker`, satisfied by `db`).
 - Only the wiring layers (`internal/runtime`, `cmd`, `seeds`, `migrations`) and `domains` may name `storage.Connection`; services and handlers never do.
 - A new domain is one `domains.NewX(db)` line here, passed to whoever uses it.
+- Validate boot-time configuration before building the graph (the scaffold's `validateEmailConfig` is the worked example), so a misconfigured process fails at startup instead of on the first request.
 
 ## Checklist
 
 - [ ] New dependency constructed explicitly in `runtime.New`.
-- [ ] Handler registered with a constructor call plus `Register`.
+- [ ] `anduin.WithHosts(hosts)` is passed to `anduin.NewRouter`.
+- [ ] Handler registered with a constructor call plus `Register(router)` and the right middleware arguments.
 - [ ] Shutdown function added to the `lifecycle.Stack` if needed.
 - [ ] `andurel verify` passes and the app boots.

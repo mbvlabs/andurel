@@ -34,6 +34,20 @@ func TestWalkAndurelSkillFiles(t *testing.T) {
 	}
 }
 
+func TestReadAndurelSkillFile(t *testing.T) {
+	data, err := ReadAndurelSkillFile("SKILL.md")
+	if err != nil {
+		t.Fatalf("read SKILL.md: %v", err)
+	}
+	if string(data) != AndurelSkill {
+		t.Fatal("SKILL.md does not match the embedded skill body")
+	}
+
+	if _, err := ReadAndurelSkillFile("references/does-not-exist.md"); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("expected missing reference error, got %v", err)
+	}
+}
+
 type unreadableSkillFS struct {
 	fstest.MapFS
 }

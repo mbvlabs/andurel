@@ -527,7 +527,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 		Args:         "<kind>",
 		WhenToUse:    []string{"Read the complete requirement for a primitive: files, rules, and a definition-of-done checklist.", "Render the per-entity file manifest with --entity/--table instead of generating code; with <Entity>Row in domains/internal/queries/models.go it includes the entity, receiver, Validate() stub and CRUD .sql, otherwise a migration skeleton."},
 		WhenNotToUse: []string{"Do not expect it to write files; it prints reference code only."},
-		Examples:     []string{"andurel patterns show domain", "andurel patterns show test-handler --json", "andurel patterns show domain --entity User --table users --json"},
+		Examples:     []string{"andurel patterns show domain", "andurel patterns show middleware", "andurel patterns show page --json", "andurel patterns show domain --entity User --table users --json"},
 	},
 	"andurel verify": {
 		Summary:         "Check formatting, vet, layer boundaries, frontend, and generated code",
@@ -544,9 +544,10 @@ var commandMetaSpecs = map[string]CommandMeta{
 		Examples:  []string{"andurel skill show", "andurel skill install --harness pi"},
 	},
 	"andurel skill show": {
-		Summary:   "Print the embedded Andurel skill",
-		WhenToUse: []string{"Read the skill body without installing it."},
-		Examples:  []string{"andurel skill show", "andurel skill show --json"},
+		Summary:   "Print the embedded Andurel skill or one of its references",
+		Args:      "[reference]",
+		WhenToUse: []string{"Read the skill body without installing it.", "Print a reference such as http-and-routing or layer-placement without installing the skill."},
+		Examples:  []string{"andurel skill show", "andurel skill show layer-placement", "andurel skill show --json"},
 	},
 	"andurel skill install": {
 		Summary:          "Install the embedded skill into an agent harness",

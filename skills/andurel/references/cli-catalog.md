@@ -14,8 +14,10 @@ andurel --agent --help
 
 ## Workflow
 
-1. `andurel inspect project --json` — lockfile, Inertia adapter, tools.
+1. `andurel inspect project --json` — manifest, Inertia adapter, tools.
 2. `andurel patterns show <kind>` — read the reference shape for a layer.
+   `andurel skill show <reference>` prints the skill's `http-and-routing`,
+   `layer-placement`, or `cli-catalog` reference without installing it.
 3. `andurel generate migration NAME` — create a migration (the only generated file).
 4. Write domains, services, handlers, routes, and middleware by hand.
 5. `andurel sync queries` / `sync routes` / `sync payloads` / `sync email` — refresh derived files.
@@ -77,9 +79,9 @@ also prints each rule's fix):
 `andurel patterns` never writes files. It prints reference code, the placement
 rules, and a "definition of done" checklist you self-verify against.
 
-Pattern ids: `domain`, `service`, `handler`, `route`, `job`, `email`,
-`migration`, `test-domain`, `test-handler`, `test-integration`, `composition`,
-`deploy`.
+Pattern ids: `domain`, `service`, `handler`, `route`, `middleware`, `page`,
+`job`, `email`, `migration`, `test-domain`, `test-handler`,
+`test-integration`, `test-middleware`, `composition`, `deploy`.
 
 ## Groups
 
@@ -101,6 +103,7 @@ andurel patterns list --json
 andurel patterns show domain
 andurel patterns show handler --json
 andurel patterns show domain --entity User --table users --json
+andurel skill show layer-placement
 andurel generate migration create_posts
 andurel db migrate up
 andurel inspect project --json
@@ -183,7 +186,7 @@ andurel run --tools mailpit
 | `andurel run` | Start the development server (`--tools mailpit` for sidecars) |
 | `andurel skill` | Show or install the embedded Andurel skill |
 | `andurel skill install` | Install the embedded skill into an agent harness |
-| `andurel skill show` | Print the embedded Andurel skill |
+| `andurel skill show` | Print the embedded Andurel skill or one of its references |
 | `andurel sync` | Refresh derived files from a source of truth |
 | `andurel sync email` | Compile email templates into inline-styled Go |
 | `andurel sync payloads` | Write TypeScript payload types for Inertia |
@@ -193,7 +196,7 @@ andurel run --tools mailpit
 | `andurel tool dblab` | Open the dblab database UI |
 | `andurel tool list` | List project tool status |
 | `andurel tool mailpit` | Start Mailpit for local email capture |
-| `andurel tool set-version` | Pin a tool version in andurel.lock and sync it |
-| `andurel tool sync` | Download pinned binaries from andurel.lock |
+| `andurel tool set-version` | Pin a tool version in andurel.toml and sync it |
+| `andurel tool sync` | Download pinned binaries and verify the andurel.lock hashes |
 | `andurel upgrade` | Upgrade the project to this CLI version |
 | `andurel verify` | Check formatting, vet, layer boundaries, frontend, and generated code |

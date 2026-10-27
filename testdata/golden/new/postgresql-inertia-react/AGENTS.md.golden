@@ -25,12 +25,15 @@ andurel patterns show domain
 andurel patterns show service
 andurel patterns show handler
 andurel patterns show route
+andurel patterns show middleware
+andurel patterns show page
 andurel patterns show job
 andurel patterns show email
 andurel patterns show migration
 andurel patterns show test-domain
 andurel patterns show test-handler
 andurel patterns show test-integration
+andurel patterns show test-middleware
 andurel patterns show composition
 andurel patterns show domain --json
 andurel patterns show domain --entity User --table users --json
@@ -38,7 +41,7 @@ andurel patterns show domain --entity User --table users --json
 
 ## Layer placement
 
-Where code belongs (domains, services, handlers, routes, middleware, `internal/runtime`, and the rest) is defined in one place: the `layer-placement` reference of the Andurel skill. Install the skill with `andurel skill install`, then read `references/layer-placement.md` in the installed skill directory (for example `.claude/skills/andurel/references/layer-placement.md`) for the placement table and the decision checklist. `andurel patterns show <kind>` prints the rules for one layer.
+Where code belongs (domains, services, handlers, routes, middleware, `internal/runtime`, and the rest) is defined in one place: the `layer-placement` reference of the Andurel skill. Install the skill with `andurel skill install --harness <harness>`; it writes `SKILL.md` and its `references/` into the harness's skill directory (`<harness skills dir>/andurel`, for example `.claude/skills/andurel`, `.codex/skills/andurel`, `.opencode/skills/andurel`, `.pi/skills/andurel`, or `.crush/skills/andurel`). Read `references/layer-placement.md` there, or print any reference without installing the skill with `andurel skill show layer-placement` (also `http-and-routing` and `cli-catalog`). `andurel patterns show <kind>` prints the rules for one layer.
 
 ## Verify
 
