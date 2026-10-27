@@ -227,7 +227,7 @@ func Encrypted[T any](name string, opts ...Option) Definition {
 	return &typedDef[T]{name: name, k: kindEncrypted, opts: applyOptions(opts)}
 }
 
-// NewSession defines the application session bag (exactly one per jar).
+// NewSession defines the application session bag (at most one per jar).
 func NewSession[T any](name string, opts ...Option) Definition {
 	return &typedDef[T]{name: name, k: kindSession, opts: applyOptions(opts)}
 }
@@ -244,7 +244,8 @@ type Jar struct {
 }
 
 // NewJar constructs a cookie jar. Session payload persistence goes through
-// store; flashes always use a dedicated flash cookie derived from the session name.
+// store; flashes always use a dedicated flash cookie, named after the session
+// when the jar has one and "kiks_flash" otherwise.
 func NewJar(keys Keys, store Store, defs ...Definition) (*Jar, error) {
 	if store == nil {
 		return nil, errors.New("kiks: store is required")
@@ -308,8 +309,19 @@ func NewJar(keys Keys, store Store, defs ...Definition) (*Jar, error) {
 			}
 		}
 	}
-	if sessionCount != 1 {
-		return nil, errors.New("kiks: exactly one NewSession definition is required")
+	if sessionCount > 1 {
+		return nil, errors.New("kiks: at most one NewSession definition is allowed")
+	}
+	if sessionCount == 0 {
+		jar.flashName = defaultFlashCookieName
+		if _, exists := names[jar.flashName]; exists {
+			return nil, fmt.Errorf("kiks: flash cookie name %q conflicts with a definition", jar.flashName)
+		}
+		jar.encrypted[jar.flashName] = newSecureCookie(
+			keys.Authentication,
+			keys.Encryption,
+			0,
+		)
 	}
 
 	return jar, nil

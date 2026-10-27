@@ -4,8 +4,7 @@ import (
 	"testing"
 
 	"app/config"
-	"app/resources"
-	"app/routes"
+	"app/internal/runtime"
 
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/routing"
@@ -19,10 +18,10 @@ func TestMain(m *testing.M) {
 	storagetest.Main(m, &testCluster)
 }
 
-// testRenderer builds the Inertia renderer handlers expect, the way
-// runtime.newRenderer does, from the config package's Inertia defaults. It
-// reads no environment variables. The root component is the application's own.
-// SSR fail-fast stays off so a page render does not need the SSR server.
+// testRenderer builds the Inertia renderer handlers expect through the same
+// constructor cmd/app uses, so shared and flash providers cannot drift. It
+// reads no environment variables. SSR fail-fast stays off so a page render
+// does not need the SSR server.
 func testRenderer(t *testing.T) *inertia.Renderer {
 	t.Helper()
 
@@ -33,20 +32,19 @@ func testRenderer(t *testing.T) *inertia.Renderer {
 		t.Fatalf("create hosts: %v", err)
 	}
 
-	renderer, err := inertia.NewRenderer(
-		inertia.RendererConfig{
+	renderer, err := runtime.NewRenderer(config.Config{
+		App: config.App{Environment: "test"},
+		Inertia: config.Inertia{
 			ContainerID:         config.DefaultInertiaContainerID,
-			BuildPathURL:        routes.ViteBuild.FullURL(hosts),
-			EntryPoint:          config.DefaultInertiaEntryPoint,
 			ViteDevURL:          config.DefaultInertiaViteDevURL,
+			ProtocolDebug:       config.DefaultInertiaProtocolDebug,
 			SSRURL:              config.DefaultInertiaSSRURL,
-			SSRTimeout:          config.DefaultInertiaSSRRequestTimeout,
+			SSRRequestTimeout:   config.DefaultInertiaSSRRequestTimeout,
 			SSRMaxResponseBytes: config.DefaultInertiaSSRMaxResponseBytes,
+			EntryPoint:          config.DefaultInertiaEntryPoint,
+			SSRFailFast:         false,
 		},
-		inertia.WithRoot(resources.Root),
-		inertia.WithEnvironment("test"),
-		inertia.WithProtocolDebug(config.DefaultInertiaProtocolDebug),
-	)
+	}, hosts)
 	if err != nil {
 		t.Fatalf("create renderer: %v", err)
 	}
