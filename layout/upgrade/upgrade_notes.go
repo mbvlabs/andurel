@@ -21,6 +21,11 @@ const packageAPIVersion = "v2.0.0-alpha.5"
 // test-container helpers from pkg/storage/storagetest.
 const storageTestClusterVersion = "v2.0.0-alpha.5"
 
+// betaTwoFixesVersion is the first release whose scaffold derives a valid
+// default email sender, bundles SSR dependencies into the production build
+// only, and renders a single <title> under SSR.
+const betaTwoFixesVersion = "v2.0.0-beta.2"
+
 // goNativeRebuildVersion is the release that replaced Echo and Fx with the
 // Go-native domains/services/handlers layout. Projects older than it cannot be
 // upgraded automatically; they must be ported by hand.
@@ -118,7 +123,79 @@ func manualActionsForUpgrade(
 		})
 	}
 
+	if crossesVersion(fromVersion, toVersion, betaTwoFixesVersion) {
+		actions = append(actions, ManualAction{
+			ID:           "email-sender-v2.0.0-beta.2",
+			Title:        "Strip the port from the default email sender and validate it",
+			Instructions: emailSenderInstructions(),
+		})
+	}
+
+	if includeInertiaMigration &&
+		crossesVersion(fromVersion, toVersion, betaTwoFixesVersion) {
+		actions = append(actions, ManualAction{
+			ID:           "vite-ssr-bundle-v2.0.0-beta.2",
+			Title:        "Bundle SSR dependencies into the production build only",
+			Instructions: viteSSRBundleInstructions(),
+		})
+		actions = append(actions, ManualAction{
+			ID:           "root-title-ssr-v2.0.0-beta.2",
+			Title:        "Render the fallback <title> only for client-rendered pages",
+			Instructions: rootTitleInstructions(),
+		})
+	}
+
 	return actions, nil
+}
+
+func emailSenderInstructions() string {
+	var instructions strings.Builder
+	instructions.WriteString(
+		"The default DEFAULT_SENDER_SIGNATURE was \"noreply@\"+app.Domain, and app.Domain is HOST_PRIMARY " +
+			"with its port (noreply@localhost:8080). pkg/email rejects that address, so every queued auth email " +
+			"was cancelled. config/email.go is application-owned, so fix it by hand:\n\n",
+	)
+	instructions.WriteString(
+		"1. Derive the default from the host without its port:\n\n```go\n" +
+			"DefaultSenderSignature: e.String(\"DEFAULT_SENDER_SIGNATURE\", \"noreply@\"+senderHost(app.Domain)),\n\n" +
+			"// senderHost strips the port from the app domain. HOST_PRIMARY carries a port\n" +
+			"// and an email address cannot contain one.\n" +
+			"func senderHost(domain string) string {\n" +
+			"\thost, _, err := net.SplitHostPort(domain)\n" +
+			"\tif err == nil && host != \"\" {\n\t\treturn host\n\t}\n\n" +
+			"\treturn domain\n}\n```\n\n",
+	)
+	instructions.WriteString(
+		"2. Fail at startup on an invalid sender instead of cancelling every email job. " +
+			"Replace the empty check in NewMail with:\n\n```go\n" +
+			"sender := strings.TrimSpace(cfg.DefaultSenderSignature)\n" +
+			"address, err := mail.ParseAddress(sender)\n" +
+			"if err != nil || address.Name != \"\" || address.Address != sender {\n" +
+			"\treturn Mail{}, fmt.Errorf(\"config: mail: DEFAULT_SENDER_SIGNATURE %q must be a bare email address\", sender)\n" +
+			"}\n" +
+			"cfg.DefaultSenderSignature = sender\n```\n\n" +
+			"Import \"net\" and \"net/mail\". The sender is also the SMTP envelope sender, so a display name is rejected.\n\n",
+	)
+	instructions.WriteString("Then format and verify:\n\n```text\ngofmt -w config\ngo fix ./...\ngo vet ./...\n```\n")
+
+	return instructions.String()
+}
+
+func viteSSRBundleInstructions() string {
+	return "cmd/ssr extracts the embedded assets/dist/ssr/ssr.js to a temporary directory, where Node cannot " +
+		"resolve react, @inertiajs/* or the other bare imports Vite leaves external. Bundle them into the " +
+		"production SSR build only; setting noExternal for the dev server breaks SSR under `andurel run`.\n\n" +
+		"In vite.config.ts, inside `defineConfig(({ command }) => ({ ... }))`, add:\n\n```ts\n" +
+		"ssr: command === 'build' ? { noExternal: true } : undefined,\n```\n\n" +
+		"Then rebuild and check that the bundle runs on its own:\n\n```text\nandurel build\n```\n"
+}
+
+func rootTitleInstructions() string {
+	return "With SSR, the renderer writes the page's Inertia <Head> after the root template's static head, so a " +
+		"page that sets its own title ended up with two <title> elements and browsers showed the first one. " +
+		"In resources/root.templ, render the fallback only for client-rendered pages:\n\n```templ\n" +
+		"if data.SSR == nil {\n\t<title>{ data.ProjectName }</title>\n}\n```\n\n" +
+		"Then regenerate the root template and verify:\n\n```text\nandurel build\ngo vet ./...\n```\n"
 }
 
 func storageTestClusterInstructions() string {

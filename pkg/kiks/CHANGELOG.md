@@ -13,13 +13,16 @@ All notable changes to the standalone Andurel kiks module are documented here.
 - Flashes persist for a jar with named cookies and no `NewSession` definition.
   Such a jar uses the `kiks_flash` cookie with the default cookie options.
 
+### BREAKING
+
+- `AddFlash` returns an error, `ErrNoBag` when the middleware did not attach a
+  bag. Callers that ignored the return value must handle it.
+- `Flashes` returns `any` (untyped nil when empty) so it is omitted from page
+  JSON instead of encoding as `"flash": null`; use `FlashMessages` for a typed
+  slice.
+
 ### Changed
 
-- **Breaking:** `AddFlash` returns an error, `ErrNoBag` when the middleware did
-  not attach a bag. Callers that ignored the return value must handle it.
-- **Breaking:** `Flashes` returns `any` (untyped nil when empty) so it is
-  omitted from page JSON instead of encoding as `"flash": null`; use
-  `FlashMessages` for a typed slice.
 - `Destroy` still drops flashes queued before it, but a flash added after
   `Destroy` now persists with the response instead of being expired with the
   session cookie.
