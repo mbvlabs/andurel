@@ -2,13 +2,18 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/v2/cli/internal/layers"
 	"github.com/mbvlabs/andurel/v2/cli/output"
+	"github.com/mbvlabs/andurel/v2/emailcompiler"
+	"github.com/mbvlabs/andurel/v2/layout"
 )
 
 type verifyTestEnvelope struct {
@@ -106,6 +111,9 @@ func TestVerifyReportsOK(t *testing.T) {
 		t.Fatalf("verify should pass: %#v", envelope)
 	}
 	for _, step := range envelope.Data.Steps {
+		if step.Name == "frontend" && step.Status == verifyStatusSkipped {
+			continue
+		}
 		if step.Status != verifyStatusOK || !step.OK {
 			t.Fatalf("step %q = %#v, want status ok and ok true", step.Name, step)
 		}
@@ -268,7 +276,12 @@ func TestVerifyLongHelpRendersRuleCatalog(t *testing.T) {
 		}
 	}
 
-	steps := map[string]bool{"gofmt": true, "go fix": true, "generated": true}
+	steps := map[string]bool{
+		"gofmt":     true,
+		"go fix":    true,
+		"frontend":  true,
+		"generated": true,
+	}
 	meta := commandMetaSpecs["andurel verify"]
 	prose := map[string]string{
 		"long help":   strings.Replace(cmd.Long, ruleHelp, "", 1),
@@ -478,6 +491,270 @@ func TestBroken(t *testing.T) {
 	}
 	if !strings.Contains(step.Detail, "broken_test.go") || !strings.Contains(step.Detail, "[build failed]") {
 		t.Fatalf("go test detail should show the build error:\n%s", step.Detail)
+	}
+}
+
+func TestVerifyScopesGoChecksToPackages(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stub tools use a POSIX shell script")
+	}
+
+	root := newVerifyTestProject(t)
+	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
+	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\nexit 0\n")
+	writeTestFile(t, root, "alpha/alpha.go", "package alpha\n")
+	writeTestFile(t, root, "beta/beta.go", "package beta\n\nfunc  Broken() {}\n")
+
+	scoped := runVerifyInProject(t, root, "verify", "./alpha/...", "--json")
+	if scoped.err != nil {
+		t.Fatalf(
+			"scoped verify: %v\nreport: %#v",
+			scoped.err,
+			output.Fail(scoped.err).Data,
+		)
+	}
+	envelope := decodeVerifyEnvelope(t, scoped.stdout)
+	gofmt := findVerifyStep(t, envelope.Data, "gofmt")
+	if gofmt.Status != verifyStatusOK {
+		t.Fatalf("scoped gofmt = %#v, want ok", gofmt)
+	}
+
+	drifted := runVerifyInProject(t, root, "verify", "./beta/...", "--json")
+	assertVerifyExitCode(t, drifted, output.ExitVerification)
+	report, ok := output.Fail(drifted.err).Data.(verifyReport)
+	if !ok {
+		t.Fatalf("failure data = %T, want verifyReport", output.Fail(drifted.err).Data)
+	}
+	gofmt = findVerifyStep(t, report, "gofmt")
+	if gofmt.Status != verifyStatusFail {
+		t.Fatalf("scoped gofmt = %#v, want fail", gofmt)
+	}
+	if len(gofmt.Violations) != 1 || gofmt.Violations[0].File != "beta/beta.go" {
+		t.Fatalf("scoped gofmt violations = %#v, want beta/beta.go", gofmt.Violations)
+	}
+}
+
+func TestVerifyNoFrontendSkipsTypecheck(t *testing.T) {
+	root := newVerifyTestProject(t)
+	writeTestFile(t, root, "package.json", `{"scripts":{"typecheck":"tsc --noEmit"}}`)
+
+	result := runVerifyInProject(t, root, "verify", "--no-frontend", "--skip-generated", "--json")
+	if result.err != nil {
+		t.Fatalf("verify --no-frontend --json: %v\n%s", result.err, result.stderr)
+	}
+	envelope := decodeVerifyEnvelope(t, result.stdout)
+	step := findVerifyStep(t, envelope.Data, "frontend")
+	if step.Status != verifyStatusSkipped || step.Reason != "--no-frontend" {
+		t.Fatalf("frontend step = %#v, want skipped by --no-frontend", step)
+	}
+}
+
+func TestVerifyFrontendTypecheck(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stub tools use a POSIX shell script")
+	}
+
+	root := t.TempDir()
+	writeTestFile(t, root, "package.json", `{"scripts":{"typecheck":"tsc --noEmit"}}`)
+	if err := os.MkdirAll(filepath.Join(root, "node_modules"), 0o755); err != nil {
+		t.Fatalf("create node_modules: %v", err)
+	}
+	fakeBin := t.TempDir()
+	writeExecutable(t, fakeBin, "pnpm", "#!/bin/sh\nexit 0\n")
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	step := verifyFrontend(root)
+	if step.Status != verifyStatusOK || !step.OK {
+		t.Fatalf("frontend step = %#v, want ok", step)
+	}
+}
+
+func TestVerifyFrontendUsesLockPackageManager(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stub tools use a POSIX shell script")
+	}
+
+	root := t.TempDir()
+	lock := layout.NewAndurelLock("test")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName:              "app",
+		JavaScriptPackageManager: "bun",
+	}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+	writeTestFile(t, root, "package.json", `{"scripts":{"typecheck":"tsc --noEmit"}}`)
+	if err := os.MkdirAll(filepath.Join(root, "node_modules"), 0o755); err != nil {
+		t.Fatalf("create node_modules: %v", err)
+	}
+	fakeBin := t.TempDir()
+	writeExecutable(t, fakeBin, "pnpm", "#!/bin/sh\nexit 0\n")
+	writeExecutable(t, fakeBin, "bun", "#!/bin/sh\nexit 1\n")
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	step := verifyFrontend(root)
+	if step.Status != verifyStatusFail {
+		t.Fatalf("frontend step = %#v, want the bun failure", step)
+	}
+}
+
+func TestVerifyFrontendMissingNodeModules(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "package.json", `{"scripts":{"typecheck":"tsc --noEmit"}}`)
+
+	step := verifyFrontend(root)
+	if step.Status != verifyStatusFail || step.OK {
+		t.Fatalf("frontend step = %#v, want fail", step)
+	}
+	if len(step.Violations) != 1 || step.Violations[0].Rule != "frontend" {
+		t.Fatalf("frontend violations = %#v, want one frontend rule", step.Violations)
+	}
+	if !strings.Contains(step.Violations[0].Message, "node_modules") {
+		t.Fatalf("frontend message = %q, want node_modules hint", step.Violations[0].Message)
+	}
+	if step.Violations[0].Fix != "pnpm install" {
+		t.Fatalf("frontend fix = %q, want pnpm install", step.Violations[0].Fix)
+	}
+}
+
+func TestVerifyFrontendWithoutTypecheckIsSkipped(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "package.json", `{"scripts":{"build":"vite build"}}`)
+
+	step := verifyFrontend(root)
+	if step.Status != verifyStatusSkipped || step.OK {
+		t.Fatalf("frontend step = %#v, want skipped", step)
+	}
+	if !strings.Contains(step.Reason, "typecheck") {
+		t.Fatalf("frontend reason = %q, want missing typecheck script", step.Reason)
+	}
+}
+
+func TestVerifyEmailGeneratedDriftUsesEmailCompiler(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stub tools use a POSIX shell script")
+	}
+
+	root := t.TempDir()
+	writeTestFile(t, root, "email/welcome.templ", `package email
+
+templ Welcome() {
+	<p class="p-4">Hi</p>
+}
+`)
+	writeTestFile(t, root, "css/email.css", "")
+	writeExecutable(t, root, "bin/tailwindcli", `#!/bin/sh
+output=""
+while [ "$#" -gt 0 ]; do
+	if [ "$1" = "-o" ]; then
+		shift
+		output="$1"
+	fi
+	shift
+done
+printf '%s\n' '.p-4 { padding: 1rem; }' > "$output"
+`)
+
+	stale := checkEmailGenerate(root, false)
+	if stale.status != statusFail || len(stale.changed) != 1 ||
+		stale.changed[0] != "email/welcome_templ.go" {
+		t.Fatalf("stale email check = %#v, want email/welcome_templ.go drift", stale)
+	}
+
+	if err := emailcompiler.Compile(context.Background(), emailcompiler.Config{
+		ProjectRoot:  root,
+		TailwindPath: filepath.Join(root, "bin", "tailwindcli"),
+	}); err != nil {
+		t.Fatalf("compile email: %v", err)
+	}
+	current := checkEmailGenerate(root, false)
+	if current.status != statusPass {
+		t.Fatalf("current email check = %#v, want pass", current)
+	}
+}
+
+func TestGeneratedViolationsNameSourceFiles(t *testing.T) {
+	templ := generatedViolations(checkResult{
+		name:    "templ generate",
+		status:  statusFail,
+		message: "generated templates are out of date",
+		changed: []string{"handlers/pages_templ.go"},
+	})
+	if len(templ) != 1 || templ[0].File != "handlers/pages.templ" ||
+		templ[0].Fix != "andurel build" {
+		t.Fatalf("templ violations = %#v, want handlers/pages.templ", templ)
+	}
+
+	email := generatedViolations(checkResult{
+		name:    "email generate",
+		status:  statusFail,
+		message: "generated email renderers are out of date",
+		changed: []string{"email/welcome_templ.go"},
+	})
+	if len(email) != 1 || email[0].File != "email/welcome.templ" ||
+		email[0].Fix != "andurel sync email" {
+		t.Fatalf("email violations = %#v, want email/welcome.templ", email)
+	}
+}
+
+func TestEmailCompileCommandJSONReportsFiles(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stub tools use a POSIX shell script")
+	}
+	resetCLITestSeams(t)
+
+	root := t.TempDir()
+	findGoModRoot = func() (string, error) { return root, nil }
+	if err := layout.NewAndurelLock("test").WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+	writeTestFile(t, root, "email/welcome.templ", `package email
+
+templ Welcome() {
+	<p class="p-4">Hi</p>
+}
+`)
+	writeTestFile(t, root, "css/email.css", "")
+	writeExecutable(t, root, "bin/tailwindcli", `#!/bin/sh
+output=""
+while [ "$#" -gt 0 ]; do
+	if [ "$1" = "-o" ]; then
+		shift
+		output="$1"
+	fi
+	shift
+done
+printf '%s\n' '.p-4 { padding: 1rem; }' > "$output"
+`)
+	syncSingleToolFunc = func(string, string, *layout.Tool, string, string) error { return nil }
+
+	command := newEmailCompileCommand()
+	output.RegisterPersistentFlags(command)
+	var stdout bytes.Buffer
+	command.SetOut(&stdout)
+	command.SetErr(&stdout)
+	command.SetArgs([]string{"--json"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("sync email --json: %v\n%s", err, stdout.String())
+	}
+
+	var envelope struct {
+		OK   bool               `json:"ok"`
+		Data emailCompileOutput `json:"data"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode sync email JSON: %v\n%s", err, stdout.String())
+	}
+	if !envelope.OK {
+		t.Fatalf("sync email JSON = %s", stdout.String())
+	}
+	if len(envelope.Data.GeneratedFiles) != 1 ||
+		envelope.Data.GeneratedFiles[0] != "email/welcome_templ.go" {
+		t.Fatalf("generated files = %#v", envelope.Data.GeneratedFiles)
+	}
+	if len(envelope.Data.ChangedFiles) != 1 ||
+		envelope.Data.ChangedFiles[0] != "email/welcome_templ.go" {
+		t.Fatalf("changed files = %#v", envelope.Data.ChangedFiles)
 	}
 }
 

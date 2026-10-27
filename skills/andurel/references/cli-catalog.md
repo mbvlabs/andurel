@@ -19,13 +19,23 @@ andurel --agent --help
 3. `andurel generate migration NAME` — create a migration (the only generated file).
 4. Write domains, services, handlers, routes, and middleware by hand.
 5. `andurel sync queries` / `sync routes` / `sync payloads` / `sync email` — refresh derived files.
-6. `andurel verify` — formatting, `go fix`, `go vet`, layer boundaries, and generated-code drift.
+6. `andurel verify [packages...]` — formatting, `go fix`, `go vet`, layer boundaries, the frontend typecheck, and generated-code drift.
 7. `andurel doctor --json` — health and generated-file drift.
 
 `andurel verify` reports each step as `ok`, `fail`, or `skipped`. A missing
-`templ` or `narsilc` binary fails the `generated` step with the `missing-tool`
-rule; run `andurel tool sync` to install it. `--skip-generated` marks that step
-`skipped` and does not fail the run.
+`templ`, `tailwindcli`, or `narsilc` binary fails the `generated` step with the
+`missing-tool` rule; run `andurel tool sync` to install it. `--skip-generated`
+marks that step `skipped` and does not fail the run.
+
+The `frontend` step runs the project package manager's `typecheck` script when
+`package.json` defines one; it fails with an install hint when `node_modules`
+is missing and is `skipped` for projects without the script. `--no-frontend`
+skips it explicitly.
+
+Pass Go package patterns to scope `gofmt`, `go fix`, `go vet`, and `layers` to
+those packages (`andurel verify ./internal/docs/...`). The `generated` and
+`frontend` steps always check the whole project; each generated-drift finding
+names the authored source file that owns it.
 
 `andurel verify --with-tests` also runs `go test ./...`. A test package that has
 tests but ran none (the scaffold's DB-backed packages exit their `TestMain`
@@ -57,7 +67,8 @@ also prints each rule's fix):
 | `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and internal/runtime |
 | `domain-transport` | domains/** imports no HTTP, Inertia, routing, handler, middleware, or route package |
 | `entity-columns` | every automatic generated query column maps to an exported andurel tag on its domain entity |
-| `generated` | generated templ, queries, routes, and payload output is up to date |
+| `frontend` | the package.json typecheck script passes when the scaffold defines one |
+| `generated` | generated templ, email, queries, routes, and payload output is up to date |
 | `missing-tool` | a required generation binary is installed; run 'andurel tool sync' |
 <!-- andurel:verify-rules:end -->
 
@@ -116,7 +127,7 @@ andurel run --tools mailpit
 - List routes: `andurel inspect routes --json` (includes host when set).
 - Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia only; helpers are host-aware full URLs).
 - Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then bind routes with `rt.Host(name)`.
-- Refresh derived artifacts: `andurel sync email` compiles email templates.
+- Refresh derived artifacts: `andurel sync email` compiles `email/*.templ` into `email/*_templ.go` with Tailwind styles inlined; never run `templ generate` on email.
 
 `--json` and `--agent` never wait on a TTY. Pass `--force`, `--harness`, or `--yes` instead of answering a prompt.
 
@@ -167,7 +178,7 @@ andurel run --tools mailpit
 | `andurel skill install` | Install the embedded skill into an agent harness |
 | `andurel skill show` | Print the embedded Andurel skill |
 | `andurel sync` | Refresh derived files from a source of truth |
-| `andurel sync email` | Compile Tailwind classes in email templates |
+| `andurel sync email` | Compile email templates into inline-styled Go |
 | `andurel sync payloads` | Write TypeScript payload types for Inertia |
 | `andurel sync queries` | Compile narsilc SQL into Go in `domains/internal/queries` |
 | `andurel sync routes` | Write TypeScript route helpers for Inertia |
@@ -178,4 +189,4 @@ andurel run --tools mailpit
 | `andurel tool set-version` | Pin a tool version in andurel.lock and sync it |
 | `andurel tool sync` | Download pinned binaries from andurel.lock |
 | `andurel upgrade` | Upgrade the project to this CLI version |
-| `andurel verify` | Check formatting, vet, layer boundaries, and generated code |
+| `andurel verify` | Check formatting, vet, layer boundaries, frontend, and generated code |
