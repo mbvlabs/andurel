@@ -579,8 +579,8 @@ func parseJQPath(expr string) ([]jqSegment, error) {
 
 	segments := []jqSegment{}
 	for len(rest) > 0 {
-		switch {
-		case rest[0] == '[':
+		switch rest[0] {
+		case '[':
 			end := strings.IndexByte(rest, ']')
 			if end < 0 {
 				return nil, invalidJQExpressionError(trimmed)
@@ -591,7 +591,7 @@ func parseJQPath(expr string) ([]jqSegment, error) {
 			}
 			segments = append(segments, jqSegment{index: index})
 			rest = rest[end+1:]
-		case rest[0] == '.':
+		case '.':
 			rest = rest[1:]
 			if rest == "" || rest[0] == '.' {
 				return nil, invalidJQExpressionError(trimmed)

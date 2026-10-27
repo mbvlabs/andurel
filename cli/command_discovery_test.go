@@ -246,8 +246,7 @@ func TestCommandsSubcommandsExposeMeta(t *testing.T) {
 	discovery := discoverCommandTree(root)
 
 	var update *commandSummary
-	var walk func(commands []commandSummary)
-	walk = func(commands []commandSummary) {
+	walk := func(commands []commandSummary) {
 		for i := range commands {
 			if commands[i].Path == "andurel packages update" {
 				update = &commands[i]
@@ -269,8 +268,7 @@ func TestCommandsSubcommandsExposeMeta(t *testing.T) {
 	}
 
 	var seed *commandSummary
-	var findAll func(commands []commandSummary)
-	findAll = func(commands []commandSummary) {
+	findAll := func(commands []commandSummary) {
 		for i := range commands {
 			if commands[i].Path == "andurel db seed" {
 				seed = &commands[i]
