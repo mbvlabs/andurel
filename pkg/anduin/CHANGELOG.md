@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+## 0.5.0 - 2026-10-27
+
 ### Added
 
 - `Blob` writes a body with an explicit content type for responses that are
