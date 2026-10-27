@@ -67,7 +67,8 @@ also prints each rule's fix):
 rules, and a "definition of done" checklist you self-verify against.
 
 Pattern ids: `domain`, `service`, `handler`, `route`, `job`, `email`,
-`migration`, `test-domain`, `test-handler`, `test-integration`, `composition`.
+`migration`, `test-domain`, `test-handler`, `test-integration`, `composition`,
+`deploy`.
 
 ## Groups
 
@@ -98,6 +99,8 @@ andurel inspect routes --json
 andurel sync queries --json
 andurel sync routes --json
 andurel sync payloads --json
+andurel build --only app,queue --json
+andurel patterns show deploy
 andurel verify
 andurel doctor --json
 andurel run
@@ -117,6 +120,7 @@ andurel run --tools mailpit
 - Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia only; helpers are host-aware full URLs).
 - Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then bind routes with `rt.Host(name)`.
 - Refresh derived artifacts: `andurel sync email` compiles email templates.
+- Build and deploy: `andurel build` writes every buildable `cmd/*` process to `dist/`; `--only` narrows the set and `--json` emits the artifact manifest. `andurel patterns show deploy` covers the `migrate` → `ssr` → `app` + `queue` start order, environment, and health endpoints.
 
 `--json` and `--agent` never wait on a TTY. Pass `--force`, `--harness`, or `--yes` instead of answering a prompt.
 
@@ -125,7 +129,7 @@ andurel run --tools mailpit
 | Route | Summary |
 | --- | --- |
 | `andurel` | Andurel CLI for humans and agents |
-| `andurel build` | Build the application for production |
+| `andurel build` | Build every application process for production |
 | `andurel commands` | Show the command catalog |
 | `andurel console` | Open an interactive database console |
 | `andurel db` | Database lifecycle and migrations |
