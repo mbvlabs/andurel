@@ -104,6 +104,7 @@ andurel patterns show domain --entity User --table users --json
 andurel generate migration create_posts
 andurel db migrate up
 andurel inspect project --json
+andurel inspect config --json
 andurel inspect domains --json
 andurel inspect handlers --json
 andurel inspect routes --json
@@ -127,8 +128,9 @@ andurel run --tools mailpit
 - Compile SQL: `andurel sync queries` writes `domains/internal/queries`. Only `domains/**` may import it.
 - List domains: `andurel inspect domains --json`.
 - List handlers with their constructor params and the routes each `Register` mounts (route name, method, path): `andurel inspect handlers --json`.
+- List every env key read by `config/*.go`, with its default and source line: `andurel inspect config --json`.
 - List routes: `andurel inspect routes --json` (includes host when set).
-- Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia only; helpers are host-aware full URLs).
+- Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia frontend required; helpers cover routes marked `routing.TypeScriptRoute()` and are host-aware full URLs).
 - Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then bind routes with `rt.Host(name)`.
 - Refresh derived artifacts: `andurel sync email` compiles `email/*.templ` into `email/*_templ.go` with Tailwind styles inlined; never run `templ generate` on email.
 - Build and deploy: `andurel build` writes every buildable `cmd/*` process to `dist/`; `--only` narrows the set and `--json` emits the artifact manifest. `andurel patterns show deploy` covers the `migrate` → `ssr` → `app` + `queue` start order, environment, and health endpoints.
@@ -163,6 +165,7 @@ andurel run --tools mailpit
 | `andurel generate` | Create files that have no derived source |
 | `andurel generate migration` | Create a new SQL migration file |
 | `andurel inspect` | Read-only project shape |
+| `andurel inspect config` | List config env keys and defaults |
 | `andurel inspect domains` | List domain files |
 | `andurel inspect handlers` | List handlers with their constructors and routes |
 | `andurel inspect jobs` | List job and worker files |

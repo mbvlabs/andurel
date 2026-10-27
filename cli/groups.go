@@ -10,7 +10,7 @@ func newSyncGroupCommand() *cobra.Command {
 
   queries    domains/**/*.sql → domains/internal/queries
   routes     routes/*.go → resources/js/routes.ts (Inertia)
-  payloads   handler payload/Bind structs → resources/js/types/payloads.ts
+  payloads   handler page props/request payloads → resources/js/types/payloads.ts
   email      authored email templates → inlined email renderers
 
 andurel tool sync downloads pinned binaries. It is not this group.`,
@@ -33,17 +33,19 @@ func newInspectCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "inspect",
 		Short: "Read-only project shape",
-		Long: `List project metadata and source files without writing anything.
+		Long: `List project metadata, config keys, and source files without writing anything.
 
 Use andurel sync to refresh derived files. Use andurel patterns to read the
 reference shape before writing application-owned code yourself.`,
 		Example: `  andurel inspect project --json
+  andurel inspect config --json
   andurel inspect routes --json
   andurel inspect domains --json
   andurel inspect handlers --json`,
 	}
 	cmd.AddCommand(
 		newProjectInfoCommand(),
+		newConfigInspectionCommand(),
 		newRoutesCommand(),
 		newMigrationsCommand(),
 		newDomainsCommand(),

@@ -20,18 +20,20 @@ type routeManifest struct {
 }
 
 type routeManifestRoute struct {
-	Variable    string               `json:"variable"`
-	Name        string               `json:"name"`
-	Path        string               `json:"path"`
-	Pattern     string               `json:"pattern,omitempty"`
-	Exact       bool                 `json:"exact,omitempty"`
-	Constructor string               `json:"constructor"`
-	Kind        string               `json:"kind"`
-	Host        string               `json:"host,omitempty"`
-	IsInertia   bool                 `json:"is_inertia"`
-	Params      []routeManifestParam `json:"params,omitempty"`
-	SourceFile  string               `json:"source_file"`
-	Line        int                  `json:"line"`
+	Variable    string `json:"variable"`
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	Pattern     string `json:"pattern,omitempty"`
+	Exact       bool   `json:"exact,omitempty"`
+	Constructor string `json:"constructor"`
+	Kind        string `json:"kind"`
+	Host        string `json:"host,omitempty"`
+	// IsInertia records routing.TypeScriptRoute() (and its deprecated
+	// InertiaRoute alias). The JSON name is kept for output compatibility.
+	IsInertia  bool                 `json:"is_inertia"`
+	Params     []routeManifestParam `json:"params,omitempty"`
+	SourceFile string               `json:"source_file"`
+	Line       int                  `json:"line"`
 }
 
 type routeManifestParam struct {
@@ -435,8 +437,12 @@ func hostNameFromExpr(expr ast.Expr, hostNames map[string]string) (string, bool)
 	}
 }
 
+// isInertiaRouteOption recognizes the route setup option that opts a route into
+// generated TypeScript helpers. TypeScriptRoute is the current name;
+// InertiaRoute is the deprecated alias.
 func isInertiaRouteOption(expr ast.Expr) bool {
-	return isRouteSetupOption(expr, "InertiaRoute")
+	return isRouteSetupOption(expr, "TypeScriptRoute") ||
+		isRouteSetupOption(expr, "InertiaRoute")
 }
 
 func isRouteSetupOption(expr ast.Expr, name string) bool {

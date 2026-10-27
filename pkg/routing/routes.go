@@ -254,8 +254,9 @@ func (r Route) Host() HostName {
 	return r.host
 }
 
-// IsInertia reports whether this route should be included in generated
-// Inertia TypeScript route helpers.
+// IsInertia reports whether this route was marked with TypeScriptRoute (or
+// its deprecated alias InertiaRoute) and should be included in generated
+// TypeScript route helpers.
 func (r Route) IsInertia() bool {
 	return r.isInertia
 }

@@ -66,6 +66,7 @@ type payloadType struct {
 
 type payloadScan struct {
 	rootDir   string
+	module    string
 	fset      *token.FileSet
 	structs   map[string]*controllerStruct
 	roots     map[string]string
@@ -79,9 +80,18 @@ func newGeneratePayloadsCommand() *cobra.Command {
 		Short: "Generate TypeScript payload types for Inertia frontends",
 		Long: `Generate TypeScript declarations from backend-owned Inertia payload structs.
 
-The command scans handlers for inertia.FromStruct props and named payloads
-decoded with anduin.DecodeJSON or anduin.DecodeForm,
-and writes resources/js/types/payloads.ts.`,
+The command scans handlers for:
+
+  - inertia.FromStruct props (page props), following named struct fields into
+    other packages in this Go module.
+  - named structs decoded with anduin.DecodeJSON or anduin.DecodeForm (request
+    payloads). These must be named with a Payload suffix.
+
+It writes resources/js/types/payloads.ts. Fields tagged json:"-" are omitted.
+domains/ types, unexported or generic structs, and fields without a TypeScript
+mapping are rejected; define a handler-owned payload instead. Calls that pass a
+literal inertia.Props{...} map are skipped because there is no static struct to
+read.`,
 		Example: `  andurel sync payloads
   andurel sync payloads --json`,
 		Args: cobra.NoArgs,
@@ -198,22 +208,51 @@ func renderPayloadsTS(rootDir string) ([]byte, int, []payloadSkipped, error) {
 }
 
 func scanControllerPayloads(rootDir string) (*payloadScan, error) {
+	module, _, err := readGoModMetadata(rootDir)
+	if err != nil {
+		return nil, err
+	}
 	scan := &payloadScan{
 		rootDir: rootDir,
+		module:  module,
 		fset:    token.NewFileSet(),
 		structs: map[string]*controllerStruct{},
 		roots:   map[string]string{},
 	}
-	if err := walkControllerGoFiles(rootDir, scan.parseControllerFile); err != nil {
+	// Index exported structs from every package in the project module so page
+	// props can reference named types declared outside handlers/.
+	if err := walkProjectGoFiles(rootDir, scan.parseControllerFile); err != nil {
 		return nil, err
 	}
-	if err := walkControllerGoFiles(rootDir, scan.discoverInFile); err != nil {
+	// Only handler code declares the payload roots that should be emitted.
+	if err := walkHandlerGoFiles(rootDir, scan.discoverInFile); err != nil {
 		return nil, err
 	}
 	return scan, nil
 }
 
-func walkControllerGoFiles(rootDir string, visit func(string) error) error {
+// walkProjectGoFiles visits every Go file in the project module, skipping
+// dependency, VCS and build-output directories.
+func walkProjectGoFiles(rootDir string, visit func(string) error) error {
+	return filepath.WalkDir(rootDir, func(path string, d os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case ".git", ".claude", "vendor", "node_modules", "bin", "dist":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		return visit(path)
+	})
+}
+
+func walkHandlerGoFiles(rootDir string, visit func(string) error) error {
 	handlersDir := filepath.Join(rootDir, "handlers")
 	if _, err := os.Stat(handlersDir); err != nil {
 		if os.IsNotExist(err) {
@@ -241,9 +280,9 @@ func walkControllerGoFiles(rootDir string, visit func(string) error) error {
 func (s *payloadScan) parseControllerFile(path string) error {
 	file, err := parser.ParseFile(s.fset, path, nil, parser.SkipObjectResolution)
 	if err != nil {
-		return fmt.Errorf("parse handler file %s: %w", path, err)
+		return fmt.Errorf("parse project file %s: %w", path, err)
 	}
-	pkgRel := controllerPkgRel(s.rootDir, path)
+	pkgRel := packageRelPath(s.rootDir, path)
 	imports := controllerImportMap(file)
 	sourceFile := routeManifestSourceFile(s.rootDir, path)
 	for _, decl := range file.Decls {
@@ -280,7 +319,7 @@ func (s *payloadScan) discoverInFile(path string) error {
 	if err != nil {
 		return fmt.Errorf("parse handler file %s: %w", path, err)
 	}
-	pkgRel := controllerPkgRel(s.rootDir, path)
+	pkgRel := packageRelPath(s.rootDir, path)
 	imports := controllerImportMap(file)
 	sourceFile := routeManifestSourceFile(s.rootDir, path)
 	for _, decl := range file.Decls {
@@ -677,9 +716,11 @@ func (s *payloadScan) mapSelector(
 	if mapped, usedJSON, ok := mapKnownSelector(importPath, pkgIdent.Name, sel.Sel.Name); ok {
 		return mapped, usedJSON, nil
 	}
-	rel := controllerPkgFromImport(importPath)
-	if _, exists := s.structs[structKey(rel, sel.Sel.Name)]; exists {
-		return sel.Sel.Name, false, nil
+	rel := pkgRelFromImport(s.module, importPath)
+	if rel != "" {
+		if _, exists := s.structs[structKey(rel, sel.Sel.Name)]; exists {
+			return sel.Sel.Name, false, nil
+		}
 	}
 	return "", false, unmappedTypeError(loc, fieldName, pkgIdent.Name+"."+sel.Sel.Name)
 }
@@ -728,13 +769,9 @@ func (s *payloadScan) resolveNamedStruct(
 		if isDomainPackage(importPath) || pkgIdent.Name == "domains" {
 			return "domains", typed.Sel.Name, true
 		}
-		if importPath != "" && !strings.Contains(importPath, "/handlers") &&
-			filepath.Base(importPath) != "handlers" {
-			return "", "", false
-		}
-		rel := controllerPkgFromImport(importPath)
+		rel := pkgRelFromImport(s.module, importPath)
 		if rel == "" {
-			rel = pkgRel
+			return "", "", false
 		}
 		return rel, typed.Sel.Name, true
 	case *ast.ParenExpr:
@@ -758,9 +795,9 @@ func (s *payloadScan) lookupRef(cs *controllerStruct, ref ast.Expr) (string, str
 		if isDomainPackage(importPath) || pkgIdent.Name == "domains" {
 			return "domains", typed.Sel.Name, true
 		}
-		rel := controllerPkgFromImport(importPath)
+		rel := pkgRelFromImport(s.module, importPath)
 		if rel == "" {
-			rel = cs.pkgRel
+			return "", "", false
 		}
 		return rel, typed.Sel.Name, true
 	default:
@@ -794,10 +831,10 @@ func unmappedTypeError(loc, fieldName, typeName string) error {
 	)
 }
 
-func controllerPkgRel(rootDir, path string) string {
+func packageRelPath(rootDir, path string) string {
 	rel := routeManifestSourceFile(rootDir, filepath.Dir(path))
-	if rel == "." || rel == "" {
-		return "handlers"
+	if rel == "" {
+		return "."
 	}
 	return rel
 }
@@ -825,18 +862,20 @@ func controllerImportMap(file *ast.File) map[string]string {
 	return imports
 }
 
-func controllerPkgFromImport(importPath string) string {
-	if importPath == "" {
+// pkgRelFromImport maps an import path to a project-relative package directory.
+// It returns "" for imports outside the project module.
+func pkgRelFromImport(module, importPath string) string {
+	if importPath == "" || module == "" {
 		return ""
 	}
-	idx := strings.Index(importPath, "/handlers")
-	if idx == -1 {
-		if filepath.Base(importPath) == "handlers" {
-			return "handlers"
-		}
+	if importPath == module {
+		return "."
+	}
+	prefix := module + "/"
+	if !strings.HasPrefix(importPath, prefix) {
 		return ""
 	}
-	return strings.TrimPrefix(importPath[idx+1:], "/")
+	return strings.TrimPrefix(importPath, prefix)
 }
 
 // isDomainPackage reports whether a package path or name is a domains package.

@@ -17,15 +17,22 @@ func TestIsInertiaDefaultsFalse(t *testing.T) {
 	}
 }
 
-func TestInertiaRouteOption(t *testing.T) {
-	route := NewSimpleRoute("/", "pages.home", "", InertiaRoute())
+func TestTypeScriptRouteOption(t *testing.T) {
+	route := NewSimpleRoute("/", "pages.home", "", TypeScriptRoute())
 	if !route.IsInertia() {
-		t.Fatal("expected InertiaRoute option to enable the flag")
+		t.Fatal("expected TypeScriptRoute option to enable the flag")
 	}
 
-	paramsRoute := NewRouteWithParams[any]("/:slug", "posts.show", "/posts", InertiaRoute())
+	paramsRoute := NewRouteWithParams[any]("/:slug", "posts.show", "/posts", TypeScriptRoute())
 	if !paramsRoute.IsInertia() {
-		t.Fatal("expected InertiaRoute option to enable the flag for params routes")
+		t.Fatal("expected TypeScriptRoute option to enable the flag for params routes")
+	}
+}
+
+func TestInertiaRouteIsDeprecatedAlias(t *testing.T) {
+	route := NewSimpleRoute("/", "pages.home", "", InertiaRoute())
+	if !route.IsInertia() {
+		t.Fatal("expected deprecated InertiaRoute alias to enable the same flag")
 	}
 }
 
