@@ -16,6 +16,12 @@ All notable changes to the standalone Andurel routing module are documented here
   `http.ServeMux` pattern (`/{$}` for an exact root route), so exact routes no
   longer register a catch-all prefix.
 
+### BREAKING
+
+- The route interfaces (`SimpleRoute`, `UUIDIDRoute`, `ParamRoute` and the
+  rest) gain `Pattern()`. Code that implements them outside this module must
+  add the method.
+
 ### Changed
 
 - `InertiaRoute` is now a deprecated alias for `TypeScriptRoute`; existing

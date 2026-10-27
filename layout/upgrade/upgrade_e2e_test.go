@@ -20,9 +20,10 @@ import (
 var upgradeE2ESourceVersions = []string{
 	"v2.0.0-alpha.4",
 	"v2.0.0-alpha.5",
+	"v2.0.0-beta.1",
 }
 
-const upgradeE2ETargetVersion = "v2.0.0-beta.1"
+const upgradeE2ETargetVersion = "v2.0.0-beta.2"
 
 // TestUpgradeToHEAD scaffolds with each released CLI in
 // upgradeE2ESourceVersions, upgrades the result with this checkout, applies
@@ -88,6 +89,7 @@ func testUpgradeToHEAD(t *testing.T, source string, localPkg bool) {
 	}
 
 	for _, action := range report.ManualActions {
+		t.Logf("applying manual action %s", action.ID)
 		if err := applyUpgradeE2EManualAction(root, action); err != nil {
 			t.Fatalf(
 				"manual action %q (%s) was not applied: %v",
@@ -159,6 +161,12 @@ func applyUpgradeE2EManualAction(root string, action ManualAction) error {
 		return applyUpgradeE2EEmailSMTP(root)
 	case "validation-validate-v2.0.0-alpha.5":
 		return applyUpgradeE2EValidation(root)
+	case "email-sender-v2.0.0-beta.2":
+		return applyUpgradeE2EEmailSender(root)
+	case "vite-ssr-bundle-v2.0.0-beta.2":
+		return applyUpgradeE2EViteSSRBundle(root)
+	case "root-title-ssr-v2.0.0-beta.2":
+		return applyUpgradeE2ERootTitle(root)
 	default:
 		return fmt.Errorf(
 			"no automated e2e implementation for manual action %q (%s)",
@@ -722,6 +730,77 @@ func authOnlyE2EImplementation() string {
 		"\treturn context.WithValue(ctx, viewerKey{}, Viewer{ID: user.ID, IsAdmin: user.IsAdmin})\n}\n\n" +
 		"func ViewerFrom(ctx context.Context) (Viewer, bool) {\n" +
 		"\tviewer, ok := ctx.Value(viewerKey{}).(Viewer)\n\n\treturn viewer, ok\n}"
+}
+
+// applyUpgradeE2EEmailSender follows the email-sender-v2.0.0-beta.2
+// instructions against config/email.go.
+func applyUpgradeE2EEmailSender(root string) error {
+	path := filepath.Join(root, "config", "email.go")
+	if err := applyUpgradeE2EReplacements(path, []upgradeE2EReplacement{
+		{
+			description: "import net and net/mail",
+			old:         "import (\n\t\"fmt\"\n\t\"strings\"",
+			new:         "import (\n\t\"fmt\"\n\t\"net\"\n\t\"net/mail\"\n\t\"strings\"",
+		},
+		{
+			description: "derive the default sender without the port",
+			old:         "\"noreply@\"+app.Domain",
+			new:         "\"noreply@\"+senderHost(app.Domain)",
+		},
+		{
+			description: "validate the sender address",
+			old: "\tif strings.TrimSpace(cfg.DefaultSenderSignature) == \"\" {\n" +
+				"\t\treturn Mail{}, fmt.Errorf(\"config: mail: DEFAULT_SENDER_SIGNATURE must not be empty\")\n\t}",
+			new: "\tsender := strings.TrimSpace(cfg.DefaultSenderSignature)\n" +
+				"\taddress, err := mail.ParseAddress(sender)\n" +
+				"\tif err != nil || address.Name != \"\" || address.Address != sender {\n" +
+				"\t\treturn Mail{}, fmt.Errorf(\"config: mail: DEFAULT_SENDER_SIGNATURE %q must be a bare email address\", sender)\n" +
+				"\t}\n" +
+				"\tcfg.DefaultSenderSignature = sender",
+		},
+	}); err != nil {
+		return err
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	content = append(content, []byte("\n// senderHost strips the port from the app domain. HOST_PRIMARY carries a port\n"+
+		"// and an email address cannot contain one.\n"+
+		"func senderHost(domain string) string {\n"+
+		"\thost, _, err := net.SplitHostPort(domain)\n"+
+		"\tif err == nil && host != \"\" {\n\t\treturn host\n\t}\n\n"+
+		"\treturn domain\n}\n")...)
+
+	return writeGofmtFile(path, content)
+}
+
+// applyUpgradeE2EViteSSRBundle follows the vite-ssr-bundle-v2.0.0-beta.2
+// instructions against vite.config.ts.
+func applyUpgradeE2EViteSSRBundle(root string) error {
+	return applyUpgradeE2EReplacements(filepath.Join(root, "vite.config.ts"), []upgradeE2EReplacement{
+		{
+			description: "bundle SSR dependencies for the production build",
+			old:         "  base: command === 'build' ? './' : '/assets/dist/',\n",
+			new: "  base: command === 'build' ? './' : '/assets/dist/',\n" +
+				"  ssr: command === 'build' ? { noExternal: true } : undefined,\n",
+		},
+	})
+}
+
+// applyUpgradeE2ERootTitle follows the root-title-ssr-v2.0.0-beta.2
+// instructions against resources/root.templ.
+func applyUpgradeE2ERootTitle(root string) error {
+	return applyUpgradeE2EReplacements(filepath.Join(root, "resources", "root.templ"), []upgradeE2EReplacement{
+		{
+			description: "render the fallback title only without SSR",
+			old:         "\t\t\t<title>{ data.ProjectName }</title>\n",
+			new: "\t\t\tif data.SSR == nil {\n" +
+				"\t\t\t\t<title>{ data.ProjectName }</title>\n" +
+				"\t\t\t}\n",
+		},
+	})
 }
 
 func applyUpgradeE2EEmailSMTP(root string) error {
