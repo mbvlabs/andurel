@@ -29,6 +29,39 @@ func TestInertiaRouteOption(t *testing.T) {
 	}
 }
 
+func TestExactRoutePattern(t *testing.T) {
+	route := NewSimpleRoute("/", "pages.home", "", Exact())
+	if got, want := route.Path(), "/"; got != want {
+		t.Fatalf("Path() = %q, want %q", got, want)
+	}
+	if got, want := route.Pattern(), "/{$}"; got != want {
+		t.Fatalf("Pattern() = %q, want %q", got, want)
+	}
+
+	// Non-root paths are already exact in net/http, so Pattern is the path.
+	about := NewSimpleRoute("/about", "pages.about", "", Exact())
+	if got, want := about.Pattern(), "/about"; got != want {
+		t.Fatalf("Pattern() = %q, want %q", got, want)
+	}
+}
+
+func TestPatternDefaultsToPath(t *testing.T) {
+	route := NewSimpleRoute("/users", "users.index", "")
+	if got, want := route.Pattern(), route.Path(); got != want {
+		t.Fatalf("Pattern() = %q, want Path() %q", got, want)
+	}
+
+	uuidRoute := NewRouteWithUUIDID("/:id", "users.show", "/users")
+	if got, want := uuidRoute.Pattern(), "/users/:id"; got != want {
+		t.Fatalf("Pattern() = %q, want %q", got, want)
+	}
+
+	paramsRoute := NewRouteWithParams[any]("/:slug", "posts.show", "/posts")
+	if got, want := paramsRoute.Pattern(), "/posts/:slug"; got != want {
+		t.Fatalf("Pattern() = %q, want %q", got, want)
+	}
+}
+
 func TestHostDefaultsToPrimary(t *testing.T) {
 	route := NewSimpleRoute("/", "pages.home", "")
 	if route.Host() != HostPrimary {

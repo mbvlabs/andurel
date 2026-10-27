@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 )
 
 type failingFS struct {
@@ -176,6 +177,49 @@ func TestStaticFSWithoutImmutableSkipsCacheHeaders(t *testing.T) {
 	}
 }
 
+func TestServeContentSetsETagAndAnswers304(t *testing.T) {
+	body := []byte("<html>generated</html>")
+	wantETag := fmt.Sprintf(`"%x-%x"`, md5.Sum(body), len(body))
+
+	request := httptest.NewRequest(http.MethodGet, "/page", nil)
+	recorder := httptest.NewRecorder()
+	ctx := ReplaceRequest(context.Background(), request)
+	ctx = ReplaceResponseWriter(ctx, recorder)
+
+	if err := ServeContent(ctx, "page.html", body); err != nil {
+		t.Fatalf("ServeContent: %v", err)
+	}
+
+	if got := recorder.Header().Get("ETag"); got != wantETag {
+		t.Fatalf("ETag = %q, want %q", got, wantETag)
+	}
+	if got := recorder.Header().Get("Content-Type"); got != mime.TypeByExtension(".html") {
+		t.Fatalf("Content-Type = %q", got)
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "" {
+		t.Fatalf("Cache-Control = %q, want empty for generated content", got)
+	}
+	if got := recorder.Body.String(); got != string(body) {
+		t.Fatalf("body = %q, want %q", got, body)
+	}
+
+	notModified := httptest.NewRecorder()
+	conditional := httptest.NewRequest(http.MethodGet, "/page", nil)
+	conditional.Header.Set("If-None-Match", wantETag)
+	ctx = ReplaceRequest(context.Background(), conditional)
+	ctx = ReplaceResponseWriter(ctx, notModified)
+
+	if err := ServeContent(ctx, "page.html", body); err != nil {
+		t.Fatalf("ServeContent with If-None-Match: %v", err)
+	}
+	if notModified.Code != http.StatusNotModified {
+		t.Fatalf("status = %d, want 304", notModified.Code)
+	}
+	if notModified.Body.Len() != 0 {
+		t.Fatalf("304 body = %q, want empty", notModified.Body.String())
+	}
+}
+
 func TestStaticFSImmutableSurfacesWalkErrors(t *testing.T) {
 	_, err := StaticFS(failingFS{err: errors.New("walk failed")}, Immutable(true))
 	if err == nil {
@@ -237,5 +281,36 @@ func TestSitemapMatchesScaffoldOutput(t *testing.T) {
 	}
 	if got := recorder.Header().Get("Content-Type"); got != "application/xml" {
 		t.Fatalf("Content-Type = %q", got)
+	}
+}
+
+func TestSitemapIncludesLastModOnlyWhenSet(t *testing.T) {
+	lastMod := time.Date(2026, 10, 27, 12, 30, 0, 0, time.UTC)
+	handler, err := Sitemap(
+		SitemapURL{Loc: "https://example.com/changed", LastMod: lastMod},
+		SitemapURL{Loc: "https://example.com/undated"},
+	)
+	if err != nil {
+		t.Fatalf("Sitemap: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	ctx := ReplaceResponseWriter(context.Background(), recorder)
+	if err := handler(ctx); err != nil {
+		t.Fatalf("sitemap handler: %v", err)
+	}
+
+	want := `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://example.com/changed</loc>
+    <lastmod>2026-10-27T12:30:00Z</lastmod>
+  </url>
+  <url>
+    <loc>https://example.com/undated</loc>
+  </url>
+</urlset>`
+	if recorder.Body.String() != want {
+		t.Fatalf("body = %q, want %q", recorder.Body.String(), want)
 	}
 }

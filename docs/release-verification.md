@@ -96,3 +96,25 @@ tar -xzf "${ARCHIVE}" -C "${HOME}/.local/bin" andurel
 ```
 
 Ensure `${HOME}/.local/bin` is on `PATH`. The printed version must match `${VERSION}`.
+
+## Verify the SSR production story
+
+In a scaffolded Inertia project, confirm both SSR transports before releasing:
+
+1. **Development SSR through Vite.** Opt a page into SSR (`.SSR()` on its
+   page builder), run `andurel run`, and load that page. The response must
+   contain `data-server-rendered="true"`; Vite's `/__inertia_ssr` endpoint
+   serves it. This catches the dev-server regression that an unconditional
+   `ssr.noExternal` build setting causes.
+2. **Production SSR from the embedded bundle.** Run `pnpm build` and build
+   `cmd/ssr`, then start the binary from an empty directory (with
+   `INERTIA_SSR_BUNDLE` unset or pointing at a missing absolute path):
+
+   ```bash
+   go build -o /tmp/ssr-check ./cmd/ssr
+   (cd "$(mktemp -d)" && /tmp/ssr-check)
+   ```
+
+   The process must stay up, report its listen address, and answer
+   `GET /health` with `{"status":"ok"}`. A failure to start here means the
+   embedded bundle is missing or still has bare imports.

@@ -9,4 +9,5 @@ var HomePage = routing.NewSimpleRoute(
 	"pages.home",
 	"",
 	routing.InertiaRoute(),
+	routing.Exact(),
 )

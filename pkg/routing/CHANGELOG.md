@@ -4,6 +4,13 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+### Added
+
+- `Exact()` route setup option and `Pattern()` on every route type. `Path()`
+  keeps returning the URL (for example `/`), while `Pattern()` returns the
+  `http.ServeMux` pattern (`/{$}` for an exact root route), so exact routes no
+  longer register a catch-all prefix.
+
 ## 0.5.1 - 2026-10-26
 
 ### Changed
