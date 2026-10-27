@@ -10,14 +10,14 @@ var SessionNew = routing.NewSimpleRoute(
 	"/sign-in",
 	"users.new_user_session",
 	UserPrefix,
-	routing.InertiaRoute(),
+	routing.TypeScriptRoute(),
 )
 
 var SessionCreate = routing.NewSimpleRoute(
 	"/sign-in",
 	"users.user_session",
 	UserPrefix,
-	routing.InertiaRoute(),
+	routing.TypeScriptRoute(),
 )
 
 // SessionDestroy signs the user out. It is registered for DELETE (the Inertia
@@ -26,61 +26,61 @@ var SessionDestroy = routing.NewSimpleRoute(
 	"/sign-out",
 	"users.destroy_user_session",
 	UserPrefix,
-	routing.InertiaRoute(),
+	routing.TypeScriptRoute(),
 )
 
 var PasswordNew = routing.NewSimpleRoute(
 	"/password/new",
 	"users.new_user_password",
 	UserPrefix,
-	routing.InertiaRoute(),
+	routing.TypeScriptRoute(),
 )
 
 var PasswordCreate = routing.NewSimpleRoute(
 	"/password",
 	"users.user_password",
 	UserPrefix,
-	routing.InertiaRoute(),
+	routing.TypeScriptRoute(),
 )
 
 var PasswordEdit = routing.NewRouteWithToken(
 	"/password/:token/edit",
 	"users.edit_user_password",
 	UserPrefix,
-	routing.InertiaRoute(),
+	routing.TypeScriptRoute(),
 )
 
 var PasswordUpdate = routing.NewSimpleRoute(
 	"/password",
 	"users.update_user_password",
 	UserPrefix,
-	routing.InertiaRoute(),
+	routing.TypeScriptRoute(),
 )
 
 var RegistrationNew = routing.NewSimpleRoute(
 	"/sign-up",
 	"users.new_user_registration",
 	UserPrefix,
-	routing.InertiaRoute(),
+	routing.TypeScriptRoute(),
 )
 
 var RegistrationCreate = routing.NewSimpleRoute(
 	"",
 	"users.user_registration",
 	UserPrefix,
-	routing.InertiaRoute(),
+	routing.TypeScriptRoute(),
 )
 
 var ConfirmationNew = routing.NewSimpleRoute(
 	"/confirmation/new",
 	"users.new_user_confirmation",
 	UserPrefix,
-	routing.InertiaRoute(),
+	routing.TypeScriptRoute(),
 )
 
 var ConfirmationCreate = routing.NewSimpleRoute(
 	"/confirmation",
 	"users.user_confirmation",
 	UserPrefix,
-	routing.InertiaRoute(),
+	routing.TypeScriptRoute(),
 )

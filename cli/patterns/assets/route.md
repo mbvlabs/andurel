@@ -16,9 +16,9 @@ import "github.com/mbvlabs/andurel/pkg/routing"
 const UserPrefix = "/users"
 
 var (
-	UserIndex  = routing.NewSimpleRoute("", "users.index", UserPrefix, routing.InertiaRoute())
-	UserShow   = routing.NewRouteWithStringID(":id", "users.show", UserPrefix, routing.InertiaRoute())
-	UserCreate = routing.NewSimpleRoute("", "users.create", UserPrefix, routing.InertiaRoute())
+	UserIndex  = routing.NewSimpleRoute("", "users.index", UserPrefix, routing.TypeScriptRoute())
+	UserShow   = routing.NewRouteWithStringID(":id", "users.show", UserPrefix, routing.TypeScriptRoute())
+	UserCreate = routing.NewSimpleRoute("", "users.create", UserPrefix, routing.TypeScriptRoute())
 )
 ```
 
@@ -82,7 +82,8 @@ function routeHelper<Args extends unknown[]>(def: {
   Build the host registry with `routing.NewHosts(...)`, pass it to
   `anduin.NewRouter(anduin.WithHosts(hosts), ...)`, and pass the same value to
   `FullURL(hosts, ...)`.
-- Mark every route an Inertia page can link to with `routing.InertiaRoute()`.
+- Mark every route the frontend links to with `routing.TypeScriptRoute()`
+  (`routing.InertiaRoute()` is a deprecated alias).
   `andurel sync routes` skips routes without it, so JSON/asset/health routes
   never appear in `routes.ts`.
 - The TypeScript key is the **route variable name in lower camelCase**, not the
@@ -102,7 +103,7 @@ function routeHelper<Args extends unknown[]>(def: {
 ## Checklist
 
 - [ ] Path, name, and params declared with the `routing` helpers.
-- [ ] `routing.InertiaRoute()` set on every route the frontend links to.
+- [ ] `routing.TypeScriptRoute()` set on every route the frontend links to.
 - [ ] Handler `Register` uses `routes.<Name>.Path()`.
 - [ ] `andurel sync routes` run for Inertia projects; the generated key is the
       lower-camelCase variable name.
