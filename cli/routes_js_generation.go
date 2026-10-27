@@ -289,6 +289,7 @@ func validateRouteJSParams(route routeManifestRoute) error {
 func renderRouteJSHelper(helper routeJSHelper) (string, error) {
 	route := helper.Route
 	host := routeJSHost(route)
+	path := routeJSURLPath(route)
 	args := make([]string, 0, len(route.Params))
 	for _, param := range route.Params {
 		args = append(args, fmt.Sprintf("%s: %s", param.Name, routeJSType(param.Type)))
@@ -296,7 +297,7 @@ func renderRouteJSHelper(helper routeJSHelper) (string, error) {
 
 	var pathExpr string
 	if len(route.Params) == 0 {
-		pathExpr = fmt.Sprintf("() => '%s'", escapeTSSingleQuoted(route.Path))
+		pathExpr = fmt.Sprintf("() => '%s'", escapeTSSingleQuoted(path))
 	} else {
 		renderedPath, err := renderRouteJSTemplatePath(route)
 		if err != nil {
@@ -313,6 +314,12 @@ func renderRouteJSHelper(helper routeJSHelper) (string, error) {
 	), nil
 }
 
+// routeJSURLPath is the URL path a generated helper returns. Exact routes keep
+// their ServeMux pattern ("/{$}") separately; helpers must only emit the URL.
+func routeJSURLPath(route routeManifestRoute) string {
+	return strings.TrimSuffix(route.Path, "{$}")
+}
+
 func routeJSHost(route routeManifestRoute) string {
 	if route.Host == "" {
 		return "primary"
@@ -326,7 +333,7 @@ func renderRouteJSTemplatePath(route routeManifestRoute) (string, error) {
 		paramSet[param.Name] = struct{}{}
 	}
 
-	segments := strings.Split(route.Path, "/")
+	segments := strings.Split(routeJSURLPath(route), "/")
 	for i, segment := range segments {
 		if !strings.HasPrefix(segment, ":") {
 			segments[i] = escapeTSTemplateStatic(segment)

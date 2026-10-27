@@ -2,8 +2,12 @@
 
 Email is authored as a templ template under `email/` and compiled by
 `emailcompiler` into an inlined Go renderer. `andurel sync email` runs the
-compiler after templates or Tailwind inputs change. Email keeps templ; page
-views do not.
+compiler after templates or Tailwind inputs change and writes
+`email/*_templ.go`. Email keeps templ; page views do not.
+
+Regenerate email renderers with `andurel sync email`, never `templ generate`:
+plain templ rewrites `email/*_templ.go` with `class` attributes instead of the
+inlined styles the compiler produces, so `andurel verify` reports drift.
 
 ## Files
 
@@ -92,7 +96,8 @@ mail locally and the app refuses to start in production with it. Set
 
 ## Rules
 
-- Templates live in `email/`; run `andurel sync email` to compile them.
+- Templates live in `email/`; run `andurel sync email` to compile them into `email/*_templ.go`.
+- Never run `templ generate` on email templates; it produces output the compiler does not.
 - An email is a struct plus a `render()` templ method; compose it with `email.Compose` so both bodies render together.
 - Send transactional mail by enqueuing `storage.SendTransactionalEmailArgs` on a `storage.InsertQueue` from a service, not directly from a handler. When the email depends on data written in the same use case, pass `i.queue.InTx(tx)` from inside `storage.AtomicOps`.
 - Job args persist in `river_job`. An email that carries a secret (verification code, reset link) is not rendered at enqueue time: enqueue a job with the user id and let its worker mint the secret and render the email, as `jobs.SendVerificationEmailArgs` and `jobs.SendPasswordResetEmailArgs` do.

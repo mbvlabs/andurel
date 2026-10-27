@@ -9,6 +9,10 @@ All notable changes to the standalone Andurel routing module are documented here
 - `TypeScriptRoute` route setup option for routes that need generated
   TypeScript helpers (`resources/js/routes.ts`), including non-Inertia JSON
   endpoints and asset URLs.
+- `Exact()` route setup option and `Pattern()` on every route type. `Path()`
+  keeps returning the URL (for example `/`), while `Pattern()` returns the
+  `http.ServeMux` pattern (`/{$}` for an exact root route), so exact routes no
+  longer register a catch-all prefix.
 
 ### Changed
 

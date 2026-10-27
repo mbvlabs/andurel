@@ -18,6 +18,77 @@ type Config struct {
 	Inertia     Inertia
 }
 
+// BuildVersion is injected with -ldflags at build time. Local builds leave it
+// empty and fall back to "dev".
+var BuildVersion string
+
+func buildVersion() string {
+	if BuildVersion != "" {
+		return BuildVersion
+	}
+
+	return "dev"
+}
+
+// WorkerConfig is the configuration the queue process reads. It excludes the
+// web-only settings (HTTP, sessions, cache and Inertia), so a queue container
+// does not need their environment variables.
+type WorkerConfig struct {
+	App         App
+	Auth        Auth
+	Database    storage.Config
+	QueueWorker QueueWorker
+	Telemetry   Telemetry
+	Mail        Mail
+}
+
+// NewWorker loads only the settings cmd/queue needs.
+func NewWorker() (WorkerConfig, error) {
+	app, err := NewApp()
+	if err != nil {
+		return WorkerConfig{}, err
+	}
+
+	auth, err := NewAuth()
+	if err != nil {
+		return WorkerConfig{}, err
+	}
+
+	database, err := NewDatabase()
+	if err != nil {
+		return WorkerConfig{}, err
+	}
+
+	queueInsert, err := NewQueueInsert()
+	if err != nil {
+		return WorkerConfig{}, err
+	}
+
+	queueWorker, err := NewQueueWorker(queueInsert)
+	if err != nil {
+		return WorkerConfig{}, err
+	}
+
+	tel, err := NewTelemetry(app)
+	if err != nil {
+		return WorkerConfig{}, err
+	}
+
+	mail, err := NewMail(app)
+	if err != nil {
+		return WorkerConfig{}, err
+	}
+
+	return WorkerConfig{
+		App:         app,
+		Auth:        auth,
+		Database:    database,
+		QueueWorker: queueWorker,
+		Telemetry:   tel,
+		Mail:        mail,
+	}, nil
+}
+
 func New() (Config, error) {
 	app, err := NewApp()
 	if err != nil {
@@ -75,7 +146,7 @@ func New() (Config, error) {
 	}
 
 	return Config{
-		Version:     "dev",
+		Version:     buildVersion(),
 		App:         app,
 		HTTP:        httpCfg,
 		Auth:        auth,

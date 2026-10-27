@@ -24,7 +24,7 @@ andurel patterns show <kind> and write the files yourself. andurel new produces
 a complete reference application that doubles as the executable pattern book.
 
 Pattern ids: domain, service, handler, route, job, email, migration,
-test-domain, test-handler, test-integration, composition.`,
+test-domain, test-handler, test-integration, composition, deploy.`,
 		Example: `  andurel patterns list
   andurel patterns list --json
   andurel patterns show domain

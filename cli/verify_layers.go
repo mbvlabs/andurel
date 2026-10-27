@@ -14,8 +14,8 @@ import (
 //
 // Load and type errors fail the step instead of producing an empty green
 // result: a project that cannot be type-checked has not been verified.
-func verifyLayerBoundaries(rootDir string) verifyStep {
-	violations, err := layers.Analyze(rootDir)
+func verifyLayerBoundaries(rootDir string, patterns []string) verifyStep {
+	violations, err := layers.AnalyzePatterns(rootDir, patterns)
 	if err != nil {
 		step := verifyStepFailed("layers")
 		step.Detail = err.Error()

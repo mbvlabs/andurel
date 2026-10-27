@@ -1,5 +1,20 @@
 ## Unreleased
 
+### Added
+
+- `ErrorMapping.SSR` opts a mapped error page into server-side rendering, and
+  `NewErrorHandler` with `ErrorHandlerOptions` does the same for the validation
+  and fallback pages. A configured fallback page renders unmapped 5xx errors
+  (including a fail-fast SSR failure) as a themed response instead of the
+  router's plain-text default; it stays client-rendered when the error came from
+  SSR itself. `ErrorHandler` keeps its existing `...ErrorMapping` signature.
+
+### Fixed
+
+- `resolveSSRBundle` falls back to the embedded bundle when a configured
+  `INERTIA_SSR_BUNDLE` is an absolute path outside the project, and the error
+  now reports that the embedded fallback was tried.
+
 ## 0.10.1 - 2026-10-26
 
 ### Changed

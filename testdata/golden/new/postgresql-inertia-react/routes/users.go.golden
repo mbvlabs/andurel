@@ -20,6 +20,8 @@ var SessionCreate = routing.NewSimpleRoute(
 	routing.InertiaRoute(),
 )
 
+// SessionDestroy signs the user out. It is registered for DELETE (the Inertia
+// link) and POST (the no-JavaScript form fallback).
 var SessionDestroy = routing.NewSimpleRoute(
 	"/sign-out",
 	"users.destroy_user_session",

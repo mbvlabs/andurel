@@ -252,6 +252,11 @@ func TestEmailCommandSurface(t *testing.T) {
 	if err := command.Args(command, []string{"unexpected"}); err == nil {
 		t.Fatal("email compile accepted a positional argument")
 	}
+	for _, want := range []string{"email/*_templ.go", "templ generate", "--json"} {
+		if !strings.Contains(command.Long, want) {
+			t.Fatalf("email compile help is missing %q:\n%s", want, command.Long)
+		}
+	}
 }
 
 func TestEmailCompileCommandReportsProjectErrors(t *testing.T) {

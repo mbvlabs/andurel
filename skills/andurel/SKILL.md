@@ -17,7 +17,7 @@ Andurel is Go-native: `net/http` through `pkg/anduin`, explicit constructor inje
 - Run `andurel inspect project --json` before changing code.
 - Use `--json` or `--jq` when extracting data.
 - `andurel generate` does not write application code. Read a pattern with `andurel patterns show <kind>` and write the files yourself. Only `andurel generate migration` creates a file.
-- Run `andurel verify` after a change: it checks formatting, `go fix`, `go vet`, the typed layer rules, and generated-code drift. The rules are listed under [Verify](#verify). Add `--with-tests` to also run the test suite.
+- Run `andurel verify` after a change: it checks formatting, `go fix`, `go vet`, the typed layer rules, the `package.json` typecheck script, and generated-code drift. The rules are listed under [Verify](#verify). Pass Go package patterns to scope the Go checks, and add `--with-tests` to also run the test suite.
 - Prefer the local project pattern over a generic Rails, Echo, Bun, Templ, or frontend convention.
 - Keep handlers as thin HTTP adapters: parse input, call a domain or service, map errors, render a response.
 - Create a service only when there is real cross-domain orchestration, not just because code exists.
@@ -36,7 +36,7 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 
 ## Verify
 
-`andurel verify` runs `gofmt`, `go fix`, `go vet`, the typed layer rules, and generated-code drift, and reports each violation as `{rule, file, line, message, fix}`. Apply the `fix` and re-run. Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
+`andurel verify` runs `gofmt`, `go fix`, `go vet`, the typed layer rules, the package manager's `typecheck` script when `package.json` defines one, and generated-code drift. It reports each violation as `{rule, file, line, message, fix}`. Apply the `fix` and re-run. `andurel verify [packages...]` scopes the Go checks to package patterns (for example `./internal/docs/...`); generated drift and the frontend typecheck stay whole-project. `--no-frontend` skips the typecheck. Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
 
 <!-- andurel:verify-rules:begin: generated from the verify rule catalog by 'just docs-sync'; do not edit -->
 | Rule | Checks |
@@ -51,7 +51,8 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 | `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and internal/runtime |
 | `domain-transport` | domains/** imports no HTTP, Inertia, routing, handler, middleware, or route package |
 | `entity-columns` | every automatic generated query column maps to an exported andurel tag on its domain entity |
-| `generated` | generated templ, queries, routes, and payload output is up to date |
+| `frontend` | the package.json typecheck script passes when the scaffold defines one |
+| `generated` | generated templ, email, queries, routes, and payload output is up to date |
 | `missing-tool` | a required generation binary is installed; run 'andurel tool sync' |
 <!-- andurel:verify-rules:end -->
 
