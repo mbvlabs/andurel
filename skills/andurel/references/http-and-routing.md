@@ -83,7 +83,7 @@ var HomePage = routing.NewSimpleRoute(
 	"pages.home",
 	"",
 	routing.Exact(),
-	routing.InertiaRoute(),
+	routing.TypeScriptRoute(),
 )
 
 rt.Get(routes.HomePage.Pattern(), h.Home) // registers GET /{$}

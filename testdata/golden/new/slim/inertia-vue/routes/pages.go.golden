@@ -8,6 +8,6 @@ var HomePage = routing.NewSimpleRoute(
 	"/",
 	"pages.home",
 	"",
-	routing.InertiaRoute(),
+	routing.TypeScriptRoute(),
 	routing.Exact(),
 )
