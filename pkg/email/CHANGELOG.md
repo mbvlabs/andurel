@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel email module are documented here.
 
 ## Unreleased
 
+## 0.6.0 - 2026-10-27
+
 ### Added
 
 - `Log` and `NewLog`, a sender that logs transactional and marketing messages

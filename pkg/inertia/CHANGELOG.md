@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.11.0 - 2026-10-27
+
 ### Added
 
 - `ErrorMapping.SSR` opts a mapped error page into server-side rendering, and

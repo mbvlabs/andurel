@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+## 0.6.0 - 2026-10-27
+
 ### Added
 
 - `TypeScriptRoute` route setup option for routes that need generated

@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel kiks module are documented here.
 
 ## Unreleased
 
+## 0.6.0 - 2026-10-27
+
 ### Added
 
 - `FlashMessages` returns the typed flash slice; `Flashes` now returns the
