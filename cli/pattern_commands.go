@@ -25,7 +25,7 @@ a complete reference application that doubles as the executable pattern book.
 
 Pattern ids: domain, service, handler, route, middleware, page, job, email,
 migration, test-domain, test-handler, test-integration, test-middleware,
-composition.`,
+composition, deploy.`,
 		Example: `  andurel patterns list
   andurel patterns list --json
   andurel patterns show domain

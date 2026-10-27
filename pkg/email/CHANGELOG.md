@@ -4,6 +4,12 @@ All notable changes to the standalone Andurel email module are documented here.
 
 ## Unreleased
 
+### Added
+
+- `Log` and `NewLog`, a sender that logs transactional and marketing messages
+  instead of delivering them. It is allowed in production, so a local
+  production-like run (`EMAIL_PROVIDER=log`) needs no SMTP server.
+
 ## 0.5.1 - 2026-10-26
 
 ### Changed

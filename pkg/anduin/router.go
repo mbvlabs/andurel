@@ -76,7 +76,8 @@ func NewRouter(opts ...Option) *Router {
 	return rt
 }
 
-// Get registers a GET handler on the primary host.
+// Get registers a GET handler on the primary host. net/http serves HEAD
+// requests with GET handlers.
 func (rt *Router) Get(pattern string, h Handler, mw ...Middleware) {
 	rt.register(rt.primary, http.MethodGet, pattern, h, mw)
 }
@@ -191,7 +192,12 @@ func (rt *Router) serve(w http.ResponseWriter, r *http.Request) {
 		// sets Pattern and path values on the request we can observe.
 		request = request.WithContext(ctx)
 		ctx = ReplaceRequest(ctx, request)
-		rt.muxForRequest(request).ServeHTTP(ResponseWriter(ctx), request)
+		mux := rt.muxForRequest(request)
+		writer := &notFoundWriter{ResponseWriter: ResponseWriter(ctx), request: request}
+		mux.ServeHTTP(writer, request)
+		if writer.notFound {
+			rt.handleError(ctx, ErrNotFound)
+		}
 		return nil
 	}
 
@@ -200,6 +206,51 @@ func (rt *Router) serve(w http.ResponseWriter, r *http.Request) {
 		rt.handleError(ctx, err)
 	}
 }
+
+// notFoundWriter turns the ServeMux's built-in 404 into a router error so the
+// ErrorHandler can render the app's not-found page. ServeMux has no not-found
+// hook, and a catch-all "/" pattern would also swallow method-not-allowed
+// responses, so the generated 404 is intercepted instead. A matched handler
+// has a non-empty request.Pattern and passes through untouched.
+type notFoundWriter struct {
+	http.ResponseWriter
+	request     *http.Request
+	notFound    bool
+	wroteHeader bool
+}
+
+func (w *notFoundWriter) WriteHeader(status int) {
+	if status == http.StatusNotFound && !w.wroteHeader && w.request.Pattern == "" {
+		w.notFound = true
+		w.wroteHeader = true
+		return
+	}
+	w.ResponseWriter.WriteHeader(status)
+	w.wroteHeader = true
+}
+
+func (w *notFoundWriter) Write(body []byte) (int, error) {
+	w.wroteHeader = true
+	if w.notFound {
+		return len(body), nil
+	}
+	return w.ResponseWriter.Write(body)
+}
+
+// Unwrap exposes the underlying writer to http.ResponseController.
+func (w *notFoundWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+
+// Flush keeps streaming handlers (SSE) working through the wrapper.
+func (w *notFoundWriter) Flush() {
+	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+var (
+	_ http.Flusher                              = (*notFoundWriter)(nil)
+	_ interface{ Unwrap() http.ResponseWriter } = (*notFoundWriter)(nil)
+)
 
 func (rt *Router) muxForRequest(r *http.Request) *http.ServeMux {
 	rt.mu.Lock()
@@ -292,7 +343,8 @@ type Host struct {
 // Name returns the HostName this Host serves.
 func (h *Host) Name() routing.HostName { return h.name }
 
-// Get registers a GET handler on the host.
+// Get registers a GET handler on the host. net/http serves HEAD requests with
+// GET handlers.
 func (h *Host) Get(pattern string, handler Handler, mw ...Middleware) {
 	h.router.register(h.mux, http.MethodGet, pattern, handler, mw)
 }

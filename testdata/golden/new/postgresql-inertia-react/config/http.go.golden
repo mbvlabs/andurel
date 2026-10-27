@@ -16,6 +16,7 @@ const (
 	DefaultHTTPHost         = "localhost"
 	DefaultHTTPPort         = "8080"
 	DefaultCSRFStrategy     = "header_only"
+	DefaultHTTPCompress     = true
 	DefaultHTTPIdleTimeout  = 120 * time.Second
 	DefaultHTTPReadTimeout  = 10 * time.Second
 	DefaultHTTPWriteTimeout = 30 * time.Second
@@ -24,6 +25,7 @@ const (
 type HTTP struct {
 	Host               string
 	Port               string
+	Compress           bool
 	CORSAllowedOrigins []string
 	CSRFStrategy       string
 	CSRFTrustedOrigins []string
@@ -45,6 +47,7 @@ func NewHTTP() (HTTP, error) {
 		TrustedProxies:     trustedProxies,
 		Host:               e.String("HOST", DefaultHTTPHost),
 		Port:               e.String("PORT", DefaultHTTPPort),
+		Compress:           e.Bool("HTTP_COMPRESS", DefaultHTTPCompress),
 		CORSAllowedOrigins: e.Strings("CORS_ALLOWED_ORIGINS", nil),
 		CSRFStrategy:       e.String("CSRF_STRATEGY", DefaultCSRFStrategy),
 		CSRFTrustedOrigins: e.Strings("CSRF_TRUSTED_ORIGINS", nil),

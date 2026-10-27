@@ -1,12 +1,16 @@
 {
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build && vite build --ssr resources/js/ssr.tsx --outDir assets/dist/ssr",
     "build:client": "vite build",
     "build:ssr": "vite build --ssr resources/js/ssr.tsx --outDir assets/dist/ssr",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.3.0",

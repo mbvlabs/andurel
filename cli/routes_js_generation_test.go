@@ -154,6 +154,37 @@ func TestRenderRoutesJSIncludesSecondaryHost(t *testing.T) {
 	}
 }
 
+func TestRenderRoutesJSUsesURLCShapedPathForExactRoutes(t *testing.T) {
+	manifest := routeManifest{
+		Routes: []routeManifestRoute{{
+			Variable:  "HomePage",
+			Path:      "/",
+			Pattern:   "/{$}",
+			Exact:     true,
+			IsInertia: true,
+		}},
+	}
+
+	got, _, err := renderRoutesJS(manifest)
+	if err != nil {
+		t.Fatalf("render routes js: %v", err)
+	}
+	if strings.Contains(string(got), "{$}") {
+		t.Fatalf("helpers must emit the URL path, not the mux pattern:\n%s", got)
+	}
+	if want := "homePage: routeHelper({\n    host: 'primary',\n    path: () => '/',\n  })"; !strings.Contains(
+		string(got),
+		want,
+	) {
+		t.Fatalf("expected output to contain %q, got:\n%s", want, got)
+	}
+
+	// Defensive: a mux pattern must never leak into the URL helper.
+	if got := routeJSURLPath(routeManifestRoute{Path: "/{$}"}); got != "/" {
+		t.Fatalf("routeJSURLPath(%q) = %q, want %q", "/{$}", got, "/")
+	}
+}
+
 func TestRenderRoutesJSEscapesStaticPathSegments(t *testing.T) {
 	manifest := routeManifest{
 		Routes: []routeManifestRoute{
@@ -335,6 +366,14 @@ func TestGenerateRoutesCommandAllowsInertiaProject(t *testing.T) {
 	}
 	if !strings.Contains(string(got), "path: () => '/users/sign-in'") {
 		t.Fatalf("unexpected generated routes.ts:\n%s", got)
+	}
+	for _, want := range []string{
+		"routing.TypeScriptRoute()",
+		"Call helpers while rendering",
+	} {
+		if !strings.Contains(string(got), want) {
+			t.Fatalf("expected generated routes.ts to contain %q:\n%s", want, got)
+		}
 	}
 	if !strings.Contains(result.stdout, `"generated_file": "resources/js/routes.ts"`) {
 		t.Fatalf("expected structured generation report, got:\n%s", result.stdout)

@@ -1,13 +1,24 @@
 package queue
 
 import (
+	"context"
+
 	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 	"github.com/riverqueue/river"
 
 	"app/domains"
 	"app/services"
 )
+
+// failJob logs a failed job with its identity before returning err. A job River
+// cancels is otherwise silent: only the error text reaches the job row.
+func failJob(ctx context.Context, jobID int64, kind string, err error) error {
+	telemetry.Error(ctx, "job failed", "job.id", jobID, "job.kind", kind, "error", err)
+
+	return telemetry.Fail(ctx, err)
+}
 
 func NewWorkers(
 	identity services.Identity,

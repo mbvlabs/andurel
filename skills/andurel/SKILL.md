@@ -18,7 +18,7 @@ Andurel is Go-native: `net/http` through `pkg/anduin`, explicit constructor inje
 - Run `andurel inspect project --json` before changing code.
 - Use `--json` or `--jq` when extracting data.
 - `andurel generate` does not write application code. Read a pattern with `andurel patterns show <kind>` and write the files yourself. Only `andurel generate migration` creates a file.
-- Run `andurel verify` after a change: it checks formatting, `go fix`, `go vet`, the typed layer rules, and generated-code drift. The rules are listed under [Verify](#verify). Add `--with-tests` to also run the test suite.
+- Run `andurel verify` after a change: it checks formatting, `go fix`, `go vet`, the typed layer rules, the `package.json` typecheck script, and generated-code drift. The rules are listed under [Verify](#verify). Pass Go package patterns to scope the Go checks, and add `--with-tests` to also run the test suite.
 - Prefer the local project pattern over a generic Rails, Echo, Bun, Templ, or frontend convention.
 - Keep handlers as thin HTTP adapters: parse input, call a domain or service, map errors, render a response.
 - Create a service only when there is real cross-domain orchestration, not just because code exists.
@@ -37,7 +37,7 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 
 ## Verify
 
-`andurel verify` runs `gofmt`, `go fix`, `go vet`, the typed layer rules, and generated-code drift, and reports each violation as `{rule, file, line, message, fix}`. Apply the `fix` and re-run. Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
+`andurel verify` runs `gofmt`, `go fix`, `go vet`, the typed layer rules, the package manager's `typecheck` script when `package.json` defines one, and generated-code drift. It reports each violation as `{rule, file, line, message, fix}`. Apply the `fix` and re-run. `andurel verify [packages...]` scopes the Go checks to package patterns (for example `./internal/docs/...`); generated drift and the frontend typecheck stay whole-project. `--no-frontend` skips the typecheck. Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
 
 <!-- andurel:verify-rules:begin: generated from the verify rule catalog by 'just docs-sync'; do not edit -->
 | Rule | Checks |
@@ -52,7 +52,8 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 | `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and internal/runtime |
 | `domain-transport` | domains/** imports no HTTP, Inertia, routing, handler, middleware, or route package |
 | `entity-columns` | every automatic generated query column maps to an exported andurel tag on its domain entity |
-| `generated` | generated templ, queries, routes, and payload output is up to date |
+| `frontend` | the package.json typecheck script passes when the scaffold defines one |
+| `generated` | generated templ, email, queries, routes, and payload output is up to date |
 | `missing-tool` | a required generation binary is installed; run 'andurel tool sync' |
 <!-- andurel:verify-rules:end -->
 
@@ -76,6 +77,7 @@ Inspect a project:
 
 ```bash
 andurel inspect project --json
+andurel inspect config --json
 andurel inspect routes --json
 andurel inspect handlers --json
 andurel inspect domains --json
@@ -123,7 +125,9 @@ andurel inspect routes --json
 andurel sync routes --json
 ```
 
-`andurel sync routes` reads `routes/*.go` as the source of truth and writes `resources/js/routes.ts`. Import helpers from that file in Inertia pages instead of hard-coding URLs. Helpers are flat and keyed by the route variable in lower camelCase (`UserIndex` → `routes.userIndex`), not by the route's declared name. They include the route host and return absolute URLs once `configureRouteHosts` has run; call `routes.name.path()` when a relative path is required, and build helpers at render time.
+`andurel sync routes` reads `routes/*.go` as the source of truth and writes `resources/js/routes.ts` for routes marked `routing.TypeScriptRoute()` (`routing.InertiaRoute()` is a deprecated alias). Import helpers from that file in Inertia pages instead of hard-coding URLs. Helpers are flat and keyed by the route variable in lower camelCase (`UserIndex` → `routes.userIndex`), not by the route's declared name. Helpers include the route host and return absolute URLs once `configureRouteHosts` has run; call `routes.name.path()` when a relative path is required.
+
+Call helpers at render time (`href={routes.widgetShow(id)}`), not in a module-scope constant such as `const url = routes.widgetShow(id)`: `configureRouteHosts` runs after the app boots, so a constant captured at import time keeps an empty origin (or the server's request-time value under SSR).
 
 Generate Inertia payload types:
 
@@ -131,7 +135,7 @@ Generate Inertia payload types:
 andurel sync payloads --json
 ```
 
-`andurel sync payloads` scans handler `inertia.FromStruct` props and the named `*Payload` structs passed to `anduin.DecodeJSON`/`DecodeForm` and writes `resources/js/types/payloads.ts`. Import page and form types from that file instead of hand-written TypeScript. Run it after editing those Go structs.
+`andurel sync payloads` scans handler `inertia.FromStruct` props (page props) and the named structs passed to `anduin.DecodeJSON`/`DecodeForm` (request payloads) and writes `resources/js/types/payloads.ts`. It follows named struct fields into other packages in the module, so a handler prop may reference a type such as `docs.PageProps`. Request payloads must be named with a `Payload` suffix; page props keep their struct name. `domains/` types are rejected, so define a handler-owned payload instead. Calls that pass a literal `inertia.Props{...}` map are skipped and need hand-written TypeScript. Import the generated page and form types from that file instead of hand-written TypeScript, and run it after editing those Go structs.
 
 Generate a named database seed:
 

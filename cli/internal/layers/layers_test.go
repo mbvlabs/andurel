@@ -395,7 +395,7 @@ func TestNoPackagesErrorReportsGoCommandFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := noPackagesError(dir)
+	err := noPackagesError(dir, nil)
 	if err == nil {
 		t.Fatal("expected an error")
 	}

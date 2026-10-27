@@ -321,7 +321,7 @@ func rootIdentName(expr ast.Expr) string {
 	}
 }
 
-// routePathVariable returns X for routes.X.Path().
+// routePathVariable returns X for routes.X.Path() or routes.X.Pattern().
 func routePathVariable(expr ast.Expr, routesName string) string {
 	if routesName == "" {
 		return ""
@@ -331,7 +331,7 @@ func routePathVariable(expr ast.Expr, routesName string) string {
 		return ""
 	}
 	pathSel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok || pathSel.Sel.Name != "Path" {
+	if !ok || (pathSel.Sel.Name != "Path" && pathSel.Sel.Name != "Pattern") {
 		return ""
 	}
 	varSel, ok := pathSel.X.(*ast.SelectorExpr)

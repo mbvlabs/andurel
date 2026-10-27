@@ -142,6 +142,11 @@ func Set[T any](ctx context.Context, value T) error {
 
 // Destroy clears a cookie or session value from the request bag. Persistence
 // expires the cookie and, for sessions, calls Store.Destroy.
+//
+// Destroying the session also drops flashes queued before the call: they
+// belonged to the session being removed. Flashes added afterwards are kept and
+// persist with the response, so a sign-out handler can destroy the session and
+// still flash a message for the next page.
 func Destroy[T any](ctx context.Context) error {
 	requestBag := bagFrom(ctx)
 	if requestBag == nil {

@@ -342,16 +342,27 @@ func (runtime *SSRRuntime) removeExtractedBundle() {
 }
 
 func resolveSSRBundle(bundlePath string, bundleFS fs.FS) (string, func(), error) {
+	diskErr := error(nil)
 	if _, err := os.Stat(bundlePath); err == nil {
 		return bundlePath, nil, nil
-	} else if bundleFS == nil {
-		return "", nil, fmt.Errorf("inertia SSR bundle %q: %w", bundlePath, err)
+	} else {
+		diskErr = err
+	}
+
+	if bundleFS == nil {
+		return "", nil, fmt.Errorf("inertia SSR bundle %q: %w", bundlePath, diskErr)
 	}
 
 	embedPath := embedPathForBundle(bundlePath)
 	data, err := fs.ReadFile(bundleFS, embedPath)
 	if err != nil {
-		return "", nil, fmt.Errorf("inertia SSR bundle %q: %w", bundlePath, err)
+		return "", nil, fmt.Errorf(
+			"inertia SSR bundle %q: %w (embedded fallback %q was tried: %w)",
+			bundlePath,
+			diskErr,
+			embedPath,
+			err,
+		)
 	}
 
 	dir, err := os.MkdirTemp("", "inertia-ssr-")
@@ -373,8 +384,30 @@ func resolveSSRBundle(bundlePath string, bundleFS fs.FS) (string, func(), error)
 	return dest, cleanup, nil
 }
 
+const defaultSSREmbedPath = "dist/ssr/ssr.js"
+
+// embedPathForBundle maps a configured bundle path onto the embedded assets
+// filesystem, whose root is the assets directory. An absolute path is reduced
+// to the part after its "assets/" segment; when there is no such segment (for
+// example a custom INERTIA_SSR_BUNDLE outside the project), the default
+// embedded bundle is used so the fallback still works.
 func embedPathForBundle(bundle string) string {
-	return strings.TrimPrefix(filepath.ToSlash(bundle), "assets/")
+	slash := strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(bundle)), "./")
+	if slash == "" {
+		return defaultSSREmbedPath
+	}
+
+	marker := "/assets/"
+	index := strings.LastIndex("/"+slash, marker)
+	if index >= 0 {
+		return strings.TrimPrefix(("/" + slash)[index+len(marker):], "/")
+	}
+
+	if filepath.IsAbs(bundle) {
+		return defaultSSREmbedPath
+	}
+
+	return slash
 }
 
 func normalizeWaitError(err error) error {

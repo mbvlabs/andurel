@@ -320,14 +320,14 @@ step "building the application"
 	"${cli}" build
 )
 
-step "starting the application and polling /health"
+step "starting the application and polling /api/health"
 (
 	cd "${app_dir}"
-	exec "./${app_name}"
+	exec "./dist/app"
 ) >"${tmp_dir}/app.log" 2>&1 &
 app_pid=$!
 
-health_url="http://${HOST}:${PORT}/health"
+health_url="http://${HOST}:${PORT}/api/health"
 healthy=false
 for _ in $(seq 1 60); do
 	if curl -fsS "${health_url}" >/dev/null 2>&1; then

@@ -20,16 +20,20 @@ type routeManifest struct {
 }
 
 type routeManifestRoute struct {
-	Variable    string               `json:"variable"`
-	Name        string               `json:"name"`
-	Path        string               `json:"path"`
-	Constructor string               `json:"constructor"`
-	Kind        string               `json:"kind"`
-	Host        string               `json:"host,omitempty"`
-	IsInertia   bool                 `json:"is_inertia"`
-	Params      []routeManifestParam `json:"params,omitempty"`
-	SourceFile  string               `json:"source_file"`
-	Line        int                  `json:"line"`
+	Variable    string `json:"variable"`
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	Pattern     string `json:"pattern,omitempty"`
+	Exact       bool   `json:"exact,omitempty"`
+	Constructor string `json:"constructor"`
+	Kind        string `json:"kind"`
+	Host        string `json:"host,omitempty"`
+	// IsInertia records routing.TypeScriptRoute() (and its deprecated
+	// InertiaRoute alias). The JSON name is kept for output compatibility.
+	IsInertia  bool                 `json:"is_inertia"`
+	Params     []routeManifestParam `json:"params,omitempty"`
+	SourceFile string               `json:"source_file"`
+	Line       int                  `json:"line"`
 }
 
 type routeManifestParam struct {
@@ -303,7 +307,7 @@ func routeManifestFromValue(
 		return routeManifestRoute{}, skip("route prefix is not a static string expression"), true
 	}
 
-	isInertia, host, errReason := evalRouteSetupOptions(call.Args[3:], hostNames)
+	isInertia, exact, host, errReason := evalRouteSetupOptions(call.Args[3:], hostNames)
 	if errReason != "" {
 		return routeManifestRoute{}, skip(errReason), true
 	}
@@ -313,6 +317,8 @@ func routeManifestFromValue(
 		Variable:    variable,
 		Name:        name,
 		Path:        routePath,
+		Pattern:     routeManifestPattern(routePath, exact),
+		Exact:       exact,
 		Constructor: constructor,
 		Kind:        routeKind(constructor),
 		Host:        host,
@@ -323,27 +329,44 @@ func routeManifestFromValue(
 	}, nil, true
 }
 
-func evalRouteSetupOptions(args []ast.Expr, hostNames map[string]string) (bool, string, string) {
+// routeManifestPattern mirrors routing.Route.Pattern: an exact root route is
+// the ServeMux end-of-URL wildcard "/{$}", other paths are already exact.
+func routeManifestPattern(path string, exact bool) string {
+	if exact && strings.HasSuffix(path, "/") {
+		return path + "{$}"
+	}
+	return path
+}
+
+func evalRouteSetupOptions(
+	args []ast.Expr,
+	hostNames map[string]string,
+) (bool, bool, string, string) {
 	isInertia := false
+	exact := false
 	host := ""
 	for _, arg := range args {
 		if isInertiaRouteOption(arg) {
 			isInertia = true
 			continue
 		}
+		if isRouteSetupOption(arg, "Exact") {
+			exact = true
+			continue
+		}
 		name, isHost, reason := evalHostRouteOption(arg, hostNames)
 		if isHost {
 			if reason != "" {
-				return false, "", reason
+				return false, false, "", reason
 			}
 			if name != "" && name != string(mustHostPrimary()) {
 				host = name
 			}
 			continue
 		}
-		return false, "", "unsupported route setup option"
+		return false, false, "", "unsupported route setup option"
 	}
-	return isInertia, host, ""
+	return isInertia, exact, host, ""
 }
 
 func mustHostPrimary() string {
@@ -414,7 +437,15 @@ func hostNameFromExpr(expr ast.Expr, hostNames map[string]string) (string, bool)
 	}
 }
 
+// isInertiaRouteOption recognizes the route setup option that opts a route into
+// generated TypeScript helpers. TypeScriptRoute is the current name;
+// InertiaRoute is the deprecated alias.
 func isInertiaRouteOption(expr ast.Expr) bool {
+	return isRouteSetupOption(expr, "TypeScriptRoute") ||
+		isRouteSetupOption(expr, "InertiaRoute")
+}
+
+func isRouteSetupOption(expr ast.Expr, name string) bool {
 	call, ok := expr.(*ast.CallExpr)
 	if !ok || len(call.Args) != 0 {
 		return false
@@ -424,7 +455,7 @@ func isInertiaRouteOption(expr ast.Expr) bool {
 		return false
 	}
 	ident, ok := sel.X.(*ast.Ident)
-	return ok && ident.Name == "routing" && sel.Sel.Name == "InertiaRoute"
+	return ok && ident.Name == "routing" && sel.Sel.Name == name
 }
 
 func routeConstructorName(expr ast.Expr) (string, bool) {
@@ -598,7 +629,7 @@ func renderRouteManifestHuman(w io.Writer, manifest routeManifest) error {
 			return err
 		}
 		table := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
-		if _, err := fmt.Fprintln(table, "VARIABLE\tNAME\tHOST\tURL PATH\tPARAMS\tSOURCE"); err != nil {
+		if _, err := fmt.Fprintln(table, "VARIABLE\tNAME\tHOST\tURL PATH\tPATTERN\tPARAMS\tSOURCE"); err != nil {
 			return err
 		}
 		for _, route := range manifest.Routes {
@@ -606,13 +637,18 @@ func renderRouteManifestHuman(w io.Writer, manifest routeManifest) error {
 			if host == "" {
 				host = "-"
 			}
+			pattern := route.Pattern
+			if pattern == "" || pattern == route.Path {
+				pattern = "-"
+			}
 			if _, err := fmt.Fprintf(
 				table,
-				"%s\t%s\t%s\t%s\t%s\t%s:%d\n",
+				"%s\t%s\t%s\t%s\t%s\t%s\t%s:%d\n",
 				route.Variable,
 				route.Name,
 				host,
 				route.Path,
+				pattern,
 				formatRouteManifestParams(route.Params),
 				route.SourceFile,
 				route.Line,

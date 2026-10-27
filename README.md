@@ -35,7 +35,7 @@ Andurel is built for humans and agents on the same pad:
 - **Range ops**: River jobs, email, and queues on the same stack that serves the request path
 - **Ground support**: Agent-ready CLI with read-only patterns, JSON discovery, and AGENTS.md so machines can operate the project without a second stack
 - **Live reload**: `andurel run` with [Shadowfax](https://github.com/mbvlabs/shadowfax) for Go, templates, CSS, and Vite (`--tools mailpit` for sidecars)
-- **Production build**: `andurel build` compiles Templ, Tailwind CSS, Vite assets, and the Go binary
+- **Production build**: `andurel build` compiles Templ, email Tailwind, Vite assets, and every `cmd/*` process (`app`, `queue`, `migrate`, `ssr`) into `dist/`
 
 **Humans.** One-time generation. The scaffold writes Go and Inertia pages you can read, edit, and ship. After that, the code is yours, laid out in a shape you can navigate.
 
@@ -185,7 +185,7 @@ Details: [directory structure](https://andurel.com/docs/latest/directory-structu
 | `andurel db` | Database lifecycle: create, drop, nuke, rebuild, migrate, seed, console |
 | `andurel console` (`c`) | Open an interactive database console |
 | `andurel run` (`r`) | Dev server with live reload |
-| `andurel build` | Production build (Templ, CSS, Vite, Go binary) |
+| `andurel build` | Production build (Templ, email Tailwind, Vite, all `cmd/*` processes in `dist/`) |
 | `andurel tool sync` | Download pinned project binaries |
 | `andurel upgrade` | Bring an app forward to a newer Andurel |
 | `andurel doctor` | Project diagnostics |

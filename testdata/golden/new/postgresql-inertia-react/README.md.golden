@@ -121,6 +121,27 @@ go build -o migrate ./cmd/migrate
 ./migrate
 ```
 
+## Build And Deploy
+
+`andurel build` compiles every process in `cmd/` that has a `main` package,
+except `seeds`, into `dist/`: `app`, `queue`, `migrate`, and `ssr` (when Inertia
+is configured). Client assets and the SSR bundle are embedded in the binaries.
+
+```bash
+andurel build
+andurel build --version 1.2.3 --only app,migrate
+andurel build --json
+```
+
+`--only` narrows the process list, and `--json` emits an artifact manifest with
+each binary's path, size, and version.
+
+Production runs `dist/migrate` once, then `dist/ssr`, then `dist/app` and
+`dist/queue`. Every process reads the same environment. Read
+`andurel patterns show deploy` for the start order, the variables each process
+needs, the app `/api/health` and SSR sidecar `/health` endpoints, and why
+`INERTIA_SSR_FAIL_FAST=true` belongs in production.
+
 ## Patterns, Sync, And Inspect
 
 `andurel patterns` prints reference code, placement rules, and a "definition of done" checklist. It is read-only — you write every file.
@@ -320,7 +341,7 @@ func NewProductHandler(products domains.Products, renderer *inertia.Renderer) Pr
 }
 
 func (h ProductHandler) Register(rt *anduin.Router) {
-    rt.Get(routes.ProductIndex.Path(), h.Index)
+    rt.Get(routes.ProductIndex.Pattern(), h.Index)
 }
 
 func (h ProductHandler) Index(ctx context.Context) error {
@@ -532,6 +553,9 @@ _, err = i.queue.Insert(ctx, storage.SendTransactionalEmailArgs{Data: data}, nil
   `SMTP_PORT` (default `587`), plus `SMTP_USERNAME` and `SMTP_PASSWORD` when
   the relay requires authentication. `SMTP_TLS` accepts `starttls` (default),
   `tls` for implicit TLS (usually port 465), or `none` for a local relay.
+- `log` logs each message at info level instead of delivering it. It is allowed
+  in production and is meant for local production-like runs and smoke tests
+  (see [Run Production Locally](#run-production-locally)).
 
 ```bash
 EMAIL_PROVIDER=smtp
@@ -541,6 +565,52 @@ SMTP_USERNAME=apikey
 SMTP_PASSWORD=secret
 SMTP_TLS=starttls
 ```
+
+### Server-Side Rendering
+
+Client rendering is the default. Opt a page into SSR per response:
+
+```go
+return h.renderer.Page(ctx, "Dashboard", inertia.Props{"name": "Ada"}).
+    SSR().
+    Render()
+```
+
+In development, `pkg/inertia` posts the page to the Vite dev server's
+`/__inertia_ssr` endpoint, so `andurel run` (or `pnpm dev` alongside
+`go run ./cmd/app`) must be running. In production, `cmd/app` posts to
+`INERTIA_SSR_URL` and the `cmd/ssr` sidecar serves renders from
+`assets/dist/ssr/ssr.js`. The production SSR build bundles its dependencies
+(`ssr.noExternal`) so the embedded bundle runs without `node_modules`; the
+bundle is larger by design.
+
+`INERTIA_SSR_FAIL_FAST` defaults to `true` in production and is set to `false`
+in the scaffolded `.env` for development. With fail-fast on, an SSR failure is
+a themed 500; with it off, the page falls back to client rendering and logs the
+error. Every re-render branch (validation errors, rate limits, error pages)
+needs its own `.SSR()` to stay server-rendered.
+
+### Run Production Locally
+
+Exercise the production code paths without Mailpit or an SMTP server:
+
+```bash
+pnpm build
+go build -o bin/app ./cmd/app
+go build -o bin/ssr ./cmd/ssr
+
+ENVIRONMENT=production EMAIL_PROVIDER=log ./bin/ssr &
+ENVIRONMENT=production EMAIL_PROVIDER=log ./bin/app
+```
+
+`EMAIL_PROVIDER=log` logs each message instead of sending it and is allowed in
+production; use it only for local production-like runs and smoke tests. Run the
+built binaries from the project root so `.env` is loaded. `cmd/ssr` embeds
+`assets/dist/ssr/ssr.js` and can also be started from an empty directory when
+the `INERTIA_*` settings come from the environment.
+`INERTIA_SSR_FAIL_FAST` defaults to `true` in production, so start the SSR
+sidecar before the app; `cmd/app` also logs a warning at boot when the sidecar's
+`/health` endpoint is unreachable.
 
 ### Schema Changes
 
@@ -586,7 +656,9 @@ Use semantic utilities in Inertia pages (`bg-background`, `text-foreground`, `bg
 
 ## Environment Configuration
 
-Key environment variables (see `.env.example` for all options):
+Key environment variables (see `.env.example` for all options, or run
+`andurel inspect config --json` to list every key and default read by
+`config/*.go`):
 
 ```bash
 # Application
@@ -594,6 +666,8 @@ ENVIRONMENT=development
 HOST=localhost
 PORT=8080
 PROJECT_NAME=app
+# Display name for titles and the shared siteName prop.
+SITE_NAME=App
 HOST_PRIMARY=localhost:8080
 PROTOCOL=http
 
@@ -631,10 +705,16 @@ CORS_ALLOWED_ORIGINS=
 CSRF_STRATEGY=header_only
 CSRF_TRUSTED_ORIGINS=
 HTTP_TRUSTED_PROXIES=
+# Set false to serve responses uncompressed.
+HTTP_COMPRESS=true
+
+# Inertia SSR (development uses Vite; production uses cmd/ssr)
+INERTIA_SSR_FAIL_FAST=false
 
 # Telemetry (optional)
 TELEMETRY_SERVICE_NAME=app
-TELEMETRY_SERVICE_VERSION=1.0.0
+# Unset, the service version is the version injected by andurel build (or 1.0.0 for local builds).
+# TELEMETRY_SERVICE_VERSION=
 LOG_LEVEL=INFO
 OTLP_LOGS_ENDPOINT=
 OTLP_METRICS_ENDPOINT=
@@ -708,7 +788,7 @@ To serve a second domain from the same process:
 
 ```go
 admin := rt.Host(config.HostAdmin)
-admin.Get(routes.AdminDashboard.Path(), adminHandler.Dashboard)
+admin.Get(routes.AdminDashboard.Pattern(), adminHandler.Dashboard)
 ```
 
 The reverse proxy must forward the public `Host` header unchanged. A configured hostname without a port is also aliased as `hostname:80` and `hostname:443` so lookups succeed whether the proxy forwards a bare host or an explicit standard port. Unknown hosts are served by the primary mux. Duplicate hostnames or aliases across `HostName`s fail at boot.
@@ -719,7 +799,7 @@ Layout CSS and JS stay on the primary host unless those routes set `routing.Host
 
 Inertia Vite files stay on the primary host. Production tags from `pkg/inertia` use `ViteBuild.FullURL(hosts)` plus `crossorigin` so a secondary-host page loads the entry from primary. Vite production `base` is `'./'` so hashed chunks and fonts resolve against that script URL, not the page origin. Development keeps `base: '/assets/dist/'` and tags that hit `INERTIA_VITE_DEV_URL`.
 
-Inertia TypeScript helpers from `andurel sync routes` return full URLs. Boot configures origins once via the shared `hosts` prop (`configureRouteHosts` in `resources/js/app` / SSR entry), so `routes.homePage()` resolves to the correct host without per-call arguments. Use `routes.homePage.path()` when a relative path is required. Run `andurel sync routes` after adding host-bound Inertia routes. Not-found handlers are registered on every configured host.
+Inertia TypeScript helpers from `andurel sync routes` return full URLs for routes marked `routing.TypeScriptRoute()` (`routing.InertiaRoute()` is a deprecated alias). Boot configures origins once via the shared `hosts` prop (`configureRouteHosts` in `resources/js/app` / SSR entry), so `routes.homePage()` resolves to the correct host without per-call arguments. Use `routes.homePage.path()` when a relative path is required. Call helpers at render time rather than caching `const url = routes.homePage()` at module scope: origins are configured after boot. Run `andurel sync routes` after adding host-bound routes. Not-found handlers are registered on every configured host.
 
 To serve layout CSS/JS from `assets.example.com`, declare `const HostAssets routing.HostName = "assets"`, bind `HOST_ASSETS`, and put `routing.Host(config.HostAssets)` on those routes. There is no framework special case — it is another named host. For Inertia Vite, bind `ViteBuild` to that host too; `FullURL(hosts)` plus relative Vite `base` follow the script origin.
 
