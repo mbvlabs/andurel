@@ -74,13 +74,78 @@ func TestInertiaViteFullURLManualActionVersionGate(t *testing.T) {
 	}
 }
 
-func TestLatestAlphaUpgradeToStableEmitsNoManualActions(t *testing.T) {
-	actions, err := manualActionsForUpgrade("v2.0.0-alpha.5", "v2.0.0", true)
+func TestLatestBetaUpgradeToStableEmitsNoManualActions(t *testing.T) {
+	actions, err := manualActionsForUpgrade("v2.0.0-beta.2", "v2.0.0", true)
 	if err != nil {
 		t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
 	}
 	if len(actions) != 0 {
-		t.Fatalf("latest alpha to stable emitted manual actions: %#v", actions)
+		t.Fatalf("latest beta to stable emitted manual actions: %#v", actions)
+	}
+}
+
+func TestBetaTwoManualActionsVersionGate(t *testing.T) {
+	tests := []struct {
+		name    string
+		from    string
+		to      string
+		inertia bool
+		want    []string
+	}{
+		{
+			name:    "beta.1 to beta.2",
+			from:    "v2.0.0-beta.1",
+			to:      "v2.0.0-beta.2",
+			inertia: true,
+			want: []string{
+				"email-sender-v2.0.0-beta.2",
+				"vite-ssr-bundle-v2.0.0-beta.2",
+				"root-title-ssr-v2.0.0-beta.2",
+			},
+		},
+		{
+			name: "non-Inertia project",
+			from: "v2.0.0-beta.1",
+			to:   "v2.0.0-beta.2",
+			want: []string{"email-sender-v2.0.0-beta.2"},
+		},
+		{name: "already on beta.2", from: "v2.0.0-beta.2", to: "v2.0.0", inertia: true},
+		{name: "target predates change", from: "v2.0.0-alpha.5", to: "v2.0.0-beta.1", inertia: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actions, err := manualActionsForUpgrade(test.from, test.to, test.inertia)
+			if err != nil {
+				t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
+			}
+
+			var got []string
+			for _, action := range actions {
+				if strings.HasSuffix(action.ID, "-v2.0.0-beta.2") {
+					got = append(got, action.ID)
+				}
+			}
+			if strings.Join(got, ",") != strings.Join(test.want, ",") {
+				t.Fatalf("beta.2 actions = %v, want %v", got, test.want)
+			}
+		})
+	}
+
+	for id, want := range map[string][]string{
+		"email-sender-v2.0.0-beta.2":    {"senderHost(app.Domain)", "net.SplitHostPort", "mail.ParseAddress", "go vet ./..."},
+		"vite-ssr-bundle-v2.0.0-beta.2": {"vite.config.ts", "command === 'build' ? { noExternal: true } : undefined", "andurel run"},
+		"root-title-ssr-v2.0.0-beta.2":  {"resources/root.templ", "if data.SSR == nil", "andurel build"},
+	} {
+		action := findManualAction(t, "v2.0.0-beta.1", "v2.0.0-beta.2", id)
+		if action == nil {
+			t.Fatalf("missing manual action %s", id)
+		}
+		for _, text := range want {
+			if !strings.Contains(action.Instructions, text) {
+				t.Errorf("%s instructions missing %q:\n%s", id, text, action.Instructions)
+			}
+		}
 	}
 }
 

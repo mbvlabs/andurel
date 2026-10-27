@@ -56,6 +56,18 @@ Upgrading from `v2.0.0-alpha.4` to `v2.0.0-alpha.5` or later reports:
 
 Upgrading from `v2.0.0-alpha.5` to `v2.0.0-beta.1` reports no manual actions.
 
+Upgrading from any earlier supported release to `v2.0.0-beta.2` or later reports:
+
+| ID | Change |
+| --- | --- |
+| `email-sender-v2.0.0-beta.2` | The default sender drops the `HOST_PRIMARY` port, and `NewMail` rejects an invalid sender at startup. |
+| `vite-ssr-bundle-v2.0.0-beta.2` | Inertia projects: `vite.config.ts` bundles SSR dependencies into the production build only. |
+| `root-title-ssr-v2.0.0-beta.2` | Inertia projects: `resources/root.templ` renders the fallback `<title>` only for client-rendered pages. |
+
+The other beta.2 scaffold changes (exact home route and themed 404, flash
+messages, compression, `andurel build` output) are defaults for new
+applications; existing applications can copy them from a fresh `andurel new`.
+
 ## Provider adapters under `internal/`
 
 External provider adapters (API clients for payment providers, email providers, Discord, and similar third-party services) belong in a package under `internal/`, named for its job: `internal/clients/` for a group of API clients or `internal/payment/` for one payment adapter. Wiring for adapters stays in `internal/runtime`. Andurel never generated a top-level `clients/` directory, so `andurel upgrade` does not move hand-written adapters.
