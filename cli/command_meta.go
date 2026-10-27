@@ -17,6 +17,7 @@ type CommandMeta struct {
 	Group            string        `json:"group,omitempty"`
 	Summary          string        `json:"summary"`
 	Args             string        `json:"args,omitempty"`
+	Details          []string      `json:"details,omitempty"`
 	WhenToUse        []string      `json:"when_to_use,omitempty"`
 	WhenNotToUse     []string      `json:"when_not_to_use,omitempty"`
 	Prerequisites    []string      `json:"prerequisites,omitempty"`

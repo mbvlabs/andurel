@@ -51,7 +51,7 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 	assertTemplateContains(t, "handlers_auth.tmpl", ".Errors(err)")
 	assertTemplateMissing(t, "handlers_auth.tmpl", "validation.As(err)")
 	assertTemplateMissing(t, "handlers_auth.tmpl", "validationFields")
-	assertTemplateContains(t, "handlers_errors.tmpl", "inertia.ErrorHandler(renderer")
+	assertTemplateContains(t, "handlers_errors.tmpl", "inertia.NewErrorHandler(")
 	assertTemplateMissing(t, "handlers_errors.tmpl", "validation.As(err)")
 	assertTemplateContains(t, "domains_queries_token.tmpl",
 		"-- name: GetTokenByUserAndScope :one",
@@ -207,6 +207,23 @@ func TestGeneratedAuthEmailsKeepSecretsOutOfJobArgs(t *testing.T) {
 		`jobs.DeleteExpiredTokensArgs{}`,
 		"river.PeriodicInterval(time.Hour)",
 		"&river.PeriodicJobOpts{RunOnStart: true}",
+	)
+}
+
+func TestGeneratedEmailWorkersLogFailures(t *testing.T) {
+	for _, name := range []string{
+		"psql_queue_workers_send_verification_email.tmpl",
+		"psql_queue_workers_send_password_reset_email.tmpl",
+	} {
+		assertTemplateContains(t, name,
+			"return failJob(ctx, job.ID, job.Kind, err)",
+			"if err := storage.SendTransactional(ctx, data, w.sender); err != nil {",
+		)
+		assertTemplateMissing(t, name, "return telemetry.Fail(ctx, err)")
+	}
+	assertTemplateContains(t, "psql_queue_workers_workers.tmpl",
+		"func failJob(ctx context.Context, jobID int64, kind string, err error) error",
+		`telemetry.Error(ctx, "job failed", "job.id", jobID, "job.kind", kind, "error", err)`,
 	)
 }
 

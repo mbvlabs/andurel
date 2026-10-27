@@ -35,7 +35,7 @@ Andurel is built for humans and agents on the same pad:
 - **Range ops**: River jobs, email, and queues on the same stack that serves the request path
 - **Ground support**: Agent-ready CLI with read-only patterns, JSON discovery, and AGENTS.md so machines can operate the project without a second stack
 - **Live reload**: `andurel run` with [Shadowfax](https://github.com/mbvlabs/shadowfax) for Go, templates, CSS, and Vite (`--tools mailpit` for sidecars)
-- **Production build**: `andurel build` compiles Templ, Tailwind CSS, Vite assets, and the Go binary
+- **Production build**: `andurel build` compiles Templ, email Tailwind, Vite assets, and every `cmd/*` process (`app`, `queue`, `migrate`, `ssr`) into `dist/`
 
 **Humans.** One-time generation. The scaffold writes Go and Inertia pages you can read, edit, and ship. After that, the code is yours, laid out in a shape you can navigate.
 
@@ -156,9 +156,9 @@ A new app is ordinary Go you own. Top-level shape:
 | `domains/` | Business logic + persistence in one flat package; SQL colocated as `domains/<entity>.sql` |
 | `domains/internal/queries/` | narsilc output; imported only by `domains/**` |
 | `services/` | Application logic / cross-domain orchestration |
-| `handlers/`, `handlers/api/`, `handlers/auth/` | HTTP handlers (`func(ctx context.Context) error`) |
+| `handlers/` | HTTP handlers (`func(ctx context.Context) error`); one flat package |
 | `routes/` | Route data: names, paths, URL builders |
-| `middleware/` | App HTTP middleware + cookie-jar wiring |
+| `middleware/` | App HTTP middleware (auth, authorization); the cookie jar is built in `internal/runtime` |
 | `resources/root.templ` | Inertia root document (the only page-shaped templ) |
 | `resources/js/` | Inertia pages, layouts, components, and generated TS helpers |
 | `email/` | templ email templates and send helpers |
@@ -169,7 +169,7 @@ A new app is ordinary Go you own. Top-level shape:
 
 **Default**: Inertia React + pnpm (`--ui react/pnpm`).
 
-**`--ui react/pnpm|vue/bun|svelte/npm`**: Same Go backend; choose the Inertia adapter and JavaScript package manager. Inertia is the only UI; there are no templ/Datastar pages. `--api` returns JSON responses instead of pages.
+**`--ui react/pnpm|vue/bun|svelte/npm`**: Same Go backend; choose the Inertia adapter and JavaScript package manager. Inertia is the only UI; there are no templ/Datastar pages. JSON endpoints are ordinary routes that return `anduin.JSON`; there is no separate API mode.
 
 Details: [directory structure](https://andurel.com/docs/latest/directory-structure) · [frontend options](https://andurel.com/docs/latest/frontend-options).
 
@@ -185,7 +185,7 @@ Details: [directory structure](https://andurel.com/docs/latest/directory-structu
 | `andurel db` | Database lifecycle: create, drop, nuke, rebuild, migrate, seed, console |
 | `andurel console` (`c`) | Open an interactive database console |
 | `andurel run` (`r`) | Dev server with live reload |
-| `andurel build` | Production build (Templ, CSS, Vite, Go binary) |
+| `andurel build` | Production build (Templ, email Tailwind, Vite, all `cmd/*` processes in `dist/`) |
 | `andurel tool sync` | Download pinned project binaries |
 | `andurel upgrade` | Bring an app forward to a newer Andurel |
 | `andurel doctor` | Project diagnostics |
@@ -207,6 +207,7 @@ andurel inspect domains --json
 andurel inspect routes --json
 andurel commands --json
 andurel skill install
+andurel skill show layer-placement
 ```
 
 `andurel patterns` never writes files. It prints reference code, the placement rules, and a definition-of-done checklist the agent self-verifies against. Many commands support `--dry-run` and `--json`. Agent workflows: [andurel.com/docs/latest/agent-workflows](https://andurel.com/docs/latest/agent-workflows).

@@ -63,8 +63,9 @@ type Project struct {
 // noPackagesError explains an empty load. go/packages reports no packages and
 // no error when the go command refuses to run, for example when go.mod needs
 // tidying, so the go command's own message is recovered by running go list.
-func noPackagesError(rootDir string) error {
-	cmd := exec.Command("go", "list", "./...")
+func noPackagesError(rootDir string, patterns []string) error {
+	args := append([]string{"list"}, patterns...)
+	cmd := exec.Command("go", args...)
 	cmd.Dir = rootDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -85,6 +86,14 @@ func noPackagesError(rootDir string) error {
 // type-checked, or analyzed. This keeps verify honest for the code it actually
 // builds without duplicating the toolchain's cross-platform selection.
 func Load(rootDir string) (*Project, error) {
+	return LoadPatterns(rootDir, nil)
+}
+
+// LoadPatterns loads the packages matched by patterns. An empty pattern list
+// means the whole project, matching Load. Patterns use the go command's package
+// syntax (for example ./internal/docs/...), so a scoped verify checks exactly
+// the packages it was asked about.
+func LoadPatterns(rootDir string, patterns []string) (*Project, error) {
 	absRoot, err := filepath.Abs(rootDir)
 	if err != nil {
 		return nil, fmt.Errorf("resolve project root: %w", err)
@@ -92,6 +101,9 @@ func Load(rootDir string) (*Project, error) {
 	module, err := readModulePath(absRoot)
 	if err != nil {
 		return nil, err
+	}
+	if len(patterns) == 0 {
+		patterns = []string{"./..."}
 	}
 
 	fset := token.NewFileSet()
@@ -108,12 +120,12 @@ func Load(rootDir string) (*Project, error) {
 		Fset:  fset,
 		Tests: true,
 	}
-	loaded, err := packages.Load(cfg, "./...")
+	loaded, err := packages.Load(cfg, patterns...)
 	if err != nil {
 		return nil, fmt.Errorf("load Go packages: %w", err)
 	}
 	if len(loaded) == 0 {
-		return nil, noPackagesError(absRoot)
+		return nil, noPackagesError(absRoot, patterns)
 	}
 
 	loadErrors := make([]error, 0)
@@ -181,7 +193,13 @@ func Load(rootDir string) (*Project, error) {
 
 // Analyze loads the project and runs every typed layer rule.
 func Analyze(rootDir string) ([]Violation, error) {
-	project, err := Load(rootDir)
+	return AnalyzePatterns(rootDir, nil)
+}
+
+// AnalyzePatterns runs every typed layer rule over the packages matched by
+// patterns. An empty pattern list means the whole project.
+func AnalyzePatterns(rootDir string, patterns []string) ([]Violation, error) {
+	project, err := LoadPatterns(rootDir, patterns)
 	if err != nil {
 		return nil, err
 	}

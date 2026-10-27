@@ -47,6 +47,65 @@ func TestSkillShowJSONIncludesEmbeddedSkill(t *testing.T) {
 	}
 }
 
+func TestSkillShowReferencePrintsEmbeddedReference(t *testing.T) {
+	want, err := skills.ReadAndurelSkillFile("references/http-and-routing.md")
+	if err != nil {
+		t.Fatalf("read embedded reference: %v", err)
+	}
+
+	for _, arg := range []string{"http-and-routing", "references/http-and-routing.md"} {
+		t.Run(arg, func(t *testing.T) {
+			result := runCLITest(t, "skill", "show", arg)
+			if result.err != nil {
+				t.Fatalf("skill show %s failed: %v\nstderr:\n%s", arg, result.err, result.stderr)
+			}
+			if result.stdout != string(want) {
+				t.Fatalf("expected reference body for %s, got:\n%s", arg, result.stdout)
+			}
+		})
+	}
+}
+
+func TestSkillShowReferenceJSONIncludesReferenceName(t *testing.T) {
+	result := runCLITest(t, "skill", "show", "layer-placement", "--json")
+	if result.err != nil {
+		t.Fatalf("skill show layer-placement --json failed: %v\nstderr:\n%s", result.err, result.stderr)
+	}
+
+	var envelope struct {
+		OK   bool        `json:"ok"`
+		Data skillReport `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(result.stdout), &envelope); err != nil {
+		t.Fatalf("decode skill show output: %v\nstdout:\n%s", err, result.stdout)
+	}
+	want, err := skills.ReadAndurelSkillFile("references/layer-placement.md")
+	if err != nil {
+		t.Fatalf("read embedded reference: %v", err)
+	}
+	if !envelope.OK || envelope.Data.Name != "andurel" ||
+		envelope.Data.Reference != "layer-placement" ||
+		envelope.Data.Body != string(want) {
+		t.Fatalf("unexpected skill show data: %#v", envelope.Data)
+	}
+}
+
+func TestSkillShowRejectsUnknownReference(t *testing.T) {
+	result := runCLITest(t, "skill", "show", "does-not-exist")
+	if result.err == nil {
+		t.Fatalf("expected unknown reference to fail\nstdout:\n%s", result.stdout)
+	}
+	fail := output.Fail(result.err)
+	if fail.Code != output.CodeUsage {
+		t.Fatalf("error code = %q, want %q: %v", fail.Code, output.CodeUsage, result.err)
+	}
+	for _, name := range []string{"cli-catalog", "http-and-routing", "layer-placement"} {
+		if !strings.Contains(fail.Hint, name) {
+			t.Fatalf("hint %q does not list %q", fail.Hint, name)
+		}
+	}
+}
+
 func TestSkillInstallPromptsForHarnesses(t *testing.T) {
 	result := runSkillCommandTest(t, "2,3,5\n", "skill", "install")
 	if result.err != nil {

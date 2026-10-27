@@ -34,6 +34,9 @@ type checkResult struct {
 	details     []string
 	hint        string
 	missingTool string
+	// changed lists the generated files that regeneration rewrote. verify uses
+	// it to report one violation per file instead of one aggregate finding.
+	changed []string
 }
 
 type checkStatus int
@@ -94,7 +97,7 @@ This command will check:
   • Environment (Go version, latest stable Andurel release)
   • Configuration (andurel.lock)
   • Code quality (go vet, go mod tidy)
-  • Code generation (templ, narsilc, and Inertia route helpers and payload types when configured)`,
+  • Code generation (templ, email renderers, narsilc, and Inertia route helpers and payload types when configured)`,
 		Example: `  andurel doctor
   andurel doctor --verbose`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -114,7 +117,7 @@ This command will check:
 	setAgentMetadata(
 		doctorCmd,
 		"diagnostics",
-		"Read-only project checks include templ, active narsilc queries, and Inertia route helper and payload type drift. Use --json for actionable check hints.",
+		"Read-only project checks include templ, email renderers, active narsilc queries, and Inertia route helper and payload type drift. Use --json for actionable check hints.",
 	)
 
 	return doctorCmd
@@ -258,6 +261,8 @@ func doctorHint(result checkResult) string {
 		return "Run go mod tidy and commit the resulting go.mod or go.sum changes."
 	case "templ generate":
 		return "Commit the generated *_templ.go output (andurel build regenerates it) and fix any template errors."
+	case "email generate":
+		return "Run andurel sync email and commit the updated email/*_templ.go renderers; never use templ generate for email."
 	case "narsilc generate":
 		return "Run andurel sync queries and commit the updated domains/internal/queries output."
 	case "routes.ts":
@@ -594,8 +599,9 @@ func checkInertiaSSRConfiguration(rootDir string) checkResult {
 	if _, err := os.Stat(filepath.Join(rootDir, filepath.FromSlash(bundle))); err != nil {
 		return checkResult{
 			name:    "Inertia SSR",
-			status:  statusWarn,
-			message: fmt.Sprintf("SSR bundle %s is not built (cmd/ssr needs it)", bundle),
+			status:  statusFail,
+			message: fmt.Sprintf("SSR bundle %s is required in production (cmd/ssr needs it)", bundle),
+			hint:    "Run pnpm build (or andurel build) and ship assets/dist/ssr/ssr.js with cmd/ssr.",
 		}
 	}
 
@@ -618,7 +624,10 @@ func checkInertiaSSRConfiguration(rootDir string) checkResult {
 }
 
 func doctorUsesDevelopmentSSR(values map[string]string) bool {
-	environment := strings.TrimSpace(values["ENVIRONMENT"])
+	environment := strings.TrimSpace(os.Getenv("ENVIRONMENT"))
+	if environment == "" {
+		environment = strings.TrimSpace(values["ENVIRONMENT"])
+	}
 	if environment == "" {
 		environment = "development"
 	}
@@ -1160,7 +1169,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	}
 
 	var changed []string
-	err := withDiagnosticProjectCopyTools(rootDir, []string{"templ", "tailwindcli"}, func(tempRoot string) error {
+	err := withDiagnosticProjectCopyTools(rootDir, []string{"templ"}, func(tempRoot string) error {
 		before, err := snapshotFilesForReport(tempRoot)
 		if err != nil {
 			return err
@@ -1177,19 +1186,17 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 				strings.TrimSpace(stderr.String()),
 			)
 		}
-		if hasEmailCompilerInputs(tempRoot) {
-			if err := emailcompiler.Compile(context.Background(), emailcompiler.Config{
-				ProjectRoot:  tempRoot,
-				TailwindPath: filepath.Join(tempRoot, "bin", "tailwindcli"),
-			}); err != nil {
-				return fmt.Errorf("email compile failed: %w", err)
-			}
-		}
 		after, err := snapshotFilesForReport(tempRoot)
 		if err != nil {
 			return err
 		}
-		changed = changedSnapshotPaths(before, after)
+		// Email renderers are written by andurel sync email, not plain templ.
+		// checkEmailGenerate owns that drift.
+		for _, path := range changedSnapshotPaths(before, after) {
+			if !isEmailGeneratedPath(path) {
+				changed = append(changed, path)
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -1210,6 +1217,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 			status:  statusFail,
 			message: "generated templates are out of date",
 			details: details,
+			changed: changed,
 		}
 	}
 
@@ -1217,6 +1225,83 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 		name:    "templ generate",
 		status:  statusPass,
 		message: "templates generated successfully",
+	}
+}
+
+// isEmailGeneratedPath reports whether path is an email renderer owned by
+// andurel sync email.
+func isEmailGeneratedPath(path string) bool {
+	path = filepath.ToSlash(path)
+	return strings.HasPrefix(path, "email/") && strings.HasSuffix(path, "_templ.go")
+}
+
+// checkEmailGenerate compares email/*_templ.go with what andurel sync email
+// (the emailcompiler) would write. Plain templ generate is not the owner: it
+// drops the inlined styles and the generated media-query head block.
+func checkEmailGenerate(rootDir string, verbose bool) checkResult {
+	name := "email generate"
+	if !hasEmailCompilerInputs(rootDir) || !hasEmailTemplates(rootDir) {
+		return checkResult{
+			name:    name,
+			status:  statusPass,
+			message: "no email templates configured",
+		}
+	}
+	tailwindPath := filepath.Join(rootDir, "bin", "tailwindcli")
+	if _, err := os.Stat(tailwindPath); err != nil {
+		return checkResult{
+			name:        name,
+			status:      statusWarn,
+			message:     "tailwindcli binary not found (skipping check)",
+			missingTool: "tailwindcli",
+		}
+	}
+
+	var changed []string
+	err := withDiagnosticProjectCopyTools(rootDir, []string{"tailwindcli"}, func(tempRoot string) error {
+		before, err := snapshotFilesForReport(tempRoot)
+		if err != nil {
+			return err
+		}
+		if err := emailcompiler.Compile(context.Background(), emailcompiler.Config{
+			ProjectRoot:  tempRoot,
+			TailwindPath: filepath.Join(tempRoot, "bin", "tailwindcli"),
+		}); err != nil {
+			return fmt.Errorf("email compile failed: %w", err)
+		}
+		after, err := snapshotFilesForReport(tempRoot)
+		if err != nil {
+			return err
+		}
+		changed = changedSnapshotPaths(before, after)
+		return nil
+	})
+	if err != nil {
+		return checkResult{
+			name:    name,
+			status:  statusFail,
+			message: "temporary email generation diagnostic failed",
+			details: []string{err.Error()},
+		}
+	}
+	if len(changed) > 0 {
+		details := []string{"Run 'andurel sync email' and commit the generated email renderers."}
+		if verbose {
+			details = append(details, changed...)
+		}
+		return checkResult{
+			name:    name,
+			status:  statusFail,
+			message: "generated email renderers are out of date",
+			details: details,
+			changed: changed,
+		}
+	}
+
+	return checkResult{
+		name:    name,
+		status:  statusPass,
+		message: "email renderers generated successfully",
 	}
 }
 
@@ -1290,6 +1375,7 @@ func checkNarsilcGenerate(rootDir string, verbose bool) checkResult {
 			status:  statusFail,
 			message: "generated narsilc code is out of date",
 			details: details,
+			changed: changed,
 		}
 	}
 
@@ -1320,6 +1406,7 @@ func changedSnapshotPaths(before, after fileSnapshot) []string {
 func codeGenerationChecks(rootDir string, verbose bool) []checkResult {
 	results := []checkResult{
 		checkTemplGenerate(rootDir, verbose),
+		checkEmailGenerate(rootDir, verbose),
 		checkNarsilcGenerate(rootDir, verbose),
 	}
 	if projectUsesInertia(rootDir) {
@@ -1401,6 +1488,7 @@ func checkRoutesTSGenerate(rootDir string, verbose bool) checkResult {
 			status:  statusFail,
 			message: "resources/js/routes.ts is out of date",
 			details: details,
+			changed: []string{generatedRoutesJSPath},
 		}
 	}
 
@@ -1472,6 +1560,7 @@ func checkPayloadsTSGenerate(rootDir string, verbose bool) checkResult {
 			status:  statusFail,
 			message: "resources/js/types/payloads.ts is out of date",
 			details: details,
+			changed: []string{generatedPayloadsTSPath},
 		}
 	}
 

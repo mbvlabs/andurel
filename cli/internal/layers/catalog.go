@@ -7,8 +7,8 @@
 package layers
 
 // Rule is one verification rule. ID is the value reported in a violation's
-// rule field; Layer is the kind of check ("format", "build", "layers", or
-// "generated").
+// rule field; Layer is the kind of check ("format", "build", "layers",
+// "frontend", or "generated").
 type Rule struct {
 	ID      string `json:"id"`
 	Summary string `json:"summary"`
@@ -81,8 +81,14 @@ var catalog = []Rule{
 		Layer:   RuleLayerLayers,
 	},
 	{
+		ID:      "frontend",
+		Summary: "the package.json typecheck script passes when the scaffold defines one",
+		Fix:     "fix the reported TypeScript errors and re-run the project package manager's typecheck script",
+		Layer:   "frontend",
+	},
+	{
 		ID:      "generated",
-		Summary: "generated templ, queries, routes, and payload output is up to date",
+		Summary: "generated templ, email, queries, routes, and payload output is up to date",
 		Fix:     "run the owning andurel sync command",
 		Layer:   "generated",
 	},

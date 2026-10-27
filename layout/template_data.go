@@ -2,6 +2,7 @@ package layout
 
 import (
 	"strings"
+	"unicode"
 
 	"github.com/mbvlabs/andurel/v2/layout/blueprint"
 	"github.com/mbvlabs/andurel/v2/layout/versions"
@@ -81,6 +82,65 @@ func (td *TemplateData) Identifier() string {
 	}
 
 	return identifier
+}
+
+// SiteName returns the default display name for the project: the project name
+// title-cased, with separators replaced by spaces (andurel-site -> Andurel Site).
+func (td *TemplateData) SiteName() string {
+	if td == nil {
+		return ""
+	}
+
+	var b strings.Builder
+	capitalize := true
+	for _, r := range strings.TrimSpace(td.ProjectName) {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			capitalize = true
+			b.WriteRune(' ')
+			continue
+		}
+		if capitalize {
+			b.WriteRune(unicode.ToUpper(r))
+			capitalize = false
+			continue
+		}
+		b.WriteRune(r)
+	}
+
+	return strings.Join(strings.Fields(b.String()), " ")
+}
+
+// InertiaEntryPoint returns the default Inertia client entry point for the
+// configured adapter.
+func (td *TemplateData) InertiaEntryPoint() string {
+	if td != nil && td.Inertia == "react" {
+		return "resources/js/app.tsx"
+	}
+	return "resources/js/app.ts"
+}
+
+// Slug returns a lowercase, hyphenated project name matching the scaffold's
+// telemetry service-name default.
+func (td *TemplateData) Slug() string {
+	if td == nil {
+		return ""
+	}
+
+	var b strings.Builder
+	lastDash := false
+	for _, r := range strings.ToLower(td.ProjectName) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash && b.Len() > 0 {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+
+	return strings.Trim(b.String(), "-")
 }
 
 // GetModuleName returns the module name for the project.

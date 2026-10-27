@@ -25,12 +25,15 @@ andurel patterns show domain
 andurel patterns show service
 andurel patterns show handler
 andurel patterns show route
+andurel patterns show middleware
+andurel patterns show page
 andurel patterns show job
 andurel patterns show email
 andurel patterns show migration
 andurel patterns show test-domain
 andurel patterns show test-handler
 andurel patterns show test-integration
+andurel patterns show test-middleware
 andurel patterns show composition
 andurel patterns show domain --json
 andurel patterns show domain --entity User --table users --json
@@ -38,15 +41,16 @@ andurel patterns show domain --entity User --table users --json
 
 ## Layer placement
 
-Where code belongs (domains, services, handlers, routes, middleware, `internal/runtime`, and the rest) is defined in one place: the `layer-placement` reference of the Andurel skill. Install the skill with `andurel skill install`, then read `references/layer-placement.md` in the installed skill directory (for example `.claude/skills/andurel/references/layer-placement.md`) for the placement table and the decision checklist. `andurel patterns show <kind>` prints the rules for one layer.
+Where code belongs (domains, services, handlers, routes, middleware, `internal/runtime`, and the rest) is defined in one place: the `layer-placement` reference of the Andurel skill. Install the skill with `andurel skill install --harness <harness>`; it writes `SKILL.md` and its `references/` into the harness's skill directory (`<harness skills dir>/andurel`, for example `.claude/skills/andurel`, `.codex/skills/andurel`, `.opencode/skills/andurel`, `.pi/skills/andurel`, or `.crush/skills/andurel`). Read `references/layer-placement.md` there, or print any reference without installing the skill with `andurel skill show layer-placement` (also `http-and-routing` and `cli-catalog`). `andurel patterns show <kind>` prints the rules for one layer.
 
 ## Verify
 
 ```bash
 andurel verify
+andurel verify ./internal/...
 ```
 
-Runs formatting, `go fix`, `go vet`, the typed layer rules, and generated-code drift. Violations come with a `fix`; a failed run exits 9. Pass `--with-tests` to also run `go test ./...` (domain tests need a Postgres container). Run it after every change.
+Runs formatting, `go fix`, `go vet`, the typed layer rules, the `package.json` typecheck script, and generated-code drift. Package patterns scope the Go checks; generated drift and the frontend typecheck stay whole-project. Pass `--no-frontend` to skip typechecking and `--with-tests` to also run `go test ./...` (domain tests need a Postgres container). Violations come with a `fix`; a failed run exits 9. Run it after every change.
 
 Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
 
@@ -63,7 +67,8 @@ Each violation's `rule` is one of these (`andurel verify --help` also prints eac
 | `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and internal/runtime |
 | `domain-transport` | domains/** imports no HTTP, Inertia, routing, handler, middleware, or route package |
 | `entity-columns` | every automatic generated query column maps to an exported andurel tag on its domain entity |
-| `generated` | generated templ, queries, routes, and payload output is up to date |
+| `frontend` | the package.json typecheck script passes when the scaffold defines one |
+| `generated` | generated templ, email, queries, routes, and payload output is up to date |
 | `missing-tool` | a required generation binary is installed; run 'andurel tool sync' |
 {{- /* andurel:verify-rules:end */}}
 
@@ -93,10 +98,10 @@ andurel run
 ## Hosts and URLs
 
 - Default identity is `HOST_PRIMARY` in `.env`. Extra hosts need a `routing.HostName` const in `config/hosts.go` plus a matching `App.Hosts` entry (load `HOST_<NAME>` yourself — not scaffolded).
-- Declare the host on the route value with `routing.Host(config.HostAdmin)` and register it with `rt.Host(config.HostAdmin).Get(route.Path(), handler)`. Build the registry with `routing.NewHosts(cfg.App.Hosts)`, pass it to `anduin.WithHosts`, and pass the same value to `FullURL(hosts, ...)`. Unknown hosts are served by the primary mux.
+- Declare the host on the route value with `routing.Host(config.HostAdmin)` and register it with `rt.Host(config.HostAdmin).Get(route.Pattern(), handler)`. Build the registry with `routing.NewHosts(cfg.App.Hosts)`, pass it to `anduin.WithHosts`, and pass the same value to `FullURL(hosts, ...)`. Unknown hosts are served by the primary mux.
 - `/api` stays on the primary host unless those routes set `Host(...)`. Layout CSS/JS use `FullURL(hosts, ...)` to primary.
-- Never invent frontend URLs in Inertia apps: import `resources/js/routes.ts` after `andurel sync routes --json`. Helpers return full URLs once `configureRouteHosts` runs from the shared `hosts` prop at boot. Use `routes.name.path()` for a relative path.
-- After changing handler payload or Bind structs, run `andurel sync payloads --json` so `resources/js/types/payloads.ts` stays in sync.
+- Never invent frontend URLs in Inertia apps: import `resources/js/routes.ts` after `andurel sync routes --json`. Helpers are generated for routes marked `routing.TypeScriptRoute()` and return full URLs once `configureRouteHosts` runs from the shared `hosts` prop at boot. Call helpers at render time, not in module-scope constants, and use `routes.name.path()` for a relative path.
+- After changing handler page props or request payload structs, run `andurel sync payloads --json` so `resources/js/types/payloads.ts` stays in sync.
 
 ## Composition
 

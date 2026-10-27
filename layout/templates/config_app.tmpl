@@ -14,14 +14,18 @@ import (
 const (
 	DefaultEnvironment = "development"
 	DefaultProjectName = "{{.ProjectName}}"
+	DefaultSiteName    = "{{.SiteName}}"
 )
 
 type App struct {
 	Environment string
 	ProjectName string
-	Domain      string
-	Protocol    string
-	Hosts       map[routing.HostName]routing.HostSpec
+	// SiteName is the display name for titles and shared props. Unlike
+	// ProjectName it is free of identifier rules, so it can be a brand name.
+	SiteName string
+	Domain   string
+	Protocol string
+	Hosts    map[routing.HostName]routing.HostSpec
 }
 
 func NewApp() (App, error) {
@@ -31,6 +35,7 @@ func NewApp() (App, error) {
 	cfg := App{
 		Environment: e.String("ENVIRONMENT", DefaultEnvironment),
 		ProjectName: e.String("PROJECT_NAME", DefaultProjectName),
+		SiteName:    e.String("SITE_NAME", DefaultSiteName),
 		Domain:      primaryHost,
 		Protocol:    protocol,
 		Hosts: map[routing.HostName]routing.HostSpec{
@@ -52,6 +57,7 @@ func (c App) validate() error {
 	b := validation.NewBuilder()
 	b.Required("Environment", c.Environment)
 	b.Required("ProjectName", c.ProjectName)
+	b.Required("SiteName", c.SiteName)
 	b.Required("Domain", c.Domain)
 	if err := b.Err(); err != nil {
 		return err

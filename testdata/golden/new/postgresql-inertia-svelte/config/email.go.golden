@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"net"
+	"net/mail"
 	"strings"
 
 	"github.com/mbvlabs/andurel/pkg/env"
@@ -12,6 +14,9 @@ type MailDriver string
 const (
 	MailpitDriver MailDriver = "mailpit"
 	SMTPDriver    MailDriver = "smtp"
+	// LogDriver logs messages instead of sending them. It is allowed in
+	// production for local production-like runs and smoke tests.
+	LogDriver MailDriver = "log"
 
 	DefaultMailpitHost = "0.0.0.0"
 	DefaultMailpitPort = "1025"
@@ -34,19 +39,53 @@ type Mail struct {
 func NewMail(app App) (Mail, error) {
 	e := env.New()
 	cfg := Mail{
-		DefaultSenderSignature: e.String("DEFAULT_SENDER_SIGNATURE", "noreply@"+app.Domain),
-		Driver:                 MailDriver(e.String("EMAIL_PROVIDER", string(MailpitDriver))),
-		Host:                   e.String("MAILPIT_HOST", DefaultMailpitHost),
-		Port:                   e.String("MAILPIT_PORT", DefaultMailpitPort),
-		SMTPHost:               e.String("SMTP_HOST", ""),
-		SMTPPort:               e.String("SMTP_PORT", DefaultSMTPPort),
-		SMTPUsername:           e.String("SMTP_USERNAME", ""),
-		SMTPPassword:           e.String("SMTP_PASSWORD", ""),
-		SMTPTLS:                e.String("SMTP_TLS", DefaultSMTPTLS),
-	}
-	if strings.TrimSpace(cfg.DefaultSenderSignature) == "" {
-		return Mail{}, fmt.Errorf("config: mail: DEFAULT_SENDER_SIGNATURE must not be empty")
+		DefaultSenderSignature: e.String(
+			"DEFAULT_SENDER_SIGNATURE",
+			"noreply@"+senderHost(app.Domain),
+		),
+		Driver:       MailDriver(e.String("EMAIL_PROVIDER", string(MailpitDriver))),
+		Host:         e.String("MAILPIT_HOST", DefaultMailpitHost),
+		Port:         e.String("MAILPIT_PORT", DefaultMailpitPort),
+		SMTPHost:     e.String("SMTP_HOST", ""),
+		SMTPPort:     e.String("SMTP_PORT", DefaultSMTPPort),
+		SMTPUsername: e.String("SMTP_USERNAME", ""),
+		SMTPPassword: e.String("SMTP_PASSWORD", ""),
+		SMTPTLS:      e.String("SMTP_TLS", DefaultSMTPTLS),
 	}
 
+	sender := strings.TrimSpace(cfg.DefaultSenderSignature)
+	if sender == "" {
+		return Mail{}, fmt.Errorf("config: mail: DEFAULT_SENDER_SIGNATURE must not be empty")
+	}
+	address, err := mail.ParseAddress(sender)
+	if err != nil {
+		return Mail{}, fmt.Errorf(
+			"config: mail: DEFAULT_SENDER_SIGNATURE %q is not a valid email address: %w",
+			sender,
+			err,
+		)
+	}
+	// The sender is also the SMTP envelope sender, which cannot carry a
+	// display name, so only a bare address is accepted.
+	if address.Name != "" || address.Address != sender {
+		return Mail{}, fmt.Errorf(
+			"config: mail: DEFAULT_SENDER_SIGNATURE %q must be a bare email address, "+
+				"without a display name",
+			sender,
+		)
+	}
+	cfg.DefaultSenderSignature = sender
+
 	return cfg, nil
+}
+
+// senderHost strips the port from the app domain. HOST_PRIMARY carries a port
+// and an email address cannot contain one.
+func senderHost(domain string) string {
+	host, _, err := net.SplitHostPort(domain)
+	if err == nil && host != "" {
+		return host
+	}
+
+	return domain
 }

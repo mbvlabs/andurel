@@ -16,6 +16,7 @@ type routeOptions struct {
 
 type routeConfig struct {
 	isInertia bool
+	exact     bool
 	host      HostName
 }
 
@@ -36,6 +37,7 @@ func newRoute(path, name, prefix string, opts ...RouteSetupOption) Route {
 		path:      path,
 		prefix:    prefix,
 		isInertia: cfg.isInertia,
+		exact:     cfg.exact,
 		host:      routeHost(cfg),
 	}
 }
@@ -206,6 +208,7 @@ type Route struct {
 	path      string
 	prefix    string
 	isInertia bool
+	exact     bool
 	host      HostName
 }
 
@@ -232,6 +235,17 @@ func (r Route) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
+// Pattern returns the http.ServeMux pattern for the route. Exact routes append
+// the "{$}" end-of-URL wildcard when their path ends in "/" (the root is the
+// only such path after sanitisation); other paths already match exactly.
+func (r Route) Pattern() string {
+	path := r.Path()
+	if r.exact && strings.HasSuffix(path, "/") {
+		return path + "{$}"
+	}
+	return path
+}
+
 // Host returns the named host this route is bound to.
 func (r Route) Host() HostName {
 	if r.host == "" {
@@ -240,8 +254,9 @@ func (r Route) Host() HostName {
 	return r.host
 }
 
-// IsInertia reports whether this route should be included in generated
-// Inertia TypeScript route helpers.
+// IsInertia reports whether this route was marked with TypeScriptRoute (or
+// its deprecated alias InertiaRoute) and should be included in generated
+// TypeScript route helpers.
 func (r Route) IsInertia() bool {
 	return r.isInertia
 }
@@ -261,6 +276,10 @@ func (r RouteWithUUIDID) Name() string {
 
 func (r RouteWithUUIDID) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
+}
+
+func (r RouteWithUUIDID) Pattern() string {
+	return Route(r).Pattern()
 }
 
 func (r RouteWithUUIDID) URL(id uuid.UUID, opts ...RouteOption) string {
@@ -299,6 +318,10 @@ func (r RouteWithSerialID) Name() string {
 
 func (r RouteWithSerialID) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
+}
+
+func (r RouteWithSerialID) Pattern() string {
+	return Route(r).Pattern()
 }
 
 func (r RouteWithSerialID) URL(id int32, opts ...RouteOption) string {
@@ -342,6 +365,10 @@ func (r RouteWithBigSerialID) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
+func (r RouteWithBigSerialID) Pattern() string {
+	return Route(r).Pattern()
+}
+
 func (r RouteWithBigSerialID) URL(id int64, opts ...RouteOption) string {
 	path := strings.Replace(r.Path(), ":id", strconv.FormatInt(id, 10), 1)
 	return applyOptions(path, opts...)
@@ -378,6 +405,10 @@ func (r RouteWithStringID) Name() string {
 
 func (r RouteWithStringID) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
+}
+
+func (r RouteWithStringID) Pattern() string {
+	return Route(r).Pattern()
 }
 
 func (r RouteWithStringID) URL(id string, opts ...RouteOption) string {
@@ -417,6 +448,10 @@ func (r RouteWithSlug) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
+func (r RouteWithSlug) Pattern() string {
+	return Route(r).Pattern()
+}
+
 func (r RouteWithSlug) URL(slug string, opts ...RouteOption) string {
 	path := strings.Replace(r.Path(), ":slug", slug, 1)
 	return applyOptions(path, opts...)
@@ -454,6 +489,10 @@ func (r RouteWithToken) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
+func (r RouteWithToken) Pattern() string {
+	return Route(r).Pattern()
+}
+
 func (r RouteWithToken) URL(token string, opts ...RouteOption) string {
 	path := strings.Replace(r.Path(), ":token", token, 1)
 	return applyOptions(path, opts...)
@@ -489,6 +528,10 @@ func (r RouteWithFile) Name() string {
 
 func (r RouteWithFile) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
+}
+
+func (r RouteWithFile) Pattern() string {
+	return Route(r).Pattern()
 }
 
 func (r RouteWithFile) URL(file string, opts ...RouteOption) string {
@@ -529,6 +572,10 @@ func (r RouteWithParams[Params]) Name() string {
 
 func (r RouteWithParams[Params]) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
+}
+
+func (r RouteWithParams[Params]) Pattern() string {
+	return Route(r).Pattern()
 }
 
 func (r RouteWithParams[Params]) URL(params Params, opts ...RouteOption) string {

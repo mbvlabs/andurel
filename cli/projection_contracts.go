@@ -38,6 +38,7 @@ func configureProjectionContracts(root *cobra.Command) error {
 		{path: "patterns show", jq: true},
 		{path: "skill install", jq: true},
 		{path: "skill show", jq: true},
+		{path: "sync email", jq: true},
 		{path: "sync payloads", jq: true},
 		{path: "sync queries", jq: true},
 		{path: "sync routes", jq: true},

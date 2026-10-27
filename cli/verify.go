@@ -78,9 +78,10 @@ func verifyRuleHelp() string {
 func newVerifyCommand() *cobra.Command {
 	var withTests bool
 	var skipGenerated bool
+	var noFrontend bool
 	cmd := &cobra.Command{
-		Use:   "verify",
-		Short: "Check formatting, vet, layer boundaries, and generated code",
+		Use:   "verify [packages...]",
+		Short: "Check formatting, vet, layer boundaries, frontend, and generated code",
 		Long: `Run the Andurel verification loop against the current project.
 
 andurel verify checks, in order:
@@ -88,13 +89,23 @@ andurel verify checks, in order:
   • go fix    — the toolchain reports no automatic rewrites
   • go vet    — the module vets clean
   • layers    — the typed persistence, transaction, and domain transport rules
-  • generated — templ, narsilc, routes.ts, and payloads.ts output is up to date
+  • frontend  — the package.json typecheck script passes (when defined)
+  • generated — templ, email, narsilc, routes.ts, and payloads.ts output is up to date
+
+Pass Go package patterns to scope gofmt, go fix, go vet, and layers to those
+packages, for example 'andurel verify ./internal/docs/...'. The frontend and
+generated steps always check the whole project.
 
 The layers step loads the active build target, like go vet: files excluded by
 GOOS, GOARCH, or build constraints are not type-checked or analyzed.
 
 ` + verifyRuleHelp() + `Pass --skip-generated to mark the generated step 'skipped'; an explicit skip
-does not fail the run.
+does not fail the run. Pass --no-frontend to skip the frontend typecheck.
+
+The frontend step runs the project package manager's 'run typecheck' script
+when package.json defines one; without node_modules it fails and tells you to
+install dependencies. Projects without package.json or without the script show
+the step as 'skipped'.
 
 Pass --with-tests to also run go test ./... (DB-backed tests need Docker for a
 Postgres container). A test package that has tests but ran none, such as one
@@ -107,36 +118,49 @@ violations as {rule, file, line, message, fix}. A failed verification exits
 with code 9 (verification_failed); usage errors exit with code 1.`,
 		Example: `  andurel verify
   andurel verify --json
+  andurel verify ./internal/docs/...
   andurel verify --with-tests
-  andurel verify --skip-generated`,
-		Args: cobra.NoArgs,
+  andurel verify --skip-generated
+  andurel verify --no-frontend`,
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runVerify(cmd, withTests, skipGenerated)
+			return runVerify(cmd, withTests, skipGenerated, noFrontend, args)
 		},
 	}
 	cmd.Flags().BoolVar(&withTests, "with-tests", false, "Also run go test ./...")
 	cmd.Flags().
 		BoolVar(&skipGenerated, "skip-generated", false, "Skip the generated-code drift step")
+	cmd.Flags().
+		BoolVar(&noFrontend, "no-frontend", false, "Skip the frontend typecheck step")
 	setAgentMetadata(
 		cmd,
 		"verification",
-		"Read-only verification: gofmt, go fix, go vet, the domain persistence and transaction boundary, and generated-code drift. With --with-tests, test packages that ran no tests (for example DB tests without Docker) are listed in the go test step's skipped_packages; they do not fail the run. Fails with exit code 9 and structured violations; each rule and its fix is listed in verify --help and the rules field of andurel commands --json.",
+		"Read-only verification: gofmt, go fix, go vet, the domain persistence and transaction boundary, the package.json typecheck script, and generated-code drift. Pass Go package patterns to scope gofmt, go fix, go vet, and layers. With --with-tests, test packages that ran no tests (for example DB tests without Docker) are listed in the go test step's skipped_packages; they do not fail the run. Fails with exit code 9 and structured violations; each rule and its fix is listed in verify --help and the rules field of andurel commands --json.",
 	)
 	setStandardHelp(cmd)
 	return cmd
 }
 
-func runVerify(cmd *cobra.Command, withTests, skipGenerated bool) error {
+func runVerify(
+	cmd *cobra.Command,
+	withTests, skipGenerated, noFrontend bool,
+	patterns []string,
+) error {
 	rootDir, err := findGoModRoot()
 	if err != nil {
 		return err
 	}
 
 	report := verifyReport{}
-	report.Steps = append(report.Steps, verifyGofmt(rootDir))
-	report.Steps = append(report.Steps, verifyGoFix(rootDir))
-	report.Steps = append(report.Steps, verifyGoVet(rootDir))
-	report.Steps = append(report.Steps, verifyLayerBoundaries(rootDir))
+	report.Steps = append(report.Steps, verifyGofmt(rootDir, patterns))
+	report.Steps = append(report.Steps, verifyGoFix(rootDir, patterns))
+	report.Steps = append(report.Steps, verifyGoVet(rootDir, patterns))
+	report.Steps = append(report.Steps, verifyLayerBoundaries(rootDir, patterns))
+	if noFrontend {
+		report.Steps = append(report.Steps, verifyFrontendSkipped("--no-frontend"))
+	} else {
+		report.Steps = append(report.Steps, verifyFrontend(rootDir))
+	}
 	if skipGenerated {
 		report.Steps = append(report.Steps, verifyStep{
 			Name:   "generated",
@@ -254,8 +278,29 @@ func verifySummary(report verifyReport) string {
 	return "Verification failed: " + strings.Join(failed, ", ")
 }
 
-func verifyGofmt(rootDir string) verifyStep {
-	out, err := runVerifyCommand(rootDir, "gofmt", "-l", ".")
+// goPatternArgs returns the go command patterns for a scoped verify. No
+// patterns means the whole module.
+func goPatternArgs(patterns []string) []string {
+	if len(patterns) == 0 {
+		return []string{"./..."}
+	}
+	return patterns
+}
+
+func verifyGofmt(rootDir string, patterns []string) verifyStep {
+	paths := []string{"."}
+	if len(patterns) > 0 {
+		dirs, err := goPackageDirs(rootDir, patterns)
+		if err != nil {
+			step := verifyStepFailed("gofmt")
+			step.Detail = err.Error()
+			return step
+		}
+		paths = dirs
+	}
+
+	args := append([]string{"-l"}, paths...)
+	out, err := runVerifyCommand(rootDir, "gofmt", args...)
 	detail := strings.TrimSpace(out)
 	if err != nil {
 		step := verifyStepFailed("gofmt")
@@ -271,9 +316,10 @@ func verifyGofmt(rootDir string) verifyStep {
 		if file == "" {
 			continue
 		}
+		file = relativeVerifyFile(rootDir, file)
 		step.Violations = append(step.Violations, verifyViolation{
 			Rule:    "gofmt",
-			File:    filepath.ToSlash(file),
+			File:    file,
 			Message: "file is not gofmt-clean",
 			Fix:     "gofmt -w " + file,
 		})
@@ -281,8 +327,42 @@ func verifyGofmt(rootDir string) verifyStep {
 	return step
 }
 
-func verifyGoFix(rootDir string) verifyStep {
-	out, err := runVerifyCommand(rootDir, "go", "fix", "-diff", "./...")
+// goPackageDirs resolves package patterns to their source directories for
+// gofmt, which accepts paths rather than package patterns.
+func goPackageDirs(rootDir string, patterns []string) ([]string, error) {
+	args := append([]string{"list", "-f", "{{.Dir}}"}, patterns...)
+	out, err := runVerifyCommand(rootDir, "go", args...)
+	if err != nil {
+		return nil, fmt.Errorf("resolve package patterns: %s", strings.TrimSpace(out))
+	}
+	seen := map[string]bool{}
+	dirs := make([]string, 0)
+	for line := range strings.SplitSeq(out, "\n") {
+		dir := strings.TrimSpace(line)
+		if dir == "" || seen[dir] {
+			continue
+		}
+		seen[dir] = true
+		dirs = append(dirs, dir)
+	}
+	if len(dirs) == 0 {
+		return nil, fmt.Errorf("no packages matched %s", strings.Join(patterns, " "))
+	}
+	return dirs, nil
+}
+
+func relativeVerifyFile(rootDir, file string) string {
+	if filepath.IsAbs(file) {
+		if rel, err := filepath.Rel(rootDir, file); err == nil {
+			return filepath.ToSlash(rel)
+		}
+	}
+	return filepath.ToSlash(file)
+}
+
+func verifyGoFix(rootDir string, patterns []string) verifyStep {
+	args := append([]string{"fix", "-diff"}, goPatternArgs(patterns)...)
+	out, err := runVerifyCommand(rootDir, "go", args...)
 	detail := strings.TrimSpace(out)
 	if err != nil {
 		step := verifyStepFailed("go fix")
@@ -297,13 +377,13 @@ func verifyGoFix(rootDir string) verifyStep {
 	step.Violations = []verifyViolation{{
 		Rule:    "go fix",
 		Message: "go fix reports automatic rewrites",
-		Fix:     "go fix ./...",
+		Fix:     "go fix " + strings.Join(goPatternArgs(patterns), " "),
 	}}
 	return step
 }
 
-func verifyGoVet(rootDir string) verifyStep {
-	out, err := runGoVet(rootDir)
+func verifyGoVet(rootDir string, patterns []string) verifyStep {
+	out, err := runGoVetPatterns(rootDir, patterns)
 	detail := strings.TrimSpace(out)
 	if err != nil {
 		step := verifyStepFailed("go vet")
@@ -469,17 +549,7 @@ func verifyGenerated(rootDir string) verifyStep {
 		case statusFail:
 			step.Status = verifyStatusFail
 			step.OK = false
-			message := result.name + ": " + result.message
-			if len(result.details) > 0 {
-				message += " (" + strings.Join(result.details, "; ") + ")"
-			}
-			file, fix := generatedTarget(result)
-			step.Violations = append(step.Violations, verifyViolation{
-				Rule:    "generated",
-				File:    file,
-				Message: message,
-				Fix:     fix,
-			})
+			step.Violations = append(step.Violations, generatedViolations(result)...)
 		case statusWarn:
 			if result.missingTool != "" {
 				step.Status = verifyStatusFail
@@ -498,12 +568,57 @@ func verifyGenerated(rootDir string) verifyStep {
 	return step
 }
 
+// generatedViolations turns one failed generation check into findings. When
+// regeneration lists the changed files, each finding names its source file so a
+// whole-tree generated run still points at the code that owns the drift.
+func generatedViolations(result checkResult) []verifyViolation {
+	file, fix := generatedTarget(result)
+	if len(result.changed) == 0 {
+		message := result.name + ": " + result.message
+		if len(result.details) > 0 {
+			message += " (" + strings.Join(result.details, "; ") + ")"
+		}
+		return []verifyViolation{{
+			Rule:    "generated",
+			File:    file,
+			Message: message,
+			Fix:     fix,
+		}}
+	}
+
+	violations := make([]verifyViolation, 0, len(result.changed))
+	for _, path := range result.changed {
+		path = filepath.ToSlash(path)
+		violations = append(violations, verifyViolation{
+			Rule:    "generated",
+			File:    generatedSourceFile(result.name, path),
+			Message: fmt.Sprintf("%s: %s is out of date", result.name, path),
+			Fix:     fix,
+		})
+	}
+	return violations
+}
+
+// generatedSourceFile maps a generated path back to the authored file an agent
+// should edit. templ and email renderers are named after their .templ source.
+func generatedSourceFile(checkName, path string) string {
+	switch checkName {
+	case "templ generate", "email generate":
+		if before, ok := strings.CutSuffix(path, "_templ.go"); ok {
+			return before + ".templ"
+		}
+	}
+	return path
+}
+
 // generatedTarget maps a doctor generation check to the output it owns and
 // the command that regenerates it.
 func generatedTarget(result checkResult) (file, fix string) {
 	switch result.name {
 	case "templ generate":
 		return "", "andurel build"
+	case "email generate":
+		return "email", "andurel sync email"
 	case "narsilc generate":
 		return "domains/internal/queries", "andurel sync queries"
 	case "routes.ts":
@@ -537,5 +652,11 @@ func runVerifyCommand(dir string, name string, args ...string) (string, error) {
 // gate) and andurel doctor (read-only diagnostics); each formats the result
 // for its own report type.
 func runGoVet(dir string) (string, error) {
-	return runVerifyCommand(dir, "go", "vet", "./...")
+	return runGoVetPatterns(dir, nil)
+}
+
+// runGoVetPatterns is runGoVet for scoped package patterns.
+func runGoVetPatterns(dir string, patterns []string) (string, error) {
+	args := append([]string{"vet"}, goPatternArgs(patterns)...)
+	return runVerifyCommand(dir, "go", args...)
 }

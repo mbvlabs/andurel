@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/v2/cli/output"
+	"github.com/mbvlabs/andurel/v2/cli/patterns"
 	"github.com/mbvlabs/andurel/v2/layout"
 )
 
@@ -70,6 +71,54 @@ func TestRenderRoutesJSGeneratesDeterministicHelpers(t *testing.T) {
 	}
 }
 
+// TestRoutePatternMatchesGeneratedRoutesTS keeps the route pattern's
+// resources/js/routes.ts sample byte-identical to what `andurel sync routes`
+// writes for the same route data.
+func TestRoutePatternMatchesGeneratedRoutesTS(t *testing.T) {
+	pattern, ok := patterns.Get("route")
+	if !ok {
+		t.Fatal("route pattern not found")
+	}
+
+	var want string
+	for _, file := range pattern.Files {
+		if file.Path == generatedRoutesJSPath {
+			want = file.Content
+			break
+		}
+	}
+	if want == "" {
+		t.Fatalf("route pattern has no %s sample", generatedRoutesJSPath)
+	}
+
+	got, _, err := renderRoutesJS(routeManifest{
+		Routes: []routeManifestRoute{
+			{
+				Variable:  "UserIndex",
+				Path:      "/users",
+				IsInertia: true,
+			},
+			{
+				Variable:  "UserShow",
+				Path:      "/users/:id",
+				IsInertia: true,
+				Params:    []routeManifestParam{{Name: "id", Type: "string"}},
+			},
+			{
+				Variable:  "UserCreate",
+				Path:      "/users",
+				IsInertia: true,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("render routes js: %v", err)
+	}
+	if string(got) != want {
+		t.Fatalf("route pattern sample is stale:\n--- generated ---\n%s\n--- pattern ---\n%s", got, want)
+	}
+}
+
 func TestRenderRoutesJSIncludesSecondaryHost(t *testing.T) {
 	manifest := routeManifest{
 		Routes: []routeManifestRoute{
@@ -102,6 +151,37 @@ func TestRenderRoutesJSIncludesSecondaryHost(t *testing.T) {
 		if !strings.Contains(string(got), want) {
 			t.Fatalf("expected output to contain %q, got:\n%s", want, got)
 		}
+	}
+}
+
+func TestRenderRoutesJSUsesURLCShapedPathForExactRoutes(t *testing.T) {
+	manifest := routeManifest{
+		Routes: []routeManifestRoute{{
+			Variable:  "HomePage",
+			Path:      "/",
+			Pattern:   "/{$}",
+			Exact:     true,
+			IsInertia: true,
+		}},
+	}
+
+	got, _, err := renderRoutesJS(manifest)
+	if err != nil {
+		t.Fatalf("render routes js: %v", err)
+	}
+	if strings.Contains(string(got), "{$}") {
+		t.Fatalf("helpers must emit the URL path, not the mux pattern:\n%s", got)
+	}
+	if want := "homePage: routeHelper({\n    host: 'primary',\n    path: () => '/',\n  })"; !strings.Contains(
+		string(got),
+		want,
+	) {
+		t.Fatalf("expected output to contain %q, got:\n%s", want, got)
+	}
+
+	// Defensive: a mux pattern must never leak into the URL helper.
+	if got := routeJSURLPath(routeManifestRoute{Path: "/{$}"}); got != "/" {
+		t.Fatalf("routeJSURLPath(%q) = %q, want %q", "/{$}", got, "/")
 	}
 }
 
@@ -286,6 +366,14 @@ func TestGenerateRoutesCommandAllowsInertiaProject(t *testing.T) {
 	}
 	if !strings.Contains(string(got), "path: () => '/users/sign-in'") {
 		t.Fatalf("unexpected generated routes.ts:\n%s", got)
+	}
+	for _, want := range []string{
+		"routing.TypeScriptRoute()",
+		"Call helpers while rendering",
+	} {
+		if !strings.Contains(string(got), want) {
+			t.Fatalf("expected generated routes.ts to contain %q:\n%s", want, got)
+		}
 	}
 	if !strings.Contains(result.stdout, `"generated_file": "resources/js/routes.ts"`) {
 		t.Fatalf("expected structured generation report, got:\n%s", result.stdout)

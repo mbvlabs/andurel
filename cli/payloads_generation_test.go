@@ -127,6 +127,104 @@ func TestRenderPayloadsTSScaffoldAuthHandler(t *testing.T) {
 	}
 }
 
+func TestRenderPayloadsTSFollowsNestedStructsAcrossModulePackages(t *testing.T) {
+	rootDir := setupPayloadsProject(t, "react")
+	writePayloadsHandler(t, rootDir, "internal/docs/payload.go", `package docs
+
+type PageRef struct {
+	Title string `+"`json:\"title\"`"+`
+	Slug  string `+"`json:\"slug\"`"+`
+}
+
+type Heading struct {
+	Level int    `+"`json:\"level\"`"+`
+	Text  string `+"`json:\"text\"`"+`
+}
+
+type PageProps struct {
+	Version  string    `+"`json:\"version\"`"+`
+	HTML     string    `+"`json:\"html\"`"+`
+	Headings []Heading `+"`json:\"headings\"`"+`
+	Previous *PageRef  `+"`json:\"previous\"`"+`
+}
+`)
+	writePayloadsHandler(t, rootDir, "handlers/docs.go", `package handlers
+
+import (
+	"context"
+
+	"example.com/app/internal/docs"
+	"github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+type DocsShowProps struct {
+	Page       docs.PageProps `+"`json:\"page\"`"+`
+	Navigation []docs.PageRef `+"`json:\"navigation\"`"+`
+}
+
+func (h DocsHandler) Show(ctx context.Context) error {
+	return inertia.FromStruct(DocsShowProps{})
+}
+`)
+
+	got, count, skipped, err := renderPayloadsTS(rootDir)
+	if err != nil {
+		t.Fatalf("render payloads: %v", err)
+	}
+	if len(skipped) != 0 {
+		t.Fatalf("unexpected skipped: %#v", skipped)
+	}
+	if count != 4 {
+		t.Fatalf("type count = %d, want 4\n%s", count, got)
+	}
+	for _, want := range []string{
+		"export type DocsShowProps",
+		"page: PageProps",
+		"navigation: PageRef[]",
+		"export type PageProps",
+		"headings: Heading[]",
+		"previous: PageRef | null",
+		"export type Heading",
+		"export type PageRef",
+	} {
+		if !strings.Contains(string(got), want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+func TestRenderPayloadsTSFollowsImportedFromStructRoot(t *testing.T) {
+	rootDir := setupPayloadsProject(t, "vue")
+	writePayloadsHandler(t, rootDir, "internal/docs/payload.go", `package docs
+
+type PageProps struct {
+	Version string `+"`json:\"version\"`"+`
+	HTML    string `+"`json:\"html\"`"+`
+}
+`)
+	writePayloadsHandler(t, rootDir, "handlers/docs.go", `package handlers
+
+import (
+	"context"
+
+	"example.com/app/internal/docs"
+	"github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+func (h DocsHandler) Show(ctx context.Context) error {
+	return inertia.FromStruct(docs.PageProps{})
+}
+`)
+
+	got, count, _, err := renderPayloadsTS(rootDir)
+	if err != nil {
+		t.Fatalf("render payloads: %v", err)
+	}
+	if count != 1 || !strings.Contains(string(got), "export type PageProps") {
+		t.Fatalf("unexpected payloads.ts (%d types):\n%s", count, got)
+	}
+}
+
 func TestRenderPayloadsTSJSONOmitEmbedPointerAndCollision(t *testing.T) {
 	rootDir := setupPayloadsProject(t, "react")
 	writePayloadsHandler(t, rootDir, "handlers/pages.go", `package handlers

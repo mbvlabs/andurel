@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"app/internal/runtime"
 
 	"github.com/mbvlabs/andurel/pkg/env"
+	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/lifecycle"
 )
 
@@ -36,6 +38,9 @@ func run() error {
 	if appVersion != "" {
 		cfg.Version = appVersion
 	}
+	if cfg.App.IsProduction() {
+		go warnIfSSRUnreachable(cfg.Inertia)
+	}
 
 	ctx, cancel := lifecycle.NotifyContext(context.Background())
 	defer cancel()
@@ -49,6 +54,29 @@ func run() error {
 	return lifecycle.Run(ctx, func(context.Context) error {
 		return app.Start()
 	}, app.Shutdown, lifecycle.WithBlockingStart())
+}
+
+// warnIfSSRUnreachable probes the SSR sidecar once at boot. The first request is
+// not a health check, and a missing sidecar otherwise only shows up as a 500.
+func warnIfSSRUnreachable(cfg config.Inertia) {
+	renderer, err := inertia.NewHTTPRenderer(
+		cfg.SSRURL,
+		cfg.SSRRequestTimeout,
+		cfg.SSRMaxResponseBytes,
+	)
+	if err != nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.SSRRequestTimeout)
+	defer cancel()
+	if err := renderer.Health(ctx); err != nil {
+		slog.Warn(
+			"inertia SSR sidecar is unreachable; server-rendered pages will fail",
+			"url", cfg.SSRURL,
+			"error", err,
+		)
+	}
 }
 
 // closeApp releases dependencies in reverse construction order. It is deferred

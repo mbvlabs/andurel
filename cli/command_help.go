@@ -146,6 +146,7 @@ func renderLeafHelp(cmd *cobra.Command, w io.Writer) {
 	helpPrintln(w, commandHeadline(cmd))
 	helpPrintln(w)
 	if ok {
+		writeBulletSection(w, "Details", meta.Details)
 		writeBulletSection(w, "When to use", meta.WhenToUse)
 		writeBulletSection(w, "When not to use", meta.WhenNotToUse)
 		writeBulletSection(w, "Prerequisites", meta.Prerequisites)

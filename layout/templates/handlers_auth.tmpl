@@ -40,37 +40,40 @@ const (
 )
 
 func (h AuthHandler) Register(rt *anduin.Router) {
-	rt.Get(routes.SessionNew.Path(), h.SessionNew)
+	rt.Get(routes.SessionNew.Pattern(), h.SessionNew)
 	rt.Post(
-		routes.SessionCreate.Path(),
+		routes.SessionCreate.Pattern(),
 		h.SessionCreate,
 		h.throttle(h.tooManyAttempts("Auth/Login", "email")),
 	)
-	rt.Delete(routes.SessionDestroy.Path(), h.SessionDestroy)
+	rt.Delete(routes.SessionDestroy.Pattern(), h.SessionDestroy)
+	// The POST route lets a plain HTML form sign out without JavaScript; the
+	// DELETE route stays for the Inertia link.
+	rt.Post(routes.SessionDestroy.Pattern(), h.SessionDestroy)
 
-	rt.Get(routes.RegistrationNew.Path(), h.RegistrationNew)
+	rt.Get(routes.RegistrationNew.Pattern(), h.RegistrationNew)
 	rt.Post(
-		routes.RegistrationCreate.Path(),
+		routes.RegistrationCreate.Pattern(),
 		h.RegistrationCreate,
 		h.throttle(h.tooManyAttempts("Auth/Registration", "email")),
 	)
 
-	rt.Get(routes.ConfirmationNew.Path(), h.ConfirmationNew)
+	rt.Get(routes.ConfirmationNew.Pattern(), h.ConfirmationNew)
 	rt.Post(
-		routes.ConfirmationCreate.Path(),
+		routes.ConfirmationCreate.Pattern(),
 		h.ConfirmationCreate,
 		h.throttle(h.tooManyAttempts("Auth/ConfirmEmail", "code")),
 	)
 
-	rt.Get(routes.PasswordNew.Path(), h.PasswordNew)
+	rt.Get(routes.PasswordNew.Pattern(), h.PasswordNew)
 	rt.Post(
-		routes.PasswordCreate.Path(),
+		routes.PasswordCreate.Pattern(),
 		h.PasswordCreate,
 		h.throttle(h.tooManyAttempts("Auth/ResetPasswordRequest", "email")),
 	)
-	rt.Get(routes.PasswordEdit.Path(), h.PasswordEdit)
+	rt.Get(routes.PasswordEdit.Pattern(), h.PasswordEdit)
 	rt.Put(
-		routes.PasswordUpdate.Path(),
+		routes.PasswordUpdate.Pattern(),
 		h.PasswordUpdate,
 		h.throttle(h.tooManyPasswordResets),
 	)
@@ -197,6 +200,9 @@ func (h AuthHandler) SessionDestroy(ctx context.Context) error {
 	defer span.End()
 
 	if err := kiks.Destroy[*middleware.Session](ctx); err != nil {
+		return err
+	}
+	if err := kiks.AddFlash(ctx, kiks.FlashSuccess, "Signed out."); err != nil {
 		return err
 	}
 

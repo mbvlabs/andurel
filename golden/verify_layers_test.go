@@ -146,13 +146,13 @@ func TestVerifyLayerProbes(t *testing.T) {
 	goldentest.SeedProjectTools(t, project)
 
 	// A fresh scaffold must remain green.
-	goldentest.RunCLI(t, project, "verify", "--json")
+	goldentest.RunCLI(t, project, "verify", "--no-frontend", "--json")
 
 	goldentest.WriteProjectFile(t, project, "services/probe.go", probeServiceFile)
 	goldentest.WriteProjectFile(t, project, "handlers/probe.go", probeHandlerFile)
 	goldentest.WriteProjectFile(t, project, "domains/probe_http.go", probeDomainFile)
 
-	output, exitCode := goldentest.RunCLIExit(t, project, "verify", "--json")
+	output, exitCode := goldentest.RunCLIExit(t, project, "verify", "--no-frontend", "--json")
 	if exitCode != 9 {
 		t.Fatalf("verify --json exited %d, want 9\n%s", exitCode, output)
 	}

@@ -44,6 +44,12 @@ func main() {
 	must(os.Setenv("HOST_PRIMARY", "localhost:8080"))
 	app, err := config.NewApp()
 	must(err)
+	assert(app.SiteName == "Testapp", "site name default")
+	must(os.Setenv("SITE_NAME", "Test App"))
+	app, err = config.NewApp()
+	must(err)
+	assert(app.SiteName == "Test App", "site name override")
+	must(os.Unsetenv("SITE_NAME"))
 	_, err = config.NewTelemetry(app)
 	assert(err != nil && strings.Contains(err.Error(), "TRACE_SAMPLE_RATE"), "telemetry parse error")
 
@@ -63,7 +69,7 @@ func main() {
 	must(os.Setenv("EMAIL_PROVIDER", "mailpit"))
 	mail, err := config.NewMail(app)
 	must(err)
-	assert(mail.DefaultSenderSignature == "noreply@localhost:8080", "mail sender identity")
+	assert(mail.DefaultSenderSignature == "noreply@localhost", "mail sender identity")
 	assert(mail.Driver == config.MailpitDriver, "mail driver")
 
 	must(os.Setenv("EMAIL_PROVIDER", string(config.SMTPDriver)))
@@ -85,6 +91,21 @@ func main() {
 	must(err)
 	assert(smtpMail.SMTPPort == "2525", "smtp port override")
 	assert(smtpMail.SMTPTLS == "tls", "smtp TLS override")
+
+	must(os.Setenv("DEFAULT_SENDER_SIGNATURE", "noreply@localhost:8080"))
+	_, err = config.NewMail(app)
+	assert(
+		err != nil && strings.Contains(err.Error(), "DEFAULT_SENDER_SIGNATURE"),
+		"mail sender port rejected",
+	)
+
+	must(os.Setenv("DEFAULT_SENDER_SIGNATURE", "Andurel <noreply@localhost>"))
+	_, err = config.NewMail(app)
+	assert(
+		err != nil && strings.Contains(err.Error(), "DEFAULT_SENDER_SIGNATURE"),
+		"mail sender display name rejected",
+	)
+	must(os.Unsetenv("DEFAULT_SENDER_SIGNATURE"))
 
 	must(os.Setenv("QUEUE_POLL_INTERVAL", "2s"))
 	must(os.Setenv("QUEUE_ADVISORY_LOCK_PREFIX", "12"))
