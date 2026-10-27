@@ -51,7 +51,7 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 	assertTemplateContains(t, "handlers_auth.tmpl", ".Errors(err)")
 	assertTemplateMissing(t, "handlers_auth.tmpl", "validation.As(err)")
 	assertTemplateMissing(t, "handlers_auth.tmpl", "validationFields")
-	assertTemplateContains(t, "handlers_errors.tmpl", "inertia.ErrorHandler(renderer")
+	assertTemplateContains(t, "handlers_errors.tmpl", "inertia.NewErrorHandler(")
 	assertTemplateMissing(t, "handlers_errors.tmpl", "validation.As(err)")
 	assertTemplateContains(t, "domains_queries_token.tmpl",
 		"-- name: GetTokenByUserAndScope :one",

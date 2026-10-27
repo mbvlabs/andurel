@@ -131,6 +131,28 @@ func TestErrorHandlerMapsSentinelsToPagesAndJSON(t *testing.T) {
 	}
 }
 
+func TestErrorHandlerAcceptsMappingSlice(t *testing.T) {
+	var captured RootData
+	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	sentinel := errors.New("not found")
+	mappings := []ErrorMapping{
+		MapError(sentinel, http.StatusNotFound, "Errors/NotFound"),
+	}
+	handler := ErrorHandler(renderer, mappings...)
+
+	_, recorder, ctx := errorHandlerRequest(http.MethodGet, "/users/1", nil)
+	if err := handler(ctx, sentinel); err != nil {
+		t.Fatalf("ErrorHandler: %v", err)
+	}
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", recorder.Code)
+	}
+}
+
 func TestErrorHandlerPassesUnmappedErrorsThrough(t *testing.T) {
 	var captured RootData
 	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
@@ -186,6 +208,155 @@ func TestErrorHandlerWritesUnmappedClientErrorAsJSON(t *testing.T) {
 	}
 	if got := strings.TrimSpace(recorder.Body.String()); got != `{"error":"Bad Request"}` {
 		t.Fatalf("body = %q", got)
+	}
+}
+
+func TestErrorHandlerSSRValidationPage(t *testing.T) {
+	var captured RootData
+	ssr := &fakeSSRRenderer{response: &SSRResponse{
+		Body: `<div data-server-rendered="true" data-page="app">validation</div>`,
+	}}
+	renderer, err := newTestRenderer(
+		WithRoot(testRoot(&captured)),
+		WithSSRRenderer(ssr),
+	)
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	_, recorder, ctx := errorHandlerRequest(http.MethodPost, "/login", nil)
+	handler := NewErrorHandler(
+		renderer,
+		ErrorHandlerOptions{ValidationSSR: true},
+	)
+	fieldErr := testFieldError{fields: map[string]string{"email": "is required"}}
+
+	if err := handler(ctx, fieldErr); err != nil {
+		t.Fatalf("ErrorHandler: %v", err)
+	}
+	if ssr.calls != 1 || captured.SSR == nil {
+		t.Fatalf("SSR calls = %d, captured = %#v", ssr.calls, captured.SSR)
+	}
+	if body := recorder.Body.String(); !strings.Contains(body, "validation") {
+		t.Fatalf("body = %s", body)
+	}
+}
+
+func TestErrorHandlerSSRMappedPage(t *testing.T) {
+	var captured RootData
+	ssr := &fakeSSRRenderer{response: &SSRResponse{
+		Body: `<div data-server-rendered="true" data-page="app">not found</div>`,
+	}}
+	renderer, err := newTestRenderer(
+		WithRoot(testRoot(&captured)),
+		WithSSRRenderer(ssr),
+	)
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	sentinel := errors.New("not found")
+	mapping := MapError(sentinel, http.StatusNotFound, "Errors/NotFound")
+	mapping.SSR = true
+	handler := ErrorHandler(renderer, mapping)
+
+	_, recorder, ctx := errorHandlerRequest(http.MethodGet, "/users/1", nil)
+	if err := handler(ctx, sentinel); err != nil {
+		t.Fatalf("ErrorHandler: %v", err)
+	}
+	if ssr.calls != 1 || captured.SSR == nil {
+		t.Fatalf("SSR calls = %d, captured = %#v", ssr.calls, captured.SSR)
+	}
+	if body := recorder.Body.String(); !strings.Contains(body, "not found") {
+		t.Fatalf("body = %s", body)
+	}
+}
+
+func TestErrorHandlerRendersFallbackPageForUnmappedServerError(t *testing.T) {
+	var captured RootData
+	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	handler := NewErrorHandler(
+		renderer,
+		ErrorHandlerOptions{FallbackComponent: "Errors/InternalError"},
+	)
+
+	_, recorder, ctx := errorHandlerRequest(http.MethodGet, "/dashboard", nil)
+	if err := handler(ctx, errors.New("boom")); err != nil {
+		t.Fatalf("ErrorHandler: %v", err)
+	}
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", recorder.Code)
+	}
+	if captured.Page.Component != "Errors/InternalError" {
+		t.Fatalf("component = %q, want Errors/InternalError", captured.Page.Component)
+	}
+}
+
+func TestErrorHandlerFallbackPageLeavesClientErrorsToTheRouter(t *testing.T) {
+	var captured RootData
+	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	handler := NewErrorHandler(
+		renderer,
+		ErrorHandlerOptions{FallbackComponent: "Errors/InternalError"},
+	)
+	badRequest := anduin.BadRequest(errors.New("bad body"))
+
+	_, recorder, ctx := errorHandlerRequest(http.MethodPost, "/login", nil)
+	if got := handler(ctx, badRequest); got != badRequest {
+		t.Fatalf("ErrorHandler returned %v, want the original error", got)
+	}
+	if recorder.Body.Len() != 0 {
+		t.Fatalf("body = %q, want empty", recorder.Body.String())
+	}
+}
+
+func TestErrorHandlerFallbackPageDoesNotSSRAnSSRFailure(t *testing.T) {
+	var captured RootData
+	ssr := &fakeSSRRenderer{err: errors.New("sidecar down")}
+	renderer, err := newTestRenderer(
+		WithRoot(testRoot(&captured)),
+		WithSSRRenderer(ssr),
+		WithSSRFailFast(true),
+	)
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	recorder := httptest.NewRecorder()
+	ctx := testContext(request, recorder)
+	if err := renderer.Page(ctx, "Dashboard", Props{}).SSR().Render(); err == nil {
+		t.Fatal("expected SSR failure")
+	}
+
+	handler := NewErrorHandler(
+		renderer,
+		ErrorHandlerOptions{
+			FallbackComponent: "Errors/InternalError",
+			FallbackSSR:       true,
+		},
+	)
+	ssr.calls = 0
+	_, recorder, ctx = errorHandlerRequest(http.MethodGet, "/dashboard", nil)
+	if err := handler(ctx, &Error{Kind: ErrorSSR, Err: errors.New("sidecar down")}); err != nil {
+		t.Fatalf("ErrorHandler: %v", err)
+	}
+	if ssr.calls != 0 {
+		t.Fatalf("fallback page rendered through SSR %d times", ssr.calls)
+	}
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", recorder.Code)
+	}
+	if captured.Page.Component != "Errors/InternalError" {
+		t.Fatalf("component = %q, want Errors/InternalError", captured.Page.Component)
 	}
 }
 

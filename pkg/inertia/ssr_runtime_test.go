@@ -76,11 +76,46 @@ func TestResolveSSRBundleMissingWithoutFS(t *testing.T) {
 func TestEmbedPathForBundleStripsAssetsPrefix(t *testing.T) {
 	t.Parallel()
 
-	if got := embedPathForBundle("assets/dist/ssr/ssr.js"); got != "dist/ssr/ssr.js" {
-		t.Fatalf("got %q", got)
+	tests := map[string]string{
+		"assets/dist/ssr/ssr.js":                 "dist/ssr/ssr.js",
+		"dist/ssr/ssr.js":                        "dist/ssr/ssr.js",
+		"./dist/ssr/ssr.js":                      "dist/ssr/ssr.js",
+		"/srv/app/assets/dist/ssr/ssr.js":        "dist/ssr/ssr.js",
+		"/tmp/custom-bundle/ssr.js":              "dist/ssr/ssr.js",
+		filepath.Join("custom", "ssr-bundle.js"): "custom/ssr-bundle.js",
 	}
-	if got := embedPathForBundle("dist/ssr/ssr.js"); got != "dist/ssr/ssr.js" {
-		t.Fatalf("got %q", got)
+	for bundle, want := range tests {
+		if got := embedPathForBundle(bundle); got != want {
+			t.Fatalf("embedPathForBundle(%q) = %q, want %q", bundle, got, want)
+		}
+	}
+}
+
+func TestResolveSSRBundleFallsBackToEmbedForAbsolutePath(t *testing.T) {
+	t.Parallel()
+
+	bundleFS := fstest.MapFS{
+		"dist/ssr/ssr.js": &fstest.MapFile{Data: []byte("from-embed")},
+	}
+
+	path, cleanup, err := resolveSSRBundle(
+		filepath.Join(t.TempDir(), "missing-ssr.js"),
+		bundleFS,
+	)
+	if err != nil {
+		t.Fatalf("resolveSSRBundle: %v", err)
+	}
+	if cleanup == nil {
+		t.Fatal("expected temp cleanup")
+	}
+	defer cleanup()
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "from-embed" {
+		t.Fatalf("bundle = %q", data)
 	}
 }
 
@@ -90,5 +125,10 @@ func TestResolveSSRBundleRequiresFileInFS(t *testing.T) {
 	_, _, err := resolveSSRBundle("assets/dist/ssr/ssr.js", fstest.MapFS{})
 	if err == nil {
 		t.Fatal("expected missing embed error")
+	}
+	for _, want := range []string{"embedded fallback", "dist/ssr/ssr.js", "was tried"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("error = %q, want it to contain %q", err, want)
+		}
 	}
 }

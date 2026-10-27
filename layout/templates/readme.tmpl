@@ -529,6 +529,9 @@ _, err = i.queue.Insert(ctx, storage.SendTransactionalEmailArgs{Data: data}, nil
   `SMTP_PORT` (default `587`), plus `SMTP_USERNAME` and `SMTP_PASSWORD` when
   the relay requires authentication. `SMTP_TLS` accepts `starttls` (default),
   `tls` for implicit TLS (usually port 465), or `none` for a local relay.
+- `log` logs each message at info level instead of delivering it. It is allowed
+  in production and is meant for local production-like runs and smoke tests
+  (see [Run Production Locally](#run-production-locally)).
 
 ```bash
 EMAIL_PROVIDER=smtp
@@ -538,6 +541,52 @@ SMTP_USERNAME=apikey
 SMTP_PASSWORD=secret
 SMTP_TLS=starttls
 ```
+
+### Server-Side Rendering
+
+Client rendering is the default. Opt a page into SSR per response:
+
+```go
+return h.renderer.Page(ctx, "Dashboard", inertia.Props{"name": "Ada"}).
+    SSR().
+    Render()
+```
+
+In development, `pkg/inertia` posts the page to the Vite dev server's
+`/__inertia_ssr` endpoint, so `andurel run` (or `pnpm dev` alongside
+`go run ./cmd/app`) must be running. In production, `cmd/app` posts to
+`INERTIA_SSR_URL` and the `cmd/ssr` sidecar serves renders from
+`assets/dist/ssr/ssr.js`. The production SSR build bundles its dependencies
+(`ssr.noExternal`) so the embedded bundle runs without `node_modules`; the
+bundle is larger by design.
+
+`INERTIA_SSR_FAIL_FAST` defaults to `true` in production and is set to `false`
+in the scaffolded `.env` for development. With fail-fast on, an SSR failure is
+a themed 500; with it off, the page falls back to client rendering and logs the
+error. Every re-render branch (validation errors, rate limits, error pages)
+needs its own `.SSR()` to stay server-rendered.
+
+### Run Production Locally
+
+Exercise the production code paths without Mailpit or an SMTP server:
+
+```bash
+pnpm build
+go build -o bin/app ./cmd/app
+go build -o bin/ssr ./cmd/ssr
+
+ENVIRONMENT=production EMAIL_PROVIDER=log ./bin/ssr &
+ENVIRONMENT=production EMAIL_PROVIDER=log ./bin/app
+```
+
+`EMAIL_PROVIDER=log` logs each message instead of sending it and is allowed in
+production; use it only for local production-like runs and smoke tests. Run the
+built binaries from the project root so `.env` is loaded. `cmd/ssr` embeds
+`assets/dist/ssr/ssr.js` and can also be started from an empty directory when
+the `INERTIA_*` settings come from the environment.
+`INERTIA_SSR_FAIL_FAST` defaults to `true` in production, so start the SSR
+sidecar before the app; `cmd/app` also logs a warning at boot when the sidecar's
+`/health` endpoint is unreachable.
 
 ### Schema Changes
 
@@ -628,6 +677,9 @@ CORS_ALLOWED_ORIGINS=
 CSRF_STRATEGY=header_only
 CSRF_TRUSTED_ORIGINS=
 HTTP_TRUSTED_PROXIES=
+
+# Inertia SSR (development uses Vite; production uses cmd/ssr)
+INERTIA_SSR_FAIL_FAST=false
 
 # Telemetry (optional)
 TELEMETRY_SERVICE_NAME={{.ProjectName}}

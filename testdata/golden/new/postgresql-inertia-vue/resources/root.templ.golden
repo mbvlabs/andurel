@@ -8,7 +8,12 @@ templ Root(data inertia.RootData) {
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<title>{ data.ProjectName }</title>
+			// SSR pages get their title from the Inertia <Head> markup returned
+			// by the renderer; the static fallback would otherwise be a
+			// duplicate <title>.
+			if data.SSR == nil {
+				<title>{ data.ProjectName }</title>
+			}
 			@inertia.SSRHead(data.SSR)
 			@templ.Raw(string(data.ViteHead))
 		</head>
