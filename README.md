@@ -62,7 +62,7 @@ Match the install channel to the docs you follow.
 V2 has not shipped a stable tag yet. Install the latest beta:
 
 ```bash
-go install github.com/mbvlabs/andurel/v2@v2.0.0-beta.1
+go install github.com/mbvlabs/andurel/v2@v2.0.0-beta.2
 andurel --version
 ```
 
