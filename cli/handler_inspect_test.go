@@ -52,7 +52,7 @@ func NewProductHandler(
 }
 
 func (h ProductHandler) Register(rt *anduin.Router) {
-	rt.Get(r.ProductIndex.Path(), h.Index)
+	rt.Get(r.ProductIndex.Pattern(), h.Index)
 	rt.Post(r.ProductCreate.Path(), h.Create, h.throttle())
 	rt.Host("admin").Delete(r.ProductDestroy.Path(), h.Destroy)
 	rt.Get("/healthz", h.Index)

@@ -21,7 +21,7 @@ func NewPagesHandler(renderer *inertia.Renderer) PagesHandler {
 // (for example middleware.AuthOnly) so the page is public only when none is
 // passed.
 func (p PagesHandler) Register(rt *anduin.Router, middleware ...anduin.Middleware) {
-	rt.Get(routes.HomePage.Path(), p.Home, middleware...)
+	rt.Get(routes.HomePage.Pattern(), p.Home, middleware...)
 }
 
 func (p PagesHandler) Home(ctx context.Context) error {
