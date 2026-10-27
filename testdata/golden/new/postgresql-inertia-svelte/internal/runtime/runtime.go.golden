@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -254,6 +255,10 @@ func newEmailSenders(
 		}
 
 		return client, client, nil
+	case config.LogDriver:
+		client := email.NewLog(slog.Default())
+
+		return client, client, nil
 	default:
 		return nil, nil, fmt.Errorf("unsupported email provider %q", cfg.Driver)
 	}
@@ -264,12 +269,13 @@ func validateEmailConfig(cfg config.Mail, app config.App) error {
 	case config.MailpitDriver:
 		if app.IsProduction() {
 			return fmt.Errorf(
-				"email provider %q is for local development; set EMAIL_PROVIDER=%s in production",
+				"email provider %q is for local development; set EMAIL_PROVIDER=%s (or %s for a production-like local run) in production",
 				config.MailpitDriver,
 				config.SMTPDriver,
+				config.LogDriver,
 			)
 		}
-	case config.SMTPDriver:
+	case config.SMTPDriver, config.LogDriver:
 	default:
 		return fmt.Errorf("unsupported email provider %q", cfg.Driver)
 	}

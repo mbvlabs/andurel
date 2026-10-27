@@ -14,6 +14,9 @@ type MailDriver string
 const (
 	MailpitDriver MailDriver = "mailpit"
 	SMTPDriver    MailDriver = "smtp"
+	// LogDriver logs messages instead of sending them. It is allowed in
+	// production for local production-like runs and smoke tests.
+	LogDriver MailDriver = "log"
 
 	DefaultMailpitHost = "0.0.0.0"
 	DefaultMailpitPort = "1025"

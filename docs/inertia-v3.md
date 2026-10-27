@@ -72,15 +72,19 @@ SSR remains an option on a single `Page` call. The `inertia` package contains
 the bounded HTTP renderer and an optional managed process runtime used by the
 scaffold's `cmd/ssr` entrypoint (Laravel-style). `internal/runtime` constructs a
 renderer with `NewRenderer` (HTTP client for optional SSR); `NewSSRRuntime`
-owns Node. Production falls back to client-side rendering; verification can
-opt into fail-fast behavior.
+owns Node. Production defaults to fail-fast (`INERTIA_SSR_FAIL_FAST=true`), so
+an SSR failure becomes a 500 rendered through the application's error handler.
+Set `INERTIA_SSR_FAIL_FAST=false` to fall back to client-side rendering and log
+the failure instead.
 
-Under `andurel run`, Shadowfax builds and supervises `cmd/ssr`, which starts
-Node from `INERTIA_SSR_LISTEN` (bind address; IP or localhost, including
-`0.0.0.0`). The HTTP app process only uses `INERTIA_SSR_URL` (where it POSTs `/render`;
-any http(s) host, including a sibling-container DNS name). In production, run
+In development, the renderer posts to the Vite dev server's `/__inertia_ssr`
+endpoint, so `andurel run` (or `pnpm dev` alongside `go run ./cmd/app`) must be
+running. `cmd/ssr` is a separate production process that starts Node from
+`INERTIA_SSR_LISTEN` (bind address; IP or localhost, including `0.0.0.0`). The
+HTTP app process only uses `INERTIA_SSR_URL` (where it POSTs `/render`; any
+http(s) host, including a sibling-container DNS name). In production, run
 `cmd/ssr` (or an equivalent) under your process manager. Per-response
-`inertia.WithSSR()` opts a page into SSR. Request timeout, response-size
+`inertia.Page(...).SSR()` opts a page into SSR. Request timeout, response-size
 limit, and fail-fast behavior have separate configuration values.
 
 Generated resource payload structs carry JSON tags. Their corresponding
@@ -106,7 +110,7 @@ shapes. Database model structs are never passed directly to an Inertia page.
 | Scroll prop | Adapt | v3 merge intent and `scrollProps` metadata |
 | Validation context helpers | Adapt | response option and named error-bag handling |
 | Flash provider | Adapt | generated `kiks` provider (`WithFlashProvider(kiks.Flashes)`) and page `flash` |
-| Global `WithSSR` engine option | Replace | per-response `WithSSR()` page option |
+| Global `WithSSR` engine option | Replace | per-response `Page(...).SSR()` |
 | HTTP SSR gateway | Adapt | `SSRRenderer` plus bounded `HTTPRenderer` |
 | Go `html/template` root | Replace | application-owned `resources/root.templ` supplied with `WithRoot` |
 | Custom JSON marshaller | Omit | fixed `encoding/json` for protocol safety |

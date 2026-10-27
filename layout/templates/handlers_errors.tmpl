@@ -13,7 +13,11 @@ import (
 // sentinel to the scaffold's error pages. Field errors and everything else are
 // handled by the shared inertia handler.
 func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
-	return inertia.ErrorHandler(renderer,
+	return inertia.NewErrorHandler(
+		renderer,
+		// Unmapped 5xx errors, including a fail-fast SSR failure, get the themed
+		// page instead of the router's plain-text default.
+		inertia.ErrorHandlerOptions{FallbackComponent: "Errors/InternalError"},
 		inertia.MapError(domains.ErrNotFound, http.StatusNotFound, "Errors/NotFound"),
 		inertia.MapError(anduin.ErrNotFound, http.StatusNotFound, "Errors/NotFound"),
 		inertia.MapError(domains.ErrConflict, http.StatusConflict, "Errors/Conflict"),

@@ -12,6 +12,10 @@ export default defineConfig(({ command }) => ({
     },
   },
   base: command === 'build' ? './' : '/assets/dist/',
+  // Bundle dependencies into the production SSR build so the embedded
+  // assets/dist/ssr/ssr.js runs without node_modules. The dev server keeps them
+  // external so Vite can serve SSR under `andurel run`.
+  ssr: command === 'build' ? { noExternal: true } : undefined,
   build: {
     manifest: "vite/manifest.json",
     assetsDir: "",

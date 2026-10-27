@@ -22,7 +22,7 @@ type Queue struct {
 
 // NewQueue builds the worker process. Like New, each dependency registers its
 // cleanup as soon as it exists.
-func NewQueue(ctx context.Context, cfg config.Config) (_ *Queue, err error) {
+func NewQueue(ctx context.Context, cfg config.WorkerConfig) (_ *Queue, err error) {
 	// Workers render absolute links into emails, so routes need the hosts.
 	hosts, err := routing.NewHosts(cfg.App.Hosts)
 	if err != nil {

@@ -341,11 +341,45 @@ A handler renders a page with:
 return h.renderer.Page(ctx, "User/Index", inertia.FromStruct(result.Items)).Render()
 ```
 
-The root document is `resources/root.templ` (package `resources`). Map field
-errors with `Page(...).Errors(err)`, which sets the validation errors prop and
-reports whether the error carried a field map. `inertia.ErrorHandler` does the
-same for errors returned from handlers; configure it with `inertia.MapError`
-for domain sentinels.
+Client rendering is the default. `.SSR()` opts a single render into
+server-side rendering:
+
+```go
+return h.renderer.Page(ctx, "User/Show", inertia.FromStruct(user)).SSR().Render()
+```
+
+SSR is per `Render()` call, not per route or renderer, so every re-render
+branch needs its own `.SSR()` to stay server-rendered: validation errors
+(`Page(...).Errors(err)`), rate-limit responses, and error pages. In
+development the renderer posts to the Vite dev server's `/__inertia_ssr`
+endpoint (`andurel run` / `pnpm dev` must be running); in production it posts
+to `INERTIA_SSR_URL`, served by `cmd/ssr` from `assets/dist/ssr/ssr.js`.
+`INERTIA_SSR_FAIL_FAST` (default true in production) turns an SSR failure into a
+500 instead of a client-rendered fallback.
+
+The root document is `resources/root.templ` (package `resources`). `RootData`
+exposes:
+
+- `Page` (`inertia.Page`) and `PageJSON` (the encoded page object)
+- `ContainerID`, `ProjectName`, `Environment`
+- `ViteHead` / `ViteBody` (rendered asset tags)
+- `SSR` (`*inertia.SSRResponse`, nil for a client-rendered response)
+
+Render the fallback `<title>` only when `data.SSR == nil`: SSR pages get their
+head from the page's Inertia `<Head>`, and a static title would otherwise be a
+duplicate. The scaffold shares `appVersion`, `hosts`, `auth`
+(`isAuthenticated`), and `errors` with every page (`errors` is protected).
+
+Map field errors with `Page(...).Errors(err)`, which sets the validation errors
+prop and reports whether the error carried a field map. `inertia.ErrorHandler`
+does the same for errors returned from handlers; configure it with
+`inertia.MapError` for domain sentinels. Error pages are client-rendered like
+every page: set `ErrorMapping.SSR` on an individual mapping, and use
+`inertia.NewErrorHandler` with `ErrorHandlerOptions` (`ValidationComponent`,
+`ValidationSSR`, `FallbackComponent`, `FallbackSSR`) for the built-in validation
+and fallback pages. The fallback page renders unmapped 5xx errors (including a
+fail-fast SSR failure) as a themed page instead of the router's plain-text
+default.
 
 ## Testing handlers
 
