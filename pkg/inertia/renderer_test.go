@@ -2,6 +2,7 @@ package inertia
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -207,7 +208,64 @@ func TestInertiaJSONEscapesHTML(t *testing.T) {
 	}
 }
 
-func TestProductionViteTagsUseBuildPathPrefixAndCrossOrigin(t *testing.T) {
+func TestPageBuilderURLOverridesPageURL(t *testing.T) {
+	t.Parallel()
+
+	const pageURL = "/users/confirmation/new"
+	var captured RootData
+	renderer, err := newTestRenderer(WithRoot(func(data RootData) templ.Component {
+		captured = data
+		return PageScript(data.ContainerID, data.PageJSON)
+	}))
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/users", nil)
+	request.Header.Set(HeaderInertia, "true")
+	recorder := httptest.NewRecorder()
+	page := renderer.Page(testContext(request, recorder), "Users/Confirmation", nil).URL(pageURL)
+	if err := page.Render(); err != nil {
+		t.Fatalf("JSON Render: %v", err)
+	}
+
+	var responsePage Page
+	if err := json.Unmarshal(recorder.Body.Bytes(), &responsePage); err != nil {
+		t.Fatalf("decode page JSON: %v", err)
+	}
+	if responsePage.URL != pageURL {
+		t.Fatalf("JSON page.url = %q, want %q", responsePage.URL, pageURL)
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/users", nil)
+	recorder = httptest.NewRecorder()
+	page = renderer.Page(testContext(request, recorder), "Users/Confirmation", nil).URL(pageURL)
+	if err := page.Render(); err != nil {
+		t.Fatalf("document Render: %v", err)
+	}
+	if captured.Page.URL != pageURL {
+		t.Fatalf("document page.url = %q, want %q", captured.Page.URL, pageURL)
+	}
+	if body := recorder.Body.String(); !strings.Contains(body, `"url":"\/users\/confirmation\/new"`) {
+		t.Fatalf("document page script missing overridden url: %s", body)
+	}
+}
+
+func assertAnonymousCrossOrigin(t *testing.T, tag string) {
+	t.Helper()
+
+	if !strings.Contains(tag, "crossorigin") {
+		t.Fatalf("tag %q has no crossorigin attribute", tag)
+	}
+	if strings.Contains(tag, "use-credentials") {
+		t.Fatalf("tag %q uses credentialed crossorigin", tag)
+	}
+	if strings.Contains(tag, `crossorigin="`) && !strings.Contains(tag, `crossorigin="anonymous"`) {
+		t.Fatalf("tag %q has an unexpected crossorigin value", tag)
+	}
+}
+
+func TestProductionViteTagsUseBuildPathPrefixAndAnonymousCrossOrigin(t *testing.T) {
 	t.Parallel()
 
 	assetFS := fstest.MapFS{
@@ -235,14 +293,15 @@ func TestProductionViteTagsUseBuildPathPrefixAndCrossOrigin(t *testing.T) {
 	}
 
 	wantCSS := `href="https://example.com/assets/dist/app-abc.css"`
-	if !strings.Contains(renderer.viteTags.head, wantCSS) ||
-		!strings.Contains(renderer.viteTags.head, "crossorigin") {
+	if !strings.Contains(renderer.viteTags.head, wantCSS) {
 		t.Fatalf("vite head = %q", renderer.viteTags.head)
 	}
+	assertAnonymousCrossOrigin(t, renderer.viteTags.head)
+
 	wantJS := `src="https://example.com/assets/dist/app-abc.js"`
 	if !strings.Contains(renderer.viteTags.body, wantJS) ||
-		!strings.Contains(renderer.viteTags.body, `type="module"`) ||
-		!strings.Contains(renderer.viteTags.body, "crossorigin") {
+		!strings.Contains(renderer.viteTags.body, `type="module"`) {
 		t.Fatalf("vite body = %q", renderer.viteTags.body)
 	}
+	assertAnonymousCrossOrigin(t, renderer.viteTags.body)
 }

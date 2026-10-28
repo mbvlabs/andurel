@@ -168,6 +168,7 @@ type PageBuilder struct {
 	component        string
 	props            Props
 	status           int
+	url              string
 	ssr              bool
 	validationErrors map[string]string
 	encryptHistory   bool
@@ -182,6 +183,14 @@ func (p *PageBuilder) SSR() *PageBuilder { p.ssr = true; return p }
 // Status sets the page response HTTP status code.
 func (p *PageBuilder) Status(status int) *PageBuilder {
 	p.status = status
+	return p
+}
+
+// URL overrides the page object's URL. It is for handlers that render after a
+// POST and want the browser address to be a GET-able route; by default the
+// page URL is the request URI.
+func (p *PageBuilder) URL(url string) *PageBuilder {
+	p.url = url
 	return p
 }
 
@@ -295,10 +304,14 @@ func (p *PageBuilder) Render() error {
 		}
 	}
 
+	pageURL := p.url
+	if pageURL == "" {
+		pageURL = requestURL(ctx)
+	}
 	page := Page{
 		Component:        component,
 		Props:            resolved.props,
-		URL:              requestURL(ctx),
+		URL:              pageURL,
 		Version:          version,
 		EncryptHistory:   p.encryptHistory,
 		ClearHistory:     p.clearHistory,
@@ -351,7 +364,7 @@ func (p *PageBuilder) Render() error {
 	}
 	pageJSON := bytes.TrimSuffix(pageBuffer.Bytes(), []byte("\n"))
 
-	appendVary(anduin.ResponseWriter(ctx).Header(), HeaderInertia)
+	anduin.AddVary(anduin.ResponseWriter(ctx).Header(), HeaderInertia)
 
 	if request.Inertia {
 		anduin.SetHeader(ctx, HeaderInertia, "true")
@@ -459,17 +472,6 @@ func requestURL(ctx context.Context) string {
 		return "/"
 	}
 	return uri
-}
-
-func appendVary(header http.Header, value string) {
-	for _, line := range header.Values("Vary") {
-		for item := range strings.SplitSeq(line, ",") {
-			if strings.EqualFold(strings.TrimSpace(item), value) {
-				return
-			}
-		}
-	}
-	header.Add("Vary", value)
 }
 
 func emptyNil[K comparable, V any](values map[K]V) map[K]V {

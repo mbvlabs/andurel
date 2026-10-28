@@ -50,7 +50,7 @@ func (renderer *Renderer) Middleware() anduin.Middleware {
 					header.Del(HeaderInertia)
 					header.Set(HeaderLocation, requestURL(ctx))
 					header.Set(HeaderVersion, version)
-					appendVary(header, HeaderInertia)
+					anduin.AddVary(header, HeaderInertia)
 					return anduin.NoContent(ctx, http.StatusConflict)
 				}
 			}
@@ -104,7 +104,7 @@ func (writer *captureWriter) normalize(ctx context.Context) {
 		writer.status = http.StatusOK
 	}
 	header := writer.Header()
-	appendVary(header, HeaderInertia)
+	anduin.AddVary(header, HeaderInertia)
 
 	if writer.status == http.StatusOK && writer.body.Len() == 0 {
 		location := anduin.Request(ctx).Referer()

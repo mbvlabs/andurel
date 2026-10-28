@@ -127,6 +127,9 @@ window.__vite_plugin_react_preamble_installed__ = true
 			)
 		}
 
+		// The scaffold serves Vite assets with non-credentialed CORS
+		// (Access-Control-Allow-Origin: *), so these tags stay in anonymous
+		// crossorigin mode; use-credentials would be rejected by the browser.
 		prefix := strings.TrimSuffix(renderer.buildPathURL, "*")
 		tags := viteTags{}
 		for _, stylesheet := range entry.CSS {

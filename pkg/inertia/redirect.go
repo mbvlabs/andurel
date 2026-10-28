@@ -30,7 +30,7 @@ func (renderer *Renderer) Location(ctx context.Context, location string) error {
 	header := anduin.ResponseWriter(ctx).Header()
 	header.Del(HeaderInertia)
 	header.Set(HeaderLocation, location)
-	appendVary(header, HeaderInertia)
+	anduin.AddVary(header, HeaderInertia)
 	return anduin.NoContent(ctx, http.StatusConflict)
 }
 
@@ -46,6 +46,6 @@ func (renderer *Renderer) FreshRedirect(ctx context.Context, location string) er
 	header := anduin.ResponseWriter(ctx).Header()
 	header.Del(HeaderInertia)
 	header.Set(HeaderRedirect, location)
-	appendVary(header, HeaderInertia)
+	anduin.AddVary(header, HeaderInertia)
 	return anduin.NoContent(ctx, http.StatusConflict)
 }

@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Added
+
+- `PageBuilder.URL` overrides the page object's `url` in both the JSON
+  (`X-Inertia`) and full-document/SSR responses, so a handler that renders after
+  a POST can point the browser at a GET-able route.
+
 ## 0.11.0 - 2026-10-27
 
 ### Added
