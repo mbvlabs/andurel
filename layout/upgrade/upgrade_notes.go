@@ -194,8 +194,8 @@ func corsScopeInstructions() string {
 			"cors := anduin.DefaultCORS(cfg.HTTP.CORSAllowedOrigins...)\n" +
 			"cors.Skipper = isViteAssetRequest\n```\n\n" +
 			"Add the helpers next to New in internal/runtime/runtime.go. Import \"context\" and \"strings\" " +
-			"if the file does not import them yet; net/http is already imported for the server and the " +
-			"asset route's CORS methods.\n\n```go\n" +
+			"if the file does not import them yet. In the alpha.4 corsConfig helper, replace the merged " +
+			"AllowOrigins field with cfg.HTTP.CORSAllowedOrigins and add Skipper: isViteAssetRequest.\n\n```go\n" +
 			"// viteAssetPrefix is the Vite build route subtree without its wildcard. The\n" +
 			"// static files are public: they load from a secondary host without the\n" +
 			"// visitor's session, so neither credentialed CORS nor a CSRF cookie belongs on\n" +
@@ -208,12 +208,15 @@ func corsScopeInstructions() string {
 			"func isViteAssetPath(path string) bool {\n" +
 			"\treturn strings.HasPrefix(path, viteAssetPrefix+\"/\")\n" +
 			"}\n```\n\n" +
-			"2. Register the asset route with its own uncredentialed CORS in handlers/assets.go:\n\n```go\n" +
+			"2. Register the asset route with its own uncredentialed CORS in handlers/assets.go. " +
+			"Import \"net/http\" in that file for the method constants:\n\n```go\n" +
 			"rt.Get(routes.ViteBuild.Pattern(), a.dist, anduin.CORS(anduin.CORSConfig{\n" +
 			"\tAllowOrigins:     []string{\"*\"},\n" +
 			"\tAllowMethods:     []string{http.MethodGet, http.MethodHead},\n" +
 			"\tAllowCredentials: false,\n" +
 			"}))\n```\n\n" +
+			"For an alpha.4 Assets handler, use a.ViteBuild instead of a.dist. Alpha.4/alpha.5/beta.1 " +
+			"scaffolds may register the route with Path() instead of Pattern(); either works for this wildcard route.\n\n" +
 			"Keep cfg.App.Origins() in the CSRF trusted origins; same-site form posts between hosts are deliberate.\n\n",
 	)
 	instructions.WriteString(
@@ -247,7 +250,9 @@ func csrfAssetSkipInstructions() string {
 		"\t\treturn false\n" +
 		"\t}\n" +
 		"}\n```\n\n" +
-		"isViteAssetPath comes from the CORS action. Unsafe requests to static paths stay protected.\n\n" +
+		"isViteAssetPath comes from the CORS action. Unsafe requests to static paths stay protected. " +
+		"In the alpha.4 csrfSkipper helper, keep its existing bearer/session checks and add " +
+		"if isSafeViteAssetRequest(ctx) { return true } at the start of the returned function.\n\n" +
 		"Format and verify:\n\n```text\ngofmt -w internal/runtime\ngo fix ./...\ngo vet ./...\n```\n"
 }
 
@@ -260,6 +265,12 @@ func methodNotAllowedInstructions() string {
 		"\thttp.StatusMethodNotAllowed,\n" +
 		"\t\"Errors/NotFound\",\n" +
 		"),\n```\n\n" +
+		"If the alpha.4 MapError is still a handwritten switch, add this case before its " +
+		"not-found case instead:\n\n```go\n" +
+		"case errors.Is(err, anduin.ErrMethodNotAllowed):\n" +
+		"\treturn renderer.Page(ctx, \"Errors/NotFound\", inertia.Props{}).\n" +
+		"\t\tStatus(http.StatusMethodNotAllowed).\n" +
+		"\t\tRender()\n```\n\n" +
 		"Then format and verify:\n\n```text\ngofmt -w handlers\ngo fix ./...\ngo vet ./...\n```\n"
 }
 
