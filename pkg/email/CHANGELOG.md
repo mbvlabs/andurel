@@ -4,6 +4,13 @@ All notable changes to the standalone Andurel email module are documented here.
 
 ## Unreleased
 
+## 0.6.1 - 2026-10-28
+
+### Fixed
+
+- Update `golang.org/x/net` to v0.62.0 to fix GO-2026-6860, a quadratic-time
+  HTML text-node coalescing vulnerability reachable through `HTMLToText`.
+
 ## 0.6.0 - 2026-10-27
 
 ### Added
