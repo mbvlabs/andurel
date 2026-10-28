@@ -103,7 +103,10 @@ inertia.MapError(anduin.ErrNotFound, http.StatusNotFound, "Errors/NotFound")
 `Get` registers `GET`, and `http.ServeMux` serves `HEAD` with the `GET` handler
 (Go treats a `GET` pattern as matching both methods). Do not register a
 separate `HEAD` route. A `POST` to a path that only has `GET` still returns
-`405 Method Not Allowed`, not the not-found page.
+`405 Method Not Allowed`, not the not-found page: the router passes
+`anduin.ErrMethodNotAllowed` to the `ErrorHandler`, the `Allow` header set by
+`ServeMux` is preserved, and the scaffold maps it to the themed `Errors/NotFound`
+page.
 
 ## Host dispatch
 
@@ -123,6 +126,20 @@ route `FullURL(hosts, ...)` calls take the same value. Unknown `Host` values are
 served by the primary mux. A hostname without a port is also aliased as
 `hostname:80` and `hostname:443`.
 
+`routing.Hosts.Resolve(authority)` is the resolution the router uses. It trims
+and lowercases the authority (hostnames are case-insensitive), matches a
+configured hostname or alias exactly, then strips the port and matches the bare
+host, so a configured bare hostname claims every port, not only `:80`/`:443`.
+IPv6 literals resolve through the split path. Unknown authorities return
+`("", false)`; a nil `*Hosts` resolves nothing.
+
+`anduin.RequestHost(ctx)` returns the resolved `routing.HostName` to
+middleware, handlers, and the root document. The router resolves before it
+applies global middleware, so `Use` middleware can branch on the host. An
+unknown authority reports `routing.HostPrimary`; a configured host with no
+registered routes is still reported, while dispatch falls back to the primary
+mux.
+
 ## Request access
 
 ```go
@@ -132,6 +149,7 @@ func ResponseWriter(ctx context.Context) http.ResponseWriter
 func PathValue(ctx context.Context, key string) string
 func SetPathValue(ctx context.Context, key, value string)
 func RoutePattern(ctx context.Context) string
+func RequestHost(ctx context.Context) routing.HostName
 
 func Query(ctx context.Context, key string) string
 func QueryValues(ctx context.Context, key string) []string
@@ -169,13 +187,19 @@ func ServeContent(ctx context.Context, name string, body []byte) error
 
 func SetHeader(ctx context.Context, key, value string)
 func AddHeader(ctx context.Context, key, value string)
+func AddVary(header http.Header, tokens ...string)
 ```
 
 `Redirect` requires a `3xx` status. Set response headers with `SetHeader` before
-writing a body. `ServeContent` is the ETag / conditional-GET helper `StaticFS`
-uses: it sets the content type from `name`'s extension, an `ETag` derived from
-`body`, and answers a matching `If-None-Match` with `304`. Use it for generated
-documents such as sitemaps and feeds.
+writing a body. `AddVary` appends a token only when the header does not already
+list it (case-insensitive, comma-split, first-seen spelling kept). `StaticFS`
+and `ServeContent` use it, so `Vary: Accept-Encoding` merges with
+`Vary: Origin` or `Vary: X-Inertia` instead of replacing it, and a conditional
+`304` carries the same `Vary` as the `200`. `ServeContent` is the ETag /
+conditional-GET helper `StaticFS` uses: it sets the content type from `name`'s
+extension, an `ETag` derived from `body`, and answers a matching
+`If-None-Match` with `304`. Use it for generated documents such as sitemaps and
+feeds.
 
 ## Error model
 
@@ -200,7 +224,13 @@ func StatusCode(err error) int   // unclassified -> 500
 func Message(err error) string   // falls back to status text
 
 var ErrNotFound error            // unmatched request sentinel
+var ErrMethodNotAllowed error    // path matched, method did not
 ```
+
+`StatusCode` maps `ErrNotFound` to `404` and `ErrMethodNotAllowed` to `405`.
+The scaffold's `handlers.MapError` maps both `anduin.ErrNotFound` and
+`anduin.ErrMethodNotAllowed` to `Errors/NotFound`; the `405` response keeps the
+`Allow` header `ServeMux` set.
 
 Handlers return domain errors unchanged and let the router map them. The
 `ErrorHandler` is installed once in `internal/runtime`:
@@ -241,14 +271,18 @@ func CSRF(cfg CSRFConfig) Middleware
 - `CORS` answers preflight and annotates actual responses. `CORSConfig` fields:
   `AllowOrigins`, `AllowMethods`, `AllowHeaders`, `ExposeHeaders`,
   `AllowCredentials`, `MaxAge`, `Skipper func(ctx) bool`. Wildcard origins are
-  allowed only without credentials.
+  allowed only without credentials. The scaffold scopes global CORS to
+  `CORS_ALLOWED_ORIGINS` and registers a separate uncredentialed wildcard policy
+  on the Vite asset route.
 - `CSRF` issues and verifies double-submit tokens. `CSRFConfig` fields:
   `TokenLookup` (`"header:X-CSRF-Token"` by default;
   `"header:X-CSRF-Token,form:_csrf"` with `header_or_legacy_token`),
   `CookieName`,
   `CookiePath`, `CookieDomain`, `CookieSecure`, `CookieHTTPOnly`,
   `CookieSameSite`, `TrustedOrigins`, `TokenLength`, `Skipper`. The current
-  token is available to handlers via `anduin.CSRFToken(ctx)`.
+  token is available to handlers via `anduin.CSRFToken(ctx)`. The scaffold
+  trusts every configured host origin and skips safe requests under the Vite
+  asset prefix, so `/assets/dist/*` responses do not set `_csrf`.
 
 App middleware (auth and session definitions) lives in `middleware/` and uses
 the same `anduin.Middleware` type. `middleware.AuthOnly(users)` reloads the
@@ -257,13 +291,15 @@ stale `SessionVersion` (clearing the cookie and redirecting to sign-in), and
 attaches the database-backed user for `middleware.ViewerFrom(ctx)`, so admin
 checks never trust a value in the cookie. `pkg/inertia`'s
 `(*Renderer).Middleware()` also returns an `anduin.Middleware`.
+`middleware.DenyFraming(hosts ...routing.HostName)` ships unwired: it branches
+on `anduin.RequestHost(ctx)` and sets `X-Frame-Options: DENY` and
+`Content-Security-Policy: frame-ancestors 'none'` before `next`, so 404 and 405
+responses carry them. With no host names it applies to every host.
 
 Install global middleware in `internal/runtime`:
 
 ```go
-cors := anduin.DefaultCORS(
-	anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CORSAllowedOrigins)...,
-)
+cors := anduin.DefaultCORS(cfg.HTTP.CORSAllowedOrigins...)
 csrf := anduin.DefaultCSRF(
 	cfg.HTTP.CSRFStrategy,
 	cfg.App.IsProduction(),
@@ -281,6 +317,14 @@ rt.Use(
 	anduin.CSRF(csrf),
 )
 ```
+
+The runtime also installs a CORS `Skipper` for the Vite asset prefix
+(`routes.AssetsPrefix`), composes a safe-method asset skip into the CSRF
+`Skipper`, and registers
+`anduin.CORS(anduin.CORSConfig{AllowOrigins: []string{"*"}, AllowMethods: []string{http.MethodGet, http.MethodHead}})`
+on `routes.ViteBuild`. Host origins stay in `CSRF.TrustedOrigins` because
+cross-host form posts are deliberate; they are not CORS origins, so a sibling
+host cannot read authenticated responses.
 
 Responses are gzipped by `anduin.Compress`, an `http.Handler` wrapper installed
 outside `rt.Handler()` in `internal/runtime` behind `HTTP_COMPRESS` (default
@@ -303,10 +347,10 @@ method passes in either of two ways:
 2. **Double-submit token.** The value of the `_csrf` cookie is echoed in the
    `X-CSRF-Token` header (`CSRF_STRATEGY=header_only`, the default) or in the
    `_csrf` form field (`header_or_legacy_token`). The middleware writes the
-   `_csrf` cookie on every request; it is `HttpOnly`, so a handler that needs a
-   JavaScript client to send the header exposes `anduin.CSRFToken(ctx)` as a
-   prop. A missing or mismatched token returns `403 CSRF token verification
-   failed`.
+   `_csrf` cookie on every request it does not skip; it is `HttpOnly`, so a
+   handler that needs a JavaScript client to send the header exposes
+   `anduin.CSRFToken(ctx)` as a prop. A missing or mismatched token returns
+   `403 CSRF token verification failed`.
 
 `anduin.SkipCSRFForBearer(routes.APIPrefix, cfg.Session.Name)` skips CSRF only
 for `/api` requests that carry a non-empty Bearer token **and** no session
@@ -390,9 +434,11 @@ return h.renderer.Page(ctx, "User/Index", inertia.Props{"users": result.Items}).
 ```
 
 `Page` returns a `*PageBuilder`; `SSR()` opts that render into server-side
-rendering, `Status` sets the HTTP status, and `Errors`/`ValidationErrors` set
-the protected `errors` prop. Without `X-Inertia`, the response is the full HTML
-document; an Inertia visit gets the same page as JSON.
+rendering, `Status` sets the HTTP status, `URL` overrides the page object's URL
+(default: the request URI) for a POST handler whose success page should have a
+GET-able address, and `Errors`/`ValidationErrors` set the protected `errors`
+prop. Without `X-Inertia`, the response is the full HTML document; an Inertia
+visit gets the same page as JSON.
 
 Client rendering is the default. `.SSR()` opts a single render into
 server-side rendering:
@@ -504,6 +550,11 @@ finding the component in `data-page`. It keeps a cookie jar across requests.
 Pass `anduintest.WithErrorHandler(handlers.MapError(renderer))` to exercise
 mapped errors such as the themed 404 page.
 
+Named hosts are set up with `anduintest.WithHosts(hosts)` and targeted per
+request with `anduintest.Header{Name: "Host", Value: "admin.example"}`. Go's
+client ignores an explicit `Host` header, so `anduintest` applies that option to
+`req.Host`.
+
 For full-graph tests, boot `runtime.New(ctx, testConfig)` and call
 `app.Handler`. For domain tests, use `pkg/storage/storagetest.Cluster` and
 `NewTestDB(t, migrations.Migrations, ".")`.
@@ -516,4 +567,8 @@ For full-graph tests, boot `runtime.New(ctx, testConfig)` and call
 - `andurel verify` runs format, `go fix`, `go vet`, the typed layer rules, and
   generated-code drift. The rule list is in
   [cli-catalog.md](cli-catalog.md#verify-rules). Add `--with-tests` to also run
-  `go test ./...`.
+  `go test ./...`; packages that ran no tests are listed under
+  `skipped_packages` and `t.Skip` calls under `skipped_tests`, without failing
+  the run. Unresolved `FromStruct` payload roots are listed in the generated
+  step's `warnings`; `andurel sync payloads --strict` turns them into errors
+  (exit 5) after still writing `payloads.ts`.

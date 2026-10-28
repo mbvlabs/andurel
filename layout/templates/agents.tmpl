@@ -50,7 +50,7 @@ andurel verify
 andurel verify ./internal/...
 ```
 
-Runs formatting, `go fix`, `go vet`, the typed layer rules, the `package.json` typecheck script, and generated-code drift. Package patterns scope the Go checks; generated drift and the frontend typecheck stay whole-project. Pass `--no-frontend` to skip typechecking and `--with-tests` to also run `go test ./...` (domain tests need a Postgres container). Violations come with a `fix`; a failed run exits 9. Run it after every change.
+Runs formatting, `go fix`, `go vet`, the typed layer rules, the `package.json` typecheck script, and generated-code drift. Package patterns scope the Go checks; generated drift and the frontend typecheck stay whole-project. Pass `--no-frontend` to skip typechecking and `--with-tests` to also run `go test ./...` (domain tests need a Postgres container). Packages that ran no tests appear under `skipped_packages`; tests that called `t.Skip` appear under `skipped_tests` with their reason. Unresolved `inertia.FromStruct` roots appear as generated-step `warnings`. None of these fails the run. Violations come with a `fix`; a failed run exits 9. Run it after every change.
 
 Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
 
@@ -78,7 +78,7 @@ Handlers are `func(ctx context.Context) error`. Use `pkg/anduin` for request/res
 
 - Request: `anduin.PathValue`, `Query`, `QueryInt`, `QueryBool`, `FormValue`, `Header`, `Cookie`, `DecodeJSON`, `DecodeForm`.
 - Response: `anduin.JSON`, `JSONBlob`, `Text`, `HTML`, `NoContent`, `Redirect`, `SetHeader`.
-- Errors: return `anduin.Error(ctx, status, err)`, `anduin.BadRequest(err)`, `anduin.NotFound(err)`, or a `domains.Err*` sentinel. The router's `ErrorHandler` (`handlers.MapError`) renders them.
+- Errors: return `anduin.Error(ctx, status, err)`, `anduin.BadRequest(err)`, `anduin.NotFound(err)`, or a `domains.Err*` sentinel. The router's `ErrorHandler` (`handlers.MapError`) renders them. A path that matches but not the method returns `405` through the same handler as `anduin.ErrMethodNotAllowed`; the `Allow` header is preserved and the scaffold renders `Errors/NotFound`.
 
 See the `http-and-routing` skill reference for `Router`, `Server`, middleware, host dispatch, and the request/response API.
 
@@ -99,9 +99,11 @@ andurel run
 
 - Default identity is `HOST_PRIMARY` in `.env`. Extra hosts need a `routing.HostName` const in `config/hosts.go` plus a matching `App.Hosts` entry (load `HOST_<NAME>` yourself — not scaffolded).
 - Declare the host on the route value with `routing.Host(config.HostAdmin)` and register it with `rt.Host(config.HostAdmin).Get(route.Pattern(), handler)`. Build the registry with `routing.NewHosts(cfg.App.Hosts)`, pass it to `anduin.WithHosts`, and pass the same value to `FullURL(hosts, ...)`. Unknown hosts are served by the primary mux.
+- Host-scoped policy reads `anduin.RequestHost(ctx)`, the `routing.HostName` the dispatcher resolved (case-insensitive, aliases, configured bare hostname matching any port, unknown → primary); never re-parse `anduin.Request(ctx).Host`. `hosts.Resolve(authority)` exposes the same resolution. A host with no registered routes still reports its name but dispatches to the primary mux.
+- Cross-host navigation uses a plain `<a href>`; Inertia `<Link>` is only for same-host visits. Generated helpers return absolute URLs for host-bound routes.
 - `/api` stays on the primary host unless those routes set `Host(...)`. Layout CSS/JS use `FullURL(hosts, ...)` to primary.
 - Never invent frontend URLs in Inertia apps: import `resources/js/routes.ts` after `andurel sync routes --json`. Helpers are generated for routes marked `routing.TypeScriptRoute()` and return full URLs once `configureRouteHosts` runs from the shared `hosts` prop at boot. Call helpers at render time, not in module-scope constants, and use `routes.name.path()` for a relative path.
-- After changing handler page props or request payload structs, run `andurel sync payloads --json` so `resources/js/types/payloads.ts` stays in sync.
+- After changing handler page props or request payload structs, run `andurel sync payloads --strict` so `resources/js/types/payloads.ts` stays in sync. It fails (exit 5) on a `FromStruct` argument it cannot trace, after writing the file; pass named composite literals, typed variables, or typed function parameters to `FromStruct`.
 
 ## Composition
 

@@ -8,7 +8,9 @@ compiled templ document at `resources/root.templ` (package `resources`).
 Generated `config/inertia.go` contains the ENV-backed settings.
 `cmd/ssr` loads those fields and passes them into `NewSSRRuntime`;
 `internal/runtime` passes the client URL, timeout, and max response bytes into
-`NewRenderer`. The browser adapter remains the official
+`NewRenderer`. The document renders with the request context, so the root
+template can read router state such as `anduin.RequestHost(ctx)` without an
+extra prop. The browser adapter remains the official
 `@inertiajs/*` client.
 
 This document is the protocol and migration baseline for the adapter. The
@@ -63,6 +65,11 @@ browser-facing field names. Resolver callbacks accept `context.Context` and
 return `(any, error)`; `inertia.Resolver` names that signature. Prop policies
 are composable through the value returned by `Prop` constructors rather than
 being encoded in application domain types.
+
+`PageBuilder.URL` overrides the page object's `url` for a single render; it
+applies to the JSON page response and the full document alike. Use it when a
+POST handler renders a success page whose browser address should be a GET
+route; the default is the request URI.
 
 History encryption is client metadata only. The adapter emits
 `encryptHistory`, `clearHistory`, and `preserveFragment`; encryption of browser

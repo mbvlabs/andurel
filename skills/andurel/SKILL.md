@@ -37,7 +37,7 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 
 ## Verify
 
-`andurel verify` runs `gofmt`, `go fix`, `go vet`, the typed layer rules, the package manager's `typecheck` script when `package.json` defines one, and generated-code drift. It reports each violation as `{rule, file, line, message, fix}`. Apply the `fix` and re-run. `andurel verify [packages...]` scopes the Go checks to package patterns (for example `./internal/docs/...`); generated drift and the frontend typecheck stay whole-project. `--no-frontend` skips the typecheck. Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
+`andurel verify` runs `gofmt`, `go fix`, `go vet`, the typed layer rules, the package manager's `typecheck` script when `package.json` defines one, and generated-code drift. It reports each violation as `{rule, file, line, message, fix}`. Apply the `fix` and re-run. `andurel verify [packages...]` scopes the Go checks to package patterns (for example `./internal/docs/...`); generated drift and the frontend typecheck stay whole-project. `--no-frontend` skips the typecheck. With `--with-tests`, packages that ran no tests are listed under `skipped_packages` and `t.Skip` calls under `skipped_tests` with their reason. Unresolved `inertia.FromStruct` payload roots are listed in the generated step's `warnings` and do not fail the run. Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
 
 <!-- andurel:verify-rules:begin: generated from the verify rule catalog by 'just docs-sync'; do not edit -->
 | Rule | Checks |
@@ -133,9 +133,10 @@ Generate Inertia payload types:
 
 ```bash
 andurel sync payloads --json
+andurel sync payloads --strict
 ```
 
-`andurel sync payloads` scans handler `inertia.FromStruct` props (page props) and the named structs passed to `anduin.DecodeJSON`/`DecodeForm` (request payloads) and writes `resources/js/types/payloads.ts`. It follows named struct fields into other packages in the module, so a handler prop may reference a type such as `docs.PageProps`. Request payloads must be named with a `Payload` suffix; page props keep their struct name. `domains/` types are rejected, so define a handler-owned payload instead. Calls that pass a literal `inertia.Props{...}` map are skipped and need hand-written TypeScript. Import the generated page and form types from that file instead of hand-written TypeScript, and run it after editing those Go structs.
+`andurel sync payloads` scans handler `inertia.FromStruct` props (page props) and the named structs passed to `anduin.DecodeJSON`/`DecodeForm` (request payloads) and writes `resources/js/types/payloads.ts`. It follows named struct fields into other packages in the module, so a handler prop may reference a type such as `docs.PageProps`. It resolves named composite literals, typed variables, and function or closure parameters, including pointer parameters. Request payloads must be named with a `Payload` suffix; page props keep their struct name. `domains/` types are rejected, so define a handler-owned payload instead. Calls that pass a literal `inertia.Props{...}` map are skipped and need hand-written TypeScript, as is any `FromStruct` argument the scanner cannot trace. `--strict` still writes `payloads.ts` and then exits 5 listing every unresolved `file:line`; without it, the human output prints the same roots with the hint to pass a named composite literal or a typed variable. Import the generated page and form types from that file instead of hand-written TypeScript, and run it after editing those Go structs.
 
 Generate a named database seed:
 
