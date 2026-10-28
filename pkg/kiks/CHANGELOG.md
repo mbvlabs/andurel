@@ -4,6 +4,11 @@ All notable changes to the standalone Andurel kiks module are documented here.
 
 ## Unreleased
 
+### Fixed
+
+- Align the indirect routing requirement with the local anduin dependency's
+  minimum (`v0.7.0`), so validation leaves the module manifest unchanged.
+
 ## 0.6.0 - 2026-10-27
 
 ### Added
