@@ -4,6 +4,18 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+### Added
+
+- `AddVary` appends a token to the `Vary` response header unless the header
+  already lists it, comparing case-insensitively across comma-separated values.
+  `Compress` uses it to keep `Accept-Encoding` merged with other middleware.
+
+### Fixed
+
+- `StaticFS` and `ServeContent` merge `Vary: Accept-Encoding` with existing
+  values instead of replacing them, so the `Origin` CORS adds survives. A
+  conditional `304 Not Modified` now carries `Vary` as well.
+
 ## 0.5.0 - 2026-10-27
 
 ### Added

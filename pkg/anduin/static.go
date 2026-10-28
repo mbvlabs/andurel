@@ -133,11 +133,10 @@ func serveContent(ctx context.Context, name, etag string, body []byte, cacheCont
 	if cacheControl != "" {
 		SetHeader(ctx, "Cache-Control", cacheControl)
 	}
+	AddVary(responseHeader(ctx), "Accept-Encoding")
 	if match := Header(ctx, "If-None-Match"); etag != "" && match == etag {
 		return NoContent(ctx, http.StatusNotModified)
 	}
-
-	SetHeader(ctx, "Vary", "Accept-Encoding")
 
 	return writeContent(ctx, http.StatusOK, contentTypeByExt(name), body)
 }

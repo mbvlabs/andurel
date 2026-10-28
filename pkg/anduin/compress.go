@@ -63,7 +63,7 @@ var gzipPool = sync.Pool{
 // body to a client that cannot decode it.
 func Compress(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		addVary(w.Header())
+		AddVary(w.Header(), "Accept-Encoding")
 
 		if !compressibleRequest(r) {
 			next.ServeHTTP(w, r)
@@ -257,21 +257,6 @@ func (w *compressWriter) contentType() string {
 	}
 
 	return http.DetectContentType(w.buffer.Bytes())
-}
-
-// addVary records that the response depends on Accept-Encoding. It is set on
-// every response, compressed or not, so a shared cache never reuses one
-// variant for the other.
-func addVary(header http.Header) {
-	for _, line := range header.Values("Vary") {
-		for item := range strings.SplitSeq(line, ",") {
-			if strings.EqualFold(strings.TrimSpace(item), "Accept-Encoding") {
-				return
-			}
-		}
-	}
-
-	header.Add("Vary", "Accept-Encoding")
 }
 
 // bodyAllowedForStatus mirrors net/http's rule for statuses that carry no body.
