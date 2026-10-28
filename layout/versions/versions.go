@@ -27,7 +27,7 @@ const (
 	// NarsilcModulePath is the module path of the narsilc query code generator.
 	NarsilcModulePath = "github.com/mbvlabs/narsilc"
 	// Anduin is the standalone Andurel HTTP module version verified with this framework.
-	Anduin = "v0.5.0"
+	Anduin = "v0.6.0"
 	// Auth is the standalone Andurel auth module version verified with this framework.
 	Auth = "v0.2.1"
 	// Cache is the standalone Andurel cache module version verified with this framework.
@@ -37,13 +37,13 @@ const (
 	// Lifecycle is the standalone Andurel process lifecycle module version verified with this framework.
 	Lifecycle = "v0.1.1"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	Inertia = "v0.11.0"
+	Inertia = "v0.12.0"
 	// Email is the standalone Andurel email module version verified with this framework.
 	Email = "v0.6.0"
 	// Env is the standalone Andurel environment module version verified with this framework.
 	Env = "v0.1.1"
 	// Routing is the standalone Andurel routing module version verified with this framework.
-	Routing = "v0.6.0"
+	Routing = "v0.7.0"
 	// Storage is the standalone Andurel storage module version verified with this framework.
 	Storage = "v0.13.1"
 	// Telemetry is the standalone Andurel telemetry module version verified with this framework.

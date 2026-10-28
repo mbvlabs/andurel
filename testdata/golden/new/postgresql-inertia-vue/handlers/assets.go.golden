@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"io/fs"
+	"net/http"
 
 	"app/assets"
 	"app/config"
@@ -49,5 +50,11 @@ func NewAssetsHandler(appCfg config.App) (AssetsHandler, error) {
 func (a AssetsHandler) Register(rt *anduin.Router) {
 	rt.Get(routes.Robots.Pattern(), a.robots)
 	rt.Get(routes.Sitemap.Pattern(), a.sitemap)
-	rt.Get(routes.ViteBuild.Pattern(), a.dist)
+	// Vite build files are public: a secondary-host page loads them without the
+	// visitor's session, so this CORS response is wildcard and uncredentialed.
+	rt.Get(routes.ViteBuild.Pattern(), a.dist, anduin.CORS(anduin.CORSConfig{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{http.MethodGet, http.MethodHead},
+		AllowCredentials: false,
+	}))
 }

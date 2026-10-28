@@ -168,7 +168,14 @@ andurel sync queries --json
 andurel sync email --json
 andurel sync routes --json
 andurel sync payloads --json
+andurel sync payloads --strict
 ```
+
+`andurel sync payloads` resolves named composite literals, typed variables, and
+function or closure parameters. `--strict` writes `payloads.ts` and then fails
+(exit 5) on any `FromStruct` argument it cannot trace, listing each `file:line`;
+`andurel verify` reports the same roots as generated-step `warnings` without
+failing.
 
 Inspect the project shape without changing it:
 
@@ -360,6 +367,16 @@ func (h ProductHandler) Index(ctx context.Context) error {
 }
 ```
 
+A POST handler that renders a success page can set the browser URL to a
+GET-able route with `PageBuilder.URL`; it applies to the JSON and full-document
+responses alike:
+
+```go
+return h.renderer.Page(ctx, "User/Confirmation", props).
+    URL(routes.ConfirmationNew.URL()).
+    Render()
+```
+
 Wire it in `internal/runtime/runtime.go` with constructor injection:
 
 ```go
@@ -374,6 +391,10 @@ andurel sync routes --json
 ```
 
 Never invent frontend URLs: import `resources/js/routes.ts` and use `routes.productIndex.path()` (relative) or `routes.productIndex()` (full URL after boot).
+
+Routes match on method too: a `POST` to a `GET`-only path returns `405` with the
+`Allow` header and the themed `Errors/NotFound` page (`handlers.MapError` maps
+`anduin.ErrMethodNotAllowed`). Register every method the resource accepts.
 
 ### Add A Service
 
@@ -741,15 +762,25 @@ change or admin demotion revokes existing sessions. Handlers read the
 database-backed user (including `IsAdmin`) with `middleware.ViewerFrom(ctx)`.
 
 CORS is provided by `anduin.CORS(CORSConfig)` and configured in
-`internal/runtime`. It allows credentials and trusts the union of configured
-host origins (`PROTOCOL` + `HOST_PRIMARY`, plus any extra `HOST_*` names) by
-default. `CORS_ALLOWED_ORIGINS` accepts a comma-separated list of additional
-exact origins. Wildcard origins are rejected when credentials are allowed.
+`internal/runtime`. The global policy trusts only `CORS_ALLOWED_ORIGINS`, a
+comma-separated list of exact origins, and allows credentials. Host origins are
+deliberately absent: ordinary navigation may load another host's document or
+asset, but a sibling host must not read authenticated API responses made with
+the visitor's cookies. Wildcard origins are rejected when credentials are
+allowed.
+
+The Vite asset route (`/assets/dist/*`) has its own policy: `AllowOrigins: ["*"]`,
+`GET`/`HEAD`, and no credentials. Assets are public and fingerprinted, so any
+host may load them, but an uncredentialed wildcard cannot read user data. The
+global CORS middleware skips the asset prefix so the two policies never stack
+conflicting headers.
 
 CSRF is provided by `anduin.CSRF(CSRFConfig)`. Unsafe API requests bypass CSRF
 only when they carry a non-empty Bearer token and do not carry the application
 session cookie. Cookie-authenticated unsafe requests remain protected on every
-path.
+path. Safe requests under the Vite asset prefix skip CSRF entirely, so
+`/assets/dist/*` responses do not set `_csrf`; unsafe asset requests are never
+skipped.
 
 **Strategies** (`CSRF_STRATEGY`):
 - `header_only` (default): Unsafe requests must include the `Sec-Fetch-Site` header. Requests missing this header are rejected with `403`.
@@ -758,6 +789,9 @@ path.
 **Trusted origins**:
 - Every configured host origin (`PROTOCOL` + `HOST_PRIMARY`, and extra hosts such as `HOST_ADMIN`) is trusted automatically.
 - `CSRF_TRUSTED_ORIGINS` accepts a comma-separated list of additional origins.
+
+CSRF trust is a write policy, not a read policy: it lets a same-site form post
+between app hosts through and does not grant cross-origin reads.
 
 Session and CSRF cookies are host-only by default (no `Domain` attribute). Sharing login across subdomains is an explicit opt-in in `middleware/` — never a generated default.
 
@@ -792,6 +826,58 @@ admin.Get(routes.AdminDashboard.Pattern(), adminHandler.Dashboard)
 ```
 
 The reverse proxy must forward the public `Host` header unchanged. A configured hostname without a port is also aliased as `hostname:80` and `hostname:443` so lookups succeed whether the proxy forwards a bare host or an explicit standard port. Unknown hosts are served by the primary mux. Duplicate hostnames or aliases across `HostName`s fail at boot.
+
+**Host-aware middleware**: `anduin.RequestHost(ctx)` returns the `routing.HostName`
+the dispatcher resolved for the request, before global middleware runs. Matching
+is case-insensitive; aliases resolve to their `HostName`; a configured bare
+hostname also matches an explicit port; an unknown authority reports
+`routing.HostPrimary`. A configured host with no registered routes is still
+reported, while dispatch falls back to the primary mux. Branch host-specific
+policy on `RequestHost` instead of re-parsing `anduin.Request(ctx).Host` (the raw
+authority, not the configured name):
+
+```go
+router.Use(middleware.DenyFraming(config.HostAdmin))
+```
+
+`middleware.DenyFraming(hosts ...routing.HostName)` ships unwired in
+`middleware/`. It sets `X-Frame-Options: DENY` and
+`Content-Security-Policy: frame-ancestors 'none'` before the handler runs, so
+404s and 405s carry the headers too. Only the named hosts get the headers;
+called with no host names it does nothing.
+
+**Host-aware root template**: `resources/root.templ` renders with the request
+context, so `anduin.RequestHost(ctx)` works there as well. Use it for
+document-level differences that must not depend on the page component name — for
+example, withholding analytics on the admin host:
+
+```go
+templ Root(data inertia.RootData) {
+    <head>
+        ...
+        if anduin.RequestHost(ctx) != config.HostAdmin {
+            @analytics.Script()
+        }
+    </head>
+    ...
+}
+```
+
+`ctx` is the request context handed to templ's `Render`; no extra prop is
+needed.
+
+**Cross-host links**: generated helpers return absolute URLs for host-bound
+routes, so use a plain `<a>` when the target host differs. An Inertia `<Link>`
+intercepts the click for an Inertia visit and expects a JSON page response from
+the same app; keep `<Link>` for same-host navigation.
+
+```tsx
+import { Link } from '@inertiajs/react'
+import { routes } from '@/routes'
+
+<Link href={routes.dashboard()}>Dashboard</Link>
+<a href={routes.adminDashboard()}>Admin</a>
+```
 
 Layout CSS and JS stay on the primary host unless those routes set `routing.Host(...)`. Layout `<link>` / `<script>` tags use `FullURL(hosts, ...)` so they always point at the asset host.
 
@@ -862,6 +948,11 @@ does. `handlers/main_test.go` owns the package cluster and `testRenderer(t)`;
 `handlers/auth_test.go` renders the login page and re-renders it with errors for
 bad credentials.
 
+Named hosts are set up with `anduintest.WithHosts(hosts)` and targeted per
+request with `anduintest.Header{Name: "Host", Value: "admin.example"}`. Go's
+client ignores an explicit `Host` header, so `anduintest` applies that option to
+`req.Host`.
+
 ### Integration Tests
 
 `internal/runtime/main_test.go` owns the package cluster and `testConfig(t)`,
@@ -891,6 +982,13 @@ go test ./handlers -run TestUserIndex
 go test -v ./...
 ```
 
+`andurel verify --with-tests` runs `go test ./...` and reports skips without
+failing: a package that ran no tests is listed under the go test step's
+`skipped_packages`, and each `t.Skip` is listed under `skipped_tests` with its
+reason. Tests that need built frontend assets should `t.Skip` with a message
+when `assets/dist` is missing; build the frontend (`pnpm build`) before the
+final `andurel verify --with-tests` evidence run.
+
 ### Test Database Setup
 
 **Prerequisites**: Docker must be running to use testcontainers.
@@ -900,6 +998,12 @@ migrated database. The domain, handler and integration packages each own one
 cluster through `storagetest.Main` in `TestMain`; without Docker it prints the
 reason and exits 0 so `go test ./...` and `andurel verify --with-tests` still
 pass.
+
+testcontainers-go shares one Ryuk session per parent `go test` process. Under
+parallel packages, a package that finishes can reap a sibling's container. Use
+`go test -p 1 ./...` or `TESTCONTAINERS_RYUK_DISABLED=true` when packages run
+DB tests concurrently. `Cluster.Close` still terminates its own containers; a
+crashed run may leave one behind.
 
 **Best Practices**
 
