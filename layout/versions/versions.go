@@ -39,7 +39,7 @@ const (
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
 	Inertia = "v0.12.1"
 	// Email is the standalone Andurel email module version verified with this framework.
-	Email = "v0.6.0"
+	Email = "v0.6.1"
 	// Env is the standalone Andurel environment module version verified with this framework.
 	Env = "v0.1.1"
 	// Routing is the standalone Andurel routing module version verified with this framework.
