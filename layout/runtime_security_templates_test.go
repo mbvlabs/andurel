@@ -43,7 +43,7 @@ func TestGeneratedDenyFramingUsesRequestHost(t *testing.T) {
 		"func DenyFraming(hosts ...routing.HostName) anduin.Middleware",
 		"anduin.RequestHost(ctx)",
 		`anduin.SetHeader(ctx, "X-Frame-Options", "DENY")`,
-		`anduin.SetHeader(ctx, "Content-Security-Policy", "frame-ancestors 'none'")`,
+		`anduin.AddHeader(ctx, "Content-Security-Policy", "frame-ancestors 'none'")`,
 		"router.Use(middleware.DenyFraming(config.HostAdmin))",
 	)
 }
@@ -120,7 +120,12 @@ func main() {
 	must(err)
 
 	router := anduin.NewRouter(anduin.WithHosts(hosts))
-	router.Use(middleware.DenyFraming("admin"))
+	router.Use(func(next anduin.Handler) anduin.Handler {
+		return func(ctx context.Context) error {
+			anduin.SetHeader(ctx, "Content-Security-Policy", "default-src 'self'; script-src 'nonce-test'")
+			return next(ctx)
+		}
+	}, middleware.DenyFraming("admin"))
 	router.Get("/", func(ctx context.Context) error {
 		return anduin.Text(ctx, http.StatusOK, "ok")
 	})
@@ -130,16 +135,19 @@ func main() {
 	adminResponse := httptest.NewRecorder()
 	router.Handler().ServeHTTP(adminResponse, admin)
 	assert(adminResponse.Header().Get("X-Frame-Options") == "DENY", "admin X-Frame-Options")
-	assert(
-		adminResponse.Header().Get("Content-Security-Policy") == "frame-ancestors 'none'",
-		"admin Content-Security-Policy",
-	)
+	policies := adminResponse.Header().Values("Content-Security-Policy")
+	assert(len(policies) == 2, "both CSP policies survive")
+	assert(policies[0] == "default-src 'self'; script-src 'nonce-test'", "existing CSP preserved")
+	assert(policies[1] == "frame-ancestors 'none'", "admin framing policy appended")
 
 	primary := httptest.NewRequest(http.MethodGet, "/", nil)
 	primary.Host = "primary.example"
 	primaryResponse := httptest.NewRecorder()
 	router.Handler().ServeHTTP(primaryResponse, primary)
 	assert(primaryResponse.Header().Get("X-Frame-Options") == "", "primary X-Frame-Options")
+	primaryPolicies := primaryResponse.Header().Values("Content-Security-Policy")
+	assert(len(primaryPolicies) == 1, "primary has only the original CSP")
+	assert(primaryPolicies[0] == policies[0], "primary CSP preserved")
 
 	fmt.Println("PASS: DenyFraming sets headers only for the named host")
 }

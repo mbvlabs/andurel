@@ -17,7 +17,8 @@ import (
 //	router.Use(middleware.DenyFraming(config.HostAdmin))
 //
 // Headers are set before the handler runs, so error pages, 404s and 405s carry
-// them too.
+// them too. The framing policy is appended as a separate CSP policy; browsers
+// enforce it together with any existing policies, preserving their restrictions.
 func DenyFraming(hosts ...routing.HostName) anduin.Middleware {
 	denied := make(map[routing.HostName]struct{}, len(hosts))
 	for _, host := range hosts {
@@ -31,7 +32,7 @@ func DenyFraming(hosts ...routing.HostName) anduin.Middleware {
 		return func(ctx context.Context) error {
 			if _, ok := denied[anduin.RequestHost(ctx)]; ok {
 				anduin.SetHeader(ctx, "X-Frame-Options", "DENY")
-				anduin.SetHeader(ctx, "Content-Security-Policy", "frame-ancestors 'none'")
+				anduin.AddHeader(ctx, "Content-Security-Policy", "frame-ancestors 'none'")
 			}
 
 			return next(ctx)
