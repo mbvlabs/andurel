@@ -1,5 +1,9 @@
 // Package anduintest builds httptest servers from real handler registrations so
 // handler tests exercise the same Router a production process does.
+//
+// Named virtual hosts are set up with WithHosts and targeted per request with a
+// Header{Name: "Host", Value: ...} option. Go's client ignores an explicit Host
+// header, so Server.Do applies that option as req.Host instead.
 package anduintest
 
 import (
@@ -15,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
 // Option configures a test Server.
@@ -23,6 +28,7 @@ type Option func(*options)
 type options struct {
 	middleware   []anduin.Middleware
 	errorHandler anduin.ErrorHandler
+	hosts        *routing.Hosts
 }
 
 // WithMiddleware installs global middleware on the test router (for example
@@ -38,6 +44,14 @@ func WithMiddleware(mw ...anduin.Middleware) Option {
 func WithErrorHandler(handler anduin.ErrorHandler) Option {
 	return func(o *options) {
 		o.errorHandler = handler
+	}
+}
+
+// WithHosts installs the host registry the router dispatches on. Target a named
+// host per request with Header{Name: "Host", Value: "admin.example"}.
+func WithHosts(hosts *routing.Hosts) Option {
+	return func(o *options) {
+		o.hosts = hosts
 	}
 }
 
@@ -64,6 +78,9 @@ func New(t *testing.T, register func(*anduin.Router), opts ...Option) *Server {
 	var routerOpts []anduin.Option
 	if cfg.errorHandler != nil {
 		routerOpts = append(routerOpts, anduin.WithErrorHandler(cfg.errorHandler))
+	}
+	if cfg.hosts != nil {
+		routerOpts = append(routerOpts, anduin.WithHosts(cfg.hosts))
 	}
 	rt := anduin.NewRouter(routerOpts...)
 	register(rt)
@@ -146,6 +163,10 @@ func (s *Server) PostJSON(path string, payload any, headers ...Header) *Response
 func (s *Server) Do(req *http.Request, headers ...Header) *Response {
 	s.t.Helper()
 	for _, header := range headers {
+		if strings.EqualFold(header.Name, "Host") {
+			req.Host = header.Value
+			continue
+		}
 		req.Header.Set(header.Name, header.Value)
 	}
 
@@ -168,7 +189,9 @@ func (s *Server) Do(req *http.Request, headers ...Header) *Response {
 	}
 }
 
-// Header is a request header used by Get/Post helpers.
+// Header is a request header used by Get/Post helpers. A Header named "Host"
+// sets the request authority (req.Host), because Go's client ignores an explicit
+// Host header; use it with WithHosts to target a named virtual host.
 type Header struct {
 	Name  string
 	Value string

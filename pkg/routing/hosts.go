@@ -3,6 +3,7 @@ package routing
 import (
 	"fmt"
 	"maps"
+	"net"
 	"strings"
 )
 
@@ -75,23 +76,27 @@ func Host(name HostName) RouteSetupOption {
 // Hosts is an immutable hostname registry used by route URLs and the router.
 type Hosts struct {
 	specs map[HostName]HostSpec
+	index map[string]HostName
 }
 
 // NewHosts validates and clones a host registry. HostPrimary must be present
 // with a non-empty hostname. Every other entry must also have a hostname.
-// Hostname and alias strings must be unique across HostNames.
+// Hostname and alias strings must be unique across HostNames; uniqueness is
+// case-insensitive because hostnames are.
 func NewHosts(specs map[HostName]HostSpec) (*Hosts, error) {
 	if len(specs) == 0 {
 		return nil, fmt.Errorf("routing: host registry must include %q", HostPrimary)
 	}
 	cloned := make(map[HostName]HostSpec, len(specs))
 	claimed := make(map[string]HostName)
+	index := make(map[string]HostName)
 	claim := func(hostname string, name HostName) error {
 		hostname = strings.TrimSpace(hostname)
 		if hostname == "" {
 			return nil
 		}
-		if other, ok := claimed[hostname]; ok && other != name {
+		key := strings.ToLower(hostname)
+		if other, ok := claimed[key]; ok && other != name {
 			return fmt.Errorf(
 				"routing: hostname %q is claimed by both %q and %q",
 				hostname,
@@ -99,7 +104,8 @@ func NewHosts(specs map[HostName]HostSpec) (*Hosts, error) {
 				name,
 			)
 		}
-		claimed[hostname] = name
+		claimed[key] = name
+		index[key] = name
 		return nil
 	}
 	for name, spec := range specs {
@@ -134,7 +140,41 @@ func NewHosts(specs map[HostName]HostSpec) (*Hosts, error) {
 		return nil, fmt.Errorf("routing: host %q is required", HostPrimary)
 	}
 
-	return &Hosts{specs: cloned}, nil
+	return &Hosts{specs: cloned, index: index}, nil
+}
+
+// Resolve maps an HTTP authority (Request.Host: a hostname, hostname:port, or
+// bracketed IPv6 literal) to its configured HostName. Matching is
+// case-insensitive. An exact configured hostname or alias wins; otherwise the
+// port is stripped and the bare host is matched, so a configured bare hostname
+// claims every port, not only :80 and :443. Unknown authorities return
+// ("", false). A nil *Hosts resolves nothing.
+func (h *Hosts) Resolve(authority string) (HostName, bool) {
+	if h == nil {
+		return "", false
+	}
+	authority = strings.ToLower(strings.TrimSpace(authority))
+	if authority == "" {
+		return "", false
+	}
+	if name, ok := h.index[authority]; ok {
+		return name, true
+	}
+	host, _, err := net.SplitHostPort(authority)
+	if err != nil {
+		return "", false
+	}
+	if name, ok := h.index[host]; ok {
+		return name, true
+	}
+	// net.SplitHostPort strips the brackets from an IPv6 literal while the
+	// registry stores configured hostnames in URL authority form.
+	if strings.Contains(host, ":") {
+		if name, ok := h.index["["+host+"]"]; ok {
+			return name, true
+		}
+	}
+	return "", false
 }
 
 // Lookup returns the registered spec for name.

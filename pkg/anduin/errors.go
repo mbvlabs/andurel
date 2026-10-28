@@ -13,6 +13,12 @@ import (
 // route matches a request. Applications map it to their themed 404 page.
 var ErrNotFound = errors.New("anduin: not found")
 
+// ErrMethodNotAllowed is the sentinel the router passes to the ErrorHandler
+// when a route matches the path but not the request method. The Allow header
+// set by http.ServeMux is preserved on the response. Applications map it to
+// their themed page.
+var ErrMethodNotAllowed = errors.New("anduin: method not allowed")
+
 // HTTPError carries an HTTP status alongside an optional cause. Handlers return
 // it (directly or through Error) and the router's ErrorHandler maps it.
 type HTTPError struct {
@@ -85,6 +91,9 @@ func StatusCode(err error) int {
 	}
 	if errors.Is(err, ErrNotFound) {
 		return http.StatusNotFound
+	}
+	if errors.Is(err, ErrMethodNotAllowed) {
+		return http.StatusMethodNotAllowed
 	}
 
 	var httpErr *HTTPError

@@ -4,6 +4,19 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+### Added
+
+- `(*Hosts).Resolve(authority)` maps an HTTP authority (`Request.Host`:
+  hostname, `hostname:port`, or a bracketed IPv6 literal) to its configured
+  `HostName`. Matching is case-insensitive, aliases resolve to their host, and
+  a bare configured hostname claims every port (not only `:80`/`:443`).
+  Unknown authorities and a nil `*Hosts` return `("", false)`.
+
+### Changed
+
+- `NewHosts` rejects hostname and alias collisions case-insensitively:
+  `Admin.example` and `admin.example` on two `HostName`s is now a boot error.
+
 ## 0.6.0 - 2026-10-27
 
 ### Added

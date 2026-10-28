@@ -180,10 +180,56 @@ func TestRouterGetServesHead(t *testing.T) {
 func TestRouterMethodNotAllowedIsPreserved(t *testing.T) {
 	t.Parallel()
 
+	var gotErr error
 	rt := NewRouter(WithErrorHandler(func(ctx context.Context, err error) error {
-		t.Errorf("unexpected ErrorHandler call: %v", err)
-		return nil
+		gotErr = err
+		return Text(ctx, http.StatusMethodNotAllowed, "themed method not allowed")
 	}))
+	rt.Get("/only-get", func(ctx context.Context) error { return NoContent(ctx, http.StatusNoContent) })
+
+	recorder := httptest.NewRecorder()
+	rt.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/only-get", nil))
+
+	if !errors.Is(gotErr, ErrMethodNotAllowed) {
+		t.Fatalf("ErrorHandler err = %v, want ErrMethodNotAllowed", gotErr)
+	}
+	if recorder.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, want 405", recorder.Code)
+	}
+	if got, want := recorder.Header().Get("Allow"), "GET, HEAD"; got != want {
+		t.Fatalf("Allow = %q, want %q", got, want)
+	}
+	if got, want := recorder.Body.String(), "themed method not allowed"; got != want {
+		t.Fatalf("body = %q, want %q", got, want)
+	}
+}
+
+func TestRouterMethodNotAllowedIsNeverNotFound(t *testing.T) {
+	t.Parallel()
+
+	rt := NewRouter(WithErrorHandler(func(ctx context.Context, err error) error {
+		if errors.Is(err, ErrNotFound) {
+			t.Errorf("405 error %v must not match ErrNotFound", err)
+		}
+		if !errors.Is(err, ErrMethodNotAllowed) {
+			t.Errorf("405 error = %v, want ErrMethodNotAllowed", err)
+		}
+		return Text(ctx, http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
+	}))
+	rt.Get("/only-get", func(ctx context.Context) error { return NoContent(ctx, http.StatusNoContent) })
+
+	recorder := httptest.NewRecorder()
+	rt.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/only-get", nil))
+
+	if recorder.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, want 405", recorder.Code)
+	}
+}
+
+func TestRouterMethodNotAllowedDefaultHandler(t *testing.T) {
+	t.Parallel()
+
+	rt := NewRouter()
 	rt.Get("/only-get", func(ctx context.Context) error { return NoContent(ctx, http.StatusNoContent) })
 
 	recorder := httptest.NewRecorder()
@@ -260,7 +306,12 @@ func TestRouterHostDispatchWithHosts(t *testing.T) {
 		return Text(ctx, http.StatusOK, "admin")
 	})
 
-	for _, host := range []string{"admin.andurel.com", "manage.andurel.com:443"} {
+	for _, host := range []string{
+		"admin.andurel.com",
+		"manage.andurel.com:443",
+		"ADMIN.ANDUREL.COM",
+		"Manage.Andurel.Com:443",
+	} {
 		recorder := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodGet, "/", nil)
 		request.Host = host
@@ -268,6 +319,110 @@ func TestRouterHostDispatchWithHosts(t *testing.T) {
 		if got := recorder.Body.String(); got != "admin" {
 			t.Fatalf("host %q body = %q, want admin", host, got)
 		}
+	}
+}
+
+func TestRouterRequestHostInGlobalMiddleware(t *testing.T) {
+	t.Parallel()
+
+	const hostAdmin routing.HostName = "admin"
+	hosts, err := routing.NewHosts(map[routing.HostName]routing.HostSpec{
+		routing.HostPrimary: {Hostname: "andurel.com", Protocol: "https"},
+		hostAdmin:           {Hostname: "admin.andurel.com"},
+	})
+	if err != nil {
+		t.Fatalf("new hosts: %v", err)
+	}
+
+	var seen []routing.HostName
+	rt := NewRouter(WithHosts(hosts))
+	rt.Use(func(next Handler) Handler {
+		return func(ctx context.Context) error {
+			seen = append(seen, RequestHost(ctx))
+			return next(ctx)
+		}
+	})
+	rt.Get("/", func(ctx context.Context) error { return Text(ctx, http.StatusOK, "primary") })
+	rt.Host(hostAdmin).Get("/admin", func(ctx context.Context) error {
+		return Text(ctx, http.StatusOK, "admin")
+	})
+
+	cases := []struct {
+		label  string
+		method string
+		host   string
+		path   string
+		status int
+		want   routing.HostName
+	}{
+		{"admin route", http.MethodGet, "admin.andurel.com", "/admin", http.StatusOK, hostAdmin},
+		{"admin 404", http.MethodGet, "admin.andurel.com", "/missing", http.StatusNotFound, hostAdmin},
+		{"admin 405", http.MethodPost, "admin.andurel.com", "/admin", http.StatusMethodNotAllowed, hostAdmin},
+		{"primary route", http.MethodGet, "andurel.com", "/", http.StatusOK, routing.HostPrimary},
+		{"unknown host", http.MethodGet, "unconfigured.example", "/", http.StatusOK, routing.HostPrimary},
+	}
+	for _, tc := range cases {
+		t.Run(tc.label, func(t *testing.T) {
+			seen = seen[:0]
+
+			request := httptest.NewRequest(tc.method, tc.path, nil)
+			request.Host = tc.host
+			recorder := httptest.NewRecorder()
+			rt.Handler().ServeHTTP(recorder, request)
+
+			if recorder.Code != tc.status {
+				t.Fatalf("status = %d, want %d", recorder.Code, tc.status)
+			}
+			if len(seen) != 1 || seen[0] != tc.want {
+				t.Fatalf("middleware RequestHost = %v, want [%q]", seen, tc.want)
+			}
+		})
+	}
+}
+
+func TestRouterRequestHostReportsHostWithoutRoutes(t *testing.T) {
+	t.Parallel()
+
+	const hostAdmin routing.HostName = "admin"
+	hosts, err := routing.NewHosts(map[routing.HostName]routing.HostSpec{
+		routing.HostPrimary: {Hostname: "andurel.com", Protocol: "https"},
+		hostAdmin:           {Hostname: "admin.andurel.com"},
+	})
+	if err != nil {
+		t.Fatalf("new hosts: %v", err)
+	}
+
+	var seen routing.HostName
+	rt := NewRouter(WithHosts(hosts))
+	rt.Use(func(next Handler) Handler {
+		return func(ctx context.Context) error {
+			seen = RequestHost(ctx)
+			return next(ctx)
+		}
+	})
+	rt.Get("/", func(ctx context.Context) error { return Text(ctx, http.StatusOK, "primary") })
+
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Host = "admin.andurel.com"
+	recorder := httptest.NewRecorder()
+	rt.Handler().ServeHTTP(recorder, request)
+
+	if seen != hostAdmin {
+		t.Fatalf("middleware RequestHost = %q, want %q", seen, hostAdmin)
+	}
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "primary" {
+		t.Fatalf("dispatch = %d %q, want 200 primary", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestRequestHostWithoutRouterState(t *testing.T) {
+	t.Parallel()
+
+	if got := RequestHost(context.Background()); got != routing.HostPrimary {
+		t.Fatalf("RequestHost(background) = %q, want %q", got, routing.HostPrimary)
+	}
+	if got := RequestHost(nil); got != routing.HostPrimary {
+		t.Fatalf("RequestHost(nil) = %q, want %q", got, routing.HostPrimary)
 	}
 }
 

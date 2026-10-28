@@ -3,6 +3,8 @@ package anduin
 import (
 	"context"
 	"net/http"
+
+	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
 // requestState is the mutable per-request transport state stored on the
@@ -12,6 +14,7 @@ import (
 type requestState struct {
 	request  *http.Request
 	writer   http.ResponseWriter
+	host     routing.HostName
 	clientIP string
 }
 
@@ -28,6 +31,19 @@ func stateFrom(ctx context.Context) *requestState {
 
 	state, _ := ctx.Value(stateKey{}).(*requestState)
 	return state
+}
+
+// RequestHost returns the routing.HostName the router resolved for the
+// request. It is the same answer the dispatcher uses: matching is
+// case-insensitive, aliases resolve to their HostName, and an unknown
+// authority reports routing.HostPrimary. A configured host is reported even
+// when it has no registered routes (dispatch then falls back to the primary
+// mux). A context without router state also reports routing.HostPrimary.
+func RequestHost(ctx context.Context) routing.HostName {
+	if state := stateFrom(ctx); state != nil && state.host != "" {
+		return state.host
+	}
+	return routing.HostPrimary
 }
 
 // Request returns the *http.Request carried on ctx, or nil when ctx is not an

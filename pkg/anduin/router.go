@@ -2,7 +2,6 @@ package anduin
 
 import (
 	"context"
-	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -49,7 +48,6 @@ type Router struct {
 	primary       *http.ServeMux
 	hosts         map[routing.HostName]*http.ServeMux
 	hostsRegistry *routing.Hosts
-	hostIndex     map[string]routing.HostName
 	mw            []Middleware
 	onError       ErrorHandler
 	telemetry     *telemetry.Telemetry
@@ -63,10 +61,9 @@ type Router struct {
 // registered.
 func NewRouter(opts ...Option) *Router {
 	rt := &Router{
-		primary:   http.NewServeMux(),
-		hosts:     make(map[routing.HostName]*http.ServeMux),
-		hostIndex: make(map[string]routing.HostName),
-		onError:   defaultErrorHandler,
+		primary: http.NewServeMux(),
+		hosts:   make(map[routing.HostName]*http.ServeMux),
+		onError: defaultErrorHandler,
 	}
 	for _, opt := range opts {
 		if opt != nil {
@@ -137,8 +134,6 @@ func (rt *Router) Handler() http.Handler {
 		return rt.handler
 	}
 
-	rt.indexHostsLocked()
-
 	handler := http.Handler(http.HandlerFunc(rt.serve))
 	if rt.telemetry != nil {
 		handler = telemetry.WrapHandler("http", handler, rt.telemetry)
@@ -180,7 +175,8 @@ func (rt *Router) routeHandler(h Handler, mw []Middleware) http.HandlerFunc {
 // transport state, runs the global middleware chain, and dispatches to the
 // host-specific ServeMux.
 func (rt *Router) serve(w http.ResponseWriter, r *http.Request) {
-	ctx := withState(r.Context(), &requestState{request: r, writer: w})
+	host := rt.resolveHost(r.Host)
+	ctx := withState(r.Context(), &requestState{request: r, writer: w, host: host})
 
 	base := func(ctx context.Context) error {
 		request := Request(ctx)
@@ -192,11 +188,14 @@ func (rt *Router) serve(w http.ResponseWriter, r *http.Request) {
 		// sets Pattern and path values on the request we can observe.
 		request = request.WithContext(ctx)
 		ctx = ReplaceRequest(ctx, request)
-		mux := rt.muxForRequest(request)
-		writer := &notFoundWriter{ResponseWriter: ResponseWriter(ctx), request: request}
+		mux := rt.muxForRequest(host)
+		writer := &muxStatusWriter{ResponseWriter: ResponseWriter(ctx), request: request}
 		mux.ServeHTTP(writer, request)
-		if writer.notFound {
+		switch writer.status {
+		case http.StatusNotFound:
 			rt.handleError(ctx, ErrNotFound)
+		case http.StatusMethodNotAllowed:
+			rt.handleError(ctx, ErrMethodNotAllowed)
 		}
 		return nil
 	}
@@ -207,21 +206,36 @@ func (rt *Router) serve(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// notFoundWriter turns the ServeMux's built-in 404 into a router error so the
-// ErrorHandler can render the app's not-found page. ServeMux has no not-found
-// hook, and a catch-all "/" pattern would also swallow method-not-allowed
-// responses, so the generated 404 is intercepted instead. A matched handler
-// has a non-empty request.Pattern and passes through untouched.
-type notFoundWriter struct {
+// resolveHost maps the request authority to a configured HostName, falling back
+// to HostPrimary when the registry is absent or the authority is unknown.
+func (rt *Router) resolveHost(authority string) routing.HostName {
+	if rt.hostsRegistry != nil {
+		if name, ok := rt.hostsRegistry.Resolve(authority); ok {
+			return name
+		}
+	}
+	return routing.HostPrimary
+}
+
+// muxStatusWriter turns the ServeMux's built-in 404 and 405 responses into
+// router errors so the ErrorHandler can render the app's pages. ServeMux has no
+// error hooks, and a catch-all "/" pattern would also swallow
+// method-not-allowed responses, so the generated responses are intercepted
+// instead. A matched handler has a non-empty request.Pattern and passes through
+// untouched. ServeMux sets Allow before WriteHeader(405); only the status and
+// body are intercepted, so the header survives into the ErrorHandler's
+// response.
+type muxStatusWriter struct {
 	http.ResponseWriter
 	request     *http.Request
-	notFound    bool
+	status      int
 	wroteHeader bool
 }
 
-func (w *notFoundWriter) WriteHeader(status int) {
-	if status == http.StatusNotFound && !w.wroteHeader && w.request.Pattern == "" {
-		w.notFound = true
+func (w *muxStatusWriter) WriteHeader(status int) {
+	if !w.wroteHeader && w.request.Pattern == "" &&
+		(status == http.StatusNotFound || status == http.StatusMethodNotAllowed) {
+		w.status = status
 		w.wroteHeader = true
 		return
 	}
@@ -229,45 +243,34 @@ func (w *notFoundWriter) WriteHeader(status int) {
 	w.wroteHeader = true
 }
 
-func (w *notFoundWriter) Write(body []byte) (int, error) {
+func (w *muxStatusWriter) Write(body []byte) (int, error) {
 	w.wroteHeader = true
-	if w.notFound {
+	if w.status != 0 {
 		return len(body), nil
 	}
 	return w.ResponseWriter.Write(body)
 }
 
 // Unwrap exposes the underlying writer to http.ResponseController.
-func (w *notFoundWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
+func (w *muxStatusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 // Flush keeps streaming handlers (SSE) working through the wrapper.
-func (w *notFoundWriter) Flush() {
+func (w *muxStatusWriter) Flush() {
 	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
 		flusher.Flush()
 	}
 }
 
 var (
-	_ http.Flusher                              = (*notFoundWriter)(nil)
-	_ interface{ Unwrap() http.ResponseWriter } = (*notFoundWriter)(nil)
+	_ http.Flusher                              = (*muxStatusWriter)(nil)
+	_ interface{ Unwrap() http.ResponseWriter } = (*muxStatusWriter)(nil)
 )
 
-func (rt *Router) muxForRequest(r *http.Request) *http.ServeMux {
+func (rt *Router) muxForRequest(host routing.HostName) *http.ServeMux {
 	rt.mu.Lock()
-	index := rt.hostIndex
-	hosts := rt.hosts
+	mux, ok := rt.hosts[host]
 	rt.mu.Unlock()
-
-	name := routing.HostPrimary
-	if resolved, ok := index[r.Host]; ok {
-		name = resolved
-	} else if host, _, err := net.SplitHostPort(r.Host); err == nil {
-		if resolved, ok := index[host]; ok {
-			name = resolved
-		}
-	}
-
-	if mux, ok := hosts[name]; ok {
+	if ok {
 		return mux
 	}
 	return rt.primary
@@ -286,30 +289,6 @@ func (rt *Router) handleError(ctx context.Context, err error) {
 		return
 	}
 	defaultErrorHandler(ctx, err)
-}
-
-// indexHostsLocked maps every configured hostname and alias to its HostName.
-func (rt *Router) indexHostsLocked() {
-	if len(rt.hostIndex) > 0 || rt.hostsRegistry == nil {
-		return
-	}
-	for name, spec := range rt.hostsRegistry.All() {
-		claim := func(hostname string) {
-			hostname = strings.TrimSpace(hostname)
-			if hostname == "" {
-				return
-			}
-			rt.hostIndex[hostname] = name
-			if !strings.Contains(hostname, ":") {
-				rt.hostIndex[hostname+":80"] = name
-				rt.hostIndex[hostname+":443"] = name
-			}
-		}
-		claim(spec.Hostname)
-		for _, alias := range spec.Aliases {
-			claim(alias)
-		}
-	}
 }
 
 // MuxPattern converts an andurel/routing path into an http.ServeMux pattern.

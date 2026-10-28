@@ -9,6 +9,25 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 - `AddVary` appends a token to the `Vary` response header unless the header
   already lists it, comparing case-insensitively across comma-separated values.
   `Compress` uses it to keep `Accept-Encoding` merged with other middleware.
+- `RequestHost(ctx)` reports the `routing.HostName` the router resolved for the
+  request, for host-aware global middleware. Unknown authorities and contexts
+  without router state report `routing.HostPrimary`; a configured host is
+  reported even when it has no registered routes.
+- `ErrMethodNotAllowed` is passed to the `ErrorHandler` when a route matches the
+  path but not the request method. The `Allow` header set by `http.ServeMux` is
+  preserved, and `StatusCode` reports 405.
+- `anduintest.WithHosts` installs a host registry on the test router. A
+  `Header{Name: "Host"}` request option sets `req.Host` so tests can target a
+  named virtual host (Go's client ignores an explicit `Host` header).
+
+### Changed
+
+- Router host matching is case-insensitive and now shares
+  `routing.Hosts.Resolve` instead of a private index, so an uppercase `Host`
+  header dispatches to the configured host.
+- A ServeMux-generated 405 now runs through the `ErrorHandler` instead of
+  bypassing it. Without an `ErrorHandler` the response is still a 405 carrying
+  `Allow`.
 
 ### Fixed
 
