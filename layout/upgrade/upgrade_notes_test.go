@@ -75,12 +75,87 @@ func TestInertiaViteFullURLManualActionVersionGate(t *testing.T) {
 }
 
 func TestLatestBetaUpgradeToStableEmitsNoManualActions(t *testing.T) {
-	actions, err := manualActionsForUpgrade("v2.0.0-beta.2", "v2.0.0", true)
+	actions, err := manualActionsForUpgrade("v2.0.0-beta.3", "v2.0.0", true)
 	if err != nil {
 		t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
 	}
 	if len(actions) != 0 {
 		t.Fatalf("latest beta to stable emitted manual actions: %#v", actions)
+	}
+}
+
+func TestBetaThreeManualActionsVersionGate(t *testing.T) {
+	tests := []struct {
+		name string
+		from string
+		to   string
+		want bool
+	}{
+		{name: "beta.2 to beta.3", from: "v2.0.0-beta.2", to: "v2.0.0-beta.3", want: true},
+		{name: "beta.2 to stable", from: "v2.0.0-beta.2", to: "v2.0.0", want: true},
+		{name: "already on beta.3", from: "v2.0.0-beta.3", to: "v2.0.0", want: false},
+		{name: "target predates change", from: "v2.0.0-beta.1", to: "v2.0.0-beta.2", want: false},
+	}
+
+	ids := []string{
+		"cors-host-origins-v2.0.0-beta.3",
+		"csrf-asset-skip-v2.0.0-beta.3",
+		"method-not-allowed-page-v2.0.0-beta.3",
+		"request-host-middleware-v2.0.0-beta.3",
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			actions, err := manualActionsForUpgrade(test.from, test.to, true)
+			if err != nil {
+				t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
+			}
+
+			got := map[string]bool{}
+			for _, action := range actions {
+				got[action.ID] = true
+			}
+			for _, id := range ids {
+				if got[id] != test.want {
+					t.Errorf("action %s present = %t, want %t", id, got[id], test.want)
+				}
+			}
+		})
+	}
+
+	for id, want := range map[string][]string{
+		"cors-host-origins-v2.0.0-beta.3": {
+			"anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CORSAllowedOrigins)...",
+			"anduin.DefaultCORS(cfg.HTTP.CORSAllowedOrigins...)",
+			"cors.Skipper = isViteAssetRequest",
+			"AllowCredentials: false",
+			"cfg.App.Origins() in the CSRF trusted origins",
+			"security-relevant",
+		},
+		"csrf-asset-skip-v2.0.0-beta.3": {
+			"bearerSkipper(ctx) || isSafeViteAssetRequest(ctx)",
+			"Unsafe requests to static paths stay protected",
+		},
+		"method-not-allowed-page-v2.0.0-beta.3": {
+			"anduin.ErrMethodNotAllowed",
+			`"Errors/NotFound"`,
+			"Allow header",
+		},
+		"request-host-middleware-v2.0.0-beta.3": {
+			"anduin.RequestHost(ctx)",
+			"middleware.DenyFraming(config.HostAdmin)",
+			"routing.HostPrimary",
+		},
+	} {
+		action := findManualAction(t, "v2.0.0-beta.2", "v2.0.0-beta.3", id)
+		if action == nil {
+			t.Fatalf("missing manual action %s", id)
+		}
+		for _, text := range want {
+			if !strings.Contains(action.Instructions, text) {
+				t.Errorf("%s instructions missing %q:\n%s", id, text, action.Instructions)
+			}
+		}
 	}
 }
 

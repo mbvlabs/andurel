@@ -26,6 +26,12 @@ const storageTestClusterVersion = "v2.0.0-alpha.5"
 // only, and renders a single <title> under SSR.
 const betaTwoFixesVersion = "v2.0.0-beta.2"
 
+// betaThreeFixesVersion is the first release whose scaffold trusts only
+// explicit CORS origins, keeps CSRF cookies off static assets, renders 405
+// responses as the themed not-found page, and exposes anduin.RequestHost for
+// host-scoped middleware.
+const betaThreeFixesVersion = "v2.0.0-beta.3"
+
 // goNativeRebuildVersion is the release that replaced Echo and Fx with the
 // Go-native domains/services/handlers layout. Projects older than it cannot be
 // upgraded automatically; they must be ported by hand.
@@ -145,7 +151,104 @@ func manualActionsForUpgrade(
 		})
 	}
 
+	if crossesVersion(fromVersion, toVersion, betaThreeFixesVersion) {
+		actions = append(actions, ManualAction{
+			ID:           "cors-host-origins-v2.0.0-beta.3",
+			Title:        "Scope CORS to CORS_ALLOWED_ORIGINS and serve Vite assets with public CORS",
+			Instructions: corsScopeInstructions(),
+		})
+		actions = append(actions, ManualAction{
+			ID:           "csrf-asset-skip-v2.0.0-beta.3",
+			Title:        "Skip CSRF cookie issuance for safe asset requests",
+			Instructions: csrfAssetSkipInstructions(),
+		})
+		actions = append(actions, ManualAction{
+			ID:           "method-not-allowed-page-v2.0.0-beta.3",
+			Title:        "Render the themed not-found page for 405 responses",
+			Instructions: methodNotAllowedInstructions(),
+		})
+		actions = append(actions, ManualAction{
+			ID:           "request-host-middleware-v2.0.0-beta.3",
+			Title:        "Use anduin.RequestHost for host-scoped middleware",
+			Instructions: requestHostInstructions(),
+		})
+	}
+
 	return actions, nil
+}
+
+func corsScopeInstructions() string {
+	var instructions strings.Builder
+	instructions.WriteString(
+		"The beta.3 scaffold stops trusting application host origins in global CORS. A sibling host must not be " +
+			"able to read authenticated responses through a browser, so only CORS_ALLOWED_ORIGINS is trusted and " +
+			"Vite build files answer with wildcard, uncredentialed CORS. This is security-relevant for apps with " +
+			"more than one configured host.\n\n",
+	)
+	instructions.WriteString(
+		"internal/runtime and handlers are application-owned, so update them by hand:\n\n" +
+			"1. Replace the host-origin merge in the global policy:\n\n```go\n" +
+			"cors := anduin.DefaultCORS(\n" +
+			"\tanduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CORSAllowedOrigins)...,\n" +
+			")\n```\n\nwith\n\n```go\n" +
+			"cors := anduin.DefaultCORS(cfg.HTTP.CORSAllowedOrigins...)\n" +
+			"cors.Skipper = isViteAssetRequest\n```\n\n" +
+			"Add the helper next to New in internal/runtime/runtime.go:\n\n```go\n" +
+			"var viteAssetPrefix = strings.TrimSuffix(routes.ViteBuild.Pattern(), \"/*\")\n\n" +
+			"func isViteAssetRequest(ctx context.Context) bool {\n" +
+			"\trequest := anduin.Request(ctx)\n\n" +
+			"\treturn request != nil && strings.HasPrefix(request.URL.Path, viteAssetPrefix+\"/\")\n" +
+			"}\n```\n\n" +
+			"2. Register the asset route with its own uncredentialed CORS in handlers/assets.go:\n\n```go\n" +
+			"rt.Get(routes.ViteBuild.Pattern(), a.dist, anduin.CORS(anduin.CORSConfig{\n" +
+			"\tAllowOrigins:     []string{\"*\"},\n" +
+			"\tAllowMethods:     []string{http.MethodGet, http.MethodHead},\n" +
+			"\tAllowCredentials: false,\n" +
+			"}))\n```\n\n" +
+			"Keep cfg.App.Origins() in the CSRF trusted origins; same-site form posts between hosts are deliberate.\n\n",
+	)
+	instructions.WriteString(
+		"Format and verify:\n\n```text\ngofmt -w .\ngo fix ./...\ngo vet ./...\n```\n",
+	)
+
+	return instructions.String()
+}
+
+func csrfAssetSkipInstructions() string {
+	return "The beta.3 scaffold keeps the CSRF cookie off safe requests for Vite build files. A static asset " +
+		"request has no session to protect, and issuing a cookie there pollutes responses that should be cacheable.\n\n" +
+		"Compose the existing bearer-token skip with an asset and safe-method check in internal/runtime/runtime.go:\n\n```go\n" +
+		"bearerSkipper := anduin.SkipCSRFForBearer(routes.APIPrefix, cfg.Session.Name)\n" +
+		"csrf.Skipper = func(ctx context.Context) bool {\n" +
+		"\treturn bearerSkipper(ctx) || isSafeViteAssetRequest(ctx)\n" +
+		"}\n```\n\n" +
+		"isSafeViteAssetRequest uses isViteAssetRequest from the CORS action and returns true only for GET, HEAD, " +
+		"OPTIONS and TRACE. Unsafe requests to static paths stay protected.\n\n" +
+		"Format and verify:\n\n```text\ngofmt -w internal/runtime\ngo fix ./...\ngo vet ./...\n```\n"
+}
+
+func methodNotAllowedInstructions() string {
+	return "pkg/anduin beta.3 reports a ServeMux-generated 405 as anduin.ErrMethodNotAllowed and preserves the " +
+		"Allow header. Map it to the themed not-found page in handlers/errors.go so a method mismatch is not a " +
+		"plain-text response:\n\n```go\n" +
+		"inertia.MapError(\n" +
+		"\tanduin.ErrMethodNotAllowed,\n" +
+		"\thttp.StatusMethodNotAllowed,\n" +
+		"\t\"Errors/NotFound\",\n" +
+		"),\n```\n\n" +
+		"Then format and verify:\n\n```text\ngofmt -w handlers\ngo fix ./...\ngo vet ./...\n```\n"
+}
+
+func requestHostInstructions() string {
+	return "pkg/anduin beta.3 exposes anduin.RequestHost(ctx): the routing.HostName the dispatcher resolved for " +
+		"the request. Host matching is case-insensitive, aliases resolve to their HostName, and an unknown authority " +
+		"reports routing.HostPrimary. Global middleware sees the value before dispatch.\n\n" +
+		"Replace code that mirrors host matching by re-parsing Request.Host (for example middleware/host_authority.go) " +
+		"with a check on anduin.RequestHost(ctx). For host-scoped security headers, add pkg/anduin middleware like " +
+		"middleware.DenyFraming from the beta.3 scaffold and install it in internal/runtime:\n\n```go\n" +
+		"router.Use(middleware.DenyFraming(config.HostAdmin))\n```\n\n" +
+		"The headers are set before the handler runs, so error pages, 404s and 405s carry them too.\n\n" +
+		"Format and verify:\n\n```text\ngofmt -w .\ngo fix ./...\ngo vet ./...\n```\n"
 }
 
 func emailSenderInstructions() string {
