@@ -14,6 +14,7 @@ import (
 	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/mbvlabs/andurel/v2/emailcompiler"
 	"github.com/mbvlabs/andurel/v2/layout"
+	"github.com/spf13/cobra"
 )
 
 type verifyTestEnvelope struct {
@@ -430,6 +431,133 @@ func TestVerifyWithTestsReportsSkippedPackages(t *testing.T) {
 	}
 	if strings.Contains(human.stdout, "plain") {
 		t.Fatalf("a package whose tests ran should not be listed:\n%s", human.stdout)
+	}
+}
+
+func TestVerifyWithTestsReportsSkippedTests(t *testing.T) {
+	root := newVerifyTestProject(t)
+	writeTestFile(t, root, "skiptests/skip.go", "package skiptests\n")
+	writeTestFile(t, root, "skiptests/skip_test.go", `package skiptests
+
+import "testing"
+
+func TestPasses(t *testing.T) {}
+
+func TestNeedsAssets(t *testing.T) {
+	t.Skip("assets/dist is missing; run pnpm build")
+}
+`)
+
+	result := runVerifyInProject(t, root, "verify", "--skip-generated", "--with-tests", "--json")
+	if result.err != nil {
+		t.Fatalf(
+			"verify --with-tests --json: %v\nreport: %#v",
+			result.err,
+			output.Fail(result.err).Data,
+		)
+	}
+	envelope := decodeVerifyEnvelope(t, result.stdout)
+	if !envelope.OK || !envelope.Data.OK {
+		t.Fatalf("a test-level skip should not fail the run: %#v", envelope)
+	}
+	step := findVerifyStep(t, envelope.Data, "go test")
+	if step.Status != verifyStatusOK || !step.OK {
+		t.Fatalf("go test step = %#v, want status ok", step)
+	}
+	if len(step.SkippedPackages) != 0 {
+		t.Fatalf("a package with a passing test is not skipped: %#v", step.SkippedPackages)
+	}
+	if len(step.SkippedTests) != 1 {
+		t.Fatalf("skipped tests = %#v, want only TestNeedsAssets", step.SkippedTests)
+	}
+	skipped := step.SkippedTests[0]
+	if skipped.Package != "example.com/app/skiptests" || skipped.Test != "TestNeedsAssets" {
+		t.Fatalf("skipped test = %#v, want skiptests.TestNeedsAssets", skipped)
+	}
+	if !strings.Contains(skipped.Reason, "assets/dist is missing") {
+		t.Fatalf("skipped reason = %q, want the t.Skip message", skipped.Reason)
+	}
+
+	human := runVerifyInProject(t, root, "verify", "--skip-generated", "--with-tests")
+	if human.err != nil {
+		t.Fatalf("verify --with-tests: %v", human.err)
+	}
+	for _, want := range []string{
+		"go test    ok (1 test skipped)",
+		"skipped example.com/app/skiptests: TestNeedsAssets (",
+		"assets/dist is missing",
+	} {
+		if !strings.Contains(human.stdout, want) {
+			t.Fatalf("human output is missing %q:\n%s", want, human.stdout)
+		}
+	}
+	if strings.Contains(human.stdout, "TestPasses") {
+		t.Fatalf("a passing test should not be listed:\n%s", human.stdout)
+	}
+}
+
+func TestVerifyGeneratedWarnsOnUnresolvedFromStructRoots(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stub tools use a POSIX shell script")
+	}
+
+	root := setupPayloadsProject(t, "react")
+	writePayloadsHandler(t, root, "handlers/pages.go", unresolvedFromStructHandlerSource)
+	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
+	if err := generateInertiaArtifacts(root, "react"); err != nil {
+		t.Fatalf("generate inertia artifacts: %v", err)
+	}
+
+	step := verifyGenerated(root)
+	if step.Status != verifyStatusOK || !step.OK {
+		t.Fatalf("unresolved roots must not fail verify: %#v", step)
+	}
+	if len(step.Warnings) != 1 {
+		t.Fatalf("warnings = %#v, want one unresolved FromStruct root", step.Warnings)
+	}
+	warning := step.Warnings[0]
+	for _, want := range []string{
+		"payloads.ts: handlers/pages.go:",
+		unresolvedFromStructReason,
+		"pass a named composite literal or a typed variable",
+	} {
+		if !strings.Contains(warning, want) {
+			t.Fatalf("warning is missing %q: %s", want, warning)
+		}
+	}
+
+	structured, err := json.Marshal(step)
+	if err != nil {
+		t.Fatalf("marshal go test step: %v", err)
+	}
+	if !bytes.Contains(structured, []byte(`"warnings"`)) {
+		t.Fatalf("JSON step is missing warnings: %s", structured)
+	}
+
+	var human bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(&human)
+	if err := renderVerifyHuman(cmd, verifyReport{OK: true, Steps: []verifyStep{step}}); err != nil {
+		t.Fatalf("render verify: %v", err)
+	}
+	if !strings.Contains(human.String(), "warning: "+warning) {
+		t.Fatalf("human output is missing the warning:\n%s", human.String())
+	}
+}
+
+func TestVerifyHelpMentionsSkippedTests(t *testing.T) {
+	var stdout bytes.Buffer
+	cmd := NewRootCommand("test", "test-date")
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stdout)
+	cmd.SetArgs([]string{"verify", "--help"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("verify --help: %v", err)
+	}
+	for _, want := range []string{"skipped_tests", "warnings"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Fatalf("verify --help should mention %q:\n%s", want, stdout.String())
+		}
 	}
 }
 

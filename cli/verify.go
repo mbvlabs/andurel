@@ -38,6 +38,14 @@ type verifySkippedPackage struct {
 	Reason  string `json:"reason"`
 }
 
+// verifySkippedTest is a test that called t.Skip. The go test step stays ok:
+// the test author's explicit skip does not fail the run.
+type verifySkippedTest struct {
+	Package string `json:"package"`
+	Test    string `json:"test"`
+	Reason  string `json:"reason,omitempty"`
+}
+
 type verifyStep struct {
 	Name       string            `json:"name"`
 	Status     string            `json:"status"`
@@ -48,6 +56,12 @@ type verifyStep struct {
 	// SkippedPackages lists go test packages that ran no tests. It does not
 	// change the step's status: the run still passes.
 	SkippedPackages []verifySkippedPackage `json:"skipped_packages,omitempty"`
+	// SkippedTests lists tests that called t.Skip. Like SkippedPackages it
+	// does not change the step's status.
+	SkippedTests []verifySkippedTest `json:"skipped_tests,omitempty"`
+	// Warnings are advisory findings that do not fail the step. The generated
+	// step uses them for payload roots andurel sync payloads cannot resolve.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 type verifyReport struct {
@@ -92,6 +106,10 @@ andurel verify checks, in order:
   • frontend  — the package.json typecheck script passes (when defined)
   • generated — templ, email, narsilc, routes.ts, and payloads.ts output is up to date
 
+Payload roots that andurel sync payloads cannot resolve are listed under the
+generated step's warnings; they do not fail verify. Run andurel sync payloads
+--strict to turn them into errors.
+
 Pass Go package patterns to scope gofmt, go fix, go vet, and layers to those
 packages, for example 'andurel verify ./internal/docs/...'. The frontend and
 generated steps always check the whole project.
@@ -111,6 +129,8 @@ Pass --with-tests to also run go test ./... (DB-backed tests need Docker for a
 Postgres container). A test package that has tests but ran none, such as one
 whose TestMain exits early without Docker, does not fail the run: the go test
 step stays 'ok' and lists it under skipped_packages as {package, reason}.
+Tests that call t.Skip are listed under skipped_tests as {package, test,
+reason}; they keep the step 'ok' too.
 verify never rewrites files; fix reported issues and re-run.
 
 Each step reports status 'ok', 'fail', or 'skipped'. Every failing step lists
@@ -135,7 +155,7 @@ with code 9 (verification_failed); usage errors exit with code 1.`,
 	setAgentMetadata(
 		cmd,
 		"verification",
-		"Read-only verification: gofmt, go fix, go vet, the domain persistence and transaction boundary, the package.json typecheck script, and generated-code drift. Pass Go package patterns to scope gofmt, go fix, go vet, and layers. With --with-tests, test packages that ran no tests (for example DB tests without Docker) are listed in the go test step's skipped_packages; they do not fail the run. Fails with exit code 9 and structured violations; each rule and its fix is listed in verify --help and the rules field of andurel commands --json.",
+		"Read-only verification: gofmt, go fix, go vet, the domain persistence and transaction boundary, the package.json typecheck script, and generated-code drift. Pass Go package patterns to scope gofmt, go fix, go vet, and layers. With --with-tests, test packages that ran no tests (for example DB tests without Docker) are listed in the go test step's skipped_packages, and tests that called t.Skip are listed in its skipped_tests; neither fails the run. Unresolved inertia.FromStruct payload roots are listed in the generated step's warnings and do not fail verify; andurel sync payloads --strict turns them into errors. Fails with exit code 9 and structured violations; each rule and its fix is listed in verify --help and the rules field of andurel commands --json.",
 	)
 	setStandardHelp(cmd)
 	return cmd
@@ -216,18 +236,35 @@ func renderVerifyHuman(cmd *cobra.Command, report verifyReport) error {
 		case verifyStatusSkipped:
 			status = "SKIP"
 		}
+		notes := make([]string, 0, 2)
 		if n := len(step.SkippedPackages); n > 0 {
-			noun := "packages"
-			if n == 1 {
-				noun = "package"
-			}
-			status += fmt.Sprintf(" (%d %s skipped: no tests ran)", n, noun)
+			notes = append(notes, fmt.Sprintf("%d %s skipped: no tests ran", n, verifyPlural(n, "package")))
+		}
+		if n := len(step.SkippedTests); n > 0 {
+			notes = append(notes, fmt.Sprintf("%d %s skipped", n, verifyPlural(n, "test")))
+		}
+		if len(notes) > 0 {
+			status += " (" + strings.Join(notes, ", ") + ")"
 		}
 		if _, err := fmt.Fprintf(out, "%-10s %s\n", step.Name, status); err != nil {
 			return err
 		}
 		for _, skipped := range step.SkippedPackages {
 			if _, err := fmt.Fprintf(out, "  skipped %s: %s\n", skipped.Package, skipped.Reason); err != nil {
+				return err
+			}
+		}
+		for _, skipped := range step.SkippedTests {
+			line := fmt.Sprintf("  skipped %s: %s", skipped.Package, skipped.Test)
+			if skipped.Reason != "" {
+				line += " (" + skipped.Reason + ")"
+			}
+			if _, err := fmt.Fprintln(out, line); err != nil {
+				return err
+			}
+		}
+		for _, warning := range step.Warnings {
+			if _, err := fmt.Fprintf(out, "  warning: %s\n", warning); err != nil {
 				return err
 			}
 		}
@@ -248,6 +285,13 @@ func renderVerifyHuman(cmd *cobra.Command, report verifyReport) error {
 		}
 	}
 	return nil
+}
+
+func verifyPlural(count int, noun string) string {
+	if count == 1 {
+		return noun
+	}
+	return noun + "s"
 }
 
 func formatViolation(v verifyViolation) string {
@@ -409,6 +453,7 @@ func verifyGoTest(rootDir string) verifyStep {
 	}
 	step := verifyStepOK("go test")
 	step.SkippedPackages = result.skipped
+	step.SkippedTests = result.skippedTests
 	return step
 }
 
@@ -422,19 +467,21 @@ type goTestEvent struct {
 }
 
 type goTestPackage struct {
-	ranTests bool
-	failed   bool
-	passed   bool
-	output   []string
-	pkgLines []string
+	ranTests  bool
+	failed    bool
+	passed    bool
+	output    []string
+	pkgLines  []string
+	testLines map[string][]string
 }
 
 type goTestResult struct {
-	order    []string
-	packages map[string]*goTestPackage
-	build    []string
-	other    []string
-	skipped  []verifySkippedPackage
+	order        []string
+	packages     map[string]*goTestPackage
+	build        []string
+	other        []string
+	skipped      []verifySkippedPackage
+	skippedTests []verifySkippedTest
 }
 
 // parseGoTestJSON folds go test -json events per package. A package whose test
@@ -461,7 +508,7 @@ func parseGoTestJSON(data []byte) goTestResult {
 		}
 		pkg, ok := result.packages[event.Package]
 		if !ok {
-			pkg = &goTestPackage{}
+			pkg = &goTestPackage{testLines: map[string][]string{}}
 			result.packages[event.Package] = pkg
 			result.order = append(result.order, event.Package)
 		}
@@ -475,6 +522,16 @@ func parseGoTestJSON(data []byte) goTestResult {
 			pkg.output = append(pkg.output, text)
 			if event.Test == "" {
 				pkg.pkgLines = append(pkg.pkgLines, text)
+			} else {
+				pkg.testLines[event.Test] = append(pkg.testLines[event.Test], text)
+			}
+		case "skip":
+			if event.Test != "" {
+				result.skippedTests = append(result.skippedTests, verifySkippedTest{
+					Package: event.Package,
+					Test:    event.Test,
+					Reason:  goTestTestSkipReason(pkg.testLines[event.Test]),
+				})
 			}
 		case "fail":
 			if event.Test == "" {
@@ -500,7 +557,34 @@ func parseGoTestJSON(data []byte) goTestResult {
 	slices.SortFunc(result.skipped, func(a, b verifySkippedPackage) int {
 		return strings.Compare(a.Package, b.Package)
 	})
+	slices.SortFunc(result.skippedTests, func(a, b verifySkippedTest) int {
+		if order := strings.Compare(a.Package, b.Package); order != 0 {
+			return order
+		}
+		return strings.Compare(a.Test, b.Test)
+	})
 	return result
+}
+
+// goTestTestSkipReason extracts the message a test passed to t.Skip. test2json
+// prints that message before the test's "--- SKIP:" marker, so the marker is
+// only the fallback for a bare t.Skip().
+func goTestTestSkipReason(lines []string) string {
+	reason := ""
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case trimmed == "", strings.HasPrefix(trimmed, "=== RUN"):
+			continue
+		case strings.HasPrefix(trimmed, "--- SKIP:"):
+			if reason == "" {
+				reason = strings.TrimSpace(strings.TrimPrefix(trimmed, "--- SKIP:"))
+			}
+		default:
+			reason = trimmed
+		}
+	}
+	return reason
 }
 
 // goTestSkipReason keeps what the package printed itself, dropping the test
@@ -543,6 +627,7 @@ func (r goTestResult) failureDetail(stderr string) string {
 // violation; out-of-date output fails it with the sync command that fixes it.
 func verifyGenerated(rootDir string) verifyStep {
 	step := verifyStepOK("generated")
+	step.Warnings = payloadScanWarnings(rootDir)
 	notes := make([]string, 0)
 	for _, result := range codeGenerationChecks(rootDir, false) {
 		switch result.status {
@@ -566,6 +651,33 @@ func verifyGenerated(rootDir string) verifyStep {
 	}
 	step.Detail = strings.Join(notes, "\n")
 	return step
+}
+
+// payloadScanWarnings lists inertia.FromStruct roots the payload scanner cannot
+// resolve statically. andurel sync payloads --strict rejects these; verify only
+// warns so projects can adopt --strict incrementally. The generated step's
+// payloads.ts check already reports parse and generation failures.
+func payloadScanWarnings(rootDir string) []string {
+	if !projectUsesInertia(rootDir) {
+		return nil
+	}
+	scan, err := scanControllerPayloads(rootDir)
+	if err != nil {
+		return nil
+	}
+	warnings := make([]string, 0)
+	for _, skipped := range scan.skipped {
+		if skipped.Reason != unresolvedFromStructReason {
+			continue
+		}
+		warnings = append(warnings, fmt.Sprintf(
+			"payloads.ts: %s:%d: %s; pass a named composite literal or a typed variable",
+			skipped.SourceFile,
+			skipped.Line,
+			skipped.Reason,
+		))
+	}
+	return warnings
 }
 
 // generatedViolations turns one failed generation check into findings. When

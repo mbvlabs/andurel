@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -19,6 +20,11 @@ import (
 )
 
 const generatedPayloadsTSPath = "resources/js/types/payloads.ts"
+
+// unresolvedFromStructReason marks a FromStruct call whose argument the scanner
+// cannot trace to a named struct. It is a skip by default and an error under
+// sync payloads --strict.
+const unresolvedFromStructReason = "unresolved FromStruct argument"
 
 const jsonValueAlias = `export type JsonValue =
   | string
@@ -75,6 +81,7 @@ type payloadScan struct {
 }
 
 func newGeneratePayloadsCommand() *cobra.Command {
+	var strict bool
 	cmd := &cobra.Command{
 		Use:   "payloads",
 		Short: "Generate TypeScript payload types for Inertia frontends",
@@ -91,9 +98,16 @@ It writes resources/js/types/payloads.ts. Fields tagged json:"-" are omitted.
 domains/ types, unexported or generic structs, and fields without a TypeScript
 mapping are rejected; define a handler-owned payload instead. Calls that pass a
 literal inertia.Props{...} map are skipped because there is no static struct to
-read.`,
+read.
+
+FromStruct arguments may be composite literals, typed variables, function
+parameters, and closure parameters. --strict fails when a FromStruct argument
+cannot be resolved statically and lists each file:line; without --strict the
+same roots are reported with the hint to pass a named composite literal or a
+typed variable.`,
 		Example: `  andurel sync payloads
-  andurel sync payloads --json`,
+  andurel sync payloads --json
+  andurel sync payloads --strict`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
@@ -107,9 +121,20 @@ read.`,
 			if err != nil {
 				return err
 			}
+			if strict {
+				if err := strictPayloadsError(report); err != nil {
+					return err
+				}
+			}
 			return output.OK(cmd, report, payloadsReportSummary(report))
 		},
 	}
+	cmd.Flags().BoolVar(
+		&strict,
+		"strict",
+		false,
+		"Fail when a FromStruct argument cannot be resolved statically",
+	)
 	setAgentMetadata(
 		cmd,
 		"generation",
@@ -127,7 +152,54 @@ func payloadsReportSummary(report payloadsReport) string {
 	if report.SkippedCount > 0 {
 		summary = fmt.Sprintf("%s (%d skipped)", summary, report.SkippedCount)
 	}
-	return summary
+	unresolved := unresolvedFromStructRoots(report)
+	if len(unresolved) == 0 {
+		return summary
+	}
+	lines := make([]string, 0, len(unresolved)+2)
+	lines = append(lines, summary)
+	for _, skipped := range unresolved {
+		lines = append(lines, fmt.Sprintf(
+			"  %s:%d: %s",
+			skipped.SourceFile,
+			skipped.Line,
+			skipped.Reason,
+		))
+	}
+	lines = append(lines, "  hint: pass a named composite literal or a typed variable")
+	return strings.Join(lines, "\n")
+}
+
+// unresolvedFromStructRoots returns the skipped roots --strict rejects.
+func unresolvedFromStructRoots(report payloadsReport) []payloadSkipped {
+	unresolved := make([]payloadSkipped, 0)
+	for _, skipped := range report.Skipped {
+		if skipped.Reason == unresolvedFromStructReason {
+			unresolved = append(unresolved, skipped)
+		}
+	}
+	return unresolved
+}
+
+// strictPayloadsError keeps the report as error data so structured output has
+// the same payloadsReport shape it would have on success.
+func strictPayloadsError(report payloadsReport) error {
+	unresolved := unresolvedFromStructRoots(report)
+	if len(unresolved) == 0 {
+		return nil
+	}
+	locations := make([]string, 0, len(unresolved))
+	for _, skipped := range unresolved {
+		locations = append(locations, fmt.Sprintf("%s:%d", skipped.SourceFile, skipped.Line))
+	}
+	failure := output.NewError(
+		output.CodeGenerationFailed,
+		"unresolved FromStruct arguments at "+strings.Join(locations, ", "),
+		output.ExitGeneration,
+		"pass a named composite literal or a typed variable",
+	)
+	failure.Data = report
+	return failure
 }
 
 func generatePayloadsFile(rootDir string) (payloadsReport, error) {
@@ -359,7 +431,7 @@ func (s *payloadScan) noteFromStruct(
 		s.skipped = append(s.skipped, payloadSkipped{
 			SourceFile: sourceFile,
 			Line:       line,
-			Reason:     "unresolved FromStruct argument",
+			Reason:     unresolvedFromStructReason,
 		})
 		return
 	}
@@ -379,7 +451,7 @@ func (s *payloadScan) noteFromStruct(
 	key := structKey(pkg, name)
 	if _, exists := s.structs[key]; !exists {
 		s.skipped = append(s.skipped, payloadSkipped{
-			Name: name, SourceFile: sourceFile, Line: line, Reason: "unresolved FromStruct argument",
+			Name: name, SourceFile: sourceFile, Line: line, Reason: unresolvedFromStructReason,
 		})
 		return
 	}
@@ -920,35 +992,73 @@ func isAnduinDecodeCall(fun ast.Expr, imports map[string]string) bool {
 	return strings.HasSuffix(path, "/pkg/anduin")
 }
 
+// ambiguousLocal marks a name bound to more than one type in the flat local
+// scope. Resolving it would pick a declaration by position rather than by Go's
+// block scoping, so callers report the argument unresolved instead.
+var ambiguousLocal ast.Expr = &ast.BadExpr{}
+
 func collectFuncLocals(fn *ast.FuncDecl) map[string]ast.Expr {
 	locals := map[string]ast.Expr{}
+	addParams := func(fields *ast.FieldList) {
+		if fields == nil {
+			return
+		}
+		for _, field := range fields.List {
+			if field.Type == nil {
+				continue
+			}
+			for _, name := range field.Names {
+				recordFuncLocal(locals, name.Name, field.Type)
+			}
+		}
+	}
+	addParams(fn.Type.Params)
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
 		switch typed := node.(type) {
+		case *ast.FuncLit:
+			addParams(typed.Type.Params)
 		case *ast.AssignStmt:
 			if typed.Tok != token.DEFINE {
 				return true
 			}
 			for i, lhs := range typed.Lhs {
 				ident, ok := lhs.(*ast.Ident)
-				if !ok || ident.Name == "_" || i >= len(typed.Rhs) {
+				if !ok || i >= len(typed.Rhs) {
 					continue
 				}
-				locals[ident.Name] = typed.Rhs[i]
+				recordFuncLocal(locals, ident.Name, typed.Rhs[i])
 			}
 		case *ast.ValueSpec:
 			for i, name := range typed.Names {
 				if typed.Type != nil {
-					locals[name.Name] = typed.Type
+					recordFuncLocal(locals, name.Name, typed.Type)
 					continue
 				}
 				if i < len(typed.Values) {
-					locals[name.Name] = typed.Values[i]
+					recordFuncLocal(locals, name.Name, typed.Values[i])
 				}
 			}
 		}
 		return true
 	})
 	return locals
+}
+
+// recordFuncLocal keeps the first expression bound to a name. A later binding
+// of the same name with a different type makes the name ambiguous; keeping the
+// first one would make resolution depend on declaration order across closures.
+func recordFuncLocal(locals map[string]ast.Expr, name string, expr ast.Expr) {
+	if name == "" || name == "_" || expr == nil {
+		return
+	}
+	existing, ok := locals[name]
+	if !ok {
+		locals[name] = expr
+		return
+	}
+	if existing == ambiguousLocal || types.ExprString(existing) != types.ExprString(expr) {
+		locals[name] = ambiguousLocal
+	}
 }
 
 func pointerIdent(expr ast.Expr) (string, bool) {

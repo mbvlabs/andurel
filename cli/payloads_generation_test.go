@@ -441,6 +441,221 @@ func (p PagesHandler) Index(ctx context.Context) error {
 	}
 }
 
+func TestRenderPayloadsTSResolvesFuncParameters(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{
+			name: "helper parameter",
+			source: `package handlers
+
+import (
+	"context"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+type WidgetIndexProps struct {
+	Title string ` + "`json:\"title\"`" + `
+}
+
+func (p PagesHandler) Index(ctx context.Context) error {
+	return renderWidgetProps(WidgetIndexProps{})
+}
+
+func renderWidgetProps(props WidgetIndexProps) error {
+	return inertia.FromStruct(props)
+}
+`,
+		},
+		{
+			name: "closure parameter",
+			source: `package handlers
+
+import (
+	"context"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+type WidgetIndexProps struct {
+	Title string ` + "`json:\"title\"`" + `
+}
+
+func (p PagesHandler) Index(ctx context.Context) error {
+	render := func(props WidgetIndexProps) error {
+		return inertia.FromStruct(props)
+	}
+	return render(WidgetIndexProps{})
+}
+`,
+		},
+		{
+			name: "pointer parameter",
+			source: `package handlers
+
+import (
+	"context"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+type WidgetIndexProps struct {
+	Title string ` + "`json:\"title\"`" + `
+}
+
+func (p PagesHandler) Index(ctx context.Context) error {
+	return renderWidgetProps(&WidgetIndexProps{})
+}
+
+func renderWidgetProps(props *WidgetIndexProps) error {
+	return inertia.FromStruct(*props)
+}
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rootDir := setupPayloadsProject(t, "react")
+			writePayloadsHandler(t, rootDir, "handlers/pages.go", tt.source)
+
+			got, count, skipped, err := renderPayloadsTS(rootDir)
+			if err != nil {
+				t.Fatalf("render payloads: %v", err)
+			}
+			if len(skipped) != 0 {
+				t.Fatalf("unexpected skipped: %#v", skipped)
+			}
+			if count != 1 || !strings.Contains(string(got), "export type WidgetIndexProps") {
+				t.Fatalf("unexpected payloads.ts (%d types):\n%s", count, got)
+			}
+		})
+	}
+}
+
+func TestRenderPayloadsTSLeavesConflictingClosureParamUnresolved(t *testing.T) {
+	rootDir := setupPayloadsProject(t, "react")
+	writePayloadsHandler(t, rootDir, "handlers/pages.go", `package handlers
+
+import (
+	"context"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+type WidgetIndexProps struct {
+	Title string `+"`json:\"title\"`"+`
+}
+
+type AdminIndexProps struct {
+	Name string `+"`json:\"name\"`"+`
+}
+
+func (p PagesHandler) Index(ctx context.Context) error {
+	props := WidgetIndexProps{}
+	render := func(props AdminIndexProps) error {
+		return inertia.FromStruct(props)
+	}
+	return render(AdminIndexProps{})
+}
+`)
+
+	_, count, skipped, err := renderPayloadsTS(rootDir)
+	if err != nil {
+		t.Fatalf("render payloads: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no types for a shadowed name, got %d", count)
+	}
+	if len(skipped) != 1 || skipped[0].Reason != unresolvedFromStructReason {
+		t.Fatalf("unexpected skipped: %#v", skipped)
+	}
+}
+
+func TestGeneratePayloadsCommandReportsUnresolvedRoots(t *testing.T) {
+	rootDir := setupPayloadsProject(t, "vue")
+	writePayloadsHandler(t, rootDir, "handlers/pages.go", unresolvedFromStructHandlerSource)
+
+	human := runRoutesJSCommandInProject(t, rootDir, "sync", "payloads")
+	if human.err != nil {
+		t.Fatalf("sync payloads: %v\n%s", human.err, human.stderr)
+	}
+	for _, want := range []string{
+		"handlers/pages.go:",
+		unresolvedFromStructReason,
+		"pass a named composite literal or a typed variable",
+	} {
+		if !strings.Contains(human.stdout, want) {
+			t.Fatalf("human output is missing %q:\n%s", want, human.stdout)
+		}
+	}
+
+	structured := runRoutesJSCommandInProject(t, rootDir, "sync", "payloads", "--json")
+	if structured.err != nil {
+		t.Fatalf("sync payloads --json: %v\n%s", structured.err, structured.stderr)
+	}
+	if !strings.Contains(structured.stdout, `"skipped"`) ||
+		!strings.Contains(structured.stdout, unresolvedFromStructReason) {
+		t.Fatalf("JSON output should keep the skipped entry:\n%s", structured.stdout)
+	}
+}
+
+func TestGeneratePayloadsCommandStrictFailsOnUnresolvedRoots(t *testing.T) {
+	rootDir := setupPayloadsProject(t, "vue")
+	writePayloadsHandler(t, rootDir, "handlers/pages.go", unresolvedFromStructHandlerSource)
+
+	result := runRoutesJSCommandInProject(t, rootDir, "sync", "payloads", "--json", "--strict")
+	if result.err == nil {
+		t.Fatal("expected --strict to reject an unresolved FromStruct argument")
+	}
+	if got := output.ExitCode(result.err); got != output.ExitGeneration {
+		t.Fatalf("exit code = %d, want %d (err: %v)", got, output.ExitGeneration, result.err)
+	}
+	envelope := output.Fail(result.err)
+	if envelope.Code != output.CodeGenerationFailed {
+		t.Fatalf("error code = %q, want %q", envelope.Code, output.CodeGenerationFailed)
+	}
+	if !strings.Contains(envelope.Error, "handlers/pages.go:") {
+		t.Fatalf("error should list the file:line, got %q", envelope.Error)
+	}
+	report, ok := envelope.Data.(payloadsReport)
+	if !ok {
+		t.Fatalf("error data = %T, want payloadsReport", envelope.Data)
+	}
+	if len(report.Skipped) != 1 || report.Skipped[0].Reason != unresolvedFromStructReason {
+		t.Fatalf("unexpected skipped in error data: %#v", report.Skipped)
+	}
+}
+
+func TestGeneratePayloadsCommandStrictPassesWhenResolved(t *testing.T) {
+	rootDir := setupPayloadsProject(t, "react")
+	writePayloadsHandler(t, rootDir, "handlers/widgets.go", widgetHandlerSource)
+
+	result := runRoutesJSCommandInProject(t, rootDir, "sync", "payloads", "--json", "--strict")
+	if result.err != nil {
+		t.Fatalf("sync payloads --strict: %v\n%s", result.err, result.stderr)
+	}
+	if !strings.Contains(result.stdout, `"type_count": 5`) {
+		t.Fatalf("unexpected strict report:\n%s", result.stdout)
+	}
+}
+
+const unresolvedFromStructHandlerSource = `package handlers
+
+import (
+	"context"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+func (p PagesHandler) Index(ctx context.Context) error {
+	props := loadProps()
+	return inertia.FromStruct(props)
+}
+`
+
 func TestGeneratePayloadsCommandRequiresInertiaProject(t *testing.T) {
 	rootDir := setupPayloadsProject(t, "")
 	result := runRoutesJSCommandInProject(t, rootDir, "sync", "payloads", "--json")

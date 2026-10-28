@@ -44,6 +44,19 @@ tests but ran none (the scaffold's DB-backed packages exit their `TestMain`
 early when Docker is unavailable) keeps the `go test` step `ok` and the run
 passing, but is listed under the step's `skipped_packages` as
 `{package, reason}`; the human output prints `ok (N packages skipped: …)`.
+Tests that call `t.Skip` are listed under the step's `skipped_tests` as
+`{package, test, reason}`; they keep the step `ok` too, and the human output
+prints `N tests skipped` followed by each `package: TestName (reason)`.
+
+`andurel sync payloads` writes `resources/js/types/payloads.ts` from handler
+`inertia.FromStruct` page props and `anduin.DecodeJSON`/`DecodeForm` payloads.
+It resolves named composite literals, typed variables, function parameters,
+and closure parameters. Pass `--strict` to exit non-zero when a `FromStruct`
+argument cannot be resolved statically; the error lists every `file:line` and
+structured output keeps the same report as error data. Without `--strict` the
+human output lists each unresolved root with the hint "pass a named composite
+literal or a typed variable". `andurel verify` reports unresolved roots under
+the generated step's `warnings` and does not fail on them.
 
 The typed layer checks load the active build target, like `go vet`: files
 excluded by GOOS, GOARCH, or build constraints are not analyzed by that step.
@@ -137,6 +150,7 @@ andurel run --tools mailpit
 - List every env key read by `config/*.go`, with its default and source line: `andurel inspect config --json`.
 - List routes: `andurel inspect routes --json` (every route reports `host`; unbound routes report `primary`).
 - Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia frontend required; helpers cover routes marked `routing.TypeScriptRoute()` and are host-aware full URLs).
+- Write `resources/js/types/payloads.ts`: `andurel sync payloads --json`; use `andurel sync payloads --strict` in CI so an unresolved `FromStruct` argument fails with its `file:line`.
 - Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then bind routes with `rt.Host(name)`.
 - Refresh derived artifacts: `andurel sync email` compiles `email/*.templ` into `email/*_templ.go` with Tailwind styles inlined; never run `templ generate` on email.
 - Build and deploy: `andurel build` writes every buildable `cmd/*` process to `dist/`; `--only` narrows the set and `--json` emits the artifact manifest. `andurel patterns show deploy` covers the `migrate` → `ssr` → `app` + `queue` start order, environment, and health endpoints.
