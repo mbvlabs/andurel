@@ -4,6 +4,13 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+## 0.6.1 - 2026-10-28
+
+### Fixed
+
+- Require `pkg/routing v0.7.0`, the first release providing `Hosts.Resolve`,
+  so standalone consumers compile without an additional routing requirement.
+
 ## 0.6.0 - 2026-10-28
 
 ### Added

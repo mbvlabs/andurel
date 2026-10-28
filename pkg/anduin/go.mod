@@ -3,7 +3,7 @@ module github.com/mbvlabs/andurel/pkg/anduin
 go 1.27.3
 
 require (
-	github.com/mbvlabs/andurel/pkg/routing v0.4.0
+	github.com/mbvlabs/andurel/pkg/routing v0.7.0
 	github.com/mbvlabs/andurel/pkg/telemetry v0.2.0
 )
 
