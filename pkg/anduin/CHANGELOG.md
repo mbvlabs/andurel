@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+## 0.6.0 - 2026-10-28
+
 ### Added
 
 - `AddVary` appends a token to the `Vary` response header unless the header

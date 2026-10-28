@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+## 0.7.0 - 2026-10-28
+
 ### Added
 
 - `(*Hosts).Resolve(authority)` maps an HTTP authority (`Request.Host`:

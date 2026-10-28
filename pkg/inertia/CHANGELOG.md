@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.12.0 - 2026-10-28
+
 ### Added
 
 - `PageBuilder.URL` overrides the page object's `url` in both the JSON
