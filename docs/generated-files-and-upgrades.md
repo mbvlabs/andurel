@@ -68,6 +68,19 @@ The other beta.2 scaffold changes (exact home route and themed 404, flash
 messages, compression, `andurel build` output) are defaults for new
 applications; existing applications can copy them from a fresh `andurel new`.
 
+Upgrading from any earlier supported release to `v2.0.0-beta.3` or later reports:
+
+| ID | Change |
+| --- | --- |
+| `cors-host-origins-v2.0.0-beta.3` | Global CORS trusts only `CORS_ALLOWED_ORIGINS`; Vite build files answer with wildcard, uncredentialed CORS. Security-relevant for apps with more than one configured host. |
+| `csrf-asset-skip-v2.0.0-beta.3` | Safe requests for Vite build files no longer receive the CSRF cookie. |
+| `method-not-allowed-page-v2.0.0-beta.3` | A method mismatch renders the themed `Errors/NotFound` page with status 405 and the `Allow` header. |
+| `request-host-middleware-v2.0.0-beta.3` | Advisory: replace hand-written host matching with `anduin.RequestHost(ctx)`, and use `middleware.DenyFraming` for host-scoped headers. |
+
+The other beta.3 scaffold changes (host-aware docs, the `andurel verify`
+skip/warning output and cross-host guidance) are defaults for new
+applications; existing applications can copy them from a fresh `andurel new`.
+
 ## Provider adapters under `internal/`
 
 External provider adapters (API clients for payment providers, email providers, Discord, and similar third-party services) belong in a package under `internal/`, named for its job: `internal/clients/` for a group of API clients or `internal/payment/` for one payment adapter. Wiring for adapters stays in `internal/runtime`. Andurel never generated a top-level `clients/` directory, so `andurel upgrade` does not move hand-written adapters.

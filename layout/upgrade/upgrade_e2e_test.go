@@ -21,9 +21,10 @@ var upgradeE2ESourceVersions = []string{
 	"v2.0.0-alpha.4",
 	"v2.0.0-alpha.5",
 	"v2.0.0-beta.1",
+	"v2.0.0-beta.2",
 }
 
-const upgradeE2ETargetVersion = "v2.0.0-beta.2"
+const upgradeE2ETargetVersion = "v2.0.0-beta.3"
 
 // TestUpgradeToHEAD scaffolds with each released CLI in
 // upgradeE2ESourceVersions, upgrades the result with this checkout, applies
@@ -167,6 +168,16 @@ func applyUpgradeE2EManualAction(root string, action ManualAction) error {
 		return applyUpgradeE2EViteSSRBundle(root)
 	case "root-title-ssr-v2.0.0-beta.2":
 		return applyUpgradeE2ERootTitle(root)
+	case "cors-host-origins-v2.0.0-beta.3":
+		return applyUpgradeE2ECorsHostOrigins(root)
+	case "csrf-asset-skip-v2.0.0-beta.3":
+		return applyUpgradeE2ECSRFAssetSkip(root)
+	case "method-not-allowed-page-v2.0.0-beta.3":
+		return applyUpgradeE2EMethodNotAllowedPage(root)
+	case "request-host-middleware-v2.0.0-beta.3":
+		// Advisory: the action points at the new anduin.RequestHost API and the
+		// scaffold has no hand-written host matching to replace.
+		return nil
 	default:
 		return fmt.Errorf(
 			"no automated e2e implementation for manual action %q (%s)",
@@ -801,6 +812,259 @@ func applyUpgradeE2ERootTitle(root string) error {
 				"\t\t\t}\n",
 		},
 	})
+}
+
+// applyUpgradeE2ECorsHostOrigins follows the
+// cors-host-origins-v2.0.0-beta.3 instructions against internal/runtime and
+// handlers/assets.go. The alpha.4 scaffold declares the CORS policy through a
+// helper; alpha.5 and later build it inline in New.
+func applyUpgradeE2ECorsHostOrigins(root string) error {
+	runtimePath := filepath.Join(root, "internal", "runtime", "runtime.go")
+	content, err := os.ReadFile(runtimePath)
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case strings.Contains(string(content), "func corsConfig(cfg config.Config) anduin.CORSConfig {"):
+		if err := applyUpgradeE2EReplacements(runtimePath, []upgradeE2EReplacement{
+			{
+				description: "trust only explicit CORS origins",
+				old: "\t\tAllowOrigins: mergedOrigins(\n" +
+					"\t\t\tcfg.App.Origins(),\n" +
+					"\t\t\tcfg.HTTP.CORSAllowedOrigins,\n" +
+					"\t\t),",
+				new: "\t\tAllowOrigins: cfg.HTTP.CORSAllowedOrigins,\n" +
+					"\t\tSkipper:      isViteAssetRequest,",
+			},
+		}); err != nil {
+			return err
+		}
+	case strings.Contains(string(content), "cors := anduin.DefaultCORS("):
+		if err := applyUpgradeE2EReplacements(runtimePath, []upgradeE2EReplacement{
+			{
+				description: "trust only explicit CORS origins",
+				old: "\tcors := anduin.DefaultCORS(\n" +
+					"\t\tanduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CORSAllowedOrigins)...,\n" +
+					"\t)\n",
+				new: "\tcors := anduin.DefaultCORS(cfg.HTTP.CORSAllowedOrigins...)\n" +
+					"\tcors.Skipper = isViteAssetRequest\n",
+			},
+			{
+				description: "import strings for the asset path helper",
+				old:         "\t\"fmt\"\n",
+				new:         "\t\"fmt\"\n\t\"strings\"\n",
+			},
+		}); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("cors-host-origins-v2.0.0-beta.3: no CORS policy in %s", runtimePath)
+	}
+
+	if err := applyUpgradeE2EViteAssetCORS(root); err != nil {
+		return err
+	}
+
+	content, err = os.ReadFile(runtimePath)
+	if err != nil {
+		return err
+	}
+	content = append(content, []byte(corsAssetHelpers)...)
+
+	return writeGofmtFile(runtimePath, content)
+}
+
+const corsAssetHelpers = `
+// viteAssetPrefix is the Vite build route subtree without its wildcard. The
+// static files are public: they load from a secondary host without the
+// visitor's session, so neither credentialed CORS nor a CSRF cookie belongs on
+// them.
+var viteAssetPrefix = strings.TrimSuffix(routes.ViteBuild.Pattern(), "/*")
+
+func isViteAssetRequest(ctx context.Context) bool {
+	request := anduin.Request(ctx)
+
+	return request != nil && isViteAssetPath(request.URL.Path)
+}
+
+func isViteAssetPath(path string) bool {
+	return strings.HasPrefix(path, viteAssetPrefix+"/")
+}
+`
+
+// applyUpgradeE2EViteAssetCORS registers the Vite build route with its own
+// wildcard, uncredentialed CORS policy.
+func applyUpgradeE2EViteAssetCORS(root string) error {
+	path := filepath.Join(root, "handlers", "assets.go")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	text := string(content)
+
+	const assetsHandlerRegistration = "\t// Vite build files are public: a secondary-host page loads them without the\n" +
+		"\t// visitor's session, so this CORS response is wildcard and uncredentialed.\n" +
+		"\trt.Get(routes.ViteBuild.Pattern(), a.dist, anduin.CORS(anduin.CORSConfig{\n" +
+		"\t\tAllowOrigins:     []string{\"*\"},\n" +
+		"\t\tAllowMethods:     []string{http.MethodGet, http.MethodHead},\n" +
+		"\t\tAllowCredentials: false,\n" +
+		"\t}))"
+
+	switch {
+	case strings.Contains(text, "func (a Assets) Register(rt *anduin.Router) {"):
+		legacyRegistration := strings.Replace(
+			assetsHandlerRegistration,
+			"routes.ViteBuild.Pattern(), a.dist",
+			"routes.ViteBuild.Path(), a.ViteBuild",
+			1,
+		)
+		return applyUpgradeE2EReplacements(path, []upgradeE2EReplacement{
+			{
+				description: "serve Vite assets with public CORS",
+				old:         "\trt.Get(routes.ViteBuild.Path(), a.ViteBuild)",
+				new:         legacyRegistration,
+			},
+		})
+	case strings.Contains(text, "func (a AssetsHandler) Register(rt *anduin.Router) {"):
+		registration := assetsHandlerRegistration
+		old := "\trt.Get(routes.ViteBuild.Pattern(), a.dist)"
+		if strings.Contains(text, "\trt.Get(routes.ViteBuild.Path(), a.dist)") {
+			old = "\trt.Get(routes.ViteBuild.Path(), a.dist)"
+			registration = strings.Replace(
+				assetsHandlerRegistration,
+				"routes.ViteBuild.Pattern()",
+				"routes.ViteBuild.Path()",
+				1,
+			)
+		}
+		return applyUpgradeE2EReplacements(path, []upgradeE2EReplacement{
+			{
+				description: "import net/http for the CORS methods",
+				old:         "\t\"fmt\"\n\t\"io/fs\"\n",
+				new:         "\t\"fmt\"\n\t\"io/fs\"\n\t\"net/http\"\n",
+			},
+			{
+				description: "serve Vite assets with public CORS",
+				old:         old,
+				new:         registration,
+			},
+		})
+	default:
+		return fmt.Errorf("cors-host-origins-v2.0.0-beta.3: no asset route in %s", path)
+	}
+}
+
+// applyUpgradeE2ECSRFAssetSkip follows the
+// csrf-asset-skip-v2.0.0-beta.3 instructions against the CSRF skipper in
+// internal/runtime/runtime.go.
+func applyUpgradeE2ECSRFAssetSkip(root string) error {
+	runtimePath := filepath.Join(root, "internal", "runtime", "runtime.go")
+	content, err := os.ReadFile(runtimePath)
+	if err != nil {
+		return err
+	}
+	text := string(content)
+
+	switch {
+	case strings.Contains(text, "func csrfSkipper(cfg config.Config) func(context.Context) bool {"):
+		if err := applyUpgradeE2EReplacements(runtimePath, []upgradeE2EReplacement{
+			{
+				description: "keep the CSRF cookie off safe asset requests",
+				old: "func csrfSkipper(cfg config.Config) func(context.Context) bool {\n" +
+					"\treturn func(ctx context.Context) bool {\n" +
+					"\t\trequest := anduin.Request(ctx)\n",
+				new: "func csrfSkipper(cfg config.Config) func(context.Context) bool {\n" +
+					"\treturn func(ctx context.Context) bool {\n" +
+					"\t\tif isSafeViteAssetRequest(ctx) {\n" +
+					"\t\t\treturn true\n" +
+					"\t\t}\n\n" +
+					"\t\trequest := anduin.Request(ctx)\n",
+			},
+		}); err != nil {
+			return err
+		}
+	case strings.Contains(text, "csrf.Skipper = anduin.SkipCSRFForBearer("):
+		if err := applyUpgradeE2EReplacements(runtimePath, []upgradeE2EReplacement{
+			{
+				description: "keep the CSRF cookie off safe asset requests",
+				old:         "\tcsrf.Skipper = anduin.SkipCSRFForBearer(routes.APIPrefix, cfg.Session.Name)\n",
+				new: "\tbearerSkipper := anduin.SkipCSRFForBearer(routes.APIPrefix, cfg.Session.Name)\n" +
+					"\tcsrf.Skipper = func(ctx context.Context) bool {\n" +
+					"\t\treturn bearerSkipper(ctx) || isSafeViteAssetRequest(ctx)\n" +
+					"\t}\n",
+			},
+		}); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("csrf-asset-skip-v2.0.0-beta.3: no CSRF skipper in %s", runtimePath)
+	}
+
+	content, err = os.ReadFile(runtimePath)
+	if err != nil {
+		return err
+	}
+	content = append(content, []byte(csrfAssetHelper)...)
+
+	return writeGofmtFile(runtimePath, content)
+}
+
+const csrfAssetHelper = `
+// isSafeViteAssetRequest limits the CSRF skip to safe methods. An unsafe request
+// to a static path still carries an Origin and stays protected.
+func isSafeViteAssetRequest(ctx context.Context) bool {
+	request := anduin.Request(ctx)
+	if request == nil || !isViteAssetPath(request.URL.Path) {
+		return false
+	}
+
+	switch request.Method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		return true
+	default:
+		return false
+	}
+}
+`
+
+// applyUpgradeE2EMethodNotAllowedPage follows the
+// method-not-allowed-page-v2.0.0-beta.3 instructions against handlers/errors.go.
+// The alpha.4 scaffold keeps a hand-written MapError switch; alpha.5 and later
+// use the shared inertia error handler.
+func applyUpgradeE2EMethodNotAllowedPage(root string) error {
+	path := filepath.Join(root, "handlers", "errors.go")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	text := string(content)
+
+	switch {
+	case strings.Contains(text, "\t\tcase errors.Is(err, domains.ErrNotFound):"):
+		return applyUpgradeE2EReplacements(path, []upgradeE2EReplacement{
+			{
+				description: "render the themed not-found page for method mismatches",
+				old:         "\t\tcase errors.Is(err, domains.ErrNotFound):\n",
+				new: "\t\tcase errors.Is(err, anduin.ErrMethodNotAllowed):\n" +
+					"\t\t\treturn renderer.Page(ctx, \"Errors/NotFound\", inertia.Props{}).\n" +
+					"\t\t\t\tStatus(http.StatusMethodNotAllowed).\n" +
+					"\t\t\t\tRender()\n\n" +
+					"\t\tcase errors.Is(err, domains.ErrNotFound):\n",
+			},
+		})
+	case strings.Contains(text, "inertia.MapError(domains.ErrNotFound, http.StatusNotFound, \"Errors/NotFound\"),"):
+		return applyUpgradeE2EReplacements(path, []upgradeE2EReplacement{
+			{
+				description: "render the themed not-found page for method mismatches",
+				old:         "\t\tinertia.MapError(domains.ErrNotFound, http.StatusNotFound, \"Errors/NotFound\"),\n",
+				new: "\t\tinertia.MapError(anduin.ErrMethodNotAllowed, http.StatusMethodNotAllowed, \"Errors/NotFound\"),\n" +
+					"\t\tinertia.MapError(domains.ErrNotFound, http.StatusNotFound, \"Errors/NotFound\"),\n",
+			},
+		})
+	default:
+		return fmt.Errorf("method-not-allowed-page-v2.0.0-beta.3: no MapError mapping in %s", path)
+	}
 }
 
 func applyUpgradeE2EEmailSMTP(root string) error {

@@ -193,11 +193,20 @@ func corsScopeInstructions() string {
 			")\n```\n\nwith\n\n```go\n" +
 			"cors := anduin.DefaultCORS(cfg.HTTP.CORSAllowedOrigins...)\n" +
 			"cors.Skipper = isViteAssetRequest\n```\n\n" +
-			"Add the helper next to New in internal/runtime/runtime.go:\n\n```go\n" +
+			"Add the helpers next to New in internal/runtime/runtime.go. Import \"context\" and \"strings\" " +
+			"if the file does not import them yet; net/http is already imported for the server and the " +
+			"asset route's CORS methods.\n\n```go\n" +
+			"// viteAssetPrefix is the Vite build route subtree without its wildcard. The\n" +
+			"// static files are public: they load from a secondary host without the\n" +
+			"// visitor's session, so neither credentialed CORS nor a CSRF cookie belongs on\n" +
+			"// them.\n" +
 			"var viteAssetPrefix = strings.TrimSuffix(routes.ViteBuild.Pattern(), \"/*\")\n\n" +
 			"func isViteAssetRequest(ctx context.Context) bool {\n" +
 			"\trequest := anduin.Request(ctx)\n\n" +
-			"\treturn request != nil && strings.HasPrefix(request.URL.Path, viteAssetPrefix+\"/\")\n" +
+			"\treturn request != nil && isViteAssetPath(request.URL.Path)\n" +
+			"}\n\n" +
+			"func isViteAssetPath(path string) bool {\n" +
+			"\treturn strings.HasPrefix(path, viteAssetPrefix+\"/\")\n" +
 			"}\n```\n\n" +
 			"2. Register the asset route with its own uncredentialed CORS in handlers/assets.go:\n\n```go\n" +
 			"rt.Get(routes.ViteBuild.Pattern(), a.dist, anduin.CORS(anduin.CORSConfig{\n" +
@@ -222,8 +231,23 @@ func csrfAssetSkipInstructions() string {
 		"csrf.Skipper = func(ctx context.Context) bool {\n" +
 		"\treturn bearerSkipper(ctx) || isSafeViteAssetRequest(ctx)\n" +
 		"}\n```\n\n" +
-		"isSafeViteAssetRequest uses isViteAssetRequest from the CORS action and returns true only for GET, HEAD, " +
-		"OPTIONS and TRACE. Unsafe requests to static paths stay protected.\n\n" +
+		"Add the helper next to isViteAssetRequest from the CORS action. Import \"net/http\" for the method " +
+		"constants if the file does not import it yet.\n\n```go\n" +
+		"// isSafeViteAssetRequest limits the CSRF skip to safe methods. An unsafe request\n" +
+		"// to a static path still carries an Origin and stays protected.\n" +
+		"func isSafeViteAssetRequest(ctx context.Context) bool {\n" +
+		"\trequest := anduin.Request(ctx)\n" +
+		"\tif request == nil || !isViteAssetPath(request.URL.Path) {\n" +
+		"\t\treturn false\n" +
+		"\t}\n\n" +
+		"\tswitch request.Method {\n" +
+		"\tcase http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:\n" +
+		"\t\treturn true\n" +
+		"\tdefault:\n" +
+		"\t\treturn false\n" +
+		"\t}\n" +
+		"}\n```\n\n" +
+		"isViteAssetPath comes from the CORS action. Unsafe requests to static paths stay protected.\n\n" +
 		"Format and verify:\n\n```text\ngofmt -w internal/runtime\ngo fix ./...\ngo vet ./...\n```\n"
 }
 
