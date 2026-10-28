@@ -97,7 +97,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 			"Skips literal inertia.Props{...} maps because there is no static struct to read, and omits fields tagged json:\"-\".",
 			"Resolves FromStruct arguments passed as named composite literals, typed variables, function parameters, and closure parameters.",
 			"Without --strict, an unresolved FromStruct argument is reported with its file:line and the hint to pass a named composite literal or a typed variable.",
-			"--strict fails the command and lists every unresolved file:line; structured output keeps the same report as error data.",
+			"--strict fails the command after writing resources/js/types/payloads.ts and lists every unresolved file:line; structured output keeps the same report as error data.",
 			"Writes resources/js/types/payloads.ts.",
 		},
 		WhenToUse:       []string{"After changing handler page props or request payload structs.", "Use --strict in CI to reject FromStruct arguments the scanner cannot resolve."},

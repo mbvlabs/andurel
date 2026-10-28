@@ -535,6 +535,103 @@ func renderWidgetProps(props *WidgetIndexProps) error {
 	}
 }
 
+func TestRenderPayloadsTSResolvesSameTypeRebindings(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{
+			name: "outer composite literal and same-type closure parameter",
+			source: `package handlers
+
+import (
+	"context"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+type WidgetIndexProps struct {
+	Title string ` + "`json:\"title\"`" + `
+}
+
+func (p PagesHandler) Index(ctx context.Context) error {
+	props := WidgetIndexProps{Title: "outer"}
+	render := func(props WidgetIndexProps) error {
+		return inertia.FromStruct(props)
+	}
+	return render(props)
+}
+`,
+		},
+		{
+			name: "same-type locals with different literal values",
+			source: `package handlers
+
+import (
+	"context"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+type WidgetIndexProps struct {
+	Title string ` + "`json:\"title\"`" + `
+}
+
+func (p PagesHandler) Index(ctx context.Context) error {
+	props := WidgetIndexProps{}
+	render := func() error {
+		props := WidgetIndexProps{Title: "inner"}
+		return inertia.FromStruct(props)
+	}
+	_ = props
+	return render()
+}
+`,
+		},
+		{
+			name: "pointer composite literal and same-type pointer parameter",
+			source: `package handlers
+
+import (
+	"context"
+
+	"github.com/mbvlabs/andurel/pkg/inertia"
+)
+
+type WidgetIndexProps struct {
+	Title string ` + "`json:\"title\"`" + `
+}
+
+func (p PagesHandler) Index(ctx context.Context) error {
+	props := &WidgetIndexProps{}
+	render := func(props *WidgetIndexProps) error {
+		return inertia.FromStruct(props)
+	}
+	return render(props)
+}
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rootDir := setupPayloadsProject(t, "react")
+			writePayloadsHandler(t, rootDir, "handlers/pages.go", tt.source)
+
+			got, count, skipped, err := renderPayloadsTS(rootDir)
+			if err != nil {
+				t.Fatalf("render payloads: %v", err)
+			}
+			if len(skipped) != 0 {
+				t.Fatalf("unexpected skipped: %#v", skipped)
+			}
+			if count != 1 || !strings.Contains(string(got), "export type WidgetIndexProps") {
+				t.Fatalf("unexpected payloads.ts (%d types):\n%s", count, got)
+			}
+		})
+	}
+}
+
 func TestRenderPayloadsTSLeavesConflictingClosureParamUnresolved(t *testing.T) {
 	rootDir := setupPayloadsProject(t, "react")
 	writePayloadsHandler(t, rootDir, "handlers/pages.go", `package handlers
@@ -626,6 +723,31 @@ func TestGeneratePayloadsCommandStrictFailsOnUnresolvedRoots(t *testing.T) {
 	}
 	if len(report.Skipped) != 1 || report.Skipped[0].Reason != unresolvedFromStructReason {
 		t.Fatalf("unexpected skipped in error data: %#v", report.Skipped)
+	}
+}
+
+func TestGeneratePayloadsCommandStrictWritesFileBeforeFailing(t *testing.T) {
+	rootDir := setupPayloadsProject(t, "vue")
+	writePayloadsHandler(t, rootDir, "handlers/pages.go", unresolvedFromStructHandlerSource)
+	writePayloadsHandler(t, rootDir, "handlers/widgets.go", widgetHandlerSource)
+
+	result := runRoutesJSCommandInProject(t, rootDir, "sync", "payloads", "--json", "--strict")
+	if result.err == nil {
+		t.Fatal("expected --strict to reject an unresolved FromStruct argument")
+	}
+
+	target := filepath.Join(rootDir, generatedPayloadsTSPath)
+	got, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("--strict should write %s before failing: %v", generatedPayloadsTSPath, err)
+	}
+	for _, want := range []string{
+		"export type WidgetData",
+		"export type WidgetIndexProps",
+	} {
+		if !strings.Contains(string(got), want) {
+			t.Fatalf("payloads.ts written before the strict failure is missing %q:\n%s", want, got)
+		}
 	}
 }
 

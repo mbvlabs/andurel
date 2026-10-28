@@ -52,8 +52,9 @@ prints `N tests skipped` followed by each `package: TestName (reason)`.
 `inertia.FromStruct` page props and `anduin.DecodeJSON`/`DecodeForm` payloads.
 It resolves named composite literals, typed variables, function parameters,
 and closure parameters. Pass `--strict` to exit non-zero when a `FromStruct`
-argument cannot be resolved statically; the error lists every `file:line` and
-structured output keeps the same report as error data. Without `--strict` the
+argument cannot be resolved statically; it still writes `payloads.ts` before
+returning the failure, and the error lists every `file:line` while structured
+output keeps the same report as error data. Without `--strict` the
 human output lists each unresolved root with the hint "pass a named composite
 literal or a typed variable". `andurel verify` reports unresolved roots under
 the generated step's `warnings` and does not fail on them.

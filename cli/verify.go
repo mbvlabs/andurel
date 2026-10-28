@@ -568,23 +568,54 @@ func parseGoTestJSON(data []byte) goTestResult {
 
 // goTestTestSkipReason extracts the message a test passed to t.Skip. test2json
 // prints that message before the test's "--- SKIP:" marker, so the marker is
-// only the fallback for a bare t.Skip().
+// only the fallback for a bare t.Skip(). Runner frames (=== RUN/PAUSE/CONT and
+// --- PASS/FAIL) are not reasons, and neither is the empty file:line frame a
+// bare t.Skip leaves behind.
 func goTestTestSkipReason(lines []string) string {
 	reason := ""
+	marker := ""
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		switch {
-		case trimmed == "", strings.HasPrefix(trimmed, "=== RUN"):
+		case trimmed == "",
+			strings.HasPrefix(trimmed, "=== RUN"),
+			strings.HasPrefix(trimmed, "=== PAUSE"),
+			strings.HasPrefix(trimmed, "=== CONT"),
+			strings.HasPrefix(trimmed, "--- PASS:"),
+			strings.HasPrefix(trimmed, "--- FAIL:"),
+			goTestLogLocationOnly(trimmed):
 			continue
 		case strings.HasPrefix(trimmed, "--- SKIP:"):
-			if reason == "" {
-				reason = strings.TrimSpace(strings.TrimPrefix(trimmed, "--- SKIP:"))
+			if marker == "" {
+				marker = strings.TrimSpace(strings.TrimPrefix(trimmed, "--- SKIP:"))
 			}
 		default:
 			reason = trimmed
 		}
 	}
-	return reason
+	if reason != "" {
+		return reason
+	}
+	return marker
+}
+
+// goTestLogLocationOnly reports a test2json log frame with no message, such as
+// "fixture_test.go:42:" from a bare t.Skip().
+func goTestLogLocationOnly(line string) bool {
+	_, rest, ok := strings.Cut(line, ".go:")
+	if !ok {
+		return false
+	}
+	lineNumber, message, ok := strings.Cut(rest, ":")
+	if !ok || message != "" || lineNumber == "" {
+		return false
+	}
+	for _, digit := range lineNumber {
+		if digit < '0' || digit > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // goTestSkipReason keeps what the package printed itself, dropping the test

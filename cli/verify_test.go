@@ -496,6 +496,110 @@ func TestNeedsAssets(t *testing.T) {
 	}
 }
 
+func TestGoTestTestSkipReasonIgnoresRunnerControlLines(t *testing.T) {
+	tests := []struct {
+		name  string
+		lines []string
+		want  string
+	}{
+		{
+			name: "named subtest",
+			lines: []string{
+				"=== RUN   TestNamedSubtests/alpha",
+				"    fixture_test.go:9: alpha needs assets",
+				"--- SKIP: TestNamedSubtests/alpha (0.00s)",
+			},
+			want: "fixture_test.go:9: alpha needs assets",
+		},
+		{
+			name: "interleaved parallel tests",
+			lines: []string{
+				"=== RUN   TestParallelSkip",
+				"=== PAUSE TestParallelSkip",
+				"    fixture_test.go:20: needs the fixture server",
+				"=== CONT  TestParallelSkip",
+				"--- PASS: TestParallelOther (0.00s)",
+				"--- FAIL: TestParallelBroken (0.00s)",
+				"--- SKIP: TestParallelSkip (0.00s)",
+			},
+			want: "fixture_test.go:20: needs the fixture server",
+		},
+		{
+			name: "bare t.Skip in a parallel test",
+			lines: []string{
+				"=== RUN   TestParallelBareSkip",
+				"=== PAUSE TestParallelBareSkip",
+				"=== CONT  TestParallelBareSkip",
+				"    fixture_test.go:42: ",
+				"--- SKIP: TestParallelBareSkip (0.00s)",
+			},
+			want: "TestParallelBareSkip (0.00s)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := goTestTestSkipReason(tt.lines); got != tt.want {
+				t.Fatalf("goTestTestSkipReason() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseGoTestJSONReportsTestSkipReasons(t *testing.T) {
+	const packageName = "example.com/app/fixtures"
+	const events = `{"Action":"start","Package":"example.com/app/fixtures"}
+{"Action":"run","Package":"example.com/app/fixtures","Test":"TestNamedSubtests"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestNamedSubtests","Output":"=== RUN   TestNamedSubtests\n"}
+{"Action":"run","Package":"example.com/app/fixtures","Test":"TestNamedSubtests/alpha"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestNamedSubtests/alpha","Output":"=== RUN   TestNamedSubtests/alpha\n"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestNamedSubtests/alpha","Output":"    fixture_test.go:9: alpha needs assets\n"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestNamedSubtests/alpha","Output":"--- SKIP: TestNamedSubtests/alpha (0.00s)\n"}
+{"Action":"skip","Package":"example.com/app/fixtures","Test":"TestNamedSubtests/alpha"}
+{"Action":"run","Package":"example.com/app/fixtures","Test":"TestParallelSkip"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestParallelSkip","Output":"=== RUN   TestParallelSkip\n"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestParallelSkip","Output":"=== PAUSE TestParallelSkip\n"}
+{"Action":"pause","Package":"example.com/app/fixtures","Test":"TestParallelSkip"}
+{"Action":"run","Package":"example.com/app/fixtures","Test":"TestParallelOther"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestParallelOther","Output":"=== RUN   TestParallelOther\n"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestParallelOther","Output":"=== PAUSE TestParallelOther\n"}
+{"Action":"pause","Package":"example.com/app/fixtures","Test":"TestParallelOther"}
+{"Action":"cont","Package":"example.com/app/fixtures","Test":"TestParallelSkip"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestParallelSkip","Output":"=== CONT  TestParallelSkip\n"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestParallelSkip","Output":"    fixture_test.go:20: needs the fixture server\n"}
+{"Action":"cont","Package":"example.com/app/fixtures","Test":"TestParallelOther"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestParallelOther","Output":"=== CONT  TestParallelOther\n"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestParallelOther","Output":"--- PASS: TestParallelOther (0.00s)\n"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestParallelSkip","Output":"--- SKIP: TestParallelSkip (0.00s)\n"}
+{"Action":"skip","Package":"example.com/app/fixtures","Test":"TestParallelSkip"}
+{"Action":"run","Package":"example.com/app/fixtures","Test":"TestParallelBareSkip"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestParallelBareSkip","Output":"=== RUN   TestParallelBareSkip\n"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestParallelBareSkip","Output":"=== PAUSE TestParallelBareSkip\n"}
+{"Action":"pause","Package":"example.com/app/fixtures","Test":"TestParallelBareSkip"}
+{"Action":"cont","Package":"example.com/app/fixtures","Test":"TestParallelBareSkip"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestParallelBareSkip","Output":"=== CONT  TestParallelBareSkip\n"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestParallelBareSkip","Output":"    fixture_test.go:42: \n"}
+{"Action":"output","Package":"example.com/app/fixtures","Test":"TestParallelBareSkip","Output":"--- SKIP: TestParallelBareSkip (0.00s)\n"}
+{"Action":"skip","Package":"example.com/app/fixtures","Test":"TestParallelBareSkip"}
+{"Action":"pass","Package":"example.com/app/fixtures","Test":"TestParallelOther"}
+`
+
+	result := parseGoTestJSON([]byte(events))
+	want := []verifySkippedTest{
+		{Package: packageName, Test: "TestNamedSubtests/alpha", Reason: "fixture_test.go:9: alpha needs assets"},
+		{Package: packageName, Test: "TestParallelBareSkip", Reason: "TestParallelBareSkip (0.00s)"},
+		{Package: packageName, Test: "TestParallelSkip", Reason: "fixture_test.go:20: needs the fixture server"},
+	}
+	if len(result.skippedTests) != len(want) {
+		t.Fatalf("skipped tests = %#v, want %#v", result.skippedTests, want)
+	}
+	for i := range want {
+		if result.skippedTests[i] != want[i] {
+			t.Fatalf("skipped test %d = %#v, want %#v", i, result.skippedTests[i], want[i])
+		}
+	}
+}
+
 func TestVerifyGeneratedWarnsOnUnresolvedFromStructRoots(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("stub tools use a POSIX shell script")

@@ -102,9 +102,10 @@ read.
 
 FromStruct arguments may be composite literals, typed variables, function
 parameters, and closure parameters. --strict fails when a FromStruct argument
-cannot be resolved statically and lists each file:line; without --strict the
-same roots are reported with the hint to pass a named composite literal or a
-typed variable.`,
+cannot be resolved statically and lists each file:line; it still writes
+resources/js/types/payloads.ts before returning the failure. Without --strict
+the same roots are reported with the hint to pass a named composite literal or
+a typed variable.`,
 		Example: `  andurel sync payloads
   andurel sync payloads --json
   andurel sync payloads --strict`,
@@ -399,7 +400,7 @@ func (s *payloadScan) discoverInFile(path string) error {
 		if !ok || fn.Body == nil {
 			continue
 		}
-		locals := collectFuncLocals(fn)
+		locals := collectFuncLocals(fn, imports)
 		ast.Inspect(fn.Body, func(node ast.Node) bool {
 			call, ok := node.(*ast.CallExpr)
 			if !ok {
@@ -997,7 +998,7 @@ func isAnduinDecodeCall(fun ast.Expr, imports map[string]string) bool {
 // block scoping, so callers report the argument unresolved instead.
 var ambiguousLocal ast.Expr = &ast.BadExpr{}
 
-func collectFuncLocals(fn *ast.FuncDecl) map[string]ast.Expr {
+func collectFuncLocals(fn *ast.FuncDecl, imports map[string]string) map[string]ast.Expr {
 	locals := map[string]ast.Expr{}
 	addParams := func(fields *ast.FieldList) {
 		if fields == nil {
@@ -1008,7 +1009,7 @@ func collectFuncLocals(fn *ast.FuncDecl) map[string]ast.Expr {
 				continue
 			}
 			for _, name := range field.Names {
-				recordFuncLocal(locals, name.Name, field.Type)
+				recordFuncLocal(locals, name.Name, field.Type, imports)
 			}
 		}
 	}
@@ -1026,16 +1027,16 @@ func collectFuncLocals(fn *ast.FuncDecl) map[string]ast.Expr {
 				if !ok || i >= len(typed.Rhs) {
 					continue
 				}
-				recordFuncLocal(locals, ident.Name, typed.Rhs[i])
+				recordFuncLocal(locals, ident.Name, typed.Rhs[i], imports)
 			}
 		case *ast.ValueSpec:
 			for i, name := range typed.Names {
 				if typed.Type != nil {
-					recordFuncLocal(locals, name.Name, typed.Type)
+					recordFuncLocal(locals, name.Name, typed.Type, imports)
 					continue
 				}
 				if i < len(typed.Values) {
-					recordFuncLocal(locals, name.Name, typed.Values[i])
+					recordFuncLocal(locals, name.Name, typed.Values[i], imports)
 				}
 			}
 		}
@@ -1047,7 +1048,13 @@ func collectFuncLocals(fn *ast.FuncDecl) map[string]ast.Expr {
 // recordFuncLocal keeps the first expression bound to a name. A later binding
 // of the same name with a different type makes the name ambiguous; keeping the
 // first one would make resolution depend on declaration order across closures.
-func recordFuncLocal(locals map[string]ast.Expr, name string, expr ast.Expr) {
+// Bindings of the same type stay usable even when their literal values differ.
+func recordFuncLocal(
+	locals map[string]ast.Expr,
+	name string,
+	expr ast.Expr,
+	imports map[string]string,
+) {
 	if name == "" || name == "_" || expr == nil {
 		return
 	}
@@ -1056,8 +1063,67 @@ func recordFuncLocal(locals map[string]ast.Expr, name string, expr ast.Expr) {
 		locals[name] = expr
 		return
 	}
-	if existing == ambiguousLocal || types.ExprString(existing) != types.ExprString(expr) {
+	if existing == ambiguousLocal {
+		return
+	}
+	existingType, existingOK := localBindingType(existing, imports)
+	bindingType, bindingOK := localBindingType(expr, imports)
+	if !existingOK || !bindingOK || existingType != bindingType {
 		locals[name] = ambiguousLocal
+	}
+}
+
+// localBindingType resolves a local binding to the type it declares. It unwraps
+// pointers and address-of expressions and resolves composite literal types,
+// parameter and var type expressions, and new(T). Package selectors are keyed
+// by import path so two aliases for one package compare equal.
+func localBindingType(expr ast.Expr, imports map[string]string) (string, bool) {
+	expr = unwrapStar(expr)
+	switch typed := expr.(type) {
+	case *ast.UnaryExpr:
+		if typed.Op != token.AND {
+			return "", false
+		}
+		return localBindingType(typed.X, imports)
+	case *ast.CompositeLit:
+		return localBindingType(typed.Type, imports)
+	case *ast.CallExpr:
+		fun, ok := typed.Fun.(*ast.Ident)
+		if !ok || fun.Name != "new" || len(typed.Args) != 1 {
+			return "", false
+		}
+		return localBindingType(typed.Args[0], imports)
+	case *ast.IndexExpr:
+		base, ok := localBindingType(typed.X, imports)
+		if !ok {
+			return "", false
+		}
+		return base + "[" + types.ExprString(typed.Index) + "]", true
+	case *ast.IndexListExpr:
+		base, ok := localBindingType(typed.X, imports)
+		if !ok {
+			return "", false
+		}
+		indices := make([]string, len(typed.Indices))
+		for i, index := range typed.Indices {
+			indices[i] = types.ExprString(index)
+		}
+		return base + "[" + strings.Join(indices, ", ") + "]", true
+	case *ast.Ident:
+		return typed.Name, true
+	case *ast.SelectorExpr:
+		pkg, ok := typed.X.(*ast.Ident)
+		if !ok {
+			return "", false
+		}
+		if path := imports[pkg.Name]; path != "" {
+			return path + "." + typed.Sel.Name, true
+		}
+		return pkg.Name + "." + typed.Sel.Name, true
+	case *ast.StructType, *ast.ArrayType, *ast.MapType, *ast.ChanType, *ast.InterfaceType, *ast.FuncType:
+		return types.ExprString(typed), true
+	default:
+		return "", false
 	}
 }
 
