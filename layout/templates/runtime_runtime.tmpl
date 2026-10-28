@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"{{.ModuleName}}/assets"
@@ -113,15 +114,23 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 		anduin.WithErrorHandler(handlers.MapError(renderer)),
 		anduin.WithTelemetry(tel),
 	)
-	cors := anduin.DefaultCORS(
-		anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CORSAllowedOrigins)...,
-	)
+	// Global CORS trusts explicit CORS_ALLOWED_ORIGINS only. Application host
+	// origins stay out: a sibling host must not be able to read authenticated
+	// responses. The middleware stays installed with an empty list so the
+	// policy is visible next to the rest of the chain.
+	cors := anduin.DefaultCORS(cfg.HTTP.CORSAllowedOrigins...)
+	// Vite build files are public and answer with their own uncredentialed CORS
+	// from handlers.AssetsHandler.
+	cors.Skipper = isViteAssetRequest
 	csrf := anduin.DefaultCSRF(
 		cfg.HTTP.CSRFStrategy,
 		cfg.App.IsProduction(),
 		anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CSRFTrustedOrigins)...,
 	)
-	csrf.Skipper = anduin.SkipCSRFForBearer(routes.APIPrefix, cfg.Session.Name)
+	bearerSkipper := anduin.SkipCSRFForBearer(routes.APIPrefix, cfg.Session.Name)
+	csrf.Skipper = func(ctx context.Context) bool {
+		return bearerSkipper(ctx) || isSafeViteAssetRequest(ctx)
+	}
 
 	router.Use(
 		anduin.Recover(),
@@ -157,6 +166,38 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	)
 
 	return app, nil
+}
+
+// viteAssetPrefix is the Vite build route subtree without its wildcard. The
+// static files are public: they load from a secondary host without the
+// visitor's session, so neither credentialed CORS nor a CSRF cookie belongs on
+// them.
+var viteAssetPrefix = strings.TrimSuffix(routes.ViteBuild.Pattern(), "/*")
+
+func isViteAssetRequest(ctx context.Context) bool {
+	request := anduin.Request(ctx)
+
+	return request != nil && isViteAssetPath(request.URL.Path)
+}
+
+// isSafeViteAssetRequest limits the CSRF skip to safe methods. An unsafe request
+// to a static path still carries an Origin and stays protected.
+func isSafeViteAssetRequest(ctx context.Context) bool {
+	request := anduin.Request(ctx)
+	if request == nil || !isViteAssetPath(request.URL.Path) {
+		return false
+	}
+
+	switch request.Method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		return true
+	default:
+		return false
+	}
+}
+
+func isViteAssetPath(path string) bool {
+	return strings.HasPrefix(path, viteAssetPrefix+"/")
 }
 
 func (a *App) Start() error {
