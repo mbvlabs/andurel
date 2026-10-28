@@ -843,8 +843,8 @@ router.Use(middleware.DenyFraming(config.HostAdmin))
 `middleware.DenyFraming(hosts ...routing.HostName)` ships unwired in
 `middleware/`. It sets `X-Frame-Options: DENY` and
 `Content-Security-Policy: frame-ancestors 'none'` before the handler runs, so
-404s and 405s carry the headers too. With no host names it applies to every
-host.
+404s and 405s carry the headers too. Only the named hosts get the headers;
+called with no host names it does nothing.
 
 **Host-aware root template**: `resources/root.templ` renders with the request
 context, so `anduin.RequestHost(ctx)` works there as well. Use it for

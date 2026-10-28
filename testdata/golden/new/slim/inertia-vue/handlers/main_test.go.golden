@@ -33,7 +33,7 @@ func testRenderer(t *testing.T) *inertia.Renderer {
 	}
 
 	renderer, err := runtime.NewRenderer(config.Config{
-		App: config.App{Environment: "test"},
+		App: config.App{Environment: "test", SiteName: "testapp"},
 		Inertia: config.Inertia{
 			ContainerID:         config.DefaultInertiaContainerID,
 			ViteDevURL:          config.DefaultInertiaViteDevURL,

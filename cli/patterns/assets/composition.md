@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"<module>/config"
 	"<module>/domains"
@@ -128,15 +129,20 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 		anduin.WithErrorHandler(handlers.MapError(renderer)),
 		anduin.WithTelemetry(tel),
 	)
-	cors := anduin.DefaultCORS(
-		anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CORSAllowedOrigins)...,
-	)
+	// Global CORS trusts explicit CORS_ALLOWED_ORIGINS only; host origins stay
+	// out so a sibling host cannot read authenticated responses. Vite build
+	// files answer with their own uncredentialed CORS from AssetsHandler.
+	cors := anduin.DefaultCORS(cfg.HTTP.CORSAllowedOrigins...)
+	cors.Skipper = isViteAssetRequest
 	csrf := anduin.DefaultCSRF(
 		cfg.HTTP.CSRFStrategy,
 		cfg.App.IsProduction(),
 		anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CSRFTrustedOrigins)...,
 	)
-	csrf.Skipper = anduin.SkipCSRFForBearer(routes.APIPrefix, cfg.Session.Name)
+	bearerSkipper := anduin.SkipCSRFForBearer(routes.APIPrefix, cfg.Session.Name)
+	csrf.Skipper = func(ctx context.Context) bool {
+		return bearerSkipper(ctx) || isSafeViteAssetRequest(ctx)
+	}
 
 	router.Use(
 		anduin.Recover(),
@@ -169,6 +175,34 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	return app, nil
 }
 
+// viteAssetPrefix is the Vite build route subtree without its wildcard.
+var viteAssetPrefix = strings.TrimSuffix(routes.ViteBuild.Pattern(), "/*")
+
+func isViteAssetRequest(ctx context.Context) bool {
+	request := anduin.Request(ctx)
+
+	return request != nil && isViteAssetPath(request.URL.Path)
+}
+
+// isSafeViteAssetRequest limits the CSRF skip to safe methods.
+func isSafeViteAssetRequest(ctx context.Context) bool {
+	request := anduin.Request(ctx)
+	if request == nil || !isViteAssetPath(request.URL.Path) {
+		return false
+	}
+
+	switch request.Method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace:
+		return true
+	default:
+		return false
+	}
+}
+
+func isViteAssetPath(path string) bool {
+	return strings.HasPrefix(path, viteAssetPrefix+"/")
+}
+
 func (a *App) Start() error {
 	return a.Server.Start()
 }
@@ -188,6 +222,8 @@ func (a *App) Close(ctx context.Context) error {
 - Build the jar in `newJar` and the cache with `cfg.Cache.Store()`; middleware is policy only.
 - Register flat handlers with `handlers.NewXHandler(...).Register(router)`; there is no reflection. `PagesHandler.Register` takes the router plus optional middleware, `AssetsHandler.Register` takes only the router.
 - Construct the router with `anduin.NewRouter(anduin.WithHosts(hosts), ...)`. The host registry is what makes `routing.Host(...)`, `rt.Host(...)`, and route `FullURL(hosts, ...)` calls agree; without it every request is served by the primary mux.
+- Global CORS trusts only `CORS_ALLOWED_ORIGINS`. Never add `cfg.App.Origins()` to CORS: host origins belong in CSRF trusted origins, not in a credentialed read policy. Public Vite assets carry their own uncredentialed `*` CORS on the asset route.
+- Host-scoped policy (framing headers, analytics) branches on `anduin.RequestHost(ctx)` in global middleware; never re-parse `Request.Host`.
 - Add each dependency's cleanup to a `lifecycle.Stack` as soon as it is built; `Close` releases them in reverse, and the same path cleans up a failed `New`.
 - `cmd/app` is env load + `runtime.New` + `lifecycle.Run`, with `lifecycle.WithBlockingStart()` for the HTTP serve loop, `app.Shutdown` as stop and a deferred `closeApp` releasing the rest. Ready-returning starters such as the queue worker use the default, which finishes startup before shutdown.
 - Add a new dependency by constructing it here and passing it down; never reach for a container or a global.

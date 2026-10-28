@@ -53,6 +53,10 @@ func RequireAdmin() anduin.Middleware {
 - App policy goes here; generic middleware belongs to `pkg/anduin` and is used
   directly. Do not wrap or reimplement `Recover`, `RealIP`, `Logger`,
   `Telemetry`, `CORS`, or `CSRF`.
+- Host-scoped policy branches on `anduin.RequestHost(ctx)` (the configured
+  `routing.HostName` the router dispatches to); never re-parse
+  `anduin.Request(ctx).Host`. The scaffold's unwired
+  `middleware.DenyFraming(config.HostAdmin)` is the worked example.
 - Register global middleware with `router.Use(...)` in `internal/runtime`.
   `Use` must run before the first `router.Handler()` call, because the handler
   chain is built and cached once.

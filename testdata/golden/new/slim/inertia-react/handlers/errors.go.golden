@@ -9,9 +9,9 @@ import (
 	"github.com/mbvlabs/andurel/pkg/inertia"
 )
 
-// MapError maps the domain sentinels and the router's unmatched-request
-// sentinel to the scaffold's error pages. Field errors and everything else are
-// handled by the shared inertia handler.
+// MapError maps the domain sentinels and the router's unmatched-request and
+// method-not-allowed sentinels to the scaffold's error pages. Field errors and
+// everything else are handled by the shared inertia handler.
 func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
 	return inertia.NewErrorHandler(
 		renderer,
@@ -20,6 +20,7 @@ func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
 		inertia.ErrorHandlerOptions{FallbackComponent: "Errors/InternalError"},
 		inertia.MapError(domains.ErrNotFound, http.StatusNotFound, "Errors/NotFound"),
 		inertia.MapError(anduin.ErrNotFound, http.StatusNotFound, "Errors/NotFound"),
+		inertia.MapError(anduin.ErrMethodNotAllowed, http.StatusMethodNotAllowed, "Errors/NotFound"),
 		inertia.MapError(domains.ErrConflict, http.StatusConflict, "Errors/Conflict"),
 	)
 }

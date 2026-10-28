@@ -294,7 +294,8 @@ checks never trust a value in the cookie. `pkg/inertia`'s
 `middleware.DenyFraming(hosts ...routing.HostName)` ships unwired: it branches
 on `anduin.RequestHost(ctx)` and sets `X-Frame-Options: DENY` and
 `Content-Security-Policy: frame-ancestors 'none'` before `next`, so 404 and 405
-responses carry them. With no host names it applies to every host.
+responses carry them. Only the named hosts get the headers; with no host names
+it does nothing.
 
 Install global middleware in `internal/runtime`:
 
@@ -318,8 +319,8 @@ rt.Use(
 )
 ```
 
-The runtime also installs a CORS `Skipper` for the Vite asset prefix
-(`routes.AssetsPrefix`), composes a safe-method asset skip into the CSRF
+The runtime also installs a CORS `Skipper` for the Vite build subtree
+(`routes.ViteBuild`, `/assets/dist/`), composes a safe-method asset skip into the CSRF
 `Skipper`, and registers
 `anduin.CORS(anduin.CORSConfig{AllowOrigins: []string{"*"}, AllowMethods: []string{http.MethodGet, http.MethodHead}})`
 on `routes.ViteBuild`. Host origins stay in `CSRF.TrustedOrigins` because
