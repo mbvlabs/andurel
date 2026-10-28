@@ -1,5 +1,13 @@
 ## Unreleased
 
+## 0.12.1 - 2026-10-28
+
+### Fixed
+
+- Require `pkg/anduin v0.6.1`, which provides `AddVary` and correctly requires
+  `pkg/routing v0.7.0`, so standalone consumers compile without additional
+  Andurel dependency requirements.
+
 ## 0.12.0 - 2026-10-28
 
 ### Added
