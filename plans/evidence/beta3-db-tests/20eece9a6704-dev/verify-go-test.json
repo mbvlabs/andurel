@@ -4,7 +4,7 @@
   "ok": true,
   "packages": [
     {
-      "package": "dbtests202610291846202578364/assets",
+      "package": "dbtests202610291850202644708/assets",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -13,7 +13,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/cmd/app",
+      "package": "dbtests202610291850202644708/cmd/app",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -22,7 +22,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/cmd/migrate",
+      "package": "dbtests202610291850202644708/cmd/migrate",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -31,7 +31,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/cmd/queue",
+      "package": "dbtests202610291850202644708/cmd/queue",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -40,7 +40,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/cmd/seeds",
+      "package": "dbtests202610291850202644708/cmd/seeds",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -49,7 +49,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/cmd/ssr",
+      "package": "dbtests202610291850202644708/cmd/ssr",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -58,7 +58,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/config",
+      "package": "dbtests202610291850202644708/config",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -67,7 +67,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/domains",
+      "package": "dbtests202610291850202644708/domains",
       "status": "ok",
       "passed": 7,
       "failed": 0,
@@ -77,10 +77,10 @@
         "failed": 0,
         "skipped": 0
       },
-      "duration_seconds": 9.244
+      "duration_seconds": 7.463
     },
     {
-      "package": "dbtests202610291846202578364/domains/internal/queries",
+      "package": "dbtests202610291850202644708/domains/internal/queries",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -89,7 +89,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/email",
+      "package": "dbtests202610291850202644708/email",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -98,15 +98,15 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/handlers",
+      "package": "dbtests202610291850202644708/handlers",
       "status": "ok",
       "passed": 6,
       "failed": 0,
       "skipped": 0,
-      "duration_seconds": 10.458
+      "duration_seconds": 8.182
     },
     {
-      "package": "dbtests202610291846202578364/internal/configcheck",
+      "package": "dbtests202610291850202644708/internal/configcheck",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -115,7 +115,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/internal/runtime",
+      "package": "dbtests202610291850202644708/internal/runtime",
       "status": "ok",
       "passed": 13,
       "failed": 0,
@@ -125,10 +125,10 @@
         "failed": 0,
         "skipped": 0
       },
-      "duration_seconds": 11.986
+      "duration_seconds": 9.258
     },
     {
-      "package": "dbtests202610291846202578364/middleware",
+      "package": "dbtests202610291850202644708/middleware",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -137,7 +137,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/migrations",
+      "package": "dbtests202610291850202644708/migrations",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -146,7 +146,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/queue",
+      "package": "dbtests202610291850202644708/queue",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -155,7 +155,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/queue/jobs",
+      "package": "dbtests202610291850202644708/queue/jobs",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -164,7 +164,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/resources",
+      "package": "dbtests202610291850202644708/resources",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -173,7 +173,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/routes",
+      "package": "dbtests202610291850202644708/routes",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -182,7 +182,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/seeds",
+      "package": "dbtests202610291850202644708/seeds",
       "status": "no_test_files",
       "passed": 0,
       "failed": 0,
@@ -191,7 +191,7 @@
       "reason": "no test files"
     },
     {
-      "package": "dbtests202610291846202578364/services",
+      "package": "dbtests202610291850202644708/services",
       "status": "ok",
       "passed": 2,
       "failed": 0,
@@ -206,6 +206,6 @@
     "skipped": 0,
     "subtests_passed": 5,
     "no_test_files": 17,
-    "duration_seconds": 31.695
+    "duration_seconds": 24.91
   }
 }

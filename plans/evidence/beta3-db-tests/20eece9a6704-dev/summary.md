@@ -3,8 +3,8 @@
 - result: **pass**
 - mode: dev
 - proof shape: development only; temporary `pkg/*` replaces are not release-shaped proof
-- candidate: 543887806adece0389c0ca9d1a028eff8dd8ea24
-- evidence: /home/mbv/work/worktrees/andurel-beta3-fixes/finish-db-tests/plans/evidence/beta3-db-tests/543887806ade-dev
+- candidate: 20eece9a6704253aaccf866f17ecd70dd8e39bdd
+- evidence: /home/mbv/work/worktrees/andurel-beta3-fixes/finish-db-tests/plans/evidence/beta3-db-tests/20eece9a6704-dev
 - reason: generated named database tests ran uncached and verify reported per-package totals with no hidden DB skips
 
 ## Steps

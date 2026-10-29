@@ -1,4 +1,4 @@
-cwd=/tmp/opencode/andurel-db-tests-cDXWad/apps/dbtests202610291846202578364
+cwd=/tmp/opencode/andurel-db-tests-vCH2HE/apps/dbtests202610291850202644708
 # temporary development replaces; not release-shaped proof
 go mod edit -replace github.com/mbvlabs/andurel/pkg/anduin=/home/mbv/work/worktrees/andurel-beta3-fixes/finish-db-tests/pkg/anduin
 go mod edit -replace github.com/mbvlabs/andurel/pkg/auth=/home/mbv/work/worktrees/andurel-beta3-fixes/finish-db-tests/pkg/auth

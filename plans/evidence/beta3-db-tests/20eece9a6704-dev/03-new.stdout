@@ -7,10 +7,10 @@ Generating andurel.toml and andurel.lock...
 Running go mod tidy...
 Running go fmt...
 
-🎉 Successfully created project: dbtests202610291846202578364
+🎉 Successfully created project: dbtests202610291850202644708
 
 Next steps:
-  cd dbtests202610291846202578364
+  cd dbtests202610291850202644708
   andurel tool sync
   pnpm install
   cp .env.example .env
