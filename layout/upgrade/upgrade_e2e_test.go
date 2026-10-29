@@ -1,6 +1,7 @@
 package upgrade
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"go/format"
@@ -12,7 +13,11 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"text/template"
 	"time"
+
+	"github.com/mbvlabs/andurel/v2/layout"
+	layouttemplates "github.com/mbvlabs/andurel/v2/layout/templates"
 )
 
 // upgradeE2ESourceVersions are the released CLIs the upgrade test scaffolds
@@ -22,9 +27,10 @@ var upgradeE2ESourceVersions = []string{
 	"v2.0.0-alpha.5",
 	"v2.0.0-beta.1",
 	"v2.0.0-beta.2",
+	"v2.0.0-beta.3",
 }
 
-const upgradeE2ETargetVersion = "v2.0.0-beta.3"
+const upgradeE2ETargetVersion = "v2.0.0-beta.4"
 
 // TestUpgradeToHEAD scaffolds with each released CLI in
 // upgradeE2ESourceVersions, upgrades the result with this checkout, applies
@@ -43,15 +49,16 @@ func TestUpgradeToHEAD(t *testing.T) {
 		t.Skip("upgrade end-to-end test requires ANDUREL_UPGRADE_E2E=1")
 	}
 	localPkg := os.Getenv("ANDUREL_UPGRADE_E2E_LOCAL_PKG") == "1"
+	andurelBinary := buildUpgradeE2EAndurel(t)
 
 	for _, source := range upgradeE2ESourceVersions {
 		t.Run(source, func(t *testing.T) {
-			testUpgradeToHEAD(t, source, localPkg)
+			testUpgradeToHEAD(t, source, localPkg, andurelBinary)
 		})
 	}
 }
 
-func testUpgradeToHEAD(t *testing.T, source string, localPkg bool) {
+func testUpgradeToHEAD(t *testing.T, source string, localPkg bool, andurelBinary string) {
 	parent := t.TempDir()
 	appName := "upgradee2e"
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
@@ -91,7 +98,7 @@ func testUpgradeToHEAD(t *testing.T, source string, localPkg bool) {
 
 	for _, action := range report.ManualActions {
 		t.Logf("applying manual action %s", action.ID)
-		if err := applyUpgradeE2EManualAction(root, action); err != nil {
+		if err := applyUpgradeE2EManualAction(t, root, andurelBinary, action); err != nil {
 			t.Fatalf(
 				"manual action %q (%s) was not applied: %v",
 				action.ID,
@@ -146,8 +153,25 @@ func localCheckoutRoot(t *testing.T) string {
 	return filepath.Dir(filepath.Dir(filepath.Dir(file)))
 }
 
-func applyUpgradeE2EManualAction(root string, action ManualAction) error {
+func applyUpgradeE2EManualAction(
+	t *testing.T,
+	root string,
+	andurelBinary string,
+	action ManualAction,
+) error {
+	t.Helper()
+
 	switch action.ID {
+	case "public-home-v2.0.0-beta.4":
+		return applyUpgradeE2EPublicHome(root)
+	case "configcheck-v2.0.0-beta.4":
+		return applyUpgradeE2EConfigCheck(root)
+	case "runtime-readiness-v2.0.0-beta.4":
+		return applyUpgradeE2ERuntimeReadiness(root)
+	case "inertia-ssr-default-v2.0.0-beta.4":
+		return applyUpgradeE2EInertiaSSRDefault(root)
+	case "routes-host-scope-v2.0.0-beta.4":
+		return applyUpgradeE2ERoutesHostScope(t, root, andurelBinary)
 	case "package-api-v2.0.0-alpha.5":
 		return applyUpgradeE2EPackageAPI(root)
 	case "storage-storagetest-v2.0.0-alpha.5":
@@ -186,6 +210,761 @@ func applyUpgradeE2EManualAction(root string, action ManualAction) error {
 		)
 	}
 }
+
+// buildUpgradeE2EAndurel builds this checkout's CLI once per test run. The
+// beta.4 target is a candidate, so route regeneration must use the local
+// generator instead of a published release.
+func buildUpgradeE2EAndurel(t *testing.T) string {
+	t.Helper()
+
+	framework := localCheckoutRoot(t)
+	binary := filepath.Join(t.TempDir(), "andurel")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	command := exec.CommandContext(ctx, "go", "build", "-o", binary, ".")
+	command.Dir = framework
+	// Build against the checkout's workspace so the unpublished candidate
+	// pkg/inertia never has to be fetched.
+	command.Env = append(os.Environ(), "GOWORK="+filepath.Join(framework, "go.work"))
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("build local andurel CLI: %v\n%s", err, output)
+	}
+
+	return binary
+}
+
+func runUpgradeE2EAndurel(t *testing.T, root, binary string, args ...string) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	command := exec.CommandContext(ctx, binary, args...)
+	command.Dir = root
+	command.Env = append(os.Environ(), "GOWORK=off")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("andurel %s: %v\n%s", strings.Join(args, " "), err, output)
+	}
+}
+
+func renderUpgradeE2ETemplate(name, modulePath string) ([]byte, error) {
+	content, err := layouttemplates.Files.ReadFile(name)
+	if err != nil {
+		return nil, fmt.Errorf("read template %s: %w", name, err)
+	}
+
+	parsed, err := template.New(name).Parse(string(content))
+	if err != nil {
+		return nil, fmt.Errorf("parse template %s: %w", name, err)
+	}
+
+	var rendered bytes.Buffer
+	if err := parsed.Execute(&rendered, struct{ ModuleName string }{ModuleName: modulePath}); err != nil {
+		return nil, fmt.Errorf("render template %s: %w", name, err)
+	}
+
+	return rendered.Bytes(), nil
+}
+
+// applyUpgradeE2EPublicHome follows the public-home-v2.0.0-beta.4
+// instructions: the generated welcome page is public, while private routes
+// keep middleware.AuthOnly.
+func applyUpgradeE2EPublicHome(root string) error {
+	path := filepath.Join(root, "internal", "runtime", "runtime.go")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	text := string(content)
+	const protected = "handlers.NewPagesHandler(renderer).Register(router, middleware.AuthOnly(users))"
+	const public = "handlers.NewPagesHandler(renderer).Register(router)"
+	switch {
+	case strings.Contains(text, protected):
+		text = strings.Replace(text, protected, public, 1)
+	case strings.Contains(text, public):
+		// Already public.
+	case strings.Contains(text, "handlers.NewPages(renderer).Register(router)"):
+		// The alpha.4 generated Pages handler is public already.
+	default:
+		return fmt.Errorf("public-home-v2.0.0-beta.4: no generated home registration in %s", path)
+	}
+
+	if text != string(content) {
+		if err := writeGofmtFile(path, []byte(text)); err != nil {
+			return err
+		}
+	}
+
+	updated, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(string(updated), protected) {
+		return fmt.Errorf("public-home-v2.0.0-beta.4: home page is still behind AuthOnly in %s", path)
+	}
+	if !strings.Contains(string(updated), public) &&
+		!strings.Contains(string(updated), "handlers.NewPages(renderer).Register(router)") {
+		return fmt.Errorf("public-home-v2.0.0-beta.4: no public home registration in %s", path)
+	}
+
+	return nil
+}
+
+// applyUpgradeE2EConfigCheck follows the configcheck-v2.0.0-beta.4
+// instructions: create the read-only helper from the current scaffold.
+func applyUpgradeE2EConfigCheck(root string) error {
+	modulePath, err := upgradeE2EModulePath(root)
+	if err != nil {
+		return err
+	}
+
+	content, err := renderUpgradeE2ETemplate("internal_configcheck_main.tmpl", modulePath)
+	if err != nil {
+		return err
+	}
+
+	path := filepath.Join(root, "internal", "configcheck", "main.go")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	if err := writeGofmtFile(path, content); err != nil {
+		return err
+	}
+
+	written, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	text := string(written)
+	for _, want := range []string{
+		"env.Load()",
+		"config.New()",
+		"storage.NewPostgres(ctx, cfg, storage.WithoutOpenTelemetry())",
+		"db.Health(ctx)",
+		"json.NewEncoder(os.Stdout)",
+		"redactSecret",
+	} {
+		if !strings.Contains(text, want) {
+			return fmt.Errorf(
+				"configcheck-v2.0.0-beta.4: generated helper is missing %q",
+				want,
+			)
+		}
+	}
+	if strings.Contains(text, "{{.") {
+		return fmt.Errorf("configcheck-v2.0.0-beta.4: helper has an unresolved placeholder")
+	}
+
+	return nil
+}
+
+// applyUpgradeE2ERuntimeReadiness follows the
+// runtime-readiness-v2.0.0-beta.4 instructions: database plus renderer
+// readiness, /api/ready, and a handler that writes the 503 body itself.
+func applyUpgradeE2ERuntimeReadiness(root string) error {
+	runtimePath := filepath.Join(root, "internal", "runtime", "runtime.go")
+	content, err := os.ReadFile(runtimePath)
+	if err != nil {
+		return err
+	}
+
+	text := string(content)
+	const oldRegistration = "handlers.NewAPIHandler(db).Register(router)"
+	const newRegistration = "handlers.NewAPIHandler(db, newReadiness(db, renderer)).Register(router)"
+	if !strings.Contains(text, newRegistration) {
+		if !strings.Contains(text, oldRegistration) {
+			return fmt.Errorf(
+				"runtime-readiness-v2.0.0-beta.4: no NewAPIHandler registration in %s",
+				runtimePath,
+			)
+		}
+		text = strings.Replace(text, oldRegistration, newRegistration, 1)
+	}
+
+	if !strings.Contains(text, "func newReadiness(") {
+		const marker = "func (a *App) Start("
+		index := strings.Index(text, marker)
+		if index < 0 {
+			return fmt.Errorf(
+				"runtime-readiness-v2.0.0-beta.4: no App.Start in %s",
+				runtimePath,
+			)
+		}
+		text = text[:index] + readinessE2EImplementation + "\n" + text[index:]
+	}
+	if !strings.Contains(text, "\"errors\"") {
+		return fmt.Errorf(
+			"runtime-readiness-v2.0.0-beta.4: %s does not import errors",
+			runtimePath,
+		)
+	}
+
+	if err := writeGofmtFile(runtimePath, []byte(text)); err != nil {
+		return err
+	}
+
+	updated, err := os.ReadFile(runtimePath)
+	if err != nil {
+		return err
+	}
+	updatedText := string(updated)
+	if strings.Contains(updatedText, oldRegistration) {
+		return fmt.Errorf(
+			"runtime-readiness-v2.0.0-beta.4: runtime still registers only health in %s",
+			runtimePath,
+		)
+	}
+	for _, want := range []string{
+		newRegistration,
+		"type readiness struct {",
+		"func (err readinessError) ReadinessReason() string",
+		"r.renderer.Health(ctx)",
+	} {
+		if !strings.Contains(updatedText, want) {
+			return fmt.Errorf(
+				"runtime-readiness-v2.0.0-beta.4: runtime is missing %q",
+				want,
+			)
+		}
+	}
+
+	if err := applyUpgradeE2EReadyRoute(root); err != nil {
+		return err
+	}
+
+	return applyUpgradeE2EAPIHandler(root)
+}
+
+func applyUpgradeE2EReadyRoute(root string) error {
+	path := filepath.Join(root, "routes", "api.go")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	text := string(content)
+	if !strings.Contains(text, "var Health =") {
+		return fmt.Errorf(
+			"runtime-readiness-v2.0.0-beta.4: no Health route in %s",
+			path,
+		)
+	}
+	if strings.Contains(text, "var Ready =") {
+		if !strings.Contains(text, "\"/ready\"") || !strings.Contains(text, "\"api.ready\"") {
+			return fmt.Errorf(
+				"runtime-readiness-v2.0.0-beta.4: existing Ready route in %s is not /api/ready",
+				path,
+			)
+		}
+		return nil
+	}
+
+	content = append(content, []byte("\n"+readyRouteE2EImplementation)...)
+	if err := writeGofmtFile(path, content); err != nil {
+		return err
+	}
+
+	updated, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(string(updated), "\"/ready\"") ||
+		!strings.Contains(string(updated), "\"api.ready\"") {
+		return fmt.Errorf(
+			"runtime-readiness-v2.0.0-beta.4: Ready route was not added to %s",
+			path,
+		)
+	}
+
+	return nil
+}
+
+func applyUpgradeE2EAPIHandler(root string) error {
+	path := filepath.Join(root, "handlers", "api.go")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(string(content), "func NewAPIHandler(") {
+		return fmt.Errorf(
+			"runtime-readiness-v2.0.0-beta.4: no API handler in %s",
+			path,
+		)
+	}
+
+	modulePath, err := upgradeE2EModulePath(root)
+	if err != nil {
+		return err
+	}
+	rendered, err := renderUpgradeE2ETemplate("handlers_api.tmpl", modulePath)
+	if err != nil {
+		return err
+	}
+	if err := writeGofmtFile(path, rendered); err != nil {
+		return err
+	}
+
+	updated, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	text := string(updated)
+	for _, want := range []string{
+		"readinessHandler",
+		"routes.Ready.Pattern()",
+		`"status": "unready"`,
+		"ReadinessReason() string",
+	} {
+		if !strings.Contains(text, want) {
+			return fmt.Errorf(
+				"runtime-readiness-v2.0.0-beta.4: API handler is missing %q",
+				want,
+			)
+		}
+	}
+
+	return nil
+}
+
+// applyUpgradeE2EInertiaSSRDefault follows the
+// inertia-ssr-default-v2.0.0-beta.4 instructions: the renderer-wide
+// production default, the themed fallback error page, and no accidental
+// client-rendering override.
+func applyUpgradeE2EInertiaSSRDefault(root string) error {
+	runtimePath := filepath.Join(root, "internal", "runtime", "runtime.go")
+	content, err := os.ReadFile(runtimePath)
+	if err != nil {
+		return err
+	}
+
+	text := string(content)
+	const ssrDefault = "inertia.WithSSRDefault(cfg.App.IsProduction()),"
+	if !strings.Contains(text, ssrDefault) {
+		const marker = "inertia.WithEnvironment(cfg.App.Environment),"
+		index := strings.Index(text, marker)
+		if index < 0 {
+			return fmt.Errorf(
+				"inertia-ssr-default-v2.0.0-beta.4: no renderer environment option in %s",
+				runtimePath,
+			)
+		}
+		insertAt := index + len(marker)
+		text = text[:insertAt] + "\n\t\t" + ssrDefault + text[insertAt:]
+	}
+
+	if err := writeGofmtFile(runtimePath, []byte(text)); err != nil {
+		return err
+	}
+
+	updated, err := os.ReadFile(runtimePath)
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(string(updated), ssrDefault) {
+		return fmt.Errorf(
+			"inertia-ssr-default-v2.0.0-beta.4: renderer default was not added to %s",
+			runtimePath,
+		)
+	}
+
+	if err := applyUpgradeE2EErrorFallback(root); err != nil {
+		return err
+	}
+
+	return applyUpgradeE2ESSRFailFastEnv(root)
+}
+
+func applyUpgradeE2EErrorFallback(root string) error {
+	path := filepath.Join(root, "handlers", "errors.go")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	text := string(content)
+	const fallback = `FallbackComponent: "Errors/InternalError"`
+	if strings.Contains(text, fallback) {
+		if !strings.Contains(text, "inertia.NewErrorHandler(") {
+			return fmt.Errorf(
+				"inertia-ssr-default-v2.0.0-beta.4: fallback is not on NewErrorHandler in %s",
+				path,
+			)
+		}
+		return nil
+	}
+
+	if strings.Contains(text, "inertia.ErrorHandler(renderer,") {
+		replacement := "inertia.NewErrorHandler(\n\t\trenderer,\n" +
+			"\t\tinertia.ErrorHandlerOptions{" + fallback + "},"
+		text = strings.Replace(text, "inertia.ErrorHandler(renderer,", replacement, 1)
+		if err := writeGofmtFile(path, []byte(text)); err != nil {
+			return err
+		}
+	} else if strings.Contains(text, "func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {") {
+		// The alpha.4 scaffold still has a handwritten switch. Adopt the
+		// current scaffold handler so unmapped 5xx responses get the themed
+		// fallback while error mappings stay client-rendered.
+		modulePath, err := upgradeE2EModulePath(root)
+		if err != nil {
+			return err
+		}
+		rendered, err := renderUpgradeE2ETemplate("handlers_errors.tmpl", modulePath)
+		if err != nil {
+			return err
+		}
+		if err := writeGofmtFile(path, rendered); err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf(
+			"inertia-ssr-default-v2.0.0-beta.4: no error handler in %s",
+			path,
+		)
+	}
+
+	updated, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(string(updated), fallback) ||
+		!strings.Contains(string(updated), "inertia.NewErrorHandler(") {
+		return fmt.Errorf(
+			"inertia-ssr-default-v2.0.0-beta.4: themed fallback was not configured in %s",
+			path,
+		)
+	}
+
+	return nil
+}
+
+func applyUpgradeE2ESSRFailFastEnv(root string) error {
+	path := filepath.Join(root, ".env.example")
+	content, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	lines := strings.Split(string(content), "\n")
+	changed := false
+	for index, line := range lines {
+		if strings.TrimSpace(line) == "INERTIA_SSR_FAIL_FAST=false" {
+			lines[index] = "# INERTIA_SSR_FAIL_FAST=false"
+			changed = true
+		}
+	}
+	if !changed {
+		return nil
+	}
+
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644); err != nil {
+		return err
+	}
+
+	updated, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	for line := range strings.SplitSeq(string(updated), "\n") {
+		if strings.TrimSpace(line) == "INERTIA_SSR_FAIL_FAST=false" {
+			return fmt.Errorf(
+				"inertia-ssr-default-v2.0.0-beta.4: %s still forces client-rendering fallback",
+				path,
+			)
+		}
+	}
+
+	return nil
+}
+
+// applyUpgradeE2ERoutesHostScope follows the
+// routes-host-scope-v2.0.0-beta.4 instructions: regenerate routes.ts with the
+// local candidate CLI and adopt the per-render SSR host scope.
+func applyUpgradeE2ERoutesHostScope(t *testing.T, root, andurelBinary string) error {
+	t.Helper()
+
+	if andurelBinary == "" {
+		return fmt.Errorf("routes-host-scope-v2.0.0-beta.4: local andurel binary is missing")
+	}
+	if err := applyUpgradeE2EAlphaFourRouteNames(root); err != nil {
+		return err
+	}
+	runUpgradeE2EAndurel(t, root, andurelBinary, "sync", "routes")
+
+	if err := verifyUpgradeE2ERoutesJS(root); err != nil {
+		return err
+	}
+	if err := verifyUpgradeE2EAppRouteHosts(root); err != nil {
+		return err
+	}
+
+	return applyUpgradeE2ESSRRouteHosts(root)
+}
+
+// applyUpgradeE2EAlphaFourRouteNames repairs the one duplicate route name in
+// the alpha.4 generated routes. The current scaffold names PasswordUpdate
+// users.update_user_password; alpha.4 reused users.user_password, and the
+// beta.4 generator rejects the duplicate before it writes routes.ts.
+func applyUpgradeE2EAlphaFourRouteNames(root string) error {
+	path := filepath.Join(root, "routes", "users.go")
+	content, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	text := string(content)
+	const duplicate = `"users.user_password"`
+	if strings.Count(text, duplicate) < 2 {
+		return nil
+	}
+
+	first := strings.Index(text, duplicate)
+	relative := strings.Index(text[first+len(duplicate):], duplicate)
+	if relative < 0 {
+		return fmt.Errorf(
+			"routes-host-scope-v2.0.0-beta.4: could not locate the duplicate route name in %s",
+			path,
+		)
+	}
+	second := first + len(duplicate) + relative
+	text = text[:second] + `"users.update_user_password"` + text[second+len(duplicate):]
+
+	if err := writeGofmtFile(path, []byte(text)); err != nil {
+		return err
+	}
+
+	updated, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if got := strings.Count(string(updated), duplicate); got != 1 {
+		return fmt.Errorf(
+			"routes-host-scope-v2.0.0-beta.4: %s still has %d users.user_password route names",
+			path,
+			got,
+		)
+	}
+
+	return nil
+}
+
+func verifyUpgradeE2ERoutesJS(root string) error {
+	path := filepath.Join(root, "resources", "js", "routes.ts")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	text := string(content)
+	for _, want := range []string{
+		"configureRouteHostScope",
+		"withRouteHosts",
+		"route hosts are not configured yet",
+	} {
+		if !strings.Contains(text, want) {
+			return fmt.Errorf(
+				"routes-host-scope-v2.0.0-beta.4: regenerated %s is missing %q",
+				path,
+				want,
+			)
+		}
+	}
+	if strings.Contains(text, "let origins: HostOrigins = {}") {
+		return fmt.Errorf(
+			"routes-host-scope-v2.0.0-beta.4: %s still has the silent empty-origin fallback",
+			path,
+		)
+	}
+
+	return rejectUpgradeE2EModuleScopeRouteCache(path, text)
+}
+
+func verifyUpgradeE2EAppRouteHosts(root string) error {
+	path, err := upgradeE2EAppEntry(root)
+	if err != nil {
+		return err
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	text := string(content)
+	if got := strings.Count(text, "configureRouteHosts("); got != 1 {
+		return fmt.Errorf(
+			"routes-host-scope-v2.0.0-beta.4: %s has %d boot configurations, want 1",
+			path,
+			got,
+		)
+	}
+
+	return rejectUpgradeE2EModuleScopeRouteCache(path, text)
+}
+
+func applyUpgradeE2ESSRRouteHosts(root string) error {
+	lock, err := layout.ReadLockFile(root)
+	if err != nil {
+		return err
+	}
+	if lock.ScaffoldConfig == nil {
+		return fmt.Errorf("routes-host-scope-v2.0.0-beta.4: lock file has no scaffold config")
+	}
+
+	var templateName string
+	var target string
+	switch lock.ScaffoldConfig.Inertia {
+	case "react":
+		templateName = "inertia_react_assets_ssr.tmpl"
+		target = filepath.Join(root, "resources", "js", "ssr.tsx")
+	case "vue":
+		templateName = "inertia_assets_ssr.tmpl"
+		target = filepath.Join(root, "resources", "js", "ssr.ts")
+	case "svelte":
+		templateName = "inertia_svelte_assets_ssr.tmpl"
+		target = filepath.Join(root, "resources", "js", "ssr.ts")
+	default:
+		return fmt.Errorf(
+			"routes-host-scope-v2.0.0-beta.4: unsupported Inertia adapter %q",
+			lock.ScaffoldConfig.Inertia,
+		)
+	}
+
+	content, err := os.ReadFile(target)
+	if err != nil {
+		return err
+	}
+	text := string(content)
+	if strings.Contains(text, "configureRouteHostScope(") &&
+		strings.Contains(text, "withRouteHosts(") {
+		return rejectUpgradeE2EModuleScopeRouteCache(target, text)
+	}
+	if !strings.Contains(text, "configureRouteHosts(") {
+		return fmt.Errorf(
+			"routes-host-scope-v2.0.0-beta.4: no route host boot configuration in %s",
+			target,
+		)
+	}
+
+	rendered, err := layouttemplates.Files.ReadFile(templateName)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(target, rendered, 0o644); err != nil {
+		return err
+	}
+
+	updated, err := os.ReadFile(target)
+	if err != nil {
+		return err
+	}
+	updatedText := string(updated)
+	for _, want := range []string{"configureRouteHostScope(", "withRouteHosts("} {
+		if !strings.Contains(updatedText, want) {
+			return fmt.Errorf(
+				"routes-host-scope-v2.0.0-beta.4: %s is missing %q",
+				target,
+				want,
+			)
+		}
+	}
+
+	return rejectUpgradeE2EModuleScopeRouteCache(target, updatedText)
+}
+
+func upgradeE2EAppEntry(root string) (string, error) {
+	for _, name := range []string{"app.tsx", "app.ts", "app.jsx", "app.js"} {
+		path := filepath.Join(root, "resources", "js", name)
+		if _, err := os.Stat(path); err == nil {
+			return path, nil
+		}
+	}
+
+	return "", fmt.Errorf("routes-host-scope-v2.0.0-beta.4: no browser entry under resources/js")
+}
+
+func rejectUpgradeE2EModuleScopeRouteCache(path, content string) error {
+	for index, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if line == trimmed &&
+			strings.HasPrefix(trimmed, "const ") &&
+			strings.Contains(trimmed, "routes.") {
+			return fmt.Errorf(
+				"routes-host-scope-v2.0.0-beta.4: %s:%d caches a route helper at module scope; call it at render time or use .path()",
+				path,
+				index+1,
+			)
+		}
+	}
+
+	return nil
+}
+
+const readinessE2EImplementation = `// readiness reports whether the process can serve traffic. Liveness stays
+// separate: the database must answer, and the renderer decides whether a
+// required SSR sidecar must answer too. The renderer treats a disabled
+// renderer-wide default, an explicit CSR fallback, and an unsupported
+// transport as not gating readiness, so this type only maps its typed reason.
+type readiness struct {
+	database storage.Connection
+	renderer *inertia.Renderer
+}
+
+func newReadiness(db storage.Connection, renderer *inertia.Renderer) readiness {
+	return readiness{database: db, renderer: renderer}
+}
+
+// readinessError carries a stable, secret-free reason for /api/ready. The
+// handler reads the reason through ReadinessReason instead of matching error
+// text.
+type readinessError struct {
+	reason string
+}
+
+func (err readinessError) Error() string { return err.reason }
+
+func (err readinessError) ReadinessReason() string { return err.reason }
+
+// Health returns the first reason the process is not ready. The reasons are
+// stable and carry no configuration values, so readiness output cannot leak a
+// connection string.
+func (r readiness) Health(ctx context.Context) error {
+	if err := r.database.Health(ctx); err != nil {
+		return readinessError{reason: "database_unavailable"}
+	}
+	if r.renderer == nil {
+		return nil
+	}
+	if err := r.renderer.Health(ctx); err != nil {
+		reason := "unavailable"
+		var ssrErr *inertia.ReadinessError
+		if errors.As(err, &ssrErr) && ssrErr.Status != "" {
+			reason = string(ssrErr.Status)
+		}
+
+		return readinessError{reason: reason}
+	}
+
+	return nil
+}
+`
+
+const readyRouteE2EImplementation = `// Ready is the readiness probe: it answers 200 only when the database answers
+// and, outside development, the Inertia SSR sidecar is healthy. Liveness stays
+// on Health so orchestration can tell "running" from "ready".
+var Ready = routing.NewSimpleRoute(
+	"/ready",
+	"api.ready",
+	APIPrefix,
+)
+`
 
 // applyUpgradeE2EPackageAPI follows the package-api-v2.0.0-alpha.5
 // instructions against internal/runtime, which is application-owned.
@@ -1179,6 +1958,327 @@ func applyUpgradeE2EInertiaFullURL(root string) error {
 		return nil
 	}
 	return writeGofmtFile(path, []byte(updated))
+}
+
+func TestApplyUpgradeE2EPublicHome(t *testing.T) {
+	tests := []struct {
+		name    string
+		body    string
+		wantErr bool
+	}{
+		{
+			name: "protected generated home becomes public",
+			body: "package runtime\n\nfunc New() {\n" +
+				"\thandlers.NewPagesHandler(renderer).Register(router, middleware.AuthOnly(users))\n}\n",
+		},
+		{
+			name: "already public generated home",
+			body: "package runtime\n\nfunc New() {\n" +
+				"\thandlers.NewPagesHandler(renderer).Register(router)\n}\n",
+		},
+		{
+			name: "alpha.4 pages handler is already public",
+			body: "package runtime\n\nfunc New() {\n" +
+				"\thandlers.NewPages(renderer).Register(router)\n}\n",
+		},
+		{
+			name:    "unrecognized home registration fails",
+			body:    "package runtime\n\nfunc New() {}\n",
+			wantErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			path := writeUpgradeE2EFixture(
+				t,
+				root,
+				filepath.Join("internal", "runtime", "runtime.go"),
+				test.body,
+			)
+
+			err := applyUpgradeE2EPublicHome(root)
+			if test.wantErr {
+				if err == nil {
+					t.Fatal("expected an error for an unrecognized home registration")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("apply public home: %v", err)
+			}
+
+			updated, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(updated), "Register(router, middleware.AuthOnly(users))") {
+				t.Fatalf("home page is still protected:\n%s", updated)
+			}
+			if !strings.Contains(string(updated), "handlers.NewPages") {
+				t.Fatalf("home page registration disappeared:\n%s", updated)
+			}
+		})
+	}
+}
+
+func TestApplyUpgradeE2EConfigCheck(t *testing.T) {
+	root := t.TempDir()
+	writeUpgradeE2EFixture(t, root, "go.mod", "module example.com/app\n\ngo 1.27.3\n")
+
+	if err := applyUpgradeE2EConfigCheck(root); err != nil {
+		t.Fatalf("apply configcheck: %v", err)
+	}
+
+	content, err := os.ReadFile(filepath.Join(root, "internal", "configcheck", "main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(content)
+	if !strings.Contains(text, "example.com/app") {
+		t.Fatalf("configcheck does not use the project module path:\n%s", text)
+	}
+	if strings.Contains(text, "{{.") {
+		t.Fatalf("configcheck has an unresolved template placeholder:\n%s", text)
+	}
+}
+
+func TestApplyUpgradeE2ERuntimeReadiness(t *testing.T) {
+	root := t.TempDir()
+	writeUpgradeE2EFixture(t, root, "go.mod", "module example.com/app\n\ngo 1.27.3\n")
+	writeUpgradeE2EFixture(
+		t,
+		root,
+		filepath.Join("internal", "runtime", "runtime.go"),
+		"package runtime\n\nimport (\n\t\"context\"\n\t\"errors\"\n)\n\n"+
+			"func New() {\n\thandlers.NewAPIHandler(db).Register(router)\n}\n\n"+
+			"func (a *App) Start() error { return nil }\n",
+	)
+	writeUpgradeE2EFixture(
+		t,
+		root,
+		filepath.Join("handlers", "api.go"),
+		"package handlers\n\nfunc NewAPIHandler(health interface{}) {}\n",
+	)
+	writeUpgradeE2EFixture(
+		t,
+		root,
+		filepath.Join("routes", "api.go"),
+		"package routes\n\nvar Health = \"health\"\n",
+	)
+
+	if err := applyUpgradeE2ERuntimeReadiness(root); err != nil {
+		t.Fatalf("apply runtime readiness: %v", err)
+	}
+
+	runtimeContent, err := os.ReadFile(filepath.Join(root, "internal", "runtime", "runtime.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimeText := string(runtimeContent)
+	for _, want := range []string{
+		"handlers.NewAPIHandler(db, newReadiness(db, renderer)).Register(router)",
+		"type readiness struct {",
+		"ReadinessReason() string",
+	} {
+		if !strings.Contains(runtimeText, want) {
+			t.Fatalf("runtime readiness is missing %q:\n%s", want, runtimeText)
+		}
+	}
+
+	routesContent, err := os.ReadFile(filepath.Join(root, "routes", "api.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(routesContent), "\"/ready\"") {
+		t.Fatalf("routes/api.go is missing /ready:\n%s", routesContent)
+	}
+
+	handlerContent, err := os.ReadFile(filepath.Join(root, "handlers", "api.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	handlerText := string(handlerContent)
+	for _, want := range []string{"readinessHandler", `"status": "unready"`, "routes.Ready.Pattern()"} {
+		if !strings.Contains(handlerText, want) {
+			t.Fatalf("API handler is missing %q:\n%s", want, handlerText)
+		}
+	}
+}
+
+func TestApplyUpgradeE2ERuntimeReadinessRequiresRegistration(t *testing.T) {
+	root := t.TempDir()
+	writeUpgradeE2EFixture(
+		t,
+		root,
+		filepath.Join("internal", "runtime", "runtime.go"),
+		"package runtime\n\nfunc (a *App) Start() error { return nil }\n",
+	)
+
+	if err := applyUpgradeE2ERuntimeReadiness(root); err == nil {
+		t.Fatal("expected an error when the runtime has no NewAPIHandler registration")
+	}
+}
+
+func TestApplyUpgradeE2EInertiaSSRDefault(t *testing.T) {
+	root := t.TempDir()
+	writeUpgradeE2EFixture(t, root, "go.mod", "module example.com/app\n\ngo 1.27.3\n")
+	writeUpgradeE2EFixture(
+		t,
+		root,
+		filepath.Join("internal", "runtime", "runtime.go"),
+		"package runtime\n\nfunc NewRenderer() {\n\t_ = inertia.NewRenderer(\n"+
+			"\t\tinertia.RendererConfig{},\n"+
+			"\t\tinertia.WithEnvironment(cfg.App.Environment),\n\t)\n}\n",
+	)
+	writeUpgradeE2EFixture(
+		t,
+		root,
+		filepath.Join("handlers", "errors.go"),
+		"package handlers\n\nfunc MapError(renderer *inertia.Renderer) {\n"+
+			"\t_ = inertia.ErrorHandler(renderer,\n"+
+			"\t\tinertia.MapError(nil, 404, \"Errors/NotFound\"),\n\t)\n}\n",
+	)
+	writeUpgradeE2EFixture(
+		t,
+		root,
+		".env.example",
+		"INERTIA_SSR_FAIL_FAST=false\n",
+	)
+
+	if err := applyUpgradeE2EInertiaSSRDefault(root); err != nil {
+		t.Fatalf("apply SSR default: %v", err)
+	}
+
+	runtimeContent, err := os.ReadFile(filepath.Join(root, "internal", "runtime", "runtime.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(
+		string(runtimeContent),
+		"inertia.WithSSRDefault(cfg.App.IsProduction()),",
+	) {
+		t.Fatalf("renderer default was not added:\n%s", runtimeContent)
+	}
+
+	errorsContent, err := os.ReadFile(filepath.Join(root, "handlers", "errors.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	errorsText := string(errorsContent)
+	for _, want := range []string{
+		"inertia.NewErrorHandler(",
+		`FallbackComponent: "Errors/InternalError"`,
+	} {
+		if !strings.Contains(errorsText, want) {
+			t.Fatalf("error handler is missing %q:\n%s", want, errorsText)
+		}
+	}
+
+	envContent, err := os.ReadFile(filepath.Join(root, ".env.example"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(envContent), "\nINERTIA_SSR_FAIL_FAST=false\n") ||
+		strings.HasPrefix(string(envContent), "INERTIA_SSR_FAIL_FAST=false") {
+		t.Fatalf(".env.example still forces client-rendering fallback:\n%s", envContent)
+	}
+}
+
+func TestApplyUpgradeE2EInertiaSSRDefaultRequiresRendererOptions(t *testing.T) {
+	root := t.TempDir()
+	writeUpgradeE2EFixture(
+		t,
+		root,
+		filepath.Join("internal", "runtime", "runtime.go"),
+		"package runtime\n\nfunc NewRenderer() {}\n",
+	)
+
+	if err := applyUpgradeE2EInertiaSSRDefault(root); err == nil {
+		t.Fatal("expected an error when the renderer has no environment option")
+	}
+}
+
+func TestApplyUpgradeE2EAlphaFourRouteNames(t *testing.T) {
+	root := t.TempDir()
+	path := writeUpgradeE2EFixture(
+		t,
+		root,
+		filepath.Join("routes", "users.go"),
+		"package routes\n\nvar PasswordCreate = \"users.user_password\"\n"+
+			"var PasswordUpdate = \"users.user_password\"\n",
+	)
+
+	if err := applyUpgradeE2EAlphaFourRouteNames(root); err != nil {
+		t.Fatalf("repair alpha.4 route names: %v", err)
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(content)
+	if strings.Count(text, `"users.user_password"`) != 1 ||
+		!strings.Contains(text, `"users.update_user_password"`) {
+		t.Fatalf("duplicate route name was not repaired:\n%s", text)
+	}
+}
+
+func TestVerifyUpgradeE2ERoutesJSRejectsOldShape(t *testing.T) {
+	root := t.TempDir()
+	writeUpgradeE2EFixture(
+		t,
+		root,
+		filepath.Join("resources", "js", "routes.ts"),
+		"type HostOrigins = Record<string, string>\n\nlet origins: HostOrigins = {}\n",
+	)
+
+	if err := verifyUpgradeE2ERoutesJS(root); err == nil {
+		t.Fatal("expected the old silent-origin routes.ts to be rejected")
+	}
+
+	writeUpgradeE2EFixture(
+		t,
+		root,
+		filepath.Join("resources", "js", "routes.ts"),
+		"export function configureRouteHostScope() {}\n"+
+			"export function withRouteHosts() {}\n"+
+			"throw new Error('routes: route hosts are not configured yet')\n",
+	)
+	if err := verifyUpgradeE2ERoutesJS(root); err != nil {
+		t.Fatalf("expected the regenerated routes.ts to pass: %v", err)
+	}
+}
+
+func TestRejectUpgradeE2EModuleScopeRouteCache(t *testing.T) {
+	if err := rejectUpgradeE2EModuleScopeRouteCache(
+		"app.tsx",
+		"const href = routes.homePage()\n",
+	); err == nil {
+		t.Fatal("expected a module-scope route helper cache to be rejected")
+	}
+
+	if err := rejectUpgradeE2EModuleScopeRouteCache(
+		"app.tsx",
+		"function render() {\n\tconst href = routes.homePage()\n\treturn href\n}\n",
+	); err != nil {
+		t.Fatalf("render-time route helper call should pass: %v", err)
+	}
+}
+
+func writeUpgradeE2EFixture(t *testing.T, root, relativePath, content string) string {
+	t.Helper()
+
+	path := filepath.Join(root, relativePath)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	return path
 }
 
 func writeGofmtFile(path string, content []byte) error {

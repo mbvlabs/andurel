@@ -135,6 +135,11 @@ func TestBetaFourManualActions(t *testing.T) {
 	) {
 		t.Fatalf("routes action does not show per-render host scope")
 	}
+	for _, want := range []string{"duplicate route name", "users.update_user_password"} {
+		if !strings.Contains(byID["routes-host-scope-v2.0.0-beta.4"].Instructions, want) {
+			t.Fatalf("routes action does not explain the duplicate route name fix %q", want)
+		}
+	}
 }
 
 func TestBetaFourManualActionsSkipInertiaWhenProjectHasNone(t *testing.T) {

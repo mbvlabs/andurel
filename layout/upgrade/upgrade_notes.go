@@ -316,7 +316,10 @@ func routesHostScopeInstructions() string {
 	return "beta.4 regenerates `resources/js/routes.ts` so full-URL helpers throw before route hosts are " +
 		"configured instead of silently returning a relative URL, and isolates SSR route hosts per render. Application " +
 		"bootstrap code must adopt the new shape.\n\n" +
-		"1. Run `andurel sync routes` and commit the regenerated `resources/js/routes.ts`.\n\n" +
+		"1. Run `andurel sync routes` and commit the regenerated `resources/js/routes.ts`. If it reports " +
+		"a duplicate route name, rename the duplicate first: route names are application-owned. The alpha.4 " +
+		"scaffold reused `users.user_password` for PasswordUpdate; the current scaffold names it " +
+		"`users.update_user_password`.\n\n" +
 		"2. In `resources/js/app` (browser entry), keep one boot configuration:\n\n```ts\n" +
 		"import { configureRouteHosts } from './routes'\n" +
 		"import { resolveHosts } from './hosts' // your existing shared-prop reader\n\n" +
