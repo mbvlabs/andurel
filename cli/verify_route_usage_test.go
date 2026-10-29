@@ -100,6 +100,15 @@ export const href = homePage()
 			wantLine: 4,
 		},
 		{
+			name: "destructured helper alias",
+			page: `import { routes } from '../routes'
+
+const { homePage: home } = routes
+export const href = home()
+`,
+			wantLine: 4,
+		},
+		{
 			name: "local wrapper function",
 			page: `import { routes } from '../routes'
 
@@ -214,6 +223,14 @@ export function useHomeHref() {
 		"dynamic property access is outside the analysis": `import { routes } from '../routes'
 const key = 'homePage'
 export const href = (routes as any)[key]()
+`,
+		"destructured alias .path helper": `import { routes } from '../routes'
+const { homePage: home } = routes
+export const href = home.path()
+`,
+		"deferred destructured alias": `import { routes } from '../routes'
+const { homePage: home } = routes
+export const makeHref = () => home()
 `,
 		"unresolved alias is outside the analysis": `import { routes } from '@/lib/routes'
 export const href = routes.homePage()

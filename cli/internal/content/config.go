@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -77,6 +78,10 @@ type Config struct {
 	Checkers      []Checker      `toml:"checkers"`
 
 	slugPattern *regexp.Regexp
+	// rootDir is the project root with every symlink resolved at Load time.
+	// Checker working directories and the catalog file are resolved beneath it
+	// so a symlinked path cannot escape the project.
+	rootDir string
 }
 
 // CatalogEntry maps a stable slug to the Markdown file that serves it.
@@ -117,7 +122,24 @@ type catalogFileDocument struct {
 // Load reads and validates the content manifest. A missing manifest returns
 // (nil, nil): the content stage is not configured, not broken.
 func Load(rootDir string) (*Config, []Diagnostic) {
-	path := filepath.Join(rootDir, ManifestName)
+	resolvedRoot, err := resolveProjectRoot(rootDir)
+	if err != nil {
+		return nil, []Diagnostic{{
+			Rule:    RuleConfig,
+			File:    ManifestName,
+			Message: "resolve project root: " + err.Error(),
+			Fix:     "run verify from a readable project root",
+		}}
+	}
+	path, err := resolveConfinedPath(resolvedRoot, ManifestName)
+	if err != nil {
+		return nil, []Diagnostic{{
+			Rule:    RuleConfig,
+			File:    ManifestName,
+			Message: ManifestName + ": " + err.Error(),
+			Fix:     "keep " + ManifestName + " inside the project root and do not symlink it outside",
+		}}
+	}
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -136,10 +158,14 @@ func Load(rootDir string) (*Config, []Diagnostic) {
 	if err := decoder.Decode(&cfg); err != nil {
 		return nil, []Diagnostic{configDecodeDiagnostic(err)}
 	}
+	cfg.rootDir = resolvedRoot
 	if diagnostics := cfg.validate(); len(diagnostics) > 0 {
 		return nil, diagnostics
 	}
-	if err := cfg.loadCatalogFile(rootDir); err != nil {
+	if diagnostics := cfg.validateConfinement(); len(diagnostics) > 0 {
+		return nil, diagnostics
+	}
+	if err := cfg.loadCatalogFile(); err != nil {
 		return nil, []Diagnostic{*err}
 	}
 	return &cfg, nil
@@ -252,11 +278,19 @@ func (c *Config) validate() []Diagnostic {
 	return diagnostics
 }
 
-func (c *Config) loadCatalogFile(rootDir string) *Diagnostic {
+func (c *Config) loadCatalogFile() *Diagnostic {
 	if c.CatalogFile == "" {
 		return nil
 	}
-	path := filepath.Join(rootDir, filepath.FromSlash(c.CatalogFile))
+	path, err := resolveConfinedPath(c.rootDir, c.CatalogFile)
+	if err != nil {
+		return &Diagnostic{
+			Rule:    RuleConfig,
+			File:    c.CatalogFile,
+			Message: "catalog file: " + err.Error(),
+			Fix:     "use a catalogFile inside the project root and do not symlink it outside",
+		}
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return &Diagnostic{
@@ -284,6 +318,100 @@ func (c *Config) loadCatalogFile(rootDir string) *Diagnostic {
 	}
 	c.Catalog = append(c.Catalog, doc.Entries...)
 	return nil
+}
+
+// validateConfinement resolves the declared read paths through symlinks before
+// any checker or catalog read. Lexical validation alone lets a symlink inside
+// the project point a checker at an external directory.
+func (c *Config) validateConfinement() []Diagnostic {
+	diagnostics := make([]Diagnostic, 0)
+	if c.CatalogFile != "" {
+		if _, err := resolveConfinedPath(c.rootDir, c.CatalogFile); err != nil {
+			diagnostics = append(diagnostics, Diagnostic{
+				Rule:    RuleConfig,
+				File:    ManifestName,
+				Message: fmt.Sprintf("catalogFile %q: %v", c.CatalogFile, err),
+				Fix:     "use a catalogFile inside the project root and do not symlink it outside",
+			})
+		}
+	}
+	for _, checker := range c.Checkers {
+		if checker.Dir == "" {
+			continue
+		}
+		if _, err := resolveConfinedPath(c.rootDir, checker.Dir); err != nil {
+			diagnostics = append(diagnostics, Diagnostic{
+				Rule:    RuleConfig,
+				File:    ManifestName,
+				Message: fmt.Sprintf("checker %q dir %q: %v", checker.Name, checker.Dir, err),
+				Fix:     "use a checker dir inside the project root and do not symlink it outside",
+			})
+		}
+	}
+	return diagnostics
+}
+
+// resolveProjectRoot returns an absolute project root with every symlink
+// resolved, so confinement compares canonical paths.
+func resolveProjectRoot(rootDir string) (string, error) {
+	absolute, err := filepath.Abs(rootDir)
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(absolute)
+}
+
+// resolveConfinedPath resolves rel beneath an already-resolved project root.
+// The nearest existing ancestor is resolved through symlinks and the missing
+// remainder appended, so a not-yet-created child below a symlinked parent
+// cannot bypass containment.
+func resolveConfinedPath(resolvedRoot, rel string) (string, error) {
+	if err := validateRelativePath(rel); err != nil {
+		return "", err
+	}
+	cleaned := filepath.FromSlash(filepath.Clean(strings.TrimSpace(rel)))
+	target := filepath.Join(resolvedRoot, cleaned)
+	existing := target
+	remainder := make([]string, 0)
+	for {
+		if _, err := os.Lstat(existing); err == nil {
+			break
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return "", err
+		}
+		parent := filepath.Dir(existing)
+		if parent == existing {
+			return "", fmt.Errorf("cannot resolve %q", rel)
+		}
+		remainder = append(remainder, filepath.Base(existing))
+		existing = parent
+	}
+	resolved, err := filepath.EvalSymlinks(existing)
+	if err != nil {
+		return "", err
+	}
+	for _, r := range slices.Backward(remainder) {
+		resolved = filepath.Join(resolved, r)
+	}
+	within, err := pathWithinRoot(resolvedRoot, resolved)
+	if err != nil {
+		return "", err
+	}
+	if !within {
+		return "", errors.New("path resolves outside the project root")
+	}
+	return resolved, nil
+}
+
+func pathWithinRoot(root, target string) (bool, error) {
+	rel, err := filepath.Rel(root, target)
+	if err != nil {
+		return false, err
+	}
+	if rel == "." {
+		return true, nil
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)), nil
 }
 
 func validateRelativePath(value string) error {

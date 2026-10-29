@@ -99,25 +99,66 @@ func matchGlob(pattern, name string) bool {
 	return match(patternSegments, nameSegments)
 }
 
-// Check runs the declared content invariants. The result is deterministic and
-// never uses the network; project-declared checkers are the only extension
-// point and their argv/cwd/exit contract is documented.
+// Check runs every declared content invariant.
 func Check(rootDir string, cfg *Config) []Diagnostic {
+	return CheckSelected(rootDir, cfg, nil)
+}
+
+// CheckSelected runs only the selected content rules; an empty selection runs
+// every rule. Configuration is always validated by Load before this point. A
+// rule that is not selected must not execute its built-in or a declared
+// subprocess checker: selecting content-link must never run a stateful
+// content-checker and then discard its failure.
+func CheckSelected(rootDir string, cfg *Config, selectedRules []string) []Diagnostic {
+	rootDir = cfg.resolvedRoot(rootDir)
 	diagnostics := make([]Diagnostic, 0)
-	tree, err := walkProject(rootDir)
-	if err != nil {
-		return []Diagnostic{{
-			Rule:    RuleConfig,
-			Message: "scan project tree: " + err.Error(),
-			Fix:     "make the project tree readable",
-		}}
+	needTree := contentRuleSelected(selectedRules, RuleCatalog) ||
+		contentRuleSelected(selectedRules, RuleSlug) ||
+		contentRuleSelected(selectedRules, RuleRequired) ||
+		contentRuleSelected(selectedRules, RuleLink)
+	if needTree {
+		tree, err := walkProject(rootDir)
+		if err != nil {
+			return []Diagnostic{{
+				Rule:    RuleConfig,
+				Message: "scan project tree: " + err.Error(),
+				Fix:     "make the project tree readable",
+			}}
+		}
+		documents := includedDocuments(cfg, tree)
+		// checkCatalog reports both catalog-target and slug diagnostics; the
+		// caller filters any rule it did not select.
+		if contentRuleSelected(selectedRules, RuleCatalog) ||
+			contentRuleSelected(selectedRules, RuleSlug) {
+			diagnostics = append(diagnostics, checkCatalog(cfg, tree, documents)...)
+		}
+		if contentRuleSelected(selectedRules, RuleRequired) {
+			diagnostics = append(diagnostics, checkRequired(cfg, tree)...)
+		}
+		if contentRuleSelected(selectedRules, RuleLink) {
+			diagnostics = append(diagnostics, checkLinks(rootDir, cfg, tree, documents)...)
+		}
 	}
-	documents := includedDocuments(cfg, tree)
-	diagnostics = append(diagnostics, checkCatalog(cfg, tree, documents)...)
-	diagnostics = append(diagnostics, checkRequired(cfg, tree)...)
-	diagnostics = append(diagnostics, checkLinks(rootDir, cfg, tree, documents)...)
-	diagnostics = append(diagnostics, checkDeclaredCheckers(rootDir, cfg)...)
+	if contentRuleSelected(selectedRules, RuleChecker) {
+		diagnostics = append(diagnostics, checkDeclaredCheckers(rootDir, cfg)...)
+	}
 	return diagnostics
+}
+
+func contentRuleSelected(selectedRules []string, rule string) bool {
+	return len(selectedRules) == 0 || slices.Contains(selectedRules, rule)
+}
+
+// resolvedRoot returns the canonical project root Load recorded, or the given
+// root for a Config built outside Load.
+func (c *Config) resolvedRoot(rootDir string) string {
+	if c.rootDir != "" {
+		return c.rootDir
+	}
+	if resolved, err := resolveProjectRoot(rootDir); err == nil {
+		return resolved
+	}
+	return rootDir
 }
 
 func includedDocuments(cfg *Config, tree projectTree) []string {
@@ -681,20 +722,30 @@ func parseLinkDestination(rest string) (string, int, bool) {
 	return strings.TrimSpace(destination), index + 1, true
 }
 
-// checkDeclaredCheckers runs each [[checkers]] entry with exec.Command: no
-// shell, no interpolation, bounded timeout, and cwd confined to the project.
+// checkDeclaredCheckers runs each selected [[checkers]] entry with
+// exec.Command: no shell, no interpolation, bounded timeout, and cwd confined
+// to the resolved project root.
 func checkDeclaredCheckers(rootDir string, cfg *Config) []Diagnostic {
 	diagnostics := make([]Diagnostic, 0)
 	for _, checker := range cfg.Checkers {
-		diagnostics = append(diagnostics, runChecker(rootDir, checker)...)
+		diagnostics = append(diagnostics, runChecker(rootDir, cfg, checker)...)
 	}
 	return diagnostics
 }
 
-func runChecker(rootDir string, checker Checker) []Diagnostic {
-	dir := rootDir
+func runChecker(rootDir string, cfg *Config, checker Checker) []Diagnostic {
+	dir := cfg.resolvedRoot(rootDir)
 	if checker.Dir != "" {
-		dir = filepath.Join(rootDir, filepath.FromSlash(checker.Dir))
+		resolved, err := resolveConfinedPath(dir, checker.Dir)
+		if err != nil {
+			return []Diagnostic{{
+				Rule:    RuleConfig,
+				File:    ManifestName,
+				Message: fmt.Sprintf("checker %q dir %q: %v", checker.Name, checker.Dir, err),
+				Fix:     "use a checker dir inside the project root and do not symlink it outside",
+			}}
+		}
+		dir = resolved
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), checker.checkerTimeout())
 	defer cancel()

@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/mbvlabs/andurel/v2/cli/internal/content"
 	"github.com/mbvlabs/andurel/v2/cli/internal/layers"
 	"github.com/mbvlabs/andurel/v2/cli/output"
 )
@@ -421,10 +422,10 @@ func buildVerifyPlan(
 		}
 	}
 	if stageSelected(selection.StageIDs, verifyStageContent) {
-		if changedFilesAffectContent(entries) {
+		if changedFilesAffectContent(rootDir, entries) {
 			plan.scope.Widened = append(plan.scope.Widened, verifyScopeWidening{
 				Step:   "content",
-				Reason: "declared content invariants cover the whole configured content tree",
+				Reason: "declared content invariants cover the whole configured content tree and its declared catalog/checker inputs",
 			})
 		} else {
 			skipStage(verifyStageContent, "no changed content files in scope")
@@ -579,7 +580,7 @@ func resolveChangedGoScope(
 			dir = ""
 		}
 		importByDir[dir] = pkg.ImportPath
-		for _, imported := range append(append([]string{}, pkg.Imports...), pkg.TestImports...) {
+		for _, imported := range append(append(append([]string{}, pkg.Imports...), pkg.TestImports...), pkg.XTestImports...) {
 			dependents[imported] = append(dependents[imported], pkg.ImportPath)
 		}
 	}
@@ -621,17 +622,18 @@ func isGlobalGoChange(file string) bool {
 }
 
 type goListPackage struct {
-	Dir         string
-	ImportPath  string
-	Imports     []string
-	TestImports []string
+	Dir          string
+	ImportPath   string
+	Imports      []string
+	TestImports  []string
+	XTestImports []string
 }
 
 // listGoPackages loads the module's package graph for reverse-dependency
 // scoping. Load errors (-e) keep partial results; a broken module is widened by
 // the caller.
 func listGoPackages(rootDir string) ([]goListPackage, error) {
-	format := "{{.Dir}}\t{{.ImportPath}}\t{{join .Imports \",\"}}\t{{join .TestImports \",\"}}"
+	format := "{{.Dir}}\t{{.ImportPath}}\t{{join .Imports \",\"}}\t{{join .TestImports \",\"}}\t{{join .XTestImports \",\"}}"
 	out, err := runVerifyCommand(rootDir, "go", "list", "-e", "-f", format, "./...")
 	if err != nil {
 		return nil, fmt.Errorf("%s", strings.TrimSpace(out))
@@ -652,6 +654,9 @@ func listGoPackages(rootDir string) ([]goListPackage, error) {
 		}
 		if len(fields) > 3 && fields[3] != "" {
 			pkg.TestImports = strings.Split(fields[3], ",")
+		}
+		if len(fields) > 4 && fields[4] != "" {
+			pkg.XTestImports = strings.Split(fields[4], ",")
 		}
 		packages = append(packages, pkg)
 	}
@@ -696,7 +701,7 @@ func changedFilesAffectGenerated(entries []verifyChangedEntry) bool {
 	return false
 }
 
-func changedFilesAffectContent(entries []verifyChangedEntry) bool {
+func changedFilesAffectContent(rootDir string, entries []verifyChangedEntry) bool {
 	for _, entry := range entries {
 		if entry.Path == contentManifestName {
 			return true
@@ -708,6 +713,58 @@ func changedFilesAffectContent(entries []verifyChangedEntry) bool {
 		// Deleting or renaming an asset can break a local link even when the
 		// changed path itself is not Markdown.
 		if strings.HasPrefix(entry.Status, "D") || strings.HasPrefix(entry.Status, "R") {
+			return true
+		}
+	}
+	cfg, diagnostics := content.Load(rootDir)
+	if cfg == nil {
+		// A present but unloadable declaration has unknown inputs; a missing
+		// declaration has nothing to check.
+		return len(diagnostics) > 0
+	}
+	declared := contentDeclaredInputs(cfg)
+	for _, entry := range entries {
+		if contentInputMatches(entry.Path, declared) {
+			return true
+		}
+	}
+	// A declared checker is opaque: its argv and imports can read any project
+	// file, so a change whose impact cannot be determined conservatively runs
+	// the content stage. This is what catches a changed Go catalog checker or
+	// catalog source that is not itself Markdown.
+	return len(cfg.Checkers) > 0
+}
+
+// contentDeclaredInputs lists the project paths a content declaration names
+// directly. Checker argv is intentionally absent: a checker is treated as
+// opaque, so any changed file runs the stage.
+func contentDeclaredInputs(cfg *content.Config) []string {
+	inputs := make([]string, 0, 2+len(cfg.Required)+len(cfg.Catalog))
+	if cfg.CatalogFile != "" {
+		inputs = append(inputs, cfg.CatalogFile)
+	}
+	inputs = append(inputs, cfg.Required...)
+	for _, entry := range cfg.Catalog {
+		if entry.File != "" {
+			inputs = append(inputs, entry.File)
+		}
+	}
+	for _, checker := range cfg.Checkers {
+		if checker.Dir != "" {
+			inputs = append(inputs, checker.Dir)
+		}
+	}
+	return inputs
+}
+
+func contentInputMatches(changed string, declared []string) bool {
+	changed = path.Clean(strings.TrimSpace(changed))
+	for _, input := range declared {
+		input = path.Clean(strings.TrimSpace(filepath.ToSlash(input)))
+		if input == "" || input == "." {
+			continue
+		}
+		if changed == input || strings.HasPrefix(changed, input+"/") {
 			return true
 		}
 	}

@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -59,7 +60,8 @@ type handlerPageRender struct {
 	Component         string
 	ComponentResolved bool
 	ComponentReason   string
-	SSR               bool
+	SSRPolicy         string
+	SSRReason         string
 	SourceFile        string
 	Line              int
 }
@@ -75,8 +77,9 @@ Associations come from a handler method bound to a route in its Register
 method that calls renderer.Page with a static component name. A render whose
 component argument is not a string literal is reported under unresolved with
 its handler, method, and source line instead of being guessed. A page that
-does not call .SSR() reports ssr_policy=unresolved because the renderer-wide
-default is configured at runtime.`,
+calls .CSR() reports ssr_policy=disabled; a page that calls neither .SSR() nor
+.CSR() reports ssr_policy=unresolved because the renderer-wide default is
+configured at runtime. When both are called, .SSR() wins, matching the renderer.`,
 		Args:    cobra.NoArgs,
 		Example: "  andurel inspect pages\n  andurel inspect pages --json\n  andurel inspect pages --jq .pages",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -144,7 +147,7 @@ func collectPagesInspection(rootDir string) (pagesInspection, error) {
 	for _, render := range renders {
 		handlerKey := render.HandlerType + "." + render.Method
 		bound := routesByHandlerMethod[handlerKey]
-		ssrPolicy, ssrReason := pageSSRPolicy(render.SSR)
+		ssrPolicy, ssrReason := render.SSRPolicy, render.SSRReason
 		if !render.ComponentResolved {
 			report.Unresolved = append(report.Unresolved, unresolvedPageRender{
 				Handler:    render.HandlerType,
@@ -210,11 +213,15 @@ func appendMissingPageRoute(routes []pageRoute, route pageRoute) []pageRoute {
 	return append(routes, route)
 }
 
-func pageSSRPolicy(enabled bool) (policy, reason string) {
-	if enabled {
+func pageSSRPolicy(ssr, csr bool) (policy, reason string) {
+	switch {
+	case ssr:
 		return "enabled", "page builder calls .SSR()"
+	case csr:
+		return "disabled", "page builder calls .CSR()"
+	default:
+		return "unresolved", "page builder calls neither .SSR() nor .CSR(); the renderer-wide SSR default is configured at runtime"
 	}
-	return "unresolved", "renderer-wide SSR default is configured at runtime; this page does not call .SSR()"
 }
 
 func collectPageComponents(rootDir string) ([]pageComponent, map[string]int, error) {
@@ -323,17 +330,22 @@ func collectHandlerPageRenders(rootDir string) ([]handlerPageRender, error) {
 				continue
 			}
 			ssrPages := map[token.Pos]bool{}
+			csrPages := map[token.Pos]bool{}
 			ast.Inspect(fn.Body, func(node ast.Node) bool {
 				call, ok := node.(*ast.CallExpr)
 				if !ok {
 					return true
 				}
 				selector, ok := call.Fun.(*ast.SelectorExpr)
-				if !ok || selector.Sel.Name != "SSR" {
+				if !ok || (selector.Sel.Name != "SSR" && selector.Sel.Name != "CSR") {
 					return true
 				}
 				if page := pageCallInChain(selector.X); page != nil {
-					ssrPages[page.Pos()] = true
+					if selector.Sel.Name == "SSR" {
+						ssrPages[page.Pos()] = true
+					} else {
+						csrPages[page.Pos()] = true
+					}
 				}
 				return true
 			})
@@ -349,10 +361,13 @@ func collectHandlerPageRenders(rootDir string) ([]handlerPageRender, error) {
 				render := handlerPageRender{
 					HandlerType: handlerType,
 					Method:      fn.Name.Name,
-					SSR:         ssrPages[call.Pos()],
 					SourceFile:  sourceFile,
 					Line:        fset.Position(call.Pos()).Line,
 				}
+				render.SSRPolicy, render.SSRReason = pageSSRPolicy(
+					ssrPages[call.Pos()],
+					csrPages[call.Pos()],
+				)
 				if len(call.Args) < 2 {
 					render.ComponentReason = "renderer.Page call has no component argument"
 				} else if literal, ok := call.Args[1].(*ast.BasicLit); ok && literal.Kind == token.STRING {
@@ -442,12 +457,17 @@ func renderPagesHuman(w io.Writer, report pagesInspection) error {
 				file = "-"
 			}
 			routes := make([]string, 0, len(page.Routes))
-			ssr := "unresolved"
+			policies := make([]string, 0, len(page.Routes))
 			for _, route := range page.Routes {
 				routes = append(routes, route.Name)
-				if route.SSRPolicy == "enabled" {
-					ssr = "enabled"
+				if route.SSRPolicy != "" && route.SSRPolicy != "unresolved" &&
+					!slices.Contains(policies, route.SSRPolicy) {
+					policies = append(policies, route.SSRPolicy)
 				}
+			}
+			ssr := "unresolved"
+			if len(policies) > 0 {
+				ssr = strings.Join(policies, ",")
 			}
 			if len(routes) == 0 {
 				routes = []string{"-"}

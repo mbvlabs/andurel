@@ -299,6 +299,176 @@ func TestVerifyChangedDeletionAndRenameAffectContent(t *testing.T) {
 	assertVerifyExitCode(t, deleted, output.ExitVerification)
 }
 
+func TestVerifyChangedRunsContentForDeclaredCatalogFileChange(t *testing.T) {
+	root := newGitVerifyProject(t)
+	writeTestFile(t, root, contentManifestName, `schemaVersion = 1
+include = ["content/**/*.md"]
+catalogFile = "content/catalog.toml"
+`)
+	writeTestFile(t, root, "content/catalog.toml", `schemaVersion = 1
+
+[[entry]]
+slug = "guide"
+file = "content/guide.md"
+`)
+	writeTestFile(t, root, "content/index.md", "# Home\n\n[Guide](guide.md)\n")
+	writeTestFile(t, root, "content/guide.md", "# Guide\n")
+	writeTestFile(t, root, "content/other.md", "# Other\n")
+	runGit(t, root, "add", ".")
+	runGit(t, root, "commit", "-m", "content baseline")
+
+	// Only the declared catalog file changes: no Markdown, manifest, deletion,
+	// or rename signals that content invariants could be affected.
+	writeTestFile(t, root, "content/catalog.toml", `schemaVersion = 1
+
+[[entry]]
+slug = "guide"
+file = "content/guide.md"
+
+[[entry]]
+slug = "guide"
+file = "content/other.md"
+`)
+	result := runVerifyInProject(t, root, "verify", "--changed", "--only", "content", "--json")
+	assertVerifyExitCode(t, result, output.ExitVerification)
+	report, ok := output.Fail(result.err).Data.(verifyReport)
+	if !ok {
+		t.Fatalf("failure data = %T, want verifyReport", output.Fail(result.err).Data)
+	}
+	step := findVerifyStep(t, report, "content")
+	found := false
+	for _, violation := range step.Violations {
+		if violation.Rule == "content-slug" && violation.File == contentManifestName {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("content violations = %#v, want the duplicate catalog slug", step.Violations)
+	}
+	widened := false
+	for _, widening := range report.Scope.Widened {
+		if widening.Step == "content" {
+			widened = true
+		}
+	}
+	if !widened {
+		t.Fatalf("scope.widened = %#v, want the content stage", report.Scope.Widened)
+	}
+}
+
+func TestVerifyChangedRunsContentForRequiredInputChange(t *testing.T) {
+	root := newGitVerifyProject(t)
+	writeTestFile(t, root, contentManifestName, `schemaVersion = 1
+include = ["content/**/*.md"]
+required = ["content/required.txt"]
+`)
+	writeTestFile(t, root, "content/index.md", "# Home\n")
+	writeTestFile(t, root, "content/required.txt", "first\n")
+	runGit(t, root, "add", ".")
+	runGit(t, root, "commit", "-m", "content baseline")
+
+	// required declares a non-Markdown input: changing it must not leave the
+	// content stage skipped just because no Markdown or manifest changed.
+	writeTestFile(t, root, "content/required.txt", "second\n")
+	result := runVerifyInProject(t, root, "verify", "--changed", "--only", "content", "--json")
+	if result.err != nil {
+		t.Fatalf("verify --changed --only content: %v\n%s", result.err, result.stderr)
+	}
+	report := decodeVerifyReport(t, result)
+	step := findVerifyStep(t, report, "content")
+	if step.Status != verifyStatusOK || !step.OK {
+		t.Fatalf("content step = %#v, want the required-input change checked", step)
+	}
+	widened := false
+	for _, widening := range report.Scope.Widened {
+		if widening.Step == "content" {
+			widened = true
+		}
+	}
+	if !widened {
+		t.Fatalf("scope.widened = %#v, want the content stage", report.Scope.Widened)
+	}
+}
+
+func TestVerifyChangedRunsContentWhenOpaqueCheckerInputsChange(t *testing.T) {
+	root := newGitVerifyProject(t)
+	writeTestFile(t, root, contentManifestName, `schemaVersion = 1
+include = ["content/**/*.md"]
+
+[[checkers]]
+name = "docs-check"
+run = ["sh", "-c", "test ! -f broken.txt"]
+`)
+	writeTestFile(t, root, "content/index.md", "# Home\n")
+	runGit(t, root, "add", ".")
+	runGit(t, root, "commit", "-m", "content baseline")
+
+	// A checker's real inputs are opaque to the verifier: an unrelated file can
+	// change what it reads or how it behaves, so content invariants must run.
+	writeTestFile(t, root, "broken.txt", "checker input changed\n")
+	result := runVerifyInProject(t, root, "verify", "--changed", "--only", "content", "--json")
+	assertVerifyExitCode(t, result, output.ExitVerification)
+	report, ok := output.Fail(result.err).Data.(verifyReport)
+	if !ok {
+		t.Fatalf("failure data = %T, want verifyReport", output.Fail(result.err).Data)
+	}
+	step := findVerifyStep(t, report, "content")
+	found := false
+	for _, violation := range step.Violations {
+		if violation.Rule == "content-checker" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("content violations = %#v, want the checker failure", step.Violations)
+	}
+}
+
+func TestVerifyChangedIncludesExternalTestImportDependents(t *testing.T) {
+	root := t.TempDir()
+	writeGoModule(t, root)
+	writeTestFile(t, root, ".gitignore", "bin/\n")
+	writeTestFile(t, root, "a/a.go", "package a\n\nfunc Value() int { return 1 }\n")
+	writeTestFile(t, root, "b/b.go", "package b\n\nfunc B() {}\n")
+	writeTestFile(t, root, "b/b_test.go", `package b_test
+
+import (
+	"testing"
+
+	"example.com/app/a"
+)
+
+func TestValue(t *testing.T) {
+	if a.Value() != 1 {
+		t.Fatalf("value = %d", a.Value())
+	}
+}
+`)
+	runGit(t, root, "init")
+	runGit(t, root, "config", "user.email", "test@example.com")
+	runGit(t, root, "config", "user.name", "Test User")
+	runGit(t, root, "add", ".")
+	runGit(t, root, "commit", "-m", "baseline")
+
+	// The external test package b_test is the only importer of a, so b is a
+	// reverse dependency through XTestImports rather than Imports/TestImports.
+	writeTestFile(t, root, "a/a.go", "package a\n")
+	result := runVerifyInProject(t, root, "verify", "--changed", "--only", "go-test", "--with-tests", "--json")
+	assertVerifyExitCode(t, result, output.ExitVerification)
+	report, ok := output.Fail(result.err).Data.(verifyReport)
+	if !ok {
+		t.Fatalf("failure data = %T, want verifyReport", output.Fail(result.err).Data)
+	}
+	packages := strings.Join(report.Scope.GoPackages, ",")
+	if !strings.Contains(packages, "example.com/app/a") || !strings.Contains(packages, "example.com/app/b") {
+		t.Fatalf("scope.go_packages = %#v, want the changed package and its external test dependent", report.Scope.GoPackages)
+	}
+	step := findVerifyStep(t, report, "go test")
+	if step.Status != verifyStatusFail {
+		t.Fatalf("go test step = %#v, want the b_test build failure", step)
+	}
+}
+
 func TestVerifyChangedSkipsUnaffectedWholeProjectStages(t *testing.T) {
 	root := newGitVerifyProject(t)
 	writeTestFile(t, root, "README.md", "# Notes\n")

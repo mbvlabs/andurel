@@ -193,13 +193,15 @@ Scope:
   --base <ref>             base revision for --changed (requires --changed).
 
 In --changed mode Go stages cover the changed packages and their in-module
-reverse dependencies, so an exported change also checks its dependents. A
-change to go.mod, go.sum, go.work, go.work.sum, andurel.toml, andurel.lock, or
-bin/ widens Go stages to ./... . The frontend, generated, and content stages
-always check the whole project when they run; the report records that widening
-under scope.widened. An empty change set is an explicit no-op: every selected
-stage is skipped, scope.noop is true, and the run does not claim whole-project
-health.
+reverse dependencies, including external test packages that import a changed
+package, so an exported change also checks its dependents. A change to go.mod,
+go.sum, go.work, go.work.sum, andurel.toml, andurel.lock, or bin/ widens Go
+stages to ./... . The frontend, generated, and content stages always check the
+whole project when they run; the report records that widening under
+scope.widened. The content stage also runs when a declared catalogFile,
+catalog target, required path, or opaque checker input changes. An empty change
+set is an explicit no-op: every selected stage is skipped, scope.noop is true,
+and the run does not claim whole-project health.
 
 Pass Go package patterns to scope gofmt, go fix, go vet, layers, and go test,
 for example 'andurel verify ./internal/docs/...'. Package patterns cannot be
@@ -239,9 +241,12 @@ Content built-ins validate catalog targets, duplicate and pattern-violating
 slugs, required paths, and local relative links/images (case-sensitive,
 project-root confined). External URLs, site-absolute '/...' paths, fenced code,
 and inline code spans are not checked; the network is never used. A [[checkers]]
-entry runs its argv without a shell from dir (default project root, bounded to
-the project) with a bounded timeout (default 120s, max 600s); exit 0 passes and
-nonzero output lines shaped 'path:line: message' become file/line diagnostics.
+entry runs its argv without a shell from dir (default project root, resolved
+through symlinks and confined to the resolved project root) with a bounded
+timeout (default 120s, max 600s); exit 0 passes and nonzero output lines shaped
+'path:line: message' become file/line diagnostics. catalogFile gets the same
+symlink confinement. --rules content-* executes only the selected built-ins and
+[[checkers]] entries, while configuration is always validated.
 Projects without andurel.content.toml report the content stage as skipped and
 not_applicable, never as checked.
 

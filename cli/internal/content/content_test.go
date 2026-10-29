@@ -277,6 +277,86 @@ catalogFile = "content/catalog.toml"
 	}
 }
 
+func TestLoadRejectsSymlinkedManifestEscape(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink fixture uses POSIX symlinks")
+	}
+	root := t.TempDir()
+	outside := t.TempDir()
+	writeContentFile(t, outside, ManifestName, "schemaVersion = 1\ninclude = [\"content/**/*.md\"]\n")
+	if err := os.Symlink(filepath.Join(outside, ManifestName), filepath.Join(root, ManifestName)); err != nil {
+		t.Fatalf("create manifest symlink: %v", err)
+	}
+
+	cfg, diagnostics := Load(root)
+	if cfg != nil {
+		t.Fatalf("Load() returned a config: %#v", cfg)
+	}
+	if len(diagnostics) != 1 || diagnostics[0].Rule != RuleConfig ||
+		!strings.Contains(diagnostics[0].Message, "outside the project root") {
+		t.Fatalf("diagnostics = %#v, want a content-config manifest escape", diagnostics)
+	}
+}
+
+func TestLoadRejectsSymlinkedCatalogFileEscape(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink fixture uses POSIX symlinks")
+	}
+	root := t.TempDir()
+	outside := t.TempDir()
+	writeContentFile(t, outside, "catalog.toml", `schemaVersion = 1
+
+[[entry]]
+slug = "escaped"
+file = "content/escaped.md"
+`)
+	writeContentManifest(t, root, `schemaVersion = 1
+include = ["content/**/*.md"]
+catalogFile = "content/catalog.toml"
+`)
+	writeContentFile(t, root, "content/index.md", "# Home\n")
+	if err := os.MkdirAll(filepath.Join(root, "content"), 0o755); err != nil {
+		t.Fatalf("create content directory: %v", err)
+	}
+	if err := os.Symlink(filepath.Join(outside, "catalog.toml"), filepath.Join(root, "content", "catalog.toml")); err != nil {
+		t.Fatalf("create catalog symlink: %v", err)
+	}
+
+	cfg, diagnostics := Load(root)
+	if cfg != nil {
+		t.Fatalf("Load() returned a config: %#v", cfg)
+	}
+	if len(diagnostics) != 1 || diagnostics[0].Rule != RuleConfig ||
+		!strings.Contains(diagnostics[0].Message, "outside the project root") {
+		t.Fatalf("diagnostics = %#v, want a content-config catalog escape", diagnostics)
+	}
+}
+
+func TestLoadRejectsCatalogFileBelowSymlinkedAncestor(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink fixture uses POSIX symlinks")
+	}
+	root := t.TempDir()
+	outside := t.TempDir()
+	writeContentManifest(t, root, `schemaVersion = 1
+include = ["content/**/*.md"]
+catalogFile = "linked/new/catalog.toml"
+`)
+	writeContentFile(t, root, "content/index.md", "# Home\n")
+	if err := os.Symlink(outside, filepath.Join(root, "linked")); err != nil {
+		t.Fatalf("create escaping symlink: %v", err)
+	}
+
+	cfg, diagnostics := Load(root)
+	if cfg != nil {
+		t.Fatalf("Load() returned a config: %#v", cfg)
+	}
+	if len(diagnostics) != 1 || diagnostics[0].Rule != RuleConfig ||
+		!strings.Contains(diagnostics[0].Message, "outside the project root") {
+		t.Fatalf("diagnostics = %#v, want a content-config catalog escape", diagnostics)
+	}
+}
+
 func TestCheckLocalLinksAndAnchors(t *testing.T) {
 	tests := []struct {
 		name      string

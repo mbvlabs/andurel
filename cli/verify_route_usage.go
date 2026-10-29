@@ -930,13 +930,16 @@ func destructuredRouteNames(tokens []tsToken, helpers map[string]bool) []string 
 		if tokens[index].Kind != tsIdent {
 			continue
 		}
-		local := tokens[index].Text
+		// The generated property is the source name; the local binding may be
+		// renamed, e.g. const { homePage: home } = routes.
+		property := tokens[index].Text
+		local := property
 		if index+2 < len(tokens) && tokens[index+1].Text == ":" &&
 			tokens[index+2].Kind == tsIdent {
 			local = tokens[index+2].Text
 			index += 2
 		}
-		if helpers[local] {
+		if helpers[property] {
 			names = append(names, local)
 		}
 	}

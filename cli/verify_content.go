@@ -12,8 +12,11 @@ const contentManifestName = content.ManifestName
 
 // verifyContent runs the declared content invariants. A project without an
 // andurel.content.toml has nothing to check: the step is skipped and marked
-// not applicable instead of claiming content was verified.
+// not applicable instead of claiming content was verified. selectedRules is
+// the --rules subset: an empty selection runs every content rule, while a
+// non-empty selection executes only those built-ins and checker declarations.
 func verifyContent(rootDir string, selectedRules []string) (verifyStep, []string) {
+	requested := selectedContentRules(selectedRules)
 	cfg, loadDiagnostics := content.Load(rootDir)
 	if cfg == nil && len(loadDiagnostics) == 0 {
 		step := verifyStep{
@@ -24,11 +27,15 @@ func verifyContent(rootDir string, selectedRules []string) (verifyStep, []string
 		}
 		return step, nil
 	}
-	executed := selectedContentRules(selectedRules)
 	step := verifyStepOK("content")
 	diagnostics := loadDiagnostics
+	executed := requested
 	if len(diagnostics) == 0 {
-		diagnostics = content.Check(rootDir, cfg)
+		diagnostics = content.CheckSelected(rootDir, cfg, requested)
+	} else {
+		// Load performed configuration validation even when a rule filter was
+		// given; only content-config actually ran before the failure.
+		executed = []string{content.RuleConfig}
 	}
 	for _, diagnostic := range diagnostics {
 		if len(selectedRules) > 0 && diagnostic.Rule != content.RuleConfig &&

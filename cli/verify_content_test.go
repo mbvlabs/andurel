@@ -110,6 +110,136 @@ run = ["sh", "-c", "printf 'content/index.md:2: broken catalog entry\\n'; exit 1
 	}
 }
 
+func TestVerifyContentRuleSelectionDoesNotRunUnselectedChecker(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("checker fixture uses a POSIX shell script")
+	}
+	root := newVerifyTestProject(t)
+	writeTestFile(t, root, contentManifestName, `schemaVersion = 1
+include = ["content/**/*.md"]
+
+[[checkers]]
+name = "side-effecting-check"
+run = ["sh", "checker.sh"]
+`)
+	writeTestFile(t, root, "content/index.md", "# Home\n\n[Guide](guide.md)\n")
+	writeTestFile(t, root, "content/guide.md", "# Guide\n")
+	writeTestFile(t, root, "checker.sh", "#!/bin/sh\nprintf 'ran\\n' > checker-ran.txt\nexit 1\n")
+	marker := filepath.Join(root, "checker-ran.txt")
+
+	links := runVerifyInProject(t, root, "verify", "--only", "content", "--rules", "content-link", "--json")
+	if links.err != nil {
+		t.Fatalf("verify --rules content-link: %v\n%s", links.err, links.stderr)
+	}
+	report := decodeVerifyReport(t, links)
+	step := findVerifyStep(t, report, "content")
+	if step.Status != verifyStatusOK || !step.OK {
+		t.Fatalf("content step = %#v, want ok when the unselected checker is not run", step)
+	}
+	if step.Rules == nil || len(step.Rules.Executed) != 1 || step.Rules.Executed[0] != "content-link" {
+		t.Fatalf("content rules = %#v, want only content-link executed", step.Rules)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("unselected content-checker ran and wrote %s", marker)
+	}
+
+	checker := runVerifyInProject(t, root, "verify", "--only", "content", "--rules", "content-checker", "--json")
+	assertVerifyExitCode(t, checker, output.ExitVerification)
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("selected content-checker did not run: %v", err)
+	}
+	failure, ok := output.Fail(checker.err).Data.(verifyReport)
+	if !ok {
+		t.Fatalf("failure data = %T, want verifyReport", output.Fail(checker.err).Data)
+	}
+	checkerStep := findVerifyStep(t, failure, "content")
+	if len(checkerStep.Violations) != 1 || checkerStep.Violations[0].Rule != "content-checker" {
+		t.Fatalf("checker violations = %#v, want the selected checker failure", checkerStep.Violations)
+	}
+}
+
+func TestVerifyContentRejectsSymlinkedCheckerDirectoryEscape(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink fixture uses POSIX symlinks and a shell script")
+	}
+	root := newVerifyTestProject(t)
+	outside := t.TempDir()
+	outsideDir := filepath.Join(outside, "nested")
+	if err := os.MkdirAll(outsideDir, 0o755); err != nil {
+		t.Fatalf("create escaped checker directory: %v", err)
+	}
+	writeTestFile(t, outsideDir, "checker.sh", "#!/bin/sh\nprintf 'ran\\n' > escaped-ran.txt\nexit 0\n")
+	writeTestFile(t, root, contentManifestName, `schemaVersion = 1
+include = ["content/**/*.md"]
+
+[[checkers]]
+name = "escaped-check"
+run = ["sh", "checker.sh"]
+dir = "linked/nested"
+`)
+	writeTestFile(t, root, "content/index.md", "# Home\n")
+	if err := os.Symlink(outside, filepath.Join(root, "linked")); err != nil {
+		t.Fatalf("create escaping symlink: %v", err)
+	}
+
+	result := runVerifyInProject(t, root, "verify", "--only", "content", "--json")
+	assertVerifyExitCode(t, result, output.ExitVerification)
+	report, ok := output.Fail(result.err).Data.(verifyReport)
+	if !ok {
+		t.Fatalf("failure data = %T, want verifyReport", output.Fail(result.err).Data)
+	}
+	step := findVerifyStep(t, report, "content")
+	found := false
+	for _, violation := range step.Violations {
+		if violation.Rule == "content-config" && strings.Contains(violation.Message, "outside the project root") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("content violations = %#v, want a content-config symlink escape", step.Violations)
+	}
+	if _, err := os.Stat(filepath.Join(outsideDir, "escaped-ran.txt")); !os.IsNotExist(err) {
+		t.Fatalf("escaped checker ran in %s", outsideDir)
+	}
+}
+
+func TestVerifyContentRejectsMissingChildBelowSymlinkedCheckerAncestor(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink fixture uses POSIX symlinks")
+	}
+	root := newVerifyTestProject(t)
+	outside := t.TempDir()
+	writeTestFile(t, root, contentManifestName, `schemaVersion = 1
+include = ["content/**/*.md"]
+
+[[checkers]]
+name = "escaped-check"
+run = ["sh", "checker.sh"]
+dir = "linked/missing"
+`)
+	writeTestFile(t, root, "content/index.md", "# Home\n")
+	if err := os.Symlink(outside, filepath.Join(root, "linked")); err != nil {
+		t.Fatalf("create escaping symlink: %v", err)
+	}
+
+	result := runVerifyInProject(t, root, "verify", "--only", "content", "--json")
+	assertVerifyExitCode(t, result, output.ExitVerification)
+	report, ok := output.Fail(result.err).Data.(verifyReport)
+	if !ok {
+		t.Fatalf("failure data = %T, want verifyReport", output.Fail(result.err).Data)
+	}
+	step := findVerifyStep(t, report, "content")
+	found := false
+	for _, violation := range step.Violations {
+		if violation.Rule == "content-config" && strings.Contains(violation.Message, "outside the project root") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("content violations = %#v, want a content-config symlink escape", step.Violations)
+	}
+}
+
 func TestVerifyContentConfigFailureIsNotHiddenByRuleFilter(t *testing.T) {
 	root := newVerifyTestProject(t)
 	writeTestFile(t, root, contentManifestName, `schemaVersion = 2
@@ -125,6 +255,10 @@ include = ["content/**/*.md"]
 	step := findVerifyStep(t, report, "content")
 	if len(step.Violations) != 1 || step.Violations[0].Rule != "content-config" {
 		t.Fatalf("content violations = %#v, want the content-config failure", step.Violations)
+	}
+	if step.Rules == nil || len(step.Rules.Selected) != 1 || step.Rules.Selected[0] != "content-link" ||
+		len(step.Rules.Executed) != 0 || len(step.Rules.Skipped) != 1 || step.Rules.Skipped[0] != "content-link" {
+		t.Fatalf("content rules = %#v, want content-link selected and skipped after config validation", step.Rules)
 	}
 }
 
@@ -236,6 +370,25 @@ func TestVerifyContentRuleFilter(t *testing.T) {
 	step = findVerifyStep(t, report, "content")
 	if len(step.Violations) != 1 || step.Violations[0].Rule != "content-link" {
 		t.Fatalf("content violations = %#v, want only content-link", step.Violations)
+	}
+
+	slugsRoot := newVerifyTestProject(t)
+	writeVerifyContentFixture(t, slugsRoot)
+	writeTestFile(t, slugsRoot, contentManifestName, verifyContentManifest+`
+[[catalog]]
+slug = "guide"
+file = "content/other.md"
+`)
+	writeTestFile(t, slugsRoot, "content/other.md", "# Other\n")
+	slugs := runVerifyInProject(t, slugsRoot, "verify", "--only", "content", "--rules", "content-slug", "--json")
+	assertVerifyExitCode(t, slugs, output.ExitVerification)
+	slugReport, ok := output.Fail(slugs.err).Data.(verifyReport)
+	if !ok {
+		t.Fatalf("failure data = %T, want verifyReport", output.Fail(slugs.err).Data)
+	}
+	slugStep := findVerifyStep(t, slugReport, "content")
+	if len(slugStep.Violations) != 1 || slugStep.Violations[0].Rule != "content-slug" {
+		t.Fatalf("content violations = %#v, want the selected content-slug failure", slugStep.Violations)
 	}
 }
 

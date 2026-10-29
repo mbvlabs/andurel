@@ -69,7 +69,7 @@ manifest must not silently disable a check.
 
 | Rule | Checks |
 | --- | --- |
-| `content-config` | The manifest parses, `schemaVersion = 1`, globs/paths are root-relative and stay inside the project, the catalog file exists and parses, `[links]`/`[[checkers]]` values are supported. |
+| `content-config` | The manifest parses, `schemaVersion = 1`, globs/paths are root-relative and stay inside the project, the catalog file exists and parses, `[links]`/`[[checkers]]` values are supported, and the manifest, `catalogFile`, and checker `dir` resolve through symlinks inside the resolved project root. |
 | `content-catalog` | Every catalog entry has a non-empty `file`, targets a `.md` file, the file exists, is not excluded, and is inside `include`. |
 | `content-slug` | Slugs are non-empty, match `[slugs].pattern`, and are unique across inline and catalog-file entries. |
 | `content-required` | Every `required` path exists as a file or directory. |
@@ -78,6 +78,24 @@ manifest must not silently disable a check.
 
 A project without `andurel.content.toml` reports the content stage as
 `skipped` with `not_applicable: true`. It never reports content as checked.
+
+### Rule selection and execution
+
+`--rules` controls what the content stage **executes**, not only which findings
+are printed. With `--rules content-link`, only the local-link built-in runs; a
+declared `[[checkers]]` subprocess does not start, so its side effects and exit
+status cannot leak into a differently scoped run. `--rules content-checker`
+runs only the declared checkers, and `--rules content-config` runs only the
+manifest/catalog validation that `Load` always performs. An empty selection
+runs every content rule. Configuration failures are always reported: a broken
+manifest is a blocking failure even when the remaining selected rules would
+otherwise pass, because no content invariant is trustworthy without a valid
+declaration.
+
+The reported `rules` object records `selected`, `executed`, and `skipped`
+for the stage. Configuration validation always runs even when its rule is not
+selected; if it fails, the selected rules that did not run are reported as
+skipped.
 
 ### Link semantics
 
@@ -114,8 +132,12 @@ checker is a real declared invariant, not a shell-hook substitute:
 - `run` is an **argv array**, executed with `exec.Command` — no shell, no
   interpolation, no environment expansion. Use `["sh", "-c", "..."]` yourself
   if a shell is genuinely wanted.
-- `dir` is relative to the project root (default: project root) and must not
-  escape it.
+- `dir` is relative to the project root (default: project root). It is
+  resolved through symlinks against the resolved project root; a `dir` whose
+  nearest existing ancestor resolves outside the project is a configuration
+  failure, and the checker is never started there. The same resolved
+  containment applies to `catalogFile`, including a not-yet-created child below
+  a symlinked parent.
 - `timeoutSeconds` defaults to 120 and is capped at 600.
 - Exit code 0 passes; a passing checker's output is ignored.
 - A nonzero exit fails the stage. Output lines shaped
@@ -187,10 +209,17 @@ Under `andurel verify --changed [--base <ref>]`:
 - an empty change set is an explicit no-op: every selected stage is skipped and
   `scope.noop` is true; the run does not claim whole-project health;
 - Go stages cover the changed packages and their in-module reverse
-  dependencies; global files (`go.mod`, `go.sum`, `go.work`, `go.work.sum`,
-  `andurel.toml`, `andurel.lock`, `bin/`) widen Go stages to `./...`;
+  dependencies, including external test packages (`XTestImports`); global
+  files (`go.mod`, `go.sum`, `go.work`, `go.work.sum`, `andurel.toml`,
+  `andurel.lock`, `bin/`) widen Go stages to `./...`;
 - the frontend, generated, and content stages check the whole project when they
   run, and the reason is recorded in `scope.widened`;
+- the content stage runs when the declaration or Markdown changes, when a
+  declared `catalogFile`, catalog target, or `required` path changes, and when
+  a file is deleted or renamed. A declared `[[checkers]]` entry is opaque: its
+  argv and Go imports can read any project file, so any otherwise-unclassified
+  change conservatively runs the whole content stage. A project with no
+  `andurel.content.toml` keeps content not-applicable even in changed mode;
 - the JSON report records `scope.mode`, `scope.base`, `scope.changed_files`,
   `scope.go_packages`, `scope.stages`, `scope.rules`, `scope.widened`, and
   `scope.noop`; each stage records selected/executed/skipped rules when it has

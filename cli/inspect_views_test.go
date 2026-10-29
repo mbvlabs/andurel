@@ -56,6 +56,20 @@ var AdminHome = routing.NewSimpleRoute(
 	routing.TypeScriptRoute(),
 	routing.Host(config.HostAdmin),
 )
+
+var ClientOnly = routing.NewSimpleRoute(
+	"/client-only",
+	"pages.client_only",
+	"",
+	routing.TypeScriptRoute(),
+)
+
+var Precedence = routing.NewSimpleRoute(
+	"/precedence",
+	"pages.precedence",
+	"",
+	routing.TypeScriptRoute(),
+)
 `
 
 const inspectViewsHosts = `package config
@@ -88,6 +102,8 @@ func (p PagesHandler) Register(rt *anduin.Router) {
 	rt.Get(routes.HomePage.Pattern(), p.Home)
 	rt.Get(routes.PasswordEdit.Pattern(), p.PasswordEdit)
 	rt.Get(routes.AdminHome.Pattern(), p.Admin)
+	rt.Get(routes.ClientOnly.Pattern(), p.ClientOnly)
+	rt.Get(routes.Precedence.Pattern(), p.Precedence)
 	rt.Get(routes.Health.Pattern(), p.Health)
 }
 
@@ -101,6 +117,14 @@ func (p PagesHandler) PasswordEdit(ctx context.Context) error {
 
 func (p PagesHandler) Admin(ctx context.Context) error {
 	return p.renderer.Page(ctx, componentForAdmin(), inertia.Props{}).Render()
+}
+
+func (p PagesHandler) ClientOnly(ctx context.Context) error {
+	return p.renderer.Page(ctx, "Public/ClientOnly", inertia.Props{}).CSR().Render()
+}
+
+func (p PagesHandler) Precedence(ctx context.Context) error {
+	return p.renderer.Page(ctx, "Public/Precedence", inertia.Props{}).CSR().SSR().Render()
 }
 
 func (p PagesHandler) Health(context.Context) error {
@@ -147,6 +171,8 @@ func writeInspectViewsProject(t *testing.T) string {
 	writeTestFile(t, root, "resources/js/Pages/Auth/Login.tsx", "export default function Login() { return null }\n")
 	writeTestFile(t, root, "resources/js/Pages/Auth/ResetPassword.tsx", "export default function ResetPassword() { return null }\n")
 	writeTestFile(t, root, "resources/js/Pages/Errors/NotFound.tsx", "export default function NotFound() { return null }\n")
+	writeTestFile(t, root, "resources/js/Pages/Public/ClientOnly.tsx", "export default function ClientOnly() { return null }\n")
+	writeTestFile(t, root, "resources/js/Pages/Public/Precedence.tsx", "export default function Precedence() { return null }\n")
 	writeTestFile(t, root, "cmd/app/main.go", "package main\n")
 	writeTestFile(t, root, "cmd/queue/main.go", "package main\n")
 	writeTestFile(t, root, "cmd/migrate/main.go", "package main\n")
@@ -344,10 +370,10 @@ func TestInspectPagesListsComponentsRoutesAndSSRPolicy(t *testing.T) {
 	for _, page := range report.Pages {
 		byComponent[page.Component] = page
 	}
-	if len(report.Pages) != 4 {
+	if len(report.Pages) != 6 {
 		t.Fatalf("pages = %#v", report.Pages)
 	}
-	for _, component := range []string{"Welcome", "Auth/Login", "Auth/ResetPassword", "Errors/NotFound"} {
+	for _, component := range []string{"Welcome", "Auth/Login", "Auth/ResetPassword", "Errors/NotFound", "Public/ClientOnly", "Public/Precedence"} {
 		page, ok := byComponent[component]
 		if !ok || !page.Exists || page.File == "" {
 			t.Fatalf("component %q = %#v", component, page)
@@ -370,6 +396,17 @@ func TestInspectPagesListsComponentsRoutesAndSSRPolicy(t *testing.T) {
 	reset := byComponent["Auth/ResetPassword"]
 	if len(reset.Routes) != 1 || reset.Routes[0].SSRPolicy != "enabled" {
 		t.Fatalf("Auth/ResetPassword = %#v", reset)
+	}
+
+	clientOnly := byComponent["Public/ClientOnly"]
+	if len(clientOnly.Routes) != 1 || clientOnly.Routes[0].SSRPolicy != "disabled" ||
+		!strings.Contains(clientOnly.Routes[0].SSRReason, ".CSR()") {
+		t.Fatalf("Public/ClientOnly = %#v, want an explicit CSR policy", clientOnly)
+	}
+
+	precedence := byComponent["Public/Precedence"]
+	if len(precedence.Routes) != 1 || precedence.Routes[0].SSRPolicy != "enabled" {
+		t.Fatalf("Public/Precedence = %#v, want SSR to win over CSR", precedence)
 	}
 
 	if len(byComponent["Auth/Login"].Routes) != 0 {
