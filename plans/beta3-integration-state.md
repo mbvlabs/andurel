@@ -1,11 +1,39 @@
 # Beta.3 complete-fix integration state (recovery checkpoint)
 
 Status: **integration implemented and locally validated; full acceptance is
-PARTIAL.** No publication, tag, push, or site adoption has happened. Final
-independent fresh-scaffold/site/release reviews are still required.
+PARTIAL.** No publication, tag, or push has happened. Site adoption commits exist
+in lane F but are not merged into the site's `port` branch. Independent live
+fresh-scaffold/site/release reviews are still required.
 
 Integration worktree: `/home/mbv/work/worktrees/andurel-beta3-fixes/G`, branch
 `fix/beta3-complete-integrated`.
+
+## Resumed finishing work (2026-10-29)
+
+The integration work survived the previous session outside `master`. The
+untracked specification in the original master checkout still says implementation
+has not started; that describes the original handoff, not this integration branch.
+
+The coordinator resumed at `0d6cb0ba` and committed:
+
+- `5e9f8221`: candidate beta.4 release notes and the stale readiness-wiring test
+  assertion corrected to the renderer-backed implementation.
+- `396baf95`: recovered implementation lint fixes; root suite and lint pass.
+
+Current independent workers use DeepSeek V4.1 Flash through OpenCode Go, with
+one writer in each checkout under `/home/mbv/work/worktrees/andurel-beta3-fixes/`:
+
+| Checkout | Task |
+| --- | --- |
+| `finish-live` | Durable live fresh-app/SSR/build acceptance and gate 17 wiring. |
+| `finish-hygiene` | F40 frozen-install/tracking policy and F06 doctor negatives. |
+| `finish-db-tests` | F20 actual uncached generated database test execution. |
+| `finish-upgrade` | Exercise beta.4 manual actions, not merely the old beta.3 target. |
+| `F` | Independent site analytics/content/SSR/readiness adoption verification. |
+
+These workers are in progress; their changes are not yet integrated. See
+`plans/evidence/beta3-complete-fix/finish-2026-10-29/checks.md` for coordinator
+validation. No publication or push is authorized.
 
 ## Commits on this branch
 
@@ -26,8 +54,9 @@ Integration worktree: `/home/mbv/work/worktrees/andurel-beta3-fixes/G`, branch
   with catalog/projection metadata. A built-CLI test proves JSON publication,
   ready-file cleanup, clean SIGTERM shutdown, and nonzero missing-child
   failure. Linux also proves the listening socket belongs to the launcher child
-  process group before the URL is published; other platforms keep the lease and
-  bind preflight without the ownership proof.
+  process group before the URL is published; other platforms fail closed rather
+  than publish an unverified URL. Direct fixed-address sidecar operation remains
+  available there.
 - **Readiness (D/A)**: `GET /api/health` stays liveness. `GET /api/ready`
   answers `200 {"status":"ready"}` or
   `503 {"status":"unready","reason":"<reason>"}`; a required SSR sidecar that
