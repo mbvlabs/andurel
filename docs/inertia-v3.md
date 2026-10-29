@@ -75,24 +75,43 @@ History encryption is client metadata only. The adapter emits
 `encryptHistory`, `clearHistory`, and `preserveFragment`; encryption of browser
 history is performed by the official client.
 
-SSR remains an option on a single `Page` call. The `inertia` package contains
-the bounded HTTP renderer and an optional managed process runtime used by the
-scaffold's `cmd/ssr` entrypoint (Laravel-style). `internal/runtime` constructs a
-renderer with `NewRenderer` (HTTP client for optional SSR); `NewSSRRuntime`
+SSR is chosen at two levels. The renderer-wide default
+(`inertia.WithSSRDefault(true)` or `RendererConfig.SSRDefault`) server-renders
+every initial document response; `Page(...).CSR()` opts a single page out, and
+`Page(...).SSR()` still opts a page in when the default is off (the library
+default). Inertia JSON (`X-Inertia`) visits never render on the server; they
+only carry the page object. The `inertia` package contains the bounded HTTP
+renderer and an optional managed process runtime used by the scaffold's
+`cmd/ssr` entrypoint (Laravel-style). `internal/runtime` constructs a renderer
+with `NewRenderer` (HTTP client for optional SSR); `NewSSRRuntime`
 owns Node. Production defaults to fail-fast (`INERTIA_SSR_FAIL_FAST=true`), so
 an SSR failure becomes a 500 rendered through the application's error handler.
 Set `INERTIA_SSR_FAIL_FAST=false` to fall back to client-side rendering and log
 the failure instead.
 
+Error pages are client-rendered unless the mapping or error-handler option opts
+them in (`ErrorMapping.SSR`, `ValidationSSR`, `FallbackSSR`), even when the
+renderer-wide default is on, so an error page never repeats the SSR render that
+failed. With no `FallbackComponent`, an unmapped 5xx document request gets a
+built-in escaped HTML page instead of a component lookup.
+
+`Renderer.Readiness(ctx)` is the SSR dependency's readiness signal. It is
+computed on every call with a bounded health probe, so a sidecar that is lost
+after startup makes the application unready and a restarted one makes it ready
+again. `ready` and `disabled`/`csr_fallback`/`unsupported` are not failures;
+only `unavailable` is. `Renderer.Health(ctx)` adapts the same decision to
+`interface{ Health(context.Context) error }`, and `SSRRuntime.Health` re-probes
+the managed child during startup or port-claim verification.
+
 In development, the renderer posts to the Vite dev server's `/__inertia_ssr`
 endpoint, so `andurel run` (or `pnpm dev` alongside `go run ./cmd/app`) must be
-running. `cmd/ssr` is a separate production process that starts Node from
+running for a page that renders on the server. `cmd/ssr` is a separate
+production process that starts Node from
 `INERTIA_SSR_LISTEN` (bind address; IP or localhost, including `0.0.0.0`). The
 HTTP app process only uses `INERTIA_SSR_URL` (where it POSTs `/render`; any
 http(s) host, including a sibling-container DNS name). In production, run
-`cmd/ssr` (or an equivalent) under your process manager. Per-response
-`inertia.Page(...).SSR()` opts a page into SSR. Request timeout, response-size
-limit, and fail-fast behavior have separate configuration values.
+`cmd/ssr` (or an equivalent) under your process manager. Request timeout,
+response-size limit, and fail-fast behavior have separate configuration values.
 
 Generated resource payload structs carry JSON tags. Their corresponding
 TypeScript declarations are generated next to application TypeScript types and

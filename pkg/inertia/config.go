@@ -36,6 +36,10 @@ type RendererConfig struct {
 	ViteDevURL string
 	// SSRURL is the SSR client URL (INERTIA_SSR_URL); any http(s) host.
 	SSRURL string
+	// SSRDefault server-renders every initial document response unless the page
+	// opts out with PageBuilder.CSR(). The zero value keeps the per-page
+	// PageBuilder.SSR() opt-in.
+	SSRDefault bool
 	// SSRTimeout bounds one SSR render request.
 	SSRTimeout time.Duration
 	// SSRMaxResponseBytes caps the SSR response body.
@@ -44,13 +48,16 @@ type RendererConfig struct {
 
 // NewRenderer constructs the Inertia protocol renderer used by cmd/app.
 //
-// It always serves the Inertia protocol (CSR by default). Pages that pass
-// WithSSR() call the configured SSR HTTP endpoint. In development, that is
-// Vite's /__inertia_ssr endpoint derived from ViteDevURL. In other
-// environments, cmd/app posts to INERTIA_SSR_URL /render. Node process
-// ownership belongs to NewSSRRuntime / cmd/ssr in production. Required Inertia
-// protocol settings live in RendererConfig; optional behavior is configured
-// with options such as WithRoot, WithAssetFS, and WithEnvironment.
+// It always serves the Inertia protocol. Initial document responses are
+// client-rendered unless the renderer-wide default (SSRDefault /
+// WithSSRDefault) or PageBuilder.SSR() asks for server-side rendering;
+// PageBuilder.CSR() opts a single page out of the renderer-wide default.
+// In development the SSR transport is Vite's /__inertia_ssr endpoint derived
+// from ViteDevURL; in other environments cmd/app posts to INERTIA_SSR_URL
+// /render. Node process ownership belongs to NewSSRRuntime / cmd/ssr in
+// production. Required Inertia protocol settings live in RendererConfig;
+// optional behavior is configured with options such as WithRoot, WithAssetFS,
+// and WithEnvironment.
 func NewRenderer(cfg RendererConfig, options ...Option) (*Renderer, error) {
 	if strings.TrimSpace(cfg.ContainerID) == "" {
 		return nil, fmt.Errorf("inertia: container ID cannot be empty")
@@ -63,6 +70,7 @@ func NewRenderer(cfg RendererConfig, options ...Option) (*Renderer, error) {
 		entryPoint:          strings.TrimSpace(cfg.EntryPoint),
 		viteDevURL:          strings.TrimRight(strings.TrimSpace(cfg.ViteDevURL), "/"),
 		ssrURL:              strings.TrimSpace(cfg.SSRURL),
+		ssrDefault:          cfg.SSRDefault,
 		ssrTimeout:          cfg.SSRTimeout,
 		ssrMaxResponseBytes: cfg.SSRMaxResponseBytes,
 		shared:              make(Props),
