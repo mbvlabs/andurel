@@ -22,6 +22,11 @@
 #            proxy. If the candidate pkg/inertia pin is unpublished, the
 #            release gate is recorded blocked, never passed.
 #
+# Probe 17 (live runtime gates) is opt-in with --full. It delegates to
+# scripts/acceptance/beta3-live.sh, which generates its own fresh scaffold,
+# disposable PostgreSQL container, production binaries, and isolated build
+# outputs. A missing prerequisite is recorded blocked, never passed.
+#
 # Exit status: 0 when every executed probe passed. Blocked probes are reported
 # and make the result PARTIAL, never a pass. With --require-all (full
 # acceptance), any blocked probe exits 1. Any failed probe exits 1.
@@ -659,17 +664,39 @@ probe_local_replacement() {
 probe_runtime_gates() {
 	local p="$PROBE_PREFIX"
 	local missing=()
-	command -v node >/dev/null 2>&1 || missing+=(node)
-	command -v pnpm >/dev/null 2>&1 || missing+=(pnpm)
-	command -v docker >/dev/null 2>&1 || missing+=(docker)
-	[[ -n "${ANDUREL_ACCEPTANCE_DATABASE_URL:-}" ]] || missing+=(ANDUREL_ACCEPTANCE_DATABASE_URL)
+	local tool
+	for tool in go node pnpm docker curl jq openssl timeout; do
+		command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+	done
 	if [[ "${#missing[@]}" -gt 0 ]]; then
-		blocked "live app/SSR/build gates need: ${missing[*]}; see plans/evidence/beta3-complete-fix/README.md"
+		blocked "live app/SSR/build gates need: ${missing[*]}"
 	fi
 	if [[ "$FULL" -ne 1 ]]; then
-		blocked "live app/SSR/build gates are opt-in: rerun with --full after tool sync, pnpm install, migrations, and assets/dist"
+		blocked "live app/SSR/build gates are opt-in: rerun with --full"
 	fi
-	blocked "live app/SSR/build gate runner is not implemented in this harness revision; run the documented commands in plans/evidence/beta3-complete-fix/README.md"
+	local live="$ROOT/scripts/acceptance/beta3-live.sh"
+	if [[ ! -x "$live" ]]; then
+		fail "live gate runner is missing or not executable: $live"
+	fi
+	mkdir -p "$p/live"
+	local code
+	set +e
+	"$live" --evidence-dir "$p/live" --andurel "$A" \
+		>"$p.live.stdout" 2>"$p.live.stderr"
+	code=$?
+	set -e
+	printf '%s\n' "$code" >"$p.live.status"
+	case "$code" in
+	0)
+		return 0
+		;;
+	77)
+		blocked "live gate prerequisites unavailable; see $p/live"
+		;;
+	*)
+		fail "live gate failed (exit $code); see $p/live"
+		;;
+	esac
 }
 
 probe_hygiene_doctor() {
