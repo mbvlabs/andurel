@@ -23,7 +23,9 @@ const (
 	configCheckPath = "internal/configcheck/main.go"
 
 	// configCheckTimeout bounds the whole probe, including a cold go build.
-	// A check that cannot finish is reported as skipped, never as a pass.
+	// A check that cannot finish is reported as a failure: runtime readiness is
+	// then unverified, which must not pass. Only a project without the generated
+	// helper and a missing Go toolchain are reported as blocked/skipped.
 	configCheckTimeout = 2 * time.Minute
 )
 
@@ -148,13 +150,25 @@ func checkRuntimeConfiguration(rootDir string) checkResult {
 
 	report, err := runProjectConfigCheckFunc(rootDir)
 	if err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			return checkResult{
+				name:    name,
+				status:  statusSkip,
+				message: "Go toolchain is not available",
+				details: []string{err.Error()},
+				hint: "Install Go (https://go.dev/dl/) and run andurel doctor again; " +
+					"runtime configuration cannot be verified without it.",
+			}
+		}
+
 		return checkResult{
 			name:    name,
-			status:  statusSkip,
+			status:  statusFail,
 			message: "config check did not run",
 			details: []string{err.Error()},
-			hint: "Run go run ./internal/configcheck from the project root; " +
-				"a build failure is reported here instead of as invalid configuration.",
+			hint: "Fix the generated " + configCheckPath + " build error and run " +
+				"go run ./internal/configcheck to see the full output; runtime " +
+				"configuration stays unverified until the check runs.",
 		}
 	}
 

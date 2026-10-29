@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -130,7 +131,7 @@ func TestCheckRuntimeConfigurationReportsEachOutcome(t *testing.T) {
 		}
 	})
 
-	t.Run("check that cannot run is skipped with the build error", func(t *testing.T) {
+	t.Run("check that cannot run fails instead of passing", func(t *testing.T) {
 		root := writeRuntimeConfigProject(t)
 		stubProjectConfigCheck(
 			t,
@@ -139,11 +140,27 @@ func TestCheckRuntimeConfigurationReportsEachOutcome(t *testing.T) {
 		)
 
 		got := checkRuntimeConfiguration(root)
-		if got.status != statusSkip {
-			t.Fatalf("build failure check = %#v, want skip", got)
+		if got.status != statusFail {
+			t.Fatalf("build failure check = %#v, want fail", got)
 		}
 		if len(got.details) != 1 || !strings.Contains(got.details[0], "no required module") {
 			t.Fatalf("build failure details = %v", got.details)
+		}
+		if !strings.Contains(got.hint, configCheckPath) {
+			t.Fatalf("build failure hint = %q, want the helper path", got.hint)
+		}
+	})
+
+	t.Run("missing Go toolchain is blocked, not a pass", func(t *testing.T) {
+		root := writeRuntimeConfigProject(t)
+		stubProjectConfigCheck(t, configCheckReport{}, exec.ErrNotFound)
+
+		got := checkRuntimeConfiguration(root)
+		if got.status != statusSkip {
+			t.Fatalf("missing toolchain check = %#v, want skip", got)
+		}
+		if !strings.Contains(got.message, "Go toolchain") {
+			t.Fatalf("missing toolchain message = %q", got.message)
 		}
 	})
 }
