@@ -49,7 +49,8 @@ type UpgradeReport struct {
 	ReplacedFiles       []string
 	RemovedFiles        []string
 	Diffs               []FileDiff
-	ManualActions       []ManualAction `json:"manual_actions,omitempty"`
+	PlannedChanges      []PlannedChange `json:"-"`
+	ManualActions       []ManualAction  `json:"manual_actions,omitempty"`
 	DirtyWorktree       bool
 	AlreadyCurrent      bool
 	RepairAvailable     bool
