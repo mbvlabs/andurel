@@ -99,6 +99,9 @@ Examples:
 This updates andurel.lock and syncs the tool binary to bin/.`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := rejectStructuredOutput(cmd, "andurel tool set-version"); err != nil {
+				return err
+			}
 			toolName := args[0]
 			version := args[1]
 

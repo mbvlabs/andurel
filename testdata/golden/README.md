@@ -36,7 +36,22 @@ still runs a slim capture for `andurel new` (Inertia react and vue).
 
 The harness (`internal/goldentest/harness.go`) isolates the process
 environment: it prepends the pinned-tool bin to `PATH`, sets `ANDUREL_TOOL_BIN`,
-and forces `GOWORK=off` so the CLI behaves like a standalone user install.
+and forces `GOWORK=off`. Golden scaffolds resolve the published `pkg/*` pins by
+default; local package source is never substituted implicitly.
+
+### Module resolution modes
+
+| Mode | Selector | Behaviour |
+|------|----------|-----------|
+| Published (default) | none | Public proxy and checksum database. The run fails if a pin is unpublished. |
+| Local package | `ANDUREL_GOLDEN_LOCAL_PKG=1` | Serves this checkout's `pkg/inertia` as the pinned version through a temporary file proxy, with isolated caches. Development only; not release proof. |
+| Release | `ANDUREL_GOLDEN_RELEASE=1` | Public proxy and checksum database with fresh isolated module, build, and temp caches, so a cached copy cannot satisfy a pin. |
+
+The local-package and release selectors are mutually exclusive; setting both
+fails the run. Both modes own their temporary directories and remove them when
+the golden `TestMain` finishes. `just test-golden-release` and
+`just test-golden-full-release` select release mode; `just test-golden-local-pkg`
+and `just test-golden-full-local-pkg` select local-package mode.
 
 ## Determinism contract
 
@@ -174,6 +189,10 @@ Commit the resulting diffs when expectations change.
 ## Verifying
 
 ```bash
-just test-golden
-just test-golden-full   # just ci-nightly; used by e2e-nightly
+just test-golden              # published pins
+just test-golden-full         # published pins, full tree
+just test-golden-release      # release-shaped: public proxy, checksums, fresh caches
+just test-golden-full-release # release-shaped full tree (master readiness)
+just test-golden-local-pkg    # development only: local pkg/inertia source
+just test-golden-full-local-pkg
 ```

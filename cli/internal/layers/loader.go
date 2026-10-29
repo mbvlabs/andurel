@@ -9,10 +9,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -199,16 +201,32 @@ func Analyze(rootDir string) ([]Violation, error) {
 // AnalyzePatterns runs every typed layer rule over the packages matched by
 // patterns. An empty pattern list means the whole project.
 func AnalyzePatterns(rootDir string, patterns []string) ([]Violation, error) {
+	return AnalyzePatternsRules(rootDir, patterns, nil)
+}
+
+// AnalyzePatternsRules runs only the named typed layer rules (catalog IDs)
+// over the packages matched by patterns. An empty rule list runs every rule.
+func AnalyzePatternsRules(
+	rootDir string,
+	patterns []string,
+	ruleIDs []string,
+) ([]Violation, error) {
 	project, err := LoadPatterns(rootDir, patterns)
 	if err != nil {
 		return nil, err
 	}
-	return project.Run()
+	return project.RunRules(ruleIDs)
 }
 
 // Run executes the layer analyzers over the loaded packages and returns
 // deterministic, de-duplicated violations.
 func (p *Project) Run() ([]Violation, error) {
+	return p.RunRules(nil)
+}
+
+// RunRules executes only the analyzers whose catalog rule ID is in ruleIDs.
+// An empty list runs every analyzer.
+func (p *Project) RunRules(ruleIDs []string) ([]Violation, error) {
 	cfg := Config{
 		RootDir: p.RootDir,
 		Module:  p.Module,
@@ -216,6 +234,15 @@ func (p *Project) Run() ([]Violation, error) {
 		Project: p,
 	}
 	analyzers := Analyzers(cfg)
+	if len(ruleIDs) > 0 {
+		selected := make([]*analysis.Analyzer, 0, len(analyzers))
+		for _, analyzer := range analyzers {
+			if slices.Contains(ruleIDs, ruleIDForAnalyzer(analyzer)) {
+				selected = append(selected, analyzer)
+			}
+		}
+		analyzers = selected
+	}
 
 	violations := make([]Violation, 0)
 	for _, pkg := range p.Packages {

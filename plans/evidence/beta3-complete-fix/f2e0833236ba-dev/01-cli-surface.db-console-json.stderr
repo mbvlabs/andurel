@@ -1,0 +1,7 @@
+{
+  "ok": false,
+  "code": "usage_error",
+  "error": "andurel console does not support --json, --agent, or --md",
+  "hint": "Run without a structured output flag, or use andurel commands --json to find a machine-readable alternative.",
+  "exit_code": 1
+}

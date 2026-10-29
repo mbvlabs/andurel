@@ -14,11 +14,15 @@ func TestGeneratedViteBundlesSSROnlyForProductionBuilds(t *testing.T) {
 	}
 }
 
-func TestGeneratedDevelopmentSSRDisablesFailFast(t *testing.T) {
+func TestGeneratedEnvDocumentsSSRFailFastAsOptIn(t *testing.T) {
 	assertTemplateContains(t, "env.tmpl",
-		"INERTIA_SSR_FAIL_FAST=false",
+		"# INERTIA_SSR_FAIL_FAST=false",
+		"client-side-rendering fallback",
 		"production SSR is served by cmd/ssr",
 	)
+	// An uncommented override would be copied into .env by every project and
+	// would silently turn a production SSR failure into a 200 CSR page.
+	assertTemplateMissing(t, "env.tmpl", "\nINERTIA_SSR_FAIL_FAST=false")
 	assertTemplateContains(t, "readme.tmpl",
 		"`andurel run` (or `pnpm dev` alongside",
 		"the `cmd/ssr` sidecar serves renders from",

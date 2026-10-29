@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strings"
 
 	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/mbvlabs/andurel/v2/layout"
@@ -18,6 +19,7 @@ import (
 func newProjectCommand(version string) *cobra.Command {
 	var dryRun bool
 	var diff bool
+	var requestedHarnesses []string
 	projectCmd := &cobra.Command{
 		Use:     "new [project-name]",
 		Aliases: []string{"n"},
@@ -25,13 +27,24 @@ func newProjectCommand(version string) *cobra.Command {
 		Long: `Stand up a complete Andurel project with the given name.
 
 Generates the full project structure including handlers, domains, services,
-routes, middleware, database migrations, and configuration files. After
-creation, run 'andurel tool sync' to download required binaries.
+routes, middleware, database migrations, and configuration files. Creation is
+offline: it installs no dependencies and needs no database. The printed next
+steps and the generated README share one Quick Start:
+
+  1. cd <project> && andurel tool sync && <package manager> install
+  2. cp .env.example .env, set the required values, create the database if
+     needed, then andurel db migrate up
+  3. andurel doctor, andurel run, andurel verify
 
 Projects use Inertia React with pnpm by default. Pass --ui to choose another
 Inertia combination (react|vue|svelte / pnpm|bun|npm). Persistence uses
 narsilc-generated queries; it stays inactive until an annotated query is
-added to a domain, for example domains/user.sql.`,
+added to a domain, for example domains/user.sql.
+
+Pass --harness to install the bundled Andurel skill for your agent harness
+during creation (comma-separated or repeated, as in andurel skill install).
+With no --harness the skill is not installed; the next steps print an explicit
+installation example.`,
 		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) <= 1 {
 				return nil
@@ -55,7 +68,7 @@ added to a domain, for example domains/user.sql.`,
 					"Run andurel new from a parent directory outside an existing project.",
 				)
 			}
-			return newProject(cmd, args, version, dryRun, diff)
+			return newProject(cmd, args, version, dryRun, diff, requestedHarnesses)
 		},
 	}
 
@@ -65,10 +78,16 @@ added to a domain, for example domains/user.sql.`,
 		BoolVar(&dryRun, "dry-run", false, "Preview project files without creating them")
 	projectCmd.Flags().
 		BoolVar(&diff, "diff", false, "Include a text diff preview in structured output")
+	projectCmd.Flags().StringSliceVar(
+		&requestedHarnesses,
+		"harness",
+		nil,
+		"Install the Andurel skill for these harnesses: codex, claude, pi, opencode, crush (comma-separated or repeated)",
+	)
 	setAgentMetadata(
 		projectCmd,
 		"generation",
-		"Creates an Inertia React/pnpm project by default. Use --ui react|vue|svelte/pnpm|bun|npm. Domains persist through narsilc-generated queries.",
+		"Creates an Inertia React/pnpm project by default. Use --ui react|vue|svelte/pnpm|bun|npm. Creation is offline: it installs no dependencies and needs no database; the next steps and the generated README share one Quick Start. Pass --harness to install the bundled agent skill for codex, claude, pi, opencode, or crush.",
 	)
 
 	return projectCmd
@@ -82,7 +101,14 @@ type newProjectDestination struct {
 	currentDirectory bool
 }
 
-func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, diff bool) error {
+func newProject(
+	cmd *cobra.Command,
+	args []string,
+	version string,
+	dryRun bool,
+	diff bool,
+	requestedHarnesses []string,
+) error {
 	if len(args) == 0 {
 		return cmd.Help()
 	}
@@ -112,6 +138,16 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 	adapter := ui.Inertia
 	javascriptRuntime := ui.PackageManager
 
+	// Validate the harness selection before scaffolding so an unknown name is a
+	// usage error and leaves no project behind.
+	var harnesses []skillHarness
+	if len(requestedHarnesses) > 0 {
+		harnesses, err = parseSkillHarnessNames(requestedHarnesses)
+		if err != nil {
+			return err
+		}
+	}
+
 	scaffold := func(target string) error {
 		if err := layout.Scaffold(
 			target,
@@ -123,7 +159,11 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 		); err != nil {
 			return err
 		}
-		return generateInertiaArtifacts(target, adapter)
+		if err := generateInertiaArtifacts(target, adapter); err != nil {
+			return err
+		}
+
+		return installNewProjectSkills(target, harnesses)
 	}
 	opts, err := output.ParseOptions(cmd)
 	if err != nil {
@@ -148,42 +188,21 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 		if err != nil {
 			return wrapNewProjectScaffoldError(err)
 		}
+		if len(harnesses) == 0 {
+			report.Warnings = append(
+				report.Warnings,
+				"agent skill not installed; pass --harness with one of: "+validSkillHarnessNames(),
+			)
+		}
 		if dryRun {
 			report.Warnings = append(report.Warnings, "dry run only; no project was created")
 			return output.OK(cmd, report, mutationSummary(report))
 		}
-		breadcrumbs := []output.Breadcrumb{
-			{
-				Command:     "andurel tool sync",
-				Description: "Download project tools from inside the new project",
-			},
-			{
-				Command:     "cp .env.example .env",
-				Description: "Create the local environment file inside the new project",
-			},
-		}
-		if ui.IsInertia() {
-			breadcrumbs = append(breadcrumbs, output.Breadcrumb{
-				Command:     javascriptRuntime + " install",
-				Description: "Install Inertia frontend dependencies inside the new project",
-			})
-		}
-		breadcrumbs = append(
-			breadcrumbs,
-			output.Breadcrumb{
-				Command:     "andurel db migrate up",
-				Description: "Apply database migrations inside the new project",
-			},
-			output.Breadcrumb{
-				Command:     "andurel run",
-				Description: "Start the development server inside the new project",
-			},
-		)
 		return output.OK(
 			cmd,
 			report,
 			mutationSummary(report),
-			breadcrumbs...,
+			newProjectBreadcrumbs(ui.IsInertia(), javascriptRuntime, harnesses)...,
 		)
 	}
 
@@ -191,9 +210,69 @@ func newProject(cmd *cobra.Command, args []string, version string, dryRun bool, 
 		return wrapNewProjectScaffoldError(err)
 	}
 
-	printNewProjectNextSteps(cmd.OutOrStdout(), projectName, args[0], ui.IsInertia(), javascriptRuntime)
+	printNewProjectNextSteps(
+		cmd.OutOrStdout(),
+		projectName,
+		args[0],
+		ui.IsInertia(),
+		javascriptRuntime,
+		harnesses,
+	)
 
 	return nil
+}
+
+// newProjectBreadcrumbs is the structured form of the same Quick Start the
+// human output and the generated README print.
+func newProjectBreadcrumbs(
+	inertia bool,
+	javascriptRuntime string,
+	harnesses []skillHarness,
+) []output.Breadcrumb {
+	breadcrumbs := []output.Breadcrumb{
+		{
+			Command:     "andurel tool sync",
+			Description: "Download project tools from inside the new project",
+		},
+	}
+	if inertia {
+		breadcrumbs = append(breadcrumbs, output.Breadcrumb{
+			Command:     javascriptRuntime + " install",
+			Description: "Install Inertia frontend dependencies inside the new project",
+		})
+	}
+	breadcrumbs = append(
+		breadcrumbs,
+		output.Breadcrumb{
+			Command:     "cp .env.example .env",
+			Description: "Create the local environment file, then set its required values",
+		},
+		output.Breadcrumb{
+			Command:     "andurel db migrate up",
+			Description: "Apply database migrations inside the new project (create the database first if needed)",
+		},
+		output.Breadcrumb{
+			Command:     "andurel doctor",
+			Description: "Validate configuration and the database connection",
+		},
+		output.Breadcrumb{
+			Command:     "andurel run",
+			Description: "Start the development server inside the new project",
+		},
+		output.Breadcrumb{
+			Command:     "andurel verify",
+			Description: "Check formatting, vet, layers, frontend, and generated code",
+		},
+	)
+	if len(harnesses) == 0 {
+		breadcrumbs = append(breadcrumbs, output.Breadcrumb{
+			Command: "andurel skill install --harness claude",
+			Description: "Install the Andurel agent skill; replace claude with one of: " +
+				validSkillHarnessNames(),
+		})
+	}
+
+	return breadcrumbs
 }
 
 func printNewProjectNextSteps(
@@ -201,21 +280,63 @@ func printNewProjectNextSteps(
 	projectName, dir string,
 	inertia bool,
 	javascriptRuntime string,
+	harnesses []skillHarness,
 ) {
 	_, _ = fmt.Fprintf(out, "\n🎉 Successfully created project: %s\n", projectName)
 	_, _ = fmt.Fprintln(out, "\nNext steps:")
 	_, _ = fmt.Fprintf(out, "  cd %s\n", dir)
 	_, _ = fmt.Fprintln(out, "  andurel tool sync")
-	_, _ = fmt.Fprintln(out, "  andurel skill install")
-	_, _ = fmt.Fprintln(out, "  cp .env.example .env")
-	_, _ = fmt.Fprintln(out, "  fill in your database connection details in .env")
-	_, _ = fmt.Fprintln(out, "  (andurel db create - if database does not exist")
-	_, _ = fmt.Fprintln(out, "  andurel db migrate up")
 	if inertia {
 		_, _ = fmt.Fprintf(out, "  %s install\n", javascriptRuntime)
 	}
+	_, _ = fmt.Fprintln(out, "  cp .env.example .env")
+	_, _ = fmt.Fprintln(out, "  # set the required values in .env (see .env.example)")
+	_, _ = fmt.Fprintln(out, "  andurel db create   # only if the database does not exist yet")
+	_, _ = fmt.Fprintln(out, "  andurel db migrate up")
+	_, _ = fmt.Fprintln(out, "  andurel doctor")
 	_, _ = fmt.Fprintln(out, "  andurel run")
 	_, _ = fmt.Fprintln(out, "  andurel verify")
+
+	if len(harnesses) == 0 {
+		_, _ = fmt.Fprintln(out, "\nAgent skill: not installed (no --harness given). Install it with:")
+		_, _ = fmt.Fprintf(
+			out,
+			"  andurel skill install --harness claude   # or %s\n",
+			validSkillHarnessNames(),
+		)
+		return
+	}
+
+	labels := make([]string, 0, len(harnesses))
+	for _, harness := range harnesses {
+		labels = append(labels, harness.label)
+	}
+	_, _ = fmt.Fprintf(
+		out,
+		"\nAgent skill: installed for %s under %s. Commit it with the project.\n",
+		strings.Join(labels, ", "),
+		skillInstallDirectories(harnesses),
+	)
+}
+
+func skillInstallDirectories(harnesses []skillHarness) string {
+	directories := make([]string, 0, len(harnesses))
+	for _, harness := range harnesses {
+		directories = append(directories, "./"+harness.directory)
+	}
+
+	return strings.Join(directories, ", ")
+}
+
+func installNewProjectSkills(targetDir string, harnesses []skillHarness) error {
+	for _, harness := range harnesses {
+		target := filepath.Join(targetDir, filepath.FromSlash(harness.directory))
+		if err := installAndurelSkill(target); err != nil {
+			return fmt.Errorf("install Andurel skill for %s: %w", harness.label, err)
+		}
+	}
+
+	return nil
 }
 
 func resolveNewProjectDestination(projectArgument string) (newProjectDestination, error) {

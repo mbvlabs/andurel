@@ -8,6 +8,31 @@ import (
 	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
 
+func TestCloneReportPlansManifestFilesWithoutCountingThem(t *testing.T) {
+	t.Parallel()
+
+	plan := &upgradePlan{files: []plannedFile{
+		{path: "go.mod", after: []byte("module x\n")},
+		{path: "internal/old.go", remove: true},
+		{path: layout.ProjectTomlName, after: []byte("version = \"v2\"\n"), isLock: true},
+	}}
+	report := plan.cloneReport()
+
+	if report.FilesReplaced != 1 || report.FilesRemoved != 1 {
+		t.Fatalf("framework counts = %d replaced, %d removed", report.FilesReplaced, report.FilesRemoved)
+	}
+	if len(report.PlannedChanges) != 3 {
+		t.Fatalf("planned changes = %#v, want all three files", report.PlannedChanges)
+	}
+	manifest := report.PlannedChanges[2]
+	if manifest.Path != layout.ProjectTomlName || string(manifest.Content) != "version = \"v2\"\n" {
+		t.Fatalf("manifest change = %#v", manifest)
+	}
+	if !report.PlannedChanges[1].Remove {
+		t.Fatalf("removal not planned: %#v", report.PlannedChanges[1])
+	}
+}
+
 func TestShouldUpgradePackage(t *testing.T) {
 	t.Parallel()
 

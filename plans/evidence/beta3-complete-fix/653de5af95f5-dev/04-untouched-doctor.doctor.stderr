@@ -1,0 +1,166 @@
+{
+  "ok": false,
+  "code": "error",
+  "error": "Doctor checks failed",
+  "hint": "Inspect the failed doctor checks and address the reported issues.",
+  "exit_code": 1,
+  "data": {
+    "version": "v2.0.0-beta.3.0.20261029122927-653de5af95f5+dirty",
+    "root": "/tmp/andurel-acceptance-UqANgJ/apps/pristine-app",
+    "checks": [
+      {
+        "category": "environment",
+        "name": "Go version",
+        "status": "pass",
+        "message": "go1.27.3",
+        "blocking": false
+      },
+      {
+        "category": "environment",
+        "name": "Andurel release",
+        "status": "warn",
+        "message": "no stable release published yet (latest is prerelease v2.0.0-beta.3)",
+        "details": [
+          "latest module version \"v2.0.0-beta.3\" is not a stable release"
+        ],
+        "hint": "This is expected while v2 is in beta; run andurel doctor again after a stable release is published, or keep testing the prerelease.",
+        "blocking": false
+      },
+      {
+        "category": "environment",
+        "name": "Andurel project",
+        "status": "pass",
+        "message": "found go.mod",
+        "blocking": false
+      },
+      {
+        "category": "configuration",
+        "name": "andurel.toml",
+        "status": "pass",
+        "message": "valid (version: v2.0.0-beta.3.0.20261029122927-653de5af95f5+dirty, 8 tools)",
+        "blocking": false
+      },
+      {
+        "category": "configuration",
+        "name": "Andurel version",
+        "status": "pass",
+        "message": "matches andurel.lock (v2.0.0-beta.3.0.20261029122927-653de5af95f5+dirty)",
+        "blocking": false
+      },
+      {
+        "category": "configuration",
+        "name": "tool versions",
+        "status": "warn",
+        "message": "0 mismatched, 8 missing, 0 unknown",
+        "details": [
+          "dblab: missing (expected v0.40.2)",
+          "goose: missing (expected v3.27.1)",
+          "mailpit: missing (expected v1.30.2)",
+          "... and 5 more (use --verbose to see all)"
+        ],
+        "hint": "Run andurel tool sync to install or update framework tools.",
+        "blocking": false
+      },
+      {
+        "category": "configuration",
+        "name": "Project setup",
+        "status": "warn",
+        "message": "setup is incomplete",
+        "details": [
+          "missing tools: dblab, goose, mailpit, narsilc, shadowfax, tailwindcli, templ, usql",
+          "frontend dependencies are not installed (node_modules is missing)"
+        ],
+        "hint": "Run andurel tool sync \u0026\u0026 pnpm install from the project root.",
+        "blocking": false
+      },
+      {
+        "category": "configuration",
+        "name": "Runtime config",
+        "status": "fail",
+        "message": "config check did not run",
+        "details": [
+          "exit status 1: config/session.go:9:2: missing go.sum entry for module providing package github.com/gosimple/slug (imported by fresh-app/config); to add:; go get fresh-app/config; config/http.go:10:2: missing go.sum entry for module providing package github.com/mbvlabs/andurel/pkg/anduin (imported by fresh-app/config); to add:; go get fresh-app/config; config/cache.go:6:2: missing go.sum entry for module providing package github.com/mbvlabs/andurel/pkg/cache (imported by fresh-app/config); to add:"
+        ],
+        "hint": "Fix the generated internal/configcheck/main.go build error and run go run ./internal/configcheck to see the full output; runtime configuration stays unverified until the check runs.",
+        "blocking": true
+      },
+      {
+        "category": "configuration",
+        "name": "Inertia SSR",
+        "status": "pass",
+        "message": "development SSR is served by Vite; production bundle not required",
+        "blocking": false
+      },
+      {
+        "category": "code_quality",
+        "name": "go vet",
+        "status": "fail",
+        "message": "40 issues found",
+        "details": [
+          "config/session.go:9:2: missing go.sum entry for module providing package github.com/gosimple/slug (imported by fresh-app/config); to add:",
+          "\tgo get fresh-app/config",
+          "config/http.go:10:2: missing go.sum entry for module providing package github.com/mbvlabs/andurel/pkg/anduin (imported by fresh-app/config); to add:",
+          "... and 37 more (use --verbose to see all)"
+        ],
+        "hint": "Run go vet ./... and fix the reported issues.",
+        "blocking": true
+      },
+      {
+        "category": "code_quality",
+        "name": "go mod tidy",
+        "status": "fail",
+        "message": "temporary tidy diagnostic failed",
+        "details": [
+          "go mod tidy failed: exit status 1: go: downloading github.com/mbvlabs/andurel/pkg/inertia v0.13.0\ngo: github.com/mbvlabs/andurel/pkg/inertia@v0.13.0: reading github.com/mbvlabs/andurel/pkg/inertia/go.mod at revision pkg/inertia/v0.13.0: unknown revision pkg/inertia/v0.13.0"
+        ],
+        "hint": "Run go mod tidy and commit the resulting go.mod or go.sum changes.",
+        "blocking": true
+      },
+      {
+        "category": "code_generation",
+        "name": "templ generate",
+        "status": "warn",
+        "message": "templ binary not found (skipping check)",
+        "hint": "Commit the generated *_templ.go output (andurel build regenerates it) and fix any template errors.",
+        "blocking": false
+      },
+      {
+        "category": "code_generation",
+        "name": "email generate",
+        "status": "warn",
+        "message": "tailwindcli binary not found (skipping check)",
+        "hint": "Run andurel sync email and commit the updated email/*_templ.go renderers; never use templ generate for email.",
+        "blocking": false
+      },
+      {
+        "category": "code_generation",
+        "name": "narsilc generate",
+        "status": "warn",
+        "message": "narsilc binary not found (skipping check)",
+        "hint": "Run andurel sync queries and commit the updated domains/internal/queries output.",
+        "blocking": false
+      },
+      {
+        "category": "code_generation",
+        "name": "routes.ts",
+        "status": "pass",
+        "message": "matches route manifest (12 helpers)",
+        "blocking": false
+      },
+      {
+        "category": "code_generation",
+        "name": "payloads.ts",
+        "status": "pass",
+        "message": "matches handler payloads (5 types)",
+        "blocking": false
+      }
+    ],
+    "summary": {
+      "total": 16,
+      "passed": 7,
+      "warnings": 6,
+      "failed": 3,
+      "status": "fail"
+    }
+  }
+}

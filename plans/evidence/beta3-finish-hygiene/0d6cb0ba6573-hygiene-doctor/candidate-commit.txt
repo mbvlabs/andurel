@@ -1,0 +1,1 @@
+0d6cb0ba657354f72968f0392e370a3973772739 fix(verify): skip destructured component parameter lists before bodies

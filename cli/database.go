@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/mbvlabs/andurel/v2/cli/output"
 
@@ -59,6 +60,16 @@ type adminConnection interface {
 var openAdminConnectionFunc = openAdminConnection
 var runGooseFunc = runGoose
 var runSeedFunc = runSeed
+
+// migrationNow is a seam for deterministic migration-file names in tests.
+var migrationNow = time.Now
+
+const migrationSQLSkeleton = `-- +goose Up
+SELECT 'up SQL query';
+
+-- +goose Down
+SELECT 'down SQL query';
+`
 
 var errDatabaseOperationAborted = errors.New("database operation aborted")
 
@@ -127,21 +138,162 @@ func newGenerateMigrationCommand() *cobra.Command {
 		Long: `Create a new SQL migration file in migrations/.
 The name should describe the change, e.g. "create_users_table".
 
-This is the only command that creates migration files. Apply them with
-andurel db migrate up.`,
-		Args:    cobra.MinimumNArgs(1),
+This command writes the SQL skeleton directly. It does not need database
+configuration, a running database, or bin/goose; applying the migration with
+andurel db migrate does.
+
+This is the only command that creates migration files.`,
+		Args:    cobra.ExactArgs(1),
 		Example: "  andurel generate migration create_users_table",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := rejectStructuredOutput(cmd, "andurel generate migration"); err != nil {
 				return err
 			}
-			c := []string{"create"}
-			c = append(c, args...)
-			c = append(c, "sql")
-
-			return runGoose(c...)
+			rootDir, err := findGoModRoot()
+			if err != nil {
+				return err
+			}
+			relPath, err := createMigrationFile(rootDir, args[0])
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Created %s\n", relPath)
+			return err
 		},
 	}
+}
+
+func createMigrationFile(rootDir, name string) (string, error) {
+	baseName, err := migrationFileBaseName(name)
+	if err != nil {
+		return "", err
+	}
+	migrationsDir := filepath.Join(rootDir, "migrations")
+	if err := os.MkdirAll(migrationsDir, 0o755); err != nil {
+		return "", output.WrapError(
+			output.CodeGenerationFailed,
+			fmt.Errorf("create migrations directory: %w", err),
+			output.ExitGeneration,
+			"Create migrations/ in the project root and retry.",
+		)
+	}
+
+	version := migrationNow().UTC().Format("20060102150405")
+	fileName := version + "_" + baseName + ".sql"
+	path := filepath.Join(migrationsDir, fileName)
+	if _, err := os.Lstat(path); err == nil {
+		return "", output.NewError(
+			output.CodeUsage,
+			"migration file already exists: migrations/"+fileName,
+			output.ExitUsage,
+			"Retry the command; a new timestamped file will be created.",
+		)
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+
+	tempFile, err := os.CreateTemp(migrationsDir, ".migration-*.tmp")
+	if err != nil {
+		return "", err
+	}
+	tempPath := tempFile.Name()
+	cleanup := func() {
+		_ = tempFile.Close()
+		_ = os.Remove(tempPath)
+	}
+	if _, err := tempFile.WriteString(migrationSQLSkeleton); err != nil {
+		cleanup()
+		return "", err
+	}
+	if err := tempFile.Chmod(0o644); err != nil {
+		cleanup()
+		return "", err
+	}
+	if err := tempFile.Close(); err != nil {
+		_ = os.Remove(tempPath)
+		return "", err
+	}
+	if err := os.Rename(tempPath, path); err != nil {
+		_ = os.Remove(tempPath)
+		return "", err
+	}
+	return filepath.ToSlash(filepath.Join("migrations", fileName)), nil
+}
+
+func migrationFileBaseName(name string) (string, error) {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return "", invalidMigrationNameError(name, "the name is empty")
+	}
+	if strings.ContainsAny(trimmed, `/\`) || strings.ContainsRune(trimmed, 0) {
+		return "", invalidMigrationNameError(name, "path separators and NUL bytes are not allowed")
+	}
+	snake := snakeCaseMigrationName(trimmed)
+	if snake == "" {
+		return "", invalidMigrationNameError(
+			name,
+			"the name must contain at least one letter or number",
+		)
+	}
+	return snake, nil
+}
+
+func invalidMigrationNameError(name, reason string) error {
+	return output.NewError(
+		output.CodeUsage,
+		fmt.Sprintf("invalid migration name %q: %s", name, reason),
+		output.ExitUsage,
+		"Use letters, numbers, spaces, hyphens, or underscores, for example: andurel generate migration create_users_table",
+	)
+}
+
+// snakeCaseMigrationName matches goose's create command so existing naming
+// conventions keep working: alpha-numeric runs lowercase, delimiters collapse
+// to one underscore, and leading/trailing delimiters are dropped.
+func snakeCaseMigrationName(value string) string {
+	type state int
+	const (
+		idle state = iota
+		firstAlphaNum
+		alphaNum
+		delimiter
+	)
+	next := func(current state, r rune) state {
+		switch current {
+		case idle:
+			if unicode.IsLetter(r) || unicode.IsNumber(r) {
+				return firstAlphaNum
+			}
+		case firstAlphaNum:
+			if unicode.IsLetter(r) || unicode.IsNumber(r) {
+				return alphaNum
+			}
+			return delimiter
+		case alphaNum:
+			if !unicode.IsLetter(r) && !unicode.IsNumber(r) {
+				return delimiter
+			}
+		case delimiter:
+			if unicode.IsLetter(r) || unicode.IsNumber(r) {
+				return firstAlphaNum
+			}
+			return idle
+		}
+		return current
+	}
+
+	var builder strings.Builder
+	current := idle
+	for _, r := range value {
+		current = next(current, r)
+		switch current {
+		case firstAlphaNum, alphaNum:
+			builder.WriteRune(unicode.ToLower(r))
+		case delimiter:
+			builder.WriteByte('_')
+		}
+	}
+	return strings.TrimSuffix(builder.String(), "_")
 }
 
 func newDBMigrationUpCommand() *cobra.Command {
@@ -574,9 +726,11 @@ func loadDatabaseConfig() (dbConfig, error) {
 	}
 
 	if len(missing) > 0 {
-		return dbConfig{}, fmt.Errorf(
-			"missing database configuration environment variables: %v",
-			missing,
+		return dbConfig{}, output.NewError(
+			output.CodeConfigError,
+			fmt.Sprintf("missing database configuration environment variables: %v", missing),
+			output.ExitConfig,
+			"Copy .env.example to .env and set DB_KIND, DB_PORT, DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, and DB_SSL_MODE, or export them before running the command.",
 		)
 	}
 

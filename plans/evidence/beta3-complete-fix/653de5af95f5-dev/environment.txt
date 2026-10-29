@@ -1,0 +1,10 @@
+candidate_sha=653de5af95f58185442f3e517802bf35e13a085f
+mode=dev
+candidate_dirty=1
+go=go version go1.27.3 linux/amd64
+node=v26.12.1
+pnpm=12.9.1
+npm=12.2.0
+docker=29.8.2
+psql=psql (PostgreSQL) 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)
+dates=2026-10-29T12:29:31Z

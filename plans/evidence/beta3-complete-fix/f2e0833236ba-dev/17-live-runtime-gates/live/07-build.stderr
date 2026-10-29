@@ -1,0 +1,29 @@
+(✓) Post-generation event received, processing... [ updates=3 needsRestart=true needsBrowserReload=true ]
+(✓) Complete [ updates=3 duration=6.984364ms ]
+$ vite build && vite build --ssr resources/js/ssr.tsx --outDir assets/dist/ssr
+# cd /tmp/opencode/andurel-beta3-live-GckeKV/apps/live-acceptance; git -c log.showsignature=false log -1 --format=%H:%ct
+fatal: your current branch 'master' does not have any commits yet
+live-acceptance/assets
+live-acceptance/queue/jobs
+live-acceptance/routes
+live-acceptance/domains/internal/queries
+live-acceptance/email
+live-acceptance/resources
+live-acceptance/config
+live-acceptance/domains
+live-acceptance/middleware
+live-acceptance/services
+live-acceptance/queue
+live-acceptance/handlers
+live-acceptance/internal/runtime
+live-acceptance/cmd/app
+# cd /tmp/opencode/andurel-beta3-live-GckeKV/apps/live-acceptance; git -c log.showsignature=false log -1 --format=%H:%ct
+fatal: your current branch 'master' does not have any commits yet
+live-acceptance/migrations
+live-acceptance/cmd/migrate
+# cd /tmp/opencode/andurel-beta3-live-GckeKV/apps/live-acceptance; git -c log.showsignature=false log -1 --format=%H:%ct
+fatal: your current branch 'master' does not have any commits yet
+live-acceptance/cmd/queue
+# cd /tmp/opencode/andurel-beta3-live-GckeKV/apps/live-acceptance; git -c log.showsignature=false log -1 --format=%H:%ct
+fatal: your current branch 'master' does not have any commits yet
+live-acceptance/cmd/ssr

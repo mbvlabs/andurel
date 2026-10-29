@@ -1,0 +1,118 @@
+{
+  "ok": false,
+  "code": "verification_failed",
+  "error": "Verification failed: content",
+  "hint": "Apply each violation's fix and run andurel verify again.",
+  "exit_code": 9,
+  "data": {
+    "ok": false,
+    "steps": [
+      {
+        "name": "setup",
+        "status": "skipped",
+        "ok": false,
+        "reason": "no setup requirements for the selected stages",
+        "rules": {
+          "selected": [
+            "setup",
+            "missing-tool"
+          ],
+          "executed": null,
+          "skipped": [
+            "setup",
+            "missing-tool"
+          ]
+        }
+      },
+      {
+        "name": "gofmt",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "go fix",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "go vet",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "layers",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "frontend",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "generated",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "content",
+        "status": "fail",
+        "ok": false,
+        "detail": "1 content invariant violation(s) in the declared content tree",
+        "violations": [
+          {
+            "rule": "content-link",
+            "file": "content/welcome.md",
+            "line": 3,
+            "message": "link target \"missing.md\" resolves to missing file content/missing.md",
+            "fix": "create the file or correct the link target"
+          }
+        ],
+        "rules": {
+          "selected": [
+            "content-config",
+            "content-catalog",
+            "content-slug",
+            "content-required",
+            "content-link",
+            "content-checker"
+          ],
+          "executed": [
+            "content-config",
+            "content-catalog",
+            "content-slug",
+            "content-required",
+            "content-link",
+            "content-checker"
+          ]
+        }
+      },
+      {
+        "name": "go test",
+        "status": "skipped",
+        "ok": false,
+        "reason": "--with-tests not set"
+      }
+    ],
+    "scope": {
+      "mode": "all",
+      "stages": [
+        "content"
+      ],
+      "rules": [
+        "content-config",
+        "content-catalog",
+        "content-slug",
+        "content-required",
+        "content-link",
+        "content-checker"
+      ]
+    }
+  }
+}

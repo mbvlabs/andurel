@@ -1,0 +1,89 @@
+{
+  "ok": true,
+  "data": {
+    "ok": true,
+    "steps": [
+      {
+        "name": "setup",
+        "status": "skipped",
+        "ok": false,
+        "reason": "no setup requirements for the selected stages",
+        "rules": {
+          "selected": [
+            "setup",
+            "missing-tool"
+          ],
+          "executed": null,
+          "skipped": [
+            "setup",
+            "missing-tool"
+          ]
+        }
+      },
+      {
+        "name": "gofmt",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "go fix",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "go vet",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "layers",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "frontend",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "generated",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "content",
+        "status": "skipped",
+        "ok": false,
+        "reason": "no content configuration (andurel.content.toml)",
+        "not_applicable": true
+      },
+      {
+        "name": "go test",
+        "status": "skipped",
+        "ok": false,
+        "reason": "--with-tests not set"
+      }
+    ],
+    "scope": {
+      "mode": "all",
+      "stages": [
+        "content"
+      ],
+      "rules": [
+        "content-config",
+        "content-catalog",
+        "content-slug",
+        "content-required",
+        "content-link",
+        "content-checker"
+      ]
+    }
+  },
+  "summary": "Verification passed"
+}

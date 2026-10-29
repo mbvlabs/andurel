@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "data": {
+    "host": "127.0.0.1",
+    "port": 44857,
+    "listen_url": "http://127.0.0.1:44857",
+    "url": "http://127.0.0.1:44857",
+    "mode": "allocated",
+    "lease_file": "/tmp/andurel-acceptance-UqANgJ/leases/b/port-12ca17b49af2-44857.json",
+    "pid": 1777343,
+    "child_pid": 1777368
+  },
+  "summary": "SSR port 44857 ready at http://127.0.0.1:44857 (child pid 1777368)"
+}

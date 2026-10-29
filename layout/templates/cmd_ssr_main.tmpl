@@ -54,12 +54,13 @@ func run() error {
 
 		select {
 		case <-ctx.Done():
+			return nil
 		case err := <-ssr.Errors():
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			cancel()
+			if err == nil {
+				err = fmt.Errorf("inertia SSR runtime stopped")
+			}
+			return err
 		}
-
-		return nil
 	}, func(ctx context.Context) error {
 		cancel()
 		if err := ssr.Stop(ctx); err != nil {

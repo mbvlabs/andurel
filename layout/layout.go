@@ -46,20 +46,21 @@ func Scaffold(
 
 	blueprint := initializeBlueprint(moduleName)
 	templateData := TemplateData{
-		AppName:              projectName,
-		ProjectName:          projectName,
-		ModuleName:           moduleName,
-		Database:             database,
-		GoVersion:            goVersion,
-		SessionKey:           secrets.sessionKey,
-		SessionEncryptionKey: secrets.sessionEncryptionKey,
-		TokenSigningKey:      secrets.tokenSigningKey,
-		Pepper:               secrets.pepper,
-		RunToolVersion:       GetRunToolVersion(),
-		FrameworkVersion:     normalizeFrameworkVersion(version),
-		Inertia:              inertia,
-		JavaScriptSSRRuntime: "node",
-		blueprint:            blueprint,
+		AppName:                  projectName,
+		ProjectName:              projectName,
+		ModuleName:               moduleName,
+		Database:                 database,
+		GoVersion:                goVersion,
+		SessionKey:               secrets.sessionKey,
+		SessionEncryptionKey:     secrets.sessionEncryptionKey,
+		TokenSigningKey:          secrets.tokenSigningKey,
+		Pepper:                   secrets.pepper,
+		RunToolVersion:           GetRunToolVersion(),
+		FrameworkVersion:         normalizeFrameworkVersion(version),
+		Inertia:                  inertia,
+		JavaScriptSSRRuntime:     "node",
+		JavaScriptPackageManager: javascriptRuntime,
+		blueprint:                blueprint,
 	}
 
 	fmt.Print("Creating project structure...\n")
@@ -183,6 +184,9 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"runtime_queue.tmpl":        "internal/runtime/queue.go",
 	"runtime_main_test.tmpl":    "internal/runtime/main_test.go",
 	"runtime_runtime_test.tmpl": "internal/runtime/runtime_test.go",
+
+	// Read-only runtime config check andurel doctor runs with go run.
+	"internal_configcheck_main.tmpl": "internal/configcheck/main.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",

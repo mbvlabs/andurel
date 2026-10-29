@@ -1,0 +1,42 @@
+{
+  "ok": true,
+  "data": {
+    "version": "live-b",
+    "output_dir": "/tmp/opencode/andurel-beta3-live-GckeKV/builds/b",
+    "isolated": true,
+    "assets_built": true,
+    "artifacts": [
+      {
+        "process": "app",
+        "path": "/tmp/opencode/andurel-beta3-live-GckeKV/builds/b/app",
+        "size": 60415166,
+        "version": "live-b"
+      },
+      {
+        "process": "migrate",
+        "path": "/tmp/opencode/andurel-beta3-live-GckeKV/builds/b/migrate",
+        "size": 27728365,
+        "version": "live-b"
+      },
+      {
+        "process": "queue",
+        "path": "/tmp/opencode/andurel-beta3-live-GckeKV/builds/b/queue",
+        "size": 34242739,
+        "version": "live-b"
+      },
+      {
+        "process": "ssr",
+        "path": "/tmp/opencode/andurel-beta3-live-GckeKV/builds/b/ssr",
+        "size": 38321234,
+        "version": "live-b"
+      }
+    ]
+  },
+  "summary": "Built 4 processes into /tmp/opencode/andurel-beta3-live-GckeKV/builds/b (version live-b)",
+  "breadcrumbs": [
+    {
+      "cmd": "andurel patterns show deploy",
+      "description": "read the production process order and runtime environment"
+    }
+  ]
+}

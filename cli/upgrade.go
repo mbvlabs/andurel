@@ -3,9 +3,11 @@ package cli
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 
@@ -121,6 +123,12 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		if err != nil {
 			return err
 		}
+		if dryRun && report != nil {
+			// Nothing was written, so project the plan onto the snapshot. The
+			// dry run then reports the same files and diff as the real run,
+			// andurel.toml and andurel.lock included.
+			after = applyPlannedChanges(before, report.PlannedChanges)
+		}
 		artifactReport := buildMutationReport(mutationOptions{
 			Action:      "upgrade",
 			Resource:    targetVersion,
@@ -129,8 +137,6 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 			CommandsRun: upgradeCommandsRun(report),
 		}, before, after)
 		if dryRun && report != nil {
-			artifactReport.FilesUpdated = append([]string(nil), report.ReplacedFiles...)
-			artifactReport.FilesDeleted = append([]string(nil), report.RemovedFiles...)
 			artifactReport.Warnings = append(
 				artifactReport.Warnings,
 				"dry run only; no files were changed",
@@ -254,6 +260,23 @@ func upgradeCommandError(err error) error {
 		Cause:    err,
 		Data:     unsupported.Data(),
 	}
+}
+
+func applyPlannedChanges(before fileSnapshot, changes []upgrade.PlannedChange) fileSnapshot {
+	after := make(fileSnapshot, len(before))
+	maps.Copy(after, before)
+	for _, change := range changes {
+		if change.Remove {
+			delete(after, change.Path)
+			continue
+		}
+		after[change.Path] = fileState{
+			Hash:    sha256.Sum256(change.Content),
+			Content: change.Content,
+			Mode:    change.Mode,
+		}
+	}
+	return after
 }
 
 func upgradeCommandsRun(report *upgrade.UpgradeReport) []string {

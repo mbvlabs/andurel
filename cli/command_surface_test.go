@@ -715,6 +715,7 @@ func TestNewProjectValidatesInertiaAndBuildsReports(t *testing.T) {
 		"test",
 		true,
 		false,
+		nil,
 	); err == nil ||
 		!strings.Contains(err.Error(), "invalid --ui adapter") {
 		t.Fatalf("expected invalid --ui adapter, got %v", err)
@@ -730,6 +731,7 @@ func TestNewProjectValidatesInertiaAndBuildsReports(t *testing.T) {
 		"test",
 		true,
 		false,
+		nil,
 	); err == nil ||
 		!strings.Contains(err.Error(), "invalid --ui package manager") {
 		t.Fatalf("expected invalid --ui package manager, got %v", err)
@@ -773,6 +775,7 @@ func TestNewProjectValidatesInertiaAndBuildsReports(t *testing.T) {
 		"test",
 		true,
 		false,
+		nil,
 	); err == nil ||
 		!strings.Contains(err.Error(), "current directory is not empty") {
 		t.Fatalf("expected non-empty current directory error, got %v", err)
@@ -1265,31 +1268,57 @@ func TestPrintUpgradeSummary(t *testing.T) {
 
 func TestPrintNewProjectNextSteps(t *testing.T) {
 	var out bytes.Buffer
-	printNewProjectNextSteps(&out, "app", "./app", true, "pnpm")
+	printNewProjectNextSteps(&out, "app", "./app", true, "pnpm", nil)
 	for _, want := range []string{
 		"Successfully created project: app",
 		"cd ./app",
 		"andurel tool sync",
-		"andurel skill install",
-		"andurel db migrate up",
 		"pnpm install",
+		"cp .env.example .env",
+		"andurel db migrate up",
+		"andurel doctor",
 		"andurel run",
 		"andurel verify",
+		"Agent skill: not installed",
+		"andurel skill install --harness claude",
 	} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("next steps missing %q:\n%s", want, out.String())
 		}
 	}
 	steps := out.String()
-	if strings.Index(steps, "andurel skill install") < strings.Index(steps, "andurel tool sync") ||
+	if strings.Index(steps, "andurel tool sync") > strings.Index(steps, "pnpm install") ||
+		strings.Index(steps, "pnpm install") > strings.Index(steps, "cp .env.example .env") ||
+		strings.Index(steps, "andurel doctor") > strings.Index(steps, "andurel run") ||
 		strings.Index(steps, "andurel verify") < strings.Index(steps, "andurel run") {
-		t.Fatalf("next steps out of order:\n%s", steps)
+		t.Fatalf("next steps out of documented order:\n%s", steps)
+	}
+	if strings.Contains(steps, "(andurel db create") {
+		t.Fatalf("next steps keep the malformed database hint:\n%s", steps)
 	}
 
 	out.Reset()
-	printNewProjectNextSteps(&out, "app", "app", false, "pnpm")
+	printNewProjectNextSteps(&out, "app", "app", false, "pnpm", nil)
 	if strings.Contains(out.String(), "pnpm install") {
 		t.Fatalf("non-Inertia next steps include a JS install:\n%s", out.String())
+	}
+
+	out.Reset()
+	printNewProjectNextSteps(
+		&out,
+		"app",
+		"app",
+		true,
+		"pnpm",
+		[]skillHarness{{name: "claude", label: "Claude", directory: ".claude/skills/andurel"}},
+	)
+	if strings.Contains(out.String(), "Agent skill: not installed") {
+		t.Fatalf("installed skill reported as missing:\n%s", out.String())
+	}
+	for _, want := range []string{"installed for Claude", "./.claude/skills/andurel", "Commit it"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("installed skill note missing %q:\n%s", want, out.String())
+		}
 	}
 }
 

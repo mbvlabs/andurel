@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "data": {
+    "host": "127.0.0.1",
+    "port": 34227,
+    "listen_url": "http://127.0.0.1:34227",
+    "url": "http://127.0.0.1:34227",
+    "mode": "allocated",
+    "lease_file": "/tmp/opencode/andurel-acceptance-0xTTNj/leases/one/port-12ca17b49af2-34227.json",
+    "pid": 2765943,
+    "child_pid": 2765952
+  },
+  "summary": "SSR port 34227 ready at http://127.0.0.1:34227 (child pid 2765952)"
+}

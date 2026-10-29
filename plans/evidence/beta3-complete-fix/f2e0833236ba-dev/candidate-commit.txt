@@ -1,0 +1,1 @@
+f2e0833236ba98626ad864ac7efedd42bd00e7ca test(acceptance): add live fresh-scaffold gate 17

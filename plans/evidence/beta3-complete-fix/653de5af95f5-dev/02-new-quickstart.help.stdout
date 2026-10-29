@@ -1,0 +1,48 @@
+Stand up a new Andurel project
+
+Details:
+  - Quick Start, also printed by andurel new and in the generated README: andurel tool sync; pnpm install (or bun/npm to match --ui); cp .env.example .env and set the required values; andurel db create (only if the database does not exist); andurel db migrate up; andurel doctor; andurel run; andurel verify.
+  - Pass --harness codex|claude|pi|opencode|crush (comma-separated or repeated) to install the bundled agent skill during creation. Without it the skill is not installed and the next steps print an explicit install example.
+
+When to use:
+  - Create a new application directory from the current scaffold.
+  - Creation is offline: it installs no dependencies and needs no database.
+
+When not to use:
+  - Do not run inside an existing Andurel project.
+
+Usage:
+  andurel new [project-name] [flags]
+
+Examples:
+  andurel new myapp
+  andurel new myapp --ui vue/pnpm
+  andurel new myapp --harness claude
+  andurel new myapp --dry-run --json
+
+Next:
+  - cd <project>
+  - andurel tool sync
+  - pnpm install (or bun/npm install to match --ui)
+  - cp .env.example .env
+  - andurel db create (only if the database does not exist)
+  - andurel db migrate up
+  - andurel doctor
+  - andurel run
+  - andurel verify
+
+Flags:
+      --diff              Include a text diff preview in structured output
+      --dry-run           Preview project files without creating them
+      --harness strings   Install the Andurel skill for these harnesses: codex, claude, pi, opencode, crush (comma-separated or repeated)
+  -h, --help              help for new
+      --ui string         UI combination: react|vue|svelte / pnpm|bun|npm (default: react/pnpm) (default "react/pnpm")
+Global Flags:
+      --agent       Emit structured output optimized for agents
+      --count       Emit one raw resource count when supported
+      --ids-only    Emit one resource identifier per line when supported
+      --jq string   Select a field path (for example .routes[0].name) from command data and emit JSON directly
+      --json        Emit JSON output
+      --md          Emit Markdown output
+      --quiet       Suppress non-essential human output
+      --verbose     Emit verbose output

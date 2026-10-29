@@ -1,0 +1,60 @@
+✓ templ (v0.3.1020) - up to date
+Generating templ files...
+✓ narsilc (v0.6.2) - up to date
+Generating narsilc queries...
+✓ tailwindcli (v4.3.2) - up to date
+Compiling Tailwind email templates...
+  updated email/base_layout_templ.go
+  updated email/reset_password_templ.go
+  updated email/verify_email_templ.go
+Email templates compiled.
+Installing pnpm dependencies...
+[WARN] The store at /home/mbv/.local/share/pnpm/store/v11 is not used because packages cannot be hard linked from it into this project. Using the store at /tmp/.pnpm-store/v11 instead. Set storeDir to choose the store.
+✓ Lockfile passes supply-chain policies (verified 557ms ago)
+Lockfile is up to date, resolution step is skipped
+Done in 17ms using pnpm v12.9.1
+Building Vite assets...
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 614 modules transformed.
+rendering chunks...
+computing gzip size...
+assets/dist/architects-daughter-latin-ext-400-normal-BsHeVfRr.woff2    7.03 kB
+assets/dist/jetbrains-mono-vietnamese-wght-normal-Bt-aOZkq.woff2       7.50 kB
+assets/dist/vite/manifest.json                                         7.81 kB │ gzip:   0.72 kB
+assets/dist/architects-daughter-latin-ext-400-normal-FqHtA13I.woff     8.54 kB
+assets/dist/jetbrains-mono-greek-wght-normal-Bw9x6K1M.woff2            9.00 kB
+assets/dist/noto-sans-greek-ext-wght-normal-12T8GTDR.woff2            10.76 kB
+assets/dist/jetbrains-mono-cyrillic-wght-normal-D73BlboJ.woff2        12.11 kB
+assets/dist/architects-daughter-latin-400-normal-DOGE_9Aw.woff2       13.16 kB
+assets/dist/noto-sans-vietnamese-wght-normal-DLTJy58D.woff2           14.46 kB
+assets/dist/jetbrains-mono-latin-ext-wght-normal-DBQx-q_a.woff2       15.20 kB
+assets/dist/architects-daughter-latin-400-normal-Ze4cbGW2.woff        15.64 kB
+assets/dist/noto-sans-cyrillic-wght-normal-B2hlT84T.woff2             20.08 kB
+assets/dist/noto-sans-greek-wght-normal-Ymb6dZNd.woff2                21.78 kB
+assets/dist/noto-sans-latin-wght-normal-BYSzYMf3.woff2                35.82 kB
+assets/dist/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2           40.40 kB
+assets/dist/noto-sans-cyrillic-ext-wght-normal-DSNfmdVt.woff2         70.68 kB
+assets/dist/noto-sans-devanagari-wght-normal-Cv-Vwajv.woff2           99.24 kB
+assets/dist/noto-sans-latin-ext-wght-normal-W1qJv59z.woff2           167.96 kB
+assets/dist/app-CyCD-DdG.css                                          28.57 kB │ gzip:   8.29 kB
+assets/dist/app-C9cEvWFF.js                                          374.48 kB │ gzip: 114.38 kB
+✓ built in 1.70s
+Inertia SSR entry: resources/js/ssr.tsx
+vite v7.3.7 building ssr environment for production...
+transforming...
+✓ 642 modules transformed.
+rendering chunks...
+assets/dist/ssr/vite/manifest.json      0.13 kB
+assets/dist/ssr/ssr.js              3,459.08 kB │ map: 5,639.93 kB
+✓ built in 3.91s
+Downloading Go dependencies...
+Building app...
+Building migrate...
+Building queue...
+Building ssr...
+✓ Built 4 processes into dist (version live-f2e08332)
+  app      dist/app         57.6 MB
+  migrate  dist/migrate     26.4 MB
+  queue    dist/queue       32.7 MB
+  ssr      dist/ssr         36.5 MB

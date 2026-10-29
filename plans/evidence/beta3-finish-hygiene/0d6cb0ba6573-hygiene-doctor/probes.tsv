@@ -1,0 +1,9 @@
+01-new-react-pnpm-harness	pass	0
+02-local-replacements	pass	0
+03-lockfile-frozen-install	pass	0
+04-setup-positive	pass	0
+05-doctor-missing-env	pass	0
+06-doctor-malformed-env	pass	0
+07-doctor-export-only-unreachable-db	pass	0
+08-hygiene-ignored-outputs-secrets	pass	0
+09-verify-scoped-changed-content	pass	0

@@ -1,0 +1,5 @@
+/tmp/opencode/andurel-hygiene-gYeLqY/apps/hygiene-app/.opencode/skills/andurel/SKILL.md
+/tmp/opencode/andurel-hygiene-gYeLqY/apps/hygiene-app/.opencode/skills/andurel/agents/openai.yaml
+/tmp/opencode/andurel-hygiene-gYeLqY/apps/hygiene-app/.opencode/skills/andurel/references/cli-catalog.md
+/tmp/opencode/andurel-hygiene-gYeLqY/apps/hygiene-app/.opencode/skills/andurel/references/http-and-routing.md
+/tmp/opencode/andurel-hygiene-gYeLqY/apps/hygiene-app/.opencode/skills/andurel/references/layer-placement.md

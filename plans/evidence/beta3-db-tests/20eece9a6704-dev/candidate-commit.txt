@@ -1,0 +1,1 @@
+20eece9a6704253aaccf866f17ecd70dd8e39bdd test(acceptance): assert F20 gate generates react/pnpm

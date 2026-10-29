@@ -29,6 +29,9 @@ type CommandMeta struct {
 	RequiresProject  bool          `json:"requires_project,omitempty"`
 	SupportsDryRun   bool          `json:"supports_dry_run"`
 	SupportsJSON     bool          `json:"supports_json"`
+	SupportsJQ       bool          `json:"supports_jq"`
+	SupportsIDsOnly  bool          `json:"supports_ids_only"`
+	SupportsCount    bool          `json:"supports_count"`
 	SkipDryRunCheck  bool          `json:"skip_dry_run_check,omitempty"`
 	Prompts          bool          `json:"prompts,omitempty"`
 	InteractiveFlags []string      `json:"interactive_flags,omitempty"`
@@ -135,7 +138,10 @@ func registerAllCommandMeta(root *cobra.Command) {
 			continue
 		}
 		spec.Group = groupFromCommand(cmd)
-		spec.SupportsJSON = cmd.Annotations[projectionAnnotationPrefix+"jq"] == "true"
+		spec.SupportsJSON = cmd.Annotations[capabilityAnnotationJSON] == "true"
+		spec.SupportsJQ = cmd.Annotations[projectionAnnotationPrefix+"jq"] == "true"
+		spec.SupportsIDsOnly = cmd.Annotations[projectionAnnotationPrefix+"ids-only"] == "true"
+		spec.SupportsCount = cmd.Annotations[projectionAnnotationPrefix+"count"] == "true"
 		if cmd.CommandPath() == "andurel verify" {
 			spec.Rules = layers.Catalog()
 		}
@@ -199,9 +205,193 @@ func checkCommandMetadata(root *cobra.Command) commandMetaCheckReport {
 			failures = append(failures, path+": CommandMeta registered for unknown command")
 		}
 	}
+	failures = append(failures, checkCommandCapabilities(root)...)
 	failures = append(failures, checkGeneratedDocs(root)...)
 	sort.Strings(failures)
 	return commandMetaCheckReport{OK: len(failures) == 0, Failures: failures}
+}
+
+func checkCommandCapabilities(root *cobra.Command) []string {
+	failures := make([]string, 0)
+	for _, cmd := range walkPublicCommands(root) {
+		path := cmd.CommandPath()
+		registered, ok := cmd.Annotations[capabilityAnnotationJSON]
+		if !ok || registered == "" {
+			failures = append(failures, path+": missing JSON capability registration")
+			continue
+		}
+		if registered != "true" && registered != "false" {
+			failures = append(
+				failures,
+				path+": JSON capability registration must be true or false",
+			)
+			continue
+		}
+		supportsJSON := registered == "true"
+		if expected := !structuredOutputUnsupported(path); supportsJSON != expected {
+			failures = append(
+				failures,
+				fmt.Sprintf(
+					"%s: supports_json=%t contradicts the structured-output implementation contract",
+					path,
+					supportsJSON,
+				),
+			)
+		}
+
+		meta, ok := metaFor(cmd)
+		if !ok {
+			continue
+		}
+		if meta.SupportsJSON != supportsJSON {
+			failures = append(
+				failures,
+				fmt.Sprintf(
+					"%s: supports_json=%t does not match its capability registration %q",
+					path,
+					meta.SupportsJSON,
+					registered,
+				),
+			)
+		}
+
+		for _, projection := range []struct {
+			name  string
+			meta  bool
+			label string
+		}{
+			{name: "jq", meta: meta.SupportsJQ, label: "supports_jq"},
+			{name: "ids-only", meta: meta.SupportsIDsOnly, label: "supports_ids_only"},
+			{name: "count", meta: meta.SupportsCount, label: "supports_count"},
+		} {
+			annotation := cmd.Annotations[projectionAnnotationPrefix+projection.name] == "true"
+			if projection.meta != annotation {
+				failures = append(
+					failures,
+					fmt.Sprintf(
+						"%s: %s=%t does not match its projection registration",
+						path,
+						projection.label,
+						projection.meta,
+					),
+				)
+			}
+			if annotation && !supportsJSON {
+				failures = append(
+					failures,
+					path+": projection support requires structured output support",
+				)
+			}
+		}
+
+		if meta.SupportsDryRun && cmd.Flags().Lookup("dry-run") == nil {
+			failures = append(
+				failures,
+				path+": supports_dry_run=true but the command has no --dry-run flag",
+			)
+		}
+		if meta.SupportsDryRun && !examplesMentionFlag(meta.Examples, "--dry-run") {
+			failures = append(
+				failures,
+				path+": supports_dry_run=true but no example shows --dry-run",
+			)
+		}
+		for _, flag := range meta.InteractiveFlags {
+			name := strings.TrimPrefix(flag, "--")
+			if cmd.Flags().Lookup(name) == nil {
+				failures = append(
+					failures,
+					fmt.Sprintf("%s: interactive flag %s is not registered", path, flag),
+				)
+			}
+			if !examplesMentionFlag(meta.Examples, flag) {
+				failures = append(
+					failures,
+					fmt.Sprintf("%s: interactive flag %s is not shown in any example", path, flag),
+				)
+			}
+		}
+		for _, example := range meta.Examples {
+			if !exampleInvokesCommand(root, cmd, example) {
+				continue
+			}
+			for _, structured := range []string{"--json", "--agent", "--md"} {
+				if exampleMentionsFlag(example, structured) && !supportsJSON {
+					failures = append(
+						failures,
+						fmt.Sprintf(
+							"%s: example %q advertises %s but the command rejects structured output",
+							path,
+							example,
+							structured,
+						),
+					)
+				}
+			}
+			for _, projection := range []struct {
+				flag      string
+				supported bool
+			}{
+				{flag: "--jq", supported: meta.SupportsJQ},
+				{flag: "--ids-only", supported: meta.SupportsIDsOnly},
+				{flag: "--count", supported: meta.SupportsCount},
+				{flag: "--dry-run", supported: meta.SupportsDryRun},
+			} {
+				if exampleMentionsFlag(example, projection.flag) && !projection.supported {
+					failures = append(
+						failures,
+						fmt.Sprintf(
+							"%s: example %q advertises %s but the command does not support it",
+							path,
+							example,
+							projection.flag,
+						),
+					)
+				}
+			}
+		}
+	}
+	return failures
+}
+
+func exampleMentionsFlag(example, flag string) bool {
+	for field := range strings.FieldsSeq(example) {
+		if field == flag || strings.HasPrefix(field, flag+"=") {
+			return true
+		}
+	}
+	return false
+}
+
+func examplesMentionFlag(examples []string, flag string) bool {
+	for _, example := range examples {
+		if exampleMentionsFlag(example, flag) {
+			return true
+		}
+	}
+	return false
+}
+
+// exampleInvokesCommand reports whether an example demonstrates cmd itself,
+// not one of its subcommands. A group may legitimately show a subcommand's
+// flags in its own examples.
+func exampleInvokesCommand(root, cmd *cobra.Command, example string) bool {
+	fields := strings.Fields(example)
+	if len(fields) == 0 || fields[0] != "andurel" {
+		return false
+	}
+	args := make([]string, 0, len(fields))
+	for _, field := range fields[1:] {
+		if strings.HasPrefix(field, "-") {
+			break
+		}
+		args = append(args, field)
+	}
+	invoked, _, err := root.Find(args)
+	if err != nil || invoked == nil {
+		return false
+	}
+	return invoked.CommandPath() == cmd.CommandPath()
 }
 
 func findAndurelFrameworkRoot() string {

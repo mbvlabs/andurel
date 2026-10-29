@@ -1,0 +1,113 @@
+// Command configcheck validates the runtime configuration cmd/app loads and
+// probes the database without writing anything. andurel doctor runs it with
+// "go run ./internal/configcheck"; it is not part of the served process graph
+// and andurel build does not build it.
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
+	"time"
+
+	"{{.ModuleName}}/config"
+
+	"github.com/mbvlabs/andurel/pkg/env"
+	"github.com/mbvlabs/andurel/pkg/storage"
+)
+
+// databaseProbeTimeout bounds the read-only connection check.
+const databaseProbeTimeout = 5 * time.Second
+
+// report is the machine-readable result doctor reads from stdout. The process
+// always exits 0 after printing it: a config or database problem is data, not
+// a crashed check.
+type report struct {
+	OK       bool     `json:"ok"`
+	Config   section  `json:"config"`
+	Database *section `json:"database,omitempty"`
+}
+
+type section struct {
+	Status string   `json:"status"`
+	Reason string   `json:"reason,omitempty"`
+	Errors []string `json:"errors,omitempty"`
+}
+
+func main() {
+	if err := json.NewEncoder(os.Stdout).Encode(check()); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func check() report {
+	if err := env.Load(); err != nil {
+		return report{
+			Config: section{Status: "invalid", Errors: flatten(err)},
+		}
+	}
+
+	cfg, err := config.New()
+	if err != nil {
+		return report{
+			Config: section{Status: "invalid", Errors: flatten(err)},
+		}
+	}
+
+	database := probeDatabase(cfg.Database)
+
+	return report{
+		OK:       database.Status == "reachable",
+		Config:   section{Status: "valid"},
+		Database: &database,
+	}
+}
+
+// probeDatabase opens one connection and pings it. It never migrates, creates a
+// database, or prints the connection URL.
+func probeDatabase(cfg storage.Config) section {
+	ctx, cancel := context.WithTimeout(context.Background(), databaseProbeTimeout)
+	defer cancel()
+
+	db, err := storage.NewPostgres(ctx, cfg, storage.WithoutOpenTelemetry())
+	if err != nil {
+		return section{Status: "unreachable", Reason: redactSecret(err.Error(), cfg.Password)}
+	}
+	defer func() {
+		_ = db.Close()
+	}()
+
+	if err := db.Health(ctx); err != nil {
+		return section{Status: "unreachable", Reason: redactSecret(err.Error(), cfg.Password)}
+	}
+
+	return section{Status: "reachable"}
+}
+
+// flatten splits a joined constructor error into one entry per setting so
+// doctor lists every missing or malformed value instead of the first one.
+func flatten(err error) []string {
+	lines := make([]string, 0)
+	for line := range strings.SplitSeq(err.Error(), "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			lines = append(lines, line)
+		}
+	}
+
+	return lines
+}
+
+// redactSecret keeps the database password out of a driver message. The driver
+// redacts credentials in the URLs it prints today; this is the second guard on
+// the one secret the check itself passes down.
+func redactSecret(message, secret string) string {
+	if len(secret) < 4 {
+		return message
+	}
+
+	return strings.ReplaceAll(message, secret, "<redacted>")
+}

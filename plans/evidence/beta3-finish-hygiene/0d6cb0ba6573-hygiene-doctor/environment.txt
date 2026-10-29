@@ -1,0 +1,10 @@
+candidate_sha=0d6cb0ba657354f72968f0392e370a3973772739
+candidate_dirty=97
+go=go version go1.27.3 linux/amd64
+node=v26.12.1
+pnpm=12.9.1
+npm=12.2.0
+git=git version 2.53.0
+jq=jq-1.8.1
+os=Linux/x86_64
+dates=2026-10-29T18:41:48Z

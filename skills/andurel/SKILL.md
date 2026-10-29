@@ -52,7 +52,15 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 | `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and internal/runtime |
 | `domain-transport` | domains/** imports no HTTP, Inertia, routing, handler, middleware, or route package |
 | `entity-columns` | every automatic generated query column maps to an exported andurel tag on its domain entity |
+| `setup` | project setup is complete: managed tool binaries and frontend dependencies are installed |
 | `frontend` | the package.json typecheck script passes when the scaffold defines one |
+| `frontend-route-usage` | frontend modules do not call full-URL route helpers at module initialization; use .path() or call while rendering |
+| `content-config` | andurel.content.toml parses, declares a supported schemaVersion, and its include/exclude globs are valid |
+| `content-catalog` | every declared content catalog entry resolves to an included Markdown file |
+| `content-slug` | content catalog slugs are non-empty, match the declared pattern, and are unique |
+| `content-required` | every path listed in andurel.content.toml required exists |
+| `content-link` | local Markdown links and images resolve inside the project; configured anchors exist |
+| `content-checker` | each declared content checker exits 0 within its timeout from its declared working directory |
 | `generated` | generated templ, email, queries, routes, and payload output is up to date |
 | `missing-tool` | a required generation binary is installed; run 'andurel tool sync' |
 <!-- andurel:verify-rules:end -->

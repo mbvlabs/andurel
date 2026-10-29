@@ -142,7 +142,11 @@ func runCLIExit(
 
 	cmd := exec.Command(andurelBin, args...)
 	cmd.Dir = dir
-	cmd.Env = cliEnv(fullScaffold)
+	env, err := cliEnv(fullScaffold)
+	if err != nil {
+		t.Fatalf("prepare CLI environment: %v", err)
+	}
+	cmd.Env = env
 
 	out, err := cmd.CombinedOutput()
 	if err == nil {
@@ -260,7 +264,7 @@ func AssertMissing(t testing.TB, projectDir, relPath string) {
 	}
 }
 
-func cliEnv(fullScaffold bool) []string {
+func cliEnv(fullScaffold bool) ([]string, error) {
 	env := filterCLIEnv(os.Environ())
 	if toolBinDir != "" {
 		path := toolBinDir
@@ -273,7 +277,11 @@ func cliEnv(fullScaffold bool) []string {
 	if fullScaffold {
 		env = append(env, "ANDUREL_GOLDEN_FULL=1")
 	}
-	return env
+	// Golden scaffolds tidy with GOWORK=off. By default they resolve the
+	// published pkg/* pins. Local package source is only substituted when the
+	// developer explicitly sets ANDUREL_GOLDEN_LOCAL_PKG=1; release-shaped runs
+	// set ANDUREL_GOLDEN_RELEASE=1 for public proxy, checksums, and fresh caches.
+	return GoldenGoEnv(env)
 }
 
 func filterCLIEnv(env []string) []string {

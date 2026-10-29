@@ -1,0 +1,1 @@
+2026/10/29 12:29:34 ERROR failed to run go mod tidy error="exit status 1\ngo: downloading github.com/mbvlabs/andurel/pkg/inertia v0.13.0\ngo: github.com/mbvlabs/andurel/pkg/inertia@v0.13.0: reading github.com/mbvlabs/andurel/pkg/inertia/go.mod at revision pkg/inertia/v0.13.0: unknown revision pkg/inertia/v0.13.0\n" fix="run 'go mod tidy' after sync"
