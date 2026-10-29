@@ -136,7 +136,7 @@ func TestCompositionPatternMatchesScaffoldRuntime(t *testing.T) {
 		"handlers.NewPagesHandler(renderer).Register(router)",
 		"assetsHandler.Register(router)",
 		"handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)",
-		"handlers.NewAPIHandler(db, newReadiness(cfg, db)).Register(router)",
+		"handlers.NewAPIHandler(db, newReadiness(db, renderer)).Register(router)",
 		"app.Handler = router.Handler()",
 	}
 	for _, line := range keyLines {
