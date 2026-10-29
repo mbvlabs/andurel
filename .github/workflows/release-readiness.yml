@@ -18,7 +18,7 @@ jobs:
   readiness:
     name: Release Readiness
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 180
     permissions:
       contents: read
 
@@ -52,6 +52,9 @@ jobs:
       - name: Verify module metadata
         run: just check-mod
 
+      - name: Verify published package pins
+        run: just check-published-pins
+
       - name: Verify formatting and fixes
         run: |
           just check-fmt
@@ -83,8 +86,11 @@ jobs:
           flags: unit
           fail_ci_if_error: false
 
-      - name: Run golden CLI tests (generate + sync + full scaffold)
-        run: just test-golden-full
+      - name: Run golden CLI tests (release-shaped: public proxy and checksums)
+        run: just test-golden-full-release
+
+      - name: Run published-pin upgrade E2E
+        run: just test-upgrade-e2e
 
       - name: Upload golden failure artifacts
         if: failure()
