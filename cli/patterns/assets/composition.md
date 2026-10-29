@@ -159,7 +159,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	handlers.NewPagesHandler(renderer).Register(router)
 	assetsHandler.Register(router)
 	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)
-	handlers.NewAPIHandler(db, newReadiness(cfg, db)).Register(router)
+	handlers.NewAPIHandler(db, newReadiness(db, renderer)).Register(router)
 
 	app.Handler = router.Handler()
 	app.Server = anduin.NewServer(
@@ -205,47 +205,45 @@ func isViteAssetPath(path string) bool {
 	return strings.HasPrefix(path, viteAssetPrefix+"/")
 }
 
-// readiness reports whether the process can serve traffic. It stays separate
-// from liveness: the database must answer, and outside development the Inertia
-// SSR sidecar must answer too, because server-rendered pages fail without it.
-// A project that opts into client-side-rendering fallback (INERTIA_SSR_FAIL_FAST
-// false) does not gate readiness on the sidecar.
+// readiness reports whether the process can serve traffic. Liveness stays
+// separate: the database must answer, and the renderer decides whether a
+// required SSR sidecar must answer too. The renderer treats a disabled
+// renderer-wide default, an explicit CSR fallback, and an unsupported
+// transport as not gating readiness, so this type only maps its typed reason.
 type readiness struct {
 	database storage.Connection
-	ssr      *inertia.HTTPRenderer
+	renderer *inertia.Renderer
 }
 
-func newReadiness(cfg config.Config, db storage.Connection) readiness {
-	ready := readiness{database: db}
-	if !cfg.App.IsProduction() || !cfg.Inertia.SSRFailFast {
-		return ready
-	}
-
-	ssr, err := inertia.NewHTTPRenderer(
-		cfg.Inertia.SSRURL,
-		cfg.Inertia.SSRRequestTimeout,
-		cfg.Inertia.SSRMaxResponseBytes,
-	)
-	if err != nil {
-		return ready
-	}
-	ready.ssr = ssr
-
-	return ready
+func newReadiness(db storage.Connection, renderer *inertia.Renderer) readiness {
+	return readiness{database: db, renderer: renderer}
 }
+
+// readinessError carries a stable, secret-free reason for /api/ready.
+type readinessError struct{ reason string }
+
+func (err readinessError) Error() string { return err.reason }
+
+func (err readinessError) ReadinessReason() string { return err.reason }
 
 // Health returns the first reason the process is not ready. The reasons are
 // stable and carry no configuration values, so readiness output cannot leak a
 // connection string.
 func (r readiness) Health(ctx context.Context) error {
 	if err := r.database.Health(ctx); err != nil {
-		return errors.New("database is unavailable")
+		return readinessError{reason: "database_unavailable"}
 	}
-	if r.ssr == nil {
+	if r.renderer == nil {
 		return nil
 	}
-	if err := r.ssr.Health(ctx); err != nil {
-		return errors.New("inertia SSR renderer is unavailable")
+	if err := r.renderer.Health(ctx); err != nil {
+		reason := "unavailable"
+		var ssrErr *inertia.ReadinessError
+		if errors.As(err, &ssrErr) && ssrErr.Status != "" {
+			reason = string(ssrErr.Status)
+		}
+
+		return readinessError{reason: reason}
 	}
 
 	return nil
@@ -269,7 +267,7 @@ func (a *App) Close(ctx context.Context) error {
 - Construct dependencies bottom-up in `internal/runtime/runtime.go` with one `New`.
 - Build the jar in `newJar` and the cache with `cfg.Cache.Store()`; middleware is policy only.
 - Register flat handlers with `handlers.NewXHandler(...).Register(router)`; there is no reflection. `PagesHandler.Register` takes the router plus optional middleware and mounts the public home page when none is passed, `AssetsHandler.Register` takes only the router, and `APIHandler` takes the liveness and readiness checkers.
-- `/api/health` is liveness and `/api/ready` is readiness: readiness requires the database and, outside development, a healthy Inertia SSR sidecar. Keep the two separate so orchestration can hold traffic until the process can render a page.
+- `/api/health` is liveness and `/api/ready` is readiness: readiness requires the database and, when the renderer-wide SSR default is on with fail-fast, a healthy Inertia SSR sidecar. `/api/ready` answers 200 `{"status":"ready"}` or 503 `{"status":"unready","reason":"database_unavailable"}` / `{"status":"unready","reason":"unavailable"}`. Keep the two separate so orchestration can hold traffic until the process can render a page.
 - Construct the router with `anduin.NewRouter(anduin.WithHosts(hosts), ...)`. The host registry is what makes `routing.Host(...)`, `rt.Host(...)`, and route `FullURL(hosts, ...)` calls agree; without it every request is served by the primary mux.
 - Global CORS trusts only `CORS_ALLOWED_ORIGINS`. Never add `cfg.App.Origins()` to CORS: host origins belong in CSRF trusted origins, not in a credentialed read policy. Public Vite assets carry their own uncredentialed `*` CORS on the asset route.
 - Host-scoped policy (framing headers, analytics) branches on `anduin.RequestHost(ctx)` in global middleware; never re-parse `Request.Host`.

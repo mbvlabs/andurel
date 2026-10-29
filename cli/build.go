@@ -32,12 +32,17 @@ type buildArtifact struct {
 
 // buildReport is the artifact manifest printed (or emitted as JSON) after a
 // successful build.
+// buildReport is the machine-readable result of andurel build.
 type buildReport struct {
 	Version     string          `json:"version"`
 	OutputDir   string          `json:"output_dir"`
 	Isolated    bool            `json:"isolated,omitempty"`
 	AssetsBuilt bool            `json:"assets_built"`
 	Artifacts   []buildArtifact `json:"artifacts"`
+	// Recovered lists interrupted publications that were repaired before this
+	// build published its own output, for example a backup restored after a
+	// SIGKILL between backup and rename.
+	Recovered []string `json:"recovered,omitempty"`
 }
 
 // buildOptions is one build invocation. An empty OutputDir keeps the legacy

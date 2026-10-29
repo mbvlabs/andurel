@@ -147,7 +147,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	handlers.NewPagesHandler(renderer).Register(router)
 	assetsHandler.Register(router)
 	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)
-	handlers.NewAPIHandler(db, newReadiness(cfg, db)).Register(router)
+	handlers.NewAPIHandler(db, newReadiness(db, renderer)).Register(router)
 
 	app.Handler = router.Handler()
 	if cfg.HTTP.Compress {
@@ -202,47 +202,49 @@ func isViteAssetPath(path string) bool {
 	return strings.HasPrefix(path, viteAssetPrefix+"/")
 }
 
-// readiness reports whether the process can serve traffic. It stays separate
-// from liveness: the database must answer, and outside development the Inertia
-// SSR sidecar must answer too, because server-rendered pages fail without it.
-// A project that opts into client-side-rendering fallback (INERTIA_SSR_FAIL_FAST
-// false) does not gate readiness on the sidecar.
+// readiness reports whether the process can serve traffic. Liveness stays
+// separate: the database must answer, and the renderer decides whether a
+// required SSR sidecar must answer too. The renderer treats a disabled
+// renderer-wide default, an explicit CSR fallback, and an unsupported
+// transport as not gating readiness, so this type only maps its typed reason.
 type readiness struct {
 	database storage.Connection
-	ssr      *inertia.HTTPRenderer
+	renderer *inertia.Renderer
 }
 
-func newReadiness(cfg config.Config, db storage.Connection) readiness {
-	ready := readiness{database: db}
-	if !cfg.App.IsProduction() || !cfg.Inertia.SSRFailFast {
-		return ready
-	}
-
-	ssr, err := inertia.NewHTTPRenderer(
-		cfg.Inertia.SSRURL,
-		cfg.Inertia.SSRRequestTimeout,
-		cfg.Inertia.SSRMaxResponseBytes,
-	)
-	if err != nil {
-		return ready
-	}
-	ready.ssr = ssr
-
-	return ready
+func newReadiness(db storage.Connection, renderer *inertia.Renderer) readiness {
+	return readiness{database: db, renderer: renderer}
 }
+
+// readinessError carries a stable, secret-free reason for /api/ready. The
+// handler reads the reason through ReadinessReason instead of matching error
+// text.
+type readinessError struct {
+	reason string
+}
+
+func (err readinessError) Error() string { return err.reason }
+
+func (err readinessError) ReadinessReason() string { return err.reason }
 
 // Health returns the first reason the process is not ready. The reasons are
 // stable and carry no configuration values, so readiness output cannot leak a
 // connection string.
 func (r readiness) Health(ctx context.Context) error {
 	if err := r.database.Health(ctx); err != nil {
-		return errors.New("database is unavailable")
+		return readinessError{reason: "database_unavailable"}
 	}
-	if r.ssr == nil {
+	if r.renderer == nil {
 		return nil
 	}
-	if err := r.ssr.Health(ctx); err != nil {
-		return errors.New("inertia SSR renderer is unavailable")
+	if err := r.renderer.Health(ctx); err != nil {
+		reason := "unavailable"
+		var ssrErr *inertia.ReadinessError
+		if errors.As(err, &ssrErr) && ssrErr.Status != "" {
+			reason = string(ssrErr.Status)
+		}
+
+		return readinessError{reason: reason}
 	}
 
 	return nil
@@ -404,6 +406,10 @@ func NewRenderer(cfg config.Config, hosts *routing.Hosts) (*inertia.Renderer, er
 		// The root document title is the display name, not the identifier.
 		inertia.WithProjectName(cfg.App.SiteName),
 		inertia.WithEnvironment(cfg.App.Environment),
+		// Production server-renders every page; PageBuilder.CSR() opts a page
+		// out. Development keeps the per-page .SSR() opt-in so a bare go run does
+		// not depend on the Vite SSR endpoint.
+		inertia.WithSSRDefault(cfg.App.IsProduction()),
 		inertia.WithProtocolDebug(cfg.Inertia.ProtocolDebug),
 		inertia.WithShared(inertia.Props{
 			"appVersion": cfg.Version,

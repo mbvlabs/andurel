@@ -45,13 +45,21 @@ func TestGeneratedReadinessSeparatesLivenessAndReadiness(t *testing.T) {
 		// The probe writes its own response so a readiness failure stays 503
 		// instead of becoming the themed 500 error page.
 		"return anduin.JSON(ctx, http.StatusServiceUnavailable, map[string]string{",
+		`"status": "unready"`,
+		`"reason": reason`,
+		"type readinessReasoner interface",
 	)
 	assertTemplateContains(t, "runtime_runtime.tmpl",
-		"handlers.NewAPIHandler(db, newReadiness(cfg, db)).Register(router)",
-		"func newReadiness(cfg config.Config, db storage.Connection) readiness",
-		"inertia.NewHTTPRenderer(",
-		"return errors.New(\"inertia SSR renderer is unavailable\")",
-		"return errors.New(\"database is unavailable\")",
+		"handlers.NewAPIHandler(db, newReadiness(db, renderer)).Register(router)",
+		"func newReadiness(db storage.Connection, renderer *inertia.Renderer) readiness",
+		"r.renderer.Health(ctx)",
+		`reason = string(ssrErr.Status)`,
+		`return readinessError{reason: "database_unavailable"}`,
+	)
+	assertTemplateContains(t, "runtime_runtime.tmpl",
+		// F22: production server-renders every page by default; a page opts out
+		// with PageBuilder.CSR().
+		"inertia.WithSSRDefault(cfg.App.IsProduction())",
 	)
 	assertTemplateContains(t, "runtime_runtime_test.tmpl",
 		"func TestReadinessReportsReadyInDevelopment(",

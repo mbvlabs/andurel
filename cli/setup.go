@@ -51,13 +51,22 @@ func detectSetupState(rootDir string) (setupState, error) {
 		toolNames = append(toolNames, name)
 	}
 	slices.Sort(toolNames)
-	for _, name := range toolNames {
-		if _, err := os.Stat(filepath.Join(rootDir, "bin", name)); err != nil {
-			state.MissingTools = append(state.MissingTools, name)
-		}
-	}
+	state.MissingTools = missingToolBinaries(rootDir, toolNames)
 
 	return state, nil
+}
+
+// missingToolBinaries returns the named managed tools whose project-local
+// binary is not installed. doctor and verify share this predicate so their
+// definitions of "setup is complete" cannot drift.
+func missingToolBinaries(rootDir string, names []string) []string {
+	missing := make([]string, 0, len(names))
+	for _, name := range names {
+		if _, err := os.Stat(filepath.Join(rootDir, "bin", name)); err != nil {
+			missing = append(missing, name)
+		}
+	}
+	return missing
 }
 
 // Missing reports whether the documented setup has not run yet.

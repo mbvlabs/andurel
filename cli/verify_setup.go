@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -61,28 +62,37 @@ func verifySetup(rootDir string, needs verifySetupNeeds) (verifyStep, []string) 
 }
 
 // missingGenerationTools lists the managed tools the selected generation
-// checks need, mirroring doctor's check conditions without running generation.
+// checks need. Installed means the project-local bin/<name> binary exists, the
+// same predicate doctor uses.
 func missingGenerationTools(rootDir string) []string {
-	missing := make([]string, 0)
-	require := func(name string) {
-		if _, err := os.Stat(filepath.Join(rootDir, "bin", name)); err != nil {
-			missing = append(missing, name)
-		}
-	}
-	require("templ")
+	needed := []string{"templ"}
 	if hasEmailCompilerInputs(rootDir) && hasEmailTemplates(rootDir) {
-		require("tailwindcli")
+		needed = append(needed, "tailwindcli")
 	}
 	if hasQueries, err := cmds.HasQueryFiles(rootDir); err == nil && hasQueries {
-		require("narsilc")
+		needed = append(needed, "narsilc")
 	}
-	return missing
+	return missingToolBinaries(rootDir, needed)
 }
 
 // missingFrontendSetup reports whether package.json declares a typecheck
-// script but node_modules has not been installed, or the package manager
-// binary is unavailable.
+// script but node_modules has not been installed, or the recorded package
+// manager binary is unavailable. It prefers the project's andurel.lock so the
+// install command matches the adapter and package manager recorded at
+// creation.
 func missingFrontendSetup(rootDir string) (bool, string) {
+	if state, err := detectSetupState(rootDir); err == nil && state.Inertia {
+		if !state.NodeModulesMissing {
+			return false, ""
+		}
+		install := state.PackageManager + " install"
+		if _, lookErr := exec.LookPath(state.PackageManager); lookErr != nil {
+			return true, state.PackageManager +
+				" is not installed; install it, then run " + install
+		}
+		return true, install
+	}
+
 	packageManager := frontendPackageManager(rootDir)
 	install := packageManager + " install"
 	contents, err := os.ReadFile(filepath.Join(rootDir, "package.json"))
@@ -99,12 +109,15 @@ func missingFrontendSetup(rootDir string) (bool, string) {
 		return false, ""
 	}
 	if strings.TrimSpace(manifest.Scripts["typecheck"]) == "" {
-		// The route-usage check still needs node_modules? It reads the tree
-		// directly, so a project without a typecheck script has no required
-		// frontend setup for verify.
+		// The route-usage check reads the tree directly, so a project without a
+		// typecheck script has no required frontend setup for verify.
 		return false, ""
 	}
 	if _, err := os.Stat(filepath.Join(rootDir, "node_modules")); err != nil {
+		if _, lookErr := exec.LookPath(packageManager); lookErr != nil {
+			return true, packageManager +
+				" is not installed; install it, then run " + install
+		}
 		return true, install
 	}
 	return false, ""

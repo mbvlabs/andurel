@@ -514,6 +514,86 @@ func isPathWithin(path, root string) bool {
 	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
+// Publication names. publishBuildArtifacts creates temporary outputs and
+// backups with these prefixes; a build killed between renames leaves them
+// behind, so the next publication repairs them before touching output.
+const (
+	buildTempPrefix   = ".andurel-"
+	buildBackupPrefix = ".andurel-backup-"
+)
+
+// recoverInterruptedBuildPublication repairs output left by a build that was
+// killed mid-publication. A backup without its final file is the previous good
+// binary: restore it instead of leaving the output missing. A backup beside a
+// final file is stale and removed. Temporary outputs never became visible, so
+// they are removed. Only names this package creates are touched.
+func recoverInterruptedBuildPublication(outputDir string) ([]string, error) {
+	entries, err := os.ReadDir(outputDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read output directory: %w", err)
+	}
+	recovered := make([]string, 0)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		path := filepath.Join(outputDir, name)
+		switch {
+		case strings.HasPrefix(name, buildBackupPrefix):
+			process, ok := buildPublicationProcess(strings.TrimPrefix(name, buildBackupPrefix))
+			if !ok {
+				continue
+			}
+			final := filepath.Join(outputDir, process)
+			if _, statErr := os.Stat(final); statErr == nil {
+				if err := os.Remove(path); err != nil {
+					return recovered, fmt.Errorf("remove stale backup %s: %w", name, err)
+				}
+				recovered = append(recovered, "removed stale backup of "+process)
+				continue
+			}
+			if err := os.Rename(path, final); err != nil {
+				return recovered, fmt.Errorf("restore interrupted publication of %s: %w", process, err)
+			}
+			recovered = append(recovered, "restored interrupted publication of "+process)
+		case strings.HasPrefix(name, buildTempPrefix):
+			if _, ok := buildPublicationProcess(strings.TrimPrefix(name, buildTempPrefix)); !ok {
+				continue
+			}
+			if err := os.Remove(path); err != nil {
+				return recovered, fmt.Errorf("remove temporary output %s: %w", name, err)
+			}
+			recovered = append(recovered, "removed temporary output for "+strings.TrimPrefix(name, buildTempPrefix))
+		}
+	}
+	return recovered, nil
+}
+
+// buildPublicationProcess extracts the process name from a CreateTemp suffix
+// such as "app-123456789". The random part is all digits; the process name may
+// itself contain dashes. Unsafe path-shaped names are ignored.
+func buildPublicationProcess(suffix string) (string, bool) {
+	dash := strings.LastIndex(suffix, "-")
+	if dash <= 0 || dash == len(suffix)-1 {
+		return "", false
+	}
+	random := suffix[dash+1:]
+	for index := 0; index < len(random); index++ {
+		if random[index] < '0' || random[index] > '9' {
+			return "", false
+		}
+	}
+	process := suffix[:dash]
+	if process == "." || process == ".." || strings.ContainsAny(process, `/\\`) {
+		return "", false
+	}
+	return process, true
+}
+
 // publishBuildArtifacts copies staged binaries into outputDir with an
 // all-or-nothing publication. A failed copy or rename leaves the previous
 // output untouched and never produces a success manifest.
@@ -524,6 +604,13 @@ func publishBuildArtifacts(
 ) error {
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
+	}
+	recovered, err := recoverInterruptedBuildPublication(outputDir)
+	if err != nil {
+		return err
+	}
+	if len(recovered) > 0 && report != nil {
+		report.Recovered = recovered
 	}
 
 	type publication struct {

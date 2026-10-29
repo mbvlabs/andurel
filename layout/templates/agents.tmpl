@@ -131,7 +131,7 @@ andurel run
 - Host-scoped policy reads `anduin.RequestHost(ctx)`, the `routing.HostName` the dispatcher resolved (case-insensitive, aliases, configured bare hostname matching any port, unknown → primary); never re-parse `anduin.Request(ctx).Host`. `hosts.Resolve(authority)` exposes the same resolution. A host with no registered routes still reports its name but dispatches to the primary mux.
 - Cross-host navigation uses a plain `<a href>`; Inertia `<Link>` is only for same-host visits. Generated helpers return absolute URLs for host-bound routes.
 - `/api` stays on the primary host unless those routes set `Host(...)`. Layout CSS/JS use `FullURL(hosts, ...)` to primary.
-- Never invent frontend URLs in Inertia apps: import `resources/js/routes.ts` after `andurel sync routes --json`. Helpers are generated for routes marked `routing.TypeScriptRoute()` and return full URLs once `configureRouteHosts` runs from the shared `hosts` prop at boot. Call helpers at render time, not in module-scope constants, and use `routes.name.path()` for a relative path.
+- Never invent frontend URLs in Inertia apps: import `resources/js/routes.ts` after `andurel sync routes --json`. Helpers are generated for routes marked `routing.TypeScriptRoute()` and return full URLs once `configureRouteHosts` runs from the shared `hosts` prop at boot (SSR entries use `withRouteHosts` per render). A full-URL helper throws before configuration instead of returning a relative URL; call helpers at render time, not in module-scope constants, and use `routes.name.path()` for a relative path. `andurel verify` reports module-initialization calls under the `frontend-route-usage` rule.
 - After changing handler page props or request payload structs, run `andurel sync payloads --strict` so `resources/js/types/payloads.ts` stays in sync. It fails (exit 5) on a `FromStruct` argument it cannot trace, after writing the file; pass named composite literals, typed variables, or typed function parameters to `FromStruct`.
 
 ## Composition
@@ -142,7 +142,7 @@ The welcome page at `/` is public; protect a route by registering it with `middl
 
 ## Health and readiness
 
-`GET /api/health` is liveness: it answers while the process runs. `GET /api/ready` is readiness: 200 only when the database answers and, outside development, the Inertia SSR sidecar is healthy; otherwise 503 with a stable reason. Readiness recovers when the sidecar returns. `INERTIA_SSR_FAIL_FAST=false` is the explicit client-side-rendering fallback and makes readiness ignore the sidecar.
+`GET /api/health` is liveness: it answers while the process runs. `GET /api/ready` is readiness: 200 `{"status":"ready"}` only when the database answers and a required Inertia SSR sidecar is healthy; otherwise 503 `{"status":"unready","reason":"<reason>"}` (`database_unavailable`, or `unavailable` for a required sidecar that is down). Readiness recovers when the sidecar returns. `INERTIA_SSR_FAIL_FAST=false` is the explicit client-side-rendering fallback and makes readiness ignore the sidecar. In production the renderer server-renders every page by default; `PageBuilder.CSR()` opts one page out, and error mappings stay client-rendered unless they opt in.
 
 `internal/configcheck` is the read-only check `andurel doctor` runs (`go run ./internal/configcheck`). It loads the same config constructor `cmd/app` uses and pings the database; it never migrates or creates anything. Keep it in sync when you change `config/`.
 

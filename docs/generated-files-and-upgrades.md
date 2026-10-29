@@ -81,6 +81,21 @@ The other beta.3 scaffold changes (host-aware docs, the `andurel verify`
 skip/warning output and cross-host guidance) are defaults for new
 applications; existing applications can copy them from a fresh `andurel new`.
 
+Upgrading from any earlier supported release to `v2.0.0-beta.4` or later reports
+the beta.3 actions above plus:
+
+| ID | Change |
+| --- | --- |
+| `public-home-v2.0.0-beta.4` | Register the welcome page without `middleware.AuthOnly`; protected routes keep their auth middleware and anonymous `GET /` returns 200. |
+| `configcheck-v2.0.0-beta.4` | Add the read-only `internal/configcheck` helper `andurel doctor` runs for runtime configuration and database connectivity. |
+| `runtime-readiness-v2.0.0-beta.4` | Add `GET /api/ready`: 200 `{"status":"ready"}` or 503 `{"status":"unready","reason":"..."}` for an unavailable database or required SSR sidecar. `/api/health` stays liveness. |
+| `inertia-ssr-default-v2.0.0-beta.4` | Inertia projects: production server-renders every page with `inertia.WithSSRDefault(cfg.App.IsProduction())`; `.CSR()` opts a page out and the themed `Errors/InternalError` fallback stays client-rendered. Requires `pkg/inertia v0.13.0` (release gate). |
+| `routes-host-scope-v2.0.0-beta.4` | Inertia projects: regenerate `routes.ts` so full-URL helpers throw before configuration, configure browser hosts at boot, and wrap each SSR render with `withRouteHosts`. |
+
+The beta.4 framework tag and `pkg/inertia/v0.13.0` are candidate releases:
+they must be published for a release-shaped install. A development install can
+point at this checkout with `just local-replace <app>`.
+
 ## Provider adapters under `internal/`
 
 External provider adapters (API clients for payment providers, email providers, Discord, and similar third-party services) belong in a package under `internal/`, named for its job: `internal/clients/` for a group of API clients or `internal/payment/` for one payment adapter. Wiring for adapters stays in `internal/runtime`. Andurel never generated a top-level `clients/` directory, so `andurel upgrade` does not move hand-written adapters.

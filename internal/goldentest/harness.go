@@ -142,7 +142,11 @@ func runCLIExit(
 
 	cmd := exec.Command(andurelBin, args...)
 	cmd.Dir = dir
-	cmd.Env = cliEnv(fullScaffold)
+	env, err := cliEnv(fullScaffold)
+	if err != nil {
+		t.Fatalf("prepare CLI environment: %v", err)
+	}
+	cmd.Env = env
 
 	out, err := cmd.CombinedOutput()
 	if err == nil {
@@ -260,7 +264,7 @@ func AssertMissing(t testing.TB, projectDir, relPath string) {
 	}
 }
 
-func cliEnv(fullScaffold bool) []string {
+func cliEnv(fullScaffold bool) ([]string, error) {
 	env := filterCLIEnv(os.Environ())
 	if toolBinDir != "" {
 		path := toolBinDir
@@ -273,7 +277,11 @@ func cliEnv(fullScaffold bool) []string {
 	if fullScaffold {
 		env = append(env, "ANDUREL_GOLDEN_FULL=1")
 	}
-	return env
+	// Golden scaffolds tidy with GOWORK=off. The candidate pkg/inertia pin may
+	// be ahead of the published tag, so development runs resolve it from this
+	// checkout through a file module proxy with dedicated Go caches. Release
+	// shaped proof must not set this proxy; see CandidateModuleProxy.
+	return CandidateGoEnv(env)
 }
 
 func filterCLIEnv(env []string) []string {

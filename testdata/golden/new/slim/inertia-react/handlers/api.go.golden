@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"strings"
 
 	"app/routes"
 
@@ -33,16 +35,34 @@ func (a APIHandler) Register(rt *anduin.Router) {
 	rt.Get(routes.Ready.Pattern(), a.readiness)
 }
 
-// readinessHandler answers 200 when the process is ready, or 503 with the first
-// reason it is not. It writes the probe response itself instead of returning an
-// error, so the status stays 503 and the reason stays machine-readable. The
-// reason is stable and contains no configuration values.
+// readinessReasoner is implemented by the runtime readiness error. Reading a
+// stable reason avoids parsing error text and keeps configuration values out
+// of the response.
+type readinessReasoner interface {
+	ReadinessReason() string
+}
+
+// readinessHandler answers 200 {"status":"ready"} when the process is ready,
+// or 503 {"status":"unready","reason":"<reason>"} with the first stable
+// reason it is not. A required SSR sidecar that is down reports
+// {"status":"unready","reason":"unavailable"}; the reason values are the
+// renderer's SSR status or database_unavailable. It writes the probe response
+// itself instead of returning an error, so the status stays 503 and the reason
+// stays machine-readable.
 func readinessHandler(checker interface{ Health(context.Context) error }) anduin.Handler {
 	return func(ctx context.Context) error {
 		if err := checker.Health(ctx); err != nil {
+			reason := "unavailable"
+			var reasoner readinessReasoner
+			if errors.As(err, &reasoner) {
+				if named := strings.TrimSpace(reasoner.ReadinessReason()); named != "" {
+					reason = named
+				}
+			}
+
 			return anduin.JSON(ctx, http.StatusServiceUnavailable, map[string]string{
-				"status": "unavailable",
-				"reason": err.Error(),
+				"status": "unready",
+				"reason": reason,
 			})
 		}
 

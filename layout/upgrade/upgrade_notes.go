@@ -32,6 +32,12 @@ const betaTwoFixesVersion = "v2.0.0-beta.2"
 // host-scoped middleware.
 const betaThreeFixesVersion = "v2.0.0-beta.3"
 
+// betaFourFixesVersion is the candidate release after v2.0.0-beta.3. It is not
+// tagged yet: the actions below gate on it because the matching scaffold change
+// must ship in the release that tags it. pkg/inertia v0.13.0 is the companion
+// release gate.
+const betaFourFixesVersion = "v2.0.0-beta.4"
+
 // goNativeRebuildVersion is the release that replaced Echo and Fx with the
 // Go-native domains/services/handlers layout. Projects older than it cannot be
 // upgraded automatically; they must be ported by hand.
@@ -197,7 +203,137 @@ func manualActionsForUpgrade(
 		})
 	}
 
+	if crossesVersion(fromVersion, toVersion, betaFourFixesVersion) {
+		actions = append(actions,
+			ManualAction{
+				ID:           "public-home-v2.0.0-beta.4",
+				Title:        "Register the welcome page without AuthOnly",
+				Instructions: publicHomeInstructions(),
+			},
+			ManualAction{
+				ID:           "configcheck-v2.0.0-beta.4",
+				Title:        "Add the read-only internal/configcheck helper",
+				Instructions: configCheckInstructions(),
+			},
+			ManualAction{
+				ID:           "runtime-readiness-v2.0.0-beta.4",
+				Title:        "Expose /api/ready and wire database plus SSR readiness",
+				Instructions: runtimeReadinessInstructions(),
+			},
+		)
+		if includeInertiaMigration {
+			actions = append(actions,
+				ManualAction{
+					ID:           "inertia-ssr-default-v2.0.0-beta.4",
+					Title:        "Server-render production pages by default and keep the themed error page",
+					Instructions: inertiaSSRDefaultInstructions(),
+				},
+				ManualAction{
+					ID:           "routes-host-scope-v2.0.0-beta.4",
+					Title:        "Regenerate routes.ts and scope route hosts per SSR render",
+					Instructions: routesHostScopeInstructions(),
+				},
+			)
+		}
+	}
+
 	return actions, nil
+}
+
+func publicHomeInstructions() string {
+	return "The generated home page is public in the beta.4 scaffold: a new project must be reachable before " +
+		"anyone signs in. An older scaffold registers it behind middleware.AuthOnly, so anonymous `GET /` redirects " +
+		"to sign-in. That is generated registration code in an application-owned file, so change it by hand:\n\n" +
+		"In internal/runtime/runtime.go, register the pages handler without the auth middleware:\n\n```go\n" +
+		"handlers.NewPagesHandler(renderer).Register(router)\n" +
+		"```\n\n" +
+		"instead of:\n\n```go\n" +
+		"handlers.NewPagesHandler(renderer).Register(router, middleware.AuthOnly(users))\n" +
+		"```\n\n" +
+		"Keep middleware.AuthOnly(users) on genuinely protected routes; the login and registration routes stay " +
+		"public. Run `andurel run` and check anonymous `GET /` returns 200 with the welcome page while a protected " +
+		"route still redirects. Format and verify:\n\n```text\ngofmt -w internal/runtime\ngo fix ./...\ngo vet ./...\n```\n"
+}
+
+func configCheckInstructions() string {
+	return "andurel doctor validates runtime configuration through a generated, read-only helper instead of a " +
+		"hard-coded key list, so the check cannot drift from config.New(). `andurel upgrade` does not manage " +
+		"internal/ files: create `internal/configcheck/main.go` from a current `andurel new` scaffold and keep it " +
+		"in step when config changes. It must:\n\n" +
+		"1. call `env.Load()` and `config.New()`;\n" +
+		"2. open the database with `storage.NewPostgres(ctx, cfg, storage.WithoutOpenTelemetry())` and run the " +
+		"read-only `db.Health(ctx)` check;\n" +
+		"3. print one JSON document `{\"ok\":...,\"config\":{\"status\":\"valid|invalid\",\"errors\":[...]},\"database\":{\"status\":\"reachable|unreachable|skipped\",\"reason\":...}}`;\n" +
+		"4. never migrate, create a database, or print a password or connection URL.\n\n" +
+		"The helper must be string-free of framework-owned paths: it is application code. Once it exists, " +
+		"`andurel doctor --json` reports the `Runtime config` check from its output and fails on a missing key, " +
+		"malformed value, or unreachable database. A helper that does not build is a doctor failure, not a skip.\n\n" +
+		"Format and verify:\n\n```text\ngofmt -w internal/configcheck\ngo fix ./...\ngo vet ./...\ngo run ./internal/configcheck\n```\n"
+}
+
+func runtimeReadinessInstructions() string {
+	return "beta.4 separates liveness from readiness. `/api/health` stays liveness; `/api/ready` answers 200 " +
+		"`{\"status\":\"ready\"}` only when the database answers and a required Inertia SSR sidecar is healthy, " +
+		"otherwise 503 `{\"status\":\"unready\",\"reason\":\"...\"}`. `inertia.Renderer.Health` probes the sidecar " +
+		"on every call, so readiness recovers without a restart.\n\n" +
+		"Application-owned wiring to add:\n\n" +
+		"1. In internal/runtime/runtime.go, keep the database health checker and compose the renderer readiness, " +
+		"for example:\n\n```go\ntype readiness struct {\n\tdatabase storage.Connection\n\trenderer *inertia.Renderer\n}\n\n" +
+		"func (r readiness) Health(ctx context.Context) error {\n" +
+		"\tif err := r.database.Health(ctx); err != nil {\n" +
+		"\t\treturn readinessError{reason: \"database_unavailable\"}\n\t}\n" +
+		"\tif r.renderer == nil {\n\t\treturn nil\n\t}\n" +
+		"\tif err := r.renderer.Health(ctx); err != nil {\n" +
+		"\t\treason := \"unavailable\"\n\t\tvar ssrErr *inertia.ReadinessError\n" +
+		"\t\tif errors.As(err, &ssrErr) && ssrErr.Status != \"\" {\n\t\t\treason = string(ssrErr.Status)\n\t\t}\n" +
+		"\t\treturn readinessError{reason: reason}\n\t}\n\treturn nil\n}\n```\n\n" +
+		"2. Register `handlers.NewAPIHandler(db, newReadiness(db, renderer)).Register(router)`; handlers/api.go " +
+		"writes the 503 body itself so it never becomes the themed 500 page.\n\n" +
+		"3. Add `var Ready = routing.NewSimpleRoute(\"GET\", \"/ready\", \"api.ready\")` next to Health in routes/api.go.\n\n" +
+		"4. Do not exit the process when the sidecar is down: serve unready until it recovers. Keep the readiness " +
+		"reason free of connection strings and passwords.\n\n" +
+		"Format and verify:\n\n```text\ngofmt -w internal/runtime handlers routes\ngo fix ./...\ngo vet ./...\n```\n"
+}
+
+func inertiaSSRDefaultInstructions() string {
+	return "beta.4 server-renders every production page by default. Production no longer needs a `.SSR()` call on " +
+		"each page, and development keeps the per-page opt-in so a bare `go run ./cmd/app` does not require the Vite " +
+		"SSR endpoint. This needs `pkg/inertia v0.13.0` (release gate).\n\n" +
+		"1. In internal/runtime/runtime.go, add the renderer-wide default next to the other renderer options:\n\n```go\n" +
+		"inertia.WithSSRDefault(cfg.App.IsProduction()),\n```\n\n" +
+		"2. Remove per-page `.SSR()` calls that only existed to opt production pages in; keep `.SSR()` where a " +
+		"development page needs SSR, and use `.CSR()` to opt a production page out explicitly.\n\n" +
+		"3. Keep the themed error page: configure `FallbackComponent: \"Errors/InternalError\"` on " +
+		"`inertia.NewErrorHandler` and leave error mappings client-rendered (the default) so a failed SSR render " +
+		"never retries SSR for the page it caused. A production `/` request with the sidecar down must return the " +
+		"themed 500, not an empty 200.\n\n" +
+		"4. Do not set `INERTIA_SSR_FAIL_FAST=false` in production unless CSR fallback is the deliberate policy; " +
+		"that mode is explicit and readiness stops gating on the sidecar.\n\n" +
+		"Format and verify:\n\n```text\ngofmt -w internal/runtime handlers\ngo fix ./...\ngo vet ./...\n```\n"
+}
+
+func routesHostScopeInstructions() string {
+	return "beta.4 regenerates `resources/js/routes.ts` so full-URL helpers throw before route hosts are " +
+		"configured instead of silently returning a relative URL, and isolates SSR route hosts per render. Application " +
+		"bootstrap code must adopt the new shape.\n\n" +
+		"1. Run `andurel sync routes` and commit the regenerated `resources/js/routes.ts`.\n\n" +
+		"2. In `resources/js/app` (browser entry), keep one boot configuration:\n\n```ts\n" +
+		"import { configureRouteHosts } from './routes'\n" +
+		"import { resolveHosts } from './hosts' // your existing shared-prop reader\n\n" +
+		"configureRouteHosts(resolveHosts())\n" +
+		"```\n\n" +
+		"3. In the SSR entry, configure the scope once and wrap each render with the request's hosts:\n\n```ts\n" +
+		"import { configureRouteHostScope, withRouteHosts } from './routes'\n\n" +
+		"configureRouteHostScope()\n" +
+		"// per request:\n" +
+		"const html = await render(createElement(App, { ...pageProps, hosts: requestHosts }), {\n" +
+		"  wrap: (element) => withRouteHosts(requestHosts, () => element),\n" +
+		"})\n" +
+		"```\n\n" +
+		"4. Remove module-scope caches of full-URL helpers (`const href = routes.homePage()`). Call helpers at " +
+		"render time, or use `routes.name.path()` for a relative URL. `andurel verify` reports module-scope calls, " +
+		"including imports through the `@/*` tsconfig alias and immediately invoked functions.\n\n" +
+		"Format and verify:\n\n```text\nandurel sync routes\npnpm run typecheck\nandurel verify\n```\n"
 }
 
 func corsScopeInstructions() string {

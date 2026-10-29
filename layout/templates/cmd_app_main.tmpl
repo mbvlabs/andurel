@@ -38,7 +38,7 @@ func run() error {
 	if appVersion != "" {
 		cfg.Version = appVersion
 	}
-	if cfg.App.IsProduction() {
+	if cfg.App.IsProduction() && cfg.Inertia.SSRFailFast {
 		go warnIfSSRUnreachable(cfg.Inertia)
 	}
 
@@ -60,7 +60,8 @@ func run() error {
 // sidecar is visible in the log immediately. Readiness is what actually gates
 // traffic: GET /api/ready answers 503 until the sidecar answers, then recovers
 // without a restart, so the process never advertises healthy while SSR is
-// required and unavailable.
+// required and unavailable. It is not used when INERTIA_SSR_FAIL_FAST=false:
+// that policy explicitly falls back to client rendering instead of failing.
 func warnIfSSRUnreachable(cfg config.Inertia) {
 	renderer, err := inertia.NewHTTPRenderer(
 		cfg.SSRURL,

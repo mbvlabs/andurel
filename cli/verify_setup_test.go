@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/mbvlabs/andurel/v2/cli/output"
+	"github.com/mbvlabs/andurel/v2/layout"
 )
 
 func TestVerifySetupBlocksFrontendUntilNodeModulesInstalled(t *testing.T) {
@@ -56,6 +57,36 @@ func TestVerifySetupBlocksFrontendUntilNodeModulesInstalled(t *testing.T) {
 	frontend = findVerifyStep(t, report, "frontend")
 	if frontend.Status != verifyStatusOK {
 		t.Fatalf("frontend after install = %#v, want ok", frontend)
+	}
+}
+
+func TestVerifySetupReportsMissingRecordedPackageManager(t *testing.T) {
+	root := newVerifyTestProject(t)
+	lock := layout.NewAndurelLock("v1.2.3")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{
+		ProjectName:              "app",
+		Inertia:                  "react",
+		JavaScriptPackageManager: "pnpm",
+	}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+	writeTestFile(t, root, "package.json", `{"scripts":{"typecheck":"tsc --noEmit"}}`)
+	t.Setenv("PATH", t.TempDir())
+
+	result := runVerifyInProject(t, root, "verify", "--only", "frontend", "--json")
+	assertVerifyExitCode(t, result, output.ExitVerification)
+	report, ok := output.Fail(result.err).Data.(verifyReport)
+	if !ok {
+		t.Fatalf("failure data = %T", output.Fail(result.err).Data)
+	}
+	setup := findVerifyStep(t, report, "setup")
+	if setup.Status != verifyStatusFail || len(setup.Violations) != 1 {
+		t.Fatalf("setup step = %#v, want the missing package manager", setup)
+	}
+	fix := setup.Violations[0].Fix
+	if !strings.Contains(fix, "pnpm is not installed") || !strings.Contains(fix, "pnpm install") {
+		t.Fatalf("setup fix = %q, want the missing binary and the install command", fix)
 	}
 }
 

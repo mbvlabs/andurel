@@ -46,7 +46,7 @@ wait
 - `app` additionally needs the web settings (`HOST`, `PORT`, CSRF/CORS, Inertia, telemetry) and `INERTIA_SSR_URL` (default `http://127.0.0.1:13714`) pointing at the SSR sidecar.
 - `queue` needs the database, `QUEUE_*`, email, cache, and telemetry settings used by its workers. If `cmd/queue` still builds the full `config.New()` graph, run it with the same environment as `app`.
 - Set `INERTIA_SSR_FAIL_FAST=true` in production. It is the default; leave it on so an SSR failure returns an error instead of silently rendering client-side only. Turning it off is an explicit client-side-rendering fallback and makes readiness ignore the SSR sidecar.
-- Health checks: `GET /api/health` on `app` is liveness and answers `"app is healthy and running"` (503 when the database is unavailable). `GET /api/ready` on `app` is readiness: 200 only when the database answers and, outside development, the Inertia SSR sidecar is healthy; otherwise 503 with a stable reason. `GET /health` on the SSR listen address answers `{"status":"ok"}`. `queue` has no HTTP health endpoint.
+- Health checks: `GET /api/health` on `app` is liveness and answers `"app is healthy and running"` (503 when the database is unavailable). `GET /api/ready` on `app` is readiness: 200 `{"status":"ready"}` only when the database answers and a required Inertia SSR sidecar is healthy; otherwise 503 `{"status":"unready","reason":"database_unavailable"|"unavailable"}` with a stable reason. `GET /health` on the SSR listen address answers `{"status":"ok"}`. `queue` has no HTTP health endpoint.
 
 ## Checklist
 

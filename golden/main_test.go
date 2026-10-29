@@ -54,6 +54,7 @@ func TestMain(m *testing.M) {
 
 	code := m.Run()
 	_ = os.RemoveAll(tmpDir)
+	goldentest.CleanupCandidateModuleProxy()
 	os.Exit(code)
 }
 

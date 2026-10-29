@@ -2,6 +2,7 @@ package runtime_test
 
 import (
 	"context"
+	"encoding/json"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -245,8 +246,18 @@ func TestReadinessFailsWhenProductionSSRSidecarIsUnavailable(t *testing.T) {
 			recorder.Body.String(),
 		)
 	}
-	if body := recorder.Body.String(); !strings.Contains(body, "inertia SSR renderer is unavailable") {
-		t.Fatalf("readiness body does not name the SSR reason:\n%s", body)
+	var readinessBody struct {
+		Status string `json:"status"`
+		Reason string `json:"reason"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &readinessBody); err != nil {
+		t.Fatalf("readiness body is not JSON: %v\n%s", err, recorder.Body.String())
+	}
+	if readinessBody.Status != "unready" || readinessBody.Reason != "unavailable" {
+		t.Fatalf(
+			"readiness body = %#v, want status unready and reason unavailable",
+			readinessBody,
+		)
 	}
 }
 

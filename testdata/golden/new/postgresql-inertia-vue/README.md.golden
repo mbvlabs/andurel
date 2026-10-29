@@ -23,6 +23,7 @@ app/
 ├── email/                # Email templates and sending
 ├── handlers/             # HTTP handlers, one flat package
 ├── internal/             # App support code
+│   ├── configcheck/      # Read-only config + database check andurel doctor runs
 │   └── runtime/          # Composition root: explicit constructors + lifecycle
 ├── middleware/           # App HTTP policy and the session definition
 ├── migrations/           # SQL migration files
@@ -45,31 +46,80 @@ app/
 - Go 1.27.3 or higher
 - PostgreSQL database
 - Andurel CLI: `go install github.com/mbvlabs/andurel/v2@latest`
+- The package manager this project uses for the frontend (`pnpm`)
+
+`andurel new` is offline: it writes files, installs no dependencies, and needs
+no database. The steps below are the same ones `andurel new` prints and
+`andurel new --help` documents.
 
 ### Setup
 
-1. **Configure environment**
+1. **Install project tools and frontend dependencies**
+   ```bash
+   andurel tool sync        # downloads the binaries pinned in andurel.lock
+   pnpm install            # installs the Inertia frontend dependencies
+   ```
+
+2. **Configure the environment**
    ```bash
    cp .env.example .env
-   # Edit .env with your configuration
+   # Edit .env and set the required values (the file names every key it needs)
    ```
+   A `.env` file is not required when the same values are exported in the
+   process environment; exported values always win over `.env`.
 
-2. **Create database**
+3. **Create the database if it does not exist, then migrate**
    ```bash
-   createdb app
-   ```
-
-3. **Run migrations**
-   ```bash
+   andurel db create        # only if the database does not exist yet
    andurel db migrate up
    ```
 
-4. **Start the development server**
+4. **Validate the setup**
+   ```bash
+   andurel doctor           # configuration, database connectivity, tools, generated code
+   ```
+
+5. **Start the development server**
    ```bash
    andurel run
    ```
 
-Your application is now running at `http://localhost:8080` with live reload for Go, Templ, CSS, and Vite changes.
+6. **Verify the project**
+   ```bash
+   andurel verify
+   andurel verify --with-tests   # also runs go test ./... (DB tests need Docker)
+   ```
+
+Your application is now running at `http://localhost:8080` with live reload for Go, Templ, CSS, and Vite changes. The welcome page at `/` is public; register a route with `middleware.AuthOnly(users)` to protect one.
+
+## Dependencies, Lockfile, And Agent Skill
+This project pins its dependencies with the selected package manager's
+lockfile. `andurel new` does not ship a lockfile: the first install generates
+it, so it can never be stale.
+
+- Commit the lockfile (`pnpm-lock.yaml`) with the project. Never add it to `.gitignore`.
+- CI and production installs use the frozen/immutable mode:
+  ```bash
+  pnpm install --frozen-lockfile
+  ```
+- After changing `package.json`, run `pnpm install` locally, verify the app, and commit the updated lockfile in the same change.
+- Supported package manager: `pnpm`. Pin the version your team and CI use (for example with `corepack prepare pnpm@<version> --activate`, or the version baked into your CI image) and update the lockfile whenever you change that pin.
+
+Build output stays out of git: `bin/`, `dist/` (including `assets/dist`),
+`node_modules/`, `.env`, `tmp/`, and the local SQLite file are ignored.
+
+`andurel new` installs the bundled Andurel agent skill only when you pass
+`--harness`, for example `andurel new myapp --harness claude` (harnesses:
+codex, claude, pi, opencode, crush). Without it, install the skill explicitly:
+
+```bash
+andurel skill install --harness claude   # replace claude with your harness
+```
+
+The installed skill files (`./.claude/skills/andurel`, `./.opencode/skills/andurel`, and the
+other harness directories) are project-local references and are intended to be
+committed with the project, so agents read the same guidance in every checkout.
+Secrets, `.env`, caches, and build output stay ignored.
 
 ## Available Commands
 
@@ -139,8 +189,17 @@ each binary's path, size, and version.
 Production runs `dist/migrate` once, then `dist/ssr`, then `dist/app` and
 `dist/queue`. Every process reads the same environment. Read
 `andurel patterns show deploy` for the start order, the variables each process
-needs, the app `/api/health` and SSR sidecar `/health` endpoints, and why
-`INERTIA_SSR_FAIL_FAST=true` belongs in production.
+needs, the app `/api/health` (liveness) and `/api/ready` (readiness) endpoints,
+the SSR sidecar `/health` endpoint, and why `INERTIA_SSR_FAIL_FAST=true` belongs
+in production.
+
+`GET /api/health` answers while the process runs. `GET /api/ready` answers 200
+`{"status":"ready"}` only when the database answers and a required Inertia SSR
+sidecar is healthy; otherwise it answers 503
+`{"status":"unready","reason":"..."}` with a stable reason
+(`database_unavailable`, or `unavailable` for a required sidecar that is down),
+so a load balancer or orchestrator can hold traffic until the process can
+really serve a page. Readiness recovers by itself when the sidecar comes back.
 
 ## Patterns, Sync, And Inspect
 
@@ -589,7 +648,18 @@ SMTP_TLS=starttls
 
 ### Server-Side Rendering
 
-Client rendering is the default. Opt a page into SSR per response:
+In production every page is server-rendered by default. Opt one page out with
+`CSR()`:
+
+```go
+return h.renderer.Page(ctx, "Dashboard", inertia.Props{"name": "Ada"}).
+    CSR().
+    Render()
+```
+
+In development the renderer-wide default is off, so a bare `go run ./cmd/app`
+does not depend on the Vite SSR endpoint. Opt a page into development SSR per
+response:
 
 ```go
 return h.renderer.Page(ctx, "Dashboard", inertia.Props{"name": "Ada"}).
@@ -605,11 +675,15 @@ In development, `pkg/inertia` posts the page to the Vite dev server's
 (`ssr.noExternal`) so the embedded bundle runs without `node_modules`; the
 bundle is larger by design.
 
-`INERTIA_SSR_FAIL_FAST` defaults to `true` in production and is set to `false`
-in the scaffolded `.env` for development. With fail-fast on, an SSR failure is
-a themed 500; with it off, the page falls back to client rendering and logs the
-error. Every re-render branch (validation errors, rate limits, error pages)
-needs its own `.SSR()` to stay server-rendered.
+`INERTIA_SSR_FAIL_FAST` defaults to `true` in every environment, and
+`.env.example` documents it as a commented-out opt-in. With fail-fast on, an
+SSR failure is a themed 500 and `/api/ready` stays unready while the sidecar is
+unreachable. Uncomment `INERTIA_SSR_FAIL_FAST=false` only to opt into
+client-side-rendering fallback, for example in development without the Vite dev
+server; with it off, every page is still attempted with SSR but an SSR failure
+falls back to client rendering, logs the error, and readiness does not gate on
+the sidecar. Error pages (validation errors, rate limits, 404/405/500) stay
+client-rendered unless their error mapping opts into SSR.
 
 ### Run Production Locally
 
@@ -629,9 +703,10 @@ production; use it only for local production-like runs and smoke tests. Run the
 built binaries from the project root so `.env` is loaded. `cmd/ssr` embeds
 `assets/dist/ssr/ssr.js` and can also be started from an empty directory when
 the `INERTIA_*` settings come from the environment.
-`INERTIA_SSR_FAIL_FAST` defaults to `true` in production, so start the SSR
+`INERTIA_SSR_FAIL_FAST` defaults to `true`, so start the SSR
 sidecar before the app; `cmd/app` also logs a warning at boot when the sidecar's
-`/health` endpoint is unreachable.
+`/health` endpoint is unreachable, and `GET /api/ready` answers 503 until it is
+healthy.
 
 ### Schema Changes
 
@@ -729,8 +804,9 @@ HTTP_TRUSTED_PROXIES=
 # Set false to serve responses uncompressed.
 HTTP_COMPRESS=true
 
-# Inertia SSR (development uses Vite; production uses cmd/ssr)
-INERTIA_SSR_FAIL_FAST=false
+# Inertia SSR (development uses Vite; production uses cmd/ssr).
+# Fail-fast is the default; uncomment only to opt into CSR fallback.
+# INERTIA_SSR_FAIL_FAST=false
 
 # Telemetry (optional)
 TELEMETRY_SERVICE_NAME=app
@@ -885,7 +961,7 @@ Layout CSS and JS stay on the primary host unless those routes set `routing.Host
 
 Inertia Vite files stay on the primary host. Production tags from `pkg/inertia` use `ViteBuild.FullURL(hosts)` plus `crossorigin` so a secondary-host page loads the entry from primary. Vite production `base` is `'./'` so hashed chunks and fonts resolve against that script URL, not the page origin. Development keeps `base: '/assets/dist/'` and tags that hit `INERTIA_VITE_DEV_URL`.
 
-Inertia TypeScript helpers from `andurel sync routes` return full URLs for routes marked `routing.TypeScriptRoute()` (`routing.InertiaRoute()` is a deprecated alias). Boot configures origins once via the shared `hosts` prop (`configureRouteHosts` in `resources/js/app` / SSR entry), so `routes.homePage()` resolves to the correct host without per-call arguments. Use `routes.homePage.path()` when a relative path is required. Call helpers at render time rather than caching `const url = routes.homePage()` at module scope: origins are configured after boot. Run `andurel sync routes` after adding host-bound routes. Not-found handlers are registered on every configured host.
+Inertia TypeScript helpers from `andurel sync routes` return full URLs for routes marked `routing.TypeScriptRoute()` (`routing.InertiaRoute()` is a deprecated alias). Boot configures origins once via the shared `hosts` prop (`configureRouteHosts` in `resources/js/app` / SSR entry), so `routes.homePage()` resolves to the correct host without per-call arguments. A full-URL helper throws until that configuration runs; use `routes.homePage.path()` when a relative path is required. Call helpers at render time rather than caching `const url = routes.homePage()` at module scope: origins are configured after boot, and `andurel verify` reports such module-initialization calls. Run `andurel sync routes` after adding host-bound routes. Not-found handlers are registered on every configured host.
 
 To serve layout CSS/JS from `assets.example.com`, declare `const HostAssets routing.HostName = "assets"`, bind `HOST_ASSETS`, and put `routing.Host(config.HostAssets)` on those routes. There is no framework special case — it is another named host. For Inertia Vite, bind `ViteBuild` to that host too; `FullURL(hosts)` plus relative Vite `base` follow the script origin.
 

@@ -11,7 +11,7 @@ require (
 	github.com/mbvlabs/andurel/pkg/cache v0.2.1
 	github.com/mbvlabs/andurel/pkg/email v0.6.1
 	github.com/mbvlabs/andurel/pkg/env v0.1.1
-	github.com/mbvlabs/andurel/pkg/inertia v0.12.1
+	github.com/mbvlabs/andurel/pkg/inertia v0.13.0
 	github.com/mbvlabs/andurel/pkg/kiks v0.6.0
 	github.com/mbvlabs/andurel/pkg/lifecycle v0.1.1
 	github.com/mbvlabs/andurel/pkg/routing v0.7.0

@@ -197,10 +197,12 @@ the SSR sidecar `/health` endpoint, and why `INERTIA_SSR_FAIL_FAST=true` belongs
 in production.
 
 `GET /api/health` answers while the process runs. `GET /api/ready` answers 200
-only when the database answers and, outside development, the Inertia SSR
-sidecar is healthy; otherwise it answers 503 with a stable reason, so a load
-balancer or orchestrator can hold traffic until the process can really serve a
-page. Readiness recovers by itself when the sidecar comes back.
+`{"status":"ready"}` only when the database answers and a required Inertia SSR
+sidecar is healthy; otherwise it answers 503
+`{"status":"unready","reason":"..."}` with a stable reason
+(`database_unavailable`, or `unavailable` for a required sidecar that is down),
+so a load balancer or orchestrator can hold traffic until the process can
+really serve a page. Readiness recovers by itself when the sidecar comes back.
 
 ## Patterns, Sync, And Inspect
 
@@ -649,7 +651,18 @@ SMTP_TLS=starttls
 
 ### Server-Side Rendering
 
-Client rendering is the default. Opt a page into SSR per response:
+In production every page is server-rendered by default. Opt one page out with
+`CSR()`:
+
+```go
+return h.renderer.Page(ctx, "Dashboard", inertia.Props{"name": "Ada"}).
+    CSR().
+    Render()
+```
+
+In development the renderer-wide default is off, so a bare `go run ./cmd/app`
+does not depend on the Vite SSR endpoint. Opt a page into development SSR per
+response:
 
 ```go
 return h.renderer.Page(ctx, "Dashboard", inertia.Props{"name": "Ada"}).
@@ -670,10 +683,10 @@ bundle is larger by design.
 SSR failure is a themed 500 and `/api/ready` stays unready while the sidecar is
 unreachable. Uncomment `INERTIA_SSR_FAIL_FAST=false` only to opt into
 client-side-rendering fallback, for example in development without the Vite dev
-server; with it off, an SSR failure falls back to client rendering, logs the
-error, and readiness does not gate on the sidecar. Every re-render branch
-(validation errors, rate limits, error pages) needs its own `.SSR()` to stay
-server-rendered.
+server; with it off, every page is still attempted with SSR but an SSR failure
+falls back to client rendering, logs the error, and readiness does not gate on
+the sidecar. Error pages (validation errors, rate limits, 404/405/500) stay
+client-rendered unless their error mapping opts into SSR.
 
 ### Run Production Locally
 
@@ -951,7 +964,7 @@ Layout CSS and JS stay on the primary host unless those routes set `routing.Host
 
 Inertia Vite files stay on the primary host. Production tags from `pkg/inertia` use `ViteBuild.FullURL(hosts)` plus `crossorigin` so a secondary-host page loads the entry from primary. Vite production `base` is `'./'` so hashed chunks and fonts resolve against that script URL, not the page origin. Development keeps `base: '/assets/dist/'` and tags that hit `INERTIA_VITE_DEV_URL`.
 
-Inertia TypeScript helpers from `andurel sync routes` return full URLs for routes marked `routing.TypeScriptRoute()` (`routing.InertiaRoute()` is a deprecated alias). Boot configures origins once via the shared `hosts` prop (`configureRouteHosts` in `resources/js/app` / SSR entry), so `routes.homePage()` resolves to the correct host without per-call arguments. Use `routes.homePage.path()` when a relative path is required. Call helpers at render time rather than caching `const url = routes.homePage()` at module scope: origins are configured after boot. Run `andurel sync routes` after adding host-bound routes. Not-found handlers are registered on every configured host.
+Inertia TypeScript helpers from `andurel sync routes` return full URLs for routes marked `routing.TypeScriptRoute()` (`routing.InertiaRoute()` is a deprecated alias). Boot configures origins once via the shared `hosts` prop (`configureRouteHosts` in `resources/js/app` / SSR entry), so `routes.homePage()` resolves to the correct host without per-call arguments. A full-URL helper throws until that configuration runs; use `routes.homePage.path()` when a relative path is required. Call helpers at render time rather than caching `const url = routes.homePage()` at module scope: origins are configured after boot, and `andurel verify` reports such module-initialization calls. Run `andurel sync routes` after adding host-bound routes. Not-found handlers are registered on every configured host.
 
 To serve layout CSS/JS from `assets.example.com`, declare `const HostAssets routing.HostName = "assets"`, bind `HOST_ASSETS`, and put `routing.Host(config.HostAssets)` on those routes. There is no framework special case — it is another named host. For Inertia Vite, bind `ViteBuild` to that host too; `FullURL(hosts)` plus relative Vite `base` follow the script origin.
 

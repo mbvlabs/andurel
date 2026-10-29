@@ -439,3 +439,80 @@ func requireLinuxBuildTest(t *testing.T) {
 		t.Skip("go is not installed")
 	}
 }
+
+func TestRecoverInterruptedBuildPublicationRestoresPreviousBinary(t *testing.T) {
+	outputDir := t.TempDir()
+	writeBuildTestFile(t, filepath.Join(outputDir, ".andurel-backup-app-123456"), "previous app")
+	writeBuildTestFile(t, filepath.Join(outputDir, ".andurel-app-987654"), "partial app")
+
+	recovered, err := recoverInterruptedBuildPublication(outputDir)
+	if err != nil {
+		t.Fatalf("recover: %v", err)
+	}
+	if len(recovered) != 2 {
+		t.Fatalf("recovered = %#v, want a restored publication and a removed temp", recovered)
+	}
+	assertFileContains(t, filepath.Join(outputDir, "app"), "previous app")
+	assertFileMissing(t, filepath.Join(outputDir, ".andurel-backup-app-123456"))
+	assertFileMissing(t, filepath.Join(outputDir, ".andurel-app-987654"))
+}
+
+func TestRecoverInterruptedBuildPublicationKeepsPublishedBinary(t *testing.T) {
+	outputDir := t.TempDir()
+	writeBuildTestFile(t, filepath.Join(outputDir, "app"), "new app")
+	writeBuildTestFile(t, filepath.Join(outputDir, ".andurel-backup-app-123456"), "previous app")
+
+	recovered, err := recoverInterruptedBuildPublication(outputDir)
+	if err != nil {
+		t.Fatalf("recover: %v", err)
+	}
+	if len(recovered) != 1 {
+		t.Fatalf("recovered = %#v, want one stale backup removed", recovered)
+	}
+	assertFileContains(t, filepath.Join(outputDir, "app"), "new app")
+	assertFileMissing(t, filepath.Join(outputDir, ".andurel-backup-app-123456"))
+}
+
+func TestRecoverInterruptedBuildPublicationIgnoresForeignNames(t *testing.T) {
+	outputDir := t.TempDir()
+	unsafeBackup := filepath.Join(outputDir, ".andurel-backup-..-123456")
+	writeBuildTestFile(t, unsafeBackup, "not ours")
+	writeBuildTestFile(t, filepath.Join(outputDir, ".andurel-backup-app-notdigits"), "not ours")
+
+	recovered, err := recoverInterruptedBuildPublication(outputDir)
+	if err != nil {
+		t.Fatalf("recover: %v", err)
+	}
+	if len(recovered) != 0 {
+		t.Fatalf("recovered = %#v, want foreign names untouched", recovered)
+	}
+	assertFileContains(t, unsafeBackup, "not ours")
+}
+
+func TestPublishBuildArtifactsRepairsInterruptedPublication(t *testing.T) {
+	workRoot := t.TempDir()
+	outputDir := t.TempDir()
+	staged := filepath.Join(workRoot, "dist", "app")
+	writeBuildTestFile(t, staged, "new app")
+	writeBuildTestFile(t, filepath.Join(outputDir, ".andurel-backup-app-123456"), "previous app")
+
+	report := &buildReport{}
+	if err := publishBuildArtifacts(workRoot, outputDir, []buildProcess{{Name: "app"}}, report); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	if len(report.Recovered) != 1 {
+		t.Fatalf("report.Recovered = %#v, want the interrupted publication", report.Recovered)
+	}
+	assertFileContains(t, filepath.Join(outputDir, "app"), "new app")
+	assertFileMissing(t, filepath.Join(outputDir, ".andurel-backup-app-123456"))
+}
+
+func writeBuildTestFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir for %s: %v", path, err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o755); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}

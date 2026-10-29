@@ -368,6 +368,14 @@ func supervisePortLease(
 		return healthErr
 	}
 
+	// A probe listener necessarily closes before the child binds, so an
+	// unrelated process can win the bind race and answer /health. Refuse to
+	// publish until the intended child process group owns the listening socket.
+	if err := verifyPortOwnedByChild(lease.Host, lease.Port, child.Process.Pid); err != nil {
+		stopPortChild(child, childDone, opts.StopTimeout)
+		return err
+	}
+
 	mode := "allocated"
 	if fixed {
 		mode = "fixed"
