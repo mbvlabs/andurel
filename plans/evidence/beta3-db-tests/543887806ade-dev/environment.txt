@@ -1,0 +1,12 @@
+candidate_sha=543887806adece0389c0ca9d1a028eff8dd8ea24
+branch=fix/beta3-finish-db-tests
+candidate_dirty_files=1
+mode=dev
+go=go version go1.27.3 linux/amd64
+node=v26.12.1
+pnpm=12.9.1
+docker_client=29.8.2
+docker_server=29.8.2
+jq=jq-1.8.1
+os=Linux 7.0.0-38-generic x86_64
+date=2026-10-29T18:46:19Z

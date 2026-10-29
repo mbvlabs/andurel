@@ -1,0 +1,285 @@
+{
+  "ok": true,
+  "data": {
+    "ok": true,
+    "steps": [
+      {
+        "name": "setup",
+        "status": "skipped",
+        "ok": false,
+        "reason": "no setup requirements for the selected stages",
+        "rules": {
+          "selected": [
+            "setup",
+            "missing-tool"
+          ],
+          "executed": null,
+          "skipped": [
+            "setup",
+            "missing-tool"
+          ]
+        }
+      },
+      {
+        "name": "gofmt",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "go fix",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "go vet",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "layers",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "frontend",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "generated",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "content",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "go test",
+        "status": "ok",
+        "ok": true,
+        "packages": [
+          {
+            "package": "dbtests202610291846202578364/assets",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/cmd/app",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/cmd/migrate",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/cmd/queue",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/cmd/seeds",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/cmd/ssr",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/config",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/domains",
+            "status": "ok",
+            "passed": 7,
+            "failed": 0,
+            "skipped": 0,
+            "subtests": {
+              "passed": 3,
+              "failed": 0,
+              "skipped": 0
+            },
+            "duration_seconds": 9.244
+          },
+          {
+            "package": "dbtests202610291846202578364/domains/internal/queries",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/email",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/handlers",
+            "status": "ok",
+            "passed": 6,
+            "failed": 0,
+            "skipped": 0,
+            "duration_seconds": 10.458
+          },
+          {
+            "package": "dbtests202610291846202578364/internal/configcheck",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/internal/runtime",
+            "status": "ok",
+            "passed": 13,
+            "failed": 0,
+            "skipped": 0,
+            "subtests": {
+              "passed": 2,
+              "failed": 0,
+              "skipped": 0
+            },
+            "duration_seconds": 11.986
+          },
+          {
+            "package": "dbtests202610291846202578364/middleware",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/migrations",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/queue",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/queue/jobs",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/resources",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/routes",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/seeds",
+            "status": "no_test_files",
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "no_test_files": true,
+            "reason": "no test files"
+          },
+          {
+            "package": "dbtests202610291846202578364/services",
+            "status": "ok",
+            "passed": 2,
+            "failed": 0,
+            "skipped": 0,
+            "duration_seconds": 0.007
+          }
+        ],
+        "totals": {
+          "packages": 4,
+          "passed": 28,
+          "failed": 0,
+          "skipped": 0,
+          "subtests_passed": 5,
+          "no_test_files": 17,
+          "duration_seconds": 31.695
+        }
+      }
+    ],
+    "scope": {
+      "mode": "all",
+      "stages": [
+        "go-test"
+      ]
+    }
+  },
+  "summary": "Verification passed"
+}

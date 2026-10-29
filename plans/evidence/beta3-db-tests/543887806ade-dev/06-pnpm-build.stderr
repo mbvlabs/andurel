@@ -1,0 +1,1 @@
+$ vite build && vite build --ssr resources/js/ssr.tsx --outDir assets/dist/ssr
