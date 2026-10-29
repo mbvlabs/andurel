@@ -86,7 +86,15 @@ also prints each rule's fix):
 | `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and internal/runtime |
 | `domain-transport` | domains/** imports no HTTP, Inertia, routing, handler, middleware, or route package |
 | `entity-columns` | every automatic generated query column maps to an exported andurel tag on its domain entity |
+| `setup` | project setup is complete: managed tool binaries and frontend dependencies are installed |
 | `frontend` | the package.json typecheck script passes when the scaffold defines one |
+| `frontend-route-usage` | frontend modules do not call full-URL route helpers at module initialization; use .path() or call while rendering |
+| `content-config` | andurel.content.toml parses, declares a supported schemaVersion, and its include/exclude globs are valid |
+| `content-catalog` | every declared content catalog entry resolves to an included Markdown file |
+| `content-slug` | content catalog slugs are non-empty, match the declared pattern, and are unique |
+| `content-required` | every path listed in andurel.content.toml required exists |
+| `content-link` | local Markdown links and images resolve inside the project; configured anchors exist |
+| `content-checker` | each declared content checker exits 0 within its timeout from its declared working directory |
 | `generated` | generated templ, email, queries, routes, and payload output is up to date |
 | `missing-tool` | a required generation binary is installed; run 'andurel tool sync' |
 <!-- andurel:verify-rules:end -->
@@ -125,6 +133,9 @@ andurel generate migration create_posts
 andurel db migrate up
 andurel inspect project --json
 andurel inspect config --json
+andurel inspect pages --json
+andurel inspect process --json
+andurel inspect urls --json
 andurel inspect domains --json
 andurel inspect handlers --json
 andurel inspect routes --json
@@ -142,19 +153,22 @@ andurel run --tools mailpit
 ## Create vs refresh vs inspect
 
 - Read a pattern: `andurel patterns show <kind>` (add `--json` for the parsed form; add `--entity/--table` with `domain` for the per-entity file manifest; once `queries.<Entity>Row` exists in `domains/internal/queries/models.go` it includes the entity struct, receiver, `Validate()` stub and CRUD `.sql` as file contents, otherwise a migration skeleton).
-- Create SQL: `andurel generate migration NAME` then `andurel db migrate up`. A one-shot process that applies embedded SQL is `cmd/migrate`.
+- Create SQL: `andurel generate migration NAME` writes `migrations/<timestamp>_<name>.sql` without needing database configuration; then apply it with `andurel db migrate up` (which reads `DB_*`). A one-shot process that applies embedded SQL is `cmd/migrate`.
 - Add a domain: hand-write `domains/<entity>.go` and its colocated `domains/<entity>.sql`, construct the receiver with `domains.NewX(db)` in `internal/runtime`, then run `andurel sync queries`.
 - Add a service, handler, route, middleware, or composition: read the matching pattern and write the files yourself. `andurel new` ships a complete reference app for each.
 - Compile SQL: `andurel sync queries` writes `domains/internal/queries`. Only `domains/**` may import it.
 - List domains: `andurel inspect domains --json`.
 - List handlers with their constructor params and the routes each `Register` mounts (route name, method, path): `andurel inspect handlers --json`.
 - List every env key read by `config/*.go`, with its default and source line: `andurel inspect config --json`.
+- List frontend page components, their files, route associations, and statically known SSR policy: `andurel inspect pages --json`.
+- List runnable `cmd/*` processes with responsibilities, config needs, startup order, and health endpoints: `andurel inspect process --json`.
+- Resolve route hosts to origins and full URLs with configuration provenance; unresolved hosts stay explicit: `andurel inspect urls --json`.
 - List routes: `andurel inspect routes --json` (every route reports `host`; unbound routes report `primary`).
 - Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia frontend required; helpers cover routes marked `routing.TypeScriptRoute()` and are host-aware full URLs).
 - Write `resources/js/types/payloads.ts`: `andurel sync payloads --json`; use `andurel sync payloads --strict` in CI so an unresolved `FromStruct` argument fails with its `file:line`.
 - Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then bind routes with `rt.Host(name)`.
 - Refresh derived artifacts: `andurel sync email` compiles `email/*.templ` into `email/*_templ.go` with Tailwind styles inlined; never run `templ generate` on email.
-- Build and deploy: `andurel build` writes every buildable `cmd/*` process to `dist/`; `--only` narrows the set and `--json` emits the artifact manifest. `andurel patterns show deploy` covers the `migrate` → `ssr` → `app` + `queue` start order, environment, and health endpoints.
+- Build and deploy: `andurel build` writes every buildable `cmd/*` process to `dist/`; `--only` narrows the set and `--json` emits the artifact manifest. `andurel patterns show deploy` covers the `migrate` → `ssr` → `app` + `queue` start order, environment, and health endpoints. In production, start the SSR sidecar with `andurel ports launch --ready-file .andurel/ssr-port.json -- ./dist/ssr` so the app and the sidecar agree on `INERTIA_SSR_LISTEN`/`INERTIA_SSR_URL`; the assignment is published only after the intended child answers `/health`.
 
 `--json` and `--agent` never wait on a TTY. Pass `--force`, `--harness`, or `--yes` instead of answering a prompt.
 
@@ -191,9 +205,13 @@ andurel run --tools mailpit
 | `andurel inspect handlers` | List handlers with their constructors and routes |
 | `andurel inspect jobs` | List queue job args and workers |
 | `andurel inspect migrations` | List migration files |
+| `andurel inspect pages` | List frontend page components and route associations |
+| `andurel inspect process` | List runnable cmd processes, responsibilities, and health endpoints |
 | `andurel inspect project` | Inspect project metadata |
 | `andurel inspect project info` | Show project metadata |
 | `andurel inspect routes` | List the route manifest |
+| `andurel inspect upgrade-notes` | Show the manual actions of a past upgrade |
+| `andurel inspect urls` | List routes with resolved host origins and full URLs |
 | `andurel new` | Stand up a new Andurel project |
 | `andurel packages` | List or update Andurel packages in go.mod |
 | `andurel packages list` | List Andurel package versions in go.mod |
@@ -201,6 +219,8 @@ andurel run --tools mailpit
 | `andurel patterns` | Read the reference patterns for every layer |
 | `andurel patterns list` | List the available pattern ids |
 | `andurel patterns show` | Print one reference pattern |
+| `andurel ports` | Allocate and supervise collision-safe loopback ports |
+| `andurel ports launch` | Run a child on a leased loopback port and publish its URL |
 | `andurel run` | Start the development server (`--tools mailpit` for sidecars) |
 | `andurel skill` | Show or install the embedded Andurel skill |
 | `andurel skill install` | Install the embedded skill into an agent harness |

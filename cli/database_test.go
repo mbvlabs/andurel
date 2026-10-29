@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mbvlabs/andurel/v2/cli/output"
@@ -608,12 +609,6 @@ func TestMigrationCommandsCallGoose(t *testing.T) {
 		args []string
 		want []string
 	}{
-		{
-			name: "new",
-			cmd:  newGenerateMigrationCommand(),
-			args: []string{"create_users"},
-			want: []string{"create", "create_users", "sql"},
-		},
 		{name: "up", cmd: newDBMigrationUpCommand(), want: []string{"up"}},
 		{name: "down", cmd: newDBMigrationDownCommand(), want: []string{"down"}},
 		{name: "fix", cmd: newDBMigrationFixCommand(), want: []string{"fix"}},
@@ -721,4 +716,194 @@ func containsSQL(statements []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func TestGenerateMigrationCreatesFileWithoutDatabaseConfig(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/app\n")
+	unsetEnvForTest(
+		t,
+		"DB_KIND",
+		"DB_PORT",
+		"DB_HOST",
+		"DB_NAME",
+		"DB_USER",
+		"DB_PASSWORD",
+		"DB_SSL_MODE",
+	)
+
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() { findGoModRoot = originalFindGoModRoot })
+
+	originalNow := migrationNow
+	migrationNow = func() time.Time {
+		return time.Date(2026, 1, 2, 15, 4, 5, 0, time.UTC)
+	}
+	t.Cleanup(func() { migrationNow = originalNow })
+
+	gooseCalled := false
+	originalRunGooseCommand := runGooseCommand
+	runGooseCommand = func(string, string, []string) error {
+		gooseCalled = true
+		return nil
+	}
+	t.Cleanup(func() { runGooseCommand = originalRunGooseCommand })
+
+	var stdout bytes.Buffer
+	cmd := newGenerateMigrationCommand()
+	cmd.SetOut(&stdout)
+	cmd.SetErr(&stdout)
+	cmd.SetArgs([]string{"Create Widgets"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("generate migration: %v\n%s", err, stdout.String())
+	}
+	if gooseCalled {
+		t.Fatal("migration creation must not invoke goose")
+	}
+
+	got, err := os.ReadFile(filepath.Join(root, "migrations", "20260102150405_create_widgets.sql"))
+	if err != nil {
+		t.Fatalf("read created migration: %v", err)
+	}
+	want := "-- +goose Up\nSELECT 'up SQL query';\n\n-- +goose Down\nSELECT 'down SQL query';\n"
+	if string(got) != want {
+		t.Fatalf("migration content = %q, want %q", got, want)
+	}
+	if !strings.Contains(stdout.String(), "migrations/20260102150405_create_widgets.sql") {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestGenerateMigrationRejectsInvalidNames(t *testing.T) {
+	for _, name := range []string{"", "   ", "!!!", "bad/name", "bad\\name"} {
+		t.Run(name, func(t *testing.T) {
+			resetCLITestSeams(t)
+			root := t.TempDir()
+			writeTestFile(t, root, "go.mod", "module example.com/app\n")
+			originalFindGoModRoot := findGoModRoot
+			findGoModRoot = func() (string, error) { return root, nil }
+			t.Cleanup(func() { findGoModRoot = originalFindGoModRoot })
+
+			err := executeStandaloneCommand(newGenerateMigrationCommand(), name)
+			var cliErr *output.CLIError
+			if !errors.As(err, &cliErr) || cliErr.Code != output.CodeUsage {
+				t.Fatalf("error = %T %[1]v, want usage", err)
+			}
+			if !strings.Contains(cliErr.Message, "invalid migration name") {
+				t.Fatalf("message = %q", cliErr.Message)
+			}
+			if cliErr.Hint == "" {
+				t.Fatal("missing actionable hint")
+			}
+			entries, readErr := os.ReadDir(filepath.Join(root, "migrations"))
+			if readErr != nil && !os.IsNotExist(readErr) {
+				t.Fatalf("read migrations: %v", readErr)
+			}
+			if len(entries) != 0 {
+				t.Fatalf("invalid name left files: %#v", entries)
+			}
+		})
+	}
+}
+
+func TestGenerateMigrationDoesNotOverwriteExistingFile(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/app\n")
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() { findGoModRoot = originalFindGoModRoot })
+	originalNow := migrationNow
+	migrationNow = func() time.Time {
+		return time.Date(2026, 1, 2, 15, 4, 5, 0, time.UTC)
+	}
+	t.Cleanup(func() { migrationNow = originalNow })
+
+	if err := executeStandaloneCommand(newGenerateMigrationCommand(), "create_widgets"); err != nil {
+		t.Fatalf("first migration: %v", err)
+	}
+	path := filepath.Join(root, "migrations", "20260102150405_create_widgets.sql")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read migration: %v", err)
+	}
+
+	err = executeStandaloneCommand(newGenerateMigrationCommand(), "create_widgets")
+	if err == nil {
+		t.Fatal("expected a collision error")
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read migration after collision: %v", err)
+	}
+	if string(before) != string(after) {
+		t.Fatal("existing migration content changed")
+	}
+	entries, err := os.ReadDir(filepath.Join(root, "migrations"))
+	if err != nil {
+		t.Fatalf("read migrations: %v", err)
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".") {
+			t.Fatalf("temporary file left behind: %s", entry.Name())
+		}
+	}
+}
+
+func TestMigrationDatabaseConfigErrorHasActionableHint(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/app\n")
+	unsetEnvForTest(
+		t,
+		"DB_KIND",
+		"DB_PORT",
+		"DB_HOST",
+		"DB_NAME",
+		"DB_USER",
+		"DB_PASSWORD",
+		"DB_SSL_MODE",
+	)
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() { findGoModRoot = originalFindGoModRoot })
+
+	err := executeStandaloneCommand(newDBMigrationUpCommand())
+	envelope := output.Fail(err)
+	if envelope.Code != output.CodeConfigError || envelope.ExitCode != output.ExitConfig {
+		t.Fatalf("envelope = %#v", envelope)
+	}
+	if !strings.Contains(envelope.Error, "DB_HOST") {
+		t.Fatalf("error = %q", envelope.Error)
+	}
+	if strings.Contains(envelope.Hint, "andurel.lock") {
+		t.Fatalf("hint still points at the tool lockfile: %q", envelope.Hint)
+	}
+	if !strings.Contains(envelope.Hint, ".env.example") ||
+		!strings.Contains(envelope.Hint, "DB_") {
+		t.Fatalf("hint = %q", envelope.Hint)
+	}
+}
+
+func TestGenerateMigrationHelpMatchesCreationContract(t *testing.T) {
+	result := runCLITest(t, "generate", "migration", "--help")
+	if result.err != nil {
+		t.Fatalf("generate migration --help: %v\nstderr:\n%s", result.err, result.stderr)
+	}
+	out := result.stdout
+	for _, want := range []string{
+		"Create a new SQL migration file",
+		"not need database configuration",
+		"Prerequisites:",
+		"Andurel project root",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("help missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, ".env database variables") {
+		t.Fatalf("help still advertises database variables:\n%s", out)
+	}
 }

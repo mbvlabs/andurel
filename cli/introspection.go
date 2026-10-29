@@ -57,7 +57,7 @@ andurel.toml is the human-edited manifest: framework version, project name
 and Inertia adapter, database engine/null type, and the pinned version of each
 tool. andurel.lock is the CLI-owned digest lock: per-platform SHA-256 hashes
 of the tool downloads.`,
-		Args: cobra.NoArgs,
+		Args: noArgsOrUnknownSubcommand,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runProjectInfo(cmd)
 		},

@@ -32,10 +32,26 @@ type buildArtifact struct {
 
 // buildReport is the artifact manifest printed (or emitted as JSON) after a
 // successful build.
+// buildReport is the machine-readable result of andurel build.
 type buildReport struct {
-	Version   string          `json:"version"`
-	OutputDir string          `json:"output_dir"`
-	Artifacts []buildArtifact `json:"artifacts"`
+	Version     string          `json:"version"`
+	OutputDir   string          `json:"output_dir"`
+	Isolated    bool            `json:"isolated,omitempty"`
+	AssetsBuilt bool            `json:"assets_built"`
+	Artifacts   []buildArtifact `json:"artifacts"`
+	// Recovered lists interrupted publications that were repaired before this
+	// build published its own output, for example a backup restored after a
+	// SIGKILL between backup and rename.
+	Recovered []string `json:"recovered,omitempty"`
+}
+
+// buildOptions is one build invocation. An empty OutputDir keeps the legacy
+// in-place layout (dist/ and assets/dist in the project); any explicit output
+// directory enables a staged, source-tree-isolated build.
+type buildOptions struct {
+	Version   string
+	Only      []string
+	OutputDir string
 }
 
 // buildProcess is one command directory that compiles to a runnable binary.
@@ -45,8 +61,9 @@ type buildProcess struct {
 
 func newBuildCommand() *cobra.Command {
 	var (
-		versionFlag string
-		onlyFlag    []string
+		versionFlag   string
+		onlyFlag      []string
+		outputDirFlag string
 	)
 
 	cmd := &cobra.Command{
@@ -60,7 +77,7 @@ This command:
   • Generates narsilc code when domains/**/*.sql contains SQL files
   • Compiles Tailwind utilities in email templates
   • Builds Vite client assets and the SSR bundle (when Inertia is configured)
-  • Builds cmd/app, cmd/queue, cmd/migrate, and cmd/ssr into dist/
+  • Builds cmd/app, cmd/queue, cmd/migrate, and cmd/ssr into dist/ (or --output-dir)
   • Injects the version string via ldflags (from --version or git describe)
 
 Client assets and the SSR bundle are embedded in the binaries: assets/assets.go
@@ -68,6 +85,35 @@ embeds assets/dist, including assets/dist/ssr/ssr.js, so the app and SSR
 processes need no asset files beside the binary at runtime.
 
 Use --only to build a subset, and --json for an artifact manifest.
+
+Use --output-dir to isolate every writable build intermediate. The project
+source tree, including assets/dist and generated Go files, is left untouched:
+andurel copies the project into a private staging directory, runs templ,
+narsilc, email, Vite and Go builds there, and publishes only the finished
+binaries. Relative --output-dir paths resolve from the project root. The
+manifest reports absolute artifact paths and isolated=true. Two builds of the
+same project with different output directories do not share writable paths.
+
+Isolated builds copy an existing node_modules snapshot instead of running the
+package manager against the shared source tree; run your package manager
+install command first when dependencies change. Dependencies are copied as
+regular files, never hardlinked, so a build plugin cannot mutate the source
+inode. Symlinks whose targets resolve inside the project or the dependency
+snapshot are rewritten to their staged counterparts; a symlink that resolves
+outside both is rejected rather than followed, because writes through it could
+not be kept private to the build stage. Staging directories are removed on
+normal success and failure.
+
+Binary publication is all-or-nothing across every selected process. A
+publication journal is written before the first rename; a build interrupted
+between renames is rolled back to the previous complete artifact set by the
+next build. A committed set is kept as a unit, so a new app is never paired
+with a previous SSR binary. A SIGKILL can leave an unreferenced staging
+directory behind, but it is never used by a later build.
+
+Without --output-dir the historical in-place layout is preserved: binaries in
+dist/, Vite output in assets/dist/, tools in bin/. Use that mode when the
+development asset tree should be refreshed by the build.
 
 Every process loads .env at startup. Runtime configuration by process:
   • app: database, HTTP/hosts, sessions, cookies, auth, email, cache, queue,
@@ -81,6 +127,7 @@ queue), shared environment, and health checks.`,
 		Example: `  andurel build
   andurel build --version 1.2.3
   andurel build --only app,queue
+  andurel build --output-dir /tmp/app-build
   andurel build --json`,
 		Args: cobra.ExactArgs(0),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -97,7 +144,11 @@ queue), shared environment, and health checks.`,
 			var report buildReport
 			run := func() error {
 				var buildErr error
-				report, buildErr = buildApp(rootDir, versionFlag, onlyFlag)
+				report, buildErr = buildProject(rootDir, buildOptions{
+					Version:   versionFlag,
+					Only:      onlyFlag,
+					OutputDir: outputDirFlag,
+				})
 				return buildErr
 			}
 
@@ -127,11 +178,23 @@ queue), shared environment, and health checks.`,
 		StringVar(&versionFlag, "version", "", "Set the application version (injected via ldflags)")
 	cmd.Flags().
 		StringSliceVar(&onlyFlag, "only", nil, "Build only the named processes (comma-separated, e.g. app,queue)")
+	cmd.Flags().StringVar(
+		&outputDirFlag,
+		"output-dir",
+		"",
+		"Publish binaries into an isolated output directory (relative paths resolve from the project root)",
+	)
 
 	return cmd
 }
 
+// buildApp keeps the historical in-place build entry point used by tests and
+// callers that do not need output isolation.
 func buildApp(rootDir string, versionFlag string, only []string) (buildReport, error) {
+	return buildProject(rootDir, buildOptions{Version: versionFlag, Only: only})
+}
+
+func buildProject(rootDir string, opts buildOptions) (buildReport, error) {
 	lock, err := layout.ReadLockFile(rootDir)
 	if err != nil {
 		return buildReport{}, fmt.Errorf("failed to read andurel.toml: %w", err)
@@ -141,11 +204,55 @@ func buildApp(rootDir string, versionFlag string, only []string) (buildReport, e
 	if err != nil {
 		return buildReport{}, err
 	}
-	selected, err := selectBuildProcesses(processes, only)
+	selected, err := selectBuildProcesses(processes, opts.Only)
 	if err != nil {
 		return buildReport{}, err
 	}
 
+	output, err := resolveBuildOutputDir(rootDir, opts.OutputDir)
+	if err != nil {
+		return buildReport{}, err
+	}
+
+	appVersion := opts.Version
+	if appVersion == "" {
+		if v, err := detectGitVersion(rootDir); err == nil {
+			appVersion = v
+		}
+	}
+
+	workRoot := rootDir
+	if output.Isolated {
+		workRoot, err = stageBuildSource(rootDir, output.AbsPath)
+		if err != nil {
+			return buildReport{}, err
+		}
+		defer func() { _ = os.RemoveAll(workRoot) }()
+	}
+
+	report, err := runBuildSteps(workRoot, lock, selected, appVersion, output.Isolated)
+	if err != nil {
+		return buildReport{}, err
+	}
+	report.OutputDir = output.DisplayPath
+	report.Isolated = output.Isolated
+
+	if output.Isolated {
+		if err := publishBuildArtifacts(workRoot, output.AbsPath, selected, &report); err != nil {
+			return buildReport{}, err
+		}
+	}
+
+	return report, nil
+}
+
+func runBuildSteps(
+	rootDir string,
+	lock *layout.AndurelLock,
+	selected []buildProcess,
+	appVersion string,
+	isolated bool,
+) (buildReport, error) {
 	binDir := filepath.Join(rootDir, "bin")
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		return buildReport{}, fmt.Errorf("failed to create bin directory: %w", err)
@@ -211,8 +318,11 @@ func buildApp(rootDir string, versionFlag string, only []string) (buildReport, e
 		}
 	}
 
-	// 2.5. Vite build for Inertia frontend
-	if lock.ScaffoldConfig != nil && layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) {
+	// 2.5. Vite build for Inertia frontend. Migrate-only builds do not import
+	// the embedded assets package, so they must not touch Vite output.
+	assetsBuilt := false
+	if lock.ScaffoldConfig != nil && layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) &&
+		buildNeedsAssets(selected) {
 		installCmd, buildCmd, err := inertiaPackageManagerCommands(
 			lock.ScaffoldConfig.PackageManager(),
 		)
@@ -220,13 +330,17 @@ func buildApp(rootDir string, versionFlag string, only []string) (buildReport, e
 			return buildReport{}, err
 		}
 
-		fmt.Printf("Installing %s dependencies...\n", installCmd.Name)
-		install := exec.Command(installCmd.Name, installCmd.Args...)
-		install.Dir = rootDir
-		install.Stdout = os.Stdout
-		install.Stderr = os.Stderr
-		if err := install.Run(); err != nil {
-			return buildReport{}, fmt.Errorf("%s failed: %w", installCmd.String(), err)
+		if isolated && buildHasNodeModules(rootDir) {
+			fmt.Println("Reusing installed frontend dependencies...")
+		} else {
+			fmt.Printf("Installing %s dependencies...\n", installCmd.Name)
+			install := exec.Command(installCmd.Name, installCmd.Args...)
+			install.Dir = rootDir
+			install.Stdout = os.Stdout
+			install.Stderr = os.Stderr
+			if err := install.Run(); err != nil {
+				return buildReport{}, fmt.Errorf("%s failed: %w", installCmd.String(), err)
+			}
 		}
 
 		fmt.Println("Building Vite assets...")
@@ -237,16 +351,24 @@ func buildApp(rootDir string, versionFlag string, only []string) (buildReport, e
 		if err := viteBuild.Run(); err != nil {
 			return buildReport{}, fmt.Errorf("%s failed: %w", buildCmd.String(), err)
 		}
+		assetsBuilt = true
 	}
 
-	// 3. go mod download
-	fmt.Println("Downloading Go dependencies...")
-	dlCmd := exec.Command("go", "mod", "download")
-	dlCmd.Dir = rootDir
-	dlCmd.Stdout = os.Stdout
-	dlCmd.Stderr = os.Stderr
-	if err := dlCmd.Run(); err != nil {
-		return buildReport{}, fmt.Errorf("go mod download failed: %w", err)
+	// 3. go mod download. Workspace mode resolves local use entries through
+	// go build; go mod download would try to fetch a workspace module by its
+	// required version instead of using the local directory.
+	if !buildUsesGoWork(rootDir) {
+		fmt.Println("Downloading Go dependencies...")
+		dlCmd := exec.Command("go", "mod", "download")
+		dlCmd.Dir = rootDir
+		dlCmd.Env = buildGoEnv(rootDir)
+		dlCmd.Stdout = os.Stdout
+		dlCmd.Stderr = os.Stderr
+		if err := dlCmd.Run(); err != nil {
+			return buildReport{}, fmt.Errorf("go mod download failed: %w", err)
+		}
+	} else {
+		fmt.Println("Using go.work; dependencies resolve during go build...")
 	}
 
 	// 4. Build each Go process.
@@ -255,22 +377,16 @@ func buildApp(rootDir string, versionFlag string, only []string) (buildReport, e
 		return buildReport{}, fmt.Errorf("failed to determine module path from go.mod: %w", err)
 	}
 
-	appVersion := versionFlag
-	if appVersion == "" {
-		if v, err := detectGitVersion(rootDir); err == nil {
-			appVersion = v
-		}
-	}
-
 	reportVersion := appVersion
 	if reportVersion == "" {
 		reportVersion = "dev"
 	}
 
 	report := buildReport{
-		Version:   reportVersion,
-		OutputDir: "dist",
-		Artifacts: make([]buildArtifact, 0, len(selected)),
+		Version:     reportVersion,
+		OutputDir:   "dist",
+		AssetsBuilt: assetsBuilt,
+		Artifacts:   make([]buildArtifact, 0, len(selected)),
 	}
 
 	for _, process := range selected {
@@ -311,7 +427,10 @@ func buildProcessBinary(
 	fmt.Printf("Building %s...\n", process.Name)
 	buildCmd := exec.Command("go", args...)
 	buildCmd.Dir = rootDir
-	buildCmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS=linux")
+	buildCmd.Env = envWithBase(buildGoEnv(rootDir), map[string]string{
+		"CGO_ENABLED": "0",
+		"GOOS":        "linux",
+	})
 	buildCmd.Stdout = os.Stdout
 	buildCmd.Stderr = os.Stderr
 	if err := buildCmd.Run(); err != nil {

@@ -49,7 +49,8 @@ type UpgradeReport struct {
 	ReplacedFiles       []string
 	RemovedFiles        []string
 	Diffs               []FileDiff
-	ManualActions       []ManualAction `json:"manual_actions,omitempty"`
+	PlannedChanges      []PlannedChange `json:"-"`
+	ManualActions       []ManualAction  `json:"manual_actions,omitempty"`
 	DirtyWorktree       bool
 	AlreadyCurrent      bool
 	RepairAvailable     bool
@@ -301,7 +302,7 @@ func printUpgradeSuccess(writer io.Writer, report *UpgradeReport) {
 	if lockChanged {
 		output.println("✓ Updated andurel.toml and andurel.lock")
 	}
-	printManualActions(output, report.ManualActions)
+	printManualActions(output, report.FromVersion, report.ManualActions)
 	if len(report.ReplacedFiles) == 0 && len(report.RemovedFiles) == 0 && !lockChanged {
 		output.println("✓ Project is already up to date")
 		return
@@ -330,10 +331,10 @@ func printUpgradeDryRun(writer io.Writer, report *UpgradeReport) {
 	if report.FromVersion != report.ToVersion || hasToolChanges(report) {
 		output.println("\n[DRY RUN] Would update andurel.toml and andurel.lock")
 	}
-	printManualActions(output, report.ManualActions)
+	printManualActions(output, report.FromVersion, report.ManualActions)
 }
 
-func printManualActions(output *presentationWriter, actions []ManualAction) {
+func printManualActions(output *presentationWriter, fromVersion string, actions []ManualAction) {
 	if len(actions) == 0 {
 		return
 	}
@@ -342,6 +343,7 @@ func printManualActions(output *presentationWriter, actions []ManualAction) {
 	for _, action := range actions {
 		output.printf("\n%s\n\n%s\n", action.Title, strings.TrimSpace(action.Instructions))
 	}
+	output.printf("\nShow these actions again later with: andurel inspect upgrade-notes --from %s\n", fromVersion)
 }
 
 func printToolChanges(output *presentationWriter, report *UpgradeReport, dryRun bool) {

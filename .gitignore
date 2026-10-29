@@ -1,1 +1,4 @@
 andurel-dev
+
+# Acceptance harness output (scripts/acceptance, scripts/beta3-fix-acceptance.sh)
+plans/evidence/

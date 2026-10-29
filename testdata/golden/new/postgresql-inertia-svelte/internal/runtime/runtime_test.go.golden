@@ -2,6 +2,7 @@ package runtime_test
 
 import (
 	"context"
+	"encoding/json"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -10,9 +11,13 @@ import (
 
 	"app/assets"
 	"app/config"
+	"app/domains"
 	"app/internal/runtime"
+	"app/middleware"
 	"app/routes"
 
+	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
@@ -141,6 +146,173 @@ func TestViteAssetsSkipCSRFCookie(t *testing.T) {
 	}
 }
 
+func TestHomePageIsPublic(t *testing.T) {
+	cfg := testSecurityConfig(t)
+	app := newTestApp(t, cfg)
+
+	document := serveRequest(t, app, http.MethodGet, routes.HomePage.Path(), "localhost:8080", nil)
+	if document.Code != http.StatusOK {
+		t.Fatalf(
+			"document status = %d, want %d; body: %s",
+			document.Code,
+			http.StatusOK,
+			document.Body.String(),
+		)
+	}
+	if location := document.Header().Get("Location"); location != "" {
+		t.Fatalf("anonymous home redirected to %q; the welcome page must be public", location)
+	}
+	if body := document.Body.String(); !strings.Contains(body, `"component":"Welcome"`) {
+		t.Fatalf("document body does not render the Welcome page:\n%s", body)
+	}
+
+	page := serveRequest(
+		t,
+		app,
+		http.MethodGet,
+		routes.HomePage.Path(),
+		"localhost:8080",
+		inertiaRequestHeaders(t, cfg),
+	)
+	if page.Code != http.StatusOK {
+		t.Fatalf("inertia status = %d, want %d", page.Code, http.StatusOK)
+	}
+	if body := page.Body.String(); !strings.Contains(body, `"component":"Welcome"`) {
+		t.Fatalf("inertia body does not render the Welcome page:\n%s", body)
+	}
+}
+
+// TestAuthOnlyStillProtectsRoutes guards the other half of the public home: a
+// route registered with middleware.AuthOnly keeps rejecting anonymous visitors.
+func TestAuthOnlyStillProtectsRoutes(t *testing.T) {
+	cfg := testSecurityConfig(t)
+	app := newTestApp(t, cfg)
+
+	router := anduin.NewRouter()
+	router.Use(testSessionJar(t, cfg).Middleware())
+	router.Get("/dashboard", func(ctx context.Context) error {
+		return anduin.JSON(ctx, http.StatusOK, "dashboard")
+	}, middleware.AuthOnly(domains.NewUsers(app.DB)))
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/dashboard", nil)
+	request.Host = "localhost:8080"
+	router.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusSeeOther {
+		t.Fatalf(
+			"status = %d, want %d; body: %s",
+			recorder.Code,
+			http.StatusSeeOther,
+			recorder.Body.String(),
+		)
+	}
+	if location := recorder.Header().Get("Location"); !strings.HasSuffix(
+		location,
+		routes.SessionNew.Path(),
+	) {
+		t.Fatalf("Location = %q, want the sign-in path", location)
+	}
+}
+
+func TestReadinessReportsReadyInDevelopment(t *testing.T) {
+	app := newTestApp(t, testSecurityConfig(t))
+
+	recorder := serveRequest(t, app, http.MethodGet, routes.Ready.Path(), "localhost:8080", nil)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf(
+			"status = %d, want %d; body: %s",
+			recorder.Code,
+			http.StatusOK,
+			recorder.Body.String(),
+		)
+	}
+}
+
+func TestReadinessFailsWhenProductionSSRSidecarIsUnavailable(t *testing.T) {
+	requireProductionAssets(t)
+
+	cfg := testProductionConfig(t)
+	cfg.Inertia.SSRURL = "http://127.0.0.1:1"
+	cfg.Inertia.SSRFailFast = true
+	app := newTestApp(t, cfg)
+
+	recorder := serveRequest(t, app, http.MethodGet, routes.Ready.Path(), "localhost:8080", nil)
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf(
+			"status = %d, want %d; body: %s",
+			recorder.Code,
+			http.StatusServiceUnavailable,
+			recorder.Body.String(),
+		)
+	}
+	var readinessBody struct {
+		Status string `json:"status"`
+		Reason string `json:"reason"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &readinessBody); err != nil {
+		t.Fatalf("readiness body is not JSON: %v\n%s", err, recorder.Body.String())
+	}
+	if readinessBody.Status != "unready" || readinessBody.Reason != "unavailable" {
+		t.Fatalf(
+			"readiness body = %#v, want status unready and reason unavailable",
+			readinessBody,
+		)
+	}
+}
+
+func TestReadinessRecoversWithHealthySSRSidecar(t *testing.T) {
+	requireProductionAssets(t)
+
+	sidecar := httptest.NewServer(
+		http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			if request.URL.Path != "/health" {
+				http.NotFound(writer, request)
+				return
+			}
+			_, _ = writer.Write([]byte(`{"status":"ok"}`))
+		}),
+	)
+	t.Cleanup(sidecar.Close)
+
+	cfg := testProductionConfig(t)
+	cfg.Inertia.SSRURL = sidecar.URL
+	cfg.Inertia.SSRFailFast = true
+	app := newTestApp(t, cfg)
+
+	recorder := serveRequest(t, app, http.MethodGet, routes.Ready.Path(), "localhost:8080", nil)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf(
+			"status = %d, want %d; body: %s",
+			recorder.Code,
+			http.StatusOK,
+			recorder.Body.String(),
+		)
+	}
+}
+
+// TestReadinessIgnoresSSRWithExplicitCSRFallback documents the opt-in policy:
+// INERTIA_SSR_FAIL_FAST=false is client-side-rendering fallback, so readiness
+// does not gate on the sidecar.
+func TestReadinessIgnoresSSRWithExplicitCSRFallback(t *testing.T) {
+	requireProductionAssets(t)
+
+	cfg := testProductionConfig(t)
+	cfg.Inertia.SSRURL = "http://127.0.0.1:1"
+	cfg.Inertia.SSRFailFast = false
+	app := newTestApp(t, cfg)
+
+	recorder := serveRequest(t, app, http.MethodGet, routes.Ready.Path(), "localhost:8080", nil)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf(
+			"status = %d, want %d; body: %s",
+			recorder.Code,
+			http.StatusOK,
+			recorder.Body.String(),
+		)
+	}
+}
+
 func TestMethodNotAllowedRendersNotFoundPage(t *testing.T) {
 	cfg := testSecurityConfig(t)
 	app := newTestApp(t, cfg)
@@ -187,6 +359,43 @@ func testSecurityConfig(t *testing.T) config.Config {
 	}
 
 	return cfg
+}
+
+// testProductionConfig boots the production graph without Mailpit, which the
+// runtime refuses in production.
+func testProductionConfig(t *testing.T) config.Config {
+	t.Helper()
+
+	cfg := testSecurityConfig(t)
+	cfg.App.Environment = "production"
+	cfg.Mail.Driver = config.LogDriver
+
+	return cfg
+}
+
+// testSessionJar builds the cookie jar runtime.New installs so a protected
+// route test exercises the real session middleware.
+func testSessionJar(t *testing.T, cfg config.Config) *kiks.Jar {
+	t.Helper()
+
+	keys := kiks.Keys{
+		Authentication: cfg.Session.AuthenticationKey,
+		Encryption:     cfg.Session.EncryptionKey,
+	}
+	store, err := kiks.NewCookieStore(keys)
+	if err != nil {
+		t.Fatalf("create cookie store: %v", err)
+	}
+	jar, err := kiks.NewJar(
+		keys,
+		store,
+		middleware.NewSessionCookie(cfg.Session, cfg.App.IsProduction()),
+	)
+	if err != nil {
+		t.Fatalf("create session jar: %v", err)
+	}
+
+	return jar
 }
 
 func newTestApp(t *testing.T, cfg config.Config) *runtime.App {
@@ -261,6 +470,17 @@ func firstViteAssetPath(t *testing.T) string {
 	}
 
 	return routes.AssetsPrefix + "/dist/" + strings.TrimPrefix(asset, "dist/")
+}
+
+// requireProductionAssets skips production readiness tests on a tree whose
+// frontend was never built: the production renderer needs the Vite manifest,
+// and the scaffold documents `pnpm build` as part of the production path.
+func requireProductionAssets(t *testing.T) {
+	t.Helper()
+
+	if _, err := fs.Stat(assets.Files, "dist/vite/manifest.json"); err != nil {
+		t.Skip("assets/dist/vite/manifest.json is missing; run pnpm build before this test")
+	}
 }
 
 func headerHasToken(header http.Header, name, token string) bool {

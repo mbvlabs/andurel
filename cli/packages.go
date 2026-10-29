@@ -24,12 +24,31 @@ const (
 )
 
 type packageVersion struct {
-	Name    string `json:"name"`
-	Path    string `json:"path"`
-	Current string `json:"current"`
-	Latest  string `json:"latest,omitempty"`
-	Status  string `json:"status"`
-	Replace string `json:"replace,omitempty"`
+	Name           string `json:"name"`
+	Path           string `json:"path"`
+	Current        string `json:"current"`
+	Latest         string `json:"latest,omitempty"`
+	Status         string `json:"status"`
+	Replace        string `json:"replace,omitempty"`
+	Responsibility string `json:"responsibility,omitempty"`
+}
+
+// andurelPackageResponsibilities documents what each standalone pkg module
+// owns. Packages without an entry report no responsibility instead of a
+// guessed description.
+var andurelPackageResponsibilities = map[string]string{
+	"anduin":     "HTTP router, middleware, handlers, host dispatch, and server primitives",
+	"auth":       "Password hashing and authentication token primitives",
+	"cache":      "Cache store abstraction and swappable drivers",
+	"email":      "Email composition, providers, and delivery",
+	"env":        ".env loading and typed environment-variable reads",
+	"inertia":    "Inertia protocol renderer, SSR client and runtime, and error mapping",
+	"kiks":       "Cookies, sessions, and flash messages",
+	"lifecycle":  "Process startup, shutdown, signals, and blocking-serve coordination",
+	"routing":    "Route definitions, URL generation, parameters, and host resolution",
+	"storage":    "Database access (PostgreSQL), queue insertion, migrations, and transactions",
+	"telemetry":  "Tracing, logging, and HTTP telemetry handlers",
+	"validation": "Struct field validation rules and diagnostics",
 }
 
 type packageUpdateReport struct {
@@ -236,10 +255,11 @@ func listAndurelPackages(goModPath string) ([]packageVersion, error) {
 			continue
 		}
 		pkg := packageVersion{
-			Name:    name,
-			Path:    req.Mod.Path,
-			Current: req.Mod.Version,
-			Status:  packageStatusCurrent,
+			Name:           name,
+			Path:           req.Mod.Path,
+			Current:        req.Mod.Version,
+			Status:         packageStatusCurrent,
+			Responsibility: andurelPackageResponsibilities[name],
 		}
 		if target, ok := replaces[req.Mod.Path]; ok {
 			pkg.Status = packageStatusReplaced
@@ -400,13 +420,17 @@ func packageNameWidth(packages []packageVersion) int {
 
 func formatPackageLine(pkg packageVersion, width int) string {
 	name := fmt.Sprintf("%-*s", width, pkg.Name)
+	suffix := ""
+	if pkg.Responsibility != "" {
+		suffix = "  " + pkg.Responsibility
+	}
 	switch pkg.Status {
 	case packageStatusReplaced:
-		return fmt.Sprintf("  %s  %s  replaced (%s)", name, pkg.Current, pkg.Replace)
+		return fmt.Sprintf("  %s  %s  replaced (%s)%s", name, pkg.Current, pkg.Replace, suffix)
 	case packageStatusOutdated, packageStatusUpdated:
-		return fmt.Sprintf("  %s  %s -> %s  %s", name, pkg.Current, pkg.Latest, pkg.Status)
+		return fmt.Sprintf("  %s  %s -> %s  %s%s", name, pkg.Current, pkg.Latest, pkg.Status, suffix)
 	default:
-		return fmt.Sprintf("  %s  %s  current", name, pkg.Current)
+		return fmt.Sprintf("  %s  %s  current%s", name, pkg.Current, suffix)
 	}
 }
 

@@ -527,6 +527,62 @@ func TestBuildCommandJSONReportsArtifactManifest(t *testing.T) {
 	}
 }
 
+func TestBuildCommandOutputDirJSONManifest(t *testing.T) {
+	resetCLITestSeams(t)
+
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
+	writeTestFile(t, root, "cmd/app/main.go", "package main\n\nfunc main() {}\n")
+	lock := layout.NewAndurelLock("test")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "app"}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+
+	logPath := filepath.Join(root, "commands.log")
+	fakePath := t.TempDir()
+	writeExecutable(t, fakePath, "go", fakeGoCommandScript(logPath))
+	t.Setenv("PATH", fakePath)
+	syncSingleToolFunc = func(projectRoot, name string, tool *layout.Tool, goos, goarch string) error {
+		return nil
+	}
+
+	defaultFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() { findGoModRoot = defaultFindGoModRoot })
+
+	outputDir := filepath.Join(root, "json out")
+	cmd := newBuildCommand()
+	output.RegisterPersistentFlags(cmd)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"--json", "--only", "app", "--output-dir", outputDir})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("build --json --output-dir: %v", err)
+	}
+
+	var envelope struct {
+		OK   bool        `json:"ok"`
+		Data buildReport `json:"data"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode JSON envelope: %v\n%s", err, out.String())
+	}
+	absoluteOutput, err := filepath.Abs(outputDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !envelope.OK || !envelope.Data.Isolated ||
+		envelope.Data.OutputDir != filepath.ToSlash(absoluteOutput) {
+		t.Fatalf("build report = %#v", envelope.Data)
+	}
+	if len(envelope.Data.Artifacts) != 1 ||
+		envelope.Data.Artifacts[0].Path != filepath.ToSlash(filepath.Join(absoluteOutput, "app")) {
+		t.Fatalf("artifacts = %#v", envelope.Data.Artifacts)
+	}
+}
+
 func TestSelectBuildProcesses(t *testing.T) {
 	processes := []buildProcess{{Name: "app"}, {Name: "migrate"}, {Name: "queue"}}
 

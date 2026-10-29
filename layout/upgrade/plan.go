@@ -25,6 +25,16 @@ type FileDiff struct {
 	Diff string `json:"diff"`
 }
 
+// PlannedChange is the content one planned path has after the upgrade. It
+// covers every planned file, andurel.toml and andurel.lock included, so a
+// dry run can report the same file set the real run writes.
+type PlannedChange struct {
+	Path    string
+	Content []byte
+	Mode    os.FileMode
+	Remove  bool
+}
+
 type plannedFile struct {
 	path    string
 	before  []byte
@@ -61,6 +71,12 @@ func (p *upgradePlan) cloneReport() *UpgradeReport {
 	report.ToolsRemoved = len(report.RemovedTools)
 	report.ToolsUpdated = len(report.UpdatedTools)
 	for _, file := range p.files {
+		report.PlannedChanges = append(report.PlannedChanges, PlannedChange{
+			Path:    file.path,
+			Content: slices.Clone(file.after),
+			Mode:    file.mode,
+			Remove:  file.remove,
+		})
 		if file.isLock {
 			continue
 		}

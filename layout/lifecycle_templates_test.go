@@ -11,3 +11,11 @@ func TestGeneratedLifecycleSeparatesServingFromStartup(t *testing.T) {
 	)
 	assertTemplateMissing(t, "cmd_ssr_main.tmpl", "WithBlockingStart")
 }
+
+func TestGeneratedSSRMainReturnsChildError(t *testing.T) {
+	assertTemplateContains(t, "cmd_ssr_main.tmpl",
+		"case err := <-ssr.Errors():",
+		"return err",
+	)
+	assertTemplateMissing(t, "cmd_ssr_main.tmpl", "fmt.Fprintf(os.Stderr")
+}

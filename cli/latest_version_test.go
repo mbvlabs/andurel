@@ -18,6 +18,7 @@ func TestFetchLatestAndurelVersion(t *testing.T) {
 		body       string
 		want       string
 		wantErr    string
+		wantType   bool
 	}{
 		{
 			name:       "stable release",
@@ -36,6 +37,7 @@ func TestFetchLatestAndurelVersion(t *testing.T) {
 			statusCode: http.StatusOK,
 			body:       `{"Version":"v1.5.0-rc.1"}`,
 			wantErr:    "not a stable release",
+			wantType:   true,
 		},
 		{
 			name:       "invalid version",
@@ -68,6 +70,15 @@ func TestFetchLatestAndurelVersion(t *testing.T) {
 			if test.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), test.wantErr) {
 					t.Fatalf("error = %v, want error containing %q", err, test.wantErr)
+				}
+				if test.wantType {
+					var noStable *noStableReleaseError
+					if !errors.As(err, &noStable) {
+						t.Fatalf("error = %T, want *noStableReleaseError", err)
+					}
+					if noStable.version != "v1.5.0-rc.1" {
+						t.Fatalf("prerelease version = %q", noStable.version)
+					}
 				}
 				return
 			}
@@ -151,6 +162,24 @@ func TestCheckLatestAndurelRelease(t *testing.T) {
 		if result.status != statusWarn || !strings.Contains(result.message, "could not check") ||
 			len(result.details) != 1 {
 			t.Fatalf("release check = %#v", result)
+		}
+	})
+
+	t.Run("prerelease is not a network failure", func(t *testing.T) {
+		stubLatestAndurelVersion(t, "", &noStableReleaseError{version: "v2.0.0-beta.3"})
+		result := checkLatestAndurelRelease("v2.0.0-beta.3")
+		if result.status != statusWarn {
+			t.Fatalf("prerelease check = %#v, want warn", result)
+		}
+		if !strings.Contains(result.message, "no stable release published yet") ||
+			!strings.Contains(result.message, "v2.0.0-beta.3") {
+			t.Fatalf("prerelease message = %q", result.message)
+		}
+		if strings.Contains(result.hint, "network") || strings.Contains(result.hint, "connectivity") {
+			t.Fatalf("prerelease hint blames the network: %q", result.hint)
+		}
+		if !strings.Contains(result.hint, "beta") {
+			t.Fatalf("prerelease hint = %q", result.hint)
 		}
 	})
 }

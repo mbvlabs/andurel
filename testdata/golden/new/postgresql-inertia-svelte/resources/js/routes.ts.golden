@@ -3,22 +3,65 @@
 // Helpers are generated for routes marked routing.TypeScriptRoute()
 // (routing.InertiaRoute() is a deprecated alias).
 //
-// Call helpers while rendering: routes.widgetShow(id), not
-// const url = routes.widgetShow(id). configureRouteHosts runs after the app
-// boots, so a module-scope constant keeps an empty origin (or a stale value
-// under SSR) and will not pick up the configured host.
+// A full-URL helper needs configured origins. Browser entries call
+// configureRouteHosts once at boot from the shared hosts prop; SSR entries call
+// withRouteHosts around each render so concurrent requests never share origin
+// state. Calling a full-URL helper before configuration throws: a module-scope
+// const evaluated at import would otherwise freeze an empty or stale origin.
+// Use routes.<name>.path() when only a relative URL is needed; .path() and
+// .host work without configuration.
 
 type HostOrigins = Record<string, string>
 
-let origins: HostOrigins = {}
+/** Host origins for one render. SSR entries register a request-scoped scope. */
+export type RouteHostScope = {
+  current: () => HostOrigins | undefined
+  run: <T>(hosts: HostOrigins, render: () => T) => T
+}
 
-/** Call once at boot with Inertia shared hosts prop. */
+let configuredOrigins: HostOrigins | null = null
+let routeHostScope: RouteHostScope | null = null
+
+/** Call once at browser boot with the Inertia shared hosts prop. */
 export function configureRouteHosts(next: HostOrigins) {
-  origins = next
+  configuredOrigins = next
+}
+
+/** Install the request-scoped host context used by the SSR entry. */
+export function configureRouteHostScope(scope: RouteHostScope | null) {
+  routeHostScope = scope
+}
+
+/** Run one SSR render with its own host origins. */
+export function withRouteHosts<T>(hosts: HostOrigins, render: () => T): T {
+  if (routeHostScope === null) {
+    throw new Error(
+      'routes: withRouteHosts requires configureRouteHostScope(...) in the SSR entry, for example resources/js/ssr.ts',
+    )
+  }
+  return routeHostScope.run(hosts, render)
+}
+
+function currentOrigins(): HostOrigins {
+  const scoped = routeHostScope?.current()
+  const origins = scoped ?? configuredOrigins
+  if (origins === null || origins === undefined) {
+    throw new Error(
+      'routes: route hosts are not configured yet; call configureRouteHosts(...) at boot or withRouteHosts(...) per SSR render, or use routes.<name>.path() for a relative URL',
+    )
+  }
+  return origins
 }
 
 function origin(host: string): string {
-  return origins[host] ?? origins.primary ?? ''
+  const origins = currentOrigins()
+  const resolved = origins[host] ?? origins.primary
+  if (resolved === undefined || resolved === '') {
+    throw new Error(
+      'routes: no origin configured for route host "' + host + '"; add it to the shared hosts prop or use routes.<name>.path()',
+    )
+  }
+  return resolved
 }
 
 export const routes = {

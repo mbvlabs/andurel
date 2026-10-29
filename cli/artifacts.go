@@ -239,7 +239,11 @@ func mutationSummary(report mutationReport) string {
 	if total == 0 {
 		return fmt.Sprintf("%s completed with no file changes", report.Action)
 	}
-	return fmt.Sprintf("%s %d files for %s", verb, total, report.Action)
+	noun := "files"
+	if total == 1 {
+		noun = "file"
+	}
+	return fmt.Sprintf("%s %d %s for %s", verb, total, noun, report.Action)
 }
 
 func isRoutePath(path string) bool {

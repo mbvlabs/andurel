@@ -75,12 +75,97 @@ func TestInertiaViteFullURLManualActionVersionGate(t *testing.T) {
 }
 
 func TestLatestBetaUpgradeToStableEmitsNoManualActions(t *testing.T) {
-	actions, err := manualActionsForUpgrade("v2.0.0-beta.3", "v2.0.0", true)
+	actions, err := manualActionsForUpgrade("v2.0.0-beta.4", "v2.0.0", true)
 	if err != nil {
 		t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
 	}
 	if len(actions) != 0 {
 		t.Fatalf("latest beta to stable emitted manual actions: %#v", actions)
+	}
+}
+
+func TestBetaFourManualActions(t *testing.T) {
+	actions, err := manualActionsForUpgrade("v2.0.0-beta.3", "v2.0.0-beta.4", true)
+	if err != nil {
+		t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
+	}
+	byID := map[string]ManualAction{}
+	for _, action := range actions {
+		byID[action.ID] = action
+	}
+	for _, id := range []string{
+		"public-home-v2.0.0-beta.4",
+		"configcheck-v2.0.0-beta.4",
+		"runtime-readiness-v2.0.0-beta.4",
+		"inertia-ssr-default-v2.0.0-beta.4",
+		"routes-host-scope-v2.0.0-beta.4",
+	} {
+		action, ok := byID[id]
+		if !ok {
+			t.Fatalf("missing beta.4 manual action %s: %#v", id, actions)
+		}
+		if strings.TrimSpace(action.Title) == "" || strings.TrimSpace(action.Instructions) == "" {
+			t.Fatalf("beta.4 action %s is empty: %#v", id, action)
+		}
+		if strings.Contains(action.Instructions, "{{.") {
+			t.Fatalf("beta.4 action %s has an unresolved template placeholder:\n%s", id, action.Instructions)
+		}
+	}
+	if want := "handlers.NewPagesHandler(renderer).Register(router)"; !strings.Contains(
+		byID["public-home-v2.0.0-beta.4"].Instructions,
+		want,
+	) {
+		t.Fatalf("public home action does not show %q", want)
+	}
+	if want := "inertia.WithSSRDefault(cfg.App.IsProduction())"; !strings.Contains(
+		byID["inertia-ssr-default-v2.0.0-beta.4"].Instructions,
+		want,
+	) {
+		t.Fatalf("SSR default action does not show %q", want)
+	}
+	if want := `"status":"unready"`; !strings.Contains(
+		byID["runtime-readiness-v2.0.0-beta.4"].Instructions,
+		want,
+	) {
+		t.Fatalf("readiness action does not show the unready schema")
+	}
+	if want := "configureRouteHostScope"; !strings.Contains(
+		byID["routes-host-scope-v2.0.0-beta.4"].Instructions,
+		want,
+	) {
+		t.Fatalf("routes action does not show per-render host scope")
+	}
+	for _, want := range []string{"duplicate route name", "users.update_user_password"} {
+		if !strings.Contains(byID["routes-host-scope-v2.0.0-beta.4"].Instructions, want) {
+			t.Fatalf("routes action does not explain the duplicate route name fix %q", want)
+		}
+	}
+}
+
+func TestBetaFourManualActionsSkipInertiaWhenProjectHasNone(t *testing.T) {
+	actions, err := manualActionsForUpgrade("v2.0.0-beta.3", "v2.0.0-beta.4", false)
+	if err != nil {
+		t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
+	}
+	got := map[string]bool{}
+	for _, action := range actions {
+		got[action.ID] = true
+	}
+	if !got["public-home-v2.0.0-beta.4"] || !got["runtime-readiness-v2.0.0-beta.4"] {
+		t.Fatalf("non-Inertia project is missing the shared beta.4 actions: %#v", actions)
+	}
+	if got["inertia-ssr-default-v2.0.0-beta.4"] || got["routes-host-scope-v2.0.0-beta.4"] {
+		t.Fatalf("non-Inertia project received Inertia-only actions: %#v", actions)
+	}
+}
+
+func TestBetaFourActionsAreNotReportedWhenAlreadyOnBetaFour(t *testing.T) {
+	actions, err := manualActionsForUpgrade("v2.0.0-beta.4", "v2.0.0", true)
+	if err != nil {
+		t.Fatalf("manualActionsForUpgrade returned an error: %v", err)
+	}
+	if len(actions) != 0 {
+		t.Fatalf("beta.4 to stable emitted actions: %#v", actions)
 	}
 }
 

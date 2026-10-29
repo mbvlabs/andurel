@@ -134,13 +134,29 @@ test-coverage:
     go tool cover -func=coverage.out -o coverage-summary.out
     awk '/^total:/ {printf "total statement coverage: %s\n", $3; found=1} END {exit !found}' coverage-summary.out
 
-# Run golden CLI tests (PR track: generate + sync + slim new MVC)
+# Run golden CLI tests against published pins (PR track: generate + sync + slim new)
 test-golden: install-dev-tools
     env -u ANDUREL_GOLDEN_FULL go test ./golden/... -v -timeout 15m
 
 # Run golden CLI tests including nightly full-tree `andurel new`
 test-golden-full: install-dev-tools
     ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m
+
+# Development-only: golden CLI tests against this checkout's pkg/inertia (not release proof)
+test-golden-local-pkg: install-dev-tools
+    ANDUREL_GOLDEN_LOCAL_PKG=1 env -u ANDUREL_GOLDEN_FULL go test ./golden/... -v -timeout 15m
+
+# Development-only: full golden suite against this checkout's pkg/inertia (not release proof)
+test-golden-full-local-pkg: install-dev-tools
+    ANDUREL_GOLDEN_LOCAL_PKG=1 ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m
+
+# Release-shaped golden CLI tests: public proxy, checksums, fresh isolated caches
+test-golden-release: install-dev-tools
+    ANDUREL_GOLDEN_RELEASE=1 env -u ANDUREL_GOLDEN_FULL go test ./golden/... -v -timeout 15m
+
+# Release-shaped full golden suite (master readiness)
+test-golden-full-release: install-dev-tools
+    ANDUREL_GOLDEN_RELEASE=1 ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m
 
 # Upgrade a released alpha.4 app to HEAD and compile it (nightly / readiness)
 test-upgrade-e2e:
@@ -263,13 +279,14 @@ ci-nightly:
 # Local alias for the full release-readiness validation suite
 ci-readiness:
     @just check-mod
+    @just check-published-pins
     @just check-fmt
     @just check-fix
     @just vet
     @just lint
     @just vulncheck
     @just test-race
-    @just test-golden-full
+    @just test-golden-full-release
     @just test-upgrade-e2e
 
 # Local alias for the PR CI suite
@@ -299,6 +316,16 @@ update-golden-full: install-dev-tools
     go clean -testcache
     ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m -update
 
+# Development-only: update PR goldens against this checkout's pkg/inertia.
+update-golden-local-pkg: install-dev-tools
+    go clean -testcache
+    ANDUREL_GOLDEN_LOCAL_PKG=1 env -u ANDUREL_GOLDEN_FULL go test ./golden/... -v -timeout 15m -update
+
+# Development-only: update full-tree goldens against this checkout's pkg/inertia.
+update-golden-full-local-pkg: install-dev-tools
+    go clean -testcache
+    ANDUREL_GOLDEN_LOCAL_PKG=1 ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m -update
+
 # Clean test artifacts and cache
 clean-test:
     go clean -testcache
@@ -308,6 +335,10 @@ clean-test:
 # ============================================================================
 # Release
 # ============================================================================
+
+# Verify every pkg/* pin is published on sum.golang.org and the public proxy
+check-published-pins:
+    go run ./scripts/check-published-pins -root .
 
 # Validate hand-written release notes for tag and print goreleaser's
 # --release-notes flag when docs/release-notes/<tag>.md exists.
