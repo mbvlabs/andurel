@@ -11,26 +11,15 @@ import (
 	"github.com/mbvlabs/andurel/v2/internal/goldentest"
 )
 
-const dummyProjectEnv = `DB_KIND=postgres
-DB_HOST=127.0.0.1
-DB_PORT=5432
-DB_NAME=andurel
-DB_USER=postgres
-DB_PASSWORD=postgres
-DB_SSL_MODE=disable
-`
-
 var generatedMigrationName = regexp.MustCompile(`^migrations/\d{14}_[a-z0-9_]+\.sql$`)
 
 func TestGenerateMigration(t *testing.T) {
 	goldentest.RequireBinary(t)
 
 	project := goldentest.CopyFixture(t, "generate_base")
-	goldentest.WriteProjectFile(t, project, ".env", dummyProjectEnv)
-	if err := os.MkdirAll(filepath.Join(project, "migrations"), 0o755); err != nil {
-		t.Fatalf("mkdir migrations: %v", err)
-	}
 
+	// Migration creation writes a SQL skeleton and must not need .env, a
+	// configured database, or bin/goose.
 	goldentest.RunCLI(t, project, "generate", "migration", "create_widgets")
 
 	rel, err := findGeneratedMigration(project, "create_widgets")
@@ -49,6 +38,21 @@ func TestGenerateMigration(t *testing.T) {
 		project,
 		rel,
 	)
+}
+
+func TestGenerateMigrationDoesNotNeedDatabaseConfiguration(t *testing.T) {
+	goldentest.RequireBinary(t)
+
+	project := goldentest.CopyFixture(t, "generate_base")
+	envPath := filepath.Join(project, ".env")
+	if _, err := os.Stat(envPath); err == nil {
+		t.Fatalf("fixture unexpectedly ships .env")
+	}
+
+	goldentest.RunCLI(t, project, "generate", "migration", "create_widgets")
+	if _, err := findGeneratedMigration(project, "create_widgets"); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func findGeneratedMigration(projectDir, name string) (string, error) {

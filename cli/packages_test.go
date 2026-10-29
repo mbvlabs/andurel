@@ -308,3 +308,68 @@ func decodePackageReport(t *testing.T, stdout string) packageUpdateReport {
 	}
 	return envelope.Data
 }
+
+func TestPackagesListIncludesResponsibilities(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", testAndurelPackagesGoMod)
+	findGoModRoot = func() (string, error) { return root, nil }
+	stubLatestModuleVersions(t, map[string]string{
+		versions.PkgPrefix + "storage": "v0.7.0",
+	})
+
+	var stdout bytes.Buffer
+	cmd := NewRootCommand("test", "test-date")
+	cmd.SetOut(&stdout)
+	cmd.SetArgs([]string{"packages", "list", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("packages list --json: %v", err)
+	}
+
+	report := decodePackageReport(t, stdout.String())
+	if len(report.Packages) != 2 {
+		t.Fatalf("packages = %#v", report.Packages)
+	}
+	for _, pkg := range report.Packages {
+		switch pkg.Name {
+		case "email":
+			if pkg.Responsibility == "" || !strings.Contains(strings.ToLower(pkg.Responsibility), "email") {
+				t.Fatalf("email responsibility = %q", pkg.Responsibility)
+			}
+		case "storage":
+			if pkg.Responsibility == "" || !strings.Contains(strings.ToLower(pkg.Responsibility), "database") {
+				t.Fatalf("storage responsibility = %q", pkg.Responsibility)
+			}
+		default:
+			t.Fatalf("unexpected package %#v", pkg)
+		}
+	}
+}
+
+func TestPackagesListUnknownModuleHasNoResponsibility(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", `module example.com/app
+
+go 1.27.1
+
+require github.com/mbvlabs/andurel/pkg/future v0.1.0
+`)
+	findGoModRoot = func() (string, error) { return root, nil }
+	stubLatestModuleVersions(t, map[string]string{
+		versions.PkgPrefix + "future": "v0.1.0",
+	})
+
+	var stdout bytes.Buffer
+	cmd := NewRootCommand("test", "test-date")
+	cmd.SetOut(&stdout)
+	cmd.SetArgs([]string{"packages", "list", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("packages list --json: %v", err)
+	}
+
+	report := decodePackageReport(t, stdout.String())
+	if len(report.Packages) != 1 || report.Packages[0].Responsibility != "" {
+		t.Fatalf("unknown package responsibility = %#v", report.Packages)
+	}
+}

@@ -193,10 +193,11 @@ func TestNewInertiaAndSQLCCommandsExposeAgentNotes(t *testing.T) {
 	}
 }
 
-func TestGroupCommandsAreNotRunnable(t *testing.T) {
+func TestGroupCommandsDispatchWithoutDefaultAction(t *testing.T) {
 	// Root prints banner+help via Run. inspect project is a leaf with an
-	// optional info alias. Every other command that owns subcommands is a
-	// group and must show help instead of running a default action.
+	// optional info alias. Every other command that owns subcommands uses the
+	// group dispatch RunE: bare invocation shows help, an unknown subcommand is
+	// a usage error. No group has a default action Run.
 	allowRunnableWithChildren := map[string]bool{
 		"andurel":                 true,
 		"andurel inspect project": true,
@@ -207,8 +208,13 @@ func TestGroupCommandsAreNotRunnable(t *testing.T) {
 	walk = func(cmd *cobra.Command) {
 		t.Helper()
 		children := availableSubcommands(cmd)
-		if len(children) > 0 && cmd.Runnable() && !allowRunnableWithChildren[cmd.CommandPath()] {
-			t.Fatalf("%s has subcommands but is runnable; bare invocation should show group help", cmd.CommandPath())
+		if len(children) > 0 && !allowRunnableWithChildren[cmd.CommandPath()] {
+			if cmd.Run != nil {
+				t.Fatalf("%s has subcommands and a default Run action", cmd.CommandPath())
+			}
+			if cmd.RunE == nil {
+				t.Fatalf("%s has subcommands but no group dispatch RunE", cmd.CommandPath())
+			}
 		}
 		for _, child := range children {
 			walk(child)

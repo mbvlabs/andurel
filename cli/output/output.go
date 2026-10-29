@@ -393,7 +393,7 @@ func classifyError(err error) *CLIError {
 			CodeConfigError,
 			err,
 			ExitConfig,
-			"Inspect andurel.lock.",
+			"Check andurel.toml, .env, and exported environment variables, then retry.",
 		)
 	case strings.Contains(msg, "ambiguous"):
 		return WrapError(

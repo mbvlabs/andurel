@@ -46,10 +46,10 @@ var commandMetaSpecs = map[string]CommandMeta{
 	},
 	"andurel inspect": {
 		Summary:         "Read-only project shape",
-		WhenToUse:       []string{"List metadata, routes, domains, handlers, and other source files without writing."},
+		WhenToUse:       []string{"List metadata, routes, pages, processes, URLs, domains, handlers, and other source files without writing."},
 		WhenNotToUse:    []string{"Refreshing derived files is andurel sync."},
 		Prerequisites:   []string{"Andurel project root"},
-		Examples:        []string{"andurel inspect --help", "andurel inspect project --json"},
+		Examples:        []string{"andurel inspect --help", "andurel inspect project --json", "andurel inspect pages --json", "andurel inspect process --json", "andurel inspect urls --json"},
 		RequiresProject: true,
 	},
 	"andurel sync queries": {
@@ -71,7 +71,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 		Details: []string{
 			"Scans routes/*.go and writes resources/js/routes.ts for routes marked routing.TypeScriptRoute() (routing.InertiaRoute() is a deprecated alias).",
 			"JSON endpoints and asset URLs can opt in, not only Inertia page routes.",
-			"Helpers resolve the route host from configureRouteHosts after boot; call them at render time instead of caching a module-scope constant.",
+			"Full-URL helpers throw until configureRouteHosts (browser boot) or withRouteHosts (per SSR render) supplies origins; use routes.<name>.path() for relative URLs.",
 		},
 		WhenToUse: []string{
 			"After adding or changing routes in routes/.",
@@ -200,10 +200,14 @@ var commandMetaSpecs = map[string]CommandMeta{
 		SkipDryRunCheck: true,
 	},
 	"andurel generate migration": {
-		Summary:         "Create a new SQL migration file",
-		Args:            "[name]",
+		Summary: "Create a new SQL migration file",
+		Args:    "NAME",
+		Details: []string{
+			"Writes migrations/<UTC timestamp>_<snake_case_name>.sql with the goose Up/Down skeleton.",
+			"Does not need database configuration, a running database, or bin/goose; applying the migration does.",
+		},
 		WhenToUse:       []string{"Add a schema change as SQL in migrations/."},
-		WhenNotToUse:    []string{"This does not apply the migration; run migrate up next.", "Streams goose output; does not support --json, --agent, or --md."},
+		WhenNotToUse:    []string{"This does not apply the migration; run migrate up next.", "Streams the created path; does not support --json, --agent, or --md."},
 		Prerequisites:   []string{"Andurel project root"},
 		Next:            []string{"andurel db migrate up", "andurel patterns show domain"},
 		Examples:        []string{"andurel generate migration create_posts"},
@@ -487,6 +491,39 @@ var commandMetaSpecs = map[string]CommandMeta{
 		WhenNotToUse:    []string{"Writing resources/js/routes.ts is andurel sync routes."},
 		Prerequisites:   []string{"Andurel project root"},
 		Examples:        []string{"andurel inspect routes --json"},
+		RequiresProject: true,
+	},
+	"andurel inspect pages": {
+		Summary: "List frontend page components and route associations",
+		WhenToUse: []string{
+			"See which components under resources/js/Pages exist and which routes render them.",
+			"Read the SSR policy a page builder sets explicitly; a page without .SSR() reports unresolved because the renderer-wide default is runtime configuration.",
+		},
+		WhenNotToUse:    []string{"Writing resources/js/routes.ts is andurel sync routes."},
+		Prerequisites:   []string{"Andurel project root"},
+		Examples:        []string{"andurel inspect pages", "andurel inspect pages --json", "andurel inspect pages --jq .pages"},
+		RequiresProject: true,
+	},
+	"andurel inspect process": {
+		Summary: "List runnable cmd processes, responsibilities, and health endpoints",
+		WhenToUse: []string{
+			"See which cmd/* processes are runnable and what each is responsible for.",
+			"Read config needs, startup order, and declared health endpoints without building or starting anything.",
+		},
+		WhenNotToUse:    []string{"Building artifacts is andurel build; starting a development server is andurel run."},
+		Prerequisites:   []string{"Andurel project root"},
+		Examples:        []string{"andurel inspect process", "andurel inspect process --json", "andurel inspect process --jq .processes"},
+		RequiresProject: true,
+	},
+	"andurel inspect urls": {
+		Summary: "List routes with resolved host origins and full URLs",
+		WhenToUse: []string{
+			"Resolve route hosts to origins and full URLs from exported environment, .env, and config defaults.",
+			"See configuration provenance and explicit unresolved reasons instead of invented localhost URLs.",
+		},
+		WhenNotToUse:    []string{"Writing route helpers is andurel sync routes; this view is read-only."},
+		Prerequisites:   []string{"Andurel project root"},
+		Examples:        []string{"andurel inspect urls", "andurel inspect urls --json", "andurel inspect urls --jq .routes"},
 		RequiresProject: true,
 	},
 	"andurel inspect domains": {
