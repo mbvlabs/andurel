@@ -1,5 +1,36 @@
 ## Unreleased
 
+## 0.13.0 - 2026-10-29
+
+### Added
+
+- `RendererConfig.SSRDefault` and `WithSSRDefault` server-render every initial
+  document response, so an application no longer has to call
+  `PageBuilder.SSR()` on each page. The zero value keeps the existing per-page
+  opt-in, and Inertia JSON (`X-Inertia`) visits are unaffected.
+- `PageBuilder.CSR()` opts one page out of the renderer-wide SSR default.
+  `PageBuilder.SSR()` still wins when both are set.
+- `Renderer.Readiness` and `Renderer.Health` report whether SSR is required and
+  the configured sidecar answers a bounded `/health` probe. Readiness is
+  computed per call, so losing the sidecar after readiness makes the
+  application unready and restarting it makes the application ready again.
+  `SSRStatus` is the stable reason (`ready`, `disabled`, `csr_fallback`,
+  `unavailable`, `unsupported`); the Vite development transport and custom
+  renderers without a health endpoint are `unsupported`.
+- `SSRRuntime.Health` re-probes the managed sidecar so a launcher can confirm
+  the intended child process is ready.
+
+### Changed
+
+- Error pages stay client-rendered unless `ErrorMapping.SSR`, `ValidationSSR`,
+  or `FallbackSSR` opt in, even when the renderer defaults every other page to
+  SSR. A failed SSR render therefore never retries SSR for the error page it
+  caused.
+- An unmapped 5xx document request without a configured `FallbackComponent` is
+  answered by a built-in escaped HTML page with the status text only. It builds
+  no Inertia page, so it cannot reference a missing component, recurse into SSR
+  or leak handler details. JSON requests still pass the error to the router.
+
 ## 0.12.1 - 2026-10-28
 
 ### Fixed

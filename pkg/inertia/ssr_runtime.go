@@ -172,6 +172,18 @@ func (runtime *SSRRuntime) Errors() <-chan error {
 	return runtime.errors
 }
 
+// Health reports whether the managed sidecar answers its /health endpoint. It
+// is bounded by the runtime's HealthTimeout and by ctx, and it is safe to call
+// before Start. Launchers use it to confirm the intended child is ready
+// instead of probing an unrelated listener.
+func (runtime *SSRRuntime) Health(ctx context.Context) error {
+	if runtime == nil {
+		return fmt.Errorf("inertia: SSR runtime is nil")
+	}
+
+	return runtime.renderer.Health(ctx)
+}
+
 // Start starts the configured JavaScript process and waits for health readiness.
 func (runtime *SSRRuntime) Start(ctx context.Context) (err error) {
 	if runtime == nil {

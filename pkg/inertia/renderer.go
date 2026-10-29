@@ -51,6 +51,7 @@ type Renderer struct {
 	requestFlash        []func(context.Context) any
 	ssr                 SSRRenderer
 	customSSR           bool
+	ssrDefault          bool
 	ssrURL              string
 	ssrTimeout          time.Duration
 	ssrMaxResponseBytes int64
@@ -107,11 +108,23 @@ func WithFlashProvider(provider FlashProvider) Option {
 	}
 }
 
-// WithSSRRenderer configures the SSR gateway used only by pages with WithSSR.
+// WithSSRRenderer configures the SSR gateway used by pages that server-render:
+// every page when WithSSRDefault(true) is set, otherwise the pages that call
+// PageBuilder.SSR().
 func WithSSRRenderer(ssr SSRRenderer) Option {
 	return func(renderer *Renderer) error {
 		renderer.ssr = ssr
 		renderer.customSSR = ssr != nil
+		return nil
+	}
+}
+
+// WithSSRDefault server-renders every initial document response unless the
+// page opts out with PageBuilder.CSR(). It is off by default so existing
+// applications keep the per-page PageBuilder.SSR() opt-in.
+func WithSSRDefault(enabled bool) Option {
+	return func(renderer *Renderer) error {
+		renderer.ssrDefault = enabled
 		return nil
 	}
 }
@@ -170,6 +183,7 @@ type PageBuilder struct {
 	status           int
 	url              string
 	ssr              bool
+	csr              bool
 	validationErrors map[string]string
 	encryptHistory   bool
 	clearHistory     bool
@@ -177,8 +191,18 @@ type PageBuilder struct {
 	flash            any
 }
 
-// SSR opts this initial document response into server-side rendering.
+// SSR opts this initial document response into server-side rendering, even
+// when the renderer-wide default is off.
 func (p *PageBuilder) SSR() *PageBuilder { p.ssr = true; return p }
+
+// CSR opts this initial document response out of server-side rendering, even
+// when the renderer-wide default is on. PageBuilder.SSR() wins if both are set.
+func (p *PageBuilder) CSR() *PageBuilder { p.csr = true; return p }
+
+// serverRendered reports the effective SSR policy of this response.
+func (p *PageBuilder) serverRendered() bool {
+	return p.ssr || (p.renderer.ssrDefault && !p.csr)
+}
 
 // Status sets the page response HTTP status code.
 func (p *PageBuilder) Status(status int) *PageBuilder {
@@ -372,7 +396,7 @@ func (p *PageBuilder) Render() error {
 	}
 
 	var ssrResponse *SSRResponse
-	if p.ssr {
+	if p.serverRendered() {
 		if renderer.ssr == nil {
 			err = fmt.Errorf("SSR requested without a configured renderer")
 		} else {

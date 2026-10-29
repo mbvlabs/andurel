@@ -153,7 +153,49 @@ func TestErrorHandlerAcceptsMappingSlice(t *testing.T) {
 	}
 }
 
-func TestErrorHandlerPassesUnmappedErrorsThrough(t *testing.T) {
+func TestErrorHandlerWritesSafeUnmappedServerErrorPage(t *testing.T) {
+	var captured RootData
+	ssr := &fakeSSRRenderer{response: &SSRResponse{
+		Body: `<div data-server-rendered="true" data-page="app">ssr</div>`,
+	}}
+	renderer, err := newTestRenderer(
+		WithRoot(testRoot(&captured)),
+		WithSSRRenderer(ssr),
+		WithSSRDefault(true),
+	)
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+	handler := ErrorHandler(renderer)
+
+	secret := errors.New("dial tcp db-internal:5432: secret detail")
+	_, recorder, ctx := errorHandlerRequest(
+		http.MethodGet,
+		"/users/1",
+		map[string]string{HeaderInertia: "true"},
+	)
+	if got := handler(ctx, secret); got != nil {
+		t.Fatalf("ErrorHandler returned %v, want a safe response", got)
+	}
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", recorder.Code)
+	}
+	if contentType := recorder.Header().Get("Content-Type"); !strings.HasPrefix(contentType, "text/html") {
+		t.Fatalf("Content-Type = %q, want text/html", contentType)
+	}
+	body := recorder.Body.String()
+	if strings.Contains(body, "secret detail") || strings.Contains(body, "dial tcp") {
+		t.Fatalf("safe error page leaked handler details: %q", body)
+	}
+	if !strings.Contains(body, "Internal Server Error") {
+		t.Fatalf("safe error page = %q, want the escaped status text", body)
+	}
+	if ssr.calls != 0 || captured.SSR != nil {
+		t.Fatalf("safe error page went through SSR: calls=%d captured=%#v", ssr.calls, captured.SSR)
+	}
+}
+
+func TestErrorHandlerPassesUnmappedServerErrorJSONToRouter(t *testing.T) {
 	var captured RootData
 	renderer, err := newTestRenderer(WithRoot(testRoot(&captured)))
 	if err != nil {
@@ -164,18 +206,6 @@ func TestErrorHandlerPassesUnmappedErrorsThrough(t *testing.T) {
 	unmapped := errors.New("unmapped")
 
 	_, recorder, ctx := errorHandlerRequest(
-		http.MethodGet,
-		"/users/1",
-		map[string]string{HeaderInertia: "true"},
-	)
-	if got := handler(ctx, unmapped); got != unmapped {
-		t.Fatalf("ErrorHandler returned %v, want the original error", got)
-	}
-	if recorder.Body.Len() != 0 {
-		t.Fatalf("body = %q, want empty", recorder.Body.String())
-	}
-
-	_, recorder, ctx = errorHandlerRequest(
 		http.MethodGet,
 		"/users/1",
 		map[string]string{"Accept": "application/json"},
@@ -391,5 +421,142 @@ func TestPageErrorsSetsFieldMap(t *testing.T) {
 	}
 	if page == nil {
 		t.Fatal("Errors returned a nil page")
+	}
+}
+
+func TestErrorPagesStayClientRenderedUnderRendererSSRDefault(t *testing.T) {
+	var captured RootData
+	ssr := &fakeSSRRenderer{response: &SSRResponse{
+		Body: `<div data-server-rendered="true" data-page="app">ssr</div>`,
+	}}
+	renderer, err := newTestRenderer(
+		WithRoot(testRoot(&captured)),
+		WithSSRRenderer(ssr),
+		WithSSRDefault(true),
+	)
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	sentinel := errors.New("not found")
+	handler := NewErrorHandler(
+		renderer,
+		ErrorHandlerOptions{FallbackComponent: "Errors/InternalError"},
+		MapError(sentinel, http.StatusNotFound, "Errors/NotFound"),
+	)
+
+	_, recorder, ctx := errorHandlerRequest(http.MethodGet, "/users/1", nil)
+	if err := handler(ctx, sentinel); err != nil {
+		t.Fatalf("mapped page: %v", err)
+	}
+	if recorder.Code != http.StatusNotFound || ssr.calls != 0 {
+		t.Fatalf("mapped page status=%d ssrCalls=%d, want 404 and no SSR", recorder.Code, ssr.calls)
+	}
+
+	_, recorder, ctx = errorHandlerRequest(http.MethodGet, "/dashboard", nil)
+	if err := handler(ctx, errors.New("boom")); err != nil {
+		t.Fatalf("fallback page: %v", err)
+	}
+	if recorder.Code != http.StatusInternalServerError || ssr.calls != 0 {
+		t.Fatalf("fallback status=%d ssrCalls=%d, want 500 and no SSR", recorder.Code, ssr.calls)
+	}
+	if captured.Page.Component != "Errors/InternalError" {
+		t.Fatalf("fallback component = %q, want Errors/InternalError", captured.Page.Component)
+	}
+
+	_, recorder, ctx = errorHandlerRequest(
+		http.MethodPost,
+		"/login",
+		map[string]string{HeaderInertia: "true"},
+	)
+	fieldErr := testFieldError{fields: map[string]string{"email": "is required"}}
+	if err := handler(ctx, fieldErr); err != nil {
+		t.Fatalf("validation page: %v", err)
+	}
+	if recorder.Code != http.StatusUnprocessableEntity || ssr.calls != 0 {
+		t.Fatalf("validation status=%d ssrCalls=%d, want 422 and no SSR", recorder.Code, ssr.calls)
+	}
+}
+
+func TestErrorHandlerFallbackPageOptsIntoSSRExplicitly(t *testing.T) {
+	var captured RootData
+	ssr := &fakeSSRRenderer{response: &SSRResponse{
+		Body: `<div data-server-rendered="true" data-page="app">themed</div>`,
+	}}
+	renderer, err := newTestRenderer(
+		WithRoot(testRoot(&captured)),
+		WithSSRRenderer(ssr),
+		WithSSRDefault(true),
+	)
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	handler := NewErrorHandler(
+		renderer,
+		ErrorHandlerOptions{
+			FallbackComponent: "Errors/InternalError",
+			FallbackSSR:       true,
+		},
+	)
+
+	_, recorder, ctx := errorHandlerRequest(http.MethodGet, "/dashboard", nil)
+	if err := handler(ctx, errors.New("boom")); err != nil {
+		t.Fatalf("ErrorHandler: %v", err)
+	}
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", recorder.Code)
+	}
+	if ssr.calls != 1 || captured.SSR == nil {
+		t.Fatalf("explicit FallbackSSR did not render through SSR: calls=%d", ssr.calls)
+	}
+}
+
+func TestThemedFallbackAnswersFailedSSRRenderWithStatus500(t *testing.T) {
+	var captured RootData
+	ssr := &fakeSSRRenderer{err: errors.New("connection refused")}
+	renderer, err := newTestRenderer(
+		WithRoot(testRoot(&captured)),
+		WithSSRRenderer(ssr),
+		WithSSRDefault(true),
+		WithSSRFailFast(true),
+	)
+	if err != nil {
+		t.Fatalf("NewRenderer: %v", err)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	recorder := httptest.NewRecorder()
+	renderErr := renderer.Page(testContext(request, recorder), "Welcome", nil).Render()
+	if renderErr == nil {
+		t.Fatal("expected the default SSR page to fail without a sidecar")
+	}
+	if ssr.calls != 1 {
+		t.Fatalf("SSR calls = %d, want the failed render", ssr.calls)
+	}
+
+	ssr.calls = 0
+	handler := NewErrorHandler(
+		renderer,
+		ErrorHandlerOptions{FallbackComponent: "Errors/InternalError"},
+	)
+	_, recorder, ctx := errorHandlerRequest(http.MethodGet, "/", nil)
+	if err := handler(ctx, renderErr); err != nil {
+		t.Fatalf("ErrorHandler: %v", err)
+	}
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", recorder.Code)
+	}
+	if ssr.calls != 0 {
+		t.Fatalf("themed fallback retried SSR for the SSR failure: %d calls", ssr.calls)
+	}
+	if captured.Page.Component != "Errors/InternalError" {
+		t.Fatalf("component = %q, want Errors/InternalError", captured.Page.Component)
+	}
+	if captured.SSR != nil {
+		t.Fatal("themed fallback carried an SSR response")
+	}
+	if body := recorder.Body.String(); body != "client" {
+		t.Fatalf("body = %q, want the client-rendered themed document", body)
 	}
 }
