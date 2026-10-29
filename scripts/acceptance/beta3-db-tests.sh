@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016,SC2329
 # Beta.3 F20 database-test gate.
 #
 # Proves that a freshly generated React/pnpm application, built from this
@@ -43,6 +44,7 @@ A=""
 APP=""
 APP_NAME=""
 CANDIDATE_SHA="$(git -C "$ROOT" rev-parse HEAD)"
+CANDIDATE_VERSION="${ANDUREL_ACCEPTANCE_VERSION:-v2.0.0-beta.4}"
 
 # Generated database tests. Each one calls testCluster.NewTestDB (or
 # NewTestDBWithConfig through testConfig), so a pass proves a real migrated
@@ -169,14 +171,14 @@ run_recorded() {
 	{
 		printf 'cwd=%s\n' "$dir"
 		printf 'cmd='
-		printf '%q ' "$@"
+		printf '%q ' timeout --kill-after=15 "${PROBE_TIMEOUT:-900}" "$@"
 		printf '\n'
 	} >"$prefix.command"
 
 	set +e
 	(
 		cd "$dir"
-		"$@"
+		timeout --kill-after=15 "${PROBE_TIMEOUT:-900}" "$@"
 	) >"$prefix.stdout" 2>"$prefix.stderr"
 	local code=$?
 	set -e
@@ -262,6 +264,7 @@ command_value() {
 write_environment() {
 	{
 		printf 'candidate_sha=%s\n' "$CANDIDATE_SHA"
+		printf 'candidate_version=%s (unpublished acceptance build)\n' "$CANDIDATE_VERSION"
 		printf 'branch=%s\n' "$(command_value unavailable git -C "$ROOT" rev-parse --abbrev-ref HEAD)"
 		printf 'candidate_dirty_files=%s\n' "$(git -C "$ROOT" status --porcelain | wc -l)"
 		printf 'mode=%s\n' "$MODE"
@@ -286,7 +289,7 @@ prepare() {
 	log "scratch: $SCRATCH"
 	log "evidence: $EVIDENCE"
 
-	run_recorded 01-build-cli "$ROOT" env GOWORK=off go build -o "$SCRATCH/bin/andurel" .
+	run_recorded 01-build-cli "$ROOT" env GOWORK=off go build -ldflags "-X main.version=$CANDIDATE_VERSION" -o "$SCRATCH/bin/andurel" .
 	if ! assert_status 01-build-cli 0; then
 		finish fail 1 "building the candidate CLI failed"
 	fi
@@ -348,6 +351,14 @@ generate_app() {
 
 apply_local_replaces() {
 	if [[ "$MODE" == release ]]; then
+		local inertia_version
+		inertia_version="$(awk -F '"' '/^[[:space:]]*Inertia = / { print $2 }' "$ROOT/layout/versions/versions.go")"
+		if [[ -z "$inertia_version" ]]; then
+			finish fail 1 "cannot determine candidate Inertia version"
+		fi
+		if ! git -C "$ROOT" show-ref --verify --quiet "refs/tags/pkg/inertia/$inertia_version"; then
+			finish blocked 77 "release gate: pkg/inertia/$inertia_version tag is absent; do not fetch an unpublished candidate"
+		fi
 		run_recorded 04-go-mod-tidy "$APP" env GOWORK=off go mod tidy
 		if [[ "$(step_status 04-go-mod-tidy)" != 0 ]]; then
 			finish blocked 77 "release-shaped go mod tidy failed; the candidate pkg/inertia pin is likely unpublished (see 04-go-mod-tidy.stderr)"

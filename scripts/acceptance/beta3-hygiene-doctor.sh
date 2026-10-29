@@ -36,6 +36,7 @@ umask 022
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CANDIDATE_SHA="$(git -C "$ROOT" rev-parse HEAD)"
+CANDIDATE_VERSION="${ANDUREL_ACCEPTANCE_VERSION:-v2.0.0-beta.4}"
 EVIDENCE=""
 REQUIRE_ALL=0
 KEEP_SCRATCH=0
@@ -295,6 +296,7 @@ run_probe() {
 write_environment() {
 	{
 		printf 'candidate_sha=%s\n' "$CANDIDATE_SHA"
+		printf 'candidate_version=%s (unpublished acceptance build)\n' "$CANDIDATE_VERSION"
 		printf 'candidate_dirty=%s\n' "$(git -C "$ROOT" status --porcelain | wc -l)"
 		printf 'go=%s\n' "$(go version)"
 		printf 'node=%s\n' "$(node --version 2>/dev/null || echo unavailable)"
@@ -320,7 +322,7 @@ prepare() {
 	log "evidence: $EVIDENCE"
 	(
 		cd "$ROOT"
-		GOWORK=off go build -o "$SCRATCH/bin/andurel" .
+		GOWORK=off go build -ldflags "-X main.version=$CANDIDATE_VERSION" -o "$SCRATCH/bin/andurel" .
 	)
 	A="$SCRATCH/bin/andurel"
 	"$A" --version >"$EVIDENCE/cli-version.txt" 2>&1

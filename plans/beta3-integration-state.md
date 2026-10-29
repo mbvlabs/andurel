@@ -38,7 +38,19 @@ targets beta.4 and applies all five new actions to alpha.4 through beta.3 source
 apps. The coordinator is rerunning that expanded suite with `GOWORK=off` for
 the CLI build as well.
 
-The live, DB-test, and site workers are still in progress. See
+The database-test worker's commits are integrated (`6d832a65`, `6afcf31f`,
+`a6ddf1f6`, `a47d98af`); the coordinator independently reran its gate: 15 named
+database tests passed uncached and verify reported 28 passes, 0 failures/skips.
+It is wired as `20-database-tests` under `--full`.
+
+The site worker completed `d7457d6` and `bfaf158` on lane F, with 45 passing
+development checks. Coordinator isolation/cleanup refinements are committed as
+`22a62ff`, and its independent rerun also passed all 45 checks. The main harness accepts `--site-dir` and
+can run the site gate rather than unconditionally blocking it. It still labels
+the development replacements accurately and blocks release mode for that
+companion.
+
+Only the live fresh-scaffold worker is still in progress. See
 `plans/evidence/beta3-complete-fix/finish-2026-10-29/checks.md` for coordinator
 validation. No publication or push is authorized.
 

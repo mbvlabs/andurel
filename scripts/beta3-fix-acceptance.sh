@@ -10,7 +10,8 @@
 #
 # Usage:
 #   scripts/beta3-fix-acceptance.sh [--mode dev|release] [--evidence-dir DIR]
-#                                   [--full] [--require-all] [--keep-scratch]
+#                                   [--full] [--site-dir DIR] [--require-all]
+#                                   [--keep-scratch]
 #
 # Modes:
 #   dev      Development integration. A generated app is pointed at this
@@ -34,7 +35,9 @@ FULL=0
 REQUIRE_ALL=0
 KEEP_SCRATCH=0
 EVIDENCE=""
+SITE_DIR="${ANDUREL_ACCEPTANCE_SITE_DIR:-}"
 CANDIDATE_SHA="$(git -C "$ROOT" rev-parse HEAD)"
+CANDIDATE_VERSION="${ANDUREL_ACCEPTANCE_VERSION:-v2.0.0-beta.4}"
 SCRATCH=""
 A=""
 HEALTHCHILD=""
@@ -61,6 +64,10 @@ while [[ $# -gt 0 ]]; do
 	--full)
 		FULL=1
 		shift
+		;;
+	--site-dir)
+		SITE_DIR="${2:-}"
+		shift 2
 		;;
 	--require-all)
 		REQUIRE_ALL=1
@@ -224,6 +231,7 @@ run_probe() {
 write_environment() {
 	{
 		printf 'candidate_sha=%s\n' "$CANDIDATE_SHA"
+		printf 'candidate_version=%s (unpublished acceptance build)\n' "$CANDIDATE_VERSION"
 		printf 'mode=%s\n' "$MODE"
 		printf 'candidate_dirty=%s\n' "$(git -C "$ROOT" status --porcelain | wc -l)"
 		printf 'go=%s\n' "$(go version)"
@@ -247,7 +255,7 @@ prepare() {
 	log "evidence: $EVIDENCE"
 	(
 		cd "$ROOT"
-		GOWORK=off go build -o "$SCRATCH/bin/andurel" .
+		GOWORK=off go build -ldflags "-X main.version=$CANDIDATE_VERSION" -o "$SCRATCH/bin/andurel" .
 	)
 	A="$SCRATCH/bin/andurel"
 	"$A" --version >"$EVIDENCE/cli-version.txt" 2>&1
@@ -678,8 +686,36 @@ probe_hygiene_doctor() {
 	fi
 }
 
+probe_database_tests() {
+	if [[ "$FULL" -ne 1 ]]; then
+		blocked "uncached generated database tests require --full and Docker"
+	fi
+	local code
+	code="$(PROBE_TIMEOUT=1800 capture "$PROBE_PREFIX.runner" \
+		"$ROOT/scripts/acceptance/beta3-db-tests.sh" --mode "$MODE" \
+		--evidence-dir "$EVIDENCE/database-tests")"
+	if [[ "$code" == 77 ]]; then
+		blocked "database-test companion is blocked; see nested evidence"
+	fi
+	assert_status "$PROBE_PREFIX.runner" 0
+}
+
 probe_site_gate() {
-	blocked "andurel-site adoption (F35/F32/F21/F25) is verified in the separate site worktree, not the framework scaffold"
+	if [[ "$MODE" != dev ]]; then
+		blocked "site companion currently uses local module replacements, not release-shaped proof"
+	fi
+	if [[ "$FULL" -ne 1 ]]; then
+		blocked "live site acceptance requires --full --site-dir <andurel-site checkout>"
+	fi
+	if [[ -z "$SITE_DIR" || ! -f "$SITE_DIR/scripts/beta3-site-acceptance.sh" ]]; then
+		blocked "set --site-dir to the site checkout containing scripts/beta3-site-acceptance.sh"
+	fi
+	local code
+	code="$(PROBE_TIMEOUT=1800 capture "$PROBE_PREFIX.runner" \
+		bash "$SITE_DIR/scripts/beta3-site-acceptance.sh" --framework "$ROOT" \
+		--candidate-cli "$A" --live --evidence "$EVIDENCE/site")"
+	assert_status "$PROBE_PREFIX.runner" 0
+	assert_contains "$EVIDENCE/site/summary.txt" "acceptance: passed"
 }
 
 write_summary() {
@@ -732,6 +768,7 @@ main() {
 	run_probe 17-live-runtime-gates probe_runtime_gates
 	run_probe 18-site-gate probe_site_gate
 	run_probe 19-hygiene-doctor probe_hygiene_doctor
+	run_probe 20-database-tests probe_database_tests
 	write_summary
 	if [[ "$FAILURES" -gt 0 ]]; then
 		exit 1

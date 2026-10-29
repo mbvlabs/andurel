@@ -50,6 +50,25 @@ subsequent finishing changes.
   ShellCheck was invoked directly at
   `/home/mbv/.local/share/mise/installs/shellcheck/0.11.0/shellcheck-v0.11.0/shellcheck`
   because the ambient shim has no selected version.
+- Database-test gate independently rerun on the integrated checkout:
+  `/tmp/opencode/beta3-coordinator/database-integrated/`, exit 0. All 15 named
+  DB tests passed uncached; verify: 4 tested packages, 28 passes, 0 failures,
+  0 skips, 5 passing subtests, 17 no-test-file packages. The main harness now
+  invokes it as required full-mode probe 20. Per-command timeouts and a
+  pre-publication guard were added during integration.
+- Site worker: `d7457d6`/`bfaf158`, 45 development checks pass in lane F. The
+  coordinator tightened evidence retention, `.env` exclusion, dependency-copy
+  isolation, child-command timeouts/status capture, and container cleanup by
+  captured ID only. An initial coordinator rerun was invalidated by editing its
+  shell runner while it was executing (exit 2); a fresh stable-file rerun is in
+  progress at `/tmp/opencode/beta3-coordinator/site-isolated/`. The invalid run
+  remains at `site-integrated/`; it is not acceptance proof. The clean
+  `site-isolated/` rerun subsequently **passed all 45 checks**, including Go
+  formatting/fix/vet/tests, frontend checks, full verify, live production SSR,
+  analytics, and readiness failure/recovery. Site refinements: `22a62ff`.
+- Acceptance scripts now inject `main.version=v2.0.0-beta.4` with the existing
+  linker contract and record the exact checkout SHA separately. Earlier
+  development runs reported their go-build-derived beta.3 pseudo-version.
 
 ## Still outstanding
 
