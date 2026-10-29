@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -10,7 +11,38 @@ import (
 	"strings"
 )
 
-// routeUsageAnalysis checks frontend modules for full-URL route-helper calls
+// routeUsageResolver resolves an import specifier to the generated routes.ts
+// path. It understands relative ESM imports and the project's tsconfig
+// compilerOptions.paths aliases; re-exports and dynamic property access remain
+// outside this analysis.
+type routeUsageResolver struct {
+	routesPath string
+	aliases    []tsPathAlias
+}
+
+// tsPathAlias is one tsconfig compilerOptions.paths mapping. pattern and target
+// are root-relative slash paths; target keeps its '*' placeholder.
+type tsPathAlias struct {
+	pattern string
+	target  string
+}
+
+func (alias tsPathAlias) resolve(specifier string) (string, bool) {
+	if !strings.Contains(alias.pattern, "*") {
+		return alias.target, specifier == alias.pattern
+	}
+	prefix, suffix, _ := strings.Cut(alias.pattern, "*")
+	if !strings.HasPrefix(specifier, prefix) || !strings.HasSuffix(specifier, suffix) {
+		return "", false
+	}
+	wildcard := strings.TrimSuffix(strings.TrimPrefix(specifier, prefix), suffix)
+	if wildcard == "" {
+		return "", false
+	}
+	return strings.Replace(alias.target, "*", wildcard, 1), true
+}
+
+// analyzeRouteUsage checks frontend modules for full-URL route-helper calls
 // that run during module initialization. Generated routes.ts resolves a
 // helper's host from configureRouteHosts at call time, so a call evaluated
 // while the module initializes freezes an empty or stale origin and can leak it
@@ -18,13 +50,14 @@ import (
 // `.path()` relative helpers are allowed.
 //
 // The analysis is token-based rather than a TypeScript program: it has no type
-// checker and resolves only relative ESM imports. It recognizes the generated
-// `routes.<helper>(...)` shape, namespace and named imports, module-scope
-// object aliases and destructuring, and one level of locally declared wrapper
-// functions. Dynamic property access, tsconfig path aliases, re-exports, and
-// cross-module wrappers are outside this analysis; the Inertia runtime's
-// request-scoped host context is the authoritative safety net for those cases.
-// `andurel verify --help` documents these limits.
+// checker and resolves relative ESM imports plus tsconfig path aliases. It
+// recognizes the generated `routes.<helper>(...)` shape, namespace and named
+// imports, module-scope object aliases and destructuring, immediately invoked
+// function expressions, and one level of locally declared wrapper functions.
+// Dynamic property access, re-exports, and cross-module wrappers are outside
+// this analysis; the Inertia runtime's request-scoped host context is the
+// authoritative safety net for those cases. `andurel verify --help` documents
+// these limits.
 func analyzeRouteUsage(rootDir string) (violations []verifyViolation, skippedReason string, applicable bool) {
 	routesPath := generatedRoutesJSPath
 	frontendRoot := filepath.Join(rootDir, "resources", "js")
@@ -37,6 +70,10 @@ func analyzeRouteUsage(rootDir string) (violations []verifyViolation, skippedRea
 	helpers, err := generatedRouteHelperNames(rootDir, routesPath)
 	if err != nil || len(helpers) == 0 {
 		return nil, "resources/js/routes.ts has no generated route helpers; run andurel sync routes", true
+	}
+	resolver := routeUsageResolver{
+		routesPath: routesPath,
+		aliases:    loadTsconfigPathAliases(rootDir),
 	}
 	violations = make([]verifyViolation, 0)
 	walkErr := filepath.WalkDir(frontendRoot, func(current string, entry os.DirEntry, err error) error {
@@ -63,7 +100,7 @@ func analyzeRouteUsage(rootDir string) (violations []verifyViolation, skippedRea
 		}
 		violations = append(
 			violations,
-			analyzeRouteUsageFile(rel, string(body), routesPath, helpers)...,
+			analyzeRouteUsageFile(rel, string(body), resolver, helpers)...,
 		)
 		return nil
 	})
@@ -112,11 +149,12 @@ func isTypeScriptSource(rel string) bool {
 // analyzeRouteUsageFile checks one module and returns its
 // module-initialization violations.
 func analyzeRouteUsageFile(
-	file, body, routesPath string,
+	file, body string,
+	resolver routeUsageResolver,
 	helpers map[string]bool,
 ) []verifyViolation {
 	tokens := lexTypeScript(body)
-	namespaces, importedHelpers := routeModuleBindings(file, tokens, routesPath, helpers)
+	namespaces, importedHelpers := routeModuleBindings(file, tokens, resolver, helpers)
 	wrappers := moduleWrapperFunctions(tokens, namespaces, importedHelpers, helpers)
 	usages := moduleInitializationUsages(tokens, namespaces, importedHelpers, wrappers, helpers)
 	violations := make([]verifyViolation, 0, len(usages))
@@ -364,12 +402,12 @@ func templateInterpolations(text string) []string {
 }
 
 // routeModuleBindings collects local names bound to the generated routes
-// module and its helpers. Only relative ESM imports are resolved; tsconfig
-// path aliases are documented as unsupported.
+// module and its helpers. Import specifiers resolve through relative ESM paths
+// and the project's tsconfig path aliases.
 func routeModuleBindings(
 	file string,
 	tokens []tsToken,
-	routesPath string,
+	resolver routeUsageResolver,
 	helpers map[string]bool,
 ) (map[string]bool, map[string]bool) {
 	namespaces := map[string]bool{}
@@ -403,7 +441,7 @@ func routeModuleBindings(
 		}
 		// String tokens carry no text; re-read the raw specifier is impossible
 		// here, so lexer keeps string text for import specifiers.
-		if specifier == "" || !specifierResolvesTo(file, specifier, routesPath) {
+		if specifier == "" || !resolver.resolves(file, specifier) {
 			continue
 		}
 		for position := 0; position < len(clause); position++ {
@@ -437,26 +475,157 @@ func routeModuleBindings(
 	return namespaces, importedHelpers
 }
 
-// specifierResolvesTo resolves a relative ESM specifier to the generated
-// routes.ts path. Bare package specifiers and tsconfig aliases return false.
-func specifierResolvesTo(importer, specifier, routesPath string) bool {
-	if !strings.HasPrefix(specifier, ".") {
-		return false
+// resolves reports whether the specifier, imported from the root-relative
+// importer, names the generated routes.ts. Relative ESM specifiers resolve
+// against the importer; tsconfig path aliases resolve against the project root.
+func (resolver routeUsageResolver) resolves(importer, specifier string) bool {
+	candidates := make([]string, 0, len(resolver.aliases)+6)
+	if strings.HasPrefix(specifier, ".") {
+		base := path.Clean(path.Join(path.Dir(importer), specifier))
+		candidates = append(candidates,
+			base,
+			base+".ts",
+			base+".tsx",
+			base+"/index.ts",
+			base+"/index.tsx",
+		)
+		if before, ok := strings.CutSuffix(base, ".js"); ok {
+			candidates = append(candidates, before+".ts")
+		}
+	} else {
+		for _, alias := range resolver.aliases {
+			if mapped, ok := alias.resolve(specifier); ok {
+				candidates = append(candidates, mapped, mapped+".ts", mapped+".tsx",
+					mapped+"/index.ts", mapped+"/index.tsx")
+			}
+		}
 	}
-	base := path.Clean(path.Join(path.Dir(importer), specifier))
-	candidates := []string{
-		base,
-		base + ".ts",
-		base + ".tsx",
-		base + "/index.ts",
-		base + "/index.tsx",
-	}
-	if before, ok := strings.CutSuffix(base, ".js"); ok {
-		candidates = append(candidates, before+".ts")
-	}
-	return slices.Contains(candidates, routesPath)
+	return slices.Contains(candidates, resolver.routesPath)
 }
 
+// loadTsconfigPathAliases reads compilerOptions.paths from the project's
+// tsconfig.json. A missing or unreadable tsconfig is not an analysis error: the
+// rule then resolves only relative imports, which is what a project without
+// path aliases uses. Targets resolve relative to compilerOptions.baseUrl, or to
+// the tsconfig directory when baseUrl is absent.
+func loadTsconfigPathAliases(rootDir string) []tsPathAlias {
+	body, err := os.ReadFile(filepath.Join(rootDir, "tsconfig.json"))
+	if err != nil {
+		return nil
+	}
+	var config struct {
+		CompilerOptions struct {
+			BaseURL string              `json:"baseUrl"`
+			Paths   map[string][]string `json:"paths"`
+		} `json:"compilerOptions"`
+	}
+	if err := json.Unmarshal([]byte(stripJSONC(string(body))), &config); err != nil {
+		return nil
+	}
+	base := "."
+	if config.CompilerOptions.BaseURL != "" {
+		base = config.CompilerOptions.BaseURL
+	}
+	patterns := make([]string, 0, len(config.CompilerOptions.Paths))
+	for pattern := range config.CompilerOptions.Paths {
+		patterns = append(patterns, pattern)
+	}
+	slices.Sort(patterns)
+	aliases := make([]tsPathAlias, 0, len(patterns))
+	for _, pattern := range patterns {
+		for _, target := range config.CompilerOptions.Paths[pattern] {
+			resolved := path.Clean(path.Join(base, target))
+			if strings.HasPrefix(resolved, "../") {
+				// A target outside the project cannot name resources/js/routes.ts;
+				// skip it instead of inventing a path.
+				continue
+			}
+			aliases = append(aliases, tsPathAlias{pattern: pattern, target: resolved})
+		}
+	}
+	return aliases
+}
+
+// stripJSONC removes // and /* */ comments and trailing commas so a tsconfig
+// that uses JSON with comments still parses. String literals are preserved.
+func stripJSONC(src string) string {
+	var out strings.Builder
+	out.Grow(len(src))
+	inString := false
+	for index := 0; index < len(src); index++ {
+		char := src[index]
+		if inString {
+			out.WriteByte(char)
+			if char == '\\' && index+1 < len(src) {
+				index++
+				out.WriteByte(src[index])
+				continue
+			}
+			if char == '"' {
+				inString = false
+			}
+			continue
+		}
+		switch {
+		case char == '"':
+			inString = true
+			out.WriteByte(char)
+		case char == '/' && index+1 < len(src) && src[index+1] == '/':
+			for index < len(src) && src[index] != '\n' {
+				index++
+			}
+			out.WriteByte('\n')
+		case char == '/' && index+1 < len(src) && src[index+1] == '*':
+			index += 2
+			for index+1 < len(src) && !(src[index] == '*' && src[index+1] == '/') {
+				index++
+			}
+			index++
+		default:
+			out.WriteByte(char)
+		}
+	}
+
+	stripped := out.String()
+	out.Reset()
+	out.Grow(len(stripped))
+	inString = false
+	for index := 0; index < len(stripped); index++ {
+		char := stripped[index]
+		if inString {
+			out.WriteByte(char)
+			if char == '\\' && index+1 < len(stripped) {
+				index++
+				out.WriteByte(stripped[index])
+				continue
+			}
+			if char == '"' {
+				inString = false
+			}
+			continue
+		}
+		switch char {
+		case '"':
+			inString = true
+			out.WriteByte(char)
+		case ',':
+			next := index + 1
+			for next < len(stripped) && (stripped[next] == ' ' || stripped[next] == '\t' ||
+				stripped[next] == '\n' || stripped[next] == '\r') {
+				next++
+			}
+			if next < len(stripped) && (stripped[next] == '}' || stripped[next] == ']') {
+				continue
+			}
+			out.WriteByte(char)
+		default:
+			out.WriteByte(char)
+		}
+	}
+	return out.String()
+}
+
+// moduleUsage is one module-initialization helper call.
 type moduleUsage struct {
 	line           int
 	description    string
@@ -526,7 +695,9 @@ func moduleWrapperFunctions(
 
 // moduleInitializationUsages walks top-level declarations and flags full-URL
 // helper calls evaluated by the initializer. Function bodies are deferred and
-// skipped; a deferred arrow initializer only marks a wrapper.
+// skipped; a deferred arrow initializer only marks a wrapper. An immediately
+// invoked function expression and a bare top-level call execute during module
+// initialization, so they are flagged too.
 func moduleInitializationUsages(
 	tokens []tsToken,
 	namespaces, importedHelpers, wrappers, helpers map[string]bool,
@@ -534,6 +705,21 @@ func moduleInitializationUsages(
 	usages := make([]moduleUsage, 0)
 	depth := 0
 	for index := 0; index < len(tokens); index++ {
+		if depth == 0 && tokens[index].Text == "(" {
+			close := matchingToken(tokens, index)
+			if close > index {
+				usages = append(usages, eagerlyInvokedUsages(
+					tokens[index:], namespaces, importedHelpers, wrappers, helpers,
+				)...)
+				index = close
+				if index+1 < len(tokens) && tokens[index+1].Text == "(" {
+					if callClose := matchingToken(tokens, index+1); callClose > index {
+						index = callClose
+					}
+				}
+				continue
+			}
+		}
 		switch tokens[index].Text {
 		case "{", "(", "[":
 			depth++
@@ -560,9 +746,114 @@ func moduleInitializationUsages(
 					index = close
 				}
 			}
+		default:
+			if usage, ok := helperUsageAt(
+				tokens, index, namespaces, importedHelpers, wrappers, helpers,
+			); ok {
+				usages = append(usages, usage)
+			}
 		}
 	}
 	return usages
+}
+
+// eagerlyInvokedUsages reports helper calls executed by an immediately invoked
+// function expression. A function expression that is merely defined is
+// deferred and returns no usages; a grouped plain expression still executes
+// while the module initializes.
+func eagerlyInvokedUsages(
+	tokens []tsToken,
+	namespaces, importedHelpers, wrappers, helpers map[string]bool,
+) []moduleUsage {
+	start := 0
+	for start < len(tokens) && tokens[start].Text == "async" {
+		start++
+	}
+	if start >= len(tokens) {
+		return nil
+	}
+
+	switch tokens[start].Text {
+	case "(":
+		close := matchingToken(tokens, start)
+		if close < 0 {
+			return nil
+		}
+		head := tokens[start+1 : close]
+		if functionHead(head) {
+			if !invokedAfter(tokens, close) {
+				return nil
+			}
+			return functionHeadUsages(head, namespaces, importedHelpers, wrappers, helpers)
+		}
+		return initializerUsages(head, namespaces, importedHelpers, wrappers, helpers)
+	case "function":
+		open := start
+		for open < len(tokens) && tokens[open].Text != "{" {
+			open++
+		}
+		if open >= len(tokens) {
+			return nil
+		}
+		close := matchingToken(tokens, open)
+		if close < 0 || !invokedAfter(tokens, close) {
+			return nil
+		}
+		return initializerUsages(tokens[open+1:close], namespaces, importedHelpers, wrappers, helpers)
+	default:
+		return nil
+	}
+}
+
+func invokedAfter(tokens []tsToken, close int) bool {
+	return close+1 < len(tokens) && tokens[close+1].Text == "("
+}
+
+// functionHead reports whether the tokens are an arrow or function expression
+// rather than a plain grouped expression.
+func functionHead(tokens []tsToken) bool {
+	if len(tokens) == 0 {
+		return false
+	}
+	if findTopLevelToken(tokens, 0, "=>") >= 0 {
+		return true
+	}
+	start := 0
+	if tokens[0].Text == "async" {
+		start = 1
+	}
+	return start < len(tokens) && tokens[start].Text == "function"
+}
+
+func functionHeadUsages(
+	head []tsToken,
+	namespaces, importedHelpers, wrappers, helpers map[string]bool,
+) []moduleUsage {
+	if arrow := findTopLevelToken(head, 0, "=>"); arrow >= 0 {
+		return initializerUsages(
+			functionBodyTokens(head[arrow+1:]), namespaces, importedHelpers, wrappers, helpers,
+		)
+	}
+	open := 0
+	for open < len(head) && head[open].Text != "{" {
+		open++
+	}
+	if open >= len(head) {
+		return nil
+	}
+	close := matchingToken(head, open)
+	if close < 0 {
+		return nil
+	}
+	return initializerUsages(head[open+1:close], namespaces, importedHelpers, wrappers, helpers)
+}
+
+// functionBodyTokens trims one pair of block braces from an arrow body.
+func functionBodyTokens(tokens []tsToken) []tsToken {
+	if len(tokens) >= 2 && tokens[0].Text == "{" && tokens[len(tokens)-1].Text == "}" {
+		return tokens[1 : len(tokens)-1]
+	}
+	return tokens
 }
 
 // analyzeModuleDeclarators analyzes each declarator in a const/let/var
@@ -611,6 +902,10 @@ func analyzeModuleDeclarators(
 			if containsFullHelperCall(initializer, namespaces, importedHelpers, helpers) {
 				wrappers[name] = true
 			}
+		} else if iife := eagerlyInvokedUsages(
+			initializer, namespaces, importedHelpers, wrappers, helpers,
+		); len(iife) > 0 {
+			*usages = append(*usages, iife...)
 		} else {
 			*usages = append(*usages, initializerUsages(
 				initializer, namespaces, importedHelpers, wrappers, helpers,

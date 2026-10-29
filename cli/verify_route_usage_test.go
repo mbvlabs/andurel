@@ -127,6 +127,32 @@ export const html = ` + "`" + `<a href="${routes.homePage()}">home</a>` + "`" + 
 `,
 			wantLine: 3,
 		},
+		{
+			name: "immediately invoked arrow expression",
+			page: `import { routes } from '../routes'
+
+export const cached = (() => routes.homePage())()
+`,
+			wantLine: 3,
+		},
+		{
+			name: "immediately invoked function expression",
+			page: `import { routes } from '../routes'
+
+export const cached = (function () {
+  return routes.homePage()
+})()
+`,
+			wantLine: 4,
+		},
+		{
+			name: "bare module-scope call",
+			page: `import { routes } from '../routes'
+
+routes.homePage()
+`,
+			wantLine: 3,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -189,7 +215,7 @@ export function useHomeHref() {
 const key = 'homePage'
 export const href = (routes as any)[key]()
 `,
-		"tsconfig path alias is outside the analysis": `import { routes } from '@/routes'
+		"unresolved alias is outside the analysis": `import { routes } from '@/lib/routes'
 export const href = routes.homePage()
 `,
 	}
@@ -205,6 +231,85 @@ export const href = routes.homePage()
 				t.Fatalf("violations = %#v, want deferred/relative usage allowed", violations)
 			}
 		})
+	}
+}
+
+func TestRouteUsageResolvesTsconfigPathAliases(t *testing.T) {
+	// The generated scaffold imports route helpers with the @/ alias. Without
+	// alias resolution this rule would silently analyze almost nothing.
+	const tsconfig = `{
+  "compilerOptions": {
+    // generated scaffold alias
+    "paths": {
+      "@/*": ["./resources/js/*"],
+    },
+  },
+}
+`
+	tests := []struct {
+		name     string
+		page     string
+		wantLine int
+	}{
+		{
+			name: "alias namespace",
+			page: `import { routes } from '@/routes'
+
+export const href = routes.homePage()
+`,
+			wantLine: 3,
+		},
+		{
+			name: "alias named helper",
+			page: `import { homePage } from '@/routes'
+
+export const href = homePage()
+`,
+			wantLine: 3,
+		},
+		{
+			name: "alias star namespace",
+			page: `import * as R from '@/routes'
+
+export const href = R.userShow(7)
+`,
+			wantLine: 3,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeTestFile(t, root, "tsconfig.json", tsconfig)
+			writeRouteUsageFixture(t, root, test.page)
+			violations, skipped, applicable := analyzeRouteUsage(root)
+			if !applicable || skipped != "" {
+				t.Fatalf("route usage analysis skipped: applicable=%v reason=%q", applicable, skipped)
+			}
+			if len(violations) != 1 {
+				t.Fatalf("violations = %#v, want the aliased module-initialization call", violations)
+			}
+			if violations[0].Line != test.wantLine {
+				t.Fatalf("violation line = %d, want %d", violations[0].Line, test.wantLine)
+			}
+		})
+	}
+}
+
+func TestLoadTsconfigPathAliasesParsesJSONC(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "tsconfig.json", `{
+  // comments and trailing commas must not disable the rule
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["resources/js/*",],
+    },
+  },
+}
+`)
+	aliases := loadTsconfigPathAliases(root)
+	if len(aliases) != 1 || aliases[0].pattern != "~/*" || aliases[0].target != "resources/js/*" {
+		t.Fatalf("aliases = %#v, want the ~/* mapping under resources/js", aliases)
 	}
 }
 

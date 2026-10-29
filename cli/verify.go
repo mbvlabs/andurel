@@ -217,10 +217,11 @@ The frontend stage runs the project package manager's 'run typecheck' script
 when package.json defines one and analyzes frontend route usage. The
 route-usage rule flags full-URL route helper calls evaluated at module
 initialization, because configureRouteHosts runs after boot. It is token-based:
-relative ESM imports, namespace/named imports, module-scope aliases and
-destructuring, and one level of local wrapper functions are recognized;
-tsconfig path aliases, dynamic property access, and cross-module wrappers are
-not. Render-time calls, event handlers, function bodies, and explicit .path()
+relative ESM imports and tsconfig path aliases, namespace/named imports,
+module-scope aliases and destructuring, immediately invoked function
+expressions and bare top-level calls, and one level of local wrapper functions
+are recognized; re-exports, dynamic property access, and cross-module wrappers
+are not. Render-time calls, event handlers, function bodies, and explicit .path()
 relative helpers are allowed. The Inertia runtime's request-scoped host context
 remains authoritative for the cases static analysis cannot prove.
 

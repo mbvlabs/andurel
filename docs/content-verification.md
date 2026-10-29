@@ -152,6 +152,7 @@ Flagged:
   helpers (`const { homePage } = routes`);
 - one level of locally declared wrapper functions/arrow functions that return
   a full-URL helper and are called at module scope;
+- immediately invoked function/arrow expressions and bare top-level calls;
 - calls inside a template interpolation at module scope.
 
 Allowed:
@@ -164,13 +165,16 @@ Allowed:
 Out of scope (documented limit; the Inertia runtime's request-scoped host
 context is authoritative):
 
-- tsconfig path aliases and re-exports (`import { routes } from '@/routes'`);
+- re-exports and aliases that do not resolve to the generated routes module;
 - dynamic property access (`routes[name]()`);
-- immediately-invoked arrows and cross-module wrappers;
+- cross-module wrappers;
 - default exports/imports from `routes.ts`.
 
-The analysis is token-based, not a TypeScript program: it has no type checker
-and resolves only relative ESM specifiers to `resources/js/routes.ts`.
+The analysis is token-based, not a TypeScript program: it has no type checker.
+It resolves relative ESM specifiers and the `compilerOptions.paths` aliases of
+the project's `tsconfig.json` (the generated `@/*` alias maps to
+`resources/js/*`) to determine whether an import names
+`resources/js/routes.ts`.
 
 ## Changed scope
 
