@@ -139,9 +139,9 @@ func runGoCommand(t *testing.T, dir string, args ...string) {
 
 	cmd := exec.Command("go", args...)
 	cmd.Dir = dir
-	env, err := goldentest.CandidateGoEnv(append(os.Environ(), "GOWORK=off"))
+	env, err := goldentest.GoldenGoEnv(append(os.Environ(), "GOWORK=off"))
 	if err != nil {
-		t.Fatalf("prepare candidate Go environment: %v", err)
+		t.Fatalf("prepare golden Go environment: %v", err)
 	}
 	cmd.Env = env
 	out, err := cmd.CombinedOutput()

@@ -14,112 +14,282 @@ import (
 	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
 
-// CandidateInertiaModulePath is the standalone module whose candidate pin may
-// be ahead of the published tags. Golden scaffolds tidy with GOWORK=off, so the
-// candidate version must be resolvable.
+// CandidateInertiaModulePath is the standalone module whose pin may be ahead of
+// the published tags while a release is still being assembled. It is only
+// served from this checkout when a golden run explicitly opts in with
+// ANDUREL_GOLDEN_LOCAL_PKG=1.
 const CandidateInertiaModulePath = "github.com/mbvlabs/andurel/pkg/inertia"
 
-var (
-	candidateProxyOnce sync.Once
-	candidateProxyDir  string
-	candidateProxyErr  error
+const (
+	// LocalPkgEnv opts a golden run into resolving CandidateInertiaModulePath
+	// from this checkout through a file module proxy. It is development-only:
+	// the bytes served are not the published module, so a run with this flag set
+	// is not release-shaped proof.
+	LocalPkgEnv = "ANDUREL_GOLDEN_LOCAL_PKG"
+	// ReleaseEnv opts a golden run into release-shaped module resolution:
+	// public proxy, public checksum database, and isolated fresh caches that
+	// cannot be satisfied by a developer's local module cache.
+	ReleaseEnv = "ANDUREL_GOLDEN_RELEASE"
+
+	publicGoProxy = "https://proxy.golang.org,direct"
+	publicGoSumDB = "sum.golang.org"
 )
 
-// CandidateModuleProxy serves this checkout's pkg/inertia source as the
-// candidate version pinned in layout/versions through a file-based Go module
-// proxy. Development golden scaffolds can then run go mod tidy against
-// unreleased candidate APIs without a committed replace directive or a
-// machine-specific path.
-//
-// The proxy also owns dedicated GOMODCACHE, GOCACHE, and GOTMPDIR directories.
-// Candidate code must never enter the user's global module or build cache: a
-// later published pkg/inertia v0.13.0 has to be fetched and verified from the
-// real proxy, not silently satisfied by cached bytes from this checkout.
-//
-// This is development integration, not release-shaped proof: it deliberately
-// substitutes local code for the pinned version. The release gate still
-// requires pkg/inertia/v0.13.0 to be tagged and published, and the durable
-// acceptance harness runs release mode with no proxy override.
-func CandidateModuleProxy() (string, error) {
-	candidateProxyOnce.Do(func() {
-		repoRoot := RepoRoot()
-		if repoRoot == "" {
-			candidateProxyErr = fmt.Errorf("repository root is not set")
-			return
-		}
-		dir, err := os.MkdirTemp("", "andurel-candidate-proxy-*")
-		if err != nil {
-			candidateProxyErr = fmt.Errorf("create candidate proxy dir: %w", err)
-			return
-		}
-		candidateProxyDir = dir
-		candidateProxyErr = writeCandidateModule(dir, repoRoot, CandidateInertiaModulePath, versions.Inertia)
-	})
-	return candidateProxyDir, candidateProxyErr
-}
+// GoldenMode selects how golden tests resolve the standalone pkg/* pins in
+// layout/versions.
+type GoldenMode int
 
-// CleanupCandidateModuleProxy removes the temporary proxy and its isolated Go
-// caches. It is safe to call more than once.
-func CleanupCandidateModuleProxy() {
-	if candidateProxyDir == "" {
-		return
+const (
+	// GoldenModePublished resolves the pins from the public Go proxy. It is the
+	// default: a normal golden run never substitutes local package source.
+	GoldenModePublished GoldenMode = iota
+	// GoldenModeLocalPkg serves this checkout's pkg/inertia source as the pinned
+	// version through a file module proxy. Development only.
+	GoldenModeLocalPkg
+	// GoldenModeRelease resolves the pins from the public proxy and checksum
+	// database with isolated fresh caches. Release-shaped proof.
+	GoldenModeRelease
+)
+
+// String returns the mode name used in test output and errors.
+func (mode GoldenMode) String() string {
+	switch mode {
+	case GoldenModeLocalPkg:
+		return "local-pkg"
+	case GoldenModeRelease:
+		return "release"
+	default:
+		return "published"
 	}
-	_ = os.RemoveAll(candidateProxyDir)
-	candidateProxyDir = ""
 }
 
-// CandidateGoEnv returns env with the candidate module proxy in front of the
-// public Go proxy, a dedicated module/build cache under the proxy directory,
-// and checksum verification disabled for the local file proxy. It returns an
-// error instead of silently falling back to the ambient environment: a test
-// that cannot build the candidate proxy must fail, not run against a different
-// module set.
-func CandidateGoEnv(env []string) ([]string, error) {
-	proxyDir, err := CandidateModuleProxy()
+// GoldenModeFromEnv reads the golden module-resolution mode from env.
+//
+// The local proxy and release modes are mutually exclusive: one substitutes
+// this checkout for a pin, the other proves the published bytes. Setting both
+// is a configuration error, not a preference order.
+func GoldenModeFromEnv(env []string) (GoldenMode, error) {
+	localPkg, err := envFlag(env, LocalPkgEnv)
+	if err != nil {
+		return GoldenModePublished, err
+	}
+	release, err := envFlag(env, ReleaseEnv)
+	if err != nil {
+		return GoldenModePublished, err
+	}
+	switch {
+	case localPkg && release:
+		return GoldenModePublished, fmt.Errorf(
+			"%s=1 and %s=1 are mutually exclusive",
+			LocalPkgEnv,
+			ReleaseEnv,
+		)
+	case localPkg:
+		return GoldenModeLocalPkg, nil
+	case release:
+		return GoldenModeRelease, nil
+	default:
+		return GoldenModePublished, nil
+	}
+}
+
+func envFlag(env []string, key string) (bool, error) {
+	for _, entry := range env {
+		name, value, ok := strings.Cut(entry, "=")
+		if !ok || name != key {
+			continue
+		}
+		switch value {
+		case "1":
+			return true, nil
+		case "", "0":
+			return false, nil
+		default:
+			return false, fmt.Errorf(
+				"%s=%q: use 1 to enable or 0/empty to disable",
+				key,
+				value,
+			)
+		}
+	}
+	return false, nil
+}
+
+type goldenEnvState struct {
+	mode       GoldenMode
+	root       string
+	proxyDir   string
+	modCache   string
+	buildCache string
+	tempDir    string
+}
+
+var (
+	goldenEnvMu sync.Mutex
+	goldenEnv   *goldenEnvState
+)
+
+// GoldenGoEnv returns env configured for the golden mode selected by env.
+//
+// Published (default) and release modes force the public Go proxy and checksum
+// database and strip checksum-bypass settings (GOPRIVATE, GONOSUMDB, ...). The
+// release mode additionally owns fresh GOMODCACHE, GOCACHE, and GOTMPDIR
+// directories so a cached copy of the pinned module cannot satisfy the run.
+//
+// Local-pkg mode prepends a file proxy built from this checkout and disables
+// checksum verification for it, with the same isolated caches. It must never be
+// used to claim release-shaped proof.
+func GoldenGoEnv(env []string) ([]string, error) {
+	mode, err := GoldenModeFromEnv(env)
 	if err != nil {
 		return nil, err
 	}
-	moduleCache := filepath.Join(proxyDir, "modcache")
-	buildCache := filepath.Join(proxyDir, "gocache")
-	tempDir := filepath.Join(proxyDir, "tmp")
-	for _, dir := range []string{moduleCache, buildCache, tempDir} {
+	state, err := ensureGoldenEnv(mode)
+	if err != nil {
+		return nil, err
+	}
+
+	filtered := stripGoldenEnv(env)
+	filtered = append(filtered, "GOWORK=off")
+	switch mode {
+	case GoldenModeLocalPkg:
+		filtered = append(filtered,
+			"GOPROXY=file://"+filepath.ToSlash(state.proxyDir)+","+publicGoProxy,
+			"GOSUMDB=off",
+			"GOMODCACHE="+state.modCache,
+			"GOCACHE="+state.buildCache,
+			"GOTMPDIR="+state.tempDir,
+			"GOENV=off",
+		)
+	case GoldenModeRelease:
+		filtered = append(filtered,
+			"GOPROXY="+publicGoProxy,
+			"GOSUMDB="+publicGoSumDB,
+			"GOMODCACHE="+state.modCache,
+			"GOCACHE="+state.buildCache,
+			"GOTMPDIR="+state.tempDir,
+			"GOENV=off",
+		)
+	default:
+		filtered = append(filtered,
+			"GOPROXY="+publicGoProxy,
+			"GOSUMDB="+publicGoSumDB,
+		)
+	}
+	return filtered, nil
+}
+
+// CleanupGoldenGoEnv removes the temporary proxy and caches owned by the current
+// golden mode. It is safe to call more than once and resets the mode so a later
+// GoldenGoEnv call can select a different mode.
+func CleanupGoldenGoEnv() {
+	goldenEnvMu.Lock()
+	defer goldenEnvMu.Unlock()
+
+	if goldenEnv == nil {
+		return
+	}
+	if goldenEnv.root != "" {
+		_ = os.RemoveAll(goldenEnv.root)
+	}
+	goldenEnv = nil
+}
+
+func ensureGoldenEnv(mode GoldenMode) (*goldenEnvState, error) {
+	goldenEnvMu.Lock()
+	defer goldenEnvMu.Unlock()
+
+	if goldenEnv != nil {
+		if goldenEnv.mode != mode {
+			return nil, fmt.Errorf(
+				"golden Go environment already initialized for %s; cannot switch to %s",
+				goldenEnv.mode,
+				mode,
+			)
+		}
+		return goldenEnv, nil
+	}
+
+	state := &goldenEnvState{mode: mode}
+	if mode == GoldenModePublished {
+		goldenEnv = state
+		return state, nil
+	}
+
+	root, err := os.MkdirTemp("", "andurel-golden-env-*")
+	if err != nil {
+		return nil, fmt.Errorf("create golden environment dir: %w", err)
+	}
+	state.root = root
+	state.modCache = filepath.Join(root, "modcache")
+	state.buildCache = filepath.Join(root, "gocache")
+	state.tempDir = filepath.Join(root, "tmp")
+	for _, dir := range []string{state.modCache, state.buildCache, state.tempDir} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return nil, fmt.Errorf("create candidate Go cache %s: %w", dir, err)
+			_ = os.RemoveAll(root)
+			return nil, fmt.Errorf("create golden Go cache %s: %w", dir, err)
 		}
 	}
 
-	proxyURL := "file://" + filepath.ToSlash(proxyDir)
+	if mode == GoldenModeLocalPkg {
+		state.proxyDir = filepath.Join(root, "proxy")
+		if err := os.MkdirAll(state.proxyDir, 0o755); err != nil {
+			_ = os.RemoveAll(root)
+			return nil, fmt.Errorf("create local module proxy: %w", err)
+		}
+		if err := writeCandidateModule(
+			state.proxyDir,
+			RepoRoot(),
+			CandidateInertiaModulePath,
+			versions.Inertia,
+		); err != nil {
+			_ = os.RemoveAll(root)
+			return nil, err
+		}
+	}
+
+	goldenEnv = state
+	return state, nil
+}
+
+// stripGoldenEnv removes module-resolution settings so the selected mode is the
+// only source of proxy, checksum, workspace, and cache configuration.
+func stripGoldenEnv(env []string) []string {
 	filtered := make([]string, 0, len(env)+8)
 	for _, entry := range env {
-		switch {
-		case strings.HasPrefix(entry, "GOPROXY="),
-			strings.HasPrefix(entry, "GOSUMDB="),
-			strings.HasPrefix(entry, "GOMODCACHE="),
-			strings.HasPrefix(entry, "GOCACHE="),
-			strings.HasPrefix(entry, "GOTMPDIR="),
-			strings.HasPrefix(entry, "GOENV="),
-			strings.HasPrefix(entry, "GONOSUMDB="),
-			strings.HasPrefix(entry, "GONOSUMCHECK="):
+		name, _, ok := strings.Cut(entry, "=")
+		if !ok {
+			filtered = append(filtered, entry)
 			continue
 		}
-		filtered = append(filtered, entry)
+		switch name {
+		case "GOWORK",
+			"GOPROXY",
+			"GOSUMDB",
+			"GOMODCACHE",
+			"GOCACHE",
+			"GOTMPDIR",
+			"GOENV",
+			"GOPRIVATE",
+			"GONOPROXY",
+			"GONOSUMDB",
+			"GONOSUMCHECK",
+			LocalPkgEnv,
+			ReleaseEnv:
+			continue
+		default:
+			filtered = append(filtered, entry)
+		}
 	}
-	return append(
-		filtered,
-		"GOPROXY="+proxyURL+",https://proxy.golang.org,direct",
-		"GOSUMDB=off",
-		"GOMODCACHE="+moduleCache,
-		"GOCACHE="+buildCache,
-		"GOTMPDIR="+tempDir,
-		// Ignore a user-level go env file so proxy and cache isolation cannot be
-		// overridden by the developer's machine configuration.
-		"GOENV=off",
-	), nil
+	return filtered
 }
 
 func writeCandidateModule(destination, repoRoot, modulePath, version string) error {
 	if version == "" {
 		return fmt.Errorf("candidate version for %s is empty", modulePath)
+	}
+	if repoRoot == "" {
+		return fmt.Errorf("repository root is not set")
 	}
 	sourceDir := filepath.Join(repoRoot, filepath.FromSlash(strings.TrimPrefix(modulePath, "github.com/mbvlabs/andurel/")))
 	if _, err := os.Stat(filepath.Join(sourceDir, "go.mod")); err != nil {

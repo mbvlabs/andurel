@@ -277,11 +277,11 @@ func cliEnv(fullScaffold bool) ([]string, error) {
 	if fullScaffold {
 		env = append(env, "ANDUREL_GOLDEN_FULL=1")
 	}
-	// Golden scaffolds tidy with GOWORK=off. The candidate pkg/inertia pin may
-	// be ahead of the published tag, so development runs resolve it from this
-	// checkout through a file module proxy with dedicated Go caches. Release
-	// shaped proof must not set this proxy; see CandidateModuleProxy.
-	return CandidateGoEnv(env)
+	// Golden scaffolds tidy with GOWORK=off. By default they resolve the
+	// published pkg/* pins. Local package source is only substituted when the
+	// developer explicitly sets ANDUREL_GOLDEN_LOCAL_PKG=1; release-shaped runs
+	// set ANDUREL_GOLDEN_RELEASE=1 for public proxy, checksums, and fresh caches.
+	return GoldenGoEnv(env)
 }
 
 func filterCLIEnv(env []string) []string {
