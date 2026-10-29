@@ -168,7 +168,7 @@ andurel run --tools mailpit
 - Write `resources/js/types/payloads.ts`: `andurel sync payloads --json`; use `andurel sync payloads --strict` in CI so an unresolved `FromStruct` argument fails with its `file:line`.
 - Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then bind routes with `rt.Host(name)`.
 - Refresh derived artifacts: `andurel sync email` compiles `email/*.templ` into `email/*_templ.go` with Tailwind styles inlined; never run `templ generate` on email.
-- Build and deploy: `andurel build` writes every buildable `cmd/*` process to `dist/`; `--only` narrows the set and `--json` emits the artifact manifest. `andurel patterns show deploy` covers the `migrate` → `ssr` → `app` + `queue` start order, environment, and health endpoints.
+- Build and deploy: `andurel build` writes every buildable `cmd/*` process to `dist/`; `--only` narrows the set and `--json` emits the artifact manifest. `andurel patterns show deploy` covers the `migrate` → `ssr` → `app` + `queue` start order, environment, and health endpoints. In production, start the SSR sidecar with `andurel ports launch --ready-file .andurel/ssr-port.json -- ./dist/ssr` so the app and the sidecar agree on `INERTIA_SSR_LISTEN`/`INERTIA_SSR_URL`; the assignment is published only after the intended child answers `/health`.
 
 `--json` and `--agent` never wait on a TTY. Pass `--force`, `--harness`, or `--yes` instead of answering a prompt.
 
@@ -219,6 +219,8 @@ andurel run --tools mailpit
 | `andurel patterns` | Read the reference patterns for every layer |
 | `andurel patterns list` | List the available pattern ids |
 | `andurel patterns show` | Print one reference pattern |
+| `andurel ports` | Allocate and supervise collision-safe loopback ports |
+| `andurel ports launch` | Run a child on a leased loopback port and publish its URL |
 | `andurel run` | Start the development server (`--tools mailpit` for sidecars) |
 | `andurel skill` | Show or install the embedded Andurel skill |
 | `andurel skill install` | Install the embedded skill into an agent harness |

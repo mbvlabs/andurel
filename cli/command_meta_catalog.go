@@ -583,6 +583,30 @@ var commandMetaSpecs = map[string]CommandMeta{
 		WhenNotToUse: []string{"Do not expect it to write files; it prints reference code only."},
 		Examples:     []string{"andurel patterns show domain", "andurel patterns show middleware", "andurel patterns show page --json", "andurel patterns show domain --entity User --table users --json"},
 	},
+	"andurel ports": {
+		Summary:   "Allocate and supervise collision-safe loopback ports",
+		WhenToUse: []string{"Start a production SSR sidecar on a leased loopback port and publish the matching INERTIA_SSR_LISTEN and INERTIA_SSR_URL."},
+		WhenNotToUse: []string{
+			"Do not use it for local development; andurel run serves development SSR from Vite's /__inertia_ssr endpoint.",
+			"It is not a find-a-free-port helper: the lease stays held for the whole child lifetime.",
+		},
+		Prerequisites: []string{"cmd/ssr is built with andurel build, or pass an explicit child command to ports launch"},
+		Examples:      []string{"andurel ports --help", "andurel ports launch -- ./dist/ssr"},
+	},
+	"andurel ports launch": {
+		Summary: "Run a child on a leased loopback port and publish its URL",
+		Args:    "[--] <command> [args...]",
+		WhenToUse: []string{
+			"Run the production cmd/ssr sidecar with a collision-safe loopback port: the launcher holds an exclusive lease, starts the child, and publishes the assignment only after the child answers /health.",
+			"Publish the assignment for orchestration with --ready-file; --json emits host, port, listen_url, url, mode, lease_file, pid, and child_pid.",
+			"Pass --listen http://127.0.0.1:13714 to keep a fixed address instead of allocating one.",
+		},
+		WhenNotToUse:    []string{"An unrelated or already-listening port is never reused; a held port fails instead of being reassigned."},
+		Prerequisites:   []string{"A child that answers GET /health with {\"status\":\"ok\"}"},
+		Examples:        []string{"andurel ports launch -- ./dist/ssr", "andurel ports launch --json --ready-file .andurel/ssr-port.json -- ./dist/ssr", "andurel ports launch --listen http://127.0.0.1:13714 -- ./dist/ssr"},
+		Mutating:        true,
+		SkipDryRunCheck: true,
+	},
 	"andurel verify": {
 		Summary:         "Check formatting, vet, layer boundaries, frontend, and generated code",
 		Args:            "[packages...]",

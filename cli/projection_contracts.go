@@ -53,6 +53,7 @@ var projectionContracts = []projectionSupport{
 	{path: "patterns", jq: true, idsOnly: true, count: true},
 	{path: "patterns list", jq: true, idsOnly: true, count: true},
 	{path: "patterns show", jq: true},
+	{path: "ports launch", jq: true},
 	{path: "skill install", jq: true},
 	{path: "skill show", jq: true},
 	{path: "sync email", jq: true},

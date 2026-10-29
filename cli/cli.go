@@ -65,6 +65,7 @@ Everything you and your agent(s) need to build robust and performant application
 	rootCmd.AddCommand(newUpgradeCommand(version))
 	rootCmd.AddCommand(newPackagesCommand())
 	rootCmd.AddCommand(newDoctorCommand(version))
+	rootCmd.AddCommand(newPortsCommand())
 	rootCmd.AddCommand(newCommandsCommand(rootCmd))
 	rootCmd.AddCommand(newSkillCommand())
 
