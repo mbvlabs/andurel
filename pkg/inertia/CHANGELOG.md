@@ -1,11 +1,6 @@
 ## Unreleased
 
-## 0.13.0 - candidate, requires publication
-
-The `pkg/inertia/v0.13.0` tag is the release gate for this section. Until that
-tag exists, `layout/versions.Inertia` is a candidate pin: fresh scaffolds and
-`andurel upgrade` reference v0.13.0, and only a development run with local
-`pkg/*` replacements can compile against it.
+## 0.13.0 - 2026-10-29
 
 ### Added
 

@@ -212,7 +212,7 @@ func applyUpgradeE2EManualAction(
 }
 
 // buildUpgradeE2EAndurel builds this checkout's CLI once per test run. The
-// beta.4 target is a candidate, so route regeneration must use the local
+// The upgrade target is this checkout, so route regeneration must use the local
 // generator instead of a published release.
 func buildUpgradeE2EAndurel(t *testing.T) string {
 	t.Helper()

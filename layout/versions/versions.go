@@ -37,10 +37,6 @@ const (
 	// Lifecycle is the standalone Andurel process lifecycle module version verified with this framework.
 	Lifecycle = "v0.1.1"
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
-	// v0.13.0 is the candidate pin for this release. It is not tagged yet, so a
-	// release-shaped scaffold against published modules stays a blocked gate
-	// until pkg/inertia/v0.13.0 is published; development integration uses the
-	// just local-replace workspace instead.
 	Inertia = "v0.13.0"
 	// Email is the standalone Andurel email module version verified with this framework.
 	Email = "v0.6.1"

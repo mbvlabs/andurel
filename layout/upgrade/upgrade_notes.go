@@ -32,10 +32,9 @@ const betaTwoFixesVersion = "v2.0.0-beta.2"
 // host-scoped middleware.
 const betaThreeFixesVersion = "v2.0.0-beta.3"
 
-// betaFourFixesVersion is the candidate release after v2.0.0-beta.3. It is not
-// tagged yet: the actions below gate on it because the matching scaffold change
-// must ship in the release that tags it. pkg/inertia v0.13.0 is the companion
-// release gate.
+// betaFourFixesVersion is the release that makes the welcome page public,
+// checks runtime readiness, enables production SSR by default, and scopes
+// frontend route hosts per server render. It uses pkg/inertia v0.13.0.
 const betaFourFixesVersion = "v2.0.0-beta.4"
 
 // goNativeRebuildVersion is the release that replaced Echo and Fx with the
@@ -298,7 +297,7 @@ func runtimeReadinessInstructions() string {
 func inertiaSSRDefaultInstructions() string {
 	return "beta.4 server-renders every production page by default. Production no longer needs a `.SSR()` call on " +
 		"each page, and development keeps the per-page opt-in so a bare `go run ./cmd/app` does not require the Vite " +
-		"SSR endpoint. This needs `pkg/inertia v0.13.0` (release gate).\n\n" +
+		"SSR endpoint. This uses `pkg/inertia v0.13.0`.\n\n" +
 		"1. In internal/runtime/runtime.go, add the renderer-wide default next to the other renderer options:\n\n```go\n" +
 		"inertia.WithSSRDefault(cfg.App.IsProduction()),\n```\n\n" +
 		"2. Remove per-page `.SSR()` calls that only existed to opt production pages in; keep `.SSR()` where a " +

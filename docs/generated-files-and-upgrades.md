@@ -89,12 +89,12 @@ the beta.3 actions above plus:
 | `public-home-v2.0.0-beta.4` | Register the welcome page without `middleware.AuthOnly`; protected routes keep their auth middleware and anonymous `GET /` returns 200. |
 | `configcheck-v2.0.0-beta.4` | Add the read-only `internal/configcheck` helper `andurel doctor` runs for runtime configuration and database connectivity. |
 | `runtime-readiness-v2.0.0-beta.4` | Add `GET /api/ready`: 200 `{"status":"ready"}` or 503 `{"status":"unready","reason":"..."}` for an unavailable database or required SSR sidecar. `/api/health` stays liveness. |
-| `inertia-ssr-default-v2.0.0-beta.4` | Inertia projects: production server-renders every page with `inertia.WithSSRDefault(cfg.App.IsProduction())`; `.CSR()` opts a page out and the themed `Errors/InternalError` fallback stays client-rendered. Requires `pkg/inertia v0.13.0` (release gate). |
+| `inertia-ssr-default-v2.0.0-beta.4` | Inertia projects: production server-renders every page with `inertia.WithSSRDefault(cfg.App.IsProduction())`; `.CSR()` opts a page out and the themed `Errors/InternalError` fallback stays client-rendered. Uses `pkg/inertia v0.13.0`. |
 | `routes-host-scope-v2.0.0-beta.4` | Inertia projects: regenerate `routes.ts` so full-URL helpers throw before configuration, configure browser hosts at boot, and wrap each SSR render with `withRouteHosts`. |
 
-The beta.4 framework tag and `pkg/inertia/v0.13.0` are candidate releases:
-they must be published for a release-shaped install. A development install can
-point at this checkout with `just local-replace <app>`.
+Beta.4 pins `pkg/inertia v0.13.0`. A development install can still point at a
+local framework checkout with `just local-replace <app>`; remove these
+replacements before verifying a published-module installation.
 
 ## Provider adapters under `internal/`
 
