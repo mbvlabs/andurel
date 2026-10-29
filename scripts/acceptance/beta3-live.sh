@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016
 # Beta.3 live fresh-scaffold acceptance gate (harness probe 17).
 #
 # This script is the durable form of the live runtime gate. It never reuses an
@@ -21,7 +22,7 @@
 #     source tree and the in-place asset/dist trees untouched
 #
 # Usage:
-#   scripts/acceptance/beta3-live.sh [--evidence-dir DIR] [--scratch-root DIR]
+#   scripts/acceptance/beta3-live.sh [--mode dev|release] [--evidence-dir DIR] [--scratch-root DIR]
 #                                    [--andurel PATH] [--keep-scratch]
 #
 # Exit status: 0 when every check passed, 1 on a failed check, 77 when a
@@ -34,9 +35,11 @@ umask 022
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CANDIDATE_SHA="$(git -C "$ROOT" rev-parse HEAD)"
+CANDIDATE_VERSION="${ANDUREL_ACCEPTANCE_VERSION:-v2.0.0-beta.4}"
+MODE=dev
 EVIDENCE=""
 KEEP_SCRATCH=0
-SCRATCH_ROOT="${ANDUREL_LIVE_SCRATCH_ROOT:-${TMPDIR:-/tmp}}"
+SCRATCH_ROOT="${ANDUREL_LIVE_SCRATCH_ROOT:-${TMPDIR:-/tmp/opencode}}"
 ANDUREL_BIN=""
 APP_NAME="live-acceptance"
 PG_IMAGE="${ANDUREL_LIVE_POSTGRES_IMAGE:-postgres:17-alpine}"
@@ -49,6 +52,7 @@ APP_PORT=""
 SSR_PORT=""
 PG_PORT=""
 PG_NAME=""
+PG_ID=""
 PG_PASSWORD="postgres"
 DB_NAME="liveapp"
 APP_PID=""
@@ -62,6 +66,10 @@ usage() {
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
+	--mode)
+		MODE="${2:-}"
+		shift 2
+		;;
 	--evidence-dir)
 		EVIDENCE="${2:-}"
 		shift 2
@@ -93,6 +101,11 @@ while [[ $# -gt 0 ]]; do
 		;;
 	esac
 done
+
+case "$MODE" in
+dev | release) ;;
+*) echo "--mode must be dev or release" >&2; exit 2 ;;
+esac
 
 if [[ -z "$EVIDENCE" ]]; then
 	EVIDENCE="$ROOT/plans/evidence/beta3-complete-fix/${CANDIDATE_SHA:0:12}-live"
@@ -178,15 +191,17 @@ cleanup() {
 			stop_process "$pid"
 		fi
 	done
-	if [[ -n "$PG_NAME" ]]; then
-		docker rm -f "$PG_NAME" >/dev/null 2>&1 || true
+	if [[ -n "$PG_ID" ]]; then
+		docker rm -f "$PG_ID" >/dev/null 2>&1 || true
 	fi
 	scrub_evidence
 	if [[ -n "$SCRATCH" && -d "$SCRATCH" && "$KEEP_SCRATCH" -eq 0 ]]; then
 		rm -rf "$SCRATCH"
 	fi
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 mkdir -p "$EVIDENCE"
 : >"$EVIDENCE/checks.tsv"
@@ -195,7 +210,8 @@ mkdir -p "$EVIDENCE"
 write_environment() {
 	{
 		printf 'candidate_sha=%s\n' "$CANDIDATE_SHA"
-		printf 'mode=live-dev-replace\n'
+		printf 'candidate_version=%s (unpublished acceptance build)\n' "$CANDIDATE_VERSION"
+		printf 'mode=%s\n' "$MODE"
 		printf 'candidate_dirty=%s\n' "$(git -C "$ROOT" status --porcelain | wc -l)"
 		printf 'go=%s\n' "$(go version)"
 		printf 'node=%s\n' "$(node --version 2>/dev/null || echo unavailable)"
@@ -247,7 +263,7 @@ run_step() {
 	shift
 	record_cmd "$@"
 	set +e
-	"$@" >"$EVIDENCE/$name.stdout" 2>"$EVIDENCE/$name.stderr"
+	timeout --kill-after=15 "${PROBE_TIMEOUT:-900}" "$@" >"$EVIDENCE/$name.stdout" 2>"$EVIDENCE/$name.stderr"
 	local code=$?
 	set -e
 	printf '%s\n' "$code" >"$EVIDENCE/$name.status"
@@ -270,7 +286,7 @@ run_step_in() {
 
 build_cli() {
 	if [[ -z "$ANDUREL_BIN" ]]; then
-		if ! run_step_in "$ROOT" 01-build-cli env GOWORK=off go build -o "$SCRATCH/bin/andurel" .; then
+		if ! run_step_in "$ROOT" 01-build-cli env GOWORK=off go build -ldflags "-X main.version=$CANDIDATE_VERSION" -o "$SCRATCH/bin/andurel" .; then
 			fail "candidate CLI did not build"
 		fi
 		ANDUREL_BIN="$SCRATCH/bin/andurel"
@@ -297,6 +313,18 @@ generate_app() {
 }
 
 replace_modules() {
+	if [[ "$MODE" == release ]]; then
+		local inertia_version
+		inertia_version="$(awk -F '"' '/^[[:space:]]*Inertia = / { print $2 }' "$ROOT/layout/versions/versions.go")"
+		if [[ -z "$inertia_version" ]]; then
+			fail "cannot determine candidate Inertia version"
+		fi
+		if ! git -C "$ROOT" show-ref --verify --quiet "refs/tags/pkg/inertia/$inertia_version"; then
+			blocked "release gate: pkg/inertia/$inertia_version tag is absent; do not fetch an unpublished candidate"
+		fi
+		pass "release mode uses published pins without local replacements"
+		return
+	fi
 	local module_dir
 	local module
 	for module_dir in "$ROOT"/pkg/*/; do
@@ -343,6 +371,13 @@ install_frontend() {
 		fail "pnpm install did not install vite"
 	fi
 	pass "frontend dependencies installed"
+}
+
+verify_after_setup() {
+	if ! run_step_in "$APP" 06-verify-after-setup "$ANDUREL_BIN" verify --json; then
+		fail "untouched scaffold verification failed after documented tool/frontend setup"
+	fi
+	pass "plain verify passes after setup without source edits"
 }
 
 build_app() {
@@ -411,6 +446,11 @@ start_database() {
 	if ((code != 0)); then
 		fail "disposable PostgreSQL container did not start"
 	fi
+	PG_ID="$(head -1 "$EVIDENCE/08-postgres-run.stdout")"
+	if [[ ! "$PG_ID" =~ ^[a-f0-9]{64}$ ]]; then
+		PG_ID=""
+		fail "disposable PostgreSQL did not return a container ID"
+	fi
 	if ! wait_pg 90; then
 		docker logs "$PG_NAME" >"$EVIDENCE/postgres.log" 2>&1 || true
 		fail "disposable PostgreSQL did not become ready"
@@ -421,6 +461,9 @@ start_database() {
 configure_env() {
 	APP_PORT="$(free_port)" || fail "no free application port"
 	SSR_PORT="$(free_port)" || fail "no free SSR port"
+	while [[ "$SSR_PORT" == "$APP_PORT" ]]; do
+		SSR_PORT="$(free_port)" || fail "no distinct SSR port"
+	done
 	APP_URL="http://127.0.0.1:$APP_PORT"
 	SSR_URL="http://127.0.0.1:$SSR_PORT"
 	local session_key
@@ -791,6 +834,22 @@ check_readiness() {
 	check_contains home-ssr-outage 'rel="stylesheet"'
 	check_not_contains home-ssr-outage 'data-server-rendered="true"'
 	check_not_contains home-ssr-outage 'Internal Server Error'
+	# Explicit CSR fallback is a separate opt-in policy, never the production
+	# default. Verify the compiled app with an environment override only.
+	local fallback_port fallback_url
+	fallback_port="$(free_port)" || fail "no free CSR fallback port"
+	fallback_url="http://127.0.0.1:$fallback_port"
+	start_process_bg "$APP" "$EVIDENCE/csr-fallback.log" \
+		env PORT="$fallback_port" HOST_PRIMARY="127.0.0.1:$fallback_port" \
+		INERTIA_SSR_FAIL_FAST=false ./dist/app
+	CRASH_PID="$PROC_PID"
+	wait_http_code "$fallback_url/api/ready" 200 30 || fail "explicit CSR fallback never became ready"
+	http_get fallback-home "$fallback_url/"
+	check_code fallback-home 200
+	check_not_contains fallback-home 'data-server-rendered="true"'
+	check_contains fallback-home '"component":"Welcome"'
+	stop_process "$CRASH_PID"
+	CRASH_PID=""
 
 	record_cmd "start $APP/dist/ssr after outage (cwd $APP)"
 	start_process_bg "$APP" "$EVIDENCE/ssr-recovered.log" ./dist/ssr
@@ -809,6 +868,24 @@ check_readiness() {
 	check_code home-ssr-recovered 200
 	check_contains home-ssr-recovered 'data-server-rendered="true"'
 	check_contains home-ssr-recovered 'Space-grade Go, wired locally.'
+	# A healthy /health endpoint must not hide a render failure as HTTP 200.
+	stop_process "$SSR_PID"
+	SSR_PID=""
+	start_process_bg "$SCRATCH" "$EVIDENCE/render-failure-sidecar.log" \
+		node -e 'require("node:http").createServer((req,res)=>{if(req.url==="/health"){res.setHeader("Content-Type","application/json");res.end(JSON.stringify({status:"ok"}));}else{res.statusCode=500;res.end("intentional acceptance render failure");}}).listen(Number(process.argv[1]),"127.0.0.1")' "$SSR_PORT"
+	SSR_PID="$PROC_PID"
+	wait_ssr_health "$SSR_PORT" 30 || fail "render-failure fixture never became healthy"
+	http_get render-failure-ready "$APP_URL/api/ready"
+	check_code render-failure-ready 200
+	http_get render-failure-home "$APP_URL/"
+	check_code render-failure-home 500
+	check_contains render-failure-home '"component":"Errors\/InternalError"'
+	check_not_contains render-failure-home 'data-server-rendered="true"'
+	stop_process "$SSR_PID"
+	SSR_PID=""
+	start_process_bg "$APP" "$EVIDENCE/ssr-after-render-failure.log" ./dist/ssr
+	SSR_PID="$PROC_PID"
+	wait_ssr_health "$SSR_PORT" 30 || fail "SSR failed to recover after render failure fixture"
 
 	record_cmd "docker stop -t 5 $PG_NAME"
 	set +e
@@ -867,6 +944,9 @@ check_ssr_failures() {
 	fi
 	if ((code == 124)); then
 		fail "compiled cmd/ssr hung on a duplicate listener"
+	fi
+	if ! grep -Eq 'EADDRINUSE|address already in use' "$EVIDENCE/14-ssr-duplicate.stdout" "$EVIDENCE/14-ssr-duplicate.stderr"; then
+		fail "duplicate-listener failure did not report an address-in-use diagnostic"
 	fi
 	pass "compiled cmd/ssr exits nonzero on a duplicate listener"
 
@@ -994,6 +1074,42 @@ check_isolated_builds() {
 		fail "isolated builds changed the scratch source tree"
 	fi
 	pass "concurrent isolated builds are independent and leave the source tree untouched"
+	# Execute both output pairs without source assets or node_modules present.
+	# An executable bit and a successful build alone do not prove embedding.
+	local runtime app_port ssr_port url
+	for dir in a b; do
+		runtime="$SCRATCH/run-$dir"
+		mkdir -p "$runtime"
+		app_port="$(free_port)" || fail "no free isolated app port"
+		ssr_port="$(free_port)" || fail "no free isolated SSR port"
+		while [[ "$ssr_port" == "$app_port" ]]; do
+			ssr_port="$(free_port)" || fail "no distinct isolated SSR port"
+		done
+		sed -E \
+			-e "s/^PORT=.*/PORT=$app_port/" \
+			-e "s/^HOST_PRIMARY=.*/HOST_PRIMARY=127.0.0.1:$app_port/" \
+			-e "s|^INERTIA_SSR_LISTEN=.*|INERTIA_SSR_LISTEN=http://127.0.0.1:$ssr_port|" \
+			-e "s|^INERTIA_SSR_URL=.*|INERTIA_SSR_URL=http://127.0.0.1:$ssr_port|" \
+			"$APP/.env" >"$runtime/.env"
+		chmod 600 "$runtime/.env"
+		start_process_bg "$runtime" "$EVIDENCE/18-isolated-$dir-ssr.log" "$SCRATCH/builds/$dir/ssr"
+		SSR_PID="$PROC_PID"
+		wait_ssr_health "$ssr_port" 30 || fail "isolated $dir SSR cannot run without source assets"
+		start_process_bg "$runtime" "$EVIDENCE/18-isolated-$dir-app.log" "$SCRATCH/builds/$dir/app"
+		APP_PID="$PROC_PID"
+		url="http://127.0.0.1:$app_port"
+		wait_http_code "$url/api/ready" 200 30 || fail "isolated $dir app cannot become ready"
+		kill -0 "$APP_PID" "$SSR_PID" || fail "isolated $dir intended processes exited"
+		http_get "isolated-$dir-home" "$url/"
+		check_code "isolated-$dir-home" 200
+		check_contains "isolated-$dir-home" 'data-server-rendered="true"'
+		check_contains "isolated-$dir-home" 'Space-grade Go, wired locally.'
+		stop_process "$APP_PID"
+		APP_PID=""
+		stop_process "$SSR_PID"
+		SSR_PID=""
+	done
+	pass "both isolated output pairs run self-contained without source assets"
 }
 
 write_summary() {
@@ -1024,6 +1140,7 @@ main() {
 	tidy_app
 	sync_tools
 	install_frontend
+	verify_after_setup
 	build_app
 	start_database
 	configure_env

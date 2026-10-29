@@ -273,6 +273,20 @@ prepare() {
 
 # --- Probes ---------------------------------------------------------------
 
+probe_release_prerequisite() {
+	local version
+	version="$(awk -F '"' '/^[[:space:]]*Inertia = / { print $2 }' "$ROOT/layout/versions/versions.go")"
+	[[ -n "$version" ]] || fail "cannot determine candidate Inertia version"
+	if ! git -C "$ROOT" show-ref --verify --quiet "refs/tags/pkg/inertia/$version"; then
+		blocked "pkg/inertia/$version is not tagged locally; publication is required before release-shaped probes"
+	fi
+	local code
+	code="$(capture "$PROBE_PREFIX.remote-tag" git -C "$ROOT" ls-remote --exit-code --tags origin "refs/tags/pkg/inertia/$version")"
+	if [[ "$code" != 0 ]]; then
+		blocked "published tag could not be verified on origin; no candidate module download was attempted"
+	fi
+}
+
 probe_cli_surface() {
 	local p="$PROBE_PREFIX"
 	local code
@@ -681,7 +695,7 @@ probe_runtime_gates() {
 	mkdir -p "$p/live"
 	local code
 	set +e
-	"$live" --evidence-dir "$p/live" --andurel "$A" \
+	timeout --kill-after=30 1800 "$live" --mode "$MODE" --evidence-dir "$p/live" --andurel "$A" \
 		>"$p.live.stdout" 2>"$p.live.stderr"
 	code=$?
 	set -e
@@ -700,13 +714,10 @@ probe_runtime_gates() {
 }
 
 probe_hygiene_doctor() {
-	if [[ "$MODE" != dev ]]; then
-		blocked "hygiene/doctor companion currently uses development module replacements; not release-shaped proof"
-	fi
 	local code
 	code="$(PROBE_TIMEOUT=1800 capture "$PROBE_PREFIX.runner" \
 		"$ROOT/scripts/acceptance/beta3-hygiene-doctor.sh" \
-		--evidence-dir "$EVIDENCE/hygiene-doctor")"
+		--mode "$MODE" --evidence-dir "$EVIDENCE/hygiene-doctor")"
 	assert_status "$PROBE_PREFIX.runner" 0
 	if [[ "$(cat "$EVIDENCE/hygiene-doctor/acceptance-state.txt")" != full ]]; then
 		blocked "hygiene/doctor companion has blocked probes; see nested evidence"
@@ -728,9 +739,6 @@ probe_database_tests() {
 }
 
 probe_site_gate() {
-	if [[ "$MODE" != dev ]]; then
-		blocked "site companion currently uses local module replacements, not release-shaped proof"
-	fi
 	if [[ "$FULL" -ne 1 ]]; then
 		blocked "live site acceptance requires --full --site-dir <andurel-site checkout>"
 	fi
@@ -740,7 +748,7 @@ probe_site_gate() {
 	local code
 	code="$(PROBE_TIMEOUT=1800 capture "$PROBE_PREFIX.runner" \
 		bash "$SITE_DIR/scripts/beta3-site-acceptance.sh" --framework "$ROOT" \
-		--candidate-cli "$A" --live --evidence "$EVIDENCE/site")"
+		--mode "$MODE" --candidate-cli "$A" --live --evidence "$EVIDENCE/site")"
 	assert_status "$PROBE_PREFIX.runner" 0
 	assert_contains "$EVIDENCE/site/summary.txt" "acceptance: passed"
 }
@@ -775,7 +783,22 @@ write_summary() {
 main() {
 	cd "$ROOT"
 	write_environment
+	if [[ "$MODE" == release ]]; then
+		run_probe 00-release-prerequisite probe_release_prerequisite
+		if [[ "$BLOCKED" -gt 0 || "$FAILURES" -gt 0 ]]; then
+			write_summary
+			if [[ "$REQUIRE_ALL" -eq 1 || "$FAILURES" -gt 0 ]]; then
+				exit 1
+			fi
+			return
+		fi
+	fi
 	prepare
+	if [[ "$MODE" == release ]]; then
+		export GOENV=off GOWORK=off GOPROXY=https://proxy.golang.org,direct GOSUMDB=sum.golang.org
+		export GOMODCACHE="$SCRATCH/published-modcache"
+		mkdir -p "$GOMODCACHE"
+	fi
 	run_probe 01-cli-surface probe_cli_surface
 	run_probe 02-new-quickstart probe_new_quickstart
 	run_probe 03-untouched-verify probe_untouched_verify

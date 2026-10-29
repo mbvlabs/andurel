@@ -18,12 +18,12 @@
 #        (secret-safe diagnostics).
 #   Also scoped/changed/content verify acceptance where it is cheap and useful.
 #
-# Development proof only: the generated app uses temporary go.mod replaces for
-# the unpublished candidate pkg/inertia pin. This is not release-shaped proof
-# and never publishes, tags, or pushes anything.
+# Development mode uses temporary go.mod replacements and is not release-shaped
+# proof. Release mode uses published pins without replacements and requires the
+# candidate module tag. Neither mode publishes, tags, or pushes anything.
 #
 # Usage:
-#   scripts/acceptance/beta3-hygiene-doctor.sh [--evidence-dir DIR]
+#   scripts/acceptance/beta3-hygiene-doctor.sh [--mode dev|release] [--evidence-dir DIR]
 #                                              [--require-all] [--keep-scratch]
 #
 # Exit status: 0 when every executed probe passed. A blocked probe (missing
@@ -38,6 +38,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CANDIDATE_SHA="$(git -C "$ROOT" rev-parse HEAD)"
 CANDIDATE_VERSION="${ANDUREL_ACCEPTANCE_VERSION:-v2.0.0-beta.4}"
 EVIDENCE=""
+MODE=dev
 REQUIRE_ALL=0
 KEEP_SCRATCH=0
 SCRATCH=""
@@ -55,6 +56,10 @@ usage() {
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
+	--mode)
+		MODE="${2:-}"
+		shift 2
+		;;
 	--evidence-dir)
 		EVIDENCE="${2:-}"
 		shift 2
@@ -78,6 +83,11 @@ while [[ $# -gt 0 ]]; do
 		;;
 	esac
 done
+
+case "$MODE" in
+dev | release) ;;
+*) echo "--mode must be dev or release" >&2; exit 2 ;;
+esac
 
 if [[ -z "$EVIDENCE" ]]; then
 	EVIDENCE="$ROOT/plans/evidence/beta3-finish-hygiene/${CANDIDATE_SHA:0:12}-hygiene-doctor"
@@ -249,7 +259,7 @@ assert_secret_absent() {
 doctor_clean() {
 	local prefix="$1"
 	shift
-	local -a clean=(env -i "PATH=$PATH" "HOME=$HOME" "GOWORK=off")
+	local -a clean=(env -i "PATH=$PATH" "HOME=$HOME" "GOWORK=off" "GOENV=off")
 	clean+=("TMPDIR=${TMPDIR:-/tmp/opencode}" "GOTMPDIR=${GOTMPDIR:-${TMPDIR:-/tmp/opencode}}")
 	if [[ -n "${GOCACHE:-}" ]]; then
 		clean+=("GOCACHE=$GOCACHE")
@@ -296,6 +306,7 @@ run_probe() {
 write_environment() {
 	{
 		printf 'candidate_sha=%s\n' "$CANDIDATE_SHA"
+		printf 'mode=%s\n' "$MODE"
 		printf 'candidate_version=%s (unpublished acceptance build)\n' "$CANDIDATE_VERSION"
 		printf 'candidate_dirty=%s\n' "$(git -C "$ROOT" status --porcelain | wc -l)"
 		printf 'go=%s\n' "$(go version)"
@@ -380,7 +391,15 @@ probe_new_react_pnpm_harness() {
 probe_local_replacements() {
 	local p="$PROBE_PREFIX"
 	local module_dir module code
+	if [[ "$MODE" == release ]]; then
+		local version
+		version="$(awk -F '"' '/^[[:space:]]*Inertia = / { print $2 }' "$ROOT/layout/versions/versions.go")"
+		if [[ -z "$version" ]] || ! git -C "$ROOT" show-ref --verify --quiet "refs/tags/pkg/inertia/$version"; then
+			blocked "release gate: candidate Inertia tag is absent; no module download attempted"
+		fi
+	fi
 	for module_dir in "$ROOT"/pkg/*/; do
+		[[ "$MODE" == dev ]] || break
 		[[ -f "${module_dir}go.mod" ]] || continue
 		module="$(basename "$module_dir")"
 		(
@@ -704,6 +723,7 @@ write_summary() {
 	{
 		printf '# F40/F06 hygiene and doctor probes\n\n'
 		printf 'acceptance: %s\n\n' "$acceptance"
+		printf 'mode: %s\n\n' "$MODE"
 		printf '| Probe | Status | Exit |\n| --- | --- | --- |\n'
 		local row name status code
 		for row in "${RESULT_ROWS[@]:-}"; do
