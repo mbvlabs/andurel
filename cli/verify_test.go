@@ -118,6 +118,9 @@ func TestVerifyReportsOK(t *testing.T) {
 		if step.Name == "content" && step.NotApplicable {
 			continue
 		}
+		if step.Name == "go test" && step.Status == verifyStatusSkipped {
+			continue
+		}
 		if step.Status != verifyStatusOK || !step.OK {
 			t.Fatalf("step %q = %#v, want status ok and ok true", step.Name, step)
 		}
@@ -208,6 +211,48 @@ func TestVerifyReportsMissingTools(t *testing.T) {
 	if !strings.Contains(verifySummary(report), "blocked") {
 		t.Fatalf("summary = %q, want a blocked summary", verifySummary(report))
 	}
+}
+
+func TestVerifyDoesNotRunTestsWithoutWithTests(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stub tools use a POSIX shell script")
+	}
+
+	root := newVerifyTestProject(t)
+	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
+	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\nexit 0\n")
+	writeTestFile(t, root, "broken/broken_test.go", `package broken
+
+import "testing"
+
+func TestBroken(t *testing.T) {
+	t.Fatal("plain verify must not run this test")
+}
+`)
+
+	// A failing test must not fail plain verify: running the suite is opt-in.
+	plain := runVerifyInProject(t, root, "verify", "--json")
+	if plain.err != nil {
+		t.Fatalf("plain verify ran the test suite: %v\n%s", plain.err, plain.stderr)
+	}
+	report := decodeVerifyReport(t, plain)
+	goTest := findVerifyStep(t, report, "go test")
+	if goTest.Status != verifyStatusSkipped || !strings.Contains(goTest.Reason, "--with-tests not set") {
+		t.Fatalf("go test step = %#v, want skipped until --with-tests", goTest)
+	}
+	if len(report.Scope.Stages) != 0 {
+		for _, stage := range report.Scope.Stages {
+			if stage == verifyStageGoTest {
+				t.Fatalf("plain verify selected the go-test stage: %#v", report.Scope.Stages)
+			}
+		}
+	}
+
+	optedIn := runVerifyInProject(t, root, "verify", "--with-tests", "--json")
+	assertVerifyExitCode(t, optedIn, output.ExitVerification)
+
+	explicit := runVerifyInProject(t, root, "verify", "--only", "go-test", "--json")
+	assertVerifyExitCode(t, explicit, output.ExitVerification)
 }
 
 func TestVerifySkipGeneratedDoesNotFailRun(t *testing.T) {

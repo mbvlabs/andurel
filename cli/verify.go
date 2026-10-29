@@ -402,8 +402,13 @@ func applyVerifyFlagSelection(selection verifySelection, options verifyOptions) 
 	if options.noFrontend {
 		selection = selection.without(verifyStageFrontend)
 	}
-	if options.withTests {
+	// go test is opt-in: --with-tests, or an explicit --only go-test. Plain
+	// verify never runs the project's test suite.
+	explicitTests := slices.Contains(splitVerifyNames(options.only), verifyStageGoTest)
+	if options.withTests || explicitTests {
 		selection = selection.with(verifyStageGoTest)
+	} else {
+		selection = selection.without(verifyStageGoTest)
 	}
 	return selection
 }
