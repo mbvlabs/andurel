@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -45,6 +46,10 @@ const (
 	statusPass checkStatus = iota
 	statusWarn
 	statusFail
+	// statusSkip marks a check that could not run because its prerequisite is
+	// missing, for example a project generated before the runtime config check
+	// existed. A skip is never reported as a pass.
+	statusSkip
 )
 
 // String returns the status value used in doctor output.
@@ -56,6 +61,8 @@ func (s checkStatus) String() string {
 		return "warn"
 	case statusFail:
 		return "fail"
+	case statusSkip:
+		return "skip"
 	default:
 		return "unknown"
 	}
@@ -79,11 +86,14 @@ type doctorCheck struct {
 }
 
 type doctorSummary struct {
-	Total    int    `json:"total"`
-	Passed   int    `json:"passed"`
-	Warnings int    `json:"warnings"`
-	Failed   int    `json:"failed"`
-	Status   string `json:"status"`
+	Total    int `json:"total"`
+	Passed   int `json:"passed"`
+	Warnings int `json:"warnings"`
+	Failed   int `json:"failed"`
+	// Skipped counts checks that could not run; it is additive so existing
+	// consumers keep working.
+	Skipped int    `json:"skipped,omitempty"`
+	Status  string `json:"status"`
 }
 
 func newDoctorCommand(currentVersion string) *cobra.Command {
@@ -95,9 +105,15 @@ func newDoctorCommand(currentVersion string) *cobra.Command {
 
 This command will check:
   • Environment (Go version, latest stable Andurel release)
-  • Configuration (andurel.lock)
+  • Configuration (andurel.lock, first-run setup, runtime configuration and database connectivity, Inertia SSR readiness)
   • Code quality (go vet, go mod tidy)
-  • Code generation (templ, email renderers, narsilc, and Inertia route helpers and payload types when configured)`,
+  • Code generation (templ, email renderers, narsilc, and Inertia route helpers and payload types when configured)
+
+Runtime configuration and the database probe run the project's own read-only
+check (internal/configcheck), so the check cannot drift from the config
+constructor cmd/app uses. Missing or malformed required values and an
+unreachable database fail; a check that cannot run is reported as skipped,
+never as a pass.`,
 		Example: `  andurel doctor
   andurel doctor --verbose`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -117,7 +133,7 @@ This command will check:
 	setAgentMetadata(
 		doctorCmd,
 		"diagnostics",
-		"Read-only project checks include templ, email renderers, active narsilc queries, and Inertia route helper and payload type drift. Use --json for actionable check hints.",
+		"Read-only project checks include first-run setup, runtime configuration and database connectivity through the generated internal/configcheck helper, Inertia SSR readiness, templ, email renderers, active narsilc queries, and Inertia route helper and payload type drift. Missing configuration and an unreachable database fail; a check that could not run is reported as skipped. Use --json for actionable check hints.",
 	)
 
 	return doctorCmd
@@ -172,6 +188,8 @@ func collectDoctorReport(currentVersion string, verbose bool) (doctorReport, err
 		checkLockFile(rootDir),
 		checkAndurelVersion(rootDir, currentVersion),
 		checkToolVersions(rootDir, verbose),
+		checkProjectSetup(rootDir),
+		checkRuntimeConfiguration(rootDir),
 		checkInertiaSSRConfiguration(rootDir),
 	)...)
 
@@ -210,6 +228,8 @@ func buildDoctorReport(currentVersion, rootDir string, results []checkResult) do
 			report.Summary.Warnings++
 		case statusFail:
 			report.Summary.Failed++
+		case statusSkip:
+			report.Summary.Skipped++
 		}
 
 		report.Checks = append(report.Checks, doctorCheckFromResult(result))
@@ -253,6 +273,10 @@ func doctorHint(result checkResult) string {
 		return "Use the Andurel version recorded in andurel.lock or run andurel upgrade."
 	case "tool versions":
 		return "Run andurel tool sync to install or update framework tools."
+	case "Project setup":
+		return "Run andurel tool sync and install the frontend dependencies from the project root."
+	case "Runtime config":
+		return "Run go run ./internal/configcheck from the project root for the full reason."
 	case "Inertia SSR":
 		return "In development, Vite serves SSR. In production, build assets/dist/ssr/ssr.js and run cmd/ssr."
 	case "go vet":
@@ -281,6 +305,10 @@ func doctorSummaryMessage(report doctorReport) string {
 	case "warn":
 		return "Doctor checks completed with warnings"
 	default:
+		if report.Summary.Skipped > 0 {
+			return "Doctor checks passed with skipped checks"
+		}
+
 		return "Doctor checks passed"
 	}
 }
@@ -327,6 +355,8 @@ func runDoctor(cmd *cobra.Command, currentVersion string, verbose bool) error {
 		checkLockFile(rootDir),
 		checkAndurelVersion(rootDir, currentVersion),
 		checkToolVersions(rootDir, verbose),
+		checkProjectSetup(rootDir),
+		checkRuntimeConfiguration(rootDir),
 		checkInertiaSSRConfiguration(rootDir),
 	}
 	results = append(results, configResults...)
@@ -355,6 +385,7 @@ func runDoctor(cmd *cobra.Command, currentVersion string, verbose bool) error {
 	passCount := 0
 	warnCount := 0
 	failCount := 0
+	skipCount := 0
 
 	for _, r := range results {
 		switch r.status {
@@ -366,6 +397,8 @@ func runDoctor(cmd *cobra.Command, currentVersion string, verbose bool) error {
 		case statusFail:
 			failCount++
 			hasErrors = true
+		case statusSkip:
+			skipCount++
 		}
 	}
 
@@ -377,6 +410,9 @@ func runDoctor(cmd *cobra.Command, currentVersion string, verbose bool) error {
 	}
 	if failCount > 0 {
 		_, _ = fmt.Fprintf(out, "✗ Failed: %d\n", failCount)
+	}
+	if skipCount > 0 {
+		_, _ = fmt.Fprintf(out, "- Skipped: %d\n", skipCount)
 	}
 
 	if hasErrors {
@@ -408,6 +444,8 @@ func printResults(out io.Writer, results []checkResult, verbose bool, quiet bool
 			symbol = "⚠"
 		case statusFail:
 			symbol = "✗"
+		case statusSkip:
+			symbol = "-"
 		}
 
 		_, _ = fmt.Fprintf(out, "%s %s", symbol, r.name)
@@ -416,7 +454,9 @@ func printResults(out io.Writer, results []checkResult, verbose bool, quiet bool
 		}
 		_, _ = fmt.Fprintln(out)
 
-		if verbose && len(r.details) > 0 {
+		// Details explain why a check did not pass, so they are printed without
+		// --verbose. Passing checks keep their details behind the flag.
+		if len(r.details) > 0 && (verbose || r.status != statusPass) {
 			for _, detail := range r.details {
 				_, _ = fmt.Fprintf(out, "  %s\n", detail)
 			}
@@ -446,6 +486,20 @@ func checkLatestAndurelRelease(currentVersion string) checkResult {
 
 	latest, err := lookupLatestAndurelVersionFunc(context.Background())
 	if err != nil {
+		if noStable, ok := errors.AsType[*noStableReleaseError](err); ok {
+			return checkResult{
+				name:   "Andurel release",
+				status: statusWarn,
+				message: fmt.Sprintf(
+					"no stable release published yet (latest is prerelease %s)",
+					noStable.version,
+				),
+				details: []string{noStable.Error()},
+				hint: "This is expected while v2 is in beta; run andurel doctor again " +
+					"after a stable release is published, or keep testing the prerelease.",
+			}
+		}
+
 		return checkResult{
 			name:    "Andurel release",
 			status:  statusWarn,

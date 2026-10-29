@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"net/http"
 
 	"{{.ModuleName}}/routes"
 
@@ -9,13 +10,42 @@ import (
 )
 
 type APIHandler struct {
-	health anduin.Handler
+	health    anduin.Handler
+	readiness anduin.Handler
 }
 
-func NewAPIHandler(health interface{ Health(context.Context) error }) APIHandler {
-	return APIHandler{health: anduin.Health(health)}
+// NewAPIHandler wires liveness (/api/health) and readiness (/api/ready).
+// Liveness answers while the process runs; readiness reports why the process
+// cannot serve traffic yet, so orchestration can hold traffic until the
+// database and the required SSR sidecar answer.
+func NewAPIHandler(
+	health interface{ Health(context.Context) error },
+	readiness interface{ Health(context.Context) error },
+) APIHandler {
+	return APIHandler{
+		health:    anduin.Health(health),
+		readiness: readinessHandler(readiness),
+	}
 }
 
 func (a APIHandler) Register(rt *anduin.Router) {
 	rt.Get(routes.Health.Pattern(), a.health)
+	rt.Get(routes.Ready.Pattern(), a.readiness)
+}
+
+// readinessHandler answers 200 when the process is ready, or 503 with the first
+// reason it is not. It writes the probe response itself instead of returning an
+// error, so the status stays 503 and the reason stays machine-readable. The
+// reason is stable and contains no configuration values.
+func readinessHandler(checker interface{ Health(context.Context) error }) anduin.Handler {
+	return func(ctx context.Context) error {
+		if err := checker.Health(ctx); err != nil {
+			return anduin.JSON(ctx, http.StatusServiceUnavailable, map[string]string{
+				"status": "unavailable",
+				"reason": err.Error(),
+			})
+		}
+
+		return anduin.JSON(ctx, http.StatusOK, map[string]string{"status": "ready"})
+	}
 }

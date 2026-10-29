@@ -4,6 +4,27 @@ This is an Andurel application. Use the `andurel` CLI to discover the project sh
 
 Frontend: Inertia ({{.Inertia}}) + Vite. HTTP: `net/http` via `pkg/anduin` — handlers are `func(ctx context.Context) error`. There is no Echo and no Fx. Entities validate via `pkg/validation`.
 
+## First-run setup
+
+`andurel new` is offline: it writes files and installs nothing. Complete the documented setup before verifying:
+
+```bash
+andurel tool sync          # binaries pinned in andurel.lock
+{{.JavaScriptPackageManager}} install              # frontend dependencies
+cp .env.example .env       # then set the required values
+andurel db create          # only if the database does not exist yet
+andurel db migrate up
+andurel doctor             # configuration, database, tools, generated code
+```
+
+A `.env` file is optional when the same values are exported in the process environment; exported values win. `andurel doctor` reports missing or malformed runtime configuration and an unreachable database as failures, and skips (never passes) a check it could not run.
+
+## Repository policy
+
+- Commit the package manager lockfile ({{if .JavaScriptLockfileName}}`{{.JavaScriptLockfileName}}`{{else}}the lockfile of the selected package manager{{end}}) and use the frozen/immutable install in CI ({{if .JavaScriptFrozenInstallCommand}}`{{.JavaScriptFrozenInstallCommand}}`{{else}}the package manager's frozen mode{{end}}). `andurel new` ships no lockfile; the first install generates it.
+- Commit the installed agent skill (for example `./.claude/skills/andurel`). These are project-local references, not caches. Install it with `andurel skill install --harness <harness>` if `andurel new` was run without `--harness`.
+- Keep `.env`, `node_modules/`, `bin/`, `dist/` (including `assets/dist`), and `tmp/` out of git.
+
 ## Discovery
 
 ```bash
@@ -108,6 +129,14 @@ andurel run
 ## Composition
 
 `internal/runtime` constructs the graph explicitly, bottom-up: telemetry → database → domains → services → renderer/handlers/middleware → router. `cmd/app` and `cmd/queue` only load env, create the signal context, and start `runtime`. Add a dependency by constructing it and passing it as a constructor argument — never through a container.
+
+The welcome page at `/` is public; protect a route by registering it with `middleware.AuthOnly(users)`.
+
+## Health and readiness
+
+`GET /api/health` is liveness: it answers while the process runs. `GET /api/ready` is readiness: 200 only when the database answers and, outside development, the Inertia SSR sidecar is healthy; otherwise 503 with a stable reason. Readiness recovers when the sidecar returns. `INERTIA_SSR_FAIL_FAST=false` is the explicit client-side-rendering fallback and makes readiness ignore the sidecar.
+
+`internal/configcheck` is the read-only check `andurel doctor` runs (`go run ./internal/configcheck`). It loads the same config constructor `cmd/app` uses and pings the database; it never migrates or creates anything. Keep it in sync when you change `config/`.
 
 ## Migrations
 

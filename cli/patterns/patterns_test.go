@@ -133,10 +133,10 @@ func TestCompositionPatternMatchesScaffoldRuntime(t *testing.T) {
 
 	keyLines := []string{
 		"anduin.WithHosts(hosts)",
-		"handlers.NewPagesHandler(renderer).Register(router, middleware.AuthOnly(users))",
+		"handlers.NewPagesHandler(renderer).Register(router)",
 		"assetsHandler.Register(router)",
 		"handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)",
-		"handlers.NewAPIHandler(db).Register(router)",
+		"handlers.NewAPIHandler(db, newReadiness(cfg, db)).Register(router)",
 		"app.Handler = router.Handler()",
 	}
 	for _, line := range keyLines {
@@ -146,6 +146,12 @@ func TestCompositionPatternMatchesScaffoldRuntime(t *testing.T) {
 		if !strings.Contains(templateSource, line) {
 			t.Errorf("scaffold runtime template is missing %q", line)
 		}
+	}
+
+	// The welcome page must stay public: the scaffold registers it without
+	// middleware, and a protected route passes middleware.AuthOnly explicitly.
+	if strings.Contains(templateSource, "NewPagesHandler(renderer).Register(router, middleware.AuthOnly") {
+		t.Error("scaffold runtime still registers the welcome page behind AuthOnly")
 	}
 
 	if strings.Contains(source, "Register(rt") {

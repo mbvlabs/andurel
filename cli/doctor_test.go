@@ -199,6 +199,12 @@ func TestRunDoctorStructuredPassAndFail(t *testing.T) {
 	writeGoModule(t, root)
 	writeTestFile(t, root, "main.go", "package main\n\nfunc main() {}\n")
 	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
+	writeTestFile(t, root, configCheckPath, "package main\n\nfunc main() {}\n")
+	stubProjectConfigCheck(t, configCheckReport{
+		OK:       true,
+		Config:   configCheckSection{Status: "valid"},
+		Database: &configCheckSection{Status: "reachable"},
+	}, nil)
 	lock := layout.NewAndurelLock("v1.2.3")
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("write lock: %v", err)
@@ -239,13 +245,46 @@ func TestPrintResults(t *testing.T) {
 		{name: "pass", status: statusPass, message: "ok", details: []string{"hidden"}},
 		{name: "warn", status: statusWarn, message: "review", details: []string{"visible"}},
 		{name: "fail", status: statusFail, message: "broken"},
+		{name: "skip", status: statusSkip, message: "not run", details: []string{"why"}},
 		{name: "unknown", status: checkStatus(99)},
 	}, true, false)
 	out := buf.String()
-	for _, want := range []string{"pass: ok", "warn: review", "visible", "fail: broken", "unknown"} {
+	for _, want := range []string{
+		"pass: ok",
+		"warn: review",
+		"visible",
+		"fail: broken",
+		"skip: not run",
+		"why",
+		"unknown",
+	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("printResults output missing %q:\n%s", want, out)
 		}
+	}
+}
+
+// TestPrintResultsShowsNonPassingDetailsWithoutVerbose guards the human F06
+// report: a warning's details explain it, so they are not hidden behind
+// --verbose while the JSON always carries them.
+func TestPrintResultsShowsNonPassingDetailsWithoutVerbose(t *testing.T) {
+	var buf bytes.Buffer
+	printResults(&buf, []checkResult{
+		{name: "pass", status: statusPass, message: "ok", details: []string{"hidden"}},
+		{
+			name:    "Andurel release",
+			status:  statusWarn,
+			message: "no stable release published yet",
+			details: []string{"latest module version \"v2.0.0-beta.3\" is not a stable release"},
+		},
+	}, false, false)
+
+	out := buf.String()
+	if strings.Contains(out, "hidden") {
+		t.Fatalf("passing details should stay behind --verbose:\n%s", out)
+	}
+	if !strings.Contains(out, "is not a stable release") {
+		t.Fatalf("warning details missing from human output:\n%s", out)
 	}
 }
 

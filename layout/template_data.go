@@ -46,6 +46,9 @@ type TemplateData struct {
 	FrameworkVersion     string // Version of the framework that generated managed files
 	Inertia              string // "vue", "react", "svelte", etc. Empty means templ-only
 	JavaScriptSSRRuntime string // Seeded into config DefaultInertiaSSRRuntime
+	// JavaScriptPackageManager is the selected frontend package manager (pnpm,
+	// npm, bun). Empty means the scaffold has no frontend.
+	JavaScriptPackageManager string
 
 	// Blueprint holds the structured scaffold configuration
 	blueprint *blueprint.Blueprint
@@ -54,6 +57,46 @@ type TemplateData struct {
 // DatabaseDialect returns the configured database, which is always PostgreSQL.
 func (td *TemplateData) DatabaseDialect() string {
 	return "postgresql"
+}
+
+// JavaScriptLockfileName is the lockfile the selected package manager writes.
+// It is empty when the scaffold has no frontend, so the README never claims a
+// lockfile the project does not have.
+func (td *TemplateData) JavaScriptLockfileName() string {
+	if td == nil {
+		return ""
+	}
+
+	switch td.JavaScriptPackageManager {
+	case "pnpm":
+		return "pnpm-lock.yaml"
+	case "npm":
+		return "package-lock.json"
+	case "bun":
+		return "bun.lock"
+	default:
+		return ""
+	}
+}
+
+// JavaScriptFrozenInstallCommand is the reproducible install command CI uses:
+// it fails when the lockfile and package.json disagree instead of rewriting
+// the lockfile.
+func (td *TemplateData) JavaScriptFrozenInstallCommand() string {
+	if td == nil {
+		return ""
+	}
+
+	switch td.JavaScriptPackageManager {
+	case "pnpm":
+		return "pnpm install --frozen-lockfile"
+	case "npm":
+		return "npm ci"
+	case "bun":
+		return "bun install --frozen-lockfile"
+	default:
+		return ""
+	}
 }
 
 // Identifier returns the project name as a lowercase identifier safe for

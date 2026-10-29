@@ -142,10 +142,12 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 		anduin.CSRF(csrf),
 	)
 
-	handlers.NewPagesHandler(renderer).Register(router, middleware.AuthOnly(users))
+	// The welcome page is public: a new project must be reachable before anyone
+	// signs in. Pass middleware.AuthOnly(users) to Register to protect a page.
+	handlers.NewPagesHandler(renderer).Register(router)
 	assetsHandler.Register(router)
 	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)
-	handlers.NewAPIHandler(db).Register(router)
+	handlers.NewAPIHandler(db, newReadiness(cfg, db)).Register(router)
 
 	app.Handler = router.Handler()
 	if cfg.HTTP.Compress {
@@ -198,6 +200,52 @@ func isSafeViteAssetRequest(ctx context.Context) bool {
 
 func isViteAssetPath(path string) bool {
 	return strings.HasPrefix(path, viteAssetPrefix+"/")
+}
+
+// readiness reports whether the process can serve traffic. It stays separate
+// from liveness: the database must answer, and outside development the Inertia
+// SSR sidecar must answer too, because server-rendered pages fail without it.
+// A project that opts into client-side-rendering fallback (INERTIA_SSR_FAIL_FAST
+// false) does not gate readiness on the sidecar.
+type readiness struct {
+	database storage.Connection
+	ssr      *inertia.HTTPRenderer
+}
+
+func newReadiness(cfg config.Config, db storage.Connection) readiness {
+	ready := readiness{database: db}
+	if !cfg.App.IsProduction() || !cfg.Inertia.SSRFailFast {
+		return ready
+	}
+
+	ssr, err := inertia.NewHTTPRenderer(
+		cfg.Inertia.SSRURL,
+		cfg.Inertia.SSRRequestTimeout,
+		cfg.Inertia.SSRMaxResponseBytes,
+	)
+	if err != nil {
+		return ready
+	}
+	ready.ssr = ssr
+
+	return ready
+}
+
+// Health returns the first reason the process is not ready. The reasons are
+// stable and carry no configuration values, so readiness output cannot leak a
+// connection string.
+func (r readiness) Health(ctx context.Context) error {
+	if err := r.database.Health(ctx); err != nil {
+		return errors.New("database is unavailable")
+	}
+	if r.ssr == nil {
+		return nil
+	}
+	if err := r.ssr.Health(ctx); err != nil {
+		return errors.New("inertia SSR renderer is unavailable")
+	}
+
+	return nil
 }
 
 func (a *App) Start() error {
