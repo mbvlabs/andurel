@@ -1,0 +1,28 @@
+# Probes
+
+acceptance: partial
+
+| Probe | Status | Exit |
+| --- | --- | --- |
+| 01-cli-surface | pass | 0 |
+| 02-new-quickstart | pass | 0 |
+| 03-untouched-verify | pass | 0 |
+| 04-untouched-doctor | pass | 0 |
+| 05-migration-creation | pass | 0 |
+| 06-config-projection | pass | 0 |
+| 07-local-replacement | pass | 0 |
+| 08-content-invariants | pass | 0 |
+| 09-test-accounting | pass | 0 |
+| 10-go-test-opt-in | pass | 0 |
+| 11-route-usage-regressions | pass | 0 |
+| 12-doctor-regressions | pass | 0 |
+| 13-build-publication-recovery | pass | 0 |
+| 14-port-lease | pass | 0 |
+| 15-port-concurrent-claims | pass | 0 |
+| 16-port-occupied | pass | 0 |
+| 17-live-runtime-gates | blocked | 77 |
+| 18-site-gate | blocked | 77 |
+
+passed=16 blocked=2 failed=0
+
+PARTIAL ACCEPTANCE: 2 probe(s) blocked and 0 failed. This is not full acceptance.

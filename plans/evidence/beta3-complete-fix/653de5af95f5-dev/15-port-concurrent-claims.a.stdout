@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "data": {
+    "host": "127.0.0.1",
+    "port": 32955,
+    "listen_url": "http://127.0.0.1:32955",
+    "url": "http://127.0.0.1:32955",
+    "mode": "allocated",
+    "lease_file": "/tmp/andurel-acceptance-UqANgJ/leases/a/port-12ca17b49af2-32955.json",
+    "pid": 1777342,
+    "child_pid": 1777356
+  },
+  "summary": "SSR port 32955 ready at http://127.0.0.1:32955 (child pid 1777356)"
+}

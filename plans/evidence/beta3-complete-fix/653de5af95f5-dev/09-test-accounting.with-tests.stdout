@@ -1,0 +1,103 @@
+{
+  "ok": true,
+  "data": {
+    "ok": true,
+    "steps": [
+      {
+        "name": "setup",
+        "status": "skipped",
+        "ok": false,
+        "reason": "no setup requirements for the selected stages",
+        "rules": {
+          "selected": [
+            "setup",
+            "missing-tool"
+          ],
+          "executed": null,
+          "skipped": [
+            "setup",
+            "missing-tool"
+          ]
+        }
+      },
+      {
+        "name": "gofmt",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "go fix",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "go vet",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "layers",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "frontend",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "generated",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "content",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "go test",
+        "status": "ok",
+        "ok": true,
+        "skipped_tests": [
+          {
+            "package": "fresh-app/acceptanceunit",
+            "test": "TestAcceptanceSkips",
+            "reason": "skip_test.go:6: acceptance fixture skip"
+          }
+        ],
+        "packages": [
+          {
+            "package": "fresh-app/acceptanceunit",
+            "status": "ok",
+            "passed": 1,
+            "failed": 0,
+            "skipped": 1,
+            "duration_seconds": 0.004
+          }
+        ],
+        "totals": {
+          "packages": 1,
+          "passed": 1,
+          "failed": 0,
+          "skipped": 1,
+          "duration_seconds": 0.004
+        }
+      }
+    ],
+    "scope": {
+      "mode": "all",
+      "stages": [
+        "go-test"
+      ]
+    }
+  },
+  "summary": "Verification passed"
+}

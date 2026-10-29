@@ -107,8 +107,8 @@ scripts/beta3-fix-acceptance.sh --mode dev --require-all
 ```
 
 Latest dev run: `passed=16 blocked=2 failed=0` (evidence
-`plans/evidence/beta3-complete-fix/994ecb9160e6-dev/`; rerun after HEAD moved
-for the current commit). Blocked probes are **not** passes: they are
+`plans/evidence/beta3-complete-fix/653de5af95f5-dev/`; rerun after each new
+commit). Blocked probes are **not** passes: they are
 `17-live-runtime-gates` (live DB/frontend/SSR/build flow is documented but not
 automated in this harness revision) and `18-site-gate` (separate site worktree).
 A run with any blocked probe writes `acceptance: partial`.

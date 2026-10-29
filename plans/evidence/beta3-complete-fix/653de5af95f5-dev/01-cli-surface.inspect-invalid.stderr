@@ -1,0 +1,7 @@
+{
+  "ok": false,
+  "code": "usage_error",
+  "error": "unknown subcommand \"definitely-not-a-command\" for \"andurel inspect\"",
+  "hint": "Run \"andurel inspect --help\" to see available subcommands: config, domains, handlers, jobs, migrations, pages, process, project, routes, upgrade-notes, urls.",
+  "exit_code": 1
+}

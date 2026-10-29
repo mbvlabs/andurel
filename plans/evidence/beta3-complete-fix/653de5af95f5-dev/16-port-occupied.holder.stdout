@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "data": {
+    "host": "127.0.0.1",
+    "port": 40075,
+    "listen_url": "http://127.0.0.1:40075",
+    "url": "http://127.0.0.1:40075",
+    "mode": "allocated",
+    "lease_file": "/tmp/andurel-acceptance-UqANgJ/leases/fixed/port-12ca17b49af2-40075.json",
+    "pid": 1777416,
+    "child_pid": 1777425
+  },
+  "summary": "SSR port 40075 ready at http://127.0.0.1:40075 (child pid 1777425)"
+}

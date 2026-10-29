@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "data": {
+    "host": "127.0.0.1",
+    "port": 34041,
+    "listen_url": "http://127.0.0.1:34041",
+    "url": "http://127.0.0.1:34041",
+    "mode": "allocated",
+    "lease_file": "/tmp/andurel-acceptance-UqANgJ/leases/one/port-12ca17b49af2-34041.json",
+    "pid": 1777303,
+    "child_pid": 1777312
+  },
+  "summary": "SSR port 34041 ready at http://127.0.0.1:34041 (child pid 1777312)"
+}
