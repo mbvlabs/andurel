@@ -86,7 +86,7 @@ jobs:
           flags: unit
           fail_ci_if_error: false
 
-      - name: Run golden CLI tests (release-shaped: public proxy and checksums)
+      - name: Run golden CLI tests (release-shaped, public proxy and checksums)
         run: just test-golden-full-release
 
       - name: Run published-pin upgrade E2E
