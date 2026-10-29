@@ -737,7 +737,20 @@ func moduleInitializationUsages(
 				tokens, index, namespaces, importedHelpers, wrappers, helpers, &usages,
 			)
 		case "function":
-			open := index
+			// Destructured parameters and their types contain braces before the
+			// deferred body. Skip the entire parameter list first.
+			params := index
+			for params < len(tokens) && tokens[params].Text != "(" {
+				params++
+			}
+			if params >= len(tokens) {
+				continue
+			}
+			closeParams := matchingToken(tokens, params)
+			if closeParams < 0 {
+				continue
+			}
+			open := closeParams + 1
 			for open < len(tokens) && tokens[open].Text != "{" {
 				open++
 			}
