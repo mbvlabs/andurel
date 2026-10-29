@@ -13,6 +13,9 @@ import (
 func TestVerifySetupBlocksFrontendUntilNodeModulesInstalled(t *testing.T) {
 	root := newVerifyTestProject(t)
 	writeTestFile(t, root, "package.json", `{"scripts":{"typecheck":"tsc --noEmit"}}`)
+	fakeBin := t.TempDir()
+	writeExecutable(t, fakeBin, "pnpm", "#!/bin/sh\nexit 0\n")
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	result := runVerifyInProject(t, root, "verify", "--skip-generated", "--json")
 	assertVerifyExitCode(t, result, output.ExitVerification)
@@ -41,9 +44,6 @@ func TestVerifySetupBlocksFrontendUntilNodeModulesInstalled(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "node_modules"), 0o755); err != nil {
 		t.Fatalf("create node_modules: %v", err)
 	}
-	fakeBin := t.TempDir()
-	writeExecutable(t, fakeBin, "pnpm", "#!/bin/sh\nexit 0\n")
-	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
 	green := runVerifyInProject(t, root, "verify", "--skip-generated", "--json")
 	if green.err != nil {
