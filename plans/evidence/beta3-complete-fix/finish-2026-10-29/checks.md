@@ -32,6 +32,25 @@ Coordinator raw baseline output is retained at
 `../653de5af95f5-dev/matrix.md`. Neither baseline matrix is a final result for
 subsequent finishing changes.
 
+## Integrated follow-ups
+
+- Hygiene/doctor worker commits integrated as `05b317f2` and `147457b5`.
+  Independent `beta3-hygiene-doctor.sh --require-all` rerun: **9 passed, 0
+  blocked, 0 failed**. Output: `/tmp/opencode/beta3-coordinator/hygiene-integrated/`.
+  Coordinator added exact command/cwd capture with secret-value redaction.
+- Main harness with hygiene wiring: **17 passed, 2 blocked, 0 failed**;
+  `/tmp/opencode/beta3-coordinator/dev-with-hygiene/`. Gates 17/18 still blocked.
+- Beta.4 upgrade worker integrated as `0ede6573`. Coordinator changed the CLI
+  build to `GOWORK=off` as well and reran the same local-package E2E command
+  above: **all five sources passed**, 64.701s. Every source (alpha.4, alpha.5,
+  beta.1, beta.2, beta.3) applied all five beta.4 manual actions, then tidied,
+  built, and vetted. Raw log: `/tmp/opencode/beta3-coordinator/upgrade-beta4.log`.
+  Alpha.4's duplicate password route name is now documented in the action.
+- `shellcheck` and `bash -n` pass for the main and hygiene companion scripts.
+  ShellCheck was invoked directly at
+  `/home/mbv/.local/share/mise/installs/shellcheck/0.11.0/shellcheck-v0.11.0/shellcheck`
+  because the ambient shim has no selected version.
+
 ## Still outstanding
 
 - Integrate and independently verify the finishing workers' commits.

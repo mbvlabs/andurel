@@ -225,9 +225,10 @@ func buildUpgradeE2EAndurel(t *testing.T) string {
 
 	command := exec.CommandContext(ctx, "go", "build", "-o", binary, ".")
 	command.Dir = framework
-	// Build against the checkout's workspace so the unpublished candidate
-	// pkg/inertia never has to be fetched.
-	command.Env = append(os.Environ(), "GOWORK="+filepath.Join(framework, "go.work"))
+	// Build the CLI with the same standalone module resolution as CI. The CLI
+	// does not import the candidate Inertia module; generated apps receive local
+	// replacements before dependency resolution in the development variant.
+	command.Env = append(os.Environ(), "GOWORK=off")
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("build local andurel CLI: %v\n%s", err, output)
 	}

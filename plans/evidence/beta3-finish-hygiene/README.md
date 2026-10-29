@@ -44,10 +44,10 @@ as a pass.
 
 ## Coordinator integration
 
-`scripts/beta3-fix-acceptance.sh` is owned by another lane and is intentionally
-not edited here. To wire this lane into the full gate, invoke the script as a
-probe after the existing doctor regressions (for example after probe 12), or run
-it as a separate required stage:
+The integration branch now invokes this script as probe `19-hygiene-doctor` in
+development mode. Release mode explicitly reports this companion blocked rather
+than treating development replacements as published-module proof. It can also
+be run as a separate required stage:
 
 ```bash
 "$ROOT/scripts/acceptance/beta3-hygiene-doctor.sh" \
@@ -89,7 +89,10 @@ acceptance: full
 | F40 | implemented, live dev evidence | `scripts/acceptance/beta3-hygiene-doctor.sh` probes 01/03/04/08; `0d6cb0ba6573-hygiene-doctor` |
 | F06 | implemented, live negative evidence | `scripts/acceptance/beta3-hygiene-doctor.sh` probes 05/06/07; `0d6cb0ba6573-hygiene-doctor` |
 
-## Unrelated blocker found by `go test ./...`
+## Historical unrelated blocker found by `go test ./...`
+
+Resolved on the integration branch by `5e9f8221`; the coordinator's root suite
+passes. The following records the worker's original baseline result:
 
 `go test ./...` still fails at `cli/patterns`
 (`TestCompositionPatternMatchesScaffoldRuntime`): the test expects

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2030,SC2031
 # Beta.3 complete-fix acceptance harness.
 #
 # This script is the durable, repeatable form of the handoff's fresh-scaffold
@@ -123,12 +124,18 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 mkdir -p "$EVIDENCE"
+: >"$EVIDENCE/probes.tsv"
 
 # capture runs one command with a timeout, recording stdout/stderr/status.
 # It never lets set -e abort the probe; the caller asserts the expected status.
 capture() {
 	local prefix="$1"
 	shift
+	{
+		printf 'cwd=%q\ncommand=' "$PWD"
+		printf '%q ' "$@"
+		printf '\n'
+	} >"$prefix.command"
 	set +e
 	timeout "${PROBE_TIMEOUT:-180}" "$@" >"$prefix.stdout" 2>"$prefix.stderr"
 	local code=$?
@@ -601,6 +608,17 @@ probe_local_replacement() {
 	cp -a "$app" "$dev"
 	chmod -R u+w "$dev"
 	if [[ "$MODE" == "release" ]]; then
+		local inertia_version
+		inertia_version="$(awk -F '"' '/^[[:space:]]*Inertia = / { print $2 }' "$ROOT/layout/versions/versions.go")"
+		if [[ -z "$inertia_version" ]]; then
+			fail "cannot determine candidate Inertia version"
+		fi
+		# Do not poison the public module proxy's negative cache by fetching an
+		# unpublished candidate. A local tag is only a prerequisite, not proof
+		# of publication: the subsequent unmodified tidy still has to succeed.
+		if ! git -C "$ROOT" show-ref --verify --quiet "refs/tags/pkg/inertia/$inertia_version"; then
+			blocked "release gate: pkg/inertia/$inertia_version tag is absent; publish and fetch its tag before attempting module resolution"
+		fi
 		local code
 		code="$(cd "$dev" && GOWORK=off capture "$p.tidy" go mod tidy)"
 		if [[ "$code" != "0" ]]; then
@@ -644,6 +662,20 @@ probe_runtime_gates() {
 		blocked "live app/SSR/build gates are opt-in: rerun with --full after tool sync, pnpm install, migrations, and assets/dist"
 	fi
 	blocked "live app/SSR/build gate runner is not implemented in this harness revision; run the documented commands in plans/evidence/beta3-complete-fix/README.md"
+}
+
+probe_hygiene_doctor() {
+	if [[ "$MODE" != dev ]]; then
+		blocked "hygiene/doctor companion currently uses development module replacements; not release-shaped proof"
+	fi
+	local code
+	code="$(PROBE_TIMEOUT=1800 capture "$PROBE_PREFIX.runner" \
+		"$ROOT/scripts/acceptance/beta3-hygiene-doctor.sh" \
+		--evidence-dir "$EVIDENCE/hygiene-doctor")"
+	assert_status "$PROBE_PREFIX.runner" 0
+	if [[ "$(cat "$EVIDENCE/hygiene-doctor/acceptance-state.txt")" != full ]]; then
+		blocked "hygiene/doctor companion has blocked probes; see nested evidence"
+	fi
 }
 
 probe_site_gate() {
@@ -699,6 +731,7 @@ main() {
 	run_probe 16-port-occupied probe_port_occupied
 	run_probe 17-live-runtime-gates probe_runtime_gates
 	run_probe 18-site-gate probe_site_gate
+	run_probe 19-hygiene-doctor probe_hygiene_doctor
 	write_summary
 	if [[ "$FAILURES" -gt 0 ]]; then
 		exit 1

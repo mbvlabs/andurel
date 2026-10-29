@@ -107,6 +107,17 @@ mkdir -p "$EVIDENCE"
 capture() {
 	local prefix="$1"
 	shift
+	{
+		printf 'cwd=%q\ncommand=' "$PWD"
+		local arg
+		for arg in "$@"; do
+			case "$arg" in
+			*PASSWORD=* | *KEY=* | PEPPER=* | *TOKEN=*) arg="${arg%%=*}=<redacted>" ;;
+			esac
+			printf '%q ' "$arg"
+		done
+		printf '\n'
+	} >"$prefix.command"
 	set +e
 	timeout "${PROBE_TIMEOUT:-180}" "$@" >"$prefix.stdout" 2>"$prefix.stderr"
 	local code=$?
@@ -238,6 +249,7 @@ doctor_clean() {
 	local prefix="$1"
 	shift
 	local -a clean=(env -i "PATH=$PATH" "HOME=$HOME" "GOWORK=off")
+	clean+=("TMPDIR=${TMPDIR:-/tmp/opencode}" "GOTMPDIR=${GOTMPDIR:-${TMPDIR:-/tmp/opencode}}")
 	if [[ -n "${GOCACHE:-}" ]]; then
 		clean+=("GOCACHE=$GOCACHE")
 	fi

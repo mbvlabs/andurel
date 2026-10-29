@@ -31,7 +31,14 @@ one writer in each checkout under `/home/mbv/work/worktrees/andurel-beta3-fixes/
 | `finish-upgrade` | Exercise beta.4 manual actions, not merely the old beta.3 target. |
 | `F` | Independent site analytics/content/SSR/readiness adoption verification. |
 
-These workers are in progress; their changes are not yet integrated. See
+Hygiene/doctor commits `5f77033c` and `3566f960` have been integrated as
+`05b317f2` and `147457b5`; all nine probes also passed an independent coordinator
+rerun. The upgrade worker's `0907b12a` is integrated as `0ede6573`: the E2E now
+targets beta.4 and applies all five new actions to alpha.4 through beta.3 source
+apps. The coordinator is rerunning that expanded suite with `GOWORK=off` for
+the CLI build as well.
+
+The live, DB-test, and site workers are still in progress. See
 `plans/evidence/beta3-complete-fix/finish-2026-10-29/checks.md` for coordinator
 validation. No publication or push is authorized.
 
