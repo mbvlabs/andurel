@@ -30,7 +30,7 @@ func TestVerifyPortOwnedByChildRequiresExactProbedAddress(t *testing.T) {
 	if err != nil {
 		t.Fatalf("start unrelated listener: %v", err)
 	}
-	defer unrelated.Close()
+	defer func() { _ = unrelated.Close() }()
 
 	childPID := startPortOwnerHelper(t, "127.0.0.2", port)
 	err = verifyPortOwnedByChild("127.0.0.1", port, childPID)

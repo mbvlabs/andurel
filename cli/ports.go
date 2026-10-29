@@ -85,8 +85,10 @@ matching INERTIA_SSR_LISTEN and INERTIA_SSR_URL values.
 A port is reserved with an exclusive, machine-local lease that is held for the
 whole child lifetime. A lease file is never treated as proof by itself: the
 launcher verifies that the port is bindable before starting the child and only
-publishes the URL after the intended child answers /health. An unrelated
-listener can therefore never satisfy the readiness check.
+publishes the URL after the intended child answers /health and owns the exact
+listening socket. This ownership proof requires Linux /proc; other platforms
+fail closed. Run the child directly with a fixed INERTIA_SSR_LISTEN there.
+An unrelated listener can never satisfy the readiness check.
 
 Leases use flock on the local filesystem; keep --lease-dir on a local disk, not
 a network mount. A crashed launcher releases the kernel lock automatically, so
@@ -713,7 +715,7 @@ func reserveEphemeralPort(host string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("find free port on %s: %w", host, err)
 	}
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 
 	address, ok := listener.Addr().(*net.TCPAddr)
 	if !ok {

@@ -447,7 +447,7 @@ func copyBuildFile(source, target string, mode fs.FileMode) error {
 	if err != nil {
 		return fmt.Errorf("open %s: %w", source, err)
 	}
-	defer in.Close()
+	defer func() { _ = in.Close() }()
 
 	out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
 	if err != nil {

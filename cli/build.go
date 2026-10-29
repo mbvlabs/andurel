@@ -227,7 +227,7 @@ func buildProject(rootDir string, opts buildOptions) (buildReport, error) {
 		if err != nil {
 			return buildReport{}, err
 		}
-		defer os.RemoveAll(workRoot)
+		defer func() { _ = os.RemoveAll(workRoot) }()
 	}
 
 	report, err := runBuildSteps(workRoot, lock, selected, appVersion, output.Isolated)

@@ -661,7 +661,7 @@ func listGoPackages(rootDir string) ([]goListPackage, error) {
 		packages = append(packages, pkg)
 	}
 	if len(packages) == 0 {
-		return nil, fmt.Errorf("no Go packages matched ./...")
+		return nil, fmt.Errorf("no Go packages matched the ./... pattern")
 	}
 	return packages, nil
 }

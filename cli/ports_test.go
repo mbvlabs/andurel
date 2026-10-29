@@ -144,12 +144,12 @@ func TestPortLeaseAllocatesDistinctConcurrentPorts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen on first lease: %v", err)
 	}
-	defer first.Close()
+	defer func() { _ = first.Close() }()
 	second, err := net.Listen("tcp", net.JoinHostPort(leases[1].Host, strconv.Itoa(leases[1].Port)))
 	if err != nil {
 		t.Fatalf("listen on second lease: %v", err)
 	}
-	defer second.Close()
+	defer func() { _ = second.Close() }()
 
 	for _, lease := range leases {
 		if err := lease.Release(); err != nil {
@@ -205,7 +205,7 @@ func TestPortLeaseRejectsOccupiedPortWithoutKillingListener(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 	port := listener.Addr().(*net.TCPAddr).Port
 
 	if _, err := acquirePortLease(leaseDir, "127.0.0.1", port, false); err == nil {
@@ -553,7 +553,7 @@ func TestPortLauncherFailedAcquisitionPreservesPreexistingReadyFile(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 	port := listener.Addr().(*net.TCPAddr).Port
 
 	readyFile := filepath.Join(t.TempDir(), "ssr.json")

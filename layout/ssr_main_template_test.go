@@ -181,7 +181,7 @@ server.listen(port, host)
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer listener.Close()
+		defer func() { _ = listener.Close() }()
 
 		_, stderr, err := runSSRMain(
 			t,
@@ -302,7 +302,7 @@ func freeLoopbackPort(t *testing.T) int {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 	return listener.Addr().(*net.TCPAddr).Port
 }
 

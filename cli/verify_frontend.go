@@ -162,7 +162,7 @@ func verifyFrontend(rootDir string) verifyStep {
 	return verifyStepOK("frontend")
 }
 
-// frontendPackageManager reads the package manager from andurel.toml. Projects
+// frontendPackageManager reads the package manager from andurel.lock. Projects
 // without an Andurel lock file (or an empty value) default to pnpm, matching
 // the scaffold.
 func frontendPackageManager(rootDir string) string {
@@ -174,8 +174,4 @@ func frontendPackageManager(rootDir string) string {
 		return manager
 	}
 	return "pnpm"
-}
-
-func verifyFrontendSkipped(reason string) verifyStep {
-	return verifyStep{Name: "frontend", Status: verifyStatusSkipped, Reason: reason}
 }

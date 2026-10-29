@@ -214,7 +214,7 @@ func lexTypeScriptFrom(src string, baseLine int) []tsToken {
 			}
 		case char == '/' && index+1 < len(src) && src[index+1] == '*':
 			index += 2
-			for index+1 < len(src) && !(src[index] == '*' && src[index+1] == '/') {
+			for index+1 < len(src) && (src[index] != '*' || src[index+1] != '/') {
 				if src[index] == '\n' {
 					line++
 				}
@@ -577,7 +577,7 @@ func stripJSONC(src string) string {
 			out.WriteByte('\n')
 		case char == '/' && index+1 < len(src) && src[index+1] == '*':
 			index += 2
-			for index+1 < len(src) && !(src[index] == '*' && src[index+1] == '/') {
+			for index+1 < len(src) && (src[index] != '*' || src[index+1] != '/') {
 				index++
 			}
 			index++
