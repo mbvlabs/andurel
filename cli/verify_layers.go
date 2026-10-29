@@ -11,11 +11,13 @@ import (
 // verifyLayerBoundaries enforces the persistence, transaction, and domain
 // transport boundaries with typed analyzers. The rules and their fixes live in
 // cli/internal/layers so verify --help and commands --json share one catalog.
+// ruleIDs restricts the analyzers to the selected catalog rules; an empty list
+// runs every layer rule.
 //
 // Load and type errors fail the step instead of producing an empty green
 // result: a project that cannot be type-checked has not been verified.
-func verifyLayerBoundaries(rootDir string, patterns []string) verifyStep {
-	violations, err := layers.AnalyzePatterns(rootDir, patterns)
+func verifyLayerBoundaries(rootDir string, patterns []string, ruleIDs []string) verifyStep {
+	violations, err := layers.AnalyzePatternsRules(rootDir, patterns, ruleIDs)
 	if err != nil {
 		step := verifyStepFailed("layers")
 		step.Detail = err.Error()

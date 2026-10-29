@@ -19,6 +19,12 @@ type Rule struct {
 // RuleLayerLayers identifies the type-based layer analyzers.
 const RuleLayerLayers = "layers"
 
+// RuleLayerContent identifies the declared content and link invariants.
+const RuleLayerContent = "content"
+
+// RuleLayerSetup identifies project setup preflight checks.
+const RuleLayerSetup = "setup"
+
 var catalog = []Rule{
 	{
 		ID:      "gofmt",
@@ -81,10 +87,58 @@ var catalog = []Rule{
 		Layer:   RuleLayerLayers,
 	},
 	{
+		ID:      "setup",
+		Summary: "project setup is complete: managed tool binaries and frontend dependencies are installed",
+		Fix:     "run the setup commands named by each violation ('andurel tool sync', '<package manager> install')",
+		Layer:   RuleLayerSetup,
+	},
+	{
 		ID:      "frontend",
 		Summary: "the package.json typecheck script passes when the scaffold defines one",
 		Fix:     "fix the reported TypeScript errors and re-run the project package manager's typecheck script",
 		Layer:   "frontend",
+	},
+	{
+		ID:      "frontend-route-usage",
+		Summary: "frontend modules do not call full-URL route helpers at module initialization; use .path() or call while rendering",
+		Fix:     "move the call into the component render, an event handler, or a function called after configureRouteHosts; use routes.<name>.path(...) for a relative URL",
+		Layer:   "frontend",
+	},
+	{
+		ID:      "content-config",
+		Summary: "andurel.content.toml parses, declares a supported schemaVersion, and its include/exclude globs are valid",
+		Fix:     "fix the reported andurel.content.toml entry; see 'andurel verify --help' for the schema",
+		Layer:   RuleLayerContent,
+	},
+	{
+		ID:      "content-catalog",
+		Summary: "every declared content catalog entry resolves to an included Markdown file",
+		Fix:     "add the missing Markdown file or correct the catalog entry's file path",
+		Layer:   RuleLayerContent,
+	},
+	{
+		ID:      "content-slug",
+		Summary: "content catalog slugs are non-empty, match the declared pattern, and are unique",
+		Fix:     "give each catalog entry a unique slug that matches the [slugs].pattern",
+		Layer:   RuleLayerContent,
+	},
+	{
+		ID:      "content-required",
+		Summary: "every path listed in andurel.content.toml required exists",
+		Fix:     "create the required file or directory, or remove it from the required list",
+		Layer:   RuleLayerContent,
+	},
+	{
+		ID:      "content-link",
+		Summary: "local Markdown links and images resolve inside the project; configured anchors exist",
+		Fix:     "correct the link target, add the missing file, or fix the anchor; external and site-absolute URLs are not fetched",
+		Layer:   RuleLayerContent,
+	},
+	{
+		ID:      "content-checker",
+		Summary: "each declared content checker exits 0 within its timeout from its declared working directory",
+		Fix:     "fix the checker's reported diagnostics or its run/dir/timeoutSeconds entry in andurel.content.toml",
+		Layer:   RuleLayerContent,
 	},
 	{
 		ID:      "generated",

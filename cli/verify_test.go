@@ -115,6 +115,9 @@ func TestVerifyReportsOK(t *testing.T) {
 		if step.Name == "frontend" && step.Status == verifyStatusSkipped {
 			continue
 		}
+		if step.Name == "content" && step.NotApplicable {
+			continue
+		}
 		if step.Status != verifyStatusOK || !step.OK {
 			t.Fatalf("step %q = %#v, want status ok and ok true", step.Name, step)
 		}
@@ -173,17 +176,17 @@ func TestVerifyReportsMissingTools(t *testing.T) {
 	if report.OK {
 		t.Fatalf("report should fail: %#v", report)
 	}
-	generated := findVerifyStep(t, report, "generated")
-	if generated.Status != verifyStatusFail || generated.OK {
-		t.Fatalf("generated step = %#v, want status fail and ok false", generated)
+	setup := findVerifyStep(t, report, "setup")
+	if setup.Status != verifyStatusFail || setup.OK {
+		t.Fatalf("setup step = %#v, want status fail and ok false", setup)
 	}
-	if len(generated.Violations) != 2 {
-		t.Fatalf("generated violations = %#v, want templ and narsilc", generated.Violations)
+	if len(setup.Violations) != 2 {
+		t.Fatalf("setup violations = %#v, want templ and narsilc", setup.Violations)
 	}
 	for _, binary := range []string{"templ", "narsilc"} {
-		violation, found := findMissingToolViolation(generated.Violations, binary)
+		violation, found := findMissingToolViolation(setup.Violations, binary)
 		if !found {
-			t.Fatalf("missing missing-tool violation for %s: %#v", binary, generated.Violations)
+			t.Fatalf("missing missing-tool violation for %s: %#v", binary, setup.Violations)
 		}
 		if violation.Fix != "andurel tool sync" {
 			t.Fatalf("%s violation fix = %q, want %q", binary, violation.Fix, "andurel tool sync")
@@ -191,6 +194,19 @@ func TestVerifyReportsMissingTools(t *testing.T) {
 		if !strings.Contains(violation.Message, binary) {
 			t.Fatalf("%s violation message = %q, want binary name", binary, violation.Message)
 		}
+	}
+	generated := findVerifyStep(t, report, "generated")
+	if generated.Status != verifyStatusBlocked || generated.OK {
+		t.Fatalf("generated step = %#v, want blocked because setup is incomplete", generated)
+	}
+	if len(generated.Violations) != 0 {
+		t.Fatalf("blocked generated step must not blame generated drift: %#v", generated.Violations)
+	}
+	if !strings.Contains(generated.Detail, "andurel tool sync") {
+		t.Fatalf("blocked generated step detail = %q, want the install command", generated.Detail)
+	}
+	if !strings.Contains(verifySummary(report), "blocked") {
+		t.Fatalf("summary = %q, want a blocked summary", verifySummary(report))
 	}
 }
 
@@ -280,6 +296,7 @@ func TestVerifyLongHelpRendersRuleCatalog(t *testing.T) {
 	steps := map[string]bool{
 		"gofmt":     true,
 		"go fix":    true,
+		"setup":     true,
 		"frontend":  true,
 		"generated": true,
 	}
@@ -422,7 +439,8 @@ func TestVerifyWithTestsReportsSkippedPackages(t *testing.T) {
 		t.Fatalf("verify --with-tests: %v", human.err)
 	}
 	for _, want := range []string{
-		"go test    ok (1 package skipped: no tests ran)",
+		"go test    ok (",
+		"1 package skipped: no tests ran",
 		"skipped example.com/app/dbtests: skipping db tests",
 	} {
 		if !strings.Contains(human.stdout, want) {
@@ -483,7 +501,8 @@ func TestNeedsAssets(t *testing.T) {
 		t.Fatalf("verify --with-tests: %v", human.err)
 	}
 	for _, want := range []string{
-		"go test    ok (1 test skipped)",
+		"go test    ok (",
+		"1 test skipped",
 		"skipped example.com/app/skiptests: TestNeedsAssets (",
 		"assets/dist is missing",
 	} {
