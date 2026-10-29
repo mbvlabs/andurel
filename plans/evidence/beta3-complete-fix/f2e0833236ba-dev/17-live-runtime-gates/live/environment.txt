@@ -1,0 +1,10 @@
+candidate_sha=f2e0833236ba98626ad864ac7efedd42bd00e7ca
+mode=live-dev-replace
+candidate_dirty=1
+go=go version go1.27.3 linux/amd64
+node=v26.12.1
+pnpm=12.9.1
+docker=29.8.2
+postgres_image=postgres:17-alpine
+dates=2026-10-29T19:00:14Z
+secrets=redacted

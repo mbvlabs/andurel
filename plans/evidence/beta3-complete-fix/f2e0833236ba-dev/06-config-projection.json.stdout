@@ -1,0 +1,771 @@
+{
+  "ok": true,
+  "data": {
+    "keys": [
+      {
+        "key": "PROTOCOL",
+        "method": "String",
+        "default": "",
+        "has_default": true,
+        "source_file": "config/app.go",
+        "line": 33
+      },
+      {
+        "key": "HOST_PRIMARY",
+        "method": "RequiredString",
+        "default": "",
+        "has_default": false,
+        "required": true,
+        "source_file": "config/app.go",
+        "line": 34
+      },
+      {
+        "key": "ENVIRONMENT",
+        "method": "String",
+        "default": "development",
+        "has_default": true,
+        "source_file": "config/app.go",
+        "line": 36
+      },
+      {
+        "key": "PROJECT_NAME",
+        "method": "String",
+        "default": "fresh-app",
+        "has_default": true,
+        "source_file": "config/app.go",
+        "line": 37
+      },
+      {
+        "key": "SITE_NAME",
+        "method": "String",
+        "default": "Fresh App",
+        "has_default": true,
+        "source_file": "config/app.go",
+        "line": 38
+      },
+      {
+        "key": "TOKEN_SIGNING_KEY",
+        "method": "RequiredString",
+        "default": "",
+        "has_default": false,
+        "required": true,
+        "source_file": "config/auth.go",
+        "line": 18
+      },
+      {
+        "key": "PEPPER",
+        "method": "RequiredString",
+        "default": "",
+        "has_default": false,
+        "required": true,
+        "source_file": "config/auth.go",
+        "line": 19
+      },
+      {
+        "key": "PREVIOUS_PEPPERS",
+        "method": "Strings",
+        "default": "",
+        "has_default": true,
+        "source_file": "config/auth.go",
+        "line": 20
+      },
+      {
+        "key": "CACHE_DRIVER",
+        "method": "String",
+        "default": "memory",
+        "has_default": true,
+        "source_file": "config/cache.go",
+        "line": 21
+      },
+      {
+        "key": "CACHE_NAMESPACE",
+        "method": "String",
+        "default": "fresh_app",
+        "has_default": true,
+        "source_file": "config/cache.go",
+        "line": 22
+      },
+      {
+        "key": "CACHE_REDIS_ADDR",
+        "method": "String",
+        "default": "",
+        "has_default": true,
+        "source_file": "config/cache.go",
+        "line": 23
+      },
+      {
+        "key": "DB_KIND",
+        "method": "String",
+        "default": "postgres",
+        "has_default": true,
+        "source_file": "config/database.go",
+        "line": 25
+      },
+      {
+        "key": "DB_HOST",
+        "method": "String",
+        "default": "127.0.0.1",
+        "has_default": true,
+        "source_file": "config/database.go",
+        "line": 26
+      },
+      {
+        "key": "DB_PORT",
+        "method": "String",
+        "default": "5432",
+        "has_default": true,
+        "source_file": "config/database.go",
+        "line": 27
+      },
+      {
+        "key": "DB_NAME",
+        "method": "String",
+        "default": "fresh_app",
+        "has_default": true,
+        "source_file": "config/database.go",
+        "line": 28
+      },
+      {
+        "key": "DB_USER",
+        "method": "String",
+        "default": "postgres",
+        "has_default": true,
+        "source_file": "config/database.go",
+        "line": 29
+      },
+      {
+        "key": "DB_PASSWORD",
+        "method": "String",
+        "default": "postgres",
+        "has_default": true,
+        "source_file": "config/database.go",
+        "line": 30
+      },
+      {
+        "key": "DB_SSL_MODE",
+        "method": "String",
+        "default": "disable",
+        "has_default": true,
+        "source_file": "config/database.go",
+        "line": 31
+      },
+      {
+        "key": "DB_APPLICATION_NAME",
+        "method": "String",
+        "default": "fresh_app",
+        "has_default": true,
+        "source_file": "config/database.go",
+        "line": 32
+      },
+      {
+        "key": "DB_CONNECT_TIMEOUT",
+        "method": "Duration",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.ConnectTimeout",
+        "source_file": "config/database.go",
+        "line": 33
+      },
+      {
+        "key": "DB_STATEMENT_CACHE_CAPACITY",
+        "method": "Int",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.StatementCacheCapacity",
+        "source_file": "config/database.go",
+        "line": 34
+      },
+      {
+        "key": "DB_DESCRIPTION_CACHE_CAPACITY",
+        "method": "Int",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.DescriptionCacheCapacity",
+        "source_file": "config/database.go",
+        "line": 38
+      },
+      {
+        "key": "DB_MAX_OPEN_CONNECTIONS",
+        "method": "Int",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.MaxOpenConnections",
+        "source_file": "config/database.go",
+        "line": 42
+      },
+      {
+        "key": "DB_MAX_IDLE_CONNECTIONS",
+        "method": "Int",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.MaxIdleConnections",
+        "source_file": "config/database.go",
+        "line": 43
+      },
+      {
+        "key": "DB_CONNECTION_MAX_LIFETIME",
+        "method": "Duration",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.ConnectionMaxLifetime",
+        "source_file": "config/database.go",
+        "line": 44
+      },
+      {
+        "key": "DB_CONNECTION_MAX_IDLE_TIME",
+        "method": "Duration",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.ConnectionMaxIdleTime",
+        "source_file": "config/database.go",
+        "line": 48
+      },
+      {
+        "key": "DB_OPEN_TELEMETRY",
+        "method": "Bool",
+        "default": "true",
+        "has_default": true,
+        "source_file": "config/database.go",
+        "line": 52
+      },
+      {
+        "key": "DEFAULT_SENDER_SIGNATURE",
+        "method": "String",
+        "default": "",
+        "has_default": false,
+        "default_expression": "\"noreply@\" + senderHost(app.Domain)",
+        "source_file": "config/email.go",
+        "line": 42
+      },
+      {
+        "key": "EMAIL_PROVIDER",
+        "method": "String",
+        "default": "",
+        "has_default": false,
+        "default_expression": "string(MailpitDriver)",
+        "source_file": "config/email.go",
+        "line": 46
+      },
+      {
+        "key": "MAILPIT_HOST",
+        "method": "String",
+        "default": "0.0.0.0",
+        "has_default": true,
+        "source_file": "config/email.go",
+        "line": 47
+      },
+      {
+        "key": "MAILPIT_PORT",
+        "method": "String",
+        "default": "1025",
+        "has_default": true,
+        "source_file": "config/email.go",
+        "line": 48
+      },
+      {
+        "key": "SMTP_HOST",
+        "method": "String",
+        "default": "",
+        "has_default": true,
+        "source_file": "config/email.go",
+        "line": 49
+      },
+      {
+        "key": "SMTP_PORT",
+        "method": "String",
+        "default": "587",
+        "has_default": true,
+        "source_file": "config/email.go",
+        "line": 50
+      },
+      {
+        "key": "SMTP_USERNAME",
+        "method": "String",
+        "default": "",
+        "has_default": true,
+        "source_file": "config/email.go",
+        "line": 51
+      },
+      {
+        "key": "SMTP_PASSWORD",
+        "method": "String",
+        "default": "",
+        "has_default": true,
+        "source_file": "config/email.go",
+        "line": 52
+      },
+      {
+        "key": "SMTP_TLS",
+        "method": "String",
+        "default": "starttls",
+        "has_default": true,
+        "source_file": "config/email.go",
+        "line": 53
+      },
+      {
+        "key": "HTTP_TRUSTED_PROXIES",
+        "method": "Strings",
+        "default": "",
+        "has_default": true,
+        "source_file": "config/http.go",
+        "line": 44
+      },
+      {
+        "key": "HOST",
+        "method": "String",
+        "default": "localhost",
+        "has_default": true,
+        "source_file": "config/http.go",
+        "line": 48
+      },
+      {
+        "key": "PORT",
+        "method": "String",
+        "default": "8080",
+        "has_default": true,
+        "source_file": "config/http.go",
+        "line": 49
+      },
+      {
+        "key": "HTTP_COMPRESS",
+        "method": "Bool",
+        "default": "true",
+        "has_default": true,
+        "source_file": "config/http.go",
+        "line": 50
+      },
+      {
+        "key": "CORS_ALLOWED_ORIGINS",
+        "method": "Strings",
+        "default": "",
+        "has_default": true,
+        "source_file": "config/http.go",
+        "line": 51
+      },
+      {
+        "key": "CSRF_STRATEGY",
+        "method": "String",
+        "default": "header_only",
+        "has_default": true,
+        "source_file": "config/http.go",
+        "line": 52
+      },
+      {
+        "key": "CSRF_TRUSTED_ORIGINS",
+        "method": "Strings",
+        "default": "",
+        "has_default": true,
+        "source_file": "config/http.go",
+        "line": 53
+      },
+      {
+        "key": "HTTP_IDLE_TIMEOUT",
+        "method": "Duration",
+        "default": "2m0s",
+        "has_default": true,
+        "source_file": "config/http.go",
+        "line": 54
+      },
+      {
+        "key": "HTTP_READ_TIMEOUT",
+        "method": "Duration",
+        "default": "10s",
+        "has_default": true,
+        "source_file": "config/http.go",
+        "line": 55
+      },
+      {
+        "key": "HTTP_WRITE_TIMEOUT",
+        "method": "Duration",
+        "default": "30s",
+        "has_default": true,
+        "source_file": "config/http.go",
+        "line": 56
+      },
+      {
+        "key": "INERTIA_CONTAINER_ID",
+        "method": "String",
+        "default": "app",
+        "has_default": true,
+        "source_file": "config/inertia.go",
+        "line": 48
+      },
+      {
+        "key": "INERTIA_VITE_DEV_URL",
+        "method": "String",
+        "default": "http://localhost:5173/assets/dist",
+        "has_default": true,
+        "source_file": "config/inertia.go",
+        "line": 49
+      },
+      {
+        "key": "INERTIA_PROTOCOL_DEBUG",
+        "method": "Bool",
+        "default": "true",
+        "has_default": true,
+        "source_file": "config/inertia.go",
+        "line": 50
+      },
+      {
+        "key": "INERTIA_SSR_RUNTIME",
+        "method": "String",
+        "default": "node",
+        "has_default": true,
+        "source_file": "config/inertia.go",
+        "line": 51
+      },
+      {
+        "key": "INERTIA_SSR_BUNDLE",
+        "method": "String",
+        "default": "assets/dist/ssr/ssr.js",
+        "has_default": true,
+        "source_file": "config/inertia.go",
+        "line": 52
+      },
+      {
+        "key": "INERTIA_SSR_LISTEN",
+        "method": "String",
+        "default": "http://127.0.0.1:13714",
+        "has_default": true,
+        "source_file": "config/inertia.go",
+        "line": 53
+      },
+      {
+        "key": "INERTIA_SSR_URL",
+        "method": "String",
+        "default": "http://127.0.0.1:13714",
+        "has_default": true,
+        "source_file": "config/inertia.go",
+        "line": 54
+      },
+      {
+        "key": "INERTIA_SSR_STARTUP_TIMEOUT",
+        "method": "Duration",
+        "default": "10s",
+        "has_default": true,
+        "source_file": "config/inertia.go",
+        "line": 55
+      },
+      {
+        "key": "INERTIA_SSR_REQUEST_TIMEOUT",
+        "method": "Duration",
+        "default": "2s",
+        "has_default": true,
+        "source_file": "config/inertia.go",
+        "line": 59
+      },
+      {
+        "key": "INERTIA_SSR_MAX_RESPONSE_BYTES",
+        "method": "Int64",
+        "default": "2097152",
+        "has_default": true,
+        "source_file": "config/inertia.go",
+        "line": 63
+      },
+      {
+        "key": "INERTIA_SSR_MINIMUM_MAJOR",
+        "method": "Int",
+        "default": "22",
+        "has_default": true,
+        "source_file": "config/inertia.go",
+        "line": 67
+      },
+      {
+        "key": "INERTIA_SSR_FAIL_FAST",
+        "method": "Bool",
+        "default": "true",
+        "has_default": true,
+        "source_file": "config/inertia.go",
+        "line": 68
+      },
+      {
+        "key": "INERTIA_ENTRY_POINT",
+        "method": "String",
+        "default": "resources/js/app.tsx",
+        "has_default": true,
+        "source_file": "config/inertia.go",
+        "line": 69
+      },
+      {
+        "key": "QUEUE_MAX_ATTEMPTS",
+        "method": "Int",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.MaxAttempts",
+        "source_file": "config/queue.go",
+        "line": 23
+      },
+      {
+        "key": "QUEUE_SCHEMA",
+        "method": "String",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.Schema",
+        "source_file": "config/queue.go",
+        "line": 24
+      },
+      {
+        "key": "QUEUE_MAX_WORKERS",
+        "method": "Int",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.MaxWorkers",
+        "source_file": "config/queue.go",
+        "line": 36
+      },
+      {
+        "key": "QUEUE_ADVISORY_LOCK_PREFIX",
+        "method": "Int32",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.AdvisoryLockPrefix",
+        "source_file": "config/queue.go",
+        "line": 37
+      },
+      {
+        "key": "QUEUE_CANCELLED_JOB_RETENTION_PERIOD",
+        "method": "Duration",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.CancelledJobRetentionPeriod",
+        "source_file": "config/queue.go",
+        "line": 38
+      },
+      {
+        "key": "QUEUE_COMPLETED_JOB_RETENTION_PERIOD",
+        "method": "Duration",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.CompletedJobRetentionPeriod",
+        "source_file": "config/queue.go",
+        "line": 42
+      },
+      {
+        "key": "QUEUE_DISCARDED_JOB_RETENTION_PERIOD",
+        "method": "Duration",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.DiscardedJobRetentionPeriod",
+        "source_file": "config/queue.go",
+        "line": 46
+      },
+      {
+        "key": "QUEUE_FETCH_COOLDOWN",
+        "method": "Duration",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.FetchCooldown",
+        "source_file": "config/queue.go",
+        "line": 50
+      },
+      {
+        "key": "QUEUE_POLL_INTERVAL",
+        "method": "Duration",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.PollInterval",
+        "source_file": "config/queue.go",
+        "line": 51
+      },
+      {
+        "key": "QUEUE_ID",
+        "method": "String",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.ID",
+        "source_file": "config/queue.go",
+        "line": 52
+      },
+      {
+        "key": "QUEUE_JOB_CLEANER_TIMEOUT",
+        "method": "Duration",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.JobCleanerTimeout",
+        "source_file": "config/queue.go",
+        "line": 53
+      },
+      {
+        "key": "QUEUE_JOB_STUCK_THRESHOLD",
+        "method": "Duration",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.JobStuckThreshold",
+        "source_file": "config/queue.go",
+        "line": 54
+      },
+      {
+        "key": "QUEUE_JOB_TIMEOUT",
+        "method": "Duration",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.JobTimeout",
+        "source_file": "config/queue.go",
+        "line": 55
+      },
+      {
+        "key": "QUEUE_POLL_ONLY",
+        "method": "Bool",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.PollOnly",
+        "source_file": "config/queue.go",
+        "line": 56
+      },
+      {
+        "key": "QUEUE_REINDEXER_TIMEOUT",
+        "method": "Duration",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.ReindexerTimeout",
+        "source_file": "config/queue.go",
+        "line": 57
+      },
+      {
+        "key": "QUEUE_RESCUE_STUCK_JOBS_AFTER",
+        "method": "Duration",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.RescueStuckJobsAfter",
+        "source_file": "config/queue.go",
+        "line": 58
+      },
+      {
+        "key": "QUEUE_SOFT_STOP_TIMEOUT",
+        "method": "Duration",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.SoftStopTimeout",
+        "source_file": "config/queue.go",
+        "line": 62
+      },
+      {
+        "key": "QUEUE_SKIP_JOB_KIND_VALIDATION",
+        "method": "Bool",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.SkipJobKindValidation",
+        "source_file": "config/queue.go",
+        "line": 63
+      },
+      {
+        "key": "QUEUE_SKIP_UNKNOWN_JOB_CHECK",
+        "method": "Bool",
+        "default": "",
+        "has_default": false,
+        "default_expression": "cfg.SkipUnknownJobCheck",
+        "source_file": "config/queue.go",
+        "line": 67
+      },
+      {
+        "key": "SESSION_KEY",
+        "method": "RequiredString",
+        "default": "",
+        "has_default": false,
+        "required": true,
+        "source_file": "config/session.go",
+        "line": 24
+      },
+      {
+        "key": "SESSION_ENCRYPTION_KEY",
+        "method": "RequiredString",
+        "default": "",
+        "has_default": false,
+        "required": true,
+        "source_file": "config/session.go",
+        "line": 25
+      },
+      {
+        "key": "SESSION_MAX_AGE",
+        "method": "Int",
+        "default": "604800",
+        "has_default": true,
+        "source_file": "config/session.go",
+        "line": 28
+      },
+      {
+        "key": "TELEMETRY_SERVICE_NAME",
+        "method": "String",
+        "default": "",
+        "has_default": false,
+        "default_expression": "slug.Make(app.ProjectName)",
+        "source_file": "config/telemetry.go",
+        "line": 42
+      },
+      {
+        "key": "TELEMETRY_SERVICE_VERSION",
+        "method": "String",
+        "default": "",
+        "has_default": false,
+        "default_expression": "serviceVersion",
+        "source_file": "config/telemetry.go",
+        "line": 43
+      },
+      {
+        "key": "OTLP_LOGS_ENDPOINT",
+        "method": "String",
+        "default": "",
+        "has_default": true,
+        "source_file": "config/telemetry.go",
+        "line": 47
+      },
+      {
+        "key": "OTLP_METRICS_ENDPOINT",
+        "method": "String",
+        "default": "",
+        "has_default": true,
+        "source_file": "config/telemetry.go",
+        "line": 48
+      },
+      {
+        "key": "OTLP_TRACES_ENDPOINT",
+        "method": "String",
+        "default": "",
+        "has_default": true,
+        "source_file": "config/telemetry.go",
+        "line": 49
+      },
+      {
+        "key": "OTLP_HEADERS",
+        "method": "String",
+        "default": "",
+        "has_default": true,
+        "source_file": "config/telemetry.go",
+        "line": 50
+      },
+      {
+        "key": "TRACE_SAMPLE_RATE",
+        "method": "Float64",
+        "default": "1.0",
+        "has_default": true,
+        "source_file": "config/telemetry.go",
+        "line": 51
+      },
+      {
+        "key": "TELEMETRY_BATCH_SIZE",
+        "method": "Int",
+        "default": "512",
+        "has_default": true,
+        "source_file": "config/telemetry.go",
+        "line": 52
+      },
+      {
+        "key": "TELEMETRY_BATCH_TIMEOUT_MS",
+        "method": "Int",
+        "default": "5000",
+        "has_default": true,
+        "source_file": "config/telemetry.go",
+        "line": 53
+      },
+      {
+        "key": "LOG_LEVEL",
+        "method": "String",
+        "default": "INFO",
+        "has_default": true,
+        "source_file": "config/telemetry.go",
+        "line": 57
+      }
+    ]
+  },
+  "summary": "Listed 91 config keys"
+}

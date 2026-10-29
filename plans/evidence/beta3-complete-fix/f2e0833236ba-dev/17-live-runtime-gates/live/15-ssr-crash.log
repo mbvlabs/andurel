@@ -1,0 +1,5 @@
+Starting SSR server on port 23472...
+Inertia SSR server started.
+Inertia SSR listening on http://127.0.0.1:23472
+2026/10/29 19:01:02 ERROR inertia SSR runtime stopped error="inertia SSR runtime stopped unexpectedly: signal: killed"
+inertia SSR runtime stopped unexpectedly: signal: killed

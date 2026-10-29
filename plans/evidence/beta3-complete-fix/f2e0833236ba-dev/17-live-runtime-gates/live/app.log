@@ -1,0 +1,1 @@
+2026/10/29 19:01:00 ERROR inertia: unhandled handler error error="inertia ssr render for component Welcome: inertia SSR render: Post \"http://127.0.0.1:22764/render\": dial tcp 127.0.0.1:22764: connect: connection refused"

@@ -1,0 +1,49 @@
+docker image inspect postgres:17-alpine
+/tmp/opencode/andurel-acceptance-0xTTNj/bin/andurel --version
+/tmp/opencode/andurel-acceptance-0xTTNj/bin/andurel new live-acceptance
+go mod edit -replace github.com/mbvlabs/andurel/pkg/anduin=/home/mbv/work/worktrees/andurel-beta3-fixes/finish-live/pkg/anduin
+go mod edit -replace github.com/mbvlabs/andurel/pkg/auth=/home/mbv/work/worktrees/andurel-beta3-fixes/finish-live/pkg/auth
+go mod edit -replace github.com/mbvlabs/andurel/pkg/cache=/home/mbv/work/worktrees/andurel-beta3-fixes/finish-live/pkg/cache
+go mod edit -replace github.com/mbvlabs/andurel/pkg/email=/home/mbv/work/worktrees/andurel-beta3-fixes/finish-live/pkg/email
+go mod edit -replace github.com/mbvlabs/andurel/pkg/env=/home/mbv/work/worktrees/andurel-beta3-fixes/finish-live/pkg/env
+go mod edit -replace github.com/mbvlabs/andurel/pkg/inertia=/home/mbv/work/worktrees/andurel-beta3-fixes/finish-live/pkg/inertia
+go mod edit -replace github.com/mbvlabs/andurel/pkg/kiks=/home/mbv/work/worktrees/andurel-beta3-fixes/finish-live/pkg/kiks
+go mod edit -replace github.com/mbvlabs/andurel/pkg/lifecycle=/home/mbv/work/worktrees/andurel-beta3-fixes/finish-live/pkg/lifecycle
+go mod edit -replace github.com/mbvlabs/andurel/pkg/routing=/home/mbv/work/worktrees/andurel-beta3-fixes/finish-live/pkg/routing
+go mod edit -replace github.com/mbvlabs/andurel/pkg/storage=/home/mbv/work/worktrees/andurel-beta3-fixes/finish-live/pkg/storage
+go mod edit -replace github.com/mbvlabs/andurel/pkg/telemetry=/home/mbv/work/worktrees/andurel-beta3-fixes/finish-live/pkg/telemetry
+go mod edit -replace github.com/mbvlabs/andurel/pkg/validation=/home/mbv/work/worktrees/andurel-beta3-fixes/finish-live/pkg/validation
+env GOWORK=off go mod tidy
+/tmp/opencode/andurel-acceptance-0xTTNj/bin/andurel tool sync
+pnpm install
+/tmp/opencode/andurel-acceptance-0xTTNj/bin/andurel build --version live-f2e08332
+docker run -d --name andurel-live-1793300453-2766086-26675 --label andurel.acceptance=beta3-live -p 127.0.0.1:21960:5432 postgres:17-alpine
+write /tmp/opencode/andurel-beta3-live-GckeKV/apps/live-acceptance/.env (production, disposable values, secrets redacted)
+./dist/migrate
+docker exec andurel-live-1793300453-2766086-26675 psql -U postgres -d liveapp -tAc select count(*) from users
+env GOWORK=off go build -o /tmp/opencode/andurel-beta3-live-GckeKV/bin/seeds ./cmd/seeds
+/tmp/opencode/andurel-beta3-live-GckeKV/bin/seeds
+docker exec andurel-live-1793300453-2766086-26675 psql -U postgres -d liveapp -tAc select count(*) from users where email = 'admin@example.com'
+start /tmp/opencode/andurel-beta3-live-GckeKV/apps/live-acceptance/dist/ssr (cwd /tmp/opencode/andurel-beta3-live-GckeKV/apps/live-acceptance)
+start /tmp/opencode/andurel-beta3-live-GckeKV/apps/live-acceptance/dist/app (cwd /tmp/opencode/andurel-beta3-live-GckeKV/apps/live-acceptance)
+curl GET http://127.0.0.1:29288/ 
+curl GET http://127.0.0.1:29288/users/sign-in 
+curl POST http://127.0.0.1:29288/users/sign-in (JSON body and CSRF token redacted)
+curl GET http://127.0.0.1:29288/ (seeded session cookie redacted)
+curl GET http://127.0.0.1:29288/users/sign-in (seeded session cookie redacted)
+curl GET http://127.0.0.1:29288/api/ready 
+curl GET http://127.0.0.1:29288/api/ready 
+curl GET http://127.0.0.1:29288/ 
+start /tmp/opencode/andurel-beta3-live-GckeKV/apps/live-acceptance/dist/ssr after outage (cwd /tmp/opencode/andurel-beta3-live-GckeKV/apps/live-acceptance)
+curl GET http://127.0.0.1:29288/api/ready 
+curl GET http://127.0.0.1:29288/ 
+docker stop -t 5 andurel-live-1793300453-2766086-26675
+curl GET http://127.0.0.1:29288/api/ready 
+docker start andurel-live-1793300453-2766086-26675
+curl GET http://127.0.0.1:29288/api/ready 
+curl GET http://127.0.0.1:29288/ 
+timeout 30 ./dist/ssr with duplicate INERTIA_SSR_LISTEN=http://127.0.0.1:22764
+start /tmp/opencode/andurel-beta3-live-GckeKV/apps/live-acceptance/dist/ssr crash test on 127.0.0.1:23472 (cwd /tmp/opencode/andurel-beta3-live-GckeKV/apps/live-acceptance)
+git -C /tmp/opencode/andurel-beta3-live-GckeKV/apps/live-acceptance add -A && git commit (scratch baseline)
+concurrent: andurel build --json --version live-a --output-dir /tmp/opencode/andurel-beta3-live-GckeKV/builds/a
+concurrent: andurel build --json --version live-b --output-dir /tmp/opencode/andurel-beta3-live-GckeKV/builds/b

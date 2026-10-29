@@ -1,0 +1,4 @@
+Seeding database with "development"...
+Created admin user: admin@example.com
+Created regular user: user@example.com
+Seeding complete!

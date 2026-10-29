@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "data": {
+    "host": "127.0.0.1",
+    "port": 46363,
+    "listen_url": "http://127.0.0.1:46363",
+    "url": "http://127.0.0.1:46363",
+    "mode": "allocated",
+    "lease_file": "/tmp/opencode/andurel-acceptance-0xTTNj/leases/fixed/port-12ca17b49af2-46363.json",
+    "pid": 2766041,
+    "child_pid": 2766050
+  },
+  "summary": "SSR port 46363 ready at http://127.0.0.1:46363 (child pid 2766050)"
+}

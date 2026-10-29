@@ -1,0 +1,9 @@
+HTTP/1.1 302 Found
+Location: /
+Set-Cookie: _csrf=REDACTED; Path=/; HttpOnly; Secure; SameSite=Strict
+Set-Cookie: app_sess_live-acceptance-production=REDACTED; Path=/; Max-Age=604800; HttpOnly; Secure; SameSite=Lax
+Vary: Accept-Encoding
+Vary: Origin
+Date: Thu, 29 Oct 2026 19:00:59 GMT
+Content-Length: 0
+

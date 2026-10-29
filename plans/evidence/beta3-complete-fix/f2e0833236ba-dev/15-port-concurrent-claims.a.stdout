@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "data": {
+    "host": "127.0.0.1",
+    "port": 46257,
+    "listen_url": "http://127.0.0.1:46257",
+    "url": "http://127.0.0.1:46257",
+    "mode": "allocated",
+    "lease_file": "/tmp/opencode/andurel-acceptance-0xTTNj/leases/a/port-12ca17b49af2-46257.json",
+    "pid": 2765978,
+    "child_pid": 2765995
+  },
+  "summary": "SSR port 46257 ready at http://127.0.0.1:46257 (child pid 2765995)"
+}

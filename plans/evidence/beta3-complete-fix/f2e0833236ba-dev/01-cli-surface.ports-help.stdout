@@ -1,0 +1,21 @@
+Allocate and supervise collision-safe loopback ports
+
+Usage:
+  andurel ports <command> [args...]
+  andurel ports --help
+
+Commands:
+  andurel ports launch [--] <command> [args...]  Run a child on a leased loopback port and publish its URL
+
+Flags:
+  -h, --help   help for ports
+
+Global Flags:
+      --agent       Emit structured output optimized for agents
+      --count       Emit one raw resource count when supported
+      --ids-only    Emit one resource identifier per line when supported
+      --jq string   Select a field path (for example .routes[0].name) from command data and emit JSON directly
+      --json        Emit JSON output
+      --md          Emit Markdown output
+      --quiet       Suppress non-essential human output
+      --verbose     Emit verbose output

@@ -1,0 +1,3 @@
+	Anduin = "v0.6.1"
+	Inertia = "v0.13.0"
+	Storage = "v0.13.1"
