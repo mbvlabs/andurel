@@ -3,6 +3,7 @@ package inertia
 import (
 	"context"
 	"errors"
+	"html"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -17,8 +18,9 @@ type ErrorMapping struct {
 	Target    error
 	Status    int
 	Component string
-	// SSR renders this error page server-side. Error pages are client-rendered
-	// by default, like every other page.
+	// SSR renders this error page server-side. Every error page is
+	// client-rendered unless it opts in here (or through ValidationSSR and
+	// FallbackSSR), even when the renderer defaults pages to SSR.
 	SSR bool
 }
 
@@ -50,16 +52,21 @@ type ErrorHandlerOptions struct {
 
 // ErrorHandler translates handler errors into a JSON or Inertia response.
 // Field errors become a 422 page; mapped sentinels become their configured
-// page; unmapped errors keep their own status, and 5xx errors are passed back
-// to the router so their details are never leaked. Use NewErrorHandler to
-// configure the validation and fallback pages.
+// page; unmapped errors keep their own status. An unmapped 5xx document
+// request without a configured fallback component is answered by a built-in
+// escaped HTML page, so handler details are never leaked. Use NewErrorHandler
+// to configure the validation and fallback pages.
+//
+// Error pages are client-rendered unless the mapping or options opt them into
+// SSR, even when the renderer defaults every other page to SSR. That keeps a
+// failed SSR render from being retried for the error page it caused.
 func ErrorHandler(renderer *Renderer, mappings ...ErrorMapping) anduin.ErrorHandler {
 	return NewErrorHandler(renderer, ErrorHandlerOptions{}, mappings...)
 }
 
 // NewErrorHandler is ErrorHandler with options for the pages it builds itself.
 // Configure FallbackComponent to render unmapped 5xx errors as a themed page
-// instead of the router's plain-text default.
+// instead of the built-in safe HTML page.
 func NewErrorHandler(
 	renderer *Renderer,
 	options ErrorHandlerOptions,
@@ -96,6 +103,10 @@ func NewErrorHandler(
 			return config.fallbackPage(renderer, ctx, err)
 		}
 
+		if anduin.StatusCode(err) >= http.StatusInternalServerError {
+			return safeErrorPage(ctx, err)
+		}
+
 		return err
 	}
 }
@@ -116,9 +127,7 @@ func (config errorHandlerConfig) validationPage(
 	page := renderer.Page(ctx, config.validationComponent, Props{}).
 		ValidationErrors(fields).
 		Status(http.StatusUnprocessableEntity)
-	if config.validationSSR {
-		page = page.SSR()
-	}
+	page = applyErrorSSRPolicy(page, config.validationSSR)
 
 	return page.Render()
 }
@@ -129,9 +138,7 @@ func (config errorHandlerConfig) mappedPage(
 	mapping ErrorMapping,
 ) error {
 	page := renderer.Page(ctx, mapping.Component, Props{}).Status(mapping.Status)
-	if mapping.SSR {
-		page = page.SSR()
-	}
+	page = applyErrorSSRPolicy(page, mapping.SSR)
 
 	return page.Render()
 }
@@ -146,11 +153,35 @@ func (config errorHandlerConfig) fallbackPage(
 
 	page := renderer.Page(ctx, config.fallbackComponent, Props{}).
 		Status(http.StatusInternalServerError)
-	if config.fallbackSSR && !isSSRError(err) {
-		page = page.SSR()
-	}
+	page = applyErrorSSRPolicy(page, config.fallbackSSR && !isSSRError(err))
 
 	return page.Render()
+}
+
+// applyErrorSSRPolicy makes the error page's SSR decision explicit. Without
+// the explicit CSR(), a renderer-wide SSR default would server-render error
+// pages too, including the page that answers a failed SSR render.
+func applyErrorSSRPolicy(page *PageBuilder, ssr bool) *PageBuilder {
+	if ssr {
+		return page.SSR()
+	}
+
+	return page.CSR()
+}
+
+// safeErrorPage answers an unmapped 5xx document request when the application
+// configured no fallback component. It never builds an Inertia page: it cannot
+// refer to a component that may not exist and cannot recurse into SSR. The body
+// is the escaped status text, so handler details are never leaked.
+func safeErrorPage(ctx context.Context, err error) error {
+	slog.ErrorContext(ctx, "inertia: unhandled handler error", "error", err)
+
+	status := max(anduin.StatusCode(err), http.StatusInternalServerError)
+	message := html.EscapeString(http.StatusText(status))
+	document := "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">" +
+		"<title>" + message + "</title></head><body><h1>" + message + "</h1></body></html>"
+
+	return anduin.HTML(ctx, status, document)
 }
 
 func isSSRError(err error) bool {
