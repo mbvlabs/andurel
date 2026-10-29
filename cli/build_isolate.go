@@ -1,13 +1,16 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strconv"
+	"slices"
 	"strings"
+
+	"golang.org/x/mod/modfile"
 )
 
 // buildOutput describes where build artifacts are published.
@@ -45,8 +48,9 @@ func resolveBuildOutputDir(rootDir, raw string) (buildOutput, error) {
 	if err != nil {
 		return buildOutput{}, fmt.Errorf("resolve project root: %w", err)
 	}
-	if resolved, resolveErr := filepath.EvalSymlinks(rootAbs); resolveErr == nil {
-		rootAbs = resolved
+	rootAbs, err = resolveBuildPath(rootAbs)
+	if err != nil {
+		return buildOutput{}, fmt.Errorf("resolve project root: %w", err)
 	}
 
 	trimmed := strings.TrimSpace(raw)
@@ -63,8 +67,9 @@ func resolveBuildOutputDir(rootDir, raw string) (buildOutput, error) {
 		outputPath = filepath.Join(rootAbs, outputPath)
 	}
 	outputPath = filepath.Clean(outputPath)
-	if resolved, resolveErr := filepath.EvalSymlinks(outputPath); resolveErr == nil {
-		outputPath = resolved
+	outputPath, err = resolveBuildPath(outputPath)
+	if err != nil {
+		return buildOutput{}, fmt.Errorf("resolve --output-dir: %w", err)
 	}
 
 	if outputPath == rootAbs {
@@ -104,6 +109,40 @@ func resolveBuildOutputDir(rootDir, raw string) (buildOutput, error) {
 		DisplayPath: displayPath,
 		Isolated:    true,
 	}, nil
+}
+
+// resolveBuildPath resolves symlinks in the nearest existing ancestor and
+// appends the components that do not exist yet. EvalSymlinks alone fails for a
+// new child below an existing symlink, which would let a lexical path pass the
+// source-content denylist while publication writes through the link.
+func resolveBuildPath(path string) (string, error) {
+	clean := filepath.Clean(path)
+	missing := make([]string, 0, 4)
+	current := clean
+
+	for {
+		_, err := os.Lstat(current)
+		if err == nil {
+			resolved, err := filepath.EvalSymlinks(current)
+			if err != nil {
+				return "", fmt.Errorf("resolve symlinks in %s: %w", current, err)
+			}
+			for _, m := range slices.Backward(missing) {
+				resolved = filepath.Join(resolved, m)
+			}
+			return filepath.Clean(resolved), nil
+		}
+		if !os.IsNotExist(err) {
+			return "", fmt.Errorf("inspect %s: %w", current, err)
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", fmt.Errorf("cannot resolve %s: no existing ancestor", path)
+		}
+		missing = append(missing, filepath.Base(current))
+		current = parent
+	}
 }
 
 // buildNeedsAssets reports whether the selected processes embed assets/dist.
@@ -155,6 +194,16 @@ func buildGoEnv(rootDir string) []string {
 // email renderers inside the stage, so two builds of the same source tree with
 // different output directories never share a writable path.
 func stageBuildSource(sourceRoot, outputDir string) (string, error) {
+	sourceRoot, err := filepath.Abs(sourceRoot)
+	if err != nil {
+		return "", fmt.Errorf("resolve project root: %w", err)
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(sourceRoot)
+	if err != nil {
+		return "", fmt.Errorf("resolve project root symlinks: %w", err)
+	}
+	sourceRoot = resolvedRoot
+
 	stageRoot, err := os.MkdirTemp("", "andurel-build-")
 	if err != nil {
 		return "", fmt.Errorf("create build staging directory: %w", err)
@@ -188,6 +237,7 @@ func stageBuildSource(sourceRoot, outputDir string) (string, error) {
 }
 
 func copyBuildTree(sourceRoot, stageRoot string, skipRoots map[string]bool) error {
+	mappings := []buildStageMapping{{source: sourceRoot, stage: stageRoot}}
 	return filepath.WalkDir(sourceRoot, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -211,8 +261,16 @@ func copyBuildTree(sourceRoot, stageRoot string, skipRoots map[string]bool) erro
 		}
 
 		target := filepath.Join(stageRoot, rel)
-		return copyBuildEntry(path, target, entry)
+		return copyBuildEntry(path, target, entry, mappings)
 	})
+}
+
+// buildStageMapping maps a source tree to the private copy that build tools
+// may write. Symlink targets inside a mapped source tree are retargeted at the
+// corresponding staged path so a tool cannot follow a link back into source.
+type buildStageMapping struct {
+	source string
+	stage  string
 }
 
 func cloneNodeModules(sourceRoot, stageRoot string) error {
@@ -240,6 +298,10 @@ func cloneNodeModules(sourceRoot, stageRoot string) error {
 		return fmt.Errorf("node_modules is not a directory: %s", source)
 	}
 
+	mappings := []buildStageMapping{
+		{source: sourceRoot, stage: stageRoot},
+		{source: source, stage: target},
+	}
 	return filepath.WalkDir(source, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -264,11 +326,15 @@ func cloneNodeModules(sourceRoot, stageRoot string) error {
 			}
 		}
 
-		return cloneBuildEntry(path, filepath.Join(target, rel), entry)
+		return cloneBuildEntry(path, filepath.Join(target, rel), entry, mappings)
 	})
 }
 
-func copyBuildEntry(source, target string, entry fs.DirEntry) error {
+func copyBuildEntry(
+	source, target string,
+	entry fs.DirEntry,
+	mappings []buildStageMapping,
+) error {
 	if entry.IsDir() {
 		return os.MkdirAll(target, 0o755)
 	}
@@ -280,14 +346,7 @@ func copyBuildEntry(source, target string, entry fs.DirEntry) error {
 
 	switch {
 	case info.Mode()&os.ModeSymlink != 0:
-		link, err := os.Readlink(source)
-		if err != nil {
-			return fmt.Errorf("read symlink %s: %w", source, err)
-		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return err
-		}
-		return os.Symlink(link, target)
+		return stageBuildSymlink(source, target, mappings)
 	case info.Mode().IsRegular():
 		return copyBuildFile(source, target, info.Mode().Perm())
 	default:
@@ -295,7 +354,11 @@ func copyBuildEntry(source, target string, entry fs.DirEntry) error {
 	}
 }
 
-func cloneBuildEntry(source, target string, entry fs.DirEntry) error {
+func cloneBuildEntry(
+	source, target string,
+	entry fs.DirEntry,
+	mappings []buildStageMapping,
+) error {
 	if entry.IsDir() {
 		return os.MkdirAll(target, 0o755)
 	}
@@ -307,25 +370,72 @@ func cloneBuildEntry(source, target string, entry fs.DirEntry) error {
 
 	switch {
 	case info.Mode()&os.ModeSymlink != 0:
-		link, err := os.Readlink(source)
-		if err != nil {
-			return fmt.Errorf("read symlink %s: %w", source, err)
-		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return err
-		}
-		return os.Symlink(link, target)
+		return stageBuildSymlink(source, target, mappings)
 	case info.Mode().IsRegular():
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return err
-		}
-		if err := os.Link(source, target); err == nil {
-			return nil
-		}
+		// A hardlink would share an inode with the source dependency. A build
+		// plugin that rewrites the staged dependency would then silently modify
+		// the project tree and every concurrent staged build.
 		return copyBuildFile(source, target, info.Mode().Perm())
 	default:
 		return nil
 	}
+}
+
+// stageBuildSymlink recreates a source symlink inside the stage. Targets that
+// resolve into the project or the installed dependency tree are rewritten to
+// their staged counterparts. A target outside those trees is rejected instead
+// of copied verbatim: writes through it could not be kept private to the stage.
+func stageBuildSymlink(sourceLink, target string, mappings []buildStageMapping) error {
+	link, err := os.Readlink(sourceLink)
+	if err != nil {
+		return fmt.Errorf("read symlink %s: %w", sourceLink, err)
+	}
+
+	resolvedTarget := link
+	if !filepath.IsAbs(resolvedTarget) {
+		resolvedTarget = filepath.Join(filepath.Dir(sourceLink), resolvedTarget)
+	}
+	resolvedTarget = filepath.Clean(resolvedTarget)
+	if resolved, resolveErr := filepath.EvalSymlinks(resolvedTarget); resolveErr == nil {
+		resolvedTarget = resolved
+	}
+
+	for _, mapping := range mappings {
+		stagedTarget, ok := stagedBuildPath(mapping, resolvedTarget)
+		if !ok {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		relativeTarget, err := filepath.Rel(filepath.Dir(target), stagedTarget)
+		if err != nil {
+			relativeTarget = stagedTarget
+		}
+		if err := os.Symlink(relativeTarget, target); err != nil {
+			return fmt.Errorf("stage symlink %s: %w", sourceLink, err)
+		}
+		return nil
+	}
+
+	return fmt.Errorf(
+		"refusing symlink %s: target %s is outside the project and the dependency snapshot; an isolated build cannot keep writes through it private",
+		sourceLink,
+		resolvedTarget,
+	)
+}
+
+func stagedBuildPath(mapping buildStageMapping, target string) (string, bool) {
+	source := filepath.Clean(mapping.source)
+	target = filepath.Clean(target)
+	if target == source {
+		return mapping.stage, true
+	}
+	rel, ok := relativeWithin(source, target)
+	if !ok {
+		return "", false
+	}
+	return filepath.Join(mapping.stage, rel), true
 }
 
 func copyBuildFile(source, target string, mode fs.FileMode) error {
@@ -372,11 +482,20 @@ func rewriteStageWorkspace(sourceRoot, stageRoot string) error {
 			return fmt.Errorf("read staged %s: %w", name, err)
 		}
 
-		rewritten := rewriteWorkspacePaths(string(data), sourceRoot, stageRoot, name == "go.work")
-		if rewritten == string(data) {
+		rewritten, changed, err := rewriteWorkspacePaths(
+			path,
+			data,
+			sourceRoot,
+			stageRoot,
+			name == "go.work",
+		)
+		if err != nil {
+			return fmt.Errorf("rewrite staged %s: %w", name, err)
+		}
+		if !changed {
 			continue
 		}
-		if err := os.WriteFile(path, []byte(rewritten), 0o644); err != nil {
+		if err := os.WriteFile(path, rewritten, 0o644); err != nil {
 			return fmt.Errorf("write staged %s: %w", name, err)
 		}
 	}
@@ -384,89 +503,88 @@ func rewriteStageWorkspace(sourceRoot, stageRoot string) error {
 	return nil
 }
 
-func rewriteWorkspacePaths(content, sourceRoot, stageRoot string, workFile bool) string {
-	lines := strings.SplitAfter(content, "\n")
-	inUseBlock := false
+// rewriteWorkspacePaths uses the Go module-file parser so quoted filesystem
+// paths, comments and block syntax survive the rewrite. A line splitter cannot
+// represent replace/use paths that contain spaces.
+func rewriteWorkspacePaths(
+	path string,
+	content []byte,
+	sourceRoot, stageRoot string,
+	workFile bool,
+) ([]byte, bool, error) {
+	if workFile {
+		work, err := modfile.ParseWork(path, content, nil)
+		if err != nil {
+			return nil, false, err
+		}
 
-	for index, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if workFile {
-			if inUseBlock {
-				if strings.HasPrefix(trimmed, ")") {
-					inUseBlock = false
-					continue
-				}
-				lines[index] = rewriteUseLine(line, "", sourceRoot, stageRoot)
+		changed := false
+		for _, use := range work.Use {
+			if !isRelativeFilesystemPath(use.Path) {
 				continue
 			}
-			if strings.HasPrefix(trimmed, "use (") {
-				inUseBlock = true
+			mapped := mapStagePath(use.Path, sourceRoot, stageRoot)
+			if mapped == use.Path {
 				continue
 			}
-			if strings.HasPrefix(trimmed, "use ") {
-				lines[index] = rewriteUseLine(line, "use ", sourceRoot, stageRoot)
-				continue
+			setWorkUsePath(use, mapped)
+			changed = true
+		}
+		for _, replace := range work.Replace {
+			if setStagedReplacePath(replace, sourceRoot, stageRoot) {
+				changed = true
 			}
 		}
-		if strings.Contains(line, "=>") {
-			lines[index] = rewriteReplaceLine(line, sourceRoot, stageRoot)
+		if !changed {
+			return content, false, nil
+		}
+		return modfile.Format(work.Syntax), true, nil
+	}
+
+	file, err := modfile.Parse(path, content, nil)
+	if err != nil {
+		return nil, false, err
+	}
+
+	changed := false
+	for _, replace := range file.Replace {
+		if setStagedReplacePath(replace, sourceRoot, stageRoot) {
+			changed = true
 		}
 	}
-
-	return strings.Join(lines, "")
+	if !changed {
+		return content, false, nil
+	}
+	return modfile.Format(file.Syntax), true, nil
 }
 
-func rewriteUseLine(line, prefix, sourceRoot, stageRoot string) string {
-	indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
-	body := strings.TrimSpace(line)
-	comment := ""
-	if index := strings.Index(body, "//"); index >= 0 {
-		comment = " " + strings.TrimSpace(body[index:])
-		body = strings.TrimSpace(body[:index])
+func setWorkUsePath(use *modfile.Use, path string) {
+	use.Path = path
+	index := 0
+	if len(use.Syntax.Token) > 1 && use.Syntax.Token[0] == "use" {
+		index = 1
 	}
-	if body == "" {
-		return line
-	}
-	path := strings.TrimSpace(strings.TrimPrefix(body, prefix))
-	if path == "" {
-		return line
-	}
-	mapped := mapStagePath(path, sourceRoot, stageRoot)
-	if mapped == path {
-		return line
-	}
-	return indent + prefix + quoteWorkspacePath(mapped) + comment + "\n"
+	use.Syntax.Token[index] = modfile.AutoQuote(path)
 }
 
-func rewriteReplaceLine(line, sourceRoot, stageRoot string) string {
-	index := strings.Index(line, "=>")
-	if index < 0 {
-		return line
+func setStagedReplacePath(replace *modfile.Replace, sourceRoot, stageRoot string) bool {
+	if replace.New.Version != "" || !isRelativeFilesystemPath(replace.New.Path) {
+		return false
 	}
-	right := line[index+2:]
-	trailingNewline := ""
-	if before, ok := strings.CutSuffix(right, "\n"); ok {
-		right = before
-		trailingNewline = "\n"
+	mapped := mapStagePath(replace.New.Path, sourceRoot, stageRoot)
+	if mapped == replace.New.Path {
+		return false
 	}
-	comment := ""
-	if commentIndex := strings.Index(right, "//"); commentIndex >= 0 {
-		comment = " " + strings.TrimSpace(right[commentIndex:])
-		right = right[:commentIndex]
+
+	for index, token := range replace.Syntax.Token {
+		if token != "=>" || index+1 >= len(replace.Syntax.Token) {
+			continue
+		}
+		replace.New.Path = mapped
+		replace.Syntax.Token[index+1] = modfile.AutoQuote(mapped)
+		return true
 	}
-	fields := strings.Fields(right)
-	if len(fields) == 0 {
-		return line
-	}
-	path := strings.Trim(fields[0], `"`)
-	if !isRelativeFilesystemPath(path) {
-		return line
-	}
-	mapped := mapStagePath(path, sourceRoot, stageRoot)
-	if mapped == path {
-		return line
-	}
-	return line[:index+2] + " " + quoteWorkspacePath(mapped) + comment + trailingNewline
+	return false
 }
 
 func isRelativeFilesystemPath(path string) bool {
@@ -488,13 +606,6 @@ func mapStagePath(rel, sourceRoot, stageRoot string) string {
 	return abs
 }
 
-func quoteWorkspacePath(path string) string {
-	if strings.ContainsAny(path, " \t") {
-		return strconv.Quote(path)
-	}
-	return path
-}
-
 func relativeWithin(root, path string) (string, bool) {
 	rel, err := filepath.Rel(root, path)
 	if err != nil {
@@ -514,19 +625,35 @@ func isPathWithin(path, root string) bool {
 	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
 }
 
-// Publication names. publishBuildArtifacts creates temporary outputs and
-// backups with these prefixes; a build killed between renames leaves them
-// behind, so the next publication repairs them before touching output.
+// Publication names. publishBuildArtifacts stages temporary outputs and
+// backups with these prefixes. A journal makes recovery all-or-nothing across
+// every selected process: a build killed between two renames must never pair a
+// newly published app with the previous SSR binary.
 const (
 	buildTempPrefix   = ".andurel-"
 	buildBackupPrefix = ".andurel-backup-"
+	buildJournalName  = ".andurel-publish-journal.json"
+	buildPublishing   = "publishing"
+	buildCommitted    = "committed"
 )
 
+type buildPublicationJournalEntry struct {
+	Process     string `json:"process"`
+	Final       string `json:"final"`
+	Temp        string `json:"temp"`
+	Backup      string `json:"backup,omitempty"`
+	HadPrevious bool   `json:"had_previous"`
+}
+
+type buildPublicationJournal struct {
+	Phase   string                         `json:"phase"`
+	Entries []buildPublicationJournalEntry `json:"entries"`
+}
+
 // recoverInterruptedBuildPublication repairs output left by a build that was
-// killed mid-publication. A backup without its final file is the previous good
-// binary: restore it instead of leaving the output missing. A backup beside a
-// final file is stale and removed. Temporary outputs never became visible, so
-// they are removed. Only names this package creates are touched.
+// killed mid-publication. A journal is authoritative for the whole artifact
+// set and is rolled back or forward as a unit. Without a journal, backups from
+// older andurel versions are repaired one file at a time (legacy recovery).
 func recoverInterruptedBuildPublication(outputDir string) ([]string, error) {
 	entries, err := os.ReadDir(outputDir)
 	if err != nil {
@@ -535,6 +662,28 @@ func recoverInterruptedBuildPublication(outputDir string) ([]string, error) {
 		}
 		return nil, fmt.Errorf("read output directory: %w", err)
 	}
+
+	journalPath := filepath.Join(outputDir, buildJournalName)
+	data, err := os.ReadFile(journalPath)
+	switch {
+	case err == nil:
+		journal, decodeErr := decodeBuildPublicationJournal(data)
+		if decodeErr != nil {
+			return nil, fmt.Errorf("read interrupted build publication journal: %w", decodeErr)
+		}
+		recovered, recoverErr := recoverBuildPublicationJournal(outputDir, journal)
+		if recoverErr != nil {
+			return recovered, recoverErr
+		}
+		if removeErr := os.Remove(journalPath); removeErr != nil && !os.IsNotExist(removeErr) {
+			return recovered, fmt.Errorf("remove build publication journal: %w", removeErr)
+		}
+		removeBuildJournalTemps(outputDir)
+		return recovered, nil
+	case !os.IsNotExist(err):
+		return nil, fmt.Errorf("read build publication journal: %w", err)
+	}
+
 	recovered := make([]string, 0)
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -543,6 +692,10 @@ func recoverInterruptedBuildPublication(outputDir string) ([]string, error) {
 		name := entry.Name()
 		path := filepath.Join(outputDir, name)
 		switch {
+		case strings.HasPrefix(name, buildJournalName+".tmp-"):
+			if err := os.Remove(path); err != nil {
+				return recovered, fmt.Errorf("remove temporary build journal %s: %w", name, err)
+			}
 		case strings.HasPrefix(name, buildBackupPrefix):
 			process, ok := buildPublicationProcess(strings.TrimPrefix(name, buildBackupPrefix))
 			if !ok {
@@ -573,6 +726,194 @@ func recoverInterruptedBuildPublication(outputDir string) ([]string, error) {
 	return recovered, nil
 }
 
+func decodeBuildPublicationJournal(data []byte) (*buildPublicationJournal, error) {
+	var journal buildPublicationJournal
+	if err := json.Unmarshal(data, &journal); err != nil {
+		return nil, err
+	}
+	if journal.Phase != buildPublishing && journal.Phase != buildCommitted {
+		return nil, fmt.Errorf("unknown publication phase %q", journal.Phase)
+	}
+	if len(journal.Entries) == 0 {
+		return nil, fmt.Errorf("publication journal has no entries")
+	}
+
+	seen := make(map[string]bool, len(journal.Entries))
+	for _, entry := range journal.Entries {
+		if !isSafeBuildPublicationName(entry.Process) || entry.Final != entry.Process {
+			return nil, fmt.Errorf("unsafe publication process %q", entry.Process)
+		}
+		if seen[entry.Process] {
+			return nil, fmt.Errorf("duplicate publication process %q", entry.Process)
+		}
+		seen[entry.Process] = true
+		if !isBuildPublicationTempName(entry.Temp, entry.Process) {
+			return nil, fmt.Errorf("unsafe temporary output %q", entry.Temp)
+		}
+		if entry.HadPrevious != (entry.Backup != "") {
+			return nil, fmt.Errorf("inconsistent backup for process %q", entry.Process)
+		}
+		if entry.Backup != "" && !isBuildPublicationBackupName(entry.Backup, entry.Process) {
+			return nil, fmt.Errorf("unsafe backup output %q", entry.Backup)
+		}
+	}
+	return &journal, nil
+}
+
+func isSafeBuildPublicationName(name string) bool {
+	return name != "" && name != "." && name != ".." &&
+		filepath.Base(name) == name && !strings.ContainsAny(name, `/\`)
+}
+
+func isBuildPublicationTempName(name, process string) bool {
+	if !strings.HasPrefix(name, buildTempPrefix) || !isSafeBuildPublicationName(name) {
+		return false
+	}
+	parsed, ok := buildPublicationProcess(strings.TrimPrefix(name, buildTempPrefix))
+	return ok && parsed == process
+}
+
+func isBuildPublicationBackupName(name, process string) bool {
+	if !strings.HasPrefix(name, buildBackupPrefix) || !isSafeBuildPublicationName(name) {
+		return false
+	}
+	parsed, ok := buildPublicationProcess(strings.TrimPrefix(name, buildBackupPrefix))
+	return ok && parsed == process
+}
+
+func recoverBuildPublicationJournal(outputDir string, journal *buildPublicationJournal) ([]string, error) {
+	switch journal.Phase {
+	case buildPublishing:
+		return rollbackBuildPublication(outputDir, journal)
+	case buildCommitted:
+		return finalizeBuildPublication(outputDir, journal)
+	default:
+		return nil, fmt.Errorf("unknown publication phase %q", journal.Phase)
+	}
+}
+
+// rollbackBuildPublication restores the complete previous artifact set. An
+// entry that had no previous artifact is removed if its rename completed.
+func rollbackBuildPublication(outputDir string, journal *buildPublicationJournal) ([]string, error) {
+	recovered := make([]string, 0, len(journal.Entries))
+	for _, entry := range journal.Entries {
+		final := filepath.Join(outputDir, entry.Final)
+		temp := filepath.Join(outputDir, entry.Temp)
+
+		if entry.Backup != "" {
+			backup := filepath.Join(outputDir, entry.Backup)
+			if _, err := os.Lstat(backup); err == nil {
+				if err := os.Remove(final); err != nil && !os.IsNotExist(err) {
+					return recovered, fmt.Errorf("remove partially published %s: %w", entry.Process, err)
+				}
+				if err := os.Rename(backup, final); err != nil {
+					return recovered, fmt.Errorf("restore previous %s: %w", entry.Process, err)
+				}
+				recovered = append(recovered, "restored previous "+entry.Process)
+			} else if !os.IsNotExist(err) {
+				return recovered, fmt.Errorf("inspect backup for %s: %w", entry.Process, err)
+			}
+		} else if !entry.HadPrevious {
+			if _, err := os.Lstat(temp); os.IsNotExist(err) {
+				if _, finalErr := os.Lstat(final); finalErr == nil {
+					if err := os.Remove(final); err != nil {
+						return recovered, fmt.Errorf("remove interrupted publication of %s: %w", entry.Process, err)
+					}
+					recovered = append(recovered, "removed interrupted publication of "+entry.Process)
+				} else if !os.IsNotExist(finalErr) {
+					return recovered, fmt.Errorf("inspect partial %s: %w", entry.Process, finalErr)
+				}
+			}
+		}
+
+		if err := os.Remove(temp); err != nil && !os.IsNotExist(err) {
+			return recovered, fmt.Errorf("remove temporary output for %s: %w", entry.Process, err)
+		}
+	}
+	return recovered, nil
+}
+
+// finalizeBuildPublication completes a publication whose journal reached the
+// committed phase. The new artifact set is kept and only backups are removed.
+func finalizeBuildPublication(outputDir string, journal *buildPublicationJournal) ([]string, error) {
+	recovered := make([]string, 0, len(journal.Entries))
+	for _, entry := range journal.Entries {
+		final := filepath.Join(outputDir, entry.Final)
+		temp := filepath.Join(outputDir, entry.Temp)
+
+		if _, err := os.Lstat(final); err != nil {
+			if !os.IsNotExist(err) {
+				return recovered, fmt.Errorf("inspect published %s: %w", entry.Process, err)
+			}
+			if _, tempErr := os.Lstat(temp); tempErr == nil {
+				if err := os.Rename(temp, final); err != nil {
+					return recovered, fmt.Errorf("complete publication of %s: %w", entry.Process, err)
+				}
+				recovered = append(recovered, "completed publication of "+entry.Process)
+			} else if !os.IsNotExist(tempErr) {
+				return recovered, fmt.Errorf("inspect temporary output for %s: %w", entry.Process, tempErr)
+			} else {
+				return recovered, fmt.Errorf("committed publication is missing %s", entry.Process)
+			}
+		}
+
+		if entry.Backup != "" {
+			backup := filepath.Join(outputDir, entry.Backup)
+			if err := os.Remove(backup); err != nil && !os.IsNotExist(err) {
+				return recovered, fmt.Errorf("remove stale backup for %s: %w", entry.Process, err)
+			}
+		}
+		if err := os.Remove(temp); err != nil && !os.IsNotExist(err) {
+			return recovered, fmt.Errorf("remove temporary output for %s: %w", entry.Process, err)
+		}
+	}
+	return recovered, nil
+}
+
+func writeBuildPublicationJournal(outputDir string, journal *buildPublicationJournal) error {
+	data, err := json.Marshal(journal)
+	if err != nil {
+		return fmt.Errorf("encode publication journal: %w", err)
+	}
+	temp, err := os.CreateTemp(outputDir, buildJournalName+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("create publication journal: %w", err)
+	}
+	tempPath := temp.Name()
+	if _, err := temp.Write(data); err != nil {
+		_ = temp.Close()
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("write publication journal: %w", err)
+	}
+	if err := temp.Sync(); err != nil {
+		_ = temp.Close()
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("sync publication journal: %w", err)
+	}
+	if err := temp.Close(); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("close publication journal: %w", err)
+	}
+	if err := os.Rename(tempPath, filepath.Join(outputDir, buildJournalName)); err != nil {
+		_ = os.Remove(tempPath)
+		return fmt.Errorf("publish publication journal: %w", err)
+	}
+	return nil
+}
+
+func removeBuildJournalTemps(outputDir string) {
+	entries, err := os.ReadDir(outputDir)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), buildJournalName+".tmp-") {
+			continue
+		}
+		_ = os.Remove(filepath.Join(outputDir, entry.Name()))
+	}
+}
+
 // buildPublicationProcess extracts the process name from a CreateTemp suffix
 // such as "app-123456789". The random part is all digits; the process name may
 // itself contain dashes. Unsafe path-shaped names are ignored.
@@ -595,8 +936,10 @@ func buildPublicationProcess(suffix string) (string, bool) {
 }
 
 // publishBuildArtifacts copies staged binaries into outputDir with an
-// all-or-nothing publication. A failed copy or rename leaves the previous
-// output untouched and never produces a success manifest.
+// all-or-nothing publication. A journal records every selected process before
+// the first rename; a failed copy or rename leaves the previous output intact,
+// and recovery rolls the whole artifact set back or forward. No success
+// manifest is produced for a failed publication.
 func publishBuildArtifacts(
 	workRoot, outputDir string,
 	selected []buildProcess,
@@ -614,12 +957,12 @@ func publishBuildArtifacts(
 	}
 
 	type publication struct {
-		process   string
-		final     string
-		temp      string
-		backup    string
-		size      int64
-		published bool
+		process     string
+		final       string
+		temp        string
+		backup      string
+		size        int64
+		hadPrevious bool
 	}
 	publications := make([]publication, 0, len(selected))
 
@@ -639,7 +982,7 @@ func publishBuildArtifacts(
 			return fmt.Errorf("stat staged %s: %w", process.Name, err)
 		}
 
-		temp, err := os.CreateTemp(outputDir, ".andurel-"+process.Name+"-*")
+		temp, err := os.CreateTemp(outputDir, buildTempPrefix+process.Name+"-*")
 		if err != nil {
 			cleanupTemps()
 			return fmt.Errorf("create temporary output for %s: %w", process.Name, err)
@@ -664,58 +1007,80 @@ func publishBuildArtifacts(
 		})
 	}
 
-	rollback := func() {
-		for _, item := range publications {
-			if item.backup != "" {
-				_ = os.Remove(item.final)
-				_ = os.Rename(item.backup, item.final)
-				continue
+	journal := &buildPublicationJournal{Phase: buildPublishing}
+	for index := range publications {
+		item := &publications[index]
+		if _, err := os.Stat(item.final); err == nil {
+			item.hadPrevious = true
+			backup, err := os.CreateTemp(outputDir, buildBackupPrefix+item.process+"-*")
+			if err != nil {
+				cleanupTemps()
+				return fmt.Errorf("prepare backup for %s: %w", item.process, err)
 			}
-			if item.published {
-				_ = os.Remove(item.final)
+			item.backup = backup.Name()
+			if err := backup.Close(); err != nil {
+				_ = os.Remove(item.backup)
+				cleanupTemps()
+				return fmt.Errorf("close backup for %s: %w", item.process, err)
 			}
+			if err := os.Remove(item.backup); err != nil {
+				cleanupTemps()
+				return fmt.Errorf("remove backup placeholder for %s: %w", item.process, err)
+			}
+		} else if !os.IsNotExist(err) {
+			cleanupTemps()
+			return fmt.Errorf("inspect previous %s: %w", item.process, err)
 		}
+
+		entry := buildPublicationJournalEntry{
+			Process:     item.process,
+			Final:       item.process,
+			Temp:        filepath.Base(item.temp),
+			HadPrevious: item.hadPrevious,
+		}
+		if item.backup != "" {
+			entry.Backup = filepath.Base(item.backup)
+		}
+		journal.Entries = append(journal.Entries, entry)
+	}
+
+	if err := writeBuildPublicationJournal(outputDir, journal); err != nil {
+		cleanupTemps()
+		return err
+	}
+
+	rollback := func(cause error) error {
+		_, rollbackErr := rollbackBuildPublication(outputDir, journal)
+		if rollbackErr == nil {
+			_ = os.Remove(filepath.Join(outputDir, buildJournalName))
+		}
+		if rollbackErr != nil {
+			return fmt.Errorf("%w; rollback failed: %v", cause, rollbackErr)
+		}
+		return cause
 	}
 
 	for index := range publications {
 		item := &publications[index]
-		if _, err := os.Stat(item.final); err == nil {
-			backup, err := os.CreateTemp(outputDir, ".andurel-backup-"+item.process+"-*")
-			if err != nil {
-				rollback()
-				cleanupTemps()
-				return fmt.Errorf("prepare backup for %s: %w", item.process, err)
-			}
-			backupPath := backup.Name()
-			if err := backup.Close(); err != nil {
-				_ = os.Remove(backupPath)
-				rollback()
-				cleanupTemps()
-				return fmt.Errorf("close backup for %s: %w", item.process, err)
-			}
-			if err := os.Remove(backupPath); err != nil {
-				rollback()
-				cleanupTemps()
-				return fmt.Errorf("remove backup placeholder for %s: %w", item.process, err)
-			}
-			if err := os.Rename(item.final, backupPath); err != nil {
-				rollback()
-				cleanupTemps()
-				return fmt.Errorf("back up previous %s: %w", item.process, err)
-			}
-			item.backup = backupPath
+		if item.backup == "" {
+			continue
+		}
+		if err := os.Rename(item.final, item.backup); err != nil {
+			return rollback(fmt.Errorf("back up previous %s: %w", item.process, err))
 		}
 	}
 
 	for index := range publications {
 		item := &publications[index]
 		if err := os.Rename(item.temp, item.final); err != nil {
-			rollback()
-			cleanupTemps()
-			return fmt.Errorf("publish %s: %w", item.process, err)
+			return rollback(fmt.Errorf("publish %s: %w", item.process, err))
 		}
 		item.temp = ""
-		item.published = true
+	}
+
+	journal.Phase = buildCommitted
+	if err := writeBuildPublicationJournal(outputDir, journal); err != nil {
+		return rollback(fmt.Errorf("commit build publication: %w", err))
 	}
 
 	for _, item := range publications {
@@ -723,19 +1088,23 @@ func publishBuildArtifacts(
 			_ = os.Remove(item.backup)
 		}
 	}
+	_ = os.Remove(filepath.Join(outputDir, buildJournalName))
+	removeBuildJournalTemps(outputDir)
 
-	for index := range report.Artifacts {
-		artifact := &report.Artifacts[index]
-		for _, item := range publications {
-			if artifact.Process != item.process {
-				continue
+	if report != nil {
+		for index := range report.Artifacts {
+			artifact := &report.Artifacts[index]
+			for _, item := range publications {
+				if artifact.Process != item.process {
+					continue
+				}
+				artifact.Path = filepath.ToSlash(item.final)
+				artifact.Size = item.size
+				break
 			}
-			artifact.Path = filepath.ToSlash(item.final)
-			artifact.Size = item.size
-			break
 		}
+		report.OutputDir = filepath.ToSlash(outputDir)
 	}
-	report.OutputDir = filepath.ToSlash(outputDir)
 
 	return nil
 }

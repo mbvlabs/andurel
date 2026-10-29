@@ -94,10 +94,21 @@ binaries. Relative --output-dir paths resolve from the project root. The
 manifest reports absolute artifact paths and isolated=true. Two builds of the
 same project with different output directories do not share writable paths.
 
-Isolated builds reuse an existing node_modules snapshot instead of running the
+Isolated builds copy an existing node_modules snapshot instead of running the
 package manager against the shared source tree; run your package manager
-install command first when dependencies change. Staging directories are removed
-on normal success and failure. A SIGKILL can leave an unreferenced temp
+install command first when dependencies change. Dependencies are copied as
+regular files, never hardlinked, so a build plugin cannot mutate the source
+inode. Symlinks whose targets resolve inside the project or the dependency
+snapshot are rewritten to their staged counterparts; a symlink that resolves
+outside both is rejected rather than followed, because writes through it could
+not be kept private to the build stage. Staging directories are removed on
+normal success and failure.
+
+Binary publication is all-or-nothing across every selected process. A
+publication journal is written before the first rename; a build interrupted
+between renames is rolled back to the previous complete artifact set by the
+next build. A committed set is kept as a unit, so a new app is never paired
+with a previous SSR binary. A SIGKILL can leave an unreferenced staging
 directory behind, but it is never used by a later build.
 
 Without --output-dir the historical in-place layout is preserved: binaries in
