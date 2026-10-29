@@ -123,11 +123,18 @@ func newPortsLaunchCommand() *cobra.Command {
 		Short: "Supervise a child on a leased loopback port",
 		Long: `Run a child process with INERTIA_SSR_LISTEN and INERTIA_SSR_URL set to
 the same leased loopback URL. The assignment is printed only after the child
-answers GET /health with {"status":"ok"}. The lease is released when the child
-exits or the launcher receives SIGINT/SIGTERM.
+answers GET /health with {"status":"ok"} and the launcher proves the child owns
+the listening socket on that exact address. The lease is released when the
+child exits or the launcher receives SIGINT/SIGTERM.
 
 The child defaults to ./dist/ssr. Pass --listen to keep a fixed address
-instead of allocating one; the port must be free and unleased.`,
+instead of allocating one; the port must be free and unleased.
+
+Wildcard addresses are rejected because they cannot prove which socket answered
+the health probe. localhost resolves to 127.0.0.1; pass ::1 explicitly for IPv6.
+On platforms other than Linux the launcher fails closed because it cannot read
+/proc socket ownership; run the child directly with a fixed INERTIA_SSR_LISTEN
+there instead.`,
 		Example: `  andurel ports launch -- ./dist/ssr
   andurel ports launch --json -- ./dist/ssr
   andurel ports launch --listen http://127.0.0.1:13714 -- ./dist/ssr`,
@@ -178,7 +185,12 @@ instead of allocating one; the port must be free and unleased.`,
 		},
 	}
 
-	cmd.Flags().StringVar(&hostFlag, "host", "127.0.0.1", "Loopback host to allocate on")
+	cmd.Flags().StringVar(
+		&hostFlag,
+		"host",
+		"127.0.0.1",
+		"Loopback host to allocate on (localhost uses 127.0.0.1; use ::1 for IPv6)",
+	)
 	cmd.Flags().IntVar(&portFlag, "port", 0, "Fixed port to allocate (0 allocates a free port)")
 	cmd.Flags().StringVar(
 		&listenFlag,
@@ -251,10 +263,7 @@ func runPortLauncher(
 		return fmt.Errorf("create port lease directory: %w", err)
 	}
 
-	readyFile := strings.TrimSpace(opts.ReadyFile)
-	if readyFile != "" {
-		defer os.Remove(readyFile)
-	}
+	opts.ReadyFile = strings.TrimSpace(opts.ReadyFile)
 
 	attempts := 1
 	if !fixed {
@@ -300,6 +309,13 @@ func supervisePortLease(
 	ready func(portAssignment) error,
 	fixed bool,
 ) error {
+	var readyPublication *portReadyFilePublication
+	defer func() {
+		if readyPublication != nil {
+			_ = readyPublication.removeIfUnchanged()
+		}
+	}()
+
 	listenURL := lease.ListenURL
 	child := exec.Command(opts.Command[0], opts.Command[1:]...)
 	child.Env = envWithOverrides(map[string]string{
@@ -322,16 +338,16 @@ func supervisePortLease(
 	}
 
 	var (
-		childMu     sync.Mutex
-		childErr    error
-		childExited bool
+		childMu       sync.Mutex
+		childErr      error
+		childFinished bool
 	)
 	childDone := make(chan struct{})
 	go func() {
 		waitErr := child.Wait()
 		childMu.Lock()
 		childErr = waitErr
-		childExited = true
+		childFinished = true
 		childMu.Unlock()
 		close(childDone)
 	}()
@@ -357,7 +373,7 @@ func supervisePortLease(
 		select {
 		case <-childDone:
 			childMu.Lock()
-			exited := childExited
+			exited := childFinished
 			waitErr := childErr
 			childMu.Unlock()
 			if exited && waitErr != nil {
@@ -370,10 +386,14 @@ func supervisePortLease(
 
 	// A probe listener necessarily closes before the child binds, so an
 	// unrelated process can win the bind race and answer /health. Refuse to
-	// publish until the intended child process group owns the listening socket.
+	// publish until the intended child process group owns the listening socket
+	// on the exact address the health probe used and the child is still alive.
 	if err := verifyPortOwnedByChild(lease.Host, lease.Port, child.Process.Pid); err != nil {
 		stopPortChild(child, childDone, opts.StopTimeout)
 		return err
+	}
+	if childExited(childDone) {
+		return childExitedError()
 	}
 
 	mode := "allocated"
@@ -391,9 +411,11 @@ func supervisePortLease(
 		ChildPID:  child.Process.Pid,
 	}
 	if opts.ReadyFile != "" {
-		if err := writePortReadyFile(opts.ReadyFile, assignment); err != nil {
+		publication, err := publishPortReadyFile(opts.ReadyFile, assignment)
+		if err != nil {
 			return err
 		}
+		readyPublication = publication
 	}
 	if ready != nil {
 		if err := ready(assignment); err != nil {
@@ -462,9 +484,11 @@ func resolvePortLaunchAddress(opts portLaunchOptions) (portAssignment, bool, err
 	if host == "" {
 		host = "127.0.0.1"
 	}
-	if err := validatePortLeaseHost(host); err != nil {
+	canonicalHost, err := canonicalPortLeaseHost(host)
+	if err != nil {
 		return portAssignment{}, false, err
 	}
+	host = canonicalHost
 	if opts.Port < 0 || opts.Port > 65535 {
 		return portAssignment{}, false, fmt.Errorf("--port must be between 1 and 65535 (or 0)")
 	}
@@ -495,21 +519,35 @@ func parsePortListenURL(raw string) (string, int, string, error) {
 	if err != nil || port < 1 || port > 65535 {
 		return "", 0, "", fmt.Errorf("--listen has an invalid port %q", portText)
 	}
-	if err := validatePortLeaseHost(host); err != nil {
+	canonicalHost, err := canonicalPortLeaseHost(host)
+	if err != nil {
 		return "", 0, "", err
 	}
 
-	return host, port, portListenURL(host, port), nil
+	return canonicalHost, port, portListenURL(canonicalHost, port), nil
 }
 
-func validatePortLeaseHost(host string) error {
-	if strings.EqualFold(host, "localhost") {
-		return nil
+// canonicalPortLeaseHost resolves an allowed listen host to one exact address.
+// The ownership proof and health probe must use the same address; localhost is
+// normalized to IPv4 loopback so the probe cannot silently use a different
+// family, and wildcard addresses are rejected because they cannot identify the
+// socket that answered the probe.
+func canonicalPortLeaseHost(host string) (string, error) {
+	trimmed := strings.TrimSpace(host)
+	if strings.EqualFold(trimmed, "localhost") {
+		return "127.0.0.1", nil
 	}
-	if net.ParseIP(host) != nil {
-		return nil
+	ip := net.ParseIP(trimmed)
+	if ip == nil {
+		return "", fmt.Errorf("listen host must be localhost or an IP address, got %q", host)
 	}
-	return fmt.Errorf("--host must be localhost or an IP address, got %q", host)
+	if ip.IsUnspecified() {
+		return "", fmt.Errorf(
+			"%q is a wildcard address; ports launch requires a specific loopback address such as 127.0.0.1 or ::1 so it can prove child ownership",
+			trimmed,
+		)
+	}
+	return ip.String(), nil
 }
 
 func portListenURL(host string, port int) string {
@@ -796,33 +834,87 @@ func signalPortProcessGroup(child *exec.Cmd, signal syscall.Signal) error {
 	return child.Process.Signal(signal)
 }
 
-func writePortReadyFile(path string, assignment portAssignment) error {
+// portReadyFilePublication records the exact file this launcher published so
+// cleanup cannot remove an arbitrary pre-existing file, a replacement from a
+// competing launcher, or a file edited in place after publication.
+type portReadyFilePublication struct {
+	path   string
+	info   os.FileInfo
+	digest [sha256.Size]byte
+}
+
+func publishPortReadyFile(
+	path string,
+	assignment portAssignment,
+) (*portReadyFilePublication, error) {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return fmt.Errorf("create ready-file directory: %w", err)
+		return nil, fmt.Errorf("create ready-file directory: %w", err)
 	}
 	data, err := json.Marshal(assignment)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	temp, err := os.CreateTemp(dir, ".andurel-port-ready-*")
 	if err != nil {
-		return fmt.Errorf("create ready file: %w", err)
+		return nil, fmt.Errorf("create ready file: %w", err)
 	}
 	tempPath := temp.Name()
 	if _, err := temp.Write(data); err != nil {
 		_ = temp.Close()
 		_ = os.Remove(tempPath)
-		return fmt.Errorf("write ready file: %w", err)
+		return nil, fmt.Errorf("write ready file: %w", err)
+	}
+	// Capture identity before the rename so a competing launcher replacing the
+	// path immediately after publication cannot become this launcher's cleanup
+	// target.
+	info, err := temp.Stat()
+	if err != nil {
+		_ = temp.Close()
+		_ = os.Remove(tempPath)
+		return nil, fmt.Errorf("stat ready file: %w", err)
 	}
 	if err := temp.Close(); err != nil {
 		_ = os.Remove(tempPath)
-		return fmt.Errorf("close ready file: %w", err)
+		return nil, fmt.Errorf("close ready file: %w", err)
 	}
 	if err := os.Rename(tempPath, path); err != nil {
 		_ = os.Remove(tempPath)
-		return fmt.Errorf("publish ready file: %w", err)
+		return nil, fmt.Errorf("publish ready file: %w", err)
 	}
-	return nil
+	return &portReadyFilePublication{
+		path:   path,
+		info:   info,
+		digest: sha256.Sum256(data),
+	}, nil
+}
+
+// removeIfUnchanged removes the published ready file only when the path still
+// names the inode this launcher published and its contents are byte-identical.
+func (publication *portReadyFilePublication) removeIfUnchanged() error {
+	if publication == nil {
+		return nil
+	}
+	info, err := os.Lstat(publication.path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if !os.SameFile(publication.info, info) {
+		return nil
+	}
+	data, err := os.ReadFile(publication.path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if sha256.Sum256(data) != publication.digest {
+		return nil
+	}
+	return os.Remove(publication.path)
 }
