@@ -122,6 +122,7 @@ func TestUpgradePresentationIncludesManualActions(t *testing.T) {
 				"Manual action required",
 				"Pass ViteBuild.FullURL() to the Inertia renderer",
 				"routes.ViteBuild.FullURL()",
+				"andurel inspect upgrade-notes --from v2.0.0-alpha",
 			} {
 				if !strings.Contains(output.String(), want) {
 					t.Fatalf("manual action presentation missing %q:\n%s", want, output.String())

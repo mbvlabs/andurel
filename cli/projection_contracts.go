@@ -29,6 +29,7 @@ func configureProjectionContracts(root *cobra.Command) error {
 		{path: "inspect project", jq: true},
 		{path: "inspect project info", jq: true},
 		{path: "inspect routes", jq: true, idsOnly: true, count: true},
+		{path: "inspect upgrade-notes", jq: true},
 		{path: "new", jq: true},
 		{path: "packages", jq: true, idsOnly: true, count: true},
 		{path: "packages list", jq: true, idsOnly: true, count: true},

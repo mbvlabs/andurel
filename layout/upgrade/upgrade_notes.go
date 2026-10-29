@@ -45,6 +45,29 @@ type ManualAction struct {
 	Instructions string `json:"instructions"`
 }
 
+// ManualActionsBetween returns the manual actions an upgrade from fromVersion
+// to toVersion prints. It lets a project re-read them after andurel.toml
+// already records toVersion.
+func ManualActionsBetween(
+	fromVersion string,
+	toVersion string,
+	includeInertiaMigration bool,
+) ([]ManualAction, error) {
+	from, fromOK := canonicalUpgradeVersion(fromVersion)
+	if !fromOK {
+		return nil, fmt.Errorf("invalid from version %q", fromVersion)
+	}
+	to, toOK := canonicalUpgradeVersion(toVersion)
+	if !toOK {
+		return nil, fmt.Errorf("invalid to version %q", toVersion)
+	}
+	if semver.Compare(from, to) >= 0 {
+		return nil, fmt.Errorf("from version %s must be older than %s", from, to)
+	}
+
+	return manualActionsForUpgrade(from, to, includeInertiaMigration)
+}
+
 func manualActionsForUpgrade(
 	fromVersion string,
 	toVersion string,
@@ -220,6 +243,12 @@ func corsScopeInstructions() string {
 			"Keep cfg.App.Origins() in the CSRF trusted origins; same-site form posts between hosts are deliberate.\n\n",
 	)
 	instructions.WriteString(
+		"Already fixed this yourself? Your version is equivalent when a credentialed cross-origin request " +
+			"from a sibling application host gets no Access-Control-Allow-Origin header, only CORS_ALLOWED_ORIGINS " +
+			"are echoed with credentials, and Vite build files answer without credentials. Keep it if it holds all " +
+			"three; the scaffold code does not need to replace it.\n\n",
+	)
+	instructions.WriteString(
 		"Format and verify:\n\n```text\ngofmt -w .\ngo fix ./...\ngo vet ./...\n```\n",
 	)
 
@@ -253,6 +282,9 @@ func csrfAssetSkipInstructions() string {
 		"isViteAssetPath comes from the CORS action. Unsafe requests to static paths stay protected. " +
 		"In the alpha.4 csrfSkipper helper, keep its existing bearer/session checks and add " +
 		"if isSafeViteAssetRequest(ctx) { return true } at the start of the returned function.\n\n" +
+		"Already fixed this yourself? Your version is equivalent when a GET or HEAD for a Vite build file " +
+		"carries no Set-Cookie for the CSRF cookie and a POST to the same path is still rejected without a " +
+		"valid token. Keep it if both hold.\n\n" +
 		"Format and verify:\n\n```text\ngofmt -w internal/runtime\ngo fix ./...\ngo vet ./...\n```\n"
 }
 
@@ -271,6 +303,9 @@ func methodNotAllowedInstructions() string {
 		"\treturn renderer.Page(ctx, \"Errors/NotFound\", inertia.Props{}).\n" +
 		"\t\tStatus(http.StatusMethodNotAllowed).\n" +
 		"\t\tRender()\n```\n\n" +
+		"Already fixed this yourself? Your version is equivalent when a request with the wrong method on an " +
+		"existing route renders the themed not-found page with status 405 and keeps the Allow header. Keep it " +
+		"if both hold.\n\n" +
 		"Then format and verify:\n\n```text\ngofmt -w handlers\ngo fix ./...\ngo vet ./...\n```\n"
 }
 
@@ -283,6 +318,10 @@ func requestHostInstructions() string {
 		"middleware.DenyFraming from the beta.3 scaffold and install it in internal/runtime:\n\n```go\n" +
 		"router.Use(middleware.DenyFraming(config.HostAdmin))\n```\n\n" +
 		"The headers are set before the handler runs, so error pages, 404s and 405s carry them too.\n\n" +
+		"Already fixed this yourself? This action is a refactor, not a security fix. Host middleware that " +
+		"matches hosts case-insensitively, resolves aliases and treats an unknown host as the primary host " +
+		"behaves the same; you can keep it. anduin.RequestHost only removes the duplicate host parsing, so " +
+		"the two cannot disagree when the host configuration changes.\n\n" +
 		"Format and verify:\n\n```text\ngofmt -w .\ngo fix ./...\ngo vet ./...\n```\n"
 }
 

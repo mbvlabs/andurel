@@ -396,6 +396,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 		WhenNotToUse:    []string{"Commit first. Use packages update to bump pkg modules without a framework upgrade."},
 		Prerequisites:   []string{"Andurel project root"},
 		Examples:        []string{"andurel upgrade --dry-run --json", "andurel upgrade"},
+		Next:            []string{"andurel inspect upgrade-notes --from <previous-version>"},
 		Mutating:        true,
 		RequiresProject: true,
 		SupportsDryRun:  true,
@@ -517,6 +518,14 @@ var commandMetaSpecs = map[string]CommandMeta{
 		WhenNotToUse:    []string{"Read the job pattern with andurel patterns show job."},
 		Prerequisites:   []string{"Andurel project root"},
 		Examples:        []string{"andurel inspect jobs --json"},
+		RequiresProject: true,
+	},
+	"andurel inspect upgrade-notes": {
+		Summary:         "Show the manual actions of a past upgrade",
+		WhenToUse:       []string{"After an upgrade, re-read the manual actions for application-owned code; andurel upgrade no longer lists them once andurel.toml records the new version.", "Check whether a fix you already wrote matches an action: each action says when your version is equivalent."},
+		WhenNotToUse:    []string{"Before upgrading, andurel upgrade --dry-run lists the same actions."},
+		Prerequisites:   []string{"Andurel project root"},
+		Examples:        []string{"andurel inspect upgrade-notes --from v2.0.0-beta.2", "andurel inspect upgrade-notes --from v2.0.0-beta.2 --json"},
 		RequiresProject: true,
 	},
 	"andurel patterns": {

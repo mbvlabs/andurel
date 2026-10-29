@@ -52,6 +52,7 @@ reference shape before writing application-owned code yourself.`,
 		newDomainsCommand(),
 		newHandlersCommand(),
 		newJobsCommand(),
+		newUpgradeNotesCommand(),
 	)
 	setStandardHelp(cmd)
 	return cmd
