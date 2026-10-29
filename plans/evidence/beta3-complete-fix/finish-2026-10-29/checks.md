@@ -1,7 +1,9 @@
 # Resumed beta.3 finishing checks — 2026-10-29
 
-Status: development verification in progress, **not full acceptance**. The
-candidate Inertia pin is unpublished. No tags or pushes were performed.
+Status: chronological work log, superseded by the final development result in
+`../dcec50dc-dev/matrix.md`: **20/20 development probes pass; release acceptance
+remains blocked**. The candidate Inertia pin is unpublished. No tags or pushes
+were performed.
 
 Coordinator checkout: `/home/mbv/work/worktrees/andurel-beta3-fixes/G`, branch
 `fix/beta3-complete-integrated`. Started at `0d6cb0ba`; subsequent coordinator
@@ -77,3 +79,13 @@ subsequent finishing changes.
 - Beta.4 manual-action compile coverage and a refreshed 19-ID final matrix.
 - Published-module/release-shaped proof after authorized publication. Do not
   fetch the unpublished candidate version merely to demonstrate that it fails.
+
+The first three items above describe the earlier checkpoint and are now
+completed. The publication/release-shaped item remains blocked. Final source is
+`dcec50dc`; final site source is `3ffd3b4`. The strict full development harness
+passed all 20 probes, including the strengthened 78-check live scaffold gate,
+45-check site gate, 9-probe hygiene/doctor gate and actual uncached DB tests.
+The final full goldens rerun passed (113.465s), and targeted CLI race tests
+passed again (8.710s). Known owned containers/scratch/process paths are clear;
+see retained `cleanup-final.txt` in
+`/home/mbv/.cache/andurel-retest/final-dcec50dc/`.

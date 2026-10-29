@@ -1,9 +1,14 @@
 # Beta.3 complete-fix integration state (recovery checkpoint)
 
-Status: **integration implemented and locally validated; full acceptance is
-PARTIAL.** No publication, tag, or push has happened. Site adoption commits exist
-in lane F but are not merged into the site's `port` branch. Independent live
-fresh-scaffold/site/release reviews are still required.
+Status: **development acceptance PASS; release acceptance BLOCKED on
+publication.** The final clean-checkout development suite passed all 20 probes,
+including independent live scaffold, site, hygiene/doctor and uncached DB tests.
+No publication, tag, push, or merge to master/port has happened.
+
+Tested framework: `dcec50dc85f86b555f84887bcfe0bf7ee566ed55`.
+Tested site: `3ffd3b4ead6f7a6ace5c85e0575c369ae85d5b59`.
+Final 19-ID matrix and exact commands:
+`plans/evidence/beta3-complete-fix/dcec50dc-dev/matrix.md`.
 
 Integration worktree: `/home/mbv/work/worktrees/andurel-beta3-fixes/G`, branch
 `fix/beta3-complete-integrated`.
@@ -20,8 +25,9 @@ The coordinator resumed at `0d6cb0ba` and committed:
   assertion corrected to the renderer-backed implementation.
 - `396baf95`: recovered implementation lint fixes; root suite and lint pass.
 
-Current independent workers use DeepSeek V4.1 Flash through OpenCode Go, with
-one writer in each checkout under `/home/mbv/work/worktrees/andurel-beta3-fixes/`:
+All five independent workers completed using DeepSeek V4.1 Flash through
+OpenCode Go, with one writer in each checkout under
+`/home/mbv/work/worktrees/andurel-beta3-fixes/`:
 
 | Checkout | Task |
 | --- | --- |
@@ -35,8 +41,8 @@ Hygiene/doctor commits `5f77033c` and `3566f960` have been integrated as
 `05b317f2` and `147457b5`; all nine probes also passed an independent coordinator
 rerun. The upgrade worker's `0907b12a` is integrated as `0ede6573`: the E2E now
 targets beta.4 and applies all five new actions to alpha.4 through beta.3 source
-apps. The coordinator is rerunning that expanded suite with `GOWORK=off` for
-the CLI build as well.
+apps. The coordinator reran that expanded suite with `GOWORK=off` for the CLI
+build as well: all five source versions passed.
 
 The database-test worker's commits are integrated (`6d832a65`, `6afcf31f`,
 `a6ddf1f6`, `a47d98af`); the coordinator independently reran its gate: 15 named
@@ -45,14 +51,17 @@ It is wired as `20-database-tests` under `--full`.
 
 The site worker completed `d7457d6` and `bfaf158` on lane F, with 45 passing
 development checks. Coordinator isolation/cleanup refinements are committed as
-`22a62ff`, and its independent rerun also passed all 45 checks. The main harness accepts `--site-dir` and
-can run the site gate rather than unconditionally blocking it. It still labels
-the development replacements accurately and blocks release mode for that
-companion.
+`22a62ff`, followed by release-mode support in `3ffd3b4`. Its independent rerun
+and final full-suite run both passed all 45 checks. The main harness accepts
+`--site-dir` and runs the site gate rather than unconditionally blocking it.
 
-Only the live fresh-scaffold worker is still in progress. See
-`plans/evidence/beta3-complete-fix/finish-2026-10-29/checks.md` for coordinator
-validation. No publication or push is authorized.
+The live worker's `f2e08332`/`9136e483` were integrated as
+`9600144e`/`9f9bfde9`. Coordinator follow-up `dcec50dc` adds plain verification
+after setup, explicit CSR fallback, healthy-sidecar/render-failure coverage,
+actual execution of both isolated output pairs without source assets, safe
+container identity cleanup, and publication guards. The final live gate passed
+78 checks. See `plans/evidence/beta3-complete-fix/finish-2026-10-29/checks.md`
+for the chronological validation history. No workers remain active.
 
 ## Commits on this branch
 
@@ -136,7 +145,7 @@ back to ambient env. The proxy and caches are removed by
 ## Acceptance harness
 
 `scripts/beta3-fix-acceptance.sh` creates a fresh `mktemp` tree, builds the
-candidate CLI and `scripts/acceptance/healthchild`, runs 18 probes, records
+candidate CLI and `scripts/acceptance/healthchild`, runs 20 development probes, records
 command/stdout/stderr/status, and writes `probes.tsv`, `probes.md`,
 `environment.txt`, `candidate-commit.txt`, `candidate-pins.txt`, and
 `acceptance-state.txt`. It traps and removes only its own processes/scratch.
@@ -147,53 +156,48 @@ Commands:
 # Development integration (dev-app uses temporary pkg replaces; not release proof)
 scripts/beta3-fix-acceptance.sh --mode dev
 
-# Release-shaped attempt; reports the unpublished-pin gate blocked
-scripts/beta3-fix-acceptance.sh --mode release
+# Full development suite, including the independent site; any blocked probe fails
+scripts/beta3-fix-acceptance.sh --mode dev --full --require-all \
+  --site-dir /home/mbv/work/worktrees/andurel-beta3-fixes/F
 
-# Full acceptance: any blocked probe exits nonzero
-scripts/beta3-fix-acceptance.sh --mode dev --require-all
+# Published-pin suite: currently stops at the publication prerequisite
+scripts/beta3-fix-acceptance.sh --mode release --full --require-all \
+  --site-dir /home/mbv/work/worktrees/andurel-beta3-fixes/F
 ```
 
-Latest dev run: `passed=16 blocked=2 failed=0` (evidence
-`plans/evidence/beta3-complete-fix/653de5af95f5-dev/`; rerun after each new
-commit). Blocked probes are **not** passes: they are
-`17-live-runtime-gates` (live DB/frontend/SSR/build flow is documented but not
-automated in this harness revision) and `18-site-gate` (separate site worktree).
-A run with any blocked probe writes `acceptance: partial`.
+Latest full dev run: **`passed=20 blocked=0 failed=0`**, exit 0. Framework and
+site checkouts were both clean. Live scaffold: 78 passing checks; site: 45;
+hygiene/doctor: 9. Fifteen named DB tests actually ran uncached, and verify
+reported 28 passes, zero failures/skips and no cached DB packages.
 
-## Honest 19-ID matrix
+Raw final evidence is retained at
+`/home/mbv/.cache/andurel-retest/final-dcec50dc/`; the durable repository matrix
+links each finding to implementation, development and negative regression
+evidence. Earlier evidence directories remain historical snapshots, not current
+acceptance claims.
 
-| ID | Status | Evidence / remaining gap |
-| --- | --- | --- |
-| F01 | implemented, live gate blocked | public home template + generated runtime tests; live anonymous `/` requires DB/frontend assets (harness gate 17). |
-| F04 | implemented, dev evidence | harness 02/03/07/08 pass; untouched scaffold reports setup, not drift; documented setup reaches green verify only after tools/deps/DB. |
-| F06 | implemented, partial live | runtime config check fails on build error, blocks missing/invalid values and dead DB, distinguishes prerelease/network in unit tests; live doctor negatives not automated. |
-| F07 | implemented | inspect pages/process/urls/packages tests and goldens; harness 01 CLI surface passes. |
-| F10 | implemented | `commands --check`, truthful JSON/jq registrations, harness 01 passes. |
-| F18 | implemented | scoped stages/rules/changed tests in `cli/verify_scope_test.go`; not part of harness probes. |
-| F20 | implemented | per-package test accounting, harness 09 passes; real uncached DB tests not run. |
-| F21 | implemented framework, site blocked | content invariants harness 08 passes in a dev scaffold; site content fixtures (gate 18) not run. |
-| F22 | implemented, release-gated | `WithSSRDefault`/`CSR` wired; generated full scaffold vet passes with candidate proxy; live production SSR gate blocked; needs published v0.13.0. |
-| F25 | implemented static/runtime, live gate blocked | alias/IIFE rule tests pass; D request-scoped host scope wired; live two-host SSR not automated. |
-| F32 | implemented, live gate blocked | readiness schema/template tests; live sidecar loss/recovery gate blocked. |
-| F35 | site-only blocked | no framework change; site analytics not verified here. |
-| F36 | implemented | metadata/version consistency + harness 01; release notes for beta.4 not written. |
-| F39 | implemented, live gate blocked | build isolation/recovery + port ownership tests; concurrent output-dir builds and real sidecar wrapper not run in harness. |
-| F40 | implemented docs/policy | README/AGENTS lockfile/skill policy; hygiene/frozen-install probe not automated. |
-| N1 | implemented | harness 01 unknown inspect is nonzero `usage_error`; bare inspect/help succeeds. |
-| N2 | implemented | harness 06 `inspect config --jq .keys` works. |
-| N3 | implemented | harness 05 migration creation without `.env`/DB works. |
-| N4 | implemented, live gate blocked | generated `cmd/ssr` lifecycle test passes; occupancy/post-start crash re-run against generated binary is part of blocked live gate. |
+Release mode first verifies the candidate module tag, before any generated-app
+check can fetch an unpublished module. Its current strict result is exit 1,
+`passed=0 blocked=1 failed=0`. After publication it uses published pins without
+local replacements, `GOWORK=off`, public proxy/checksum settings and a fresh
+private module cache. Companions support that mode, but it has not passed.
 
-## Remaining work for independent verifier
+## All 19 findings and remaining release work
 
-1. Implement/run the live gate behind `17-live-runtime-gates` (disposable
-   PostgreSQL, tool sync, pnpm install/build, migrations, production app +
-   `cmd/ssr`): public `/`, SSR markup, readiness loss/recovery, themed 500,
-   build isolation, wrapper failure.
-2. Run `--mode release` after `pkg/inertia/v0.13.0` and `v2.0.0-beta.4` are
-   published; until then the release gate is blocked, not passed.
-3. Run the separate andurel-site adoption checks (F35/F32/F21/F25) in the site
-   worktree.
-4. Add F40 hygiene and F06 live negative probes to the harness.
-5. Final matrix in `plans/evidence/beta3-complete-fix/<commit>/matrix.md`.
+See `plans/evidence/beta3-complete-fix/dcec50dc-dev/matrix.md`: all 19 rows have
+implementation and passing development regression evidence; every release-shaped
+column is explicitly blocked on publication, not silently treated as passed.
+
+1. Follow `docs/releasing.md` for the standalone module changelog/tag/pins PR
+   sequence. Do not publish or push without authorization.
+2. Merge site adoption through the site's normal workflow after compatible
+   package publication; its `port` branch is untouched so far.
+3. Repeat the strict release-shaped suite above after publication, without
+   workspace or local replacements. Preserve failure evidence and fix any
+   published-module-only issue before claiming release acceptance.
+4. Complete master CI/readiness and the beta.4 CLI release under the repository
+   release policy. Candidate notes already exist in
+   `docs/release-notes/v2.0.0-beta.4.md`.
+
+The original all-release definition of done is **not complete** until these
+gates pass. Development completion is not authorization to tag, merge or push.
