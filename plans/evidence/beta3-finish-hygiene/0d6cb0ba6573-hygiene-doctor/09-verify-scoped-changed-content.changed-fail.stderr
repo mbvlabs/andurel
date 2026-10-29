@@ -1,0 +1,111 @@
+{
+  "ok": false,
+  "code": "verification_failed",
+  "error": "Verification failed: gofmt",
+  "hint": "Apply each violation's fix and run andurel verify again.",
+  "exit_code": 9,
+  "data": {
+    "ok": false,
+    "steps": [
+      {
+        "name": "setup",
+        "status": "skipped",
+        "ok": false,
+        "reason": "no setup requirements for the selected stages",
+        "rules": {
+          "selected": [
+            "setup",
+            "missing-tool"
+          ],
+          "executed": null,
+          "skipped": [
+            "setup",
+            "missing-tool"
+          ]
+        }
+      },
+      {
+        "name": "gofmt",
+        "status": "fail",
+        "ok": false,
+        "violations": [
+          {
+            "rule": "gofmt",
+            "file": "scopecheck/scope.go",
+            "message": "file is not gofmt-clean",
+            "fix": "gofmt -w scopecheck/scope.go"
+          }
+        ],
+        "rules": {
+          "selected": [
+            "gofmt"
+          ],
+          "executed": [
+            "gofmt"
+          ]
+        }
+      },
+      {
+        "name": "go fix",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "go vet",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "layers",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "frontend",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "generated",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "content",
+        "status": "skipped",
+        "ok": false,
+        "reason": "not selected by --only/--rules"
+      },
+      {
+        "name": "go test",
+        "status": "skipped",
+        "ok": false,
+        "reason": "--with-tests not set"
+      }
+    ],
+    "scope": {
+      "mode": "changed",
+      "base": "HEAD",
+      "changed_files": [
+        "andurel.content.toml",
+        "content/index.md",
+        "content/welcome.md",
+        "scopecheck/scope.go"
+      ],
+      "go_packages": [
+        "hygiene-app/scopecheck"
+      ],
+      "stages": [
+        "gofmt"
+      ],
+      "rules": [
+        "gofmt"
+      ]
+    }
+  }
+}

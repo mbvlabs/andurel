@@ -1,0 +1,7 @@
+{
+  "ok": false,
+  "code": "usage_error",
+  "error": "harness selection is required in non-interactive output modes",
+  "hint": "Use --harness with one or more of: codex, claude, pi, opencode, crush.",
+  "exit_code": 1
+}

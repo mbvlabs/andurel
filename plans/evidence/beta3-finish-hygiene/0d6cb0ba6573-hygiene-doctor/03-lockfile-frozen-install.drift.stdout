@@ -1,0 +1,1 @@
+[WARN] The store at /home/mbv/.local/share/pnpm/store/v11 is not used because packages cannot be hard linked from it into this project. Using the store at /tmp/.pnpm-store/v11 instead. Set storeDir to choose the store.

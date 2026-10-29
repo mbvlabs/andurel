@@ -1,0 +1,140 @@
+{
+  "ok": false,
+  "code": "error",
+  "error": "Doctor checks failed",
+  "hint": "Inspect the failed doctor checks and address the reported issues.",
+  "exit_code": 1,
+  "data": {
+    "version": "v2.0.0-beta.3.0.20261029161827-0d6cb0ba6573+dirty",
+    "root": "/tmp/opencode/andurel-hygiene-gYeLqY/apps/hygiene-app",
+    "checks": [
+      {
+        "category": "environment",
+        "name": "Go version",
+        "status": "pass",
+        "message": "go1.27.3",
+        "blocking": false
+      },
+      {
+        "category": "environment",
+        "name": "Andurel release",
+        "status": "warn",
+        "message": "no stable release published yet (latest is prerelease v2.0.0-beta.3)",
+        "details": [
+          "latest module version \"v2.0.0-beta.3\" is not a stable release"
+        ],
+        "hint": "This is expected while v2 is in beta; run andurel doctor again after a stable release is published, or keep testing the prerelease.",
+        "blocking": false
+      },
+      {
+        "category": "environment",
+        "name": "Andurel project",
+        "status": "pass",
+        "message": "found go.mod",
+        "blocking": false
+      },
+      {
+        "category": "configuration",
+        "name": "andurel.toml",
+        "status": "pass",
+        "message": "valid (version: v2.0.0-beta.3.0.20261029161827-0d6cb0ba6573+dirty, 8 tools)",
+        "blocking": false
+      },
+      {
+        "category": "configuration",
+        "name": "Andurel version",
+        "status": "pass",
+        "message": "matches andurel.lock (v2.0.0-beta.3.0.20261029161827-0d6cb0ba6573+dirty)",
+        "blocking": false
+      },
+      {
+        "category": "configuration",
+        "name": "tool versions",
+        "status": "pass",
+        "message": "all tools match andurel.lock",
+        "blocking": false
+      },
+      {
+        "category": "configuration",
+        "name": "Project setup",
+        "status": "pass",
+        "message": "tool binaries and frontend dependencies are installed",
+        "blocking": false
+      },
+      {
+        "category": "configuration",
+        "name": "Runtime config",
+        "status": "fail",
+        "message": "required runtime configuration is missing or invalid",
+        "details": [
+          "config: session: SESSION_KEY must be hexadecimal: encoding/hex: invalid byte: U+006E 'n'"
+        ],
+        "hint": "Copy .env.example to .env and set the reported keys, or export them; run andurel doctor again afterwards.",
+        "blocking": true
+      },
+      {
+        "category": "configuration",
+        "name": "Inertia SSR",
+        "status": "pass",
+        "message": "development SSR is served by Vite; production bundle not required",
+        "blocking": false
+      },
+      {
+        "category": "code_quality",
+        "name": "go vet",
+        "status": "pass",
+        "message": "no issues found",
+        "blocking": false
+      },
+      {
+        "category": "code_quality",
+        "name": "go mod tidy",
+        "status": "pass",
+        "message": "dependencies are tidy",
+        "blocking": false
+      },
+      {
+        "category": "code_generation",
+        "name": "templ generate",
+        "status": "pass",
+        "message": "templates generated successfully",
+        "blocking": false
+      },
+      {
+        "category": "code_generation",
+        "name": "email generate",
+        "status": "pass",
+        "message": "email renderers generated successfully",
+        "blocking": false
+      },
+      {
+        "category": "code_generation",
+        "name": "narsilc generate",
+        "status": "pass",
+        "message": "narsilc code generated successfully",
+        "blocking": false
+      },
+      {
+        "category": "code_generation",
+        "name": "routes.ts",
+        "status": "pass",
+        "message": "matches route manifest (12 helpers)",
+        "blocking": false
+      },
+      {
+        "category": "code_generation",
+        "name": "payloads.ts",
+        "status": "pass",
+        "message": "matches handler payloads (5 types)",
+        "blocking": false
+      }
+    ],
+    "summary": {
+      "total": 16,
+      "passed": 14,
+      "warnings": 1,
+      "failed": 1,
+      "status": "fail"
+    }
+  }
+}
