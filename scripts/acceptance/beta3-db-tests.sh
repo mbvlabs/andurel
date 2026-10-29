@@ -333,6 +333,15 @@ generate_app() {
 	if [[ ! -f "$APP/go.mod" ]]; then
 		finish fail 1 "andurel new did not create $APP/go.mod"
 	fi
+	if ! grep -Fq "inertia = 'react'" "$APP/andurel.toml"; then
+		finish fail 1 "generated app is not the expected React scaffold"
+	fi
+	if ! grep -Fq "javascriptPackageManager = 'pnpm'" "$APP/andurel.toml"; then
+		finish fail 1 "generated app is not the expected pnpm scaffold"
+	fi
+	if ! grep -Fq '"@inertiajs/react"' "$APP/package.json"; then
+		finish fail 1 "generated package.json does not use @inertiajs/react"
+	fi
 	printf '%s\n' "$APP_NAME" >"$EVIDENCE/app-name.txt"
 	printf '%s\n' "$APP" >"$EVIDENCE/app-path.txt"
 }
