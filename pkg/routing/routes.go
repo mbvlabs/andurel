@@ -246,6 +246,34 @@ func (r Route) Pattern() string {
 	return path
 }
 
+// Prefix returns the route's subtree root: its path without a trailing "/*"
+// wildcard. A route without a wildcard returns Path(). The Vite build route
+// "/assets/dist/*" has the prefix "/assets/dist"; the root wildcard "/*"
+// has the prefix "/".
+func (r Route) Prefix() string {
+	path := r.Path()
+	if !strings.HasSuffix(path, "/*") {
+		return path
+	}
+	prefix := strings.TrimSuffix(path, "/*")
+	if prefix == "" {
+		return "/"
+	}
+	return prefix
+}
+
+// InSubtree reports whether urlPath is the route's prefix itself or a
+// descendant of it. It replaces rebuilding the check from Prefix() with a
+// trailing-slash comparison, so a pattern change cannot silently widen or
+// narrow an asset, CSRF, or CORS skip.
+func (r Route) InSubtree(urlPath string) bool {
+	prefix := r.Prefix()
+	if prefix == "/" {
+		return strings.HasPrefix(urlPath, "/")
+	}
+	return urlPath == prefix || strings.HasPrefix(urlPath, prefix+"/")
+}
+
 // Host returns the named host this route is bound to.
 func (r Route) Host() HostName {
 	if r.host == "" {
