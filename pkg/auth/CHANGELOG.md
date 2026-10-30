@@ -8,9 +8,11 @@ All notable changes to the standalone Andurel auth module are documented here.
 
 - `NewCapabilityToken` builds prefixed, URL-safe capability tokens with at
   least 128 bits of entropy and returns the plaintext, the display prefix, and
-  the SHA-256 hash to store for lookup. `CapabilityTokenDisplayLength` fixes
-  the display prefix length at eight characters. `HashCapabilityToken` and
-  `VerifyCapabilityToken` provide the matching constant-time lookup helpers.
+  the SHA-256 hash to store for lookup. Prefixes are limited to ASCII letters,
+  digits, `-`, and `_`, so the whole token stays URL-safe.
+  `CapabilityTokenDisplayLength` fixes the display prefix length at eight
+  characters. `HashCapabilityToken` and `VerifyCapabilityToken` provide the
+  matching constant-time lookup helpers.
 
 ## 0.2.1 - 2026-10-26
 

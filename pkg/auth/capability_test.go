@@ -111,3 +111,47 @@ func TestVerifyCapabilityToken(t *testing.T) {
 		t.Fatal("VerifyCapabilityToken accepted a nil hash")
 	}
 }
+
+func TestNewCapabilityTokenRejectsUnsafePrefixes(t *testing.T) {
+	for _, prefix := range []string{
+		"dp/",
+		"dp token",
+		"dp\t",
+		"dp+",
+		"dp=",
+		"dp_ø",
+	} {
+		t.Run(prefix, func(t *testing.T) {
+			plain, displayPrefix, hash, err := NewCapabilityToken(prefix, 16)
+			if err == nil {
+				t.Fatalf("NewCapabilityToken(%q) = nil error, want rejection", prefix)
+			}
+			if plain != "" || displayPrefix != "" || hash != nil {
+				t.Fatalf(
+					"NewCapabilityToken(%q) = %q, %q, %x, want empty results",
+					prefix,
+					plain,
+					displayPrefix,
+					hash,
+				)
+			}
+		})
+	}
+}
+
+func TestNewCapabilityTokenAcceptsURLSafePrefixes(t *testing.T) {
+	for _, prefix := range []string{"", "dp_", "DP-123", "a", "dp--"} {
+		t.Run(prefix, func(t *testing.T) {
+			plain, _, _, err := NewCapabilityToken(prefix, 16)
+			if err != nil {
+				t.Fatalf("NewCapabilityToken(%q): %v", prefix, err)
+			}
+			if strings.ContainsAny(plain, " \t\r\n/+=") {
+				t.Fatalf("token %q is not URL-safe", plain)
+			}
+			if !strings.HasPrefix(plain, prefix) {
+				t.Fatalf("token = %q, want prefix %q", plain, prefix)
+			}
+		})
+	}
+}
