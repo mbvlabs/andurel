@@ -360,7 +360,7 @@ func (s *payloadScan) mapStructFields(
 			if jsonName == "" {
 				jsonName = ident.Name
 			}
-			tsType, usedJSON, err := s.mapType(structure, field.Type, field)
+			tsType, usedJSON, err := s.mapType(structure, field.Type, field, omitempty)
 			if err != nil {
 				return nil, false, err
 			}
@@ -456,12 +456,13 @@ func (s *payloadScan) mapType(
 	structure *payloadStruct,
 	expr ast.Expr,
 	field *ast.Field,
+	omitempty bool,
 ) (string, bool, error) {
 	loc := fmt.Sprintf("%s:%d", structure.sourceFile, s.fset.Position(expr.Pos()).Line)
 	fieldName := fieldIdent(field)
 	switch typed := expr.(type) {
 	case *ast.StarExpr:
-		inner, usedJSON, err := s.mapType(structure, typed.X, field)
+		inner, usedJSON, err := s.mapType(structure, typed.X, field, false)
 		if err != nil {
 			return "", false, err
 		}
@@ -470,14 +471,13 @@ func (s *payloadScan) mapType(
 		if typed.Len != nil {
 			return "", false, unmappedTypeError(loc, fieldName, exprString(expr))
 		}
-		_, _, omitempty := jsonFieldMeta(field)
 		if ident, ok := typed.Elt.(*ast.Ident); ok && ident.Name == "byte" {
 			if omitempty {
 				return "string", false, nil
 			}
 			return nullableType("string"), false, nil
 		}
-		inner, usedJSON, err := s.mapType(structure, typed.Elt, field)
+		inner, usedJSON, err := s.mapType(structure, typed.Elt, field, false)
 		if err != nil {
 			return "", false, err
 		}

@@ -797,3 +797,49 @@ func assertTypeScriptCompiles(t *testing.T, source []byte) {
 		t.Fatalf("node rejected generated TypeScript: %v\n%s\n%s", err, output, source)
 	}
 }
+
+func TestRenderPayloadsTSAppliesOmitemptyOnlyToOuterSlice(t *testing.T) {
+	rootDir := setupPayloadsProject(t, "react")
+	writePayloadsStructs(t, rootDir, "payloads/nested_slices.go", `package payloads
+
+type NestedSliceProps struct {
+	Items           [][]string `+"`json:\"items,omitempty\"`"+`
+	Bytes           [][]byte   `+"`json:\"bytes,omitempty\"`"+`
+	OptionalPointer *[]string  `+"`json:\"optionalPointer,omitempty\"`"+`
+	Inline          struct {
+		Items [][]string `+"`json:\"items,omitempty\"`"+`
+	} `+"`json:\"inline\"`"+`
+}
+`)
+
+	got, _, err := renderPayloadsTS(rootDir)
+	if err != nil {
+		t.Fatalf("render payloads: %v", err)
+	}
+	for _, want := range []string{
+		"items?: (string[] | null)[]",
+		"bytes?: (string | null)[]",
+		"optionalPointer?: string[] | null",
+		`inline: { items?: (string[] | null)[] }`,
+	} {
+		if !strings.Contains(string(got), want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+
+	value := struct {
+		Items [][]string `json:"items,omitempty"`
+		Bytes [][]byte   `json:"bytes,omitempty"`
+	}{
+		Items: [][]string{nil},
+		Bytes: [][]byte{nil},
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("marshal nested slices: %v", err)
+	}
+	if string(encoded) != `{"items":[null],"bytes":[null]}` {
+		t.Fatalf("nested slice JSON = %s, want null inner elements", encoded)
+	}
+	assertTypeScriptCompiles(t, got)
+}
