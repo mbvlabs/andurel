@@ -61,7 +61,16 @@ func runInTransaction(
 	conn Connection,
 	fn func(context.Context, Transaction) error,
 ) error {
-	tx, err := conn.BeginTransaction(ctx)
+	return runInTransactionWithOptions(ctx, conn, txOptions{}, fn)
+}
+
+func runInTransactionWithOptions(
+	ctx context.Context,
+	conn Connection,
+	options txOptions,
+	fn func(context.Context, Transaction) error,
+) error {
+	tx, err := beginTransaction(ctx, conn, options)
 	if err != nil {
 		return fmt.Errorf("storage: begin transaction: %w", err)
 	}
@@ -85,6 +94,23 @@ func runInTransaction(
 
 	committed = true
 	return nil
+}
+
+func beginTransaction(
+	ctx context.Context,
+	conn Connection,
+	options txOptions,
+) (Transaction, error) {
+	if options.isZero() {
+		return conn.BeginTransaction(ctx)
+	}
+
+	beginner, ok := conn.(txOptionsBeginner)
+	if !ok {
+		return nil, fmt.Errorf("storage: connection does not support transaction options")
+	}
+
+	return beginner.BeginTransactionWithOptions(ctx, options.pgx())
 }
 
 type pgxTxProvider interface {

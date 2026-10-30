@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -295,6 +296,39 @@ func (b *ValidationBuilder) TimeBeforeOrEqual(
 		b.AddFieldWithParams(
 			startField,
 			"before_or_equal",
+			validationMessage,
+			params,
+		)
+	}
+}
+
+// TimeBetween requires value to fall inside the inclusive window from
+// now.Add(min) through now.Add(max). Callers pass now explicitly so services
+// and tests use the same clock instead of the wall clock.
+func (b *ValidationBuilder) TimeBetween(
+	field string,
+	value any,
+	now time.Time,
+	min time.Duration,
+	max time.Duration,
+	message ...string,
+) {
+	validationMessage := messageOrDefault(
+		fmt.Sprintf("must be between %s and %s from now", min, max),
+		message,
+	)
+	params := map[string]any{"min": min.String(), "max": max.String()}
+	b.AddRuleWithParams(field, "time_between", validationMessage, params)
+
+	at, ok := timeValue(value)
+	if !ok {
+		return
+	}
+
+	if at.Before(now.Add(min)) || at.After(now.Add(max)) {
+		b.AddFieldWithParams(
+			field,
+			"time_between",
 			validationMessage,
 			params,
 		)

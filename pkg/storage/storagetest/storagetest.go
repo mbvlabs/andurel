@@ -157,11 +157,29 @@ func (c *Cluster) Close(ctx context.Context) error {
 	return c.container.Terminate(ctx)
 }
 
+// MigrationHead asks the test database helpers to apply every migration.
+// Goose versions start at 1, so zero is unambiguous.
+const MigrationHead int64 = 0
+
 // NewTestDB creates a migrated, isolated database for one test.
 func (c *Cluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir string) storage.Connection {
 	t.Helper()
 
-	db, _ := c.newTestDB(t, migrations, migrationDir)
+	return c.NewTestDBAtVersion(t, migrations, migrationDir, MigrationHead)
+}
+
+// NewTestDBAtVersion creates an isolated database for one test migrated up to
+// and including version. Pass MigrationHead to apply every migration. Use
+// MigrateTestDB to continue migrating the same database afterwards.
+func (c *Cluster) NewTestDBAtVersion(
+	t testing.TB,
+	migrations fs.FS,
+	migrationDir string,
+	version int64,
+) storage.Connection {
+	t.Helper()
+
+	db, _ := c.newTestDB(t, migrations, migrationDir, version)
 	return db
 }
 
@@ -173,10 +191,37 @@ func (c *Cluster) NewTestDB(t testing.TB, migrations fs.FS, migrationDir string)
 func (c *Cluster) NewTestDBWithConfig(t testing.TB, migrations fs.FS, migrationDir string) (storage.Connection, storage.Config) {
 	t.Helper()
 
-	return c.newTestDB(t, migrations, migrationDir)
+	return c.newTestDB(t, migrations, migrationDir, MigrationHead)
 }
 
-func (c *Cluster) newTestDB(t testing.TB, migrations fs.FS, migrationDir string) (storage.Connection, storage.Config) {
+// MigrateTestDB applies migrations up to and including version to a database
+// created by NewTestDB, NewTestDBAtVersion or NewTestDBWithConfig. Pass
+// MigrationHead to apply every remaining migration.
+func MigrateTestDB(
+	t testing.TB,
+	db storage.Connection,
+	migrations fs.FS,
+	migrationDir string,
+	version int64,
+) {
+	t.Helper()
+
+	if err := validateMigrations(migrations, migrationDir); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.Background()
+	if err := migrateTestDB(ctx, db, migrations, migrationDir, version); err != nil {
+		t.Fatalf("failed to migrate test database: %v", err)
+	}
+}
+
+func (c *Cluster) newTestDB(
+	t testing.TB,
+	migrations fs.FS,
+	migrationDir string,
+	version int64,
+) (storage.Connection, storage.Config) {
 	t.Helper()
 
 	if err := validateMigrations(migrations, migrationDir); err != nil {
@@ -217,11 +262,28 @@ func (c *Cluster) newTestDB(t testing.TB, migrations fs.FS, migrationDir string)
 		dropped = true
 	})
 
-	if err := storage.RunMigrations(ctx, db, migrations, migrationDir); err != nil {
+	if err := migrateTestDB(ctx, db, migrations, migrationDir, version); err != nil {
 		t.Fatalf("failed to run migrations: %v", err)
 	}
 
 	return db, c.databaseConfig(name)
+}
+
+func migrateTestDB(
+	ctx context.Context,
+	db storage.Connection,
+	migrations fs.FS,
+	migrationDir string,
+	version int64,
+) error {
+	if version < MigrationHead {
+		return fmt.Errorf("migration version must be zero or positive, got %d", version)
+	}
+	if version == MigrationHead {
+		return storage.RunMigrations(ctx, db, migrations, migrationDir)
+	}
+
+	return storage.RunMigrationsTo(ctx, db, migrations, migrationDir, version)
 }
 
 func (c *Cluster) databaseConfig(name string) storage.Config {

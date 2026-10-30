@@ -2,9 +2,11 @@ package storagetest
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"testing/fstest"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/testcontainers/testcontainers-go"
 )
@@ -63,6 +65,100 @@ func TestClusterNewTestDBWithConfig(t *testing.T) {
 	assertWidgetCount(t, db, 2)
 }
 
+func TestClusterNewTestDBAtVersionMigratesOnward(t *testing.T) {
+	cluster := newTestCluster(t)
+	ctx := context.Background()
+	migrations := versionedWidgetMigrations()
+
+	db := cluster.NewTestDBAtVersion(t, migrations, "migrations", 1)
+	assertWidgetColumn(t, db, "color", false)
+
+	MigrateTestDB(t, db, migrations, "migrations", 2)
+	assertWidgetColumn(t, db, "color", true)
+
+	if _, err := db.Exec(
+		ctx,
+		`INSERT INTO widgets (name, color) VALUES ($1, $2)`,
+		"lamp",
+		"red",
+	); err != nil {
+		t.Fatalf("insert after migrating on: %v", err)
+	}
+}
+
+func TestMigrateTestDBToHead(t *testing.T) {
+	cluster := newTestCluster(t)
+	migrations := versionedWidgetMigrations()
+
+	db := cluster.NewTestDBAtVersion(t, migrations, "migrations", 1)
+	assertWidgetColumn(t, db, "color", false)
+
+	MigrateTestDB(t, db, migrations, "migrations", MigrationHead)
+	assertWidgetColumn(t, db, "color", true)
+}
+
+func TestAtomicOpsReadOnlyRejectsWrites(t *testing.T) {
+	cluster := newTestCluster(t)
+	ctx := context.Background()
+	db := cluster.NewTestDB(t, widgetMigrations(), "migrations")
+
+	err := storage.AtomicOps(ctx, storage.NewTransactor(db), func(ctx context.Context, tx storage.Tx) error {
+		_, err := storage.Unwrap(tx).Exec(ctx, `INSERT INTO widgets (name) VALUES ($1)`, "lamp")
+
+		return err
+	}, storage.ReadOnly())
+	if err == nil {
+		t.Fatal("read-only transaction accepted a write")
+	}
+
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != "25006" {
+		t.Fatalf("write error = %v, want SQLSTATE 25006", err)
+	}
+	assertWidgetCount(t, db, 0)
+}
+
+func TestAtomicOpsAppliesIsolationToPostgres(t *testing.T) {
+	cluster := newTestCluster(t)
+	ctx := context.Background()
+	db := cluster.NewTestDB(t, widgetMigrations(), "migrations")
+
+	var level string
+	err := storage.AtomicOps(ctx, storage.NewTransactor(db), func(ctx context.Context, tx storage.Tx) error {
+		return storage.Unwrap(tx).
+			QueryRow(ctx, `SHOW transaction_isolation`).
+			Scan(&level)
+	}, storage.Isolation(storage.RepeatableRead))
+	if err != nil {
+		t.Fatalf("AtomicOps: %v", err)
+	}
+	if level != "repeatable read" {
+		t.Fatalf("transaction isolation = %q, want %q", level, "repeatable read")
+	}
+}
+
+func TestFailingTransactorRollsBackNthStatement(t *testing.T) {
+	cluster := newTestCluster(t)
+	ctx := context.Background()
+	db := cluster.NewTestDB(t, widgetMigrations(), "migrations")
+	transactor := FailingTransactor(db, StatementFault{FailAt: 2})
+
+	err := storage.AtomicOps(ctx, transactor, func(ctx context.Context, tx storage.Tx) error {
+		statements := storage.Unwrap(tx)
+		if _, err := statements.Exec(ctx, `INSERT INTO widgets (name) VALUES ($1)`, "lamp"); err != nil {
+			return err
+		}
+
+		_, err := statements.Exec(ctx, `INSERT INTO widgets (name) VALUES ($1)`, "desk")
+
+		return err
+	})
+	if !errors.Is(err, ErrFaultInjected) {
+		t.Fatalf("AtomicOps error = %v, want %v", err, ErrFaultInjected)
+	}
+	assertWidgetCount(t, db, 0)
+}
+
 func newTestCluster(t *testing.T) *Cluster {
 	t.Helper()
 
@@ -94,6 +190,51 @@ CREATE TABLE widgets (
 DROP TABLE widgets;
 `),
 		},
+	}
+}
+
+func versionedWidgetMigrations() fstest.MapFS {
+	return fstest.MapFS{
+		"migrations/00001_create_widgets.sql": &fstest.MapFile{
+			Data: []byte(`-- +goose Up
+CREATE TABLE widgets (
+	id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	name text NOT NULL
+);
+
+-- +goose Down
+DROP TABLE widgets;
+`),
+		},
+		"migrations/00002_add_widget_color.sql": &fstest.MapFile{
+			Data: []byte(`-- +goose Up
+ALTER TABLE widgets ADD COLUMN color text;
+
+-- +goose Down
+ALTER TABLE widgets DROP COLUMN color;
+`),
+		},
+	}
+}
+
+func assertWidgetColumn(t *testing.T, db storage.Connection, column string, want bool) {
+	t.Helper()
+
+	var got bool
+	if err := db.QueryRow(
+		context.Background(),
+		`SELECT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_schema = current_schema()
+			  AND table_name = 'widgets'
+			  AND column_name = $1
+		)`,
+		column,
+	).Scan(&got); err != nil {
+		t.Fatalf("check widgets.%s: %v", column, err)
+	}
+	if got != want {
+		t.Fatalf("widgets.%s exists = %v, want %v", column, got, want)
 	}
 }
 

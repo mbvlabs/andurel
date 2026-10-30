@@ -1,6 +1,9 @@
 package storage
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
 // Tx is an open transaction. It has no query methods: holding one lets a
 // caller bind to the transaction (an InTx method) but not issue SQL. Only
@@ -34,22 +37,45 @@ func (t Transactor) InTx(tx Tx) Transactor {
 //
 // With an unbound Transactor it opens the transaction, commits when fn
 // returns nil, and rolls back when fn returns an error or panics. The error
-// is returned unchanged; a commit failure is returned wrapped.
+// is returned unchanged; a commit failure is returned wrapped. ReadOnly and
+// Isolation options configure the transaction it opens.
 //
 // With a bound Transactor (see InTx) it runs fn in the bound transaction and
-// leaves commit and rollback to the owner of that transaction.
+// leaves commit and rollback to the owner of that transaction. Transaction
+// options cannot be applied to an already-open transaction and are rejected.
 func AtomicOps(
 	ctx context.Context,
 	t Transactor,
 	fn func(ctx context.Context, tx Tx) error,
+	options ...TxOption,
 ) error {
 	if t.bound.tx != nil {
+		if len(options) > 0 {
+			return errors.New("storage: transaction options require an unbound Transactor")
+		}
+
 		return fn(ctx, t.bound)
 	}
 
-	return runInTransaction(ctx, t.conn, func(ctx context.Context, tx Transaction) error {
-		return fn(ctx, Tx{tx: tx})
-	})
+	var settings txOptions
+	for _, option := range options {
+		if option == nil {
+			continue
+		}
+		option.apply(&settings)
+	}
+	if err := settings.validate(); err != nil {
+		return err
+	}
+
+	return runInTransactionWithOptions(
+		ctx,
+		t.conn,
+		settings,
+		func(ctx context.Context, tx Transaction) error {
+			return fn(ctx, Tx{tx: tx})
+		},
+	)
 }
 
 // Unwrap returns the transaction behind tx so a domain receiver can bind its

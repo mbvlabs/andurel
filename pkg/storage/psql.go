@@ -215,7 +215,16 @@ func (p *Postgres) Close() error {
 
 // BeginTransaction starts a transaction on the shared pool.
 func (p *Postgres) BeginTransaction(ctx context.Context) (Transaction, error) {
-	tx, err := p.pool.Begin(ctx)
+	return p.BeginTransactionWithOptions(ctx, pgx.TxOptions{})
+}
+
+// BeginTransactionWithOptions starts a transaction with explicit PostgreSQL
+// transaction options. AtomicOps calls it when ReadOnly or Isolation is set.
+func (p *Postgres) BeginTransactionWithOptions(
+	ctx context.Context,
+	options pgx.TxOptions,
+) (Transaction, error) {
+	tx, err := p.pool.BeginTx(ctx, options)
 	if err != nil {
 		return nil, fmt.Errorf("storage: begin transaction: %w", err)
 	}
@@ -223,10 +232,36 @@ func (p *Postgres) BeginTransaction(ctx context.Context) (Transaction, error) {
 	return pgxTransaction{tx: tx}, nil
 }
 
-// RunMigrations applies Goose migrations from an embedded filesystem.
+// RunMigrations applies every Goose migration from an embedded filesystem.
 // Goose still requires database/sql, so this opens a short-lived stdlib
 // adapter over the same pgx pool.
 func RunMigrations(ctx context.Context, conn Connection, migrations fs.FS, migrationDir string) error {
+	return runMigrations(ctx, conn, migrations, migrationDir, 0)
+}
+
+// RunMigrationsTo applies Goose migrations up to and including version. Use
+// RunMigrations to apply every migration from an embedded filesystem.
+func RunMigrationsTo(
+	ctx context.Context,
+	conn Connection,
+	migrations fs.FS,
+	migrationDir string,
+	version int64,
+) error {
+	if version <= 0 {
+		return fmt.Errorf("storage: migration version must be positive, got %d", version)
+	}
+
+	return runMigrations(ctx, conn, migrations, migrationDir, version)
+}
+
+func runMigrations(
+	ctx context.Context,
+	conn Connection,
+	migrations fs.FS,
+	migrationDir string,
+	version int64,
+) error {
 	pool, err := poolFrom(conn)
 	if err != nil {
 		return err
@@ -254,15 +289,25 @@ func RunMigrations(ctx context.Context, conn Connection, migrations fs.FS, migra
 	}
 
 	db := stdlib.OpenDBFromPool(pool)
-	defer db.Close()
+	defer func() {
+		_ = db.Close()
+	}()
 
 	provider, err := goose.NewProvider(goose.DialectPostgres, db, migrationFS)
 	if err != nil {
 		return fmt.Errorf("storage: create migration provider: %w", err)
 	}
 
-	if _, err := provider.Up(ctx); err != nil {
-		return fmt.Errorf("storage: apply migrations: %w", err)
+	if version == 0 {
+		if _, err := provider.Up(ctx); err != nil {
+			return fmt.Errorf("storage: apply migrations: %w", err)
+		}
+
+		return nil
+	}
+
+	if _, err := provider.UpTo(ctx, version); err != nil {
+		return fmt.Errorf("storage: apply migrations to version %d: %w", version, err)
 	}
 
 	return nil

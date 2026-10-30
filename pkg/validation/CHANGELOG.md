@@ -4,6 +4,12 @@ All notable changes to the standalone Andurel validation module are documented h
 
 ## Unreleased
 
+### Added
+
+- `ValidationBuilder.TimeBetween` requires a time value to fall inside an
+  inclusive window relative to an explicit `now`, so expiry boundaries are
+  deterministic and testable without the wall clock.
+
 ## 0.3.1 - 2026-10-26
 
 ### Changed
