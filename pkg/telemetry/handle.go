@@ -77,28 +77,32 @@ func Fail(ctx context.Context, err error) error {
 	return err
 }
 
-// Debug logs at debug level.
+// Debug logs at debug level. Without telemetry on ctx the record goes to
+// slog.Default(). A span on ctx still receives the event.
 //
 //go:noinline
 func Debug(ctx context.Context, msg string, args ...any) {
 	log(ctx, slog.LevelDebug, msg, args...)
 }
 
-// Info logs at info level.
+// Info logs at info level. Without telemetry on ctx the record goes to
+// slog.Default(). A span on ctx still receives the event.
 //
 //go:noinline
 func Info(ctx context.Context, msg string, args ...any) {
 	log(ctx, slog.LevelInfo, msg, args...)
 }
 
-// Warn logs at warn level.
+// Warn logs at warn level. Without telemetry on ctx the record goes to
+// slog.Default(). A span on ctx still receives the event.
 //
 //go:noinline
 func Warn(ctx context.Context, msg string, args ...any) {
 	log(ctx, slog.LevelWarn, msg, args...)
 }
 
-// Error logs at error level.
+// Error logs at error level. Without telemetry on ctx the record goes to
+// slog.Default(). A span on ctx still receives the event.
 //
 //go:noinline
 func Error(ctx context.Context, msg string, args ...any) {
@@ -110,17 +114,17 @@ func log(ctx context.Context, level slog.Level, msg string, args ...any) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	tel := fromContext(ctx)
-	if tel == nil || tel.logger == nil {
-		return
+	logger := slog.Default()
+	if tel := fromContext(ctx); tel != nil && tel.logger != nil {
+		logger = tel.logger
 	}
-	if tel.logger.Enabled(ctx, level) {
+	if logger.Enabled(ctx, level) {
 		var pcs [1]uintptr
 		// Skip Callers, log, and the exported wrapper so source is the app caller.
 		runtime.Callers(3, pcs[:])
 		record := slog.NewRecord(time.Now(), level, msg, pcs[0])
 		record.Add(args...)
-		_ = tel.logger.Handler().Handle(ctx, record)
+		_ = logger.Handler().Handle(ctx, record)
 	}
 	span := trace.SpanFromContext(ctx)
 	if !span.SpanContext().IsValid() {

@@ -130,7 +130,7 @@ func defaultErrorHandler(ctx context.Context, err error) error {
 	if request := Request(ctx); request != nil {
 		slog.Debug("anduin: handler error",
 			"method", request.Method,
-			"path", request.URL.Path,
+			"path", requestRoutePath(ctx),
 			"status", strconv.Itoa(status),
 			"error", err,
 		)

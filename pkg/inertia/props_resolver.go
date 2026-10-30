@@ -142,7 +142,7 @@ func (r *propResolver) resolveValue(
 		if err != nil {
 			if prop.deferred && prop.rescue {
 				slog.Default().
-					Error("inertia rescued deferred prop", "component", r.component, "url", requestURL(r.ctx), "prop", path, "error", err)
+					Error("inertia rescued deferred prop", "component", r.component, "url", routePath(r.ctx), "prop", path, "error", err)
 				r.result.rescued = append(r.result.rescued, path)
 				return nil, false, nil
 			}

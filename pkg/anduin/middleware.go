@@ -60,7 +60,7 @@ func Logger(log *slog.Logger, skipPrefixes ...string) Middleware {
 				}
 				log.InfoContext(ctx, "HTTP request completed",
 					"method", request.Method,
-					"path", request.URL.Path,
+					"path", requestRoutePath(ctx),
 					"status", status,
 					"duration", duration.String(),
 				)
@@ -71,20 +71,31 @@ func Logger(log *slog.Logger, skipPrefixes ...string) Middleware {
 }
 
 // Telemetry attaches the telemetry pipeline to the request context and records
-// the matched route on the active span and metric labels.
+// the matched route on the active span and metric labels. The raw url.path
+// recorded by telemetry.WrapHandler is replaced with the route template, or
+// redacted when no route matched, so a secret path parameter never reaches a
+// trace exporter.
 func Telemetry(tel *telemetry.Telemetry) Middleware {
 	return func(next Handler) Handler {
 		return func(ctx context.Context) error {
 			if tel != nil {
 				ctx = tel.Context(ctx)
 			}
-			err := next(ctx)
-			if pattern := RoutePattern(ctx); pattern != "" {
-				telemetry.SetHTTPRoute(ctx, RoutePath(pattern))
-			}
-			return err
+			// Defer so a panicking handler is redacted before Recover turns it
+			// into an error response.
+			defer func() {
+				telemetry.SetHTTPRoute(ctx, RoutePath(RoutePattern(ctx)))
+			}()
+			return next(ctx)
 		}
 	}
+}
+
+// requestRoutePath returns the matched route shape for logs, or the empty
+// string when no route matched. It never falls back to the raw request path so
+// a capability token in a URL cannot reach a log record.
+func requestRoutePath(ctx context.Context) string {
+	return RoutePath(RoutePattern(ctx))
 }
 
 // RoutePath strips the method prefix from an http.ServeMux pattern, yielding

@@ -4,6 +4,18 @@ All notable changes to the standalone Andurel telemetry module are documented he
 
 ## Unreleased
 
+### Fixed
+
+- `WrapHandler` server spans no longer keep the raw request path. `SetHTTPRoute`
+  replaces the `url.path` attribute with the matched route template and labels
+  otelhttp metrics with the same route, so a secret path parameter such as
+  `/password/{token}/edit` never reaches an exporter. When no route matched,
+  `url.path` becomes `/[redacted]`. otelhttp's server instrumentation records
+  neither `url.full` nor `url.query`.
+- `Debug`, `Info`, `Warn`, and `Error` write to `slog.Default()` when the context
+  carries no telemetry instead of dropping the record. A span on the context
+  still receives the event and error status.
+
 ## 0.2.2 - 2026-10-26
 
 ### Changed
