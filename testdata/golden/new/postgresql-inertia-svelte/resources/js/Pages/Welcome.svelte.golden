@@ -3,14 +3,9 @@
 
   import Layout from '@/Layouts/Layout.svelte'
   import { routes } from '@/routes'
+  import type { WelcomeProps } from '@/types/payloads'
 
-  let {
-    appName,
-    docsURL,
-  }: {
-    appName: string
-    docsURL: string
-  } = $props()
+  let { appName, docsURL }: WelcomeProps = $props()
 
   const isAuthenticated = $derived(Boolean(page.props.auth?.isAuthenticated))
 

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 
+	"app/payloads"
 	"app/routes"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
@@ -17,7 +18,7 @@ func NewPagesHandler(renderer *inertia.Renderer) PagesHandler {
 	return PagesHandler{renderer: renderer}
 }
 
-// Register mounts the home page. The runtime passes no middleware, so the page
+// Register mounts the home page. The app passes no middleware, so the page
 // is public: a new project must be reachable before anyone signs in. Pass
 // middleware.AuthOnly(users) to protect it.
 func (p PagesHandler) Register(rt *anduin.Router, middleware ...anduin.Middleware) {
@@ -25,8 +26,8 @@ func (p PagesHandler) Register(rt *anduin.Router, middleware ...anduin.Middlewar
 }
 
 func (p PagesHandler) Home(ctx context.Context) error {
-	return p.renderer.Page(ctx, "Welcome", inertia.Props{
-		"appName": "app",
-		"docsURL": "https://andurel.com",
-	}).Render()
+	return p.renderer.Page(ctx, "Welcome", inertia.FromStruct(payloads.WelcomeProps{
+		AppName: "app",
+		DocsURL: "https://andurel.com",
+	})).Render()
 }

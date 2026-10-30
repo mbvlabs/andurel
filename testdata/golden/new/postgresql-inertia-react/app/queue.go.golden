@@ -1,4 +1,4 @@
-package runtime
+package app
 
 import (
 	"context"
@@ -13,10 +13,12 @@ import (
 	"github.com/mbvlabs/andurel/pkg/lifecycle"
 	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
 type Queue struct {
 	processor *storage.QueueProcessor
+	telemetry *telemetry.Telemetry
 	closers   lifecycle.Stack
 }
 
@@ -26,7 +28,7 @@ func NewQueue(ctx context.Context, cfg config.WorkerConfig) (_ *Queue, err error
 	// Workers render absolute links into emails, so routes need the hosts.
 	hosts, err := routing.NewHosts(cfg.App.Hosts)
 	if err != nil {
-		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
+		return nil, fmt.Errorf("app: configure hosts: %w", err)
 	}
 
 	q := &Queue{}
@@ -77,13 +79,16 @@ func NewQueue(ctx context.Context, cfg config.WorkerConfig) (_ *Queue, err error
 		return nil, err
 	}
 	q.processor = processor
+	q.telemetry = tel
 	q.closers.Add(processor.Stop)
 
 	return q, nil
 }
 
 func (q *Queue) Start(ctx context.Context) error {
-	return q.processor.Start(ctx)
+	// River derives every job context from the Start context, so attaching
+	// telemetry here gives job logs and spans the worker's providers.
+	return q.processor.Start(q.telemetry.Context(ctx))
 }
 
 // Shutdown stops the processor first, then releases the database and

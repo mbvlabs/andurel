@@ -9,6 +9,10 @@ export type LoginPayload = {
   password: string
 }
 
+export type PasswordResetPageProps = {
+  token: string
+}
+
 export type PasswordResetPayload = {
   resetPasswordToken: string
   password: string
@@ -23,4 +27,9 @@ export type RegistrationPayload = {
   email: string
   password: string
   confirmPassword: string
+}
+
+export type WelcomeProps = {
+  appName: string
+  docsURL: string
 }

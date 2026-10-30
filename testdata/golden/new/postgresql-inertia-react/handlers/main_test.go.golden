@@ -3,8 +3,8 @@ package handlers_test
 import (
 	"testing"
 
+	"app/app"
 	"app/config"
-	"app/internal/runtime"
 
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/routing"
@@ -32,7 +32,7 @@ func testRenderer(t *testing.T) *inertia.Renderer {
 		t.Fatalf("create hosts: %v", err)
 	}
 
-	renderer, err := runtime.NewRenderer(config.Config{
+	renderer, err := app.NewRenderer(config.Config{
 		App: config.App{Environment: "test", SiteName: "testapp"},
 		Inertia: config.Inertia{
 			ContainerID:         config.DefaultInertiaContainerID,

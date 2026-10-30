@@ -1,6 +1,6 @@
 // Package middleware owns application HTTP policy: authentication and session
 // definitions. Generic middleware comes from pkg/anduin; cookie jar construction
-// and dependency wiring live in internal/runtime.
+// and dependency wiring live in app.
 package middleware
 
 import (
@@ -12,7 +12,7 @@ import (
 
 // DenyFraming blocks the named hosts from being embedded in a frame. The
 // scaffold has a single host, so it does not install this policy by default;
-// enable it for an admin host in internal/runtime/runtime.go:
+// enable it for an admin host in app/runtime.go:
 //
 //	router.Use(middleware.DenyFraming(config.HostAdmin))
 //

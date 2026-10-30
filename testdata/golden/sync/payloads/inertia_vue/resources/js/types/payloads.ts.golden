@@ -25,3 +25,8 @@ export type UpdateProjectFormPayload = {
   title: string
   status: string
 }
+
+export type WelcomeProps = {
+  appName: string
+  docsURL: string
+}

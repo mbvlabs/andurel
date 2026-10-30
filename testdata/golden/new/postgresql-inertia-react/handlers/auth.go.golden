@@ -10,6 +10,7 @@ import (
 
 	"app/domains"
 	"app/middleware"
+	"app/payloads"
 	"app/routes"
 	"app/services"
 
@@ -92,14 +93,14 @@ func (h AuthHandler) tooManyAttempts(component, field string) anduin.Handler {
 }
 
 func (h AuthHandler) tooManyPasswordResets(ctx context.Context) error {
-	var payload PasswordResetPayload
+	var payload payloads.PasswordResetPayload
 	_ = anduin.DecodeJSON(ctx, &payload)
 
 	return h.renderTooManyAttempts(
 		ctx,
 		"Auth/ResetPassword",
 		"resetPasswordToken",
-		inertia.Props{"token": payload.Token},
+		inertia.FromStruct(payloads.PasswordResetPageProps{Token: payload.Token}),
 	)
 }
 
@@ -121,16 +122,11 @@ func (h AuthHandler) SessionNew(ctx context.Context) error {
 	return h.renderer.Page(ctx, "Auth/Login", inertia.Props{}).Render()
 }
 
-type LoginPayload struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 func (h AuthHandler) SessionCreate(ctx context.Context) error {
 	ctx, span := telemetry.From(anduin.Request(ctx), "sessions.create")
 	defer span.End()
 
-	var payload LoginPayload
+	var payload payloads.LoginPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		return anduin.BadRequest(err)
 	}
@@ -213,12 +209,6 @@ func (h AuthHandler) RegistrationNew(ctx context.Context) error {
 	return h.renderer.Page(ctx, "Auth/Registration", inertia.Props{}).Render()
 }
 
-type RegistrationPayload struct {
-	Email           string `json:"email"`
-	Password        string `json:"password"`
-	ConfirmPassword string `json:"confirmPassword"`
-}
-
 func (h AuthHandler) RegistrationCreate(ctx context.Context) error {
 	ctx, span := telemetry.From(anduin.Request(ctx), "user.registration")
 	defer span.End()
@@ -249,7 +239,7 @@ func (h AuthHandler) RegistrationCreate(ctx context.Context) error {
 		telemetry.Info(ctx, "user.registration", args...)
 	}()
 
-	var payload RegistrationPayload
+	var payload payloads.RegistrationPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		outcome = "bind_error"
 		cause = err
@@ -328,15 +318,11 @@ func (h AuthHandler) ConfirmationNew(ctx context.Context) error {
 	return h.renderer.Page(ctx, "Auth/ConfirmEmail", inertia.Props{}).Render()
 }
 
-type ConfirmationPayload struct {
-	Code string `json:"code"`
-}
-
 func (h AuthHandler) ConfirmationCreate(ctx context.Context) error {
 	ctx, span := telemetry.From(anduin.Request(ctx), "confirmations.create")
 	defer span.End()
 
-	var payload ConfirmationPayload
+	var payload payloads.ConfirmationPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		return anduin.BadRequest(err)
 	}
@@ -400,15 +386,11 @@ func (h AuthHandler) PasswordNew(ctx context.Context) error {
 	return h.renderer.Page(ctx, "Auth/ResetPasswordRequest", inertia.Props{}).Render()
 }
 
-type PasswordResetRequestPayload struct {
-	Email string `json:"email"`
-}
-
 func (h AuthHandler) PasswordCreate(ctx context.Context) error {
 	ctx, span := telemetry.From(anduin.Request(ctx), "reset_passwords.create")
 	defer span.End()
 
-	var payload PasswordResetRequestPayload
+	var payload payloads.PasswordResetRequestPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		return anduin.BadRequest(err)
 	}
@@ -448,22 +430,18 @@ func (h AuthHandler) PasswordEdit(ctx context.Context) error {
 		return h.renderer.Redirect(ctx, routes.PasswordNew.URL(), http.StatusSeeOther)
 	}
 
-	return h.renderer.Page(ctx, "Auth/ResetPassword", inertia.Props{
-		"token": token,
-	}).Render()
-}
-
-type PasswordResetPayload struct {
-	Token           string `json:"resetPasswordToken"`
-	Password        string `json:"password"`
-	ConfirmPassword string `json:"confirmPassword"`
+	return h.renderer.Page(
+		ctx,
+		"Auth/ResetPassword",
+		inertia.FromStruct(payloads.PasswordResetPageProps{Token: token}),
+	).Render()
 }
 
 func (h AuthHandler) PasswordUpdate(ctx context.Context) error {
 	ctx, span := telemetry.From(anduin.Request(ctx), "reset_passwords.update")
 	defer span.End()
 
-	var payload PasswordResetPayload
+	var payload payloads.PasswordResetPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		return anduin.BadRequest(err)
 	}
@@ -479,7 +457,7 @@ func (h AuthHandler) PasswordUpdate(ctx context.Context) error {
 		if page, ok := h.renderer.Page(
 			ctx,
 			"Auth/ResetPassword",
-			inertia.Props{"token": payload.Token},
+			inertia.FromStruct(payloads.PasswordResetPageProps{Token: payload.Token}),
 		).Errors(err); ok {
 			return page.Render()
 		}
@@ -489,7 +467,7 @@ func (h AuthHandler) PasswordUpdate(ctx context.Context) error {
 			return h.renderer.Page(
 				ctx,
 				"Auth/ResetPassword",
-				inertia.Props{"token": payload.Token},
+				inertia.FromStruct(payloads.PasswordResetPageProps{Token: payload.Token}),
 			).ValidationErrors(map[string]string{
 				"resetPasswordToken": "Invalid or expired reset code",
 			}).Render()

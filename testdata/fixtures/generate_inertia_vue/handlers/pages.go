@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 
+	"example.com/app/payloads"
 	"example.com/app/routes"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
@@ -22,8 +23,8 @@ func (p Pages) Register(rt *anduin.Router) {
 }
 
 func (p Pages) Home(ctx context.Context) error {
-	return p.renderer.Page(ctx, "Welcome", inertia.Props{
-		"appName": "testapp",
-		"docsURL": "https://andurel.com",
-	}).Render()
+	return p.renderer.Page(ctx, "Welcome", inertia.FromStruct(payloads.WelcomeProps{
+		AppName: "testapp",
+		DocsURL: "https://andurel.com",
+	})).Render()
 }

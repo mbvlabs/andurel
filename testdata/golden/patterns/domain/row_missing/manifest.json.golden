@@ -29,7 +29,7 @@
       "summary": "Validate unit tests plus domain tests over a real test database via domains.NewGadgets(db)"
     },
     {
-      "path": "internal/runtime/runtime.go",
+      "path": "app/runtime.go",
       "action": "edit",
       "summary": "construct with domains.NewGadgets(db) and pass it to the services/handlers that use it"
     }

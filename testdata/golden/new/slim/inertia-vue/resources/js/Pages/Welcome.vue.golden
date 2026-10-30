@@ -4,11 +4,9 @@ import { Link, usePage } from '@inertiajs/vue3'
 
 import Layout from '@/Layouts/Layout.vue'
 import { routes } from '@/routes'
+import type { WelcomeProps } from '@/types/payloads'
 
-defineProps<{
-  appName: string
-  docsURL: string
-}>()
+defineProps<WelcomeProps>()
 
 const page = usePage<{ auth: { isAuthenticated: boolean } }>()
 const isAuthenticated = computed(() => page.props.auth?.isAuthenticated ?? false)

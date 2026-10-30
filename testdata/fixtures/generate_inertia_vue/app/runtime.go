@@ -1,4 +1,4 @@
-package runtime
+package app
 
 import (
 	"context"
@@ -44,7 +44,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 
 	hosts, err := routing.NewHosts(cfg.App.Hosts)
 	if err != nil {
-		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
+		return nil, fmt.Errorf("app: configure hosts: %w", err)
 	}
 
 	app := &App{Config: cfg}

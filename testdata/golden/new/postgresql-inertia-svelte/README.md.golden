@@ -8,12 +8,14 @@ The app is ordinary Go you own: `domains/` for business logic and persistence, `
 
 ```
 app/
+├── app/                  # Composition root: New owns Handler + Server, NewQueue owns workers
 ├── assets/               # Embedded files, including the Vite build in assets/dist
 ├── cmd/                  # Process entry points
-│   ├── app/              # Web process (single runtime.New owns Handler + Server)
+│   ├── app/              # Web process (calls app.New)
 │   ├── queue/            # Queue process
 │   ├── ssr/              # Inertia SSR process (production)
 │   ├── migrate/          # Apply pending SQL migrations
+│   ├── configcheck/      # Read-only config + database check andurel doctor runs
 │   └── seeds/            # Database seeding
 ├── config/               # Application configuration
 ├── css/                  # Source CSS files (Tailwind wrappers + theme)
@@ -22,16 +24,14 @@ app/
 │   └── internal/queries/ # narsilc output (imported only by domains/**)
 ├── email/                # Email templates and sending
 ├── handlers/             # HTTP handlers, one flat package
-├── internal/             # App support code
-│   ├── configcheck/      # Read-only config + database check andurel doctor runs
-│   └── runtime/          # Composition root: explicit constructors + lifecycle
 ├── middleware/           # App HTTP policy and the session definition
 ├── migrations/           # SQL migration files
+├── payloads/             # Page props and request bodies emitted to resources/js/types/payloads.ts
 ├── queue/                # Workers, periodic jobs and their registration
 │   └── jobs/             # Job argument types
 ├── resources/            # Inertia root document + JS app
 │   ├── root.templ        # The one page-shaped templ
-│   └── js/               # Inertia Pages, Layouts, Components, routes.ts
+│   └── js/               # Inertia Pages, Layouts, Components, generated routes.ts and types/
 ├── routes/               # Route data (names, paths, URL builders)
 ├── seeds/                # Database seed definitions
 ├── services/             # Application logic (cross-domain orchestration)
@@ -174,8 +174,8 @@ go build -o migrate ./cmd/migrate
 ## Build And Deploy
 
 `andurel build` compiles every process in `cmd/` that has a `main` package,
-except `seeds`, into `dist/`: `app`, `queue`, `migrate`, and `ssr` (when Inertia
-is configured). Client assets and the SSR bundle are embedded in the binaries.
+except `seeds` and `configcheck`, into `dist/`: `app`, `queue`, `migrate`, and
+`ssr` (when Inertia is configured). Client assets and the SSR bundle are embedded in the binaries.
 
 ```bash
 andurel build
@@ -227,14 +227,14 @@ andurel sync queries --json
 andurel sync email --json
 andurel sync routes --json
 andurel sync payloads --json
-andurel sync payloads --strict
 ```
 
-`andurel sync payloads` resolves named composite literals, typed variables, and
-function or closure parameters. `--strict` writes `payloads.ts` and then fails
-(exit 5) on any `FromStruct` argument it cannot trace, listing each `file:line`;
-`andurel verify` reports the same roots as generated-step `warnings` without
-failing.
+`andurel sync payloads` emits every exported struct declared in `payloads/` to
+`resources/js/types/payloads.ts` and follows nested named structs inside that
+package. Keep payload fields to standard-library types, `time`, and
+`github.com/google/uuid`: `payloads/` may not import application packages, so
+handlers import `payloads` for page props and request bodies instead of
+defining them inline.
 
 Inspect the project shape without changing it:
 
@@ -253,7 +253,7 @@ Verify everything before you ship:
 andurel verify
 ```
 
-`andurel verify` runs formatting, `go fix`, `go vet`, the typed layer rules (listed in `AGENTS.md` and `andurel verify --help`), and generated-code drift. Violations come with a `fix`; a failed run exits 9. Pass `--with-tests` to also run `go test ./...`.
+`andurel verify` runs formatting, `go fix`, `go vet`, the typed layer rules (listed in `andurel verify --help`), and generated-code drift. Violations come with a `fix`; a failed run exits 9. Pass `--with-tests` to also run `go test ./...`.
 
 ## How-To Guides
 
@@ -334,7 +334,7 @@ func (p Products) InTx(tx storage.Tx) Products {
 }
 ```
 
-Then construct it in `internal/runtime` (`products := domains.NewProducts(db)`) and pass it to the services and handlers that use it.
+Then construct it in `app/` (`products := domains.NewProducts(db)`) and pass it to the services and handlers that use it.
 
 **3. Generate the typed queries**
 
@@ -344,7 +344,7 @@ andurel sync queries
 
 Narsilc globs `domains/**/*.sql` and writes `domains/internal/queries/`. Only `domains` may import that package. Domains share one flat package (one file per domain) — cross-domain behavior belongs in a service.
 
-`internal/runtime` builds a `storage.NewTransactor(db)` and each receiver, and passes them to services. A service that writes across domains runs the writes in one transaction with `storage.AtomicOps`, binding what it needs at the top of the callback:
+`app/` builds a `storage.NewTransactor(db)` and each receiver, and passes them to services. A service that writes across domains runs the writes in one transaction with `storage.AtomicOps`, binding what it needs at the top of the callback:
 
 ```go
 err := storage.AtomicOps(ctx, i.transactor, func(ctx context.Context, tx storage.Tx) error {
@@ -436,7 +436,7 @@ return h.renderer.Page(ctx, "User/Confirmation", props).
     Render()
 ```
 
-Wire it in `internal/runtime/runtime.go` with constructor injection:
+Wire it in `app/runtime.go` with constructor injection:
 
 ```go
 products := domains.NewProducts(db)
@@ -463,7 +463,7 @@ Create a service when a use case spans multiple domains, needs a transaction, or
 andurel patterns show service
 ```
 
-Services live in `services/`, take their dependencies as constructor arguments, and are wired in `internal/runtime`. Do not create a service for a pass-through wrapper around one domain method — call the domain directly from the handler.
+Services live in `services/`, take their dependencies as constructor arguments, and are wired in `app/`. Do not create a service for a pass-through wrapper around one domain method — call the domain directly from the handler.
 
 ### Setup Background Jobs
 
@@ -822,7 +822,7 @@ TRACE_SAMPLE_RATE=1.0
 ## Session, CORS, And CSRF Protection
 
 Application sessions and the cookie jar live in `middleware/` (policy) and
-`internal/runtime` (construction). A `kiks.Jar` is built by `newJar` in the
+`app/` (construction). A `kiks.Jar` is built by `newJar` in the
 composition root from `middleware.NewSessionCookie` and installed with
 `jar.Middleware()`. Handlers read and write bag cookies with `kiks.Get` /
 `kiks.Set` / `kiks.Destroy` (they return an error when the bag is missing, the
@@ -838,7 +838,7 @@ change or admin demotion revokes existing sessions. Handlers read the
 database-backed user (including `IsAdmin`) with `middleware.ViewerFrom(ctx)`.
 
 CORS is provided by `anduin.CORS(CORSConfig)` and configured in
-`internal/runtime`. The global policy trusts only `CORS_ALLOWED_ORIGINS`, a
+`app/`. The global policy trusts only `CORS_ALLOWED_ORIGINS`, a
 comma-separated list of exact origins, and allows credentials. Host origins are
 deliberately absent: ordinary navigation may load another host's document or
 asset, but a sibling host must not read authenticated API responses made with
@@ -1031,10 +1031,10 @@ client ignores an explicit `Host` header, so `anduintest` applies that option to
 
 ### Integration Tests
 
-`internal/runtime/main_test.go` owns the package cluster and `testConfig(t)`,
+`app/main_test.go` owns the package cluster and `testConfig(t)`,
 which takes its `storage.Config` from `storagetest.Cluster.NewTestDBWithConfig`.
-`internal/runtime/runtime_test.go` boots the whole graph with `runtime.New` and
-calls `app.Handler`. The helpers load a project `.env` when present and fall
+`app/runtime_test.go` boots the whole graph with `app.New` and
+calls `application.Handler`. The helpers load a project `.env` when present and fall
 back to fixed required values, so a fresh scaffold works without one. Each
 test constructs its own `routing.Hosts` value, so the runtime graph has no
 package-level mutable host registry.

@@ -1,4 +1,4 @@
-package runtime
+package app
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 	"time"
 
 	"app/assets"
@@ -46,7 +45,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 
 	hosts, err := routing.NewHosts(cfg.App.Hosts)
 	if err != nil {
-		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
+		return nil, fmt.Errorf("app: configure hosts: %w", err)
 	}
 
 	app := &App{Config: cfg}
@@ -170,12 +169,10 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	return app, nil
 }
 
-// viteAssetPrefix is the Vite build route subtree without its wildcard. The
-// static files are public: they load from a secondary host without the
-// visitor's session, so neither credentialed CORS nor a CSRF cookie belongs on
-// them.
-var viteAssetPrefix = strings.TrimSuffix(routes.ViteBuild.Pattern(), "/*")
-
+// isViteAssetRequest reports whether the request targets the Vite build
+// subtree. The static files are public: they load from a secondary host
+// without the visitor's session, so neither credentialed CORS nor a CSRF
+// cookie belongs on them.
 func isViteAssetRequest(ctx context.Context) bool {
 	request := anduin.Request(ctx)
 
@@ -199,7 +196,7 @@ func isSafeViteAssetRequest(ctx context.Context) bool {
 }
 
 func isViteAssetPath(path string) bool {
-	return strings.HasPrefix(path, viteAssetPrefix+"/")
+	return routes.ViteBuild.InSubtree(path)
 }
 
 // readiness reports whether the process can serve traffic. Liveness stays
@@ -376,7 +373,7 @@ func validateEmailConfig(cfg config.Mail, app config.App) error {
 
 // NewRenderer builds the Inertia renderer cmd/app uses, including the shared
 // props and kiks flash providers. Tests use it so their renderer mirrors the
-// runtime wiring instead of duplicating it.
+// app wiring instead of duplicating it.
 func NewRenderer(cfg config.Config, hosts *routing.Hosts) (*inertia.Renderer, error) {
 	return inertia.NewRenderer(
 		inertia.RendererConfig{
