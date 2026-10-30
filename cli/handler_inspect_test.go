@@ -281,6 +281,32 @@ func TestHandlerRegisterRoutesOmitsAmbiguousHostBindings(t *testing.T) {
 				{Method: "GET", Host: "primary", Path: "/direct", Action: "Index", Line: 14},
 			},
 		},
+		{
+			name: "multiassignment reassignment",
+			body: `	admin := rt.Host("admin")
+	admin.Get("/before", h.Index)
+	admin, other = anotherRouter, other
+	admin.Get("/after", h.Index)
+	rt.Get("/direct", h.Index)
+`,
+			routes: []handlerRoute{
+				{Method: "GET", Host: "primary", Path: "/direct", Action: "Index", Line: 14},
+			},
+		},
+		{
+			name: "multiassignment shadow",
+			body: `	admin := rt.Host("admin")
+	admin.Get("/outer", h.Index)
+	{
+		admin, other := anotherRouter, other
+		admin.Get("/inner", h.Index)
+	}
+	rt.Get("/direct", h.Index)
+`,
+			routes: []handlerRoute{
+				{Method: "GET", Host: "primary", Path: "/direct", Action: "Index", Line: 16},
+			},
+		},
 	}
 
 	for _, test := range tests {

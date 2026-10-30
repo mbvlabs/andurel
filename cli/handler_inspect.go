@@ -409,6 +409,14 @@ func routerHostLocals(
 		switch node := node.(type) {
 		case *ast.AssignStmt:
 			if len(node.Lhs) != 1 || len(node.Rhs) != 1 {
+				// Multi-assignment or a multi-value call can replace or shadow a
+				// host local without exposing a single host expression. Mark every
+				// identifier target ambiguous rather than keeping a stale binding.
+				for _, lhs := range node.Lhs {
+					if ident, ok := lhs.(*ast.Ident); ok {
+						hosts.markNonHost(ident.Name)
+					}
+				}
 				return true
 			}
 			ident, ok := node.Lhs[0].(*ast.Ident)
