@@ -239,6 +239,10 @@ func TestBetaThreeManualActionsVersionGate(t *testing.T) {
 			"Allow header",
 			"case errors.Is(err, anduin.ErrMethodNotAllowed):",
 			"Status(http.StatusMethodNotAllowed)",
+			"JSON/API ErrorHandler",
+			"anduin.JSON(ctx, http.StatusMethodNotAllowed",
+			"StatusCode(err) already returns 405",
+			"must not clear it",
 		},
 		"request-host-middleware-v2.0.0-beta.3": {
 			"anduin.RequestHost(ctx)",

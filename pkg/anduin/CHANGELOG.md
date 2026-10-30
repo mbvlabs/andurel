@@ -4,6 +4,12 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+### Tests
+
+- Cover a custom JSON `ErrorHandler` receiving `ErrMethodNotAllowed` with
+  `StatusCode` 405 and the `Allow` header `http.ServeMux` set, so the
+  method-not-allowed manual action's JSON handler guidance is regression-proof.
+
 ## 0.6.1 - 2026-10-28
 
 ### Fixed

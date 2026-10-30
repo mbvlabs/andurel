@@ -43,7 +43,8 @@ const betaFourFixesVersion = "v2.0.0-beta.4"
 const goNativeRebuildVersion = "v2.0.0-alpha.4"
 
 // ManualAction describes an application-owned change that an upgrade cannot
-// apply without risking user code.
+// apply without risking user code. ID is stable and is also the key andurel
+// doctor uses to report the action's static detector state.
 type ManualAction struct {
 	ID           string `json:"id"`
 	Title        string `json:"title"`
@@ -428,7 +429,9 @@ func csrfAssetSkipInstructions() string {
 
 func methodNotAllowedInstructions() string {
 	return "pkg/anduin beta.3 reports a ServeMux-generated 405 as anduin.ErrMethodNotAllowed and preserves the " +
-		"Allow header. Map it to the themed not-found page in handlers/errors.go so a method mismatch is not a " +
+		"Allow header. The sentinel reaches every ErrorHandler, not only the Inertia one, so both the themed page and " +
+		"JSON/API error handlers need a 405 case.\n\n" +
+		"1. Map it to the themed not-found page in handlers/errors.go so a method mismatch is not a " +
 		"plain-text response:\n\n```go\n" +
 		"inertia.MapError(\n" +
 		"\tanduin.ErrMethodNotAllowed,\n" +
@@ -441,8 +444,20 @@ func methodNotAllowedInstructions() string {
 		"\treturn renderer.Page(ctx, \"Errors/NotFound\", inertia.Props{}).\n" +
 		"\t\tStatus(http.StatusMethodNotAllowed).\n" +
 		"\t\tRender()\n```\n\n" +
+		"2. A JSON/API ErrorHandler that classifies statuses is not covered by the Inertia mapping and " +
+		"otherwise answers 500. Add http.StatusMethodNotAllowed to its classifier, or branch on the sentinel " +
+		"before writing the body:\n\n```go\n" +
+		"if errors.Is(err, anduin.ErrMethodNotAllowed) {\n" +
+		"\treturn anduin.JSON(ctx, http.StatusMethodNotAllowed, map[string]string{\n" +
+		"\t\t\"error\": \"method not allowed\",\n" +
+		"\t})\n" +
+		"}\n```\n\n" +
+		"anduin.StatusCode(err) already returns 405 for the sentinel, so a handler that derives its status " +
+		"from StatusCode needs no extra case; a switch on error values does. Keep the Allow header: ServeMux " +
+		"sets it before the ErrorHandler runs, and writing a JSON body must not clear it.\n\n" +
 		"Already fixed this yourself? Your version is equivalent when a request with the wrong method on an " +
-		"existing route renders the themed not-found page with status 405 and keeps the Allow header. Keep it " +
+		"existing route renders the themed not-found page with status 405 and keeps the Allow header, and every " +
+		"JSON/API error handler answers 405 with the Allow header instead of a generic 500. Keep it " +
 		"if both hold.\n\n" +
 		"Then format and verify:\n\n```text\ngofmt -w handlers\ngo fix ./...\ngo vet ./...\n```\n"
 }
