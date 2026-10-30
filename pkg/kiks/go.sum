@@ -32,6 +32,12 @@ github.com/jackc/puddle/v2 v2.2.2 h1:PR8nw+E/1w0GLuRFSmiioY6UooMp6KJv0/61nB7icHo
 github.com/jackc/puddle/v2 v2.2.2/go.mod h1:vriiEXHvEE654aYKXXjOvZM39qJ0q+azkZFrfEOc3H4=
 github.com/lmittmann/tint v1.2.0 h1:AogHRHy8HUJUnNJBHJlYa+fR4YY8mko2cnCp67xn9JY=
 github.com/lmittmann/tint v1.2.0/go.mod h1:HIS3gSy7qNwGCj+5oRjAutErFBl4BzdQP6cJZ0NfMwE=
+github.com/mbvlabs/andurel/pkg/anduin v0.6.2 h1:e0g3U2nJ8egERB6dDKAvqTm5RLwmzCmXq83RgB82yj4=
+github.com/mbvlabs/andurel/pkg/anduin v0.6.2/go.mod h1:gpQY/fbQ4fmNjb3D/cHsLzgcBsuOiqLVIaqdOJnZ+7U=
+github.com/mbvlabs/andurel/pkg/routing v0.8.0 h1:nOX0FbZKRkULSZWW39fikGh9P5rpY2yyMjciiPgsEUo=
+github.com/mbvlabs/andurel/pkg/routing v0.8.0/go.mod h1:tDaz5LVwJXJn733LZhYrsbEWZL7bYNrl4YqQzaBAWpI=
+github.com/mbvlabs/andurel/pkg/telemetry v0.2.3 h1:T70mFoL8oKDNByxQt+qbew3GiNVMlqNYBYxknrXWcE0=
+github.com/mbvlabs/andurel/pkg/telemetry v0.2.3/go.mod h1:gcZRxndv7wvMptVsdHCWiRs9jbVWButoNPJsH2axx10=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=

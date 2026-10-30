@@ -2,6 +2,10 @@
 
 ## 0.13.1 - 2026-10-30
 
+### Changed
+
+- Require published anduin v0.6.2 without local replacements for standalone builds and its routing and telemetry fixes.
+
 ### Fixed
 
 - `FromStruct`/`FromStructChecked` follow Go JSON field semantics for
