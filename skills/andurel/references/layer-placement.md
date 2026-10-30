@@ -276,7 +276,7 @@ Wiring is explicit constructor injection. There is no container.
 - New config providers: `config/`.
 - New domains: construct them in `app/` with `domains.NewX(db)` and pass them
   to the services and handlers that use them. Services that run transactions
-  also take the runtime's `storage.NewTransactor(db)`.
+  also take the app's `storage.NewTransactor(db)`.
 - New services: construct them in `app/` (`services.NewIdentity(...)`).
 - New handlers: construct them and call `Register(rt)` in `app/`.
 - New queue workers: register them in `app/queue.go`.

@@ -408,8 +408,8 @@ func (s *Server) Start() error
 func (s *Server) Shutdown(ctx context.Context) error
 ```
 
-`Shutdown` stops only the HTTP listener; `runtime.App.Close` releases the
-other dependencies afterwards. `cmd/app` gets its server from `runtime.New`, which
+`Shutdown` stops only the HTTP listener; `app.App.Close` releases the
+other dependencies afterwards. `cmd/app` gets its server from `app.New`, which
 builds the router and wraps it with `anduin.NewServer(...)` internally, then
 calls `lifecycle.Run(ctx, start, app.Shutdown, lifecycle.WithBlockingStart())`
 and defers `closeApp` for `Close`; lifecycle ordering is explicit code, not an
@@ -560,7 +560,7 @@ request with `anduintest.Header{Name: "Host", Value: "admin.example"}`. Go's
 client ignores an explicit `Host` header, so `anduintest` applies that option to
 `req.Host`.
 
-For full-graph tests, boot `runtime.New(ctx, testConfig)` and call
+For full-graph tests, boot `app.New(ctx, testConfig)` and call
 `app.Handler`. For domain tests, use `pkg/storage/storagetest.Cluster` and
 `NewTestDB(t, migrations.Migrations, ".")`.
 

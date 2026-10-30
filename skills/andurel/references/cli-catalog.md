@@ -19,7 +19,7 @@ andurel --agent --help
    `andurel skill show <reference>` prints the skill's `http-and-routing`,
    `layer-placement`, or `cli-catalog` reference without installing it.
 3. `andurel generate migration NAME` — create a migration (the only generated file).
-4. Write domains, services, handlers, routes, and middleware by hand.
+4. Write domains, services, handlers, payloads, routes, and middleware by hand.
 5. `andurel sync queries` / `sync routes` / `sync payloads` / `sync email` — refresh derived files.
 6. `andurel verify [packages...]` — formatting, `go fix`, `go vet`, layer boundaries, the frontend typecheck, and generated-code drift.
 7. `andurel doctor --json` — health and generated-file drift.

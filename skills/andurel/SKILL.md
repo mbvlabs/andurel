@@ -117,7 +117,7 @@ Add a background job:
 
 1. `andurel patterns show job` — read the args, worker, and registration rules.
 2. Put the args in `queue/jobs/` and the worker in `queue/`; call domain or service code, not SQL.
-3. Register the worker in `queue/workers.go`. For recurring work, return a `river.NewPeriodicJob(...)` from `queue.PeriodicJobs()`; `runtime.NewQueue` passes it to River.
+3. Register the worker in `queue/workers.go`. For recurring work, return a `river.NewPeriodicJob(...)` from `queue.PeriodicJobs()`; `app.NewQueue` passes it to River.
 
 Add an HTTP resource:
 

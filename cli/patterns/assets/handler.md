@@ -23,12 +23,16 @@ type CreateProductPayload struct {
 	PriceCents int64  `json:"priceCents"`
 }
 
-// Product is the page-shaped view of a domain entity, shared with the page
-// pattern's ProductIndexProps.
+// Product is the page-shaped view of a domain entity.
 type Product struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
 	PriceCents int64  `json:"priceCents"`
+}
+
+// ProductIndexProps is the page contract: one exported field per prop.
+type ProductIndexProps struct {
+	Products []Product `json:"products"`
 }
 ```
 
@@ -73,7 +77,7 @@ func (h ProductHandler) Index(ctx context.Context) error {
 		return err
 	}
 
-	props := payloads.ProductIndexProps{ // from the page pattern
+	props := payloads.ProductIndexProps{
 		Products: make([]payloads.Product, 0, len(result.Items)),
 	}
 	for _, item := range result.Items {

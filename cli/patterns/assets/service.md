@@ -113,7 +113,7 @@ has no `Commit` or `Rollback`. The callback's return value decides:
 - Do not re-validate entity rules; the domain's `Create`/`Update` do. Only check input specific to the use case (e.g. a login form's required fields).
 - Auth use cases return generic sentinel errors (`ErrInvalidCredentials`, `ErrInvalidVerificationCode`) for failed attempts and reserve wrapped errors for diagnostics; never let internal database text reach a handler response.
 - Never log a full email address; log the user id or, when a correlation key is needed, only the address domain.
-- Keep constructors explicit (`NewIdentity(...)`); the runtime wires them.
+- Keep constructors explicit (`NewIdentity(...)`); `app/` wires them.
 
 ## Checklist
 
