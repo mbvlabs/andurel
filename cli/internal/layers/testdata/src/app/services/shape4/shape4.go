@@ -12,6 +12,6 @@ type Probe struct {
 
 // Shape 4: the pool escape hatch exposes a handle that executes SQL.
 func (p Probe) Pool(ctx context.Context) error {
-	_, err := p.pg.Pool().Exec(ctx, "delete from users") // want "db-handle"
+	_, err := p.pg.Pool().Exec(ctx, "delete from users") // want "db-handle" "db-handle"
 	return err
 }

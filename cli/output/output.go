@@ -89,6 +89,25 @@ type Options struct {
 	Verbose bool
 }
 
+// cliVersion is reported in every structured envelope. NewRootCommand sets it
+// from the same version string cobra uses for --version; "dev" is the fallback
+// for callers that render an envelope without building the root command.
+var cliVersion = "dev"
+
+// SetCLIVersion records the CLI version for structured envelopes.
+func SetCLIVersion(version string) {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		version = "dev"
+	}
+	cliVersion = version
+}
+
+// CLIVersion returns the version reported in structured envelopes.
+func CLIVersion() string {
+	return cliVersion
+}
+
 // Breadcrumb is a follow-up action an agent or human can take.
 type Breadcrumb struct {
 	Command     string `json:"cmd"`
@@ -98,6 +117,7 @@ type Breadcrumb struct {
 // Envelope wraps successful structured command output.
 type Envelope struct {
 	OK          bool         `json:"ok"`
+	CLIVersion  string       `json:"cli_version"`
 	Data        any          `json:"data,omitempty"`
 	Summary     string       `json:"summary,omitempty"`
 	Breadcrumbs []Breadcrumb `json:"breadcrumbs,omitempty"`
@@ -105,12 +125,13 @@ type Envelope struct {
 
 // ErrorEnvelope wraps failed structured command output.
 type ErrorEnvelope struct {
-	OK       bool   `json:"ok"`
-	Code     string `json:"code"`
-	Error    string `json:"error"`
-	Hint     string `json:"hint,omitempty"`
-	ExitCode int    `json:"exit_code,omitempty"`
-	Data     any    `json:"data,omitempty"`
+	OK         bool   `json:"ok"`
+	CLIVersion string `json:"cli_version"`
+	Code       string `json:"code"`
+	Error      string `json:"error"`
+	Hint       string `json:"hint,omitempty"`
+	ExitCode   int    `json:"exit_code,omitempty"`
+	Data       any    `json:"data,omitempty"`
 }
 
 // CLIError is a typed command error with a stable machine-readable code.
@@ -290,6 +311,7 @@ func OK(cmd *cobra.Command, data any, summary string, breadcrumbs ...Breadcrumb)
 
 	envelope := Envelope{
 		OK:          true,
+		CLIVersion:  cliVersion,
 		Data:        data,
 		Summary:     summary,
 		Breadcrumbs: breadcrumbs,
@@ -302,10 +324,11 @@ func OK(cmd *cobra.Command, data any, summary string, breadcrumbs ...Breadcrumb)
 func Fail(err error) ErrorEnvelope {
 	if err == nil {
 		return ErrorEnvelope{
-			OK:       false,
-			Code:     CodeError,
-			Error:    "unknown error",
-			ExitCode: ExitUsage,
+			OK:         false,
+			CLIVersion: cliVersion,
+			Code:       CodeError,
+			Error:      "unknown error",
+			ExitCode:   ExitUsage,
 		}
 	}
 
@@ -319,12 +342,13 @@ func Fail(err error) ErrorEnvelope {
 			exitCode = ExitUsage
 		}
 		return ErrorEnvelope{
-			OK:       false,
-			Code:     code,
-			Error:    cliErr.Error(),
-			Hint:     cliErr.Hint,
-			ExitCode: exitCode,
-			Data:     cliErr.Data,
+			OK:         false,
+			CLIVersion: cliVersion,
+			Code:       code,
+			Error:      cliErr.Error(),
+			Hint:       cliErr.Hint,
+			ExitCode:   exitCode,
+			Data:       cliErr.Data,
 		}
 	}
 
@@ -334,10 +358,11 @@ func Fail(err error) ErrorEnvelope {
 	}
 
 	return ErrorEnvelope{
-		OK:       false,
-		Code:     CodeError,
-		Error:    err.Error(),
-		ExitCode: ExitUsage,
+		OK:         false,
+		CLIVersion: cliVersion,
+		Code:       CodeError,
+		Error:      err.Error(),
+		ExitCode:   ExitUsage,
 	}
 }
 

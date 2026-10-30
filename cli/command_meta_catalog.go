@@ -453,6 +453,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 		WhenToUse: []string{
 			"Verify health and generated-file drift after changes.",
 			"Check first-run setup, runtime configuration and bounded database connectivity through the generated cmd/configcheck helper, and Inertia SSR readiness.",
+			"Check the applied/not_applied/not_applicable state of application-owned manual upgrade actions by stable action ID; manual_actions lists each detected state and the file marker it used.",
 			"Read json/agent output for each check's status: a skipped check is blocked on a prerequisite and is never reported as a pass.",
 		},
 		WhenNotToUse:    []string{"Doctor is read-only; it does not write generated files."},
@@ -625,9 +626,10 @@ var commandMetaSpecs = map[string]CommandMeta{
 		SkipDryRunCheck: true,
 	},
 	"andurel verify": {
-		Summary:         "Check formatting, vet, layer boundaries, frontend, and generated code",
-		Args:            "[packages...]",
-		WhenToUse:       []string{"After a change, before commit: gofmt, go fix, go vet, the typed persistence and transaction boundary checks, the package.json typecheck script, and generated-code drift.", "Pass Go package patterns to scope gofmt, go fix, go vet, and layers to those packages; generated drift and the frontend typecheck stay whole-project.", "A missing generation binary fails the generated step; apply the rule's fix, or pass --skip-generated to mark the step skipped. Rules lists every rule and its fix.", "Without node_modules the frontend step fails with an install hint; pass --no-frontend to skip it explicitly.", "Read each violation's fix field and apply it; a failed run exits 9 (verification_failed).", "With --with-tests, check the go test step's skipped_packages: packages listed there ran no tests (DB tests skip without Docker) even though the step is ok.", "With --with-tests, tests that called t.Skip are listed in the go test step's skipped_tests as {package, test, reason}; they do not fail the run either.", "The generated step fails when resources/js/types/payloads.ts is missing or out of date; run andurel sync payloads to regenerate it from payloads/."},
+		Summary:   "Check formatting, vet, layer boundaries, frontend, and generated code",
+		Args:      "[packages...]",
+		WhenToUse: []string{"After a change, before commit: gofmt, go fix, go vet, the typed persistence and transaction boundary checks, the package.json typecheck script, and generated-code drift.", "Pass Go package patterns to scope gofmt, go fix, go vet, and layers to those packages; generated drift and the frontend typecheck stay whole-project.", "A missing generation binary fails the generated step; apply the rule's fix, or pass --skip-generated to mark the step skipped. Rules lists every rule and its fix.", "Without node_modules the frontend step fails with an install hint; pass --no-frontend to skip it explicitly.", "Read each violation's fix field and apply it; a failed run exits 9 (verification_failed).", "With --with-tests, the go test step always carries skipped_packages and skipped_tests, empty when nothing was skipped; packages in skipped_packages ran no tests (DB tests skip without Docker) and tests in skipped_tests called t.Skip. Neither skip fails the run.", "Structured output contract: with --json or --agent a passing run writes the success envelope (ok, cli_version, summary, data) to stdout and leaves stderr empty; a failed verification exits 9 and writes the error envelope (code verification_failed, exit_code 9, full report under data) to stderr with stdout empty. Read a failure report from stderr. Every JSON envelope carries cli_version.", "The generated step fails when resources/js/types/payloads.ts is missing or out of date; run andurel sync payloads to regenerate it from payloads/."},
+
 		WhenNotToUse:    []string{"verify is read-only; fix the reported issues yourself and re-run."},
 		Prerequisites:   []string{"Andurel project root"},
 		Examples:        []string{"andurel verify", "andurel verify --json", "andurel verify ./internal/docs/...", "andurel verify --with-tests", "andurel verify --skip-generated", "andurel verify --no-frontend"},

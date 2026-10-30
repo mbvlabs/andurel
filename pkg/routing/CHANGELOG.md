@@ -4,6 +4,15 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+### Added
+
+- `Route.Prefix()` returns a route's subtree root by removing a trailing `/*`
+  wildcard (`/assets/dist/*` becomes `/assets/dist`), and
+  `Route.InSubtree(path)` reports whether a request path is that prefix or a
+  descendant. Asset, CSRF, and CORS skips can use them instead of
+  `strings.TrimSuffix(routes.ViteBuild.Pattern(), "/*")` and a hand-built
+  `HasPrefix` check, so a later pattern change cannot silently widen the skip.
+
 ## 0.7.0 - 2026-10-28
 
 ### Added

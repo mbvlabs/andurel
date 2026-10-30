@@ -69,6 +69,39 @@ func TestPatternDefaultsToPath(t *testing.T) {
 	}
 }
 
+func TestRoutePrefixAndSubtree(t *testing.T) {
+	vite := NewSimpleRoute("*", "vite.build", "/assets/dist")
+	if got, want := vite.Prefix(), "/assets/dist"; got != want {
+		t.Fatalf("Prefix() = %q, want %q", got, want)
+	}
+	for _, path := range []string{"/assets/dist", "/assets/dist/app.js", "/assets/dist/nested/chunk.css"} {
+		if !vite.InSubtree(path) {
+			t.Fatalf("InSubtree(%q) = false, want true", path)
+		}
+	}
+	for _, path := range []string{"/", "/assets", "/assets/district/app.js", "/assets/distx"} {
+		if vite.InSubtree(path) {
+			t.Fatalf("InSubtree(%q) = true, want false", path)
+		}
+	}
+
+	rootWildcard := NewSimpleRoute("*", "assets.all", "/")
+	if got, want := rootWildcard.Prefix(), "/"; got != want {
+		t.Fatalf("root wildcard Prefix() = %q, want %q", got, want)
+	}
+	if !rootWildcard.InSubtree("/anything") || rootWildcard.InSubtree("relative") {
+		t.Fatal("root wildcard InSubtree should match absolute paths only")
+	}
+
+	users := NewSimpleRoute("/users", "users.index", "")
+	if got, want := users.Prefix(), "/users"; got != want {
+		t.Fatalf("non-wildcard Prefix() = %q, want %q", got, want)
+	}
+	if !users.InSubtree("/users") || !users.InSubtree("/users/1") || users.InSubtree("/usersx") {
+		t.Fatal("non-wildcard InSubtree does not match its path subtree")
+	}
+}
+
 func TestHostDefaultsToPrimary(t *testing.T) {
 	route := NewSimpleRoute("/", "pages.home", "")
 	if route.Host() != HostPrimary {

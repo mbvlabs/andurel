@@ -24,6 +24,7 @@ import (
 	"github.com/mbvlabs/andurel/v2/emailcompiler"
 	"github.com/mbvlabs/andurel/v2/layout"
 	"github.com/mbvlabs/andurel/v2/layout/cmds"
+	"github.com/mbvlabs/andurel/v2/layout/upgrade"
 	"github.com/spf13/cobra"
 )
 
@@ -38,6 +39,9 @@ type checkResult struct {
 	// changed lists the generated files that regeneration rewrote. verify uses
 	// it to report one violation per file instead of one aggregate finding.
 	changed []string
+	// manualActions carries the static detector result for application-owned
+	// manual upgrade actions.
+	manualActions []upgrade.ActionCheck
 }
 
 type checkStatus int
@@ -83,6 +87,9 @@ type doctorCheck struct {
 	Details  []string `json:"details,omitempty"`
 	Hint     string   `json:"hint,omitempty"`
 	Blocking bool     `json:"blocking"`
+	// ManualActions reports the static applied/not_applied/not_applicable
+	// state of application-owned upgrade actions, keyed by their stable ID.
+	ManualActions []upgrade.ActionCheck `json:"manual_actions,omitempty"`
 }
 
 type doctorSummary struct {
@@ -106,6 +113,7 @@ func newDoctorCommand(currentVersion string) *cobra.Command {
 This command will check:
   • Environment (Go version, latest stable Andurel release)
   • Configuration (andurel.lock, first-run setup, runtime configuration and database connectivity, Inertia SSR readiness)
+  • Manual actions (static applied / not applied / not applicable status for application-owned upgrade actions, by stable action ID)
   • Code quality (go vet, go mod tidy)
   • Code generation (templ, email renderers, narsilc, and Inertia route helpers and payload types when configured)
 
@@ -133,7 +141,7 @@ never as a pass.`,
 	setAgentMetadata(
 		doctorCmd,
 		"diagnostics",
-		"Read-only project checks include first-run setup, runtime configuration and database connectivity through the generated cmd/configcheck helper, Inertia SSR readiness, templ, email renderers, active narsilc queries, and Inertia route helper and payload type drift. Missing configuration and an unreachable database fail; a check that could not run is reported as skipped. Use --json for actionable check hints.",
+		"Read-only project checks include first-run setup, runtime configuration and database connectivity through the generated cmd/configcheck helper, Inertia SSR readiness, the applied/not_applied/not_applicable state of application-owned upgrade actions by stable ID, templ, email renderers, active narsilc queries, and Inertia route helper and payload type drift. Missing configuration and an unreachable database fail; manual actions that are not applied warn; a check that could not run is reported as skipped. Use --json for actionable check hints.",
 	)
 
 	return doctorCmd
@@ -189,6 +197,7 @@ func collectDoctorReport(currentVersion string, verbose bool) (doctorReport, err
 		checkAndurelVersion(rootDir, currentVersion),
 		checkToolVersions(rootDir, verbose),
 		checkProjectSetup(rootDir),
+		checkManualActions(rootDir, currentVersion),
 		checkRuntimeConfiguration(rootDir),
 		checkInertiaSSRConfiguration(rootDir),
 	)...)
@@ -246,13 +255,14 @@ func buildDoctorReport(currentVersion, rootDir string, results []checkResult) do
 
 func doctorCheckFromResult(result checkResult) doctorCheck {
 	return doctorCheck{
-		Category: result.category,
-		Name:     result.name,
-		Status:   result.status.String(),
-		Message:  result.message,
-		Details:  append([]string(nil), result.details...),
-		Hint:     doctorHint(result),
-		Blocking: result.status == statusFail,
+		Category:      result.category,
+		Name:          result.name,
+		Status:        result.status.String(),
+		Message:       result.message,
+		Details:       append([]string(nil), result.details...),
+		Hint:          doctorHint(result),
+		Blocking:      result.status == statusFail,
+		ManualActions: append([]upgrade.ActionCheck(nil), result.manualActions...),
 	}
 }
 
@@ -275,6 +285,8 @@ func doctorHint(result checkResult) string {
 		return "Run andurel tool sync to install or update framework tools."
 	case "Project setup":
 		return "Run andurel tool sync and install the frontend dependencies from the project root."
+	case "Manual actions":
+		return "Apply the pending actions from 'andurel inspect upgrade-notes --from <old-version>', or confirm your own implementation is equivalent, then run doctor again."
 	case "Runtime config":
 		return "Run go run ./cmd/configcheck from the project root for the full reason."
 	case "Inertia SSR":
@@ -356,6 +368,7 @@ func runDoctor(cmd *cobra.Command, currentVersion string, verbose bool) error {
 		checkAndurelVersion(rootDir, currentVersion),
 		checkToolVersions(rootDir, verbose),
 		checkProjectSetup(rootDir),
+		checkManualActions(rootDir, currentVersion),
 		checkRuntimeConfiguration(rootDir),
 		checkInertiaSSRConfiguration(rootDir),
 	}
@@ -579,6 +592,57 @@ func checkLockFile(rootDir string) checkResult {
 		name:    layout.ProjectTomlName,
 		status:  statusPass,
 		message: fmt.Sprintf("valid (version: %s, %d tools)", lock.Version, len(lock.Tools)),
+	}
+}
+
+func checkManualActions(rootDir, currentVersion string) checkResult {
+	lock, err := layout.ReadLockFile(rootDir)
+	if err != nil || lock.Version == "" {
+		return checkResult{
+			name:    "Manual actions",
+			status:  statusSkip,
+			message: "andurel.lock has no framework version (skipping manual action checks)",
+		}
+	}
+	inertia := lock.ScaffoldConfig != nil &&
+		layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia)
+	checks := upgrade.CheckManualActions(rootDir, lock.Version, currentVersion, inertia)
+	if len(checks) == 0 {
+		return checkResult{
+			name:    "Manual actions",
+			status:  statusPass,
+			message: "no manual actions apply to version " + lock.Version,
+		}
+	}
+
+	applied, notApplied, notApplicable := 0, 0, 0
+	details := make([]string, 0, len(checks))
+	for _, check := range checks {
+		switch check.Status {
+		case upgrade.ActionApplied:
+			applied++
+		case upgrade.ActionNotApplied:
+			notApplied++
+		case upgrade.ActionNotApplicable:
+			notApplicable++
+		}
+		detail := fmt.Sprintf("%s: %s", check.ID, check.Status)
+		if check.Detail != "" {
+			detail += " (" + check.Detail + ")"
+		}
+		details = append(details, detail)
+	}
+
+	status := statusPass
+	if notApplied > 0 {
+		status = statusWarn
+	}
+	return checkResult{
+		name:          "Manual actions",
+		status:        status,
+		message:       fmt.Sprintf("%d applied, %d not applied, %d not applicable", applied, notApplied, notApplicable),
+		details:       details,
+		manualActions: checks,
 	}
 }
 

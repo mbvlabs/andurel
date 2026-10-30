@@ -31,6 +31,7 @@ func isInAndurelProject() bool {
 
 // NewRootCommand creates a new root command.
 func NewRootCommand(version, date string) *cobra.Command {
+	output.SetCLIVersion(version)
 	rootCmd := &cobra.Command{
 		Use:   "andurel",
 		Short: "Space-grade Go framework for humans and agents",

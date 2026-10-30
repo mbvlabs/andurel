@@ -83,8 +83,57 @@ func TestOKRendersJSONEnvelope(t *testing.T) {
 	if !envelope.OK || envelope.Summary != "Generated post" {
 		t.Fatalf("unexpected envelope: %#v", envelope)
 	}
+	if envelope.CLIVersion != CLIVersion() {
+		t.Fatalf("cli_version = %q, want %q", envelope.CLIVersion, CLIVersion())
+	}
 	if len(envelope.Breadcrumbs) != 1 || envelope.Breadcrumbs[0].Command != "andurel run" {
 		t.Fatalf("unexpected breadcrumbs: %#v", envelope.Breadcrumbs)
+	}
+}
+
+func TestEnvelopesCarryCLIVersion(t *testing.T) {
+	previous := CLIVersion()
+	SetCLIVersion("v2.0.0-beta.4")
+	t.Cleanup(func() { SetCLIVersion(previous) })
+
+	var out bytes.Buffer
+	cmd := &cobra.Command{Use: "andurel"}
+	RegisterPersistentFlags(cmd)
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	if err := cmd.PersistentFlags().Set("json", "true"); err != nil {
+		t.Fatalf("set --json: %v", err)
+	}
+	if err := OK(cmd, map[string]string{"id": "post"}, "ok"); err != nil {
+		t.Fatalf("OK returned error: %v", err)
+	}
+	if !strings.Contains(out.String(), `"cli_version": "v2.0.0-beta.4"`) {
+		t.Fatalf("success envelope is missing cli_version:\n%s", out.String())
+	}
+
+	out.Reset()
+	err := NewError(CodeProjectNotFound, "not in an Andurel project", ExitProject, "run from a project")
+	if renderErr := RenderError(cmd, err); renderErr != nil {
+		t.Fatalf("RenderError: %v", renderErr)
+	}
+	var envelope ErrorEnvelope
+	if decodeErr := json.Unmarshal(out.Bytes(), &envelope); decodeErr != nil {
+		t.Fatalf("decode error envelope: %v\n%s", decodeErr, out.String())
+	}
+	if envelope.CLIVersion != "v2.0.0-beta.4" {
+		t.Fatalf("error cli_version = %q, want v2.0.0-beta.4", envelope.CLIVersion)
+	}
+	if envelope.Code != CodeProjectNotFound {
+		t.Fatalf("error code = %q, want %q", envelope.Code, CodeProjectNotFound)
+	}
+}
+
+func TestSetCLIVersionFallsBackToDev(t *testing.T) {
+	previous := CLIVersion()
+	t.Cleanup(func() { SetCLIVersion(previous) })
+	SetCLIVersion("  ")
+	if got := CLIVersion(); got != "dev" {
+		t.Fatalf("CLIVersion() = %q, want dev", got)
 	}
 }
 

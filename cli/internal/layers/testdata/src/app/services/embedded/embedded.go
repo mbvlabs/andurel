@@ -20,7 +20,7 @@ func (p Probe) Exec(ctx context.Context) error {
 }
 
 func (p Probe) Pool(ctx context.Context) error {
-	_, err := p.db.Pool().Exec(ctx, "delete from users") // want "db-handle"
+	_, err := p.db.Pool().Exec(ctx, "delete from users") // want "db-handle" "db-handle"
 	return err
 }
 
