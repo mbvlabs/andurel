@@ -147,7 +147,7 @@ function routeHelper<Args extends unknown[]>(def: {
 
 - [ ] Path, name, and params declared with the `routing` helpers.
 - [ ] `routing.TypeScriptRoute()` set on every route the frontend links to.
-- [ ] Handler `Register` uses `routes.<Name>.Path()`.
+- [ ] Handler `Register` uses `routes.<Name>.Pattern()`; use `Path()` for URLs.
 - [ ] `andurel sync routes` run for Inertia projects; the generated key is the
       lower-camelCase variable name.
 - [ ] `andurel inspect routes --json` reports the new route.

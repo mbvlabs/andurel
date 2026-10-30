@@ -72,8 +72,9 @@ The payloads/ package is the single source of TypeScript payload types, like
 routes/ is for resources/js/routes.ts. Every exported struct declared in
 payloads/ is emitted; nested named structs in the same package are followed.
 Fields tagged json:"-" are omitted, and json:",omitempty" fields are optional.
-Non-omitempty slices and []byte are nullable because a nil Go value encodes as
-JSON null. Untagged embedded structs flatten like encoding/json; an embed with
+Non-omitempty slices, []byte, and map[string]any are nullable because a nil Go
+value encodes as JSON null. Heterogeneous maps emit Record<string, unknown>.
+Untagged embedded structs flatten like encoding/json; an embed with
 an explicit JSON name stays nested, and a pointer embed makes its promoted
 fields optional. database/sql Null* structs are rejected because they encode
 as objects: use pointer fields such as *string.
@@ -461,6 +462,25 @@ func (s *payloadScan) mapType(
 	loc := fmt.Sprintf("%s:%d", structure.sourceFile, s.fset.Position(expr.Pos()).Line)
 	fieldName := fieldIdent(field)
 	switch typed := expr.(type) {
+	case *ast.MapType:
+		key, ok := typed.Key.(*ast.Ident)
+		if !ok || key.Name != "string" {
+			return "", false, unmappedTypeError(loc, fieldName, exprString(expr))
+		}
+		valid := false
+		switch value := typed.Value.(type) {
+		case *ast.Ident:
+			valid = value.Name == "any"
+		case *ast.InterfaceType:
+			valid = value.Methods != nil && value.Methods.NumFields() == 0
+		}
+		if !valid {
+			return "", false, unmappedTypeError(loc, fieldName, exprString(expr))
+		}
+		if omitempty {
+			return "Record<string, unknown>", false, nil
+		}
+		return nullableType("Record<string, unknown>"), false, nil
 	case *ast.StarExpr:
 		inner, usedJSON, err := s.mapType(structure, typed.X, field, false)
 		if err != nil {

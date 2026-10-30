@@ -62,8 +62,8 @@ func NewProductHandler(products domains.Products, renderer *inertia.Renderer) Pr
 }
 
 func (h ProductHandler) Register(rt *anduin.Router) {
-	rt.Get(routes.ProductIndex.Path(), h.Index)
-	rt.Post(routes.ProductCreate.Path(), h.Create)
+	rt.Get(routes.ProductIndex.Pattern(), h.Index)
+	rt.Post(routes.ProductCreate.Pattern(), h.Create)
 }
 
 func (h ProductHandler) Index(ctx context.Context) error {

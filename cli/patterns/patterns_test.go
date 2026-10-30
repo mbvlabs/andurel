@@ -6,11 +6,25 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/mbvlabs/andurel/v2/cli/patterns"
 )
+
+func TestRegistrationExamplesUsePattern(t *testing.T) {
+	bad := regexp.MustCompile(`(?m)(?:rt\.(?:Host\([^\n]*\)\.)?(?:Get|Post|Put|Patch|Delete)\([^\n]*routes\.[A-Za-z]+\.Path\(\)|Handler .*Register.*routes\.<Name>\.Path\(\))`)
+	for _, name := range []string{"handler", "route", "middleware"} {
+		data, err := os.ReadFile(filepath.Join("assets", name+".md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if match := bad.Find(data); match != nil {
+			t.Errorf("%s: registration uses Path: %s", name, match)
+		}
+	}
+}
 
 func TestAssetsAreComplete(t *testing.T) {
 	if err := patterns.Err(); err != nil {

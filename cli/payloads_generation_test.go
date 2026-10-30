@@ -51,6 +51,50 @@ func TestRenderPayloadsTSGoldenWidget(t *testing.T) {
 	}
 }
 
+func TestRenderPayloadsTSHeterogeneousMaps(t *testing.T) {
+	root := setupPayloadsProject(t, "vue")
+	writePayloadsStructs(t, root, "payloads/maps.go", `package payloads
+type Props struct {
+ Values map[string]any `+"`json:\"values\"`"+`
+ Optional map[string]interface{} `+"`json:\"optional,omitempty\"`"+`
+ Nested []map[string]any `+"`json:\"nested\"`"+`
+ Pointer *map[string]any `+"`json:\"pointer,omitempty\"`"+`
+}`)
+	got, _, err := renderPayloadsTS(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"values: Record<string, unknown> | null", "optional?: Record<string, unknown>", "nested: (Record<string, unknown> | null)[] | null", "pointer?: Record<string, unknown> | null"} {
+		if !strings.Contains(string(got), want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+}
+
+func TestHeterogeneousMapJSONWireShape(t *testing.T) {
+	type props struct {
+		Values   map[string]any   `json:"values"`
+		Optional map[string]any   `json:"optional,omitempty"`
+		Nested   []map[string]any `json:"nested"`
+		Pointer  *map[string]any  `json:"pointer,omitempty"`
+	}
+	var nilMap map[string]any
+	tests := []struct {
+		value props
+		want  string
+	}{
+		{props{}, `{"values":null,"nested":null}`},
+		{props{Values: map[string]any{"n": 1, "x": nil, "obj": map[string]any{"ok": true}}, Optional: map[string]any{}, Nested: []map[string]any{nil, {}}, Pointer: &nilMap}, `{"values":{"n":1,"obj":{"ok":true},"x":null},"nested":[null,{}],"pointer":null}`},
+		{props{Values: map[string]any{}, Optional: map[string]any{"x": "y"}, Nested: []map[string]any{}}, `{"values":{},"optional":{"x":"y"},"nested":[]}`},
+	}
+	for _, tt := range tests {
+		got, err := json.Marshal(tt.value)
+		if err != nil || string(got) != tt.want {
+			t.Errorf("marshal = %s, %v; want %s", got, err, tt.want)
+		}
+	}
+}
+
 // TestRenderPayloadsTSScaffoldPayloadsPackage guards that the scaffold ships
 // the auth request bodies and page props in payloads/, so sync payloads emits
 // the types the auth pages pass to useForm and the welcome page receives.

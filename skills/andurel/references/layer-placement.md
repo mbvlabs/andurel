@@ -182,6 +182,64 @@ error`. They read input with `anduin`, decode request bodies into a struct from
 - After adding or changing a payload struct, run `andurel sync payloads` and
   import the generated types from `@/types/payloads`.
 
+### Mapping nested read models
+
+Keep the transport shape independent of the read model. For example, declare
+the following in `payloads/`, with no import of the application docs package:
+
+```go
+type NavItem struct {
+    Title string `json:"title"`
+    Children []NavItem `json:"children"`
+}
+type Preview struct { Token string `json:"token"` }
+type DocsShowProps struct {
+    Navigation []NavItem `json:"navigation"`
+    Preview *Preview `json:"preview"`
+    Metadata map[string]any `json:"metadata,omitempty"`
+}
+```
+
+In the handler, explicitly map the read model, sharing the same mapping and
+`DocsShowProps` for public and preview pages. Map each field deliberately, so
+internal fields cannot leak. For example, if `docs.Node` has the same named
+fields, the recursive adapter preserves nil collections rather than silently
+turning JSON null into an empty array:
+
+```go
+func navPayload(nodes []docs.Node) []payloads.NavItem {
+    if nodes == nil { return nil }
+    result := make([]payloads.NavItem, 0, len(nodes))
+    for _, node := range nodes {
+        result = append(result, payloads.NavItem{
+            Title: node.Title, Children: navPayload(node.Children),
+        })
+    }
+    return result
+}
+// Both public and preview handlers use navPayload; set Preview only for preview.
+props := payloads.DocsShowProps{Navigation: navPayload(model.Navigation)}
+if preview != nil { props.Preview = &payloads.Preview{Token: preview.Token} }
+return renderer.Page(ctx, "Docs/Show", inertia.FromStruct(props))
+```
+
+Test the adapter and encoded JSON for public and preview, including nested nil
+and empty slices. A nil slice without `omitempty` is `null`, not `[]`; choose
+non-nil slices if the wire contract guarantees arrays, otherwise handle null
+recursively in the frontend. A nil pointer without `omitempty` emits null;
+`omitempty` omits a nil pointer and nil or empty map/slice. A non-nil pointer
+to a nil map still emits null. Preserve these distinctions when changing DTOs.
+`map[string]any` (also `map[string]interface{}`) represents heterogeneous JSON
+objects as `Record<string, unknown> | null`, or an optional non-null record
+with `omitempty`; values must actually be JSON-marshalable. Narrow unknown
+values before using them in TypeScript. `json.RawMessage` remains useful for
+already-encoded arbitrary JSON, including non-object values.
+
+`inertia.FromStruct` can place a typed nil pointer in its props map: comparing
+`props["preview"] == nil` is false even though JSON encodes it as null. Root
+policies inspecting props before encoding must recognize the expected typed nil
+pointer explicitly, and fail closed for unexpected types; test both cases.
+
 ## Routes
 
 Route *data* lives in `routes/` as package variables built with the
@@ -272,6 +330,10 @@ call `lifecycle.Run` around the app's start and stop. `cmd/migrate` and
 `cmd/seeds` load environment, open Postgres, run one task, and exit.
 
 Wiring is explicit constructor injection. There is no container.
+When adapting an existing application, move the actual constructor graph into
+`app/`: construct infrastructure, domains, services and handlers there, then
+register handlers on the router before starting the server. Keep entrypoints
+small; do not preserve a separate runtime composition package in parallel.
 
 - New config providers: `config/`.
 - New domains: construct them in `app/` with `domains.NewX(db)` and pass them
