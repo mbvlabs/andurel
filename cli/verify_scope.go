@@ -271,9 +271,10 @@ type verifyScope struct {
 }
 
 const (
-	verifyScopeAll     = "all"
-	verifyScopeChanged = "changed"
-	verifyDefaultBase  = "HEAD"
+	verifyScopeAll      = "all"
+	verifyScopePackages = "packages"
+	verifyScopeChanged  = "changed"
+	verifyDefaultBase   = "HEAD"
 )
 
 // verifyChangedEntry is one changed path with its git status letter. A rename
@@ -321,6 +322,10 @@ func buildVerifyPlan(
 	if !changed {
 		plan.scope.Mode = verifyScopeAll
 		plan.patterns = goPatternArgs(patterns)
+		if len(patterns) > 0 {
+			plan.scope.Mode = verifyScopePackages
+			plan.scope.GoPackages = append([]string(nil), patterns...)
+		}
 		return plan, nil
 	}
 	if len(patterns) > 0 {
