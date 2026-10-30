@@ -1,6 +1,6 @@
 # Composition
 
-`internal/runtime` is the composition root. It constructs the dependency graph
+`app` is the composition root. It constructs the dependency graph
 explicitly, bottom-up, with one constructor per process: `New` owns the HTTP
 `Handler`, the `anduin.Server`, and every dependency between them. There is no
 `NewServer` to glue, no `middleware.NewJar`, and no Fx: every dependency and
@@ -11,7 +11,7 @@ definition); generic middleware such as rate limiting and CSRF comes from
 `pkg/anduin`. The cookie jar and the cache store are built here, in `newJar`
 and `cfg.Cache.Store()`.
 
-The snippet below is the shape of the scaffold's `internal/runtime/runtime.go`.
+The snippet below is the shape of the scaffold's `app/runtime.go`.
 `<module>` stands for your `go.mod` module path (for example
 `example.com/app`); substitute it for the imports. Keep the rest of the file's
 helpers (`newRenderer`, `newJar`, `newTelemetry`, `validateEmailConfig`) beside
@@ -19,9 +19,9 @@ it.
 
 ## Files
 
-### internal/runtime/runtime.go
+### app/runtime.go
 ```go fragment
-package runtime
+package app
 
 import (
 	"context"
@@ -59,7 +59,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 
 	hosts, err := routing.NewHosts(cfg.App.Hosts)
 	if err != nil {
-		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
+		return nil, fmt.Errorf("app: configure hosts: %w", err)
 	}
 
 	// Each dependency registers its cleanup as soon as it exists, so a failure
@@ -264,7 +264,7 @@ func (a *App) Close(ctx context.Context) error {
 
 ## Rules
 
-- Construct dependencies bottom-up in `internal/runtime/runtime.go` with one `New`.
+- Construct dependencies bottom-up in `app/runtime.go` with one `New`.
 - Build the jar in `newJar` and the cache with `cfg.Cache.Store()`; middleware is policy only.
 - Register flat handlers with `handlers.NewXHandler(...).Register(router)`; there is no reflection. `PagesHandler.Register` takes the router plus optional middleware and mounts the public home page when none is passed, `AssetsHandler.Register` takes only the router, and `APIHandler` takes the liveness and readiness checkers.
 - `/api/health` is liveness and `/api/ready` is readiness: readiness requires the database and, when the renderer-wide SSR default is on with fail-fast, a healthy Inertia SSR sidecar. `/api/ready` answers 200 `{"status":"ready"}` or 503 `{"status":"unready","reason":"database_unavailable"}` / `{"status":"unready","reason":"unavailable"}`. Keep the two separate so orchestration can hold traffic until the process can render a page.
@@ -272,16 +272,16 @@ func (a *App) Close(ctx context.Context) error {
 - Global CORS trusts only `CORS_ALLOWED_ORIGINS`. Never add `cfg.App.Origins()` to CORS: host origins belong in CSRF trusted origins, not in a credentialed read policy. Public Vite assets carry their own uncredentialed `*` CORS on the asset route.
 - Host-scoped policy (framing headers, analytics) branches on `anduin.RequestHost(ctx)` in global middleware; never re-parse `Request.Host`.
 - Add each dependency's cleanup to a `lifecycle.Stack` as soon as it is built; `Close` releases them in reverse, and the same path cleans up a failed `New`.
-- `cmd/app` is env load + `runtime.New` + `lifecycle.Run`, with `lifecycle.WithBlockingStart()` for the HTTP serve loop, `app.Shutdown` as stop and a deferred `closeApp` releasing the rest. Ready-returning starters such as the queue worker use the default, which finishes startup before shutdown.
+- `cmd/app` is env load + `app.New` + `lifecycle.Run`, with `lifecycle.WithBlockingStart()` for the HTTP serve loop, `app.Shutdown` as stop and a deferred `closeApp` releasing the rest. Ready-returning starters such as the queue worker use the default, which finishes startup before shutdown.
 - Add a new dependency by constructing it here and passing it down; never reach for a container or a global.
 - Build one `storage.NewTransactor(db)` and each domain receiver with `domains.NewX(db)`, then pass them individually to the services and handlers that use them. Handlers that need only health take a narrow interface (`healthChecker`, satisfied by `db`).
-- Only the wiring layers (`internal/runtime`, `cmd`, `seeds`, `migrations`) and `domains` may name `storage.Connection`; services and handlers never do.
+- Only the wiring layers (`app`, `cmd`, `seeds`, `migrations`) and `domains` may name `storage.Connection`; services and handlers never do.
 - A new domain is one `domains.NewX(db)` line here, passed to whoever uses it.
 - Validate boot-time configuration before building the graph (the scaffold's `validateEmailConfig` is the worked example), so a misconfigured process fails at startup instead of on the first request.
 
 ## Checklist
 
-- [ ] New dependency constructed explicitly in `runtime.New`.
+- [ ] New dependency constructed explicitly in `app.New`.
 - [ ] `anduin.WithHosts(hosts)` is passed to `anduin.NewRouter`.
 - [ ] Handler registered with a constructor call plus `Register(router)` and the right middleware arguments.
 - [ ] Shutdown function added to the `lifecycle.Stack` if needed.

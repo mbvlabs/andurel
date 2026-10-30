@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
+	"{{.ModuleName}}/app"
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/internal/runtime"
 
 	"github.com/mbvlabs/andurel/pkg/env"
 	"github.com/mbvlabs/andurel/pkg/inertia"
@@ -45,15 +45,15 @@ func run() error {
 	ctx, cancel := lifecycle.NotifyContext(context.Background())
 	defer cancel()
 
-	app, err := runtime.New(ctx, cfg)
+	application, err := app.New(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	defer closeApp(app)
+	defer closeApp(application)
 
 	return lifecycle.Run(ctx, func(context.Context) error {
-		return app.Start()
-	}, app.Shutdown, lifecycle.WithBlockingStart())
+		return application.Start()
+	}, application.Shutdown, lifecycle.WithBlockingStart())
 }
 
 // warnIfSSRUnreachable probes the SSR sidecar once at boot so a missing
@@ -85,11 +85,11 @@ func warnIfSSRUnreachable(cfg config.Inertia) {
 
 // closeApp releases dependencies in reverse construction order. It is deferred
 // after construction so it also runs when the server exits with an error.
-func closeApp(app *runtime.App) {
+func closeApp(application *app.App) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := app.Close(ctx); err != nil {
+	if err := application.Close(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 	}
 }

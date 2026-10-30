@@ -1,4 +1,4 @@
-package runtime_test
+package app_test
 
 import (
 	"errors"
@@ -28,7 +28,7 @@ func TestMain(m *testing.M) {
 func testConfig(t *testing.T) config.Config {
 	t.Helper()
 
-	if err := env.Load("../../.env"); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err := env.Load("../.env"); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("load environment: %v", err)
 	}
 	setDefaultEnvironment(t, "HOST_PRIMARY", "localhost:8080")

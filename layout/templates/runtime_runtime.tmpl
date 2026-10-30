@@ -1,4 +1,4 @@
-package runtime
+package app
 
 import (
 	"context"
@@ -46,7 +46,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 
 	hosts, err := routing.NewHosts(cfg.App.Hosts)
 	if err != nil {
-		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
+		return nil, fmt.Errorf("app: configure hosts: %w", err)
 	}
 
 	app := &App{Config: cfg}
@@ -389,7 +389,7 @@ func validateEmailConfig(cfg config.Mail, app config.App) error {
 
 // NewRenderer builds the Inertia renderer cmd/app uses, including the shared
 // props and kiks flash providers. Tests use it so their renderer mirrors the
-// runtime wiring instead of duplicating it.
+// app wiring instead of duplicating it.
 func NewRenderer(cfg config.Config, hosts *routing.Hosts) (*inertia.Renderer, error) {
 	return inertia.NewRenderer(
 		inertia.RendererConfig{

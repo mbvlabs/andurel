@@ -114,13 +114,13 @@ func TestCompositionPatternMatchesScaffoldRuntime(t *testing.T) {
 
 	var source string
 	for _, file := range pattern.Files {
-		if file.Path == "internal/runtime/runtime.go" {
+		if file.Path == "app/runtime.go" {
 			source = file.Content
 			break
 		}
 	}
 	if source == "" {
-		t.Fatal("composition pattern has no internal/runtime/runtime.go snippet")
+		t.Fatal("composition pattern has no app/runtime.go snippet")
 	}
 
 	templateBytes, err := os.ReadFile(
@@ -176,7 +176,7 @@ func TestFragmentOnlyAppearsWhenMarked(t *testing.T) {
 	}
 
 	marked, err := json.Marshal(patterns.File{
-		Path:     "internal/runtime/runtime.go",
+		Path:     "app/runtime.go",
 		Language: "go",
 		Content:  "package runtime\n",
 		Fragment: true,

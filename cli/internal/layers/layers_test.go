@@ -64,6 +64,7 @@ func TestAnalyzers(t *testing.T) {
 		{name: "mixed-in-tx-contracts", pkg: "app/services/intxcontracts", rules: []string{"tx-escape"}},
 		{name: "shape6-free-function", pkg: "app/services/shape6", rules: []string{"tx-escape"}},
 		{name: "shape7-handler-transactor", pkg: "app/handlers/shape7", rules: []string{"tx-layer"}},
+		{name: "payloads-imports", pkg: "app/payloads/bad", rules: []string{"payloads-import"}},
 		{name: "shape8-domain-transport", pkg: "app/domains/transportprobe", rules: []string{"domain-transport"}},
 		{name: "shape9-control", pkg: "app/services/shape9", rules: []string{"tx-escape"}},
 		{name: "import-alias", pkg: "app/services/alias", rules: []string{"tx-escape"}},
@@ -97,7 +98,8 @@ func TestAnalyzersAllowBoundAndDomainCode(t *testing.T) {
 		{name: "bound-locals", pkg: "app/services/clean"},
 		{name: "mixed-in-tx-contracts", pkg: "app/services/intxcontracts"},
 		{name: "domains-own-the-handle", pkg: "app/domains"},
-		{name: "runtime-wiring", pkg: "app/internal/runtime"},
+		{name: "app-wiring", pkg: "app/app"},
+		{name: "payloads-are-data", pkg: "app/payloads"},
 	}
 	for _, clean := range cleanPackages {
 		t.Run(clean.name, func(t *testing.T) {

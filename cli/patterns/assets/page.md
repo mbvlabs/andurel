@@ -13,6 +13,25 @@ sync; the adapter's `import.meta.glob('./Pages/**/*.<ext>')` is the resolver.
 
 ## Files
 
+### payloads/product_page.go
+```go fragment
+package payloads
+
+// Product is the page-shaped view of a domain entity; payloads stays free of
+// application imports.
+type Product struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	PriceCents int64  `json:"priceCents"`
+}
+
+// ProductIndexProps is the page contract: one exported field per prop, with
+// the JSON name the component receives.
+type ProductIndexProps struct {
+	Products []Product `json:"products"`
+}
+```
+
 ### handlers/products.go (edit)
 ```go fragment
 package handlers
@@ -20,16 +39,10 @@ package handlers
 import (
 	"context"
 
-	"app/domains"
+	"app/payloads"
 
 	"github.com/mbvlabs/andurel/pkg/inertia"
 )
-
-// ProductIndexProps is the page contract: one exported field per prop, with
-// the JSON name the component receives.
-type ProductIndexProps struct {
-	Products []domains.Product `json:"products"`
-}
 
 func (h ProductHandler) Index(ctx context.Context) error {
 	result, err := h.products.Paginate(ctx, 1, 25)
@@ -37,9 +50,18 @@ func (h ProductHandler) Index(ctx context.Context) error {
 		return err
 	}
 
-	return h.renderer.Page(ctx, "Product/Index", inertia.FromStruct(ProductIndexProps{
-		Products: result.Items,
-	})).Render()
+	props := payloads.ProductIndexProps{
+		Products: make([]payloads.Product, 0, len(result.Items)),
+	}
+	for _, item := range result.Items {
+		props.Products = append(props.Products, payloads.Product{
+			ID:         item.ID.String(),
+			Name:       item.Name,
+			PriceCents: item.PriceCents,
+		})
+	}
+
+	return h.renderer.Page(ctx, "Product/Index", inertia.FromStruct(props)).Render()
 }
 ```
 
@@ -49,16 +71,7 @@ import { Link } from '@inertiajs/react'
 
 import Layout from '@/Layouts/Layout'
 import { routes } from '@/routes'
-
-type Product = {
-  id: string
-  name: string
-  priceCents: number
-}
-
-type ProductIndexProps = {
-  products: Product[]
-}
+import type { ProductIndexProps } from '@/types/payloads'
 
 export default function ProductIndex({ products }: ProductIndexProps) {
   return (
@@ -88,16 +101,9 @@ import { Link } from '@inertiajs/vue3'
 
 import Layout from '@/Layouts/Layout.vue'
 import { routes } from '@/routes'
+import type { ProductIndexProps } from '@/types/payloads'
 
-type Product = {
-  id: string
-  name: string
-  priceCents: number
-}
-
-defineProps<{
-  products: Product[]
-}>()
+defineProps<ProductIndexProps>()
 </script>
 
 <template>
@@ -128,14 +134,9 @@ defineProps<{
 
   import Layout from '@/Layouts/Layout.svelte'
   import { routes } from '@/routes'
+  import type { ProductIndexProps } from '@/types/payloads'
 
-  type Product = {
-    id: string
-    name: string
-    priceCents: number
-  }
-
-  let { products }: { products: Product[] } = $props()
+  let { products }: ProductIndexProps = $props()
 </script>
 
 <Layout>
@@ -160,11 +161,13 @@ defineProps<{
 - One component file per page, named after the `renderer.Page` component
   string: `Product/Index` → `Pages/Product/Index.tsx` (React), `.vue` (Vue), or
   `.svelte` (Svelte). The default scaffold adapter is React.
-- Pass props from Go with `inertia.Props{...}` for a small map or
-  `inertia.FromStruct(SomeProps{...})` for a typed contract. Only exported
-  fields become props; each uses its `json` name (or the Go field name when
-  untagged), and `json:"-"` is skipped. Do not pass a domain entity if the page
-  needs a subset — define a page-owned props struct.
+- Declare page props as exported structs in `payloads/` and pass them with
+  `inertia.FromStruct(payloads.SomeProps{...})`. Only exported fields become
+  props; each uses its `json` name (or the Go field name when untagged), and
+  `json:"-"` is skipped. Do not pass a domain entity: copy the fields the page
+  needs onto a payload struct, because `payloads/` may not import the app.
+- Import the generated prop type from `@/types/payloads` in the component
+  instead of redeclaring it; `andurel sync payloads` keeps the file current.
 - Every page also receives the shared props: `auth.isAuthenticated` from the
   scaffold's shared provider, `hosts` (feed it to `configureRouteHosts` at
   boot), `appVersion`, and the `errors` map (empty on success, populated on a

@@ -12,7 +12,7 @@ import (
 	layouttemplates "github.com/mbvlabs/andurel/v2/layout/templates"
 )
 
-// configCheckOutput mirrors the JSON the generated internal/configcheck prints.
+// configCheckOutput mirrors the JSON the generated cmd/configcheck prints.
 type configCheckOutput struct {
 	OK     bool `json:"ok"`
 	Config struct {
@@ -145,7 +145,7 @@ func renderConfigCheckModule(t *testing.T) string {
 	if err := renderTemplate(
 		root,
 		"internal_configcheck_main.tmpl",
-		"internal/configcheck/main.go",
+		"cmd/configcheck/main.go",
 		layouttemplates.Files,
 		data,
 	); err != nil {
@@ -191,7 +191,7 @@ require (
 func runConfigCheck(t *testing.T, root string, env map[string]string) configCheckOutput {
 	t.Helper()
 
-	cmd := exec.Command("go", "run", "./internal/configcheck")
+	cmd := exec.Command("go", "run", "./cmd/configcheck")
 	cmd.Dir = root
 	cmd.Env = []string{
 		"PATH=" + os.Getenv("PATH"),

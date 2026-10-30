@@ -127,10 +127,10 @@ func txUnwrapAnalyzer(cfg Config) *analysis.Analyzer {
 
 func txLayerAnalyzer(cfg Config) *analysis.Analyzer {
 	return newAnalyzer("tx-layer",
-		"storage.AtomicOps and storage.Transactor stay in services, domains, and internal/runtime",
+		"storage.AtomicOps and storage.Transactor stay in services, domains, and app",
 		func(pass *analysis.Pass) error {
 			dir := pkgDir(cfg, pass)
-			if inDir(dir, "services") || inDir(dir, "domains") || inDir(dir, "internal/runtime") {
+			if inDir(dir, "services") || inDir(dir, "domains") || inDir(dir, "app") {
 				return nil
 			}
 			for ident, object := range pass.TypesInfo.Uses {
@@ -142,6 +142,34 @@ func txLayerAnalyzer(cfg Config) *analysis.Analyzer {
 					Message: "references storage." + object.Name() +
 						"; transaction orchestration belongs in services/**",
 				})
+			}
+			return nil
+		})
+}
+
+// payloadsImportAnalyzer keeps payload structs free of transport and
+// persistence dependencies: every exported struct in payloads/ is emitted to
+// TypeScript, so the package accepts only values the generator can map.
+func payloadsImportAnalyzer(cfg Config) *analysis.Analyzer {
+	return newAnalyzer("payloads-import",
+		"payloads import only the standard library and mappable types",
+		func(pass *analysis.Pass) error {
+			if !inDir(pkgDir(cfg, pass), "payloads") {
+				return nil
+			}
+			for _, file := range pass.Files {
+				for _, imported := range file.Imports {
+					path := importPath(imported)
+					if !isPayloadForbiddenImport(path) &&
+						(path != cfg.Module && !strings.HasPrefix(path, cfg.Module+"/")) {
+						continue
+					}
+					pass.Report(analysis.Diagnostic{
+						Pos: imported.Pos(),
+						Message: "imports " + path +
+							"; payloads may use only the standard library, time, and uuid types",
+					})
+				}
 			}
 			return nil
 		})
@@ -176,6 +204,18 @@ func domainTransportAnalyzer(cfg Config) *analysis.Analyzer {
 			}
 			return nil
 		})
+}
+
+func isPayloadForbiddenImport(path string) bool {
+	switch path {
+	case "net/http",
+		"github.com/mbvlabs/andurel/pkg/storage",
+		"github.com/mbvlabs/andurel/pkg/anduin",
+		"github.com/mbvlabs/andurel/pkg/inertia":
+		return true
+	default:
+		return false
+	}
 }
 
 func importPath(spec *ast.ImportSpec) string {

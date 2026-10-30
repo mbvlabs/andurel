@@ -1,13 +1,9 @@
 package cli
 
 import (
-	"bytes"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
-	"text/template"
 
 	"github.com/mbvlabs/andurel/v2/cli/internal/layers"
 )
@@ -82,33 +78,5 @@ func TestUnknownRuleMentions(t *testing.T) {
 	got := unknownRuleMentions(text, layers.Catalog())
 	if !slices.Equal(got, []string{"tx-bypass"}) {
 		t.Fatalf("unknown mentions = %q", got)
-	}
-}
-
-// TestAgentsTemplateRendersVerifyRulesWithoutMarkers checks that the template
-// comments around the generated region leave a clean table in AGENTS.md.
-func TestAgentsTemplateRendersVerifyRulesWithoutMarkers(t *testing.T) {
-	root := findAndurelFrameworkRoot()
-	if root == "" {
-		t.Fatal("andurel framework root not found from the test working directory")
-	}
-	body, err := os.ReadFile(filepath.Join(root, "layout", "templates", "agents.tmpl"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	tmpl, err := template.New("agents").Parse(string(body))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var out bytes.Buffer
-	if err := tmpl.Execute(&out, map[string]string{"ProjectName": "app", "Inertia": "react"}); err != nil {
-		t.Fatal(err)
-	}
-	rendered := out.String()
-	if strings.Contains(rendered, "andurel:verify-rules") {
-		t.Fatalf("AGENTS.md leaks the generated-region markers:\n%s", rendered)
-	}
-	if !strings.Contains(rendered, "\n\n"+renderVerifyRulesMarkdown(layers.Catalog())+"\n## ") {
-		t.Fatalf("AGENTS.md does not carry the rule table as its own block:\n%s", rendered)
 	}
 }

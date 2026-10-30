@@ -68,7 +68,7 @@ func TestIsDomainInternalFile(t *testing.T) {
 		{"domains/internal/notes.go", true},
 		{"domains/user.go", false},
 		{"domains/internal_notes.go", false},
-		{"internal/runtime/runtime.go", false},
+		{"app/runtime.go", false},
 	} {
 		if got := isDomainInternalFile(tc.path); got != tc.want {
 			t.Errorf("isDomainInternalFile(%q) = %v, want %v", tc.path, got, tc.want)
@@ -96,7 +96,7 @@ func TestDomainsCommandExcludesInternalGeneratedFiles(t *testing.T) {
 	writeTestFile(t, root, "domains/internal/queries/models.go", "package queries\n")
 	writeTestFile(t, root, "domains/internal/queries/user.sql.go", "package queries\n")
 	writeTestFile(t, root, "domains/internal/queries/nested/extra.go", "package nested\n")
-	writeTestFile(t, root, "internal/runtime/runtime.go", "package runtime\n"+
+	writeTestFile(t, root, "app/runtime.go", "package app\n"+
 		"\n"+
 		"import \"example.com/app/domains\"\n"+
 		"\n"+

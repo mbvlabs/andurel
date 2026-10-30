@@ -29,11 +29,11 @@ See [release verification](docs/release-verification.md) for archive installatio
 Andurel is built for humans and agents on the same pad:
 
 - **Airframe**: `domains/` (business logic + persistence), `services/` (application logic), `handlers/` (HTTP), `routes/`, and `middleware/` — all ordinary Go you own
-- **GNC**: Explicit constructor injection in `internal/runtime`. The dependency graph is readable top-to-bottom; there is no container and no reflection
+- **GNC**: Explicit constructor injection in `app/`. The dependency graph is readable top-to-bottom; there is no container and no reflection
 - **Propellant**: PostgreSQL with narsilc-generated queries from SQL colocated with the domain that owns it
 - **Payload**: Inertia v3 with React, Vue, or Svelte. One Go backend, official Inertia adapters, optional SSR. Templ survives only for email and the Inertia root document
 - **Range ops**: River jobs, email, and queues on the same stack that serves the request path
-- **Ground support**: Agent-ready CLI with read-only patterns, JSON discovery, and AGENTS.md so machines can operate the project without a second stack
+- **Ground support**: Agent-ready CLI with read-only patterns, JSON discovery, and installed skills so machines can operate the project without a second stack
 - **Live reload**: `andurel run` with [Shadowfax](https://github.com/mbvlabs/shadowfax) for Go, templates, CSS, and Vite (`--tools mailpit` for sidecars)
 - **Production build**: `andurel build` compiles Templ, email Tailwind, Vite assets, and every `cmd/*` process (`app`, `queue`, `migrate`, `ssr`) into `dist/`
 
@@ -147,18 +147,20 @@ A new app is ordinary Go you own. Top-level shape:
 
 | Path | Role |
 |------|------|
-| `cmd/app`, `cmd/queue` | Process entry: load env, signal context, single `runtime.New` / `runtime.NewQueue` (the App owns its Server) |
+| `cmd/app`, `cmd/queue` | Process entry: load env, signal context, single `app.New` / `app.NewQueue` (the App owns its Server) |
 | `cmd/migrate` | One-shot process: apply pending SQL via `storage.RunMigrations` |
 | `cmd/seeds` | One-shot process: run named seed sets |
-| `internal/runtime` | Composition root: explicit constructors, HTTP server + queue lifecycle |
-| `internal/…` | Other app support code, such as third-party adapters (for example `internal/clients`, `internal/payment`) |
+| `cmd/configcheck` | Read-only runtime configuration and database check `andurel doctor` runs |
+| `app/` | Composition root: explicit constructors, HTTP server + queue lifecycle |
+| `payloads/` | Inertia page props and request bodies emitted to `resources/js/types/payloads.ts` |
+| top-level packages | Other app support code and adapters, named for their job (for example `clients/`, `payment/`) |
 | `config/` | App, DB, auth, email, telemetry config |
 | `domains/` | Business logic + persistence in one flat package; SQL colocated as `domains/<entity>.sql` |
 | `domains/internal/queries/` | narsilc output; imported only by `domains/**` |
 | `services/` | Application logic / cross-domain orchestration |
 | `handlers/` | HTTP handlers (`func(ctx context.Context) error`); one flat package |
 | `routes/` | Route data: names, paths, URL builders |
-| `middleware/` | App HTTP middleware (auth, authorization); the cookie jar is built in `internal/runtime` |
+| `middleware/` | App HTTP middleware (auth, authorization); the cookie jar is built in `app/` |
 | `resources/root.templ` | Inertia root document (the only page-shaped templ) |
 | `resources/js/` | Inertia pages, layouts, components, and generated TS helpers |
 | `email/` | templ email templates and send helpers |

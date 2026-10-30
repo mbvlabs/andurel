@@ -123,4 +123,4 @@ has no `Commit` or `Rollback`. The callback's return value decides:
 - [ ] Job args hold ids, never codes, tokens, or emails rendered with them.
 - [ ] No import of `domains/internal/queries`; no `storage.Connection`, `storage.Transaction`, or `storage.Unwrap`.
 - [ ] The service adds orchestration rather than forwarding one call.
-- [ ] Wired once in `internal/runtime`.
+- [ ] Wired once in `app`.

@@ -14,7 +14,6 @@ import (
 	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/mbvlabs/andurel/v2/emailcompiler"
 	"github.com/mbvlabs/andurel/v2/layout"
-	"github.com/spf13/cobra"
 )
 
 type verifyTestEnvelope struct {
@@ -664,55 +663,6 @@ func TestParseGoTestJSONReportsTestSkipReasons(t *testing.T) {
 	}
 }
 
-func TestVerifyGeneratedWarnsOnUnresolvedFromStructRoots(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("stub tools use a POSIX shell script")
-	}
-
-	root := setupPayloadsProject(t, "react")
-	writePayloadsHandler(t, root, "handlers/pages.go", unresolvedFromStructHandlerSource)
-	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
-	if err := generateInertiaArtifacts(root, "react"); err != nil {
-		t.Fatalf("generate inertia artifacts: %v", err)
-	}
-
-	step := verifyGenerated(root)
-	if step.Status != verifyStatusOK || !step.OK {
-		t.Fatalf("unresolved roots must not fail verify: %#v", step)
-	}
-	if len(step.Warnings) != 1 {
-		t.Fatalf("warnings = %#v, want one unresolved FromStruct root", step.Warnings)
-	}
-	warning := step.Warnings[0]
-	for _, want := range []string{
-		"payloads.ts: handlers/pages.go:",
-		unresolvedFromStructReason,
-		"pass a named composite literal or a typed variable",
-	} {
-		if !strings.Contains(warning, want) {
-			t.Fatalf("warning is missing %q: %s", want, warning)
-		}
-	}
-
-	structured, err := json.Marshal(step)
-	if err != nil {
-		t.Fatalf("marshal go test step: %v", err)
-	}
-	if !bytes.Contains(structured, []byte(`"warnings"`)) {
-		t.Fatalf("JSON step is missing warnings: %s", structured)
-	}
-
-	var human bytes.Buffer
-	cmd := &cobra.Command{}
-	cmd.SetOut(&human)
-	if err := renderVerifyHuman(cmd, verifyReport{OK: true, Steps: []verifyStep{step}}); err != nil {
-		t.Fatalf("render verify: %v", err)
-	}
-	if !strings.Contains(human.String(), "warning: "+warning) {
-		t.Fatalf("human output is missing the warning:\n%s", human.String())
-	}
-}
-
 func TestVerifyHelpMentionsSkippedTests(t *testing.T) {
 	var stdout bytes.Buffer
 	cmd := NewRootCommand("test", "test-date")
@@ -722,7 +672,7 @@ func TestVerifyHelpMentionsSkippedTests(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("verify --help: %v", err)
 	}
-	for _, want := range []string{"skipped_tests", "warnings"} {
+	for _, want := range []string{"skipped_tests"} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Fatalf("verify --help should mention %q:\n%s", want, stdout.String())
 		}

@@ -13,6 +13,25 @@ returns a `pkg/validation` error that `MapError` renders as a 422.
 
 ## Files
 
+### payloads/product.go
+```go
+package payloads
+
+// CreateProductPayload is the request body for the product form.
+type CreateProductPayload struct {
+	Name       string `json:"name"`
+	PriceCents int64  `json:"priceCents"`
+}
+
+// Product is the page-shaped view of a domain entity, shared with the page
+// pattern's ProductIndexProps.
+type Product struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	PriceCents int64  `json:"priceCents"`
+}
+```
+
 ### handlers/product.go
 ```go
 package handlers
@@ -22,6 +41,7 @@ import (
 	"net/http"
 
 	"app/domains"
+	"app/payloads"
 	"app/routes"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
@@ -53,18 +73,22 @@ func (h ProductHandler) Index(ctx context.Context) error {
 		return err
 	}
 
-	return h.renderer.Page(ctx, "Product/Index", inertia.FromStruct(result)).Render()
-}
+	props := payloads.ProductIndexProps{ // from the page pattern
+		Products: make([]payloads.Product, 0, len(result.Items)),
+	}
+	for _, item := range result.Items {
+		props.Products = append(props.Products, payloads.Product{
+			ID:         item.ID.String(),
+			Name:       item.Name,
+			PriceCents: item.PriceCents,
+		})
+	}
 
-// CreateProductPayload is named so andurel sync payloads emits a matching
-// TypeScript type for the page's form.
-type CreateProductPayload struct {
-	Name       string `json:"name"`
-	PriceCents int64  `json:"priceCents"`
+	return h.renderer.Page(ctx, "Product/Index", inertia.FromStruct(props)).Render()
 }
 
 func (h ProductHandler) Create(ctx context.Context) error {
-	var payload CreateProductPayload
+	var payload payloads.CreateProductPayload
 	if err := anduin.DecodeJSON(ctx, &payload); err != nil {
 		return anduin.BadRequest(err)
 	}
@@ -117,19 +141,20 @@ func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
 - A handler signature is `func(ctx context.Context) error`.
 - One flat `package handlers`; distinct `NewXHandler` constructors, no sub-packages.
 - Decode payloads at the edge (`anduin.DecodeJSON`/`DecodeForm`); a decode failure is `anduin.BadRequest`. Do not re-implement entity validation.
-- Decode into a named, exported `XPayload` struct, never an anonymous `struct{…}`: `andurel sync payloads` only emits TypeScript for named `*Payload` types, so the frontend form can import it from `@/types/payloads`.
+- Declare page props and request bodies as exported structs in `payloads/`; handlers import `payloads` and decode into a named payload struct, never an anonymous `struct{…}`. `andurel sync payloads` emits every exported `payloads/` struct, so the frontend imports the same contract from `@/types/payloads`.
+- Keep `payloads/` free of application imports: copy the fields a page needs from a domain entity instead of embedding the entity. `andurel verify` reports `payloads-import` for application, storage, anduin, inertia, or `net/http` imports.
 - Depend on the narrowest thing: a receiver (`domains.Products`) for single-domain CRUD, a service for multi-domain use cases. Never `storage.*` or `domains/internal/queries`.
 - Route registration happens in `Register(rt *anduin.Router)`.
 - Return domain errors unchanged; the router error handler maps them uniformly. Never put internal error text in a response: a 5xx is logged and answered generically.
 - Exception: a form that can hit `domains.ErrConflict` (e.g. a taken unique field) checks `errors.Is(err, domains.ErrConflict)` and re-renders its own page with a field error. A registration form must not confirm that an address is already registered: `AuthHandler.RegistrationCreate` answers a duplicate like a successful sign-up and sends nothing. Otherwise the user lands on the generic `Errors/Conflict` page.
-- Construct the handler once in `internal/runtime` (`handlers.NewProductHandler(products, renderer).Register(router)`, with `products := domains.NewProducts(db)`).
+- Construct the handler once in `app` (`handlers.NewProductHandler(products, renderer).Register(router)`, with `products := domains.NewProducts(db)`).
 
 ## Checklist
 
 - [ ] `NewXHandler` constructor lists every dependency.
 - [ ] `Register` binds each route to a method.
-- [ ] Payloads are decoded into named `XPayload` structs, not re-validated; validation errors come from the domain.
-- [ ] `andurel sync payloads --json` reports the new payload type.
+- [ ] Page props and request bodies are exported structs in `payloads/`, not re-validated; validation errors come from the domain.
+- [ ] `andurel sync payloads --json` reports the new payload types.
 - [ ] Handler methods return domain errors untouched.
-- [ ] Wired via `handlers.NewProductHandler(products, renderer).Register(router)` in `internal/runtime`.
+- [ ] Wired via `handlers.NewProductHandler(products, renderer).Register(router)` in `app`.
 - [ ] `andurel inspect handlers --json` lists the new handler, its constructor params, and the routes `Register` mounts.

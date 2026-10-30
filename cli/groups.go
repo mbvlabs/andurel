@@ -17,14 +17,13 @@ func newSyncGroupCommand() *cobra.Command {
 
   queries    domains/**/*.sql → domains/internal/queries
   routes     routes/*.go → resources/js/routes.ts (Inertia)
-  payloads   handler page props/request payloads → resources/js/types/payloads.ts
+  payloads   payloads/ exported structs → resources/js/types/payloads.ts
   email      authored email templates → inlined email renderers
 
 andurel tool sync downloads pinned binaries. It is not this group.`,
 		Example: `  andurel sync queries
   andurel sync routes --json
   andurel sync payloads --json
-  andurel sync payloads --strict
   andurel sync email --json`,
 	}
 	cmd.AddCommand(

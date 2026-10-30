@@ -1,13 +1,13 @@
 # Andurel Inertia v3 adapter
 
 Andurel's Inertia v3 protocol implementation is independently versioned at
-`github.com/mbvlabs/andurel/pkg/inertia`. Application handlers and
-`internal/runtime` import that package directly. The package provides Vite
+`github.com/mbvlabs/andurel/pkg/inertia`. Application handlers and `app/`
+import that package directly. The package provides Vite
 integration, protocol behavior, and the SSR runtime. The application owns its
 compiled templ document at `resources/root.templ` (package `resources`).
 Generated `config/inertia.go` contains the ENV-backed settings.
 `cmd/ssr` loads those fields and passes them into `NewSSRRuntime`;
-`internal/runtime` passes the client URL, timeout, and max response bytes into
+`app/` passes the client URL, timeout, and max response bytes into
 `NewRenderer`. The document renders with the request context, so the root
 template can read router state such as `anduin.RequestHost(ctx)` without an
 extra prop. The browser adapter remains the official
@@ -82,7 +82,7 @@ every initial document response; `Page(...).CSR()` opts a single page out, and
 default). Inertia JSON (`X-Inertia`) visits never render on the server; they
 only carry the page object. The `inertia` package contains the bounded HTTP
 renderer and an optional managed process runtime used by the scaffold's
-`cmd/ssr` entrypoint (Laravel-style). `internal/runtime` constructs a renderer
+`cmd/ssr` entrypoint (Laravel-style). `app/` constructs a renderer
 with `NewRenderer` (HTTP client for optional SSR); `NewSSRRuntime`
 owns Node. Production defaults to fail-fast (`INERTIA_SSR_FAIL_FAST=true`), so
 an SSR failure becomes a 500 rendered through the application's error handler.

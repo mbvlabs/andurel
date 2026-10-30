@@ -30,6 +30,7 @@ func Analyzers(cfg Config) []*analysis.Analyzer {
 		txEscapeAnalyzer(cfg),
 		txPublicCallAnalyzer(cfg),
 		txLayerAnalyzer(cfg),
+		payloadsImportAnalyzer(cfg),
 		domainTransportAnalyzer(cfg),
 		entityColumnsAnalyzer(cfg),
 	}

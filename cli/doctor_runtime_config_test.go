@@ -136,7 +136,7 @@ func TestCheckRuntimeConfigurationReportsEachOutcome(t *testing.T) {
 		stubProjectConfigCheck(
 			t,
 			configCheckReport{},
-			errors.New("exit status 1: internal/configcheck/main.go:4:2: no required module"),
+			errors.New("exit status 1: cmd/configcheck/main.go:4:2: no required module"),
 		)
 
 		got := checkRuntimeConfiguration(root)

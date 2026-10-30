@@ -181,10 +181,10 @@ func newDomainsCommand() *cobra.Command {
 		Long: `List files under domains/ and report each entity's type to column
 mapping: the structs, their andurel-tagged fields, the table, whether the
 entity has a Validate method, and whether its receiver (e.g. Users for User)
-is wired: constructed with domains.NewUsers(db) in internal/runtime.
+is wired: constructed with domains.NewUsers(db) in app.
 
 An entity with wired=false exists but nothing constructs its receiver:
-build it in internal/runtime with domains.New<Receiver>(db) and pass it to
+build it in app with domains.New<Receiver>(db) and pass it to
 the services and handlers that use it.
 
 When narsilc-generated queries are present, each entity also reports
@@ -214,8 +214,8 @@ populated; narsilc leaves extra tags at their zero value.`,
 			if err != nil {
 				return err
 			}
-			wired := runtimeConstructedReceivers(
-				filepath.Join(rootDir, "internal", "runtime"),
+			wired := appConstructedReceivers(
+				filepath.Join(rootDir, "app"),
 				module,
 			)
 			columnStatuses, err := layers.InspectEntityColumns(rootDir)
@@ -242,7 +242,7 @@ populated; narsilc leaves extra tags at their zero value.`,
 	setAgentMetadata(
 		cmd,
 		"introspection",
-		"Read-only domain inventory with the table, type to column mapping, Validate coverage, and runtime wiring. Use --json.",
+		"Read-only domain inventory with the table, type to column mapping, Validate coverage, and app wiring. Use --json.",
 	)
 	return cmd
 }

@@ -1,6 +1,6 @@
 ---
 name: andurel
-description: Use this skill for Andurel framework projects when deciding where code belongs, adding or changing domains, services, handlers, routes, app middleware, background jobs, migrations, config, clients, or framework-adjacent internals. Focuses on project structure, layer placement, the read-only pattern library, and agent-safe CLI usage.
+description: Use this skill for Andurel framework projects when deciding where code belongs, adding or changing domains, services, handlers, routes, app middleware, background jobs, migrations, config, clients, or framework-adjacent packages. Focuses on project structure, layer placement, the read-only pattern library, and agent-safe CLI usage.
 ---
 
 # Andurel
@@ -25,7 +25,7 @@ Andurel is Go-native: `net/http` through `pkg/anduin`, explicit constructor inje
 
 ## Read When Placing Code
 
-Read [references/layer-placement.md](references/layer-placement.md) before adding or moving behavior across domains, services, handlers, routes, middleware, queue jobs, config, clients, or internal packages. It is the one place the placement table, the hard rules per layer, and the decision checklist are written down.
+Read [references/layer-placement.md](references/layer-placement.md) before adding or moving behavior across domains, services, handlers, payloads, routes, middleware, queue jobs, config, clients, or app packages. It is the one place the placement table, the hard rules per layer, and the decision checklist are written down.
 
 ## First Pass
 
@@ -37,7 +37,7 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 
 ## Verify
 
-`andurel verify` runs `gofmt`, `go fix`, `go vet`, the typed layer rules, the package manager's `typecheck` script when `package.json` defines one, and generated-code drift. It reports each violation as `{rule, file, line, message, fix}`. Apply the `fix` and re-run. `andurel verify [packages...]` scopes the Go checks to package patterns (for example `./internal/docs/...`); generated drift and the frontend typecheck stay whole-project. `--no-frontend` skips the typecheck. With `--with-tests`, packages that ran no tests are listed under `skipped_packages` and `t.Skip` calls under `skipped_tests` with their reason. Unresolved `inertia.FromStruct` payload roots are listed in the generated step's `warnings` and do not fail the run. Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
+`andurel verify` runs `gofmt`, `go fix`, `go vet`, the typed layer rules, the package manager's `typecheck` script when `package.json` defines one, and generated-code drift. It reports each violation as `{rule, file, line, message, fix}`. Apply the `fix` and re-run. `andurel verify [packages...]` scopes the Go checks to package patterns (for example `./app/...`); generated drift and the frontend typecheck stay whole-project. `--no-frontend` skips the typecheck. With `--with-tests`, packages that ran no tests are listed under `skipped_packages` and `t.Skip` calls under `skipped_tests` with their reason. Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
 
 <!-- andurel:verify-rules:begin: generated from the verify rule catalog by 'just docs-sync'; do not edit -->
 | Rule | Checks |
@@ -49,7 +49,8 @@ Read [references/layer-placement.md](references/layer-placement.md) before addin
 | `tx-unwrap` | storage.Unwrap is referenced only under domains/** |
 | `tx-escape` | a storage.AtomicOps callback uses only dependencies bound inside the transaction |
 | `tx-public-call` | a storage.AtomicOps callback does not call an exported method on its own receiver |
-| `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and internal/runtime |
+| `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and app |
+| `payloads-import` | payloads/** imports only the standard library and mappable types; no app packages, storage, anduin, inertia, or net/http |
 | `domain-transport` | domains/** imports no HTTP, Inertia, routing, handler, middleware, or route package |
 | `entity-columns` | every automatic generated query column maps to an exported andurel tag on its domain entity |
 | `setup` | project setup is complete: managed tool binaries and frontend dependencies are installed |
@@ -110,7 +111,7 @@ Add a domain (type-driven: change the Go type first, then let SQL and queries fo
 3. Run `andurel sync queries --json` to regenerate `domains/internal/queries`.
 4. Write the migration with `andurel generate migration <name>`.
 
-Keep hand-written SQL in `domains/<entity>.sql` and generated code in `domains/internal/queries/`. Only `domains` should import that internal package. Each receiver has `New<Plural>(db)` (constructed in `internal/runtime`) and `InTx(tx storage.Tx)`. A receiver whose own method writes more than once, or reads, modifies and writes a row, holds a `storage.Transactor`; that method locks the row before saving and joins a caller's transaction when bound. Services take a `storage.Transactor`, their receivers, and the queue individually, and run multi-domain writes in `storage.AtomicOps`, binding receivers with `InTx(tx)` at the top of the callback.
+Keep hand-written SQL in `domains/<entity>.sql` and generated code in `domains/internal/queries/`. Only `domains` should import that internal package. Each receiver has `New<Plural>(db)` (constructed in `app`) and `InTx(tx storage.Tx)`. A receiver whose own method writes more than once, or reads, modifies and writes a row, holds a `storage.Transactor`; that method locks the row before saving and joins a caller's transaction when bound. Services take a `storage.Transactor`, their receivers, and the queue individually, and run multi-domain writes in `storage.AtomicOps`, binding receivers with `InTx(tx)` at the top of the callback.
 
 Add a background job:
 
@@ -123,7 +124,7 @@ Add an HTTP resource:
 1. `andurel patterns show handler` and `andurel patterns show route`.
 2. Add route data to `routes/`.
 3. Write the handler in `handlers/` using `pkg/anduin`.
-4. Wire the handler in `internal/runtime`.
+4. Wire the handler in `app`.
 5. Run `andurel sync routes --json` so Inertia pages can import `resources/js/routes.ts`.
 
 Generate Inertia route helpers:
@@ -141,10 +142,11 @@ Generate Inertia payload types:
 
 ```bash
 andurel sync payloads --json
-andurel sync payloads --strict
 ```
 
-`andurel sync payloads` scans handler `inertia.FromStruct` props (page props) and the named structs passed to `anduin.DecodeJSON`/`DecodeForm` (request payloads) and writes `resources/js/types/payloads.ts`. It follows named struct fields into other packages in the module, so a handler prop may reference a type such as `docs.PageProps`. It resolves named composite literals, typed variables, and function or closure parameters, including pointer parameters. Request payloads must be named with a `Payload` suffix; page props keep their struct name. `domains/` types are rejected, so define a handler-owned payload instead. Calls that pass a literal `inertia.Props{...}` map are skipped and need hand-written TypeScript, as is any `FromStruct` argument the scanner cannot trace. `--strict` still writes `payloads.ts` and then exits 5 listing every unresolved `file:line`; without it, the human output prints the same roots with the hint to pass a named composite literal or a typed variable. Import the generated page and form types from that file instead of hand-written TypeScript, and run it after editing those Go structs.
+`payloads/` is the single source of `resources/js/types/payloads.ts`, just as `routes/` is the source of `routes.ts`. `andurel sync payloads` emits every exported struct declared in `payloads/` and follows nested named structs in that package. `json:"-"` is omitted and `omitempty` makes a field optional.
+
+Keep payload fields to standard-library types, `time`, and `github.com/google/uuid`: `payloads/` may not import application packages, `pkg/storage`, `pkg/anduin`, `pkg/inertia`, or `net/http` (the `payloads-import` rule). Handlers import `payloads` for page props and request bodies and pass them with `inertia.FromStruct(payloads.SomeProps{...})`. Import the generated types from `@/types/payloads` instead of hand-writing them, and run the command after editing `payloads/`.
 
 Generate a named database seed:
 
@@ -166,7 +168,7 @@ andurel doctor --json
 andurel verify
 ```
 
-In Inertia projects, `doctor` checks whether `resources/js/routes.ts` matches the current `routes/*.go` manifest and whether `resources/js/types/payloads.ts` matches handler payload structs. If the `routes.ts` check fails, run `andurel sync routes --json`. If the `payloads.ts` check fails, run `andurel sync payloads --json`.
+In Inertia projects, `doctor` checks whether `resources/js/routes.ts` matches the current `routes/*.go` manifest and whether `resources/js/types/payloads.ts` matches the exported structs in `payloads/`. If the `routes.ts` check fails, run `andurel sync routes --json`. If the `payloads.ts` check fails, run `andurel sync payloads --json`.
 
 When annotated narsilc queries exist, `doctor` also checks generated code for drift. If the `narsilc generate` check fails, run `andurel sync queries --json`.
 
@@ -182,4 +184,4 @@ This updates required package versions to the latest published releases. It does
 
 ## Validation
 
-Follow the target repository's `AGENTS.md` and local validation guidance. Run `andurel verify` for the framework checks. Do not assume that a command is permitted merely because it is common in another Andurel project.
+Follow the target repository's local validation guidance. Run `andurel verify` for the framework checks. Do not assume that a command is permitted merely because it is common in another Andurel project.

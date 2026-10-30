@@ -8,7 +8,7 @@ An Andurel application has three parts that change on different schedules:
 
 | Part | Owner | How it changes |
 | --- | --- | --- |
-| Generated application code (`cmd/`, `config/`, `domains/`, `handlers/`, `middleware/`, `internal/runtime/`, `queue/`, `resources/`, …) | the application | Never rewritten after `andurel new`. A release that needs a change ships it as a manual action. |
+| Generated application code (`cmd/`, `config/`, `domains/`, `handlers/`, `middleware/`, `app/`, `payloads/`, `queue/`, `resources/`, …) | the application | Never rewritten after `andurel new`. A release that needs a change ships it as a manual action. |
 | `github.com/mbvlabs/andurel/pkg/*` modules | Andurel | Independent semantic versions. The CLI pins the versions it was verified with. |
 | The `andurel` CLI | Andurel | Command names, flags, and structured output follow the rules below. |
 
@@ -18,7 +18,7 @@ Each pre-release is upgradeable from the previous one, and every supported upgra
 
 **Alpha** (`v2.0.0-alpha.N`). Anything can change. `andurel upgrade` accepts projects from `v2.0.0-alpha.4` on.
 
-**Beta** (`v2.0.0-beta.N`). The architecture is fixed: `net/http` through `pkg/anduin`, explicit construction in `internal/runtime`, the `domains`/`handlers` layout, Inertia for the UI, and the agent-facing CLI contract. A beta can still change application code or a `pkg/*` API, but only to fix a bug, a security problem, or a mistake found while building on the beta. Every such change ships with:
+**Beta** (`v2.0.0-beta.N`). The architecture is fixed: `net/http` through `pkg/anduin`, explicit construction in `app/`, the `domains`/`handlers` layout, Inertia for the UI, and the agent-facing CLI contract. A beta can still change application code or a `pkg/*` API, but only to fix a bug, a security problem, or a mistake found while building on the beta. Every such change ships with:
 
 - a manual action with a stable ID and before/after code, emitted by `andurel upgrade`;
 - an entry in the release notes;

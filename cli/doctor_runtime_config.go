@@ -14,13 +14,13 @@ import (
 	"time"
 )
 
-// The generated project owns the runtime config contract: internal/configcheck
+// The generated project owns the runtime config contract: cmd/configcheck
 // loads the same config constructor cmd/app uses, then probes the database
 // read-only. doctor runs it instead of re-implementing the constructor's
 // required values, so a config change in the project can never drift from the
 // check.
 const (
-	configCheckPath = "internal/configcheck/main.go"
+	configCheckPath = "cmd/configcheck/main.go"
 
 	// configCheckTimeout bounds the whole probe, including a cold go build.
 	// A check that cannot finish is reported as a failure: runtime readiness is
@@ -29,7 +29,7 @@ const (
 	configCheckTimeout = 2 * time.Minute
 )
 
-// configCheckReport is the JSON document internal/configcheck prints.
+// configCheckReport is the JSON document cmd/configcheck prints.
 type configCheckReport struct {
 	OK       bool                `json:"ok"`
 	Config   configCheckSection  `json:"config"`
@@ -52,7 +52,7 @@ func runProjectConfigCheck(rootDir string) (configCheckReport, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), configCheckTimeout)
 	defer cancel()
 
-	stdout, stderr, err := runCommandInDir(ctx, rootDir, "go", "run", "./internal/configcheck")
+	stdout, stderr, err := runCommandInDir(ctx, rootDir, "go", "run", "./cmd/configcheck")
 	if err != nil {
 		return configCheckReport{}, configCheckRunError(err, stderr)
 	}
@@ -144,7 +144,7 @@ func checkRuntimeConfiguration(rootDir string) checkResult {
 			status:  statusSkip,
 			message: "project has no generated config check",
 			hint: "Create " + configCheckPath + " from a current andurel new scaffold " +
-				"(andurel upgrade does not manage internal/ files) to validate runtime configuration.",
+				"(andurel upgrade does not manage app files) to validate runtime configuration.",
 		}
 	}
 
@@ -167,7 +167,7 @@ func checkRuntimeConfiguration(rootDir string) checkResult {
 			message: "config check did not run",
 			details: []string{err.Error()},
 			hint: "Fix the generated " + configCheckPath + " build error and run " +
-				"go run ./internal/configcheck to see the full output; runtime " +
+				"go run ./cmd/configcheck to see the full output; runtime " +
 				"configuration stays unverified until the check runs.",
 		}
 	}

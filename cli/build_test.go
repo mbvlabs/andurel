@@ -290,12 +290,12 @@ func TestBuildAppReportsErrors(t *testing.T) {
 	}
 }
 
-func TestBuildAppBuildsEveryProcessExceptSeeds(t *testing.T) {
+func TestBuildAppBuildsEveryProcessExceptUtilityCommands(t *testing.T) {
 	resetCLITestSeams(t)
 
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
-	for _, name := range []string{"app", "queue", "migrate", "seeds"} {
+	for _, name := range []string{"app", "queue", "migrate", "seeds", "configcheck"} {
 		writeTestFile(
 			t,
 			root,
@@ -350,7 +350,8 @@ func TestBuildAppBuildsEveryProcessExceptSeeds(t *testing.T) {
 			t.Fatalf("command log missing %q:\n%s", wantLine, log)
 		}
 	}
-	if strings.Contains(log, "./cmd/seeds") || strings.Contains(log, "./cmd/helper") {
+	if strings.Contains(log, "./cmd/seeds") || strings.Contains(log, "./cmd/configcheck") ||
+		strings.Contains(log, "./cmd/helper") {
 		t.Fatalf("command log built an excluded process:\n%s", log)
 	}
 }

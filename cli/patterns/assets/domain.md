@@ -6,7 +6,7 @@ and the domain errors it returns. Domains live in one flat `domains` package —
 one file per domain, no sub-packages. Only `domains` imports the generated
 `domains/internal/queries` package and names `storage.Connection` or unwraps a
 `storage.Tx`. Each receiver has an exported `New<Plural>(db)` constructor,
-built in `internal/runtime`, and an `InTx(tx)` method that returns the same
+built in `app`, and an `InTx(tx)` method that returns the same
 receiver bound to an open transaction.
 
 Validate once, at the write path: entities expose `Validate()` via
@@ -139,7 +139,7 @@ select * from products;
 select count(*) from products;
 ```
 
-### internal/runtime/runtime.go (edit)
+### app/runtime.go (edit)
 ```go fragment
 products := domains.NewProducts(db)
 
@@ -217,8 +217,8 @@ return users.Save(ctx, locked)
 ## Rules
 
 - One file per domain in the flat `domains` package. Cross-entity rules belong in a service.
-- Only files under `domains/` may import `domains/internal/queries` or call `storage.Unwrap`; only `domains/` and the wiring layers (`internal/runtime`, `cmd`, `seeds`, `migrations`) may name `storage.Connection`/`storage.Transaction`.
-- Every receiver has `New<Plural>(db storage.Connection)` and `InTx(tx storage.Tx)`. Construct it in `internal/runtime` and pass it to the services and handlers that use it.
+- Only files under `domains/` may import `domains/internal/queries` or call `storage.Unwrap`; only `domains/` and the wiring layers (`app`, `cmd`, `seeds`, `migrations`) may name `storage.Connection`/`storage.Transaction`.
+- Every receiver has `New<Plural>(db storage.Connection)` and `InTx(tx storage.Tx)`. Construct it in `app` and pass it to the services and handlers that use it.
 - A receiver holds a `storage.Transactor` when one of its methods writes more than once or reads, modifies and writes a row; it rebinds it in `InTx`, wraps the statements in `storage.AtomicOps` (joining a caller's transaction when bound), and locks the row with `FindForUpdate` before a read-modify-write. `Save` writes every column and does not lock for its caller.
 - Entities expose `Validate()` via `pkg/validation`; `Create`/`Update` normalise, then validate, then write, returning validation errors from `pkg/validation` directly.
 - Keep the entity 1:1 with a scanned row.
@@ -234,7 +234,7 @@ return users.Save(ctx, locked)
 
 - [ ] Entity has `Validate()` and `Create`/`Update` reject invalid entities.
 - [ ] `<entity>.sql` contains every query the receiver calls.
-- [ ] Receiver has `New<Plural>(db)` and `InTx(tx)` and is constructed in `internal/runtime`.
+- [ ] Receiver has `New<Plural>(db)` and `InTx(tx)` and is constructed in `app`.
 - [ ] Not-found maps to `ErrNotFound`; conflicts to `ErrConflict`.
 - [ ] `andurel patterns show domain --entity <Name>` manifest applied in order.
 - [ ] `andurel sync queries` succeeds and `andurel verify` passes.

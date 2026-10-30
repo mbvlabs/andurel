@@ -93,7 +93,7 @@ func Load(rootDir string) (*Project, error) {
 
 // LoadPatterns loads the packages matched by patterns. An empty pattern list
 // means the whole project, matching Load. Patterns use the go command's package
-// syntax (for example ./internal/docs/...), so a scoped verify checks exactly
+// syntax (for example ./app/...), so a scoped verify checks exactly
 // the packages it was asked about.
 func LoadPatterns(rootDir string, patterns []string) (*Project, error) {
 	absRoot, err := filepath.Abs(rootDir)
@@ -353,7 +353,7 @@ func inDir(dir, want string) bool {
 
 func inPersistenceDir(dir string) bool {
 	return inDir(dir, "domains") ||
-		inDir(dir, "internal/runtime") ||
+		inDir(dir, "app") ||
 		inDir(dir, "cmd") ||
 		inDir(dir, "seeds") ||
 		inDir(dir, "migrations")
