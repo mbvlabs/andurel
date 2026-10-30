@@ -4,6 +4,22 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+### Added
+
+- `RunMigrationsTo` applies Goose migrations up to and including a version, so
+  a test or deploy can stop at a schema version and later continue to a later
+  version or head.
+- `AtomicOps` accepts `ReadOnly()` and `Isolation(...)` transaction options.
+  `Postgres.BeginTransactionWithOptions` opens transactions with explicit
+  PostgreSQL options.
+- `storagetest.NewTestDBAtVersion` creates a test database migrated up to a
+  given version, `storagetest.MigrateTestDB` continues migrating it, and
+  `storagetest.MigrationHead` applies every migration.
+- `storagetest.FailingTransactor` and `storagetest.StatementFault` inject a
+  failure at the Nth transaction statement, or at a statement matching a SQL
+  predicate, so service tests can prove that `AtomicOps` rolls back every
+  earlier write.
+
 ## 0.13.1 - 2026-10-26
 
 ### Changed
