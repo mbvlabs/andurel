@@ -78,6 +78,29 @@ type verifyStep struct {
 	Warnings []string `json:"warnings,omitempty"`
 }
 
+// MarshalJSON always emits skipped_packages and skipped_tests on a go test
+// step that ran, as [] when nothing was skipped, so a gate can distinguish
+// "none skipped" from "not reported". A skipped or blocked go test step keeps
+// the fields omitted, and no other step carries them.
+func (s verifyStep) MarshalJSON() ([]byte, error) {
+	type plain verifyStep
+	if s.Name != "go test" || s.Status == verifyStatusSkipped || s.Status == verifyStatusBlocked {
+		return json.Marshal(plain(s))
+	}
+	step := struct {
+		plain
+		SkippedPackages []verifySkippedPackage `json:"skipped_packages"`
+		SkippedTests    []verifySkippedTest    `json:"skipped_tests"`
+	}{
+		plain:           plain(s),
+		SkippedPackages: make([]verifySkippedPackage, 0, len(s.SkippedPackages)),
+		SkippedTests:    make([]verifySkippedTest, 0, len(s.SkippedTests)),
+	}
+	step.SkippedPackages = append(step.SkippedPackages, s.SkippedPackages...)
+	step.SkippedTests = append(step.SkippedTests, s.SkippedTests...)
+	return json.Marshal(step)
+}
+
 // verifyTestPackage is one go test package's outcome. Passed, Failed, and
 // Skipped count top-level tests; Subtests counts nested tests separately.
 type verifyTestPackage struct {
@@ -258,15 +281,26 @@ DB-backed tests need Docker for a Postgres container. A test package that has
 tests but ran none, such as one whose TestMain exits early without Docker, does
 not fail the run: the go test step stays 'ok' and lists it under
 skipped_packages as {package, reason}. Tests that call t.Skip are listed under
-skipped_tests as {package, test, reason}; they keep the step 'ok' too. The step
-reports per-package status, top-level pass/fail/skip counts, subtests
-separately, duration, cache/no-test-files information, and totals. Build,
-setup, timeout, and race failures are marked explicitly.
+skipped_tests as {package, test, reason}; they keep the step 'ok' too. When the
+go test step runs, skipped_packages and skipped_tests are always present as
+arrays, empty when nothing was skipped, so a gate can tell "none skipped" from
+"not reported". The step reports per-package status, top-level pass/fail/skip
+counts, subtests separately, duration, cache/no-test-files information, and
+totals. Build, setup, timeout, and race failures are marked explicitly.
 
 Each step reports status 'ok', 'fail', 'blocked', or 'skipped'. Every failing
 step lists violations as {rule, file, line, message, fix}. A failed or blocked
 verification exits with code 9 (verification_failed); usage errors exit with
-code 1.`,
+code 1.
+
+Structured output contract: with --json or --agent, a passing run writes one
+success envelope to stdout (ok, cli_version, summary, and the full report under
+data) and nothing to stderr. A failed verification exits 9 and writes one error
+envelope to stderr instead, with code verification_failed, exit_code 9, and the
+full report (steps and scope, including every violation) under data; stdout
+stays empty. Usage and setup errors write their own error envelope to stderr
+with their own code and exit_code. Read the failure report from stderr, not
+stdout. Every JSON envelope carries cli_version.`,
 		Example: `  andurel verify
   andurel verify --json
   andurel verify ./internal/docs/...
@@ -315,7 +349,7 @@ code 1.`,
 	setAgentMetadata(
 		cmd,
 		"verification",
-		"Read-only verification: setup preflight, gofmt, go fix, go vet, the domain persistence and transaction boundary, the package.json typecheck plus frontend route-usage rule, generated-code drift, and declared content invariants. Scope with Go package patterns, --only stages, --rules catalog rules, or --changed [--base ref]; changed mode follows changed packages and their reverse dependencies and records the applied scope and widening in JSON. Missing tools or node_modules fail the setup step with the exact install command and make dependent steps blocked, never generated drift. With --with-tests, the go test step reports per-package status, top-level pass/fail/skip counts, subtests separately, totals, skipped_packages, and skipped_tests with reasons; neither skip fails the run. Content invariants come from andurel.content.toml and include catalog/slug/required/local-link checks plus declared argv checkers; projects without a declaration are not_applicable. Fails with exit code 9 and structured violations; each rule and its fix is listed in verify --help and the rules field of andurel commands --json.",
+		"Read-only verification: setup preflight, gofmt, go fix, go vet, the domain persistence and transaction boundary, the package.json typecheck plus frontend route-usage rule, generated-code drift, and declared content invariants. Scope with Go package patterns, --only stages, --rules catalog rules, or --changed [--base ref]; changed mode follows changed packages and their reverse dependencies and records the applied scope and widening in JSON. Missing tools or node_modules fail the setup step with the exact install command and make dependent steps blocked, never generated drift. With --with-tests, the go test step reports per-package status, top-level pass/fail/skip counts, subtests separately, totals, and skipped_packages and skipped_tests with reasons; both arrays are always present and empty when nothing was skipped, and neither skip fails the run. Every JSON envelope carries cli_version. A passing --json/--agent run writes the success envelope to stdout; a failed verification exits 9 and writes the error envelope, with code verification_failed and the full report under data, to stderr. Content invariants come from andurel.content.toml and include catalog/slug/required/local-link checks plus declared argv checkers; projects without a declaration are not_applicable. Fails with exit code 9 and structured violations; each rule and its fix is listed in verify --help and the rules field of andurel commands --json.",
 	)
 	setStandardHelp(cmd)
 	return cmd

@@ -722,10 +722,136 @@ func TestVerifyHelpMentionsSkippedTests(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("verify --help: %v", err)
 	}
-	for _, want := range []string{"skipped_tests", "warnings"} {
+	for _, want := range []string{
+		"skipped_tests",
+		"warnings",
+		"always carries skipped_packages and skipped_tests, empty when nothing was skipped",
+		"cli_version",
+		"error envelope",
+		"verification_failed",
+	} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Fatalf("verify --help should mention %q:\n%s", want, stdout.String())
 		}
+	}
+}
+
+func TestVerifyJSONGoTestStepAlwaysCarriesSkippedArrays(t *testing.T) {
+	tests := []struct {
+		name  string
+		step  verifyStep
+		carry bool
+	}{
+		{name: "ran with no skips", step: verifyStepOK("go test"), carry: true},
+		{
+			name: "ran with skips",
+			step: verifyStep{
+				Name:            "go test",
+				Status:          verifyStatusOK,
+				OK:              true,
+				SkippedPackages: []verifySkippedPackage{{Package: "example.com/app/db"}},
+				SkippedTests:    []verifySkippedTest{{Package: "example.com/app", Test: "TestSkip"}},
+			},
+			carry: true,
+		},
+		{name: "not selected", step: verifyStep{Name: "go test", Status: verifyStatusSkipped}, carry: false},
+		{name: "blocked", step: verifyStep{Name: "go test", Status: verifyStatusBlocked}, carry: false},
+		{name: "other step", step: verifyStepOK("gofmt"), carry: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			encoded, err := json.Marshal(test.step)
+			if err != nil {
+				t.Fatalf("marshal step: %v", err)
+			}
+			var object map[string]any
+			if err := json.Unmarshal(encoded, &object); err != nil {
+				t.Fatalf("decode step JSON: %v", err)
+			}
+			for _, field := range []string{"skipped_packages", "skipped_tests"} {
+				value, present := object[field]
+				if present != test.carry {
+					t.Fatalf("step JSON carries %s = %t, want %t: %s", field, present, test.carry, encoded)
+				}
+				if !present {
+					continue
+				}
+				if _, ok := value.([]any); !ok {
+					t.Fatalf("%s = %#v, want a JSON array: %s", field, value, encoded)
+				}
+			}
+			if test.carry && !strings.Contains(string(encoded), `"skipped_packages":[]`) {
+				if len(test.step.SkippedPackages) == 0 {
+					t.Fatalf("empty skipped_packages is not an empty array: %s", encoded)
+				}
+			}
+			if test.carry && !strings.Contains(string(encoded), `"skipped_tests":[]`) {
+				if len(test.step.SkippedTests) == 0 {
+					t.Fatalf("empty skipped_tests is not an empty array: %s", encoded)
+				}
+			}
+		})
+	}
+}
+
+func TestVerifyWithTestsJSONHasEmptySkippedArraysOnCleanSuite(t *testing.T) {
+	root := newVerifyTestProject(t)
+	writeTestFile(t, root, "plain/plain.go", "package plain\n")
+	writeTestFile(t, root, "plain/plain_test.go", "package plain\n\nimport \"testing\"\n\nfunc TestPlain(t *testing.T) {}\n")
+
+	result := runVerifyInProject(t, root, "verify", "--skip-generated", "--with-tests", "--json")
+	if result.err != nil {
+		t.Fatalf("verify --with-tests --json: %v\n%s", result.err, result.stderr)
+	}
+	for _, want := range []string{
+		`"cli_version": "test"`,
+		`"skipped_packages": []`,
+		`"skipped_tests": []`,
+	} {
+		if !strings.Contains(result.stdout, want) {
+			t.Fatalf("verify JSON is missing %q:\n%s", want, result.stdout)
+		}
+	}
+	if result.stderr != "" {
+		t.Fatalf("a passing verify must leave stderr empty, got:\n%s", result.stderr)
+	}
+}
+
+func TestVerifyJSONFailureWritesReportToStderrEnvelope(t *testing.T) {
+	root := newVerifyTestProject(t)
+	writeTestFile(t, root, "main.go", "package main\n\nfunc main(){ }\n")
+
+	result := runVerifyInProject(t, root, "verify", "--json", "--only", "gofmt")
+	assertVerifyExitCode(t, result, output.ExitVerification)
+	if result.stdout != "" {
+		t.Fatalf("a failing verify must leave stdout empty, got:\n%s", result.stdout)
+	}
+
+	var stderr bytes.Buffer
+	result.cmd.SetErr(&stderr)
+	if err := output.RenderError(result.cmd, result.err); err != nil {
+		t.Fatalf("render error envelope: %v", err)
+	}
+	var envelope struct {
+		OK         bool          `json:"ok"`
+		CLIVersion string        `json:"cli_version"`
+		Code       string        `json:"code"`
+		ExitCode   int           `json:"exit_code"`
+		Data       *verifyReport `json:"data"`
+	}
+	if err := json.Unmarshal(stderr.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode error envelope: %v\n%s", err, stderr.String())
+	}
+	if envelope.OK || envelope.CLIVersion != "test" || envelope.Code != output.CodeVerificationFailed ||
+		envelope.ExitCode != output.ExitVerification {
+		t.Fatalf("unexpected error envelope: %#v", envelope)
+	}
+	if envelope.Data == nil || envelope.Data.OK {
+		t.Fatalf("error envelope data = %#v, want the failed report", envelope.Data)
+	}
+	step := findVerifyStep(t, *envelope.Data, "gofmt")
+	if step.Status != verifyStatusFail || len(step.Violations) == 0 {
+		t.Fatalf("gofmt step = %#v, want violations in the stderr report", step)
 	}
 }
 
