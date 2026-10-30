@@ -8,6 +8,25 @@ import (
 	layouttemplates "github.com/mbvlabs/andurel/v2/layout/templates"
 )
 
+func TestGeneratedQueryTimestampParameters(t *testing.T) {
+	assertTemplateContains(t, "domains_internal_queries_user.tmpl",
+		"CreatedAt        time.Time",
+		"UpdatedAt        time.Time",
+		"EmailValidatedAt pgtype.Timestamptz",
+	)
+	assertTemplateContains(t, "domains_internal_queries_token.tmpl",
+		"CreatedAt time.Time",
+		"ExpiresAt time.Time",
+		"DeleteExpiredTokens(ctx context.Context, expiresAt time.Time)",
+	)
+	assertTemplateContains(t, "domains_internal_queries_models.tmpl",
+		"CreatedAt pgtype.Timestamptz",
+		"EmailValidatedAt pgtype.Timestamptz",
+	)
+	assertTemplateContains(t, "domains_user.tmpl", "CreatedAt:        entity.CreatedAt.Time", "EmailValidatedAt: entity.EmailValidatedAt")
+	assertTemplateContains(t, "domains_token.tmpl", "ExpiresAt: entity.ExpiresAt.Time", "DeleteExpiredTokens(ctx, before)")
+}
+
 // TestGeneratedAuthTemplatesBindVerificationToSession guards the S1 fix: email
 // verification codes must be bound to the pending user carried in the session
 // and must lock out after a bounded number of failed attempts.
@@ -62,7 +81,7 @@ func TestGeneratedAuthTemplatesBindVerificationToSession(t *testing.T) {
 		"WHERE expires_at < $1;",
 	)
 	assertTemplateContains(t, "domains_internal_queries_token.tmpl",
-		"func (q *Queries) DeleteExpiredTokens(ctx context.Context, expiresAt pgtype.Timestamptz) (int64, error)",
+		"func (q *Queries) DeleteExpiredTokens(ctx context.Context, expiresAt time.Time) (int64, error)",
 		"return result.RowsAffected(), nil",
 	)
 	assertTemplateContains(t, "database_migrations_tokens.tmpl",

@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/narsilc"
 	"uuid"
 )
@@ -28,8 +28,8 @@ RETURNING id, name, created_at, updated_at
 type CreateWidgetParams struct {
 	ID        uuid.UUID
 	Name      string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (q *Queries) CreateWidget[T any](ctx context.Context, arg CreateWidgetParams) (T, error) {
