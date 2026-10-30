@@ -42,15 +42,24 @@ func (t Transactor) InTx(tx Tx) Transactor {
 //
 // With a bound Transactor (see InTx) it runs fn in the bound transaction and
 // leaves commit and rollback to the owner of that transaction. Transaction
-// options cannot be applied to an already-open transaction and are rejected.
+// options cannot be applied to an already-open transaction and are rejected;
+// nil options are ignored on both paths because they configure nothing.
 func AtomicOps(
 	ctx context.Context,
 	t Transactor,
 	fn func(ctx context.Context, tx Tx) error,
 	options ...TxOption,
 ) error {
+	hasOptions := false
+	for _, option := range options {
+		if option != nil {
+			hasOptions = true
+			break
+		}
+	}
+
 	if t.bound.tx != nil {
-		if len(options) > 0 {
+		if hasOptions {
 			return errors.New("storage: transaction options require an unbound Transactor")
 		}
 

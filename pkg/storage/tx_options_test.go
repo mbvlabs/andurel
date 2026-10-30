@@ -128,3 +128,37 @@ func TestAtomicOpsRejectsOptionsOnBoundTransactor(t *testing.T) {
 		t.Fatalf("begin calls = %d, want 0", conn.calls)
 	}
 }
+
+func TestAtomicOpsIgnoresNilOptionsOnBoundTransactor(t *testing.T) {
+	conn := &optionRecordingConnection{}
+	committed := false
+	rolledBack := false
+	bound := NewTransactor(conn).InTx(Tx{tx: stubTransaction{
+		commit: func(context.Context) error {
+			committed = true
+			return nil
+		},
+		rollback: func(context.Context) error {
+			rolledBack = true
+			return nil
+		},
+	}})
+
+	called := 0
+	err := AtomicOps(t.Context(), bound, func(context.Context, Tx) error {
+		called++
+		return nil
+	}, nil)
+	if err != nil {
+		t.Fatalf("AtomicOps: %v", err)
+	}
+	if called != 1 {
+		t.Fatalf("fn calls = %d, want 1", called)
+	}
+	if conn.calls != 0 {
+		t.Fatalf("begin calls = %d, want 0", conn.calls)
+	}
+	if committed || rolledBack {
+		t.Fatalf("committed=%v rolledBack=%v, want false/false", committed, rolledBack)
+	}
+}

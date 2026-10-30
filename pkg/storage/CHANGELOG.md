@@ -11,7 +11,8 @@ All notable changes to the standalone Andurel storage module are documented here
   version or head.
 - `AtomicOps` accepts `ReadOnly()` and `Isolation(...)` transaction options.
   `Postgres.BeginTransactionWithOptions` opens transactions with explicit
-  PostgreSQL options.
+  PostgreSQL options. Nil options are ignored on both bound and unbound
+  transactors.
 - `storagetest.NewTestDBAtVersion` creates a test database migrated up to a
   given version, `storagetest.MigrateTestDB` continues migrating it, and
   `storagetest.MigrationHead` applies every migration.
