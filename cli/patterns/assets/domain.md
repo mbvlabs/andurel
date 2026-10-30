@@ -88,8 +88,8 @@ func (p Products) Create(ctx context.Context, data CreateProductData) (Product, 
 
 	created, err := p.queries.CreateProduct[Product](ctx, queries.CreateProductParams{
 		ID:         entity.ID,
-		CreatedAt:  entity.CreatedAt,
-		UpdatedAt:  entity.UpdatedAt,
+		CreatedAt:  entity.CreatedAt.Time,
+		UpdatedAt:  entity.UpdatedAt.Time,
 		Name:       entity.Name,
 		PriceCents: entity.PriceCents,
 	})

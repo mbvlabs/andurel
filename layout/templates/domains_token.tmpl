@@ -97,7 +97,7 @@ func (t Tokens) FindByUserAndScope(
 func (t Tokens) IncrementAttempts(ctx context.Context, id uuid.UUID) (int32, error) {
 	return storage.Row(t.queries.IncrementTokenAttempts(ctx, queries.IncrementTokenAttemptsParams{
 		ID:        id,
-		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		UpdatedAt: time.Now(),
 	}))
 }
 
@@ -115,7 +115,7 @@ func (t Tokens) DestroyByUserAndScope(
 // DestroyExpired deletes every token that expired before the given time and
 // returns the number of deleted rows.
 func (t Tokens) DestroyExpired(ctx context.Context, before time.Time) (int64, error) {
-	return t.queries.DeleteExpiredTokens(ctx, pgtype.Timestamptz{Time: before, Valid: true})
+	return t.queries.DeleteExpiredTokens(ctx, before)
 }
 
 type CreateTokenData struct {
@@ -158,10 +158,10 @@ func (t Tokens) Create(
 
 	return storage.Row(t.queries.CreateToken[Token](ctx, queries.CreateTokenParams{
 		ID:        entity.ID,
-		CreatedAt: entity.CreatedAt,
-		UpdatedAt: entity.UpdatedAt,
+		CreatedAt: entity.CreatedAt.Time,
+		UpdatedAt: entity.UpdatedAt.Time,
 		Scope:     entity.Scope,
-		ExpiresAt: entity.ExpiresAt,
+		ExpiresAt: entity.ExpiresAt.Time,
 		Hash:      entity.Hash,
 		MetaData:  entity.MetaData,
 		UserID:    entity.UserID,
