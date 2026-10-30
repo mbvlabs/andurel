@@ -618,6 +618,7 @@ type SliceProps struct {
 	if string(encoded) != `{"items":null,"bytes":null}` {
 		t.Fatalf("zero payload JSON = %s, want nil slices as null", encoded)
 	}
+	assertTypeScriptCompiles(t, got)
 }
 
 func TestRenderPayloadsTSQuotesInlineJSONNames(t *testing.T) {
