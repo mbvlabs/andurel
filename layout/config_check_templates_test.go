@@ -68,7 +68,6 @@ func TestGeneratedReadinessSeparatesLivenessAndReadiness(t *testing.T) {
 		"func TestReadinessIgnoresSSRWithExplicitCSRFallback(",
 	)
 	assertTemplateContains(t, "readme.tmpl", "`GET /api/ready`")
-	assertTemplateContains(t, "agents.tmpl", "`GET /api/ready` is readiness")
 }
 
 // TestGeneratedConfigCheckIsReadOnly guards the F06 seam: doctor runs a
@@ -93,22 +92,19 @@ func TestGeneratedConfigCheckIsReadOnly(t *testing.T) {
 	}
 }
 
-func TestGeneratedDocsShareOneQuickStart(t *testing.T) {
-	for _, name := range []string{"readme.tmpl", "agents.tmpl"} {
-		assertTemplateContains(t, name,
-			"andurel tool sync",
-			"cp .env.example .env",
-			"andurel db migrate up",
-			"andurel doctor",
-		)
-	}
+func TestGeneratedReadmeQuickStart(t *testing.T) {
+	assertTemplateContains(t, "readme.tmpl",
+		"andurel tool sync",
+		"cp .env.example .env",
+		"andurel db migrate up",
+		"andurel doctor",
+	)
 	assertTemplateContains(t, "readme.tmpl",
 		"{{.JavaScriptPackageManager}} install",
 		"{{.JavaScriptFrozenInstallCommand}}",
 		"{{.JavaScriptLockfileName}}",
 	)
 	assertTemplateMissing(t, "readme.tmpl", "createdb {{.Identifier}}")
-	assertTemplateContains(t, "agents.tmpl", "Commit the package manager lockfile")
 }
 
 // TestReadmeRendersTheSelectedPackageManagerPolicy keeps the lockfile section
@@ -165,7 +161,7 @@ func TestReadmeRendersTheSelectedPackageManagerPolicy(t *testing.T) {
 // asserts the mapping and a parseable render.
 func TestConfigCheckTemplateRendersAsGo(t *testing.T) {
 	mapping, ok := baseTemplateMappings["internal_configcheck_main.tmpl"]
-	if !ok || string(mapping) != "internal/configcheck/main.go" {
+	if !ok || string(mapping) != "cmd/configcheck/main.go" {
 		t.Fatalf("config check template mapping = %q, %t", mapping, ok)
 	}
 
@@ -181,13 +177,13 @@ func TestConfigCheckTemplateRendersAsGo(t *testing.T) {
 	if err := renderTemplate(
 		root,
 		"internal_configcheck_main.tmpl",
-		"internal/configcheck/main.go",
+		"cmd/configcheck/main.go",
 		layouttemplates.Files,
 		&TemplateData{ModuleName: "testapp"},
 	); err != nil {
 		t.Fatalf("render config check: %v", err)
 	}
-	rendered, err := os.ReadFile(filepath.Join(root, "internal/configcheck/main.go"))
+	rendered, err := os.ReadFile(filepath.Join(root, "cmd/configcheck/main.go"))
 	if err != nil {
 		t.Fatalf("read rendered config check: %v", err)
 	}

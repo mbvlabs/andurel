@@ -7,7 +7,7 @@ Handler` — and wraps an `anduin.Handler`.
 Generic cross-cutting behavior (recovery, client IP, CORS, CSRF, rate limits,
 telemetry) comes from `pkg/anduin`; `middleware/` is for policy this application
 owns, such as an admin guard or a session definition. Install global middleware
-with `router.Use(...)` in `internal/runtime`, before `router.Handler()` is
+with `router.Use(...)` in `app`, before `router.Handler()` is
 called, and per-route middleware after the handler:
 `rt.Get(path, h, middleware.RequireAdmin())`.
 
@@ -57,7 +57,7 @@ func RequireAdmin() anduin.Middleware {
   `routing.HostName` the router dispatches to); never re-parse
   `anduin.Request(ctx).Host`. The scaffold's unwired
   `middleware.DenyFraming(config.HostAdmin)` is the worked example.
-- Register global middleware with `router.Use(...)` in `internal/runtime`.
+- Register global middleware with `router.Use(...)` in `app`.
   `Use` must run before the first `router.Handler()` call, because the handler
   chain is built and cached once.
 - Per-route middleware goes after the handler:
@@ -80,7 +80,7 @@ func RequireAdmin() anduin.Middleware {
 
 - [ ] Middleware has the `anduin.Middleware` shape and a distinct constructor
       when it has dependencies.
-- [ ] Global middleware registered with `router.Use` in `internal/runtime`;
+- [ ] Global middleware registered with `router.Use` in `app`;
       per-route middleware passed after the handler.
 - [ ] Authentication runs before authorization, and identity is read from the
       database-backed viewer, not the cookie.

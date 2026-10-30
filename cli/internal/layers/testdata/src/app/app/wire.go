@@ -1,4 +1,4 @@
-package runtime
+package app
 
 import (
 	"context"
@@ -10,7 +10,7 @@ type Wiring struct {
 	transactor storage.Transactor
 }
 
-// internal/runtime constructs the transactor and may hand it to services.
+// app constructs the transactor and may hand it to services.
 func (w Wiring) Run(ctx context.Context) error {
 	return storage.AtomicOps(ctx, w.transactor, func(ctx context.Context, tx storage.Tx) error {
 		return nil

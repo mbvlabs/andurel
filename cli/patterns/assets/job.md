@@ -55,7 +55,7 @@ func (w *SendWelcomeEmailWorker) Work(ctx context.Context, job *river.Job[SendWe
 
 A recurring job reuses the same args and worker types; River inserts it on a
 schedule instead of a service. Return one `*river.PeriodicJob` per schedule
-from `queue/PeriodicJobs()`; `runtime.NewQueue` passes the list to
+from `queue/PeriodicJobs()`; `app.NewQueue` passes the list to
 `storage.WithRiverPeriodicJobs`, so no other wiring is needed.
 
 ```go

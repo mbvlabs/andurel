@@ -73,8 +73,7 @@ type verifyStep struct {
 	// NotApplicable marks a skipped step that has nothing to check in this
 	// project, such as a content stage with no content configuration.
 	NotApplicable bool `json:"not_applicable,omitempty"`
-	// Warnings are advisory findings that do not fail the step. The generated
-	// step uses them for payload roots andurel sync payloads cannot resolve.
+	// Warnings are advisory findings that do not fail the step.
 	Warnings []string `json:"warnings,omitempty"`
 }
 
@@ -174,9 +173,8 @@ andurel verify checks, in order:
   • content   — the invariants declared in andurel.content.toml
   • go test   — go test -json (only with --with-tests or --only go-test)
 
-Payload roots that andurel sync payloads cannot resolve are listed under the
-generated step's warnings; they do not fail verify. Run andurel sync payloads
---strict to turn them into errors. verify never rewrites files.
+The payloads.ts check regenerates types from payloads/ and fails when the
+committed file is missing or out of date. verify never rewrites files.
 
 Scope:
   --only <stage[,stage]>   run only the named stages. Stage IDs: setup, gofmt,
@@ -1276,7 +1274,6 @@ func (r goTestResult) failureDetail(stderr string) string {
 // violation; out-of-date output fails it with the sync command that fixes it.
 func verifyGenerated(rootDir string) verifyStep {
 	step := verifyStepOK("generated")
-	step.Warnings = payloadScanWarnings(rootDir)
 	notes := make([]string, 0)
 	for _, result := range codeGenerationChecks(rootDir, false) {
 		switch result.status {
@@ -1300,33 +1297,6 @@ func verifyGenerated(rootDir string) verifyStep {
 	}
 	step.Detail = strings.Join(notes, "\n")
 	return step
-}
-
-// payloadScanWarnings lists inertia.FromStruct roots the payload scanner cannot
-// resolve statically. andurel sync payloads --strict rejects these; verify only
-// warns so projects can adopt --strict incrementally. The generated step's
-// payloads.ts check already reports parse and generation failures.
-func payloadScanWarnings(rootDir string) []string {
-	if !projectUsesInertia(rootDir) {
-		return nil
-	}
-	scan, err := scanControllerPayloads(rootDir)
-	if err != nil {
-		return nil
-	}
-	warnings := make([]string, 0)
-	for _, skipped := range scan.skipped {
-		if skipped.Reason != unresolvedFromStructReason {
-			continue
-		}
-		warnings = append(warnings, fmt.Sprintf(
-			"payloads.ts: %s:%d: %s; pass a named composite literal or a typed variable",
-			skipped.SourceFile,
-			skipped.Line,
-			skipped.Reason,
-		))
-	}
-	return warnings
 }
 
 // generatedViolations turns one failed generation check into findings. When

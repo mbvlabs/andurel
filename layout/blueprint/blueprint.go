@@ -25,7 +25,7 @@ type Blueprint struct {
 	// Migrations and database
 	Migrations MigrationSection
 
-	// Main holds process-graph extras assembled in internal/runtime.
+	// Main holds process-graph extras assembled in app.
 	Main MainSection
 
 	// Cookies section for router/cookies package
@@ -108,7 +108,7 @@ type MainSection struct {
 	PreRunHooks []PreRunHook
 
 	// ServiceProvides holds fx.Provide function expressions injected into
-	// internal/runtime Shared so both App and Queue graphs see them.
+	// app Shared so both App and Queue graphs see them.
 	// Each expression is a Go function literal or constructor reference.
 	ServiceProvides []string
 

@@ -12,6 +12,7 @@ import (
 	"{{.ModuleName}}/handlers"
 	"{{.ModuleName}}/middleware"
 	"{{.ModuleName}}/migrations"
+	"{{.ModuleName}}/payloads"
 	"{{.ModuleName}}/routes"
 	"{{.ModuleName}}/services"
 
@@ -42,7 +43,7 @@ func TestSessionCreateRejectsBadCredentials(t *testing.T) {
 
 	resp := srv.PostJSON(
 		routes.SessionCreate.Path(),
-		handlers.LoginPayload{Email: "nobody@example.com", Password: "wrong password"},
+		payloads.LoginPayload{Email: "nobody@example.com", Password: "wrong password"},
 		anduintest.Header{Name: "X-Inertia", Value: "true"},
 	)
 	resp.AssertStatus(http.StatusOK)
@@ -74,7 +75,7 @@ func TestRegistrationDuplicateEmailBehavesLikeSuccess(t *testing.T) {
 		t.Fatalf("create existing user: %v", err)
 	}
 
-	resp := app.server.PostJSON(routes.RegistrationCreate.Path(), handlers.RegistrationPayload{
+	resp := app.server.PostJSON(routes.RegistrationCreate.Path(), payloads.RegistrationPayload{
 		Email:           "taken@example.com",
 		Password:        testPassword,
 		ConfirmPassword: testPassword,
@@ -183,7 +184,7 @@ type authTestApp struct {
 }
 
 // newAuthTestApp builds the auth routes and one protected route over a clean
-// database, a real renderer, and the same session jar runtime.New wires.
+// database, a real renderer, and the same session jar app.New wires.
 func newAuthTestApp(t *testing.T) authTestApp {
 	t.Helper()
 
@@ -285,7 +286,7 @@ func (a authTestApp) verifiedUser(t *testing.T, email string) domains.User {
 func (a authTestApp) signIn(t *testing.T, email string) {
 	t.Helper()
 
-	resp := a.server.PostJSON(routes.SessionCreate.Path(), handlers.LoginPayload{
+	resp := a.server.PostJSON(routes.SessionCreate.Path(), payloads.LoginPayload{
 		Email:    email,
 		Password: testPassword,
 	})

@@ -12,10 +12,8 @@ import (
 )
 
 // The verify rule list in the agent docs is generated from layers.Catalog()
-// into a marked region. Markdown files mark it with HTML comments; agents.tmpl
-// marks it with template comments so the scaffolded AGENTS.md carries no
-// markers. Both markers sit on their own line and the generated table sits
-// between them.
+// into a marked region. Markdown files mark it with HTML comments. Both markers
+// sit on their own line and the generated table sits between them.
 const (
 	verifyRulesBeginMarker = "andurel:verify-rules:begin"
 	verifyRulesEndMarker   = "andurel:verify-rules:end"
@@ -25,7 +23,6 @@ const (
 // verifyRuleDocPaths are the framework docs that embed the generated rule
 // table, relative to the framework root.
 var verifyRuleDocPaths = []string{
-	"layout/templates/agents.tmpl",
 	"skills/andurel/SKILL.md",
 	"skills/andurel/references/cli-catalog.md",
 }

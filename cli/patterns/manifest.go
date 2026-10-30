@@ -133,7 +133,7 @@ func missingRowManifest(title, table string) Manifest {
 				Summary: fmt.Sprintf("Validate unit tests plus domain tests over a real test database via domains.New%s(db)", receiver),
 			},
 			{
-				Path:    "internal/runtime/runtime.go",
+				Path:    "app/runtime.go",
 				Action:  "edit",
 				Summary: fmt.Sprintf("construct with domains.New%s(db) and pass it to the services/handlers that use it", receiver),
 			},

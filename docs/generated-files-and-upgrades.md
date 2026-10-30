@@ -1,6 +1,6 @@
 # Generated files and upgrade behavior
 
-Every file `andurel new` writes belongs to the application: `cmd/`, `config/`, `domains/`, `handlers/`, `middleware/`, `internal/runtime/`, `queue/`, `email/`, `resources/`, `migrations/`, and the rest. Framework behavior lives in the standalone `github.com/mbvlabs/andurel/pkg/*` modules, which the application imports like any other library.
+Every file `andurel new` writes belongs to the application: `cmd/`, `config/`, `domains/`, `handlers/`, `middleware/`, `app/`, `payloads/`, `queue/`, `email/`, `resources/`, `migrations/`, and the rest. Framework behavior lives in the standalone `github.com/mbvlabs/andurel/pkg/*` modules, which the application imports like any other library.
 
 `andurel upgrade` therefore never rewrites application source. A real upgrade:
 
@@ -96,9 +96,9 @@ Beta.4 pins `pkg/inertia v0.13.0`. A development install can still point at a
 local framework checkout with `just local-replace <app>`; remove these
 replacements before verifying a published-module installation.
 
-## Provider adapters under `internal/`
+## Provider adapters
 
-External provider adapters (API clients for payment providers, email providers, Discord, and similar third-party services) belong in a package under `internal/`, named for its job: `internal/clients/` for a group of API clients or `internal/payment/` for one payment adapter. Wiring for adapters stays in `internal/runtime`. Andurel never generated a top-level `clients/` directory, so `andurel upgrade` does not move hand-written adapters.
+External provider adapters (API clients for payment providers, email providers, Discord, and similar third-party services) belong in a top-level package named for its job: `clients/` for a group of API clients or `payment/` for one payment adapter. Generated apps have no top-level `internal/`. Wiring for adapters stays in `app/`.
 
 ## Planning and preview
 

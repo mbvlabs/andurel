@@ -70,8 +70,14 @@ var catalog = []Rule{
 	},
 	{
 		ID:      "tx-layer",
-		Summary: "storage.AtomicOps and storage.Transactor are used only in services, domains, and internal/runtime",
+		Summary: "storage.AtomicOps and storage.Transactor are used only in services, domains, and app",
 		Fix:     "move transaction orchestration into a service; run 'andurel patterns show service'",
+		Layer:   RuleLayerLayers,
+	},
+	{
+		ID:      "payloads-import",
+		Summary: "payloads/** imports only the standard library and mappable types; no app packages, storage, anduin, inertia, or net/http",
+		Fix:     "copy the fields you need onto a payload struct; keep payloads limited to standard-library, time, and uuid types",
 		Layer:   RuleLayerLayers,
 	},
 	{

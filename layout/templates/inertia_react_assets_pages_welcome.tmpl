@@ -2,11 +2,7 @@ import { Link, usePage } from '@inertiajs/react'
 
 import Layout from '@/Layouts/Layout'
 import { routes } from '@/routes'
-
-type WelcomeProps = {
-  appName: string
-  docsURL: string
-}
+import type { WelcomeProps } from '@/types/payloads'
 
 type SharedProps = {
   auth?: { isAuthenticated: boolean }

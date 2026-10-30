@@ -6,7 +6,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"go/types"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -21,11 +20,6 @@ import (
 
 const generatedPayloadsTSPath = "resources/js/types/payloads.ts"
 
-// unresolvedFromStructReason marks a FromStruct call whose argument the scanner
-// cannot trace to a named struct. It is a skip by default and an error under
-// sync payloads --strict.
-const unresolvedFromStructReason = "unresolved FromStruct argument"
-
 const jsonValueAlias = `export type JsonValue =
   | string
   | number
@@ -36,22 +30,12 @@ const jsonValueAlias = `export type JsonValue =
 `
 
 type payloadsReport struct {
-	GeneratedFile string           `json:"generated_file"`
-	TypeCount     int              `json:"type_count"`
-	SkippedCount  int              `json:"skipped_count"`
-	Skipped       []payloadSkipped `json:"skipped,omitempty"`
+	GeneratedFile string `json:"generated_file"`
+	TypeCount     int    `json:"type_count"`
 }
 
-type payloadSkipped struct {
-	Name       string `json:"name,omitempty"`
-	SourceFile string `json:"source_file"`
-	Line       int    `json:"line"`
-	Reason     string `json:"reason"`
-}
-
-type controllerStruct struct {
+type payloadStruct struct {
 	name       string
-	pkgRel     string
 	sourceFile string
 	line       int
 	structType *ast.StructType
@@ -71,44 +55,32 @@ type payloadType struct {
 }
 
 type payloadScan struct {
-	rootDir   string
-	module    string
-	fset      *token.FileSet
-	structs   map[string]*controllerStruct
-	roots     map[string]string
-	skipped   []payloadSkipped
-	failLater []string
+	rootDir string
+	module  string
+	fset    *token.FileSet
+	structs map[string]*payloadStruct
 }
 
 func newGeneratePayloadsCommand() *cobra.Command {
-	var strict bool
 	cmd := &cobra.Command{
 		Use:   "payloads",
 		Short: "Generate TypeScript payload types for Inertia frontends",
-		Long: `Generate TypeScript declarations from backend-owned Inertia payload structs.
+		Long: `Generate TypeScript declarations from the application's payload structs.
 
-The command scans handlers for:
+The payloads/ package is the single source of TypeScript payload types, like
+routes/ is for resources/js/routes.ts. Every exported struct declared in
+payloads/ is emitted; nested named structs in the same package are followed.
+Fields tagged json:"-" are omitted, and json:",omitempty" fields are optional.
 
-  - inertia.FromStruct props (page props), following named struct fields into
-    other packages in this Go module.
-  - named structs decoded with anduin.DecodeJSON or anduin.DecodeForm (request
-    payloads). These must be named with a Payload suffix.
+payloads/ may import only the standard library and mappable types such as
+time.Time and uuid.UUID. Importing an application package, pkg/storage,
+pkg/anduin, pkg/inertia, or net/http is a verify violation: handlers import
+payloads for page props and request bodies, so payloads stay free of
+transport and persistence dependencies.
 
-It writes resources/js/types/payloads.ts. Fields tagged json:"-" are omitted.
-domains/ types, unexported or generic structs, and fields without a TypeScript
-mapping are rejected; define a handler-owned payload instead. Calls that pass a
-literal inertia.Props{...} map are skipped because there is no static struct to
-read.
-
-FromStruct arguments may be composite literals, typed variables, function
-parameters, and closure parameters. --strict fails when a FromStruct argument
-cannot be resolved statically and lists each file:line; it still writes
-resources/js/types/payloads.ts before returning the failure. Without --strict
-the same roots are reported with the hint to pass a named composite literal or
-a typed variable.`,
+It writes resources/js/types/payloads.ts. Run it after changing payloads/.`,
 		Example: `  andurel sync payloads
-  andurel sync payloads --json
-  andurel sync payloads --strict`,
+  andurel sync payloads --json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, err := findGoModRoot()
@@ -122,89 +94,27 @@ a typed variable.`,
 			if err != nil {
 				return err
 			}
-			if strict {
-				if err := strictPayloadsError(report); err != nil {
-					return err
-				}
-			}
 			return output.OK(cmd, report, payloadsReportSummary(report))
 		},
 	}
-	cmd.Flags().BoolVar(
-		&strict,
-		"strict",
-		false,
-		"Fail when a FromStruct argument cannot be resolved statically",
-	)
 	setAgentMetadata(
 		cmd,
 		"generation",
-		"Writes Inertia frontend payload types to resources/js/types/payloads.ts from handler payload structs. Use --json for type and skipped counts.",
+		"Writes Inertia frontend payload types to resources/js/types/payloads.ts from the payloads/ package. Use --json for the type count.",
 	)
 	return cmd
 }
 
 func payloadsReportSummary(report payloadsReport) string {
-	summary := fmt.Sprintf(
+	return fmt.Sprintf(
 		"Generated %d payload types to %s",
 		report.TypeCount,
 		report.GeneratedFile,
 	)
-	if report.SkippedCount > 0 {
-		summary = fmt.Sprintf("%s (%d skipped)", summary, report.SkippedCount)
-	}
-	unresolved := unresolvedFromStructRoots(report)
-	if len(unresolved) == 0 {
-		return summary
-	}
-	lines := make([]string, 0, len(unresolved)+2)
-	lines = append(lines, summary)
-	for _, skipped := range unresolved {
-		lines = append(lines, fmt.Sprintf(
-			"  %s:%d: %s",
-			skipped.SourceFile,
-			skipped.Line,
-			skipped.Reason,
-		))
-	}
-	lines = append(lines, "  hint: pass a named composite literal or a typed variable")
-	return strings.Join(lines, "\n")
-}
-
-// unresolvedFromStructRoots returns the skipped roots --strict rejects.
-func unresolvedFromStructRoots(report payloadsReport) []payloadSkipped {
-	unresolved := make([]payloadSkipped, 0)
-	for _, skipped := range report.Skipped {
-		if skipped.Reason == unresolvedFromStructReason {
-			unresolved = append(unresolved, skipped)
-		}
-	}
-	return unresolved
-}
-
-// strictPayloadsError keeps the report as error data so structured output has
-// the same payloadsReport shape it would have on success.
-func strictPayloadsError(report payloadsReport) error {
-	unresolved := unresolvedFromStructRoots(report)
-	if len(unresolved) == 0 {
-		return nil
-	}
-	locations := make([]string, 0, len(unresolved))
-	for _, skipped := range unresolved {
-		locations = append(locations, fmt.Sprintf("%s:%d", skipped.SourceFile, skipped.Line))
-	}
-	failure := output.NewError(
-		output.CodeGenerationFailed,
-		"unresolved FromStruct arguments at "+strings.Join(locations, ", "),
-		output.ExitGeneration,
-		"pass a named composite literal or a typed variable",
-	)
-	failure.Data = report
-	return failure
 }
 
 func generatePayloadsFile(rootDir string) (payloadsReport, error) {
-	content, typeCount, skipped, err := renderPayloadsTS(rootDir)
+	content, typeCount, err := renderPayloadsTS(rootDir)
 	if err != nil {
 		return payloadsReport{}, err
 	}
@@ -218,8 +128,6 @@ func generatePayloadsFile(rootDir string) (payloadsReport, error) {
 	return payloadsReport{
 		GeneratedFile: generatedPayloadsTSPath,
 		TypeCount:     typeCount,
-		SkippedCount:  len(skipped),
-		Skipped:       skipped,
 	}, nil
 }
 
@@ -241,14 +149,14 @@ func generateInertiaArtifacts(rootDir, inertia string) error {
 	return err
 }
 
-func renderPayloadsTS(rootDir string) ([]byte, int, []payloadSkipped, error) {
-	scan, err := scanControllerPayloads(rootDir)
+func renderPayloadsTS(rootDir string) ([]byte, int, error) {
+	scan, err := scanPayloadStructs(rootDir)
 	if err != nil {
-		return nil, 0, nil, err
+		return nil, 0, err
 	}
 	emitted, needsJSON, err := scan.emitTypes()
 	if err != nil {
-		return nil, 0, nil, err
+		return nil, 0, err
 	}
 
 	var buf bytes.Buffer
@@ -277,10 +185,10 @@ func renderPayloadsTS(rootDir string) ([]byte, int, []payloadSkipped, error) {
 		}
 		buf.WriteString("}\n")
 	}
-	return buf.Bytes(), len(emitted), scan.skipped, nil
+	return buf.Bytes(), len(emitted), nil
 }
 
-func scanControllerPayloads(rootDir string) (*payloadScan, error) {
+func scanPayloadStructs(rootDir string) (*payloadScan, error) {
 	module, _, err := readGoModMetadata(rootDir)
 	if err != nil {
 		return nil, err
@@ -289,73 +197,44 @@ func scanControllerPayloads(rootDir string) (*payloadScan, error) {
 		rootDir: rootDir,
 		module:  module,
 		fset:    token.NewFileSet(),
-		structs: map[string]*controllerStruct{},
-		roots:   map[string]string{},
+		structs: map[string]*payloadStruct{},
 	}
-	// Index exported structs from every package in the project module so page
-	// props can reference named types declared outside handlers/.
-	if err := walkProjectGoFiles(rootDir, scan.parseControllerFile); err != nil {
-		return nil, err
+
+	payloadsDir := filepath.Join(rootDir, "payloads")
+	entries, err := os.ReadDir(payloadsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, generationFailed(
+				"payloads directory not found",
+				"Create payloads/*.go with the page props and request bodies the frontend consumes.",
+			)
+		}
+		return nil, fmt.Errorf("read payloads directory: %w", err)
 	}
-	// Only handler code declares the payload roots that should be emitted.
-	if err := walkHandlerGoFiles(rootDir, scan.discoverInFile); err != nil {
-		return nil, err
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") ||
+			strings.HasSuffix(entry.Name(), "_test.go") {
+			continue
+		}
+		if err := scan.parseFile(filepath.Join(payloadsDir, entry.Name())); err != nil {
+			return nil, err
+		}
 	}
 	return scan, nil
 }
 
-// walkProjectGoFiles visits every Go file in the project module, skipping
-// dependency, VCS and build-output directories.
-func walkProjectGoFiles(rootDir string, visit func(string) error) error {
-	return filepath.WalkDir(rootDir, func(path string, d os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if d.IsDir() {
-			switch d.Name() {
-			case ".git", ".claude", "vendor", "node_modules", "bin", "dist":
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-		return visit(path)
-	})
-}
-
-func walkHandlerGoFiles(rootDir string, visit func(string) error) error {
-	handlersDir := filepath.Join(rootDir, "handlers")
-	if _, err := os.Stat(handlersDir); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	return filepath.WalkDir(handlersDir, func(path string, d os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if d.IsDir() {
-			if d.Name() == "api" && filepath.Base(filepath.Dir(path)) == "handlers" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-		return visit(path)
-	})
-}
-
-func (s *payloadScan) parseControllerFile(path string) error {
+func (s *payloadScan) parseFile(path string) error {
 	file, err := parser.ParseFile(s.fset, path, nil, parser.SkipObjectResolution)
 	if err != nil {
-		return fmt.Errorf("parse project file %s: %w", path, err)
+		return fmt.Errorf("parse payload file %s: %w", path, err)
 	}
-	pkgRel := packageRelPath(s.rootDir, path)
+	if file.Name.Name != "payloads" {
+		return generationFailed(
+			fmt.Sprintf("%s: package %s; payload structs belong in package payloads", path, file.Name.Name),
+			"Move the declaration to payloads/ and declare package payloads.",
+		)
+	}
+
 	imports := controllerImportMap(file)
 	sourceFile := routeManifestSourceFile(s.rootDir, path)
 	for _, decl := range file.Decls {
@@ -372,190 +251,32 @@ func (s *payloadScan) parseControllerFile(path string) error {
 			if !ok {
 				continue
 			}
-			cs := &controllerStruct{
-				name:       typeSpec.Name.Name,
-				pkgRel:     pkgRel,
+			name := typeSpec.Name.Name
+			if existing, ok := s.structs[name]; ok {
+				return generationFailed(
+					fmt.Sprintf(
+						"payload type %s is declared twice: %s and %s",
+						name, existing.sourceFile, sourceFile,
+					),
+					"Keep one declaration per payload type name.",
+				)
+			}
+			s.structs[name] = &payloadStruct{
+				name:       name,
 				sourceFile: sourceFile,
 				line:       s.fset.Position(typeSpec.Pos()).Line,
 				structType: structType,
 				imports:    imports,
 				typeParams: typeSpec.TypeParams != nil && typeSpec.TypeParams.NumFields() > 0,
 			}
-			s.structs[structKey(pkgRel, cs.name)] = cs
 		}
 	}
 	return nil
-}
-
-func (s *payloadScan) discoverInFile(path string) error {
-	file, err := parser.ParseFile(s.fset, path, nil, parser.SkipObjectResolution)
-	if err != nil {
-		return fmt.Errorf("parse handler file %s: %w", path, err)
-	}
-	pkgRel := packageRelPath(s.rootDir, path)
-	imports := controllerImportMap(file)
-	sourceFile := routeManifestSourceFile(s.rootDir, path)
-	for _, decl := range file.Decls {
-		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Body == nil {
-			continue
-		}
-		locals := collectFuncLocals(fn, imports)
-		ast.Inspect(fn.Body, func(node ast.Node) bool {
-			call, ok := node.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-			line := s.fset.Position(call.Pos()).Line
-			switch {
-			case len(call.Args) == 1 && isInertiaFromStructCall(call.Fun, imports):
-				s.noteFromStruct(call.Args[0], locals, pkgRel, imports, sourceFile, line)
-			case len(call.Args) == 2 && isAnduinDecodeCall(call.Fun, imports):
-				s.noteBind(call.Args[1], locals, pkgRel, imports, sourceFile, line)
-			}
-			return true
-		})
-	}
-	return nil
-}
-
-func (s *payloadScan) noteFromStruct(
-	arg ast.Expr,
-	locals map[string]ast.Expr,
-	pkgRel string,
-	imports map[string]string,
-	sourceFile string,
-	line int,
-) {
-	pkg, name, ok := s.resolveNamedStruct(arg, locals, pkgRel, imports, map[string]struct{}{})
-	if !ok {
-		s.skipped = append(s.skipped, payloadSkipped{
-			SourceFile: sourceFile,
-			Line:       line,
-			Reason:     unresolvedFromStructReason,
-		})
-		return
-	}
-	if !ast.IsExported(name) {
-		s.skipped = append(s.skipped, payloadSkipped{
-			Name: name, SourceFile: sourceFile, Line: line, Reason: "unexported type",
-		})
-		return
-	}
-	if isDomainPackage(pkg) {
-		s.failLater = append(s.failLater, fmt.Sprintf(
-			"%s:%d: FromStruct uses domain type %s; define a handler-owned payload type",
-			sourceFile, line, name,
-		))
-		return
-	}
-	key := structKey(pkg, name)
-	if _, exists := s.structs[key]; !exists {
-		s.skipped = append(s.skipped, payloadSkipped{
-			Name: name, SourceFile: sourceFile, Line: line, Reason: unresolvedFromStructReason,
-		})
-		return
-	}
-	s.roots[key] = "fromstruct"
-}
-
-func (s *payloadScan) noteBind(
-	arg ast.Expr,
-	locals map[string]ast.Expr,
-	pkgRel string,
-	imports map[string]string,
-	sourceFile string,
-	line int,
-) {
-	if ident, ok := pointerIdent(arg); ok {
-		if expr, found := locals[ident]; found {
-			if isAnonymousStruct(expr) {
-				return
-			}
-			arg = expr
-		}
-	}
-	if isAnonymousStruct(arg) {
-		return
-	}
-	pkg, name, ok := s.resolveNamedStruct(arg, locals, pkgRel, imports, map[string]struct{}{})
-	if !ok {
-		s.skipped = append(s.skipped, payloadSkipped{
-			SourceFile: sourceFile, Line: line, Reason: "unresolved decode argument",
-		})
-		return
-	}
-	if !ast.IsExported(name) {
-		s.skipped = append(s.skipped, payloadSkipped{
-			Name: name, SourceFile: sourceFile, Line: line, Reason: "unexported type",
-		})
-		return
-	}
-	if !strings.HasSuffix(name, "Payload") {
-		s.failLater = append(s.failLater, fmt.Sprintf(
-			"%s:%d: decoded payload %s must be named with a Payload suffix; rename it (for example %sPayload)",
-			sourceFile,
-			line,
-			name,
-			name,
-		))
-		return
-	}
-	key := structKey(pkg, name)
-	if _, exists := s.structs[key]; !exists {
-		s.skipped = append(s.skipped, payloadSkipped{
-			Name: name, SourceFile: sourceFile, Line: line, Reason: "unresolved decode argument",
-		})
-		return
-	}
-	s.roots[key] = "bind"
 }
 
 func (s *payloadScan) emitTypes() ([]payloadType, bool, error) {
-	if err := s.firstFailure(); err != nil {
-		return nil, false, err
-	}
-	needed := map[string]*controllerStruct{}
-	var add func(*controllerStruct) error
-	add = func(cs *controllerStruct) error {
-		if cs.typeParams {
-			return generationFailed(
-				fmt.Sprintf(
-					"%s:%d: %s uses type parameters; use a concrete handler-owned struct",
-					cs.sourceFile, cs.line, cs.name,
-				),
-				"Replace the generic struct with a concrete payload type.",
-			)
-		}
-		if existing, ok := needed[cs.name]; ok {
-			if existing.pkgRel != cs.pkgRel {
-				return generationFailed(
-					fmt.Sprintf(
-						"payload type name collision for %q: %s and %s",
-						cs.name, existing.pkgRel, cs.pkgRel,
-					),
-					"Rename one of the structs so generated TypeScript names are unique.",
-				)
-			}
-			return nil
-		}
-		needed[cs.name] = cs
-		return s.forNestedStructs(cs, add)
-	}
-
-	rootKeys := make([]string, 0, len(s.roots))
-	for key := range s.roots {
-		rootKeys = append(rootKeys, key)
-	}
-	slices.Sort(rootKeys)
-	for _, key := range rootKeys {
-		if err := add(s.structs[key]); err != nil {
-			return nil, false, err
-		}
-	}
-
-	names := make([]string, 0, len(needed))
-	for name := range needed {
+	names := make([]string, 0, len(s.structs))
+	for name := range s.structs {
 		names = append(names, name)
 	}
 	slices.Sort(names)
@@ -563,56 +284,35 @@ func (s *payloadScan) emitTypes() ([]payloadType, bool, error) {
 	emitted := make([]payloadType, 0, len(names))
 	needsJSON := false
 	for _, name := range names {
-		cs := needed[name]
-		fields, usedJSON, err := s.mapStructFields(cs, needed)
+		structure := s.structs[name]
+		if structure.typeParams {
+			return nil, false, generationFailed(
+				fmt.Sprintf(
+					"%s:%d: %s uses type parameters; use a concrete payload struct",
+					structure.sourceFile, structure.line, structure.name,
+				),
+				"Replace the generic struct with a concrete payload type.",
+			)
+		}
+		fields, usedJSON, err := s.mapStructFields(structure)
 		if err != nil {
 			return nil, false, err
 		}
 		needsJSON = needsJSON || usedJSON
 		emitted = append(emitted, payloadType{name: name, fields: fields})
 	}
-	return emitted, needsJSON, s.firstFailure()
-}
-
-func (s *payloadScan) forNestedStructs(
-	cs *controllerStruct,
-	add func(*controllerStruct) error,
-) error {
-	if cs.structType.Fields == nil {
-		return nil
-	}
-	for _, field := range cs.structType.Fields.List {
-		for _, ref := range namedStructRefs(field.Type) {
-			pkgRel, name, ok := s.lookupRef(cs, ref)
-			if !ok {
-				continue
-			}
-			if isDomainPackage(pkgRel) {
-				continue
-			}
-			nested, exists := s.structs[structKey(pkgRel, name)]
-			if !exists {
-				continue
-			}
-			if err := add(nested); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return emitted, needsJSON, nil
 }
 
 func (s *payloadScan) mapStructFields(
-	cs *controllerStruct,
-	needed map[string]*controllerStruct,
+	structure *payloadStruct,
 ) ([]payloadField, bool, error) {
-	optionalOK := strings.HasSuffix(cs.name, "Payload")
 	var fields []payloadField
 	needsJSON := false
-	if cs.structType.Fields == nil {
+	if structure.structType.Fields == nil {
 		return fields, false, nil
 	}
-	for _, field := range cs.structType.Fields.List {
+	for _, field := range structure.structType.Fields.List {
 		names := field.Names
 		anonymous := len(names) == 0
 		if anonymous {
@@ -627,8 +327,11 @@ func (s *payloadScan) mapStructFields(
 				continue
 			}
 			if anonymous && jsonName == "" {
-				embedded := s.embeddedTarget(cs, field.Type, needed)
-				nested, usedJSON, err := s.mapStructFields(embedded, needed)
+				embedded, err := s.embeddedStruct(structure, field.Type)
+				if err != nil {
+					return nil, false, err
+				}
+				nested, usedJSON, err := s.mapStructFields(embedded)
 				if err != nil {
 					return nil, false, err
 				}
@@ -639,7 +342,7 @@ func (s *payloadScan) mapStructFields(
 			if jsonName == "" {
 				jsonName = ident.Name
 			}
-			tsType, usedJSON, err := s.mapType(cs, field.Type, field, needed)
+			tsType, usedJSON, err := s.mapType(structure, field.Type, field)
 			if err != nil {
 				return nil, false, err
 			}
@@ -647,54 +350,50 @@ func (s *payloadScan) mapStructFields(
 			fields = append(fields, payloadField{
 				jsonName: jsonName,
 				tsType:   tsType,
-				optional: optionalOK && omitempty,
+				optional: omitempty,
 			})
 		}
 	}
 	return fields, needsJSON, nil
 }
 
-func (s *payloadScan) embeddedTarget(
-	cs *controllerStruct,
+func (s *payloadScan) embeddedStruct(
+	structure *payloadStruct,
 	expr ast.Expr,
-	needed map[string]*controllerStruct,
-) *controllerStruct {
-	expr = unwrapStar(expr)
-	ident, ok := expr.(*ast.Ident)
+) (*payloadStruct, error) {
+	ident, ok := unwrapStar(expr).(*ast.Ident)
 	if !ok {
-		return emptyStruct(cs)
+		return nil, unmappedTypeError(
+			fmt.Sprintf("%s:%d", structure.sourceFile, structure.line),
+			"(embedded)",
+			exprString(expr),
+		)
 	}
-	if nested, ok := needed[ident.Name]; ok {
-		return nested
+	embedded, ok := s.structs[ident.Name]
+	if !ok {
+		return nil, generationFailed(
+			fmt.Sprintf(
+				"%s:%d: embedded type %s is not an exported payload struct",
+				structure.sourceFile,
+				structure.line,
+				ident.Name,
+			),
+			"Embed an exported struct declared in payloads/, or list the fields explicitly.",
+		)
 	}
-	if nested, ok := s.structs[structKey(cs.pkgRel, ident.Name)]; ok {
-		return nested
-	}
-	return emptyStruct(cs)
-}
-
-func emptyStruct(cs *controllerStruct) *controllerStruct {
-	return &controllerStruct{
-		name:       cs.name,
-		pkgRel:     cs.pkgRel,
-		sourceFile: cs.sourceFile,
-		line:       cs.line,
-		structType: &ast.StructType{},
-		imports:    cs.imports,
-	}
+	return embedded, nil
 }
 
 func (s *payloadScan) mapType(
-	cs *controllerStruct,
+	structure *payloadStruct,
 	expr ast.Expr,
 	field *ast.Field,
-	needed map[string]*controllerStruct,
 ) (string, bool, error) {
-	loc := fmt.Sprintf("%s:%d", cs.sourceFile, s.fset.Position(expr.Pos()).Line)
+	loc := fmt.Sprintf("%s:%d", structure.sourceFile, s.fset.Position(expr.Pos()).Line)
 	fieldName := fieldIdent(field)
 	switch typed := expr.(type) {
 	case *ast.StarExpr:
-		inner, usedJSON, err := s.mapType(cs, typed.X, field, needed)
+		inner, usedJSON, err := s.mapType(structure, typed.X, field)
 		if err != nil {
 			return "", false, err
 		}
@@ -706,7 +405,7 @@ func (s *payloadScan) mapType(
 		if ident, ok := typed.Elt.(*ast.Ident); ok && ident.Name == "byte" {
 			return "string", false, nil
 		}
-		inner, usedJSON, err := s.mapType(cs, typed.Elt, field, needed)
+		inner, usedJSON, err := s.mapType(structure, typed.Elt, field)
 		if err != nil {
 			return "", false, err
 		}
@@ -721,29 +420,25 @@ func (s *payloadScan) mapType(
 		if typed.Name == "any" {
 			return "JsonValue", true, nil
 		}
-		if _, ok := needed[typed.Name]; ok {
-			return typed.Name, false, nil
-		}
-		if _, ok := s.structs[structKey(cs.pkgRel, typed.Name)]; ok {
+		if _, ok := s.structs[typed.Name]; ok {
 			return typed.Name, false, nil
 		}
 		return "", false, unmappedTypeError(loc, fieldName, typed.Name)
 	case *ast.SelectorExpr:
-		return s.mapSelector(cs, typed, field, loc, fieldName)
+		return s.mapSelector(structure, typed, field, loc, fieldName)
 	case *ast.InterfaceType:
 		if typed.Methods != nil && typed.Methods.NumFields() == 0 {
 			return "JsonValue", true, nil
 		}
 		return "", false, unmappedTypeError(loc, fieldName, exprString(expr))
 	case *ast.StructType:
-		inline, usedJSON, err := s.mapStructFields(&controllerStruct{
-			name:       cs.name,
-			pkgRel:     cs.pkgRel,
-			sourceFile: cs.sourceFile,
-			line:       cs.line,
+		inline, usedJSON, err := s.mapStructFields(&payloadStruct{
+			name:       structure.name,
+			sourceFile: structure.sourceFile,
+			line:       structure.line,
 			structType: typed,
-			imports:    cs.imports,
-		}, needed)
+			imports:    structure.imports,
+		})
 		if err != nil {
 			return "", false, err
 		}
@@ -759,7 +454,7 @@ func (s *payloadScan) mapType(
 	case *ast.IndexExpr, *ast.IndexListExpr:
 		return "", false, generationFailed(
 			fmt.Sprintf("%s: field %s uses a type parameter or generic instantiation", loc, fieldName),
-			"Use a concrete handler-owned payload type.",
+			"Use a concrete payload type.",
 		)
 	default:
 		return "", false, unmappedTypeError(loc, fieldName, exprString(expr))
@@ -767,7 +462,7 @@ func (s *payloadScan) mapType(
 }
 
 func (s *payloadScan) mapSelector(
-	cs *controllerStruct,
+	structure *payloadStruct,
 	sel *ast.SelectorExpr,
 	field *ast.Field,
 	loc, fieldName string,
@@ -776,116 +471,48 @@ func (s *payloadScan) mapSelector(
 	if !ok {
 		return "", false, unmappedTypeError(loc, fieldName, exprString(sel))
 	}
-	importPath := cs.imports[pkgIdent.Name]
-	if isDomainPackage(importPath) || pkgIdent.Name == "domains" {
+	importPath := structure.imports[pkgIdent.Name]
+	if s.isApplicationImport(importPath) {
 		return "", false, generationFailed(
 			fmt.Sprintf(
-				"%s: field %s uses domains.%s; define a handler-owned payload type",
-				loc, fieldName, sel.Sel.Name,
+				"%s: field %s uses %s.%s from an application package; payloads may not import the app module",
+				loc, fieldName, pkgIdent.Name, sel.Sel.Name,
 			),
-			"Copy the fields you need onto a handler-owned struct.",
+			"Copy the fields you need onto a payload struct; keep payloads limited to standard-library, time, and uuid types.",
+		)
+	}
+	if isPayloadForbiddenImport(importPath) {
+		return "", false, generationFailed(
+			fmt.Sprintf(
+				"%s: field %s uses %s.%s from %s; payloads may not depend on transport or persistence packages",
+				loc, fieldName, pkgIdent.Name, sel.Sel.Name, importPath,
+			),
+			"Copy the fields you need onto a payload struct; keep payloads limited to standard-library, time, and uuid types.",
 		)
 	}
 	if mapped, usedJSON, ok := mapKnownSelector(importPath, pkgIdent.Name, sel.Sel.Name); ok {
 		return mapped, usedJSON, nil
 	}
-	rel := pkgRelFromImport(s.module, importPath)
-	if rel != "" {
-		if _, exists := s.structs[structKey(rel, sel.Sel.Name)]; exists {
-			return sel.Sel.Name, false, nil
-		}
-	}
 	return "", false, unmappedTypeError(loc, fieldName, pkgIdent.Name+"."+sel.Sel.Name)
 }
 
-func (s *payloadScan) resolveNamedStruct(
-	expr ast.Expr,
-	locals map[string]ast.Expr,
-	pkgRel string,
-	imports map[string]string,
-	seen map[string]struct{},
-) (string, string, bool) {
-	expr = unwrapStar(expr)
-	switch typed := expr.(type) {
-	case *ast.UnaryExpr:
-		return s.resolveNamedStruct(typed.X, locals, pkgRel, imports, seen)
-	case *ast.CompositeLit:
-		return s.resolveNamedStruct(typed.Type, locals, pkgRel, imports, seen)
-	case *ast.CallExpr:
-		fun, ok := typed.Fun.(*ast.Ident)
-		if ok && fun.Name == "new" && len(typed.Args) == 1 {
-			return s.resolveNamedStruct(typed.Args[0], locals, pkgRel, imports, seen)
-		}
-		return "", "", false
-	case *ast.IndexExpr:
-		return s.resolveNamedStruct(typed.X, locals, pkgRel, imports, seen)
-	case *ast.IndexListExpr:
-		return s.resolveNamedStruct(typed.X, locals, pkgRel, imports, seen)
-	case *ast.Ident:
-		if _, loop := seen[typed.Name]; loop {
-			return "", "", false
-		}
-		if local, ok := locals[typed.Name]; ok {
-			seen[typed.Name] = struct{}{}
-			return s.resolveNamedStruct(local, locals, pkgRel, imports, seen)
-		}
-		if _, ok := s.structs[structKey(pkgRel, typed.Name)]; ok {
-			return pkgRel, typed.Name, true
-		}
-		return "", "", false
-	case *ast.SelectorExpr:
-		pkgIdent, ok := typed.X.(*ast.Ident)
-		if !ok {
-			return "", "", false
-		}
-		importPath := imports[pkgIdent.Name]
-		if isDomainPackage(importPath) || pkgIdent.Name == "domains" {
-			return "domains", typed.Sel.Name, true
-		}
-		rel := pkgRelFromImport(s.module, importPath)
-		if rel == "" {
-			return "", "", false
-		}
-		return rel, typed.Sel.Name, true
-	case *ast.ParenExpr:
-		return s.resolveNamedStruct(typed.X, locals, pkgRel, imports, seen)
-	default:
-		return "", "", false
+func (s *payloadScan) isApplicationImport(importPath string) bool {
+	if importPath == "" || s.module == "" {
+		return false
 	}
+	return importPath == s.module || strings.HasPrefix(importPath, s.module+"/")
 }
 
-func (s *payloadScan) lookupRef(cs *controllerStruct, ref ast.Expr) (string, string, bool) {
-	ref = unwrapStar(ref)
-	switch typed := ref.(type) {
-	case *ast.Ident:
-		return cs.pkgRel, typed.Name, true
-	case *ast.SelectorExpr:
-		pkgIdent, ok := typed.X.(*ast.Ident)
-		if !ok {
-			return "", "", false
-		}
-		importPath := cs.imports[pkgIdent.Name]
-		if isDomainPackage(importPath) || pkgIdent.Name == "domains" {
-			return "domains", typed.Sel.Name, true
-		}
-		rel := pkgRelFromImport(s.module, importPath)
-		if rel == "" {
-			return "", "", false
-		}
-		return rel, typed.Sel.Name, true
+func isPayloadForbiddenImport(importPath string) bool {
+	switch importPath {
+	case "net/http",
+		"github.com/mbvlabs/andurel/pkg/storage",
+		"github.com/mbvlabs/andurel/pkg/anduin",
+		"github.com/mbvlabs/andurel/pkg/inertia":
+		return true
 	default:
-		return "", "", false
+		return false
 	}
-}
-
-func (s *payloadScan) firstFailure() error {
-	if len(s.failLater) == 0 {
-		return nil
-	}
-	return generationFailed(
-		s.failLater[0],
-		"Fix the handler payload type and run andurel sync payloads.",
-	)
 }
 
 func generationFailed(message, hint string) error {
@@ -894,26 +521,9 @@ func generationFailed(message, hint string) error {
 
 func unmappedTypeError(loc, fieldName, typeName string) error {
 	return generationFailed(
-		fmt.Sprintf(
-			"%s: field %s has unmapped type %s; define a handler-owned payload type",
-			loc,
-			fieldName,
-			typeName,
-		),
-		"Replace the field with a mapped scalar or a named handler struct.",
+		fmt.Sprintf("%s: field %s has unmapped type %s", loc, fieldName, typeName),
+		"Use a mapped scalar, a standard-library time or uuid type, or an exported payload struct.",
 	)
-}
-
-func packageRelPath(rootDir, path string) string {
-	rel := routeManifestSourceFile(rootDir, filepath.Dir(path))
-	if rel == "" {
-		return "."
-	}
-	return rel
-}
-
-func structKey(pkgRel, name string) string {
-	return pkgRel + "." + name
 }
 
 func controllerImportMap(file *ast.File) map[string]string {
@@ -935,222 +545,6 @@ func controllerImportMap(file *ast.File) map[string]string {
 	return imports
 }
 
-// pkgRelFromImport maps an import path to a project-relative package directory.
-// It returns "" for imports outside the project module.
-func pkgRelFromImport(module, importPath string) string {
-	if importPath == "" || module == "" {
-		return ""
-	}
-	if importPath == module {
-		return "."
-	}
-	prefix := module + "/"
-	if !strings.HasPrefix(importPath, prefix) {
-		return ""
-	}
-	return strings.TrimPrefix(importPath, prefix)
-}
-
-// isDomainPackage reports whether a package path or name is a domains package.
-// Payload structs must not embed domain types directly; define a handler-owned
-// payload type instead.
-func isDomainPackage(pathOrPkg string) bool {
-	return pathOrPkg == "domains" || strings.HasSuffix(pathOrPkg, "/domains") ||
-		strings.Contains(pathOrPkg, "/domains/") || strings.HasPrefix(pathOrPkg, "domains/")
-}
-
-func isInertiaFromStructCall(fun ast.Expr, imports map[string]string) bool {
-	sel, ok := fun.(*ast.SelectorExpr)
-	if !ok || sel.Sel.Name != "FromStruct" {
-		return false
-	}
-	ident, ok := sel.X.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	path := imports[ident.Name]
-	if path == "" {
-		return ident.Name == "inertia"
-	}
-	return strings.HasSuffix(path, "/inertia") || strings.HasSuffix(path, "/pkg/inertia")
-}
-
-// isAnduinDecodeCall matches anduin.DecodeJSON(ctx, &payload) and
-// anduin.DecodeForm(ctx, &payload), the request-binding entry points.
-func isAnduinDecodeCall(fun ast.Expr, imports map[string]string) bool {
-	sel, ok := fun.(*ast.SelectorExpr)
-	if !ok || (sel.Sel.Name != "DecodeJSON" && sel.Sel.Name != "DecodeForm") {
-		return false
-	}
-	ident, ok := sel.X.(*ast.Ident)
-	if !ok {
-		return false
-	}
-	path := imports[ident.Name]
-	if path == "" {
-		return ident.Name == "anduin"
-	}
-	return strings.HasSuffix(path, "/pkg/anduin")
-}
-
-// ambiguousLocal marks a name bound to more than one type in the flat local
-// scope. Resolving it would pick a declaration by position rather than by Go's
-// block scoping, so callers report the argument unresolved instead.
-var ambiguousLocal ast.Expr = &ast.BadExpr{}
-
-func collectFuncLocals(fn *ast.FuncDecl, imports map[string]string) map[string]ast.Expr {
-	locals := map[string]ast.Expr{}
-	addParams := func(fields *ast.FieldList) {
-		if fields == nil {
-			return
-		}
-		for _, field := range fields.List {
-			if field.Type == nil {
-				continue
-			}
-			for _, name := range field.Names {
-				recordFuncLocal(locals, name.Name, field.Type, imports)
-			}
-		}
-	}
-	addParams(fn.Type.Params)
-	ast.Inspect(fn.Body, func(node ast.Node) bool {
-		switch typed := node.(type) {
-		case *ast.FuncLit:
-			addParams(typed.Type.Params)
-		case *ast.AssignStmt:
-			if typed.Tok != token.DEFINE {
-				return true
-			}
-			for i, lhs := range typed.Lhs {
-				ident, ok := lhs.(*ast.Ident)
-				if !ok || i >= len(typed.Rhs) {
-					continue
-				}
-				recordFuncLocal(locals, ident.Name, typed.Rhs[i], imports)
-			}
-		case *ast.ValueSpec:
-			for i, name := range typed.Names {
-				if typed.Type != nil {
-					recordFuncLocal(locals, name.Name, typed.Type, imports)
-					continue
-				}
-				if i < len(typed.Values) {
-					recordFuncLocal(locals, name.Name, typed.Values[i], imports)
-				}
-			}
-		}
-		return true
-	})
-	return locals
-}
-
-// recordFuncLocal keeps the first expression bound to a name. A later binding
-// of the same name with a different type makes the name ambiguous; keeping the
-// first one would make resolution depend on declaration order across closures.
-// Bindings of the same type stay usable even when their literal values differ.
-func recordFuncLocal(
-	locals map[string]ast.Expr,
-	name string,
-	expr ast.Expr,
-	imports map[string]string,
-) {
-	if name == "" || name == "_" || expr == nil {
-		return
-	}
-	existing, ok := locals[name]
-	if !ok {
-		locals[name] = expr
-		return
-	}
-	if existing == ambiguousLocal {
-		return
-	}
-	existingType, existingOK := localBindingType(existing, imports)
-	bindingType, bindingOK := localBindingType(expr, imports)
-	if !existingOK || !bindingOK || existingType != bindingType {
-		locals[name] = ambiguousLocal
-	}
-}
-
-// localBindingType resolves a local binding to the type it declares. It unwraps
-// pointers and address-of expressions and resolves composite literal types,
-// parameter and var type expressions, and new(T). Package selectors are keyed
-// by import path so two aliases for one package compare equal.
-func localBindingType(expr ast.Expr, imports map[string]string) (string, bool) {
-	expr = unwrapStar(expr)
-	switch typed := expr.(type) {
-	case *ast.UnaryExpr:
-		if typed.Op != token.AND {
-			return "", false
-		}
-		return localBindingType(typed.X, imports)
-	case *ast.CompositeLit:
-		return localBindingType(typed.Type, imports)
-	case *ast.CallExpr:
-		fun, ok := typed.Fun.(*ast.Ident)
-		if !ok || fun.Name != "new" || len(typed.Args) != 1 {
-			return "", false
-		}
-		return localBindingType(typed.Args[0], imports)
-	case *ast.IndexExpr:
-		base, ok := localBindingType(typed.X, imports)
-		if !ok {
-			return "", false
-		}
-		return base + "[" + types.ExprString(typed.Index) + "]", true
-	case *ast.IndexListExpr:
-		base, ok := localBindingType(typed.X, imports)
-		if !ok {
-			return "", false
-		}
-		indices := make([]string, len(typed.Indices))
-		for i, index := range typed.Indices {
-			indices[i] = types.ExprString(index)
-		}
-		return base + "[" + strings.Join(indices, ", ") + "]", true
-	case *ast.Ident:
-		return typed.Name, true
-	case *ast.SelectorExpr:
-		pkg, ok := typed.X.(*ast.Ident)
-		if !ok {
-			return "", false
-		}
-		if path := imports[pkg.Name]; path != "" {
-			return path + "." + typed.Sel.Name, true
-		}
-		return pkg.Name + "." + typed.Sel.Name, true
-	case *ast.StructType, *ast.ArrayType, *ast.MapType, *ast.ChanType, *ast.InterfaceType, *ast.FuncType:
-		return types.ExprString(typed), true
-	default:
-		return "", false
-	}
-}
-
-func pointerIdent(expr ast.Expr) (string, bool) {
-	unary, ok := expr.(*ast.UnaryExpr)
-	if !ok {
-		return "", false
-	}
-	ident, ok := unary.X.(*ast.Ident)
-	if !ok {
-		return "", false
-	}
-	return ident.Name, true
-}
-
-func isAnonymousStruct(expr ast.Expr) bool {
-	expr = unwrapStar(expr)
-	if unary, ok := expr.(*ast.UnaryExpr); ok {
-		expr = unwrapStar(unary.X)
-	}
-	if lit, ok := expr.(*ast.CompositeLit); ok {
-		expr = lit.Type
-	}
-	_, ok := expr.(*ast.StructType)
-	return ok
-}
-
 func unwrapStar(expr ast.Expr) ast.Expr {
 	for {
 		switch typed := expr.(type) {
@@ -1162,27 +556,6 @@ func unwrapStar(expr ast.Expr) ast.Expr {
 			return expr
 		}
 	}
-}
-
-func namedStructRefs(expr ast.Expr) []ast.Expr {
-	var refs []ast.Expr
-	var walk func(ast.Expr)
-	walk = func(e ast.Expr) {
-		switch typed := e.(type) {
-		case *ast.StarExpr:
-			walk(typed.X)
-		case *ast.ArrayType:
-			walk(typed.Elt)
-		case *ast.Ident:
-			if ast.IsExported(typed.Name) {
-				refs = append(refs, typed)
-			}
-		case *ast.SelectorExpr:
-			refs = append(refs, typed)
-		}
-	}
-	walk(expr)
-	return refs
 }
 
 func jsonFieldMeta(field *ast.Field) (name string, include bool, omitempty bool) {
@@ -1263,11 +636,6 @@ func mapKnownSelector(importPath, pkgName, typeName string) (string, bool, bool)
 			return mapped + " | null", false, true
 		}
 	}
-	if pkgName == "pgtype" || strings.HasSuffix(importPath, "pgtype") {
-		if mapped, usedJSON, ok := mapPGType(typeName); ok {
-			return mapped + " | null", usedJSON, true
-		}
-	}
 	return "", false, false
 }
 
@@ -1283,22 +651,5 @@ func mapSQLNull(name string) (string, bool) {
 		return "string", true
 	default:
 		return "", false
-	}
-}
-
-func mapPGType(name string) (string, bool, bool) {
-	switch name {
-	case "Text":
-		return "string", false, true
-	case "Bool":
-		return "boolean", false, true
-	case "Int2", "Int4", "Int8", "Float4", "Float8":
-		return "number", false, true
-	case "Numeric", "UUID", "Date", "Time", "Timestamp", "Timestamptz", "Bytea":
-		return "string", false, true
-	case "JSON", "JSONB":
-		return "JsonValue", true, true
-	default:
-		return "", false, false
 	}
 }

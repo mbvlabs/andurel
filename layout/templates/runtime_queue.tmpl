@@ -1,4 +1,4 @@
-package runtime
+package app
 
 import (
 	"context"
@@ -26,7 +26,7 @@ func NewQueue(ctx context.Context, cfg config.WorkerConfig) (_ *Queue, err error
 	// Workers render absolute links into emails, so routes need the hosts.
 	hosts, err := routing.NewHosts(cfg.App.Hosts)
 	if err != nil {
-		return nil, fmt.Errorf("runtime: configure hosts: %w", err)
+		return nil, fmt.Errorf("app: configure hosts: %w", err)
 	}
 
 	q := &Queue{}

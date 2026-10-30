@@ -1,4 +1,4 @@
 // Package middleware owns application HTTP policy: authentication and session
 // definitions. Generic middleware comes from pkg/anduin; cookie jar construction
-// and dependency wiring live in internal/runtime.
+// and dependency wiring live in app.
 package middleware

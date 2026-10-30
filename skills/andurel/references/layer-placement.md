@@ -1,17 +1,21 @@
 # Layer Placement
 
 Rules for placing code in an Andurel app. The shape is fixed and deliberately
-small:
+small. Generated applications have no top-level `internal/`: an application is
+not a library, so packages are top-level and named for their job. The one
+exception is `domains/internal/queries/`, which the compiler keeps private to
+`domains` because only domains may read it.
 
 - HTTP is ordinary Go over `net/http`, reached through
   `github.com/mbvlabs/andurel/pkg/anduin` (see
   [http-and-routing.md](http-and-routing.md)).
 - Business logic and persistence live in `domains/`.
 - Application logic (cross-domain orchestration) lives in `services/`.
-- HTTP adapters live in `handlers/`; route *data* lives in `routes/`; app
-  middleware and the cookie jar live in `middleware/`.
-- Composition is explicit constructor injection in `internal/runtime/`. There is
-  no Fx, no reflection wiring, and no code generator.
+- HTTP adapters live in `handlers/`; route data lives in `routes/`; app
+  middleware live in `middleware/`.
+- Inertia page props and request bodies live in `payloads/`.
+- Composition is explicit constructor injection in `app/`. There is no Fx, no
+  reflection wiring, and no container.
 
 Two commands keep an agent honest:
 
@@ -34,6 +38,7 @@ Two commands keep an agent honest:
 | Rules that must hold regardless of HTTP, Inertia, API, jobs, or seeds | `domains/` |
 | Multi-step workflows, transactions, cross-domain coordination, external side effects, application policy that requires current database state | `services/` |
 | Request parsing, path/query/form/JSON binding, HTTP status/render/redirect choices, flash messages, CSRF/session handling | `handlers/` (one flat package) |
+| Inertia page props and request body structs emitted to TypeScript | `payloads/` (package `payloads`; standard library, `time`, and `uuid` only) |
 | Route names, route paths, URL builders | `routes/` |
 | App HTTP middleware (auth, authorization) | `middleware/` |
 | Inertia root document | `resources/root.templ` (package `resources`) |
@@ -42,17 +47,18 @@ Two commands keep an agent honest:
 | Tailwind entry point | `css/base.css` (imports Tailwind and `css/theme.css`; `@source` globs live here) |
 | Theme tokens and their utility mappings | `css/theme.css` (`:root` values plus the single `@theme` color owner) |
 | Compiled/static assets | `assets/` |
-| Read-only embedded content or static data consumed by Go | `internal/<name>/` with `//go:embed` (not `assets/`, which is served, or `resources/`, which is frontend) |
+| Read-only embedded content or static data consumed by Go | A top-level package named for its job (for example `content/`) with `//go:embed`; not `assets/`, which is served, or `resources/`, which is frontend |
 | SQL schema changes | `migrations/` |
 | Apply pending SQL (one-shot process) | `cmd/migrate/` |
+| Read-only runtime config and database probe | `cmd/configcheck/` (run by `andurel doctor`, not a served process) |
 | Seed data | `seeds/` or `cmd/seeds/` following the existing pattern |
-| External provider adapters | A package under `internal/` named for its job (for example `internal/clients/`, `internal/payment/`) |
+| External provider adapters | A top-level package named for its job (for example `clients/`, `payment/`) |
 | Email templates and send helpers | `email/` |
 | River job argument types | `queue/jobs/` (`pkg/storage` owns the generic email args) |
 | River workers and queue registration | `queue/` |
 | App configuration structs and environment loading | `config/` |
-| Process composition (constructor wiring, infrastructure, process lifecycle) | `internal/runtime/` |
-| Process entry (load env, one `lifecycle.Run` around `runtime.New` / `runtime.NewQueue`) | `cmd/app/`, `cmd/queue/` |
+| Process composition (constructor wiring, infrastructure, process lifecycle) | `app/` |
+| Process entry (load env, one `lifecycle.Run` around `app.New` / `app.NewQueue`) | `cmd/app/`, `cmd/queue/` |
 | One-shot database processes | `cmd/migrate/`, `cmd/seeds/` |
 
 ## Domains
@@ -64,8 +70,8 @@ file per domain (`domains/user.go`, `domains/token.go`). A domain answers
 Use a domain file for:
 
 - Entity structs with plain Go field types. Keep generated fields mapped to
-  the table (`andurel:"column"` tags). When the entity is not the scan row, implement
-  `Transform(queries.XRow) error`; keep `sql.Scanner` off the entity.
+  the table (`andurel:"column"` tags). When the entity is not the scan row,
+  implement `Transform(queries.XRow) error`; keep `sql.Scanner` off the entity.
 - Generated `queries.XRow` / `queries.QueryNameRow` values. Domain code returns
   the entity, never the row.
 - `Create<Entity>Data` and `Update<Entity>Data` input structs.
@@ -82,11 +88,12 @@ Hard rules:
 - **One file per domain; keep cross-domain rules in services.** If a rule spans
   `user` and `token`, it is application logic and belongs in a service.
 - **Only `domains` touches the database.** Only `domains` imports
-  `domains/internal/queries`, and only `domains` (plus `internal/runtime`,
-  `cmd/`, `seeds/`, and `migrations/` for wiring) may name
-  `storage.Connection` or `storage.Transaction` or import pgx, and only `domains` may call `storage.Unwrap`. Everyone else
-  receives domain receivers (`domains.NewUsers(db)`, built in runtime) and, for
-  transactions, a `storage.Transactor`. `andurel verify` enforces this.
+  `domains/internal/queries`, and only `domains` (plus `app/`, `cmd/`, `seeds/`,
+  and `migrations/` for wiring) may name `storage.Connection` or
+  `storage.Transaction` or import pgx, and only `domains` may call
+  `storage.Unwrap`. Everyone else receives domain receivers
+  (`domains.NewUsers(db)`, built in `app`) and, for transactions, a
+  `storage.Transactor`. `andurel verify` enforces this.
 - **Every receiver has `New<Plural>(db)` and `InTx(tx storage.Tx)`.** A receiver
   holds a `storage.Transactor` when one of its own methods must be atomic by
   itself, either because it writes more than once or because it reads, modifies
@@ -98,37 +105,18 @@ Hard rules:
   `Validate()` before writing and return `pkg/validation` errors directly.
   Handlers and services do not repeat entity rules.
 - **SQL is colocated with its domain** (`domains/user.sql`). Narsilc globs
-  `domains/**/*.sql` and writes to `domains/internal/queries/`. You never
-  place SQL under `models/` — there is no `models/`.
-- **The Go entity is the source of truth.** SQL and generated queries follow
-  it. Inspect the type→column mapping, `Validate()` coverage, and runtime
-  wiring with `andurel inspect domains --json`.
+  `domains/**/*.sql` and writes to `domains/internal/queries/`.
+- **The Go entity is the source of truth.** Inspect the type→column mapping,
+  `Validate()` coverage, and wiring with `andurel inspect domains --json`.
 - Keep domain methods independent of HTTP, `anduin`, Inertia, sessions, cookies,
   flash messages, and route names.
-
-Good domain responsibilities:
-
-- "A featured project requires a description."
-- "A slug must be valid."
-- "Create a project entity from domain input and validate it before insert."
-- "Find a published item by slug."
-
-Avoid orchestration in a domain when it coordinates multiple entities under one
-policy or transaction; that belongs in a service.
 
 ## Services
 
 Create or extend a service when the use case is bigger than one domain
-operation.
-
-Use services for:
-
-- Transactions spanning more than one domain.
-- Cross-domain coordination.
-- Workflow policies that require current database state.
-- Coordinating persistence with email, queue insertion, cache invalidation, or
-  external clients.
-- Shared application use cases used by more than one delivery surface.
+operation: transactions spanning domains, cross-domain coordination, workflow
+policies that need current database state, or coordinating persistence with
+email, queue insertion, cache invalidation, or external clients.
 
 A service declares its dependencies individually as constructor arguments:
 
@@ -159,277 +147,145 @@ take bound dependencies as parameters; public use cases do not call each other
 inside a callback. See `andurel patterns show service`.
 
 Do not create a service for a pass-through wrapper around one domain method.
-Call the domain directly from the handler until a real workflow appears. There
-is no `domains/identity`; `identity`, `authentication`, `registration`, and
-`reset_password` live in `services/`.
-
-Good service responsibilities:
-
-- "Create a featured project only if fewer than three projects are featured,
-  using a serializable transaction."
-- "Register a user, create identity records, issue a token, and enqueue an
-  email."
-- "Reset a password after validating a token and updating dependent records."
+Call the domain directly from the handler until a real workflow appears.
 
 ## Handlers
 
-Handlers are thin HTTP adapters. A handler is ordinary Go over a context:
+Handlers are thin HTTP adapters: `func (h Handler) Index(ctx context.Context)
+error`. They read input with `anduin`, decode request bodies into a struct from
+`payloads/`, call a domain or service, and render or redirect.
 
-```go
-func (h Handler) Index(ctx context.Context) error
-```
+- `handlers/` is one flat package: distinct `NewXHandler` constructors, no
+  sub-packages, no import aliases.
+- Page props and request bodies are exported structs in `payloads/`, passed
+  with `inertia.FromStruct(payloads.SomeProps{...})` and decoded with
+  `anduin.DecodeJSON` / `anduin.DecodeForm`. Do not define them inline.
+- Do not put durable business rules in handlers. Return errors unchanged and
+  let the router's `ErrorHandler` (`handlers.MapError`) map them. See
+  [http-and-routing.md](http-and-routing.md) for the request/response API.
 
-Use handlers for:
+## Payloads
 
-- Reading path values, query strings, headers, and cookies with `anduin`.
-- Binding JSON or form payloads with `anduin.DecodeJSON` / `anduin.DecodeForm`.
-- Converting HTTP/admin form input into domain data structs.
-- Calling a domain or service.
-- Mapping errors into pages, validation errors, redirects, flash messages, or
-  API responses.
-- Rendering Inertia pages through `github.com/mbvlabs/andurel/pkg/inertia`.
-- Registering routes in `Register(rt *anduin.Router)`.
+`payloads/` is the single source of the TypeScript payload types that
+`resources/js/types/payloads.ts` exports, just as `routes/` is the source of
+`routes.ts`.
 
-Each handler declares its dependencies in a distinct `NewXHandler`
-constructor and registers its routes. `handlers/` is one flat package: no
-sub-packages, no import aliases.
-
-```go
-func NewUserHandler(users user.Users, renderer *inertia.Renderer) UserHandler
-
-func (h UserHandler) Register(rt *anduin.Router) {
-	rt.Get(routes.UserIndex.Pattern(), h.Index)
-}
-```
-
-Do not put durable business rules in handlers. If the same rule must apply
-outside one HTTP action, move it to a domain or service. Error mapping is
-uniform: return the error and let the router's `ErrorHandler`
-(`handlers.MapError`) translate `Err*` into the right response. See
-[http-and-routing.md](http-and-routing.md) for the full request/response and
-error API.
-
-Use `AuthHandler` in `handlers/auth.go` for sessions, registration,
-confirmation, and password reset, and `APIHandler` in `handlers/api.go` for
-JSON endpoints. Decode payloads at the edge and pass plain values to services
-or domains; validation errors come back from `pkg/validation` via `validation.As(err)`.
+- Every exported struct in `payloads/` is emitted; nested named structs in the
+  same package are followed. `json:"-"` is omitted and `omitempty` makes a
+  field optional.
+- Keep payload fields to standard-library types, `time`, and
+  `github.com/google/uuid`. Copy the fields a page or form needs from a domain
+  entity instead of embedding the entity.
+- `payloads/` may not import the application module, `pkg/storage`,
+  `pkg/anduin`, `pkg/inertia`, or `net/http`; `andurel verify` enforces this
+  with the `payloads-import` rule.
+- After adding or changing a payload struct, run `andurel sync payloads` and
+  import the generated types from `@/types/payloads`.
 
 ## Routes
 
-Route *data* lives in `routes/`. A route is a value built with the
-`github.com/mbvlabs/andurel/pkg/routing` constructors and declared as a package
-variable so handlers can register it and pages can build URLs:
+Route *data* lives in `routes/` as package variables built with the
+`github.com/mbvlabs/andurel/pkg/routing` constructors:
 
 - `routing.NewSimpleRoute` for fixed paths.
-- `routing.NewRouteWithSlug` for slug params.
-- `routing.NewRouteWithSerialID` for integer ID params.
-- `routing.NewRouteWithUUIDID`, `routing.NewRouteWithToken`,
-  `routing.NewRouteWithFile`, `routing.NewRouteWithParams` as needed.
+- `routing.NewRouteWithSlug`, `routing.NewRouteWithSerialID`,
+  `routing.NewRouteWithUUIDID`, `routing.NewRouteWithToken`,
+  `routing.NewRouteWithFile`, and `routing.NewRouteWithParams` as needed.
 
-Route values expose `Name() string`, `Path() string`, `Pattern() string`,
-`URL(params ...string) string`, `FullURL(hosts *routing.Hosts, ...) string`,
-`Host() routing.HostName`, and `IsInertia() bool`. Register with `Pattern()`
-and use `Path()` for links; `routing.Exact()` makes the root path exact
-(`"/{$}"`) without changing its URL.
-
-Pass `routing.TypeScriptRoute()` to opt a route into generated TypeScript
-helpers (`resources/js/routes.ts`), including JSON endpoints and asset URLs.
-`routing.InertiaRoute()` is a deprecated alias for the same option.
-
-Handlers and services refer to these route values for registration and URL
-generation. Do not scatter raw path strings through handlers and pages when a
-route value should exist. After adding or changing routes, run
-`andurel sync routes --json` so `resources/js/routes.ts` stays in sync.
+Route values expose `Name()`, `Path()`, `Pattern()`, `URL(params...)`,
+`FullURL(hosts, ...)`, `Host()`, and `IsInertia()`. Register with `Pattern()` and
+use `Path()` for links; `routing.Exact()` makes the root path exact without
+changing its URL. Pass `routing.TypeScriptRoute()` to opt a route into generated
+TypeScript helpers. After adding or changing routes, run
+`andurel sync routes --json`.
 
 The `Router` type itself is not app code; it lives in `pkg/anduin`. There is no
 `router/` package.
 
 ## Middleware
 
-App-specific HTTP policy lives in `middleware/`.
-Middleware has the `anduin.Middleware` shape (`func(anduin.Handler)
-anduin.Handler`):
+App-specific HTTP policy lives in `middleware/` with the `anduin.Middleware`
+shape (`func(anduin.Handler) anduin.Handler`): auth and authorization
+(`AuthOnly(users)`, `ViewerFrom`), the session definition and cookie builder,
+and route/telemetry helpers. Generic policy — rate limiting, CSRF, CORS — comes
+from `pkg/anduin`.
 
-- Auth and authorization middleware. `AuthOnly(users)` reloads the session's
-  user and rejects a missing user or stale `SessionVersion`; it attaches the
-  loaded user for `middleware.ViewerFrom(ctx)` so admin checks read the
-  database, not the cookie.
-- Session definitions (`Session`, `NewSessionCookie`). The session carries
-  `UserID` and `SessionVersion`, never `IsAdmin`.
-- Route attribute / telemetry helpers.
-
-Generic HTTP policy lives in `pkg/anduin`:
-
-- Rate limiting (`anduin.RateLimit`, keyed by route pattern + `anduin.ClientIP`),
-  backed by the injected `cache.Store` so every replica enforces the same
-  limit on Redis.
-- CSRF strategy construction (`anduin.DefaultCSRF`, `anduin.SkipCSRFForBearer`).
-- CORS policy (`anduin.DefaultCORS`, `anduin.MergeOrigins`).
-
-Cookie jar construction lives in `internal/runtime` (`newJar`); `middleware/`
-exports the session definition and application policy only. There is no
+Cookie jar construction lives in `app/` (`newJar`); `middleware/` exports the
+session definition and application policy only. There is no
 `middleware.NewJar`.
 
-Generic middleware (`Recover`, `RealIP`, `Logger`, `Telemetry`, `CORS`, `CSRF`) is
-provided by `pkg/anduin` and used directly; do not wrap or reimplement it
-here. Session/bag values travel
-on `context.Context` through `pkg/kiks` (`kiks.Get[T]`, `kiks.Set`,
-`kiks.Destroy`). See [http-and-routing.md](http-and-routing.md).
+Session/bag values travel on `context.Context` through `pkg/kiks`
+(`kiks.Get[T]`, `kiks.Set`, `kiks.Destroy`). See
+[http-and-routing.md](http-and-routing.md).
 
 ## Resources And Frontend
 
-`resources/root.templ` is the one page-shaped templ in the app: the Inertia root
-document (package `resources`). It is the only templ outside `email/`. The
-renderer owns it; you normally change it only when the document shell changes.
-It receives `inertia.RootData` with these fields:
-
-| Field | Meaning |
-| --- | --- |
-| `Page` | the decoded Inertia page (component, props, url, version) |
-| `PageJSON` | the validated, escaped page JSON for the non-SSR mount |
-| `ContainerID` | element id the frontend mounts into |
-| `ProjectName` | display name from config |
-| `Environment` | `development`, `test`, or `production` |
-| `ViteHead` | production/dev stylesheet and module-preload tags |
-| `ViteBody` | module script tag |
-| `SSR` | non-nil when the page was server-rendered |
-
-Page data never travels through `RootData`; pass it as page props. Shared props
-are the exception: `internal/runtime` configures `inertia.WithShared` with
-`appVersion` and `hosts`, and the scaffold's shared provider adds
-`auth.isAuthenticated`. Every page also receives `errors`. Layouts read shared
-props (`usePage()` in React/Vue, `page.props` in Svelte); pages read their own
-props.
-
-Frontend placement:
+`resources/root.templ` is the one page-shaped templ in the app: the Inertia
+root document (package `resources`). It is the only templ outside `email/`.
+Page data never travels through `RootData`; pass it as props. Shared props are
+the exception: `app/` configures `inertia.WithShared` with `appVersion` and
+`hosts`, and the scaffold's shared provider adds `auth.isAuthenticated`. Every
+page also receives `errors`.
 
 - `resources/js/Pages/` — one component per Inertia page. The file path without
-  its extension is the component string passed to `renderer.Page`, for example
-  `Pages/Product/Index.tsx` (React), `.vue` (Vue), or `.svelte` (Svelte) for
-  `"Product/Index"`. See `andurel patterns show page`.
-- `resources/js/Layouts/` — chrome shared by pages (header, navigation, footer).
-  Layouts do not take page props.
+  its extension is the component string passed to `renderer.Page`.
+- `resources/js/Layouts/` — chrome shared by pages. Layouts do not take page
+  props.
 - `resources/js/Components/` and `resources/js/components/ui/` — reusable
   presentational pieces.
 - `resources/js/routes.ts` and `resources/js/types/payloads.ts` — generated; do
-  not edit by hand. `routes.ts` is flat and keyed by the lower-camelCase route
-  variable (`UserIndex` → `routes.userIndex`); `configureRouteHosts` runs at
-  boot with the shared `hosts` prop. Use `routes.name.path(...)` for relative
-  URLs and `routes.name(...)` for absolute ones.
-- Keep presentation adapters out of domains when they exist only for display
-  (label maps, initials and fallback display text, date labels, JSON-to-list
-  formatting).
+  not edit by hand. Use `routes.name.path(...)` for relative URLs and
+  `routes.name(...)` for absolute ones, and import prop/form types from
+  `@/types/payloads`.
+- Import route helpers from `routes.ts`; never invent frontend URLs. Call them
+  at render time, not in module-scope constants, because hosts are configured
+  after boot.
 
-CSS entry points:
-
-- `css/base.css` is the Tailwind entry. It imports `tailwindcss` and
-  `css/theme.css`, declares `@source` globs, and holds base-layer rules. The
-  adapter entry (`resources/js/app.tsx` for React, `resources/js/app.ts` for Vue
-  and Svelte) imports it once.
-- `css/theme.css` is the single owner of the semantic color tokens. `:root`
-  defines the plain values; one `@theme inline` block maps them to Tailwind
-  utilities. Do not add a second `@theme` block somewhere else.
-- Hand-written CSS uses the raw custom properties: `var(--background)`,
-  `var(--foreground)`, `var(--card)`, `var(--card-foreground)`,
-  `var(--popover)`, `var(--primary)`, `var(--primary-foreground)`,
-  `var(--secondary)`, `var(--muted)`, `var(--muted-foreground)`,
-  `var(--accent)`, `var(--accent-foreground)`, `var(--destructive)`,
-  `var(--destructive-foreground)`, `var(--border)`, `var(--input)`,
-  `var(--ring)`, `var(--surface)`, `var(--text-muted)`, `var(--radius)`, the
-  `--sidebar-*` set, and the `--chart-1` … `--chart-5` set.
-- Components use the mapped utilities instead: `bg-background`,
-  `text-foreground`, `bg-card`, `text-muted-foreground`, `border-border`,
-  `bg-primary`, `text-accent`, `ring-ring`, and the `font-sans`/`font-mono`
-  families. The root `html` element applies `font-sans`; add `font-mono` where
-  a monospace surface is intended.
-
-Never invent frontend URLs: import `resources/js/routes.ts` after
-`andurel sync routes --json`. Import page/form types from
-`resources/js/types/payloads.ts` after `andurel sync payloads --json`.
-
-Call route helpers at render time (`routes.widgetShow(id)`), not in a
-module-scope constant: hosts are configured after boot, so a constant captured
-at import time keeps an empty origin (or a stale SSR value).
+CSS entry points: `css/base.css` imports Tailwind and `css/theme.css` and holds
+`@source` globs; `css/theme.css` is the single owner of the semantic color
+tokens. Components use the mapped utilities (`bg-background`,
+`text-muted-foreground`, `border-border`, `bg-primary`, `ring-ring`, …);
+hand-written CSS uses the raw `var(--…)` properties.
 
 ## Queue And Email
 
-Put River argument structs in `queue/jobs/`.
-
-Put worker implementations, queue registration, and queue helpers in `queue/`.
-Workers call domain/application code rather than duplicating domain rules.
-Registration is a plain slice/map assembled in `internal/runtime`, not Fx.
+Put River argument structs in `queue/jobs/`; put worker implementations,
+registration, and periodic jobs in `queue/`. Workers call domain or application
+code rather than duplicating domain rules. Registration is a plain slice/map
+assembled in `app/`, not Fx.
 
 Recurring work returns a `*river.PeriodicJob` from `queue.PeriodicJobs()`,
-which `runtime.NewQueue` passes to `storage.WithRiverPeriodicJobs`. The job uses
-the same args and worker types as an enqueued job; for example the scaffold's
-`delete_expired_tokens` job runs hourly with
-`river.NewPeriodicJob(river.PeriodicInterval(time.Hour), ..., &river.PeriodicJobOpts{RunOnStart: true})`
-and its worker calls `domains.Tokens.DestroyExpired`.
+which `app.NewQueue` passes to `storage.WithRiverPeriodicJobs`.
 
-Put email templates and send helpers in `email/`. Email is the other templ
-home (`email/*.templ` compiled by `emailcompiler`). Put provider-specific
-implementations in a package under `internal/` (for example
-`internal/clients/email/`). The scaffold's mail transport is selected with
-`EMAIL_PROVIDER`: `mailpit` captures mail locally and is refused in production;
-`smtp` uses `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and
-`SMTP_TLS` (`starttls`, `tls`, or `none`).
+Put email templates and send helpers in `email/`. Email is the other templ home
+(`email/*.templ` compiled by `emailcompiler`). Put provider-specific adapters in
+a top-level package named for the provider (for example `clients/email/`).
+`EMAIL_PROVIDER` selects the scaffold transport: `mailpit` (local only, refused
+in production), `smtp`, or `log`.
 
-## Internal Packages
+## App Composition
 
-Use `internal/` for reusable framework-like support code that is not owned by
-one resource, and for adapters to third-party services:
+`app/` is the composition root. `app.New` owns the HTTP `Handler`, the
+`anduin.Server`, and every dependency between them; `app.NewQueue` owns the
+worker graph and processor. `cmd/app` and `cmd/queue` only load environment and
+call `lifecycle.Run` around the app's start and stop. `cmd/migrate` and
+`cmd/seeds` load environment, open Postgres, run one task, and exit.
 
-- Process composition (`internal/runtime/`).
-- External provider adapters (for example `internal/clients/`,
-  `internal/payment/`).
-- Read-only embedded content or static data consumed by Go (bundled fixtures,
-  docs, templates, datasets) with `//go:embed`. `assets/` is for files served
-  over HTTP and `resources/` is frontend; do not put Go-only embedded data
-  there.
-- Request context helpers, storage abstractions, validation helpers, server
-  support.
-
-Give each package a name that says what it does. An adapter wraps an external
-API and must not contain business rules; services decide when and why to call
-it. Do not put app-specific domain workflows in `internal/` just to make them
-feel shared. Use `domains/` or `services/`.
-
-`internal/` in a generated app is application-owned. `internal/runtime/`
-constructs the whole dependency graph bottom-up with one constructor per
-process (`runtime.New` owns `Handler`+`Server`; `runtime.NewQueue` owns the
-worker graph) and owns process lifecycle. `cmd/app` and `cmd/queue` only load
-environment and call `lifecycle.Run` around the runtime's start and stop.
-The blocking HTTP serve loop uses `lifecycle.WithBlockingStart()`; the queue
-worker finishes startup before shutdown can release its dependencies.
-`cmd/migrate` and `cmd/seeds` load environment, open Postgres, run one task,
-and exit. Do not apply migrations from `cmd/app` start.
-
-## Dependency Wiring
-
-Wiring is explicit constructor injection in `internal/runtime`. There is no
-container.
+Wiring is explicit constructor injection. There is no container.
 
 - New config providers: `config/`.
-- New domains: construct them in `internal/runtime` with `domains.NewX(db)`
-  and pass them to the services and handlers that use them. Services that run
-  transactions also take the runtime's `storage.NewTransactor(db)`.
-- New services: construct them in `internal/runtime` (`services.NewIdentity(...)`).
-- New handlers: construct them and call `Register(rt)` in `internal/runtime`.
-- New queue workers: register them in `internal/runtime/queue.go`; the generic
-  email workers come from `storage.AddEmailWorkers`.
-- External provider adapters: constructors in their `internal/` package,
-  provided from `internal/runtime`.
-- Process entry: `cmd/app/main.go` and `cmd/queue/main.go` for env loading and
-  `lifecycle.Run` around the runtime's start and stop.
-- One-shot database processes: `cmd/migrate/main.go` applies pending SQL;
-  `cmd/seeds/main.go` runs named seed sets.
+- New domains: construct them in `app/` with `domains.NewX(db)` and pass them
+  to the services and handlers that use them. Services that run transactions
+  also take the app's `storage.NewTransactor(db)`.
+- New services: construct them in `app/` (`services.NewIdentity(...)`).
+- New handlers: construct them and call `Register(rt)` in `app/`.
+- New queue workers: register them in `app/queue.go`.
+- External provider adapters: constructors in their top-level package, wired
+  from `app/`.
 
-Prefer constructor arguments over package globals. The dependency graph should
-be readable top-to-bottom in `internal/runtime/runtime.go`.
+The dependency graph should be readable top-to-bottom in `app/runtime.go`.
 
 ## Decision Checklist
-
-Before adding code, answer:
 
 1. Is this a rule about a domain object being valid or allowed? Put it in
    `domains/` (one file per domain).
@@ -437,10 +293,11 @@ Before adding code, answer:
    stateful policy check? Put it in `services/`.
 3. Is it about HTTP parsing, session/flash, redirects, or rendering? Put it in
    `handlers/`.
-4. Is it only a route path, name, or URL? Put it in `routes/`.
-5. Is it app HTTP middleware or cookie-jar wiring? Put it in `middleware/`.
-6. Is it only for how a value is displayed? Put it in the relevant Inertia
+4. Is it a page prop or request body? Put it in `payloads/`.
+5. Is it only a route path, name, or URL? Put it in `routes/`.
+6. Is it app HTTP middleware or a session definition? Put it in `middleware/`.
+7. Is it only how a value is displayed? Put it in the relevant Inertia
    component under `resources/js/`.
-7. Does it only wrap a third-party API with no business rules? Put it in a
-   package under `internal/` named for its job.
-8. Is it process composition or lifecycle? Put it in `internal/runtime/`.
+8. Does it wrap a third-party API with no business rules? Put it in a
+   top-level package named for its job.
+9. Is it process composition or lifecycle? Put it in `app/`.

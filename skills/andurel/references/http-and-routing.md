@@ -7,7 +7,7 @@ Echo middleware, and no `pkg/hypermedia`. Request and response access travels on
 `context.Context`.
 
 Read this together with [layer-placement.md](layer-placement.md) for where HTTP
-code lives (`handlers/`, `routes/`, `middleware/`, `internal/runtime/`).
+code lives (`handlers/`, `routes/`, `middleware/`, `app/`).
 
 ## The handler model
 
@@ -233,7 +233,7 @@ The scaffold's `handlers.MapError` maps both `anduin.ErrNotFound` and
 `Allow` header `ServeMux` set.
 
 Handlers return domain errors unchanged and let the router map them. The
-`ErrorHandler` is installed once in `internal/runtime`:
+`ErrorHandler` is installed once in `app/`:
 
 ```go
 rt := anduin.NewRouter(
@@ -297,7 +297,7 @@ on `anduin.RequestHost(ctx)` and sets `X-Frame-Options: DENY` and
 responses carry them. Only the named hosts get the headers; with no host names
 it does nothing.
 
-Install global middleware in `internal/runtime`:
+Install global middleware in `app/`:
 
 ```go
 cors := anduin.DefaultCORS(cfg.HTTP.CORSAllowedOrigins...)
@@ -319,7 +319,7 @@ rt.Use(
 )
 ```
 
-The runtime also installs a CORS `Skipper` for the Vite build subtree
+The app also installs a CORS `Skipper` for the Vite build subtree
 (`routes.ViteBuild`, `/assets/dist/`), composes a safe-method asset skip into the CSRF
 `Skipper`, and registers
 `anduin.CORS(anduin.CORSConfig{AllowOrigins: []string{"*"}, AllowMethods: []string{http.MethodGet, http.MethodHead}})`
@@ -328,7 +328,7 @@ cross-host form posts are deliberate; they are not CORS origins, so a sibling
 host cannot read authenticated responses.
 
 Responses are gzipped by `anduin.Compress`, an `http.Handler` wrapper installed
-outside `rt.Handler()` in `internal/runtime` behind `HTTP_COMPRESS` (default
+outside `rt.Handler()` in `app/` behind `HTTP_COMPRESS` (default
 on). It covers `ErrorHandler` pages because it wraps the whole router, skips
 `HEAD`, upgrades and event streams, already-encoded and non-compressible
 responses, and bodies under 1 KiB, and sets `Vary: Accept-Encoding`.
@@ -408,8 +408,8 @@ func (s *Server) Start() error
 func (s *Server) Shutdown(ctx context.Context) error
 ```
 
-`Shutdown` stops only the HTTP listener; `runtime.App.Close` releases the
-other dependencies afterwards. `cmd/app` gets its server from `runtime.New`, which
+`Shutdown` stops only the HTTP listener; `app.App.Close` releases the
+other dependencies afterwards. `cmd/app` gets its server from `app.New`, which
 builds the router and wraps it with `anduin.NewServer(...)` internally, then
 calls `lifecycle.Run(ctx, start, app.Shutdown, lifecycle.WithBlockingStart())`
 and defers `closeApp` for `Close`; lifecycle ordering is explicit code, not an
@@ -431,7 +431,9 @@ func (r *Renderer) Middleware() anduin.Middleware
 A handler renders a page with:
 
 ```go
-return h.renderer.Page(ctx, "User/Index", inertia.Props{"users": result.Items}).Render()
+return h.renderer.Page(ctx, "User/Index", inertia.FromStruct(payloads.UserIndexProps{
+	Users: users, // []payloads.User built from the domain result
+})).Render()
 ```
 
 `Page` returns a `*PageBuilder`; `SSR()` opts that render into server-side
@@ -445,7 +447,9 @@ Client rendering is the default. `.SSR()` opts a single render into
 server-side rendering:
 
 ```go
-return h.renderer.Page(ctx, "User/Show", inertia.FromStruct(user)).SSR().Render()
+return h.renderer.Page(ctx, "User/Show", inertia.FromStruct(payloads.UserShowProps{
+	UserID: user.ID.String(),
+})).SSR().Render()
 ```
 
 SSR is per `Render()` call, not per route or renderer, so every re-render
@@ -556,7 +560,7 @@ request with `anduintest.Header{Name: "Host", Value: "admin.example"}`. Go's
 client ignores an explicit `Host` header, so `anduintest` applies that option to
 `req.Host`.
 
-For full-graph tests, boot `runtime.New(ctx, testConfig)` and call
+For full-graph tests, boot `app.New(ctx, testConfig)` and call
 `app.Handler`. For domain tests, use `pkg/storage/storagetest.Cluster` and
 `NewTestDB(t, migrations.Migrations, ".")`.
 
@@ -570,6 +574,6 @@ For full-graph tests, boot `runtime.New(ctx, testConfig)` and call
   [cli-catalog.md](cli-catalog.md#verify-rules). Add `--with-tests` to also run
   `go test ./...`; packages that ran no tests are listed under
   `skipped_packages` and `t.Skip` calls under `skipped_tests`, without failing
-  the run. Unresolved `FromStruct` payload roots are listed in the generated
-  step's `warnings`; `andurel sync payloads --strict` turns them into errors
-  (exit 5) after still writing `payloads.ts`.
+  the run. The generated step fails when `resources/js/types/payloads.ts` is
+  missing or out of date; regenerate it from `payloads/` with
+  `andurel sync payloads`.

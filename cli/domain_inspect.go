@@ -22,7 +22,7 @@ type domainField struct {
 
 // domainEntity is one struct in a domain file: its table name and provenance, its mapped fields,
 // whether it has a Validate method, and whether its receiver (the plural
-// type, e.g. Users for User) is constructed in internal/runtime.
+// type, e.g. Users for User) is constructed in app.
 type domainEntity struct {
 	Name        string        `json:"name"`
 	Table       string        `json:"table,omitempty"`
@@ -68,13 +68,13 @@ func applyDomainColumnStatus(entity *domainEntity, status *columns.EntityStatus)
 	}
 }
 
-// runtimeConstructedReceivers parses the non-test Go files in runtimeDir and
-// returns the receivers constructed there: X for every domains.NewX(...)
-// call, respecting the import alias of <module>/domains. A missing directory
-// or unparsable file contributes nothing.
-func runtimeConstructedReceivers(runtimeDir, module string) map[string]bool {
+// appConstructedReceivers parses the non-test Go files in appDir and returns
+// the receivers constructed there: X for every domains.NewX(...) call,
+// respecting the import alias of <module>/domains. A missing directory or
+// unparsable file contributes nothing.
+func appConstructedReceivers(appDir, module string) map[string]bool {
 	wired := map[string]bool{}
-	entries, err := os.ReadDir(runtimeDir)
+	entries, err := os.ReadDir(appDir)
 	if err != nil {
 		return wired
 	}
@@ -86,7 +86,7 @@ func runtimeConstructedReceivers(runtimeDir, module string) map[string]bool {
 		}
 		file, err := parser.ParseFile(
 			token.NewFileSet(),
-			filepath.Join(runtimeDir, name),
+			filepath.Join(appDir, name),
 			nil,
 			parser.SkipObjectResolution,
 		)
@@ -123,7 +123,7 @@ func runtimeConstructedReceivers(runtimeDir, module string) map[string]bool {
 // mapping an agent needs: which structs map which fields to which columns,
 // the table (from `// andurel:table <name>` or explicitly labeled as inferred),
 // whether each entity has a Validate method, and whether its receiver is
-// constructed in internal/runtime (wired).
+// constructed in app (wired).
 func describeDomainFile(path string, wired map[string]bool) []domainEntity {
 	content, err := os.ReadFile(path)
 	if err != nil {

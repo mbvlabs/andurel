@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"{{.ModuleName}}/app"
 	"{{.ModuleName}}/config"
-	"{{.ModuleName}}/internal/runtime"
 
 	"github.com/mbvlabs/andurel/pkg/env"
 	"github.com/mbvlabs/andurel/pkg/lifecycle"
@@ -32,7 +32,7 @@ func run() error {
 	ctx, cancel := lifecycle.NotifyContext(context.Background())
 	defer cancel()
 
-	worker, err := runtime.NewQueue(ctx, cfg)
+	worker, err := app.NewQueue(ctx, cfg)
 	if err != nil {
 		return err
 	}

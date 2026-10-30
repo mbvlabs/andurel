@@ -69,8 +69,8 @@ func newBuildCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "build",
 		Short: "Build every application process for production",
-		Long: `Build every cmd/* process that has a main package, except cmd/seeds, and
-compile all assets for production deployment.
+		Long: `Build every cmd/* process that has a main package, except cmd/seeds and
+cmd/configcheck, and compile all assets for production deployment.
 
 This command:
   • Generates Go from .templ files (email + Inertia root)
@@ -461,7 +461,7 @@ func discoverBuildProcesses(rootDir string) ([]buildProcess, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, fmt.Errorf(
-				"no buildable processes found under cmd/ (expected main packages besides seeds)",
+				"no buildable processes found under cmd/ (expected main packages besides seeds and configcheck)",
 			)
 		}
 		return nil, fmt.Errorf("read cmd directory: %w", err)
@@ -469,7 +469,7 @@ func discoverBuildProcesses(rootDir string) ([]buildProcess, error) {
 
 	processes := make([]buildProcess, 0, len(entries))
 	for _, entry := range entries {
-		if !entry.IsDir() || entry.Name() == "seeds" {
+		if !entry.IsDir() || entry.Name() == "seeds" || entry.Name() == "configcheck" {
 			continue
 		}
 		hasMain, err := hasMainPackage(filepath.Join(cmdDir, entry.Name()))
@@ -482,7 +482,7 @@ func discoverBuildProcesses(rootDir string) ([]buildProcess, error) {
 	}
 
 	if len(processes) == 0 {
-		return nil, fmt.Errorf("no buildable processes found under cmd/ (expected main packages besides seeds)")
+		return nil, fmt.Errorf("no buildable processes found under cmd/ (expected main packages besides seeds and configcheck)")
 	}
 
 	sort.Slice(processes, func(i, j int) bool { return processes[i].Name < processes[j].Name })

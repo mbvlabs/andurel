@@ -19,7 +19,7 @@ andurel --agent --help
    `andurel skill show <reference>` prints the skill's `http-and-routing`,
    `layer-placement`, or `cli-catalog` reference without installing it.
 3. `andurel generate migration NAME` — create a migration (the only generated file).
-4. Write domains, services, handlers, routes, and middleware by hand.
+4. Write domains, services, handlers, payloads, routes, and middleware by hand.
 5. `andurel sync queries` / `sync routes` / `sync payloads` / `sync email` — refresh derived files.
 6. `andurel verify [packages...]` — formatting, `go fix`, `go vet`, layer boundaries, the frontend typecheck, and generated-code drift.
 7. `andurel doctor --json` — health and generated-file drift.
@@ -35,7 +35,7 @@ is missing and is `skipped` for projects without the script. `--no-frontend`
 skips it explicitly.
 
 Pass Go package patterns to scope `gofmt`, `go fix`, `go vet`, and `layers` to
-those packages (`andurel verify ./internal/docs/...`). The `generated` and
+those packages (`andurel verify ./app/...`). The `generated` and
 `frontend` steps always check the whole project; each generated-drift finding
 names the authored source file that owns it.
 
@@ -48,16 +48,13 @@ Tests that call `t.Skip` are listed under the step's `skipped_tests` as
 `{package, test, reason}`; they keep the step `ok` too, and the human output
 prints `N tests skipped` followed by each `package: TestName (reason)`.
 
-`andurel sync payloads` writes `resources/js/types/payloads.ts` from handler
-`inertia.FromStruct` page props and `anduin.DecodeJSON`/`DecodeForm` payloads.
-It resolves named composite literals, typed variables, function parameters,
-and closure parameters. Pass `--strict` to exit non-zero when a `FromStruct`
-argument cannot be resolved statically; it still writes `payloads.ts` before
-returning the failure, and the error lists every `file:line` while structured
-output keeps the same report as error data. Without `--strict` the
-human output lists each unresolved root with the hint "pass a named composite
-literal or a typed variable". `andurel verify` reports unresolved roots under
-the generated step's `warnings` and does not fail on them.
+`andurel sync payloads` writes `resources/js/types/payloads.ts` from the
+exported structs declared in `payloads/`, following nested named structs in
+that package. `payloads/` is the single source of the frontend payload types,
+like `routes/` is for `routes.ts`; handlers import `payloads` for page props
+and request bodies. Fields may use standard-library types, `time`, and `uuid`;
+importing the application module, `pkg/storage`, `pkg/anduin`, `pkg/inertia`,
+or `net/http` is a `payloads-import` violation.
 
 The typed layer checks load the active build target, like `go vet`: files
 excluded by GOOS, GOARCH, or build constraints are not analyzed by that step.
@@ -83,7 +80,8 @@ also prints each rule's fix):
 | `tx-unwrap` | storage.Unwrap is referenced only under domains/** |
 | `tx-escape` | a storage.AtomicOps callback uses only dependencies bound inside the transaction |
 | `tx-public-call` | a storage.AtomicOps callback does not call an exported method on its own receiver |
-| `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and internal/runtime |
+| `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and app |
+| `payloads-import` | payloads/** imports only the standard library and mappable types; no app packages, storage, anduin, inertia, or net/http |
 | `domain-transport` | domains/** imports no HTTP, Inertia, routing, handler, middleware, or route package |
 | `entity-columns` | every automatic generated query column maps to an exported andurel tag on its domain entity |
 | `setup` | project setup is complete: managed tool binaries and frontend dependencies are installed |
@@ -154,7 +152,7 @@ andurel run --tools mailpit
 
 - Read a pattern: `andurel patterns show <kind>` (add `--json` for the parsed form; add `--entity/--table` with `domain` for the per-entity file manifest; once `queries.<Entity>Row` exists in `domains/internal/queries/models.go` it includes the entity struct, receiver, `Validate()` stub and CRUD `.sql` as file contents, otherwise a migration skeleton).
 - Create SQL: `andurel generate migration NAME` writes `migrations/<timestamp>_<name>.sql` without needing database configuration; then apply it with `andurel db migrate up` (which reads `DB_*`). A one-shot process that applies embedded SQL is `cmd/migrate`.
-- Add a domain: hand-write `domains/<entity>.go` and its colocated `domains/<entity>.sql`, construct the receiver with `domains.NewX(db)` in `internal/runtime`, then run `andurel sync queries`.
+- Add a domain: hand-write `domains/<entity>.go` and its colocated `domains/<entity>.sql`, construct the receiver with `domains.NewX(db)` in `app`, then run `andurel sync queries`.
 - Add a service, handler, route, middleware, or composition: read the matching pattern and write the files yourself. `andurel new` ships a complete reference app for each.
 - Compile SQL: `andurel sync queries` writes `domains/internal/queries`. Only `domains/**` may import it.
 - List domains: `andurel inspect domains --json`.
@@ -165,7 +163,7 @@ andurel run --tools mailpit
 - Resolve route hosts to origins and full URLs with configuration provenance; unresolved hosts stay explicit: `andurel inspect urls --json`.
 - List routes: `andurel inspect routes --json` (every route reports `host`; unbound routes report `primary`).
 - Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia frontend required; helpers cover routes marked `routing.TypeScriptRoute()` and are host-aware full URLs).
-- Write `resources/js/types/payloads.ts`: `andurel sync payloads --json`; use `andurel sync payloads --strict` in CI so an unresolved `FromStruct` argument fails with its `file:line`.
+- Write `resources/js/types/payloads.ts`: `andurel sync payloads --json` emits every exported struct in `payloads/`.
 - Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then bind routes with `rt.Host(name)`.
 - Refresh derived artifacts: `andurel sync email` compiles `email/*.templ` into `email/*_templ.go` with Tailwind styles inlined; never run `templ generate` on email.
 - Build and deploy: `andurel build` writes every buildable `cmd/*` process to `dist/`; `--only` narrows the set and `--json` emits the artifact manifest. `andurel patterns show deploy` covers the `migrate` → `ssr` → `app` + `queue` start order, environment, and health endpoints. In production, start the SSR sidecar with `andurel ports launch --ready-file .andurel/ssr-port.json -- ./dist/ssr` so the app and the sidecar agree on `INERTIA_SSR_LISTEN`/`INERTIA_SSR_URL`; the assignment is published only after the intended child answers `/health`.

@@ -35,7 +35,7 @@ func (a APIHandler) Register(rt *anduin.Router) {
 	rt.Get(routes.Ready.Pattern(), a.readiness)
 }
 
-// readinessReasoner is implemented by the runtime readiness error. Reading a
+// readinessReasoner is implemented by the app readiness error. Reading a
 // stable reason avoids parsing error text and keeps configuration values out
 // of the response.
 type readinessReasoner interface {

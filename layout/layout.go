@@ -168,7 +168,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"env.tmpl":       ".env.example",
 	"gitignore.tmpl": ".gitignore",
 	"readme.tmpl":    "README.md",
-	"agents.tmpl":    "AGENTS.md",
 
 	// Assets
 	"assets_assets.tmpl": "assets/assets.go",
@@ -180,13 +179,16 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"cmd_seeds_main.tmpl":   "cmd/seeds/main.go",
 
 	// Process composition
-	"runtime_runtime.tmpl":      "internal/runtime/runtime.go",
-	"runtime_queue.tmpl":        "internal/runtime/queue.go",
-	"runtime_main_test.tmpl":    "internal/runtime/main_test.go",
-	"runtime_runtime_test.tmpl": "internal/runtime/runtime_test.go",
+	"runtime_runtime.tmpl":      "app/runtime.go",
+	"runtime_queue.tmpl":        "app/queue.go",
+	"runtime_main_test.tmpl":    "app/main_test.go",
+	"runtime_runtime_test.tmpl": "app/runtime_test.go",
 
-	// Read-only runtime config check andurel doctor runs with go run.
-	"internal_configcheck_main.tmpl": "internal/configcheck/main.go",
+	// Read-only app config check andurel doctor runs with go run.
+	"internal_configcheck_main.tmpl": "cmd/configcheck/main.go",
+
+	// Inertia payload structs: the source for resources/js/types/payloads.ts.
+	"payloads_payloads.tmpl": "payloads/payloads.go",
 
 	// Config
 	"config_app.tmpl":       "config/app.go",
@@ -358,7 +360,7 @@ func isStaticInertiaAssetTemplate(templateFile TmplTarget) bool {
 }
 
 // GetInternalFrameworkFiles returns template-backed files that upgrades own
-// for a project config. Generated application internal/ is not included.
+// for a project config. Generated application packages are not included.
 func GetInternalFrameworkFiles(config *ScaffoldConfig) []FrameworkManagedFile {
 	mappings := make(map[TmplTarget]TmplTargetPath)
 	for templateName, targetPath := range baseTemplateMappings {
@@ -378,7 +380,7 @@ func GetInternalFrameworkFiles(config *ScaffoldConfig) []FrameworkManagedFile {
 	return sortedFrameworkManagedFiles(mappings)
 }
 
-// GetAllManagedInternalFrameworkFiles returns every internal package file Andurel can manage.
+// GetAllManagedInternalFrameworkFiles returns every framework-managed package file Andurel can manage.
 func GetAllManagedInternalFrameworkFiles() []FrameworkManagedFile {
 	mappings := make(map[TmplTarget]TmplTargetPath)
 	for templateName, targetPath := range baseTemplateMappings {
@@ -396,7 +398,7 @@ func GetAllManagedInternalFrameworkFiles() []FrameworkManagedFile {
 }
 
 // isManagedInternalFile reports whether a template maps to a file that
-// upgrades own. Generated application internal/ is application-owned.
+// upgrades own. Generated application packages are application-owned.
 // Standalone pkg/ sources are not scaffolded into apps. Test files are
 // generated on project creation but are not part of the upgrade-managed surface.
 func isManagedInternalFile(_ TmplTarget, targetPath TmplTargetPath) bool {

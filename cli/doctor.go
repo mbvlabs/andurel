@@ -110,7 +110,7 @@ This command will check:
   • Code generation (templ, email renderers, narsilc, and Inertia route helpers and payload types when configured)
 
 Runtime configuration and the database probe run the project's own read-only
-check (internal/configcheck), so the check cannot drift from the config
+check (cmd/configcheck), so the check cannot drift from the config
 constructor cmd/app uses. Missing or malformed required values and an
 unreachable database fail; a check that cannot run is reported as skipped,
 never as a pass.`,
@@ -133,7 +133,7 @@ never as a pass.`,
 	setAgentMetadata(
 		doctorCmd,
 		"diagnostics",
-		"Read-only project checks include first-run setup, runtime configuration and database connectivity through the generated internal/configcheck helper, Inertia SSR readiness, templ, email renderers, active narsilc queries, and Inertia route helper and payload type drift. Missing configuration and an unreachable database fail; a check that could not run is reported as skipped. Use --json for actionable check hints.",
+		"Read-only project checks include first-run setup, runtime configuration and database connectivity through the generated cmd/configcheck helper, Inertia SSR readiness, templ, email renderers, active narsilc queries, and Inertia route helper and payload type drift. Missing configuration and an unreachable database fail; a check that could not run is reported as skipped. Use --json for actionable check hints.",
 	)
 
 	return doctorCmd
@@ -276,7 +276,7 @@ func doctorHint(result checkResult) string {
 	case "Project setup":
 		return "Run andurel tool sync and install the frontend dependencies from the project root."
 	case "Runtime config":
-		return "Run go run ./internal/configcheck from the project root for the full reason."
+		return "Run go run ./cmd/configcheck from the project root for the full reason."
 	case "Inertia SSR":
 		return "In development, Vite serves SSR. In production, build assets/dist/ssr/ssr.js and run cmd/ssr."
 	case "go vet":
@@ -1556,14 +1556,12 @@ func checkRoutesTSGenerate(rootDir string, verbose bool) checkResult {
 func checkPayloadsTSGenerate(rootDir string, verbose bool) checkResult {
 	var expected []byte
 	var typeCount int
-	var skippedCount int
 	err := withDiagnosticProjectCopyTools(rootDir, nil, func(tempRoot string) error {
 		report, err := generatePayloadsFile(tempRoot)
 		if err != nil {
 			return err
 		}
 		typeCount = report.TypeCount
-		skippedCount = report.SkippedCount
 		expected, err = os.ReadFile(filepath.Join(tempRoot, generatedPayloadsTSPath))
 		return err
 	})
@@ -1602,12 +1600,6 @@ func checkPayloadsTSGenerate(rootDir string, verbose bool) checkResult {
 				details,
 				fmt.Sprintf("expected %d bytes, found %d bytes", len(expected), len(actual)),
 			)
-			if skippedCount > 0 {
-				details = append(
-					details,
-					fmt.Sprintf("%d payload entries were skipped", skippedCount),
-				)
-			}
 		}
 		return checkResult{
 			name:    "payloads.ts",
@@ -1621,6 +1613,6 @@ func checkPayloadsTSGenerate(rootDir string, verbose bool) checkResult {
 	return checkResult{
 		name:    "payloads.ts",
 		status:  statusPass,
-		message: fmt.Sprintf("matches handler payloads (%d types)", typeCount),
+		message: fmt.Sprintf("matches payloads/ (%d types)", typeCount),
 	}
 }
