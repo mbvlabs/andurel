@@ -220,7 +220,7 @@ func navPayload(nodes []docs.Node) []payloads.NavItem {
 // Both public and preview handlers use navPayload; set Preview only for preview.
 props := payloads.DocsShowProps{Navigation: navPayload(model.Navigation)}
 if preview != nil { props.Preview = &payloads.Preview{Token: preview.Token} }
-return renderer.Page(ctx, "Docs/Show", inertia.FromStruct(props))
+return renderer.Page(ctx, "Docs/Show", inertia.FromStruct(props)).Render()
 ```
 
 Test the adapter and encoded JSON for public and preview, including nested nil
