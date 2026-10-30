@@ -264,6 +264,99 @@ func isBindableInTxFunc(function *types.Func, cfg Config) bool {
 		types.Identical(result, types.NewPointer(receiverNamed))
 }
 
+// storageSQLMethods is the SQL surface of the pkg/storage interfaces. It
+// includes the pgx batch and copy methods a narrow local interface may embed
+// next to storage.Connection.
+var storageSQLMethods = map[string]bool{
+	"Exec":      true,
+	"Query":     true,
+	"QueryRow":  true,
+	"SendBatch": true,
+	"CopyFrom":  true,
+}
+
+// isStorageSQLMethod reports whether the selected method is SQL executed
+// through a pkg/storage type or interface. The receiver is a storage type when
+// its declaration lives in pkg/storage (storage.Connection, *storage.Postgres,
+// a type embedding storage.Postgres), or an interface that embeds a storage
+// interface or copies one of its SQL method signatures. That last case is the
+// narrow local interface the name-based rule used to miss.
+func isStorageSQLMethod(
+	pass *analysis.Pass,
+	selector *ast.SelectorExpr,
+	method *types.Func,
+) bool {
+	if method == nil || !storageSQLMethods[method.Name()] {
+		return false
+	}
+	if method.Pkg() != nil && method.Pkg().Path() == StorageImportPath {
+		return true
+	}
+	receiver := pass.TypesInfo.TypeOf(selector.X)
+	if receiver == nil {
+		return false
+	}
+	for {
+		receiver = types.Unalias(receiver)
+		pointer, ok := receiver.(*types.Pointer)
+		if !ok {
+			break
+		}
+		receiver = pointer.Elem()
+	}
+	if named, ok := receiver.(*types.Named); ok && named.Obj() != nil &&
+		named.Obj().Pkg() != nil && named.Obj().Pkg().Path() == StorageImportPath {
+		return true
+	}
+	if _, ok := receiver.Underlying().(*types.Interface); !ok {
+		return false
+	}
+	return matchesStorageSQLSignature(pass.Pkg, method)
+}
+
+// matchesStorageSQLSignature compares a locally declared interface method with
+// the methods pkg/storage declares. Comparing declarations rather than names
+// keeps an unrelated Exec(string) from being reported as SQL.
+func matchesStorageSQLSignature(pkg *types.Package, method *types.Func) bool {
+	storagePkg := importedPackage(pkg, StorageImportPath)
+	if storagePkg == nil {
+		return false
+	}
+	for _, name := range []string{"Connection", "Transaction", "Postgres", "InsertQueue"} {
+		object := storagePkg.Scope().Lookup(name)
+		if object == nil {
+			continue
+		}
+		typ := object.Type()
+		if _, ok := typ.Underlying().(*types.Interface); !ok {
+			typ = types.NewPointer(typ)
+		}
+		methods := types.NewMethodSet(typ)
+		for candidate := range methods.Methods() {
+			candidateFunc, ok := candidate.Obj().(*types.Func)
+			if !ok || candidateFunc.Name() != method.Name() {
+				continue
+			}
+			if types.Identical(candidateFunc.Type(), method.Type()) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func importedPackage(pkg *types.Package, path string) *types.Package {
+	if pkg == nil {
+		return nil
+	}
+	for _, imported := range pkg.Imports() {
+		if imported.Path() == path {
+			return imported
+		}
+	}
+	return nil
+}
+
 func postgresForbiddenMethods(t types.Type) map[string]bool {
 	named := namedType(t)
 	if named == nil || !isStorageObject(named.Obj(), "Postgres") {

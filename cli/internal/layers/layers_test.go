@@ -71,6 +71,8 @@ func TestAnalyzers(t *testing.T) {
 		{name: "tx-public-call", pkg: "app/services/public", rules: []string{"tx-public-call"}},
 		{name: "tx-unwrap", pkg: "app/services/unwrap", rules: []string{"tx-unwrap"}},
 		{name: "connection-and-transaction", pkg: "app/services/connection", rules: []string{"db-handle"}},
+		{name: "sql-method-through-interface", pkg: "app/services/sqlmethod", rules: []string{"db-handle"}},
+		{name: "narrow-sql-interface", pkg: "app/services/narrowsql", rules: []string{"db-handle"}},
 		{name: "unanalyzable-callback", pkg: "app/services/unknown", rules: []string{"tx-escape"}},
 	}
 	for _, testCase := range cases {
@@ -401,5 +403,83 @@ func TestNoPackagesErrorReportsGoCommandFailure(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "go.mod") {
 		t.Fatalf("error does not carry the go command's message: %v", err)
+	}
+}
+
+func TestDBHandleTestFileDiagnosticNamesTheTestSeam(t *testing.T) {
+	root := t.TempDir()
+	writeProjectFile(t, root, "go.mod", `module app
+
+go 1.21
+
+require github.com/mbvlabs/andurel/pkg/storage v0.0.0
+
+replace github.com/mbvlabs/andurel/pkg/storage => ./stubs/storage
+`)
+	writeProjectFile(t, root, "stubs/storage/go.mod", `module github.com/mbvlabs/andurel/pkg/storage
+
+go 1.21
+`)
+	writeProjectFile(t, root, "stubs/storage/storage.go", `package storage
+
+import "context"
+
+type Connection interface {
+	Exec(ctx context.Context, sql string, args ...any) (any, error)
+}
+`)
+	writeProjectFile(t, root, "services/prod.go", `package services
+
+import "github.com/mbvlabs/andurel/pkg/storage"
+
+type Production struct {
+	db storage.Connection
+}
+`)
+	writeProjectFile(t, root, "services/service_test.go", `package services
+
+import (
+	"context"
+	"testing"
+
+	"github.com/mbvlabs/andurel/pkg/storage"
+)
+
+type fixture struct {
+	db storage.Connection
+}
+
+func TestSeeded(t *testing.T) {
+	var f fixture
+	_, _ = f.db.Exec(context.Background(), "delete from users")
+}
+`)
+
+	violations, err := Analyze(root)
+	if err != nil {
+		t.Fatalf("Analyze: %v", err)
+	}
+	messages := map[string]string{}
+	for _, violation := range violations {
+		if violation.Rule == "db-handle" {
+			messages[violation.File] += violation.Message + "\n"
+		}
+	}
+	for _, want := range []string{
+		"test references storage.Connection; seed through a domains or services method, or inject a clock/domain seam",
+		"test calls SQL method storage.Connection.Exec; seed through a domains or services method, or inject a clock/domain seam",
+	} {
+		if !strings.Contains(messages["services/service_test.go"], want) {
+			t.Fatalf("test-file db-handle diagnostics are missing %q: %#v", want, violations)
+		}
+	}
+	if !strings.Contains(
+		messages["services/prod.go"],
+		"references storage.Connection; only persistence layers hold the database handle",
+	) {
+		t.Fatalf("production diagnostic lost its original message: %#v", violations)
+	}
+	if strings.Contains(messages["services/prod.go"], "seed through") {
+		t.Fatalf("production diagnostic must not suggest the test seam: %#v", violations)
 	}
 }

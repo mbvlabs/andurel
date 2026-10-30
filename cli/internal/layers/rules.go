@@ -2,6 +2,7 @@ package layers
 
 import (
 	"go/ast"
+	"go/token"
 	"go/types"
 	"golang.org/x/tools/go/analysis"
 	"strconv"
@@ -64,10 +65,15 @@ func dbHandleAnalyzer(cfg Config) *analysis.Analyzer {
 			for ident, object := range pass.TypesInfo.Uses {
 				if !persistence &&
 					(isStorageObject(object, "Connection") || isStorageObject(object, "Transaction")) {
+					message := "references storage." + object.Name() +
+						"; only persistence layers hold the database handle"
+					if isTestFilePosition(pass, ident.Pos()) {
+						message = "test references storage." + object.Name() +
+							"; seed through a domains or services method, or inject a clock/domain seam, instead of holding the database handle"
+					}
 					pass.Report(analysis.Diagnostic{
-						Pos: ident.Pos(),
-						Message: "references storage." + object.Name() +
-							"; only persistence layers hold the database handle",
+						Pos:     ident.Pos(),
+						Message: message,
 					})
 				}
 			}
@@ -88,15 +94,23 @@ func dbHandleAnalyzer(cfg Config) *analysis.Analyzer {
 					if selection.Kind() != types.MethodVal && selection.Kind() != types.MethodExpr {
 						return true
 					}
-					name := selection.Obj().Name()
 					method, ok := selection.Obj().(*types.Func)
-					if !ok || !postgresForbiddenMethod(method) {
+					if !ok {
 						return true
 					}
+					if !postgresForbiddenMethod(method) && !isStorageSQLMethod(pass, selector, method) {
+						return true
+					}
+					receiver := relativeTypeName(pass, pass.TypesInfo.TypeOf(selector.X))
+					message := "calls SQL method " + receiver + "." + method.Name() +
+						"; only domains/** executes SQL"
+					if isTestFilePosition(pass, selector.Pos()) {
+						message = "test calls SQL method " + receiver + "." + method.Name() +
+							"; seed through a domains or services method, or inject a clock/domain seam, instead of raw SQL"
+					}
 					pass.Report(analysis.Diagnostic{
-						Pos: selector.Pos(),
-						Message: "calls storage.Postgres." + name +
-							"; only domains/** executes SQL",
+						Pos:     selector.Pos(),
+						Message: message,
 					})
 					return true
 				})
@@ -194,4 +208,25 @@ func isSQLDriverImport(path string) bool {
 		return path != "github.com/jackc/pgx/v5/pgtype"
 	}
 	return false
+}
+
+// isTestFilePosition reports whether pos is in a _test.go file.
+func isTestFilePosition(pass *analysis.Pass, pos token.Pos) bool {
+	filename := pass.Fset.Position(pos).Filename
+	return strings.HasSuffix(filename, "_test.go")
+}
+
+// relativeTypeName prints a receiver type without the current package prefix,
+// so diagnostics name storage.Connection and a local narrowSQL, not full module
+// paths.
+func relativeTypeName(pass *analysis.Pass, typ types.Type) string {
+	if typ == nil {
+		return "storage"
+	}
+	return types.TypeString(typ, func(pkg *types.Package) string {
+		if pass.Pkg != nil && pkg == pass.Pkg {
+			return ""
+		}
+		return pkg.Name()
+	})
 }
