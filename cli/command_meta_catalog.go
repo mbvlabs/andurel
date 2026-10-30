@@ -71,6 +71,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	},
 	"andurel sync queries": {
 		Summary: "Compile narsilc SQL into Go",
+		Details: []string{"Generation may change shared go.mod and go.sum. Preview with --dry-run and coordinate with other writers; the preview is not a lock."},
 		WhenToUse: []string{
 			"After adding or editing annotated SQL in any domain (*.sql).",
 			"Regenerates typed query code in domains/internal/queries.",
@@ -78,10 +79,10 @@ var commandMetaSpecs = map[string]CommandMeta{
 		WhenNotToUse:    []string{"No-op when there are no annotated query files.", "SQL lives beside its domain, not in a central queries directory."},
 		Prerequisites:   []string{"Andurel project root"},
 		Next:            []string{"andurel doctor --json"},
-		Examples:        []string{"andurel sync queries --json"},
+		Examples:        []string{"andurel sync queries --dry-run --json", "andurel sync queries --json"},
 		Mutating:        true,
 		RequiresProject: true,
-		SkipDryRunCheck: true,
+		SupportsDryRun:  true,
 	},
 	"andurel sync routes": {
 		Summary: "Write TypeScript route helpers for Inertia",
