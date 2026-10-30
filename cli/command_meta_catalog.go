@@ -457,6 +457,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 		WhenToUse: []string{
 			"Verify health and generated-file drift after changes.",
 			"Check first-run setup, runtime configuration and bounded database connectivity through the generated internal/configcheck helper, and Inertia SSR readiness.",
+			"Check the applied/not_applied/not_applicable state of application-owned manual upgrade actions by stable action ID; manual_actions lists each detected state and the file marker it used.",
 			"Read json/agent output for each check's status: a skipped check is blocked on a prerequisite and is never reported as a pass.",
 		},
 		WhenNotToUse:    []string{"Doctor is read-only; it does not write generated files."},

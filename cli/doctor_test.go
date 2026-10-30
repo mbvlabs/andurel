@@ -16,6 +16,7 @@ import (
 
 	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/mbvlabs/andurel/v2/layout"
+	"github.com/mbvlabs/andurel/v2/layout/upgrade"
 	"github.com/spf13/cobra"
 )
 
@@ -608,5 +609,70 @@ func writeExecutable(t *testing.T, root, rel, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content), 0o755); err != nil {
 		t.Fatalf("write executable %s: %v", rel, err)
+	}
+}
+
+func TestCheckManualActionsReportsStableIDsAndStates(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/doctor\n\ngo 1.27.1\n")
+	writeTestFile(t, root, "internal/runtime/runtime.go", "package runtime\n\nvar _ = isViteAssetRequest\n")
+
+	lock := layout.NewAndurelLock("v2.0.0-beta.4")
+	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "doctor", Inertia: "react"}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+
+	result := checkManualActions(root, "v2.0.0-beta.4")
+	if result.name != "Manual actions" {
+		t.Fatalf("check name = %q, want Manual actions", result.name)
+	}
+	if result.status != statusWarn {
+		t.Fatalf("check status = %v, want warn for a pending action", result.status)
+	}
+	if len(result.manualActions) == 0 {
+		t.Fatal("check has no structured manual actions")
+	}
+	byID := map[string]upgrade.ActionCheck{}
+	for _, action := range result.manualActions {
+		byID[action.ID] = action
+	}
+	if got := byID["cors-host-origins-v2.0.0-beta.3"].Status; got != upgrade.ActionApplied {
+		t.Fatalf("cors-host-origins = %s, want applied", got)
+	}
+	method := byID["method-not-allowed-page-v2.0.0-beta.3"]
+	if method.Status != upgrade.ActionNotApplied {
+		t.Fatalf("method-not-allowed = %s, want not_applied", method.Status)
+	}
+	if method.Title == "" || method.Version == "" || method.Detail == "" {
+		t.Fatalf("manual action is missing evidence: %#v", method)
+	}
+	foundDetail := false
+	for _, detail := range result.details {
+		if strings.Contains(detail, "method-not-allowed-page-v2.0.0-beta.3: not_applied") {
+			foundDetail = true
+		}
+	}
+	if !foundDetail {
+		t.Fatalf("details do not name the pending action by ID: %#v", result.details)
+	}
+	if !strings.Contains(doctorHint(result), "upgrade-notes") {
+		t.Fatalf("hint = %q, want the upgrade-notes command", doctorHint(result))
+	}
+
+	report := buildDoctorReport("v2.0.0-beta.4", root, []checkResult{result})
+	encoded, err := json.Marshal(report.Checks[0])
+	if err != nil {
+		t.Fatalf("marshal doctor check: %v", err)
+	}
+	for _, want := range []string{`"manual_actions"`, `"id":"method-not-allowed-page-v2.0.0-beta.3"`, `"status":"not_applied"`} {
+		if !strings.Contains(string(encoded), want) {
+			t.Fatalf("doctor JSON is missing %s: %s", want, encoded)
+		}
+	}
+
+	missing := checkManualActions(t.TempDir(), "v2.0.0-beta.4")
+	if missing.status != statusSkip {
+		t.Fatalf("missing lock check status = %v, want skip", missing.status)
 	}
 }
