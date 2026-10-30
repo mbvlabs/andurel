@@ -36,7 +36,10 @@ import (
 	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/mbvlabs/andurel/pkg/inertia"
+	"github.com/mbvlabs/andurel/pkg/routing"
 )
+
+const hostAdmin routing.HostName = "admin"
 
 type ProductHandler struct {
 	renderer *inertia.Renderer
@@ -56,6 +59,9 @@ func (h ProductHandler) Register(rt *anduin.Router) {
 	rt.Post(r.ProductCreate.Path(), h.Create, h.throttle())
 	rt.Host("admin").Delete(r.ProductDestroy.Path(), h.Destroy)
 	rt.Get("/healthz", h.Index)
+	admin := rt.Host(hostAdmin)
+	admin.Get(r.ProductIndex.Pattern(), h.Index)
+	admin.Post("/admin/products", h.Create)
 	_ = h.cache.Get(context.Background(), "ignored")
 }
 
@@ -127,10 +133,12 @@ func TestInspectHandlersReportsConstructorAndRoutes(t *testing.T) {
 		},
 		ReturnsError: true,
 		Routes: []handlerRoute{
-			{Variable: "ProductIndex", Name: "products.index", Method: "GET", Path: "/products", Action: "Index", Line: 27},
-			{Variable: "ProductCreate", Name: "products.create", Method: "POST", Path: "/products", Action: "Create", Line: 28},
-			{Variable: "ProductDestroy", Name: "products.destroy", Method: "DELETE", Path: "/products/archive", Action: "Destroy", Line: 29},
-			{Method: "GET", Path: "/healthz", Action: "Index", Line: 30},
+			{Variable: "ProductIndex", Name: "products.index", Method: "GET", Host: "primary", Path: "/products", Action: "Index", Line: 30},
+			{Variable: "ProductCreate", Name: "products.create", Method: "POST", Host: "primary", Path: "/products", Action: "Create", Line: 31},
+			{Variable: "ProductDestroy", Name: "products.destroy", Method: "DELETE", Host: "admin", Path: "/products/archive", Action: "Destroy", Line: 32},
+			{Method: "GET", Host: "primary", Path: "/healthz", Action: "Index", Line: 33},
+			{Variable: "ProductIndex", Name: "products.index", Method: "GET", Host: "admin", Path: "/products", Action: "Index", Line: 35},
+			{Method: "POST", Host: "admin", Path: "/admin/products", Action: "Create", Line: 36},
 		},
 	}}
 	if !reflect.DeepEqual(products.Handlers, want) {
@@ -181,6 +189,8 @@ func TestInspectHandlersHumanOutput(t *testing.T) {
 		"Handlers (1)",
 		"ProductHandler  NewProductHandler(products domains.Products, renderer *inertia.Renderer, store cache.Store)  handlers/products.go",
 		"products.destroy",
+		"/admin/products",
+		"admin",
 		"/healthz",
 	} {
 		if !strings.Contains(text, needle) {

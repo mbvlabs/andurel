@@ -33,11 +33,14 @@ type handlerParam struct {
 
 // handlerRoute is one rt.<Method>(...) call in a handler's Register method.
 // Variable is the routes package variable (routes.SessionNew); Name and Path
-// come from the route manifest. A literal path has no variable or name.
+// come from the route manifest. A literal path has no variable or name. Host
+// is the resolved host name the registration is bound to; direct registrations
+// on the router report "primary".
 type handlerRoute struct {
 	Variable string `json:"variable,omitempty"`
 	Name     string `json:"name,omitempty"`
 	Method   string `json:"method"`
+	Host     string `json:"host,omitempty"`
 	Path     string `json:"path,omitempty"`
 	Action   string `json:"action,omitempty"`
 	Line     int    `json:"line"`
@@ -71,6 +74,8 @@ func describeHandlerItems(
 		routesByVariable[route.Variable] = route
 	}
 	routesImport := module + "/routes"
+	hosts, _ := discoverAppHostNames(rootDir)
+	hostNames := buildHostNameResolver(hosts)
 
 	packages := map[string][]parsedHandlerFile{}
 	dirs := []string{}
@@ -97,7 +102,12 @@ func describeHandlerItems(
 
 	byPath := map[string][]handlerInfo{}
 	for _, dir := range dirs {
-		for path, handlers := range describeHandlerPackage(packages[dir], routesImport, routesByVariable) {
+		for path, handlers := range describeHandlerPackage(
+			packages[dir],
+			routesImport,
+			routesByVariable,
+			hostNames,
+		) {
 			byPath[path] = append(byPath[path], handlers...)
 		}
 	}
@@ -115,6 +125,7 @@ func describeHandlerPackage(
 	files []parsedHandlerFile,
 	routesImport string,
 	routesByVariable map[string]routeManifestRoute,
+	hostNames map[string]string,
 ) map[string][]handlerInfo {
 	typeFiles := map[string]string{}
 	type registerDecl struct {
@@ -170,7 +181,13 @@ func describeHandlerPackage(
 		info := handlerInfo{
 			Type:   typeName,
 			Params: []handlerParam{},
-			Routes: handlerRegisterRoutes(register.file, register.fn, routesImport, routesByVariable),
+			Routes: handlerRegisterRoutes(
+				register.file,
+				register.fn,
+				routesImport,
+				routesByVariable,
+				hostNames,
+			),
 		}
 		if constructor := pickHandlerConstructor(typeName, constructors[typeName]); constructor != nil {
 			info.Constructor = constructor.Name.Name
@@ -247,12 +264,15 @@ func handlerReturnsError(results *ast.FieldList) bool {
 
 // handlerRegisterRoutes collects rt.<Method>(path, action, ...) calls in a
 // Register method whose receiver chain starts at the router parameter, so
-// rt.Host(...).Get(...) counts and h.cache.Get(...) does not.
+// rt.Host(...).Get(...) counts and h.cache.Get(...) does not. A local bound
+// from rt.Host(...) is followed, so the admin := rt.Host(...); admin.Get(...)
+// form reports the same routes and host as the chained form.
 func handlerRegisterRoutes(
 	parsed parsedHandlerFile,
 	fn *ast.FuncDecl,
 	routesImport string,
 	routesByVariable map[string]routeManifestRoute,
+	hostNames map[string]string,
 ) []handlerRoute {
 	routes := []handlerRoute{}
 	params := fn.Type.Params
@@ -267,6 +287,8 @@ func handlerRegisterRoutes(
 		recv = fn.Recv.List[0].Names[0].Name
 	}
 
+	hosts := routerHostLocals(fn.Body, router, hostNames)
+
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
 		call, ok := node.(*ast.CallExpr)
 		if !ok {
@@ -277,11 +299,25 @@ func handlerRegisterRoutes(
 			return true
 		}
 		method, ok := handlerRouteMethods[selector.Sel.Name]
-		if !ok || len(call.Args) < 2 || rootIdentName(selector.X) != router {
+		if !ok || len(call.Args) < 2 {
 			return true
+		}
+		target := rootIdentName(selector.X)
+		host, hostBound := "", false
+		switch {
+		case target == router:
+			host, hostBound = routerHostChain(selector.X, router, hostNames)
+		case hosts[target] != "":
+			host, hostBound = hosts[target], true
+		default:
+			return true
+		}
+		if !hostBound {
+			host = "primary"
 		}
 		route := handlerRoute{
 			Method: method,
+			Host:   host,
 			Action: handlerAction(call.Args[1], recv),
 			Line:   parsed.fset.Position(call.Pos()).Line,
 		}
@@ -300,6 +336,63 @@ func handlerRegisterRoutes(
 		return true
 	})
 	return routes
+}
+
+// routerHostLocals maps a local variable assigned from rt.Host(...) (or a
+// chain rooted at that call) to the host name it binds.
+func routerHostLocals(
+	body *ast.BlockStmt,
+	router string,
+	hostNames map[string]string,
+) map[string]string {
+	hosts := map[string]string{}
+	if body == nil {
+		return hosts
+	}
+	ast.Inspect(body, func(node ast.Node) bool {
+		assign, ok := node.(*ast.AssignStmt)
+		if !ok || len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
+			return true
+		}
+		ident, ok := assign.Lhs[0].(*ast.Ident)
+		if !ok {
+			return true
+		}
+		if host, ok := routerHostChain(assign.Rhs[0], router, hostNames); ok {
+			hosts[ident.Name] = host
+		}
+		return true
+	})
+	return hosts
+}
+
+// routerHostChain returns the host bound by a receiver chain rooted at the
+// router parameter when the chain passes through rt.Host(...). The host is the
+// resolved routing.HostName when the argument is a known constant or string
+// literal, otherwise the argument expression as written.
+func routerHostChain(expr ast.Expr, router string, hostNames map[string]string) (string, bool) {
+	for {
+		paren, ok := expr.(*ast.ParenExpr)
+		if !ok {
+			break
+		}
+		expr = paren.X
+	}
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return "", false
+	}
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return "", false
+	}
+	if selector.Sel.Name == "Host" && len(call.Args) == 1 && rootIdentName(selector.X) == router {
+		if name, ok := hostNameFromExpr(call.Args[0], hostNames); ok {
+			return name, true
+		}
+		return types.ExprString(call.Args[0]), true
+	}
+	return routerHostChain(selector.X, router, hostNames)
 }
 
 // rootIdentName walks selectors and calls down to the leftmost identifier:
@@ -397,10 +490,15 @@ func renderHandlersHuman(w io.Writer, items []projectItem) error {
 				if path == "" {
 					path = "?"
 				}
+				host := route.Host
+				if host == "" {
+					host = "primary"
+				}
 				if _, err := fmt.Fprintf(
 					table,
-					"  %s\t%s\t%s\t%s\n",
+					"  %s\t%s\t%s\t%s\t%s\n",
 					route.Method,
+					host,
 					path,
 					name,
 					route.Action,
