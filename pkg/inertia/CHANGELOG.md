@@ -1,5 +1,13 @@
 ## Unreleased
 
+### Fixed
+
+- Protocol debug, protocol page, rescued deferred prop, and SSR fallback records
+  log the matched route pattern instead of the raw request URL, so a capability
+  token in a path parameter never reaches logs. The protocol request record is
+  emitted after the handler runs, once the router has matched the route; an
+  unmatched request logs an empty route.
+
 ## 0.13.0 - 2026-10-29
 
 ### Added

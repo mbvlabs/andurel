@@ -366,7 +366,7 @@ func (p *PageBuilder) Render() error {
 		slog.Default().Debug("inertia protocol page",
 			slog.String("component", component),
 			slog.String("method", method),
-			slog.String("url", page.URL),
+			slog.String("url", routePath(ctx)),
 			slog.Any("prop_keys", propKeys),
 			slog.Any("merge_props", page.MergeProps),
 			slog.Any("deferred_groups", deferredGroups),
@@ -425,7 +425,7 @@ func (p *PageBuilder) Render() error {
 				return wrapped
 			}
 			slog.Default().
-				Error("inertia SSR fallback", slog.String("component", component), slog.String("url", page.URL), slog.Any("error", wrapped))
+				Error("inertia SSR fallback", slog.String("component", component), slog.String("url", routePath(ctx)), slog.Any("error", wrapped))
 			ssrResponse = nil
 		}
 	}
@@ -483,6 +483,13 @@ func (renderer *Renderer) currentVersion(ctx context.Context) (string, error) {
 	}
 
 	return version, nil
+}
+
+// routePath returns the matched ServeMux route shape for logs. An unmatched
+// request reports the empty string, never the raw path, so a capability token
+// in a URL cannot reach a log record.
+func routePath(ctx context.Context) string {
+	return anduin.RoutePath(anduin.RoutePattern(ctx))
 }
 
 func requestURL(ctx context.Context) string {

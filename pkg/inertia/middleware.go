@@ -24,16 +24,9 @@ func (renderer *Renderer) Middleware() anduin.Middleware {
 
 			ctx = anduin.ReplaceRequest(ctx, requestWithState(request, state))
 			if renderer.protocolDebug {
-				slog.Default().Debug("inertia protocol request",
-					slog.String("method", request.Method),
-					slog.String("url", requestURL(ctx)),
-					slog.Bool("inertia", state.Inertia),
-					slog.String("partial_component", state.PartialComponent),
-					slog.Any("only", state.Only),
-					slog.Any("except", state.Except),
-					slog.Any("reset", state.Reset),
-					slog.String("purpose", string(state.Purpose)),
-				)
+				// The middleware runs before the router matches a ServeMux route, so
+				// emit the record on the way out when the route pattern is known.
+				defer logProtocolRequest(ctx, request, state)
 			}
 			if !state.Inertia {
 				return next(ctx)
@@ -75,6 +68,19 @@ func (renderer *Renderer) Middleware() anduin.Middleware {
 			return captured.commit()
 		}
 	}
+}
+
+func logProtocolRequest(ctx context.Context, request *http.Request, state Request) {
+	slog.Default().Debug("inertia protocol request",
+		slog.String("method", request.Method),
+		slog.String("url", routePath(ctx)),
+		slog.Bool("inertia", state.Inertia),
+		slog.String("partial_component", state.PartialComponent),
+		slog.Any("only", state.Only),
+		slog.Any("except", state.Except),
+		slog.Any("reset", state.Reset),
+		slog.String("purpose", string(state.Purpose)),
+	)
 }
 
 type captureWriter struct {
