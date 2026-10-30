@@ -31,6 +31,12 @@ type StatementFault struct {
 // service under test: AtomicOps and the service see the injected error and roll
 // back everything written before it, so a rollback test does not need an
 // unrelated domain failure.
+//
+// The wrapper continues to expose its concrete pgx transaction, so
+// QueueInsert.InTx works inside the transaction. River's own insert statements
+// execute through the unwrapped pgx transaction and bypass StatementFault
+// matching; only statements issued through the storage.Transaction wrapper
+// count toward FailAt.
 func FailingTransactor(conn storage.Connection, fault StatementFault) storage.Transactor {
 	return storage.NewTransactor(failingConnection{
 		Connection: conn,
@@ -84,6 +90,10 @@ type failingTransaction struct {
 	storage.Transaction
 	fault   StatementFault
 	matched int
+}
+
+func (t *failingTransaction) UnwrapTransaction() storage.Transaction {
+	return t.Transaction
 }
 
 func (t *failingTransaction) Exec(

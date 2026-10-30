@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -116,5 +117,53 @@ func TestRunInTransactionRollsBackOnError(t *testing.T) {
 	}
 	if !rolledBack {
 		t.Fatal("expected rollback")
+	}
+}
+
+type unwrapStub struct {
+	stubTransaction
+	next Transaction
+}
+
+func (u unwrapStub) UnwrapTransaction() Transaction { return u.next }
+
+type pgxProviderStub struct {
+	stubTransaction
+	tx pgx.Tx
+}
+
+func (p pgxProviderStub) pgxTx() pgx.Tx { return p.tx }
+
+func TestPGXTxFromRejectsNilAndNonPGXTransactions(t *testing.T) {
+	tests := []struct {
+		name string
+		tx   Transaction
+	}{
+		{name: "nil", tx: nil},
+		{name: "plain", tx: stubTransaction{}},
+		{name: "nil provider result", tx: pgxProviderStub{}},
+		{name: "unwrap to nil", tx: unwrapStub{next: nil}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := pgxTxFrom(test.tx); err == nil {
+				t.Fatal("pgxTxFrom succeeded, want an error")
+			}
+		})
+	}
+}
+
+func TestPGXTxFromStopsUnwrapCycles(t *testing.T) {
+	first := &unwrapStub{}
+	second := &unwrapStub{}
+	first.next = second
+	second.next = first
+
+	_, err := pgxTxFrom(first)
+	if err == nil {
+		t.Fatal("pgxTxFrom succeeded on a cycle, want an error")
+	}
+	if !strings.Contains(err.Error(), "unwrap depth exceeded") {
+		t.Fatalf("error = %v, want the unwrap depth error", err)
 	}
 }

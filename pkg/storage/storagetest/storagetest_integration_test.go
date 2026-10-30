@@ -3,11 +3,15 @@ package storagetest
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"testing/fstest"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/mbvlabs/andurel/pkg/storage"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/river/rivermigrate"
 	"github.com/testcontainers/testcontainers-go"
 )
 
@@ -247,5 +251,89 @@ func assertWidgetCount(t *testing.T, db storage.Connection, want int) {
 	}
 	if got != want {
 		t.Fatalf("widget count = %d, want %d", got, want)
+	}
+}
+
+type faultedJobArgs struct{}
+
+func (faultedJobArgs) Kind() string { return "faulted_job" }
+
+// TestFailingTransactorKeepsTransactionalQueueInsertAndRollsBackBoth proves
+// the injected transactor still exposes the concrete pgx transaction to
+// QueueInsert.InTx. A domain write and a River job insert succeed, then the
+// second matched statement fails, and AtomicOps rolls back both.
+func TestFailingTransactorKeepsTransactionalQueueInsertAndRollsBackBoth(t *testing.T) {
+	cluster := newTestCluster(t)
+	ctx := context.Background()
+	db, config := cluster.NewTestDBWithConfig(t, widgetMigrations(), "migrations")
+
+	databaseURL, err := config.DatabaseURL()
+	if err != nil {
+		t.Fatalf("database URL: %v", err)
+	}
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		t.Fatalf("open migrator pool: %v", err)
+	}
+	t.Cleanup(pool.Close)
+
+	migrator, err := rivermigrate.New(riverpgxv5.New(pool), nil)
+	if err != nil {
+		t.Fatalf("new river migrator: %v", err)
+	}
+	if _, err := migrator.Migrate(ctx, rivermigrate.DirectionUp, nil); err != nil {
+		t.Fatalf("migrate river schema: %v", err)
+	}
+
+	queue, err := storage.NewQueueInsert(db, storage.DefaultQueueConfig())
+	if err != nil {
+		t.Fatalf("new queue insert: %v", err)
+	}
+
+	transactor := FailingTransactor(db, StatementFault{
+		FailAt: 2,
+		Match: func(query string) bool {
+			return strings.Contains(query, "INSERT INTO widgets")
+		},
+	})
+
+	var jobID int64
+	err = storage.AtomicOps(ctx, transactor, func(ctx context.Context, tx storage.Tx) error {
+		if _, err := storage.Unwrap(tx).Exec(
+			ctx,
+			`INSERT INTO widgets (name) VALUES ($1)`,
+			"before queue",
+		); err != nil {
+			return err
+		}
+
+		inserted, err := queue.InTx(tx).Insert(ctx, faultedJobArgs{}, nil)
+		if err != nil {
+			return err
+		}
+		jobID = inserted.Job.ID
+
+		_, err = storage.Unwrap(tx).Exec(
+			ctx,
+			`INSERT INTO widgets (name) VALUES ($1)`,
+			"after queue",
+		)
+		return err
+	})
+	if !errors.Is(err, ErrFaultInjected) {
+		t.Fatalf("AtomicOps error = %v, want %v", err, ErrFaultInjected)
+	}
+	if jobID == 0 {
+		t.Fatal("queue insert returned no job ID; the transaction was not used")
+	}
+
+	assertWidgetCount(t, db, 0)
+
+	var jobs int
+	if err := db.QueryRow(ctx, `SELECT count(*) FROM river_job`).Scan(&jobs); err != nil {
+		t.Fatalf("count river jobs: %v", err)
+	}
+	if jobs != 0 {
+		t.Fatalf("river job count = %d, want 0 after rollback", jobs)
 	}
 }

@@ -18,7 +18,14 @@ All notable changes to the standalone Andurel storage module are documented here
 - `storagetest.FailingTransactor` and `storagetest.StatementFault` inject a
   failure at the Nth transaction statement, or at a statement matching a SQL
   predicate, so service tests can prove that `AtomicOps` rolls back every
-  earlier write.
+  earlier write. The wrapper exposes its concrete transaction through
+  `TransactionUnwrapper`, so `QueueInsert.InTx` still works. River's own insert
+  statements execute through the unwrapped transaction and do not count toward
+  `FailAt`.
+- `TransactionUnwrapper` lets a transaction decorator expose the transaction it
+  wraps. `pgxTxFrom` follows the seam with nil and cycle protection, so queue
+  inserts keep working through wrappers that cannot implement the unexported
+  pgx method.
 
 ## 0.13.1 - 2026-10-26
 

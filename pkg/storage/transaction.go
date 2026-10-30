@@ -117,14 +117,34 @@ type pgxTxProvider interface {
 	pgxTx() pgx.Tx
 }
 
+// TransactionUnwrapper is implemented by decorators that wrap another
+// Transaction. pgxTxFrom follows it, so a wrapper can preserve transactional
+// queue inserts without exposing the unexported pgxTx method. Implementations
+// must return the wrapped transaction; a nil or cyclic chain is rejected.
+type TransactionUnwrapper interface {
+	UnwrapTransaction() Transaction
+}
+
+const maxTransactionUnwrapDepth = 32
+
 func pgxTxFrom(tx Transaction) (pgx.Tx, error) {
-	provider, ok := tx.(pgxTxProvider)
-	if !ok {
-		return nil, fmt.Errorf("storage: transaction does not expose a PostgreSQL tx")
+	for depth := 0; tx != nil; depth++ {
+		if depth > maxTransactionUnwrapDepth {
+			return nil, fmt.Errorf("storage: transaction unwrap depth exceeded %d", maxTransactionUnwrapDepth)
+		}
+		if provider, ok := tx.(pgxTxProvider); ok {
+			pgxTx := provider.pgxTx()
+			if pgxTx == nil {
+				return nil, fmt.Errorf("storage: transaction returned a nil tx")
+			}
+			return pgxTx, nil
+		}
+		unwrapper, ok := tx.(TransactionUnwrapper)
+		if !ok {
+			break
+		}
+		tx = unwrapper.UnwrapTransaction()
 	}
-	pgxTx := provider.pgxTx()
-	if pgxTx == nil {
-		return nil, fmt.Errorf("storage: transaction returned a nil tx")
-	}
-	return pgxTx, nil
+
+	return nil, fmt.Errorf("storage: transaction does not expose a PostgreSQL tx")
 }

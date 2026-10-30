@@ -150,7 +150,10 @@ if _, err := domains.NewUsers(db).FindByEmail(ctx, "rollback@example.com"); !err
 `StatementFault.FailAt` is the 1-based number of a matching statement; zero or
 negative fails the first match. `Match` filters by SQL text and nil matches
 every statement. `StatementFault.Err` replaces `ErrFaultInjected` when the test
-needs a typed error. Pass the test context to the call, then
+needs a typed error. The wrapper exposes the concrete transaction, so
+`QueueInsert.InTx` still inserts inside it; River's own insert statements run
+through the unwrapped transaction and do not count toward `FailAt`. Pass the
+test context to the call, then
 verify with a second connection or receiver so the assertion cannot see the
 failed transaction's uncommitted state.
 
