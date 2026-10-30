@@ -8,8 +8,9 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 - `WithTelemetry` replaces the raw `url.path` recorded by `telemetry.WrapHandler`
   with the matched route template on the span and labels metrics with that route,
-  so a secret path parameter never reaches traces or metric labels. Unmatched
-  requests record `/[redacted]` instead of their raw path.
+  so a secret path parameter never reaches traces or metric labels. `WrapHandler`
+  now starts the span with `/[redacted]`, so a request that never reaches the
+  telemetry middleware is still redacted.
 - `Logger` and the default `ErrorHandler` debug record log the matched route
   pattern instead of the raw request path. An unmatched request logs an empty
   route, so a capability token in a URL never reaches logs.

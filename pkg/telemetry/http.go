@@ -15,7 +15,14 @@ import (
 // the request; call SetHTTPRoute once the route is known to replace it with the
 // route template. Use anduin.WithTelemetry to get that wiring automatically.
 func WrapHandler(name string, h http.Handler, tel *Telemetry) http.Handler {
-	opts := []otelhttp.Option{}
+	// otelhttp records its raw request attributes first and appends these span
+	// start options, so the placeholder wins at span start. A direct wrapper, a
+	// request rejected before SetHTTPRoute runs, and an OnStart processor then
+	// never observe the raw path; SetHTTPRoute still replaces it with the
+	// matched route at completion.
+	opts := []otelhttp.Option{
+		otelhttp.WithSpanOptions(trace.WithAttributes(semconv.URLPath(redactedURLPath))),
+	}
 	if tel != nil {
 		opts = append(opts, otelhttp.WithTracerProvider(tel.TracerProvider()))
 		if mp := tel.MeterProvider(); mp != nil {
