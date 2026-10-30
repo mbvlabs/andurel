@@ -4,7 +4,6 @@ package inertia
 import (
 	"context"
 	"fmt"
-	"maps"
 	"reflect"
 	"strings"
 	"time"
@@ -46,36 +45,168 @@ func FromStructChecked(value any) (Props, error) {
 		return nil, fmt.Errorf("inertia: FromStruct requires a struct, got %T", value)
 	}
 
-	rt := rv.Type()
-	for i := range rt.NumField() {
-		field := rt.Field(i)
-		if field.PkgPath != "" {
+	for _, field := range selectInertiaFields(rv.Type()) {
+		fieldValue, ok := inertiaFieldByIndex(rv, field.index)
+		if !ok || !fieldValue.CanInterface() {
 			continue
 		}
 
-		name, include := jsonFieldName(field)
+		result[field.name] = fieldValue.Interface()
+	}
+
+	return result, nil
+}
+
+type inertiaField struct {
+	name   string
+	index  []int
+	depth  int
+	tagged bool
+}
+
+func selectInertiaFields(rt reflect.Type) []inertiaField {
+	candidates := make([]inertiaField, 0, rt.NumField())
+	collectInertiaFields(rt, nil, 0, map[reflect.Type]bool{rt: true}, &candidates)
+
+	byName := make(map[string][]inertiaField, len(candidates))
+	order := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		if _, ok := byName[candidate.name]; !ok {
+			order = append(order, candidate.name)
+		}
+		byName[candidate.name] = append(byName[candidate.name], candidate)
+	}
+
+	selected := make([]inertiaField, 0, len(byName))
+	for _, name := range order {
+		field, ok := dominantInertiaField(byName[name])
+		if ok {
+			selected = append(selected, field)
+		}
+	}
+	return selected
+}
+
+func collectInertiaFields(
+	rt reflect.Type,
+	index []int,
+	depth int,
+	visited map[reflect.Type]bool,
+	out *[]inertiaField,
+) {
+	for i := range rt.NumField() {
+		field := rt.Field(i)
+		name, explicit, include := inertiaJSONName(field)
 		if !include {
 			continue
 		}
 
-		if field.Anonymous && name == "" {
-			embedded, err := FromStructChecked(rv.Field(i).Interface())
-			if err != nil {
-				return nil, err
+		fieldIndex := appendIndex(index, i)
+		if field.Anonymous && !explicit {
+			embedded := field.Type
+			if embedded.Kind() == reflect.Pointer {
+				embedded = embedded.Elem()
 			}
-
-			maps.Copy(result, embedded)
-			continue
+			if embedded.Kind() == reflect.Struct {
+				if visited[embedded] {
+					continue
+				}
+				nextVisited := make(map[reflect.Type]bool, len(visited)+1)
+				for typ := range visited {
+					nextVisited[typ] = true
+				}
+				nextVisited[embedded] = true
+				collectInertiaFields(embedded, fieldIndex, depth+1, nextVisited, out)
+				continue
+			}
 		}
 
+		if field.PkgPath != "" {
+			continue
+		}
 		if name == "" {
 			name = field.Name
 		}
+		*out = append(*out, inertiaField{
+			name:   name,
+			index:  fieldIndex,
+			depth:  depth,
+			tagged: explicit,
+		})
+	}
+}
 
-		result[name] = rv.Field(i).Interface()
+func dominantInertiaField(fields []inertiaField) (inertiaField, bool) {
+	minDepth := fields[0].depth
+	for _, field := range fields[1:] {
+		if field.depth < minDepth {
+			minDepth = field.depth
+		}
 	}
 
-	return result, nil
+	atDepth := make([]inertiaField, 0, len(fields))
+	for _, field := range fields {
+		if field.depth == minDepth {
+			atDepth = append(atDepth, field)
+		}
+	}
+	if len(atDepth) == 1 {
+		return atDepth[0], true
+	}
+
+	var tagged inertiaField
+	taggedCount := 0
+	for _, field := range atDepth {
+		if field.tagged {
+			tagged = field
+			taggedCount++
+		}
+	}
+	if taggedCount == 1 {
+		return tagged, true
+	}
+
+	// encoding/json omits a JSON name when two or more fields at the same
+	// depth are equally dominant.
+	return inertiaField{}, false
+}
+
+func inertiaJSONName(field reflect.StructField) (name string, explicit bool, include bool) {
+	tag, exists := field.Tag.Lookup("json")
+	if !exists {
+		return "", false, true
+	}
+	name, _, _ = strings.Cut(tag, ",")
+	if name == "-" {
+		return "", false, false
+	}
+	if name == "" {
+		return "", false, true
+	}
+	return name, true, true
+}
+
+func inertiaFieldByIndex(rv reflect.Value, index []int) (reflect.Value, bool) {
+	for _, fieldIndex := range index {
+		if rv.Kind() == reflect.Pointer {
+			if rv.IsNil() {
+				return reflect.Value{}, false
+			}
+			rv = rv.Elem()
+		}
+		if rv.Kind() != reflect.Struct || fieldIndex >= rv.NumField() {
+			return reflect.Value{}, false
+		}
+		rv = rv.Field(fieldIndex)
+	}
+	return rv, true
+}
+
+func appendIndex(index []int, field int) []int {
+	result := make([]int, len(index)+1)
+	copy(result, index)
+	result[len(index)] = field
+	return result
 }
 
 func jsonFieldName(field reflect.StructField) (string, bool) {

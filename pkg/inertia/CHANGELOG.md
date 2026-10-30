@@ -2,6 +2,11 @@
 
 ### Fixed
 
+- `FromStruct`/`FromStructChecked` follow Go JSON field semantics for
+  embedded structs: untagged and empty-name embedded structs are flattened,
+  explicitly tagged embeds stay nested, nil embedded pointers contribute no
+  fields, an outer field wins a same-name conflict, and an equally dominant
+  conflict is omitted. Lazy prop function values are preserved.
 - Protocol debug, protocol page, rescued deferred prop, and SSR fallback records
   log the matched route pattern instead of the raw request URL, so a capability
   token in a path parameter never reaches logs. The protocol request record is
