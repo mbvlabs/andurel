@@ -106,6 +106,12 @@ step "syncing project tools"
 	"${cli}" tool sync
 )
 
+step "installing frontend dependencies"
+(
+	cd "${app_dir}"
+	pnpm install
+)
+
 DB_KIND="${DB_KIND:-postgres}"
 DB_HOST="${DB_HOST:-127.0.0.1}"
 DB_PORT="${DB_PORT:-5432}"
@@ -307,12 +313,6 @@ if ! jq -e '
 	cat "${tmp_dir}/domains.json" >&2
 	exit 1
 fi
-
-step "installing frontend dependencies"
-(
-	cd "${app_dir}"
-	pnpm install
-)
 
 step "building the application"
 (
