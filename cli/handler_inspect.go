@@ -288,6 +288,16 @@ func handlerRegisterRoutes(
 	}
 
 	hosts := routerHostLocals(fn.Body, router, hostNames)
+	for _, param := range params.List {
+		for _, name := range param.Names {
+			if name.Name != router {
+				hosts.markNonHost(name.Name)
+			}
+		}
+	}
+	if recv != "" {
+		hosts.markNonHost(recv)
+	}
 
 	ast.Inspect(fn.Body, func(node ast.Node) bool {
 		call, ok := node.(*ast.CallExpr)
@@ -307,8 +317,12 @@ func handlerRegisterRoutes(
 		switch {
 		case target == router:
 			host, hostBound = routerHostChain(selector.X, router, hostNames)
-		case hosts[target] != "":
-			host, hostBound = hosts[target], true
+		case hosts.has(target):
+			binding := hosts[target]
+			if binding.ambiguous || !binding.assigned || call.Pos() < binding.position {
+				return true
+			}
+			host, hostBound = binding.host, true
 		default:
 			return true
 		}
@@ -338,28 +352,88 @@ func handlerRegisterRoutes(
 	return routes
 }
 
+// routerHostBindings maps a local variable assigned from rt.Host(...) to the
+// host it binds. A name with more than one host assignment, or any non-host
+// assignment, is ambiguous: a call on it is omitted instead of attributed to a
+// possibly wrong host.
+type routerHostBindings map[string]routerHostBinding
+
+type routerHostBinding struct {
+	host      string
+	position  token.Pos
+	assigned  bool
+	ambiguous bool
+}
+
+func (bindings routerHostBindings) has(name string) bool {
+	_, ok := bindings[name]
+	return ok
+}
+
+func (bindings routerHostBindings) markNonHost(name string) {
+	binding := bindings[name]
+	binding.ambiguous = true
+	bindings[name] = binding
+}
+
+func (bindings routerHostBindings) record(name string, rhs ast.Expr, position token.Pos, router string, hostNames map[string]string) {
+	host, ok := routerHostChain(rhs, router, hostNames)
+	if !ok {
+		bindings.markNonHost(name)
+		return
+	}
+
+	binding := bindings[name]
+	if binding.assigned || binding.ambiguous {
+		binding.ambiguous = true
+	} else {
+		binding.host = host
+		binding.position = position
+		binding.assigned = true
+	}
+	bindings[name] = binding
+}
+
 // routerHostLocals maps a local variable assigned from rt.Host(...) (or a
 // chain rooted at that call) to the host name it binds.
 func routerHostLocals(
 	body *ast.BlockStmt,
 	router string,
 	hostNames map[string]string,
-) map[string]string {
-	hosts := map[string]string{}
+) routerHostBindings {
+	hosts := routerHostBindings{}
 	if body == nil {
 		return hosts
 	}
 	ast.Inspect(body, func(node ast.Node) bool {
-		assign, ok := node.(*ast.AssignStmt)
-		if !ok || len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
-			return true
-		}
-		ident, ok := assign.Lhs[0].(*ast.Ident)
-		if !ok {
-			return true
-		}
-		if host, ok := routerHostChain(assign.Rhs[0], router, hostNames); ok {
-			hosts[ident.Name] = host
+		switch node := node.(type) {
+		case *ast.AssignStmt:
+			if len(node.Lhs) != 1 || len(node.Rhs) != 1 {
+				return true
+			}
+			ident, ok := node.Lhs[0].(*ast.Ident)
+			if !ok {
+				return true
+			}
+			hosts.record(ident.Name, node.Rhs[0], node.Pos(), router, hostNames)
+		case *ast.DeclStmt:
+			decl, ok := node.Decl.(*ast.GenDecl)
+			if !ok || decl.Tok != token.VAR {
+				return true
+			}
+			for _, spec := range decl.Specs {
+				valueSpec, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+				for index, name := range valueSpec.Names {
+					if index < len(valueSpec.Values) {
+						hosts.record(name.Name, valueSpec.Values[index], valueSpec.Pos(), router, hostNames)
+						continue
+					}
+					hosts.markNonHost(name.Name)
+				}
+			}
 		}
 		return true
 	})

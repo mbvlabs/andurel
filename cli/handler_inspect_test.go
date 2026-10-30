@@ -3,6 +3,9 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"reflect"
 	"strings"
 	"testing"
@@ -217,5 +220,109 @@ func TestInspectHandlersWithoutHandlerTypes(t *testing.T) {
 	}
 	if !strings.Contains(human.String(), "No handlers found (1 handler files).") {
 		t.Fatalf("human output = %q", human.String())
+	}
+}
+
+func TestHandlerRegisterRoutesOmitsAmbiguousHostBindings(t *testing.T) {
+	tests := []struct {
+		name   string
+		body   string
+		routes []handlerRoute
+	}{
+		{
+			name: "reassigned host",
+			body: `	rt.Get("/direct", h.Index)
+	admin := rt.Host("admin")
+	admin.Get("/before", h.Index)
+	admin = rt.Host("other")
+	admin.Get("/after", h.Index)
+`,
+			routes: []handlerRoute{
+				{Method: "GET", Host: "primary", Path: "/direct", Action: "Index", Line: 10},
+			},
+		},
+		{
+			name: "shadowed host",
+			body: `	admin := rt.Host("admin")
+	admin.Get("/outer", h.Index)
+	{
+		admin := rt.Host("other")
+		admin.Get("/inner", h.Index)
+	}
+	rt.Get("/direct", h.Index)
+`,
+			routes: []handlerRoute{
+				{Method: "GET", Host: "primary", Path: "/direct", Action: "Index", Line: 16},
+			},
+		},
+		{
+			name: "var shadowed host",
+			body: `	admin := rt.Host("admin")
+	admin.Get("/outer", h.Index)
+	{
+		var admin = rt.Host("other")
+		admin.Get("/inner", h.Index)
+	}
+	rt.Get("/direct", h.Index)
+`,
+			routes: []handlerRoute{
+				{Method: "GET", Host: "primary", Path: "/direct", Action: "Index", Line: 16},
+			},
+		},
+		{
+			name: "reassigned non-host",
+			body: `	admin := rt.Host("admin")
+	admin.Get("/a", h.Index)
+	admin = fallback
+	admin.Get("/b", h.Index)
+	rt.Get("/direct", h.Index)
+`,
+			routes: []handlerRoute{
+				{Method: "GET", Host: "primary", Path: "/direct", Action: "Index", Line: 14},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			source := `package handlers
+
+import (
+	r "example.com/app/routes"
+
+	"github.com/mbvlabs/andurel/pkg/anduin"
+)
+
+func (h ProductHandler) Register(rt *anduin.Router) {
+` + test.body + `}
+`
+			fset := token.NewFileSet()
+			file, err := parser.ParseFile(fset, "handlers/products.go", source, parser.SkipObjectResolution)
+			if err != nil {
+				t.Fatalf("parse handler: %v", err)
+			}
+			var register *ast.FuncDecl
+			for _, decl := range file.Decls {
+				fn, ok := decl.(*ast.FuncDecl)
+				if ok && fn.Name.Name == "Register" {
+					register = fn
+					break
+				}
+			}
+			if register == nil {
+				t.Fatal("Register method not found")
+			}
+
+			got := handlerRegisterRoutes(
+				parsedHandlerFile{fset: fset, file: file},
+				register,
+				"example.com/app/routes",
+				map[string]routeManifestRoute{},
+				map[string]string{},
+			)
+			if !reflect.DeepEqual(got, test.routes) {
+				t.Fatalf("routes = %#v, want %#v", got, test.routes)
+			}
+		})
 	}
 }
