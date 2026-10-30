@@ -3,8 +3,8 @@ module github.com/mbvlabs/andurel/pkg/anduin
 go 1.27.3
 
 require (
-	github.com/mbvlabs/andurel/pkg/routing v0.7.0
-	github.com/mbvlabs/andurel/pkg/telemetry v0.2.0
+	github.com/mbvlabs/andurel/pkg/routing v0.8.0
+	github.com/mbvlabs/andurel/pkg/telemetry v0.2.3
 	go.opentelemetry.io/proto/otlp v1.11.0
 	google.golang.org/protobuf v1.36.12
 )
@@ -40,7 +40,3 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260819154853-08b0e4226688 // indirect
 	google.golang.org/grpc v1.83.2 // indirect
 )
-
-replace github.com/mbvlabs/andurel/pkg/routing => ../routing
-
-replace github.com/mbvlabs/andurel/pkg/telemetry => ../telemetry

@@ -6,6 +6,10 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## 0.6.2 - 2026-10-30
 
+### Changed
+
+- Require published routing v0.8.0 and telemetry v0.2.3 without local replacements, so standalone builds use the released route and privacy fixes.
+
 ### Fixed
 
 - `WithTelemetry` replaces the `url.path` placeholder started by
