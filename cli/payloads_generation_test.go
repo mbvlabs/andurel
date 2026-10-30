@@ -3,8 +3,10 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -39,7 +41,7 @@ func TestRenderPayloadsTSGoldenWidget(t *testing.T) {
 		"  metadata: JsonValue\n" +
 		"}\n" +
 		"\nexport type WidgetIndexProps = {\n" +
-		"  items: WidgetData[]\n" +
+		"  items: WidgetData[] | null\n" +
 		"}\n" +
 		"\nexport type WidgetItemProps = {\n" +
 		"  item: WidgetData\n" +
@@ -573,5 +575,224 @@ func TestPayloadsReportJSONShape(t *testing.T) {
 	if !bytes.Contains(raw, []byte(`"generated_file"`)) ||
 		!bytes.Contains(raw, []byte(`"type_count"`)) {
 		t.Fatalf("unexpected json: %s", raw)
+	}
+}
+
+func TestRenderPayloadsTSMarksNilSlicesNullable(t *testing.T) {
+	rootDir := setupPayloadsProject(t, "react")
+	writePayloadsStructs(t, rootDir, "payloads/slices.go", `package payloads
+
+type SliceProps struct {
+	Items         []string `+"`json:\"items\"`"+`
+	OptionalItems []string `+"`json:\"optionalItems,omitempty\"`"+`
+	Bytes         []byte   `+"`json:\"bytes\"`"+`
+	OptionalBytes []byte   `+"`json:\"optionalBytes,omitempty\"`"+`
+}
+`)
+
+	got, _, err := renderPayloadsTS(rootDir)
+	if err != nil {
+		t.Fatalf("render payloads: %v", err)
+	}
+	for _, want := range []string{
+		"items: string[] | null",
+		"optionalItems?: string[]",
+		"bytes: string | null",
+		"optionalBytes?: string",
+	} {
+		if !strings.Contains(string(got), want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+
+	zero := struct {
+		Items         []string `json:"items"`
+		OptionalItems []string `json:"optionalItems,omitempty"`
+		Bytes         []byte   `json:"bytes"`
+		OptionalBytes []byte   `json:"optionalBytes,omitempty"`
+	}{}
+	encoded, err := json.Marshal(zero)
+	if err != nil {
+		t.Fatalf("marshal zero payload: %v", err)
+	}
+	if string(encoded) != `{"items":null,"bytes":null}` {
+		t.Fatalf("zero payload JSON = %s, want nil slices as null", encoded)
+	}
+}
+
+func TestRenderPayloadsTSQuotesInlineJSONNames(t *testing.T) {
+	rootDir := setupPayloadsProject(t, "react")
+	writePayloadsStructs(t, rootDir, "payloads/inline.go", `package payloads
+
+type DisplayProps struct {
+	Card struct {
+		DisplayName string `+"`json:\"display-name\"`"+`
+		Count       int    `+"`json:\"count\"`"+`
+	} `+"`json:\"card\"`"+`
+}
+`)
+
+	got, _, err := renderPayloadsTS(rootDir)
+	if err != nil {
+		t.Fatalf("render payloads: %v", err)
+	}
+	if !strings.Contains(string(got), `card: { "display-name": string; count: number }`) {
+		t.Fatalf("inline JSON name was not quoted:\n%s", got)
+	}
+	assertTypeScriptCompiles(t, got)
+}
+
+func TestRenderPayloadsTSEmbeddedFieldsMatchJSON(t *testing.T) {
+	rootDir := setupPayloadsProject(t, "react")
+	writePayloadsStructs(t, rootDir, "payloads/embeds.go", `package payloads
+
+type EmbedBase struct {
+	Title string `+"`json:\"title\"`"+`
+}
+
+type TaggedEmbed struct {
+	EmbedBase `+"`json:\"base\"`"+`
+	X         string `+"`json:\"x\"`"+`
+}
+
+type PointerEmbed struct {
+	*EmbedBase
+	X string `+"`json:\"x\"`"+`
+}
+
+type ShadowEmbed struct {
+	EmbedBase
+	Title int `+"`json:\"title\"`"+`
+}
+`)
+
+	got, _, err := renderPayloadsTS(rootDir)
+	if err != nil {
+		t.Fatalf("render payloads: %v", err)
+	}
+	for _, want := range []string{
+		"export type TaggedEmbed",
+		"base: EmbedBase",
+		"export type PointerEmbed",
+		"title?: string",
+	} {
+		if !strings.Contains(string(got), want) {
+			t.Fatalf("missing %q in:\n%s", want, got)
+		}
+	}
+	shadow := payloadTypeBlock(t, string(got), "ShadowEmbed")
+	if strings.Count(shadow, "title") != 1 || !strings.Contains(shadow, "title: number") {
+		t.Fatalf("outer field should win the embedded conflict:\n%s", shadow)
+	}
+}
+
+func TestRenderPayloadsTSRejectsAmbiguousEmbeddedConflicts(t *testing.T) {
+	rootDir := setupPayloadsProject(t, "react")
+	writePayloadsStructs(t, rootDir, "payloads/conflict.go", `package payloads
+
+type LeftEmbed struct {
+	Value string `+"`json:\"value\"`"+`
+}
+
+type RightEmbed struct {
+	Value string `+"`json:\"value\"`"+`
+}
+
+type AmbiguousProps struct {
+	LeftEmbed
+	RightEmbed
+}
+`)
+
+	_, _, err := renderPayloadsTS(rootDir)
+	if err == nil || !strings.Contains(err.Error(), "conflicting JSON field") {
+		t.Fatalf("error = %v, want a conflicting JSON field rejection", err)
+	}
+}
+
+func TestRenderPayloadsTSRejectsSQLNullTypes(t *testing.T) {
+	for _, typeName := range []string{
+		"NullString",
+		"NullBool",
+		"NullInt64",
+		"NullFloat64",
+		"NullTime",
+	} {
+		t.Run(typeName, func(t *testing.T) {
+			rootDir := setupPayloadsProject(t, "react")
+			writePayloadsStructs(t, rootDir, "payloads/sql.go", fmt.Sprintf(`package payloads
+
+import "database/sql"
+
+type SQLProps struct {
+	Value sql.%s `+"`json:\"value\"`"+`
+}
+`, typeName))
+
+			_, _, err := renderPayloadsTS(rootDir)
+			if err == nil || !strings.Contains(err.Error(), "database/sql") {
+				t.Fatalf("error = %v, want an actionable database/sql rejection", err)
+			}
+			if hint := output.Fail(err).Hint; !strings.Contains(hint, "*string") {
+				t.Fatalf("hint = %q, want a pointer-field suggestion", hint)
+			}
+		})
+	}
+}
+
+func payloadTypeBlock(t *testing.T, source, name string) string {
+	t.Helper()
+
+	start := strings.Index(source, "export type "+name+" = {\n")
+	if start < 0 {
+		t.Fatalf("type %s not found in:\n%s", name, source)
+	}
+	rest := source[start:]
+	end := strings.Index(rest, "\n}\n")
+	if end < 0 {
+		t.Fatalf("type %s has no closing brace in:\n%s", name, source)
+	}
+	return rest[:end+2]
+}
+
+// assertTypeScriptCompiles runs a real TypeScript compiler when one is
+// configured (ANDUREL_TSC or tsc on PATH). Otherwise it uses Node's type
+// stripping to parse and execute the generated type declarations; Node fails
+// on invalid inline property names, which is the regression this covers.
+func assertTypeScriptCompiles(t *testing.T, source []byte) {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "payloads.ts")
+	if err := os.WriteFile(path, source, 0o644); err != nil {
+		t.Fatalf("write payloads.ts: %v", err)
+	}
+
+	compiler := os.Getenv("ANDUREL_TSC")
+	if compiler == "" {
+		compiler, _ = exec.LookPath("tsc")
+	}
+	if compiler != "" {
+		command := exec.Command(
+			compiler,
+			"--noEmit",
+			"--strict",
+			"--skipLibCheck",
+			"--target", "ES2022",
+			"--module", "ES2022",
+			path,
+		)
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("tsc rejected generated payloads.ts: %v\n%s\n%s", err, output, source)
+		}
+		return
+	}
+
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("neither tsc nor node is available for the TypeScript compile check")
+	}
+	command := exec.Command(node, "--experimental-strip-types", path)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("node rejected generated TypeScript: %v\n%s\n%s", err, output, source)
 	}
 }

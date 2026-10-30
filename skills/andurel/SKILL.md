@@ -149,9 +149,9 @@ Generate Inertia payload types:
 andurel sync payloads --json
 ```
 
-`payloads/` is the single source of `resources/js/types/payloads.ts`, just as `routes/` is the source of `routes.ts`. `andurel sync payloads` emits every exported struct declared in `payloads/` and follows nested named structs in that package. `json:"-"` is omitted and `omitempty` makes a field optional.
+`payloads/` is the single source of `resources/js/types/payloads.ts`, just as `routes/` is the source of `routes.ts`. `andurel sync payloads` emits every exported struct declared in `payloads/` and follows nested named structs in that package. `json:"-"` is omitted and `omitempty` makes a field optional. A non-omitempty slice or `[]byte` is nullable in TypeScript because a nil Go value encodes as JSON `null`.
 
-Keep payload fields to standard-library types, `time`, and `github.com/google/uuid`: `payloads/` may not import application packages, `pkg/storage`, `pkg/anduin`, `pkg/inertia`, or `net/http` (the `payloads-import` rule). Handlers import `payloads` for page props and request bodies and pass them with `inertia.FromStruct(payloads.SomeProps{...})`. Import the generated types from `@/types/payloads` instead of hand-writing them, and run the command after editing `payloads/`.
+Keep payload fields to standard-library types, `time`, and `github.com/google/uuid`: `payloads/` may not import application packages, `pkg/storage`, `pkg/anduin`, `pkg/inertia`, or `net/http` (the `payloads-import` rule). Use pointer fields such as `*string` for optional scalars; `database/sql` `Null*` structs encode as objects and are rejected. Untagged embedded structs flatten like `encoding/json`, while an embedded field with an explicit JSON name stays nested (a pointer embed makes its promoted fields optional). Handlers import `payloads` for page props and request bodies and pass them with `inertia.FromStruct(payloads.SomeProps{...})`. Import the generated types from `@/types/payloads` instead of hand-writing them, and run the command after editing `payloads/`.
 
 Generate a named database seed:
 

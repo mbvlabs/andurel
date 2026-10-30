@@ -47,6 +47,7 @@ type payloadField struct {
 	jsonName string
 	tsType   string
 	optional bool
+	depth    int
 }
 
 type payloadType struct {
@@ -71,6 +72,11 @@ The payloads/ package is the single source of TypeScript payload types, like
 routes/ is for resources/js/routes.ts. Every exported struct declared in
 payloads/ is emitted; nested named structs in the same package are followed.
 Fields tagged json:"-" are omitted, and json:",omitempty" fields are optional.
+Non-omitempty slices and []byte are nullable because a nil Go value encodes as
+JSON null. Untagged embedded structs flatten like encoding/json; an embed with
+an explicit JSON name stays nested, and a pointer embed makes its promoted
+fields optional. database/sql Null* structs are rejected because they encode
+as objects: use pointer fields such as *string.
 
 payloads/ may import only the standard library and mappable types such as
 time.Time and uuid.UUID. Importing an application package, pkg/storage,
@@ -171,11 +177,7 @@ func renderPayloadsTS(rootDir string) ([]byte, int, error) {
 		buf.WriteString(" = {\n")
 		for _, field := range typ.fields {
 			buf.WriteString("  ")
-			if isTypeScriptIdentifier(field.jsonName) {
-				buf.WriteString(field.jsonName)
-			} else {
-				buf.WriteString(strconv.Quote(field.jsonName))
-			}
+			buf.WriteString(renderPayloadFieldName(field.jsonName))
 			if field.optional {
 				buf.WriteString("?")
 			}
@@ -186,6 +188,13 @@ func renderPayloadsTS(rootDir string) ([]byte, int, error) {
 		buf.WriteString("}\n")
 	}
 	return buf.Bytes(), len(emitted), nil
+}
+
+func renderPayloadFieldName(name string) string {
+	if isTypeScriptIdentifier(name) {
+		return name
+	}
+	return strconv.Quote(name)
 }
 
 func scanPayloadStructs(rootDir string) (*payloadScan, error) {
@@ -294,7 +303,7 @@ func (s *payloadScan) emitTypes() ([]payloadType, bool, error) {
 				"Replace the generic struct with a concrete payload type.",
 			)
 		}
-		fields, usedJSON, err := s.mapStructFields(structure)
+		fields, usedJSON, err := s.mapStructFields(structure, 0)
 		if err != nil {
 			return nil, false, err
 		}
@@ -306,6 +315,7 @@ func (s *payloadScan) emitTypes() ([]payloadType, bool, error) {
 
 func (s *payloadScan) mapStructFields(
 	structure *payloadStruct,
+	depth int,
 ) ([]payloadField, bool, error) {
 	var fields []payloadField
 	needsJSON := false
@@ -331,12 +341,20 @@ func (s *payloadScan) mapStructFields(
 				if err != nil {
 					return nil, false, err
 				}
-				nested, usedJSON, err := s.mapStructFields(embedded)
+				nested, usedJSON, err := s.mapStructFields(embedded, depth+1)
 				if err != nil {
 					return nil, false, err
 				}
+				if isPointerExpr(field.Type) {
+					for index := range nested {
+						nested[index].optional = true
+					}
+				}
 				needsJSON = needsJSON || usedJSON
-				fields = append(fields, nested...)
+				fields, err = mergePayloadFields(structure, fields, nested)
+				if err != nil {
+					return nil, false, err
+				}
 				continue
 			}
 			if jsonName == "" {
@@ -347,14 +365,64 @@ func (s *payloadScan) mapStructFields(
 				return nil, false, err
 			}
 			needsJSON = needsJSON || usedJSON
-			fields = append(fields, payloadField{
+			fields, err = mergePayloadFields(structure, fields, []payloadField{{
 				jsonName: jsonName,
 				tsType:   tsType,
 				optional: omitempty,
-			})
+				depth:    depth,
+			}})
+			if err != nil {
+				return nil, false, err
+			}
 		}
 	}
 	return fields, needsJSON, nil
+}
+
+// mergePayloadFields applies encoding/json's field dominance for embedded
+// structs: a shallower field wins a duplicate JSON name, while two fields at
+// the same depth are ambiguous and rejected rather than emitted as a duplicate
+// TypeScript property.
+func mergePayloadFields(
+	structure *payloadStruct,
+	fields []payloadField,
+	incoming []payloadField,
+) ([]payloadField, error) {
+	for _, candidate := range incoming {
+		merged := false
+		for index := range fields {
+			if fields[index].jsonName != candidate.jsonName {
+				continue
+			}
+			switch {
+			case candidate.depth < fields[index].depth:
+				fields[index] = candidate
+			case candidate.depth > fields[index].depth:
+				// The outer field already wins.
+			default:
+				return nil, generationFailed(
+					fmt.Sprintf(
+						"%s: %s has conflicting JSON field %q at the same embed depth",
+						structure.sourceFile,
+						structure.name,
+						candidate.jsonName,
+					),
+					"Rename one field or give the embedded struct an explicit JSON name, for example json:\"base\".",
+				)
+			}
+			merged = true
+			break
+		}
+		if !merged {
+			fields = append(fields, candidate)
+		}
+	}
+	return fields, nil
+}
+
+func isPointerExpr(expr ast.Expr) bool {
+	_, ok := expr.(*ast.StarExpr)
+	return ok
 }
 
 func (s *payloadScan) embeddedStruct(
@@ -397,22 +465,30 @@ func (s *payloadScan) mapType(
 		if err != nil {
 			return "", false, err
 		}
-		return inner + " | null", usedJSON, nil
+		return nullableType(inner), usedJSON, nil
 	case *ast.ArrayType:
 		if typed.Len != nil {
 			return "", false, unmappedTypeError(loc, fieldName, exprString(expr))
 		}
+		_, _, omitempty := jsonFieldMeta(field)
 		if ident, ok := typed.Elt.(*ast.Ident); ok && ident.Name == "byte" {
-			return "string", false, nil
+			if omitempty {
+				return "string", false, nil
+			}
+			return nullableType("string"), false, nil
 		}
 		inner, usedJSON, err := s.mapType(structure, typed.Elt, field)
 		if err != nil {
 			return "", false, err
 		}
+		arrayType := inner + "[]"
 		if strings.Contains(inner, " ") {
-			return "(" + inner + ")[]", usedJSON, nil
+			arrayType = "(" + inner + ")[]"
 		}
-		return inner + "[]", usedJSON, nil
+		if omitempty {
+			return arrayType, usedJSON, nil
+		}
+		return nullableType(arrayType), usedJSON, nil
 	case *ast.Ident:
 		if mapped, ok := mapBuiltinIdent(typed.Name); ok {
 			return mapped, false, nil
@@ -438,13 +514,13 @@ func (s *payloadScan) mapType(
 			line:       structure.line,
 			structType: typed,
 			imports:    structure.imports,
-		})
+		}, 0)
 		if err != nil {
 			return "", false, err
 		}
 		parts := make([]string, 0, len(inline))
 		for _, f := range inline {
-			name := f.jsonName
+			name := renderPayloadFieldName(f.jsonName)
 			if f.optional {
 				name += "?"
 			}
@@ -489,6 +565,17 @@ func (s *payloadScan) mapSelector(
 			),
 			"Copy the fields you need onto a payload struct; keep payloads limited to standard-library, time, and uuid types.",
 		)
+	}
+	if pkgIdent.Name == "sql" || importPath == "database/sql" {
+		if strings.HasPrefix(sel.Sel.Name, "Null") {
+			return "", false, generationFailed(
+				fmt.Sprintf(
+					"%s: field %s uses %s.%s; database/sql nullable structs encode as objects, not scalar or null",
+					loc, fieldName, pkgIdent.Name, sel.Sel.Name,
+				),
+				"Use a pointer field such as *string, *bool, *int64, *float64, or *time.Time in payloads.",
+			)
+		}
 	}
 	if mapped, usedJSON, ok := mapKnownSelector(importPath, pkgIdent.Name, sel.Sel.Name); ok {
 		return mapped, usedJSON, nil
@@ -631,25 +718,12 @@ func mapKnownSelector(importPath, pkgName, typeName string) (string, bool, bool)
 	case typeName == "RawMessage" && (pkgName == "json" || strings.HasSuffix(importPath, "json")):
 		return "JsonValue", true, true
 	}
-	if pkgName == "sql" || strings.HasSuffix(importPath, "database/sql") {
-		if mapped, ok := mapSQLNull(typeName); ok {
-			return mapped + " | null", false, true
-		}
-	}
 	return "", false, false
 }
 
-func mapSQLNull(name string) (string, bool) {
-	switch name {
-	case "NullString":
-		return "string", true
-	case "NullBool":
-		return "boolean", true
-	case "NullInt16", "NullInt32", "NullInt64", "NullFloat64", "NullByte":
-		return "number", true
-	case "NullTime":
-		return "string", true
-	default:
-		return "", false
+func nullableType(tsType string) string {
+	if strings.HasSuffix(tsType, " | null") {
+		return tsType
 	}
+	return tsType + " | null"
 }

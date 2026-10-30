@@ -109,7 +109,8 @@ var commandMetaSpecs = map[string]CommandMeta{
 		Details: []string{
 			"Reads every exported struct declared in payloads/, the single source of the frontend payload types.",
 			"Follows nested named structs in payloads/ and omits fields tagged json:\"-\"; json:\",omitempty\" fields become optional.",
-			"Payload fields may use standard-library types, time, and github.com/google/uuid; importing the application module, pkg/storage, pkg/anduin, pkg/inertia, or net/http is a payloads-import violation.",
+			"Non-omitempty slices and []byte are nullable because a nil Go value encodes as JSON null; untagged embedded structs flatten like encoding/json.",
+			"Payload fields may use standard-library types, time, and github.com/google/uuid; database/sql Null* structs are rejected because they encode as objects, so use pointer fields instead. Importing the application module, pkg/storage, pkg/anduin, pkg/inertia, or net/http is a payloads-import violation.",
 			"Handlers import payloads for page props and request bodies; there is no handler discovery.",
 			"Writes resources/js/types/payloads.ts.",
 		},

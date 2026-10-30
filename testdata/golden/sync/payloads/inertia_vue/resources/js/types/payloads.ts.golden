@@ -14,7 +14,7 @@ export type ProjectData = {
 }
 
 export type ProjectIndexProps = {
-  items: ProjectData[]
+  items: ProjectData[] | null
 }
 
 export type ProjectItemProps = {
