@@ -58,7 +58,7 @@ func TestManualActionDetectorsCoverEveryAction(t *testing.T) {
 func writeAppliedActionProject(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	writeActionCheckFile(t, root, "internal/runtime/runtime.go", `package runtime
+	writeActionCheckFile(t, root, "app/runtime.go", `package app
 
 func newRuntime() {
 	_ = anduin.NewServer(
@@ -75,7 +75,7 @@ func newRuntime() {
 	writeActionCheckFile(t, root, "handlers/api.go", "package handlers\n\nfunc (h readinessHandler) ReadinessReason() string { return \"\" }\n")
 	writeActionCheckFile(t, root, "config/email.go", "package config\n\nvar _ = SMTPHost\n\nfunc senderHost() {}\n")
 	writeActionCheckFile(t, root, "domains/user.sql", "-- name: Bump :exec\nUPDATE users SET session_version = session_version + 1;\n")
-	writeActionCheckFile(t, root, "internal/configcheck/main.go", "package main\n\nfunc main() {}\n")
+	writeActionCheckFile(t, root, "cmd/configcheck/main.go", "package main\n\nfunc main() {}\n")
 	writeActionCheckFile(t, root, "vite.config.ts", "export default { ssr: { noExternal: true } }\n")
 	writeActionCheckFile(t, root, "resources/root.templ", "package resources\n\nif data.SSR == nil {\n}\n")
 	writeActionCheckFile(t, root, "resources/js/routes.ts", "export const configureRouteHostScope = () => {}\n")
@@ -94,6 +94,31 @@ func TestCheckManualActionsReportsApplied(t *testing.T) {
 		}
 		if check.Title == "" || check.Version == "" {
 			t.Errorf("action %s is missing title or version: %#v", check.ID, check)
+		}
+	}
+}
+
+// TestCheckManualActionsDetectsLegacyInternalRuntime keeps upgrade detection
+// working for projects whose composition root predates the app/ layout.
+func TestCheckManualActionsDetectsLegacyInternalRuntime(t *testing.T) {
+	root := t.TempDir()
+	writeActionCheckFile(t, root, "internal/runtime/runtime.go", `package runtime
+
+func newRuntime() {
+	_ = isViteAssetRequest
+	_ = isSafeViteAssetRequest
+}
+`)
+	writeActionCheckFile(t, root, "internal/configcheck/main.go", "package main\n\nfunc main() {}\n")
+
+	checks := actionChecksByID(CheckManualActions(root, "v2.0.0-beta.4", "v2.0.0-beta.4", true))
+	for _, id := range []string{
+		"cors-host-origins-v2.0.0-beta.3",
+		"csrf-asset-skip-v2.0.0-beta.3",
+		"configcheck-v2.0.0-beta.4",
+	} {
+		if got := checks[id].Status; got != ActionApplied {
+			t.Errorf("legacy action %s = %s, want applied", id, got)
 		}
 	}
 }

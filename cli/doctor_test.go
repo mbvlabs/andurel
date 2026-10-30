@@ -615,7 +615,7 @@ func writeExecutable(t *testing.T, root, rel, content string) {
 func TestCheckManualActionsReportsStableIDsAndStates(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/doctor\n\ngo 1.27.1\n")
-	writeTestFile(t, root, "internal/runtime/runtime.go", "package runtime\n\nvar _ = isViteAssetRequest\n")
+	writeTestFile(t, root, "app/runtime.go", "package app\n\nvar _ = isViteAssetRequest\n")
 
 	lock := layout.NewAndurelLock("v2.0.0-beta.4")
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{ProjectName: "doctor", Inertia: "react"}
