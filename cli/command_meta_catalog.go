@@ -643,7 +643,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel skill show": {
 		Summary:   "Print the embedded Andurel skill or one of its references",
 		Args:      "[reference]",
-		WhenToUse: []string{"Read the skill body without installing it.", "Print a reference such as http-and-routing or layer-placement without installing the skill."},
+		WhenToUse: []string{"Read the skill body without installing it.", "Print a reference such as http-and-routing, layer-placement, or testing without installing the skill."},
 		Examples:  []string{"andurel skill show", "andurel skill show layer-placement", "andurel skill show --json"},
 	},
 	"andurel skill install": {

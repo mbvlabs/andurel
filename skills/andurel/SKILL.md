@@ -14,7 +14,8 @@ Andurel is Go-native: `net/http` through `pkg/anduin`, explicit constructor inje
 - Prefer `andurel --agent --help`, `andurel commands --json`, and `andurel commands --check` for discovery.
 - Read [references/cli-catalog.md](references/cli-catalog.md) for group layout and workflows.
 - Read [references/http-and-routing.md](references/http-and-routing.md) for the `pkg/anduin` HTTP model.
-- `andurel skill show <reference>` prints `cli-catalog`, `http-and-routing`, or `layer-placement` without installing the skill; the same files ship in `<harness skills dir>/andurel/references/` after `andurel skill install`.
+- Read [references/testing.md](references/testing.md) for race-detector setup, deterministic clocks, real-PostgreSQL test databases, rollback fault injection, and read-only or isolated transactions.
+- `andurel skill show <reference>` prints `cli-catalog`, `http-and-routing`, `layer-placement`, or `testing` without installing the skill; the same files ship in `<harness skills dir>/andurel/references/` after `andurel skill install`.
 - Run `andurel inspect project --json` before changing code.
 - Use `--json` or `--jq` when extracting data.
 - `andurel generate` does not write application code. Read a pattern with `andurel patterns show <kind>` and write the files yourself. Only `andurel generate migration` creates a file.
@@ -26,6 +27,10 @@ Andurel is Go-native: `net/http` through `pkg/anduin`, explicit constructor inje
 ## Read When Placing Code
 
 Read [references/layer-placement.md](references/layer-placement.md) before adding or moving behavior across domains, services, handlers, payloads, routes, middleware, queue jobs, config, clients, or app packages. It is the one place the placement table, the hard rules per layer, and the decision checklist are written down.
+
+## Read When Testing
+
+Read [references/testing.md](references/testing.md) before writing a test that uses the clock, a test database, a capability token, a transaction option, or a fault-injected rollback. Real PostgreSQL integration tests are the core of verification; a skip is reported, never treated as a pass.
 
 ## First Pass
 

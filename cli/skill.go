@@ -60,7 +60,7 @@ func newSkillCommand() *cobra.Command {
 With a reference name, print that reference file instead of SKILL.md. Accepts
 the name ("http-and-routing"), the file path ("references/http-and-routing.md"),
 or the same with the .md suffix omitted. Available references:
-cli-catalog, http-and-routing, layer-placement.`,
+cli-catalog, http-and-routing, layer-placement, testing.`,
 		Example: `  andurel skill show
   andurel skill show layer-placement
   andurel skill show references/http-and-routing.md --json`,

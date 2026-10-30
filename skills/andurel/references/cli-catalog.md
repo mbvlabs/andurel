@@ -17,7 +17,8 @@ andurel --agent --help
 1. `andurel inspect project --json` — andurel.toml manifest (version, adapter), andurel.lock digests, tools.
 2. `andurel patterns show <kind>` — read the reference shape for a layer.
    `andurel skill show <reference>` prints the skill's `http-and-routing`,
-   `layer-placement`, or `cli-catalog` reference without installing it.
+   `layer-placement`, `testing`, or `cli-catalog` reference without installing
+   it.
 3. `andurel generate migration NAME` — create a migration (the only generated file).
 4. Write domains, services, handlers, payloads, routes, and middleware by hand.
 5. `andurel sync queries` / `sync routes` / `sync payloads` / `sync email` — refresh derived files.

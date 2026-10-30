@@ -47,7 +47,7 @@ func TestAppServesHealth(t *testing.T) {
 - `testConfig(t)` loads the project `.env` when present, falls back to fixed values for the required keys, and replaces `cfg.Database` with the `storage.Config` from `storagetest.Cluster.NewTestDBWithConfig`. A fresh scaffold has no `.env`; the fallbacks keep `verify --with-tests` hermetic.
 - Integration tests cover cross-domain flows that handler tests cannot.
 - Close the app with `app.Close` to release the database and telemetry, passing `context.WithoutCancel(t.Context())` because `t.Context()` is canceled before cleanup runs.
-- Use a real Postgres test database from the package cluster; migrations are applied before `app.New` boots.
+- Use a real Postgres test database from the package cluster; migrations are applied before `app.New` boots. For migration, rollback, isolated-transaction, clock, and capability-token tests, read `andurel skill show testing`.
 - Do not reach into unexported app fields.
 - `routing.NewHosts` returns an explicit registry value. Tests that call `app.New` each construct their own hosts and do not mutate package state.
 

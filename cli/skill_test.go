@@ -99,7 +99,7 @@ func TestSkillShowRejectsUnknownReference(t *testing.T) {
 	if fail.Code != output.CodeUsage {
 		t.Fatalf("error code = %q, want %q: %v", fail.Code, output.CodeUsage, result.err)
 	}
-	for _, name := range []string{"cli-catalog", "http-and-routing", "layer-placement"} {
+	for _, name := range []string{"cli-catalog", "http-and-routing", "layer-placement", "testing"} {
 		if !strings.Contains(fail.Hint, name) {
 			t.Fatalf("hint %q does not list %q", fail.Hint, name)
 		}
