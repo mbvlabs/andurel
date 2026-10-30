@@ -6,6 +6,10 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## 0.14.0 - 2026-10-30
 
+### Changed
+
+- Require published email v0.6.1 and telemetry v0.2.3 for current security and privacy fixes in standalone builds.
+
 ### Added
 
 - `RunMigrationsTo` applies Goose migrations up to and including a version, so
