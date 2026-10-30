@@ -632,7 +632,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 
 		WhenNotToUse:    []string{"verify is read-only; fix the reported issues yourself and re-run."},
 		Prerequisites:   []string{"Andurel project root"},
-		Examples:        []string{"andurel verify", "andurel verify --json", "andurel verify ./internal/docs/...", "andurel verify --with-tests", "andurel verify --skip-generated", "andurel verify --no-frontend"},
+		Examples:        []string{"andurel verify", "andurel verify --json", "andurel verify ./app/...", "andurel verify --with-tests", "andurel verify --skip-generated", "andurel verify --no-frontend"},
 		RequiresProject: true,
 	},
 	"andurel skill": {
