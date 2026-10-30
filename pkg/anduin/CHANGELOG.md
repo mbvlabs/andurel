@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+## 0.6.2 - 2026-10-30
+
 ### Fixed
 
 - `WithTelemetry` replaces the `url.path` placeholder started by

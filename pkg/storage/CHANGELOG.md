@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+## 0.14.0 - 2026-10-30
+
 ### Added
 
 - `RunMigrationsTo` applies Goose migrations up to and including a version, so
