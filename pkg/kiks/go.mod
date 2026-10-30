@@ -5,7 +5,7 @@ go 1.27.3
 require (
 	github.com/gorilla/securecookie v1.1.2
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/mbvlabs/andurel/pkg/anduin v0.2.1
+	github.com/mbvlabs/andurel/pkg/anduin v0.6.2
 )
 
 require (
@@ -19,8 +19,8 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/lmittmann/tint v1.2.0 // indirect
-	github.com/mbvlabs/andurel/pkg/routing v0.7.0 // indirect
-	github.com/mbvlabs/andurel/pkg/telemetry v0.2.0 // indirect
+	github.com/mbvlabs/andurel/pkg/routing v0.8.0 // indirect
+	github.com/mbvlabs/andurel/pkg/telemetry v0.2.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/bridges/otelslog v0.20.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.71.0 // indirect
@@ -45,9 +45,3 @@ require (
 	google.golang.org/grpc v1.83.2 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
-
-replace github.com/mbvlabs/andurel/pkg/anduin => ../anduin
-
-replace github.com/mbvlabs/andurel/pkg/routing => ../routing
-
-replace github.com/mbvlabs/andurel/pkg/telemetry => ../telemetry

@@ -4,7 +4,7 @@ go 1.27.3
 
 require (
 	github.com/a-h/templ v0.3.1020
-	github.com/mbvlabs/andurel/pkg/anduin v0.6.1
+	github.com/mbvlabs/andurel/pkg/anduin v0.6.2
 )
 
 require (
@@ -16,8 +16,8 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/lmittmann/tint v1.2.0 // indirect
-	github.com/mbvlabs/andurel/pkg/routing v0.7.0 // indirect
-	github.com/mbvlabs/andurel/pkg/telemetry v0.2.0 // indirect
+	github.com/mbvlabs/andurel/pkg/routing v0.8.0 // indirect
+	github.com/mbvlabs/andurel/pkg/telemetry v0.2.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/bridges/otelslog v0.20.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.71.0 // indirect
@@ -42,9 +42,3 @@ require (
 	google.golang.org/grpc v1.83.2 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
-
-replace github.com/mbvlabs/andurel/pkg/anduin => ../anduin
-
-replace github.com/mbvlabs/andurel/pkg/routing => ../routing
-
-replace github.com/mbvlabs/andurel/pkg/telemetry => ../telemetry
