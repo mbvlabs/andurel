@@ -131,8 +131,8 @@ func (u Users) Create(
 
 	created, err := u.queries.CreateUser[User](ctx, queries.CreateUserParams{
 		ID:               entity.ID,
-		CreatedAt:        entity.CreatedAt,
-		UpdatedAt:        entity.UpdatedAt,
+		CreatedAt:        entity.CreatedAt.Time,
+		UpdatedAt:        entity.UpdatedAt.Time,
 		Email:            entity.Email,
 		EmailValidatedAt: entity.EmailValidatedAt,
 		Password:         entity.Password,
@@ -204,7 +204,7 @@ func (u Users) Save(ctx context.Context, entity User) (User, error) {
 		Password:         entity.Password,
 		IsAdmin:          entity.IsAdmin,
 		SessionVersion:   entity.SessionVersion,
-		UpdatedAt:        entity.UpdatedAt,
+		UpdatedAt:        entity.UpdatedAt.Time,
 	})
 
 	return storage.Row(row, storage.Conflict(err, "users_email_key"))

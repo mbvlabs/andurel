@@ -5,8 +5,8 @@ package queries
 
 import (
 	"context"
+	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/narsilc"
 	"uuid"
 )
@@ -29,10 +29,10 @@ RETURNING id, created_at, updated_at, scope, expires_at, hash, meta_data, user_i
 
 type CreateTokenParams struct {
 	ID        uuid.UUID
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
+	CreatedAt time.Time
+	UpdatedAt time.Time
 	Scope     string
-	ExpiresAt pgtype.Timestamptz
+	ExpiresAt time.Time
 	Hash      string
 	MetaData  []byte
 	UserID    uuid.UUID
@@ -57,7 +57,7 @@ DELETE FROM tokens
 WHERE expires_at < $1
 `
 
-func (q *Queries) DeleteExpiredTokens(ctx context.Context, expiresAt pgtype.Timestamptz) (int64, error) {
+func (q *Queries) DeleteExpiredTokens(ctx context.Context, expiresAt time.Time) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteExpiredTokens, expiresAt)
 	if err != nil {
 		return 0, err
@@ -151,7 +151,7 @@ RETURNING attempts
 
 type IncrementTokenAttemptsParams struct {
 	ID        uuid.UUID
-	UpdatedAt pgtype.Timestamptz
+	UpdatedAt time.Time
 }
 
 func (q *Queries) IncrementTokenAttempts(ctx context.Context, arg IncrementTokenAttemptsParams) (int32, error) {

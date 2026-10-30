@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/narsilc"
@@ -42,8 +43,8 @@ RETURNING id, created_at, updated_at, email, email_validated_at, password, is_ad
 
 type CreateUserParams struct {
 	ID               uuid.UUID
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 	Email            string
 	EmailValidatedAt pgtype.Timestamptz
 	Password         []byte
@@ -239,7 +240,7 @@ type UpdateUserParams struct {
 	EmailValidatedAt pgtype.Timestamptz
 	Password         []byte
 	IsAdmin          bool
-	UpdatedAt        pgtype.Timestamptz
+	UpdatedAt        time.Time
 }
 
 func (q *Queries) UpdateUser[T any](ctx context.Context, arg UpdateUserParams) (T, error) {
