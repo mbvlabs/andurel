@@ -16,7 +16,6 @@ import (
 	"{{.ModuleName}}/routes"
 	"{{.ModuleName}}/services"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/anduin/anduintest"
 	"github.com/mbvlabs/andurel/pkg/cache"
@@ -271,7 +270,7 @@ func (a authTestApp) verifiedUser(t *testing.T, email string) domains.User {
 		t.Fatalf("create user: %v", err)
 	}
 
-	validatedAt := pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	validatedAt := time.Now()
 	updated, err := a.users.Update(t.Context(), domains.UpdateUserData{
 		ID:               created.ID,
 		EmailValidatedAt: &validatedAt,

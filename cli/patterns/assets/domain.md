@@ -13,8 +13,11 @@ Validate once, at the write path: entities expose `Validate()` via
 `pkg/validation`, and `Create`/`Update` call it before touching the database.
 Callers (handlers, services) do not repeat entity rules.
 
-The worked example below is a `Product` domain. The reference app's
-`domains/user.go` and `domains/token.go` follow the same shape.
+The worked example below is a `Product` domain, shown in the generated 1:1
+shape: its entity fields are the row's types, `pgtype.Timestamptz` included.
+The scaffold's `domains/user.go` and `domains/token.go` follow the same
+receiver shape. `user.go` goes one step further for timestamps: its entity uses
+plain Go times, as described in the Rules below.
 
 ## Files
 
@@ -221,7 +224,8 @@ return users.Save(ctx, locked)
 - Every receiver has `New<Plural>(db storage.Connection)` and `InTx(tx storage.Tx)`. Construct it in `app` and pass it to the services and handlers that use it.
 - A receiver holds a `storage.Transactor` when one of its methods writes more than once or reads, modifies and writes a row; it rebinds it in `InTx`, wraps the statements in `storage.AtomicOps` (joining a caller's transaction when bound), and locks the row with `FindForUpdate` before a read-modify-write. `Save` writes every column and does not lock for its caller.
 - Entities expose `Validate()` via `pkg/validation`; `Create`/`Update` normalise, then validate, then write, returning validation errors from `pkg/validation` directly.
-- Keep the entity 1:1 with a scanned row.
+- Keep the entity 1:1 with a scanned row, or map it in `Transform(row queries.<Row>) error` on `*Entity` (narsilc calls it when the entity implements `narsilc.Transformer`).
+- Timestamps at the entity boundary are plain Go values: `time.Time` for required columns and `*time.Time` for nullable ones (nil is SQL NULL). `pgtype.Timestamptz` stays inside the domain: `Transform` converts the row, and a small unexported helper converts a `*time.Time` back into the create or update params. Callers never import `pgtype` for timestamps. Nullable updates use a pointer for "set" and nil for "keep"; a separate boolean field such as `ClearEmailValidatedAt` sets NULL and takes precedence over the set value.
 - Pass raw `page`/`pageSize` to `storage.Page`: it clamps the page, the size and the `int32` offset, so a huge or negative page cannot overflow the query.
 - SQL lives beside the domain that owns it (`domains/product.sql`); narsilc globs `domains/**/*.sql`.
 - Map expected not-found and unique-constraint failures to `ErrNotFound` and `ErrConflict`; return `pkg/validation` errors directly. Preserve unexpected database errors for diagnostics.

@@ -85,11 +85,12 @@ func rowManifest(
 	}, nil
 }
 
-// renderDomainGo renders the receiver, entity and Validate() stub in the shape
-// of the scaffold's domains/user.go. Entity field types are the row's types
-// unchanged: the scaffold's User keeps every UserRow type as is, including
-// pgtype.Timestamptz for created_at, updated_at and the nullable
-// email_validated_at, and pgx scans each column into the type narsilc chose.
+// renderDomainGo renders the receiver, entity and Validate() stub. Entity field
+// types are the row's types unchanged, so pgx scans each column into the type
+// narsilc chose, including pgtype.Timestamptz for timestamps. This generator
+// does not emit a Transform method. The scaffold's User is hand-written instead:
+// it maps timestamps to plain Go times in Transform, so its entity fields differ
+// from the rendered row types for created_at, updated_at and email_validated_at.
 func renderDomainGo(
 	title, table, module string,
 	fields []columns.StructField,

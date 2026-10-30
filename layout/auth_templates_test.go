@@ -23,8 +23,38 @@ func TestGeneratedQueryTimestampParameters(t *testing.T) {
 		"CreatedAt pgtype.Timestamptz",
 		"EmailValidatedAt pgtype.Timestamptz",
 	)
-	assertTemplateContains(t, "domains_user.tmpl", "CreatedAt:        entity.CreatedAt.Time", "EmailValidatedAt: entity.EmailValidatedAt")
+	assertTemplateContains(t, "domains_user.tmpl", "CreatedAt:        entity.CreatedAt,", "EmailValidatedAt: userNullableTime(entity.EmailValidatedAt)")
 	assertTemplateContains(t, "domains_token.tmpl", "ExpiresAt: entity.ExpiresAt.Time", "DeleteExpiredTokens(ctx, before)")
+}
+
+// TestGeneratedUserTimestampsStayInDomain guards the user entity boundary: the
+// domain exposes plain Go times and converts pgx's pgtype.Timestamptz only in
+// Transform and userNullableTime. Services, seeds and handler tests must not
+// construct pgtype values for user timestamps.
+func TestGeneratedUserTimestampsStayInDomain(t *testing.T) {
+	assertTemplateContains(t, "domains_user.tmpl",
+		"CreatedAt        time.Time",
+		"UpdatedAt        time.Time",
+		"EmailValidatedAt *time.Time",
+		"func (u *User) Transform(row queries.UserRow) error",
+		"func userNullableTime(value *time.Time) pgtype.Timestamptz",
+		"ClearEmailValidatedAt bool",
+		"if data.ClearEmailValidatedAt {",
+	)
+	assertTemplateMissing(t, "domains_user.tmpl", "pgtype.Timestamptz `andurel")
+	assertTemplateMissing(t, "domains_user.tmpl", "EmailValidatedAt *pgtype.Timestamptz")
+
+	for _, name := range []string{
+		"services_registration.tmpl",
+		"database_seeds_seeds.tmpl",
+		"handlers_auth_test.tmpl",
+		"domains_user_test.tmpl",
+	} {
+		assertTemplateMissing(t, name, "pgtype")
+	}
+	for _, name := range []string{"services_registration.tmpl", "database_seeds_seeds.tmpl", "handlers_auth_test.tmpl"} {
+		assertTemplateContains(t, name, "validatedAt := time.Now()")
+	}
 }
 
 // TestGeneratedAuthTemplatesBindVerificationToSession guards the S1 fix: email

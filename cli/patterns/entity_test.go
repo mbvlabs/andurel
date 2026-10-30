@@ -45,10 +45,21 @@ func parsedStruct(t *testing.T, name, source, typeName string) []columns.StructF
 	return fields
 }
 
+// plainTimeFields lists the entity fields whose scaffold type is a plain Go time
+// rather than the row's pgtype.Timestamptz. The domain converts them in Transform.
+var plainTimeFields = map[string]map[string]string{
+	"User": {
+		"CreatedAt":        "time.Time",
+		"UpdatedAt":        "time.Time",
+		"EmailValidatedAt": "*time.Time",
+	},
+}
+
 // TestRenderedEntityMatchesScaffold renders each scaffold entity from the
 // scaffold's own models.go template and requires the struct (fields, tags,
 // types) to equal the hand-written domain entity in the scaffold templates.
-// This pins the Row→entity type mapping to what the scaffold does.
+// This pins the Row→entity type mapping to what the scaffold does, with the
+// plainTimeFields exceptions.
 func TestRenderedEntityMatchesScaffold(t *testing.T) {
 	models := readTemplate(t, "domains_internal_queries_models.tmpl")
 
@@ -68,6 +79,13 @@ func TestRenderedEntityMatchesScaffold(t *testing.T) {
 			}
 
 			rendered := parsedStruct(t, tc.path, manifestFile(t, manifest, tc.path).Content, tc.entity)
+			// The scaffold's User maps timestamps to plain Go times in Transform,
+			// so those fields differ from the row types by design.
+			for i, field := range rendered {
+				if want, ok := plainTimeFields[tc.entity][field.Name]; ok {
+					rendered[i].Type = want
+				}
+			}
 			scaffold := parsedStruct(t, tc.template, string(readTemplate(t, tc.template)), tc.entity)
 			if !slices.Equal(rendered, scaffold) {
 				t.Fatalf("rendered %s = %#v\nscaffold %#v", tc.entity, rendered, scaffold)
