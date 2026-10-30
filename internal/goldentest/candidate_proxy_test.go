@@ -123,9 +123,10 @@ func TestGoldenGoEnvLocalPkgServesCheckout(t *testing.T) {
 	assertOwnedCache(t, env, "GOCACHE")
 	assertOwnedCache(t, env, "GOTMPDIR")
 
+	inertiaModulePath := CandidateModulePrefix + "inertia"
 	versionDir := filepath.Join(
 		filepath.FromSlash(proxyDir),
-		filepath.FromSlash(CandidateInertiaModulePath),
+		filepath.FromSlash(inertiaModulePath),
 		"@v",
 	)
 	for _, name := range []string{versions.Inertia + ".mod", versions.Inertia + ".info", versions.Inertia + ".zip", "list"} {
@@ -139,7 +140,7 @@ func TestGoldenGoEnvLocalPkgServesCheckout(t *testing.T) {
 		t.Fatalf("open local proxy zip: %v", err)
 	}
 	defer func() { _ = archive.Close() }()
-	wantPrefix := CandidateInertiaModulePath + "@" + versions.Inertia + "/go.mod"
+	wantPrefix := inertiaModulePath + "@" + versions.Inertia + "/go.mod"
 	found := false
 	for _, file := range archive.File {
 		if file.Name == wantPrefix {
@@ -149,6 +150,15 @@ func TestGoldenGoEnvLocalPkgServesCheckout(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("local proxy zip does not contain %s", wantPrefix)
+	}
+
+	routingVersionDir := filepath.Join(
+		filepath.FromSlash(proxyDir),
+		filepath.FromSlash(CandidateModulePrefix+"routing"),
+		"@v",
+	)
+	if _, err := os.Stat(filepath.Join(routingVersionDir, versions.Routing+".zip")); err != nil {
+		t.Fatalf("local proxy missing the routing module: %v", err)
 	}
 }
 
@@ -275,23 +285,31 @@ func useFakeRepoRoot(t *testing.T) string {
 	t.Helper()
 
 	root := t.TempDir()
-	moduleDir := filepath.Join(root, "pkg", "inertia")
-	if err := os.MkdirAll(moduleDir, 0o755); err != nil {
-		t.Fatalf("create fake module dir: %v", err)
-	}
-	if err := os.WriteFile(
-		filepath.Join(moduleDir, "go.mod"),
-		[]byte("module "+CandidateInertiaModulePath+"\n\ngo 1.27.3\n"),
-		0o644,
-	); err != nil {
-		t.Fatalf("write fake go.mod: %v", err)
-	}
-	if err := os.WriteFile(
-		filepath.Join(moduleDir, "renderer.go"),
-		[]byte("package inertia\n"),
-		0o644,
-	); err != nil {
-		t.Fatalf("write fake source: %v", err)
+	for _, module := range []struct {
+		name    string
+		content string
+	}{
+		{name: "inertia", content: "package inertia\n"},
+		{name: "routing", content: "package routing\n"},
+	} {
+		moduleDir := filepath.Join(root, "pkg", module.name)
+		if err := os.MkdirAll(moduleDir, 0o755); err != nil {
+			t.Fatalf("create fake module dir: %v", err)
+		}
+		if err := os.WriteFile(
+			filepath.Join(moduleDir, "go.mod"),
+			[]byte("module "+CandidateModulePrefix+module.name+"\n\ngo 1.27.3\n"),
+			0o644,
+		); err != nil {
+			t.Fatalf("write fake go.mod: %v", err)
+		}
+		if err := os.WriteFile(
+			filepath.Join(moduleDir, "source.go"),
+			[]byte(module.content),
+			0o644,
+		); err != nil {
+			t.Fatalf("write fake source: %v", err)
+		}
 	}
 
 	oldRoot := repoRoot

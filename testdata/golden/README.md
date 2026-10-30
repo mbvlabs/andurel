@@ -44,7 +44,7 @@ default; local package source is never substituted implicitly.
 | Mode | Selector | Behaviour |
 |------|----------|-----------|
 | Published (default) | none | Public proxy and checksum database. The run fails if a pin is unpublished. |
-| Local package | `ANDUREL_GOLDEN_LOCAL_PKG=1` | Serves this checkout's `pkg/inertia` as the pinned version through a temporary file proxy, with isolated caches. Development only; not release proof. |
+| Local package | `ANDUREL_GOLDEN_LOCAL_PKG=1` | Serves every module under this checkout's `pkg/*` as its pinned version through a temporary file proxy, with isolated caches. Development only; not release proof. |
 | Release | `ANDUREL_GOLDEN_RELEASE=1` | Public proxy and checksum database with fresh isolated module, build, and temp caches, so a cached copy cannot satisfy a pin. |
 
 The local-package and release selectors are mutually exclusive; setting both
@@ -193,6 +193,6 @@ just test-golden              # published pins
 just test-golden-full         # published pins, full tree
 just test-golden-release      # release-shaped: public proxy, checksums, fresh caches
 just test-golden-full-release # release-shaped full tree (master readiness)
-just test-golden-local-pkg    # development only: local pkg/inertia source
+just test-golden-local-pkg    # development only: local pkg/* source
 just test-golden-full-local-pkg
 ```

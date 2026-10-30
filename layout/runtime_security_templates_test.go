@@ -32,6 +32,15 @@ func TestGeneratedViteAssetsUsePublicCORS(t *testing.T) {
 	)
 }
 
+func TestGeneratedViteAssetSubtreeUsesRoutingAccessor(t *testing.T) {
+	assertTemplateContains(t, "runtime_runtime.tmpl",
+		"return routes.ViteBuild.InSubtree(path)",
+	)
+	assertTemplateMissing(t, "runtime_runtime.tmpl",
+		"TrimSuffix(routes.ViteBuild.Pattern()",
+	)
+}
+
 func TestGeneratedMethodNotAllowedRendersNotFoundPage(t *testing.T) {
 	assertTemplateContains(t, "handlers_errors.tmpl",
 		`inertia.MapError(anduin.ErrMethodNotAllowed, http.StatusMethodNotAllowed, "Errors/NotFound")`,

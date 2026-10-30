@@ -28,7 +28,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"<module>/config"
 	"<module>/domains"
@@ -177,9 +176,10 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	return app, nil
 }
 
-// viteAssetPrefix is the Vite build route subtree without its wildcard.
-var viteAssetPrefix = strings.TrimSuffix(routes.ViteBuild.Pattern(), "/*")
-
+// isViteAssetRequest reports whether the request targets the Vite build
+// subtree. The static files are public: they load from a secondary host
+// without the visitor's session, so neither credentialed CORS nor a CSRF
+// cookie belongs on them.
 func isViteAssetRequest(ctx context.Context) bool {
 	request := anduin.Request(ctx)
 
@@ -202,7 +202,7 @@ func isSafeViteAssetRequest(ctx context.Context) bool {
 }
 
 func isViteAssetPath(path string) bool {
-	return strings.HasPrefix(path, viteAssetPrefix+"/")
+	return routes.ViteBuild.InSubtree(path)
 }
 
 // readiness reports whether the process can serve traffic. Liveness stays

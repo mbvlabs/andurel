@@ -138,6 +138,7 @@ func TestCompositionPatternMatchesScaffoldRuntime(t *testing.T) {
 		"handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)",
 		"handlers.NewAPIHandler(db, newReadiness(db, renderer)).Register(router)",
 		"app.Handler = router.Handler()",
+		"routes.ViteBuild.InSubtree(path)",
 	}
 	for _, line := range keyLines {
 		if !strings.Contains(source, line) {

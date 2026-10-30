@@ -14,17 +14,17 @@ import (
 	"github.com/mbvlabs/andurel/v2/layout/versions"
 )
 
-// CandidateInertiaModulePath is the standalone module whose pin may be ahead of
-// the published tags while a release is still being assembled. It is only
-// served from this checkout when a golden run explicitly opts in with
-// ANDUREL_GOLDEN_LOCAL_PKG=1.
-const CandidateInertiaModulePath = "github.com/mbvlabs/andurel/pkg/inertia"
+// CandidateModulePrefix is the module path prefix for the standalone pkg/*
+// modules whose pins may be ahead of the published tags while a release is
+// still being assembled. Local-package golden mode serves every module under
+// this prefix from the checkout.
+const CandidateModulePrefix = "github.com/mbvlabs/andurel/pkg/"
 
 const (
-	// LocalPkgEnv opts a golden run into resolving CandidateInertiaModulePath
-	// from this checkout through a file module proxy. It is development-only:
-	// the bytes served are not the published module, so a run with this flag set
-	// is not release-shaped proof.
+	// LocalPkgEnv opts a golden run into resolving every pkg/* module from this
+	// checkout through a file module proxy. It is development-only: the bytes
+	// served are not the published modules, so a run with this flag set is not
+	// release-shaped proof.
 	LocalPkgEnv = "ANDUREL_GOLDEN_LOCAL_PKG"
 	// ReleaseEnv opts a golden run into release-shaped module resolution:
 	// public proxy, public checksum database, and isolated fresh caches that
@@ -237,14 +237,21 @@ func ensureGoldenEnv(mode GoldenMode) (*goldenEnvState, error) {
 			_ = os.RemoveAll(root)
 			return nil, fmt.Errorf("create local module proxy: %w", err)
 		}
-		if err := writeCandidateModule(
-			state.proxyDir,
-			RepoRoot(),
-			CandidateInertiaModulePath,
-			versions.Inertia,
-		); err != nil {
+		modules, err := candidateModules(RepoRoot())
+		if err != nil {
 			_ = os.RemoveAll(root)
 			return nil, err
+		}
+		for _, module := range modules {
+			if err := writeCandidateModule(
+				state.proxyDir,
+				RepoRoot(),
+				module.path,
+				module.version,
+			); err != nil {
+				_ = os.RemoveAll(root)
+				return nil, err
+			}
 		}
 	}
 
@@ -282,6 +289,31 @@ func stripGoldenEnv(env []string) []string {
 		}
 	}
 	return filtered
+}
+
+func candidateModules(repoRoot string) ([]candidateModule, error) {
+	moduleFiles, err := filepath.Glob(filepath.Join(repoRoot, "pkg", "*", "go.mod"))
+	if err != nil {
+		return nil, fmt.Errorf("find candidate pkg modules: %w", err)
+	}
+	modules := make([]candidateModule, 0, len(moduleFiles))
+	for _, moduleFile := range moduleFiles {
+		modulePath := CandidateModulePrefix + filepath.Base(filepath.Dir(moduleFile))
+		version, ok := versions.PackageVersion(modulePath)
+		if !ok {
+			return nil, fmt.Errorf("candidate module %s has no verified version", modulePath)
+		}
+		modules = append(modules, candidateModule{path: modulePath, version: version})
+	}
+	if len(modules) == 0 {
+		return nil, fmt.Errorf("no pkg/* modules under %s", repoRoot)
+	}
+	return modules, nil
+}
+
+type candidateModule struct {
+	path    string
+	version string
 }
 
 func writeCandidateModule(destination, repoRoot, modulePath, version string) error {

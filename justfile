@@ -142,11 +142,11 @@ test-golden: install-dev-tools
 test-golden-full: install-dev-tools
     ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m
 
-# Development-only: golden CLI tests against this checkout's pkg/inertia (not release proof)
+# Development-only: golden CLI tests against this checkout's pkg/* modules (not release proof)
 test-golden-local-pkg: install-dev-tools
     ANDUREL_GOLDEN_LOCAL_PKG=1 env -u ANDUREL_GOLDEN_FULL go test ./golden/... -v -timeout 15m
 
-# Development-only: full golden suite against this checkout's pkg/inertia (not release proof)
+# Development-only: full golden suite against this checkout's pkg/* modules (not release proof)
 test-golden-full-local-pkg: install-dev-tools
     ANDUREL_GOLDEN_LOCAL_PKG=1 ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m
 
