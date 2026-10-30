@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+## 0.8.0 - 2026-10-30
+
 ### Added
 
 - `Route.Prefix()` returns a route's subtree root by removing a trailing `/*`

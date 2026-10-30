@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel validation module are documented h
 
 ## Unreleased
 
+## 0.4.0 - 2026-10-30
+
 ### Added
 
 - `ValidationBuilder.TimeBetween` requires a time value to fall inside an

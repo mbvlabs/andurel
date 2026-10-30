@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel telemetry module are documented he
 
 ## Unreleased
 
+## 0.2.3 - 2026-10-30
+
 ### Fixed
 
 - `WrapHandler` starts every server span with `url.path` set to

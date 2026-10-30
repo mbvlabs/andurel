@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel auth module are documented here.
 
 ## Unreleased
 
+## 0.3.0 - 2026-10-30
+
 ### Added
 
 - `NewCapabilityToken` builds prefixed, URL-safe capability tokens with at

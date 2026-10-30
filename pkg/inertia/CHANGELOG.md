@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.13.1 - 2026-10-30
+
 ### Fixed
 
 - `FromStruct`/`FromStructChecked` follow Go JSON field semantics for
