@@ -18,3 +18,13 @@ func NewSessionCookie(cfg config.Session, secure bool) kiks.Definition {
 		kiks.MaxAge(cfg.MaxAge),
 	)
 }
+
+// CookieDefinitions lists every cookie the app registers on its jar. The app
+// (application.newJar) and the test helpers build their jars from this one
+// list, so a cookie added here is visible to handler tests too. Add new cookie
+// definitions here, not at the jar call sites.
+func CookieDefinitions(cfg config.Session, secure bool) []kiks.Definition {
+	return []kiks.Definition{
+		NewSessionCookie(cfg, secure),
+	}
+}

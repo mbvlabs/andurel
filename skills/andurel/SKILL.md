@@ -42,7 +42,9 @@ Read [references/testing.md](references/testing.md) before writing a test that u
 
 ## Verify
 
-`andurel verify` runs `gofmt`, `go fix`, `go vet`, the typed layer rules, the package manager's `typecheck` script when `package.json` defines one, and generated-code drift. It reports each violation as `{rule, file, line, message, fix}`. Apply the `fix` and re-run. `andurel verify [packages...]` scopes the Go checks to package patterns (for example `./app/...`); generated drift and the frontend typecheck stay whole-project. `--no-frontend` skips the typecheck. With `--with-tests`, packages that ran no tests are listed under `skipped_packages` and `t.Skip` calls under `skipped_tests` with their reason. Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
+With `--json` or `--agent`, a failed `andurel verify` writes its report to stderr and leaves stdout empty; read the failure report from stderr.
+
+`andurel verify` runs the setup preflight, `gofmt`, `go fix`, `go vet`, the typed layer rules, the frontend stage (the package manager's `typecheck` script when `package.json` defines one, plus the route-usage rule), the generated-code drift stage, and the content stage (`andurel.content.toml` invariants, which are skipped when the project declares none). It reports each violation as `{rule, file, line, message, fix}`. Apply the `fix` and re-run. Every independent stage runs even after another fails, and the summary lists all failed stages. `andurel verify [packages...]` scopes the Go checks and generated drift to package patterns (for example `./app/...`); the frontend typecheck stays whole-project. If the generated step fails in a scoped run, rerun with `--only` listing the stages you need to skip it. `--no-frontend` skips the typecheck. With `--with-tests`, packages that ran no tests are listed under `skipped_packages` and `t.Skip` calls under `skipped_tests` with their reason. Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
 
 <!-- andurel:verify-rules:begin: generated from the verify rule catalog by 'just docs-sync'; do not edit -->
 | Rule | Checks |
@@ -132,6 +134,14 @@ Add an HTTP resource:
 4. Wire the handler in `app`.
 5. Run `andurel sync routes --json` so Inertia pages can import `resources/js/routes.ts`.
 
+To build the frontend before the handler exists, write the route values and payload structs first, run `andurel sync routes --json` and `andurel sync payloads --json`, then build the page. The generated helpers come only from Go that already exists. See [layer-placement.md](references/layer-placement.md#staging-frontend-before-go-routes).
+
+Port onto an existing database:
+
+1. `andurel patterns show migration` — read the rules on the scaffold's `users` and `tokens` migrations.
+2. Keep the scaffold auth migrations (`00008`, `00009`) or drop them together with the `users`/`tokens` domain files and their SQL; never leave the domain queries pointing at tables that no longer exist.
+3. Add your own schema as additive migrations (`andurel generate migration`), then run `andurel db migrate up` and `andurel sync queries --json`.
+
 Generate Inertia route helpers:
 
 ```bash
@@ -151,7 +161,7 @@ andurel sync payloads --json
 
 `payloads/` is the single source of `resources/js/types/payloads.ts`, just as `routes/` is the source of `routes.ts`. `andurel sync payloads` emits every exported struct declared in `payloads/` and follows nested named structs in that package. `json:"-"` is omitted and `omitempty` makes a field optional. A non-omitempty slice or `[]byte` is nullable in TypeScript because a nil Go value encodes as JSON `null`.
 
-Keep payload fields to standard-library types, `time`, and `github.com/google/uuid`: `payloads/` may not import application packages, `pkg/storage`, `pkg/anduin`, `pkg/inertia`, or `net/http` (the `payloads-import` rule). Use pointer fields such as `*string` for optional scalars; `database/sql` `Null*` structs encode as objects and are rejected. Untagged embedded structs flatten like `encoding/json`, while an embedded field with an explicit JSON name stays nested (a pointer embed makes its promoted fields optional). Handlers import `payloads` for page props and request bodies and pass them with `inertia.FromStruct(payloads.SomeProps{...})`. Import the generated types from `@/types/payloads` instead of hand-writing them, and run the command after editing `payloads/`.
+Keep payload fields to standard-library types, `time`, and the stdlib `uuid` package the scaffold imports: `payloads/` may not import application packages, `pkg/storage`, `pkg/anduin`, `pkg/inertia`, or `net/http` (the `payloads-import` rule). Use pointer fields such as `*string` for optional scalars; `database/sql` `Null*` structs encode as objects and are rejected. Untagged embedded structs flatten like `encoding/json`, while an embedded field with an explicit JSON name stays nested (a pointer embed makes its promoted fields optional). Handlers import `payloads` for page props and request bodies and pass them with `inertia.FromStruct(payloads.SomeProps{...})`. Import the generated types from `@/types/payloads` instead of hand-writing them, and run the command after editing `payloads/`.
 
 Generate a named database seed:
 
@@ -165,6 +175,28 @@ andurel db seed --list
 andurel db seed development
 andurel db seed test
 ```
+
+A seed that writes more than one table must be atomic: either every row lands or none does. Build a `storage.NewTransactor(db)` in the seed and run the writes in `storage.AtomicOps`, binding each receiver with `InTx(tx)` inside the callback:
+
+```go
+func Demo(ctx context.Context, db storage.Connection) error {
+	transactor := storage.NewTransactor(db)
+	users := domains.NewUsers(db)
+	products := domains.NewProducts(db)
+
+	return storage.AtomicOps(ctx, transactor, func(ctx context.Context, tx storage.Tx) error {
+		users, products := users.InTx(tx), products.InTx(tx)
+
+		if _, err := users.Create(ctx, pepper, domains.CreateUserData{ /* … */ }); err != nil {
+			return err // rolls back every earlier write
+		}
+		_, err := products.Create(ctx, domains.CreateProductData{ /* … */ })
+		return err
+	})
+}
+```
+
+The scaffold's `Development` and `Test` seeds write one table through the `domains` receivers and need no transaction. Use `AtomicOps` only when a seed writes several tables. Keep seeds idempotent: look up an existing row before creating it, as `createUser` does.
 
 Check project health and verify a change:
 

@@ -223,12 +223,12 @@ func newAuthTestApp(t *testing.T) authTestApp {
 	if err != nil {
 		t.Fatalf("create cookie store: %v", err)
 	}
-	jar, err := kiks.NewJar(keys, cookieStore, middleware.NewSessionCookie(config.Session{
+	jar, err := kiks.NewJar(keys, cookieStore, middleware.CookieDefinitions(config.Session{
 		Name:              "test_session",
 		AuthenticationKey: keys.Authentication,
 		EncryptionKey:     keys.Encryption,
 		MaxAge:            config.DefaultSessionMaxAge,
-	}, false))
+	}, false)...)
 	if err != nil {
 		t.Fatalf("create jar: %v", err)
 	}

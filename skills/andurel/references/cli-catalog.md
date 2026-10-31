@@ -25,7 +25,9 @@ andurel --agent --help
 6. `andurel verify [packages...]` — formatting, `go fix`, `go vet`, layer boundaries, the frontend typecheck, and generated-code drift.
 7. `andurel doctor --json` — health and generated-file drift.
 
-`andurel verify` reports each step as `ok`, `fail`, or `skipped`. A missing
+With `--json` or `--agent`, a failed `andurel verify` writes its report to stderr and leaves stdout empty; read the failure report from stderr.
+
+`andurel verify` reports each step as `ok`, `fail`, or `skipped`. Every independent stage still runs after another stage fails, so the report lists all failures. A missing
 `templ`, `tailwindcli`, or `narsilc` binary fails the `generated` step with the
 `missing-tool` rule; run `andurel tool sync` to install it. `--skip-generated`
 marks that step `skipped` and does not fail the run.
@@ -36,9 +38,11 @@ is missing and is `skipped` for projects without the script. `--no-frontend`
 skips it explicitly.
 
 Pass Go package patterns to scope `gofmt`, `go fix`, `go vet`, and `layers` to
-those packages (`andurel verify ./app/...`). The `generated` and
-`frontend` steps always check the whole project; each generated-drift finding
-names the authored source file that owns it.
+those packages (`andurel verify ./app/...`). With package patterns the
+`generated` step reports drift only for files in those packages; the `frontend`
+step always checks the whole project. Each generated-drift finding names the
+authored source file that owns it. If the `generated` step fails in a scoped
+run, rerun with `--only` listing the stages you need to skip it.
 
 `andurel verify --with-tests` also runs `go test ./...`. A test package that has
 tests but ran none (the scaffold's DB-backed packages exit their `TestMain`

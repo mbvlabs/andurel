@@ -123,8 +123,9 @@ Build the hostname registry at boot with `routing.NewHosts`, using
 `routing.HostName` and `routing.HostPrimary`, then pass it to `anduin.NewRouter`
 with `anduin.WithHosts`. `routing.Host(name)` binds a route value to a host, and
 route `FullURL(hosts, ...)` calls take the same value. Unknown `Host` values are
-served by the primary mux. A hostname without a port is also aliased as
-`hostname:80` and `hostname:443`.
+served by the primary mux. A hostname without a port matches that host on every
+port: `Resolve` tries the exact authority, then the bare host. Configure an
+explicit `host:port` alias when only one port should match.
 
 `routing.Hosts.Resolve(authority)` is the resolution the router uses. It trims
 and lowercases the authority (hostnames are case-insensitive), matches a
