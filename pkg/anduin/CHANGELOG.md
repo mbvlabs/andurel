@@ -4,6 +4,23 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+### Added
+
+- `SafeLocalPath(target)` reports whether a redirect target is a real path on
+  this site. It normalises the target the way browsers do (trims ASCII
+  whitespace and control characters, drops tabs, newlines and carriage returns,
+  reads `\` as `/`) and rejects `//` prefixes, schemes, hosts, and empty or
+  relative targets. `/\t/evil.example` and `/\evil.example` are rejected.
+- `RedirectLocal(ctx, target, fallback, status)` redirects to `target` when it is
+  a safe local path and to `fallback` otherwise. The redirect uses the normalised
+  target. Use it for "return to where you were" after sign-in.
+
+### Changed
+
+- `StaticFS` reads the wildcard by the name `routing.WildcardParam`. This needs
+  the routing release that adds the constant; until then, build with the
+  workspace or wait for the routing release.
+
 ## 0.6.2 - 2026-10-30
 
 ### Changed
