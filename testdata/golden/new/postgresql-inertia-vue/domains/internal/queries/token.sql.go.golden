@@ -160,3 +160,15 @@ func (q *Queries) IncrementTokenAttempts(ctx context.Context, arg IncrementToken
 	err := row.Scan(&attempts)
 	return attempts, err
 }
+
+const lockTokenOwner = `-- name: LockTokenOwner :exec
+SELECT id
+FROM users
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) LockTokenOwner(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, lockTokenOwner, id)
+	return err
+}
