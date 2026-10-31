@@ -27,9 +27,11 @@ type inspectColumnNote struct {
 }
 
 // TestVerifyEntityColumnsDrift is the W5 acceptance path on a real scaffold:
-// the fresh app verifies and inspects clean, then renaming User.Email's tag to
-// emial fails verify with entity-columns at the field and shows columns_ok
-// false in inspect.
+// the fresh app verifies and inspects clean, then renaming Token.Scope's tag to
+// scopes fails verify with entity-columns at the field and shows columns_ok
+// false in inspect. Token maps its row directly, so the check applies to it.
+// User implements narsilc.Transformer, so entity-columns does not check it and
+// inspect reports columns_ok as null.
 func TestVerifyEntityColumnsDrift(t *testing.T) {
 	goldentest.RequireBinary(t)
 	goldentest.RequireFullScaffold(t)
@@ -42,25 +44,29 @@ func TestVerifyEntityColumnsDrift(t *testing.T) {
 	goldentest.RunCLI(t, project, "verify", "--no-frontend", "--json")
 	before := inspectDomainsJSON(t, project)
 	user := findInspectEntity(t, before, "User")
-	if user.ColumnsOK == nil || !*user.ColumnsOK {
-		t.Fatalf("fresh User columns_ok = %v, want true", user.ColumnsOK)
+	if user.ColumnsOK != nil {
+		t.Fatalf("fresh User columns_ok = %v, want null because User implements narsilc.Transformer", *user.ColumnsOK)
+	}
+	token := findInspectEntity(t, before, "Token")
+	if token.ColumnsOK == nil || !*token.ColumnsOK {
+		t.Fatalf("fresh Token columns_ok = %v, want true", token.ColumnsOK)
 	}
 
-	userFile := filepath.Join(project, "domains", "user.go")
-	content, err := os.ReadFile(userFile)
+	tokenFile := filepath.Join(project, "domains", "token.go")
+	content, err := os.ReadFile(tokenFile)
 	if err != nil {
-		t.Fatalf("read domains/user.go: %v", err)
+		t.Fatalf("read domains/token.go: %v", err)
 	}
-	drifted := strings.Replace(string(content), `andurel:"email"`, `andurel:"emial"`, 1)
+	drifted := strings.Replace(string(content), `andurel:"scope"`, `andurel:"scopes"`, 1)
 	if drifted == string(content) {
-		t.Fatal("domains/user.go has no andurel email tag to rename")
+		t.Fatal("domains/token.go has no andurel scope tag to rename")
 	}
-	if err := os.WriteFile(userFile, []byte(drifted), 0o644); err != nil {
-		t.Fatalf("write drifted domains/user.go: %v", err)
+	if err := os.WriteFile(tokenFile, []byte(drifted), 0o644); err != nil {
+		t.Fatalf("write drifted domains/token.go: %v", err)
 	}
-	fieldLine := sourceLineIn(drifted, "\tEmail ")
+	fieldLine := sourceLineIn(drifted, "\tScope     string")
 	if fieldLine == 0 {
-		t.Fatal("drifted domains/user.go has no Email field")
+		t.Fatal("drifted domains/token.go has no Scope field")
 	}
 
 	output, exitCode := goldentest.RunCLIExit(t, project, "verify", "--no-frontend", "--json")
@@ -90,9 +96,9 @@ func TestVerifyEntityColumnsDrift(t *testing.T) {
 				continue
 			}
 			found = true
-			if violation.File != "domains/user.go" || violation.Line != fieldLine {
+			if violation.File != "domains/token.go" || violation.Line != fieldLine {
 				t.Fatalf(
-					"entity-columns at %s:%d, want domains/user.go:%d\n%s",
+					"entity-columns at %s:%d, want domains/token.go:%d\n%s",
 					violation.File,
 					violation.Line,
 					fieldLine,
@@ -106,17 +112,22 @@ func TestVerifyEntityColumnsDrift(t *testing.T) {
 	}
 
 	after := inspectDomainsJSON(t, project)
-	user = findInspectEntity(t, after, "User")
-	if user.ColumnsOK == nil || *user.ColumnsOK {
-		t.Fatalf("drifted User columns_ok = %v, want false", user.ColumnsOK)
+	token = findInspectEntity(t, after, "Token")
+	if token.ColumnsOK == nil || *token.ColumnsOK {
+		t.Fatalf("drifted Token columns_ok = %v, want false", token.ColumnsOK)
 	}
-	if len(user.Mismatches) != 1 ||
-		user.Mismatches[0].Kind != "missing-column" ||
-		user.Mismatches[0].Column != "email" ||
-		user.Mismatches[0].Field != "Email" ||
-		user.Mismatches[0].File != "domains/user.go" ||
-		user.Mismatches[0].Line != fieldLine {
-		t.Fatalf("drifted User mismatches = %#v, want email at domains/user.go:%d", user.Mismatches, fieldLine)
+	if len(token.Mismatches) != 1 ||
+		token.Mismatches[0].Kind != "missing-column" ||
+		token.Mismatches[0].Column != "scope" ||
+		token.Mismatches[0].Field != "Scope" ||
+		token.Mismatches[0].File != "domains/token.go" ||
+		token.Mismatches[0].Line != fieldLine {
+		t.Fatalf("drifted Token mismatches = %#v, want scope at domains/token.go:%d", token.Mismatches, fieldLine)
+	}
+
+	user = findInspectEntity(t, after, "User")
+	if user.ColumnsOK != nil {
+		t.Fatalf("drifted User columns_ok = %v, want null because User implements narsilc.Transformer", *user.ColumnsOK)
 	}
 }
 

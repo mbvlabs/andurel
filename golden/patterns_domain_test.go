@@ -109,6 +109,14 @@ func TestPatternsShowDomainEntity(t *testing.T) {
 	}
 }
 
+// userPlainTimeFields are the User fields the scaffold types as plain Go times
+// instead of the row's pgtype.Timestamptz. Transform converts them.
+var userPlainTimeFields = map[string]string{
+	"CreatedAt":        "time.Time",
+	"UpdatedAt":        "time.Time",
+	"EmailValidatedAt": "*time.Time",
+}
+
 // TestPatternsShowDomainMatchesScaffoldUser is the W6 acceptance path on a
 // fresh scaffold: the User entity rendered from queries.UserRow has the same
 // fields, andurel tags and types as the scaffold's domains/user.go.
@@ -142,6 +150,13 @@ func TestPatternsShowDomainMatchesScaffoldUser(t *testing.T) {
 	want := entityFields(t, "domains/user.go", string(scaffold), "User")
 	if len(want) == 0 {
 		t.Fatal("scaffold User has no fields")
+	}
+	// The scaffold's User maps timestamps to plain Go times in Transform, so
+	// those fields differ from the row types by design.
+	for i, field := range got {
+		if plainType, ok := userPlainTimeFields[field.Name]; ok {
+			got[i].Type = plainType
+		}
 	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("rendered User fields differ from the scaffold\n got: %v\nwant: %v", got, want)

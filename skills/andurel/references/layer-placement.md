@@ -69,9 +69,12 @@ file per domain (`domains/user.go`, `domains/token.go`). A domain answers
 
 Use a domain file for:
 
-- Entity structs with plain Go field types. Keep generated fields mapped to
-  the table (`andurel:"column"` tags). When the entity is not the scan row,
-  implement `Transform(queries.XRow) error`; keep `sql.Scanner` off the entity.
+- Entity structs. A generated entity starts 1:1 with its row, so its fields
+  keep the row's types (for example `pgtype.Timestamptz`). Keep fields mapped to
+  the table (`andurel:"column"` tags). To expose plain Go field types, implement
+  `Transform(queries.XRow) error` and convert back to the row's types in an
+  unexported helper; keep `sql.Scanner` off the entity. `Transform` entities are
+  not checked by `entity-columns`, so update them when the columns change.
 - Generated `queries.XRow` / `queries.QueryNameRow` values. Domain code returns
   the entity, never the row.
 - `Create<Entity>Data` and `Update<Entity>Data` input structs.

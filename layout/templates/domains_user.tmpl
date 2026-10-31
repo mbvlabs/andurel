@@ -54,8 +54,15 @@ type User struct {
 
 // Transform keeps pgx's nullable timestamp representation inside persistence.
 func (u *User) Transform(row queries.UserRow) error {
-	*u = User{ID: row.ID, CreatedAt: row.CreatedAt.Time, UpdatedAt: row.UpdatedAt.Time,
-		Email: row.Email, Password: row.Password, IsAdmin: row.IsAdmin, SessionVersion: row.SessionVersion}
+	*u = User{
+		ID:             row.ID,
+		CreatedAt:      row.CreatedAt.Time,
+		UpdatedAt:      row.UpdatedAt.Time,
+		Email:          row.Email,
+		Password:       row.Password,
+		IsAdmin:        row.IsAdmin,
+		SessionVersion: row.SessionVersion,
+	}
 	if row.EmailValidatedAt.Valid {
 		at := row.EmailValidatedAt.Time
 		u.EmailValidatedAt = &at
@@ -63,6 +70,8 @@ func (u *User) Transform(row queries.UserRow) error {
 	return nil
 }
 
+// userNullableTime converts a nullable entity time into the row's pgtype for
+// Create and Save. A nil value becomes SQL NULL.
 func userNullableTime(value *time.Time) pgtype.Timestamptz {
 	if value == nil {
 		return pgtype.Timestamptz{}

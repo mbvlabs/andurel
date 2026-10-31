@@ -155,9 +155,9 @@ func TestUsers_UpdateSetsEmailValidatedAt(t *testing.T) {
 	if found.EmailValidatedAt == nil {
 		t.Fatal("stored email validated at is NULL, want the set time")
 	}
-	// Postgres stores microseconds, so allow for truncation of the nanoseconds.
-	if diff := found.EmailValidatedAt.Sub(validatedAt); diff < -time.Millisecond || diff > time.Millisecond {
-		t.Fatalf("stored email validated at = %v, want about %v", *found.EmailValidatedAt, validatedAt)
+	// Postgres stores microseconds, so compare against the truncated time.
+	if want := validatedAt.Truncate(time.Microsecond); !found.EmailValidatedAt.Equal(want) {
+		t.Fatalf("stored email validated at = %v, want %v", *found.EmailValidatedAt, want)
 	}
 }
 
@@ -264,6 +264,63 @@ func TestUsers_ClearEmailValidatedAtTakesPrecedence(t *testing.T) {
 	}
 	if found.EmailValidatedAt != nil {
 		t.Fatalf("stored email validated at = %v, want SQL NULL when clear is set", found.EmailValidatedAt)
+	}
+}
+
+// TestUsers_ListKeepsEmailValidatedAtNullable covers the list path: All and
+// Paginate scan rows through the generated UserRow and must keep a verified
+// user's time and an unverified user's SQL NULL.
+func TestUsers_ListKeepsEmailValidatedAtNullable(t *testing.T) {
+	t.Parallel()
+
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	users := domains.NewUsers(db)
+	verified := createTimestampUser(t, users, "list-verified@example.com")
+	createTimestampUser(t, users, "list-unverified@example.com")
+
+	validatedAt := time.Now()
+	if _, err := users.Update(t.Context(), domains.UpdateUserData{
+		ID:               verified.ID,
+		EmailValidatedAt: &validatedAt,
+	}); err != nil {
+		t.Fatalf("set validation: %v", err)
+	}
+
+	all, err := users.All(t.Context())
+	if err != nil {
+		t.Fatalf("all: %v", err)
+	}
+	requireListedValidation(t, "All", all)
+
+	page, err := users.Paginate(t.Context(), 1, 10)
+	if err != nil {
+		t.Fatalf("paginate: %v", err)
+	}
+	requireListedValidation(t, "Paginate", page.Items)
+}
+
+func requireListedValidation(t *testing.T, source string, listed []domains.User) {
+	t.Helper()
+
+	byEmail := make(map[string]domains.User, len(listed))
+	for _, user := range listed {
+		byEmail[user.Email] = user
+	}
+
+	verified, ok := byEmail["list-verified@example.com"]
+	if !ok {
+		t.Fatalf("%s did not list the verified user", source)
+	}
+	if verified.EmailValidatedAt == nil || !verified.HasValidatedEmail() {
+		t.Fatalf("%s: verified user email validated at = %v, want a time", source, verified.EmailValidatedAt)
+	}
+
+	unverified, ok := byEmail["list-unverified@example.com"]
+	if !ok {
+		t.Fatalf("%s did not list the unverified user", source)
+	}
+	if unverified.EmailValidatedAt != nil || unverified.HasValidatedEmail() {
+		t.Fatalf("%s: unverified user email validated at = %v, want nil", source, unverified.EmailValidatedAt)
 	}
 }
 
