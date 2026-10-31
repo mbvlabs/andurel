@@ -22,17 +22,6 @@ var (
 	lookupLatestModuleVersionFunc  = lookupLatestModuleVersion
 )
 
-// noStableReleaseError reports a successful module proxy answer whose latest
-// version is a prerelease, so no stable release is published yet. It is not a
-// transport failure: doctor must not blame connectivity for it.
-type noStableReleaseError struct {
-	version string
-}
-
-func (err *noStableReleaseError) Error() string {
-	return fmt.Sprintf("latest module version %q is not a stable release", err.version)
-}
-
 func lookupLatestAndurelVersion(ctx context.Context) (string, error) {
 	return lookupLatestModuleVersion(ctx, "github.com/mbvlabs/andurel/v2")
 }
@@ -90,15 +79,14 @@ func fetchLatestAndurelVersion(
 		return "", fmt.Errorf("decode latest module version: %w", err)
 	}
 
+	// @latest answers the newest stable release, or the newest prerelease while
+	// none is published, so prereleases and stable releases compare the same way.
 	version, ok := canonicalAndurelVersion(info.Version)
 	if !ok {
 		return "", fmt.Errorf(
 			"latest module version %q is not valid semantic versioning",
 			info.Version,
 		)
-	}
-	if semver.Prerelease(version) != "" {
-		return "", &noStableReleaseError{version: info.Version}
 	}
 
 	return version, nil
