@@ -29,6 +29,15 @@ func TestGeneratedEnvDocumentsSSRFailFastAsOptIn(t *testing.T) {
 	)
 }
 
+func TestGeneratedSSRFailFastIsProductionOnly(t *testing.T) {
+	assertTemplateContains(t, "runtime_runtime.tmpl",
+		"inertia.WithSSRFailFast(cfg.App.IsProduction() && cfg.Inertia.SSRFailFast)",
+	)
+	assertTemplateMissing(t, "runtime_runtime.tmpl",
+		"inertia.WithSSRFailFast(cfg.Inertia.SSRFailFast)",
+	)
+}
+
 func TestGeneratedRootTitleIsFallbackOnlyWithoutSSR(t *testing.T) {
 	assertTemplateContains(t, "inertia_framework_root.tmpl",
 		"if data.SSR == nil {",

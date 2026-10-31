@@ -418,7 +418,10 @@ func NewRenderer(cfg config.Config, hosts *routing.Hosts) (*inertia.Renderer, er
 		inertia.WithFlashProvider(func(ctx context.Context) any {
 			return kiks.Flashes(ctx)
 		}),
-		inertia.WithSSRFailFast(cfg.Inertia.SSRFailFast),
+		// Only production fails a page on an SSR error. Development and tests
+		// fall back to client rendering, so go run and the app tests work
+		// without the Vite dev server or the cmd/ssr sidecar.
+		inertia.WithSSRFailFast(cfg.App.IsProduction() && cfg.Inertia.SSRFailFast),
 	)
 }
 
