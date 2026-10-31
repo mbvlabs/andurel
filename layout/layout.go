@@ -184,9 +184,6 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"runtime_main_test.tmpl":    "app/main_test.go",
 	"runtime_runtime_test.tmpl": "app/runtime_test.go",
 
-	// Read-only app config check andurel doctor runs with go run.
-	"internal_configcheck_main.tmpl": "cmd/configcheck/main.go",
-
 	// Inertia payload structs: the source for resources/js/types/payloads.ts.
 	"payloads_payloads.tmpl": "payloads/payloads.go",
 

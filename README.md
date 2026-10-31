@@ -150,7 +150,6 @@ A new app is ordinary Go you own. Top-level shape:
 | `cmd/app`, `cmd/queue` | Process entry: load env, signal context, single `app.New` / `app.NewQueue` (the App owns its Server) |
 | `cmd/migrate` | One-shot process: apply pending SQL via `storage.RunMigrations` |
 | `cmd/seeds` | One-shot process: run named seed sets |
-| `cmd/configcheck` | Read-only runtime configuration and database check `andurel doctor` runs |
 | `app/` | Composition root: explicit constructors, HTTP server + queue lifecycle |
 | `payloads/` | Inertia page props and request bodies emitted to `resources/js/types/payloads.ts` |
 | top-level packages | Other app support code and adapters, named for their job (for example `clients/`, `payment/`) |

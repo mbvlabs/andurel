@@ -15,7 +15,6 @@ app/
 │   ├── queue/            # Queue process
 │   ├── ssr/              # Inertia SSR process (production)
 │   ├── migrate/          # Apply pending SQL migrations
-│   ├── configcheck/      # Read-only config + database check andurel doctor runs
 │   └── seeds/            # Database seeding
 ├── config/               # Application configuration
 ├── css/                  # Source CSS files (Tailwind wrappers + theme)
@@ -183,7 +182,7 @@ go build -o migrate ./cmd/migrate
 ## Build And Deploy
 
 `andurel build` compiles every process in `cmd/` that has a `main` package,
-except `seeds` and `configcheck`, into `dist/`: `app`, `queue`, `migrate`, and
+except `seeds`, into `dist/`: `app`, `queue`, `migrate`, and
 `ssr` (when Inertia is configured). Client assets and the SSR bundle are embedded in the binaries.
 
 ```bash

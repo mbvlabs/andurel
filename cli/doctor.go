@@ -51,8 +51,8 @@ const (
 	statusWarn
 	statusFail
 	// statusSkip marks a check that could not run because its prerequisite is
-	// missing, for example a project generated before the runtime config check
-	// existed. A skip is never reported as a pass.
+	// missing, for example a Go toolchain or project-local tool. A skip is
+	// never reported as a pass.
 	statusSkip
 )
 
@@ -112,16 +112,12 @@ func newDoctorCommand(currentVersion string) *cobra.Command {
 
 This command will check:
   • Environment (Go version, latest stable Andurel release)
-  • Configuration (andurel.lock, first-run setup, runtime configuration and database connectivity, Inertia SSR readiness)
+  • Configuration (andurel.lock, first-run setup, Inertia SSR readiness)
   • Manual actions (static applied / not applied / not applicable status for application-owned upgrade actions, by stable action ID)
   • Code quality (go vet, go mod tidy)
   • Code generation (templ, email renderers, narsilc, and Inertia route helpers and payload types when configured)
 
-Runtime configuration and the database probe run the project's own read-only
-check (cmd/configcheck), so the check cannot drift from the config
-constructor cmd/app uses. Missing or malformed required values and an
-unreachable database fail; a check that cannot run is reported as skipped,
-never as a pass.`,
+A check that cannot run is reported as skipped, never as a pass.`,
 		Example: `  andurel doctor
   andurel doctor --verbose`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -141,7 +137,7 @@ never as a pass.`,
 	setAgentMetadata(
 		doctorCmd,
 		"diagnostics",
-		"Read-only project checks include first-run setup, runtime configuration and database connectivity through the generated cmd/configcheck helper, Inertia SSR readiness, the applied/not_applied/not_applicable state of application-owned upgrade actions by stable ID, templ, email renderers, active narsilc queries, and Inertia route helper and payload type drift. Missing configuration and an unreachable database fail; manual actions that are not applied warn; a check that could not run is reported as skipped. Use --json for actionable check hints.",
+		"Read-only project checks include first-run setup, Inertia SSR readiness, the applied/not_applied/not_applicable state of application-owned upgrade actions by stable ID, templ, email renderers, active narsilc queries, and Inertia route helper and payload type drift. Manual actions that are not applied warn; a check that could not run is reported as skipped. Use --json for actionable check hints.",
 	)
 
 	return doctorCmd
@@ -198,7 +194,6 @@ func collectDoctorReport(currentVersion string, verbose bool) (doctorReport, err
 		checkToolVersions(rootDir, verbose),
 		checkProjectSetup(rootDir),
 		checkManualActions(rootDir, currentVersion),
-		checkRuntimeConfiguration(rootDir),
 		checkInertiaSSRConfiguration(rootDir),
 	)...)
 
@@ -287,8 +282,6 @@ func doctorHint(result checkResult) string {
 		return "Run andurel tool sync and install the frontend dependencies from the project root."
 	case "Manual actions":
 		return "Apply the pending actions from 'andurel inspect upgrade-notes --from <old-version>', or confirm your own implementation is equivalent, then run doctor again."
-	case "Runtime config":
-		return "Run go run ./cmd/configcheck from the project root for the full reason."
 	case "Inertia SSR":
 		return "In development, Vite serves SSR. In production, build assets/dist/ssr/ssr.js and run cmd/ssr."
 	case "go vet":
@@ -369,7 +362,6 @@ func runDoctor(cmd *cobra.Command, currentVersion string, verbose bool) error {
 		checkToolVersions(rootDir, verbose),
 		checkProjectSetup(rootDir),
 		checkManualActions(rootDir, currentVersion),
-		checkRuntimeConfiguration(rootDir),
 		checkInertiaSSRConfiguration(rootDir),
 	}
 	results = append(results, configResults...)

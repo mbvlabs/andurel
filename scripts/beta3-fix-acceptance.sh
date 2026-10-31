@@ -347,19 +347,6 @@ probe_untouched_verify() {
 	assert_contains "$p.content-only.stdout" '"not_applicable": true'
 }
 
-probe_untouched_doctor() {
-	local p="$PROBE_PREFIX"
-	local app="$SCRATCH/apps/pristine-app"
-	local code
-	code="$(capture_in "$app" "$p.doctor" "$A" doctor --json)"
-	if [[ "$code" == "0" ]]; then
-		fail "doctor must not pass a project without runtime configuration"
-	fi
-	assert_contains "$p.doctor.stderr" '"name": "Runtime config"'
-	assert_contains "$p.doctor.stderr" '"status": "fail"'
-	assert_contains "$p.doctor.stderr" '"blocking": true'
-}
-
 probe_migration_creation() {
 	local p="$PROBE_PREFIX"
 	local app="$SCRATCH/apps/pristine-app"
@@ -802,7 +789,6 @@ main() {
 	run_probe 01-cli-surface probe_cli_surface
 	run_probe 02-new-quickstart probe_new_quickstart
 	run_probe 03-untouched-verify probe_untouched_verify
-	run_probe 04-untouched-doctor probe_untouched_doctor
 	run_probe 05-migration-creation probe_migration_creation
 	run_probe 06-config-projection probe_config_projection
 	run_probe 07-local-replacement probe_local_replacement

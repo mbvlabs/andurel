@@ -8,20 +8,19 @@ An Andurel application has three parts that change on different schedules:
 
 | Part | Owner | How it changes |
 | --- | --- | --- |
-| Generated application code (`cmd/`, `config/`, `domains/`, `handlers/`, `middleware/`, `app/`, `payloads/`, `queue/`, `resources/`, …) | the application | Never rewritten after `andurel new`. A release that needs a change ships it as a manual action. |
+| Generated application code (`cmd/`, `config/`, `domains/`, `handlers/`, `middleware/`, `app/`, `payloads/`, `queue/`, `resources/`, …) | the application | Never rewritten after `andurel new`. A proper release that needs a change ships it as a manual action; a pre-release documents it in the release notes. |
 | `github.com/mbvlabs/andurel/pkg/*` modules | Andurel | Independent semantic versions. The CLI pins the versions it was verified with. |
 | The `andurel` CLI | Andurel | Command names, flags, and structured output follow the rules below. |
 
 ## Pre-releases
 
-Each pre-release is upgradeable from the previous one, and every supported upgrade path is tested in release readiness: the old CLI scaffolds an app, the new CLI upgrades it, every manual action is applied, and the result must build and vet.
+Each pre-release is upgradeable from the previous one, and release readiness tests it: the previous CLI scaffolds an app, the new CLI upgrades it, and the result must build and vet. Pre-releases carry no upgrade notes; those only exist between proper releases.
 
 **Alpha** (`v2.0.0-alpha.N`). Anything can change. `andurel upgrade` accepts projects from `v2.0.0-alpha.4` on.
 
 **Beta** (`v2.0.0-beta.N`). The architecture is fixed: `net/http` through `pkg/anduin`, explicit construction in `app/`, the `domains`/`handlers` layout, Inertia for the UI, and the agent-facing CLI contract. A beta can still change application code or a `pkg/*` API, but only to fix a bug, a security problem, or a mistake found while building on the beta. Every such change ships with:
 
-- a manual action with a stable ID and before/after code, emitted by `andurel upgrade`;
-- an entry in the release notes;
+- an entry in the release notes with before/after code;
 - a `### BREAKING` changelog entry in each affected `pkg/*` module.
 
 **Stable** (`v2.0.0` and later). Within `v2.x`, a minor or patch release does not require changes to application code. New scaffold improvements are opt-in: they ship as optional manual actions and as the default for new apps. A change that would break application code waits for `v3`.
