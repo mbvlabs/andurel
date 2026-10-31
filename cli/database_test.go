@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -905,5 +907,66 @@ func TestGenerateMigrationHelpMatchesCreationContract(t *testing.T) {
 	}
 	if strings.Contains(out, ".env database variables") {
 		t.Fatalf("help still advertises database variables:\n%s", out)
+	}
+}
+
+func TestOpenAdminConnectionKeepsDriverReasonWithoutPassword(t *testing.T) {
+	// Bind and close a port so nothing listens on it: the connect fails fast
+	// with the driver's own reason.
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	if err := listener.Close(); err != nil {
+		t.Fatalf("close listener: %v", err)
+	}
+
+	const password = "s3cret-wrong"
+	t.Setenv("DB_KIND", "postgres")
+	t.Setenv("DB_HOST", "127.0.0.1")
+	t.Setenv("DB_PORT", strconv.Itoa(port))
+	t.Setenv("DB_NAME", "app")
+	t.Setenv("DB_USER", "app")
+	t.Setenv("DB_PASSWORD", password)
+	t.Setenv("DB_SSL_MODE", "disable")
+
+	_, _, _, _, err = openAdminConnection()
+	if err == nil {
+		t.Fatal("openAdminConnection error = nil, want a connect failure")
+	}
+	message := err.Error()
+	if !strings.Contains(message, "connect to postgres admin database") {
+		t.Fatalf("error = %q, want the admin connect context", message)
+	}
+	if !strings.Contains(message, "connection refused") {
+		t.Fatalf("error = %q, want the underlying driver reason", message)
+	}
+	if strings.Contains(message, password) {
+		t.Fatalf("error leaks the password: %q", message)
+	}
+}
+
+func TestRedactDatabaseErrorRemovesEveryPasswordForm(t *testing.T) {
+	const password = "p@ss:/?#[]"
+	raw := errors.New("cannot parse postgres://app:" + password + "@db/app: invalid")
+	escaped := errors.New("dsn postgres://app:" + url.QueryEscape(password) + "@db: bad")
+
+	for _, err := range []error{raw, escaped} {
+		got := redactDatabaseError(err, password).Error()
+		if strings.Contains(got, password) || strings.Contains(got, url.QueryEscape(password)) {
+			t.Fatalf("redacted error still has the password: %q", got)
+		}
+		if !strings.Contains(got, "***") {
+			t.Fatalf("redacted error = %q, want a *** placeholder", got)
+		}
+	}
+
+	plain := errors.New("password authentication failed")
+	if got := redactDatabaseError(plain, password); got != plain {
+		t.Fatalf("error without the password changed: %v", got)
+	}
+	if got := redactDatabaseError(plain, ""); got != plain {
+		t.Fatalf("empty password must not rewrite the error: %v", got)
 	}
 }
