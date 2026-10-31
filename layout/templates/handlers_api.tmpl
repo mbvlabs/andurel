@@ -31,8 +31,8 @@ func NewAPIHandler(
 }
 
 func (a APIHandler) Register(rt *anduin.Router) {
-	rt.Get(routes.Health.Pattern(), a.health)
-	rt.Get(routes.Ready.Pattern(), a.readiness)
+	rt.Route(routes.Health).Get(a.health)
+	rt.Route(routes.Ready).Get(a.readiness)
 }
 
 // readinessReasoner is implemented by the app readiness error. Reading a

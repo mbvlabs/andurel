@@ -20,9 +20,9 @@ func NewPagesHandler(renderer *inertia.Renderer) PagesHandler {
 
 // Register mounts the home page. The app passes no middleware, so the page
 // is public: a new project must be reachable before anyone signs in. Pass
-// middleware.AuthOnly(users) to protect it.
+// middleware.AuthOnly(users, hosts) to protect it.
 func (p PagesHandler) Register(rt *anduin.Router, middleware ...anduin.Middleware) {
-	rt.Get(routes.HomePage.Pattern(), p.Home, middleware...)
+	rt.Route(routes.HomePage).Get(p.Home, middleware...)
 }
 
 func (p PagesHandler) Home(ctx context.Context) error {

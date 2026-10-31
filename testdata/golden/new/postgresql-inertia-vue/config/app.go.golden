@@ -46,6 +46,13 @@ func NewApp() (App, error) {
 		},
 	}
 
+	for _, name := range extraHostNames {
+		cfg.Hosts[name] = routing.HostSpec{
+			Hostname: e.String(hostEnvKey(name), defaultHostname(name, primaryHost)),
+			Protocol: protocol,
+		}
+	}
+
 	if err := errors.Join(e.Err(), cfg.validate()); err != nil {
 		return App{}, fmt.Errorf("config: app: %w", err)
 	}
@@ -66,6 +73,11 @@ func (c App) validate() error {
 	if err != nil || parsed.Host == "" ||
 		(parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return fmt.Errorf("application base URL must be an HTTP or HTTPS URL")
+	}
+	// Every host is checked together: a bad extra domain fails here, at config
+	// load, rather than when the router is built at startup.
+	if _, err := routing.NewHosts(c.Hosts); err != nil {
+		return fmt.Errorf("hosts: %w", err)
 	}
 
 	return nil

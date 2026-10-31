@@ -238,7 +238,7 @@ func newAuthTestApp(t *testing.T) authTestApp {
 	srv := anduintest.New(t, func(rt *anduin.Router) {
 		rt.Get("/protected", func(ctx context.Context) error {
 			return anduin.Text(ctx, http.StatusOK, "protected")
-		}, middleware.AuthOnly(users))
+		}, middleware.AuthOnly(users, hosts))
 		handlers.NewAuthHandler(identity, renderer, store).Register(rt)
 	}, anduintest.WithMiddleware(jar.Middleware()))
 
