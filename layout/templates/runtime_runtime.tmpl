@@ -146,7 +146,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	handlers.NewPagesHandler(renderer).Register(router)
 	assetsHandler.Register(router)
 	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)
-	handlers.NewAPIHandler(db, newReadiness(db, renderer)).Register(router)
+	handlers.NewAPIHandler(newReadiness(db, renderer)).Register(router)
 
 	app.Handler = router.Handler()
 	if cfg.HTTP.Compress {
@@ -284,7 +284,7 @@ func newJar(
 	}
 
 	return kiks.NewJar(keys, store,
-		middleware.NewSessionCookie(sessionCfg, appCfg.IsProduction()),
+		middleware.CookieDefinitions(sessionCfg, appCfg.IsProduction())...,
 	)
 }
 
@@ -418,7 +418,10 @@ func NewRenderer(cfg config.Config, hosts *routing.Hosts) (*inertia.Renderer, er
 		inertia.WithFlashProvider(func(ctx context.Context) any {
 			return kiks.Flashes(ctx)
 		}),
-		inertia.WithSSRFailFast(cfg.Inertia.SSRFailFast),
+		// Only production fails a page on an SSR error. Development and tests
+		// fall back to client rendering, so go run and the app tests work
+		// without the Vite dev server or the cmd/ssr sidecar.
+		inertia.WithSSRFailFast(cfg.App.IsProduction() && cfg.Inertia.SSRFailFast),
 	)
 }
 

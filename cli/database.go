@@ -952,13 +952,35 @@ func openAdminConnection() (dbConfig, adminConnection, context.Context, context.
 	if err != nil {
 		cancel()
 		return dbConfig{}, nil, nil, nil, fmt.Errorf(
-			"connect to postgres admin database %q on %s failed",
+			"connect to postgres admin database %q on %s failed: %w",
 			adminDB,
 			net.JoinHostPort(cfg.Host, cfg.Port),
+			redactDatabaseError(err, cfg.Password),
 		)
 	}
 
 	return cfg, conn, ctx, cancel, nil
+}
+
+// redactDatabaseError keeps the driver's reason (wrong password, connection
+// refused, unknown database) but removes the password. The driver can echo the
+// connection URL, which carries the password, in its message.
+func redactDatabaseError(err error, password string) error {
+	if err == nil || password == "" {
+		return err
+	}
+
+	message := err.Error()
+	redacted := strings.NewReplacer(
+		password, "***",
+		url.QueryEscape(password), "***",
+		url.PathEscape(password), "***",
+	).Replace(message)
+	if redacted == message {
+		return err
+	}
+
+	return errors.New(redacted)
 }
 
 func dropDatabaseWithConn(

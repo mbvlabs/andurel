@@ -204,7 +204,9 @@ needs, the app `/api/health` (liveness) and `/api/ready` (readiness) endpoints,
 the SSR sidecar `/health` endpoint, and why `INERTIA_SSR_FAIL_FAST=true` belongs
 in production.
 
-`GET /api/health` answers while the process runs. `GET /api/ready` answers 200
+`GET /api/health` is liveness: it answers 200 while the process runs and checks
+nothing else, so a database outage does not make the orchestrator restart the
+web process. `GET /api/ready` is readiness and answers 200
 `{"status":"ready"}` only when the database answers and a required Inertia SSR
 sidecar is healthy; otherwise it answers 503
 `{"status":"unready","reason":"..."}` with a stable reason
@@ -686,14 +688,15 @@ In development, `pkg/inertia` posts the page to the Vite dev server's
 (`ssr.noExternal`) so the embedded bundle runs without `node_modules`; the
 bundle is larger by design.
 
-`INERTIA_SSR_FAIL_FAST` defaults to `true` in every environment, and
-`.env.example` documents it as a commented-out opt-in. With fail-fast on, an
-SSR failure is a themed 500 and `/api/ready` stays unready while the sidecar is
-unreachable. Uncomment `INERTIA_SSR_FAIL_FAST=false` only to opt into
-client-side-rendering fallback, for example in development without the Vite dev
-server; with it off, every page is still attempted with SSR but an SSR failure
-falls back to client rendering, logs the error, and readiness does not gate on
-the sidecar. Error pages (validation errors, rate limits, 404/405/500) stay
+`INERTIA_SSR_FAIL_FAST` defaults to `true`, and `.env.example` documents it as a
+commented-out opt-in. In production, fail-fast on means an SSR failure is a
+themed 500 and `/api/ready` stays unready while the sidecar is unreachable. In
+development and tests an SSR failure always falls back to client rendering
+(logged), so `go run ./cmd/app` and the app tests run without the Vite dev
+server. Uncomment `INERTIA_SSR_FAIL_FAST=false` only to opt into
+client-side-rendering fallback in production; with it off, every page is still
+attempted with SSR but an SSR failure falls back to client rendering, logs the
+error, and readiness does not gate on the sidecar. Error pages (validation errors, rate limits, 404/405/500) stay
 client-rendered unless their error mapping opts into SSR.
 
 ### Run Production Locally

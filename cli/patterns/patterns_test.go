@@ -150,7 +150,7 @@ func TestCompositionPatternMatchesScaffoldRuntime(t *testing.T) {
 		"handlers.NewPagesHandler(renderer).Register(router)",
 		"assetsHandler.Register(router)",
 		"handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)",
-		"handlers.NewAPIHandler(db, newReadiness(db, renderer)).Register(router)",
+		"handlers.NewAPIHandler(newReadiness(db, renderer)).Register(router)",
 		"app.Handler = router.Handler()",
 		"routes.ViteBuild.InSubtree(path)",
 	}

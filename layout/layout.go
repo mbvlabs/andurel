@@ -208,6 +208,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"handlers_auth.tmpl":      "handlers/auth.go",
 	"handlers_main_test.tmpl": "handlers/main_test.go",
 	"handlers_auth_test.tmpl": "handlers/auth_test.go",
+	"handlers_api_test.tmpl":  "handlers/api_test.go",
 
 	// Migrations and seeds
 	"database_migrations_gitkeep.tmpl": "migrations/.gitkeep",
