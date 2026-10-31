@@ -291,6 +291,37 @@ func TestGeneratedEmailWorkersLogFailures(t *testing.T) {
 	)
 }
 
+// TestGeneratedLoginRacesAreClosed guards the login races: a rehash after login
+// must not overwrite a password changed in between, a token replacement must
+// lock the owner before it deletes the old token, and a user without a password
+// must get the generic credentials error.
+func TestGeneratedLoginRacesAreClosed(t *testing.T) {
+	assertTemplateContains(t, "domains_user.tmpl",
+		"verifiedHash []byte,",
+		"if !bytes.Equal(locked.Password, verifiedHash) {",
+	)
+	assertTemplateContains(t, "services_authentication.tmpl",
+		"if len(user.Password) == 0 {",
+		"auth.DummyVerify(data.Password, i.pepper)",
+		"user.ID, user.Password, data.Password)",
+	)
+	assertTemplateContains(t, "domains_queries_token.tmpl",
+		"-- name: LockTokenOwner :exec",
+		"FROM users\nWHERE id = $1\nFOR UPDATE;",
+	)
+	assertTemplateContains(t, "domains_internal_queries_token.tmpl",
+		"-- name: LockTokenOwner :exec",
+		"func (q *Queries) LockTokenOwner(ctx context.Context, id uuid.UUID) error",
+	)
+
+	tokenTemplate := readLayoutTemplate(t, "domains_token.tmpl")
+	lock := strings.Index(tokenTemplate, "tokens.queries.LockTokenOwner(ctx, userID)")
+	destroy := strings.Index(tokenTemplate, "tokens.DestroyByUserAndScope(ctx, userID, scope)")
+	if lock < 0 || destroy < 0 || lock > destroy {
+		t.Fatalf("replace must call LockTokenOwner before DestroyByUserAndScope (lock=%d, destroy=%d)", lock, destroy)
+	}
+}
+
 func TestGeneratedSessionsCarryVersionAndDropAdmin(t *testing.T) {
 	bp := initializeBlueprint("example.com/app")
 

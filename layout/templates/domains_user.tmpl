@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"time"
@@ -280,12 +281,15 @@ func (u Users) BumpSessionVersion(ctx context.Context, id uuid.UUID) error {
 }
 
 // RehashPassword stores password hashed with the current pepper. Login calls it
-// with the id of the user whose password matched a previous pepper; it reloads
-// the locked row so a concurrent change is not overwritten.
+// with the stored hash that password matched under a previous pepper. The hash
+// is replaced only if the locked row still holds verifiedHash: a password
+// changed after login read the user wins, and the locked user is returned
+// unchanged.
 func (u Users) RehashPassword(
 	ctx context.Context,
 	pepper string,
 	id uuid.UUID,
+	verifiedHash []byte,
 	password string,
 ) (User, error) {
 	hashedPassword, err := auth.HashPassword(password, pepper)
@@ -301,6 +305,11 @@ func (u Users) RehashPassword(
 		locked, err := users.FindForUpdate(ctx, id)
 		if err != nil {
 			return err
+		}
+		if !bytes.Equal(locked.Password, verifiedHash) {
+			entity = locked
+
+			return nil
 		}
 
 		locked.Password = []byte(hashedPassword)

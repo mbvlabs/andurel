@@ -46,6 +46,12 @@ RETURNING *;
 DELETE FROM tokens
 WHERE id = $1;
 
+-- name: LockTokenOwner :exec
+SELECT id
+FROM users
+WHERE id = $1
+FOR UPDATE;
+
 -- name: DeleteTokensByUserAndScope :exec
 DELETE FROM tokens
 WHERE user_id = $1
