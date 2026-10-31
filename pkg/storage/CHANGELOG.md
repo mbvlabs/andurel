@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+## 0.15.0 - 2026-10-31
+
 ### Added
 
 - `QueueInsert.Client` returns the River client behind an insert queue, so the

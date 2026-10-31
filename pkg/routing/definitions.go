@@ -3,6 +3,12 @@ package routing
 
 import "uuid"
 
+// WildcardParam is the name of the wildcard a trailing "*" route segment
+// becomes in an http.ServeMux pattern ("{path...}"). Handlers read the matched
+// remainder of the path with this name, for example
+// anduin.PathValue(ctx, routing.WildcardParam).
+const WildcardParam = "path"
+
 // RouteOption customizes URL generation.
 type RouteOption func(*routeOptions)
 
@@ -27,14 +33,11 @@ func InertiaRoute() RouteSetupOption {
 	return TypeScriptRoute()
 }
 
-// Exact marks a route as an exact match rather than a prefix match. It only
-// changes the route's Pattern(): the root path "/" is a prefix pattern in
-// net/http, so an exact root route registers as "/{$}". URL generation keeps
-// returning "/" through Path().
+// Exact is a no-op kept so existing route files compile; it can be deleted. A
+// route whose path is "/" already matches only "/" (its Pattern() is "/{$}"),
+// and every other path is exact by default. Write a catch-all as "/*".
 func Exact() RouteSetupOption {
-	return func(cfg *routeConfig) {
-		cfg.exact = true
-	}
+	return func(*routeConfig) {}
 }
 
 // Route represents routes with no URL parameters
