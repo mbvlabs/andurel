@@ -69,12 +69,20 @@ file per domain (`domains/user.go`, `domains/token.go`). A domain answers
 
 Use a domain file for:
 
-- Entity structs. A generated entity starts 1:1 with its row, so its fields
-  keep the row's types (for example `pgtype.Timestamptz`). Keep fields mapped to
-  the table (`andurel:"column"` tags). To expose plain Go field types, implement
-  `Transform(queries.XRow) error` and convert back to the row's types in an
-  unexported helper; keep `sql.Scanner` off the entity. `Transform` entities are
-  not checked by `entity-columns`, so update them when the columns change.
+- Entity structs. Entity timestamps are plain Go times: `time.Time` for a NOT
+  NULL timestamp and `*time.Time` for a nullable one. narsilc scans each tagged
+  column into its field directly, so the entity needs no `Transform` for them.
+  Keep fields mapped to the table (`andurel:"column"` tags), and keep
+  `sql.Scanner` off the entity. `pgtype.Timestamptz` appears only in generated
+  query params and rows inside `domains/`; a nullable `*time.Time` converts to
+  the pgtype for Create and Update params through an unexported helper. Only
+  `timestamptz` is converted that way; other pgtype row types pass through.
+  Implement `Transform(queries.XRow) error` only when the mapping genuinely
+  differs from the row. A `Transform` entity implements `narsilc.Transformer`,
+  so `entity-columns` does not check it and `inspect domains` reports
+  `columns_ok: null`; update its `Transform` by hand when the columns change.
+  Entities on the automatic mapping are checked: a generated query column with
+  no tagged field fails `andurel verify`.
 - Generated `queries.XRow` / `queries.QueryNameRow` values. Domain code returns
   the entity, never the row.
 - `Create<Entity>Data` and `Update<Entity>Data` input structs.
