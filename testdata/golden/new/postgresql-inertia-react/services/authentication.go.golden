@@ -50,6 +50,14 @@ func (i Identity) AuthenticateUser(
 		return domains.User{}, fmt.Errorf("find user by email: %w", err)
 	}
 
+	// A user without a password (for example one who signs in only through an
+	// OAuth provider) cannot sign in with one.
+	if len(user.Password) == 0 {
+		auth.DummyVerify(data.Password, i.pepper)
+
+		return domains.User{}, ErrInvalidCredentials
+	}
+
 	validPassword, needsRehash, err := auth.VerifyPasswordAny(
 		string(user.Password),
 		data.Password,
@@ -65,7 +73,7 @@ func (i Identity) AuthenticateUser(
 	}
 
 	if needsRehash {
-		user, err = i.users.RehashPassword(ctx, i.pepper, user.ID, data.Password)
+		user, err = i.users.RehashPassword(ctx, i.pepper, user.ID, user.Password, data.Password)
 		if err != nil {
 			return domains.User{}, fmt.Errorf("rehash password with current pepper: %w", err)
 		}

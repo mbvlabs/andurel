@@ -234,6 +234,12 @@ func (t Tokens) replace(
 	err := storage.AtomicOps(ctx, t.transactor, func(ctx context.Context, tx storage.Tx) error {
 		tokens := t.InTx(tx)
 
+		// Lock the owner so concurrent replacements run one after another; without
+		// it both delete the old token and both insert a new one.
+		if err := tokens.queries.LockTokenOwner(ctx, userID); err != nil {
+			return err
+		}
+
 		if err := tokens.DestroyByUserAndScope(ctx, userID, scope); err != nil {
 			return err
 		}
