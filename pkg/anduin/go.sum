@@ -19,8 +19,8 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 h1:/Tnpcb2E0Pz/tN9s3bfEY2Q8ePC
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0/go.mod h1:zOBXOsUaBSjKgmH4OGzV1esUpR3oUSCPYVd2cUBjKYY=
 github.com/lmittmann/tint v1.2.0 h1:AogHRHy8HUJUnNJBHJlYa+fR4YY8mko2cnCp67xn9JY=
 github.com/lmittmann/tint v1.2.0/go.mod h1:HIS3gSy7qNwGCj+5oRjAutErFBl4BzdQP6cJZ0NfMwE=
-github.com/mbvlabs/andurel/pkg/routing v0.8.0 h1:nOX0FbZKRkULSZWW39fikGh9P5rpY2yyMjciiPgsEUo=
-github.com/mbvlabs/andurel/pkg/routing v0.8.0/go.mod h1:tDaz5LVwJXJn733LZhYrsbEWZL7bYNrl4YqQzaBAWpI=
+github.com/mbvlabs/andurel/pkg/routing v0.9.0 h1:e7C5aMzgz44JE6/4HS1Uvr3NEhEjAMpYXW8HibzvUZk=
+github.com/mbvlabs/andurel/pkg/routing v0.9.0/go.mod h1:tDaz5LVwJXJn733LZhYrsbEWZL7bYNrl4YqQzaBAWpI=
 github.com/mbvlabs/andurel/pkg/telemetry v0.2.3 h1:T70mFoL8oKDNByxQt+qbew3GiNVMlqNYBYxknrXWcE0=
 github.com/mbvlabs/andurel/pkg/telemetry v0.2.3/go.mod h1:gcZRxndv7wvMptVsdHCWiRs9jbVWButoNPJsH2axx10=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
