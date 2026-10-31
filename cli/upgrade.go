@@ -26,7 +26,7 @@ func newUpgradeCommand(version string) *cobra.Command {
 ⚠️  IMPORTANT: Commit or create a branch before upgrading! This command modifies files in place.
 
 This command will:
-  1. Verify that the installed Andurel CLI is the latest stable release
+  1. Verify that the installed Andurel CLI is the latest release
   2. Replace framework-managed files with the latest version
   3. Update tool versions in andurel.lock
   4. Pin required github.com/mbvlabs/andurel/pkg/* modules in go.mod to the
