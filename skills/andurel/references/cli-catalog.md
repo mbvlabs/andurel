@@ -88,6 +88,7 @@ also prints each rule's fix):
 | `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and app |
 | `payloads-import` | payloads/** imports only the standard library and mappable types; no app packages, storage, anduin, inertia, or net/http |
 | `domain-transport` | domains/** imports no HTTP, Inertia, routing, handler, middleware, or route package |
+| `route-host` | a route declared on a non-primary host is registered with rt.Route(route), not rt.Get(route.Pattern()) |
 | `entity-columns` | every automatic generated query column maps to an exported andurel tag on its domain entity |
 | `setup` | project setup is complete: managed tool binaries and frontend dependencies are installed |
 | `frontend` | the package.json typecheck script passes when the scaffold defines one |
@@ -169,7 +170,7 @@ andurel run --tools mailpit
 - List routes: `andurel inspect routes --json` (every route reports `host`; unbound routes report `primary`).
 - Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia frontend required; helpers cover routes marked `routing.TypeScriptRoute()` and are host-aware full URLs).
 - Write `resources/js/types/payloads.ts`: `andurel sync payloads --json` emits every exported struct in `payloads/`.
-- Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go`, load `HOST_*` into `App.Hosts`, then bind routes with `rt.Host(name)`.
+- Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go` and list it in `extraHostNames` (`HOST_<NAME>` is read by `config.NewApp`, defaulting to `<name>.` + `HOST_PRIMARY`), bind the route with `routing.Host(name)`, register it with `rt.Route(route)`, and choose `FallbackToPrimary()` or `Isolate()` on `rt.Host(name)`.
 - Refresh derived artifacts: `andurel sync email` compiles `email/*.templ` into `email/*_templ.go` with Tailwind styles inlined; never run `templ generate` on email.
 - Build and deploy: `andurel build` writes every buildable `cmd/*` process to `dist/`; `--only` narrows the set and `--json` emits the artifact manifest. `andurel patterns show deploy` covers the `migrate` → `ssr` → `app` + `queue` start order, environment, and health endpoints. In production, start the SSR sidecar with `andurel ports launch --ready-file .andurel/ssr-port.json -- ./dist/ssr` so the app and the sidecar agree on `INERTIA_SSR_LISTEN`/`INERTIA_SSR_URL`; the assignment is published only after the intended child answers `/health`.
 

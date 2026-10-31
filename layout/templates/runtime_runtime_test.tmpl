@@ -188,12 +188,16 @@ func TestHomePageIsPublic(t *testing.T) {
 func TestAuthOnlyStillProtectsRoutes(t *testing.T) {
 	cfg := testSecurityConfig(t)
 	app := newTestApp(t, cfg)
+	hosts, err := routing.NewHosts(cfg.App.Hosts)
+	if err != nil {
+		t.Fatalf("hosts: %v", err)
+	}
 
 	router := anduin.NewRouter()
 	router.Use(testSessionJar(t, cfg).Middleware())
 	router.Get("/dashboard", func(ctx context.Context) error {
 		return anduin.JSON(ctx, http.StatusOK, "dashboard")
-	}, middleware.AuthOnly(domains.NewUsers(app.DB)))
+	}, middleware.AuthOnly(domains.NewUsers(app.DB), hosts))
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/dashboard", nil)
@@ -213,6 +217,39 @@ func TestAuthOnlyStillProtectsRoutes(t *testing.T) {
 		routes.SessionNew.Path(),
 	) {
 		t.Fatalf("Location = %q, want the sign-in path", location)
+	}
+}
+
+// TestAuthOnlySignInIsAbsoluteOnOtherHosts checks that a visitor rejected on a
+// secondary host is sent to the primary host's sign-in page, not a path that
+// the secondary host may not serve.
+func TestAuthOnlySignInIsAbsoluteOnOtherHosts(t *testing.T) {
+	cfg := testSecurityConfig(t)
+	app := newTestApp(t, cfg)
+	hosts, err := routing.NewHosts(cfg.App.Hosts)
+	if err != nil {
+		t.Fatalf("hosts: %v", err)
+	}
+	adminDashboard := routing.NewSimpleRoute("/dashboard", "admin.dashboard", "", routing.Host(testAdminHost))
+
+	router := anduin.NewRouter(anduin.WithHosts(hosts))
+	router.Use(testSessionJar(t, cfg).Middleware())
+	router.Host(testAdminHost).Route(adminDashboard).Get(func(ctx context.Context) error {
+		return anduin.JSON(ctx, http.StatusOK, "dashboard")
+	}, middleware.AuthOnly(domains.NewUsers(app.DB), hosts))
+	router.Host(testAdminHost).Isolate()
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, adminDashboard.Pattern(), nil)
+	request.Host = "admin.example"
+	router.Handler().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusSeeOther {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusSeeOther)
+	}
+	want := routes.SessionNew.FullURL(hosts)
+	if location := recorder.Header().Get("Location"); location != want {
+		t.Fatalf("Location = %q, want %q", location, want)
 	}
 }
 

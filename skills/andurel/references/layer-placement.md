@@ -261,9 +261,9 @@ Route *data* lives in `routes/` as package variables built with the
   `routing.NewRouteWithFile`, and `routing.NewRouteWithParams` as needed.
 
 Route values expose `Name()`, `Path()`, `Pattern()`, `URL(params...)`,
-`FullURL(hosts, ...)`, `Host()`, and `IsInertia()`. Register with `Pattern()` and
-use `Path()` for links; `routing.Exact()` makes the root path exact without
-changing its URL. Pass `routing.TypeScriptRoute()` to opt a route into generated
+`FullURL(hosts, ...)`, `Host()`, and `IsInertia()`. Register with
+`rt.Route(route).Get(h)`, which uses the route's declared host, and use `Path()`
+for links. A route whose path is `/` matches only `/`; a catch-all is `/*`. Pass `routing.TypeScriptRoute()` to opt a route into generated
 TypeScript helpers. After adding or changing routes, run
 `andurel sync routes --json`.
 
@@ -274,7 +274,7 @@ The `Router` type itself is not app code; it lives in `pkg/anduin`. There is no
 
 App-specific HTTP policy lives in `middleware/` with the `anduin.Middleware`
 shape (`func(anduin.Handler) anduin.Handler`): auth and authorization
-(`AuthOnly(users)`, `ViewerFrom`), the session definition and cookie builder,
+(`AuthOnly(users, hosts)`, `ViewerFrom`), the session definition and cookie builder,
 and route/telemetry helpers. Generic policy — rate limiting, CSRF, CORS — comes
 from `pkg/anduin`.
 
