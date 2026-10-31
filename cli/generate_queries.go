@@ -60,7 +60,9 @@ become stale. This command is a no-op when no annotated SQL files exist.`,
 				return err
 			}
 			if !output.SuppressesHumanOutput(outOpts) && !outOpts.Quiet {
-				fmt.Fprintln(cmd.OutOrStdout(), queryManifestWarning)
+				if _, err := fmt.Fprintln(cmd.OutOrStdout(), queryManifestWarning); err != nil {
+					return err
+				}
 			}
 			err = runMutation(cmd, mutationOptions{
 				Action:      "generate queries",
