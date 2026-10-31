@@ -8,7 +8,7 @@ func TestGeneratedRoutesRegisterByRouteValue(t *testing.T) {
 		"rt.Route(routes.SessionCreate).Post(",
 	)
 	assertTemplateContains(t, "handlers_pages.tmpl", "rt.Route(routes.HomePage).Get(p.Home, middleware...)")
-	assertTemplateContains(t, "handlers_api.tmpl", "rt.Route(routes.Health).Get(a.health)")
+	assertTemplateContains(t, "handlers_api.tmpl", "rt.Route(routes.Health).Get(livenessHandler)")
 	assertTemplateMissing(t, "handlers_auth.tmpl", "rt.Get(routes.")
 	assertTemplateMissing(t, "handlers_pages.tmpl", "rt.Get(routes.")
 	assertTemplateMissing(t, "handlers_api.tmpl", "rt.Get(routes.")
