@@ -7,6 +7,8 @@ import (
 
 	"app/domains"
 	"app/migrations"
+
+	"github.com/mbvlabs/andurel/pkg/validation"
 )
 
 func TestTokens_DestroyExpired(t *testing.T) {
@@ -62,5 +64,152 @@ func TestTokens_DestroyExpired(t *testing.T) {
 	}
 	if _, err := tokens.Find(t.Context(), live.ID); err != nil {
 		t.Fatalf("find live token: %v", err)
+	}
+}
+
+func TestTokens_CreateThenFindKeepsTimestamps(t *testing.T) {
+	t.Parallel()
+
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	users := domains.NewUsers(db)
+	tokens := domains.NewTokens(db)
+
+	user, err := users.Create(t.Context(), "test-pepper", domains.CreateUserData{
+		Email: "token-timestamps@example.com",
+		PasswordPair: domains.PasswordPair{
+			Password:        "correct horse battery staple",
+			ConfirmPassword: "correct horse battery staple",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	// Postgres stores microseconds, so the expected instant is truncated to match.
+	expiresAt := time.Now().Add(time.Hour).Truncate(time.Microsecond)
+	created, err := tokens.Create(t.Context(), domains.CreateTokenData{
+		Scope:     string(domains.UserEmailVerification),
+		ExpiresAt: expiresAt,
+		Hash:      "timestamp-hash",
+		MetaData:  []byte("{}"),
+		UserID:    user.ID,
+	})
+	if err != nil {
+		t.Fatalf("create token: %v", err)
+	}
+	if created.CreatedAt.IsZero() || created.UpdatedAt.IsZero() {
+		t.Fatalf("timestamps = %v / %v, want non-zero times", created.CreatedAt, created.UpdatedAt)
+	}
+	if !created.ExpiresAt.Equal(expiresAt) {
+		t.Fatalf("expires_at = %v, want %v", created.ExpiresAt, expiresAt)
+	}
+
+	found, err := tokens.Find(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("find token: %v", err)
+	}
+	if !found.CreatedAt.Equal(created.CreatedAt) ||
+		!found.UpdatedAt.Equal(created.UpdatedAt) ||
+		!found.ExpiresAt.Equal(created.ExpiresAt) {
+		t.Fatalf("found timestamps = %v / %v / %v, want %v / %v / %v",
+			found.CreatedAt, found.UpdatedAt, found.ExpiresAt,
+			created.CreatedAt, created.UpdatedAt, created.ExpiresAt)
+	}
+}
+
+func TestTokens_CreateRejectsZeroExpiry(t *testing.T) {
+	t.Parallel()
+
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	users := domains.NewUsers(db)
+	tokens := domains.NewTokens(db)
+
+	user, err := users.Create(t.Context(), "test-pepper", domains.CreateUserData{
+		Email: "token-zero-expiry@example.com",
+		PasswordPair: domains.PasswordPair{
+			Password:        "correct horse battery staple",
+			ConfirmPassword: "correct horse battery staple",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	_, err = tokens.Create(t.Context(), domains.CreateTokenData{
+		Scope:    string(domains.UserEmailVerification),
+		Hash:     "zero-expiry-hash",
+		MetaData: []byte("{}"),
+		UserID:   user.ID,
+	})
+	validationErrs, ok := validation.As(err)
+	if !ok {
+		t.Fatalf("create with zero expires_at error = %v, want a validation error", err)
+	}
+	if _, ok := validationErrs.ToMap()["expires_at"]; !ok {
+		t.Fatalf("validation errors = %v, want one on expires_at", validationErrs.ToMap())
+	}
+}
+
+func TestToken_IsValid(t *testing.T) {
+	t.Parallel()
+
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	users := domains.NewUsers(db)
+	tokens := domains.NewTokens(db)
+	const secret = "test-signing-secret"
+
+	user, err := users.Create(t.Context(), "test-pepper", domains.CreateUserData{
+		Email: "token-is-valid@example.com",
+		PasswordPair: domains.PasswordPair{
+			Password:        "correct horse battery staple",
+			ConfirmPassword: "correct horse battery staple",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	live, err := tokens.CreateSecure(
+		t.Context(),
+		secret,
+		domains.UserResetPassword,
+		time.Now().Add(time.Hour),
+		[]byte("{}"),
+		user.ID,
+	)
+	if err != nil {
+		t.Fatalf("create live token: %v", err)
+	}
+	liveToken, err := tokens.FindByScopeAndHash(t.Context(), secret, domains.UserResetPassword, live)
+	if err != nil {
+		t.Fatalf("find live token: %v", err)
+	}
+	if !liveToken.IsValid(live, secret) {
+		t.Fatal("live token is not valid for its plain value and secret")
+	}
+	if liveToken.IsValid(live, "another-secret") {
+		t.Fatal("token is valid with the wrong secret")
+	}
+	if liveToken.IsValid("not-the-token", secret) {
+		t.Fatal("token is valid with the wrong plain value")
+	}
+
+	expired, err := tokens.CreateSecure(
+		t.Context(),
+		secret,
+		domains.UserEmailVerification,
+		time.Now().Add(-time.Minute),
+		[]byte("{}"),
+		user.ID,
+	)
+	if err != nil {
+		t.Fatalf("create expired token: %v", err)
+	}
+	expiredToken, err := tokens.FindByScopeAndHash(t.Context(), secret, domains.UserEmailVerification, expired)
+	if err != nil {
+		t.Fatalf("find expired token: %v", err)
+	}
+	if expiredToken.IsValid(expired, secret) {
+		t.Fatal("expired token is still valid")
 	}
 }

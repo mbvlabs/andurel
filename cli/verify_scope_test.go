@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 
@@ -54,6 +55,43 @@ func TestVerifyOnlySelectsStages(t *testing.T) {
 	}
 	if len(report.Scope.Stages) != 1 || report.Scope.Stages[0] != verifyStageGofmt {
 		t.Fatalf("scope stages = %#v, want [gofmt]", report.Scope.Stages)
+	}
+}
+
+func TestVerifyPositionalPackageScopeReporting(t *testing.T) {
+	root := newVerifyTestProject(t)
+	writeTestFile(t, root, "payloads/payload.go", "package payloads\n")
+	writeTestFile(t, root, "payloads/payload_test.go", "package payloads\nimport \"testing\"\nfunc TestPayload(t *testing.T) {}\n")
+	writeTestFile(t, root, "payloads/nested/invalid.go", "package nested\nimport _ \"net/http\"\n")
+	for _, tc := range []struct {
+		args     []string
+		mode     string
+		packages []string
+		fails    bool
+	}{
+		{[]string{"verify", "--rules", "payloads-import", "--no-frontend", "--json"}, verifyScopeAll, nil, true},
+		{[]string{"verify", "./payloads", "--rules", "payloads-import", "--no-frontend", "--json"}, verifyScopePackages, []string{"./payloads"}, false},
+		{[]string{"verify", "./payloads/...", "--rules", "payloads-import", "--no-frontend", "--json"}, verifyScopePackages, []string{"./payloads/..."}, true},
+	} {
+		result := runVerifyInProject(t, root, tc.args...)
+		if tc.fails {
+			assertVerifyExitCode(t, result, output.ExitVerification)
+		} else if result.err != nil {
+			t.Fatalf("%v: %v", tc.args, result.err)
+		}
+		var report verifyReport
+		if tc.fails {
+			var ok bool
+			report, ok = output.Fail(result.err).Data.(verifyReport)
+			if !ok {
+				t.Fatalf("failure data = %T", output.Fail(result.err).Data)
+			}
+		} else {
+			report = decodeVerifyReport(t, result)
+		}
+		if report.Scope.Mode != tc.mode || !slices.Equal(report.Scope.GoPackages, tc.packages) {
+			t.Errorf("%v: scope = %+v", tc.args, report.Scope)
+		}
 	}
 }
 

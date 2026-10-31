@@ -10,8 +10,6 @@ import (
 	"github.com/mbvlabs/andurel/pkg/auth"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type TokenScope string
@@ -41,20 +39,20 @@ func (t Tokens) InTx(tx storage.Tx) Tokens {
 }
 
 type Token struct {
-	ID        uuid.UUID          `andurel:"id"`
-	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
-	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
-	Scope     string             `andurel:"scope"`
-	ExpiresAt pgtype.Timestamptz `andurel:"expires_at"`
-	Hash      string             `andurel:"hash"`
-	MetaData  []byte             `andurel:"meta_data"`
-	UserID    uuid.UUID          `andurel:"user_id"`
-	Attempts  int32              `andurel:"attempts"`
+	ID        uuid.UUID `andurel:"id"`
+	CreatedAt time.Time `andurel:"created_at"`
+	UpdatedAt time.Time `andurel:"updated_at"`
+	Scope     string    `andurel:"scope"`
+	ExpiresAt time.Time `andurel:"expires_at"`
+	Hash      string    `andurel:"hash"`
+	MetaData  []byte    `andurel:"meta_data"`
+	UserID    uuid.UUID `andurel:"user_id"`
+	Attempts  int32     `andurel:"attempts"`
 }
 
 func (t Token) IsValid(token, secret string) bool {
 	return auth.VerifyToken(token, secret, t.Hash) &&
-		time.Now().Before(t.ExpiresAt.Time)
+		time.Now().Before(t.ExpiresAt)
 }
 
 func (t Tokens) Find(ctx context.Context, id uuid.UUID) (Token, error) {
@@ -141,12 +139,13 @@ func (t Tokens) Create(
 	ctx context.Context,
 	data CreateTokenData,
 ) (Token, error) {
+	now := time.Now()
 	entity := Token{
 		ID:        uuid.New(),
-		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		CreatedAt: now,
+		UpdatedAt: now,
 		Scope:     data.Scope,
-		ExpiresAt: pgtype.Timestamptz{Time: data.ExpiresAt, Valid: true},
+		ExpiresAt: data.ExpiresAt,
 		Hash:      data.Hash,
 		MetaData:  data.MetaData,
 		UserID:    data.UserID,
@@ -158,10 +157,10 @@ func (t Tokens) Create(
 
 	return storage.Row(t.queries.CreateToken[Token](ctx, queries.CreateTokenParams{
 		ID:        entity.ID,
-		CreatedAt: entity.CreatedAt.Time,
-		UpdatedAt: entity.UpdatedAt.Time,
+		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
 		Scope:     entity.Scope,
-		ExpiresAt: entity.ExpiresAt.Time,
+		ExpiresAt: entity.ExpiresAt,
 		Hash:      entity.Hash,
 		MetaData:  entity.MetaData,
 		UserID:    entity.UserID,

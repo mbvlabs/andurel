@@ -73,7 +73,7 @@ func TestGenerateQueriesAgentNoOpReturnsMutationEnvelope(t *testing.T) {
 		t.Fatalf("decode generate queries envelope: %v\n%s", err, result.stdout)
 	}
 	if !envelope.OK || envelope.Data.Action != "generate queries" ||
-		len(envelope.Data.Warnings) != 1 {
+		len(envelope.Data.Warnings) != 2 {
 		t.Fatalf("unexpected generate queries envelope: %#v", envelope)
 	}
 }

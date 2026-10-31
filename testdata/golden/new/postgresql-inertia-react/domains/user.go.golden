@@ -42,14 +42,25 @@ func NormaliseEmail(raw string) string {
 }
 
 type User struct {
-	ID               uuid.UUID          `andurel:"id"`
-	CreatedAt        pgtype.Timestamptz `andurel:"created_at"`
-	UpdatedAt        pgtype.Timestamptz `andurel:"updated_at"`
-	Email            string             `andurel:"email"`
-	EmailValidatedAt pgtype.Timestamptz `andurel:"email_validated_at"`
-	Password         []byte             `andurel:"password"`
-	IsAdmin          bool               `andurel:"is_admin"`
-	SessionVersion   int32              `andurel:"session_version"`
+	ID               uuid.UUID  `andurel:"id"`
+	CreatedAt        time.Time  `andurel:"created_at"`
+	UpdatedAt        time.Time  `andurel:"updated_at"`
+	Email            string     `andurel:"email"`
+	EmailValidatedAt *time.Time `andurel:"email_validated_at"`
+	Password         []byte     `andurel:"password"`
+	IsAdmin          bool       `andurel:"is_admin"`
+	SessionVersion   int32      `andurel:"session_version"`
+}
+
+// userNullableTime converts the entity's nullable email_validated_at into the
+// pgtype the generated Create and Update params take. A nil value becomes SQL
+// NULL. Entity reads scan the column straight into *time.Time, so only this
+// write path touches pgtype.
+func userNullableTime(value *time.Time) pgtype.Timestamptz {
+	if value == nil {
+		return pgtype.Timestamptz{}
+	}
+	return pgtype.Timestamptz{Time: *value, Valid: true}
 }
 
 func (u User) Validate() error {
@@ -62,7 +73,7 @@ func (u User) Validate() error {
 }
 
 func (u *User) HasValidatedEmail() bool {
-	return u.EmailValidatedAt.Valid
+	return u.EmailValidatedAt != nil
 }
 
 func (u Users) Find(ctx context.Context, id uuid.UUID) (User, error) {
@@ -110,13 +121,12 @@ func (u Users) Create(
 ) (User, error) {
 	now := time.Now()
 	entity := User{
-		ID:               uuid.New(),
-		CreatedAt:        pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt:        pgtype.Timestamptz{Time: now, Valid: true},
-		Email:            NormaliseEmail(data.Email),
-		EmailValidatedAt: pgtype.Timestamptz{},
-		IsAdmin:          false,
-		SessionVersion:   1,
+		ID:             uuid.New(),
+		CreatedAt:      now,
+		UpdatedAt:      now,
+		Email:          NormaliseEmail(data.Email),
+		IsAdmin:        false,
+		SessionVersion: 1,
 	}
 
 	if err := validation.Join(entity.Validate(), data.PasswordPair.Validate()); err != nil {
@@ -131,10 +141,10 @@ func (u Users) Create(
 
 	created, err := u.queries.CreateUser[User](ctx, queries.CreateUserParams{
 		ID:               entity.ID,
-		CreatedAt:        entity.CreatedAt.Time,
-		UpdatedAt:        entity.UpdatedAt.Time,
+		CreatedAt:        entity.CreatedAt,
+		UpdatedAt:        entity.UpdatedAt,
 		Email:            entity.Email,
-		EmailValidatedAt: entity.EmailValidatedAt,
+		EmailValidatedAt: userNullableTime(entity.EmailValidatedAt),
 		Password:         entity.Password,
 		IsAdmin:          entity.IsAdmin,
 		SessionVersion:   entity.SessionVersion,
@@ -148,8 +158,10 @@ func (u Users) Create(
 type UpdateUserData struct {
 	ID               uuid.UUID
 	Email            *string
-	EmailValidatedAt *pgtype.Timestamptz
-	IsAdmin          *bool
+	EmailValidatedAt *time.Time
+	// ClearEmailValidatedAt resets verification to SQL NULL. It takes precedence.
+	ClearEmailValidatedAt bool
+	IsAdmin               *bool
 }
 
 func (u Users) Update(
@@ -169,8 +181,10 @@ func (u Users) Update(
 		if data.Email != nil {
 			locked.Email = NormaliseEmail(*data.Email)
 		}
-		if data.EmailValidatedAt != nil {
-			locked.EmailValidatedAt = *data.EmailValidatedAt
+		if data.ClearEmailValidatedAt {
+			locked.EmailValidatedAt = nil
+		} else if data.EmailValidatedAt != nil {
+			locked.EmailValidatedAt = data.EmailValidatedAt
 		}
 		if data.IsAdmin != nil {
 			locked.IsAdmin = *data.IsAdmin
@@ -191,7 +205,7 @@ func (u Users) Update(
 // lock itself: a caller using it directly must lock the row with FindForUpdate
 // inside the same transaction before changing it.
 func (u Users) Save(ctx context.Context, entity User) (User, error) {
-	entity.UpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	entity.UpdatedAt = time.Now()
 
 	if err := entity.Validate(); err != nil {
 		return User{}, err
@@ -200,11 +214,11 @@ func (u Users) Save(ctx context.Context, entity User) (User, error) {
 	row, err := u.queries.UpdateUser[User](ctx, queries.UpdateUserParams{
 		ID:               entity.ID,
 		Email:            entity.Email,
-		EmailValidatedAt: entity.EmailValidatedAt,
+		EmailValidatedAt: userNullableTime(entity.EmailValidatedAt),
 		Password:         entity.Password,
 		IsAdmin:          entity.IsAdmin,
 		SessionVersion:   entity.SessionVersion,
-		UpdatedAt:        entity.UpdatedAt.Time,
+		UpdatedAt:        entity.UpdatedAt,
 	})
 
 	return storage.Row(row, storage.Conflict(err, "users_email_key"))

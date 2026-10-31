@@ -155,7 +155,7 @@ andurel run --tools mailpit
 - Create SQL: `andurel generate migration NAME` writes `migrations/<timestamp>_<name>.sql` without needing database configuration; then apply it with `andurel db migrate up` (which reads `DB_*`). A one-shot process that applies embedded SQL is `cmd/migrate`.
 - Add a domain: hand-write `domains/<entity>.go` and its colocated `domains/<entity>.sql`, construct the receiver with `domains.NewX(db)` in `app`, then run `andurel sync queries`.
 - Add a service, handler, route, middleware, or composition: read the matching pattern and write the files yourself. `andurel new` ships a complete reference app for each.
-- Compile SQL: `andurel sync queries` writes `domains/internal/queries`. Only `domains/**` may import it.
+- Compile SQL: `andurel sync queries` writes `domains/internal/queries` and may change shared `go.mod` and `go.sum`. Preview with `andurel sync queries --dry-run --json`, review the reported files, and coordinate with other manifest writers before applying; the preview is not a lock. Only `domains/**` may import generated queries. A failed apply may leave partial changes.
 - List domains: `andurel inspect domains --json`.
 - List handlers with their constructor params and the routes each `Register` mounts (route name, method, path): `andurel inspect handlers --json`.
 - List every env key read by `config/*.go`, with its default and source line: `andurel inspect config --json`.

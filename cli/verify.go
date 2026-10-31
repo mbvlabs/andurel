@@ -226,7 +226,8 @@ and the run does not claim whole-project health.
 
 Pass Go package patterns to scope gofmt, go fix, go vet, layers, and go test,
 for example 'andurel verify ./internal/docs/...'. Package patterns cannot be
-combined with --changed.
+combined with --changed. JSON scope.mode is "packages" and scope.go_packages
+contains the requested patterns; frontend, generated, and content remain global.
 
 The layers step loads the active build target, like go vet: files excluded by
 GOOS, GOARCH, or build constraints are not type-checked or analyzed.

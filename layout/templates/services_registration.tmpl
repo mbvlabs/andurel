@@ -12,8 +12,6 @@ import (
 	appemail "{{.ModuleName}}/email"
 	"{{.ModuleName}}/queue/jobs"
 
-	"github.com/jackc/pgx/v5/pgtype"
-
 	"github.com/mbvlabs/andurel/pkg/email"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
@@ -244,7 +242,7 @@ func (i Identity) VerifyEmail(
 			return nil
 		}
 
-		validatedAt := pgtype.Timestamptz{Time: time.Now(), Valid: true}
+		validatedAt := time.Now()
 		updated, err := users.Update(ctx, domains.UpdateUserData{
 			ID:               data.UserID,
 			EmailValidatedAt: &validatedAt,

@@ -52,6 +52,15 @@ app/
 no database. The steps below are the same ones `andurel new` prints and
 `andurel new --help` documents.
 
+Use `andurel --version` to identify the installed CLI, including outside a
+project. Inside a project, `andurel inspect project --json` also reports the
+CLI version alongside project configuration.
+
+Development seeds create demo accounts with known passwords; they are not
+production administrator provisioning. Never run these seeds against production
+or a shared database containing real data. Provision production administrators
+through an application-specific, secure workflow instead.
+
 ### Setup
 
 1. **Install project tools and frontend dependencies**

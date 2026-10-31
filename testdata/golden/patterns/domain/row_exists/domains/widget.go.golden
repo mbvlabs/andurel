@@ -1,11 +1,11 @@
 package domains
 
 import (
+	"time"
 	"uuid"
 
 	"example.com/app/domains/internal/queries"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
@@ -24,10 +24,10 @@ func (w Widgets) InTx(tx storage.Tx) Widgets {
 }
 
 type Widget struct {
-	ID        uuid.UUID          `andurel:"id"`
-	Name      string             `andurel:"name"`
-	CreatedAt pgtype.Timestamptz `andurel:"created_at"`
-	UpdatedAt pgtype.Timestamptz `andurel:"updated_at"`
+	ID        uuid.UUID `andurel:"id"`
+	Name      string    `andurel:"name"`
+	CreatedAt time.Time `andurel:"created_at"`
+	UpdatedAt time.Time `andurel:"updated_at"`
 }
 
 func (w *Widget) Validate() error {

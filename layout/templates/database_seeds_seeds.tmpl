@@ -11,7 +11,6 @@ import (
 	"{{.ModuleName}}/config"
 	"{{.ModuleName}}/domains"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 )
 
@@ -113,7 +112,7 @@ func createUser(
 		return domains.User{}, err
 	}
 
-	validatedAt := pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	validatedAt := time.Now()
 
 	return users.Update(ctx, domains.UpdateUserData{
 		ID:               created.ID,

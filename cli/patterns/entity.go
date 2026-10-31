@@ -14,15 +14,23 @@ import (
 const (
 	storageImport    = "github.com/mbvlabs/andurel/pkg/storage"
 	validationImport = "github.com/mbvlabs/andurel/pkg/validation"
+	timeImport       = "time"
+	pgtypeImport     = "github.com/jackc/pgx/v5/pgtype"
 )
+
+// timestampType is the row type narsilc gives timestamp columns. The entity
+// replaces it with a plain Go time.
+const timestampType = "pgtype.Timestamptz"
 
 // rowManifest renders the domain files for an entity whose narsilc row
 // exists. The table already exists (a query returns its rows), so the
-// manifest has no migration entry.
+// manifest has no migration entry. createTypes maps the Create<Title>Params
+// field names to their types, or is nil when the params struct was not found.
 func rowManifest(
 	title, table, module string,
 	fields []columns.StructField,
 	imports map[string]string,
+	createTypes map[string]string,
 ) (Manifest, error) {
 	file := snakeCase(title)
 	receiver := Pluralize(title)
@@ -30,7 +38,7 @@ func rowManifest(
 		module = "app"
 	}
 
-	goSource, err := renderDomainGo(title, table, module, fields, imports)
+	goSource, err := renderDomainGo(title, table, module, fields, imports, createTypes)
 	if err != nil {
 		return Manifest{}, err
 	}
@@ -58,7 +66,7 @@ func rowManifest(
 				Path:   fmt.Sprintf("domains/%s.go", file),
 				Action: "create",
 				Summary: fmt.Sprintf(
-					"package domains; entity %s mirrors queries.%sRow with Validate(); %s receiver with New%s(db storage.Connection) and InTx(tx storage.Tx); add the methods that call the queries",
+					"package domains; entity %s mirrors queries.%sRow with plain Go timestamps and Validate(); %s receiver with New%s(db storage.Connection) and InTx(tx storage.Tx); add the methods that call the queries",
 					title, title, receiver, receiver,
 				),
 				Language: "go",
@@ -85,27 +93,39 @@ func rowManifest(
 	}, nil
 }
 
-// renderDomainGo renders the receiver, entity and Validate() stub in the shape
-// of the scaffold's domains/user.go. Entity field types are the row's types
-// unchanged: the scaffold's User keeps every UserRow type as is, including
-// pgtype.Timestamptz for created_at, updated_at and the nullable
-// email_validated_at, and pgx scans each column into the type narsilc chose.
+// renderDomainGo renders the receiver, entity and Validate() stub. The entity
+// keeps the andurel tags and narsilc scans each column into it automatically.
+// A pgtype.Timestamptz row field is time.Time when createTypes says its Create
+// param is time.Time (NOT NULL), and *time.Time otherwise, so pgx scans it
+// directly. Other row field types are kept unchanged. No Transform is emitted.
 func renderDomainGo(
 	title, table, module string,
 	fields []columns.StructField,
 	rowImports map[string]string,
+	createTypes map[string]string,
 ) (string, error) {
 	receiver := Pluralize(title)
 	recv := receiverName(title)
 
+	entity, nullable, unknown := planTimestamps(fields, createTypes)
+	helper := len(nullable) > 0
+
 	var std, external []string
 	external = append(external, storageImport, validationImport)
-	for _, importPath := range fieldImports(fields, rowImports) {
+	for _, importPath := range fieldImports(entity, rowImports) {
 		if isStdImport(importPath) {
-			std = append(std, importPath)
+			std = appendIfMissing(std, importPath)
 		} else {
 			external = appendIfMissing(external, importPath)
 		}
+	}
+	if slices.ContainsFunc(entity, func(field columns.StructField) bool {
+		return slices.Contains(qualifiers(field.Type), "time")
+	}) {
+		std = appendIfMissing(std, timeImport)
+	}
+	if helper {
+		external = appendIfMissing(external, pgtypeImport)
 	}
 	slices.Sort(std)
 	slices.Sort(external)
@@ -134,8 +154,20 @@ func renderDomainGo(
 	if table != TableFor(title) {
 		fmt.Fprintf(&b, "// andurel:table %s\n", table)
 	}
+	unknownSet := make(map[string]bool, len(unknown))
+	for _, name := range unknown {
+		unknownSet[name] = true
+	}
 	fmt.Fprintf(&b, "type %s struct {\n", title)
-	for _, field := range fields {
+	for _, field := range entity {
+		if unknownSet[field.Name] {
+			// The Create params do not say whether the column is nullable, so
+			// the field carries the reason beside it.
+			fmt.Fprintf(&b, "\t// %s is treated as nullable (*time.Time) because queries.Create%sParams\n", field.Name, title)
+			b.WriteString("\t// does not give its nullability. If the column is NOT NULL, change it to\n")
+			b.WriteString("\t// time.Time and drop the nullable helper. Run andurel sync queries first,\n")
+			b.WriteString("\t// then render this again.\n")
+		}
 		if field.Column == "" {
 			fmt.Fprintf(&b, "\t%s %s\n", field.Name, field.Type)
 			continue
@@ -144,6 +176,10 @@ func renderDomainGo(
 	}
 	b.WriteString("}\n\n")
 
+	if helper {
+		renderNullableTimeHelper(&b, title)
+	}
+
 	// The scaffold names the builder b; an entity starting with B would shadow
 	// its own receiver, so it gets a longer name.
 	builder := "b"
@@ -151,7 +187,7 @@ func renderDomainGo(
 		builder = "builder"
 	}
 	fmt.Fprintf(&b, "func (%s *%s) Validate() error {\n\t%s := validation.NewBuilder()\n", recv, title, builder)
-	for _, field := range fields {
+	for _, field := range entity {
 		if field.Type != "string" {
 			continue
 		}
@@ -165,6 +201,48 @@ func renderDomainGo(
 		return "", fmt.Errorf("format rendered domains/%s.go: %w", snakeCase(title), err)
 	}
 	return string(formatted), nil
+}
+
+// planTimestamps returns the entity's fields with each pgtype.Timestamptz
+// replaced by time.Time (NOT NULL) or *time.Time (nullable). nullable names the
+// timestamp fields that are *time.Time. unknown names the timestamps whose
+// Create param does not say, which are treated as nullable.
+func planTimestamps(
+	fields []columns.StructField,
+	createTypes map[string]string,
+) (entity []columns.StructField, nullable map[string]bool, unknown []string) {
+	nullable = map[string]bool{}
+	entity = make([]columns.StructField, 0, len(fields))
+	for _, field := range fields {
+		if field.Type != timestampType {
+			entity = append(entity, field)
+			continue
+		}
+		isNullable := true
+		if paramType, ok := createTypes[field.Name]; ok {
+			isNullable = paramType != "time.Time"
+		} else {
+			unknown = append(unknown, field.Name)
+		}
+		field.Type = "time.Time"
+		if isNullable {
+			field.Type = "*time.Time"
+			nullable[field.Name] = true
+		}
+		entity = append(entity, field)
+	}
+	return entity, nullable, unknown
+}
+
+// renderNullableTimeHelper writes the unexported helper that converts a nullable
+// entity time back into the row's pgtype for Create and Update params.
+func renderNullableTimeHelper(b *strings.Builder, title string) {
+	name := lowerCamel(title) + "NullableTime"
+	fmt.Fprintf(b, "// %s converts a nullable entity time into the row's pgtype for\n", name)
+	b.WriteString("// Create and Update params. A nil value becomes SQL NULL.\n")
+	fmt.Fprintf(b, "func %s(value *time.Time) pgtype.Timestamptz {\n", name)
+	b.WriteString("\tif value == nil {\n\t\treturn pgtype.Timestamptz{}\n\t}\n")
+	b.WriteString("\treturn pgtype.Timestamptz{Time: *value, Valid: true}\n}\n\n")
 }
 
 // renderDomainSQL renders CRUD queries in the style of the scaffold's

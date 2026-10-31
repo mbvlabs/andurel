@@ -61,7 +61,7 @@ func RequireAdmin() anduin.Middleware {
   `Use` must run before the first `router.Handler()` call, because the handler
   chain is built and cached once.
 - Per-route middleware goes after the handler:
-  `rt.Get(routes.AdminDashboard.Path(), h.Dashboard, middleware.RequireAdmin())`.
+  `rt.Get(routes.AdminDashboard.Pattern(), h.Dashboard, middleware.RequireAdmin())`.
   The first middleware in the list is the outermost, so list authentication
   before authorization.
 - Never trust identity from a cookie. `AuthOnly(users)` reloads the user from

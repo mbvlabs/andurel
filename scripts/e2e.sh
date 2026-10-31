@@ -74,7 +74,7 @@ assert_manifest_files() {
 		| ($files | map(.path) | any(. == "domains/invoice.sql"))
 		and ($files | map(.path) | any(. == "domains/invoice.go"))
 		and ($files | map(.path) | any(. == "domains/invoice_test.go"))
-		and ($files | any(.path == "internal/runtime/runtime.go" and .action == "edit"))
+		and ($files | any(.path == "app/runtime.go" and .action == "edit"))
 		and ($files | map(.path) | any(endswith("create_invoices_table.sql")))
 	' "${manifest}" >/dev/null; then
 		echo "domain manifest is missing a required Invoice file" >&2

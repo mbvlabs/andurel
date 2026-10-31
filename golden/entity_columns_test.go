@@ -26,10 +26,23 @@ type inspectColumnNote struct {
 	Line   int    `json:"line"`
 }
 
-// TestVerifyEntityColumnsDrift is the W5 acceptance path on a real scaffold:
-// the fresh app verifies and inspects clean, then renaming User.Email's tag to
-// emial fails verify with entity-columns at the field and shows columns_ok
-// false in inspect.
+// tagDrift describes renaming one andurel tag on a scaffold entity field.
+type tagDrift struct {
+	entity     string // inspect name of the entity, e.g. User
+	file       string // domain file relative to the project root
+	tag        string // the tag as written, e.g. andurel:"scope"
+	drifted    string // the tag after the rename, e.g. andurel:"scopes"
+	fieldStart string // the start of the field's declaration line
+	field      string // the Go field name, e.g. Scope
+	column     string // the row column the entity no longer maps
+}
+
+// TestVerifyEntityColumnsDrift is the W5 acceptance path on a real scaffold.
+// User and Token both map their rows automatically, so entity-columns checks
+// both. The fresh app verifies and inspects clean with columns_ok true for
+// each. Renaming a tag so that a query column has no field fails verify with
+// entity-columns at the field and shows columns_ok false in inspect. This runs
+// for User.Email and Token.Scope, each from a clean scaffold tag.
 func TestVerifyEntityColumnsDrift(t *testing.T) {
 	goldentest.RequireBinary(t)
 	goldentest.RequireFullScaffold(t)
@@ -41,26 +54,79 @@ func TestVerifyEntityColumnsDrift(t *testing.T) {
 
 	goldentest.RunCLI(t, project, "verify", "--no-frontend", "--json")
 	before := inspectDomainsJSON(t, project)
-	user := findInspectEntity(t, before, "User")
-	if user.ColumnsOK == nil || !*user.ColumnsOK {
-		t.Fatalf("fresh User columns_ok = %v, want true", user.ColumnsOK)
+	for _, name := range []string{"User", "Token"} {
+		entity := findInspectEntity(t, before, name)
+		if entity.ColumnsOK == nil || !*entity.ColumnsOK {
+			t.Fatalf("fresh %s columns_ok = %v, want true", name, entity.ColumnsOK)
+		}
+		// Type differences are notes (pgx converts between row and entity types),
+		// so only failure kinds would make columns_ok false.
+		for _, mismatch := range entity.Mismatches {
+			if mismatch.Kind != "type-difference" {
+				t.Fatalf("fresh %s mismatches = %#v, want only type-difference notes", name, entity.Mismatches)
+			}
+		}
 	}
 
-	userFile := filepath.Join(project, "domains", "user.go")
-	content, err := os.ReadFile(userFile)
+	restoreToken := assertTagDriftFails(t, project, tagDrift{
+		entity:     "Token",
+		file:       "domains/token.go",
+		tag:        `andurel:"scope"`,
+		drifted:    `andurel:"scopes"`,
+		fieldStart: "\tScope     string",
+		field:      "Scope",
+		column:     "scope",
+	})
+	restoreToken()
+
+	restored := inspectDomainsJSON(t, project)
+	if token := findInspectEntity(t, restored, "Token"); token.ColumnsOK == nil || !*token.ColumnsOK {
+		t.Fatalf("restored Token columns_ok = %v, want true", token.ColumnsOK)
+	}
+
+	assertTagDriftFails(t, project, tagDrift{
+		entity:     "User",
+		file:       "domains/user.go",
+		tag:        `andurel:"email"`,
+		drifted:    `andurel:"emial"`,
+		fieldStart: "\tEmail ",
+		field:      "Email",
+		column:     "email",
+	})
+
+	after := inspectDomainsJSON(t, project)
+	if token := findInspectEntity(t, after, "Token"); token.ColumnsOK == nil || !*token.ColumnsOK {
+		t.Fatalf("Token columns_ok = %v while only User drifts, want true", token.ColumnsOK)
+	}
+}
+
+// assertTagDriftFails renames the tag in the project, then checks that verify
+// exits 9 with entity-columns at the renamed field only, and that inspect
+// reports the entity with columns_ok false and one missing-column mismatch at
+// that field. It returns a function that restores the original file.
+func assertTagDriftFails(t *testing.T, project string, drift tagDrift) (restore func()) {
+	t.Helper()
+
+	path := filepath.Join(project, filepath.FromSlash(drift.file))
+	original, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("read domains/user.go: %v", err)
+		t.Fatalf("read %s: %v", drift.file, err)
 	}
-	drifted := strings.Replace(string(content), `andurel:"email"`, `andurel:"emial"`, 1)
-	if drifted == string(content) {
-		t.Fatal("domains/user.go has no andurel email tag to rename")
+	drifted := strings.Replace(string(original), drift.tag, drift.drifted, 1)
+	if drifted == string(original) {
+		t.Fatalf("%s has no %s tag to rename", drift.file, drift.tag)
 	}
-	if err := os.WriteFile(userFile, []byte(drifted), 0o644); err != nil {
-		t.Fatalf("write drifted domains/user.go: %v", err)
+	if err := os.WriteFile(path, []byte(drifted), 0o644); err != nil {
+		t.Fatalf("write drifted %s: %v", drift.file, err)
 	}
-	fieldLine := sourceLineIn(drifted, "\tEmail ")
+	restore = func() {
+		if err := os.WriteFile(path, original, 0o644); err != nil {
+			t.Fatalf("restore %s: %v", drift.file, err)
+		}
+	}
+	fieldLine := sourceLineIn(drifted, drift.fieldStart)
 	if fieldLine == 0 {
-		t.Fatal("drifted domains/user.go has no Email field")
+		t.Fatalf("drifted %s has no %s field", drift.file, drift.field)
 	}
 
 	output, exitCode := goldentest.RunCLIExit(t, project, "verify", "--no-frontend", "--json")
@@ -90,11 +156,12 @@ func TestVerifyEntityColumnsDrift(t *testing.T) {
 				continue
 			}
 			found = true
-			if violation.File != "domains/user.go" || violation.Line != fieldLine {
+			if violation.File != drift.file || violation.Line != fieldLine {
 				t.Fatalf(
-					"entity-columns at %s:%d, want domains/user.go:%d\n%s",
+					"entity-columns at %s:%d, want %s:%d\n%s",
 					violation.File,
 					violation.Line,
+					drift.file,
 					fieldLine,
 					output,
 				)
@@ -105,19 +172,21 @@ func TestVerifyEntityColumnsDrift(t *testing.T) {
 		t.Fatalf("verify did not report entity-columns:\n%s", output)
 	}
 
-	after := inspectDomainsJSON(t, project)
-	user = findInspectEntity(t, after, "User")
-	if user.ColumnsOK == nil || *user.ColumnsOK {
-		t.Fatalf("drifted User columns_ok = %v, want false", user.ColumnsOK)
+	entity := findInspectEntity(t, inspectDomainsJSON(t, project), drift.entity)
+	if entity.ColumnsOK == nil || *entity.ColumnsOK {
+		t.Fatalf("drifted %s columns_ok = %v, want false", drift.entity, entity.ColumnsOK)
 	}
-	if len(user.Mismatches) != 1 ||
-		user.Mismatches[0].Kind != "missing-column" ||
-		user.Mismatches[0].Column != "email" ||
-		user.Mismatches[0].Field != "Email" ||
-		user.Mismatches[0].File != "domains/user.go" ||
-		user.Mismatches[0].Line != fieldLine {
-		t.Fatalf("drifted User mismatches = %#v, want email at domains/user.go:%d", user.Mismatches, fieldLine)
+	want := inspectColumnNote{Kind: "missing-column", Column: drift.column, Field: drift.field, File: drift.file, Line: fieldLine}
+	var failures []inspectColumnNote
+	for _, mismatch := range entity.Mismatches {
+		if mismatch.Kind != "type-difference" {
+			failures = append(failures, mismatch)
+		}
 	}
+	if len(failures) != 1 || failures[0] != want {
+		t.Fatalf("drifted %s failures = %#v, want %#v", drift.entity, failures, want)
+	}
+	return restore
 }
 
 func inspectDomainsJSON(t *testing.T, project string) []inspectDomainEntity {

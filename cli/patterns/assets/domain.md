@@ -13,8 +13,12 @@ Validate once, at the write path: entities expose `Validate()` via
 `pkg/validation`, and `Create`/`Update` call it before touching the database.
 Callers (handlers, services) do not repeat entity rules.
 
-The worked example below is a `Product` domain. The reference app's
-`domains/user.go` and `domains/token.go` follow the same shape.
+The worked example below is a `Product` domain. Its entity uses plain Go types:
+`time.Time` for a NOT NULL timestamp, and narsilc scans each tagged column into
+the field directly, so no conversion is needed to read. `pgtype` appears only on
+the write path, where a nullable timestamp converts through an unexported
+helper. The scaffold's `domains/user.go` and `domains/token.go` follow the same
+shape, as described in the Rules below.
 
 ## Files
 
@@ -30,7 +34,6 @@ import (
 
 	"app/domains/internal/queries"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/mbvlabs/andurel/pkg/storage"
 	"github.com/mbvlabs/andurel/pkg/validation"
 )
@@ -48,11 +51,11 @@ func (p Products) InTx(tx storage.Tx) Products {
 }
 
 type Product struct {
-	ID         uuid.UUID          `andurel:"id"`
-	CreatedAt  pgtype.Timestamptz `andurel:"created_at"`
-	UpdatedAt  pgtype.Timestamptz `andurel:"updated_at"`
-	Name       string             `andurel:"name"`
-	PriceCents int64              `andurel:"price_cents"`
+	ID         uuid.UUID `andurel:"id"`
+	CreatedAt  time.Time `andurel:"created_at"`
+	UpdatedAt  time.Time `andurel:"updated_at"`
+	Name       string    `andurel:"name"`
+	PriceCents int64     `andurel:"price_cents"`
 }
 
 func (p *Product) Validate() error {
@@ -77,8 +80,8 @@ func (p Products) Create(ctx context.Context, data CreateProductData) (Product, 
 	now := time.Now()
 	entity := Product{
 		ID:         uuid.New(),
-		CreatedAt:  pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt:  pgtype.Timestamptz{Time: now, Valid: true},
+		CreatedAt:  now,
+		UpdatedAt:  now,
 		Name:       strings.TrimSpace(data.Name),
 		PriceCents: data.PriceCents,
 	}
@@ -88,8 +91,8 @@ func (p Products) Create(ctx context.Context, data CreateProductData) (Product, 
 
 	created, err := p.queries.CreateProduct[Product](ctx, queries.CreateProductParams{
 		ID:         entity.ID,
-		CreatedAt:  entity.CreatedAt.Time,
-		UpdatedAt:  entity.UpdatedAt.Time,
+		CreatedAt:  entity.CreatedAt,
+		UpdatedAt:  entity.UpdatedAt,
 		Name:       entity.Name,
 		PriceCents: entity.PriceCents,
 	})
@@ -221,7 +224,9 @@ return users.Save(ctx, locked)
 - Every receiver has `New<Plural>(db storage.Connection)` and `InTx(tx storage.Tx)`. Construct it in `app` and pass it to the services and handlers that use it.
 - A receiver holds a `storage.Transactor` when one of its methods writes more than once or reads, modifies and writes a row; it rebinds it in `InTx`, wraps the statements in `storage.AtomicOps` (joining a caller's transaction when bound), and locks the row with `FindForUpdate` before a read-modify-write. `Save` writes every column and does not lock for its caller.
 - Entities expose `Validate()` via `pkg/validation`; `Create`/`Update` normalise, then validate, then write, returning validation errors from `pkg/validation` directly.
-- Keep the entity 1:1 with a scanned row.
+- Entity timestamps are plain Go times: `time.Time` when the column is NOT NULL and `*time.Time` when nullable (nil is SQL NULL). narsilc scans them straight into the tagged fields, so an entity needs no `Transform` for them. `pgtype.Timestamptz` appears only in the generated query params and rows inside `domains/`; for a nullable timestamp, an unexported helper such as `userNullableTime` converts the `*time.Time` into the pgtype for Create and Update params, as `domains/user.go` does. Only `timestamptz` is converted this way. Other pgtype row types (`Timestamp`, `Date`, `Numeric`, `Text`, ...) pass through unchanged, and `pgtype` stays inside `domains/`.
+- Implement `Transform(row queries.<Row>) error` on `*Entity` only when the mapping genuinely differs from the row, for example when a field must be computed or the row's shape cannot be scanned directly. A `Transform` entity implements `narsilc.Transformer`, so `entity-columns` does not check it: `inspect domains --json` reports `columns_ok: null` for it, and when its row's columns change, update `Transform` by hand. Entities that use the automatic mapping keep their `andurel` tags and are checked.
+- Nullable updates use a pointer for "set" and nil for "keep"; a separate boolean field such as `ClearEmailValidatedAt` sets NULL and takes precedence over the set value.
 - Pass raw `page`/`pageSize` to `storage.Page`: it clamps the page, the size and the `int32` offset, so a huge or negative page cannot overflow the query.
 - SQL lives beside the domain that owns it (`domains/product.sql`); narsilc globs `domains/**/*.sql`.
 - Map expected not-found and unique-constraint failures to `ErrNotFound` and `ErrConflict`; return `pkg/validation` errors directly. Preserve unexpected database errors for diagnostics.

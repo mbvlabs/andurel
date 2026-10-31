@@ -192,3 +192,52 @@ func entityFields(t *testing.T, label, src, typeName string) []entityField {
 	}
 	return fields
 }
+
+// TestPatternsShowDomainRenderedCompiles renders the User entity from a fresh
+// scaffold's queries. users has a nullable email_validated_at, so the rendered
+// entity exercises *time.Time and the nullable helper. The rendered file
+// replaces the scaffold's user.go, along with the user tests that use its
+// hand-written API, and the domains package must vet.
+func TestPatternsShowDomainRenderedCompiles(t *testing.T) {
+	goldentest.RequireBinary(t)
+	goldentest.RequireFullScaffold(t)
+
+	parent := t.TempDir()
+	goldentest.RunCLIFull(t, parent, "new", "app")
+	project := filepath.Join(parent, "app")
+	goldentest.SeedProjectTools(t, project)
+
+	_, manifest := patternsShowDomain(t, project, "User", "users")
+	var rendered string
+	for _, file := range manifest.Files {
+		if file.Path == "domains/user.go" {
+			rendered = file.Content
+		}
+	}
+	if rendered == "" {
+		t.Fatal("manifest has no rendered domains/user.go")
+	}
+	if !strings.Contains(rendered, "*time.Time") || !strings.Contains(rendered, "func userNullableTime(") {
+		t.Fatalf("rendered User has no nullable timestamp\n%s", rendered)
+	}
+
+	// The scaffold's domain tests call the hand-written User API (Create, Save),
+	// which the rendered entity does not have, so they go with user.go.
+	entries, err := os.ReadDir(filepath.Join(project, "domains"))
+	if err != nil {
+		t.Fatalf("read scaffold domains: %v", err)
+	}
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), "_test.go") {
+			if err := os.Remove(filepath.Join(project, "domains", entry.Name())); err != nil {
+				t.Fatalf("remove scaffold domains/%s: %v", entry.Name(), err)
+			}
+		}
+	}
+	if err := os.Remove(filepath.Join(project, "domains", "user.go")); err != nil {
+		t.Fatalf("remove scaffold domains/user.go: %v", err)
+	}
+	goldentest.WriteProjectFile(t, project, "domains/user.go", rendered)
+
+	runGoCommand(t, project, "vet", "./domains/")
+}
