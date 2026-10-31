@@ -109,14 +109,6 @@ func TestPatternsShowDomainEntity(t *testing.T) {
 	}
 }
 
-// userPlainTimeFields are the User fields the scaffold types as plain Go times
-// instead of the row's pgtype.Timestamptz. Transform converts them.
-var userPlainTimeFields = map[string]string{
-	"CreatedAt":        "time.Time",
-	"UpdatedAt":        "time.Time",
-	"EmailValidatedAt": "*time.Time",
-}
-
 // TestPatternsShowDomainMatchesScaffoldUser is the W6 acceptance path on a
 // fresh scaffold: the User entity rendered from queries.UserRow has the same
 // fields, andurel tags and types as the scaffold's domains/user.go.
@@ -150,13 +142,6 @@ func TestPatternsShowDomainMatchesScaffoldUser(t *testing.T) {
 	want := entityFields(t, "domains/user.go", string(scaffold), "User")
 	if len(want) == 0 {
 		t.Fatal("scaffold User has no fields")
-	}
-	// The scaffold's User maps timestamps to plain Go times in Transform, so
-	// those fields differ from the row types by design.
-	for i, field := range got {
-		if plainType, ok := userPlainTimeFields[field.Name]; ok {
-			got[i].Type = plainType
-		}
 	}
 	if !slices.Equal(got, want) {
 		t.Fatalf("rendered User fields differ from the scaffold\n got: %v\nwant: %v", got, want)
@@ -206,4 +191,53 @@ func entityFields(t *testing.T, label, src, typeName string) []entityField {
 		t.Fatalf("%s declares no struct %s", label, typeName)
 	}
 	return fields
+}
+
+// TestPatternsShowDomainRenderedCompiles renders the User entity from a fresh
+// scaffold's queries. users has a nullable email_validated_at, so the rendered
+// entity exercises *time.Time and the nullable helper. The rendered file
+// replaces the scaffold's user.go, along with the user tests that use its
+// hand-written API, and the domains package must vet.
+func TestPatternsShowDomainRenderedCompiles(t *testing.T) {
+	goldentest.RequireBinary(t)
+	goldentest.RequireFullScaffold(t)
+
+	parent := t.TempDir()
+	goldentest.RunCLIFull(t, parent, "new", "app")
+	project := filepath.Join(parent, "app")
+	goldentest.SeedProjectTools(t, project)
+
+	_, manifest := patternsShowDomain(t, project, "User", "users")
+	var rendered string
+	for _, file := range manifest.Files {
+		if file.Path == "domains/user.go" {
+			rendered = file.Content
+		}
+	}
+	if rendered == "" {
+		t.Fatal("manifest has no rendered domains/user.go")
+	}
+	if !strings.Contains(rendered, "*time.Time") || !strings.Contains(rendered, "func userNullableTime(") {
+		t.Fatalf("rendered User has no nullable timestamp\n%s", rendered)
+	}
+
+	// The scaffold's domain tests call the hand-written User API (Create, Save),
+	// which the rendered entity does not have, so they go with user.go.
+	entries, err := os.ReadDir(filepath.Join(project, "domains"))
+	if err != nil {
+		t.Fatalf("read scaffold domains: %v", err)
+	}
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), "_test.go") {
+			if err := os.Remove(filepath.Join(project, "domains", entry.Name())); err != nil {
+				t.Fatalf("remove scaffold domains/%s: %v", entry.Name(), err)
+			}
+		}
+	}
+	if err := os.Remove(filepath.Join(project, "domains", "user.go")); err != nil {
+		t.Fatalf("remove scaffold domains/user.go: %v", err)
+	}
+	goldentest.WriteProjectFile(t, project, "domains/user.go", rendered)
+
+	runGoCommand(t, project, "vet", "./domains/")
 }

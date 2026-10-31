@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -40,16 +41,23 @@ type Manifest struct {
 	Next     []string              `json:"next"`
 }
 
+// QueriesDir is the narsilc query package, relative to the project root, that
+// holds the generated <Entity>Row and Create<Entity>Params types.
+const QueriesDir = "domains/internal/queries"
+
 // ModelsPath is the narsilc models file, relative to the project root, that
 // holds the <Entity>Row types the domain manifest renders from.
-const ModelsPath = "domains/internal/queries/models.go"
+const ModelsPath = QueriesDir + "/models.go"
 
 // Project is the project context a domain manifest renders from. Module is the
 // go.mod module path. Models is the content of ModelsPath, or nil when the
-// project has none.
+// project has none. Queries holds the other generated Go files of the queries
+// package (domains/internal/queries/*.go), keyed by slash-separated path, which
+// declare the Create<Entity>Params types that decide timestamp nullability.
 type Project struct {
-	Module string
-	Models []byte
+	Module  string
+	Models  []byte
+	Queries map[string][]byte
 }
 
 // ManifestFor builds the domain manifest for entity (e.g. "User" or
@@ -79,7 +87,38 @@ func ManifestForProject(entity, table string, project Project) (Manifest, error)
 		return missingRowManifest(title, table), nil
 	}
 
-	return rowManifest(title, table, project.Module, fields, columns.ImportPaths(file))
+	return rowManifest(title, table, project.Module, fields, columns.ImportPaths(file),
+		createParamTypes(title, project.Queries))
+}
+
+// createParamTypes returns the field types of Create<title>Params, the generated
+// insert params in the queries package, or nil when no readable file declares
+// it. Files are read in path order so the result never depends on map
+// iteration. A file that does not parse is skipped: it is not the file that
+// declares the params, and the caller then treats nullability as unknown.
+func createParamTypes(title string, queryFiles map[string][]byte) map[string]string {
+	paths := make([]string, 0, len(queryFiles))
+	for path := range queryFiles {
+		paths = append(paths, path)
+	}
+	slices.Sort(paths)
+
+	for _, path := range paths {
+		file, err := parser.ParseFile(token.NewFileSet(), path, queryFiles[path], parser.SkipObjectResolution)
+		if err != nil {
+			continue
+		}
+		fields, ok := columns.StructFields(file, "Create"+title+"Params")
+		if !ok {
+			continue
+		}
+		types := make(map[string]string, len(fields))
+		for _, field := range fields {
+			types[field.Name] = field.Type
+		}
+		return types
+	}
+	return nil
 }
 
 func manifestNames(entity, table string) (string, string) {

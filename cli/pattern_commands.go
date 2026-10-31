@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -162,13 +164,22 @@ func runPatternsShow(cmd *cobra.Command, id string) error {
 	}
 	var manifest *patterns.Manifest
 	if entity != "" {
-		made, err := patterns.ManifestForProject(entity, table, readPatternProject())
+		project, err := readPatternProject()
 		if err != nil {
 			return output.WrapError(
 				output.CodeConfigError,
 				err,
 				output.ExitConfig,
-				"Run andurel sync queries to regenerate "+patterns.ModelsPath+".",
+				"Check that "+patterns.QueriesDir+" is readable, then run this again.",
+			)
+		}
+		made, err := patterns.ManifestForProject(entity, table, project)
+		if err != nil {
+			return output.WrapError(
+				output.CodeConfigError,
+				err,
+				output.ExitConfig,
+				"Fix the Go syntax error in "+patterns.ModelsPath+", or run andurel sync queries to regenerate the queries package.",
 			)
 		}
 		manifest = &made
@@ -199,18 +210,42 @@ func runPatternsShow(cmd *cobra.Command, id string) error {
 
 // readPatternProject reads the project context the domain manifest renders
 // from. Outside a project, or without generated queries, it is empty and the
-// manifest falls back to the file list plus a migration skeleton.
-func readPatternProject() patterns.Project {
+// manifest falls back to the file list plus a migration skeleton. An error is
+// returned only when the queries directory exists but cannot be read.
+func readPatternProject() (patterns.Project, error) {
 	rootDir, err := findGoModRoot()
 	if err != nil {
-		return patterns.Project{}
+		return patterns.Project{}, nil
 	}
 	module, _, _ := readGoModMetadata(rootDir)
 	models, err := os.ReadFile(filepath.Join(rootDir, filepath.FromSlash(patterns.ModelsPath)))
 	if err != nil {
 		models = nil
 	}
-	return patterns.Project{Module: module, Models: models}
+	project := patterns.Project{Module: module, Models: models, Queries: map[string][]byte{}}
+
+	// The Create<Entity>Params types live in the other generated query files.
+	dir := filepath.Join(rootDir, filepath.FromSlash(patterns.QueriesDir))
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return project, nil
+	}
+	if err != nil {
+		return patterns.Project{}, fmt.Errorf("read %s: %w", patterns.QueriesDir, err)
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") ||
+			name == filepath.Base(patterns.ModelsPath) {
+			continue
+		}
+		content, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			return patterns.Project{}, fmt.Errorf("read %s/%s: %w", patterns.QueriesDir, name, err)
+		}
+		project.Queries[patterns.QueriesDir+"/"+name] = content
+	}
+	return project, nil
 }
 
 // renderManifestMarkdown renders the per-entity file manifest as Markdown.
