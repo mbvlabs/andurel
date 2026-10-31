@@ -1140,3 +1140,139 @@ func findMissingToolViolation(
 	}
 	return verifyViolation{}, false
 }
+
+func TestVerifyScopedGeneratedDriftIgnoresOtherPackages(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stub tools use a POSIX shell script")
+	}
+
+	root := newVerifyTestProject(t)
+	writeTestFile(t, root, "alpha/alpha.go", "package alpha\n")
+	writeTestFile(t, root, "beta/beta.go", "package beta\n")
+	// Drift lands in beta, which is outside the requested scope.
+	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nprintf 'package beta\\n' > beta/drift.go\n")
+	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\nexit 0\n")
+
+	result := runVerifyInProject(t, root, "verify", "./alpha/...", "--json")
+	if result.err != nil {
+		t.Fatalf("scoped verify with out-of-scope drift: %v\nreport: %#v",
+			result.err, output.Fail(result.err).Data)
+	}
+	envelope := decodeVerifyEnvelope(t, result.stdout)
+	generated := findVerifyStep(t, envelope.Data, "generated")
+	if generated.Status != verifyStatusOK || len(generated.Violations) != 0 {
+		t.Fatalf("generated step = %#v, want ok with no violations", generated)
+	}
+	if !strings.Contains(generated.Detail, "outside the scoped packages") {
+		t.Fatalf("generated detail = %q, want a note about unchecked drift", generated.Detail)
+	}
+}
+
+func TestVerifyScopedGeneratedDriftInScopeFailsWithOnlyHint(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stub tools use a POSIX shell script")
+	}
+
+	root := newVerifyTestProject(t)
+	writeTestFile(t, root, "alpha/alpha.go", "package alpha\n")
+	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nprintf 'package alpha\\n' > alpha/drift.go\n")
+	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\nexit 0\n")
+
+	result := runVerifyInProject(t, root, "verify", "./alpha/...", "--json")
+	assertVerifyExitCode(t, result, output.ExitVerification)
+	failure := output.Fail(result.err)
+	report, ok := failure.Data.(verifyReport)
+	if !ok {
+		t.Fatalf("failure data = %T, want verifyReport", failure.Data)
+	}
+	generated := findVerifyStep(t, report, "generated")
+	if generated.Status != verifyStatusFail || len(generated.Violations) != 1 ||
+		generated.Violations[0].File != "alpha/drift.go" {
+		t.Fatalf("generated step = %#v, want a violation for alpha/drift.go", generated)
+	}
+	if !strings.Contains(failure.Hint, "--only") {
+		t.Fatalf("hint = %q, want it to point at --only", failure.Hint)
+	}
+}
+
+func TestVerifyJSONFailureHintNamesStderrInFirstLine(t *testing.T) {
+	root := newVerifyTestProject(t)
+	writeTestFile(t, root, "main.go", "package main\n\nfunc  main(){ }\n")
+
+	result := runVerifyInProject(t, root, "verify", "--json", "--only", "gofmt")
+	assertVerifyExitCode(t, result, output.ExitVerification)
+	hint := output.Fail(result.err).Hint
+	firstLine, _, _ := strings.Cut(hint, "\n")
+	if !strings.Contains(firstLine, "stderr") {
+		t.Fatalf("first hint line = %q, want it to say the report is on stderr", firstLine)
+	}
+
+	human := runVerifyInProject(t, root, "verify", "--only", "gofmt")
+	assertVerifyExitCode(t, human, output.ExitVerification)
+	if strings.Contains(output.Fail(human.err).Hint, "stderr") {
+		t.Fatalf("human hint = %q, must not mention stderr", output.Fail(human.err).Hint)
+	}
+}
+
+func TestVerifyRunsIndependentStagesAfterFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stub tools use a POSIX shell script")
+	}
+
+	root := newVerifyTestProject(t)
+	// gofmt, go vet and layers all fail for independent reasons; the generated
+	// stage must still run and pass rather than being skipped by them.
+	writeTestFile(t, root, "unfmt.go", "package main\nfunc  unf(){}\n")
+	writeTestFile(t, root, "broken.go", "package main\n\nfunc broken() { var x int = \"s\"; _ = x }\n")
+	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nexit 0\n")
+	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\nexit 0\n")
+
+	result := runVerifyInProject(t, root, "verify", "--json")
+	assertVerifyExitCode(t, result, output.ExitVerification)
+	failure := output.Fail(result.err)
+	report, ok := failure.Data.(verifyReport)
+	if !ok {
+		t.Fatalf("failure data = %T, want verifyReport", failure.Data)
+	}
+	for _, name := range []string{"gofmt", "go fix", "go vet", "layers"} {
+		if step := findVerifyStep(t, report, name); step.Status != verifyStatusFail {
+			t.Fatalf("%s step = %#v, want fail (not skipped)", name, step)
+		}
+	}
+	if step := findVerifyStep(t, report, "generated"); step.Status != verifyStatusOK {
+		t.Fatalf("generated step = %#v, want ok after earlier failures", step)
+	}
+	for _, name := range []string{"gofmt", "go vet"} {
+		if !strings.Contains(failure.Error, name) {
+			t.Fatalf("summary %q does not list failed stage %q", failure.Error, name)
+		}
+	}
+}
+
+func TestNarsilcQueryMismatchReadsAsQueryProblem(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stub tools use a POSIX shell script")
+	}
+
+	root := newVerifyTestProject(t)
+	writeExecutable(
+		t,
+		root,
+		"bin/narsilc",
+		"#!/bin/sh\necho 'column \"email\" does not exist in the schema' >&2\nexit 1\n",
+	)
+
+	result := checkNarsilcGenerate(root, false)
+	if result.status != statusFail {
+		t.Fatalf("status = %v, want fail: %#v", result.status, result)
+	}
+	if result.message != "queries in domains/*.sql don't match migrations/" {
+		t.Fatalf("message = %q, want the query/migration mismatch wording", result.message)
+	}
+	if len(result.details) == 0 || !strings.Contains(strings.Join(result.details, "\n"), `column "email" does not exist`) {
+		t.Fatalf("details = %#v, want the narsilc output", result.details)
+	}
+	if strings.Contains(result.message, "temporary") {
+		t.Fatalf("message %q must not read like a temporary tool failure", result.message)
+	}
+}

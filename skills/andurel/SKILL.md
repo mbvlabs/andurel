@@ -42,7 +42,9 @@ Read [references/testing.md](references/testing.md) before writing a test that u
 
 ## Verify
 
-`andurel verify` runs `gofmt`, `go fix`, `go vet`, the typed layer rules, the package manager's `typecheck` script when `package.json` defines one, and generated-code drift. It reports each violation as `{rule, file, line, message, fix}`. Apply the `fix` and re-run. `andurel verify [packages...]` scopes the Go checks to package patterns (for example `./app/...`); generated drift and the frontend typecheck stay whole-project. `--no-frontend` skips the typecheck. With `--with-tests`, packages that ran no tests are listed under `skipped_packages` and `t.Skip` calls under `skipped_tests` with their reason. Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
+With `--json` or `--agent`, a failed `andurel verify` writes its report to stderr and leaves stdout empty; read the failure report from stderr.
+
+`andurel verify` runs `gofmt`, `go fix`, `go vet`, the typed layer rules, the package manager's `typecheck` script when `package.json` defines one, and generated-code drift. It reports each violation as `{rule, file, line, message, fix}`. Apply the `fix` and re-run. Every independent stage runs even after another fails, and the summary lists all failed stages. `andurel verify [packages...]` scopes the Go checks and generated drift to package patterns (for example `./app/...`); the frontend typecheck stays whole-project. If the generated step fails in a scoped run, rerun with `--only` listing the stages you need to skip it. `--no-frontend` skips the typecheck. With `--with-tests`, packages that ran no tests are listed under `skipped_packages` and `t.Skip` calls under `skipped_tests` with their reason. Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
 
 <!-- andurel:verify-rules:begin: generated from the verify rule catalog by 'just docs-sync'; do not edit -->
 | Rule | Checks |
