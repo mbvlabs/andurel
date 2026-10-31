@@ -59,6 +59,7 @@ With `--json` or `--agent`, a failed `andurel verify` writes its report to stder
 | `tx-layer` | storage.AtomicOps and storage.Transactor are used only in services, domains, and app |
 | `payloads-import` | payloads/** imports only the standard library and mappable types; no app packages, storage, anduin, inertia, or net/http |
 | `domain-transport` | domains/** imports no HTTP, Inertia, routing, handler, middleware, or route package |
+| `route-host` | a route declared on a non-primary host is registered with rt.Route(route), not rt.Get(route.Pattern()) |
 | `entity-columns` | every automatic generated query column maps to an exported andurel tag on its domain entity |
 | `setup` | project setup is complete: managed tool binaries and frontend dependencies are installed |
 | `frontend` | the package.json typecheck script passes when the scaffold defines one |
