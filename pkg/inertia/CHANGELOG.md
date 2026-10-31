@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.13.2 - 2026-10-31
+
 ### Fixed
 
 - `Renderer.Redirect` answers an Inertia visit with a redirect to another host

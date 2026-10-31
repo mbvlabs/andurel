@@ -4,6 +4,8 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+## 0.9.0 - 2026-10-31
+
 ### BREAKING
 
 - A route whose path is `/` matches only `/`, on every host. Before, a bare `/`
