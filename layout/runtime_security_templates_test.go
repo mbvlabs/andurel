@@ -26,7 +26,7 @@ func TestGeneratedGlobalCORSIsScopedToExplicitOrigins(t *testing.T) {
 
 func TestGeneratedViteAssetsUsePublicCORS(t *testing.T) {
 	assertTemplateContains(t, "handlers_assets.tmpl",
-		"rt.Get(routes.ViteBuild.Pattern(), a.dist, anduin.CORS(anduin.CORSConfig{",
+		"rt.Route(routes.ViteBuild).Get(a.dist, anduin.CORS(anduin.CORSConfig{",
 		"AllowOrigins:     []string{\"*\"}",
 		"AllowCredentials: false",
 	)

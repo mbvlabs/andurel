@@ -11,13 +11,15 @@ import (
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
 	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
 // AuthOnly requires a signed-in session whose user still exists and whose
 // session version matches the database. It reloads the user on every request,
 // so a deleted user, a password change or an admin demotion takes effect
-// immediately instead of at cookie expiry.
-func AuthOnly(users domains.Users) anduin.Middleware {
+// immediately instead of at cookie expiry. A rejected visitor is sent to the
+// sign-in page on the primary host; hosts builds that absolute URL.
+func AuthOnly(users domains.Users, hosts *routing.Hosts) anduin.Middleware {
 	return func(next anduin.Handler) anduin.Handler {
 		return func(ctx context.Context) error {
 			session, err := kiks.Get[*Session](ctx)
@@ -25,25 +27,25 @@ func AuthOnly(users domains.Users) anduin.Middleware {
 				return err
 			}
 			if session == nil || !session.IsAuthenticated {
-				return rejectSession(ctx)
+				return rejectSession(ctx, hosts)
 			}
 
 			userID, err := uuid.Parse(session.UserID)
 			if err != nil {
-				return rejectSession(ctx)
+				return rejectSession(ctx, hosts)
 			}
 
 			user, err := users.Find(ctx, userID)
 			if err != nil {
 				if errors.Is(err, domains.ErrNotFound) {
-					return rejectSession(ctx)
+					return rejectSession(ctx, hosts)
 				}
 
 				return err
 			}
 
 			if user.SessionVersion != session.SessionVersion {
-				return rejectSession(ctx)
+				return rejectSession(ctx, hosts)
 			}
 
 			return next(WithViewer(ctx, user))
@@ -52,12 +54,23 @@ func AuthOnly(users domains.Users) anduin.Middleware {
 }
 
 // rejectSession clears the invalid cookie before sending the visitor to sign in.
-func rejectSession(ctx context.Context) error {
+func rejectSession(ctx context.Context, hosts *routing.Hosts) error {
 	if err := kiks.Destroy[*Session](ctx); err != nil {
 		return err
 	}
 
-	return anduin.Redirect(ctx, routes.SessionNew.URL(), http.StatusSeeOther)
+	return anduin.Redirect(ctx, signInURL(ctx, hosts), http.StatusSeeOther)
+}
+
+// signInURL is the sign-in page the visitor is sent to. Sign-in is served on
+// the primary host, so a request on any other host gets the absolute primary
+// URL: the path alone would point at a page that host may not serve.
+func signInURL(ctx context.Context, hosts *routing.Hosts) string {
+	if anduin.RequestHost(ctx) == routing.HostPrimary {
+		return routes.SessionNew.URL()
+	}
+
+	return routes.SessionNew.FullURL(hosts)
 }
 
 // Viewer is the database-backed user AuthOnly attached to the request.

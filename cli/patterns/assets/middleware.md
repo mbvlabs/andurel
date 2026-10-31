@@ -8,8 +8,9 @@ Generic cross-cutting behavior (recovery, client IP, CORS, CSRF, rate limits,
 telemetry) comes from `pkg/anduin`; `middleware/` is for policy this application
 owns, such as an admin guard or a session definition. Install global middleware
 with `router.Use(...)` in `app`, before `router.Handler()` is
-called, and per-route middleware after the handler:
-`rt.Get(path, h, middleware.RequireAdmin())`.
+called. Per-domain middleware goes on the host with `rt.Host(name).Use(...)`,
+and per-route middleware goes after the handler:
+`rt.Route(routes.AdminDashboard).Get(h, middleware.RequireAdmin())`.
 
 ## Files
 
@@ -61,12 +62,19 @@ func RequireAdmin() anduin.Middleware {
   `Use` must run before the first `router.Handler()` call, because the handler
   chain is built and cached once.
 - Per-route middleware goes after the handler:
-  `rt.Get(routes.AdminDashboard.Pattern(), h.Dashboard, middleware.RequireAdmin())`.
+  `rt.Route(routes.AdminDashboard).Get(h.Dashboard, middleware.RequireAdmin())`.
   The first middleware in the list is the outermost, so list authentication
   before authorization.
-- Never trust identity from a cookie. `AuthOnly(users)` reloads the user from
+- Per-domain middleware goes on the host, not in a path check:
+  `admin := rt.Host(config.HostAdmin)`, `admin.FallbackToPrimary()` or
+  `admin.Isolate()`, then `admin.Use(middleware.AuthOnly(users, hosts))`. It
+  runs after global middleware and before per-route middleware, and only for
+  requests the domain answers from its own routes. A request that falls back to
+  the primary site's routes (an asset, say) does not run it.
+- Never trust identity from a cookie. `AuthOnly(users, hosts)` reloads the user from
   the database and attaches it with `WithViewer`; read it with `ViewerFrom`.
-  A deleted user or a stale `SessionVersion` is rejected on every request.
+  A deleted user or a stale `SessionVersion` is rejected on every request. A
+  rejected visitor is sent to the primary host's sign-in page.
 - Put request-scoped values on `context.Context` with unexported key types in
   the same package, and expose typed accessors (`WithViewer` / `ViewerFrom`).
   Dependencies and database handles never go on the context.

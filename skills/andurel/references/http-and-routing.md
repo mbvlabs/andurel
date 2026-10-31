@@ -59,11 +59,20 @@ Registration:
 
 ```go
 func (h Handler) Register(rt *anduin.Router) {
-	rt.Get(routes.UserIndex.Pattern(), h.Index)
-	rt.Get(routes.UserShow.Pattern(), h.Show)
-	rt.Post(routes.UserCreate.Pattern(), h.Create, anduin.RateLimit(h.cache, 5, 10*time.Minute, nil))
+	rt.Route(routes.UserIndex).Get(h.Index)
+	rt.Route(routes.UserShow).Get(h.Show)
+	rt.Route(routes.UserCreate).Post(h.Create, anduin.RateLimit(h.cache, 5, 10*time.Minute, nil))
 }
 ```
+
+`rt.Route(route)` (and `host.Route(route)`) registers a `pkg/routing` route value
+on the host the route declares, so `routing.Host(...)` decides the domain. It
+panics on `Host.Route` when the route declares a different host. The returned
+registrar has `Get`, `Post`, `Put`, `Patch` and `Delete`. `rt.Get(path, ...)` and
+the other path-string methods remain for ad-hoc routes that are not declared
+with `routing`. Do not write `rt.Get(route.Pattern(), ...)` for a route bound to
+another host: it is served on the primary host. `andurel verify` reports this
+(rule `route-host`).
 
 `anduin.Serve(w, r, handler)` is the low-level entry point behind
 `Router.Handler`, useful when embedding an `anduin.Handler` in another
@@ -71,29 +80,32 @@ func (h Handler) Register(rt *anduin.Router) {
 
 ### Exact routes, precedence, and HEAD
 
-Register routes with `Pattern()`, not `Path()`. `Path()` returns the URL used
-in links and redirects (`"/"`); `Pattern()` returns the value to register with
-the router. They differ only when the route is declared with `routing.Exact()`:
-the URL path stays `"/"` and the pattern becomes `"/{$}"`, because an
-`http.ServeMux` pattern ending in `/` matches every path with that prefix.
+A route whose path is `/` matches only `/`, on every host. This is always the
+case: `routing.Exact()` on `/` is a no-op kept so existing code compiles. A
+catch-all must be declared `/*`. Before this change a bare `/` was a subtree
+pattern and caught every path, so an SPA fallback on `/` must become `/*`.
 
 ```go
 var HomePage = routing.NewSimpleRoute(
 	"/",
 	"pages.home",
 	"",
-	routing.Exact(),
 	routing.TypeScriptRoute(),
 )
 
-rt.Get(routes.HomePage.Pattern(), h.Home) // registers GET /{$}
+rt.Route(routes.HomePage).Get(h.Home) // registers GET /{$}
 ```
+
+Register routes with `rt.Route(route)` (or `Pattern()` for ad-hoc paths), not
+`Path()`. `Path()` returns the URL used in links and redirects (`"/"`);
+`Pattern()` returns the value the router registers, which is `"/{$}"` for `/`
+because an `http.ServeMux` pattern ending in `/` matches every path with that
+prefix.
 
 Pattern precedence follows `http.ServeMux`: the most specific pattern wins.
 Exact paths (`/about`) beat wildcards (`/posts/{id}`), which beat a trailing
 catch-all (`/{path...}`); a method-specific pattern beats a method-less one.
-Prefer `routing.Exact()` over a hand-written catch-all. Requests that match no
-route are passed to the router's `ErrorHandler` as `anduin.ErrNotFound`, so a
+Requests that match no route are passed to the router's `ErrorHandler` as `anduin.ErrNotFound`, so a
 scaffolded app maps it once:
 
 ```go
@@ -116,8 +128,25 @@ are served only when the request `Host` matches that hostname (or one of its
 aliases).
 
 ```go
-rt.Host(config.HostAdmin).Get(routes.AdminDashboard.Pattern(), h.Dashboard)
+admin := rt.Host(config.HostAdmin)
+admin.FallbackToPrimary() // or admin.Isolate(); required once the host has routes
+admin.Use(middleware.AuthOnly(users, hosts))
+rt.Route(routes.AdminDashboard).Get(h.Dashboard)
+admin.Mount("/jobs", riverUIHandler) // any http.Handler, every method
+anduin.SkipCSRFForHosts(config.HostAdmin) // CSRF skipper for the host, if needed
 ```
+
+Each host needs a fallback policy once it has routes. `FallbackToPrimary()`
+checks the host's own routes first and uses the primary routes only when none
+match, so assets and `robots.txt` work without being registered twice.
+`Isolate()` answers unmatched paths with 404. `Handler()` panics at boot when a
+host has routes and neither call. A host with no routes keeps falling back to
+the primary routes and needs no call. Requests answered from the primary routes
+do not run the host's middleware.
+
+`Host.Use(mw...)` adds per-domain middleware. It runs after the global
+middleware and before per-route middleware, and only for requests the host
+answers from its own routes.
 
 Build the hostname registry at boot with `routing.NewHosts`, using
 `routing.HostName` and `routing.HostPrimary`, then pass it to `anduin.NewRouter`
@@ -285,9 +314,10 @@ func CSRF(cfg CSRFConfig) Middleware
   asset prefix, so `/assets/dist/*` responses do not set `_csrf`.
 
 App middleware (auth and session definitions) lives in `middleware/` and uses
-the same `anduin.Middleware` type. `middleware.AuthOnly(users)` reloads the
+the same `anduin.Middleware` type. `middleware.AuthOnly(users, hosts)` reloads the
 session's user from the database on every request, rejects a missing user or a
-stale `SessionVersion` (clearing the cookie and redirecting to sign-in), and
+stale `SessionVersion` (clearing the cookie and redirecting to the primary host's
+sign-in page, as an absolute URL when the request is on another host), and
 attaches the database-backed user for `middleware.ViewerFrom(ctx)`, so admin
 checks never trust a value in the cookie. `pkg/inertia`'s
 `(*Renderer).Middleware()` also returns an `anduin.Middleware`.

@@ -311,11 +311,12 @@ func TestGeneratedSessionsCarryVersionAndDropAdmin(t *testing.T) {
 		"SessionVersion:  entity.SessionVersion",
 	)
 	assertTemplateContains(t, "router_middleware_auth.tmpl",
-		"func AuthOnly(users domains.Users)",
+		"func AuthOnly(users domains.Users, hosts *routing.Hosts)",
+		"func signInURL(ctx context.Context, hosts *routing.Hosts) string",
 		"user.SessionVersion != session.SessionVersion",
 		"func ViewerFrom(ctx context.Context) (Viewer, bool)",
 	)
-	assertTemplateContains(t, "runtime_runtime.tmpl", "middleware.AuthOnly(users)")
+	assertTemplateContains(t, "runtime_runtime.tmpl", "middleware.AuthOnly(users, hosts)")
 	assertTemplateContains(t, "database_migrations_users.tmpl",
 		"session_version INTEGER NOT NULL DEFAULT 1",
 	)

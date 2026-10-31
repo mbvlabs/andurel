@@ -154,7 +154,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	)
 
 	// The welcome page is public: a new project must be reachable before anyone
-	// signs in. Pass middleware.AuthOnly(users) to Register to protect a page.
+	// signs in. Pass middleware.AuthOnly(users, hosts) to Register to protect a page.
 	handlers.NewPagesHandler(renderer).Register(router)
 	assetsHandler.Register(router)
 	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)

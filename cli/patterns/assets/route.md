@@ -35,7 +35,8 @@ var (
 // state. Calling a full-URL helper before configuration throws: a module-scope
 // const evaluated at import would otherwise freeze an empty or stale origin.
 // Use routes.<name>.path() when only a relative URL is needed; .path() and
-// .host work without configuration.
+// .host work without configuration. A full-URL helper whose host has no
+// configured origin returns the path only, as the Go helpers do.
 
 type HostOrigins = Record<string, string>
 
@@ -79,15 +80,22 @@ function currentOrigins(): HostOrigins {
   return origins
 }
 
+// origin returns the configured origin for host. The primary origin is always
+// configured on the Go side, so a missing one is a configuration error and
+// throws. Any other host with no configured origin gives an empty origin, so
+// the helper returns a path, as the Go route helpers do. It never falls back to
+// the primary origin.
 function origin(host: string): string {
-  const origins = currentOrigins()
-  const resolved = origins[host] ?? origins.primary
-  if (resolved === undefined || resolved === '') {
+  const configured = currentOrigins()[host]
+  if (configured !== undefined) {
+    return configured
+  }
+  if (host === 'primary') {
     throw new Error(
-      'routes: no origin configured for route host "' + host + '"; add it to the shared hosts prop or use routes.<name>.path()',
+      'routes: no origin configured for route host "primary"; add it to the shared hosts prop or use routes.<name>.path()',
     )
   }
-  return resolved
+  return ''
 }
 
 export const routes = {
@@ -125,6 +133,11 @@ function routeHelper<Args extends unknown[]>(def: {
   Build the host registry with `routing.NewHosts(...)`, pass it to
   `anduin.NewRouter(anduin.WithHosts(hosts), ...)`, and pass the same value to
   `FullURL(hosts, ...)`.
+- Register a route with `rt.Route(routes.X).Get(h)` (or `Post`, `Put`, `Patch`,
+  `Delete`). The route value decides the host it is served on. Do not write
+  `rt.Get(routes.X.Pattern(), h)` for a route bound to another host: it serves the
+  route on the primary host. `andurel verify` reports this (rule `route-host`).
+- A route whose path is `/` matches only `/`. A catch-all is declared `/*`.
 - Mark every route the frontend links to with `routing.TypeScriptRoute()`
   (`routing.InertiaRoute()` is a deprecated alias).
   `andurel sync routes` skips routes without it, so JSON/asset/health routes
@@ -147,7 +160,7 @@ function routeHelper<Args extends unknown[]>(def: {
 
 - [ ] Path, name, and params declared with the `routing` helpers.
 - [ ] `routing.TypeScriptRoute()` set on every route the frontend links to.
-- [ ] Handler `Register` uses `routes.<Name>.Pattern()`; use `Path()` for URLs.
+- [ ] Handler `Register` uses `rt.Route(routes.<Name>)`; use `Path()` for URLs.
 - [ ] `andurel sync routes` run for Inertia projects; the generated key is the
       lower-camelCase variable name.
 - [ ] `andurel inspect routes --json` reports the new route.

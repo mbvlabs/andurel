@@ -1,5 +1,13 @@
 ## Unreleased
 
+### Fixed
+
+- `Renderer.Redirect` answers an Inertia visit with a redirect to another host
+  using the full page visit response (`409 Conflict` with `X-Inertia-Location`),
+  because browsers refuse to follow cross-origin redirects made from XHR requests.
+  Non-Inertia requests, same-host absolute URLs, and relative paths keep the
+  normal redirect.
+
 ## 0.13.1 - 2026-10-30
 
 ### Changed

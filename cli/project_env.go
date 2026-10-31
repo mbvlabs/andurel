@@ -35,6 +35,8 @@ func (source configValueSource) describe() string {
 			return source.Key + " default from " + source.SourceFile
 		}
 		return source.Key + " from a config default"
+	case "derived":
+		return source.Key + " not set; defaults to the host name followed by HOST_PRIMARY"
 	default:
 		return source.Key + " from " + source.Source
 	}
