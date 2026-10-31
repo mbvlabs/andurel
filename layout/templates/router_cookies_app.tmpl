@@ -10,12 +10,15 @@ import (
 type Session struct {
 {{ goStructFields .Blueprint.Cookies.SortedAppFields }}}
 
+// NewSessionCookie defines the session cookie. An empty cfg.CookieDomain leaves
+// the cookie host-only.
 func NewSessionCookie(cfg config.Session, secure bool) kiks.Definition {
 	return kiks.NewSession[*Session](
 		cfg.Name,
 		kiks.HTTPOnly(),
 		kiks.Secure(secure),
 		kiks.MaxAge(cfg.MaxAge),
+		kiks.Domain(cfg.CookieDomain),
 	)
 }
 

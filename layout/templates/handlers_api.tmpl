@@ -30,8 +30,8 @@ func NewAPIHandler(
 }
 
 func (a APIHandler) Register(rt *anduin.Router) {
-	rt.Get(routes.Health.Pattern(), livenessHandler)
-	rt.Get(routes.Ready.Pattern(), a.readiness)
+	rt.Route(routes.Health).Get(livenessHandler)
+	rt.Route(routes.Ready).Get(a.readiness)
 }
 
 // livenessHandler answers 200 while the process serves requests. It does not

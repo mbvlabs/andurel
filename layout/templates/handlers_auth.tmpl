@@ -40,41 +40,38 @@ const (
 	authAttemptWindow = 10 * time.Minute
 )
 
+// Register binds each route on the host it declares with rt.Route, so the
+// route value, not a copied path, decides the domain it is served on.
 func (h AuthHandler) Register(rt *anduin.Router) {
-	rt.Get(routes.SessionNew.Pattern(), h.SessionNew)
-	rt.Post(
-		routes.SessionCreate.Pattern(),
+	rt.Route(routes.SessionNew).Get(h.SessionNew)
+	rt.Route(routes.SessionCreate).Post(
 		h.SessionCreate,
 		h.throttle(h.tooManyAttempts("Auth/Login", "email")),
 	)
-	rt.Delete(routes.SessionDestroy.Pattern(), h.SessionDestroy)
+	rt.Route(routes.SessionDestroy).Delete(h.SessionDestroy)
 	// The POST route lets a plain HTML form sign out without JavaScript; the
 	// DELETE route stays for the Inertia link.
-	rt.Post(routes.SessionDestroy.Pattern(), h.SessionDestroy)
+	rt.Route(routes.SessionDestroy).Post(h.SessionDestroy)
 
-	rt.Get(routes.RegistrationNew.Pattern(), h.RegistrationNew)
-	rt.Post(
-		routes.RegistrationCreate.Pattern(),
+	rt.Route(routes.RegistrationNew).Get(h.RegistrationNew)
+	rt.Route(routes.RegistrationCreate).Post(
 		h.RegistrationCreate,
 		h.throttle(h.tooManyAttempts("Auth/Registration", "email")),
 	)
 
-	rt.Get(routes.ConfirmationNew.Pattern(), h.ConfirmationNew)
-	rt.Post(
-		routes.ConfirmationCreate.Pattern(),
+	rt.Route(routes.ConfirmationNew).Get(h.ConfirmationNew)
+	rt.Route(routes.ConfirmationCreate).Post(
 		h.ConfirmationCreate,
 		h.throttle(h.tooManyAttempts("Auth/ConfirmEmail", "code")),
 	)
 
-	rt.Get(routes.PasswordNew.Pattern(), h.PasswordNew)
-	rt.Post(
-		routes.PasswordCreate.Pattern(),
+	rt.Route(routes.PasswordNew).Get(h.PasswordNew)
+	rt.Route(routes.PasswordCreate).Post(
 		h.PasswordCreate,
 		h.throttle(h.tooManyAttempts("Auth/ResetPasswordRequest", "email")),
 	)
-	rt.Get(routes.PasswordEdit.Pattern(), h.PasswordEdit)
-	rt.Put(
-		routes.PasswordUpdate.Pattern(),
+	rt.Route(routes.PasswordEdit).Get(h.PasswordEdit)
+	rt.Route(routes.PasswordUpdate).Put(
 		h.PasswordUpdate,
 		h.throttle(h.tooManyPasswordResets),
 	)

@@ -84,7 +84,7 @@ through an application-specific, secure workflow instead.
 
 4. **Validate the setup**
    ```bash
-   andurel doctor           # configuration, Inertia SSR readiness, go vet and go mod tidy, generated code
+   andurel doctor           # configuration, database connectivity, tools, generated code
    ```
 
 5. **Start the development server**
@@ -98,7 +98,7 @@ through an application-specific, secure workflow instead.
    andurel verify --with-tests   # also runs go test ./... (DB tests need Docker)
    ```
 
-Your application is now running at `http://localhost:8080` with live reload for Go, Templ, CSS, and Vite changes. Routes are public unless you wrap them in `middleware.AuthOnly(users)`.
+Your application is now running at `http://localhost:8080` with live reload for Go, Templ, CSS, and Vite changes. The welcome page at `/` is public; register a route with `middleware.AuthOnly(users, hosts)` to protect one.
 
 ## Dependencies, Lockfile, And Agent Skill
 This project pins its dependencies with the selected package manager's
@@ -201,9 +201,7 @@ needs, the app `/api/health` (liveness) and `/api/ready` (readiness) endpoints,
 the SSR sidecar `/health` endpoint, and why `INERTIA_SSR_FAIL_FAST=true` belongs
 in production.
 
-`GET /api/health` is liveness: it answers 200 while the process runs and checks
-nothing else, so a database outage does not make the orchestrator restart the
-web process. `GET /api/ready` is readiness and answers 200
+`GET /api/health` answers while the process runs. `GET /api/ready` answers 200
 `{"status":"ready"}` only when the database answers and a required Inertia SSR
 sidecar is healthy; otherwise it answers 503
 `{"status":"unready","reason":"..."}` with a stable reason
@@ -242,7 +240,7 @@ andurel sync payloads --json
 `andurel sync payloads` emits every exported struct declared in `payloads/` to
 `resources/js/types/payloads.ts` and follows nested named structs inside that
 package. Keep payload fields to standard-library types, `time`, and
-the stdlib `uuid` package the scaffold imports (`"uuid"`): `payloads/` may not import application packages, so
+`github.com/google/uuid`: `payloads/` may not import application packages, so
 handlers import `payloads` for page props and request bodies instead of
 defining them inline.
 
@@ -263,7 +261,7 @@ Verify everything before you ship:
 andurel verify
 ```
 
-`andurel verify` runs the setup preflight, formatting, `go fix`, `go vet`, the typed layer rules, the frontend stage (the `typecheck` script and the route-usage rule), the generated-code drift stage, and the content stage (`andurel.content.toml`, skipped when none is declared). `andurel verify --help` lists each rule. Violations come with a `fix`; a failed run exits 9. Pass `--with-tests` to also run `go test ./...`.
+`andurel verify` runs formatting, `go fix`, `go vet`, the typed layer rules (listed in `andurel verify --help`), and generated-code drift. Violations come with a `fix`; a failed run exits 9. Pass `--with-tests` to also run `go test ./...`.
 
 ## How-To Guides
 
@@ -417,7 +415,7 @@ func NewProductHandler(products domains.Products, renderer *inertia.Renderer) Pr
 }
 
 func (h ProductHandler) Register(rt *anduin.Router) {
-    rt.Get(routes.ProductIndex.Pattern(), h.Index)
+    rt.Route(routes.ProductIndex).Get(h.Index)
 }
 
 func (h ProductHandler) Index(ctx context.Context) error {
@@ -544,9 +542,7 @@ _, err := i.queue.Insert(ctx, jobs.MyJobArgs{
 }, &river.InsertOpts{
     MaxAttempts: 5,
     Priority:    1,
-    // The scaffold configures only the default queue. Add a named queue to
-    // cfg.Queues in config/queue.go before using it.
-    Queue:       river.QueueDefault,
+    Queue:       "critical",
 })
 ```
 
@@ -687,15 +683,14 @@ In development, `pkg/inertia` posts the page to the Vite dev server's
 (`ssr.noExternal`) so the embedded bundle runs without `node_modules`; the
 bundle is larger by design.
 
-`INERTIA_SSR_FAIL_FAST` defaults to `true`, and `.env.example` documents it as a
-commented-out opt-in. In production, fail-fast on means an SSR failure is a
-themed 500 and `/api/ready` stays unready while the sidecar is unreachable. In
-development and tests an SSR failure always falls back to client rendering
-(logged), so `go run ./cmd/app` and the app tests run without the Vite dev
-server. Uncomment `INERTIA_SSR_FAIL_FAST=false` only to opt into
-client-side-rendering fallback in production; with it off, every page is still
-attempted with SSR but an SSR failure falls back to client rendering, logs the
-error, and readiness does not gate on the sidecar. Error pages (validation errors, rate limits, 404/405/500) stay
+`INERTIA_SSR_FAIL_FAST` defaults to `true` in every environment, and
+`.env.example` documents it as a commented-out opt-in. With fail-fast on, an
+SSR failure is a themed 500 and `/api/ready` stays unready while the sidecar is
+unreachable. Uncomment `INERTIA_SSR_FAIL_FAST=false` only to opt into
+client-side-rendering fallback, for example in development without the Vite dev
+server; with it off, every page is still attempted with SSR but an SSR failure
+falls back to client rendering, logs the error, and readiness does not gate on
+the sidecar. Error pages (validation errors, rate limits, 404/405/500) stay
 client-rendered unless their error mapping opts into SSR.
 
 ### Run Production Locally
@@ -799,13 +794,13 @@ MAILPIT_PORT=1025
 # SMTP_USERNAME=
 # SMTP_PASSWORD=
 # SMTP_TLS=starttls
-# Unset, the sender is noreply@<HOST_PRIMARY without its port>.
-# DEFAULT_SENDER_SIGNATURE=noreply@localhost
+DEFAULT_SENDER_SIGNATURE=info@app.com
 
 # Security (auto-generated during scaffolding)
 SESSION_KEY=<auto-generated>
 SESSION_ENCRYPTION_KEY=<auto-generated>
 SESSION_MAX_AGE=604800
+SESSION_COOKIE_DOMAIN=
 TOKEN_SIGNING_KEY=<auto-generated>
 PEPPER=<auto-generated>
 PREVIOUS_PEPPERS=
@@ -846,10 +841,17 @@ cookie-backed `Store`. Cookies are `HttpOnly` with `SameSite=Lax` and `Path=/`.
 Production cookies also use `Secure`. `SESSION_MAX_AGE` is the lifetime in
 seconds and defaults to seven days (`604800`). Saving session state renews the
 expiration. Signing out destroys the session immediately. The cookie carries the
-user id and a `session_version`; `middleware.AuthOnly(users)` reloads the user on
+user id and a `session_version`; `middleware.AuthOnly(users, hosts)` reloads the user on
 every request and rejects a missing user or a stale version, so a password
-change or admin demotion revokes existing sessions. Handlers read the
-database-backed user (including `IsAdmin`) with `middleware.ViewerFrom(ctx)`.
+change or admin demotion revokes existing sessions. A rejected visitor goes to
+the sign-in page on the primary host (an absolute URL when the request arrived on
+another host). Handlers read the database-backed user (including `IsAdmin`) with
+`middleware.ViewerFrom(ctx)`.
+
+`SESSION_COOKIE_DOMAIN` sets the `Domain` attribute of the session and CSRF
+cookies. It is empty by default, which keeps one cookie per host. Set it to a
+bare domain such as `.example.com` to share the sign-in across subdomains; a
+value with a scheme, path or port fails config validation.
 
 CORS is provided by `anduin.CORS(CORSConfig)` and configured in
 `app/`. The global policy trusts only `CORS_ALLOWED_ORIGINS`, a
@@ -872,11 +874,9 @@ path. Safe requests under the Vite asset prefix skip CSRF entirely, so
 `/assets/dist/*` responses do not set `_csrf`; unsafe asset requests are never
 skipped.
 
-Requests through the CSRF middleware set the `_csrf` cookie (`HttpOnly`, `SameSite=Strict`, and `Secure` in production). Safe methods (`GET`, `HEAD`, `OPTIONS`, `TRACE`) are never checked. An unsafe request passes when its `Origin` header (or `Referer`, when `Origin` is absent) exactly matches a trusted origin. Otherwise the request must echo the `_csrf` cookie value in a token location, and a missing or mismatched token answers `403` with `CSRF token verification failed`.
-
-**Strategies** (`CSRF_STRATEGY`) choose where the token may be sent:
-- `header_only` (default): the token must be in the `X-CSRF-Token` header.
-- `header_or_legacy_token`: the token may be in the `X-CSRF-Token` header or in a `_csrf` form field, so a plain HTML form can post it.
+**Strategies** (`CSRF_STRATEGY`):
+- `header_only` (default): Unsafe requests must include the `Sec-Fetch-Site` header. Requests missing this header are rejected with `403`.
+- `header_or_legacy_token`: Allows legacy form tokens when `Sec-Fetch-Site` is missing. Forms must submit `_csrf` or send `X-CSRF-Token`.
 
 **Trusted origins**:
 - Every configured host origin (`PROTOCOL` + `HOST_PRIMARY`, and extra hosts such as `HOST_ADMIN`) is trusted automatically.
@@ -907,17 +907,48 @@ Single-host apps are the default: set `HOST_PRIMARY` and keep path namespaces su
 
 To serve a second domain from the same process:
 
-1. Declare a host name in `config/hosts.go`, for example `const HostAdmin routing.HostName = "admin"`.
-2. Load `HOST_ADMIN` (or another `HOST_*`) into `App.Hosts` at boot. Missing hostnames fail startup.
-3. Register aliases (`www`, extra names) as additional hostnames for that `HostName`.
-4. Bind a route value to the host with `routing.Host(config.HostAdmin)` and register it on `rt.Host(config.HostAdmin)`:
+1. Declare a host name in `config/hosts.go` as a constant and list it in `extraHostNames`, for example `const HostAdmin routing.HostName = "admin"` and `var extraHostNames = []routing.HostName{HostAdmin}`.
+2. `config.NewApp` reads `HOST_ADMIN` (`HOST_<NAME>` for each listed name). Unset, it defaults to `admin.` followed by `HOST_PRIMARY`. All domains are validated with the rest of the config, so a bad domain fails at config load.
+3. Bind each route value to its host with `routing.Host(config.HostAdmin)` in the route declaration. Register it with `rt.Route(route)`, which reads the host from the route:
+
+```go
+rt.Route(routes.AdminDashboard).Get(adminHandler.Dashboard)
+```
+
+   Do not register a host route with `rt.Get(route.Pattern(), ...)`: that serves it on the primary host whatever host it declares. `andurel verify` reports it (rule `route-host`).
+
+4. Choose what the domain does with paths its own routes do not match. This is required once the domain has routes; `Handler()` panics at boot otherwise:
 
 ```go
 admin := rt.Host(config.HostAdmin)
-admin.Get(routes.AdminDashboard.Pattern(), adminHandler.Dashboard)
+admin.FallbackToPrimary() // unmatched paths use the primary site's routes (assets, robots.txt)
+// or
+admin.Isolate()           // unmatched paths answer 404 on this domain
 ```
 
-The reverse proxy must forward the public `Host` header unchanged. Matching tries the exact authority first, then the bare host, so a configured hostname without a port matches that host on every port, not only `:80` and `:443`. Configure an explicit `host:port` alias when only one port should match. Unknown hosts are served by the primary mux. Duplicate hostnames or aliases across `HostName`s fail at boot.
+   `FallbackToPrimary` checks the domain's own routes first. Requests answered from the primary routes do not run the domain's middleware. A domain with no routes needs no call.
+
+5. Put per-domain middleware on the host. It runs after the global middleware and before each route's own middleware, and only for requests the domain answers from its own routes:
+
+```go
+admin.Use(middleware.AuthOnly(users, hosts)) // plus your own admin check
+```
+
+   Global middleware still runs for every request. Register a route's per-route middleware as the last argument to its `Get`/`Post` call.
+
+6. Register aliases (`www`, extra names) as additional hostnames for that `HostName` where needed.
+
+The reverse proxy must forward the public `Host` header unchanged. A configured hostname without a port is also aliased as `hostname:80` and `hostname:443` so lookups succeed whether the proxy forwards a bare host or an explicit standard port. Unknown hosts are served by the primary mux. Duplicate hostnames or aliases across `HostName`s fail at boot.
+
+**Exact root path**: a route whose path is `/` matches only `/`, on every host. A catch-all (for example a single-page app that serves every path) must be declared as `/*`:
+
+```go
+// before: a bare "/" caught every path
+var SPA = routing.NewSimpleRoute("/", "spa", "")
+
+// after
+var SPA = routing.NewSimpleRoute("/*", "spa", "")
+```
 
 **Host-aware middleware**: `anduin.RequestHost(ctx)` returns the `routing.HostName`
 the dispatcher resolved for the request, before global middleware runs. Matching
@@ -977,13 +1008,13 @@ Layout CSS and JS stay on the primary host unless those routes set `routing.Host
 
 Inertia Vite files stay on the primary host. Production tags from `pkg/inertia` use `ViteBuild.FullURL(hosts)` plus `crossorigin` so a secondary-host page loads the entry from primary. Vite production `base` is `'./'` so hashed chunks and fonts resolve against that script URL, not the page origin. Development keeps `base: '/assets/dist/'` and tags that hit `INERTIA_VITE_DEV_URL`.
 
-Inertia TypeScript helpers from `andurel sync routes` return full URLs for routes marked `routing.TypeScriptRoute()` (`routing.InertiaRoute()` is a deprecated alias). Boot configures origins once via the shared `hosts` prop (`configureRouteHosts` in `resources/js/app` / SSR entry), so `routes.homePage()` resolves to the correct host without per-call arguments. A full-URL helper throws until that configuration runs; use `routes.homePage.path()` when a relative path is required. Call helpers at render time rather than caching `const url = routes.homePage()` at module scope: origins are configured after boot, and `andurel verify` reports such module-initialization calls. Run `andurel sync routes` after adding host-bound routes. Not-found handlers are registered on every configured host.
+Inertia TypeScript helpers from `andurel sync routes` return full URLs for routes marked `routing.TypeScriptRoute()` (`routing.InertiaRoute()` is a deprecated alias). Boot configures origins once via the shared `hosts` prop (`configureRouteHosts` in `resources/js/app` / SSR entry), so `routes.homePage()` resolves to the correct host without per-call arguments. A full-URL helper throws until that configuration runs; use `routes.homePage.path()` when a relative path is required. A full-URL helper for a host with no configured origin returns the path only, as the Go helpers do; it never falls back to the primary origin. Call helpers at render time rather than caching `const url = routes.homePage()` at module scope: origins are configured after boot, and `andurel verify` reports such module-initialization calls. Run `andurel sync routes` after adding host-bound routes. Not-found handlers are registered on every configured host.
 
 To serve layout CSS/JS from `assets.example.com`, declare `const HostAssets routing.HostName = "assets"`, bind `HOST_ASSETS`, and put `routing.Host(config.HostAssets)` on those routes. There is no framework special case — it is another named host. For Inertia Vite, bind `ViteBuild` to that host too; `FullURL(hosts)` plus relative Vite `base` follow the script origin.
 
 **Client/testing tips**:
-- For unsafe requests in tests, send an `Origin` header that matches a trusted origin, or send the `_csrf` cookie value in `X-CSRF-Token`.
-- When using `header_or_legacy_token`, a form may submit `_csrf` instead of the header.
+- For unsafe requests in tests or custom clients, include `Sec-Fetch-Site: same-origin`.
+- When using `header_or_legacy_token`, submit `_csrf` with forms or send `X-CSRF-Token`.
 
 ## Development Tips
 
@@ -1077,13 +1108,9 @@ go test -v ./...
 `andurel verify --with-tests` runs `go test ./...` and reports skips without
 failing: a package that ran no tests is listed under the go test step's
 `skipped_packages`, and each `t.Skip` is listed under `skipped_tests` with its
-reason. A fresh scaffold skips five app tests in `app/runtime_test.go` until the
-frontend is built: the two Vite asset CORS and CSRF tests (`TestViteAssetsUsePublicCORS`,
-`TestViteAssetsSkipCSRFCookie`) need `assets/dist` output, and the three production
-readiness tests (`TestReadinessFailsWhenProductionSSRSidecarIsUnavailable`,
-`TestReadinessRecoversWithHealthySSRSidecar`, `TestReadinessIgnoresSSRWithExplicitCSRFallback`)
-need `assets/dist/vite/manifest.json`. Run `pnpm build` before the final
-`andurel verify --with-tests` evidence run, so those five tests run instead of skipping.
+reason. Tests that need built frontend assets should `t.Skip` with a message
+when `assets/dist` is missing; build the frontend (`pnpm build`) before the
+final `andurel verify --with-tests` evidence run.
 
 ### Test Database Setup
 
