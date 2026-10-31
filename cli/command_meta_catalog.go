@@ -396,7 +396,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel build": {
 		Summary: "Build every application process for production",
 		WhenToUse: []string{
-			"Compile every cmd/* process with a main package (except seeds and configcheck) and the client assets into dist/.",
+			"Compile every cmd/* process with a main package (except seeds) and the client assets into dist/.",
 			"Client assets and assets/dist/ssr/ssr.js are embedded in the binaries; no asset files are needed beside them at runtime.",
 			"Use --only to build a subset, and --json for an artifact manifest with path, size, and version.",
 			"Runtime environment: app needs the full config; queue needs database, queue, email, cache, and telemetry; migrate needs DB_*; ssr needs INERTIA_* and a JavaScript runtime.",
@@ -454,7 +454,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 		Summary: "Run diagnostic checks on the project",
 		WhenToUse: []string{
 			"Verify health and generated-file drift after changes.",
-			"Check first-run setup, runtime configuration and bounded database connectivity through the generated cmd/configcheck helper, and Inertia SSR readiness.",
+			"Check first-run setup and Inertia SSR readiness.",
 			"Check the applied/not_applied/not_applicable state of application-owned manual upgrade actions by stable action ID; manual_actions lists each detected state and the file marker it used.",
 			"Read json/agent output for each check's status: a skipped check is blocked on a prerequisite and is never reported as a pass.",
 		},

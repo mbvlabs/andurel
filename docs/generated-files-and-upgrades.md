@@ -37,69 +37,13 @@ tools (`andurel tool set-version`) read and write `andurel.toml`, not
 
 V2 is not an upgrade from V1. Projects on `1-5-stable` continue to use V1's upgrade behavior with a V1 `andurel` binary. The V2 CLI refuses to upgrade a project across a major version.
 
-Release readiness runs `TestUpgradeToHEAD` (`just test-upgrade-e2e`), which scaffolds with each supported released CLI, upgrades with the release candidate, applies every reported manual action, and requires the result to build and vet cleanly.
+Release readiness runs `TestUpgradeToHEAD` (`just test-upgrade-e2e`), which scaffolds with the previous released CLI, upgrades with the release candidate, and requires the result to build and vet cleanly.
 
 ## Manual actions
 
+Upgrade notes only exist between proper releases. Alpha and beta releases carry no manual actions: scaffold changes between pre-releases are defaults for new applications, and an existing application copies them from a fresh `andurel new` if it wants them.
+
 A manual action is emitted only when the upgrade crosses the release that introduced the change. Each action has a stable `id`, a title, and instructions with before/after code. Read them from `andurel upgrade --json` or the human report, apply them, then run `gofmt -w .`, `go fix ./...`, and `go vet ./...`.
-
-Upgrading from `v2.0.0-alpha.4` to `v2.0.0-alpha.5` or later reports:
-
-| ID | Change |
-| --- | --- |
-| `package-api-v2.0.0-alpha.5` | Composition-root changes for the alpha.5 `pkg/*` APIs. |
-| `storage-storagetest-v2.0.0-alpha.5` | Test databases come from `pkg/storage/storagetest`. |
-| `routing-hosts-v2.0.0-alpha.5` | `routing.NewHosts` replaces the package-level host registry; `FullURL` takes the registry. |
-| `session-revocation-v2.0.0-alpha.5` | `users.session_version`, checked by `middleware.AuthOnly(users)`; admin status is read from the database. |
-| `email-smtp-v2.0.0-alpha.5` | `EMAIL_PROVIDER=smtp` and the production Mailpit guard. |
-| `validation-validate-v2.0.0-alpha.5` | `validation.Validate` is gone; call the value's own `Validate` method. |
-
-Upgrading from `v2.0.0-alpha.5` to `v2.0.0-beta.1` reports no manual actions.
-
-Upgrading from any earlier supported release to `v2.0.0-beta.2` or later reports:
-
-| ID | Change |
-| --- | --- |
-| `email-sender-v2.0.0-beta.2` | The default sender drops the `HOST_PRIMARY` port, and `NewMail` rejects an invalid sender at startup. |
-| `vite-ssr-bundle-v2.0.0-beta.2` | Inertia projects: `vite.config.ts` bundles SSR dependencies into the production build only. |
-| `root-title-ssr-v2.0.0-beta.2` | Inertia projects: `resources/root.templ` renders the fallback `<title>` only for client-rendered pages. |
-
-The other beta.2 scaffold changes (exact home route and themed 404, flash
-messages, compression, `andurel build` output) are defaults for new
-applications; existing applications can copy them from a fresh `andurel new`.
-
-Upgrading from any earlier supported release to `v2.0.0-beta.3` or later reports:
-
-| ID | Change |
-| --- | --- |
-| `cors-host-origins-v2.0.0-beta.3` | Global CORS trusts only `CORS_ALLOWED_ORIGINS`; Vite build files answer with wildcard, uncredentialed CORS. Security-relevant for apps with more than one configured host. |
-| `csrf-asset-skip-v2.0.0-beta.3` | Safe requests for Vite build files no longer receive the CSRF cookie. |
-| `method-not-allowed-page-v2.0.0-beta.3` | A method mismatch renders the themed `Errors/NotFound` page with status 405 and the `Allow` header. |
-| `request-host-middleware-v2.0.0-beta.3` | Advisory: replace hand-written host matching with `anduin.RequestHost(ctx)`, and use `middleware.DenyFraming` for host-scoped headers. |
-
-The other beta.3 scaffold changes (host-aware docs, the `andurel verify`
-skip/warning output and cross-host guidance) are defaults for new
-applications; existing applications can copy them from a fresh `andurel new`.
-
-Upgrading from any earlier supported release to `v2.0.0-beta.4` or later reports
-the beta.3 actions above plus:
-
-| ID | Change |
-| --- | --- |
-| `public-home-v2.0.0-beta.4` | Register the welcome page without `middleware.AuthOnly`; protected routes keep their auth middleware and anonymous `GET /` returns 200. |
-| `configcheck-v2.0.0-beta.4` | Add the read-only configuration-check helper `andurel doctor` runs for runtime configuration and database connectivity. An existing `internal/runtime` application adds `internal/configcheck`; a new scaffold uses `cmd/configcheck`. |
-| `runtime-readiness-v2.0.0-beta.4` | Add `GET /api/ready`: 200 `{"status":"ready"}` or 503 `{"status":"unready","reason":"..."}` for an unavailable database or required SSR sidecar. `/api/health` stays liveness. |
-| `inertia-ssr-default-v2.0.0-beta.4` | Inertia projects: production server-renders every page with `inertia.WithSSRDefault(cfg.App.IsProduction())`; `.CSR()` opts a page out and the themed `Errors/InternalError` fallback stays client-rendered. Uses `pkg/inertia v0.13.0`. |
-| `routes-host-scope-v2.0.0-beta.4` | Inertia projects: regenerate `routes.ts` so full-URL helpers throw before configuration, configure browser hosts at boot, and wrap each SSR render with `withRouteHosts`. |
-
-Beta.4 pins `pkg/inertia v0.13.0`. A development install can still point at a
-local framework checkout with `just local-replace <app>`; remove these
-replacements before verifying a published-module installation.
-
-The beta.4 scaffold layout changes (`app/` composition, `payloads/`, and
-`cmd/configcheck` instead of a top-level `internal/`) are defaults for new
-applications; upgrade does not rewrite an existing composition root or handler
-payload structs. Copy them from a fresh `andurel new` if you want them.
 
 ## Provider adapters
 

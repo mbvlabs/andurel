@@ -295,7 +295,7 @@ func TestBuildAppBuildsEveryProcessExceptUtilityCommands(t *testing.T) {
 
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
-	for _, name := range []string{"app", "queue", "migrate", "seeds", "configcheck"} {
+	for _, name := range []string{"app", "queue", "migrate", "seeds"} {
 		writeTestFile(
 			t,
 			root,
@@ -350,7 +350,7 @@ func TestBuildAppBuildsEveryProcessExceptUtilityCommands(t *testing.T) {
 			t.Fatalf("command log missing %q:\n%s", wantLine, log)
 		}
 	}
-	if strings.Contains(log, "./cmd/seeds") || strings.Contains(log, "./cmd/configcheck") ||
+	if strings.Contains(log, "./cmd/seeds") ||
 		strings.Contains(log, "./cmd/helper") {
 		t.Fatalf("command log built an excluded process:\n%s", log)
 	}

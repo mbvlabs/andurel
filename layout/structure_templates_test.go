@@ -7,8 +7,8 @@ import (
 )
 
 // TestScaffoldLayoutHasNoTopLevelInternal guards the beta.4 structure
-// decisions: composition lives in app/, payload structs in payloads/, the
-// config check in cmd/configcheck, and the scaffold ships no AGENTS.md.
+// decisions: composition lives in app/, payload structs in payloads/, and
+// the scaffold ships no AGENTS.md.
 func TestScaffoldLayoutHasNoTopLevelInternal(t *testing.T) {
 	mappings := map[TmplTarget]TmplTargetPath{}
 	maps.Copy(mappings, baseTemplateMappings)
@@ -32,7 +32,6 @@ func TestScaffoldLayoutHasNoTopLevelInternal(t *testing.T) {
 		{template: "runtime_main_test.tmpl", target: "app/main_test.go"},
 		{template: "runtime_runtime_test.tmpl", target: "app/runtime_test.go"},
 		{template: "payloads_payloads.tmpl", target: "payloads/payloads.go"},
-		{template: "internal_configcheck_main.tmpl", target: "cmd/configcheck/main.go"},
 	} {
 		if got := mappings[TmplTarget(want.template)]; string(got) != want.target {
 			t.Fatalf("%s maps to %q, want %q", want.template, got, want.target)

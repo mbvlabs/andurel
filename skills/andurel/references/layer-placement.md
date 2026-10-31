@@ -50,7 +50,6 @@ Two commands keep an agent honest:
 | Read-only embedded content or static data consumed by Go | A top-level package named for its job (for example `content/`) with `//go:embed`; not `assets/`, which is served, or `resources/`, which is frontend |
 | SQL schema changes | `migrations/` |
 | Apply pending SQL (one-shot process) | `cmd/migrate/` |
-| Read-only runtime config and database probe | `cmd/configcheck/` (run by `andurel doctor`, not a served process) |
 | Seed data | `seeds/` or `cmd/seeds/` following the existing pattern |
 | External provider adapters | A top-level package named for its job (for example `clients/`, `payment/`) |
 | Email templates and send helpers | `email/` |
