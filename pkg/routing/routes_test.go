@@ -1,9 +1,46 @@
 package routing
 
 import (
+	"bytes"
+	"log/slog"
 	"strings"
 	"testing"
 )
+
+// captureWarnings routes the default slog logger into a buffer for the
+// duration of the test and returns the buffer.
+func captureWarnings(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	return &buf
+}
+
+func TestIndexUnderPrefixDoesNotWarnAboutTrailingSlash(t *testing.T) {
+	logs := captureWarnings(t)
+
+	route := NewSimpleRoute("/", "index", "/users")
+	if got, want := route.Path(), "/users"; got != want {
+		t.Fatalf("Path() = %q, want %q", got, want)
+	}
+	if strings.Contains(logs.String(), "trailing slash") {
+		t.Fatalf("unexpected trailing slash warning: %s", logs.String())
+	}
+}
+
+func TestTrailingSlashStillWarnsForOtherPaths(t *testing.T) {
+	logs := captureWarnings(t)
+
+	route := NewSimpleRoute("/articles/", "articles.index", "")
+	if got, want := route.Path(), "/articles"; got != want {
+		t.Fatalf("Path() = %q, want %q", got, want)
+	}
+	if !strings.Contains(logs.String(), "path has trailing slash") {
+		t.Fatalf("expected trailing slash warning, got: %q", logs.String())
+	}
+}
 
 func TestIsInertiaDefaultsFalse(t *testing.T) {
 	route := NewSimpleRoute("/", "pages.home", "")
@@ -49,6 +86,74 @@ func TestExactRoutePattern(t *testing.T) {
 	about := NewSimpleRoute("/about", "pages.about", "", Exact())
 	if got, want := about.Pattern(), "/about"; got != want {
 		t.Fatalf("Pattern() = %q, want %q", got, want)
+	}
+}
+
+func TestRootRouteIsExactWithoutOption(t *testing.T) {
+	route := NewSimpleRoute("/", "pages.home", "")
+	if got, want := route.Pattern(), "/{$}"; got != want {
+		t.Fatalf("Pattern() = %q, want %q", got, want)
+	}
+
+	// A "/" route under a prefix is the prefix's index, which is exact too.
+	index := NewSimpleRoute("/", "index", "/users")
+	if got, want := index.Path(), "/users"; got != want {
+		t.Fatalf("Path() = %q, want %q", got, want)
+	}
+	if got, want := index.Pattern(), "/users"; got != want {
+		t.Fatalf("Pattern() = %q, want %q", got, want)
+	}
+}
+
+func TestCatchAllRouteIsSubtree(t *testing.T) {
+	route := NewSimpleRoute("/*", "static", "")
+	if got, want := route.Pattern(), "/*"; got != want {
+		t.Fatalf("Pattern() = %q, want %q", got, want)
+	}
+	if got, want := route.Prefix(), "/"; got != want {
+		t.Fatalf("Prefix() = %q, want %q", got, want)
+	}
+	if !route.InSubtree("/anything/at/all") {
+		t.Fatal("expected /* to cover every path")
+	}
+}
+
+func TestWildcardParamName(t *testing.T) {
+	if WildcardParam != "path" {
+		t.Fatalf("WildcardParam = %q, want %q", WildcardParam, "path")
+	}
+}
+
+func TestRouteNameExcludesPrefix(t *testing.T) {
+	cases := []struct {
+		name string
+		got  string
+	}{
+		{"simple", NewSimpleRoute("/new", "new_session", "/users").Name()},
+		{"uuid", NewRouteWithUUIDID("/:id", "show", "/users").Name()},
+		{"serial", NewRouteWithSerialID("/:id", "show", "/users").Name()},
+		{"bigserial", NewRouteWithBigSerialID("/:id", "show", "/users").Name()},
+		{"string", NewRouteWithStringID("/:id", "show", "/users").Name()},
+		{"slug", NewRouteWithSlug("/:slug", "show", "/users").Name()},
+		{"token", NewRouteWithToken("/:token", "confirm", "/users").Name()},
+		{"file", NewRouteWithFile("/:file", "get", "/assets").Name()},
+		{"params", NewRouteWithParams[any]("/:slug", "show", "/posts").Name()},
+	}
+	want := map[string]string{
+		"simple":    "new_session",
+		"uuid":      "show",
+		"serial":    "show",
+		"bigserial": "show",
+		"string":    "show",
+		"slug":      "show",
+		"token":     "confirm",
+		"file":      "get",
+		"params":    "show",
+	}
+	for _, tc := range cases {
+		if tc.got != want[tc.name] {
+			t.Fatalf("%s Name() = %q, want %q", tc.name, tc.got, want[tc.name])
+		}
 	}
 }
 
