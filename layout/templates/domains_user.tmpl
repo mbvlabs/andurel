@@ -52,26 +52,10 @@ type User struct {
 	SessionVersion   int32      `andurel:"session_version"`
 }
 
-// Transform keeps pgx's nullable timestamp representation inside persistence.
-func (u *User) Transform(row queries.UserRow) error {
-	*u = User{
-		ID:             row.ID,
-		CreatedAt:      row.CreatedAt.Time,
-		UpdatedAt:      row.UpdatedAt.Time,
-		Email:          row.Email,
-		Password:       row.Password,
-		IsAdmin:        row.IsAdmin,
-		SessionVersion: row.SessionVersion,
-	}
-	if row.EmailValidatedAt.Valid {
-		at := row.EmailValidatedAt.Time
-		u.EmailValidatedAt = &at
-	}
-	return nil
-}
-
-// userNullableTime converts a nullable entity time into the row's pgtype for
-// Create and Save. A nil value becomes SQL NULL.
+// userNullableTime converts the entity's nullable email_validated_at into the
+// pgtype the generated Create and Update params take. A nil value becomes SQL
+// NULL. Entity reads scan the column straight into *time.Time, so only this
+// write path touches pgtype.
 func userNullableTime(value *time.Time) pgtype.Timestamptz {
 	if value == nil {
 		return pgtype.Timestamptz{}

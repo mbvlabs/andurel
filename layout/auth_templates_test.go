@@ -24,23 +24,38 @@ func TestGeneratedQueryTimestampParameters(t *testing.T) {
 		"EmailValidatedAt pgtype.Timestamptz",
 	)
 	assertTemplateContains(t, "domains_user.tmpl", "CreatedAt:        entity.CreatedAt,", "EmailValidatedAt: userNullableTime(entity.EmailValidatedAt)")
-	assertTemplateContains(t, "domains_token.tmpl", "ExpiresAt: entity.ExpiresAt.Time", "DeleteExpiredTokens(ctx, before)")
+	assertTemplateContains(t, "domains_token.tmpl", "ExpiresAt: entity.ExpiresAt,", "DeleteExpiredTokens(ctx, before)")
 }
 
-// TestGeneratedUserTimestampsStayInDomain guards the user entity boundary: the
-// domain exposes plain Go times and converts pgx's pgtype.Timestamptz only in
-// Transform and userNullableTime. Services, seeds and handler tests must not
-// construct pgtype values for user timestamps.
+// TestGeneratedTokenTimestampsStayInDomain guards the token entity: its
+// timestamps are plain Go times scanned automatically from the row, with no
+// Transform and no pgtype, because no token column is nullable.
+func TestGeneratedTokenTimestampsStayInDomain(t *testing.T) {
+	assertTemplateContains(t, "domains_token.tmpl",
+		"CreatedAt time.Time",
+		"UpdatedAt time.Time",
+		"ExpiresAt time.Time",
+		"time.Now().Before(t.ExpiresAt)",
+		"now := time.Now()",
+	)
+	assertTemplateMissing(t, "domains_token.tmpl", "pgtype")
+	assertTemplateMissing(t, "domains_token.tmpl", "Transform(")
+}
+
+// TestGeneratedUserTimestampsStayInDomain guards the user entity: timestamps are
+// plain Go times scanned automatically, and pgx's pgtype.Timestamptz appears only
+// in userNullableTime, which converts for the Create and Update params. Services,
+// seeds and handler tests must not construct pgtype values for user timestamps.
 func TestGeneratedUserTimestampsStayInDomain(t *testing.T) {
 	assertTemplateContains(t, "domains_user.tmpl",
 		"CreatedAt        time.Time",
 		"UpdatedAt        time.Time",
 		"EmailValidatedAt *time.Time",
-		"func (u *User) Transform(row queries.UserRow) error",
 		"func userNullableTime(value *time.Time) pgtype.Timestamptz",
 		"ClearEmailValidatedAt bool",
 		"if data.ClearEmailValidatedAt {",
 	)
+	assertTemplateMissing(t, "domains_user.tmpl", "Transform(")
 	assertTemplateMissing(t, "domains_user.tmpl", "pgtype.Timestamptz `andurel")
 	assertTemplateMissing(t, "domains_user.tmpl", "EmailValidatedAt *pgtype.Timestamptz")
 
