@@ -2,7 +2,8 @@
 // frontend consumes. andurel sync payloads emits every exported struct in this
 // package to resources/js/types/payloads.ts.
 //
-// Keep fields to standard-library types, time, and github.com/google/uuid:
+// Keep fields to standard-library types, time, and the stdlib uuid package
+// the scaffold imports ("uuid"):
 // payloads are data, not a place for application packages.
 package payloads
 
