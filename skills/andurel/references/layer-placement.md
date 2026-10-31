@@ -418,13 +418,19 @@ Re-run the two sync commands whenever a route or payload changes; `doctor` and
 
 ## Queue Client Access
 
-The web process builds its own insert-only River client through
-`storage.NewQueueInsert`; it exposes `Insert`, `InsertMany`, and `InTx`, and
-nothing else. `storage` does not expose the underlying River client, so the web
-process cannot read job history or mount River's UI from the queue it inserts
-into. The workaround until `pkg/storage` exposes the client: read the River
-tables (`river_job`) through a domain's colocated SQL when the web process needs
-job state, and run River UI in the queue process, which owns the processor.
+The web process's insert-only queue from `storage.NewQueueInsert` exposes
+`Insert`, `InsertMany`, and `InTx`. Its `Client()` method returns the River
+client behind it, for job history or River UI from the web process:
+
+```go
+client := queue.Client() // *river.Client[pgx.Tx]
+```
+
+`Client()` is added in the next `pkg/storage` release. A scaffold that pins an
+earlier storage version does not have it; until the scaffold bumps the pin, read
+the River tables (`river_job`) through a domain's colocated SQL instead. Inserts
+made directly on the returned client are not transactional; keep using
+`Insert` or `InTx` for job writes.
 
 ## Decision Checklist
 
