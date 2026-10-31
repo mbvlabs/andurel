@@ -4,6 +4,35 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+### Added
+
+- `Router.Route(r)` and `Host.Route(r)` register handlers for a `pkg/routing`
+  route value on the host the route declares, so `routing.Host(...)` decides the
+  domain. `Host.Route` panics when the route declares a different host. The
+  returned `RouteRegistrar` has `Get`, `Post`, `Put`, `Patch` and `Delete`.
+  `Router.Get` and the other path-string methods keep working.
+- `Host.FallbackToPrimary()` checks the host's own routes first and uses the
+  primary routes only when none match. `Host.Isolate()` answers unmatched
+  requests on the host with 404.
+- `Host.Use(mw...)` adds middleware for requests the host serves from its own
+  routes. It runs after the global middleware and before per-route middleware,
+  and not for requests that fall back to the primary routes.
+- `Host.Mount(prefix, handler)` mounts an `http.Handler` for every method on
+  `prefix` and `prefix/*`.
+- `SkipCSRFForHosts(names...)` is a `CSRFConfig.Skipper` that skips CSRF checks
+  for requests resolved to the named hosts.
+- `anduintest.WithRouterOptions(...)` passes `anduin.Option`s to the test
+  router, for example `anduin.WithHosts`.
+
+### Changed
+
+- `Router.Handler()` panics when a non-primary host has routes but no fallback
+  policy. Call `Host(name).FallbackToPrimary()` or `Host(name).Isolate()`. A host
+  with no routes needs no call and keeps falling back to the primary routes.
+- `Router.Host(routing.HostPrimary)` and `Router.Host("")` return the primary
+  route table, so routes registered through them are served the same way as
+  `Router.Get`.
+
 ## 0.6.2 - 2026-10-30
 
 ### Changed
