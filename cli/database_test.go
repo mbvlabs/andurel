@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -830,13 +831,14 @@ func TestGenerateMigrationDoesNotOverwriteExistingFile(t *testing.T) {
 		t.Fatalf("read migration: %v", err)
 	}
 
-	err = executeStandaloneCommand(newGenerateMigrationCommand(), "create_widgets")
-	if err == nil {
-		t.Fatal("expected a collision error")
+	// The same name in the same second must not overwrite the first file; it
+	// takes the next version instead (see TestGenerateMigrationSameSecondGetsNextVersion).
+	if err := executeStandaloneCommand(newGenerateMigrationCommand(), "create_widgets"); err != nil {
+		t.Fatalf("second migration in the same second: %v", err)
 	}
 	after, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("read migration after collision: %v", err)
+		t.Fatalf("read migration after second generation: %v", err)
 	}
 	if string(before) != string(after) {
 		t.Fatal("existing migration content changed")
@@ -849,6 +851,97 @@ func TestGenerateMigrationDoesNotOverwriteExistingFile(t *testing.T) {
 		if strings.HasPrefix(entry.Name(), ".") {
 			t.Fatalf("temporary file left behind: %s", entry.Name())
 		}
+	}
+}
+
+func TestGenerateMigrationSameSecondGetsNextVersion(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/app\n")
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() { findGoModRoot = originalFindGoModRoot })
+	originalNow := migrationNow
+	migrationNow = func() time.Time {
+		return time.Date(2026, 1, 2, 15, 4, 5, 0, time.UTC)
+	}
+	t.Cleanup(func() { migrationNow = originalNow })
+
+	for _, name := range []string{"create_widgets", "add_widget_index", "create_gadgets"} {
+		if err := executeStandaloneCommand(newGenerateMigrationCommand(), name); err != nil {
+			t.Fatalf("generate %s: %v", name, err)
+		}
+	}
+
+	entries, err := os.ReadDir(filepath.Join(root, "migrations"))
+	if err != nil {
+		t.Fatalf("read migrations: %v", err)
+	}
+	versions := make(map[string]bool, len(entries))
+	var names []string
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+		version, _, _ := strings.Cut(entry.Name(), "_")
+		if versions[version] {
+			t.Fatalf("duplicate migration version %s in %v", version, names)
+		}
+		versions[version] = true
+	}
+	want := []string{
+		"20260102150405_create_widgets.sql",
+		"20260102150406_add_widget_index.sql",
+		"20260102150407_create_gadgets.sql",
+	}
+	if !slices.Equal(names, want) {
+		t.Fatalf("migrations = %v, want %v", names, want)
+	}
+}
+
+func TestGenerateMigrationVersionAboveNewestExisting(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/app\n")
+	// Scaffold migrations are numbered; a later timestamped one exists from a
+	// clock that ran ahead. The new version must sort after the newest file.
+	writeTestFile(t, root, "migrations/00009_initial.sql", "-- +goose Up\n")
+	writeTestFile(t, root, "migrations/20270101000000_ahead.sql", "-- +goose Up\n")
+	writeTestFile(t, root, "migrations/notes.txt", "not a migration\n")
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() { findGoModRoot = originalFindGoModRoot })
+	originalNow := migrationNow
+	migrationNow = func() time.Time {
+		return time.Date(2026, 1, 2, 15, 4, 5, 0, time.UTC)
+	}
+	t.Cleanup(func() { migrationNow = originalNow })
+
+	if err := executeStandaloneCommand(newGenerateMigrationCommand(), "create_widgets"); err != nil {
+		t.Fatalf("generate migration: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "migrations", "20270101000001_create_widgets.sql")); err != nil {
+		t.Fatalf("expected version one above the newest migration: %v", err)
+	}
+}
+
+func TestGenerateMigrationNumberedScaffoldUsesTimestamp(t *testing.T) {
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/app\n")
+	writeTestFile(t, root, "migrations/00009_initial.sql", "-- +goose Up\n")
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() { findGoModRoot = originalFindGoModRoot })
+	originalNow := migrationNow
+	migrationNow = func() time.Time {
+		return time.Date(2026, 1, 2, 15, 4, 5, 0, time.UTC)
+	}
+	t.Cleanup(func() { migrationNow = originalNow })
+
+	if err := executeStandaloneCommand(newGenerateMigrationCommand(), "create_widgets"); err != nil {
+		t.Fatalf("generate migration: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "migrations", "20260102150405_create_widgets.sql")); err != nil {
+		t.Fatalf("expected timestamp version after numbered scaffold: %v", err)
 	}
 }
 
