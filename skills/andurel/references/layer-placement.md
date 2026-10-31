@@ -353,9 +353,78 @@ small; do not preserve a separate runtime composition package in parallel.
 - New handlers: construct them and call `Register(rt)` in `app/`.
 - New queue workers: register them in `app/queue.go`.
 - External provider adapters: constructors in their top-level package, wired
-  from `app/`.
+  from `app/`. See Provider Clients below.
 
 The dependency graph should be readable top-to-bottom in `app/runtime.go`.
+
+## Provider Clients
+
+A client wraps one external provider (a payment API, a transactional email
+API, a webhook sender). Put it in a top-level package named for the provider's
+job: `clients/` for a small set of adapters, `payment/` or `clients/email/` when
+one provider needs its own package. Services call the client; handlers and
+domains never import it.
+
+- Give each client a constructor that takes its base URL and an `*http.Client`
+  (or an `http.RoundTripper`), with `https://api.provider.example` as the
+  default. The base URL and transport are the test seams: a test passes an
+  `httptest.Server` URL or a fake `RoundTripper` and never swaps a package
+  global or overrides `http.DefaultClient`.
+- Read the base URL and API key from `config/` and pass them to the constructor
+  from `app/`. Do not read environment variables inside the client.
+- Keep provider types inside the client package. Convert them to your own
+  input and result structs at the boundary.
+
+```go
+package clients
+
+type PaymentClient struct {
+	baseURL string
+	apiKey  string
+	http    *http.Client
+}
+
+func NewPaymentClient(baseURL, apiKey string, transport http.RoundTripper) PaymentClient {
+	return PaymentClient{
+		baseURL: baseURL,
+		apiKey:  apiKey,
+		http:    &http.Client{Transport: transport},
+	}
+}
+```
+
+A nil transport falls back to `http.DefaultTransport` inside the constructor, so
+production passes nil and tests pass a fake.
+
+## Staging Frontend Before Go Routes
+
+`resources/js/routes.ts` and `resources/js/types/payloads.ts` are generated only
+from Go that already exists: route values in `routes/` and exported structs in
+`payloads/`. A frontend page that imports `routes.productIndex` or
+`@/types/payloads` fails typecheck until those Go declarations exist, so a
+frontend-first lane sees type errors before any handler is written.
+
+Stage the work in this order:
+
+1. Write the route values in `routes/` and the props structs in `payloads/`
+   (no handlers yet). Nothing in them imports a handler, so the package builds.
+2. Run `andurel sync routes --json` and `andurel sync payloads --json`.
+3. Build the Inertia page against the generated `routes.ts` and `payloads.ts`,
+   and run `andurel verify` (the `frontend` stage) to confirm the typecheck.
+4. Write the handler, register it in `app/`, and run `andurel verify` again.
+
+Re-run the two sync commands whenever a route or payload changes; `doctor` and
+`verify` report drift in both generated files.
+
+## Queue Client Access
+
+The web process builds its own insert-only River client through
+`storage.NewQueueInsert`; it exposes `Insert`, `InsertMany`, and `InTx`, and
+nothing else. `storage` does not expose the underlying River client, so the web
+process cannot read job history or mount River's UI from the queue it inserts
+into. The workaround until `pkg/storage` exposes the client: read the River
+tables (`river_job`) through a domain's colocated SQL when the web process needs
+job state, and run River UI in the queue process, which owns the processor.
 
 ## Decision Checklist
 
