@@ -47,6 +47,21 @@ func TestGeneratedMethodNotAllowedRendersNotFoundPage(t *testing.T) {
 	)
 }
 
+// A handler's anduin.NotFound (an HTTPError, not the sentinel) must get the
+// themed 404 page, and the default plain-text response keeps the message.
+func TestGeneratedErrorHandlerMapsStatusToThemedPage(t *testing.T) {
+	assertTemplateContains(t, "handlers_errors.tmpl",
+		`http.StatusNotFound:         "Errors/NotFound"`,
+		`http.StatusBadRequest:       "Errors/BadRequest"`,
+		`if component, ok := statusPages[status]; ok {`,
+		`.CSR().Status(status).Render()`,
+		`return anduin.Text(ctx, status, anduin.Message(err))`,
+	)
+	assertTemplateContains(t, "handlers_errors.tmpl",
+		`if status >= http.StatusInternalServerError {`,
+	)
+}
+
 func TestGeneratedDenyFramingUsesRequestHost(t *testing.T) {
 	assertTemplateContains(t, "router_middleware_middleware.tmpl",
 		"func DenyFraming(hosts ...routing.HostName) anduin.Middleware",

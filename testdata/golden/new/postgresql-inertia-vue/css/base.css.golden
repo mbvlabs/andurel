@@ -28,7 +28,6 @@ body {
 	text-rendering: optimizeLegibility;
 }
 
-@source "./views";
 @source "./resources/js";
 
 @theme inline {

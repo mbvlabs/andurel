@@ -140,6 +140,11 @@ select * from products;
 
 -- name: CountProducts :one
 select count(*) from products;
+
+-- name: CountProductsSince :one
+select count(*) from products
+where sqlc.narg('since')::timestamptz is null
+   or created_at >= sqlc.narg('since')::timestamptz;
 ```
 
 ### app/runtime.go (edit)
@@ -232,6 +237,8 @@ return users.Save(ctx, locked)
 - Map expected not-found and unique-constraint failures to `ErrNotFound` and `ErrConflict`; return `pkg/validation` errors directly. Preserve unexpected database errors for diagnostics.
 - `inspect domains --json` labels table names with `table_source: "inferred"` when derived by convention. For custom names or irregular plurals, add `// andurel:table people` as the entity struct's doc comment (a free-standing annotation only applies when the file has a single entity); inspection reports `table_source: "annotation"`. The annotation is inspection metadata, not SQL configuration.
 - `inspect domains --json` also reports `columns_ok`: true when every column an automatic narsilc query mapping returns has an exported `andurel` tag, false for a missing column or a duplicate exported tag, and null when no query instantiates the entity or `*T` implements `narsilc.Transformer[Row]` and maps in user code. `mismatches` names the column, field, file and line; `type-difference` entries are notes only because pgx may convert between the Row and entity types. `unpopulated_tags` lists extra tagged fields, which narsilc leaves at their zero value. `andurel verify` reports `entity-columns` for missing columns and duplicate tags; fix by adding the exported field/tag or narrowing the query columns and running `andurel sync queries`.
+- Optional filters: `$2::timestamptz IS NULL` makes narsilc generate a non-nullable Go parameter, so "no filter" cannot be expressed that way. Write `sqlc.narg('since')` (as `CountProductsSince` above does) to generate a nullable parameter. The Go side passes a nil `*time.Time` for "no filter" through the same unexported helper used for nullable timestamps. Add a `Since` or similar filter to `patterns show domain` queries only this way.
+- A read-only query that joins several tables may live in the `.sql` of the domain that owns its main table. It is not a cross-domain write, so it needs no service. Keep it read-only, return a read model rather than writing through another domain's receiver, and map its columns onto the entity or a dedicated struct with `andurel` tags (or `Transform`, which `entity-columns` does not check).
 - Writes that span receivers go through `storage.AtomicOps` in a service (see the `service` pattern).
 - Test the domain as the `test-domain` pattern shows: `domains/main_test.go` owns the Postgres cluster and `domains/<entity>_test.go` covers `Validate` and the receiver methods.
 
