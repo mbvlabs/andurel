@@ -204,7 +204,9 @@ needs, the app `/api/health` (liveness) and `/api/ready` (readiness) endpoints,
 the SSR sidecar `/health` endpoint, and why `INERTIA_SSR_FAIL_FAST=true` belongs
 in production.
 
-`GET /api/health` answers while the process runs. `GET /api/ready` answers 200
+`GET /api/health` is liveness: it answers 200 while the process runs and checks
+nothing else, so a database outage does not make the orchestrator restart the
+web process. `GET /api/ready` is readiness and answers 200
 `{"status":"ready"}` only when the database answers and a required Inertia SSR
 sidecar is healthy; otherwise it answers 503
 `{"status":"unready","reason":"..."}` with a stable reason

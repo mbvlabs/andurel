@@ -146,7 +146,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	handlers.NewPagesHandler(renderer).Register(router)
 	assetsHandler.Register(router)
 	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)
-	handlers.NewAPIHandler(db, newReadiness(db, renderer)).Register(router)
+	handlers.NewAPIHandler(newReadiness(db, renderer)).Register(router)
 
 	app.Handler = router.Handler()
 	if cfg.HTTP.Compress {
