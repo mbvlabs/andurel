@@ -3,6 +3,7 @@ package anduin
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -277,6 +278,7 @@ func TestRouterHostDispatch(t *testing.T) {
 	// A named host without a configured hostname still dispatches when the
 	// request Host matches a configured alias.
 	host := rt.Host("admin")
+	host.Isolate()
 	host.Get("/", func(ctx context.Context) error { return Text(ctx, http.StatusOK, "admin") })
 
 	recorder := httptest.NewRecorder()
@@ -302,6 +304,7 @@ func TestRouterHostDispatchWithHosts(t *testing.T) {
 
 	rt := NewRouter(WithHosts(hosts))
 	rt.Get("/", func(ctx context.Context) error { return Text(ctx, http.StatusOK, "primary") })
+	rt.Host(hostAdmin).Isolate()
 	rt.Host(hostAdmin).Get("/", func(ctx context.Context) error {
 		return Text(ctx, http.StatusOK, "admin")
 	})
@@ -343,6 +346,7 @@ func TestRouterRequestHostInGlobalMiddleware(t *testing.T) {
 		}
 	})
 	rt.Get("/", func(ctx context.Context) error { return Text(ctx, http.StatusOK, "primary") })
+	rt.Host(hostAdmin).Isolate()
 	rt.Host(hostAdmin).Get("/admin", func(ctx context.Context) error {
 		return Text(ctx, http.StatusOK, "admin")
 	})
@@ -497,5 +501,302 @@ func TestServerTimeouts(t *testing.T) {
 	if zeroServer.srv.ReadTimeout != 0 || zeroServer.srv.WriteTimeout != 0 ||
 		zeroServer.srv.IdleTimeout != 0 {
 		t.Fatal("explicit zero timeouts must disable the bounds")
+	}
+}
+
+const hostAdmin routing.HostName = "admin"
+
+func newAdminHosts(t *testing.T) *routing.Hosts {
+	t.Helper()
+
+	hosts, err := routing.NewHosts(map[routing.HostName]routing.HostSpec{
+		routing.HostPrimary: {Hostname: "andurel.com", Protocol: "https"},
+		hostAdmin:           {Hostname: "admin.andurel.com"},
+	})
+	if err != nil {
+		t.Fatalf("new hosts: %v", err)
+	}
+	return hosts
+}
+
+func serveOnHost(rt *Router, method, host, path string) *httptest.ResponseRecorder {
+	request := httptest.NewRequest(method, path, nil)
+	request.Host = host
+	recorder := httptest.NewRecorder()
+	rt.Handler().ServeHTTP(recorder, request)
+	return recorder
+}
+
+func textHandler(body string) Handler {
+	return func(ctx context.Context) error { return Text(ctx, http.StatusOK, body) }
+}
+
+func markMiddleware(order *[]string, name string) Middleware {
+	return func(next Handler) Handler {
+		return func(ctx context.Context) error {
+			*order = append(*order, name)
+			return next(ctx)
+		}
+	}
+}
+
+func TestRouteRegistersOnDeclaredHost(t *testing.T) {
+	t.Parallel()
+
+	rt := NewRouter(WithHosts(newAdminHosts(t)))
+	rt.Get("/dashboard", textHandler("primary"))
+	rt.Host(hostAdmin).Isolate()
+
+	dashboard := routing.NewSimpleRoute("/dashboard", "admin.dashboard", "", routing.Host(hostAdmin))
+	rt.Route(dashboard).Get(textHandler("admin"))
+
+	admin := serveOnHost(rt, http.MethodGet, "admin.andurel.com", "/dashboard")
+	if admin.Code != http.StatusOK || admin.Body.String() != "admin" {
+		t.Fatalf("admin GET /dashboard = %d %q, want 200 admin", admin.Code, admin.Body.String())
+	}
+
+	primary := serveOnHost(rt, http.MethodGet, "andurel.com", "/dashboard")
+	if primary.Body.String() != "primary" {
+		t.Fatalf("primary GET /dashboard = %d %q, want primary handler", primary.Code, primary.Body.String())
+	}
+}
+
+func TestRouteOnlyReachableOnDeclaredHost(t *testing.T) {
+	t.Parallel()
+
+	rt := NewRouter(WithHosts(newAdminHosts(t)))
+	rt.Host(hostAdmin).Isolate()
+	adminOnly := routing.NewSimpleRoute("/users", "admin.users", "", routing.Host(hostAdmin))
+	rt.Route(adminOnly).Get(textHandler("admin users"))
+
+	if got := serveOnHost(rt, http.MethodGet, "andurel.com", "/users"); got.Code != http.StatusNotFound {
+		t.Fatalf("primary GET /users = %d, want 404", got.Code)
+	}
+}
+
+func TestRouteRegistrarRegistersEveryMethod(t *testing.T) {
+	t.Parallel()
+
+	rt := NewRouter(WithHosts(newAdminHosts(t)))
+	rt.Host(hostAdmin).Isolate()
+	route := routing.NewSimpleRoute("/items", "admin.items", "", routing.Host(hostAdmin))
+	registrar := rt.Route(route)
+	registrar.Get(textHandler(http.MethodGet))
+	registrar.Post(textHandler(http.MethodPost))
+	registrar.Put(textHandler(http.MethodPut))
+	registrar.Patch(textHandler(http.MethodPatch))
+	registrar.Delete(textHandler(http.MethodDelete))
+
+	for _, method := range []string{
+		http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete,
+	} {
+		recorder := serveOnHost(rt, method, "admin.andurel.com", "/items")
+		if recorder.Code != http.StatusOK || recorder.Body.String() != method {
+			t.Fatalf("%s /items = %d %q, want 200 %s", method, recorder.Code, recorder.Body.String(), method)
+		}
+	}
+}
+
+func TestHostRouteRejectsRouteDeclaredOnAnotherHost(t *testing.T) {
+	t.Parallel()
+
+	rt := NewRouter(WithHosts(newAdminHosts(t)))
+	adminRoute := routing.NewSimpleRoute("/users", "admin.users", "", routing.Host(hostAdmin))
+
+	defer func() {
+		recovered := recover()
+		if recovered == nil {
+			t.Fatal("Host(primary).Route(admin route) did not panic")
+		}
+		if msg := fmt.Sprint(recovered); !strings.Contains(msg, `declares host "admin"`) {
+			t.Fatalf("panic = %q, want a message naming the declared host", msg)
+		}
+	}()
+	rt.Host(routing.HostPrimary).Route(adminRoute)
+}
+
+func TestHandlerPanicsWithoutFallbackPolicy(t *testing.T) {
+	t.Parallel()
+
+	rt := NewRouter(WithHosts(newAdminHosts(t)))
+	rt.Host(hostAdmin).Get("/{$}", textHandler("admin"))
+
+	defer func() {
+		recovered := recover()
+		want := `anduin: host "admin" has routes but no fallback policy; ` +
+			`call rt.Host("admin").FallbackToPrimary() or .Isolate()`
+		if recovered != want {
+			t.Fatalf("panic = %v, want %q", recovered, want)
+		}
+	}()
+	rt.Handler()
+}
+
+func TestHostWithoutRoutesNeedsNoPolicy(t *testing.T) {
+	t.Parallel()
+
+	var order []string
+	rt := NewRouter(WithHosts(newAdminHosts(t)))
+	rt.Get("/", textHandler("primary"))
+	rt.Host(hostAdmin).Use(markMiddleware(&order, "host"))
+
+	recorder := serveOnHost(rt, http.MethodGet, "admin.andurel.com", "/")
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "primary" {
+		t.Fatalf("admin GET / = %d %q, want 200 primary", recorder.Code, recorder.Body.String())
+	}
+	if len(order) != 0 {
+		t.Fatalf("host middleware ran on a fallback to primary: %v", order)
+	}
+}
+
+func TestFallbackToPrimaryServesPrimaryRoutes(t *testing.T) {
+	t.Parallel()
+
+	rt := NewRouter(WithHosts(newAdminHosts(t)))
+	rt.Get("/assets/app.js", textHandler("primary asset"))
+	rt.Host(hostAdmin).FallbackToPrimary()
+	rt.Host(hostAdmin).Get("/{$}", textHandler("admin home"))
+
+	asset := serveOnHost(rt, http.MethodGet, "admin.andurel.com", "/assets/app.js")
+	if asset.Code != http.StatusOK || asset.Body.String() != "primary asset" {
+		t.Fatalf("admin GET /assets/app.js = %d %q, want primary asset", asset.Code, asset.Body.String())
+	}
+
+	home := serveOnHost(rt, http.MethodGet, "admin.andurel.com", "/")
+	if home.Body.String() != "admin home" {
+		t.Fatalf("admin GET / = %q, want admin home", home.Body.String())
+	}
+
+	missing := serveOnHost(rt, http.MethodGet, "admin.andurel.com", "/missing")
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("admin GET /missing = %d, want 404", missing.Code)
+	}
+}
+
+func TestIsolateReturnsNotFoundForPrimaryRoutes(t *testing.T) {
+	t.Parallel()
+
+	rt := NewRouter(WithHosts(newAdminHosts(t)))
+	rt.Get("/assets/app.js", textHandler("primary asset"))
+	rt.Host(hostAdmin).Isolate()
+	rt.Host(hostAdmin).Get("/{$}", textHandler("admin home"))
+
+	asset := serveOnHost(rt, http.MethodGet, "admin.andurel.com", "/assets/app.js")
+	if asset.Code != http.StatusNotFound {
+		t.Fatalf("admin GET /assets/app.js = %d, want 404", asset.Code)
+	}
+
+	home := serveOnHost(rt, http.MethodGet, "admin.andurel.com", "/")
+	if home.Code != http.StatusOK || home.Body.String() != "admin home" {
+		t.Fatalf("admin GET / = %d %q, want 200 admin home", home.Code, home.Body.String())
+	}
+}
+
+func TestHostMiddlewareOrder(t *testing.T) {
+	t.Parallel()
+
+	var order []string
+	handler := func(name string) Handler {
+		return func(ctx context.Context) error {
+			order = append(order, name)
+			return NoContent(ctx, http.StatusNoContent)
+		}
+	}
+
+	rt := NewRouter(WithHosts(newAdminHosts(t)))
+	rt.Use(markMiddleware(&order, "global"))
+	rt.Host(hostAdmin).Use(markMiddleware(&order, "host"))
+	rt.Host(hostAdmin).FallbackToPrimary()
+	rt.Host(hostAdmin).Get("/admin", handler("handler"), markMiddleware(&order, "route"))
+	rt.Get("/assets/app.js", handler("asset"))
+
+	serveOnHost(rt, http.MethodGet, "admin.andurel.com", "/admin")
+	if want := "global,host,route,handler"; strings.Join(order, ",") != want {
+		t.Fatalf("order = %v, want %s", order, want)
+	}
+
+	order = order[:0]
+	serveOnHost(rt, http.MethodGet, "admin.andurel.com", "/assets/app.js")
+	if want := "global,asset"; strings.Join(order, ",") != want {
+		t.Fatalf("fallback order = %v, want %s (host middleware must not run)", order, want)
+	}
+}
+
+func TestHostMiddlewareRunsForIsolatedNotFound(t *testing.T) {
+	t.Parallel()
+
+	var order []string
+	rt := NewRouter(WithHosts(newAdminHosts(t)))
+	rt.Host(hostAdmin).Use(markMiddleware(&order, "host"))
+	rt.Host(hostAdmin).Isolate()
+	rt.Host(hostAdmin).Get("/{$}", textHandler("admin"))
+
+	recorder := serveOnHost(rt, http.MethodGet, "admin.andurel.com", "/missing")
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", recorder.Code)
+	}
+	if want := "host"; strings.Join(order, ",") != want {
+		t.Fatalf("order = %v, want host", order)
+	}
+}
+
+func TestHostMountServesEveryMethodUnderPrefix(t *testing.T) {
+	t.Parallel()
+
+	jobs := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(r.Method + " " + r.URL.Path))
+	})
+	rt := NewRouter(WithHosts(newAdminHosts(t)))
+	rt.Host(hostAdmin).Isolate()
+	rt.Host(hostAdmin).Mount("/jobs", jobs)
+
+	cases := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, "/jobs"},
+		{http.MethodPost, "/jobs/"},
+		{http.MethodPut, "/jobs/42/retry"},
+		{http.MethodPatch, "/jobs/42"},
+		{http.MethodDelete, "/jobs/42"},
+	}
+	for _, tc := range cases {
+		recorder := serveOnHost(rt, tc.method, "admin.andurel.com", tc.path)
+		want := tc.method + " " + tc.path
+		if recorder.Code != http.StatusOK || recorder.Body.String() != want {
+			t.Fatalf("%s %s = %d %q, want 200 %q", tc.method, tc.path, recorder.Code, recorder.Body.String(), want)
+		}
+	}
+
+	if got := serveOnHost(rt, http.MethodGet, "admin.andurel.com", "/jobsite"); got.Code != http.StatusNotFound {
+		t.Fatalf("GET /jobsite = %d, want 404 (prefix is a path segment, not a string prefix)", got.Code)
+	}
+	if got := serveOnHost(rt, http.MethodGet, "andurel.com", "/jobs"); got.Code != http.StatusNotFound {
+		t.Fatalf("primary GET /jobs = %d, want 404", got.Code)
+	}
+}
+
+func TestHostSkipCSRFForHosts(t *testing.T) {
+	t.Parallel()
+
+	rt := NewRouter(WithHosts(newAdminHosts(t)))
+	rt.Use(CSRF(CSRFConfig{
+		TokenLookup: "header:X-CSRF-Token",
+		Skipper:     SkipCSRFForHosts(hostAdmin),
+	}))
+	rt.Post("/submit", func(ctx context.Context) error { return NoContent(ctx, http.StatusNoContent) })
+	rt.Host(hostAdmin).Isolate()
+	rt.Host(hostAdmin).Post("/submit", func(ctx context.Context) error {
+		return NoContent(ctx, http.StatusNoContent)
+	})
+
+	admin := serveOnHost(rt, http.MethodPost, "admin.andurel.com", "/submit")
+	if admin.Code != http.StatusNoContent {
+		t.Fatalf("admin POST /submit without token = %d, want 204", admin.Code)
+	}
+
+	primary := serveOnHost(rt, http.MethodPost, "andurel.com", "/submit")
+	if primary.Code != http.StatusForbidden {
+		t.Fatalf("primary POST /submit without token = %d, want 403", primary.Code)
 	}
 }
