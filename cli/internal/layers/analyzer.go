@@ -33,6 +33,7 @@ func Analyzers(cfg Config) []*analysis.Analyzer {
 		payloadsImportAnalyzer(cfg),
 		domainTransportAnalyzer(cfg),
 		entityColumnsAnalyzer(cfg),
+		routeHostAnalyzer(cfg),
 	}
 }
 
