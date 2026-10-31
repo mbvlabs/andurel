@@ -375,7 +375,9 @@ func testProductionConfig(t *testing.T) config.Config {
 }
 
 // testSessionJar builds the cookie jar app.New installs so a protected
-// route test exercises the real session middleware.
+// route test exercises the real session middleware. It uses the same
+// cookie list as the app (middleware.CookieDefinitions), so flashes and
+// the other registered cookies work in tests.
 func testSessionJar(t *testing.T, cfg config.Config) *kiks.Jar {
 	t.Helper()
 
@@ -390,7 +392,7 @@ func testSessionJar(t *testing.T, cfg config.Config) *kiks.Jar {
 	jar, err := kiks.NewJar(
 		keys,
 		store,
-		middleware.NewSessionCookie(cfg.Session, cfg.App.IsProduction()),
+		middleware.CookieDefinitions(cfg.Session, cfg.App.IsProduction())...,
 	)
 	if err != nil {
 		t.Fatalf("create session jar: %v", err)

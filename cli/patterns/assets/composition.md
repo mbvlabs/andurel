@@ -158,7 +158,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	handlers.NewPagesHandler(renderer).Register(router)
 	assetsHandler.Register(router)
 	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)
-	handlers.NewAPIHandler(db, newReadiness(db, renderer)).Register(router)
+	handlers.NewAPIHandler(newReadiness(db, renderer)).Register(router)
 
 	app.Handler = router.Handler()
 	app.Server = anduin.NewServer(
@@ -266,8 +266,8 @@ func (a *App) Close(ctx context.Context) error {
 
 - Construct dependencies bottom-up in `app/runtime.go` with one `New`.
 - Build the jar in `newJar` and the cache with `cfg.Cache.Store()`; middleware is policy only.
-- Register flat handlers with `handlers.NewXHandler(...).Register(router)`; there is no reflection. `PagesHandler.Register` takes the router plus optional middleware and mounts the public home page when none is passed, `AssetsHandler.Register` takes only the router, and `APIHandler` takes the liveness and readiness checkers.
-- `/api/health` is liveness and `/api/ready` is readiness: readiness requires the database and, when the renderer-wide SSR default is on with fail-fast, a healthy Inertia SSR sidecar. `/api/ready` answers 200 `{"status":"ready"}` or 503 `{"status":"unready","reason":"database_unavailable"}` / `{"status":"unready","reason":"unavailable"}`. Keep the two separate so orchestration can hold traffic until the process can render a page.
+- Register flat handlers with `handlers.NewXHandler(...).Register(router)`; there is no reflection. `PagesHandler.Register` takes the router plus optional middleware and mounts the public home page when none is passed, `AssetsHandler.Register` takes only the router, and `APIHandler` takes only the readiness checker; liveness on `/api/health` is process-only and calls no dependency.
+- `/api/health` is liveness (process-only, never checks the database) and `/api/ready` is readiness: readiness requires the database and, in production with fail-fast, a healthy Inertia SSR sidecar. `/api/ready` answers 200 `{"status":"ready"}` or 503 `{"status":"unready","reason":"database_unavailable"}` / `{"status":"unready","reason":"unavailable"}`. Keep the two separate so orchestration can hold traffic until the process can render a page.
 - Construct the router with `anduin.NewRouter(anduin.WithHosts(hosts), ...)`. The host registry is what makes `routing.Host(...)`, `rt.Host(...)`, and route `FullURL(hosts, ...)` calls agree; without it every request is served by the primary mux.
 - Global CORS trusts only `CORS_ALLOWED_ORIGINS`. Never add `cfg.App.Origins()` to CORS: host origins belong in CSRF trusted origins, not in a credentialed read policy. Public Vite assets carry their own uncredentialed `*` CORS on the asset route.
 - Host-scoped policy (framing headers, analytics) branches on `anduin.RequestHost(ctx)` in global middleware; never re-parse `Request.Host`.

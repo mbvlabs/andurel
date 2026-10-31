@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 
 	"app/domains"
@@ -9,11 +10,22 @@ import (
 	"github.com/mbvlabs/andurel/pkg/inertia"
 )
 
+// statusPages maps the statuses handlers return through anduin.HTTPError
+// (anduin.NotFound, anduin.BadRequest, ...) to the scaffold's themed pages, so
+// a custom 404 gets the same page as a sentinel 404.
+var statusPages = map[int]string{
+	http.StatusBadRequest:       "Errors/BadRequest",
+	http.StatusNotFound:         "Errors/NotFound",
+	http.StatusMethodNotAllowed: "Errors/NotFound",
+	http.StatusConflict:         "Errors/Conflict",
+}
+
 // MapError maps the domain sentinels and the router's unmatched-request and
 // method-not-allowed sentinels to the scaffold's error pages. Field errors and
-// everything else are handled by the shared inertia handler.
+// the JSON API are handled by the shared inertia handler. Other 4xx statuses
+// keep their message in a plain-text response; 5xx errors never expose one.
 func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
-	return inertia.NewErrorHandler(
+	themed := inertia.NewErrorHandler(
 		renderer,
 		// Unmapped 5xx errors, including a fail-fast SSR failure, get the themed
 		// page instead of the router's plain-text default.
@@ -23,4 +35,21 @@ func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
 		inertia.MapError(anduin.ErrMethodNotAllowed, http.StatusMethodNotAllowed, "Errors/NotFound"),
 		inertia.MapError(domains.ErrConflict, http.StatusConflict, "Errors/Conflict"),
 	)
+
+	return func(ctx context.Context, err error) error {
+		unhandled := themed(ctx, err)
+		if unhandled == nil {
+			return nil
+		}
+
+		status := anduin.StatusCode(err)
+		if status >= http.StatusInternalServerError {
+			return unhandled
+		}
+		if component, ok := statusPages[status]; ok {
+			return renderer.Page(ctx, component, inertia.Props{}).CSR().Status(status).Render()
+		}
+
+		return anduin.Text(ctx, status, anduin.Message(err))
+	}
 }

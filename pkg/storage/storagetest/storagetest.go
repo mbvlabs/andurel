@@ -69,9 +69,25 @@ func runMain(
 	return code, nil
 }
 
+// clusterLabel marks containers started by this package, so a container left
+// behind by a killed test process can be found and removed by hand.
+const clusterLabel = "dev.andurel.storagetest"
+
+// disableRyuk turns off testcontainers' Ryuk reaper for this process. Ryuk
+// groups containers by session, and testcontainers' session is the parent
+// process, which every package in one `go test ./...` run shares. Ryuk reaps a
+// session's containers when its last client disconnects, so one package's
+// Postgres could be killed while it still ran. Testcontainers reads the
+// setting lazily, so it must run before the first container request. Setting
+// the variable here overrides any value a caller had set.
+func disableRyuk() {
+	_ = os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
+}
+
 type preflightFunc func(context.Context) error
 
 func newCluster(ctx context.Context, preflight preflightFunc) (*Cluster, error) {
+	disableRyuk()
 	if err := runPreflight(ctx, preflight); err != nil {
 		return nil, err
 	}
@@ -87,6 +103,7 @@ func newCluster(ctx context.Context, preflight preflightFunc) (*Cluster, error) 
 		postgres.WithDatabase(adminDB),
 		postgres.WithUsername(user),
 		postgres.WithPassword(password),
+		testcontainers.WithLabels(map[string]string{clusterLabel: "true"}),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
 				WithOccurrence(2).

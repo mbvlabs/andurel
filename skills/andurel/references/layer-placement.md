@@ -42,7 +42,7 @@ Two commands keep an agent honest:
 | Route names, route paths, URL builders | `routes/` |
 | App HTTP middleware (auth, authorization) | `middleware/` |
 | Inertia root document | `resources/root.templ` (package `resources`) |
-| Inertia pages and reusable frontend components | `resources/js/Pages/`, `resources/js/Layouts/`, `resources/js/Components/`, `resources/js/components/ui/` |
+| Inertia pages and reusable frontend components | `resources/js/Pages/`, `resources/js/Layouts/`, `resources/js/Components/` |
 | Generated TS route/payload helpers | `resources/js/routes.ts`, `resources/js/types/payloads.ts` (written by `andurel sync routes` / `sync payloads`) |
 | Tailwind entry point | `css/base.css` (imports Tailwind and `css/theme.css`; `@source` globs live here) |
 | Theme tokens and their utility mappings | `css/theme.css` (`:root` values plus the single `@theme` color owner) |
@@ -184,7 +184,7 @@ error`. They read input with `anduin`, decode request bodies into a struct from
   same package are followed. `json:"-"` is omitted and `omitempty` makes a
   field optional.
 - Keep payload fields to standard-library types, `time`, and
-  `github.com/google/uuid`. Copy the fields a page or form needs from a domain
+  the stdlib `uuid` package the scaffold imports. Copy the fields a page or form needs from a domain
   entity instead of embedding the entity.
 - `payloads/` may not import the application module, `pkg/storage`,
   `pkg/anduin`, `pkg/inertia`, or `net/http`; `andurel verify` enforces this
@@ -299,7 +299,7 @@ page also receives `errors`.
   its extension is the component string passed to `renderer.Page`.
 - `resources/js/Layouts/` — chrome shared by pages. Layouts do not take page
   props.
-- `resources/js/Components/` and `resources/js/components/ui/` — reusable
+- `resources/js/Components/` — reusable (the scaffold does not create it; use this one name, never `components/`, which collides with it on macOS and Windows)
   presentational pieces.
 - `resources/js/routes.ts` and `resources/js/types/payloads.ts` — generated; do
   not edit by hand. Use `routes.name.path(...)` for relative URLs and
@@ -353,9 +353,84 @@ small; do not preserve a separate runtime composition package in parallel.
 - New handlers: construct them and call `Register(rt)` in `app/`.
 - New queue workers: register them in `app/queue.go`.
 - External provider adapters: constructors in their top-level package, wired
-  from `app/`.
+  from `app/`. See Provider Clients below.
 
 The dependency graph should be readable top-to-bottom in `app/runtime.go`.
+
+## Provider Clients
+
+A client wraps one external provider (a payment API, a transactional email
+API, a webhook sender). Put it in a top-level package named for the provider's
+job: `clients/` for a small set of adapters, `payment/` or `clients/email/` when
+one provider needs its own package. Services call the client; handlers and
+domains never import it.
+
+- Give each client a constructor that takes its base URL and an `*http.Client`
+  (or an `http.RoundTripper`), with `https://api.provider.example` as the
+  default. The base URL and transport are the test seams: a test passes an
+  `httptest.Server` URL or a fake `RoundTripper` and never swaps a package
+  global or overrides `http.DefaultClient`.
+- Read the base URL and API key from `config/` and pass them to the constructor
+  from `app/`. Do not read environment variables inside the client.
+- Keep provider types inside the client package. Convert them to your own
+  input and result structs at the boundary.
+
+```go
+package clients
+
+type PaymentClient struct {
+	baseURL string
+	apiKey  string
+	http    *http.Client
+}
+
+func NewPaymentClient(baseURL, apiKey string, transport http.RoundTripper) PaymentClient {
+	return PaymentClient{
+		baseURL: baseURL,
+		apiKey:  apiKey,
+		http:    &http.Client{Transport: transport},
+	}
+}
+```
+
+A nil transport falls back to `http.DefaultTransport` inside the constructor, so
+production passes nil and tests pass a fake.
+
+## Staging Frontend Before Go Routes
+
+`resources/js/routes.ts` and `resources/js/types/payloads.ts` are generated only
+from Go that already exists: route values in `routes/` and exported structs in
+`payloads/`. A frontend page that imports `routes.productIndex` or
+`@/types/payloads` fails typecheck until those Go declarations exist, so a
+frontend-first lane sees type errors before any handler is written.
+
+Stage the work in this order:
+
+1. Write the route values in `routes/` and the props structs in `payloads/`
+   (no handlers yet). Nothing in them imports a handler, so the package builds.
+2. Run `andurel sync routes --json` and `andurel sync payloads --json`.
+3. Build the Inertia page against the generated `routes.ts` and `payloads.ts`,
+   and run `andurel verify` (the `frontend` stage) to confirm the typecheck.
+4. Write the handler, register it in `app/`, and run `andurel verify` again.
+
+Re-run the two sync commands whenever a route or payload changes; `doctor` and
+`verify` report drift in both generated files.
+
+## Queue Client Access
+
+The web process's insert-only queue from `storage.NewQueueInsert` exposes
+`Insert`, `InsertMany`, and `InTx`. Its `Client()` method returns the River
+client behind it, for job history or River UI from the web process:
+
+```go
+client := queue.Client() // *river.Client[pgx.Tx]
+```
+
+`Client()` is added in the next `pkg/storage` release. A scaffold that pins an
+earlier storage version does not have it; until the scaffold bumps the pin, read
+the River tables (`river_job`) through a domain's colocated SQL instead. Inserts
+made directly on the returned client are not transactional; keep using
+`Insert` or `InTx` for job writes.
 
 ## Decision Checklist
 

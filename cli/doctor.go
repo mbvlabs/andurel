@@ -1444,6 +1444,7 @@ func checkNarsilcGenerate(rootDir string, verbose bool) checkResult {
 	}
 
 	var changed []string
+	var generateErr error
 	err = withDiagnosticProjectCopyTools(rootDir, []string{"narsilc"}, func(tempRoot string) error {
 		before, err := snapshotFilesForReport(tempRoot)
 		if err != nil {
@@ -1454,11 +1455,15 @@ func checkNarsilcGenerate(rootDir string, verbose bool) checkResult {
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf(
+			// narsilc checks the queries against migrations/, so a failed run is
+			// reported as a query problem with narsilc's own output attached,
+			// not as a failed diagnostic copy.
+			generateErr = fmt.Errorf(
 				"narsilc generate failed: %w: %s",
 				err,
 				strings.TrimSpace(stderr.String()),
 			)
+			return nil
 		}
 		after, err := snapshotFilesForReport(tempRoot)
 		if err != nil {
@@ -1473,6 +1478,15 @@ func checkNarsilcGenerate(rootDir string, verbose bool) checkResult {
 			status:  statusFail,
 			message: "temporary narsilc generation diagnostic failed",
 			details: []string{err.Error()},
+		}
+	}
+	if generateErr != nil {
+		return checkResult{
+			name:    "narsilc generate",
+			status:  statusFail,
+			message: "queries in domains/*.sql don't match migrations/",
+			details: []string{generateErr.Error()},
+			hint:    "Make the queries in domains/*.sql match the schema in migrations/ (or add the migration they need), then run 'andurel sync queries'.",
 		}
 	}
 	if len(changed) > 0 {

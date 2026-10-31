@@ -1,0 +1,54 @@
+package handlers_test
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"testing"
+
+	"{{.ModuleName}}/handlers"
+	"{{.ModuleName}}/routes"
+
+	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/anduin/anduintest"
+)
+
+// downChecker stands in for a dependency that is down, such as the database.
+type downChecker struct{}
+
+func (downChecker) Health(context.Context) error {
+	return errors.New("connection refused")
+}
+
+func newAPIServer(t *testing.T, readiness interface{ Health(context.Context) error }) *anduintest.Server {
+	t.Helper()
+
+	return anduintest.New(t, func(rt *anduin.Router) {
+		handlers.NewAPIHandler(readiness).Register(rt)
+	})
+}
+
+// Liveness must answer while a dependency is down. An orchestrator restarts a
+// process whose liveness fails, so a database outage must not fail it.
+func TestLivenessIgnoresDownDependencies(t *testing.T) {
+	srv := newAPIServer(t, downChecker{})
+
+	resp := srv.Get(routes.Health.Path())
+	resp.AssertStatus(http.StatusOK)
+}
+
+func TestReadinessReportsDownDependency(t *testing.T) {
+	srv := newAPIServer(t, downChecker{})
+
+	resp := srv.Get(routes.Ready.Path())
+	resp.AssertStatus(http.StatusServiceUnavailable)
+
+	var body struct {
+		Status string `json:"status"`
+		Reason string `json:"reason"`
+	}
+	resp.JSON(&body)
+	if body.Status != "unready" || body.Reason != "unavailable" {
+		t.Fatalf("readiness body = %#v, want status unready and reason unavailable", body)
+	}
+}
