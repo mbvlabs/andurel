@@ -4,6 +4,12 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+### Added
+
+- `QueueInsert.Client` returns the River client behind an insert queue, so the
+  web process can read job history or mount River UI without building a second
+  client.
+
 ## 0.14.0 - 2026-10-30
 
 ### Changed
