@@ -4,6 +4,15 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+### Fixed
+
+- `storagetest` turns off testcontainers' Ryuk reaper for its Postgres
+  containers. Ryuk groups containers by a session shared by every package in one
+  `go test ./...` run, so a long package's Postgres could be reaped while it was
+  still running. Containers are removed by `Cluster.Close` and carry the
+  `dev.andurel.storagetest=true` label, so a container left by a killed test
+  process can be removed by hand.
+
 ## 0.14.0 - 2026-10-30
 
 ### Changed
