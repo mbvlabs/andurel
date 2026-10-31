@@ -362,7 +362,7 @@ func MuxPattern(pattern string) string {
 		case strings.HasPrefix(segment, ":") && len(segment) > 1:
 			segments[i] = "{" + segment[1:] + "}"
 		case segment == "*":
-			segments[i] = "{path...}"
+			segments[i] = "{" + routing.WildcardParam + "...}"
 		}
 	}
 	return strings.Join(segments, "/")

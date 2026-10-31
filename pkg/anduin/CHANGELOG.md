@@ -23,6 +23,14 @@ All notable changes to the standalone Andurel HTTP module are documented here.
   for requests resolved to the named hosts.
 - `anduintest.WithRouterOptions(...)` passes `anduin.Option`s to the test
   router, for example `anduin.WithHosts`.
+- `SafeLocalPath(target)` reports whether a redirect target is a real path on
+  this site. It normalises the target the way browsers do (trims ASCII
+  whitespace and control characters, drops tabs, newlines and carriage returns,
+  reads `\` as `/`) and rejects `//` prefixes, schemes, hosts, and empty or
+  relative targets. `/\t/evil.example` and `/\evil.example` are rejected.
+- `RedirectLocal(ctx, target, fallback, status)` redirects to `target` when it is
+  a safe local path and to `fallback` otherwise. The redirect uses the normalised
+  target. Use it for "return to where you were" after sign-in.
 
 ### Changed
 
@@ -32,6 +40,9 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 - `Router.Host(routing.HostPrimary)` and `Router.Host("")` return the primary
   route table, so routes registered through them are served the same way as
   `Router.Get`.
+- `StaticFS` and the router's `*` wildcard read the wildcard by the name `routing.WildcardParam`. This needs
+  the routing release that adds the constant; until then, build with the
+  workspace or wait for the routing release.
 
 ## 0.6.2 - 2026-10-30
 
