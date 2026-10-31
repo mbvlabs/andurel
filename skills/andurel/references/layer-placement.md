@@ -42,7 +42,7 @@ Two commands keep an agent honest:
 | Route names, route paths, URL builders | `routes/` |
 | App HTTP middleware (auth, authorization) | `middleware/` |
 | Inertia root document | `resources/root.templ` (package `resources`) |
-| Inertia pages and reusable frontend components | `resources/js/Pages/`, `resources/js/Layouts/`, `resources/js/Components/`, `resources/js/components/ui/` |
+| Inertia pages and reusable frontend components | `resources/js/Pages/`, `resources/js/Layouts/`, `resources/js/Components/` |
 | Generated TS route/payload helpers | `resources/js/routes.ts`, `resources/js/types/payloads.ts` (written by `andurel sync routes` / `sync payloads`) |
 | Tailwind entry point | `css/base.css` (imports Tailwind and `css/theme.css`; `@source` globs live here) |
 | Theme tokens and their utility mappings | `css/theme.css` (`:root` values plus the single `@theme` color owner) |
@@ -184,7 +184,7 @@ error`. They read input with `anduin`, decode request bodies into a struct from
   same package are followed. `json:"-"` is omitted and `omitempty` makes a
   field optional.
 - Keep payload fields to standard-library types, `time`, and
-  `github.com/google/uuid`. Copy the fields a page or form needs from a domain
+  the stdlib `uuid` package the scaffold imports. Copy the fields a page or form needs from a domain
   entity instead of embedding the entity.
 - `payloads/` may not import the application module, `pkg/storage`,
   `pkg/anduin`, `pkg/inertia`, or `net/http`; `andurel verify` enforces this
@@ -299,7 +299,7 @@ page also receives `errors`.
   its extension is the component string passed to `renderer.Page`.
 - `resources/js/Layouts/` — chrome shared by pages. Layouts do not take page
   props.
-- `resources/js/Components/` and `resources/js/components/ui/` — reusable
+- `resources/js/Components/` — reusable (the scaffold does not create it; use this one name, never `components/`, which collides with it on macOS and Windows)
   presentational pieces.
 - `resources/js/routes.ts` and `resources/js/types/payloads.ts` — generated; do
   not edit by hand. Use `routes.name.path(...)` for relative URLs and
