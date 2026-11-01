@@ -371,6 +371,54 @@ func TestBlueprintCarriesPendingUserCookieField(t *testing.T) {
 	t.Fatal("blueprint cookies are missing the PendingUserID session field")
 }
 
+// TestGeneratedAuthReturnToIsEncryptedAndCleared guards the return-to flow: a
+// signed-out GET stores its host and path in an encrypted, short-lived cookie
+// on the session domain; only a GET does; sign-in and sign-out clear it; and
+// the stored path is checked with anduin.SafeLocalPath before any redirect.
+func TestGeneratedAuthReturnToIsEncryptedAndCleared(t *testing.T) {
+	assertTemplateContains(t, "router_cookies_app.tmpl",
+		"type ReturnTo struct {",
+		"Host routing.HostName",
+		"const ReturnToMaxAge = 600",
+		"kiks.Bagged(kiks.Encrypted[ReturnTo](",
+		`cfg.Name+"_return_to",`,
+		"kiks.MaxAge(ReturnToMaxAge),",
+		"kiks.Domain(cfg.CookieDomain),",
+		"NewReturnToCookie(cfg, secure),",
+	)
+	assertTemplateContains(t, "router_middleware_auth.tmpl",
+		"func rememberReturnTo(ctx context.Context) error {",
+		"request.Method != http.MethodGet",
+		"request.URL.Path == routes.SessionNew.Path()",
+		"anduin.SafeLocalPath(target)",
+		"Host: anduin.RequestHost(ctx),",
+		"func ConsumeReturnTo(ctx context.Context, hosts *routing.Hosts, fallback string) (string, error) {",
+		"kiks.Destroy[ReturnTo](ctx)",
+		"hosts.Lookup(target.Host)",
+		"target.Host == routing.HostPrimary",
+		"hosts.BaseURL(target.Host) + target.Path",
+	)
+	assertTemplateContains(t, "handlers_auth.tmpl",
+		"hosts    *routing.Hosts",
+		"func (h AuthHandler) signedInRedirect(ctx context.Context) error {",
+		"middleware.ConsumeReturnTo(ctx, h.hosts, routes.HomePage.URL())",
+		"h.signedInRedirect(ctx)",
+		"kiks.Destroy[middleware.ReturnTo](ctx)",
+	)
+	assertTemplateContains(t, "runtime_runtime.tmpl",
+		"handlers.NewAuthHandler(identity, renderer, cacheStore, hosts).Register(router)",
+	)
+	assertTemplateContains(t, "handlers_auth_test.tmpl",
+		"func TestAuthOnlyReturnsVisitorToRequestedPathAfterSignIn(",
+		"func TestAuthOnlyDoesNotStoreReturnToForUnsafeMethods(",
+		"func TestSignInIgnoresUnsafeReturnTo(",
+		"func TestSignInRedirectsToAdminHostWithAbsoluteURL(",
+		"func TestSignOutClearsReturnTo(",
+		`path: "//evil.example"`,
+		"path: `/\\evil.example`",
+	)
+}
+
 func assertTemplateContains(t *testing.T, name string, wants ...string) {
 	t.Helper()
 

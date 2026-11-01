@@ -18,6 +18,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
@@ -25,14 +26,18 @@ type AuthHandler struct {
 	identity services.Identity
 	renderer *inertia.Renderer
 	cache    cache.Store
+	hosts    *routing.Hosts
 }
 
+// NewAuthHandler takes the host registry so a sign-in can send the visitor back
+// to a page on another host (see middleware.ConsumeReturnTo).
 func NewAuthHandler(
 	identity services.Identity,
 	renderer *inertia.Renderer,
 	store cache.Store,
+	hosts *routing.Hosts,
 ) AuthHandler {
-	return AuthHandler{identity: identity, renderer: renderer, cache: store}
+	return AuthHandler{identity: identity, renderer: renderer, cache: store, hosts: hosts}
 }
 
 const (
@@ -177,7 +182,21 @@ func (h AuthHandler) SessionCreate(ctx context.Context) error {
 		return err
 	}
 
-	return h.renderer.Location(ctx, routes.HomePage.URL())
+	return h.signedInRedirect(ctx)
+}
+
+// signedInRedirect sends a freshly signed-in visitor to the page they asked for
+// before sign-in, or to the home page. The return-target cookie is cleared
+// either way. It uses Location rather than a plain redirect because sign-in is
+// an Inertia request: Location makes the client visit the target itself, on
+// this host or another one.
+func (h AuthHandler) signedInRedirect(ctx context.Context) error {
+	location, err := middleware.ConsumeReturnTo(ctx, h.hosts, routes.HomePage.URL())
+	if err != nil {
+		return err
+	}
+
+	return h.renderer.Location(ctx, location)
 }
 
 func (h AuthHandler) resumeEmailVerification(ctx context.Context, entity domains.User) error {
@@ -193,6 +212,9 @@ func (h AuthHandler) SessionDestroy(ctx context.Context) error {
 	defer span.End()
 
 	if err := kiks.Destroy[*middleware.Session](ctx); err != nil {
+		return err
+	}
+	if err := kiks.Destroy[middleware.ReturnTo](ctx); err != nil {
 		return err
 	}
 	if err := kiks.AddFlash(ctx, kiks.FlashSuccess, "Signed out."); err != nil {
@@ -362,7 +384,7 @@ func (h AuthHandler) ConfirmationCreate(ctx context.Context) error {
 		return err
 	}
 
-	return h.renderer.Location(ctx, routes.HomePage.URL())
+	return h.signedInRedirect(ctx)
 }
 
 func pendingUserID(ctx context.Context) uuid.UUID {

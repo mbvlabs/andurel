@@ -4,6 +4,7 @@ import (
 	"app/config"
 
 	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
 // Session is the application session stored in an encrypted cookie.
@@ -13,6 +14,19 @@ type Session struct {
 	SessionVersion  int32  `json:"session_version,omitempty"`
 	IsAuthenticated bool   `json:"is_authenticated,omitempty"`
 }
+
+// ReturnTo is where a signed-out visitor was headed when AuthOnly sent them to
+// sign in. Host is the routing.HostName the request resolved to and Path is the
+// request path with its query. The app writes it; it is never read from the
+// client's URL.
+type ReturnTo struct {
+	Host routing.HostName
+	Path string
+}
+
+// ReturnToMaxAge is how long, in seconds, a return target survives. It only has
+// to cover one sign-in, so it is short.
+const ReturnToMaxAge = 600
 
 // NewSessionCookie defines the session cookie. An empty cfg.CookieDomain leaves
 // the cookie host-only.
@@ -26,6 +40,20 @@ func NewSessionCookie(cfg config.Session, secure bool) kiks.Definition {
 	)
 }
 
+// NewReturnToCookie defines the return-target cookie. It is encrypted, so the
+// client cannot read or edit the stored path, and it uses the same
+// cfg.CookieDomain as the session: a target saved on admin.<domain> is visible
+// to the primary sign-in when the domain is shared.
+func NewReturnToCookie(cfg config.Session, secure bool) kiks.Definition {
+	return kiks.Bagged(kiks.Encrypted[ReturnTo](
+		cfg.Name+"_return_to",
+		kiks.HTTPOnly(),
+		kiks.Secure(secure),
+		kiks.MaxAge(ReturnToMaxAge),
+		kiks.Domain(cfg.CookieDomain),
+	))
+}
+
 // CookieDefinitions lists every cookie the app registers on its jar. The app
 // (application.newJar) and the test helpers build their jars from this one
 // list, so a cookie added here is visible to handler tests too. Add new cookie
@@ -33,5 +61,6 @@ func NewSessionCookie(cfg config.Session, secure bool) kiks.Definition {
 func CookieDefinitions(cfg config.Session, secure bool) []kiks.Definition {
 	return []kiks.Definition{
 		NewSessionCookie(cfg, secure),
+		NewReturnToCookie(cfg, secure),
 	}
 }

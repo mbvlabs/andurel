@@ -75,6 +75,11 @@ func RequireAdmin() anduin.Middleware {
   the database and attaches it with `WithViewer`; read it with `ViewerFrom`.
   A deleted user or a stale `SessionVersion` is rejected on every request. A
   rejected visitor is sent to the primary host's sign-in page.
+- Return-to after sign-in goes through the `ReturnTo` cookie, not a query
+  parameter. `AuthOnly` stores the host and path only for a rejected `GET`;
+  sign-in calls `ConsumeReturnTo`, which validates the path with
+  `anduin.SafeLocalPath` and falls back to the home page. Use the same pattern
+  for any new sign-in flow, and clear the cookie on sign-out.
 - Put request-scoped values on `context.Context` with unexported key types in
   the same package, and expose typed accessors (`WithViewer` / `ViewerFrom`).
   Dependencies and database handles never go on the context.

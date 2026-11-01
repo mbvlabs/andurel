@@ -157,7 +157,7 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	// signs in. Pass middleware.AuthOnly(users, hosts) to Register to protect a page.
 	handlers.NewPagesHandler(renderer).Register(router)
 	assetsHandler.Register(router)
-	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)
+	handlers.NewAuthHandler(identity, renderer, cacheStore, hosts).Register(router)
 	handlers.NewAPIHandler(newReadiness(db, renderer)).Register(router)
 
 	app.Handler = router.Handler()
