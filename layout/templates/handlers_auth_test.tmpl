@@ -3,6 +3,7 @@ package handlers_test
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -25,6 +26,12 @@ import (
 )
 
 const testPassword = "correct horse battery staple"
+
+// testAdminHost is a secondary host the return-to tests send visitors from.
+const testAdminHost routing.HostName = "admin"
+
+// returnToCookieName is the test jar's name for the return-to cookie.
+const returnToCookieName = "test_session_return_to"
 
 func TestSessionNewRendersLogin(t *testing.T) {
 	srv := newAuthServer(t)
@@ -175,6 +182,165 @@ func TestPasswordResetInvalidatesExistingSession(t *testing.T) {
 	}
 }
 
+func TestAuthOnlyReturnsVisitorToRequestedPathAfterSignIn(t *testing.T) {
+	app := newAuthTestApp(t)
+	user := app.verifiedUser(t, "return-to@example.com")
+
+	resp := app.server.Get("/protected?x=1")
+	resp.AssertStatus(http.StatusSeeOther)
+	if got := resp.Header.Get("Location"); got != routes.SessionNew.URL() {
+		t.Fatalf("location = %q, want %q", got, routes.SessionNew.URL())
+	}
+	if !hasReturnToCookie(resp, false) {
+		t.Fatal("rejected GET did not store the return-to cookie")
+	}
+
+	resp = app.server.PostJSON(routes.SessionCreate.Path(), payloads.LoginPayload{
+		Email:    user.Email,
+		Password: testPassword,
+	})
+	resp.AssertStatus(http.StatusFound)
+	if got := resp.Header.Get("Location"); got != "/protected?x=1" {
+		t.Fatalf("location = %q, want %q", got, "/protected?x=1")
+	}
+	if !hasReturnToCookie(resp, true) {
+		t.Fatal("sign-in did not clear the return-to cookie")
+	}
+}
+
+func TestAuthOnlyDoesNotStoreReturnToForUnsafeMethods(t *testing.T) {
+	app := newAuthTestApp(t)
+
+	resp := app.server.PostJSON("/protected", map[string]string{"title": "draft"})
+	resp.AssertStatus(http.StatusSeeOther)
+	if got := resp.Header.Get("Location"); got != routes.SessionNew.URL() {
+		t.Fatalf("location = %q, want %q", got, routes.SessionNew.URL())
+	}
+	if hasReturnToCookie(resp, false) {
+		t.Fatal("rejected POST stored a return-to cookie")
+	}
+}
+
+// TestSignInIgnoresUnsafeReturnTo covers the sign-in side: the cookie is
+// encrypted and only this app writes it, but a stored path or host that fails
+// validation must still fall back to the home page.
+func TestSignInIgnoresUnsafeReturnTo(t *testing.T) {
+	cases := []struct {
+		name string
+		host routing.HostName
+		path string
+	}{
+		{name: "protocol relative", host: routing.HostPrimary, path: "//evil.example"},
+		{name: "backslash host", host: routing.HostPrimary, path: `/\evil.example`},
+		{name: "tab inside host", host: routing.HostPrimary, path: "/\t/evil.example"},
+		{name: "absolute URL", host: routing.HostPrimary, path: "https://evil.example/x"},
+		{name: "empty path", host: routing.HostPrimary, path: ""},
+		{name: "unknown host", host: "ghost", path: "/protected"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newAuthTestApp(t)
+			user := app.verifiedUser(t, "unsafe-return@example.com")
+			app.seedReturnTo(t, tc.host, tc.path)
+
+			resp := app.server.PostJSON(routes.SessionCreate.Path(), payloads.LoginPayload{
+				Email:    user.Email,
+				Password: testPassword,
+			})
+			resp.AssertStatus(http.StatusFound)
+			if got := resp.Header.Get("Location"); got != routes.HomePage.URL() {
+				t.Fatalf("location = %q, want fallback %q", got, routes.HomePage.URL())
+			}
+			if !hasReturnToCookie(resp, true) {
+				t.Fatal("sign-in did not clear the return-to cookie")
+			}
+		})
+	}
+}
+
+func TestSignInRedirectsToAdminHostWithAbsoluteURL(t *testing.T) {
+	app := newAuthTestApp(t)
+	user := app.verifiedUser(t, "admin-return@example.com")
+
+	resp := app.server.Get(
+		"/admin/protected?x=1",
+		anduintest.Header{Name: "Host", Value: "admin.localhost"},
+	)
+	resp.AssertStatus(http.StatusSeeOther)
+	if !hasReturnToCookie(resp, false) {
+		t.Fatal("rejected admin GET did not store the return-to cookie")
+	}
+
+	// The test client keys cookies by the Host override, so the admin cookie
+	// stays under admin.localhost. Send it on the sign-in request as a browser
+	// would on a shared SESSION_COOKIE_DOMAIN.
+	returnTo := cookieHeader(t, resp, returnToCookieName)
+
+	// Sign-in is an Inertia request, so the target goes out as X-Inertia-Location
+	// and the client makes a full visit to the other host.
+	resp = app.server.PostJSON(
+		routes.SessionCreate.Path(),
+		payloads.LoginPayload{Email: user.Email, Password: testPassword},
+		anduintest.Header{Name: "X-Inertia", Value: "true"},
+		returnTo,
+	)
+	resp.AssertStatus(http.StatusConflict)
+	if got := resp.Header.Get("X-Inertia-Location"); got != "http://admin.localhost/admin/protected?x=1" {
+		t.Fatalf("X-Inertia-Location = %q, want %q", got, "http://admin.localhost/admin/protected?x=1")
+	}
+	if !hasReturnToCookie(resp, true) {
+		t.Fatal("sign-in did not clear the return-to cookie")
+	}
+}
+
+func TestSignOutClearsReturnTo(t *testing.T) {
+	app := newAuthTestApp(t)
+
+	resp := app.server.Get("/protected?x=1")
+	resp.AssertStatus(http.StatusSeeOther)
+	if !hasReturnToCookie(resp, false) {
+		t.Fatal("rejected GET did not store the return-to cookie")
+	}
+
+	resp = app.server.PostJSON(routes.SessionDestroy.Path(), nil)
+	resp.AssertStatus(http.StatusSeeOther)
+	if !hasReturnToCookie(resp, true) {
+		t.Fatal("sign-out did not clear the return-to cookie")
+	}
+}
+
+// hasReturnToCookie reports whether resp sets the return-to cookie. With
+// cleared true it looks for the expiring Set-Cookie (Max-Age=0), otherwise for
+// a stored value.
+func hasReturnToCookie(resp *anduintest.Response, cleared bool) bool {
+	for _, header := range resp.Header.Values("Set-Cookie") {
+		if !strings.HasPrefix(header, returnToCookieName+"=") {
+			continue
+		}
+		if strings.Contains(header, "Max-Age=0") == cleared {
+			return true
+		}
+	}
+
+	return false
+}
+
+// cookieHeader returns a Cookie request header carrying the named cookie that
+// resp sets, so a test can replay it on a request the client jar would not send.
+func cookieHeader(t *testing.T, resp *anduintest.Response, name string) anduintest.Header {
+	t.Helper()
+
+	for _, cookie := range (&http.Response{Header: resp.Header}).Cookies() {
+		if cookie.Name == name {
+			return anduintest.Header{Name: "Cookie", Value: cookie.Name + "=" + cookie.Value}
+		}
+	}
+	t.Fatalf("response sets no %s cookie", name)
+
+	return anduintest.Header{}
+}
+
 type authTestApp struct {
 	server   *anduintest.Server
 	users    domains.Users
@@ -196,6 +362,7 @@ func newAuthTestApp(t *testing.T) authTestApp {
 	}
 	hosts, err := routing.NewHosts(map[routing.HostName]routing.HostSpec{
 		routing.HostPrimary: {Hostname: "localhost", Protocol: "http"},
+		testAdminHost:       {Hostname: "admin.localhost", Protocol: "http"},
 	})
 	if err != nil {
 		t.Fatalf("create hosts: %v", err)
@@ -239,8 +406,29 @@ func newAuthTestApp(t *testing.T) authTestApp {
 		rt.Get("/protected", func(ctx context.Context) error {
 			return anduin.Text(ctx, http.StatusOK, "protected")
 		}, middleware.AuthOnly(users, hosts))
-		handlers.NewAuthHandler(identity, renderer, store).Register(rt)
-	}, anduintest.WithMiddleware(jar.Middleware()))
+		rt.Post("/protected", func(ctx context.Context) error {
+			return anduin.Text(ctx, http.StatusOK, "submitted")
+		}, middleware.AuthOnly(users, hosts))
+		rt.Host(testAdminHost).Isolate()
+		rt.Host(testAdminHost).Get("/admin/protected", func(ctx context.Context) error {
+			return anduin.Text(ctx, http.StatusOK, "admin protected")
+		}, middleware.AuthOnly(users, hosts))
+		// seedReturnTo writes a return-to cookie directly. The client cannot
+		// craft one, so the tests use this route to exercise the sign-in side
+		// with paths that AuthOnly would never store.
+		rt.Get("/test/return-to", func(ctx context.Context) error {
+			err := kiks.Set(ctx, middleware.ReturnTo{
+				Host: routing.HostName(anduin.Query(ctx, "host")),
+				Path: anduin.Query(ctx, "path"),
+			})
+			if err != nil {
+				return err
+			}
+
+			return anduin.Text(ctx, http.StatusOK, "stored")
+		})
+		handlers.NewAuthHandler(identity, renderer, store, hosts).Register(rt)
+	}, anduintest.WithMiddleware(jar.Middleware()), anduintest.WithHosts(hosts))
 
 	return authTestApp{
 		server:   srv,
@@ -280,6 +468,17 @@ func (a authTestApp) verifiedUser(t *testing.T, email string) domains.User {
 	}
 
 	return updated
+}
+
+// seedReturnTo stores a return-to target through the test-only route, so tests
+// can present targets AuthOnly would never store.
+func (a authTestApp) seedReturnTo(t *testing.T, host routing.HostName, path string) {
+	t.Helper()
+
+	resp := a.server.Get(
+		"/test/return-to?host=" + url.QueryEscape(string(host)) + "&path=" + url.QueryEscape(path),
+	)
+	resp.AssertStatus(http.StatusOK)
 }
 
 func (a authTestApp) signIn(t *testing.T, email string) {

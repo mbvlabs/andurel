@@ -857,6 +857,20 @@ the sign-in page on the primary host (an absolute URL when the request arrived o
 another host). Handlers read the database-backed user (including `IsAdmin`) with
 `middleware.ViewerFrom(ctx)`.
 
+Sign-in returns the visitor to where they were. When `AuthOnly` rejects a `GET`,
+it stores the request's host and path with its query in the encrypted, `HttpOnly`
+`ReturnTo` cookie (`middleware.NewReturnToCookie`). The cookie lasts
+`middleware.ReturnToMaxAge` seconds (600) and uses `SESSION_COOKIE_DOMAIN`, like
+the session. A successful sign-in, or a confirmed email, reads and clears the
+cookie through `middleware.ConsumeReturnTo(ctx, hosts, fallback)`. The stored path
+must pass `anduin.SafeLocalPath`, and the host must still be registered; otherwise
+the visitor goes to the home page. A target on the primary host is redirected to
+its path. A target on another host gets that host's absolute URL. Rejected `POST`,
+`PUT` and `DELETE` requests store nothing, and signing out clears the cookie. With
+`SESSION_COOKIE_DOMAIN` empty the cookie is host-only, so a target saved on
+`admin.example.com` is not visible to the primary sign-in and the visitor lands on
+the home page.
+
 `SESSION_COOKIE_DOMAIN` sets the `Domain` attribute of the session and CSRF
 cookies. It is empty by default, which keeps one cookie per host. Set it to a
 bare domain such as `.example.com` to share the sign-in across subdomains; a

@@ -320,7 +320,13 @@ session's user from the database on every request, rejects a missing user or a
 stale `SessionVersion` (clearing the cookie and redirecting to the primary host's
 sign-in page, as an absolute URL when the request is on another host), and
 attaches the database-backed user for `middleware.ViewerFrom(ctx)`, so admin
-checks never trust a value in the cookie. `pkg/inertia`'s
+checks never trust a value in the cookie. A rejected `GET` also stores its host
+and path+query in the encrypted `ReturnTo` cookie (10 minutes, on
+`SESSION_COOKIE_DOMAIN`). Sign-in and confirmed email call
+`middleware.ConsumeReturnTo(ctx, hosts, fallback)`, which clears the cookie and
+returns the stored page only when `anduin.SafeLocalPath` accepts its path and the
+host is still registered. Sign-out clears the cookie too. Do not add a `next` or
+`return_to` query parameter for this; the cookie is the mechanism. `pkg/inertia`'s
 `(*Renderer).Middleware()` also returns an `anduin.Middleware`.
 `middleware.DenyFraming(hosts ...routing.HostName)` ships unwired: it branches
 on `anduin.RequestHost(ctx)` and sets `X-Frame-Options: DENY` and

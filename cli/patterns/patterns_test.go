@@ -149,7 +149,7 @@ func TestCompositionPatternMatchesScaffoldRuntime(t *testing.T) {
 		"anduin.WithHosts(hosts)",
 		"handlers.NewPagesHandler(renderer).Register(router)",
 		"assetsHandler.Register(router)",
-		"handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)",
+		"handlers.NewAuthHandler(identity, renderer, cacheStore, hosts).Register(router)",
 		"handlers.NewAPIHandler(newReadiness(db, renderer)).Register(router)",
 		"app.Handler = router.Handler()",
 		"routes.ViteBuild.InSubtree(path)",

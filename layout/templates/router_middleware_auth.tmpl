@@ -54,12 +54,71 @@ func AuthOnly(users domains.Users, hosts *routing.Hosts) anduin.Middleware {
 }
 
 // rejectSession clears the invalid cookie before sending the visitor to sign in.
+// A signed-out GET also records where the visitor was headed, so a successful
+// sign-in can send them back (see ConsumeReturnTo).
 func rejectSession(ctx context.Context, hosts *routing.Hosts) error {
 	if err := kiks.Destroy[*Session](ctx); err != nil {
 		return err
 	}
+	if err := rememberReturnTo(ctx); err != nil {
+		return err
+	}
 
 	return anduin.Redirect(ctx, signInURL(ctx, hosts), http.StatusSeeOther)
+}
+
+// rememberReturnTo stores the rejected request's host and path+query. Only GET
+// is stored: a replayed POST, PUT or DELETE is not a page to return to. The
+// sign-in page is never stored, or sign-in would send the visitor back to itself.
+func rememberReturnTo(ctx context.Context) error {
+	request := anduin.Request(ctx)
+	if request == nil || request.Method != http.MethodGet {
+		return nil
+	}
+	if request.URL.Path == routes.SessionNew.Path() {
+		return nil
+	}
+
+	target := request.URL.RequestURI()
+	if !anduin.SafeLocalPath(target) {
+		return nil
+	}
+
+	return kiks.Set(ctx, ReturnTo{
+		Host: anduin.RequestHost(ctx),
+		Path: target,
+	})
+}
+
+// ConsumeReturnTo ends a successful sign-in. It clears the return-target cookie
+// and returns where to send the visitor: the stored page when its path passes
+// anduin.SafeLocalPath and its host is still registered, and fallback otherwise.
+// A primary-host target is a path; any other host gets its absolute URL, so the
+// browser leaves the primary host for that host's origin.
+func ConsumeReturnTo(ctx context.Context, hosts *routing.Hosts, fallback string) (string, error) {
+	target, err := kiks.Get[ReturnTo](ctx)
+	if err != nil {
+		return fallback, err
+	}
+	if err := kiks.Destroy[ReturnTo](ctx); err != nil {
+		return fallback, err
+	}
+
+	return returnToLocation(target, hosts, fallback), nil
+}
+
+func returnToLocation(target ReturnTo, hosts *routing.Hosts, fallback string) string {
+	if !anduin.SafeLocalPath(target.Path) {
+		return fallback
+	}
+	if _, ok := hosts.Lookup(target.Host); !ok {
+		return fallback
+	}
+	if target.Host == routing.HostPrimary {
+		return target.Path
+	}
+
+	return hosts.BaseURL(target.Host) + target.Path
 }
 
 // signInURL is the sign-in page the visitor is sent to. Sign-in is served on
