@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -34,7 +35,13 @@ This command will:
 
 You are responsible for updating application code to work with any API
 changes. After go.mod changes, run go mod tidy. To take the latest published
-package versions without a framework upgrade, use andurel packages update.`,
+package versions without a framework upgrade, use andurel packages update.
+
+Structured output (--json/--agent) is non-interactive: it never runs go mod
+tidy or andurel tool sync. commands_run records the commands that actually
+executed, including read-only git checks; failed attempts carry a (failed)
+suffix. ok:true means the upgrade mutation succeeded, not that the project
+builds. Read warnings and breadcrumbs for required follow-up work.`,
 		Example: `  andurel upgrade
   andurel upgrade --dry-run
   andurel upgrade --repair`,
@@ -115,7 +122,7 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		return upgrader.Execute()
 	}()
 	if err != nil {
-		return upgradeCommandError(err)
+		return upgradeCommandErrorWithReport(err, report, structured)
 	}
 
 	if structured {
@@ -129,35 +136,47 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 			// andurel.toml and andurel.lock included.
 			after = applyPlannedChanges(before, report.PlannedChanges)
 		}
-		artifactReport := buildMutationReport(mutationOptions{
-			Action:      "upgrade",
-			Resource:    targetVersion,
-			DryRun:      dryRun,
-			Diff:        diff,
-			CommandsRun: upgradeCommandsRun(report),
-		}, before, after)
-		if dryRun && report != nil {
-			artifactReport.Warnings = append(
-				artifactReport.Warnings,
-				"dry run only; no files were changed",
+		followUpWarnings, followUpBreadcrumbs := upgradeFollowUps(report, dryRun)
+		if dryRun {
+			followUpWarnings = append(
+				[]string{"dry run only; no files were changed"},
+				followUpWarnings...,
 			)
 		}
-		if report != nil && report.RepairAvailable {
-			artifactReport.Warnings = append(
-				artifactReport.Warnings,
-				"framework-owned file drift detected; run andurel upgrade --repair to restore it",
-			)
+		artifactReport := buildMutationReport(mutationOptions{
+			Action:   "upgrade",
+			Resource: targetVersion,
+			DryRun:   dryRun,
+			Diff:     diff,
+			Warnings: followUpWarnings,
+		}, before, after)
+		// commands_run mirrors the subprocesses the upgrade domain actually
+		// attempted. It never includes proposed follow-up work.
+		artifactReport.CommandsRun = []string{}
+		if report != nil {
+			artifactReport.CommandsRun = append([]string{}, report.CommandsRun...)
 		}
 		data := map[string]any{
 			"upgrade":   report,
 			"artifacts": artifactReport,
 		}
+		breadcrumbs := []output.Breadcrumb{}
+		if report != nil && report.RepairAvailable && !report.RepairApplied {
+			breadcrumbs = append(breadcrumbs, output.Breadcrumb{
+				Command:     "andurel upgrade --repair",
+				Description: "Restore framework-owned drift; file and tool changes in this report are proposed until this runs",
+			})
+		}
+		breadcrumbs = append(breadcrumbs,
+			output.Breadcrumb{Command: "andurel doctor"},
+			output.Breadcrumb{Command: "git diff"},
+		)
+		breadcrumbs = append(breadcrumbs, followUpBreadcrumbs...)
 		return output.OK(
 			cmd,
 			data,
 			mutationSummary(artifactReport),
-			output.Breadcrumb{Command: "andurel doctor"},
-			output.Breadcrumb{Command: "git diff"},
+			breadcrumbs...,
 		)
 	}
 
@@ -189,7 +208,7 @@ func runUpgrade(cmd *cobra.Command, targetVersion string) error {
 		}
 		report, err = upgrader.Execute()
 		if err != nil {
-			return upgradeCommandError(err)
+			return upgradeCommandErrorWithReport(err, report, structured)
 		}
 	}
 
@@ -262,6 +281,60 @@ func upgradeCommandError(err error) error {
 	}
 }
 
+// upgradeCommandErrorWithReport keeps the typed error contract and adds the
+// failed execution's report to structured error data. The command still
+// returns an error envelope, never a success envelope.
+func upgradeCommandErrorWithReport(
+	err error,
+	report *upgrade.UpgradeReport,
+	structured bool,
+) error {
+	mapped := upgradeCommandError(err)
+	if !structured || report == nil {
+		return mapped
+	}
+
+	if cliErr, ok := errors.AsType[*output.CLIError](mapped); ok {
+		cloned := *cliErr
+		cloned.Data = mergeUpgradeErrorData(cliErr.Data, report)
+		return &cloned
+	}
+
+	envelope := output.Fail(mapped)
+	return &output.CLIError{
+		Code:     envelope.Code,
+		Message:  envelope.Error,
+		Hint:     envelope.Hint,
+		ExitCode: envelope.ExitCode,
+		Cause:    mapped,
+		Data:     mergeUpgradeErrorData(nil, report),
+	}
+}
+
+// mergeUpgradeErrorData preserves existing typed data and adds the failed
+// report plus its actual command provenance.
+func mergeUpgradeErrorData(existing any, report *upgrade.UpgradeReport) map[string]any {
+	data := map[string]any{}
+	switch value := existing.(type) {
+	case nil:
+	case map[string]any:
+		maps.Copy(data, value)
+	case upgrade.UnsupportedUpgradeData:
+		data["from"] = value.From
+		data["to"] = value.To
+		data["rebuild_version"] = value.RebuildVersion
+		data["legacy_markers"] = value.LegacyMarkers
+	default:
+		encoded, err := json.Marshal(value)
+		if err == nil {
+			_ = json.Unmarshal(encoded, &data)
+		}
+	}
+	data["upgrade"] = report
+	data["commands_run"] = append([]string{}, report.CommandsRun...)
+	return data
+}
+
 func applyPlannedChanges(before fileSnapshot, changes []upgrade.PlannedChange) fileSnapshot {
 	after := make(fileSnapshot, len(before))
 	maps.Copy(after, before)
@@ -279,12 +352,94 @@ func applyPlannedChanges(before fileSnapshot, changes []upgrade.PlannedChange) f
 	return after
 }
 
-func upgradeCommandsRun(report *upgrade.UpgradeReport) []string {
-	commands := []string{"andurel tool sync"}
-	if report != nil && slices.Contains(report.ReplacedFiles, "go.mod") {
-		commands = append(commands, "go mod tidy")
+// upgradeFollowUps reports the follow-up work a completed or pending mutation
+// actually needs. Structured upgrades are non-interactive: they never run
+// go mod tidy or andurel tool sync, so the guidance is returned as warnings
+// and breadcrumbs rather than command records. A dry run or pending repair
+// phrases the work as a proposal because nothing has changed yet.
+func upgradeFollowUps(
+	report *upgrade.UpgradeReport,
+	dryRun bool,
+) ([]string, []output.Breadcrumb) {
+	if report == nil {
+		return nil, nil
 	}
-	return commands
+
+	pendingRepair := report.RepairAvailable && !report.RepairApplied
+	var warnings []string
+	var breadcrumbs []output.Breadcrumb
+	if pendingRepair {
+		warnings = append(
+			warnings,
+			"framework-owned file drift detected; run 'andurel upgrade --repair' first. File and tool changes in this report are proposed, not applied.",
+		)
+	}
+
+	if slices.Contains(report.ReplacedFiles, "go.mod") {
+		switch {
+		case pendingRepair:
+			warnings = append(
+				warnings,
+				"pending repair: the go.mod change is proposed, not applied; after 'andurel upgrade --repair', 'go mod tidy' is proposed to refresh go.sum; it was not run",
+			)
+			breadcrumbs = append(breadcrumbs, output.Breadcrumb{
+				Command:     "go mod tidy",
+				Description: "Proposed after the pending repair: refresh go.sum for repaired go.mod pins",
+			})
+		case dryRun:
+			warnings = append(
+				warnings,
+				"dry run: 'go mod tidy' is proposed after a real upgrade to refresh go.sum for updated go.mod pins; it was not run",
+			)
+			breadcrumbs = append(breadcrumbs, output.Breadcrumb{
+				Command:     "go mod tidy",
+				Description: "Proposed after a real upgrade: refresh go.sum for updated go.mod pins",
+			})
+		default:
+			warnings = append(
+				warnings,
+				"go.mod pins changed; run 'go mod tidy' to refresh go.sum",
+			)
+			breadcrumbs = append(breadcrumbs, output.Breadcrumb{
+				Command:     "go mod tidy",
+				Description: "Required after this upgrade: refresh go.sum for updated go.mod pins",
+			})
+		}
+	}
+
+	if report.ToolsAdded+report.ToolsUpdated+report.ToolsRemoved > 0 {
+		switch {
+		case pendingRepair:
+			warnings = append(
+				warnings,
+				"pending repair: tool version changes are proposed, not applied; after 'andurel upgrade --repair', 'andurel tool sync' is proposed to install them; it was not run",
+			)
+			breadcrumbs = append(breadcrumbs, output.Breadcrumb{
+				Command:     "andurel tool sync",
+				Description: "Proposed after the pending repair: install changed tool binaries",
+			})
+		case dryRun:
+			warnings = append(
+				warnings,
+				"dry run: 'andurel tool sync' is proposed after a real upgrade to install changed tool binaries; it was not run",
+			)
+			breadcrumbs = append(breadcrumbs, output.Breadcrumb{
+				Command:     "andurel tool sync",
+				Description: "Proposed after a real upgrade: install changed tool binaries",
+			})
+		default:
+			warnings = append(
+				warnings,
+				"tool versions changed; run 'andurel tool sync' to install the pinned binaries",
+			)
+			breadcrumbs = append(breadcrumbs, output.Breadcrumb{
+				Command:     "andurel tool sync",
+				Description: "Required after this upgrade: install changed tool binaries",
+			})
+		}
+	}
+
+	return warnings, breadcrumbs
 }
 
 func requireLatestAndurelRelease(ctx context.Context, currentVersion string) error {

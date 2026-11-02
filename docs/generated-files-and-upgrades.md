@@ -59,6 +59,36 @@ andurel upgrade --dry-run --diff --json
 
 The response reports replacements, deletions, tool metadata changes, unified diffs, manual actions, and dirty-worktree state. Dry-run is read-only and deterministic, including on a dirty worktree.
 
+## Structured output and follow-up work
+
+`andurel upgrade --json` and `--agent` are non-interactive. They never run
+`go mod tidy` or `andurel tool sync`. `commands_run` lists the subprocesses the
+invocation actually attempted, in execution order, including read-only
+prerequisite checks such as `git status --porcelain`; failed attempts carry a
+`(failed)` suffix. Proposed follow-up work is never reported there.
+
+When the upgrade changes `go.mod` pins, the response adds a warning and a
+`go mod tidy` breadcrumb. When it changes tool versions, it adds a warning and
+an `andurel tool sync` breadcrumb. A dry run may run read-only safety checks
+and record them in `commands_run`, but it does not write project files or run
+tidy, tool-sync or install commands. It phrases follow-up work as proposed and
+not run.
+
+When the report contains unrepaired framework drift, the file and tool changes
+are proposals rather than a completed mutation: the warning says to run
+`andurel upgrade --repair` first, that breadcrumb comes first, and tidy/tool
+sync are described as work proposed after that repair.
+
+When the upgrade fails after executing commands, the structured error data
+still carries the failed report under `upgrade` and the actual attempted
+commands under `commands_run`; it never emits a success envelope.
+
+`ok: true` means the upgrade mutation completed. It does not certify that the
+project builds, that `go mod tidy` ran, or that the changed tool binaries are
+installed. Run the reported follow-ups before treating the upgraded project as
+buildable. Human mode keeps its existing behavior: it syncs tool binaries when
+tool versions change, while `go mod tidy` remains an advisory next step.
+
 ## Transaction guarantees
 
 A real upgrade plans and renders the complete result before writing. It validates staged content, creates recoverable backups, replaces files atomically where the filesystem permits, and writes the final manifest version last. Any replacement or validation failure rolls every changed file, `andurel.toml`, and `andurel.lock` back to their byte-identical originals.

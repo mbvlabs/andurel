@@ -79,6 +79,13 @@ manifest must not silently disable a check.
 A project without `andurel.content.toml` reports the content stage as
 `skipped` with `not_applicable: true`. It never reports content as checked.
 
+A skipped stage is not a failure: the stage carries `status: "skipped"`,
+`ok: false`, and (when it has nothing to check) `not_applicable: true`, while
+the command's top-level `ok` remains true when the other stages pass. Consumers
+must inspect each stage's `status` and `not_applicable`; the envelope `ok` alone
+does not prove every check ran. These fields are the existing schema and are
+unchanged.
+
 ### Rule selection and execution
 
 `--rules` controls what the content stage **executes**, not only which findings

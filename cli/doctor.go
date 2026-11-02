@@ -111,7 +111,7 @@ func newDoctorCommand(currentVersion string) *cobra.Command {
 
 This command will check:
   • Environment (Go version, latest Andurel release)
-  • Configuration (andurel.lock, first-run setup, Inertia SSR readiness)
+  • Configuration (andurel.lock, first-run setup, Inertia SSR readiness, narsilc generator/runtime alignment)
   • Manual actions (static applied / not applied / not applicable status for application-owned upgrade actions, by stable action ID)
   • Code quality (go vet, go mod tidy)
   • Code generation (templ, email renderers, narsilc, and Inertia route helpers and payload types when configured)
@@ -191,6 +191,7 @@ func collectDoctorReport(currentVersion string, verbose bool) (doctorReport, err
 		checkLockFile(rootDir),
 		checkAndurelVersion(rootDir, currentVersion),
 		checkToolVersions(rootDir, verbose),
+		checkNarsilcRuntime(rootDir),
 		checkProjectSetup(rootDir),
 		checkManualActions(rootDir, currentVersion),
 		checkInertiaSSRConfiguration(rootDir),
@@ -277,6 +278,8 @@ func doctorHint(result checkResult) string {
 		return "Use the Andurel version recorded in andurel.lock or run andurel upgrade."
 	case "tool versions":
 		return "Run andurel tool sync to install or update framework tools."
+	case "narsilc runtime":
+		return "Align the github.com/mbvlabs/narsilc version in go.mod with the narsilc tool, then run go mod tidy."
 	case "Project setup":
 		return "Run andurel tool sync and install the frontend dependencies from the project root."
 	case "Manual actions":
@@ -359,6 +362,7 @@ func runDoctor(cmd *cobra.Command, currentVersion string, verbose bool) error {
 		checkLockFile(rootDir),
 		checkAndurelVersion(rootDir, currentVersion),
 		checkToolVersions(rootDir, verbose),
+		checkNarsilcRuntime(rootDir),
 		checkProjectSetup(rootDir),
 		checkManualActions(rootDir, currentVersion),
 		checkInertiaSSRConfiguration(rootDir),
@@ -955,6 +959,82 @@ func checkToolVersions(rootDir string, verbose bool) checkResult {
 		status:  statusWarn,
 		message: message,
 		details: details,
+	}
+}
+
+func checkNarsilcRuntime(rootDir string) checkResult {
+	const name = "narsilc runtime"
+
+	lock, err := layout.ReadLockFile(rootDir)
+	if err != nil {
+		return checkResult{
+			name:    name,
+			status:  statusSkip,
+			message: "andurel.lock missing or invalid (skipping narsilc runtime check)",
+		}
+	}
+	tool, configured := lock.Tools["narsilc"]
+	if !configured || tool == nil {
+		return checkResult{
+			name:    name,
+			status:  statusPass,
+			message: "narsilc is not configured in andurel.lock",
+		}
+	}
+
+	state := inspectNarsilcRuntime(rootDir, tool.Version)
+	switch state.Status {
+	case narsilcRuntimeAligned:
+		return checkResult{
+			name:    name,
+			status:  statusPass,
+			message: fmt.Sprintf("go.mod matches narsilc tool %s", state.ToolVersion),
+		}
+	case narsilcRuntimeMissing:
+		return checkResult{
+			name:   name,
+			status: statusPass,
+			message: fmt.Sprintf(
+				"narsilc tool %s is configured; go.mod has no narsilc runtime requirement",
+				state.ToolVersion,
+			),
+		}
+	case narsilcRuntimeMismatch:
+		details := []string{state.Detail, "Run:"}
+		details = append(details, state.remediation()...)
+		return checkResult{
+			name:   name,
+			status: statusWarn,
+			message: fmt.Sprintf(
+				"narsilc tool %s, go.mod requires %s",
+				state.ToolVersion,
+				state.RequiredVersion,
+			),
+			details: details,
+			hint: fmt.Sprintf(
+				"Run '%s', then 'go mod tidy' to align the runtime with the narsilc tool.",
+				state.remediation()[0],
+			),
+		}
+	case narsilcRuntimeReplaced:
+		return checkResult{
+			name:   name,
+			status: statusWarn,
+			message: fmt.Sprintf(
+				"narsilc runtime is replaced; alignment with narsilc tool %s could not be verified",
+				state.ToolVersion,
+			),
+			details: []string{state.Detail},
+			hint:    "Review the github.com/mbvlabs/narsilc replace directive in go.mod and confirm it matches the narsilc tool version.",
+		}
+	default:
+		return checkResult{
+			name:    name,
+			status:  statusWarn,
+			message: "narsilc runtime alignment could not be verified",
+			details: []string{state.Detail},
+			hint:    "Inspect go.mod and confirm the github.com/mbvlabs/narsilc requirement is readable and has a valid module version.",
+		}
 	}
 }
 

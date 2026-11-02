@@ -249,7 +249,6 @@ func TestUnsupportedStructuredOutputRemainsUsageError(t *testing.T) {
 		{"db", "console", "--json"},
 		{"db", "migrate", "status", "--json"},
 		{"generate", "migration", "probe", "--json"},
-		{"tool", "set-version", "templ", "1.0.0", "--json"},
 		{"run", "--json"},
 		{"fmt", "--json"},
 	} {

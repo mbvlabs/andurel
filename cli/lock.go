@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/mbvlabs/andurel/v2/layout"
 	"github.com/mbvlabs/andurel/v2/layout/versions"
 	"github.com/spf13/cobra"
@@ -90,12 +91,14 @@ Examples:
     --sha256 linux/amd64=<hex> --sha256 linux/arm64=<hex> \
     --sha256 darwin/amd64=<hex> --sha256 darwin/arm64=<hex>
 
-This updates andurel.lock and syncs the tool binary to bin/.`,
+This updates andurel.lock and syncs the tool binary to bin/.
+
+For narsilc, this command also compares the narsilc runtime required by go.mod
+with the requested generator version. A mismatch is reported with the exact
+go get and go mod tidy remediation; set-version never edits go.mod or
+go.sum. Replaced or unreadable module data is reported as unverifiable.`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := rejectStructuredOutput(cmd, "andurel tool set-version"); err != nil {
-				return err
-			}
 			toolName := args[0]
 			version := args[1]
 
@@ -104,7 +107,33 @@ This updates andurel.lock and syncs the tool binary to bin/.`,
 				return fmt.Errorf("not in an andurel project directory: %w", err)
 			}
 
-			return setVersion(projectRoot, toolName, version, checksumArguments...)
+			opts, err := output.ParseOptions(cmd)
+			if err != nil {
+				return err
+			}
+			if opts.Mode == output.ModeHuman {
+				return setVersion(projectRoot, toolName, version, checksumArguments...)
+			}
+
+			var report toolVersionReport
+			if err := runWithOptionalStdoutSilence(true, func() error {
+				var runErr error
+				report, runErr = setVersionAndReport(
+					projectRoot,
+					toolName,
+					version,
+					checksumArguments...,
+				)
+				return runErr
+			}); err != nil {
+				return err
+			}
+			return output.OK(
+				cmd,
+				report,
+				setVersionSummary(report),
+				setVersionBreadcrumbs(report)...,
+			)
 		},
 	}
 	cmd.Flags().StringArrayVar(
@@ -116,9 +145,32 @@ This updates andurel.lock and syncs the tool binary to bin/.`,
 	return cmd
 }
 
+type toolVersionReport struct {
+	Action          string                `json:"action"`
+	Tool            string                `json:"tool"`
+	Version         string                `json:"version"`
+	PreviousVersion string                `json:"previous_version,omitempty"`
+	NarsilcRuntime  *narsilcRuntimeReport `json:"narsilc_runtime,omitempty"`
+	Warnings        []string              `json:"warnings,omitempty"`
+	NextSteps       []string              `json:"next_steps,omitempty"`
+}
+
 func setVersion(projectRoot, toolName, version string, checksumArguments ...string) error {
+	_, err := setVersionAndReport(projectRoot, toolName, version, checksumArguments...)
+	return err
+}
+
+func setVersionAndReport(
+	projectRoot, toolName, version string,
+	checksumArguments ...string,
+) (report toolVersionReport, err error) {
+	report = toolVersionReport{
+		Action:  "set-version",
+		Tool:    toolName,
+		Version: strings.TrimSpace(version),
+	}
 	if version == "" {
-		return fmt.Errorf(
+		return report, fmt.Errorf(
 			"version cannot be empty\n\nExample: andurel tool set-version %s 1.0.0",
 			toolName,
 		)
@@ -126,23 +178,24 @@ func setVersion(projectRoot, toolName, version string, checksumArguments ...stri
 
 	version = strings.TrimPrefix(version, "v")
 	versionWithV := "v" + version
+	report.Version = versionWithV
 	managed, managedToolExists := managedToolByName[toolName]
 	if !managedToolExists {
-		return unknownToolError(toolName)
+		return report, unknownToolError(toolName)
 	}
 
 	download, hasCatalogRelease := layout.GetDefaultToolDownload(toolName)
 	if !hasCatalogRelease {
-		return fmt.Errorf("tool %s has no download catalog entry", toolName)
+		return report, fmt.Errorf("tool %s has no download catalog entry", toolName)
 	}
 	checksums, err := parseChecksumArguments(checksumArguments)
 	if err != nil {
-		return err
+		return report, err
 	}
 
 	lockPath := filepath.Join(projectRoot, layout.ProjectTomlName)
 	if _, err := os.Stat(lockPath); err != nil {
-		return fmt.Errorf("andurel.toml not found. Are you in an andurel project?")
+		return report, fmt.Errorf("andurel.toml not found. Are you in an andurel project?")
 	}
 
 	if len(checksums) > 0 {
@@ -151,7 +204,7 @@ func setVersion(projectRoot, toolName, version string, checksumArguments ...stri
 		fmt.Printf("Resolving SHA-256 digests for %s %s...\n", toolName, versionWithV)
 		resolved, resolveErr := resolveToolChecksumsFunc(versionWithV, download.URLTemplate)
 		if resolveErr != nil {
-			return fmt.Errorf(
+			return report, fmt.Errorf(
 				"failed to resolve SHA-256 digests for %s %s: %w\n\nYou can supply known digests with repeated --sha256 os/arch=hex arguments",
 				toolName,
 				versionWithV,
@@ -159,7 +212,7 @@ func setVersion(projectRoot, toolName, version string, checksumArguments ...stri
 			)
 		}
 		if !hasCompleteChecksums(resolved) {
-			return fmt.Errorf(
+			return report, fmt.Errorf(
 				"resolved SHA-256 digests for %s %s are incomplete\n\nYou can supply known digests with repeated --sha256 os/arch=hex arguments",
 				toolName,
 				versionWithV,
@@ -170,7 +223,7 @@ func setVersion(projectRoot, toolName, version string, checksumArguments ...stri
 
 	lock, err := layout.ReadLockFile(projectRoot)
 	if err != nil {
-		return fmt.Errorf("failed to read lock file: %w", err)
+		return report, fmt.Errorf("failed to read lock file: %w", err)
 	}
 
 	tool, exists := lock.Tools[toolName]
@@ -182,6 +235,7 @@ func setVersion(projectRoot, toolName, version string, checksumArguments ...stri
 		}
 		lock.AddTool(toolName, tool)
 	} else {
+		report.PreviousVersion = tool.Version
 		copyOfTool := *tool
 		tool = &copyOfTool
 		tool.Version = versionWithV
@@ -203,7 +257,7 @@ func setVersion(projectRoot, toolName, version string, checksumArguments ...stri
 
 	binDir := filepath.Join(projectRoot, "bin")
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
-		return fmt.Errorf("failed to create bin directory: %w", err)
+		return report, fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
 	if err := installToolVersionAndLockFunc(
@@ -214,11 +268,67 @@ func setVersion(projectRoot, toolName, version string, checksumArguments ...stri
 		runtime.GOOS,
 		runtime.GOARCH,
 	); err != nil {
-		return err
+		return report, err
 	}
 
 	fmt.Printf("\n✓ Successfully updated %s to %s\n", toolName, versionWithV)
-	return nil
+
+	if toolName == "narsilc" {
+		state := inspectNarsilcRuntime(projectRoot, versionWithV)
+		runtimeReport := state.report()
+		report.NarsilcRuntime = &runtimeReport
+		if warning := state.warning(); warning != "" {
+			report.Warnings = append(report.Warnings, warning)
+			report.NextSteps = append(report.NextSteps, state.remediation()...)
+			fmt.Printf("\n⚠ %s\n", warning)
+			if steps := state.remediation(); len(steps) > 0 {
+				fmt.Println("  Run:")
+				for _, step := range steps {
+					fmt.Printf("    %s\n", step)
+				}
+			}
+		}
+	}
+	return report, nil
+}
+
+func setVersionSummary(report toolVersionReport) string {
+	summary := fmt.Sprintf("Updated %s to %s", report.Tool, report.Version)
+	if report.NarsilcRuntime == nil {
+		return summary
+	}
+	switch report.NarsilcRuntime.Status {
+	case narsilcRuntimeMismatch:
+		return fmt.Sprintf(
+			"%s; narsilc runtime requires %s",
+			summary,
+			report.NarsilcRuntime.RuntimeVersion,
+		)
+	case narsilcRuntimeReplaced:
+		return summary + "; narsilc runtime replacement could not be verified"
+	case narsilcRuntimeUnverifiable:
+		return summary + "; narsilc runtime could not be verified"
+	default:
+		return summary
+	}
+}
+
+func setVersionBreadcrumbs(report toolVersionReport) []output.Breadcrumb {
+	breadcrumbs := make([]output.Breadcrumb, 0, len(report.NextSteps))
+	for _, step := range report.NextSteps {
+		description := ""
+		switch {
+		case strings.HasPrefix(step, "go get "):
+			description = "Align the narsilc runtime with the configured tool version"
+		case step == "go mod tidy":
+			description = "Refresh module checksums after changing the narsilc runtime"
+		}
+		breadcrumbs = append(breadcrumbs, output.Breadcrumb{
+			Command:     step,
+			Description: description,
+		})
+	}
+	return breadcrumbs
 }
 
 func installToolVersionAndLock(
