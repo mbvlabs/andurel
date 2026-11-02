@@ -18,7 +18,7 @@ require (
 	github.com/mbvlabs/andurel/pkg/storage v0.15.1
 	github.com/mbvlabs/andurel/pkg/telemetry v0.2.3
 	github.com/mbvlabs/andurel/pkg/validation v0.4.0
-	github.com/mbvlabs/narsilc v0.6.3
+	github.com/mbvlabs/narsilc v0.6.4
 	github.com/riverqueue/river v0.40.0
 )
 
