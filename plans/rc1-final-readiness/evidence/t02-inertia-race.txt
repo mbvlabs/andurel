@@ -1,2 +1,0 @@
-== CGO_ENABLED=1 CC=zig cc go test -race -count=1 ./... ==
-ok  	github.com/mbvlabs/andurel/pkg/inertia	1.633s

@@ -1,4 +1,0 @@
-module: github.com/mbvlabs/andurel/pkg/inertia
-cwd: /home/mbv/work/andurel-rc1-work/pkg/inertia
-ok  	github.com/mbvlabs/andurel/pkg/inertia	1.641s
-EXIT: 0

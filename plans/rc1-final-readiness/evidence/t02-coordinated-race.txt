@@ -1,2 +1,0 @@
-ok  	github.com/mbvlabs/andurel/pkg/anduin	1.420s
-ok  	github.com/mbvlabs/andurel/pkg/anduin/anduintest	1.027s

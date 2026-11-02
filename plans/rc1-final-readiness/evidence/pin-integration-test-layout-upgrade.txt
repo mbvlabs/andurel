@@ -1,2 +1,0 @@
-?   	github.com/mbvlabs/andurel/v2/layout/versions	[no test files]
-ok  	github.com/mbvlabs/andurel/v2/layout/upgrade	1.604s

@@ -1,5 +1,0 @@
-module: github.com/mbvlabs/andurel/pkg/anduin
-cwd: /home/mbv/work/andurel-rc1-work/pkg/anduin
-ok  	github.com/mbvlabs/andurel/pkg/anduin	1.401s
-ok  	github.com/mbvlabs/andurel/pkg/anduin/anduintest	1.029s
-EXIT: 0

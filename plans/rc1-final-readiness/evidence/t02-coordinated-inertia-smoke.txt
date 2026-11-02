@@ -1,6 +1,0 @@
-Not rerun on the final T02 tree: the shared worktree has concurrent inertia-owner edits
-in pkg/inertia/middleware.go, and that package was temporarily uncompilable
-(too many arguments in call to captured.finish) when this evidence was captured.
-The earlier workspace smoke before those edits passed. This failure is outside
-pkg/anduin and is not claimed as T02 evidence; inertia coordination remains a
-separate owner.

@@ -1,3 +1,0 @@
-$ TMPDIR=/tmp/opencode just lint (post candidate-test change)
-0 issues.
-EXIT: 0

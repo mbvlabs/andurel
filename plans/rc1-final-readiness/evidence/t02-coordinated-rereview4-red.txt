@@ -1,8 +1,0 @@
---- FAIL: TestMergeErrorContextPreservesLiveSemantics (0.00s)
-    --- FAIL: TestMergeErrorContextPreservesLiveSemantics/expired_custom_deadline_cause (0.00s)
-        router_error_lifecycle_test.go:996: merged Err = context canceled, want context.DeadlineExceeded
-    --- FAIL: TestMergeErrorContextPreservesLiveSemantics/firing_custom_deadline_cause (0.00s)
-        router_error_lifecycle_test.go:1024: iteration 0 merged Err = context canceled, want context.DeadlineExceeded
-FAIL
-FAIL	github.com/mbvlabs/andurel/pkg/anduin	0.006s
-FAIL

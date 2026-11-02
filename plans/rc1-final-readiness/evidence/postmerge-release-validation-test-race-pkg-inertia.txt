@@ -1,6 +1,0 @@
-date: 2026-11-02T20:37:34+00:00
-module: github.com/mbvlabs/andurel/pkg/inertia
-cwd: /home/mbv/work/andurel-rc1-work/pkg/inertia
-env: GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org CGO_ENABLED=1 CC=zig
-ok  	github.com/mbvlabs/andurel/pkg/inertia	1.595s
-EXIT: 0

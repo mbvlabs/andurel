@@ -1,2 +1,0 @@
-$ just check-fmt (post-merge extra formatting confirmation)
-EXIT: 0
