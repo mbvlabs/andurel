@@ -1,13 +1,19 @@
 # rc.1 publication handoff (owner-controlled)
 
-Status: **DRAFT — local implementation and postmerge gates accepted; framework
+Status: **DRAFT — local implementation and postmerge gates accepted, and
+updated-runtime site live/image/docs parity independently accepted; framework
 candidate not yet release-ready.** This is a freeze snapshot for the
 parent/orchestrator, not framework release approval. The anduin and inertia
 packages are owner-published and publicly verified; kiks remains `v0.6.1`. All
 local gates on source HEAD `41657d5d` / tree `f2f56478` are independently
-accepted. Final updated-runtime site live/image/docs parity, exact final-master
-readiness/artifact CI and the owner go/no-go remain pending. The framework rc.1
-tag, pushes and any publication of the framework candidate remain unauthorized.
+accepted. Final updated-runtime site live/image/docs parity is independently
+accepted in `ses_e624cd00bffe4dosR1x3y1tC7z` (220-file manifest
+`708790e5`; published pins/image/auth 403 both document and Inertia; Chrome;
+docs parity 53 URLs/47 pages/0 findings/1 intentional entry difference; own
+cleanup preserved 7 containers/4 networks; no secret hits). Exact final-master
+push/CI and release readiness including artifact preflight, plus the owner rc.1
+go/no-go/tag, remain pending. The framework rc.1 tag, pushes and any publication
+of the framework candidate remain unauthorized.
 
 Prepared: 2026-11-02. Framework worktree:
 `/home/mbv/work/andurel-rc1-work`, branch `fix/rc1-final-readiness`, HEAD
@@ -62,18 +68,24 @@ Read-only inputs audited for this handoff:
 - **Candidate E2E: ACCEPTED under independent review.** The three actual upgrade
   cases, including beta.5 -> rc.1 and beta.7 -> rc.1, are green. Historical
   beta.4 -> beta.5 evidence is preserved and retained.
-- **Site pins/regressions: ACCEPTED at source.** Full site verify passed 375
-  tests and 516 subtests with 0 skips. Final updated-runtime site live/image and
-  docs-parity validation is running in a separate worker and is not yet
-  complete.
+- **Site pins/regressions and live/image/docs parity: independently ACCEPTED.**
+  Full site verify passed 375 tests and 516 subtests with 0 skips. The final
+  updated-runtime live/image/docs parity is accepted in
+  `ses_e624cd00bffe4dosR1x3y1tC7z`: all 220 manifest `708790e5` hashes,
+  published pins and image identity, authenticated 403 props in both document
+  and Inertia, Chrome gate, docs parity 53 URLs/47 pages/0 findings/1
+  intentional entry difference, own cleanup preserved 7 containers/4 networks,
+  and no secret hits. The premerge verifier was adequate for project config
+  only, not final CLI proof; parity is not historical-source parity.
 - **Normal merge: DONE.** HEAD `41657d5d` merges accepted `origin/master`
   `ee84032c` (#857). The combined constants are narsilc tool/runtime `v0.6.4`,
   anduin `v0.8.0`, inertia `v0.14.1`, and kiks `v0.6.1`. Published package tags
   `718076ed`/`c6c724fa` remain immutable.
-- **Framework candidate: NOT RELEASE READY.** Final updated-runtime site
-  live/image/docs parity is running in a separate worker. Exact final-master
-  readiness and artifact CI have not run, and no owner rc.1 go/no-go has been
-  recorded. No rc.1 tag exists.
+- **Framework candidate: NOT RELEASE READY.** Updated-runtime site
+  live/image/docs parity is accepted. Exact final-master push/CI and release
+  readiness including artifact preflight have not run, and no owner rc.1
+  go/no-go/tag decision has been recorded. No rc.1 tag exists, and the candidate
+  is not eligible to tag pending CI.
 - **Authorization: packages/pins only.** Package and pin work is owner-authorized;
   the final rc.1 framework tag, push and publication are not authorized.
 
@@ -138,13 +150,11 @@ Do not rewrite or move those published tags.
 1. Parent commits all root notes/evidence and the reviewed DRAFT notes at the
    frozen source. **Owner then pushes the branch** and proceeds with the PR to
    master; master readiness must pass.
-2. Complete the exact final-master readiness and artifact CI for the candidate
-   SHA.
-3. The separate worker completes final updated-runtime site live/image and
-   docs-parity validation and records the result.
-4. Replace the draft banner only after those gates pass, then make the owner
+2. Complete the exact final-master push/CI and release readiness including
+   artifact preflight for the candidate SHA.
+3. Replace the draft banner only after those gates pass, then make the owner
    rc.1 go/no-go decision.
-5. Stop at eligible to tag. rc.1 tagging and pushing remain separate owner
+4. Stop at eligible to tag. rc.1 tagging and pushing remain separate owner
    actions and are not authorized here.
 
 The package versions are settled: anduin `v0.8.0` and inertia `v0.14.1` are
@@ -160,9 +170,9 @@ published; kiks stays at its published `v0.6.1` baseline.
 | `testdata/golden/new/postgresql-inertia-react/go.mod.golden` | anduin `v0.8.0`, inertia `v0.14.1`, kiks `v0.6.1`, narsilc `v0.6.4` | Committed at merged HEAD; golden gate accepted |
 | `testdata/golden/new/postgresql-inertia-svelte/go.mod.golden` | anduin `v0.8.0`, inertia `v0.14.1`, kiks `v0.6.1`, narsilc `v0.6.4` | Committed at merged HEAD; golden gate accepted |
 | `testdata/golden/new/postgresql-inertia-vue/go.mod.golden` | anduin `v0.8.0`, inertia `v0.14.1`, kiks `v0.6.1`, narsilc `v0.6.4` | Committed at merged HEAD; golden gate accepted |
-| `docs/release-notes/v2.0.0-rc.1.md` | Draft, not ready | Finalize after final site/CI gates pass |
-| Site `go.mod` / `go.sum` | Site pins/regressions accepted; full verify 375 tests/516 subtests/0 skips | Final updated-runtime live/image/docs parity still running |
-| Site `andurel.toml` / `andurel.lock` | Accepted with the site pin update | Do not hand-edit; use the supported upgrade process |
+| `docs/release-notes/v2.0.0-rc.1.md` | Draft, not ready | Finalize after final-master CI gates pass and owner go/no-go |
+| Site `go.mod` / `go.sum` | Site pins/regressions accepted; full verify 375 tests/516 subtests/0 skips | Live/image/docs parity accepted in `ses_e624cd00bffe4dosR1x3y1tC7z` |
+| Site `andurel.toml` / `andurel.lock` | Accepted with the site pin update; framework version stays `v2.0.0-beta.7` | Do not hand-edit; use the supported upgrade process; point at rc.1 only once a CLI is published |
 | Root `go.mod` / `go.work` | No change expected; release proof uses `GOWORK=off` | Do not add local replacement proof |
 
 No lock digest or checksum is prescribed by this document. Package checksums
@@ -294,10 +304,10 @@ defaults. No regeneration or local rerun is required unless source changes.
 
 ### Existing application and site
 
-- Site pins/regressions are **ACCEPTED** at source: full site verify passed
-  375 tests and 516 subtests with 0 skips. Final updated-runtime site
-  live/image/docs parity is running in a separate worker; do not call it
-  complete yet.
+- Site pins/regressions and updated-runtime live/image/docs parity are
+  **ACCEPTED**: full site verify passed 375 tests and 516 subtests with 0
+  skips; live/image/docs parity was independently accepted in
+  `ses_e624cd00bffe4dosR1x3y1tC7z` (scope above).
 - The site's `sharedAuth` `ErrNoBag` fallback may remain as an explicit
   workaround. Remove it only with separate test coverage. Validate that a
   signed-in host error sees a real bag/authenticated session, not merely the
@@ -321,7 +331,9 @@ go test -p 1 -count=1 ./...
 
 - The historical beta.7 T07 evidence is preserved as historical provenance and
   must not be presented as proof of the final changed runtime. Final post-pin
-  site/runtime T09 evidence is pending.
+  site/runtime T09 live/image/docs parity is accepted in
+  `ses_e624cd00bffe4dosR1x3y1tC7z`; it is current-content parity, not
+  historical-source parity, and it does not itself prove the final rc.1 CLI.
 
 ## Accepted local gates and remaining final gates
 
@@ -342,13 +354,11 @@ tree `f2f56478`, with merged pins reviewed in
 No local rerun is required unless source changes. The remaining externally
 gated checks are:
 
-- final updated-runtime site live/image/docs parity, running in a separate
-  worker;
-- exact final-master readiness and artifact CI;
-- the owner rc.1 go/no-go.
+- exact final-master push/CI and release readiness including artifact preflight;
+- the owner rc.1 go/no-go/tag.
 
 Site T09 (disposable copy, candidate CLI; final updated-runtime live/image/docs
-parity remains in progress):
+parity independently accepted in `ses_e624cd00bffe4dosR1x3y1tC7z`):
 
 ```sh
 cd /tmp/opencode/site-rc1-copy
@@ -406,10 +416,11 @@ replace run.
 - [x] Narsilc `v0.6.4` integrated through the accepted master change, not a
       site-only pin move; combined constants are narsilc `v0.6.4`, anduin
       `v0.8.0`, inertia `v0.14.1`, kiks `v0.6.1`.
-- [ ] Separate worker completes final updated-runtime site live/image/docs
-      parity.
-- [ ] Exact final-master readiness and artifact CI completes for the candidate
-      SHA.
+- [x] Updated-runtime site live/image/docs parity independently accepted in
+      `ses_e624cd00bffe4dosR1x3y1tC7z`; site pins/regressions remain accepted
+      at source (full verify 375 tests / 516 subtests / 0 skips).
+- [ ] Exact final-master push/CI and release readiness including artifact
+      preflight completes for the candidate SHA.
 - [ ] Parent commits all root notes/evidence and the reviewed DRAFT notes.
 - [ ] Owner pushes the branch after the local docs commit and proceeds with the
       PR to master; master readiness must pass.
@@ -418,9 +429,11 @@ replace run.
 
 ## Verification of this handoff
 
-- Docs-only refresh: only this handoff and
-  `docs/release-notes/v2.0.0-rc.1.md` were edited by this task. No source,
-  metadata, golden, overview or tag/push/publish state was changed.
+- Docs-only reconciliation (2026-11-02): this handoff, the framework overview
+  and `docs/release-notes/v2.0.0-rc.1.md` were edited to record the
+  independently accepted updated-runtime site live/image/docs parity and to
+  remove the stale site-pending gate. No source, metadata, golden, package,
+  pin or tag/push/publish state was changed.
 - The freeze snapshot records the published package commits/tags and the
   independently accepted local gates for source HEAD `41657d5d` / tree
   `f2f56478`. Historical evidence claims are preserved.
