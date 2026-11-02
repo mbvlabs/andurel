@@ -72,27 +72,27 @@
 
 [[hashes]]
   tool = 'narsilc'
-  version = 'v0.6.3'
+  version = 'v0.6.4'
   platform = 'linux/amd64'
-  sha256 = '59da79c91f75d8d9b5193a6c50459099c6ec2acebb41918698a0b5d7c1ee79fc'
+  sha256 = 'fe6c31f3d70412590e55e829f5b2c877abc20b515619889cbaa7d3c466a4aeaa'
 
 [[hashes]]
   tool = 'narsilc'
-  version = 'v0.6.3'
+  version = 'v0.6.4'
   platform = 'linux/arm64'
-  sha256 = '9067075036514e2fc27ca6621cd24a105fd72fda753787c12a2efcbe7a533289'
+  sha256 = 'acd110d0fb533bff768218880a2f21ca912a5df9c9baf27a7832122952ca52a4'
 
 [[hashes]]
   tool = 'narsilc'
-  version = 'v0.6.3'
+  version = 'v0.6.4'
   platform = 'darwin/amd64'
-  sha256 = 'd09b2f004eaa3ab8c14818b62a659dc5d5cd24010f9b891a5a93995dc124cca9'
+  sha256 = '2ec77193c74a99d8b3c0027ef63a64ea36396280ecc372c9d89bf132d9d32b02'
 
 [[hashes]]
   tool = 'narsilc'
-  version = 'v0.6.3'
+  version = 'v0.6.4'
   platform = 'darwin/arm64'
-  sha256 = '139b5d03565001eff91870a3b5c9076c6004352983bf1b63af184460ea3e998b'
+  sha256 = 'fbe47d6ed74c8dab4c16c511f7a5b8e491afac673769207c9a8460d05aaf0011'
 
 [[hashes]]
   tool = 'tailwindcli'

@@ -86,7 +86,7 @@ and records them in andurel.lock. Pass --sha256 only to pin known digests.
 Examples:
   andurel tool set-version templ 0.3.977
   andurel tool set-version tailwindcli 4.1.18
-  andurel tool set-version narsilc 0.6.3 \
+  andurel tool set-version narsilc 0.6.4 \
     --sha256 linux/amd64=<hex> --sha256 linux/arm64=<hex> \
     --sha256 darwin/amd64=<hex> --sha256 darwin/arm64=<hex>
 

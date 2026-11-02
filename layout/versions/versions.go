@@ -19,9 +19,9 @@ const (
 	// TailwindCLI is the default Tailwind CSS CLI version.
 	TailwindCLI = "v4.3.2"
 	// Narsilc is the default narsilc tool version.
-	Narsilc = "v0.6.3"
+	Narsilc = "v0.6.4"
 	// NarsilcModule is the Go module version required by generated query code.
-	NarsilcModule = "v0.6.3"
+	NarsilcModule = "v0.6.4"
 	// NarsilcModulePath is the module path of the narsilc query code generator.
 	NarsilcModulePath = "github.com/mbvlabs/narsilc"
 	// Anduin is the standalone Andurel HTTP module version verified with this framework.
