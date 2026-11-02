@@ -55,7 +55,6 @@ func Scaffold(
 		SessionEncryptionKey:     secrets.sessionEncryptionKey,
 		TokenSigningKey:          secrets.tokenSigningKey,
 		Pepper:                   secrets.pepper,
-		RunToolVersion:           GetRunToolVersion(),
 		FrameworkVersion:         normalizeFrameworkVersion(version),
 		Inertia:                  inertia,
 		JavaScriptSSRRuntime:     "node",
@@ -710,7 +709,6 @@ var DefaultGoTools = []GoTool{
 	{Name: "mailpit", Source: "github.com/axllent/mailpit", Version: versions.Mailpit},
 	{Name: "usql", Source: "github.com/xo/usql", Version: versions.Usql},
 	{Name: "dblab", Source: "github.com/danvergara/dblab", Version: versions.Dblab},
-	{Name: "shadowfax", Source: "github.com/mbvlabs/shadowfax", Version: versions.Shadowfax},
 }
 
 var defaultTools = []string{
@@ -719,7 +717,6 @@ var defaultTools = []string{
 	"github.com/axllent/mailpit",
 	"github.com/xo/usql",
 	"github.com/danvergara/dblab",
-	"github.com/mbvlabs/shadowfax",
 }
 
 // GetExpectedTools returns the list of tools that should exist for a given scaffold config
@@ -736,11 +733,6 @@ func GetExpectedTools(config *ScaffoldConfig) map[string]*Tool {
 	expectedTools["tailwindcli"] = NewBinaryTool("tailwindcli", versions.TailwindCLI)
 
 	return expectedTools
-}
-
-// GetRunToolVersion returns the version of the run tool
-func GetRunToolVersion() string {
-	return versions.Shadowfax
 }
 
 func normalizeFrameworkVersion(version string) string {

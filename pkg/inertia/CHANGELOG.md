@@ -1,5 +1,12 @@
 ## Unreleased
 
+## 0.14.0 - 2026-11-02
+
+- Preserve explicit 4xx `anduin.HTTPError.Message` values in JSON errors without exposing causes or 5xx messages.
+- Add `LocationRedirect` for renderer-independent, cross-host Inertia redirects.
+- Default production asset versions to a SHA-256 hash of the Vite manifest;
+  development uses a stable version. Explicit version options still take precedence.
+
 ## 0.13.2 - 2026-10-31
 
 ### Fixed

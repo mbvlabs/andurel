@@ -59,6 +59,27 @@ func TestAssetsAreComplete(t *testing.T) {
 	}
 }
 
+func TestNewGuidanceIsDiscoverable(t *testing.T) {
+	for id, phrases := range map[string][]string{
+		"provider-client":  {"httptest.Server", "config/", "app/"},
+		"frontend-staging": {"routing.TypeScriptRoute()", "andurel sync routes --json", "andurel sync payloads --json"},
+		"atomic-seed":      {"storage.AtomicOps", "InTx(tx)", "seeds.Registry"},
+		"migration":        {"unrecorded tables", "disposable clone", "ALTER TABLE users RENAME TO legacy_users", "narsilc", "required bootstrap"},
+	} {
+		t.Run(id, func(t *testing.T) {
+			pattern, ok := patterns.Get(id)
+			if !ok {
+				t.Fatal("pattern not found")
+			}
+			for _, phrase := range phrases {
+				if !strings.Contains(pattern.Markdown(), phrase) {
+					t.Errorf("missing guidance %q", phrase)
+				}
+			}
+		})
+	}
+}
+
 // TestWrittenPathsAreUnique fails when two patterns ship a concrete file at the
 // same path: the full-scaffold compile test writes both, so only the last one
 // would be compiled.

@@ -1141,6 +1141,25 @@ func findMissingToolViolation(
 	return verifyViolation{}, false
 }
 
+func TestGeneratedFrontendScopeOwnership(t *testing.T) {
+	for _, tc := range []struct {
+		file, scope string
+		want        bool
+	}{
+		{"resources/js/routes.ts", "routes", true},
+		{"resources/js/routes.ts", "handlers/admin", true},
+		{"resources/js/types/payloads.ts", "payloads", true},
+		{"resources/js/types/payloads.ts", "routes", false},
+		{"resources/js/routes.ts", "routesextra", false},
+		{"resources/js/other.ts", "routes", false},
+	} {
+		in, _ := splitGeneratedPathsByScope([]string{tc.file}, []string{tc.scope})
+		if (len(in) != 0) != tc.want {
+			t.Errorf("%s with %s: in scope = %v", tc.file, tc.scope, in)
+		}
+	}
+}
+
 func TestVerifyScopedGeneratedDriftIgnoresOtherPackages(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("stub tools use a POSIX shell script")

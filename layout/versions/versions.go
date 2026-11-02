@@ -18,8 +18,6 @@ const (
 	Dblab = "v0.40.2"
 	// TailwindCLI is the default Tailwind CSS CLI version.
 	TailwindCLI = "v4.3.2"
-	// Shadowfax is the default Shadowfax runner version.
-	Shadowfax = "v0.12.0"
 	// Narsilc is the default narsilc tool version.
 	Narsilc = "v0.6.3"
 	// NarsilcModule is the Go module version required by generated query code.

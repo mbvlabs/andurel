@@ -49,7 +49,7 @@ func TestParseRunTools(t *testing.T) {
 	}
 }
 
-func TestShadowfaxRunArgs(t *testing.T) {
+func TestDevServerOptions(t *testing.T) {
 	root := t.TempDir()
 	writeGoModule(t, root)
 
@@ -61,59 +61,54 @@ func TestShadowfaxRunArgs(t *testing.T) {
 		t.Fatalf("write lock: %v", err)
 	}
 
-	args, err := shadowfaxRunArgs(root, "")
+	opts, err := devServerOptions(root, "")
 	if err != nil {
 		t.Fatalf("no tools: %v", err)
 	}
-	if len(args) != 0 {
-		t.Fatalf("expected no args without inertia/tools, got %#v", args)
+	if opts.Dir != root || opts.PackageManager != "pnpm" || len(opts.Tools) != 0 {
+		t.Fatalf("default options = %#v", opts)
 	}
 
-	if _, err := shadowfaxRunArgs(root, "mailpit"); err == nil ||
+	if _, err := devServerOptions(root, "mailpit"); err == nil ||
 		!strings.Contains(err.Error(), "bin/mailpit not found") {
 		t.Fatalf("expected missing mailpit binary, got %v", err)
 	}
 
 	writeExecutable(t, root, "bin/mailpit", "#!/bin/sh\n")
-	args, err = shadowfaxRunArgs(root, "mailpit")
+	opts, err = devServerOptions(root, "mailpit")
 	if err != nil {
 		t.Fatalf("mailpit only: %v", err)
 	}
-	if !reflect.DeepEqual(args, []string{"--tools", "mailpit"}) {
-		t.Fatalf("mailpit args = %#v", args)
+	if !reflect.DeepEqual(opts.Tools, []string{"mailpit"}) {
+		t.Fatalf("mailpit tools = %#v", opts.Tools)
 	}
 
 	lock.ScaffoldConfig.Inertia = "vue"
-	lock.ScaffoldConfig.JavaScriptPackageManager = "pnpm"
+	lock.ScaffoldConfig.JavaScriptPackageManager = "bun"
 	if err := lock.WriteLockFile(root); err != nil {
 		t.Fatalf("rewrite inertia lock: %v", err)
 	}
-	args, err = shadowfaxRunArgs(root, "mailpit")
+	opts, err = devServerOptions(root, "mailpit")
 	if err != nil {
 		t.Fatalf("inertia+tools: %v", err)
 	}
-	want := []string{
-		"--inertia",
-		"--js-package-manager", "pnpm",
-		"--tools", "mailpit",
-	}
-	if !reflect.DeepEqual(args, want) {
-		t.Fatalf("inertia+tools args = %#v, want %#v", args, want)
+	if opts.PackageManager != "bun" {
+		t.Fatalf("PackageManager = %q, want bun", opts.PackageManager)
 	}
 }
 
-func TestShadowfaxRunArgsMissingToml(t *testing.T) {
+func TestDevServerOptionsMissingToml(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
 		t.Fatalf("mkdir bin: %v", err)
 	}
 	writeExecutable(t, root, "bin/mailpit", "#!/bin/sh\n")
 
-	args, err := shadowfaxRunArgs(root, "mailpit")
+	opts, err := devServerOptions(root, "mailpit")
 	if err != nil {
 		t.Fatalf("missing toml should still allow tools: %v", err)
 	}
-	if !reflect.DeepEqual(args, []string{"--tools", "mailpit"}) {
-		t.Fatalf("args = %#v", args)
+	if !reflect.DeepEqual(opts.Tools, []string{"mailpit"}) || opts.PackageManager != "pnpm" {
+		t.Fatalf("options = %#v", opts)
 	}
 }

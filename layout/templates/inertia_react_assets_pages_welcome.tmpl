@@ -34,7 +34,7 @@ export default function Welcome({ appName, docsURL }: WelcomeProps) {
               {!isAuthenticated && (
                 <Link
                   className="border border-border bg-card/80 px-4 py-2 text-sm font-semibold text-foreground transition hover:border-border hover:text-card-foreground"
-                  href={routes.registrationNew()}
+                  href={routes.registrationNew.path()}
                 >
                   Create account
                 </Link>

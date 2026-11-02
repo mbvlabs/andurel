@@ -4,6 +4,18 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+## 0.9.1 - 2026-11-02
+
+### Fixed
+
+- `NewHosts` validates hostname and alias syntax. Each must be `host` or
+  `host:port` (an IPv6 literal in brackets). A scheme, path, query, user info,
+  whitespace, an empty host part or a bad port is rejected, so
+  `HOST_ADMIN='bad host/x'` or `HOST_ADMIN=http://admin.localhost` now fails
+  config load instead of booting. The error names the host and its environment
+  key, for example
+  `routing: host "admin" (HOST_ADMIN): hostname "http://admin.localhost" must be host or host:port: remove the scheme`.
+
 ## 0.9.0 - 2026-10-31
 
 ### BREAKING

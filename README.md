@@ -34,7 +34,7 @@ Andurel is built for humans and agents on the same pad:
 - **Payload**: Inertia v3 with React, Vue, or Svelte. One Go backend, official Inertia adapters, optional SSR. Templ survives only for email and the Inertia root document
 - **Range ops**: River jobs, email, and queues on the same stack that serves the request path
 - **Ground support**: Agent-ready CLI with read-only patterns, JSON discovery, and installed skills so machines can operate the project without a second stack
-- **Live reload**: `andurel run` with [Shadowfax](https://github.com/mbvlabs/shadowfax) for Go, templates, CSS, and Vite (`--tools mailpit` for sidecars)
+- **Live reload**: `andurel run` uses an in-process runner to rebuild Go, reload templates, recompile email, and run Vite (`--tools mailpit` for sidecars)
 - **Production build**: `andurel build` compiles Templ, email Tailwind, Vite assets, and every `cmd/*` process (`app`, `queue`, `migrate`, `ssr`) into `dist/`
 
 **Humans.** One-time generation. The scaffold writes Go and Inertia pages you can read, edit, and ship. After that, the code is yours, laid out in a shape you can navigate.
@@ -51,7 +51,6 @@ Andurel is built for humans and agents on the same pad:
 - **[River](https://riverqueue.com/)**: Background jobs
 - **[OpenTelemetry](https://opentelemetry.io/)**: Observability
 - **[Tailwind CSS](https://tailwindcss.com/)**: CSS
-- **[Shadowfax](https://github.com/mbvlabs/shadowfax)**: Dev runner
 
 ## Install
 
@@ -195,6 +194,8 @@ Details: [directory structure](https://andurel.com/docs/latest/directory-structu
 | `andurel commands` | Structured command discovery |
 
 Use `andurel <command> --help` for flags. Full CLI reference: [andurel.com/docs/latest/cli](https://andurel.com/docs/latest/cli).
+
+Host fallback policies are checked when the app starts, not by a static `verify` rule. Use `andurel verify --with-tests` to run the app startup tests that catch a host with routes but no fallback policy.
 
 ## Agents
 

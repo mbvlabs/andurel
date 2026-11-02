@@ -44,7 +44,9 @@ step always checks the whole project. Each generated-drift finding names the
 authored source file that owns it. If the `generated` step fails in a scoped
 run, rerun with `--only` listing the stages you need to skip it.
 
-`andurel verify --with-tests` also runs `go test ./...`. A test package that has
+`andurel verify --with-tests` also runs `go test ./...`. App startup tests catch
+hosts with routes but no fallback policy; plain `verify` has no static check for
+that policy. A test package that has
 tests but ran none (the scaffold's DB-backed packages exit their `TestMain`
 early when Docker is unavailable) keeps the `go test` step `ok` and the run
 passing, but is listed under the step's `skipped_packages` as

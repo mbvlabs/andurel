@@ -45,9 +45,10 @@ func newURLsCommand() *cobra.Command {
 Origins come from the application's declared configuration: HOST_PRIMARY,
 HOST_<NAME> for extra hosts, and PROTOCOL. Values are read from exported
 environment variables first, then .env, then config/*.go defaults. An extra
-host with no HOST_<NAME> value defaults to "<name>." followed by HOST_PRIMARY,
-as the application does. A route whose host still has no value is reported
-with resolved=false and a reason; no localhost URL is invented. Dynamic route parameters are reported
+host listed in extraHostNames (config/hosts.go) with no HOST_<NAME> value
+defaults to "<name>." followed by HOST_PRIMARY, as the application does. A
+route on a host that extraHostNames does not list, or whose host still has no
+value, is reported with resolved=false and a reason; no URL is invented. Dynamic route parameters are reported
 as url_template with the :param segments intact.`,
 		Args:    cobra.NoArgs,
 		Example: "  andurel inspect urls\n  andurel inspect urls --json\n  andurel inspect urls --jq .routes",
@@ -103,6 +104,10 @@ func collectURLsInspection(rootDir string) (urlsInspection, error) {
 	for _, host := range hostNames {
 		discoveredHosts[host.Value] = host
 	}
+	listedHosts, listKnown, err := listedExtraHostNames(rootDir, hostNames)
+	if err != nil {
+		return urlsInspection{}, err
+	}
 
 	routes := make([]urlRoute, 0, len(manifest.Routes))
 	for _, route := range manifest.Routes {
@@ -133,7 +138,15 @@ func collectURLsInspection(rootDir string) (urlsInspection, error) {
 
 		host := strings.TrimSpace(hostSource.Value)
 		protocol := strings.TrimSpace(protocolSource.Value)
+		_, listed := listedHosts[hostValue]
 		switch {
+		case listKnown && envKey != "HOST_PRIMARY" && !listed:
+			// config.NewApp builds hostnames only for listed hosts, so the app
+			// serves nothing on this one whatever HOST_<NAME> says.
+			entry.UnresolvedReason = fmt.Sprintf(
+				"host %q is not listed in extraHostNames (config/hosts.go), so the app configures no hostname for it",
+				hostValue,
+			)
 		case !hostSource.Found || host == "":
 			entry.UnresolvedReason = hostSource.describe()
 		case protocol != "http" && protocol != "https":

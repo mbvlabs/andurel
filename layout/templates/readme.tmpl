@@ -30,7 +30,7 @@ The app is ordinary Go you own: `domains/` for business logic and persistence, `
 │   └── jobs/             # Job argument types
 ├── resources/            # Inertia root document + JS app
 │   ├── root.templ        # The one page-shaped templ
-│   └── js/               # Inertia Pages, Layouts, Components, generated routes.ts and types/
+│   └── js/               # Inertia Pages, Layouts, generated routes.ts and types/; create Components/ as needed
 ├── routes/               # Route data (names, paths, URL builders)
 ├── seeds/                # Database seed definitions
 ├── services/             # Application logic (cross-domain orchestration)
@@ -228,7 +228,11 @@ andurel patterns show route
 andurel patterns show middleware
 andurel patterns show page
 andurel patterns show composition
+andurel patterns show provider-client
+andurel patterns show frontend-staging
+andurel patterns show atomic-seed
 andurel patterns show test-domain
+andurel patterns show test-service
 andurel patterns show test-handler
 andurel patterns show test-middleware
 ```
@@ -910,7 +914,7 @@ Requests through the CSRF middleware set the `_csrf` cookie (`HttpOnly`, `SameSi
 CSRF trust is a write policy, not a read policy: it lets a same-site form post
 between app hosts through and does not grant cross-origin reads.
 
-Session and CSRF cookies are host-only by default (no `Domain` attribute). Sharing login across subdomains is an explicit opt-in in `middleware/` — never a generated default.
+Session and CSRF cookies are host-only by default (no `Domain` attribute). Set `SESSION_COOKIE_DOMAIN` to share them across subdomains.
 
 ## Rate Limiting And Client IPs
 
@@ -951,7 +955,7 @@ admin.FallbackToPrimary() // unmatched paths use the primary site's routes (asse
 admin.Isolate()           // unmatched paths answer 404 on this domain
 ```
 
-   `FallbackToPrimary` checks the domain's own routes first. Requests answered from the primary routes do not run the domain's middleware. A domain with no routes needs no call.
+   `FallbackToPrimary` checks the domain's own routes first. Requests answered from the primary routes do not run the domain's middleware. A domain with no routes needs no call. Plain `andurel verify` does not statically check for missing host fallback policies. Run `andurel verify --with-tests` and ensure an application startup test runs to catch them; scoped or skipped tests may not exercise startup.
 
 5. Put per-domain middleware on the host. It runs after the global middleware and before each route's own middleware, and only for requests the domain answers from its own routes:
 
@@ -1096,7 +1100,8 @@ does. `handlers/main_test.go` owns the package cluster and `testRenderer(t)`;
 `handlers/auth_test.go` renders the login page and re-renders it with errors for
 bad credentials.
 
-Named hosts are set up with `anduintest.WithHosts(hosts)` and targeted per
+Named hosts are set up with `anduintest.WithHosts(hosts)` (or use
+`anduintest.WithRouterOptions` for other router options) and targeted per
 request with `anduintest.Header{Name: "Host", Value: "admin.example"}`. Go's
 client ignores an explicit `Host` header, so `anduintest` applies that option to
 `req.Host`.
@@ -1133,13 +1138,14 @@ go test -v ./...
 `andurel verify --with-tests` runs `go test ./...` and reports skips without
 failing: a package that ran no tests is listed under the go test step's
 `skipped_packages`, and each `t.Skip` is listed under `skipped_tests` with its
-reason. A fresh scaffold skips five app tests in `app/runtime_test.go` until the
+reason. A fresh scaffold skips these app tests in `app/runtime_test.go` until the
 frontend is built: the two Vite asset CORS and CSRF tests (`TestViteAssetsUsePublicCORS`,
 `TestViteAssetsSkipCSRFCookie`) need `assets/dist` output, and the three production
 readiness tests (`TestReadinessFailsWhenProductionSSRSidecarIsUnavailable`,
 `TestReadinessRecoversWithHealthySSRSidecar`, `TestReadinessIgnoresSSRWithExplicitCSRFallback`)
+and the built-assets Inertia visit test (`TestInertiaVisitsWithBuiltAssets`)
 need `assets/dist/vite/manifest.json`. Run `pnpm build` before the final
-`andurel verify --with-tests` evidence run, so those five tests run instead of skipping.
+`andurel verify --with-tests` evidence run, so these tests run instead of skipping.
 
 ### Test Database Setup
 
@@ -1151,11 +1157,13 @@ cluster through `storagetest.Main` in `TestMain`; without Docker it prints the
 reason and exits 0 so `go test ./...` and `andurel verify --with-tests` still
 pass.
 
-testcontainers-go shares one Ryuk session per parent `go test` process. Under
-parallel packages, a package that finishes can reap a sibling's container. Use
-`go test -p 1 ./...` or `TESTCONTAINERS_RYUK_DISABLED=true` when packages run
-DB tests concurrently. `Cluster.Close` still terminates its own containers; a
-crashed run may leave one behind.
+`storagetest` disables Ryuk so parallel packages do not reap each other's
+containers. `Cluster.Close` terminates its container, but a crashed or timed-out
+run can leave one labelled `dev.andurel.storagetest=true` behind.
+Later runs only auto-remove older containers with a matching Linux boot ID and
+PID namespace and a definitely absent owner PID. Legacy labels or unverifiable
+scopes are retained. Inspect with `docker ps -a --filter label=dev.andurel.storagetest=true`;
+verify the owner is inactive across hosts and PID namespaces before manual removal.
 
 **Best Practices**
 

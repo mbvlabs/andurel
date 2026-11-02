@@ -130,6 +130,23 @@ func LoadPatterns(rootDir string, patterns []string) (*Project, error) {
 		return nil, noPackagesError(absRoot, patterns)
 	}
 
+	// Load query syntax in the same type-checking graph without expanding scope.
+	scopedIDs := make(map[string]bool, len(loaded))
+	needsQueries, hasQueries := false, false
+	queryPath := module + "/domains/internal/queries"
+	for _, pkg := range loaded {
+		scopedIDs[pkg.ID] = true
+		hasQueries = hasQueries || pkg.PkgPath == queryPath
+		_, importsQueries := pkg.Imports[queryPath]
+		needsQueries = needsQueries || importsQueries
+	}
+	if needsQueries && !hasQueries {
+		loaded, err = packages.Load(cfg, append(append([]string{}, patterns...), queryPath)...)
+		if err != nil {
+			return nil, fmt.Errorf("load Go packages: %w", err)
+		}
+	}
+
 	loadErrors := make([]error, 0)
 	for _, pkg := range loaded {
 		for _, pkgErr := range pkg.Errors {
@@ -172,7 +189,9 @@ func LoadPatterns(rootDir string, patterns []string) (*Project, error) {
 			TypesInfo:       pkg.TypesInfo,
 			TypesSizes:      pkg.TypesSizes,
 		}
-		project.Packages = append(project.Packages, loadedPkg)
+		if scopedIDs[pkg.ID] {
+			project.Packages = append(project.Packages, loadedPkg)
+		}
 		project.packageTypes[pkg.Types] = loadedPkg
 		for _, file := range pkg.Syntax {
 			for _, decl := range file.Decls {

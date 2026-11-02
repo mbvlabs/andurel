@@ -2,6 +2,30 @@
 // migrated databases for tests. It lives outside package storage so production
 // applications do not link testcontainers or its Docker client dependencies;
 // package storage itself imports neither testing nor testcontainers.
+//
+// # Container cleanup
+//
+// Cluster.Close, which Main calls after the tests, removes the container.
+// storagetest turns off testcontainers' Ryuk reaper (see disableRyuk), so a
+// test process that ends without Close, for example after a panic or a
+// `go test -timeout`, leaves its container running.
+//
+// Every container carries the labels
+//
+//	dev.andurel.storagetest=true
+//	dev.andurel.storagetest.pid=<PID of the test process that started it>
+//	dev.andurel.storagetest.host=<hostname of that process>
+//	dev.andurel.storagetest.boot=<Linux boot ID, when available>
+//	dev.andurel.storagetest.pidns=<Linux PID namespace, when available>
+//
+// Each NewCluster first checks older containers. Automatic removal requires a
+// matching hostname, Linux boot ID and PID namespace, and a positive owner PID
+// that is definitely absent (checked like `kill -0`). PID reuse retains the
+// container. Legacy containers and unavailable or mismatching scopes are never
+// automatically removed; platforms without scope verification do not reap.
+// Inspect with `docker ps -a --filter label=dev.andurel.storagetest=true` and
+// manually verify ownership and inactivity across hosts and PID namespaces
+// before removing anything. Failed checks do not prevent tests from starting.
 package storagetest
 
 import (
@@ -69,10 +93,6 @@ func runMain(
 	return code, nil
 }
 
-// clusterLabel marks containers started by this package, so a container left
-// behind by a killed test process can be found and removed by hand.
-const clusterLabel = "dev.andurel.storagetest"
-
 // disableRyuk turns off testcontainers' Ryuk reaper for this process. Ryuk
 // groups containers by session, and testcontainers' session is the parent
 // process, which every package in one `go test ./...` run shares. Ryuk reaps a
@@ -91,6 +111,8 @@ func newCluster(ctx context.Context, preflight preflightFunc) (*Cluster, error) 
 	if err := runPreflight(ctx, preflight); err != nil {
 		return nil, err
 	}
+	self := currentOwner()
+	reapDockerLeftovers(ctx, self)
 
 	const (
 		user     = "testuser"
@@ -103,7 +125,7 @@ func newCluster(ctx context.Context, preflight preflightFunc) (*Cluster, error) 
 		postgres.WithDatabase(adminDB),
 		postgres.WithUsername(user),
 		postgres.WithPassword(password),
-		testcontainers.WithLabels(map[string]string{clusterLabel: "true"}),
+		testcontainers.WithLabels(clusterLabels(self)),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
 				WithOccurrence(2).

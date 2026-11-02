@@ -3,11 +3,15 @@ package cli
 import (
 	"fmt"
 	"runtime"
+	"strings"
 
 	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/mbvlabs/andurel/v2/layout"
 	"github.com/mbvlabs/andurel/v2/layout/cmds"
 )
+
+const querySchemaMessage = "queries in domains/*.sql don't match migrations/"
+const querySchemaHint = "Make the queries in domains/*.sql match the schema in migrations/ (or add the migration they need), then run 'andurel sync queries'."
 
 func generateNarsilcIfNeeded(rootDir string) error {
 	hasQueries, err := cmds.HasQueryFiles(rootDir)
@@ -42,5 +46,11 @@ func generateNarsilcIfNeeded(rootDir string) error {
 		return fmt.Errorf("sync narsilc: %w", err)
 	}
 
-	return cmds.RunNarsilcGenerate(rootDir)
+	if err := cmds.RunNarsilcGenerate(rootDir); err != nil {
+		if strings.HasPrefix(err.Error(), "narsilc generate failed:") {
+			return output.WrapError(output.CodeConfigError, fmt.Errorf("%s: %w", querySchemaMessage, err), output.ExitConfig, querySchemaHint)
+		}
+		return err
+	}
+	return nil
 }

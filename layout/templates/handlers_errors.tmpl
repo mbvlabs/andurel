@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"strings"
 
 	"{{.ModuleName}}/domains"
 
@@ -37,6 +39,29 @@ func MapError(renderer *inertia.Renderer) anduin.ErrorHandler {
 	)
 
 	return func(ctx context.Context, err error) error {
+		// The shared handler consumes mapped sentinels without page props. Preserve
+		// explicit client messages first, but leave JSON and field errors to it.
+		var httpErr *anduin.HTTPError
+		var fields interface{ ToMap() map[string]string }
+		wantsJSON := anduin.Header(ctx, inertia.HeaderInertia) == "" &&
+			strings.Contains(anduin.Header(ctx, "Accept"), "application/json")
+		if !wantsJSON && !errors.As(err, &fields) && errors.As(err, &httpErr) &&
+			httpErr != nil && httpErr.Status >= 400 && httpErr.Status < 500 && httpErr.Message != "" {
+			// Match the shared handler's sentinel mapping order and status.
+			status := httpErr.Status
+			switch {
+			case errors.Is(err, domains.ErrNotFound), errors.Is(err, anduin.ErrNotFound):
+				status = http.StatusNotFound
+			case errors.Is(err, anduin.ErrMethodNotAllowed):
+				status = http.StatusMethodNotAllowed
+			case errors.Is(err, domains.ErrConflict):
+				status = http.StatusConflict
+			}
+			if component, ok := statusPages[status]; ok {
+				return renderer.Page(ctx, component, inertia.Props{"message": httpErr.Message}).CSR().Status(status).Render()
+			}
+		}
+
 		unhandled := themed(ctx, err)
 		if unhandled == nil {
 			return nil

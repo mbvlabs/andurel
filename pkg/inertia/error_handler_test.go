@@ -241,6 +241,35 @@ func TestErrorHandlerWritesUnmappedClientErrorAsJSON(t *testing.T) {
 	}
 }
 
+func TestJSONErrorPublicMessagesAndPrecedence(t *testing.T) {
+	sentinel := errors.New("not found")
+	field := testFieldError{fields: map[string]string{"email": "required"}}
+	tests := []struct {
+		name   string
+		err    error
+		status int
+		body   string
+	}{
+		{"explicit", anduin.Errorf(400, "bad input"), 400, `{"error":"bad input"}`},
+		{"wrapped explicit and sentinel", fmt.Errorf("outer: %w", &anduin.HTTPError{Status: 400, Message: "missing", Err: sentinel}), 404, `{"error":"missing"}`},
+		{"private cause", fmt.Errorf("outer: %w", anduin.BadRequest(errors.New("secret cause"))), 400, `{"error":"Bad Request"}`},
+		{"mapped server error", &anduin.HTTPError{Status: 500, Message: "secret server", Err: sentinel}, 404, `{"error":"Not Found"}`},
+		{"validation first", &anduin.HTTPError{Status: 400, Message: "wrong", Err: field}, 422, `{"error":"Unprocessable Entity","fields":{"email":"required"}}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, recorder, ctx := errorHandlerRequest(http.MethodGet, "/", map[string]string{"Accept": "application/json"})
+			err := writeJSONError(ctx, tt.err, []ErrorMapping{MapError(sentinel, 404, "Errors/NotFound")})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.TrimSpace(recorder.Body.String()); recorder.Code != tt.status || got != tt.body {
+				t.Fatalf("got %d %s, want %d %s", recorder.Code, got, tt.status, tt.body)
+			}
+		})
+	}
+}
+
 func TestErrorHandlerSSRValidationPage(t *testing.T) {
 	var captured RootData
 	ssr := &fakeSSRRenderer{response: &SSRResponse{

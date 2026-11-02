@@ -55,7 +55,7 @@ func NewMail(app App) (Mail, error) {
 
 	sender := strings.TrimSpace(cfg.DefaultSenderSignature)
 	if sender == "" {
-		return Mail{}, fmt.Errorf("config: mail: DEFAULT_SENDER_SIGNATURE must not be empty")
+		sender = "noreply@" + senderHost(app.Domain)
 	}
 	address, err := mail.ParseAddress(sender)
 	if err != nil {

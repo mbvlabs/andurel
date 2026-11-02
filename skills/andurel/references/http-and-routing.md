@@ -144,6 +144,9 @@ host has routes and neither call. A host with no routes keeps falling back to
 the primary routes and needs no call. Requests answered from the primary routes
 do not run the host's middleware.
 
+Plain `andurel verify` does not statically check this policy. Run the app startup
+tests, for example with `andurel verify --with-tests`, to catch a missing policy.
+
 `Host.Use(mw...)` adds per-domain middleware. It runs after the global
 middleware and before per-route middleware, and only for requests the host
 answers from its own routes.

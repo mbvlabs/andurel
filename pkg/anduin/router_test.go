@@ -632,6 +632,97 @@ func TestHandlerPanicsWithoutFallbackPolicy(t *testing.T) {
 	rt.Handler()
 }
 
+func TestHandlerRejectsRoutesOnUnconfiguredHost(t *testing.T) {
+	t.Parallel()
+
+	const hostBilling routing.HostName = "billing"
+	unconfigured := `anduin: routes registered for host "billing", but no hostname is ` +
+		`configured for it; add it to the hosts registry (config/hosts.go extraHostNames)`
+	cases := []struct {
+		label     string
+		setup     func(rt *Router)
+		withHosts bool
+		wantPanic string
+	}{
+		{
+			label: "isolated route on unknown host",
+			setup: func(rt *Router) {
+				rt.Host(hostBilling).Isolate()
+				rt.Host(hostBilling).Get("/invoices", textHandler("invoices"))
+			},
+			withHosts: true,
+			wantPanic: unconfigured,
+		},
+		{
+			label: "route value on unknown host without a policy",
+			setup: func(rt *Router) {
+				route := routing.NewSimpleRoute("/invoices", "billing.invoices", "", routing.Host(hostBilling))
+				rt.Route(route).Get(textHandler("invoices"))
+			},
+			withHosts: true,
+			wantPanic: unconfigured,
+		},
+		{
+			label: "fallback route on unknown host",
+			setup: func(rt *Router) {
+				rt.Host(hostBilling).FallbackToPrimary()
+				rt.Host(hostBilling).Get("/invoices", textHandler("invoices"))
+			},
+			withHosts: true,
+			wantPanic: unconfigured,
+		},
+		{
+			label: "unknown host with a policy but no routes",
+			setup: func(rt *Router) {
+				rt.Host(hostBilling).Isolate()
+			},
+			withHosts: true,
+		},
+		{
+			label: "configured host with routes",
+			setup: func(rt *Router) {
+				rt.Host(hostAdmin).Isolate()
+				rt.Host(hostAdmin).Get("/{$}", textHandler("admin"))
+			},
+			withHosts: true,
+		},
+		{
+			label: "no registry installed",
+			setup: func(rt *Router) {
+				rt.Host(hostBilling).Isolate()
+				rt.Host(hostBilling).Get("/invoices", textHandler("invoices"))
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.label, func(t *testing.T) {
+			t.Parallel()
+
+			var opts []Option
+			if tc.withHosts {
+				opts = append(opts, WithHosts(newAdminHosts(t)))
+			}
+			rt := NewRouter(opts...)
+			rt.Get("/", textHandler("primary"))
+			tc.setup(rt)
+
+			defer func() {
+				recovered := recover()
+				if tc.wantPanic == "" {
+					if recovered != nil {
+						t.Fatalf("Handler panicked: %v", recovered)
+					}
+					return
+				}
+				if recovered != tc.wantPanic {
+					t.Fatalf("panic = %v, want %q", recovered, tc.wantPanic)
+				}
+			}()
+			rt.Handler()
+		})
+	}
+}
+
 func TestHostWithoutRoutesNeedsNoPolicy(t *testing.T) {
 	t.Parallel()
 

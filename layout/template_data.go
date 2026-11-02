@@ -42,7 +42,6 @@ type TemplateData struct {
 	SessionEncryptionKey string
 	TokenSigningKey      string
 	Pepper               string
-	RunToolVersion       string // Version of the run built tool
 	FrameworkVersion     string // Version of the framework that generated managed files
 	Inertia              string // "vue", "react", "svelte", etc. Empty means templ-only
 	JavaScriptSSRRuntime string // Seeded into config DefaultInertiaSSRRuntime

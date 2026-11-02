@@ -28,7 +28,6 @@ func TestDefaultScaffoldGoFilesAreGofmtClean(t *testing.T) {
 		SessionEncryptionKey: "test-session-encryption-key",
 		TokenSigningKey:      "test-token-signing-key",
 		Pepper:               "test-pepper",
-		RunToolVersion:       GetRunToolVersion(),
 		FrameworkVersion:     "v2.0.0-alpha.5",
 		Inertia:              "react",
 		JavaScriptSSRRuntime: "node",

@@ -2,6 +2,7 @@ package inertia
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -27,8 +28,7 @@ type RendererConfig struct {
 	// ContainerID is the id of the root element Inertia mounts into. Required.
 	ContainerID string
 	// BuildPathURL is the URL pattern of the Vite build route, e.g.
-	// "https://example.com/assets/dist/*". It prefixes production asset tags
-	// and is the default asset version.
+	// "https://example.com/assets/dist/*". It prefixes production asset tags.
 	BuildPathURL string
 	// EntryPoint is the Vite input, e.g. "resources/js/app.ts".
 	EntryPoint string
@@ -66,7 +66,7 @@ func NewRenderer(cfg RendererConfig, options ...Option) (*Renderer, error) {
 	renderer := &Renderer{
 		containerID:         strings.TrimSpace(cfg.ContainerID),
 		buildPathURL:        strings.TrimSpace(cfg.BuildPathURL),
-		version:             strings.TrimSpace(cfg.BuildPathURL),
+		version:             "dev",
 		entryPoint:          strings.TrimSpace(cfg.EntryPoint),
 		viteDevURL:          strings.TrimRight(strings.TrimSpace(cfg.ViteDevURL), "/"),
 		ssrURL:              strings.TrimSpace(cfg.SSRURL),
@@ -120,6 +120,10 @@ window.__vite_plugin_react_preamble_installed__ = true
 		data, err := fs.ReadFile(renderer.assetFS, "dist/vite/manifest.json")
 		if err != nil {
 			return nil, fmt.Errorf("inertia: read Vite manifest: %w", err)
+		}
+
+		if !renderer.versionConfigured {
+			renderer.version = fmt.Sprintf("%x", sha256.Sum256(data))
 		}
 
 		var manifest map[string]viteManifestEntry

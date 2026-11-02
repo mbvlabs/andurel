@@ -139,7 +139,10 @@ func (rt *Router) Use(mw ...Middleware) {
 // error to the ErrorHandler. The result is cached; call Use and register routes
 // before the first call.
 //
-// Handler panics when a non-primary host has routes but no fallback policy. Call
+// Handler panics when a non-primary host has routes but the host registry
+// installed with WithHosts has no hostname for it, since no request could ever
+// reach those routes. Add the name to the registry. It also panics when a
+// non-primary host has routes but no fallback policy. Call
 // Host(name).FallbackToPrimary() or Host(name).Isolate() for every such host.
 func (rt *Router) Handler() http.Handler {
 	rt.mu.Lock()
@@ -148,6 +151,19 @@ func (rt *Router) Handler() http.Handler {
 		return rt.handler
 	}
 
+	for _, name := range slices.Sorted(maps.Keys(rt.hosts)) {
+		table := rt.hosts[name]
+		if table.routes == 0 || rt.hostsRegistry == nil {
+			continue
+		}
+		if _, ok := rt.hostsRegistry.Lookup(name); !ok {
+			panic(fmt.Sprintf(
+				"anduin: routes registered for host %q, but no hostname is configured for it; "+
+					"add it to the hosts registry (config/hosts.go extraHostNames)",
+				name,
+			))
+		}
+	}
 	for _, name := range slices.Sorted(maps.Keys(rt.hosts)) {
 		table := rt.hosts[name]
 		if table.routes > 0 && table.policy == fallbackUnset {
@@ -215,12 +231,6 @@ func (rt *Router) serve(w http.ResponseWriter, r *http.Request) {
 		if request == nil {
 			return &HTTPError{Status: http.StatusInternalServerError, Message: "anduin: no request on context"}
 		}
-		// Re-derive the request so that the final context (state plus every
-		// middleware value) is visible to the handler and so that http.ServeMux
-		// sets Pattern and path values on the request we can observe.
-		request = request.WithContext(ctx)
-		ctx = ReplaceRequest(ctx, request)
-
 		table, hostMiddleware := rt.tableFor(host, request)
 		dispatch := func(ctx context.Context) error {
 			rt.dispatch(ctx, table)
@@ -262,7 +272,10 @@ func (rt *Router) tableFor(host routing.HostName, request *http.Request) (*hostT
 // dispatch hands the request to table's ServeMux and turns the mux's own 404
 // and 405 responses into router errors.
 func (rt *Router) dispatch(ctx context.Context, table *hostTable) {
-	request := Request(ctx)
+	// Bind the latest middleware context to the latest request, including any
+	// replacement made by host middleware, before the mux invokes a handler.
+	request := Request(ctx).WithContext(ctx)
+	ctx = ReplaceRequest(ctx, request)
 	writer := &muxStatusWriter{ResponseWriter: ResponseWriter(ctx), request: request}
 	table.mux.ServeHTTP(writer, request)
 	switch writer.status {

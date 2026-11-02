@@ -439,14 +439,6 @@ func (d *ToolDownloader) getReleaseURL(goos, goarch string) (string, string, err
 			goos,
 			goarch,
 		), "tar.gz", nil
-	case "shadowfax":
-		return fmt.Sprintf(
-			"https://github.com/%s/releases/download/%s/shadowfax-%s-%s",
-			repo,
-			d.Version,
-			goos,
-			goarch,
-		), "binary", nil
 	default:
 		return "", "", fmt.Errorf("unknown tool: %s", d.Name)
 	}

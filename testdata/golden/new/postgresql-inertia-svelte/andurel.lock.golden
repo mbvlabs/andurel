@@ -95,30 +95,6 @@
   sha256 = '139b5d03565001eff91870a3b5c9076c6004352983bf1b63af184460ea3e998b'
 
 [[hashes]]
-  tool = 'shadowfax'
-  version = 'v0.12.0'
-  platform = 'linux/amd64'
-  sha256 = '3af3f2ca5337bc5aa1d929cbce1e305debcfc50fe25045da7bab4ade53ad858c'
-
-[[hashes]]
-  tool = 'shadowfax'
-  version = 'v0.12.0'
-  platform = 'linux/arm64'
-  sha256 = 'e5bbda03c47f07dd45aa1fa5fa91c76b94d2878842bb27aac7f41343890299c9'
-
-[[hashes]]
-  tool = 'shadowfax'
-  version = 'v0.12.0'
-  platform = 'darwin/amd64'
-  sha256 = 'b1c494d796d961fdf523206c55ad31286b6dac5a6142d8e2c298db46a29240a7'
-
-[[hashes]]
-  tool = 'shadowfax'
-  version = 'v0.12.0'
-  platform = 'darwin/arm64'
-  sha256 = 'f4a0933bb3d2969cc8df5438780fdc4d918e6c2b81a3b54db2a33b715e139bd4'
-
-[[hashes]]
   tool = 'tailwindcli'
   version = 'v4.3.2'
   platform = 'linux/amd64'

@@ -74,7 +74,7 @@ export default function Layout({ children }: LayoutProps) {
       />
       <header className="relative">
         <div className="mx-auto flex w-full max-w-[960px] items-center justify-between px-4 py-3">
-          <Link className="inline-flex items-center gap-3 text-sm font-semibold text-card-foreground" href={routes.homePage()}>
+          <Link className="inline-flex items-center gap-3 text-sm font-semibold text-card-foreground" href={routes.homePage.path()}>
             <span className="grid size-8 grid-cols-2 gap-1 border border-border bg-card p-1 shadow-sm shadow-black/40">
               <span className="border border-accent" />
               <span className="border border-border" />
@@ -86,13 +86,13 @@ export default function Layout({ children }: LayoutProps) {
           <nav className="flex flex-wrap items-center justify-end gap-3 text-sm">
             <a className={navLinkClass} href="https://andurel.com">Documentation</a>
             {isAuthenticated ? (
-              <Link className={navLinkClass} href={routes.sessionDestroy()} method="delete" as="button">
+              <Link className={navLinkClass} href={routes.sessionDestroy.path()} method="delete" as="button">
                 Sign out
               </Link>
             ) : (
               <>
-                <Link className={navLinkClass} href={routes.sessionNew()}>Log in</Link>
-                <Link className={navLinkClass} href={routes.registrationNew()}>Register</Link>
+                <Link className={navLinkClass} href={routes.sessionNew.path()}>Log in</Link>
+                <Link className={navLinkClass} href={routes.registrationNew.path()}>Register</Link>
               </>
             )}
           </nav>

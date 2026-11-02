@@ -199,6 +199,10 @@ andurel verify checks, in order:
 
 The payloads.ts check regenerates types from payloads/ and fails when the
 committed file is missing or out of date. verify never rewrites files.
+Plain verify does not statically check missing host fallback policies. Host
+policies are checked at application startup; use --with-tests and ensure an
+application startup test runs to catch missing policies. Scoped or skipped
+tests may not exercise startup.
 
 Scope:
   --only <stage[,stage]>   run only the named stages. Stage IDs: setup, gofmt,
@@ -1436,7 +1440,16 @@ func verifyGenerated(rootDir string, scopeDirs []string) verifyStep {
 // root) into those whose directory is one of scopeDirs and the rest.
 func splitGeneratedPathsByScope(paths, scopeDirs []string) (inScope, outOfScope []string) {
 	for _, p := range paths {
-		if slices.Contains(scopeDirs, path.Dir(filepath.ToSlash(p))) {
+		p = filepath.ToSlash(p)
+		owned := false
+		for _, dir := range scopeDirs {
+			dir = filepath.ToSlash(dir)
+			if p == "resources/js/routes.ts" && (dir == "routes" || strings.HasPrefix(dir, "routes/") || dir == "handlers" || strings.HasPrefix(dir, "handlers/")) ||
+				p == "resources/js/types/payloads.ts" && (dir == "payloads" || strings.HasPrefix(dir, "payloads/")) {
+				owned = true
+			}
+		}
+		if owned || slices.Contains(scopeDirs, path.Dir(p)) {
 			inScope = append(inScope, p)
 			continue
 		}

@@ -140,6 +140,22 @@ func fixtureSource(source string) string {
 	return strings.ReplaceAll(source, "§", "`")
 }
 
+func TestScopedDomainsLoadsGeneratedQueryBodies(t *testing.T) {
+	root := writeEntityColumnsProject(t, nil)
+	project, err := LoadPatterns(root, []string{"./domains"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pkg := range project.Packages {
+		if pkg.Path == "example.com/app/domains/internal/queries" {
+			t.Fatal("support package was added to analysis scope")
+		}
+	}
+	if _, err := project.RunRules([]string{"entity-columns"}); err != nil {
+		t.Fatalf("scoped entity-columns: %v", err)
+	}
+}
+
 func entityColumnFindings(t *testing.T, root string) []Violation {
 	t.Helper()
 	violations, err := Analyze(root)
