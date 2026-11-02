@@ -1,5 +1,15 @@
 ## Unreleased
 
+## 0.14.1 - 2026-11-02
+
+- Commit a router-rendered error page for an Inertia visit instead of discarding
+  the captured response, and discard buffered success status, body and
+  response-owned headers before rendering the error. Allow, `Vary`,
+  security/CORS metadata, `Retry-After`, and authentication challenges survive
+  the replacement. A rendered redirect still commits its normalized response
+  when reflash fails; the original, reflash and commit errors are joined without
+  rendering the error handler again.
+
 ## 0.14.0 - 2026-11-02
 
 - Preserve explicit 4xx `anduin.HTTPError.Message` values in JSON errors without exposing causes or 5xx messages.
