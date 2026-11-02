@@ -73,13 +73,15 @@ func (h *Host) Route(r RouteValue) RouteRegistrar {
 // primary table only when none of them match the request. Assets and robots.txt
 // registered on the primary host then work on this host without being
 // registered twice. Requests served by the primary table do not run this
-// host's middleware.
+// host's middleware, including when the primary handler returns an error.
 func (h *Host) FallbackToPrimary() {
 	h.setPolicy(fallbackToPrimary)
 }
 
 // Isolate makes unmatched requests on this host 404 without consulting the
-// primary table.
+// primary table. The host's Use middleware still runs before the host mux, so
+// it also runs for the mux-generated 404 and 405 responses; it can redirect or
+// reject before those are rendered.
 func (h *Host) Isolate() {
 	h.setPolicy(fallbackIsolate)
 }
@@ -97,7 +99,16 @@ func (h *Host) setPolicy(policy fallbackPolicy) {
 }
 
 // Use appends middleware for requests this host serves from its own table. It
-// runs after the global middleware and before per-route middleware.
+// runs after the global middleware and before per-route middleware. The host
+// table serves every request routed to this host, including paths its mux
+// answers with 404 or 405, so host middleware runs before those responses too.
+// Requests served by the primary table through FallbackToPrimary do not run
+// host middleware.
+//
+// A host middleware error renders at the failing boundary with the values this
+// chain passed down, before outer global middleware unwinds. Wrap the
+// middleware with CatchErrors when it needs to consume, translate or retry an
+// error instead.
 func (h *Host) Use(mw ...Middleware) {
 	h.router.mu.Lock()
 	defer h.router.mu.Unlock()

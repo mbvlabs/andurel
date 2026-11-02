@@ -16,6 +16,27 @@ type requestState struct {
 	writer   http.ResponseWriter
 	host     routing.HostName
 	clientIP string
+
+	// Error lifecycle for this request. renderError is installed by the
+	// router; boundaries record failures in the nearest delayed scope and render
+	// through it. rendered is set before the ErrorHandler runs so a reentrant
+	// boundary cannot render a second page.
+	renderError func(context.Context, error) error
+	rootWriter  http.ResponseWriter
+	delivery    *deliveryTracker
+	scopes      []*errorScope
+	calls       uint64
+	rendered    bool
+	rendering   bool
+	renderedErr error
+
+	// pendingRouteErr carries a route scope's deferred error out of ServeMux
+	// when an enclosing CatchErrors scope owns the render.
+	pendingRouteErr error
+
+	// routeAllow records the ServeMux Allow header for a generated 405 so the
+	// router can restore it independently of a capture's header snapshot.
+	routeAllow string
 }
 
 type stateKey struct{}

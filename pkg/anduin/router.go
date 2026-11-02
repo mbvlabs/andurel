@@ -2,6 +2,7 @@ package anduin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"net/http"
@@ -136,8 +137,11 @@ func (rt *Router) Use(mw ...Middleware) {
 
 // Handler returns an http.Handler that dispatches on Host, runs the global
 // middleware chain, calls the matched anduin.Handler, and routes any returned
-// error to the ErrorHandler. The result is cached; call Use and register routes
-// before the first call.
+// error to the ErrorHandler. Global and host middleware errors render at the
+// failing boundary; route errors render after route middleware unwinds. See
+// ErrorHandler, CatchErrors and RenderedError for the context and consumption
+// contract. The result is cached; call Use and register routes before the first
+// call.
 //
 // Handler panics when a non-primary host has routes but the host registry
 // installed with WithHosts has no hostname for it, since no request could ever
@@ -200,20 +204,79 @@ func (rt *Router) countRoute(table *hostTable) {
 }
 
 // routeHandler adapts an anduin.Handler into the http.HandlerFunc that
-// http.ServeMux invokes (with path values and Pattern already populated).
+// http.ServeMux invokes (with path values and Pattern already populated). Route
+// errors use an implicit delayed scope: they render after route middleware has
+// unwound, exactly as before, so route middleware can still consume or translate
+// them (APIDocumentationErrors, for example).
 func (rt *Router) routeHandler(h Handler, mw []Middleware) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		if stateFrom(ctx) == nil {
-			ctx = withState(ctx, &requestState{})
+		state := stateFrom(ctx)
+		if state == nil {
+			state = &requestState{request: r, writer: w}
+			ctx = withState(ctx, state)
 		}
 		ctx = ReplaceRequest(ctx, r)
 		ctx = ReplaceResponseWriter(ctx, w)
+		state.pendingRouteErr = nil
 
-		handler := applyMiddleware(h, mw)
-		if err := handler(ctx); err != nil {
+		var scope *errorScope
+		if state.renderError != nil {
+			scope = state.beginScope()
+			defer state.dropScope(scope)
+		}
+		handler := applyMiddleware(h, mw, rt.errorBoundary)
+		err := handler(ctx)
+		if scope != nil {
+			state.endScope(ctx, scope, err)
+			if state.currentScope() != nil && err != nil &&
+				!errors.Is(err, ErrResponseCommitted) && !state.rendered {
+				// An enclosing CatchErrors scope owns this error. ServeMux has
+				// no error return, so dispatch takes it from request state.
+				state.pendingRouteErr = err
+			}
+			return
+		}
+		if err != nil {
 			rt.handleError(ctx, err)
 		}
+	}
+}
+
+// errorBoundary observes the context and error seen when the layer it wraps
+// returns. It never consumes the error, so rollback, wrapping and
+// errors.Is/errors.As keep working.
+//
+// Outside a delayed scope an error is rendered immediately at the failing
+// boundary, while the middleware that passed the failing context is still
+// active. Inside a delayed scope (the implicit route scope or CatchErrors) the
+// failure is recorded and the scope owner renders after it unwinds. A layer that
+// returns nil has consumed the error below it, so it clears the pending failure.
+func (rt *Router) errorBoundary(next Handler) Handler {
+	return func(ctx context.Context) error {
+		state := stateFrom(ctx)
+		if state == nil {
+			return next(ctx)
+		}
+		if state.rendered {
+			return &CommittedError{Err: state.renderedErr}
+		}
+
+		call := state.nextCall()
+		err := next(ctx)
+		if err == nil {
+			state.clearFailure()
+			return nil
+		}
+		if errors.Is(err, ErrResponseCommitted) || state.rendered {
+			return err
+		}
+		if state.currentScope() != nil {
+			state.recordFailure(call, ctx)
+			return err
+		}
+		state.render(ctx, err)
+		return err
 	}
 }
 
@@ -222,9 +285,25 @@ func (rt *Router) routeHandler(h Handler, mw []Middleware) http.HandlerFunc {
 // route table that serves the request. The host's own middleware runs between
 // the global chain and dispatch, and only when the host's own table serves the
 // request.
+//
+// Host and global middleware errors render at the failing boundary while the
+// middleware that supplied the context is still active. Route errors render
+// after route middleware unwinds through the implicit route scope. CatchErrors
+// extends the delayed scope to a global or host middleware that consumes,
+// translates or retries errors.
 func (rt *Router) serve(w http.ResponseWriter, r *http.Request) {
 	host := rt.resolveHost(r.Host)
-	ctx := withState(r.Context(), &requestState{request: r, writer: w, host: host})
+	tracker := &deliveryTracker{}
+	tracked := &deliveryWriter{ResponseWriter: w, tracker: tracker}
+	state := &requestState{
+		request:     r,
+		writer:      tracked,
+		host:        host,
+		rootWriter:  tracked,
+		delivery:    tracker,
+		renderError: rt.invokeErrorHandler,
+	}
+	ctx := withState(r.Context(), state)
 
 	base := func(ctx context.Context) error {
 		request := Request(ctx)
@@ -233,15 +312,20 @@ func (rt *Router) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		table, hostMiddleware := rt.tableFor(host, request)
 		dispatch := func(ctx context.Context) error {
-			rt.dispatch(ctx, table)
-			return nil
+			return rt.dispatch(ctx, table)
 		}
-		return applyMiddleware(dispatch, hostMiddleware)(ctx)
+		return applyMiddleware(dispatch, hostMiddleware, rt.errorBoundary)(ctx)
 	}
 
-	handler := applyMiddleware(base, rt.mw)
-	if err := handler(ctx); err != nil {
-		rt.handleError(ctx, err)
+	handler := applyMiddleware(base, rt.mw, rt.errorBoundary)
+	err := handler(ctx)
+	if err != nil {
+		state.logPostRenderError(err)
+	}
+	if err != nil && !state.rendered && !errors.Is(err, ErrResponseCommitted) {
+		// Last-resort safety for an error that escaped without hitting a
+		// boundary. Normal chains render earlier with the failing context.
+		state.render(ctx, err)
 	}
 }
 
@@ -270,19 +354,37 @@ func (rt *Router) tableFor(host routing.HostName, request *http.Request) (*hostT
 }
 
 // dispatch hands the request to table's ServeMux and turns the mux's own 404
-// and 405 responses into router errors.
-func (rt *Router) dispatch(ctx context.Context, table *hostTable) {
+// and 405 responses into router errors. Returning the error lets the normal
+// boundary/scope machinery render it with the active middleware context; the
+// Allow header is recorded before return so a capture header reset cannot drop
+// it.
+func (rt *Router) dispatch(ctx context.Context, table *hostTable) error {
 	// Bind the latest middleware context to the latest request, including any
 	// replacement made by host middleware, before the mux invokes a handler.
 	request := Request(ctx).WithContext(ctx)
 	ctx = ReplaceRequest(ctx, request)
+	state := stateFrom(ctx)
+	if state != nil {
+		state.pendingRouteErr = nil
+		state.routeAllow = ""
+	}
 	writer := &muxStatusWriter{ResponseWriter: ResponseWriter(ctx), request: request}
 	table.mux.ServeHTTP(writer, request)
+	if state != nil && state.pendingRouteErr != nil {
+		err := state.pendingRouteErr
+		state.pendingRouteErr = nil
+		return err
+	}
 	switch writer.status {
 	case http.StatusNotFound:
-		rt.handleError(ctx, ErrNotFound)
+		return ErrNotFound
 	case http.StatusMethodNotAllowed:
-		rt.handleError(ctx, ErrMethodNotAllowed)
+		if state != nil {
+			state.routeAllow = writer.Header().Get("Allow")
+		}
+		return ErrMethodNotAllowed
+	default:
+		return nil
 	}
 }
 
@@ -346,19 +448,40 @@ var (
 	_ interface{ Unwrap() http.ResponseWriter } = (*muxStatusWriter)(nil)
 )
 
-// handleError routes err to the ErrorHandler, falling back to a plain response
-// when the handler declines it.
+// render is the lifecycle renderer installed on request state. It routes one
+// error to the ErrorHandler and falls back to a plain response exactly once.
+func (rt *Router) render(ctx context.Context, err error) {
+	state := stateFrom(ctx)
+	if state == nil {
+		rt.handleError(ctx, err)
+		return
+	}
+	state.render(ctx, err)
+}
+
+// handleError routes err to the ErrorHandler for callers without router state.
 func (rt *Router) handleError(ctx context.Context, err error) {
 	if err == nil {
 		return
 	}
-	if rt.onError != nil {
-		if unhandled := rt.onError(ctx, err); unhandled != nil {
-			defaultErrorHandler(ctx, unhandled)
-		}
-		return
+	if handlerErr := rt.invokeErrorHandler(ctx, err); handlerErr != nil {
+		writePlainFallback(ctx)
 	}
-	defaultErrorHandler(ctx, err)
+}
+
+// invokeErrorHandler calls the configured ErrorHandler, converting a panic into
+// an ordinary error so the caller can write one plain fallback. It never renders
+// the same error twice.
+func (rt *Router) invokeErrorHandler(ctx context.Context, err error) (handlerErr error) {
+	if rt.onError == nil {
+		return defaultErrorHandler(ctx, err)
+	}
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			handlerErr = fmt.Errorf("anduin: error handler panic: %v", recovered)
+		}
+	}()
+	return rt.onError(ctx, err)
 }
 
 // MuxPattern converts an andurel/routing path into an http.ServeMux pattern.

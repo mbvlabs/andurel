@@ -4,6 +4,87 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+## 0.8.0 - 2026-11-02
+
+### Added
+
+- `CatchErrors(middleware)` gives a global or host middleware an explicit
+  delayed error scope. It permits consuming, translating or retrying errors
+  without the inner boundary rendering first, and uses the latest failing pass
+  for the delayed render.
+- `RenderedError(ctx)` reports the error a request has already rendered, so a
+  coordinated response buffer (for example Inertia's capture writer) can commit
+  the captured error page.
+- `ResponseBuffer` lets an error render discard buffered successful content
+  before writing the error page. The router walks the writer `Unwrap` chain and
+  calls `DiscardBuffered` before invoking the `ErrorHandler`.
+- `ErrResponseCommitted` and `CommittedError` make once-only rendering
+  observable. Retrying a handler after an early render is blocked with
+  `ErrResponseCommitted`, while the rendered error stays available through
+  `errors.Is`/`errors.As`.
+
+### Fixed
+
+- Errors returned by global and host middleware now render at the failing
+  boundary, while the middleware that supplied the context is still active. A
+  context-dependent renderer or shared provider can read the session bag, and
+  kiks-style persistence observes the final status (including a 409 flash or a
+  303 redirect). Enclosing middleware resources and a live request context are
+  preserved; the failing middleware's own deferred resources may have unwound.
+- Route and handler errors keep the existing delayed render point: after route
+  middleware unwinds, so route consumers such as `APIDocumentationErrors` still
+  prevent the router render. Nested delayed scopes propagate their failing
+  attribution to the enclosing scope instead of rendering, so an outer consumer,
+  translator or retry owns the single commit. Delayed scopes retain the deepest
+  middleware values from the latest failing pass. Their value context wraps a
+  `WithCancelCause` bridge with a separate wrapper-owned `Done`: the first
+  cancellation path freezes the classification, cancels the bridge with its
+  cause, then closes the wrapper `Done` last. `Err` waits for that wrapper `Done`
+  after the bridge is canceled, so it never returns nil while `Cause` is already
+  non-nil, and then remains the frozen classification. This preserves
+  `context.DeadlineExceeded` for an expired deadline, `context.Canceled` for
+  explicit cancellation or cleanup, and the original custom `Cause`, including
+  for derived `WithCancel`/`WithCancelCause` children. A canceled child context
+  no longer leaks cancellation into the `ErrorHandler`, deep nil value masks stay
+  stable, no deadline timer is recreated, and cleanup stops the live watcher and
+  closes the wrapper context.
+- Retries attribute the latest failing pass instead of the first; a later
+  successful retry renders nothing. Nested scopes preserve that attribution
+  until the outer scope commits.
+- Post-render error logging compares errors only when their actual dynamic
+  values are reflect-comparable. Comparable types holding a slice and named
+  non-comparable error values are logged conservatively instead of compared;
+  distinct comparable types or same-message wrappers log as changed.
+- A panicking or failing `ErrorHandler` falls back to one plain 500 and is
+  logged once. Any partial error page buffered by a cooperative capture is
+  discarded before the fallback, so only the plain 500 remains. A final error
+  that changes or is joined after an early render is logged once without a
+  second response. An old response capture that discards the rendered page
+  without delivering it is detected through the delivery writer and answered
+  with one safe plain 500, never a second `ErrorHandler` call.
+- `FlushError` is forwarded through the renderer write wrapper, so
+  `http.ResponseController` flush errors inside an `ErrorHandler` are not
+  swallowed.
+- The ServeMux `Allow` header for a 405 error survives a cooperative capture's
+  `DiscardBuffered` header reset, including the renderer-failure fallback. Other
+  response headers remain coordinated with the inertia capture implementation.
+
+### Changed
+
+- Global and host middleware that consumes an error by returning nil must wrap
+  itself with `CatchErrors`; before this release every error was rendered after
+  the whole chain unwound. Route middleware keeps the implicit delayed scope and
+  needs no change. The original error still propagates unchanged to middleware
+  that observes it.
+- ServeMux-generated 404/405 errors now travel through the host/global boundary
+  so `CatchErrors` can consume or translate them. They still render once,
+  `Allow` is preserved, and fallback-to-primary behavior is unchanged.
+- Documented `Host.Use` ordering: host middleware runs before the host mux,
+  including the mux-generated `Isolate` 404 and 405 responses, while requests
+  served by the primary table through `FallbackToPrimary` bypass host
+  middleware. A host middleware that redirects on an unknown path still
+  redirects before the 404 page (B7-007).
+
 ## 0.7.1 - 2026-11-02
 
 ### Fixed
