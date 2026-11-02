@@ -144,18 +144,6 @@ func TestToolDownloaderReleaseURLs(t *testing.T) {
 			wantArchive: "tar.gz",
 		},
 		{
-			name: "shadowfax",
-			downloader: ToolDownloader{
-				Name:    "shadowfax",
-				Module:  "github.com/mbvlabs/shadowfax",
-				Version: "v0.1.0",
-			},
-			goos:        "linux",
-			goarch:      "amd64",
-			wantURLPart: "shadowfax-linux-amd64",
-			wantArchive: "binary",
-		},
-		{
 			name: "unknown",
 			downloader: ToolDownloader{
 				Name:    "unknown",

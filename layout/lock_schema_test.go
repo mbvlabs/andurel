@@ -2,6 +2,7 @@ package layout
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 )
@@ -268,6 +269,56 @@ func TestReadLockFileValidatesAfterSchemaFirstDecode(t *testing.T) {
 	}
 	if _, err := ReadLockFile(root); err != nil {
 		t.Fatalf("ReadLockFile: %v", err)
+	}
+}
+
+func TestReadLockFilePrunesRetiredShadowfax(t *testing.T) {
+	root := t.TempDir()
+	if err := validSchema1Lock().WriteLockFile(root); err != nil {
+		t.Fatal(err)
+	}
+	tomlPath := projectTomlPath(root)
+	tomlData, err := os.ReadFile(tomlPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(tomlData), "[tools]\n") {
+		t.Fatal("missing tools section")
+	}
+	staleToml := strings.Replace(string(tomlData), "[tools]\n", "[tools]\n  shadowfax = 'v0.12.0'\n", 1)
+	if err := os.WriteFile(tomlPath, []byte(staleToml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lockPath := projectLockPath(root)
+	lockData, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	staleLock := string(lockData) + "\n[[hashes]]\n  tool = 'shadowfax'\n  version = 'v0.12.0'\n  platform = 'linux/amd64'\n  sha256 = '3af3f2ca5337bc5aa1d929cbce1e305debcfc50fe25045da7bab4ade53ad858c'\n"
+	if err := os.WriteFile(lockPath, []byte(staleLock), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lock, err := ReadLockFile(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := lock.Tools["shadowfax"]; ok {
+		t.Fatal("retired tool should be dropped")
+	}
+	if _, ok := lock.Tools["templ"]; !ok {
+		t.Fatal("other tools must survive pruning")
+	}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{tomlPath, lockPath} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(data), "shadowfax") {
+			t.Fatalf("%s still mentions shadowfax", path)
+		}
 	}
 }
 

@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -67,7 +68,7 @@ Use --json for the generated and changed file lists.`,
 			if err != nil {
 				return err
 			}
-			printEmailCompileReport(report)
+			printEmailCompileReport(os.Stdout, report)
 			return nil
 		},
 	}
@@ -81,27 +82,28 @@ func emailCompileSummary(report emailCompileOutput) string {
 	return summary
 }
 
-func printEmailCompileReport(report emailcompiler.Report) {
+func printEmailCompileReport(w io.Writer, report emailcompiler.Report) {
 	for _, file := range report.Changed {
-		fmt.Printf("  updated %s\n", file)
+		fmt.Fprintf(w, "  updated %s\n", file)
 	}
-	fmt.Println("Email templates compiled.")
-}
-
-func compileEmailProject(ctx context.Context, rootDir string) error {
-	report, err := compileEmailProjectReport(ctx, rootDir)
-	if err != nil {
-		return err
-	}
-	printEmailCompileReport(report)
-	return nil
+	fmt.Fprintln(w, "Email templates compiled.")
 }
 
 func compileEmailProjectReport(ctx context.Context, rootDir string) (emailcompiler.Report, error) {
 	fmt.Println("Compiling Tailwind email templates...")
+	tailwindPath, err := ensureEmailTailwind(rootDir)
+	if err != nil {
+		return emailcompiler.Report{}, err
+	}
+	return compileEmailWithTailwindReport(ctx, rootDir, tailwindPath)
+}
+
+// ensureEmailTailwind syncs the managed Tailwind CLI the email compiler uses
+// and returns its path.
+func ensureEmailTailwind(rootDir string) (string, error) {
 	lock, err := layout.ReadLockFile(rootDir)
 	if err != nil {
-		return emailcompiler.Report{}, fmt.Errorf("failed to read andurel.toml: %w", err)
+		return "", fmt.Errorf("failed to read andurel.toml: %w", err)
 	}
 
 	tailwindTool, ok := lock.Tools["tailwindcli"]
@@ -115,14 +117,10 @@ func compileEmailProjectReport(ctx context.Context, rootDir string) (emailcompil
 		runtime.GOOS,
 		runtime.GOARCH,
 	); err != nil {
-		return emailcompiler.Report{}, fmt.Errorf("failed to sync tailwind CLI: %w", err)
+		return "", fmt.Errorf("failed to sync tailwind CLI: %w", err)
 	}
 
-	return compileEmailWithTailwindReport(
-		ctx,
-		rootDir,
-		filepath.Join(rootDir, "bin", "tailwindcli"),
-	)
+	return filepath.Join(rootDir, "bin", "tailwindcli"), nil
 }
 
 func compileEmailWithTailwind(ctx context.Context, rootDir, tailwindPath string) error {
@@ -131,7 +129,7 @@ func compileEmailWithTailwind(ctx context.Context, rootDir, tailwindPath string)
 	if err != nil {
 		return err
 	}
-	printEmailCompileReport(report)
+	printEmailCompileReport(os.Stdout, report)
 	return nil
 }
 

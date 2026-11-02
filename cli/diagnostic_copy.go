@@ -134,6 +134,9 @@ func copyDiagnosticEntry(
 			if isDiagnosticExcluded(entry.Name()) {
 				continue
 			}
+			if opts.selectBinTools && (entry.Name() == "tmp" || entry.Name() == "dist" || entry.Name() == "bin" && rel != "") {
+				continue
+			}
 			childRel := entry.Name()
 			if rel != "" {
 				childRel = filepath.Join(rel, entry.Name())

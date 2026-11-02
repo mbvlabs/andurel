@@ -34,7 +34,7 @@ func TestUpgradePresentationRestoresProgressiveHumanOutput(t *testing.T) {
 		FilesReplaced:       2,
 		ReplacedFiles:       []string{"pkg/anduin/router.go", "pkg/anduin/server.go"},
 		ToolsUpdated:        1,
-		UpdatedTools:        []string{"shadowfax: v0.9.0"},
+		UpdatedTools:        []string{"templ: v0.3.1020"},
 		ToolMetadataChanges: []string{"templ metadata"},
 	}
 

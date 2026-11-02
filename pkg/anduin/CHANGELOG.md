@@ -4,6 +4,19 @@ All notable changes to the standalone Andurel HTTP module are documented here.
 
 ## Unreleased
 
+## 0.7.1 - 2026-11-02
+
+### Fixed
+
+- Host middleware context values and request replacements now reach route
+  middleware, handlers, and mounted HTTP handlers.
+- `Router.Handler()` panics when routes are registered on a host that the
+  `WithHosts` registry has no hostname for. Before, boot failed with the generic
+  "no fallback policy" message, and with `.Isolate()` the routes booted but
+  answered 404 on every host. The panic reads
+  `anduin: routes registered for host "billing", but no hostname is configured for it; add it to the hosts registry (config/hosts.go extraHostNames)`.
+  Routers built without `WithHosts` are not checked.
+
 ## 0.7.0 - 2026-10-31
 
 ### Added

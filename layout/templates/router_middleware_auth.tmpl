@@ -10,6 +10,7 @@ import (
 	"{{.ModuleName}}/routes"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
+	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
 	"github.com/mbvlabs/andurel/pkg/routing"
 )
@@ -64,7 +65,7 @@ func rejectSession(ctx context.Context, hosts *routing.Hosts) error {
 		return err
 	}
 
-	return anduin.Redirect(ctx, signInURL(ctx, hosts), http.StatusSeeOther)
+	return inertia.LocationRedirect(ctx, signInURL(ctx, hosts), http.StatusSeeOther)
 }
 
 // rememberReturnTo stores the rejected request's host and path+query. Only GET

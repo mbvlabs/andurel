@@ -90,7 +90,6 @@ func (g *TemplateGenerator) buildTemplateData(
 		ProjectName:      config.ProjectName,
 		ModuleName:       modulePath,
 		Database:         config.Database,
-		RunToolVersion:   layout.GetRunToolVersion(),
 		FrameworkVersion: frameworkVersion,
 		Inertia:          config.Inertia,
 	}

@@ -1,0 +1,66 @@
+package reload
+
+import (
+	"sync"
+	"time"
+)
+
+// Broadcaster is a thread-safe pub/sub for reload events.
+// Listeners can subscribe to receive reload signals.
+type Broadcaster struct {
+	mu            sync.RWMutex
+	listeners     map[chan struct{}]struct{}
+	lastBroadcast time.Time
+	debounceTime  time.Duration
+}
+
+func NewBroadcaster() *Broadcaster {
+	return &Broadcaster{
+		listeners:    make(map[chan struct{}]struct{}),
+		debounceTime: 50 * time.Millisecond,
+	}
+}
+
+func (b *Broadcaster) Subscribe() chan struct{} {
+	ch := make(chan struct{}, 1)
+	b.mu.Lock()
+	b.listeners[ch] = struct{}{}
+	b.mu.Unlock()
+	return ch
+}
+
+func (b *Broadcaster) Unsubscribe(ch chan struct{}) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if _, ok := b.listeners[ch]; ok {
+		delete(b.listeners, ch)
+		close(ch)
+	}
+}
+
+func (b *Broadcaster) Broadcast() {
+	b.mu.Lock()
+	now := time.Now()
+	if now.Sub(b.lastBroadcast) < b.debounceTime {
+		b.mu.Unlock()
+		return
+	}
+	b.lastBroadcast = now
+	b.mu.Unlock()
+
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	for ch := range b.listeners {
+		select {
+		case ch <- struct{}{}:
+		default:
+			// Channel buffer full, skip (listener will catch up on next broadcast)
+		}
+	}
+}
+
+func (b *Broadcaster) ListenerCount() int {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return len(b.listeners)
+}

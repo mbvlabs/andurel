@@ -77,6 +77,8 @@ const inspectViewsHosts = `package config
 import "github.com/mbvlabs/andurel/pkg/routing"
 
 const HostAdmin routing.HostName = "admin"
+
+var extraHostNames = []routing.HostName{HostAdmin}
 `
 
 const inspectViewsHandlers = `package handlers
@@ -332,6 +334,109 @@ func TestInspectURLsExtraHostWithoutPrimaryStaysUnresolved(t *testing.T) {
 		if !strings.Contains(route.UnresolvedReason, "HOST_ADMIN") {
 			t.Fatalf("admin reason = %q, want HOST_ADMIN", route.UnresolvedReason)
 		}
+	}
+}
+
+func TestInspectURLsOnlyDerivesListedHosts(t *testing.T) {
+	const unlistedReason = `host "admin" is not listed in extraHostNames (config/hosts.go), ` +
+		`so the app configures no hostname for it`
+	cases := []struct {
+		label      string
+		hostsFile  string
+		env        string
+		wantURL    string
+		wantReason string
+	}{
+		{
+			label: "listed by constant",
+			hostsFile: `package config
+
+import "github.com/mbvlabs/andurel/pkg/routing"
+
+const HostAdmin routing.HostName = "admin"
+
+var extraHostNames = []routing.HostName{HostAdmin}
+`,
+			wantURL: "http://admin.localhost:8080/",
+		},
+		{
+			label: "listed by conversion",
+			hostsFile: `package config
+
+import "github.com/mbvlabs/andurel/pkg/routing"
+
+const HostAdmin routing.HostName = "admin"
+
+var extraHostNames = []routing.HostName{routing.HostName("admin")}
+`,
+			wantURL: "http://admin.localhost:8080/",
+		},
+		{
+			label: "declared but not listed",
+			hostsFile: `package config
+
+import "github.com/mbvlabs/andurel/pkg/routing"
+
+const HostAdmin routing.HostName = "admin"
+
+var extraHostNames []routing.HostName
+`,
+			wantReason: unlistedReason,
+		},
+		{
+			label: "not listed with an explicit HOST_ADMIN",
+			hostsFile: `package config
+
+import "github.com/mbvlabs/andurel/pkg/routing"
+
+const (
+	HostAdmin   routing.HostName = "admin"
+	HostBilling routing.HostName = "billing"
+)
+
+var extraHostNames = []routing.HostName{HostBilling}
+`,
+			env:        "HOST_ADMIN=admin.example.com\n",
+			wantReason: unlistedReason,
+		},
+		{
+			label: "list not declared keeps the derived default",
+			hostsFile: `package config
+
+import "github.com/mbvlabs/andurel/pkg/routing"
+
+const HostAdmin routing.HostName = "admin"
+`,
+			wantURL: "http://admin.localhost:8080/",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.label, func(t *testing.T) {
+			root := writeInspectViewsProject(t)
+			writeTestFile(t, root, "config/hosts.go", tc.hostsFile)
+			writeTestFile(t, root, ".env", "HOST_PRIMARY=localhost:8080\nPROTOCOL=http\n"+tc.env)
+			unsetEnvForTest(t, "HOST_PRIMARY", "HOST_ADMIN", "PROTOCOL")
+
+			report := decodeInspectEnvelope[inspectURLsReport](
+				t,
+				runInspectJSON(t, root, "inspect", "urls"),
+			)
+			var admin inspectURLRoute
+			for _, route := range report.Routes {
+				if route.Name == "admin.home" {
+					admin = route
+				}
+			}
+			if admin.Name == "" {
+				t.Fatalf("missing admin.home in %#v", report.Routes)
+			}
+			if admin.URL != tc.wantURL || admin.Resolved != (tc.wantURL != "") {
+				t.Fatalf("admin.home url = %q resolved = %v, want %q", admin.URL, admin.Resolved, tc.wantURL)
+			}
+			if admin.UnresolvedReason != tc.wantReason {
+				t.Fatalf("admin.home reason = %q, want %q", admin.UnresolvedReason, tc.wantReason)
+			}
+		})
 	}
 }
 

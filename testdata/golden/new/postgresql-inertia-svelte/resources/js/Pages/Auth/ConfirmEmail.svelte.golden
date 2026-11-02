@@ -10,7 +10,7 @@
 
   function submit(event: SubmitEvent) {
     event.preventDefault()
-    form.post(routes.confirmationCreate())
+    form.post(routes.confirmationCreate.path())
   }
 </script>
 

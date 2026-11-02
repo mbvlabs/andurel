@@ -4,6 +4,19 @@ All notable changes to the standalone Andurel storage module are documented here
 
 ## Unreleased
 
+## 0.15.1 - 2026-11-02
+
+### Fixed
+
+- `storagetest` can remove older containers left by exited test processes only
+  when hostname, Linux boot ID and PID namespace match and the owner PID is
+  definitely absent. Live or reused PIDs and uncertain checks retain containers.
+  Legacy hostname/PID-only labels, missing or mismatched scope and non-Linux
+  platforms never qualify. Inspect `docker ps -a --filter
+  label=dev.andurel.storagetest=true` and verify each owner is inactive across
+  hosts and PID namespaces before manual removal. Tests start even if checking
+  fails.
+
 ## 0.15.0 - 2026-10-31
 
 ### Added

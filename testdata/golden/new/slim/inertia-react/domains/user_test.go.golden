@@ -484,8 +484,8 @@ func TestUsers_RehashPasswordReplacesVerifiedHash(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 
-	if _, err := users.RehashPassword(t.Context(), "test-pepper", created.ID, created.Password, password); err != nil {
-		t.Fatalf("rehash password: %v", err)
+	if _, matched, err := users.RehashVerifiedPassword(t.Context(), "test-pepper", created.ID, created.Password, created.SessionVersion, password); err != nil || !matched {
+		t.Fatalf("rehash password: matched=%v err=%v", matched, err)
 	}
 
 	found, err := users.Find(t.Context(), created.ID)
@@ -549,5 +549,72 @@ func TestUsers_RehashPasswordKeepsConcurrentChange(t *testing.T) {
 	}
 	if !valid {
 		t.Fatal("rehash overwrote a concurrent password change")
+	}
+}
+
+// The row observed after verification must not supply a newer session version
+// to an authentication that verified the old credentials.
+func TestUsers_RehashVerifiedPasswordRejectsChangedState(t *testing.T) {
+	t.Parallel()
+
+	for _, change := range []string{"password", "session", "rehash"} {
+		t.Run(change, func(t *testing.T) {
+			db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+			users := domains.NewUsers(db)
+			const oldPassword = "correct horse battery staple"
+			created, err := users.Create(t.Context(), "old-pepper", domains.CreateUserData{
+				Email:        "verified-race@example.com",
+				PasswordPair: domains.PasswordPair{Password: oldPassword, ConfirmPassword: oldPassword},
+			})
+			if err != nil {
+				t.Fatalf("create: %v", err)
+			}
+			// Pause the login after it has captured the verified row, then let
+			// the competing change commit before it attempts the locked rehash.
+			type result struct {
+				matched bool
+				err     error
+			}
+			ready, resume := make(chan struct{}), make(chan struct{})
+			done := make(chan result, 1)
+			go func() {
+				close(ready)
+				<-resume
+				_, matched, err := users.RehashVerifiedPassword(t.Context(), "test-pepper", created.ID, created.Password, created.SessionVersion, oldPassword)
+				done <- result{matched: matched, err: err}
+			}()
+			<-ready
+			if change == "password" {
+				const newPassword = "new correct horse battery staple"
+				_, err = users.ChangePassword(t.Context(), "test-pepper", created.ID, domains.PasswordPair{Password: newPassword, ConfirmPassword: newPassword})
+			} else if change == "session" {
+				err = users.BumpSessionVersion(t.Context(), created.ID)
+			} else {
+				_, err = users.RehashPassword(t.Context(), "test-pepper", created.ID, created.Password, oldPassword)
+			}
+			if err != nil {
+				close(resume)
+				t.Fatalf("change state: %v", err)
+			}
+			close(resume)
+			outcome := <-done
+			if outcome.err != nil || outcome.matched {
+				t.Fatalf("stale verification: matched=%v err=%v", outcome.matched, outcome.err)
+			}
+			found, err := users.Find(t.Context(), created.ID)
+			if err != nil {
+				t.Fatalf("find: %v", err)
+			}
+			password, pepper := oldPassword, "old-pepper"
+			if change == "password" {
+				password, pepper = "new correct horse battery staple", "test-pepper"
+			} else if change == "rehash" {
+				pepper = "test-pepper"
+			}
+			valid, err := auth.VerifyPassword(string(found.Password), password, pepper)
+			if err != nil || !valid {
+				t.Fatalf("password was overwritten: valid=%v err=%v", valid, err)
+			}
+		})
 	}
 }

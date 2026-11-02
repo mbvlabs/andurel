@@ -57,12 +57,6 @@ var managedTools = []managedTool{
 		Version:     versions.Dblab,
 		Description: "Database UI",
 	},
-	{
-		Name:        "shadowfax",
-		Source:      "github.com/mbvlabs/shadowfax",
-		Version:     versions.Shadowfax,
-		Description: "Shadowfax dev server",
-	},
 	{Name: "tailwindcli", Version: versions.TailwindCLI, Description: "Tailwind CSS CLI"},
 }
 
@@ -92,7 +86,7 @@ and records them in andurel.lock. Pass --sha256 only to pin known digests.
 Examples:
   andurel tool set-version templ 0.3.977
   andurel tool set-version tailwindcli 4.1.18
-  andurel tool set-version shadowfax 0.1.3 \
+  andurel tool set-version narsilc 0.6.3 \
     --sha256 linux/amd64=<hex> --sha256 linux/arm64=<hex> \
     --sha256 darwin/amd64=<hex> --sha256 darwin/arm64=<hex>
 

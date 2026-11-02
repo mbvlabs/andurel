@@ -173,7 +173,7 @@ func TestHomePageIsPublic(t *testing.T) {
 		http.MethodGet,
 		routes.HomePage.Path(),
 		"localhost:8080",
-		inertiaRequestHeaders(t, cfg),
+		inertiaRequestHeaders(t, app),
 	)
 	if page.Code != http.StatusOK {
 		t.Fatalf("inertia status = %d, want %d", page.Code, http.StatusOK)
@@ -372,7 +372,7 @@ func TestMethodNotAllowedRendersNotFoundPage(t *testing.T) {
 		http.MethodGet,
 		routes.SessionDestroy.Path(),
 		"localhost:8080",
-		inertiaRequestHeaders(t, cfg),
+		inertiaRequestHeaders(t, app),
 	)
 	if inertiaResponse.Code != http.StatusMethodNotAllowed {
 		t.Fatalf(
@@ -383,6 +383,26 @@ func TestMethodNotAllowedRendersNotFoundPage(t *testing.T) {
 	}
 	if body := inertiaResponse.Body.String(); !strings.Contains(body, `"component":"Errors/NotFound"`) {
 		t.Fatalf("inertia body does not render Errors/NotFound:\n%s", body)
+	}
+}
+
+// A frontend build changes the renderer's version to the manifest hash.
+// Both normal and error-page visits must use that version, not the build URL.
+func TestInertiaVisitsWithBuiltAssets(t *testing.T) {
+	requireProductionAssets(t)
+	app := newTestApp(t, testSecurityConfig(t))
+	headers := inertiaRequestHeaders(t, app)
+	for _, test := range []struct {
+		path string
+		want int
+	}{
+		{routes.HomePage.Path(), http.StatusOK},
+		{routes.SessionDestroy.Path(), http.StatusMethodNotAllowed},
+	} {
+		response := serveRequest(t, app, http.MethodGet, test.path, "localhost:8080", headers)
+		if response.Code != test.want {
+			t.Errorf("%s inertia status = %d, want %d", test.path, response.Code, test.want)
+		}
 	}
 }
 
@@ -474,17 +494,26 @@ func serveRequest(
 	return recorder
 }
 
-func inertiaRequestHeaders(t *testing.T, cfg config.Config) http.Header {
+// A stale visit returns the renderer's current version, whether it comes from
+// the Vite manifest or the development fallback. Use it for subsequent visits.
+func inertiaRequestHeaders(t *testing.T, app *application.App) http.Header {
 	t.Helper()
 
-	hosts, err := routing.NewHosts(cfg.App.Hosts)
-	if err != nil {
-		t.Fatalf("create hosts: %v", err)
+	response := serveRequest(t, app, http.MethodGet, routes.HomePage.Path(), "localhost:8080", http.Header{
+		"X-Inertia":         []string{"true"},
+		"X-Inertia-Version": []string{"stale-test-version"},
+	})
+	if response.Code != http.StatusConflict {
+		t.Fatalf("stale inertia status = %d, want %d", response.Code, http.StatusConflict)
+	}
+	version := response.Header().Get("X-Inertia-Version")
+	if version == "" || version == "stale-test-version" {
+		t.Fatalf("current inertia version = %q, want a nonempty current version", version)
 	}
 
 	return http.Header{
 		"X-Inertia":         []string{"true"},
-		"X-Inertia-Version": []string{routes.ViteBuild.FullURL(hosts)},
+		"X-Inertia-Version": []string{version},
 	}
 }
 

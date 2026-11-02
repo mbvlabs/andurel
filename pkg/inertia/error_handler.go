@@ -216,7 +216,15 @@ func writeJSONError(ctx context.Context, err error, mappings []ErrorMapping) err
 		return err
 	}
 
-	return anduin.JSON(ctx, status, map[string]string{"error": http.StatusText(status)})
+	message := http.StatusText(status)
+	var httpErr *anduin.HTTPError
+	// A mapped sentinel can override the status of an HTTPError, including a
+	// server error. Only an explicitly public client-error message is safe.
+	if status >= 400 && errors.As(err, &httpErr) && httpErr != nil &&
+		httpErr.Status >= 400 && httpErr.Status < 500 && httpErr.Message != "" {
+		message = httpErr.Message
+	}
+	return anduin.JSON(ctx, status, map[string]string{"error": message})
 }
 
 // fieldErrors reports whether err carries a field map. The interface keeps this

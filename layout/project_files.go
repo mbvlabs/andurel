@@ -190,6 +190,9 @@ func assembleLockFromProjectFiles(tomlDoc projectTomlFile, digestDoc projectLock
 
 	digests := indexProjectLockHashes(digestDoc)
 	for name, version := range tomlDoc.Tools {
+		if IsRetiredTool(name) {
+			continue
+		}
 		tool, err := toolFromProjectEntry(name, version, digests)
 		if err != nil {
 			return nil, err

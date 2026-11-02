@@ -98,6 +98,99 @@ func discoverAppHostNames(rootDir string) ([]discoveredHost, error) {
 	return hosts, nil
 }
 
+// listedExtraHostNames returns the host name values the app lists in
+// config.extraHostNames, the hosts config.NewApp gives a hostname. known is
+// false when the list is not declared in config/*.go or holds an element that
+// cannot be read statically; callers must then not treat a name as unlisted.
+func listedExtraHostNames(
+	rootDir string,
+	hosts []discoveredHost,
+) (listed map[string]struct{}, known bool, err error) {
+	files, err := filepath.Glob(filepath.Join(rootDir, "config", "*.go"))
+	if err != nil {
+		return nil, false, err
+	}
+	for _, path := range files {
+		if strings.HasSuffix(path, "_test.go") {
+			continue
+		}
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
+		if err != nil {
+			continue
+		}
+		for _, decl := range file.Decls {
+			gen, ok := decl.(*ast.GenDecl)
+			if !ok || gen.Tok != token.VAR {
+				continue
+			}
+			for _, spec := range gen.Specs {
+				valueSpec, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+				for i, ident := range valueSpec.Names {
+					if ident.Name != "extraHostNames" {
+						continue
+					}
+					if i >= len(valueSpec.Values) {
+						return map[string]struct{}{}, true, nil
+					}
+					listed, known := evalExtraHostNames(valueSpec.Values[i], file.Name.Name, hosts)
+					return listed, known, nil
+				}
+			}
+		}
+	}
+	return nil, false, nil
+}
+
+func evalExtraHostNames(
+	expr ast.Expr,
+	pkgName string,
+	hosts []discoveredHost,
+) (map[string]struct{}, bool) {
+	if ident, ok := expr.(*ast.Ident); ok && ident.Name == "nil" {
+		return map[string]struct{}{}, true
+	}
+	lit, ok := expr.(*ast.CompositeLit)
+	if !ok {
+		return nil, false
+	}
+	byExpr := make(map[string]string, len(hosts))
+	for _, host := range hosts {
+		byExpr[host.GoExpr] = host.Value
+	}
+	listed := make(map[string]struct{}, len(lit.Elts))
+	for _, elt := range lit.Elts {
+		var value string
+		switch e := elt.(type) {
+		case *ast.Ident:
+			value, ok = byExpr[pkgName+"."+e.Name]
+		case *ast.SelectorExpr:
+			pkg, isIdent := e.X.(*ast.Ident)
+			if !isIdent {
+				return nil, false
+			}
+			value, ok = byExpr[pkg.Name+"."+e.Sel.Name]
+		case *ast.BasicLit:
+			value, ok = evalHostString(e)
+		case *ast.CallExpr:
+			if len(e.Args) != 1 {
+				return nil, false
+			}
+			value, ok = evalHostString(e.Args[0])
+		default:
+			ok = false
+		}
+		if !ok {
+			return nil, false
+		}
+		listed[value] = struct{}{}
+	}
+	return listed, true
+}
+
 func routingImportName(file *ast.File) (string, bool) {
 	for _, imp := range file.Imports {
 		path, err := strconv.Unquote(imp.Path.Value)

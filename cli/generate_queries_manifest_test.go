@@ -5,9 +5,36 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/mbvlabs/andurel/v2/cli/output"
+	"github.com/mbvlabs/andurel/v2/layout"
 )
+
+func TestSyncQueriesReportsQuerySchemaFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stub uses a POSIX shell")
+	}
+	resetCLITestSeams(t)
+	root := t.TempDir()
+	writeTestFile(t, root, "domains/user.sql", "-- name: FindUser :one\nSELECT missing FROM users;\n")
+	lock := layout.NewAndurelLock("test")
+	lock.Tools["narsilc"] = validTestTool("narsilc", "v0.1.0")
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatal(err)
+	}
+	writeExecutable(t, root, "bin/narsilc", "#!/bin/sh\necho 'unknown column missing' >&2\nexit 1\n")
+	ensureToolFunc = func(string, string, *layout.Tool, string, string) error { return nil }
+	err := generateNarsilcIfNeeded(root)
+	if err == nil || !strings.Contains(err.Error(), querySchemaMessage) || !strings.Contains(err.Error(), "unknown column missing") {
+		t.Fatalf("query failure = %v", err)
+	}
+	if got := output.Fail(err).Hint; got != querySchemaHint {
+		t.Fatalf("hint = %q", got)
+	}
+}
 
 func TestSyncQueriesDryRunDisclosesSharedManifests(t *testing.T) {
 	resetCLITestSeams(t)

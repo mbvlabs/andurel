@@ -13,7 +13,7 @@ export default function ConfirmEmail({ errors = {} }: ConfirmEmailProps) {
 
   function submit(event: SubmitEvent) {
     event.preventDefault()
-    form.post(routes.confirmationCreate())
+    form.post(routes.confirmationCreate.path())
   }
 
   return (

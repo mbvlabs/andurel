@@ -28,7 +28,7 @@ body {
 	text-rendering: optimizeLegibility;
 }
 
-@source "./resources/js";
+@source "../resources/js";
 
 @theme inline {
 	--font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;

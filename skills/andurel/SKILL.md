@@ -44,6 +44,8 @@ Read [references/testing.md](references/testing.md) before writing a test that u
 
 With `--json` or `--agent`, a failed `andurel verify` writes its report to stderr and leaves stdout empty; read the failure report from stderr.
 
+Host fallback policies are checked at app startup, not by a static verify rule. Use `andurel verify --with-tests` to run the app startup tests that catch a host with routes but no fallback policy.
+
 `andurel verify` runs the setup preflight, `gofmt`, `go fix`, `go vet`, the typed layer rules, the frontend stage (the package manager's `typecheck` script when `package.json` defines one, plus the route-usage rule), the generated-code drift stage, and the content stage (`andurel.content.toml` invariants, which are skipped when the project declares none). It reports each violation as `{rule, file, line, message, fix}`. Apply the `fix` and re-run. Every independent stage runs even after another fails, and the summary lists all failed stages. `andurel verify [packages...]` scopes the Go checks and generated drift to package patterns (for example `./app/...`); the frontend typecheck stays whole-project. If the generated step fails in a scoped run, rerun with `--only` listing the stages you need to skip it. `--no-frontend` skips the typecheck. With `--with-tests`, packages that ran no tests are listed under `skipped_packages` and `t.Skip` calls under `skipped_tests` with their reason. Each violation's `rule` is one of these (`andurel verify --help` also prints each rule's fix):
 
 <!-- andurel:verify-rules:begin: generated from the verify rule catalog by 'just docs-sync'; do not edit -->
@@ -140,8 +142,9 @@ To build the frontend before the handler exists, write the route values and payl
 Port onto an existing database:
 
 1. `andurel patterns show migration` — read the rules on the scaffold's `users` and `tokens` migrations.
-2. Keep the scaffold auth migrations (`00008`, `00009`) or drop them together with the `users`/`tokens` domain files and their SQL; never leave the domain queries pointing at tables that no longer exist.
-3. Add your own schema as additive migrations (`andurel generate migration`), then run `andurel db migrate up` and `andurel sync queries --json`.
+2. Inspect existing schema, dependencies and goose history on a disposable clone before applying anything. Unrecorded existing tables can conflict; recorded versions or a manual baseline do not establish schema equivalence. Keep River and required bootstrap system migrations.
+3. Reconcile the scaffold auth contracts and data before retaining `00008`/`00009`; preserve scaffold auth with compatible additive migrations. Alternatively replace those **unapplied** migrations only alongside affected domains, SQL, generated queries and auth consumers. Never rewrite deployed migration history.
+4. Follow the migration pattern's bounded existing-`users` example where its assumptions hold; plan data, cutover and rollback separately. Validate migrations, `andurel sync queries --json`, `andurel verify` and auth behavior on the clone before any real cutover.
 
 Generate Inertia route helpers:
 

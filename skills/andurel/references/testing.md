@@ -115,10 +115,13 @@ storagetest.MigrateTestDB(t, db, migrations.Migrations, ".", storagetest.Migrati
 `storagetest.MigrationHead` (zero) means every migration; `MigrateTestDB` takes
 the same arguments as `NewTestDB` plus the target version.
 
-testcontainers shares one Ryuk session per parent `go test` process. Under
-parallel packages, a package that finishes can reap a sibling's container. Use
-`go test -p 1 ./...` or `TESTCONTAINERS_RYUK_DISABLED=true` when DB-test
-packages run concurrently; close the cluster through `storagetest.Main`.
+`storagetest` disables Ryuk and closes the cluster through `storagetest.Main`.
+Containers carry `dev.andurel.storagetest=true` and owner labels. A later run
+removes an older container only when hostname, Linux boot ID and PID namespace
+match and its owner PID is definitely absent. Legacy or unverifiable scopes and
+non-Linux platforms are not reaped automatically. Inspect with `docker ps -a
+--filter label=dev.andurel.storagetest=true`; verify each owner is inactive across
+hosts and PID namespaces before removing individual IDs.
 
 ## Fault injection and rollback
 

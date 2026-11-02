@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"github.com/mbvlabs/andurel/v2/cli/internal/devserver"
 	"github.com/mbvlabs/andurel/v2/layout/cmds"
 	"github.com/mbvlabs/andurel/v2/layout/upgrade"
 )
+
+var runDevServerFunc = devserver.Run
 
 var runTemplFunc = runTempl
 var runFmtFunc = runFmt

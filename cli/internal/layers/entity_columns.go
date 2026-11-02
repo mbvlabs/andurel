@@ -139,7 +139,10 @@ func packageColumnStates(project *Project, pkg *Package) (map[string]*columnEnti
 	}
 
 	queryPackage := project.Module + "/domains/internal/queries"
-	for ident, instance := range pkg.TypesInfo.Instances {
+	idents := slices.Collect(maps.Keys(pkg.TypesInfo.Instances))
+	slices.SortFunc(idents, func(a, b *ast.Ident) int { return int(a.Pos()) - int(b.Pos()) })
+	for _, ident := range idents {
+		instance := pkg.TypesInfo.Instances[ident]
 		function, ok := pkg.TypesInfo.Uses[ident].(*types.Func)
 		if !ok {
 			continue

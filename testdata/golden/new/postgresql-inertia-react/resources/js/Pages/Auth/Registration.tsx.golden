@@ -13,7 +13,7 @@ export default function Registration({ errors = {} }: RegistrationProps) {
 
   function submit(event: SubmitEvent) {
     event.preventDefault()
-    form.post(routes.registrationCreate())
+    form.post(routes.registrationCreate.path())
   }
 
   return (
@@ -42,7 +42,7 @@ export default function Registration({ errors = {} }: RegistrationProps) {
             </div>
             <button type="submit" disabled={form.processing} className="inline-flex w-full items-center justify-center bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm shadow-black/40 hover:bg-primary/90 disabled:opacity-60">{form.processing ? 'Loading' : 'Sign Up'}</button>
           </form>
-          <p className="mt-6 text-center text-sm text-muted-foreground">Already have an account? <Link className="text-foreground hover:text-card-foreground hover:underline" href={routes.sessionNew()}>Login</Link></p>
+          <p className="mt-6 text-center text-sm text-muted-foreground">Already have an account? <Link className="text-foreground hover:text-card-foreground hover:underline" href={routes.sessionNew.path()}>Login</Link></p>
         </div>
       </section>
     </Layout>

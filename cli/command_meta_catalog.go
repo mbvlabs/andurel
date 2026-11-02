@@ -317,10 +317,15 @@ var commandMetaSpecs = map[string]CommandMeta{
 		SkipDryRunCheck: true,
 	},
 	"andurel run": {
-		Summary:         "Start the development server",
+		Summary: "Start the development server",
+		Details: []string{
+			"Builds and runs cmd/app and cmd/queue behind a live-reload proxy on PROXY_PORT (default 3000), and runs the Vite dev server, which also serves development SSR.",
+			"Watches Go files (rebuild), resources/*.templ (templ watch, TEMPL_DEV_MODE) and email/*.templ plus css/email.css (the email compiler rewrites email/*_templ.go, then the app and queue rebuild).",
+			"Runner log lines start with [run]. Ctrl-C, SIGINT or SIGTERM stops Vite, the app, the queue and any sidecars.",
+		},
 		WhenToUse:       []string{"Local development with auto-reload.", "Optionally start sidecars like mailpit via --tools."},
 		WhenNotToUse:    []string{"Agents should not use run to finish a generation task.", "This is a long-running process, not JSON."},
-		Prerequisites:   []string{"Andurel project root", "bin/shadowfax"},
+		Prerequisites:   []string{"Andurel project root", "bin/templ"},
 		Examples:        []string{"andurel run", "andurel run --tools mailpit"},
 		RequiresProject: true,
 		SkipDryRunCheck: true,
@@ -630,6 +635,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel verify": {
 		Summary:   "Check formatting, vet, layer boundaries, frontend, and generated code",
 		Args:      "[packages...]",
+		Details:   []string{"Plain verify does not statically check missing host fallback policies. Host policies are checked at application startup; use --with-tests and ensure an application startup test runs to catch missing policies. Scoped or skipped tests may not exercise startup."},
 		WhenToUse: []string{"After a change, before commit: gofmt, go fix, go vet, the typed persistence and transaction boundary checks, the package.json typecheck script, and generated-code drift.", "Pass Go package patterns to scope gofmt, go fix, go vet, layers, and generated drift to those packages; the frontend typecheck and --changed generated drift stay whole-project. A failed scoped run whose generated step fails names --only as the way to skip that stage.", "A missing generation binary fails the generated step; apply the rule's fix, or pass --skip-generated to mark the step skipped. Rules lists every rule and its fix.", "Without node_modules the frontend step fails with an install hint; pass --no-frontend to skip it explicitly.", "Read each violation's fix field and apply it; a failed run exits 9 (verification_failed).", "With --with-tests, the go test step always carries skipped_packages and skipped_tests, empty when nothing was skipped; packages in skipped_packages ran no tests (DB tests skip without Docker) and tests in skipped_tests called t.Skip. Neither skip fails the run.", "Structured output contract: with --json or --agent a passing run writes the success envelope (ok, cli_version, summary, data) to stdout and leaves stderr empty; a failed verification exits 9 and writes the error envelope (code verification_failed, exit_code 9, full report under data) to stderr with stdout empty. Read a failure report from stderr. Every JSON envelope carries cli_version.", "The generated step fails when resources/js/types/payloads.ts is missing or out of date; run andurel sync payloads to regenerate it from payloads/."},
 
 		WhenNotToUse:    []string{"verify is read-only; fix the reported issues yourself and re-run."},

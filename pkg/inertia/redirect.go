@@ -18,6 +18,12 @@ import (
 // origins, so a redirect to another host is answered with the full page visit
 // from Location instead.
 func (renderer *Renderer) Redirect(ctx context.Context, location string, status int) error {
+	return LocationRedirect(ctx, location, status)
+}
+
+// LocationRedirect redirects normally, but uses an Inertia location visit for
+// cross-host requests. It can be used without constructing a Renderer.
+func LocationRedirect(ctx context.Context, location string, status int) error {
 	if status < 300 || status > 399 {
 		return fmt.Errorf("inertia: redirect status must be 3xx")
 	}
@@ -27,7 +33,11 @@ func (renderer *Renderer) Redirect(ctx context.Context, location string, status 
 			return err
 		}
 		if request.Inertia {
-			return renderer.Location(ctx, location)
+			header := anduin.ResponseWriter(ctx).Header()
+			header.Del(HeaderInertia)
+			header.Set(HeaderLocation, location)
+			anduin.AddVary(header, HeaderInertia)
+			return anduin.NoContent(ctx, http.StatusConflict)
 		}
 	}
 	return anduin.Redirect(ctx, location, status)

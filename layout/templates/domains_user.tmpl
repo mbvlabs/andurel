@@ -292,12 +292,38 @@ func (u Users) RehashPassword(
 	verifiedHash []byte,
 	password string,
 ) (User, error) {
+	entity, _, err := u.rehashPassword(ctx, pepper, id, verifiedHash, nil, password)
+	return entity, err
+}
+
+// RehashVerifiedPassword only rehashes if both the verified credentials and
+// session version still match. A false result must not authenticate a session.
+func (u Users) RehashVerifiedPassword(
+	ctx context.Context,
+	pepper string,
+	id uuid.UUID,
+	verifiedHash []byte,
+	verifiedVersion int32,
+	password string,
+) (User, bool, error) {
+	return u.rehashPassword(ctx, pepper, id, verifiedHash, &verifiedVersion, password)
+}
+
+func (u Users) rehashPassword(
+	ctx context.Context,
+	pepper string,
+	id uuid.UUID,
+	verifiedHash []byte,
+	verifiedVersion *int32,
+	password string,
+) (User, bool, error) {
 	hashedPassword, err := auth.HashPassword(password, pepper)
 	if err != nil {
-		return User{}, err
+		return User{}, false, err
 	}
 
 	var entity User
+	matched := false
 
 	err = storage.AtomicOps(ctx, u.transactor, func(ctx context.Context, tx storage.Tx) error {
 		users := u.InTx(tx)
@@ -306,7 +332,7 @@ func (u Users) RehashPassword(
 		if err != nil {
 			return err
 		}
-		if !bytes.Equal(locked.Password, verifiedHash) {
+		if !bytes.Equal(locked.Password, verifiedHash) || (verifiedVersion != nil && locked.SessionVersion != *verifiedVersion) {
 			entity = locked
 
 			return nil
@@ -314,14 +340,15 @@ func (u Users) RehashPassword(
 
 		locked.Password = []byte(hashedPassword)
 		entity, err = users.Save(ctx, locked)
+		matched = err == nil
 
 		return err
 	})
 	if err != nil {
-		return User{}, err
+		return User{}, false, err
 	}
 
-	return entity, nil
+	return entity, matched, nil
 }
 
 func (u Users) Destroy(ctx context.Context, id uuid.UUID) error {

@@ -73,9 +73,13 @@ func (i Identity) AuthenticateUser(
 	}
 
 	if needsRehash {
-		user, err = i.users.RehashPassword(ctx, i.pepper, user.ID, user.Password, data.Password)
+		var matched bool
+		user, matched, err = i.users.RehashVerifiedPassword(ctx, i.pepper, user.ID, user.Password, user.SessionVersion, data.Password)
 		if err != nil {
 			return domains.User{}, fmt.Errorf("rehash password with current pepper: %w", err)
+		}
+		if !matched {
+			return domains.User{}, ErrInvalidCredentials
 		}
 	}
 

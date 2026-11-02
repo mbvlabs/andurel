@@ -8,6 +8,13 @@ import (
 	layouttemplates "github.com/mbvlabs/andurel/v2/layout/templates"
 )
 
+func TestInertiaAuthRequestsStaySameOrigin(t *testing.T) {
+	assertTemplateContains(t, "router_middleware_auth.tmpl", "rememberReturnTo(ctx)", "inertia.LocationRedirect(ctx, signInURL(ctx, hosts), http.StatusSeeOther)")
+	for _, name := range []string{"inertia_assets_layouts_layout.tmpl", "inertia_react_assets_layouts_layout.tmpl", "inertia_svelte_assets_layouts_layout.tmpl"} {
+		assertTemplateContains(t, name, "routes.sessionDestroy.path()", "routes.homePage.path()", "routes.sessionNew.path()", "routes.registrationNew.path()")
+	}
+}
+
 func TestGeneratedQueryTimestampParameters(t *testing.T) {
 	assertTemplateContains(t, "domains_internal_queries_user.tmpl",
 		"CreatedAt        time.Time",
@@ -175,7 +182,9 @@ func TestGeneratedUserEmailConflictsAreClassified(t *testing.T) {
 		`inertia.MapError(domains.ErrConflict, http.StatusConflict, "Errors/Conflict")`,
 	)
 	assertTemplateMissing(t, "handlers_errors.tmpl", "anduin.Conflict(")
-	assertTemplateMissing(t, "handlers_errors.tmpl", "wantsJSON")
+	// Explicit 4xx messages need an early themed response, but JSON and field
+	// errors must still be handled centrally by inertia.NewErrorHandler.
+	assertTemplateContains(t, "handlers_errors.tmpl", "if !wantsJSON && !errors.As(err, &fields)", "unhandled := themed(ctx, err)")
 	// Wrapping every unmapped error in a 500 would turn anduin.BadRequest into a 500.
 	assertTemplateMissing(t, "handlers_errors.tmpl", "anduin.Error(ctx, http.StatusInternalServerError, err)")
 }
@@ -298,12 +307,14 @@ func TestGeneratedEmailWorkersLogFailures(t *testing.T) {
 func TestGeneratedLoginRacesAreClosed(t *testing.T) {
 	assertTemplateContains(t, "domains_user.tmpl",
 		"verifiedHash []byte,",
-		"if !bytes.Equal(locked.Password, verifiedHash) {",
+		"!bytes.Equal(locked.Password, verifiedHash)",
+		"locked.SessionVersion != *verifiedVersion",
 	)
 	assertTemplateContains(t, "services_authentication.tmpl",
 		"if len(user.Password) == 0 {",
 		"auth.DummyVerify(data.Password, i.pepper)",
-		"user.ID, user.Password, data.Password)",
+		"i.users.RehashVerifiedPassword(ctx, i.pepper, user.ID, user.Password, user.SessionVersion, data.Password)",
+		"if !matched {\n\t\t\treturn domains.User{}, ErrInvalidCredentials",
 	)
 	assertTemplateContains(t, "domains_queries_token.tmpl",
 		"-- name: LockTokenOwner :exec",

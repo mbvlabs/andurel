@@ -7,6 +7,9 @@ record queued jobs with a fake `storage.InsertQueue` instead of reading
 `river_job`. The database comes from the package cluster and the
 `storagetest` helpers, so the test never touches the development database.
 
+This example requires the Products domain and its migration from the domain
+and migration patterns. Replace the `app/` import prefix with your module path.
+
 ## Files
 
 ### services/catalog.go

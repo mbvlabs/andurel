@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"maps"
 	"net"
+	"strconv"
 	"strings"
+	"unicode"
 )
 
 // HostName identifies a named virtual host. Framework code owns the type and
@@ -81,8 +83,11 @@ type Hosts struct {
 
 // NewHosts validates and clones a host registry. HostPrimary must be present
 // with a non-empty hostname. Every other entry must also have a hostname.
-// Hostname and alias strings must be unique across HostNames; uniqueness is
-// case-insensitive because hostnames are.
+// Hostnames and aliases must be an authority: host or host:port, with an IPv6
+// literal in brackets. A scheme, path, query, fragment, user info, whitespace,
+// an empty host part or a bad port is rejected. Hostname and alias strings
+// must be unique across HostNames; uniqueness is case-insensitive because
+// hostnames are.
 func NewHosts(specs map[HostName]HostSpec) (*Hosts, error) {
 	if len(specs) == 0 {
 		return nil, fmt.Errorf("routing: host registry must include %q", HostPrimary)
@@ -116,6 +121,15 @@ func NewHosts(specs map[HostName]HostSpec) (*Hosts, error) {
 		if spec.Hostname == "" {
 			return nil, fmt.Errorf("routing: host %q is missing a hostname", name)
 		}
+		if err := validateAuthority(spec.Hostname); err != nil {
+			return nil, fmt.Errorf(
+				"routing: host %q (%s): hostname %q %w",
+				name,
+				hostEnvKey(name),
+				spec.Hostname,
+				err,
+			)
+		}
 		if err := claim(spec.Hostname, name); err != nil {
 			return nil, err
 		}
@@ -125,6 +139,14 @@ func NewHosts(specs map[HostName]HostSpec) (*Hosts, error) {
 				alias = strings.TrimSpace(alias)
 				if alias == "" {
 					continue
+				}
+				if err := validateAuthority(alias); err != nil {
+					return nil, fmt.Errorf(
+						"routing: host %q: alias %q %w",
+						name,
+						alias,
+						err,
+					)
 				}
 				if err := claim(alias, name); err != nil {
 					return nil, err
@@ -141,6 +163,95 @@ func NewHosts(specs map[HostName]HostSpec) (*Hosts, error) {
 	}
 
 	return &Hosts{specs: cloned, index: index}, nil
+}
+
+// validateAuthority reports why value is not a hostname or hostname:port. The
+// error completes a sentence that starts with the offending value.
+func validateAuthority(value string) error {
+	const form = "must be host or host:port"
+	if strings.ContainsFunc(value, unicode.IsSpace) {
+		return fmt.Errorf("%s: it contains whitespace", form)
+	}
+	if strings.Contains(value, "://") {
+		return fmt.Errorf("%s: remove the scheme", form)
+	}
+	if strings.ContainsAny(value, "/\\?#") {
+		return fmt.Errorf("%s: remove the path", form)
+	}
+	if strings.Contains(value, "@") {
+		return fmt.Errorf("%s: remove the user info", form)
+	}
+
+	host, port := value, ""
+	switch {
+	case strings.HasPrefix(value, "["):
+		end := strings.IndexByte(value, ']')
+		if end < 0 {
+			return fmt.Errorf("%s: the IPv6 address has no closing bracket", form)
+		}
+		host = value[1:end]
+		rest := value[end+1:]
+		if rest != "" {
+			if !strings.HasPrefix(rest, ":") {
+				return fmt.Errorf("%s: unexpected %q after the IPv6 address", form, rest)
+			}
+			port = rest[1:]
+			if port == "" {
+				return fmt.Errorf("%s: the port is empty", form)
+			}
+		}
+		if host == "" {
+			return fmt.Errorf("%s: the host part is empty", form)
+		}
+		if net.ParseIP(host) == nil || !strings.Contains(host, ":") {
+			return fmt.Errorf("%s: %q in brackets is not an IPv6 address", form, host)
+		}
+	default:
+		switch strings.Count(value, ":") {
+		case 0:
+		case 1:
+			var cut bool
+			host, port, cut = strings.Cut(value, ":")
+			if cut && port == "" {
+				return fmt.Errorf("%s: the port is empty", form)
+			}
+		default:
+			return fmt.Errorf("%s: put an IPv6 address in brackets", form)
+		}
+		if host == "" {
+			return fmt.Errorf("%s: the host part is empty", form)
+		}
+		for _, r := range host {
+			if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '.' || r == '_' {
+				continue
+			}
+			return fmt.Errorf("%s: it contains %q", form, r)
+		}
+	}
+	if port != "" {
+		number, err := strconv.Atoi(port)
+		if err != nil || number < 1 || number > 65535 ||
+			strings.ContainsFunc(port, func(r rune) bool { return r < '0' || r > '9' }) {
+			return fmt.Errorf("%s: port %q is not a number from 1 to 65535", form, port)
+		}
+	}
+	return nil
+}
+
+// hostEnvKey names the environment variable the generated config reads a
+// host's hostname from: HOST_ followed by the name in upper case, with every
+// character other than a letter or digit replaced by an underscore.
+func hostEnvKey(name HostName) string {
+	return "HOST_" + strings.Map(func(r rune) rune {
+		switch {
+		case unicode.IsLetter(r):
+			return unicode.ToUpper(r)
+		case unicode.IsDigit(r):
+			return r
+		default:
+			return '_'
+		}
+	}, string(name))
 }
 
 // Resolve maps an HTTP authority (Request.Host: a hostname, hostname:port, or

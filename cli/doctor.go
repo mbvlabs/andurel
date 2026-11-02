@@ -1484,9 +1484,9 @@ func checkNarsilcGenerate(rootDir string, verbose bool) checkResult {
 		return checkResult{
 			name:    "narsilc generate",
 			status:  statusFail,
-			message: "queries in domains/*.sql don't match migrations/",
+			message: querySchemaMessage,
 			details: []string{generateErr.Error()},
-			hint:    "Make the queries in domains/*.sql match the schema in migrations/ (or add the migration they need), then run 'andurel sync queries'.",
+			hint:    querySchemaHint,
 		}
 	}
 	if len(changed) > 0 {

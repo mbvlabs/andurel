@@ -4,11 +4,14 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
-	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
+	"github.com/mbvlabs/andurel/v2/cli/internal/devserver"
 	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/mbvlabs/andurel/v2/internal/cache"
 	"github.com/mbvlabs/andurel/v2/layout"
@@ -88,12 +91,25 @@ func newRunAppCommand() *cobra.Command {
 		Use:     "run",
 		Aliases: []string{"r"},
 		Short:   "Start the development server",
-		Long: `Start the development server (shadowfax) for your Andurel application.
+		Long: `Start the development server for your Andurel application.
 
-The server auto-reloads on file changes, including Go, Templ, CSS, and
-narsilc query files. For Inertia projects, shadowfax also runs the Vite
-dev server. Development SSR is served by Vite's /__inertia_ssr endpoint.
-cmd/ssr is the production Node owner. Run this from your project root.
+andurel run builds and runs cmd/app and cmd/queue, and serves the app through
+a live-reload proxy on PROXY_PORT (default 3000). The app itself listens on
+PORT (default 8080). It also runs the Vite dev server, which serves Inertia
+pages with HMR and development SSR (/__inertia_ssr). cmd/ssr is the
+production SSR process and is not started here.
+
+It watches:
+  - Go files: rebuild and restart the app and the queue worker
+  - resources/*.templ: templ generate --watch restricted to resources/ (TEMPL_DEV_MODE)
+  - email/*.templ, css/email.css, css/theme.css: the email compiler rewrites
+    email/*_templ.go with inlined styles, then the app and queue rebuild
+  - narsilc queries are generated once at start
+
+Log lines from the runner itself start with [run]. In a terminal the logs
+are shown in a tabbed view (app, queue, build, and each sidecar).
+Ctrl-C, SIGINT or SIGTERM stops Vite, the app, the queue and any sidecars.
+Run this from your project root.
 
 Pass --tools to start allowlisted sidecars (mailpit) alongside the runner.`,
 		Example: `  andurel run
@@ -114,39 +130,34 @@ Pass --tools to start allowlisted sidecars (mailpit) alongside the runner.`,
 			if err := generateNarsilcIfNeeded(rootDir); err != nil {
 				return err
 			}
-			watchContext, stopWatching := context.WithCancel(cmd.Context())
-			defer stopWatching()
-			if hasEmailCompilerInputs(rootDir) {
-				if err := compileEmailProject(watchContext, rootDir); err != nil {
-					return err
-				}
-				if err := watchEmailProject(
-					watchContext,
-					rootDir,
-					filepath.Join(rootDir, "bin", "tailwindcli"),
-				); err != nil {
-					return err
-				}
-			}
-
 			toolsFlag, err := cmd.Flags().GetString("tools")
 			if err != nil {
 				return err
 			}
 
-			binPath := filepath.Join(rootDir, "bin", "shadowfax")
-			shadowfaxArgs, err := shadowfaxRunArgs(rootDir, toolsFlag)
+			opts, err := devServerOptions(rootDir, toolsFlag)
 			if err != nil {
 				return err
 			}
+			if hasEmailCompilerInputs(rootDir) {
+				tailwindPath, err := ensureEmailTailwind(rootDir)
+				if err != nil {
+					return err
+				}
+				opts.CompileEmail = func(ctx context.Context, w io.Writer) error {
+					fmt.Fprintln(w, "[run] Compiling Tailwind email templates...")
+					report, err := compileEmailWithTailwindReport(ctx, rootDir, tailwindPath)
+					if err != nil {
+						return err
+					}
+					printEmailCompileReport(w, report)
+					return nil
+				}
+			}
 
-			runCmd := exec.Command(binPath, shadowfaxArgs...)
-			runCmd.Stdout = os.Stdout
-			runCmd.Stderr = os.Stderr
-			runCmd.Stdin = os.Stdin
-			runCmd.Dir = rootDir
-
-			return runCmd.Run()
+			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+			return runDevServerFunc(ctx, opts)
 		},
 	}
 
@@ -159,36 +170,37 @@ Pass --tools to start allowlisted sidecars (mailpit) alongside the runner.`,
 	return cmd
 }
 
-// shadowfaxRunArgs builds the explicit CLI contract passed to Shadowfax.
-// Inertia identity and package manager come from andurel.toml. Development
-// SSR is owned by Vite; cmd/ssr settings stay in app config for production.
-func shadowfaxRunArgs(rootDir, toolsFlag string) ([]string, error) {
-	var args []string
+// devServerOptions builds the in-process dev server options. The JavaScript
+// package manager comes from andurel.toml. Development SSR is owned by Vite;
+// cmd/ssr settings stay in app config for production.
+func devServerOptions(rootDir, toolsFlag string) (devserver.Options, error) {
+	opts := devserver.Options{
+		Dir:            rootDir,
+		PackageManager: "pnpm",
+		Version:        output.CLIVersion(),
+		Verbose:        os.Getenv("ANDUREL_RUN_VERBOSE") == "true",
+		ClearLogs:      os.Getenv("ANDUREL_RUN_CLEAR_LOGS") != "",
+	}
 
 	lock, err := layout.ReadLockFile(rootDir)
-	if err == nil && lock.ScaffoldConfig != nil && lock.ScaffoldConfig.Inertia != "" {
-		packageManager := lock.ScaffoldConfig.PackageManager()
-		if packageManager == "" {
-			packageManager = "pnpm"
+	if err == nil && lock.ScaffoldConfig != nil {
+		if packageManager := lock.ScaffoldConfig.PackageManager(); packageManager != "" {
+			opts.PackageManager = packageManager
 		}
-		args = append(args,
-			"--inertia",
-			"--js-package-manager", packageManager,
-		)
 	}
 
 	toolNames, err := parseRunTools(toolsFlag)
 	if err != nil {
-		return nil, err
+		return devserver.Options{}, err
 	}
 	if len(toolNames) > 0 {
 		if err := checkToolBinaries(rootDir, toolNames); err != nil {
-			return nil, err
+			return devserver.Options{}, err
 		}
-		args = append(args, "--tools", strings.Join(toolNames, ","))
+		opts.Tools = toolNames
 	}
 
-	return args, nil
+	return opts, nil
 }
 
 // allowedRunTools is the v1 allowlist for `andurel run --tools`.
@@ -282,11 +294,12 @@ func checkBinaries(rootDir string) error {
 		return nil
 	}
 
-	binPath := filepath.Join(rootDir, "bin", "shadowfax")
+	// andurel run watches resources/*.templ with bin/templ.
+	binPath := filepath.Join(rootDir, "bin", "templ")
 	if _, err := os.Stat(binPath); err != nil {
 		return output.NewError(
 			output.CodeMissingTool,
-			"bin/shadowfax not found",
+			"bin/templ not found",
 			output.ExitDependency,
 			"Run 'andurel tool sync' to download it.",
 		)

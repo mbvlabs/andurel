@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"maps"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mbvlabs/andurel/v2/cli/internal/devserver"
 	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/mbvlabs/andurel/v2/layout"
 	"github.com/mbvlabs/andurel/v2/layout/cmds"
@@ -831,17 +833,29 @@ func TestRootHelpAndBinaryChecks(t *testing.T) {
 	if err := checkBinaries(
 		root,
 	); err == nil ||
-		!strings.Contains(err.Error(), "bin/shadowfax not found") {
-		t.Fatalf("expected missing shadowfax error, got %v", err)
+		!strings.Contains(err.Error(), "bin/templ not found") {
+		t.Fatalf("expected missing templ error, got %v", err)
 	}
-	writeExecutable(t, root, "bin/shadowfax", "#!/bin/sh\nprintf run > shadowfax.args\n")
+	writeExecutable(t, root, "bin/templ", "#!/bin/sh\n")
 	if err := checkBinaries(root); err != nil {
-		t.Fatalf("shadowfax present: %v", err)
+		t.Fatalf("templ present: %v", err)
+	}
+	originalRunDevServer := runDevServerFunc
+	t.Cleanup(func() { runDevServerFunc = originalRunDevServer })
+	var got devserver.Options
+	runDevServerFunc = func(ctx context.Context, opts devserver.Options) error {
+		if ctx.Err() != nil {
+			t.Fatalf("dev server context already done: %v", ctx.Err())
+		}
+		got = opts
+		return nil
 	}
 	if err := executeStandaloneCommand(newRunAppCommand()); err != nil {
 		t.Fatalf("run app command: %v", err)
 	}
-	assertTestFileContains(t, root, "shadowfax.args", "run")
+	if got.Dir != root {
+		t.Fatalf("dev server dir = %q, want %q", got.Dir, root)
+	}
 }
 
 func TestStandardHelpRendering(t *testing.T) {

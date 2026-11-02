@@ -105,7 +105,6 @@ var defaultToolVersionChecks = map[string]VersionCheck{
 	"mailpit":     {Args: []string{"version", "--no-release-check"}},
 	"usql":        {Args: []string{"--version"}},
 	"dblab":       {Args: []string{"--version"}},
-	"shadowfax":   {Args: []string{"--version"}},
 	"tailwindcli": {Args: []string{"--version"}},
 }
 
@@ -118,7 +117,6 @@ var defaultToolVersions = map[string]string{
 	"mailpit":     versions.Mailpit,
 	"usql":        versions.Usql,
 	"dblab":       versions.Dblab,
-	"shadowfax":   versions.Shadowfax,
 	"tailwindcli": versions.TailwindCLI,
 }
 
@@ -187,17 +185,6 @@ var defaultToolDownloads = map[string]ToolDownload{
 			"linux/arm64":  "516487b248472edac79bd3a0c6a5b3a78a4bbef5990876bb4b9a1176c3252b1b",
 			"darwin/amd64": "9070295d6f75e9cd5c015c3624c4fdf081711c16d44775d87aaeff44febe086a",
 			"darwin/arm64": "99322f9e494a4b17a65d1c3618c7cad5694387325749be82255aa6afa2c0cdf5",
-		},
-	},
-	"shadowfax": {
-		URLTemplate: "https://github.com/mbvlabs/shadowfax/releases/download/{{version}}/shadowfax-{{os}}-{{arch}}",
-		Archive:     "binary",
-		BinaryName:  "shadowfax",
-		SHA256: map[string]string{
-			"linux/amd64":  "3af3f2ca5337bc5aa1d929cbce1e305debcfc50fe25045da7bab4ade53ad858c",
-			"linux/arm64":  "e5bbda03c47f07dd45aa1fa5fa91c76b94d2878842bb27aac7f41343890299c9",
-			"darwin/amd64": "b1c494d796d961fdf523206c55ad31286b6dac5a6142d8e2c298db46a29240a7",
-			"darwin/arm64": "f4a0933bb3d2969cc8df5438780fdc4d918e6c2b81a3b54db2a33b715e139bd4",
 		},
 	},
 	"tailwindcli": {
@@ -511,6 +498,19 @@ func downloadToolBinary(name string, tool *Tool, goos, goarch, destPath string) 
 	}
 
 	return fmt.Errorf("tool has no download metadata")
+}
+
+// retiredTools are tools Andurel no longer manages. shadowfax became the
+// in-process runner behind `andurel run`.
+var retiredTools = map[string]struct{}{
+	"shadowfax": {},
+}
+
+// IsRetiredTool reports whether name is a tool Andurel no longer manages.
+// Existing project entries are dropped when read and pruned on the next write.
+func IsRetiredTool(name string) bool {
+	_, ok := retiredTools[name]
+	return ok
 }
 
 // ReadLockFile reads andurel.toml plus digest-only andurel.lock.

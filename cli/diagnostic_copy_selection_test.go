@@ -74,6 +74,29 @@ func TestDiagnosticCopyToolsCopiesOnlySelectedBinaries(t *testing.T) {
 	}
 }
 
+func TestDiagnosticCopyToolsSkipsTransientDirectories(t *testing.T) {
+	project := t.TempDir()
+	writeTestFile(t, project, "go.mod", "module example.com/app\n")
+	for _, dir := range []string{"tmp", "assets/dist", "nested/bin", "node_modules"} {
+		if err := os.MkdirAll(filepath.Join(project, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink("missing", filepath.Join(project, dir, "vanished")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := withDiagnosticProjectCopyTools(project, nil, func(copyRoot string) error {
+		for _, dir := range []string{"tmp", "assets/dist", "nested/bin", "node_modules"} {
+			if _, err := os.Lstat(filepath.Join(copyRoot, dir)); !os.IsNotExist(err) {
+				t.Fatalf("%s copied: %v", dir, err)
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDiagnosticCopyToolsWithoutToolsOmitsBin(t *testing.T) {
 	project := t.TempDir()
 	writeTestFile(t, project, "go.mod", "module example.com/app\n")

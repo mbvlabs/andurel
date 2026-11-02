@@ -6,6 +6,39 @@ import (
 	"testing"
 )
 
+func TestLocationRedirectWithoutRenderer(t *testing.T) {
+	for _, tc := range []struct {
+		name, header, location string
+		status                 int
+	}{
+		{"cross host inertia", "true", "https://example.com/login", http.StatusConflict},
+		{"cross host browser", "", "https://example.com/login", http.StatusSeeOther},
+		{"same host inertia", "true", "/login", http.StatusSeeOther},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "https://admin.example.com/page", nil)
+			req.Header.Set(HeaderInertia, tc.header)
+			rec := httptest.NewRecorder()
+			if err := LocationRedirect(testContext(req, rec), tc.location, http.StatusSeeOther); err != nil {
+				t.Fatal(err)
+			}
+			if rec.Code != tc.status {
+				t.Fatalf("status = %d, want %d", rec.Code, tc.status)
+			}
+			header := "Location"
+			if tc.status == http.StatusConflict {
+				header = HeaderLocation
+				if rec.Header().Get("Vary") != HeaderInertia {
+					t.Errorf("Vary = %q", rec.Header().Get("Vary"))
+				}
+			}
+			if got := rec.Header().Get(header); got != tc.location {
+				t.Errorf("%s = %q", header, got)
+			}
+		})
+	}
+}
+
 func TestRedirectCrossDomainInertiaUsesLocation(t *testing.T) {
 	t.Parallel()
 

@@ -167,16 +167,16 @@ func TestToolInfos(t *testing.T) {
 	writeTestFile(t, root, "bin/templ", "#!/bin/sh\n")
 	lock := layout.NewAndurelLock("v1.2.3")
 	lock.Tools["templ"] = layout.NewBinaryTool("templ", "v0.3.1")
-	lock.Tools["shadowfax"] = layout.NewBuiltTool(
-		filepath.ToSlash(filepath.Join("cmd", "shadowfax")),
+	lock.Tools["devtool"] = layout.NewBuiltTool(
+		filepath.ToSlash(filepath.Join("cmd", "devtool")),
 		"v1.0.0",
 	)
 
 	tools := toolInfos(root, lock)
-	if len(tools) != 2 || tools[0].Name != "shadowfax" || tools[1].Name != "templ" {
+	if len(tools) != 2 || tools[0].Name != "devtool" || tools[1].Name != "templ" {
 		t.Fatalf("tools not sorted: %#v", tools)
 	}
-	if tools[0].BinaryPath != "cmd/shadowfax" || tools[0].Installed {
+	if tools[0].BinaryPath != "cmd/devtool" || tools[0].Installed {
 		t.Fatalf("unexpected built tool info: %#v", tools[0])
 	}
 	if tools[1].BinaryPath != "bin/templ" || !tools[1].Installed || tools[1].Version != "v0.3.1" {

@@ -45,6 +45,7 @@ type Renderer struct {
 	viteDevURL          string
 	viteTags            viteTags
 	version             string
+	versionConfigured   bool
 	versionProvider     VersionProvider
 	shared              Props
 	sharedProviders     []SharedProvider
@@ -64,6 +65,7 @@ type Renderer struct {
 func WithVersion(version string) Option {
 	return func(renderer *Renderer) error {
 		renderer.version = version
+		renderer.versionConfigured = true
 		return nil
 	}
 }

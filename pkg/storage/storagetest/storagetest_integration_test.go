@@ -169,6 +169,9 @@ func newTestCluster(t *testing.T) *Cluster {
 	if testing.Short() {
 		t.Skip("storagetest: Postgres container test skipped in -short mode")
 	}
+	// Testcontainers reads the Ryuk setting on its first call, so turn Ryuk off
+	// before the health check, as NewCluster would.
+	disableRyuk()
 	testcontainers.SkipIfProviderIsNotHealthy(t)
 
 	cluster, err := NewCluster(context.Background())

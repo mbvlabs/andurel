@@ -54,6 +54,7 @@ func TestGeneratedErrorHandlerMapsStatusToThemedPage(t *testing.T) {
 		`http.StatusNotFound:         "Errors/NotFound"`,
 		`http.StatusBadRequest:       "Errors/BadRequest"`,
 		`if component, ok := statusPages[status]; ok {`,
+		`inertia.Props{"message": httpErr.Message}`,
 		`.CSR().Status(status).Render()`,
 		`return anduin.Text(ctx, status, anduin.Message(err))`,
 	)
