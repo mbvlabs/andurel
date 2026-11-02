@@ -35,6 +35,17 @@ func TestClearLogsWiredFromConfig(t *testing.T) {
 	}
 }
 
+func TestRunFailsWhenDirectoriesCannotBeCreated(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "tmp"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := NewAppServer(Config{Dir: dir})
+	if err := s.Run(t.Context(), nil); err == nil {
+		t.Fatal("expected directory creation error")
+	}
+}
+
 func TestSetRebuildStateInvokesCallback(t *testing.T) {
 	var got atomic.Bool
 	s := &AppServer{
@@ -340,7 +351,11 @@ func TestStopLockedFailsWhenPortStaysBusy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ln.Close()
+	t.Cleanup(func() {
+		if err := ln.Close(); err != nil {
+			t.Errorf("close listener: %v", err)
+		}
+	})
 
 	port := strconv.Itoa(ln.Addr().(*net.TCPAddr).Port)
 	s := &AppServer{

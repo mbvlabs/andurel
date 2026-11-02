@@ -86,7 +86,9 @@ func RunTemplWatcher(ctx context.Context, templChange chan<- TemplChange, cfg Te
 	}
 
 	templDir := filepath.Join(dir, "tmp", "templ")
-	os.MkdirAll(templDir, 0755)
+	if err := os.MkdirAll(templDir, 0o755); err != nil {
+		return fmt.Errorf("create templ directory %s: %w", templDir, err)
+	}
 
 	cmd := exec.Command(filepath.Join(dir, "bin", "templ"), TemplArgs(dir)...)
 	cmd.Dir = dir
@@ -196,5 +198,5 @@ func logf(w io.Writer, format string, args ...any) {
 	if w == nil {
 		w = os.Stdout
 	}
-	fmt.Fprintf(w, format, args...)
+	_, _ = fmt.Fprintf(w, format, args...)
 }

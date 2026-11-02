@@ -188,9 +188,13 @@ func (h *Hub) Dump(w io.Writer) {
 			continue
 		}
 		prefix := h.prefixes[name]
-		fmt.Fprintf(w, "--- %s ---\n", name)
+		if _, err := fmt.Fprintf(w, "--- %s ---\n", name); err != nil {
+			return
+		}
 		for _, line := range r.snapshot() {
-			fmt.Fprintf(w, "%s%s\n", prefix, line)
+			if _, err := fmt.Fprintf(w, "%s%s\n", prefix, line); err != nil {
+				return
+			}
 		}
 	}
 }
@@ -214,7 +218,8 @@ func (h *Hub) appendLine(stream, text string) {
 	h.mu.Unlock()
 
 	if fallback != nil {
-		fmt.Fprintf(fallback, "%s%s\n", prefix, text)
+		// Fallback output is best-effort; subscribers must still receive the line.
+		_, _ = fmt.Fprintf(fallback, "%s%s\n", prefix, text)
 	}
 	for _, sub := range subs {
 		select {

@@ -21,6 +21,16 @@ func TestRequireEntrypointMissing(t *testing.T) {
 	}
 }
 
+func TestRunFailsWhenBinaryDirectoryCannotBeCreated(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "tmp"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := NewRunner(dir).Run(t.Context(), nil); err == nil {
+		t.Fatal("expected directory creation error")
+	}
+}
+
 func TestRequireEntrypointPresent(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "cmd", "queue")
@@ -38,45 +48,57 @@ func TestRequireEntrypointPresent(t *testing.T) {
 
 func TestRunnerKeepsRunningAfterBuildFailure(t *testing.T) {
 	tmp := t.TempDir()
-	var status tui.Status
+	statuses := make(chan tui.Status, 4)
 	r := &Runner{
 		binDir:      tmp,
 		buildRunner: ctxrun.New(),
 		Log:         io.Discard,
 		BuildOut:    io.Discard,
 		RuntimeOut:  io.Discard,
-		OnStatus:    func(s tui.Status) { status = s },
+		OnStatus:    func(s tui.Status) { statuses <- s },
 		runBuild: func(context.Context, string) error {
 			return os.ErrPermission
 		},
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	rebuild := make(chan struct{}, 1)
-	errCh := make(chan error, 1)
-	go func() { errCh <- r.Run(ctx, rebuild) }()
-
-	time.Sleep(50 * time.Millisecond)
-	rebuild <- struct{}{}
-	time.Sleep(50 * time.Millisecond)
-
-	select {
-	case err := <-errCh:
-		t.Fatalf("Run should keep going after build failure, got %v", err)
-	default:
-	}
-	if status != tui.StatusError {
-		t.Fatalf("status = %s, want error", status)
-	}
-	cancel()
-	select {
-	case err := <-errCh:
-		if err != nil {
-			t.Fatal(err)
+	done := make(chan struct{})
+	var runErr error
+	go func() { runErr = r.Run(ctx, rebuild); close(done) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+			if runErr != nil {
+				t.Errorf("Run returned: %v", runErr)
+			}
+		case <-time.After(2 * time.Second):
+			t.Error("Run did not return after cancel")
 		}
-	case <-time.After(time.Second):
-		t.Fatal("Run did not return after cancel")
+	})
+
+	for attempt := range 2 {
+		if attempt > 0 {
+			rebuild <- struct{}{}
+		}
+		for _, want := range []tui.Status{tui.StatusStarting, tui.StatusError} {
+			select {
+			case got := <-statuses:
+				if got != want {
+					t.Fatalf("build %d: status = %s, want %s", attempt+1, got, want)
+				}
+			case <-done:
+				t.Fatalf("Run should keep going after build failure, got %v", runErr)
+			case <-time.After(2 * time.Second):
+				t.Fatalf("build %d: timed out waiting for status %s", attempt+1, want)
+			}
+		}
+	}
+	select {
+	case <-done:
+		t.Fatalf("Run should keep going after build failure, got %v", runErr)
+	default:
 	}
 }
 

@@ -52,7 +52,6 @@ type Runner struct {
 // NewRunner creates a queue runner for the project rooted at dir.
 func NewRunner(dir string) *Runner {
 	binDir := filepath.Join(dir, "tmp", "bin")
-	_ = os.MkdirAll(binDir, 0o755)
 	return &Runner{
 		dir:         dir,
 		binDir:      binDir,
@@ -61,6 +60,9 @@ func NewRunner(dir string) *Runner {
 }
 
 func (r *Runner) Run(ctx context.Context, rebuildChan <-chan struct{}) error {
+	if err := os.MkdirAll(r.binDir, 0o755); err != nil {
+		return fmt.Errorf("create queue binary directory %s: %w", r.binDir, err)
+	}
 	r.buildRunner.Go(ctx, func(buildCtx context.Context) {
 		r.rebuild(buildCtx, ctx)
 	})
@@ -88,7 +90,7 @@ func (r *Runner) rebuild(buildCtx context.Context, runCtx context.Context) {
 		runBuild = r.goBuild
 	}
 	if err := runBuild(buildCtx, candidate); err != nil {
-		os.Remove(candidate)
+		r.removeBinary(candidate)
 		if buildCtx.Err() != nil {
 			return
 		}
@@ -97,13 +99,13 @@ func (r *Runner) rebuild(buildCtx context.Context, runCtx context.Context) {
 		return
 	}
 	if buildCtx.Err() != nil {
-		os.Remove(candidate)
+		r.removeBinary(candidate)
 		return
 	}
 
 	r.cmdMu.Lock()
 	if buildCtx.Err() != nil {
-		os.Remove(candidate)
+		r.removeBinary(candidate)
 		r.cmdMu.Unlock()
 		return
 	}
@@ -115,7 +117,7 @@ func (r *Runner) rebuild(buildCtx context.Context, runCtx context.Context) {
 	cmd.Dir = r.dir
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		os.Remove(candidate)
+		r.removeBinary(candidate)
 		r.cmdMu.Unlock()
 		r.logf("[run] Queue stdout pipe failed: %v\n", err)
 		r.setStatus(tui.StatusError)
@@ -123,14 +125,14 @@ func (r *Runner) rebuild(buildCtx context.Context, runCtx context.Context) {
 	}
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
-		os.Remove(candidate)
+		r.removeBinary(candidate)
 		r.cmdMu.Unlock()
 		r.logf("[run] Queue stderr pipe failed: %v\n", err)
 		r.setStatus(tui.StatusError)
 		return
 	}
 	if err := cmd.Start(); err != nil {
-		os.Remove(candidate)
+		r.removeBinary(candidate)
 		r.cmdMu.Unlock()
 		r.logf("[run] Queue start failed: %v\n", err)
 		r.setStatus(tui.StatusError)
@@ -152,7 +154,7 @@ func (r *Runner) rebuild(buildCtx context.Context, runCtx context.Context) {
 	}
 	r.setStatus(tui.StatusReady)
 	if previous != "" {
-		os.Remove(previous)
+		r.removeBinary(previous)
 	}
 
 	go func() {
@@ -215,11 +217,17 @@ func (r *Runner) setStatus(status tui.Status) {
 }
 
 func (r *Runner) logf(format string, args ...any) {
-	fmt.Fprintf(r.logWriter(), format, args...)
+	_, _ = fmt.Fprintf(r.logWriter(), format, args...)
+}
+
+func (r *Runner) removeBinary(path string) {
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		r.logf("[run] Removing queue binary %s: %v\n", path, err)
+	}
 }
 
 func (r *Runner) logBuildf(format string, args ...any) {
-	fmt.Fprintf(r.buildWriter(), format, args...)
+	_, _ = fmt.Fprintf(r.buildWriter(), format, args...)
 }
 
 func (r *Runner) logWriter() io.Writer {
@@ -247,6 +255,6 @@ func copyLines(reader io.Reader, writer io.Writer) {
 	scanner := bufio.NewScanner(reader)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
-		fmt.Fprintln(writer, scanner.Text())
+		_, _ = fmt.Fprintln(writer, scanner.Text())
 	}
 }

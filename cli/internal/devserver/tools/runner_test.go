@@ -46,83 +46,78 @@ func TestResolveArgvUnknown(t *testing.T) {
 }
 
 func TestRunnerStatusOnStartFailure(t *testing.T) {
-	var status tui.Status
+	statuses := make(chan tui.Status, 2)
+	missingBinary := filepath.Join(t.TempDir(), "missing-binary")
 	r := &Runner{
 		Name: "mailpit",
 		Out:  io.Discard,
 		OnStatus: func(s tui.Status) {
-			status = s
+			statuses <- s
 		},
 		commandContext: func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 			// Path that cannot exist / execute.
-			return exec.CommandContext(ctx, filepath.Join(t.TempDir(), "missing-binary"))
+			return exec.CommandContext(ctx, missingBinary)
 		},
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	errCh := make(chan error, 1)
-	go func() { errCh <- r.Run(ctx) }()
-
-	deadline := time.Now().Add(time.Second)
-	for time.Now().Before(deadline) {
-		if status == tui.StatusError {
-			break
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	if status != tui.StatusError {
-		t.Fatalf("status = %s, want error", status)
-	}
-
-	cancel()
-	select {
-	case err := <-errCh:
-		if err != nil {
-			t.Fatal(err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("Run did not return after cancel")
-	}
+	done := runForTest(t, r)
+	wantStatuses(t, statuses, done, tui.StatusStarting, tui.StatusError)
 }
 
 func TestRunnerReadyThenExited(t *testing.T) {
-	var statuses []tui.Status
+	statuses := make(chan tui.Status, 3)
 	r := &Runner{
 		Name: "mailpit",
 		Out:  io.Discard,
 		OnStatus: func(s tui.Status) {
-			statuses = append(statuses, s)
+			statuses <- s
 		},
 		commandContext: func(ctx context.Context, name string, arg ...string) *exec.Cmd {
 			return exec.CommandContext(ctx, "true")
 		},
 	}
 
+	done := runForTest(t, r)
+	wantStatuses(t, statuses, done, tui.StatusStarting, tui.StatusReady, tui.StatusExited)
+}
+
+func runForTest(t *testing.T, r *Runner) <-chan struct{} {
+	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
-	errCh := make(chan error, 1)
-	go func() { errCh <- r.Run(ctx) }()
-
-	deadline := time.Now().Add(time.Second)
-	for time.Now().Before(deadline) {
-		if len(statuses) >= 3 && statuses[len(statuses)-1] == tui.StatusExited {
-			break
+	done := make(chan struct{})
+	var runErr error
+	go func() { runErr = r.Run(ctx); close(done) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+			if runErr != nil {
+				t.Errorf("Run returned: %v", runErr)
+			}
+		case <-time.After(2 * time.Second):
+			t.Error("Run did not return after cancel")
 		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	if len(statuses) < 3 {
-		t.Fatalf("statuses = %#v", statuses)
-	}
-	if statuses[0] != tui.StatusStarting || statuses[1] != tui.StatusReady || statuses[2] != tui.StatusExited {
-		t.Fatalf("statuses = %#v", statuses)
-	}
+	})
+	return done
+}
 
-	cancel()
+func wantStatuses(t *testing.T, statuses <-chan tui.Status, done <-chan struct{}, want ...tui.Status) {
+	t.Helper()
+	for _, expected := range want {
+		select {
+		case got := <-statuses:
+			if got != expected {
+				t.Fatalf("status = %s, want %s", got, expected)
+			}
+		case <-done:
+			t.Fatal("Run returned before cancellation")
+		case <-time.After(2 * time.Second):
+			t.Fatalf("timed out waiting for status %s", expected)
+		}
+	}
 	select {
-	case err := <-errCh:
-		if err != nil {
-			t.Fatal(err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("Run did not return after cancel")
+	case <-done:
+		t.Fatal("Run returned before cancellation")
+	default:
 	}
 }

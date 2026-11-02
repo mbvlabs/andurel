@@ -145,13 +145,13 @@ Pass --tools to start allowlisted sidecars (mailpit) alongside the runner.`,
 					return err
 				}
 				opts.CompileEmail = func(ctx context.Context, w io.Writer) error {
-					fmt.Fprintln(w, "[run] Compiling Tailwind email templates...")
+					// This is a progress message; a log failure must not stop compilation.
+					_, _ = fmt.Fprintln(w, "[run] Compiling Tailwind email templates...")
 					report, err := compileEmailWithTailwindReport(ctx, rootDir, tailwindPath)
 					if err != nil {
 						return err
 					}
-					printEmailCompileReport(w, report)
-					return nil
+					return printEmailCompileReport(w, report)
 				}
 			}
 

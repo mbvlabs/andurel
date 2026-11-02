@@ -23,7 +23,11 @@ func RunGoWatcher(ctx context.Context, dir string, rebuildChan chan<- struct{}, 
 	if err != nil {
 		return err
 	}
-	defer watcher.Close()
+	defer func() {
+		if err := watcher.Close(); err != nil {
+			logf(log, "[run] close Go watcher: %v\n", err)
+		}
+	}()
 
 	// Recursively add directories.
 	if err := addWatchRecursive(watcher, dir); err != nil {

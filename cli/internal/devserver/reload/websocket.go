@@ -43,7 +43,7 @@ func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Printf("WebSocket upgrade error: %v", err)
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }() // Best-effort connection cleanup.
 
 	reloadCh := h.broadcaster.Subscribe()
 	defer h.broadcaster.Unsubscribe(reloadCh)
@@ -53,10 +53,11 @@ func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		defer cancel()
-		conn.SetReadDeadline(time.Now().Add(pongWait))
+		if err := conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+			return
+		}
 		conn.SetPongHandler(func(string) error {
-			conn.SetReadDeadline(time.Now().Add(pongWait))
-			return nil
+			return conn.SetReadDeadline(time.Now().Add(pongWait))
 		})
 		for {
 			if _, _, err := conn.ReadMessage(); err != nil {
@@ -73,12 +74,16 @@ func (h *WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case <-ctx.Done():
 			return
 		case <-reloadCh:
-			conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+				return
+			}
 			if err := conn.WriteMessage(websocket.TextMessage, []byte("r")); err != nil {
 				return
 			}
 		case <-ticker.C:
-			conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+				return
+			}
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}

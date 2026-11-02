@@ -68,8 +68,7 @@ Use --json for the generated and changed file lists.`,
 			if err != nil {
 				return err
 			}
-			printEmailCompileReport(os.Stdout, report)
-			return nil
+			return printEmailCompileReport(os.Stdout, report)
 		},
 	}
 }
@@ -82,11 +81,14 @@ func emailCompileSummary(report emailCompileOutput) string {
 	return summary
 }
 
-func printEmailCompileReport(w io.Writer, report emailcompiler.Report) {
+func printEmailCompileReport(w io.Writer, report emailcompiler.Report) error {
 	for _, file := range report.Changed {
-		fmt.Fprintf(w, "  updated %s\n", file)
+		if _, err := fmt.Fprintf(w, "  updated %s\n", file); err != nil {
+			return err
+		}
 	}
-	fmt.Fprintln(w, "Email templates compiled.")
+	_, err := fmt.Fprintln(w, "Email templates compiled.")
+	return err
 }
 
 func compileEmailProjectReport(ctx context.Context, rootDir string) (emailcompiler.Report, error) {
@@ -129,8 +131,7 @@ func compileEmailWithTailwind(ctx context.Context, rootDir, tailwindPath string)
 	if err != nil {
 		return err
 	}
-	printEmailCompileReport(os.Stdout, report)
-	return nil
+	return printEmailCompileReport(os.Stdout, report)
 }
 
 func compileEmailWithTailwindReport(

@@ -12,6 +12,16 @@ import (
 	"time"
 )
 
+func TestRunTemplWatcherFailsWhenDirectoryCannotBeCreated(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "tmp"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := RunTemplWatcher(t.Context(), nil, TemplWatcherConfig{Dir: dir}); err == nil {
+		t.Fatal("expected directory creation error")
+	}
+}
+
 func TestRunTemplWatcherCancelUsesKillFallback(t *testing.T) {
 	tmp := t.TempDir()
 	createTemplScript(t, tmp, `#!/usr/bin/env sh

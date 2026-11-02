@@ -19,7 +19,11 @@ func TestWaitForPortReleaseErrorsWhenHeld(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ln.Close()
+	t.Cleanup(func() {
+		if err := ln.Close(); err != nil {
+			t.Errorf("close listener: %v", err)
+		}
+	})
 
 	err = WaitForPortRelease(t.Context(), ln.Addr().String(), 80*time.Millisecond)
 	if err == nil {

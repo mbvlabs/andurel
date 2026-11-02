@@ -74,8 +74,6 @@ func (s *AppServer) makeBinaryPath() string {
 func NewAppServer(cfg Config) *AppServer {
 	binDir := filepath.Join(cfg.Dir, "tmp", "bin")
 	templDir := filepath.Join(cfg.Dir, "tmp", "templ")
-	os.MkdirAll(binDir, 0755)
-	os.MkdirAll(templDir, 0755)
 	s := &AppServer{
 		dir:                   cfg.Dir,
 		binDir:                binDir,
@@ -99,6 +97,11 @@ func NewAppServer(cfg Config) *AppServer {
 }
 
 func (s *AppServer) Run(ctx context.Context, rebuildChan <-chan struct{}) error {
+	for _, dir := range []string{s.binDir, s.templDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("create directory %s: %w", dir, err)
+		}
+	}
 	runtimeRestartChan := make(chan struct{}, 1)
 	s.runtimeRestartChan = runtimeRestartChan
 
@@ -161,7 +164,7 @@ func (s *AppServer) rebuild(buildCtx context.Context, appCtx context.Context) er
 	}
 
 	if err := runBuild(buildCtx, candidateBinPath); err != nil {
-		os.Remove(candidateBinPath)
+		s.removeBinary(candidateBinPath)
 		if s.stateTracker != nil {
 			s.stateTracker.SetError(state.IndexGoBuild, err.Error())
 		}
@@ -169,7 +172,7 @@ func (s *AppServer) rebuild(buildCtx context.Context, appCtx context.Context) er
 	}
 
 	if buildCtx.Err() != nil {
-		os.Remove(candidateBinPath)
+		s.removeBinary(candidateBinPath)
 		return buildCtx.Err()
 	}
 
@@ -180,14 +183,14 @@ func (s *AppServer) rebuild(buildCtx context.Context, appCtx context.Context) er
 	s.cmdMu.Lock()
 
 	if buildCtx.Err() != nil {
-		os.Remove(candidateBinPath)
+		s.removeBinary(candidateBinPath)
 		s.cmdMu.Unlock()
 		return buildCtx.Err()
 	}
 
 	previousBinPath := s.binPath
 	if err := s.stopLocked(); err != nil {
-		os.Remove(candidateBinPath)
+		s.removeBinary(candidateBinPath)
 		s.cmdMu.Unlock()
 		s.logf("[run] %v\n", err)
 		return err
@@ -200,19 +203,19 @@ func (s *AppServer) rebuild(buildCtx context.Context, appCtx context.Context) er
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		os.Remove(candidateBinPath)
+		s.removeBinary(candidateBinPath)
 		s.cmdMu.Unlock()
 		return fmt.Errorf("stdout pipe failed: %w", err)
 	}
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
-		os.Remove(candidateBinPath)
+		s.removeBinary(candidateBinPath)
 		s.cmdMu.Unlock()
 		return fmt.Errorf("stderr pipe failed: %w", err)
 	}
 
 	if err := cmd.Start(); err != nil {
-		os.Remove(candidateBinPath)
+		s.removeBinary(candidateBinPath)
 		s.cmdMu.Unlock()
 		return fmt.Errorf("start failed: %w", err)
 	}
@@ -307,11 +310,17 @@ func (s *AppServer) logWriter() io.Writer {
 }
 
 func (s *AppServer) logf(format string, args ...any) {
-	fmt.Fprintf(s.logWriter(), format, args...)
+	_, _ = fmt.Fprintf(s.logWriter(), format, args...)
+}
+
+func (s *AppServer) removeBinary(path string) {
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		s.logf("[run] Removing binary %s: %v\n", path, err)
+	}
 }
 
 func (s *AppServer) logBuildf(format string, args ...any) {
-	fmt.Fprintf(s.buildWriter(), format, args...)
+	_, _ = fmt.Fprintf(s.buildWriter(), format, args...)
 }
 
 func (s *AppServer) setStatus(status string) {
@@ -346,15 +355,15 @@ func forwardRuntimeOutput(reader io.Reader, writer io.Writer, guard *runtimeOutp
 		line := scanner.Text()
 		emit, notice := guard.handleLine(line)
 		if emit {
-			fmt.Fprintln(writer, line)
+			_, _ = fmt.Fprintln(writer, line)
 		}
 		if notice != "" {
-			fmt.Fprintln(writer, notice)
+			_, _ = fmt.Fprintln(writer, notice)
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(writer, "[run] error reading app output: %v\n", err)
+		_, _ = fmt.Fprintf(writer, "[run] error reading app output: %v\n", err)
 	}
 }
 
@@ -405,13 +414,6 @@ func isMissingFileRuntimeLine(line string) bool {
 		strings.Contains(lower, "directory does not exist")
 }
 
-func (s *AppServer) stop() {
-	s.cancelHealthMonitor()
-	s.cmdMu.Lock()
-	defer s.cmdMu.Unlock()
-	_ = s.stopLocked()
-}
-
 func (s *AppServer) stopLocked() error {
 	s.cancelHealthMonitor()
 	if s.cmd != nil && s.cmd.Process != nil {
@@ -457,7 +459,7 @@ func (s *AppServer) startHealthMonitor(ctx context.Context, previousBinPath stri
 		healthURL := fmt.Sprintf("http://localhost:%s/", s.appPort)
 		reload.BroadcastWhenHealthy(healthCtx, healthURL, s.broadcaster, s.buildWriter(), func() {
 			if previousBinPath != "" {
-				os.Remove(previousBinPath)
+				s.removeBinary(previousBinPath)
 			}
 			s.setRebuildState(false)
 			s.setStatus("ready")

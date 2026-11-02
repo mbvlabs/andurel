@@ -47,7 +47,11 @@ func RunEmailWatcher(ctx context.Context, cfg EmailWatcherConfig) error {
 	if err != nil {
 		return fmt.Errorf("create email watcher: %w", err)
 	}
-	defer fsWatcher.Close()
+	defer func() {
+		if err := fsWatcher.Close(); err != nil {
+			logf(cfg.Log, "[run] close email watcher: %v\n", err)
+		}
+	}()
 
 	if err := addEmailWatchDirectories(fsWatcher, filepath.Join(cfg.Dir, "email")); err != nil {
 		return err

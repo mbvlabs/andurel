@@ -50,22 +50,20 @@ func (ps *Server) ConfigureVite(rawURL string) error {
 		return fmt.Errorf("unsupported Vite development URL %q", rawURL)
 	}
 	upstream := &url.URL{Scheme: target.Scheme, Host: target.Host}
-	p := httputil.NewSingleHostReverseProxy(upstream)
-	director := p.Director
-	p.Director = func(r *http.Request) {
-		director(r)
-		r.Host = upstream.Host
-		if r.Header.Get("Origin") != "" {
-			r.Header.Set("Origin", upstream.String())
+	p := &httputil.ReverseProxy{Rewrite: func(r *httputil.ProxyRequest) {
+		r.SetURL(upstream)
+		r.SetXForwarded()
+		if r.Out.Header.Get("Origin") != "" {
+			r.Out.Header.Set("Origin", upstream.String())
 		}
-	}
+	}}
 	ps.viteURL = strings.TrimRight(rawURL, "/")
 	ps.viteProxy = p
 	return nil
 }
 
 func (ps *Server) serveVite(w http.ResponseWriter, r *http.Request) bool {
-	if ps.viteProxy == nil || !(r.URL.Path == "/assets/dist" || strings.HasPrefix(r.URL.Path, "/assets/dist/")) {
+	if ps.viteProxy == nil || (r.URL.Path != "/assets/dist" && !strings.HasPrefix(r.URL.Path, "/assets/dist/")) {
 		return false
 	}
 	if len(ps.viteHosts) > 0 && !allowedViteHost(r.Host, ps.viteHosts) {
@@ -136,8 +134,8 @@ func (ps *Server) modifyResponse(resp *http.Response) error {
 	}
 
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
+	closeErr := resp.Body.Close()
+	if err = errors.Join(err, closeErr); err != nil {
 		return err
 	}
 
@@ -151,8 +149,8 @@ func (ps *Server) modifyResponse(resp *http.Response) error {
 			return err
 		}
 		decompressed, err = io.ReadAll(gr)
-		gr.Close()
-		if err != nil {
+		closeErr := gr.Close()
+		if err = errors.Join(err, closeErr); err != nil {
 			return err
 		}
 	case "br":
@@ -176,14 +174,20 @@ func (ps *Server) modifyResponse(resp *http.Response) error {
 	case "gzip":
 		var buf bytes.Buffer
 		gw := gzip.NewWriter(&buf)
-		gw.Write(modified)
-		gw.Close()
+		_, writeErr := gw.Write(modified)
+		closeErr := gw.Close()
+		if err := errors.Join(writeErr, closeErr); err != nil {
+			return err
+		}
 		finalBody = buf.Bytes()
 	case "br":
 		var buf bytes.Buffer
 		bw := brotli.NewWriter(&buf)
-		bw.Write(modified)
-		bw.Close()
+		_, writeErr := bw.Write(modified)
+		closeErr := bw.Close()
+		if err := errors.Join(writeErr, closeErr); err != nil {
+			return err
+		}
 		finalBody = buf.Bytes()
 	default:
 		finalBody = modified
@@ -314,7 +318,7 @@ func detectContentTypeFromFile(localPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }() // Read-only file; there is no buffered output to flush.
 
 	var header [512]byte
 	n, readErr := file.Read(header[:])

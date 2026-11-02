@@ -35,7 +35,9 @@ func (h *HealthChecker) IsHealthy(ctx context.Context) bool {
 	if err != nil {
 		return false
 	}
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		return false
+	}
 
 	return resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusBadRequest
 }
@@ -77,7 +79,7 @@ func BroadcastWhenHealthy(ctx context.Context, healthURL string, broadcaster *Br
 
 	err := checker.WaitForHealthy(waitCtx, 100*time.Millisecond)
 	if err != nil {
-		fmt.Fprintf(log, "[run] Server health check timed out: %v\n", err)
+		_, _ = fmt.Fprintf(log, "[run] Server health check timed out: %v\n", err) // Logging is best effort.
 		return
 	}
 
@@ -89,5 +91,5 @@ func BroadcastWhenHealthy(ctx context.Context, healthURL string, broadcaster *Br
 	}
 
 	broadcaster.Broadcast()
-	fmt.Fprintln(log, "[run] Server healthy, broadcasting reload")
+	_, _ = fmt.Fprintln(log, "[run] Server healthy, broadcasting reload") // Logging is best effort.
 }

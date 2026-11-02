@@ -27,7 +27,7 @@ func TestViteWebSocketProxy(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		defer c.Close()
+		defer func() { _ = c.Close() }() // Best-effort connection cleanup.
 		_ = c.WriteMessage(websocket.TextMessage, []byte("connected"))
 	}))
 	defer vite.Close()
@@ -45,7 +45,7 @@ func TestViteWebSocketProxy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }() // Best-effort connection cleanup.
 	_, msg, err := c.ReadMessage()
 	if err != nil || string(msg) != "connected" {
 		t.Fatalf("message %q error %v", msg, err)
@@ -115,6 +115,37 @@ func TestViteHTMLUsesSameOrigin(t *testing.T) {
 	}
 }
 
+func TestViteProxyReplacesUntrustedForwardedHeaders(t *testing.T) {
+	vite := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("X-Forwarded-For"); strings.Contains(got, "203.0.113.1") {
+			t.Errorf("untrusted forwarded address reached Vite: %q", got)
+		}
+		if got := r.Header.Get("X-Forwarded-Host"); got != "app.example.test:3000" {
+			t.Errorf("forwarded host = %q", got)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer token" {
+			t.Errorf("authorization = %q", got)
+		}
+	}))
+	defer vite.Close()
+	ps, err := NewServer(vite.URL, "/__andurel/events", t.TempDir(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ps.ConfigureVite(vite.URL + "/assets/dist"); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "http://app.example.test:3000/assets/dist/@vite/client", nil)
+	req.Header.Set("X-Forwarded-For", "203.0.113.1")
+	req.Header.Set("X-Forwarded-Host", "evil.example")
+	req.Header.Set("Authorization", "Bearer token")
+	rec := httptest.NewRecorder()
+	ps.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+}
+
 func TestProxyPreservesBrowserHost(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, r.Host)
@@ -129,6 +160,34 @@ func TestProxyPreservesBrowserHost(t *testing.T) {
 	ps.ServeHTTP(rec, req)
 	if got := rec.Body.String(); got != "admin.example.test:3000" {
 		t.Fatalf("upstream Host = %q", got)
+	}
+}
+
+type failingCloseBody struct{ io.Reader }
+
+func (f failingCloseBody) Close() error { return errors.New("body close failed") }
+
+func TestModifyResponseRejectsBodyCloseFailure(t *testing.T) {
+	resp := &http.Response{
+		Header: http.Header{"Content-Type": {"text/html"}},
+		Body:   failingCloseBody{strings.NewReader("<html></html>")},
+	}
+	if err := (&Server{}).modifyResponse(resp); err == nil || !strings.Contains(err.Error(), "body close failed") {
+		t.Fatalf("expected body close failure, got %v", err)
+	}
+}
+
+func TestModifyResponseRejectsInvalidCompression(t *testing.T) {
+	for _, encoding := range []string{"gzip", "br"} {
+		t.Run(encoding, func(t *testing.T) {
+			resp := &http.Response{
+				Header: http.Header{"Content-Type": {"text/html"}, "Content-Encoding": {encoding}},
+				Body:   io.NopCloser(strings.NewReader("not compressed")),
+			}
+			if err := (&Server{}).modifyResponse(resp); err == nil {
+				t.Fatal("expected invalid compressed body to fail")
+			}
+		})
 	}
 }
 

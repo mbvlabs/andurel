@@ -123,7 +123,8 @@ func Run(ctx context.Context, opts Options) error {
 	}
 
 	if err := godotenv.Load(filepath.Join(opts.Dir, ".env")); err != nil && !errors.Is(err, os.ErrNotExist) {
-		fmt.Fprintf(opts.Stderr, "[run] warning: could not load .env: %v\n", err)
+		// Diagnostics are best-effort and must not prevent startup or cleanup.
+		_, _ = fmt.Fprintf(opts.Stderr, "[run] warning: could not load .env: %v\n", err)
 	}
 	if err := queue.RequireEntrypoint(opts.Dir); err != nil {
 		return err
@@ -162,10 +163,12 @@ func Run(ctx context.Context, opts Options) error {
 
 	var clearLogs func()
 	if !useTUI && opts.ClearLogs {
-		clearLogs = func() { fmt.Fprint(opts.Stdout, "\033[2J\033[H") }
+		// Clearing the terminal is cosmetic and must not interrupt a rebuild.
+		clearLogs = func() { _, _ = fmt.Fprint(opts.Stdout, "\033[2J\033[H") }
 	}
 
-	fmt.Fprintf(buildLog, "[run] Starting andurel run (version %s)\n", opts.Version)
+	// Runner log writes are best-effort; they must not interrupt supervision.
+	_, _ = fmt.Fprintf(buildLog, "[run] Starting andurel run (version %s)\n", opts.Version)
 
 	var compileEmail func(context.Context) error
 	if opts.CompileEmail != nil {
@@ -238,7 +241,7 @@ func Run(ctx context.Context, opts Options) error {
 				Dir:     opts.Dir,
 				Compile: compileEmail,
 				OnCompiled: func() {
-					fmt.Fprintln(buildLog, "[run] Email renderers changed, rebuilding")
+					_, _ = fmt.Fprintln(buildLog, "[run] Email renderers changed, rebuilding")
 					requestRebuild()
 				},
 				Log: buildLog,
@@ -249,10 +252,10 @@ func Run(ctx context.Context, opts Options) error {
 		})
 	}
 
-	fmt.Fprintf(buildLog, "[run] Starting %s run dev (Vite)\n", opts.PackageManager)
+	_, _ = fmt.Fprintf(buildLog, "[run] Starting %s run dev (Vite)\n", opts.PackageManager)
 	wg.Go(func() {
 		if err := runJsDev(ctx, opts.Dir, opts.PackageManager, buildLog, procs.add); err != nil {
-			fmt.Fprintf(buildLog, "[run] %s run dev: %v\n", opts.PackageManager, err)
+			_, _ = fmt.Fprintf(buildLog, "[run] %s run dev: %v\n", opts.PackageManager, err)
 			<-ctx.Done()
 		}
 	})
@@ -319,7 +322,7 @@ func Run(ctx context.Context, opts Options) error {
 	}
 	wg.Go(func() {
 		if err := queueRunner.Run(ctx, queueRebuild); err != nil {
-			fmt.Fprintf(queueLog, "[run] queue runner: %v\n", err)
+			_, _ = fmt.Fprintf(queueLog, "[run] queue runner: %v\n", err)
 			<-ctx.Done()
 		}
 	})
@@ -335,7 +338,7 @@ func Run(ctx context.Context, opts Options) error {
 		}
 		wg.Go(func() {
 			if err := toolRunner.Run(ctx); err != nil {
-				fmt.Fprintf(toolLog, "[run] %s runner: %v\n", name, err)
+				_, _ = fmt.Fprintf(toolLog, "[run] %s runner: %v\n", name, err)
 				<-ctx.Done()
 			}
 		})
@@ -352,32 +355,32 @@ func Run(ctx context.Context, opts Options) error {
 		}
 	}()
 
-	fmt.Fprintf(buildLog, "\n  Proxy server: http://localhost:%s\n", proxyPort)
-	fmt.Fprintf(buildLog, "  App server:   http://localhost:%s (internal)\n", appPort)
-	fmt.Fprintf(buildLog, "  TEMPL_DEV_MODE: enabled (fast template reloads)\n")
-	fmt.Fprintf(buildLog, "  Inertia frontend: %s run dev (Vite dev server)\n", opts.PackageManager)
-	fmt.Fprintf(buildLog, "  Inertia SSR:      Vite /__inertia_ssr\n")
+	_, _ = fmt.Fprintf(buildLog, "\n  Proxy server: http://localhost:%s\n", proxyPort)
+	_, _ = fmt.Fprintf(buildLog, "  App server:   http://localhost:%s (internal)\n", appPort)
+	_, _ = fmt.Fprintf(buildLog, "  TEMPL_DEV_MODE: enabled (fast template reloads)\n")
+	_, _ = fmt.Fprintf(buildLog, "  Inertia frontend: %s run dev (Vite dev server)\n", opts.PackageManager)
+	_, _ = fmt.Fprintf(buildLog, "  Inertia SSR:      Vite /__inertia_ssr\n")
 	if compileEmail != nil {
-		fmt.Fprintf(buildLog, "  Email templates:  compiled on change (email/*.templ, css/email.css)\n")
+		_, _ = fmt.Fprintf(buildLog, "  Email templates:  compiled on change (email/*.templ, css/email.css)\n")
 	}
 	if len(opts.Tools) > 0 {
-		fmt.Fprintf(buildLog, "  Sidecar tools:  %s\n", formatToolList(opts.Tools))
+		_, _ = fmt.Fprintf(buildLog, "  Sidecar tools:  %s\n", formatToolList(opts.Tools))
 	}
-	fmt.Fprintln(buildLog)
+	_, _ = fmt.Fprintln(buildLog)
 
 	var fatalMu sync.Mutex
 	var fatal error
 	go func() {
 		select {
 		case <-ctx.Done():
-			fmt.Fprintf(buildLog, "\n[run] Shutting down...\n")
+			_, _ = fmt.Fprintf(buildLog, "\n[run] Shutting down...\n")
 		case err := <-errChan:
 			if err != nil {
 				fatalMu.Lock()
 				fatal = err
 				fatalMu.Unlock()
-				fmt.Fprintf(buildLog, "[run] Error: %v\n", err)
-				fmt.Fprintf(buildLog, "[run] Shutting down all processes...\n")
+				_, _ = fmt.Fprintf(buildLog, "[run] Error: %v\n", err)
+				_, _ = fmt.Fprintf(buildLog, "[run] Shutting down all processes...\n")
 				cancel()
 			}
 		}
@@ -389,7 +392,7 @@ func Run(ctx context.Context, opts Options) error {
 			ProxyURL: fmt.Sprintf("http://localhost:%s", proxyPort),
 		}
 		if err := tui.Run(ctx, hub, header); err != nil && ctx.Err() == nil {
-			fmt.Fprintf(opts.Stderr, "[run] tui: %v\n", err)
+			_, _ = fmt.Fprintf(opts.Stderr, "[run] tui: %v\n", err)
 		}
 		cancel()
 	}
@@ -421,23 +424,24 @@ func handleTemplChange(
 	clearLogs func(),
 	log io.Writer,
 ) {
+	// Watcher messages are best-effort; reloads and rebuilds must still run.
 	switch change {
 	case watcher.TemplChangeNeedsBrowserReload:
 		if clearLogs != nil {
 			clearLogs()
 		}
 		if trk.HasErrorAt(state.IndexTempl) {
-			fmt.Fprintln(log, "[run] Templ has errors, skipping browser reload")
+			_, _ = fmt.Fprintln(log, "[run] Templ has errors, skipping browser reload")
 			return
 		}
-		fmt.Fprintln(log, "[run] Template changed, reloading browser")
+		_, _ = fmt.Fprintln(log, "[run] Template changed, reloading browser")
 		broadcaster.Broadcast()
 	case watcher.TemplChangeNeedsRestart:
 		if trk.HasErrorAt(state.IndexTempl) {
-			fmt.Fprintln(log, "[run] Templ has errors, skipping rebuild")
+			_, _ = fmt.Fprintln(log, "[run] Templ has errors, skipping rebuild")
 			return
 		}
-		fmt.Fprintln(log, "[run] Template Go code changed, rebuilding")
+		_, _ = fmt.Fprintln(log, "[run] Template Go code changed, rebuilding")
 		requestRebuild()
 	}
 }
@@ -495,7 +499,8 @@ func (p *processSet) snapshot() []*exec.Cmd {
 // SIGKILLs what is still alive, waits for the given ports and removes the
 // templ dev-mode temp files.
 func (p *processSet) cleanup(out io.Writer, dir string, ports []string) {
-	fmt.Fprintf(out, "\n[run] Cleaning up processes...\n")
+	// Cleanup must continue even when diagnostics cannot be written.
+	_, _ = fmt.Fprintf(out, "\n[run] Cleaning up processes...\n")
 
 	processes := p.snapshot()
 	for _, cmd := range processes {
@@ -512,13 +517,13 @@ func (p *processSet) cleanup(out io.Writer, dir string, ports []string) {
 
 	for _, addr := range ports {
 		if err := proc.WaitForPortRelease(context.Background(), addr, 2*time.Second); err != nil {
-			fmt.Fprintf(out, "[run] %v\n", err)
+			_, _ = fmt.Fprintf(out, "[run] %v\n", err)
 		}
 	}
 
 	_ = os.RemoveAll(filepath.Join(dir, "tmp", "templ"))
 
-	fmt.Fprintf(out, "[run] Cleanup complete.\n")
+	_, _ = fmt.Fprintf(out, "[run] Cleanup complete.\n")
 }
 
 func waitUntilExited(processes []*exec.Cmd, timeout time.Duration) {
@@ -644,7 +649,8 @@ func runJsDev(ctx context.Context, dir, runtime string, out io.Writer, addProces
 		if ctx.Err() != nil {
 			return nil
 		}
-		fmt.Fprintf(out, "[run] %s run dev exited: %v\n", runtime, err)
+		// A failed diagnostic must not interfere with process supervision.
+		_, _ = fmt.Fprintf(out, "[run] %s run dev exited: %v\n", runtime, err)
 		<-ctx.Done()
 		return nil
 	}

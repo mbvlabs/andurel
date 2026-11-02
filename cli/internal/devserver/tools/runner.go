@@ -149,7 +149,7 @@ func (r *Runner) setStatus(status tui.Status) {
 }
 
 func (r *Runner) logf(format string, args ...any) {
-	fmt.Fprintf(r.writer(), format, args...)
+	_, _ = fmt.Fprintf(r.writer(), format, args...)
 }
 
 func (r *Runner) writer() io.Writer {
@@ -166,6 +166,6 @@ func copyLines(reader io.Reader, writer io.Writer) {
 	scanner := bufio.NewScanner(reader)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
-		fmt.Fprintln(writer, scanner.Text())
+		_, _ = fmt.Fprintln(writer, scanner.Text())
 	}
 }
