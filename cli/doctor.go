@@ -3,7 +3,6 @@ package cli
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -111,7 +110,7 @@ func newDoctorCommand(currentVersion string) *cobra.Command {
 		Long: `Run comprehensive diagnostic checks to verify your Andurel project health.
 
 This command will check:
-  • Environment (Go version, latest stable Andurel release)
+  • Environment (Go version, latest Andurel release)
   • Configuration (andurel.lock, first-run setup, Inertia SSR readiness)
   • Manual actions (static applied / not applied / not applicable status for application-owned upgrade actions, by stable action ID)
   • Code quality (go vet, go mod tidy)
@@ -491,24 +490,10 @@ func checkLatestAndurelRelease(currentVersion string) checkResult {
 
 	latest, err := lookupLatestAndurelVersionFunc(context.Background())
 	if err != nil {
-		if noStable, ok := errors.AsType[*noStableReleaseError](err); ok {
-			return checkResult{
-				name:   "Andurel release",
-				status: statusWarn,
-				message: fmt.Sprintf(
-					"no stable release published yet (latest is prerelease %s)",
-					noStable.version,
-				),
-				details: []string{noStable.Error()},
-				hint: "This is expected while v2 is in beta; run andurel doctor again " +
-					"after a stable release is published, or keep testing the prerelease.",
-			}
-		}
-
 		return checkResult{
 			name:    "Andurel release",
 			status:  statusWarn,
-			message: "could not check the latest stable release",
+			message: "could not check the latest release",
 			details: []string{err.Error()},
 			hint:    "Check network connectivity and run andurel doctor again.",
 		}
@@ -530,7 +515,7 @@ func checkLatestAndurelRelease(currentVersion string) checkResult {
 			name:   "Andurel release",
 			status: statusPass,
 			message: fmt.Sprintf(
-				"no newer stable release found (current: %s, latest stable: %s)",
+				"no newer release found (current: %s, latest published: %s)",
 				current,
 				latest,
 			),
@@ -540,7 +525,7 @@ func checkLatestAndurelRelease(currentVersion string) checkResult {
 	return checkResult{
 		name:    "Andurel release",
 		status:  statusPass,
-		message: fmt.Sprintf("latest stable release installed (%s)", current),
+		message: fmt.Sprintf("latest release installed (%s)", current),
 	}
 }
 

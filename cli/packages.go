@@ -118,7 +118,7 @@ func newPackagesUpdateCommand() *cobra.Command {
 		Aliases: []string{"up"},
 		Short:   "Update Andurel packages in go.mod to latest",
 		Long: `Update github.com/mbvlabs/andurel/pkg/* modules already required in go.mod
-to the latest stable versions published on proxy.golang.org.
+to the latest versions published on proxy.golang.org.
 
 Pass package names (storage, email, inertia, ...) or full module paths to
 limit the update. With no arguments, every required Andurel package is
