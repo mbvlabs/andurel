@@ -50,11 +50,15 @@ type UpgradeReport struct {
 	RemovedFiles        []string
 	Diffs               []FileDiff
 	PlannedChanges      []PlannedChange `json:"-"`
-	ManualActions       []ManualAction  `json:"manual_actions,omitempty"`
-	DirtyWorktree       bool
-	AlreadyCurrent      bool
-	RepairAvailable     bool
-	RepairApplied       bool
+	// CommandsRun lists subprocesses this execution actually attempted,
+	// including read-only prerequisite checks. It never contains proposed
+	// follow-up work. The CLI copies it into artifacts.commands_run.
+	CommandsRun     []string       `json:"-"`
+	ManualActions   []ManualAction `json:"manual_actions,omitempty"`
+	DirtyWorktree   bool
+	AlreadyCurrent  bool
+	RepairAvailable bool
+	RepairApplied   bool
 
 	Success bool
 	Error   error
@@ -76,8 +80,27 @@ func NewUpgrader(projectRoot string, opts UpgradeOptions) (*Upgrader, error) {
 	}, nil
 }
 
-// Execute performs the execute operation.
+// Execute performs the execute operation and attaches the subprocesses this
+// execution actually attempted to the report. The recorder and git analyzer
+// are execution-local so repeated or concurrent runs cannot accumulate or
+// share provenance.
 func (u *Upgrader) Execute() (*UpgradeReport, error) {
+	commands := &commandRecorder{}
+	working := *u
+	if u.git != nil {
+		git := *u.git
+		git.commands = commands
+		working.git = &git
+	}
+	report, err := working.execute()
+	if report == nil {
+		report = &UpgradeReport{}
+	}
+	report.CommandsRun = commands.commandsRun()
+	return report, err
+}
+
+func (u *Upgrader) execute() (*UpgradeReport, error) {
 	lock, err := layout.ReadLockFile(u.projectRoot)
 	if err != nil {
 		return &UpgradeReport{}, fmt.Errorf("failed to refresh lock file: %w", err)

@@ -88,7 +88,6 @@ var structuredOutputUnsupportedCommands = []string{
 	"andurel run",
 	"andurel tool dblab",
 	"andurel tool mailpit",
-	"andurel tool set-version",
 }
 
 func configureCommandCapabilities(root *cobra.Command) error {

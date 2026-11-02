@@ -4,15 +4,24 @@ package inertia
 import (
 	"bytes"
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
+	"net/textproto"
+	"slices"
 	"strings"
 
 	"github.com/mbvlabs/andurel/pkg/anduin"
 )
 
 // Middleware parses request state and applies v3 version, empty-response, and
-// redirect corrections only to Inertia visits.
+// redirect corrections only to Inertia visits. When the router has already
+// rendered an error into the captured response, the capture is normalized,
+// reflashed and committed, and the original error is still returned. A reflash
+// failure still commits the normalized rendered response, with the reflash error
+// joined to the original. An error with no rendered response is discarded as
+// before, which leaves delayed CatchErrors scopes free to render after this
+// middleware unwinds.
 func (renderer *Renderer) Middleware() anduin.Middleware {
 	return func(next anduin.Handler) anduin.Handler {
 		return func(ctx context.Context) error {
@@ -49,23 +58,22 @@ func (renderer *Renderer) Middleware() anduin.Middleware {
 			}
 
 			original := anduin.ResponseWriter(ctx)
-			captured := &captureWriter{ResponseWriter: original}
+			captured := newCaptureWriter(original)
 			ctx = anduin.ReplaceResponseWriter(ctx, captured)
 			err = next(ctx)
 			ctx = anduin.ReplaceResponseWriter(ctx, original)
-			if err != nil {
+			if err != nil && anduin.RenderedError(ctx) == nil {
 				return err
 			}
 
-			wasRedirect := captured.status >= 300 && captured.status < 400
-			captured.normalize(ctx)
-			if renderer.reflash != nil &&
-				(wasRedirect || captured.status >= 300 && captured.status < 400) {
-				if err := renderer.reflash(ctx); err != nil {
-					return err
+			finishErr := captured.finish(ctx, renderer.reflash, err != nil)
+			if err != nil {
+				if finishErr != nil {
+					return errors.Join(err, finishErr)
 				}
+				return err
 			}
-			return captured.commit()
+			return finishErr
 		}
 	}
 }
@@ -85,8 +93,82 @@ func logProtocolRequest(ctx context.Context, request *http.Request, state Reques
 
 type captureWriter struct {
 	http.ResponseWriter
-	status int
-	body   bytes.Buffer
+	status     int
+	body       bytes.Buffer
+	baseHeader http.Header
+}
+
+var _ anduin.ResponseBuffer = (*captureWriter)(nil)
+
+func newCaptureWriter(writer http.ResponseWriter) *captureWriter {
+	captured := &captureWriter{ResponseWriter: writer}
+	if writer != nil {
+		captured.baseHeader = writer.Header().Clone()
+	}
+	return captured
+}
+
+// DiscardBuffered implements anduin.ResponseBuffer. The router calls it before
+// rendering an error page into this writer, so a buffered success response
+// cannot be concatenated with the error page. The status and body are reset,
+// and headers are restored to the snapshot taken when capture began, which
+// drops headers owned by the discarded response. Response metadata that belongs
+// to the request rather than the discarded body is re-applied from the current
+// headers: the router's Allow, cache Vary tokens, and security/CORS policy
+// headers installed by middleware after capture started.
+func (writer *captureWriter) DiscardBuffered() {
+	if writer == nil {
+		return
+	}
+	writer.status = 0
+	writer.body.Reset()
+	if writer.ResponseWriter == nil || writer.baseHeader == nil {
+		return
+	}
+	header := writer.ResponseWriter.Header()
+	current := header.Clone()
+	clear(header)
+	for key, values := range writer.baseHeader {
+		header[key] = slices.Clone(values)
+	}
+	for key, values := range current {
+		if isResponseMetadataHeader(key) {
+			header[key] = slices.Clone(values)
+		}
+	}
+}
+
+// isResponseMetadataHeader reports whether a response header describes the
+// request/transport rather than the buffered success body. These values must
+// survive an error replacement: Allow is router error metadata, Vary keeps
+// CORS/cache behavior correct, the security/CORS headers are policies that
+// apply to every response, and Retry-After/WWW-Authenticate/Proxy-Authenticate
+// are standards-defined error challenge metadata. This is deliberately a
+// narrow list: arbitrary success headers stay owned by the discarded response.
+func isResponseMetadataHeader(key string) bool {
+	key = textproto.CanonicalMIMEHeaderKey(key)
+	switch key {
+	case "Allow",
+		"Proxy-Authenticate",
+		"Retry-After",
+		"Vary",
+		"Www-Authenticate",
+		"Origin-Agent-Cluster",
+		"Permissions-Policy",
+		"Referrer-Policy",
+		"Strict-Transport-Security",
+		"Timing-Allow-Origin",
+		"X-Content-Type-Options",
+		"X-Dns-Prefetch-Control",
+		"X-Download-Options",
+		"X-Frame-Options",
+		"X-Permitted-Cross-Domain-Policies",
+		"X-Xss-Protection":
+		return true
+	}
+	return strings.HasPrefix(key, "Access-Control-") ||
+		strings.HasPrefix(key, "Content-Security-Policy") ||
+		strings.HasPrefix(key, "Cross-Origin-")
 }
 
 func (writer *captureWriter) Unwrap() http.ResponseWriter { return writer.ResponseWriter }
@@ -136,6 +218,38 @@ func (writer *captureWriter) normalize(ctx context.Context) {
 			writer.status = http.StatusConflict
 			writer.body.Reset()
 		}
+	}
+}
+
+func (writer *captureWriter) finish(
+	ctx context.Context,
+	reflash ReflashHandler,
+	commitOnReflashError bool,
+) error {
+	wasRedirect := writer.status >= 300 && writer.status < 400
+	writer.normalize(ctx)
+
+	var reflashErr error
+	if reflash != nil &&
+		(wasRedirect || writer.status >= 300 && writer.status < 400) {
+		reflashErr = reflash(ctx)
+	}
+	if reflashErr != nil && !commitOnReflashError {
+		return reflashErr
+	}
+
+	// A router-rendered error has already marked the response committed and
+	// trusts this buffer to deliver it. If reflash failed, still deliver the
+	// normalized response instead of leaving an empty implicit 200; the caller
+	// joins the preserved reflash error with the original request error.
+	commitErr := writer.commit()
+	switch {
+	case reflashErr != nil && commitErr != nil:
+		return errors.Join(reflashErr, commitErr)
+	case reflashErr != nil:
+		return reflashErr
+	default:
+		return commitErr
 	}
 }
 

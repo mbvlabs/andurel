@@ -4,6 +4,21 @@ All notable changes to the standalone Andurel kiks module are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Documented the kiks persistence contract under anduin's coordinated error
+  lifecycle: an `ErrorHandler` can read the request bag and persist session and
+  flash mutations with the final error status (409/3xx flashes, 403 clears, and
+  dirty sessions saved). A `CatchErrors` scope that reads or mutates the bag must
+  be installed inside `Jar.Middleware`. No kiks runtime code changed.
+- Added default-on real `anduin.Router` coverage in `router_error_test.go` for
+  exactly-once persistence, host, global and route error renders, 403 flash
+  clearing, load failure without a bag or cookies, fail-closed save failure with
+  the joined error logged once, and unchanged AuthOnly-style redirects.
+- `AddFlash` after the response has started is not persisted because the
+  middleware saves on the first response write. Add flashes before writing the
+  response. This is existing behavior, now covered by a test.
+
 ## 0.6.1 - 2026-10-30
 
 ### Changed

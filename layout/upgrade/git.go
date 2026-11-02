@@ -9,6 +9,7 @@ import (
 // GitAnalyzer represents git analyzer.
 type GitAnalyzer struct {
 	projectRoot string
+	commands    *commandRecorder
 }
 
 // NewGitAnalyzer creates a new git analyzer.
@@ -18,12 +19,18 @@ func NewGitAnalyzer(projectRoot string) *GitAnalyzer {
 	}
 }
 
+// run executes one git command and records the attempt, including failures.
+func (g *GitAnalyzer) run(name string, args ...string) ([]byte, error) {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = g.projectRoot
+	output, err := cmd.Output()
+	g.commands.record(joinCommand(name, args), err)
+	return output, err
+}
+
 // IsClean reports whether clean.
 func (g *GitAnalyzer) IsClean() (bool, error) {
-	cmd := exec.Command("git", "status", "--porcelain")
-	cmd.Dir = g.projectRoot
-
-	output, err := cmd.Output()
+	output, err := g.run("git", "status", "--porcelain")
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			if strings.Contains(string(exitErr.Stderr), "not a git repository") {
@@ -39,10 +46,7 @@ func (g *GitAnalyzer) IsClean() (bool, error) {
 }
 
 func (g *GitAnalyzer) getFirstCommit() (string, error) {
-	cmd := exec.Command("git", "rev-list", "--max-parents=0", "HEAD")
-	cmd.Dir = g.projectRoot
-
-	output, err := cmd.Output()
+	output, err := g.run("git", "rev-list", "--max-parents=0", "HEAD")
 	if err != nil {
 		return "", fmt.Errorf("failed to get first commit: %w", err)
 	}
@@ -62,10 +66,7 @@ func (g *GitAnalyzer) GetModifiedFiles() (map[string]bool, error) {
 		return nil, err
 	}
 
-	cmd := exec.Command("git", "diff", "--name-only", firstCommit)
-	cmd.Dir = g.projectRoot
-
-	output, err := cmd.Output()
+	output, err := g.run("git", "diff", "--name-only", firstCommit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get modified files: %w", err)
 	}
@@ -88,10 +89,7 @@ func (g *GitAnalyzer) GetFileFromInitialCommit(relPath string) ([]byte, error) {
 		return nil, err
 	}
 
-	cmd := exec.Command("git", "show", fmt.Sprintf("%s:%s", firstCommit, relPath))
-	cmd.Dir = g.projectRoot
-
-	output, err := cmd.Output()
+	output, err := g.run("git", "show", fmt.Sprintf("%s:%s", firstCommit, relPath))
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			stderrStr := string(exitErr.Stderr)

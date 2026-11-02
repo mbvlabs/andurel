@@ -631,3 +631,192 @@ func TestCheckManualActionsPassesWithoutPreReleaseActions(t *testing.T) {
 		t.Fatalf("missing lock check status = %v, want skip", missing.status)
 	}
 }
+
+func TestCheckNarsilcRuntimeStates(t *testing.T) {
+	const moduleHeader = "module example.com/app\n\ngo 1.27.3\n\n"
+	writeLockWithNarsilc := func(t *testing.T, root, version string) {
+		t.Helper()
+		lock := layout.NewAndurelLock("v2.0.0")
+		lock.Tools["narsilc"] = &layout.Tool{
+			Version:      version,
+			Path:         "bin/narsilc",
+			VersionCheck: &layout.VersionCheck{Args: []string{"--version"}},
+		}
+		if err := lock.WriteLockFile(root); err != nil {
+			t.Fatalf("write lock: %v", err)
+		}
+	}
+
+	t.Run("missing lock", func(t *testing.T) {
+		result := checkNarsilcRuntime(t.TempDir())
+		if result.status != statusSkip {
+			t.Fatalf("status = %v, want skip: %#v", result.status, result)
+		}
+	})
+
+	t.Run("not configured", func(t *testing.T) {
+		root := t.TempDir()
+		lock := layout.NewAndurelLock("v2.0.0")
+		if err := lock.WriteLockFile(root); err != nil {
+			t.Fatalf("write lock: %v", err)
+		}
+		result := checkNarsilcRuntime(root)
+		if result.status != statusPass ||
+			!strings.Contains(result.message, "not configured") {
+			t.Fatalf("result = %#v", result)
+		}
+	})
+
+	t.Run("aligned", func(t *testing.T) {
+		root := t.TempDir()
+		writeTestFile(t, root, "go.mod", moduleHeader+
+			"require github.com/mbvlabs/narsilc v0.6.4\n")
+		writeLockWithNarsilc(t, root, "v0.6.4")
+		result := checkNarsilcRuntime(root)
+		if result.status != statusPass ||
+			!strings.Contains(result.message, "matches narsilc tool v0.6.4") {
+			t.Fatalf("result = %#v", result)
+		}
+	})
+
+	t.Run("mismatched", func(t *testing.T) {
+		root := t.TempDir()
+		writeTestFile(t, root, "go.mod", moduleHeader+
+			"require github.com/mbvlabs/narsilc v0.6.3\n")
+		writeLockWithNarsilc(t, root, "v0.6.4")
+		result := checkNarsilcRuntime(root)
+		if result.status != statusWarn ||
+			!strings.Contains(result.message, "narsilc tool v0.6.4, go.mod requires v0.6.3") {
+			t.Fatalf("result = %#v", result)
+		}
+		details := strings.Join(result.details, "\n")
+		for _, want := range []string{
+			"go get github.com/mbvlabs/narsilc@v0.6.4",
+			"go mod tidy",
+		} {
+			if !strings.Contains(details, want) {
+				t.Fatalf("details missing %q: %#v", want, result.details)
+			}
+		}
+		if !strings.Contains(result.hint, "go get github.com/mbvlabs/narsilc@v0.6.4") {
+			t.Fatalf("hint = %q", result.hint)
+		}
+		jsonCheck := doctorCheckFromResult(result)
+		if jsonCheck.Status != "warn" || !strings.Contains(jsonCheck.Hint, "go get") {
+			t.Fatalf("structured check = %#v", jsonCheck)
+		}
+	})
+
+	t.Run("missing requirement", func(t *testing.T) {
+		root := t.TempDir()
+		writeTestFile(t, root, "go.mod", moduleHeader)
+		writeLockWithNarsilc(t, root, "v0.6.4")
+		result := checkNarsilcRuntime(root)
+		if result.status != statusPass ||
+			!strings.Contains(result.message, "no narsilc runtime requirement") {
+			t.Fatalf("result = %#v", result)
+		}
+	})
+
+	t.Run("local replacement", func(t *testing.T) {
+		root := t.TempDir()
+		writeTestFile(t, root, "go.mod", moduleHeader+
+			"require github.com/mbvlabs/narsilc v0.6.4\n\n"+
+			"replace github.com/mbvlabs/narsilc => ../narsilc\n")
+		writeLockWithNarsilc(t, root, "v0.6.4")
+		result := checkNarsilcRuntime(root)
+		if result.status != statusWarn ||
+			!strings.Contains(result.message, "could not be verified") {
+			t.Fatalf("result = %#v", result)
+		}
+	})
+
+	t.Run("unavailable module data", func(t *testing.T) {
+		root := t.TempDir()
+		writeTestFile(t, root, "go.mod", "module example.com/app\n\nrequire (\n")
+		writeLockWithNarsilc(t, root, "v0.6.4")
+		result := checkNarsilcRuntime(root)
+		if result.status != statusWarn ||
+			!strings.Contains(result.message, "could not be verified") {
+			t.Fatalf("result = %#v", result)
+		}
+	})
+}
+
+func TestDoctorReportsNarsilcRuntimeMismatchOnBothSurfaces(t *testing.T) {
+	stubLatestAndurelVersion(t, "v1.2.3", nil)
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", `module example.com/app
+
+go 1.27.3
+
+require github.com/mbvlabs/narsilc v0.6.3
+`)
+	writeTestFile(t, root, "main.go", "package main\n\nfunc main() {}\n")
+	lock := layout.NewAndurelLock("v1.2.3")
+	lock.Tools["narsilc"] = &layout.Tool{
+		Version:      "v0.6.4",
+		Path:         "bin/narsilc",
+		VersionCheck: &layout.VersionCheck{Args: []string{"--version"}},
+	}
+	if err := lock.WriteLockFile(root); err != nil {
+		t.Fatalf("write lock: %v", err)
+	}
+
+	fakePath := t.TempDir()
+	writeExecutable(t, fakePath, "go", "#!/bin/sh\nexit 0\n")
+	t.Setenv("PATH", fakePath)
+
+	originalFindGoModRoot := findGoModRoot
+	findGoModRoot = func() (string, error) { return root, nil }
+	t.Cleanup(func() {
+		findGoModRoot = originalFindGoModRoot
+	})
+
+	var structuredOut bytes.Buffer
+	structuredCmd := newStructuredTestCommand(&structuredOut)
+	if err := runDoctorStructured(structuredCmd, "1.2.3", false); err != nil {
+		t.Fatalf("runDoctorStructured: %v", err)
+	}
+	var envelope struct {
+		Summary string       `json:"summary"`
+		Data    doctorReport `json:"data"`
+	}
+	if err := json.Unmarshal(structuredOut.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode doctor envelope: %v\n%s", err, structuredOut.String())
+	}
+	var runtimeCheck *doctorCheck
+	for index := range envelope.Data.Checks {
+		if envelope.Data.Checks[index].Name == "narsilc runtime" {
+			runtimeCheck = &envelope.Data.Checks[index]
+			break
+		}
+	}
+	if runtimeCheck == nil {
+		t.Fatalf("structured doctor report has no narsilc runtime check: %#v", envelope.Data.Checks)
+	}
+	if runtimeCheck.Status != "warn" ||
+		!strings.Contains(runtimeCheck.Message, "go.mod requires v0.6.3") ||
+		!strings.Contains(runtimeCheck.Hint, "go get github.com/mbvlabs/narsilc@v0.6.4") ||
+		!strings.Contains(strings.Join(runtimeCheck.Details, "\n"), "go mod tidy") {
+		t.Fatalf("structured narsilc check = %#v", runtimeCheck)
+	}
+
+	humanCmd := &cobra.Command{Use: "doctor"}
+	output.RegisterPersistentFlags(humanCmd)
+	var humanOut bytes.Buffer
+	humanCmd.SetOut(&humanOut)
+	humanCmd.SetErr(&humanOut)
+	if err := runDoctor(humanCmd, "1.2.3", false); err != nil {
+		t.Fatalf("runDoctor: %v", err)
+	}
+	for _, want := range []string{
+		"narsilc runtime",
+		"go get github.com/mbvlabs/narsilc@v0.6.4",
+		"go mod tidy",
+	} {
+		if !strings.Contains(humanOut.String(), want) {
+			t.Fatalf("human doctor output missing %q:\n%s", want, humanOut.String())
+		}
+	}
+}
