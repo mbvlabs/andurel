@@ -1,0 +1,74 @@
+== initial combined run (panic on non-comparable logging) ==
+--- FAIL: TestPostRenderLoggingHandlesNonComparableErrors (0.00s)
+    --- FAIL: TestPostRenderLoggingHandlesNonComparableErrors/unchanged_non-comparable_error (0.00s)
+panic: runtime error: comparing uncomparable type anduin.nonComparableError [recovered, repanicked]
+
+goroutine 65 [running]:
+testing.tRunner.func1.2({0x156f760, 0x3026e0bd6390})
+	/home/mbv/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2125 +0x232
+testing.tRunner.func1()
+	/home/mbv/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2128 +0x329
+panic({0x156f760?, 0x3026e0bd6390?})
+	/home/mbv/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/runtime/panic.go:859 +0x125
+github.com/mbvlabs/andurel/pkg/anduin.(*requestState).logPostRenderError(0x3026e095e750, {0x166c150, 0x3026e070e7f8})
+	/home/mbv/work/andurel-rc1-work/pkg/anduin/errorlifecycle.go:261 +0xc5
+github.com/mbvlabs/andurel/pkg/anduin.(*Router).serve(0x3026e07cc060, {0x16724a8, 0x3026e0b6a1e0}, 0x3026e0c9a500)
+	/home/mbv/work/andurel-rc1-work/pkg/anduin/router.go:316 +0x31c
+net/http.HandlerFunc.ServeHTTP(0x3026e07cc060?, {0x16724a8?, 0x3026e0b6a1e0?}, 0x3026e0c8e180?)
+	/home/mbv/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/net/http/server.go:2358 +0x29
+github.com/mbvlabs/andurel/pkg/anduin.serveErrorRequest(0x3026e07cc060, {0xc68356?, 0x0?}, {0xc6f335, 0xb}, {0xcb5678?, 0x3?})
+	/home/mbv/work/andurel-rc1-work/pkg/anduin/router_error_context_test.go:92 +0x111
+github.com/mbvlabs/andurel/pkg/anduin.TestPostRenderLoggingHandlesNonComparableErrors.func1(0x3026e0920008)
+	/home/mbv/work/andurel-rc1-work/pkg/anduin/router_error_lifecycle_test.go:815 +0x1ac
+testing.tRunner(0x3026e0920008, 0x167fac8)
+	/home/mbv/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2195 +0xea
+created by testing.(*T).Run in goroutine 53
+	/home/mbv/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64/src/testing/testing.go:2260 +0x4d4
+FAIL	github.com/mbvlabs/andurel/pkg/anduin	0.021s
+FAIL
+
+== nested scopes red ==
+--- FAIL: TestNestedCatchErrorsDefersToEnclosingScope (0.00s)
+    --- FAIL: TestNestedCatchErrorsDefersToEnclosingScope/inner_translation_reaches_outer_consumer (0.00s)
+        router_error_lifecycle_test.go:694: ErrorHandler calls = 1, want 0 before an outer scope handles
+    --- FAIL: TestNestedCatchErrorsDefersToEnclosingScope/inner_retry_keeps_latest_attribution_before_outer_render (0.00s)
+        router_error_lifecycle_test.go:741: ErrorHandler renders=1 marker="" err=anduin: not found; want one outer render for the latest pass B
+    --- FAIL: TestNestedCatchErrorsDefersToEnclosingScope/route_error_reaches_enclosing_scope (0.00s)
+        router_error_lifecycle_test.go:777: outer scope error = <nil>, want route error
+FAIL
+FAIL	github.com/mbvlabs/andurel/pkg/anduin	0.005s
+FAIL
+
+== merge live-context red ==
+--- FAIL: TestMergeErrorContextPreservesLiveSemantics (0.00s)
+    --- FAIL: TestMergeErrorContextPreservesLiveSemantics/expired_custom_deadline_cause (0.00s)
+        router_error_lifecycle_test.go:881: merged Cause = context deadline exceeded, want custom deadline cause
+    --- FAIL: TestMergeErrorContextPreservesLiveSemantics/firing_custom_deadline_cause (0.00s)
+        router_error_lifecycle_test.go:911: iteration 0 merged Cause = context deadline exceeded, want custom deadline cause
+FAIL
+FAIL	github.com/mbvlabs/andurel/pkg/anduin	0.006s
+FAIL
+
+== failed renderer cooperative-buffer red ==
+--- FAIL: TestFailedRendererDiscardsCooperativeBufferBeforePlainFallback (0.00s)
+    --- FAIL: TestFailedRendererDiscardsCooperativeBufferBeforePlainFallback/returned_error (0.00s)
+        router_error_lifecycle_test.go:1002: buffer discards = &{0x311bd771cab0 201 {[112 97 114 116 105 97 108 32 114 101 110 100 101 114 70 111 114 98 105 100 100 101 110 10] 0 0} 1 true}, want partial render and fallback discarded
+    --- FAIL: TestFailedRendererDiscardsCooperativeBufferBeforePlainFallback/panic (0.00s)
+        router_error_lifecycle_test.go:1002: buffer discards = &{0x311bd771cbb8 201 {[112 97 114 116 105 97 108 32 112 97 110 105 99 73 110 116 101 114 110 97 108 32 83 101 114 118 101 114 32 69 114 114 111 114 10] 0 0} 1 true}, want partial render and fallback discarded
+FAIL
+FAIL	github.com/mbvlabs/andurel/pkg/anduin	0.004s
+FAIL
+
+== renderer FlushError red ==
+--- FAIL: TestRendererWriterForwardsFlushError (0.00s)
+    router_error_lifecycle_test.go:1061: renderer writer does not expose FlushError
+FAIL
+FAIL	github.com/mbvlabs/andurel/pkg/anduin	0.005s
+FAIL
+
+== Allow across buffer discard red ==
+--- FAIL: TestMethodNotAllowedAllowSurvivesBufferDiscard (0.00s)
+    router_error_lifecycle_test.go:1183: Allow = "", want "GET, HEAD" after buffer discard
+FAIL
+FAIL	github.com/mbvlabs/andurel/pkg/anduin	0.011s
+FAIL

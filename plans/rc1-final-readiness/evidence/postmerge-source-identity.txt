@@ -1,0 +1,66 @@
+# post-merge pin/source identity
+
+captured_utc: 2026-11-02T20:37:19Z
+worktree: /home/mbv/work/andurel-rc1-work
+branch: fix/rc1-final-readiness
+head_commit: 41657d5dee3f043916c2cb12a3bc4a28ee19082b
+head_tree: f2f56478c84bb8fe53d2530e16c186a13576ea43
+head_subject: Merge remote-tracking branch 'origin/master' into fix/rc1-final-readiness
+head_status:
+  ?? docs/release-notes/v2.0.0-rc.1.md
+  ?? plans/rc1-final-readiness/
+tracked_diff_stat:
+git_diff_check_exit: 0
+
+## source hashes
+2547019078499ff87971c5d6f60e60f6c855d88fefc41820910f563a8f4fd5a0  layout/versions/versions.go
+c769514c588ece54cefa149d7201c12ef719698c60ba6dab5d47f8de6ea420ad  layout/lock.go
+caa06df2b47e3c21edd1bf8b2e3e3c29318841db435227a0de87ee2ef4112ddf  cli/lock.go
+
+## source git blobs
+d66982e439adcd16dc2d9cafeb0e90e425a68f3f
+38f3d4010e325ca15592b0f1d25b61eabacbb2b1
+30a4b60b900b952d68372c2937c76246d82aa5de
+
+## master ee84032c layout/lock.go vs merged
+master: c769514c588ece54cefa149d7201c12ef719698c60ba6dab5d47f8de6ea420ad
+merged: c769514c588ece54cefa149d7201c12ef719698c60ba6dab5d47f8de6ea420ad
+
+## narsilc pins in merged versions.go
+22:	Narsilc = "v0.6.4"
+24:	NarsilcModule = "v0.6.4"
+
+## narsilc lock hashes (layout/lock.go)
+		SHA256: map[string]string{
+			"linux/amd64":  "fe6c31f3d70412590e55e829f5b2c877abc20b515619889cbaa7d3c466a4aeaa",
+			"linux/arm64":  "acd110d0fb533bff768218880a2f21ca912a5df9c9baf27a7832122952ca52a4",
+			"darwin/amd64": "2ec77193c74a99d8b3c0027ef63a64ea36396280ecc372c9d89bf132d9d32b02",
+			"darwin/arm64": "fbe47d6ed74c8dab4c16c511f7a5b8e491afac673769207c9a8460d05aaf0011",
+		},
+
+## cli/lock.go guidance
+Examples:
+  andurel tool set-version templ 0.3.977
+  andurel tool set-version tailwindcli 4.1.18
+  andurel tool set-version narsilc 0.6.4 \
+    --sha256 linux/amd64=<hex> --sha256 linux/arm64=<hex> \
+    --sha256 darwin/amd64=<hex> --sha256 darwin/arm64=<hex>
+
+## golden hashes
+93ddf03be4418f5714ae71a4877d2dd886d2e82e76b3e209de38c03ad4d195c1  testdata/golden/new/postgresql-inertia-react/andurel.lock.golden
+06060f363bb13223543311a067b84510f379ac6336c774390b3c53bd5e653e01  testdata/golden/new/postgresql-inertia-react/andurel.toml.golden
+4f7c4341a5f290f2532f07d39f4c9953ee1a943551f62d82f3b4c0a7db4bf24c  testdata/golden/new/postgresql-inertia-react/go.mod.golden
+93ddf03be4418f5714ae71a4877d2dd886d2e82e76b3e209de38c03ad4d195c1  testdata/golden/new/postgresql-inertia-svelte/andurel.lock.golden
+aec77f4992614579bb31606986ef1f15a36d3ececec50d732f6cc7a38d1744f5  testdata/golden/new/postgresql-inertia-svelte/andurel.toml.golden
+4f7c4341a5f290f2532f07d39f4c9953ee1a943551f62d82f3b4c0a7db4bf24c  testdata/golden/new/postgresql-inertia-svelte/go.mod.golden
+93ddf03be4418f5714ae71a4877d2dd886d2e82e76b3e209de38c03ad4d195c1  testdata/golden/new/postgresql-inertia-vue/andurel.lock.golden
+cda58ce85a6e38cdf223aefa2387f7a29c98ac678c81e2fb8c04f71cb077b9cd  testdata/golden/new/postgresql-inertia-vue/andurel.toml.golden
+4f7c4341a5f290f2532f07d39f4c9953ee1a943551f62d82f3b4c0a7db4bf24c  testdata/golden/new/postgresql-inertia-vue/go.mod.golden
+
+## narsilc v0.6.4 public origin
+	"Path": "github.com/mbvlabs/narsilc",
+	"Version": "v0.6.4",
+	"Sum": "h1:j4eBy7SGZSMECFkQjc0megIr7+tfckxYVPdSiA7Znko=",
+	"GoModSum": "h1:M+ffO0t2stlnmlvh6WrJr/oFdM36CQjjiVeqATa6jz0=",
+		"Hash": "cf06ce13273079b8d95ae1522180e3a2f0c6d7b4",
+		"Ref": "refs/tags/v0.6.4"

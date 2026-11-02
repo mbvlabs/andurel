@@ -1,0 +1,8 @@
+== gofmt -l . ==
+== go fix ./... ==
+== go vet ./... ==
+== go test -count=1 ./... ==
+ok  	github.com/mbvlabs/andurel/pkg/inertia	0.572s
+== go test focused count=10 ==
+ok  	github.com/mbvlabs/andurel/pkg/inertia	0.048s
+== git diff --check ==

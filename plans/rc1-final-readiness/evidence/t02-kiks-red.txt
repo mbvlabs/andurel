@@ -1,0 +1,23 @@
+Red baseline against the current published dependency set
+
+The new test file was copied with the whole pkg/kiks module to
+/tmp/opencode/t02-kiks-red/pkg-kiks and run with GOWORK=off, so it used the
+published anduin v0.6.2 from pkg/kiks/go.mod instead of the workspace anduin.
+No anduin, kiks go.mod or go.work file was changed.
+
+$ GOWORK=off go test -count=1 ./...
+# github.com/mbvlabs/andurel/pkg/kiks [github.com/mbvlabs/andurel/pkg/kiks.test]
+./router_error_test.go:393:9: admin.Isolate undefined (type *anduin.Host has no field or method Isolate)
+./router_error_test.go:394:9: admin.Use undefined (type *anduin.Host has no field or method Use)
+./router_error_test.go:485:8: admin.Isolate undefined (type *anduin.Host has no field or method Isolate)
+./router_error_test.go:486:8: admin.Use undefined (type *anduin.Host has no field or method Use)
+./router_error_test.go:554:17: undefined: anduin.CatchErrors
+./router_error_test.go:671:17: undefined: anduin.CatchErrors
+./router_error_test.go:921:8: admin.Isolate undefined (type *anduin.Host has no field or method Isolate)
+./router_error_test.go:922:8: admin.Use undefined (type *anduin.Host has no field or method Use)
+FAIL	github.com/mbvlabs/andurel/pkg/kiks [build failed]
+FAIL
+
+This is a compile-level red baseline only: the published anduin does not expose
+the coordinated host/CatchErrors API. It does not exercise the old runtime and
+is not published-dependency acceptance proof.

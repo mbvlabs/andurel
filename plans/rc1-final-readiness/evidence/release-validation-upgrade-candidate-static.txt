@@ -1,0 +1,8 @@
+$ gofmt -l layout/upgrade/upgrade_e2e_test.go
+EXIT: 0
+
+$ GOWORK=off go fix -diff ./layout/upgrade
+EXIT: 0
+
+$ GOWORK=off go vet ./layout/upgrade
+EXIT: 0

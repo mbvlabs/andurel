@@ -1,0 +1,6 @@
+$ zig version
+0.14.1
+
+$ GOWORK=off CGO_ENABLED=1 CC='/home/mbv/.local/share/mise/installs/zig/0.14.1/zig cc' go test -mod=readonly -race -count=1 ./...
+ok  	andurel.local/rc1/runtime-integration	1.064s
+race-test-exit=0

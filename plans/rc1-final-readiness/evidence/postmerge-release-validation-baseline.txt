@@ -1,0 +1,46 @@
+date: 2026-11-02T20:32:05+00:00
+branch: fix/rc1-final-readiness
+HEAD: 41657d5dee3f043916c2cb12a3bc4a28ee19082b
+HEAD subject: Merge remote-tracking branch 'origin/master' into fix/rc1-final-readiness
+HEAD parents: 41657d5dee3f043916c2cb12a3bc4a28ee19082b edc738c01b46ab98debe08549b20dce6baeab6d2 ee84032c62987cdcfca3d93a183709808681ef23
+origin/master: ee84032c62987cdcfca3d93a183709808681ef23
+origin/master subject: chore(layout): scaffold narsilc v0.6.4 (#857)
+rc1 source commits:
+edc738c0 fix(rc1): close beta7 tooling defects and align runtime pins
+d6f062f9 test(kiks): verify published router error persistence
+anduin tag: 718076edfafe0735032bf6a2d457b5c09bbd8251
+inertia tag: c6c724fa8beb0b563fd4966d3d7748af70ad6f46
+--- go env ---
+go version go1.27.3 linux/amd64
+https://proxy.golang.org,direct
+sum.golang.org
+
+
+
+
+/home/mbv/work/andurel-rc1-work/go.work
+0
+gcc
+--- framework pins ---
+	Narsilc = "v0.6.4"
+	NarsilcModule = "v0.6.4"
+	Anduin = "v0.8.0"
+	Kiks = "v0.6.1"
+	Inertia = "v0.14.1"
+--- narsilc lock-golden identity (react) ---
+  tool = 'narsilc'
+  version = 'v0.6.4'
+  platform = 'linux/amd64'
+  sha256 = 'fe6c31f3d70412590e55e829f5b2c877abc20b515619889cbaa7d3c466a4aeaa'
+--- tools ---
+golangci-lint has version 2.14.0 built with go1.27.1 from (unknown, modified: ?, mod sum: "h1:ot8QffRa4LzAAEgtvNYrVs9esxQ7xoTwoAv6uhp4ngA=") on (unknown)
+Go: go1.27.3
+Scanner: govulncheck@v1.3.0
+DB: https://vuln.go.dev
+DB updated: 2026-10-27 21:16:18 +0000 UTC
+0.14.1
+--- git status --porcelain=v1 ---
+?? docs/release-notes/v2.0.0-rc.1.md
+?? plans/rc1-final-readiness/
+--- tracked diff ---
+tracked-diff exit: 0

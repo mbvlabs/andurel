@@ -1,0 +1,22 @@
+== cleanup before late deadline / race red ==
+--- FAIL: TestMergeErrorContextPreservesLiveSemantics (0.12s)
+    --- FAIL: TestMergeErrorContextPreservesLiveSemantics/cleanup_then_live_deadline_keeps_classification (0.01s)
+        router_error_lifecycle_test.go:1175: merged Err after late deadline = context deadline exceeded, want frozen context.Canceled
+    --- FAIL: TestMergeErrorContextPreservesLiveSemantics/cleanup_versus_live_deadline_race_is_stable (0.00s)
+        router_error_lifecycle_test.go:1225: iteration 0 inconsistent classification Err=context deadline exceeded Cause=context canceled
+FAIL
+FAIL	github.com/mbvlabs/andurel/pkg/anduin	0.130s
+FAIL
+
+== derived child classification red ==
+--- FAIL: TestMergeErrorContextPreservesLiveSemantics (0.12s)
+    --- FAIL: TestMergeErrorContextPreservesLiveSemantics/cleanup_then_live_deadline_keeps_classification (0.01s)
+        router_error_lifecycle_test.go:1175: merged Err after late deadline = context deadline exceeded, want frozen context.Canceled
+    --- FAIL: TestMergeErrorContextPreservesLiveSemantics/cleanup_versus_live_deadline_race_is_stable (0.00s)
+        router_error_lifecycle_test.go:1225: iteration 0 inconsistent classification Err=context deadline exceeded Cause=context canceled
+--- FAIL: TestMergedContextChildrenPreserveClassification (0.03s)
+    --- FAIL: TestMergedContextChildrenPreserveClassification/before_firing_deadline (0.02s)
+        router_error_lifecycle_test.go:1266: WithCancel child Err = context canceled, want DeadlineExceeded
+FAIL
+FAIL	github.com/mbvlabs/andurel/pkg/anduin	0.162s
+FAIL

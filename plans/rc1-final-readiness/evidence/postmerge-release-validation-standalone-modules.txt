@@ -1,0 +1,32 @@
+===== pkg/anduin =====
+cwd: /home/mbv/work/andurel-rc1-work/pkg/anduin
+go env: GOWORK=off GOPROXY=https://proxy.golang.org,direct GOSUMDB=sum.golang.org
+github.com/mbvlabs/andurel/pkg/anduin 
+github.com/mbvlabs/andurel/pkg/routing v0.9.0
+github.com/mbvlabs/andurel/pkg/telemetry v0.2.3
+--- go mod verify ---
+all modules verified
+verify exit: 0
+
+===== pkg/inertia =====
+cwd: /home/mbv/work/andurel-rc1-work/pkg/inertia
+go env: GOWORK=off GOPROXY=https://proxy.golang.org,direct GOSUMDB=sum.golang.org
+github.com/mbvlabs/andurel/pkg/inertia 
+github.com/mbvlabs/andurel/pkg/anduin v0.8.0
+github.com/mbvlabs/andurel/pkg/routing v0.9.0
+github.com/mbvlabs/andurel/pkg/telemetry v0.2.3
+--- go mod verify ---
+all modules verified
+verify exit: 0
+
+===== pkg/kiks =====
+cwd: /home/mbv/work/andurel-rc1-work/pkg/kiks
+go env: GOWORK=off GOPROXY=https://proxy.golang.org,direct GOSUMDB=sum.golang.org
+github.com/mbvlabs/andurel/pkg/kiks 
+github.com/mbvlabs/andurel/pkg/anduin v0.8.0
+github.com/mbvlabs/andurel/pkg/routing v0.9.0
+github.com/mbvlabs/andurel/pkg/telemetry v0.2.3
+--- go mod verify ---
+all modules verified
+verify exit: 0
+

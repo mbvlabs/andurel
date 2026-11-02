@@ -1,0 +1,10 @@
+--- FAIL: TestDesignHoldCanceledContextAndReleasedResource (0.00s)
+    router_error_context_test.go:813: ErrorHandler ctx.Err=context canceled resourceClosed=true; want a live, non-canceled context
+--- FAIL: TestDesignHoldBagMutationNotSavedAfterUnwind (0.00s)
+    router_error_context_test.go:940: bag save status=200 flashSaved=false cookies=""; want 409 and the flashed cookie persisted
+--- FAIL: TestDesignHoldRepeatedNextKeepsFirstContext (0.00s)
+    router_error_context_test.go:983: ErrorHandler renders=1 marker="A" err="guard B: anduin test: guard rejected"; want one render with context B and the last failing pass
+FAIL
+FAIL	github.com/mbvlabs/andurel/pkg/anduin	0.031s
+ok  	github.com/mbvlabs/andurel/pkg/anduin/anduintest	0.005s
+FAIL

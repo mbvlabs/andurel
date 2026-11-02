@@ -1,0 +1,27 @@
+Workspace development validation (GOWORK=/home/mbv/work/andurel-rc1-work/go.work)
+
+$ cd pkg/kiks
+$ gofmt -l .
+(no output)
+
+$ go fix ./...
+(no output, no source changes)
+
+$ go vet ./...
+(exit 0, no output)
+
+$ go test -count=1 ./...
+ok  	github.com/mbvlabs/andurel/pkg/kiks	2.114s
+
+$ CGO_ENABLED=1 CC='/home/mbv/.local/share/mise/installs/zig/0.14.1/zig cc' \
+    go test -race -count=1 ./...
+ok  	github.com/mbvlabs/andurel/pkg/kiks	3.137s
+
+Environment:
+$ go version
+go version go1.27.3 linux/amd64
+$ go env GOWORK
+/home/mbv/work/andurel-rc1-work/go.work
+
+GOWORK=off was not used for acceptance here because the published anduin does
+not have the coordinated API; see t02-kiks-red.txt.

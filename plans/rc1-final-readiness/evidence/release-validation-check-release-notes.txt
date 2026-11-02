@@ -1,0 +1,3 @@
+--release-notes docs/release-notes/v2.0.0-rc.1.md
+
+EXIT: 0

@@ -1,0 +1,4 @@
+2ec77193c74a99d8b3c0027ef63a64ea36396280ecc372c9d89bf132d9d32b02  narsilc_0.6.4_darwin_amd64.tar.gz
+fbe47d6ed74c8dab4c16c511f7a5b8e491afac673769207c9a8460d05aaf0011  narsilc_0.6.4_darwin_arm64.tar.gz
+fe6c31f3d70412590e55e829f5b2c877abc20b515619889cbaa7d3c466a4aeaa  narsilc_0.6.4_linux_amd64.tar.gz
+acd110d0fb533bff768218880a2f21ca912a5df9c9baf27a7832122952ca52a4  narsilc_0.6.4_linux_arm64.tar.gz

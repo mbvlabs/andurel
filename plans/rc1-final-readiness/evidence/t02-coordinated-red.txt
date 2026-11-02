@@ -1,0 +1,11 @@
+# github.com/mbvlabs/andurel/pkg/anduin [github.com/mbvlabs/andurel/pkg/anduin.test]
+./router_error_context_test.go:589:9: undefined: CatchErrors
+./router_error_context_test.go:1208:20: undefined: RenderedError
+./router_error_context_test.go:1229:27: undefined: ErrResponseCommitted
+./router_error_lifecycle_test.go:23:9: undefined: CatchErrors
+./router_error_lifecycle_test.go:86:9: undefined: CatchErrors
+./router_error_lifecycle_test.go:263:8: undefined: RenderedError
+./router_error_lifecycle_test.go:405:10: undefined: CommittedError
+./router_error_lifecycle_test.go:407:21: undefined: ErrResponseCommitted
+FAIL	github.com/mbvlabs/andurel/pkg/anduin [build failed]
+FAIL

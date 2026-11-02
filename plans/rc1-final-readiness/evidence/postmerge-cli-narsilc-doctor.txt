@@ -1,0 +1,108 @@
+=== RUN   TestBuildAppRunsNarsilcWhenQueriesExist
+Generating templ files...
+Generating narsilc queries...
+Downloading Go dependencies...
+Building app...
+--- PASS: TestBuildAppRunsNarsilcWhenQueriesExist (0.01s)
+=== RUN   TestDoctorDiagnosticsUseTemporaryCopiesWithoutMutatingOriginalProject
+--- PASS: TestDoctorDiagnosticsUseTemporaryCopiesWithoutMutatingOriginalProject (0.02s)
+=== RUN   TestDoctorSSRListenHealthURLRewritesUnspecifiedBind
+=== PAUSE TestDoctorSSRListenHealthURLRewritesUnspecifiedBind
+=== RUN   TestDoctorSSRListenHealthURLRejectsServiceHostname
+=== PAUSE TestDoctorSSRListenHealthURLRejectsServiceHostname
+=== RUN   TestDoctorSSRListenHealthURLAcceptsLoopback
+=== PAUSE TestDoctorSSRListenHealthURLAcceptsLoopback
+=== RUN   TestDoctorBuildReportSummaryHintsAndDetails
+--- PASS: TestDoctorBuildReportSummaryHintsAndDetails (0.00s)
+=== RUN   TestDoctorSummaryMessages
+--- PASS: TestDoctorSummaryMessages (0.00s)
+=== RUN   TestDoctorVersionHelpers
+--- PASS: TestDoctorVersionHelpers (0.00s)
+=== RUN   TestDoctorLockAndVersionChecks
+--- PASS: TestDoctorLockAndVersionChecks (0.00s)
+=== RUN   TestDoctorProjectDetection
+--- PASS: TestDoctorProjectDetection (0.00s)
+=== RUN   TestRunDoctorStructuredPassAndFail
+--- PASS: TestRunDoctorStructuredPassAndFail (0.08s)
+=== RUN   TestDoctorGoVetAndTidyChecks
+--- PASS: TestDoctorGoVetAndTidyChecks (0.14s)
+=== RUN   TestDoctorTemplGenerateChecks
+--- PASS: TestDoctorTemplGenerateChecks (0.00s)
+=== RUN   TestDoctorVersionCommandHelpers
+--- PASS: TestDoctorVersionCommandHelpers (0.00s)
+=== RUN   TestDoctorCollectReportAndCodeGenerationChecks
+--- PASS: TestDoctorCollectReportAndCodeGenerationChecks (0.08s)
+=== RUN   TestRunDoctorHumanPassWarnAndProjectFailure
+--- PASS: TestRunDoctorHumanPassWarnAndProjectFailure (0.01s)
+=== RUN   TestRunDoctorHumanFailureSummary
+--- PASS: TestRunDoctorHumanFailureSummary (0.00s)
+=== RUN   TestDoctorToolVersionMismatchesAndUnknowns
+--- PASS: TestDoctorToolVersionMismatchesAndUnknowns (0.00s)
+=== RUN   TestCheckNarsilcRuntimeStates
+=== RUN   TestCheckNarsilcRuntimeStates/missing_lock
+=== RUN   TestCheckNarsilcRuntimeStates/not_configured
+=== RUN   TestCheckNarsilcRuntimeStates/aligned
+=== RUN   TestCheckNarsilcRuntimeStates/mismatched
+=== RUN   TestCheckNarsilcRuntimeStates/missing_requirement
+=== RUN   TestCheckNarsilcRuntimeStates/local_replacement
+=== RUN   TestCheckNarsilcRuntimeStates/unavailable_module_data
+--- PASS: TestCheckNarsilcRuntimeStates (0.00s)
+    --- PASS: TestCheckNarsilcRuntimeStates/missing_lock (0.00s)
+    --- PASS: TestCheckNarsilcRuntimeStates/not_configured (0.00s)
+    --- PASS: TestCheckNarsilcRuntimeStates/aligned (0.00s)
+    --- PASS: TestCheckNarsilcRuntimeStates/mismatched (0.00s)
+    --- PASS: TestCheckNarsilcRuntimeStates/missing_requirement (0.00s)
+    --- PASS: TestCheckNarsilcRuntimeStates/local_replacement (0.00s)
+    --- PASS: TestCheckNarsilcRuntimeStates/unavailable_module_data (0.00s)
+=== RUN   TestDoctorReportsNarsilcRuntimeMismatchOnBothSurfaces
+--- PASS: TestDoctorReportsNarsilcRuntimeMismatchOnBothSurfaces (0.01s)
+=== RUN   TestSetVersionNarsilcRuntimeMismatchIsNotSilent
+--- PASS: TestSetVersionNarsilcRuntimeMismatchIsNotSilent (0.00s)
+=== RUN   TestInspectNarsilcRuntimeStates
+=== RUN   TestInspectNarsilcRuntimeStates/aligned
+=== RUN   TestInspectNarsilcRuntimeStates/mismatched
+=== RUN   TestInspectNarsilcRuntimeStates/missing_requirement
+=== RUN   TestInspectNarsilcRuntimeStates/local_replacement
+=== RUN   TestInspectNarsilcRuntimeStates/versioned_replacement
+=== RUN   TestInspectNarsilcRuntimeStates/non-applying_versioned_replacement
+=== RUN   TestInspectNarsilcRuntimeStates/missing_go.mod
+=== RUN   TestInspectNarsilcRuntimeStates/malformed_go.mod
+=== RUN   TestInspectNarsilcRuntimeStates/invalid_tool_version
+--- PASS: TestInspectNarsilcRuntimeStates (0.00s)
+    --- PASS: TestInspectNarsilcRuntimeStates/aligned (0.00s)
+    --- PASS: TestInspectNarsilcRuntimeStates/mismatched (0.00s)
+    --- PASS: TestInspectNarsilcRuntimeStates/missing_requirement (0.00s)
+    --- PASS: TestInspectNarsilcRuntimeStates/local_replacement (0.00s)
+    --- PASS: TestInspectNarsilcRuntimeStates/versioned_replacement (0.00s)
+    --- PASS: TestInspectNarsilcRuntimeStates/non-applying_versioned_replacement (0.00s)
+    --- PASS: TestInspectNarsilcRuntimeStates/missing_go.mod (0.00s)
+    --- PASS: TestInspectNarsilcRuntimeStates/malformed_go.mod (0.00s)
+    --- PASS: TestInspectNarsilcRuntimeStates/invalid_tool_version (0.00s)
+=== RUN   TestSetVersionNarsilcRuntimeReportMatrix
+=== RUN   TestSetVersionNarsilcRuntimeReportMatrix/equal_versions
+=== RUN   TestSetVersionNarsilcRuntimeReportMatrix/mismatched_versions
+=== RUN   TestSetVersionNarsilcRuntimeReportMatrix/missing_runtime_requirement_is_not_injected
+=== RUN   TestSetVersionNarsilcRuntimeReportMatrix/local_replacement_is_unverifiable
+=== RUN   TestSetVersionNarsilcRuntimeReportMatrix/versioned_replacement_is_unverifiable
+=== RUN   TestSetVersionNarsilcRuntimeReportMatrix/unavailable_module_data_is_unverifiable
+=== RUN   TestSetVersionNarsilcRuntimeReportMatrix/unrelated_tool_leaves_narsilc_alone
+--- PASS: TestSetVersionNarsilcRuntimeReportMatrix (0.01s)
+    --- PASS: TestSetVersionNarsilcRuntimeReportMatrix/equal_versions (0.00s)
+    --- PASS: TestSetVersionNarsilcRuntimeReportMatrix/mismatched_versions (0.00s)
+    --- PASS: TestSetVersionNarsilcRuntimeReportMatrix/missing_runtime_requirement_is_not_injected (0.00s)
+    --- PASS: TestSetVersionNarsilcRuntimeReportMatrix/local_replacement_is_unverifiable (0.00s)
+    --- PASS: TestSetVersionNarsilcRuntimeReportMatrix/versioned_replacement_is_unverifiable (0.00s)
+    --- PASS: TestSetVersionNarsilcRuntimeReportMatrix/unavailable_module_data_is_unverifiable (0.00s)
+    --- PASS: TestSetVersionNarsilcRuntimeReportMatrix/unrelated_tool_leaves_narsilc_alone (0.00s)
+=== RUN   TestSetVersionStructuredNarsilcMismatch
+--- PASS: TestSetVersionStructuredNarsilcMismatch (0.00s)
+=== RUN   TestNarsilcQueryMismatchReadsAsQueryProblem
+--- PASS: TestNarsilcQueryMismatchReadsAsQueryProblem (0.01s)
+=== CONT  TestDoctorSSRListenHealthURLRewritesUnspecifiedBind
+--- PASS: TestDoctorSSRListenHealthURLRewritesUnspecifiedBind (0.00s)
+=== CONT  TestDoctorSSRListenHealthURLAcceptsLoopback
+--- PASS: TestDoctorSSRListenHealthURLAcceptsLoopback (0.00s)
+=== CONT  TestDoctorSSRListenHealthURLRejectsServiceHostname
+--- PASS: TestDoctorSSRListenHealthURLRejectsServiceHostname (0.00s)
+PASS
+ok  	github.com/mbvlabs/andurel/v2/cli	0.428s

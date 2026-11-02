@@ -1,0 +1,47 @@
+ANDUREL_GOLDEN_RELEASE=1 ANDUREL_GOLDEN_FULL=1 go test ./golden/... -v -timeout 45m
+=== RUN   TestVerifyEntityColumnsDrift
+--- PASS: TestVerifyEntityColumnsDrift (59.20s)
+=== RUN   TestGenerateMigration
+--- PASS: TestGenerateMigration (0.42s)
+=== RUN   TestGenerateMigrationDoesNotNeedDatabaseConfiguration
+--- PASS: TestGenerateMigrationDoesNotNeedDatabaseConfiguration (0.18s)
+=== RUN   TestInspectViewsOnGeneratedApp
+--- PASS: TestInspectViewsOnGeneratedApp (0.37s)
+=== RUN   TestNewProjectInertia
+=== RUN   TestNewProjectInertia/inertia-react
+=== RUN   TestNewProjectInertia/inertia-vue
+--- PASS: TestNewProjectInertia (0.32s)
+    --- PASS: TestNewProjectInertia/inertia-react (0.15s)
+    --- PASS: TestNewProjectInertia/inertia-vue (0.17s)
+=== RUN   TestNewProjectFullScaffold
+=== RUN   TestNewProjectFullScaffold/postgresql-inertia-vue
+=== RUN   TestNewProjectFullScaffold/postgresql-inertia-react
+=== RUN   TestNewProjectFullScaffold/postgresql-inertia-svelte
+--- PASS: TestNewProjectFullScaffold (15.62s)
+    --- PASS: TestNewProjectFullScaffold/postgresql-inertia-vue (6.02s)
+    --- PASS: TestNewProjectFullScaffold/postgresql-inertia-react (4.70s)
+    --- PASS: TestNewProjectFullScaffold/postgresql-inertia-svelte (4.90s)
+=== RUN   TestPatternsCompile
+--- PASS: TestPatternsCompile (17.36s)
+=== RUN   TestPatternsShowDomainEntity
+=== RUN   TestPatternsShowDomainEntity/row_exists
+=== RUN   TestPatternsShowDomainEntity/row_missing
+--- PASS: TestPatternsShowDomainEntity (2.55s)
+    --- PASS: TestPatternsShowDomainEntity/row_exists (0.04s)
+    --- PASS: TestPatternsShowDomainEntity/row_missing (0.04s)
+=== RUN   TestPatternsShowDomainMatchesScaffoldUser
+--- PASS: TestPatternsShowDomainMatchesScaffoldUser (0.41s)
+=== RUN   TestPatternsShowDomainRenderedCompiles
+--- PASS: TestPatternsShowDomainRenderedCompiles (0.72s)
+=== RUN   TestSyncEmail
+--- PASS: TestSyncEmail (1.34s)
+=== RUN   TestSyncRoutes
+--- PASS: TestSyncRoutes (0.18s)
+=== RUN   TestSyncPayloads
+--- PASS: TestSyncPayloads (0.16s)
+=== RUN   TestSyncQueries
+--- PASS: TestSyncQueries (2.29s)
+=== RUN   TestVerifyLayerProbes
+--- PASS: TestVerifyLayerProbes (10.53s)
+PASS
+ok  	github.com/mbvlabs/andurel/v2/golden	125.520s

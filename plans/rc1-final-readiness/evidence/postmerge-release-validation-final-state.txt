@@ -1,0 +1,10 @@
+date: 2026-11-02T20:37:57+00:00
+HEAD: 41657d5dee3f043916c2cb12a3bc4a28ee19082b
+--- git status --porcelain=v1 ---
+?? docs/release-notes/v2.0.0-rc.1.md
+?? plans/rc1-final-readiness/
+--- tracked diff --stat ---
+--- tracked diff check ---
+tracked-diff exit: 0
+--- untracked file count ---
+141

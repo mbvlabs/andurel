@@ -1,0 +1,12 @@
+== gofmt -l . ==
+== go fix ==
+== go vet ==
+== go test ==
+ok  	github.com/mbvlabs/andurel/pkg/anduin	0.254s
+ok  	github.com/mbvlabs/andurel/pkg/anduin/anduintest	0.006s
+== GOWORK=off go test ==
+ok  	github.com/mbvlabs/andurel/pkg/anduin	0.253s
+ok  	github.com/mbvlabs/andurel/pkg/anduin/anduintest	0.010s
+== race ==
+ok  	github.com/mbvlabs/andurel/pkg/anduin	1.428s
+ok  	github.com/mbvlabs/andurel/pkg/anduin/anduintest	1.036s

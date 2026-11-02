@@ -1,0 +1,37 @@
+$ source archive vs authenticated module-cache comparison
+
+== anduin v0.8.0 @ 718076edfafe0735032bf6a2d457b5c09bbd8251 ==
+$ git archive 718076edfafe0735032bf6a2d457b5c09bbd8251 pkg/anduin | tar -x -C /tmp/opencode/t09-source-verify/anduin
+$ diff -r --exclude=LICENSE /tmp/opencode/t09-source-verify/anduin/pkg/anduin /home/mbv/go/pkg/mod/github.com/mbvlabs/andurel/pkg/anduin@v0.8.0
+no source differences
+$ cmp /home/mbv/go/pkg/mod/github.com/mbvlabs/andurel/pkg/anduin@v0.8.0/LICENSE /home/mbv/work/andurel-rc1-work/LICENSE
+LICENSE bytes identical to repository root
+
+== inertia v0.14.1 @ c6c724fa8beb0b563fd4966d3d7748af70ad6f46 ==
+$ git archive c6c724fa8beb0b563fd4966d3d7748af70ad6f46 pkg/inertia | tar -x -C /tmp/opencode/t09-source-verify/inertia
+$ diff -r --exclude=LICENSE /tmp/opencode/t09-source-verify/inertia/pkg/inertia /home/mbv/go/pkg/mod/github.com/mbvlabs/andurel/pkg/inertia@v0.14.1
+no source differences
+$ cmp /home/mbv/go/pkg/mod/github.com/mbvlabs/andurel/pkg/inertia@v0.14.1/LICENSE /home/mbv/work/andurel-rc1-work/LICENSE
+LICENSE bytes identical to repository root
+
+== kiks v0.6.1 @ 774f38bd4309e0d7b4b95039c4125e0d14aeebd4 ==
+$ git archive 774f38bd4309e0d7b4b95039c4125e0d14aeebd4 pkg/kiks | tar -x -C /tmp/opencode/t09-source-verify/kiks
+$ diff -r --exclude=LICENSE /tmp/opencode/t09-source-verify/kiks/pkg/kiks /home/mbv/go/pkg/mod/github.com/mbvlabs/andurel/pkg/kiks@v0.6.1
+no source differences
+$ cmp /home/mbv/go/pkg/mod/github.com/mbvlabs/andurel/pkg/kiks@v0.6.1/LICENSE /home/mbv/work/andurel-rc1-work/LICENSE
+LICENSE bytes identical to repository root
+
+== routing v0.9.1 @ 18f329a8ffe1826eddd748e260692d8d20e2dbe6 ==
+$ git archive 18f329a8ffe1826eddd748e260692d8d20e2dbe6 pkg/routing | tar -x -C /tmp/opencode/t09-source-verify/routing
+$ diff -r --exclude=LICENSE /tmp/opencode/t09-source-verify/routing/pkg/routing /home/mbv/go/pkg/mod/github.com/mbvlabs/andurel/pkg/routing@v0.9.1
+no source differences
+$ cmp /home/mbv/go/pkg/mod/github.com/mbvlabs/andurel/pkg/routing@v0.9.1/LICENSE /home/mbv/work/andurel-rc1-work/LICENSE
+LICENSE bytes identical to repository root
+
+== telemetry v0.2.3 @ f55963112cb50a84ed9fd7322e94fe0e905d7a33 ==
+$ git archive f55963112cb50a84ed9fd7322e94fe0e905d7a33 pkg/telemetry | tar -x -C /tmp/opencode/t09-source-verify/telemetry
+$ diff -r --exclude=LICENSE /tmp/opencode/t09-source-verify/telemetry/pkg/telemetry /home/mbv/go/pkg/mod/github.com/mbvlabs/andurel/pkg/telemetry@v0.2.3
+no source differences
+$ cmp /home/mbv/go/pkg/mod/github.com/mbvlabs/andurel/pkg/telemetry@v0.2.3/LICENSE /home/mbv/work/andurel-rc1-work/LICENSE
+LICENSE bytes identical to repository root
+

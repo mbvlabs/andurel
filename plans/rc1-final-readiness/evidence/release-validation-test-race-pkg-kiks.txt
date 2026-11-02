@@ -1,0 +1,4 @@
+module: github.com/mbvlabs/andurel/pkg/kiks
+cwd: /home/mbv/work/andurel-rc1-work/pkg/kiks
+ok  	github.com/mbvlabs/andurel/pkg/kiks	3.159s
+EXIT: 0

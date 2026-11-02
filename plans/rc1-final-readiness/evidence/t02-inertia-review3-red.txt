@@ -1,0 +1,16 @@
+=== RUN   TestCaptureWriterDiscardBufferedResetsResponseAndPreservesMetadataHeaders
+    middleware_test.go:158: Retry-After = "", want 60
+--- FAIL: TestCaptureWriterDiscardBufferedResetsResponseAndPreservesMetadataHeaders (0.00s)
+=== RUN   TestMiddlewarePreservesRetryAfterFromRateLimit
+    middleware_test.go:355: Retry-After = "", want 60
+--- FAIL: TestMiddlewarePreservesRetryAfterFromRateLimit (0.00s)
+=== RUN   TestMiddlewarePreservesAuthenticationChallenge
+=== RUN   TestMiddlewarePreservesAuthenticationChallenge/document
+=== RUN   TestMiddlewarePreservesAuthenticationChallenge/inertia_visit
+    middleware_test.go:399: WWW-Authenticate = ""
+--- FAIL: TestMiddlewarePreservesAuthenticationChallenge (0.00s)
+    --- PASS: TestMiddlewarePreservesAuthenticationChallenge/document (0.00s)
+    --- FAIL: TestMiddlewarePreservesAuthenticationChallenge/inertia_visit (0.00s)
+FAIL
+FAIL	github.com/mbvlabs/andurel/pkg/inertia	0.009s
+FAIL

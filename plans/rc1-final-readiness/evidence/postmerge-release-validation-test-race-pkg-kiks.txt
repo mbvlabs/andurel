@@ -1,0 +1,6 @@
+date: 2026-11-02T20:37:37+00:00
+module: github.com/mbvlabs/andurel/pkg/kiks
+cwd: /home/mbv/work/andurel-rc1-work/pkg/kiks
+env: GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org CGO_ENABLED=1 CC=zig
+ok  	github.com/mbvlabs/andurel/pkg/kiks	3.161s
+EXIT: 0

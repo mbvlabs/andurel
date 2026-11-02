@@ -1,0 +1,15 @@
+=== RUN   TestMiddlewarePreservesAllowOnInertiaMethodNotAllowed
+--- PASS: TestMiddlewarePreservesAllowOnInertiaMethodNotAllowed (0.00s)
+=== RUN   TestMiddlewarePreservesDownstreamSecurityAndCORSHeaders
+    middleware_test.go:314: Content-Security-Policy = "", want "default-src 'self'"
+--- FAIL: TestMiddlewarePreservesDownstreamSecurityAndCORSHeaders (0.00s)
+=== RUN   TestMiddlewareRenderedRedirectReflashFailureDeliversResponse
+2026/11/02 19:28:22 ERROR anduin: error changed after the response was rendered error="inertia test: guard rejected\ninertia test: reflash failed" rendered_error="inertia test: guard rejected"
+    middleware_test.go:466: status = 200, want 409: 
+--- FAIL: TestMiddlewareRenderedRedirectReflashFailureDeliversResponse (0.00s)
+=== RUN   TestMiddlewareDiscardsBufferedSuccessBeforeHostError
+    middleware_test.go:595: ErrorHandler saw X-Content-Type-Options = "", want nosniff
+--- FAIL: TestMiddlewareDiscardsBufferedSuccessBeforeHostError (0.00s)
+FAIL
+FAIL	github.com/mbvlabs/andurel/pkg/inertia	0.011s
+FAIL

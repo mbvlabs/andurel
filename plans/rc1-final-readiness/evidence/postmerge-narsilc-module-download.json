@@ -1,0 +1,16 @@
+{
+	"Path": "github.com/mbvlabs/narsilc",
+	"Version": "v0.6.4",
+	"Info": "/home/mbv/go/pkg/mod/cache/download/github.com/mbvlabs/narsilc/@v/v0.6.4.info",
+	"GoMod": "/home/mbv/go/pkg/mod/cache/download/github.com/mbvlabs/narsilc/@v/v0.6.4.mod",
+	"Zip": "/home/mbv/go/pkg/mod/cache/download/github.com/mbvlabs/narsilc/@v/v0.6.4.zip",
+	"Dir": "/home/mbv/go/pkg/mod/github.com/mbvlabs/narsilc@v0.6.4",
+	"Sum": "h1:j4eBy7SGZSMECFkQjc0megIr7+tfckxYVPdSiA7Znko=",
+	"GoModSum": "h1:M+ffO0t2stlnmlvh6WrJr/oFdM36CQjjiVeqATa6jz0=",
+	"Origin": {
+		"VCS": "git",
+		"URL": "https://github.com/mbvlabs/narsilc",
+		"Hash": "cf06ce13273079b8d95ae1522180e3a2f0c6d7b4",
+		"Ref": "refs/tags/v0.6.4"
+	}
+}

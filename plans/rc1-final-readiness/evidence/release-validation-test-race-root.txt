@@ -1,0 +1,39 @@
+go test $(go list ./... | grep -v '/golden$') -race -count=1
+ok  	github.com/mbvlabs/andurel/v2	1.319s
+ok  	github.com/mbvlabs/andurel/v2/cli	42.692s
+ok  	github.com/mbvlabs/andurel/v2/cli/internal/columns	1.034s
+ok  	github.com/mbvlabs/andurel/v2/cli/internal/content	2.113s
+ok  	github.com/mbvlabs/andurel/v2/cli/internal/devserver	2.201s
+ok  	github.com/mbvlabs/andurel/v2/cli/internal/devserver/ctxrun	1.027s
+ok  	github.com/mbvlabs/andurel/v2/cli/internal/devserver/proc	1.166s
+ok  	github.com/mbvlabs/andurel/v2/cli/internal/devserver/proxy	1.767s
+ok  	github.com/mbvlabs/andurel/v2/cli/internal/devserver/queue	1.424s
+ok  	github.com/mbvlabs/andurel/v2/cli/internal/devserver/reload	1.192s
+ok  	github.com/mbvlabs/andurel/v2/cli/internal/devserver/server	2.466s
+?   	github.com/mbvlabs/andurel/v2/cli/internal/devserver/state	[no test files]
+ok  	github.com/mbvlabs/andurel/v2/cli/internal/devserver/tools	1.399s
+ok  	github.com/mbvlabs/andurel/v2/cli/internal/devserver/tui	1.454s
+ok  	github.com/mbvlabs/andurel/v2/cli/internal/devserver/watcher	1.772s
+ok  	github.com/mbvlabs/andurel/v2/cli/internal/layers	161.553s
+ok  	github.com/mbvlabs/andurel/v2/cli/output	1.038s
+ok  	github.com/mbvlabs/andurel/v2/cli/patterns	1.114s
+ok  	github.com/mbvlabs/andurel/v2/emailcompiler	1.078s
+ok  	github.com/mbvlabs/andurel/v2/internal/cache	1.015s
+?   	github.com/mbvlabs/andurel/v2/internal/constants	[no test files]
+ok  	github.com/mbvlabs/andurel/v2/internal/errors	1.022s
+ok  	github.com/mbvlabs/andurel/v2/internal/goldentest	1.050s
+ok  	github.com/mbvlabs/andurel/v2/internal/naming	1.050s
+ok  	github.com/mbvlabs/andurel/v2/internal/publishedpins	1.060s
+ok  	github.com/mbvlabs/andurel/v2/internal/testing	1.013s
+?   	github.com/mbvlabs/andurel/v2/internal/testseed	[no test files]
+ok  	github.com/mbvlabs/andurel/v2/layout	19.467s
+ok  	github.com/mbvlabs/andurel/v2/layout/blueprint	1.017s
+ok  	github.com/mbvlabs/andurel/v2/layout/cmds	10.671s
+?   	github.com/mbvlabs/andurel/v2/layout/templates	[no test files]
+ok  	github.com/mbvlabs/andurel/v2/layout/upgrade	2.902s
+?   	github.com/mbvlabs/andurel/v2/layout/versions	[no test files]
+?   	github.com/mbvlabs/andurel/v2/scripts/acceptance/healthchild	[no test files]
+?   	github.com/mbvlabs/andurel/v2/scripts/check-published-pins	[no test files]
+ok  	github.com/mbvlabs/andurel/v2/skills	1.025s
+
+EXIT: 0

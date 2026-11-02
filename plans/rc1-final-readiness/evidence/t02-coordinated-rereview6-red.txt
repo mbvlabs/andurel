@@ -1,0 +1,5 @@
+--- FAIL: TestMergedContextErrWaitsForFrozenPublication (0.00s)
+    router_error_lifecycle_test.go:1308: merged Err = <nil> before wrapper Done closed, want blocked
+FAIL
+FAIL	github.com/mbvlabs/andurel/pkg/anduin	0.009s
+FAIL

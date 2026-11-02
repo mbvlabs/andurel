@@ -1,0 +1,18 @@
+vetting pkg/anduin
+vetting pkg/auth
+vetting pkg/cache
+vetting pkg/email
+vetting pkg/env
+go: no module dependencies to download
+vetting pkg/inertia
+vetting pkg/kiks
+vetting pkg/lifecycle
+go: no module dependencies to download
+vetting pkg/routing
+go: no module dependencies to download
+vetting pkg/storage
+vetting pkg/telemetry
+vetting pkg/validation
+go: no module dependencies to download
+
+EXIT: 0

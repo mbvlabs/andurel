@@ -1,0 +1,2 @@
+$ just check-fmt (post candidate-test change)
+EXIT: 0

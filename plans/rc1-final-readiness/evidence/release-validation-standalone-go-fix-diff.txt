@@ -1,0 +1,9 @@
+===== pkg/anduin: GOWORK=off go fix -diff ./... =====
+EXIT: 0
+
+===== pkg/inertia: GOWORK=off go fix -diff ./... =====
+EXIT: 0
+
+===== pkg/kiks: GOWORK=off go fix -diff ./... =====
+EXIT: 0
+

@@ -1,0 +1,7 @@
+date: 2026-11-02T20:37:32+00:00
+module: github.com/mbvlabs/andurel/pkg/anduin
+cwd: /home/mbv/work/andurel-rc1-work/pkg/anduin
+env: GOWORK=off GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org CGO_ENABLED=1 CC=zig
+ok  	github.com/mbvlabs/andurel/pkg/anduin	1.391s
+ok  	github.com/mbvlabs/andurel/pkg/anduin/anduintest	1.036s
+EXIT: 0

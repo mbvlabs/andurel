@@ -1,0 +1,43 @@
+$ go test ./layout/upgrade -run TestUpgradeToHEAD -count=1 (compile/skip check)
+=== RUN   TestUpgradeToHEAD
+    upgrade_e2e_test.go:77: upgrade end-to-end test requires ANDUREL_UPGRADE_E2E=1
+--- SKIP: TestUpgradeToHEAD (0.00s)
+PASS
+ok  	github.com/mbvlabs/andurel/v2/layout/upgrade	0.006s
+EXIT: 0
+
+$ go test ./layout/upgrade -run "TestPreReleaseUpgradesEmitNoManualActions|TestPreReleaseUpgradeReportHasNoManualActions" -count=1
+=== RUN   TestPreReleaseUpgradesEmitNoManualActions
+--- PASS: TestPreReleaseUpgradesEmitNoManualActions (0.00s)
+=== RUN   TestPreReleaseUpgradeReportHasNoManualActions
+Upgrading framework from v2.0.0-alpha.4 to v2.0.0-beta.5...
+Rendering framework templates...
+
+[DRY RUN] No files will be changed.
+
+[DRY RUN] Would replace framework files:
+  • assets/inertia/root.go.html
+  • cmd/app/main.go
+
+[DRY RUN] Would remove obsolete internal package files:
+  - views/root.go.html
+
+[DRY RUN] Tool changes:
+  Added:
+    dblab (v0.40.2)
+    goose (v3.27.1)
+    mailpit (v1.30.2)
+    narsilc (v0.6.3)
+    tailwindcli (v4.3.2)
+    templ (v0.3.1020)
+    usql (v0.21.4)
+
+[DRY RUN] Would update andurel.toml and andurel.lock
+--- PASS: TestPreReleaseUpgradeReportHasNoManualActions (0.06s)
+PASS
+ok  	github.com/mbvlabs/andurel/v2/layout/upgrade	0.074s
+EXIT: 0
+
+$ go test ./layout/upgrade -count=1
+ok  	github.com/mbvlabs/andurel/v2/layout/upgrade	1.933s
+EXIT: 0

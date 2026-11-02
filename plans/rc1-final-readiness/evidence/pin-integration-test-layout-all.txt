@@ -1,0 +1,6 @@
+ok  	github.com/mbvlabs/andurel/v2/layout	16.082s
+ok  	github.com/mbvlabs/andurel/v2/layout/blueprint	0.003s
+ok  	github.com/mbvlabs/andurel/v2/layout/cmds	0.258s
+?   	github.com/mbvlabs/andurel/v2/layout/templates	[no test files]
+ok  	github.com/mbvlabs/andurel/v2/layout/upgrade	1.608s
+?   	github.com/mbvlabs/andurel/v2/layout/versions	[no test files]
