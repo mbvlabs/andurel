@@ -291,6 +291,37 @@ func TestGeneratedEmailWorkersLogFailures(t *testing.T) {
 	)
 }
 
+// TestGeneratedLoginRacesAreClosed guards the login races: a rehash after login
+// must not overwrite a password changed in between, a token replacement must
+// lock the owner before it deletes the old token, and a user without a password
+// must get the generic credentials error.
+func TestGeneratedLoginRacesAreClosed(t *testing.T) {
+	assertTemplateContains(t, "domains_user.tmpl",
+		"verifiedHash []byte,",
+		"if !bytes.Equal(locked.Password, verifiedHash) {",
+	)
+	assertTemplateContains(t, "services_authentication.tmpl",
+		"if len(user.Password) == 0 {",
+		"auth.DummyVerify(data.Password, i.pepper)",
+		"user.ID, user.Password, data.Password)",
+	)
+	assertTemplateContains(t, "domains_queries_token.tmpl",
+		"-- name: LockTokenOwner :exec",
+		"FROM users\nWHERE id = $1\nFOR UPDATE;",
+	)
+	assertTemplateContains(t, "domains_internal_queries_token.tmpl",
+		"-- name: LockTokenOwner :exec",
+		"func (q *Queries) LockTokenOwner(ctx context.Context, id uuid.UUID) error",
+	)
+
+	tokenTemplate := readLayoutTemplate(t, "domains_token.tmpl")
+	lock := strings.Index(tokenTemplate, "tokens.queries.LockTokenOwner(ctx, userID)")
+	destroy := strings.Index(tokenTemplate, "tokens.DestroyByUserAndScope(ctx, userID, scope)")
+	if lock < 0 || destroy < 0 || lock > destroy {
+		t.Fatalf("replace must call LockTokenOwner before DestroyByUserAndScope (lock=%d, destroy=%d)", lock, destroy)
+	}
+}
+
 func TestGeneratedSessionsCarryVersionAndDropAdmin(t *testing.T) {
 	bp := initializeBlueprint("example.com/app")
 
@@ -311,11 +342,12 @@ func TestGeneratedSessionsCarryVersionAndDropAdmin(t *testing.T) {
 		"SessionVersion:  entity.SessionVersion",
 	)
 	assertTemplateContains(t, "router_middleware_auth.tmpl",
-		"func AuthOnly(users domains.Users)",
+		"func AuthOnly(users domains.Users, hosts *routing.Hosts)",
+		"func signInURL(ctx context.Context, hosts *routing.Hosts) string",
 		"user.SessionVersion != session.SessionVersion",
 		"func ViewerFrom(ctx context.Context) (Viewer, bool)",
 	)
-	assertTemplateContains(t, "runtime_runtime.tmpl", "middleware.AuthOnly(users)")
+	assertTemplateContains(t, "runtime_runtime.tmpl", "middleware.AuthOnly(users, hosts)")
 	assertTemplateContains(t, "database_migrations_users.tmpl",
 		"session_version INTEGER NOT NULL DEFAULT 1",
 	)
@@ -337,6 +369,54 @@ func TestBlueprintCarriesPendingUserCookieField(t *testing.T) {
 	}
 
 	t.Fatal("blueprint cookies are missing the PendingUserID session field")
+}
+
+// TestGeneratedAuthReturnToIsEncryptedAndCleared guards the return-to flow: a
+// signed-out GET stores its host and path in an encrypted, short-lived cookie
+// on the session domain; only a GET does; sign-in and sign-out clear it; and
+// the stored path is checked with anduin.SafeLocalPath before any redirect.
+func TestGeneratedAuthReturnToIsEncryptedAndCleared(t *testing.T) {
+	assertTemplateContains(t, "router_cookies_app.tmpl",
+		"type ReturnTo struct {",
+		"Host routing.HostName",
+		"const ReturnToMaxAge = 600",
+		"kiks.Bagged(kiks.Encrypted[ReturnTo](",
+		`cfg.Name+"_return_to",`,
+		"kiks.MaxAge(ReturnToMaxAge),",
+		"kiks.Domain(cfg.CookieDomain),",
+		"NewReturnToCookie(cfg, secure),",
+	)
+	assertTemplateContains(t, "router_middleware_auth.tmpl",
+		"func rememberReturnTo(ctx context.Context) error {",
+		"request.Method != http.MethodGet",
+		"request.URL.Path == routes.SessionNew.Path()",
+		"anduin.SafeLocalPath(target)",
+		"Host: anduin.RequestHost(ctx),",
+		"func ConsumeReturnTo(ctx context.Context, hosts *routing.Hosts, fallback string) (string, error) {",
+		"kiks.Destroy[ReturnTo](ctx)",
+		"hosts.Lookup(target.Host)",
+		"target.Host == routing.HostPrimary",
+		"hosts.BaseURL(target.Host) + target.Path",
+	)
+	assertTemplateContains(t, "handlers_auth.tmpl",
+		"hosts    *routing.Hosts",
+		"func (h AuthHandler) signedInRedirect(ctx context.Context) error {",
+		"middleware.ConsumeReturnTo(ctx, h.hosts, routes.HomePage.URL())",
+		"h.signedInRedirect(ctx)",
+		"kiks.Destroy[middleware.ReturnTo](ctx)",
+	)
+	assertTemplateContains(t, "runtime_runtime.tmpl",
+		"handlers.NewAuthHandler(identity, renderer, cacheStore, hosts).Register(router)",
+	)
+	assertTemplateContains(t, "handlers_auth_test.tmpl",
+		"func TestAuthOnlyReturnsVisitorToRequestedPathAfterSignIn(",
+		"func TestAuthOnlyDoesNotStoreReturnToForUnsafeMethods(",
+		"func TestSignInIgnoresUnsafeReturnTo(",
+		"func TestSignInRedirectsToAdminHostWithAbsoluteURL(",
+		"func TestSignOutClearsReturnTo(",
+		`path: "//evil.example"`,
+		"path: `/\\evil.example`",
+	)
 }
 
 func assertTemplateContains(t *testing.T, name string, wants ...string) {

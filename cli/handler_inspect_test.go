@@ -352,3 +352,48 @@ func (h ProductHandler) Register(rt *anduin.Router) {
 		})
 	}
 }
+
+// rt.Route(routes.X).Get(h) names the route value, so inspect reports the
+// route's variable, name and path, and the host the route declares.
+func TestHandlerRegisterRoutesReadsRouteValueRegistrations(t *testing.T) {
+	source := `package handlers
+
+import (
+	r "example.com/app/routes"
+
+	"github.com/mbvlabs/andurel/pkg/anduin"
+)
+
+func (h ProductHandler) Register(rt *anduin.Router) {
+	rt.Route(r.ProductIndex).Get(h.Index)
+	admin := rt.Host("admin")
+	admin.Route(r.AdminProduct).Post(h.Create)
+	rt.Route(r.ProductShow).Get(h.Show)
+}
+`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "handlers/products.go", source, parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatalf("parse handler: %v", err)
+	}
+	register := file.Decls[len(file.Decls)-1].(*ast.FuncDecl)
+
+	got := handlerRegisterRoutes(
+		parsedHandlerFile{fset: fset, file: file},
+		register,
+		"example.com/app/routes",
+		map[string]routeManifestRoute{
+			"ProductIndex": {Variable: "ProductIndex", Name: "products.index", Path: "/products", Host: "primary"},
+			"AdminProduct": {Variable: "AdminProduct", Name: "admin.products", Path: "/admin/products", Host: "admin"},
+		},
+		map[string]string{},
+	)
+	want := []handlerRoute{
+		{Method: "GET", Host: "primary", Path: "/products", Action: "Index", Line: 10, Variable: "ProductIndex", Name: "products.index"},
+		{Method: "POST", Host: "admin", Path: "/admin/products", Action: "Create", Line: 12, Variable: "AdminProduct", Name: "admin.products"},
+		{Method: "GET", Host: "primary", Action: "Show", Line: 13, Variable: "ProductShow"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("routes = %#v, want %#v", got, want)
+	}
+}

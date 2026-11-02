@@ -3,7 +3,7 @@
 An Inertia page is a Go handler call plus a component file. The handler owns
 the props and the status; the component owns presentation. Pages live under
 `resources/js/Pages/`, layouts under `resources/js/Layouts/`, and reusable
-components under `resources/js/Components/` or `resources/js/components/ui/`.
+components under `resources/js/Components/`. The scaffold creates `Pages/` and `Layouts/` but not `Components/`; create it when the first shared component appears. Use this one name everywhere, because `Components/` and `components/` collide on macOS and Windows.
 
 The component string passed to `renderer.Page` is the page's path relative to
 `resources/js/Pages/`, without the extension and case-sensitive:

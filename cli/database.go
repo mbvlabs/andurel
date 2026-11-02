@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -178,7 +179,10 @@ func createMigrationFile(rootDir, name string) (string, error) {
 		)
 	}
 
-	version := migrationNow().UTC().Format("20060102150405")
+	version, err := nextMigrationVersion(migrationsDir, migrationNow())
+	if err != nil {
+		return "", err
+	}
 	fileName := version + "_" + baseName + ".sql"
 	path := filepath.Join(migrationsDir, fileName)
 	if _, err := os.Lstat(path); err == nil {
@@ -218,6 +222,55 @@ func createMigrationFile(rootDir, name string) (string, error) {
 		return "", err
 	}
 	return filepath.ToSlash(filepath.Join("migrations", fileName)), nil
+}
+
+// nextMigrationVersion returns the goose version for a new migration. It is
+// the UTC timestamp of now, unless the newest existing migration is at or
+// after that second; then it is one above the newest, so two generations in
+// the same second (or after a clock step back) still sort strictly increasing
+// and goose never sees a duplicate version.
+func nextMigrationVersion(migrationsDir string, now time.Time) (string, error) {
+	newest, err := newestMigrationVersion(migrationsDir)
+	if err != nil {
+		return "", err
+	}
+	version, err := strconv.ParseUint(now.UTC().Format("20060102150405"), 10, 64)
+	if err != nil {
+		return "", err
+	}
+	if version <= newest {
+		version = newest + 1
+	}
+	return fmt.Sprintf("%014d", version), nil
+}
+
+// newestMigrationVersion returns the largest numeric version prefix among the
+// .sql files in migrationsDir, or 0 when there are none. Files without a
+// numeric prefix are ignored, matching goose's version parsing.
+func newestMigrationVersion(migrationsDir string) (uint64, error) {
+	entries, err := os.ReadDir(migrationsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	var newest uint64
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		prefix, _, found := strings.Cut(entry.Name(), "_")
+		if !found {
+			continue
+		}
+		version, err := strconv.ParseUint(prefix, 10, 64)
+		if err != nil {
+			continue
+		}
+		newest = max(newest, version)
+	}
+	return newest, nil
 }
 
 func migrationFileBaseName(name string) (string, error) {
@@ -899,13 +952,35 @@ func openAdminConnection() (dbConfig, adminConnection, context.Context, context.
 	if err != nil {
 		cancel()
 		return dbConfig{}, nil, nil, nil, fmt.Errorf(
-			"connect to postgres admin database %q on %s failed",
+			"connect to postgres admin database %q on %s failed: %w",
 			adminDB,
 			net.JoinHostPort(cfg.Host, cfg.Port),
+			redactDatabaseError(err, cfg.Password),
 		)
 	}
 
 	return cfg, conn, ctx, cancel, nil
+}
+
+// redactDatabaseError keeps the driver's reason (wrong password, connection
+// refused, unknown database) but removes the password. The driver can echo the
+// connection URL, which carries the password, in its message.
+func redactDatabaseError(err error, password string) error {
+	if err == nil || password == "" {
+		return err
+	}
+
+	message := err.Error()
+	redacted := strings.NewReplacer(
+		password, "***",
+		url.QueryEscape(password), "***",
+		url.PathEscape(password), "***",
+	).Replace(message)
+	if redacted == message {
+		return err
+	}
+
+	return errors.New(redacted)
 }
 
 func dropDatabaseWithConn(

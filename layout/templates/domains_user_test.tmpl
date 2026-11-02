@@ -465,3 +465,89 @@ func TestUsers_ConcurrentChangePasswordAndValidationBothPersist(t *testing.T) {
 		t.Fatal("password change was lost")
 	}
 }
+
+func TestUsers_RehashPasswordReplacesVerifiedHash(t *testing.T) {
+	t.Parallel()
+
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	users := domains.NewUsers(db)
+
+	const password = "correct horse battery staple"
+	created, err := users.Create(t.Context(), "old-pepper", domains.CreateUserData{
+		Email: "rehash-replaces@example.com",
+		PasswordPair: domains.PasswordPair{
+			Password:        password,
+			ConfirmPassword: password,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	if _, err := users.RehashPassword(t.Context(), "test-pepper", created.ID, created.Password, password); err != nil {
+		t.Fatalf("rehash password: %v", err)
+	}
+
+	found, err := users.Find(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	if string(found.Password) == string(created.Password) {
+		t.Fatal("rehash did not replace the hash")
+	}
+
+	valid, err := auth.VerifyPassword(string(found.Password), password, "test-pepper")
+	if err != nil {
+		t.Fatalf("verify password: %v", err)
+	}
+	if !valid {
+		t.Fatal("rehashed password does not verify with the current pepper")
+	}
+}
+
+// TestUsers_RehashPasswordKeepsConcurrentChange covers a sign-in that verified
+// an old hash, then lost the race to a password change. The rehash must not
+// write the old password back over the new one.
+func TestUsers_RehashPasswordKeepsConcurrentChange(t *testing.T) {
+	t.Parallel()
+
+	db := testCluster.NewTestDB(t, migrations.Migrations, ".")
+	users := domains.NewUsers(db)
+
+	const oldPassword = "correct horse battery staple"
+	created, err := users.Create(t.Context(), "old-pepper", domains.CreateUserData{
+		Email: "rehash-race@example.com",
+		PasswordPair: domains.PasswordPair{
+			Password:        oldPassword,
+			ConfirmPassword: oldPassword,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	verifiedHash := created.Password
+
+	const newPassword = "new correct horse battery staple"
+	if _, err := users.ChangePassword(t.Context(), "test-pepper", created.ID, domains.PasswordPair{
+		Password:        newPassword,
+		ConfirmPassword: newPassword,
+	}); err != nil {
+		t.Fatalf("change password: %v", err)
+	}
+
+	if _, err := users.RehashPassword(t.Context(), "test-pepper", created.ID, verifiedHash, oldPassword); err != nil {
+		t.Fatalf("rehash password: %v", err)
+	}
+
+	found, err := users.Find(t.Context(), created.ID)
+	if err != nil {
+		t.Fatalf("find: %v", err)
+	}
+	valid, err := auth.VerifyPassword(string(found.Password), newPassword, "test-pepper")
+	if err != nil {
+		t.Fatalf("verify password: %v", err)
+	}
+	if !valid {
+		t.Fatal("rehash overwrote a concurrent password change")
+	}
+}

@@ -69,7 +69,7 @@ func dbHandleAnalyzer(cfg Config) *analysis.Analyzer {
 						"; only persistence layers hold the database handle"
 					if isTestFilePosition(pass, ident.Pos()) {
 						message = "test references storage." + object.Name() +
-							"; seed through a domains or services method, or inject a clock/domain seam, instead of holding the database handle"
+							"; seed through a domains or services method, or inject a clock/domain seam, instead of holding the database handle; storagetest helpers (NewTestDB) build the database, see andurel patterns show test-service"
 					}
 					pass.Report(analysis.Diagnostic{
 						Pos:     ident.Pos(),
@@ -106,7 +106,7 @@ func dbHandleAnalyzer(cfg Config) *analysis.Analyzer {
 						"; only domains/** executes SQL"
 					if isTestFilePosition(pass, selector.Pos()) {
 						message = "test calls SQL method " + receiver + "." + method.Name() +
-							"; seed through a domains or services method, or inject a clock/domain seam, instead of raw SQL"
+							"; seed through a domains or services method, or inject a clock/domain seam, instead of raw SQL; storagetest helpers (NewTestDB) build the database, see andurel patterns show test-service"
 					}
 					pass.Report(analysis.Diagnostic{
 						Pos:     selector.Pos(),

@@ -2,7 +2,10 @@ package anduin
 
 import (
 	"context"
+	"fmt"
+	"maps"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 
@@ -42,11 +45,11 @@ func WithHosts(hosts *routing.Hosts) Option {
 }
 
 // Router registers handlers and dispatches them over net/http's ServeMux. It
-// owns an http.ServeMux per virtual host; Router itself is not a listener (see
-// Server). A test and a production process share the same Router.
+// owns one route table per host; Router itself is not a listener (see Server).
+// A test and a production process share the same Router.
 type Router struct {
-	primary       *http.ServeMux
-	hosts         map[routing.HostName]*http.ServeMux
+	primary       *hostTable
+	hosts         map[routing.HostName]*hostTable
 	hostsRegistry *routing.Hosts
 	mw            []Middleware
 	onError       ErrorHandler
@@ -57,12 +60,37 @@ type Router struct {
 	built   bool
 }
 
+// fallbackPolicy says what a non-primary host does with a request none of its
+// own routes match.
+type fallbackPolicy int
+
+const (
+	fallbackUnset fallbackPolicy = iota
+	fallbackToPrimary
+	fallbackIsolate
+)
+
+// hostTable is one host's route table: a ServeMux, the number of routes
+// registered on it, its fallback policy and its host middleware. The primary
+// table has no policy because it is the fallback target itself.
+type hostTable struct {
+	name       routing.HostName
+	mux        *http.ServeMux
+	routes     int
+	policy     fallbackPolicy
+	middleware []Middleware
+}
+
+func newHostTable(name routing.HostName) *hostTable {
+	return &hostTable{name: name, mux: http.NewServeMux()}
+}
+
 // NewRouter constructs a Router. Options are applied before any route is
 // registered.
 func NewRouter(opts ...Option) *Router {
 	rt := &Router{
-		primary: http.NewServeMux(),
-		hosts:   make(map[routing.HostName]*http.ServeMux),
+		primary: newHostTable(routing.HostPrimary),
+		hosts:   make(map[routing.HostName]*hostTable),
 		onError: defaultErrorHandler,
 	}
 	for _, opt := range opts {
@@ -106,32 +134,28 @@ func (rt *Router) Use(mw ...Middleware) {
 	rt.mw = append(rt.mw, mw...)
 }
 
-// Host returns a named virtual host. Registering routes on it binds them to the
-// hostname(s) configured for name via WithHosts. The returned Host is a thin
-// view over a per-host ServeMux.
-func (rt *Router) Host(name routing.HostName) *Host {
-	if name == "" {
-		name = routing.HostPrimary
-	}
-	rt.mu.Lock()
-	defer rt.mu.Unlock()
-	mux, ok := rt.hosts[name]
-	if !ok {
-		mux = http.NewServeMux()
-		rt.hosts[name] = mux
-	}
-	return &Host{router: rt, mux: mux, name: name}
-}
-
 // Handler returns an http.Handler that dispatches on Host, runs the global
 // middleware chain, calls the matched anduin.Handler, and routes any returned
 // error to the ErrorHandler. The result is cached; call Use and register routes
 // before the first call.
+//
+// Handler panics when a non-primary host has routes but no fallback policy. Call
+// Host(name).FallbackToPrimary() or Host(name).Isolate() for every such host.
 func (rt *Router) Handler() http.Handler {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 	if rt.built {
 		return rt.handler
+	}
+
+	for _, name := range slices.Sorted(maps.Keys(rt.hosts)) {
+		table := rt.hosts[name]
+		if table.routes > 0 && table.policy == fallbackUnset {
+			panic(fmt.Sprintf(
+				"anduin: host %q has routes but no fallback policy; call rt.Host(%q).FallbackToPrimary() or .Isolate()",
+				name, name,
+			))
+		}
 	}
 
 	handler := http.Handler(http.HandlerFunc(rt.serve))
@@ -143,14 +167,20 @@ func (rt *Router) Handler() http.Handler {
 	return rt.handler
 }
 
-func (rt *Router) register(mux *http.ServeMux, method, pattern string, h Handler, mw []Middleware) {
+func (rt *Router) register(table *hostTable, method, pattern string, h Handler, mw []Middleware) {
 	if h == nil {
 		panic("anduin: nil handler for " + method + " " + pattern)
 	}
-	if mux == nil {
-		panic("anduin: router has no mux for " + method + " " + pattern)
-	}
-	mux.Handle(method+" "+MuxPattern(pattern), rt.routeHandler(h, mw))
+	table.mux.Handle(method+" "+MuxPattern(pattern), rt.routeHandler(h, mw))
+	rt.countRoute(table)
+}
+
+// countRoute records one more route on table. Fallback policy checks read the
+// count, so it is kept under the router lock.
+func (rt *Router) countRoute(table *hostTable) {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	table.routes++
 }
 
 // routeHandler adapts an anduin.Handler into the http.HandlerFunc that
@@ -173,7 +203,9 @@ func (rt *Router) routeHandler(h Handler, mw []Middleware) http.HandlerFunc {
 
 // serve is the router's http.Handler entry point. It creates the per-request
 // transport state, runs the global middleware chain, and dispatches to the
-// host-specific ServeMux.
+// route table that serves the request. The host's own middleware runs between
+// the global chain and dispatch, and only when the host's own table serves the
+// request.
 func (rt *Router) serve(w http.ResponseWriter, r *http.Request) {
 	host := rt.resolveHost(r.Host)
 	ctx := withState(r.Context(), &requestState{request: r, writer: w, host: host})
@@ -188,21 +220,56 @@ func (rt *Router) serve(w http.ResponseWriter, r *http.Request) {
 		// sets Pattern and path values on the request we can observe.
 		request = request.WithContext(ctx)
 		ctx = ReplaceRequest(ctx, request)
-		mux := rt.muxForRequest(host)
-		writer := &muxStatusWriter{ResponseWriter: ResponseWriter(ctx), request: request}
-		mux.ServeHTTP(writer, request)
-		switch writer.status {
-		case http.StatusNotFound:
-			rt.handleError(ctx, ErrNotFound)
-		case http.StatusMethodNotAllowed:
-			rt.handleError(ctx, ErrMethodNotAllowed)
+
+		table, hostMiddleware := rt.tableFor(host, request)
+		dispatch := func(ctx context.Context) error {
+			rt.dispatch(ctx, table)
+			return nil
 		}
-		return nil
+		return applyMiddleware(dispatch, hostMiddleware)(ctx)
 	}
 
 	handler := applyMiddleware(base, rt.mw)
 	if err := handler(ctx); err != nil {
 		rt.handleError(ctx, err)
+	}
+}
+
+// tableFor picks the route table that serves request on host, and returns the
+// middleware that table's host runs first. A host with no routes is served by
+// the primary table. A FallbackToPrimary host is served by the primary table
+// when its own table has no match for the request, and in that case no host
+// middleware runs.
+func (rt *Router) tableFor(host routing.HostName, request *http.Request) (*hostTable, []Middleware) {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+
+	if host == routing.HostPrimary {
+		return rt.primary, slices.Clone(rt.primary.middleware)
+	}
+	table, ok := rt.hosts[host]
+	if !ok || table.routes == 0 {
+		return rt.primary, nil
+	}
+	if table.policy == fallbackToPrimary {
+		if _, pattern := table.mux.Handler(request); pattern == "" {
+			return rt.primary, nil
+		}
+	}
+	return table, slices.Clone(table.middleware)
+}
+
+// dispatch hands the request to table's ServeMux and turns the mux's own 404
+// and 405 responses into router errors.
+func (rt *Router) dispatch(ctx context.Context, table *hostTable) {
+	request := Request(ctx)
+	writer := &muxStatusWriter{ResponseWriter: ResponseWriter(ctx), request: request}
+	table.mux.ServeHTTP(writer, request)
+	switch writer.status {
+	case http.StatusNotFound:
+		rt.handleError(ctx, ErrNotFound)
+	case http.StatusMethodNotAllowed:
+		rt.handleError(ctx, ErrMethodNotAllowed)
 	}
 }
 
@@ -266,16 +333,6 @@ var (
 	_ interface{ Unwrap() http.ResponseWriter } = (*muxStatusWriter)(nil)
 )
 
-func (rt *Router) muxForRequest(host routing.HostName) *http.ServeMux {
-	rt.mu.Lock()
-	mux, ok := rt.hosts[host]
-	rt.mu.Unlock()
-	if ok {
-		return mux
-	}
-	return rt.primary
-}
-
 // handleError routes err to the ErrorHandler, falling back to a plain response
 // when the handler declines it.
 func (rt *Router) handleError(ctx context.Context, err error) {
@@ -305,45 +362,8 @@ func MuxPattern(pattern string) string {
 		case strings.HasPrefix(segment, ":") && len(segment) > 1:
 			segments[i] = "{" + segment[1:] + "}"
 		case segment == "*":
-			segments[i] = "{path...}"
+			segments[i] = "{" + routing.WildcardParam + "...}"
 		}
 	}
 	return strings.Join(segments, "/")
-}
-
-// Host is a named virtual host: a per-host ServeMux with the same registration
-// surface as Router.
-type Host struct {
-	router *Router
-	mux    *http.ServeMux
-	name   routing.HostName
-}
-
-// Name returns the HostName this Host serves.
-func (h *Host) Name() routing.HostName { return h.name }
-
-// Get registers a GET handler on the host. net/http serves HEAD requests with
-// GET handlers.
-func (h *Host) Get(pattern string, handler Handler, mw ...Middleware) {
-	h.router.register(h.mux, http.MethodGet, pattern, handler, mw)
-}
-
-// Post registers a POST handler on the host.
-func (h *Host) Post(pattern string, handler Handler, mw ...Middleware) {
-	h.router.register(h.mux, http.MethodPost, pattern, handler, mw)
-}
-
-// Put registers a PUT handler on the host.
-func (h *Host) Put(pattern string, handler Handler, mw ...Middleware) {
-	h.router.register(h.mux, http.MethodPut, pattern, handler, mw)
-}
-
-// Patch registers a PATCH handler on the host.
-func (h *Host) Patch(pattern string, handler Handler, mw ...Middleware) {
-	h.router.register(h.mux, http.MethodPatch, pattern, handler, mw)
-}
-
-// Delete registers a DELETE handler on the host.
-func (h *Host) Delete(pattern string, handler Handler, mw ...Middleware) {
-	h.router.register(h.mux, http.MethodDelete, pattern, handler, mw)
 }

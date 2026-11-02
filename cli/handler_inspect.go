@@ -309,7 +309,25 @@ func handlerRegisterRoutes(
 			return true
 		}
 		method, ok := handlerRouteMethods[selector.Sel.Name]
-		if !ok || len(call.Args) < 2 {
+		if !ok {
+			return true
+		}
+		if route, ok := routeValueRegistration(
+			selector,
+			call,
+			method,
+			parsed,
+			router,
+			routesName,
+			routesByVariable,
+			hostNames,
+			hosts,
+			recv,
+		); ok {
+			routes = append(routes, route)
+			return true
+		}
+		if len(call.Args) < 2 {
 			return true
 		}
 		target := rootIdentName(selector.X)
@@ -350,6 +368,89 @@ func handlerRegisterRoutes(
 		return true
 	})
 	return routes
+}
+
+// routeValueRegistration recognizes rt.Route(routes.X).Get(h, ...) and
+// host.Route(routes.X).Get(h, ...). The route value names the path and the host
+// the route is served on, so the host declared on the route wins over the
+// receiver. Without a manifest entry the receiver's host is reported.
+func routeValueRegistration(
+	selector *ast.SelectorExpr,
+	call *ast.CallExpr,
+	method string,
+	parsed parsedHandlerFile,
+	router string,
+	routesName string,
+	routesByVariable map[string]routeManifestRoute,
+	hostNames map[string]string,
+	hosts routerHostBindings,
+	recv string,
+) (handlerRoute, bool) {
+	routeCall, ok := selector.X.(*ast.CallExpr)
+	if !ok || len(routeCall.Args) != 1 || len(call.Args) < 1 {
+		return handlerRoute{}, false
+	}
+	routeSelector, ok := routeCall.Fun.(*ast.SelectorExpr)
+	if !ok || routeSelector.Sel.Name != "Route" {
+		return handlerRoute{}, false
+	}
+	variable := routeValueVariable(routeCall.Args[0], routesName)
+	if variable == "" {
+		return handlerRoute{}, false
+	}
+
+	receiver := rootIdentName(routeSelector.X)
+	host, hostBound := "", false
+	switch {
+	case receiver == router:
+		host, hostBound = routerHostChain(routeSelector.X, router, hostNames)
+	case hosts.has(receiver):
+		binding := hosts[receiver]
+		if binding.ambiguous || !binding.assigned || call.Pos() < binding.position {
+			return handlerRoute{}, false
+		}
+		host, hostBound = binding.host, true
+	default:
+		return handlerRoute{}, false
+	}
+	if !hostBound {
+		host = "primary"
+	}
+
+	route := handlerRoute{
+		Method:   method,
+		Host:     host,
+		Action:   handlerAction(call.Args[0], recv),
+		Line:     parsed.fset.Position(call.Pos()).Line,
+		Variable: variable,
+	}
+	if manifestRoute, ok := routesByVariable[variable]; ok {
+		route.Name = manifestRoute.Name
+		route.Path = manifestRoute.Path
+		if manifestRoute.Host != "" {
+			route.Host = manifestRoute.Host
+		}
+	}
+
+	return route, true
+}
+
+// routeValueVariable returns X for a bare routes.X route value, the argument of
+// rt.Route(routes.X).
+func routeValueVariable(expr ast.Expr, routesName string) string {
+	if routesName == "" {
+		return ""
+	}
+	selector, ok := expr.(*ast.SelectorExpr)
+	if !ok {
+		return ""
+	}
+	pkg, ok := selector.X.(*ast.Ident)
+	if !ok || pkg.Name != routesName {
+		return ""
+	}
+
+	return selector.Sel.Name
 }
 
 // routerHostBindings maps a local variable assigned from rt.Host(...) to the

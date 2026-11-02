@@ -26,6 +26,7 @@ func TestWithHostsDispatchesNamedHost(t *testing.T) {
 		rt.Get("/", func(ctx context.Context) error {
 			return anduin.Text(ctx, http.StatusOK, "primary")
 		})
+		rt.Host(hostAdmin).Isolate()
 		rt.Host(hostAdmin).Get("/", func(ctx context.Context) error {
 			return anduin.Text(ctx, http.StatusOK, "admin")
 		})
@@ -44,6 +45,35 @@ func TestWithHostsDispatchesNamedHost(t *testing.T) {
 	upper := server.Get("/", Header{Name: "Host", Value: "ADMIN.Andurel.Example"})
 	if got := upper.Text(); got != "admin" {
 		t.Fatalf("uppercase admin host body = %q, want admin", got)
+	}
+}
+
+func TestWithRouterOptionsConfiguresRouter(t *testing.T) {
+	t.Parallel()
+
+	const hostAdmin routing.HostName = "admin"
+	hosts, err := routing.NewHosts(map[routing.HostName]routing.HostSpec{
+		routing.HostPrimary: {Hostname: "andurel.example", Protocol: "http"},
+		hostAdmin:           {Hostname: "admin.andurel.example"},
+	})
+	if err != nil {
+		t.Fatalf("new hosts: %v", err)
+	}
+
+	server := New(t, func(rt *anduin.Router) {
+		rt.Get("/", func(ctx context.Context) error {
+			return anduin.Text(ctx, http.StatusOK, "primary")
+		})
+		rt.Host(hostAdmin).Isolate()
+		rt.Host(hostAdmin).Get("/", func(ctx context.Context) error {
+			return anduin.Text(ctx, http.StatusOK, "admin")
+		})
+	}, WithRouterOptions(anduin.WithHosts(hosts)))
+
+	admin := server.Get("/", Header{Name: "Host", Value: "admin.andurel.example"})
+	admin.AssertStatus(http.StatusOK)
+	if got := admin.Text(); got != "admin" {
+		t.Fatalf("admin host body = %q, want admin", got)
 	}
 }
 

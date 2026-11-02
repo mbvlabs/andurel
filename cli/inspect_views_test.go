@@ -238,6 +238,7 @@ type inspectURLRoute struct {
 	Pattern          string   `json:"pattern"`
 	Host             string   `json:"host"`
 	HostConfigKey    string   `json:"host_config_key"`
+	HostSource       string   `json:"host_source"`
 	Origin           string   `json:"origin"`
 	OriginSource     string   `json:"origin_source"`
 	URL              string   `json:"url"`
@@ -295,15 +296,42 @@ func TestInspectURLsResolvesKnownHostsAndReportsMissingOnes(t *testing.T) {
 		t.Fatalf("password route = %#v", password)
 	}
 
+	// HOST_ADMIN is unset, so the admin host defaults to "admin." plus the
+	// primary host, the same hostname config.NewApp builds.
 	admin, ok := byName["admin.home"]
 	if !ok {
 		t.Fatalf("missing admin.home in %#v", report.Routes)
 	}
-	if admin.Host != "admin" || admin.Resolved || admin.URL != "" {
+	if admin.Host != "admin" || !admin.Resolved {
 		t.Fatalf("admin.home = %#v", admin)
 	}
-	if !strings.Contains(admin.UnresolvedReason, "HOST_ADMIN") {
-		t.Fatalf("admin.home reason = %q", admin.UnresolvedReason)
+	if admin.Origin != "http://admin.localhost:8080" ||
+		admin.URL != "http://admin.localhost:8080/" {
+		t.Fatalf("admin.home origin/url = %q / %q", admin.Origin, admin.URL)
+	}
+	if !strings.Contains(admin.HostSource, "HOST_ADMIN not set") {
+		t.Fatalf("admin.home host source = %q", admin.HostSource)
+	}
+}
+
+func TestInspectURLsExtraHostWithoutPrimaryStaysUnresolved(t *testing.T) {
+	root := writeInspectViewsProject(t)
+	unsetEnvForTest(t, "HOST_PRIMARY", "HOST_ADMIN", "PROTOCOL")
+
+	report := decodeInspectEnvelope[inspectURLsReport](
+		t,
+		runInspectJSON(t, root, "inspect", "urls"),
+	)
+	for _, route := range report.Routes {
+		if route.Host != "admin" {
+			continue
+		}
+		if route.Resolved || route.URL != "" {
+			t.Fatalf("admin route resolved without HOST_PRIMARY: %#v", route)
+		}
+		if !strings.Contains(route.UnresolvedReason, "HOST_ADMIN") {
+			t.Fatalf("admin reason = %q, want HOST_ADMIN", route.UnresolvedReason)
+		}
 	}
 }
 

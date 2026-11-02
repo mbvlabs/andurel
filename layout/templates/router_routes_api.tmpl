@@ -6,6 +6,8 @@ import (
 
 const APIPrefix = "/api"
 
+// Health is the liveness probe: it answers 200 while the process runs and
+// never checks the database or other dependencies. Use Ready for that.
 var Health = routing.NewSimpleRoute(
 	"/health",
 	"api.health",

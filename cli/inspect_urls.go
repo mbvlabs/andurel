@@ -44,9 +44,10 @@ func newURLsCommand() *cobra.Command {
 
 Origins come from the application's declared configuration: HOST_PRIMARY,
 HOST_<NAME> for extra hosts, and PROTOCOL. Values are read from exported
-environment variables first, then .env, then config/*.go defaults. A route
-whose host has no configured value is reported with resolved=false and a
-reason; no localhost URL is invented. Dynamic route parameters are reported
+environment variables first, then .env, then config/*.go defaults. An extra
+host with no HOST_<NAME> value defaults to "<name>." followed by HOST_PRIMARY,
+as the application does. A route whose host still has no value is reported
+with resolved=false and a reason; no localhost URL is invented. Dynamic route parameters are reported
 as url_template with the :param segments intact.`,
 		Args:    cobra.NoArgs,
 		Example: "  andurel inspect urls\n  andurel inspect urls --json\n  andurel inspect urls --jq .routes",
@@ -125,7 +126,7 @@ func collectURLsInspection(rootDir string) (urlsInspection, error) {
 		hostValue := route.Host
 		envKey := hostConfigKey(hostValue)
 		entry.HostConfigKey = envKey
-		hostSource := resolver.resolve(envKey)
+		hostSource := resolveRouteHost(resolver, hostValue, envKey)
 		protocolSource := resolver.protocol()
 		entry.HostSource = hostSource.describe()
 		entry.ProtocolSource = protocolSource.describe()
@@ -161,6 +162,28 @@ func collectURLsInspection(rootDir string) (urlsInspection, error) {
 		routes = append(routes, entry)
 	}
 	return urlsInspection{Routes: routes}, nil
+}
+
+// resolveRouteHost resolves the origin host for a route's host name the way the
+// app does. HOST_PRIMARY and an explicit HOST_<NAME> come from the usual sources.
+// An unset HOST_<NAME> defaults to "<name>." followed by HOST_PRIMARY, matching
+// config.NewApp, so an admin host with no explicit value is not reported as
+// unresolved.
+func resolveRouteHost(resolver projectEnvResolver, hostName, envKey string) configValueSource {
+	source := resolver.resolve(envKey)
+	if source.Found || envKey == "HOST_PRIMARY" || hostName == "" {
+		return source
+	}
+	primary := strings.TrimSpace(resolver.resolve("HOST_PRIMARY").Value)
+	if primary == "" {
+		return source
+	}
+	return configValueSource{
+		Key:    envKey,
+		Value:  hostName + "." + primary,
+		Source: "derived",
+		Found:  true,
+	}
 }
 
 func originSourceSummary(hostSource, protocolSource configValueSource) string {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -227,7 +228,7 @@ and the run does not claim whole-project health.
 Pass Go package patterns to scope gofmt, go fix, go vet, layers, and go test,
 for example 'andurel verify ./internal/docs/...'. Package patterns cannot be
 combined with --changed. JSON scope.mode is "packages" and scope.go_packages
-contains the requested patterns; frontend, generated, and content remain global.
+contains the requested patterns. Generated drift is reported only for files in those packages; frontend and content remain global.
 
 The layers step loads the active build target, like go vet: files excluded by
 GOOS, GOARCH, or build constraints are not type-checked or analyzed.
@@ -416,11 +417,12 @@ func runVerify(cmd *cobra.Command, options verifyOptions) error {
 		}
 	}
 	if !report.OK {
+		structured := opts.Mode == output.ModeJSON || opts.Mode == output.ModeAgent
 		failure := output.NewError(
 			output.CodeVerificationFailed,
 			verifySummary(report),
 			output.ExitVerification,
-			"Apply each violation's fix and run andurel verify again.",
+			verifyFailureHint(report, runner.generatedScoped, runner.plan.changed, structured),
 		)
 		failure.Data = report
 		return failure
@@ -464,6 +466,9 @@ type verifyRunner struct {
 	// stage.
 	toolsMissing    bool
 	frontendMissing bool
+	// generatedScoped is true when the generated stage checked drift only for
+	// the scoped packages, so a failure may be fixed by --only instead.
+	generatedScoped bool
 }
 
 func (r *verifyRunner) run() {
@@ -632,9 +637,50 @@ func (r *verifyRunner) runGenerated() verifyStep {
 	if r.toolsMissing {
 		return blockedStep("generated", "Run: "+r.setupFail)
 	}
-	step := verifyGenerated(r.rootDir)
+	scopeDirs, err := r.generatedScopeDirs()
+	if err != nil {
+		scopeDirs = nil
+	}
+	r.generatedScoped = scopeDirs != nil
+	step := verifyGenerated(r.rootDir, scopeDirs)
 	step.Rules = r.stageRuleIDs([]string{"generated"}, verifyStageGenerated)
 	return step
+}
+
+// generatedScopeDirs returns the package directories, relative to the module
+// root, that an explicit package-pattern run checks generated drift for. It
+// returns nil when the whole project is checked: unscoped runs, --changed runs
+// (route and template changes drift files outside the changed packages, so
+// those keep the whole-project check), and patterns that name the module.
+func (r *verifyRunner) generatedScopeDirs() ([]string, error) {
+	if r.plan.scope.Mode != verifyScopePackages || len(r.plan.patterns) == 0 {
+		return nil, nil
+	}
+	if slices.ContainsFunc(r.plan.patterns, isWholeModulePattern) {
+		return nil, nil
+	}
+	dirs, err := goPackageDirs(r.rootDir, r.plan.patterns)
+	if err != nil {
+		return nil, err
+	}
+	scope := make([]string, 0, len(dirs))
+	for _, dir := range dirs {
+		rel, err := filepath.Rel(r.rootDir, dir)
+		if err != nil {
+			return nil, err
+		}
+		scope = append(scope, filepath.ToSlash(rel))
+	}
+	return scope, nil
+}
+
+func isWholeModulePattern(pattern string) bool {
+	switch pattern {
+	case "./...", "...", "all":
+		return true
+	default:
+		return false
+	}
 }
 
 func (r *verifyRunner) runContent() verifyStep {
@@ -818,6 +864,38 @@ func verifySummary(report verifyReport) string {
 			"; blocked: " + strings.Join(blocked, ", ")
 	}
 	return "Verification failed: " + strings.Join(failed, ", ")
+}
+
+// verifyFailureHint is the hint on a failed verify. Its first line says where
+// the report goes in JSON and agent mode, which is stderr. When the generated
+// step failed in a scoped run (explicit packages or --changed), the hint also
+// points at --only, which can leave that whole-project stage out.
+func verifyFailureHint(report verifyReport, generatedScoped, changed, structured bool) string {
+	lines := make([]string, 0, 3)
+	if structured {
+		lines = append(lines, "The failure report is written to stderr, not stdout; read it from stderr.")
+	}
+	lines = append(lines, "Apply each violation's fix and run andurel verify again.")
+	if !verifyStepsFailed(report, "generated") {
+		return strings.Join(lines, "\n")
+	}
+	const onlyHint = "To skip the generated step for this run, rerun with --only listing the stages you need (for example --only gofmt,go-fix,go-vet,layers)."
+	switch {
+	case generatedScoped:
+		lines = append(lines, "The generated step covers only the packages you named. "+onlyHint)
+	case changed:
+		lines = append(lines, "The generated step checks the whole project in --changed mode. "+onlyHint)
+	}
+	return strings.Join(lines, "\n")
+}
+
+func verifyStepsFailed(report verifyReport, name string) bool {
+	for _, step := range report.Steps {
+		if step.Name == name && step.Status == verifyStatusFail {
+			return true
+		}
+	}
+	return false
 }
 
 // goPatternArgs returns the go command patterns for a scoped verify. No
@@ -1307,12 +1385,32 @@ func (r goTestResult) failureDetail(stderr string) string {
 // verifyGenerated reports generated-code drift by reusing doctor's read-only
 // generation checks. A missing tool binary fails the step with a missing-tool
 // violation; out-of-date output fails it with the sync command that fixes it.
-func verifyGenerated(rootDir string) verifyStep {
+//
+// scopeDirs, when non-nil, limits the drift findings to files in those package
+// directories (relative to rootDir). Regeneration still runs whole-project, so
+// the outputs are the same; only drift outside the scope is left unreported.
+// Failures that name no file (a generator that did not run) still fail a scoped
+// run, and the report hint then points at --only.
+func verifyGenerated(rootDir string, scopeDirs []string) verifyStep {
 	step := verifyStepOK("generated")
 	notes := make([]string, 0)
 	for _, result := range codeGenerationChecks(rootDir, false) {
 		switch result.status {
 		case statusFail:
+			if scopeDirs != nil && len(result.changed) > 0 {
+				inScope, outOfScope := splitGeneratedPathsByScope(result.changed, scopeDirs)
+				if len(outOfScope) > 0 {
+					notes = append(notes, fmt.Sprintf(
+						"%s: %d drifted file(s) outside the scoped packages were not checked; a whole-project verify reports them",
+						result.name,
+						len(outOfScope),
+					))
+				}
+				if len(inScope) == 0 {
+					continue
+				}
+				result.changed = inScope
+			}
 			step.Status = verifyStatusFail
 			step.OK = false
 			step.Violations = append(step.Violations, generatedViolations(result)...)
@@ -1334,12 +1432,30 @@ func verifyGenerated(rootDir string) verifyStep {
 	return step
 }
 
+// splitGeneratedPathsByScope divides drifted paths (slash-relative to the module
+// root) into those whose directory is one of scopeDirs and the rest.
+func splitGeneratedPathsByScope(paths, scopeDirs []string) (inScope, outOfScope []string) {
+	for _, p := range paths {
+		if slices.Contains(scopeDirs, path.Dir(filepath.ToSlash(p))) {
+			inScope = append(inScope, p)
+			continue
+		}
+		outOfScope = append(outOfScope, p)
+	}
+	return inScope, outOfScope
+}
+
 // generatedViolations turns one failed generation check into findings. When
 // regeneration lists the changed files, each finding names its source file so a
 // whole-tree generated run still points at the code that owns the drift.
 func generatedViolations(result checkResult) []verifyViolation {
 	file, fix := generatedTarget(result)
 	if len(result.changed) == 0 {
+		// A check that failed without listing files explains its own fix; a
+		// stale-output fix such as andurel sync queries would not help.
+		if result.hint != "" {
+			fix = result.hint
+		}
 		message := result.name + ": " + result.message
 		if len(result.details) > 0 {
 			message += " (" + strings.Join(result.details, "; ") + ")"

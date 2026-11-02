@@ -126,6 +126,9 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 		cfg.App.IsProduction(),
 		anduin.MergeOrigins(cfg.App.Origins(), cfg.HTTP.CSRFTrustedOrigins)...,
 	)
+	// SESSION_COOKIE_DOMAIN shares the CSRF cookie across hosts with the session
+	// cookie. Empty keeps the cookie host-only.
+	csrf.CookieDomain = cfg.Session.CookieDomain
 	bearerSkipper := anduin.SkipCSRFForBearer(routes.APIPrefix, cfg.Session.Name)
 	csrf.Skipper = func(ctx context.Context) bool {
 		return bearerSkipper(ctx) || isSafeViteAssetRequest(ctx)
@@ -142,11 +145,11 @@ func New(ctx context.Context, cfg config.Config) (_ *App, err error) {
 	)
 
 	// The welcome page is public: a new project must be reachable before anyone
-	// signs in. Pass middleware.AuthOnly(users) to Register to protect a page.
+	// signs in. Pass middleware.AuthOnly(users, hosts) to Register to protect a page.
 	handlers.NewPagesHandler(renderer).Register(router)
 	assetsHandler.Register(router)
-	handlers.NewAuthHandler(identity, renderer, cacheStore).Register(router)
-	handlers.NewAPIHandler(db, newReadiness(db, renderer)).Register(router)
+	handlers.NewAuthHandler(identity, renderer, cacheStore, hosts).Register(router)
+	handlers.NewAPIHandler(newReadiness(db, renderer)).Register(router)
 
 	app.Handler = router.Handler()
 	if cfg.HTTP.Compress {
@@ -284,7 +287,7 @@ func newJar(
 	}
 
 	return kiks.NewJar(keys, store,
-		middleware.NewSessionCookie(sessionCfg, appCfg.IsProduction()),
+		middleware.CookieDefinitions(sessionCfg, appCfg.IsProduction())...,
 	)
 }
 
@@ -418,7 +421,10 @@ func NewRenderer(cfg config.Config, hosts *routing.Hosts) (*inertia.Renderer, er
 		inertia.WithFlashProvider(func(ctx context.Context) any {
 			return kiks.Flashes(ctx)
 		}),
-		inertia.WithSSRFailFast(cfg.Inertia.SSRFailFast),
+		// Only production fails a page on an SSR error. Development and tests
+		// fall back to client rendering, so go run and the app tests work
+		// without the Vite dev server or the cmd/ssr sidecar.
+		inertia.WithSSRFailFast(cfg.App.IsProduction() && cfg.Inertia.SSRFailFast),
 	)
 }
 

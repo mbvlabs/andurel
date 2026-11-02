@@ -29,6 +29,7 @@ type options struct {
 	middleware   []anduin.Middleware
 	errorHandler anduin.ErrorHandler
 	hosts        *routing.Hosts
+	routerOpts   []anduin.Option
 }
 
 // WithMiddleware installs global middleware on the test router (for example
@@ -52,6 +53,15 @@ func WithErrorHandler(handler anduin.ErrorHandler) Option {
 func WithHosts(hosts *routing.Hosts) Option {
 	return func(o *options) {
 		o.hosts = hosts
+	}
+}
+
+// WithRouterOptions passes anduin.Options to the test router, for example
+// anduin.WithTelemetry or a host configuration. Options are applied after the
+// helpers above, so they can override them.
+func WithRouterOptions(opts ...anduin.Option) Option {
+	return func(o *options) {
+		o.routerOpts = append(o.routerOpts, opts...)
 	}
 }
 
@@ -82,6 +92,7 @@ func New(t *testing.T, register func(*anduin.Router), opts ...Option) *Server {
 	if cfg.hosts != nil {
 		routerOpts = append(routerOpts, anduin.WithHosts(cfg.hosts))
 	}
+	routerOpts = append(routerOpts, cfg.routerOpts...)
 	rt := anduin.NewRouter(routerOpts...)
 	register(rt)
 	rt.Use(cfg.middleware...)

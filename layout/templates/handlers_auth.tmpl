@@ -18,6 +18,7 @@ import (
 	"github.com/mbvlabs/andurel/pkg/cache"
 	"github.com/mbvlabs/andurel/pkg/inertia"
 	"github.com/mbvlabs/andurel/pkg/kiks"
+	"github.com/mbvlabs/andurel/pkg/routing"
 	"github.com/mbvlabs/andurel/pkg/telemetry"
 )
 
@@ -25,14 +26,18 @@ type AuthHandler struct {
 	identity services.Identity
 	renderer *inertia.Renderer
 	cache    cache.Store
+	hosts    *routing.Hosts
 }
 
+// NewAuthHandler takes the host registry so a sign-in can send the visitor back
+// to a page on another host (see middleware.ConsumeReturnTo).
 func NewAuthHandler(
 	identity services.Identity,
 	renderer *inertia.Renderer,
 	store cache.Store,
+	hosts *routing.Hosts,
 ) AuthHandler {
-	return AuthHandler{identity: identity, renderer: renderer, cache: store}
+	return AuthHandler{identity: identity, renderer: renderer, cache: store, hosts: hosts}
 }
 
 const (
@@ -40,41 +45,38 @@ const (
 	authAttemptWindow = 10 * time.Minute
 )
 
+// Register binds each route on the host it declares with rt.Route, so the
+// route value, not a copied path, decides the domain it is served on.
 func (h AuthHandler) Register(rt *anduin.Router) {
-	rt.Get(routes.SessionNew.Pattern(), h.SessionNew)
-	rt.Post(
-		routes.SessionCreate.Pattern(),
+	rt.Route(routes.SessionNew).Get(h.SessionNew)
+	rt.Route(routes.SessionCreate).Post(
 		h.SessionCreate,
 		h.throttle(h.tooManyAttempts("Auth/Login", "email")),
 	)
-	rt.Delete(routes.SessionDestroy.Pattern(), h.SessionDestroy)
+	rt.Route(routes.SessionDestroy).Delete(h.SessionDestroy)
 	// The POST route lets a plain HTML form sign out without JavaScript; the
 	// DELETE route stays for the Inertia link.
-	rt.Post(routes.SessionDestroy.Pattern(), h.SessionDestroy)
+	rt.Route(routes.SessionDestroy).Post(h.SessionDestroy)
 
-	rt.Get(routes.RegistrationNew.Pattern(), h.RegistrationNew)
-	rt.Post(
-		routes.RegistrationCreate.Pattern(),
+	rt.Route(routes.RegistrationNew).Get(h.RegistrationNew)
+	rt.Route(routes.RegistrationCreate).Post(
 		h.RegistrationCreate,
 		h.throttle(h.tooManyAttempts("Auth/Registration", "email")),
 	)
 
-	rt.Get(routes.ConfirmationNew.Pattern(), h.ConfirmationNew)
-	rt.Post(
-		routes.ConfirmationCreate.Pattern(),
+	rt.Route(routes.ConfirmationNew).Get(h.ConfirmationNew)
+	rt.Route(routes.ConfirmationCreate).Post(
 		h.ConfirmationCreate,
 		h.throttle(h.tooManyAttempts("Auth/ConfirmEmail", "code")),
 	)
 
-	rt.Get(routes.PasswordNew.Pattern(), h.PasswordNew)
-	rt.Post(
-		routes.PasswordCreate.Pattern(),
+	rt.Route(routes.PasswordNew).Get(h.PasswordNew)
+	rt.Route(routes.PasswordCreate).Post(
 		h.PasswordCreate,
 		h.throttle(h.tooManyAttempts("Auth/ResetPasswordRequest", "email")),
 	)
-	rt.Get(routes.PasswordEdit.Pattern(), h.PasswordEdit)
-	rt.Put(
-		routes.PasswordUpdate.Pattern(),
+	rt.Route(routes.PasswordEdit).Get(h.PasswordEdit)
+	rt.Route(routes.PasswordUpdate).Put(
 		h.PasswordUpdate,
 		h.throttle(h.tooManyPasswordResets),
 	)
@@ -180,7 +182,21 @@ func (h AuthHandler) SessionCreate(ctx context.Context) error {
 		return err
 	}
 
-	return h.renderer.Location(ctx, routes.HomePage.URL())
+	return h.signedInRedirect(ctx)
+}
+
+// signedInRedirect sends a freshly signed-in visitor to the page they asked for
+// before sign-in, or to the home page. The return-target cookie is cleared
+// either way. It uses Location rather than a plain redirect because sign-in is
+// an Inertia request: Location makes the client visit the target itself, on
+// this host or another one.
+func (h AuthHandler) signedInRedirect(ctx context.Context) error {
+	location, err := middleware.ConsumeReturnTo(ctx, h.hosts, routes.HomePage.URL())
+	if err != nil {
+		return err
+	}
+
+	return h.renderer.Location(ctx, location)
 }
 
 func (h AuthHandler) resumeEmailVerification(ctx context.Context, entity domains.User) error {
@@ -196,6 +212,9 @@ func (h AuthHandler) SessionDestroy(ctx context.Context) error {
 	defer span.End()
 
 	if err := kiks.Destroy[*middleware.Session](ctx); err != nil {
+		return err
+	}
+	if err := kiks.Destroy[middleware.ReturnTo](ctx); err != nil {
 		return err
 	}
 	if err := kiks.AddFlash(ctx, kiks.FlashSuccess, "Signed out."); err != nil {
@@ -365,7 +384,7 @@ func (h AuthHandler) ConfirmationCreate(ctx context.Context) error {
 		return err
 	}
 
-	return h.renderer.Location(ctx, routes.HomePage.URL())
+	return h.signedInRedirect(ctx)
 }
 
 func pendingUserID(ctx context.Context) uuid.UUID {

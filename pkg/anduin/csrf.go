@@ -7,7 +7,10 @@ import (
 	"encoding/base64"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
+
+	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
 type csrfContextKey struct{}
@@ -64,6 +67,17 @@ func SkipCSRFForBearer(apiPrefix, sessionCookie string) func(context.Context) bo
 		return isAPIPath(prefix, request.URL.Path) &&
 			hasNonEmptyBearerToken(request.Header.Get("Authorization")) &&
 			cookieErr != nil
+	}
+}
+
+// SkipCSRFForHosts skips CSRF checks for requests resolved to one of the named
+// hosts (see RequestHost). Use it as CSRFConfig.Skipper for a domain whose
+// clients are not browsers that carry the application's session cookie.
+func SkipCSRFForHosts(names ...routing.HostName) func(context.Context) bool {
+	hosts := slices.Clone(names)
+
+	return func(ctx context.Context) bool {
+		return slices.Contains(hosts, RequestHost(ctx))
 	}
 }
 

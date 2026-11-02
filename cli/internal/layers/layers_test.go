@@ -75,6 +75,7 @@ func TestAnalyzers(t *testing.T) {
 		{name: "sql-method-through-interface", pkg: "app/services/sqlmethod", rules: []string{"db-handle"}},
 		{name: "narrow-sql-interface", pkg: "app/services/narrowsql", rules: []string{"db-handle"}},
 		{name: "unanalyzable-callback", pkg: "app/services/unknown", rules: []string{"tx-escape"}},
+		{name: "route-host-path-registration", pkg: "app/hostcalls", rules: []string{"route-host"}},
 	}
 	for _, testCase := range cases {
 		for _, rule := range testCase.rules {

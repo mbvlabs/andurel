@@ -9,7 +9,8 @@
 // state. Calling a full-URL helper before configuration throws: a module-scope
 // const evaluated at import would otherwise freeze an empty or stale origin.
 // Use routes.<name>.path() when only a relative URL is needed; .path() and
-// .host work without configuration.
+// .host work without configuration. A full-URL helper whose host has no
+// configured origin returns the path only, as the Go helpers do.
 
 type HostOrigins = Record<string, string>
 
@@ -53,15 +54,22 @@ function currentOrigins(): HostOrigins {
   return origins
 }
 
+// origin returns the configured origin for host. The primary origin is always
+// configured on the Go side, so a missing one is a configuration error and
+// throws. Any other host with no configured origin gives an empty origin, so
+// the helper returns a path, as the Go route helpers do. It never falls back to
+// the primary origin.
 function origin(host: string): string {
-  const origins = currentOrigins()
-  const resolved = origins[host] ?? origins.primary
-  if (resolved === undefined || resolved === '') {
+  const configured = currentOrigins()[host]
+  if (configured !== undefined) {
+    return configured
+  }
+  if (host === 'primary') {
     throw new Error(
-      'routes: no origin configured for route host "' + host + '"; add it to the shared hosts prop or use routes.<name>.path()',
+      'routes: no origin configured for route host "primary"; add it to the shared hosts prop or use routes.<name>.path()',
     )
   }
-  return resolved
+  return ''
 }
 
 export const routes = {

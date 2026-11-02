@@ -193,6 +193,14 @@ func (q *QueueInsert) InTx(tx Tx) InsertQueue {
 	return &QueueInsert{client: q.client, bound: tx}
 }
 
+// Client returns the River client behind this queue, for read-side work such
+// as job history or mounting River UI from the web process. Inserts made
+// directly on the returned client are not bound to any transaction; use Insert
+// or InTx on QueueInsert to make an insert transactional.
+func (q *QueueInsert) Client() *river.Client[pgx.Tx] {
+	return q.client
+}
+
 func (q *QueueInsert) Insert(
 	ctx context.Context,
 	args river.JobArgs,

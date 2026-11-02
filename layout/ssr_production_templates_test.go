@@ -29,6 +29,24 @@ func TestGeneratedEnvDocumentsSSRFailFastAsOptIn(t *testing.T) {
 	)
 }
 
+func TestGeneratedSSRFailFastIsProductionOnly(t *testing.T) {
+	assertTemplateContains(t, "runtime_runtime.tmpl",
+		"inertia.WithSSRFailFast(cfg.App.IsProduction() && cfg.Inertia.SSRFailFast)",
+	)
+	assertTemplateMissing(t, "runtime_runtime.tmpl",
+		"inertia.WithSSRFailFast(cfg.Inertia.SSRFailFast)",
+	)
+}
+
+func TestGeneratedLivenessIsProcessOnly(t *testing.T) {
+	// Liveness must not call a dependency: a database outage would otherwise
+	// make the orchestrator restart healthy web processes.
+	assertTemplateContains(t, "handlers_api.tmpl", "func livenessHandler(ctx context.Context) error {")
+	assertTemplateMissing(t, "handlers_api.tmpl", "anduin.Health(")
+	assertTemplateContains(t, "handlers_api_test.tmpl", "TestLivenessIgnoresDownDependencies")
+	assertTemplateContains(t, "runtime_runtime.tmpl", "handlers.NewAPIHandler(newReadiness(db, renderer))")
+}
+
 func TestGeneratedRootTitleIsFallbackOnlyWithoutSSR(t *testing.T) {
 	assertTemplateContains(t, "inertia_framework_root.tmpl",
 		"if data.SSR == nil {",

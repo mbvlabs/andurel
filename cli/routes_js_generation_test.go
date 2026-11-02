@@ -579,6 +579,13 @@ check(
   missingOrigin === null ? 'no error' : missingOrigin.message,
 )
 
+const unconfiguredSecondary = withRouteHosts({ primary: 'https://p.test' }, () => routes.adminWidget())
+check(
+  'unconfigured-secondary-host-returns-path',
+  unconfiguredSecondary === '/widgets',
+  unconfiguredSecondary,
+)
+
 const gate = () => new Promise(resolve => setImmediate(resolve))
 
 function render(hosts) {
@@ -669,6 +676,7 @@ func TestGeneratedRoutesTSIsolatesConcurrentSSRHosts(t *testing.T) {
 		"ok unconfigured-full-url-throws",
 		"ok path-works-before-configuration",
 		"ok missing-primary-origin-throws",
+		"ok unconfigured-secondary-host-returns-path",
 		"ok concurrent-renders-stay-isolated",
 		"ok failed-render-does-not-leak-hosts",
 		"ok browser-configuration-resolves",
@@ -708,4 +716,28 @@ func requireNodeForRoutesProbe(t *testing.T) string {
 	}
 
 	return node
+}
+
+// An unconfigured host gives a path-only full-URL helper, matching the Go
+// route helpers, instead of falling back to the primary origin.
+func TestRenderRoutesJSUnconfiguredHostReturnsPath(t *testing.T) {
+	got, _, err := renderRoutesJS(routeManifest{
+		Routes: []routeManifestRoute{{Variable: "WidgetIndex", Path: "/widgets", Host: "admin", IsInertia: true}},
+	})
+	if err != nil {
+		t.Fatalf("render routes js: %v", err)
+	}
+
+	for _, want := range []string{
+		"const configured = currentOrigins()[host]",
+		"if (host === 'primary') {",
+		"  return ''\n}",
+	} {
+		if !strings.Contains(string(got), want) {
+			t.Fatalf("expected origin to return an empty origin for unconfigured secondary hosts, missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(string(got), "origins.primary") {
+		t.Fatalf("origin must not fall back to the primary origin:\n%s", got)
+	}
 }

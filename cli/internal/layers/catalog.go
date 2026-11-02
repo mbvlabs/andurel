@@ -87,6 +87,12 @@ var catalog = []Rule{
 		Layer:   RuleLayerLayers,
 	},
 	{
+		ID:      "route-host",
+		Summary: "a route declared on a non-primary host is registered with rt.Route(route), not rt.Get(route.Pattern())",
+		Fix:     "register the route with rt.Route(route).Get(...) (or host.Route(route).Get(...)) so the route's declared host decides the domain",
+		Layer:   RuleLayerLayers,
+	},
+	{
 		ID:      "entity-columns",
 		Summary: "every automatic generated query column maps to an exported andurel tag on its domain entity",
 		Fix:     "add an exported field tagged andurel:\"<column>\", or narrow the query columns and run 'andurel sync queries'",

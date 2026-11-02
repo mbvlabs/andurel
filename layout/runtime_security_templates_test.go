@@ -26,7 +26,7 @@ func TestGeneratedGlobalCORSIsScopedToExplicitOrigins(t *testing.T) {
 
 func TestGeneratedViteAssetsUsePublicCORS(t *testing.T) {
 	assertTemplateContains(t, "handlers_assets.tmpl",
-		"rt.Get(routes.ViteBuild.Pattern(), a.dist, anduin.CORS(anduin.CORSConfig{",
+		"rt.Route(routes.ViteBuild).Get(a.dist, anduin.CORS(anduin.CORSConfig{",
 		"AllowOrigins:     []string{\"*\"}",
 		"AllowCredentials: false",
 	)
@@ -44,6 +44,21 @@ func TestGeneratedViteAssetSubtreeUsesRoutingAccessor(t *testing.T) {
 func TestGeneratedMethodNotAllowedRendersNotFoundPage(t *testing.T) {
 	assertTemplateContains(t, "handlers_errors.tmpl",
 		`inertia.MapError(anduin.ErrMethodNotAllowed, http.StatusMethodNotAllowed, "Errors/NotFound")`,
+	)
+}
+
+// A handler's anduin.NotFound (an HTTPError, not the sentinel) must get the
+// themed 404 page, and the default plain-text response keeps the message.
+func TestGeneratedErrorHandlerMapsStatusToThemedPage(t *testing.T) {
+	assertTemplateContains(t, "handlers_errors.tmpl",
+		`http.StatusNotFound:         "Errors/NotFound"`,
+		`http.StatusBadRequest:       "Errors/BadRequest"`,
+		`if component, ok := statusPages[status]; ok {`,
+		`.CSR().Status(status).Render()`,
+		`return anduin.Text(ctx, status, anduin.Message(err))`,
+	)
+	assertTemplateContains(t, "handlers_errors.tmpl",
+		`if status >= http.StatusInternalServerError {`,
 	)
 }
 

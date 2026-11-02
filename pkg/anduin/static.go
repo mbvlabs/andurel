@@ -12,6 +12,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/mbvlabs/andurel/pkg/routing"
 )
 
 const (
@@ -65,7 +67,7 @@ type staticServer struct {
 }
 
 func (s staticServer) serve(ctx context.Context) error {
-	param := strings.TrimPrefix(PathValue(ctx, "path"), "/")
+	param := strings.TrimPrefix(PathValue(ctx, routing.WildcardParam), "/")
 	param = path.Clean(param)
 	if param == "." || param == "" || strings.HasPrefix(param, "../") {
 		return NotFound(errors.New(http.StatusText(http.StatusNotFound)))

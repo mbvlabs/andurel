@@ -4,6 +4,42 @@ All notable changes to the standalone Andurel routing module are documented here
 
 ## Unreleased
 
+## 0.9.0 - 2026-10-31
+
+### BREAKING
+
+- A route whose path is `/` matches only `/`, on every host. Before, a bare `/`
+  was a subtree pattern and caught every path, so `admin.example.com/assets/app.js`
+  returned the dashboard. A catch-all must now be written `/*`. Before/after for an
+  SPA fallback:
+
+  ```go
+  // before: caught every path
+  routing.NewSimpleRoute("/", "spa", "")
+
+  // after: explicit catch-all
+  routing.NewSimpleRoute("/*", "spa", "")
+  ```
+
+  `Pattern()` for a `/` route is `/{$}` with or without `Exact()`.
+
+### Added
+
+- `WildcardParam` constant (`"path"`), the name a trailing `*` segment becomes
+  in an `http.ServeMux` pattern (`{path...}`). Read the wildcard with
+  `anduin.PathValue(ctx, routing.WildcardParam)`.
+
+### Changed
+
+- `Exact()` is a no-op so existing route files still compile. It can be deleted.
+- `Route.Name()` (and the typed route variants) return the declared name without
+  the URL prefix. Before, `NewSimpleRoute("/new", "new_session", "/users").Name()`
+  returned `users.new_session`; now it returns `new_session`, matching what the
+  CLI route tooling shows. Nothing in andurel depended on the prefixed form.
+- `NewSimpleRoute("/", "index", "/users")` no longer logs "path has trailing
+  slash" at boot. It is the documented way to declare `/users` and is accepted
+  quietly.
+
 ## 0.8.0 - 2026-10-30
 
 ### Added

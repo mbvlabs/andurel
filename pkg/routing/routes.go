@@ -16,7 +16,6 @@ type routeOptions struct {
 
 type routeConfig struct {
 	isInertia bool
-	exact     bool
 	host      HostName
 }
 
@@ -37,7 +36,6 @@ func newRoute(path, name, prefix string, opts ...RouteSetupOption) Route {
 		path:      path,
 		prefix:    prefix,
 		isInertia: cfg.isInertia,
-		exact:     cfg.exact,
 		host:      routeHost(cfg),
 	}
 }
@@ -74,14 +72,6 @@ func applyOptions(path string, opts ...RouteOption) string {
 	return path + "?" + strings.Join(routeOpts.query, "&")
 }
 
-func configureName(name, prefix string) string {
-	if prefix == "" {
-		return name
-	}
-
-	return prefix + "." + name
-}
-
 func configurePath(path, prefix, name string) string {
 	return sanitizePath(buildPath(path, prefix, name), name)
 }
@@ -94,6 +84,16 @@ func buildPath(path, prefix, name string) string {
 	// Empty path means index route - just use prefix as-is
 	if path == "" {
 		return prefix
+	}
+
+	// A "/" path under a prefix is the index of that prefix ("/users" for
+	// NewSimpleRoute("/", ..., "/users")), so drop the trailing slash here
+	// rather than letting sanitizePath warn about it.
+	if path == "/" {
+		if trimmed := strings.TrimSuffix(prefix, "/"); trimmed != "" {
+			return trimmed
+		}
+		return "/"
 	}
 
 	prefixEndsWithSlash := strings.HasSuffix(prefix, "/")
@@ -208,7 +208,6 @@ type Route struct {
 	path      string
 	prefix    string
 	isInertia bool
-	exact     bool
 	host      HostName
 }
 
@@ -227,21 +226,26 @@ func (r Route) FullURL(hosts *Hosts, opts ...RouteOption) string {
 	return r.fullURL(hosts, r.URL(opts...))
 }
 
+// Name returns the route name as declared in NewSimpleRoute and the other
+// constructors. The URL prefix is not part of the name: a route declared as
+// ("/new", "new_session", "/users") is named "new_session", not
+// "users.new_session". Generated helpers and CLI tooling use the declared name.
 func (r Route) Name() string {
-	return configureName(r.name, r.prefix)
+	return r.name
 }
 
 func (r Route) Path() string {
 	return configurePath(r.path, r.prefix, r.name)
 }
 
-// Pattern returns the http.ServeMux pattern for the route. Exact routes append
-// the "{$}" end-of-URL wildcard when their path ends in "/" (the root is the
-// only such path after sanitisation); other paths already match exactly.
+// Pattern returns the http.ServeMux pattern for the route. The root path "/"
+// always matches only "/": it is returned as "/{$}", because a bare "/" is a
+// subtree pattern in net/http. A catch-all must be declared as "/*". Other
+// paths already match exactly, so they are returned unchanged.
 func (r Route) Pattern() string {
 	path := r.Path()
-	if r.exact && strings.HasSuffix(path, "/") {
-		return path + "{$}"
+	if path == "/" {
+		return "/{$}"
 	}
 	return path
 }
@@ -299,7 +303,7 @@ func NewRouteWithUUIDID(path, name, prefix string, opts ...RouteSetupOption) Rou
 }
 
 func (r RouteWithUUIDID) Name() string {
-	return configureName(r.name, r.prefix)
+	return r.name
 }
 
 func (r RouteWithUUIDID) Path() string {
@@ -341,7 +345,7 @@ func NewRouteWithSerialID(path, name, prefix string, opts ...RouteSetupOption) R
 }
 
 func (r RouteWithSerialID) Name() string {
-	return configureName(r.name, r.prefix)
+	return r.name
 }
 
 func (r RouteWithSerialID) Path() string {
@@ -386,7 +390,7 @@ func NewRouteWithBigSerialID(
 }
 
 func (r RouteWithBigSerialID) Name() string {
-	return configureName(r.name, r.prefix)
+	return r.name
 }
 
 func (r RouteWithBigSerialID) Path() string {
@@ -428,7 +432,7 @@ func NewRouteWithStringID(path, name, prefix string, opts ...RouteSetupOption) R
 }
 
 func (r RouteWithStringID) Name() string {
-	return configureName(r.name, r.prefix)
+	return r.name
 }
 
 func (r RouteWithStringID) Path() string {
@@ -469,7 +473,7 @@ func NewRouteWithSlug(path, name, prefix string, opts ...RouteSetupOption) Route
 }
 
 func (r RouteWithSlug) Name() string {
-	return configureName(r.name, r.prefix)
+	return r.name
 }
 
 func (r RouteWithSlug) Path() string {
@@ -510,7 +514,7 @@ func NewRouteWithToken(path, name, prefix string, opts ...RouteSetupOption) Rout
 }
 
 func (r RouteWithToken) Name() string {
-	return configureName(r.name, r.prefix)
+	return r.name
 }
 
 func (r RouteWithToken) Path() string {
@@ -551,7 +555,7 @@ func NewRouteWithFile(path, name, prefix string, opts ...RouteSetupOption) Route
 }
 
 func (r RouteWithFile) Name() string {
-	return configureName(r.name, r.prefix)
+	return r.name
 }
 
 func (r RouteWithFile) Path() string {
@@ -595,7 +599,7 @@ func NewRouteWithParams[Params any](
 var _ ParamsRoute[any] = (*RouteWithParams[any])(nil)
 
 func (r RouteWithParams[Params]) Name() string {
-	return configureName(r.name, r.prefix)
+	return r.name
 }
 
 func (r RouteWithParams[Params]) Path() string {
