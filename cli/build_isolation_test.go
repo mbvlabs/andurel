@@ -123,6 +123,33 @@ func TestBuildOutputDirConcurrentBuildsUseDistinctRoots(t *testing.T) {
 	assertFileMissing(t, filepath.Join(root, "dist"))
 }
 
+func TestFakeBuildToolchainUsesPreparedExecutable(t *testing.T) {
+	requireLinuxBuildTest(t)
+	installFakeBuildToolchain(t, filepath.Join(t.TempDir(), "commands.log"))
+	var targets []string
+	for range 2 {
+		root := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := syncSingleToolFunc(root, "templ", nil, "linux", runtime.GOARCH); err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(root, "bin", "templ")
+		target, err := os.Readlink(path)
+		if err != nil {
+			t.Fatalf("fake templ is not a link to a prepared executable: %v", err)
+		}
+		if err := exec.Command(path).Run(); err != nil {
+			t.Fatalf("run fake templ: %v", err)
+		}
+		targets = append(targets, target)
+	}
+	if targets[0] != targets[1] {
+		t.Fatalf("fake tools have different prepared executables: %q", targets)
+	}
+}
+
 func TestBuildOutputDirPreservesCommittedEmbedInputsWithoutFrontend(t *testing.T) {
 	requireLinuxBuildTest(t)
 	root := t.TempDir()
@@ -376,12 +403,17 @@ func main() {
 func installFakeBuildToolchain(t *testing.T, logPath string) {
 	t.Helper()
 	resetCLITestSeams(t)
+	fakePath := t.TempDir()
+	// Prepare executables before any builds start. A concurrent fork can inherit
+	// a writable descriptor until exec closes it, even after WriteFile returns;
+	// executing that inode in another build can then fail with ETXTBSY.
+	for _, name := range []string{"templ", "narsilc", "tailwindcli"} {
+		writeExecutable(t, fakePath, name, fakeCommandScript(logPath, name))
+	}
 	syncSingleToolFunc = func(projectRoot, name string, tool *layout.Tool, goos, goarch string) error {
-		writeExecutable(t, projectRoot, filepath.Join("bin", name), fakeCommandScript(logPath, name))
-		return nil
+		return os.Symlink(filepath.Join(fakePath, name), filepath.Join(projectRoot, "bin", name))
 	}
 
-	fakePath := t.TempDir()
 	writeExecutable(t, fakePath, "pnpm", fmt.Sprintf(`#!/bin/sh
 printf 'pnpm %%s\n' "$*" >> %q
 mkdir -p assets/dist

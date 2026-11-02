@@ -268,8 +268,8 @@ func TestPrintResultsShowsNonPassingDetailsWithoutVerbose(t *testing.T) {
 		{
 			name:    "Andurel release",
 			status:  statusWarn,
-			message: "no stable release published yet",
-			details: []string{"latest module version \"v2.0.0-beta.3\" is not a stable release"},
+			message: "could not check the latest release",
+			details: []string{"check latest module version: unexpected HTTP status 503"},
 		},
 	}, false, false)
 
@@ -277,7 +277,7 @@ func TestPrintResultsShowsNonPassingDetailsWithoutVerbose(t *testing.T) {
 	if strings.Contains(out, "hidden") {
 		t.Fatalf("passing details should stay behind --verbose:\n%s", out)
 	}
-	if !strings.Contains(out, "is not a stable release") {
+	if !strings.Contains(out, "unexpected HTTP status 503") {
 		t.Fatalf("warning details missing from human output:\n%s", out)
 	}
 }
