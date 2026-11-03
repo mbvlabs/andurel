@@ -98,7 +98,7 @@ func TestUpgradeNotesFiltersAlreadyAppliedRcOneActions(t *testing.T) {
 
 go 1.27.1
 
-require github.com/mbvlabs/andurel/pkg/postmand v0.1.0
+require github.com/mbvlabs/andurel/pkg/postmand v0.6.1
 `)
 			writeTestFile(t, rootDir, "resources/root.html", "<!doctype html>\n")
 			writeTestFile(t, rootDir, "resources/root.go", "package resources\n")

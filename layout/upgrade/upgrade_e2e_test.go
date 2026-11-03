@@ -37,7 +37,7 @@ const (
 	// The rc.1 candidate publishes these framework package pins.
 	upgradeE2ECandidateAnduinVersion   = "v0.8.0"
 	upgradeE2ECandidateInertiaVersion  = "v0.15.0"
-	upgradeE2ECandidatePostmandVersion = "v0.1.0"
+	upgradeE2ECandidatePostmandVersion = "v0.6.1"
 )
 
 // upgradeE2ECases covers the existing released beta.4 -> beta.5 regression and

@@ -35,7 +35,7 @@ const (
 	// Inertia is the standalone Andurel Inertia module version verified with this framework.
 	Inertia = "v0.15.0"
 	// Postmand is the standalone Andurel email module version verified with this framework.
-	Postmand = "v0.1.0"
+	Postmand = "v0.6.1"
 	// Env is the standalone Andurel environment module version verified with this framework.
 	Env = "v0.1.1"
 	// Routing is the standalone Andurel routing module version verified with this framework.

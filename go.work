@@ -16,5 +16,5 @@ use (
 	./pkg/validation
 )
 
-// postmand is not tagged yet; resolve the storage module's pin from this checkout.
-replace github.com/mbvlabs/andurel/pkg/postmand v0.1.0 => ./pkg/postmand
+// postmand is not published at its pinned version yet; resolve it from this checkout.
+replace github.com/mbvlabs/andurel/pkg/postmand v0.6.1 => ./pkg/postmand

@@ -64,7 +64,7 @@ func TestRcOneManualActionsOnlyApplyToLegacyProjects(t *testing.T) {
 			mustWriteTestFile(t, root, rel, []byte(content))
 		}
 	}
-	postmandMod := "module testapp\n\ngo 1.27.1\n\nrequire github.com/mbvlabs/andurel/pkg/postmand v0.1.0\n"
+	postmandMod := "module testapp\n\ngo 1.27.1\n\nrequire github.com/mbvlabs/andurel/pkg/postmand v0.6.1\n"
 	emailMod := "module testapp\n\ngo 1.27.1\n\nrequire github.com/mbvlabs/andurel/pkg/email v0.6.1\n"
 	migratedRoot := map[string]string{
 		"resources/root.html": "<!doctype html>\n",
