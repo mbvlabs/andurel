@@ -1,0 +1,21 @@
+Account verification
+
+
+VERIFY YOUR EMAIL ADDRESS
+
+Hi,
+
+Thank you for signing up. Enter the verification code below to finish creating your account.
+
+Verification code
+
+{{.VerificationCode}}
+
+This code expires in 24 hours.
+
+If you did not create an account, you can safely ignore this email.
+
+----------------------------------------
+
+This email relates to your account.
+Powered by Andurel

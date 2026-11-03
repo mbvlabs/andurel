@@ -95,6 +95,15 @@ var processDefinitions = map[string]processDefinition{
 		startupOrder: 0,
 		startupNote:  "Manual one-shot step; run andurel db seed after migrations when a seed set is required.",
 	},
+	"emails": {
+		responsibility: "Renders email previews to tmp/emails for andurel email render",
+		prerequisites: []string{
+			"Source project (run with go run ./cmd/emails)",
+		},
+		configKeys:   []string{},
+		startupOrder: 0,
+		startupNote:  "Development tool; andurel build does not produce a dist/emails binary.",
+	},
 }
 
 func newProcessCommand() *cobra.Command {
@@ -224,7 +233,7 @@ func applyProcessHealth(
 	case "queue":
 		process.HealthResolved = true
 		process.HealthReason = "queue exposes no HTTP endpoint; supervise its process exit status"
-	case "migrate", "seeds":
+	case "migrate", "seeds", "emails":
 		process.HealthResolved = true
 		process.HealthReason = "one-shot process; success is exit status 0"
 	default:
@@ -268,7 +277,7 @@ func discoverInspectProcesses(rootDir string) ([]processInfo, error) {
 		processes = append(processes, processInfo{
 			Name:      entry.Name(),
 			Source:    filepath.ToSlash(rel),
-			Buildable: entry.Name() != "seeds",
+			Buildable: !isUtilityBuildProcess(entry.Name()),
 		})
 	}
 	sort.SliceStable(processes, func(i, j int) bool {

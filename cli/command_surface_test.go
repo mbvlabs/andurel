@@ -281,13 +281,11 @@ func TestFormatterHelpers(t *testing.T) {
 	}
 	writeExecutable(t, root, "bin/templ", "#!/bin/sh\nprintf '%s\\n' \"$@\" >> templ.args\n")
 	writeTestFile(t, root, "resources/root.templ", "package resources\n")
-	writeTestFile(t, root, "email/welcome.templ", "package email\n")
 	if err := runTemplFmt(root, false); err != nil {
 		t.Fatalf("runTemplFmt: %v", err)
 	}
 	assertTestFileContains(t, root, "templ.args", "fmt")
 	assertTestFileContains(t, root, "templ.args", "resources")
-	assertTestFileContains(t, root, "templ.args", "email")
 }
 
 func TestSyncBinariesCleansStaleToolsAndSkipsCurrentVersions(t *testing.T) {

@@ -178,6 +178,7 @@ func TestNewInertiaAndSQLCCommandsExposeAgentNotes(t *testing.T) {
 		"verify",
 		"generate migration",
 		"sync queries",
+		"sync emails",
 		"inspect domains",
 		"inspect handlers",
 	} {

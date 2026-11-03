@@ -152,7 +152,10 @@ func generateInertiaArtifacts(rootDir, inertia string) error {
 	if _, err := generateRoutesJSFile(rootDir, manifest); err != nil {
 		return err
 	}
-	_, err = generatePayloadsFile(rootDir)
+	if _, err = generatePayloadsFile(rootDir); err != nil {
+		return err
+	}
+	_, err = generateEmailsFiles(rootDir)
 	return err
 }
 

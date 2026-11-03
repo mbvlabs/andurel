@@ -1,0 +1,368 @@
+package main
+
+import (
+	"encoding/json"
+	"flag"
+	"fmt"
+	"html"
+	"os"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"app/email"
+)
+
+type emailEntry struct {
+	Name    string `json:"name"`
+	Subject string `json:"subject"`
+	HTML    string `json:"html"`
+	Text    string `json:"text"`
+	Bytes   int    `json:"bytes"`
+}
+
+type emailReport struct {
+	Emails []emailEntry `json:"emails"`
+}
+
+type renderedEmail struct {
+	Name     string
+	Subject  string
+	HTMLPath string
+	TextPath string
+	HTMLBody string
+	TextBody string
+	Bytes    int
+}
+
+func main() {
+	if err := run(os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func run(args []string) error {
+	flags := flag.NewFlagSet("emails", flag.ExitOnError)
+	outDir := flags.String("out", filepath.Join("tmp", "emails"), "directory to write rendered emails into")
+	only := flags.String("only", "", "render only the email with this name")
+	asJSON := flags.Bool("json", false, "print a JSON report instead of a human summary")
+	watch := flags.Bool("watch", false, "make the gallery reload when the render changes")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() > 0 {
+		return fmt.Errorf("unexpected arguments: %s", strings.Join(flags.Args(), " "))
+	}
+
+	previews := email.Previews()
+	names := make([]string, 0, len(previews))
+	for _, preview := range previews {
+		names = append(names, preview.Name)
+	}
+	if *only != "" && !slices.Contains(names, *only) {
+		return fmt.Errorf(
+			"unknown email %q; available emails: %s",
+			*only,
+			strings.Join(names, ", "),
+		)
+	}
+
+	if err := os.MkdirAll(*outDir, 0o755); err != nil {
+		return fmt.Errorf("create output directory %s: %w", *outDir, err)
+	}
+
+	rendered := make([]renderedEmail, 0, len(previews))
+	for _, preview := range previews {
+		if *only != "" && preview.Name != *only {
+			continue
+		}
+		item, err := renderPreview(*outDir, preview)
+		if err != nil {
+			return fmt.Errorf("render email %s: %w", preview.Name, err)
+		}
+		rendered = append(rendered, item)
+	}
+
+	if *watch {
+		if err := writeVersion(*outDir); err != nil {
+			return fmt.Errorf("write email version: %w", err)
+		}
+	} else if err := os.Remove(filepath.Join(*outDir, "version.js")); err != nil &&
+		!os.IsNotExist(err) {
+		return fmt.Errorf("remove stale email version: %w", err)
+	}
+	if err := writeIndex(*outDir, rendered, *watch); err != nil {
+		return fmt.Errorf("write email index: %w", err)
+	}
+
+	if *asJSON {
+		report := emailReport{Emails: make([]emailEntry, 0, len(rendered))}
+		for _, item := range rendered {
+			report.Emails = append(report.Emails, emailEntry{
+				Name:    item.Name,
+				Subject: item.Subject,
+				HTML:    item.HTMLPath,
+				Text:    item.TextPath,
+				Bytes:   item.Bytes,
+			})
+		}
+		return json.NewEncoder(os.Stdout).Encode(report)
+	}
+
+	fmt.Printf("Rendered %d email(s) to %s\n", len(rendered), *outDir)
+	for _, item := range rendered {
+		fmt.Printf("  %-20s %8s  %s\n", item.Name, sizeKB(item.Bytes), item.HTMLPath)
+	}
+	fmt.Printf("Open %s to preview.\n", filepath.Join(*outDir, "index.html"))
+	return nil
+}
+
+func renderPreview(outDir string, preview email.Preview) (renderedEmail, error) {
+	htmlBody, err := preview.Email.ToHTML()
+	if err != nil {
+		return renderedEmail{}, fmt.Errorf("ToHTML: %w", err)
+	}
+	textBody, err := preview.Email.ToText()
+	if err != nil {
+		return renderedEmail{}, fmt.Errorf("ToText: %w", err)
+	}
+
+	htmlPath := filepath.Join(outDir, preview.Name+".html")
+	if err := os.WriteFile(htmlPath, []byte(htmlBody), 0o644); err != nil {
+		return renderedEmail{}, fmt.Errorf("write %s: %w", htmlPath, err)
+	}
+	textPath := filepath.Join(outDir, preview.Name+".txt")
+	if err := os.WriteFile(textPath, []byte(textBody), 0o644); err != nil {
+		return renderedEmail{}, fmt.Errorf("write %s: %w", textPath, err)
+	}
+
+	return renderedEmail{
+		Name:     preview.Name,
+		Subject:  preview.Subject,
+		HTMLPath: htmlPath,
+		TextPath: textPath,
+		HTMLBody: htmlBody,
+		TextBody: textBody,
+		Bytes:    len(htmlBody),
+	}, nil
+}
+
+func writeIndex(outDir string, emails []renderedEmail, watch bool) error {
+	var b strings.Builder
+	b.WriteString(`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Email previews</title>
+<style>
+`)
+	b.WriteString(galleryCSS)
+	b.WriteString(`</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+<h1>Emails</h1>
+<nav>
+<ul>
+`)
+	for _, item := range emails {
+		fmt.Fprintf(
+			&b,
+			"<li><a href=\"#email-%s\">%s</a><span>%s</span></li>\n",
+			html.EscapeString(item.Name),
+			html.EscapeString(item.Name),
+			html.EscapeString(item.Subject),
+		)
+	}
+	b.WriteString(`</ul>
+</nav>
+</aside>
+<main class="content">
+`)
+	for _, item := range emails {
+		writeEmailSection(&b, item)
+	}
+	b.WriteString(`</main>
+</div>
+`)
+	if watch {
+		b.WriteString(liveReloadScript)
+	}
+	b.WriteString(`</body>
+</html>
+`)
+
+	return os.WriteFile(filepath.Join(outDir, "index.html"), []byte(b.String()), 0o644)
+}
+
+// liveReloadScript polls version.js instead of using fetch so it also works
+// over file://, where fetch is blocked but script tags are allowed. Reloading
+// keeps location.hash, so the selected email survives the refresh.
+const liveReloadScript = `<script src="version.js"></script>
+<script>
+(function () {
+  if (!window.__emailsVersion) return;
+  var current = window.__emailsVersion;
+  setInterval(function () {
+    var probe = document.createElement("script");
+    probe.src = "version.js?t=" + Date.now();
+    probe.onload = function () {
+      if (window.__emailsVersion && window.__emailsVersion !== current) {
+        location.reload();
+      }
+      probe.remove();
+    };
+    probe.onerror = function () { probe.remove(); };
+    document.body.appendChild(probe);
+  }, 1000);
+})();
+</script>
+`
+
+func writeVersion(outDir string) error {
+	version := strconv.FormatInt(time.Now().UnixNano(), 10)
+	content := "window.__emailsVersion = " + strconv.Quote(version) + ";\n"
+	return os.WriteFile(filepath.Join(outDir, "version.js"), []byte(content), 0o644)
+}
+
+func writeEmailSection(b *strings.Builder, item renderedEmail) {
+	name := html.EscapeString(item.Name)
+	subject := html.EscapeString(item.Subject)
+	htmlFile := html.EscapeString(item.Name + ".html")
+	textFile := html.EscapeString(item.Name + ".txt")
+	htmlBody := html.EscapeString(item.HTMLBody)
+	darkBody := html.EscapeString(darkHTML(item.HTMLBody))
+	textBody := html.EscapeString(item.TextBody)
+
+	fmt.Fprintf(b, `<section class="email" id="email-%s">
+<header class="email-header">
+<h2>%s &middot; &ldquo;%s&rdquo; &middot; %s</h2>
+</header>
+<div class="panes">
+<div class="pane">
+<div class="pane-title">Desktop 600</div>
+<iframe class="preview desktop" title="%s desktop preview" width="600" srcdoc="%s"></iframe>
+</div>
+<div class="pane">
+<div class="pane-title">Mobile 375</div>
+<iframe class="preview mobile" title="%s mobile preview" width="375" srcdoc="%s"></iframe>
+</div>
+<div class="pane">
+<div class="pane-title">Dark 600</div>
+<iframe class="preview dark" title="%s dark preview" width="600" srcdoc="%s"></iframe>
+</div>
+<div class="pane">
+<div class="pane-title">Text</div>
+<pre class="text-body">%s</pre>
+</div>
+</div>
+<p class="links"><a href="%s">open raw HTML</a> <a href="%s">open .txt</a></p>
+</section>
+`, name, name, subject, sizeKB(item.Bytes), name, htmlBody, name, htmlBody, name, darkBody, textBody, htmlFile, textFile)
+}
+
+// darkHTML forces the authored dark color-scheme block on so the gallery can
+// show both palettes side by side. An iframe cannot emulate
+// prefers-color-scheme, so rewriting the media query to "all" makes every
+// rule inside it apply unconditionally in the dark pane.
+func darkHTML(htmlBody string) string {
+	return strings.ReplaceAll(htmlBody, "@media (prefers-color-scheme: dark)", "@media all")
+}
+
+func sizeKB(bytes int) string {
+	return fmt.Sprintf("%.1f KB", float64(bytes)/1024)
+}
+
+const galleryCSS = `:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body {
+	margin: 0;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	background: #eef0f4;
+	color: #1b2430;
+}
+.layout { display: flex; min-height: 100vh; }
+.sidebar {
+	flex: 0 0 230px;
+	width: 230px;
+	height: 100vh;
+	padding: 24px 18px;
+	overflow-y: auto;
+	position: sticky;
+	top: 0;
+	background: #111827;
+	color: #d1d5db;
+}
+.sidebar h1 {
+	margin: 0 0 18px;
+	font-size: 12px;
+	letter-spacing: .16em;
+	text-transform: uppercase;
+	color: #f9fafb;
+}
+.sidebar ul { margin: 0; padding: 0; list-style: none; }
+.sidebar li { margin: 0 0 10px; }
+.sidebar a {
+	display: block;
+	color: #f9fafb;
+	font-size: 14px;
+	font-weight: 600;
+	text-decoration: none;
+}
+.sidebar a:hover { text-decoration: underline; }
+.sidebar span { display: block; margin-top: 2px; color: #9ca3af; font-size: 12px; }
+.content { flex: 1; min-width: 0; padding: 28px; }
+.email {
+	margin: 0 0 32px;
+	padding: 20px;
+	background: #fff;
+	border: 1px solid #d8dde6;
+	border-radius: 10px;
+}
+.email-header h2 { margin: 0 0 18px; font-size: 17px; }
+.panes { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 18px; }
+.pane { min-width: 0; }
+.pane-title {
+	margin: 0 0 8px;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: #6b7280;
+}
+.preview {
+	display: block;
+	height: 900px;
+	max-width: 100%;
+	background: #fff;
+	border: 1px solid #cbd2dc;
+	border-radius: 6px;
+}
+.preview.desktop { width: 600px; }
+.preview.mobile { width: 375px; }
+.preview.dark { width: 600px; }
+.text-body {
+	width: 340px;
+	max-height: 900px;
+	margin: 0;
+	padding: 14px;
+	overflow: auto;
+	background: #f9fafb;
+	border: 1px solid #cbd2dc;
+	border-radius: 6px;
+	color: #111827;
+	font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	white-space: pre-wrap;
+}
+.links { margin: 16px 0 0; font-size: 13px; }
+.links a { color: #b45309; font-weight: 600; }
+@media (max-width: 900px) {
+	.layout { display: block; }
+	.sidebar { position: static; width: auto; height: auto; }
+	.content { padding: 16px; }
+}`

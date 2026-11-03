@@ -5,11 +5,12 @@ import "sync"
 const (
 	IndexTempl   = 0
 	IndexGoBuild = 1
+	IndexEmails  = 2
 )
 
 type Tracker struct {
 	mu      sync.Mutex
-	errMsgs [2]string
+	errMsgs [3]string
 }
 
 func New() *Tracker {

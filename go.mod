@@ -6,7 +6,6 @@ require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.0.9
 	charm.land/lipgloss/v2 v2.0.6
-	github.com/a-h/templ v0.3.1020
 	github.com/andybalholm/brotli v1.2.1
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gorilla/websocket v1.5.3
@@ -25,6 +24,7 @@ require (
 
 require (
 	github.com/a-h/parse v0.0.0-20250122154542-74294addb73e // indirect
+	github.com/a-h/templ v0.3.1020 // indirect
 	github.com/alecthomas/kingpin/v2 v2.4.0 // indirect
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect

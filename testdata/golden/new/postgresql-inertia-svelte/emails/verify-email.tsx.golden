@@ -1,0 +1,97 @@
+import { Heading, Section, Text } from "react-email"
+import { CodeBox } from "./_components/code-box"
+import { Layout } from "./_components/layout"
+import type { VerifyEmailProps } from "./_generated/props"
+import { theme } from "./theme"
+
+const eyebrowStyle = {
+  color: theme.primary,
+  fontFamily: theme.fontSans,
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: "0.12em",
+  lineHeight: "16px",
+  margin: "0 0 12px 0",
+  textTransform: "uppercase",
+} as const
+
+const headingStyle = {
+  color: theme.foreground,
+  fontFamily: theme.fontSans,
+  fontSize: 30,
+  fontWeight: 700,
+  lineHeight: "38px",
+  margin: 0,
+} as const
+
+const paragraphStyle = {
+  color: theme.foreground,
+  fontFamily: theme.fontSans,
+  fontSize: 16,
+  lineHeight: "24px",
+  margin: 0,
+} as const
+
+const noteStyle = {
+  color: theme.mutedForeground,
+  fontFamily: theme.fontSans,
+  fontSize: 14,
+  lineHeight: "24px",
+  margin: 0,
+} as const
+
+export default function VerifyEmail({ VerificationCode }: VerifyEmailProps) {
+  return (
+    <Layout
+      title="Verify Your Email Address"
+      preview="Complete your registration by verifying your email address."
+    >
+      <Section
+        className="email-px"
+        style={{ padding: "48px 48px 20px 48px" }}
+      >
+        <Text className="email-primary" style={eyebrowStyle}>
+          Account verification
+        </Text>
+        <Heading as="h1" className="email-fg" style={headingStyle}>
+          Verify your email address
+        </Heading>
+      </Section>
+      <Section
+        className="email-px"
+        style={{ padding: "0 48px 24px 48px" }}
+      >
+        <Text className="email-fg" style={paragraphStyle}>
+          Hi,
+        </Text>
+        <Text
+          className="email-fg"
+          style={{ ...paragraphStyle, margin: "16px 0 0 0" }}
+        >
+          Thank you for signing up. Enter the verification code below to finish
+          creating your account.
+        </Text>
+      </Section>
+      <Section
+        className="email-px"
+        style={{ padding: "0 48px 24px 48px" }}
+      >
+        <CodeBox label="Verification code" code={VerificationCode} />
+      </Section>
+      <Section
+        className="email-px"
+        style={{ padding: "0 48px 16px 48px" }}
+      >
+        <Text className="email-muted" style={noteStyle}>
+          This code expires in 24 hours.
+        </Text>
+        <Text
+          className="email-muted"
+          style={{ ...noteStyle, margin: "16px 0 0 0" }}
+        >
+          If you did not create an account, you can safely ignore this email.
+        </Text>
+      </Section>
+    </Layout>
+  )
+}

@@ -2,7 +2,7 @@
 //
 // Run builds and supervises cmd/app and cmd/queue, puts a live-reload proxy in
 // front of the app, runs the Vite dev server (which also serves development
-// SSR), watches Go files, resources/*.templ and the email compiler inputs, and
+// SSR), watches Go files, resources/*.templ, email/*.go and emails/**, and
 // starts allowlisted sidecar tools. Cancel the context to stop everything.
 package devserver
 
@@ -68,11 +68,12 @@ type Options struct {
 	// environment (after .env is loaded).
 	ProxyPort string
 	AppPort   string
-	// CompileEmail runs the email compiler (email/*.templ to
-	// email/*_templ.go). When set, Run compiles once before the first build
-	// and again whenever email/*.templ, css/email.css or css/theme.css
-	// change, then rebuilds the app and queue. Nil disables email handling.
-	CompileEmail func(ctx context.Context, log io.Writer) error
+	// SyncEmails runs andurel sync emails (props/manifest generation plus the
+	// project's email:export script). When set, Run syncs once before the
+	// first build and again whenever email/*.go or emails/** changes, then
+	// rebuilds the app and queue with the new embedded templates. Nil
+	// disables email handling.
+	SyncEmails func(ctx context.Context, log io.Writer) error
 	// Stdin and Stdout decide whether the TUI can take over the terminal and
 	// receive inline logs. They default to os.Stdin and os.Stdout.
 	Stdin  *os.File
@@ -170,14 +171,14 @@ func Run(ctx context.Context, opts Options) error {
 	// Runner log writes are best-effort; they must not interrupt supervision.
 	_, _ = fmt.Fprintf(buildLog, "[run] Starting andurel run (version %s)\n", opts.Version)
 
-	var compileEmail func(context.Context) error
-	if opts.CompileEmail != nil {
-		compileEmail = func(ctx context.Context) error {
-			return opts.CompileEmail(ctx, buildLog)
+	var syncEmails func(context.Context) error
+	if opts.SyncEmails != nil {
+		syncEmails = func(ctx context.Context) error {
+			return opts.SyncEmails(ctx, buildLog)
 		}
-		// Compile before the first build so the app and queue start with
-		// the inlined email renderers.
-		if err := compileEmail(ctx); err != nil {
+		// Sync before the first build so the app and queue start with the
+		// current embedded email templates.
+		if err := syncEmails(ctx); err != nil {
 			if useTUI {
 				hub.Dump(opts.Stdout)
 			}
@@ -235,19 +236,29 @@ func Run(ctx context.Context, opts Options) error {
 		}
 	})
 
-	if compileEmail != nil {
+	if syncEmails != nil {
 		wg.Go(func() {
-			cfg := watcher.EmailWatcherConfig{
-				Dir:     opts.Dir,
-				Compile: compileEmail,
-				OnCompiled: func() {
-					_, _ = fmt.Fprintln(buildLog, "[run] Email renderers changed, rebuilding")
+			cfg := watcher.EmailsWatcherConfig{
+				Dir:  opts.Dir,
+				Sync: syncEmails,
+				OnSynced: func() {
+					_, _ = fmt.Fprintln(buildLog, "[run] Email templates changed, rebuilding")
 					requestRebuild()
+				},
+				OnTemplatesChanged: func() {
+					_, _ = fmt.Fprintln(buildLog, "[run] Email templates changed outside sync, rebuilding")
+					requestRebuild()
+				},
+				OnSyncError: func(msg string) {
+					trk.SetError(state.IndexEmails, msg)
+					if msg != "" {
+						hub.SetStatus(tui.StreamBuild, tui.StatusError)
+					}
 				},
 				Log: buildLog,
 			}
-			if err := watcher.RunEmailWatcher(ctx, cfg); err != nil {
-				errChan <- fmt.Errorf("email-watcher: %w", err)
+			if err := watcher.RunEmailsWatcher(ctx, cfg); err != nil {
+				errChan <- fmt.Errorf("emails-watcher: %w", err)
 			}
 		})
 	}
@@ -298,7 +309,8 @@ func Run(ctx context.Context, opts Options) error {
 			rebuildInProgress.Store(inProgress)
 			if inProgress {
 				hub.SetStatus(tui.StreamBuild, tui.StatusStarting)
-			} else if !trk.HasErrorAt(state.IndexGoBuild) && !trk.HasErrorAt(state.IndexTempl) {
+			} else if !trk.HasErrorAt(state.IndexGoBuild) && !trk.HasErrorAt(state.IndexTempl) &&
+				!trk.HasErrorAt(state.IndexEmails) {
 				hub.SetStatus(tui.StreamBuild, tui.StatusReady)
 			}
 		},
@@ -360,8 +372,8 @@ func Run(ctx context.Context, opts Options) error {
 	_, _ = fmt.Fprintf(buildLog, "  TEMPL_DEV_MODE: enabled (fast template reloads)\n")
 	_, _ = fmt.Fprintf(buildLog, "  Inertia frontend: %s run dev (Vite dev server)\n", opts.PackageManager)
 	_, _ = fmt.Fprintf(buildLog, "  Inertia SSR:      Vite /__inertia_ssr\n")
-	if compileEmail != nil {
-		_, _ = fmt.Fprintf(buildLog, "  Email templates:  compiled on change (email/*.templ, css/email.css)\n")
+	if syncEmails != nil {
+		_, _ = fmt.Fprintf(buildLog, "  Email templates:  synced on change (email/*.go, emails/**)\n")
 	}
 	if len(opts.Tools) > 0 {
 		_, _ = fmt.Fprintf(buildLog, "  Sidecar tools:  %s\n", formatToolList(opts.Tools))

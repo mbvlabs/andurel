@@ -52,7 +52,8 @@ Two commands keep an agent honest:
 | Apply pending SQL (one-shot process) | `cmd/migrate/` |
 | Seed data | `seeds/` or `cmd/seeds/` following the existing pattern |
 | External provider adapters | A top-level package named for its job (for example `clients/`, `payment/`) |
-| Email templates and send helpers | `email/` |
+| Email data structs and send helpers | `email/` (`ToHTML`/`ToText` through `renderHTML`/`renderText`) |
+| React Email components (TSX) | `emails/`; exported to the committed `email/templates/` by `andurel sync emails` |
 | River job argument types | `queue/jobs/` (`pkg/storage` owns the generic email args) |
 | River workers and queue registration | `queue/` |
 | App configuration structs and environment loading | `config/` |
@@ -288,8 +289,8 @@ Session/bag values travel on `context.Context` through `pkg/kiks`
 
 ## Resources And Frontend
 
-`resources/root.templ` is the one page-shaped templ in the app: the Inertia
-root document (package `resources`). It is the only templ outside `email/`.
+`resources/root.templ` is the only templ in the app: the Inertia root document
+(package `resources`). Email is React Email TSX under `emails/`, not templ.
 Page data never travels through `RootData`; pass it as props. Shared props are
 the exception: `app/` configures `inertia.WithShared` with `appVersion` and
 `hosts`, and the scaffold's shared provider adds `auth.isAuthenticated`. Every
@@ -325,9 +326,15 @@ assembled in `app/`, not Fx.
 Recurring work returns a `*river.PeriodicJob` from `queue.PeriodicJobs()`,
 which `app.NewQueue` passes to `storage.WithRiverPeriodicJobs`.
 
-Put email templates and send helpers in `email/`. Email is the other templ home
-(`email/*.templ` compiled by `emailcompiler`). Put provider-specific adapters in
-a top-level package named for the provider (for example `clients/email/`).
+Put email data structs and send helpers in `email/` and the React Email
+components in `emails/`. A struct declares exported scalar fields and
+`ToHTML`/`ToText`, which call `renderHTML`/`renderText` on the committed
+`email/templates/<snake>.{html,txt}.tmpl`. Author the matching
+`emails/<kebab>.tsx` with the shared `Layout` and `theme.ts` tokens, then run
+`andurel sync emails` to regenerate `emails/_generated/` and the templates.
+`andurel email render` renders fixtures from `email/previews.go`. Put
+provider-specific adapters in a top-level package named for the provider (for
+example `clients/email/`).
 `EMAIL_PROVIDER` selects the scaffold transport: `mailpit` (local only, refused
 in production), `smtp`, or `log`.
 

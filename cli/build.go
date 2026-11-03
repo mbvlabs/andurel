@@ -18,7 +18,6 @@ import (
 	"github.com/mbvlabs/andurel/v2/cli/output"
 	"github.com/mbvlabs/andurel/v2/layout"
 	"github.com/mbvlabs/andurel/v2/layout/cmds"
-	"github.com/mbvlabs/andurel/v2/layout/versions"
 	"github.com/spf13/cobra"
 )
 
@@ -69,13 +68,14 @@ func newBuildCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "build",
 		Short: "Build every application process for production",
-		Long: `Build every cmd/* process that has a main package, except cmd/seeds,
-and compile all assets for production deployment.
+		Long: `Build every cmd/* process that has a main package, except cmd/seeds
+and the cmd/emails development tool, and compile all assets for production
+deployment.
 
 This command:
-  • Generates Go from .templ files (email + Inertia root)
+  • Generates Go from .templ files (Inertia root)
   • Generates narsilc code when domains/**/*.sql contains SQL files
-  • Compiles Tailwind utilities in email templates
+  • Generates React Email props and exports email/templates (when emails/ exists)
   • Builds Vite client assets and the SSR bundle (when Inertia is configured)
   • Builds cmd/app, cmd/queue, cmd/migrate, and cmd/ssr into dist/ (or --output-dir)
   • Injects the version string via ldflags (from --version or git describe)
@@ -89,8 +89,8 @@ Use --only to build a subset, and --json for an artifact manifest.
 Use --output-dir to isolate every writable build intermediate. The project
 source tree, including assets/dist and generated Go files, is left untouched:
 andurel copies the project into a private staging directory, runs templ,
-narsilc, email, Vite and Go builds there, and publishes only the finished
-binaries. Relative --output-dir paths resolve from the project root. The
+narsilc, email sync and export, Vite and Go builds there, and publishes only
+the finished binaries. Relative --output-dir paths resolve from the project root. The
 manifest reports absolute artifact paths and isolated=true. Two builds of the
 same project with different output directories do not share writable paths.
 
@@ -299,26 +299,7 @@ func runBuildSteps(
 		}
 	}
 
-	// 2. Tailwind compiles email CSS. Vite builds the application CSS.
-	tailwindTool, ok := lock.Tools["tailwindcli"]
-	if !ok {
-		tailwindTool = layout.NewBinaryTool("tailwindcli", versions.TailwindCLI)
-	}
-
-	if err := syncSingleToolFunc(rootDir, "tailwindcli", tailwindTool, goos, goarch); err != nil {
-		return buildReport{}, fmt.Errorf("failed to sync tailwind CLI: %w", err)
-	}
-	if hasEmailCompilerInputs(rootDir) {
-		if err := compileEmailWithTailwind(
-			context.Background(),
-			rootDir,
-			filepath.Join(binDir, "tailwindcli"),
-		); err != nil {
-			return buildReport{}, err
-		}
-	}
-
-	// 2.5. Vite build for Inertia frontend. Migrate-only builds do not import
+	// 2. Vite build for Inertia frontend. Migrate-only builds do not import
 	// the embedded assets package, so they must not touch Vite output.
 	assetsBuilt := false
 	if lock.ScaffoldConfig != nil && layout.IsSupportedInertiaAdapter(lock.ScaffoldConfig.Inertia) &&
@@ -340,6 +321,22 @@ func runBuildSteps(
 			install.Stderr = os.Stderr
 			if err := install.Run(); err != nil {
 				return buildReport{}, fmt.Errorf("%s failed: %w", installCmd.String(), err)
+			}
+		}
+
+		if hasReactEmails(rootDir) {
+			fmt.Println("Generating email props and manifest...")
+			if _, err := generateEmailsFiles(rootDir); err != nil {
+				return buildReport{}, err
+			}
+			fmt.Println("Exporting email templates...")
+			if err := runEmailsExport(
+				context.Background(),
+				rootDir,
+				os.Stdout,
+				os.Stderr,
+			); err != nil {
+				return buildReport{}, err
 			}
 		}
 
@@ -461,7 +458,7 @@ func discoverBuildProcesses(rootDir string) ([]buildProcess, error) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, fmt.Errorf(
-				"no buildable processes found under cmd/ (expected main packages besides seeds)",
+				"no buildable processes found under cmd/ (expected main packages besides seeds and emails)",
 			)
 		}
 		return nil, fmt.Errorf("read cmd directory: %w", err)
@@ -469,7 +466,7 @@ func discoverBuildProcesses(rootDir string) ([]buildProcess, error) {
 
 	processes := make([]buildProcess, 0, len(entries))
 	for _, entry := range entries {
-		if !entry.IsDir() || entry.Name() == "seeds" {
+		if !entry.IsDir() || isUtilityBuildProcess(entry.Name()) {
 			continue
 		}
 		hasMain, err := hasMainPackage(filepath.Join(cmdDir, entry.Name()))
@@ -482,11 +479,17 @@ func discoverBuildProcesses(rootDir string) ([]buildProcess, error) {
 	}
 
 	if len(processes) == 0 {
-		return nil, fmt.Errorf("no buildable processes found under cmd/ (expected main packages besides seeds)")
+		return nil, fmt.Errorf("no buildable processes found under cmd/ (expected main packages besides seeds and emails)")
 	}
 
 	sort.Slice(processes, func(i, j int) bool { return processes[i].Name < processes[j].Name })
 	return processes, nil
+}
+
+// isUtilityBuildProcess reports whether cmd/<name> is a development or
+// one-shot utility rather than a deployable process.
+func isUtilityBuildProcess(name string) bool {
+	return name == "seeds" || name == "emails"
 }
 
 func hasMainPackage(dir string) (bool, error) {

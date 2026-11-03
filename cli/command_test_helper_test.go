@@ -170,6 +170,8 @@ func resetCLITestSeams(t *testing.T) {
 	defaultOpenAdminConnection := openAdminConnectionFunc
 	defaultRunGoose := runGooseFunc
 	defaultRunSeed := runSeedFunc
+	defaultRunEmailRender := runEmailRenderCommand
+	defaultOpenEmailGallery := openEmailGallery
 
 	t.Cleanup(func() {
 		findGoModRoot = defaultFindGoModRoot
@@ -192,6 +194,8 @@ func resetCLITestSeams(t *testing.T) {
 		openAdminConnectionFunc = defaultOpenAdminConnection
 		runGooseFunc = defaultRunGoose
 		runSeedFunc = defaultRunSeed
+		runEmailRenderCommand = defaultRunEmailRender
+		openEmailGallery = defaultOpenEmailGallery
 		cache.ClearFileSystemCache()
 	})
 }

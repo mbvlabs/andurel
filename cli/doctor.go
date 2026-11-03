@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/mbvlabs/andurel/v2/cli/output"
-	"github.com/mbvlabs/andurel/v2/emailcompiler"
 	"github.com/mbvlabs/andurel/v2/layout"
 	"github.com/mbvlabs/andurel/v2/layout/cmds"
 	"github.com/mbvlabs/andurel/v2/layout/upgrade"
@@ -114,7 +113,7 @@ This command will check:
   • Configuration (andurel.lock, first-run setup, Inertia SSR readiness, narsilc generator/runtime alignment)
   • Manual actions (static applied / not applied / not applicable status for application-owned upgrade actions, by stable action ID)
   • Code quality (go vet, go mod tidy)
-  • Code generation (templ, email renderers, narsilc, and Inertia route helpers and payload types when configured)
+  • Code generation (templ, email templates, narsilc, and Inertia route helpers and payload types when configured)
 
 A check that cannot run is reported as skipped, never as a pass.`,
 		Example: `  andurel doctor
@@ -136,7 +135,7 @@ A check that cannot run is reported as skipped, never as a pass.`,
 	setAgentMetadata(
 		doctorCmd,
 		"diagnostics",
-		"Read-only project checks include first-run setup, Inertia SSR readiness, the applied/not_applied/not_applicable state of application-owned upgrade actions by stable ID, templ, email renderers, active narsilc queries, and Inertia route helper and payload type drift. Manual actions that are not applied warn; a check that could not run is reported as skipped. Use --json for actionable check hints.",
+		"Read-only project checks include first-run setup, Inertia SSR readiness, the applied/not_applied/not_applicable state of application-owned upgrade actions by stable ID, templ, email templates, active narsilc queries, and Inertia route helper and payload type drift. Manual actions that are not applied warn; a check that could not run is reported as skipped. Use --json for actionable check hints.",
 	)
 
 	return doctorCmd
@@ -292,8 +291,8 @@ func doctorHint(result checkResult) string {
 		return "Run go mod tidy and commit the resulting go.mod or go.sum changes."
 	case "templ generate":
 		return "Commit the generated *_templ.go output (andurel build regenerates it) and fix any template errors."
-	case "email generate":
-		return "Run andurel sync email and commit the updated email/*_templ.go renderers; never use templ generate for email."
+	case "emails export":
+		return "Run andurel sync emails and commit the updated emails/_generated and email/templates files."
 	case "narsilc generate":
 		return "Run andurel sync queries and commit the updated domains/internal/queries output."
 	case "routes.ts":
@@ -1365,13 +1364,7 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 		if err != nil {
 			return err
 		}
-		// Email renderers are written by andurel sync email, not plain templ.
-		// checkEmailGenerate owns that drift.
-		for _, path := range changedSnapshotPaths(before, after) {
-			if !isEmailGeneratedPath(path) {
-				changed = append(changed, path)
-			}
-		}
+		changed = changedSnapshotPaths(before, after)
 		return nil
 	})
 	if err != nil {
@@ -1403,81 +1396,158 @@ func checkTemplGenerate(rootDir string, verbose bool) checkResult {
 	}
 }
 
-// isEmailGeneratedPath reports whether path is an email renderer owned by
-// andurel sync email.
-func isEmailGeneratedPath(path string) bool {
-	path = filepath.ToSlash(path)
-	return strings.HasPrefix(path, "email/") && strings.HasSuffix(path, "_templ.go")
-}
-
-// checkEmailGenerate compares email/*_templ.go with what andurel sync email
-// (the emailcompiler) would write. Plain templ generate is not the owner: it
-// drops the inlined styles and the generated media-query head block.
-func checkEmailGenerate(rootDir string, verbose bool) checkResult {
-	name := "email generate"
-	if !hasEmailCompilerInputs(rootDir) || !hasEmailTemplates(rootDir) {
+// checkEmailsExport compares emails/_generated props/manifest and the committed
+// email/templates to a fresh generation and export. The export needs installed
+// frontend dependencies, so a project without node_modules reports a skip with
+// the install command instead of a failure.
+func checkEmailsExport(rootDir string, verbose bool) checkResult {
+	name := "emails export"
+	if !hasReactEmails(rootDir) {
 		return checkResult{
 			name:    name,
 			status:  statusPass,
-			message: "no email templates configured",
+			message: "no React Email templates configured",
 		}
 	}
-	tailwindPath := filepath.Join(rootDir, "bin", "tailwindcli")
-	if _, err := os.Stat(tailwindPath); err != nil {
+	if info, err := os.Stat(filepath.Join(rootDir, "email")); err != nil || !info.IsDir() {
 		return checkResult{
-			name:        name,
-			status:      statusWarn,
-			message:     "tailwindcli binary not found (skipping check)",
-			missingTool: "tailwindcli",
+			name:    name,
+			status:  statusPass,
+			message: "no React Email templates configured",
 		}
 	}
 
+	packageManager := frontendPackageManager(rootDir)
 	var changed []string
-	err := withDiagnosticProjectCopyTools(rootDir, []string{"tailwindcli"}, func(tempRoot string) error {
-		before, err := snapshotFilesForReport(tempRoot)
+	exportSkipped := false
+	skipReason := ""
+
+	err := withDiagnosticProjectCopyTools(rootDir, nil, func(tempRoot string) error {
+		if _, err := generateEmailsFiles(tempRoot); err != nil {
+			return fmt.Errorf("email props generation failed: %w", err)
+		}
+		changed = append(changed, compareEmailsGeneratedFiles(rootDir, tempRoot)...)
+		if len(changed) > 0 {
+			return nil
+		}
+
+		nodeModules := filepath.Join(rootDir, "node_modules")
+		if info, err := os.Stat(nodeModules); err != nil || !info.IsDir() {
+			exportSkipped = true
+			skipReason = "node_modules is missing"
+			return nil
+		}
+		if _, err := exec.LookPath(packageManager); err != nil {
+			exportSkipped = true
+			skipReason = packageManager + " is not installed"
+			return nil
+		}
+
+		if err := os.Symlink(nodeModules, filepath.Join(tempRoot, "node_modules")); err != nil {
+			return fmt.Errorf("link frontend dependencies for export: %w", err)
+		}
+		var stdout, stderr bytes.Buffer
+		if err := runEmailsExport(
+			context.Background(),
+			tempRoot,
+			&stdout,
+			&stderr,
+		); err != nil {
+			return fmt.Errorf(
+				"email export failed: %w: %s",
+				err,
+				strings.TrimSpace(stderr.String()),
+			)
+		}
+		templatesChanged, err := compareEmailTemplateFiles(rootDir, tempRoot)
 		if err != nil {
 			return err
 		}
-		if err := emailcompiler.Compile(context.Background(), emailcompiler.Config{
-			ProjectRoot:  tempRoot,
-			TailwindPath: filepath.Join(tempRoot, "bin", "tailwindcli"),
-		}); err != nil {
-			return fmt.Errorf("email compile failed: %w", err)
-		}
-		after, err := snapshotFilesForReport(tempRoot)
-		if err != nil {
-			return err
-		}
-		changed = changedSnapshotPaths(before, after)
+		changed = append(changed, templatesChanged...)
 		return nil
 	})
 	if err != nil {
 		return checkResult{
 			name:    name,
 			status:  statusFail,
-			message: "temporary email generation diagnostic failed",
+			message: "temporary email export diagnostic failed",
 			details: []string{err.Error()},
 		}
 	}
 	if len(changed) > 0 {
-		details := []string{"Run 'andurel sync email' and commit the generated email renderers."}
+		details := []string{
+			"Run 'andurel sync emails' and commit the updated emails/_generated and email/templates files.",
+		}
 		if verbose {
 			details = append(details, changed...)
 		}
 		return checkResult{
 			name:    name,
 			status:  statusFail,
-			message: "generated email renderers are out of date",
+			message: "generated email output is out of date",
 			details: details,
 			changed: changed,
+		}
+	}
+	if exportSkipped {
+		fix := "Run '" + packageManager + " install' to check email/templates drift."
+		return checkResult{
+			name:        name,
+			status:      statusSkip,
+			message:     skipReason + " (skipping export check)",
+			details:     []string{fix},
+			hint:        fix,
+			missingTool: "node_modules",
 		}
 	}
 
 	return checkResult{
 		name:    name,
 		status:  statusPass,
-		message: "email renderers generated successfully",
+		message: "email props and templates match emails/",
 	}
+}
+
+func compareEmailsGeneratedFiles(rootDir, tempRoot string) []string {
+	changed := make([]string, 0, 2)
+	for _, path := range []string{generatedEmailsPropsTSPath, generatedEmailsManifestPath} {
+		expected, err := os.ReadFile(filepath.Join(tempRoot, filepath.FromSlash(path)))
+		if err != nil {
+			changed = append(changed, path)
+			continue
+		}
+		actual, err := os.ReadFile(filepath.Join(rootDir, filepath.FromSlash(path)))
+		if err != nil || !bytes.Equal(actual, expected) {
+			changed = append(changed, path)
+		}
+	}
+	return changed
+}
+
+func compareEmailTemplateFiles(rootDir, tempRoot string) ([]string, error) {
+	expected, err := snapshotOptionalDir(filepath.Join(tempRoot, "email", "templates"))
+	if err != nil {
+		return nil, err
+	}
+	actual, err := snapshotOptionalDir(filepath.Join(rootDir, "email", "templates"))
+	if err != nil {
+		return nil, err
+	}
+	paths := changedSnapshotPaths(actual, expected)
+	for i := range paths {
+		paths[i] = "email/templates/" + paths[i]
+	}
+	return paths, nil
+}
+
+func snapshotOptionalDir(dir string) (fileSnapshot, error) {
+	if _, err := os.Stat(dir); err != nil {
+		if os.IsNotExist(err) {
+			return fileSnapshot{}, nil
+		}
+		return nil, err
+	}
+	return snapshotFilesForReport(dir)
 }
 
 func checkNarsilcGenerate(rootDir string, verbose bool) checkResult {
@@ -1595,7 +1665,7 @@ func changedSnapshotPaths(before, after fileSnapshot) []string {
 func codeGenerationChecks(rootDir string, verbose bool) []checkResult {
 	results := []checkResult{
 		checkTemplGenerate(rootDir, verbose),
-		checkEmailGenerate(rootDir, verbose),
+		checkEmailsExport(rootDir, verbose),
 		checkNarsilcGenerate(rootDir, verbose),
 	}
 	if projectUsesInertia(rootDir) {

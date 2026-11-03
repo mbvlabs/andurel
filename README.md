@@ -31,11 +31,11 @@ Andurel is built for humans and agents on the same pad:
 - **Airframe**: `domains/` (business logic + persistence), `services/` (application logic), `handlers/` (HTTP), `routes/`, and `middleware/` — all ordinary Go you own
 - **GNC**: Explicit constructor injection in `app/`. The dependency graph is readable top-to-bottom; there is no container and no reflection
 - **Propellant**: PostgreSQL with narsilc-generated queries from SQL colocated with the domain that owns it
-- **Payload**: Inertia v3 with React, Vue, or Svelte. One Go backend, official Inertia adapters, optional SSR. Templ survives only for email and the Inertia root document
+- **Payload**: Inertia v3 with React, Vue, or Svelte. One Go backend, official Inertia adapters, optional SSR. Templ survives only for the Inertia root document; email is React Email
 - **Range ops**: River jobs, email, and queues on the same stack that serves the request path
 - **Ground support**: Agent-ready CLI with read-only patterns, JSON discovery, and installed skills so machines can operate the project without a second stack
-- **Live reload**: `andurel run` uses an in-process runner to rebuild Go, reload templates, recompile email, and run Vite (`--tools mailpit` for sidecars)
-- **Production build**: `andurel build` compiles Templ, email Tailwind, Vite assets, and every `cmd/*` process (`app`, `queue`, `migrate`, `ssr`) into `dist/`
+- **Live reload**: `andurel run` uses an in-process runner to rebuild Go, reload templates and export React Email, and run Vite (`--tools mailpit` for sidecars)
+- **Production build**: `andurel build` compiles Templ, exports React Email, builds Vite assets, and compiles every `cmd/*` process (`app`, `queue`, `migrate`, `ssr`) into `dist/`
 
 **Humans.** One-time generation. The scaffold writes Go and Inertia pages you can read, edit, and ship. After that, the code is yours, laid out in a shape you can navigate.
 
@@ -47,7 +47,8 @@ Andurel is built for humans and agents on the same pad:
 - **[PostgreSQL](https://www.postgresql.org/)** + **[pgx](https://github.com/jackc/pgx)**: Database
 - **[narsilc](https://github.com/mbvlabs/narsilc)**: Typed SQL with caller-owned result structs
 - **[Inertia v3](https://andurel.com/docs/latest/frontend-options)**: React / Vue / Svelte + Vite
-- **[templ](https://templ.guide/)**: Email templates and the Inertia root document only
+- **[React Email](https://react.email/)**: Email components in TSX, exported to committed Go templates
+- **[templ](https://templ.guide/)**: The Inertia root document only
 - **[River](https://riverqueue.com/)**: Background jobs
 - **[OpenTelemetry](https://opentelemetry.io/)**: Observability
 - **[Tailwind CSS](https://tailwindcss.com/)**: CSS
@@ -159,9 +160,10 @@ A new app is ordinary Go you own. Top-level shape:
 | `handlers/` | HTTP handlers (`func(ctx context.Context) error`); one flat package |
 | `routes/` | Route data: names, paths, URL builders |
 | `middleware/` | App HTTP middleware (auth, authorization); the cookie jar is built in `app/` |
-| `resources/root.templ` | Inertia root document (the only page-shaped templ) |
+| `resources/root.templ` | Inertia root document (the only templ) |
 | `resources/js/` | Inertia pages, layouts, components, and generated TS helpers |
-| `email/` | templ email templates and send helpers |
+| `email/` | Go email structs (`ToHTML`/`ToText`), committed `text/template` bodies, and send helpers |
+| `emails/` | React Email components in TSX, exported by `andurel sync emails` |
 | `queue/` | River jobs and workers |
 | `migrations/` | SQL migrations |
 | `seeds/` | Seed data |
@@ -181,11 +183,12 @@ Details: [directory structure](https://andurel.com/docs/latest/directory-structu
 | `andurel patterns` | Read-only reference patterns for every layer (`patterns list`, `patterns show <kind> --json`) |
 | `andurel verify` | Format, `go fix`, `go vet`, the typed layer rules, and generated-code drift; `--with-tests` also runs tests. Rules: `andurel verify --help` or [the rule table](skills/andurel/references/cli-catalog.md#verify-rules) |
 | `andurel generate migration` | Create a migration file (code-writing generators are gone) |
-| `andurel sync` | Refresh derived files (queries, email, routes, payloads) |
+| `andurel sync` | Refresh derived files (queries, routes, payloads, emails) |
+| `andurel email render` | Render every email to HTML, text, and a gallery without sending (`--watch` keeps it live) |
 | `andurel db` | Database lifecycle: create, drop, nuke, rebuild, migrate, seed, console |
 | `andurel console` (`c`) | Open an interactive database console |
 | `andurel run` (`r`) | Dev server with live reload |
-| `andurel build` | Production build (Templ, email Tailwind, Vite, all `cmd/*` processes in `dist/`) |
+| `andurel build` | Production build (Templ, React Email export, Vite, all `cmd/*` processes in `dist/`) |
 | `andurel tool sync` | Download pinned project binaries |
 | `andurel upgrade` | Bring an app forward to a newer Andurel |
 | `andurel doctor` | Project diagnostics |

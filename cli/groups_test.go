@@ -66,6 +66,7 @@ func TestBareGroupsShowHelp(t *testing.T) {
 		{"inspect"},
 		{"generate"},
 		{"sync"},
+		{"email"},
 		{"patterns"},
 		{"db"},
 		{"db", "migrate"},
@@ -88,6 +89,7 @@ func TestUnknownSubcommandsRejectedAcrossGroups(t *testing.T) {
 	for _, group := range [][]string{
 		{"generate"},
 		{"sync"},
+		{"email"},
 		{"inspect"},
 		{"inspect", "project"},
 		{"patterns"},

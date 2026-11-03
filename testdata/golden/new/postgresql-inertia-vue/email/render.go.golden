@@ -1,0 +1,46 @@
+package email
+
+import (
+	"bytes"
+	"embed"
+	"fmt"
+	"text/template"
+)
+
+// Email templates are generated from emails/*.tsx by the project's
+// email:export script and committed, so go build, tests and sending never need
+// Node. Regenerate them with the project package manager, for example:
+//
+//	pnpm email:export
+//
+// They are rendered with text/template, not html/template: html/template strips
+// HTML comments, which would delete the <!--[if mso]> conditionals React Email
+// emits for Outlook. Escaping is explicit instead: the .html.tmpl placeholders
+// carry the html pipe, and the .txt.tmpl placeholders do not.
+//
+//go:embed templates/*.tmpl
+var templatesFS embed.FS
+
+var htmlTemplates = template.Must(
+	template.New("email-html").ParseFS(templatesFS, "templates/*.html.tmpl"),
+)
+
+var textTemplates = template.Must(
+	template.New("email-text").ParseFS(templatesFS, "templates/*.txt.tmpl"),
+)
+
+func renderHTML(name string, data any) (string, error) {
+	return executeEmailTemplate(htmlTemplates, name+".html.tmpl", data)
+}
+
+func renderText(name string, data any) (string, error) {
+	return executeEmailTemplate(textTemplates, name+".txt.tmpl", data)
+}
+
+func executeEmailTemplate(tmpl *template.Template, name string, data any) (string, error) {
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, name, data); err != nil {
+		return "", fmt.Errorf("render email template %s: %w", name, err)
+	}
+	return buf.String(), nil
+}

@@ -84,7 +84,7 @@
 	--color-sidebar-ring: var(--sidebar-ring);
 	--color-surface: var(--surface);
 	--color-text-muted: var(--text-muted);
-	/* css/email.css imports this file; email templates use these radii. */
+	/* Shared corner radii for Tailwind utilities. */
 	--radius-sm: calc(var(--radius) * 0.6);
 	--radius-md: calc(var(--radius) * 0.8);
 	--radius-lg: var(--radius);

@@ -21,7 +21,8 @@ The app is ordinary Go you own: `domains/` for business logic and persistence, `
 ├── domains/              # Business logic + persistence (SQL colocated per domain)
 │   ├── errors.go         # Shared domain vocabulary (ErrNotFound, ErrConflict)
 │   └── internal/queries/ # narsilc output (imported only by domains/**)
-├── email/                # Email templates and sending
+├── email/                # Go email structs, committed text/template bodies, and sending
+├── emails/               # React Email components (TSX) exported by andurel sync emails
 ├── handlers/             # HTTP handlers, one flat package
 ├── middleware/           # App HTTP policy and the session definition
 ├── migrations/           # SQL migration files
@@ -185,8 +186,8 @@ go build -o migrate ./cmd/migrate
 ## Build And Deploy
 
 `andurel build` compiles every process in `cmd/` that has a `main` package,
-except `seeds`, into `dist/`: `app`, `queue`, `migrate`, and
-`ssr` (when Inertia is configured). Client assets and the SSR bundle are embedded in the binaries.
+except `seeds` and the `emails` preview tool, into `dist/`: `app`, `queue`,
+`migrate`, and `ssr` (when Inertia is configured). Client assets and the SSR bundle are embedded in the binaries.
 
 ```bash
 andurel build
@@ -241,7 +242,7 @@ Refresh derived files from their source of truth:
 
 ```bash
 andurel sync queries --json
-andurel sync email --json
+andurel sync emails --json
 andurel sync routes --json
 andurel sync payloads --json
 ```
@@ -559,61 +560,71 @@ _, err := i.queue.Insert(ctx, jobs.MyJobArgs{
 
 ### Send Emails
 
-Email is one of the two places templ still lives. Templates sit in `email/` and
-are compiled by Andurel's email compiler to inline, email-compatible styles.
-Email templates use Tailwind utilities from `css/email.css`.
+Email is authored as React Email components in `emails/` and exported to Go
+`text/template` files in `email/templates/`. The exported templates are
+committed, so `go build`, tests and sending never need Node. Go owns the data:
+a struct in `email/` declares `ToHTML`/`ToText`, and `email/previews.go` supplies
+fixture values for `andurel email render`.
 
-**1. Create an email template:**
+**1. Create or edit the React Email component:**
 
-Follow `email/verify_email.templ`: a struct holds the data, `ToHTML` renders
-it, and `ToText` derives the plain-text part.
+Use `style` objects with hex tokens from `emails/theme.ts` and physical padding
+only (`padding`, `padding-top`, ...). Never use `padding-inline`,
+`padding-block`, `oklch()` or `var()`, because Gmail, Outlook and Yahoo drop
+them. Use `andurel email render --watch --open` for the design loop: it renders
+through the real Go path and keeps `tmp/emails/index.html` live.
+
+```tsx
+// emails/welcome-email.tsx
+import { Heading, Section, Text } from "react-email"
+import { Layout } from "./_components/layout"
+import type { WelcomeEmailProps } from "./_generated/props"
+import { theme } from "./theme"
+
+export default function WelcomeEmail({ UserName }: WelcomeEmailProps) {
+  const sectionStyle = { padding: "48px 48px 24px 48px" }
+  const headingStyle = { color: theme.foreground, fontSize: 30, margin: 0 }
+  const textStyle = { color: theme.foreground, fontSize: 16, margin: "16px 0 0 0" }
+  return (
+    <Layout title="Welcome" preview="Thanks for joining us.">
+      <Section className="email-px" style={sectionStyle}>
+        <Heading as="h1" className="email-fg" style={headingStyle}>
+          Welcome, {UserName}!
+        </Heading>
+        <Text className="email-fg" style={textStyle}>
+          Thank you for joining us.
+        </Text>
+      </Section>
+    </Layout>
+  )
+}
+```
+
+Add the matching Go struct and a `Preview` entry when you add a new email:
 
 ```go
-// email/welcome.templ
+// email/welcome_email.go
 package email
-
-import (
-    "bytes"
-    "context"
-
-    pkgemail "github.com/mbvlabs/andurel/pkg/email"
-)
 
 type WelcomeEmail struct {
     UserName string
 }
 
-var _ pkgemail.Transformer = (*WelcomeEmail)(nil)
-
-func (w WelcomeEmail) ToHTML() (string, error) {
-    var buf bytes.Buffer
-    if err := w.render().Render(context.Background(), &buf); err != nil {
-        return "", err
-    }
-
-    return buf.String(), nil
-}
-
-func (w WelcomeEmail) ToText() (string, error) {
-    html, err := w.ToHTML()
-    if err != nil {
-        return "", err
-    }
-
-    return pkgemail.HTMLToText(html)
-}
-
-templ (w WelcomeEmail) render() {
-    @baseLayout("Welcome!", "Thank you for joining us.") {
-        <h1 class="text-[28px] leading-9 font-bold text-[#414552]">Welcome, { w.UserName }!</h1>
-        <p class="text-base leading-6 text-[#414552]">Thank you for joining us.</p>
-    }
-}
+func (w WelcomeEmail) ToHTML() (string, error) { return renderHTML("welcome_email", w) }
+func (w WelcomeEmail) ToText() (string, error) { return renderText("welcome_email", w) }
 ```
 
-`andurel run` and `andurel build` compile emails automatically. Run `andurel sync email` for a standalone compilation pass.
+**2. Regenerate and inspect:**
 
-**2. Send it in the background** from a service. `i.queue` is the service's
+`andurel sync emails` regenerates `emails/_generated/props.ts` and
+`emails/_generated/manifest.ts`, then runs the project's `email:export` script
+to write `email/templates/welcome_email.{html,txt}.tmpl`. Commit both. `andurel build`
+and `andurel run` run the same sync automatically. Use
+`andurel email render --json` to inspect the actual HTML and text the
+application will send, or `andurel email render --watch --open` to keep the
+desktop, mobile, dark and text panes live while editing.
+
+**3. Send it in the background** from a service. `i.queue` is the service's
 `storage.InsertQueue`; inside `storage.AtomicOps` use `i.queue.InTx(tx)` when
 the email depends on data written in the same transaction:
 
@@ -1179,7 +1190,7 @@ verify the owner is inactive across hosts and PID namespaces before manual remov
 - [Andurel Documentation](https://github.com/mbvlabs/andurel)
 - [net/http](https://pkg.go.dev/net/http)
 - [Inertia.js](https://inertiajs.com/)
-- [templ](https://templ.guide/) (the Inertia root document and emails)
+- [templ](https://templ.guide/) (the Inertia root document)
 - [River](https://riverqueue.com/)
 - [OpenTelemetry](https://opentelemetry.io/)
 

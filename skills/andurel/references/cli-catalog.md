@@ -21,7 +21,7 @@ andurel --agent --help
    it.
 3. `andurel generate migration NAME` — create a migration (the only generated file).
 4. Write domains, services, handlers, payloads, routes, and middleware by hand.
-5. `andurel sync queries` / `sync routes` / `sync payloads` / `sync email` — refresh derived files.
+5. `andurel sync queries` / `sync routes` / `sync payloads` / `sync emails` — refresh derived files.
 6. `andurel verify [packages...]` — formatting, `go fix`, `go vet`, layer boundaries, the frontend typecheck, and generated-code drift.
 7. `andurel doctor --json` — health and generated-file drift.
 
@@ -119,7 +119,7 @@ Pattern ids: `domain`, `service`, `handler`, `route`, `middleware`, `page`,
 | Group | Use |
 | --- | --- |
 | `generate` | Create files with no derived source (SQL migrations) |
-| `sync` | Refresh derived files (`queries`, `routes`, `payloads`, `email`) |
+| `sync` | Refresh derived files (`queries`, `routes`, `payloads`, `emails`) |
 | `inspect` | Read-only project shape |
 | `patterns` | Read-only reference patterns |
 | `db` | Database create, migrate, seed, console |
@@ -148,6 +148,8 @@ andurel inspect routes --json
 andurel sync queries --json
 andurel sync routes --json
 andurel sync payloads --json
+andurel sync emails --json
+andurel email render --json
 andurel build --only app,queue --json
 andurel patterns show deploy
 andurel verify
@@ -173,7 +175,8 @@ andurel run --tools mailpit
 - Write `resources/js/routes.ts`: `andurel sync routes --json` (Inertia frontend required; helpers cover routes marked `routing.TypeScriptRoute()` and are host-aware full URLs).
 - Write `resources/js/types/payloads.ts`: `andurel sync payloads --json` emits every exported struct in `payloads/`.
 - Bind a resource to a named host: declare `routing.HostName` in `config/hosts.go` and list it in `extraHostNames` (`HOST_<NAME>` is read by `config.NewApp`, defaulting to `<name>.` + `HOST_PRIMARY`), bind the route with `routing.Host(name)`, register it with `rt.Route(route)`, and choose `FallbackToPrimary()` or `Isolate()` on `rt.Host(name)`.
-- Refresh derived artifacts: `andurel sync email` compiles `email/*.templ` into `email/*_templ.go` with Tailwind styles inlined; never run `templ generate` on email.
+- Refresh derived artifacts: `andurel sync emails` writes `emails/_generated/props.ts` and `manifest.ts` from exported `email/*.go` structs that have `ToHTML`, then runs the project's `email:export` script to write the committed `email/templates/*.tmpl`. Use `--skip-export` when frontend dependencies are not installed.
+- Author email: edit `emails/<kebab>.tsx` and run `andurel email render --watch --open` for a live gallery; `--watch` runs the sync and export automatically and shows desktop, mobile, dark and text panes. For a one-shot, run `andurel sync emails`, then `andurel email render --json` (or `--open`) to inspect the real Go output in `tmp/emails`. `andurel build` and `andurel run` run the sync and export automatically.
 - Build and deploy: `andurel build` writes every buildable `cmd/*` process to `dist/`; `--only` narrows the set and `--json` emits the artifact manifest. `andurel patterns show deploy` covers the `migrate` → `ssr` → `app` + `queue` start order, environment, and health endpoints. In production, start the SSR sidecar with `andurel ports launch --ready-file .andurel/ssr-port.json -- ./dist/ssr` so the app and the sidecar agree on `INERTIA_SSR_LISTEN`/`INERTIA_SSR_URL`; the assignment is published only after the intended child answers `/health`.
 
 `--json` and `--agent` never wait on a TTY. Pass `--force`, `--harness`, or `--yes` instead of answering a prompt.
@@ -202,6 +205,8 @@ andurel run --tools mailpit
 | `andurel db rebuild` | Drop, recreate, migrate, and seed the database |
 | `andurel db seed` | Run database seeds |
 | `andurel doctor` | Run diagnostic checks on the project |
+| `andurel email` | Render email previews with fixture data |
+| `andurel email render` | Render emails to HTML, text and a gallery (`--watch` keeps it live) |
 | `andurel fmt` | Format Go and Templ source files |
 | `andurel generate` | Create files that have no derived source |
 | `andurel generate migration` | Create a new SQL migration file |
@@ -232,7 +237,7 @@ andurel run --tools mailpit
 | `andurel skill install` | Install the embedded skill into an agent harness |
 | `andurel skill show` | Print the embedded Andurel skill or one of its references |
 | `andurel sync` | Refresh derived files from a source of truth |
-| `andurel sync email` | Compile email templates into inline-styled Go |
+| `andurel sync emails` | Write React Email props and export Go email templates |
 | `andurel sync payloads` | Write TypeScript payload types for Inertia |
 | `andurel sync queries` | Compile narsilc SQL into Go in `domains/internal/queries` |
 | `andurel sync routes` | Write TypeScript route helpers for Inertia |

@@ -12,6 +12,7 @@ import (
 
 	"github.com/mbvlabs/andurel/v2/cli/internal/layers"
 	"github.com/mbvlabs/andurel/v2/cli/output"
+	"github.com/mbvlabs/andurel/v2/internal/naming"
 	"github.com/spf13/cobra"
 )
 
@@ -193,7 +194,7 @@ andurel verify checks, in order:
   • go vet    — the module vets clean
   • layers    — the typed persistence, transaction, and domain transport rules
   • frontend  — the package.json typecheck script and the route-usage rule
-  • generated — templ, email, narsilc, routes.ts, and payloads.ts output is up to date
+  • generated — templ, emails, narsilc, routes.ts, and payloads.ts output is up to date
   • content   — the invariants declared in andurel.content.toml
   • go test   — go test -json (only with --with-tests or --only go-test)
 
@@ -1495,12 +1496,21 @@ func generatedViolations(result checkResult) []verifyViolation {
 }
 
 // generatedSourceFile maps a generated path back to the authored file an agent
-// should edit. templ and email renderers are named after their .templ source.
+// should edit. templ renderers are named after their .templ source, and the
+// exported email templates are named after their React Email component.
 func generatedSourceFile(checkName, path string) string {
 	switch checkName {
-	case "templ generate", "email generate":
+	case "templ generate":
 		if before, ok := strings.CutSuffix(path, "_templ.go"); ok {
 			return before + ".templ"
+		}
+	case "emails export":
+		if name, ok := strings.CutPrefix(path, "email/templates/"); ok {
+			name = strings.TrimSuffix(strings.TrimSuffix(name, ".html.tmpl"), ".txt.tmpl")
+			return "emails/" + naming.ToKebabCase(name) + ".tsx"
+		}
+		if strings.HasPrefix(path, "emails/_generated/") {
+			return "email/*.go"
 		}
 	}
 	return path
@@ -1512,8 +1522,8 @@ func generatedTarget(result checkResult) (file, fix string) {
 	switch result.name {
 	case "templ generate":
 		return "", "andurel build"
-	case "email generate":
-		return "email", "andurel sync email"
+	case "emails export":
+		return "emails", "andurel sync emails"
 	case "narsilc generate":
 		return "domains/internal/queries", "andurel sync queries"
 	case "routes.ts":

@@ -66,9 +66,6 @@ func verifySetup(rootDir string, needs verifySetupNeeds) (verifyStep, []string) 
 // same predicate doctor uses.
 func missingGenerationTools(rootDir string) []string {
 	needed := []string{"templ"}
-	if hasEmailCompilerInputs(rootDir) && hasEmailTemplates(rootDir) {
-		needed = append(needed, "tailwindcli")
-	}
 	if hasQueries, err := cmds.HasQueryFiles(rootDir); err == nil && hasQueries {
 		needed = append(needed, "narsilc")
 	}

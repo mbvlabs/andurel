@@ -57,6 +57,7 @@ Everything you and your agent(s) need to build robust and performant application
 	rootCmd.AddCommand(newProjectCommand(version))
 	rootCmd.AddCommand(newGenerateCommand())
 	rootCmd.AddCommand(newSyncGroupCommand())
+	rootCmd.AddCommand(newEmailCommand())
 	rootCmd.AddCommand(newInspectCommand())
 	rootCmd.AddCommand(newPatternsCommand())
 	rootCmd.AddCommand(newVerifyCommand())
@@ -102,8 +103,8 @@ production SSR process and is not started here.
 It watches:
   - Go files: rebuild and restart the app and the queue worker
   - resources/*.templ: templ generate --watch restricted to resources/ (TEMPL_DEV_MODE)
-  - email/*.templ, css/email.css, css/theme.css: the email compiler rewrites
-    email/*_templ.go with inlined styles, then the app and queue rebuild
+  - email/*.go and emails/**: andurel sync emails regenerates props, manifest
+    and email/templates, then the app and queue rebuild
   - narsilc queries are generated once at start
 
 Log lines from the runner itself start with [run]. In a terminal the logs
@@ -139,19 +140,21 @@ Pass --tools to start allowlisted sidecars (mailpit) alongside the runner.`,
 			if err != nil {
 				return err
 			}
-			if hasEmailCompilerInputs(rootDir) {
-				tailwindPath, err := ensureEmailTailwind(rootDir)
-				if err != nil {
-					return err
-				}
-				opts.CompileEmail = func(ctx context.Context, w io.Writer) error {
-					// This is a progress message; a log failure must not stop compilation.
-					_, _ = fmt.Fprintln(w, "[run] Compiling Tailwind email templates...")
-					report, err := compileEmailWithTailwindReport(ctx, rootDir, tailwindPath)
+			if hasReactEmails(rootDir) {
+				opts.SyncEmails = func(ctx context.Context, w io.Writer) error {
+					// These are progress messages; a log failure must not stop
+					// the sync.
+					_, _ = fmt.Fprintln(w, "[run] Syncing React Email templates...")
+					report, err := generateEmailsFiles(rootDir)
 					if err != nil {
 						return err
 					}
-					return printEmailCompileReport(w, report)
+					_, _ = fmt.Fprintf(
+						w,
+						"[run] Generated %d email templates\n",
+						report.TemplateCount,
+					)
+					return runEmailsExport(ctx, rootDir, w, w)
 				}
 			}
 

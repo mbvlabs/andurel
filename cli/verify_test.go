@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/mbvlabs/andurel/v2/cli/internal/layers"
 	"github.com/mbvlabs/andurel/v2/cli/output"
-	"github.com/mbvlabs/andurel/v2/emailcompiler"
 	"github.com/mbvlabs/andurel/v2/layout"
 )
 
@@ -1001,49 +999,6 @@ func TestVerifyFrontendWithoutTypecheckIsSkipped(t *testing.T) {
 	}
 }
 
-func TestVerifyEmailGeneratedDriftUsesEmailCompiler(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("stub tools use a POSIX shell script")
-	}
-
-	root := t.TempDir()
-	writeTestFile(t, root, "email/welcome.templ", `package email
-
-templ Welcome() {
-	<p class="p-4">Hi</p>
-}
-`)
-	writeTestFile(t, root, "css/email.css", "")
-	writeExecutable(t, root, "bin/tailwindcli", `#!/bin/sh
-output=""
-while [ "$#" -gt 0 ]; do
-	if [ "$1" = "-o" ]; then
-		shift
-		output="$1"
-	fi
-	shift
-done
-printf '%s\n' '.p-4 { padding: 1rem; }' > "$output"
-`)
-
-	stale := checkEmailGenerate(root, false)
-	if stale.status != statusFail || len(stale.changed) != 1 ||
-		stale.changed[0] != "email/welcome_templ.go" {
-		t.Fatalf("stale email check = %#v, want email/welcome_templ.go drift", stale)
-	}
-
-	if err := emailcompiler.Compile(context.Background(), emailcompiler.Config{
-		ProjectRoot:  root,
-		TailwindPath: filepath.Join(root, "bin", "tailwindcli"),
-	}); err != nil {
-		t.Fatalf("compile email: %v", err)
-	}
-	current := checkEmailGenerate(root, false)
-	if current.status != statusPass {
-		t.Fatalf("current email check = %#v, want pass", current)
-	}
-}
-
 func TestGeneratedViolationsNameSourceFiles(t *testing.T) {
 	templ := generatedViolations(checkResult{
 		name:    "templ generate",
@@ -1057,75 +1012,19 @@ func TestGeneratedViolationsNameSourceFiles(t *testing.T) {
 	}
 
 	email := generatedViolations(checkResult{
-		name:    "email generate",
+		name:    "emails export",
 		status:  statusFail,
-		message: "generated email renderers are out of date",
-		changed: []string{"email/welcome_templ.go"},
+		message: "generated email output is out of date",
+		changed: []string{
+			"email/templates/verify_email.html.tmpl",
+			"emails/_generated/props.ts",
+		},
 	})
-	if len(email) != 1 || email[0].File != "email/welcome.templ" ||
-		email[0].Fix != "andurel sync email" {
-		t.Fatalf("email violations = %#v, want email/welcome.templ", email)
-	}
-}
-
-func TestEmailCompileCommandJSONReportsFiles(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("stub tools use a POSIX shell script")
-	}
-	resetCLITestSeams(t)
-
-	root := t.TempDir()
-	findGoModRoot = func() (string, error) { return root, nil }
-	if err := layout.NewAndurelLock("test").WriteLockFile(root); err != nil {
-		t.Fatalf("write lock: %v", err)
-	}
-	writeTestFile(t, root, "email/welcome.templ", `package email
-
-templ Welcome() {
-	<p class="p-4">Hi</p>
-}
-`)
-	writeTestFile(t, root, "css/email.css", "")
-	writeExecutable(t, root, "bin/tailwindcli", `#!/bin/sh
-output=""
-while [ "$#" -gt 0 ]; do
-	if [ "$1" = "-o" ]; then
-		shift
-		output="$1"
-	fi
-	shift
-done
-printf '%s\n' '.p-4 { padding: 1rem; }' > "$output"
-`)
-	syncSingleToolFunc = func(string, string, *layout.Tool, string, string) error { return nil }
-
-	command := newEmailCompileCommand()
-	output.RegisterPersistentFlags(command)
-	var stdout bytes.Buffer
-	command.SetOut(&stdout)
-	command.SetErr(&stdout)
-	command.SetArgs([]string{"--json"})
-	if err := command.Execute(); err != nil {
-		t.Fatalf("sync email --json: %v\n%s", err, stdout.String())
-	}
-
-	var envelope struct {
-		OK   bool               `json:"ok"`
-		Data emailCompileOutput `json:"data"`
-	}
-	if err := json.Unmarshal(stdout.Bytes(), &envelope); err != nil {
-		t.Fatalf("decode sync email JSON: %v\n%s", err, stdout.String())
-	}
-	if !envelope.OK {
-		t.Fatalf("sync email JSON = %s", stdout.String())
-	}
-	if len(envelope.Data.GeneratedFiles) != 1 ||
-		envelope.Data.GeneratedFiles[0] != "email/welcome_templ.go" {
-		t.Fatalf("generated files = %#v", envelope.Data.GeneratedFiles)
-	}
-	if len(envelope.Data.ChangedFiles) != 1 ||
-		envelope.Data.ChangedFiles[0] != "email/welcome_templ.go" {
-		t.Fatalf("changed files = %#v", envelope.Data.ChangedFiles)
+	if len(email) != 2 ||
+		email[0].File != "emails/verify-email.tsx" ||
+		email[0].Fix != "andurel sync emails" ||
+		email[1].File != "email/*.go" {
+		t.Fatalf("email violations = %#v, want email source mappings", email)
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -439,7 +440,7 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 		false,
 	); len(got) != 3 ||
 		got[0].name != "templ generate" || got[0].status != statusPass ||
-		got[1].name != "email generate" || got[1].status != statusPass ||
+		got[1].name != "emails export" || got[1].status != statusPass ||
 		got[2].name != "narsilc generate" || got[2].status != statusPass {
 		t.Fatalf("codeGenerationChecks = %#v", got)
 	}
@@ -453,6 +454,54 @@ func TestDoctorCollectReportAndCodeGenerationChecks(t *testing.T) {
 	}
 	if !projectUsesInertia(root) {
 		t.Fatalf("project with react inertia config should use inertia")
+	}
+}
+
+func TestCheckEmailsExportDetectsGeneratedDrift(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "email/verify_email.go", `package email
+
+type VerifyEmail struct {
+	VerificationCode string
+}
+
+func (VerifyEmail) ToHTML() (string, error) { return "", nil }
+`)
+	writeTestFile(t, root, "emails/verify-email.tsx", "export default function VerifyEmail() { return null }\n")
+	writeTestFile(t, root, "emails/_generated/props.ts", "stale\n")
+	writeTestFile(t, root, "emails/_generated/manifest.ts", "stale\n")
+
+	result := checkEmailsExport(root, false)
+	if result.status != statusFail {
+		t.Fatalf("checkEmailsExport = %#v, want fail", result)
+	}
+	if !slices.Contains(result.changed, generatedEmailsPropsTSPath) ||
+		!slices.Contains(result.changed, generatedEmailsManifestPath) {
+		t.Fatalf("changed = %#v, want generated props and manifest", result.changed)
+	}
+}
+
+func TestCheckEmailsExportSkipsExportWithoutNodeModules(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "email/verify_email.go", `package email
+
+type VerifyEmail struct {
+	VerificationCode string
+}
+
+func (VerifyEmail) ToHTML() (string, error) { return "", nil }
+`)
+	writeTestFile(t, root, "emails/verify-email.tsx", "export default function VerifyEmail() { return null }\n")
+	if _, err := generateEmailsFiles(root); err != nil {
+		t.Fatalf("generateEmailsFiles: %v", err)
+	}
+
+	result := checkEmailsExport(root, false)
+	if result.status != statusSkip {
+		t.Fatalf("checkEmailsExport = %#v, want skip", result)
+	}
+	if !strings.Contains(result.hint, "pnpm install") {
+		t.Fatalf("hint = %q, want pnpm install fix", result.hint)
 	}
 }
 

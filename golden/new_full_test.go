@@ -59,6 +59,8 @@ var inertiaGeneratedFiles = []struct {
 }{
 	{path: "resources/js/routes.ts", sync: "routes"},
 	{path: "resources/js/types/payloads.ts", sync: "payloads"},
+	{path: "emails/_generated/props.ts", sync: "emails"},
+	{path: "emails/_generated/manifest.ts", sync: "emails"},
 }
 
 // assertNoGeneratedDrift re-runs the sync generators on a fresh scaffold and
@@ -72,7 +74,11 @@ func assertNoGeneratedDrift(t *testing.T, project string) {
 		if err != nil {
 			t.Fatalf("andurel new did not write %s: %v", file.path, err)
 		}
-		goldentest.RunCLI(t, project, "sync", file.sync)
+		args := []string{"sync", file.sync}
+		if file.sync == "emails" {
+			args = append(args, "--skip-export")
+		}
+		goldentest.RunCLI(t, project, args...)
 		goldentest.AssertFileBytesEquals(t, project, file.path, scaffolded)
 	}
 }

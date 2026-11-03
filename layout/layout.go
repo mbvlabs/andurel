@@ -160,7 +160,6 @@ type FrameworkManagedFile struct {
 var baseStyleTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"css_base.tmpl":  "css/base.css",
 	"css_theme.tmpl": "css/theme.css",
-	"css_email.tmpl": "css/email.css",
 }
 
 var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
@@ -176,6 +175,7 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"cmd_queue_main.tmpl":   "cmd/queue/main.go",
 	"cmd_migrate_main.tmpl": "cmd/migrate/main.go",
 	"cmd_seeds_main.tmpl":   "cmd/seeds/main.go",
+	"cmd_emails_main.tmpl":  "cmd/emails/main.go",
 
 	// Process composition
 	"runtime_runtime.tmpl":      "app/runtime.go",
@@ -225,12 +225,14 @@ var baseTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"psql_queue_workers_delete_expired_tokens.tmpl":     "queue/delete_expired_tokens.go",
 
 	// Email
-	"email_base_layout.tmpl":             "email/base_layout.templ",
-	"email_base_layout_templ_go.tmpl":    "email/base_layout_templ.go",
-	"email_reset_password.tmpl":          "email/reset_password.templ",
-	"email_reset_password_templ_go.tmpl": "email/reset_password_templ.go",
-	"email_verify_email.tmpl":            "email/verify_email.templ",
-	"email_verify_email_templ_go.tmpl":   "email/verify_email_templ.go",
+	"email_previews.tmpl":                      "email/previews.go",
+	"email_render_go.tmpl":                     "email/render.go",
+	"email_reset_password.tmpl":                "email/reset_password.go",
+	"email_verify_email.tmpl":                  "email/verify_email.go",
+	"email_templates_reset_password_html.tmpl": "email/templates/reset_password.html.tmpl",
+	"email_templates_reset_password_txt.tmpl":  "email/templates/reset_password.txt.tmpl",
+	"email_templates_verify_email_html.tmpl":   "email/templates/verify_email.html.tmpl",
+	"email_templates_verify_email_txt.tmpl":    "email/templates/verify_email.txt.tmpl",
 
 	// Domains
 	"domains_errors.tmpl":                  "domains/errors.go",
@@ -337,6 +339,21 @@ var inertiaSvelteTemplateMappings = map[TmplTarget]TmplTargetPath{
 	"inertia_svelte_assets_svelte_config.tmpl":                     "svelte.config.js",
 }
 
+// inertiaEmailTemplateMappings are authored React Email sources. All Inertia
+// adapters get them, including Vue and Svelte: react-email renders the shared
+// TSX at build time, and the exported Go templates are adapter-independent.
+var inertiaEmailTemplateMappings = map[TmplTarget]TmplTargetPath{
+	"emails_theme_ts.tmpl":                "emails/theme.ts",
+	"emails_components_layout_tsx.tmpl":   "emails/_components/layout.tsx",
+	"emails_components_code_box_tsx.tmpl": "emails/_components/code-box.tsx",
+	"emails_verify_email_tsx.tmpl":        "emails/verify-email.tsx",
+	"emails_reset_password_tsx.tmpl":      "emails/reset-password.tsx",
+	"emails_export_tsx.tmpl":              "emails/_export.tsx",
+	"emails_generated_props_ts.tmpl":      "emails/_generated/props.ts",
+	"emails_generated_manifest_ts.tmpl":   "emails/_generated/manifest.ts",
+	"emails_tsconfig_json.tmpl":           "emails/tsconfig.json",
+}
+
 func inertiaAdapterTemplateMappings(adapter string) map[TmplTarget]TmplTargetPath {
 	switch adapter {
 	case "vue":
@@ -354,6 +371,23 @@ func isStaticInertiaAssetTemplate(templateFile TmplTarget) bool {
 	return strings.HasPrefix(string(templateFile), "inertia_assets_") ||
 		strings.HasPrefix(string(templateFile), "inertia_react_assets_") ||
 		strings.HasPrefix(string(templateFile), "inertia_svelte_assets_")
+}
+
+// isStaticScaffoldTemplate reports files that must be copied byte-for-byte
+// instead of executed as Go templates. Authored React Email sources contain
+// JSX style objects ({{...}}), and the exported email templates are themselves
+// Go text/template sources whose {{.Field}} placeholders must survive
+// scaffolding.
+func isStaticScaffoldTemplate(
+	templateFile TmplTarget,
+	targetPath TmplTargetPath,
+) bool {
+	if isStaticInertiaAssetTemplate(templateFile) {
+		return true
+	}
+	path := string(targetPath)
+	return strings.HasPrefix(path, "emails/") ||
+		strings.HasPrefix(path, "email/templates/")
 }
 
 // GetInternalFrameworkFiles returns template-backed files that upgrades own
@@ -425,10 +459,13 @@ func processTemplatedFiles(targetDir string, data *TemplateData) error {
 	maps.Copy(mappings, inertiaSharedTemplateMappings)
 	if data != nil {
 		maps.Copy(mappings, inertiaAdapterTemplateMappings(data.Inertia))
+		if IsSupportedInertiaAdapter(data.Inertia) {
+			maps.Copy(mappings, inertiaEmailTemplateMappings)
+		}
 	}
 
 	for templateFile, targetPath := range mappings {
-		if isStaticInertiaAssetTemplate(templateFile) {
+		if isStaticScaffoldTemplate(templateFile, targetPath) {
 			if err := copyFile(
 				targetDir,
 				string(templateFile),

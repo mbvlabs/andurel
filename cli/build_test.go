@@ -137,6 +137,16 @@ func TestBuildAppRunsExpectedToolchain(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
 	writeTestFile(t, root, "cmd/app/main.go", "package main\n\nfunc main() {}\n")
+	writeTestFile(t, root, "email/verify_email.go", `package email
+
+type VerifyEmail struct {
+	VerificationCode string
+}
+
+func (VerifyEmail) ToHTML() (string, error) { return "", nil }
+`)
+	writeTestFile(t, root, "emails/verify-email.tsx", "export default function VerifyEmail() { return null }\n")
+	writeTestFile(t, root, "node_modules/.keep", "")
 	lock := layout.NewAndurelLock("test")
 	lock.Tools["templ"] = validTestTool("templ", "v0.3.0")
 	lock.ScaffoldConfig = &layout.ScaffoldConfig{
@@ -175,14 +185,14 @@ func TestBuildAppRunsExpectedToolchain(t *testing.T) {
 		t.Fatalf("build report artifacts = %#v", report.Artifacts)
 	}
 
-	if len(synced) != 2 || synced[0] != "templ:v0.3.0" ||
-		!strings.HasPrefix(synced[1], "tailwindcli:v") {
+	if len(synced) != 1 || synced[0] != "templ:v0.3.0" {
 		t.Fatalf("synced tools = %#v", synced)
 	}
 	log := readBuildTestFile(t, logPath)
 	for _, want := range []string{
 		"templ generate",
 		"pnpm install --frozen-lockfile",
+		"pnpm run email:export",
 		"pnpm run build",
 		"go mod download",
 		"go build -v -ldflags -X main.appVersion=1.2.3 -X example.com/app/config.BuildVersion=1.2.3 -o dist/app ./cmd/app",
@@ -190,6 +200,11 @@ func TestBuildAppRunsExpectedToolchain(t *testing.T) {
 		if !strings.Contains(log, want) {
 			t.Fatalf("command log missing %q:\n%s", want, log)
 		}
+	}
+	exportIndex := strings.Index(log, "pnpm run email:export")
+	buildIndex := strings.Index(log, "pnpm run build")
+	if exportIndex < 0 || buildIndex < 0 || exportIndex > buildIndex {
+		t.Fatalf("email:export must run before the Vite build:\n%s", log)
 	}
 }
 
@@ -295,7 +310,7 @@ func TestBuildAppBuildsEveryProcessExceptUtilityCommands(t *testing.T) {
 
 	root := t.TempDir()
 	writeTestFile(t, root, "go.mod", "module example.com/app\n\ngo 1.27.1\n")
-	for _, name := range []string{"app", "queue", "migrate", "seeds"} {
+	for _, name := range []string{"app", "queue", "migrate", "seeds", "emails"} {
 		writeTestFile(
 			t,
 			root,
@@ -351,6 +366,7 @@ func TestBuildAppBuildsEveryProcessExceptUtilityCommands(t *testing.T) {
 		}
 	}
 	if strings.Contains(log, "./cmd/seeds") ||
+		strings.Contains(log, "./cmd/emails") ||
 		strings.Contains(log, "./cmd/helper") {
 		t.Fatalf("command log built an excluded process:\n%s", log)
 	}

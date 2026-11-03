@@ -303,15 +303,59 @@ var commandMetaSpecs = map[string]CommandMeta{
 		RequiresProject: true,
 		SkipDryRunCheck: true,
 	},
-	"andurel sync email": {
-		Summary: "Compile email templates into inline-styled Go",
-		WhenToUse: []string{
-			"After editing email/*.templ, css/email.css, or css/theme.css.",
-			"Regenerates email/*_templ.go with Tailwind utilities inlined; never use templ generate for email.",
+	"andurel sync emails": {
+		Summary: "Generate TypeScript email props and export Go email templates",
+		Details: []string{
+			"Writes emails/_generated/props.ts and emails/_generated/manifest.ts from exported email/*.go structs with a ToHTML method.",
+			"Then runs the project's email:export script, which writes the committed email/templates/*.tmpl files.",
+			"Use --skip-export when frontend dependencies are not installed and only the generated TypeScript should be refreshed.",
 		},
-		WhenNotToUse:    []string{"Does not modify authored .templ files."},
-		Prerequisites:   []string{"Andurel project root", "email/ and css/email.css"},
-		Examples:        []string{"andurel sync email", "andurel sync email --json"},
+		WhenToUse: []string{
+			"After adding or changing an exported email struct in email/*.go that declares ToHTML.",
+			"After editing a React Email component under emails/ or its theme and components.",
+		},
+		WhenNotToUse:    []string{"Does not render preview output; use andurel email render for the HTML and text bytes."},
+		Prerequisites:   []string{"Andurel project root", "email/*.go structs with a ToHTML method", "installed frontend dependencies for the export"},
+		Examples:        []string{"andurel sync emails", "andurel sync emails --skip-export", "andurel sync emails --json"},
+		Mutating:        true,
+		RequiresProject: true,
+		SkipDryRunCheck: true,
+	},
+	"andurel email": {
+		Summary: "Render email previews with fixture data",
+		WhenToUse: []string{
+			"Preview emails through the real Go ToHTML and ToText path without sending mail.",
+			"Inspect desktop, mobile, dark and text output in a gallery.",
+		},
+		WhenNotToUse: []string{
+			"Sending email is the application's job; this group only writes preview files.",
+			"Editing React Email sources and regenerating templates is andurel sync emails.",
+		},
+		Prerequisites:   []string{"Andurel project root", "cmd/emails/main.go", "email/previews.go"},
+		Examples:        []string{"andurel email --help", "andurel email render", "andurel email render verify_email --json"},
+		RequiresProject: true,
+		SkipDryRunCheck: true,
+	},
+	"andurel email render": {
+		Summary: "Render emails to HTML, text and a live gallery",
+		Args:    "[name]",
+		Details: []string{
+			"Runs go run ./cmd/emails -out tmp/emails in the project root and writes one .html and .txt per preview plus tmp/emails/index.html.",
+			"The gallery shows each email at desktop (600px), mobile (375px), dark (600px) and text widths and links to the raw files.",
+			"--json reports name, subject, html path, text path and HTML byte size for every rendered email.",
+			"--open opens tmp/emails/index.html with xdg-open on Linux or open on macOS.",
+			"--watch renders once, then reruns the sync and export when emails/** or email/*.go changes and reloads the gallery; Ctrl-C stops it. It cannot be combined with --json.",
+		},
+		WhenToUse: []string{
+			"Review the actual bytes the application will send before wiring a new email.",
+			"Verify fixture values were substituted and no template placeholders remain.",
+		},
+		WhenNotToUse: []string{
+			"Does not send email; use Mailpit or the application for delivery.",
+			"Does not edit email fixtures; add entries in email/previews.go.",
+		},
+		Prerequisites:   []string{"Andurel project root", "cmd/emails/main.go", "email/previews.go"},
+		Examples:        []string{"andurel email render", "andurel email render verify_email", "andurel email render --json", "andurel email render --open", "andurel email render --watch --open"},
 		Mutating:        true,
 		RequiresProject: true,
 		SkipDryRunCheck: true,
@@ -320,7 +364,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 		Summary: "Start the development server",
 		Details: []string{
 			"Builds and runs cmd/app and cmd/queue behind a live-reload proxy on PROXY_PORT (default 3000), and runs the Vite dev server, which also serves development SSR.",
-			"Watches Go files (rebuild), resources/*.templ (templ watch, TEMPL_DEV_MODE) and email/*.templ plus css/email.css (the email compiler rewrites email/*_templ.go, then the app and queue rebuild).",
+			"Watches Go files (rebuild), resources/*.templ (templ watch, TEMPL_DEV_MODE) and email/*.go plus emails/** (andurel sync emails regenerates props and templates, then the app and queue rebuild).",
 			"Runner log lines start with [run]. Ctrl-C, SIGINT or SIGTERM stops Vite, the app, the queue and any sidecars.",
 		},
 		WhenToUse:       []string{"Local development with auto-reload.", "Optionally start sidecars like mailpit via --tools."},
@@ -401,7 +445,7 @@ var commandMetaSpecs = map[string]CommandMeta{
 	"andurel build": {
 		Summary: "Build every application process for production",
 		WhenToUse: []string{
-			"Compile every cmd/* process with a main package (except seeds) and the client assets into dist/.",
+			"Compile every cmd/* process with a main package (except seeds and the emails preview tool) and the client assets into dist/.",
 			"Client assets and assets/dist/ssr/ssr.js are embedded in the binaries; no asset files are needed beside them at runtime.",
 			"Use --only to build a subset, and --json for an artifact manifest with path, size, and version.",
 			"Runtime environment: app needs the full config; queue needs database, queue, email, cache, and telemetry; migrate needs DB_*; ssr needs INERTIA_* and a JavaScript runtime.",

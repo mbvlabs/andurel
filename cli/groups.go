@@ -18,20 +18,41 @@ func newSyncGroupCommand() *cobra.Command {
   queries    domains/**/*.sql → domains/internal/queries
   routes     routes/*.go → resources/js/routes.ts (Inertia)
   payloads   payloads/ exported structs → resources/js/types/payloads.ts
-  email      authored email templates → inlined email renderers
+  emails     email/*.go structs → emails/_generated + email/templates (React Email)
 
 andurel tool sync downloads pinned binaries. It is not this group.`,
 		Example: `  andurel sync queries
   andurel sync routes --json
   andurel sync payloads --json
-  andurel sync email --json`,
+  andurel sync emails --json`,
 	}
 	cmd.AddCommand(
 		newGenerateQueriesCommand(),
 		newGenerateRoutesCommand(),
 		newGeneratePayloadsCommand(),
-		newEmailCompileCommand(),
+		newGenerateEmailsCommand(),
 	)
+	setStandardHelp(cmd)
+	return cmd
+}
+
+func newEmailCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "email",
+		Short: "Render email previews with fixture data",
+		Long: `Render emails through the application's real Go ToHTML and ToText path.
+
+andurel email render writes HTML, text and a gallery to tmp/emails and sends
+nothing. This is the truth loop for previewing the bytes the application will
+send; --watch keeps the gallery live, and andurel sync emails regenerates the
+React Email props and exported Go templates.`,
+		Example: `  andurel email render
+  andurel email render verify_email
+  andurel email render --json
+  andurel email render --open
+  andurel email render --watch --open`,
+	}
+	cmd.AddCommand(newEmailRenderCommand())
 	setStandardHelp(cmd)
 	return cmd
 }

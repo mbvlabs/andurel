@@ -76,8 +76,8 @@ exit 7
 	}
 }
 
-// TestTemplArgsLimitWatchToResources guards F1: plain templ must never
-// regenerate email/*_templ.go, which the email compiler owns.
+// TestTemplArgsLimitWatchToResources guards F1: plain templ must only
+// regenerate resources/; React Email sources under emails/ are not templ.
 func TestTemplArgsLimitWatchToResources(t *testing.T) {
 	dir := filepath.Join(string(filepath.Separator), "home", "dev", "my.app")
 	args := TemplArgs(dir)
@@ -131,7 +131,7 @@ func TestRunTemplWatcherPassesPatternToTempl(t *testing.T) {
 
 // TestTemplWatchSkipsEmailWithRealTempl runs the pinned templ binary when it
 // is available (ANDUREL_TEST_TEMPL) and checks that a watch session generates
-// resources/ but leaves email/*_templ.go alone.
+// resources/ but leaves email/ alone.
 func TestTemplWatchSkipsEmailWithRealTempl(t *testing.T) {
 	templBin := os.Getenv("ANDUREL_TEST_TEMPL")
 	if templBin == "" {
@@ -151,7 +151,7 @@ func TestTemplWatchSkipsEmailWithRealTempl(t *testing.T) {
 	writeFile("go.mod", "module example.com/app\n\ngo 1.24\n")
 	writeFile("resources/root.templ", "package resources\n\ntempl Root() {\n\t<p>hi</p>\n}\n")
 	writeFile("email/mail.templ", "package email\n\ntempl Mail() {\n\t<p class=\"p-4\">hi</p>\n}\n")
-	writeFile("email/mail_templ.go", "package email\n// compiled by the email compiler\n")
+	writeFile("email/mail_templ.go", "package email\n// untouched by templ\n")
 	binPath := filepath.Join(dir, "bin", "templ")
 	if err := os.MkdirAll(filepath.Dir(binPath), 0o755); err != nil {
 		t.Fatal(err)
@@ -188,7 +188,7 @@ func TestTemplWatchSkipsEmailWithRealTempl(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(mailGo) != "package email\n// compiled by the email compiler\n" {
+	if string(mailGo) != "package email\n// untouched by templ\n" {
 		t.Fatalf("templ watch rewrote email/mail_templ.go:\n%s", mailGo)
 	}
 }

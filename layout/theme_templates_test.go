@@ -37,7 +37,6 @@ func TestThemeHasOneColorOwner(t *testing.T) {
 		"--color-sidebar-ring: var(--sidebar-ring);",
 		"--color-chart-5: var(--chart-5);",
 		"var(--background)",
-		// css/email.css imports theme.css; email templates use these radii.
 		"--radius-md:",
 		"--radius-lg:",
 	} {
