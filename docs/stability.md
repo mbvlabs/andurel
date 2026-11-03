@@ -14,7 +14,7 @@ An Andurel application has three parts that change on different schedules:
 
 ## Pre-releases
 
-Each pre-release is upgradeable from the previous one, and release readiness tests it: the previous CLI scaffolds an app, the new CLI upgrades it, and the result must build and vet. Pre-releases carry no upgrade notes; those only exist between proper releases.
+Each pre-release is upgradeable from the previous one, and release readiness tests it: the previous CLI scaffolds an app, the new CLI upgrades it, and the result must build and vet. A pre-release can still make a breaking change; its release notes describe the change.
 
 **Alpha** (`v2.0.0-alpha.N`). Anything can change. `andurel upgrade` accepts projects from `v2.0.0-alpha.4` on.
 

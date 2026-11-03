@@ -33,22 +33,18 @@ tools (`andurel tool set-version`) read and write `andurel.toml`, not
 
 ## Supported upgrade paths
 
-`andurel upgrade` accepts projects created at `v2.0.0-alpha.4` or later. `v2.0.0-alpha.4` replaced Echo and Fx with the Go-native `domains`/`handlers`/`internal/runtime` layout, so older V2 projects must be recreated with `andurel new` and ported by hand.
+`andurel upgrade` accepts V2 projects created at `v2.0.0-alpha.4` or later. `v2.0.0-alpha.4` replaced Echo and Fx with the Go-native `domains`/`handlers` layout, so older V2 projects must be recreated with `andurel new` and ported by hand.
 
-V2 is not an upgrade from V1. Projects on `1-5-stable` continue to use V1's upgrade behavior with a V1 `andurel` binary. The V2 CLI refuses to upgrade a project across a major version.
+There is no automated V1 to V2 upgrade path. Projects on `1-5-stable` continue to use V1's upgrade behavior with a V1 `andurel` binary. The V2 CLI refuses to upgrade a project across a major version. To move an application from V1, create a new V2 project and port its domain code, migrations, data, and frontend by hand. See the [2.0 release candidate announcement](release-notes/v2.0.0-rc.1.md).
 
 Release readiness runs `TestUpgradeToHEAD` (`just test-upgrade-e2e`), which scaffolds with the previous released CLI, upgrades with the release candidate, and requires the result to build and vet cleanly.
 
 ## Manual actions
 
-Upgrade notes only exist between proper releases. Alpha and beta releases carry no manual actions: scaffold changes between pre-releases are defaults for new applications, and an existing application copies them from a fresh `andurel new` if it wants them.
-
-The exception is `v2.0.0-rc.1`, which deliberately makes two pre-rc breaking
-changes. Upgrading a beta project that still has the old shape reports
-`templ-root-v2.0.0-rc.1` (compiled templ root to `resources/root.html`) and
-`postmand-v2.0.0-rc.1` (`pkg/email` to `pkg/postmand`). The notices appear only
-while the legacy structure or dependency is present; the upgrade never rewrites
-the application-owned root document or email code.
+Upgrade notes exist between proper releases. A pre-release can still make a
+breaking change: its release notes describe the change, and `andurel upgrade`
+reports a manual action when it can detect the affected application-owned code.
+The command never rewrites that code.
 
 A manual action is emitted only when the upgrade crosses the release that introduced the change. Each action has a stable `id`, a title, and instructions with before/after code. Read them from `andurel upgrade --json` or the human report, apply them, then run `gofmt -w .`, `go fix ./...`, and `go vet ./...`.
 

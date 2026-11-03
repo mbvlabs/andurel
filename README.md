@@ -1,6 +1,6 @@
 <img width="2256" height="408" alt="andurel-wordmark-dark" src="https://github.com/user-attachments/assets/fe351b07-15e8-41e1-9be1-23feb894acf5" />
 
-# Andurel, Space-grade Go framework for humans and agents
+# Andurel, Space-grade Go framework, built agent-first
 
 [![Go Version](https://img.shields.io/badge/go-1.27.3%2B-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -12,11 +12,11 @@
 
 Everything you and your agent(s) need to build robust and performant applications that will scale to the far-side of the moon.
 
-Andurel is the fullstack framework for the agentic era: one-time generation that writes Go you own, explicit wiring, and an agent-ready CLI. It is Go-native — `net/http`, no HTTP framework dialect, no dependency-injection container.
+Andurel is the fullstack framework built agent-first: one-time scaffolding that writes Go you own, explicit wiring, and a CLI designed for machine discovery. It is Go-native — `net/http`, no HTTP framework dialect, no dependency-injection container.
 
-**Docs:** [andurel.com](https://andurel.com) · **Discord:** [join here](https://discord.gg/TnTBZHvat3)
+**Docs:** [andurel.com](https://andurel.com) · **Release candidate:** [v2.0.0-rc.1](docs/release-notes/v2.0.0-rc.1.md) · **Agent-first:** [how it works](docs/agent-first.md) · **Discord:** [join here](https://discord.gg/TnTBZHvat3)
 
-> **This README tracks `master` (head / nightly).** It may describe features not yet in the latest semver release. Stable documentation matches `go install …@latest` at [andurel.com/docs](https://andurel.com/docs/latest/introduction).
+> **This README tracks `master` (head / nightly) and currently documents the `v2.0.0-rc.1` line.** Stable 2.0 has not shipped. Install the pinned release candidate below; `@latest` on either the v1 or `/v2` module path is not a stable 2.0 install.
 
 ## Platform Support
 
@@ -26,20 +26,20 @@ See [release verification](docs/release-verification.md) for archive installatio
 
 ## Why Andurel?
 
-Andurel is built for humans and agents on the same pad:
+Andurel is optimized for agents, without making the code opaque to people:
 
 - **Airframe**: `domains/` (business logic + persistence), `services/` (application logic), `handlers/` (HTTP), `routes/`, and `middleware/` — all ordinary Go you own
 - **GNC**: Explicit constructor injection in `app/`. The dependency graph is readable top-to-bottom; there is no container and no reflection
 - **Propellant**: PostgreSQL with narsilc-generated queries from SQL colocated with the domain that owns it
 - **Payload**: Inertia v3 with React, Vue, or Svelte. One Go backend, official Inertia adapters, optional SSR. The Inertia root document is standard-library html/template; email is React Email
 - **Range ops**: River jobs, email, and queues on the same stack that serves the request path
-- **Ground support**: Agent-ready CLI with read-only patterns, JSON discovery, and installed skills so machines can operate the project without a second stack
+- **Agent-first**: Read-only patterns, JSON discovery, scoped inspection, sync, verify, and installed skills so an agent can operate the project without a second stack
 - **Live reload**: `andurel run` uses an in-process runner to rebuild Go, reload the embedded root document and export React Email, and run Vite (`--tools mailpit` for sidecars)
 - **Production build**: `andurel build` compiles Go, exports React Email, builds Vite assets, and compiles every `cmd/*` process (`app`, `queue`, `migrate`, `ssr`) into `dist/`
 
-**Humans.** One-time generation. The scaffold writes Go and Inertia pages you can read, edit, and ship. After that, the code is yours, laid out in a shape you can navigate.
+**Agents.** `andurel patterns show <kind>` publishes reference code and a definition-of-done checklist for every layer. `andurel inspect` reads project shape, `andurel sync` refreshes derived files, and `andurel verify` checks the result. The full workflow is in [docs/agent-first.md](docs/agent-first.md).
 
-**Agents.** `andurel patterns show <kind>` publishes the reference code and a definition-of-done checklist for every layer. `andurel verify` proves a change respects the layer boundaries. Machines get the same pad as humans, without inventing a second stack.
+**Humans.** One-time scaffolding. The scaffold writes Go and Inertia pages you can read, edit, and ship. After that, the code is yours, laid out in a shape you can navigate, and every command works by hand.
 
 ## Core Technologies
 
@@ -57,25 +57,31 @@ Andurel is built for humans and agents on the same pad:
 
 Match the install channel to the docs you follow.
 
-### Latest v2 pre-release
+### Latest v2 release candidate
 
-V2 has not shipped a stable tag yet. Install the latest beta:
+V2 has not shipped a stable tag yet. The current candidate is `v2.0.0-rc.1`:
 
 ```bash
-go install github.com/mbvlabs/andurel/v2@v2.0.0-beta.7
+go install github.com/mbvlabs/andurel/v2@v2.0.0-rc.1
 andurel --version
 ```
 
-### Specific version
+Read the [v2.0.0-rc.1 release announcement](docs/release-notes/v2.0.0-rc.1.md)
+and [GitHub release](https://github.com/mbvlabs/andurel/releases/tag/v2.0.0-rc.1)
+before using it. To pin another published v2 tag, replace the version suffix in
+the same command.
 
-Pin any published tag, for example the previous pre-release:
+### v1
+
+V1 releases stay on the unversioned module path:
 
 ```bash
-go install github.com/mbvlabs/andurel/v2@v2.0.0-beta.6
+go install github.com/mbvlabs/andurel@v1.5.5
 andurel --version
 ```
 
-v1 releases stay on the unversioned module path (`go install github.com/mbvlabs/andurel@v1.x.y`). That path's `@latest` never jumps to v2.
+That path's `@latest` never jumps to v2. V1 projects stay on v1; v2 has no
+supported automated v1 upgrade.
 
 ### Nightly (matches `master` / this README)
 
@@ -201,7 +207,8 @@ Host fallback policies are checked when the app starts, not by a static `verify`
 
 ## Agents
 
-The CLI is meant for humans and machines. Prefer discovery over scraping this README:
+Andurel is optimized for agent operation, and every command remains usable by a
+person. Prefer discovery over scraping this README:
 
 ```bash
 andurel patterns show domain --json
@@ -210,11 +217,14 @@ andurel inspect handlers --json
 andurel inspect domains --json
 andurel inspect routes --json
 andurel commands --json
-andurel skill install
+andurel skill install --harness claude
 andurel skill show layer-placement
 ```
 
-`andurel patterns` never writes files. It prints reference code, the placement rules, and a definition-of-done checklist the agent self-verifies against. Many commands support `--dry-run` and `--json`. Agent workflows: [andurel.com/docs/latest/agent-workflows](https://andurel.com/docs/latest/agent-workflows).
+`andurel patterns` never writes files. It prints reference code, the placement
+rules, and a definition-of-done checklist the agent self-verifies against. Many
+commands support `--dry-run` and `--json`. Full workflow:
+[docs/agent-first.md](docs/agent-first.md).
 
 ## Contributing
 
