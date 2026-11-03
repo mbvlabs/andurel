@@ -15,6 +15,3 @@ use (
 	./pkg/telemetry
 	./pkg/validation
 )
-
-// postmand is not published at its pinned version yet; resolve it from this checkout.
-replace github.com/mbvlabs/andurel/pkg/postmand v0.6.1 => ./pkg/postmand
